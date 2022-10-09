@@ -555,6 +555,24 @@ ambiguousNamesInReason = \case
   AmbiguousLocalVar (LocalVar y _ _) xs -> List2.cons (A.qualify_ y) $ fmap anameName xs
   AmbiguousDeclName xs -> fmap anameName xs
 
+data WhyInScopeData
+  = WhyInScopeData
+      C.QName
+        -- ^ The name @x@ this explanation is about.
+      FilePath
+        -- ^ The directory in which the current module resides.
+      (Maybe LocalVar)
+        -- ^ The local variable that @x@ could denote, if any.
+      [AbstractName]
+        -- ^ The defined names that @x@ could denote.
+      [AbstractModule]
+        -- ^ The modules that @x@ could denote.
+
+whyInScopeDataFromAmbiguousNameReason :: C.QName -> AmbiguousNameReason -> WhyInScopeData
+whyInScopeDataFromAmbiguousNameReason q = \case
+  AmbiguousLocalVar x ys -> WhyInScopeData q empty (Just x) (toList ys) empty
+  AmbiguousDeclName ys   -> WhyInScopeData q empty Nothing  (toList ys) empty
+
 -- * Operations on name and module maps.
 
 mergeNames :: Eq a => ThingsInScope a -> ThingsInScope a -> ThingsInScope a

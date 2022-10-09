@@ -33,7 +33,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common         (InteractionId(..), Arg)
 import Agda.Syntax.Concrete       (Expr)
 import Agda.Syntax.Concrete.Name  (Name, QName, NameInScope)
-import Agda.Syntax.Scope.Base     (AbstractModule, AbstractName, LocalVar)
+import Agda.Syntax.Scope.Base     (AbstractModule, AbstractName, LocalVar, WhyInScopeData)
 import qualified Agda.Syntax.Internal as I
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
   (TCM, TCErr, TCWarning, HighlightingMethod, ModuleToSource, NamedMeta, TCWarning, IPBoundary')
@@ -108,17 +108,7 @@ data DisplayInfo
         --   TODO: split these into separate constructors
     | Info_ModuleContents [Name] I.Telescope [(Name, I.Type)]
     | Info_SearchAbout [(Name, I.Type)] String
-    | Info_WhyInScope
-        QName
-          -- ^ The name @x@ this explanation is about.
-        FilePath
-          -- ^ The directory in which the current module resides.
-        (Maybe LocalVar)
-          -- ^ The local variable that @x@ could denote, if any.
-        [AbstractName]
-          -- ^ The defined names that @x@ could denote.
-        [AbstractModule]
-          -- ^ The modules that @x@ could denote.
+    | Info_WhyInScope WhyInScopeData
     | Info_NormalForm CommandState ComputeMode (Maybe CPUTime) A.Expr
     | Info_InferredType CommandState (Maybe CPUTime) A.Expr
     | Info_Context InteractionId [ResponseContextEntry]

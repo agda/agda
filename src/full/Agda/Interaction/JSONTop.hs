@@ -31,6 +31,8 @@ import Agda.Syntax.Internal
          ( telToList, Dom'(..), Dom, MetaId(..), ProblemId(..), Blocker(..), alwaysUnblock )
 import Agda.Syntax.Position
          ( Range, rangeIntervals, Interval'(..), Position'(..), noRange )
+import Agda.Syntax.Scope.Base
+         ( WhyInScopeData(..) )
 
 import Agda.TypeChecking.Errors
          ( getAllWarningsOfTCErr )
@@ -328,11 +330,11 @@ instance EncodeTCM DisplayInfo where
     [ "results"           #= forM results encodeNamedPretty
     , "search"            @= toJSON search
     ]
-  encodeTCM (Info_WhyInScope y path v xs ms) = kind "WhyInScope"
+  encodeTCM (Info_WhyInScope why@(WhyInScopeData y path _ _ _)) = kind "WhyInScope"
     [ "thing"             @= prettyShow y
     , "filepath"          @= toJSON path
     -- use Emacs message first
-    , "message"           #= explainWhyInScope y path v xs ms
+    , "message"           #= explainWhyInScope why
     ]
   encodeTCM (Info_NormalForm commandState computeMode time expr) = kind "NormalForm"
     [ "commandState"      @= commandState

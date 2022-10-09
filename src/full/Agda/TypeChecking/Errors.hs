@@ -17,6 +17,7 @@ module Agda.TypeChecking.Errors
   , dropTopLevelModule
   , topLevelModuleDropper
   , stringTCErr
+  , explainWhyInScope
   , Verbalize(verbalize)
   ) where
 
@@ -1384,6 +1385,84 @@ instance PrettyTCM UnificationFailure where
              [ text (verbalize $ getRelevance mod) <> ","
              , text $ verbalize $ getQuantity mod ] ++
       pwords "modality"
+
+
+
+explainWhyInScope :: forall m. MonadPretty m => WhyInScopeData -> m Doc
+explainWhyInScope (WhyInScopeData y _ Nothing [] []) = text (prettyShow  y ++ " is not in scope.")
+explainWhyInScope (WhyInScopeData y _ v xs ms) = vcat
+  [ text (prettyShow y ++ " is in scope as")
+  , nest 2 $ vcat [variable v xs, modules ms]
+  ]
+  where
+    -- variable :: Maybe _ -> [_] -> m Doc
+    variable Nothing vs = names vs
+    variable (Just x) vs
+      | null vs   = asVar
+      | otherwise = vcat
+         [ sep [ asVar, nest 2 $ shadowing x]
+         , nest 2 $ names vs
+         ]
+      where
+        asVar :: m Doc
+        asVar = do
+          "* a variable bound at" <+> prettyTCM (nameBindingSite $ localVar x)
+        shadowing :: LocalVar -> m Doc
+        shadowing (LocalVar _ _ [])    = "shadowing"
+        shadowing _ = "in conflict with"
+    names   = vcat . map pName
+    modules = vcat . map pMod
+
+    pKind = \case
+      ConName                  -> "constructor"
+      CoConName                -> "coinductive constructor"
+      FldName                  -> "record field"
+      PatternSynName           -> "pattern synonym"
+      GeneralizeName           -> "generalizable variable"
+      DisallowedGeneralizeName -> "generalizable variable from let open"
+      MacroName                -> "macro name"
+      QuotableName             -> "quotable name"
+      -- previously DefName:
+      DataName                 -> "data type"
+      RecName                  -> "record type"
+      AxiomName                -> "postulate"
+      PrimName                 -> "primitive function"
+      FunName                  -> "defined name"
+      OtherDefName             -> "defined name"
+
+    pName :: AbstractName -> m Doc
+    pName a = sep
+      [ "* a"
+        <+> pKind (anameKind a)
+        <+> text (prettyShow $ anameName a)
+      , nest 2 $ "brought into scope by"
+      ] $$
+      nest 2 (pWhy (nameBindingSite $ qnameName $ anameName a) (anameLineage a))
+    pMod :: AbstractModule -> m Doc
+    pMod  a = sep
+      [ "* a module" <+> text (prettyShow $ amodName a)
+      , nest 2 $ "brought into scope by"
+      ] $$
+      nest 2 (pWhy (nameBindingSite $ qnameName $ mnameToQName $ amodName a) (amodLineage a))
+
+    pWhy :: Range -> WhyInScope -> m Doc
+    pWhy r Defined = "- its definition at" <+> prettyTCM r
+    pWhy r (Opened (C.QName x) w) | isNoName x = pWhy r w
+    pWhy r (Opened m w) =
+      "- the opening of"
+      <+> prettyTCM m
+      <+> "at"
+      <+> prettyTCM (getRange m)
+      $$
+      pWhy r w
+    pWhy r (Applied m w) =
+      "- the application of"
+      <+> prettyTCM m
+      <+> "at"
+      <+> prettyTCM (getRange m)
+      $$
+      pWhy r w
+
 
 
 ---------------------------------------------------------------------------
