@@ -12,5 +12,11 @@ Ambiguous name B. It could refer to any one of
     Issue4154.agda:10,7-8
   M.A bound at
     Issue4154.agda:15,23-24
-(hint: Use C-c C-w (in Emacs) if you want to know why)
+B is in scope as
+  * a postulate Issue4154.M.B brought into scope by
+    - the opening of M at Issue4154.agda:15,6-7
+    - its definition at Issue4154.agda:10,7-8
+  * a postulate Issue4154.M.A brought into scope by
+    - the opening of M at Issue4154.agda:15,6-7
+    - its definition at Issue4154.agda:15,23-24
 when scope checking B

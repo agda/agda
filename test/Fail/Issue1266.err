@@ -1,7 +1,13 @@
 Issue1266.agda:12,34-35
 Ambiguous name A. It could refer to any one of
-  A bound at Issue1266.agda:12,9-10
+  A bound at
+    Issue1266.agda:12,9-10
   Issue1266.A bound at
     Issue1266.agda:7,5-6
-(hint: Use C-c C-w (in Emacs) if you want to know why)
+A is in scope as
+  * a variable bound at Issue1266.agda:12,9-10
+    in conflict with
+    * a record field Issue1266._.A brought into scope by
+      - the application of R at Issue1266.agda:12,27-28
+      - its definition at Issue1266.agda:7,5-6
 when scope checking A

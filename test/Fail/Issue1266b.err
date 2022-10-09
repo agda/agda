@@ -1,6 +1,13 @@
 Issue1266b.agda:14,7-8
 Ambiguous name A. It could refer to any one of
-  A bound at Issue1266b.agda:9,11-12
-  D.A bound at Issue1266b.agda:7,5-6
-(hint: Use C-c C-w (in Emacs) if you want to know why)
+  A bound at
+    Issue1266b.agda:9,11-12
+  D.A bound at
+    Issue1266b.agda:7,5-6
+A is in scope as
+  * a variable bound at Issue1266b.agda:9,11-12
+    in conflict with
+    * a constructor Issue1266b.Data.D.A brought into scope by
+      - the opening of Data at Issue1266b.agda:11,8-12
+      - its definition at Issue1266b.agda:7,5-6
 when scope checking A
