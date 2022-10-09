@@ -22,6 +22,7 @@
 module Agda.Utils.List1
   ( module Agda.Utils.List1
   , module List1
+  , module IsList
   ) where
 
 import Prelude hiding (filter)
@@ -35,14 +36,16 @@ import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 import qualified Data.Semigroup as Semigroup
 
-import qualified Data.List.NonEmpty (NonEmpty)
-import Data.List.NonEmpty as List1 hiding (NonEmpty, fromList)
+import Data.List.NonEmpty as List1 hiding (fromList, toList)
+import qualified Data.List.NonEmpty as List1 (toList)
+
+import GHC.Exts as IsList ( IsList(..) )
 
 import Agda.Utils.Functor ((<.>))
 import Agda.Utils.Null (Null(..))
 import qualified Agda.Utils.List as List
 
-type List1 = Data.List.NonEmpty.NonEmpty
+type List1 = NonEmpty
 
 -- | Safe version of 'Data.List.NonEmpty.fromList'.
 
