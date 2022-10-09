@@ -811,10 +811,10 @@ instance PrettyTCM TypeError where
 
     NoSuchModule x -> fsep $ pwords "No module" ++ [pretty x] ++ pwords "in scope"
 
-    AmbiguousName x ys -> vcat
+    AmbiguousName x reason -> vcat
       [ fsep $ pwords "Ambiguous name" ++ [pretty x <> "."] ++
                pwords "It could refer to any one of"
-      , nest 2 $ vcat $ fmap nameWithBinding ys
+      , nest 2 $ vcat $ fmap nameWithBinding $ ambiguousNamesInReason reason
       , fwords "(hint: Use C-c C-w (in Emacs) if you want to know why)"
       ]
 

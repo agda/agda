@@ -39,7 +39,9 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1 ( List1, pattern (:|) )
+import Agda.Utils.List2 ( List2 )
 import qualified Agda.Utils.List1 as List1
+import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe (filterMaybe)
 import Agda.Utils.Null
 import Agda.Utils.Pretty hiding ((<>))
@@ -536,6 +538,22 @@ instance Pretty ResolvedName where
 instance Pretty A.Suffix where
   pretty NoSuffix   = mempty
   pretty (Suffix i) = text (show i)
+
+-- | Why is a resolved name ambiguous?  What did it resolve to?
+--
+--   Invariant (statically enforced): At least two resolvents in total.
+data AmbiguousNameReason
+  = AmbiguousLocalVar LocalVar (List1 AbstractName)
+      -- ^ The name resolves both to a local variable and some declared names.
+  | AmbiguousDeclName (List2 AbstractName)
+      -- ^ The name resolves to at least 2 declared names.
+  deriving (Show, Generic)
+
+-- | The flat list of ambiguous names in 'AmbiguousNameReason'.
+ambiguousNamesInReason :: AmbiguousNameReason -> List2 (A.QName)
+ambiguousNamesInReason = \case
+  AmbiguousLocalVar (LocalVar y _ _) xs -> List2.cons (A.qualify_ y) $ fmap anameName xs
+  AmbiguousDeclName xs -> fmap anameName xs
 
 -- * Operations on name and module maps.
 
@@ -1410,3 +1428,4 @@ instance NFData AbstractName
 instance NFData NameMetadata
 instance NFData AbstractModule
 instance NFData ResolvedName
+instance NFData AmbiguousNameReason

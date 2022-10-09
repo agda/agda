@@ -190,7 +190,7 @@ isBuiltinFun = asks $ is . builtins
   where is m q b = Just q == Map.lookup b m
 
 -- | Resolve a concrete name. If illegally ambiguous fail with the ambiguous names.
-resolveName :: KindsOfNames -> Maybe (Set A.Name) -> C.QName -> AbsToCon (Either (List1 A.QName) ResolvedName)
+resolveName :: KindsOfNames -> Maybe (Set A.Name) -> C.QName -> AbsToCon (Either AmbiguousNameReason ResolvedName)
 resolveName kinds candidates q = runExceptT $ tryResolveName kinds candidates q
 
 -- | Treat illegally ambiguous names as UnknownNames.
