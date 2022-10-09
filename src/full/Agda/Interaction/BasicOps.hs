@@ -1317,10 +1317,12 @@ getModuleContents norm mm = do
   return (Map.keys modules, EmptyTel, types)
 
 
-whyInScope :: String -> TCM (Maybe LocalVar, [AbstractName], [AbstractModule])
+whyInScope :: String -> TCM (C.QName, Maybe LocalVar, [AbstractName], [AbstractModule])
 whyInScope s = do
   x     <- parseName noRange s
   scope <- getScope
-  return ( lookup x $ map (first C.QName) $ scope ^. scopeLocals
+  return ( x
+         , lookup x $ map (first C.QName) $ scope ^. scopeLocals
          , scopeLookup x scope
-         , scopeLookup x scope )
+         , scopeLookup x scope
+         )
