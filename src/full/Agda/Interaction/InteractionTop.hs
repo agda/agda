@@ -1104,8 +1104,8 @@ whyInScope :: String -> CommandM ()
 whyInScope s = do
   Just (CurrentFile file _ _) <- gets theCurrentFile
   let cwd = takeDirectory (filePath file)
-  (y, v, xs, ms) <- liftLocalState $ B.whyInScope s
-  display_info $ Info_WhyInScope y cwd v xs ms
+  why <- liftLocalState $ B.whyInScope cwd s
+  display_info $ Info_WhyInScope why
 
 -- | Sets the command line options and updates the status information.
 
