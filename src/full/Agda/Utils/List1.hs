@@ -46,12 +46,12 @@ type List1 = Data.List.NonEmpty.NonEmpty
 
 -- | Safe version of 'Data.List.NonEmpty.fromList'.
 
-fromList
+fromListSafe
   :: List1 a  -- ^ Default value if convertee is empty.
   -> [a]      -- ^ List to convert, supposedly non-empty.
   -> List1 a  -- ^ Converted list.
-fromList err   [] = err
-fromList _ (x:xs) = x :| xs
+fromListSafe err   [] = err
+fromListSafe _ (x:xs) = x :| xs
 
 -- | Return the last element and the rest.
 
