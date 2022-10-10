@@ -163,6 +163,8 @@ instance {-# OVERLAPPING #-} PrettyTCM String where prettyTCM = text
 instance PrettyTCM Bool        where prettyTCM = pretty
 instance PrettyTCM C.Name      where prettyTCM = pretty
 instance PrettyTCM C.QName     where prettyTCM = pretty
+instance PrettyTCM C.TopLevelModuleName
+                               where prettyTCM = pretty
 instance PrettyTCM Comparison  where prettyTCM = pretty
 instance PrettyTCM Literal     where prettyTCM = pretty
 instance PrettyTCM Nat         where prettyTCM = pretty

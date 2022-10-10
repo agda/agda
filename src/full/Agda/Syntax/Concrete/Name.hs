@@ -128,9 +128,11 @@ instance Underscore QName where
 
 data TopLevelModuleName = TopLevelModuleName
   { moduleNameRange :: Range
-  , moduleNameParts :: List1 String
+  , moduleNameParts :: TopLevelModuleNameParts
   }
   deriving (Show, Generic)
+
+type TopLevelModuleNameParts = List1 String
 
 instance Eq    TopLevelModuleName where (==)    = (==)    `on` moduleNameParts
 instance Ord   TopLevelModuleName where compare = compare `on` moduleNameParts
@@ -380,6 +382,15 @@ isUnqualified (QName n) = Just n
 -- * Operations on 'TopLevelModuleName'
 ------------------------------------------------------------------------
 
+lensTopLevelModuleNameParts :: Lens' TopLevelModuleNameParts TopLevelModuleName
+lensTopLevelModuleNameParts f m = f (moduleNameParts m) <&> \ xs -> m{ moduleNameParts = xs }
+
+-- | Construct a 'QName'. Each 'Name' part has the whole range of the 'TopLevelModuleName'.
+
+fromTopLevelModuleName :: TopLevelModuleName -> QName
+fromTopLevelModuleName (TopLevelModuleName r xs) =
+  List1.foldr Qual QName $ fmap (Name r NotInScope . stringNameParts) xs
+
 -- | Turns a qualified name into a 'TopLevelModuleName'. The qualified
 -- name is assumed to represent a top-level module name.
 
@@ -442,10 +453,12 @@ instance IsNoName QName where
   isNoName (QName x) = isNoName x
   isNoName Qual{}    = False        -- M.A._ does not qualify as empty name
 
+-- | The underscore @"_"@ is considered an unnamed top-level module.
+instance IsNoName TopLevelModuleName where
+  isNoName (TopLevelModuleName _ xs) = xs == ("_" :| [])
+
 instance IsNoName a => IsNoName (Ranged a) where
 instance IsNoName a => IsNoName (WithOrigin a) where
-
--- no instance for TopLevelModuleName
 
 ------------------------------------------------------------------------
 -- * Showing names
