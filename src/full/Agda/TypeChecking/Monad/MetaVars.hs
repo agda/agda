@@ -35,7 +35,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin (HasBuiltins)
 import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Monad.Closure
-import Agda.TypeChecking.Monad.Constraints (MonadConstraint)
+import Agda.TypeChecking.Monad.Constraints (MonadConstraint(..))
 import Agda.TypeChecking.Monad.Debug
   (MonadDebug, reportSLn, __IMPOSSIBLE_VERBOSE__)
 import Agda.TypeChecking.Monad.Context
@@ -721,6 +721,32 @@ getMetaListeners m = Set.toList . mvListeners <$> lookupLocalMeta m
 clearMetaListeners :: MonadMetaSolver m => MetaId -> m ()
 clearMetaListeners m =
   updateMetaVar m $ \mv -> mv { mvListeners = Set.empty }
+
+-- | Do safe eta-expansions for meta (@SingletonRecords,Levels@).
+etaExpandMetaSafe :: (MonadMetaSolver m) => MetaId -> m ()
+etaExpandMetaSafe = etaExpandMeta [SingletonRecords,Levels]
+
+-- | Eta expand metavariables listening on the current meta.
+etaExpandListeners :: MonadMetaSolver m => MetaId -> m ()
+etaExpandListeners m = do
+  ls <- getMetaListeners m
+  clearMetaListeners m  -- we don't really have to do this
+  mapM_ wakeupListener ls
+
+-- | Wake up a meta listener and let it do its thing
+wakeupListener :: MonadMetaSolver m => Listener -> m ()
+  -- Andreas 2010-10-15: do not expand record mvars, lazyness needed for irrelevance
+wakeupListener (EtaExpand x)         = etaExpandMetaSafe x
+wakeupListener (CheckConstraint _ c) = do
+  --reportSDoc "tc.meta.blocked" 20 $ "waking boxed constraint" <+> prettyTCM c
+  modifyAwakeConstraints (c:)
+  solveAwakeConstraints
+
+solveAwakeConstraints :: (MonadConstraint m) => m ()
+solveAwakeConstraints = solveAwakeConstraints' False
+
+solveAwakeConstraints' :: (MonadConstraint m) => Bool -> m ()
+solveAwakeConstraints' = solveSomeAwakeConstraints (const True)
 
 ---------------------------------------------------------------------------
 -- * Freezing and unfreezing metas.
