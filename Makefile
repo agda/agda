@@ -467,6 +467,11 @@ internal-tests :
 	@$(call decorate, "Internal test suite", \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Internal )
 
+.PHONY : fast-internal-tests ##
+fast-internal-tests :
+	@$(call decorate, "Internal test suite (using agda-fast)", \
+		AGDA_BIN=$(AGDA_FAST_BIN) $(AGDA_FAST_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Internal )
+
 .PHONY : common ##
 common :
 	@$(call decorate, "Suite of successful tests: mini-library Common", \
