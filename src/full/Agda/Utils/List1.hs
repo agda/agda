@@ -78,7 +78,7 @@ appendList (x :| xs) ys = x :| mappend xs ys
 -- | Prepend a list to a non-empty list.
 
 prependList :: [a] -> List1 a -> List1 a
-prependList as bs = foldr (<|) bs as
+prependList as bs = Prelude.foldr (<|) bs as
 #endif
 
 -- | More precise type for @snoc@.
@@ -183,3 +183,11 @@ zipWithM f (a :| as) (b :| bs) = (:|) <$> f a b <*> List.zipWithM f as bs
 
 zipWithM_ :: Applicative m => (a -> b -> m c) -> List1 a -> List1 b -> m ()
 zipWithM_ f (a :| as) (b :| bs) = f a b *> List.zipWithM_ f as bs
+
+-- | List 'Data.List.foldr' but with a base case for the singleton list.
+
+foldr :: (a -> b -> b) -> (a -> b) -> List1 a -> b
+foldr f g (x :| xs) = loop x xs
+  where
+  loop x []       = g x
+  loop x (y : ys) = f x $ loop y ys

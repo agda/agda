@@ -904,10 +904,10 @@ test-suite agda-tests
                     , Internal.Utils.Graph.AdjacencyMap.Unidirectional
                     , Internal.Utils.IntSet
                     , Internal.Utils.List
+                    , Internal.Utils.List1
                     , Internal.Utils.ListT
                     , Internal.Utils.Maybe.Strict
                     , Internal.Utils.Monoid
-                    , Internal.Utils.NonEmptyList
                     , Internal.Utils.PartialOrd
                     , Internal.Utils.Permutation
                     , Internal.Utils.RangeMap
