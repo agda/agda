@@ -298,7 +298,7 @@ order for the change to take effect."
   ("x"         . ("×"))
   ("o"         . ("∘"))
   ("comp"      . ("∘"))
-  ("."         . ("∙．"))
+  ("."         . ,(agda-input-to-string-list "∙．"))
   ("*"         . ("⋆"))
   (".+"        . ("∔"))
   (".-"        . ("∸"))
@@ -316,7 +316,7 @@ order for the change to take effect."
   ("increment" . ("∆"))
   ("inf"       . ("∞"))
   ("&"         . ("⅋"))
-  ("z;"        . ("⨟⨾"))
+  ("z;"        . ,(agda-input-to-string-list "⨟⨾"))
   ("z:"        . ("⦂"))
 
   ;; Circled operators.
@@ -756,8 +756,8 @@ order for the change to take effect."
   ("(|" . ("⦇"))  ;; Idiom brackets
   ("|)" . ("⦈"))
 
-  ("((" . ("⦅｟"))  ;; Banana brackets
-  ("))" . ("⦆｠"))
+  ("((" . ,(agda-input-to-string-list "⦅｟"))  ;; Banana brackets
+  ("))" . ,(agda-input-to-string-list "⦆｠"))
 
   ;; Primes.
 
