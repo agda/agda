@@ -59,7 +59,7 @@ excluded-files:
   - "test/Succeed/Whitespace.agda"
   - "test/Succeed/Issue1337.agda"
   - "test/Succeed/Issue5545.agda"
-  - "test/Fail/Issue5740.agda"
+  - "test/Fail/Issue4506.agda"
   - "test/Fail/Tabs.agda"
   - "test/Fail/TabsInPragmas.agda"
   - "src/full/Agda/Syntax/Parser/Lexer.hs"
