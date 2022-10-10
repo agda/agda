@@ -4,9 +4,9 @@ depth (10) has been reached. Most likely this means you have an
 unsatisfiable constraint, but it could also mean that you need to
 increase the maximum depth using the flag --inversion-max-depth=N
 when checking that the expression refl has type
-double (suc (suc (suc (suc (suc _n_28))))) ≡
-suc (double (suc (suc (suc (suc _n_26)))))
+double (suc (suc (suc (suc (suc _n_19))))) ≡
+suc (double (suc (suc (suc (suc _n_18)))))
 Failed to solve the following constraints:
-  double _n_26 = suc (double _n_28) : Nat (blocked on _n_26)
+  double _n_18 = suc (double _n_19) : Nat (blocked on _n_18)
 Unsolved metas at the following locations:
   Issue431.agda:16,25-29

@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  Nat =< _B_21 zero (blocked on _B_21)
+  Nat =< _B_19 zero (blocked on _B_19)
 Unsolved metas at the following locations:
   Issue2120.agda:16,10-36
   Issue2120.agda:16,48-49

@@ -32,7 +32,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.MetaVars
 
-import Agda.TypeChecking.Constraints () -- instances
+import Agda.TypeChecking.Constraints ( wakeupConstraints )
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Reduce
@@ -260,15 +260,10 @@ metaCheck m = do
     when (isUnguarded cxt)                   $ fail "occurrence is unguarded"
 
     reportSDoc "tc.meta.occurs" 20 $ "Promoting meta" <+> prettyTCM m <+> "to modality" <+> prettyTCM mmod'
-    let info' = setModality mmod' $ mvInfo mv
-    m' <- liftTCM $ newMeta Instantiable info' (mvPriority mv) (mvPermutation mv) (mvJudgement mv)
-    reportSDoc "tc.meta.occurs.qnt" 20 $ hsep
-       [ "occursCheck: new meta variable"
-       , prettyTCM m'
-       ]
-    liftTCM $ assignTerm m [] $ MetaV m' []
-    reportSDoc "tc.meta.occurs" 35 $ "New name for" <+> prettyTCM m <+> "is" <+> prettyTCM m'
-    return m'
+    updateMetaVar m $ \ mv -> mv { mvInfo = setModality mmod' $ mvInfo mv }
+    etaExpandListeners m
+    wakeupConstraints m
+    return m
 
 -- | Construct a test whether a de Bruijn index is allowed
 --   or needs to be pruned.
