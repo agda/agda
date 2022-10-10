@@ -10,6 +10,7 @@ module Agda.Utils.FileName
   , sameFile
   , doesFileExistCaseSensitive
   , isNewerThan
+  , relativizeAbsolutePath
   ) where
 
 import System.Directory
@@ -124,3 +125,28 @@ isNewerThan new old = do
             newT <- getModificationTime new
             oldT <- getModificationTime old
             return $ newT >= oldT
+
+-- | A partial version of 'System.FilePath.makeRelative' with flipped arguments,
+--   returning 'Nothing' if the given path cannot be relativized to the given @root@.
+relativizeAbsolutePath ::
+     AbsolutePath
+       -- ^ The absolute path we see to relativize.
+  -> AbsolutePath
+       -- ^ The root for relativization.
+  -> Maybe FilePath
+       -- ^ The relative path, if any.
+relativizeAbsolutePath apath aroot
+  | rest /= path = Just rest
+  | otherwise    = Nothing
+  where
+  path = filePath apath
+  root = filePath aroot
+  rest = makeRelative root path
+    -- Andreas, 2022-10-10
+    -- See https://gitlab.haskell.org/haskell/filepath/-/issues/130.
+    -- 'System.FilePath.makeRelative' is strangely enough a total function,
+    -- and it returns the original @path@ if it could not be relativized to
+    -- the @root@, or if the @root@ was ".".
+    -- In our case, the @root@ is absolute, so we should expect @rest@ to
+    -- always be different from @path@ if @path@ is relative to @root@.
+    -- In the extreme case, @root = "/"@ and @path == "/" ++ rest@.
