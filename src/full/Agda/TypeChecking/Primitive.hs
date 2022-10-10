@@ -169,8 +169,8 @@ instance ToTerm Text    where toTerm = return $ Lit . LitString
 instance ToTerm QName   where toTerm = return $ Lit . LitQName
 instance ToTerm MetaId  where
   toTerm = do
-    file <- getCurrentPath
-    return $ Lit . LitMeta file
+    top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
+    return $ Lit . LitMeta top
 
 instance ToTerm Integer where
   toTerm = do

@@ -366,6 +366,23 @@ setTopLevelModule top = do
            , metaModule = hash
            }
 
+-- | The name of the current top-level module, if any.
+{-# SPECIALIZE
+    currentTopLevelModule :: TCM (Maybe TopLevelModuleName) #-}
+{-# SPECIALIZE
+    currentTopLevelModule :: ReduceM (Maybe TopLevelModuleName) #-}
+currentTopLevelModule ::
+  (MonadTCEnv m, ReadTCState m) => m (Maybe TopLevelModuleName)
+currentTopLevelModule = do
+  m <- useR stCurrentModule
+  case m of
+    Just (_, top) -> return (Just top)
+    Nothing       -> do
+      p <- asksTC envImportPath
+      return $ case p of
+        top : _ -> Just top
+        []      -> Nothing
+
 -- | Use a different top-level module for a computation. Used when generating
 --   names for imported modules.
 withTopLevelModule :: TopLevelModuleName -> TCM a -> TCM a

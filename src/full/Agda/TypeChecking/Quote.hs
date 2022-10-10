@@ -13,6 +13,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern ( hasDefP, dbPatPerm )
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
+import Agda.Syntax.TopLevelModuleName
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.DropArgs
@@ -58,7 +59,7 @@ data QuotingKit = QuotingKit
 
 quotingKit :: TCM QuotingKit
 quotingKit = do
-  currentFile     <- fromMaybe __IMPOSSIBLE__ <$> asksTC envCurrentPath
+  currentModule   <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
   hidden          <- primHidden
   instanceH       <- primInstance
   visible         <- primVisible
@@ -298,7 +299,8 @@ quotingKit = do
           Level l    -> quoteTerm (unlevelWithKit lkit l)
           Lit l      -> lit !@ quoteLit l
           Sort s     -> sort !@ quoteSort s
-          MetaV x es -> meta !@! quoteMeta currentFile x @@ quoteArgs vs
+          MetaV x es -> meta !@! quoteMeta currentModule x
+                              @@ quoteArgs vs
             where vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           DontCare u -> quoteTerm u
           Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
@@ -357,8 +359,8 @@ quoteNat n
 quoteConName :: ConHead -> Term
 quoteConName = quoteName . conName
 
-quoteMeta :: AbsolutePath -> MetaId -> Term
-quoteMeta file = Lit . LitMeta file
+quoteMeta :: TopLevelModuleName -> MetaId -> Term
+quoteMeta m = Lit . LitMeta m
 
 quoteTerm :: Term -> TCM Term
 quoteTerm v = do
