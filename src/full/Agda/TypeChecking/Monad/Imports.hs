@@ -11,7 +11,6 @@ module Agda.TypeChecking.Monad.Imports
   , getPrettyVisitedModules
   , getVisitedModule
   , getVisitedModules
-  , isImported
   , setDecodedModules
   , setVisitedModules
   , storeDecodedModule
@@ -45,9 +44,6 @@ addImportCycleCheck m =
 
 getImports :: TCM (Set ModuleName)
 getImports = useTC stImportedModules
-
-isImported :: ModuleName -> TCM Bool
-isImported m = Set.member m <$> getImports
 
 getImportPath :: TCM [C.TopLevelModuleName]
 getImportPath = asksTC envImportPath
