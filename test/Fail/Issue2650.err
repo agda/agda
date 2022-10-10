@@ -1,3 +1,3 @@
 Issue2650.agda:16,14-18
 a != b of type A
-when checking that the expression refl has type _19 i ≡ b
+when checking that the expression refl has type _10 i ≡ b
