@@ -427,7 +427,7 @@ typeCheckMain mode src = do
 
   mi <- getInterface (srcModuleName src) (MainInterface mode) (Just src)
 
-  stCurrentModule `setTCLens` Just (iModuleName (miInterface mi))
+  stCurrentModule `setTCLens'` Just (iModuleName (miInterface mi))
 
   return $ CheckResult' mi src
   where

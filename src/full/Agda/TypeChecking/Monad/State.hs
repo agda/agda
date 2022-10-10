@@ -341,8 +341,8 @@ setTopLevelModule x = do
           "Module name hash collision for " ++ name ++ " and " ++
           prettyShow m ++ " (you may want to consider renaming one " ++
           "of these modules)"
-  stFreshNameId `setTCLens` NameId 0 hash
-  stFreshMetaId `setTCLens`
+  stFreshNameId `setTCLens'` NameId 0 hash
+  stFreshMetaId `setTCLens'`
     MetaId { metaId     = 0
            , metaModule = hash
            }

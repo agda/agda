@@ -86,8 +86,12 @@ setInterface i = do
   opts <- getsTC (stPersistentOptions . stPersistentState)
   setCommandLineOptions opts
   mapM_ setOptionsFromPragma (iDefaultPragmaOptions i ++ iFilePragmaOptions i)
-  stImportedModules `setTCLens` Set.fromList (map fst $ iImportedModules i)
-  stCurrentModule   `setTCLens` Just (iModuleName i)
+  -- One could perhaps make the following command lazy. Note, however,
+  -- that it doesn't suffice to replace setTCLens' with setTCLens,
+  -- because the stPreImportedModules field is strict.
+  stImportedModules `setTCLens'`
+    Set.fromList (map fst $ iImportedModules i)
+  stCurrentModule   `setTCLens'` Just (iModuleName i)
 
 curIF :: ReadTCState m => m Interface
 curIF = do
