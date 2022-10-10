@@ -121,6 +121,14 @@ class ( MonadConstraint m
   --    rolled back and 'fallback' is run instead.
   speculateMetas :: m () -> m KeepMetas -> m ()
 
+instance MonadMetaSolver m => MonadMetaSolver (ReaderT r m) where
+  newMeta' inst f i p perm j = lift $ newMeta' inst f i p perm j
+  assignV dir m us v cmp = lift $ assignV dir m us v cmp
+  assignTerm' m us v = lift $ assignTerm' m us v
+  etaExpandMeta k m = lift $ etaExpandMeta k m
+  updateMetaVar m f = lift $ updateMetaVar m f
+  speculateMetas fallback m = ReaderT $ \x -> speculateMetas (runReaderT fallback x) (runReaderT m x)
+
 -- | Switch off assignment of metas.
 dontAssignMetas :: (MonadTCEnv m, HasOptions m, MonadDebug m) => m a -> m a
 dontAssignMetas cont = do
