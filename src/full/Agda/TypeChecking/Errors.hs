@@ -50,6 +50,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
+import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.SizedTypes ( sizeType )
 import Agda.TypeChecking.Monad.State
@@ -294,14 +295,10 @@ dropTopLevelModule q = ($ q) <$> topLevelModuleDropper
 
 -- | Produces a function which drops the filename component of the qualified name.
 topLevelModuleDropper :: (MonadDebug m, MonadTCEnv m, ReadTCState m) => m (QName -> QName)
-topLevelModuleDropper = do
-  caseMaybeM (asksTC envCurrentPath) (return id) $ \ f -> do
-  reportSDoc "err.dropTopLevel" 60 $ vcat
-    [ "current path =" <+> (text . filePath) f
-    , "moduleToSource =" <+> do text . show =<< useR stModuleToSource
-    ]
-  m <- fromMaybe __IMPOSSIBLE__ <$> lookupModuleFromSource f
-  return $ dropTopLevelModule' $ size m
+topLevelModuleDropper =
+  caseMaybeM currentTopLevelModule
+    (return id)
+    (return . dropTopLevelModule' . size)
 
 instance PrettyTCM TypeError where
   prettyTCM err = case err of

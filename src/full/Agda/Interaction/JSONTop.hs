@@ -89,7 +89,7 @@ instance ToJSON CommandState where
 
 instance EncodeTCM CurrentFile where
 instance ToJSON CurrentFile where
-  toJSON (CurrentFile path _ time) = toJSON (path, time)  -- backwards compat.
+  toJSON (CurrentFile path _ _ time) = toJSON (path, time)  -- backwards compat.
 
 instance EncodeTCM ResponseContextEntry where
   encodeTCM entry = obj

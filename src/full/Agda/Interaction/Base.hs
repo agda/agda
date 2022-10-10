@@ -24,6 +24,7 @@ import           Agda.Syntax.Common           (InteractionId (..), Modality)
 import           Agda.Syntax.Internal         (ProblemId, Blocker)
 import           Agda.Syntax.Position
 import           Agda.Syntax.Scope.Base       (ScopeInfo)
+import           Agda.Syntax.TopLevelModuleName
 
 import           Agda.Interaction.Options     (CommandLineOptions,
                                                defaultOptions)
@@ -85,6 +86,8 @@ type CommandM = StateT CommandState TCM
 data CurrentFile = CurrentFile
   { currentFilePath  :: AbsolutePath
       -- ^ The file currently loaded into interaction.
+  , currentFileModule :: TopLevelModuleName
+      -- ^ The top-level module name of the currently loaded file.
   , currentFileArgs  :: [String]
       -- ^ The arguments to Agda used for loading the file.
   , currentFileStamp :: ClockTime

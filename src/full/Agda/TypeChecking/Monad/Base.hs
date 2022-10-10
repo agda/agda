@@ -900,15 +900,6 @@ sourceToModule =
      .  Map.toList
     <$> useTC stModuleToSource
 
--- | Lookup an 'AbsolutePath' in 'sourceToModule'.
---
---   O(n).
-
-lookupModuleFromSource :: ReadTCState m => AbsolutePath -> m (Maybe TopLevelModuleName)
-lookupModuleFromSource f =
-  fmap fst . List.find ((f ==) . snd) . Map.toList <$> useR stModuleToSource
-
-
 ---------------------------------------------------------------------------
 -- ** Associating concrete names to an abstract name
 ---------------------------------------------------------------------------

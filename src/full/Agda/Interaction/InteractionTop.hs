@@ -940,7 +940,12 @@ cmd_load' file argv unsolvedOK mode cmd = do
     when (t == t') $ do
       is <- lift $ sortInteractionPoints =<< getInteractionPoints
       modify $ \st -> st { theInteractionPoints = is
-                         , theCurrentFile       = Just $ CurrentFile fp argv t
+                         , theCurrentFile       = Just $ CurrentFile
+                             { currentFilePath   = fp
+                             , currentFileModule = Imp.srcModuleName src
+                             , currentFileArgs   = argv
+                             , currentFileStamp  = t
+                             }
                          }
 
     cmd ok
@@ -1103,8 +1108,8 @@ searchAbout norm rg names = do
 
 whyInScope :: String -> CommandM ()
 whyInScope s = do
-  Just (CurrentFile file _ _) <- gets theCurrentFile
-  let cwd = takeDirectory (filePath file)
+  Just file <- gets theCurrentFile
+  let cwd = takeDirectory (filePath $ currentFilePath file)
   why <- liftLocalState $ B.whyInScope cwd s
   display_info $ Info_WhyInScope why
 
@@ -1130,16 +1135,13 @@ status = do
   -- changed since. Note: This code does not check if any dependencies
   -- have changed, and uses a time stamp to check for changes.
   checked  <- lift $ case cf of
-    Nothing     -> return False
-    Just (CurrentFile f _ t) -> do
-      t' <- liftIO $ getModificationTime $ filePath f
-      if t == t'
+    Nothing -> return False
+    Just f  -> do
+      t <- liftIO $ getModificationTime $ filePath (currentFilePath f)
+      if currentFileStamp f == t
         then
-          do
-            mm <- lookupModuleFromSource f
-            case mm of
-              Nothing -> return False -- work-around for Issue1007
-              Just m  -> maybe False (null . miWarnings) <$> getVisitedModule m
+          maybe False (null . miWarnings) <$>
+          getVisitedModule (currentFileModule f)
         else
             return False
 
