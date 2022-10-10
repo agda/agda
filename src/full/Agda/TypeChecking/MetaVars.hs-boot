@@ -11,7 +11,6 @@ type Condition = Dom Type -> Abs Type -> Bool
 newArgsMeta'      :: MonadMetaSolver m => Condition -> Type -> m Args
 newArgsMeta       :: MonadMetaSolver m => Type -> m Args
 assignTerm        :: MonadMetaSolver m => MetaId -> [Arg String] -> Term -> m ()
-etaExpandMetaSafe :: MonadMetaSolver m => MetaId -> m ()
 assign            :: CompareDirection -> MetaId -> Args -> Term -> CompareAs -> TCM ()
 newInstanceMeta   :: MonadMetaSolver m => String -> Type -> m (MetaId, Term)
 newValueMeta      :: MonadMetaSolver m => RunMetaOccursCheck -> Comparison -> Type -> m (MetaId, Term)

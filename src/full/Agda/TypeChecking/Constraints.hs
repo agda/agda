@@ -217,12 +217,6 @@ wakeupConstraints_ = do
     wakeup u | Set.null $ allBlockingProblems u = WakeUp
              | otherwise                        = DontWakeUp Nothing
 
-solveAwakeConstraints :: (MonadConstraint m) => m ()
-solveAwakeConstraints = solveAwakeConstraints' False
-
-solveAwakeConstraints' :: (MonadConstraint m) => Bool -> m ()
-solveAwakeConstraints' = solveSomeAwakeConstraints (const True)
-
 -- | Solve awake constraints matching the predicate. If the second argument is
 --   True solve constraints even if already 'isSolvingConstraints'.
 solveSomeAwakeConstraintsTCM :: (ProblemConstraint -> Bool) -> Bool -> TCM ()
