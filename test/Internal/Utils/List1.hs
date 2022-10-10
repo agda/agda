@@ -1,29 +1,20 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Internal.Utils.NonEmptyList ( tests ) where
+module Internal.Utils.List1 ( tests ) where
 
-import Data.List.NonEmpty (NonEmpty(..), nonEmpty)
-import qualified Data.List.NonEmpty as NonEmpty
-import Data.Maybe
+import Agda.Utils.List1 as List1
 
 import Internal.Helpers
-
-import Agda.Utils.Impossible
-
-------------------------------------------------------------------------
--- * Instances
-------------------------------------------------------------------------
-
-instance Arbitrary a => Arbitrary (NonEmpty a) where
-  arbitrary = fromMaybe __IMPOSSIBLE__ . nonEmpty . getNonEmpty <$> arbitrary
-  shrink = map (fromMaybe __IMPOSSIBLE__ . nonEmpty . getNonEmpty) . shrink . (NonEmpty . NonEmpty.toList)
 
 ------------------------------------------------------------------------
 -- * Properties
 ------------------------------------------------------------------------
 
 prop_NonemptyList_roundtrip :: Eq a => NonEmpty a -> Bool
-prop_NonemptyList_roundtrip l = maybe False (l ==) $ nonEmpty $ NonEmpty.toList l
+prop_NonemptyList_roundtrip l = maybe False (l ==) $ nonEmpty $ List1.toList l
+
+prop_foldr_id :: List1 Int -> Bool
+prop_foldr_id xs = List1.foldr (<|) singleton xs == xs
 
 ------------------------------------------------------------------------
 -- * All tests
@@ -40,4 +31,4 @@ return [] -- KEEP!
 -- automatically.
 
 tests :: TestTree
-tests = testProperties "Internal.Utils.NonemptyList" $allProperties
+tests = testProperties "Internal.Utils.List1" $allProperties
