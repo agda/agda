@@ -58,8 +58,8 @@ tagInjectiveFor vs = and
 -- Every value of this type must satisfy 'biMapInvariant'.
 
 data BiMap k v = BiMap
-  { biMapThere :: Map k v
-  , biMapBack  :: Map (Tag v) k
+  { biMapThere :: !(Map k v)
+  , biMapBack  :: !(Map (Tag v) k)
   }
   deriving Generic
 
