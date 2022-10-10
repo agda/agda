@@ -25,7 +25,7 @@ rm -rf "${BASE}"
 mkdir -p "${BASE}/${SRC}"
 cd "${BASE}" > /dev/null
 ln -s "${SRC}" sym
-echo 'S : Set; S = S' > "${SRC}/${FILE}"
+echo 'module Issue5268 where S : Set; S = S' > "${SRC}/${FILE}"
 echo 'include: a' > "src/Main.agda-lib"
 # No problem here:
 # echo 'include: .' > "${SRC}/Main.agda-lib"
