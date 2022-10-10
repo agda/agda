@@ -169,8 +169,8 @@ Syntax
   syntax Σ₂ A (λ x₁ x₂ → P) = [ x₁ x₂ ⦂ A ] × P
   ```
 
-Library management
-------------------
+Libraries and files
+-------------------
 
 * Library files below the "project root" are now ignored
   (see [#5644](https://github.com/agda/agda/issues/5644)).
@@ -180,6 +180,14 @@ Library management
   affect what options are used to type-check `A.B.C`: `.agda-lib`
   files for `A.B.C` have to reside in `Root`, or further up the
   directory hierarchy.
+
+* Agda is a bit stricter when it comes to omitting the name
+  of the top-level module in a file
+  (see [#6173](https://github.com/agda/agda/issues/6173)).
+
+  E.g., file `a/b/M.agda` without a top-level `module M ...`
+  can only be loaded when `a/b` is one of the include paths
+  (given by `-i` or declared in the `.agda-lib` file).
 
 Pragmas and options
 -------------------
