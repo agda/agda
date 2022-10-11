@@ -1569,7 +1569,7 @@ equalLevel a b = do
           | MetaV x as' <- ignoreBlocking a
           , MetaV y bs' <- ignoreBlocking b
           , k == l -> do
-              lvl <- levelType
+              lvl <- levelType'
               equalAtom (AsTermsOf lvl) (MetaV x as') (MetaV y bs')
         (SinglePlus (Plus k a) :| [] , _)
           | MetaV x as' <- ignoreBlocking a
@@ -1602,14 +1602,14 @@ equalLevel a b = do
 
       where
         a === b = unlessM typeInType $ do
-          lvl <- levelType
+          lvl <- levelType'
           equalAtom (AsTermsOf lvl) a b
 
         -- perform assignment (MetaV x as) := b
         meta x as b = do
           reportSLn "tc.meta.level" 30 $ "Assigning meta level"
           reportSDoc "tc.meta.level" 50 $ "meta" <+> sep [prettyList $ map pretty as, pretty b]
-          lvl <- levelType
+          lvl <- levelType'
           assignE DirEq x as (levelTm b) (AsTermsOf lvl) (===) -- fallback: check equality as atoms
 
         isNeutral (SinglePlus (Plus _ NotBlocked{})) = True
