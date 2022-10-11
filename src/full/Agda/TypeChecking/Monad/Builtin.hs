@@ -487,23 +487,18 @@ data SortKit = SortKit
   , nameOfSetOmega :: IsFibrant -> QName
   }
 
--- | Compute a 'SortKit' in an environment that supports failures. When
--- 'optLoadPrimitives' is set to 'False', 'sortKit' is a fallible
--- operation, so for the uses of 'sortKit' in fallible contexts (e.g.
--- 'TCM'), we report a type error rather than exploding.
+-- | Compute a 'SortKit' in an environment that supports failures.
+--
+-- When 'optLoadPrimitives' is set to 'False', 'sortKit' is a fallible operation,
+-- so for the uses of 'sortKit' in fallible contexts (e.g. 'TCM'),
+-- we report a type error rather than exploding.
 sortKit :: (HasBuiltins m, MonadTCError m, HasOptions m) => m SortKit
 sortKit = do
-  loadPrim <- optLoadPrimitives <$> pragmaOptions
-  let
-    -- When '--no-load-primitives', recover by throwing a TC error.
-    recover s
-      | not loadPrim = typeError (GenericDocError ("Agda will not function without a binding for BUILTIN " <> s))
-      | otherwise = __IMPOSSIBLE__
-  Def set      _  <- maybe (recover "TYPE") pure           =<< getBuiltin' builtinSet
-  Def prop     _  <- maybe (recover "PROP") pure           =<< getBuiltin' builtinProp
-  Def setomega _  <- maybe (recover "SETOMEGA") pure       =<< getBuiltin' builtinSetOmega
-  Def sset     _  <- maybe (recover "STRICTSET") pure      =<< getBuiltin' builtinStrictSet
-  Def ssetomega _ <- maybe (recover "STRICTSETOMEGA") pure =<< getBuiltin' builtinSSetOmega
+  Def set      _  <- getBuiltin builtinSet
+  Def prop     _  <- getBuiltin builtinProp
+  Def setomega _  <- getBuiltin builtinSetOmega
+  Def sset     _  <- getBuiltin builtinStrictSet
+  Def ssetomega _ <- getBuiltin builtinSSetOmega
   return $ SortKit
     { nameOfSet      = set
     , nameOfProp     = prop
