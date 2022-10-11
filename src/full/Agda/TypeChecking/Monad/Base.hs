@@ -883,25 +883,6 @@ instance FreshName () where
 
 type ModuleToSource = Map TopLevelModuleName AbsolutePath
 
--- | Maps source file names to the corresponding top-level module
--- names.
-
-type SourceToModule = Map AbsolutePath TopLevelModuleName
-
--- | Creates a 'SourceToModule' map based on 'stModuleToSource'.
---
---   O(n log n).
---
---   For a single reverse lookup in 'stModuleToSource',
---   rather use 'lookupModuleFromSourse'.
-
-sourceToModule :: TCM SourceToModule
-sourceToModule =
-  Map.fromListWith __IMPOSSIBLE__
-     .  List.map (\(m, f) -> (f, m))
-     .  Map.toList
-    <$> useTC stModuleToSource
-
 ---------------------------------------------------------------------------
 -- ** Associating concrete names to an abstract name
 ---------------------------------------------------------------------------

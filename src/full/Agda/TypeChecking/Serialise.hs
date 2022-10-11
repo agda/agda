@@ -69,7 +69,6 @@ import Agda.TypeChecking.Serialise.Instances () --instance only
 
 import Agda.TypeChecking.Monad
 
-import Agda.Utils.FileName (canonicalizeAbsolutePath)
 import Agda.Utils.Hash
 import qualified Agda.Utils.HashTable as H
 import Agda.Utils.IORef
@@ -83,7 +82,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20221011 * 10 + 0
+currentInterfaceVersion = 20221011 * 10 + 1
 
 -- | The result of 'encode' and 'encodeInterface'.
 
@@ -101,17 +100,14 @@ data Encoded = Encoded
 encode :: EmbPrj a => a -> TCM Encoded
 encode a = do
     collectStats <- hasProfileOption Profile.Serialize
-    fileMod <- sourceToModule
     newD@(Dict nD ltD stD bD iD dD _tD
       _nameD
       _qnameD
       nC ltC stC bC iC dC tC
       nameC
       qnameC
-      stats _ _) <- liftIO $ emptyDict collectStats
-    root <- liftIO $ (`runReaderT` newD) $ do
-       icodeFileMod fileMod  -- Only fills absPathD from fileMod
-       icode a
+      stats _) <- liftIO $ emptyDict collectStats
+    root <- liftIO $ (`runReaderT` newD) $ icode a
     nL  <- benchSort $ l nD
     stL <- benchSort $ l stD
     ltL <- benchSort $ l ltD
@@ -318,20 +314,3 @@ decodeHashes s
 
 decodeFile :: FilePath -> TCM (Maybe Interface)
 decodeFile f = decodeInterface =<< liftIO (L.readFile f)
-
--- | Store a 'SourceToModule' (map from 'AbsolutePath' to 'TopLevelModuleName')
---   as map from 'AbsolutePath' to 'Int32', in order to directly get the identifiers
---   from absolute pathes rather than going through top level module names.
-icodeFileMod
-  :: SourceToModule
-     -- ^ Maps file names to the corresponding module names.
-     --   Must contain a mapping for every file name that is later encountered.
-  -> S ()
-icodeFileMod fileMod = do
-  hmap <- asks absPathD
-  forM_ (Map.toList fileMod) $ \ (absolutePath, topLevelModuleName) -> do
-    -- Andreas, 2020-08-11, issue #4828.
-    -- Expand symlinks before storing in the dictonary.
-    absolutePath <- liftIO $ canonicalizeAbsolutePath absolutePath
-    i <- icod_ topLevelModuleName
-    liftIO $ H.insert hmap absolutePath i
