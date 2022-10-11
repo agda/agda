@@ -1,3 +1,4 @@
 NoLoadPrims.agda:6,5-6
-Agda will not function without a binding for BUILTIN TYPE
+No binding for builtin thing TYPE, use {-# BUILTIN TYPE name #-} to
+bind it to 'name'
 when checking that the expression ? is a type
