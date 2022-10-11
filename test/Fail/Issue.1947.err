@@ -1,2 +1,2 @@
-The file name Issue.1947.agda is
-invalid because Issue.1947 is not a valid unqualified module name.
+The file name Issue.1947.agda
+is invalid because it does not correspond to a valid module name.

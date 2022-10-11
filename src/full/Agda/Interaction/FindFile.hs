@@ -14,7 +14,7 @@ module Agda.Interaction.FindFile
   , findInterfaceFile', findInterfaceFile
   , checkModuleName
   , moduleName
-  , guessModuleName
+  , rootNameModule
   , replaceModuleExtension
   ) where
 
@@ -23,39 +23,35 @@ import Prelude hiding (null)
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Trans
-import Data.List                         ( sortOn )
-import Data.Maybe                        ( catMaybes, fromMaybe, mapMaybe )
+import Data.Maybe (catMaybes)
 import qualified Data.Map as Map
 import System.FilePath
 
-import Agda.Interaction.Library          ( findProjectRoot )
+import Agda.Interaction.Library ( findProjectRoot )
 
 import Agda.Syntax.Concrete
 import Agda.Syntax.Parser
-import Agda.Syntax.Parser.Literate       ( literateExtsShortList )
+import Agda.Syntax.Parser.Literate (literateExtsShortList)
 import Agda.Syntax.Position
 
-import Agda.Interaction.Options          ( optLocalInterfaces )
-import Agda.Interaction.Options.Lenses   ( getAbsoluteIncludePaths )
+import Agda.Interaction.Options ( optLocalInterfaces )
 
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Benchmark ( billTo )
+import Agda.TypeChecking.Monad.Benchmark (billTo)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
-import Agda.TypeChecking.Monad.Debug     ( MonadDebug, reportS )
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
-         ( getIncludeDirs, libToTCM )
-import Agda.TypeChecking.Warnings        ( runPM )
+  (getIncludeDirs, libToTCM)
+import Agda.TypeChecking.Warnings (runPM)
 
-import Agda.Version                      ( version )
+import Agda.Version ( version )
 
-import Agda.Utils.Applicative            ( (?$>) )
+import Agda.Utils.Applicative ( (?$>) )
 import Agda.Utils.FileName
-import Agda.Utils.Functor                ( for )
-import Agda.Utils.List                   ( nubOn, stripSuffix, updateLast )
-import Agda.Utils.List1                  ( List1, pattern (:|) )
+import Agda.Utils.List  ( stripSuffix, nubOn )
+import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
-import Agda.Utils.Monad                  ( ifM, unlessM )
-import Agda.Utils.Pretty                 ( Pretty(..), prettyShow )
+import Agda.Utils.Monad ( ifM, unlessM )
+import Agda.Utils.Pretty ( Pretty(..), prettyShow )
 import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
@@ -243,6 +239,9 @@ checkModuleName name (SourceFile file) mexpected = do
 -- If no top-level module name is given, then an attempt is made to
 -- use the file name as a module name.
 
+-- TODO: Perhaps it makes sense to move this procedure to some other
+-- module.
+
 moduleName
   :: AbsolutePath
      -- ^ The path to the file.
@@ -250,77 +249,24 @@ moduleName
      -- ^ The parsed module.
   -> TCM TopLevelModuleName
 moduleName file parsedModule = billTo [Bench.ModuleName] $
-  if isNoName name then guessModuleName file Nothing else return name
-  where
-  name = topLevelModuleName parsedModule
-
--- | Computes the module name of the top-level module in the given
--- file.
---
--- If no top-level module name is given, then an attempt is made to
--- use the file name as a module name.
-
-guessModuleName
-  :: AbsolutePath
-     -- ^ The path to the file.
-  -> Maybe TopLevelModuleName
-     -- ^ Optionally, the expected name coming from an import statement.
-     --   (For error reporting only.)
-  -> TCM TopLevelModuleName
-guessModuleName file expectedName = billTo [Bench.ModuleName] $ do
-  -- Issue #6173: try to infer the module name by relativising it to the include paths.
-  guesses <- sortOn (length . moduleNameParts) <$> rootNameModules file
-
-  -- We filter out the composite module names and only keep the simple (non-hierachical) ones.
-  -- The reason is that e.g. with include paths "." and "..", every unnamed module loaded from "."
-  -- has 2 reconstructions.  We make the situation less ambiguous by weeding out composite names.
-
-  case filter (List1.isSingleton . moduleNameParts) guesses of
-
-    [] | (m : _) <- guesses -> do
-       -- We have a reconstruction, but it is a composite module name.
-       typeError $ ReconstructedCompositeTopLevelModuleName (fromMaybe m expectedName) file
-
-    []  -> do
-       -- The file is not under the include paths, so take the basename as module name
-       -- and trigger the right error.
-       m <- validateModuleName $ baseNameModule file
-       -- This should trigger the ModuleNameDoesntMatchFileName exception:
-       checkModuleName m (SourceFile file) expectedName
-       __IMPOSSIBLE__
-
-    [m] -> do
-      -- The file is under exactly one include path.
-      -- Check the validity of the module name constructed from the file path.
-      validateModuleName m
-
-    m1 : m2 : _ -> do
-      -- The file has different access paths.
-      __IMPOSSIBLE__
-      -- This is actually impossible.  If we allowed composite names, we'd throw this error:
-      -- typeError $ OverlappingProjects file m1 m2
-
-  where
-  -- Validate TopLevelModuleName.
-  -- E.g., if the filename was A/B.C.agda, we get the modulename ["A","B.C"] which is invalid.
-  validateModuleName mnCand = lensTopLevelModuleNameParts (traverse validateModuleNamePart) mnCand
-    where
-    -- Validate one component of a module name using the parser.
-    validateModuleNamePart :: String -> TCM String
-    validateModuleNamePart s = do
-      m <- runPM (parse moduleNameParser s) `catchError` \_ -> failure
+  case moduleNameParts name of
+    "_" :| [] -> do
+      m <- runPM (parse moduleNameParser defaultName)
+             `catchError` \_ ->
+           typeError $ GenericError $
+             "The file name " ++ prettyShow file ++
+             " is invalid because it does not correspond to a valid module name."
       case m of
-        Qual {} -> failure
-        QName{} -> return s
-      where
-      failure :: TCM a
-      failure = typeError $ GenericError $ unwords
-        [ "The file name"
-        , prettyShow file
-        , "is invalid because"
-        , prettyShow mnCand
-        , "is not a valid unqualified module name."
-        ]
+        Qual {} ->
+          typeError $ GenericError $
+            "The file name " ++ prettyShow file ++ " is invalid because " ++
+            defaultName ++ " is not an unqualified module name."
+        QName {} ->
+          return $ TopLevelModuleName (getRange m) $ singleton defaultName
+    _ -> return name
+  where
+  name        = topLevelModuleName parsedModule
+  defaultName = rootNameModule file
 
 parseFileExtsShortList :: [String]
 parseFileExtsShortList = ".agda" : literateExtsShortList
@@ -331,23 +277,5 @@ dropAgdaExtension s = case catMaybes [ stripSuffix ext s
     [name] -> name
     _      -> __IMPOSSIBLE__
 
--- | Interpret the basename of a path as module name.
-baseNameModule :: AbsolutePath -> TopLevelModuleName
-baseNameModule = TopLevelModuleName noRange . singleton . dropAgdaExtension . snd . splitFileName . filePath
-
--- | Try to infer possible module names from a file name by relativising it to the include paths.
--- Does not ensure that the constructed module names are actually valid.
--- The result list is free of duplicates.
-rootNameModules :: (MonadDebug m, ReadTCState m) => AbsolutePath -> m [TopLevelModuleName]
-rootNameModules file = do
-  absoluteIncludePaths <- getsTC getAbsoluteIncludePaths
-  reportS "FindFile.rootNameModules" 90 $
-    "FindFile.rootNameModules: absoluteIncludePaths" :
-    map (("- " ++) . prettyShow) absoluteIncludePaths
-
-  let relFiles = mapMaybe (relativizeAbsolutePath file) absoluteIncludePaths
-  return $ for (nubOn id relFiles)
-    $ TopLevelModuleName noRange
-    . List1.fromListSafe __IMPOSSIBLE__
-    . updateLast dropAgdaExtension
-    . splitDirectories
+rootNameModule :: AbsolutePath -> String
+rootNameModule = dropAgdaExtension . snd . splitFileName . filePath

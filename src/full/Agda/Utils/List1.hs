@@ -25,7 +25,7 @@ module Agda.Utils.List1
   , module IsList
   ) where
 
-import Prelude hiding (filter, null)
+import Prelude hiding (filter)
 
 import Control.Arrow ((&&&))
 import Control.Monad (filterM)
@@ -68,11 +68,6 @@ initLast = List1.init &&& List1.last
 singleton :: a -> List1 a
 singleton = (:| [])
 #endif
-
--- | Check if list has exactly one element.
-
-isSingleton :: List1 a -> Bool
-isSingleton (_ :| xs) = null xs
 
 #if !MIN_VERSION_base(4,16,0)
 -- | Append a list to a non-empty list.

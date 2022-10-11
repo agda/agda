@@ -71,7 +71,8 @@ import Agda.TypeChecking.Pretty hiding (pretty, prettyA)
 import Agda.TypeChecking.Quote (quotedName)
 import Agda.TypeChecking.Warnings
 
-import Agda.Interaction.FindFile (checkModuleName, guessModuleName, SourceFile(SourceFile))
+import Agda.Interaction.FindFile (checkModuleName, rootNameModule, SourceFile(SourceFile))
+-- import Agda.Interaction.Imports  -- for type-checking in ghci
 import {-# SOURCE #-} Agda.Interaction.Imports (scopeCheckImport)
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
@@ -1316,9 +1317,9 @@ instance ToAbstract (TopLevel [C.Declaration]) where
                          setCurrentRange ds0 $ genericError
                            "Illegal declaration(s) before top-level module"
 
-                    -- Otherwise, try to reconstruct the top-level module name.
-                    _ -> fromTopLevelModuleName . setRange (getRange m0) <$>
-                           guessModuleName file (Just expectedMName)
+                    -- Otherwise, reconstruct the top-level module name
+                    _ -> return $ C.QName $ setRange (getRange m0) $
+                           C.simpleName $ stringToRawName $ rootNameModule file
                 -- Andreas, 2017-05-17, issue #2574, keep name as jump target!
                 -- Andreas, 2016-07-12, ALTERNATIVE:
                 -- -- We assign an anonymous file module the name expected from

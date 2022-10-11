@@ -200,7 +200,6 @@ errorString err = case err of
   NotLeqSort{}                             -> "NotLeqSort"
   NothingAppliedToHiddenArg{}              -> "NothingAppliedToHiddenArg"
   NothingAppliedToInstanceArg{}            -> "NothingAppliedToInstanceArg"
-  ReconstructedCompositeTopLevelModuleName{}->"ReconstructedCompositeTopLevelModuleName"
   OverlappingProjects {}                   -> "OverlappingProjects"
   OperatorInformation {}                   -> "OperatorInformation"
   PatternShadowsConstructor {}             -> "PatternShadowsConstructor"
@@ -740,14 +739,6 @@ instance PrettyTCM TypeError where
       fsep ( pwords "Failed to find source of module" ++ [pretty x] ++
              pwords "in any of the following locations:"
            ) $$ nest 2 (vcat $ map (text . filePath) files)
-
-    ReconstructedCompositeTopLevelModuleName m f -> fsep $ concat
-      [ pwords "Add a top-level module name to file"
-      , [ text $ filePath f ]
-      , pwords "because composite module names such as"
-      , [ prettyTCM m ]
-      , pwords "cannot be stably reconstructed automatically"
-      ]
 
     OverlappingProjects f m1 m2
       | canon d1 == canon d2 -> fsep $ concat

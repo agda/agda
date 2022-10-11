@@ -4269,9 +4269,6 @@ data TypeError
         | ModuleDefinedInOtherFile C.TopLevelModuleName AbsolutePath AbsolutePath
           -- ^ Module name, file from which it was loaded, file which
           -- the include path says contains the module.
-        | ReconstructedCompositeTopLevelModuleName C.TopLevelModuleName AbsolutePath
-          -- ^ The name of the module given by the file was reconstructed
-          --   as hierarchical, e.g. @A.B@.  Agda only reconstructs simple module names.
     -- Scope errors
         | BothWithAndRHS
         | AbstractConstructorNotInScope A.QName

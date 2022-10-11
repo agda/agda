@@ -1,7 +1,0 @@
-Issue6173.agda:4,1-19
-Add a top-level module name to file
-Issue6173/A.agda because
-composite module names such as Issue6173.A cannot be stably
-reconstructed automatically
-when scope checking the declaration
-  import Issue6173.A
