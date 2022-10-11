@@ -228,7 +228,7 @@ checkInternal' action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
       return $ Sort s
     Level l    -> do
       l <- checkLevel action l
-      lt <- levelType
+      lt <- levelType'
       compareType cmp lt t
       return $ Level l
     DontCare v -> DontCare <$> checkInternal' action v cmp t
@@ -469,7 +469,7 @@ checkLevel action (Max n ls) = Max n <$> mapM checkPlusLevel ls
     checkPlusLevel (Plus k l)      = Plus k <$> checkLevelAtom l
 
     checkLevelAtom l = do
-      lvl <- levelType
+      lvl <- levelType'
       checkInternal' action l CmpLeq lvl
 
 -- | Universe subsumption and type equality (subtyping for sizes, resp.).
