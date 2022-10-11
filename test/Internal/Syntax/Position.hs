@@ -16,6 +16,7 @@ import Data.Int
 import Data.List (sort)
 import Data.Set (Set)
 import qualified Data.Set as Set
+import qualified Data.Text as T
 
 import Internal.Helpers
 import Internal.Syntax.Common ()
@@ -185,7 +186,7 @@ prop_rangeInSameFileAs r =
 instance Arbitrary RawTopLevelModuleName where
   arbitrary = do
     r     <- arbitrary
-    parts <- list1Of (listOf1 $ elements "AB")
+    parts <- list1Of (T.pack <$> listOf1 (elements "AB"))
     return $ RawTopLevelModuleName
       { rawModuleNameRange = r
       , rawModuleNameParts = parts
@@ -206,7 +207,8 @@ instance Arbitrary RangeFile where
     top   <- arbitrary
     extra <- take 2 . map (take 2) <$> listOf (listOf1 (elements "a1"))
     let f = mkAbsolute $ joinPath $
-            rootPath : extra ++ List1.toList (moduleNameParts top)
+            rootPath : extra ++
+            map T.unpack (List1.toList (moduleNameParts top))
     return $ mkRangeFile f (Just top)
 
 instance (Arbitrary a, Ord a) => Arbitrary (Interval' a) where

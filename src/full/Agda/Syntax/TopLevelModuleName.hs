@@ -9,6 +9,8 @@ import Control.DeepSeq
 import Data.Function
 import Data.Hashable
 import qualified Data.List as List
+import Data.Text (Text)
+import qualified Data.Text as T
 
 import GHC.Generics (Generic)
 
@@ -35,7 +37,7 @@ import Agda.Utils.Size
 
 -- | A top-level module name has one or more name parts.
 
-type TopLevelModuleNameParts = List1 String
+type TopLevelModuleNameParts = List1 Text
 
 -- | Raw top-level module names (with linear-time comparisons).
 
@@ -79,7 +81,8 @@ instance NFData RawTopLevelModuleName where
 
 rawTopLevelModuleNameToString :: RawTopLevelModuleName -> String
 rawTopLevelModuleNameToString =
-  List.intercalate "." . List1.toList . rawModuleNameParts
+  List.intercalate "." .
+  map T.unpack . List1.toList . rawModuleNameParts
 
 -- | Hashes a raw top-level module name.
 
@@ -93,7 +96,8 @@ hashRawTopLevelModuleName =
 rawTopLevelModuleNameForQName :: C.QName -> RawTopLevelModuleName
 rawTopLevelModuleNameForQName q = RawTopLevelModuleName
   { rawModuleNameRange = getRange q
-  , rawModuleNameParts = fmap C.nameToRawName $ C.qnameParts q
+  , rawModuleNameParts =
+      fmap (T.pack . C.nameToRawName) $ C.qnameParts q
   }
 
 -- | Computes the 'RawTopLevelModuleName' corresponding to the given
@@ -108,7 +112,8 @@ rawTopLevelModuleNameForModuleName (A.MName ms) =
   List1.ifNull ms __IMPOSSIBLE__ $ \ms ->
   RawTopLevelModuleName
     { rawModuleNameRange = getRange ms
-    , rawModuleNameParts = fmap (C.nameToRawName . A.nameConcrete) ms
+    , rawModuleNameParts =
+        fmap (T.pack . C.nameToRawName . A.nameConcrete) ms
     }
 
 -- | Computes the top-level module name.
@@ -206,7 +211,8 @@ unsafeTopLevelModuleName m h = TopLevelModuleName
 topLevelModuleNameToQName :: TopLevelModuleName -> C.QName
 topLevelModuleNameToQName m =
   List1.foldr C.Qual C.QName $
-  fmap (C.Name (getRange m) C.NotInScope . C.stringNameParts) $
+  fmap (C.Name (getRange m) C.NotInScope .
+        C.stringNameParts . T.unpack) $
   moduleNameParts m
 
 -- | Turns a top-level module name into a file name with the given
@@ -214,7 +220,8 @@ topLevelModuleNameToQName m =
 
 moduleNameToFileName :: TopLevelModuleName -> String -> FilePath
 moduleNameToFileName TopLevelModuleName{ moduleNameParts = ms } ext =
-  joinPath (List1.init ms) </> List1.last ms <.> ext
+  joinPath (map T.unpack $ List1.init ms) </>
+  T.unpack (List1.last ms) <.> ext
 
 -- | Finds the current project's \"root\" directory, given a project
 -- file and the corresponding top-level module name.

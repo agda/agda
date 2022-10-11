@@ -269,7 +269,8 @@ prefix :: [Char]
 prefix = "jAgda"
 
 jsMod :: TopLevelModuleName -> GlobalId
-jsMod m = GlobalId (prefix : List1.toList (moduleNameParts m))
+jsMod m =
+  GlobalId (prefix : map T.unpack (List1.toList (moduleNameParts m)))
 
 jsFileName :: GlobalId -> String
 jsFileName (GlobalId ms) = intercalate "." ms ++ ".js"

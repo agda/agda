@@ -25,6 +25,7 @@ import Control.Monad.Except
 import Control.Monad.Trans
 import Data.Maybe (catMaybes)
 import qualified Data.Map as Map
+import qualified Data.Text as T
 import System.FilePath
 
 import Agda.Interaction.Library ( findProjectRoot )
@@ -268,7 +269,7 @@ moduleName file parsedModule = billTo [Bench.ModuleName] $ do
         QName {} ->
           return $ RawTopLevelModuleName
             { rawModuleNameRange = getRange m
-            , rawModuleNameParts = singleton defaultName
+            , rawModuleNameParts = singleton (T.pack defaultName)
             }
     _ -> return raw
 

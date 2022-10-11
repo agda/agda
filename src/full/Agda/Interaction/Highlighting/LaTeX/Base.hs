@@ -25,6 +25,7 @@ import Data.Foldable (toList)
 #if !(MIN_VERSION_base(4,11,0))
 import Data.Semigroup (Semigroup(..))
 #endif
+import qualified Data.Text as T
 
 import Control.Exception.Base (IOException, try)
 import Control.Monad (forM_, mapM_, unless, when)
@@ -768,7 +769,10 @@ generateLaTeXIO opts i = do
     BS.writeFile outPath latex
 
 latexOutRelativeFilePath :: TopLevelModuleName -> FilePath
-latexOutRelativeFilePath m = List.intercalate [pathSeparator] (List1.toList $ moduleNameParts m) <.> "tex"
+latexOutRelativeFilePath m =
+  List.intercalate [pathSeparator]
+    (map T.unpack $ List1.toList $ moduleNameParts m) <.>
+  "tex"
 
 groupByFst :: forall a b. Eq a => [(a,b)] -> [(a,[b])]
 groupByFst =

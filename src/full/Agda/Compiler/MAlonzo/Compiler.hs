@@ -1284,7 +1284,7 @@ callGHC = do
   opts    <- askGhcOpts
   hsmod   <- prettyPrint <$> curHsMod
   agdaMod <- curAgdaMod
-  let outputName = List1.last $ moduleNameParts agdaMod
+  let outputName = Text.unpack $ List1.last $ moduleNameParts agdaMod
   (mdir, fp) <- curOutFileAndDir
   let ghcopts = optGhcFlags opts
 
