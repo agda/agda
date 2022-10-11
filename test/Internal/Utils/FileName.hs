@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP             #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Internal.Utils.FileName (rootPath, tests) where
+module Internal.Utils.FileName (tests) where
 
 import qualified Data.Text as Text
 import System.FilePath
@@ -23,51 +23,44 @@ rootPath = [pathSeparator]
 ------------------------------------------------------------------------
 -- Generators
 
--- Relative paths
-
-newtype RelativePath = RelativePath { theRelativePath :: FilePath }
-  deriving (Eq, Show)
-
-instance Arbitrary RelativePath where
-  arbitrary = RelativePath . joinPath . take 3 . map (take 2) <$>
+instance Arbitrary Path where
+  arbitrary = mk . take 3 . map (take 2) <$>
                 listOf (listOf1 (elements "a1"))
-    where mk ps = mkAbsolute (joinPath $ rootPath : ps)
+    where mk ps = mkPath (joinPath ps)
 
-instance CoArbitrary RelativePath where
-  coarbitrary (RelativePath p) = coarbitrary p
+instance CoArbitrary Path where
+  coarbitrary (Path t) = coarbitrary (Text.unpack t)
 
--- Absolute paths
+-- | Absolute paths.
 
-instance Arbitrary AbsolutePath where
-  arbitrary = mkAbsolute . (rootPath </>) . theRelativePath  <$> arbitrary
-
-instance CoArbitrary AbsolutePath where
-  coarbitrary (AbsolutePath t) = coarbitrary (Text.unpack t)
+absolutePath :: Gen Path
+absolutePath = mkPath . (rootPath </>) . filePath <$> arbitrary
 
 ------------------------------------------------------------------------
 -- Properties
 
--- | The paths have to be absolute, valid and normalised, without
+-- | The paths have to be valid and normalised, without
 -- trailing path separators.
 
-prop_absolutePathInvariant :: AbsolutePath -> Bool
-prop_absolutePathInvariant x =
-  isAbsolute f &&
+prop_pathInvariant :: Path -> Bool
+prop_pathInvariant x =
   isValid f &&
   f == normalise f &&
   f == dropTrailingPathSeparator f
   where f = filePath x
 
-prop_mkAbsolute :: FilePath -> Property
-prop_mkAbsolute f =
-  let path = rootPath ++ f
-  in  isValid path ==> prop_absolutePathInvariant $ mkAbsolute $ path
+prop_mkPath :: FilePath -> Property
+prop_mkPath path =
+  isValid path ==> prop_pathInvariant (mkPath path)
 
 -- | @`'relativizeAbsolutePath'` root@ inverts @(root '</>')@.
-prop_relativize_inverts_combine :: AbsolutePath -> RelativePath -> Bool
-prop_relativize_inverts_combine root (RelativePath rest) =
-  let path = mkAbsolute $ filePath root </> rest
-  in  relativizeAbsolutePath path root == Just (if null rest then "." else rest)
+prop_relativize_inverts_combine :: Path -> Property
+prop_relativize_inverts_combine rest' =
+  forAll absolutePath $ \root ->
+  let path = mkPath $ filePath root </> rest in
+  relativizeAbsolutePath path root ==
+  Just (if null rest then "." else rest)
+  where rest = filePath rest'
 
 ------------------------------------------------------------------------
 -- * All tests

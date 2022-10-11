@@ -7,13 +7,14 @@ import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
-import Control.Monad.Writer
+import Control.Monad.Writer hiding ((<>))
 
 import qualified Data.Graph as Graph
 import Data.List (sort)
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.Text as T
 
 import System.Directory
 import System.FilePath
@@ -36,6 +37,7 @@ import Agda.Utils.FileName
 import Agda.Utils.Functor
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as G
 import Agda.Utils.List
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Pretty
 import Agda.Utils.Tuple
@@ -60,19 +62,18 @@ setPragmaOptions opts = do
 -- | Sets the command line options (both persistent and pragma options
 -- are updated).
 --
--- Relative include directories are made absolute with respect to the
--- current working directory. If the include directories have changed
--- then the state is reset (partly, see 'setIncludeDirs').
+-- If the include directories have changed then the state is reset
+-- (partly, see 'setIncludeDirs').
 --
 -- An empty list of relative include directories (@'Left' []@) is
 -- interpreted as @["."]@.
 setCommandLineOptions :: CommandLineOptions -> TCM ()
 setCommandLineOptions opts = do
-  root <- liftIO (absolute =<< getCurrentDirectory)
+  root <- mkPath <$> liftIO getCurrentDirectory
   setCommandLineOptions' root opts
 
 setCommandLineOptions'
-  :: AbsolutePath
+  :: Path
      -- ^ The base directory of relative paths.
   -> CommandLineOptions
   -> TCM ()
@@ -80,14 +81,15 @@ setCommandLineOptions' root opts = do
   runOptM (checkOpts opts) >>= \case
     Left err   -> __IMPOSSIBLE__
     Right opts -> do
-      incs <- case optAbsoluteIncludePaths opts of
+      incs <- case optUniqueIncludePaths opts of
         [] -> do
           opts' <- setLibraryPaths root opts
           let incs = optIncludePaths opts'
-          setIncludeDirs incs root
+          setIncludeDirs incs
           getIncludeDirs
         incs -> return incs
-      modifyTC $ Lens.setCommandLineOptions opts{ optAbsoluteIncludePaths = incs }
+      modifyTC $ Lens.setCommandLineOptions
+                   opts{ optUniqueIncludePaths = incs }
       setPragmaOptions (optPragmaOptions opts)
       updateBenchmarkingStatus
 
@@ -107,29 +109,52 @@ libToTCM m = do
     Left s  -> typeError $ GenericDocError s
     Right x -> return x
 
+-- | Finds a given module's \"root\" directory, given its path and its
+-- top-level module name.
+--
+-- The path must match the module name. For instance, if the module is
+-- called @A.B.C@, then the path must end with @A/B/something@ (or
+-- something equivalent on Windows). If the path does not match, then
+-- a type error is raised.
+--
+-- Examples for the module @A.B.C@ (on a non-Windows system): If the
+-- path is @/foo/A/B/C.agda@, then the root is @/foo@. If the path is
+-- @foo/A/B/C.agda@, then the root is @foo@. If the path is
+-- @foo/A/B/../A/B/C.agda@, then the root is @foo/A/B/..@.
+
+rootPathTCM :: MonadTCError m => Path -> TopLevelModuleName -> m Path
+rootPathTCM file m = case rootPath file m of
+  Just dir -> return dir
+  Nothing  -> typeError $ GenericDocError $ fsep $
+    pwords "The module" ++ [pretty m] ++
+    pwords "should be in the directory" ++
+    [text (joinPath (map T.unpack $ List1.toList $ moduleNameParts m))
+     <> ","] ++
+    pwords "but Agda was given the path" ++
+    [text (filePath file) <> "."]
+
 -- | Returns the library files for a given file.
 
 getAgdaLibFiles
-  :: AbsolutePath        -- ^ The file name.
+  :: Path                -- ^ The file name.
   -> TopLevelModuleName  -- ^ The top-level module name.
   -> TCM [AgdaLibFile]
 getAgdaLibFiles f m = do
+  root    <- filePath <$> rootPathTCM f m
   useLibs <- optUseLibs <$> commandLineOptions
   if | useLibs   -> libToTCM $ mkLibM [] $ getAgdaLibFiles' root
      | otherwise -> return []
-  where
-  root = filePath (projectRoot f m)
 
 -- | Returns the library options for a given file.
 
 getLibraryOptions
-  :: AbsolutePath        -- ^ The file name.
+  :: Path                -- ^ The file name.
   -> TopLevelModuleName  -- ^ The top-level module name.
   -> TCM [OptionsPragma]
 getLibraryOptions f m = map _libPragmas <$> getAgdaLibFiles f m
 
 setLibraryPaths
-  :: AbsolutePath
+  :: Path
      -- ^ The base directory of relative paths.
   -> CommandLineOptions
   -> TCM CommandLineOptions
@@ -146,7 +171,7 @@ setLibraryIncludes o
     return o{ optIncludePaths = paths ++ optIncludePaths o }
 
 addDefaultLibraries
-  :: AbsolutePath
+  :: Path
      -- ^ The base directory of relative paths.
   -> CommandLineOptions
   -> TCM CommandLineOptions
@@ -192,18 +217,17 @@ displayFormsEnabled = asksTC envDisplayFormsEnabled
 
 -- | Gets the include directories.
 --
--- Precondition: 'optAbsoluteIncludePaths' must be nonempty (i.e.
+-- Precondition: 'optUniqueIncludePaths' must be nonempty (i.e.
 -- 'setCommandLineOptions' must have run).
 
-getIncludeDirs :: HasOptions m => m [AbsolutePath]
+getIncludeDirs :: HasOptions m => m [Path]
 getIncludeDirs = do
-  incs <- optAbsoluteIncludePaths <$> commandLineOptions
+  incs <- optUniqueIncludePaths <$> commandLineOptions
   case incs of
     [] -> __IMPOSSIBLE__
     _  -> return incs
 
--- | Makes the given directories absolute and stores them as include
--- directories.
+-- | Sets the include directories.
 --
 -- If the include directories change, then the state is reset
 -- (completely, except for the include directories and some other
@@ -211,26 +235,22 @@ getIncludeDirs = do
 --
 -- An empty list is interpreted as @["."]@.
 
-setIncludeDirs :: [FilePath]    -- ^ New include directories.
-               -> AbsolutePath  -- ^ The base directory of relative paths.
-               -> TCM ()
-setIncludeDirs incs root = do
+setIncludeDirs
+  :: [FilePath]  -- ^ New include directories.
+  -> TCM ()
+setIncludeDirs incs = do
   -- save the previous include dirs
-  oldIncs <- getsTC Lens.getAbsoluteIncludePaths
+  oldIncs <- getsTC Lens.getUniqueIncludePaths
 
   -- Add the current dir if no include path is given
   incs <- return $ if null incs then ["."] else incs
-  -- Make paths absolute
-  incs <- return $  map (mkAbsolute . (filePath root </>)) incs
 
   -- Andreas, 2013-10-30  Add default include dir
-      -- NB: This is an absolute file name, but
-      -- Agda.Utils.FilePath wants to check absoluteness anyway.
-  primdir <- liftIO $ mkAbsolute <$> getPrimitiveLibDir
+  primdir <- liftIO getPrimitiveLibDir
       -- We add the default dir at the end, since it is then
       -- printed last in error messages.
       -- Might also be useful to overwrite default imports...
-  incs <- return $ nubOn id $ incs ++ [primdir]
+  incs <- liftIO $ removeSomeDuplicatesFP $ incs ++ [primdir]
 
   reportSDoc "setIncludeDirs" 10 $ return $ vcat
     [ "Old include directories:"
@@ -255,8 +275,8 @@ setIncludeDirs incs root = do
   when (sort oldIncs /= sort incs) $ do
     ho <- getInteractionOutputCallback
     tcWarnings <- useTC stTCWarnings -- restore already generated warnings
-    projectConfs <- useTC stProjectConfigs  -- restore cached project configs & .agda-lib
-    agdaLibFiles <- useTC stAgdaLibFiles    -- files, since they use absolute paths
+    projectConfs <- useTC stProjectConfigs
+    agdaLibFiles <- useTC stAgdaLibFiles
     decodedModules <- getDecodedModules
     (keptDecodedModules, modFile) <- modulesToKeep incs decodedModules
     resetAllState
@@ -267,11 +287,11 @@ setIncludeDirs incs root = do
     setDecodedModules keptDecodedModules
     setTCLens stModuleToSource modFile
 
-  Lens.putAbsoluteIncludePaths incs
+  Lens.putUniqueIncludePaths incs
   where
   -- A decoded module is kept if its top-level module name is resolved
-  -- to the same absolute path using the old and the new include
-  -- directories, and the same applies to all dependencies.
+  -- to the same (possibly relative) path using the old and the new
+  -- include directories, and the same applies to all dependencies.
   --
   -- File system accesses are cached using the ModuleToSource data
   -- structure: For the old include directories this should mean that
@@ -281,7 +301,7 @@ setIncludeDirs incs root = do
   -- ModuleToSource structure, constructed using the new include
   -- directories, is returned.
   modulesToKeep
-    :: [AbsolutePath]  -- New include directories.
+    :: [Path]          -- New include directories.
     -> DecodedModules  -- Old decoded modules.
     -> TCM (DecodedModules, ModuleToSource)
   modulesToKeep incs old = process Map.empty Map.empty modules

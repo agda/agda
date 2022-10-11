@@ -1,8 +1,8 @@
 Issue481NonExistentModule.agda:4,1-34
 Failed to find source of module NonExistentModule in any of the
 following locations:
-  ../NonExistentModule.agda
-  ../NonExistentModule.lagda
+  test/NonExistentModule.agda
+  test/NonExistentModule.lagda
   NonExistentModule.agda
   NonExistentModule.lagda
   agda-default-include-path/NonExistentModule.agda

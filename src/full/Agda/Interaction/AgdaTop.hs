@@ -39,7 +39,7 @@ repl callback prompt setup = do
     opts <- commandLineOptions
     _ <- interact' `runStateT`
            (initCommandState commands)
-             { optionsOnReload = opts{ optAbsoluteIncludePaths = [] } }
+             { optionsOnReload = opts{ optUniqueIncludePaths = [] } }
     return ()
   where
   interact' :: CommandM ()

@@ -26,7 +26,7 @@ main :: IO ()
 main = do
   r :: Either TCErr (Maybe Interface) <- liftIO $ runTCMTop $
     do setCommandLineOptions defaultOptions
-       src   <- liftIO $ SourceFile <$> absolute "Issue1168.agda"
+       let src = SourceFile (mkPath "Issue1168.agda")
        ifile <- findInterfaceFile' src
        readInterface $ fromMaybe __IMPOSSIBLE__ ifile
 

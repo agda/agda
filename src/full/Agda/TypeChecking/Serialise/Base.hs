@@ -157,7 +157,7 @@ data St = St
     --   Used to introduce sharing while deserializing objects.
   , modFile   :: !ModuleToSource
     -- ^ Maps module names to file names. Constructed by the decoder.
-  , includes  :: [AbsolutePath]
+  , includes  :: [Path]
     -- ^ The include directories.
   }
 

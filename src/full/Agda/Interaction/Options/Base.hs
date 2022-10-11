@@ -64,7 +64,7 @@ import Agda.Interaction.Options.Warnings
 import Agda.Syntax.Concrete.Glyph ( unsafeSetUnicodeOrAscii, UnicodeOrAscii(..) )
 import Agda.Syntax.Common (Cubical(..))
 
-import Agda.Utils.FileName      ( AbsolutePath )
+import Agda.Utils.FileName      ( Path )
 import Agda.Utils.Functor       ( (<&>) )
 import Agda.Utils.Lens          ( Lens', over )
 import Agda.Utils.List          ( groupOn, initLast1, wordsBy )
@@ -95,7 +95,7 @@ data CommandLineOptions = Options
   { optProgramName           :: String
   , optInputFile             :: Maybe FilePath
   , optIncludePaths          :: [FilePath]
-  , optAbsoluteIncludePaths  :: [AbsolutePath]
+  , optUniqueIncludePaths    :: [Path]
     -- ^ The list should not contain duplicates.
   , optLibraries             :: [LibName]
   , optOverrideLibrariesFile :: Maybe FilePath
@@ -253,7 +253,7 @@ defaultOptions = Options
   { optProgramName      = "agda"
   , optInputFile             = Nothing
   , optIncludePaths          = []
-  , optAbsoluteIncludePaths  = []
+  , optUniqueIncludePaths    = []
   , optLibraries             = []
   , optOverrideLibrariesFile = Nothing
   , optDefaultLibs           = True

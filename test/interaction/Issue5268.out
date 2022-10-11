@@ -1,6 +1,6 @@
 (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
-(agda2-info-action "*Type-checking*" "Checking Issue5268 (tmp-issue-5268/src/a/Issue5268.agda). " t)
+(agda2-info-action "*Error*" "1,1-10 You tried to load tmp-issue-5268/sym/Issue5268.agda which defines the module Issue5268. However, according to the include path this module should be defined in Issue5268.agda." nil)
+(agda2-highlight-load-and-delete-action)
 (agda2-status-action "")
-(agda2-info-action "*All Errors*" "tmp-issue-5268/src/a/Issue5268.agda:1,1-15 Termination checking failed for the following functions: S Problematic calls: S (at tmp-issue-5268/src/a/Issue5268.agda:1,14-15) " nil)

@@ -427,7 +427,7 @@ typeCheckMain mode src = do
       -- We don't want to generate highlighting information for Agda.Primitive.
       withHighlightingLevel None $
         forM_ (Set.map (libdirPrim </>) Lens.primitiveModules) $ \f -> do
-          primSource <- parseSource (SourceFile $ mkAbsolute f)
+          primSource <- parseSource (SourceFile $ mkPath f)
           checkModuleName' (srcModuleName primSource) (srcOrigin primSource)
           void $ getNonMainInterface (srcModuleName primSource) (Just primSource)
 
@@ -896,7 +896,7 @@ readInterface file = do
 --
 -- The written interface is decoded and returned.
 
-writeInterface :: AbsolutePath -> Interface -> TCM Interface
+writeInterface :: Path -> Interface -> TCM Interface
 writeInterface file i = let fp = filePath file in do
     reportSLn "import.iface.write" 5  $
       "Writing interface file " ++ fp ++ "."
@@ -1280,8 +1280,8 @@ buildInterface src topLevel = do
     return i
 
 -- | Returns (iSourceHash, iFullHash)
---   We do not need to check that the file exist because we only
---   accept @InterfaceFile@ as an input and not arbitrary @AbsolutePath@!
+--   We do not need to check that the file exists because we only
+--   accept 'InterfaceFile's as input and not arbitrary 'Path's.
 getInterfaceFileHashes :: InterfaceFile -> IO (Maybe (Hash, Hash))
 getInterfaceFileHashes fp = do
   let ifile = filePath $ intFilePath fp

@@ -36,18 +36,20 @@ import Agda.Interaction.Options
   )
 
 import Agda.Syntax.Position (mkRangeFile, rangeFilePath)
-import Agda.Syntax.TopLevelModuleName (TopLevelModuleName, projectRoot)
+import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 
 import Agda.TypeChecking.Monad
   ( HasOptions(commandLineOptions)
   , MonadDebug
+  , MonadTCError
   , stModuleToSource
   , useTC
   , ReadTCState
   , reportS
+  , rootPathTCM
   )
 
-import Agda.Utils.FileName (filePath, mkAbsolute)
+import Agda.Utils.FileName (filePath)
 
 ------------------------------------------------------------------------
 -- * Main.
@@ -117,24 +119,26 @@ runLogLaTeXWithMonadDebug :: MonadDebug m => LogLaTeXT m a -> m a
 runLogLaTeXWithMonadDebug = runLogLaTeXTWith $ (reportS "compile.latex" 1) . T.unpack . logMsgToText
 
 -- Resolve the raw flags into usable LaTeX options.
-resolveLaTeXOptions :: (HasOptions m, ReadTCState m) => LaTeXFlags -> TopLevelModuleName -> m LaTeXOptions
+resolveLaTeXOptions ::
+  (HasOptions m, MonadTCError m, ReadTCState m) =>
+  LaTeXFlags -> TopLevelModuleName -> m LaTeXOptions
 resolveLaTeXOptions flags moduleName = do
   options <- commandLineOptions
   modFiles <- useTC stModuleToSource
   let
     mSrcFileName =
-      (\f -> mkRangeFile (mkAbsolute (filePath f)) (Just moduleName)) <$>
+      (\f -> mkRangeFile f (Just moduleName)) <$>
       Map.lookup moduleName modFiles
     countClusters = optCountClusters . optPragmaOptions $ options
     latexDir = latexFlagOutDir flags
     -- FIXME: This reliance on emacs-mode to decide whether to interpret the output location as project-relative or
     -- cwd-relative is gross. Also it currently behaves differently for JSON mode :-/
     -- And it prevents us from doing a real "one-time" setup.
-    outDir = case (mSrcFileName, optGHCiInteraction options) of
-      (Just sourceFile, True) ->
-        filePath (projectRoot (rangeFilePath sourceFile) moduleName) </>
-        latexDir
-      _ -> latexDir
+  outDir <- case (mSrcFileName, optGHCiInteraction options) of
+    (Just sourceFile, True) ->
+      (</> latexDir) . filePath <$>
+        rootPathTCM (rangeFilePath sourceFile) moduleName
+    _ -> return latexDir
   return LaTeXOptions
     { latexOptOutDir         = outDir
     , latexOptSourceFileName = mSrcFileName
@@ -148,7 +152,7 @@ preCompileLaTeX
 preCompileLaTeX flags = pure $ LaTeXCompileEnv flags
 
 preModuleLaTeX
-  :: (HasOptions m, ReadTCState m)
+  :: (HasOptions m, MonadTCError m, ReadTCState m)
   => LaTeXCompileEnv
   -> IsMain
   -> TopLevelModuleName

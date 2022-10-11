@@ -288,10 +288,9 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
 runInteraction :: IOTCM -> CommandM ()
 runInteraction iotcm =
   handleCommand inEmacs onFail $ do
-    currentAbs <- liftIO $ absolute current
     cf  <- gets theCurrentFile
     cmd <- if independent cmd then return cmd else do
-      when (Just currentAbs /= (currentFilePath <$> cf)) $ do
+      when (Just currentPath /= (currentFilePath <$> cf)) $ do
         let mode = TypeCheck
         cmd_load' current [] True mode $ \_ -> return ()
       cf <- fromMaybe __IMPOSSIBLE__ <$> gets theCurrentFile
@@ -303,13 +302,15 @@ runInteraction iotcm =
     cf' <- gets theCurrentFile
     when (updateInteractionPointsAfter cmd
             &&
-          Just currentAbs == (currentFilePath <$> cf')) $ do
+          Just currentPath == (currentFilePath <$> cf')) $ do
         putResponse . Resp_InteractionPoints =<< gets theInteractionPoints
 
   where
     -- The ranges in cmd might be incorrect because of the use of
     -- Nothing here. That is taken care of above.
     IOTCM current highlighting highlightingMethod cmd = iotcm Nothing
+
+    currentPath = mkPath current
 
     inEmacs :: forall a. CommandM a -> CommandM a
     inEmacs = liftCommandMT $ withEnv $ initEnv
@@ -614,14 +615,14 @@ interpret (Cmd_load_highlighting_info source) = do
     -- been set.
     setCommandLineOpts =<< lift commandLineOptions
     resp <- lift $ liftIO . tellToUpdateHighlighting =<< do
-      ex        <- liftIO $ doesFileExist source
-      absSource <- liftIO $ SourceFile <$> absolute source
+      ex     <- liftIO $ doesFileExist source
+      source <- return $ SourceFile $ mkPath source
       if ex
         then
            do
-              src <- Imp.parseSource absSource
+              src <- Imp.parseSource source
               let m = Imp.srcModuleName src
-              checkModuleName m absSource Nothing
+              checkModuleName m source Nothing
               mmi <- getVisitedModule m
               case mmi of
                 Nothing -> return Nothing
@@ -643,8 +644,8 @@ interpret (Cmd_tokenHighlighting source remove) = do
              if l == None
                then return Nothing
                else do
-                 source' <- liftIO (absolute source)
-                 lift $ (Just <$> generateTokenInfo source')
+                 source <- return $ mkPath source
+                 lift $ (Just <$> generateTokenInfo source)
                            `catchError` \_ ->
                         return Nothing
       `finally`
@@ -886,10 +887,10 @@ cmd_load'
                -- ^ Continuation after successful loading.
   -> CommandM a
 cmd_load' file argv unsolvedOK mode cmd = do
-    fp <- liftIO $ absolute file
-    ex <- liftIO $ doesFileExist $ filePath fp
+    ex <- liftIO $ doesFileExist file
     unless ex $ typeError $ GenericError $
       "The file " ++ file ++ " was not found."
+    let fp = mkPath file
 
     -- Forget the previous "current file" and interaction points.
     modify $ \ st -> st { theInteractionPoints = []
@@ -932,7 +933,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
       Right (_, opts) -> do
         opts <- lift $ addTrustedExecutables opts
         let update o = o { optAllowUnsolved = unsolvedOK && optAllowUnsolved o}
-            root     = projectRoot fp $ Imp.srcModuleName src
+        root <- lift $ rootPathTCM fp $ Imp.srcModuleName src
         lift $ TCM.setCommandLineOptions' root $ mapPragmaOptions update opts
 
     -- Restore the warnings that were saved above.

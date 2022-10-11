@@ -20,7 +20,7 @@ import qualified Data.Text as T
 
 import Internal.Helpers
 import Internal.Syntax.Common ()
-import Internal.Utils.FileName (rootPath)
+import Internal.Utils.FileName ()
 import Internal.Utils.Maybe.Strict ()
 
 import Prelude hiding ( null )
@@ -206,9 +206,8 @@ instance Arbitrary RangeFile where
   arbitrary = do
     top   <- arbitrary
     extra <- take 2 . map (take 2) <$> listOf (listOf1 (elements "a1"))
-    let f = mkAbsolute $ joinPath $
-            rootPath : extra ++
-            map T.unpack (List1.toList (moduleNameParts top))
+    let f = mkPath $ joinPath $
+            extra ++ map T.unpack (List1.toList (moduleNameParts top))
     return $ mkRangeFile f (Just top)
 
 instance (Arbitrary a, Ord a) => Arbitrary (Interval' a) where

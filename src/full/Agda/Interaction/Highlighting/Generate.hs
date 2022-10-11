@@ -183,7 +183,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
 -- | Generate and return the syntax highlighting information for the
 -- tokens in the given file.
 
-generateTokenInfo :: AbsolutePath -> TCM HighlightingInfo
+generateTokenInfo :: Path -> TCM HighlightingInfo
 generateTokenInfo file =
   generateTokenInfoFromSource rf . Text.unpack =<<
     runPM (Pa.readFilePM rf)

@@ -65,7 +65,6 @@ import Agda.Interaction.Library.Parse
 import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.Environment
-import Agda.Utils.FileName
 import Agda.Utils.Functor ( (<&>) )
 import Agda.Utils.IO ( catchIO )
 import qualified Agda.Utils.IO.UTF8 as UTF8
@@ -124,16 +123,16 @@ getAgdaAppDir = do
   let agdaDir = getAppUserDataDirectory "agda"
   -- The default can be overwritten by setting the AGDA_DIR environment variable
   caseMaybeM (lookupEnv "AGDA_DIR") agdaDir $ \ dir ->
-      ifM (doesDirectoryExist dir) (canonicalizePath dir) $ do
+      ifM (doesDirectoryExist dir) (return dir) $ do
         d <- agdaDir
         putStrLn $ "Warning: Environment variable AGDA_DIR points to non-existing directory " ++ show dir ++ ", using " ++ show d ++ " instead."
         return d
 
--- | Returns the absolute default lib dir. This directory is used to
--- store the Primitive.agda file.
+-- | Returns the default library directory. This directory is used to
+-- store the file @Agda/Primitive.agda@.
 getPrimitiveLibDir :: IO FilePath
 getPrimitiveLibDir = do
-  libdir <- filePath <$> (absolute =<< getDataFileName "lib")
+  libdir <- getDataFileName "lib"
   ifM (doesDirectoryExist libdir)
       (return $ libdir </> "prim")
       (error $ "The lib directory " ++ libdir ++ " does not exist")
@@ -181,23 +180,8 @@ findProjectConfig root = mkLibM [] $ findProjectConfig' root
 findProjectConfig'
   :: FilePath                          -- ^ Candidate (init: the directory Agda was called in)
   -> LibErrorIO ProjectConfig          -- ^ Actual root and @.agda-lib@ files for this project
-findProjectConfig' root = do
-  getCachedProjectConfig root >>= \case
-    Just conf -> return conf
-    Nothing   -> do
-      libFiles <- liftIO $ filter ((== ".agda-lib") . takeExtension) <$> getDirectoryContents root
-      case libFiles of
-        []     -> liftIO (upPath root) >>= \case
-          Just up -> do
-            conf <- findProjectConfig' up
-            storeCachedProjectConfig root conf
-            return conf
-          Nothing -> return DefaultProjectConfig
-        files -> do
-          let conf = ProjectConfig root files
-          storeCachedProjectConfig root conf
-          return conf
-
+findProjectConfig' dir =
+  search . parents =<< liftIO (makeAbsolute dir)
   where
     -- Note that "going up" one directory is OS dependent
     -- if the directory is a symlink.
@@ -212,11 +196,47 @@ findProjectConfig' root = do
     --   put this more concretely: if L is a symbolic link for R/P,
     --   then on Windows L\.. refers to ., whereas on other
     --   operating systems L/.. refers to R.
-    upPath :: FilePath -> IO (Maybe FilePath)
-    upPath root = do
-      up <- canonicalizePath $ root </> ".."
-      if up == root then return Nothing else return $ Just up
+    --
+    -- Here we do not use .., instead we use parents to compute parent
+    -- directories.
 
+    -- On a Posix system the following equalities hold:
+    --
+    --   parents "/foo/bar" == ["/foo/bar","/foo/","/"]
+    --   parents "/foo/bar/" == ["/foo/bar/","/foo/","/"]
+    --   parents "/foo/../bar/" == ["/foo/../bar/","/foo/../","/foo/","/"]
+    --
+    -- I believe that it is the case that the returned list is built in
+    -- linear time (in the length of the input), and that "traversing"
+    -- one of the resulting paths is linear in the length of the path.
+    parents :: FilePath -> [FilePath]
+    parents =
+      reverse .
+      map ($ []) . tail . scanl (\ds d -> ds . (d ++)) id .
+      splitPath
+
+    search :: [FilePath] -> LibErrorIO ProjectConfig
+    search []           = return DefaultProjectConfig
+    search (dir : dirs) =
+      getCachedProjectConfig dir >>= \case
+        Just conf -> return conf
+        Nothing   -> do
+          libFiles <- liftIO $
+            filter ((== ".agda-lib") . takeExtension) <$>
+              getDirectoryContents dir
+          case libFiles of
+            [] -> do
+              conf <- search dirs
+              storeCachedProjectConfig dir conf
+              return conf
+            files -> do
+              -- An attempt is made to make the path relative with
+              -- respect to the current working directory.
+              dir <- flip makeRelative dir <$>
+                     liftIO getCurrentDirectory
+              let conf = ProjectConfig dir files
+              storeCachedProjectConfig dir conf
+              return conf
 
 -- | Get project root
 

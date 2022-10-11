@@ -223,15 +223,25 @@ moduleNameToFileName TopLevelModuleName{ moduleNameParts = ms } ext =
   joinPath (map T.unpack $ List1.init ms) </>
   T.unpack (List1.last ms) <.> ext
 
--- | Finds the current project's \"root\" directory, given a project
--- file and the corresponding top-level module name.
+-- | Finds a given module's \"root\" directory, given its path and its
+-- top-level module name.
 --
--- Example: If the module \"A.B.C\" is located in the file
--- \"/foo/A/B/C.agda\", then the root is \"/foo/\".
+-- The path must match the module name. For instance, if the module is
+-- called @A.B.C@, then the path must end with @A/B/something@ (or
+-- something equivalent on Windows). If the path does not match, then
+-- 'Nothing' is returned.
 --
--- Precondition: The module name must be well-formed.
+-- Examples for the module @A.B.C@ (on a non-Windows system): If the
+-- path is @/foo/A/B/C.agda@, then the root is @/foo@. If the path is
+-- @foo/A/B/C.agda@, then the root is @foo@. If the path is
+-- @foo/A/B/../A/B/C.agda@, then the root is @foo/A/B/..@.
 
-projectRoot :: AbsolutePath -> TopLevelModuleName -> AbsolutePath
-projectRoot file TopLevelModuleName{ moduleNameParts = m } =
-  mkAbsolute $
-    iterate takeDirectory (filePath file) !! length m
+rootPath :: Path -> TopLevelModuleName -> Maybe Path
+rootPath file TopLevelModuleName{ moduleNameParts = m } =
+  if suffix == map T.unpack (List1.init m)
+  then Just (mkPath (joinPath prefix))
+  else Nothing
+  where
+  dirs              = splitPath $ takeDirectory $ filePath file
+  (prefix, suffix') = splitAt (size dirs - (size m - 1)) dirs
+  suffix            = map dropTrailingPathSeparator suffix'

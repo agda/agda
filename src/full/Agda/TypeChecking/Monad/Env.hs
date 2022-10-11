@@ -29,7 +29,7 @@ withCurrentModule m =
     localTC $ \ e -> e { envCurrentModule = m }
 
 -- | Get the path of the currently checked file
-getCurrentPath :: MonadTCEnv m => m AbsolutePath
+getCurrentPath :: MonadTCEnv m => m Path
 getCurrentPath = fromMaybe __IMPOSSIBLE__ <$> asksTC envCurrentPath
 
 -- | Get the number of variables bound by anonymous modules.

@@ -154,13 +154,13 @@ inCompilerEnv checkResult cont = do
     -- the current pragma options persistent when we setCommandLineOptions
     -- below.
     opts <- getsTC $ stPersistentOptions . stPersistentState
-    let compileDir = case optCompileDir opts of
-          Just dir -> dir
-          Nothing  ->
-            -- The default output directory is the project root.
-            let tm = iTopLevelModuleName mainI
-                f  = srcFilePath $ srcOrigin checkedSource
-            in filePath $ projectRoot f tm
+    compileDir <- case optCompileDir opts of
+      Just dir -> return dir
+      Nothing  -> do
+        -- The default output directory is the project root.
+        let tm = iTopLevelModuleName mainI
+            f  = srcFilePath $ srcOrigin checkedSource
+        filePath <$> rootPathTCM f tm
     setCommandLineOptions $
       opts { optCompileDir = Just compileDir }
 

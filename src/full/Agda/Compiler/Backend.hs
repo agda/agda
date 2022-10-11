@@ -209,7 +209,8 @@ parseBackendOptions backends argv opts0 =
       opts <- checkOpts opts
       return (forgetAll forgetOpts backends, opts)
 
-backendInteraction :: AbsolutePath -> [Backend] -> TCM () -> (AbsolutePath -> TCM CheckResult) -> TCM ()
+backendInteraction ::
+  Path -> [Backend] -> TCM () -> (Path -> TCM CheckResult) -> TCM ()
 backendInteraction mainFile backends setup check = do
   setup
   checkResult <- check mainFile

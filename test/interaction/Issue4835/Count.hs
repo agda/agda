@@ -23,7 +23,7 @@ countModID :: String -> ModuleNameHash -> IO (Either TCErr Int)
 countModID modName modID = runTCMTop $ do
   setCommandLineOptions $ defaultOptions
 
-  sourcePath <- liftIO $ absolute $ "Issue4835" </> modName <.> "agda"
+  let sourcePath = mkPath $ "Issue4835" </> modName <.> "agda"
   interPath <- toIFile $ SourceFile sourcePath
   mInter <- decodeFile $ filePath interPath
 

@@ -220,33 +220,34 @@ class LensIncludePaths a where
   setIncludePaths :: [FilePath] -> a -> a
   mapIncludePaths :: ([FilePath] -> [FilePath]) -> a -> a
 
-  getAbsoluteIncludePaths :: a -> [AbsolutePath]
-  setAbsoluteIncludePaths :: [AbsolutePath] -> a -> a
-  mapAbsoluteIncludePaths :: ([AbsolutePath] -> [AbsolutePath]) -> a -> a
+  getUniqueIncludePaths :: a -> [Path]
+  setUniqueIncludePaths :: [Path] -> a -> a
+  mapUniqueIncludePaths :: ([Path] -> [Path]) -> a -> a
 
   -- default implementations
   setIncludePaths     = mapIncludePaths . const
   mapIncludePaths f a = setIncludePaths (f $ getIncludePaths a) a
-  setAbsoluteIncludePaths     = mapAbsoluteIncludePaths . const
-  mapAbsoluteIncludePaths f a = setAbsoluteIncludePaths (f $ getAbsoluteIncludePaths a) a
+  setUniqueIncludePaths     = mapUniqueIncludePaths . const
+  mapUniqueIncludePaths f a =
+    setUniqueIncludePaths (f $ getUniqueIncludePaths a) a
 
 instance LensIncludePaths CommandLineOptions where
   getIncludePaths = optIncludePaths
   setIncludePaths is opts = opts { optIncludePaths = is }
-  getAbsoluteIncludePaths = optAbsoluteIncludePaths
-  setAbsoluteIncludePaths is opts = opts { optAbsoluteIncludePaths = is }
+  getUniqueIncludePaths = optUniqueIncludePaths
+  setUniqueIncludePaths is opts = opts { optUniqueIncludePaths = is }
 
 instance LensIncludePaths PersistentTCState where
   getIncludePaths = getIncludePaths . getCommandLineOptions
   mapIncludePaths = mapCommandLineOptions . mapIncludePaths
-  getAbsoluteIncludePaths = getAbsoluteIncludePaths . getCommandLineOptions
-  mapAbsoluteIncludePaths = mapCommandLineOptions . mapAbsoluteIncludePaths
+  getUniqueIncludePaths = getUniqueIncludePaths . getCommandLineOptions
+  mapUniqueIncludePaths = mapCommandLineOptions . mapUniqueIncludePaths
 
 instance LensIncludePaths TCState where
   getIncludePaths = getIncludePaths . getCommandLineOptions
   mapIncludePaths = mapCommandLineOptions . mapIncludePaths
-  getAbsoluteIncludePaths = getAbsoluteIncludePaths . getCommandLineOptions
-  mapAbsoluteIncludePaths = mapCommandLineOptions . mapAbsoluteIncludePaths
+  getUniqueIncludePaths = getUniqueIncludePaths . getCommandLineOptions
+  mapUniqueIncludePaths = mapCommandLineOptions . mapUniqueIncludePaths
 
 modifyIncludePaths :: MonadTCState m => ([FilePath] -> [FilePath]) -> m ()
 modifyIncludePaths = modifyTC . mapIncludePaths
@@ -254,11 +255,12 @@ modifyIncludePaths = modifyTC . mapIncludePaths
 putIncludePaths :: MonadTCState m => [FilePath] -> m ()
 putIncludePaths = modifyTC . setIncludePaths
 
-modifyAbsoluteIncludePaths :: MonadTCState m => ([AbsolutePath] -> [AbsolutePath]) -> m ()
-modifyAbsoluteIncludePaths = modifyTC . mapAbsoluteIncludePaths
+modifyUniqueIncludePaths ::
+  MonadTCState m => ([Path] -> [Path]) -> m ()
+modifyUniqueIncludePaths = modifyTC . mapUniqueIncludePaths
 
-putAbsoluteIncludePaths :: MonadTCState m => [AbsolutePath] -> m ()
-putAbsoluteIncludePaths = modifyTC . setAbsoluteIncludePaths
+putUniqueIncludePaths :: MonadTCState m => [Path] -> m ()
+putUniqueIncludePaths = modifyTC . setUniqueIncludePaths
 
 ---------------------------------------------------------------------------
 -- ** Include directories

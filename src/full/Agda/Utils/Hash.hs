@@ -21,7 +21,7 @@ type Hash = Word64
 hashByteString :: ByteString -> Hash
 hashByteString = H.asWord64 . B.foldl' (\h b -> H.combine h (H.hashWord8 b)) (H.hashWord8 0)
 
-hashTextFile :: AbsolutePath -> IO Hash
+hashTextFile :: Path -> IO Hash
 hashTextFile file = hashText <$> readTextFile (filePath file)
 
 -- | Hashes a piece of 'Text'.

@@ -142,7 +142,7 @@ type SrcFile = Strict.Maybe RangeFile
 -- | File information used in the 'Position', 'Interval' and 'Range'
 -- types.
 data RangeFile = RangeFile
-  { rangeFilePath :: !AbsolutePath
+  { rangeFilePath :: !Path
     -- ^ The file's path.
   , rangeFileName :: !(Maybe TopLevelModuleName)
     -- ^ The file's top-level module name.
@@ -162,7 +162,7 @@ data RangeFile = RangeFile
 
 -- | A smart constructor for 'RangeFile'.
 
-mkRangeFile :: AbsolutePath -> Maybe TopLevelModuleName -> RangeFile
+mkRangeFile :: Path -> Maybe TopLevelModuleName -> RangeFile
 mkRangeFile f top = RangeFile
   { rangeFilePath = f
   , rangeFileName = killRange top

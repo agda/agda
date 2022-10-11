@@ -177,29 +177,25 @@ getCachedProjectConfig
   :: (MonadState LibState m, MonadIO m)
   => FilePath -> m (Maybe ProjectConfig)
 getCachedProjectConfig path = do
-  path <- liftIO $ canonicalizePath path
   cache <- gets fst
   return $ Map.lookup path cache
 
 storeCachedProjectConfig
   :: (MonadState LibState m, MonadIO m)
   => FilePath -> ProjectConfig -> m ()
-storeCachedProjectConfig path conf = do
-  path <- liftIO $ canonicalizePath path
+storeCachedProjectConfig path conf =
   modify $ first $ Map.insert path conf
 
 getCachedAgdaLibFile
   :: (MonadState LibState m, MonadIO m)
   => FilePath -> m (Maybe AgdaLibFile)
-getCachedAgdaLibFile path = do
-  path <- liftIO $ canonicalizePath path
+getCachedAgdaLibFile path =
   gets $ Map.lookup path . snd
 
 storeCachedAgdaLibFile
   :: (MonadState LibState m, MonadIO m)
   => FilePath -> AgdaLibFile -> m ()
-storeCachedAgdaLibFile path lib = do
-  path <- liftIO $ canonicalizePath path
+storeCachedAgdaLibFile path lib =
   modify $ second $ Map.insert path lib
 
 ------------------------------------------------------------------------

@@ -40,7 +40,7 @@ import Agda.Compiler.Builtin
 
 import Agda.VersionCommit
 
-import Agda.Utils.FileName (absolute, filePath, AbsolutePath)
+import Agda.Utils.FileName (Path, filePath, mkPath)
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.String
@@ -59,8 +59,8 @@ runAgda' backends = runTCMPrettyErrors $ do
   argv     <- liftIO getArgs
   conf     <- liftIO $ runExceptT $ do
     (bs, opts) <- ExceptT $ runOptM $ parseBackendOptions backends argv defaultOptions
-    -- The absolute path of the input file, if provided
-    inputFile <- liftIO $ mapM absolute $ optInputFile opts
+    -- The path of the input file, if provided.
+    let inputFile = mkPath <$> optInputFile opts
     mode      <- getMainMode bs inputFile opts
     return (bs, opts, mode)
 
@@ -100,7 +100,9 @@ data MainMode
 
 -- | Determine the main execution mode to run, based on the configured backends and command line options.
 -- | This is pure.
-getMainMode :: MonadError String m => [Backend] -> Maybe AbsolutePath -> CommandLineOptions -> m MainMode
+getMainMode ::
+  MonadError String m =>
+  [Backend] -> Maybe Path -> CommandLineOptions -> m MainMode
 getMainMode configuredBackends maybeInputFile opts
   | Just hp <- optPrintHelp opts = return $ MainModePrintHelp hp
   | optPrintVersion opts         = return $ MainModePrintVersion
@@ -115,7 +117,7 @@ type Interactor a
     -- This is separated so that errors can be reported in the appropriate format.
     = TCM ()
     -- Type-checking action
-    -> (AbsolutePath -> TCM CheckResult)
+    -> (Path -> TCM CheckResult)
     -- Main transformed action.
     -> TCM a
 
@@ -133,14 +135,17 @@ jsonModeInteractor :: Interactor ()
 jsonModeInteractor setup _check = jsonREPL setup
 
 -- The deprecated repl mode.
-replInteractor :: Maybe AbsolutePath -> Interactor ()
+replInteractor :: Maybe Path -> Interactor ()
 replInteractor = runInteractionLoop
 
 -- The interactor to use when there are no frontends or backends specified.
-defaultInteractor :: AbsolutePath -> Interactor ()
+defaultInteractor :: Path -> Interactor ()
 defaultInteractor file setup check = do setup; void $ check file
 
-getInteractor :: MonadError String m => [Backend] -> Maybe AbsolutePath -> CommandLineOptions -> m (Maybe (Interactor ()))
+getInteractor ::
+  MonadError String m =>
+  [Backend] -> Maybe Path -> CommandLineOptions ->
+  m (Maybe (Interactor ()))
 getInteractor configuredBackends maybeInputFile opts =
   case (maybeInputFile, enabledFrontends, enabledBackends) of
     (Just inputFile, [],             _:_) -> return $ Just $ backendInteraction inputFile enabledBackends
@@ -212,7 +217,7 @@ runAgdaWithOptions interactor progName opts = do
       opts <- addTrustedExecutables opts
       setCommandLineOptions opts
 
-    checkFile :: AbsolutePath -> TCM CheckResult
+    checkFile :: Path -> TCM CheckResult
     checkFile inputFile = do
         -- Andreas, 2013-10-30 The following 'resetState' kills the
         -- verbosity options.  That does not make sense (see fail/Issue641).

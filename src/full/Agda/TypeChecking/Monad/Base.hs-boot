@@ -8,7 +8,7 @@ import Data.Map (Map)
 
 import Agda.Syntax.Common (Nat)
 import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
-import Agda.Utils.FileName (AbsolutePath)
+import Agda.Utils.FileName (Path)
 
 data Warning
 
@@ -43,7 +43,7 @@ instance Monad m => Monad (TCMT m) where
 
 type TCM = TCMT IO
 
-type ModuleToSource = Map TopLevelModuleName AbsolutePath
+type ModuleToSource = Map TopLevelModuleName Path
 
 type BackendName = String
 

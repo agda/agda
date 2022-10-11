@@ -2,12 +2,12 @@
 
 {-| Operations on file names. -}
 module Agda.Utils.FileName
-  ( AbsolutePath(AbsolutePath)
+  ( Path(..)
   , filePath
-  , mkAbsolute
-  , absolute
-  , canonicalizeAbsolutePath
+  , mkPath
   , sameFile
+  , removeSomeDuplicates
+  , removeSomeDuplicatesFP
   , doesFileExistCaseSensitive
   , isNewerThan
   , relativizeAbsolutePath
@@ -25,76 +25,90 @@ import System.Win32        ( findFirstFile, findClose, getFindDataFileName )
 
 import Data.Function
 import Data.Hashable       ( Hashable )
+import qualified Data.List as List
 import Data.Text           ( Text )
 import qualified Data.Text as Text
 
+import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 
--- | Paths which are known to be absolute.
+-- | Paths.
 --
 -- Note that the 'Eq' and 'Ord' instances do not check if different
 -- paths point to the same files or directories.
 
-newtype AbsolutePath = AbsolutePath { textPath :: Text }
+newtype Path = Path { textPath :: Text }
   deriving (Show, Eq, Ord, Hashable, NFData)
 
--- | Extract the 'AbsolutePath' to be used as 'FilePath'.
-filePath :: AbsolutePath -> FilePath
+-- | Converts 'Path's to 'FilePath's.
+filePath :: Path -> FilePath
 filePath = Text.unpack . textPath
 
-instance Pretty AbsolutePath where
+instance Pretty Path where
   pretty = text . filePath
 
--- | Constructs 'AbsolutePath's.
+-- | Constructs 'Path's.
 --
--- Precondition: The path must be absolute and valid.
+-- Some normalisation is performed.
+--
+-- Precondition: The path must be valid.
 
-mkAbsolute :: FilePath -> AbsolutePath
-mkAbsolute f
-  | isAbsolute f =
-      AbsolutePath $ Text.pack $ dropTrailingPathSeparator $ normalise f
-        -- normalize does not resolve symlinks
-  | otherwise    = __IMPOSSIBLE__
+mkPath :: FilePath -> Path
+mkPath =
+  Path . Text.pack . dropTrailingPathSeparator . normalise
 
 -- UNUSED Liang-Ting Chen 2019-07-16
 ---- | maps @/bla/bla/bla/foo.bar.xxx@ to @foo.bar@.
---rootName :: AbsolutePath -> String
+--rootName :: Path -> String
 --rootName = dropExtension . snd . splitFileName . filePath
-
--- | Makes the path absolute.
---
--- This function may raise an @\_\_IMPOSSIBLE\_\_@ error if
--- 'canonicalizePath' does not return an absolute path.
-
-absolute :: FilePath -> IO AbsolutePath
-absolute f = mkAbsolute <$> do
-  -- canonicalizePath sometimes truncates paths pointing to
-  -- non-existing files/directories.
-  ex <- doesFileExist f `or2M` doesDirectoryExist f
-  if ex then do
-    -- Andreas, 2020-08-11, issue #4828
-    -- Do not use @canonicalizePath@ on the full path as it resolves symlinks,
-    -- which leads to wrong placement of the .agdai file.
-    dir <- canonicalizePath (takeDirectory f)
-    return (dir </> takeFileName f)
-   else do
-    cwd <- getCurrentDirectory
-    return (cwd </> f)
-
--- | Resolve symlinks etc.  Preserves 'sameFile'.
-
-canonicalizeAbsolutePath :: AbsolutePath -> IO AbsolutePath
-canonicalizeAbsolutePath (AbsolutePath f) =
-  AbsolutePath . Text.pack <$> canonicalizePath (Text.unpack f)
 
 -- | Tries to establish if the two file paths point to the same file
 -- (or directory). False negatives may be returned.
 
-sameFile :: AbsolutePath -> AbsolutePath -> IO Bool
-sameFile = liftA2 equalFilePath `on` (canonicalizePath . filePath)
+sameFile :: Path -> Path -> IO Bool
+sameFile f1 f2 =
+  or2M (return (f1 == f2))
+    ((liftA2 equalFilePath `on` canonicalizePath . filePath) f1 f2)
+
+-- | Tries to remove duplicate paths, where a path is a duplicate of
+-- another if they both refer to the same file or directory. Some
+-- duplicates may exist in the output.
+--
+-- If there is a choice between keeping a relative or an absolute
+-- path, then the relative one is kept, and if there is a choice
+-- between two relative or two absolute paths, then the shorter one is
+-- kept (and if the paths have the same length, then the one that is
+-- first in the list is kept).
+--
+-- Paths that are kept are not reordered.
+
+removeSomeDuplicates :: [Path] -> IO [Path]
+removeSomeDuplicates =
+  removeSomeDuplicates' . map (\p -> (p, filePath p))
+
+-- | A variant of 'removeSomeDuplicates'.
+
+removeSomeDuplicatesFP :: [FilePath] -> IO [Path]
+removeSomeDuplicatesFP =
+  removeSomeDuplicates' . map (\p -> (mkPath p, p))
+
+-- | A generalisation of 'removeSomeDuplicates'.
+--
+-- The two paths in a pair should refer to the same file or directory.
+
+removeSomeDuplicates' :: [(Path, FilePath)] -> IO [Path]
+removeSomeDuplicates' ps =
+  case nubOn fst ps of
+    ps@(_ : _ : _) ->
+      map (fst . fst) .
+      nubFavouriteOn
+        (\((_, f), _) -> (not (isRelative f), length f))
+        snd <$>
+      mapM (\p@(_, f) -> (p,) <$> canonicalizePath f) ps
+    ps -> return (map fst ps)
 
 -- | Case-sensitive 'doesFileExist' for Windows.
 --
@@ -129,10 +143,12 @@ isNewerThan new old = do
 -- | A partial version of 'System.FilePath.makeRelative' with flipped arguments,
 --   returning 'Nothing' if the given path cannot be relativized to the given @root@.
 relativizeAbsolutePath ::
-     AbsolutePath
+     Path
        -- ^ The absolute path we see to relativize.
-  -> AbsolutePath
+  -> Path
        -- ^ The root for relativization.
+       --
+       -- Precondition: This path should be absolute.
   -> Maybe FilePath
        -- ^ The relative path, if any.
 relativizeAbsolutePath apath aroot

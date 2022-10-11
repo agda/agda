@@ -38,7 +38,7 @@ main = do
 mainTCM :: TCM ()
 mainTCM = do
   setCommandLineOptions defaultOptions
-  f <- liftIO $ SourceFile <$> absolute "PrettyInterface.agda"
+  let f = SourceFile (mkPath "PrettyInterface.agda")
   CheckResult { crInterface = i } <- typeCheckMain TypeCheck =<< parseSource f
   compilerMain i
 

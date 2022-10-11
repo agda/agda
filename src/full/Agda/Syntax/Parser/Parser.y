@@ -1397,8 +1397,6 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
     ; mr  = getRange m
     ; unique = hashString $ prettyShow $ (Strict.Nothing :: Strict.Maybe ()) <$ r
          -- turn range into unique id, but delete file path
-         -- which is absolute and messes up suite of failing tests
-         -- (different hashs on different installations)
          -- TODO: Don't use (insecure) hashes in this way.
     ; fresh  = Name mr NotInScope $ singleton $ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show unique
     ; fresh' = Name mr NotInScope $ singleton $ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show (unique + 1)

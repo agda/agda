@@ -137,8 +137,8 @@ instance EncodeTCM a => EncodeTCM (Maybe a) where
   encodeTCM Nothing   = return Null
   encodeTCM (Just a)  = encodeTCM a
 
-instance ToJSON File.AbsolutePath where
-  toJSON (File.AbsolutePath path) = toJSON path
+instance ToJSON File.Path where
+  toJSON (File.Path path) = toJSON path
 
 #if !(MIN_VERSION_aeson(1,5,3))
 instance ToJSON a => ToJSON (Strict.Maybe a) where

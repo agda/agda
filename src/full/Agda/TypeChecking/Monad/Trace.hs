@@ -24,7 +24,8 @@ import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.State
 
 import Agda.Utils.Function
-
+import Agda.Utils.Impossible
+import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -134,12 +135,13 @@ instance MonadTrace TCM where
     -- -- outside the current file
     verboseS "check.ranges" 90 $
       Strict.whenJust (rangeFile callRange) $ \f -> do
-        currentFile <- asksTC envCurrentPath
-        when (currentFile /= Just (rangeFilePath f)) $ do
+        currentMod <- currentTopLevelModule
+        when (currentMod /= rangeFileName f) $ do
           reportSLn "check.ranges" 90 $
             prettyShow call ++
             " is setting the current range to " ++ show callRange ++
-            " which is outside of the current file " ++ show currentFile
+            " which does not match the current module " ++
+            prettyShow currentMod
 
     -- Compute update to 'Range' and 'Call' components of 'TCEnv'.
     let withCall = localTC $ foldr (.) id $ concat $

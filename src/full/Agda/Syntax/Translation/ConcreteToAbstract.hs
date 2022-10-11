@@ -1251,7 +1251,7 @@ scopeCheckModule r x qm tel checkDs = do
 
 -- | Temporary data type to scope check a file.
 data TopLevel a = TopLevel
-  { topLevelPath           :: AbsolutePath
+  { topLevelPath           :: Path
     -- ^ The file path from which we loaded this module.
   , topLevelExpectedName   :: TopLevelModuleName
     -- ^ The expected module name

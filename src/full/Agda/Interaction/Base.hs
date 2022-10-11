@@ -29,7 +29,7 @@ import           Agda.Syntax.TopLevelModuleName
 import           Agda.Interaction.Options     (CommandLineOptions,
                                                defaultOptions)
 
-import           Agda.Utils.FileName          (AbsolutePath, mkAbsolute)
+import           Agda.Utils.FileName          (Path, mkPath)
 import           Agda.Utils.Pretty            (Pretty(..), prettyShow, text)
 import           Agda.Utils.Time              (ClockTime)
 
@@ -84,7 +84,7 @@ type CommandM = StateT CommandState TCM
 
 -- | Information about the current main module.
 data CurrentFile = CurrentFile
-  { currentFilePath  :: AbsolutePath
+  { currentFilePath  :: Path
       -- ^ The file currently loaded into interaction.
   , currentFileModule :: TopLevelModuleName
       -- ^ The top-level module name of the currently loaded file.
@@ -407,10 +407,10 @@ instance Read a => Read (Interval' a) where
         exact "Interval"
         liftM2 Interval readParse readParse
 
-instance Read AbsolutePath where
+instance Read Path where
     readsPrec = parseToReadsPrec $ do
         exact "mkAbsolute"
-        fmap mkAbsolute readParse
+        fmap mkPath readParse
 
 -- | This instance fills in the 'TopLevelModuleName's using 'Nothing'.
 -- Note that these occurrences of 'Nothing' are \"overwritten\" by

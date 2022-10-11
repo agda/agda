@@ -6,4 +6,4 @@ import Agda.TypeChecking.Monad.Base
 import Agda.Utils.FileName
 
 libToTCM       :: LibM a -> TCM a
-getIncludeDirs :: HasOptions m => m [AbsolutePath]
+getIncludeDirs :: HasOptions m => m [Path]

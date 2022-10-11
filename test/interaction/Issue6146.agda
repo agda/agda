@@ -1,0 +1,2 @@
+-- This file is not used other than to ensure that the test in
+-- Issue6146.hs is run.

@@ -24,7 +24,7 @@ cleanup = $(if $(call does_compile,$1),rm -rf MAlonzo $1,true)
 
 %.test : %.agda
 	@echo $<
-	@$(RUN_AGDA) $<
+	@$(RUN_AGDA) ../Common/$<
 	@$(check_$*)
 	@$(cleanup_$*)
 	@$(call cleanup,$*)

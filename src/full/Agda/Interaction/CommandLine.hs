@@ -37,7 +37,7 @@ import Agda.TypeChecking.Pretty ( PrettyTCM(prettyTCM) )
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Warnings (runPM)
 
-import Agda.Utils.FileName (absolute, AbsolutePath)
+import Agda.Utils.FileName (Path, mkPath)
 import Agda.Utils.Maybe (caseMaybeM)
 import Agda.Utils.Pretty
 
@@ -45,11 +45,11 @@ import Agda.Utils.Impossible
 
 data ReplEnv = ReplEnv
     { replSetupAction     :: TCM ()
-    , replTypeCheckAction :: AbsolutePath -> TCM CheckResult
+    , replTypeCheckAction :: Path -> TCM CheckResult
     }
 
 data ReplState = ReplState
-    { currentFile :: Maybe AbsolutePath
+    { currentFile :: Maybe Path
     }
 
 newtype ReplM a = ReplM { unReplM :: ReaderT ReplEnv (StateT ReplState IM) a }
@@ -60,7 +60,9 @@ newtype ReplM a = ReplM { unReplM :: ReaderT ReplEnv (StateT ReplState IM) a }
     , MonadReader ReplEnv, MonadState ReplState
     )
 
-runReplM :: Maybe AbsolutePath -> TCM () -> (AbsolutePath -> TCM CheckResult) -> ReplM () -> TCM ()
+runReplM ::
+  Maybe Path -> TCM () -> (Path -> TCM CheckResult) -> ReplM () ->
+  TCM ()
 runReplM initialFile setup checkInterface
     = runIM
     . flip evalStateT (ReplState initialFile)
@@ -111,7 +113,8 @@ interaction prompt cmds eval = loop
                     liftIO $ putStrLn s
                     loop
 
-runInteractionLoop :: Maybe AbsolutePath -> TCM () -> (AbsolutePath -> TCM CheckResult) -> TCM ()
+runInteractionLoop ::
+  Maybe Path -> TCM () -> (Path -> TCM CheckResult) -> TCM ()
 runInteractionLoop initialFile setup check = runReplM initialFile setup check interactionLoop
 
 replSetup :: ReplM ()
@@ -122,7 +125,7 @@ replSetup = do
 checkCurrentFile :: ReplM (Maybe CheckResult)
 checkCurrentFile = traverse checkFile =<< gets currentFile
 
-checkFile :: AbsolutePath -> ReplM CheckResult
+checkFile :: Path -> ReplM CheckResult
 checkFile file = liftTCM . ($ file) =<< asks replTypeCheckAction
 
 -- | The interaction loop.
@@ -178,8 +181,7 @@ withCurrentFile cont = do
 
 loadFile :: ReplM () -> [String] -> ReplM ()
 loadFile reload [file] = do
-  absPath <- liftIO $ absolute file
-  modify (\(ReplState _prevFile) -> ReplState (Just absPath))
+  modify (\(ReplState _prevFile) -> ReplState (Just (mkPath file)))
   withCurrentFile reload
 loadFile _ _ = liftIO $ putStrLn ":load file"
 

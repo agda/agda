@@ -881,7 +881,7 @@ instance FreshName () where
 -- | Maps top-level module names to the corresponding source file
 -- names.
 
-type ModuleToSource = Map TopLevelModuleName AbsolutePath
+type ModuleToSource = Map TopLevelModuleName Path
 
 ---------------------------------------------------------------------------
 -- ** Associating concrete names to an abstract name
@@ -3311,7 +3311,7 @@ data TCEnv =
     TCEnv { envContext             :: Context
           , envLetBindings         :: LetBindings
           , envCurrentModule       :: ModuleName
-          , envCurrentPath         :: Maybe AbsolutePath
+          , envCurrentPath         :: Maybe Path
             -- ^ The path to the file that is currently being
             -- type-checked.  'Nothing' if we do not have a file
             -- (like in interactive mode see @CommandLine@).
@@ -3557,7 +3557,7 @@ eLetBindings f e = f (envLetBindings e) <&> \ x -> e { envLetBindings = x }
 eCurrentModule :: Lens' ModuleName TCEnv
 eCurrentModule f e = f (envCurrentModule e) <&> \ x -> e { envCurrentModule = x }
 
-eCurrentPath :: Lens' (Maybe AbsolutePath) TCEnv
+eCurrentPath :: Lens' (Maybe Path) TCEnv
 eCurrentPath f e = f (envCurrentPath e) <&> \ x -> e { envCurrentPath = x }
 
 eAnonymousModules :: Lens' [(ModuleName, Nat)] TCEnv
@@ -4245,14 +4245,14 @@ data TypeError
           --   This is an error, since interaction points are never filled
           --   without user interaction.
         | CyclicModuleDependency [TopLevelModuleName]
-        | FileNotFound TopLevelModuleName [AbsolutePath]
-        | OverlappingProjects AbsolutePath TopLevelModuleName TopLevelModuleName
-        | AmbiguousTopLevelModuleName TopLevelModuleName [AbsolutePath]
+        | FileNotFound TopLevelModuleName [Path]
+        | OverlappingProjects Path TopLevelModuleName TopLevelModuleName
+        | AmbiguousTopLevelModuleName TopLevelModuleName [Path]
         | ModuleNameUnexpected TopLevelModuleName TopLevelModuleName
           -- ^ Found module name, expected module name.
-        | ModuleNameDoesntMatchFileName TopLevelModuleName [AbsolutePath]
-        | ClashingFileNamesFor ModuleName [AbsolutePath]
-        | ModuleDefinedInOtherFile TopLevelModuleName AbsolutePath AbsolutePath
+        | ModuleNameDoesntMatchFileName TopLevelModuleName [Path]
+        | ClashingFileNamesFor ModuleName [Path]
+        | ModuleDefinedInOtherFile TopLevelModuleName Path Path
           -- ^ Module name, file from which it was loaded, file which
           -- the include path says contains the module.
     -- Scope errors

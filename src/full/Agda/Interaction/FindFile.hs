@@ -23,6 +23,7 @@ import Prelude hiding (null)
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Trans
+import Data.Coerce
 import Data.Maybe (catMaybes)
 import qualified Data.Map as Map
 import qualified Data.Text as T
@@ -59,23 +60,31 @@ import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
 
--- | Type aliases for source files and interface files.
+-- | Source files.
+--
 --   We may only produce one of these if we know for sure that the file
---   does exist. We can always output an @AbsolutePath@ if we are not sure.
+--   does exist. We can always output a 'Path' if we are not sure.
 
--- TODO: do not export @SourceFile@ and force users to check the
--- @AbsolutePath@ does exist.
-newtype SourceFile    = SourceFile    { srcFilePath :: AbsolutePath } deriving (Eq, Ord)
-newtype InterfaceFile = InterfaceFile { intFilePath :: AbsolutePath }
+-- TODO: Do not export SourceFile and force users to check that the
+-- Path does exist.
+newtype SourceFile = SourceFile { srcFilePath :: Path }
+  deriving (Eq, Ord)
+
+-- | Interface files.
+--
+--   We may only produce one of these if we know for sure that the file
+--   does exist. We can always output a 'Path' if we are not sure.
+
+newtype InterfaceFile = InterfaceFile { intFilePath :: Path }
 
 instance Pretty SourceFile    where pretty = pretty . srcFilePath
 instance Pretty InterfaceFile where pretty = pretty . intFilePath
 
--- | Makes an interface file from an AbsolutePath candidate.
---   If the file does not exist, then fail by returning @Nothing@.
+-- | Makes an interface file from a 'Path' candidate.
+--   If the file does not exist, then 'Nothing' is returned.
 
 mkInterfaceFile
-  :: AbsolutePath             -- ^ Path to the candidate interface file
+  :: Path                     -- ^ Path to the candidate interface file
   -> IO (Maybe InterfaceFile) -- ^ Interface file iff it exists
 mkInterfaceFile fp = do
   ex <- doesFileExistCaseSensitive $ filePath fp
@@ -84,7 +93,7 @@ mkInterfaceFile fp = do
 -- | Converts an Agda file name to the corresponding interface file
 --   name. Note that we do not guarantee that the file exists.
 
-toIFile :: SourceFile -> TCM AbsolutePath
+toIFile :: SourceFile -> TCM Path
 toIFile (SourceFile src) = do
   let fp = filePath src
   mroot <- ifM (optLocalInterfaces <$> commandLineOptions)
@@ -95,15 +104,14 @@ toIFile (SourceFile src) = do
     Just root ->
       let buildDir = root </> "_build" </> version </> "agda"
           fileName = makeRelative root fp
-      in mkAbsolute $ buildDir </> fileName
+      in mkPath $ buildDir </> fileName
 
-replaceModuleExtension :: String -> AbsolutePath -> AbsolutePath
-replaceModuleExtension ext@('.':_) = mkAbsolute . (++ ext) .  dropAgdaExtension . filePath
+replaceModuleExtension :: String -> Path -> Path
+replaceModuleExtension ext@('.' : _) =
+  mkPath . (++ ext) . dropAgdaExtension . filePath
 replaceModuleExtension ext = replaceModuleExtension ('.':ext)
 
 -- | Errors which can arise when trying to find a source file.
---
--- Invariant: All paths are absolute.
 
 data FindError
   = NotFound [SourceFile]
@@ -124,7 +132,7 @@ findErrorToTypeError m (Ambiguous files) =
   AmbiguousTopLevelModuleName m (map srcFilePath files)
 
 -- | Finds the source file corresponding to a given top-level module
--- name. The returned paths are absolute.
+-- name.
 --
 -- Raises an error if the file cannot be found.
 
@@ -136,7 +144,7 @@ findFile m = do
     Right f  -> return f
 
 -- | Tries to find the source file corresponding to a given top-level
---   module name. The returned paths are absolute.
+--   module name.
 --
 --   SIDE EFFECT:  Updates 'stModuleToSource'.
 findFile' :: TopLevelModuleName -> TCM (Either FindError SourceFile)
@@ -150,7 +158,7 @@ findFile' m = do
 -- | A variant of 'findFile'' which does not require 'TCM'.
 
 findFile''
-  :: [AbsolutePath]
+  :: [Path]
   -- ^ Include paths.
   -> TopLevelModuleName
   -> ModuleToSource
@@ -160,23 +168,25 @@ findFile'' dirs m modFile =
   case Map.lookup m modFile of
     Just f  -> return (Right (SourceFile f), modFile)
     Nothing -> do
-      files          <- fileList acceptableFileExts
-      filesShortList <- fileList parseFileExtsShortList
-      existingFiles  <-
+      let files          = fileList acceptableFileExts
+          filesShortList = fileList parseFileExtsShortList
+      existingFiles <-
         liftIO $ filterM (doesFileExistCaseSensitive . filePath . srcFilePath) files
-      return $ case nubOn id existingFiles of
+      existingFiles <-
+        liftIO (coerce <$> removeSomeDuplicates (coerce existingFiles))
+      return $ case existingFiles of
         []     -> (Left (NotFound filesShortList), modFile)
         [file] -> (Right file, Map.insert m (srcFilePath file) modFile)
-        files  -> (Left (Ambiguous existingFiles), modFile)
+        files  -> (Left (Ambiguous files), modFile)
   where
-    fileList exts = mapM (fmap SourceFile . absolute)
-                    [ filePath dir </> file
-                    | dir  <- dirs
-                    , file <- map (moduleNameToFileName m) exts
-                    ]
+    fileList exts =
+      [ SourceFile $ mkPath (filePath dir </> file)
+      | dir  <- dirs
+      , file <- map (moduleNameToFileName m) exts
+      ]
 
 -- | Finds the interface file corresponding to a given top-level
--- module file. The returned paths are absolute.
+-- module file.
 --
 -- Raises 'Nothing' if the the interface file cannot be found.
 
@@ -186,7 +196,7 @@ findInterfaceFile'
 findInterfaceFile' fp = liftIO . mkInterfaceFile =<< toIFile fp
 
 -- | Finds the interface file corresponding to a given top-level
--- module file. The returned paths are absolute.
+-- module file.
 --
 -- Raises an error if the source file cannot be found, and returns
 -- 'Nothing' if the source file can be found but not the interface
@@ -220,7 +230,6 @@ checkModuleName name (SourceFile file) mexpected = do
 
     Right src -> do
       let file' = srcFilePath src
-      file <- liftIO $ absolute (filePath file)
       unlessM (liftIO $ sameFile file file') $
         typeError $ ModuleDefinedInOtherFile name file file'
 
@@ -246,7 +255,7 @@ checkModuleName name (SourceFile file) mexpected = do
 -- module.
 
 moduleName
-  :: AbsolutePath
+  :: Path
      -- ^ The path to the file.
   -> Module
      -- ^ The parsed module.
@@ -282,5 +291,5 @@ dropAgdaExtension s = case catMaybes [ stripSuffix ext s
     [name] -> name
     _      -> __IMPOSSIBLE__
 
-rootNameModule :: AbsolutePath -> String
+rootNameModule :: Path -> String
 rootNameModule = dropAgdaExtension . snd . splitFileName . filePath
