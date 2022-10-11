@@ -62,8 +62,7 @@ setPragmaOptions opts = do
 --
 -- Relative include directories are made absolute with respect to the
 -- current working directory. If the include directories have changed
--- (thus, they are 'Left' now, and were previously @'Right' something@),
--- then the state is reset (completely, see setIncludeDirs) .
+-- then the state is reset (partly, see 'setIncludeDirs').
 --
 -- An empty list of relative include directories (@'Left' []@) is
 -- interpreted as @["."]@.
