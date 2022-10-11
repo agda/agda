@@ -63,7 +63,7 @@ import Paths_Agda
 import Agda.Syntax.Common
 import Agda.Syntax.Parser.Literate (literateTeX, LayerRole, atomizeLayers)
 import qualified Agda.Syntax.Parser.Literate as L
-import Agda.Syntax.Position (startPos)
+import Agda.Syntax.Position (RangeFile, startPos)
 import Agda.Syntax.TopLevelModuleName
   (TopLevelModuleName, moduleNameParts)
 
@@ -71,7 +71,6 @@ import Agda.Interaction.Highlighting.Precise hiding (toList)
 
 import Agda.TypeChecking.Monad (Interface(..)) --, reportSLn)
 
-import Agda.Utils.FileName (AbsolutePath)
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor  ((<&>))
 import Agda.Utils.List     (last1, updateHead, updateLast)
@@ -697,7 +696,7 @@ defaultStyFile = "agda.sty"
 
 data LaTeXOptions = LaTeXOptions
   { latexOptOutDir         :: FilePath
-  , latexOptSourceFileName :: Maybe AbsolutePath
+  , latexOptSourceFileName :: Maybe RangeFile
     -- ^ The parser uses a @Position@ which includes a source filename for
     -- error reporting and such. We don't actually get the source filename
     -- with an @Interface@, and it isn't necessary to look it up.
@@ -784,7 +783,7 @@ groupByFst =
 toLaTeX
   :: MonadLogLaTeX m
   => Env
-  -> Maybe AbsolutePath
+  -> Maybe RangeFile
   -> L.Text
   -> HighlightingInfo
   -> m L.Text

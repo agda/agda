@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE RecursiveDo #-}
 
 {-| This module deals with finding imported modules and loading their
     interface files.
@@ -129,11 +130,17 @@ data Source = Source
 
 parseSource :: SourceFile -> TCM Source
 parseSource sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
-  source                <- runPM $ readFilePM f
-  (parsedMod, fileType) <- runPM $
-                           parseFile moduleParser f $ TL.unpack source
-  parsedModName         <- moduleName f parsedMod
-  libs                  <- getAgdaLibFiles f parsedModName
+  (source, fileType, parsedMod, parsedModName) <- mdo
+    -- This piece of code uses mdo because the top-level module name
+    -- (parsedModName) is obtained from the parser's result, but it is
+    -- also used by the parser.
+    let rf = mkRangeFile f (Just parsedModName)
+    source                <- runPM $ readFilePM rf
+    (parsedMod, fileType) <- runPM $
+                             parseFile moduleParser rf $ TL.unpack source
+    parsedModName         <- moduleName f parsedMod
+    return (source, fileType, parsedMod, parsedModName)
+  libs <- getAgdaLibFiles f parsedModName
   return Source
     { srcText        = source
     , srcFileType    = fileType
@@ -669,7 +676,9 @@ getStoredInterface x file msrc = do
 
         lift $ chaseMsg "Loading " x $ Just ifp
         -- print imported warnings
-        let ws = filter ((Strict.Just (srcFilePath file) ==) . tcWarningOrigin) (iWarnings i)
+        let ws = filter ((Strict.Just (Just x) ==) .
+                         fmap rangeFileName . tcWarningOrigin) $
+                 iWarnings i
         unless (null ws) $ reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
 
         loadDecodedModule file $ ModuleInfo
@@ -941,7 +950,9 @@ createInterface mname file isMain msrc = do
        (chaseMsg checkMsg x $ Just fp)
        (const $ do ws <- getAllWarnings AllWarnings
                    let classified = classifyWarnings ws
-                   let wa' = filter ((Strict.Just (srcFilePath file) ==) . tcWarningOrigin) (tcWarnings classified)
+                   let wa' = filter ((Strict.Just (Just mname) ==) .
+                                     fmap rangeFileName . tcWarningOrigin) $
+                             tcWarnings classified
                    unless (null wa') $
                      reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> wa'
                    when (null (nonFatalErrors classified)) $ chaseMsg "Finished" x Nothing)
@@ -963,7 +974,10 @@ createInterface mname file isMain msrc = do
     let srcPath = srcFilePath $ srcOrigin src
 
     fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
-      generateTokenInfoFromSource srcPath (TL.unpack $ srcText src)
+      generateTokenInfoFromSource
+        (let !top = srcModuleName src in
+         mkRangeFile srcPath (Just top))
+        (TL.unpack $ srcText src)
     stTokens `modifyTCLens` (fileTokenInfo <>)
 
     setOptionsFromSourcePragmas src

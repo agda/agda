@@ -315,6 +315,11 @@ instance EmbPrj a => EmbPrj (P.Interval' a) where
 
   value = valueN P.Interval
 
+instance EmbPrj RangeFile where
+  icod_ (RangeFile a b) = icode (a, b)
+
+  value r = uncurry RangeFile <$> value r
+
 -- | Ranges are always deserialised as 'noRange'.
 
 instance EmbPrj Range where

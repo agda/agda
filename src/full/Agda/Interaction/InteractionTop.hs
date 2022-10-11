@@ -286,15 +286,17 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
 --   loaded interfaces for example).
 
 runInteraction :: IOTCM -> CommandM ()
-runInteraction (IOTCM current highlighting highlightingMethod cmd) =
+runInteraction iotcm =
   handleCommand inEmacs onFail $ do
     currentAbs <- liftIO $ absolute current
-    -- Raises an error if the given file is not the one currently
-    -- loaded.
-    cf <- gets theCurrentFile
-    when (not (independent cmd) && Just currentAbs /= (currentFilePath <$> cf)) $ do
+    cf  <- gets theCurrentFile
+    cmd <- if independent cmd then return cmd else do
+      when (Just currentAbs /= (currentFilePath <$> cf)) $ do
         let mode = TypeCheck
         cmd_load' current [] True mode $ \_ -> return ()
+      cf <- fromMaybe __IMPOSSIBLE__ <$> gets theCurrentFile
+      return $ case iotcm (Just (currentFileModule cf)) of
+        IOTCM _ _ _ cmd -> cmd
 
     withCurrentFile $ interpret cmd
 
@@ -305,6 +307,10 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd) =
         putResponse . Resp_InteractionPoints =<< gets theInteractionPoints
 
   where
+    -- The ranges in cmd might be incorrect because of the use of
+    -- Nothing here. That is taken care of above.
+    IOTCM current highlighting highlightingMethod cmd = iotcm Nothing
+
     inEmacs :: forall a. CommandM a -> CommandM a
     inEmacs = liftCommandMT $ withEnv $ initEnv
             { envHighlightingLevel  = highlighting
@@ -343,13 +349,14 @@ maybeAbort m = do
       tcState <- getTC
       tcEnv   <- askTC
       result  <- liftIO $ race
-                   (runTCM tcEnv tcState $ runStateT (m c) commandState)
+                   (runTCM tcEnv tcState $
+                    runStateT (m c) commandState)
                    (waitForAbort n q)
       case result of
         Left ((x, commandState'), tcState') -> do
           putTC tcState'
           put commandState'
-          case c of
+          case c Nothing of
             IOTCM _ _ _ Cmd_exit -> do
               putResponse Resp_DoneExiting
               return Done
@@ -426,7 +433,7 @@ initialiseCommandQueue next = do
       readCommands n = do
         c <- next
         case c of
-          Command (IOTCM _ _ _ Cmd_abort) -> do
+          Command c | IOTCM _ _ _ Cmd_abort <- c Nothing -> do
             atomically $ writeTVar abort (Just n)
             readCommands n
           _ -> do
@@ -1208,4 +1215,4 @@ tellEmacsToJumpToError r =
     Nothing                                           -> []
     Just (Pn { srcFile = Strict.Nothing })            -> []
     Just (Pn { srcFile = Strict.Just f, posPos = p }) ->
-       [ Resp_JumpToError (filePath f) p ]
+       [ Resp_JumpToError (filePath (rangeFilePath f)) p ]

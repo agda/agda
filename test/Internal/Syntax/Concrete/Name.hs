@@ -4,13 +4,11 @@ module Internal.Syntax.Concrete.Name () where
 import qualified Data.List as List
 
 import Agda.Syntax.Concrete.Name
-import Agda.Syntax.TopLevelModuleName
 import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.List1    ( (<|) )
 import qualified Agda.Utils.List1 as List1
 
 import Internal.Helpers
-import Internal.Syntax.Common ()
 import Internal.Syntax.Position ()
 
 import Test.QuickCheck
@@ -18,25 +16,6 @@ import Test.QuickCheck
 ------------------------------------------------------------------------
 -- * QuickCheck instances
 ------------------------------------------------------------------------
-
-instance Arbitrary RawTopLevelModuleName where
-  arbitrary = do
-    r     <- arbitrary
-    parts <- list1Of (listOf1 $ elements "AB")
-    return $ RawTopLevelModuleName
-      { rawModuleNameRange = r
-      , rawModuleNameParts = parts
-      }
-
-instance Arbitrary TopLevelModuleName where
-  arbitrary = do
-    raw <- arbitrary
-    return $
-      unsafeTopLevelModuleName raw
-        (hashRawTopLevelModuleName raw)
-
-instance CoArbitrary TopLevelModuleName where
-  coarbitrary = coarbitrary . moduleNameId
 
 instance Arbitrary Name where
   arbitrary = oneof

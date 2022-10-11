@@ -150,12 +150,12 @@ data ParseError
 
   -- | Parse errors that concern a whole file.
   | InvalidExtensionError
-    { errPath      :: !AbsolutePath
+    { errPath      :: !RangeFile
                       -- ^ The file which the error concerns.
     , errValidExts :: [String]
     }
   | ReadFileError
-    { errPath      :: !AbsolutePath
+    { errPath      :: !RangeFile
     , errIOError   :: IOError
     }
   deriving Show
@@ -299,8 +299,8 @@ initStatePos pos flags inp st =
 -- | Constructs the initial state of the parser. The string argument
 --   is the input string, the file path is only there because it's part
 --   of a position.
-initState :: Maybe AbsolutePath -> ParseFlags -> String -> [LexState]
-          -> ParseState
+initState ::
+  Maybe RangeFile -> ParseFlags -> String -> [LexState] -> ParseState
 initState file = initStatePos (startPos file)
 
 -- | The default flags.

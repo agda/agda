@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP             #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Internal.Utils.FileName ( tests ) where
+module Internal.Utils.FileName (rootPath, tests) where
 
 import qualified Data.Text as Text
 import System.FilePath

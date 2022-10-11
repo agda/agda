@@ -135,7 +135,7 @@ instance MonadTrace TCM where
     verboseS "check.ranges" 90 $
       Strict.whenJust (rangeFile callRange) $ \f -> do
         currentFile <- asksTC envCurrentPath
-        when (currentFile /= Just f) $ do
+        when (currentFile /= Just (rangeFilePath f)) $ do
           reportSLn "check.ranges" 90 $
             prettyShow call ++
             " is setting the current range to " ++ show callRange ++

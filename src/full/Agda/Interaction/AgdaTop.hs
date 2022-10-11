@@ -78,7 +78,6 @@ repl callback prompt setup = do
       case dropWhile isSpace r of
         ""          -> readCommand
         ('-':'-':_) -> readCommand
-        _           -> case listToMaybe $ reads r of
-          Just (x, "")  -> return $ Command x
-          Just (_, rem) -> return $ Error $ "not consumed: " ++ rem
-          _             -> return $ Error $ "cannot read: " ++ r
+        _           -> case parseIOTCM r of
+          Right cmd -> return $ Command cmd
+          Left err  -> return $ Error err

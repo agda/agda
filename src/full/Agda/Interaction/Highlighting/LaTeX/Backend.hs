@@ -35,6 +35,7 @@ import Agda.Interaction.Options
   , OptDescr(..)
   )
 
+import Agda.Syntax.Position (mkRangeFile, rangeFilePath)
 import Agda.Syntax.TopLevelModuleName (TopLevelModuleName, projectRoot)
 
 import Agda.TypeChecking.Monad
@@ -121,14 +122,18 @@ resolveLaTeXOptions flags moduleName = do
   options <- commandLineOptions
   modFiles <- useTC stModuleToSource
   let
-    mSrcFileName = (mkAbsolute . filePath) <$> Map.lookup moduleName modFiles
+    mSrcFileName =
+      (\f -> mkRangeFile (mkAbsolute (filePath f)) (Just moduleName)) <$>
+      Map.lookup moduleName modFiles
     countClusters = optCountClusters . optPragmaOptions $ options
     latexDir = latexFlagOutDir flags
     -- FIXME: This reliance on emacs-mode to decide whether to interpret the output location as project-relative or
     -- cwd-relative is gross. Also it currently behaves differently for JSON mode :-/
     -- And it prevents us from doing a real "one-time" setup.
     outDir = case (mSrcFileName, optGHCiInteraction options) of
-      (Just sourceFile, True) -> filePath (projectRoot sourceFile moduleName) </> latexDir
+      (Just sourceFile, True) ->
+        filePath (projectRoot (rangeFilePath sourceFile) moduleName) </>
+        latexDir
       _ -> latexDir
   return LaTeXOptions
     { latexOptOutDir         = outDir

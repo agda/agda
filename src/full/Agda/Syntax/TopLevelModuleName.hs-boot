@@ -2,7 +2,7 @@ module Agda.Syntax.TopLevelModuleName where
 
 import Control.DeepSeq
 
-import Agda.Syntax.Position
+import {-# SOURCE #-} Agda.Syntax.Position (KillRange)
 
 data TopLevelModuleName
 
