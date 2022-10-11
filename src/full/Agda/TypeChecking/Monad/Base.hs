@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE RecursiveDo #-}
 -- {-# LANGUAGE UndecidableInstances #-}  -- ghc >= 8.2, GeneralizedNewtypeDeriving MonadTransControl BlockT
 
 module Agda.TypeChecking.Monad.Base
@@ -17,6 +18,7 @@ import qualified Control.Monad.Fail as Fail
 
 import Control.Monad                ( void )
 import Control.Monad.Except
+import Control.Monad.Fix
 import Control.Monad.IO.Class       ( MonadIO(..) )
 import Control.Monad.State          ( MonadState(..), modify, StateT(..), runStateT )
 import Control.Monad.Reader         ( MonadReader(..), ReaderT(..), runReaderT )
@@ -4846,6 +4848,15 @@ instance MonadIO m => MonadIO (TCMT m) where
       wrap s r m = E.catch m $ \ err -> do
         s <- readIORef s
         E.throwIO $ IOException s r err
+
+instance ( MonadFix m
+#if __GLASGOW_HASKELL__ < 808
+         , MonadIO m
+#endif
+         ) => MonadFix (TCMT m) where
+  mfix f = TCM $ \s env -> mdo
+    x <- unTCM (f x) s env
+    return x
 
 instance MonadIO m => MonadTCEnv (TCMT m) where
   askTC             = TCM $ \ _ e -> return e
