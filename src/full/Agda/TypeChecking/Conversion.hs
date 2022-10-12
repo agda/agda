@@ -1215,13 +1215,14 @@ compareSort CmpLeq = leqSort
 --   unrelated to the other universes.
 --
 leqSort :: forall m. MonadConversion m => Sort -> Sort -> m ()
-leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
-  -- Jesper, 2022-10-12: TODO: use reduceB to get more precise
-  -- blocking information
-  (s1,s2) <- reduce (s1,s2)
-  let postpone = do
-        (s1,s2) <- instantiateFull (s1,s2)
-        addConstraint (unblockOnAnyMetaIn (s1, s2)) (SortCmp CmpLeq s1 s2)
+leqSort s1 s2 = do
+  s1b <- reduceB s1
+  s2b <- reduceB s2
+  let (s1,s2) = (ignoreBlocking s1b , ignoreBlocking s2b)
+      getBlocker (Blocked b _) = b
+      getBlocker NotBlocked{}  = neverUnblock
+      blocker = unblockOnEither (getBlocker s1b) (getBlocker s2b)
+  let postpone = addConstraint blocker (SortCmp CmpLeq s1 s2)
       no       = typeError $ NotLeqSort s1 s2
       yes      = return ()
       synEq    = do
@@ -1229,6 +1230,11 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
           [ "Postponing constraint"
           , nest 2 $ fsep [ prettyTCM s1 <+> "=<"
                           , prettyTCM s2 ]
+          ]
+        reportSDoc "tc.conv.sort" 60 $ vcat
+          [ "Postponing constraint"
+          , nest 2 $ fsep [ pretty s1 <+> "=<"
+                          , pretty s2 ]
           ]
         ifNotM SynEq.syntacticEqualityFuelRemains
           postpone
@@ -1239,6 +1245,11 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
         , nest 2 $ fsep [ prettyTCM s1 <+> "=<"
                         , prettyTCM s2 ]
         ]
+  reportSDoc "tc.conv.sort" 60 $
+    sep [ "leqSort"
+        , nest 2 $ fsep [ pretty s1 <+> "=<"
+                        , pretty s2 ]
+        ]
   propEnabled <- isPropEnabled
   typeInTypeEnabled <- typeInType
   omegaInOmegaEnabled <- optOmegaInOmega <$> pragmaOptions
@@ -1246,7 +1257,7 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
   let fvsRHS = (`IntSet.member` allFreeVars s2)
   badRigid <- s1 `rigidVarsNotContainedIn` fvsRHS
 
-  case (s1, s2) of
+  catchConstraint (SortCmp CmpLeq s1 s2) $ case (s1, s2) of
       -- Andreas, 2018-09-03: crash on dummy sort
       (DummyS s, _) -> impossibleSort s
       (_, DummyS s) -> impossibleSort s
@@ -1650,27 +1661,43 @@ equalLevel a b = do
 -- | Check that the first sort equal to the second.
 equalSort :: forall m. MonadConversion m => Sort -> Sort -> m ()
 equalSort s1 s2 = do
-    catchConstraint (SortCmp CmpEq s1 s2) $ do
-        -- Jesper, 2022-10-12: TODO: use reduceB to get more precise
-        -- blocking information
-        (s1,s2) <- reduce (s1,s2)
-        let yes      = return ()
-            no       = typeError $ UnequalSorts s1 s2
 
-        reportSDoc "tc.conv.sort" 30 $ sep
-          [ "equalSort"
-          , vcat [ nest 2 $ fsep [ prettyTCM s1 <+> "=="
-                                 , prettyTCM s2 ]
-                 , nest 2 $ fsep [ pretty s1 <+> "=="
-                                 , pretty s2 ]
-                 ]
-          ]
+    reportSDoc "tc.conv.sort" 30 $ sep
+      [ "equalSort"
+      , vcat [ nest 2 $ fsep [ prettyTCM s1 <+> "=="
+                             , prettyTCM s2 ]
+             , nest 2 $ fsep [ pretty s1 <+> "=="
+                             , pretty s2 ]
+             ]
+      ]
 
-        propEnabled <- isPropEnabled
-        typeInTypeEnabled <- typeInType
-        omegaInOmegaEnabled <- optOmegaInOmega <$> pragmaOptions
+    propEnabled <- isPropEnabled
+    typeInTypeEnabled <- typeInType
+    omegaInOmegaEnabled <- optOmegaInOmega <$> pragmaOptions
 
-        case (s1, s2) of
+    let yes      = return ()
+        no       = typeError $ UnequalSorts s1 s2
+    s1b <- reduceB s1
+    s2b <- reduceB s2
+    let (s1,s2) = (ignoreBlocking s1b, ignoreBlocking s2b)
+        getBlocker (Blocked b _) = b
+        getBlocker NotBlocked{}  = neverUnblock
+        blocker = unblockOnEither (getBlocker s1b) (getBlocker s2b)
+    let -- fall back to syntactic equality check, postpone if it fails
+        postpone = patternViolation blocker
+        fallback = do
+          reportSDoc "tc.conv.sort" 30 $ vcat
+            [ "Postponing constraint"
+            , nest 2 $ fsep [ prettyTCM s1 <+> "=="
+                            , prettyTCM s2 ]
+            ]
+          doSynEq <- SynEq.syntacticEqualityFuelRemains
+          if | doSynEq ->
+                 SynEq.checkSyntacticEquality s1 s2
+                   (\_ _ -> return ()) (\_ _ -> postpone)
+             | otherwise -> postpone
+
+    catchConstraint (SortCmp CmpEq s1 s2) $ case (s1, s2) of
 
             -- Andreas, 2018-09-03: crash on dummy sort
             (DummyS s, _) -> impossibleSort s
@@ -1680,7 +1707,7 @@ equalSort s1 s2 = do
             -- In case both sides are meta sorts, instantiate the
             -- bigger (i.e. more recent) one.
             (MetaS x es , MetaS y es')
-              | x == y                 -> synEq s1 s2
+              | x == y                 -> fallback
               | x < y                  -> meta y es' s1
               | otherwise              -> meta x es s2
             (MetaS x es , _          ) -> meta x es s2
@@ -1703,20 +1730,20 @@ equalSort s1 s2 = do
               | typeInTypeEnabled      -> yes
 
             -- equating @PiSort a b@ to another sort
-            (s1 , PiSort a b c) -> piSortEquals s1 a b c
-            (PiSort a b c , s2) -> piSortEquals s2 a b c
+            (s1 , PiSort a b c) -> piSortEquals s1 a b c fallback
+            (PiSort a b c , s2) -> piSortEquals s2 a b c fallback
 
             -- equating @FunSort a b@ to another sort
-            (s1 , FunSort a b) -> funSortEquals s1 a b
-            (FunSort a b , s2) -> funSortEquals s2 a b
+            (s1 , FunSort a b) -> funSortEquals s1 a b fallback
+            (FunSort a b , s2) -> funSortEquals s2 a b fallback
 
             -- equating @UnivSort s@ to another sort
-            (s1          , UnivSort s2) -> univSortEquals s1 s2
-            (UnivSort s1 , s2         ) -> univSortEquals s2 s1
+            (s1          , UnivSort s2) -> univSortEquals s1 s2 fallback
+            (UnivSort s1 , s2         ) -> univSortEquals s2 s1 fallback
 
             -- postulated sorts can only be equal if they have the same head
             (DefS d es  , DefS d' es')
-              | d == d'                -> synEq s1 s2
+              | d == d'                -> fallback
               | otherwise              -> no
 
             -- any other combinations of sorts are not equal
@@ -1730,27 +1757,10 @@ equalSort s1 s2 = do
         reportSDoc "tc.meta.sort" 50 $ "meta" <+> sep [pretty x, prettyList $ map pretty es, pretty s]
         assignE DirEq x es (Sort s) AsTypes __IMPOSSIBLE__
 
-      -- fall back to syntactic equality check, postpone if it fails
-      synEq :: Sort -> Sort -> m ()
-      synEq s1 s2 = do
-        reportSDoc "tc.conv.sort" 30 $ vcat
-          [ "Postponing constraint"
-          , nest 2 $ fsep [ prettyTCM s1 <+> "=="
-                          , prettyTCM s2 ]
-          ]
-        let postpone = do
-              (s1,s2) <- instantiateFull (s1,s2)
-              addConstraint (unblockOnAnyMetaIn (s1, s2)) $ SortCmp CmpEq s1 s2
-        doSynEq <- SynEq.syntacticEqualityFuelRemains
-        if | doSynEq ->
-               SynEq.checkSyntacticEquality s1 s2
-                 (\_ _ -> return ()) (\_ _ -> postpone)
-           | otherwise -> postpone
-
       -- Equate a sort @s1@ to @univSort s2@
       -- Precondition: @s1@ and @univSort s2@ are already reduced.
-      univSortEquals :: Sort -> Sort -> m ()
-      univSortEquals s1 s2 = do
+      univSortEquals :: Sort -> Sort -> m () -> m ()
+      univSortEquals s1 s2 fallback = do
         reportSDoc "tc.conv.sort" 35 $ vcat
           [ "univSortEquals"
           , "  s1 =" <+> prettyTCM s1
@@ -1776,7 +1786,7 @@ equalSort s1 s2 = do
                        return l2
                    equalSort (Type l2) s2
                -- Otherwise we postpone
-               | otherwise -> synEq (Type l1) (UnivSort s2)
+               | otherwise -> fallback
           -- @Setωᵢ@ is a successor sort if n > 0, or if
           -- --type-in-type or --omega-in-omega is enabled.
           Inf f n | n > 0 -> equalSort (Inf f $ n - 1) s2
@@ -1788,14 +1798,14 @@ equalSort s1 s2 = do
           Prop{}     -> no
           SizeUniv{} -> no
           -- Anything else: postpone
-          _          -> synEq s1 (UnivSort s2)
+          _          -> fallback
 
 
       -- Equate a sort @s@ to @piSort a s1 s2@
       -- Precondition: @s@ and @piSort a s1 s2@ are already reduced.
-      piSortEquals :: Sort -> Dom Term -> Sort -> Abs Sort -> m ()
-      piSortEquals s a s1 NoAbs{} = __IMPOSSIBLE__
-      piSortEquals s a s1 s2Abs@(Abs x s2) = do
+      piSortEquals :: Sort -> Dom Term -> Sort -> Abs Sort -> m () -> m ()
+      piSortEquals s a s1 NoAbs{} fallback = __IMPOSSIBLE__
+      piSortEquals s a s1 s2Abs@(Abs x s2) fallback = do
         let adom = El s1 <$> a
         reportSDoc "tc.conv.sort" 35 $ vcat
           [ "piSortEquals"
@@ -1813,14 +1823,14 @@ equalSort s1 s2 = do
                -- a fresh meta that does not depend on @x : a@
                s2' <- newSortMeta
                addContext (x , adom) $ equalSort s2 (raise 1 s2')
-               funSortEquals s s1 s2'
+               funSortEquals s s1 s2' fallback
            -- Otherwise: postpone
-           | otherwise                  -> synEq (PiSort a s1 s2Abs) s
+           | otherwise                  -> fallback
 
       -- Equate a sort @s@ to @funSort s1 s2@
       -- Precondition: @s@ and @funSort s1 s2@ are already reduced
-      funSortEquals :: Sort -> Sort -> Sort -> m ()
-      funSortEquals s0 s1 s2 = do
+      funSortEquals :: Sort -> Sort -> Sort -> m () -> m ()
+      funSortEquals s0 s1 s2 fallback = do
         reportSDoc "tc.conv.sort" 35 $ vcat
           [ "funSortEquals"
           , "  s0 =" <+> prettyTCM s0
@@ -1838,7 +1848,7 @@ equalSort s1 s2 = do
                   | Right (SmallSort IsFibrant) <- sizeOfSort s1 -> equalSort (Inf f n) s2
                   | Right (SmallSort IsFibrant) <- sizeOfSort s2 -> equalSort (Inf f n) s1
                   -- TODO 2ltt: handle IsStrict cases.
-                  | otherwise                   -> synEq s0 (FunSort s1 s2)
+                  | otherwise                   -> fallback
           -- If @Set l == funSort s1 s2@, then @s2@ must be of the
           -- form @Set l2@. @s1@ can be one of @Set l1@, @Prop l1@,
           -- @SizeUniv@, or @IUniv@.
@@ -1854,7 +1864,7 @@ equalSort s1 s2 = do
                    -- continue working.
                    Right s -> equalSort (Type l) s
                    -- Otherwise: postpone
-                   Left _  -> synEq (Type l) (FunSort s1 $ Type l2)
+                   Left _  -> fallback
                -- If both Prop and sized types are disabled, only the
                -- case @s1 == Set l1@ remains.
                | otherwise -> do
@@ -1871,11 +1881,11 @@ equalSort s1 s2 = do
                    -- continue working.
                    Right s -> equalSort (Prop l) s
                    -- Otherwise: postpone
-                   Left _  -> synEq (Prop l) (FunSort s1 $ Prop l2)
+                   Left _  -> fallback
           -- We have @SizeUniv == funSort s1 s2@ iff @s2 == SizeUniv@
           SizeUniv -> equalSort SizeUniv s2
           -- Anything else: postpone
-          _        -> synEq s0 (FunSort s1 s2)
+          _        -> fallback
 
       -- check if the given sort @s0@ is a (closed) bottom sort
       -- i.e. @piSort a b == s0@ implies @b == s0@.
