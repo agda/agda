@@ -91,7 +91,7 @@ canonicalizeAbsolutePath (AbsolutePath f) =
   AbsolutePath . Text.pack <$> canonicalizePath (Text.unpack f)
 
 -- | Tries to establish if the two file paths point to the same file
--- (or directory).
+-- (or directory). False negatives may be returned.
 
 sameFile :: AbsolutePath -> AbsolutePath -> IO Bool
 sameFile = liftA2 equalFilePath `on` (canonicalizePath . filePath)
