@@ -1222,10 +1222,11 @@ leqSort s1 s2 = do
       getBlocker (Blocked b _) = b
       getBlocker NotBlocked{}  = neverUnblock
       blocker = unblockOnEither (getBlocker s1b) (getBlocker s2b)
-  let postpone = addConstraint blocker (SortCmp CmpLeq s1 s2)
-      no       = typeError $ NotLeqSort s1 s2
-      yes      = return ()
-      synEq    = do
+  let no = if blocker == neverUnblock
+             then typeError $ NotLeqSort s1 s2
+             else addConstraint blocker (SortCmp CmpLeq s1 s2)
+      yes = return ()
+      fallback = do
         reportSDoc "tc.conv.sort" 30 $ vcat
           [ "Postponing constraint"
           , nest 2 $ fsep [ prettyTCM s1 <+> "=<"
@@ -1237,9 +1238,9 @@ leqSort s1 s2 = do
                           , pretty s2 ]
           ]
         ifNotM SynEq.syntacticEqualityFuelRemains
-          postpone
+          no
           (SynEq.checkSyntacticEquality s1 s2
-             (\ _ _ -> yes) (\_ _ -> postpone))
+             (\ _ _ -> yes) (\_ _ -> no))
   reportSDoc "tc.conv.sort" 30 $
     sep [ "leqSort"
         , nest 2 $ fsep [ prettyTCM s1 <+> "=<"
@@ -1330,18 +1331,18 @@ leqSort s1 s2 = do
 
       -- PiSort, FunSort, UnivSort and MetaS might reduce once we instantiate
       -- more metas, so we postpone.
-      (PiSort{}, _       ) -> synEq
-      (_       , PiSort{}) -> synEq
-      (FunSort{}, _      ) -> synEq
-      (_      , FunSort{}) -> synEq
-      (UnivSort{}, _     ) -> synEq
-      (_     , UnivSort{}) -> synEq
-      (MetaS{} , _       ) -> synEq
-      (_       , MetaS{} ) -> synEq
+      (PiSort{}, _       ) -> fallback
+      (_       , PiSort{}) -> fallback
+      (FunSort{}, _      ) -> fallback
+      (_      , FunSort{}) -> fallback
+      (UnivSort{}, _     ) -> fallback
+      (_     , UnivSort{}) -> fallback
+      (MetaS{} , _       ) -> fallback
+      (_       , MetaS{} ) -> fallback
 
       -- DefS are postulated sorts, so they do not reduce.
-      (DefS{} , _     ) -> synEq
-      (_      , DefS{}) -> synEq
+      (DefS{} , _     ) -> fallback
+      (_      , DefS{}) -> fallback
 
   where
   leqFib IsFibrant _ = True
@@ -1661,30 +1662,30 @@ equalLevel a b = do
 -- | Check that the first sort equal to the second.
 equalSort :: forall m. MonadConversion m => Sort -> Sort -> m ()
 equalSort s1 s2 = do
-
     reportSDoc "tc.conv.sort" 30 $ sep
       [ "equalSort"
       , vcat [ nest 2 $ fsep [ prettyTCM s1 <+> "=="
                              , prettyTCM s2 ]
-             , nest 2 $ fsep [ pretty s1 <+> "=="
+             ]
+      ]
+    reportSDoc "tc.conv.sort" 60 $ sep
+      [ "equalSort"
+      , vcat [ nest 2 $ fsep [ pretty s1 <+> "=="
                              , pretty s2 ]
              ]
       ]
 
-    propEnabled <- isPropEnabled
-    typeInTypeEnabled <- typeInType
-    omegaInOmegaEnabled <- optOmegaInOmega <$> pragmaOptions
-
-    let yes      = return ()
-        no       = typeError $ UnequalSorts s1 s2
     s1b <- reduceB s1
     s2b <- reduceB s2
     let (s1,s2) = (ignoreBlocking s1b, ignoreBlocking s2b)
         getBlocker (Blocked b _) = b
         getBlocker NotBlocked{}  = neverUnblock
         blocker = unblockOnEither (getBlocker s1b) (getBlocker s2b)
-    let -- fall back to syntactic equality check, postpone if it fails
-        postpone = patternViolation blocker
+
+    let yes      = return ()
+        no       = if blocker == neverUnblock
+                     then typeError $ UnequalSorts s1 s2
+                     else patternViolation blocker
         fallback = do
           reportSDoc "tc.conv.sort" 30 $ vcat
             [ "Postponing constraint"
@@ -1694,8 +1695,12 @@ equalSort s1 s2 = do
           doSynEq <- SynEq.syntacticEqualityFuelRemains
           if | doSynEq ->
                  SynEq.checkSyntacticEquality s1 s2
-                   (\_ _ -> return ()) (\_ _ -> postpone)
-             | otherwise -> postpone
+                   (\_ _ -> return ()) (\_ _ -> no)
+             | otherwise -> no
+
+    propEnabled <- isPropEnabled
+    typeInTypeEnabled <- typeInType
+    omegaInOmegaEnabled <- optOmegaInOmega <$> pragmaOptions
 
     catchConstraint (SortCmp CmpEq s1 s2) $ case (s1, s2) of
 
