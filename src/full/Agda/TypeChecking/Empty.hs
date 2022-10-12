@@ -36,7 +36,7 @@ data ErrorNonEmpty
   | DontKnow Blocker   -- ^ Emptyness check blocked
 
 instance Semigroup ErrorNonEmpty where
-  DontKnow u1     <> DontKnow u2  = DontKnow $ u1 <> u2  -- Both must unblock for this to proceed
+  DontKnow u1     <> DontKnow u2  = DontKnow $ unblockOnBoth u1 u2  -- Both must unblock for this to proceed
   e@DontKnow{}    <> _            = e
   _               <> e@DontKnow{} = e
   FailBecause err <> _            = FailBecause err
