@@ -1539,19 +1539,19 @@ instance (Subst a, Ord a) => Ord (Elim' a) where
 --
 --   Precondition: @s@ is reduced
 univSort' :: Sort -> Either Blocker Sort
-univSort' (Type l) = Right $ Type $ levelSuc l
-univSort' (Prop l) = Right $ Type $ levelSuc l
-univSort' (Inf f n) = Right $ Inf f $ 1 + n
-univSort' (SSet l) = Right $ SSet $ levelSuc l
-univSort' SizeUniv = Right $ Inf IsFibrant 0
-univSort' LockUniv = Right $ Inf IsFibrant 0 -- lock polymorphism is not actually supported
+univSort' (Type l)     = Right $ Type $ levelSuc l
+univSort' (Prop l)     = Right $ Type $ levelSuc l
+univSort' (Inf f n)    = Right $ Inf f $ 1 + n
+univSort' (SSet l)     = Right $ SSet $ levelSuc l
+univSort' SizeUniv     = Right $ Inf IsFibrant 0
+univSort' LockUniv     = Right $ Inf IsFibrant 0 -- lock polymorphism is not actually supported
 univSort' IntervalUniv = Right $ SSet $ ClosedLevel 1
-univSort' (MetaS m _)  = Left $ unblockOnMeta m
-univSort' FunSort{} = Left neverUnblock
-univSort' PiSort{} = Left neverUnblock
-univSort' UnivSort{} = Left neverUnblock
-univSort' DefS{} = Left neverUnblock
-univSort' DummyS{} = Left neverUnblock
+univSort' (MetaS m _)  = Left neverUnblock
+univSort' FunSort{}    = Left neverUnblock
+univSort' PiSort{}     = Left neverUnblock
+univSort' UnivSort{}   = Left neverUnblock
+univSort' DefS{}       = Left neverUnblock
+univSort' DummyS{}     = Left neverUnblock
 
 univSort :: Sort -> Sort
 univSort s = fromRight (const $ UnivSort s) $ univSort' s
@@ -1571,19 +1571,19 @@ data SizeOfSort
 -- | Returns @Left blocker@ for unknown (blocked) sorts, and otherwise
 --   returns @Right s@ where @s@ indicates the size and fibrancy.
 sizeOfSort :: Sort -> Either Blocker SizeOfSort
-sizeOfSort Type{}       = return $ SmallSort IsFibrant
-sizeOfSort Prop{}       = return $ SmallSort IsFibrant
-sizeOfSort SizeUniv     = return $ SmallSort IsFibrant
-sizeOfSort LockUniv     = return $ SmallSort IsFibrant
-sizeOfSort IntervalUniv = return $ SmallSort IsStrict
-sizeOfSort (Inf f n)    = return $ LargeSort f n
-sizeOfSort SSet{}       = return $ SmallSort IsStrict
-sizeOfSort (MetaS m _)  = throwError $ unblockOnMeta m
-sizeOfSort FunSort{}    = throwError neverUnblock
-sizeOfSort PiSort{}     = throwError neverUnblock
-sizeOfSort UnivSort{}   = throwError neverUnblock
-sizeOfSort DefS{}       = throwError neverUnblock
-sizeOfSort DummyS{}     = throwError neverUnblock
+sizeOfSort Type{}       = Right $ SmallSort IsFibrant
+sizeOfSort Prop{}       = Right $ SmallSort IsFibrant
+sizeOfSort SizeUniv     = Right $ SmallSort IsFibrant
+sizeOfSort LockUniv     = Right $ SmallSort IsFibrant
+sizeOfSort IntervalUniv = Right $ SmallSort IsStrict
+sizeOfSort (Inf f n)    = Right $ LargeSort f n
+sizeOfSort SSet{}       = Right $ SmallSort IsStrict
+sizeOfSort (MetaS m _)  = Left $ unblockOnMeta m
+sizeOfSort FunSort{}    = Left neverUnblock
+sizeOfSort PiSort{}     = Left neverUnblock
+sizeOfSort UnivSort{}   = Left neverUnblock
+sizeOfSort DefS{}       = Left neverUnblock
+sizeOfSort DummyS{}     = Left neverUnblock
 
 isSmallSort :: Sort -> Bool
 isSmallSort s = case sizeOfSort s of
@@ -1599,48 +1599,48 @@ fibrantLub a b = a
 --   domain and codomain.
 funSort' :: Sort -> Sort -> Either Blocker Sort
 funSort' a b = case (a, b) of
-  (Type a        , Type b       ) -> return $ Type $ levelLub a b
-  (Prop a        , Type b       ) -> return $ Type $ levelLub a b
-  (Type a        , Prop b       ) -> return $ Prop $ levelLub a b
-  (Prop a        , Prop b       ) -> return $ Prop $ levelLub a b
-  (SSet a        , SSet b       ) -> return $ SSet $ levelLub a b
-  (Type a        , SSet b       ) -> return $ SSet $ levelLub a b
-  (SSet a        , Type b       ) -> return $ SSet $ levelLub a b
-  (SSet a        , Prop b       ) -> return $ SSet $ levelLub a b
-  (Prop a        , SSet b       ) -> return $ SSet $ levelLub a b
+  (Type a        , Type b       ) -> Right $ Type $ levelLub a b
+  (Prop a        , Type b       ) -> Right $ Type $ levelLub a b
+  (Type a        , Prop b       ) -> Right $ Prop $ levelLub a b
+  (Prop a        , Prop b       ) -> Right $ Prop $ levelLub a b
+  (SSet a        , SSet b       ) -> Right $ SSet $ levelLub a b
+  (Type a        , SSet b       ) -> Right $ SSet $ levelLub a b
+  (SSet a        , Type b       ) -> Right $ SSet $ levelLub a b
+  (SSet a        , Prop b       ) -> Right $ SSet $ levelLub a b
+  (Prop a        , SSet b       ) -> Right $ SSet $ levelLub a b
   (Inf af m      , b            ) -> sizeOfSort b >>= \case
-    SmallSort bf   -> return $ Inf (fibrantLub af bf) m
-    LargeSort bf n -> return $ Inf (fibrantLub af bf) $ max m n
+    SmallSort bf   -> Right $ Inf (fibrantLub af bf) m
+    LargeSort bf n -> Right $ Inf (fibrantLub af bf) $ max m n
   (a             , Inf bf n     ) -> sizeOfSort a >>= \case
-    SmallSort af   -> return $ Inf (fibrantLub af bf) n
-    LargeSort af m -> return $ Inf (fibrantLub af bf) $ max m n
-  (LockUniv      , b            ) -> return b
+    SmallSort af   -> Right $ Inf (fibrantLub af bf) n
+    LargeSort af m -> Right $ Inf (fibrantLub af bf) $ max m n
+  (LockUniv      , b            ) -> Right b
   -- No functions into lock types
-  (a             , LockUniv     ) -> throwError neverUnblock
+  (a             , LockUniv     ) -> Left neverUnblock
   -- @IntervalUniv@ behaves like @SSet@, but functions into @Type@ land in @Type@
-  (IntervalUniv  , IntervalUniv ) -> return $ SSet $ ClosedLevel 0
-  (IntervalUniv  , SSet b       ) -> return $ SSet $ b
-  (IntervalUniv  , Type b       ) -> return $ Type $ b
-  (IntervalUniv  , _            ) -> throwError neverUnblock
-  (Type a        , IntervalUniv ) -> return $ SSet $ a
-  (SSet a        , IntervalUniv ) -> return $ SSet $ a
-  (_             , IntervalUniv ) -> throwError neverUnblock
-  (SizeUniv      , b            ) -> return b
+  (IntervalUniv  , IntervalUniv ) -> Right $ SSet $ ClosedLevel 0
+  (IntervalUniv  , SSet b       ) -> Right $ SSet $ b
+  (IntervalUniv  , Type b       ) -> Right $ Type $ b
+  (IntervalUniv  , _            ) -> Left neverUnblock
+  (Type a        , IntervalUniv ) -> Right $ SSet $ a
+  (SSet a        , IntervalUniv ) -> Right $ SSet $ a
+  (_             , IntervalUniv ) -> Left neverUnblock
+  (SizeUniv      , b            ) -> Right b
   (a             , SizeUniv     ) -> sizeOfSort a >>= \case
-    SmallSort{} -> return SizeUniv
-    LargeSort{} -> throwError neverUnblock
-  (MetaS m _     , _            ) -> throwError $ unblockOnMeta m
-  (_             , MetaS m _    ) -> throwError $ unblockOnMeta m
-  (FunSort{}     , _            ) -> throwError neverUnblock
-  (_             , FunSort{}    ) -> throwError neverUnblock
-  (PiSort{}      , _            ) -> throwError neverUnblock
-  (_             , PiSort{}     ) -> throwError neverUnblock
-  (UnivSort{}    , _            ) -> throwError neverUnblock
-  (_             , UnivSort{}   ) -> throwError neverUnblock
-  (DefS{}        , _            ) -> throwError neverUnblock
-  (_             , DefS{}       ) -> throwError neverUnblock
-  (DummyS{}      , _            ) -> throwError neverUnblock
-  (_             , DummyS{}     ) -> throwError neverUnblock
+    SmallSort{} -> Right SizeUniv
+    LargeSort{} -> Left neverUnblock
+  (MetaS m _     , _            ) -> Left $ unblockOnMeta m
+  (_             , MetaS m _    ) -> Left $ unblockOnMeta m
+  (FunSort{}     , _            ) -> Left neverUnblock
+  (_             , FunSort{}    ) -> Left neverUnblock
+  (PiSort{}      , _            ) -> Left neverUnblock
+  (_             , PiSort{}     ) -> Left neverUnblock
+  (UnivSort{}    , _            ) -> Left neverUnblock
+  (_             , UnivSort{}   ) -> Left neverUnblock
+  (DefS{}        , _            ) -> Left neverUnblock
+  (_             , DefS{}       ) -> Left neverUnblock
+  (DummyS{}      , _            ) -> Left neverUnblock
+  (_             , DummyS{}     ) -> Left neverUnblock
 
 funSort :: Sort -> Sort -> Sort
 funSort a b = fromRight (const $ FunSort a b) $ funSort' a b
@@ -1648,20 +1648,20 @@ funSort a b = fromRight (const $ FunSort a b) $ funSort' a b
 -- | Compute the sort of a pi type from the sorts of its domain
 --   and codomain.
 piSort' :: Dom Term -> Sort -> Abs Sort -> Either Blocker Sort
-piSort' a s1       (NoAbs _ s2) = return $ FunSort s1 s2
+piSort' a s1       (NoAbs _ s2) = Right $ FunSort s1 s2
 piSort' a s1 s2Abs@(Abs   _ s2) = case flexRigOccurrenceIn 0 s2 of
-  Nothing -> return $ FunSort s1 $ noabsApp __IMPOSSIBLE__ s2Abs
-  Just o -> sizeOfSort s1 >>= \case
-    SmallSort f1 -> sizeOfSort s2 >>= \case
-      SmallSort f2 -> case o of
-        StronglyRigid -> return $ Inf (fibrantLub f1 f2) 0
-        Unguarded     -> return $ Inf (fibrantLub f1 f2) 0
-        WeaklyRigid   -> return $ Inf (fibrantLub f1 f2) 0
-        Flexible ms   -> throwError $ metaSetToBlocker ms
-      LargeSort f2 n -> __IMPOSSIBLE__ -- large sorts cannot depend on variables
-    LargeSort f1 n -> sizeOfSort s2 >>= \case
-      SmallSort f2   -> return $ Inf (fibrantLub f1 f2) n
-      LargeSort f2 n -> __IMPOSSIBLE__ -- large sorts cannot depend on variables
+  Nothing -> Right $ FunSort s1 $ noabsApp __IMPOSSIBLE__ s2Abs
+  Just o  -> case (sizeOfSort s1 , sizeOfSort s2) of
+    (Right (SmallSort f1) , Right (SmallSort f2)) -> case o of
+      StronglyRigid -> Right $ Inf (fibrantLub f1 f2) 0
+      Unguarded     -> Right $ Inf (fibrantLub f1 f2) 0
+      WeaklyRigid   -> Right $ Inf (fibrantLub f1 f2) 0
+      Flexible ms   -> Left $ metaSetToBlocker ms
+    (Right (LargeSort f1 n) , Right (SmallSort f2)) -> Right $ Inf (fibrantLub f1 f2) n
+    (_                     , Right LargeSort{}    ) -> __IMPOSSIBLE__ -- large sorts cannot depend on variables
+    (Left blocker          , Right _              ) -> Left blocker
+    (Right _               , Left blocker         ) -> Left blocker
+    (Left blocker1         , Left blocker2        ) -> Left $ unblockOnBoth blocker1 blocker2
 
 -- Andreas, 2019-06-20
 -- KEEP the following commented out code for the sake of the discussion on irrelevance.
