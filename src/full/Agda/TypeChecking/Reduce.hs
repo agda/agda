@@ -449,8 +449,8 @@ instance Reduce PlusLevel where
   reduceB' (Plus n l) = fmap (Plus n) <$> reduceB' l
 
 instance (Subst a, Reduce a) => Reduce (Abs a) where
-  reduce' b@(Abs x _) = Abs x <$> underAbstraction_ b reduce'
-  reduce' (NoAbs x v) = NoAbs x <$> reduce' v
+  reduceB' b@(Abs x _) = fmap (Abs x) <$> underAbstraction_ b reduceB'
+  reduceB' (NoAbs x v) = fmap (NoAbs x) <$> reduceB' v
 
 -- Lists are never blocked
 instance Reduce t => Reduce [t] where
