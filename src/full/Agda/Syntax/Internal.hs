@@ -1371,9 +1371,8 @@ instance Pretty Sort where
       LockUniv -> "LockUniv"
       IntervalUniv -> "IntervalUniv"
       PiSort a s1 s2 -> mparens (p > 9) $
-        "piSort" <+> pDom (domInfo a) (text (absName s2) <+> ":" <+> pretty (unDom a))
-                      <+> parens (sep [ text ("λ " ++ absName s2 ++ " ->")
-                                      , nest 2 $ pretty (unAbs s2) ])
+        "piSort" <+> pDom (domInfo a) (text (absName s2) <+> ":" <+> pretty (unDom a) <+> ":" <+> pretty s1)
+                      <+> parens (pretty (unAbs s2))
       FunSort a b -> mparens (p > 9) $
         "funSort" <+> prettyPrec 10 a <+> prettyPrec 10 b
       UnivSort s -> mparens (p > 9) $ "univSort" <+> prettyPrec 10 s
