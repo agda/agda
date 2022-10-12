@@ -10,9 +10,12 @@ module Internal.Utils.List ( tests ) where
 
 import Agda.Utils.List
 
+import Data.Bifunctor (first)
 import Data.Either (partitionEithers)
 import Data.Function
-import Data.List ( (\\), elemIndex, intercalate, isPrefixOf, isSuffixOf, nub, nubBy, sort, sortBy )
+import Data.List
+  ((\\), elemIndex, intercalate, isPrefixOf, isSuffixOf,
+   minimumBy, nub, nubBy, sort, sortBy)
 
 import Internal.Helpers
 
@@ -139,6 +142,17 @@ prop_zipWithKeepRest_init_zipWith f as bs =
 
 prop_nubOn :: (Integer -> Integer) -> [Integer] -> Bool
 prop_nubOn f xs = nubOn f xs == nubBy ((==) `on` f) xs
+
+prop_nubFavouriteOn ::
+  Fun Integer Integer -> Fun Integer Bool -> [Integer] -> Property
+prop_nubFavouriteOn (Fun _ f) (Fun _ p) xs =
+  nubFavouriteOn f p xs ===
+  map fst (sortBy (compare `on` snd) (find p xs ++ find (not . p) xs))
+  where
+  find p xs =
+    case filter (p . fst) $ zip xs [0..] of
+      [] -> []
+      xs -> [minimumBy (compare `on` first f) xs]
 
 prop_nubAndDuplicatesOn :: (Integer -> Integer) -> [Integer] -> Bool
 prop_nubAndDuplicatesOn f xs = nubAndDuplicatesOn f xs == (ys, xs \\ ys)

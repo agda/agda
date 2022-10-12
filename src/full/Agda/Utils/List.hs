@@ -8,11 +8,13 @@ import Data.Array (Array, array, listArray)
 import qualified Data.Array as Array
 import Data.Bifunctor
 import Data.Function
+import Data.Hashable
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as List1
 import Data.List.NonEmpty (pattern (:|), (<|))
 import Data.Maybe
 import qualified Data.Map as Map
+import qualified Data.HashMap.Strict as HMap
 import qualified Data.Set as Set
 
 import qualified Agda.Utils.Bag as Bag
@@ -607,6 +609,38 @@ nubOn f = loop Set.empty
     | b `Set.member` s = loop s as
     | otherwise        = a : loop (Set.insert b s) as
     where b = f a
+
+-- | A variant of 'nubOn' that is parametrised by a function that is
+-- used to select which element from a group of equal elements that is
+-- returned. The returned elements keep the order that they had in the
+-- input list.
+--
+-- Precondition: The length of the input list must be at most
+-- @'maxBound' :: 'Int'@.
+
+nubFavouriteOn
+  :: forall a b c. (Ord b, Eq c, Hashable c)
+  => (a -> b)
+     -- ^ The values returned by this function are used to determine
+     -- which element from a group of equal elements that is returned:
+     -- the smallest one is chosen (and if two elements are equally
+     -- small, then the first one is chosen).
+  -> (a -> c)
+     -- ^ Two elements are treated as equal if this function returns
+     -- the same value for both elements.
+  -> [a] -> [a]
+nubFavouriteOn fav f = go 0 HMap.empty
+  where
+  go :: Int -> HMap.HashMap c ((b, Int), a) -> [a] -> [a]
+  go !pos !acc (x : xs) =
+    go (1 + pos)
+       (HMap.insertWith
+          (\new old -> if fst new < fst old then new else old)
+          (f x) ((fav x, pos), x) acc)
+       xs
+  go _ acc [] =
+    map snd $ List.sortBy (compare `on` snd . fst) $
+    HMap.elems acc
 
 -- -- | Efficient variant of 'nubBy' for finite lists (using sorting).
 -- -- O(n log n)
