@@ -762,7 +762,7 @@ solveAwakeConstraints' = solveSomeAwakeConstraints (const True)
 
 -- | Freeze the given meta-variables (but only if they are open) and
 -- return those that were not already frozen.
-freezeMetas :: LocalMetaStore -> TCM (Set MetaId)
+freezeMetas :: MonadTCState m => LocalMetaStore -> m (Set MetaId)
 freezeMetas ms =
   execWriterT $
   modifyTCLensM stOpenMetaStore $
