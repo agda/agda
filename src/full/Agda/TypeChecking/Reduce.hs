@@ -399,28 +399,42 @@ instance Reduce Type where
     reduceB' (El s t) = workOnTypes $ fmap (El s) <$> reduceB' t
 
 instance Reduce Sort where
-    reduce' s = do
+    reduceB' s = do
       s <- instantiate' s
+      let done | MetaS x _ <- s = return $ blocked x s
+               | otherwise      = return $ notBlocked s
       case s of
-        PiSort a s1 s2 -> do
-          (s1' , s2') <- reduce' (s1 , s2)
-          maybe (return $ PiSort a s1' s2') reduce' $ piSort' a s1' s2'
-        FunSort s1 s2 -> do
-          (s1' , s2') <- reduce (s1 , s2)
-          maybe (return $ FunSort s1' s2') reduce' $ funSort' s1' s2'
-        UnivSort s' -> do
-          s' <- reduce' s'
-          caseMaybe (univSort' s') (return $ UnivSort s') reduce'
-        Prop s'    -> Prop <$> reduce' s'
-        Type s'    -> Type <$> reduce' s'
-        Inf f n    -> return $ Inf f n
-        SSet s'    -> SSet <$> reduce' s'
-        SizeUniv   -> return SizeUniv
-        LockUniv   -> return LockUniv
-        IntervalUniv -> return IntervalUniv
-        MetaS x es -> return s
-        DefS d es  -> return s -- postulated sorts do not reduce
-        DummyS{}   -> return s
+        PiSort a s1 s2 -> reduceB' (s1 , s2) >>= \case
+          Blocked b (s1',s2') -> return $ Blocked b $ PiSort a s1' s2'
+          NotBlocked _ (s1',s2') -> do
+            -- Jesper, 2022-10-12: do instantiateFull here because
+            -- `piSort'` does checking of free variables, and if we
+            -- don't instantiate we might end up blocking on a solved
+            -- metavariable.
+            s2' <- instantiateFull s2'
+            case piSort' a s1' s2' of
+              Left b -> return $ Blocked b $ PiSort a s1' s2'
+              Right s -> reduceB' s
+        FunSort s1 s2 -> reduceB' (s1 , s2) >>= \case
+          Blocked b (s1',s2') -> return $ Blocked b $ FunSort s1' s2'
+          NotBlocked _ (s1',s2') -> case funSort' s1' s2' of
+            Left b -> return $ Blocked b $ FunSort s1' s2'
+            Right s -> reduceB' s
+        UnivSort s1 -> reduceB' s1 >>= \case
+          Blocked b s1' -> return $ Blocked b $ UnivSort s1'
+          NotBlocked _ s1' -> case univSort' s1' of
+            Left b -> return $ Blocked b $ UnivSort s1'
+            Right s -> reduceB' s
+        Prop l     -> done
+        Type l     -> done
+        Inf f n    -> done
+        SSet l     -> done
+        SizeUniv   -> done
+        LockUniv   -> done
+        IntervalUniv -> done
+        MetaS x es -> done
+        DefS d es  -> done -- postulated sorts do not reduce
+        DummyS{}   -> done
 
 instance Reduce Elim where
   reduce' (Apply v) = Apply <$> reduce' v
@@ -542,7 +556,7 @@ slowReduceTerm v = do
           v <- flip reduceIApply es
                  $ unfoldDefinitionE False reduceB' (Con c ci []) (conName c) es
           traverse reduceNat v
-      Sort s   -> fmap Sort <$> reduceB' s
+      Sort s   -> done
       Level l  -> ifM (SmallSet.member LevelReductions <$> asksTC envAllowedReductions)
                     {- then -} (fmap levelTm <$> reduceB' l)
                     {- else -} done

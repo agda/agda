@@ -218,8 +218,6 @@ checkDataSort name s = setCurrentRange name $ do
                    , prettyTCM name
                    , "does not admit data or record declarations"
                    ]
-      dunno :: TCM ()
-      dunno = postpone (unblockOnAnyMetaIn s) s
     case s of
       -- Sorts that admit data definitions.
       Type _       -> yes
@@ -231,10 +229,10 @@ checkDataSort name s = setCurrentRange name $ do
       SizeUniv     -> no
       LockUniv     -> no
       IntervalUniv -> no
-      -- Unsolved sorts.
-      PiSort _ _ _ -> dunno
-      FunSort _ _  -> dunno
-      UnivSort _   -> dunno
+      -- Blocked sorts.
+      PiSort _ _ _ -> __IMPOSSIBLE__
+      FunSort _ _  -> __IMPOSSIBLE__
+      UnivSort _   -> __IMPOSSIBLE__
       MetaS _ _    -> __IMPOSSIBLE__
       DummyS _     -> __IMPOSSIBLE__
   where
