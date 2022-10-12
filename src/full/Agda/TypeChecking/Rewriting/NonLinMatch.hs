@@ -382,35 +382,6 @@ instance Match Type NLPat Term where
       PTerm u -> traceSDoc "rewriting.match" 60 ("matching a PTerm" <+> addContext (gamma `abstract` k) (prettyTCM u)) $
         tellEq gamma k t u v
 
--- Checks if the given term contains any free variables that satisfy the
--- given condition on their DBI, possibly reducing the term in the process.
--- Returns `Right Nothing` if there are such variables, `Right (Just v')`
--- if there are none (where v' is the possibly reduced version of the given
--- term) or `Left b` if the problem is blocked on a meta.
-reallyFree :: (MonadReduce m, Reduce a, ForceNotFree a)
-           => IntSet -> a -> m (Either Blocked_ (Maybe a))
-reallyFree xs v = do
-  (mxs , v') <- forceNotFree xs v
-  case IntMap.foldr pickFree NotFree mxs of
-    MaybeFree ms
-      | null ms   -> return $ Right Nothing
-      | otherwise -> return $ Left $ Blocked blocker ()
-      where blocker = unblockOnAll $ foldrMetaSet (Set.insert . unblockOnMeta) Set.empty ms
-    NotFree -> return $ Right (Just v')
-
-  where
-    -- Check if any of the variables occur freely.
-    -- Prefer occurrences that do not depend on any metas.
-    pickFree :: IsFree -> IsFree -> IsFree
-    pickFree f1@(MaybeFree ms1) f2
-      | null ms1  = f1
-    pickFree f1@(MaybeFree ms1) f2@(MaybeFree ms2)
-      | null ms2  = f2
-      | otherwise = f1
-    pickFree f1@(MaybeFree ms1) NotFree = f1
-    pickFree NotFree f2 = f2
-
-
 makeSubstitution :: Telescope -> Sub -> Maybe Substitution
 makeSubstitution gamma sub =
   parallelS <$> traverse val [0 .. size gamma-1]
