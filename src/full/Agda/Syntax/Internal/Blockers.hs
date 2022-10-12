@@ -101,6 +101,9 @@ unblockOnAny us =
 unblockOnEither :: Blocker -> Blocker -> Blocker
 unblockOnEither a b = unblockOnAny $ Set.fromList [a, b]
 
+unblockOnBoth :: Blocker -> Blocker -> Blocker
+unblockOnBoth a b = unblockOnAll $ Set.fromList [a, b]
+
 unblockOnMeta :: MetaId -> Blocker
 unblockOnMeta = UnblockOnMeta
 
@@ -131,13 +134,15 @@ allBlockingProblems (UnblockOnAny us)    = Set.unions $ map allBlockingProblems 
 allBlockingProblems UnblockOnMeta{}      = Set.empty
 allBlockingProblems (UnblockOnProblem p) = Set.singleton p
 
--- Note: We pick the All rather than the Any as the semigroup instance.
+{- There are two possible instances of Semigroup, so we don't commit
+   to either one.
 instance Semigroup Blocker where
   x <> y = unblockOnAll $ Set.fromList [x, y]
 
 instance Monoid Blocker where
   mempty = alwaysUnblock
   mappend = (<>)
+-}
 
 instance Pretty Blocker where
   pretty (UnblockOnAll us)      = "all" <> parens (fsep $ punctuate "," $ map pretty $ Set.toList us)
@@ -162,7 +167,7 @@ instance Applicative (Blocked' t) where
   f <*> e = ((f $> ()) `mappend` (e $> ())) $> ignoreBlocking f (ignoreBlocking e)
 
 instance Semigroup a => Semigroup (Blocked' t a) where
-  Blocked x a    <> Blocked y b    = Blocked (x <> y) (a <> b)
+  Blocked x a    <> Blocked y b    = Blocked (unblockOnBoth x y) (a <> b)
   b@Blocked{}    <> NotBlocked{}   = b
   NotBlocked{}   <> b@Blocked{}    = b
   NotBlocked x a <> NotBlocked y b = NotBlocked (x <> y) (a <> b)
