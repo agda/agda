@@ -68,7 +68,8 @@ import qualified Data.IntMap as IntMap
 import Data.HashSet (HashSet)
 import qualified Data.HashSet as HashSet
 import Data.Semigroup ( Semigroup, (<>) )
-
+import qualified Data.Set as Set
+import Data.Set (Set)
 
 
 import Agda.Syntax.Common
@@ -98,6 +99,9 @@ insertMetaSet m (MetaSet ms) = MetaSet $ HashSet.insert m ms
 
 foldrMetaSet :: (MetaId -> a -> a) -> a -> MetaSet -> a
 foldrMetaSet f e ms = HashSet.foldr f e $ theMetaSet ms
+
+metaSetToBlocker :: MetaSet -> Blocker
+metaSetToBlocker ms = unblockOnAny $ foldrMetaSet (Set.insert . unblockOnMeta) Set.empty ms
 
 ---------------------------------------------------------------------------
 -- * Flexible and rigid occurrences (semigroup)
