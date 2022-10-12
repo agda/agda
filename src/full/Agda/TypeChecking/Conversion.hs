@@ -1216,31 +1216,6 @@ compareSort CmpLeq = leqSort
 --
 leqSort :: forall m. MonadConversion m => Sort -> Sort -> m ()
 leqSort s1 s2 = do
-  s1b <- reduceB s1
-  s2b <- reduceB s2
-  let (s1,s2) = (ignoreBlocking s1b , ignoreBlocking s2b)
-      getBlocker (Blocked b _) = b
-      getBlocker NotBlocked{}  = neverUnblock
-      blocker = unblockOnEither (getBlocker s1b) (getBlocker s2b)
-  let no = if blocker == neverUnblock
-             then typeError $ NotLeqSort s1 s2
-             else addConstraint blocker (SortCmp CmpLeq s1 s2)
-      yes = return ()
-      fallback = do
-        reportSDoc "tc.conv.sort" 30 $ vcat
-          [ "Postponing constraint"
-          , nest 2 $ fsep [ prettyTCM s1 <+> "=<"
-                          , prettyTCM s2 ]
-          ]
-        reportSDoc "tc.conv.sort" 60 $ vcat
-          [ "Postponing constraint"
-          , nest 2 $ fsep [ pretty s1 <+> "=<"
-                          , pretty s2 ]
-          ]
-        ifNotM SynEq.syntacticEqualityFuelRemains
-          no
-          (SynEq.checkSyntacticEquality s1 s2
-             (\ _ _ -> yes) (\_ _ -> no))
   reportSDoc "tc.conv.sort" 30 $
     sep [ "leqSort"
         , nest 2 $ fsep [ prettyTCM s1 <+> "=<"
@@ -1251,14 +1226,42 @@ leqSort s1 s2 = do
         , nest 2 $ fsep [ pretty s1 <+> "=<"
                         , pretty s2 ]
         ]
-  propEnabled <- isPropEnabled
-  typeInTypeEnabled <- typeInType
-  omegaInOmegaEnabled <- optOmegaInOmega <$> pragmaOptions
 
-  let fvsRHS = (`IntSet.member` allFreeVars s2)
-  badRigid <- s1 `rigidVarsNotContainedIn` fvsRHS
+  SynEq.checkSyntacticEquality s1 s2 (\_ _ -> return ()) $ \s1 s2 -> do
 
-  catchConstraint (SortCmp CmpLeq s1 s2) $ case (s1, s2) of
+    s1b <- reduceB s1
+    s2b <- reduceB s2
+
+    let (s1,s2) = (ignoreBlocking s1b , ignoreBlocking s2b)
+        getBlocker (Blocked b _) = b
+        getBlocker NotBlocked{}  = neverUnblock
+        blocker = unblockOnEither (getBlocker s1b) (getBlocker s2b)
+
+    let no  = typeError $ NotLeqSort s1 s2
+        yes = return ()
+        fallback
+          | blocker == neverUnblock = no
+          | otherwise = do
+              reportSDoc "tc.conv.sort" 30 $ vcat
+                [ "Postponing constraint"
+                , nest 2 $ fsep [ prettyTCM s1 <+> "=<"
+                                , prettyTCM s2 ]
+                ]
+              reportSDoc "tc.conv.sort" 60 $ vcat
+                [ "Postponing constraint"
+                , nest 2 $ fsep [ pretty s1 <+> "=<"
+                                , pretty s2 ]
+                ]
+              patternViolation blocker
+
+    propEnabled <- isPropEnabled
+    typeInTypeEnabled <- typeInType
+    omegaInOmegaEnabled <- optOmegaInOmega <$> pragmaOptions
+
+    let fvsRHS = (`IntSet.member` allFreeVars s2)
+    badRigid <- s1 `rigidVarsNotContainedIn` fvsRHS
+
+    catchConstraint (SortCmp CmpLeq s1 s2) $ case (s1, s2) of
       -- Andreas, 2018-09-03: crash on dummy sort
       (DummyS s, _) -> impossibleSort s
       (_, DummyS s) -> impossibleSort s
@@ -1662,41 +1665,40 @@ equalLevel a b = do
 -- | Check that the first sort equal to the second.
 equalSort :: forall m. MonadConversion m => Sort -> Sort -> m ()
 equalSort s1 s2 = do
-    reportSDoc "tc.conv.sort" 30 $ sep
-      [ "equalSort"
-      , vcat [ nest 2 $ fsep [ prettyTCM s1 <+> "=="
-                             , prettyTCM s2 ]
-             ]
-      ]
-    reportSDoc "tc.conv.sort" 60 $ sep
-      [ "equalSort"
-      , vcat [ nest 2 $ fsep [ pretty s1 <+> "=="
-                             , pretty s2 ]
-             ]
-      ]
+  reportSDoc "tc.conv.sort" 30 $ sep
+    [ "equalSort"
+    , vcat [ nest 2 $ fsep [ prettyTCM s1 <+> "=="
+                           , prettyTCM s2 ]
+           ]
+    ]
+  reportSDoc "tc.conv.sort" 60 $ sep
+    [ "equalSort"
+    , vcat [ nest 2 $ fsep [ pretty s1 <+> "=="
+                           , pretty s2 ]
+           ]
+    ]
+
+  SynEq.checkSyntacticEquality s1 s2 (\_ _ -> return ()) $ \s1 s2 -> do
 
     s1b <- reduceB s1
     s2b <- reduceB s2
+
     let (s1,s2) = (ignoreBlocking s1b, ignoreBlocking s2b)
         getBlocker (Blocked b _) = b
         getBlocker NotBlocked{}  = neverUnblock
         blocker = unblockOnEither (getBlocker s1b) (getBlocker s2b)
 
-    let yes      = return ()
-        no       = if blocker == neverUnblock
-                     then typeError $ UnequalSorts s1 s2
-                     else patternViolation blocker
-        fallback = do
-          reportSDoc "tc.conv.sort" 30 $ vcat
-            [ "Postponing constraint"
-            , nest 2 $ fsep [ prettyTCM s1 <+> "=="
-                            , prettyTCM s2 ]
-            ]
-          doSynEq <- SynEq.syntacticEqualityFuelRemains
-          if | doSynEq ->
-                 SynEq.checkSyntacticEquality s1 s2
-                   (\_ _ -> return ()) (\_ _ -> no)
-             | otherwise -> no
+    let yes = return ()
+        no  = typeError $ UnequalSorts s1 s2
+        fallback
+          | blocker == neverUnblock = no
+          | otherwise = do
+              reportSDoc "tc.conv.sort" 30 $ vcat
+                [ "Postponing constraint"
+                , nest 2 $ fsep [ prettyTCM s1 <+> "=="
+                                , prettyTCM s2 ]
+                ]
+              patternViolation blocker
 
     propEnabled <- isPropEnabled
     typeInTypeEnabled <- typeInType
