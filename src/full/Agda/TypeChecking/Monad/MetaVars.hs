@@ -794,6 +794,17 @@ isFrozen x = do
   mvar <- lookupLocalMeta x
   return $ mvFrozen mvar == Frozen
 
+withFrozenMetas
+  :: (MonadMetaSolver m, MonadTCState m)
+  => m a -> m a
+withFrozenMetas act = do
+  openMetas <- useR stOpenMetaStore
+  frozenMetas <- freezeMetas openMetas
+  result <- act
+  forM_ (Set.toList frozenMetas) $ \m ->
+    updateMetaVar m $ \ mv -> mv { mvFrozen = Instantiable }
+  return result
+
 -- | Unfreeze a meta and its type if this is a meta again.
 --   Does not unfreeze deep occurrences of meta-variables or remote
 --   meta-variables.
