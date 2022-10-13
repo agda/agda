@@ -194,14 +194,6 @@ whenConstraints action handler =
     stealConstraints pid
     handler
 
--- | Wake constraints matching the given predicate (and aren't instance
---   constraints if 'shouldPostponeInstanceSearch').
-wakeConstraints' :: MonadMetaSolver m => (ProblemConstraint -> WakeUp) -> m ()
-wakeConstraints' p = do
-  skipInstance <- shouldPostponeInstanceSearch
-  let skip c = skipInstance && isInstanceConstraint (clValue $ theConstraint c)
-  wakeConstraints $ wakeUpWhen (not . skip) p
-
 -- | Wake up the constraints depending on the given meta.
 wakeupConstraints :: MonadMetaSolver m => MetaId -> m ()
 wakeupConstraints x = do

@@ -38,6 +38,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Context
+import Agda.TypeChecking.Monad.Constraints
 import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Monad.Mutual
 import Agda.TypeChecking.Monad.Open
@@ -136,12 +137,16 @@ modifyFunClauses q f =
 
 -- | Lifts clauses to the top-level and adds them to definition.
 --   Also adjusts the 'funCopatternLHS' field if necessary.
-addClauses :: QName -> [Clause] -> TCM ()
+addClauses :: (MonadConstraint m, MonadTCState m) => QName -> [Clause] -> m ()
 addClauses q cls = do
   tel <- getContextTelescope
   modifySignature $ updateDefinition q $
     updateTheDef (updateFunClauses (++ abstract tel cls))
     . updateDefCopatternLHS (|| isCopatternLHS cls)
+
+  -- Jesper, 2022-10-13: unblock any constraints that were
+  -- waiting for more clauses of this function
+  wakeConstraints' $ wakeIfBlockedOnDef q . constraintUnblocker
 
 mkPragma :: String -> TCM CompilerPragma
 mkPragma s = CompilerPragma <$> getCurrentRange <*> pure s

@@ -559,16 +559,6 @@ checkCandidates m t cands =
             | hardFailure err = return $ HellNo err
             | otherwise       = No <$ debugTypeFail err
 
-isInstanceConstraint :: Constraint -> Bool
-isInstanceConstraint FindInstance{} = True
-isInstanceConstraint _              = False
-
-shouldPostponeInstanceSearch :: (ReadTCState m, HasOptions m) => m Bool
-shouldPostponeInstanceSearch =
-  and2M ((^. stConsideringInstance) <$> getTCState)
-        (not . optOverlappingInstances <$> pragmaOptions)
-  `or2M` ((^. stPostponeInstanceSearch) <$> getTCState)
-
 nowConsideringInstance :: (ReadTCState m) => m a -> m a
 nowConsideringInstance = locallyTCState stConsideringInstance $ const True
 

@@ -280,6 +280,7 @@ instance EncodeTCM (OutputForm C.Expr C.Expr) where
 instance EncodeTCM Blocker where
   encodeTCM (UnblockOnMeta x)    = kind "UnblockOnMeta" [ "meta" @= x ]
   encodeTCM (UnblockOnProblem p) = kind "UnblockOnProblem" [ "id" @= p ]
+  encodeTCM (UnblockOnDef q)     = kind "UnblockOnDef" [ "name" @= encodePretty q ]
   encodeTCM (UnblockOnAll us)    = kind "UnblockOnAll" [ "blockers" @= Set.toList us ]
   encodeTCM (UnblockOnAny us)    = kind "UnblockOnAny" [ "blockers" @= Set.toList us ]
 

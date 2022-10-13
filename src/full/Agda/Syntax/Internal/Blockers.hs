@@ -67,6 +67,7 @@ data Blocker = UnblockOnAll (Set Blocker)
              | UnblockOnAny (Set Blocker)
              | UnblockOnMeta MetaId     -- ^ Unblock if meta is instantiated
              | UnblockOnProblem ProblemId
+             | UnblockOnDef QName       -- ^ Unblock when function is defined
   deriving (Show, Eq, Ord, Generic)
 
 instance NFData Blocker
@@ -110,6 +111,9 @@ unblockOnMeta = UnblockOnMeta
 unblockOnProblem :: ProblemId -> Blocker
 unblockOnProblem = UnblockOnProblem
 
+unblockOnDef :: QName -> Blocker
+unblockOnDef = UnblockOnDef
+
 unblockOnAllMetas :: Set MetaId -> Blocker
 unblockOnAllMetas = unblockOnAll . Set.mapMonotonic unblockOnMeta
 
@@ -121,18 +125,28 @@ onBlockingMetasM f (UnblockOnAll bs)    = unblockOnAll . Set.fromList <$> mapM (
 onBlockingMetasM f (UnblockOnAny bs)    = unblockOnAny . Set.fromList <$> mapM (onBlockingMetasM f) (Set.toList bs)
 onBlockingMetasM f (UnblockOnMeta x)    = f x
 onBlockingMetasM f b@UnblockOnProblem{} = pure b
+onBlockingMetasM f b@UnblockOnDef{}     = pure b
 
 allBlockingMetas :: Blocker -> Set MetaId
 allBlockingMetas (UnblockOnAll us)  = Set.unions $ map allBlockingMetas $ Set.toList us
 allBlockingMetas (UnblockOnAny us)  = Set.unions $ map allBlockingMetas $ Set.toList us
 allBlockingMetas (UnblockOnMeta x)  = Set.singleton x
 allBlockingMetas UnblockOnProblem{} = Set.empty
+allBlockingMetas UnblockOnDef{}     = Set.empty
 
 allBlockingProblems :: Blocker -> Set ProblemId
 allBlockingProblems (UnblockOnAll us)    = Set.unions $ map allBlockingProblems $ Set.toList us
 allBlockingProblems (UnblockOnAny us)    = Set.unions $ map allBlockingProblems $ Set.toList us
 allBlockingProblems UnblockOnMeta{}      = Set.empty
 allBlockingProblems (UnblockOnProblem p) = Set.singleton p
+allBlockingProblems UnblockOnDef{}       = Set.empty
+
+allBlockingDefs :: Blocker -> Set QName
+allBlockingDefs (UnblockOnAll us)  = Set.unions $ map allBlockingDefs $ Set.toList us
+allBlockingDefs (UnblockOnAny us)  = Set.unions $ map allBlockingDefs $ Set.toList us
+allBlockingDefs UnblockOnMeta{}    = Set.empty
+allBlockingDefs UnblockOnProblem{} = Set.empty
+allBlockingDefs (UnblockOnDef q)   = Set.singleton q
 
 {- There are two possible instances of Semigroup, so we don't commit
    to either one.
@@ -149,6 +163,7 @@ instance Pretty Blocker where
   pretty (UnblockOnAny us)      = "any" <> parens (fsep $ punctuate "," $ map pretty $ Set.toList us)
   pretty (UnblockOnMeta m)      = pretty m
   pretty (UnblockOnProblem pid) = "problem" <+> pretty pid
+  pretty (UnblockOnDef q)       = "definition" <+> pretty q
 
 -- | Something where a meta variable may block reduction. Notably a top-level meta is considered
 --   blocking. This did not use to be the case (pre Aug 2020).
@@ -260,10 +275,18 @@ wakeIfBlockedOnMeta x u
   where
     u' = unblockMeta x u
 
+wakeIfBlockedOnDef :: QName -> Blocker -> WakeUp
+wakeIfBlockedOnDef q u
+  | u' == alwaysUnblock = WakeUp
+  | otherwise           = DontWakeUp (Just u')
+  where
+    u' = unblockDef q u
+
 unblockMeta :: MetaId -> Blocker -> Blocker
 unblockMeta x u@(UnblockOnMeta y) | x == y    = alwaysUnblock
                                   | otherwise = u
 unblockMeta _ u@UnblockOnProblem{} = u
+unblockMeta _ u@UnblockOnDef{}     = u
 unblockMeta x (UnblockOnAll us)    = unblockOnAll $ Set.map (unblockMeta x) us
 unblockMeta x (UnblockOnAny us)    = unblockOnAny $ Set.map (unblockMeta x) us
 
@@ -271,5 +294,14 @@ unblockProblem :: ProblemId -> Blocker -> Blocker
 unblockProblem p u@(UnblockOnProblem q) | p == q    = alwaysUnblock
                                         | otherwise = u
 unblockProblem _ u@UnblockOnMeta{} = u
+unblockProblem _ u@UnblockOnDef{}  = u
 unblockProblem p (UnblockOnAll us) = unblockOnAll $ Set.map (unblockProblem p) us
 unblockProblem p (UnblockOnAny us) = unblockOnAny $ Set.map (unblockProblem p) us
+
+unblockDef :: QName -> Blocker -> Blocker
+unblockDef q u@(UnblockOnDef q') | q == q'   = alwaysUnblock
+                                 | otherwise = u
+unblockDef q u@UnblockOnMeta{} = u
+unblockDef q u@UnblockOnProblem{} = u
+unblockDef q (UnblockOnAll us) = unblockOnAll $ Set.map (unblockDef q) us
+unblockDef q (UnblockOnAny us) = unblockOnAny $ Set.map (unblockDef q) us
