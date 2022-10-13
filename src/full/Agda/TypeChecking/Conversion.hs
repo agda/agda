@@ -470,7 +470,7 @@ compareAtom cmp t m n =
         --           so we shouldn't commit to an UnequalTerms error yet,
         --           even if there are no metas blocking computation.
         blockIfMissingClauses (NotBlocked (MissingClauses f) t)
-          | f `Set.member` currentMutuals = Blocked alwaysUnblock t
+          | f `Set.member` currentMutuals = Blocked (unblockOnDef f) t
         blockIfMissingClauses b = b
     -- Andreas: what happens if I cut out the eta expansion here?
     -- Answer: Triggers issue 245, does not resolve 348
@@ -570,7 +570,7 @@ compareAtom cmp t m n =
                     (NotBlocked nb1 _, NotBlocked nb2 _)  -- this is the only case if not cmpBlocked
                       | MissingClauses f <- nb1 <> nb2
                       , f `Set.member` currentMutuals
-                      -> alwaysUnblock
+                      -> unblockOnDef f
                     _ -> neverUnblock
         blockOnError blocker' $ do
         -- -- Andreas, 2013-10-20 put projection-like function

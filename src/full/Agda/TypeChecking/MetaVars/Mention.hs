@@ -43,6 +43,7 @@ instance MentionsMeta Blocker where
   mentionsMetas xs (UnblockOnAny bs)  = mentionsMetas xs $ Set.toList bs
   mentionsMetas xs (UnblockOnMeta x)  = HashSet.member x xs
   mentionsMetas xs UnblockOnProblem{} = False
+  mentionsMetas xs UnblockOnDef{}     = False
 
 instance MentionsMeta Type where
     mentionsMetas xs (El s t) = mentionsMetas xs (s, t)
