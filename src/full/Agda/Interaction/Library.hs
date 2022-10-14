@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedLists #-}
+
 -- | Library management.
 --
 --   Sample use:
@@ -66,7 +68,7 @@ import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.Environment
 import Agda.Utils.FileName
-import Agda.Utils.Functor ( (<&>) )
+import Agda.Utils.Functor ( (<&>), for )
 import Agda.Utils.IO ( catchIO )
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.List
@@ -141,10 +143,10 @@ getPrimitiveLibDir = do
 -- | The @~/.agda/libraries@ file lists the libraries Agda should know about.
 --   The content of @libraries@ is a list of paths to @.agda-lib@ files.
 --
---   Agda honors also version specific @libraries@ files, e.g. @libraries-2.6.0@.
+--   Agda honors also version-specific @libraries@ files, e.g. @libraries-2.6.0@.
 --
 --   @defaultLibraryFiles@ gives a list of all @libraries@ files Agda should process
---   by default.
+--   by default.  The first file in this list that exists is actually used.
 --
 defaultLibraryFiles :: List1 FilePath
 defaultLibraryFiles = ("libraries-" ++ version) :| "libraries" : []
@@ -157,10 +159,10 @@ defaultsFile = "defaults"
 -- | The @~/.agda/executables@ file lists the executables Agda should know about.
 --   The content of @executables@ is a list of paths to executables.
 --
---   Agda honors also version specific @executables@ files, e.g. @executables-2.6.0@.
+--   Agda honors also version-specific @executables@ files, e.g. @executables-2.6.0@.
 --
 --   @defaultExecutablesFiles@ gives a list of all @executables@ Agda should process
---   by default.
+--   by default.  The first file in this list that exists is actually used.
 --
 defaultExecutableFiles :: List1 FilePath
 defaultExecutableFiles = ("executables-" ++ version) :| "executables" : []
@@ -345,9 +347,9 @@ parseLibFiles mlibFile files = do
   let (xs, warns) = unzip anns
       (errs, als) = partitionEithers xs
 
-  unless (null warns) $ warnings $ concat warns
-  unless (null errs)  $
-    raiseErrors $ map (\(mc,s) -> LibError mc $ OtherError s) errs
+  whenJust (List1.nonEmpty $ concat warns) warnings
+  whenJust (List1.nonEmpty errs) $ \ errs1 ->
+    raiseErrors $ fmap (\ (mc, s) -> LibError mc $ OtherError s) errs1
 
   return $ nubOn _libFile als
 
@@ -415,11 +417,11 @@ parseExecutablesFile ef files = do
                    , let paths = [ path | (exe', path) <- executables
                                         , exe' == exe ]
                    , length paths > 1 ]
-  when (not $ null duplicates) $
-    raiseErrors' [ OtherError $ unlines
-                              $ (printf "Duplicate entries for executable '%s' in %s:" exe (efPath ef))
-                              : [ "  - " ++ path | path <- paths ]
-                 | (exe, paths) <- duplicates ]
+  whenJust (List1.nonEmpty duplicates) $ \ duplicates1 ->
+    raiseErrors' $ for duplicates1 $ \ (exe, paths) ->
+      OtherError $ unlines $
+        (printf "Duplicate entries for executable '%s' in %s:" exe (efPath ef))
+        : [ "  - " ++ path | path <- paths ]
   return $ Map.fromList executables
 
 ------------------------------------------------------------------------
