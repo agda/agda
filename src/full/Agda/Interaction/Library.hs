@@ -348,7 +348,7 @@ parseLibFiles mlibFile files = do
 
   List1.unlessNull (concat warns) warnings
   List1.unlessNull errs $ \ errs1 ->
-    raiseErrors $ fmap (\ (mc, s) -> LibError mc $ LibParseError s) errs1
+    raiseErrors $ fmap (\ (mc, err) -> LibError mc $ LibParseError err) errs1
 
   return $ nubOn _libFile als
 

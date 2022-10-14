@@ -40,17 +40,19 @@ import System.FilePath
 import Agda.Interaction.Library.Base
 
 import Agda.Utils.Applicative
-import Agda.Utils.IO ( catchIO )
+import Agda.Utils.IO                ( catchIO )
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Lens
-import Agda.Utils.List   ( duplicates )
-import Agda.Utils.String ( ltrim )
+import Agda.Utils.List              ( duplicates )
+import Agda.Utils.List1             ( List1, toList )
+import qualified Agda.Utils.List1   as List1
+import Agda.Utils.String            ( ltrim )
 
--- | Parser monad: Can throw @String@ error messages, and collects
+-- | Parser monad: Can throw @LibParseError@s, and collects
 -- @LibWarning'@s library warnings.
-type P = ExceptT String (Writer [LibWarning'])
+type P = ExceptT LibParseError (Writer [LibWarning'])
 
-runP :: P a -> (Either String a, [LibWarning'])
+runP :: P a -> (Either LibParseError a, [LibWarning'])
 runP = runWriter . runExceptT
 
 warningP :: LibWarning' -> P ()
@@ -89,7 +91,7 @@ agdaLibFields =
   where
     parseName :: [String] -> P LibName
     parseName [s] | [name] <- words s = pure name
-    parseName ls = throwError $ "Bad library name: '" ++ unwords ls ++ "'"
+    parseName ls = throwError $ BadLibraryName $ unwords ls
 
     parsePaths :: String -> [FilePath]
     parsePaths = go id where
@@ -111,10 +113,7 @@ agdaLibFields =
 parseLibFile :: FilePath -> IO (P AgdaLibFile)
 parseLibFile file =
   (fmap setPath . parseLib <$> UTF8.readFile file) `catchIO` \e ->
-    return $ throwError $ unlines
-      [ "Failed to read library file " ++ file ++ "."
-      , "Reason: " ++ E.displayException e
-      ]
+    return $ throwError $ ReadFailure file e
   where
     setPath      lib = unrelativise (takeDirectory file) (set libFile file lib)
     unrelativise dir = over libIncludes (map (dir </>))
@@ -150,16 +149,15 @@ fromGeneric' fields fs = do
 -- | Ensure that there are no duplicate fields and no mandatory fields are missing.
 checkFields :: [Field] -> [String] -> P ()
 checkFields fields fs = do
-  let mandatory = [ fName f | f <- fields, not $ fOptional f ]
-      -- Missing fields.
-      missing   = mandatory List.\\ fs
-      -- Duplicate fields.
-      dup       = duplicates fs
-      -- Plural s for error message.
-      s xs      = if length xs > 1 then "s" else ""
-      list xs   = List.intercalate ", " [ "'" ++ f ++ "'" | f <- xs ]
-  unless (null missing) $ throwError $ "Missing field" ++ s missing ++ " " ++ list missing
-  unless (null dup)     $ throwError $ "Duplicate field" ++ s dup ++ " " ++ list dup
+  -- Report missing mandatory fields.
+  () <- List1.unlessNull missing $ throwError . MissingFields
+  -- Report duplicate fields.
+  List1.unlessNull (duplicates fs) $ throwError . DuplicateFields
+  where
+  mandatory :: [String]
+  mandatory = [ fName f | f <- fields, not $ fOptional f ]
+  missing   :: [String]
+  missing   = mandatory List.\\ fs
 
 -- | Find 'Field' with given 'fName', throw error if unknown.
 findField :: String -> [Field] -> P (Maybe Field)
@@ -227,17 +225,17 @@ parseLine l s@(c:_)
       (h, ':' : r) ->
         case words h of
           [h] -> pure $ Header l h : [Content l r' | let r' = ltrim r, not (null r')]
-          []  -> throwError $ show l ++ ": Missing field name"
-          hs  -> throwError $ show l ++ ": Bad field name " ++ show h
-      _ -> throwError $ show l ++ ": Missing ':' for field " ++ show (ltrim s)
+          []  -> throwError $ MissingFieldName l
+          hs  -> throwError $ BadFieldName l h
+      _ -> throwError $ MissingColonForField l (ltrim s)
 
 -- | Collect 'Header' and subsequent 'Content's into 'GenericEntry'.
 --
---   Tailing 'Content's?  That's an error.
+--   Leading 'Content's?  That's an error.
 --
 groupLines :: [GenericLine] -> P GenericFile
 groupLines [] = pure []
-groupLines (Content l c : _) = throwError $ show l ++ ": Missing field"
+groupLines (Content l c : _) = throwError $ ContentWithoutField l
 groupLines (Header _ h : ls) = (GenericEntry h [ c | Content _ c <- cs ] :) <$> groupLines ls1
   where
     (cs, ls1) = span isContent ls
@@ -250,7 +248,7 @@ trimLineComment = stripComments . ltrim
 
 -- | Break a comma-separated string.  Result strings are @trim@med.
 splitCommas :: String -> [String]
-splitCommas s = words $ map (\c -> if c == ',' then ' ' else c) s
+splitCommas = words . map (\c -> if c == ',' then ' ' else c)
 
 -- | ...and trailing, but not leading, whitespace.
 stripComments :: String -> String

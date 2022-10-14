@@ -2,12 +2,14 @@
 
 module Agda.Interaction.Library.Base where
 
+import Prelude hiding (null)
+
 import Control.DeepSeq
 import qualified Control.Exception as E
 
 import Control.Monad.Except
 import Control.Monad.State
-import Control.Monad.Writer
+import Control.Monad.Writer        ( WriterT, MonadWriter, tell )
 import Control.Monad.IO.Class      ( MonadIO(..) )
 
 import Data.Bifunctor              ( first , second )
@@ -21,7 +23,6 @@ import GHC.Generics                ( Generic )
 
 import System.Directory
 import System.FilePath
-import System.IO.Error             ( IOError )
 
 import Agda.Interaction.Options.Warnings
 
@@ -29,6 +30,7 @@ import Agda.Utils.FileName
 import Agda.Utils.Lens
 import Agda.Utils.List1            ( List1, toList )
 import Agda.Utils.List2            ( List2, toList )
+import Agda.Utils.Null
 import Agda.Utils.Pretty
 
 -- | A symbolic library name.
@@ -114,14 +116,21 @@ libPragmas f a = f (_libPragmas a) <&> \ x -> a { _libPragmas = x }
 -- * Library warnings and errors
 ------------------------------------------------------------------------
 
+-- ** Position information
+
 type LineNumber = Int
 
+-- | Information about which @.agda-lib@ file we are reading
+--   and from where in the @libraries@ file it came from.
+
 data LibPositionInfo = LibPositionInfo
-  { libFilePos :: Maybe FilePath -- ^ Name of @libraries@ file
+  { libFilePos :: Maybe FilePath -- ^ Name of @libraries@ file.
   , lineNumPos :: LineNumber     -- ^ Line number in @libraries@ file.
-  , filePos    :: FilePath       -- ^ Library file
+  , filePos    :: FilePath       -- ^ Library file.
   }
   deriving (Show, Generic)
+
+-- ** Warnings
 
 data LibWarning = LibWarning (Maybe LibPositionInfo) LibWarning'
   deriving (Show, Generic)
@@ -131,10 +140,12 @@ data LibWarning'
   = UnknownField String
   deriving (Show, Generic)
 
-data LibError = LibError (Maybe LibPositionInfo) LibError'
-
 libraryWarningName :: LibWarning -> WarningName
 libraryWarningName (LibWarning c (UnknownField{})) = LibUnknownField_
+
+-- * Errors
+
+data LibError = LibError (Maybe LibPositionInfo) LibError'
 
 -- | Collected errors while processing library files.
 --
@@ -147,11 +158,11 @@ data LibError'
       --
   | AmbiguousLib LibName [AgdaLibFile]
       -- ^ Raised when a library name is defined in several @.agda-lib files@.
-  | LibParseError String
+  | LibParseError LibParseError
       -- ^ The @.agda-lib@ file could not be parsed.
   | ReadError
       -- ^ An I/O Error occurred when reading a file.
-      IOError
+      E.IOException
         -- ^ The caught exception
       String
         -- ^ Explanation when this error occurred.
@@ -165,22 +176,32 @@ data LibError'
         -- ^ The resolutions of the executable.
   -- deriving (Show)
 
--- | Cache locations of project configurations and parsed .agda-lib files
-type LibState =
-  ( Map FilePath ProjectConfig
-  , Map FilePath AgdaLibFile
-  )
+-- | Exceptions thrown by the @.agda-lib@ parser.
+--
+data LibParseError
+  = BadLibraryName String
+      -- ^ An invalid library name, e.g., containing spaces.
+  | ReadFailure FilePath E.IOException
+      -- ^ I/O error while reading file.
+  | MissingFields (List1 String)
+      -- ^ Missing these mandatory fields.
+  | DuplicateFields (List1 String)
+      -- ^ These fields occur each more than once.
+  | MissingFieldName LineNumber
+      -- ^ At the given line number, a field name is missing before the @:@.
+  | BadFieldName LineNumber String
+      -- ^ At the given line number, an invalid field name is encountered before the @:@.
+      --   (E.g., containing spaces.)
+  | MissingColonForField LineNumber String
+      -- ^ At the given line number, the given field is not followed by @:@.
+  | ContentWithoutField LineNumber
+      -- ^ At the given line number, indented text (content) is not preceded by a field.
+
+-- ** Raising warnings and errors
 
 -- | Collection of 'LibError's and 'LibWarning's.
 --
 type LibErrWarns = [Either LibError LibWarning]
-
--- | Collects 'LibError's and 'LibWarning's.
---
-type LibErrorIO = WriterT LibErrWarns (StateT LibState IO)
-
--- | Throws 'Doc' exceptions, still collects 'LibWarning's.
-type LibM = ExceptT Doc (WriterT [LibWarning] (StateT LibState IO))
 
 warnings :: MonadWriter LibErrWarns m => List1 LibWarning -> m ()
 warnings = tell . map Right . toList
@@ -193,6 +214,24 @@ raiseErrors' = tell . map (Left . (LibError Nothing)) . toList
 
 raiseErrors :: MonadWriter LibErrWarns m => List1 LibError -> m ()
 raiseErrors = tell . map Left . toList
+
+
+------------------------------------------------------------------------
+-- * Library Monad
+------------------------------------------------------------------------
+
+-- | Collects 'LibError's and 'LibWarning's.
+--
+type LibErrorIO = WriterT LibErrWarns (StateT LibState IO)
+
+-- | Throws 'Doc' exceptions, still collects 'LibWarning's.
+type LibM = ExceptT Doc (WriterT [LibWarning] (StateT LibState IO))
+
+-- | Cache locations of project configurations and parsed @.agda-lib@ files.
+type LibState =
+  ( Map FilePath ProjectConfig
+  , Map FilePath AgdaLibFile
+  )
 
 getCachedProjectConfig
   :: (MonadState LibState m, MonadIO m)
@@ -227,22 +266,76 @@ storeCachedAgdaLibFile path lib = do
 -- * Prettyprinting errors and warnings
 ------------------------------------------------------------------------
 
-formatLibPositionInfo :: LibPositionInfo -> String -> Doc
-formatLibPositionInfo (LibPositionInfo libFile lineNum file) err = text $
-  let loc | Just lf <- libFile = lf ++ ":" ++ show lineNum ++ ": "
-          | otherwise = ""
-  in if "Failed to read" `List.isPrefixOf` err
-     then loc
-     else file ++ ":" ++ (if all isDigit (take 1 err) then "" else " ")
-
 -- | Pretty-print 'LibError'.
 formatLibError :: [AgdaLibFile] -> LibError -> Doc
-formatLibError installed (LibError mc e) = prefix <+> body where
-  prefix = case mc of
-    Just c | LibParseError err <- e -> formatLibPositionInfo c err
-    _ -> ""
+formatLibError installed (LibError mc e) =
+  case (mc, e) of
+    (Just c, LibParseError err) -> sep  [ formatLibPositionInfo c err, pretty e ]
+    (_     , LibNotFound{}    ) -> vcat [ pretty e, prettyInstalledLibraries installed ]
+    _ -> pretty e
 
-  body = case e of
+-- | Does a parse error contain a line number?
+hasLineNumber :: LibParseError -> Maybe LineNumber
+hasLineNumber = \case
+  BadLibraryName       _   -> Nothing
+  ReadFailure          _ _ -> Nothing
+  MissingFields        _   -> Nothing
+  DuplicateFields      _   -> Nothing
+  MissingFieldName     l   -> Just l
+  BadFieldName         l _ -> Just l
+  MissingColonForField l _ -> Just l
+  ContentWithoutField  l   -> Just l
+
+-- UNUSED:
+-- -- | Does a parse error contain the name of the parsed file?
+-- hasFilePath :: LibParseError -> Maybe FilePath
+-- hasFilePath = \case
+--   BadLibraryName       _   -> Nothing
+--   ReadFailure          f _ -> Just f
+--   MissingFields        _   -> Nothing
+--   DuplicateFields      _   -> Nothing
+--   MissingFieldName     _   -> Nothing
+--   BadFieldName         _ _ -> Nothing
+--   MissingColonForField _ _ -> Nothing
+--   ContentWithoutField  _   -> Nothing
+
+-- | Compute a position position prefix.
+--
+--   Depending on the error to be printed, it will
+--
+--   - either give the name of the @libraries@ file and a line inside it,
+--
+--   - or give the name of the @.agda-lib@ file.
+--
+formatLibPositionInfo :: LibPositionInfo -> LibParseError -> Doc
+formatLibPositionInfo (LibPositionInfo libFile lineNum file) = \case
+
+  -- If we couldn't even read the @.agda-lib@ file, report error in the @libraries@ file.
+  ReadFailure _ _
+    | Just lf <- libFile
+      -> hcat [ text lf, ":", pretty lineNum, ":" ]
+    | otherwise
+      -> empty
+
+  -- If the parse error comes with a line number, print it here.
+  e | Just l <- hasLineNumber e
+      -> hcat [ text file, ":", pretty l, ":" ]
+    | otherwise
+      -> hcat [ text file, ":" ]
+
+prettyInstalledLibraries :: [AgdaLibFile] -> Doc
+prettyInstalledLibraries installed =
+  vcat $ ("Installed libraries:" :) $
+    map (nest 2) $
+    if null installed then ["(none)"]
+    else [ sep [ text $ _libName l, nest 2 $ parens $ text $ _libFile l ]
+         | l <- installed
+         ]
+
+-- | Pretty-print library management error without position info.
+
+instance Pretty LibError' where
+  pretty = \case
 
     LibrariesFileNotFound path -> sep
       [ text "Libraries file not found:"
@@ -255,12 +348,7 @@ formatLibError installed (LibError mc e) = prefix <+> body where
             , nest 2 $ text $ "'" ++ lfPath file ++ "'"
             , "to install."
             ]
-      , "Installed libraries:"
-      ] ++
-      map (nest 2)
-         (if null installed then ["(none)"]
-          else [ sep [ text $ _libName l, nest 2 $ parens $ text $ _libFile l ]
-               | l <- installed ])
+      ]
 
     AmbiguousLib lib tgts -> vcat $
       sep [ text $ "Ambiguous library '" ++ lib ++ "'."
@@ -268,7 +356,7 @@ formatLibError installed (LibError mc e) = prefix <+> body where
           ]
         : [ nest 2 $ text (_libName l) <+> parens (text $ _libFile l) | l <- tgts ]
 
-    LibParseError msg -> text msg
+    LibParseError err -> pretty err
 
     ReadError e msg -> vcat
       [ text $ msg
@@ -279,13 +367,40 @@ formatLibError installed (LibError mc e) = prefix <+> body where
       hcat [ "Duplicate entries for executable '", (text . unpack) exe, "' in ", text exeFile, ":" ] :
       map (nest 2 . ("-" <+>) . text) (toList paths)
 
-instance Pretty LibWarning where
-  pretty (LibWarning mc w) = prefix <+> pretty w
-    where
-      prefix = case mc of
-        Nothing -> ""
-        Just c  -> formatLibPositionInfo c ""
+-- | Print library file parse error without position info.
+--
+instance Pretty LibParseError where
+  pretty = \case
 
+    BadLibraryName s -> sep
+      [ "Bad library name:", quotes (text s) ]
+    ReadFailure file e -> vcat
+      [ hsep [ "Failed to read library file", text file <> "." ]
+      , "Reason:" <+> text (E.displayException e)
+      ]
+
+    MissingFields   xs -> "Missing"   <+> listFields xs
+    DuplicateFields xs -> "Duplicate" <+> listFields xs
+
+    MissingFieldName     l   -> atLine l $ "Missing field name"
+    BadFieldName         l s -> atLine l $ "Bad field name" <+> text (show s)
+    MissingColonForField l s -> atLine l $ "Missing ':' for field " <+> text (show s)
+    ContentWithoutField  l   -> atLine l $ "Missing field"
+
+    where
+    listFields xs = hsep $ fieldS xs : list xs
+    fieldS xs     = singPlural xs "field:" "fields:"
+    list          = punctuate comma . map (quotes . text) . toList
+    atLine l      = id
+    -- The line number will be printed by 'formatLibPositionInfo'!
+    -- atLine l doc  = hsep [ text (show l) <> ":", doc ]
+
+
+instance Pretty LibWarning where
+  pretty (LibWarning mc w) =
+    case mc of
+      Nothing -> pretty w
+      Just (LibPositionInfo _ _ file) -> hcat [ text file, ":"] <+> pretty w
 
 instance Pretty LibWarning' where
   pretty (UnknownField s) = text $ "Unknown field '" ++ s ++ "'"
