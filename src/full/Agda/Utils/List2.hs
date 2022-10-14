@@ -60,6 +60,18 @@ fromList1 :: List1 a -> List2 a
 fromList1 (a :| b : cs) = List2 a b cs
 fromList1 _             = __IMPOSSIBLE__
 
+-- | Any 'List1' is either a singleton or a 'List2'.
+fromList1Either :: List1 a -> Either a (List2 a)
+fromList1Either (a :| as) = case as of
+  []   -> Left a
+  b:bs -> Right (List2 a b bs)
+
+-- | Inverse of 'fromList1Either'
+toList1Either :: Either a (List2 a) -> List1 a
+toList1Either = \case
+  Left  a              -> a :| []
+  Right (List2 a b bs) -> a :| b : bs
+
 -- * Destruction
 
 -- | Safe. O(1).

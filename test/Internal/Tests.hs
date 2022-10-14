@@ -43,6 +43,7 @@ import qualified Internal.Utils.Graph.AdjacencyMap.Unidirectional  as UtilGraphU
 import qualified Internal.Utils.IntSet                             as UtilIntSet   ( tests )
 import qualified Internal.Utils.List                               as UtilList     ( tests )
 import qualified Internal.Utils.List1                              as UtilList1    ( tests )
+import qualified Internal.Utils.List2                              as UtilList2    ( tests )
 import qualified Internal.Utils.ListT                              as UtilListT    ( tests )
 import qualified Internal.Utils.Maybe.Strict                       as UtilMaybeS   ( tests )
 import qualified Internal.Utils.Monoid                             as UtilMonoid   ( tests )
@@ -93,6 +94,7 @@ tests = testGroup "Internal"
   , UtilIntSet.tests
   , UtilList.tests
   , UtilList1.tests
+  , UtilList2.tests
   , UtilListT.tests
   , UtilMaybeS.tests
   , UtilMonoid.tests

@@ -906,6 +906,7 @@ test-suite agda-tests
                     , Internal.Utils.IntSet
                     , Internal.Utils.List
                     , Internal.Utils.List1
+                    , Internal.Utils.List2
                     , Internal.Utils.ListT
                     , Internal.Utils.Maybe.Strict
                     , Internal.Utils.Monoid
