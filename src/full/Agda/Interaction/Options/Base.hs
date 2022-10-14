@@ -13,6 +13,7 @@ module Agda.Interaction.Options.Base
     , checkOpts
     , parsePragmaOptions
     , parsePluginOptions
+    , parseVerboseKey
     , stripRTS
     , defaultOptions
     , defaultInteractionOptions
@@ -67,7 +68,9 @@ import Agda.Syntax.Common (Cubical(..))
 import Agda.Utils.FileName      ( AbsolutePath )
 import Agda.Utils.Functor       ( (<&>) )
 import Agda.Utils.Lens          ( Lens', over )
-import Agda.Utils.List          ( groupOn, initLast1, wordsBy )
+import Agda.Utils.List          ( groupOn, initLast1 )
+import Agda.Utils.List1         ( String1, toList )
+import qualified Agda.Utils.List1        as List1
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Pretty        ( singPlural )
 import Agda.Utils.ProfileOptions
@@ -79,13 +82,17 @@ import Agda.Version
 
 -- OptDescr is a Functor --------------------------------------------------
 
-type VerboseKey   = String
-type VerboseLevel = Int
+type VerboseKey     = String
+type VerboseKeyItem = String1
+type VerboseLevel   = Int
 -- | 'Strict.Nothing' is used if no verbosity options have been given,
 -- thus making it possible to handle the default case relatively
 -- quickly. Note that 'Strict.Nothing' corresponds to a trie with
 -- verbosity level 1 for the empty path.
-type Verbosity = Strict.Maybe (Trie VerboseKey VerboseLevel)
+type Verbosity = Strict.Maybe (Trie VerboseKeyItem VerboseLevel)
+
+parseVerboseKey :: VerboseKey -> [VerboseKeyItem]
+parseVerboseKey = List1.wordsBy (`elem` ['.', ':'])
 
 -- Don't forget to update
 --   doc/user-manual/tools/command-line-options.rst
@@ -824,12 +831,13 @@ verboseFlag s o =
                   Strict.Just v  -> v
             }
   where
-    parseVerbose :: String -> OptM ([VerboseKey], VerboseLevel)
-    parseVerbose s = case wordsBy (`elem` (":." :: String)) s of
+    parseVerbose :: String -> OptM ([VerboseKeyItem], VerboseLevel)
+    parseVerbose s = case parseVerboseKey s of
       []  -> usage
       s0:ss0 -> do
         let (ss, s) = initLast1 s0 ss0
-        n <- maybe usage return $ readMaybe s
+        -- The last entry must be a number.
+        n <- maybe usage return $ readMaybe $ toList s
         return (ss, n)
     usage = throwError "argument to verbose should be on the form x.y.z:N or N"
 

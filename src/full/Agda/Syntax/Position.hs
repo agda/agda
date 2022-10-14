@@ -73,7 +73,7 @@ import Control.Monad.Writer (runWriter, tell)
 import qualified Data.Foldable as Fold
 import Data.Function
 import Data.Int
-import Data.List (foldl', sort)
+import Data.List (sort)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -676,8 +676,8 @@ movePos (Pn f p l c) _    = Pn f (p + 1) l (c + 1)
 -- | Advance the position by a string.
 --
 --   > movePosByString = foldl' movePos
-movePosByString :: Position' a -> String -> Position' a
-movePosByString = foldl' movePos
+movePosByString :: Foldable t => Position' a -> t Char -> Position' a
+movePosByString = Fold.foldl' movePos
 
 -- | Backup the position by one character.
 --

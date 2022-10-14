@@ -46,6 +46,7 @@ import Agda.Utils.Null (Null(..))
 import qualified Agda.Utils.List as List
 
 type List1 = NonEmpty
+type String1 = List1 Char
 
 -- | Safe version of 'Data.List.NonEmpty.fromList'.
 
@@ -101,6 +102,20 @@ groupBy' p xxs@(x : xs) = grp x $ List.zipWith (\ x y -> (p x y, y)) xxs xs
     = (x :| List.map snd xs) : case rest of
       []                 -> []
       ((_false, z) : zs) -> grp z zs
+
+-- | Split a list into sublists. Generalisation of the prelude function
+--   @words@.
+--   Same as 'Data.List.Split.wordsBy' and 'Data.List.Extra.wordsBy',
+--   but with the non-emptyness guarantee on the chunks.
+--   O(n).
+--
+--   > words xs == wordsBy isSpace xs
+wordsBy :: (a -> Bool) -> [a] -> [List1 a]
+wordsBy p = loop
+  where
+  loop as = case List.dropWhile p as of
+    []   -> []
+    x:xs -> (x :| ys) : loop zs where (ys, zs) = List.break p xs
 
 -- | Breaks a list just /after/ an element satisfying the predicate is
 --   found.

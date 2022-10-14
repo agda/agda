@@ -27,6 +27,7 @@ import Data.Maybe
 import Text.Read
 
 import Agda.Utils.List
+import Agda.Utils.List1 (wordsBy, toList)
 
 type GHCArgs = [String]
 
@@ -340,6 +341,6 @@ findGHCVersion = do
     ExitSuccess   -> return $
       sequence $
       concat $
-      map (map readMaybe . wordsBy (== '.')) $
+      map (map (readMaybe . toList) . wordsBy (== '.')) $
       take 1 $
       lines version

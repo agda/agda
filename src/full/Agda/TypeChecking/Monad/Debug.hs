@@ -292,9 +292,6 @@ closeVerboseBracketException k n = displayDebugMessage k n "} (exception)\n"
 --   reportSLn
 --   reportSDoc
 
-parseVerboseKey :: VerboseKey -> [String]
-parseVerboseKey = wordsBy (`elem` (".:" :: String))
-
 -- | Check whether a certain verbosity level is activated.
 --
 --   Precondition: The level must be non-negative.
