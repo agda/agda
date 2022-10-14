@@ -29,6 +29,8 @@ import Agda.Utils.Impossible
 data List2 a = List2 a a [a]
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
+-- * Conversion from and to other list types.
+
 -- | 'fromList' is unsafe.
 instance IsList (List2 a) where
   type Item (List2 a) = a
@@ -40,6 +42,37 @@ instance IsList (List2 a) where
 
   toList :: List2 a -> [a]
   toList (List2 a b cs) = a : b : cs
+
+-- | Unsafe! O(1).
+fromList1 :: List1 a -> List2 a
+fromList1 (a :| b : cs) = List2 a b cs
+fromList1 _             = __IMPOSSIBLE__
+
+-- | Safe. O(1).
+toList1 :: List2 a -> List1 a
+toList1 (List2 a b cs) = a :| b : cs
+
+-- | Safe. O(1).
+fromListMaybe :: [a] -> Maybe (List2 a)
+fromListMaybe = fromList1Maybe <=< List1.nonEmpty
+
+-- | Safe. O(1).
+fromList1Maybe :: List1 a -> Maybe (List2 a)
+fromList1Maybe = \case
+  (a :| b : cs) -> Just (List2 a b cs)
+  _ -> Nothing
+
+-- | Any 'List1' is either a singleton or a 'List2'. O(1).
+fromList1Either :: List1 a -> Either a (List2 a)
+fromList1Either (a :| as) = case as of
+  []   -> Left a
+  b:bs -> Right (List2 a b bs)
+
+-- | Inverse of 'fromList1Either'. O(1).
+toList1Either :: Either a (List2 a) -> List1 a
+toList1Either = \case
+  Left  a              -> a :| []
+  Right (List2 a b bs) -> a :| b : bs
 
 -- * Construction
 
@@ -55,23 +88,6 @@ append (x :| xs) ys = cons x $ List1.prependList xs ys
 appendList :: List2 a -> [a] -> List2 a
 appendList (List2 x y ys) zs = List2 x y $ mappend ys zs
 
--- | Unsafe!
-fromList1 :: List1 a -> List2 a
-fromList1 (a :| b : cs) = List2 a b cs
-fromList1 _             = __IMPOSSIBLE__
-
--- | Any 'List1' is either a singleton or a 'List2'.
-fromList1Either :: List1 a -> Either a (List2 a)
-fromList1Either (a :| as) = case as of
-  []   -> Left a
-  b:bs -> Right (List2 a b bs)
-
--- | Inverse of 'fromList1Either'
-toList1Either :: Either a (List2 a) -> List1 a
-toList1Either = \case
-  Left  a              -> a :| []
-  Right (List2 a b bs) -> a :| b : bs
-
 -- * Destruction
 
 -- | Safe. O(1).
@@ -85,20 +101,6 @@ tail (List2 a b cs) = b :| cs
 -- | Safe. O(n).
 init :: List2 a -> List1 a
 init (List2 a b cs) = a :| List1.init (b :| cs)
-
--- | Safe. O(1).
-fromListMaybe :: [a] -> Maybe (List2 a)
-fromListMaybe = fromList1Maybe <=< List1.nonEmpty
-
--- | Safe. O(1).
-fromList1Maybe :: List1 a -> Maybe (List2 a)
-fromList1Maybe = \case
-  (a :| b : cs) -> Just (List2 a b cs)
-  _ -> Nothing
-
--- | Safe. O(1).
-toList1 :: List2 a -> List1 a
-toList1 (List2 a b cs) = a :| b : cs
 
 -- * Partition
 
