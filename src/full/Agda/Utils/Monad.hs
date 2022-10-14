@@ -7,13 +7,15 @@ module Agda.Utils.Monad
     )
     where
 
-import Control.Applicative  ( liftA2 )
-import Control.Monad        ( MonadPlus(..), guard, unless, when )
-import Control.Monad.Except ( MonadError(catchError, throwError) )
-import Control.Monad.State  ( MonadState(get, put) )
+import Control.Applicative    ( liftA2 )
+import Control.Monad          ( MonadPlus(..), guard, unless, when )
+import Control.Monad.Except   ( MonadError(catchError, throwError) )
+import Control.Monad.Identity ( runIdentity )
+import Control.Monad.State    ( MonadState(get, put) )
+import Control.Monad.Writer   ( Writer, WriterT, mapWriterT )
 
-import Data.Bifunctor       ( first, second )
-import Data.Bool            ( bool )
+import Data.Bifunctor         ( first, second )
+import Data.Bool              ( bool )
 import Data.Traversable as Trav hiding (for, sequence)
 import Data.Foldable as Fold
 import Data.Maybe
@@ -231,3 +233,8 @@ bracket_ acquire release compute = do
 -- | Restore state after computation.
 localState :: MonadState s m => m a -> m a
 localState = bracket_ get put
+
+-- Writer monad -----------------------------------------------------------
+
+embedWriter :: (Monoid w, Monad m) => Writer w a -> WriterT w m a
+embedWriter = mapWriterT (pure . runIdentity)
