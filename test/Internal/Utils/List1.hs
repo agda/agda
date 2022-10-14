@@ -2,6 +2,9 @@
 
 module Internal.Utils.List1 ( tests ) where
 
+import qualified Data.List       as List
+import qualified Data.List.Split as Split
+
 import Agda.Utils.List1 as List1
 
 import Internal.Helpers
@@ -15,6 +18,17 @@ prop_NonemptyList_roundtrip l = maybe False (l ==) $ nonEmpty $ List1.toList l
 
 prop_foldr_id :: List1 Int -> Bool
 prop_foldr_id xs = List1.foldr (<|) singleton xs == xs
+
+-- A type with few elements.
+type Four = (Bool, Bool)
+
+zero4 :: Four
+zero4 = (False, False)
+
+-- | Our 'wordsBy' conforms to 'Split.wordsBy'.
+prop_wordsBy :: [Four] -> Bool
+prop_wordsBy xs = Split.wordsBy p xs == List.map toList (List1.wordsBy p xs)
+  where p = (== zero4)
 
 ------------------------------------------------------------------------
 -- * All tests
