@@ -1,0 +1,4 @@
+Issue6112.agda:22,1-19
+★ should be a constructor of type G ★ but it isn't.
+Do you have any non-confluent rewrite rules?
+when checking the pragma REWRITE G2

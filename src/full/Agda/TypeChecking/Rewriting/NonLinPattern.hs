@@ -60,14 +60,14 @@ instance PatternFrom (Type, Term) Elims [Elim' NLPat] where
   patternFrom r k (t,hd) = \case
     [] -> return []
     (Apply u : es) -> do
-      ~(Pi a b) <- unEl <$> abortIfBlocked t
+      (a, b) <- assertPi t
       p   <- patternFrom r k a u
-      t'  <- piApplyM' (blockOnMetasIn t >> __IMPOSSIBLE__) t u
+      let t'  = absApp b (unArg u)
       let hd' = hd `apply` [ u ]
       ps  <- patternFrom r k (t',hd') es
       return $ Apply p : ps
     (IApply x y i : es) -> do
-      ~(PathType s q l b u v) <- pathView =<< abortIfBlocked t
+      (s, q, l, b, u, v) <- assertPath t
       let t' = El s $ unArg b `apply` [ defaultArg i ]
       let hd' = hd `applyE` [IApply x y i]
       interval <- primIntervalType
@@ -75,7 +75,7 @@ instance PatternFrom (Type, Term) Elims [Elim' NLPat] where
       ps  <- patternFrom r k (t',hd') es
       return $ IApply (PTerm x) (PTerm y) p : ps
     (Proj o f : es) -> do
-      ~(Just (El _ (Pi a b))) <- getDefType f =<< abortIfBlocked t
+      (a,b) <- assertProjOf f t
       let t' = b `absApp` hd
       hd' <- applyDef o f (argFromDom a $> hd)
       ps  <- patternFrom r k (t',hd') es
@@ -148,7 +148,7 @@ instance PatternFrom Type Term NLPat where
        -- in order to build a Miller pattern
        | Just vs <- allApplyElims es -> do
            TelV tel rest <- telViewPath =<< typeOfBV i
-           unless (size tel >= size vs) $ blockOnMetasIn rest >> __IMPOSSIBLE__
+           unless (size tel >= size vs) $ blockOnMetasIn rest >> addContext tel (errNotPi rest)
            let ts = applySubst (parallelS $ reverse $ map unArg vs) $ map unDom $ flattenTel tel
            mbvs <- forM (zip ts vs) $ \(t , v) -> do
              blockOnMetasIn (v,t)
@@ -166,9 +166,9 @@ instance PatternFrom Type Term NLPat where
       (_ , _ ) | Just (d, pars) <- etaRecord -> do
         def <- theDef <$> getConstInfo d
         (tel, c, ci, vs) <- etaExpandRecord_ d pars def v
-        caseMaybeM (getFullyAppliedConType c t) __IMPOSSIBLE__ $ \ (_ , ct) -> do
+        ct <- assertConOf c t
         PDef (conName c) <$> patternFrom r k (ct , Con c ci []) (map Apply vs)
-      (_ , Lam i t) -> __IMPOSSIBLE__
+      (_ , Lam{})   -> errNotPi t
       (_ , Lit{})   -> done
       (_ , Def f es) | isIrrelevant r -> done
       (_ , Def f es) -> do
@@ -181,8 +181,8 @@ instance PatternFrom Type Term NLPat where
             ft <- defType <$> getConstInfo f
             PDef f <$> patternFrom r k (ft , Def f []) es
       (_ , Con c ci vs) | isIrrelevant r -> done
-      (_ , Con c ci vs) ->
-        caseMaybeM (getFullyAppliedConType c t) __IMPOSSIBLE__ $ \ (_ , ct) -> do
+      (_ , Con c ci vs) -> do
+        ct <- assertConOf c t
         PDef (conName c) <$> patternFrom r k (ct , Con c ci []) vs
       (_ , Pi a b) | isIrrelevant r -> done
       (_ , Pi a b) -> do
@@ -364,3 +364,56 @@ blockOnMetasIn :: (MonadBlock m, AllMetas t) => t -> m ()
 blockOnMetasIn t = case unblockOnAllMetasIn t of
   UnblockOnAll ms | null ms -> return ()
   b -> patternViolation b
+
+-- Helper functions
+
+
+assertPi :: Type -> TCM (Dom Type, Abs Type)
+assertPi t = abortIfBlocked t >>= \case
+  El _ (Pi a b) -> return (a,b)
+  t             -> errNotPi t
+
+errNotPi :: Type -> TCM a
+errNotPi t = typeError . GenericDocError =<< fsep
+    [ prettyTCM t
+    , "should be a function type, but it isn't."
+    , "Do you have any non-confluent rewrite rules?"
+    ]
+
+assertPath :: Type -> TCM (Sort, QName, Arg Term, Arg Term, Arg Term, Arg Term)
+assertPath t = abortIfBlocked t >>= pathView >>= \case
+  PathType s q l b u v -> return (s,q,l,b,u,v)
+  OType t -> errNotPath t
+
+errNotPath :: Type -> TCM a
+errNotPath t = typeError . GenericDocError =<< fsep
+    [ prettyTCM t
+    , "should be a path type, but it isn't."
+    , "Do you have any non-confluent rewrite rules?"
+    ]
+
+assertProjOf :: QName -> Type -> TCM (Dom Type, Abs Type)
+assertProjOf f t = do
+  t <- abortIfBlocked t
+  getDefType f t >>= \case
+    Just (El _ (Pi a b)) -> return (a,b)
+    _ -> errNotProjOf f t
+
+errNotProjOf :: QName -> Type -> TCM a
+errNotProjOf f t = typeError . GenericDocError =<< fsep
+      [ prettyTCM f , "should be a projection from type"
+      , prettyTCM t , "but it isn't."
+      , "Do you have any non-confluent rewrite rules?"
+      ]
+
+assertConOf :: ConHead -> Type -> TCM Type
+assertConOf c t = getFullyAppliedConType c t >>= \case
+    Just (_ , ct) -> return ct
+    Nothing -> errNotConOf c t
+
+errNotConOf :: ConHead -> Type -> TCM a
+errNotConOf c t = typeError . GenericDocError =<< fsep
+      [ prettyTCM c , "should be a constructor of type"
+      , prettyTCM t , "but it isn't."
+      , "Do you have any non-confluent rewrite rules?"
+      ]
