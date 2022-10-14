@@ -446,7 +446,7 @@ libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ WriterT $ do
       :: LibrariesFile  -- Only for error reporting.
       -> [LibName]      -- Already resolved libraries.
       -> [LibName]      -- Work list: libraries left to be resolved.
-      -> Writer [Either LibError LibWarning] [AgdaLibFile]
+      -> Writer LibErrWarns [AgdaLibFile]
     find _ _ [] = pure []
     find file visited (x : xs)
       | x `elem` visited = find file visited xs

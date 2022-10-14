@@ -171,23 +171,27 @@ type LibState =
   , Map FilePath AgdaLibFile
   )
 
+-- | Collection of 'LibError's and 'LibWarning's.
+--
+type LibErrWarns = [Either LibError LibWarning]
+
 -- | Collects 'LibError's and 'LibWarning's.
 --
-type LibErrorIO = WriterT [Either LibError LibWarning] (StateT LibState IO)
+type LibErrorIO = WriterT LibErrWarns (StateT LibState IO)
 
 -- | Throws 'Doc' exceptions, still collects 'LibWarning's.
 type LibM = ExceptT Doc (WriterT [LibWarning] (StateT LibState IO))
 
-warnings :: MonadWriter [Either LibError LibWarning] m => List1 LibWarning -> m ()
+warnings :: MonadWriter LibErrWarns m => List1 LibWarning -> m ()
 warnings = tell . map Right . toList
 
-warnings' :: MonadWriter [Either LibError LibWarning] m => List1 LibWarning' -> m ()
+warnings' :: MonadWriter LibErrWarns m => List1 LibWarning' -> m ()
 warnings' = tell . map (Right . LibWarning Nothing) . toList
 
-raiseErrors' :: MonadWriter [Either LibError LibWarning] m => List1 LibError' -> m ()
+raiseErrors' :: MonadWriter LibErrWarns m => List1 LibError' -> m ()
 raiseErrors' = tell . map (Left . (LibError Nothing)) . toList
 
-raiseErrors :: MonadWriter [Either LibError LibWarning] m => List1 LibError -> m ()
+raiseErrors :: MonadWriter LibErrWarns m => List1 LibError -> m ()
 raiseErrors = tell . map Left . toList
 
 getCachedProjectConfig
