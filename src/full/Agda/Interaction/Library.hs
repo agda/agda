@@ -346,8 +346,8 @@ parseLibFiles mlibFile files = do
   let (xs, warns) = unzip anns
       (errs, als) = partitionEithers xs
 
-  whenJust (List1.nonEmpty $ concat warns) warnings
-  whenJust (List1.nonEmpty errs) $ \ errs1 ->
+  List1.unlessNull (concat warns) warnings
+  List1.unlessNull errs $ \ errs1 ->
     raiseErrors $ fmap (\ (mc, s) -> LibError mc $ LibParseError s) errs1
 
   return $ nubOn _libFile als
@@ -411,11 +411,10 @@ parseExecutablesFile ef files = do
       exeMap1 = Map.fromListWith (<>) $ map (second singleton) executables
 
   -- Separate non-ambiguous from ambiguous mappings.
-  let (exeMap, exeMap2) = Map.mapEither List2.fromList1Either exeMap1
+  let (exeMap, duplicates) = Map.mapEither List2.fromList1Either exeMap1
 
   -- Report ambiguous mappings.
-  let duplicates = Map.toList exeMap2
-  whenJust (List1.nonEmpty duplicates) $ \ duplicates1 ->
+  List1.unlessNull (Map.toList duplicates) $ \ duplicates1 ->
     raiseErrors' $ fmap (uncurry $ DuplicateExecutable $ efPath ef) duplicates1
 
   -- Return non-ambiguous mappings.
