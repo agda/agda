@@ -45,7 +45,7 @@ import qualified Control.Exception as E
 import Control.Monad          ( filterM, forM )
 import Control.Monad.Except
 import Control.Monad.State
-import Control.Monad.Writer
+import Control.Monad.Writer   ( Writer, runWriter, WriterT(WriterT), runWriterT, tell )
 import Control.Monad.IO.Class ( MonadIO(..) )
 
 import Data.Char
@@ -68,15 +68,18 @@ import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.Environment
 import Agda.Utils.FileName
-import Agda.Utils.Functor ( (<&>), for )
+import Agda.Utils.Functor ( (<&>) )
 import Agda.Utils.IO ( catchIO )
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.List
-import Agda.Utils.List1 ( List1, pattern (:|) )
-import qualified Agda.Utils.List1 as List1
+import Agda.Utils.List1             ( List1, pattern (:|) )
+import Agda.Utils.List2             ( List2 )
+import qualified Agda.Utils.List1   as List1
+import qualified Agda.Utils.List2   as List2
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
+import Agda.Utils.Singleton
 import Agda.Utils.String ( trim )
 
 import Agda.Version
@@ -266,11 +269,7 @@ readDefaultsFile = do
       ls <- liftIO $ map snd . stripCommentLines <$> UTF8.readFile file
       return $ concatMap splitCommas ls
   `catchIO` \ e -> do
-    raiseErrors' [ OtherError $ unlines
-                     [ "Failed to read defaults file."
-                     , E.displayException e
-                     ]
-                 ]
+    raiseErrors' [ ReadError e "Failed to read defaults file." ]
     return []
 
 ------------------------------------------------------------------------
@@ -281,15 +280,17 @@ readDefaultsFile = do
 --
 --   Note: file may not exist.
 --
+--   If the user specified an alternative @libraries@ file which does not exist,
+--   an exception is thrown containing the name of this file.
 getLibrariesFile
-  :: (MonadIO m, MonadError String m)
+  :: (MonadIO m, MonadError FilePath m)
   => Maybe FilePath -- ^ Override the default @libraries@ file?
   -> m LibrariesFile
 getLibrariesFile (Just overrideLibFile) = do
   -- A user-specified override file must exist.
   ifM (liftIO $ doesFileExist overrideLibFile)
     {-then-} (return $ LibrariesFile overrideLibFile True)
-    {-else-} (throwError $ "Libraries file not found: " ++ overrideLibFile)
+    {-else-} (throwError overrideLibFile)
 getLibrariesFile Nothing = do
   agdaDir <- liftIO $ getAgdaAppDir
   let defaults = List1.map (agdaDir </>) defaultLibraryFiles -- NB: very short list
@@ -308,18 +309,16 @@ getInstalledLibraries
 getInstalledLibraries overrideLibFile = mkLibM [] $ do
     filem <- liftIO $ runExceptT $ getLibrariesFile overrideLibFile
     case filem of
-      Left err -> raiseErrors' [OtherError err] >> return []
+      Left theOverrideLibFile -> do
+        raiseErrors' [ LibrariesFileNotFound theOverrideLibFile ]
+        return []
       Right file -> do
         if not (lfExists file) then return [] else do
           ls    <- liftIO $ stripCommentLines <$> UTF8.readFile (lfPath file)
           files <- liftIO $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- ls ]
           parseLibFiles (Just file) $ nubOn snd files
   `catchIO` \ e -> do
-    raiseErrors' [ OtherError $ unlines
-                     [ "Failed to read installed libraries."
-                     , E.displayException e
-                     ]
-                 ]
+    raiseErrors' [ ReadError e "Failed to read installed libraries." ]
     return []
 
 -- | Parse the given library files.
@@ -349,7 +348,7 @@ parseLibFiles mlibFile files = do
 
   whenJust (List1.nonEmpty $ concat warns) warnings
   whenJust (List1.nonEmpty errs) $ \ errs1 ->
-    raiseErrors $ fmap (\ (mc, s) -> LibError mc $ OtherError s) errs1
+    raiseErrors $ fmap (\ (mc, s) -> LibError mc $ LibParseError s) errs1
 
   return $ nubOn _libFile als
 
@@ -389,11 +388,7 @@ getTrustedExecutables = mkLibM [] $ do
       tmp   <- parseExecutablesFile file $ nubOn snd files
       return tmp
   `catchIO` \ e -> do
-    raiseErrors' [ OtherError $ unlines
-                     [ "Failed to read trusted executables."
-                     , E.displayException e
-                     ]
-                 ]
+    raiseErrors' [ ReadError e "Failed to read trusted executables." ]
     return Map.empty
 
 -- | Parse the @executables@ file.
@@ -410,19 +405,21 @@ parseExecutablesFile ef files = do
     let txtExeName  = T.pack strExeName'
     exePath <- liftIO $ makeAbsolute fp
     return (txtExeName, exePath)
-  let exeMap = Map.fromList executables
-      -- Issue #5525: check for duplicate entries in executables file
-      duplicates = [ (exe, paths)
-                   | exe <- Map.keys exeMap
-                   , let paths = [ path | (exe', path) <- executables
-                                        , exe' == exe ]
-                   , length paths > 1 ]
+
+  -- Create a map from executable names to their location(s).
+  let exeMap1 :: Map ExeName (List1 FilePath)
+      exeMap1 = Map.fromListWith (<>) $ map (second singleton) executables
+
+  -- Separate non-ambiguous from ambiguous mappings.
+  let (exeMap, exeMap2) = Map.mapEither List2.fromList1Either exeMap1
+
+  -- Report ambiguous mappings.
+  let duplicates = Map.toList exeMap2
   whenJust (List1.nonEmpty duplicates) $ \ duplicates1 ->
-    raiseErrors' $ for duplicates1 $ \ (exe, paths) ->
-      OtherError $ unlines $
-        (printf "Duplicate entries for executable '%s' in %s:" exe (efPath ef))
-        : [ "  - " ++ path | path <- paths ]
-  return $ Map.fromList executables
+    raiseErrors' $ fmap (uncurry $ DuplicateExecutable $ efPath ef) duplicates1
+
+  -- Return non-ambiguous mappings.
+  return exeMap
 
 ------------------------------------------------------------------------
 -- * Resolving library names to include pathes
@@ -437,7 +434,8 @@ libraryIncludePaths
 libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ WriterT $ do
     efile <- liftIO $ runExceptT $ getLibrariesFile overrideLibFile
     case efile of
-      Left err -> return ([], [Left $ LibError Nothing $ OtherError err])
+      Left theOverrideLibFile   -> do
+        return ([], [Left $ LibError Nothing $ LibrariesFileNotFound theOverrideLibFile])
       Right file -> return $ runWriter $ (dot ++) . incs <$> find file [] xs
   where
     (dots, xs) = List.partition (== libNameForCurrentDir) $ map trim xs0

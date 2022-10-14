@@ -2,29 +2,33 @@
 
 module Agda.Interaction.Library.Base where
 
-import Control.Arrow ( first , second )
 import Control.DeepSeq
+import qualified Control.Exception as E
+
 import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Writer
-import Control.Monad.IO.Class ( MonadIO(..) )
+import Control.Monad.IO.Class      ( MonadIO(..) )
 
-import Data.Char ( isDigit )
-import qualified Data.List as List
-import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Text ( Text )
+import Data.Bifunctor              ( first , second )
+import Data.Char                   ( isDigit )
+import qualified Data.List         as List
+import Data.Map                    ( Map )
+import qualified Data.Map          as Map
+import Data.Text                   ( Text, unpack )
 
-import GHC.Generics (Generic)
+import GHC.Generics                ( Generic )
 
 import System.Directory
 import System.FilePath
+import System.IO.Error             ( IOError )
 
 import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.FileName
 import Agda.Utils.Lens
-import Agda.Utils.List1 (List1, toList)
+import Agda.Utils.List1            ( List1, toList )
+import Agda.Utils.List2            ( List2, toList )
 import Agda.Utils.Pretty
 
 -- | A symbolic library name.
@@ -135,15 +139,31 @@ libraryWarningName (LibWarning c (UnknownField{})) = LibUnknownField_
 -- | Collected errors while processing library files.
 --
 data LibError'
-  = LibNotFound LibrariesFile LibName
+  = LibrariesFileNotFound FilePath
+      -- ^ The user specified replacement for the default @libraries@ file does not exist.
+  | LibNotFound LibrariesFile LibName
       -- ^ Raised when a library name could not successfully be resolved
       --   to an @.agda-lib@ file.
       --
   | AmbiguousLib LibName [AgdaLibFile]
       -- ^ Raised when a library name is defined in several @.agda-lib files@.
-  | OtherError String
-      -- ^ Generic error.
-  deriving (Show)
+  | LibParseError String
+      -- ^ The @.agda-lib@ file could not be parsed.
+  | ReadError
+      -- ^ An I/O Error occurred when reading a file.
+      IOError
+        -- ^ The caught exception
+      String
+        -- ^ Explanation when this error occurred.
+  | DuplicateExecutable
+      -- ^ The @executables@ file contains duplicate entries.
+      FilePath
+        -- ^ Name of the @executables@ file.
+      Text
+        -- ^ Name of the executable that is defined twice.
+      (List2 FilePath)
+        -- ^ The resolutions of the executable.
+  -- deriving (Show)
 
 -- | Cache locations of project configurations and parsed .agda-lib files
 type LibState =
@@ -215,11 +235,16 @@ formatLibPositionInfo (LibPositionInfo libFile lineNum file) err = text $
 formatLibError :: [AgdaLibFile] -> LibError -> Doc
 formatLibError installed (LibError mc e) = prefix <+> body where
   prefix = case mc of
-    Nothing                      -> ""
-    Just c | OtherError err <- e -> formatLibPositionInfo c err
-    _                            -> ""
+    Just c | LibParseError err <- e -> formatLibPositionInfo c err
+    _ -> ""
 
   body = case e of
+
+    LibrariesFileNotFound path -> sep
+      [ text "Libraries file not found:"
+      , text path
+      ]
+
     LibNotFound file lib -> vcat $
       [ text $ "Library '" ++ lib ++ "' not found."
       , sep [ "Add the path to its .agda-lib file to"
@@ -239,8 +264,16 @@ formatLibError installed (LibError mc e) = prefix <+> body where
           ]
         : [ nest 2 $ text (_libName l) <+> parens (text $ _libFile l) | l <- tgts ]
 
+    LibParseError msg -> text msg
 
-    OtherError err -> text err
+    ReadError e msg -> vcat
+      [ text $ msg
+      , text $ E.displayException e
+      ]
+
+    DuplicateExecutable exeFile exe paths -> vcat $
+      hcat [ "Duplicate entries for executable '", (text . unpack) exe, "' in ", text exeFile, ":" ] :
+      map (nest 2 . ("-" <+>) . text) (toList paths)
 
 instance Pretty LibWarning where
   pretty (LibWarning mc w) = prefix <+> pretty w
