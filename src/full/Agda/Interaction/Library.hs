@@ -430,12 +430,13 @@ libraryIncludePaths
   -> [AgdaLibFile]   -- ^ Libraries Agda knows about.
   -> [LibName]       -- ^ (Non-empty) library names to be resolved to (lists of) pathes.
   -> LibM [FilePath] -- ^ Resolved pathes (no duplicates).  Contains "." if @[LibName]@ does.
-libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ WriterT $ do
+libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ do
     efile <- liftIO $ runExceptT $ getLibrariesFile overrideLibFile
     case efile of
-      Left theOverrideLibFile   -> do
-        return ([], [Left $ LibError Nothing $ LibrariesFileNotFound theOverrideLibFile])
-      Right file -> return $ runWriter $ (dot ++) . incs <$> find file [] xs
+      Left theOverrideLibFile -> do
+        raiseErrors' [ LibrariesFileNotFound theOverrideLibFile ]
+        return []
+      Right file -> embedWriter $ (dot ++) . incs <$> find file [] xs
   where
     (dots, xs) = List.partition (== libNameForCurrentDir) $ map trim xs0
     incs       = nubOn id . concatMap _libIncludes
