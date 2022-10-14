@@ -177,6 +177,16 @@ prop_commonSuffix xs ys zs =
   where
     zs' = commonSuffix (xs ++ zs) (ys ++ zs)
 
+-- | If @xs@, @ys@ and @zs@ are pairwise disjoint, then the overlap between
+--   @xs ++ ys@ and @ys ++ zs@ is certainly @ys@.
+prop_findOverlap :: [Int] -> [Int] -> [Int] -> Bool
+prop_findOverlap xs ys zs = findOverlap (xs1 ++ ys2) (ys2 ++ zs3) == (length xs, length ys)
+  where
+  -- Make sure the lists are disjoint.
+  xs1 = (,1) <$> xs
+  ys2 = (,2) <$> ys
+  zs3 = (,3) <$> zs
+
 prop_editDistance :: Property
 prop_editDistance =
   forAllShrink (choose (0, 10)) shrink $ \ n ->
