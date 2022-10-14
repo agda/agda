@@ -439,12 +439,19 @@ data StrSufSt a
 
 -- ** Finding overlap
 
--- | Find out whether the first string @xs@
---   has a suffix that is a prefix of the second string @ys@.
+-- | Find the longest suffix of the first string @xs@
+--   that is a prefix of the second string @ys@.
 --   So, basically, find the overlap where the strings can be glued together.
 --   Returns the index where the overlap starts and the length of the overlap.
 --   The length of the overlap plus the index is the length of the first string.
 --   Note that in the worst case, the empty overlap @(length xs,0)@ is returned.
+--
+--   Worst-case time complexity is quadratic: @O(min(n,m)²)@
+--   where @n = length xs@ and @m = length ys@.
+--
+--   There might be asymptotically better implementations following
+--   Knuth-Morris-Pratt (KMP), but for rather short lists this is good enough.
+--
 findOverlap :: forall a. Eq a => [a] -> [a] -> (Int, Int)
 findOverlap xs ys =
   headWithDefault __IMPOSSIBLE__ $ mapMaybe maybePrefix $ zip [0..] (List.tails xs)
