@@ -165,6 +165,8 @@ instance Match (Type, Elims -> Term) [Elim' NLPat] Elims where
      [ "matching elimination " <+> addContext (gamma `abstract` k) (prettyTCM p)
      , "  with               " <+> addContext k (prettyTCM v)
      , "  eliminating head   " <+> addContext k (prettyTCM $ hd []) <+> ":" <+> addContext k (prettyTCM t)]) $ do
+
+   let no  = matchingBlocked $ NotBlocked ReallyNotBlocked ()
    case (p,v) of
     (Apply p, Apply v) -> (addContext k $ unEl <$> reduce t) >>= \case
       Pi a b -> do
@@ -186,19 +188,21 @@ instance Match (Type, Elims -> Term) [Elim' NLPat] Elims where
         ("interval application at non-pi type (possible non-confluence?) " <+> prettyTCM (pathUnview t)) mzero
 
     (Proj o f, Proj o' f') | f == f' -> do
-      ~(Just (El _ (Pi a b))) <- addContext k $ getDefType f =<< reduce t
-      let u = hd []
-          t' = b `absApp` u
-      hd' <- addContext k $ applyE <$> applyDef o f (argFromDom a $> u)
-      match r gamma k (t',hd') ps vs
+      addContext k (getDefType f =<< reduce t) >>= \case
+        Just (El _ (Pi a b)) -> do
+          let u = hd []
+              t' = b `absApp` u
+          hd' <- addContext k $ applyE <$> applyDef o f (argFromDom a $> u)
+          match r gamma k (t',hd') ps vs
+        _ -> no
 
     (Proj _ f, Proj _ f') | otherwise -> do
       traceSDoc "rewriting.match" 20 (sep
         [ "mismatch between projections " <+> prettyTCM f
         , " and " <+> prettyTCM f' ]) mzero
 
-    (Apply{}, Proj{} ) -> __IMPOSSIBLE__
-    (Proj{} , Apply{}) -> __IMPOSSIBLE__
+    (Apply{}, Proj{} ) -> no
+    (Proj{} , Apply{}) -> no
 
     (IApply{} , _    ) -> __IMPOSSIBLE__ -- TODO
     (_ , IApply{}    ) -> __IMPOSSIBLE__ -- TODO
@@ -318,8 +322,9 @@ instance Match Type NLPat Term where
                 match r gamma k (ft , Def f) ps es
           Con c ci vs
             | f == conName c -> do
-                ~(Just (_ , ct)) <- addContext k $ getFullyAppliedConType c t
-                match r gamma k (ct , Con c ci) ps vs
+                addContext k (getFullyAppliedConType c t) >>= \case
+                  Just (_ , ct) -> match r gamma k (ct , Con c ci) ps vs
+                  Nothing -> no ""
           _ | Pi a b <- unEl t -> do
             let ai    = domInfo a
                 pbody = PDef f $ raise 1 ps ++ [ Apply $ Arg ai $ PTerm $ var 0 ]
@@ -332,15 +337,17 @@ instance Match Type NLPat Term where
           -- the pattern (p = PDef f ps) to @c (p .f1) ... (p .fn)@.
             def <- addContext k $ theDef <$> getConstInfo d
             (tel, c, ci, vs) <- addContext k $ etaExpandRecord_ d pars def v
-            ~(Just (_ , ct)) <- addContext k $ getFullyAppliedConType c t
-            let flds = map argFromDom $ recFields def
-                mkField fld = PDef f (ps ++ [Proj ProjSystem fld])
-                -- Issue #3335: when matching against the record constructor,
-                -- don't add projections but take record field directly.
-                ps'
-                  | conName c == f = ps
-                  | otherwise      = map (Apply . fmap mkField) flds
-            match r gamma k (ct, Con c ci) ps' (map Apply vs)
+            addContext k (getFullyAppliedConType c t) >>= \case
+              Just (_ , ct) -> do
+                let flds = map argFromDom $ recFields def
+                    mkField fld = PDef f (ps ++ [Proj ProjSystem fld])
+                    -- Issue #3335: when matching against the record constructor,
+                    -- don't add projections but take record field directly.
+                    ps'
+                      | conName c == f = ps
+                      | otherwise      = map (Apply . fmap mkField) flds
+                match r gamma k (ct, Con c ci) ps' (map Apply vs)
+              Nothing -> no ""
           v -> maybeBlock v
       PLam i p' -> case unEl t of
         Pi a b -> do
@@ -374,10 +381,12 @@ instance Match Type NLPat Term where
         _ | Just (d, pars) <- etaRecord -> do
           def <- addContext k $ theDef <$> getConstInfo d
           (tel, c, ci, vs) <- addContext k $ etaExpandRecord_ d pars def v
-          ~(Just (_ , ct)) <- addContext k $ getFullyAppliedConType c t
-          let flds = map argFromDom $ recFields def
-              ps'  = map (fmap $ \fld -> PBoundVar i (ps ++ [Proj ProjSystem fld])) flds
-          match r gamma k (ct, Con c ci) (map Apply ps') (map Apply vs)
+          addContext k (getFullyAppliedConType c t) >>= \case
+            Just (_ , ct) -> do
+              let flds = map argFromDom $ recFields def
+                  ps'  = map (fmap $ \fld -> PBoundVar i (ps ++ [Proj ProjSystem fld])) flds
+              match r gamma k (ct, Con c ci) (map Apply ps') (map Apply vs)
+            Nothing -> no ""
         v -> maybeBlock v
       PTerm u -> traceSDoc "rewriting.match" 60 ("matching a PTerm" <+> addContext (gamma `abstract` k) (prettyTCM u)) $
         tellEq gamma k t u v
@@ -443,9 +452,11 @@ getTypedHead = \case
     vs <- freeVarsToApply c
     -- Jesper, 2020-06-17, issue #4755: add dummy arguments in
     -- case we don't have enough parameters
-    npars <- fromMaybe __IMPOSSIBLE__ <$> getNumberOfParameters c
-    let ws = replicate (npars - size vs) $ defaultArg __DUMMY_TERM__
-    t0 <- defType <$> getConstInfo c
-    t <- t0 `piApplyM` (vs ++ ws)
-    return $ Just (c , t)
+    getNumberOfParameters c >>= \case
+      Just npars -> do
+        let ws = replicate (npars - size vs) $ defaultArg __DUMMY_TERM__
+        t0 <- defType <$> getConstInfo c
+        t <- t0 `piApplyM` (vs ++ ws)
+        return $ Just (c , t)
+      Nothing -> return Nothing
   _ -> return Nothing
