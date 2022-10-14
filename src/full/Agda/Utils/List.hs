@@ -484,21 +484,6 @@ groupBy' p xxs@(x : xs) = grp x $ zipWith (\x y -> (p x y, y)) xxs xs
                    []            -> []
                    ((_, z) : zs) -> grp z zs
 
--- | Split a list into sublists. Generalisation of the prelude function
---   @words@.
---   O(n).
---
---   > words xs == wordsBy isSpace xs
-wordsBy :: (a -> Bool) -> [a] -> [[a]]
-wordsBy p xs = yesP xs
-    where
-        yesP xs = noP (dropWhile p xs)
-
-        noP []  = []
-        noP xs  = ys : yesP zs
-            where
-                (ys,zs) = break p xs
-
 -- | Chop up a list in chunks of a given length.
 -- O(n).
 chop :: Int -> [a] -> [[a]]
