@@ -254,8 +254,8 @@ moduleName
 moduleName file parsedModule = billTo [Bench.ModuleName] $ do
   let defaultName = rootNameModule file
       raw         = rawTopLevelModuleNameForModule parsedModule
-  topLevelModuleName =<< case rawModuleNameParts raw of
-    "_" :| [] -> do
+  topLevelModuleName =<< if isNoName raw
+    then do
       m <- runPM (parse moduleNameParser defaultName)
              `catchError` \_ ->
            typeError $ GenericError $
@@ -271,7 +271,7 @@ moduleName file parsedModule = billTo [Bench.ModuleName] $ do
             { rawModuleNameRange = getRange m
             , rawModuleNameParts = singleton (T.pack defaultName)
             }
-    _ -> return raw
+    else return raw
 
 parseFileExtsShortList :: [String]
 parseFileExtsShortList = ".agda" : literateExtsShortList
