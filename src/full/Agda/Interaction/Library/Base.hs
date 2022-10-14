@@ -24,6 +24,7 @@ import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.FileName
 import Agda.Utils.Lens
+import Agda.Utils.List1 (List1, toList)
 import Agda.Utils.Pretty
 
 -- | A symbolic library name.
@@ -157,21 +158,17 @@ type LibErrorIO = WriterT [Either LibError LibWarning] (StateT LibState IO)
 -- | Throws 'Doc' exceptions, still collects 'LibWarning's.
 type LibM = ExceptT Doc (WriterT [LibWarning] (StateT LibState IO))
 
-warnings :: MonadWriter [Either LibError LibWarning] m => [LibWarning] -> m ()
-warnings = tell . map Right
+warnings :: MonadWriter [Either LibError LibWarning] m => List1 LibWarning -> m ()
+warnings = tell . map Right . toList
 
-warnings' :: MonadWriter [Either LibError LibWarning] m => [LibWarning'] -> m ()
-warnings' = tell . map (Right . LibWarning Nothing)
+warnings' :: MonadWriter [Either LibError LibWarning] m => List1 LibWarning' -> m ()
+warnings' = tell . map (Right . LibWarning Nothing) . toList
 
--- UNUSED Liang-Ting Chen 2019-07-16
---warning :: MonadWriter [Either LibError LibWarning] m => LibWarning -> m ()
---warning = warnings . pure
+raiseErrors' :: MonadWriter [Either LibError LibWarning] m => List1 LibError' -> m ()
+raiseErrors' = tell . map (Left . (LibError Nothing)) . toList
 
-raiseErrors' :: MonadWriter [Either LibError LibWarning] m => [LibError'] -> m ()
-raiseErrors' = tell . map (Left . (LibError Nothing))
-
-raiseErrors :: MonadWriter [Either LibError LibWarning] m => [LibError] -> m ()
-raiseErrors = tell . map Left
+raiseErrors :: MonadWriter [Either LibError LibWarning] m => List1 LibError -> m ()
+raiseErrors = tell . map Left . toList
 
 getCachedProjectConfig
   :: (MonadState LibState m, MonadIO m)
