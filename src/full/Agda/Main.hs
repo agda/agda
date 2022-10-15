@@ -303,9 +303,12 @@ runTCMPrettyErrors tcm = do
           return (Just ImpossibleError)
     ) `E.catches`
         -- Catch all exceptions except for those of type ExitCode
-        -- (which are thrown by exitWith).
-        [ E.Handler $ \(e :: ExitCode)        -> E.throw e
-        , E.Handler $ \(e :: E.SomeException) -> do
+        -- (which are thrown by exitWith) and asynchronous exceptions
+        -- (which are for instance raised when Ctrl-C is used, or if
+        -- the program runs out of heap or stack space).
+        [ E.Handler $ \(e :: ExitCode)         -> E.throw e
+        , E.Handler $ \(e :: E.AsyncException) -> E.throw e
+        , E.Handler $ \(e :: E.SomeException)  -> do
             liftIO $ putStr $ E.displayException e
             return $ Right (Just UnknownError)
         ]
