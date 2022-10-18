@@ -17,3 +17,8 @@ all : Issue1168.api PrettyInterface.api ScopeFromInterface.api
 
 clean :
 	rm -f *.agdai *.hi *.o
+
+debug :
+	@echo "GHC     = ${GHC}"
+	@echo "AGDA    = ${AGDA}"
+	@echo "VERSION = ${VERSION}"
