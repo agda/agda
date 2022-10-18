@@ -15,12 +15,12 @@ jobs:
       && !contains(github.event.head_commit.message, '[github skip]')
       && !contains(github.event.head_commit.message, '[skip github]')
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     strategy:
       matrix:
-        ghc-ver: ['9.2']
-        cabal-ver: [latest]
+        ghc-ver: ['9.4']
+        cabal-ver: ['3.8']
         # stack-ver: [2.5.1]
         fix-whitespace-ver: [0.0.10]
 

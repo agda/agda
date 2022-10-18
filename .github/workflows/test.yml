@@ -47,11 +47,9 @@ jobs:
       name: Cache dependencies
       uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-01-${{ matrix.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-02-${{ matrix.stack-ver }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
-    - name: Install and configure the icu library
-      run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
     - if: ${{ !steps.cache.outputs.cache-hit }}
       name: Install dependencies for Agda and its test suites
       run: make STACK_OPTS=--silent install-deps
@@ -87,9 +85,9 @@ jobs:
         ghc-ver:
         - 9.2.4
         os:
-        - ubuntu-20.04
+        - ubuntu-22.04
         stack-ver:
-        - latest
+        - 2.9.1
   cubical:
     needs: build
     runs-on: ${{ needs.build.outputs.os }}
@@ -113,7 +111,7 @@ jobs:
       name: Cache dependencies
       uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-02-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
     - name: Install and configure the icu library
@@ -145,7 +143,7 @@ jobs:
       name: Cache dependencies
       uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-02-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
     - name: Install and configure the icu library
@@ -184,7 +182,7 @@ jobs:
       name: Cache dependencies
       uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-02-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
     - name: Install and configure the icu library
@@ -224,7 +222,7 @@ jobs:
       name: Cache dependencies
       uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-02-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
     - name: Suite of tests for bugs

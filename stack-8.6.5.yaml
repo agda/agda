@@ -17,7 +17,7 @@ extra-deps:
 - strict-0.4.0.1
 - these-1.1.1.1
 - uuid-types-1.0.3
-- text-icu-0.7.1.0
+- text-icu-0.8.0.2
 - vector-hashtables-0.1.1.1
 
 # Local packages, usually specified by relative directory name

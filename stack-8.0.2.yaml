@@ -41,7 +41,7 @@ extra-deps:
 - vector-0.12.3.1
 - vector-hashtables-0.1.1.1
 - wcwidth-0.0.2
-- text-icu-0.7.1.0
+- text-icu-0.8.0.2
 
 # instead of time-1.9, we add time-compat
 - time-compat-1.9.2.2

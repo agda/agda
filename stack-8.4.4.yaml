@@ -22,7 +22,7 @@ extra-deps:
 - uuid-types-1.0.3
 - strict-0.4.0.1
 - tagged-0.8.6.1
-- text-icu-0.7.1.0
+- text-icu-0.8.0.2
 - th-abstraction-0.4.5.0
 - these-1.1.1.1
 - unordered-containers-0.2.19.1

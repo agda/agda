@@ -12,7 +12,7 @@ jobs:
       && !contains(github.event.head_commit.message, '[ci skip]')
       && !contains(github.event.head_commit.message, '[github skip]')
       && !contains(github.event.head_commit.message, '[skip github]')
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - name: Checkout agda sources
       uses: actions/checkout@v3
@@ -44,11 +44,11 @@ jobs:
     strategy:
       matrix:
         cabal-ver:
-        - latest
+        - '3.8'
         fix-whitespace-ver:
         - 0.0.10
         ghc-ver:
-        - '9.2'
+        - '9.4'
 name: Whitespace
 'on':
   pull_request: null
