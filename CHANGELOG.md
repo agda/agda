@@ -211,6 +211,10 @@ Pragmas and options
 * Profiling options are now turned on with a new `--profile` flag instead of
   abusing the debug verbosity option. (See [#5781](https://github.com/agda/agda/issues/5731).)
 
+* The new profiling option `--profile=conversion` collects statistics
+  on how often various steps of the conversion algorithm are used
+  (reduction, eta-expansion, syntactic equality, etc).
+
 * The option `--without-K` has been renamed `--cubical-compatible` (See
   [#5843](https://github.com/agda/agda/issues/5843).)
 
