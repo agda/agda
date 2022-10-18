@@ -196,7 +196,7 @@ doGlueKanOp (TranspOp psi u0) (IsFam (la, lb, bA, phi, bT, e)) tpos = do
       --        (unglue_u0 i0)
       a1 = gcomp la bA (imax psi forallphi)
         (lam "i" $ \ i -> combineSys (la <@> i) (bA <@> i)
-          [ (phi,       ilam "o" $ \_ -> unglue_u0 i)
+          [ (psi,       ilam "o" $ \_ -> unglue_u0 i)
           , (forallphi, ilam "o" $ \o -> w i o <@> (tf i o))
           ])
         (unglue_u0 (pure iz))

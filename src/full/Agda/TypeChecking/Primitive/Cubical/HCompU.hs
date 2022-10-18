@@ -159,7 +159,7 @@ doHCompUKanOp (TranspOp psi u0) (IsFam (la, phi, bT, bA)) tpos = do
       -- a1 with gcomp
       a1 = gcomp la bA (imax psi forallphi)
         (lam "i" $ \ i -> combineSys (la <@> i) (bA <@> i)
-          [ (phi,       ilam "o" $ \_ -> unglue_u0 i)
+          [ (psi,       ilam "o" $ \_ -> unglue_u0 i)
           , (forallphi, ilam "o" (\o -> transp (la <@> i) (\j -> bT <@> i <@> ineg j <..> o) (tf i o)))
           ])
           (unglue_u0 (pure iz))
