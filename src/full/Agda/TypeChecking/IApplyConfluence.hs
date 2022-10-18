@@ -55,6 +55,9 @@ checkIApplyConfluence_ f = whenM (isJust . optCubical <$> pragmaOptions) $ do
       reportSDoc "tc.cover.iapply" 10 $ text "length cls =" <+> pretty (length cls)
       when (null cls && any (not . null . iApplyVars . namedClausePats) cls') $
         __IMPOSSIBLE__
+      unlessM (optKeepCoveringClauses <$> pragmaOptions) $
+        modifySignature $ updateDefinition f $ updateTheDef
+          $ updateCovering (const [])
 
       traceCall (CheckFunDefCall (getRange f) f [] False) $
         forM_ cls $ checkIApplyConfluence f

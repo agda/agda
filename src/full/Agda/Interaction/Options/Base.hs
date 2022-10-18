@@ -228,6 +228,9 @@ data PragmaOptions = PragmaOptions
   , optShowIdentitySubstitutions :: Bool
     -- ^ Show identity substitutions when pretty-printing terms
     --   (i.e. always show all arguments of a metavariable)
+  , optKeepCoveringClauses       :: Bool
+    -- ^ Do not discard clauses constructed by the coverage checker
+    --   (needed for some external backends)
   }
   deriving (Show, Eq, Generic)
 
@@ -344,6 +347,7 @@ defaultPragmaOptions = PragmaOptions
   , optSaveMetas                 = Default
   , optShowIdentitySubstitutions = False
   , optLoadPrimitives            = True
+  , optKeepCoveringClauses       = False
   }
 
 type OptM = Except String
@@ -885,6 +889,10 @@ integerArgument flag s = maybe usage return $ readMaybe s
   where
   usage = throwError $ "option '" ++ flag ++ "' requires an integer argument"
 
+keepCoveringClausesFlag :: Flag PragmaOptions
+keepCoveringClausesFlag o = return $ o { optKeepCoveringClauses = True }
+
+
 standardOptions :: [OptDescr (Flag CommandLineOptions)]
 standardOptions =
     [ Option ['V']  ["version"] (NoArg versionFlag)
@@ -1120,6 +1128,8 @@ pragmaOptions =
                     "save meta-variables"
     , Option []     ["no-save-metas"] (NoArg $ saveMetas False)
                     "do not save meta-variables (the default)"
+    , Option []     ["keep-covering-clauses"] (NoArg keepCoveringClausesFlag)
+                    "do not discard covering clauses (required for some external backends)"
     ]
 
 -- | Pragma options of previous versions of Agda.
