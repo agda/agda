@@ -267,6 +267,10 @@ Printing and debugging
          - Count number of created metavariables
        * - ``interactive``
          - Measure time of interactive commands
+       * - ``conversion``
+         - Count number of times various steps of the conversion algorithm are
+           used (reduction, eta-expansion, syntactic equality, etc)
+
 
     Only one of ``internal``, ``modules``, and ``definitions`` can be turned on
     at a time. You can also give ``--profile=all`` to turn on all profiling

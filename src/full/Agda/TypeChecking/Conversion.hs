@@ -157,6 +157,7 @@ compareAs cmp a u v = do
     , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
     , nest 2 $ prettyTCM a
     ]
+  whenProfile Profile.Conversion $ tick "compare"
 
   -- OLD CODE, traverses the *full* terms u v at each step, even if they
   -- are different somewhere.  Leads to infeasibility in issue 854.
@@ -165,9 +166,8 @@ compareAs cmp a u v = do
 
   -- Check syntactic equality. This actually saves us quite a bit of work.
   SynEq.checkSyntacticEquality u v
-    (\_ _ -> whenProfile Profile.Sharing $ tick "equal terms") $
+    (\_ _ -> whenProfile Profile.Conversion $ tick "compare equal") $
     \u v -> do
-      whenProfile Profile.Sharing $ tick "unequal terms"
       reportSDoc "tc.conv.term" 15 $ sep $
         [ "compareTerm (not syntactically equal)"
         , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
@@ -206,6 +206,7 @@ compareAs cmp a u v = do
           -- but irrelevant projections since they are applied to their parameters.
           if isJust $ isRelevantProjection_ def then fallback else do
           pol <- getPolarity' cmp f
+          whenProfile Profile.Conversion $ tick "compare first-order shortcut"
           compareElims pol [] (defType def) (Def f []) es es' `orelse` fallback
         _               -> fallback
   where
@@ -217,9 +218,11 @@ compareAs cmp a u v = do
         , nest 2 $ prettyTCM (MetaV x es) <+> ":=" <+> prettyTCM v
         ]
       whenM (isInstantiatedMeta x) (patternViolation alwaysUnblock) -- Already instantiated, retry right away
+      whenProfile Profile.Conversion $ tick "compare meta shortcut"
       assignE dir x es v a $ compareAsDir dir a
       reportSDoc "tc.conv.term.shortcut" 50 $
         "shortcut successful" $$ nest 2 ("result:" <+> (pretty =<< instantiate (MetaV x es)))
+      whenProfile Profile.Conversion $ tick "compare meta shortcut successful"
     -- Should be ok with catchError_ but catchError is much safer since we don't
     -- rethrow errors.
     orelse :: m () -> m () -> m ()
@@ -230,6 +233,7 @@ compareAs cmp a u v = do
 assignE :: (MonadConversion m)
         => CompareDirection -> MetaId -> Elims -> Term -> CompareAs -> (Term -> Term -> m ()) -> m ()
 assignE dir x es v a comp = assignWrapper dir x es v $ do
+  whenProfile Profile.Conversion $ tick "compare meta"
   case allApplyElims es of
     Just vs -> assignV dir x vs v a
     Nothing -> do
@@ -298,6 +302,7 @@ compareTerm' cmp a m n =
           isrec <- isEtaRecord r
           if isrec
             then do
+              whenProfile Profile.Conversion $ tick "compare at eta record"
               sig <- getSignature
               let ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
               -- Andreas, 2010-10-11: allowing neutrals to be blocked things does not seem
@@ -319,24 +324,26 @@ compareTerm' cmp a m n =
               mNeutral <- isNeutral m
               n <- reduceB n
               nNeutral <- isNeutral n
-              case (m, n) of
-                _ | isMeta m || isMeta n ->
-                    compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
-
-                _ | mNeutral && nNeutral -> do
-                    -- Andreas 2011-03-23: (fixing issue 396)
-                    -- if we are dealing with a singleton record,
-                    -- we can succeed immediately
-                    ifM (isSingletonRecordModuloRelevance r ps) (return ()) $
-                      -- do not eta-expand if comparing two neutrals
-                      compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
-                _ -> do
-                  (tel, m') <- etaExpandRecord r ps $ ignoreBlocking m
-                  (_  , n') <- etaExpandRecord r ps $ ignoreBlocking n
-                  -- No subtyping on record terms
-                  c <- getRecordConstructor r
-                  -- Record constructors are covariant (see test/succeed/CovariantConstructors).
-                  compareArgs (repeat $ polFromCmp cmp) [] (telePi_ tel __DUMMY_TYPE__) (Con c ConOSystem []) m' n'
+              if | isMeta m || isMeta n -> do
+                     whenProfile Profile.Conversion $ tick "compare at eta-record: meta"
+                     compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
+                 | mNeutral && nNeutral -> do
+                     whenProfile Profile.Conversion $ tick "compare at eta-record: both neutral"
+                     -- Andreas 2011-03-23: (fixing issue 396)
+                     -- if we are dealing with a singleton record,
+                     -- we can succeed immediately
+                     let profUnitEta = whenProfile Profile.Conversion $ tick "compare at eta-record: both neutral at unit"
+                     ifM (isSingletonRecordModuloRelevance r ps) (profUnitEta >> return ()) $ do
+                       -- do not eta-expand if comparing two neutrals
+                       compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
+                 | otherwise -> do
+                     tick "compare at eta-record: eta-expanding"
+                     (tel, m') <- etaExpandRecord r ps $ ignoreBlocking m
+                     (_  , n') <- etaExpandRecord r ps $ ignoreBlocking n
+                     -- No subtyping on record terms
+                     c <- getRecordConstructor r
+                     -- Record constructors are covariant (see test/succeed/CovariantConstructors).
+                     compareArgs (repeat $ polFromCmp cmp) [] (telePi_ tel __DUMMY_TYPE__) (Con c ConOSystem []) m' n'
 
             else (do pathview <- pathView a'
                      equalPath pathview a' m n)
@@ -353,6 +360,7 @@ compareTerm' cmp a m n =
           _                  -> equalFun s (unEl asFn) m n
 
     equalFun _ (Pi dom@Dom{domInfo = info} b) m n = do
+        whenProfile Profile.Conversion $ tick "compare at function type"
         let name = suggests [ Suggestion b , Suggestion m , Suggestion n ]
         addContext (name, dom) $ compareTerm cmp (absBody b) m' n'
       where
@@ -362,6 +370,7 @@ compareTerm' cmp a m n =
 
     equalPath :: (MonadConversion m) => PathView -> Type -> Term -> Term -> m ()
     equalPath (PathType s _ l a x y) _ m n = do
+        whenProfile Profile.Conversion $ tick "compare at path type"
         let name = "i" :: String
         interval <- el primInterval
         let (m',n') = raise 1 (m, n) `applyE` [IApply (raise 1 $ unArg x) (raise 1 $ unArg y) (var 0)]
@@ -463,6 +472,7 @@ compareAtom cmp t m n =
                              , prettyTCM n
                              , prettyTCM t
                              ]
+    whenProfile Profile.Conversion $ tick "compare by reduction"
     -- Are we currently defining mutual functions? Which?
     currentMutuals <- maybe (pure Set.empty) (mutualNames <.> lookupMutualBlock) =<< asksTC envMutualBlock
 
@@ -1043,6 +1053,7 @@ compareIrrelevant t v0 w0 = do
     [ nest 2 $ "v =" <+> pretty v
     , nest 2 $ "w =" <+> pretty w
     ]
+  whenProfile Profile.Conversion $ tick "compare irrelevant"
   try v w $ try w v $ return ()
   where
     try (MetaV x es) w fallback = do
@@ -1226,6 +1237,7 @@ leqSort s1 s2 = do
         , nest 2 $ fsep [ pretty s1 <+> "=<"
                         , pretty s2 ]
         ]
+  whenProfile Profile.Conversion $ tick "compare sorts"
 
   SynEq.checkSyntacticEquality s1 s2 (\_ _ -> return ()) $ \s1 s2 -> do
 
@@ -1364,6 +1376,7 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
         "compareLevel" <+>
           sep [ prettyTCM a <+> "=<"
               , prettyTCM b ]
+      whenProfile Profile.Conversion $ tick "compare levels"
 
       (a, b) <- normalise (a, b)
       SynEq.checkSyntacticEquality' a b
@@ -1498,6 +1511,7 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
 equalLevel :: forall m. MonadConversion m => Level -> Level -> m ()
 equalLevel a b = do
   reportSDoc "tc.conv.level" 50 $ sep [ "equalLevel", nest 2 $ parens $ pretty a, nest 2 $ parens $ pretty b ]
+  whenProfile Profile.Conversion $ tick "compare levels"
   -- Andreas, 2013-10-31 remove common terms (that don't contain metas!)
   -- THAT's actually UNSOUND when metas are instantiated, because
   --     max a b == max a c  does not imply  b == c
@@ -1677,6 +1691,7 @@ equalSort s1 s2 = do
                            , pretty s2 ]
            ]
     ]
+  whenProfile Profile.Conversion $ tick "compare sorts"
 
   SynEq.checkSyntacticEquality s1 s2 (\_ _ -> return ()) $ \s1 s2 -> do
 
@@ -2025,6 +2040,7 @@ compareInterval :: MonadConversion m => Comparison -> Type -> Term -> Term -> m 
 compareInterval cmp i t u = do
   reportSDoc "tc.conv.interval" 15 $
     sep [ "{ compareInterval" <+> prettyTCM t <+> "=" <+> prettyTCM u ]
+  whenProfile Profile.Conversion $ tick "compare at interval type"
   tb <- reduceB t
   ub <- reduceB u
   let t = ignoreBlocking tb
@@ -2099,6 +2115,7 @@ compareTermOnFace' :: MonadConversion m => (Comparison -> Type -> Term -> Term -
 compareTermOnFace' k cmp phi ty u v = do
   reportSDoc "tc.conv.face" 40 $
     text "compareTermOnFace:" <+> pretty phi <+> "|-" <+> pretty u <+> "==" <+> pretty v <+> ":" <+> pretty ty
+  whenProfile Profile.Conversion $ tick "compare at face type"
 
   phi <- reduce phi
   _ <- forallFaceMaps phi postponed

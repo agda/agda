@@ -35,6 +35,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty (Pretty, prettyShow)
+import qualified Agda.Utils.ProfileOptions as Profile
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
@@ -315,6 +316,7 @@ compareSizes cmp u v = verboseBracket "tc.conv.size" 10 "compareSizes" $ do
       nest 2 $ sep [ pretty u <+> prettyTCM cmp
                    , pretty v
                    ]
+  whenProfile Profile.Conversion $ tick "compare sizes"
   us <- sizeMaxView u
   vs <- sizeMaxView v
   compareMaxViews cmp us vs
