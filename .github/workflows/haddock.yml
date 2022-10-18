@@ -62,11 +62,11 @@ jobs:
     strategy:
       matrix:
         cabal-ver:
-        - latest
+        - '3.8'
         ghc-ver:
-        - '9.2'
+        - '9.4'
         os:
-        - ubuntu-latest
+        - ubuntu-22.04
 name: Haddock
 'on':
   pull_request:

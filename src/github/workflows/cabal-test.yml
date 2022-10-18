@@ -44,15 +44,15 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-latest
-          - macos-latest
+          - ubuntu-22.04
+          - macos-12
           # - windows-latest
           ## Andreas, 2021-08-28, giving up on running the test-suite under Windows.
           ## There is e.g. https://github.com/phile314/tasty-silver/issues/16
           ## that may be responsible that diffs are not shown,
           ## and that prevents me from running the test-suite interactively.
-        ghc-ver: ['9.2']
-        cabal-ver: [latest]
+        ghc-ver: ['9.4']
+        cabal-ver: ['3.8']
 
     steps:
     - uses: actions/checkout@v3
@@ -60,10 +60,6 @@ jobs:
         submodules: recursive
 
     - uses: haskell/actions/setup@v2
-        # Andreas, 2022-10-07.
-        # @v2 pulls in cabal 3.8.1.0 which has atm a problem with the pkgconfig-depends
-        # of text-icu-0.8.0 on macos-latest.  However, as we do not supply the flag
-        # -fenable-cluster-counting here, we do not depend on text-icu and are fine.
       id: setup-haskell
       with:
         ghc-version: ${{ matrix.ghc-ver }}

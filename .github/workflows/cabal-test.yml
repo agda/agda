@@ -68,12 +68,12 @@ jobs:
       fail-fast: false
       matrix:
         cabal-ver:
-        - latest
+        - '3.8'
         ghc-ver:
-        - '9.2'
+        - '9.4'
         os:
-        - ubuntu-latest
-        - macos-latest
+        - ubuntu-22.04
+        - macos-12
     timeout-minutes: 150
 name: cabal-test
 'on':

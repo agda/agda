@@ -22,7 +22,7 @@ extra-deps:
 - text-1.2.3.1
 - uuid-types-1.0.3
 - wcwidth-0.0.2
-- text-icu-0.7.1.0
+- text-icu-0.8.0.2
 
 # Local packages, usually specified by relative directory name
 packages:
