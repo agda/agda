@@ -89,7 +89,7 @@ jobs:
       fail-fast: false
       matrix:
         cabal-ver:
-        - latest
+        - '3.8'
         ghc-ver:
         - 9.4.2
         - 9.2.4
@@ -98,17 +98,21 @@ jobs:
         - 8.8.4
         - 8.6.5
         - 8.4.4
-        - 8.2.2
-        - 8.0.2
         include:
-        - cabal-ver: 3.6.2.0
+        - cabal-ver: '3.8'
+          ghc-ver: 8.0.2
+          os: ubuntu-20.04
+        - cabal-ver: '3.8'
+          ghc-ver: 8.2.2
+          os: ubuntu-20.04
+        - cabal-ver: '3.8'
           ghc-ver: 9.4.2
-          os: macos-latest
-        - cabal-ver: latest
+          os: macos-12
+        - cabal-ver: '3.8'
           ghc-ver: 9.4.2
-          os: windows-latest
+          os: windows-2022
         os:
-        - ubuntu-20.04
+        - ubuntu-22.04
     timeout-minutes: 60
 name: Build (cabal)
 'on':

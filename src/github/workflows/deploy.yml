@@ -25,18 +25,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Andreas, 2022-04-30, issue #5874
-        # statically linked executables with GHC 9.2.2 broke on ubuntu-20.04
-        # on 2022-04-08
-        # Reverting to ubuntu-18.04 fixes this for the moment.
-        os: [windows-2022, macos-latest, ubuntu-18.04]
-        ghc-ver: ['9.2']
-        cabal-ver: [3.6]
-          # Andreas, 2022-10-07.
-          # Switching to cabal 3.8.1.0 will likely cause problems on macOS
-          # as long as the issue with pkg-config exists, see:
-          # - https://github.com/haskell/cabal/pull/8496
-          # - https://github.com/actions/runner-images/issues/6364
+        # Andreas, 2022-10-18
+        # We stick to '-latest' virtual environments here in the sense of
+        # "most canonical", since this is the deploy action.
+        # As of today, this is [windows-2022, macOS-11, ubuntu-20.04].
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        ghc-ver: ['9.4']
+        cabal-ver: ['3.8']
 
     env:
       ARGS: "--disable-executable-profiling --disable-library-profiling"
@@ -103,15 +98,6 @@ jobs:
       with:
         ghc-version: ${{ matrix.ghc-ver }}
         cabal-version: ${{ matrix.cabal-ver }}
-
-    # DOES NOT HELP
-    # # Workaround suggested in https://gitlab.haskell.org/ghc/ghc/-/issues/21454#note_425291
-    # # Force reinstall of GHC 9.2.2 from ubuntu binaries
-    # - name: Force reinstall of GHC 9.2.2 (Linux)
-    #   if: ${{ runner.os == 'Linux' }}
-    #   run: |
-    #     ghcup config set url-source '{"OwnSource": "https://raw.githubusercontent.com/haskell/ghcup-metadata/ubuntu20.04/ghcup-0.0.7.yaml"}'
-    #     ghcup install ghc --force --set 9.2.2
 
     - name: Set up pkg-config for the ICU library (macOS)
       if: ${{ runner.os == 'macOS' }}

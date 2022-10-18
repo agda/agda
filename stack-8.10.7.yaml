@@ -3,6 +3,7 @@ compiler: ghc-8.10.7
 compiler-check: match-exact
 
 extra-deps:
+- text-icu-0.8.0.2
 - vector-hashtables-0.1.1.1
 
 # Local packages, usually specified by relative directory name

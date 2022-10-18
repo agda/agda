@@ -150,13 +150,13 @@ jobs:
       fail-fast: false
       matrix:
         cabal-ver:
-        - 3.6
+        - '3.8'
         ghc-ver:
-        - '9.2'
+        - '9.4'
         os:
-        - windows-2022
+        - windows-latest
         - macos-latest
-        - ubuntu-18.04
+        - ubuntu-latest
   deploy:
     if: ${{ github.ref == 'refs/heads/master' && github.event_name == 'workflow_run'
       }}

@@ -73,11 +73,6 @@ jobs:
       run: |
         echo "PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig" >> ${GITHUB_ENV}
       shell: bash
-    - if: ${{ runner.os == 'Linux' }}
-      name: Install the icu library (Ubuntu)
-      run: |
-        sudo apt-get update -qq
-        sudo apt-get install libicu-dev -qq
     - if: ${{ runner.os == 'Windows' }}
       name: Install the icu library (Windows)
       run: |
@@ -101,26 +96,26 @@ jobs:
       fail-fast: false
       matrix:
         ghc-ver:
+        - 9.2.4
+        - 9.0.2
         - 8.10.7
         - 8.8.4
         - 8.6.5
         - 8.4.4
-        - 8.2.2
-        - 8.0.2
         include:
-        - ghc-ver: 9.2.4
+        - ghc-ver: 8.2.2
           os: ubuntu-20.04
-          stack-ver: latest
-        - ghc-ver: 9.0.2
+          stack-ver: 2.9.1
+        - ghc-ver: 8.0.2
           os: ubuntu-20.04
-          stack-ver: latest
+          stack-ver: 2.9.1
         - ghc-ver: 9.2.4
-          os: macos-latest
-          stack-ver: latest
+          os: macos-12
+          stack-ver: 2.9.1
         os:
-        - ubuntu-18.04
+        - ubuntu-22.04
         stack-ver:
-        - latest
+        - 2.9.1
     timeout-minutes: 60
 name: Build (stack)
 'on':

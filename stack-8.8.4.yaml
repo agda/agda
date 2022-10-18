@@ -8,7 +8,7 @@ extra-deps:
 - random-1.2.0
 - splitmix-0.1.0.3
 - strict-0.4.0.1
-- text-icu-0.7.1.0
+- text-icu-0.8.0.2
 - vector-hashtables-0.1.1.1
 
 # Local packages, usually specified by relative directory name
