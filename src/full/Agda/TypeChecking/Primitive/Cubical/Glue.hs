@@ -192,11 +192,11 @@ doGlueKanOp (TranspOp psi u0) (IsFam (la, lb, bA, phi, bT, e)) tpos = do
       forallphi = pure tForall <@> phi
 
       -- a1 with gcomp
-      -- a1 = gcomp (ψ ∨ (∀ i. φ)) (λ { i (φ = i1) → unglue_u0 i ; i ((∀ i. φ) = i1) → equivFun ... })
+      -- a1 = gcomp (ψ ∨ (∀ i. φ)) (λ { i (ψ = i1) → unglue_u0 i ; i ((∀ i. φ) = i1) → equivFun ... })
       --        (unglue_u0 i0)
       a1 = gcomp la bA (imax psi forallphi)
         (lam "i" $ \ i -> combineSys (la <@> i) (bA <@> i)
-          [ (phi,       ilam "o" $ \_ -> unglue_u0 i)
+          [ (psi,       ilam "o" $ \_ -> unglue_u0 i)
           , (forallphi, ilam "o" $ \o -> w i o <@> (tf i o))
           ])
         (unglue_u0 (pure iz))
