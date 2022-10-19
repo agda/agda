@@ -333,7 +333,7 @@ compareTerm' cmp a m n =
                      -- if we are dealing with a singleton record,
                      -- we can succeed immediately
                      let profUnitEta = whenProfile Profile.Conversion $ tick "compare at eta-record: both neutral at unit"
-                     ifM (isSingletonRecordModuloRelevance r ps) (profUnitEta >> return ()) $ do
+                     ifM (isSingletonRecordModuloRelevance r ps) (profUnitEta) $ do
                        -- do not eta-expand if comparing two neutrals
                        compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
                  | otherwise -> do
