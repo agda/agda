@@ -1061,6 +1061,7 @@ niceDeclarations fixs ds = do
 
               StaticPragma{}            -> bottom
               InlinePragma{}            -> bottom
+              NotProjectionLikePragma{} -> bottom
 
               ImpossiblePragma{}        -> top     -- error thrown in scope checker
               EtaPragma{}               -> bottom  -- needs record definition

@@ -1487,6 +1487,7 @@ instance ToAbstract Declarations where
        C.RewritePragma{}    -> Nothing
        -- @CompilePragma@ already handled in the nicifier
        C.CompilePragma{}    -> Nothing
+       C.NotProjectionLikePragma{} -> Nothing
 
 
 newtype LetDefs = LetDefs (List1 C.Declaration)
@@ -2392,6 +2393,15 @@ instance ToAbstract C.Pragma where
             sINLINE ++ " used on ambiguous name " ++ prettyShow x
           _        -> genericError $ "Target of " ++ sINLINE ++ " pragma should be a function"
       return [ A.InlinePragma b y ]
+  toAbstract (C.NotProjectionLikePragma _ x) = do
+      e <- toAbstract $ OldQName x Nothing
+      y <- case e of
+          A.Def  x -> return x
+          A.Proj _ p | Just x <- getUnambiguous p -> return x
+          A.Proj _ x -> genericError $
+            "NOT_PROJECTION_LIKE used on ambiguous name " ++ prettyShow x
+          _        -> genericError $ "Target of NOT_PROJECTION_LIKE pragma should be a function"
+      return [ A.NotProjectionLikePragma y ]
   toAbstract (C.BuiltinPragma _ rb qx)
     | isUntypedBuiltin b = do
         q <- toAbstract $ ResolveQName qx

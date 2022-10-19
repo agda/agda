@@ -221,6 +221,8 @@ data Pragma
     --   @eta-equality@ definition (as it is might make Agda loop).
   | InjectivePragma QName
   | InlinePragma Bool QName -- INLINE or NOINLINE
+  | NotProjectionLikePragma QName
+    -- Mark the definition as not being projection-like
   | DisplayPragma QName [NamedArg Pattern] Expr
   deriving (Show, Eq, Generic)
 

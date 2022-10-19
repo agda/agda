@@ -585,6 +585,8 @@ instance Pretty Pragma where
       hsep $ ["INJECTIVE", pretty i]
     pretty (InlinePragma _ True i) =
       hsep $ ["INLINE", pretty i]
+    pretty (NotProjectionLikePragma _ i) =
+      hsep $ ["INLINE", pretty i]
     pretty (InlinePragma _ False i) =
       hsep $ ["NOINLINE", pretty i]
     pretty (ImpossiblePragma _ strs) =

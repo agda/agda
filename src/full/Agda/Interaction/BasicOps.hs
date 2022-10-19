@@ -239,7 +239,7 @@ elaborate_give norm force ii mr e = withInteractionId ii $ do
         withInteractionId ii $ "Failed to give" TP.<+> prettyTCM e
       err -> throwError err
   nv <- normalForm norm v
-  locallyTC ePrintMetasBare (const True) $ reify nv
+  locallyTC ePrintMetasBare (const True) $ locallyReconstructed $ reify nv
 
 -- | Try to refine hole by expression @e@.
 --

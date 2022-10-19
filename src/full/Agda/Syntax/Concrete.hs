@@ -542,6 +542,8 @@ data Pragma
   | PolarityPragma            Range Name [Occurrence]
   | NoUniverseCheckPragma     Range
     -- ^ Applies to the following data/record type.
+  | NotProjectionLikePragma   Range QName
+    -- ^ Applies to the stated function
   deriving Eq
 
 ---------------------------------------------------------------------------
@@ -940,6 +942,7 @@ instance HasRange Pragma where
   getRange (NoPositivityCheckPragma r)       = r
   getRange (PolarityPragma r _ _)            = r
   getRange (NoUniverseCheckPragma r)         = r
+  getRange (NotProjectionLikePragma r _)     = r
 
 instance HasRange AsName where
   getRange a = getRange (asRange a, asName a)
@@ -1144,6 +1147,7 @@ instance KillRange Pragma where
   killRange (NoPositivityCheckPragma _)       = NoPositivityCheckPragma noRange
   killRange (PolarityPragma _ q occs)         = killRange1 (\q -> PolarityPragma noRange q occs) q
   killRange (NoUniverseCheckPragma _)         = NoUniverseCheckPragma noRange
+  killRange (NotProjectionLikePragma _ q)     = NotProjectionLikePragma noRange q
 
 instance KillRange RHS where
   killRange AbsurdRHS = AbsurdRHS
@@ -1285,6 +1289,7 @@ instance NFData Pragma where
   rnf (NoPositivityCheckPragma _)       = ()
   rnf (PolarityPragma _ a b)            = rnf a `seq` rnf b
   rnf (NoUniverseCheckPragma _)         = ()
+  rnf (NotProjectionLikePragma _ q)     = rnf q
 
 -- | Ranges are not forced.
 

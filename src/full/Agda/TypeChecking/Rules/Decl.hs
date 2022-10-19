@@ -744,6 +744,12 @@ checkPragma r p =
             Function{} -> markStatic x
             _          -> typeError $ GenericError "STATIC directive only works on functions"
         A.InjectivePragma x -> markInjective x
+        A.NotProjectionLikePragma qn -> do
+          def <- getConstInfo qn
+          case theDef def of
+            it@Function{} ->
+              modifyGlobalDefinition qn $ \def -> def { theDef = it { funProjection = Nothing } }
+            _ -> typeError $ GenericError "NOT_PROJECTION_LIKE directive only applies to functions"
         A.InlinePragma b x -> do
           def <- getConstInfo x
           case theDef def of

@@ -90,6 +90,7 @@ tokens :-
 <pragma_>   "INJECTIVE"                { keyword KwINJECTIVE }
 <pragma_>   "INLINE"                   { keyword KwINLINE }
 <pragma_>   "NOINLINE"                 { keyword KwNOINLINE }
+<pragma_>   "NOT_PROJECTION_LIKE"      { keyword KwNOT_PROJECTION_LIKE }
 <pragma_>   "LINE"                     { keyword KwLINE }
 <pragma_>   "MEASURE"                  { keyword KwMEASURE }
 <pragma_>   "NO_POSITIVITY_CHECK"      { keyword KwNO_POSITIVITY_CHECK }
