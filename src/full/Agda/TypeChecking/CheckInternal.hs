@@ -216,7 +216,7 @@ checkInternal' action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
                                NoAbs{} -> id
       a <- mkDom <$> checkInternal' action (unEl $ unDom a) CmpLeq (sort sa)
       v' <- goInside $ Pi a . mkRng <$> checkInternal' action (unEl $ unAbs b) CmpLeq (sort sb)
-      s' <- sortOf v'
+      s' <- sortOf v -- Issue #6205: do not use v' since it might not be valid syntax
       compareSort cmp s' s
       return v'
     Sort s     -> do
