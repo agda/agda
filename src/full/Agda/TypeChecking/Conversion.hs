@@ -466,18 +466,12 @@ compareAtom cmp t m n =
     -- Are we currently defining mutual functions? Which?
     currentMutuals <- maybe (pure Set.empty) (mutualNames <.> lookupMutualBlock) =<< asksTC envMutualBlock
 
-    let -- re #5600: We might add more clauses to the function later,
-        --           so we shouldn't commit to an UnequalTerms error yet,
-        --           even if there are no metas blocking computation.
-        blockIfMissingClauses (NotBlocked (MissingClauses f) t)
-          | f `Set.member` currentMutuals = Blocked (unblockOnDef f) t
-        blockIfMissingClauses b = b
     -- Andreas: what happens if I cut out the eta expansion here?
     -- Answer: Triggers issue 245, does not resolve 348
     (mb',nb') <- do
       mb' <- etaExpandBlocked =<< reduceB m
       nb' <- etaExpandBlocked =<< reduceB n
-      return (blockIfMissingClauses mb', blockIfMissingClauses nb')
+      return (mb', nb')
     let getBlocker (Blocked b _) = b
         getBlocker NotBlocked{}  = neverUnblock
         blocker = unblockOnEither (getBlocker mb') (getBlocker nb')
@@ -563,16 +557,7 @@ compareAtom cmp t m n =
       (Blocked b _, _) | not cmpBlocked -> useInjectivity (fromCmp cmp) b t m n   -- The blocked term  goes first
       (_, Blocked b _) | not cmpBlocked -> useInjectivity (flipCmp $ fromCmp cmp) b t n m
       bs -> do
-        let blocker'
-              | cmpBlocked = blocker
-              | otherwise = unblockOnEither blocker $
-                  case bs of
-                    (NotBlocked nb1 _, NotBlocked nb2 _)  -- this is the only case if not cmpBlocked
-                      | MissingClauses f <- nb1 <> nb2
-                      , f `Set.member` currentMutuals
-                      -> unblockOnDef f
-                    _ -> neverUnblock
-        blockOnError blocker' $ do
+        blockOnError blocker $ do
         -- -- Andreas, 2013-10-20 put projection-like function
         -- -- into the spine, to make compareElims work.
         -- -- 'False' means: leave (Def f []) unchanged even for

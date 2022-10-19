@@ -2,6 +2,7 @@
 -- Dependency on cubical library removed by Nisse.
 -- Issue fixed 2021-11-24 by Andrea in #5672.
 -- Test added 2022-08-29 by Andreas.
+-- Jesper, 2022-10-19: unfixed in #6208 (see also #1113)
 
 {-# OPTIONS --cubical #-}
 
