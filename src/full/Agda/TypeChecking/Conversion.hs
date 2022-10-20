@@ -337,7 +337,7 @@ compareTerm' cmp a m n =
                        -- do not eta-expand if comparing two neutrals
                        compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
                  | otherwise -> do
-                     tick "compare at eta-record: eta-expanding"
+                     whenProfile Profile.Conversion $ tick "compare at eta-record: eta-expanding"
                      (tel, m') <- etaExpandRecord r ps $ ignoreBlocking m
                      (_  , n') <- etaExpandRecord r ps $ ignoreBlocking n
                      -- No subtyping on record terms
