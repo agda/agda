@@ -76,6 +76,24 @@ Language
   incompatible with those things. Note that
   `--experimental-irrelevance` cannot be used together with `--safe`.
 
+* Two new reflection primitives
+
+  ```agda
+  declareData      : Name → Nat → Type → TC ⊤
+  defineData       : Name → List (Σ Name (λ _ → Type)) → TC ⊤
+  ```
+
+  are added for declaring and defining datatypes, similar to
+  `declareDef` and `defineDef`.
+
+* The construct `unquoteDecl` is extended with the ability of bringing
+  a datatype `d` and its constructors `c₁ ... cₙ` given by a `TC`
+  computation `m` into scope by the following syntax:
+
+  ```agda
+  unquoteDecl data x constructor c₁ .. cₙ = m
+  ```
+
 * A new reflection primitive `getInstances : Meta → TC (List Term)`
   was added to `Agda.Builtin.Reflection`. This operation returns the
   list of all possibly valid instance candidates for a given
