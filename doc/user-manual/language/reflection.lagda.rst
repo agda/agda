@@ -450,6 +450,16 @@ following primitive operations::
     -- option.
     declarePostulate : Arg Name → Type → TC ⊤
 
+    -- Declare a new datatype. The second argument is the number of parameters.
+    -- The third argument is the type of the datatype, i.e. its parameters and
+    -- indices. The datatype must be defined later using 'defineData'.
+    declareData      : Name → Nat → Type → TC ⊤
+
+    -- Define a declared datatype. The datatype must have been declared using
+    -- 'declareData`. The second argument is a list of pairs in which each pair
+    -- is the name of a constructor and its type.
+    defineData       : Name → List (Σ Name (λ _ → Type)) → TC ⊤
+
     -- Define a declared function. The function may have been declared using
     -- 'declareDef' or with an explicit type signature in the program.
     defineFun : Name → List Clause → TC ⊤
@@ -518,6 +528,8 @@ following primitive operations::
   {-# BUILTIN AGDATCMFRESHNAME                  freshName                  #-}
   {-# BUILTIN AGDATCMDECLAREDEF                 declareDef                 #-}
   {-# BUILTIN AGDATCMDECLAREPOSTULATE           declarePostulate           #-}
+  {-# BUILTIN AGDATCMDECLAREDATA                declareData                #-}
+  {-# BUILTIN AGDATCMDEFINEDATA                 defineData                 #-}
   {-# BUILTIN AGDATCMDEFINEFUN                  defineFun                  #-}
   {-# BUILTIN AGDATCMGETTYPE                    getType                    #-}
   {-# BUILTIN AGDATCMGETDEFINITION              getDefinition              #-}
@@ -695,10 +707,11 @@ Unquoting Declarations
 
 While macros let you write metaprograms to create terms, it is also useful to
 be able to create top-level definitions. You can do this from a macro using the
-``declareDef`` and ``defineFun`` primitives, but there is no way to bring such
-definitions into scope. For this purpose there are two top-level primitives
-``unquoteDecl`` and ``unquoteDef`` that runs a ``TC`` computation in a
-declaration position. They both have the same form:
+``declareDef``, ``declareData``, ``defineFun`` and ``defineData`` primitives,
+but there is no way to bring such definitions into scope. For this purpose
+there are two top-level primitives ``unquoteDecl`` and ``unquoteDef`` that runs
+a ``TC`` computation in a declaration position. They both have the same form
+for declaring function definitions:
 
 .. code-block:: agda
 
@@ -760,6 +773,15 @@ Example usage:
       defId id-name
 
     unquoteDecl id′ = mkId id′
+
+Another form of ``unquoteDecl`` is used to declare data types:
+
+.. code-block:: agda
+
+  unquoteDecl data x constructor c₁ .. cₙ = m
+
+``m`` is a metaprogram required to declare and define a data type ``x`` and
+its constructors ``c₁`` to ``cₙ`` using ``declareData`` and ``defineData``.
 
 System Calls
 ~~~~~~~~~~~~

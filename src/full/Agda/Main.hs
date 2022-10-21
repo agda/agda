@@ -5,6 +5,7 @@ module Agda.Main where
 
 import Prelude hiding (null)
 
+import qualified Control.Exception as E
 import Control.Monad          ( void )
 import Control.Monad.Except   ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class ( MonadIO(..) )
@@ -13,6 +14,7 @@ import qualified Data.List as List
 import Data.Maybe
 
 import System.Environment
+import System.Exit
 import System.Console.GetOpt
 import qualified System.IO as IO
 
@@ -297,9 +299,19 @@ runTCMPrettyErrors tcm = do
             liftIO $ helpForLocaleError err
             return (Just TCMError)
       ) `catchImpossible` \e -> do
-          liftIO $ putStr $ show e
+          liftIO $ putStr $ E.displayException e
           return (Just ImpossibleError)
-    )
+    ) `E.catches`
+        -- Catch all exceptions except for those of type ExitCode
+        -- (which are thrown by exitWith) and asynchronous exceptions
+        -- (which are for instance raised when Ctrl-C is used, or if
+        -- the program runs out of heap or stack space).
+        [ E.Handler $ \(e :: ExitCode)         -> E.throw e
+        , E.Handler $ \(e :: E.AsyncException) -> E.throw e
+        , E.Handler $ \(e :: E.SomeException)  -> do
+            liftIO $ putStr $ E.displayException e
+            return $ Right (Just UnknownError)
+        ]
   case r of
     Right Nothing       -> exitSuccess
     Right (Just reason) -> exitAgdaWith reason

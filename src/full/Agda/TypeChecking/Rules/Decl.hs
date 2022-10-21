@@ -193,6 +193,9 @@ checkDecl d = setCurrentRange d $ do
       -- TODO: Benchmarking for unquote.
       A.UnquoteDecl mi is xs e -> checkMaybeAbstractly is $ checkUnquoteDecl mi is xs e
       A.UnquoteDef is xs e     -> impossible $ checkMaybeAbstractly is $ checkUnquoteDef is xs e
+      A.UnquoteData is x uc js cs e -> checkMaybeAbstractly (is ++ js) $ do
+        reportSDoc "tc.unquote.data" 20 $ "Checking unquoteDecl data" <+> prettyTCM x
+        Nothing <$ unquoteTop (x:cs) e
 
     whenNothingM (asksTC envMutualBlock) $ do
 
@@ -219,10 +222,6 @@ checkDecl d = setCurrentRange d $ do
         theMutualChecks
 
     where
-
-    -- check record or data type signature
-    checkSig kind i x gtel t = checkTypeSignature' (Just gtel) $
-      A.Axiom kind i defaultArgInfo Nothing x t
 
     -- Switch maybe to abstract mode, benchmark, and debug print bracket.
     check :: forall m i a
@@ -402,6 +401,7 @@ highlight_ hlmod d = do
     A.Generalize{}           -> highlight d
     A.UnquoteDecl{}          -> highlight d
     A.UnquoteDef{}           -> highlight d
+    A.UnquoteData{}           -> highlight d
     A.Section i x tel ds     -> do
       highlight (A.Section i x tel [])
       when (hlmod == DoHighlightModuleContents) $ mapM_ (highlight_ hlmod) (deepUnscopeDecls ds)
@@ -637,8 +637,8 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
 
   -- Set blocking tag to MissingClauses if we still expect clauses
   let blk = case kind of
-        FunName   -> NotBlocked MissingClauses   ()
-        MacroName -> NotBlocked MissingClauses   ()
+        FunName   -> NotBlocked (MissingClauses x) ()
+        MacroName -> NotBlocked (MissingClauses x) ()
         _         -> NotBlocked ReallyNotBlocked ()
 
   -- Not safe. See Issue 330
@@ -647,12 +647,13 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
   lang <- getLanguage
   let defn = defaultDefn info x t lang $
         case kind of   -- #4833: set abstract already here so it can be inherited by with functions
-          FunName   -> emptyFunction{ funAbstr = Info.defAbstract i }
-          MacroName -> set funMacro True emptyFunction{ funAbstr = Info.defAbstract i }
+          FunName   -> fun
+          MacroName -> set funMacro True fun
           DataName  -> DataOrRecSig npars
           RecName   -> DataOrRecSig npars
           AxiomName -> defaultAxiom     -- Old comment: NB: used also for data and record type sigs
           _         -> __IMPOSSIBLE__
+        where fun = FunctionDefn $ emptyFunctionData{ _funAbstr = Info.defAbstract i }
 
   addConstant x =<< do
     useTerPragma $ defn
@@ -782,6 +783,12 @@ checkMutual i ds = inMutualBlock $ \ blockId -> defaultOpenLevelsToZero $ do
     mapM_ checkDecl ds
 
   (blockId, ) . mutualNames <$> lookupMutualBlock blockId
+
+    -- check record or data type signature
+checkSig :: KindOfName -> A.DefInfo -> QName -> A.GeneralizeTelescope -> A.Expr -> TCM ()
+checkSig kind i x gtel t = checkTypeSignature' (Just gtel) $
+  A.Axiom kind i defaultArgInfo Nothing x t
+
 
 -- | Type check the type signature of an inductive or recursive definition.
 checkTypeSignature :: A.TypeSignature -> TCM ()
@@ -1031,6 +1038,7 @@ instance ShowHead A.Declaration where
       A.UnquoteDecl  {} -> "UnquoteDecl"
       A.ScopedDecl   {} -> "ScopedDecl"
       A.UnquoteDef   {} -> "UnquoteDef"
+      A.UnquoteData   {} -> "UnquoteDecl data"
 
 debugPrintDecl :: A.Declaration -> TCM ()
 debugPrintDecl d = do

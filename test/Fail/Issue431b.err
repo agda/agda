@@ -5,6 +5,6 @@ unsatisfiable constraint, but it could also mean that you need to
 increase the maximum depth using the flag --inversion-max-depth=N
 when checking that the expression f (suc n) has type F n
 Failed to solve the following constraints:
-  Nat × F _n_29 =< F _n_29 : Set (blocked on _n_29)
+  Nat × F _n_19 =< F _n_19 : Set (blocked on _n_19)
 Unsolved metas at the following locations:
   Issue431b.agda:22,10-19

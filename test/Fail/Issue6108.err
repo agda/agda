@@ -1,0 +1,9 @@
+Issue6108.agda:22,1-23,30
+Termination checking failed for the following functions:
+  r
+Problematic calls:
+  r i
+    (at Issue6108.agda:23,26-27)
+Issue6108.agda:26,1-6
+x != r i0 .R.force of type D
+when checking the definition of loops

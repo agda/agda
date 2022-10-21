@@ -137,7 +137,7 @@ type MatchResult = Map Int (WithOrigin Term)
 
 unionMatch :: Monad m => MatchResult -> MatchResult -> MaybeT m MatchResult
 unionMatch m1 m2
-  | Set.disjoint (Map.keysSet m1) (Map.keysSet m2) = return $ Map.union m1 m2
+  | null (Map.intersection m1 m2) = return $ Map.union m1 m2
   | otherwise = mzero  -- Non-linear pattern, fail for now.
 
 unionsMatch :: Monad m => [MatchResult] -> MaybeT m MatchResult

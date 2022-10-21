@@ -11,6 +11,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Semigroup ((<>))
 
+import Agda.Interaction.Options.Base
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
@@ -173,7 +174,7 @@ instance MonadConstraint m => MonadConstraint (ReaderT e m) where
 addAndUnblocker :: MonadBlock m => Blocker -> m a -> m a
 addAndUnblocker u
   | u == alwaysUnblock = id
-  | otherwise          = catchPatternErr $ \ u' -> patternViolation (u <> u')
+  | otherwise          = catchPatternErr $ \ u' -> patternViolation (unblockOnBoth u u')
 
 addOrUnblocker :: MonadBlock m => Blocker -> m a -> m a
 addOrUnblocker u
@@ -225,6 +226,24 @@ isSolvingConstraints = asksTC envSolvingConstraints
 -- | Add constraint if the action raises a pattern violation
 catchConstraint :: MonadConstraint m => Constraint -> m () -> m ()
 catchConstraint c = catchPatternErr $ \ unblock -> addConstraint unblock c
+
+isInstanceConstraint :: Constraint -> Bool
+isInstanceConstraint FindInstance{} = True
+isInstanceConstraint _              = False
+
+shouldPostponeInstanceSearch :: (ReadTCState m, HasOptions m) => m Bool
+shouldPostponeInstanceSearch =
+  and2M ((^. stConsideringInstance) <$> getTCState)
+        (not . optOverlappingInstances <$> pragmaOptions)
+  `or2M` ((^. stPostponeInstanceSearch) <$> getTCState)
+
+-- | Wake constraints matching the given predicate (and aren't instance
+--   constraints if 'shouldPostponeInstanceSearch').
+wakeConstraints' :: MonadConstraint m => (ProblemConstraint -> WakeUp) -> m ()
+wakeConstraints' p = do
+  skipInstance <- shouldPostponeInstanceSearch
+  let skip c = skipInstance && isInstanceConstraint (clValue $ theConstraint c)
+  wakeConstraints $ wakeUpWhen (not . skip) p
 
 ---------------------------------------------------------------------------
 -- * Lenses

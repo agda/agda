@@ -46,7 +46,8 @@ import Agda.Utils.Benchmark
 import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
-import Agda.Utils.List   (hasElem)
+import Agda.Utils.Lens
+import Agda.Utils.List (downFrom, hasElem)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -585,10 +586,15 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
     findGenRec :: MetaVariable -> TCM (Maybe Int)
     findGenRec mv = do
       cxt <- instantiateFull =<< getContext
-      let notPruned = permute (takeP (length cxt) $ mvPermutation mv) $
-               reverse $ zipWith const [0..] cxt
-      case [ i | (i, Dom{unDom = (_, El _ (Def q _))}) <- zip [0..] cxt,
-                 q == genRecName, i `elem` notPruned ] of
+      let n         = length cxt
+          notPruned = IntSet.fromList $
+                      permute (takeP n $ mvPermutation mv) $
+                      downFrom n
+      case [ i
+           | (i, Dom{unDom = (_, El _ (Def q _))}) <- zip [0..] cxt
+           , q == genRecName
+           , i `IntSet.member` notPruned
+           ] of
         []    -> return Nothing
         _:_:_ -> __IMPOSSIBLE__
         [i]   -> return (Just i)
@@ -880,7 +886,6 @@ fillInGenRecordDetails name con fields recTy fieldTel = do
   reportSDoc "tc.generalize" 40 $ text "Final genRecCon type:" <+> inTopContext (prettyTCM conType)
   setType (conName con) conType
   -- Record telescope: Includes both parameters and fields.
-  modifyGlobalDefinition name $ \ r ->
-    r { theDef = (theDef r) { recTel = fullTel } }
+  modifyGlobalDefinition name $ set (lensTheDef . lensRecord . lensRecTel) fullTel
   where
     setType q ty = modifyGlobalDefinition q $ \ d -> d { defType = ty }

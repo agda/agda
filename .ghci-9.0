@@ -1,7 +1,0 @@
--- This file should mirror the flags for GHC 9.0.* enabled in
--- `Agda.cabal`. It should be loaded automatically by the `.ghci` file
--- in this directory.
-
-:script .ghci-8.10
-:set -Wcompat-unqualified-imports
-:set -Winvalid-haddock

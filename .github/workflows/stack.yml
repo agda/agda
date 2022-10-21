@@ -14,7 +14,7 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: Ubuntu-latest
     steps:
-    - uses: styfle/cancel-workflow-action@0.6.0
+    - uses: styfle/cancel-workflow-action@0.11.0
       with:
         access_token: ${{ github.token }}
   stack:
@@ -29,11 +29,11 @@ jobs:
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
     - id: haskell-setup
-      uses: haskell/actions/setup@v1
+      uses: haskell/actions/setup@v2
       with:
         enable-stack: true
         ghc-version: ${{ matrix.ghc-ver }}
@@ -63,7 +63,7 @@ jobs:
         echo "GHC_VER           = ${GHC_VER}"
     - id: cache
       name: Cache dependencies
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         key: |
           ${{ runner.os }}-stack-20220503-${{ env.STACK_VER }}-${{ env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}
@@ -73,11 +73,6 @@ jobs:
       run: |
         echo "PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig" >> ${GITHUB_ENV}
       shell: bash
-    - if: ${{ runner.os == 'Linux' }}
-      name: Install the icu library (Ubuntu)
-      run: |
-        sudo apt-get update -qq
-        sudo apt-get install libicu-dev -qq
     - if: ${{ runner.os == 'Windows' }}
       name: Install the icu library (Windows)
       run: |
@@ -101,29 +96,27 @@ jobs:
       fail-fast: false
       matrix:
         ghc-ver:
+        - 9.2.4
+        - 9.0.2
         - 8.10.7
         - 8.8.4
         - 8.6.5
         - 8.4.4
-        - 8.2.2
-        - 8.0.2
         include:
-        - ghc-ver: 9.2.4
+        - ghc-ver: 8.2.2
           os: ubuntu-20.04
-          stack-ver: latest
-        - ghc-ver: 9.0.2
+          stack-ver: 2.9.1
+        - ghc-ver: 8.0.2
           os: ubuntu-20.04
-          stack-ver: latest
+          stack-ver: 2.9.1
         - ghc-ver: 9.2.4
-          os: macos-latest
-          stack-ver: latest
-        - ghc-ver: 9.2.4
-          os: windows-latest
-          stack-ver: latest
+          os: macos-12
+          stack-ver: 2.9.1
         os:
-        - ubuntu-18.04
+        - ubuntu-22.04
         stack-ver:
-        - latest
+        - 2.9.1
+    timeout-minutes: 60
 name: Build (stack)
 'on':
   pull_request:

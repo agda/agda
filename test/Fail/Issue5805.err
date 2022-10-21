@@ -1,10 +1,10 @@
 Failed to solve the following constraints:
-  (ff≡f : (_65 ∘ _65) ≡ _65) →
-  ?1 (ff≡f = ff≡f) (λ x → _65 (_65 x)) ≡ ?1 (ff≡f = ff≡f) _65 →
+  (ff≡f : (f ∘ f) ≡ f) →
+  ?1 (ff≡f = ff≡f) (λ x → f (f x)) ≡ ?1 (ff≡f = ff≡f) f →
   Set is a well-formed type
-    (blocked on _A_58)
-  (x : _49) → _49 = _A_58 : Set (blocked on _A_58)
-  _49 =< _49 (blocked on any(_49, _X_53))
+    (blocked on _A_56)
+  (x : _47) → _47 = _A_56 : Set (blocked on _A_56)
+  _47 =< _47 (blocked on any(_47, _X_51))
 Unsolved metas at the following locations:
   Issue5805.agda:20,19-30
   Issue5805.agda:28,20-21

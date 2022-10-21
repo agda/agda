@@ -216,7 +216,7 @@ checkInternal' action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
                                NoAbs{} -> id
       a <- mkDom <$> checkInternal' action (unEl $ unDom a) CmpLeq (sort sa)
       v' <- goInside $ Pi a . mkRng <$> checkInternal' action (unEl $ unAbs b) CmpLeq (sort sb)
-      s' <- sortOf v'
+      s' <- sortOf v -- Issue #6205: do not use v' since it might not be valid syntax
       compareSort cmp s' s
       return v'
     Sort s     -> do
@@ -228,7 +228,7 @@ checkInternal' action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
       return $ Sort s
     Level l    -> do
       l <- checkLevel action l
-      lt <- levelType
+      lt <- levelType'
       compareType cmp lt t
       return $ Level l
     DontCare v -> DontCare <$> checkInternal' action v cmp t
@@ -469,7 +469,7 @@ checkLevel action (Max n ls) = Max n <$> mapM checkPlusLevel ls
     checkPlusLevel (Plus k l)      = Plus k <$> checkLevelAtom l
 
     checkLevelAtom l = do
-      lvl <- levelType
+      lvl <- levelType'
       checkInternal' action l CmpLeq lvl
 
 -- | Universe subsumption and type equality (subtyping for sizes, resp.).

@@ -108,10 +108,6 @@ argument, and does not need to be listed here."
   :type 'string
   :group 'agda2)
 
-(defcustom agda2-toplevel-module "Agda.Interaction.GhciTop"
-  "The name of the Agda toplevel module."
-  :type 'string :group 'agda2)
-
 (defcustom agda2-information-window-max-height
   0.35
   "The maximum height of the information window.
@@ -1978,7 +1974,10 @@ the argument is a positive number, otherwise turn it off."
 This command assumes that the agda and agda-mode executables for
 Agda version VERSION are called agda-VERSION and
 agda-mode-VERSION, and that they are located on the PATH. (If
-VERSION is empty, then agda and agda-mode are used instead.)"
+VERSION is empty, then agda and agda-mode are used instead.)
+
+An attempt is made to preserve the default value of
+`agda2-mode-hook'."
   (interactive
    (list (completing-read "Version: " (agda2-get-agda-program-versions))))
 
@@ -1989,6 +1988,8 @@ VERSION is empty, then agda and agda-mode are used instead.)"
                     (when (equal major-mode 'agda2-mode)
                       (list buf))))
                 (buffer-list)))
+
+       (default-hook (default-value 'agda2-mode-hook))
 
        (version-suffix (if (or (equal version "")
                                (equal version nil))
@@ -2043,6 +2044,10 @@ VERSION is empty, then agda and agda-mode are used instead.)"
     (load-file agda-mode-path)
     (require 'agda2-mode)
     (setq agda2-program-name (concat "agda" version-suffix))
+
+    ;; Restore the Agda mode's default hook (if any).
+    (when default-hook
+      (set-default 'agda2-mode-hook default-hook))
 
     ;; Restart the Agda mode in all former Agda mode buffers.
     (mapc (lambda (buf)

@@ -17,18 +17,18 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: Ubuntu-latest
     steps:
-    - uses: styfle/cancel-workflow-action@0.6.0
+    - uses: styfle/cancel-workflow-action@0.11.0
       with:
         access_token: ${{ github.token }}
   cabal:
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
     - id: setup-haskell
-      uses: haskell/actions/setup@v1
+      uses: haskell/actions/setup@v2
       with:
         cabal-version: ${{ matrix.cabal-ver }}
         ghc-version: ${{ matrix.ghc-ver }}
@@ -46,7 +46,7 @@ jobs:
         cabal configure -O1 --enable-tests
     - id: cache
       name: Cache dependencies
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         key: ${{ runner.os }}-cabal-test-${{ env.GHC_VER }}-${{ env.CABAL_VER }}-${{
           hashFiles('**/plan.json') }}
@@ -68,12 +68,13 @@ jobs:
       fail-fast: false
       matrix:
         cabal-ver:
-        - latest
+        - '3.8'
         ghc-ver:
-        - '9.2'
+        - '9.4'
         os:
-        - ubuntu-latest
-        - macos-latest
+        - ubuntu-22.04
+        - macos-12
+    timeout-minutes: 150
 name: cabal-test
 'on':
   pull_request:

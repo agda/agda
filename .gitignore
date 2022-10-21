@@ -21,7 +21,6 @@
 .cabal-sandbox/
 .DS_Store
 .ghc.environment.*
-.ghci.local
 .stack-work-*/
 .stack-work/
 .sw[a-p]

@@ -14,7 +14,6 @@ module Agda.Syntax.Treeless
 import Control.Arrow (first, second)
 import Control.DeepSeq
 
-import Data.Data (Data)
 import Data.Word
 
 import GHC.Generics (Generic)
@@ -29,13 +28,13 @@ data Compiled = Compiled
   , cArgUsage :: Maybe [ArgUsage]
       -- ^ 'Nothing' if treeless usage analysis has not run yet.
   }
-  deriving (Data, Show, Eq, Ord, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 -- | Usage status of function arguments in treeless code.
 data ArgUsage
   = ArgUsed
   | ArgUnused
-  deriving (Data, Show, Eq, Ord, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 -- | The treeless compiler can behave differently depending on the target
 --   language evaluation strategy. For instance, more aggressive erasure for
@@ -72,7 +71,7 @@ data TTerm = TVar Int
            | TCoerce TTerm  -- ^ Used by the GHC backend
            | TError TError
            -- ^ A runtime error, something bad has happened.
-  deriving (Data, Show, Eq, Ord, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 -- | Compiler-related primitives. This are NOT the same thing as primitives
 -- in Agda's surface or internal syntax!
@@ -100,7 +99,7 @@ data TPrim
   | PIf
   | PSeq
   | PITo64 | P64ToI
-  deriving (Data, Show, Eq, Ord, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 isPrimEq :: TPrim -> Bool
 isPrimEq p = p `elem` [PEqI, PEqF, PEqS, PEqC, PEqQ, PEq64]
@@ -204,12 +203,12 @@ data CaseType
   | CTString
   | CTFloat
   | CTQName
-  deriving (Data, Show, Eq, Ord, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 data CaseInfo = CaseInfo
   { caseLazy :: Bool
   , caseType :: CaseType }
-  deriving (Data, Show, Eq, Ord, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 data TAlt
   = TACon    { aCon  :: QName, aArity :: Int, aBody :: TTerm }
@@ -219,7 +218,7 @@ data TAlt
   | TAGuard  { aGuard :: TTerm, aBody :: TTerm }
   -- ^ Binds no variables
   | TALit    { aLit :: Literal,   aBody:: TTerm }
-  deriving (Data, Show, Eq, Ord, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 data TError
   = TUnreachable
@@ -231,7 +230,7 @@ data TError
   -- ^ Code which could not be obtained because of a hole in the program.
   -- This should throw a runtime error.
   -- The string gives some information about the meta variable that got compiled.
-  deriving (Data, Show, Eq, Ord, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 
 class Unreachable a where

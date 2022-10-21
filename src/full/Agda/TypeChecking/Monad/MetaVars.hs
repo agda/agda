@@ -35,7 +35,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin (HasBuiltins)
 import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Monad.Closure
-import Agda.TypeChecking.Monad.Constraints (MonadConstraint)
+import Agda.TypeChecking.Monad.Constraints (MonadConstraint(..))
 import Agda.TypeChecking.Monad.Debug
   (MonadDebug, reportSLn, __IMPOSSIBLE_VERBOSE__)
 import Agda.TypeChecking.Monad.Context
@@ -120,6 +120,14 @@ class ( MonadConstraint m
   --    result is 'RollBackMetas' any changes to metavariables are
   --    rolled back and 'fallback' is run instead.
   speculateMetas :: m () -> m KeepMetas -> m ()
+
+instance MonadMetaSolver m => MonadMetaSolver (ReaderT r m) where
+  newMeta' inst f i p perm j = lift $ newMeta' inst f i p perm j
+  assignV dir m us v cmp = lift $ assignV dir m us v cmp
+  assignTerm' m us v = lift $ assignTerm' m us v
+  etaExpandMeta k m = lift $ etaExpandMeta k m
+  updateMetaVar m f = lift $ updateMetaVar m f
+  speculateMetas fallback m = ReaderT $ \x -> speculateMetas (runReaderT fallback x) (runReaderT m x)
 
 -- | Switch off assignment of metas.
 dontAssignMetas :: (MonadTCEnv m, HasOptions m, MonadDebug m) => m a -> m a
@@ -722,13 +730,39 @@ clearMetaListeners :: MonadMetaSolver m => MetaId -> m ()
 clearMetaListeners m =
   updateMetaVar m $ \mv -> mv { mvListeners = Set.empty }
 
+-- | Do safe eta-expansions for meta (@SingletonRecords,Levels@).
+etaExpandMetaSafe :: (MonadMetaSolver m) => MetaId -> m ()
+etaExpandMetaSafe = etaExpandMeta [SingletonRecords,Levels]
+
+-- | Eta expand metavariables listening on the current meta.
+etaExpandListeners :: MonadMetaSolver m => MetaId -> m ()
+etaExpandListeners m = do
+  ls <- getMetaListeners m
+  clearMetaListeners m  -- we don't really have to do this
+  mapM_ wakeupListener ls
+
+-- | Wake up a meta listener and let it do its thing
+wakeupListener :: MonadMetaSolver m => Listener -> m ()
+  -- Andreas 2010-10-15: do not expand record mvars, lazyness needed for irrelevance
+wakeupListener (EtaExpand x)         = etaExpandMetaSafe x
+wakeupListener (CheckConstraint _ c) = do
+  --reportSDoc "tc.meta.blocked" 20 $ "waking boxed constraint" <+> prettyTCM c
+  modifyAwakeConstraints (c:)
+  solveAwakeConstraints
+
+solveAwakeConstraints :: (MonadConstraint m) => m ()
+solveAwakeConstraints = solveAwakeConstraints' False
+
+solveAwakeConstraints' :: (MonadConstraint m) => Bool -> m ()
+solveAwakeConstraints' = solveSomeAwakeConstraints (const True)
+
 ---------------------------------------------------------------------------
 -- * Freezing and unfreezing metas.
 ---------------------------------------------------------------------------
 
 -- | Freeze the given meta-variables (but only if they are open) and
 -- return those that were not already frozen.
-freezeMetas :: LocalMetaStore -> TCM (Set MetaId)
+freezeMetas :: MonadTCState m => LocalMetaStore -> m (Set MetaId)
 freezeMetas ms =
   execWriterT $
   modifyTCLensM stOpenMetaStore $
@@ -759,6 +793,17 @@ isFrozen ::
 isFrozen x = do
   mvar <- lookupLocalMeta x
   return $ mvFrozen mvar == Frozen
+
+withFrozenMetas
+  :: (MonadMetaSolver m, MonadTCState m)
+  => m a -> m a
+withFrozenMetas act = do
+  openMetas <- useR stOpenMetaStore
+  frozenMetas <- freezeMetas openMetas
+  result <- act
+  forM_ (Set.toList frozenMetas) $ \m ->
+    updateMetaVar m $ \ mv -> mv { mvFrozen = Instantiable }
+  return result
 
 -- | Unfreeze a meta and its type if this is a meta again.
 --   Does not unfreeze deep occurrences of meta-variables or remote

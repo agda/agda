@@ -10,7 +10,6 @@ module Agda.Utils.Pretty
 
 import Prelude hiding (null)
 
-import Data.Data (Data(..))
 import qualified Data.Foldable as Fold
 import Data.Int (Int32)
 import Data.IntSet (IntSet)
@@ -174,12 +173,6 @@ align max rows =
 -- | Handles strings with newlines properly (preserving indentation)
 multiLineText :: String -> Doc
 multiLineText = vcat . map text . lines
-
--- cheating because you shouldn't be digging this far anyway
-instance Data Doc where
-  gunfold _ _ _ = __IMPOSSIBLE__
-  toConstr      = __IMPOSSIBLE__
-  dataTypeOf    = __IMPOSSIBLE__
 
 infixl 6 <?>
 -- | @a <?> b = hang a 2 b@

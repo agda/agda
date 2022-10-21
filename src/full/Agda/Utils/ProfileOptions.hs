@@ -35,6 +35,7 @@ data ProfileOption = Internal     -- ^ Measure time taken by various parts of th
                    | Constraints  -- ^ Collect statistics about constraint solving
                    | Metas        -- ^ Count number of created metavariables
                    | Interactive  -- ^ Measure time of interactive commands
+                   | Conversion   -- ^ Collect statistics about conversion checking
   deriving (Show, Eq, Ord, Enum, Bounded, Generic)
 
 instance NFData ProfileOption
@@ -104,4 +105,3 @@ profileOptionsToList (ProfileOpts opts) = Set.toList opts
 -- | Use only for serialization.
 profileOptionsFromList :: [ProfileOption] -> ProfileOptions
 profileOptionsFromList opts = ProfileOpts $ Set.fromList opts
-

@@ -13,10 +13,10 @@ module Agda.Interaction.Options.Base
     , checkOpts
     , parsePragmaOptions
     , parsePluginOptions
+    , parseVerboseKey
     , stripRTS
     , defaultOptions
     , defaultInteractionOptions
-    , defaultVerbosity
     , defaultCutOff
     , defaultPragmaOptions
     , standardOptions_
@@ -68,7 +68,9 @@ import Agda.Syntax.Common (Cubical(..))
 import Agda.Utils.FileName      ( AbsolutePath )
 import Agda.Utils.Functor       ( (<&>) )
 import Agda.Utils.Lens          ( Lens', over )
-import Agda.Utils.List          ( groupOn, initLast1, wordsBy )
+import Agda.Utils.List          ( groupOn, initLast1 )
+import Agda.Utils.List1         ( String1, toList )
+import qualified Agda.Utils.List1        as List1
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Pretty        ( singPlural )
 import Agda.Utils.ProfileOptions
@@ -80,9 +82,17 @@ import Agda.Version
 
 -- OptDescr is a Functor --------------------------------------------------
 
-type VerboseKey   = String
-type VerboseLevel = Int
-type Verbosity    = Trie VerboseKey VerboseLevel
+type VerboseKey     = String
+type VerboseKeyItem = String1
+type VerboseLevel   = Int
+-- | 'Strict.Nothing' is used if no verbosity options have been given,
+-- thus making it possible to handle the default case relatively
+-- quickly. Note that 'Strict.Nothing' corresponds to a trie with
+-- verbosity level 1 for the empty path.
+type Verbosity = Strict.Maybe (Trie VerboseKeyItem VerboseLevel)
+
+parseVerboseKey :: VerboseKey -> [VerboseKeyItem]
+parseVerboseKey = List1.wordsBy (`elem` ['.', ':'])
 
 -- Don't forget to update
 --   doc/user-manual/tools/command-line-options.rst
@@ -110,6 +120,8 @@ data CommandLineOptions = Options
       -- ^ Agda REPL (-I).
   , optGHCiInteraction       :: Bool
   , optJSONInteraction       :: Bool
+  , optExitOnError           :: !Bool
+    -- ^ Exit if an interactive command fails.
   , optOptimSmashing         :: Bool
   , optCompileDir            :: Maybe FilePath
   -- ^ In the absence of a path the project root is used.
@@ -134,7 +146,7 @@ data PragmaOptions = PragmaOptions
   { optShowImplicit              :: Bool
   , optShowIrrelevant            :: Bool
   , optUseUnicode                :: UnicodeOrAscii
-  , optVerbose                   :: Verbosity
+  , optVerbose                   :: !Verbosity
   , optProfiling                 :: ProfileOptions
   , optProp                      :: Bool
   , optTwoLevel                  :: WithDefault 'False
@@ -207,12 +219,18 @@ data PragmaOptions = PragmaOptions
   , optImportSorts               :: Bool
      -- ^ Should every top-level module start with an implicit statement
      --   @open import Agda.Primitive using (Set; Prop)@?
+  , optLoadPrimitives            :: Bool
+    -- ^ Should we load the primitive modules at all? This is a stronger
+    -- form of 'optImportSorts'.
   , optAllowExec                 :: Bool
   , optSaveMetas                 :: WithDefault 'False
     -- ^ Save meta-variables.
   , optShowIdentitySubstitutions :: Bool
     -- ^ Show identity substitutions when pretty-printing terms
     --   (i.e. always show all arguments of a metavariable)
+  , optKeepCoveringClauses       :: Bool
+    -- ^ Do not discard clauses constructed by the coverage checker
+    --   (needed for some external backends)
   }
   deriving (Show, Eq, Generic)
 
@@ -237,9 +255,6 @@ type OptionsPragma = [String]
 mapFlag :: (String -> String) -> OptDescr a -> OptDescr a
 mapFlag f (Option _ long arg descr) = Option [] (map f long) arg descr
 
-defaultVerbosity :: Verbosity
-defaultVerbosity = Trie.singleton [] 1
-
 defaultInteractionOptions :: PragmaOptions
 defaultInteractionOptions = defaultPragmaOptions
 
@@ -260,6 +275,7 @@ defaultOptions = Options
   , optInteractive           = False
   , optGHCiInteraction       = False
   , optJSONInteraction       = False
+  , optExitOnError           = False
   , optOptimSmashing         = True
   , optCompileDir            = Nothing
   , optGenerateVimFile       = False
@@ -276,7 +292,7 @@ defaultPragmaOptions = PragmaOptions
   { optShowImplicit              = False
   , optShowIrrelevant            = False
   , optUseUnicode                = UnicodeOk
-  , optVerbose                   = defaultVerbosity
+  , optVerbose                   = Strict.Nothing
   , optProfiling                 = noProfileOptions
   , optProp                      = False
   , optTwoLevel                  = Default
@@ -330,6 +346,8 @@ defaultPragmaOptions = PragmaOptions
   , optAllowExec                 = False
   , optSaveMetas                 = Default
   , optShowIdentitySubstitutions = False
+  , optLoadPrimitives            = True
+  , optKeepCoveringClauses       = False
   }
 
 type OptM = Except String
@@ -556,6 +574,12 @@ ignoreAllInterfacesFlag o = return $ o { optIgnoreAllInterfaces = True }
 localInterfacesFlag :: Flag CommandLineOptions
 localInterfacesFlag o = return $ o { optLocalInterfaces = True }
 
+noLoadPrimitivesFlag :: Flag PragmaOptions
+noLoadPrimitivesFlag o = return $ o
+  { optLoadPrimitives = False
+  , optImportSorts = False
+  }
+
 allowUnsolvedFlag :: Flag PragmaOptions
 allowUnsolvedFlag o = do
   let upd = over warningSet (Set.\\ unsolvedWarnings)
@@ -589,6 +613,9 @@ ghciInteractionFlag o = return $ o { optGHCiInteraction = True }
 
 jsonInteractionFlag :: Flag CommandLineOptions
 jsonInteractionFlag o = return $ o { optJSONInteraction = True }
+
+interactionExitFlag :: Flag CommandLineOptions
+interactionExitFlag o = return $ o { optExitOnError = True }
 
 vimFlag :: Flag CommandLineOptions
 vimFlag o = return $ o { optGenerateVimFile = True }
@@ -800,14 +827,21 @@ noLibsFlag o = return $ o { optUseLibs = False }
 verboseFlag :: String -> Flag PragmaOptions
 verboseFlag s o =
     do  (k,n) <- parseVerbose s
-        return $ o { optVerbose = Trie.insert k n $ optVerbose o }
+        return $
+          o { optVerbose =
+                Strict.Just $ Trie.insert k n $
+                case optVerbose o of
+                  Strict.Nothing -> Trie.singleton [] 1
+                  Strict.Just v  -> v
+            }
   where
-    parseVerbose :: String -> OptM ([VerboseKey], VerboseLevel)
-    parseVerbose s = case wordsBy (`elem` (":." :: String)) s of
+    parseVerbose :: String -> OptM ([VerboseKeyItem], VerboseLevel)
+    parseVerbose s = case parseVerboseKey s of
       []  -> usage
       s0:ss0 -> do
         let (ss, s) = initLast1 s0 ss0
-        n <- maybe usage return $ readMaybe s
+        -- The last entry must be a number.
+        n <- maybe usage return $ readMaybe $ toList s
         return (ss, n)
     usage = throwError "argument to verbose should be on the form x.y.z:N or N"
 
@@ -855,6 +889,10 @@ integerArgument flag s = maybe usage return $ readMaybe s
   where
   usage = throwError $ "option '" ++ flag ++ "' requires an integer argument"
 
+keepCoveringClausesFlag :: Flag PragmaOptions
+keepCoveringClausesFlag o = return $ o { optKeepCoveringClauses = True }
+
+
 standardOptions :: [OptDescr (Flag CommandLineOptions)]
 standardOptions =
     [ Option ['V']  ["version"] (NoArg versionFlag)
@@ -876,6 +914,9 @@ standardOptions =
                     "for use with the Emacs mode"
     , Option []     ["interaction-json"] (NoArg jsonInteractionFlag)
                     "for use with other editors such as Atom"
+    , Option []     ["interaction-exit-on-error"]
+                    (NoArg interactionExitFlag)
+                    "exit if a type error is encountered"
 
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
                     ("directory for compiler output (default: the project root)")
@@ -1021,7 +1062,7 @@ pragmaOptions =
                     "enable cubical features (some only in erased settings), implies --cubical-compatible"
     , Option []     ["guarded"] (NoArg guardedFlag)
                     "enable @lock/@tick attributes"
-    , Option []     ["experimental-lossy-unification"] (NoArg firstOrderFlag)
+    , Option []     ["lossy-unification"] (NoArg firstOrderFlag)
                     "enable heuristically unifying `f es = f es'` by unifying `es = es'`, even when it could lose solutions."
     , Option []     ["postfix-projections"] (NoArg postfixProjectionsFlag)
                     "make postfix projection notation the default"
@@ -1079,12 +1120,16 @@ pragmaOptions =
                     "use call-by-name evaluation instead of call-by-need"
     , Option []     ["no-import-sorts"] (NoArg noImportSorts)
                     "disable the implicit import of Agda.Primitive using (Set; Prop) at the start of each top-level module"
+    , Option []     ["no-load-primitives"] (NoArg noLoadPrimitivesFlag)
+                    "disable loading of primitive modules at all (implies --no-import-sorts)"
     , Option []     ["allow-exec"] (NoArg allowExec)
                     "allow system calls to trusted executables with primExec"
     , Option []     ["save-metas"] (NoArg $ saveMetas True)
                     "save meta-variables"
     , Option []     ["no-save-metas"] (NoArg $ saveMetas False)
                     "do not save meta-variables (the default)"
+    , Option []     ["keep-covering-clauses"] (NoArg keepCoveringClausesFlag)
+                    "do not discard covering clauses (required for some external backends)"
     ]
 
 -- | Pragma options of previous versions of Agda.

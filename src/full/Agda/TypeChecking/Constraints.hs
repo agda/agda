@@ -194,16 +194,8 @@ whenConstraints action handler =
     stealConstraints pid
     handler
 
--- | Wake constraints matching the given predicate (and aren't instance
---   constraints if 'shouldPostponeInstanceSearch').
-wakeConstraints' :: (ProblemConstraint -> WakeUp) -> TCM ()
-wakeConstraints' p = do
-  skipInstance <- shouldPostponeInstanceSearch
-  let skip c = skipInstance && isInstanceConstraint (clValue $ theConstraint c)
-  wakeConstraints $ wakeUpWhen (not . skip) p
-
 -- | Wake up the constraints depending on the given meta.
-wakeupConstraints :: MetaId -> TCM ()
+wakeupConstraints :: MonadMetaSolver m => MetaId -> m ()
 wakeupConstraints x = do
   wakeConstraints' (wakeIfBlockedOnMeta x . constraintUnblocker)
   solveAwakeConstraints
@@ -216,12 +208,6 @@ wakeupConstraints_ = do
   where
     wakeup u | Set.null $ allBlockingProblems u = WakeUp
              | otherwise                        = DontWakeUp Nothing
-
-solveAwakeConstraints :: (MonadConstraint m) => m ()
-solveAwakeConstraints = solveAwakeConstraints' False
-
-solveAwakeConstraints' :: (MonadConstraint m) => Bool -> m ()
-solveAwakeConstraints' = solveSomeAwakeConstraints (const True)
 
 -- | Solve awake constraints matching the predicate. If the second argument is
 --   True solve constraints even if already 'isSolvingConstraints'.
@@ -301,7 +287,7 @@ solveConstraint_ (HasPTSRule a b)       = hasPTSRule a b
 solveConstraint_ (CheckDataSort q s)    = checkDataSort q s
 solveConstraint_ (CheckMetaInst m)      = checkMetaInst m
 solveConstraint_ (CheckType t)          = checkType t
-solveConstraint_ (UsableAtModality mod t) = usableAtModality mod t
+solveConstraint_ (UsableAtModality ms mod t) = usableAtModality' ms mod t
 
 checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
 checkTypeCheckingProblem = \case

@@ -6,6 +6,8 @@ module Agda.Utils.Singleton where
 import Data.Semigroup (Semigroup(..))
 import Data.Monoid (Endo(..))
 
+import Data.DList (DList)
+import qualified Data.DList as DL
 import Data.Hashable (Hashable)
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
@@ -36,6 +38,7 @@ class (Semigroup coll, Monoid coll, Singleton el coll) => Collection el coll
 instance Collection a       [a]           where fromList = id
 instance Collection a       ([a] -> [a])  where fromList = (++)
 instance Collection a       (Endo [a])    where fromList = Endo . fromList
+instance Collection a       (DList a)     where fromList = DL.fromList
 instance Collection a       (Seq a)       where fromList = Seq.fromList
 instance Collection Int     IntSet        where fromList = IntSet.fromList
 instance Collection (Int,a) (IntMap a)    where fromList = IntMap.fromList
@@ -61,6 +64,7 @@ instance Singleton a   (Maybe a)   where singleton = Just
 instance Singleton a   [a]         where singleton = (:[])
 instance Singleton a  ([a] -> [a]) where singleton = (:)
 instance Singleton a   (Endo [a])  where singleton = Endo . (:)
+instance Singleton a   (DList a)   where singleton = DL.singleton
 instance Singleton a   (NonEmpty a)
                                    where singleton = (:| [])
 instance Singleton a   (Seq a)     where singleton = Seq.singleton

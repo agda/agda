@@ -24,6 +24,7 @@ import Control.Monad        ( (<=<), filterM, forM, forM_, zipWithM )
 import Data.Foldable (toList)
 import qualified Data.List as List
 import Data.Monoid hiding ((<>))
+import Data.Set (Set)
 import qualified Data.Set as Set
 
 import qualified Agda.Syntax.Abstract as A
@@ -125,6 +126,7 @@ termDecl' = \case
     A.DataDef{}     -> __IMPOSSIBLE__
     A.UnquoteDecl{} -> __IMPOSSIBLE__
     A.UnquoteDef{}  -> __IMPOSSIBLE__
+    A.UnquoteData{} -> __IMPOSSIBLE__
   where
     termDecls ds = concat <$> mapM termDecl' ds
 
@@ -156,8 +158,9 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
   -- during type-checking.
   mid <- fromMaybe __IMPOSSIBLE__ <$> asksTC envMutualBlock
   mutualBlock <- lookupMutualBlock mid
-  let allNames = filter (not . isAbsurdLambdaName) $ Set.elems $ mutualNames mutualBlock
-      names    = if null names0 then allNames else names0
+  let allNames = Set.filter (not . isAbsurdLambdaName) $
+                 mutualNames mutualBlock
+      names    = if null names0 then allNames else Set.fromList names0
       i        = mutualInfo mutualBlock
 
   -- We set the range to avoid panics when printing error messages.
@@ -199,7 +202,7 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
      forM sccs $ \ allNames -> do
 
      -- Set the mutual names in the termination environment.
-     let namesSCC = filter (allNames `hasElem`) names
+     let namesSCC = Set.filter (`Set.member` allNames) names
      let setNames e = e
            { terMutual    = allNames
            , terUserNames = namesSCC
@@ -266,7 +269,7 @@ termMutual' = do
 
     Left calls -> do
       mapM_ (`setTerminates` False) allNames
-      return $ singleton $ terminationError names $ callInfos calls
+      return $ singleton $ terminationError names calls
 
     Right{} -> do
       liftTCM $ reportSLn "term.warn.yes" 2 $
@@ -276,11 +279,12 @@ termMutual' = do
 
 -- | Smart constructor for 'TerminationError'.
 --   Removes 'termErrFunctions' that are not mentioned in 'termErrCalls'.
-terminationError :: [QName] -> [CallInfo] -> TerminationError
-terminationError names calls = TerminationError names' calls
+terminationError :: Set QName -> CallPath -> TerminationError
+terminationError names calls = TerminationError names' calls'
   where
-  names'    = filter (hasElem mentioned) names
-  mentioned = map callInfoTarget calls
+  calls'    = callInfos calls
+  mentioned = map callInfoTarget calls'
+  names'    = filter (hasElem mentioned) $ toList names
 
 billToTerGraph :: a -> TerM a
 billToTerGraph a = liftTCM $ billPureTo [Benchmark.Termination, Benchmark.Graph] a
@@ -352,7 +356,7 @@ termFunction name = inConcreteOrAbstractMode name $ \ def -> do
   -- in the list of @allNames@ of the mutual block.
 
   allNames <- terGetMutual
-  let index = fromMaybe __IMPOSSIBLE__ $ List.elemIndex name allNames
+  let index = fromMaybe __IMPOSSIBLE__ $ Set.lookupIndex name allNames
 
   -- Retrieve the target type of the function to check.
   -- #4256: Don't use typeOfConst (which instantiates type with module params), since termination
@@ -375,7 +379,10 @@ termFunction name = inConcreteOrAbstractMode name $ \ def -> do
           if null todo then return $ Left calls else do
             -- Extract calls originating from indices in @todo@.
             new <- forM' todo $ \ i ->
-              termDef $ fromMaybe __IMPOSSIBLE__ $ allNames !!! i
+              termDef $
+              if i < 0 || i >= Set.size allNames
+              then __IMPOSSIBLE__
+              else Set.elemAt i allNames
             -- Mark those functions as processed and add the calls to the result.
             let done'  = done `mappend` todo
                 calls' = new  `mappend` calls
@@ -568,22 +575,27 @@ setMasks t cont = do
   (ds, d) <- liftTCM $ do
     TelV tel core <- telViewPath t
     -- Check argument types
-    ds <- forM (telToList tel) $ \ t -> do
-      TelV _ t <- telViewPath $ snd $ unDom t
-      d <- (isNothing <$> isDataOrRecord (unEl t)) `or2M` (isJust <$> isSizeType t)
-      when d $
-        reportSDoc "term.mask" 20 $ do
-          "argument type "
-            <+> prettyTCM t
-            <+> " is not data or record type, ignoring structural descent for --without-K"
-      return d
+    ds <- checkArgumentTypes tel
     -- Check result types
-    d  <- isNothing <.> isDataOrRecord . unEl $ core
+    d  <- addContext tel $ isNothing <.> isDataOrRecord . unEl $ core
     when d $
       reportSLn "term.mask" 20 $ "result type is not data or record type, ignoring guardedness for --without-K"
     return (ds, d)
   terSetMaskArgs (ds ++ repeat True) $ terSetMaskResult d $ cont
 
+  where
+    checkArgumentTypes :: Telescope -> TCM [Bool]
+    checkArgumentTypes EmptyTel = return []
+    checkArgumentTypes (ExtendTel dom atel) = do
+      TelV tel2 t <- telViewPath $ unDom dom
+      d <- addContext tel2 $
+        (isNothing <$> isDataOrRecord (unEl t)) `or2M` (isJust <$> isSizeType t)
+      when d $
+        reportSDoc "term.mask" 20 $ do
+          "argument type "
+            <+> prettyTCM t
+            <+> " is not data or record type, ignoring structural descent for --without-K"
+      underAbstraction dom atel $ \tel -> (d:) <$> checkArgumentTypes tel
 
 -- | Is the current target type among the given ones?
 
@@ -820,7 +832,7 @@ function g es0 = do
           ]
 
     -- insert this call into the call list
-    case List.elemIndex g names of
+    case Set.lookupIndex g names of
 
        -- call leads outside the mutual block and can be ignored
        Nothing   -> return calls
@@ -912,13 +924,14 @@ function g es0 = do
            -- Andreas, 2017-01-05, issue #2376
            -- Remove arguments inserted by etaExpandClause.
 
-         let src  = fromMaybe __IMPOSSIBLE__ $ List.elemIndex f names
+         let src  = fromMaybe __IMPOSSIBLE__ $ Set.lookupIndex f names
              tgt  = gInd
              cm   = makeCM ncols nrows matrix'
-             info = CallPath [CallInfo
+             info = CallPath $ singleton $
+                    CallInfo
                       { callInfoTarget = g
                       , callInfoCall   = doc
-                      }]
+                      }
          verboseS "term.kept.call" 5 $ do
            pats <- terGetPatterns
            reportSDoc "term.kept.call" 5 $ vcat
@@ -968,7 +981,7 @@ tryReduceNonRecursiveClause g es continue fallback = do
 
   -- Finally, try to reduce with the non-recursive clauses (and no rewrite rules).
   r <- liftTCM $ modifyAllowedReductions (SmallSet.delete UnconfirmedReductions) $
-    runReduceM $ appDefE' v0 cls [] (map notReduced es)
+    runReduceM $ appDefE' g v0 cls [] (map notReduced es)
   case r of
     NoReduction{}    -> fallback
     YesReduction _ v -> do
@@ -1000,7 +1013,9 @@ instance ExtractCalls Term where
       Con ConHead{conName = c, conDataRecord = dataOrRec} _ es -> do
         let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
         -- A constructor preserves the guardedness of all its arguments.
-        let argsg = zip args $ repeat True
+        -- Andreas, 2022-09-19, issue #6108:
+        -- A higher constructor does not.  So check if there is an @IApply@ amoung @es@.
+        let argsg = zip args $ repeat $ all isProperApplyElim es
 
         -- If we encounter a coinductive record constructor
         -- in a type mutual with the current target
@@ -1413,14 +1428,17 @@ compareConArgs :: Args -> [NamedArg DeBruijnPattern] -> TerM Order
 compareConArgs ts ps = do
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
-  -- we may assume |ps| >= |ts|, otherwise c ps would be of functional type
-  -- which is impossible
-  case (length ts, length ps) of
-    (0,0) -> return Order.le        -- c <= c
-    (0,1) -> return Order.unknown   -- c not<= c x
-    (1,0) -> __IMPOSSIBLE__
-    (1,1) -> compareTerm' (unArg (head ts)) (notMasked $ namedArg $ head ps)
-    (_,_) -> foldl (Order..*.) Order.le <$>
+  case compare (length ts) (length ps) of
+
+    -- We may assume |ps| >= |ts|, otherwise c ps would be of functional type
+    -- which is impossible.
+    GT -> __IMPOSSIBLE__
+
+    -- Andreas, 2022-08-31, issue #6059: doing anything smarter than
+    -- @unknown@ here can lead to non-termination.
+    LT -> return Order.unknown
+
+    EQ -> List.foldl' (Order..*.) Order.le <$>
                zipWithM compareTerm' (map unArg ts) (map (notMasked . namedArg) ps)
        -- corresponds to taking the size, not the height
        -- allows examples like (x, y) < (Succ x, y)

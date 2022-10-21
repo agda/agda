@@ -28,6 +28,18 @@ General options
      For use with other editors such as Atom (no need to invoke
      yourself).
 
+.. option:: --interaction-exit-on-error
+
+     .. versionadded:: 2.6.3
+
+     Makes Agda exit with a non-zero exit code if `--interaction` or
+     `--interaction-json` are used and a type error is encountered. The
+     option also makes Agda exit with exit code 113 if Agda fails to
+     parse a command.
+
+     This option might for instance be used if Agda is controlled from
+     a script.
+
 .. option:: --interactive, -I
 
      Start in interactive mode (no longer supported).
@@ -255,6 +267,10 @@ Printing and debugging
          - Count number of created metavariables
        * - ``interactive``
          - Measure time of interactive commands
+       * - ``conversion``
+         - Count number of times various steps of the conversion algorithm are
+           used (reduction, eta-expansion, syntactic equality, etc)
+
 
     Only one of ``internal``, ``modules``, and ``definitions`` can be turned on
     at a time. You can also give ``--profile=all`` to turn on all profiling
@@ -484,12 +500,14 @@ Other features
      must be a natural number).
 
      If ``N`` is omitted, then the syntactic equality shortcut is
-     enabled without any restrictions.
+     enabled without any restrictions. (This is the default.)
 
      If ``N`` is given, then the syntactic equality shortcut is given
      ``N`` units of fuel. The exact meaning of this is
      implementation-dependent, but successful uses of the shortcut do
      not affect the amount of fuel.
+
+     Note that this option is experimental and subject to change.
 
 .. option:: --safe
 
@@ -541,6 +559,19 @@ Other features
 
      Disable the implicit statement `open import Agda.Primitive using
      (Set; Prop)` at the start of each top-level Agda module.
+
+.. option:: --no-load-primitives
+
+     .. versionadded:: 2.6.3
+
+     Do not load the primitive modules (`Agda.Primitive`,
+     `Agda.Primitive.Cubical`) when type-checking this program. This is
+     useful if you want to declare Agda's very magical primitives in a
+     Literate Agda file of your choice.
+
+     If you are using this option, it is your responsibility to ensure
+     that all of the `BUILTIN` things defined in those modules are
+     loaded. Agda will not work otherwise.
 
 .. option:: --save-metas, --no-save-metas
 

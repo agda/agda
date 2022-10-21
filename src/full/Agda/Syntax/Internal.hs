@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE PatternSynonyms            #-}
 
 module Agda.Syntax.Internal
@@ -21,7 +22,6 @@ import qualified Data.Set as Set
 import Data.Set (Set)
 
 import Data.Traversable
-import Data.Data (Data)
 
 import GHC.Generics (Generic)
 
@@ -65,34 +65,35 @@ import Agda.Utils.Impossible
 --   'Arg' is used for actual arguments ('Var', 'Con', 'Def' etc.)
 --   and in 'Abstract' syntax and other situations.
 --
---   [ cubical ] When @domFinite = True@ for the domain of a 'Pi'
---   type, the elements should be compared by tabulating the domain type.
---   Only supported in case the domain type is primIsOne, to obtain
---   the correct equality for partial elements.
+--   [ cubical ] When @annFinite (argInfoAnnotation domInfo) = True@ for
+--   the domain of a 'Pi' type, the elements should be compared by
+--   tabulating the domain type.  Only supported in case the domain type
+--   is primIsOne, to obtain the correct equality for partial elements.
 --
 data Dom' t e = Dom
   { domInfo   :: ArgInfo
-  , domFinite :: !Bool
   , domName   :: Maybe NamedName  -- ^ e.g. @x@ in @{x = y : A} -> B@.
+  , domIsFinite :: Bool
+    -- ^ Is this a Π-type (False), or a partial type (True)?
   , domTactic :: Maybe t        -- ^ "@tactic e".
   , unDom     :: e
-  } deriving (Data, Show, Functor, Foldable, Traversable)
+  } deriving (Show, Functor, Foldable, Traversable)
 
 type Dom = Dom' Term
 
 instance Decoration (Dom' t) where
-  traverseF f (Dom ai b x t a) = Dom ai b x t <$> f a
+  traverseF f (Dom ai x t b a) = Dom ai x t b <$> f a
 
 instance HasRange a => HasRange (Dom' t a) where
   getRange = getRange . unDom
 
 instance (KillRange t, KillRange a) => KillRange (Dom' t a) where
-  killRange (Dom info b x t a) = killRange5 Dom info b x t a
+  killRange (Dom info x t b a) = killRange4 Dom info x t b a
 
 -- | Ignores 'Origin' and 'FreeVariables' and tactic.
 instance Eq a => Eq (Dom' t a) where
-  Dom (ArgInfo h1 m1 _ _ a1) b1 s1 _ x1 == Dom (ArgInfo h2 m2 _ _ a2) b2 s2 _ x2 =
-    (h1, m1, a1, b1, s1, x1) == (h2, m2, a2, b2, s2, x2)
+  Dom (ArgInfo h1 m1 _ _ a1) s1 f1 _ x1 == Dom (ArgInfo h2 m2 _ _ a2) s2 f2 _ x2 =
+    (h1, m1, a1, s1, f1, x1) == (h2, m2, a2, s2, f2, x2)
 
 instance LensNamed (Dom' t e) where
   type NameOf (Dom' t e) = NamedName
@@ -129,10 +130,10 @@ namedArgFromDom Dom{domInfo = i, domName = s, unDom = a} = Arg i $ Named s a
 -- often for class AddContext.
 
 domFromArg :: Arg a -> Dom a
-domFromArg (Arg i a) = Dom i False Nothing Nothing a
+domFromArg (Arg i a) = Dom i Nothing False Nothing a
 
 domFromNamedArg :: NamedArg a -> Dom a
-domFromNamedArg (Arg i a) = Dom i False (nameOf a) Nothing (namedThing a)
+domFromNamedArg (Arg i a) = Dom i (nameOf a) False Nothing (namedThing a)
 
 defaultDom :: a -> Dom a
 defaultDom = defaultArgDom defaultArgInfo
@@ -151,7 +152,7 @@ type NamedArgs  = [NamedArg Term]
 data DataOrRecord
   = IsData
   | IsRecord PatternOrCopattern
-  deriving (Data, Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 -- | Store the names of the record fields in the constructor.
 --   This allows reduction of projection redexes outside of TCM.
@@ -163,7 +164,7 @@ data ConHead = ConHead
   , conFields     :: [Arg QName]   -- ^ The name of the record fields.
       --   'Arg' is stored since the info in the constructor args
       --   might not be accurate because of subtyping (issue #2170).
-  } deriving (Data, Show, Generic)
+  } deriving (Show, Generic)
 
 instance Eq ConHead where
   (==) = (==) `on` conName
@@ -225,7 +226,7 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
             --   where they can affect type checking, so syntactic checks are free to ignore the
             --   eliminators, which are only there to ease debugging when a dummy term incorrectly
             --   leaks into a relevant position.
-  deriving (Data, Show)
+  deriving Show
 
 type ConInfo = ConOrigin
 
@@ -242,7 +243,7 @@ data Abs a = Abs   { absName :: ArgName, unAbs :: a }
                -- ^ The body has (at least) one free variable.
                --   Danger: 'unAbs' doesn't shift variables properly
            | NoAbs { absName :: ArgName, unAbs :: a }
-  deriving (Data, Functor, Foldable, Traversable, Generic)
+  deriving (Functor, Foldable, Traversable, Generic)
 
 instance Decoration Abs where
   traverseF f (Abs   x a) = Abs   x <$> f a
@@ -251,7 +252,7 @@ instance Decoration Abs where
 -- | Types are terms with a sort annotation.
 --
 data Type'' t a = El { _getSort :: Sort' t, unEl :: a }
-  deriving (Data, Show, Functor, Foldable, Traversable)
+  deriving (Show, Functor, Foldable, Traversable)
 
 type Type' a = Type'' Term a
 
@@ -284,19 +285,19 @@ instance LensSort a => LensSort (Arg a) where
 --   and so on.
 data Tele a = EmptyTel
             | ExtendTel a (Abs (Tele a))  -- ^ 'Abs' is never 'NoAbs'.
-  deriving (Data, Show, Functor, Foldable, Traversable, Generic)
+  deriving (Show, Functor, Foldable, Traversable, Generic)
 
 type Telescope = Tele (Dom Type)
 
 data IsFibrant = IsFibrant | IsStrict
-  deriving (Data, Show, Eq, Ord, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 -- | Sorts.
 --
 data Sort' t
   = Type (Level' t)  -- ^ @Set ℓ@.
   | Prop (Level' t)  -- ^ @Prop ℓ@.
-  | Inf IsFibrant Integer      -- ^ @Setωᵢ@.
+  | Inf IsFibrant !Integer      -- ^ @Setωᵢ@.
   | SSet (Level' t)  -- ^ @SSet ℓ@.
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
   | LockUniv    -- ^ @LockUniv@, a sort for locks.
@@ -311,19 +312,19 @@ data Sort' t
     --   Replaces the abuse of @Prop@ for a dummy sort.
     --   The @String@ typically describes the location where we create this dummy,
     --   but can contain other information as well.
-  deriving (Data, Show)
+  deriving Show
 
 type Sort = Sort' Term
 
 -- | A level is a maximum expression of a closed level and 0..n
 --   'PlusLevel' expressions each of which is an atom plus a number.
-data Level' t = Max Integer [PlusLevel' t]
-  deriving (Show, Data, Functor, Foldable, Traversable)
+data Level' t = Max !Integer [PlusLevel' t]
+  deriving (Show, Functor, Foldable, Traversable)
 
 type Level = Level' Term
 
-data PlusLevel' t = Plus Integer t
-  deriving (Show, Data, Functor, Foldable, Traversable)
+data PlusLevel' t = Plus !Integer t
+  deriving (Show, Functor, Foldable, Traversable)
 
 type PlusLevel = PlusLevel' Term
 type LevelAtom = Term
@@ -334,7 +335,7 @@ type LevelAtom = Term
 
 -- | Newtypes for terms that produce a dummy, rather than crash, when
 --   applied to incompatible eliminations.
-newtype BraveTerm = BraveTerm { unBrave :: Term } deriving (Data, Show)
+newtype BraveTerm = BraveTerm { unBrave :: Term } deriving Show
 
 ---------------------------------------------------------------------------
 -- * Blocked Terms
@@ -406,7 +407,7 @@ data Clause = Clause
     , clauseWhereModule :: Maybe ModuleName
       -- ^ Keeps track of the module name associate with the clause's where clause.
     }
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 clausePats :: Clause -> [Arg DeBruijnPattern]
 clausePats = map (fmap namedThing) . namedClausePats
@@ -426,7 +427,7 @@ nameToPatVarName = nameToArgName
 data PatternInfo = PatternInfo
   { patOrigin :: PatOrigin
   , patAsNames :: [Name]
-  } deriving (Data, Show, Eq, Generic)
+  } deriving (Show, Eq, Generic)
 
 defaultPatternInfo :: PatternInfo
 defaultPatternInfo = PatternInfo PatOSystem []
@@ -442,7 +443,7 @@ data PatOrigin
   | PatORec            -- ^ User wrote a record pattern
   | PatOLit            -- ^ User wrote a literal pattern
   | PatOAbsurd         -- ^ User wrote an absurd pattern
-  deriving (Data, Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 -- | Patterns are variables, constructors, or wildcards.
 --   @QName@ is used in @ConP@ rather than @Name@ since
@@ -466,7 +467,7 @@ data Pattern' x
     -- ^ Path elimination pattern, like @VarP@ but keeps track of endpoints.
   | DefP PatternInfo QName [NamedArg (Pattern' x)]
     -- ^ Used for HITs, the QName should be the one from primHComp.
-  deriving (Data, Show, Functor, Foldable, Traversable, Generic)
+  deriving (Show, Functor, Foldable, Traversable, Generic)
 
 type Pattern = Pattern' PatVarName
     -- ^ The @PatVarName@ is a name suggestion.
@@ -483,8 +484,8 @@ litP = LitP defaultPatternInfo
 -- | Type used when numbering pattern variables.
 data DBPatVar = DBPatVar
   { dbPatVarName  :: PatVarName
-  , dbPatVarIndex :: Int
-  } deriving (Data, Show, Eq, Generic)
+  , dbPatVarIndex :: !Int
+  } deriving (Show, Eq, Generic)
 
 type DeBruijnPattern = Pattern' DBPatVar
 
@@ -531,7 +532,7 @@ data ConPatternInfo = ConPatternInfo
     --   variables they bind are unused. The GHC backend compiles lazy matches
     --   to lazy patterns in Haskell (TODO: not yet).
   }
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 noConPatternInfo :: ConPatternInfo
 noConPatternInfo = ConPatternInfo defaultPatternInfo False False Nothing False
@@ -651,14 +652,16 @@ data Substitution' a
     --     Γ ⊢ u :# ρ : Δ, A
     --   @
 
-  | Strengthen Impossible (Substitution' a)
+  | Strengthen Impossible !Int (Substitution' a)
     -- ^ Strengthening substitution.  First argument is @__IMPOSSIBLE__@.
-    --   Apply this to a term which does not contain variable 0
-    --   to lower all de Bruijn indices by one.
-    --   @
-    --             Γ ⊢ ρ : Δ
+    --   In @'Strengthen err n ρ@ the number @n@ must be non-negative.
+    --   This substitution should only be applied to values @t@ for
+    --   which none of the variables @0@ up to @n - 1@ are free in
+    --   @t[ρ]@, and in that case @n@ is subtracted from all free de
+    --   Bruijn indices in @t[ρ]@.
+    --        Γ ⊢ ρ : Δ    |Θ| = n
     --     ---------------------------
-    --     Γ ⊢ Strengthen ρ : Δ, A
+    --     Γ ⊢ Strengthen n ρ : Δ, Θ
     --   @
 
   | Wk !Int (Substitution' a)
@@ -704,16 +707,34 @@ instance Null (Substitution' a) where
 -- | View type as equality type.
 
 data EqualityView
-  = EqualityType
-    { eqtSort  :: Sort     -- ^ Sort of this type.
-    , eqtName  :: QName    -- ^ Builtin EQUALITY.
-    , eqtParams :: [Arg Term] -- ^ Hidden.  Empty or @Level@.
-    , eqtType  :: Arg Term -- ^ Hidden
-    , eqtLhs   :: Arg Term -- ^ NotHidden
-    , eqtRhs   :: Arg Term -- ^ NotHidden
-    }
+  = EqualityViewType EqualityTypeData
   | OtherType Type -- ^ reduced
   | IdiomType Type -- ^ reduced
+
+data EqualityTypeData = EqualityTypeData
+    { _eqtSort   :: Sort        -- ^ Sort of this type.
+    , _eqtName   :: QName       -- ^ Builtin EQUALITY.
+    , _eqtParams :: Args        -- ^ Hidden.  Empty or @Level@.
+    , _eqtType   :: Arg Term    -- ^ Hidden.
+    , _eqtLhs    :: Arg Term    -- ^ NotHidden.
+    , _eqtRhs    :: Arg Term    -- ^ NotHidden.
+    }
+
+pattern EqualityType
+  :: Sort
+  -> QName
+  -> Args
+  -> Arg Term
+  -> Arg Term
+  -> Arg Term
+  -> EqualityView
+pattern EqualityType{ eqtSort, eqtName, eqtParams, eqtType, eqtLhs, eqtRhs } =
+  EqualityViewType (EqualityTypeData eqtSort eqtName eqtParams eqtType eqtLhs eqtRhs)
+
+-- The COMPLETE pragma is new in GHC 8.2
+#if __GLASGOW_HASKELL__ >= 802
+{-# COMPLETE EqualityType, OtherType, IdiomType #-}
+#endif
 
 isEqualityType :: EqualityView -> Bool
 isEqualityType EqualityType{} = True
@@ -1139,12 +1160,12 @@ instance TermSize PlusLevel where
   tsize (Plus _ a)      = tsize a
 
 instance TermSize a => TermSize (Substitution' a) where
-  tsize IdS                = 1
-  tsize (EmptyS _)         = 1
-  tsize (Wk _ rho)         = 1 + tsize rho
-  tsize (t :# rho)         = 1 + tsize t + tsize rho
-  tsize (Strengthen _ rho) = 1 + tsize rho
-  tsize (Lift _ rho)       = 1 + tsize rho
+  tsize IdS                  = 1
+  tsize (EmptyS _)           = 1
+  tsize (Wk _ rho)           = 1 + tsize rho
+  tsize (t :# rho)           = 1 + tsize t + tsize rho
+  tsize (Strengthen _ _ rho) = 1 + tsize rho
+  tsize (Lift _ rho)         = 1 + tsize rho
 
 ---------------------------------------------------------------------------
 -- * KillRange instances.
@@ -1196,12 +1217,12 @@ instance KillRange Sort where
     s@DummyS{} -> s
 
 instance KillRange Substitution where
-  killRange IdS                  = IdS
-  killRange (EmptyS err)         = EmptyS err
-  killRange (Wk n rho)           = killRange1 (Wk n) rho
-  killRange (t :# rho)           = killRange2 (:#) t rho
-  killRange (Strengthen err rho) = killRange1 (Strengthen err) rho
-  killRange (Lift n rho)         = killRange1 (Lift n) rho
+  killRange IdS                    = IdS
+  killRange (EmptyS err)           = EmptyS err
+  killRange (Wk n rho)             = killRange1 (Wk n) rho
+  killRange (t :# rho)             = killRange2 (:#) t rho
+  killRange (Strengthen err n rho) = killRange1 (Strengthen err n) rho
+  killRange (Lift n rho)           = killRange1 (Lift n) rho
 
 instance KillRange PatOrigin where
   killRange = id
@@ -1247,12 +1268,16 @@ instance Pretty a => Pretty (Substitution' a) where
   prettyPrec = pr
     where
     pr p rho = case rho of
-      IdS              -> "idS"
-      EmptyS err       -> "emptyS"
-      t :# rho         -> mparens (p > 2) $ sep [ pr 2 rho <> ",", prettyPrec 3 t ]
-      Strengthen _ rho -> mparens (p > 9) $ "strS" <+> pr 10 rho
-      Wk n rho         -> mparens (p > 9) $ text ("wkS " ++ show n) <+> pr 10 rho
-      Lift n rho       -> mparens (p > 9) $ text ("liftS " ++ show n) <+> pr 10 rho
+      IdS                -> "idS"
+      EmptyS err         -> "emptyS"
+      t :# rho           -> mparens (p > 2) $
+                            sep [ pr 2 rho <> ",", prettyPrec 3 t ]
+      Strengthen _ n rho -> mparens (p > 9) $
+                            text ("strS " ++ show n) <+> pr 10 rho
+      Wk n rho           -> mparens (p > 9) $
+                            text ("wkS " ++ show n) <+> pr 10 rho
+      Lift n rho         -> mparens (p > 9) $
+                            text ("liftS " ++ show n) <+> pr 10 rho
 
 instance Pretty Term where
   prettyPrec p v =
@@ -1346,9 +1371,8 @@ instance Pretty Sort where
       LockUniv -> "LockUniv"
       IntervalUniv -> "IntervalUniv"
       PiSort a s1 s2 -> mparens (p > 9) $
-        "piSort" <+> pDom (domInfo a) (text (absName s2) <+> ":" <+> pretty (unDom a))
-                      <+> parens (sep [ text ("λ " ++ absName s2 ++ " ->")
-                                      , nest 2 $ pretty (unAbs s2) ])
+        "piSort" <+> pDom (domInfo a) (text (absName s2) <+> ":" <+> pretty (unDom a) <+> ":" <+> pretty s1)
+                      <+> parens (pretty (unAbs s2))
       FunSort a b -> mparens (p > 9) $
         "funSort" <+> prettyPrec 10 a <+> prettyPrec 10 b
       UnivSort s -> mparens (p > 9) $ "univSort" <+> prettyPrec 10 s
@@ -1433,7 +1457,7 @@ instance NFData PlusLevel where
   rnf (Plus n l) = rnf (n, l)
 
 instance NFData e => NFData (Dom e) where
-  rnf (Dom a b c d e) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e
+  rnf (Dom a c d e f) = rnf a `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f
 
 instance NFData DataOrRecord
 instance NFData ConHead

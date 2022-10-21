@@ -1,14 +1,3 @@
--- Liang-Ting Chen (2019-07-04):
--- Consider using Data.Maybe.Strict instead
--- Andreas Abel (2019-07-05)@GitHub:
--- The dependencies of strict-base-types are too heavy,
--- especially since it depends on lens which we consciously ruled out.
-
-{-# LANGUAGE CPP #-}
-
-
-{-# OPTIONS_GHC -fno-warn-orphans #-}
-
 -- | A strict version of the 'Maybe' type.
 --
 --   Import qualified, as in
@@ -24,61 +13,16 @@
 
 module Agda.Utils.Maybe.Strict
   ( module Data.Strict.Maybe
+  , module Data.Strict.Classes
   , module Agda.Utils.Maybe.Strict
   ) where
 
--- The following code is copied from
--- http://hackage.haskell.org/package/strict-base-types-0.3.0/docs/src/Data-Maybe-Strict.html
+import Prelude hiding (Maybe(..), maybe)
 
-import           Prelude             hiding (Maybe (..), maybe, null)
-import qualified Prelude             as Lazy
-
-import           Control.DeepSeq     (NFData (..))
-import           Data.Binary         (Binary (..))
-import           Data.Data           (Data (..))
-import           Data.Semigroup      (Semigroup, (<>))
-import           Data.Strict.Maybe   (Maybe (Nothing, Just), fromJust,
-                                      fromMaybe, isJust, isNothing, maybe)
-import           GHC.Generics        (Generic (..))
+import Data.Strict.Classes
+import Data.Strict.Maybe
 
 import Agda.Utils.Null
-
-toStrict :: Lazy.Maybe a -> Maybe a
-toStrict Lazy.Nothing  = Nothing
-toStrict (Lazy.Just x) = Just x
-
-toLazy :: Maybe a -> Lazy.Maybe a
-toLazy Nothing  = Lazy.Nothing
-toLazy (Just x) = Lazy.Just x
-
-#if !(MIN_VERSION_strict(0,4,0))
-deriving instance Data a => Data (Maybe a)
-deriving instance Generic  (Maybe a)
-
--- The monoid instance was fixed in strict-base-types 0.5.0. See
--- Issue 1805.
-instance Semigroup a => Semigroup (Maybe a) where
-  (<>) = unionMaybeWith (<>)
-
-instance Semigroup a => Monoid (Maybe a) where
-  mempty  = Nothing
-  mappend = (<>)
-
-instance Foldable Maybe where
-    foldMap _ Nothing  = mempty
-    foldMap f (Just x) = f x
-
-instance Traversable Maybe where
-    traverse _ Nothing  = pure Nothing
-    traverse f (Just x) = Just <$> f x
-
-instance NFData a => NFData (Maybe a) where
-  rnf = rnf . toLazy
-
-instance Binary a => Binary (Maybe a) where
-  put = put . toLazy
-  get = toStrict <$> get
-#endif
 
 -- | Note that strict Maybe is an 'Applicative' only modulo strictness.
 --   The laws only hold in the strict semantics.
@@ -94,31 +38,6 @@ instance Applicative Maybe where
 instance Null (Maybe a) where
   empty = Nothing
   null = isNothing
-
--- | Analogous to 'Lazy.listToMaybe' in "Data.Maybe".
-listToMaybe :: [a] -> Maybe a
-listToMaybe []        =  Nothing
-listToMaybe (a:_)     =  Just a
-
--- | Analogous to 'Lazy.maybeToList' in "Data.Maybe".
-maybeToList :: Maybe a -> [a]
-maybeToList  Nothing   = []
-maybeToList  (Just x)  = [x]
-
--- | Analogous to 'Lazy.catMaybes' in "Data.Maybe".
-catMaybes :: [Maybe a] -> [a]
-catMaybes ls = [x | Just x <- ls]
-
--- | Analogous to 'Lazy.mapMaybe' in "Data.Maybe".
-mapMaybe :: (a -> Maybe b) -> [a] -> [b]
-mapMaybe _ []     = []
-mapMaybe f (x:xs) = case f x of
-    Nothing -> rs
-    Just r  -> r:rs
-  where
-    rs = mapMaybe f xs
-
--- The remaining code is a copy of Agda.Utils.Maybe
 
 -- * Collection operations.
 

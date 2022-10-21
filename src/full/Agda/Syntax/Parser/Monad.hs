@@ -37,7 +37,6 @@ import Control.Monad.Except
 import Control.Monad.State
 
 import Data.Int
-import Data.Data  ( Data )
 import Data.Maybe ( listToMaybe )
 
 import Agda.Interaction.Options.Warnings
@@ -151,12 +150,12 @@ data ParseError
 
   -- | Parse errors that concern a whole file.
   | InvalidExtensionError
-    { errPath      :: !AbsolutePath
+    { errPath      :: !RangeFile
                       -- ^ The file which the error concerns.
     , errValidExts :: [String]
     }
   | ReadFileError
-    { errPath      :: !AbsolutePath
+    { errPath      :: !RangeFile
     , errIOError   :: IOError
     }
   deriving Show
@@ -172,7 +171,7 @@ data ParseWarning
     -- ^ Unsupported attribute.
   | MultipleAttributes Range !(Maybe String)
     -- ^ Multiple attributes.
-  deriving (Data, Show)
+  deriving Show
 
 instance NFData ParseWarning where
   rnf (OverlappingTokensWarning _) = ()
@@ -300,8 +299,8 @@ initStatePos pos flags inp st =
 -- | Constructs the initial state of the parser. The string argument
 --   is the input string, the file path is only there because it's part
 --   of a position.
-initState :: Maybe AbsolutePath -> ParseFlags -> String -> [LexState]
-          -> ParseState
+initState ::
+  Maybe RangeFile -> ParseFlags -> String -> [LexState] -> ParseState
 initState file = initStatePos (startPos file)
 
 -- | The default flags.

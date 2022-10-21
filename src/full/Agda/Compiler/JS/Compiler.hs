@@ -30,12 +30,13 @@ import Agda.Interaction.Options
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name ( isNoName )
 import Agda.Syntax.Abstract.Name
-  ( ModuleName, QName,
+  ( QName,
     mnameToList, qnameName, qnameModule, nameId )
 import Agda.Syntax.Internal
   ( Name, Type
   , nameFixity, unDom, telToList )
 import Agda.Syntax.Literal       ( Literal(..) )
+import Agda.Syntax.TopLevelModuleName (TopLevelModuleName(..))
 import Agda.Syntax.Treeless      ( ArgUsage(..), filterUsed )
 import qualified Agda.Syntax.Treeless as T
 
@@ -58,8 +59,9 @@ import qualified Agda.Utils.Pretty as P
 import Agda.Utils.IO.Directory
 import Agda.Utils.IO.UTF8 ( writeFile )
 import Agda.Utils.Singleton ( singleton )
+import Agda.Utils.Size (size)
 
-import Agda.Compiler.Common
+import Agda.Compiler.Common as CC
 import Agda.Compiler.ToTreeless
 import Agda.Compiler.Treeless.EliminateDefaults
 import Agda.Compiler.Treeless.EliminateLiteralPatterns
@@ -161,7 +163,8 @@ jsPreCompile opts = do
 
 -- | After all modules have been compiled, copy RTE modules and verify compiled modules.
 
-jsPostCompile :: JSOptions -> IsMain -> Map.Map ModuleName Module -> TCM ()
+jsPostCompile ::
+  JSOptions -> IsMain -> Map.Map TopLevelModuleName Module -> TCM ()
 jsPostCompile opts _ ms = do
 
   -- Copy RTE modules.
@@ -193,14 +196,6 @@ jsPostCompile opts _ ms = do
         reportSLn "compile.js.verify" 20 $ unwords [ "calling:", cmd ]
         liftIO $ callCommand cmd
 
-
-mergeModules :: Map.Map ModuleName Module -> [(GlobalId, Export)]
-mergeModules ms
-    = [ (jsMod n, e)
-      | (n, Module _ _ es _) <- Map.toList ms
-      , e <- es
-      ]
-
 --- Module compilation ---
 
 data JSModuleEnv = JSModuleEnv
@@ -209,7 +204,9 @@ data JSModuleEnv = JSModuleEnv
     -- ^ Should this module be compiled?
   }
 
-jsPreModule :: JSOptions -> IsMain -> ModuleName -> Maybe FilePath -> TCM (Recompile JSModuleEnv Module)
+jsPreModule ::
+  JSOptions -> IsMain -> TopLevelModuleName -> Maybe FilePath ->
+  TCM (Recompile JSModuleEnv Module)
 jsPreModule _opts _ m mifile = do
   cubical <- optCubical <$> pragmaOptions
   let compile = case cubical of
@@ -241,10 +238,12 @@ jsPreModule _opts _ m mifile = do
         , jsCompile        = compile
         }
 
-jsPostModule :: JSOptions -> JSModuleEnv -> IsMain -> ModuleName -> [Maybe Export] -> TCM Module
+jsPostModule ::
+  JSOptions -> JSModuleEnv -> IsMain -> TopLevelModuleName ->
+  [Maybe Export] -> TCM Module
 jsPostModule opts _ isMain _ defs = do
-  m             <- jsMod <$> curMName
-  is            <- map (jsMod . fst) . iImportedModules <$> curIF
+  m  <- jsMod <$> curMName
+  is <- map (jsMod . fst) . iImportedModules <$> curIF
   let mod = Module m is (reorder es) callMain
   writeModule (optJSMinify opts) mod
   return mod
@@ -269,8 +268,9 @@ jsCompileDef opts kit _isMain def = definition (opts, kit) (defName def, def)
 prefix :: [Char]
 prefix = "jAgda"
 
-jsMod :: ModuleName -> GlobalId
-jsMod m = GlobalId (prefix : map prettyShow (mnameToList m))
+jsMod :: TopLevelModuleName -> GlobalId
+jsMod m =
+  GlobalId (prefix : map T.unpack (List1.toList (moduleNameParts m)))
 
 jsFileName :: GlobalId -> String
 jsFileName (GlobalId ms) = intercalate "." ms ++ ".js"
@@ -285,17 +285,17 @@ jsMember n
 
 global' :: QName -> TCM (Exp, JSQName)
 global' q = do
-  i <- iModuleName <$> curIF
-  modNm <- topLevelModuleName (qnameModule q)
+  i   <- iTopLevelModuleName <$> curIF
+  top <- CC.topLevelModuleName (qnameModule q)
   let
     -- Global module prefix
     qms = mnameToList $ qnameModule q
     -- File-local module prefix
-    localms = drop (length $ mnameToList modNm) qms
+    localms = drop (size top) qms
     nm = fmap jsMember $ List1.snoc localms $ qnameName q
-  if modNm == i
+  if top == i
     then return (Self, nm)
-    else return (Global (jsMod modNm), nm)
+    else return (Global (jsMod top), nm)
 
 global :: QName -> TCM (Exp, JSQName)
 global q = do
@@ -853,7 +853,6 @@ primitives = Set.fromList
   , "primDepIMin"
   , "primIdFace"
   , "primIdPath"
-  , "primIdJ"
   , builtinIdElim
   , builtinConId
   -- , builtinGlue                   -- missing

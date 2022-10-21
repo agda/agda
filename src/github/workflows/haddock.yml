@@ -1,7 +1,7 @@
 name: Haddock
 # Test documentation: haddock, user-manual.
-# Since `stack haddock` compiles Agda but `cabal haddock` does
-# not, this test is faster using `BUILD=CABAL` [Issue #2188].
+# Since `stack haddock` compiles Agda but `cabal haddock` does not,
+# we use cabal if we just want to build the haddockumentation [Issue #2188].
 on:
   push:
     branches:
@@ -19,9 +19,14 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        ghc-ver: ['9.2']
-        cabal-ver: [latest]
+        # Andreas, 2022-10-18
+        # Don't use 'latest' when you want the latest version,
+        # since this often does not point at the latest version;
+        # not for the virtual environments, and also haskell/action/setup
+        # is usually not up-to-date.
+        os: [ubuntu-22.04]
+        ghc-ver: ['9.4']
+        cabal-ver: ['3.8']
 
     if: |
       !contains(github.event.head_commit.message, '[skip ci]')
@@ -32,9 +37,9 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
-    - uses: haskell/actions/setup@v1
+    - uses: haskell/actions/setup@v2
       id: setup-haskell
       with:
         ghc-version: ${{ matrix.ghc-ver }}
@@ -55,7 +60,7 @@ jobs:
         cabal update
         cabal configure -fenable-cluster-counting --enable-tests --disable-library-profiling
 
-    - uses: actions/cache@v2
+    - uses: actions/cache@v3
       name: Cache dependencies
       id: cache
       with:

@@ -184,7 +184,7 @@ compactDef bEnv def rewr = do
           "primFloatIsDenormalized"    -> mkPrim 1 $ floatPred isDenormalized
           "primFloatIsNegativeZero"    -> mkPrim 1 $ floatPred isNegativeZero
           "primFloatIsSafeInteger"     -> mkPrim 1 $ floatPred isSafeInteger
-          "primFloatToWord64"          -> mkPrim 1 $ \ [LitFloat a] -> word (doubleToWord64 a)
+          -- "primFloatToWord64"          -- returns a maybe
           -- "primFloatToWord64Injective" -- identities are not literals
           "primNatToFloat"             -> mkPrim 1 $ \ [LitNat a] -> float (fromIntegral a)
           -- "primIntToFloat"             -- integers are not literals
@@ -1263,7 +1263,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
             (spine0, Proj o p : spine1) ->
               case lookupCon p bs <|> ((`lookupCon` bs) =<< op) of
                 Nothing
-                  | f `elem` partialDefs -> stuckMatch (NotBlocked MissingClauses ()) stack ctrl
+                  | f `elem` partialDefs -> stuckMatch (NotBlocked (MissingClauses f) ()) stack ctrl
                   | otherwise          -> __IMPOSSIBLE__
                 Just cc -> runAM (Match f cc (spine0 <> spine1) stack ctrl)
               where CFun{ cfunProjection = op } = cdefDef (constInfo p)
@@ -1386,8 +1386,8 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
     failedMatch f (CatchAll cc spine : stack :> cl) ctrl = runAM (Match f cc spine (stack :> cl) ctrl)
     failedMatch f ([] :> cl) ctrl
         -- Bad work-around for #3870: don't fail hard during instance search.
-      | speculative          = rewriteAM (Eval (mkValue (NotBlocked MissingClauses ()) cl) ctrl)
-      | f `elem` partialDefs = rewriteAM (Eval (mkValue (NotBlocked MissingClauses ()) cl) ctrl)
+      | speculative          = rewriteAM (Eval (mkValue (NotBlocked (MissingClauses f) ()) cl) ctrl)
+      | f `elem` partialDefs = rewriteAM (Eval (mkValue (NotBlocked (MissingClauses f) ()) cl) ctrl)
       | hasRewriting         = rewriteAM (Eval (mkValue (NotBlocked ReallyNotBlocked ()) cl) ctrl)  -- See #5396
       | otherwise            = runReduce $
           traceSLn "impossible" 10 ("Incomplete pattern matching when applying " ++ prettyShow f)

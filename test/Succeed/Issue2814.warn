@@ -1,0 +1,16 @@
+Issue2814.agda:32,3-25
+Confluence checking for --cubical is not yet supported, confluence checking might be incomplete
+when checking the pragma REWRITE unit-β
+Issue2814.agda:52,3-25
+Confluence checking for --cubical is not yet supported, confluence checking might be incomplete
+when checking the pragma REWRITE unit-β
+
+———— All done; warnings encountered ————————————————————————
+
+Issue2814.agda:32,3-25
+Confluence checking for --cubical is not yet supported, confluence checking might be incomplete
+when checking the pragma REWRITE unit-β
+
+Issue2814.agda:52,3-25
+Confluence checking for --cubical is not yet supported, confluence checking might be incomplete
+when checking the pragma REWRITE unit-β

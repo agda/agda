@@ -11,10 +11,12 @@ import Control.Monad.State
 import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough )
 import Control.Monad.Trans.Identity ( IdentityT )
 import Control.Monad.Trans.Maybe
-import Control.Monad.Writer
+import Control.Monad.Writer hiding ((<>))
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
 
+import qualified Data.DList as DL
+import Data.Foldable
 import qualified Data.List as List
 import qualified Data.Map as Map
 
@@ -125,7 +127,7 @@ checkpoint sub k = do
   -- created under refined parent parameters, but as long as those modules
   -- aren't named we shouldn't look at the checkpoint. The right thing to do
   -- would be to not store these modules in the checkpoint map, but todo..
-  stModuleCheckpoints `setTCLens` Map.union oldMods (old <$ Map.difference newMods oldMods)
+  stModuleCheckpoints `setTCLens` Map.union oldMods (old <$ newMods)
   unlessDebugPrinting $ reportSLn "tc.cxt.checkpoint" 105 "}"
   return x
 
@@ -231,19 +233,22 @@ withShadowingNameTCM x f = do
         setTCLens stUsedNames Map.empty
         result <- f
         newUsedNames <- useTC stUsedNames
-        setTCLens stUsedNames $ Map.unionWith (++) origUsedNames newUsedNames
+        setTCLens stUsedNames $ Map.unionWith (<>) origUsedNames newUsedNames
         return (result , newUsedNames)
 
       tellUsedName x = do
         let concreteX = nameConcrete x
             rawX      = nameToRawName concreteX
             rootX     = nameRoot concreteX
-        modifyTCLens (stUsedNames . key rootX) $ Just . (rawX:) . concat
+        modifyTCLens (stUsedNames . key rootX) $
+          Just . (rawX `DL.cons`) . fold
 
       tellShadowing x useds = case Map.lookup (nameRoot $ nameConcrete x) useds of
         Just shadows -> do
-          reportSDoc "tc.cxt.shadowing" 80 $ pure $ "names shadowing" <+> pretty x <+> ": " <+> prettyList_ (map pretty shadows)
-          modifyTCLens stShadowingNames $ Map.insertWith (++) x shadows
+          reportSDoc "tc.cxt.shadowing" 80 $ pure $
+            "names shadowing" <+> pretty x <+> ": " <+>
+            prettyList_ (map pretty $ toList shadows)
+          modifyTCLens stShadowingNames $ Map.insertWith (<>) x shadows
         Nothing      -> return ()
 
 instance MonadAddContext TCM where

@@ -31,39 +31,51 @@ jobs:
     runs-on: Ubuntu-latest # Required, but it can be anything here.
 
     steps:
-    - uses: styfle/cancel-workflow-action@0.6.0
+    - uses: styfle/cancel-workflow-action@0.11.0
       with:
         access_token: ${{ github.token }}
 
   cabal:
     needs: auto-cancel
 
+    timeout-minutes: 60
+
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04]
-        ghc-ver: [9.4.1, 9.2.4, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
-        cabal-ver: [latest]
+        os: [ubuntu-22.04]
+        ghc-ver: [9.4.2, 9.2.4, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4]
+        cabal-ver: ['3.8']
         include:
-          - os: macos-latest
-            ghc-ver: 9.4.1
-            cabal-ver: latest
-          - os: windows-latest
-            ghc-ver: 9.2.4
-              # Andreas, 2022-08-15, chocolatey GHC 9.4.1 still has problems,
-              # see https://github.com/agda/agda/pull/6023#issuecomment-1214969729
-            cabal-ver: latest
+          # Andreas, 2022-10-18
+          # Installation of 8.0.2 and 8.2.2 for ubuntu-22.04 (jammy) fails
+          # because there is no hvr-ppa for jammy.
+          # (The other versions are supported via ghcup.)
+          - os: ubuntu-20.04
+            ghc-ver: 8.0.2
+            cabal-ver: '3.8'
+          - os: ubuntu-20.04
+            ghc-ver: 8.2.2
+            cabal-ver: '3.8'
+          # macOS
+          - os: macos-12
+            ghc-ver: 9.4.2
+            cabal-ver: '3.8'
+          # Windows
+          - os: windows-2022
+            ghc-ver: 9.4.2
+            cabal-ver: '3.8'
     env:
       FLAGS: "-f enable-cluster-counting"
       # ICU_URL: 'https://github.com/unicode-org/icu/releases/download/release-69-1/icu4c-69_1-Win64-MSVC2019.zip'
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
 
-    - uses: haskell/actions/setup@v1
+    - uses: haskell/actions/setup@v2
       id: setup-haskell
       with:
         ghc-version: ${{ matrix.ghc-ver }}
@@ -94,7 +106,14 @@ jobs:
     - name: Set up pkg-config for the ICU library (macOS)
       if: ${{ runner.os == 'macOS' }}
       run: |
-        echo "PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig" >> ${GITHUB_ENV}
+        export PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig
+        echo "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}" >> ${GITHUB_ENV}
+        # print some information to debug pkg-config
+        echo "$ export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}"
+        echo "$ ls -l ${PKG_CONFIG_PATH}"
+        ls -l ${PKG_CONFIG_PATH}
+        echo "$ pkg-config --modversion icu-i18n"
+        pkg-config --modversion icu-i18n
 
     # Andreas, 2022-02-07: This step seem no longer necessary for Ubuntu 20.04.
     # But keep it here commented-out, we might need it in the future again.
@@ -124,7 +143,7 @@ jobs:
         cabal update
         cabal configure ${FLAGS} -O0
 
-    - uses: actions/cache@v2
+    - uses: actions/cache@v3
       name: Cache dependencies
       id: cache
       with:

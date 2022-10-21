@@ -3,7 +3,7 @@
 open import Agda.Primitive            renaming (Set to Type)
 open import Agda.Primitive.Cubical    renaming (primComp to comp)
 open import Agda.Builtin.Sigma
-open import Agda.Builtin.Cubical.Sub  renaming (primSubOut to outS ; inc to inS)
+open import Agda.Builtin.Cubical.Sub  renaming (primSubOut to outS)
 open import Agda.Builtin.Cubical.Glue using    (primGlue; _≃_)
 
 Glue : ∀ {ℓ ℓ'} (A : Type ℓ) {φ : I}

@@ -63,14 +63,21 @@ reorderTel_ tel = fromMaybe __IMPOSSIBLE__ (reorderTel tel)
 -- | Unflatten: turns a flattened telescope into a proper telescope. Must be
 --   properly ordered.
 unflattenTel :: [ArgName] -> [Dom Type] -> Telescope
-unflattenTel []   []            = EmptyTel
-unflattenTel (x : xs) (a : tel) = ExtendTel a' (Abs x tel')
-  where
-    tel' = unflattenTel xs tel
+unflattenTel xs tel = unflattenTel' (size tel) xs tel
+
+-- | A variant of 'unflattenTel' which takes the size of the last
+-- argument as an argument.
+unflattenTel' :: Int -> [ArgName] -> [Dom Type] -> Telescope
+unflattenTel' !n xs tel = case (xs, tel) of
+  ([],     [])      -> EmptyTel
+  (x : xs, a : tel) -> ExtendTel a' (Abs x tel')
+    where
+    tel' = unflattenTel' (n - 1) xs tel
     a'   = applySubst rho a
-    rho  = parallelS (replicate (size tel + 1) (withCallerCallStack impossibleTerm))
-unflattenTel [] (_ : _) = __IMPOSSIBLE__
-unflattenTel (_ : _) [] = __IMPOSSIBLE__
+    rho  = parallelS $
+           replicate n (withCallerCallStack impossibleTerm)
+  ([],    _ : _) -> __IMPOSSIBLE__
+  (_ : _, [])    -> __IMPOSSIBLE__
 
 -- | Rename the variables in the telescope to the given names
 --   Precondition: @size xs == size tel@.
@@ -376,9 +383,12 @@ telViewUpTo' 0 p t = return $ TelV EmptyTel t
 telViewUpTo' n p t = do
   t <- reduce t
   case unEl t of
-    Pi a b | p a -> absV a (absName b) <$> do
-                      underAbstractionAbs a b $ \b -> telViewUpTo' (n - 1) p b
-    _            -> return $ TelV EmptyTel t
+    Pi a b | p a ->
+          -- Force the name to avoid retaining the rest of b.
+      let !bn = absName b in
+      absV a bn <$> do
+        underAbstractionAbs a b $ \b -> telViewUpTo' (n - 1) p b
+    _ -> return $ TelV EmptyTel t
 
 telViewPath :: PureTCM m => Type -> m TelView
 telViewPath = telViewUpToPath (-1)
@@ -413,7 +423,8 @@ telViewUpToPathBoundary' n t = if n == 0 then done t else do
     Right t               -> done t
   where
     done t      = return (TelV EmptyTel t, [])
-    recurse a b = first (absV a (absName b)) <$> telViewUpToPathBoundary' (n - 1) (absBody b)
+    recurse a b = first (absV a (absName b)) <$> do
+      underAbstractionAbs a b $ \b -> telViewUpToPathBoundary' (n - 1) b
     addEndPoints xy (telv@(TelV tel _), cs) =
       (telv, (var $ size tel - 1, raise (size tel) xy) : cs)
 

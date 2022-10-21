@@ -38,6 +38,7 @@ import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Position as P
 import Agda.Syntax.Literal
+import Agda.Syntax.TopLevelModuleName
 import Agda.Interaction.FindFile
 
 import Agda.TypeChecking.Serialise.Base
@@ -194,36 +195,6 @@ instance EmbPrj Language where
     [1, a] -> valuN Cubical a
     _      -> malformed
 
-instance EmbPrj AbsolutePath where
-  icod_ file = do
-    d <- asks absPathD
-    -- Andreas, 2020-08-11, issue #4828
-    -- AbsolutePath is no longer canonical (can contain symlinks).
-    -- The dictonary contains canonical pathes, though.
-    file <- liftIO $ canonicalizeAbsolutePath file
-    liftIO $ flip fromMaybeM (H.lookup d file) $ do
-      -- The path @file@ should be cached in the dictionary @d@.
-      -- This seems not to be the case, thus, crash here.
-      -- But leave some hints for the posterity why things could go so wrong.
-      -- reportSLn "impossible" 10 -- does not work here
-      putStrLn $ unlines $
-        [ "Panic while serializing absolute path: " ++ show file
-        , "The path could not be found in the dictionary:"
-        ]
-      print =<< H.toList d
-      __IMPOSSIBLE__
-
-  value m = do
-    m :: TopLevelModuleName
-            <- value m
-    mf      <- gets modFile
-    incs    <- gets includes
-    (r, mf) <- liftIO $ findFile'' incs m mf
-    modify $ \s -> s { modFile = mf }
-    case r of
-      Left err -> throwError $ findErrorToTypeError m err
-      Right f  -> return (srcFilePath f)
-
 instance EmbPrj a => EmbPrj (Position' a) where
   icod_ (P.Pn file pos line col) = icodeN' P.Pn file pos line col
 
@@ -240,7 +211,7 @@ instance Typeable b => EmbPrj (WithDefault b) where
     _ -> malformed
 
 instance EmbPrj TopLevelModuleName where
-  icod_ (TopLevelModuleName a b) = icodeN' TopLevelModuleName a b
+  icod_ (TopLevelModuleName a b c) = icodeN' TopLevelModuleName a b c
 
   value = valueN TopLevelModuleName
 
@@ -313,6 +284,21 @@ instance EmbPrj a => EmbPrj (P.Interval' a) where
   icod_ (P.Interval p q) = icodeN' P.Interval p q
 
   value = valueN P.Interval
+
+instance EmbPrj RangeFile where
+  icod_ (RangeFile _ Nothing)  = __IMPOSSIBLE__
+  icod_ (RangeFile _ (Just a)) = icode a
+
+  value r = do
+    m :: TopLevelModuleName
+            <- value r
+    mf      <- gets modFile
+    incs    <- gets includes
+    (r, mf) <- liftIO $ findFile'' incs m mf
+    modify $ \s -> s { modFile = mf }
+    case r of
+      Left err -> throwError $ findErrorToTypeError m err
+      Right f  -> return $ RangeFile (srcFilePath f) (Just m)
 
 -- | Ranges are always deserialised as 'noRange'.
 

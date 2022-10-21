@@ -82,8 +82,10 @@ wrapM m = liftIO m >>= wrap
 
 -- | Returns the contents of the given file.
 
-readFilePM :: AbsolutePath -> PM Text
-readFilePM path = wrapIOM (ReadFileError path) (readTextFile $ filePath path)
+readFilePM :: RangeFile -> PM Text
+readFilePM file =
+  wrapIOM (ReadFileError file) $
+  readTextFile (filePath $ rangeFilePath file)
 
 wrapIOM :: (MonadError e m, MonadIO m) => (IOError -> e) -> IO a -> m a
 wrapIOM f m = do
@@ -155,8 +157,8 @@ parseLiterateWithComments p layers = do
 parseLiterateFile
   :: Processor
   -> Parser a
-  -> AbsolutePath
-     -- ^ The path to the file.
+  -> RangeFile
+     -- ^ The file.
   -> String
      -- ^ The file contents. Note that the file is /not/ read from
      -- disk.
@@ -174,24 +176,26 @@ acceptableFileExts = ".agda" : (fst <$> literateProcessors)
 parseFile
   :: Show a
   => Parser a
-  -> AbsolutePath
-     -- ^ The path to the file.
+  -> RangeFile
+     -- ^ The file.
   -> String
      -- ^ The file contents. Note that the file is /not/ read from
      -- disk.
   -> PM (a, FileType)
 parseFile p file input =
-  if ".agda" `List.isSuffixOf` filePath file then
+  if ".agda" `List.isSuffixOf` path then
     (, AgdaFileType) <$> parseFileFromString (Strict.Just file) p input
   else
     go literateProcessors
   where
+    path = filePath (rangeFilePath file)
+
     go [] = throwError InvalidExtensionError
                    { errPath = file
                    , errValidExts = acceptableFileExts
                    }
     go ((ext, (po, ft)) : pos)
-      | ext `List.isSuffixOf` filePath file =
+      | ext `List.isSuffixOf` path =
           (, ft) <$> parseLiterateFile po p file input
       | otherwise = go pos
 

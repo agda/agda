@@ -35,6 +35,7 @@ import           Agda.Syntax.Literal
 import qualified Agda.Syntax.Position      as P
 import           Agda.Syntax.Position                ( Range, HasRange, getRange, noRange )
 import           Agda.Syntax.Scope.Base              ( AbstractName(..), ResolvedName(..), exactConName )
+import           Agda.Syntax.TopLevelModuleName
 
 import Agda.TypeChecking.Monad
   hiding (ModuleInfo, MetaInfo, Primitive, Constructor, Record, Function, Datatype)
@@ -49,29 +50,29 @@ import           Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict   as Strict
 import           Agda.Utils.Pretty
 import           Agda.Utils.Singleton
+import           Agda.Utils.Size
 
 -- Entry point:
 -- | Create highlighting info for some piece of syntax.
-runHighlighter ::
-  Hilite a =>
-  SourceToModule -> AbsolutePath -> NameKinds -> a ->
-  HighlightingInfoBuilder
-runHighlighter modMap fileName kinds x =
+runHighlighter
+  :: Hilite a
+  => TopLevelModuleName
+     -- ^ The current top-level module's name.
+  -> NameKinds -> a -> HighlightingInfoBuilder
+runHighlighter top kinds x =
   runReader (hilite x) $
   HiliteEnv
-    { hleNameKinds = kinds
-    , hleModMap    = modMap
-    , hleFileName  = fileName
+    { hleNameKinds         = kinds
+    , hleCurrentModuleName = top
     }
 
 -- | Environment of the highlighter.
 data HiliteEnv = HiliteEnv
   { hleNameKinds :: NameKinds
       -- ^ Function mapping qualified names to their kind.
-  , hleModMap    :: SourceToModule
-      -- ^ Maps source file paths to module names.
-  , hleFileName  :: AbsolutePath
-      -- ^ The file name of the current module. Used for consistency checking.
+  , hleCurrentModuleName :: TopLevelModuleName
+      -- ^ The current top-level module's name. Used for consistency
+      -- checking.
   }
 
 -- | A function mapping names to the kind of name they stand for.
@@ -214,6 +215,7 @@ instance Hilite A.Declaration where
       A.PatternSynDef x xs p                 -> hl x <> hl xs <> hl p
       A.UnquoteDecl _mi _di xs e             -> hl xs <> hl e
       A.UnquoteDef _di xs e                  -> hl xs <> hl e
+      A.UnquoteData _i xs _uc _j cs e        -> hl xs <> hl cs <> hl e
       A.ScopedDecl s ds                      -> hl ds
       A.Pragma _r pragma                     -> hl pragma
     where
@@ -255,7 +257,6 @@ instance Hilite A.Expr where
       A.Generalized _qs e           -> hl e
       A.Fun _r a b                  -> hl a <> hl b
       A.Let _r bs e                 -> hl bs <> hl e
-      A.ETel _tel                   -> mempty  -- Printing only construct
       A.Rec _r ass                  -> hl ass
       A.RecUpdate _r e ass          -> hl e <> hl ass
       A.ScopedExpr _ e              -> hl e
@@ -356,6 +357,9 @@ instance Hilite A.LetBinding where
     where
     hl x = hilite x
 
+instance Hilite A.TypedBindingInfo where
+  hilite (A.TypedBindingInfo x _) = hilite x
+
 instance Hilite A.TypedBinding where
   hilite = \case
     A.TBind _r tac binds e -> hilite tac <> hilite binds <> hilite e
@@ -450,17 +454,14 @@ instance Hilite A.AmbiguousQName where
   hilite = hiliteAmbiguousQName Nothing
 
 instance Hilite A.ModuleName where
-  hilite m@(A.MName xs) = do
-    modMap <- asks hleModMap
-    hiliteModule (isTopLevelModule modMap, m)
+  hilite m@(A.MName xs) = hiliteModule (isTopLevelModule, m)
     where
-    isTopLevelModule modMap =
-      case mapMaybe
-          ((Strict.toLazy . P.srcFile) <=< (P.rStart . A.nameBindingSite)) xs of
-        f : _ ->
-          Map.lookup f modMap
-            == Just (C.toTopLevelModuleName $ A.mnameToConcrete m)
-        [] -> False
+    isTopLevelModule =
+      case mapMaybe (P.rangeModule . A.nameBindingSite) xs of
+        []      -> False
+        top : _ ->
+          rawTopLevelModuleName top ==
+          rawTopLevelModuleNameForModuleName m
 
   -- Andreas, 2020-09-29, issue #4952.
 -- The target of a @renaming@ clause needs to be highlighted in a special way.
@@ -563,36 +564,34 @@ hiliteCName
      --   The argument is 'True' iff the name is an operator.
   -> Hiliter
 hiliteCName xs x fr mR asp = do
-  HiliteEnv _ modMap fileName <- ask
+  env <- ask
   -- We don't care if we get any funny ranges.
-  if all (== Strict.Just fileName) fileNames then pure $
-    frFile modMap <>
-    H.singleton (rToR rs)
-                (aspects { definitionSite = mFilePos modMap })
-   else
-    mempty
+  if all (== Just (hleCurrentModuleName env)) moduleNames
+  then pure $
+    frFile <>
+    H.singleton (rToR rs) (aspects { definitionSite = mFilePos })
+  else mempty
   where
-  aspects       = asp $ C.isOperator x
-  fileNames     = mapMaybe (fmap P.srcFile . P.rStart . getRange) (x : xs)
-  frFile modMap = H.singleton (rToR fr) (aspects { definitionSite = notHere <$> mFilePos modMap })
-  rs            = getRange (x : xs)
+  aspects     = asp $ C.isOperator x
+  moduleNames = mapMaybe (P.rangeModule' . getRange) (x : xs)
+  frFile      = H.singleton (rToR fr) $
+                aspects { definitionSite = notHere <$> mFilePos }
+  rs          = getRange (x : xs)
 
   -- The fixity declaration should not get a symbolic anchor.
   notHere d = d { defSiteHere = False }
 
-  mFilePos
-    :: SourceToModule  -- Maps source file paths to module names.
-    -> Maybe DefinitionSite
-  mFilePos modMap = do
+  mFilePos :: Maybe DefinitionSite
+  mFilePos = do
     r <- mR
     P.Pn { P.srcFile = Strict.Just f, P.posPos = p } <- P.rStart r
-    mod <- Map.lookup f modMap
+    mod <- P.rangeFileName f
     -- Andreas, 2017-06-16, Issue #2604: Symbolic anchors.
     -- We drop the file name part from the qualifiers, since
     -- this is contained in the html file name already.
     -- We want to get anchors of the form:
     -- @<a name="TopLevelModule.html#LocalModule.NestedModule.identifier">@
-    let qualifiers = drop (length $ C.moduleNameParts mod) xs
+    let qualifiers = drop (size mod) xs
     -- For bound variables, we do not create symbolic anchors.
         local = maybe True isLocalAspect $ aspect aspects
     return $ DefinitionSite
@@ -640,13 +639,13 @@ hiliteAName
      -- ^ The argument is 'True' iff the name is an operator.
   -> Hiliter
 hiliteAName x include asp = do
-  fileName <- asks hleFileName
+  currentModule <- asks hleCurrentModuleName
   hiliteCName (concreteQualifier x)
               (concreteBase x)
-              (rangeOfFixityDeclaration fileName)
+              (rangeOfFixityDeclaration currentModule)
               (if include then Just $ bindingSite x else Nothing)
               asp
-    <> (notationFile fileName)
+    <> notationFile currentModule
   where
   -- TODO: Currently we highlight fixity and syntax declarations by
   -- producing highlighting something like once per occurrence of the
@@ -654,14 +653,14 @@ hiliteAName x include asp = do
   -- avoid doing this for other files). Perhaps it would be better to
   -- only produce this highlighting once.
 
-  rangeOfFixityDeclaration fileName =
-    if P.rangeFile r == Strict.Just fileName
+  rangeOfFixityDeclaration currentModule =
+    if P.rangeModule r == Just currentModule
     then r else noRange
     where
     r = theNameRange $ A.nameFixity $ A.qnameName x
 
-  notationFile fileName = pure $
-    if P.rangeFile (getRange notation) == Strict.Just fileName
+  notationFile currentModule = pure $
+    if P.rangeModule (getRange notation) == Just currentModule
     then mconcat $ map genPartFile notation
     else mempty
     where

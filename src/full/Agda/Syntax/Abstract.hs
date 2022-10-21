@@ -23,7 +23,6 @@ import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import Data.Set (Set)
 import Data.Void
-import Data.Data (Data)
 
 import GHC.Generics (Generic)
 
@@ -56,7 +55,7 @@ import Agda.Utils.Impossible
 -- e.g. in @{_ : A} -> ..@ vs. @{r : A} -> ..@.
 
 newtype BindName = BindName { unBind :: Name }
-  deriving (Show, Data, HasRange, KillRange, SetRange, NFData)
+  deriving (Show, HasRange, KillRange, SetRange, NFData)
 
 mkBindName :: Name -> BindName
 mkBindName x = BindName x
@@ -107,7 +106,6 @@ data Expr
   | Fun  ExprInfo (Arg Type) Type      -- ^ Non-dependent function space.
   | Let  ExprInfo (List1 LetBinding) Expr
                                        -- ^ @let bs in e@.
-  | ETel Telescope                     -- ^ Only used when printing telescopes.
   | Rec  ExprInfo RecordAssigns        -- ^ Record construction.
   | RecUpdate ExprInfo Expr Assigns    -- ^ Record update.
   | ScopedExpr ScopeInfo Expr          -- ^ Scope annotation.
@@ -115,7 +113,7 @@ data Expr
   | QuoteTerm ExprInfo                 -- ^ Quote a term.
   | Unquote ExprInfo                   -- ^ The splicing construct: unquote ...
   | DontCare Expr                      -- ^ For printing @DontCare@ from @Syntax.Internal@.
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 -- | Pattern synonym for regular 'Def'.
 pattern Def :: QName -> Expr
@@ -139,7 +137,7 @@ type Ren a = Map a (List1 a)
 data ScopeCopyInfo = ScopeCopyInfo
   { renModules :: Ren ModuleName
   , renNames   :: Ren QName }
-  deriving (Eq, Show, Data, Generic)
+  deriving (Eq, Show, Generic)
 
 initCopyInfo :: ScopeCopyInfo
 initCopyInfo = ScopeCopyInfo
@@ -189,8 +187,9 @@ data Declaration
       -- ^ Only for highlighting purposes
   | UnquoteDecl MutualInfo [DefInfo] [QName] Expr
   | UnquoteDef  [DefInfo] [QName] Expr
+  | UnquoteData [DefInfo] QName UniverseCheck [DefInfo] [QName] Expr
   | ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 type DefInfo = DefInfo' Expr
 
@@ -203,7 +202,7 @@ data ModuleApplication
       -- ^ @tel. M args@:  applies @M@ to @args@ and abstracts @tel@.
     | RecordModuleInstance ModuleName
       -- ^ @M {{...}}@
-  deriving (Data, Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 data Pragma
   = OptionsPragma [String]
@@ -223,7 +222,7 @@ data Pragma
   | InjectivePragma QName
   | InlinePragma Bool QName -- INLINE or NOINLINE
   | DisplayPragma QName [NamedArg Pattern] Expr
-  deriving (Data, Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 -- | Bindings that are valid in a @let@.
 data LetBinding
@@ -239,7 +238,7 @@ data LetBinding
   | LetDeclaredVariable BindName
     -- ^ Only used for highlighting. Refers to the first occurrence of
     -- @x@ in @let x : A; x = e@.
-  deriving (Data, Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 -- | Only 'Axiom's.
 type TypeSignature  = Declaration
@@ -252,7 +251,7 @@ type TacticAttr = Maybe Expr
 data Binder' a = Binder
   { binderPattern :: Maybe Pattern
   , binderName    :: a
-  } deriving (Data, Show, Eq, Functor, Foldable, Traversable, Generic)
+  } deriving (Show, Eq, Functor, Foldable, Traversable, Generic)
 
 type Binder = Binder' BindName
 
@@ -271,10 +270,30 @@ data LamBinding
     -- ^ . @x@ or @{x}@ or @.x@ or @{x = y}@ or @x\@p@ or @(p)@
   | DomainFull TypedBinding
     -- ^ . @(xs:e)@ or @{xs:e}@ or @(let Ds)@
-  deriving (Data, Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 mkDomainFree :: NamedArg Binder -> LamBinding
 mkDomainFree = DomainFree Nothing
+
+-- | Extra information that is attached to a typed binding, that plays a
+-- role during type checking but strictly speaking is not part of the
+-- @name : type@" relation which a makes up a binding.
+data TypedBindingInfo
+  = TypedBindingInfo
+    { tbTacticAttr :: TacticAttr
+      -- ^ Does this binding have a tactic annotation?
+    , tbFinite     :: Bool
+      -- ^ Does this binding correspond to a Partial binder, rather than
+      -- to a Pi binder? Must be present here to be reflected into
+      -- abstract syntax later (and to be printed to the user later).
+    }
+  deriving (Show, Eq, Generic)
+
+defaultTbInfo :: TypedBindingInfo
+defaultTbInfo = TypedBindingInfo
+  { tbTacticAttr = Nothing
+  , tbFinite = False
+  }
 
 -- | A typed binding.  Appears in dependent function spaces, typed lambdas, and
 --   telescopes.  It might be tempting to simplify this to only bind a single
@@ -291,14 +310,14 @@ mkDomainFree = DomainFree Nothing
 --   that the metas of the copy are aliases of the metas of the original.
 
 data TypedBinding
-  = TBind Range TacticAttr (List1 (NamedArg Binder)) Type
+  = TBind Range TypedBindingInfo (List1 (NamedArg Binder)) Type
     -- ^ As in telescope @(x y z : A)@ or type @(x y z : A) -> B@.
   | TLet Range (List1 LetBinding)
     -- ^ E.g. @(let x = e)@ or @(let open M)@.
-  deriving (Data, Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 mkTBind :: Range -> List1 (NamedArg Binder) -> Type -> TypedBinding
-mkTBind r = TBind r Nothing
+mkTBind r = TBind r defaultTbInfo
 
 mkTLet :: Range -> [LetBinding] -> Maybe TypedBinding
 mkTLet _ []     = Nothing
@@ -316,7 +335,7 @@ data GeneralizeTelescope = GeneralizeTel
     -- ^ Maps generalize variables to the corresponding bound variable (to be
     --   introduced by the generalisation).
   , generalizeTel     :: Telescope }
-  deriving (Data, Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 data DataDefParams = DataDefParams
   { dataDefGeneralizedParams :: Set Name
@@ -324,7 +343,7 @@ data DataDefParams = DataDefParams
     --   sig, so we keep these in a set on the side.
   , dataDefParams :: [LamBinding]
   }
-  deriving (Data, Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 noDataDefParams :: DataDefParams
 noDataDefParams = DataDefParams Set.empty []
@@ -346,7 +365,7 @@ data ProblemEq = ProblemEq
   { problemInPat :: Pattern
   , problemInst  :: I.Term
   , problemType  :: I.Dom I.Type
-  } deriving (Data, Show, Generic)
+  } deriving (Show, Generic)
 
 -- These are not relevant for caching purposes
 instance Eq ProblemEq where _ == _ = True
@@ -362,7 +381,7 @@ data Clause' lhs = Clause
   , clauseRHS        :: RHS
   , clauseWhereDecls :: WhereDeclarations
   , clauseCatchall   :: Bool
-  } deriving (Data, Show, Functor, Foldable, Traversable, Eq, Generic)
+  } deriving (Show, Functor, Foldable, Traversable, Eq, Generic)
 
 data WhereDeclarations = WhereDecls
   { whereModule :: Maybe ModuleName
@@ -372,7 +391,7 @@ data WhereDeclarations = WhereDecls
       -- ^ is it an ordinary unnamed @where@?
   , whereDecls :: Maybe Declaration
       -- ^ The declaration is a 'Section'.
-  } deriving (Data, Show, Eq, Generic)
+  } deriving (Show, Eq, Generic)
 
 instance Null WhereDeclarations where
   empty = WhereDecls empty False empty
@@ -410,7 +429,7 @@ data RHS
       -- ^ The where clauses are attached to the @RewriteRHS@ by
       ---  the scope checker (instead of to the clause).
     }
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 -- | Ignore 'rhsConcrete' when comparing 'RHS's.
 instance Eq RHS where
@@ -428,7 +447,7 @@ data SpineLHS = SpineLHS
   , spLhsDefName  :: QName               -- ^ Name of function we are defining.
   , spLhsPats     :: [NamedArg Pattern]  -- ^ Elimination by pattern, projections, with-patterns.
   }
-  deriving (Data, Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 -- | Ignore 'Range' when comparing 'LHS's.
 instance Eq LHS where
@@ -440,7 +459,7 @@ data LHS = LHS
   { lhsInfo     :: LHSInfo               -- ^ Range.
   , lhsCore     :: LHSCore               -- ^ Copatterns.
   }
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 -- | The lhs in projection-application and with-pattern view.
 --   Parameterised over the type @e@ of dot patterns.
@@ -468,7 +487,7 @@ data LHSCore' e
              , lhsPats         :: [NamedArg (Pattern' e)]
                  -- ^ Further applied to patterns.
              }
-  deriving (Data, Show, Functor, Foldable, Traversable, Eq, Generic)
+  deriving (Show, Functor, Foldable, Traversable, Eq, Generic)
 
 type LHSCore = LHSCore' Expr
 
@@ -499,7 +518,7 @@ data Pattern' e
   | EqualP PatInfo [(e, e)]
   | WithP PatInfo (Pattern' e)  -- ^ @| p@, for with-patterns.
   | AnnP PatInfo e (Pattern' e) -- ^ Pattern with type annotation
-  deriving (Data, Show, Functor, Foldable, Traversable, Eq, Generic)
+  deriving (Show, Functor, Foldable, Traversable, Eq, Generic)
 
 type NAPs e   = [NamedArg (Pattern' e)]
 type NAPs1 e  = List1 (NamedArg (Pattern' e))
@@ -554,7 +573,6 @@ instance Eq Expr where
   Generalized a1 b1          == Generalized a2 b2          = (a1, b1) == (a2, b2)
   Fun a1 b1 c1               == Fun a2 b2 c2               = (a1, b1, c1) == (a2, b2, c2)
   Let a1 b1 c1               == Let a2 b2 c2               = (a1, b1, c1) == (a2, b2, c2)
-  ETel a1                    == ETel a2                    = a1 == a2
   Rec a1 b1                  == Rec a2 b2                  = (a1, b1) == (a2, b2)
   RecUpdate a1 b1 c1         == RecUpdate a2 b2 c2         = (a1, b1, c1) == (a2, b2, c2)
   Quote a1                   == Quote a2                   = a1 == a2
@@ -637,7 +655,6 @@ instance HasRange Expr where
     getRange (Let i _ _)             = getRange i
     getRange (Rec i _)               = getRange i
     getRange (RecUpdate i _ _)       = getRange i
-    getRange (ETel tel)              = getRange tel
     getRange (ScopedExpr _ e)        = getRange e
     getRange (Quote i)               = getRange i
     getRange (QuoteTerm i)           = getRange i
@@ -666,6 +683,7 @@ instance HasRange Declaration where
     getRange (PatternSynDef x _ _   ) = getRange x
     getRange (UnquoteDecl _ i _ _)    = getRange i
     getRange (UnquoteDef i _ _)       = getRange i
+    getRange (UnquoteData i _ _ j _ _) = getRange (i, j)
 
 instance HasRange (Pattern' e) where
     getRange (VarP x)           = getRange x
@@ -743,6 +761,9 @@ instance KillRange GeneralizeTelescope where
 instance KillRange DataDefParams where
   killRange (DataDefParams s tel) = DataDefParams s (killRange tel)
 
+instance KillRange TypedBindingInfo where
+  killRange (TypedBindingInfo a b) = killRange2 TypedBindingInfo a b
+
 instance KillRange TypedBinding where
   killRange (TBind r t xs e) = killRange4 TBind r t xs e
   killRange (TLet r lbs)     = killRange2 TLet r lbs
@@ -767,7 +788,6 @@ instance KillRange Expr where
   killRange (Let i ds e)             = killRange3 Let i ds e
   killRange (Rec i fs)               = killRange2 Rec i fs
   killRange (RecUpdate i e fs)       = killRange3 RecUpdate i e fs
-  killRange (ETel tel)               = killRange1 ETel tel
   killRange (ScopedExpr s e)         = killRange1 (ScopedExpr s) e
   killRange (Quote i)                = killRange1 Quote i
   killRange (QuoteTerm i)            = killRange1 QuoteTerm i
@@ -799,6 +819,7 @@ instance KillRange Declaration where
   killRange (PatternSynDef x xs p     ) = killRange3 PatternSynDef x xs p
   killRange (UnquoteDecl mi i x e     ) = killRange4 UnquoteDecl mi i x e
   killRange (UnquoteDef i x e         ) = killRange3 UnquoteDef i x e
+  killRange (UnquoteData i xs uc j cs e) = killRange6 UnquoteData i xs uc j cs e
 
 instance KillRange ModuleApplication where
   killRange (SectionApp a b c  ) = killRange3 SectionApp a b c
@@ -865,6 +886,7 @@ instance NFData LetBinding
 instance NFData a => NFData (Binder' a)
 instance NFData LamBinding
 instance NFData TypedBinding
+instance NFData TypedBindingInfo
 instance NFData GeneralizeTelescope
 instance NFData DataDefParams
 instance NFData ProblemEq
@@ -1047,7 +1069,6 @@ instance SubstExpr Expr where
     Generalized{}   -> __IMPOSSIBLE__
     Fun{}           -> __IMPOSSIBLE__
     Let{}           -> __IMPOSSIBLE__
-    ETel{}          -> __IMPOSSIBLE__
     RecUpdate{}     -> __IMPOSSIBLE__
     Quote{}         -> __IMPOSSIBLE__
     QuoteTerm{}     -> __IMPOSSIBLE__

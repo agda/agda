@@ -195,13 +195,15 @@ coreBuiltins =
                                                                              (cl primEquiv <#> la <#> lb <@> bA <@> bB)) $ \ e -> do
                                                                nPi' "b" (el' lb bB) $ \ b -> do
                                                                 let f = cl primEquivFun <#> la <#> lb <#> bA <#> bB <@> e
-                                                                    fiber = el' (cl primLevelMax <@> la <@> lb)
+                                                                    lub = cl primLevelMax <@> la <@> lb
+                                                                    fiber = el' lub
                                                                                 (cl primSigma <#> la <#> lb
                                                                                   <@> bA
                                                                                   <@> lam "a" (\ a ->
                                                                                          cl primPath <#> lb <#> bB <@> (f <@> a) <@> b))
                                                                 nPi' "φ" (cl tinterval) $ \ phi ->
-                                                                  pPi' "o" phi (\ o -> fiber) --> fiber
+                                                                  nPi' "f" (pPi' "o" phi (\ o -> fiber)) $ \ pfib ->
+                                                                    el' lub (cl primSub <#> lub <#> fmap unEl fiber <@> phi <@> pfib)
                                                              ))
                                                               (const $ const $ return ()))
   , (builtinTranspProof                       |-> BuiltinUnknown (Just $ requireCubical CErased "" >> runNamesT [] (
@@ -372,6 +374,8 @@ coreBuiltins =
   , builtinAgdaTCMFreshName                  |-> builtinPostulate (tstring --> tTCM_ primQName)
   , builtinAgdaTCMDeclareDef                 |-> builtinPostulate (targ tqname --> ttype --> tTCM_ primUnit)
   , builtinAgdaTCMDeclarePostulate           |-> builtinPostulate (targ tqname --> ttype --> tTCM_ primUnit)
+  , builtinAgdaTCMDeclareData                |-> builtinPostulate (tqname --> tnat --> ttype --> tTCM_ primUnit)
+  , builtinAgdaTCMDefineData                 |-> builtinPostulate (tqname --> tlist (tpair primLevelZero primLevelZero tqname ttype) --> tTCM_ primUnit)
   , builtinAgdaTCMDefineFun                  |-> builtinPostulate (tqname --> tlist tclause --> tTCM_ primUnit)
   , builtinAgdaTCMGetType                    |-> builtinPostulate (tqname --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMGetDefinition              |-> builtinPostulate (tqname --> tTCM_ primAgdaDefinition)
@@ -955,11 +959,11 @@ bindBuiltinNoDef b q = inTopContext $ do
       where
         -- Andreas, 2015-02-14
         -- Special treatment of SizeUniv, should maybe be a primitive.
-        def | b == builtinSizeUniv = emptyFunction
-                { funClauses = [ (empty :: Clause) { clauseBody = Just $ Sort sSizeUniv } ]
-                , funCompiled = Just (CC.Done [] $ Sort sSizeUniv)
-                , funMutual    = Just []
-                , funTerminates = Just True
+        def | b == builtinSizeUniv = FunctionDefn $ emptyFunctionData
+                { _funClauses    = [ (empty :: Clause) { clauseBody = Just $ Sort sSizeUniv } ]
+                , _funCompiled   = Just (CC.Done [] $ Sort sSizeUniv)
+                , _funMutual     = Just []
+                , _funTerminates = Just True
                 }
             | otherwise = defaultAxiom
 

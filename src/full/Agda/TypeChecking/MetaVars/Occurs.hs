@@ -32,7 +32,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.MetaVars
 
-import Agda.TypeChecking.Constraints () -- instances
+import Agda.TypeChecking.Constraints ( wakeupConstraints )
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Reduce
@@ -260,15 +260,10 @@ metaCheck m = do
     when (isUnguarded cxt)                   $ fail "occurrence is unguarded"
 
     reportSDoc "tc.meta.occurs" 20 $ "Promoting meta" <+> prettyTCM m <+> "to modality" <+> prettyTCM mmod'
-    let info' = setModality mmod' $ mvInfo mv
-    m' <- liftTCM $ newMeta Instantiable info' (mvPriority mv) (mvPermutation mv) (mvJudgement mv)
-    reportSDoc "tc.meta.occurs.qnt" 20 $ hsep
-       [ "occursCheck: new meta variable"
-       , prettyTCM m'
-       ]
-    liftTCM $ assignTerm m [] $ MetaV m' []
-    reportSDoc "tc.meta.occurs" 35 $ "New name for" <+> prettyTCM m <+> "is" <+> prettyTCM m'
-    return m'
+    updateMetaVar m $ \ mv -> mv { mvInfo = setModality mmod' $ mvInfo mv }
+    etaExpandListeners m
+    wakeupConstraints m
+    return m
 
 -- | Construct a test whether a de Bruijn index is allowed
 --   or needs to be pruned.
@@ -276,9 +271,9 @@ allowedVars :: OccursM (Nat -> Bool)
 allowedVars = do
   -- @n@ is the number of binders we have stepped under.
   n  <- liftM2 (-) getContextSize (asks (occCxtSize . feExtra))
-  xs <- asks ((IntMap.keysSet . theVarMap) . (occVars . feExtra))
+  xs <- asks (theVarMap . occVars . feExtra)
   -- Bound variables are allowed, and those mentioned in occVars.
-  return $ \ i -> i < n || (i - n) `IntSet.member` xs
+  return $ \ i -> i < n || (i - n) `IntMap.member` xs
 
 -- ** Unfolding during occurs check.
 
@@ -834,7 +829,7 @@ instance AnyRigid Term where
         -- If the definition is incomplete, arguments might disappear
         -- by reductions that come with more clauses, thus, these
         -- arguments are not rigid.
-        NotBlocked MissingClauses _ -> return False
+        NotBlocked (MissingClauses _) _ -> return False
         -- _        -> mempty -- breaks: ImproveInertRHS, Issue442, PruneRecord, PruningNonMillerPattern
         _        -> anyRigid f es
       Con _ _ ts -> anyRigid f ts
@@ -953,9 +948,12 @@ killArgs kills m = do
 killedType :: (MonadReduce m) => [(Dom (ArgName, Type), Bool)] -> Type -> m ([Arg Bool], Type)
 killedType args b = do
 
+  let n = length args
+  let iargs = zip (downFrom n) args
+
   -- Turn list of bools into an IntSet containing the variables we want to kill
   -- (indices relative to b).
-  let tokill = IntSet.fromList [ i | ((_, True), i) <- zip (reverse args) [0..] ]
+  let tokill = IntSet.fromList [ i | (i, (_, True)) <- iargs ]
 
   -- First, check the free variables of b to see if they prevent any kills.
   (tokill, b) <- reallyNotFreeIn tokill b
@@ -965,7 +963,7 @@ killedType args b = do
 
   -- Turn the IntSet of killed variables into the list of Arg Bool's to return.
   let kills = [ Arg (getArgInfo dom) (IntSet.member i killed)
-              | (i, (dom, _)) <- reverse $ zip [0..] $ reverse args ]
+              | (i, (dom, _)) <- iargs ]
   return (kills, b)
   where
     down = IntSet.map pred
@@ -1003,7 +1001,7 @@ killedType args b = do
           (ys, a) <- reallyNotFreeIn xs' a
           -- Recurse on Δ, ys, and (x : A') → B, where A reduces to A' and ys ⊆ xs'
           -- not free in A'. We already know ys not free in B.
-          (zs, b) <- go args ys (mkPi ((name, a) <$ arg) b)
+          (zs, b) <- go args ys $ mkPi ((name, a) <$ arg) b
           -- Shift back up to make it relative to Δ (x : A) again.
           return (up zs, b)
 

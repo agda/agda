@@ -4,11 +4,12 @@ module Agda.Compiler.Common where
 
 import Prelude hiding ((!!))
 
-import Data.List as List hiding ((!!))
+import Data.List (sortBy, isPrefixOf)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
+import qualified Data.HashSet as HSet
 import Data.Char
 import Data.Function
 #if __GLASGOW_HASKELL__ < 804
@@ -21,17 +22,20 @@ import Control.Monad.State
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal as I
+import Agda.Syntax.TopLevelModuleName
 
 import Agda.Interaction.FindFile ( srcFilePath )
 import Agda.Interaction.Options
-import Agda.Interaction.Imports ( CheckResult, crInterface, crSource, Source(..) )
+import Agda.Interaction.Imports  ( CheckResult, crInterface, crSource, Source(..) )
 
-import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad as TCM
 
 import Agda.Utils.FileName
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.List1          ( pattern (:|) )
 import Agda.Utils.Maybe
+import Agda.Utils.Monad          ( ifNotM )
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
@@ -51,13 +55,24 @@ instance Monoid IsMain where
 
 doCompile :: Monoid r => (IsMain -> Interface -> TCM r) -> IsMain -> Interface -> TCM r
 doCompile f isMain i = do
-  -- The Agda.Primitive module is implicitly assumed to be always imported,
-  -- even though it not necesseraly occurs in iImportedModules.
-  -- TODO: there should be a better way to get hold of Agda.Primitive?
-  [agdaPrimInter] <- filter (("Agda.Primitive"==) . prettyShow . iModuleName)
-    . map miInterface . Map.elems
-      <$> getVisitedModules
-  flip evalStateT Set.empty $ mappend <$> doCompile' f NotMain agdaPrimInter <*> doCompile' f isMain i
+  flip evalStateT Set.empty $ compilePrim $ doCompile' f isMain i
+  where
+  -- The Agda.Primitive module is only loaded if the --no-load-primitives flag was not given,
+  -- thus, only try to compile it if we have visited it.
+  compilePrim cont = do
+    agdaPrim <- lift $ do
+      agdaPrim <- TCM.topLevelModuleName agdaPrim
+      Map.lookup agdaPrim <$> getVisitedModules
+    case agdaPrim of
+      Nothing   -> cont
+      Just prim ->
+        mappend <$> doCompile' f NotMain (miInterface prim) <*> cont
+    where
+    agdaPrim = RawTopLevelModuleName
+      { rawModuleNameRange = mempty
+      , rawModuleNameParts = "Agda" :| "Primitive" : []
+      }
+      -- N.B. The Range in TopLevelModuleName is ignored for Ord, so we can set it to mempty.
 
 -- This helper function is called for both `Agda.Primitive` and the module in question.
 -- It's also called for each imported module, recursively. (Avoiding duplicates).
@@ -69,7 +84,7 @@ doCompile' f isMain i = do
   if alreadyDone then return mempty else do
     imps <- lift $
       map miInterface . catMaybes <$>
-        mapM (getVisitedModule . toTopLevelModuleName . fst) (iImportedModules i)
+        mapM (getVisitedModule . fst) (iImportedModules i)
     ri <- mconcat <$> mapM (doCompile' f NotMain) imps
     lift $ setInterface i
     r <- lift $ f isMain i
@@ -81,16 +96,21 @@ setInterface i = do
   opts <- getsTC (stPersistentOptions . stPersistentState)
   setCommandLineOptions opts
   mapM_ setOptionsFromPragma (iDefaultPragmaOptions i ++ iFilePragmaOptions i)
-  stImportedModules `setTCLens` Set.fromList (map fst $ iImportedModules i)
-  stCurrentModule   `setTCLens` Just (iModuleName i)
+  -- One could perhaps make the following command lazy. Note, however,
+  -- that it doesn't suffice to replace setTCLens' with setTCLens,
+  -- because the stPreImportedModules field is strict.
+  stImportedModules `setTCLens'`
+    HSet.fromList (map fst (iImportedModules i))
+  stCurrentModule `setTCLens'`
+    Just (iModuleName i, iTopLevelModuleName i)
 
 curIF :: ReadTCState m => m Interface
 curIF = do
   name <- curMName
-  maybe __IMPOSSIBLE__ miInterface <$> getVisitedModule (toTopLevelModuleName name)
+  maybe __IMPOSSIBLE__ miInterface <$> getVisitedModule name
 
-curMName :: ReadTCState m => m ModuleName
-curMName = fromMaybe __IMPOSSIBLE__ <$> useTC stCurrentModule
+curMName :: ReadTCState m => m TopLevelModuleName
+curMName = maybe __IMPOSSIBLE__ snd <$> useTC stCurrentModule
 
 curDefs :: ReadTCState m => m Definitions
 curDefs = HMap.filter (not . defNoCompilation) . (^. sigDefinitions) . iSignature <$> curIF
@@ -100,7 +120,7 @@ sortDefs defs =
   -- The list is sorted to ensure that the order of the generated
   -- definitions does not depend on things like the number of bits
   -- in an Int (see Issue 1900).
-  List.sortBy (compare `on` fst) $
+  sortBy (compare `on` fst) $
   HMap.toList defs
 
 compileDir :: HasOptions m => m FilePath
@@ -138,9 +158,9 @@ inCompilerEnv checkResult cont = do
           Just dir -> dir
           Nothing  ->
             -- The default output directory is the project root.
-            let tm = toTopLevelModuleName $ iModuleName mainI
+            let tm = iTopLevelModuleName mainI
                 f  = srcFilePath $ srcOrigin checkedSource
-            in filePath $ C.projectRoot f tm
+            in filePath $ projectRoot f tm
     setCommandLineOptions $
       opts { optCompileDir = Just compileDir }
 
@@ -166,16 +186,18 @@ inCompilerEnv checkResult cont = do
   stTCWarnings `setTCLens` newWarnings
   return a
 
-topLevelModuleName :: ReadTCState m => ModuleName -> m ModuleName
+topLevelModuleName ::
+  ReadTCState m => ModuleName -> m TopLevelModuleName
 topLevelModuleName m = do
-  -- get the names of the visited modules
-  visited <- List.map (iModuleName . miInterface) . Map.elems <$>
-    getVisitedModules
+  -- Interfaces of visited modules.
+  visited <- map miInterface . Map.elems <$> getVisitedModules
   -- find the module with the longest matching prefix to m
-  let ms = sortBy (compare `on` (length . mnameToList)) $
-       List.filter (\ m' -> mnameToList m' `isPrefixOf` mnameToList m) visited
-  case ms of
-    (m' : _) -> return m'
+  let is = sortBy (compare `on` (length . mnameToList . iModuleName)) $
+           filter (\i -> mnameToList (iModuleName i) `isPrefixOf`
+                         mnameToList m)
+             visited
+  case is of
+    (i : _) -> return (iTopLevelModuleName i)
     -- if we did not get anything, it may be because m is a section
     -- (a module _ ), see e.g. #1866
     []       -> curMName

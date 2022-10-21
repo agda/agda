@@ -24,13 +24,13 @@ jobs:
       stack-ver: ${{ matrix.stack-ver }}
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: styfle/cancel-workflow-action@0.6.0
+    - uses: styfle/cancel-workflow-action@0.11.0
       with:
         access_token: ${{ github.token }}
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
-    - uses: haskell/actions/setup@v1
+    - uses: haskell/actions/setup@v2
       with:
         enable-stack: true
         ghc-version: ${{ matrix.ghc-ver }}
@@ -45,13 +45,11 @@ jobs:
         make STACK_INSTALL_OPTS='--dry-run' install-deps
     - id: cache
       name: Cache dependencies
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-01-${{ matrix.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-02-${{ matrix.stack-ver }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
-    - name: Install and configure the icu library
-      run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
     - if: ${{ !steps.cache.outputs.cache-hit }}
       name: Install dependencies for Agda and its test suites
       run: make STACK_OPTS=--silent install-deps
@@ -74,7 +72,7 @@ jobs:
 
         tar --use-compress-program zstd -cvf stack-work.tzst .stack-work stack.yaml stack.yaml.lock
     - name: Upload artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         if-no-files-found: error
         name: agda-${{ runner.os }}-${{ github.sha }}
@@ -87,22 +85,22 @@ jobs:
         ghc-ver:
         - 9.2.4
         os:
-        - ubuntu-20.04
+        - ubuntu-22.04
         stack-ver:
-        - latest
+        - 2.9.1
   cubical:
     needs: build
     runs-on: ${{ needs.build.outputs.os }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
-    - uses: haskell/actions/setup@v1
+    - uses: haskell/actions/setup@v2
       with:
         enable-stack: true
         ghc-version: ${{ needs.build.outputs.ghc-ver }}
         stack-version: ${{ needs.build.outputs.stack-ver }}
-    - uses: actions/download-artifact@v2
+    - uses: actions/download-artifact@v3
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
@@ -111,9 +109,9 @@ jobs:
         tar --use-compress-program zstd -xvf stack-work.tzst
     - id: cache
       name: Cache dependencies
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-02-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
     - name: Install and configure the icu library
@@ -126,15 +124,15 @@ jobs:
     needs: build
     runs-on: ${{ needs.build.outputs.os }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
-    - uses: haskell/actions/setup@v1
+    - uses: haskell/actions/setup@v2
       with:
         enable-stack: true
         ghc-version: ${{ needs.build.outputs.ghc-ver }}
         stack-version: ${{ needs.build.outputs.stack-ver }}
-    - uses: actions/download-artifact@v2
+    - uses: actions/download-artifact@v3
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
@@ -143,9 +141,9 @@ jobs:
         tar --use-compress-program zstd -xvf stack-work.tzst
     - id: cache
       name: Cache dependencies
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-02-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
     - name: Install and configure the icu library
@@ -165,15 +163,15 @@ jobs:
     needs: build
     runs-on: ${{ needs.build.outputs.os }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
-    - uses: haskell/actions/setup@v1
+    - uses: haskell/actions/setup@v2
       with:
         enable-stack: true
         ghc-version: ${{ needs.build.outputs.ghc-ver }}
         stack-version: ${{ needs.build.outputs.stack-ver }}
-    - uses: actions/download-artifact@v2
+    - uses: actions/download-artifact@v3
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
@@ -182,9 +180,9 @@ jobs:
         tar --use-compress-program zstd -xvf stack-work.tzst
     - id: cache
       name: Cache dependencies
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-02-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
     - name: Install and configure the icu library
@@ -205,15 +203,15 @@ jobs:
     needs: build
     runs-on: ${{ needs.build.outputs.os }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
-    - uses: haskell/actions/setup@v1
+    - uses: haskell/actions/setup@v2
       with:
         enable-stack: true
         ghc-version: ${{ needs.build.outputs.ghc-ver }}
         stack-version: ${{ needs.build.outputs.stack-ver }}
-    - uses: actions/download-artifact@v2
+    - uses: actions/download-artifact@v3
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
@@ -222,9 +220,9 @@ jobs:
         tar --use-compress-program zstd -xvf stack-work.tzst
     - id: cache
       name: Cache dependencies
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-02-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
     - name: Suite of tests for bugs
@@ -268,7 +266,6 @@ name: Build, Test, and Benchmark
     - '!macros/**'
     - '!notes/**'
     - '!.mailmap'
-    - '!.ghci*'
     - '!.gitignore'
     - '!.hlint.yaml'
     - '!.travis.yml'
@@ -299,7 +296,6 @@ name: Build, Test, and Benchmark
     - '!macros/**'
     - '!notes/**'
     - '!.mailmap'
-    - '!.ghci*'
     - '!.gitignore'
     - '!.hlint.yaml'
     - '!.travis.yml'

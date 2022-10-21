@@ -21,7 +21,7 @@ import Agda.Syntax.Abstract.Pretty (prettyATop)
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete as C
 
-import Agda.TypeChecking.Errors (prettyError, getAllWarningsOfTCErr)
+import Agda.TypeChecking.Errors ( explainWhyInScope, getAllWarningsOfTCErr, prettyError )
 import qualified Agda.TypeChecking.Pretty as TCP
 import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
@@ -181,8 +181,8 @@ lispifyDisplayInfo info = case info of
       let doc = "Definitions about" <+>
                 text (List.intercalate ", " $ words names) $$ nest 2 (align 10 hitDocs)
       format (render doc) "*Search About*"
-    Info_WhyInScope s cwd v xs ms -> do
-      doc <- explainWhyInScope s cwd v xs ms
+    Info_WhyInScope why -> do
+      doc <- explainWhyInScope why
       format (render doc) "*Scope Info*"
     Info_Context ii ctx -> do
       doc <- localTCState (prettyResponseContext ii False ctx)
@@ -317,87 +317,6 @@ showInfoError (Info_HighlightingParseError ii) =
   return $ "Highlighting failed to parse expression in " ++ show ii
 showInfoError (Info_HighlightingScopeCheckError ii) =
   return $ "Highlighting failed to scope check expression in " ++ show ii
-
-explainWhyInScope :: FilePath
-                  -> String
-                  -> (Maybe LocalVar)
-                  -> [AbstractName]
-                  -> [AbstractModule]
-                  -> TCM Doc
-explainWhyInScope s _ Nothing [] [] = TCP.text (s ++ " is not in scope.")
-explainWhyInScope s _ v xs ms = TCP.vcat
-  [ TCP.text (s ++ " is in scope as")
-  , TCP.nest 2 $ TCP.vcat [variable v xs, modules ms]
-  ]
-  where
-    -- variable :: Maybe _ -> [_] -> TCM Doc
-    variable Nothing vs = names vs
-    variable (Just x) vs
-      | null vs   = asVar
-      | otherwise = TCP.vcat
-         [ TCP.sep [ asVar, TCP.nest 2 $ shadowing x]
-         , TCP.nest 2 $ names vs
-         ]
-      where
-        asVar :: TCM Doc
-        asVar = do
-          "* a variable bound at" TCP.<+> TCP.prettyTCM (nameBindingSite $ localVar x)
-        shadowing :: LocalVar -> TCM Doc
-        shadowing (LocalVar _ _ [])    = "shadowing"
-        shadowing _ = "in conflict with"
-    names   = TCP.vcat . map pName
-    modules = TCP.vcat . map pMod
-
-    pKind = \case
-      ConName                  -> "constructor"
-      CoConName                -> "coinductive constructor"
-      FldName                  -> "record field"
-      PatternSynName           -> "pattern synonym"
-      GeneralizeName           -> "generalizable variable"
-      DisallowedGeneralizeName -> "generalizable variable from let open"
-      MacroName                -> "macro name"
-      QuotableName             -> "quotable name"
-      -- previously DefName:
-      DataName                 -> "data type"
-      RecName                  -> "record type"
-      AxiomName                -> "postulate"
-      PrimName                 -> "primitive function"
-      FunName                  -> "defined name"
-      OtherDefName             -> "defined name"
-
-    pName :: AbstractName -> TCM Doc
-    pName a = TCP.sep
-      [ "* a"
-        TCP.<+> pKind (anameKind a)
-        TCP.<+> TCP.text (prettyShow $ anameName a)
-      , TCP.nest 2 $ "brought into scope by"
-      ] TCP.$$
-      TCP.nest 2 (pWhy (nameBindingSite $ qnameName $ anameName a) (anameLineage a))
-    pMod :: AbstractModule -> TCM Doc
-    pMod  a = TCP.sep
-      [ "* a module" TCP.<+> TCP.text (prettyShow $ amodName a)
-      , TCP.nest 2 $ "brought into scope by"
-      ] TCP.$$
-      TCP.nest 2 (pWhy (nameBindingSite $ qnameName $ mnameToQName $ amodName a) (amodLineage a))
-
-    pWhy :: Range -> WhyInScope -> TCM Doc
-    pWhy r Defined = "- its definition at" TCP.<+> TCP.prettyTCM r
-    pWhy r (Opened (C.QName x) w) | isNoName x = pWhy r w
-    pWhy r (Opened m w) =
-      "- the opening of"
-      TCP.<+> TCP.prettyTCM m
-      TCP.<+> "at"
-      TCP.<+> TCP.prettyTCM (getRange m)
-      TCP.$$
-      pWhy r w
-    pWhy r (Applied m w) =
-      "- the application of"
-      TCP.<+> TCP.prettyTCM m
-      TCP.<+> "at"
-      TCP.<+> TCP.prettyTCM (getRange m)
-      TCP.$$
-      pWhy r w
-
 
 -- | Pretty-prints the context of the given meta-variable.
 

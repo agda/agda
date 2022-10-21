@@ -5,13 +5,14 @@ import Control.DeepSeq
 import Data.Char
 import Data.Word
 
-import Data.Data (Data)
 import Data.Text (Text)
 import qualified Data.Text as T
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
+import {-# SOURCE #-} Agda.Syntax.TopLevelModuleName
+  (TopLevelModuleName)
 import Agda.Utils.FileName
 import Agda.Utils.Float ( doubleDenotEq, doubleDenotOrd )
 import Agda.Utils.Pretty
@@ -24,8 +25,8 @@ data Literal
   | LitString !Text
   | LitChar   !Char
   | LitQName  !QName
-  | LitMeta   AbsolutePath MetaId
-  deriving (Data, Show)
+  | LitMeta   !TopLevelModuleName !MetaId
+  deriving Show
 
 instance Pretty Literal where
     pretty (LitNat n)     = pretty n
@@ -92,7 +93,7 @@ instance KillRange Literal where
   killRange (LitString x) = LitString x
   killRange (LitChar   x) = LitChar   x
   killRange (LitQName  x) = killRange1 LitQName x
-  killRange (LitMeta f x) = LitMeta f x
+  killRange (LitMeta m x) = LitMeta (killRange m) x
 
 -- | Ranges are not forced.
 
@@ -103,4 +104,4 @@ instance NFData Literal where
   rnf (LitString _  ) = ()
   rnf (LitChar _    ) = ()
   rnf (LitQName a   ) = rnf a
-  rnf (LitMeta _ x  ) = rnf x
+  rnf (LitMeta m _  ) = rnf m

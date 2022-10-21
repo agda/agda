@@ -43,6 +43,7 @@ instance MentionsMeta Blocker where
   mentionsMetas xs (UnblockOnAny bs)  = mentionsMetas xs $ Set.toList bs
   mentionsMetas xs (UnblockOnMeta x)  = HashSet.member x xs
   mentionsMetas xs UnblockOnProblem{} = False
+  mentionsMetas xs UnblockOnDef{}     = False
 
 instance MentionsMeta Type where
     mentionsMetas xs (El s t) = mentionsMetas xs (s, t)
@@ -122,7 +123,7 @@ instance MentionsMeta Constraint where
     CheckMetaInst m     -> True   -- TODO
     CheckType t         -> mm t
     CheckLockedVars a b c d -> mm ((a, b), (c, d))
-    UsableAtModality mod t -> mm t
+    UsableAtModality ms mod t -> mm (ms, t)
     where
       mm :: forall t. MentionsMeta t => t -> Bool
       mm = mentionsMetas xs

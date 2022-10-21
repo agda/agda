@@ -1,4 +1,4 @@
 Issue5781a.agda:1,1-35
 Not a valid profiling option: 'notclose'. Valid options are
-constraints, definitions, interactive, internal, metas, modules,
-serialize, sharing, or all.
+constraints, conversion, definitions, interactive, internal, metas,
+modules, serialize, sharing, or all.

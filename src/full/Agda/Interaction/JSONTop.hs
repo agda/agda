@@ -2,8 +2,10 @@ module Agda.Interaction.JSONTop
     ( jsonREPL
     ) where
 
-import Control.Monad          ( (<=<), forM )
-import Control.Monad.IO.Class ( MonadIO(..) )
+import Control.Monad
+         ( (<=<), forM )
+import Control.Monad.IO.Class
+         ( MonadIO(..) )
 
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as BS
@@ -12,30 +14,47 @@ import qualified Data.Set as Set
 
 import Agda.Interaction.AgdaTop
 import Agda.Interaction.Base
-  (CommandState(..), CurrentFile(..), ComputeMode(..), Rewrite(..), OutputForm(..), OutputConstraint(..))
+         ( CommandState(..), CurrentFile(..), ComputeMode(..), Rewrite(..), OutputForm(..), OutputConstraint(..) )
 import qualified Agda.Interaction.BasicOps as B
 import Agda.Interaction.EmacsTop
 import Agda.Interaction.JSON
 import Agda.Interaction.Response as R
 import Agda.Interaction.Highlighting.JSON
-import Agda.Syntax.Abstract.Pretty (prettyATop)
+
+import Agda.Syntax.Abstract.Pretty
+         ( prettyATop )
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
-import Agda.Syntax.Concrete.Name (NameInScope(..), Name)
-import Agda.Syntax.Internal (telToList, Dom'(..), Dom, MetaId(..), ProblemId(..), Blocker(..), alwaysUnblock)
-import Agda.Syntax.Position (Range, rangeIntervals, Interval'(..), Position'(..), noRange)
-import Agda.VersionCommit
+import Agda.Syntax.Concrete.Name
+         ( NameInScope(..), Name )
+import Agda.Syntax.Internal
+         ( telToList, Dom'(..), Dom, MetaId(..), ProblemId(..), Blocker(..), alwaysUnblock )
+import Agda.Syntax.Position
+         ( Range, rangeIntervals, Interval'(..), Position'(..), noRange )
+import Agda.Syntax.Scope.Base
+         ( WhyInScopeData(..) )
 
-import Agda.TypeChecking.Errors (getAllWarningsOfTCErr)
-import Agda.TypeChecking.Monad (Comparison(..), inTopContext, TCM, TCErr, TCWarning, NamedMeta(..), withInteractionId)
-import Agda.TypeChecking.Monad.MetaVars (getInteractionRange, getMetaRange, withMetaId)
-import Agda.TypeChecking.Pretty (PrettyTCM(..), prettyTCM)
+import Agda.TypeChecking.Errors
+         ( getAllWarningsOfTCErr )
+import Agda.TypeChecking.Monad
+         ( Comparison(..), inTopContext, TCM, TCErr, TCWarning, NamedMeta(..), withInteractionId )
+import Agda.TypeChecking.Monad.MetaVars
+         ( getInteractionRange, getMetaRange, withMetaId )
+import Agda.TypeChecking.Pretty
+         ( PrettyTCM(..), prettyTCM )
 -- borrowed from EmacsTop, for temporarily serialising stuff
-import Agda.TypeChecking.Pretty.Warning (filterTCWarnings)
-import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors(..))
-import Agda.Utils.Pretty (Pretty(..))
+import Agda.TypeChecking.Pretty.Warning
+         ( filterTCWarnings )
+import Agda.TypeChecking.Warnings
+         ( WarningsAndNonFatalErrors(..) )
+
 import qualified Agda.Utils.Pretty as P
-import Agda.Utils.Time (CPUTime(..))
+import Agda.Utils.Pretty
+         ( Pretty(..), prettyShow )
+import Agda.Utils.Time
+         ( CPUTime(..) )
+
+import Agda.VersionCommit
 
 --------------------------------------------------------------------------------
 
@@ -70,7 +89,7 @@ instance ToJSON CommandState where
 
 instance EncodeTCM CurrentFile where
 instance ToJSON CurrentFile where
-  toJSON (CurrentFile path _ time) = toJSON (path, time)  -- backwards compat.
+  toJSON (CurrentFile path _ _ time) = toJSON (path, time)  -- backwards compat.
 
 instance EncodeTCM ResponseContextEntry where
   encodeTCM entry = obj
@@ -261,6 +280,7 @@ instance EncodeTCM (OutputForm C.Expr C.Expr) where
 instance EncodeTCM Blocker where
   encodeTCM (UnblockOnMeta x)    = kind "UnblockOnMeta" [ "meta" @= x ]
   encodeTCM (UnblockOnProblem p) = kind "UnblockOnProblem" [ "id" @= p ]
+  encodeTCM (UnblockOnDef q)     = kind "UnblockOnDef" [ "name" @= encodePretty q ]
   encodeTCM (UnblockOnAll us)    = kind "UnblockOnAll" [ "blockers" @= Set.toList us ]
   encodeTCM (UnblockOnAny us)    = kind "UnblockOnAny" [ "blockers" @= Set.toList us ]
 
@@ -300,7 +320,7 @@ instance EncodeTCM DisplayInfo where
       encodeDomType dom = obj
         [ "dom"       #= encodePrettyTCM (unDom dom)
         , "name"      @= fmap encodePretty (bareNameOf dom)
-        , "finite"    @= toJSON (domFinite dom)
+        , "finite"    @= toJSON (domIsFinite dom)
         , "cohesion"  @= encodeShow (modCohesion . argInfoModality $ domInfo dom)
         , "relevance" @= encodeShow (modRelevance . argInfoModality $ domInfo dom)
         , "hiding"    @= case argInfoHiding $ domInfo dom of
@@ -311,11 +331,11 @@ instance EncodeTCM DisplayInfo where
     [ "results"           #= forM results encodeNamedPretty
     , "search"            @= toJSON search
     ]
-  encodeTCM (Info_WhyInScope thing path v xs ms) = kind "WhyInScope"
-    [ "thing"             @= thing
+  encodeTCM (Info_WhyInScope why@(WhyInScopeData y path _ _ _)) = kind "WhyInScope"
+    [ "thing"             @= prettyShow y
     , "filepath"          @= toJSON path
     -- use Emacs message first
-    , "message"           #= explainWhyInScope thing path v xs ms
+    , "message"           #= explainWhyInScope why
     ]
   encodeTCM (Info_NormalForm commandState computeMode time expr) = kind "NormalForm"
     [ "commandState"      @= commandState

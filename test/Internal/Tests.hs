@@ -42,10 +42,11 @@ import qualified Internal.Utils.FileName                           as UtilFile  
 import qualified Internal.Utils.Graph.AdjacencyMap.Unidirectional  as UtilGraphUni ( tests )
 import qualified Internal.Utils.IntSet                             as UtilIntSet   ( tests )
 import qualified Internal.Utils.List                               as UtilList     ( tests )
+import qualified Internal.Utils.List1                              as UtilList1    ( tests )
+import qualified Internal.Utils.List2                              as UtilList2    ( tests )
 import qualified Internal.Utils.ListT                              as UtilListT    ( tests )
 import qualified Internal.Utils.Maybe.Strict                       as UtilMaybeS   ( tests )
 import qualified Internal.Utils.Monoid                             as UtilMonoid   ( tests )
-import qualified Internal.Utils.NonEmptyList                       as UtilNonEmpty ( tests )
 import qualified Internal.Utils.PartialOrd                         as UtilPOrd     ( tests )
 import qualified Internal.Utils.Permutation                        as UtilPerm     ( tests )
 import qualified Internal.Utils.RangeMap                           as UtilRangeMap ( tests )
@@ -92,10 +93,11 @@ tests = testGroup "Internal"
   , UtilGraphUni.tests
   , UtilIntSet.tests
   , UtilList.tests
+  , UtilList1.tests
+  , UtilList2.tests
   , UtilListT.tests
   , UtilMaybeS.tests
   , UtilMonoid.tests
-  , UtilNonEmpty.tests
   , UtilPOrd.tests
   , UtilPerm.tests
   , UtilRangeMap.tests

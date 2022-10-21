@@ -78,6 +78,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty ( prettyShow )
+import qualified Agda.Utils.ProfileOptions as Profile
 
 import Agda.Utils.Impossible
 
@@ -196,13 +197,12 @@ checkInjectivity' f cs = fromMaybe NotInjective <.> runMaybeT $ do
   -- We don't need to consider absurd clauses
   let computeHead c | hasDefP (namedClausePats c) = return []
       -- hasDefP clauses are skipped, these matter only for --cubical, in which case the function will behave as NotInjective.
-      computeHead c@Clause{ clauseBody = Just body , clauseType = Just tbody } = do
+      computeHead c@Clause{ clauseBody = Just body , clauseType = Just tbody } = addContext (clauseTel c) $ do
         maybeIrr <- fromRight (const True) <.> runBlocked $ isIrrelevantOrPropM tbody
         h <- if maybeIrr then return UnknownHead else
           varToArg c =<< do
             lift $ fromMaybe UnknownHead <$> do
-              addContext (clauseTel c) $
-                headSymbol body
+              headSymbol body
         return [Map.singleton h [c]]
       computeHead _ = return []
 
@@ -313,6 +313,7 @@ useInjectivity dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
       reportSDoc "tc.inj.use" 30 $ fsep $
         pwords "useInjectivity on" ++
         [ prettyTCM blk, prettyTCM cmp, prettyTCM neu, prettyTCM ty]
+      whenProfile Profile.Conversion $ tick "compare by reduction: injectivity"
       let canReduceToSelf = Map.member (ConsHead f) hdMap || Map.member UnknownHead hdMap
       case neu of
         -- f us == f vs  <=>  us == vs
@@ -330,6 +331,7 @@ useInjectivity dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
           fs  <- getForcedArgs f
           pol <- getPolarity' cmp f
           reportSDoc "tc.inj.invert.success" 20 $ hsep ["Successful spine comparison of", prettyTCM f]
+          whenProfile Profile.Conversion $ tick "compare by reduction: injectivity successful"
           app (compareElims pol fs fTy (Def f [])) blkArgs neuArgs
 
         -- f us == c vs

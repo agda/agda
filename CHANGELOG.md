@@ -63,8 +63,8 @@ Language
   (see [#5427](https://github.com/agda/agda/issues/5427)).
 
 * The cubical interval `I` now belongs to its own sort, `IUniv`, rather
-  than `SSet`. For `J : ISet` and `A : J → Set l`, we have
-  `(j : J) → A : Set l`, that is, the type of functions from a type in `ISet`
+  than `SSet`. For `J : IUniv` and `A : J → Set l`, we have
+  `(j : J) → A j : Set l`, that is, the type of functions from a type in `IUniv`
   to a fibrant type is fibrant.
 
 * The option `--experimental-irrelevance` is now perhaps incompatible
@@ -75,6 +75,24 @@ Language
   This is not meant to imply that the option was not already
   incompatible with those things. Note that
   `--experimental-irrelevance` cannot be used together with `--safe`.
+
+* Two new reflection primitives
+
+  ```agda
+  declareData      : Name → Nat → Type → TC ⊤
+  defineData       : Name → List (Σ Name (λ _ → Type)) → TC ⊤
+  ```
+
+  are added for declaring and defining datatypes, similar to
+  `declareDef` and `defineDef`.
+
+* The construct `unquoteDecl` is extended with the ability of bringing
+  a datatype `d` and its constructors `c₁ ... cₙ` given by a `TC`
+  computation `m` into scope by the following syntax:
+
+  ```agda
+  unquoteDecl data x constructor c₁ .. cₙ = m
+  ```
 
 * A new reflection primitive `getInstances : Meta → TC (List Term)`
   was added to `Agda.Builtin.Reflection`. This operation returns the
@@ -112,6 +130,34 @@ Language
 
 * A new constructor `pattErr : Pattern → ErrorPart` of `ErrorPart` for reflection
   is added.
+
+* The type expected by the builtin `EQUIVPROOF` has been changed to
+  properly encode the condition that `EQUVIFUN` is an equivalence.
+  ([#5661](https://github.com/agda/agda/issues/5661),
+  [#6032](https://github.com/agda/agda/pull/6032))
+
+* The primitive `primIdJ` has been removed
+  ([#6032](https://github.com/agda/agda/pull/6032)).
+
+* The builtin `SUBIN` is now exported from `Agda.Builtin.Cubical.Sub` as
+  **`inS`** rather than `inc`.
+
+* A new built-in constructor `REFLID` was added to the cubical identity
+  types. This is definitionally equal to the reflexivity identification
+  built with `conid`, with the difference being that matching on
+  `REFLID` is allowed.
+
+  ```agda
+  symId : ∀ {a} {A : Set a} {x y : A} → Id x y → Id y x
+  symId reflId = reflId
+  ```
+
+* The new option `--no-load-primitives` complements `--no-import-sorts`
+  by foregoing loading of the primitive modules altogether. This option
+  leaves Agda in a very fragile state, as the built-in sorts are used
+  extensively throughout the implementation. It is intended to be used
+  with Literate Agda projects which want to bind `BUILTIN TYPE` (and
+  other primitives) in their own literate files.
 
 Syntax
 ------
@@ -183,10 +229,34 @@ Pragmas and options
 * Profiling options are now turned on with a new `--profile` flag instead of
   abusing the debug verbosity option. (See [#5781](https://github.com/agda/agda/issues/5731).)
 
+* The new profiling option `--profile=conversion` collects statistics
+  on how often various steps of the conversion algorithm are used
+  (reduction, eta-expansion, syntactic equality, etc).
+
 * The option `--without-K` has been renamed `--cubical-compatible` (See
   [#5843](https://github.com/agda/agda/issues/5843).)
 
   The old name is retained for backwards compatibility.
+
+* If `--interaction-exit-on-error` is used, then Agda exits with a
+  non-zero exit code if `--interaction` or `--interaction-json` are
+  used and a type error is encountered. The option also makes Agda
+  exit with exit code 113 if Agda fails to parse a command.
+
+  This option might for instance be used if Agda is controlled from a
+  script.
+
+Builtins
+--------
+
+* Change `primFloatToWord64` to return `Maybe Word64`.
+  (See [#6093](https://github.com/agda/agda/issues/6093).)
+
+  The new type is
+  ```agda
+    primFloatToWord64 : Float → Maybe Word64
+  ```
+  and it returns `nothing` for `NaN`.
 
 Performance
 -----------
@@ -215,6 +285,8 @@ Performance
 
   The idea for this option comes from András Kovács'
   [smalltt](https://github.com/AndrasKovacs/smalltt/blob/989b020309686e04374f1ab7844f468386d2eb2f/README.md#approximate-conversion-checking).
+
+  Note that this option is experimental and subject to change.
 
 Compiler backends
 -----------------

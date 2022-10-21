@@ -779,11 +779,13 @@ checkLeftHandSide call f ps a withSub' strippedPats =
                  , "asb     = " <+> addContext delta (brackets $ fsep $ punctuate comma $ map prettyTCM asb)
                  , "absurds = " <+> addContext delta (brackets $ fsep $ punctuate comma $ map prettyTCM absurds)
                  , "qs      = " <+> addContext delta (prettyList $ map pretty qs)
+                 , "b       = " <+> addContext delta (prettyTCM b)
                  ]
                ]
         reportSDoc "tc.lhs.top" 30 $
           nest 2 $ vcat
                  [ "vars   = " <+> pretty vars
+                 , "b      = " <+> pretty b
                  ]
         reportSDoc "tc.lhs.top" 20 $ nest 2 $ "withSub  = " <+> pretty withSub
         reportSDoc "tc.lhs.top" 20 $ nest 2 $ "weakSub  = " <+> pretty weakSub
@@ -868,8 +870,9 @@ checkLHS mf = updateModality checkLHS_ where
         -- the modalities in the clause telescope also need updating.
 
  checkLHS_ st@(LHSState tel ip problem target psplit) = do
-  reportSDoc "lhs" 10 $ "tel is" <+> prettyTCM tel
-  reportSDoc "lhs" 10 $ "ip is" <+> pretty ip
+  reportSDoc "tc.lhs" 40 $ "tel is" <+> prettyTCM tel
+  reportSDoc "tc.lhs" 40 $ "ip is" <+> pretty ip
+  reportSDoc "tc.lhs" 40 $ "target is" <+> addContext tel (prettyTCM target)
   if isSolvedProblem problem then
     liftTCM $ (problem ^. problemCont) st
   else do
@@ -1041,9 +1044,9 @@ checkLHS mf = updateModality checkLHS_ where
                  -> ExceptT TCErr tcm (LHSState a)
     splitPartial delta1 dom adelta2 ts = do
 
-      unless (domFinite dom) $ liftTCM $ addContext delta1 $
+      unless (domIsFinite dom) $ liftTCM $ addContext delta1 $
         softTypeError . GenericDocError =<<
-        hsep [ "Not a finite domain:" , prettyTCM $ unDom dom ]
+        vcat [ "Splitting on partial elements is only allowed at the type Partial, but the domain here is" , nest 2 $ prettyTCM $ unDom dom ]
 
       tInterval <- liftTCM $ primIntervalType
 
@@ -1335,7 +1338,7 @@ checkLHS mf = updateModality checkLHS_ where
       -- Andrea 2019-07-17 propagate the Cohesion to the equation telescope
       -- TODO: should we propagate the modality in general?
       -- See also Coverage checking.
-      da' <- do
+      da' <- addContext delta1Gamma $ do
              let updCoh = composeCohesion (getCohesion info)
              TelV tel dt <- telView da'
              return $ abstract (mapCohesion updCoh <$> tel) a

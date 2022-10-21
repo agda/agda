@@ -5,7 +5,7 @@ module Agda.TypeChecking.Monad.State where
 
 import qualified Control.Exception as E
 
-import Control.Monad       (void)
+import Control.Monad       (void, when)
 import Control.Monad.Trans (MonadIO, liftIO)
 
 import Data.Maybe
@@ -28,6 +28,8 @@ import Agda.Syntax.Abstract (PatternSynDefn, PatternSynDefns)
 import Agda.Syntax.Abstract.PatternSynonyms
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal
+import Agda.Syntax.Position
+import Agda.Syntax.TopLevelModuleName
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Warnings
@@ -36,6 +38,7 @@ import Agda.TypeChecking.Monad.Debug (reportSDoc, reportSLn, verboseS)
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.CompiledClause
 
+import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Hash
 import Agda.Utils.Lens
 import qualified Agda.Utils.List1 as List1
@@ -326,33 +329,63 @@ updateDefBlocked f def@Defn{ defBlocked = b } = def { defBlocked = f b }
 -- * Top level module
 ---------------------------------------------------------------------------
 
+-- | Tries to convert a raw top-level module name to a top-level
+-- module name.
+
+topLevelModuleName :: RawTopLevelModuleName -> TCM TopLevelModuleName
+topLevelModuleName raw = do
+  hash <- BiMap.lookup raw <$> useR stTopLevelModuleNames
+  case hash of
+    Just hash -> return (unsafeTopLevelModuleName raw hash)
+    Nothing   -> do
+      let hash = hashRawTopLevelModuleName raw
+      when (hash == noModuleNameHash) $ typeError $ GenericError $
+        "The module name " ++ prettyShow raw ++ " has a reserved " ++
+        "hash (you may want to consider renaming the module with " ++
+        "this name)"
+      raw' <- BiMap.invLookup hash <$> useR stTopLevelModuleNames
+      case raw' of
+        Just raw' -> typeError $ GenericError $
+          "Module name hash collision for " ++ prettyShow raw ++
+          " and " ++ prettyShow raw' ++ " (you may want to consider " ++
+          "renaming one of these modules)"
+        Nothing -> do
+          stTopLevelModuleNames `modifyTCLens'`
+            BiMap.insert (killRange raw) hash
+          return (unsafeTopLevelModuleName raw hash)
+
 -- | Set the top-level module. This affects the global module id of freshly
 --   generated names.
 
-setTopLevelModule :: C.QName -> TCM ()
-setTopLevelModule x = do
-  m <- Map.lookup hash <$> useR stModuleNameHashes
-  case m of
-    Nothing -> stModuleNameHashes `modifyTCLens` Map.insert hash x
-    Just m
-      | m == x    -> return ()
-      | otherwise ->
-        typeError $ GenericError $
-          "Module name hash collision for " ++ name ++ " and " ++
-          prettyShow m ++ " (you may want to consider renaming one " ++
-          "of these modules)"
-  stFreshNameId `setTCLens` NameId 0 hash
-  stFreshMetaId `setTCLens`
+setTopLevelModule :: TopLevelModuleName -> TCM ()
+setTopLevelModule top = do
+  let hash = moduleNameId top
+  stFreshNameId `setTCLens'` NameId 0 hash
+  stFreshMetaId `setTCLens'`
     MetaId { metaId     = 0
            , metaModule = hash
            }
-  where
-  name = prettyShow x
-  hash = ModuleNameHash (hashString name)
+
+-- | The name of the current top-level module, if any.
+{-# SPECIALIZE
+    currentTopLevelModule :: TCM (Maybe TopLevelModuleName) #-}
+{-# SPECIALIZE
+    currentTopLevelModule :: ReduceM (Maybe TopLevelModuleName) #-}
+currentTopLevelModule ::
+  (MonadTCEnv m, ReadTCState m) => m (Maybe TopLevelModuleName)
+currentTopLevelModule = do
+  m <- useR stCurrentModule
+  case m of
+    Just (_, top) -> return (Just top)
+    Nothing       -> do
+      p <- asksTC envImportPath
+      return $ case p of
+        top : _ -> Just top
+        []      -> Nothing
 
 -- | Use a different top-level module for a computation. Used when generating
 --   names for imported modules.
-withTopLevelModule :: C.QName -> TCM a -> TCM a
+withTopLevelModule :: TopLevelModuleName -> TCM a -> TCM a
 withTopLevelModule x m = do
   nextN <- useTC stFreshNameId
   nextM <- useTC stFreshMetaId

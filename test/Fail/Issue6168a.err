@@ -1,0 +1,4 @@
+Issue6168a.agda:17,24-30
+No binding for builtin thing LEVELZERO, use {-# BUILTIN LEVELZERO
+name #-} to bind it to 'name'
+when checking that the expression Type a is a type

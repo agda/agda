@@ -109,7 +109,6 @@ data Dict = Dict
   , collectStats :: Bool
     -- ^ If @True@ collect in @stats@ the quantities of
     --   calls to @icode@ for each @Typeable a@.
-  , absPathD     :: !(HashTable AbsolutePath Int32) -- ^ Not written to interface file.
   }
 
 -- | Creates an empty dictionary.
@@ -138,7 +137,6 @@ emptyDict collectStats = Dict
   <*> newIORef farEmpty
   <*> H.empty
   <*> pure collectStats
-  <*> H.empty
 
 -- | Universal type, wraps everything.
 data U = forall a . Typeable a => U !a

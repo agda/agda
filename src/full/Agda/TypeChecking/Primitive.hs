@@ -36,6 +36,7 @@ import Agda.TypeChecking.Level
 import Agda.TypeChecking.Quote (quoteTermWithKit, quoteTypeWithKit, quoteDomWithKit, quotingKit)
 import Agda.TypeChecking.Primitive.Base
 import Agda.TypeChecking.Primitive.Cubical
+import Agda.TypeChecking.Primitive.Cubical.Base
 import Agda.TypeChecking.Warnings
 
 import Agda.Utils.Char
@@ -168,8 +169,8 @@ instance ToTerm Text    where toTerm = return $ Lit . LitString
 instance ToTerm QName   where toTerm = return $ Lit . LitQName
 instance ToTerm MetaId  where
   toTerm = do
-    file <- getCurrentPath
-    return $ Lit . LitMeta file
+    top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
+    return $ Lit . LitMeta top
 
 instance ToTerm Integer where
   toTerm = do
@@ -502,9 +503,9 @@ primWord64ToNatInjective =  do
 primFloatToWord64Injective :: TCM PrimitiveImpl
 primFloatToWord64Injective = do
   float  <- primType (undefined :: Double)
-  word   <- primType (undefined :: Word64)
+  mword  <- primType (undefined :: Maybe Word64)
   toWord <- primFunName <$> getPrimitive "primFloatToWord64"
-  mkPrimInjective float word toWord
+  mkPrimInjective float mword toWord
 
 primQNameToWord64sInjective :: TCM PrimitiveImpl
 primQNameToWord64sInjective = do
@@ -958,7 +959,6 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromListWith __IMPOSSIBL
   , "primComp"            |-> primComp
   , builtinTrans          |-> primTrans'
   , builtinHComp          |-> primHComp'
-  , "primIdJ"             |-> primIdJ
   , "primPartial"         |-> primPartial'
   , "primPartialP"        |-> primPartialP'
   , builtinGlue           |-> primGlue'

@@ -64,7 +64,9 @@ import qualified Agda.Syntax.Literal as L
 import qualified Agda.Syntax.Parser as Pa
 import qualified Agda.Syntax.Parser.Tokens as T
 import qualified Agda.Syntax.Position as P
-import Agda.Syntax.Position (Range, HasRange, getRange, noRange)
+import Agda.Syntax.Position
+  (RangeFile, Range, HasRange, getRange, noRange)
+import Agda.Syntax.TopLevelModuleName
 
 import Agda.Syntax.Scope.Base     ( WithKind(..) )
 import Agda.Syntax.Abstract.Views ( KName, declaredNames )
@@ -127,19 +129,18 @@ generateAndPrintSyntaxInfo
   -> TCM ()
 generateAndPrintSyntaxInfo decl _ _ | null $ getRange decl = return ()
 generateAndPrintSyntaxInfo decl hlLevel updateState = do
-  file <- getCurrentPath
+  top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
 
   reportSLn "import.iface.create" 15 $ concat
     [ "Generating syntax info for "
-    , filePath file
+    , prettyShow top
     , case hlLevel of
         Full   {} -> " (final)."
         Partial{} -> " (first approximation)."
     ]
 
   ignoreAbstractMode $ do
-    modMap <- sourceToModule
-    kinds  <- nameKinds hlLevel decl
+    kinds <- nameKinds hlLevel decl
 
     -- After the code has been type checked more information may be
     -- available for overloaded constructors, and
@@ -147,11 +148,11 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     -- Note, however, that highlighting for overloaded constructors is
     -- included also in @nameInfo@.
     constructorInfo <- case hlLevel of
-      Full{} -> generateConstructorInfo modMap file kinds decl
+      Full{} -> generateConstructorInfo top kinds decl
       _      -> return mempty
 
     -- Main source of scope-checker generated highlighting:
-    let nameInfo = runHighlighter modMap file kinds decl
+    let nameInfo = runHighlighter top kinds decl
 
     reportSDoc "highlighting.warning" 60 $ TCM.hcat
       [ "current path = "
@@ -184,14 +185,23 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
 
 generateTokenInfo :: AbsolutePath -> TCM HighlightingInfo
 generateTokenInfo file =
-  generateTokenInfoFromSource file . Text.unpack =<<
-    runPM (Pa.readFilePM file)
+  generateTokenInfoFromSource rf . Text.unpack =<<
+    runPM (Pa.readFilePM rf)
+  where
+  -- Note the use of Nothing here. The file might not even parse, but
+  -- it should still be possible to obtain token-based highlighting
+  -- information. The top-level module names seem to be *mostly*
+  -- unused, but one cannot use __IMPOSSIBLE__ instead of Nothing,
+  -- because the top-level module names are used by interleaveRanges,
+  -- which is used by parseLiterateWithComments, which is used by
+  -- generateTokenInfoFromSource.
+  rf = P.mkRangeFile file Nothing
 
 -- | Generate and return the syntax highlighting information for the
 -- tokens in the given file.
 
 generateTokenInfoFromSource
-  :: AbsolutePath
+  :: RangeFile
      -- ^ The module to highlight.
   -> String
      -- ^ The file contents. Note that the file is /not/ read from
@@ -323,12 +333,12 @@ instance Collection KName NameKindBuilder
 -- the type checker.
 
 generateConstructorInfo
-  :: SourceToModule  -- ^ Maps source file paths to module names.
-  -> AbsolutePath    -- ^ The module to highlight.
+  :: TopLevelModuleName
+     -- ^ The module to highlight.
   -> NameKinds
   -> A.Declaration
   -> TCM HighlightingInfoBuilder
-generateConstructorInfo modMap file kinds decl = do
+generateConstructorInfo top kinds decl = do
 
   -- Get boundaries of current declaration.
   -- @noRange@ should be impossible, but in case of @noRange@
@@ -345,7 +355,7 @@ generateConstructorInfo modMap file kinds decl = do
         constrs = IntMap.elems m2
 
     -- Return suitable syntax highlighting information.
-    return $ foldMap (runHighlighter modMap file kinds) constrs
+    return $ foldMap (runHighlighter top kinds) constrs
 
 printSyntaxInfo :: Range -> TCM ()
 printSyntaxInfo r = do

@@ -16,7 +16,7 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: Ubuntu-latest
     steps:
-    - uses: styfle/cancel-workflow-action@0.6.0
+    - uses: styfle/cancel-workflow-action@0.11.0
       with:
         access_token: ${{ github.token }}
   build:
@@ -25,13 +25,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Andreas, 2022-04-30, issue #5874
-        # statically linked executables with GHC 9.2.2 broke on ubuntu-20.04
-        # on 2022-04-08
-        # Reverting to ubuntu-18.04 fixes this for the moment.
-        os: [windows-2022, macos-latest, ubuntu-18.04]
-        ghc-ver: ['9.2']
-        cabal-ver: [3.6]
+        # Andreas, 2022-10-18
+        # We stick to '-latest' virtual environments here in the sense of
+        # "most canonical", since this is the deploy action.
+        # As of today, this is [windows-2022, macOS-11, ubuntu-20.04].
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        ghc-ver: ['9.4']
+        cabal-ver: ['3.8']
 
     env:
       ARGS: "--disable-executable-profiling --disable-library-profiling"
@@ -51,7 +51,7 @@ jobs:
     steps:
 
     - name: Check out the master branch
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Set up platform-dependent variables
       id: vars
@@ -93,21 +93,16 @@ jobs:
         echo content-type=${{ steps.vars.outputs.content-type }}
         echo args=${{ steps.vars.outputs.args }}
 
-    - uses: haskell/actions/setup@v1
+    - uses: haskell/actions/setup@v2
       id: setup-haskell
       with:
         ghc-version: ${{ matrix.ghc-ver }}
         cabal-version: ${{ matrix.cabal-ver }}
 
-    # DOES NOT HELP
-    # # Workaround suggested in https://gitlab.haskell.org/ghc/ghc/-/issues/21454#note_425291
-    # # Force reinstall of GHC 9.2.2 from ubuntu binaries
-    # - name: Force reinstall of GHC 9.2.2 (Linux)
-    #   if: ${{ runner.os == 'Linux' }}
-    #   run: |
-    #     ghcup config set url-source '{"OwnSource": "https://raw.githubusercontent.com/haskell/ghcup-metadata/ubuntu20.04/ghcup-0.0.7.yaml"}'
-    #     ghcup install ghc --force --set 9.2.2
-
+    - name: Set up pkg-config for the ICU library (macOS)
+      if: ${{ runner.os == 'macOS' }}
+      run: |
+        echo "PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig" >> ${GITHUB_ENV}
 
     # from: https://github.com/haskell/text-icu/blob/c73d7fe6f29e178d3ea40160e904ab39236e3c9d/.github/workflows/cabal-mac-win.yml#L29-L32
     - name: Setup MSYS path (Windows)
@@ -138,7 +133,7 @@ jobs:
         cabal configure ${{ steps.vars.outputs.args }}
 
       # Caching is disabled...
-        #    - uses: actions/cache@v2
+        #    - uses: actions/cache@v3
         #      name: Cache dependencies
         #      id: cache
         #      with:
@@ -150,7 +145,7 @@ jobs:
     - name: Build dependencies
       # Caching is disabled...
       # if: ${{ !steps.cache.outputs.cache-hit }}
-      run: cabal build exe:agda exe:agda-mode --only-dependencies -v0
+      run: cabal build exe:agda exe:agda-mode --only-dependencies
 
     - name: Build Agda
       run: cabal build exe:agda exe:agda-mode
@@ -171,9 +166,9 @@ jobs:
     - name: Move artefacts to ${{ steps.vars.outputs.nightly }}
       # TODO: Move this part to Makefile
       env:
-        # Andreas, 2022-03-11, the ICU version has been updated upstream
-        # (WAS: '69').
-        ICU_VER: '70'
+        # Andreas, 2022-03-11, the ICU version has been updated upstream from 69 to 70
+        # Andreas, 2022-09-20, the ICU version has been updated upstream from 70 to 71
+        ICU_VER: '71'
         ICU_DIR: '/usr/local/opt/icu4c/lib'
         DLL:     "/c/msys64/mingw64/bin/libicu*.dll"
           ## was /c/icu4c/icu*.dll
@@ -226,7 +221,7 @@ jobs:
       run: |
         ${{ steps.vars.outputs.compress-cmd }}
 
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         path: ${{ steps.vars.outputs.filename }}
         name: ${{ steps.vars.outputs.filename }}
@@ -238,12 +233,12 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/download-artifact@v2
+    - uses: actions/checkout@v3
+    - uses: actions/download-artifact@v3
       with:
         path: artifacts
     - name: Delete the nightly tag if any
-      uses: dev-drprasad/delete-tag-and-release@v0.1.2
+      uses: dev-drprasad/delete-tag-and-release@v0.2.0
       with:
         delete_release: true
         tag_name: 'nightly'

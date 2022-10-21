@@ -55,7 +55,7 @@ n₁ : Nat
 n₁ = p₄ i0
 
 s : Sub Nat i1 (λ _ → 13)
-s = inc 13
+s = inS 13
 
 n₂ : Nat
 n₂ = primSubOut s
@@ -76,7 +76,7 @@ p₅ : 12 ≡ 12
 p₅ = primIdPath i₃
 
 n₃ : Nat
-n₃ = primIdJ (λ _ _ → Nat) 14 i₃
+n₃ = IdJ (λ _ _ → Nat) 14 i₃
 
 n₄ : Nat
 n₄ = primIdElim (λ _ _ → Nat) (λ _ _ _ → 14) i₃

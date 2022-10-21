@@ -2,7 +2,6 @@ module Agda.Syntax.Concrete.Definitions.Types where
 
 import Control.DeepSeq
 
-import Data.Data
 import Data.Map (Map)
 import Data.Semigroup ( Semigroup(..) )
 
@@ -80,7 +79,8 @@ data NiceDeclaration
   | NiceGeneralize Range Access ArgInfo TacticAttribute Name Expr
   | NiceUnquoteDecl Range Access IsAbstract IsInstance TerminationCheck CoverageCheck [Name] Expr
   | NiceUnquoteDef Range Access IsAbstract TerminationCheck CoverageCheck [Name] Expr
-  deriving (Data, Show, Generic)
+  | NiceUnquoteData Range Access IsAbstract PositivityCheck UniverseCheck Name [Name] Expr
+  deriving (Show, Generic)
 
 instance NFData NiceDeclaration
 
@@ -100,7 +100,7 @@ type NiceTypeSignature  = NiceDeclaration
 -- | One clause in a function definition. There is no guarantee that the 'LHS'
 --   actually declares the 'Name'. We will have to check that later.
 data Clause = Clause Name Catchall LHS RHS WhereClause [Clause]
-    deriving (Data, Show, Generic)
+    deriving (Show, Generic)
 
 instance NFData Clause
 
@@ -191,7 +191,7 @@ data KindOfBlock
   | FieldBlock      -- ^ @field@.  Ensured by parser.
   | DataBlock       -- ^ @data ... where@.  Here we got a bad error message for Agda-2.5 (Issue 1698).
   | ConstructorBlock  -- ^ @constructor@, in @interleaved mutual@.
-  deriving (Data, Eq, Ord, Show)
+  deriving (Eq, Ord, Show)
 
 
 instance HasRange NiceDeclaration where
@@ -215,7 +215,8 @@ instance HasRange NiceDeclaration where
   getRange (NiceGeneralize r _ _ _ _ _)    = r
   getRange (NiceFunClause r _ _ _ _ _ _)   = r
   getRange (NiceUnquoteDecl r _ _ _ _ _ _ _) = r
-  getRange (NiceUnquoteDef r _ _ _ _ _ _)    = r
+  getRange (NiceUnquoteDef r _ _ _ _ _ _)  = r
+  getRange (NiceUnquoteData r _ _ _ _ _ _ _) = r
 
 instance Pretty NiceDeclaration where
   pretty = \case
@@ -240,6 +241,7 @@ instance Pretty NiceDeclaration where
     NiceGeneralize _ _ _ _ x _     -> text "variable" <+> pretty x
     NiceUnquoteDecl _ _ _ _ _ _ xs _ -> text "<unquote declarations>"
     NiceUnquoteDef _ _ _ _ _ xs _    -> text "<unquote definitions>"
+    NiceUnquoteData _ _ _ _ _ x xs _ -> text "<unquote data types>"
 
 declName :: NiceDeclaration -> String
 declName Axiom{}             = "Postulates"
@@ -255,6 +257,7 @@ declName NicePatternSyn{}    = "Pattern synonyms"
 declName NiceGeneralize{}    = "Generalized variables"
 declName NiceUnquoteDecl{}   = "Unquoted declarations"
 declName NiceUnquoteDef{}    = "Unquoted definitions"
+declName NiceUnquoteData{}   = "Unquoted data types"
 declName NiceRecSig{}        = "Records"
 declName NiceDataSig{}       = "Data types"
 declName NiceFunClause{}     = "Functions without a type signature"
@@ -285,7 +288,7 @@ data DataRecOrFun
     -- ^ Name of a record type
   | FunName TerminationCheck CoverageCheck
     -- ^ Name of a function.
-  deriving (Data, Show)
+  deriving Show
 
 -- Ignore pragmas when checking equality
 instance Eq DataRecOrFun where

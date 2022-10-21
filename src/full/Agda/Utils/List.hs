@@ -8,11 +8,13 @@ import Data.Array (Array, array, listArray)
 import qualified Data.Array as Array
 import Data.Bifunctor
 import Data.Function
+import Data.Hashable
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as List1
 import Data.List.NonEmpty (pattern (:|), (<|))
 import Data.Maybe
 import qualified Data.Map as Map
+import qualified Data.HashMap.Strict as HMap
 import qualified Data.Set as Set
 
 import qualified Agda.Utils.Bag as Bag
@@ -152,12 +154,16 @@ initWithDefault _  (a:as) = init1 a as
 -- * Lookup and indexing
 ---------------------------------------------------------------------------
 
--- | Lookup function (partially safe).
+-- | Lookup function (safe).
 --   O(min n index).
 (!!!) :: [a] -> Int -> Maybe a
-[]       !!! _         = Nothing
-(x : _)  !!! 0         = Just x
-(_ : xs) !!! n         = xs !!! (n - 1)
+xs !!! (!i)
+  | i < 0     = Nothing
+  | otherwise = index xs i
+  where
+  index []       !i = Nothing
+  index (x : xs) 0  = Just x
+  index (x : xs) i  = index xs (i - 1)
 
 -- | A variant of 'Prelude.!!' that might provide more informative
 -- error messages if the index is out of bounds.
@@ -431,14 +437,43 @@ data StrSufSt a
   | SSSStrip (ReversedSuffix a) -- ^ "Negative string" to remove from end. List may be empty.
   | SSSResult [a]               -- ^ "Positive string" (result). Non-empty list.
 
+-- | Returns a list with one boolean for each non-empty suffix of the
+-- list, starting with the longest suffix (the entire list). Each
+-- boolean is 'True' exactly when every element in the corresponding
+-- suffix satisfies the predicate.
+--
+-- An example:
+-- @
+--  'suffixesSatisfying' 'Data.Char.isLower' "AbCde" =
+--  [False, False, False, True, True]
+-- @
+--
+-- For total predicates @p@ and finite and total lists @xs@ the
+-- following holds:
+-- @
+--  'suffixesSatisfying' p xs = 'map' ('all' p) ('List.init' ('List.tails' xs))
+-- @
+suffixesSatisfying :: (a -> Bool) -> [a] -> [Bool]
+suffixesSatisfying p =
+  snd .
+  foldr (\x (b, bs) -> let !b' = p x && b in (b', b' : bs))
+        (True, [])
+
 -- ** Finding overlap
 
--- | Find out whether the first string @xs@
---   has a suffix that is a prefix of the second string @ys@.
+-- | Find the longest suffix of the first string @xs@
+--   that is a prefix of the second string @ys@.
 --   So, basically, find the overlap where the strings can be glued together.
 --   Returns the index where the overlap starts and the length of the overlap.
 --   The length of the overlap plus the index is the length of the first string.
 --   Note that in the worst case, the empty overlap @(length xs,0)@ is returned.
+--
+--   Worst-case time complexity is quadratic: @O(min(n,m)²)@
+--   where @n = length xs@ and @m = length ys@.
+--
+--   There might be asymptotically better implementations following
+--   Knuth-Morris-Pratt (KMP), but for rather short lists this is good enough.
+--
 findOverlap :: forall a. Eq a => [a] -> [a] -> (Int, Int)
 findOverlap xs ys =
   headWithDefault __IMPOSSIBLE__ $ mapMaybe maybePrefix $ zip [0..] (List.tails xs)
@@ -470,21 +505,6 @@ groupBy' p xxs@(x : xs) = grp x $ zipWith (\x y -> (p x y, y)) xxs xs
           tail = case rest of
                    []            -> []
                    ((_, z) : zs) -> grp z zs
-
--- | Split a list into sublists. Generalisation of the prelude function
---   @words@.
---   O(n).
---
---   > words xs == wordsBy isSpace xs
-wordsBy :: (a -> Bool) -> [a] -> [[a]]
-wordsBy p xs = yesP xs
-    where
-        yesP xs = noP (dropWhile p xs)
-
-        noP []  = []
-        noP xs  = ys : yesP zs
-            where
-                (ys,zs) = break p xs
 
 -- | Chop up a list in chunks of a given length.
 -- O(n).
@@ -603,6 +623,38 @@ nubOn f = loop Set.empty
     | b `Set.member` s = loop s as
     | otherwise        = a : loop (Set.insert b s) as
     where b = f a
+
+-- | A variant of 'nubOn' that is parametrised by a function that is
+-- used to select which element from a group of equal elements that is
+-- returned. The returned elements keep the order that they had in the
+-- input list.
+--
+-- Precondition: The length of the input list must be at most
+-- @'maxBound' :: 'Int'@.
+
+nubFavouriteOn
+  :: forall a b c. (Ord b, Eq c, Hashable c)
+  => (a -> b)
+     -- ^ The values returned by this function are used to determine
+     -- which element from a group of equal elements that is returned:
+     -- the smallest one is chosen (and if two elements are equally
+     -- small, then the first one is chosen).
+  -> (a -> c)
+     -- ^ Two elements are treated as equal if this function returns
+     -- the same value for both elements.
+  -> [a] -> [a]
+nubFavouriteOn fav f = go 0 HMap.empty
+  where
+  go :: Int -> HMap.HashMap c ((b, Int), a) -> [a] -> [a]
+  go !pos !acc (x : xs) =
+    go (1 + pos)
+       (HMap.insertWith
+          (\new old -> if fst new < fst old then new else old)
+          (f x) ((fav x, pos), x) acc)
+       xs
+  go _ acc [] =
+    map snd $ List.sortBy (compare `on` snd . fst) $
+    HMap.elems acc
 
 -- -- | Efficient variant of 'nubBy' for finite lists (using sorting).
 -- -- O(n log n)

@@ -30,10 +30,10 @@ import Agda.Interaction.Base
   )
 import Agda.Interaction.Highlighting.Precise
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Common   (InteractionId(..), Arg)
-import Agda.Syntax.Concrete (Expr, Name)
-import Agda.Syntax.Concrete.Name (NameInScope)
-import Agda.Syntax.Scope.Base (AbstractModule, AbstractName, LocalVar)
+import Agda.Syntax.Common         (InteractionId(..), Arg)
+import Agda.Syntax.Concrete       (Expr)
+import Agda.Syntax.Concrete.Name  (Name, QName, NameInScope)
+import Agda.Syntax.Scope.Base     (AbstractModule, AbstractName, LocalVar, WhyInScopeData)
 import qualified Agda.Syntax.Internal as I
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
   (TCM, TCErr, TCWarning, HighlightingMethod, ModuleToSource, NamedMeta, TCWarning, IPBoundary')
@@ -108,7 +108,7 @@ data DisplayInfo
         --   TODO: split these into separate constructors
     | Info_ModuleContents [Name] I.Telescope [(Name, I.Type)]
     | Info_SearchAbout [(Name, I.Type)] String
-    | Info_WhyInScope String FilePath (Maybe LocalVar) [AbstractName] [AbstractModule]
+    | Info_WhyInScope WhyInScopeData
     | Info_NormalForm CommandState ComputeMode (Maybe CPUTime) A.Expr
     | Info_InferredType CommandState (Maybe CPUTime) A.Expr
     | Info_Context InteractionId [ResponseContextEntry]

@@ -7,13 +7,15 @@ module Agda.Utils.Monad
     )
     where
 
-import Control.Applicative  ( liftA2 )
-import Control.Monad        ( MonadPlus(..), guard, unless, when )
-import Control.Monad.Except ( MonadError(catchError, throwError) )
-import Control.Monad.State  ( MonadState(get, put) )
+import Control.Applicative    ( liftA2 )
+import Control.Monad          ( MonadPlus(..), guard, unless, when )
+import Control.Monad.Except   ( MonadError(catchError, throwError) )
+import Control.Monad.Identity ( runIdentity )
+import Control.Monad.State    ( MonadState(get, put) )
+import Control.Monad.Writer   ( Writer, WriterT, mapWriterT )
 
-import Data.Bifunctor       ( first, second )
-import Data.Bool            ( bool )
+import Data.Bifunctor         ( first, second )
+import Data.Bool              ( bool )
 import Data.Traversable as Trav hiding (for, sequence)
 import Data.Foldable as Fold
 import Data.Maybe
@@ -56,20 +58,20 @@ and2M :: Monad m => m Bool -> m Bool -> m Bool
 and2M ma mb = ifM ma mb (return False)
 
 andM :: (Foldable f, Monad m) => f (m Bool) -> m Bool
-andM = Fold.foldl and2M (return True)
+andM = Fold.foldl' and2M (return True)
 
-allM :: (Functor f, Foldable f, Monad m) => f a -> (a -> m Bool) -> m Bool
-allM xs f = andM $ fmap f xs
+allM :: (Foldable f, Monad m) => f a -> (a -> m Bool) -> m Bool
+allM xs f = Fold.foldl' (\b -> and2M b . f) (return True) xs
 
 -- | Lazy monadic disjunction.
 or2M :: Monad m => m Bool -> m Bool -> m Bool
 or2M ma = ifM ma (return True)
 
 orM :: (Foldable f, Monad m) => f (m Bool) -> m Bool
-orM = Fold.foldl or2M (return False)
+orM = Fold.foldl' or2M (return False)
 
-anyM :: (Functor f, Foldable f, Monad m) => f a -> (a -> m Bool) -> m Bool
-anyM xs f = orM $ fmap f xs
+anyM :: (Foldable f, Monad m) => f a -> (a -> m Bool) -> m Bool
+anyM xs f = Fold.foldl' (\b -> or2M b . f) (return False) xs
 
 -- | Lazy monadic disjunction with @Either@  truth values.
 --   Returns the last error message if all fail.
@@ -231,3 +233,8 @@ bracket_ acquire release compute = do
 -- | Restore state after computation.
 localState :: MonadState s m => m a -> m a
 localState = bracket_ get put
+
+-- Writer monad -----------------------------------------------------------
+
+embedWriter :: (Monoid w, Monad m) => Writer w a -> WriterT w m a
+embedWriter = mapWriterT (pure . runIdentity)

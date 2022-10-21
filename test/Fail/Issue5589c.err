@@ -1,0 +1,10 @@
+Issue5589c.agda:13,1-22
+Confluence checking for --cubical is not yet supported, confluence checking might be incomplete
+when checking the pragma REWRITE +ℕ-id
+Issue5589c.agda:13,13-18
+Global confluence check failed: 0 +ℕ S y can be rewritten to either
+S y or S (0 +ℕ y).
+Possible fix: add a rewrite rule with left-hand side 0 +ℕ S y to
+resolve the ambiguity.
+when checking confluence of the rewrite rule +ℕ-id with
+Issue5589c._+ℕ_-clause2

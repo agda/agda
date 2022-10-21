@@ -38,6 +38,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Context
+import Agda.TypeChecking.Monad.Constraints
 import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Monad.Mutual
 import Agda.TypeChecking.Monad.Open
@@ -136,12 +137,16 @@ modifyFunClauses q f =
 
 -- | Lifts clauses to the top-level and adds them to definition.
 --   Also adjusts the 'funCopatternLHS' field if necessary.
-addClauses :: QName -> [Clause] -> TCM ()
+addClauses :: (MonadConstraint m, MonadTCState m) => QName -> [Clause] -> m ()
 addClauses q cls = do
   tel <- getContextTelescope
   modifySignature $ updateDefinition q $
     updateTheDef (updateFunClauses (++ abstract tel cls))
     . updateDefCopatternLHS (|| isCopatternLHS cls)
+
+  -- Jesper, 2022-10-13: unblock any constraints that were
+  -- waiting for more clauses of this function
+  wakeConstraints' $ wakeIfBlockedOnDef q . constraintUnblocker
 
 mkPragma :: String -> TCM CompilerPragma
 mkPragma s = CompilerPragma <$> getCurrentRange <*> pure s
@@ -181,7 +186,7 @@ getUniqueCompilerPragma backend q = do
                        vcat [ "-" <+> pretty (getRange p) | p <- ps ]
 
 setFunctionFlag :: FunctionFlag -> Bool -> QName -> TCM ()
-setFunctionFlag flag val q = modifyGlobalDefinition q $ set (theDefLens . funFlag flag) val
+setFunctionFlag flag val q = modifyGlobalDefinition q $ set (lensTheDef . funFlag flag) val
 
 markStatic :: QName -> TCM ()
 markStatic = setFunctionFlag FunStatic True
@@ -539,15 +544,15 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                         set funMacro  (oldDef ^. funMacro) $
                         set funStatic (oldDef ^. funStatic) $
                         set funInline True $
-                        emptyFunction
-                        { funClauses        = [cl]
-                        , funCompiled       = Just cc
-                        , funSplitTree      = mst
-                        , funMutual         = mutual
-                        , funProjection     = proj
-                        , funTerminates     = Just True
-                        , funExtLam         = extlam
-                        , funWith           = with
+                        FunctionDefn emptyFunctionData
+                        { _funClauses        = [cl]
+                        , _funCompiled       = Just cc
+                        , _funSplitTree      = mst
+                        , _funMutual         = mutual
+                        , _funProjection     = proj
+                        , _funTerminates     = Just True
+                        , _funExtLam         = extlam
+                        , _funWith           = with
                         }
                   reportSDoc "tc.mod.apply" 80 $ ("new def for" <+> pretty x) <?> pretty newDef
                   return newDef

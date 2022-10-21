@@ -16,10 +16,11 @@ import System.Directory (makeAbsolute, removeFile)
 import System.Environment (getEnvironment)
 import System.Process
 import System.Exit
+import System.IO
 import System.IO.Error (isDoesNotExistError)
 
-import Control.Monad (when, forM_, unless)
-import Control.Exception (catch, throwIO)
+import Control.Monad (forM_, unless)
+import Control.Exception (bracket, catch, throwIO)
 
 main :: IO ()
 main = defaultMainWithHooks userhooks
@@ -96,25 +97,61 @@ generateInterfaces pd lbi = do
   -- current directory root of the package.
 
   putStrLn "Generating Agda library interface files..."
-  forM_ (dataFiles pd) $ \fp -> when (takeExtension fp == ".agda") $ do
-    let fullpath  = ddir </> fp
-    let fullpathi = toIFile fullpath
 
-    -- remove existing interface file
-    let handleExists e | isDoesNotExistError e = return ()
+  -- The Agda.Primitive* and Agda.Builtin* modules.
+  let builtins = filter ((== ".agda") . takeExtension) (dataFiles pd)
+
+  -- Remove all existing .agdai files.
+  forM_ builtins $ \fp -> do
+    let fullpathi = toIFile (ddir </> fp)
+
+        handleExists e | isDoesNotExistError e = return ()
                        | otherwise             = throwIO e
 
     removeFile fullpathi `catch` handleExists
 
-    putStrLn $ "... " ++ fullpath
-    ok <- rawSystem' ddir agda [ "--no-libraries", "--local-interfaces"
-                               , "--ignore-all-interfaces"
-                               , "-Werror"
-                               , fullpath, "-v0"
-                               ]
-    case ok of
-      ExitSuccess   -> return ()
-      ExitFailure _ -> die $ "Error: Failed to typecheck " ++ fullpath ++ "!"
+  -- Type-check all builtin modules (in a single Agda session to take
+  -- advantage of caching).
+  let loadBuiltinCmds = concat
+        [ [ cmd ("Cmd_load " ++ f ++ " []")
+          , cmd "Cmd_no_metas"
+            -- Fail if any meta-variable is unsolved.
+          ]
+        | b <- builtins
+        , let f     = show (ddir </> b)
+              cmd c = "IOTCM " ++ f ++ " None Indirect (" ++ c ++ ")"
+        ]
+  env <- getEnvironment
+  bracket
+    (createProcess
+      ((proc agda
+          [ "--interaction"
+          , "--interaction-exit-on-error"
+          , "--no-libraries"
+          , "--local-interfaces"
+          , "-Werror"
+          , "-v0"
+          ])
+        { std_in        = CreatePipe
+        , std_out       = CreatePipe
+        , delegate_ctlc = True
+                          -- Make Agda look for data files in a
+                          -- certain place.
+        , env           = Just (("Agda_datadir", ddir) : env)
+        }))
+    (\(Just wr, Just rd, _, p) -> do
+       -- Try to let Agda shut down gracefully.
+       hClose wr
+       ok <- waitForProcess p
+       hClose rd
+       case ok of
+         ExitSuccess   -> return ()
+         ExitFailure _ ->
+           die "Error: Failed to typecheck a builtin module!")
+    (\(Just wr, Just _, Nothing, p) -> do
+       hSetEncoding wr utf8
+       hSetBuffering wr LineBuffering
+       mapM_ (hPutStrLn wr) loadBuiltinCmds)
 
 agdaExeExtension :: String
 #if MIN_VERSION_Cabal(2,3,0)
@@ -122,12 +159,3 @@ agdaExeExtension = exeExtension buildPlatform
 #else
 agdaExeExtension = exeExtension
 #endif
-
-rawSystem' :: FilePath -> String -> [String] -> IO ExitCode
-rawSystem' agda_datadir cmd args = do
-  -- modify environment with Agda_datadir, so agda-executable will look
-  -- for data-files in the right place
-  e <- getEnvironment
-  let e' = ("Agda_datadir", agda_datadir) : e
-  (_,_,_,p) <- createProcess_ "rawSystem" (proc cmd args) { delegate_ctlc = True, env = Just e' }
-  waitForProcess p

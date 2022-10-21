@@ -4,8 +4,11 @@
 module Agda.TypeChecking.Free.Reduce
   ( ForceNotFree
   , forceNotFree
+  , reallyFree
   , IsFree(..)
   ) where
+
+import Prelude hiding (null)
 
 import Control.Monad.Reader
 import Control.Monad.State
@@ -22,7 +25,9 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Precompute
+
 import Agda.Utils.Monad
+import Agda.Utils.Null
 
 -- | A variable can either not occur (`NotFree`) or it does occur
 --   (`MaybeFree`).  In the latter case, the occurrence may disappear
@@ -44,6 +49,35 @@ forceNotFree xs a = do
   let mxs = IntMap.fromSet (const NotFree) xs
   (a, mxs) <- runStateT (runReaderT (forceNotFreeR $ precomputeFreeVars_ a) mempty) mxs
   return (mxs, a)
+
+-- | Checks if the given term contains any free variables that are in
+--   the given set of variables, possibly reducing the term in the
+--   process.  Returns `Right Nothing` if there are such variables,
+--   `Right (Just v')` if there are none (where v' is the possibly
+--   reduced version of the given term) or `Left b` if the problem is
+--   blocked on a meta.
+reallyFree :: (MonadReduce m, Reduce a, ForceNotFree a)
+           => IntSet -> a -> m (Either Blocked_ (Maybe a))
+reallyFree xs v = do
+  (mxs , v') <- forceNotFree xs v
+  case IntMap.foldr pickFree NotFree mxs of
+    MaybeFree ms
+      | null ms   -> return $ Right Nothing
+      | otherwise -> return $ Left $ Blocked blocker ()
+      where blocker = metaSetToBlocker ms
+    NotFree -> return $ Right (Just v')
+
+  where
+    -- Check if any of the variables occur freely.
+    -- Prefer occurrences that do not depend on any metas.
+    pickFree :: IsFree -> IsFree -> IsFree
+    pickFree f1@(MaybeFree ms1) f2
+      | null ms1  = f1
+    pickFree f1@(MaybeFree ms1) f2@(MaybeFree ms2)
+      | null ms2  = f2
+      | otherwise = f1
+    pickFree f1@(MaybeFree ms1) NotFree = f1
+    pickFree NotFree f2 = f2
 
 type MonadFreeRed m =
   ( MonadReader MetaSet m

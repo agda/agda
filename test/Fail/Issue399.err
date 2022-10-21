@@ -12,7 +12,7 @@ Failed to solve the following constraints:
      funSort (_7 (m = m) (mzero = mzero))
      (funSort (_10 (m = m) (mzero = mzero)) Set))
     =< Set₁
-    (blocked on any(_7, _10))
+    (blocked on all(_7, _10))
   piSort Set₁ (λ a → funSort (_2 (m = m)) Set) =< Set₁
     (blocked on _2)
 Unsolved metas at the following locations:

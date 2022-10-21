@@ -1,13 +1,14 @@
 
 module Internal.Syntax.Concrete.Name () where
 
+import qualified Data.List as List
+
 import Agda.Syntax.Concrete.Name
 import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.List1    ( (<|) )
 import qualified Agda.Utils.List1 as List1
 
 import Internal.Helpers
-import Internal.Syntax.Common ()
 import Internal.Syntax.Position ()
 
 import Test.QuickCheck
@@ -15,12 +16,6 @@ import Test.QuickCheck
 ------------------------------------------------------------------------
 -- * QuickCheck instances
 ------------------------------------------------------------------------
-
-instance Arbitrary TopLevelModuleName where
-  arbitrary = TopLevelModuleName <$> arbitrary <*> list1Of (listOf1 $ elements "AB")
-
-instance CoArbitrary TopLevelModuleName where
-  coarbitrary (TopLevelModuleName _ m) = coarbitrary m
 
 instance Arbitrary Name where
   arbitrary = oneof
