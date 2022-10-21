@@ -521,7 +521,12 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                            , projLams  = projLams p `apply` ts'
                            , projProper= copyName <$> projProper p
                            }
-              _ -> funProjection oldDef
+              -- Preserve no-projection-likeness flag if it exists, and
+              -- it's set to @Left _@. For future reference: The match
+              -- on left can't be simplified or it accidentally
+              -- circumvents the guard above.
+              Function{funProjection = Left projl} -> Left projl
+              _ -> Left MaybeProjection
             def =
               case oldDef of
                 Constructor{ conPars = np, conData = d } -> return $
