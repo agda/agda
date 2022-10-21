@@ -437,6 +437,28 @@ data StrSufSt a
   | SSSStrip (ReversedSuffix a) -- ^ "Negative string" to remove from end. List may be empty.
   | SSSResult [a]               -- ^ "Positive string" (result). Non-empty list.
 
+-- | Returns a list with one boolean for each non-empty suffix of the
+-- list, starting with the longest suffix (the entire list). Each
+-- boolean is 'True' exactly when every element in the corresponding
+-- suffix satisfies the predicate.
+--
+-- An example:
+-- @
+--  'suffixesSatisfying' 'Data.Char.isLower' "AbCde" =
+--  [False, False, False, True, True]
+-- @
+--
+-- For total predicates @p@ and finite and total lists @xs@ the
+-- following holds:
+-- @
+--  'suffixesSatisfying' p xs = 'map' ('all' p) ('List.init' ('List.tails' xs))
+-- @
+suffixesSatisfying :: (a -> Bool) -> [a] -> [Bool]
+suffixesSatisfying p =
+  snd .
+  foldr (\x (b, bs) -> let !b' = p x && b in (b', b' : bs))
+        (True, [])
+
 -- ** Finding overlap
 
 -- | Find the longest suffix of the first string @xs@

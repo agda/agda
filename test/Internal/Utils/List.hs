@@ -16,6 +16,7 @@ import Data.Function
 import Data.List
   ((\\), elemIndex, intercalate, isPrefixOf, isSuffixOf,
    minimumBy, nub, nubBy, sort, sortBy)
+import qualified Data.List as List
 
 import Internal.Helpers
 
@@ -59,6 +60,10 @@ prop_stripSuffix_complete pre suf = stripSuffix suf (pre ++ suf) == Just pre
 
 prop_stripReversedSuffix_sound    rsuf xs  = maybe True (\ pre -> xs == pre ++ reverse rsuf) $ stripReversedSuffix rsuf xs
 prop_stripReversedSuffix_complete pre rsuf = stripReversedSuffix rsuf (pre ++ reverse rsuf) == Just pre
+
+prop_suffixesSatisfying :: (Int -> Bool) -> [Int] -> Bool
+prop_suffixesSatisfying p xs =
+  suffixesSatisfying p xs == map (all p) (List.init (List.tails xs))
 
 prop_chop_intercalate :: Property
 prop_chop_intercalate =

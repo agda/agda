@@ -48,7 +48,7 @@ import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Primitive
+import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
@@ -61,6 +61,7 @@ import Agda.Utils.Either
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List  ( (!!!), groupOn, initWithDefault )
+import qualified Agda.Utils.List as List
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
@@ -558,44 +559,100 @@ coerce' cmp (CheckedTarget (Just pid)) v _        expected = blockTermOnProblem 
 
 checkArgumentsE :: Comparison -> ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Maybe Type ->
                    ExceptT (ArgsCheckState [NamedArg A.Expr]) TCM (ArgsCheckState CheckedTarget)
-checkArgumentsE = checkArgumentsE' NotCheckedTarget
+checkArgumentsE sComp sExpand sRange sArgs sFun sApp = do
+  sPathView <- pathView'
+  checkArgumentsE'
+    S{ sChecked       = NotCheckedTarget
+     , sArgs          = zip sArgs $
+                        List.suffixesSatisfying visible sArgs
+     , sArgsLen       = length sArgs
+     , sSizeLtChecked = False
+     , sSkipCheck     = DontSkip
+     , ..
+     }
+
+-- | State used by 'checkArgumentsE''.
+
+data CheckArgumentsE'State = S
+  { sChecked :: CheckedTarget
+    -- ^ Have we already checked the target?
+  , sComp :: Comparison
+    -- ^ Comparison to use if checking the target type.
+  , sExpand :: ExpandHidden
+    -- ^ Insert trailing hidden arguments?
+  , sRange :: Range
+    -- ^ Range of the function.
+  , sArgs :: [(NamedArg A.Expr, Bool)]
+    -- ^ Arguments, along with information about whether a given
+    -- argument and all remaining arguments are 'visible'.
+  , sArgsLen :: !Nat
+    -- ^ The length of 'sArgs'.
+  , sFun :: Type
+    -- ^ The function's type.
+  , sApp :: Maybe Type
+    -- ^ The type of the application.
+  , sSizeLtChecked :: !Bool
+    -- ^ Have we checked if 'sApp' is 'BoundedLt'?
+  , sSkipCheck :: !SkipCheck
+    -- ^ Should the target type check be skipped?
+  , sPathView :: Type -> PathView
+    -- ^ The function returned by 'pathView''.
+  }
+
+-- | Should the target type check in 'checkArgumentsE'' be skipped?
+
+data SkipCheck
+  = Skip
+  | SkipNext !Nat
+    -- ^ Skip the given number of checks.
+  | DontSkip
 
 checkArgumentsE'
-  :: CheckedTarget     -- ^ Have we already checked the target?
-  -> Comparison        -- ^ Comparison to use if checking target type
-  -> ExpandHidden      -- ^ Insert trailing hidden arguments?
-  -> Range             -- ^ Range of the function.
-  -> [NamedArg A.Expr] -- ^ Arguments.
-  -> Type              -- ^ Type of the function.
-  -> Maybe Type        -- ^ Type of the application.
+  :: CheckArgumentsE'State
   -> ExceptT (ArgsCheckState [NamedArg A.Expr]) TCM (ArgsCheckState CheckedTarget)
 
 -- Case: no arguments, do not insert trailing hidden arguments: We are done.
-checkArgumentsE' chk cmp exh _ [] t0 _ | isDontExpandLast exh = return $ ACState [] [] [] t0 chk
+checkArgumentsE' S{ sArgs = [], .. }
+  | isDontExpandLast sExpand =
+    return $ ACState
+      { acRanges      = []
+      , acElims       = []
+      , acConstraints = []
+      , acType        = sFun
+      , acData        = sChecked
+      }
 
 -- Case: no arguments, but need to insert trailing hiddens.
-checkArgumentsE' chk cmp _ExpandLast r [] t0 mt1 =
-    traceCallE (CheckArguments r [] t0 mt1) $ lift $ do
-      mt1' <- traverse (unEl <.> reduce) mt1
-      (us, t) <- implicitArgs (-1) (expand mt1') t0
-      return $ ACState (replicate (length us) Nothing) (map Apply us) (replicate (length us) Nothing) t chk
-    where
-      expand (Just (Pi dom _)) Hidden     = not (hidden dom)
-      expand _                 Hidden     = True
-      expand (Just (Pi dom _)) Instance{} = not (isInstance dom)
-      expand _                 Instance{} = True
-      expand _                 NotHidden  = False
+checkArgumentsE' S{ sArgs = [], .. } =
+  traceCallE (CheckArguments sRange [] sFun sApp) $ lift $ do
+    sApp    <- traverse (unEl <.> reduce) sApp
+    (us, t) <- implicitArgs (-1) (expand sApp) sFun
+    return $ ACState
+      { acRanges      = replicate (length us) Nothing
+      , acElims       = map Apply us
+      , acConstraints = replicate (length us) Nothing
+      , acType        = t
+      , acData        = sChecked
+      }
+  where
+  expand (Just (Pi dom _)) Hidden     = not (hidden dom)
+  expand _                 Hidden     = True
+  expand (Just (Pi dom _)) Instance{} = not (isInstance dom)
+  expand _                 Instance{} = True
+  expand _                 NotHidden  = False
 
 -- Case: argument given.
-checkArgumentsE' chk cmp exh r args0@(arg@(Arg info e) : args) t0 mt1 =
-    traceCallE (CheckArguments r args0 t0 mt1) $ do
+checkArgumentsE'
+  s@S{ sArgs = sArgs@((arg@(Arg info e), sArgsVisible) : args), .. } =
+
+    traceCallE (CheckArguments sRange (map fst sArgs) sFun sApp) $ do
       lift $ reportSDoc "tc.term.args" 30 $ sep
         [ "checkArgumentsE"
---        , "  args0 =" <+> prettyA args0
+--        , "  sArgs =" <+> prettyA sArgs
         , nest 2 $ vcat
           [ "e     =" <+> prettyA e
-          , "t0    =" <+> prettyTCM t0
-          , "t1    =" <+> maybe "Nothing" prettyTCM mt1
+          , "sFun  =" <+> prettyTCM sFun
+          , "sApp  =" <+> maybe "Nothing" prettyTCM sApp
           ]
         ]
       -- First, insert implicit arguments, depending on current argument @arg@.
@@ -609,11 +666,11 @@ checkArgumentsE' chk cmp exh r args0@(arg@(Arg info e) : args) t0 mt1 =
           expand hy        y = not (sameHiding hy hx) || maybe False (y /=) mx
       reportSDoc "tc.term.args" 30 $ vcat
         [ "calling implicitNamedArgs"
-        , nest 2 $ "t0 = " <+> prettyTCM t0
-        , nest 2 $ "hx = " <+> text (show hx)
-        , nest 2 $ "mx = " <+> maybe "nothing" prettyTCM mx
+        , nest 2 $ "sFun = " <+> prettyTCM sFun
+        , nest 2 $ "hx   = " <+> text (show hx)
+        , nest 2 $ "mx   = " <+> maybe "nothing" prettyTCM mx
         ]
-      (nargs, t) <- lift $ implicitNamedArgs (-1) expand t0
+      (nargs, sFun) <- lift $ implicitNamedArgs (-1) expand sFun
       -- Separate names from args.
       let (mxs, us) = unzip $ map (\ (Arg ai (Named mx u)) -> (mx, Apply $ Arg ai u)) nargs
           xs        = catMaybes mxs
@@ -621,20 +678,27 @@ checkArgumentsE' chk cmp exh r args0@(arg@(Arg info e) : args) t0 mt1 =
       -- We need a function type here, but we don't know which kind
       -- (implicit/explicit). But it might be possible to use injectivity to
       -- force a pi.
-      t <- lift $ forcePiUsingInjectivity t
+      sFun <- lift $ forcePiUsingInjectivity sFun
 
       -- We are done inserting implicit args.  Now, try to check @arg@.
-      ifBlocked t (\ m t -> throwError $ ACState (replicate (length us) Nothing) us (replicate (length us) Nothing) t args0) $ \ _ t0' -> do
+      ifBlocked sFun
+        (\_ sFun -> throwError $ ACState
+            { acRanges      = replicate (length us) Nothing
+            , acElims       = us
+            , acConstraints = replicate (length us) Nothing
+            , acType        = sFun
+            , acData        = map fst sArgs
+            }) $ \_ sFun -> do
 
         -- What can go wrong?
 
         -- 1. We ran out of function types.
         let shouldBePi
               -- a) It is an explicit argument, but we ran out of function types.
-              | visible info = lift $ typeError $ ShouldBePi t0'
+              | visible info = lift $ typeError $ ShouldBePi sFun
               -- b) It is an implicit argument, and we did not insert any implicits.
               --    Thus, the type was not a function type to start with.
-              | null xs        = lift $ typeError $ ShouldBePi t0'
+              | null xs        = lift $ typeError $ ShouldBePi sFun
               -- c) We did insert implicits, but we ran out of implicit function types.
               --    Then, we should inform the user that we did not find his one.
               | otherwise      = lift $ typeError $ WrongNamedArgument arg xs
@@ -644,62 +708,106 @@ checkArgumentsE' chk cmp exh r args0@(arg@(Arg info e) : args) t0 mt1 =
         --    (Otherwise we would have ran out of function types instead.)
         let wrongPi
               -- b) We have not inserted any implicits.
-              | null xs   = lift $ typeError $ WrongHidingInApplication t0'
+              | null xs   = lift $ typeError $
+                            WrongHidingInApplication sFun
               -- c) We inserted implicits, but did not find his one.
               | otherwise = lift $ typeError $ WrongNamedArgument arg xs
 
-        viewPath <- lift pathView'
+        let (skip, next) = case sSkipCheck of
+              Skip       -> (True, Skip)
+              DontSkip   -> (False, DontSkip)
+              SkipNext n -> case compare n 1 of
+                LT -> (False, DontSkip)
+                EQ -> (True,  DontSkip)
+                GT -> (True,  SkipNext (n - 1))
+
+        s <- return s
+          { sRange     = fuseRange sRange e
+          , sArgs      = args
+          , sArgsLen   = sArgsLen - 1
+          , sFun       = sFun
+          , sSkipCheck = next
+          }
 
         -- Check the target type if we can get away with it.
-        chk' <- lift $
-          case (chk, mt1) of
-            (NotCheckedTarget, Just t1) | all visible args0 -> do
-              let n = length args0
-              TelV tel tgt <- telViewUpTo n t0'
-              let sz  = size tel
-                  -- Is any free variable in tgt less than sz?
-                  dep = not $ IntSet.null $ fst $
-                        IntSet.split sz $ freeVars tgt
-                  vis = all visible (telToList tel)
-                  isRigid t | PathType{} <- viewPath t = return False -- Path is not rigid!
-                  isRigid (El _ (Pi dom _)) = return $ visible dom
-                  isRigid (El _ (Def d _))  = getConstInfo d <&> theDef <&> \ case
-                    Axiom{}                   -> True
-                    DataOrRecSig{}            -> True
-                    AbstractDefn{}            -> True
-                    Function{funClauses = cs} -> null cs
-                    Datatype{}                -> True
-                    Record{}                  -> True
-                    Constructor{}             -> __IMPOSSIBLE__
-                    GeneralizableVar{}        -> __IMPOSSIBLE__
-                    Primitive{}               -> False
-                    PrimitiveSort{}           -> False
-                  isRigid _           = return False
-              rigid <- isRigid tgt
-              -- Andreas, 2019-03-28, issue #3248:
-              -- If the target type is SIZELT, we need coerce, leqType is insufficient.
-              -- For example, we have i : Size <= (Size< ↑ i), but not Size <= (Size< ↑ i).
-              isSizeLt <- reduce t1 >>= isSizeType <&> \case
-                Just (BoundedLt _) -> True
-                _ -> False
-              if | dep       -> return chk    -- must be non-dependent
-                 | not rigid -> return chk    -- with a rigid target
-                 | not vis   -> return chk    -- and only visible arguments
-                 | isSizeLt  -> return chk    -- Issue #3248, not Size<
-                 | otherwise -> do
-                  let tgt1 = applySubst (strengthenS impossible sz) tgt
+        s <- lift $
+          case (sChecked, skip, sApp) of
+            (NotCheckedTarget, False, Just sApp) | sArgsVisible -> do
+              -- How many visible Π's (up to at most sArgsLen) does
+              -- sFun start with?
+              TelV tel tgt <- telViewUpTo' sArgsLen visible sFun
+              let visiblePis = size tel
+
+                  -- The free variables less than visiblePis in tgt.
+                  freeInTgt =
+                    fst $ IntSet.split visiblePis $ freeVars tgt
+
+              rigid <- isRigid s tgt
+              -- The target must be rigid.
+              case rigid of
+                IsNotRigid reason ->
+                      -- Skip the next visiblePis - 1 - k checks.
+                  let skip k   = s{ sSkipCheck =
+                                    SkipNext $ visiblePis - 1 - k
+                                  }
+                      dontSkip = s
+                  in return $ case reason of
+                    Permanent   -> skip 0
+                    Unspecified -> dontSkip
+                    AVar x      ->
+                      if x `IntSet.member` freeInTgt
+                      then skip x
+                      else skip 0
+                IsRigid -> do
+
+                      -- Is any free variable in tgt less than
+                      -- visiblePis?
+                  let dep = not (IntSet.null freeInTgt)
+                  -- The target must be non-dependent.
+                  if dep then return s else do
+
+                  -- Andreas, 2019-03-28, issue #3248:
+                  -- If the target type is SIZELT, we need coerce, leqType is insufficient.
+                  -- For example, we have i : Size <= (Size< ↑ i), but not Size <= (Size< ↑ i).
+                  (isSizeLt, sApp, s) <-
+                    if sSizeLtChecked
+                    then return (False, sApp, s)
+                    else do
+                      sApp     <- reduce sApp
+                      isSizeLt <- isSizeType sApp <&> \case
+                        Just (BoundedLt _) -> True
+                        _                  -> False
+                      return ( isSizeLt
+                             , sApp
+                             , s{ sApp           = Just sApp
+                                , sSizeLtChecked = True
+                                , sSkipCheck     =
+                                    if isSizeLt then Skip else DontSkip
+                                }
+                             )
+                  if isSizeLt then return s else do
+
+                  let tgt1 = applySubst
+                               (strengthenS impossible visiblePis)
+                               tgt
                   reportSDoc "tc.term.args.target" 30 $ vcat
                     [ "Checking target types first"
                     , nest 2 $ "inferred =" <+> prettyTCM tgt1
-                    , nest 2 $ "expected =" <+> prettyTCM t1 ]
-                  traceCall (CheckTargetType (fuseRange r args0) tgt1 t1) $
-                    CheckedTarget <$> ifNoConstraints_ (compareType cmp tgt1 t1)
-                                        (return Nothing) (return . Just)
+                    , nest 2 $ "expected =" <+> prettyTCM sApp ]
+                  chk <-
+                    traceCall
+                      (CheckTargetType
+                         (fuseRange sRange sArgs) tgt1 sApp) $
+                      CheckedTarget <$>
+                        ifNoConstraints_ (compareType sComp tgt1 sApp)
+                          (return Nothing) (return . Just)
+                  return s{ sChecked = chk }
 
-            _ -> return chk
+            _ -> return s
 
-        -- t0' <- lift $ forcePi (getHiding info) (maybe "_" rangedThing $ nameOf e) t0'
-        case unEl t0' of
+        -- sFun <- lift $ forcePi (getHiding info)
+        --                  (maybe "_" rangedThing $ nameOf e) sFun
+        case unEl sFun of
           Pi (Dom{domInfo = info', domName = dname, unDom = a}) b
             | let name = bareNameWithDefault "_" dname,
               sameHiding info info'
@@ -721,13 +829,18 @@ checkArgumentsE' chk cmp exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                   let e' = e { nameOf = (nameOf e) <|> dname }
                   checkNamedArg (Arg info' e') a
 
-                let c | IsLock == getLock info' = Just $ Abs "t" (CheckLockedVars (Var 0 []) (raise 1 t0') (raise 1 $ Arg info' u) (raise 1 a))
+                let c | IsLock == getLock info' =
+                        Just $ Abs "t" $
+                        CheckLockedVars (Var 0 []) (raise 1 sFun)
+                          (raise 1 $ Arg info' u) (raise 1 a)
                       | otherwise = Nothing
                 lift $ reportSDoc "tc.term.lock" 40 $ text "lock =" <+> text (show $ getLock info')
-                lift $ reportSDoc "tc.term.lock" 40 $ addContext (defaultDom $ t0') $ maybe (text "nothing") prettyTCM (absBody <$> c)
+                lift $ reportSDoc "tc.term.lock" 40 $
+                  addContext (defaultDom $ sFun) $
+                  maybe (text "nothing") prettyTCM (absBody <$> c)
                 -- save relevance info' from domain in argument
                 addCheckedArgs us (getRange e) (Apply $ Arg info' u) c $
-                  checkArgumentsE' chk' cmp exh (fuseRange r e) args (absApp b u) mt1
+                  checkArgumentsE' s{ sFun = absApp b u }
             | otherwise -> do
                 reportSDoc "error" 10 $ nest 2 $ vcat
                   [ text $ "info      = " ++ show info
@@ -738,11 +851,14 @@ checkArgumentsE' chk cmp exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                 wrongPi
           _
             | visible info
-            , PathType s _ _ bA x y <- viewPath t0' -> do
+            , PathType sort _ _ bA x y <- sPathView sFun -> do
                 lift $ reportSDoc "tc.term.args" 30 $ text $ show bA
                 u <- lift $ checkExpr (namedThing e) =<< primIntervalType
                 addCheckedArgs us (getRange e) (IApply (unArg x) (unArg y) u) Nothing $
-                  checkArgumentsE cmp exh (fuseRange r e) args (El s $ unArg bA `apply` [argN u]) mt1
+                  checkArgumentsE'
+                    s{ sChecked = NotCheckedTarget
+                     , sFun     = El sort $ unArg bA `apply` [argN u]
+                     }
           _ -> shouldBePi
   where
     -- Andrea: Here one would add constraints too.
@@ -755,6 +871,61 @@ checkArgumentsE' chk cmp exh r args0@(arg@(Arg info e) : args) t0 mt1 =
           let rs' = replicate (length us) Nothing ++ Just r : rs
               cs' = replicate (length us) Nothing ++ c : acConstraints st
           throwError $ st { acRanges = rs', acElims = us ++ u : vs, acConstraints = cs' }
+
+-- | The result of 'isRigid'.
+
+data IsRigid
+  = IsRigid
+    -- ^ The type is rigid.
+  | IsNotRigid !IsPermanent
+    -- ^ The type is not rigid. If the argument is 'Nothing', then
+    -- this will not change. If the argument is @'Just' reason@, then
+    -- this might change for the given @reason@.
+
+-- | Is the result of 'isRigid' \"permanent\"?
+
+data IsPermanent
+  = Permanent
+    -- ^ Yes.
+  | AVar !Nat
+    -- ^ The result does not change unless the given variable is
+    -- instantiated.
+  | Unspecified
+    -- ^ Maybe, maybe not.
+
+-- | Is the type \"rigid\"?
+
+isRigid :: CheckArgumentsE'State -> Type -> TCM IsRigid
+isRigid s t | PathType{} <- sPathView s t =
+  -- Path is not rigid.
+  return $ IsNotRigid Permanent
+isRigid _ (El _ t) = case t of
+  Var x _    -> return $ IsNotRigid (AVar x)
+  Lam{}      -> return $ IsNotRigid Permanent
+  Lit{}      -> return $ IsNotRigid Permanent
+  Con{}      -> return $ IsNotRigid Permanent
+  Pi dom _   -> return $
+                if visible dom then IsRigid else IsNotRigid Permanent
+  Sort{}     -> return $ IsNotRigid Permanent
+  Level{}    -> return $ IsNotRigid Permanent
+  MetaV{}    -> return $ IsNotRigid Unspecified
+  DontCare{} -> return $ IsNotRigid Permanent
+  Dummy{}    -> return $ IsNotRigid Permanent
+  Def d _    -> getConstInfo d <&> theDef <&> \case
+    Axiom{}                   -> IsRigid
+    DataOrRecSig{}            -> IsRigid
+    AbstractDefn{}            -> IsRigid
+    Function{funClauses = cs} -> if null cs
+                                 then IsRigid
+                                 else IsNotRigid Unspecified
+                                      -- This Reason could perhaps be
+                                      -- more precise (in some cases).
+    Datatype{}                -> IsRigid
+    Record{}                  -> IsRigid
+    Constructor{}             -> __IMPOSSIBLE__
+    GeneralizableVar{}        -> __IMPOSSIBLE__
+    Primitive{}               -> IsNotRigid Unspecified
+    PrimitiveSort{}           -> IsNotRigid Unspecified
 
 -- | Check that a list of arguments fits a telescope.
 --   Inserts hidden arguments as necessary.
