@@ -307,7 +307,7 @@ revisitRecordPatternTranslation qs = do
     case theDef def of
       Record{ recEtaEquality' = Inferred YesEta } -> return $ Just $ Left q
       Function
-        { funProjection = Nothing
+        { funProjection = Left MaybeProjection
             -- Andreas, 2017-08-10, issue #2664:
             -- Do not record pattern translate record projection definitions!
         , funCompiled   = Just cc
@@ -748,7 +748,7 @@ checkPragma r p =
           def <- getConstInfo qn
           case theDef def of
             it@Function{} ->
-              modifyGlobalDefinition qn $ \def -> def { theDef = it { funProjection = Nothing } }
+              modifyGlobalDefinition qn $ \def -> def { theDef = it { funProjection = Left NeverProjection } }
             _ -> typeError $ GenericError "NOT_PROJECTION_LIKE directive only applies to functions"
         A.InlinePragma b x -> do
           def <- getConstInfo x

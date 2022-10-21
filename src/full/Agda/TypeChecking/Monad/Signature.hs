@@ -83,7 +83,7 @@ addConstant q d = do
   tel <- getContextTelescope
   let tel' = replaceEmptyName "r" $ killRange $ case theDef d of
               Constructor{} -> fmap hideOrKeepInstance tel
-              Function{ funProjection = Just Projection{ projProper = Just{}, projIndex = n } } ->
+              Function{ funProjection = Right Projection{ projProper = Just{}, projIndex = n } } ->
                 let fallback = fmap hideOrKeepInstance tel in
                 if n > 0 then fallback else
                 -- if the record value is part of the telescope, its hiding should left unchanged
@@ -513,14 +513,15 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
             -- This is because we may abstract the record argument later again.
             -- See succeed/ProjectionNotNormalized.agda
             isVar0 t = case unArg t of Var 0 [] -> True; _ -> False
+            proj :: Either ProjectionLikenessMissing Projection
             proj   = case oldDef of
-              Function{funProjection = Just p@Projection{projIndex = n}}
+              Function{funProjection = Right p@Projection{projIndex = n}}
                 | size ts' < n || (size ts' == n && maybe True isVar0 (lastMaybe ts'))
-                -> Just $ p { projIndex = n - size ts'
-                            , projLams  = projLams p `apply` ts'
-                            , projProper= copyName <$> projProper p
-                            }
-              _ -> Nothing
+                -> Right p { projIndex = n - size ts'
+                           , projLams  = projLams p `apply` ts'
+                           , projProper= copyName <$> projProper p
+                           }
+              _ -> funProjection oldDef
             def =
               case oldDef of
                 Constructor{ conPars = np, conData = d } -> return $
@@ -562,7 +563,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                         , clauseTel         = EmptyTel
                         , namedClausePats   = []
                         , clauseBody        = Just $ dropArgs pars $ case oldDef of
-                            Function{funProjection = Just p} -> projDropParsApply p ProjSystem rel ts'
+                            Function{funProjection = Right p} -> projDropParsApply p ProjSystem rel ts'
                             _ -> Def x $ map Apply ts'
                         , clauseType        = Just $ defaultArg t
                         , clauseCatchall    = False
@@ -575,7 +576,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
               where
                 -- The number of remaining parameters. We need to drop the
                 -- lambdas corresponding to these from the clause body above.
-                pars = max 0 $ maybe 0 (pred . projIndex) proj
+                pars = max 0 $ either (const 0) (pred . projIndex) proj
                 rel  = getRelevance $ defArgInfo d
 
     {- Example
@@ -1248,8 +1249,8 @@ isProjection qn = isProjection_ . theDef <$> getConstInfo qn
 isProjection_ :: Defn -> Maybe Projection
 isProjection_ def =
   case def of
-    Function { funProjection = result } -> result
-    _                                   -> Nothing
+    Function { funProjection = Right result } -> Just result
+    _                                         -> Nothing
 
 -- | Is it the name of a non-irrelevant record projection?
 {-# SPECIALIZE isProjection :: QName -> TCM (Maybe Projection) #-}

@@ -159,7 +159,7 @@ bindBuiltinFlat x =
                , theDef = FunctionDefn emptyFunctionData
                    { _funClauses      = [clause]
                    , _funCompiled     = Just $ cc
-                   , _funProjection   = Just projection
+                   , _funProjection   = Right projection
                    , _funMutual       = Just []
                    , _funTerminates   = Just True
                    }

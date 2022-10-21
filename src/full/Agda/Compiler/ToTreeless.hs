@@ -60,7 +60,7 @@ getCompiledClauses :: QName -> TCM CC.CompiledClauses
 getCompiledClauses q = do
   def <- getConstInfo q
   let cs = defClauses def
-      isProj | Function{ funProjection = proj } <- theDef def = isJust (projProper =<< proj)
+      isProj | Function{ funProjection = Right x } <- theDef def = isJust (projProper x)
              | otherwise = False
       translate | isProj    = CC.DontRunRecordPatternTranslation
                 | otherwise = CC.RunRecordPatternTranslation

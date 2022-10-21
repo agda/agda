@@ -141,7 +141,7 @@ compactDef bEnv def rewr = do
       Constructor{conSrcCon = c, conArity = n} -> pure CCon{cconSrcCon = c, cconArity = n}
       Function{funCompiled = Just cc, funClauses = _:_, funProjection = proj} ->
         pure CFun{ cfunCompiled   = fastCompiledClauses bEnv cc
-                 , cfunProjection = projOrig <$> proj }
+                 , cfunProjection = projOrig <$> either (const Nothing) Just proj }
       Function{funClauses = []}      -> pure CAxiom
       Function{}                     -> pure COther -- Incomplete definition
       Datatype{dataClause = Nothing} -> pure CTyCon

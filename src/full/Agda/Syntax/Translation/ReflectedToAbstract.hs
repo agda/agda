@@ -217,7 +217,7 @@ mkDef f = getConstInfo f <&> theDef <&> \case
   Constructor{}
     -> A.Con $ unambiguous f
 
-  Function{ funProjection = Just Projection{ projProper = Just{} } }
+  Function{ funProjection = Right Projection{ projProper = Just{} } }
     -> A.Proj ProjSystem $ unambiguous f
 
   d@Function{} | isMacro d

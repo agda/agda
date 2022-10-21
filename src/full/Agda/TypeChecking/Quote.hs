@@ -205,7 +205,7 @@ quotingKit = do
       quotePat (IApplyP _ _ _ x) = varP !@! quoteNat (toInteger $ dbPatVarIndex x)
       quotePat DefP{}            = pure unsupported
 
-      quoteClause :: Maybe Projection -> Clause -> ReduceM Term
+      quoteClause :: Either a Projection -> Clause -> ReduceM Term
       quoteClause proj cl@Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = body} =
         case body of
           Nothing -> absurdClause !@ quoteTelescope tel @@ quotePats ps'
@@ -214,8 +214,8 @@ quotingKit = do
           -- #5128: restore dropped parameters if projection-like
           ps' =
             case proj of
-              Nothing -> ps
-              Just p  -> pars ++ ps
+              Left _ -> ps
+              Right p  -> pars ++ ps
                 where
                   n    = projIndex p - 1
                   pars = map toVar $ take n $ zip (downFrom $ size tel) (telToList tel)
@@ -274,13 +274,13 @@ quotingKit = do
                     cs <- return $ filter (not . generatedClause) cs
                     n <- size <$> lookupSection m
                     let (pars, args) = splitAt n ts
-                    extlam !@ list (map (quoteClause Nothing . (`apply` pars)) cs)
+                    extlam !@ list (map (quoteClause (Left ()) . (`apply` pars)) cs)
                            @@ list (map (quoteArg quoteTerm) args)
               qx df@Function{ funExtLam = Just (ExtLamInfo _ True _), funCompiled = Just Fail{}, funClauses = [cl] } = do
                     -- See also corresponding code in InternalToAbstract
                     let n = length (namedClausePats cl) - 1
                         pars = take n ts
-                    extlam !@ list [quoteClause Nothing $ cl `apply` pars ]
+                    extlam !@ list [quoteClause (Left ()) $ cl `apply` pars ]
                            @@ list (drop n $ map (quoteArg quoteTerm) ts)
               qx _ = do
                 n <- getDefFreeVars x
@@ -310,9 +310,9 @@ quotingKit = do
       defParameters def False = map par hiding
         where
           np = case theDef def of
-                 Constructor{ conPars = np }        -> np
-                 Function{ funProjection = Just p } -> projIndex p - 1
-                 _                                  -> 0
+                 Constructor{ conPars = np }         -> np
+                 Function{ funProjection = Right p } -> projIndex p - 1
+                 _                                   -> 0
           TelV tel _ = telView' (defType def)
           hiding     = take np $ telToList tel
           par d      = arg !@ quoteArgInfo (domInfo d)
@@ -337,7 +337,7 @@ quotingKit = do
           GeneralizableVar{} -> pure agdaDefinitionPostulate  -- TODO: reflect generalizable vars
           AbstractDefn{}-> pure agdaDefinitionPostulate
           Primitive{primClauses = cs} | not $ null cs ->
-            agdaDefinitionFunDef !@ quoteList (quoteClause Nothing) cs
+            agdaDefinitionFunDef !@ quoteList (quoteClause (Left ())) cs
           Primitive{}   -> pure agdaDefinitionPrimitive
           PrimitiveSort{} -> pure agdaDefinitionPrimitive
           Constructor{conData = d} ->

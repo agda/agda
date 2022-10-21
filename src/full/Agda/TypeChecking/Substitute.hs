@@ -308,7 +308,7 @@ instance Apply Defn where
     AbstractDefn d -> AbstractDefn $ apply d args
     Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv
             , funExtLam = extLam
-            , funProjection = Nothing } ->
+            , funProjection = Left _ } ->
       d { funClauses    = apply cs args
         , funCompiled   = apply cc args
         , funCovering   = apply cov args
@@ -318,19 +318,19 @@ instance Apply Defn where
 
     Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv
             , funExtLam = extLam
-            , funProjection = Just p0} ->
+            , funProjection = Right p0 } ->
       case p0 `apply` args of
         p@Projection{ projIndex = n }
           | n < 0     -> d { funProjection = __IMPOSSIBLE__ } -- TODO (#3123): we actually get here!
           -- case: applied only to parameters
-          | n > 0     -> d { funProjection = Just p }
+          | n > 0     -> d { funProjection = Right p }
           -- case: applied also to record value (n == 0)
           | otherwise ->
               d { funClauses        = apply cs args'
                 , funCompiled       = apply cc args'
                 , funCovering       = apply cov args'
                 , funInv            = apply inv args'
-                , funProjection     = if isVar0 then Just p{ projIndex = 0 } else Nothing
+                , funProjection     = if isVar0 then Right p{ projIndex = 0 } else Left MaybeProjection
                 , funExtLam         = modifySystem (\ _ -> __IMPOSSIBLE__) <$> extLam
                 }
               where
@@ -667,7 +667,7 @@ instance Abstract Defn where
     AbstractDefn d -> AbstractDefn $ abstract tel d
     Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv
             , funExtLam = extLam
-            , funProjection = Nothing  } ->
+            , funProjection = Left _  } ->
       d { funClauses  = abstract tel cs
         , funCompiled = abstract tel cc
         , funCovering = abstract tel cov
@@ -676,15 +676,15 @@ instance Abstract Defn where
         }
     Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv
             , funExtLam = extLam
-            , funProjection = Just p } ->
+            , funProjection = Right p } ->
       -- Andreas, 2015-05-11 if projection was applied to Var 0
       -- then abstract over last element of tel (the others are params).
       if projIndex p > 0 then
-        d { funProjection = Just $ abstract tel p
+        d { funProjection = Right $ abstract tel p
           , funClauses    = map (abstractClause EmptyTel) cs
           }
       else
-        d { funProjection = Just $ abstract tel p
+        d { funProjection = Right $ abstract tel p
           , funClauses    = map (abstractClause tel1) cs
           , funCompiled   = abstract tel1 cc
           , funCovering   = abstract tel1 cov
