@@ -169,6 +169,18 @@ partial. To be used as a version of
 :option:`--allow-incomplete-matches` that only applies to specific
 functions.
 
+.. _not_projection_like-pragma:
+
+The ``NOT_PROJECTION_LIKE`` pragma
+___________________________
+
+.. versionadded:: 2.6.1
+
+The ``NOT_PROJECTION_LIKE`` pragma disables projection-likeness analysis
+for a particular function, which must be defined before it can be
+affected by the pragma. To be used as a version of
+:option:`--no-projection-like` that only applies to specific functions.
+
 .. _options-pragma:
 
 The ``OPTIONS`` pragma
