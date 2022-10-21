@@ -172,7 +172,7 @@ functions.
 .. _not_projection_like-pragma:
 
 The ``NOT_PROJECTION_LIKE`` pragma
-___________________________
+__________________________________
 
 .. versionadded:: 2.6.1
 
