@@ -1,0 +1,5 @@
+Issue6060.agda:14,1-16
+Could not generate a transport clause for g
+because a term of type P
+lives in the sort Prop and thus can not be transported
+when checking the definition of g
