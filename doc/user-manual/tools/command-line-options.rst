@@ -299,8 +299,8 @@ Experimental features
 
 .. option:: --cubical
 
-     Enable cubical features. Turns on :option:`--without-K` (see
-     :ref:`cubical`).
+     Enable cubical features. Turns on :option:`--cubical-compatible`
+     and :option:`--without-K` (see :ref:`cubical`).
 
 .. option:: --erased-cubical
 
@@ -389,8 +389,14 @@ Pattern matching and equality
 
 .. option:: --without-K
 
-     Disables definitions using Streicher’s K axiom (see
+     Disables reasoning principles incompatible with univalent type
+     theory, most importantly Streicher's K axiom (see
      :ref:`without-K`).
+
+.. option:: --cubical-compatible
+
+     Generate internal support code necessary for use from Cubical Agda
+     (see :ref:`cubical-compatible`). Implies :option:`--without-K`.
 
 .. option:: --keep-pattern-variables
 
@@ -909,6 +915,7 @@ options are coinfective:
 
 * :option:`--safe`
 * :option:`--without-K`
+* :option:`--cubical-compatible`
 * :option:`--no-universe-polymorphism`
 * :option:`--no-sized-types`
 * :option:`--no-guardedness`
