@@ -1868,6 +1868,13 @@ equalSort s1 s2 = do
             -- We must have @l2 =< l@, this might help us to solve
             -- more constraints (in particular when @l == 0@).
             leqLevel l2 l
+            -- Jesper, 2022-10-22, #6211: the operations `forceType`
+            -- and `leqLevel` above might have instantiated some
+            -- metas, so we need to reduce s1 again to get an
+            -- up-to-date Blocker.
+            s1b <- reduceB s1
+            let s1 = ignoreBlocking s1b
+                blocker = getBlocker s1b
             -- Jesper, 2019-12-27: SizeUniv is disabled at the moment.
             if | {- sizedTypesEnabled || -} propEnabled || cubicalEnabled ->
                 case funSort' s1 (Type l2) of
@@ -1887,6 +1894,9 @@ equalSort s1 s2 = do
           Prop l -> do
             l2 <- forceProp s2
             leqLevel l2 l
+            s1b <- reduceB s1
+            let s1 = ignoreBlocking s1b
+                blocker = getBlocker s1b
             case funSort' s1 (Prop l2) of
                    -- If the work we did makes the @funSort@ compute,
                    -- continue working.
