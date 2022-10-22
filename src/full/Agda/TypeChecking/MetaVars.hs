@@ -1074,10 +1074,12 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
       let success = killResult `elem` [PrunedSomething,PrunedEverything]
       reportSDoc "tc.meta.assign" 10 $
         "pruning" <+> prettyTCM x <+> do text $ if success then "succeeded" else "failed"
-      patternViolation (if success then alwaysUnblock  -- If pruning succeeded we want to retry right away
-                                   else unblockOnAnyMetaIn $ MetaV x $ map Apply args)
-                                        -- TODO: could be more precise: only unblock on metas
-                                        --       applied to offending variables
+      blocker <- if
+        | success   -> return alwaysUnblock  -- If pruning succeeded we want to retry right away
+        | otherwise -> unblockOnAnyMetaIn . MetaV x . map Apply <$> instantiateFull args
+             -- TODO: could be more precise: only unblock on metas
+             --       applied to offending variables
+      patternViolation blocker
 
 {- UNUSED
 -- | When faced with @_X us == D vs@ for an inert D we can solve this by

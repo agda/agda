@@ -398,10 +398,11 @@ compareSizeViews cmp s1' s2' = do
 giveUp :: (MonadConversion m) => Comparison -> Type -> Term -> Term -> m ()
 giveUp cmp size u v =
   ifM (asksTC envAssignMetas)
-    {-then-} (addConstraint unblock $ ValueCmp CmpLeq AsSizes u v)
+    {-then-} (do
+      -- TODO: compute proper blocker
+      unblock <- unblockOnAnyMetaIn <$> instantiateFull [u, v]
+      addConstraint unblock $ ValueCmp CmpLeq AsSizes u v)
     {-else-} (typeError $ UnequalTerms cmp u v AsSizes)
-  where
-    unblock = unblockOnAnyMetaIn [u, v]
 
 -- | Checked whether a size constraint is trivial (like @X <= X+1@).
 trivial :: (MonadConversion m) => Term -> Term -> m Bool
