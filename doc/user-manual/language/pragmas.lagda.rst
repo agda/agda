@@ -174,7 +174,7 @@ functions.
 The ``NOT_PROJECTION_LIKE`` pragma
 __________________________________
 
-.. versionadded:: 2.6.1
+.. versionadded:: 2.6.3
 
 The ``NOT_PROJECTION_LIKE`` pragma disables projection-likeness analysis
 for a particular function, which must be defined before it can be
