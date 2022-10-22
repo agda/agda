@@ -482,9 +482,7 @@ compareAtom cmp t m n =
       mb' <- etaExpandBlocked =<< reduceB m
       nb' <- etaExpandBlocked =<< reduceB n
       return (mb', nb')
-    let getBlocker (Blocked b _) = b
-        getBlocker NotBlocked{}  = neverUnblock
-        blocker = unblockOnEither (getBlocker mb') (getBlocker nb')
+    let blocker = unblockOnEither (getBlocker mb') (getBlocker nb')
     reportSLn "tc.conv.atom.size" 50 $ "term size after reduce: " ++ show (termSize $ ignoreBlocking mb', termSize $ ignoreBlocking nb')
 
     -- constructorForm changes literal to constructors
@@ -1230,8 +1228,6 @@ leqSort s1 s2 = do
     s2b <- reduceB s2
 
     let (s1,s2) = (ignoreBlocking s1b , ignoreBlocking s2b)
-        getBlocker (Blocked b _) = b
-        getBlocker NotBlocked{}  = neverUnblock
         blocker = unblockOnEither (getBlocker s1b) (getBlocker s2b)
         postpone = patternViolation blocker
 
@@ -1687,8 +1683,6 @@ equalSort s1 s2 = do
     s2b <- reduceB s2
 
     let (s1,s2) = (ignoreBlocking s1b, ignoreBlocking s2b)
-        getBlocker (Blocked b _) = b
-        getBlocker NotBlocked{}  = neverUnblock
         blocker = unblockOnEither (getBlocker s1b) (getBlocker s2b)
         postpone = patternViolation blocker
 

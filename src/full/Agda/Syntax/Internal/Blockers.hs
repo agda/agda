@@ -246,6 +246,10 @@ blocked_ x = blocked x ()
 notBlocked_ :: Blocked' t ()
 notBlocked_ = notBlocked ()
 
+getBlocker :: Blocked' t a -> Blocker
+getBlocker (Blocked b _) = b
+getBlocker NotBlocked{}  = neverUnblock
+
 -----------------------------------------------------------------------------
 -- * Waking up logic
 -----------------------------------------------------------------------------
