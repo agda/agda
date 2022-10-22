@@ -1411,6 +1411,10 @@ instance Pretty a => Pretty (Pattern' a) where
   prettyPrec n (IApplyP _o _ _ x) = prettyPrec n x
 --  prettyPrec n (IApplyP _o u0 u1 x) = text "@[" <> prettyPrec 0 u0 <> text ", " <> prettyPrec 0 u1 <> text "]" <> prettyPrec n x
 
+instance Pretty a => Pretty (Blocked a) where
+  pretty (Blocked x a) = ("[" <+> pretty a <+> "]") <> pretty x
+  pretty (NotBlocked _ x) = pretty x
+
 -----------------------------------------------------------------------------
 -- * NFData instances
 -----------------------------------------------------------------------------

@@ -56,21 +56,31 @@ pureCompareAs cmp a u v =
 runPureConversion
   :: (MonadBlock m, PureTCM m, Show a)
   => PureConversionT m a -> m (Maybe a)
-runPureConversion (PureConversionT m) = locallyTC eCompareBlocked (const True) $ do
+runPureConversion (PureConversionT m) = locallyTC eCompareBlocked (const True) $
+  verboseBracket "tc.conv.pure" 40 "runPureConversion" $ do
   i <- useR stFreshInt
   pid <- useR stFreshProblemId
   nid <- useR stFreshNameId
   let frsh = FreshThings i pid nid
   result <- fst <$> runStateT (runExceptT m) frsh
-  reportSLn "tc.conv.pure" 40 $ "runPureConversion result: " ++ show result
   case result of
     Left (PatternErr block)
-     | block == neverUnblock -> return Nothing
-     | otherwise             -> patternViolation block
-    Left TypeError{}   -> return Nothing
+     | block == neverUnblock -> do
+         debugResult "stuck"
+         return Nothing
+     | otherwise             -> do
+         debugResult $ "blocked on" <+> prettyTCM block
+         patternViolation block
+    Left TypeError{}   -> do
+      debugResult "type error"
+      return Nothing
     Left Exception{}   -> __IMPOSSIBLE__
     Left IOException{} -> __IMPOSSIBLE__
-    Right x            -> return $ Just x
+    Right x            -> do
+      debugResult "success"
+      return $ Just x
+  where
+    debugResult msg = reportSDoc "tc.conv.pure" 40 $ "runPureConversion result: " <+> msg
 
 instance MonadTrans PureConversionT where
   lift = PureConversionT . lift . lift

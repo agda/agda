@@ -1250,6 +1250,11 @@ instance TermLike CompareAs where
 
 instance AllMetas CompareAs
 
+instance Pretty CompareAs where
+  pretty (AsTermsOf a) = ":" <+> pretty a
+  pretty AsSizes       = ":" <+> text "Size"
+  pretty AsTypes       = empty
+
 ---------------------------------------------------------------------------
 -- * Open things
 ---------------------------------------------------------------------------

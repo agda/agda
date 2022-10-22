@@ -517,9 +517,9 @@ compareAtom cmp t m n =
                              , prettyTCM t
                              ]
     reportSDoc "tc.conv.atom" 80 $
-      "compareAtom" <+> fsep [ (text . show) mb <+> prettyTCM cmp
-                                  , (text . show) nb
-                                  , ":" <+> (text . show) t ]
+      "compareAtom" <+> fsep [ pretty mb <+> prettyTCM cmp
+                                  , pretty nb
+                                  , ":" <+> pretty t ]
     case (mb, nb) of
       -- equate two metas x and y.  if y is the younger meta,
       -- try first y := x and then x := y
@@ -1515,6 +1515,7 @@ equalLevel a b = do
                               ]
                ]
         ]
+  reportSDoc "tc.conv.level" 80 $ sep [ "equalLevel", nest 2 $ parens $ pretty a, nest 2 $ parens $ pretty b ]
 
   (a, b) <- normalise (a, b)
 
@@ -1547,18 +1548,18 @@ equalLevel a b = do
       bs  = levelMaxView b'
   reportSDoc "tc.conv.level" 50 $
     sep [ text "equalLevel"
-        , vcat [ nest 2 $ sep [ prettyList_ $ fmap (pretty . unSingleLevel) as
+        , vcat [ nest 2 $ sep [ prettyList_ $ fmap (prettyTCM . unSingleLevel) as
                               , "=="
-                              , prettyList_ $ fmap (pretty . unSingleLevel) bs
+                              , prettyList_ $ fmap (prettyTCM . unSingleLevel) bs
                               ]
                ]
         ]
 
   reportSDoc "tc.conv.level" 80 $
     sep [ text "equalLevel"
-        , vcat [ nest 2 $ sep [ prettyList_ $ fmap (text . show . unSingleLevel) as
+        , vcat [ nest 2 $ sep [ prettyList_ $ fmap (pretty . unSingleLevel) as
                               , "=="
-                              , prettyList_ $ fmap (text . show . unSingleLevel) bs
+                              , prettyList_ $ fmap (pretty . unSingleLevel) bs
                               ]
                ]
         ]
@@ -1985,14 +1986,14 @@ forallFaceMaps t kb k = do
         tel <- getContextTelescope
         m <- currentModule
         sub <- getModuleParameterSub m
-        reportS "conv.forall" 10
-          [ replicate 10 '-'
-          , show (envCurrentModule $ clEnv cl)
-          , show (envLetBindings $ clEnv cl)
-          , show tel -- (toTelescope $ envContext $ clEnv cl)
-          , show sigma
-          , show m
-          , show sub
+        reportSDoc "conv.forall" 30 $ vcat
+          [ text (replicate 10 '-')
+          , prettyTCM (envCurrentModule $ clEnv cl)
+          -- , prettyTCM (envLetBindings $ clEnv cl)
+          , prettyTCM tel -- (toTelescope $ envContext $ clEnv cl)
+          , prettyTCM sigma
+          , prettyTCM m
+          , prettyTCM sub
           ]
         k sigma
   where
