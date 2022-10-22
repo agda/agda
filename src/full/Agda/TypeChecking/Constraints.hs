@@ -63,6 +63,11 @@ addConstraintTCM unblock c = do
         , prettyTCM . PConstr pids unblock =<< buildClosure c
         , "unblocker: " , prettyTCM unblock
         ]
+      -- Jesper, 2022-10-22: We should never block on a meta that is
+      -- already solved. However, currently this is not always
+      -- strictly adhered to. TODO: pull off the band-aid and
+      -- uncomment the following line.
+      -- whenM (anyM (Set.toList $ allBlockingMetas unblock) isInstantiatedMeta) __IMPOSSIBLE__
       -- Need to reduce to reveal possibly blocking metas
       c <- reduce =<< instantiateFull c
       caseMaybeM (simpl c) {-no-} (addConstraint' unblock c) $ {-yes-} \ cs -> do
