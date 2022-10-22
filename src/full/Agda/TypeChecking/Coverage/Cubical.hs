@@ -1254,7 +1254,7 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) cs 
               case x of
                 Left bad_t -> cannotCreate "Cannot transport with type family:" bad_t
                 Right args -> return args
-          comp <- mkComp "hcompClause"
+          comp <- mkCompLazy "hcompClause"
           let
             hcomp la bA phi u u0 = pure tHComp <#> la <#> bA
                                                <#> phi

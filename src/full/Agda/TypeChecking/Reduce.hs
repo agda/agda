@@ -1015,9 +1015,9 @@ instance Simplify Term where
       Def f vs   -> iapp vs $ do
         let keepGoing simp v = return (simp, notBlocked v)
         (simpl, v) <- unfoldDefinition' False keepGoing (Def f []) f vs
-        traceSDoc "tc.simplify'" 90 (
-          text ("simplify': unfolding definition returns " ++ show simpl)
-            <+> pretty (ignoreBlocking v)) $ do
+        when (simpl == YesSimplification) $
+          reportSDoc "tc.simplify'" 90 $
+            pretty f <+> text ("simplify': unfolding definition returns " ++ show simpl) <+> pretty (ignoreBlocking v)
         case simpl of
           YesSimplification -> simplifyBlocked' v -- Dangerous, but if @simpl@ then @v /= Def f vs@
           NoSimplification  -> Def f <$> simplify' vs

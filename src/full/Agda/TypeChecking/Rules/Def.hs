@@ -600,7 +600,7 @@ checkSystemCoverage f [n] t cs = do
              initWithDefault __IMPOSSIBLE__ $ List.tails pcs) $ \ ((phi1,cl1):pcs') -> do
         forM_ pcs' $ \ (phi2,cl2) -> do
           phi12 <- reduce (imin `apply` [argN phi1, argN phi2])
-          forallFaceMaps phi12 (\ _ _ -> __IMPOSSIBLE__) $ \ sigma -> do
+          forallFaceMaps phi12 (\ _ _ -> __IMPOSSIBLE__) $ \_ sigma -> do
             let args = sigma `applySubst` teleArgs gamma
                 t' = sigma `applySubst` t
                 fromReduced (YesReduction _ x) = x

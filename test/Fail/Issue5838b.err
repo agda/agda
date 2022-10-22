@@ -1,3 +1,13 @@
-Issue5838b.agda:218,1-5
+Issue5838b.agda:219,1-7
 false != true of type Bool
-when checking the definition of bad'
+when checking that a clause of bad' has the correct boundary.
+
+Specifically, the terms
+  false
+and
+  transp
+  (λ i →
+     DoubleCover
+     (transp (twisted-square' i) (primIMin i1 (primIMax i (~ i))) base))
+  i0 false
+must be equal, since bad' i1 could reduce to either.
