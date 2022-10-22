@@ -325,7 +325,7 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
     Function{funProjection = Right{}} ->
       reportSLn "tc.proj.like" 30 $ "  already projection like"
     Function{funProjection = Left NeverProjection} ->
-      reportSLn "tc.proj.like" 30 $ "  the user has asked for it not to be a projection"
+      reportSLn "tc.proj.like" 30 $ "  the user has asked for it not to be projection-like"
     Function{funMutual = Just (_:_)} ->
       reportSLn "tc.proj.like" 30 $ "  mutual functions can't be projections"
     Function{funMutual = Nothing} ->
