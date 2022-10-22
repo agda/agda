@@ -44,7 +44,7 @@ jobs:
       matrix:
         os: [ubuntu-22.04]
         stack-ver: ['2.9.1']
-        ghc-ver: [9.2.4, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4]
+        ghc-ver: [9.4.2, 9.2.4, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4]
           # Andreas, 2022-03-26:
           # Note: ghc-ver needs to be spelled out with minor version, i.e., x.y.z
           # rather than x.y (which haskell-setup would resolve to a suitable .z)
@@ -62,16 +62,16 @@ jobs:
             ghc-ver: 8.0.2
             stack-ver: '2.9.1'
           - os: macos-12
-            ghc-ver: 9.2.4
+            ghc-ver: 9.4.2
             stack-ver: '2.9.1'
           # Andreas, 2022-10-06, issue #6128
           # The action stalls. Last message is "installing agda-mode in ...".
           # Happens on windows-2019 and windows-2022, with stack 2.7.5 and 2.9.1.
           # I have no clue what causes this.
           # Temporarily disable the windows build.
-          # - os: windows-2022
-          #   ghc-ver: 9.2.4
-          #   stack-ver: '2.9.1'
+          - os: windows-2022
+            ghc-ver: 9.4.2
+            stack-ver: '2.9.1'
     # # Try "allowed-failure" for Windows with GHC 9.2
     # continue-on-error: ${{ startsWith(matrix.os, 'windows') && startsWith(matrix.ghc-ver,'9.2') }}
     env:

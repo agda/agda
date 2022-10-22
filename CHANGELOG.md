@@ -38,7 +38,7 @@ Highlights
 Installation and infrastructure
 -------------------------------
 
-Agda supports GHC versions 8.0.2 to 9.2.4.
+Agda supports GHC versions 8.0.2 to 9.4.2.
 
 * UTF-8 encoding is now used for the `libraries` and `executables`
   configuration files (issue
