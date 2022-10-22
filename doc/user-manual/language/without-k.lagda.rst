@@ -29,6 +29,14 @@ The option ``--with-K`` can be used to override a global
   and `#5843 <https://github.com/agda/agda/issues/5843>` for the
   rationale.
 
+.. note::
+   When `--without-K` is used, it is not safe to postulate erased
+   univalence: the theory is perhaps consistent, but one can get
+   incorrect results at run-time. You should use the
+   :ref:`cubical-compatible` flag instead. See `#4784
+   <https://github.com/agda/agda/issues/4784>` for more details on
+   this restriction.
+
 Restrictions on pattern matching
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

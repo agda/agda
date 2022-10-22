@@ -233,10 +233,18 @@ Pragmas and options
   on how often various steps of the conversion algorithm are used
   (reduction, eta-expansion, syntactic equality, etc).
 
-* The generation of Cubical Agda-specific support code was removed from
-  `--without-K` and transferred to its own flag, `--cubical-compatible`.
-  ([#5843](https://github.com/agda/agda/issues/5843) and
-  [#6049](https://github.com/agda/agda/issues/6049) for the rationale).
+* The generation of Cubical Agda-specific support code was removed
+  from `--without-K` and transferred to its own flag,
+  `--cubical-compatible` (see
+  [#5843](https://github.com/agda/agda/issues/5843) and
+  [#6049](https://github.com/agda/agda/issues/6049) for the
+  rationale). Note that code that uses (only) `--without-K` can no
+  longer be imported from code that uses `--cubical`. Thus it may make
+  sense to replace `--without-K` with `--cubical-compatible` in
+  library code, if possible. Also note that when `--without-K` is used
+  it is not safe to postulate erased univalence: the theory is perhaps
+  consistent, but one can get incorrect results at run-time (see
+  [#4784](https://github.com/agda/agda/issues/4784)).
 
 * If `--interaction-exit-on-error` is used, then Agda exits with a
   non-zero exit code if `--interaction` or `--interaction-json` are
