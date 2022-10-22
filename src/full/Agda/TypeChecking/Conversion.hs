@@ -232,7 +232,7 @@ compareAs cmp a u v = do
 --   and run conversion check again.
 assignE :: (MonadConversion m)
         => CompareDirection -> MetaId -> Elims -> Term -> CompareAs -> (Term -> Term -> m ()) -> m ()
-assignE dir x es v a comp = assignWrapper dir x es v $ do
+assignE dir x es v a comp = do
   whenProfile Profile.Conversion $ tick "compare meta"
   case allApplyElims es of
     Just vs -> assignV dir x vs v a
