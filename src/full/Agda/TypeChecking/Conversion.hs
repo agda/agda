@@ -31,7 +31,7 @@ import Agda.TypeChecking.Substitute
 import qualified Agda.TypeChecking.SyntacticEquality as SynEq
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
-import Agda.TypeChecking.Conversion.Pure (pureCompareAs)
+import Agda.TypeChecking.Conversion.Pure (pureCompareAs, runPureConversion)
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (infer)
 import Agda.TypeChecking.Forcing (isForced, nextIsForced)
 import Agda.TypeChecking.Free
@@ -523,40 +523,7 @@ compareAtom cmp t m n =
       -- try first y := x and then x := y
       _ | MetaV x xArgs <- ignoreBlocking mb,   -- Can be either Blocked or NotBlocked depending on
           MetaV y yArgs <- ignoreBlocking nb -> -- envCompareBlocked check above.
-        if | x == y, cmpBlocked -> do
-              a <- metaType x
-              blockOnError (unblockOnMeta x) $
-                compareElims [] [] a (MetaV x []) xArgs yArgs
-           | x == y -> blockOnError (unblockOnMeta x) $
-            case intersectVars xArgs yArgs of
-              -- all relevant arguments are variables
-              Just kills -> do
-                -- kills is a list with 'True' for each different var
-                killResult <- killArgs kills x
-                case killResult of
-                  NothingToPrune   -> return ()
-                  PrunedEverything -> return ()
-                  PrunedNothing    -> checkDefinitionalEquality
-                  PrunedSomething  -> checkDefinitionalEquality
-              -- not all relevant arguments are variables
-              Nothing -> checkDefinitionalEquality -- Check definitional equality on meta-variables
-                              -- (same as for blocked terms)
-           | otherwise -> do
-              [p1, p2] <- mapM getMetaPriority [x,y]
-              -- First try the one with the highest priority. If that doesn't
-              -- work, try the low priority one.
-              let (solve1, solve2)
-                    | (p1, x) > (p2, y) = (l1, r2)
-                    | otherwise         = (r1, l2)
-                    where l1 = assign dir x xArgs n
-                          r1 = assign rid y yArgs m
-                          -- Careful: the first attempt might prune the low
-                          -- priority meta! (Issue #2978)
-                          l2 = ifM (isInstantiatedMeta x) (compareAsDir dir t m n) l1
-                          r2 = ifM (isInstantiatedMeta y) (compareAsDir rid t n m) r1
-
-              -- Unblock on both unblockers of solve1 and solve2
-              catchPatternErr (`addOrUnblocker` solve2) solve1
+        compareMetas cmp t x xArgs y yArgs
 
       -- one side a meta
       _ | MetaV x es <- ignoreBlocking mb -> assign dir x es n
@@ -722,6 +689,53 @@ compareAtom cmp t m n =
             errC = typeError $ UnequalCohesion cmp t1 t2
             errF = typeError $ UnequalFiniteness cmp t1 t2
           _ -> __IMPOSSIBLE__
+
+-- | Check whether @x xArgs `cmp` y yArgs@
+compareMetas :: MonadConversion m => Comparison -> CompareAs -> MetaId -> Elims -> MetaId -> Elims -> m ()
+compareMetas cmp t x xArgs y yArgs | x == y = blockOnError (unblockOnMeta x) $ do
+  cmpBlocked <- viewTC eCompareBlocked
+  let ok    = return ()
+      notOk = patternViolation neverUnblock
+      fallback = do
+        -- Fallback: check definitional equality
+        a <- metaType x
+        runPureConversion (compareElims [] [] a (MetaV x []) xArgs yArgs) >>= \case
+          Just{}  -> ok
+          Nothing -> notOk
+  if | cmpBlocked -> do
+         a <- metaType x
+         compareElims [] [] a (MetaV x []) xArgs yArgs
+     | otherwise -> case intersectVars xArgs yArgs of
+         -- all relevant arguments are variables
+         Just kills -> do
+           -- kills is a list with 'True' for each different var
+           killResult <- killArgs kills x
+           case killResult of
+             NothingToPrune   -> ok
+             PrunedEverything -> ok
+             PrunedNothing    -> fallback
+             PrunedSomething  -> fallback
+         -- not all relevant arguments are variables
+         Nothing -> fallback
+compareMetas cmp t x xArgs y yArgs = do
+  [p1, p2] <- mapM getMetaPriority [x,y]
+  let dir = fromCmp cmp
+      rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
+      retry = patternViolation alwaysUnblock
+  -- First try the one with the highest priority. If that doesn't
+  -- work, try the low priority one.
+  let (solve1, solve2)
+        | (p1, x) > (p2, y) = (l1, r2)
+        | otherwise         = (r1, l2)
+        where l1 = assignE dir x xArgs (MetaV y yArgs) t $ \ _ _ -> retry
+              r1 = assignE rid y yArgs (MetaV x xArgs) t $ \ _ _ -> retry
+              -- Careful: the first attempt might prune the low
+              -- priority meta! (Issue #2978)
+              l2 = ifM (isInstantiatedMeta x) retry l1
+              r2 = ifM (isInstantiatedMeta y) retry r1
+
+  -- Unblock on both unblockers of solve1 and solve2
+  catchPatternErr (`addOrUnblocker` solve2) solve1
 
 -- | Check whether @a1 `cmp` a2@ and continue in context extended by @a1@.
 compareDom :: (MonadConversion m , Free c)
@@ -1593,7 +1607,7 @@ equalLevel a b = do
           , MetaV y bs' <- ignoreBlocking b
           , k == l -> do
               lvl <- levelType'
-              equalAtom (AsTermsOf lvl) (MetaV x as') (MetaV y bs')
+              compareMetas CmpEq (AsTermsOf lvl) x as' y bs'
         (SinglePlus (Plus k a) :| [] , _)
           | MetaV x as' <- ignoreBlocking a
           , Just b' <- subLevel k b -> meta x as' b'
@@ -1685,7 +1699,6 @@ equalSort s1 s2 = do
 
     let (s1,s2) = (ignoreBlocking s1b, ignoreBlocking s2b)
         blocker = unblockOnEither (getBlocker s1b) (getBlocker s2b)
-        postpone = patternViolation blocker
 
     let postponeIfBlocked = catchPatternErr $ \blocker ->
           if | blocker == neverUnblock -> typeError $ UnequalSorts s1 s2
@@ -1710,10 +1723,7 @@ equalSort s1 s2 = do
             -- one side is a meta sort: try to instantiate
             -- In case both sides are meta sorts, instantiate the
             -- bigger (i.e. more recent) one.
-            (MetaS x es , MetaS y es')
-              | x == y                 -> postpone
-              | x < y                  -> meta y es' s1 -- TODO: try other way as well
-              | otherwise              -> meta x es s2  -- TODO: try other way as well
+            (MetaS x es , MetaS y es') -> compareMetas CmpEq AsTypes x es y es'
             (MetaS x es , _          ) -> meta x es s2
             (_          , MetaS x es ) -> meta x es s1
 
