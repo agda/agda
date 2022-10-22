@@ -830,6 +830,7 @@ are different colours. However, for computation, they are treated as the
 same:
 
 ::
+
   _ : ∀ {ℓ} {A : Set ℓ} {x : A} → reflId ≡ conid i1 (λ _ → x)
   _ = refl
 
@@ -1059,4 +1060,3 @@ The ``Agda.Builtin.Cubical.Id`` exports the cubical identity types:
                     (w : (x ≡ outS y) [ φ ↦ (λ { (φ = i1) → \ _ → x}) ]) →
                     C (outS y) (conid φ (outS w))) →
                    {y : A} (p : Id x y) → C y p
-
