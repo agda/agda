@@ -253,7 +253,7 @@ assignE dir x es v a comp = do
           comp w v
         Nothing ->  do
           reportSLn "tc.conv.assign" 30 "eta expansion did not instantiate meta"
-          patternViolation (unblockOnAnyMetaIn (MetaV x es)) -- nothing happened, give up
+          patternViolation $ unblockOnMeta x -- nothing happened, give up
 
 compareAsDir :: MonadConversion m => CompareDirection -> CompareAs -> Term -> Term -> m ()
 compareAsDir dir a = dirToCmp (`compareAs'` a) dir
@@ -1530,7 +1530,8 @@ equalLevel a b = do
       notOk    = typeError $ UnequalLevel CmpEq a' b'
       postpone = do
         reportSDoc "tc.conv.level" 30 $ hang "postponing:" 2 $ hang (pretty a' <+> "==") 0 (pretty b')
-        patternViolation (unblockOnAnyMetaIn (a', b'))
+        blocker <- unblockOnAnyMetaIn <$> instantiateFull (a', b')
+        patternViolation blocker
 
   reportSDoc "tc.conv.level" 50 $
     sep [ "equalLevel (w/o subsumed)"

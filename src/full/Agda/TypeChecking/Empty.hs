@@ -21,6 +21,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Coverage.Match ( fromSplitPatterns )
 import Agda.TypeChecking.Records
+import Agda.TypeChecking.Reduce ( instantiateFull )
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
@@ -88,7 +89,9 @@ checkEmptyType range t = do
       dontAssignMetas $ do
         r <- splitLast Inductive tel ps
         case r of
-          Left UnificationStuck{} -> return $ Left $ DontKnow $ unblockOnAnyMetaIn tel
+          Left UnificationStuck{} -> do
+            blocker <- unblockOnAnyMetaIn <$> instantiateFull tel -- TODO Jesper: get proper blocking information from unification
+            return $ Left $ DontKnow blocker
           Left _                  -> return $ Left Fail
           Right cov -> do
             let ps = map (namedArg . lastWithDefault __IMPOSSIBLE__ . fromSplitPatterns . scPats) $ splitClauses cov
