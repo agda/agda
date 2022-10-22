@@ -60,7 +60,9 @@ addConstraintTCM unblock c = do
       pids <- asksTC envActiveProblems
       reportSDoc "tc.constr.add" 20 $ hsep
         [ "adding constraint"
-        , prettyTCM . PConstr pids unblock =<< buildClosure c ]
+        , prettyTCM . PConstr pids unblock =<< buildClosure c
+        , "unblocker: " , prettyTCM unblock
+        ]
       -- Need to reduce to reveal possibly blocking metas
       c <- reduce =<< instantiateFull c
       caseMaybeM (simpl c) {-no-} (addConstraint' unblock c) $ {-yes-} \ cs -> do
