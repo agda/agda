@@ -52,6 +52,7 @@ import qualified Data.Set as Set
 import Data.Maybe
 import Data.Traversable hiding (for)
 import Data.Semigroup ((<>))
+import Data.Foldable (fold)
 
 import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
@@ -62,6 +63,9 @@ import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Irrelevance (isIrrelevantOrPropM)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope.Path
+import Agda.TypeChecking.Primitive.Base
+import Agda.TypeChecking.Primitive.Cubical
 import Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
@@ -138,6 +142,7 @@ isUnstableDef qn = do
     [ builtinHComp
     , builtinComp
     , builtinTrans
+    , builtinGlue
     , builtin_glue
     , builtin_glueU ]
   case theDef defn of
@@ -225,6 +230,15 @@ checkInjectivity' f cs = fromMaybe NotInjective <.> runMaybeT $ do
       -- hasDefP clauses are skipped, these matter only for --cubical, in which case the function will behave as NotInjective.
       computeHead c@Clause{ clauseBody = Just body , clauseType = Just tbody } = addContext (clauseTel c) $ do
         maybeIrr <- fromRight (const True) <.> runBlocked $ isIrrelevantOrPropM tbody
+        -- We treat ordinary clauses with IApply copatterns as
+        -- *immediately* failing the injectivity check. Consider e.g.
+        --   foo x = T
+        --   foo (y i) = Glue U λ { (i = i0) → T , _ ; (i = i1) → T , _ }
+        -- seeing foo α = Glue ... and inverting it to α = y β loses solutions. E.g. if we
+        -- later had some other α = x, now we're screwed, x ≠ y β. But if we had postponed
+        -- originally we'd just compare T = Glue ... which has a chance of going through.
+        let ivars = iApplyVars (namedClausePats c)
+        guard (null ivars)
         h <- if maybeIrr then return UnknownHead else
           varToArg c =<< do
             lift $ fromMaybe UnknownHead <$> do
