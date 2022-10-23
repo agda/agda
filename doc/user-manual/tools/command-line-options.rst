@@ -952,29 +952,40 @@ again, the source file is re-typechecked instead:
 * :option:`--no-termination-check`
 * :option:`--type-in-type`
 * :option:`--omega-in-omega`
+* :option:`--cumulativity`
 * :option:`--no-sized-types`
 * :option:`--no-guardedness`
 * :option:`--injective-type-constructors`
 * ``--prop``
+* ``--two-level``
 * :option:`--no-universe-polymorphism`
 * :option:`--irrelevant-projections`
 * :option:`--experimental-irrelevance`
 * :option:`--without-K`
+* :option:`--cubical-compatible`
 * :option:`--exact-split`
 * :option:`--no-eta-equality`
 * :option:`--rewriting`
 * :option:`--cubical`
+* :option:`--erased-cubical`
+* ``--guarded``
 * :option:`--overlapping-instances`
+* ``--qualified-instances``
 * :option:`--safe`
 * :option:`--double-check`
-* :option:`--no-syntactic-equality`
+* :option:`--syntactic-equality`
 * :option:`--no-auto-inline`
 * :option:`--no-fast-reduce`
+* :option:`--call-by-name`
 * :option:`--instance-search-depth`
 * :option:`--inversion-max-depth`
 * :option:`--warning`
+* :option:`--local-confluence-check`
+* :option:`--confluence-check`
+* :option:`--no-import-sorts`
 * :option:`--allow-exec`
 * :option:`--save-metas`
+* :option:`--erase-record-parameters`
 
 
 .. _Vim: https://www.vim.org/
