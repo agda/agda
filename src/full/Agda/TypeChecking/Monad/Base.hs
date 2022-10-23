@@ -3896,9 +3896,9 @@ data Warning
     -- ^ Some imported names are not actually exported by the source module.
     --   The second argument is the names that could be exported.
     --   The third  argument is the module names that could be exported.
-  | InfectiveImport String ModuleName
+  | InfectiveImport Doc
     -- ^ Importing a file using an infective option into one which doesn't
-  | CoInfectiveImport String ModuleName
+  | CoInfectiveImport Doc
     -- ^ Importing a file not using a coinfective option from one which does
   | RewriteNonConfluent Term Term Term Doc
     -- ^ Confluence checker found critical pair and equality checking

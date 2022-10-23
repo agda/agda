@@ -255,13 +255,9 @@ prettyWarning = \case
 
     LibraryWarning lw -> pretty lw
 
-    InfectiveImport o m -> fsep $
-      pwords "Importing module" ++ [pretty m] ++ pwords "using the" ++
-      [pretty o] ++ pwords "flag from a module which does not."
+    InfectiveImport msg -> return msg
 
-    CoInfectiveImport o m -> fsep $
-      pwords "Importing module" ++ [pretty m] ++ pwords "not using the" ++
-      [pretty o] ++ pwords "flag from a module which does."
+    CoInfectiveImport msg -> return msg
 
     RewriteNonConfluent lhs rhs1 rhs2 err -> fsep
       [ "Local confluence check failed:"

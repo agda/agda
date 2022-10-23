@@ -22,8 +22,9 @@ module Agda.Interaction.Options.Base
     , standardOptions_
     , unsafePragmaOptions
     , restartOptions
-    , infectiveOptions
-    , coinfectiveOptions
+    , InfectiveCoinfective(..)
+    , InfectiveCoinfectiveOption(..)
+    , infectiveCoinfectiveOptions
     , safeFlag
     , mapFlag
     , usage
@@ -64,6 +65,7 @@ import Agda.Interaction.Options.Help
 import Agda.Interaction.Options.Warnings
 import Agda.Syntax.Concrete.Glyph ( unsafeSetUnicodeOrAscii, UnicodeOrAscii(..) )
 import Agda.Syntax.Common (Cubical(..))
+import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 
 import Agda.Utils.FileName      ( AbsolutePath )
 import Agda.Utils.Functor       ( (<&>) )
@@ -72,7 +74,7 @@ import Agda.Utils.List          ( groupOn, initLast1 )
 import Agda.Utils.List1         ( String1, toList )
 import qualified Agda.Utils.List1        as List1
 import qualified Agda.Utils.Maybe.Strict as Strict
-import Agda.Utils.Pretty        ( singPlural )
+import Agda.Utils.Pretty
 import Agda.Utils.ProfileOptions
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
@@ -460,34 +462,99 @@ data RestartCodomain
   = C CutOff | B Bool | I Int | M !(Strict.Maybe Int) | W WarningMode
   deriving Eq
 
--- | An infective option is an option that if used in one module, must
---   be used in all modules that depend on this module.
+-- | Infective or coinfective?
+
+data InfectiveCoinfective
+  = Infective
+  | Coinfective
+    deriving (Eq, Show, Generic)
+
+instance NFData InfectiveCoinfective
+
+-- | Descriptions of infective and coinfective options.
+
+data InfectiveCoinfectiveOption = ICOption
+  { icOptionActive :: PragmaOptions -> Bool
+    -- ^ Is the option active?
+  , icOptionDescription :: String
+    -- ^ A description of the option (typically a flag that activates
+    -- the option).
+  , icOptionKind :: InfectiveCoinfective
+    -- ^ Is the option (roughly speaking) infective or coinfective?
+  , icOptionOK :: PragmaOptions -> PragmaOptions -> Bool
+    -- ^ This function returns 'True' exactly when, from the
+    -- perspective of the option in question, the options in the
+    -- current module (the first argument) are compatible with the
+    -- options in a given imported module (the second argument).
+  , icOptionWarning :: TopLevelModuleName -> Doc
+    -- ^ A warning message that should be used if this option is not
+    -- used correctly. The given module name is the name of an
+    -- imported module for which 'icOptionOK' failed.
+  }
+
+-- | A standard infective option: If the option is active in an
+-- imported module, then it must be active in the current module.
+
+infectiveOption
+  :: (PragmaOptions -> Bool)
+     -- ^ Is the option active?
+  -> String
+    -- ^ A description of the option.
+  -> InfectiveCoinfectiveOption
+infectiveOption opt s = ICOption
+  { icOptionActive      = opt
+  , icOptionDescription = s
+  , icOptionKind        = Infective
+  , icOptionOK          = \current imported ->
+                           opt imported <= opt current
+  , icOptionWarning     = \m -> fsep $
+      pwords "Importing module" ++ [pretty m] ++ pwords "using the" ++
+      [text s] ++ pwords "flag from a module which does not."
+  }
+
+-- | A standard coinfective option: If the option is active in the
+-- current module, then it must be active in all imported modules.
+
+coinfectiveOption
+  :: (PragmaOptions -> Bool)
+     -- ^ Is the option active?
+  -> String
+    -- ^ A description of the option.
+  -> InfectiveCoinfectiveOption
+coinfectiveOption opt s = ICOption
+  { icOptionActive      = opt
+  , icOptionDescription = s
+  , icOptionKind        = Coinfective
+  , icOptionOK          = \current imported ->
+                           opt current <= opt imported
+  , icOptionWarning     = \m -> fsep $
+      pwords "Importing module" ++ [pretty m] ++
+      pwords "not using the" ++ [text s] ++
+      pwords "flag from a module which does."
+  }
+
+-- | Infective and coinfective options.
 --
 -- Note that @--cubical@ and @--erased-cubical@ are \"jointly
 -- infective\": if one of them is used in one module, then one or the
 -- other must be used in all modules that depend on this module.
 
-infectiveOptions :: [(PragmaOptions -> Bool, String)]
-infectiveOptions =
-  [ (isJust . optCubical, "--cubical/--erased-cubical")
-  , (optGuarded, "--guarded")
-  , (optProp, "--prop")
-  , (collapseDefault . optTwoLevel, "--two-level")
-  , (optRewriting, "--rewriting")
-  , (collapseDefault . optSizedTypes, "--sized-types")
-  , (collapseDefault . optGuardedness, "--guardedness")
-  ]
-
--- | A coinfective option is an option that if used in one module, must
---   be used in all modules that this module depends on.
-
-coinfectiveOptions :: [(PragmaOptions -> Bool, String)]
-coinfectiveOptions =
-  [ (optSafe, "--safe")
-  , (collapseDefault . optWithoutK, "--without-K")
-  , (collapseDefault . optCubicalCompatible, "--cubical-compatible")
-  , (not . optUniversePolymorphism, "--no-universe-polymorphism")
-  , (not . optCumulativity, "--no-cumulativity")
+infectiveCoinfectiveOptions :: [InfectiveCoinfectiveOption]
+infectiveCoinfectiveOptions =
+  [ coinfectiveOption optSafe "--safe"
+  , coinfectiveOption (collapseDefault . optWithoutK) "--without-K"
+  , coinfectiveOption (collapseDefault . optCubicalCompatible)
+                      "--cubical-compatible"
+  , coinfectiveOption (not . optUniversePolymorphism)
+                      "--no-universe-polymorphism"
+  , coinfectiveOption (not . optCumulativity) "--no-cumulativity"
+  , infectiveOption (isJust . optCubical) "--cubical/--erased-cubical"
+  , infectiveOption optGuarded "--guarded"
+  , infectiveOption optProp "--prop"
+  , infectiveOption (collapseDefault . optTwoLevel) "--two-level"
+  , infectiveOption optRewriting "--rewriting"
+  , infectiveOption (collapseDefault . optSizedTypes) "--sized-types"
+  , infectiveOption (collapseDefault . optGuardedness) "--guardedness"
   ]
 
 inputFlag :: FilePath -> Flag CommandLineOptions

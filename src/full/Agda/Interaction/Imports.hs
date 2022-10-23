@@ -535,25 +535,25 @@ getInterface x isMain msrc =
 -- | Check if the options used for checking an imported module are
 --   compatible with the current options. Raises Non-fatal errors if
 --   not.
-checkOptionsCompatible :: PragmaOptions -> PragmaOptions -> ModuleName -> TCM Bool
+checkOptionsCompatible ::
+  PragmaOptions -> PragmaOptions -> TopLevelModuleName -> TCM Bool
 checkOptionsCompatible current imported importedModule = flip execStateT True $ do
   reportSDoc "import.iface.options" 5 $ P.nest 2 $ "current options  =" P.<+> showOptions current
   reportSDoc "import.iface.options" 5 $ P.nest 2 $ "imported options =" P.<+> showOptions imported
-  forM_ coinfectiveOptions $ \ (opt, optName) -> do
-    unless (opt current `implies` opt imported) $ do
+  forM_ infectiveCoinfectiveOptions $ \opt -> do
+    unless (icOptionOK opt current imported) $ do
       put False
-      warning (CoInfectiveImport optName importedModule)
-  forM_ infectiveOptions $ \ (opt, optName) -> do
-    unless (opt imported `implies` opt current) $ do
-      put False
-      warning (InfectiveImport optName importedModule)
+      warning $
+        (case icOptionKind opt of
+           Infective   -> InfectiveImport
+           Coinfective -> CoInfectiveImport)
+        (icOptionWarning opt importedModule)
   where
-    implies :: Bool -> Bool -> Bool
-    p `implies` q = p <= q
-
-    showOptions opts = P.prettyList (map (\ (o, n) -> (P.text n <> ": ") P.<+> P.pretty (o opts))
-                                 (coinfectiveOptions ++ infectiveOptions))
-
+  showOptions opts =
+    P.prettyList $
+    map (\opt -> (P.text (icOptionDescription opt) <> ": ") P.<+>
+                 P.pretty (icOptionActive opt opts))
+      infectiveCoinfectiveOptions
 
 -- | Compare options and return collected warnings.
 -- | Returns `Nothing` if warning collection was skipped.
@@ -564,7 +564,8 @@ getOptionsCompatibilityWarnings isMain isPrim currentOptions i = runMaybeT $ exc
   -- They weren't logged before, but they're nice for documenting the early returns.
   when isPrim $
     throwError "Options consistency checking disabled for always-available primitive module"
-  whenM (lift $ checkOptionsCompatible currentOptions (iOptionsUsed i) (iModuleName i)) $
+  whenM (lift $ checkOptionsCompatible currentOptions (iOptionsUsed i)
+                  (iTopLevelModuleName i)) $
     throwError "No warnings to collect because options were compatible"
   lift $ getAllWarnings' isMain ErrorWarnings
 

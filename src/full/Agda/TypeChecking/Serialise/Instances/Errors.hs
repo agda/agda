@@ -63,8 +63,8 @@ instance EmbPrj Warning where
     IllformedAsClause a                   -> icodeN 15 IllformedAsClause a
     WithoutKFlagPrimEraseEquality         -> icodeN 16 WithoutKFlagPrimEraseEquality
     InstanceWithExplicitArg a             -> icodeN 17 InstanceWithExplicitArg a
-    InfectiveImport a b                   -> icodeN 18 InfectiveImport a b
-    CoInfectiveImport a b                 -> icodeN 19 CoInfectiveImport a b
+    InfectiveImport a                     -> icodeN 18 InfectiveImport a
+    CoInfectiveImport a                   -> icodeN 19 CoInfectiveImport a
     InstanceNoOutputTypeName a            -> icodeN 20 InstanceNoOutputTypeName a
     InstanceArgWithExplicitArg a          -> icodeN 21 InstanceArgWithExplicitArg a
     WrongInstanceDeclaration              -> icodeN 22 WrongInstanceDeclaration
@@ -106,8 +106,8 @@ instance EmbPrj Warning where
     [15, a]              -> valuN IllformedAsClause a
     [16]                 -> valuN WithoutKFlagPrimEraseEquality
     [17, a]              -> valuN InstanceWithExplicitArg a
-    [18, a, b]           -> valuN InfectiveImport a b
-    [19, a, b]           -> valuN CoInfectiveImport a b
+    [18, a]              -> valuN InfectiveImport a
+    [19, a]              -> valuN CoInfectiveImport a
     [20, a]              -> valuN InstanceNoOutputTypeName a
     [21, a]              -> valuN InstanceArgWithExplicitArg a
     [22]                 -> valuN WrongInstanceDeclaration
@@ -269,6 +269,15 @@ instance EmbPrj Doc where
   icod_ d = icodeN' (undefined :: String -> Doc) (render d)
 
   value = valueN text
+
+instance EmbPrj InfectiveCoinfective where
+  icod_ Infective   = icodeN' Infective
+  icod_ Coinfective = icodeN 0 Coinfective
+
+  value = vcase valu where
+    valu []  = valuN Infective
+    valu [0] = valuN Coinfective
+    valu _   = malformed
 
 instance EmbPrj PragmaOptions where
   icod_ = \case
