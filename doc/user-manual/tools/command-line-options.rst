@@ -909,9 +909,12 @@ An *infective* option is an option that if used in one module, must be
 used in all modules that depend on this module. The following options
 are infective:
 
-* :option:`--cubical`
 * ``--prop``
 * ``--rewriting``
+
+Furthermore :option:`--cubical` and :option:`--erased-cubical` are
+*jointly infective*: if one of them is used in one module, then one or
+the other must be used in all modules that depend on this module.
 
 A *coinfective* option is an option that if used in one module, must
 be used in all modules that this module depends on. The following
