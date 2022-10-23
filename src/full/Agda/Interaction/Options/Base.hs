@@ -543,8 +543,7 @@ infectiveCoinfectiveOptions :: [InfectiveCoinfectiveOption]
 infectiveCoinfectiveOptions =
   [ coinfectiveOption optSafe "--safe"
   , coinfectiveOption (collapseDefault . optWithoutK) "--without-K"
-  , coinfectiveOption (collapseDefault . optCubicalCompatible)
-                      "--cubical-compatible"
+  , cubicalCompatible
   , coinfectiveOption (not . optUniversePolymorphism)
                       "--no-universe-polymorphism"
   , coinfectiveOption (not . optCumulativity) "--no-cumulativity"
@@ -556,6 +555,26 @@ infectiveCoinfectiveOptions =
   , infectiveOption (collapseDefault . optSizedTypes) "--sized-types"
   , infectiveOption (collapseDefault . optGuardedness) "--guardedness"
   ]
+  where
+  cubicalCompatible =
+    (coinfectiveOption
+       (collapseDefault . optCubicalCompatible)
+       "--cubical-compatible")
+      { icOptionOK = \current imported ->
+        -- One must use --cubical-compatible in the imported module if
+        -- it is used in the current module, except if the current
+        -- module also uses --with-K and not --safe, and the imported
+        -- module uses --with-K.
+        if collapseDefault (optCubicalCompatible current)
+        then collapseDefault (optCubicalCompatible imported)
+               ||
+             not (collapseDefault (optWithoutK imported))
+               &&
+             not (collapseDefault (optWithoutK current))
+               &&
+             not (optSafe current)
+        else True
+      }
 
 inputFlag :: FilePath -> Flag CommandLineOptions
 inputFlag f o =

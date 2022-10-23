@@ -919,10 +919,20 @@ options are coinfective:
 
 * :option:`--safe`
 * :option:`--without-K`
-* :option:`--cubical-compatible`
 * :option:`--no-universe-polymorphism`
 * :option:`--no-sized-types`
 * :option:`--no-guardedness`
+
+Furthermore the option :option:`--cubical-compatible` is mostly
+coinfective. If a module uses :option:`--cubical-compatible` then all
+modules that this module imports (directly) must also use
+:option:`--cubical-compatible`, with the following exception: if a
+module uses both :option:`--cubical-compatible` and
+:option:`--with-K`, then it is not required to use
+:option:`--cubical-compatible` in (directly) imported modules that use
+:option:`--with-K`. (Note that one cannot use
+:option:`--cubical-compatible` and :option:`--with-K` at the same time
+if :option:`--safe` is used.)
 
 Agda records the options used when generating an interface file. If
 any of the following options differ when trying to load the interface
