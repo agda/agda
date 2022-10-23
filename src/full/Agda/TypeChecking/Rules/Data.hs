@@ -791,6 +791,7 @@ defineTranspIx d = do
                   , _funProjection = Nothing
                   , _funMutual     = Just []
                   , _funTerminates = Just True
+                  , _funIsKanOp    = Just d
                   }
         inTopContext $ do
          reportSDoc "tc.transpx.type" 15 $ vcat
@@ -901,6 +902,7 @@ defineTranspFun d mtrX cons pathCons = do
                   , _funProjection = Nothing
                   , _funMutual     = Just []
                   , _funTerminates = Just True
+                  , _funIsKanOp    = Just d
                   }
         inTopContext $ addConstant trD $
           (defaultDefn defaultArgInfo trD theType (Cubical CErased) $ FunctionDefn fun)
@@ -1363,7 +1365,7 @@ defineTranspForFields pathCons applyProj name params fsT fns rect = do
   lang <- getLanguage
   noMutualBlock $ addConstant theName $
     (defaultDefn defaultArgInfo theName theType lang
-       (FunctionDefn $ emptyFunctionData { _funTerminates = Just True }))
+       (FunctionDefn $ emptyFunctionData { _funTerminates = Just True, _funIsKanOp = Just name }))
       { defNoCompilation = True }
   -- ⊢ Γ = gamma = (δ : Δ^I) (φ : I) (u0 : R (δ i0))
   -- Γ ⊢     rtype = R (δ i1)
@@ -1521,7 +1523,7 @@ defineHCompForFields applyProj name params fsT fns rect = do
   lang <- getLanguage
   noMutualBlock $ addConstant theName $
     (defaultDefn defaultArgInfo theName theType lang
-       (FunctionDefn $ emptyFunctionData { _funTerminates = Just True }))
+       (FunctionDefn $ emptyFunctionData { _funTerminates = Just True, _funIsKanOp = Just name }))
       { defNoCompilation = True }
   --   ⊢ Γ = gamma = (δ : Δ) (φ : I) (_ : (i : I) -> Partial φ (R δ)) (_ : R δ)
   -- Γ ⊢     rtype = R δ

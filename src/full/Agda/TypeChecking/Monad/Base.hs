@@ -2254,6 +2254,9 @@ data FunctionData = FunctionData
   , _funWith           :: Maybe QName
       -- ^ Is this a generated with-function?
       --   If yes, then what's the name of the parent function?
+  , _funIsKanOp        :: Maybe QName
+      -- ^ Is this a helper for one of the Kan operations (transp,
+      -- hcomp) on data types/records? If so, for which data type?
   } deriving (Show, Generic)
 
 pattern Function
@@ -2271,6 +2274,7 @@ pattern Function
   -> Maybe Bool
   -> Maybe ExtLamInfo
   -> Maybe QName
+  -> Maybe QName
   -> Defn
 pattern Function
   { funClauses
@@ -2287,6 +2291,7 @@ pattern Function
   , funTerminates
   , funExtLam
   , funWith
+  , funIsKanOp
   } = FunctionDefn (FunctionData
     funClauses
     funCompiled
@@ -2302,6 +2307,7 @@ pattern Function
     funTerminates
     funExtLam
     funWith
+    funIsKanOp
   )
 
 data DatatypeData = DatatypeData
@@ -2641,6 +2647,7 @@ instance Pretty FunctionData where
       funTerminates
       _funExtLam
       funWith
+      funIsKanOp
     ) =
     "Function {" <?> vcat
       [ "funClauses      =" <?> vcat (map pretty funClauses)
@@ -2655,6 +2662,7 @@ instance Pretty FunctionData where
       , "funFlags        =" <?> pshow funFlags
       , "funTerminates   =" <?> pshow funTerminates
       , "funWith         =" <?> pretty funWith
+      , "funIsKanOp      =" <?> pretty funWith
       ] <?> "}"
 
 instance Pretty DatatypeData where
@@ -2766,7 +2774,7 @@ instance Pretty Projection where
 
 instance Pretty c => Pretty (FunctionInverse' c) where
   pretty NotInjective = "NotInjective"
-  pretty (Inverse w inv) = "Inverse" <+> text (show w) <?>
+  pretty (Inverse inv) = "Inverse" <?>
     vcat [ pretty h <+> "->" <?> pretty cs
          | (h, cs) <- Map.toList inv ]
 
@@ -2798,6 +2806,7 @@ emptyFunctionData = FunctionData
   , _funExtLam      = Nothing
   , _funWith        = Nothing
   , _funCovering    = []
+  , _funIsKanOp     = Nothing
   }
 
 emptyFunction :: Defn
@@ -3060,12 +3069,9 @@ defForced d = case theDef d of
 type FunctionInverse = FunctionInverse' Clause
 type InversionMap c = Map TermHead [c]
 
-data WhenInjective = AlwaysInjective | UnlessCubical
-  deriving (Show, Generic)
-
 data FunctionInverse' c
   = NotInjective
-  | Inverse WhenInjective (InversionMap c)
+  | Inverse (InversionMap c)
   deriving (Show, Functor, Generic)
 
 data TermHead = SortHead
@@ -5175,8 +5181,8 @@ instance KillRange Defn where
       DataOrRecSig n -> DataOrRecSig n
       GeneralizableVar -> GeneralizableVar
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
-      Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with ->
-        killRange14 Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with
+      Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with iskan ->
+        killRange14 Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with iskan
       Datatype a b c d e f g h i j   -> killRange10 Datatype a b c d e f g h i j
       Record a b c d e f g h i j k l m -> killRange13 Record a b c d e f g h i j k l m
       Constructor a b c d e f g h i j-> killRange10 Constructor a b c d e f g h i j
@@ -5188,7 +5194,7 @@ instance KillRange MutualId where
 
 instance KillRange c => KillRange (FunctionInverse' c) where
   killRange NotInjective = NotInjective
-  killRange (Inverse w m)  = Inverse w $ killRangeMap m
+  killRange (Inverse m)  = Inverse $ killRangeMap m
 
 instance KillRange TermHead where
   killRange SortHead     = SortHead
@@ -5322,7 +5328,6 @@ instance NFData Simplification
 instance NFData AllowedReduction
 instance NFData ReduceDefs
 instance NFData PrimFun
-instance NFData WhenInjective
 instance NFData c => NFData (FunctionInverse' c)
 instance NFData TermHead
 instance NFData Call

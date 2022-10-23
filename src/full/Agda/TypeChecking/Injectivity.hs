@@ -129,8 +129,27 @@ headSymbol v = do -- ignoreAbstractMode $ do
     DontCare{} -> return Nothing
     Dummy s _ -> __IMPOSSIBLE_VERBOSE__ s
 
+-- | Is this a matchable definition, or constructor, which reduces based
+-- on interval substitutions?
+isUnstableDef :: PureTCM m => QName -> m Bool
+isUnstableDef qn = do
+  defn <- getConstInfo qn
+  prims <- traverse getPrimitiveName'
+    [ builtinHComp
+    , builtinComp
+    , builtinTrans
+    , builtin_glue
+    , builtin_glueU ]
+  case theDef defn of
+    _ | any (Just qn ==) prims -> pure True
+    Function{funIsKanOp = Just _} -> pure True
+    _ -> pure False
+
+
 -- | Do a full whnf and treat neutral terms as rigid. Used on the arguments to
---   an injective functions and to the right-hand side.
+--   an injective functions and to the right-hand side. Only returns
+--   heads which are stable under interval substitution, i.e. NOT path
+--   constructors or generated hcomp/transp!
 headSymbol'
   :: (PureTCM m, MonadError TCErr m)
   => Term -> m (Maybe TermHead)
@@ -139,8 +158,15 @@ headSymbol' v = do
   case v of
     Blocked{} -> return Nothing
     NotBlocked _ v -> case v of
-      Def g _    -> return $ Just $ ConsHead g
-      Con c _ _  -> return $ Just $ ConsHead $ conName c
+      Def g _    ->
+        ifM (isUnstableDef g)
+          (pure Nothing)
+          (pure . Just $ ConsHead g)
+      Con c _ _  -> do
+        q <- canonicalName (conName c)
+        ifM (isPathCons q)
+          (pure Nothing)
+          (return $ Just $ ConsHead q)
       Var i _    -> return $ Just (VarHead i)
       Sort _     -> return $ Just SortHead
       Pi _ _     -> return $ Just PiHead
@@ -219,9 +245,7 @@ checkInjectivity' f cs = fromMaybe NotInjective <.> runMaybeT $ do
       case uc of
         [c] -> prettyTCM $ map namedArg $ namedClausePats c
         _   -> "(multiple clauses)"
-  let cond | any (hasDefP . namedClausePats) cs = UnlessCubical
-           | otherwise                          = AlwaysInjective
-  return $ Inverse cond hdMap
+  return $ Inverse hdMap
 
 -- | If a clause is over-applied we can't trust the head (Issue 2944). For
 --   instance, the clause might be `f ps = u , v` and the actual call `f vs
@@ -284,8 +308,7 @@ functionInverse = \case
     cubical <- optCubical <$> pragmaOptions
     case inv of
       NotInjective -> return NoInv
-      Inverse UnlessCubical m | isJust cubical -> return NoInv
-      Inverse w m -> maybe NoInv (Inv f es) <$> (traverse (checkOverapplication es) =<< instantiateVarHeads f es m)
+      Inverse m -> maybe NoInv (Inv f es) <$> (traverse (checkOverapplication es) =<< instantiateVarHeads f es m)
         -- NB: Invertible functions are never classified as
         --     projection-like, so this is fine, we are not
         --     missing parameters.  (Andreas, 2013-11-01)
