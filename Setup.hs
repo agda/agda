@@ -122,9 +122,8 @@ generateInterfaces pd lbi = do
               cmd c = "IOTCM " ++ f ++ " None Indirect (" ++ c ++ ")"
         ]
   env <- getEnvironment
-  bracket
-    (createProcess
-      ((proc agda
+  _output <- readCreateProcess
+      (proc agda
           [ "--interaction"
           , "--interaction-exit-on-error"
           , "--no-libraries"
@@ -132,26 +131,13 @@ generateInterfaces pd lbi = do
           , "-Werror"
           , "-v0"
           ])
-        { std_in        = CreatePipe
-        , std_out       = CreatePipe
-        , delegate_ctlc = True
+        { delegate_ctlc = True
                           -- Make Agda look for data files in a
                           -- certain place.
         , env           = Just (("Agda_datadir", ddir) : env)
-        }))
-    (\(Just wr, Just rd, _, p) -> do
-       -- Try to let Agda shut down gracefully.
-       hClose wr
-       ok <- waitForProcess p
-       hClose rd
-       case ok of
-         ExitSuccess   -> return ()
-         ExitFailure _ ->
-           die "Error: Failed to typecheck a builtin module!")
-    (\(Just wr, Just _, Nothing, p) -> do
-       hSetEncoding wr utf8
-       hSetBuffering wr LineBuffering
-       mapM_ (hPutStrLn wr) loadBuiltinCmds)
+        }
+      (unlines loadBuiltinCmds)
+  return ()
 
 agdaExeExtension :: String
 #if MIN_VERSION_Cabal(2,3,0)
