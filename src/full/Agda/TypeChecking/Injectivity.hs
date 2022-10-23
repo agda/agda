@@ -230,8 +230,8 @@ checkInjectivity' f cs = fromMaybe NotInjective <.> runMaybeT $ do
       -- hasDefP clauses are skipped, these matter only for --cubical, in which case the function will behave as NotInjective.
       computeHead c@Clause{ clauseBody = Just body , clauseType = Just tbody } = addContext (clauseTel c) $ do
         maybeIrr <- fromRight (const True) <.> runBlocked $ isIrrelevantOrPropM tbody
-        -- We treat ordinary clauses with IApply copatterns as
-        -- *immediately* failing the injectivity check. Consider e.g.
+        -- We treat ordinary clauses with IApply copatterns as *immediately*
+        -- failing the injectivity check. Consider e.g.
         --   foo x = T
         --   foo (y i) = Glue U λ { (i = i0) → T , _ ; (i = i1) → T , _ }
         -- seeing foo α = Glue ... and inverting it to α = y β loses solutions. E.g. if we
