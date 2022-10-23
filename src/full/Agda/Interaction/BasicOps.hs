@@ -46,6 +46,7 @@ import Agda.Syntax.Fixity(Precedence(..), argumentCtx_)
 import Agda.Syntax.Parser
 
 import Agda.TheTypeChecker
+import Agda.TypeChecking.ReconstructParameters
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Errors ( getAllWarnings, stringTCErr, Verbalize(..) )
@@ -238,8 +239,15 @@ elaborate_give norm force ii mr e = withInteractionId ii $ do
       PatternErr{} -> typeError . GenericDocError =<< do
         withInteractionId ii $ "Failed to give" TP.<+> prettyTCM e
       err -> throwError err
-  nv <- normalForm norm v
-  locallyTC ePrintMetasBare (const True) $ locallyReconstructed $ reify nv
+  locallyReconstructed $ do
+  mv <- lookupLocalMeta mi
+  let t = case mvJudgement mv of
+            IsSort{}    -> __IMPOSSIBLE__
+            HasType _ _ t -> t
+  ctx <- getContextArgs
+  t' <- t `piApplyM` permute (takeP (length ctx) $ mvPermutation mv) ctx
+  nv <- normalForm norm v >>= reconstructParameters t'
+  locallyTC ePrintMetasBare (const True) $ reify nv
 
 -- | Try to refine hole by expression @e@.
 --
