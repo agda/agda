@@ -335,6 +335,10 @@ To restrict an instance to the current module, you can mark it as
     _ : test₂ ≡ 42
     _ = refl
 
+Alternatively, you can enable the ``--no-qualified-instances`` flag to
+make Agda only consider instances from modules that have been opened
+(see :ref:`below<qualified-instances>` for more details).
+
 ..
 
 Constructor instances
@@ -417,6 +421,51 @@ Overlapping instances can be enabled via the ``--overlapping-instances``
 flag.  Be aware that enabling this flag might lead to an exponential
 slowdown in instance resolution and possibly (apparent) looping
 behaviour.
+
+.. _qualified-instances:
+
+Qualified instances
++++++++++++++++++++
+
+By default, Agda considers all instances as candidates, even if they
+are only in scope under a qualified name. In particular, this means
+that instances from a module that is ``import``ed but not ``open``ed
+are still considered for instance search. You can use the
+``--no-qualified-instances`` flag to make Agda instead only consider
+instances that are in scope under an unqualified name.
+
+As an example, consider the following Agda code:
+
+::
+
+  record MyClass (A : Set) : Set where
+    field
+      myFun : A → A
+  open MyClass {{...}}
+
+  module Instances where
+
+    instance myNatInstance : MyClass Nat
+    myFun {{myNatInstance}} = suc
+
+  -- without --no-qualified-instances
+  test1 : Nat
+  test1 = myFun 41
+
+By default, this example is accepted by Agda, but if
+``--no-qualified-instances`` is enabled you have to open the module
+``Instances`` first:
+
+::
+
+  -- with --no-qualified-instances
+  open Instances
+
+  test2 : Nat
+  test2 = myFun 41
+
+This flag can be especially useful if you want to import a module
+without necessarily using all of the instances that it exports.
 
 .. _instance-arguments-examples:
 

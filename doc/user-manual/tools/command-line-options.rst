@@ -434,6 +434,13 @@ Search depth and instances
 
      Default: ``--no-overlapping-instances``
 
+.. option:: --qualified-instances, --no-qualified-instances
+
+     Consider [do not consider] instances that are (only) in scope
+     under a qualified name.
+
+     Default: ``--qualified-instances``
+
 
 Other features
 ~~~~~~~~~~~~~~
