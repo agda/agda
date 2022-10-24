@@ -118,7 +118,7 @@ isEtaExpandable kinds x = do
     i <- lookupMetaInstantiation x
     return $ case i of
       Open{}                         -> True
-      OpenInstance{}                 -> Records `notElem` kinds
+      OpenInstance{}                 -> True
       InstV{}                        -> False
       BlockedConst{}                 -> False
       PostponedTypeCheckingProblem{} -> False
