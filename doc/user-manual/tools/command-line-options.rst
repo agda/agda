@@ -910,7 +910,10 @@ used in all modules that depend on this module. The following options
 are infective:
 
 * ``--prop``
-* ``--rewriting``
+* :option:`--rewriting`
+* ``--guarded``
+* ``--two-level``
+* :option:`--cumulativity`
 
 Furthermore :option:`--cubical` and :option:`--erased-cubical` are
 *jointly infective*: if one of them is used in one module, then one or
