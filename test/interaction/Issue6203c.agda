@@ -1,5 +1,5 @@
-{-# OPTIONS --cubical #-}
-module Issue6203a where
+{-# OPTIONS --cubical --postfix-projections #-}
+module Issue6203c where
 
 open import Agda.Primitive renaming (Set to Type)
 open import Agda.Builtin.Nat
@@ -14,14 +14,19 @@ record H-Level {ℓ} (T : Type ℓ) (n : Nat) : Type ℓ where
   field
     has-hlevel : is-hlevel T n
 
-hlevel : ∀ {ℓ} {T : Type ℓ} n ⦃ x : H-Level T n ⦄ → is-hlevel T n
-hlevel n ⦃ x ⦄ = H-Level.has-hlevel x
-{-# NOT_PROJECTION_LIKE hlevel #-}
+open H-Level
 
--- hlevel is not projection-like: elaborate-and-give will insert it
--- as-is. previously, elaborate-and-give would result in "hlevel _",
--- which fails on reload.
--- Should result in: hlevel 2.
+hlevel : ∀ {ℓ} {T : Type ℓ} n ⦃ x : H-Level T n ⦄ → is-hlevel T n
+hlevel n ⦃ x ⦄ = x .has-hlevel
+
+-- need a confounding instance otherwise Agda will eagerly commit to hl
+postulate instance H-Level-⊤ : ∀ {n} → H-Level Nat n
+
+-- hlevel is projection-like: elaborate-and-give will reduce it before
+-- printing. Previously, elaborate-and-give would result in "hlevel _",
+-- which fails on reload (instance selection can't decide on the hl
+-- instance without the "2" argument).
+-- Should result in: hl .has-hlevel
 private module _ {ℓ} {A : Type ℓ} ⦃ hl : H-Level A 2 ⦄ where
   p : is-hlevel A 2
   p = {! hlevel 2 !}

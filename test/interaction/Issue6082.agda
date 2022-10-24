@@ -2,7 +2,7 @@
 -- Reflected syntax does not know about projections,
 -- so when translating to abstract syntax, need to recover them.
 
-{-# OPTIONS --postfix-projections #-}
+{-# OPTIONS --postfix-projections -vtc.reconstruct:50 #-}
 
 open import Agda.Primitive
 open import Agda.Builtin.Reflection

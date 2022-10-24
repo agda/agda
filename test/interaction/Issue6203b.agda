@@ -20,10 +20,11 @@ hlevel n ⦃ x ⦄ = H-Level.has-hlevel x
 -- need a confounding instance otherwise Agda will eagerly commit to hl
 postulate instance H-Level-⊤ : ∀ {n} → H-Level Nat n
 
--- hlevel is projection-like: elaborate-and-give will reduce it when
--- reconstructing parameters. previously, elaborate-and-give would
--- result in "hlevel _", which fails on reload.
--- Should result in: HLevel.has-level hl.
+-- hlevel is projection-like: elaborate-and-give will reduce it before
+-- printing. Previously, elaborate-and-give would result in "hlevel _",
+-- which fails on reload (instance selection can't decide on the hl
+-- instance without the "2" argument).
+-- Should result in: H-Level.has-hlevel x
 private module _ {ℓ} {A : Type ℓ} ⦃ hl : H-Level A 2 ⦄ where
   p : is-hlevel A 2
   p = {! hlevel 2 !}
