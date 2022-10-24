@@ -61,6 +61,7 @@ interestingCall = \case
     CheckDataDef{}            -> True
     CheckRecDef{}             -> True
     CheckConstructor{}        -> True
+    CheckIApplyConfluence{}   -> True
     CheckConstructorFitsIn{}  -> True
     CheckFunDefCall{}         -> True
     CheckPragma{}             -> True
@@ -190,6 +191,7 @@ instance MonadTrace TCM where
       CheckPrimitive{}          -> True
       CheckIsEmpty{}            -> True
       CheckConfluence{}         -> False
+      CheckIApplyConfluence{}   -> False
       CheckWithFunctionType{}   -> True
       CheckSectionApplication{} -> True
       CheckNamedWhere{}         -> False

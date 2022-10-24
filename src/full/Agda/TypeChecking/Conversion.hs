@@ -1973,7 +1973,12 @@ equalSort s1 s2 = do
 --   xs <- mapM (mapM (\ (i,b) -> (,) i <$> intervalUnview (if b then IOne else IZero))) as
 --   return xs
 
-forallFaceMaps :: MonadConversion m => Term -> (IntMap Bool -> Blocker -> Term -> m a) -> (Substitution -> m a) -> m [a]
+forallFaceMaps
+  :: MonadConversion m
+  => Term
+  -> (IntMap Bool -> Blocker -> Term -> m a)
+  -> (IntMap Bool -> Substitution -> m a)
+  -> m [a]
 forallFaceMaps t kb k = do
   reportSDoc "conv.forall" 20 $
       fsep ["forallFaceMaps"
@@ -2010,7 +2015,7 @@ forallFaceMaps t kb k = do
           , prettyTCM m
           , prettyTCM sub
           ]
-        k sigma
+        k ms sigma
   where
     -- TODO Andrea: inefficient because we try to reduce the ts which we know are in whnf
     ifBlockeds ts blocked unblocked = do
@@ -2119,17 +2124,20 @@ equalTermOnFace :: MonadConversion m => Term -> Type -> Term -> Term -> m ()
 equalTermOnFace = compareTermOnFace CmpEq
 
 compareTermOnFace :: MonadConversion m => Comparison -> Term -> Type -> Term -> Term -> m ()
-compareTermOnFace = compareTermOnFace' compareTerm
+compareTermOnFace = compareTermOnFace' (const compareTerm)
 
-compareTermOnFace' :: MonadConversion m => (Comparison -> Type -> Term -> Term -> m ()) -> Comparison -> Term -> Type -> Term -> Term -> m ()
+compareTermOnFace'
+  :: MonadConversion m
+  => (Substitution -> Comparison -> Type -> Term -> Term -> m ())
+  -> Comparison -> Term -> Type -> Term -> Term -> m ()
 compareTermOnFace' k cmp phi ty u v = do
   reportSDoc "tc.conv.face" 40 $
     text "compareTermOnFace:" <+> pretty phi <+> "|-" <+> pretty u <+> "==" <+> pretty v <+> ":" <+> pretty ty
   whenProfile Profile.Conversion $ tick "compare at face type"
 
   phi <- reduce phi
-  _ <- forallFaceMaps phi postponed
-         $ \ alpha -> k cmp (applySubst alpha ty) (applySubst alpha u) (applySubst alpha v)
+  _ <- forallFaceMaps phi postponed $ \ faces alpha ->
+      k alpha cmp (applySubst alpha ty) (applySubst alpha u) (applySubst alpha v)
   return ()
  where
   postponed ms blocker psi = do

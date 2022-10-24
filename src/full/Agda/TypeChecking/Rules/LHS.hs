@@ -1110,7 +1110,7 @@ checkLHS mf = updateModality checkLHS_ where
          phi <- reduce phi
          reportSDoc "tc.lhs.split.partial" 10 $ text "phi (reduced) =" <+> prettyTCM phi
          refined <- forallFaceMaps phi (\ bs m t -> typeError $ GenericError $ "face blocked on meta")
-                            (\ sigma -> (,sigma) <$> getContextTelescope)
+                            (\_ sigma -> (,sigma) <$> getContextTelescope)
          case refined of
            [(gamma,sigma)] -> return (gamma,sigma)
            []              -> typeError $ GenericError $ "The face constraint is unsatisfiable."

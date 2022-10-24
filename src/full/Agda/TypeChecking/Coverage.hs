@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE TypeApplications #-}
 
 {-| Coverage checking, case splitting, and splitting for refine tactics.
 
@@ -79,6 +80,9 @@ import Agda.Utils.Tuple
 import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
+import Control.Monad.State
 
 
 type CoverM = ExceptT SplitError TCM
@@ -354,11 +358,63 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
           Block{} -> Just c
           No{}    -> Nothing
 
+    -- Rename the variables in a telescope in accordance with their
+    -- first appearance in the given NAPs. This is done to preserve
+    -- variable names in IApplyConfluence error messages. Specifically,
+    -- consider e.g.
+    --
+    --  data T : Set where
+    --    x : T
+    --    p : Path (Path T x x) refl refl
+    --  f (p i j) = ...
+    --
+    -- When generating the covering clause corresponding to f's clause,
+    -- the names we have in scope are i and i₁, since those are the
+    -- names of both PathP binder arguments. (recall Path A x y = PathP (λ i → A) x y)
+    -- So if we tried to print (Var 0 []) in the context of
+    -- IApplyConfluence for that clause, what we see isn't j, it's i₁.
+    --
+    -- This function takes "name suggestions" from both variable
+    -- patterns and IApply co/patterns, and replaces any existing names
+    -- in the telescope by the name in that pattern.
+    renTeleFromNap :: Telescope -> NAPs -> Telescope
+    renTeleFromNap tel ps = telFromList $ evalState (traverse upd (telToList tel)) (size - 1)
+      where
+        -- Fold a single pattern into a map of name suggestions:
+        -- In the running example above, we have
+        --    f (p i@1 j@0)
+        -- so the map that nameSuggest (p ...) returns is {0 → j, 1 → j}
+        nameSuggest :: DeBruijnPattern -> IntMap ArgName
+        nameSuggest ps = flip foldPattern ps $ \case
+          VarP _ i | dbPatVarName i /= "_" ->
+            IntMap.singleton (dbPatVarIndex i) (dbPatVarName i)
+          IApplyP _ _ _ i | dbPatVarName i /= "_" ->
+            IntMap.singleton (dbPatVarIndex i) (dbPatVarName i)
+          _ -> mempty
+
+        -- Suggestions from all patterns..
+        suggestions = foldMap (nameSuggest . namedThing . unArg) ps
+
+        -- The state will start counting from (length Γ - 1), which is
+        -- the *highest* variable index, i.e. the index of the variable
+        -- with level 0. Instead of doing a lot of de Bruijn arithmetic
+        -- + recursion, traverse handles iteration and the State handles
+        -- counting down.
+        size = length (telToList tel)
+        upd :: Dom (ArgName , Type) -> State Int (Dom (ArgName , Type))
+        upd dom = state $ \s -> do
+          case IntMap.lookup s suggestions of
+            Just nm' -> ( dom{ domName = Just (WithOrigin CaseSplit (unranged nm'))
+                             , unDom = (nm' , snd (unDom dom))
+                             } , s - 1)
+            Nothing -> (dom , s - 1)
+
     applyCl :: SplitClause -> Clause -> [(Nat, SplitPattern)] -> TCM Clause
-    applyCl SClause{scTel = tel, scPats = sps} cl mps = addContext tel $ do
+    applyCl SClause{scTel = pretel, scPats = sps} cl mps
+        | tel <- renTeleFromNap pretel (namedClausePats cl) = addContext tel $ do
         let ps = namedClausePats cl
         reportSDoc "tc.cover.applyCl" 40 $ "applyCl"
-        reportSDoc "tc.cover.applyCl" 40 $ "tel    =" <+> prettyTCM tel
+        reportSDoc "tc.cover.applyCl" 40 $ "tel    =" <+> pretty tel
         reportSDoc "tc.cover.applyCl" 40 $ "ps     =" <+> pretty ps
         reportSDoc "tc.cover.applyCl" 40 $ "mps    =" <+> pretty mps
         reportSDoc "tc.cover.applyCl" 40 $ "s      =" <+> pretty s

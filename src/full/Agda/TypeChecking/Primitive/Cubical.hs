@@ -195,7 +195,16 @@ mkComp s = do
                         forward la bA i (u <@> i <..> o))
                 <@> forward la bA (pure iz) u0
 
-
+-- | Construct an application of buitlinComp. Use instead of 'mkComp' if
+-- reducing directly to hcomp + transport would be problematic.
+mkCompLazy
+  :: HasBuiltins m
+  => String
+  -> NamesT m (NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term)
+mkCompLazy s = do
+  let getTermLocal = getTerm s
+  tComp <- getTermLocal builtinComp
+  pure $ \la bA phi u u0 -> pure tComp <#> la <#> bA <#> phi <@> u <@> u0
 
 -- | Implementation of Kan operations for Pi types. The implementation
 -- of @transp@ and @hcomp@ for Pi types has many commonalities, so most
@@ -365,6 +374,9 @@ doPathPKanOp (TranspOp phi u0) (IsFam l) (IsFam (bA,x,y)) = do
         (u0 <@@> (x <@> pure iz, y <@> pure iz, j))
 doPathPKanOp a0 _ _ = __IMPOSSIBLE__
 
+redReturnNoSimpl :: a -> ReduceM (Reduced a' a)
+redReturnNoSimpl = pure . YesReduction NoSimplification
+
 primTransHComp :: Command -> [Arg Term] -> Int -> ReduceM (Reduced MaybeReducedArgs Term)
 primTransHComp cmd ts nelims = do
   (l,bA,phi,u,u0) <- pure $ case (cmd,ts) of
@@ -377,7 +389,8 @@ primTransHComp cmd ts nelims = do
 
   -- WORK
   case vphi of
-    -- When φ = i1, we know what to do!
+    -- When φ = i1, we know what to do! These cases are counted as
+    -- simplifications.
     IOne -> redReturn =<< case cmd of
       DoHComp -> runNamesT [] $ do
         -- If we're composing, then we definitely had a partial element
@@ -699,7 +712,7 @@ primComp = do
           -- rather than going through the motions of hcomp and transp.
           IOne -> redReturn (unArg u `apply` [argN io, argN one])
           _    -> do
-            redReturn <=< runNamesT [] $ do
+            redReturnNoSimpl <=< runNamesT [] $ do
               comp <- mkComp builtinComp
               [l,c,phi,u,a0] <- mapM (open . unArg) [l,c,phi,u,a0]
               comp l c phi u a0
