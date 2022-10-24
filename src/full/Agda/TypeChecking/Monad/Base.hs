@@ -2225,7 +2225,7 @@ data ProjectionLikenessMissing
     -- projection-like. The analysis may already have run on this
     -- function, but the results have been discarded, and it will not be
     -- run again.
-  deriving (Show, Generic, Enum)
+  deriving (Show, Generic, Enum, Bounded)
 
 data FunctionData = FunctionData
   { _funClauses        :: [Clause]

@@ -367,13 +367,7 @@ instance EmbPrj EtaEquality where
     valu [1,a] = valuN Inferred a
     valu _     = malformed
 
-instance EmbPrj ProjectionLikenessMissing where
-  icod_ MaybeProjection = pure 0
-  icod_ NeverProjection = pure 1
-
-  value 0 = pure MaybeProjection
-  value 1 = pure NeverProjection
-  value _ = malformed
+instance EmbPrj ProjectionLikenessMissing
 
 instance EmbPrj Defn where
   icod_ (Axiom       a)                                 = icodeN 0 Axiom a
