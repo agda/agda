@@ -1281,9 +1281,10 @@ curOutFile = snd <$> curOutFileAndDir
 
 callGHC :: ReaderT GHCModule TCM ()
 callGHC = do
-  opts    <- askGhcOpts
-  hsmod   <- prettyPrint <$> curHsMod
-  agdaMod <- curAgdaMod
+  opts     <- askGhcOpts
+  agdaOpts <- lift commandLineOptions
+  hsmod    <- prettyPrint <$> curHsMod
+  agdaMod  <- curAgdaMod
   let outputName = Text.unpack $ List1.last $ moduleNameParts agdaMod
   (mdir, fp) <- curOutFileAndDir
   let ghcopts = optGhcFlags opts
@@ -1318,4 +1319,8 @@ callGHC = do
   -- those versions of GHC we don't print any progress information
   -- unless an error is encountered.
   let doCall = optGhcCallGhc opts
-  liftTCM $ callCompiler doCall ghcBin args Nothing (Just utf8)
+      cwd    = if optGHCiInteraction agdaOpts ||
+                  optJSONInteraction agdaOpts
+               then Just mdir
+               else Nothing
+  liftTCM $ callCompiler doCall ghcBin args cwd (Just utf8)

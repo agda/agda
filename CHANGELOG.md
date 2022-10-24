@@ -314,6 +314,16 @@ Compiler backends
   Note that support for compiling code that uses `--erased-cubical`
   has been added to both backends (see above).
 
+* If the GHC backend is invoked when `--interaction` or
+  `--interaction-json` is active (for instance when the Emacs mode is
+  used), then GHC is now invoked from the directory containing the
+  `MAlonzo` directory (see
+  [#6194](https://github.com/agda/agda/issues/6194)).
+
+  Before GHC was invoked from the Agda process's current working
+  directory, and that is still the case if `--interaction` and
+  `--interaction-json` are not used.
+
 LaTeX backend
 -------------
 
