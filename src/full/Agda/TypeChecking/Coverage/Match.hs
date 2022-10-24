@@ -455,7 +455,7 @@ matchPat p q = case p of
     IApplyP _ _ _ x -> blockedOnConstructor (splitPatVarIndex x) c ci
 
   DefP o c ps -> unDotP q >>= \case
-    VarP _ x -> __IMPOSSIBLE__ -- blockedOnConstructor (splitPatVarIndex x) c
+    VarP _ x -> no
     ConP c' i qs -> no
     DotP o t  -> no
     LitP{}    -> no

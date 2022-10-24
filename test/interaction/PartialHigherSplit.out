@@ -1,0 +1,8 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-status-action "")
+(agda2-info-action "*All Goals*" "?0 : (pos zero +ℤ pos (suc n)) ≡ pos (suc n) ?1 : (pos zero +ℤ neg (suc n)) ≡ neg (suc n) ?2 : (pos zero +ℤ a) ≡ a " nil)
+((last . 1) . (agda2-goals-action '(0 1 2)))
+((last . 2) . (agda2-make-case-action '("0+ (pos n) = ?" "0+ (neg n) = ?" "0+ (posneg i) = ?")))
+((last . 1) . (agda2-goals-action '(0 1 2)))
