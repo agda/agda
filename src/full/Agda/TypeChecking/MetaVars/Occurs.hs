@@ -364,7 +364,7 @@ occursCheck
 occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
   mv <- lookupLocalMeta m
   n  <- getContextSize
-  reportSLn "tc.meta.occurs" 35 $ "occursCheck " ++ show m ++ " " ++ show xs
+  reportSDoc "tc.meta.occurs" 35 $ "occursCheck" <+> prettyTCM m <+> text (show $ IntMap.keys $ theVarMap xs)
   let initEnv unf = FreeEnv
         {  feExtra = OccursExtra
           { occUnfold  = unf
@@ -698,18 +698,22 @@ prune
   -> (Nat -> Bool)  -- ^ Test for allowed variable (de Bruijn index).
   -> m PruneResult
 prune m' vs xs = do
-  caseEitherM (runExceptT $ mapM ((hasBadRigid xs) . unArg) vs)
-    (const $ return PrunedNothing) $ \ kills -> do
-    reportSDoc "tc.meta.kill" 10 $ vcat
-      [ "attempting kills"
-      , nest 2 $ vcat
-        [ "m'    =" <+> pretty m'
-        -- , "xs    =" <+> prettyList (map (prettyTCM . var) xs)  -- no longer printable
-        , "vs    =" <+> prettyList (map prettyTCM vs)
-        , "kills =" <+> text (show kills)
+  reportSDoc "tc.meta.kill" 10 $ "prune" <+> prettyTCM (MetaV m' $ map Apply vs)
+  badRigid <- runExceptT $ mapM ((hasBadRigid xs) . unArg) vs
+  reportSDoc "tc.meta.kill" 30 $ "hasBadRigid result: " <+> text (show badRigid)
+  case badRigid of
+    Left _ -> return PrunedNothing
+    Right kills -> do
+      reportSDoc "tc.meta.kill" 10 $ vcat
+        [ "attempting kills"
+        , nest 2 $ vcat
+          [ "m'    =" <+> pretty m'
+          -- , "xs    =" <+> prettyList (map (prettyTCM . var) xs)  -- no longer printable
+          , "vs    =" <+> prettyList (map prettyTCM vs)
+          , "kills =" <+> text (show kills)
+          ]
         ]
-      ]
-    killArgs kills m'
+      killArgs kills m'
 
 -- | @hasBadRigid xs v = Just True@ iff one of the rigid variables in @v@ is not in @xs@.
 --   Actually we can only prune if a bad variable is in the head. See issue 458.
