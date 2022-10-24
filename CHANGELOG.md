@@ -131,17 +131,6 @@ Language
 * A new constructor `pattErr : Pattern → ErrorPart` of `ErrorPart` for reflection
   is added.
 
-* The type expected by the builtin `EQUIVPROOF` has been changed to
-  properly encode the condition that `EQUVIFUN` is an equivalence.
-  ([#5661](https://github.com/agda/agda/issues/5661),
-  [#6032](https://github.com/agda/agda/pull/6032))
-
-* The primitive `primIdJ` has been removed
-  ([#6032](https://github.com/agda/agda/pull/6032)).
-
-* The builtin `SUBIN` is now exported from `Agda.Builtin.Cubical.Sub` as
-  **`inS`** rather than `inc`.
-
 * A new built-in constructor `REFLID` was added to the cubical identity
   types. This is definitionally equal to the reflexivity identification
   built with `conid`, with the difference being that matching on
@@ -152,12 +141,12 @@ Language
   symId reflId = reflId
   ```
 
-* The new option `--no-load-primitives` complements `--no-import-sorts`
-  by foregoing loading of the primitive modules altogether. This option
-  leaves Agda in a very fragile state, as the built-in sorts are used
-  extensively throughout the implementation. It is intended to be used
-  with Literate Agda projects which want to bind `BUILTIN TYPE` (and
-  other primitives) in their own literate files.
+* Definitions which pattern match on higher-inductive types are no
+  longer considered for injectivity analysis. ([#6219](https://github.com/agda/agda/issues/6047))
+
+* Agsy ([automatic proof search](https://agda.readthedocs.io/en/latest/tools/auto.html)) can
+  now be invoked in the right-hand-sides of copattern matching clauses
+  ([#5827](https://github.com/agda/agda/pull/5827))
 
 Syntax
 ------
@@ -233,6 +222,13 @@ Pragmas and options
   on how often various steps of the conversion algorithm are used
   (reduction, eta-expansion, syntactic equality, etc).
 
+* The new option `--no-load-primitives` complements `--no-import-sorts`
+  by foregoing loading of the primitive modules altogether. This option
+  leaves Agda in a very fragile state, as the built-in sorts are used
+  extensively throughout the implementation. It is intended to be used
+  by Literate Agda projects which want to bind `BUILTIN TYPE` (and
+  other primitives) in their own literate files.
+
 * The generation of Cubical Agda-specific support code was removed
   from `--without-K` and transferred to its own flag,
   `--cubical-compatible` (see
@@ -265,6 +261,19 @@ Builtins
     primFloatToWord64 : Float → Maybe Word64
   ```
   and it returns `nothing` for `NaN`.
+
+* The type expected by the builtin `EQUIVPROOF` has been changed to
+  properly encode the condition that `EQUVIFUN` is an equivalence.
+  ([#5661](https://github.com/agda/agda/issues/5661),
+  [#6032](https://github.com/agda/agda/pull/6032))
+
+* The primitive `primIdJ` has been removed
+  ([#6032](https://github.com/agda/agda/pull/6032)) in favour of
+  matching on the cubical identity type.
+
+* The builtin `SUBIN` is now exported from `Agda.Builtin.Cubical.Sub` as
+  **`inS`** rather than `inc`. Similarly, the internal modules refer to
+  `primSubOut` as `outS`. ([#6032](https://github.com/agda/agda/pull/6032))
 
 Performance
 -----------
