@@ -1621,7 +1621,7 @@ instance InstantiateFull System where
 
 instance InstantiateFull FunctionInverse where
   instantiateFull' NotInjective = return NotInjective
-  instantiateFull' (Inverse w inv) = Inverse w <$> instantiateFull' inv
+  instantiateFull' (Inverse inv) = Inverse <$> instantiateFull' inv
 
 instance InstantiateFull a => InstantiateFull (Case a) where
   instantiateFull' (Branches cop cs eta ls m b lz) =

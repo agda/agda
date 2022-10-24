@@ -520,7 +520,7 @@ instance Apply a => Apply (Case a) where
 
 instance Apply FunctionInverse where
   apply NotInjective  args = NotInjective
-  apply (Inverse w inv) args = Inverse w $ apply inv args
+  apply (Inverse inv) args = Inverse $ apply inv args
 
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
@@ -757,7 +757,7 @@ namedTelVars m (ExtendTel !dom tel) =
 
 instance Abstract FunctionInverse where
   abstract tel NotInjective  = NotInjective
-  abstract tel (Inverse w inv) = Inverse w $ abstract tel inv
+  abstract tel (Inverse inv) = Inverse $ abstract tel inv
 
 instance {-# OVERLAPPABLE #-} Abstract t => Abstract [t] where
   abstract tel = map (abstract tel)
