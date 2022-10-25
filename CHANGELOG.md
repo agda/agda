@@ -266,8 +266,9 @@ Profiling and performance
 
 * New verbosity `-v debug.time:100` adds time stamps to debugging output.
 
-* Profiling options are now turned on with a new `--profile` flag instead of
-  abusing the debug verbosity option. (See [#5781](https://github.com/agda/agda/issues/5731).)
+* Profiling options are now turned on with a new `--profile` flag
+  instead of abusing the debug verbosity option. (See
+  [#5781](https://github.com/agda/agda/issues/5781).)
 
 * The new profiling option `--profile=conversion` collects statistics
   on how often various steps of the conversion algorithm are used
