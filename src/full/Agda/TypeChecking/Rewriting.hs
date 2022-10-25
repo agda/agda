@@ -372,9 +372,12 @@ checkRewriteRule q = do
             ]
           Nothing -> typeError . GenericDocError =<< hsep
             [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
-            , prettyTCM f , "is a projection-like function."
-            , "You can turn off the projection-like optimization with the flag --no-projection-like"
+            , hd , "is a projection-like function."
+            , "You can turn off the projection-like optimization for", hd
+            , "with the pragma {-# NOT_PROJECTION_LIKE", hd, "#-}"
+            , "or globally with the flag --no-projection-like"
             ]
+            where hd = prettyTCM f
       Constructor{}  -> return ()
       AbstractDefn{} -> return ()
       Primitive{}    -> return () -- TODO: is this fine?

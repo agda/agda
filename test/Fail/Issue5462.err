@@ -1,3 +1,3 @@
 Issue5462.agda:85,1-21
-≀₁id  is not a legal rewrite rule, since the head symbol _≀₁_ is a projection-like function. You can turn off the projection-like optimization with the flag --no-projection-like
+≀₁id  is not a legal rewrite rule, since the head symbol _≀₁_ is a projection-like function. You can turn off the projection-like optimization for _≀₁_ with the pragma {-# NOT_PROJECTION_LIKE _≀₁_ #-} or globally with the flag --no-projection-like
 when checking the pragma REWRITE ≀₁id
