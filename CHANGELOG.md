@@ -131,6 +131,10 @@ Language
 * A new constructor `pattErr : Pattern → ErrorPart` of `ErrorPart` for reflection
   is added.
 
+* Cubical Agda now has experimental support for indexed inductive types
+  (see the [user guide](https://agda.readthedocs.io/en/latest/language/cubical.html#indexed-inductive-types)
+  for caveats)
+
 * A new built-in constructor `REFLID` was added to the cubical identity
   types. This is definitionally equal to the reflexivity identification
   built with `conid`, with the difference being that matching on

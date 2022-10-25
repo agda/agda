@@ -1,7 +1,7 @@
 ..
   ::
 
-  {-# OPTIONS --cubical #-}
+  {-# OPTIONS --cubical -vtc.lhs.unify.inv:20 -WNoEquivWhenSplitting #-}
   module language.cubical where
 
   open import Agda.Primitive
@@ -29,6 +29,7 @@
 
   open import Agda.Builtin.Sigma public
   open import Agda.Builtin.Bool public
+  open import Agda.Builtin.Nat public
 
   infix 2 Σ-syntax
 
@@ -115,7 +116,7 @@ https://github.com/Saizan/cubical-demo/. However this is relying on
 deprecated features and is not recommended to use.
 
 The interval and path types
----------------------------
+===========================
 
 The key idea of Cubical Type Theory is to add an interval type ``I :
 IUniv`` (the reason this is in a special sort ``IUniv`` is because it
@@ -242,7 +243,7 @@ are equal) has an extremely simple proof:
   funExt p i x = p x i
 
 Transport
----------
+=========
 
 While path types are great for reasoning about equality they don't let
 us transport along paths between types or even compose paths, which in
@@ -329,7 +330,7 @@ dimensional cubes.
 
 
 Partial elements
-----------------
+================
 
 In order to describe the homogeneous composition operations we need to
 be able to write partially specified n-dimensional cubes (i.e. cubes
@@ -435,7 +436,7 @@ With all of this cubical infrastructure we can now describe the
 
 
 Homogeneous composition
------------------------
+=======================
 
 The homogeneous composition operations generalize binary composition
 of paths so that we can compose multiple composable cubes.
@@ -513,7 +514,7 @@ direct cubical proof that composing ``p`` with ``refl`` is ``p``.
 
 
 Glue types
-----------
+==========
 
 In order to be able to prove the univalence theorem we also have to
 add "Glue" types. These lets us turn equivalences between types into
@@ -630,7 +631,7 @@ https://github.com/agda/cubical/blob/master/Cubical/Data/BinNat/BinNat.agda.
 
 
 Higher inductive types
-----------------------
+======================
 
 Cubical Agda also lets us directly define higher inductive types as
 datatypes with path constructors. For example the circle and `torus
@@ -726,8 +727,140 @@ is defined as:
 For many more examples of higher inductive types see:
 https://github.com/agda/cubical/tree/master/Cubical/HITs.
 
+Indexed inductive types
+=======================
+
+Cubical Agda has experimental support for the ``transp`` primitive when
+used to substitute the indices of an indexed inductive type. A handful
+of definitions (satisfying a technical restriction on their pattern
+matching) will compute when applied to a transport along indices. As an
+example of what works, let us consider the following running example
+
+::
+
+  data Eq {a} {A : Set a} (x : A) : A → Set a where
+    reflEq : Eq x x
+
+Functions which match on `Eq` when all of its endpoints are variables,
+that is, very generic lemmas like ``symEq`` and ``transpEq`` below, will
+compute on all cases: they will compute to the given right-hand-side
+definitionally when their argument is ``refl``, and will compute to a
+transport in the codomain when their argument has been transported in
+the second variable.
+
+::
+
+  symEq : ∀ {a} {A : Set a} {x y : A} → Eq x y → Eq y x
+  symEq reflEq = reflEq
+
+  transpEq : ∀ {a} {A B : Set a} → Eq A B → A → B
+  transpEq reflEq x = x
+
+  pathToEq : ∀ {a} {A : Set a} {x y : A} → x ≡ y → Eq x y
+  pathToEq {x = x} p = transp (λ i → Eq x (p i)) i0 reflEq
+
+  module _ {a} {A B : Set a} {x y : A} {f : A ≃ B} where
+    _ : symEq (reflEq {x = x}) ≡ reflEq
+    _ = refl
+
+    _ : transpEq (pathToEq (ua (idEquiv Bool))) ≡ λ x → x
+    _ = refl
+
+The computational behaviour of matching on indexed inductives in very
+generic is suboptimal when compared to the behaviour of similar
+constructions implemented in terms of paths. For example, using the
+lemmas above, we can investigate ``uaβ`` for ``pathToEq``:
+
+::
+
+    uaβEq : transpEq (pathToEq (ua f)) ≡ f .fst
+    uaβEq = funExt λ z →
+      compPath (transportRefl (f .fst _))
+        (cong (f .fst) (compPath
+          (transportRefl _)
+          (compPath
+            (transportRefl _)
+            (transportRefl _))))
+
+In more concrete situations, such as when the indices are constructors
+of some other inductive type, pattern-matching definitions will not
+compute when applied to transports.
+
+If the ``NoEquivOnSplitting`` warning is enabled (it is by default),
+Agda will print a warning for every definition whose computational
+behaviour could not be extended to cover transports. Internally,
+transports are represented by an additional constructor, and
+pattern-matching definitions must be extended to cover these
+constructors. To do this, the results of pattern-matching unification
+must be translated into an embedding (in the HoTT sense).
+**This is a work-in-progress.**
+
+For the day-to-day use of Cubical Agda, it is advisable to disable the
+``NoEquivWhenSplitting`` warnings. You can do this using the
+``-WnoNoEquivWhenSplitting`` option in an ``OPTIONS`` pragma or in your
+``agda-lib`` file.
+
+What works, and what doesn't
+----------------------------
+
+This section lists some of the common cases where pattern-matching
+unification produces something that can not be extended to cover
+transports, and the cases in which it can. The following pair of
+definitions relies on injectivity for data constructors, and so will not
+compute on non-``reflEq`` paths:
+
+::
+
+  sucInjEq : ∀ {n k} → Eq (suc n) (suc k) → Eq n k
+  sucInjEq reflEq = reflEq
+
+  trueDel : Eq true true → Eq true true
+  trueDel reflEq = reflEq
+
+In some cases, it may be possible to rephrase the proof in ways that
+avoid pattern matching, and so, compute. As a simple example, since
+``apEq`` below will always compute, we can use the fact that ``suc`` has
+a partially-defined inverse to conclude it is injective:
+
+::
+
+  apEq : ∀ {a b} {A : Set a} {B : Set b} (f : A → B) {x y : A}
+       → Eq x y → Eq (f x) (f y)
+  apEq f reflEq = reflEq
+
+  sucInjEq′ : ∀ {n k} → Eq (suc n) (suc k) → Eq n k
+  sucInjEq′ = apEq λ { (suc n) → n ; zero → zero }
+
+Definitions which rely on principles incompatible with Cubical Agda (K,
+injectivity of type constructors) will not compute on transports. Note
+that enabling both Cubical and K is not compatible with ``--safe``.
+
+Absurd clauses do not need any special handling (since the transport of
+an absurdity is still absurd), so definitions which rely on Agda's
+ability to automatically separate constructors of inductive types will
+not generate a ``NoEquivWhenSplitting`` flag.
+
+::
+
+  zeroNotSucEq : ∀ {n} {a} {A : Set a} → Eq zero (suc n) → A
+  zeroNotSucEq ()
+
+Definitions whose elaboration involves using an equality derived from
+pattern-matching in a type in ``Setω`` can not be extended yet. The
+following example is very artificial because it minimises
+`an example from the Cubical library <https://github.com/agda/cubical/blob/2131b6c08e32fdcf5b9292e5c6d6f23e4bf80fcd/Cubical/Structures/Macro.agda>`.
+
+::
+
+  data Argh (ℓ : Level) : Level → Setω where
+    argh : ∀ {ℓ′} → Argh ℓ ℓ′ → Argh ℓ ℓ′
+
+  test : ∀ {ℓ ℓ′} → Argh ℓ ℓ′ → Bool
+  test {ℓ} (argh _) = true
+
+
 Cubical identity types and computational HoTT/UF
-------------------------------------------------
+================================================
 
 As mentioned above the computation rule for ``J`` does not hold
 definitionally for path types. Cubical Agda solves this by introducing
@@ -752,7 +885,7 @@ which computes properly.
   open import Cubical.Core.Id public
      using ( _≡_            -- The identity type.
            ; refl           -- Its constructor.
-           ; J              -- Until it is, you have to use the induction principle J.
+           ; J              -- Its eliminator (can be defined by pattern matching)
 
            ; transport      -- As in the HoTT Book.
            ; ap
@@ -837,7 +970,7 @@ same:
 .. _erased-cubical:
 
 Cubical Agda with erased Glue
------------------------------
+=============================
 
 The option :option:`--erased-cubical` enables a variant of Cubical
 Agda in which Glue (and the other builtins defined in
@@ -867,7 +1000,7 @@ Note that names that are re-exported from a Cubical Agda module using
 ``open import M args public`` are seen as defined using Cubical Agda.
 
 References
-----------
+==========
 
 .. _`CCHM`:
 
@@ -884,7 +1017,7 @@ References
 .. _primitives-ref:
 
 Appendix: Cubical Agda primitives
----------------------------------
+=================================
 
 The Cubical Agda primitives and internals are exported by a series of
 files found in the ``lib/prim/Agda/Builtin/Cubical`` directory of
