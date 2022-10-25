@@ -67,13 +67,16 @@ Cubical Agda
   `--cubical-compatible` (see
   [#5843](https://github.com/agda/agda/issues/5843) and
   [#6049](https://github.com/agda/agda/issues/6049) for the
-  rationale). Note that code that uses (only) `--without-K` can no
-  longer be imported from code that uses `--cubical`. Thus it may make
-  sense to replace `--without-K` with `--cubical-compatible` in
-  library code, if possible. Also note that when `--without-K` is used
-  it is not safe to postulate erased univalence: the theory is perhaps
-  consistent, but one can get incorrect results at run-time (see
-  [#4784](https://github.com/agda/agda/issues/4784)).
+  rationale).
+
+  Note that code that uses (only) `--without-K` can no longer be
+  imported from code that uses `--cubical`. Thus it may make sense to
+  replace `--without-K` with `--cubical-compatible` in library code,
+  if possible.
+
+  Also note that when `--without-K` is used it might not be safe to
+  compile and run programs that postulate erased univalence (but we
+  are currently not aware of a program that would go wrong).
 
 * The cubical interval `I` now belongs to its own sort, `IUniv`, rather
   than `SSet`. For `J : IUniv` and `A : J → Set l`, we have
