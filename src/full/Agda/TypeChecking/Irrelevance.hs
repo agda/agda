@@ -95,6 +95,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.WithDefault
 import qualified Agda.Utils.Null as Null
+import Agda.Utils.WithDefault (collapseDefault)
 
 -- | data 'Relevance'
 --   see "Agda.Syntax.Common".
@@ -498,9 +499,18 @@ usableAtModality' ms why mod t =
         Left blocker -> patternViolation blocker
   where
     formatWhy = do
-      cubes <- isJust . optCubical <$> pragmaOptions
+      compatible <- collapseDefault . optCubicalCompatible <$> pragmaOptions
+      cubical <- isJust . optCubical <$> pragmaOptions
       let
-        justification = if cubes then "in Cubical Agda," else "when --without-K is enabled,"
+        context
+          | cubical    = "in Cubical Agda,"
+          | compatible = "to maintain compatibility with Cubical Agda,"
+          | otherwise  = "when --without-K is enabled,"
+
+        justification
+          | (cubical || compatible) = "used for computing transports."
+          | otherwise               = "used in substitutions."
+
       case why of
         IndexedClause ->
           vcat
@@ -509,10 +519,10 @@ usableAtModality' ms why mod t =
                   ++ pwords "which is not usable at the required modality"
                   ++ [prettyTCM mod])
             , ""
-            , fsep ( "Note:":pwords justification
+            , fsep ( "Note:":pwords context
                   ++ pwords "the target type must be usable at the modality"
                   ++ pwords "in which the function was defined, since it is"
-                  ++ pwords (if cubes then "used for computing transports." else "used in substitutions.")
+                  ++ pwords justification
                    )
             , ""
             ]
