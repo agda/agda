@@ -1244,7 +1244,6 @@ nonStrictToIrr :: Relevance -> Relevance
 nonStrictToIrr NonStrict = Irrelevant
 nonStrictToIrr rel       = rel
 
-
 ---------------------------------------------------------------------------
 -- * Annotations
 ---------------------------------------------------------------------------

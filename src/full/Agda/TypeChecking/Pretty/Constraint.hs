@@ -157,7 +157,7 @@ instance PrettyTCM Constraint where
           prettyTCM t <+> "is a well-formed type"
         CheckLockedVars t ty lk lk_ty -> do
           "Lock" <+> prettyTCM lk <+> "|-" <+> prettyTCMCtx TopCtx t <+> ":" <+> prettyTCM ty
-        UsableAtModality ms mod t -> "Is usable at" <+> text (verbalize mod) <+> "modality:" <+> prettyTCM t
+        UsableAtModality _ ms mod t -> "Is usable at" <+> text (verbalize mod) <+> "modality:" <+> prettyTCM t
           -- TODO: print @ms : Maybe Sort@ as well?
 
       where

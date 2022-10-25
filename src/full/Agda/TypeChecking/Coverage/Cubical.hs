@@ -901,7 +901,7 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
   applyModalityToContext mod $ do
     unlessM (asksTC hasQuantity0) $ do
     reportSDoc "tc.cover.trxcon" 20 $ text "testing usable at mod: " <+> pretty mod
-    addContext cTel $ usableAtModality mod rhs
+    addContext cTel $ usableAtModality IndexedClause mod rhs
 
   return cl
 

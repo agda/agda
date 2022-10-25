@@ -301,7 +301,7 @@ instance Instantiate Constraint where
   instantiate' (CheckDataSort q s)  = CheckDataSort q <$> instantiate' s
   instantiate' c@CheckMetaInst{}    = return c
   instantiate' (CheckType t)        = CheckType <$> instantiate' t
-  instantiate' (UsableAtModality ms mod t) = flip UsableAtModality mod <$> instantiate' ms <*> instantiate' t
+  instantiate' (UsableAtModality cc ms mod t) = flip (UsableAtModality cc) mod <$> instantiate' ms <*> instantiate' t
 
 instance Instantiate CompareAs where
   instantiate' (AsTermsOf a) = AsTermsOf <$> instantiate' a
@@ -938,7 +938,7 @@ instance Reduce Constraint where
   reduce' (CheckDataSort q s)   = CheckDataSort q <$> reduce' s
   reduce' c@CheckMetaInst{}     = return c
   reduce' (CheckType t)         = CheckType <$> reduce' t
-  reduce' (UsableAtModality ms mod t) = flip UsableAtModality mod <$> reduce' ms <*> reduce' t
+  reduce' (UsableAtModality cc ms mod t) = flip (UsableAtModality cc) mod <$> reduce' ms <*> reduce' t
 
 instance Reduce CompareAs where
   reduce' (AsTermsOf a) = AsTermsOf <$> reduce' a
@@ -1105,7 +1105,7 @@ instance Simplify Constraint where
   simplify' (CheckDataSort q s)   = CheckDataSort q <$> simplify' s
   simplify' c@CheckMetaInst{}     = return c
   simplify' (CheckType t)         = CheckType <$> simplify' t
-  simplify' (UsableAtModality ms mod t) = flip UsableAtModality mod <$> simplify' ms <*> simplify' t
+  simplify' (UsableAtModality cc ms mod t) = flip (UsableAtModality cc) mod <$> simplify' ms <*> simplify' t
 
 instance Simplify CompareAs where
   simplify' (AsTermsOf a) = AsTermsOf <$> simplify' a
@@ -1287,7 +1287,7 @@ instance Normalise Constraint where
   normalise' (CheckDataSort q s)   = CheckDataSort q <$> normalise' s
   normalise' c@CheckMetaInst{}     = return c
   normalise' (CheckType t)         = CheckType <$> normalise' t
-  normalise' (UsableAtModality ms mod t) = flip UsableAtModality mod <$> normalise' ms <*> normalise' t
+  normalise' (UsableAtModality cc ms mod t) = flip (UsableAtModality cc) mod <$> normalise' ms <*> normalise' t
 
 instance Normalise CompareAs where
   normalise' (AsTermsOf a) = AsTermsOf <$> normalise' a
@@ -1522,7 +1522,7 @@ instance InstantiateFull Constraint where
     CheckDataSort q s   -> CheckDataSort q <$> instantiateFull' s
     c@CheckMetaInst{}   -> return c
     CheckType t         -> CheckType <$> instantiateFull' t
-    UsableAtModality ms mod t -> flip UsableAtModality mod <$> instantiateFull' ms <*> instantiateFull' t
+    UsableAtModality cc ms mod t -> flip (UsableAtModality cc) mod <$> instantiateFull' ms <*> instantiateFull' t
 
 instance InstantiateFull CompareAs where
   instantiateFull' (AsTermsOf a) = AsTermsOf <$> instantiateFull' a

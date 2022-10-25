@@ -1092,6 +1092,16 @@ data ProblemConstraint = PConstr
 instance HasRange ProblemConstraint where
   getRange = getRange . theConstraint
 
+-- | Why are we performing a modality check?
+data WhyCheckModality
+  = ConstructorType
+  -- ^ Because --without-K is enabled, so the types of data constructors
+  -- must be usable at the context's modality.
+  | IndexedClause
+  -- ^ Because --without-K is enabled, so the result type of clauses
+  -- must be usable at the context's modality.
+  deriving (Show, Generic)
+
 data Constraint
   = ValueCmp Comparison CompareAs Term Term
   | ValueCmpOnFace Comparison Term Type Term Term
@@ -1123,7 +1133,7 @@ data Constraint
     -- ^ Last argument is the error causing us to postpone.
   | UnquoteTactic Term Term Type   -- ^ First argument is computation and the others are hole and goal type
   | CheckLockedVars Term Type (Arg Term) Type     -- ^ @CheckLockedVars t ty lk lk_ty@ with @t : ty@, @lk : lk_ty@ and @t lk@ well-typed.
-  | UsableAtModality (Maybe Sort) Modality Term
+  | UsableAtModality WhyCheckModality (Maybe Sort) Modality Term
     -- ^ Is the term usable at the given modality?
     -- This check should run if the @Sort@ is @Nothing@ or @isFibrant@.
   deriving (Show, Generic)
@@ -1161,7 +1171,7 @@ instance Free Constraint where
       CheckDataSort _ s     -> freeVars' s
       CheckMetaInst m       -> mempty
       CheckType t           -> freeVars' t
-      UsableAtModality ms mod t -> freeVars' (ms, t)
+      UsableAtModality _ ms mod t -> freeVars' (ms, t)
 
 instance TermLike Constraint where
   foldTerm f = \case
@@ -1182,7 +1192,7 @@ instance TermLike Constraint where
       CheckDataSort _ s      -> foldTerm f s
       CheckMetaInst m        -> mempty
       CheckType t            -> foldTerm f t
-      UsableAtModality ms m t   -> foldTerm f (Sort <$> ms, t)
+      UsableAtModality _ ms m t   -> foldTerm f (Sort <$> ms, t)
 
   traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented
 
@@ -5307,6 +5317,7 @@ instance NFData ForeignCode
 instance NFData Interface
 instance NFData a => NFData (Closure a)
 instance NFData ProblemConstraint
+instance NFData WhyCheckModality
 instance NFData Constraint
 instance NFData Signature
 instance NFData Comparison
