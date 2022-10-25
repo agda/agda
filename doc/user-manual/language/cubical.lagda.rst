@@ -786,7 +786,7 @@ In more concrete situations, such as when the indices are constructors
 of some other inductive type, pattern-matching definitions will not
 compute when applied to transports.
 
-If the ``NoEquivOnSplitting`` warning is enabled (it is by default),
+If the ``NoEquivWhenSplitting`` warning is enabled (it is by default),
 Agda will print a warning for every definition whose computational
 behaviour could not be extended to cover transports. Internally,
 transports are represented by an additional constructor, and
@@ -848,7 +848,10 @@ not generate a ``NoEquivWhenSplitting`` flag.
 Definitions whose elaboration involves using an equality derived from
 pattern-matching in a type in ``Setω`` can not be extended yet. The
 following example is very artificial because it minimises
-`an example from the Cubical library <https://github.com/agda/cubical/blob/2131b6c08e32fdcf5b9292e5c6d6f23e4bf80fcd/Cubical/Structures/Macro.agda>`.
+`an example from the Cubical library <https://github.com/agda/cubical/blob/2131b6c08e32fdcf5b9292e5c6d6f23e4bf80fcd/Cubical/Structures/Macro.agda>`_.
+The point is that to extend ``test`` to cover transports, we would need
+to, given ``p : ℓ′ ≡ ℓ``, produce a ``PathP (λ i → Argh ℓ (p i)) _ _``,
+but ``Setω`` is not considered fibrant yet.
 
 ::
 
