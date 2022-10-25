@@ -2214,6 +2214,19 @@ data DataOrRecSigData = DataOrRecSigData
 pattern DataOrRecSig :: Int -> Defn
 pattern DataOrRecSig{ datarecPars } = DataOrRecSigDefn (DataOrRecSigData datarecPars)
 
+-- | Indicates the reason behind a function having not been marked
+-- projection-like.
+data ProjectionLikenessMissing
+  = MaybeProjection
+    -- ^ Projection-likeness analysis has not run on this function yet.
+    -- It may do so in the future.
+  | NeverProjection
+    -- ^ The user has requested that this function be not be marked
+    -- projection-like. The analysis may already have run on this
+    -- function, but the results have been discarded, and it will not be
+    -- run again.
+  deriving (Show, Generic, Enum, Bounded)
+
 data FunctionData = FunctionData
   { _funClauses        :: [Clause]
   , _funCompiled       :: Maybe CompiledClauses
@@ -2238,7 +2251,7 @@ data FunctionData = FunctionData
   , _funAbstr          :: IsAbstract
   , _funDelayed        :: Delayed
       -- ^ Are the clauses of this definition delayed?
-  , _funProjection     :: Maybe Projection
+  , _funProjection     :: Either ProjectionLikenessMissing Projection
       -- ^ Is it a record projection?
       --   If yes, then return the name of the record type and index of
       --   the record argument.  Start counting with 1, because 0 means that
@@ -2269,7 +2282,7 @@ pattern Function
   -> Maybe [QName]
   -> IsAbstract
   -> Delayed
-  -> Maybe Projection
+  -> Either ProjectionLikenessMissing Projection
   -> Set FunctionFlag
   -> Maybe Bool
   -> Maybe ExtLamInfo
@@ -2631,6 +2644,10 @@ instance Pretty Defn where
 instance Pretty DataOrRecSigData where
   pretty (DataOrRecSigData n) = "DataOrRecSig" <+> pretty n
 
+instance Pretty ProjectionLikenessMissing where
+  pretty MaybeProjection = "MaybeProjection"
+  pretty NeverProjection = "NeverProjection"
+
 instance Pretty FunctionData where
   pretty (FunctionData
       funClauses
@@ -2800,7 +2817,7 @@ emptyFunctionData = FunctionData
   , _funMutual      = Nothing
   , _funAbstr       = ConcreteDef
   , _funDelayed     = NotDelayed
-  , _funProjection  = Nothing
+  , _funProjection  = Left MaybeProjection
   , _funFlags       = Set.empty
   , _funTerminates  = Nothing
   , _funExtLam      = Nothing
@@ -5186,6 +5203,9 @@ instance KillRange FunctionFlag where
 instance KillRange CompKit where
   killRange = id
 
+instance KillRange ProjectionLikenessMissing where
+  killRange = id
+
 instance KillRange Defn where
   killRange def =
     case def of
@@ -5329,6 +5349,7 @@ instance NFData FunctionFlag
 instance NFData CompKit
 instance NFData AxiomData
 instance NFData DataOrRecSigData
+instance NFData ProjectionLikenessMissing
 instance NFData FunctionData
 instance NFData DatatypeData
 instance NFData RecordData

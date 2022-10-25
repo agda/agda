@@ -277,7 +277,7 @@ typeWithoutParams :: QName -> TCM (ListTel, Type)
 typeWithoutParams q = do
   def <- getConstInfo q
   let d = case I.theDef def of
-        Function{ funProjection = Just Projection{ projIndex = i } } -> i - 1
+        Function{ funProjection = Right Projection{ projIndex = i } } -> i - 1
         Constructor{ conPars = n } -> n
         _                          -> 0
   first (drop d) <$> telListView (defType def)

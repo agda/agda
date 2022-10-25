@@ -46,6 +46,7 @@ import Agda.Syntax.Fixity(Precedence(..), argumentCtx_)
 import Agda.Syntax.Parser
 
 import Agda.TheTypeChecker
+import Agda.TypeChecking.ReconstructParameters
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Errors ( getAllWarnings, stringTCErr, Verbalize(..) )
@@ -90,6 +91,8 @@ import Agda.Utils.Size
 import Agda.Utils.String
 
 import Agda.Utils.Impossible
+import qualified Agda.Utils.SmallSet as SmallSet
+import Agda.TypeChecking.ProjectionLike (reduceProjectionLike)
 
 -- | Parses an expression.
 
@@ -238,7 +241,10 @@ elaborate_give norm force ii mr e = withInteractionId ii $ do
       PatternErr{} -> typeError . GenericDocError =<< do
         withInteractionId ii $ "Failed to give" TP.<+> prettyTCM e
       err -> throwError err
-  nv <- normalForm norm v
+  mv <- lookupLocalMeta mi
+  -- Reduce projection-likes before quoting, otherwise instance
+  -- selection may fail on reload (see #6203).
+  nv <- reduceProjectionLike =<< normalForm norm v
   locallyTC ePrintMetasBare (const True) $ reify nv
 
 -- | Try to refine hole by expression @e@.

@@ -798,7 +798,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       def <- getConstInfo q
       (argTypes0, resType) <- hsTelApproximation $ defType def
       let pars = case theDef def of
-                   Function{ funProjection = Just Projection{ projIndex = i } } | i > 0 -> i - 1
+                   Function{ funProjection = Right Projection{ projIndex = i } } | i > 0 -> i - 1
                    _ -> 0
           argTypes  = drop pars argTypes0
           argTypesS = filterUsed used argTypes

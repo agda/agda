@@ -168,6 +168,7 @@ import Agda.Utils.Impossible
     'NO_UNIVERSE_CHECK'       { TokKeyword KwNO_UNIVERSE_CHECK $$ }
     'NON_TERMINATING'         { TokKeyword KwNON_TERMINATING $$ }
     'NON_COVERING'            { TokKeyword KwNON_COVERING $$ }
+    'NOT_PROJECTION_LIKE'     { TokKeyword KwNOT_PROJECTION_LIKE $$ }
     'OPTIONS'                 { TokKeyword KwOPTIONS $$ }
     'POLARITY'                { TokKeyword KwPOLARITY $$ }
     'WARNING_ON_USAGE'        { TokKeyword KwWARNING_ON_USAGE $$ }
@@ -296,6 +297,7 @@ Token
     | 'NO_UNIVERSE_CHECK'       { TokKeyword KwNO_UNIVERSE_CHECK $1 }
     | 'NON_TERMINATING'         { TokKeyword KwNON_TERMINATING $1 }
     | 'NON_COVERING'            { TokKeyword KwNON_COVERING $1 }
+    | 'NOT_PROJECTION_LIKE'     { TokKeyword KwNOT_PROJECTION_LIKE $1 }
     | 'OPTIONS'                 { TokKeyword KwOPTIONS $1 }
     | 'POLARITY'                { TokKeyword KwPOLARITY $1 }
     | 'REWRITE'                 { TokKeyword KwREWRITE $1 }
@@ -1518,6 +1520,7 @@ DeclarationPragma
   | NonTerminatingPragma     { $1 }
   | NoTerminationCheckPragma { $1 }
   | NonCoveringPragma        { $1 }
+  | NotProjectionLikePragma  { $1 }
   | WarningOnUsagePragma     { $1 }
   | WarningOnImportPragma    { $1 }
   | MeasurePragma            { $1 }
@@ -1573,6 +1576,11 @@ NoInlinePragma :: { Pragma }
 NoInlinePragma
   : '{-#' 'NOINLINE' PragmaQName '#-}'
     { InlinePragma (getRange ($1,$2,$3,$4)) False $3 }
+
+NotProjectionLikePragma :: { Pragma }
+NotProjectionLikePragma
+  : '{-#' 'NOT_PROJECTION_LIKE' PragmaQName '#-}'
+    { NotProjectionLikePragma (getRange ($1,$2,$3,$4)) $3 }
 
 InjectivePragma :: { Pragma }
 InjectivePragma

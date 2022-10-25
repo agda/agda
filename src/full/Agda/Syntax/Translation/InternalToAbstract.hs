@@ -695,7 +695,7 @@ reifyTerm expandAnonDefs0 v0 = do
         alreadyPrinting <- viewTC ePrintingPatternLambdas
 
         extLam <- case def of
-          Function{ funExtLam = Just{}, funProjection = Just{} } -> __IMPOSSIBLE__
+          Function{ funExtLam = Just{}, funProjection = Right{} } -> __IMPOSSIBLE__
           Function{ funExtLam = Just (ExtLamInfo m b sys) } ->
             Just . (,Strict.toLazy sys) . size <$> lookupSection m
           _ -> return Nothing
@@ -709,7 +709,7 @@ reifyTerm expandAnonDefs0 v0 = do
           _ -> do
            (pad, nes :: [Elim' (Named_ Term)]) <- case def of
 
-            Function{ funProjection = Just Projection{ projIndex = np } } | np > 0 -> do
+            Function{ funProjection = Right Projection{ projIndex = np } } | np > 0 -> do
               reportSLn "reify.def" 70 $ "  def. is a projection with projIndex = " ++ show np
 
               -- This is tricky:

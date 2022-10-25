@@ -86,6 +86,7 @@ import Agda.Utils.Size
 import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
+import Agda.Utils.Either
 
 requireOptionRewriting :: TCM ()
 requireOptionRewriting =
@@ -363,7 +364,7 @@ checkRewriteRule q = do
     checkAxFunOrCon :: QName -> Definition -> TCM ()
     checkAxFunOrCon f def = case theDef def of
       Axiom{}        -> return ()
-      def@Function{} -> whenJust (funProjection def) $ \proj ->
+      def@Function{} -> whenJust (maybeRight (funProjection def)) $ \proj ->
         case projProper proj of
           Just{} -> typeError . GenericDocError =<< hsep
             [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"

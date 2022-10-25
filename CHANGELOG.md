@@ -250,6 +250,12 @@ Pragmas and options
   This option might for instance be used if Agda is controlled from a
   script.
 
+* Add a `NOT_PROJECTION_LIKE` pragma, which marks a function as not
+suitable for projection-likeness. Projection-like functions have some of
+their arguments erased, which can cause confusing behaviour when they
+are printed instantiated (see [#6203](https://github.com/agda/agda/issues/6203)).
+
+
 Builtins
 --------
 

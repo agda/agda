@@ -367,6 +367,8 @@ instance EmbPrj EtaEquality where
     valu [1,a] = valuN Inferred a
     valu _     = malformed
 
+instance EmbPrj ProjectionLikenessMissing
+
 instance EmbPrj Defn where
   icod_ (Axiom       a)                                 = icodeN 0 Axiom a
   icod_ (Function    a b s t u c d e f g h i j k l)     = icodeN 1 (\ a b s -> Function a b s t) a b s u c d e f g h i j k l

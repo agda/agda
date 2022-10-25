@@ -44,17 +44,17 @@ data CheckedMainFunctionDef = CheckedMainFunctionDef
 -- TODO: Also only consider top-level definition (not buried inside a module).
 asMainFunctionDef :: Definition -> Maybe MainFunctionDef
 asMainFunctionDef d = case (theDef d) of
-    Axiom{}                             -> perhaps
-    Function{ funProjection = Nothing } -> perhaps
-    Function{ funProjection = Just{}  } -> no
-    AbstractDefn{}                      -> no
-    GeneralizableVar{}                  -> no
-    DataOrRecSig{}                      -> no
-    Datatype{}                          -> no
-    Record{}                            -> no
-    Constructor{}                       -> no
-    Primitive{}                         -> no
-    PrimitiveSort{}                     -> no
+    Axiom{}                              -> perhaps
+    Function{ funProjection = Left _ }   -> perhaps
+    Function{ funProjection = Right{}  } -> no
+    AbstractDefn{}                       -> no
+    GeneralizableVar{}                   -> no
+    DataOrRecSig{}                       -> no
+    Datatype{}                           -> no
+    Record{}                             -> no
+    Constructor{}                        -> no
+    Primitive{}                          -> no
+    PrimitiveSort{}                      -> no
   where
   isNamedMain = "main" == prettyShow (nameConcrete . qnameName . defName $ d)  -- ignores the qualification!?
   perhaps | isNamedMain = Just $ MainFunctionDef d

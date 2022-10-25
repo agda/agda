@@ -409,6 +409,7 @@ instance ExprLike Pragma where
       InjectivePragma{}           -> pure p
       InlinePragma{}              -> pure p
       EtaPragma{}                 -> pure p
+      NotProjectionLikePragma{}   -> pure p
       DisplayPragma f xs e        -> DisplayPragma f <$> rec xs <*> rec e
     where
       rec :: RecurseExprRecFn m
@@ -524,15 +525,16 @@ instance DeclaredNames Declaration where
 instance DeclaredNames Pragma where
   declaredNames = \case
     BuiltinNoDefPragma _b kind x -> singleton $ WithKind kind x
-    BuiltinPragma{}         -> mempty
-    CompilePragma{}         -> mempty
-    RewritePragma{}         -> mempty
-    StaticPragma{}          -> mempty
-    EtaPragma{}             -> mempty
-    InjectivePragma{}       -> mempty
-    InlinePragma{}          -> mempty
-    DisplayPragma{}         -> mempty
-    OptionsPragma{}         -> mempty
+    BuiltinPragma{}           -> mempty
+    CompilePragma{}           -> mempty
+    RewritePragma{}           -> mempty
+    StaticPragma{}            -> mempty
+    EtaPragma{}               -> mempty
+    InjectivePragma{}         -> mempty
+    InlinePragma{}            -> mempty
+    NotProjectionLikePragma{} -> mempty
+    DisplayPragma{}           -> mempty
+    OptionsPragma{}           -> mempty
 
 instance DeclaredNames Clause where
   declaredNames (Clause _ _ rhs decls _) = declaredNames rhs <> declaredNames decls
