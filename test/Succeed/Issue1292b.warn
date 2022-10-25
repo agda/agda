@@ -1,0 +1,120 @@
+Issue1292b.agda:15,1-17,30
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Solution
+                           position:    0
+                           type:        {Size}
+                           variable:    (1,Just 1,NotForced,ImplicitFlex)
+                           term:        ↑ @0
+                           side:        Right ()
+when checking the definition of sub
+Issue1292b.agda:15,1-17,30
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Solution
+                           position:    0
+                           type:        {Size}
+                           variable:    (2,Just 2,NotForced,ImplicitFlex)
+                           term:        ↑ @1
+                           side:        Right ()
+when checking the definition of sub
+Issue1292b.agda:15,1-17,30
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet StripSizeSuc
+                           position:    0
+                           lhs:         @0
+                           rhs:         ∞
+when checking the definition of sub
+Issue1292b.agda:15,1-17,30
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet StripSizeSuc
+                           position:    0
+                           lhs:         @1
+                           rhs:         ∞
+when checking the definition of sub
+Issue1292b.agda:21,1-22,40
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Solution
+                           position:    0
+                           type:        {Size}
+                           variable:    (1,Just 1,NotForced,ImplicitFlex)
+                           term:        ↑ @0
+                           side:        Right ()
+when checking the definition of div'
+Issue1292b.agda:21,1-22,40
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Solution
+                           position:    0
+                           type:        {Size}
+                           variable:    (2,Just 2,NotForced,ImplicitFlex)
+                           term:        ↑ @1
+                           side:        Right ()
+when checking the definition of div'
+
+———— All done; warnings encountered ————————————————————————
+
+Issue1292b.agda:15,1-17,30
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Solution
+                           position:    0
+                           type:        {Size}
+                           variable:    (1,Just 1,NotForced,ImplicitFlex)
+                           term:        ↑ @0
+                           side:        Right ()
+when checking the definition of sub
+
+Issue1292b.agda:15,1-17,30
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Solution
+                           position:    0
+                           type:        {Size}
+                           variable:    (2,Just 2,NotForced,ImplicitFlex)
+                           term:        ↑ @1
+                           side:        Right ()
+when checking the definition of sub
+
+Issue1292b.agda:15,1-17,30
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet StripSizeSuc
+                           position:    0
+                           lhs:         @0
+                           rhs:         ∞
+when checking the definition of sub
+
+Issue1292b.agda:15,1-17,30
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet StripSizeSuc
+                           position:    0
+                           lhs:         @1
+                           rhs:         ∞
+when checking the definition of sub
+
+Issue1292b.agda:21,1-22,40
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Solution
+                           position:    0
+                           type:        {Size}
+                           variable:    (1,Just 1,NotForced,ImplicitFlex)
+                           term:        ↑ @0
+                           side:        Right ()
+when checking the definition of div'
+
+Issue1292b.agda:21,1-22,40
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Solution
+                           position:    0
+                           type:        {Size}
+                           variable:    (2,Just 2,NotForced,ImplicitFlex)
+                           term:        ↑ @1
+                           side:        Right ()
+when checking the definition of div'

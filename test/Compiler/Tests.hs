@@ -178,7 +178,12 @@ stdlibTests comp = do
     -- multiple times
 
   let extraArgs :: [String]
-      extraArgs = [ "-i" ++ testDir, "-i" ++ "std-lib" </> "src", "-istd-lib" ]
+      extraArgs =
+        [ "-i" ++ testDir
+        , "-i" ++ "std-lib" </> "src"
+        , "-istd-lib"
+        , "--warning=noNoEquivWhenSplitting"
+        ]
 
   let -- Note that -M4G can trigger the following error on 32-bit
       -- systems: "error in RTS option -M4G: size outside allowed

@@ -1,0 +1,94 @@
+Issue3034.agda:12,1-13
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Injectivity
+                           position:    6
+                           type:        @5 == @3
+                           datatype:    _==_
+                           parameters:  {_}
+                           indices:     @5, @3
+                           constructor: idp
+when checking the definition of J1
+Issue3034.agda:15,1-13
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Injectivity
+                           position:    6
+                           type:        @5 == @3
+                           datatype:    _==_
+                           parameters:  {_}
+                           indices:     @5, @3
+                           constructor: idp
+when checking the definition of J2
+Issue3034.agda:18,1-13
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Injectivity
+                           position:    6
+                           type:        @5 == @3
+                           datatype:    _==_
+                           parameters:  {_}
+                           indices:     @5, @3
+                           constructor: idp
+when checking the definition of J3
+Issue3034.agda:21,1-13
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Injectivity
+                           position:    5
+                           type:        @6 == @3
+                           datatype:    _==_
+                           parameters:  {_}
+                           indices:     @6, @3
+                           constructor: idp
+when checking the definition of J4
+
+———— All done; warnings encountered ————————————————————————
+
+Issue3034.agda:12,1-13
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Injectivity
+                           position:    6
+                           type:        @5 == @3
+                           datatype:    _==_
+                           parameters:  {_}
+                           indices:     @5, @3
+                           constructor: idp
+when checking the definition of J1
+
+Issue3034.agda:15,1-13
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Injectivity
+                           position:    6
+                           type:        @5 == @3
+                           datatype:    _==_
+                           parameters:  {_}
+                           indices:     @5, @3
+                           constructor: idp
+when checking the definition of J2
+
+Issue3034.agda:18,1-13
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Injectivity
+                           position:    6
+                           type:        @5 == @3
+                           datatype:    _==_
+                           parameters:  {_}
+                           indices:     @5, @3
+                           constructor: idp
+when checking the definition of J3
+
+Issue3034.agda:21,1-13
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Injectivity
+                           position:    5
+                           type:        @6 == @3
+                           datatype:    _==_
+                           parameters:  {_}
+                           indices:     @6, @3
+                           constructor: idp
+when checking the definition of J4

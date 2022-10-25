@@ -1,3 +1,14 @@
+Issue1408b.agda:20,1-15
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Injectivity
+                           position:    0
+                           type:        Bool
+                           datatype:    Bool
+                           parameters: 
+                           indices:    
+                           constructor: false
+when checking the definition of ¬pfin
 Failed to solve the following constraints:
   Is empty: y ≅ x (stuck)
       [ at Issue1408b.agda:20,12-14 ]

@@ -1,0 +1,25 @@
+NewUnifierTooRestrictive.agda:21,1-16
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Injectivity
+                           position:    0
+                           type:        Foo bar
+                           datatype:    Foo
+                           parameters: 
+                           indices:     bar
+                           constructor: foo
+when checking the definition of test
+
+———— All done; warnings encountered ————————————————————————
+
+NewUnifierTooRestrictive.agda:21,1-16
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Injectivity
+                           position:    0
+                           type:        Foo bar
+                           datatype:    Foo
+                           parameters: 
+                           indices:     bar
+                           constructor: foo
+when checking the definition of test

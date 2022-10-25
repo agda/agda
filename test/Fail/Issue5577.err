@@ -1,0 +1,11 @@
+Issue5577.agda:15,1-10
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Injectivity
+                           position:    0
+                           type:        I
+                           datatype:    I
+                           parameters: 
+                           indices:    
+                           constructor: i
+when checking the definition of f

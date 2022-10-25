@@ -1,0 +1,25 @@
+Issue1115.agda:13,1-26
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Injectivity
+                           position:    0
+                           type:        Fin (suc @2)
+                           datatype:    Fin
+                           parameters: 
+                           indices:     suc @2
+                           constructor: suc
+when checking the definition of suc-injective
+
+———— All done; warnings encountered ————————————————————————
+
+Issue1115.agda:13,1-26
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Injectivity
+                           position:    0
+                           type:        Fin (suc @2)
+                           datatype:    Fin
+                           parameters: 
+                           indices:     suc @2
+                           constructor: suc
+when checking the definition of suc-injective

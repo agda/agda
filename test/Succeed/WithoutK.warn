@@ -1,0 +1,48 @@
+WithoutK.agda:54,1-31
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Injectivity
+                           position:    0
+                           type:        D
+                           datatype:    D
+                           parameters: 
+                           indices:    
+                           constructor: c₂
+when checking the definition of f
+WithoutK.agda:68,1-21
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Injectivity
+                           position:    0
+                           type:        ℕ
+                           datatype:    ℕ
+                           parameters: 
+                           indices:    
+                           constructor: suc
+when checking the definition of h
+
+———— All done; warnings encountered ————————————————————————
+
+WithoutK.agda:54,1-31
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Injectivity
+                           position:    0
+                           type:        D
+                           datatype:    D
+                           parameters: 
+                           indices:    
+                           constructor: c₂
+when checking the definition of f
+
+WithoutK.agda:68,1-21
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Injectivity
+                           position:    0
+                           type:        ℕ
+                           datatype:    ℕ
+                           parameters: 
+                           indices:    
+                           constructor: suc
+when checking the definition of h
