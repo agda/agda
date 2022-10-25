@@ -1,7 +1,7 @@
 ..
   ::
 
-  {-# OPTIONS --cubical -vtc.lhs.unify.inv:20 -WNoEquivWhenSplitting #-}
+  {-# OPTIONS --cubical #-}
   module language.cubical where
 
   open import Agda.Primitive
@@ -734,17 +734,17 @@ Cubical Agda has experimental support for the ``transp`` primitive when
 used to substitute the indices of an indexed inductive type. A handful
 of definitions (satisfying a technical restriction on their pattern
 matching) will compute when applied to a transport along indices. As an
-example of what works, let us consider the following running example
+example of what works, let us consider the following running example:
 
 ::
 
   data Eq {a} {A : Set a} (x : A) : A → Set a where
     reflEq : Eq x x
 
-Functions which match on `Eq` when all of its endpoints are variables,
+Functions which match on ``Eq`` when all of its endpoints are variables,
 that is, very generic lemmas like ``symEq`` and ``transpEq`` below, will
 compute on all cases: they will compute to the given right-hand-side
-definitionally when their argument is ``refl``, and will compute to a
+definitionally when their argument is ``reflEq``, and will compute to a
 transport in the codomain when their argument has been transported in
 the second variable.
 
@@ -793,7 +793,7 @@ transports are represented by an additional constructor, and
 pattern-matching definitions must be extended to cover these
 constructors. To do this, the results of pattern-matching unification
 must be translated into an embedding (in the HoTT sense).
-**This is a work-in-progress.**
+**This is work-in-progress.**
 
 For the day-to-day use of Cubical Agda, it is advisable to disable the
 ``NoEquivWhenSplitting`` warnings. You can do this using the
@@ -838,7 +838,7 @@ that enabling both Cubical and K is not compatible with ``--safe``.
 Absurd clauses do not need any special handling (since the transport of
 an absurdity is still absurd), so definitions which rely on Agda's
 ability to automatically separate constructors of inductive types will
-not generate a ``NoEquivWhenSplitting`` flag.
+not generate a ``NoEquivWhenSplitting`` warning.
 
 ::
 
