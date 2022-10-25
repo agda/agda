@@ -106,6 +106,9 @@ Cubical Agda
 * Higher constructors are no longer considered as guarding in the productivity check.
   ([#6108](https://github.com/agda/agda/issues/6108))
 
+* Rewrite rules with interval arguments are now supported.
+  ([#4384](https://github.com/agda/agda/issues/4384))
+
 Reflection
 ----------
 
