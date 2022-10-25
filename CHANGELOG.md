@@ -6,8 +6,8 @@ Installation and infrastructure
 
 Agda supports GHC versions 8.0.2 to 9.4.2.
 
-Language
---------
+Erasure
+-------
 
 * The new option `--erased-cubical` turns on a variant of Cubical Agda
   (see [#4701](https://github.com/agda/agda/issues/4701)).
@@ -59,8 +59,26 @@ Language
   f x r = R.y {x} r
   ```
 
-* The options `--subtyping` and `--no-subtyping` have been removed
-  (see [#5427](https://github.com/agda/agda/issues/5427)).
+Cubical Agda
+------------
+
+* The generation of Cubical Agda-specific support code was removed
+  from `--without-K` and transferred to its own flag,
+  `--cubical-compatible` (see
+  [#5843](https://github.com/agda/agda/issues/5843) and
+  [#6049](https://github.com/agda/agda/issues/6049) for the
+  rationale). Note that code that uses (only) `--without-K` can no
+  longer be imported from code that uses `--cubical`. Thus it may make
+  sense to replace `--without-K` with `--cubical-compatible` in
+  library code, if possible. Also note that when `--without-K` is used
+  it is not safe to postulate erased univalence: the theory is perhaps
+  consistent, but one can get incorrect results at run-time (see
+  [#4784](https://github.com/agda/agda/issues/4784)).
+
+* Cubical Agda now has experimental support for indexed inductive types
+  ([#3733](https://github.com/agda/agda/issues/3733)).
+  See the [user guide](https://agda.readthedocs.io/en/latest/language/cubical.html#indexed-inductive-types)
+  for caveats.
 
 * The cubical interval `I` now belongs to its own sort, `IUniv`, rather
   than `SSet`. For `J : IUniv` and `A : J → Set l`, we have
@@ -75,6 +93,29 @@ Language
   This is not meant to imply that the option was not already
   incompatible with those things. Note that
   `--experimental-irrelevance` cannot be used together with `--safe`.
+
+* A new built-in constructor `REFLID` was added to the cubical identity
+  types. This is definitionally equal to the reflexivity identification
+  built with `conid`, with the difference being that matching on
+  `REFLID` is allowed.
+
+  ```agda
+  symId : ∀ {a} {A : Set a} {x y : A} → Id x y → Id y x
+  symId reflId = reflId
+  ```
+
+* Definitions which pattern match on higher-inductive types are no
+  longer considered for injectivity analysis.
+  ([#6219](https://github.com/agda/agda/pull/6219))
+
+* Higher constructors are no longer considered as guarding in the productivity check.
+  ([#6108](https://github.com/agda/agda/issues/6108))
+
+* Rewrite rules with interval arguments are now supported.
+  ([#4384](https://github.com/agda/agda/issues/4384))
+
+Reflection
+----------
 
 * Two new reflection primitives
 
@@ -131,29 +172,8 @@ Language
 * A new constructor `pattErr : Pattern → ErrorPart` of `ErrorPart` for reflection
   is added.
 
-* Cubical Agda now has experimental support for indexed inductive types
-  (see the [user guide](https://agda.readthedocs.io/en/latest/language/cubical.html#indexed-inductive-types)
-  for caveats)
-
-* A new built-in constructor `REFLID` was added to the cubical identity
-  types. This is definitionally equal to the reflexivity identification
-  built with `conid`, with the difference being that matching on
-  `REFLID` is allowed.
-
-  ```agda
-  symId : ∀ {a} {A : Set a} {x y : A} → Id x y → Id y x
-  symId reflId = reflId
-  ```
-
-* Definitions which pattern match on higher-inductive types are no
-  longer considered for injectivity analysis. ([#6219](https://github.com/agda/agda/issues/6047))
-
-* Agsy ([automatic proof search](https://agda.readthedocs.io/en/latest/tools/auto.html)) can
-  now be invoked in the right-hand-sides of copattern matching clauses
-  ([#5827](https://github.com/agda/agda/pull/5827))
-
-Syntax
-------
+Syntax declarations
+-------------------
 
 * It is now OK to put lambda-bound variables anywhere in the
   right-hand side of a syntax declaration. However, there must always
@@ -180,17 +200,30 @@ Syntax
   syntax Σ₂ A (λ x₁ x₂ → P) = [ x₁ x₂ ⦂ A ] × P
   ```
 
-Library management
-------------------
+Builtins
+--------
 
-* Library files below the "project root" are now ignored
-  (see [#5644](https://github.com/agda/agda/issues/5644)).
+* Change `primFloatToWord64` to return `Maybe Word64`.
+  (See [#6093](https://github.com/agda/agda/issues/6093).)
 
-  For instance, if you have a module called `A.B.C` in the directory
-  `Root/A/B`, then `.agda-lib` files in `Root/A` or `Root/A/B` do not
-  affect what options are used to type-check `A.B.C`: `.agda-lib`
-  files for `A.B.C` have to reside in `Root`, or further up the
-  directory hierarchy.
+  The new type is
+  ```agda
+    primFloatToWord64 : Float → Maybe Word64
+  ```
+  and it returns `nothing` for `NaN`.
+
+* The type expected by the builtin `EQUIVPROOF` has been changed to
+  properly encode the condition that `EQUVIFUN` is an equivalence.
+  ([#5661](https://github.com/agda/agda/issues/5661),
+  [#6032](https://github.com/agda/agda/pull/6032))
+
+* The primitive `primIdJ` has been removed
+  ([#6032](https://github.com/agda/agda/pull/6032)) in favour of
+  matching on the cubical identity type.
+
+* The builtin `SUBIN` is now exported from `Agda.Builtin.Cubical.Sub` as
+  **`inS`** rather than `inc`. Similarly, the internal modules refer to
+  `primSubOut` as `outS`. ([#6032](https://github.com/agda/agda/pull/6032))
 
 Pragmas and options
 -------------------
@@ -217,14 +250,10 @@ Pragmas and options
   test = refl
   ```
 
-* New verbosity `-v debug.time:100` adds time stamps to debugging output.
-
-* Profiling options are now turned on with a new `--profile` flag instead of
-  abusing the debug verbosity option. (See [#5781](https://github.com/agda/agda/issues/5731).)
-
-* The new profiling option `--profile=conversion` collects statistics
-  on how often various steps of the conversion algorithm are used
-  (reduction, eta-expansion, syntactic equality, etc).
+* Option `--experimental-lossy-unification` that turns on
+  (the incomplete) first-order unification has been renamed to
+  `--lossy-unification`.
+  ([#1625](https://github.com/agda/agda/issues/1625))
 
 * The new option `--no-load-primitives` complements `--no-import-sorts`
   by foregoing loading of the primitive modules altogether. This option
@@ -232,19 +261,6 @@ Pragmas and options
   extensively throughout the implementation. It is intended to be used
   by Literate Agda projects which want to bind `BUILTIN TYPE` (and
   other primitives) in their own literate files.
-
-* The generation of Cubical Agda-specific support code was removed
-  from `--without-K` and transferred to its own flag,
-  `--cubical-compatible` (see
-  [#5843](https://github.com/agda/agda/issues/5843) and
-  [#6049](https://github.com/agda/agda/issues/6049) for the
-  rationale). Note that code that uses (only) `--without-K` can no
-  longer be imported from code that uses `--cubical`. Thus it may make
-  sense to replace `--without-K` with `--cubical-compatible` in
-  library code, if possible. Also note that when `--without-K` is used
-  it is not safe to postulate erased univalence: the theory is perhaps
-  consistent, but one can get incorrect results at run-time (see
-  [#4784](https://github.com/agda/agda/issues/4784)).
 
 * If `--interaction-exit-on-error` is used, then Agda exits with a
   non-zero exit code if `--interaction` or `--interaction-json` are
@@ -255,38 +271,25 @@ Pragmas and options
   script.
 
 * Add a `NOT_PROJECTION_LIKE` pragma, which marks a function as not
-suitable for projection-likeness. Projection-like functions have some of
-their arguments erased, which can cause confusing behaviour when they
-are printed instantiated (see [#6203](https://github.com/agda/agda/issues/6203)).
+  suitable for projection-likeness. Projection-like functions have some of
+  their arguments erased, which can cause confusing behaviour when they
+  are printed instantiated (see [#6203](https://github.com/agda/agda/issues/6203)).
 
+* The options `--subtyping` and `--no-subtyping` have been removed
+  (see [#5427](https://github.com/agda/agda/issues/5427)).
 
-Builtins
---------
+Profiling and performance
+-------------------------
 
-* Change `primFloatToWord64` to return `Maybe Word64`.
-  (See [#6093](https://github.com/agda/agda/issues/6093).)
+* New verbosity `-v debug.time:100` adds time stamps to debugging output.
 
-  The new type is
-  ```agda
-    primFloatToWord64 : Float → Maybe Word64
-  ```
-  and it returns `nothing` for `NaN`.
+* Profiling options are now turned on with a new `--profile` flag
+  instead of abusing the debug verbosity option. (See
+  [#5781](https://github.com/agda/agda/issues/5781).)
 
-* The type expected by the builtin `EQUIVPROOF` has been changed to
-  properly encode the condition that `EQUVIFUN` is an equivalence.
-  ([#5661](https://github.com/agda/agda/issues/5661),
-  [#6032](https://github.com/agda/agda/pull/6032))
-
-* The primitive `primIdJ` has been removed
-  ([#6032](https://github.com/agda/agda/pull/6032)) in favour of
-  matching on the cubical identity type.
-
-* The builtin `SUBIN` is now exported from `Agda.Builtin.Cubical.Sub` as
-  **`inS`** rather than `inc`. Similarly, the internal modules refer to
-  `primSubOut` as `outS`. ([#6032](https://github.com/agda/agda/pull/6032))
-
-Performance
------------
+* The new profiling option `--profile=conversion` collects statistics
+  on how often various steps of the conversion algorithm are used
+  (reduction, eta-expansion, syntactic equality, etc).
 
 * Meta-variables can now be saved in `.agdai` files, instead
   of being expanded. This can affect performance. (See
@@ -315,6 +318,25 @@ Performance
 
   Note that this option is experimental and subject to change.
 
+Library management
+------------------
+
+* Library files below the "project root" are now ignored
+  (see [#5644](https://github.com/agda/agda/issues/5644)).
+
+  For instance, if you have a module called `A.B.C` in the directory
+  `Root/A/B`, then `.agda-lib` files in `Root/A` or `Root/A/B` do not
+  affect what options are used to type-check `A.B.C`: `.agda-lib`
+  files for `A.B.C` have to reside in `Root`, or further up the
+  directory hierarchy.
+
+Interaction
+-----------
+
+* Agsy ([automatic proof search](https://agda.readthedocs.io/en/latest/tools/auto.html)) can
+  now be invoked in the right-hand-sides of copattern matching clauses.
+  ([#5827](https://github.com/agda/agda/pull/5827))
+
 Compiler backends
 -----------------
 
@@ -333,9 +355,6 @@ Compiler backends
   Before GHC was invoked from the Agda process's current working
   directory, and that is still the case if `--interaction` and
   `--interaction-json` are not used.
-
-LaTeX backend
--------------
 
 DOT backend
 -----------
