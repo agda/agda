@@ -2,6 +2,8 @@
   ::
 
   {-# OPTIONS --cubical #-}
+  {-# OPTIONS -WnoNoEquivWhenSplitting #-} -- silence warnings for indexed families
+
   module language.cubical where
 
   open import Agda.Primitive
