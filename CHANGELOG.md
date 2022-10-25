@@ -100,7 +100,11 @@ Cubical Agda
   ```
 
 * Definitions which pattern match on higher-inductive types are no
-  longer considered for injectivity analysis. ([#6219](https://github.com/agda/agda/issues/6047))
+  longer considered for injectivity analysis.
+  ([#6219](https://github.com/agda/agda/pull/6219))
+
+* Higher constructors are no longer considered as guarding in the productivity check.
+  ([#6108](https://github.com/agda/agda/issues/6108))
 
 Reflection
 ----------
@@ -237,6 +241,11 @@ Pragmas and options
   test : a ≡ c
   test = refl
   ```
+
+* Option `--experimental-lossy-unification` that turns on
+  (the incomplete) first-order unification has been renamed to
+  `--lossy-unification`.
+  ([#1625](https://github.com/agda/agda/issues/1625))
 
 * The new option `--no-load-primitives` complements `--no-import-sorts`
   by foregoing loading of the primitive modules altogether. This option
