@@ -71,10 +71,10 @@ operators:
 Precedence
 ==========
 
-Consider the expression ``true and false ⇒ false``.
+Consider the expression ``false and true ⇒ false``.
 Depending on which of ``_and_`` and ``_⇒_`` has more precedence,
-it can either be read as ``(false and true) ⇒ false = true``,
-or as ``false and (true ⇒ false) = true``.
+it can either be read as ``(false and true) ⇒ false`` (which is ``true``),
+or as ``false and (true ⇒ false)`` (which is ``false``).
 
 Each operator is associated to a precedence, which is a floating point number
 (can be negative and fractional!).
