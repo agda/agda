@@ -45,6 +45,13 @@
 
   infixr 5 _×_
 
+  -- This proof is hidden up here because its definition isn't relevant
+  -- to the docs. But we do need its existence.
+  transport⁻Transport : ∀ {ℓ} {A B : Set ℓ} (p : A ≡ B) (a : A)
+                      → transp (λ i → p (~ i)) i0 (transp (λ i → p i) i0 a) ≡ a
+  transport⁻Transport p a i =
+    transp (λ j → p (~ i ∧ ~ j)) i (transp (λ j → p (~ i ∧ j)) i a)
+
 .. _cubical:
 
 *******
@@ -743,6 +750,11 @@ example of what works, let us consider the following running example:
   data Eq {a} {A : Set a} (x : A) : A → Set a where
     reflEq : Eq x x
 
+  data Vec {a} (A : Set a) : Nat → Set a where
+    []  : Vec A zero
+    _∷_ : ∀ {n} → A → Vec A n → Vec A (suc n)
+
+
 Functions which match on ``Eq`` when all of its endpoints are variables,
 that is, very generic lemmas like ``symEq`` and ``transpEq`` below, will
 compute on all cases: they will compute to the given right-hand-side
@@ -768,10 +780,11 @@ the second variable.
     _ : transpEq (pathToEq (ua (idEquiv Bool))) ≡ λ x → x
     _ = refl
 
-The computational behaviour of matching on indexed inductives in very
-generic is suboptimal when compared to the behaviour of similar
-constructions implemented in terms of paths. For example, using the
-lemmas above, we can investigate ``uaβ`` for ``pathToEq``:
+Matching on indexed types in situations where types are assumed (so
+their transports are also open) often generates many more transports
+than the comparable construction with paths would. As an example,
+compare the proof of ``uaβEq`` below has four pending transports,
+whereas ``uaβ`` only has one!
 
 ::
 
@@ -786,7 +799,8 @@ lemmas above, we can investigate ``uaβ`` for ``pathToEq``:
 
 In more concrete situations, such as when the indices are constructors
 of some other inductive type, pattern-matching definitions will not
-compute when applied to transports.
+compute when applied to transports. For specific unsupported cases, see
+:ref:`cubical-ix-matching`.
 
 If the ``NoEquivWhenSplitting`` warning is enabled (it is by default),
 Agda will print a warning for every definition whose computational
@@ -802,27 +816,66 @@ For the day-to-day use of Cubical Agda, it is advisable to disable the
 ``-WnoNoEquivWhenSplitting`` option in an ``OPTIONS`` pragma or in your
 ``agda-lib`` file.
 
+.. _cubical-ix-matching:
+
 What works, and what doesn't
 ----------------------------
 
 This section lists some of the common cases where pattern-matching
 unification produces something that can not be extended to cover
-transports, and the cases in which it can. The following pair of
-definitions relies on injectivity for data constructors, and so will not
-compute on non-``reflEq`` paths:
+transports, and the cases in which it can.
+
+The following pair of definitions relies on injectivity for data
+constructors (specifically of the constructor ``suc``), and so will not
+compute on transported values.
 
 ::
 
   sucInjEq : ∀ {n k} → Eq (suc n) (suc k) → Eq n k
   sucInjEq reflEq = reflEq
 
-  trueDel : Eq true true → Eq true true
-  trueDel reflEq = reflEq
+  head : ∀ {n} {a} {A : Set a} → Vec A (suc n) → A
+  head (x ∷ _) = x
 
-In some cases, it may be possible to rephrase the proof in ways that
-avoid pattern matching, and so, compute. As a simple example, since
-``apEq`` below will always compute, we can use the fact that ``suc`` has
-a partially-defined inverse to conclude it is injective:
+To demonstrate the failure of computation, we can set up the following
+artificial example using ``head``. By passing the vector ``true ∷ []``
+through two transports, even if they would cancel out, ``head``'s
+computation gets stuck.
+
+::
+
+  module _ (n : Nat) (p : n ≡ 1) where private
+    vec : Vec Bool n
+    vec = transport (λ i → Vec Bool (p (~ i))) (true ∷ [])
+
+    hd : Bool
+    hd = head (transport (λ i → Vec Bool (p i)) vec)
+
+  -- Does not type-check:
+  -- _ : hd ≡ true
+  -- _ = refl
+  -- Instead, hd is some big expression involving head applied to a
+  -- transport
+
+If a definition is stuck on a transport, often the best workaround is to
+avoid treating it like the reducible expression it should be, and
+managing the transports yourself. For example, using the proof that
+``transport (sym p) (transport p x) ≡ x``, we can compute with ``hd`` up
+to a path, even if it's definitionally stuck.
+
+::
+
+  -- Continuing from above..
+
+    _ : hd ≡ true
+    _ = cong head (transport⁻Transport (λ i → Vec Bool (p (~ i))) (true ∷ []))
+
+
+In other cases, it may be possible to rephrase the proof in ways that
+avoid unsupported cases in pattern matching, and so, compute. For
+example, returning to ``sucInj``, we can define it in terms of ``apEq``
+(which always computes), and the fact that ``suc`` has a
+partially-defined inverse:
 
 ::
 
@@ -834,7 +887,7 @@ a partially-defined inverse to conclude it is injective:
   sucInjEq′ = apEq λ { (suc n) → n ; zero → zero }
 
 Definitions which rely on principles incompatible with Cubical Agda (K,
-injectivity of type constructors) will not compute on transports. Note
+injectivity of type constructors) will never compute on transports. Note
 that enabling both Cubical and K is not compatible with ``--safe``.
 
 Absurd clauses do not need any special handling (since the transport of
