@@ -236,7 +236,7 @@ data LHSState a = LHSState
     --   be type-checked in irrelevant mode.
   , _lhsPartialSplit :: ![Maybe Int]
     -- ^ have we splitted with a PartialFocus?
-  , _lhsIndexedSplit :: Bool
+  , _lhsIndexedSplit :: !Bool
     -- ^ Have we split on any indexed inductive types?
   }
 

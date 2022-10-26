@@ -501,6 +501,7 @@ usableAtModality' ms why mod t =
     formatWhy = do
       compatible <- collapseDefault . optCubicalCompatible <$> pragmaOptions
       cubical <- isJust . optCubical <$> pragmaOptions
+      mod' <- prettyTCM mod
       let
         context
           | cubical    = "in Cubical Agda,"
@@ -510,6 +511,7 @@ usableAtModality' ms why mod t =
         justification
           | (cubical || compatible) = "used for computing transports."
           | otherwise               = "used in substitutions."
+        mod = if Null.null mod' then "@ω" else mod'
 
       case why of
         IndexedClause ->
@@ -517,7 +519,7 @@ usableAtModality' ms why mod t =
             [ fsep ( pwords "This clause has target type"
                   ++ [prettyTCM t]
                   ++ pwords "which is not usable at the required modality"
-                  ++ [prettyTCM mod])
+                  ++ [pure mod])
             , ""
             , fsep ( "Note:":pwords context
                   ++ pwords "the target type must be usable at the modality"
@@ -526,7 +528,7 @@ usableAtModality' ms why mod t =
                    )
             , ""
             ]
-        _ -> prettyTCM t <+> "is not usable at the required modality" <+> prettyTCM mod
+        _ -> prettyTCM t <+> "is not usable at the required modality" <+> pure mod'
 
 
 usableAtModality :: MonadConstraint TCM => WhyCheckModality -> Modality -> Term -> TCM ()

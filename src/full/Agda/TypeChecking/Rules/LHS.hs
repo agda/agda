@@ -705,10 +705,25 @@ checkLeftHandSide call f ps a withSub' strippedPats =
         addContext delta $ do
           mapM_ noShadowingOfConstructors eqs
 
-          -- If we're working --without-K, then we have to check the
+          -- When working --without-K or --cubical-compatible, we have
+          -- to check that the target type can be used at the “ambient”
+          -- modality. For --cubical-compatible, this just improves an
+          -- error message (printing the type rather than the generated
+          -- RHS). For --without-K, it implements the same check without
+          -- necessarily generating --cubical code.
+          -- The reason for this check is that a clause
+          --    foo : x ≡ y → ... → T y
+          --    foo refl ... = ...
+          -- in Cubical mode, gets elaborated to an extra clause of the
+          -- form
+          --    foo (transp p φ x) ... = transp (λ i → T (p i)) φ (foo x ...)
+          -- (approximately), where T is the target type. That is: to
+          -- implement the substitution T[y/x], we use an actual
+          -- transport. See #5448.
           withoutK <- collapseDefault . optWithoutK <$> pragmaOptions
+          cubical <- collapseDefault . optCubicalCompatible <$> pragmaOptions
           mod <- asksTC getModality
-          when (withoutK && ixsplit) $
+          when ((withoutK || cubical) && ixsplit) $
             usableAtModality IndexedClause mod (unEl (unArg b))
 
         arity_a <- arityPiPath a

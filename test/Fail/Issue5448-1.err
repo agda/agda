@@ -1,6 +1,6 @@
 Issue5448-1.agda:8,1-15
 This clause has target type P x which is not usable at the required
-modality
+modality @ω
 
 Note: to maintain compatibility with Cubical Agda, the target type
 must be usable at the modality in which the function was defined,
