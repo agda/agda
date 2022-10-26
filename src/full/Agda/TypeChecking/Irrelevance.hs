@@ -510,7 +510,7 @@ usableAtModality' ms why mod t =
 
         justification
           | (cubical || compatible) = "used for computing transports."
-          | otherwise               = "used in substitutions."
+          | otherwise               = "used to compute substitutions in Cubical Agda."
         mod = if Null.null mod' then "@ω" else mod'
 
       case why of

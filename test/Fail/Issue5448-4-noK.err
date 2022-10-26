@@ -4,7 +4,7 @@ modality @ω
 
 Note: when --without-K is enabled, the target type must be usable
 at the modality in which the function was defined, since it is used
-in substitutions.
+to compute substitutions in Cubical Agda.
 
 when checking the clause left hand side
 subst P refl p
