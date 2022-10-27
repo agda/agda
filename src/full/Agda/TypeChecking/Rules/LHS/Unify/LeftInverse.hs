@@ -70,11 +70,12 @@ import Agda.Utils.Impossible
 
 instance PrettyTCM NoLeftInv where
   prettyTCM (UnsupportedYet s) = text "UnsupportedYet" <+> prettyTCM s
-  prettyTCM (Illegal s) = text "Illegal" <+> prettyTCM s
-  prettyTCM NoCubical = text "NoCubical"
-  prettyTCM WithKEnabled     = text "WithKEnabled"
-  prettyTCM SplitOnStrict = text "SplitOnStrict"
+  prettyTCM (Illegal s)    = text "Illegal" <+> prettyTCM s
+  prettyTCM NoCubical      = text "NoCubical"
+  prettyTCM WithKEnabled   = text "WithKEnabled"
+  prettyTCM SplitOnStrict  = text "SplitOnStrict"
   prettyTCM UnsupportedCxt = text "UnsupportedCxt"
+  prettyTCM SplitOnFlat    = text "SplitOnFlat"
 
 data NoLeftInv
   = UnsupportedYet {badStep :: UnifyStep}
@@ -82,6 +83,7 @@ data NoLeftInv
   | NoCubical
   | WithKEnabled
   | SplitOnStrict  -- ^ splitting on a Strict Set.
+  | SplitOnFlat    -- ^ splitting on a @♭ argument
   | UnsupportedCxt
   deriving Show
 

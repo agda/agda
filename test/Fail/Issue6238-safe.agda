@@ -1,8 +1,5 @@
-{-
-  Example for matching on a flatted variable from an inductive family (Issue #6238).
--}
-{-# OPTIONS --cubical --flat-split -WnoNoEquivWhenSplitting #-}
-module Issue6238 where
+{-# OPTIONS --cubical --flat-split --safe #-}
+module Issue6238-safe where
 
 data Flat (@♭ A : Set) : Set where
     flat : (@♭ a : A) → Flat A

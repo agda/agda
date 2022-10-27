@@ -1,3 +1,3 @@
-{-# OPTIONS --with-K --cubical-compatible #-}
+{-# OPTIONS --with-K --flat-split --cubical-compatible #-}
 
 import Issue6220.M

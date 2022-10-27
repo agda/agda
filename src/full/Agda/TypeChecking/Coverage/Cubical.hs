@@ -896,7 +896,6 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
 
   let mod =
         setRelevance Irrelevant $  -- See #5611.
-        setCohesion Squash $      -- See #6238.
         getModality $ fromMaybe __IMPOSSIBLE__ $ scTarget old_sc
   -- we follow what `cover` does when updating the modality from the target.
   applyModalityToContext mod $ do

@@ -1,7 +1,9 @@
 {-
-  Example for matching on a flatted variable from an inductive family (Issue #6238).
+  Matching on @♭ is disallowed by default when --cubical is given (but
+  see the Succeed/Issue6238, you can enable it; it isn't --safe to do
+  so!)
 -}
-{-# OPTIONS --cubical --flat-split -WnoNoEquivWhenSplitting #-}
+{-# OPTIONS --cubical #-}
 module Issue6238 where
 
 data Flat (@♭ A : Set) : Set where

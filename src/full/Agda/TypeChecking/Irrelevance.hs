@@ -93,6 +93,7 @@ import Agda.Utils.Function
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.WithDefault
 
 -- | data 'Relevance'
 --   see "Agda.Syntax.Common".
@@ -198,7 +199,7 @@ applyCohesionToContextOnly q = localTC
 splittableCohesion :: (HasOptions m, LensCohesion a) => a -> m Bool
 splittableCohesion a = do
   let c = getCohesion a
-  pure (usableCohesion c) `and2M` (pure (c /= Flat) `or2M` do optFlatSplit <$> pragmaOptions)
+  pure (usableCohesion c) `and2M` (pure (c /= Flat) `or2M` do collapseDefault . optFlatSplit <$> pragmaOptions)
 
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,

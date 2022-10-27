@@ -981,7 +981,16 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
     SSet{} -> return $ locallyTC eSplitOnStrict $ const True
     _      -> return id
 
-  r <- withKIfStrict $ lift $ unifyIndices'
+  -- Should we attempt to compute a left inverse for this clause? When
+  -- --cubical-compatible --flat-split is given, we don't generate a
+  -- left inverse (at all). This means that, when the coverage checker
+  -- gets to the clause this was in, it won't generate a (malformed!)
+  -- transpX clause for @♭ matching.
+  -- TODO(Amy): properly support transpX when @♭ stuff is in the
+  -- context.
+  let flatSplit = boolToMaybe (getCohesion info == Flat) SplitOnFlat
+
+  r <- withKIfStrict $ lift $ unifyIndices' flatSplit
          delta1Gamma
          flex
          (raise (size gamma) dtype)
