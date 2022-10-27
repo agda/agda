@@ -74,7 +74,10 @@ Cubical Agda
   replace `--without-K` with `--cubical-compatible` in library code,
   if possible.
 
-  Also note that when `--without-K` is used it might not be safe to
+  Note also that Agda tends to be quite a bit faster if `--without-K`
+  is used instead of `--cubical-compatible`.
+
+  Note finally that when `--without-K` is used it might not be safe to
   compile and run programs that postulate erased univalence (but we
   are currently not aware of a program that would go wrong).
 

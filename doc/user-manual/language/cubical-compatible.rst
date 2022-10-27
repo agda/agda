@@ -41,6 +41,9 @@ Note that code that uses (only) `--without-K` can not be imported from
 code that uses `--cubical`. Thus library developers are encouraged to
 use `--cubical-compatible` instead of `--without-K`, if possible.
 
+Note also that Agda tends to be quite a bit faster if ``--without-K``
+is used instead of ``--cubical-compatible``.
+
 The ``--cubical-compatible`` option is coinfective (see
 :ref:`consistency-checking-options`): the generated support code for
 functions may depend on those of importing modules.
