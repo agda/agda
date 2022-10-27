@@ -9,7 +9,7 @@ Highlights
   a variant of Cubical Agda that is supported by the GHC and
   JavaScript backends, under the flag `--erased-cubical`.
 
-* Added a new flag `--cubical-compatible` for turn on generation of
+* Added a new flag `--cubical-compatible` to turn on generation of
   Cubical Agda-specific support code (previously this behaviour was
   part of `--without-K`).
 
