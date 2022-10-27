@@ -137,6 +137,11 @@ Cubical Agda
 * Rewrite rules with interval arguments are now supported.
   ([#4384](https://github.com/agda/agda/issues/4384))
 
+* Matching on `@flat` arguments is now disabled by default in
+  Cubical-compatible Agda. It can be enabled again using the
+  `--flat-split` flag. Note that clauses which match on a `@flat`
+  argument will not compute when applied to `transport`s.
+
 Reflection
 ----------
 
