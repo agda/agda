@@ -1,6 +1,23 @@
 Release notes for Agda version 2.6.3
 ====================================
 
+Highlights
+----------
+
+* Added support for [Erased Cubical
+  Agda](https://agda.readthedocs.io/en/v2.6.3/language/cubical.html#cubical-agda-with-erased-glue),
+  a variant of Cubical Agda that is supported by the GHC and
+  JavaScript backends, under the flag `--erased-cubical`.
+
+* Added a new flag `--cubical-compatible` for turn on generation of
+  Cubical Agda-specific support code (previously this behaviour was
+  part of `--without-K`).
+
+* New primitives `declareData`, `defineData`, and `unquoteDecl data`
+  for generating new data types have been added to the [reflection
+  API](https://agda.readthedocs.io/en/latest/language/reflection.html#metaprogramming).
+
+
 Installation and infrastructure
 -------------------------------
 
