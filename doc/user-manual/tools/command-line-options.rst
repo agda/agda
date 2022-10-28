@@ -543,11 +543,11 @@ Other features
      Enable [disable] constructor-based guarded corecursion (see
      :ref:`coinduction`).
 
-     The option ``--guardedness`` is inconsistent with sized types and
-     it is turned off by :option:`--safe` (but can be turned on again,
-     as long as not also :option:`--sized-types` is on).
+     The option ``--guardedness`` is inconsistent with sized types,
+     thus, it cannot be used with both :option:`--safe` and
+     :option:`--sized-types`.
 
-     Default: ``--guardedness``
+     Default: ``--no-guardedness`` (since 2.6.2).
 
 .. option:: --irrelevant-projections, --no-irrelevant-projections
 
@@ -630,9 +630,9 @@ Other features
      .. versionadded:: 2.3.0
 
      Disable postulates, unsafe :ref:`OPTIONS<options-pragma>` pragmas
-     and ``primTrustMe``. Turns off :option:`--sized-types` and
-     :option:`--guardedness` (at most one can be turned back on again)
-     (see :ref:`safe-agda`).
+     and ``primTrustMe``. Prevents to have both :option:`--sized-types` and
+     :option:`--guardedness` on.
+     Further reading: :ref:`safe-agda`.
 
 .. option:: --sized-types, --no-sized-types
 
@@ -641,11 +641,11 @@ Other features
      Enable [disable] sized types (see :ref:`sized-types`).
 
      The option ``--sized-types`` is inconsistent with
-     constructor-based guarded corecursion and it is turned off by
-     :option:`--safe` (but can be turned on again, as long as not also
-     :option:`--guardedness` is on).
+     constructor-based guarded corecursion,
+     thus, it cannot be used with both :option:`--safe`
+     and :option:`--guardedness`.
 
-     Default: ``--sized-types``
+     Default: ``--no-sized-types`` (since 2.6.2).
 
 .. option:: --type-in-type
 

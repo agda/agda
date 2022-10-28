@@ -1081,7 +1081,7 @@ pragmaOptions =
     , Option []     ["omega-in-omega"] (NoArg omegaInOmegaFlag)
                     "enable typing rule Setω : Setω (this makes Agda inconsistent)"
     , Option []     ["cumulativity"] (NoArg cumulativityFlag)
-                    "enable subtyping of universes (e.g. Set =< Set₁) (implies --subtyping)"
+                    "enable subtyping of universes (e.g. Set =< Set₁)"
     , Option []     ["no-cumulativity"] (NoArg noCumulativityFlag)
                     "disable subtyping of universes (default)"
     , Option []     ["prop"] (NoArg propFlag)
@@ -1091,17 +1091,17 @@ pragmaOptions =
     , Option []     ["two-level"] (NoArg twoLevelFlag)
                     "enable the use of SSet* universes"
     , Option []     ["sized-types"] (NoArg sizedTypes)
-                    "enable sized types (default, inconsistent with --guardedness, implies --subtyping)"
+                    "enable sized types (inconsistent with --guardedness)"
     , Option []     ["no-sized-types"] (NoArg noSizedTypes)
-                    "disable sized types"
+                    "disable sized types (default)"
     , Option []     ["flat-split"] (NoArg flatSplitFlag)
                     "allow split on (@flat x : A) arguments (default)"
     , Option []     ["no-flat-split"] (NoArg noFlatSplitFlag)
                     "disable split on (@flat x : A) arguments"
     , Option []     ["guardedness"] (NoArg guardedness)
-                    "enable constructor-based guarded corecursion (default, inconsistent with --sized-types)"
+                    "enable constructor-based guarded corecursion (inconsistent with --sized-types)"
     , Option []     ["no-guardedness"] (NoArg noGuardedness)
-                    "disable constructor-based guarded corecursion"
+                    "disable constructor-based guarded corecursion (default)"
     , Option []     ["injective-type-constructors"] (NoArg injectiveTypeConstructorFlag)
                     "enable injective type constructors (makes Agda anti-classical and possibly inconsistent)"
     , Option []     ["no-universe-polymorphism"] (NoArg noUniversePolymorphismFlag)
