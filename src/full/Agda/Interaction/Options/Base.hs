@@ -623,13 +623,6 @@ syntacticEqualityFlag s o =
       Just n | n >= 0 -> Right (Strict.Just n)
       _               -> Left $ "Not a natural number: " ++ s
 
-noSortComparisonFlag :: Flag PragmaOptions
-noSortComparisonFlag o = return o
-
-sharingFlag :: Bool -> Flag CommandLineOptions
-sharingFlag _ _ = throwError $
-  "Feature --sharing has been removed (in favor of the Agda abstract machine)."
-
 cachingFlag :: Bool -> Flag PragmaOptions
 cachingFlag b o = return $ o { optCaching = b }
 
@@ -750,11 +743,6 @@ dontTerminationCheckFlag o = do
              , optWarningMode   = upd (optWarningMode o)
              }
 
--- The option was removed. See Issue 1918.
-dontCompletenessCheckFlag :: Flag PragmaOptions
-dontCompletenessCheckFlag _ =
-  throwError "The --no-coverage-check option has been removed."
-
 dontUniverseCheckFlag :: Flag PragmaOptions
 dontUniverseCheckFlag o = return $ o { optUniverseCheck = False }
 
@@ -788,10 +776,6 @@ noGuardedness o = return $ o { optGuardedness = Value False }
 
 injectiveTypeConstructorFlag :: Flag PragmaOptions
 injectiveTypeConstructorFlag o = return $ o { optInjectiveTypeConstructors = True }
-
-guardingTypeConstructorFlag :: Flag PragmaOptions
-guardingTypeConstructorFlag _ = throwError $
-  "Experimental feature --guardedness-preserving-type-constructors has been removed."
 
 universePolymorphismFlag :: Flag PragmaOptions
 universePolymorphismFlag o = return $ o { optUniversePolymorphism = True }
@@ -1044,13 +1028,13 @@ lensPragmaOptions f st = f (optPragmaOptions st) <&> \ opts -> st { optPragmaOpt
 --   Should not be listed in the usage info, put parsed by GetOpt for good error messaging.
 deadStandardOptions :: [OptDescr (Flag CommandLineOptions)]
 deadStandardOptions =
-    [ Option []     ["sharing"] (NoArg $ sharingFlag True)
-                    "DEPRECATED: does nothing"
-    , Option []     ["no-sharing"] (NoArg $ sharingFlag False)
-                    "DEPRECATED: does nothing"
+    [ removedOption "sharing"    msgSharing
+    , removedOption "no-sharing" msgSharing
     , Option []     ["ignore-all-interfaces"] (NoArg ignoreAllInterfacesFlag) -- not deprecated! Just hidden
                     "ignore all interface files (re-type check everything, including builtin files)"
     ] ++ map (fmap lensPragmaOptions) deadPragmaOptions
+  where
+    msgSharing = "(in favor of the Agda abstract machine)"
 
 pragmaOptions :: [OptDescr (Flag PragmaOptions)]
 pragmaOptions =
@@ -1227,14 +1211,31 @@ pragmaOptions =
 -- | Pragma options of previous versions of Agda.
 --   Should not be listed in the usage info, put parsed by GetOpt for good error messaging.
 deadPragmaOptions :: [OptDescr (Flag PragmaOptions)]
-deadPragmaOptions =
-    [ Option []     ["guardedness-preserving-type-constructors"] (NoArg guardingTypeConstructorFlag)
-                    "treat type constructors as inductive constructors when checking productivity"
-    , Option []     ["no-coverage-check"] (NoArg dontCompletenessCheckFlag)
-                    "the option has been removed"
-    , Option []     ["no-sort-comparison"] (NoArg noSortComparisonFlag)
-                    "disable the comparison of sorts when checking conversion of types"
+deadPragmaOptions = map (uncurry removedOption) $
+    [ ("guardedness-preserving-type-constructors"
+      , "")
+    , ("no-coverage-check"
+      , inVersion "2.5.1") -- see issue #1918
+    , ("no-sort-comparison"
+      , "")
+    , ("subtyping"
+      , inVersion "2.6.3") -- see issue #5427
+    , ("no-subtyping"
+      , inVersion "2.6.3") -- see issue #5427
     ]
+  where
+    inVersion = ("in version " ++)
+
+-- | Generate a dead options that just error out saying this option has been removed.
+removedOption ::
+     String
+       -- ^ The name of the removed option.
+  -> String
+       -- ^ Optional: additional remark, like in which version the option was removed.
+  -> OptDescr (Flag a)
+removedOption name remark = Option [] [name] (NoArg $ const $ throwError msg) msg
+  where
+  msg = unwords ["Option", "--" ++ name, "has been removed", remark]
 
 -- | Used for printing usage info.
 --   Does not include the dead options.
