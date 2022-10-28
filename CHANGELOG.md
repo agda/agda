@@ -103,6 +103,11 @@ Cubical Agda
   compile and run programs that postulate erased univalence (but we
   are currently not aware of a program that would go wrong).
 
+* Cubical Agda now has experimental support for indexed inductive types
+  ([#3733](https://github.com/agda/agda/issues/3733)).
+  See the [user guide](https://agda.readthedocs.io/en/latest/language/cubical.html#indexed-inductive-types)
+  for caveats.
+
 * The cubical interval `I` now belongs to its own sort, `IUniv`, rather
   than `SSet`. For `J : IUniv` and `A : J → Set l`, we have
   `(j : J) → A j : Set l`, that is, the type of functions from a type in `IUniv`
