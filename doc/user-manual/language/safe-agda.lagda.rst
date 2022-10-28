@@ -57,6 +57,9 @@ Here is a list of the features ``--safe`` is incompatible with:
 
 * :option:`--allow-exec`; allows system calls during type checking.
 
+* :option:`--no-load-primitives`; allows the user to bind the sort
+  and level primitives manually.
+
 The option ``--safe`` is coinfective (see
 :ref:`consistency-checking-options`); if a module is declared safe,
 then all its imported modules must also be declared safe.

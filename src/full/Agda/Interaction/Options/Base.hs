@@ -406,6 +406,7 @@ unsafePragmaOptions clo opts =
                                                  , collapseDefault (optFlatSplit opts) ] ++
   [ "--cumulativity"                             | optCumulativity opts              ] ++
   [ "--allow-exec"                               | optAllowExec opts                 ] ++
+  [ "--no-load-primitives"                       | not $ optLoadPrimitives opts      ] ++
   []
 
 -- | If any these options have changed, then the file will be
@@ -457,6 +458,7 @@ restartOptions =
   , (B . optAllowExec, "--allow-exec")
   , (B . collapseDefault . optSaveMetas, "--save-metas")
   , (B . optEraseRecordParameters, "--erase-record-parameters")
+  , (B . not . optLoadPrimitives, "--no-load-primitives")
   ]
 
 -- to make all restart options have the same type
