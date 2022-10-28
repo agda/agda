@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical --prop -WnoNoEquivWhenSplitting #-}
+{-# OPTIONS --cubical --prop -WnoUnsupportedIndexedMatch #-}
 
 open import Agda.Builtin.Equality
 

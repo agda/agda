@@ -13,6 +13,19 @@ Highlights
   Cubical Agda-specific support code (previously this behaviour was
   part of `--without-K`).
 
+  Since `--cubical-compatible` mode implies that functions should work
+  with the WIP support for [indexed inductive types in Cubical
+  Agda](https://agda.readthedocs.io/en/latest/language/cubical.html#indexed-inductive-types),
+  many pattern matching functions will now emit an
+  `UnsupportedIndexedMatch` warning, indicating that the function will
+  not compute when applied to transports (from `--cubical` code).
+
+  This warning can be disabled with `-WnoUnsupportedIndexedMatch`, which
+  can be used either in an `OPTIONS` pragma or in your `agda-lib` file.
+  The latter is recommended if your project is only
+  `--cubical-compatible`, or if it is already making extensive use of
+  indexed types.
+
 * New primitives `declareData`, `defineData`, and `unquoteDecl data`
   for generating new data types have been added to the [reflection
   API](https://agda.readthedocs.io/en/latest/language/reflection.html#metaprogramming).
@@ -146,7 +159,8 @@ Cubical Agda
   `--cubical-compatible` or `--without-K` flags are used. It can be
   enabled again using the `--flat-split` flag. Note that, when using
   Cubical Agda, functions which match on a `@flat` argument will not
-  compute when applied to `transport`s.
+  compute when applied to `transport`s (this will generate an
+  `UnsupportedIndexedMatch` warning).
 
 Reflection
 ----------
