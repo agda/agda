@@ -31,6 +31,7 @@
 /benchmark/Create/import0-*
 /examples/**/MAlonzo
 /examples/compiler/main
+/hie.yaml
 /mk/config.mk
 /mk/parallel-tests.mk
 /notes/style/haskell-style.tex
