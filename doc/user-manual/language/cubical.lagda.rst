@@ -2,7 +2,7 @@
   ::
 
   {-# OPTIONS --cubical #-}
-  {-# OPTIONS -WnoNoEquivWhenSplitting #-} -- silence warnings for indexed families
+  {-# OPTIONS -WnoUnsupportedIndexedMatch #-} -- silence warnings for indexed families
 
   module language.cubical where
 
@@ -802,7 +802,7 @@ of some other inductive type, pattern-matching definitions will not
 compute when applied to transports. For specific unsupported cases, see
 :ref:`cubical-ix-matching`.
 
-If the ``NoEquivWhenSplitting`` warning is enabled (it is by default),
+If the ``UnsupportedIndexedMatch`` warning is enabled (it is by default),
 Agda will print a warning for every definition whose computational
 behaviour could not be extended to cover transports. Internally,
 transports are represented by an additional constructor, and
@@ -812,8 +812,8 @@ must be translated into an embedding (in the HoTT sense).
 **This is work-in-progress.**
 
 For the day-to-day use of Cubical Agda, it is advisable to disable the
-``NoEquivWhenSplitting`` warnings. You can do this using the
-``-WnoNoEquivWhenSplitting`` option in an ``OPTIONS`` pragma or in your
+``UnsupportedIndexedMatch`` warnings. You can do this using the
+``-WnoUnsupportedIndexedMatch`` option in an ``OPTIONS`` pragma or in your
 ``agda-lib`` file.
 
 .. _cubical-ix-matching:
@@ -893,7 +893,7 @@ that enabling both Cubical and K is not compatible with ``--safe``.
 Absurd clauses do not need any special handling (since the transport of
 an absurdity is still absurd), so definitions which rely on Agda's
 ability to automatically separate constructors of inductive types will
-not generate a ``NoEquivWhenSplitting`` warning.
+not generate a ``UnsupportedIndexedMatch`` warning.
 
 ::
 
