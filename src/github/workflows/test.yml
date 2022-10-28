@@ -34,7 +34,7 @@ on:
     - '!LICENSE'
     - '!README.md'
     - '!fix-whitespace.yaml'
-    - '!hie.yaml'
+    - '!hie*.yaml'
     - '!stack-*.yaml'
     - '!touchup.sh'
 
