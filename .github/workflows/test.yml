@@ -274,7 +274,7 @@ name: Build, Test, and Benchmark
     - '!LICENSE'
     - '!README.md'
     - '!fix-whitespace.yaml'
-    - '!hie.yaml'
+    - '!hie*.yaml'
     - '!stack-*.yaml'
     - '!touchup.sh'
   push:
@@ -304,7 +304,7 @@ name: Build, Test, and Benchmark
     - '!LICENSE'
     - '!README.md'
     - '!fix-whitespace.yaml'
-    - '!hie.yaml'
+    - '!hie*.yaml'
     - '!stack-*.yaml'
     - '!touchup.sh'
   workflow_dispatch: null
