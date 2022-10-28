@@ -1,0 +1,3 @@
+Issue6238-noK.agda:11,18-22
+Cannot pattern match against flat argument of type Id u v
+when checking that the pattern refl has type Id u v
