@@ -333,7 +333,7 @@ The :option:`--count-clusters` flag is not enabled in all builds of Agda,
 because the implementation depends on the ICU_ library, the
 installation of which could cause extra trouble for some users. The
 presence of this flag is controlled by the Cabal flag
-``enable-cluster-counting``.
+:option:`enable-cluster-counting`.
 
 .. _breaking-up-code-blocks:
 

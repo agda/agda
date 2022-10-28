@@ -42,7 +42,7 @@ General options
 
 .. option:: --interactive, -I
 
-     Start in interactive mode (no longer supported).
+     Start in interactive mode (not maintained).
 
 .. option:: --no-projection-like
 
@@ -57,6 +57,8 @@ General options
      the flag is meant for debugging Agda.
 
 .. option:: --only-scope-checking
+
+     .. versionadded:: 2.5.3
 
      Only scope-check the top-level module, do not type-check it (see
      :ref:`quickLaTeX`).
@@ -111,8 +113,13 @@ Generating highlighted source code
 
 .. option:: --count-clusters
 
+     .. versionadded:: 2.5.3
+
      Count extended grapheme clusters when generating LaTeX code (see
      :ref:`grapheme-clusters`).
+     Available only when Agda was built with Cabal flag :option:`enable-cluster-counting`.
+
+     Pragma option since 2.5.4.
 
 .. option:: --css={URL}
 
@@ -121,9 +128,13 @@ Generating highlighted source code
 
 .. option:: --dependency-graph={FILE}
 
+     .. versionadded:: 2.3.0
+
      Generate a Dot_ file ``FILE`` with a module dependency graph.
 
 .. option:: --dependency-graph-include={LIBRARY}
+
+     .. versionadded:: 2.6.3
 
      Include modules from the given library in the dependency graph.
      This option can be used multiple times to include modules from
@@ -139,6 +150,8 @@ Generating highlighted source code
 
 .. option:: --html
 
+     .. versionadded:: 2.2.0
+
      Generate HTML files with highlighted source code (see
      :ref:`generating-html`).
 
@@ -149,15 +162,21 @@ Generating highlighted source code
 
 .. option:: --html-highlight=[code,all,auto]
 
+     .. versionadded:: 2.6.0
+
      Whether to highlight non-Agda code as comments in generated HTML
      files (default: all; see :ref:`generating-html`).
 
 .. option:: --latex
 
+     .. versionadded:: 2.3.2
+
      Generate LaTeX with highlighted source code (see
      :ref:`generating-latex`).
 
 .. option:: --latex-dir={DIR}
+
+     .. versionadded:: 2.5.2
 
      Set directory in which LaTeX files are placed to ``DIR``
      (default: latex).
@@ -173,6 +192,8 @@ Imports and libraries
 
 .. option:: --ignore-all-interfaces
 
+     .. versionadded:: 2.6.0
+
      Ignore *all* interface files, including builtin and primitive
      modules; only use this if you know what you are doing!
 
@@ -187,11 +208,15 @@ Imports and libraries
 
 .. option:: --library={DIR}, -l={LIB}
 
+     .. versionadded:: 2.5.1
+
      Use library ``LIB``.
 
 .. option:: --library-file={FILE}
 
-     Use ``{FILE}`` instead of the standard libraries file.
+     .. versionadded:: 2.5.1
+
+     Use ``{FILE}`` instead of the standard ``libraries`` file.
 
 .. option:: --local-interfaces
 
@@ -203,9 +228,13 @@ Imports and libraries
 
 .. option:: --no-default-libraries
 
+     .. versionadded:: 2.5.1
+
      Don't use default library files.
 
 .. option:: --no-libraries
+
+     .. versionadded:: 2.5.2
 
      Don't use any library files.
 
@@ -222,6 +251,8 @@ Caching
 
 .. option:: --caching, --no-caching
 
+     .. versionadded:: 2.5.4
+
      Enable [disable] caching of typechecking (default).
 
      Default: ``--caching``
@@ -231,6 +262,8 @@ Printing and debugging
 
 .. option:: --no-unicode
 
+     .. versionadded:: 2.5.4
+
      Don't use unicode characters to print terms.
 
 .. option:: --show-implicit
@@ -239,6 +272,8 @@ Printing and debugging
 
 .. option:: --show-irrelevant
 
+     .. versionadded:: 2.3.2
+
      Show irrelevant arguments when printing.
 
 .. option:: --verbose={N}, -v={N}
@@ -246,6 +281,8 @@ Printing and debugging
      Set verbosity level to ``N``.
 
 .. option:: --profile={PROF}
+
+     .. versionadded:: 2.6.3
 
     Turn on profiling option ``PROF``. Available options are
 
@@ -282,17 +319,27 @@ Copatterns and projections
 
 .. option:: --copatterns, --no-copatterns
 
+     .. versionadded:: 2.4.0
+
      Enable [disable] definitions by copattern matching (see
      :ref:`copatterns`).
 
-     Default: ``--copatterns``
+     Default: ``--copatterns`` (since 2.4.2.4).
 
 .. option:: --postfix-projections
+
+     .. versionadded:: 2.5.2
 
      Make postfix projection notation the default.
 
 Experimental features
 ~~~~~~~~~~~~~~~~~~~~~
+
+.. option:: --allow-exec
+
+     .. versionadded:: 2.6.2
+
+     Enable system calls during type checking (see :ref:`reflection`).
 
 .. option:: --confluence-check, --local-confluence-check
 
@@ -303,32 +350,38 @@ Experimental features
 
 .. option:: --cubical
 
+     .. versionadded:: 2.6.0
+
      Enable cubical features. Turns on :option:`--cubical-compatible`
      and :option:`--without-K` (see :ref:`cubical`).
 
 .. option:: --erased-cubical
+
+     .. versionadded:: 2.6.3
 
      Enable a :ref:`variant<erased-cubical>` of Cubical Agda, and turn
      on :option:`--without-K`.
 
 .. option:: --experimental-irrelevance
 
+     .. versionadded:: 2.3.0
+
      Enable potentially unsound irrelevance features (irrelevant
      levels, irrelevant data matching) (see :ref:`irrelevance`).
 
 .. option:: --injective-type-constructors
+
+     .. versionadded:: 2.2.8
 
      Enable injective type constructors (makes Agda anti-classical and
      possibly inconsistent).
 
 .. option:: --rewriting
 
+     .. versionadded:: 2.4.2.4
+
      Enable declaration and use of REWRITE rules (see
      :ref:`rewriting`).
-
-.. option:: --allow-exec
-
-     Enable system calls during type checking (see :ref:`reflection`).
 
 Errors and warnings
 ~~~~~~~~~~~~~~~~~~~
@@ -358,12 +411,16 @@ Errors and warnings
 
 .. option:: --warning={GROUP|FLAG}, -W {GROUP|FLAG}
 
+     .. versionadded:: 2.5.3
+
      Set warning group or flag (see :ref:`warnings`).
 
 Pattern matching and equality
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. option:: --exact-split, --no-exact-split
+
+     .. versionadded:: 2.5.1
 
      Require [do not require] all clauses in a definition to hold as
      definitional equalities unless marked ``CATCHALL`` (see
@@ -373,7 +430,9 @@ Pattern matching and equality
 
 .. option:: --no-eta-equality
 
-     Default records to no-eta-equality (see :ref:`eta-expansion`).
+     .. versionadded:: 2.5.1
+
+     Default records to ``no-eta-equality`` (see :ref:`eta-expansion`).
 
 .. option:: --no-flat-split
 
@@ -384,20 +443,28 @@ Pattern matching and equality
 
 .. option:: --no-pattern-matching
 
+     .. versionadded:: 2.4.0
+
      Disable pattern matching completely.
 
 .. option:: --with-K
+
+     .. versionadded:: 2.4.2
 
      Overrides a global :option:`--without-K` in a file (see
      :ref:`without-K`).
 
 .. option:: --without-K
 
+     .. versionadded:: 2.2.10
+
      Disables reasoning principles incompatible with univalent type
      theory, most importantly Streicher's K axiom (see
      :ref:`without-K`).
 
 .. option:: --cubical-compatible
+
+     .. versionadded:: 2.6.3
 
      Generate internal support code necessary for use from Cubical Agda
      (see :ref:`cubical-compatible`). Implies :option:`--without-K`.
@@ -414,20 +481,28 @@ Search depth and instances
 
 .. option:: --instance-search-depth={N}
 
+     .. versionadded:: 2.5.2
+
      Set instance search depth to ``N`` (default: 500; see
      :ref:`instance-arguments`),
 
 .. option:: --inversion-max-depth={N}
+
+     .. versionadded:: 2.5.4
 
      Set maximum depth for pattern match inversion to ``N`` (default:
      50). Should only be needed in pathological cases.
 
 .. option:: --termination-depth={N}
 
+     .. versionadded:: 2.2.8
+
      Allow termination checker to count decrease/increase upto ``N``
      (default: 1; see :ref:`termination-checking`).
 
 .. option:: --overlapping-instances, --no-overlapping-instances
+
+     .. versionadded:: 2.6.0
 
      Consider [do not consider] recursive instance arguments during
      pruning of instance candidates.
@@ -435,6 +510,8 @@ Search depth and instances
      Default: ``--no-overlapping-instances``
 
 .. option:: --qualified-instances, --no-qualified-instances
+
+     .. versionadded:: 2.6.2
 
      Consider [do not consider] instances that are (only) in scope
      under a qualified name.
@@ -449,8 +526,17 @@ Other features
 
      Enable double-checking of all terms using the internal
      typechecker.
+     Off by default.
+
+.. option:: --no-double-check
+
+     .. versionadded:: 2.6.2
+
+     Opposite of :option:`--double-check`.  On by default.
 
 .. option:: --guardedness, --no-guardedness
+
+     .. versionadded:: 2.6.0
 
      Enable [disable] constructor-based guarded corecursion (see
      :ref:`coinduction`).
@@ -473,27 +559,40 @@ Other features
 
 .. option:: --auto-inline
 
+     .. versionadded:: 2.6.2
+
      Turn on automatic compile-time inlining. See :ref:`inline-pragma` for more information.
 
 .. option:: --no-auto-inline
 
+     .. versionadded:: 2.5.4
+
      Disable automatic compile-time inlining (default). Only definitions marked
      ``INLINE`` will be inlined.
+     On by default.
 
 .. option:: --no-fast-reduce
+
+     .. versionadded:: 2.6.0
 
      Disable reduction using the Agda Abstract Machine.
 
 .. option:: --call-by-name
 
+     .. versionadded:: 2.6.2
+
      Disable call-by-need evaluation in the Agda Abstract Machine.
 
 .. option:: --no-forcing
 
-     Disable the forcing optimisation. Since Agda 2.6.1 is a pragma
+     .. versionadded:: 2.2.10
+
+     Disable the forcing optimisation. Since Agda 2.6.1 it is a pragma
      option.
 
 .. option:: --no-print-pattern-synonyms
+
+     .. versionadded:: 2.5.4
 
      Always expand :ref:`pattern-synonyms` during printing. With this
      option enabled you can use pattern synonyms freely, but Agda will
@@ -501,6 +600,8 @@ Other features
      messages, or when generating patterns for case splits.
 
 .. option:: --no-syntactic-equality
+
+     .. versionadded:: 2.6.0
 
      Disable the syntactic equality shortcut in the conversion
      checker.
@@ -524,12 +625,16 @@ Other features
 
 .. option:: --safe
 
+     .. versionadded:: 2.3.0
+
      Disable postulates, unsafe :ref:`OPTIONS<options-pragma>` pragmas
      and ``primTrustMe``. Turns off :option:`--sized-types` and
      :option:`--guardedness` (at most one can be turned back on again)
      (see :ref:`safe-agda`).
 
 .. option:: --sized-types, --no-sized-types
+
+     .. versionadded:: 2.2.0
 
      Enable [disable] sized types (see :ref:`sized-types`).
 
@@ -547,10 +652,14 @@ Other features
 
 .. option:: --omega-in-omega
 
+     .. versionadded:: 2.6.0
+
      Enable typing rule `Setω : Setω` (this makes Agda inconsistent;
      see :ref:`omega-in-omega <omega-in-omega>`).
 
 .. option:: --universe-polymorphism, --no-universe-polymorphism
+
+     .. versionadded:: 2.3.0
 
      Enable [disable] universe polymorphism (see
      :ref:`universe-levels`).
@@ -698,7 +807,7 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
 
 .. option:: InfectiveImport
 
-     Importing a file using e.g. :option;`--cubical` into one which
+     Importing a file using e.g. :option:`--cubical` into one which
      doesn't.
 
 .. option:: InstanceNoOutputTypeName
@@ -722,7 +831,7 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
 
 .. option:: InvalidNoPositivityCheckPragma
 
-     No positivity checking pragmas before non-`data``, ``record`` or
+     No positivity checking pragmas before non-``data``, ``record`` or
      ``mutual`` blocks.
 
 .. option:: InvalidTerminationCheckPragma

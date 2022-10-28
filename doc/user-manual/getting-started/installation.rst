@@ -472,10 +472,11 @@ When installing Agda the following flags can be used:
 
 .. option:: enable-cluster-counting
 
-     Enable the :option:`--count-clusters` flag. Note that if
-     ``enable-cluster-counting`` is ``False``, then the
-     :option:`--count-clusters` flag triggers an error
-     message. Default: off.
+     Enable the Agda option :option:`--count-clusters`. Note that if
+     ``enable-cluster-counting`` is ``False``, then option
+     :option:`--count-clusters` triggers an error
+     message when given to Agda.
+     Default: off.
 
 .. option:: optimise-heavily
 
