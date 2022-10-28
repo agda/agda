@@ -406,6 +406,10 @@ data Clause = Clause
       -- ^ Was this clause created by expansion of an ellipsis?
     , clauseWhereModule :: Maybe ModuleName
       -- ^ Keeps track of the module name associate with the clause's where clause.
+    , clauseNoExtraName :: !Bool
+      -- ^ Is it guaranteed that the clause does not mention any
+      -- definitions or meta-variables other than the current
+      -- definition and primitives?
     }
   deriving (Show, Generic)
 
@@ -1069,8 +1073,9 @@ instance Null (Tele a) where
 -- | A 'null' clause is one with no patterns and no rhs.
 --   Should not exist in practice.
 instance Null Clause where
-  empty = Clause empty empty empty empty empty empty False Nothing Nothing Nothing empty empty
-  null (Clause _ _ tel pats body _ _ _ _ _ _ wm)
+  empty = Clause empty empty empty empty empty empty False Nothing
+            Nothing Nothing empty empty True
+  null (Clause _ _ tel pats body _ _ _ _ _ _ wm _)
     =  null tel
     && null pats
     && null body
@@ -1248,8 +1253,10 @@ instance KillRange a => KillRange (Pattern' a) where
       DefP o q ps      -> killRange2 (DefP o) q ps
 
 instance KillRange Clause where
-  killRange (Clause rl rf tel ps body t catchall exact recursive unreachable ell wm) =
-    killRange11 Clause rl rf tel ps body t catchall exact recursive unreachable ell wm
+  killRange (Clause rl rf tel ps body t catchall exact recursive
+               unreachable ell wm extra) =
+    killRange12 Clause rl rf tel ps body t catchall exact recursive
+      unreachable ell wm extra
 
 instance KillRange a => KillRange (Tele a) where
   killRange = fmap killRange

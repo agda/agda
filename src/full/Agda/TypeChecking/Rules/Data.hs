@@ -609,6 +609,7 @@ defineCompData d con params names fsT t boundary = do
           , clauseUnreachable = Just False
           , clauseEllipsis    = NoEllipsis
           , clauseWhereModule = Nothing
+          , clauseNoExtraName = False
           }
         cs = [clause]
       addClauses theName cs
@@ -1279,6 +1280,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
             , clauseEllipsis    = NoEllipsis
             , clauseExact       = Nothing
             , clauseWhereModule = Nothing
+            , clauseNoExtraName = False
             }
       reportSDoc "tc.data.transp.con" 20 $
         "gamma:" <+> prettyTCM gamma

@@ -200,6 +200,7 @@ checkAlias t ai delayed i name e mc =
               , clauseUnreachable = Just False
               , clauseEllipsis    = NoEllipsis
               , clauseWhereModule = Nothing
+              , clauseNoExtraName = False
               } ]
           , _funCompiled  = Just $ Done [] $ bodyMod v
           , _funSplitTree = Just $ SplittingDone 0
@@ -343,6 +344,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
                        , clauseUnreachable = Just False
                        , clauseEllipsis    = NoEllipsis
                        , clauseWhereModule = Nothing
+                       , clauseNoExtraName = False
                        }
                  return (cs ++ [c], pure sys)
 
@@ -774,6 +776,7 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
                  , clauseUnreachable = Nothing -- we don't know yet
                  , clauseEllipsis    = lhsEllipsis i
                  , clauseWhereModule = A.whereModule wh
+                 , clauseNoExtraName = False
                  }
 
 

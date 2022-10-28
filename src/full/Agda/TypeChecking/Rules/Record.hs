@@ -515,6 +515,7 @@ defineKanOperationR cmd name params fsT fns rect = do
                          , clauseUnreachable = Just False
                          , clauseEllipsis    = NoEllipsis
                          , clauseWhereModule = Nothing
+                         , clauseNoExtraName = False
                          }
            reportSDoc "trans.rec.face" 17 $ text $ show c
            return c
@@ -535,6 +536,7 @@ defineKanOperationR cmd name params fsT fns rect = do
                          , clauseUnreachable = Just False
                          , clauseEllipsis    = NoEllipsis
                          , clauseWhereModule = Nothing
+                         , clauseNoExtraName = False
                          }
           reportSDoc "trans.rec" 17 $ text $ show c
           reportSDoc "trans.rec" 16 $ text "type =" <+> text (show (clauseType c))
@@ -713,6 +715,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                             , clauseUnreachable = Just False
                             , clauseEllipsis    = NoEllipsis
                             , clauseWhereModule = Nothing
+                            , clauseNoExtraName = False
                             }
 
         let projection = Projection

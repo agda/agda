@@ -681,6 +681,7 @@ frommyClause (ids, pats, mrhs) = do
    , I.clauseUnreachable = Nothing -- TODO: Don't know here whether reachable or not !?
    , I.clauseEllipsis    = Cm.NoEllipsis
    , I.clauseWhereModule = Nothing
+   , I.clauseNoExtraName = False
    }
 
 contains_constructor :: [CSPat O] -> Bool

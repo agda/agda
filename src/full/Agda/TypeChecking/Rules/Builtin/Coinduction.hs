@@ -143,6 +143,7 @@ bindBuiltinFlat x =
           , clauseUnreachable = Just False
           , clauseEllipsis    = NoEllipsis
           , clauseWhereModule = Nothing
+          , clauseNoExtraName = False
           }
         cc = Case (defaultArg 0) $ conCase sharp False $ WithArity 1 $ Done [defaultArg "x"] $ var 0
         projection = Projection

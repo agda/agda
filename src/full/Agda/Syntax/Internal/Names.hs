@@ -195,7 +195,7 @@ instance NamesIn Defn where
       -> namesAndMetasIn' env (cl, cc)
 
 instance NamesIn Clause where
-  namesAndMetasIn' env (Clause _ _ tel ps b t _ _ _ _ _ _) =
+  namesAndMetasIn' env (Clause _ _ tel ps b t _ _ _ _ _ _ _) =
     namesAndMetasIn' env (tel, ps, b, t)
 
 instance NamesIn CompiledClauses where

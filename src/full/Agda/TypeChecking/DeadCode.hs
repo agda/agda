@@ -112,16 +112,22 @@ reachableFrom (ids, ms) psyns disp defs insts =
     ids'' = ids' `Set.difference` ids
     ms''  = ms'  `Set.difference` ms
 
+    namesAndMetasInRestricted ::
+      NamesIn a => a -> (Set QName, Set MetaId)
+    namesAndMetasInRestricted =
+      namesAndMetasInPartsOf (not . clauseNoExtraName)
+
     (ids', ms') = case x of
       Left x ->
-        namesAndMetasIn
+        namesAndMetasInRestricted
           ( HMap.lookup x defs
           , PSyn <$> MapS.lookup x psyns
           , HMap.lookup x disp
           )
       Right m -> case MapS.lookup m insts of
         Nothing -> (Set.empty, Set.empty)
-        Just mv -> namesAndMetasIn (instBody (theInstantiation mv))
+        Just mv ->
+          namesAndMetasInRestricted (instBody (theInstantiation mv))
 
 -- | Returns the instantiation.
 --

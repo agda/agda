@@ -382,6 +382,7 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
                  , clauseUnreachable = Just False
                  , clauseEllipsis    = NoEllipsis
                  , clauseWhereModule = Nothing
+                 , clauseNoExtraName = True
                  }
   debugClause "tc.cover.trx.trx" c
   return $ c
@@ -650,6 +651,7 @@ createMissingTrXHCompClause q_trX f n x old_sc = do
                  , clauseUnreachable = Just False
                  , clauseEllipsis    = NoEllipsis
                  , clauseWhereModule = Nothing
+                 , clauseNoExtraName = True
                  }
   debugClause "tc.cover.trx.hcomp" c
   return c
@@ -884,6 +886,7 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
                   , clauseUnreachable = Just False
                   , clauseEllipsis    = NoEllipsis
                   , clauseWhereModule = Nothing
+                  , clauseNoExtraName = True
                   }
 
 
@@ -1130,6 +1133,7 @@ createMissingConIdClause f _n x old_sc (TheInfo info) = setCurrentRange f $ do
                     , clauseEllipsis    = NoEllipsis
                     , clauseExact       = Nothing
                     , clauseWhereModule = Nothing
+                    , clauseNoExtraName = False
                     }
   addClauses f [cl]
   return $ Just ((SplitCon conId,SplittingDone (size working_tel)),cl)
@@ -1376,6 +1380,7 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) cs 
                     , clauseUnreachable = Just False  -- missing, thus, not unreachable
                     , clauseEllipsis    = NoEllipsis
                     , clauseWhereModule = Nothing
+                    , clauseNoExtraName = False
                     }
   addClauses f [cl]  -- Important: add at the end.
   let result = CoverResult

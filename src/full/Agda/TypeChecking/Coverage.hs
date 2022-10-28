@@ -192,6 +192,7 @@ coverageCheck f t cs = do
                       , clauseUnreachable = Just False
                       , clauseEllipsis    = NoEllipsis
                       , clauseWhereModule = Nothing
+                      , clauseNoExtraName = False
                       }
       reportSDoc "tc.cover.missing" 20 $ inTopContext $ do
         sep [ "adding missing absurd clause"
@@ -456,6 +457,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
                     , clauseUnreachable = clauseUnreachable cl
                     , clauseEllipsis    = clauseEllipsis cl
                     , clauseWhereModule = clauseWhereModule cl
+                    , clauseNoExtraName = False
                     }
       where
       mps' =
@@ -671,6 +673,7 @@ inferMissingClause f (SClause tel ps _ cps (Just t)) = setCurrentRange f $ do
                   , clauseUnreachable = Just False  -- missing, thus, not unreachable
                   , clauseEllipsis    = NoEllipsis
                   , clauseWhereModule = Nothing
+                  , clauseNoExtraName = False
                   }
   addClauses f [cl]  -- Important: add at the end.
   return cl

@@ -761,6 +761,7 @@ checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
                     , clauseUnreachable = Just True -- absurd clauses are unreachable
                     , clauseEllipsis    = NoEllipsis
                     , clauseWhereModule = Nothing
+                    , clauseNoExtraName = False
                     }
                   ]
               , _funCompiled       = Just $ Fail [Arg info' "()"]

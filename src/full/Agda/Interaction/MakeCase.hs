@@ -235,6 +235,7 @@ recheckAbstractClause t sub acl = checkClauseLHS t sub acl $ \ lhs -> do
                   , clauseUnreachable = Nothing
                   , clauseEllipsis    = lhsEllipsis $ A.spLhsInfo $ A.clauseLHS acl
                   , clauseWhereModule = A.whereModule $ A.clauseWhereDecls acl
+                  , clauseNoExtraName = False
                   }
   cxt <- getContext
   let asb = lhsAsBindings lhs
@@ -520,6 +521,7 @@ makeAbsurdClause f ell (SClause tel sps _ _ t) = do
       , clauseUnreachable = Nothing
       , clauseEllipsis    = ell
       , clauseWhereModule = Nothing
+      , clauseNoExtraName = False
       }
 
 -- | Make a clause with a question mark as rhs.
