@@ -74,7 +74,7 @@ provided as ``@♭``
 if we simply had ``(eq : x ≡ y)`` the code would be rejected.
 
 Pattern matching on ``@♭`` arguments can be disabled entirely by using
-the ``--no-flat-split`` flag
+the :option:`--no-flat-split` flag
 
 .. code-block:: agda
 

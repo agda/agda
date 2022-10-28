@@ -32,8 +32,8 @@ General options
 
      .. versionadded:: 2.6.3
 
-     Makes Agda exit with a non-zero exit code if `--interaction` or
-     `--interaction-json` are used and a type error is encountered. The
+     Makes Agda exit with a non-zero exit code if :option:`--interaction` or
+     :option:`--interaction-json` are used and a type error is encountered. The
      option also makes Agda exit with exit code 113 if Agda fails to
      parse a command.
 
@@ -55,6 +55,8 @@ General options
      terms by dropping parameter-like reconstructible function
      arguments. Thus, it is advisable to leave this optimization on,
      the flag is meant for debugging Agda.
+
+     See also the :ref:`NOT_PROJECTION_LIKE<not_projection_like-pragma>` pragma.
 
 .. option:: --only-scope-checking
 
@@ -216,7 +218,7 @@ Imports and libraries
 
      .. versionadded:: 2.5.1
 
-     Use ``{FILE}`` instead of the standard ``libraries`` file.
+     Use ``FILE`` instead of the standard ``libraries`` file.
 
 .. option:: --local-interfaces
 
@@ -243,7 +245,7 @@ Imports and libraries
 Command-line and pragma options
 -------------------------------
 
-The following options can also be given in .agda files using the
+The following options can also be given in ``.agda`` files using the
 :ref:`OPTIONS<options-pragma>` pragma.
 
 Caching
@@ -253,9 +255,9 @@ Caching
 
      .. versionadded:: 2.5.4
 
-     Enable [disable] caching of typechecking (default).
+     Enable or disable caching of typechecking.
 
-     Default: ``--caching``
+     Default: ``--caching``.
 
 Printing and debugging
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -264,7 +266,7 @@ Printing and debugging
 
      .. versionadded:: 2.5.4
 
-     Don't use unicode characters to print terms.
+     Do not use unicode characters to print terms.
 
 .. option:: --show-implicit
 
@@ -321,7 +323,7 @@ Copatterns and projections
 
      .. versionadded:: 2.4.0
 
-     Enable [disable] definitions by copattern matching (see
+     Enable or disable definitions by copattern matching (see
      :ref:`copatterns`).
 
      Default: ``--copatterns`` (since 2.4.2.4).
@@ -391,7 +393,7 @@ Errors and warnings
      .. versionadded:: 2.6.1
 
      Succeed and create interface file regardless of incomplete
-     pattern-matching definitions. See, also, the
+     pattern-matching definitions. See also the
      :ref:`NON_COVERING<non_covering-pragma>` pragma.
 
 .. option:: --allow-unsolved-metas
@@ -426,7 +428,7 @@ Pattern matching and equality
      definitional equalities unless marked ``CATCHALL`` (see
      :ref:`case-trees`).
 
-     Default: ``--no-exact-split``
+     Default: ``--no-exact-split``.
 
 .. option:: --no-eta-equality
 
@@ -484,7 +486,7 @@ Search depth and instances
      .. versionadded:: 2.5.2
 
      Set instance search depth to ``N`` (default: 500; see
-     :ref:`instance-arguments`),
+     :ref:`instance-arguments`).
 
 .. option:: --inversion-max-depth={N}
 
@@ -507,7 +509,7 @@ Search depth and instances
      Consider [do not consider] recursive instance arguments during
      pruning of instance candidates.
 
-     Default: ``--no-overlapping-instances``
+     Default: ``--no-overlapping-instances``.
 
 .. option:: --qualified-instances, --no-qualified-instances
 
@@ -516,7 +518,7 @@ Search depth and instances
      Consider [do not consider] instances that are (only) in scope
      under a qualified name.
 
-     Default: ``--qualified-instances``
+     Default: ``--qualified-instances``.
 
 
 Other features
@@ -555,7 +557,7 @@ Other features
      :ref:`irrelevance`). The option ``--irrelevant-projections``
      makes Agda inconsistent.
 
-     Default (since version 2.6.1): ``--no-irrelevant-projections``
+     Default (since version 2.6.1): ``--no-irrelevant-projections``.
 
 .. option:: --auto-inline
 
@@ -654,7 +656,7 @@ Other features
 
      .. versionadded:: 2.6.0
 
-     Enable typing rule `Setω : Setω` (this makes Agda inconsistent;
+     Enable typing rule ``Setω : Setω`` (this makes Agda inconsistent;
      see :ref:`omega-in-omega <omega-in-omega>`).
 
 .. option:: --universe-polymorphism, --no-universe-polymorphism
@@ -664,35 +666,36 @@ Other features
      Enable [disable] universe polymorphism (see
      :ref:`universe-levels`).
 
-     Default: ``--universe-polymorphism``
+     Default: ``--universe-polymorphism``.
 
 .. option:: --cumulativity, --no-cumulativity
 
      .. versionadded:: 2.6.1
 
-     Enable [disable] cumulative subtyping of universes, i.e. if `A :
-     Set i` then also `A : Set j` for all `j >= i`.
+     Enable [disable] cumulative subtyping of universes, i.e.,
+     if ``A : Set i`` then also ``A : Set j`` for all ``j >= i``.
 
-     Default: ``--no-cumulativity``
+     Default: ``--no-cumulativity``.
 
 .. option:: --no-import-sorts
 
      .. versionadded:: 2.6.2
 
-     Disable the implicit statement `open import Agda.Primitive using
-     (Set; Prop)` at the start of each top-level Agda module.
+     Disable the implicit statement
+     ``open import Agda.Primitive using (Set; Prop)``
+     at the start of each top-level Agda module.
 
 .. option:: --no-load-primitives
 
      .. versionadded:: 2.6.3
 
-     Do not load the primitive modules (`Agda.Primitive`,
-     `Agda.Primitive.Cubical`) when type-checking this program. This is
+     Do not load the primitive modules (``Agda.Primitive``,
+     ``Agda.Primitive.Cubical``) when type-checking this program. This is
      useful if you want to declare Agda's very magical primitives in a
      Literate Agda file of your choice.
 
      If you are using this option, it is your responsibility to ensure
-     that all of the `BUILTIN` things defined in those modules are
+     that all of the ``BUILTIN`` things defined in those modules are
      loaded. Agda will not work otherwise.
 
      Incompatible with :option:`--safe`.
@@ -708,7 +711,7 @@ Other features
 
 .. option:: --erase-record-parameters
 
-     ..versionadded:: 2.6.3
+     .. versionadded:: 2.6.3
 
      Automatically marks parameters to definitions in a record module
      as erased.
@@ -732,7 +735,7 @@ is one of the following:
 
 .. option:: warn.
 
-     Default warning level
+     Default warning level.
 
 .. option:: ignore
 
@@ -1007,13 +1010,13 @@ enabled, except for warnings about empty ``abstract`` blocks:
 
 Run Agda on a file which uses the standard library.
 Note that you must have already created a ``libraries`` file
-as described in :ref:`package-system`
+as described in :ref:`package-system`.
 
 .. code-block:: console
 
    agda -l standard-library -i. file.agda
 
-(Or if you have added ``standard-library`` to your ``defaults`` file, simply ``agda file.agda``)
+(Or if you have added ``standard-library`` to your ``defaults`` file, simply ``agda file.agda``.)
 
 .. _consistency-checking-options:
 

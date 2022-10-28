@@ -888,7 +888,7 @@ partially-defined inverse:
 
 Definitions which rely on principles incompatible with Cubical Agda (K,
 injectivity of type constructors) will never compute on transports. Note
-that enabling both Cubical and K is not compatible with ``--safe``.
+that enabling both Cubical and K is not compatible with :option:`--safe`.
 
 Absurd clauses do not need any special handling (since the transport of
 an absurdity is still absurd), so definitions which rely on Agda's

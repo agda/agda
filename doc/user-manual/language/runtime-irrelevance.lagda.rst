@@ -141,7 +141,7 @@ following restrictions apply:
 
 - Cannot use erased variables or definitions.
 - Cannot pattern match on erased arguments, unless there is at most
-  one valid case. If ``--without-K`` is enabled and there is one valid
+  one valid case. If :option:`--without-K` is enabled and there is one valid
   case, then the datatype must also not be indexed.
 
 Consider the function ``foo`` taking an erased vector argument:

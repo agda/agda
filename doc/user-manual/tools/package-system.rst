@@ -137,7 +137,7 @@ the root of a library.
 
 Environment variables in the paths (of the form ``$VAR`` or ``${VAR}``) are
 expanded. The location of the ``libraries`` file used can be overridden using
-the ``--library-file=FILE`` command line option.
+the :option:`--library-file` command line option.
 
 You can find out the precise location of the ``libraries`` file by
 calling ``agda -l fjdsk Dummy.agda`` at the command line and looking at the
@@ -158,21 +158,21 @@ There are three ways a library gets used:
   and its (transitive) dependencies. In this case the current directory is *not*
   implicitly added to the include paths.
 
-- No explicit ``--library`` flag is given, and the current project root
+- No explicit :option:`--library` option is given, and the current project root
   (of the Agda file that is being loaded) or one of its parent directories
   contains an ``.agda-lib`` file defining a library ``LIB``. This library is
   used as if a ``--library=LIB`` option had been given, except that it is not
   necessary for the library to be listed in the ``AGDA_DIR/libraries`` file.
 
-- No explicit ``--library`` flag, and no ``.agda-lib`` file in the project
+- No explicit :option:`--library` option, and no ``.agda-lib`` file in the project
   root. In this case the file ``AGDA_DIR/defaults`` is read and all libraries
   listed are added to the path. The ``defaults`` file should contain a list of
   library names, each on a separate line. In this case the current directory is
   *also* added to the path.
 
-  To disable default libraries, you can give the flag
-  ``--no-default-libraries``. To disable using libraries altogether, use the
-  ``--no-libraries`` flag.
+  To disable default libraries, you can give the option
+  :option:`--no-default-libraries`. To disable using libraries altogether, use the
+  :option:`--no-libraries` option.
 
 Default libraries
 -----------------
@@ -199,7 +199,7 @@ Version numbers
 ---------------
 
 Library names can end with a version number (for instance, ``mylib-1.2.3``).
-When resolving a library name (given in a ``--library`` flag, or listed as a
+When resolving a library name (given in a :option:`--library` option, or listed as a
 default library or library dependency) the following rules are followed:
 
 - If you don't give a version number, any version will do.

@@ -689,7 +689,7 @@ when importing ``Agda.Primitive``.
 
 The primitive sorts `Set` and `Prop` are automatically imported at the
 top of every top-level Agda module, unless the
-``--no-import-sorts`` flag is enabled.
+:option:`--no-import-sorts` flag is enabled.
 
 Universe levels
 ---------------

@@ -19,7 +19,7 @@ results include:
   speeds up computation).
 
 * The resolution of all implicit arguments.
-  (Note: under the flag ``--allow-unsolved-metas`` not **all** implicit arguments
+  (Note: under the option :option:`--allow-unsolved-metas` not **all** implicit arguments
   need to be resolved to create an interface file.)
 
 Storage
@@ -32,7 +32,7 @@ If the ``.agda`` source file is part of a project with an *identifiable root*
 (i.e. if there is an ``.agda-lib`` file in any of the directories above it),
 then the interface file is stored in the ``_build/VERSION`` directory at the
 identified root. This prevents losing the interface file when switching between
-agda versions. You can revert this behaviour with the flag ``--no-project``.
+agda versions. You can revert this behaviour with the option :option:`--no-libraries`.
 
 .. note::
    When an ``.agda`` file is renamed, the old ``.agdai`` file is kept, and a new

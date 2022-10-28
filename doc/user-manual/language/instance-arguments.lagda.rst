@@ -288,7 +288,7 @@ and return the solution ``eqList {{eqNat}}``.
    ``loop : ∀ {a} {A : Set a} → {{Eq A}} → Eq A``.
    To prevent looping in cases like this, the search depth of instance search
    is limited, and once the maximum depth is reached, a type error will be
-   thrown. You can set the maximum depth using the ``--instance-search-depth``
+   thrown. You can set the maximum depth using the :option:`--instance-search-depth`
    flag.
 
 Restricting instance search
@@ -335,7 +335,7 @@ To restrict an instance to the current module, you can mark it as
     _ : test₂ ≡ 42
     _ = refl
 
-Alternatively, you can enable the ``--no-qualified-instances`` flag to
+Alternatively, you can enable the :option:`--no-qualified-instances` flag to
 make Agda only consider instances from modules that have been opened
 (see :ref:`below<qualified-instances>` for more details).
 
@@ -417,7 +417,7 @@ goal when given appropriate arguments, hence instance search fails.
   ex₁ : 1 ∈ 1 ∷ 2 ∷ 3 ∷ 4 ∷ []
   ex₁ = it  -- overlapping instances
 
-Overlapping instances can be enabled via the ``--overlapping-instances``
+Overlapping instances can be enabled via the :option:`--overlapping-instances`
 flag.  Be aware that enabling this flag might lead to an exponential
 slowdown in instance resolution and possibly (apparent) looping
 behaviour.
@@ -429,9 +429,9 @@ Qualified instances
 
 By default, Agda considers all instances as candidates, even if they
 are only in scope under a qualified name. In particular, this means
-that instances from a module that is ``import``ed but not ``open``ed
+that instances from a module that is ``import``-ed but not ``open``-ed
 are still considered for instance search. You can use the
-``--no-qualified-instances`` flag to make Agda instead only consider
+:option:`--no-qualified-instances` flag to make Agda instead only consider
 instances that are in scope under an unqualified name.
 
 As an example, consider the following Agda code:
@@ -453,7 +453,7 @@ As an example, consider the following Agda code:
   test1 = myFun 41
 
 By default, this example is accepted by Agda, but if
-``--no-qualified-instances`` is enabled you have to open the module
+:option:`--no-qualified-instances` is enabled you have to open the module
 ``Instances`` first:
 
 ::

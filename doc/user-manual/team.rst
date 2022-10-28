@@ -33,10 +33,10 @@ But many have worked on these features for improvements and maintenance.
 * Guillaume Brunerie
 * James Chapman
 * Liang-Ting Chen: *github workflows*
-* Jesper Cockx: *rewriting, unification* ``--without-K``, *recursive instance search*, *reflection*, ``Prop``, *cumulativity*
+* Jesper Cockx: *rewriting, unification* :option:`--without-K`, *recursive instance search*, *reflection*, ``Prop``, *cumulativity*
 * Catarina Coquand: *Agda 1*
 * Matthew Daggitt: *standard library 1.0 and above*
-* Nils Anders Danielsson: *efficient positivity checker, HTML backend, highlighting, standard library*, ``--erased-cubical``, *performance improvements*
+* Nils Anders Danielsson: *efficient positivity checker, HTML backend, highlighting, standard library*, :option:`--erased-cubical`, *performance improvements*
 * Dominique Devriese: ``instance`` *arguments*
 * Péter Diviánszky: *web frontent,* ``variable`` *declarations*
 * Robert Estelle: *refactoring of backends, main driver*
