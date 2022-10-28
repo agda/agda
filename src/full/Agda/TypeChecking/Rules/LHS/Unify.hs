@@ -225,26 +225,28 @@ data UnificationResult' a
 --   The result is the most general unifier of @us@ and @vs@.
 unifyIndices
   :: (PureTCM m, MonadBench m, BenchPhase m ~ Bench.Phase, MonadError TCErr m)
-  => Telescope     -- ^ @gamma@
-  -> FlexibleVars  -- ^ @flex@
-  -> Type          -- ^ @a@
-  -> Args          -- ^ @us@
-  -> Args          -- ^ @vs@
+  => Maybe NoLeftInv -- ^ Do we have a reason for not computing a left inverse?
+  -> Telescope       -- ^ @gamma@
+  -> FlexibleVars    -- ^ @flex@
+  -> Type            -- ^ @a@
+  -> Args            -- ^ @us@
+  -> Args            -- ^ @vs@
   -> m UnificationResult
-unifyIndices tel flex a us vs =
+unifyIndices linv tel flex a us vs =
   Bench.billTo [Bench.Typing, Bench.CheckLHS, Bench.UnifyIndices] $
-    fmap (\(a,b,c,_) -> (a,b,c)) <$> unifyIndices' tel flex a us vs
+    fmap (\(a,b,c,_) -> (a,b,c)) <$> unifyIndices' linv tel flex a us vs
 
 unifyIndices'
   :: (PureTCM m, MonadError TCErr m)
-  => Telescope     -- ^ @gamma@
+  => Maybe NoLeftInv -- ^ Do we have a reason for not computing a left inverse?
+  -> Telescope     -- ^ @gamma@
   -> FlexibleVars  -- ^ @flex@
   -> Type          -- ^ @a@
   -> Args          -- ^ @us@
   -> Args          -- ^ @vs@
   -> m FullUnificationResult
-unifyIndices' tel flex a [] [] = return $ Unifies (tel, idS, [], Right (idS, raiseS 1))
-unifyIndices' tel flex a us vs = do
+unifyIndices' linv tel flex a [] [] = return $ Unifies (tel, idS, [], Right (idS, raiseS 1))
+unifyIndices' linv tel flex a us vs = do
     reportSDoc "tc.lhs.unify" 10 $
       sep [ "unifyIndices"
           , ("tel  =" <+>) $ nest 2 $ prettyTCM tel
@@ -261,13 +263,15 @@ unifyIndices' tel flex a us vs = do
         let ps = applySubst (unifyProof output) $ teleNamedArgs (eqTel initialState)
         tauInv <- do
           strict     <- asksTC envSplitOnStrict
-          if strict then return (Left SplitOnStrict) else do
           cubicalCompatible <- cubicalCompatibleOption
-          if cubicalCompatible
-            then buildLeftInverse initialState log
-            else withoutKOption >>= \case
-              True  -> return $ Left NoCubical
-              False -> return $ Left WithKEnabled
+          withoutK <- withoutKOption
+          case linv of
+            Just reason -> pure (Left reason)
+            Nothing
+              | strict            -> pure (Left SplitOnStrict)
+              | cubicalCompatible -> buildLeftInverse initialState log
+              | withoutK          -> pure (Left NoCubical)
+              | otherwise         -> pure (Left WithKEnabled)
         reportSDoc "tc.lhs.unify" 20 $ "ps:" <+> pretty ps
         return $ (varTel s, unifySubst output, ps, tauInv)
 
@@ -584,7 +588,12 @@ unifyStep s (Injectivity k a d pars ixs c) = do
   -- computeNeighbourhood function in Agda.TypeChecking.Coverage.
   let hduTel = eqTel1 `abstract` ctel
       notforced = replicate (size hduTel) NotForced
-  res <- addContext (varTel s) $ unifyIndices'
+
+  -- The left inverse computed here is not actually used when computing
+  -- a left inverse for the overall match, so as a slight optimisation
+  -- we just don't bother computing it. __IMPOSSIBLE__ because that
+  -- field in the result is never evaluated.
+  res <- addContext (varTel s) $ unifyIndices' (Just __IMPOSSIBLE__)
            hduTel
            (allFlexVars notforced hduTel)
            (raise (size ctel) dtype)

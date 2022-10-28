@@ -92,6 +92,7 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
+import Agda.Utils.WithDefault
 
 --UNUSED Liang-Ting Chen 2019-07-16
 ---- | Compute the set of flexible patterns in a list of patterns. The result is
@@ -1226,6 +1227,15 @@ checkLHS mf = updateModality checkLHS_ where
       unlessM (splittableCohesion info) $
         addContext delta1 $ softTypeError $ SplitOnUnusableCohesion dom
 
+      -- Should we attempt to compute a left inverse for this clause? When
+      -- --cubical-compatible --flat-split is given, we don't generate a
+      -- left inverse (at all). This means that, when the coverage checker
+      -- gets to the clause this was in, it won't generate a (malformed!)
+      -- transpX clause for @♭ matching.
+      -- TODO(Amy): properly support transpX when @♭ stuff is in the
+      -- context.
+      let genTrx = boolToMaybe ((getCohesion info == Flat)) SplitOnFlat
+
       -- We should be at a data/record type
       (dr, d, pars, ixs) <- addContext delta1 $ isDataOrRecordType a
       let isRec = case dr of
@@ -1346,7 +1356,7 @@ checkLHS mf = updateModality checkLHS_ where
       let stuck b errs = softTypeError $ SplitError $
             UnificationStuck b (conName c) (delta1 `abstract` gamma) cixs ixs' errs
 
-      liftTCM (withKIfStrict $ unifyIndices delta1Gamma flex da' cixs ixs') >>= \case
+      liftTCM (withKIfStrict $ unifyIndices genTrx delta1Gamma flex da' cixs ixs') >>= \case
 
         -- Mismatch.  Report and abort.
         NoUnify neg -> hardTypeError $ ImpossibleConstructor (conName c) neg

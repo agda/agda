@@ -1,0 +1,8 @@
+Issue6238-safe.agda:11,1-30
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: SplitOnFlat
+when checking the definition of CommFlatId
+Issue6238-safe.agda:1,1-46
+Cannot set OPTIONS pragma --without-K and --flat-split
+with safe flag.

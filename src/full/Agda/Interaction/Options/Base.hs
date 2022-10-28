@@ -217,7 +217,7 @@ data PragmaOptions = PragmaOptions
     -- ^ Use call-by-name instead of call-by-need
   , optConfluenceCheck           :: Maybe ConfluenceCheck
     -- ^ Check confluence of rewrite rules?
-  , optFlatSplit                 :: Bool
+  , optFlatSplit                 :: WithDefault 'True
      -- ^ Can we split on a (@flat x : A) argument?
   , optImportSorts               :: Bool
      -- ^ Should every top-level module start with an implicit statement
@@ -345,7 +345,7 @@ defaultPragmaOptions = PragmaOptions
   , optFastReduce                = True
   , optCallByName                = False
   , optConfluenceCheck           = Nothing
-  , optFlatSplit                 = True
+  , optFlatSplit                 = Default
   , optImportSorts               = True
   , optAllowExec                 = False
   , optSaveMetas                 = Default
@@ -402,6 +402,8 @@ unsafePragmaOptions clo opts =
   [ "--rewriting"                                | optRewriting opts                 ] ++
   [ "--cubical-compatible and --with-K"          | collapseDefault (optCubicalCompatible opts)
                                                  , not (collapseDefault $ optWithoutK opts) ] ++
+  [ "--without-K and --flat-split"               | collapseDefault (optWithoutK opts)
+                                                 , collapseDefault (optFlatSplit opts) ] ++
   [ "--cumulativity"                             | optCumulativity opts              ] ++
   [ "--allow-exec"                               | optAllowExec opts                 ] ++
   []
@@ -554,8 +556,15 @@ infectiveCoinfectiveOptions =
   , infectiveOption optRewriting "--rewriting"
   , infectiveOption (collapseDefault . optSizedTypes) "--sized-types"
   , infectiveOption (collapseDefault . optGuardedness) "--guardedness"
+  , flatSplit
   ]
   where
+  flatSplit =
+    (infectiveOption (collapseDefault . optFlatSplit) "--flat-split")
+    { icOptionOK = \current imported ->
+        not (collapseDefault (optCubicalCompatible current))
+          || (collapseDefault (optFlatSplit imported) <= collapseDefault (optFlatSplit current))
+    }
   cubicalCompatible =
     (coinfectiveOption
        (collapseDefault . optCubicalCompatible)
@@ -603,10 +612,10 @@ safeFlag o = do
              }
 
 flatSplitFlag :: Flag PragmaOptions
-flatSplitFlag o = return $ o { optFlatSplit = True }
+flatSplitFlag o = return $ o { optFlatSplit = Value True }
 
 noFlatSplitFlag :: Flag PragmaOptions
-noFlatSplitFlag o = return $ o { optFlatSplit = False }
+noFlatSplitFlag o = return $ o { optFlatSplit = setDefault False (optFlatSplit o) }
 
 doubleCheckFlag :: Bool -> Flag PragmaOptions
 doubleCheckFlag b o = return $ o { optDoubleCheck = b }
@@ -793,7 +802,10 @@ withKFlag :: Flag PragmaOptions
 withKFlag o = return $ o { optWithoutK = Value False }
 
 withoutKFlag :: Flag PragmaOptions
-withoutKFlag o = return $ o { optWithoutK = Value True }
+withoutKFlag o = return $ o
+  { optWithoutK = Value True
+  , optFlatSplit = setDefault False (optFlatSplit o)
+  }
 
 copatternsFlag :: Flag PragmaOptions
 copatternsFlag o = return $ o { optCopatterns = True }
@@ -828,6 +840,7 @@ cubicalCompatibleFlag :: Flag PragmaOptions
 cubicalCompatibleFlag o =
   return $ o { optCubicalCompatible = Value True
              , optWithoutK = setDefault True $ optWithoutK o
+             , optFlatSplit = setDefault False (optFlatSplit o)
              }
 
 cubicalFlag
@@ -838,6 +851,7 @@ cubicalFlag variant o =
              , optCubicalCompatible = setDefault True $ optCubicalCompatible o
              , optWithoutK = setDefault True $ optWithoutK o
              , optTwoLevel = setDefault True $ optTwoLevel o
+             , optFlatSplit = setDefault False (optFlatSplit o)
              }
 
 guardedFlag :: Flag PragmaOptions
@@ -1103,7 +1117,7 @@ pragmaOptions =
     , Option []     ["cubical-compatible"] (NoArg cubicalCompatibleFlag)
                     "turn on generation of auxiliary code required for --cubical, implies --without-K"
     , Option []     ["without-K"] (NoArg withoutKFlag)
-                    "turn on checks to make code compatible with HoTT (e.g. disabling the K rule)"
+                    "turn on checks to make code compatible with HoTT (e.g. disabling the K rule). Implies --no-flat-split."
     , Option []     ["copatterns"] (NoArg copatternsFlag)
                     "enable definitions by copattern matching (default)"
     , Option []     ["no-copatterns"] (NoArg noCopatternsFlag)
