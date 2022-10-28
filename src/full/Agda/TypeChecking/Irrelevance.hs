@@ -83,6 +83,7 @@ import Agda.Interaction.Options
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Concrete.Pretty
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -501,7 +502,6 @@ usableAtModality' ms why mod t =
     formatWhy = do
       compatible <- collapseDefault . optCubicalCompatible <$> pragmaOptions
       cubical <- isJust . optCubical <$> pragmaOptions
-      mod' <- prettyTCM mod
       let
         context
           | cubical    = "in Cubical Agda,"
@@ -509,9 +509,8 @@ usableAtModality' ms why mod t =
           | otherwise  = "when --without-K is enabled,"
 
         justification
-          | (cubical || compatible) = "used for computing transports."
-          | otherwise               = "used to compute substitutions in Cubical Agda."
-        mod = if Null.null mod' then "@ω" else mod'
+          | (cubical || compatible) = "used for computing transports"
+          | otherwise               = "used to compute substitutions in Cubical Agda"
 
       case why of
         IndexedClause ->
@@ -519,7 +518,8 @@ usableAtModality' ms why mod t =
             [ fsep ( pwords "This clause has target type"
                   ++ [prettyTCM t]
                   ++ pwords "which is not usable at the required modality"
-                  ++ [pure mod])
+                  ++ [pure (attributesForModality mod) <> "."]
+                   )
             , ""
             , fsep ( "Note:":pwords context
                   ++ pwords "the target type must be usable at the modality"
@@ -528,7 +528,8 @@ usableAtModality' ms why mod t =
                    )
             , ""
             ]
-        _ -> prettyTCM t <+> "is not usable at the required modality" <+> pure mod'
+        _ -> prettyTCM t <+> "is not usable at the required modality"
+         <+> pure (attributesForModality mod)
 
 
 usableAtModality :: MonadConstraint TCM => WhyCheckModality -> Modality -> Term -> TCM ()

@@ -1,9 +1,9 @@
 Issue5468.agda:33,1-16
 This clause has target type primTransp (λ i → x i) φ (unbox [ x₁ ])
-which is not usable at the required modality .
+which is not usable at the required modality @irrelevant.
 
 Note: in Cubical Agda, the target type must be usable at the
 modality in which the function was defined, since it is used for
-computing transports.
+computing transports
 
 when checking the definition of unbox
