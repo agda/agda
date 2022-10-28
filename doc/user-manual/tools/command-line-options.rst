@@ -586,6 +586,8 @@ Other features
      that all of the `BUILTIN` things defined in those modules are
      loaded. Agda will not work otherwise.
 
+     Incompatible with :option:`--safe`.
+
 .. option:: --save-metas, --no-save-metas
 
      .. versionadded:: 2.6.3
@@ -993,6 +995,7 @@ again, the source file is re-typechecked instead:
 * :option:`--allow-exec`
 * :option:`--save-metas`
 * :option:`--erase-record-parameters`
+* :option:`--no-load-primitives`
 
 
 .. _Vim: https://www.vim.org/
