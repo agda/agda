@@ -182,7 +182,7 @@ stdlibTests comp = do
         [ "-i" ++ testDir
         , "-i" ++ "std-lib" </> "src"
         , "-istd-lib"
-        , "--warning=noNoEquivWhenSplitting"
+        , "--warning=noUnsupportedIndexedMatch"
         ]
 
   let -- Note that -M4G can trigger the following error on 32-bit

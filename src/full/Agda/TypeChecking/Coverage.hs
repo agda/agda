@@ -1028,7 +1028,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
           whenM (collapseDefault . optCubicalCompatible <$>
                  pragmaOptions) $ do
             -- re #3733: TODO better error msg.
-            lift $ warning . NoEquivWhenSplitting =<< prettyTCM x
+            lift $ warning . UnsupportedIndexedMatch =<< prettyTCM x
 
       debugSubst "rho0" rho0
 

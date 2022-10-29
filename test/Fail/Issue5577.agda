@@ -1,4 +1,4 @@
--- The NoEquivWhenSplitting warning should be generated not only when
+-- The UnsupportedIndexedMatch warning should be generated not only when
 -- --cubical is used, but also when --cubical-compatible is used. If
 -- Cubical Agda is improved so that this warning is no longer emitted,
 -- then this test case can be removed.

@@ -4,4 +4,4 @@ include:
   ../../../std-lib/
   ../../../std-lib/src
 flags:
-  --warning=noNoEquivWhenSplitting
+  --warning=noUnsupportedIndexedMatch

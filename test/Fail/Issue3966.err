@@ -1,554 +1,650 @@
 Issue3966.agda:17,1-19,56
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @8
-                           datatype:    List
-                           parameters:  {_}, @8
-                           indices:    
-                           constructor: _∷_
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
 when checking the definition of ⊆-trans
 Issue3966.agda:17,1-19,56
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @10
-                           datatype:    List
-                           parameters:  {_}, @10
-                           indices:    
-                           constructor: _∷_
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
 when checking the definition of ⊆-trans
 Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    0
-                           type:        List @9
-                           datatype:    List
-                           parameters:  {_}, @9
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @11
-                           datatype:    List
-                           parameters:  {_}, @11
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @13
-                           datatype:    List
-                           parameters:  {_}, @13
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @13
-                           datatype:    List
-                           parameters:  {_}, @13
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @15
-                           datatype:    List
-                           parameters:  {_}, @15
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @15
-                           datatype:    List
-                           parameters:  {_}, @15
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @17
-                           datatype:    List
-                           parameters:  {_}, @17
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @16
-                           datatype:    List
-                           parameters:  {_}, @16
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @18
-                           datatype:    List
-                           parameters:  {_}, @18
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    0
-                           type:        @9 ⊆ (@7 ∷ @8)
-                           datatype:    _⊆_
-                           parameters:  {_}
-                           indices:     @9, @7 ∷ @8
-                           constructor: _∷ʳ_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @15
-                           datatype:    List
-                           parameters:  {_}, @15
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @17
-                           datatype:    List
-                           parameters:  {_}, @17
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @16
-                           datatype:    List
-                           parameters:  {_}, @16
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @18
-                           datatype:    List
-                           parameters:  {_}, @18
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @15
-                           datatype:    List
-                           parameters:  {_}, @15
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @17
-                           datatype:    List
-                           parameters:  {_}, @17
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    0
-                           type:        @9 ⊆ (@7 ∷ @8)
-                           datatype:    _⊆_
-                           parameters:  {_}
-                           indices:     @9, @7 ∷ @8
-                           constructor: _∷ʳ_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @15
-                           datatype:    List
-                           parameters:  {_}, @15
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @17
-                           datatype:    List
-                           parameters:  {_}, @17
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @14
-                           datatype:    List
-                           parameters:  {_}, @14
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @16
-                           datatype:    List
-                           parameters:  {_}, @16
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    0
-                           type:        @8 ⊆ (@6 ∷ @7)
-                           datatype:    _⊆_
-                           parameters:  {_}
-                           indices:     @8, @6 ∷ @7
-                           constructor: _∷ʳ_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @13
-                           datatype:    List
-                           parameters:  {_}, @13
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @15
-                           datatype:    List
-                           parameters:  {_}, @15
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedCxt
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @15
-                           datatype:    List
-                           parameters:  {_}, @15
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @17
-                           datatype:    List
-                           parameters:  {_}, @17
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @16
-                           datatype:    List
-                           parameters:  {_}, @16
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @18
-                           datatype:    List
-                           parameters:  {_}, @18
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @15
-                           datatype:    List
-                           parameters:  {_}, @15
-                           indices:    
-                           constructor: _∷_
-when checking the definition of test
-Issue3966.agda:28,1-36,52
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: UnsupportedYet Injectivity
-                           position:    1
-                           type:        List @17
-                           datatype:    List
-                           parameters:  {_}, @17
-                           indices:    
-                           constructor: _∷_
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷ʳ_,
+        which is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷ʳ_,
+        which is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷ʳ_,
+        which is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: it relies on higher-dimensional unification, which is not
+        yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
+when checking the definition of test
+Issue3966.agda:28,1-36,52
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on injectivity of the data constructor _∷_, which
+        is not yet supported
+
 when checking the definition of test
 Issue3966.agda:34,1-43
 I'm not sure if there should be a case for the constructor refl,

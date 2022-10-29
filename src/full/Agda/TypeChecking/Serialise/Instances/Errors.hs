@@ -85,7 +85,7 @@ instance EmbPrj Warning where
     RewriteMissingRule a b c              -> icodeN 37 RewriteMissingRule a b c
     ParseWarning a                        -> icodeN 38 ParseWarning a
     NoGuardednessFlag a                   -> icodeN 39 NoGuardednessFlag a
-    NoEquivWhenSplitting a                -> icodeN 40 NoEquivWhenSplitting a
+    UnsupportedIndexedMatch f             -> icodeN 40 UnsupportedIndexedMatch f
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -128,7 +128,7 @@ instance EmbPrj Warning where
     [37, a, b, c]        -> valuN RewriteMissingRule a b c
     [38, a]              -> valuN ParseWarning a
     [39, a]              -> valuN NoGuardednessFlag a
-    [40, a]              -> valuN NoEquivWhenSplitting a
+    [40, a]              -> valuN UnsupportedIndexedMatch a
     _ -> malformed
 
 instance EmbPrj ParseWarning where
@@ -382,7 +382,7 @@ instance EmbPrj WarningName where
     NoGuardednessFlag_                           -> 58
     NotInScope_                                  -> 59
     NotStrictlyPositive_                         -> 60
-    NoEquivWhenSplitting_                        -> 61
+    UnsupportedIndexedMatch_                        -> 61
     OldBuiltin_                                  -> 62
     PragmaCompileErased_                         -> 63
     RewriteMaybeNonConfluent_                    -> 64
@@ -479,7 +479,7 @@ instance EmbPrj WarningName where
     58 -> return NoGuardednessFlag_
     59 -> return NotInScope_
     60 -> return NotStrictlyPositive_
-    61 -> return NoEquivWhenSplitting_
+    61 -> return UnsupportedIndexedMatch_
     62 -> return OldBuiltin_
     63 -> return PragmaCompileErased_
     64 -> return RewriteMaybeNonConfluent_
