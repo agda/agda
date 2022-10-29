@@ -106,33 +106,41 @@ jobs:
         ICU_VER: '71'
       name: Move artefacts to ${{ steps.vars.outputs.nightly }}
       run: |
-        mkdir -p ${{ steps.vars.outputs.nightly }}/bin
-        cp -a src/data ${{ steps.vars.outputs.nightly }}
+        nightly="${{ steps.vars.outputs.nightly }}"
+        mkdir -p "${nightly}"/bin
+        cp -a src/data "${nightly}"
 
         if [[ "$OSTYPE" == "msys"* ]]; then
-          find dist-newstyle/build \( -name 'agda.exe' -o -name 'agda-mode.exe' \) -type f -exec cp {} ${{ steps.vars.outputs.nightly }}/bin \;
-          cp -a .github/*.bat ${{ steps.vars.outputs.nightly }}
-          cp ${DLL} ${{ steps.vars.outputs.nightly }}/bin/
-          C:/ProgramData/Chocolatey/bin/strip.exe ${{ steps.vars.outputs.nightly }}/bin/*
+
+          find dist-newstyle/build \( -name 'agda.exe' -o -name 'agda-mode.exe' \) -type f -exec cp {} "${nightly}"/bin \;
+          cp -a .github/*.bat "${nightly}"
+          cp ${DLL} "${nightly}"/bin/
+          C:/ProgramData/Chocolatey/bin/strip.exe "${nightly}"/bin/*
+
         else
-          find dist-newstyle/build \( -name 'agda' -o -name 'agda-mode' \) -type f -exec cp {} ${{ steps.vars.outputs.nightly }}/bin \;
-          strip ${{ steps.vars.outputs.nightly }}/bin/*
-          cp -a .github/*.sh ${{ steps.vars.outputs.nightly }}
+
+          find dist-newstyle/build \( -name 'agda' -o -name 'agda-mode' \) -type f -exec cp {} "${nightly}"/bin \;
+          strip "${nightly}"/bin/*
+          cp -a .github/*.sh "${nightly}"
+
           if [[ "$OSTYPE" == "darwin"* ]]; then
+
           # Change the path to the dynamic library icu4c to the run-time search path:
           #
           # 1. the same directory of executable, i.e. @executable_path
           # 2. @executable_path/../lib
           # 3. the default location of system-wide icu4c installed by homebrew, ie. /usr/local/opt/icu4c/lib
           #
-          mkdir ${{ steps.vars.outputs.nightly }}/lib
-          cp ${ICU_DIR}/libicuuc.${ICU_VER}.dylib ${ICU_DIR}/libicui18n.${ICU_VER}.dylib ${ICU_DIR}/libicudata.${ICU_VER}.dylib ${{ steps.vars.outputs.nightly }}/lib
-          install_name_tool -change ${ICU_DIR}/libicuuc.${ICU_VER}.dylib @rpath/libicuuc.${ICU_VER}.dylib ${{ steps.vars.outputs.nightly }}/bin/agda
-          install_name_tool -change ${ICU_DIR}/libicui18n.${ICU_VER}.dylib @rpath/libicui18n.${ICU_VER}.dylib ${{ steps.vars.outputs.nightly }}/bin/agda
-          install_name_tool -add_rpath @executable_path -add_rpath @executable_path/../lib -add_rpath ${ICU_DIR} ${{ steps.vars.outputs.nightly }}/bin/agda
-          otool -L ${{ steps.vars.outputs.nightly }}/bin/agda
+          mkdir "${nightly}"/lib
+          cp ${ICU_DIR}/libicuuc.${ICU_VER}.dylib ${ICU_DIR}/libicui18n.${ICU_VER}.dylib ${ICU_DIR}/libicudata.${ICU_VER}.dylib "${nightly}"/lib
+          install_name_tool -change ${ICU_DIR}/libicuuc.${ICU_VER}.dylib @rpath/libicuuc.${ICU_VER}.dylib "${nightly}"/bin/agda
+          install_name_tool -change ${ICU_DIR}/libicui18n.${ICU_VER}.dylib @rpath/libicui18n.${ICU_VER}.dylib "${nightly}"/bin/agda
+          install_name_tool -add_rpath @executable_path -add_rpath @executable_path/../lib -add_rpath ${ICU_DIR} "${nightly}"/bin/agda
+          otool -L "${nightly}"/bin/agda
+
           fi
         fi
+
         file ${{ steps.vars.outputs.nightly }}/bin/agda
     - if: ${{ runner.os != 'macOS' }}
       name: Compress the Agda executable
