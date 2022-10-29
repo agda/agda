@@ -37,30 +37,36 @@ jobs:
         sha=`echo $(git rev-parse --short=7 HEAD)`
         nightly=`echo Agda-nightly`
 
-        echo ::set-output name=sha::${sha}
-        echo ::set-output name=nightly::${nightly}
+        echo sha="${sha}"                                           >> ${GITHUB_OUTPUT}
+        echo nightly="${nightly}"                                   >> ${GITHUB_OUTPUT}
 
         if [[ "$OSTYPE" == "msys"* ]]; then
-          echo "::set-output name=args::${ARGS} ${WIN64_ARGS}"
+
+          echo args="${ARGS} ${WIN64_ARGS}"                         >> ${GITHUB_OUTPUT}
           filename="${nightly}-win64.zip"
-          echo ::set-output name=exe::agda.exe
-          echo ::set-output name=filename::${filename}
-          echo ::set-output name=content-type::application/zip
-          echo "::set-output name=compress-cmd::7z a ${filename} ${nightly} -bb -mx=9"
+          echo exe="agda.exe"                                       >> ${GITHUB_OUTPUT}
+          echo filename="${filename}"                               >> ${GITHUB_OUTPUT}
+          echo content-type="application/zip"                       >> ${GITHUB_OUTPUT}
+          echo compress-cmd="7z a ${filename} ${nightly} -bb -mx=9" >> ${GITHUB_OUTPUT}
+
         elif [[ "$OSTYPE" == "darwin"* ]]; then
-          echo "::set-output name=args::${ARGS} ${MACOS_ARGS}"
+
+          echo args="${ARGS} ${MACOS_ARGS}"                         >> ${GITHUB_OUTPUT}
           filename="${nightly}-macOS.tar.xz"
-          echo ::set-output name=exe::agda
-          echo "::set-output name=filename::${filename}"
-          echo "::set-output name=content-type::application/x-xz"
-          echo "::set-output name=compress-cmd::tar -a -cvf ${filename} ${nightly}"
+          echo exe="agda"                                           >> ${GITHUB_OUTPUT}
+          echo filename="${filename}"                               >> ${GITHUB_OUTPUT}
+          echo content-type="application/x-xz"                      >> ${GITHUB_OUTPUT}
+          echo compress-cmd="tar -a -cvf ${filename} ${nightly}"    >> ${GITHUB_OUTPUT}
+
         elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-          echo "::set-output name=args::${ARGS} ${LINUX_ARGS}"
+
+          echo args="${ARGS} ${LINUX_ARGS}"                         >> ${GITHUB_OUTPUT}
           filename="${nightly}-linux.tar.xz"
-          echo ::set-output name=exe::agda
-          echo "::set-output name=filename::${filename}"
-          echo "::set-output name=content-type::application/x-xz"
-          echo "::set-output name=compress-cmd::tar -a -cvf ${filename} ${nightly}"
+          echo exe="agda"                                           >> ${GITHUB_OUTPUT}
+          echo filename="${filename}"                               >> ${GITHUB_OUTPUT}
+          echo content-type="application/x-xz"                      >> ${GITHUB_OUTPUT}
+          echo compress-cmd="tar -a -cvf ${filename} ${nightly}"    >> ${GITHUB_OUTPUT}
+
         fi
     - name: Display build variables
       run: |
