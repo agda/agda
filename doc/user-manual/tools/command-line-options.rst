@@ -371,6 +371,13 @@ Experimental features
      Enable potentially unsound irrelevance features (irrelevant
      levels, irrelevant data matching) (see :ref:`irrelevance`).
 
+.. option:: --guarded
+
+     .. versionadded:: 2.6.2
+
+     Enable locks and ticks for guarded recursion
+     (see :ref:`Guarded Cubical Agda <guarded-cubical>`).
+
 .. option:: --injective-type-constructors
 
      .. versionadded:: 2.2.8
@@ -378,12 +385,31 @@ Experimental features
      Enable injective type constructors (makes Agda anti-classical and
      possibly inconsistent).
 
+.. option:: --prop, --no-prop
+
+     .. versionadded:: 2.6.0
+
+     Enable or disable declaration and use of
+     definitionally proof-irrelevant propositions
+     (see :ref:`proof-irrelevant propositions <prop>`).
+
+     Default: `--no-prop`.
+
 .. option:: --rewriting
 
      .. versionadded:: 2.4.2.4
 
      Enable declaration and use of REWRITE rules (see
      :ref:`rewriting`).
+
+.. option:: --two-level
+
+     .. versionadded:: 2.6.2
+
+     Enable the use of strict (non-fibrant) type universes ``SSet``
+     *(two-level type theory)*.
+
+
 
 Errors and warnings
 ~~~~~~~~~~~~~~~~~~~
@@ -1030,10 +1056,10 @@ An *infective* option is an option that if used in one module, must be
 used in all modules that depend on this module. The following options
 are infective:
 
-* ``--prop``
+* :option:`--prop`
 * :option:`--rewriting`
-* ``--guarded``
-* ``--two-level``
+* :option:`--guarded`
+* :option:`--two-level`
 * :option:`--cumulativity`
 
 Furthermore :option:`--cubical` and :option:`--erased-cubical` are
@@ -1077,8 +1103,8 @@ again, the source file is re-typechecked instead:
 * :option:`--no-sized-types`
 * :option:`--no-guardedness`
 * :option:`--injective-type-constructors`
-* ``--prop``
-* ``--two-level``
+* :option:`--prop`
+* :option:`--two-level`
 * :option:`--no-universe-polymorphism`
 * :option:`--irrelevant-projections`
 * :option:`--experimental-irrelevance`
@@ -1089,9 +1115,9 @@ again, the source file is re-typechecked instead:
 * :option:`--rewriting`
 * :option:`--cubical`
 * :option:`--erased-cubical`
-* ``--guarded``
+* :option:`--guarded`
 * :option:`--overlapping-instances`
-* ``--qualified-instances``
+* :option:`--qualified-instances`
 * :option:`--safe`
 * :option:`--double-check`
 * :option:`--syntactic-equality`
