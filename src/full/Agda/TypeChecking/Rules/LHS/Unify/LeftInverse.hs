@@ -71,7 +71,7 @@ import Agda.Utils.Impossible
 instance PrettyTCM NoLeftInv where
   prettyTCM (UnsupportedYet s) = fsep $ pwords "It relies on" ++ [explainStep s <> ","] ++ pwords "which is not yet supported"
   prettyTCM UnsupportedCxt     = fwords "it relies on higher-dimensional unification, which is not yet supported"
-  prettyTCM (Illegal s)        = fsep $ pwords "It relies on" ++ [explainStep s <> ","] ++ pwords "which is incompatible with Cubical Agda"
+  prettyTCM (Illegal s)        = fsep $ pwords "It relies on" ++ [explainStep s <> ","] ++ pwords "which is incompatible with" ++ [text "Cubical Agda"]
   prettyTCM NoCubical          = fwords "Cubical Agda is disabled"
   prettyTCM WithKEnabled       = fwords "The K rule is enabled"
   prettyTCM SplitOnStrict      = fwords "It splits on a type in SSet"

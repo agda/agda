@@ -112,8 +112,9 @@ prettyWarning = \case
       [ fsep (pwords "This clause uses pattern-matching features that are not yet supported by Cubical Agda,"
            ++ pwords "the function to which it belongs will not compute when applied to transports."
              )
-      , "\n"
-      , nest 2 $ "Reason:" <+> pure doc
+      , ""
+      , "Reason:" <+> pure doc
+      , ""
       ]
 
     CantGeneralizeOverSorts ms -> vcat

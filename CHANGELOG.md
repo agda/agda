@@ -14,8 +14,8 @@ Highlights
   part of `--without-K`).
 
   Since `--cubical-compatible` mode implies that functions should work
-  with the WIP support for [indexed inductive types in Cubical
-  Agda](https://agda.readthedocs.io/en/latest/language/cubical.html#indexed-inductive-types),
+  with the preliminary support for [indexed inductive types in Cubical
+  Agda](https://agda.readthedocs.io/en/v2.6.3/language/cubical.html#indexed-inductive-types),
   many pattern matching functions will now emit an
   `UnsupportedIndexedMatch` warning, indicating that the function will
   not compute when applied to transports (from `--cubical` code).
