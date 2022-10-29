@@ -640,10 +640,12 @@ data LHSResult = LHSResult
     -- (Issue 2303).
   , lhsPartialSplit :: IntSet
     -- ^ have we done a partial split?
+  , lhsIndexedSplit :: Bool
+    -- ^ have we split on an indexed type?
   }
 
 instance InstantiateFull LHSResult where
-  instantiateFull' (LHSResult n tel ps abs t sub as psplit) = LHSResult n
+  instantiateFull' (LHSResult n tel ps abs t sub as psplit ixsplit) = LHSResult n
     <$> instantiateFull' tel
     <*> instantiateFull' ps
     <*> instantiateFull' abs
@@ -651,6 +653,7 @@ instance InstantiateFull LHSResult where
     <*> instantiateFull' sub
     <*> instantiateFull' as
     <*> pure psplit
+    <*> pure ixsplit
 
 -- | Check a LHS. Main function.
 --
@@ -689,7 +692,7 @@ checkLeftHandSide call f ps a withSub' strippedPats =
       eqs0 = zipWith3 ProblemEq (map namedArg cps) (map var $ downFrom $ size tel) (flattenTel tel)
 
   let finalChecks :: LHSState a -> TCM a
-      finalChecks (LHSState delta qs0 (Problem eqs rps _) b psplit) = do
+      finalChecks (LHSState delta qs0 (Problem eqs rps _) b psplit ixsplit) = do
 
         reportSDoc "tc.lhs.top" 20 $ vcat
           [ "lhs: final checks with remaining equations"
@@ -701,6 +704,27 @@ checkLeftHandSide call f ps a withSub' strippedPats =
 
         addContext delta $ do
           mapM_ noShadowingOfConstructors eqs
+
+          -- When working --without-K or --cubical-compatible, we have
+          -- to check that the target type can be used at the “ambient”
+          -- modality. For --cubical-compatible, this just improves an
+          -- error message (printing the type rather than the generated
+          -- RHS). For --without-K, it implements the same check without
+          -- necessarily generating --cubical code.
+          -- The reason for this check is that a clause
+          --    foo : x ≡ y → ... → T y
+          --    foo refl ... = ...
+          -- in Cubical mode, gets elaborated to an extra clause of the
+          -- form
+          --    foo (transp p φ x) ... = transp (λ i → T (p i)) φ (foo x ...)
+          -- (approximately), where T is the target type. That is: to
+          -- implement the substitution T[y/x], we use an actual
+          -- transport. See #5448.
+          withoutK <- collapseDefault . optWithoutK <$> pragmaOptions
+          cubical <- collapseDefault . optCubicalCompatible <$> pragmaOptions
+          mod <- asksTC getModality
+          when ((withoutK || cubical) && ixsplit) $
+            usableAtModality IndexedClause mod (unEl (unArg b))
 
         arity_a <- arityPiPath a
         -- Compute substitution from the out patterns @qs0@
@@ -769,7 +793,7 @@ checkLeftHandSide call f ps a withSub' strippedPats =
 
         let hasAbsurd = not . null $ absurds
 
-        let lhsResult = LHSResult (length cxt) delta qs hasAbsurd b patSub asb (IntSet.fromList $ catMaybes psplit)
+        let lhsResult = LHSResult (length cxt) delta qs hasAbsurd b patSub asb (IntSet.fromList $ catMaybes psplit) ixsplit
 
         -- Debug output
         reportSDoc "tc.lhs.top" 10 $
@@ -862,7 +886,7 @@ checkLHS
 checkLHS mf = updateModality checkLHS_ where
     -- If the target type is irrelevant or in Prop,
     -- we need to check the lhs in irr. cxt. (see Issue 939).
- updateModality cont st@(LHSState tel ip problem target psplit) = do
+ updateModality cont st@(LHSState tel ip problem target psplit _) = do
       let m = getModality target
       applyModalityToContext m $ do
         cont $ over (lhsTel . listTel)
@@ -870,7 +894,7 @@ checkLHS mf = updateModality checkLHS_ where
         -- Andreas, 2018-10-23, issue #3309
         -- the modalities in the clause telescope also need updating.
 
- checkLHS_ st@(LHSState tel ip problem target psplit) = do
+ checkLHS_ st@(LHSState tel ip problem target psplit ixsplit) = do
   reportSDoc "tc.lhs" 40 $ "tel is" <+> prettyTCM tel
   reportSDoc "tc.lhs" 40 $ "ip is" <+> pretty ip
   reportSDoc "tc.lhs" 40 $ "target is" <+> addContext tel (prettyTCM target)
@@ -985,7 +1009,7 @@ checkLHS mf = updateModality checkLHS_ where
           ip'      = ip ++ [projP]
           -- drop the projection pattern (already splitted)
           problem' = over problemRestPats tail problem
-      liftTCM $ updateLHSState (LHSState tel ip' problem' target' psplit)
+      liftTCM $ updateLHSState (LHSState tel ip' problem' target' psplit ixsplit)
 
 
     -- Split a Partial.
@@ -1145,7 +1169,7 @@ checkLHS mf = updateModality checkLHS_ where
       -- Compute the new state
       let problem' = set problemEqs eqs' problem
       reportSDoc "tc.lhs.split.partial" 60 $ text (show problem')
-      liftTCM $ updateLHSState (LHSState delta' ip' problem' target' (psplit ++ [Just o_n]))
+      liftTCM $ updateLHSState (LHSState delta' ip' problem' target' (psplit ++ [Just o_n]) ixsplit)
 
 
     splitLit :: Telescope      -- The types of arguments before the one we split on
@@ -1184,7 +1208,7 @@ checkLHS mf = updateModality checkLHS_ where
 
       -- Compute the new state
       let problem' = set problemEqs eqs' problem
-      liftTCM $ updateLHSState (LHSState delta' ip' problem' target' psplit)
+      liftTCM $ updateLHSState (LHSState delta' ip' problem' target' psplit ixsplit)
 
 
     splitCon :: Telescope      -- The types of arguments before the one we split on
@@ -1448,7 +1472,7 @@ checkLHS mf = updateModality checkLHS_ where
 
           -- if rest type reduces,
           -- extend the split problem by previously not considered patterns
-          st' <- liftTCM $ updateLHSState $ LHSState delta' ip' problem' target'' psplit
+          st' <- liftTCM $ updateLHSState $ LHSState delta' ip' problem' target'' psplit (ixsplit || not (null ixs))
 
           reportSDoc "tc.lhs.top" 12 $ sep
             [ "new problem from rest"

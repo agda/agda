@@ -83,6 +83,7 @@ import Agda.Interaction.Options
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Concrete.Pretty
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -94,6 +95,8 @@ import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.WithDefault
+import qualified Agda.Utils.Null as Null
+import Agda.Utils.WithDefault (collapseDefault)
 
 -- | data 'Relevance'
 --   see "Agda.Syntax.Common".
@@ -481,18 +484,56 @@ instance UsableModality a => UsableModality (Arg a) where
 instance UsableModality a => UsableModality (Dom a) where
   usableMod mod Dom{unDom = u} = usableMod mod u
 
-usableAtModality' :: MonadConstraint TCM => Maybe Sort -> Modality -> Term -> TCM ()
-usableAtModality' ms mod t = catchConstraint (UsableAtModality ms mod t) $ do
-  whenM (maybe (pure True) isFibrant ms) $ do
-    res <- runExceptT $ usableMod mod t
-    case res of
-      Right b -> do
-        unless b $
-          typeError . GenericDocError =<< (prettyTCM t <+> "is not usable at the required modality" <+> prettyTCM mod)
-      Left blocker -> patternViolation blocker
+usableAtModality'
+  :: MonadConstraint TCM
+  -- Note: This weird-looking constraint is to trick GHC into accepting
+  -- that an instance of MonadConstraint TCM will exist, even if we
+  -- can't import the module in which it is defined.
+  => Maybe Sort -> WhyCheckModality -> Modality -> Term -> TCM ()
+usableAtModality' ms why mod t =
+  catchConstraint (UsableAtModality why ms mod t) $ do
+    whenM (maybe (pure True) isFibrant ms) $ do
+      res <- runExceptT $ usableMod mod t
+      case res of
+        Right b -> unless b $
+          typeError . GenericDocError =<< formatWhy
+        Left blocker -> patternViolation blocker
+  where
+    formatWhy = do
+      compatible <- collapseDefault . optCubicalCompatible <$> pragmaOptions
+      cubical <- isJust . optCubical <$> pragmaOptions
+      let
+        context
+          | cubical    = "in Cubical Agda,"
+          | compatible = "to maintain compatibility with Cubical Agda,"
+          | otherwise  = "when --without-K is enabled,"
+
+        explanation
+          | cubical || compatible =
+            [ ""
+            , fsep ( "Note:":pwords context
+                  ++ pwords "the target type must be usable at the modality"
+                  ++ pwords "in which the function was defined, since it is"
+                  ++ pwords "used for computing transports"
+                  )
+            , ""
+            ]
+          | otherwise = []
+
+      case why of
+        IndexedClause ->
+          vcat $
+            ( fsep ( pwords "This clause has target type"
+                  ++ [prettyTCM t]
+                  ++ pwords "which is not usable at the required modality"
+                  ++ [pure (attributesForModality mod) <> "."]
+                   )
+            : explanation)
+        _ -> prettyTCM t <+> "is not usable at the required modality"
+         <+> pure (attributesForModality mod)
 
 
-usableAtModality :: MonadConstraint TCM => Modality -> Term -> TCM ()
+usableAtModality :: MonadConstraint TCM => WhyCheckModality -> Modality -> Term -> TCM ()
 usableAtModality = usableAtModality' Nothing
 
 

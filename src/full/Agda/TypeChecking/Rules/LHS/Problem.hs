@@ -236,6 +236,8 @@ data LHSState a = LHSState
     --   be type-checked in irrelevant mode.
   , _lhsPartialSplit :: ![Maybe Int]
     -- ^ have we splitted with a PartialFocus?
+  , _lhsIndexedSplit :: !Bool
+    -- ^ Have we split on any indexed inductive types?
   }
 
 lhsTel :: Lens' Telescope (LHSState a)
@@ -409,7 +411,7 @@ instance InstantiateFull AsBinding where
   instantiateFull' (AsB x v a m) = AsB x <$> instantiateFull' v <*> instantiateFull' a <*> pure m
 
 instance PrettyTCM (LHSState a) where
-  prettyTCM (LHSState tel outPat (Problem eqs rps _) target _) = vcat
+  prettyTCM (LHSState tel outPat (Problem eqs rps _) target _ _) = vcat
     [ "tel             = " <+> prettyTCM tel
     , "outPat          = " <+> addContext tel (prettyTCMPatternList outPat)
     , "problemEqs      = " <+> addContext tel (prettyList_ $ map prettyTCM eqs)

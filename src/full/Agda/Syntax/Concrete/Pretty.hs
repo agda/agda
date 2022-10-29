@@ -156,6 +156,28 @@ instance Pretty Modality where
     , pretty (getCohesion mod)
     ]
 
+-- | Show the attributes necessary to recover a modality, in long-form
+-- (e.g. using at-syntax rather than dots). For the default modality,
+-- the result is at-ω (rather than the empty document). Suitable for
+-- showing modalities outside of binders.
+attributesForModality :: Modality -> Doc
+attributesForModality mod
+  | mod == defaultModality = text "@ω"
+  | otherwise = fsep $ catMaybes [relevance, quantity, cohesion]
+  where
+    relevance = case getRelevance mod of
+      Relevant   -> Nothing
+      Irrelevant -> Just "@irrelevant"
+      NonStrict  -> Just "@shape-irrelevant"
+    quantity = case getQuantity mod of
+      Quantity0{} -> Just "@0"
+      Quantity1{} -> Just "@1"
+      Quantityω{} -> Nothing
+    cohesion = case getCohesion mod of
+      Flat{}       -> Just "@♭"
+      Continuous{} -> Nothing
+      Squash{}     -> Just "@⊤"
+
 instance Pretty (OpApp Expr) where
   pretty (Ordinary e) = pretty e
   pretty (SyntaxBindingLambda r bs e) = pretty (Lam r bs e)

@@ -104,14 +104,14 @@ initLHSState delta eqs ps a ret = do
   let problem = Problem eqs ps ret
       qs0     = teleNamedArgs delta
 
-  updateProblemRest $ LHSState delta qs0 problem (defaultArg a) []
+  updateProblemRest $ LHSState delta qs0 problem (defaultArg a) [] False
 
 -- | Try to move patterns from the problem rest into the problem.
 --   Possible if type of problem rest has been updated to a function type.
 updateProblemRest
   :: forall m a. (PureTCM m, MonadError TCErr m, MonadTrace m, MonadFresh NameId m)
   => LHSState a -> m (LHSState a)
-updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit) = addContext tel0 $ do
+updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit ixsplit) = addContext tel0 $ do
   ps <- insertImplicitPatternsT ExpandLast ps $ unArg a
   reportSDoc "tc.lhs.imp" 20 $
     "insertImplicitPatternsT returned" <+> fsep (map prettyA ps)
@@ -162,4 +162,5 @@ updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit) = ad
                    }
     , _lhsTarget  = a $> b
     , _lhsPartialSplit = psplit
+    , _lhsIndexedSplit = ixsplit
     }
