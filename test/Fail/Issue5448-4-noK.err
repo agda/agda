@@ -1,10 +1,5 @@
 Issue5448-4-noK.agda:8,1-15
 This clause has target type P x which is not usable at the required
 modality @ω.
-
-Note: when --without-K is enabled, the target type must be usable
-at the modality in which the function was defined, since it is used
-to compute substitutions in Cubical Agda
-
 when checking the clause left hand side
 subst P refl p

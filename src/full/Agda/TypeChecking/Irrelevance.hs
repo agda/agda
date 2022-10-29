@@ -508,26 +508,27 @@ usableAtModality' ms why mod t =
           | compatible = "to maintain compatibility with Cubical Agda,"
           | otherwise  = "when --without-K is enabled,"
 
-        justification
-          | (cubical || compatible) = "used for computing transports"
-          | otherwise               = "used to compute substitutions in Cubical Agda"
+        explanation
+          | cubical || compatible =
+            [ ""
+            , fsep ( "Note:":pwords context
+                  ++ pwords "the target type must be usable at the modality"
+                  ++ pwords "in which the function was defined, since it is"
+                  ++ pwords "used for computing transports"
+                  )
+            , ""
+            ]
+          | otherwise = []
 
       case why of
         IndexedClause ->
-          vcat
-            [ fsep ( pwords "This clause has target type"
+          vcat $
+            ( fsep ( pwords "This clause has target type"
                   ++ [prettyTCM t]
                   ++ pwords "which is not usable at the required modality"
                   ++ [pure (attributesForModality mod) <> "."]
                    )
-            , ""
-            , fsep ( "Note:":pwords context
-                  ++ pwords "the target type must be usable at the modality"
-                  ++ pwords "in which the function was defined, since it is"
-                  ++ pwords justification
-                   )
-            , ""
-            ]
+            : explanation)
         _ -> prettyTCM t <+> "is not usable at the required modality"
          <+> pure (attributesForModality mod)
 
