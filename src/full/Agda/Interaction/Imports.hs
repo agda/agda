@@ -716,17 +716,8 @@ loadDecodedModule file mi = do
   -- Check that options that matter haven't changed compared to
   -- current options (issue #2487)
   unlessM (lift $ Lens.isBuiltinModule fp) $ do
-    currentOptions <- useTC stPragmaOptions
-    let disagreements =
-          [ optName | (opt, optName) <- restartOptions,
-                      opt currentOptions /= opt (iOptionsUsed i) ]
-    unless (null disagreements) $ do
-      reportSLn "import.iface.options" 4 $ concat
-        [ "  Changes in the following options in "
-        , prettyShow fp
-        , ", re-typechecking: "
-        , prettyShow disagreements
-        ]
+    current <- useTC stPragmaOptions
+    when (recheckBecausePragmaOptionsChanged (iOptionsUsed i) current) $
       throwError "options changed"
 
   -- If any of the imports are newer we need to retype check
