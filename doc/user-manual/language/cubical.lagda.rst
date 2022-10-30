@@ -736,6 +736,8 @@ is defined as:
 For many more examples of higher inductive types see:
 https://github.com/agda/cubical/tree/master/Cubical/HITs.
 
+.. _indexed-inductive-types:
+
 Indexed inductive types
 =======================
 

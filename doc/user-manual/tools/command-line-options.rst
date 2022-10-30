@@ -462,11 +462,11 @@ Pattern matching and equality
 
      Default records to ``no-eta-equality`` (see :ref:`eta-expansion`).
 
-.. option:: --no-flat-split
+.. option:: --flat-split
 
      .. versionadded:: 2.6.1
 
-     Disable pattern matching on ``@♭`` arguments (see
+     Enable pattern matching on ``@♭`` arguments (see
      :ref:`pattern-matching-on-flat`).
 
 .. option:: --no-pattern-matching
@@ -1061,6 +1061,7 @@ are infective:
 * :option:`--guarded`
 * :option:`--two-level`
 * :option:`--cumulativity`
+* :option:`--flat-split`
 
 Furthermore :option:`--cubical` and :option:`--erased-cubical` are
 *jointly infective*: if one of them is used in one module, then one or
@@ -1105,6 +1106,7 @@ again, the source file is re-typechecked instead:
 * :option:`--erased-cubical`
 * :option:`--exact-split`
 * :option:`--experimental-irrelevance`
+* :option:`--flat-split`
 * :option:`--guarded`
 * :option:`--injective-type-constructors`
 * :option:`--instance-search-depth`
@@ -1116,7 +1118,6 @@ again, the source file is re-typechecked instead:
 * :option:`--no-auto-inline`
 * :option:`--no-eta-equality`
 * :option:`--no-fast-reduce`
-* :option:`--no-flat-split`
 * :option:`--no-forcing`
 * :option:`--no-guardedness`
 * :option:`--no-import-sorts`

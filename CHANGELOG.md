@@ -155,12 +155,18 @@ Cubical Agda
 * Rewrite rules with interval arguments are now supported.
   ([#4384](https://github.com/agda/agda/issues/4384))
 
-* Matching on `@flat` arguments is now disabled by default when the
-  `--cubical-compatible` or `--without-K` flags are used. It can be
-  enabled again using the `--flat-split` flag. Note that, when using
-  Cubical Agda, functions which match on a `@flat` argument will not
-  compute when applied to `transport`s (this will generate an
-  `UnsupportedIndexedMatch` warning).
+The flat modality
+-----------------
+
+* Matching on `@flat` arguments is now disabled by default, the flag
+  `--no-flat-split` has been removed, and the flag `--flat-split` is
+  now infective (see [#6238](https://github.com/agda/agda/issues/6238)
+  and [#6263](https://github.com/agda/agda/issues/6263)).
+
+  Matching can be enabled using the `--flat-split` flag. Note that in
+  Cubical Agda functions that match on an argument marked with `@flat`
+  trigger the `UnsupportedIndexedMatch` warning, and the code might
+  not compute properly.
 
 Reflection
 ----------

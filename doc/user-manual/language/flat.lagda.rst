@@ -50,7 +50,8 @@ For example the following will not typecheck:
 Pattern Matching on ``@♭``
 ----------------------------
 
-Agda allows matching on ``@♭`` arguments by default.
+By default matching on arguments marked with ``@♭`` is disallowed, but
+it can be enabled using the option :option:`--flat-split`.
 When matching on a ``@♭`` argument the flat
 status gets propagated to the arguments of the constructor
 
@@ -75,9 +76,7 @@ provided as ``@♭``
 
 if we simply had ``(eq : x ≡ y)`` the code would be rejected.
 
-Pattern matching on ``@♭`` arguments can be disabled entirely by using
-the :option:`--no-flat-split` flag
-
-.. code-block:: agda
-
-  {-# OPTIONS --no-flat-split #-}
+Note that in Cubical Agda functions that match on an argument marked
+with ``@♭`` trigger the ``UnsupportedIndexedMatch`` warning (see
+:ref:`indexed-inductive-types`), and the code might not compute
+properly.
