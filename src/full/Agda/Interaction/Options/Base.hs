@@ -124,7 +124,6 @@ data CommandLineOptions = Options
   , optJSONInteraction       :: Bool
   , optExitOnError           :: !Bool
     -- ^ Exit if an interactive command fails.
-  , optOptimSmashing         :: Bool
   , optCompileDir            :: Maybe FilePath
   -- ^ In the absence of a path the project root is used.
   , optGenerateVimFile       :: Bool
@@ -158,7 +157,6 @@ data PragmaOptions = PragmaOptions
   , optTerminationCheck          :: Bool
   , optTerminationDepth          :: CutOff
     -- ^ Cut off structural order comparison at some depth in termination checker?
-  , optCompletenessCheck         :: Bool
   , optUniverseCheck             :: Bool
   , optOmegaInOmega              :: Bool
   , optCumulativity              :: Bool
@@ -279,7 +277,6 @@ defaultOptions = Options
   , optGHCiInteraction       = False
   , optJSONInteraction       = False
   , optExitOnError           = False
-  , optOptimSmashing         = True
   , optCompileDir            = Nothing
   , optGenerateVimFile       = False
   , optIgnoreInterfaces      = False
@@ -306,7 +303,6 @@ defaultPragmaOptions = PragmaOptions
   , optDisablePositivity         = False
   , optTerminationCheck          = True
   , optTerminationDepth          = defaultCutOff
-  , optCompletenessCheck         = True
   , optUniverseCheck             = True
   , optOmegaInOmega              = False
   , optCumulativity              = False
