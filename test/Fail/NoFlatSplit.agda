@@ -1,4 +1,3 @@
-{-# OPTIONS --no-flat-split #-}
 module _ where
 
 postulate

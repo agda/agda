@@ -1,6 +1,8 @@
 ..
   ::
 
+  {-# OPTIONS --flat-split #-}
+
   module language.flat where
 
   open import Agda.Primitive

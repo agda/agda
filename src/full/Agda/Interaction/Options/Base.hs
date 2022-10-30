@@ -216,7 +216,7 @@ data PragmaOptions = PragmaOptions
     -- ^ Use call-by-name instead of call-by-need
   , optConfluenceCheck           :: Maybe ConfluenceCheck
     -- ^ Check confluence of rewrite rules?
-  , optFlatSplit                 :: WithDefault 'True
+  , optFlatSplit                 :: WithDefault 'False
      -- ^ Can we split on a (@flat x : A) argument?
   , optImportSorts               :: Bool
      -- ^ Should every top-level module start with an implicit statement
@@ -574,9 +574,6 @@ safeFlag o = do
 
 flatSplitFlag :: Flag PragmaOptions
 flatSplitFlag o = return $ o { optFlatSplit = Value True }
-
-noFlatSplitFlag :: Flag PragmaOptions
-noFlatSplitFlag o = return $ o { optFlatSplit = Value False }
 
 doubleCheckFlag :: Bool -> Flag PragmaOptions
 doubleCheckFlag b o = return $ o { optDoubleCheck = b }
@@ -1054,9 +1051,7 @@ pragmaOptions =
     , Option []     ["no-sized-types"] (NoArg noSizedTypes)
                     "disable sized types (default)"
     , Option []     ["flat-split"] (NoArg flatSplitFlag)
-                    "allow split on (@flat x : A) arguments (default)"
-    , Option []     ["no-flat-split"] (NoArg noFlatSplitFlag)
-                    "disable split on (@flat x : A) arguments"
+                    "allow split on (@flat x : A) arguments"
     , Option []     ["guardedness"] (NoArg guardedness)
                     "enable constructor-based guarded corecursion (inconsistent with --sized-types)"
     , Option []     ["no-guardedness"] (NoArg noGuardedness)
@@ -1197,6 +1192,7 @@ deadPragmaOptions = map (uncurry removedOption) $
       , inVersion "2.6.3") -- see issue #5427
     , ("no-subtyping"
       , inVersion "2.6.3") -- see issue #5427
+    , ("no-flat-split", inVersion "2.6.3")  -- See issue #6263.
     ]
   where
     inVersion = ("in version " ++)
