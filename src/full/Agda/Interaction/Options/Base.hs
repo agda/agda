@@ -523,15 +523,9 @@ infectiveCoinfectiveOptions =
   , infectiveOption optRewriting "--rewriting"
   , infectiveOption (collapseDefault . optSizedTypes) "--sized-types"
   , infectiveOption (collapseDefault . optGuardedness) "--guardedness"
-  , flatSplit
+  , infectiveOption (collapseDefault . optFlatSplit) "--flat-split"
   ]
   where
-  flatSplit =
-    (infectiveOption (collapseDefault . optFlatSplit) "--flat-split")
-    { icOptionOK = \current imported ->
-        not (collapseDefault (optCubicalCompatible current))
-          || (collapseDefault (optFlatSplit imported) <= collapseDefault (optFlatSplit current))
-    }
   cubicalCompatible =
     (coinfectiveOption
        (collapseDefault . optCubicalCompatible)
