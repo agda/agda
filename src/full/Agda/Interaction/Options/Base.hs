@@ -576,7 +576,7 @@ flatSplitFlag :: Flag PragmaOptions
 flatSplitFlag o = return $ o { optFlatSplit = Value True }
 
 noFlatSplitFlag :: Flag PragmaOptions
-noFlatSplitFlag o = return $ o { optFlatSplit = setDefault False (optFlatSplit o) }
+noFlatSplitFlag o = return $ o { optFlatSplit = Value False }
 
 doubleCheckFlag :: Bool -> Flag PragmaOptions
 doubleCheckFlag b o = return $ o { optDoubleCheck = b }
