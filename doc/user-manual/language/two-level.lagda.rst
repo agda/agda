@@ -1,6 +1,6 @@
 
 ************
-Cumulativity
+Strict Types
 ************
 
 Basics
