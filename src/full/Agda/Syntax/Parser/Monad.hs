@@ -41,6 +41,7 @@ import Data.Maybe ( listToMaybe )
 
 import Agda.Interaction.Options.Warnings
 
+import Agda.Syntax.Concrete.Attribute
 import Agda.Syntax.Position
 import Agda.Syntax.Parser.Tokens ( Keyword( KwMutual ) )
 
@@ -75,6 +76,8 @@ data ParseState = PState
                                              --   (states can be nested so we need a stack)
     , parseFlags    :: ParseFlags            -- ^ parametrization of the parser
     , parseWarnings :: ![ParseWarning]       -- ^ In reverse order.
+    , parseCohesion :: !CohesionAttributes
+      -- ^ Every encountered occurrence of a cohesion attribute.
     }
     deriving Show
 
@@ -292,6 +295,7 @@ initStatePos pos flags inp st =
                                                 -- Just for better errors on stray @constructor@ decls.
                 , parseFlags        = flags
                 , parseWarnings     = []
+                , parseCohesion     = []
                 }
   where
   pos' = pos { srcFile = () }

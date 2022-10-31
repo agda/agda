@@ -256,7 +256,7 @@ moduleName file parsedModule = billTo [Bench.ModuleName] $ do
       raw         = rawTopLevelModuleNameForModule parsedModule
   topLevelModuleName =<< if isNoName raw
     then do
-      m <- runPM (parse moduleNameParser defaultName)
+      m <- runPM (fst <$> parse moduleNameParser defaultName)
              `catchError` \_ ->
            typeError $ GenericError $
              "The file name " ++ prettyShow file ++

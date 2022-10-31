@@ -15,6 +15,7 @@ module Agda.Syntax.Translation.ConcreteToAbstract
     , NewName, OldQName
     , PatName, APatName
     , importPrimitives
+    , checkCohesionAttributes
     ) where
 
 import Prelude hiding ( null )
@@ -36,6 +37,7 @@ import Data.Monoid (First(..))
 import Data.Void
 
 import Agda.Syntax.Concrete as C
+import Agda.Syntax.Concrete.Attribute
 import Agda.Syntax.Concrete.Generic
 import Agda.Syntax.Concrete.Operators
 import Agda.Syntax.Concrete.Pattern
@@ -3118,6 +3120,20 @@ toAbstractOpApp op ns es = do
       set :: a -> NamedArg b -> NamedArg a
       set x arg = fmap (fmap (const x)) arg
 
+-- | Raises an error if the list of cohesion attributes is non-empty
+-- and cohesion modalities are not supported.
+
+checkCohesionAttributes :: CohesionAttributes -> ScopeM ()
+checkCohesionAttributes attrs =
+  unlessM (optCohesion <$> pragmaOptions) $
+  case attrs of
+    []         -> return ()
+    (s, r) : _ ->
+      setCurrentRange r $
+      typeError $ GenericDocError $ P.fsep $
+      P.pwords "Cohesion modalities have not been enabled" ++
+      P.pwords "(use --cohesion to enable them):" ++
+      [P.text s]
 
 {--------------------------------------------------------------------------
     Things we parse but are not part of the Agda file syntax

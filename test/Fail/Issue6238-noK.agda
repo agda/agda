@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --safe #-}
+{-# OPTIONS --without-K --safe --cohesion #-}
 module Issue6238-noK where
 
 data Flat (@♭ A : Set) : Set where

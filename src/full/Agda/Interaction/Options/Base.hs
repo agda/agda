@@ -216,6 +216,8 @@ data PragmaOptions = PragmaOptions
     -- ^ Use call-by-name instead of call-by-need
   , optConfluenceCheck           :: Maybe ConfluenceCheck
     -- ^ Check confluence of rewrite rules?
+  , optCohesion                  :: Bool
+     -- ^ Are the cohesion modalities available?
   , optFlatSplit                 :: WithDefault 'False
      -- ^ Can we split on a (@flat x : A) argument?
   , optImportSorts               :: Bool
@@ -342,6 +344,7 @@ defaultPragmaOptions = PragmaOptions
   , optFastReduce                = True
   , optCallByName                = False
   , optConfluenceCheck           = Nothing
+  , optCohesion                  = False
   , optFlatSplit                 = Default
   , optImportSorts               = True
   , optAllowExec                 = False
@@ -524,6 +527,7 @@ infectiveCoinfectiveOptions =
   , infectiveOption (collapseDefault . optSizedTypes) "--sized-types"
   , infectiveOption (collapseDefault . optGuardedness) "--guardedness"
   , infectiveOption (collapseDefault . optFlatSplit) "--flat-split"
+  , infectiveOption optCohesion "--cohesion"
   ]
   where
   cubicalCompatible =
@@ -572,8 +576,14 @@ safeFlag o = do
              , optSizedTypes  = setDefault False sizedTypes
              }
 
+cohesionFlag :: Flag PragmaOptions
+cohesionFlag o = return $ o { optCohesion = True }
+
 flatSplitFlag :: Flag PragmaOptions
-flatSplitFlag o = return $ o { optFlatSplit = Value True }
+flatSplitFlag o = return $ o
+  { optFlatSplit = Value True
+  , optCohesion  = True
+  }
 
 doubleCheckFlag :: Bool -> Flag PragmaOptions
 doubleCheckFlag b o = return $ o { optDoubleCheck = b }
@@ -1050,8 +1060,10 @@ pragmaOptions =
                     "enable sized types (inconsistent with --guardedness)"
     , Option []     ["no-sized-types"] (NoArg noSizedTypes)
                     "disable sized types (default)"
+    , Option []     ["cohesion"] (NoArg cohesionFlag)
+                    "enable the cohesion modalities (in particular @flat)"
     , Option []     ["flat-split"] (NoArg flatSplitFlag)
-                    "allow split on (@flat x : A) arguments"
+                    "allow split on (@flat x : A) arguments (implies --cohesion)"
     , Option []     ["guardedness"] (NoArg guardedness)
                     "enable constructor-based guarded corecursion (inconsistent with --sized-types)"
     , Option []     ["no-guardedness"] (NoArg noGuardedness)

@@ -41,6 +41,7 @@ import qualified Agda.Syntax.Parser.Parser as P
 import Agda.Syntax.Parser.Lexer
 import Agda.Syntax.Parser.Literate
 import Agda.Syntax.Concrete
+import Agda.Syntax.Concrete.Attribute
 import Agda.Syntax.Parser.Tokens
 
 import Agda.Utils.FileName
@@ -71,13 +72,13 @@ warning w = PM (modify (w:))
 
 -- | Embed a 'ParseResult' as 'PM' computation.
 
-wrap :: ParseResult a -> PM a
+wrap :: ParseResult a -> PM (a, CohesionAttributes)
 wrap (ParseFailed err)  = throwError err
 wrap (ParseOk s x)      = do
   modify' (parseWarnings s ++)
-  return x
+  return (x, parseCohesion s)
 
-wrapM :: IO (ParseResult a) -> PM a
+wrapM :: IO (ParseResult a) -> PM (a, CohesionAttributes)
 wrapM m = liftIO m >>= wrap
 
 -- | Returns the contents of the given file.
@@ -105,7 +106,8 @@ data Parser a = Parser
   , parseLiterate  :: LiterateParser a
   }
 
-type LiterateParser a = Parser a -> [Layer] -> PM a
+type LiterateParser a =
+  Parser a -> [Layer] -> PM (a, CohesionAttributes)
 
 -- | Initial state for lexing.
 
@@ -119,7 +121,7 @@ layoutLexState = [layout, normal]
 
 -- | Parse without top-level layout.
 
-parse :: Parser a -> String -> PM a
+parse :: Parser a -> String -> PM (a, CohesionAttributes)
 parse p = wrapM . return . M.parse (parseFlags p) normalLexState (parser p)
 
 -- | Parse with top-level layout.
@@ -128,7 +130,7 @@ parseFileFromString
   :: SrcFile   -- ^ Name of source file.
   -> Parser a  -- ^ Parser to use.
   -> String    -- ^ Contents of source file.
-  -> PM a
+  -> PM (a, CohesionAttributes)
 parseFileFromString src p = wrapM . return . M.parseFromSrc (parseFlags p) layoutLexState (parser p) src
 
 -- | Parse with top-level layout.
@@ -140,18 +142,18 @@ parseLiterateWithoutComments p layers = parseFileFromString (literateSrcFile lay
 
 parseLiterateWithComments :: LiterateParser [Token]
 parseLiterateWithComments p layers = do
-  code <- parseLiterateWithoutComments p layers
+  (code, coh) <- parseLiterateWithoutComments p layers
   let literate = filter (not . isCodeLayer) layers
   let (terms, overlaps) = interleaveRanges (map Left code) (map Right literate)
 
   forM_ (map fst overlaps) $ \c ->
     warning $ OverlappingTokensWarning { warnRange = getRange c }
 
-  return $ forMaybe terms $ \case
+  (, coh) <$> (return $ forMaybe terms $ \case
     Left t                           -> Just t
     Right (Layer Comment interval s) -> Just $ TokTeX    (interval, s)
     Right (Layer Markup  interval s) -> Just $ TokMarkup (interval, s)
-    Right (Layer Code _ _)           -> Nothing
+    Right (Layer Code _ _)           -> Nothing)
 
 
 parseLiterateFile
@@ -162,10 +164,11 @@ parseLiterateFile
   -> String
      -- ^ The file contents. Note that the file is /not/ read from
      -- disk.
-  -> PM a
+  -> PM (a, CohesionAttributes)
 parseLiterateFile po p path = parseLiterate p p . po (startPos (Just path))
 
-parsePosString :: Parser a -> Position -> String -> PM a
+parsePosString ::
+  Parser a -> Position -> String -> PM (a, CohesionAttributes)
 parsePosString p pos = wrapM . return . M.parsePosString pos (parseFlags p) normalLexState (parser p)
 
 -- | Extensions supported by `parseFile`.
@@ -181,7 +184,7 @@ parseFile
   -> String
      -- ^ The file contents. Note that the file is /not/ read from
      -- disk.
-  -> PM (a, FileType)
+  -> PM ((a, CohesionAttributes), FileType)
 parseFile p file input =
   if ".agda" `List.isSuffixOf` path then
     (, AgdaFileType) <$> parseFileFromString (Strict.Just file) p input

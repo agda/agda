@@ -462,6 +462,13 @@ Pattern matching and equality
 
      Default records to ``no-eta-equality`` (see :ref:`eta-expansion`).
 
+.. option:: --cohesion
+
+     .. versionadded:: 2.6.3
+
+     Enable the cohesion modalities, in particular ``@♭`` (see
+     :ref:`flat`).
+
 .. option:: --flat-split
 
      .. versionadded:: 2.6.1
@@ -1061,6 +1068,7 @@ are infective:
 * :option:`--guarded`
 * :option:`--two-level`
 * :option:`--cumulativity`
+* :option:`--cohesion`
 * :option:`--flat-split`
 
 Furthermore :option:`--cubical` and :option:`--erased-cubical` are
@@ -1096,6 +1104,7 @@ again, the source file is re-typechecked instead:
 * :option:`--allow-incomplete-matches`
 * :option:`--allow-unsolved-metas`
 * :option:`--call-by-name`
+* :option:`--cohesion`
 * :option:`--confluence-check`
 * :option:`--copatterns`
 * :option:`--cubical-compatible`

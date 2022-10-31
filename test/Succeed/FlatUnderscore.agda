@@ -1,3 +1,5 @@
+{-# OPTIONS --cohesion #-}
+
 module FlatUnderscore where
 
 

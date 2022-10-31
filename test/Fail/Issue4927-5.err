@@ -1,0 +1,6 @@
+Issue4927-5.agda:2,8-8
+Issue4927-5.agda:2,8: Parse error
+@<ERROR>
+flat Set
+F | _ = Set
+...

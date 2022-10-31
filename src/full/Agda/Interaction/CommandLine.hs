@@ -237,7 +237,8 @@ metaParseExpr ii s =
         r <- getRange <$> lookupLocalMeta m
         -- liftIO $ putStrLn $ prettyShow scope
         let pos = fromMaybe __IMPOSSIBLE__ (rStart r)
-        e <- runPM $ parsePosString exprParser pos s
+        (e, coh) <- runPM $ parsePosString exprParser pos s
+        checkCohesionAttributes coh
         concreteToAbstract scope e
 
 actOnMeta :: [String] -> (InteractionId -> A.Expr -> TCM a) -> TCM a
@@ -277,7 +278,8 @@ evalIn _ = liftIO $ putStrLn ":eval metaid expr"
 
 parseExpr :: String -> TCM A.Expr
 parseExpr s = do
-    e <- runPM $ parse exprParser s
+    (e, coh) <- runPM $ parse exprParser s
+    checkCohesionAttributes coh
     localToAbstract e return
 
 evalTerm :: String -> TCM (ExitCode a)

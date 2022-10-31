@@ -24,6 +24,8 @@ modality modeled after `Spatial Type Theory
 <https://arxiv.org/abs/1509.07584/>`_ and `Crisp Type Theory
 <https://arxiv.org/abs/1801.07664/>`_. It is similar to a necessity modality.
 
+This attribute is enabled using the flag :option:`--cohesion`.
+
 We can define ``♭ A`` as a type for any ``(@♭ A : Set l)`` via an
 inductive definition:
 

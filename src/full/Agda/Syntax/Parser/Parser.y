@@ -31,6 +31,7 @@ import Prelude hiding ( null )
 
 import Control.Applicative ( (<|>) )
 import Control.Monad
+import Control.Monad.State
 
 import Data.Bifunctor (first, second)
 import Data.Char
@@ -2403,8 +2404,15 @@ instance SetRange Attr where
 
 -- | Parse an attribute.
 toAttribute :: Expr -> Parser Attr
-toAttribute x = maybe failure (return . Attr (getRange x) y) $ exprToAttribute x
+toAttribute x = do
+  attr <- maybe failure (return . Attr r y) $ exprToAttribute x
+  case theAttr attr of
+    CohesionAttribute{} ->
+      modify' (\s -> s { parseCohesion = (y, r) : parseCohesion s })
+    _                   -> return ()
+  return attr
   where
+  r = getRange x
   y = prettyShow x
   failure = parseErrorRange x $ "Unknown attribute: " ++ y
 

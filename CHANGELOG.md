@@ -158,6 +158,11 @@ Cubical Agda
 The flat modality
 -----------------
 
+* The `@flat`/`@♭` modality is now by default disabled (see
+  [#4927](https://github.com/agda/agda/issues/4927)).
+
+  It can be enabled using the infective flag `--cohesion`.
+
 * Matching on `@flat` arguments is now disabled by default, the flag
   `--no-flat-split` has been removed, and the flag `--flat-split` is
   now infective (see [#6238](https://github.com/agda/agda/issues/6238)

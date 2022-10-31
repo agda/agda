@@ -208,7 +208,8 @@ generateTokenInfoFromSource
      -- disk.
   -> TCM HighlightingInfo
 generateTokenInfoFromSource file input =
-  runPM $ tokenHighlighting . fst <$> Pa.parseFile Pa.tokensParser file input
+  runPM $ tokenHighlighting . fst . fst <$>
+          Pa.parseFile Pa.tokensParser file input
 
 -- | Generate and return the syntax highlighting information for the
 -- tokens in the given string, which is assumed to correspond to the
@@ -217,7 +218,8 @@ generateTokenInfoFromSource file input =
 generateTokenInfoFromString :: Range -> String -> TCM HighlightingInfo
 generateTokenInfoFromString r _ | r == noRange = return mempty
 generateTokenInfoFromString r s = do
-  runPM $ tokenHighlighting <$> Pa.parsePosString Pa.tokensParser p s
+  runPM $ tokenHighlighting . fst <$>
+          Pa.parsePosString Pa.tokensParser p s
   where
     Just p = P.rStart r
 

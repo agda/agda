@@ -1,3 +1,5 @@
+{-# OPTIONS --cohesion #-}
+
 module FlatDomInequality-1 where
 
 postulate

@@ -1,3 +1,5 @@
+{-# OPTIONS --cohesion #-}
+
 module _ where
 
 data Flat (@♭ A : Set) : Set where
