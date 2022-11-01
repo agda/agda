@@ -58,8 +58,10 @@ data NiceDeclaration
   | NiceOpen Range QName ImportDirective
   | NiceImport Range QName (Maybe AsName) OpenShortHand ImportDirective
   | NicePragma Range Pragma
-  | NiceRecSig Range Access IsAbstract PositivityCheck UniverseCheck Name [LamBinding] Expr
-  | NiceDataSig Range Access IsAbstract PositivityCheck UniverseCheck Name [LamBinding] Expr
+  | NiceRecSig Range Erased Access IsAbstract PositivityCheck
+      UniverseCheck Name [LamBinding] Expr
+  | NiceDataSig Range Erased Access IsAbstract PositivityCheck
+      UniverseCheck Name [LamBinding] Expr
   | NiceFunClause Range Access IsAbstract TerminationCheck CoverageCheck Catchall Declaration
     -- ^ An uncategorized function clause, could be a function clause
     --   without type signature or a pattern lhs (e.g. for irrefutable let).
@@ -173,7 +175,7 @@ isInterleavedData _ = Nothing
 
 interleavedDecl :: Name -> InterleavedDecl -> [(DeclNum, NiceDeclaration)]
 interleavedDecl k = \case
-  InterleavedData i d@(NiceDataSig _ acc abs pc uc _ pars _) ds ->
+  InterleavedData i d@(NiceDataSig _ _ acc abs pc uc _ pars _) ds ->
     let fpars   = concatMap dropTypeAndModality pars
         r       = getRange (k, fpars)
         ddef cs = NiceDataDef (getRange (r, cs)) UserWritten
@@ -211,8 +213,8 @@ instance HasRange NiceDeclaration where
   getRange (NiceDataDef r _ _ _ _ _ _ _)   = r
   getRange (NiceLoneConstructor r _)       = r
   getRange (NiceRecDef r _ _ _ _ _ _ _ _)  = r
-  getRange (NiceRecSig r _ _ _ _ _ _ _)    = r
-  getRange (NiceDataSig r _ _ _ _ _ _ _)   = r
+  getRange (NiceRecSig r _ _ _ _ _ _ _ _)  = r
+  getRange (NiceDataSig r _ _ _ _ _ _ _ _) = r
   getRange (NicePatternSyn r _ _ _ _)      = r
   getRange (NiceGeneralize r _ _ _ _ _)    = r
   getRange (NiceFunClause r _ _ _ _ _ _)   = r
@@ -231,8 +233,8 @@ instance Pretty NiceDeclaration where
     NiceOpen _ x _                 -> text "open" <+> pretty x
     NiceImport _ x _ _ _           -> text "import" <+> pretty x
     NicePragma{}                   -> text "{-# ... #-}"
-    NiceRecSig _ _ _ _ _ x _ _     -> text "record" <+> pretty x
-    NiceDataSig _ _ _ _ _ x _ _    -> text "data" <+> pretty x
+    NiceRecSig _ _ _ _ _ _ x _ _   -> text "record" <+> pretty x
+    NiceDataSig _ _ _ _ _ _ x _ _  -> text "data" <+> pretty x
     NiceFunClause{}                -> text "<function clause>"
     FunSig _ _ _ _ _ _ _ _ x _     -> pretty x <+> colon <+> text "_"
     FunDef _ _ _ _ _ _ x _         -> pretty x <+> text "= _"

@@ -83,7 +83,7 @@ compiling without erasure:
         []     -> z
         x ∷ xs -> foldl (\ n -> f (1 + n)) (f 0 z x) xs
 
-It is also possible to mark top-level definitions as erased. This
+It is also possible to mark top-level function definitions as erased. This
 guarantees that they are only used in erased arguments and can be
 useful to ensure that code intended only for compile-time evaluation
 is not executed at run time. (One can also use erased things in the
@@ -128,6 +128,40 @@ the bodies of such clauses. (There is an
 declared as erased, but that are treated as erased because they were
 defined using Cubical Agda, and are used in a module that uses the
 option :option:`--erased-cubical`.)
+
+Finally it is possible to mark data and record types as erased. Such
+types can only be used in erased positions, their constructors and
+projections are erased, and definitions in record modules for erased
+record types are erased. A data or record type is marked as erased by
+writing ``@0`` or ``@erased`` right after the ``data`` or ``record``
+keyword of the data or record type's declaration:
+
+::
+
+  data @0 D₁ : Set where
+    c : D₁
+
+  data @0 D₂ : Set
+
+  data D₂ where
+    c : D₁ → D₂
+
+  interleaved mutual
+
+    data @0 D₃ : Set where
+
+    data D₃ where
+      c : D₃
+
+  record @0 R₁ : Set where
+    field
+      x : D₁
+
+  record @0 R₂ : Set
+
+  record R₂ where
+    field
+      x : R₁
 
 .. _run-time-irrelevance-rules:
 

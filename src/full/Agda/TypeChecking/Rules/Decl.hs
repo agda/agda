@@ -172,8 +172,8 @@ checkDecl d = setCurrentRange d $ do
                                           ]
 
                                     return (blockId, Set.singleton x)
-      A.DataSig i x ps t       -> impossible $ checkSig DataName i x ps t
-      A.RecSig i x ps t        -> none $ checkSig RecName i x ps t
+      A.DataSig i er x ps t    -> impossible $ checkSig DataName i er x ps t
+      A.RecSig i er x ps t     -> none $ checkSig RecName i er x ps t
                                   -- A record signature is always followed by a
                                   -- record definition. Metas should not be
                                   -- frozen until after the definition has been
@@ -795,10 +795,13 @@ checkMutual i ds = inMutualBlock $ \ blockId -> defaultOpenLevelsToZero $ do
   (blockId, ) . mutualNames <$> lookupMutualBlock blockId
 
     -- check record or data type signature
-checkSig :: KindOfName -> A.DefInfo -> QName -> A.GeneralizeTelescope -> A.Expr -> TCM ()
-checkSig kind i x gtel t = checkTypeSignature' (Just gtel) $
-  A.Axiom kind i defaultArgInfo Nothing x t
-
+checkSig ::
+  KindOfName -> A.DefInfo -> Erased -> QName -> A.GeneralizeTelescope ->
+  A.Expr -> TCM ()
+checkSig kind i erased x gtel t =
+  checkTypeSignature' (Just gtel) $
+  A.Axiom kind i (setQuantity (asQuantity erased) defaultArgInfo)
+    Nothing x t
 
 -- | Type check the type signature of an inductive or recursive definition.
 checkTypeSignature :: A.TypeSignature -> TCM ()

@@ -37,6 +37,46 @@ Erasure
 
     @0 f≡ : f ≡ λ { unit → unit }
     f≡ = refl
+
+* One can now mark data and record types as erased (see
+  [#4743](https://github.com/agda/agda/issues/4743)).
+
+  If a data type is marked as erased, then it can only be used in
+  erased settings, and its constructors are erased. A data type is
+  marked as erased by writing `@0` or `@erased` right after the `data`
+  keyword of the data type's declaration:
+  ```agda
+  data @0 D₁ : Set where
+    c : D₁
+
+  data @0 D₂ : Set
+
+  data D₂ where
+    c : D₁ → D₂
+
+  interleaved mutual
+
+    data @0 D₃ : Set where
+
+    data D₃ where
+      c : D₃
+  ```
+
+  If a record type is marked as erased, then it can only be used in
+  erased settings, its constructors and fields are erased, and
+  definitions in the record module are erased. A record type is marked
+  as erased by writing `@0` or `@erased` right after the `record`
+  keyword of the record type's declaration:
+  ```agda
+  record @0 R₁ : Set where
+    field
+      x : D₁
+
+  record @0 R₂ : Set
+
+  record R₂ where
+    field
+      x : R₁
   ```
 
 Pragmas and Options

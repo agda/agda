@@ -188,3 +188,28 @@ module Issue4525 where
       @lock
       @tick where
       A → A
+
+-- Highlighting of erased data and record types.
+
+module Issue4743 where
+
+  data @0 D₁ : Set where
+
+  data @0 D₂ : Set
+
+  data D₂ where
+
+  interleaved mutual
+
+    data @0 D₃ : Set where
+
+    data D₃ where
+      @ω c : D₃
+
+  record @0 R₁ : Set where
+    @ω A : Set₁
+    A = Set
+
+  record @0 R₃ : Set
+
+  record R₃ where

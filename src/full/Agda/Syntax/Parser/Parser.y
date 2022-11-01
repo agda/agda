@@ -1204,7 +1204,14 @@ RHS
 -- Data declaration. Can be local.
 Data :: { Declaration }
 Data : 'data' Id TypedUntypedBindings ':' Expr 'where'
-            Declarations0       { Data (getRange ($1,$2,$3,$4,$5,$6,$7)) $2 $3 $5 $7 }
+            Declarations0
+       { Data (getRange ($1,$2,$3,$4,$5,$6,$7))
+           defaultErased $2 $3 $5 $7 }
+     | 'data' Attributes1 Id TypedUntypedBindings ':' Expr 'where'
+            Declarations0
+       {% onlyErased (List1.toList $2) >>= \e ->
+          return $ Data (getRange (($1,$2,$3,$4),($5,$6,$7,$8)))
+                     e $3 $4 $6 $8 }
 
   -- New cases when we already had a DataSig.  Then one can omit the sort.
      | 'data' Id TypedUntypedBindings 'where'
@@ -1212,8 +1219,12 @@ Data : 'data' Id TypedUntypedBindings ':' Expr 'where'
 
 -- Data type signature. Found in mutual blocks.
 DataSig :: { Declaration }
-DataSig : 'data' Id TypedUntypedBindings ':' Expr
-  { DataSig (getRange ($1,$2,$3,$4,$5)) $2 $3 $5 }
+DataSig
+  : 'data' Id TypedUntypedBindings ':' Expr
+    { DataSig (getRange ($1,$2,$3,$4,$5)) defaultErased $2 $3 $5 }
+  | 'data' Attributes1 Id TypedUntypedBindings ':' Expr
+    {% onlyErased (List1.toList $2) >>= \e ->
+       return $ DataSig (getRange ($1,$2,$3,$4,$5,$6)) e $3 $4 $6 }
 
 -- Andreas, 2012-03-16:  The Expr3NoCurly instead of Id in everything
 -- following 'record' is to remove the (harmless) shift/reduce conflict
@@ -1223,15 +1234,32 @@ DataSig : 'data' Id TypedUntypedBindings ':' Expr
 Record :: { Declaration }
 Record : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr 'where'
             RecordDeclarations
-         {% exprToName $2 >>= \ n -> let (dir, ds) = $7 in return $ Record (getRange ($1,$2,$3,$4,$5,$6,$7)) n dir $3 $5 ds }
+         {% exprToName $2 >>= \ n -> let (dir, ds) = $7 in
+            return $ Record (getRange ($1,$2,$3,$4,$5,$6,$7))
+                       defaultErased n dir $3 $5 ds }
+       | 'record' Attributes1 Expr3NoCurly TypedUntypedBindings ':' Expr
+            'where'
+            RecordDeclarations
+         {% onlyErased (List1.toList $2) >>= \e ->
+            exprToName $3                >>= \n ->
+            let (dir, ds) = $8 in
+            return $ Record (getRange (($1,$2,$3,$4),($5,$6,$7,$8)))
+                       e n dir $4 $6 ds }
        | 'record' Expr3NoCurly TypedUntypedBindings 'where'
             RecordDeclarations
          {% exprToName $2 >>= \ n -> let (dir, ds) = $5 in return $ RecordDef (getRange ($1,$2,$3,$4,$5)) n dir $3 ds }
 
 -- Record type signature. In mutual blocks.
 RecordSig :: { Declaration }
-RecordSig : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr
-  {% exprToName $2 >>= \ n -> return $ RecordSig (getRange ($1,$2,$3,$4,$5)) n $3 $5 }
+RecordSig
+  : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr
+    {% exprToName $2 >>= \n ->
+       return $ RecordSig (getRange ($1,$2,$3,$4,$5))
+                  defaultErased n $3 $5 }
+  | 'record' Attributes1 Expr3NoCurly TypedUntypedBindings ':' Expr
+    {% onlyErased (List1.toList $2) >>= \e ->
+       exprToName $3                >>= \n ->
+       return $ RecordSig (getRange ($1,$2,$3,$4,$5,$6)) e n $4 $6 }
 
 Constructor :: { Declaration }
 Constructor : 'data' '_' 'where' Declarations0

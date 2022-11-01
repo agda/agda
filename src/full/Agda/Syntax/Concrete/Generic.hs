@@ -219,12 +219,14 @@ instance ExprLike Declaration where
      FieldSig i t n e          -> FieldSig i (mapE t) n (mapE e)
      Field r fs                -> Field r                              $ map (mapExpr f) fs
      FunClause lhs rhs wh ca   -> FunClause (mapE lhs) (mapE rhs) (mapE wh) (mapE ca)
-     DataSig r x bs e          -> DataSig r x (mapE bs)                $ mapE e
+     DataSig r er x bs e       -> DataSig r er x (mapE bs)             $ mapE e
      DataDef r n bs cs         -> DataDef r n (mapE bs)                $ mapE cs
-     Data r n bs e cs          -> Data r n (mapE bs) (mapE e)          $ mapE cs
-     RecordSig r ind bs e      -> RecordSig r ind (mapE bs)            $ mapE e
+     Data r er n bs e cs       -> Data r er n (mapE bs) (mapE e)       $ mapE cs
+     RecordSig r er ind bs e   -> RecordSig r er ind (mapE bs)         $ mapE e
      RecordDef r n dir tel ds  -> RecordDef r n dir (mapE tel)         $ mapE ds
-     Record r n dir tel e ds   -> Record r n dir (mapE tel) (mapE e)   $ mapE ds
+     Record r er n dir tel e ds
+                               -> Record r er n dir (mapE tel) (mapE e)
+                                                                       $ mapE ds
      e@RecordDirective{}       -> e
      e@Infix{}                 -> e
      e@Syntax{}                -> e

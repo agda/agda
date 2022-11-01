@@ -83,6 +83,10 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                 DataOrRecSig n -> n
                 _              -> __IMPOSSIBLE__
 
+        -- If the data type is erased, then hard compile-time mode is
+        -- entered.
+        setHardCompileTimeModeIfErased' def $ do
+
         -- Make sure the shape of the type is visible
         let unTelV (TelV tel a) = telePi tel a
         t <- unTelV <$> telView t

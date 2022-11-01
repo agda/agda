@@ -1440,7 +1440,9 @@ instance ToAbstract Declarations where
      noUnsafePragma = \case
        C.Pragma pr                 -> warnUnsafePragma pr
        C.RecordDef r n dir lams ds -> C.RecordDef r n dir lams <$> mapM noUnsafePragma ds
-       C.Record r n dir lams e ds  -> C.Record r n dir lams e <$> mapM noUnsafePragma ds
+       C.Record r er n dir lams e ds
+                                   -> C.Record r er n dir lams e <$>
+                                      mapM noUnsafePragma ds
        C.Mutual r ds               -> C.Mutual r <$> mapM noUnsafePragma ds
        C.Abstract r ds             -> C.Abstract r <$> mapM noUnsafePragma ds
        C.Private r o ds            -> C.Private r o <$> mapM noUnsafePragma ds
@@ -1743,7 +1745,7 @@ instance ToAbstract NiceDeclaration where
       -- We only termination check blocks that do not have a measure.
       return [ A.Mutual (MutualInfo tc cc pc r) ds' ]
 
-    C.NiceRecSig r p a _pc _uc x ls t -> do
+    C.NiceRecSig r er p a _pc _uc x ls t -> do
       ensureNoLetStms ls
       withLocalVars $ do
         (ls', _) <- withCheckNoShadowing $
@@ -1755,9 +1757,9 @@ instance ToAbstract NiceDeclaration where
         f  <- getConcreteFixity x
         x' <- freshAbstractQName f x
         bindName' p RecName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
-        return [ A.RecSig (mkDefInfo x f p a r) x' ls' t' ]
+        return [ A.RecSig (mkDefInfo x f p a r) er x' ls' t' ]
 
-    C.NiceDataSig r p a pc uc x ls t -> do
+    C.NiceDataSig r er p a pc uc x ls t -> do
         reportSLn "scope.data.sig" 20 ("checking DataSig for " ++ prettyShow x)
         ensureNoLetStms ls
         withLocalVars $ do
@@ -1779,7 +1781,7 @@ instance ToAbstract NiceDeclaration where
                   typeError $ ClashingDefinition cn an (Just suggestion)
                 _ -> typeError err
             otherErr -> typeError otherErr
-          return [ A.DataSig (mkDefInfo x f p a r) x' ls' t' ]
+          return [ A.DataSig (mkDefInfo x f p a r) er x' ls' t' ]
 
   -- Type signatures
     C.FunSig r p a i m rel _ _ x t -> do
@@ -2628,7 +2630,8 @@ terminationPragmas (C.InstanceB _       ds) = concatMap terminationPragmas ds
 terminationPragmas (C.Mutual _          ds) = concatMap terminationPragmas ds
 terminationPragmas (C.Module _ _ _      ds) = concatMap terminationPragmas ds
 terminationPragmas (C.Macro _           ds) = concatMap terminationPragmas ds
-terminationPragmas (C.Record _ _ _ _ _  ds) = concatMap terminationPragmas ds
+terminationPragmas (C.Record _ _ _ _ _ _
+                                        ds) = concatMap terminationPragmas ds
 terminationPragmas (C.RecordDef _ _ _ _ ds) = concatMap terminationPragmas ds
 terminationPragmas (C.Pragma (TerminationCheckPragma r _)) = [(Termination, r)]
 terminationPragmas (C.Pragma (NoPositivityCheckPragma r))  = [(Positivity, r)]

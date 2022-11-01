@@ -436,9 +436,9 @@ instance Pretty Declaration where
       sep [ pretty lhs
           , nest 2 $ pretty rhs
           ] $$ nest 2 (pretty wh)
-    DataSig _ x tel e ->
+    DataSig _ erased x tel e ->
       sep [ hsep  [ "data"
-                  , pretty x
+                  , prettyErased erased (pretty x)
                   , fcat (map pretty tel)
                   ]
           , nest 2 $ hsep
@@ -446,9 +446,9 @@ instance Pretty Declaration where
                   , pretty e
                   ]
           ]
-    Data _ x tel e cs ->
+    Data _ erased x tel e cs ->
       sep [ hsep  [ "data"
-                  , pretty x
+                  , prettyErased erased (pretty x)
                   , fcat (map pretty tel)
                   ]
           , nest 2 $ hsep
@@ -464,9 +464,9 @@ instance Pretty Declaration where
                   ]
           , nest 2 $ "where"
           ] $$ nest 2 (vcat $ map pretty cs)
-    RecordSig _ x tel e ->
+    RecordSig _ erased x tel e ->
       sep [ hsep  [ "record"
-                  , pretty x
+                  , prettyErased erased (pretty x)
                   , fcat (map pretty tel)
                   ]
           , nest 2 $ hsep
@@ -474,10 +474,10 @@ instance Pretty Declaration where
                   , pretty e
                   ]
           ]
-    Record _ x dir tel e cs ->
-      pRecord x dir tel (Just e) cs
+    Record _ erased x dir tel e cs ->
+      pRecord erased x dir tel (Just e) cs
     RecordDef _ x dir tel cs ->
-      pRecord x dir tel Nothing cs
+      pRecord defaultErased x dir tel Nothing cs
     RecordDirective r -> pRecordDirective r
     Infix f xs  ->
       pretty f <+> fsep (punctuate comma $ fmap pretty xs)
@@ -548,16 +548,17 @@ pRecordDirective = \case
   PatternOrCopattern{} -> "pattern"
 
 pRecord
-  :: Name
+  :: Erased
+  -> Name
   -> RecordDirectives
   -> [LamBinding]
   -> Maybe Expr
   -> [Declaration]
   -> Doc
-pRecord x (RecordDirectives ind eta pat con) tel me ds = vcat
+pRecord erased x (RecordDirectives ind eta pat con) tel me ds = vcat
     [ sep
       [ hsep  [ "record"
-              , pretty x
+              , prettyErased erased (pretty x)
               , fcat (map pretty tel)
               ]
       , nest 2 $ pType me

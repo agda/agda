@@ -208,9 +208,9 @@ instance Hilite A.Declaration where
       A.Import mi x dir                      -> hl mi <> hl x <> hl dir
       A.Open mi x dir                        -> hl mi <> hl x <> hl dir
       A.FunDef _di x _delayed cs             -> hl x <> hl cs
-      A.DataSig _di x tel e                  -> hl x <> hl tel <> hl e
+      A.DataSig _di er x tel e               -> hl er <> hl x <> hl tel <> hl e
       A.DataDef _di x _uc pars cs            -> hl x <> hl pars <> hl cs
-      A.RecSig _di x tel e                   -> hl x <> hl tel <> hl e
+      A.RecSig _di er x tel e                -> hl er <> hl x <> hl tel <> hl e
       A.RecDef _di x _uc dir bs e ds         -> hl x <> hl dir <> hl bs <> hl e <> hl ds
       A.PatternSynDef x xs p                 -> hl x <> hl xs <> hl p
       A.UnquoteDecl _mi _di xs e             -> hl xs <> hl e

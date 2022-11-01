@@ -439,9 +439,9 @@ instance ExprLike Declaration where
       Pragma i p                -> Pragma i <$> rec p
       Open{}                    -> pure d
       FunDef i f d cs           -> FunDef i f d <$> rec cs
-      DataSig i d tel e         -> DataSig i d <$> rec tel <*> rec e
+      DataSig i er d tel e      -> DataSig i er d <$> rec tel <*> rec e
       DataDef i d uc bs cs      -> DataDef i d uc <$> rec bs <*> rec cs
-      RecSig i r tel e          -> RecSig i r <$> rec tel <*> rec e
+      RecSig i er r tel e       -> RecSig i er r <$> rec tel <*> rec e
       RecDef i r uc dir bs e ds -> RecDef i r uc dir <$> rec bs <*> rec e <*> rec ds
       PatternSynDef f xs p      -> PatternSynDef f xs <$> rec p
       UnquoteDecl i is xs e     -> UnquoteDecl i is xs <$> rec e
@@ -502,9 +502,9 @@ instance DeclaredNames Declaration where
       Field _ q _                  -> singleton (WithKind FldName q)
       Primitive _ q _              -> singleton (WithKind PrimName q)
       Mutual _ decls               -> declaredNames decls
-      DataSig _ q _ _              -> singleton (WithKind DataName q)
+      DataSig _ _ q _ _            -> singleton (WithKind DataName q)
       DataDef _ q _ _ decls        -> singleton (WithKind DataName q) <> foldMap con decls
-      RecSig _ q _ _               -> singleton (WithKind RecName q)
+      RecSig _ _ q _ _             -> singleton (WithKind RecName q)
       RecDef _ q _ dir _ _ decls   -> singleton (WithKind RecName q) <> declaredNames dir <> declaredNames decls
       PatternSynDef q _ _          -> singleton (WithKind PatternSynName q)
       UnquoteDecl _ _ qs _         -> fromList $ map (WithKind OtherDefName) qs  -- could be Fun or Axiom
