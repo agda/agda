@@ -34,7 +34,7 @@ Highlights
   30% faster than Agda 2.6.2.2 at type-checking the standard library
   with the `--without-K` flag, and 10% faster when using with the
   (new) `--cubical-compatible` flag instead (some details can be found
-  [here](https://github.com/agda/agda/issues/6049#issuecomment-1293698980).
+  [here](https://github.com/agda/agda/issues/6049#issuecomment-1293698980)).
 
 Installation and infrastructure
 -------------------------------
@@ -97,7 +97,7 @@ Erasure
 Cubical Agda
 ------------
 
-* The generation of Cubical Agda-specific support code was removed
+* [**Breaking**] The generation of Cubical Agda-specific support code was removed
   from `--without-K` and transferred to its own flag,
   `--cubical-compatible` (see
   [#5843](https://github.com/agda/agda/issues/5843) and
@@ -149,7 +149,7 @@ Cubical Agda
   longer considered for injectivity analysis.
   ([#6219](https://github.com/agda/agda/pull/6219))
 
-* Higher constructors are no longer considered as guarding in the productivity check.
+* [**Breaking**] Higher constructors are no longer considered as guarding in the productivity check.
   ([#6108](https://github.com/agda/agda/issues/6108))
 
 * Rewrite rules with interval arguments are now supported.
@@ -158,12 +158,12 @@ Cubical Agda
 The flat modality
 -----------------
 
-* The `@flat`/`@♭` modality is now by default disabled (see
+* [**Breaking**] The `@flat`/`@♭` modality is now by default disabled (see
   [#4927](https://github.com/agda/agda/issues/4927)).
 
   It can be enabled using the infective flag `--cohesion`.
 
-* Matching on `@flat` arguments is now disabled by default, the flag
+* [**Breaking**] Matching on `@flat` arguments is now disabled by default, the flag
   `--no-flat-split` has been removed, and the flag `--flat-split` is
   now infective (see [#6238](https://github.com/agda/agda/issues/6238)
   and [#6263](https://github.com/agda/agda/issues/6263)).
@@ -209,7 +209,7 @@ Reflection
     pickWhatever _ = typeError (strErr "Already solved!" ∷ [])
   ```
 
-* The reflection primitives `getContext` and `inContext` use a nominal context
+* [**Breaking**] The reflection primitives `getContext` and `inContext` use a nominal context
   `List (Σ String λ _ → Arg Type)` instead of  `List (Arg Type)` for printing
   type information better. Similarly, `extendContext` takes an extra argument
   of type `String`.
@@ -228,7 +228,7 @@ Reflection
 * A new reflection primitive `formatErrorParts : List ErrorPart → TC String`
   is added. It takes a list of `ErrorPart` and return its formatted string.
 
-* A new constructor `pattErr : Pattern → ErrorPart` of `ErrorPart` for reflection
+* [**Breaking**] A new constructor `pattErr : Pattern → ErrorPart` of `ErrorPart` for reflection
   is added.
 
 Syntax declarations
@@ -262,7 +262,7 @@ Syntax declarations
 Builtins
 --------
 
-* Change `primFloatToWord64` to return `Maybe Word64`.
+* [**Breaking**] Change `primFloatToWord64` to return `Maybe Word64`.
   (See [#6093](https://github.com/agda/agda/issues/6093).)
 
   The new type is
@@ -271,16 +271,16 @@ Builtins
   ```
   and it returns `nothing` for `NaN`.
 
-* The type expected by the builtin `EQUIVPROOF` has been changed to
+* [**Breaking**] The type expected by the builtin `EQUIVPROOF` has been changed to
   properly encode the condition that `EQUVIFUN` is an equivalence.
   ([#5661](https://github.com/agda/agda/issues/5661),
   [#6032](https://github.com/agda/agda/pull/6032))
 
-* The primitive `primIdJ` has been removed
+* [**Breaking**] The primitive `primIdJ` has been removed
   ([#6032](https://github.com/agda/agda/pull/6032)) in favour of
   matching on the cubical identity type.
 
-* The builtin `SUBIN` is now exported from `Agda.Builtin.Cubical.Sub` as
+* [**Breaking**] The builtin `SUBIN` is now exported from `Agda.Builtin.Cubical.Sub` as
   **`inS`** rather than `inc`. Similarly, the internal modules refer to
   `primSubOut` as `outS`. ([#6032](https://github.com/agda/agda/pull/6032))
 
@@ -309,7 +309,7 @@ Pragmas and options
   test = refl
   ```
 
-* Option `--experimental-lossy-unification` that turns on
+* [**Breaking**] Option `--experimental-lossy-unification` that turns on
   (the incomplete) first-order unification has been renamed to
   `--lossy-unification`.
   ([#1625](https://github.com/agda/agda/issues/1625))
@@ -334,7 +334,7 @@ Pragmas and options
   their arguments erased, which can cause confusing behaviour when they
   are printed instantiated (see [#6203](https://github.com/agda/agda/issues/6203)).
 
-* The options `--subtyping` and `--no-subtyping` have been removed
+* [**Breaking**] The options `--subtyping` and `--no-subtyping` have been removed
   (see [#5427](https://github.com/agda/agda/issues/5427)).
 
 Profiling and performance
@@ -342,7 +342,7 @@ Profiling and performance
 
 * New verbosity `-v debug.time:100` adds time stamps to debugging output.
 
-* Profiling options are now turned on with a new `--profile` flag
+* [**Breaking**] Profiling options are now turned on with a new `--profile` flag
   instead of abusing the debug verbosity option. (See
   [#5781](https://github.com/agda/agda/issues/5781).)
 
@@ -399,7 +399,7 @@ Interaction
 Compiler backends
 -----------------
 
-* Both the GHC and JS backends now refuse to compile code that uses
+* [**Breaking**] Both the GHC and JS backends now refuse to compile code that uses
   `--cubical`.
 
   Note that support for compiling code that uses `--erased-cubical`
@@ -432,7 +432,7 @@ DOT backend
 JSON API
 --------
 
-* The JSON API now represents meta-variables differently, using
+* [**Breaking**] The JSON API now represents meta-variables differently, using
   objects containing two keys, `id` and `module`, both with values
   that are (natural) numbers. See
   [#5731](https://github.com/agda/agda/issues/5731).
