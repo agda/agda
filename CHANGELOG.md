@@ -436,3 +436,82 @@ JSON API
   objects containing two keys, `id` and `module`, both with values
   that are (natural) numbers. See
   [#5731](https://github.com/agda/agda/issues/5731).
+
+
+Other issues closed
+--------------------
+
+For 2.6.3, the following issues were also closed (see [bug
+tracker](https://github.com/agda/agda/issues)):
+
+  - [#3986](https://github.com/agda/agda/issues/3986): Subtyping .A -> B <= A -> B leads to wrong ArgInfo
+  - [#4103](https://github.com/agda/agda/issues/4103): Rewrite rule rejected because of projection likeness
+  - [#4506](https://github.com/agda/agda/issues/4506): Lack of unicode support in locale may result in uncaught IOException
+  - [#4725](https://github.com/agda/agda/issues/4725): Cubical Agda: Program rejected by termination checker due to moved dot pattern
+  - [#4755](https://github.com/agda/agda/issues/4755): Rewrite rule on constructor uses wrong type for matching
+  - [#4763](https://github.com/agda/agda/issues/4763): Cubical Agda: Unquote anonymous copattern involving path
+  - [#5191](https://github.com/agda/agda/issues/5191): Unifier can use erased variables in non-erased data parameters
+  - [#5378](https://github.com/agda/agda/issues/5378): Internal error with tactic on record field
+  - [#5448](https://github.com/agda/agda/issues/5448): Should the predicate be erasable in the subst rule (without-K)
+  - [#5462](https://github.com/agda/agda/issues/5462): Internal error caused by a REWRITE on a projection-like function
+  - [#5468](https://github.com/agda/agda/issues/5468): Disallow certain forms of pattern matching when an index is erased
+  - [#5525](https://github.com/agda/agda/issues/5525): Duplicate entries in `executables` file lead to undefined behavior
+  - [#5548](https://github.com/agda/agda/issues/5548): Agda infers an incorrect type with subtyping on
+  - [#5551](https://github.com/agda/agda/issues/5551): Panic when showing module contents with pattern synonym
+  - [#5563](https://github.com/agda/agda/issues/5563): Allow erased names in the type signatures of let-bound definitions
+  - [#5577](https://github.com/agda/agda/issues/5577): The "Could not generate equivalence" warning is not always emitted
+  - [#5581](https://github.com/agda/agda/issues/5581): Lexical error with tab character in literate Agda text
+  - [#5589](https://github.com/agda/agda/issues/5589): Internal error with REWRITE of function from path
+  - [#5681](https://github.com/agda/agda/issues/5681): Panic on record declaration with unknown sort
+  - [#5702](https://github.com/agda/agda/issues/5702): Can't case split an `HitInt` with some already existing cases
+  - [#5715](https://github.com/agda/agda/issues/5715): Reflection: Use `Telescope` for `getContext`, `inContext`, and `extendContext`
+  - [#5727](https://github.com/agda/agda/issues/5727): Reducing universe levels before checking is not sufficient
+  - [#5728](https://github.com/agda/agda/issues/5728): Internal error when pattern matching on `...` in with statement without providing a pattern match
+  - [#5734](https://github.com/agda/agda/issues/5734): Relevance check in reflection
+  - [#5751](https://github.com/agda/agda/issues/5751): json interaction produces Haskell output for SolveAll
+  - [#5760](https://github.com/agda/agda/issues/5760): Some code related to Cubical Agda runs also when the K rule is on
+  - [#5763](https://github.com/agda/agda/issues/5763): Internal parser error using syntax rules
+  - [#5765](https://github.com/agda/agda/issues/5765): Erasure check failure when pattern matching on refl in erased definition
+  - [#5769](https://github.com/agda/agda/issues/5769): Parameter arguments of projections of instance-opened record type are not erased
+  - [#5775](https://github.com/agda/agda/issues/5775): JSON interaction produces fully qualified terms
+  - [#5794](https://github.com/agda/agda/issues/5794): Agsy/Auto crashes with `Prelude.!!: index too large`
+  - [#5823](https://github.com/agda/agda/issues/5823): Singleton check loops on recursive eta record
+  - [#5828](https://github.com/agda/agda/issues/5828): Agsy/Auto panics with `-r` in the presence of a pattern synonym
+  - [#5845](https://github.com/agda/agda/issues/5845): Internal error caused by abstracting `variables`
+  - [#5848](https://github.com/agda/agda/issues/5848): Internal error with `--confluence-check`
+  - [#5850](https://github.com/agda/agda/issues/5850): Warn about useless hiding in `variable` declaration
+  - [#5856](https://github.com/agda/agda/issues/5856): Lambda with irrefutable pattern is not rejected when used on Path
+  - [#5875](https://github.com/agda/agda/issues/5875): Instance Search breaks Termination Highlighting
+  - [#5891](https://github.com/agda/agda/issues/5891): SizeUniv : SizeUniv is inconsistent
+  - [#5901](https://github.com/agda/agda/issues/5901): Use emacs --batch mode in agda-mode setup
+  - [#5920](https://github.com/agda/agda/issues/5920): Erased constructors skipped in modality check
+  - [#5922](https://github.com/agda/agda/issues/5922): Failure of termination checking for reflection-generated code due to data projections
+  - [#5923](https://github.com/agda/agda/issues/5923): Internal error in rewriting
+  - [#5944](https://github.com/agda/agda/issues/5944): Internal error in rewriting with --two-level
+  - [#5953](https://github.com/agda/agda/issues/5953): Recursor of inductive-inductive type does not pass termination check in Cubical Agda
+  - [#5955](https://github.com/agda/agda/issues/5955): Composition of Glue Type Causes Infinite Loop
+  - [#5956](https://github.com/agda/agda/issues/5956): Cubical Agda crashes when printing empty system
+  - [#5966](https://github.com/agda/agda/issues/5966): Improved performance by switching to `vector-hashtables`
+  - [#5989](https://github.com/agda/agda/issues/5989): Dead-code elimination crashes function with private tactic argument
+  - [#6003](https://github.com/agda/agda/issues/6003): de Bruijn index out of scope when rewriting
+  - [#6006](https://github.com/agda/agda/issues/6006): Internal error rewriting with holes
+  - [#6015](https://github.com/agda/agda/issues/6015): Pi types and Partial types should not be considered inter-convertible
+  - [#6022](https://github.com/agda/agda/issues/6022): Private bindings in imported modules defeat check for binding of primIdFace/primIdPath
+  - [#6042](https://github.com/agda/agda/issues/6042): De Bruijn index out of scope when rewriting without-K
+  - [#6043](https://github.com/agda/agda/issues/6043): de Bruijn error on unexpected implicit argument
+  - [#6059](https://github.com/agda/agda/issues/6059): Non-terminating function over tuples passed with `--termination-depth=2`
+  - [#6066](https://github.com/agda/agda/issues/6066): Document the meaning of `pattern` without `no-eta-equality`
+  - [#6067](https://github.com/agda/agda/issues/6067): Another de Bruijn error in rewriting
+  - [#6073](https://github.com/agda/agda/issues/6073): Constraint solving does not honour singleton types
+  - [#6074](https://github.com/agda/agda/issues/6074): piSort/funSort of IUniv should be blocked on the codomain
+  - [#6076](https://github.com/agda/agda/issues/6076): Agda input mode (emacs): Minibuffer display for `\;` is strange
+  - [#6080](https://github.com/agda/agda/issues/6080): A space leak due to absName
+  - [#6082](https://github.com/agda/agda/issues/6082): Elaborate-and-give does not respect --postfix-projections
+  - [#6095](https://github.com/agda/agda/issues/6095): Ambiguous pattern synonyms broken with anonymous module
+  - [#6112](https://github.com/agda/agda/issues/6112): Internal error: non-confluent rewriting to singletons
+  - [#6203](https://github.com/agda/agda/issues/6203): Projection-likeness and instance arguments
+  - [#6205](https://github.com/agda/agda/issues/6205): Internal error with `withReconstructed`
+  - [#6244](https://github.com/agda/agda/issues/6244): Make `--no-load-primitives` not `--safe`
+  - [#6250](https://github.com/agda/agda/issues/6250): Documentation says `--sized-types` is the default when it isn't
+  - [#6257](https://github.com/agda/agda/issues/6257): Document options `--prop`, `--guarded`, and `--two-level`.
+  - [#6265](https://github.com/agda/agda/issues/6265): Some options should be listed in `restartOptions`
