@@ -2,6 +2,7 @@
   ::
   module language.termination-checking where
 
+      open import Agda.Builtin.Unit
       open import Agda.Builtin.Bool
       open import Agda.Builtin.Nat
 
@@ -78,6 +79,42 @@ below).
 
 In ``ack`` either the first argument decreases or it stays the same and the second one decreases.
 This is the same as a lexicographic ordering.
+
+.. _termination-checking-large-elimination:
+
+Large elimination and --without-K
+---------------------------------
+
+When type constructors are defined via recursive functions eliminating
+inductive terms rather than data type declarations or record type
+declarations, this is called large elimination. For example, here we
+define a trivial large elimination from unit to the naturals:
+
+::
+
+      F : ⊤ → Set
+      F tt = Nat
+
+We might then want to recurse over terms of this type to recursively
+convert them into just naturals for example:
+
+::
+
+      Nat-of-F : ∀ u → F u → Nat
+      Nat-of-F tt zero = zero
+      Nat-of-F tt (suc n) = suc (Nat-of-F tt n)
+
+If ``--without-K`` has been enabled, ``Nat-of-F`` will fail the
+termination analysis because structurally decreasing recursion that is
+dependent on pattern matching may cause type substitutions that are no
+longer structurally decreasing in the presence of cubical-compatible
+postulates (see `Issue #1023`_ for more information).
+
+However, if both ``--without-K`` and ``--safe`` have been enabled, no
+cubical-compatible postulates are accepted and so termination analysis
+reverts to the standard procedure used when axiom K is available.
+
+.. _`Issue #1023`: https://github.com/agda/agda/issues/1023
 
 .. _termination-checking-with:
 
