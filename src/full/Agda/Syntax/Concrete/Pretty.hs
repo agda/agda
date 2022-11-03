@@ -141,6 +141,9 @@ instance Pretty Quantity where
     Quantity1 o -> ifNull (pretty o) "@1" id
     Quantityω o -> pretty o
 
+instance Pretty Erased where
+  pretty = pretty . asQuantity
+
 instance Pretty Cohesion where
   pretty Flat   = "@♭"
   pretty Continuous = mempty
