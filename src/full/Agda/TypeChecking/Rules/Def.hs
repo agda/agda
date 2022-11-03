@@ -19,6 +19,7 @@ import Agda.Interaction.Options
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
+import qualified Agda.Syntax.Concrete.Pretty as C
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract.Pattern as A
 import qualified Agda.Syntax.Abstract as A
@@ -1224,7 +1225,7 @@ checkWhere wh@(A.WhereDecls whmod whNamed ds) ret = do
     loop = \case
       Nothing -> ret
       -- [A.ScopedDecl scope ds] -> withScope_ scope $ loop ds  -- IMPOSSIBLE
-      Just (A.Section _ m tel ds) -> newSection m tel $ do
+      Just (A.Section _ e m tel ds) -> newSection e m tel $ do
           localTC (\ e -> e { envCheckingWhere = True }) $ do
             checkDecls ds
             ret
@@ -1258,10 +1259,15 @@ checkWhere wh@(A.WhereDecls whmod whNamed ds) ret = do
 
 -- | Enter a new section during type-checking.
 
-newSection :: ModuleName -> A.GeneralizeTelescope -> TCM a -> TCM a
-newSection m gtel@(A.GeneralizeTel _ tel) cont = do
+newSection ::
+  Erased -> ModuleName -> A.GeneralizeTelescope -> TCM a -> TCM a
+newSection e m gtel@(A.GeneralizeTel _ tel) cont = do
+  -- If the section is erased, then hard compile-time mode is entered.
+  warnForPlentyInHardCompileTimeMode e
+  setHardCompileTimeModeIfErased e $ do
   reportSDoc "tc.section" 10 $
-    "checking section" <+> prettyTCM m <+> fsep (map prettyA tel)
+    "checking section" <+> (C.prettyErased e <$> prettyTCM m) <+>
+    fsep (map prettyA tel)
 
   checkGeneralizeTelescope gtel $ \ _ tel' -> do
     reportSDoc "tc.section" 10 $

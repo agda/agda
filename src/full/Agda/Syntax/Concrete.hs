@@ -368,7 +368,7 @@ data WhereClause' decls
   | AnyWhere Range decls
       -- ^ Ordinary @where@.  'Range' of the @where@ keyword.
       --   List of declarations can be empty.
-  | SomeWhere Range Name Access decls
+  | SomeWhere Range Erased Name Access decls
       -- ^ Named where: @module M where ds@.
       --   'Range' of the keywords @module@ and @where@.
       --   The 'Access' flag applies to the 'Name' (not the module contents!)
@@ -477,8 +477,9 @@ data Declaration
   | Primitive   Range [TypeSignature]
   | Open        Range QName ImportDirective
   | Import      Range QName (Maybe AsName) !OpenShortHand ImportDirective
-  | ModuleMacro Range  Name ModuleApplication !OpenShortHand ImportDirective
-  | Module      Range QName Telescope [Declaration]
+  | ModuleMacro Range Erased  Name ModuleApplication !OpenShortHand
+                ImportDirective
+  | Module      Range Erased QName Telescope [Declaration]
   | UnquoteDecl Range [Name] Expr
       -- ^ @unquoteDecl xs = e@
   | UnquoteDef  Range [Name] Expr
@@ -849,9 +850,9 @@ instance HasRange BoundName where
   getRange = getRange . boundName
 
 instance HasRange WhereClause where
-  getRange  NoWhere             = noRange
-  getRange (AnyWhere r ds)      = getRange (r, ds)
-  getRange (SomeWhere r x _ ds) = getRange (r, x, ds)
+  getRange  NoWhere               = noRange
+  getRange (AnyWhere r ds)        = getRange (r, ds)
+  getRange (SomeWhere r e x _ ds) = getRange (r, e, x, ds)
 
 instance HasRange ModuleApplication where
   getRange (SectionApp r _ _) = r
@@ -887,14 +888,15 @@ instance HasRange Declaration where
   getRange (Abstract r _)          = r
   getRange (Generalize r _)        = r
   getRange (Open r _ _)            = r
-  getRange (ModuleMacro r _ _ _ _) = r
+  getRange (ModuleMacro r _ _ _ _ _)
+                                   = r
   getRange (Import r _ _ _ _)      = r
   getRange (InstanceB r _)         = r
   getRange (Macro r _)             = r
   getRange (Private r _ _)         = r
   getRange (Postulate r _)         = r
   getRange (Primitive r _)         = r
-  getRange (Module r _ _ _)        = r
+  getRange (Module r _ _ _ _)      = r
   getRange (Infix f _)             = getRange f
   getRange (Syntax n _)            = getRange n
   getRange (PatternSyn r _ _ _)    = r
@@ -1046,8 +1048,11 @@ instance KillRange Declaration where
   killRange (Primitive _ t)         = killRange1 (Primitive noRange) t
   killRange (Open _ q i)            = killRange2 (Open noRange) q i
   killRange (Import _ q a o i)      = killRange3 (\q a -> Import noRange q a o) q a i
-  killRange (ModuleMacro _ n m o i) = killRange3 (\n m -> ModuleMacro noRange n m o) n m i
-  killRange (Module _ q t d)        = killRange3 (Module noRange) q t d
+  killRange (ModuleMacro _ e n m o i)
+                                    = killRange4
+                                        (\e n m -> ModuleMacro noRange e n m o)
+                                        e n m i
+  killRange (Module _ e q t d)      = killRange4 (Module noRange) e q t d
   killRange (UnquoteDecl _ x t)     = killRange2 (UnquoteDecl noRange) x t
   killRange (UnquoteDef _ x t)      = killRange2 (UnquoteDef noRange) x t
   killRange (UnquoteData _ xs cs t) = killRange3 (UnquoteData noRange) xs cs t
@@ -1161,9 +1166,10 @@ instance KillRange TypedBinding where
   killRange (TLet r ds)   = killRange2 TLet r ds
 
 instance KillRange WhereClause where
-  killRange NoWhere             = NoWhere
-  killRange (AnyWhere r d)      = killRange1 (AnyWhere noRange) d
-  killRange (SomeWhere r n a d) = killRange3 (SomeWhere noRange) n a d
+  killRange NoWhere               = NoWhere
+  killRange (AnyWhere r d)        = killRange1 (AnyWhere noRange) d
+  killRange (SomeWhere r e n a d) =
+    killRange4 (SomeWhere noRange) e n a d
 
 ------------------------------------------------------------------------
 -- NFData instances
@@ -1262,8 +1268,9 @@ instance NFData Declaration where
   rnf (Primitive _ a)         = rnf a
   rnf (Open _ a b)            = rnf a `seq` rnf b
   rnf (Import _ a b _ c)      = rnf a `seq` rnf b `seq` rnf c
-  rnf (ModuleMacro _ a b _ c) = rnf a `seq` rnf b `seq` rnf c
-  rnf (Module _ a b c)        = rnf a `seq` rnf b `seq` rnf c
+  rnf (ModuleMacro _ a b c _ d)
+                              = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+  rnf (Module _ a b c d)      = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
   rnf (UnquoteDecl _ a b)     = rnf a `seq` rnf b
   rnf (UnquoteDef _ a b)      = rnf a `seq` rnf b
   rnf (UnquoteData _ a b c)   = rnf a `seq` rnf b `seq` rnf c
@@ -1330,9 +1337,9 @@ instance NFData ModuleAssignment where
   rnf (ModuleAssignment a b c) = rnf a `seq` rnf b `seq` rnf c
 
 instance NFData a => NFData (WhereClause' a) where
-  rnf NoWhere             = ()
-  rnf (AnyWhere _ a)      = rnf a
-  rnf (SomeWhere _ a b c) = rnf a `seq` rnf b `seq` rnf c
+  rnf NoWhere               = ()
+  rnf (AnyWhere _ a)        = rnf a
+  rnf (SomeWhere _ a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
 
 instance NFData LamClause where
   rnf (LamClause a b c) = rnf (a, b, c)

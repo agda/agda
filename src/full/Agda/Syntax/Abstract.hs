@@ -167,14 +167,14 @@ data Declaration
   | Field      DefInfo QName (Arg Type)              -- ^ record field
   | Primitive  DefInfo QName (Arg Type)              -- ^ primitive function
   | Mutual     MutualInfo [Declaration]              -- ^ a bunch of mutually recursive definitions
-  | Section    Range ModuleName GeneralizeTelescope [Declaration]
-  | Apply      ModuleInfo ModuleName ModuleApplication ScopeCopyInfo ImportDirective
+  | Section    Range Erased ModuleName GeneralizeTelescope [Declaration]
+  | Apply      ModuleInfo Erased ModuleName ModuleApplication
+               ScopeCopyInfo ImportDirective
     -- ^ The @ImportDirective@ is for highlighting purposes.
   | Import     ModuleInfo ModuleName ImportDirective
     -- ^ The @ImportDirective@ is for highlighting purposes.
   | Pragma     Range      Pragma
   | Open       ModuleInfo ModuleName ImportDirective
-    -- ^ only retained for highlighting purposes
   | FunDef     DefInfo QName Delayed [Clause] -- ^ sequence of function clauses
   | DataSig    DefInfo Erased QName GeneralizeTelescope Type -- ^ lone data signature
   | DataDef    DefInfo QName UniverseCheck DataDefParams [Constructor]
@@ -232,7 +232,8 @@ data LetBinding
     -- ^ @LetBind info rel name type defn@
   | LetPatBind LetInfo Pattern Expr
     -- ^ Irrefutable pattern binding.
-  | LetApply ModuleInfo ModuleName ModuleApplication ScopeCopyInfo ImportDirective
+  | LetApply ModuleInfo Erased ModuleName ModuleApplication
+      ScopeCopyInfo ImportDirective
     -- ^ @LetApply mi newM (oldM args) renamings dir@.
     -- The @ImportDirective@ is for highlighting purposes.
   | LetOpen ModuleInfo ModuleName ImportDirective
@@ -594,8 +595,8 @@ instance Eq Declaration where
   Field a1 b1 c1                 == Field a2 b2 c2                 = (a1, b1, c1) == (a2, b2, c2)
   Primitive a1 b1 c1             == Primitive a2 b2 c2             = (a1, b1, c1) == (a2, b2, c2)
   Mutual a1 b1                   == Mutual a2 b2                   = (a1, b1) == (a2, b2)
-  Section a1 b1 c1 d1            == Section a2 b2 c2 d2            = (a1, b1, c1, d1) == (a2, b2, c2, d2)
-  Apply a1 b1 c1 d1 e1           == Apply a2 b2 c2 d2 e2           = (a1, b1, c1, d1, e1) == (a2, b2, c2, d2, e2)
+  Section a1 b1 c1 d1 e1         == Section a2 b2 c2 d2 e2         = (a1, b1, c1, d1, e1) == (a2, b2, c2, d2, e2)
+  Apply a1 b1 c1 d1 e1 f1        == Apply a2 b2 c2 d2 e2 f2        = (a1, b1, c1, d1, e1, f1) == (a2, b2, c2, d2, e2, f2)
   Import a1 b1 c1                == Import a2 b2 c2                = (a1, b1, c1) == (a2, b2, c2)
   Pragma a1 b1                   == Pragma a2 b2                   = (a1, b1) == (a2, b2)
   Open a1 b1 c1                  == Open a2 b2 c2                  = (a1, b1, c1) == (a2, b2, c2)
@@ -670,8 +671,8 @@ instance HasRange Declaration where
     getRange (Generalize _ i _ _ _)   = getRange i
     getRange (Field      i _ _      ) = getRange i
     getRange (Mutual     i _        ) = getRange i
-    getRange (Section    i _ _ _    ) = getRange i
-    getRange (Apply      i _ _ _ _)   = getRange i
+    getRange (Section    i _ _ _ _  ) = getRange i
+    getRange (Apply      i _ _ _ _ _) = getRange i
     getRange (Import     i _ _      ) = getRange i
     getRange (Primitive  i _ _      ) = getRange i
     getRange (Pragma     i _        ) = getRange i
@@ -729,7 +730,7 @@ instance HasRange WhereDeclarations where
 instance HasRange LetBinding where
     getRange (LetBind i _ _ _ _     ) = getRange i
     getRange (LetPatBind  i _ _      ) = getRange i
-    getRange (LetApply i _ _ _ _     ) = getRange i
+    getRange (LetApply i _ _ _ _ _   ) = getRange i
     getRange (LetOpen  i _ _         ) = getRange i
     getRange (LetDeclaredVariable x)  = getRange x
 
@@ -806,8 +807,8 @@ instance KillRange Declaration where
   killRange (Generalize s i j x e     ) = killRange4 (Generalize s) i j x e
   killRange (Field      i a b         ) = killRange3 Field      i a b
   killRange (Mutual     i a           ) = killRange2 Mutual     i a
-  killRange (Section    i a b c       ) = killRange4 Section    i a b c
-  killRange (Apply      i a b c d     ) = killRange5 Apply      i a b c d
+  killRange (Section    i a b c d     ) = killRange5 Section    i a b c d
+  killRange (Apply      i a b c d e   ) = killRange6 Apply      i a b c d e
   killRange (Import     i a b         ) = killRange3 Import     i a b
   killRange (Primitive  i a b         ) = killRange3 Primitive  i a b
   killRange (Pragma     i a           ) = Pragma (killRange i) a
@@ -875,7 +876,7 @@ instance KillRange WhereDeclarations where
 instance KillRange LetBinding where
   killRange (LetBind   i info a b c) = killRange5 LetBind i info a b c
   killRange (LetPatBind i a b       ) = killRange3 LetPatBind i a b
-  killRange (LetApply   i a b c d   ) = killRange5 LetApply i a b c d
+  killRange (LetApply   i a b c d e ) = killRange6 LetApply i a b c d e
   killRange (LetOpen    i x dir     ) = killRange3 LetOpen  i x dir
   killRange (LetDeclaredVariable x)  = killRange1 LetDeclaredVariable x
 
@@ -929,7 +930,7 @@ instance AnyAbstract Declaration where
   anyAbstract (Field i _ _)          = defAbstract i == AbstractDef
   anyAbstract (Mutual     _ ds)      = anyAbstract ds
   anyAbstract (ScopedDecl _ ds)      = anyAbstract ds
-  anyAbstract (Section _ _ _ ds)     = anyAbstract ds
+  anyAbstract (Section _ _ _ _ ds)   = anyAbstract ds
   anyAbstract (FunDef i _ _ _)       = defAbstract i == AbstractDef
   anyAbstract (DataDef i _ _ _ _)    = defAbstract i == AbstractDef
   anyAbstract (RecDef i _ _ _ _ _ _) = defAbstract i == AbstractDef
@@ -1163,8 +1164,8 @@ declarationSpine = \case
   Field _ _ _             -> FieldS
   Primitive _ _ _         -> PrimitiveS
   Mutual _ ds             -> MutualS (map declarationSpine ds)
-  Section _ _ _ ds        -> SectionS (map declarationSpine ds)
-  Apply _ _ _ _ _         -> ApplyS
+  Section _ _ _ _ ds      -> SectionS (map declarationSpine ds)
+  Apply _ _ _ _ _ _       -> ApplyS
   Import _ _ _            -> ImportS
   Pragma _ _              -> PragmaS
   Open _ _ _              -> OpenS

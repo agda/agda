@@ -1704,7 +1704,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         -- We add all the bindings to the context.
         foldr (uncurry4 $ flip addLetBinding UserWritten) ret $ List.zip4 infos xs sigma ts
 
-checkLetBinding (A.LetApply i x modapp copyInfo _adir) ret = do
+checkLetBinding (A.LetApply i erased x modapp copyInfo dir) ret = do
   -- Any variables in the context that doesn't belong to the current
   -- module should go with the new module.
   -- Example: @f x y = let open M t in u@.
@@ -1719,7 +1719,12 @@ checkLetBinding (A.LetApply i x modapp copyInfo _adir) ret = do
     , "module  =" <+> (prettyTCM =<< currentModule)
     , "fv      =" <+> text (show fv)
     ]
-  checkSectionApplication i x modapp copyInfo
+  checkSectionApplication i erased x modapp copyInfo
+    -- Some other part of the code ensures that "open public" is
+    -- ignored in let expressions. Thus there is no need for
+    -- checkSectionApplication to throw an error if the import
+    -- directive does contain "open public".
+    dir{ publicOpen = Nothing }
   withAnonymousModule x new ret
 -- LetOpen and LetDeclaredVariable are only used for highlighting.
 checkLetBinding A.LetOpen{} ret = ret

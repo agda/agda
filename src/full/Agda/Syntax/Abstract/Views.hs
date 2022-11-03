@@ -109,12 +109,15 @@ deepUnscopeDecls :: [A.Declaration] -> [A.Declaration]
 deepUnscopeDecls = concatMap deepUnscopeDecl
 
 deepUnscopeDecl :: A.Declaration -> [A.Declaration]
-deepUnscopeDecl (A.ScopedDecl _ ds)              = deepUnscopeDecls ds
-deepUnscopeDecl (A.Mutual i ds)                  = [A.Mutual i (deepUnscopeDecls ds)]
-deepUnscopeDecl (A.Section i m tel ds)           = [A.Section i m (deepUnscope tel) (deepUnscopeDecls ds)]
-deepUnscopeDecl (A.RecDef i x uc dir bs e ds) =
-  [ A.RecDef i x uc dir (deepUnscope bs) (deepUnscope e) (deepUnscopeDecls ds) ]
-deepUnscopeDecl d                                = [deepUnscope d]
+deepUnscopeDecl = \case
+  A.ScopedDecl _ ds           -> deepUnscopeDecls ds
+  A.Mutual i ds               -> [A.Mutual i (deepUnscopeDecls ds)]
+  A.Section i e m tel ds      -> [A.Section i e m (deepUnscope tel)
+                                   (deepUnscopeDecls ds)]
+  A.RecDef i x uc dir bs e ds -> [ A.RecDef i x uc dir (deepUnscope bs)
+                                     (deepUnscope e)
+                                     (deepUnscopeDecls ds) ]
+  d                           -> [deepUnscope d]
 
 -- * Traversal
 ---------------------------------------------------------------------------
@@ -433,8 +436,8 @@ instance ExprLike Declaration where
       Field i x e               -> Field i x <$> rec e
       Primitive i x e           -> Primitive i x <$> rec e
       Mutual i ds               -> Mutual i <$> rec ds
-      Section i m tel ds        -> Section i m <$> rec tel <*> rec ds
-      Apply i m a ci d          -> (\ a -> Apply i m a ci d) <$> rec a
+      Section i e m tel ds      -> Section i e m <$> rec tel <*> rec ds
+      Apply i e m a ci d        -> (\a -> Apply i e m a ci d) <$> rec a
       Import{}                  -> pure d
       Pragma i p                -> Pragma i <$> rec p
       Open{}                    -> pure d
@@ -512,7 +515,7 @@ instance DeclaredNames Declaration where
       UnquoteData _ d _ _ cs _     -> singleton (WithKind DataName d) <> (fromList $ map (WithKind ConName) cs) -- singleton _ <> map (WithKind ConName) cs
       FunDef _ q _ cls             -> singleton (WithKind FunName q) <> declaredNames cls
       ScopedDecl _ decls           -> declaredNames decls
-      Section _ _ _ decls          -> declaredNames decls
+      Section _ _ _ _ decls        -> declaredNames decls
       Pragma _ pragma              -> declaredNames pragma
       Apply{}                      -> mempty
       Import{}                     -> mempty

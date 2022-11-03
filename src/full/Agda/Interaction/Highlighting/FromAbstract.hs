@@ -203,8 +203,9 @@ instance Hilite A.Declaration where
       A.Field _di x e                        -> hlField x <> hl e
       A.Primitive _di x e                    -> hl x <> hl e
       A.Mutual _mi ds                        -> hl ds
-      A.Section _r x tel ds                  -> hl x <> hl tel <> hl ds
-      A.Apply mi x a _ci dir                 -> hl mi <> hl x <> hl a <> hl dir
+      A.Section _r er x tel ds               -> hl er <> hl x <> hl tel <> hl ds
+      A.Apply mi er x a _ci dir              -> hl mi <> hl er <> hl x <>
+                                                hl a <> hl dir
       A.Import mi x dir                      -> hl mi <> hl x <> hl dir
       A.Open mi x dir                        -> hl mi <> hl x <> hl dir
       A.FunDef _di x _delayed cs             -> hl x <> hl cs
@@ -352,8 +353,9 @@ instance Hilite A.LetBinding where
   hilite = \case
       A.LetBind    _r ai x t e     -> hl ai <> hl x <> hl t <> hl e
       A.LetPatBind _r p e          -> hl p  <> hl e
-      A.LetApply   mi x es _ci dir -> hl mi <> hl x <> hl es <> hl dir
-      A.LetOpen    mi x dir        -> hl mi <> hl x <> hl dir
+      A.LetApply mi er x es _c dir -> hl mi <> hl er <> hl x <>
+                                      hl es <> hl dir
+      A.LetOpen mi x dir           -> hl mi <> hl x <> hl dir
       A.LetDeclaredVariable x      -> hl x
     where
     hl x = hilite x

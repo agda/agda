@@ -189,9 +189,9 @@ instance PrettyTCM Call where
 
     SetRange r -> fsep (pwords "when doing something at") <+> prettyTCM r
 
-    CheckSectionApplication _ m1 modapp -> fsep $
+    CheckSectionApplication _ erased m1 modapp -> fsep $
       pwords "when checking the module application" ++
-      [prettyA $ A.Apply info m1 modapp initCopyInfo empty]
+      [prettyA $ A.Apply info erased m1 modapp initCopyInfo empty]
       where
       info = A.ModuleInfo noRange noRange Nothing Nothing Nothing
 

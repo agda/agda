@@ -189,7 +189,7 @@ module Issue4525 where
       @tick where
       A → A
 
--- Highlighting of erased data and record types.
+-- Highlighting of erased data and record types and modules.
 
 module Issue4743 where
 
@@ -213,3 +213,15 @@ module Issue4743 where
   record @0 R₃ : Set
 
   record R₃ where
+
+  module @0 _ where
+
+  module @0 M₁ where
+
+  F : let module @0 M₂ = M₁ in Set₁
+  F = Set
+    module @0 @plenty @lock _ where
+      @plenty A : Set₁
+      A = Set
+
+  module @0 M₂ = M₁

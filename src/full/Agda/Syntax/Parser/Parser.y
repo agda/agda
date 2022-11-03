@@ -1110,10 +1110,17 @@ HoleContent
 -- Where clauses are optional.
 WhereClause :: { WhereClause }
 WhereClause
-    : {- empty -}                               { NoWhere }
-    |                     'where' Declarations0 { AnyWhere  (getRange $1) $2 }
-    | 'module' Id         'where' Declarations0 { SomeWhere (getRange ($1,$3)) $2 PublicAccess $4 }
-    | 'module' Underscore 'where' Declarations0 { SomeWhere (getRange ($1,$3)) $2 PublicAccess $4 }
+    : {- empty -} { NoWhere }
+    |                                'where' Declarations0
+        { AnyWhere  (getRange $1) $2 }
+    | 'module' Attributes Id         'where' Declarations0
+         {% onlyErased $2 >>= \erased ->
+            return $ SomeWhere (getRange ($1,$4)) erased
+                       $3 PublicAccess $5 }
+    | 'module' Attributes Underscore 'where' Declarations0
+         {% onlyErased $2 >>= \erased ->
+            return $ SomeWhere (getRange ($1,$4)) erased
+                       $3 PublicAccess $5 }
   -- Note: The access modifier is a dummy, it is computed in the nicifier.
 
 ExprWhere :: { ExprWhere }
@@ -1436,7 +1443,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
     ; impStm asR = Import noRange m (Just (AsName (Right fresh) asR)) DontOpen defaultImportDir
     ; appStm m' es =
         Private r Inserted
-          [ ModuleMacro r m'
+          [ ModuleMacro r defaultErased m'
              (SectionApp (getRange es) []
                (rawApp (Ident (QName fresh) :| es)))
              doOpen dir
@@ -1483,16 +1490,19 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
       case es of
       { []  -> Open r m dir
       ; _   -> Private r Inserted
-                 [ ModuleMacro r (noName $ beginningOf $ getRange m)
-                             (SectionApp (getRange (m , es)) [] (rawApp (Ident m :| es)))
-                             DoOpen dir
+                 [ ModuleMacro r defaultErased
+                     (noName $ beginningOf $ getRange m)
+                     (SectionApp (getRange (m , es)) []
+                        (rawApp (Ident m :| es)))
+                     DoOpen dir
                  ]
       }
   }
   | 'open' ModuleName '{{' '...' DoubleCloseBrace ImportDirective {
     let r = getRange $2 in singleton $
       Private r Inserted
-      [ ModuleMacro r (noName $ beginningOf $ getRange $2) (RecordModuleInstance r $2) DoOpen $6
+      [ ModuleMacro r defaultErased (noName $ beginningOf $ getRange $2)
+          (RecordModuleInstance r $2) DoOpen $6
       ]
   }
 
@@ -1511,19 +1521,37 @@ ModuleApplication : ModuleName '{{' '...' DoubleCloseBrace { (\ts ->
 
 -- Module instantiation
 ModuleMacro :: { Declaration }
-ModuleMacro : 'module' ModuleName TypedUntypedBindings '=' ModuleApplication ImportDirective
-                    {% do { ma <- $5 (map addType $3)
-                          ; name <- ensureUnqual $2
-                          ; return $ ModuleMacro (getRange ($1, $2, ma, $6)) name ma DontOpen $6 } }
-            | 'open' 'module' Id TypedUntypedBindings '=' ModuleApplication ImportDirective
-                    {% do {ma <- $6 (map addType $4); return $ ModuleMacro (getRange ($1, $2, $3, ma, $7)) $3 ma DoOpen $7 } }
+ModuleMacro
+  : 'module' Attributes ModuleName TypedUntypedBindings '='
+      ModuleApplication ImportDirective
+    {% do { ma     <- $6 (map addType $4)
+          ; erased <- onlyErased $2
+          ; name   <- ensureUnqual $3
+          ; return $ ModuleMacro (getRange ($1, $2, $3, ma, $7))
+                       erased name ma DontOpen $7
+          }
+    }
+  | 'open' 'module' Attributes Id TypedUntypedBindings '='
+      ModuleApplication ImportDirective
+    {% do { ma     <- $7 (map addType $5)
+          ; erased <- onlyErased $3
+          ; return $ ModuleMacro (getRange ($1, $2, $3, $4, ma, $8))
+                       erased $4 ma DoOpen $8
+          } }
 
 -- Module
 Module :: { Declaration }
-Module : 'module' ModuleName TypedUntypedBindings 'where' Declarations0
-                    { Module (getRange ($1,$2,$3,$4,$5)) $2 (map addType $3) $5 }
-       | 'module' Underscore TypedUntypedBindings 'where' Declarations0
-                    { Module (getRange ($1,$2,$3,$4,$5)) (QName $2) (map addType $3) $5 }
+Module
+  : 'module' Attributes ModuleName TypedUntypedBindings 'where'
+      Declarations0
+    {% onlyErased $2 >>= \erased ->
+       return $ Module (getRange ($1,$2,$3,$4,$5,$6)) erased
+                  $3 (map addType $4) $6 }
+  | 'module' Attributes Underscore TypedUntypedBindings 'where'
+      Declarations0
+    {% onlyErased $2 >>= \erased ->
+       return $ Module (getRange ($1,$2,$3,$4,$5,$6)) erased
+                  (QName $3) (map addType $4) $6 }
 
 Underscore :: { Name }
 Underscore : '_' { noName (getRange $1) }
@@ -1870,20 +1898,21 @@ figureOutTopLevelModule ds =
 
     -- Case 2: The declarations in the module are not indented.
     -- This is allowed for the top level module, and thus rectified here.
-    (ds0, Module r m tel [] : ds2) -> ds0 ++ [Module r m tel ds2]
+    (ds0, Module r erased m tel [] : ds2) ->
+      ds0 ++ [Module r erased m tel ds2]
 
     -- Case 3: There is a module with indented declarations,
     -- followed by non-indented declarations.  This should be a
     -- parse error and be reported later (see @toAbstract TopLevel{}@),
     -- thus, we do not do anything here.
-    (ds0, Module r m tel ds1 : ds2) -> ds  -- Gives parse error in scope checker.
+    (ds0, Module r _ m tel ds1 : ds2) -> ds  -- Gives parse error in scope checker.
     -- OLD code causing issue 1388:
     -- (ds0, Module r m tel ds1 : ds2) -> ds0 ++ [Module r m tel $ ds1 ++ ds2]
 
     -- Case 4: a top-level module declaration is missing.
     -- Andreas, 2017-01-01, issue #2229:
     -- Put everything (except OPTIONS pragmas) into an anonymous module.
-    _ -> ds0 ++ [Module r (QName $ noName r) [] ds1]
+    _ -> ds0 ++ [Module r defaultErased (QName $ noName r) [] ds1]
       where
       (ds0, ds1) = (`span` ds) $ \case
         Pragma OptionsPragma{} -> True

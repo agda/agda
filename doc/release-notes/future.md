@@ -38,7 +38,7 @@ Erasure
     @0 f≡ : f ≡ λ { unit → unit }
     f≡ = refl
 
-* One can now mark data and record types as erased (see
+* One can now mark data and record types and modules as erased (see
   [#4743](https://github.com/agda/agda/issues/4743)).
 
   If a data type is marked as erased, then it can only be used in
@@ -78,6 +78,32 @@ Erasure
     field
       x : R₁
   ```
+
+  If a module is marked as erased, then all definitions inside the
+  module are erased. A module is marked as erased by writing `@0` or
+  `@erased` right after the `module` keyword:
+  ```agda
+  module @0 _ where
+
+    F : @0 Set → Set
+    F A = A
+
+  module M (A : Set) where
+
+    record R : Set where
+      field
+        @0 x : A
+
+  module @0 N (@0 A : Set) = M A
+
+  G : (@0 A : Set) → let module @0 M₂ = M A in Set
+  G A = M.R B
+    module @0 _ where
+      B : Set
+      B = A
+  ```
+  If an erased module is defined by a module application, then erased
+  names can be used in the application, as in the definition of `N` above.
 
 Pragmas and Options
 -------------------

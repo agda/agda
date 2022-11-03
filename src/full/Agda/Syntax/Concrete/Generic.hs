@@ -243,8 +243,9 @@ instance ExprLike Declaration where
      Generalize r ds           -> Generalize r                         $ mapE ds
      e@Open{}                  -> e
      e@Import{}                -> e
-     ModuleMacro r n es op dir -> ModuleMacro r n (mapE es) op dir
-     Module r n tel ds         -> Module r n (mapE tel)                $ mapE ds
+     ModuleMacro r e n es op dir
+                               -> ModuleMacro r e n (mapE es) op dir
+     Module r e n tel ds       -> Module r e n (mapE tel)              $ mapE ds
      UnquoteDecl r x e         -> UnquoteDecl r x (mapE e)
      UnquoteDef r x e          -> UnquoteDef r x (mapE e)
      UnquoteData r x xs e      -> UnquoteData r x xs (mapE e)

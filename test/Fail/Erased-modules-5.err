@@ -1,0 +1,3 @@
+Erased-modules-5.agda:13,5-8
+Identifier N.B is declared erased, so it cannot be used here
+when checking that the expression N.B has type Set → Set

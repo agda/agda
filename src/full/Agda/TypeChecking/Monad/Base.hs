@@ -355,7 +355,7 @@ type CurrentTypeCheckLog = [(TypeCheckAction, PostScopeState)]
 --
 --   * 'LeaveSection', leaving the main module.
 data TypeCheckAction
-  = EnterSection !ModuleName !A.Telescope
+  = EnterSection !Erased !ModuleName !A.Telescope
   | LeaveSection !ModuleName
   | Decl !A.Declaration
     -- ^ Never a Section or ScopeDecl
@@ -3183,7 +3183,7 @@ data Call
   | CheckIsEmpty Range Type
   | CheckConfluence QName QName
   | CheckWithFunctionType Type
-  | CheckSectionApplication Range ModuleName A.ModuleApplication
+  | CheckSectionApplication Range Erased ModuleName A.ModuleApplication
   | CheckNamedWhere ModuleName
   -- | Checking a clause for confluence with endpoint reductions. Always
   -- @φ ⊢ f vs = rhs@ for now, but we store the simplifications of
@@ -3272,7 +3272,7 @@ instance HasRange Call where
     getRange (ScopeCheckLHS _ p)                 = getRange p
     getRange (CheckDotPattern e _)               = getRange e
     getRange (SetRange r)                        = r
-    getRange (CheckSectionApplication r _ _)     = r
+    getRange (CheckSectionApplication r _ _ _)   = r
     getRange (CheckIsEmpty r _)                  = r
     getRange (CheckConfluence rule1 rule2)       = max (getRange rule1) (getRange rule2)
     getRange NoHighlighting                      = noRange

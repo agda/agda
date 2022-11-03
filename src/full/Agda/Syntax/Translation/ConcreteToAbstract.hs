@@ -200,8 +200,9 @@ recordConstructorType decls =
         -- proper declarations.
         C.NiceOpen r m dir -> do
           mkLet $ C.NiceOpen r m dir{ publicOpen = Nothing }
-        C.NiceModuleMacro r p x modapp open dir -> do
-          mkLet $ C.NiceModuleMacro r p x modapp open dir{ publicOpen = Nothing }
+        C.NiceModuleMacro r p e x modapp open dir -> do
+          mkLet $ C.NiceModuleMacro r p e x modapp open
+                    dir{ publicOpen = Nothing }
 
         -- Do some rudimentary matching here to get NotValidBeforeField instead
         -- of NotAValidLetDecl.
@@ -288,6 +289,7 @@ checkModuleApplication (C.RecordModuleInstance _ recN) m0 x dir' =
 checkModuleMacro
   :: (ToConcrete a, Pretty (ConOfAbs a))
   => (ModuleInfo
+      -> Erased
       -> ModuleName
       -> A.ModuleApplication
       -> ScopeCopyInfo
@@ -296,12 +298,13 @@ checkModuleMacro
   -> OpenKind
   -> Range
   -> Access
+  -> Erased
   -> C.Name
   -> C.ModuleApplication
   -> OpenShortHand
   -> C.ImportDirective
   -> ScopeM a
-checkModuleMacro apply kind r p x modapp open dir = do
+checkModuleMacro apply kind r p e x modapp open dir = do
     reportSDoc "scope.decl" 70 $ vcat $
       [ text $ "scope checking ModuleMacro " ++ prettyShow x
       ]
@@ -353,7 +356,7 @@ checkModuleMacro apply kind r p x modapp open dir = do
     reportSDoc "scope.decl" 90 $ "after stripNo: m0 =" <+> prettyA m0
 
     let m      = m0 `withRangesOf` singleton x
-        adecl  = apply info m modapp' copyInfo adir
+        adecl  = apply info e m modapp' copyInfo adir
 
     reportSDoc "scope.decl" 70 $ vcat $
       [ text $ "scope checked ModuleMacro " ++ prettyShow x
@@ -809,7 +812,7 @@ toAbstractLam r bs e ctx = do
 -- | Scope check extended lambda expression.
 scopeCheckExtendedLam ::
   Range -> Erased -> List1 C.LamClause -> ScopeM A.Expr
-scopeCheckExtendedLam r erased cs = do
+scopeCheckExtendedLam r e cs = do
   whenM isInsideDotPattern $
     genericError "Extended lambdas are not allowed in dot patterns"
 
@@ -841,7 +844,7 @@ scopeCheckExtendedLam r erased cs = do
     A.ScopedDecl si [A.FunDef di qname' NotDelayed cs] -> do
       setScope si  -- This turns into an A.ScopedExpr si $ A.ExtendedLam...
       return $
-        A.ExtendedLam (ExprRange r) di erased qname' $
+        A.ExtendedLam (ExprRange r) di e qname' $
         List1.fromListSafe __IMPOSSIBLE__ cs
     _ -> __IMPOSSIBLE__
 
@@ -1045,11 +1048,12 @@ instance ToAbstract C.ModuleAssignment where
     | null es && isDefaultImportDir i = (, Nothing) <$> toAbstract (OldModuleName m)
     | otherwise = do
         x <- C.NoName (getRange m) <$> fresh
-        r <- checkModuleMacro LetApply LetOpenModule (getRange (m, es, i)) PublicAccess x
+        r <- checkModuleMacro LetApply LetOpenModule
+               (getRange (m, es, i)) PublicAccess defaultErased x
                (C.SectionApp (getRange (m , es)) [] (rawApp (Ident m :| es)))
                DontOpen i
         case r of
-          LetApply _ m' _ _ _ -> return (m', Just r)
+          LetApply _ _ m' _ _ _ -> return (m', Just r)
           _ -> __IMPOSSIBLE__
 
 instance ToAbstract c => ToAbstract (FieldAssignment' c) where
@@ -1114,12 +1118,13 @@ instance ToAbstract C.TypedBinding where
 scopeCheckNiceModule
   :: Range
   -> Access
+  -> Erased
   -> C.Name
   -> C.Telescope
   -> ScopeM [A.Declaration]
   -> ScopeM A.Declaration
        -- ^ The returned declaration is an 'A.Section'.
-scopeCheckNiceModule r p name tel checkDs
+scopeCheckNiceModule r p e name tel checkDs
   | telHasOpenStmsOrModuleMacros tel = do
       -- Andreas, 2013-12-10:
       -- If the module telescope contains open statements
@@ -1129,7 +1134,7 @@ scopeCheckNiceModule r p name tel checkDs
       -- identifiers in the parent scope of the current module.
       -- But open statements in the module telescope should
       -- only affect the current module!
-      scopeCheckNiceModule noRange p noName_ [] $ singleton <$>
+      scopeCheckNiceModule noRange p e noName_ [] $ singleton <$>
         scopeCheckNiceModule_ PublicAccess  -- See #4350
 
   | otherwise = do
@@ -1150,7 +1155,7 @@ scopeCheckNiceModule r p name tel checkDs
       -- Check and bind the module, using the supplied check for its contents.
       aname <- toAbstract (NewModuleName name)
       d <- snd <$> do
-        scopeCheckModule r (C.QName name) aname tel checkDs
+        scopeCheckModule r e (C.QName name) aname tel checkDs
       bindModule p' name aname
 
       -- If the module was anonymous open it public
@@ -1225,13 +1230,14 @@ instance EnsureNoLetStms a => EnsureNoLetStms [a] where
 -- | Returns the scope inside the checked module.
 scopeCheckModule
   :: Range                   -- ^ The range of the module.
+  -> Erased                  -- ^ Is the module erased?
   -> C.QName                 -- ^ The concrete name of the module.
   -> A.ModuleName            -- ^ The abstract name of the module.
   -> C.Telescope             -- ^ The module telescope.
   -> ScopeM [A.Declaration]  -- ^ The code for checking the module contents.
   -> ScopeM (ScopeInfo, A.Declaration)
        -- ^ The returned declaration is an 'A.Section'.
-scopeCheckModule r x qm tel checkDs = do
+scopeCheckModule r e x qm tel checkDs = do
   printScope "module" 20 $ "checking module " ++ prettyShow x
   -- Andreas, 2013-12-10: Telescope does not live in the new module
   -- but its parent, so check it before entering the new module.
@@ -1245,7 +1251,7 @@ scopeCheckModule r x qm tel checkDs = do
       printScope "module" 20 $ "inside module " ++ prettyShow x
       ds    <- checkDs
       scope <- getScope
-      return (scope, A.Section r (qm `withRangesOfQ` x) tel ds)
+      return (scope, A.Section r e (qm `withRangesOfQ` x) tel ds)
 
   -- Binding is done by the caller
   printScope "module" 20 $ "after module " ++ prettyShow x
@@ -1291,7 +1297,7 @@ instance ToAbstract (TopLevel [C.Declaration]) where
           genericError $ "No declarations allowed after top-level module."
 
         -- Otherwise, proceed.
-        (outsideDecls, [ C.Module r m0 tel insideDecls ]) -> do
+        (outsideDecls, [ C.Module r e m0 tel insideDecls ]) -> do
           -- If the module name is _ compute the name from the file path
           (m, top) <- if isNoName m0
                 then do
@@ -1304,7 +1310,7 @@ instance ToAbstract (TopLevel [C.Declaration]) where
                   -- If the first module of the insideDecls has the same name as the file,
                   -- report an error.
                   case flip span insideDecls $ \case { C.Module{} -> False; _ -> True } of
-                    (ds0, (C.Module _ m1 _ _ : _))
+                    (ds0, (C.Module _ _ m1 _ _ : _))
                        | rawTopLevelModuleNameForQName m1 ==
                          rawTopLevelModuleName expectedMName
                          -- If the anonymous module comes from the user,
@@ -1353,7 +1359,7 @@ instance ToAbstract (TopLevel [C.Declaration]) where
           primitiveImport <- importPrimitives
           -- Scope check the declarations outside
           outsideDecls <- toAbstract (Declarations outsideDecls)
-          (insideScope, insideDecl) <- scopeCheckModule r m am tel $
+          (insideScope, insideDecl) <- scopeCheckModule r e m am tel $
              toAbstract (Declarations insideDecls)
           -- Andreas, 2020-05-13, issue #1804, #4647
           -- Do not eagerly remove private definitions, only when serializing
@@ -1593,11 +1599,12 @@ instance ToAbstract LetDef where
               }
         return $ singleton $ A.LetOpen minfo m adir
 
-      NiceModuleMacro r p x modapp open dir -> do
+      NiceModuleMacro r p erased x modapp open dir -> do
         whenJust (publicOpen dir) $ \ r -> setCurrentRange r $ warning UselessPublic
         -- Andreas, 2014-10-09, Issue 1299: module macros in lets need
         -- to be private
-        singleton <$> checkModuleMacro LetApply LetOpenModule r (PrivateAccess Inserted) x modapp open dir
+        singleton <$> checkModuleMacro LetApply LetOpenModule r
+                        (PrivateAccess Inserted) erased x modapp open dir
 
       _   -> notAValidLetBinding d
     where
@@ -1905,13 +1912,15 @@ instance ToAbstract NiceDeclaration where
         let dir' = RecordDirectives ind eta pat cm'
         return [ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' uc dir' params contel afields ]
 
-    NiceModule r p a x@(C.QName name) tel ds -> do
+    NiceModule r p a e x@(C.QName name) tel ds -> do
       reportSDoc "scope.decl" 70 $ vcat $
         [ text $ "scope checking NiceModule " ++ prettyShow x
         ]
 
-      adecl <- traceCall (ScopeCheckDeclaration $ NiceModule r p a x tel []) $ do
-        scopeCheckNiceModule r p name tel $ toAbstract (Declarations ds)
+      adecl <- traceCall (ScopeCheckDeclaration $
+                          NiceModule r p a e x tel []) $ do
+        scopeCheckNiceModule r p e name tel $
+          toAbstract (Declarations ds)
 
       reportSDoc "scope.decl" 70 $ vcat $
         [ text $ "scope checked NiceModule " ++ prettyShow x
@@ -1919,15 +1928,16 @@ instance ToAbstract NiceDeclaration where
         ]
       return [ adecl ]
 
-    NiceModule _ _ _ m@C.Qual{} _ _ ->
+    NiceModule _ _ _ _ m@C.Qual{} _ _ ->
       genericError $ "Local modules cannot have qualified names"
 
-    NiceModuleMacro r p x modapp open dir -> do
+    NiceModuleMacro r p e x modapp open dir -> do
       reportSDoc "scope.decl" 70 $ vcat $
         [ text $ "scope checking NiceModuleMacro " ++ prettyShow x
         ]
 
-      adecl <- checkModuleMacro Apply TopOpenModule r p x modapp open dir
+      adecl <- checkModuleMacro Apply TopOpenModule
+                 r p e x modapp open dir
 
       reportSDoc "scope.decl" 70 $ vcat $
         [ text $ "scope checked NiceModuleMacro " ++ prettyShow x
@@ -2564,10 +2574,12 @@ whereToAbstract r wh inner = do
       -- Andreas, 2016-07-17 issues #2081 and #2101
       -- where-declarations are automatically private.
       -- This allows their type signature to be checked InAbstractMode.
-      whereToAbstract1 r Nothing (singleton $ C.Private noRange Inserted ds) inner
-    SomeWhere _ m a ds0 -> List1.ifNull ds0 warnEmptyWhere {-else-} $ \ ds -> do
+      whereToAbstract1 r defaultErased Nothing
+        (singleton $ C.Private noRange Inserted ds) inner
+    SomeWhere _ e m a ds0 ->
+      List1.ifNull ds0 warnEmptyWhere {-else-} $ \ds -> do
       -- Named where-modules do not default to private.
-      whereToAbstract1 r (Just (m, a)) ds inner
+      whereToAbstract1 r e (Just (m, a)) ds inner
   where
   ret = (,A.noWhereDecls) <$> inner
   warnEmptyWhere = do
@@ -2576,11 +2588,12 @@ whereToAbstract r wh inner = do
 
 whereToAbstract1
   :: Range                            -- ^ The range of the @where@-block.
+  -> Erased                           -- ^ Is the where module erased?
   -> Maybe (C.Name, Access)           -- ^ The name of the @where@ module (if any).
   -> List1 C.Declaration              -- ^ The contents of the @where@ module.
   -> ScopeM a                         -- ^ The scope-checking task to be run in the context of the @where@ module.
   -> ScopeM (a, A.WhereDeclarations)  -- ^ Additionally return the scope-checked contents of the @where@ module.
-whereToAbstract1 r whname whds inner = do
+whereToAbstract1 r e whname whds inner = do
   -- ASR (16 November 2015) Issue 1137: We ban termination
   -- pragmas inside `where` clause.
   checkNoTerminationPragma InWhereBlock whds
@@ -2593,7 +2606,8 @@ whereToAbstract1 r whname whds inner = do
            -- unnamed where's are private
   old <- getCurrentModule
   am  <- toAbstract (NewModuleName m)
-  (scope, d) <- scopeCheckModule r (C.QName m) am [] $ toAbstract $ Declarations $ List1.toList whds
+  (scope, d) <- scopeCheckModule r e (C.QName m) am [] $
+                toAbstract $ Declarations $ List1.toList whds
   setScope scope
   x <- inner
   setCurrentModule old
@@ -2628,7 +2642,7 @@ terminationPragmas (C.Private  _ _      ds) = concatMap terminationPragmas ds
 terminationPragmas (C.Abstract _        ds) = concatMap terminationPragmas ds
 terminationPragmas (C.InstanceB _       ds) = concatMap terminationPragmas ds
 terminationPragmas (C.Mutual _          ds) = concatMap terminationPragmas ds
-terminationPragmas (C.Module _ _ _      ds) = concatMap terminationPragmas ds
+terminationPragmas (C.Module _ _ _ _    ds) = concatMap terminationPragmas ds
 terminationPragmas (C.Macro _           ds) = concatMap terminationPragmas ds
 terminationPragmas (C.Record _ _ _ _ _ _
                                         ds) = concatMap terminationPragmas ds

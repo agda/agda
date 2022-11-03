@@ -11,4 +11,6 @@ checkDecls :: [Declaration] -> TCM ()
 checkDecl  :: Declaration -> TCM ()
 checkSig   :: KindOfName -> DefInfo -> Erased -> QName ->
               GeneralizeTelescope -> Expr -> TCM ()
-checkSectionApplication :: ModuleInfo -> ModuleName -> ModuleApplication -> ScopeCopyInfo -> TCM ()
+checkSectionApplication ::
+  ModuleInfo -> Erased -> ModuleName -> ModuleApplication ->
+  ScopeCopyInfo -> ImportDirective -> TCM ()

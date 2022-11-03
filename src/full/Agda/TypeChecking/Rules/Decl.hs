@@ -78,14 +78,16 @@ import Agda.Utils.Impossible
 -- | Cached checkDecl
 checkDeclCached :: A.Declaration -> TCM ()
 checkDeclCached d@A.ScopedDecl{} = checkDecl d
-checkDeclCached d@(A.Section _ mname (A.GeneralizeTel _ tbinds) _) = do
+checkDeclCached
+  d@(A.Section _ erased mname (A.GeneralizeTel _ tbinds) _) = do
   e <- readFromCachedLog  -- Can ignore the set of generalizable vars (they occur in the telescope)
   reportSLn "cache.decl" 10 $ "checkDeclCached: " ++ show (isJust e)
   case e of
-    Just (EnterSection mname' tbinds', _)
-      | mname == mname' && tbinds == tbinds' -> return ()
+    Just (EnterSection erased' mname' tbinds', _)
+      | erased == erased' && mname == mname' && tbinds == tbinds' ->
+        return ()
     _ -> cleanCachedLog
-  writeToCurrentLog $ EnterSection mname tbinds
+  writeToCurrentLog $ EnterSection erased mname tbinds
   checkDecl d
   readFromCachedLog >>= \case
     Just (LeaveSection mname', _) | mname == mname' -> return ()
@@ -148,9 +150,9 @@ checkDecl d = setCurrentRange d $ do
       A.Field{}                -> typeError FieldOutsideRecord
       A.Primitive i x e        -> meta $ checkPrimitive i x e
       A.Mutual i ds            -> mutual i ds $ checkMutual i ds
-      A.Section _r x tel ds    -> meta $ checkSection x tel ds
-      A.Apply i x modapp ci _adir -> meta $ checkSectionApplication i x modapp ci
-      A.Import i x _adir       -> none $ checkImport i x
+      A.Section _r er x tel ds -> meta $ checkSection er x tel ds
+      A.Apply i e x mapp ci d  -> meta $ checkSectionApplication i e x mapp ci d
+      A.Import _ _ dir         -> none $ checkImportDirective dir
       A.Pragma i p             -> none $ checkPragma i p
       A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ checkDeclCached ds
       A.FunDef i x delayed cs  -> impossible $ check x i $ checkFunDef delayed i x cs
@@ -181,7 +183,7 @@ checkDecl d = setCurrentRange d $ do
                                   -- immediately after the last field. Perhaps
                                   -- they should be (unless we're in a mutual
                                   -- block).
-      A.Open{}                 -> none $ return ()
+      A.Open _ _ dir           -> none $ checkImportDirective dir
       A.PatternSynDef{}        -> none $ return ()
                                   -- Open and PatternSynDef are just artifacts
                                   -- from the concrete syntax, retained for
@@ -406,8 +408,8 @@ highlight_ hlmod d = do
     A.UnquoteDecl{}          -> highlight d
     A.UnquoteDef{}           -> highlight d
     A.UnquoteData{}           -> highlight d
-    A.Section i x tel ds     -> do
-      highlight (A.Section i x tel [])
+    A.Section i er x tel ds  -> do
+      highlight (A.Section i er x tel [])
       when (hlmod == DoHighlightModuleContents) $ mapM_ (highlight_ hlmod) (deepUnscopeDecls ds)
     A.RecSig{}               -> highlight d
     A.RecDef i x uc dir ps tel cs ->
@@ -828,8 +830,11 @@ checkTypeSignature' _ _ =
 
 -- | Type check a module.
 
-checkSection :: ModuleName -> A.GeneralizeTelescope -> [A.Declaration] -> TCM ()
-checkSection x tel ds = newSection x tel $ mapM_ checkDeclCached ds
+checkSection ::
+  Erased -> ModuleName -> A.GeneralizeTelescope -> [A.Declaration] ->
+  TCM ()
+checkSection e x tel ds =
+  newSection e x tel $ mapM_ checkDeclCached ds
 
 
 -- | Helper for 'checkSectionApplication'.
@@ -876,26 +881,37 @@ checkModuleArity m tel args = check tel args
 -- | Check an application of a section.
 checkSectionApplication
   :: Info.ModuleInfo
+  -> Erased              -- ^ Should \"everything\" be treated as
+                         --   erased?
   -> ModuleName          -- ^ Name @m1@ of module defined by the module macro.
   -> A.ModuleApplication -- ^ The module macro @λ tel → m2 args@.
   -> A.ScopeCopyInfo     -- ^ Imported names and modules
+  -> A.ImportDirective
   -> TCM ()
-checkSectionApplication i m1 modapp copyInfo =
-  traceCall (CheckSectionApplication (getRange i) m1 modapp) $
-  -- A section application is type-checked in a non-erased context
-  -- (#5410), except if hard compile-time mode is enabled (#4743).
+checkSectionApplication i e m1 modapp copyInfo dir =
+  traceCall (CheckSectionApplication (getRange i) e m1 modapp) $ do
+  checkImportDirective dir
+  -- A (non-erased) section application is type-checked in a
+  -- non-erased context (#5410), except if hard compile-time mode is
+  -- enabled (#4743).
   setRunTimeModeUnlessInHardCompileTimeMode $
-  checkSectionApplication' i m1 modapp copyInfo
+    checkSectionApplication' i e m1 modapp copyInfo
 
 -- | Check an application of a section. (Do not invoke this procedure
 -- directly, use 'checkSectionApplication'.)
 checkSectionApplication'
   :: Info.ModuleInfo
+  -> Erased
   -> ModuleName          -- ^ Name @m1@ of module defined by the module macro.
   -> A.ModuleApplication -- ^ The module macro @λ tel → m2 args@.
   -> A.ScopeCopyInfo     -- ^ Imported names and modules
   -> TCM ()
-checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
+checkSectionApplication'
+  i e m1 (A.SectionApp ptel m2 args) copyInfo = do
+  -- If the section application is erased, then hard compile-time mode
+  -- is entered.
+  warnForPlentyInHardCompileTimeMode e
+  setHardCompileTimeModeIfErased e $ do
   -- Module applications can appear in lets, in which case we treat
   -- lambda-bound variables as additional parameters to the module.
   extraParams <- do
@@ -963,7 +979,10 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
     addContext (KeepNames aTel) $
       applySection m1 (ptel `abstract` aTel) m2 (raise n args ++ etaArgs) copyInfo
 
-checkSectionApplication' i m1 (A.RecordModuleInstance x) copyInfo = do
+checkSectionApplication' _ Erased{} _ A.RecordModuleInstance{} _ =
+  __IMPOSSIBLE__
+checkSectionApplication'
+  i NotErased{} m1 (A.RecordModuleInstance x) copyInfo = do
   let name = mnameToQName x
   tel' <- lookupSection x
   vs   <- moduleParamsToApply x
@@ -1017,10 +1036,13 @@ checkSectionApplication' i m1 (A.RecordModuleInstance x) copyInfo = do
     addSection m1
     applySection m1 telInst x (vs ++ args) copyInfo
 
--- | Type check an import declaration. Actually doesn't do anything, since all
---   the work is done when scope checking.
-checkImport :: Info.ModuleInfo -> ModuleName -> TCM ()
-checkImport i x = return ()
+-- | Checks that @open public@ is not used in hard compile-time mode.
+checkImportDirective :: A.ImportDirective -> TCM ()
+checkImportDirective dir = do
+  hard <- viewTC eHardCompileTimeMode
+  when (hard && isJust (publicOpen dir)) $ typeError $ NotSupported $
+    "open public in hard compile-time mode " ++
+    "(for instance in erased modules)"
 
 ------------------------------------------------------------------------
 -- * Debugging
@@ -1058,12 +1080,13 @@ debugPrintDecl d = do
     verboseS "tc.decl" 45 $ do
       reportSLn "tc.decl" 45 $ "checking a " ++ showHead d
       case d of
-        A.Section info mname tel ds -> do
+        A.Section info erased mname tel ds -> do
           reportSLn "tc.decl" 45 $
             "section " ++ prettyShow mname ++ " has "
               ++ show (length $ A.generalizeTel tel) ++ " parameters and "
               ++ show (length ds) ++ " declarations"
-          reportSDoc "tc.decl" 45 $ prettyA $ A.Section info mname tel []
+          reportSDoc "tc.decl" 45 $
+            prettyA $ A.Section info erased mname tel []
           forM_ ds $ \ d -> do
             reportSDoc "tc.decl" 45 $ prettyA d
         _ -> return ()

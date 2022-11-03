@@ -123,18 +123,16 @@ In the code above the constructor ``trivial`` is only available at
 compile-time, whereas ``∣_∣`` is also available at run-time. Clauses
 that match on erased constructors in non-erased positions are omitted
 by (at least some) compiler backends, so one can use erased names in
-the bodies of such clauses. (There is an
-:ref:`exception<erased-cubical>` for constructors that were not
-declared as erased, but that are treated as erased because they were
-defined using Cubical Agda, and are used in a module that uses the
-option :option:`--erased-cubical`.)
+the bodies of such clauses. (There is an exception for constructors
+that were not originally declared as erased, but that are currently
+treated as erased.)
 
-Finally it is possible to mark data and record types as erased. Such
-types can only be used in erased positions, their constructors and
-projections are erased, and definitions in record modules for erased
-record types are erased. A data or record type is marked as erased by
-writing ``@0`` or ``@erased`` right after the ``data`` or ``record``
-keyword of the data or record type's declaration:
+One can also mark data and record types as erased. Such types can only
+be used in erased positions, their constructors and projections are
+erased, and definitions in record modules for erased record types are
+erased. A data or record type is marked as erased by writing ``@0`` or
+``@erased`` right after the ``data`` or ``record`` keyword of the data
+or record type's declaration:
 
 ::
 
@@ -162,6 +160,32 @@ keyword of the data or record type's declaration:
   record R₂ where
     field
       x : R₁
+
+Finally one can mark modules as erased. The module identifier itself
+does not become erased, but all definitions inside the module. A
+module is marked as erased by writing ``@0`` or ``@erased`` right
+after the ``module`` keyword:
+
+::
+
+  module @0 _ where
+
+    F : @0 Set → Set
+    F A = A
+
+  module M (A : Set) where
+
+    record R : Set where
+      field
+        @0 x : A
+
+  module @0 N (@0 A : Set) = M A
+
+  G : (@0 A : Set) → let module @0 M₂ = M A in Set
+  G A = M.R C
+    module @0 _ where
+      C : Set
+      C = A
 
 .. _run-time-irrelevance-rules:
 
@@ -203,8 +227,10 @@ match on the length first, the type checker complains:
 
 The type checker enters compile-time mode when
 
-- checking erased arguments to a constructor or function,
-- checking the body of an erased definition,
+- checking erased arguments to a constructor, function or module
+  application,
+- checking the body of an erased definition (including an erased
+  module application),
 - checking the body of a clause that matches (in a non-erased
   position) on a constructor that was originally defined as erased (it
   does not suffice for the constructor to be currently treated as
@@ -233,7 +259,7 @@ mode:
 
 - Absurd lambdas.
 - Non-erased pattern-matching lambdas.
-- Module definitions ("``module M … = …``") or applications
+- Non-erased module definitions ("``module M … = …``") or applications
   ("``M …``").
 - Applications of ``♯`` (see :ref:`old-coinduction`).
 

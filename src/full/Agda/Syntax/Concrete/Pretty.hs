@@ -364,12 +364,13 @@ instance Pretty RHS where
 
 instance Pretty WhereClause where
   pretty  NoWhere = empty
-  pretty (AnyWhere _ [Module _ x [] ds]) | isNoName (unqualify x)
+  pretty (AnyWhere _ [Module _ NotErased{} x [] ds])
+    | isNoName (unqualify x)
                        = vcat [ "where", nest 2 (vcat $ map pretty ds) ]
   pretty (AnyWhere _ ds) = vcat [ "where", nest 2 (vcat $ map pretty ds) ]
-  pretty (SomeWhere _ m a ds) =
+  pretty (SomeWhere _ erased m a ds) =
     vcat [ hsep $ applyWhen (a == PrivateAccess UserWritten) ("private" :)
-             [ "module", pretty m, "where" ]
+             [ "module", prettyErased erased (pretty m), "where" ]
          , nest 2 (vcat $ map pretty ds)
          ]
 
@@ -494,23 +495,25 @@ instance Pretty Declaration where
     Postulate _ ds  -> namedBlock "postulate" ds
     Primitive _ ds  -> namedBlock "primitive" ds
     Generalize _ ds -> namedBlock "variable" ds
-    Module _ x tel ds ->
+    Module _ erased x tel ds ->
       hsep [ "module"
-           , pretty x
+           , prettyErased erased (pretty x)
            , fcat (map pretty tel)
            , "where"
            ] $$ nest 2 (vcat $ map pretty ds)
-    ModuleMacro _ x (SectionApp _ [] e) DoOpen i | isNoName x ->
+    ModuleMacro _ NotErased{} x (SectionApp _ [] e) DoOpen i
+      | isNoName x ->
       sep [ pretty DoOpen
           , nest 2 $ pretty e
           , nest 4 $ pretty i
           ]
-    ModuleMacro _ x (SectionApp _ tel e) open i ->
-      sep [ pretty open <+> "module" <+> pretty x <+> fcat (map pretty tel)
+    ModuleMacro _ erased x (SectionApp _ tel e) open i ->
+      sep [ pretty open <+> "module" <+>
+            prettyErased erased (pretty x) <+> fcat (map pretty tel)
           , nest 2 $ "=" <+> pretty e <+> pretty i
           ]
-    ModuleMacro _ x (RecordModuleInstance _ rec) open i ->
-      sep [ pretty open <+> "module" <+> pretty x
+    ModuleMacro _ erased x (RecordModuleInstance _ rec) open i ->
+      sep [ pretty open <+> "module" <+> prettyErased erased (pretty x)
           , nest 2 $ "=" <+> pretty rec <+> "{{...}}"
           ]
     Open _ x i  -> hsep [ "open", pretty x, pretty i ]

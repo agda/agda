@@ -1025,7 +1025,7 @@ instance ToConcrete A.LetBinding where
         p <- toConcrete p
         e <- toConcrete e
         ret [ C.FunClause (C.LHS p [] []) (C.RHS e) NoWhere False ]
-    bindToConcrete (LetApply i x modapp _ _) ret = do
+    bindToConcrete (LetApply i erased x modapp _ _) ret = do
       x' <- unqualify <$> toConcrete x
       modapp <- toConcrete modapp
       let r = getRange modapp
@@ -1033,7 +1033,7 @@ instance ToConcrete A.LetBinding where
           dir  = fromMaybe defaultImportDir{ importDirRange = r } $ minfoDirective i
       -- This is no use since toAbstract LetDefs is in localToAbstract.
       local (openModule' x dir id) $
-        ret [ C.ModuleMacro (getRange i) x' modapp open dir ]
+        ret [ C.ModuleMacro (getRange i) erased x' modapp open dir ]
     bindToConcrete (LetOpen i x _) ret = do
       x' <- toConcrete x
       let dir = fromMaybe defaultImportDir $ minfoDirective i
@@ -1047,12 +1047,16 @@ instance ToConcrete A.WhereDeclarations where
   type ConOfAbs A.WhereDeclarations = WhereClause
 
   bindToConcrete (A.WhereDecls _ _ Nothing) ret = ret C.NoWhere
-  bindToConcrete (A.WhereDecls (Just am) False (Just (A.Section _ _ _ ds))) ret = do
+  bindToConcrete (A.WhereDecls (Just am) False
+                    (Just (A.Section _ erased _ _ ds)))
+                 ret = do
     ds' <- declsToConcrete ds
     cm  <- unqualify <$> lookupModule am
     -- Andreas, 2016-07-08 I put PublicAccess in the following SomeWhere
     -- Should not really matter for printing...
-    let wh' = (if isNoName cm then AnyWhere noRange else SomeWhere noRange cm PublicAccess) $ ds'
+    let wh' = if isNoName cm && not (isErased erased)
+              then AnyWhere noRange ds'
+              else SomeWhere noRange erased cm PublicAccess ds'
     local (openModule' am defaultImportDir id) $ ret wh'
   bindToConcrete (A.WhereDecls _ _ (Just d)) ret =
     ret . AnyWhere noRange =<< toConcrete d
@@ -1233,19 +1237,19 @@ instance ToConcrete A.Declaration where
 
   toConcrete (A.Mutual i ds) = declsToConcrete ds
 
-  toConcrete (A.Section i x (A.GeneralizeTel _ tel) ds) = do
+  toConcrete (A.Section i erased x (A.GeneralizeTel _ tel) ds) = do
     x <- toConcrete x
     bindToConcrete tel $ \ tel -> do
       ds <- declsToConcrete ds
-      return [ C.Module (getRange i) x (catMaybes tel) ds ]
+      return [ C.Module (getRange i) erased x (catMaybes tel) ds ]
 
-  toConcrete (A.Apply i x modapp _ _) = do
+  toConcrete (A.Apply i erased x modapp _ _) = do
     x  <- unsafeQNameToName <$> toConcrete x
     modapp <- toConcrete modapp
     let r = getRange modapp
         open = fromMaybe DontOpen $ minfoOpenShort i
         dir  = fromMaybe defaultImportDir{ importDirRange = r } $ minfoDirective i
-    return [ C.ModuleMacro (getRange i) x modapp open dir ]
+    return [ C.ModuleMacro (getRange i) erased x modapp open dir ]
 
   toConcrete (A.Import i x _) = do
     x <- toConcrete x

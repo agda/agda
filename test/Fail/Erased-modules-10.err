@@ -1,0 +1,5 @@
+Erased-modules-10.agda:9,3-53
+Not supported: open public in hard compile-time mode (for instance
+in erased modules)
+when checking the module application
+module M (_ : Set) = Agda.Builtin.Bool
