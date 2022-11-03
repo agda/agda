@@ -383,6 +383,10 @@ data HighlightModuleContents = DontHightlightModuleContents | DoHighlightModuleC
 --   mutual block we have. Hence the flag.
 highlight_ :: HighlightModuleContents -> A.Declaration -> TCM ()
 highlight_ hlmod d = do
+  reportSDoc "tc.decl" 45 $
+    text "Highlighting a declaration with the following spine:"
+      $$
+    text (show $ A.declarationSpine d)
   let highlight d = generateAndPrintSyntaxInfo d Full True
   Bench.billTo [Bench.Highlighting] $ case d of
     A.Axiom{}                -> highlight d
