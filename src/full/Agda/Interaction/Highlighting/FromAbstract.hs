@@ -253,7 +253,7 @@ instance Hilite A.Expr where
       A.WithApp _r e es             -> hl e <> hl es
       A.Lam _r bs e                 -> hl bs <> hl e
       A.AbsurdLam _r _h             -> mempty
-      A.ExtendedLam _r _di _e _q cs -> hl cs -- No hilighting of generated extended lambda name!
+      A.ExtendedLam _r _di er _q cs -> hl er <> hl cs -- No hilighting of generated extended lambda name!
       A.Pi _r tel b                 -> hl tel <> hl b
       A.Generalized _qs e           -> hl e
       A.Fun _r a b                  -> hl a <> hl b
@@ -397,6 +397,10 @@ instance Hilite Modality where
 -- | If the 'Quantity' attribute comes with a 'Range', highlight the
 -- corresponding attribute as 'Symbol'.
 instance Hilite Quantity where
+  hilite = singleAspect Symbol
+
+-- | Erasure attributes are highlighted as symbols.
+instance Hilite Erased where
   hilite = singleAspect Symbol
 
 instance Hilite ModuleInfo where
