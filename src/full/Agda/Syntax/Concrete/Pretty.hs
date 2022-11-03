@@ -80,19 +80,16 @@ prettyHiding a parens =
     NotHidden  -> parens
 
 prettyRelevance :: LensRelevance a => a -> Doc -> Doc
-prettyRelevance a d =
-  if render d == "_" then d else pretty (getRelevance a) <> d
+prettyRelevance a = (pretty (getRelevance a) <>)
 
 prettyQuantity :: LensQuantity a => a -> Doc -> Doc
-prettyQuantity a d =
-  if render d == "_" then d else pretty (getQuantity a) <+> d
+prettyQuantity a = (pretty (getQuantity a) <+>)
 
 prettyErased :: Erased -> Doc -> Doc
 prettyErased = prettyQuantity . asQuantity
 
 prettyCohesion :: LensCohesion a => a -> Doc -> Doc
-prettyCohesion a d =
-  if render d == "_" then d else pretty (getCohesion a) <+> d
+prettyCohesion a = (pretty (getCohesion a) <+>)
 
 prettyTactic :: BoundName -> Doc -> Doc
 prettyTactic = prettyTactic' . bnameTactic
