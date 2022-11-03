@@ -502,7 +502,8 @@ termDef name = terSetCurrent name $ inConcreteOrAbstractMode name $ \ def -> do
   -- which are not of data or record type.
 
   withoutKEnabled <- liftTCM withoutKOption
-  applyWhen withoutKEnabled (setMasks t) $ do
+  safeEnabled <- liftTCM safeOption
+  applyWhen (withoutKEnabled && not safeEnabled) (setMasks t) $ do
 
     -- If the result should be disregarded, set all calls to unguarded.
     applyWhenM terGetMaskResult terUnguarded $ do

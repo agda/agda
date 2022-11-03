@@ -4436,6 +4436,9 @@ guardednessOption = collapseDefault . optGuardedness <$> pragmaOptions
 withoutKOption :: HasOptions m => m Bool
 withoutKOption = collapseDefault . optWithoutK <$> pragmaOptions
 
+safeOption :: HasOptions m => m Bool
+safeOption = optSafe <$> pragmaOptions
+
 cubicalCompatibleOption :: HasOptions m => m Bool
 cubicalCompatibleOption = collapseDefault . optCubicalCompatible <$> pragmaOptions
 
