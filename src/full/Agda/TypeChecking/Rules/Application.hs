@@ -292,7 +292,7 @@ inferHead e = do
       -- The available quantity for variable x must be below
       -- the required quantity to construct the term x.
       -- Note: this whole thing does not work for linearity, where we need some actual arithmetics.
-      unlessM ((getQuantity a `moreQuantity`) <$> asksTC getQuantity) $
+      unlessM ((getQuantity a `moreQuantity`) <$> viewTC eQuantity) $
         typeError $ VariableIsErased x
 
       unless (usableCohesion a) $
@@ -413,7 +413,7 @@ checkRelevance' x def = do
       -- irrelevant projections are only allowed if --irrelevant-projections
       ifM (return (isJust $ isProjection_ $ theDef def) `and2M`
            (not .optIrrelevantProjections <$> pragmaOptions)) {-then-} needIrrProj {-else-} $ do
-        rel <- asksTC getRelevance
+        rel <- viewTC eRelevance
         reportSDoc "tc.irr" 50 $ vcat
           [ "declaration relevance =" <+> text (show drel)
           , "context     relevance =" <+> text (show rel)
@@ -437,7 +437,7 @@ checkQuantity' x def = do
         ]
       return Nothing -- Abundant definitions can be used in any context.
     dq -> do
-      q <- asksTC getQuantity
+      q <- viewTC eQuantity
       reportSDoc "tc.irr" 50 $ vcat
         [ "declaration quantity =" <+> text (show dq)
         , "context     quantity =" <+> text (show q)
@@ -1637,7 +1637,7 @@ checkSharpApplication e t c args = do
                            (freshName_ name)
 
     -- Define and type check the fresh function.
-    mod <- asksTC getModality
+    mod <- currentModality
     abs <- asksTC (^. lensIsAbstract)
     let info   = A.mkDefInfo (A.nameConcrete $ A.qnameName c') noFixity'
                              PublicAccess abs noRange

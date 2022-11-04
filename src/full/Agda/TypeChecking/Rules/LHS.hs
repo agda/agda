@@ -1570,7 +1570,7 @@ checkLHS mf = updateModality checkLHS_ where
           liftTCM $ addContext delta' $ do
             withoutK <- collapseDefault . optWithoutK <$> pragmaOptions
             cubical <- collapseDefault . optCubicalCompatible <$> pragmaOptions
-            mod <- viewTC eModality
+            mod <- currentModality
             when ((withoutK || cubical) && not (null ixs)) $
               conSplitModalityCheck mod rho (length delta2) tel (unArg target)
 

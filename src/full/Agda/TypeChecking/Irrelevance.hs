@@ -235,12 +235,14 @@ applyModalityToContextOnly m = localTC
   . over eLetBindings
       (Map.map . fmap . onLetBindingType $ inverseApplyModalityButNotQuantity m)
 
--- | Apply modality @m@ the the modality annotation of the (typing/equality)
---   judgement.  This is part of the work done when going into a @m@-context.
+-- | Apply the relevance and quantity components of the modality to
+-- the modality annotation of the (typing/equality) judgement.
 --
---   Precondition: @Modality /= Relevant@
+-- Precondition: The relevance component must not be 'Relevant'.
 applyModalityToJudgementOnly :: (MonadTCEnv tcm) => Modality -> tcm a -> tcm a
-applyModalityToJudgementOnly = localTC . over eModality . composeModality
+applyModalityToJudgementOnly m =
+  localTC $ over eRelevance (composeRelevance (getRelevance m)) .
+            over eQuantity  (composeQuantity  (getQuantity m))
 
 -- | Like 'applyModalityToContext', but only act on context (for Relevance) if
 --   @--irrelevant-projections@.

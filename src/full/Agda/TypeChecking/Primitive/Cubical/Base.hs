@@ -66,7 +66,7 @@ requireCubical
   -> TCM ()
 requireCubical wanted s = do
   cubical         <- optCubical <$> pragmaOptions
-  inErasedContext <- hasQuantity0 <$> getEnv
+  inErasedContext <- hasQuantity0 <$> viewTC eQuantity
   case cubical of
     Just CFull -> return ()
     Just CErased | wanted == CErased || inErasedContext -> return ()

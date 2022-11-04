@@ -736,7 +736,7 @@ checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
           aux <- qualify top <$> freshName_ (getRange i, absurdLambdaName)
           -- if we are in irrelevant / erased position, the helper function
           -- is added as irrelevant / erased
-          mod <- asksTC getModality
+          mod <- currentModality
           reportSDoc "tc.term.absurd" 10 $ vcat
             [ ("Adding absurd function" <+> prettyTCM mod) <> prettyTCM aux
             , nest 2 $ "of type" <+> prettyTCM t'
@@ -780,7 +780,7 @@ checkExtendedLambda ::
   Comparison -> A.ExprInfo -> A.DefInfo -> Erased -> QName ->
   List1 A.Clause -> A.Expr -> Type -> TCM Term
 checkExtendedLambda cmp i di erased qname cs e t = do
-  mod <- asksTC getModality
+  mod <- currentModality
   if isErased erased && not (hasQuantity0 mod) then
     genericError $ unwords
       [ "Erased pattern-matching lambdas may only be used in erased"
@@ -795,7 +795,7 @@ checkExtendedLambda cmp i di erased qname cs e t = do
    t <- instantiateFull t
    ifBlocked t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr cmp e t') $ \ _ t -> do
      j   <- currentOrFreshMutualBlock
-     mod <- asksTC getModality
+     mod <- currentModality
      let info = setModality mod defaultArgInfo
 
      reportSDoc "tc.term.exlam" 20 $ vcat
@@ -1245,7 +1245,7 @@ checkExpr' cmp e t =
         A.RecUpdate ei recexpr fs -> checkRecordUpdate cmp ei recexpr fs e t
 
         A.DontCare e -> -- resurrect vars
-          ifM ((Irrelevant ==) <$> asksTC getRelevance)
+          ifM ((Irrelevant ==) <$> viewTC eRelevance)
             (dontCare <$> do applyRelevanceToContext Irrelevant $ checkExpr' cmp e t)
             (internalError "DontCare may only appear in irrelevant contexts")
 
@@ -1643,8 +1643,8 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
       , nest 2 $ vcat
         [ "p (A) =" <+> prettyA p
         , "t     =" <+> prettyTCM t
-        , "cxtRel=" <+> do pretty =<< asksTC getRelevance
-        , "cxtQnt=" <+> do pretty =<< asksTC getQuantity
+        , "cxtRel=" <+> do pretty =<< viewTC eRelevance
+        , "cxtQnt=" <+> do pretty =<< viewTC eQuantity
         ]
       ]
     fvs <- getContextSize
@@ -1656,8 +1656,8 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
       reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
         [ "p (I) =" <+> prettyTCM p
         , "delta =" <+> prettyTCM delta
-        , "cxtRel=" <+> do pretty =<< asksTC getRelevance
-        , "cxtQnt=" <+> do pretty =<< asksTC getQuantity
+        , "cxtRel=" <+> do pretty =<< viewTC eRelevance
+        , "cxtQnt=" <+> do pretty =<< viewTC eQuantity
         ]
       reportSDoc "tc.term.let.pattern" 80 $ nest 2 $ vcat
         [ "p (I) =" <+> (text . show) p

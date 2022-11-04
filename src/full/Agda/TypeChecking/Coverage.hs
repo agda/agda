@@ -1312,7 +1312,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
   mHCompName <- getPrimitiveName' builtinHComp
   withoutK   <- collapseDefault . optWithoutK <$> pragmaOptions
 
-  erased <- asksTC hasQuantity0
+  erased <- hasQuantity0 <$> viewTC eQuantity
   reportSLn "tc.cover.split" 60 $ "We are in erased context = " ++ show erased
   let erasedError causedByWithoutK =
         throwError . ErasedDatatype causedByWithoutK =<<

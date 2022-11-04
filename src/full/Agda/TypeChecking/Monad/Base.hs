@@ -3416,14 +3416,12 @@ data TCEnv =
                 --   or the body of a non-abstract definition this is true.
                 --   To prevent information about abstract things leaking
                 --   outside the module.
-          , envModality            :: Modality
-                -- ^ 'Relevance' component:
-                -- Are we checking an irrelevant argument? (=@Irrelevant@)
+          , envRelevance           :: Relevance
+                -- ^ Are we checking an irrelevant argument? (=@Irrelevant@)
                 -- Then top-level irrelevant declarations are enabled.
                 -- Other value: @Relevant@, then only relevant decls. are available.
-                --
-                -- 'Quantity' component:
-                -- Are we checking a runtime-irrelevant thing? (='Quantity0')
+          , envQuantity            :: Quantity
+                -- ^ Are we checking a runtime-irrelevant thing? (='Quantity0')
                 -- Then runtime-irrelevant things are usable.
           , envSplitOnStrict       :: Bool
                 -- ^ Are we currently case-splitting on a strict
@@ -3553,7 +3551,8 @@ initEnv = TCEnv { envContext             = []
   -- The initial mode should be 'ConcreteMode', ensuring you
   -- can only look into abstract things in an abstract
   -- definition (which sets 'AbstractMode').
-                , envModality               = unitModality
+                , envRelevance              = unitRelevance
+                , envQuantity               = unitQuantity
                 , envSplitOnStrict          = False
                 , envDisplayFormsEnabled    = True
                 , envFoldLetBindings        = True
@@ -3594,14 +3593,6 @@ class LensTCEnv a where
 
 instance LensTCEnv TCEnv where
   lensTCEnv = id
-
-instance LensModality TCEnv where
-  -- Cohesion shouldn't have an environment component.
-  getModality = setCohesion defaultCohesion . envModality
-  mapModality f e = e { envModality = setCohesion defaultCohesion $ f $ envModality e }
-
-instance LensRelevance TCEnv where
-instance LensQuantity  TCEnv where
 
 data UnquoteFlags = UnquoteFlags
   { _unquoteNormalise :: Bool }
@@ -3668,16 +3659,11 @@ eActiveProblems f e = f (envActiveProblems e) <&> \ x -> e { envActiveProblems =
 eAbstractMode :: Lens' AbstractMode TCEnv
 eAbstractMode f e = f (envAbstractMode e) <&> \ x -> e { envAbstractMode = x }
 
--- Andrea 23/02/2020: use get/setModality to enforce invariants of the
---                    envModality field.
-eModality :: Lens' Modality TCEnv
-eModality f e = f (getModality e) <&> \ x -> setModality x e
-
 eRelevance :: Lens' Relevance TCEnv
-eRelevance = eModality . lModRelevance
+eRelevance f e = f (envRelevance e) <&> \x -> e { envRelevance = x }
 
 eQuantity :: Lens' Quantity TCEnv
-eQuantity = eModality . lModQuantity
+eQuantity f e = f (envQuantity e) <&> \x -> e { envQuantity = x }
 
 eSplitOnStrict :: Lens' Bool TCEnv
 eSplitOnStrict f e = f (envSplitOnStrict e) <&> \ x -> e { envSplitOnStrict = x }
@@ -3771,6 +3757,22 @@ eConflComputingOverlap f e = f (envConflComputingOverlap e) <&> \ x -> e { envCo
 
 eCurrentlyElaborating :: Lens' Bool TCEnv
 eCurrentlyElaborating f e = f (envCurrentlyElaborating e) <&> \ x -> e { envCurrentlyElaborating = x }
+
+-- | The current modality.
+--
+-- Note that the returned cohesion component is always 'unitCohesion'.
+
+{-# SPECIALISE currentModality :: TCM Modality #-}
+
+currentModality :: MonadTCEnv m => m Modality
+currentModality = do
+  r <- viewTC eRelevance
+  q <- viewTC eQuantity
+  return Modality
+    { modRelevance = r
+    , modQuantity  = q
+    , modCohesion  = unitCohesion
+    }
 
 ---------------------------------------------------------------------------
 -- ** Context

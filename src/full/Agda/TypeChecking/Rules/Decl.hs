@@ -580,8 +580,8 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
   -- Andreas, 2012-04-18  if we are in irrelevant context, axioms are irrelevant
   -- even if not declared as such (Issue 610).
   -- Andreas, 2019-06-17  also for erasure (issue #3855).
-  rel <- max (getRelevance info0) <$> asksTC getRelevance
-  q   <- asksTC getQuantity <&> \case
+  rel <- max (getRelevance info0) <$> viewTC eRelevance
+  q   <- viewTC eQuantity <&> \case
     q@Quantity0{} -> q
     _ -> getQuantity info0
 
