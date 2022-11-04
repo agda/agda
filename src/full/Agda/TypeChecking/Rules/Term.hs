@@ -988,6 +988,15 @@ checkRecordExpression cmp mfs e t = do
         , "  con = " <> return (P.pretty con)
         ]
 
+      -- Record expressions corresponding to erased record
+      -- constructors can only be used in compile-time mode.
+      constructorQ <- getQuantity <$> getConstInfo (conName con)
+      currentQ     <- viewTC eQuantity
+      unless (constructorQ `moreQuantity` currentQ) $
+        typeError $ GenericError $
+        "A record expression corresponding to an erased record " ++
+        "constructor must only be used in erased settings"
+
       -- Andreas, 2018-09-06, issue #3122.
       -- Associate the concrete record field names used in the record expression
       -- to their counterpart in the record type definition.
