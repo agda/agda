@@ -8,8 +8,9 @@ module Agda.Compiler.MAlonzo.HaskellTypes
   , hsTelApproximation, hsTelApproximation'
   ) where
 
-import Control.Monad (zipWithM)
-import Control.Monad.Except
+import Control.Monad         ( zipWithM )
+import Control.Monad.Except  ( ExceptT(ExceptT), runExceptT, mapExceptT, catchError, throwError )
+import Control.Monad.Trans   ( lift )
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
 import Data.Maybe (fromMaybe)

@@ -4,8 +4,9 @@ module Agda.TypeChecking.IApplyConfluence where
 import Prelude hiding (null, (!!))  -- do not use partial functions like !!
 
 import Control.Monad
-import Control.Arrow (first,second)
+import Control.Monad.Except
 
+import Data.Bifunctor (first, second)
 import qualified Data.List as List
 import qualified Data.Map as Map
 

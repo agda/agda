@@ -5,13 +5,13 @@ module Agda.TypeChecking.Monad.MetaVars where
 import Prelude hiding (null)
 
 import Control.DeepSeq
-
-import Control.Monad                ( (<=<), guard )
-import Control.Monad.Except
-import Control.Monad.State
+import Control.Monad                ( (<=<), forM_, guard )
+import Control.Monad.Except         ( MonadError )
+import Control.Monad.State          ( StateT, execStateT, get, put )
+import Control.Monad.Trans          ( MonadTrans, lift )
 import Control.Monad.Trans.Identity ( IdentityT )
-import Control.Monad.Reader
-import Control.Monad.Writer
+import Control.Monad.Reader         ( ReaderT(ReaderT), runReaderT )
+import Control.Monad.Writer         ( WriterT, execWriterT, tell )
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
 

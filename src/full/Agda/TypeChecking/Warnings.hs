@@ -17,10 +17,10 @@ module Agda.TypeChecking.Warnings
   ) where
 
 import Control.Monad ( forM, unless )
-import Control.Monad.Except
+import Control.Monad.Except ( MonadError(..) )
 import Control.Monad.Reader ( ReaderT )
 import Control.Monad.State ( StateT )
-import Control.Monad.Trans ( lift )
+import Control.Monad.Trans ( MonadTrans, lift )
 
 import qualified Data.List as List
 import qualified Data.Map  as Map
