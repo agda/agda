@@ -76,10 +76,95 @@ import Agda.Utils.Update
 
 import Agda.Utils.Impossible
 
+-- | If the first argument is @'Erased' something@, then hard
+-- compile-time mode is enabled when the continuation is run.
+
+setHardCompileTimeModeIfErased
+  :: Erased
+  -> TCM a
+     -- ^ Continuation.
+  -> TCM a
+setHardCompileTimeModeIfErased erased c = do
+  localTC ((if isErased erased
+            then set eHardCompileTimeMode True
+            else id) .
+           over eQuantity (`composeQuantity` asQuantity erased))
+    c
+
+-- | If the quantity is \"erased\", then hard compile-time mode is
+-- enabled when the continuation is run.
+--
+-- Precondition: The quantity must not be @'Quantity1' something@.
+
+setHardCompileTimeModeIfErased'
+  :: LensQuantity q
+  => q
+     -- ^ The quantity.
+  -> TCM a
+     -- ^ Continuation.
+  -> TCM a
+setHardCompileTimeModeIfErased' x c = do
+  erased <- case erasedFromQuantity (getQuantity x) of
+    Nothing     -> __IMPOSSIBLE__
+    Just erased -> return erased
+  setHardCompileTimeModeIfErased erased c
+
+-- | Use run-time mode in the continuation unless the current mode is
+-- the hard compile-time mode.
+
+setRunTimeModeUnlessInHardCompileTimeMode
+  :: TCM a
+     -- ^ Continuation.
+  -> TCM a
+setRunTimeModeUnlessInHardCompileTimeMode c =
+  ifM (viewTC eHardCompileTimeMode) c $
+  localTC (over eQuantity $ mapQuantity (`addQuantity` topQuantity)) c
+
+-- | Use hard compile-time mode in the continuation if the first
+-- argument is @'Erased' something@. Use run-time mode if the first
+-- argument is @'NotErased' something@ and the current mode is not
+-- hard compile-time mode.
+
+setModeUnlessInHardCompileTimeMode
+  :: Erased
+  -> TCM a
+     -- ^ Continuation.
+  -> TCM a
+setModeUnlessInHardCompileTimeMode erased c = case erased of
+  Erased{}    -> setHardCompileTimeModeIfErased erased c
+  NotErased{} -> do
+    warnForPlentyInHardCompileTimeMode erased
+    setRunTimeModeUnlessInHardCompileTimeMode c
+
+-- | Warn if the user explicitly wrote @@ω@ or @@plenty@ but the
+-- current mode is the hard compile-time mode.
+
+warnForPlentyInHardCompileTimeMode :: Erased -> TCM ()
+warnForPlentyInHardCompileTimeMode = \case
+  Erased{}    -> return ()
+  NotErased o -> do
+    let warn = warning $ PlentyInHardCompileTimeMode o
+    hard <- viewTC eHardCompileTimeMode
+    if not hard then return () else case o of
+      QωInferred{} -> return ()
+      Qω{}         -> warn
+      QωPlenty{}   -> warn
+
 -- | Add a constant to the signature. Lifts the definition to top level.
 addConstant :: QName -> Definition -> TCM ()
 addConstant q d = do
   reportSDoc "tc.signature" 20 $ "adding constant " <+> pretty q <+> " to signature"
+
+  -- Every constant that gets added to the signature in hard
+  -- compile-time mode is treated as erased.
+  hard <- viewTC eHardCompileTimeMode
+  d    <- if not hard then return d else do
+    case erasedFromQuantity (getQuantity d) of
+      Nothing     -> __IMPOSSIBLE__
+      Just erased -> do
+        warnForPlentyInHardCompileTimeMode erased
+        return $ mapQuantity (zeroQuantity `composeQuantity`) d
+
   tel <- getContextTelescope
   let tel' = replaceEmptyName "r" $ killRange $ case theDef d of
               Constructor{} -> fmap hideOrKeepInstance tel

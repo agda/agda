@@ -1,6 +1,43 @@
 NOTE: Put drafts of release notes here that might be included in some
 future release.
 
+Erasure
+-------
+
+* Added a hard compile-time mode (see
+  [#4743](https://github.com/agda/agda/issues/4743)).
+
+  When the hard compile-time mode is used all definitions are treated
+  as erased. The hard compile-time mode is entered when an erased
+  definition is checked, but not when (for instance) a type-signature
+  is checked.
+
+  Previously the following code was rejected:
+  ```agda
+  open import Agda.Builtin.Bool
+
+  @0 f : @0 Bool → Bool
+  f = λ where
+    true  → false
+    false → true
+  ```
+  Now this code is accepted. On the other hand, the following code
+  which used to be accepted is now rejected, because the
+  pattern-matching lambda is treated as erased:
+  ```agda
+  open import Agda.Builtin.Equality
+
+  data Unit : Set where
+    unit : Unit
+
+  mutual
+
+    f : Unit → Unit
+    f = _
+
+    @0 f≡ : f ≡ λ { unit → unit }
+    f≡ = refl
+  ```
 
 Pragmas and Options
 -------------------

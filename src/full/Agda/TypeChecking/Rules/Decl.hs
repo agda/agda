@@ -577,18 +577,17 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
   -- We freeze metas in type signatures of abstract definitions, to prevent
   -- leakage of implementation details.
 
+  -- If the axiom is erased, then hard compile-time mode is entered.
+  setHardCompileTimeModeIfErased' info0 $ do
+
   -- Andreas, 2012-04-18  if we are in irrelevant context, axioms are irrelevant
   -- even if not declared as such (Issue 610).
-  -- Andreas, 2019-06-17  also for erasure (issue #3855).
   rel <- max (getRelevance info0) <$> viewTC eRelevance
-  q   <- viewTC eQuantity <&> \case
-    q@Quantity0{} -> q
-    _ -> getQuantity info0
 
   -- Andrea, 2019-07-16 Cohesion is purely based on left-division, it
   -- does not take envModality into account.
   let c = getCohesion info0
-  let mod  = Modality rel q c
+  let mod  = Modality rel (getQuantity info0) c
   let info = setModality mod info0
   applyCohesionToContext c $ do
 
@@ -881,8 +880,8 @@ checkSectionApplication
 checkSectionApplication i m1 modapp copyInfo =
   traceCall (CheckSectionApplication (getRange i) m1 modapp) $
   -- A section application is type-checked in a non-erased context
-  -- (#5410).
-  localTC (over eQuantity $ mapQuantity (`addQuantity` topQuantity)) $
+  -- (#5410), except if hard compile-time mode is enabled (#4743).
+  setRunTimeModeUnlessInHardCompileTimeMode $
   checkSectionApplication' i m1 modapp copyInfo
 
 -- | Check an application of a section. (Do not invoke this procedure

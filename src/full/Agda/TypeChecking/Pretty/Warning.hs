@@ -341,6 +341,10 @@ prettyWarning = \case
       , if patsyn then pwords "pattern synonym" else [ "constructor" ]
       ]
 
+    PlentyInHardCompileTimeMode o -> fsep $
+      pwords "Ignored use of" ++ [pretty o] ++
+      pwords "in hard compile-time mode"
+
     RecordFieldWarning w -> prettyRecordFieldWarning w
 
 prettyRecordFieldWarning :: MonadPretty m => RecordFieldWarning -> m Doc

@@ -287,9 +287,13 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
           Quantityω{} -> return ()
           Quantity0{} -> return ()
           Quantity1{} -> typeError $ GenericError $ "Quantity-restricted constructors are not supported"
+
+        -- If the constructor is erased, then hard compile-time mode
+        -- is entered.
+        setHardCompileTimeModeIfErased' ai $ do
+
         -- check that the type of the constructor is well-formed
-        (t, isPathCons) <- applyQuantityToJudgement ai $
-                           checkConstructorType e d
+        (t, isPathCons) <- checkConstructorType e d
 
         -- compute which constructor arguments are forced (only point constructors)
         forcedArgs <- if isPathCons == PointCons

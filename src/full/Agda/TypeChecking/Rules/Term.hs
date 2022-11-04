@@ -719,11 +719,13 @@ insertHiddenLambdas h target postpone ret = do
 -- | @checkAbsurdLambda i h e t@ checks absurd lambda against type @t@.
 --   Precondition: @e = AbsurdLam i h@
 checkAbsurdLambda :: Comparison -> A.ExprInfo -> Hiding -> A.Expr -> Type -> TCM Term
-checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
+checkAbsurdLambda cmp i h e t =
+  setRunTimeModeUnlessInHardCompileTimeMode $ do
       -- Andreas, 2019-10-01: check absurd lambdas in non-erased mode.
       -- Otherwise, they are not usable in meta-solutions in the term world.
       -- See test/Succeed/Issue3176.agda for an absurd lambda
       -- created in types.
+      -- #4743: Except if hard compile-time mode is enabled.
   t <- instantiateFull t
   ifBlocked t (\ blocker t' -> postponeTypeCheckingProblem (CheckExpr cmp e t') blocker) $ \ _ t' -> do
     case unEl t' of
@@ -786,7 +788,11 @@ checkExtendedLambda cmp i di erased qname cs e t = do
       [ "Erased pattern-matching lambdas may only be used in erased"
       , "contexts"
       ]
-   else localTC (set eQuantity $ asQuantity erased) $ do
+   else setModeUnlessInHardCompileTimeMode erased $ do
+        -- Erased pattern-matching lambdas are checked in hard
+        -- compile-time mode. For non-erased pattern-matching lambdas
+        -- run-time mode is used, unless the current mode is hard
+        -- compile-time mode.
    -- Andreas, 2016-06-16 issue #2045
    -- Try to get rid of unsolved size metas before we
    -- fix the type of the extended lambda auxiliary function

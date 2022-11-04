@@ -236,6 +236,7 @@ data WarningName
   | NotStrictlyPositive_
   | UnsupportedIndexedMatch_
   | OldBuiltin_
+  | PlentyInHardCompileTimeMode_
   | PragmaCompileErased_
   | RewriteMaybeNonConfluent_
   | RewriteNonConfluent_
@@ -398,6 +399,7 @@ warningNameDescription = \case
   NotStrictlyPositive_             -> "Failed strict positivity checks."
   UnsupportedIndexedMatch_         -> "Failed to compute full equivalence when splitting on indexed family."
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
+  PlentyInHardCompileTimeMode_     -> "Use of @ω or @plenty in hard compile-time mode."
   PragmaCompileErased_             -> "`COMPILE' pragma targeting an erased symbol."
   RewriteMaybeNonConfluent_        -> "Failed local confluence check while computing overlap."
   RewriteNonConfluent_             -> "Failed local confluence check while joining critical pairs."

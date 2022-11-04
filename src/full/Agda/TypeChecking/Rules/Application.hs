@@ -1629,9 +1629,11 @@ checkSharpApplication e t c args = do
     (_, a) <- newValueMeta RunMetaOccursCheck CmpEq (sort $ Type lv)
     return $ El (Type lv) $ Def inf [Apply $ setHiding Hidden $ defaultArg l, Apply $ defaultArg a]
 
-  wrapper <- inFreshModuleIfFreeParams $ localTC (set eQuantity topQuantity) $ do
+  wrapper <- inFreshModuleIfFreeParams $
+             setRunTimeModeUnlessInHardCompileTimeMode $ do
     -- Andreas, 2019-10-12: create helper functions in non-erased mode.
     -- Otherwise, they are not usable in meta-solutions in the term world.
+    -- #4743: Except if hard compile-time mode is enabled.
     c' <- setRange (getRange c) <$>
             liftM2 qualify (killRange <$> currentModule)
                            (freshName_ name)

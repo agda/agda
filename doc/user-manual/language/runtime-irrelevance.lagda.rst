@@ -189,6 +189,24 @@ the type a term is checked against (except that a distinction is
 sometimes made between fibrant and non-fibrant types). In particular,
 checking a term against ``Set`` does not trigger compile-time mode.
 
+There is also a *hard compile-time mode*. In this mode all definitions
+are treated as erased. The hard compile-time mode is entered when an
+erased definition is checked.
+
+The type-checker switches from compile-time mode to run-time mode for
+certain expressions/declarations if it is not in the hard compile-time
+mode:
+
+- Absurd lambdas.
+- Non-erased pattern-matching lambdas.
+- Module definitions ("``module M … = …``") or applications
+  ("``M …``").
+- Applications of ``♯`` (see :ref:`old-coinduction`).
+
+.. note::
+  The text above should be extended with information about how the
+  reflection machinery interacts with run-time irrelevance.
+
 .. _references:
 
 References
