@@ -11,7 +11,7 @@ import Control.Monad.State
 import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough )
 import Control.Monad.Trans.Identity ( IdentityT )
 import Control.Monad.Trans.Maybe
-import Control.Monad.Writer hiding ((<>))
+import Control.Monad.Writer         ( WriterT )
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
 

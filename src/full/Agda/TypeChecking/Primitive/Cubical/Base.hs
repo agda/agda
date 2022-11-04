@@ -18,12 +18,13 @@ module Agda.TypeChecking.Primitive.Cubical.Base
   )
   where
 
-import Control.Arrow (second)
-import Control.Monad.Except
+import Control.Monad        ( msum, mzero )
+import Control.Monad.Except ( MonadError )
 
 import qualified Data.IntMap as IntMap
 import Data.IntMap (IntMap)
 import Data.String (IsString (fromString))
+import Data.Bifunctor (second)
 import Data.Either (partitionEithers)
 import Data.Maybe (fromMaybe, maybeToList)
 
