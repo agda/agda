@@ -288,7 +288,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
           Quantity0{} -> return ()
           Quantity1{} -> typeError $ GenericError $ "Quantity-restricted constructors are not supported"
         -- check that the type of the constructor is well-formed
-        (t, isPathCons) <- applyQuantityToContext ai $
+        (t, isPathCons) <- applyQuantityToJudgement ai $
                            checkConstructorType e d
 
         -- compute which constructor arguments are forced (only point constructors)
@@ -305,7 +305,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               Prop l -> Type l
               _      -> s
         arity <- traceCall (CheckConstructorFitsIn c t s') $
-                 applyQuantityToContext ai $
+                 applyQuantityToJudgement ai $
                  fitsIn uc forcedArgs t s'
         -- this may have instantiated some metas in s, so we reduce
         s <- reduce s

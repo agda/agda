@@ -324,7 +324,7 @@ checkDomain lamOrPi xs e = do
     let (q :| qs) = fmap (getQuantity . getModality) xs
     unless (all (q ==) qs) $ __IMPOSSIBLE__
 
-    t <- applyQuantityToContext q $
+    t <- applyQuantityToJudgement q $
          applyCohesionToContext c $
          modEnv lamOrPi $ isType_ e
     -- Andrea TODO: also make sure that LockUniv implies IsLock
@@ -1348,7 +1348,7 @@ doQuoteTerm cmp et t = do
 -- | Unquote a TCM computation in a given hole.
 unquoteM :: A.Expr -> Term -> Type -> TCM ()
 unquoteM tacA hole holeType = do
-  tac <- applyQuantityToContext zeroQuantity $
+  tac <- applyQuantityToJudgement zeroQuantity $
     checkExpr tacA =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
   inFreshModuleIfFreeParams $ unquoteTactic tac hole holeType
 
