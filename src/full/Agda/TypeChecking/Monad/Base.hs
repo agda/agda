@@ -3425,8 +3425,6 @@ data TCEnv =
                 -- 'Quantity' component:
                 -- Are we checking a runtime-irrelevant thing? (='Quantity0')
                 -- Then runtime-irrelevant things are usable.
-                -- Other value: @Quantity1@, runtime relevant.
-                -- @Quantityω@ is not allowed here, see Bob Atkey, LiCS 2018.
           , envSplitOnStrict       :: Bool
                 -- ^ Are we currently case-splitting on a strict
                 --   datatype (i.e. in SSet)? If yes, the
