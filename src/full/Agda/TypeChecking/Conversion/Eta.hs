@@ -156,9 +156,10 @@ idEtaKit = do
   pure $ \tn -> do
     guard (tn == idT)
     pure EtaKit
-      { isNeutral = \(l:a:x:_) e -> pure $ case e of
-          NotBlocked ReallyNotBlocked tm@(Def q _) -> isNothing (cv (unArg x) tm)
-          _ -> False
+      { -- n.b.: neutral = NOT a constructor
+        isNeutral = \(l:a:x:_) e -> pure $ case e of
+          NotBlocked _ tm@(Def q _) -> isNothing (cv (unArg x) tm)
+          _ -> True
       , etaExpand = \[Arg _ l, Arg _ a, Arg _ x, Arg _ y] tm ->
           let
             ap = flip apply [argH l, argH a, argH x, argH y, argN tm]
@@ -175,4 +176,4 @@ idEtaKit = do
 etaKitForDef :: MonadConversion m => QName -> m (Maybe (EtaKit m))
 etaKitForDef r = do
   others <- catMaybes <$> traverse runMaybeT [glueEtaKit, hcompUEtaKit, subEtaKit, idEtaKit]
-  runMaybeT $ recordEtaKit r <|> asum (map ($ r) others)
+  runMaybeT $ recordEtaKit r <|> msum (map ($ r) others)

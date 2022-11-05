@@ -171,10 +171,15 @@ primExpandId' = do
       conid <- getTerm "primExpandId" builtinConId
       idp <- getTerm "primExpandId" "primIdPath"
       idf <- getTerm "primExpandId" "primIdFace"
-      let
-        phi = idf `apply` [l, bA, x, y, t]
-        w   = idp `apply` [l, bA, x, y, t]
-      redReturn $ conid `apply` [l, bA, x, y, argN phi, argN w]
+      st <- reduceB' t
+      cview <- conidView'
+      case cview (unArg x) (unArg (ignoreBlocking st)) of
+        Just (phi, w) -> redReturn (unArg (ignoreBlocking st))
+        Nothing -> do
+          let
+            phi = idf `apply` [l, bA, x, y, t]
+            w   = idp `apply` [l, bA, x, y, t]
+          redReturn $ conid `apply` [l, bA, x, y, argN phi, argN w]
     _ -> __IMPOSSIBLE__
 
 -- | Extract the underlying path from an inhabitant of the
