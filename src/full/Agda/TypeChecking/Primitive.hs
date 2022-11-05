@@ -969,6 +969,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromListWith __IMPOSSIBL
   , "primIdFace"          |-> primIdFace'
   , "primIdPath"          |-> primIdPath'
   , builtinIdElim         |-> primIdElim'
+  , builtinRelaxId        |-> primExpandId'
   , builtinSubOut         |-> primSubOut'
   , builtinConId          |-> primConId'
   , builtin_glueU         |-> prim_glueU'

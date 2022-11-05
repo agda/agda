@@ -2,15 +2,19 @@
 module CubicalPrims where
 
 open import Agda.Primitive renaming (_⊔_ to ℓ-max)
-open import Agda.Primitive.Cubical renaming (primIMin to _∧_; primIMax to _∨_; primINeg to ~_; isOneEmpty to empty)
+open import Agda.Primitive.Cubical renaming (primIMin to _∧_; primIMax to _∨_; primINeg to ~_; isOneEmpty to empty ; itIsOne to 1=1)
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Cubical.Sub renaming (Sub to _[_↦_]; primSubOut to outS)
 open import Agda.Builtin.Cubical.Path
 open import Agda.Builtin.Cubical.Id renaming (IdJ to J)
 open import Agda.Builtin.Cubical.Glue renaming (primGlue to Glue; prim^glue to glue; prim^unglue to unglue)
+open import Agda.Builtin.Cubical.HCompU
+  renaming (prim^glueU to glueU; prim^unglueU to unglueU)
+  hiding (module Helpers)
 open import Agda.Builtin.Sigma
 open import Agda.Builtin.List
 open Helpers
+
 
 module _ {ℓ} {A : Set ℓ} where
   trans : {x y z : A} → x ≡ y → y ≡ z → x ≡ z
@@ -28,7 +32,7 @@ module DerivedComp where
 
   module _ (la : I → Level) (A : ∀ i → Set (la i)) (φ : I) (u : ∀ i → Partial φ (A i)) (u0 : A i0 [ φ ↦ u i0 ]) where
     comp : A i1
-    comp = primHComp (\ i → \ { (φ = i1) → forward la A i (u i itIsOne) }) (forward la A i0 (outS u0))
+    comp = primHComp (\ i → \ { (φ = i1) → forward la A i (u i 1=1) }) (forward la A i0 (outS u0))
 
     comp-test : comp ≡ primComp A u (outS u0)
     comp-test = refl
@@ -97,7 +101,7 @@ J-comp : ∀ {ℓ ℓ'} {A : Set ℓ} {x : A} {P : ∀ y → Id x y → Set ℓ'
 J-comp _ = refl
 
 outPartial : ∀ {ℓ} {A : Set ℓ} → Partial i1 A → A
-outPartial = λ f → f itIsOne
+outPartial = λ f → f 1=1
 
 inPartial : ∀ {ℓ} {A : Set ℓ} → A → Partial i1 A
 inPartial a = λ _ → a
@@ -111,7 +115,7 @@ module _ {ℓ ℓ'} {A : I → Set ℓ} {B : ∀ i → A i → Set ℓ'}
     v : (i : I) → A i
     v i = primTransp (λ j → A (i ∨ (~ j))) i x1
     f : ∀ i → (a : A i) → Partial φ (B i a)
-    f i a = λ { (φ = i1) → u i itIsOne a  }
+    f i a = λ { (φ = i1) → u i 1=1 a  }
 
 
   compPi' : (φ : I) → (u : ∀ i → Partial φ (C i)) → (a : C i0 [ φ ↦ u i0 ]) → C i1
@@ -125,7 +129,7 @@ module HCompPathP {ℓ} {A : I → Set ℓ} (u : A i0) (v : A i1) (φ : I)
          (let C = PathP A u v) (p : ∀ i → Partial φ C) (p0 : C [ φ ↦ p i0 ]) where
 
   hcompPathP : C
-  hcompPathP j = primHComp (\ { i (φ = i1) → p i itIsOne j
+  hcompPathP j = primHComp (\ { i (φ = i1) → p i 1=1 j
                               ; i (j = i0) → u
                               ; i (j = i1) → v })
                            (outS p0 j)
@@ -165,16 +169,16 @@ module RecordComp where
     (let ℓ = _ ; Z : Set ℓ ; Z = R(A)(B)(C))
     (φ : I) → (u : ∀ i → Partial φ Z) → Z [ φ ↦ u i0 ] → Z
   fst (hcompR {A = A} {B} φ w w0)
-    = primComp (\ _ → A) (λ i →  (λ{ (φ = i1) → fst (w i itIsOne) }) ) (fst (outS w0))
+    = primComp (\ _ → A) (λ i →  (λ{ (φ = i1) → fst (w i 1=1) }) ) (fst (outS w0))
   snd (hcompR {A = A} {B} φ w w0)
-    = primComp (λ i → B (a i)) (λ i → (λ { (φ = i1) → snd (w i itIsOne) })) (snd (outS w0))
+    = primComp (λ i → B (a i)) (λ i → (λ { (φ = i1) → snd (w i 1=1) })) (snd (outS w0))
     where
-      a = fill (λ z → A) (λ i → (λ { (φ = i1) → fst (w i itIsOne) }) ) (inS (fst (outS w0)))
+      a = fill (λ z → A) (λ i → (λ { (φ = i1) → fst (w i 1=1) }) ) (inS (fst (outS w0)))
   trd (hcompR {A = A} {B} {C} φ w w0)
-    = primComp (λ i → C (a i) (b i)) ((λ i → (λ { (φ = i1) → trd (w i itIsOne)}))) (trd (outS w0))
+    = primComp (λ i → C (a i) (b i)) ((λ i → (λ { (φ = i1) → trd (w i 1=1)}))) (trd (outS w0))
     where
-      a = fill (λ z → A) (λ i → (λ { (φ = i1) → fst (w i itIsOne) }) ) (inS (fst (outS w0)))
-      b = fill (λ i → B (a i)) (λ i → (λ { (φ = i1) → snd (w i itIsOne) }) ) (inS (snd (outS w0)))
+      a = fill (λ z → A) (λ i → (λ { (φ = i1) → fst (w i 1=1) }) ) (inS (fst (outS w0)))
+      b = fill (λ i → B (a i)) (λ i → (λ { (φ = i1) → snd (w i 1=1) }) ) (inS (snd (outS w0)))
 
   module _ {ℓ ℓ'} {A : Set ℓ} {B : A → Set ℓ'}
                   {C : (x : A) → B x → Set ℓ}
@@ -233,20 +237,31 @@ module _ {ℓ} {A : Set ℓ} {φ : I} {T : Partial φ (Set ℓ)}
     (glue {φ = φ} (λ{ (φ = i1) → b }) (unglue {φ = φ} b)) ≡ b
   test-Glue-η b = refl
 
+module _ {ℓ} {φ : I} {T : I → Partial φ (Set ℓ)} {A : Set ℓ [ φ ↦ T i0 ]} where
+  test-HCompU-β :
+    (t : PartialP φ (T i1))
+    (a : outS A [ φ ↦ (λ { (φ = i1) → primTransp (λ i → T (~ i) 1=1) i0 (t 1=1) }) ] ) →
+    unglueU {φ = φ} {T = T} {A = A} (glueU {φ = φ} {T = T} {A = A} t (outS a)) ≡ outS a
+  test-HCompU-β t a = refl
+
+  test-HCompU-η : (b : primHComp T (outS A)) →
+    glueU {φ = φ} {A = A} (λ { (φ = i1) → b }) (unglueU {φ = φ} {A = A} b) ≡ b
+  test-HCompU-η b = refl
+
 module _ {ℓ} {A : Set ℓ} (let φ = i1) {T : Partial φ (Set ℓ)}
              {e : PartialP φ (λ o → T o ≃ A)}
               where
   test-unglue-0 : (b : Glue A T e) →
-    unglue {A = A} {φ = φ} {T = T} {e} b ≡ e itIsOne .fst b
+    unglue {A = A} {φ = φ} {T = T} {e} b ≡ e 1=1 .fst b
   test-unglue-0 _ = refl
 
   test-unglue-2 : (t : PartialP φ T) (a : A [ φ ↦ (\ o → e o .fst (t o)) ]) →
     unglue {A = A} {φ = φ} {T = T} {e}
-    (glue {A = A}{φ = φ}{T = T}{e} t (outS a)) ≡ e itIsOne .fst (t itIsOne) -- = a
+    (glue {A = A}{φ = φ}{T = T}{e} t (outS a)) ≡ e 1=1 .fst (t 1=1) -- = a
   test-unglue-2 _ _ = refl
 
   test-glue-0 : (t : PartialP φ T) (a : A [ φ ↦ (\ o → e o .fst (t o)) ]) →
-    (glue {A = A} {T = T} {e} t (outS a)) ≡ t itIsOne
+    (glue {A = A} {T = T} {e} t (outS a)) ≡ t 1=1
   test-glue-0 _ _ = refl
 
 eqToPath : ∀ {ℓ} {A B : Set ℓ} → A ≃ B → A ≡ B
@@ -393,6 +408,7 @@ record Wrap (A : IUniv) : SSet where
     unwrap : A
 
 -- composition and transport in I → A
+
 
 module HCompI→ {ℓ} {A : I → Set ℓ} (φ : I)
    (let C = (j : I) → A j) (p : ∀ i → Partial φ C) (p0 : C [ φ ↦ p i0 ])

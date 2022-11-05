@@ -2,6 +2,8 @@
 module Agda.TypeChecking.Primitive.Cubical.Id
   ( -- * General elimination form
     primIdElim'
+  -- * Expand p to conid (idFace p) (idPath p)
+  , primExpandId'
   -- * Introduction form
   , primConId'
   -- * Projection maps (primarily used internally)
@@ -151,6 +153,28 @@ primIdFace' = do
       case cview (unArg x) $ unArg (ignoreBlocking st) of
         Just (phi, _) -> redReturn (unArg phi)
         _ -> return $ NoReduction $ map notReduced [l,bA,x,y] ++ [reduced st]
+    _ -> __IMPOSSIBLE__
+
+primExpandId' :: TCM PrimitiveImpl
+primExpandId' = do
+  requireCubical CErased ""
+  t <- runNamesT [] $
+    hPi' "a" (el $ cl primLevel) $ \ a ->
+    hPi' "A" (sort . tmSort <$> a) $ \ bA ->
+    hPi' "x" (el' a bA) $ \ x ->
+    hPi' "y" (el' a bA) $ \ y ->
+    el' a (cl primId <#> a <#> bA <@> x <@> y)
+    --> el' a (cl primId <#> a <#> bA <@> x <@> y)
+
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 5 $ \case
+    [l,bA,x,y,t] -> do
+      conid <- getTerm "primExpandId" builtinConId
+      idp <- getTerm "primExpandId" "primIdPath"
+      idf <- getTerm "primExpandId" "primIdFace"
+      let
+        phi = idf `apply` [l, bA, x, y, t]
+        w   = idp `apply` [l, bA, x, y, t]
+      redReturn $ conid `apply` [l, bA, x, y, argN phi, argN w]
     _ -> __IMPOSSIBLE__
 
 -- | Extract the underlying path from an inhabitant of the

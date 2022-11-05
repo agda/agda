@@ -31,6 +31,7 @@ import Agda.TypeChecking.Substitute
 import qualified Agda.TypeChecking.SyntacticEquality as SynEq
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
+import Agda.TypeChecking.Conversion.Eta
 import Agda.TypeChecking.Conversion.Pure (pureCompareAs, runPureConversion)
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (infer)
 import Agda.TypeChecking.Forcing (isForced, nextIsForced)
@@ -299,54 +300,49 @@ compareTerm' cmp a m n =
             ]
           __IMPOSSIBLE__
         Def r es  -> do
-          isrec <- isEtaRecord r
-          if isrec
-            then do
-              whenProfile Profile.Conversion $ tick "compare at eta record"
-              sig <- getSignature
+          kit <- etaKitForDef r
+          case kit of
+            Just EtaKit{isNeutral, isSingleton, etaExpand, headTerm, profilingTickTag, verboseTag} -> do
+              whenProfile Profile.Conversion $ tick (profilingTickTag "")
               let ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-              -- Andreas, 2010-10-11: allowing neutrals to be blocked things does not seem
-              -- to change Agda's behavior
-              --    isNeutral Blocked{}          = False
-                  isNeutral (NotBlocked _ Con{}) = return False
-              -- Andreas, 2013-09-18 / 2015-06-29: a Def by copatterns is
-              -- not neutral if it is blocked (there can be missing projections
-              -- to trigger a reduction.
-                  isNeutral (NotBlocked r (Def q _)) = do    -- Andreas, 2014-12-06 optimize this using r !!
-                    not <$> usesCopatterns q -- a def by copattern can reduce if projected
-                  isNeutral _                   = return True
+                  -- Comments which were in the definition of isNeutral
+                  -- here were moved to Agda.TypeChecking.Conversion.Eta.
                   isMeta b = case ignoreBlocking b of
                                MetaV{} -> True
                                _       -> False
+                  tag = "tc.conv.term.eta." ++ verboseTag
 
-              reportSDoc "tc.conv.term" 30 $ prettyTCM a <+> "is eta record type"
+              reportSDoc tag 30 $ prettyTCM a <+> "is eta-expansible type"
               m <- reduceB m
-              mNeutral <- isNeutral m
+              mNeutral <- isNeutral ps m
               n <- reduceB n
-              nNeutral <- isNeutral n
+              nNeutral <- isNeutral ps n
               if | isMeta m || isMeta n -> do
-                     whenProfile Profile.Conversion $ tick "compare at eta-record: meta"
+                     whenProfile Profile.Conversion $ tick $ profilingTickTag ": meta"
                      compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
                  | mNeutral && nNeutral -> do
-                     whenProfile Profile.Conversion $ tick "compare at eta-record: both neutral"
+                     whenProfile Profile.Conversion $ tick $ profilingTickTag ": both neutral"
                      -- Andreas 2011-03-23: (fixing issue 396)
                      -- if we are dealing with a singleton record,
                      -- we can succeed immediately
-                     let profUnitEta = whenProfile Profile.Conversion $ tick "compare at eta-record: both neutral at unit"
-                     ifM (isSingletonRecordModuloRelevance r ps) (profUnitEta) $ do
+                     let profUnitEta = whenProfile Profile.Conversion $ tick $ profilingTickTag ": both neutral at unit"
+                     ifM (isSingleton ps) (profUnitEta) $ do
                        -- do not eta-expand if comparing two neutrals
                        compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
                  | otherwise -> do
-                     whenProfile Profile.Conversion $ tick "compare at eta-record: eta-expanding"
-                     (tel, m') <- etaExpandRecord r ps $ ignoreBlocking m
-                     (_  , n') <- etaExpandRecord r ps $ ignoreBlocking n
-                     -- No subtyping on record terms
-                     c <- getRecordConstructor r
-                     -- Record constructors are covariant (see test/succeed/CovariantConstructors).
-                     compareArgs (repeat $ polFromCmp cmp) [] (telePi_ tel __DUMMY_TYPE__) (Con c ConOSystem []) m' n'
-
-            else (do pathview <- pathView a'
-                     equalPath pathview a' m n)
+                    whenProfile Profile.Conversion $ tick $ profilingTickTag ": eta-expanding"
+                    (tel, m') <- etaExpand ps $ ignoreBlocking m
+                    (_  , n') <- etaExpand ps $ ignoreBlocking n
+                    reportSDoc tag 30 $ vcat
+                      [ "conversion-checking by eta expansion"
+                      , prettyTCM m <+> "-->" <+> prettyTCM m'
+                      , prettyTCM n <+> "-->" <+> prettyTCM n'
+                      ]
+                    -- Record constructors are covariant (see test/succeed/CovariantConstructors).
+                    compareArgs (repeat $ polFromCmp cmp) [] (telePi_ tel __DUMMY_TYPE__) (headTerm ps) m' n'
+            Nothing -> do
+              pathview <- pathView a'
+              equalPath pathview a' m n
         _ -> compareAtom cmp (AsTermsOf a') m n
   where
     -- equality at function type (accounts for eta)
@@ -378,56 +374,12 @@ compareTerm' cmp a m n =
     equalPath OType{} a' m n = cmpDef a' m n
 
     cmpDef a'@(El s ty) m n = do
-       mI     <- getBuiltinName'   builtinInterval
-       mIsOne <- getBuiltinName'   builtinIsOne
-       mGlue  <- getPrimitiveName' builtinGlue
-       mHComp <- getPrimitiveName' builtinHComp
-       mSub   <- getBuiltinName' builtinSub
-       mUnglueU <- getPrimitiveTerm' builtin_unglueU
-       mSubIn   <- getPrimitiveTerm' builtinSubIn
-       case ty of
-         Def q es | Just q == mIsOne -> return ()
-         Def q es | Just q == mGlue, Just args@(l:_:a:phi:_) <- allApplyElims es -> do
-              aty <- el' (pure $ unArg l) (pure $ unArg a)
-              unglue <- prim_unglue
-              let mkUnglue m = apply unglue $ map (setHiding Hidden) args ++ [argN m]
-              reportSDoc "conv.glue" 20 $ prettyTCM (aty,mkUnglue m,mkUnglue n)
-
-              -- When φ is an interval expression which can be
-              -- decomposed into substitutions σ, then we also compare
-              -- the terms m[σ] = n[σ] at the type (Glue a φ _)[σ]. This
-              -- is because, under decomposing φ, the Glue type might
-              -- reduce.
-              phi' <- decomposeInterval' (unArg phi)
-              -- However if φ is *not* decomposable (e.g. because it is
-              -- a function application φ i, see Issue #5955), then we
-              -- do not recur, otherwise we'd just end up right back
-              -- here.
-              unless (IntMap.null (foldMap fst phi')) $
-                compareTermOnFace cmp (unArg phi) a' m n
-
-              -- And in the general case, we compare the glued things by
-              -- "eta": m and n are the same if they unglue to the same
-              -- thing.
-              compareTerm cmp aty (mkUnglue m) (mkUnglue n)
-         Def q es | Just q == mHComp, Just (sl:s:args@[phi,u,u0]) <- allApplyElims es
-                  , Sort (Type lvl) <- unArg s
-                  , Just unglueU <- mUnglueU, Just subIn <- mSubIn
-                  -> do
-              let l = Level lvl
-              ty <- el' (pure $ l) (pure $ unArg u0)
-              let bA = subIn `apply` [sl,s,phi,u0]
-              let mkUnglue m = apply unglueU $ [argH l] ++ map (setHiding Hidden) [phi,u]  ++ [argH bA,argN m]
-              reportSDoc "conv.hcompU" 20 $ prettyTCM (ty,mkUnglue m,mkUnglue n)
-              compareTermOnFace cmp (unArg phi) ty m n
-              compareTerm cmp ty (mkUnglue m) (mkUnglue n)
-         Def q es | Just q == mSub, Just args@(l:a:_) <- allApplyElims es -> do
-              ty <- el' (pure $ unArg l) (pure $ unArg a)
-              out <- primSubOut
-              let mkOut m = apply out $ map (setHiding Hidden) args ++ [argN m]
-              compareTerm cmp ty (mkOut m) (mkOut n)
-         Def q [] | Just q == mI -> compareInterval cmp a' m n
-         _ -> compareAtom cmp (AsTermsOf a') m n
+      mI     <- getBuiltinName'   builtinInterval
+      mIsOne <- getBuiltinName'   builtinIsOne
+      case ty of
+        Def q es | Just q == mIsOne -> return ()
+        Def q [] | Just q == mI -> compareInterval cmp a' m n
+        _ -> compareAtom cmp (AsTermsOf a') m n
 
 compareAtomDir :: MonadConversion m => CompareDirection -> CompareAs -> Term -> Term -> m ()
 compareAtomDir dir a = dirToCmp (`compareAtom` a) dir
@@ -599,11 +551,31 @@ compareAtom cmp t m n =
           munglue <- getPrimitiveName' builtin_unglue
           munglueU <- getPrimitiveName' builtin_unglueU
           msubout <- getPrimitiveName' builtinSubOut
+          midpath <- getPrimitiveName' "primIdPath"
+          midface <- getPrimitiveName' "primIdFace"
           case () of
             _ | Just q == munglue -> compareUnglueApp q es es'
             _ | Just q == munglueU -> compareUnglueUApp q es es'
             _ | Just q == msubout -> compareSubApp q es es'
+            _ | Just q == midpath -> compareIdField True q es es'
+            _ | Just q == midface -> compareIdField False q es es'
             _                     -> return False
+        compareIdField isp q es es' = do
+          let
+            (as,bs) = splitAt 5 es
+            (as',bs') = splitAt 5 es'
+          case (allApplyElims as, allApplyElims as') of
+            (Just [a,bA,x,y,p], Just [a',bA',x',y',p']) -> do
+              contt <- if not isp then primIntervalType else do
+                path <- primPath
+                el' (pure (unArg a)) (pure (path `apply` [a, bA, argN (unArg x), argN (unArg y)]))
+              tId <- primId
+              compareAtom cmp
+                (AsTermsOf $ El (tmSSort $ unArg a) $ tId `apply` [a,bA,argN (unArg x), argN (unArg y)])
+                (unArg p) (unArg p')
+              compareElims [] [] contt (Def q as) bs bs'
+              return True
+            _  -> return False
         compareSubApp q es es' = do
           let (as,bs) = splitAt 5 es; (as',bs') = splitAt 5 es'
           case (allApplyElims as, allApplyElims as') of
@@ -2133,7 +2105,7 @@ compareTermOnFace'
 compareTermOnFace' k cmp phi ty u v = do
   reportSDoc "tc.conv.face" 40 $
     text "compareTermOnFace:" <+> pretty phi <+> "|-" <+> pretty u <+> "==" <+> pretty v <+> ":" <+> pretty ty
-  whenProfile Profile.Conversion $ tick "compare at face type"
+  whenProfile Profile.Conversion $ tick "compare under formula"
 
   phi <- reduce phi
   _ <- forallFaceMaps phi postponed $ \ faces alpha ->

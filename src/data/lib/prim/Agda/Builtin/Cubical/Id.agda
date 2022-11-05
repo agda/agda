@@ -26,6 +26,7 @@ module Agda.Builtin.Cubical.Id where
     primDepIMin : _
     primIdFace : ∀ {ℓ} {A : Set ℓ} {x y : A} → Id x y → I
     primIdPath : ∀ {ℓ} {A : Set ℓ} {x y : A} → Id x y → x ≡ y
+    primExpandId : ∀ {ℓ} {A : Set ℓ} {x y : A} → Id x y → Id x y
 
   primitive
     primIdElim : ∀ {a c} {A : Set a} {x : A}

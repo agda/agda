@@ -23,7 +23,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinGlue, builtin_glue, builtin_unglue,
   builtin_glueU, builtin_unglueU,
   builtinFaceForall,
-  builtinId, builtinReflId, builtinConId, builtinIdElim,
+  builtinId, builtinReflId, builtinConId, builtinIdElim, builtinRelaxId,
   builtinSizeUniv, builtinSize, builtinSizeLt,
   builtinSizeSuc, builtinSizeInf, builtinSizeMax,
   builtinInf, builtinSharp, builtinFlat,
@@ -112,6 +112,7 @@ builtinId                                = "ID"
 builtinReflId                            = "REFLID"
 builtinConId                             = "primConId"
 builtinIdElim                            = "primIdElim"
+builtinRelaxId                           = "primExpandId"
 builtinPath                              = "PATH"
 builtinPathP                             = "PATHP"
 builtinIntervalUniv                      = "CUBEINTERVALUNIV"
