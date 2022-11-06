@@ -2,7 +2,7 @@ Tested with `ghc-8.10.5` and `cabal-install 3.4.0.0`.
 
 When releasing the following procedure can be followed:
 
-* Verify that the Travis builds and GitHub workflows have no errors.
+* Verify that GitHub workflows have no errors.
 
 * First, release a release candidate (see
   notes/agda-stable-releases-candidates).
