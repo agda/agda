@@ -3,7 +3,6 @@ compiler: ghc-8.4.4
 compiler-check: match-exact
 
 extra-deps:
-- QuickCheck-2.14.2
 - aeson-1.5.6.0
 - assoc-1.0.2
 - base-orphans-0.8.7
@@ -34,4 +33,3 @@ extra-deps:
 # Local packages, usually specified by relative directory name
 packages:
 - '.'
-- 'src/size-solver'
