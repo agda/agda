@@ -86,8 +86,8 @@ When releasing the following procedure can be followed:
 
 1) Remove the Cabal test-suite from Agda.cabal.
 
-2) Remove -Werror and -fprof-auto from Agda.cabal (this is required by
-  `cabal --check`).
+2) Remove -Werror from Agda.cabal (this is required by `cabal
+   --check`).
 
 3) Removed unnecessary dependencies from stack-XYZ.yaml files:
 
