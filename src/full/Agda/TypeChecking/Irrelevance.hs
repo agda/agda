@@ -353,7 +353,7 @@ instance UsableRelevance a => UsableRelevance (Elim' a) where
   usableRel rel (Proj _ p) = do
     prel <- relOfConst p
     return $ prel `moreRelevant` rel
-  usableRel rel (IApply x y v) = allM [x,y,v] $ usableRel rel
+  usableRel rel (IApply x y v) = usableRel rel v
 
 instance UsableRelevance a => UsableRelevance (Arg a) where
   usableRel rel (Arg info u) =
@@ -474,7 +474,7 @@ instance UsableModality a => UsableModality (Elim' a) where
   usableMod mod (Proj _ p) = do
     pmod <- modalityOfConst p
     return $ pmod `moreUsableModality` mod
-  usableMod mod (IApply x y v) = allM [x,y,v] $ usableMod mod
+  usableMod mod (IApply x y v) = usableMod mod v
 
 instance UsableModality a => UsableModality (Arg a) where
   usableMod mod (Arg info u) =
