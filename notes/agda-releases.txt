@@ -95,11 +95,6 @@ When releasing the following procedure can be followed:
   + Removed tasty-* dependencies
   + Removed local package (src/size-solver)
 
-4) Added to the extra-source-files field in Agda.cabal the file (see
-  Issues #4216):
-
-    doc/user-manual.pdf
-
 * Update the user manual:
 
     make user-manual-pdf
@@ -136,7 +131,7 @@ When releasing the following procedure can be followed:
     cabal upload --publish dist-newstyle/sdist/Agda-$RC_VERSION.tar.gz
     cabal upload --publish -d dist-newstyle/Agda-$RC_VERSION-docs.tar.gz
 
-* Revert changes made in 1), 2), 3) and 4).
+* Revert changes made in 1), 2) and 3).
 
 * Push all changes (in the release-$MAJORVERSION branch):
 
