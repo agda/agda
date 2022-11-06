@@ -515,3 +515,7 @@ tracker](https://github.com/agda/agda/issues)):
   - [#6250](https://github.com/agda/agda/issues/6250): Documentation says `--sized-types` is the default when it isn't
   - [#6257](https://github.com/agda/agda/issues/6257): Document options `--prop`, `--guarded`, and `--two-level`.
   - [#6265](https://github.com/agda/agda/issues/6265): Some options should be listed in `restartOptions`
+  - [#6273](https://github.com/agda/agda/issues/6273): Missing highlighting when interleaved mutual is used
+  - [#6276](https://github.com/agda/agda/issues/6276): LaTeX/HTML generation doesn't properly render parameters of pre-declared records
+  - [#6281](https://github.com/agda/agda/issues/6281): Special treatment of attribute followed by underscore in pretty-printer
+
