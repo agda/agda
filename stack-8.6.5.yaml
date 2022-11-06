@@ -3,6 +3,7 @@ compiler: ghc-8.6.5
 compiler-check: match-exact
 
 extra-deps:
+- QuickCheck-2.14.2
 - STMonadTrans-0.4.3
 - cpphs-1.20.9
 - data-hash-0.2.0.1
@@ -22,3 +23,4 @@ extra-deps:
 # Local packages, usually specified by relative directory name
 packages:
 - '.'
+- 'src/size-solver'
