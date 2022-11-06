@@ -7,4 +7,3 @@ extra-deps:
 
 packages:
 - '.'
-- 'src/size-solver'
