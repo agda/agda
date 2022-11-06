@@ -93,6 +93,7 @@ import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 import Agda.Utils.WithDefault
+import Agda.TypeChecking.Free (freeIn)
 
 --UNUSED Liang-Ting Chen 2019-07-16
 ---- | Compute the set of flexible patterns in a list of patterns. The result is
@@ -720,11 +721,6 @@ checkLeftHandSide call f ps a withSub' strippedPats =
           -- (approximately), where T is the target type. That is: to
           -- implement the substitution T[y/x], we use an actual
           -- transport. See #5448.
-          withoutK <- collapseDefault . optWithoutK <$> pragmaOptions
-          cubical <- collapseDefault . optCubicalCompatible <$> pragmaOptions
-          mod <- asksTC getModality
-          when ((withoutK || cubical) && ixsplit) $
-            usableAtModality IndexedClause mod (unEl (unArg b))
 
         arity_a <- arityPiPath a
         -- Compute substitution from the out patterns @qs0@
@@ -851,6 +847,74 @@ checkLeftHandSide call f ps a withSub' strippedPats =
   -- doing the splits:
   (result, block) <- unsafeInTopContext $ runWriterT $ (`runReaderT` (size cxt)) $ checkLHS f st
   return result
+
+-- | Check that this split will generate a modality-correct internal
+-- clause when --cubical-compatible is used. This means that the type of
+-- anything which might be transported must be modality-correct. This is
+-- necessarily an approximate check. We assume that any argument which
+-- (a) comes after and (b) mentions a dotted argument will be
+-- transported, which is probably an overestimate.
+conSplitModalityCheck
+  :: Modality
+  -- ^ Modality to check at
+  -> PatternSubstitution
+  -- ^ Substitution resulting from index unification. @Γ ⊢ ρ : Δ'@,
+  -- where @Δ'@ is the context we're in, and @Γ@ is the clause telescope
+  -- before unification.
+  -> Int       -- ^ Variable x at which we split
+  -> Telescope -- ^ The telescope @Γ@ itself
+  -> Type      -- ^ Target type of the clause.
+  -> TCM ()
+conSplitModalityCheck mod rho blocking gamma target = do
+  reportSDoc "tc.lhs.top" 30 $ vcat
+    [ "LHS modality check for modality: " <+> prettyTCM mod
+    , "rho:    " <+> inTopContext (prettyTCM rho)
+    , "gamma:  " <+> inTopContext (prettyTCM gamma)
+    , "target: " <+> prettyTCM target
+    , "blocking:" <+> prettyTCM blocking
+    ]
+  case firstForced rho (length gamma) of
+    Just ix -> do
+      let
+        (gamma0, delta) = splitTelescopeAt (length gamma - ix) gamma
+        name = inTopContext . addContext gamma . nameOfBV
+      reportSDoc "tc.lhs.top" 30 $ vcat
+        [ "found forced argument!"
+        , "forced: " <+> prettyTCM ix
+        , "before: " <+> inTopContext (prettyTCM gamma0)
+        , "after:  " <+> inTopContext (addContext gamma0 (prettyTCM delta))
+        ]
+      forced <- name ix
+      forM_ (zip [ix - 1, ix - 2 ..] (telToList delta)) $ \(arg, d) -> do
+        -- Example: The first argument after the first forced variable. So
+        -- we have e.g.:
+        --   Γ = Γ₀.x.Δ
+        --   Δ' ⊢ ρ : Γ₀.x.Δ
+        --   Γ₀ ⊢ x : Type
+        -- but we need
+        --   Δ' ⊢ x : Type,
+        -- since Δ' is the context we are in. Then we have
+        --   Γ ⊢ x[wkS |Δ|] : Type
+        -- and consequently
+        --   Δ' ⊢ x[wkS |Δ][ρ] : Type
+        let rho' = composeS rho (wkS (arg + 1) idS)
+        argn <- name arg
+        when (ix `freeIn` applySubst (wkS (arg + 1) idS) (snd <$> d) && arg /= blocking) $
+          usableAtModality (IndexedClauseArg forced argn) mod (applyPatSubst rho'  (unEl (snd (unDom d))))
+    Nothing -> pure ()
+
+  -- ALways check the target clause type.
+  usableAtModality IndexedClause mod (unEl target)
+  where
+    -- Find the first dotted pattern in the substitution. "First" =
+    -- "earliest bound", so counts down from the length of the
+    -- telescope.
+    firstForced :: PatternSubstitution -> Int -> Maybe Int
+    firstForced pat level
+      | level >= 0 = case lookupS pat level of
+        DotP{} -> Just level
+        _ -> firstForced pat (level - 1)
+      | otherwise = Nothing
 
 -- | Determine which splits should be tried.
 splitStrategy :: [ProblemEq] -> [ProblemEq]
@@ -1469,6 +1533,12 @@ checkLHS mf = updateModality checkLHS_ where
                                  -- zero-out, preserves origin
                      Quantity1{} -> __IMPOSSIBLE__
                      Quantityω{} -> q
+
+          liftTCM $ addContext delta' $ do
+            withoutK <- collapseDefault . optWithoutK <$> pragmaOptions
+            cubical <- collapseDefault . optCubicalCompatible <$> pragmaOptions
+            when ((withoutK || cubical) && not (null ixs)) $
+              conSplitModalityCheck (getModality target) rho (length delta2) tel (unArg target'')
 
           -- if rest type reduces,
           -- extend the split problem by previously not considered patterns

@@ -330,12 +330,12 @@ buildEquiv (UnificationStep st step@(Solution k ty fx tm side) output) next = ru
                   -- csingl :: NamesT tcm Term -> NamesT tcm [Arg Term]
                   csingl i = mapM (fmap defaultArg) $ csingl' i
                   -- csingl' :: NamesT tcm Term -> [NamesT tcm Term]
-                  csingl' i = [ k_arg <@@> (u,v,appSide <$> i)
+                  csingl' i = [ k_arg <@> (appSide <$> i)
                               , lam "j" $ \ j ->
                                   let r i j = case side of
                                             Left{} -> unview (IMax (argN j) (argN i))
                                             Right{} -> unview (IMin (argN j) (argN . unview $ INeg $ argN i))
-                                  in k_arg <@@> (u,v,r <$> i <*> j)
+                                  in k_arg <@> (r <$> i <*> j)
                               ]
           let replaceAt n x xs = xs0 ++ x:xs1
                 where (xs0,_:xs1) = splitAt n xs

@@ -508,12 +508,12 @@ usableAtModality' ms why mod t =
           | compatible = "to maintain compatibility with Cubical Agda,"
           | otherwise  = "when --without-K is enabled,"
 
-        explanation
+        explanation what
           | cubical || compatible =
             [ ""
             , fsep ( "Note:":pwords context
-                  ++ pwords "the target type must be usable at the modality"
-                  ++ pwords "in which the function was defined, since it is"
+                  ++ pwords what ++ pwords "must be usable at the modality"
+                  ++ pwords "in which the function was defined, since it will be"
                   ++ pwords "used for computing transports"
                   )
             , ""
@@ -528,7 +528,24 @@ usableAtModality' ms why mod t =
                   ++ pwords "which is not usable at the required modality"
                   ++ [pure (attributesForModality mod) <> "."]
                    )
-            : explanation)
+            : explanation "the target type")
+
+        -- Arguments sometimes need to be transported too:
+        IndexedClauseArg forced the_arg ->
+          vcat $
+            ( fsep (pwords "The argument" ++ [prettyTCM the_arg] ++ pwords "has type")
+            : nest 2 (prettyTCM t)
+            : fsep ( pwords "which is not usable at the required modality"
+                  ++ [pure (attributesForModality mod) <> "."] )
+            : explanation "this argument's type")
+
+        -- Note: if a generated clause is modality-incorrect, that's a
+        -- bug in the LHS modality check
+        GeneratedClause ->
+          __IMPOSSIBLE_VERBOSE__ . show =<<
+                   prettyTCM t
+              <+> "is not usable at the required modality"
+              <+> pure (attributesForModality mod)
         _ -> prettyTCM t <+> "is not usable at the required modality"
          <+> pure (attributesForModality mod)
 
