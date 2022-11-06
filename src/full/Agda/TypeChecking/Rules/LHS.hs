@@ -903,8 +903,14 @@ conSplitModalityCheck mod rho blocking gamma target = do
           usableAtModality (IndexedClauseArg forced argn) mod (applyPatSubst rho'  (unEl (snd (unDom d))))
     Nothing -> pure ()
 
-  -- ALways check the target clause type.
-  usableAtModality IndexedClause mod (unEl target)
+  -- ALways check the target clause type. Specifically, we check it both
+  -- in Δ' and in Γ. The check in Δ' will sometimes let slip by a
+  -- quantity violation which is masked by an indexed match (recall that
+  -- the unifier likes to replace @0-variables for @ω-variables). A
+  -- concrete case where this happens is #5468. Check in Δ' first since
+  -- that will have the forced variable names.
+  usableAtModality IndexedClause mod (unEl (applyPatSubst rho target))
+  inTopContext $ addContext gamma $ usableAtModality IndexedClause mod (unEl target)
   where
     -- Find the first dotted pattern in the substitution. "First" =
     -- "earliest bound", so counts down from the length of the
@@ -1538,7 +1544,7 @@ checkLHS mf = updateModality checkLHS_ where
             withoutK <- collapseDefault . optWithoutK <$> pragmaOptions
             cubical <- collapseDefault . optCubicalCompatible <$> pragmaOptions
             when ((withoutK || cubical) && not (null ixs)) $
-              conSplitModalityCheck (getModality target) rho (length delta2) tel (unArg target'')
+              conSplitModalityCheck (getModality target) rho (length delta2) tel (unArg target)
 
           -- if rest type reduces,
           -- extend the split problem by previously not considered patterns
