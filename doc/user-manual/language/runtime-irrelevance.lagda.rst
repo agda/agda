@@ -169,7 +169,10 @@ The type checker enters compile-time mode when
 
 - checking erased arguments to a constructor or function,
 - checking the body of an erased definition,
-- checking the body of a clause that matches on an erased constructor,
+- checking the body of a clause that matches (in a non-erased
+  position) on a constructor that was originally defined as erased (it
+  does not suffice for the constructor to be currently treated as
+  erased),
 - checking the domain of an erased Π type, or
 - checking a type, i.e. when moving to the right of a ``:``, with some
   exceptions:

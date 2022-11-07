@@ -5,7 +5,7 @@ Highlights
 ----------
 
 * Added support for [Erased Cubical
-  Agda](https://agda.readthedocs.io/en/v2.6.3/language/cubical.html#cubical-agda-with-erased-glue),
+  Agda](https://agda.readthedocs.io/en/latest/language/cubical.html#cubical-agda-with-erased-glue),
   a variant of Cubical Agda that is supported by the GHC and
   JavaScript backends, under the flag `--erased-cubical`.
 
@@ -15,7 +15,7 @@ Highlights
 
   Since `--cubical-compatible` mode implies that functions should work
   with the preliminary support for [indexed inductive types in Cubical
-  Agda](https://agda.readthedocs.io/en/v2.6.3/language/cubical.html#indexed-inductive-types),
+  Agda](https://agda.readthedocs.io/en/latest/language/cubical.html#indexed-inductive-types),
   many pattern matching functions will now emit an
   `UnsupportedIndexedMatch` warning, indicating that the function will
   not compute when applied to transports (from `--cubical` code).
@@ -34,7 +34,7 @@ Highlights
   30% faster than Agda 2.6.2.2 at type-checking the standard library
   with the `--without-K` flag, and 10% faster when using with the
   (new) `--cubical-compatible` flag instead (some details can be found
-  [here](https://github.com/agda/agda/issues/6049#issuecomment-1293698980).
+  [here](https://github.com/agda/agda/issues/6049#issuecomment-1293698980)).
 
 Installation and infrastructure
 -------------------------------
@@ -97,7 +97,7 @@ Erasure
 Cubical Agda
 ------------
 
-* The generation of Cubical Agda-specific support code was removed
+* [**Breaking**] The generation of Cubical Agda-specific support code was removed
   from `--without-K` and transferred to its own flag,
   `--cubical-compatible` (see
   [#5843](https://github.com/agda/agda/issues/5843) and
@@ -149,18 +149,29 @@ Cubical Agda
   longer considered for injectivity analysis.
   ([#6219](https://github.com/agda/agda/pull/6219))
 
-* Higher constructors are no longer considered as guarding in the productivity check.
+* [**Breaking**] Higher constructors are no longer considered as guarding in the productivity check.
   ([#6108](https://github.com/agda/agda/issues/6108))
 
 * Rewrite rules with interval arguments are now supported.
   ([#4384](https://github.com/agda/agda/issues/4384))
 
-* Matching on `@flat` arguments is now disabled by default when the
-  `--cubical-compatible` or `--without-K` flags are used. It can be
-  enabled again using the `--flat-split` flag. Note that, when using
-  Cubical Agda, functions which match on a `@flat` argument will not
-  compute when applied to `transport`s (this will generate an
-  `UnsupportedIndexedMatch` warning).
+The flat modality
+-----------------
+
+* [**Breaking**] The `@flat`/`@♭` modality is now by default disabled (see
+  [#4927](https://github.com/agda/agda/issues/4927)).
+
+  It can be enabled using the infective flag `--cohesion`.
+
+* [**Breaking**] Matching on `@flat` arguments is now disabled by default, the flag
+  `--no-flat-split` has been removed, and the flag `--flat-split` is
+  now infective (see [#6238](https://github.com/agda/agda/issues/6238)
+  and [#6263](https://github.com/agda/agda/issues/6263)).
+
+  Matching can be enabled using the `--flat-split` flag. Note that in
+  Cubical Agda functions that match on an argument marked with `@flat`
+  trigger the `UnsupportedIndexedMatch` warning, and the code might
+  not compute properly.
 
 Reflection
 ----------
@@ -198,7 +209,7 @@ Reflection
     pickWhatever _ = typeError (strErr "Already solved!" ∷ [])
   ```
 
-* The reflection primitives `getContext` and `inContext` use a nominal context
+* [**Breaking**] The reflection primitives `getContext` and `inContext` use a nominal context
   `List (Σ String λ _ → Arg Type)` instead of  `List (Arg Type)` for printing
   type information better. Similarly, `extendContext` takes an extra argument
   of type `String`.
@@ -217,7 +228,7 @@ Reflection
 * A new reflection primitive `formatErrorParts : List ErrorPart → TC String`
   is added. It takes a list of `ErrorPart` and return its formatted string.
 
-* A new constructor `pattErr : Pattern → ErrorPart` of `ErrorPart` for reflection
+* [**Breaking**] A new constructor `pattErr : Pattern → ErrorPart` of `ErrorPart` for reflection
   is added.
 
 Syntax declarations
@@ -251,7 +262,7 @@ Syntax declarations
 Builtins
 --------
 
-* Change `primFloatToWord64` to return `Maybe Word64`.
+* [**Breaking**] Change `primFloatToWord64` to return `Maybe Word64`.
   (See [#6093](https://github.com/agda/agda/issues/6093).)
 
   The new type is
@@ -260,16 +271,16 @@ Builtins
   ```
   and it returns `nothing` for `NaN`.
 
-* The type expected by the builtin `EQUIVPROOF` has been changed to
+* [**Breaking**] The type expected by the builtin `EQUIVPROOF` has been changed to
   properly encode the condition that `EQUVIFUN` is an equivalence.
   ([#5661](https://github.com/agda/agda/issues/5661),
   [#6032](https://github.com/agda/agda/pull/6032))
 
-* The primitive `primIdJ` has been removed
+* [**Breaking**] The primitive `primIdJ` has been removed
   ([#6032](https://github.com/agda/agda/pull/6032)) in favour of
   matching on the cubical identity type.
 
-* The builtin `SUBIN` is now exported from `Agda.Builtin.Cubical.Sub` as
+* [**Breaking**] The builtin `SUBIN` is now exported from `Agda.Builtin.Cubical.Sub` as
   **`inS`** rather than `inc`. Similarly, the internal modules refer to
   `primSubOut` as `outS`. ([#6032](https://github.com/agda/agda/pull/6032))
 
@@ -298,7 +309,7 @@ Pragmas and options
   test = refl
   ```
 
-* Option `--experimental-lossy-unification` that turns on
+* [**Breaking**] Option `--experimental-lossy-unification` that turns on
   (the incomplete) first-order unification has been renamed to
   `--lossy-unification`.
   ([#1625](https://github.com/agda/agda/issues/1625))
@@ -323,7 +334,7 @@ Pragmas and options
   their arguments erased, which can cause confusing behaviour when they
   are printed instantiated (see [#6203](https://github.com/agda/agda/issues/6203)).
 
-* The options `--subtyping` and `--no-subtyping` have been removed
+* [**Breaking**] The options `--subtyping` and `--no-subtyping` have been removed
   (see [#5427](https://github.com/agda/agda/issues/5427)).
 
 Profiling and performance
@@ -331,7 +342,7 @@ Profiling and performance
 
 * New verbosity `-v debug.time:100` adds time stamps to debugging output.
 
-* Profiling options are now turned on with a new `--profile` flag
+* [**Breaking**] Profiling options are now turned on with a new `--profile` flag
   instead of abusing the debug verbosity option. (See
   [#5781](https://github.com/agda/agda/issues/5781).)
 
@@ -388,7 +399,7 @@ Interaction
 Compiler backends
 -----------------
 
-* Both the GHC and JS backends now refuse to compile code that uses
+* [**Breaking**] Both the GHC and JS backends now refuse to compile code that uses
   `--cubical`.
 
   Note that support for compiling code that uses `--erased-cubical`
@@ -421,7 +432,90 @@ DOT backend
 JSON API
 --------
 
-* The JSON API now represents meta-variables differently, using
+* [**Breaking**] The JSON API now represents meta-variables differently, using
   objects containing two keys, `id` and `module`, both with values
   that are (natural) numbers. See
   [#5731](https://github.com/agda/agda/issues/5731).
+
+
+Other issues closed
+--------------------
+
+For 2.6.3, the following issues were also closed (see [bug
+tracker](https://github.com/agda/agda/issues)):
+
+  - [#3986](https://github.com/agda/agda/issues/3986): Subtyping .A -> B <= A -> B leads to wrong ArgInfo
+  - [#4103](https://github.com/agda/agda/issues/4103): Rewrite rule rejected because of projection likeness
+  - [#4506](https://github.com/agda/agda/issues/4506): Lack of unicode support in locale may result in uncaught IOException
+  - [#4725](https://github.com/agda/agda/issues/4725): Cubical Agda: Program rejected by termination checker due to moved dot pattern
+  - [#4755](https://github.com/agda/agda/issues/4755): Rewrite rule on constructor uses wrong type for matching
+  - [#4763](https://github.com/agda/agda/issues/4763): Cubical Agda: Unquote anonymous copattern involving path
+  - [#5191](https://github.com/agda/agda/issues/5191): Unifier can use erased variables in non-erased data parameters
+  - [#5378](https://github.com/agda/agda/issues/5378): Internal error with tactic on record field
+  - [#5448](https://github.com/agda/agda/issues/5448): Should the predicate be erasable in the subst rule (without-K)
+  - [#5462](https://github.com/agda/agda/issues/5462): Internal error caused by a REWRITE on a projection-like function
+  - [#5468](https://github.com/agda/agda/issues/5468): Disallow certain forms of pattern matching when an index is erased
+  - [#5525](https://github.com/agda/agda/issues/5525): Duplicate entries in `executables` file lead to undefined behavior
+  - [#5548](https://github.com/agda/agda/issues/5548): Agda infers an incorrect type with subtyping on
+  - [#5551](https://github.com/agda/agda/issues/5551): Panic when showing module contents with pattern synonym
+  - [#5563](https://github.com/agda/agda/issues/5563): Allow erased names in the type signatures of let-bound definitions
+  - [#5577](https://github.com/agda/agda/issues/5577): The "Could not generate equivalence" warning is not always emitted
+  - [#5581](https://github.com/agda/agda/issues/5581): Lexical error with tab character in literate Agda text
+  - [#5589](https://github.com/agda/agda/issues/5589): Internal error with REWRITE of function from path
+  - [#5681](https://github.com/agda/agda/issues/5681): Panic on record declaration with unknown sort
+  - [#5702](https://github.com/agda/agda/issues/5702): Can't case split an `HitInt` with some already existing cases
+  - [#5715](https://github.com/agda/agda/issues/5715): Reflection: Use `Telescope` for `getContext`, `inContext`, and `extendContext`
+  - [#5727](https://github.com/agda/agda/issues/5727): Reducing universe levels before checking is not sufficient
+  - [#5728](https://github.com/agda/agda/issues/5728): Internal error when pattern matching on `...` in with statement without providing a pattern match
+  - [#5734](https://github.com/agda/agda/issues/5734): Relevance check in reflection
+  - [#5751](https://github.com/agda/agda/issues/5751): json interaction produces Haskell output for SolveAll
+  - [#5760](https://github.com/agda/agda/issues/5760): Some code related to Cubical Agda runs also when the K rule is on
+  - [#5763](https://github.com/agda/agda/issues/5763): Internal parser error using syntax rules
+  - [#5765](https://github.com/agda/agda/issues/5765): Erasure check failure when pattern matching on refl in erased definition
+  - [#5769](https://github.com/agda/agda/issues/5769): Parameter arguments of projections of instance-opened record type are not erased
+  - [#5775](https://github.com/agda/agda/issues/5775): JSON interaction produces fully qualified terms
+  - [#5794](https://github.com/agda/agda/issues/5794): Agsy/Auto crashes with `Prelude.!!: index too large`
+  - [#5823](https://github.com/agda/agda/issues/5823): Singleton check loops on recursive eta record
+  - [#5828](https://github.com/agda/agda/issues/5828): Agsy/Auto panics with `-r` in the presence of a pattern synonym
+  - [#5845](https://github.com/agda/agda/issues/5845): Internal error caused by abstracting `variables`
+  - [#5848](https://github.com/agda/agda/issues/5848): Internal error with `--confluence-check`
+  - [#5850](https://github.com/agda/agda/issues/5850): Warn about useless hiding in `variable` declaration
+  - [#5856](https://github.com/agda/agda/issues/5856): Lambda with irrefutable pattern is not rejected when used on Path
+  - [#5875](https://github.com/agda/agda/issues/5875): Instance Search breaks Termination Highlighting
+  - [#5891](https://github.com/agda/agda/issues/5891): SizeUniv : SizeUniv is inconsistent
+  - [#5901](https://github.com/agda/agda/issues/5901): Use emacs --batch mode in agda-mode setup
+  - [#5920](https://github.com/agda/agda/issues/5920): Erased constructors skipped in modality check
+  - [#5922](https://github.com/agda/agda/issues/5922): Failure of termination checking for reflection-generated code due to data projections
+  - [#5923](https://github.com/agda/agda/issues/5923): Internal error in rewriting
+  - [#5944](https://github.com/agda/agda/issues/5944): Internal error in rewriting with --two-level
+  - [#5953](https://github.com/agda/agda/issues/5953): Recursor of inductive-inductive type does not pass termination check in Cubical Agda
+  - [#5955](https://github.com/agda/agda/issues/5955): Composition of Glue Type Causes Infinite Loop
+  - [#5956](https://github.com/agda/agda/issues/5956): Cubical Agda crashes when printing empty system
+  - [#5966](https://github.com/agda/agda/issues/5966): Improved performance by switching to `vector-hashtables`
+  - [#5989](https://github.com/agda/agda/issues/5989): Dead-code elimination crashes function with private tactic argument
+  - [#6003](https://github.com/agda/agda/issues/6003): de Bruijn index out of scope when rewriting
+  - [#6006](https://github.com/agda/agda/issues/6006): Internal error rewriting with holes
+  - [#6015](https://github.com/agda/agda/issues/6015): Pi types and Partial types should not be considered inter-convertible
+  - [#6022](https://github.com/agda/agda/issues/6022): Private bindings in imported modules defeat check for binding of primIdFace/primIdPath
+  - [#6042](https://github.com/agda/agda/issues/6042): De Bruijn index out of scope when rewriting without-K
+  - [#6043](https://github.com/agda/agda/issues/6043): de Bruijn error on unexpected implicit argument
+  - [#6059](https://github.com/agda/agda/issues/6059): Non-terminating function over tuples passed with `--termination-depth=2`
+  - [#6066](https://github.com/agda/agda/issues/6066): Document the meaning of `pattern` without `no-eta-equality`
+  - [#6067](https://github.com/agda/agda/issues/6067): Another de Bruijn error in rewriting
+  - [#6073](https://github.com/agda/agda/issues/6073): Constraint solving does not honour singleton types
+  - [#6074](https://github.com/agda/agda/issues/6074): piSort/funSort of IUniv should be blocked on the codomain
+  - [#6076](https://github.com/agda/agda/issues/6076): Agda input mode (emacs): Minibuffer display for `\;` is strange
+  - [#6080](https://github.com/agda/agda/issues/6080): A space leak due to absName
+  - [#6082](https://github.com/agda/agda/issues/6082): Elaborate-and-give does not respect --postfix-projections
+  - [#6095](https://github.com/agda/agda/issues/6095): Ambiguous pattern synonyms broken with anonymous module
+  - [#6112](https://github.com/agda/agda/issues/6112): Internal error: non-confluent rewriting to singletons
+  - [#6203](https://github.com/agda/agda/issues/6203): Projection-likeness and instance arguments
+  - [#6205](https://github.com/agda/agda/issues/6205): Internal error with `withReconstructed`
+  - [#6244](https://github.com/agda/agda/issues/6244): Make `--no-load-primitives` not `--safe`
+  - [#6250](https://github.com/agda/agda/issues/6250): Documentation says `--sized-types` is the default when it isn't
+  - [#6257](https://github.com/agda/agda/issues/6257): Document options `--prop`, `--guarded`, and `--two-level`.
+  - [#6265](https://github.com/agda/agda/issues/6265): Some options should be listed in `restartOptions`
+  - [#6273](https://github.com/agda/agda/issues/6273): Missing highlighting when interleaved mutual is used
+  - [#6276](https://github.com/agda/agda/issues/6276): LaTeX/HTML generation doesn't properly render parameters of pre-declared records
+  - [#6281](https://github.com/agda/agda/issues/6281): Special treatment of attribute followed by underscore in pretty-printer
+

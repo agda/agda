@@ -6,7 +6,8 @@ module Agda.TypeChecking.Primitive.Cubical.HCompU
   )
   where
 
-import Control.Monad.Except
+import Control.Monad
+import Control.Monad.Except ( MonadError )
 
 import Agda.Utils.Functor
 import Agda.Utils.Monad

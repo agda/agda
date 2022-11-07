@@ -1,3 +1,5 @@
+{-# OPTIONS --cohesion #-}
+
 open import Agda.Builtin.Equality
 
 postulate

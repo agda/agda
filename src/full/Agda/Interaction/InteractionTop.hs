@@ -1185,7 +1185,8 @@ parseAndDoAtToplevel
   -> CommandM (Maybe CPUTime, a)
 parseAndDoAtToplevel cmd s = do
   localStateCommandM $ do
-    e <- lift $ runPM $ parse exprParser s
+    (e, coh) <- lift $ runPM $ parse exprParser s
+    lift $ checkCohesionAttributes coh
     maybeTimed $ atTopLevel $ lift $
       cmd =<< concreteToAbstract_ e
 

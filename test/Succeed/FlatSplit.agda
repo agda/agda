@@ -1,3 +1,5 @@
+{-# OPTIONS --flat-split #-}
+
 module _ where
 
 open import Agda.Builtin.Equality

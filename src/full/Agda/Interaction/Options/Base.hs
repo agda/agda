@@ -21,7 +21,7 @@ module Agda.Interaction.Options.Base
     , defaultPragmaOptions
     , standardOptions_
     , unsafePragmaOptions
-    , restartOptions
+    , recheckBecausePragmaOptionsChanged
     , InfectiveCoinfective(..)
     , InfectiveCoinfectiveOption(..)
     , infectiveCoinfectiveOptions
@@ -74,6 +74,7 @@ import Agda.Utils.List          ( groupOn, initLast1 )
 import Agda.Utils.List1         ( String1, toList )
 import qualified Agda.Utils.List1        as List1
 import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Utils.Null (empty)
 import Agda.Utils.Pretty
 import Agda.Utils.ProfileOptions
 import Agda.Utils.Trie          ( Trie )
@@ -124,7 +125,6 @@ data CommandLineOptions = Options
   , optJSONInteraction       :: Bool
   , optExitOnError           :: !Bool
     -- ^ Exit if an interactive command fails.
-  , optOptimSmashing         :: Bool
   , optCompileDir            :: Maybe FilePath
   -- ^ In the absence of a path the project root is used.
   , optGenerateVimFile       :: Bool
@@ -158,7 +158,6 @@ data PragmaOptions = PragmaOptions
   , optTerminationCheck          :: Bool
   , optTerminationDepth          :: CutOff
     -- ^ Cut off structural order comparison at some depth in termination checker?
-  , optCompletenessCheck         :: Bool
   , optUniverseCheck             :: Bool
   , optOmegaInOmega              :: Bool
   , optCumulativity              :: Bool
@@ -217,7 +216,9 @@ data PragmaOptions = PragmaOptions
     -- ^ Use call-by-name instead of call-by-need
   , optConfluenceCheck           :: Maybe ConfluenceCheck
     -- ^ Check confluence of rewrite rules?
-  , optFlatSplit                 :: WithDefault 'True
+  , optCohesion                  :: Bool
+     -- ^ Are the cohesion modalities available?
+  , optFlatSplit                 :: WithDefault 'False
      -- ^ Can we split on a (@flat x : A) argument?
   , optImportSorts               :: Bool
      -- ^ Should every top-level module start with an implicit statement
@@ -279,7 +280,6 @@ defaultOptions = Options
   , optGHCiInteraction       = False
   , optJSONInteraction       = False
   , optExitOnError           = False
-  , optOptimSmashing         = True
   , optCompileDir            = Nothing
   , optGenerateVimFile       = False
   , optIgnoreInterfaces      = False
@@ -306,7 +306,6 @@ defaultPragmaOptions = PragmaOptions
   , optDisablePositivity         = False
   , optTerminationCheck          = True
   , optTerminationDepth          = defaultCutOff
-  , optCompletenessCheck         = True
   , optUniverseCheck             = True
   , optOmegaInOmega              = False
   , optCumulativity              = False
@@ -345,6 +344,7 @@ defaultPragmaOptions = PragmaOptions
   , optFastReduce                = True
   , optCallByName                = False
   , optConfluenceCheck           = Nothing
+  , optCohesion                  = False
   , optFlatSplit                 = Default
   , optImportSorts               = True
   , optAllowExec                 = False
@@ -409,62 +409,30 @@ unsafePragmaOptions clo opts =
   [ "--no-load-primitives"                       | not $ optLoadPrimitives opts      ] ++
   []
 
--- | If any these options have changed, then the file will be
---   rechecked. Boolean options are negated to mention non-default
---   options, where possible.
+-- | This function returns 'True' if the file should be rechecked.
 
-restartOptions :: [(PragmaOptions -> RestartCodomain, String)]
-restartOptions =
-  [ (C . optTerminationDepth, "--termination-depth")
-  , (B . (/= UnicodeOk) . optUseUnicode, "--no-unicode")
-  , (B . optAllowUnsolved, "--allow-unsolved-metas")
-  , (B . optAllowIncompleteMatch, "--allow-incomplete-matches")
-  , (B . optDisablePositivity, "--no-positivity-check")
-  , (B . optTerminationCheck,  "--no-termination-check")
-  , (B . not . optUniverseCheck, "--type-in-type")
-  , (B . optOmegaInOmega, "--omega-in-omega")
-  , (B . optCumulativity, "--cumulativity")
-  , (B . collapseDefault . optSizedTypes, "--no-sized-types")
-  , (B . collapseDefault . optGuardedness, "--no-guardedness")
-  , (B . optInjectiveTypeConstructors, "--injective-type-constructors")
-  , (B . optProp, "--prop")
-  , (B . collapseDefault . optTwoLevel, "--two-level")
-  , (B . not . optUniversePolymorphism, "--no-universe-polymorphism")
-  , (B . optIrrelevantProjections, "--irrelevant-projections")
-  , (B . optExperimentalIrrelevance, "--experimental-irrelevance")
-  , (B . collapseDefault . optWithoutK, "--without-K")
-  , (B . collapseDefault . optCubicalCompatible, "--cubical-compatible")
-  , (B . optExactSplit, "--exact-split")
-  , (B . not . optEta, "--no-eta-equality")
-  , (B . optRewriting, "--rewriting")
-  , (B . (== Just CFull) . optCubical, "--cubical")
-  , (B . (== Just CErased) . optCubical, "--erased-cubical")
-  , (B . optGuarded, "--guarded")
-  , (B . optOverlappingInstances, "--overlapping-instances")
-  , (B . optQualifiedInstances, "--qualified-instances")
-  , (B . not . optQualifiedInstances, "--no-qualified-instances")
-  , (B . optSafe, "--safe")
-  , (B . optDoubleCheck, "--double-check")
-  , (M . optSyntacticEquality, "--syntactic-equality")
-  , (B . not . optAutoInline, "--no-auto-inline")
-  , (B . not . optFastReduce, "--no-fast-reduce")
-  , (B . optCallByName, "--call-by-name")
-  , (I . optInstanceSearchDepth, "--instance-search-depth")
-  , (I . optInversionMaxDepth, "--inversion-max-depth")
-  , (W . optWarningMode, "--warning")
-  , (B . (== Just LocalConfluenceCheck) . optConfluenceCheck, "--local-confluence-check")
-  , (B . (== Just GlobalConfluenceCheck) . optConfluenceCheck, "--confluence-check")
-  , (B . not . optImportSorts, "--no-import-sorts")
-  , (B . optAllowExec, "--allow-exec")
-  , (B . collapseDefault . optSaveMetas, "--save-metas")
-  , (B . optEraseRecordParameters, "--erase-record-parameters")
-  , (B . not . optLoadPrimitives, "--no-load-primitives")
-  ]
-
--- to make all restart options have the same type
-data RestartCodomain
-  = C CutOff | B Bool | I Int | M !(Strict.Maybe Int) | W WarningMode
-  deriving Eq
+recheckBecausePragmaOptionsChanged
+  :: PragmaOptions
+     -- ^ The options that were used to check the file.
+  -> PragmaOptions
+     -- ^ The options that are currently in effect.
+  -> Bool
+recheckBecausePragmaOptionsChanged used current =
+  blankOut used /= blankOut current
+  where
+  -- "Blank out" irrelevant options.
+  blankOut opts = opts
+    { optShowImplicit              = False
+    , optShowIrrelevant            = False
+    , optVerbose                   = empty
+    , optProfiling                 = noProfileOptions
+    , optPostfixProjections        = False
+    , optCompileNoMain             = False
+    , optCaching                   = False
+    , optCountClusters             = False
+    , optPrintPatternSynonyms      = False
+    , optShowIdentitySubstitutions = False
+    }
 
 -- | Infective or coinfective?
 
@@ -558,15 +526,10 @@ infectiveCoinfectiveOptions =
   , infectiveOption optRewriting "--rewriting"
   , infectiveOption (collapseDefault . optSizedTypes) "--sized-types"
   , infectiveOption (collapseDefault . optGuardedness) "--guardedness"
-  , flatSplit
+  , infectiveOption (collapseDefault . optFlatSplit) "--flat-split"
+  , infectiveOption optCohesion "--cohesion"
   ]
   where
-  flatSplit =
-    (infectiveOption (collapseDefault . optFlatSplit) "--flat-split")
-    { icOptionOK = \current imported ->
-        not (collapseDefault (optCubicalCompatible current))
-          || (collapseDefault (optFlatSplit imported) <= collapseDefault (optFlatSplit current))
-    }
   cubicalCompatible =
     (coinfectiveOption
        (collapseDefault . optCubicalCompatible)
@@ -613,11 +576,14 @@ safeFlag o = do
              , optSizedTypes  = setDefault False sizedTypes
              }
 
-flatSplitFlag :: Flag PragmaOptions
-flatSplitFlag o = return $ o { optFlatSplit = Value True }
+cohesionFlag :: Flag PragmaOptions
+cohesionFlag o = return $ o { optCohesion = True }
 
-noFlatSplitFlag :: Flag PragmaOptions
-noFlatSplitFlag o = return $ o { optFlatSplit = setDefault False (optFlatSplit o) }
+flatSplitFlag :: Flag PragmaOptions
+flatSplitFlag o = return $ o
+  { optFlatSplit = Value True
+  , optCohesion  = True
+  }
 
 doubleCheckFlag :: Bool -> Flag PragmaOptions
 doubleCheckFlag b o = return $ o { optDoubleCheck = b }
@@ -1094,10 +1060,10 @@ pragmaOptions =
                     "enable sized types (inconsistent with --guardedness)"
     , Option []     ["no-sized-types"] (NoArg noSizedTypes)
                     "disable sized types (default)"
+    , Option []     ["cohesion"] (NoArg cohesionFlag)
+                    "enable the cohesion modalities (in particular @flat)"
     , Option []     ["flat-split"] (NoArg flatSplitFlag)
-                    "allow split on (@flat x : A) arguments (default)"
-    , Option []     ["no-flat-split"] (NoArg noFlatSplitFlag)
-                    "disable split on (@flat x : A) arguments"
+                    "allow split on (@flat x : A) arguments (implies --cohesion)"
     , Option []     ["guardedness"] (NoArg guardedness)
                     "enable constructor-based guarded corecursion (inconsistent with --sized-types)"
     , Option []     ["no-guardedness"] (NoArg noGuardedness)
@@ -1238,6 +1204,7 @@ deadPragmaOptions = map (uncurry removedOption) $
       , inVersion "2.6.3") -- see issue #5427
     , ("no-subtyping"
       , inVersion "2.6.3") -- see issue #5427
+    , ("no-flat-split", inVersion "2.6.3")  -- See issue #6263.
     ]
   where
     inVersion = ("in version " ++)

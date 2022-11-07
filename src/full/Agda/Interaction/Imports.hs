@@ -56,6 +56,7 @@ import Agda.Benchmarking
 
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
+import Agda.Syntax.Concrete.Attribute
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
 import Agda.Syntax.Parser
@@ -124,22 +125,24 @@ data Source = Source
   , srcModule      :: C.Module              -- ^ The parsed module.
   , srcModuleName  :: TopLevelModuleName    -- ^ The top-level module name.
   , srcProjectLibs :: [AgdaLibFile]         -- ^ The .agda-lib file(s) of the project this file belongs to.
+  , srcCohesion    :: !CohesionAttributes
+    -- ^ Every encountered occurrence of a cohesion attribute.
   }
 
 -- | Parses a source file and prepares the 'Source' record.
 
 parseSource :: SourceFile -> TCM Source
 parseSource sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
-  (source, fileType, parsedMod, parsedModName) <- mdo
+  (source, fileType, parsedMod, coh, parsedModName) <- mdo
     -- This piece of code uses mdo because the top-level module name
     -- (parsedModName) is obtained from the parser's result, but it is
     -- also used by the parser.
     let rf = mkRangeFile f (Just parsedModName)
-    source                <- runPM $ readFilePM rf
-    (parsedMod, fileType) <- runPM $
-                             parseFile moduleParser rf $ TL.unpack source
-    parsedModName         <- moduleName f parsedMod
-    return (source, fileType, parsedMod, parsedModName)
+    source                       <- runPM $ readFilePM rf
+    ((parsedMod, coh), fileType) <- runPM $ parseFile moduleParser rf $
+                                    TL.unpack source
+    parsedModName                <- moduleName f parsedMod
+    return (source, fileType, parsedMod, coh, parsedModName)
   libs <- getAgdaLibFiles f parsedModName
   return Source
     { srcText        = source
@@ -148,6 +151,7 @@ parseSource sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
     , srcModule      = parsedMod
     , srcModuleName  = parsedModName
     , srcProjectLibs = libs
+    , srcCohesion    = coh
     }
 
 srcDefaultPragmas :: Source -> [OptionsPragma]
@@ -716,17 +720,8 @@ loadDecodedModule file mi = do
   -- Check that options that matter haven't changed compared to
   -- current options (issue #2487)
   unlessM (lift $ Lens.isBuiltinModule fp) $ do
-    currentOptions <- useTC stPragmaOptions
-    let disagreements =
-          [ optName | (opt, optName) <- restartOptions,
-                      opt currentOptions /= opt (iOptionsUsed i) ]
-    unless (null disagreements) $ do
-      reportSLn "import.iface.options" 4 $ concat
-        [ "  Changes in the following options in "
-        , prettyShow fp
-        , ", re-typechecking: "
-        , prettyShow disagreements
-        ]
+    current <- useTC stPragmaOptions
+    when (recheckBecausePragmaOptionsChanged (iOptionsUsed i) current) $
       throwError "options changed"
 
   -- If any of the imports are newer we need to retype check
@@ -982,6 +977,7 @@ createInterface mname file isMain msrc = do
     stTokens `modifyTCLens` (fileTokenInfo <>)
 
     setOptionsFromSourcePragmas src
+    checkCohesionAttributes (srcCohesion src)
     syntactic <- optSyntacticEquality <$> pragmaOptions
     localTC (\env -> env { envSyntacticEqualityFuel = syntactic }) $ do
 

@@ -1,0 +1,4 @@
+Issue6287-2.agda:6,5-22
+A record expression corresponding to an erased record constructor
+must only be used in erased settings
+when checking that the expression record { n = 12 } has type R

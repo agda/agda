@@ -773,7 +773,8 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
             (phi:p) <- sequence phi_p
             args <- sequence args
             let cargs = defaultArg $ unnamed $ ConP chead noConPatternInfo args
-            param_args <- fmap (map (setHiding Hidden . fmap (unnamed . dotP))) $
+            -- Amy (2022-11-06): Set the parameters to quantity-0.
+            param_args <- fmap (map (setQuantity (Quantity0 Q0Inferred) . setHiding Hidden . fmap (unnamed . dotP))) $
               pure params `applyN` take gamma1_size (fmap unArg <$> g1_args)
             pure $ DefP defaultPatternInfo q_trX $ param_args ++ p ++ [phi,cargs]
       pat = (fmap . fmap) patternToTerm <$> pat'

@@ -736,6 +736,8 @@ is defined as:
 For many more examples of higher inductive types see:
 https://github.com/agda/cubical/tree/master/Cubical/HITs.
 
+.. _indexed-inductive-types:
+
 Indexed inductive types
 =======================
 
@@ -1039,20 +1041,14 @@ Regular Cubical Agda code can import code that uses
 :option:`--erased-cubical`. Regular Cubical Agda code can also be
 imported from code that uses :option:`--erased-cubical`, but names
 defined using Cubical Agda are treated as if they had been marked as
-erased, with some exceptions related to pattern matching:
+erased, with an exception related to pattern matching:
 
 - Matching on a non-erased imported constructor does not, on its own,
   make Agda treat the right-hand side as erased.
 
-- Non-erased imported constructors count as non-erased for the
-  purposes of the run-time mode
-  :ref:`rule<run-time-irrelevance-rules>` that one "cannot pattern
-  match on erased arguments, unless there is at most one valid case
-  (not counting erased constructors)".
-
-The reason for these exceptions is that it should be possible to
-import the code from modules that use :option:`--cubical`, in which
-the non-erased constructors are not treated as erased.
+The reason for this exception is that it should be possible to import
+the code from modules that use :option:`--cubical`, in which the
+non-erased constructors are not treated as erased.
 
 Note that names that are re-exported from a Cubical Agda module using
 ``open import M args public`` are seen as defined using Cubical Agda.

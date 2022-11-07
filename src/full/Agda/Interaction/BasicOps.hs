@@ -98,7 +98,9 @@ import Agda.TypeChecking.ProjectionLike (reduceProjectionLike)
 
 parseExpr :: Range -> String -> TCM C.Expr
 parseExpr rng s = do
-  C.ExprWhere e wh <- runPM $ parsePosString exprWhereParser pos s
+  (C.ExprWhere e wh, coh) <-
+    runPM $ parsePosString exprWhereParser pos s
+  checkCohesionAttributes coh
   unless (null wh) $ typeError $ GenericError $
     "where clauses are not supported in holes"
   return e

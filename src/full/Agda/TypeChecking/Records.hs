@@ -403,10 +403,23 @@ typeElims a self (e : es) = do
     IApply{} -> __IMPOSSIBLE__
 
 -- | Check if a name refers to an eta expandable record.
+--
+-- The answer is no for a record type with an erased constructor
+-- unless the current quantity is \"erased\".
 {-# SPECIALIZE isEtaRecord :: QName -> TCM Bool #-}
 {-# SPECIALIZE isEtaRecord :: QName -> ReduceM Bool #-}
 isEtaRecord :: HasConstInfo m => QName -> m Bool
-isEtaRecord r = maybe False ((YesEta ==) . recEtaEquality) <$> isRecord r
+isEtaRecord r = do
+  isRec <- isRecord r
+  case isRec of
+    Nothing -> return False
+    Just r
+      | recEtaEquality r /= YesEta -> return False
+      | otherwise                  -> do
+        constructorQ <- getQuantity <$>
+                          getConstInfo (conName (recConHead r))
+        currentQ     <- viewTC eQuantity
+        return $ constructorQ `moreQuantity` currentQ
 
 isEtaCon :: HasConstInfo m => QName -> m Bool
 isEtaCon c = getConstInfo' c >>= \case

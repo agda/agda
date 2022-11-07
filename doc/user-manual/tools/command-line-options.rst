@@ -462,11 +462,18 @@ Pattern matching and equality
 
      Default records to ``no-eta-equality`` (see :ref:`eta-expansion`).
 
-.. option:: --no-flat-split
+.. option:: --cohesion
+
+     .. versionadded:: 2.6.3
+
+     Enable the cohesion modalities, in particular ``@♭`` (see
+     :ref:`flat`).
+
+.. option:: --flat-split
 
      .. versionadded:: 2.6.1
 
-     Disable pattern matching on ``@♭`` arguments (see
+     Enable pattern matching on ``@♭`` arguments (see
      :ref:`pattern-matching-on-flat`).
 
 .. option:: --no-pattern-matching
@@ -1061,6 +1068,8 @@ are infective:
 * :option:`--guarded`
 * :option:`--two-level`
 * :option:`--cumulativity`
+* :option:`--cohesion`
+* :option:`--flat-split`
 
 Furthermore :option:`--cubical` and :option:`--erased-cubical` are
 *jointly infective*: if one of them is used in one module, then one or
@@ -1095,7 +1104,9 @@ again, the source file is re-typechecked instead:
 * :option:`--allow-incomplete-matches`
 * :option:`--allow-unsolved-metas`
 * :option:`--call-by-name`
+* :option:`--cohesion`
 * :option:`--confluence-check`
+* :option:`--copatterns`
 * :option:`--cubical-compatible`
 * :option:`--cubical`
 * :option:`--cumulativity`
@@ -1104,19 +1115,25 @@ again, the source file is re-typechecked instead:
 * :option:`--erased-cubical`
 * :option:`--exact-split`
 * :option:`--experimental-irrelevance`
+* :option:`--flat-split`
 * :option:`--guarded`
 * :option:`--injective-type-constructors`
 * :option:`--instance-search-depth`
 * :option:`--inversion-max-depth`
 * :option:`--irrelevant-projections`
+* ``--keep-covering-clauses``
 * :option:`--local-confluence-check`
+* ``--lossy-unification``
 * :option:`--no-auto-inline`
 * :option:`--no-eta-equality`
 * :option:`--no-fast-reduce`
+* :option:`--no-forcing`
 * :option:`--no-guardedness`
 * :option:`--no-import-sorts`
 * :option:`--no-load-primitives`
+* :option:`--no-pattern-matching`
 * :option:`--no-positivity-check`
+* :option:`--no-projection-like`
 * :option:`--no-sized-types`
 * :option:`--no-termination-check`
 * :option:`--no-unicode`

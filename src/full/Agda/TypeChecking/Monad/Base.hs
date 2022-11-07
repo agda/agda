@@ -1100,6 +1100,13 @@ data WhyCheckModality
   | IndexedClause
   -- ^ Because --without-K is enabled, so the result type of clauses
   -- must be usable at the context's modality.
+  | IndexedClauseArg Name Name
+  -- ^ Because --without-K is enabled, so any argument (second name)
+  -- which mentions a dotted argument (first name) must have a type
+  -- which is usable at the context's modality.
+  | GeneratedClause
+  -- ^ Because we double-check the --cubical-compatible clauses. This is
+  -- an internal error!
   deriving (Show, Generic)
 
 data Constraint

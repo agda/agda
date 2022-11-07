@@ -4,7 +4,7 @@ cabal-version:   1.24
 build-type:      Custom
 license:         OtherLicense
 license-file:    LICENSE
-copyright:       (c) 2005-2021 The Agda Team.
+copyright:       (c) 2005-2022 The Agda Team.
 author:          Ulf Norell and The Agda Team, see https://agda.readthedocs.io/en/latest/team.html
 maintainer:      The Agda Team
 homepage:        http://wiki.portal.chalmers.se/agda/
@@ -83,8 +83,6 @@ extra-source-files: CHANGELOG.md
                     doc/release-notes/2.2.2.md
                     doc/release-notes/2.2.4.md
                     doc/release-notes/2.2.0.md
--- Liang-Ting (2019-11-26): See Issues #4216
---                    doc/user-manual.pdf
                     stack-8.0.2.yaml
                     stack-8.2.2.yaml
                     stack-8.4.4.yaml

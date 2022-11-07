@@ -1,3 +1,5 @@
+{-# OPTIONS --cohesion #-}
+
 module Highlighting where
 
 Set-one : Set₂

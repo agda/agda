@@ -3,7 +3,7 @@
   see the Succeed/Issue6238, you can enable it; it isn't --safe to do
   so!)
 -}
-{-# OPTIONS --cubical #-}
+{-# OPTIONS --cubical --cohesion #-}
 module Issue6238 where
 
 data Flat (@♭ A : Set) : Set where
