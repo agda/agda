@@ -3,4 +3,4 @@ fst p != w of type Nat
 when checking that the type
 (p : Nat × IsZero) (w : Nat) → F w (snd p) of the generated with
 function is well-formed
-(https://agda.readthedocs.io/en/v2.6.3/language/with-abstraction.html#ill-typed-with-abstractions)
+(https://agda.readthedocs.io/en/v2.6.4/language/with-abstraction.html#ill-typed-with-abstractions)
