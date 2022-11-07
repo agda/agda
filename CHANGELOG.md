@@ -39,7 +39,7 @@ Highlights
 Installation and infrastructure
 -------------------------------
 
-Agda supports GHC versions 8.0.2 to 9.4.2.
+Agda supports GHC versions 8.0.2 to 9.4.3.
 
 Erasure
 -------
