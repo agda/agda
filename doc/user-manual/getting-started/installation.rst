@@ -172,8 +172,8 @@ GHC version, respectively.
 
 Running the ``agda-mode`` program
 ---------------------------------
-**Warning**: Intalling ``agda-mode`` via ``melpa`` is discouraged.
-It is stronly advised to install ``agda-mode`` for ``emacs`` as described below:
+**Warning**: Installing ``agda-mode`` via ``melpa`` is discouraged.
+It is strongly advised to install ``agda-mode`` for ``emacs`` as described below:
 
 After installing the ``agda-mode`` program using ``cabal`` or
 ``stack`` run the following command:
