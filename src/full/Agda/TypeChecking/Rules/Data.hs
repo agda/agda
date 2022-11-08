@@ -96,13 +96,6 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
         dataDef <- bindGeneralizedParameters parNames t $ \ gtel t0 ->
                    bindParameters (npars - length parNames) ps t0 $ \ ptel t0 -> do
 
-            -- Parameters are always hidden and erased in constructors
-            let tel  = abstract gtel ptel
-                tel' = applyQuantity zeroQuantity .
-                       hideAndRelParams <$>
-                       tel
-            -- let tel' = hideTel tel
-
             -- The type we get from bindParameters is Θ -> s where Θ is the type of
             -- the indices. We count the number of indices and return s.
             -- We check that s is a sort.
@@ -126,6 +119,19 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                           ]
                   else throwError err
               reduce s
+
+            withK <- not . collapseDefault . optWithoutK <$>
+                     pragmaOptions
+            -- Parameters are always hidden in constructors. For
+            -- non-indexed data types the parameters are erased, and
+            -- if --with-K is active this applies also to indexed data
+            -- types.
+            let tel  = abstract gtel ptel
+                tel' = (if withK || nofIxs == 0
+                        then applyQuantity zeroQuantity
+                        else id) .
+                       hideAndRelParams <$>
+                       tel
 
             reportSDoc "tc.data.sort" 20 $ vcat
               [ "checking datatype" <+> prettyTCM name
