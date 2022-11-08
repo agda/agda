@@ -45,7 +45,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04]
-        ghc-ver: [9.4.3, 9.2.4, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4]
+        ghc-ver: [9.4.3, 9.2.5, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4]
         cabal-ver: ['3.8']
         include:
           # Andreas, 2022-10-18
