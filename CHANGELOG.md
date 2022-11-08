@@ -62,7 +62,10 @@ Erasure
 
 * The parameter arguments of constructors and record fields are now
   marked as erased
-  ([#4786](https://github.com/agda/agda/issues/4786)).
+  ([#4786](https://github.com/agda/agda/issues/4786)), with one
+  exception: for indexed data types this only happens if the
+  `--with-K` flag is active
+  ([#6297](https://github.com/agda/agda/issues/6297)).
 
   For instance, the type of the constructor `c` below is now `{@0 A :
   Set} → D A`, and the type of the record field `R.f` is `{@0 A : Set}
