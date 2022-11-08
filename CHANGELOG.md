@@ -6,8 +6,8 @@ Highlights
 
 * Added support for [Erased Cubical
   Agda](https://agda.readthedocs.io/en/latest/language/cubical.html#cubical-agda-with-erased-glue),
-  a variant of Cubical Agda that is supported by the GHC and
-  JavaScript backends, under the flag `--erased-cubical`.
+  a variant of Cubical Agda that is supported by the GHC backend,
+  under the flag `--erased-cubical`.
 
 * Added a new flag `--cubical-compatible` to turn on generation of
   Cubical Agda-specific support code (previously this behaviour was
@@ -55,8 +55,8 @@ Erasure
   manual](https://agda.readthedocs.io/en/latest/language/cubical.html#cubical-agda-with-erased-glue-and-erased-higher-constructors)
   for more details.
 
-  The GHC and JS backends can compile code that uses
-  `--erased-cubical` if the top-level module uses this flag.
+  The GHC backend can compile code that uses `--erased-cubical` if the
+  top-level module uses this flag.
 
   This feature is experimental.
 
@@ -406,7 +406,7 @@ Compiler backends
   `--cubical`.
 
   Note that support for compiling code that uses `--erased-cubical`
-  has been added to both backends (see above).
+  has been added to the GHC backend (see above).
 
 * If the GHC backend is invoked when `--interaction` or
   `--interaction-json` is active (for instance when the Emacs mode is

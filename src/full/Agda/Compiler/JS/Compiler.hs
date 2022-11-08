@@ -156,7 +156,7 @@ jsPreCompile opts = do
           "Compilation of code that uses " ++ s ++ " is not supported."
   case cubical of
     Nothing      -> return ()
-    Just CErased -> return ()
+    Just CErased -> notSupported "--erased-cubical"
     Just CFull   -> notSupported "--cubical"
 
   return opts
