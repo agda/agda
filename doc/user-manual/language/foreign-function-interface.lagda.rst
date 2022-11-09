@@ -124,7 +124,7 @@ The ``data`` form of the ``COMPILE`` pragma also works with Agda's record types:
     constructor node
     field root-label : A
     field sub-forest : Agda.Builtin.List.List (Tree A)
-  
+
   {-# COMPILE GHC Tree = data Tree (Node) #-}
 
 Built-in Types
