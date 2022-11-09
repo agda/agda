@@ -870,14 +870,21 @@ conSplitModalityCheck mod rho blocking gamma target = do
     [ "LHS modality check for modality: " <+> prettyTCM mod
     , "rho:    " <+> inTopContext (prettyTCM rho)
     , "gamma:  " <+> inTopContext (prettyTCM gamma)
-    , "target: " <+> prettyTCM target
+    , "target: " <+> prettyTCM target <+> parens (pretty target)
+    , "Δ'target: " <+> prettyTCM (applyPatSubst rho target)
     , "blocking:" <+> prettyTCM blocking
     ]
   case firstForced rho (length gamma) of
     Just ix -> do
+      -- We've found a forced argument. This means that the unifier has
+      -- decided to kill a unification variable, and any of its
+      -- occurrences in the generated term will be replaced by an
+      -- occurrence of a path, and any terms whose types mention that
+      -- variable will be transported.
       let
         (gamma0, delta) = splitTelescopeAt (length gamma - ix) gamma
         name = inTopContext . addContext gamma . nameOfBV
+        delta'target = applyPatSubst rho target
       reportSDoc "tc.lhs.top" 30 $ vcat
         [ "found forced argument!"
         , "forced: " <+> prettyTCM ix
@@ -896,11 +903,29 @@ conSplitModalityCheck mod rho blocking gamma target = do
         -- since Δ' is the context we are in. Then we have
         --   Γ ⊢ x[wkS |Δ|] : Type
         -- and consequently
-        --   Δ' ⊢ x[wkS |Δ][ρ] : Type
-        let rho' = composeS rho (wkS (arg + 1) idS)
+        --   Δ' ⊢ x[wkS |Δ|][ρ] : Type
+        let
+          rho' = composeS rho (wkS (arg + 1) idS)
+          -- It's actually rather tricky to know when, exactly, a
+          -- transport will be needed in a position that forces an
+          -- usable-at-modality check. Our current heuristic is:
+          --
+          -- * The variable we're looking at has a fibrant type, with
+          --  the first forced variable free.
+          -- * The variable appears free in the result type.
+          docheck = and
+            [ ix `freeIn` applySubst (wkS (arg + 1) idS) (unEl (snd (unDom d)))
+            , arg /= blocking
+            , arg `freeIn` target
+            ]
+        reportSDoc "tc.lhs.top" 30 $ vcat
+          [ "arg:        " <+> pretty arg
+          , "arg type:   " <+> prettyTCM (applySubst (wkS (arg + 1) idS) (unEl (snd (unDom d))))
+          , "check       " <+> pretty docheck
+          ]
         argn <- name arg
-        when (ix `freeIn` applySubst (wkS (arg + 1) idS) (snd <$> d) && arg /= blocking) $
-          usableAtModality (IndexedClauseArg forced argn) mod (applyPatSubst rho'  (unEl (snd (unDom d))))
+        when docheck $
+          usableAtModality (IndexedClauseArg forced argn) mod (applyPatSubst rho' (unEl (snd (unDom d))))
     Nothing -> pure ()
 
   -- ALways check the target clause type. Specifically, we check it both
