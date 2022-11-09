@@ -1104,3 +1104,99 @@ insertImplicitPatSynArgs wild r ns as = matchArgs r ns as
     matchArgs r (n:ns) as = do
       (p, as) <- matchNextArg r n as
       first ((unArg n, p) :) <$> matchArgs (getRange p) ns as
+
+------------------------------------------------------------------------
+-- Declaration spines
+------------------------------------------------------------------------
+
+-- | Declaration spines. Used in debugging to make it easy to see
+-- where constructors such as 'ScopedDecl' and 'Mutual' are placed.
+
+data DeclarationSpine
+  = AxiomS
+  | GeneralizeS
+  | FieldS
+  | PrimitiveS
+  | MutualS [DeclarationSpine]
+  | SectionS [DeclarationSpine]
+  | ApplyS
+  | ImportS
+  | PragmaS
+  | OpenS
+  | FunDefS [ClauseSpine]
+  | DataSigS
+  | DataDefS
+  | RecSigS
+  | RecDefS [DeclarationSpine]
+  | PatternSynDefS
+  | UnquoteDeclS
+  | UnquoteDefS
+  | UnquoteDataS
+  | ScopedDeclS [DeclarationSpine]
+  deriving Show
+
+-- | Clause spines.
+
+data ClauseSpine = ClauseS RHSSpine WhereDeclarationsSpine
+  deriving Show
+
+-- | Right-hand side spines.
+
+data RHSSpine
+  = RHSS
+  | AbsurdRHSS
+  | WithRHSS [ClauseSpine]
+  | RewriteRHSS RHSSpine WhereDeclarationsSpine
+  deriving Show
+
+-- | Spines corresponding to 'WhereDeclarations' values.
+
+data WhereDeclarationsSpine = WhereDeclsS (Maybe DeclarationSpine)
+  deriving Show
+
+-- | The declaration spine corresponding to a declaration.
+
+declarationSpine :: Declaration -> DeclarationSpine
+declarationSpine = \case
+  Axiom _ _ _ _ _ _       -> AxiomS
+  Generalize _ _ _ _ _    -> GeneralizeS
+  Field _ _ _             -> FieldS
+  Primitive _ _ _         -> PrimitiveS
+  Mutual _ ds             -> MutualS (map declarationSpine ds)
+  Section _ _ _ ds        -> SectionS (map declarationSpine ds)
+  Apply _ _ _ _ _         -> ApplyS
+  Import _ _ _            -> ImportS
+  Pragma _ _              -> PragmaS
+  Open _ _ _              -> OpenS
+  FunDef _ _ _ cs         -> FunDefS (map clauseSpine cs)
+  DataSig _ _ _ _         -> DataSigS
+  DataDef _ _ _ _ _       -> DataDefS
+  RecSig _ _ _ _          -> RecSigS
+  RecDef _ _ _ _ _ _ ds   -> RecDefS (map declarationSpine ds)
+  PatternSynDef _ _ _     -> PatternSynDefS
+  UnquoteDecl _ _ _ _     -> UnquoteDeclS
+  UnquoteDef _ _ _        -> UnquoteDefS
+  UnquoteData _ _ _ _ _ _ -> UnquoteDataS
+  ScopedDecl _ ds         -> ScopedDeclS (map declarationSpine ds)
+
+-- | The clause spine corresponding to a clause.
+
+clauseSpine :: Clause -> ClauseSpine
+clauseSpine (Clause _ _ rhs ws _) =
+  ClauseS (rhsSpine rhs) (whereDeclarationsSpine ws)
+
+-- | The right-hand side spine corresponding to a right-hand side.
+
+rhsSpine :: RHS -> RHSSpine
+rhsSpine = \case
+  RHS _ _               -> RHSS
+  AbsurdRHS             -> AbsurdRHSS
+  WithRHS _ _ cs        -> WithRHSS (map clauseSpine cs)
+  RewriteRHS _ _ rhs ws ->
+    RewriteRHSS (rhsSpine rhs) (whereDeclarationsSpine ws)
+
+-- | The spine corresponding to a 'WhereDeclarations' value.
+
+whereDeclarationsSpine :: WhereDeclarations -> WhereDeclarationsSpine
+whereDeclarationsSpine (WhereDecls _ _ md) =
+  WhereDeclsS (fmap declarationSpine md)

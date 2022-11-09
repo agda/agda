@@ -174,8 +174,10 @@ isInterleavedData _ = Nothing
 interleavedDecl :: Name -> InterleavedDecl -> [(DeclNum, NiceDeclaration)]
 interleavedDecl k = \case
   InterleavedData i d@(NiceDataSig _ acc abs pc uc _ pars _) ds ->
-    let fpars = concatMap dropTypeAndModality pars
-        ddef  = NiceDataDef noRange UserWritten abs pc uc k fpars
+    let fpars   = concatMap dropTypeAndModality pars
+        r       = getRange (k, fpars)
+        ddef cs = NiceDataDef (getRange (r, cs)) UserWritten
+                    abs pc uc k fpars cs
     in (i,d) : maybe [] (\ (j, dss) -> [(j, ddef (sconcat (List1.reverse dss)))]) ds
   InterleavedFun i d@(FunSig r acc abs inst mac info tc cc n e) dcs ->
     let fdef dcss = let (dss, css) = List1.unzip dcss in

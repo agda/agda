@@ -5,7 +5,7 @@ Highlights
 ----------
 
 * Added support for [Erased Cubical
-  Agda](https://agda.readthedocs.io/en/v2.6.3/language/cubical.html#cubical-agda-with-erased-glue),
+  Agda](https://agda.readthedocs.io/en/latest/language/cubical.html#cubical-agda-with-erased-glue),
   a variant of Cubical Agda that is supported by the GHC and
   JavaScript backends, under the flag `--erased-cubical`.
 
@@ -15,7 +15,7 @@ Highlights
 
   Since `--cubical-compatible` mode implies that functions should work
   with the preliminary support for [indexed inductive types in Cubical
-  Agda](https://agda.readthedocs.io/en/v2.6.3/language/cubical.html#indexed-inductive-types),
+  Agda](https://agda.readthedocs.io/en/latest/language/cubical.html#indexed-inductive-types),
   many pattern matching functions will now emit an
   `UnsupportedIndexedMatch` warning, indicating that the function will
   not compute when applied to transports (from `--cubical` code).
@@ -39,7 +39,7 @@ Highlights
 Installation and infrastructure
 -------------------------------
 
-Agda supports GHC versions 8.0.2 to 9.4.2.
+Agda supports GHC versions 8.0.2 to 9.4.3.
 
 Erasure
 -------
@@ -515,3 +515,7 @@ tracker](https://github.com/agda/agda/issues)):
   - [#6250](https://github.com/agda/agda/issues/6250): Documentation says `--sized-types` is the default when it isn't
   - [#6257](https://github.com/agda/agda/issues/6257): Document options `--prop`, `--guarded`, and `--two-level`.
   - [#6265](https://github.com/agda/agda/issues/6265): Some options should be listed in `restartOptions`
+  - [#6273](https://github.com/agda/agda/issues/6273): Missing highlighting when interleaved mutual is used
+  - [#6276](https://github.com/agda/agda/issues/6276): LaTeX/HTML generation doesn't properly render parameters of pre-declared records
+  - [#6281](https://github.com/agda/agda/issues/6281): Special treatment of attribute followed by underscore in pretty-printer
+
