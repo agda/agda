@@ -910,9 +910,9 @@ conSplitModalityCheck mod rho blocking gamma target = do
           -- transport will be needed in a position that forces an
           -- usable-at-modality check. Our current heuristic is:
           --
-          -- * The variable we're looking at has a fibrant type, with
-          --  the first forced variable free.
-          -- * The variable appears free in the result type.
+          -- The variable we're looking at has a fibrant type, with the
+          -- first forced variable free.
+          -- The variable appears free in the result type.
           docheck = and
             [ ix `freeIn` applySubst (wkS (arg + 1) idS) (unEl (snd (unDom d)))
             , arg /= blocking
