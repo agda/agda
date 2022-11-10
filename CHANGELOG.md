@@ -475,7 +475,6 @@ tracker](https://github.com/agda/agda/issues)):
   - [#5760](https://github.com/agda/agda/issues/5760): Some code related to Cubical Agda runs also when the K rule is on
   - [#5763](https://github.com/agda/agda/issues/5763): Internal parser error using syntax rules
   - [#5765](https://github.com/agda/agda/issues/5765): Erasure check failure when pattern matching on refl in erased definition
-  - [#5769](https://github.com/agda/agda/issues/5769): Parameter arguments of projections of instance-opened record type are not erased
   - [#5775](https://github.com/agda/agda/issues/5775): JSON interaction produces fully qualified terms
   - [#5794](https://github.com/agda/agda/issues/5794): Agsy/Auto crashes with `Prelude.!!: index too large`
   - [#5823](https://github.com/agda/agda/issues/5823): Singleton check loops on recursive eta record
