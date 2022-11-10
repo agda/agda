@@ -1,4 +1,4 @@
-{-# OPTIONS --erased-cubical #-}
+{-# OPTIONS --erased-cubical -WnoUnsupportedIndexedMatch #-}
 
 open import Agda.Builtin.Sigma
 
