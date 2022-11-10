@@ -865,7 +865,7 @@ conSplitModalityCheck
   -> Telescope -- ^ The telescope @Γ@ itself
   -> Type      -- ^ Target type of the clause.
   -> TCM ()
-conSplitModalityCheck mod rho blocking gamma target = do
+conSplitModalityCheck mod rho blocking gamma target = when (any ((/= defaultModality) . getModality) gamma) $ do
   reportSDoc "tc.lhs.top" 30 $ vcat
     [ "LHS modality check for modality: " <+> prettyTCM mod
     , "rho:    " <+> inTopContext (prettyTCM rho)
@@ -906,6 +906,8 @@ conSplitModalityCheck mod rho blocking gamma target = do
         --   Δ' ⊢ x[wkS |Δ|][ρ] : Type
         let
           rho' = composeS rho (wkS (arg + 1) idS)
+        ty' <- reduce (applyPatSubst rho' (unEl (snd (unDom d))))
+        let
           -- It's actually rather tricky to know when, exactly, a
           -- transport will be needed in a position that forces an
           -- usable-at-modality check. Our current heuristic is:
@@ -925,7 +927,7 @@ conSplitModalityCheck mod rho blocking gamma target = do
           ]
         argn <- name arg
         when docheck $
-          usableAtModality (IndexedClauseArg forced argn) mod (applyPatSubst rho' (unEl (snd (unDom d))))
+          usableAtModality (IndexedClauseArg forced argn) mod ty'
     Nothing -> pure ()
 
   -- ALways check the target clause type. Specifically, we check it both
