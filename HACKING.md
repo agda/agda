@@ -281,9 +281,8 @@ Testing and documentation
   given in an OPTIONS pragma, use `agda2-program-args`.
 
 * If you use GHC 9.2 or later and compile using the GHC options
-  `-finfo-table-map` and `-fdistinct-constructor-tables`, then [you
-  can
-  obtain](https://well-typed.com/blog/2021/01/first-look-at-hi-profiling-mode/)
+  `-finfo-table-map` and `-fdistinct-constructor-tables`, then you can
+  [obtain](https://well-typed.com/blog/2021/01/first-look-at-hi-profiling-mode/)
   heap profiles that tie heap closures to source code locations, even
   if the program is not compiled using `-prof`. However, use of these
   flags can make the Agda binary much larger, so they are not
@@ -299,8 +298,7 @@ Testing and documentation
   Here `VERSION` is Agda's version number. View the resulting file
   `agda-VERSION.eventlog.html` and check the tab called "Detailed".
 
-* [One
-  way](https://mpickering.github.io/posts/2019-11-07-hs-speedscope.html)
+* [One way](https://mpickering.github.io/posts/2019-11-07-hs-speedscope.html)
   to obtain time profiles is to compile with profiling enabled, using
   the GHC option
   [`-fprof-late`](https://downloads.haskell.org/ghc/9.4.2/docs/users_guide/profiling.html#ghc-flag--fprof-late)
@@ -576,7 +574,7 @@ Developing with Stack
 At the time of writing, the whole dev stack of Agda is still centered around
 tools like `Cabal` and `Makefile`.
 
-To develop Agda with `Stack`, copy one of the stack-x.x.x.yaml files of your
+To develop Agda with `Stack`, copy one of the stack-x.y.z.yaml files of your
 choice, and rename it to `stack.yaml`. For example:
 
     cp stack-8.4.4.yaml stack.yaml
