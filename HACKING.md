@@ -49,20 +49,14 @@ git clone --recurse-submodules git@github.com:agda/agda.git
 Branches
 ---------
 
-The two main branches of the repository are `master` and `future`. The
-master branch contains everything slated for the next release, and the
-future branch should be used for more experimental features that need
-longer to mature. Any changes on master must be merged into the future
-branch (NOTE: currently there are no additional features on future, so
-merging is not required or encouraged).
-
 Feature branches should be used generously when fixing bugs and adding
-features. Whenever possible, branches should be based on the master
-branch.  Even when working on features in the future branch, try to do
-as much of the work as possible on master to reduce the number and
-severity of merge conflicts.
+features.  Whenever possible, branches should be based on the `master`
+branch.  Feature branches should be merged when the feature is ready,
+no before, otherwise we risk releasing a half-baked feature.
 
-For instance, fixing issue 1234 would work as follows:
+For instance, fixing issue 1234 would work as follows.
+Suppose you are using `upstream` as your upstream Agda repository.
+This could be either `origin` (if you have push rights) or your own fork of Agda.
 
     git checkout master
     git checkout -b issue1234 # create a new branch based on master
@@ -73,50 +67,21 @@ For instance, fixing issue 1234 would work as follows:
     git rebase master          # get fresh upstream patches, keep own work on top
     git commit -p              # record some more patches
 
-    make install-bin test      # ensure compilation and tests
+    make type-check            # ensure compilation
+    make quicker-install-bin   # install non-optimized agda-quicker, use it for testing
+    make install-bin test      # ensure compilation and tests (optional)
 
-    # Done!  If you have commit rights:
+    # Done!
+    git push -u upstream issue1234
+    # Open a pull request and wait for CI to succeed.
+    # E.g. go to https://github.com/agda/agda and click the "New pull request" button
+    # next to the branch dropdown.
+    # Get feedback from other developers.
 
-    ## Merge into master
-    git checkout master
-    git merge issue1234        # merge into master
-    make install-bin test      # ensure compilation and tests
-    git push
-
-    ## Merge into future  (SKIP THIS STEP FOR NOW)
-    git checkout future
-    git merge master           # merge master into future
-    make install-bin test      # ensure compilation and tests
-    git push
-    git branch -d issue1234    # delete the branch
-
-    # Otherwise, push branch to your GitHub fork of Agda and create a pull
-    # request.
-    git push -u myfork issue1234
-    Go to https://github.com/agda/agda and click the "New pull request" button
-    next to the branch dropdown.
-
-The above procedure has the drawback that with each checkout, many
-source files are touched and recompilation is slow.  Here is an
-alternative workflow, if you have commit rights and two local
-repositories, one on master and one on future (both up-to-date).
-
-    master$  git checkout -b issue1234
-    master$  git commit ...
-    master$  git checkout master
-    master$  git merge issue1234
-    master$  make install-bin test
-    master$  git push
-    master$  git branch -d issue1234
-
-    # Now fast-forward master branch without checking it out.
-    # Merge it into future.
-
-    future$ git fetch origin master:master
-    future$ git pull
-    future$ git merge master
-    future$ make install-bin test
-    future$ git push
+    # The accepted pull request can be merged into master as follows:
+    # * "Squash and merge" if some commits in between are not meaningful or do not pass CI.
+    # * "Rebase and merge" if each commit is meaningful and compiles and ideally passes all tests.
+    # Creating merge commits is discouraged but might be preferable in exceptional cases..
 
 Finding the commit that introduced a regression
 -----------------------------------------------
@@ -205,8 +170,7 @@ Testing and documentation
 =========================
 
 * When you implement a new feature it needs to be documented in
-  `doc/user-manual/` and `doc/release-notes/<next-version>.txt`.  When
-  you fix a bug, drop a note in `CHANGELOG.md`.
+  `doc/user-manual/` and `CHANGELOG.md`.
 
 * In both cases, you need to add regression tests under `test/Succeed`
   and `test/Fail`, and maybe also `test/interaction`. When adding test
