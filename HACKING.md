@@ -25,7 +25,7 @@ Code of conduct
 
 * Run the full testsuite before pushing patches!
 
-  The recommended way is to run the testsuite on `travis-ci.org`.
+  The recommended way is to run the testsuite on via our CI (continuous integration suite).
   It is automatically started when submitting a pull request.
 
 Note: Some instructions in this document are likely outdated,
@@ -345,7 +345,7 @@ Testing and documentation
 * To build the user manual locally, you need to install
   the following dependencies:
 
-    + Python >=3.4.6 from the Travis test.
+    + Python >=3.4.6.
 
     + Sphinx and sphinx-rtd-theme
 
@@ -395,33 +395,26 @@ Testing and documentation
   *** Exception: ExitSuccess
   ```
 
-Testing with Travis CI and GitHub Actions
-=========================================
-Since Dec 2019.
+Testing with GitHub Actions
+===========================
 
 Instead of running all test suites locally, it is encouraged that you compile
-Agda and run test suites by GitHub Actions and Travis on your own GitHub fork
+Agda and run test suites by GitHub Actions on your own GitHub fork
 when hacking Agda.
 
 Different tool chains, compilation flags, and platforms are tested. These tests
 are executed in parallel when possible for efficiency, so ideally it also saves
-you some time. One caveat:
+you some time.
 
-* *Travis CI* is not active by default. See:
-  https://docs.travis-ci.com/user/tutorial/
-
-  for signing up.
-
-You should see the status in your GitHub Actions page and
-the Travis dashboard page, if successful.
+You should see the status in your GitHub Actions page.
 
 ### Skipping workflows / Work-In-Progress (WIP) commits
 
-It is also possible to skip Travis jobs and/or GitHub workflows using a special
+It is also possible to skip GitHub workflows using a special
 phrase in the (head) commit message. The phrase may appear anywhere in the
 commit message. The acceptable phrases are listed below.
 
-The Travis jobs and GitHub workflows will check for the phrase in the head commit
+The GitHub workflows will check for the phrase in the head commit
 (only) of a push (i.e. if you push 3 commits at once, only the most recent
 commit's message is checked for the phrase).
 
@@ -429,10 +422,6 @@ commit's message is checked for the phrase).
 |---|---|
 | `[ci skip]` | Skips both Travis jobs and GitHub workflows |
 | `[skip ci]` | As-per `[ci skip]` |
-| `[travis skip]` | Skip only Travis jobs (i.e. GitHub workflows will still run) |
-| `[skip travis]` | As-per `[travis skip]` |
-| `[github skip]` | Skip only GitHub workflows (i.e. Travis jobs will still run) |
-| `[skip github]` | As-per `[github skip]` |
 
 Some Agda Hacking Lore
 ======================
