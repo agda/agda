@@ -99,6 +99,9 @@ prettyErased = prettyQuantity . asQuantity
 prettyCohesion :: LensCohesion a => a -> Doc -> Doc
 prettyCohesion a = (pretty (getCohesion a) <+>)
 
+prettyPolarity :: LensModalPolarity a => a -> Doc -> Doc
+prettyPolarity a = (pretty (getModalPolarity a) <+>)
+
 prettyTactic :: BoundName -> Doc -> Doc
 prettyTactic = prettyTactic' . bnameTactic
 
@@ -160,11 +163,23 @@ instance Pretty Cohesion where
   pretty Continuous = mempty
   pretty Squash  = "@⊤"
 
+instance Pretty ModalPolarity where
+  pretty p = case p of
+    UnusedPolarity -> "@unused"
+    StrictlyPositive -> "@++"
+    Positive -> "@+"
+    Negative -> "@-"
+    MixedPolarity -> mempty
+
+instance Pretty PolarityModality where
+  pretty (PolarityModality p _ _) = pretty p
+
 instance Pretty Modality where
   pretty mod = hsep
     [ pretty (getRelevance mod)
     , pretty (getQuantity mod)
     , pretty (getCohesion mod)
+    , pretty (getModalPolarity mod)
     ]
 
 -- | Show the attributes necessary to recover a modality, in long-form
@@ -174,7 +189,7 @@ instance Pretty Modality where
 attributesForModality :: Modality -> Doc
 attributesForModality mod
   | mod == defaultModality = text "@ω"
-  | otherwise = fsep $ catMaybes [relevance, quantity, cohesion]
+  | otherwise = fsep $ catMaybes [relevance, quantity, cohesion, polarity]
   where
     relevance = case getRelevance mod of
       Relevant   -> Nothing
@@ -188,6 +203,12 @@ attributesForModality mod
       Flat{}       -> Just "@♭"
       Continuous{} -> Nothing
       Squash{}     -> Just "@⊤"
+    polarity = case modPolarityAnn (getModalPolarity mod) of
+      MixedPolarity    -> Nothing
+      Positive         -> Just "@+"
+      Negative         -> Just "@-"
+      StrictlyPositive -> Just "@++"
+      UnusedPolarity   -> Just "@unused"
 
 instance Pretty (OpApp Expr) where
   pretty (Ordinary e) = pretty e
@@ -231,7 +252,7 @@ instance Pretty Expr where
               lambda <+>
               prettyErased e (bracesAndSemicolons (fmap pretty pes))
             Fun _ e1 e2 ->
-                sep [ prettyCohesion e1 (prettyQuantity e1 (pretty e1)) <+> arrow
+                sep [ pretty (getModality e1) <+> pretty e1 <+> arrow
                     , pretty e2
                     ]
             Pi tel e ->
@@ -310,7 +331,7 @@ instance Pretty a => Pretty (Binder' a) where
 
 instance Pretty NamedBinding where
   pretty (NamedBinding withH
-           x@(Arg (ArgInfo h (Modality r q c) _o _fv (Annotation lock))
+           x@(Arg (ArgInfo h (Modality r q c p) _o _fv (Annotation lock))
                (Named _mn xb@(Binder _mp (BName _y _fix t _fin))))) =
     applyWhen withH prH $
     applyWhenJust (isLabeled x) (\ l -> (text l <+>) . ("=" <+>)) (pretty xb)
@@ -321,15 +342,16 @@ instance Pretty NamedBinding where
         . prettyHiding h mparens
         . (coh <+>)
         . (qnt <+>)
+        . (pol <+>)
         . (lck <+>)
         . (tac <+>)
     coh = pretty c
     qnt = pretty q
+    pol = pretty p
     tac = pretty t
     lck = pretty lock
     -- Parentheses are needed when an attribute @... is printed
-    mparens = applyUnless (null coh && null qnt && null lck && null tac) parens
-
+    mparens = applyUnless (null coh && null qnt && null lck && null tac && null pol) parens
 
 instance Pretty LamBinding where
     pretty (DomainFree x) = pretty (NamedBinding True x)
@@ -346,6 +368,7 @@ instance Pretty TypedBinding where
         $ prettyCohesion y
         $ prettyQuantity y
         $ prettyLock y
+        $ prettyPolarity y
         $ prettyTactic (binderName $ namedArg y) $
         sep [ fsep (map (pretty . NamedBinding False) ys)
             , ":" <+> pretty e ]
@@ -434,12 +457,12 @@ instance Pretty Declaration where
   prettyList = vcat . map pretty
   pretty = \case
     TypeSig i tac x e ->
-      sep [ prettyTactic' tac $ prettyRelevance i $ prettyCohesion i $ prettyQuantity i $ pretty x <+> ":"
+      sep [ prettyTactic' tac $ prettyRelevance i $ prettyCohesion i $ prettyQuantity i $ prettyPolarity i $ pretty x <+> ":"
           , nest 2 $ pretty e
           ]
     FieldSig inst tac x (Arg i e) ->
       mkInst inst $ mkOverlap i $
-      prettyRelevance i $ prettyHiding i id $ prettyCohesion i $ prettyQuantity i $
+      prettyRelevance i $ prettyHiding i id $ prettyCohesion i $ prettyQuantity i $ prettyPolarity i $
       pretty $ TypeSig (setRelevance Relevant i) tac x e
       where
         mkInst (InstanceDef _) d = sep [ "instance", nest 2 d ]
