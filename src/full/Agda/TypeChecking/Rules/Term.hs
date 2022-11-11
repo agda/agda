@@ -296,6 +296,7 @@ checkDomain lamOrPi xs e = do
 
     t <- applyQuantityToJudgement q $
          applyCohesionToContext c $
+         applyPolarityToContext negativePolarity $
          modEnv lamOrPi $ isType_ e
     -- Andrea TODO: also make sure that LockUniv implies IsLock
     when (any (\x -> case getLock x of { IsLock{} -> True ; _ -> False }) xs) $ do
@@ -362,7 +363,8 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
         -- modify the new context entries
         modEnv LamNotPi = workOnTypes
         modEnv _        = id
-        modMod PiNotLam xp = applyWhen xp $ mapRelevance irrelevantToShapeIrrelevant
+        modMod PiNotLam xp = inverseApplyPolarity (withStandardLock UnusedPolarity)
+                             . applyWhen xp (mapRelevance irrelevantToShapeIrrelevant)
         modMod _        _  = id
 
 checkTypedBindings lamOrPi (A.TLet _ lbs) ret = do

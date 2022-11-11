@@ -228,6 +228,7 @@ typeErrorName = \case
   VariableIsErased                                           {} -> VariableIsErased_
   VariableIsIrrelevant                                       {} -> VariableIsIrrelevant_
   VariableIsOfUnusableCohesion                               {} -> VariableIsOfUnusableCohesion_
+  VariableIsOfUnusablePolarity                               {} -> VariableIsOfUnusablePolarity_
   WithClausePatternMismatch                                  {} -> WithClausePatternMismatch_
   WithOnFreeVariable                                         {} -> WithOnFreeVariable_
   WrongAnnotationInLambda                                    {} -> WrongAnnotationInLambda_

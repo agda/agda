@@ -540,7 +540,9 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
       -- definition we get will have signature μ \ Δ → B.  This is only valid
       -- for pure modality systems though.
       let ai = defArgInfo def
-          m = unitModality { modCohesion = getCohesion ai }
+          m = unitModality { modCohesion = getCohesion ai
+                           , modPolarity = getModalPolarity ai
+                           }
       localTC (over eContext (map (mapModality (m `inverseComposeModality`)))) $
         copyDef' ts' np def
       where

@@ -58,8 +58,17 @@ workOnTypes' :: (MonadTCEnv m) => Bool -> m a -> m a
 workOnTypes' experimental
   = applyWhen experimental (modifyContextInfo $ mapRelevance irrelevantToShapeIrrelevant)
   . applyQuantityToJudgement zeroQuantity
+  . applyPolarityToContext (withStandardLock UnusedPolarity)
   . typeLevelReductions
   . localTC (\ e -> e { envWorkingOnTypes = True })
+
+applyPolarityToContext :: (MonadTCEnv tcm, LensModalPolarity p) => p -> tcm a -> tcm a
+applyPolarityToContext p = localTC
+  $ over eContext     (map $ inverseApplyPolarity pol)
+  . over eLetBindings (Map.map . fmap . onLetBindingType
+                       $ inverseApplyPolarity pol)
+  where
+    pol = getModalPolarity p
 
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,
@@ -182,6 +191,7 @@ applyModalityToContextFunBody thing cont = do
       {-then-} (applyModalityToContext m cont)                -- enable global irr. defs always
       {-else-} (applyRelevanceToContextFunBody (getRelevance m)
                $ applyCohesionToContext (getCohesion m)
+               $ applyPolarityToContext (getModalPolarity m)
                $ applyQuantityToJudgement (getQuantity m) cont) -- enable local irr. defs only when option
   where
     m = getModality thing

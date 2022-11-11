@@ -597,7 +597,7 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
   let p = getModalPolarity info0
   let mod  = Modality rel (getQuantity info0) c p
   let info = setModality mod info0
-  applyCohesionToContext c $ do
+  applyPolarityToContext p $ applyCohesionToContext c $ do
 
   reportSDoc "tc.decl.ax" 20 $ sep
     [ text $ "checking type signature"

@@ -318,6 +318,9 @@ inferHead e = do
       unless (usableCohesion a) $
         typeError $ VariableIsOfUnusableCohesion x (getCohesion a)
 
+      unless (usablePolarity a) $
+        typeError $ VariableIsOfUnusablePolarity x (getModalPolarity a)
+
       return (applyE u, unDom a)
 
     A.Def x  -> inferHeadDef ProjPrefix x
