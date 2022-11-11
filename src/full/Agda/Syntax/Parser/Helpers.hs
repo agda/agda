@@ -285,6 +285,7 @@ onlyErased as = do
     CohesionAttribute{}  -> unsup "Cohesion"
     LockAttribute{}      -> unsup "Lock"
     CA.TacticAttribute{} -> unsup "Tactic"
+    PolarityAttribute{}  -> unsup "Polarity"
     QuantityAttribute q  -> maybe (unsup "Linearity") (return . Just) $ erasedFromQuantity q
     where
     unsup s = do
@@ -518,18 +519,20 @@ patternSynArgs = mapM \ x -> do
         case ai of
 
           -- Benign case:
-          ArgInfo h (Modality Relevant{} (Quantityω _) Continuous) UserWritten UnknownFVs (Annotation IsNotLock) ->
+          ArgInfo h (Modality Relevant{} (Quantityω _) Continuous (PolarityModality { modPolarityAnn = MixedPolarity })) UserWritten UnknownFVs (Annotation IsNotLock) ->
             return $ WithHiding h n
 
           -- Error cases:
           ArgInfo _ _ _ _ (Annotation (IsLock _)) ->
             abort $ noAnn "Lock"
 
-          ArgInfo h (Modality r q c) _ _ _
+          ArgInfo h (Modality r q c p) _ _ _
             | not (isRelevant r) ->
                 abort "Arguments to pattern synonyms must be relevant"
             | not (isQuantityω q) ->
                 abort $ noAnn "Quantity"
+            | modPolarityAnn p /= MixedPolarity ->
+                abort $ noAnn "Polarity"
             | c /= Continuous ->
                 abort $ noAnn "Cohesion"
 

@@ -606,10 +606,11 @@ instance POSemigroup (UnderAddition Modality) where
 instance POMonoid (UnderAddition Modality) where
 
 instance Pretty Modality where
-  pretty (Modality r q c) = hsep
+  pretty (Modality r q c p) = hsep
     [ pretty r
     , pretty q
     , pretty c
+    , pretty p
     ]
 
 -- | @m `moreUsableModality` m'@ means that an @m@ can be used
@@ -2048,6 +2049,14 @@ instance PartialOrd ModalPolarity where
   comparable StrictlyPositive Positive = POGT
   comparable _ _ = __IMPOSSIBLE__
 
+instance Pretty ModalPolarity where
+  pretty p = case p of
+    UnusedPolarity -> "@unused"
+    StrictlyPositive -> "@++"
+    Positive -> "@+"
+    Negative -> "@-"
+    MixedPolarity -> mempty
+
 -- | @morePolarity' x y@ is True whenever a variable of polarity x can be
 --   used anywhere where a variable of polarity y is expected.
 --   Note that @morePolarity' x y@ actually means x <= y.
@@ -2131,6 +2140,9 @@ instance KillRange PolarityModality where
 
 instance NFData PolarityModality where
   rnf (PolarityModality p o l) = ()
+
+instance Pretty PolarityModality where
+  pretty (PolarityModality p _ _) = pretty p
 
 instance PartialOrd PolarityModality where
   comparable (PolarityModality p _ _) (PolarityModality p' _ _) = comparable p p'
@@ -2251,6 +2263,9 @@ defaultPolarity = withStandardLock MixedPolarity
 
 instance Null PolarityModality where
   empty = defaultPolarity
+
+prettyPolarity :: LensModalPolarity a => a -> Doc -> Doc
+prettyPolarity a = (pretty (getModalPolarity a) <+>)
 
 ---------------------------------------------------------------------------
 -- * Origin of arguments (user-written, inserted or reflected)

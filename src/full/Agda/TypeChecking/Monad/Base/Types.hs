@@ -27,7 +27,7 @@ import Agda.Utils.Null                ( Null(..) )
 
 import Agda.Syntax.Internal           ( Dom, Name, Type )
 import Agda.Syntax.Common
-  ( LensArgInfo(..), LensCohesion, LensHiding, LensModality, LensOrigin, LensQuantity, LensRelevance )
+  ( LensArgInfo(..), LensCohesion, LensHiding, LensModality, LensOrigin, LensQuantity, LensRelevance, LensModalPolarity )
 
 ---------------------------------------------------------------------------
 -- * Context
@@ -54,6 +54,7 @@ instance LensCohesion  ContextEntry
 instance LensOrigin    ContextEntry
 instance LensQuantity  ContextEntry
 instance LensHiding    ContextEntry
+instance LensModalPolarity ContextEntry
 
 ---------------------------------------------------------------------------
 -- * Conversion
