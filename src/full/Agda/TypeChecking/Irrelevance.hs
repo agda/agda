@@ -218,7 +218,7 @@ instance UsableModality Term where
       fmod <- modalityOfConst f
       -- Pure modalities don't matter here, only positional ones, hence remove
       -- them from the equation.
-      let ok = setCohesion Flat fmod `moreUsableModality` mod
+      let ok = setModalPolarity (withStandardLock MixedPolarity) (setCohesion Flat fmod) `moreUsableModality` mod
       reportSDoc "tc.irr" 50 $
         "Definition" <+> prettyTCM (Def f []) <+>
         text ("has modality " ++ show fmod ++ ", which is a " ++
@@ -239,7 +239,8 @@ instance UsableModality Term where
     Pi a b   -> usableMod domMod (unEl $ unDom a) `and2M` usableModAbs (getArgInfo a) mod (unEl <$> b)
       where
         domMod = mapQuantity (composeQuantity $ getQuantity a) $
-                 mapCohesion (composeCohesion $ getCohesion a) mod
+                 mapCohesion (composeCohesion $ getCohesion a) $
+                 mapModalPolarity (composePolarity $ getModalPolarity a) mod
     -- Andrea 15/10/2020 not updating these cases yet, but they are quite suspicious,
     -- do we have special typing rules for Sort and Level?
     Sort s   -> usableMod mod s

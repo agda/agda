@@ -324,7 +324,7 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
               ]
 
         -- Needed to calculate the proper fullType below.
-        applyCohesionToContext ai $ do
+        applyPolarityToContext ai $ applyCohesionToContext ai $ do
 
         -- Systems have their own coverage and "coherence" check, we
         -- also add an absurd clause for the cases not needed.

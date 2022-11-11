@@ -1413,6 +1413,7 @@ checkSubtypeIsEqual a b = do
           | getRelevance a1 /= getRelevance b1 -> patternViolation neverUnblock -- Can we recover from this?
           | getQuantity  a1 /= getQuantity  b1 -> patternViolation neverUnblock
           | getCohesion  a1 /= getCohesion  b1 -> patternViolation neverUnblock
+          | getModalPolarity a1 /= getModalPolarity b1 -> patternViolation neverUnblock
           | otherwise -> do
               checkSubtypeIsEqual (unDom b1) (unDom a1)
               underAbstractionAbs a1 a2 $ \a2' -> checkSubtypeIsEqual a2' (absBody b2)
