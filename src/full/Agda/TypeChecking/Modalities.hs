@@ -94,7 +94,8 @@ checkModalityArgs d vs = do
           v <- deBruijnView t
           varModality <$> lookupVarMap v vmap
     whenJust m $ \ used -> do
-        unless (getCohesion avail `moreCohesion` getCohesion used) $
+        unless (getCohesion avail `moreCohesion` getCohesion used
+                && getModalPolarity avail `morePolarity` getModalPolarity used) $
            genericDocError =<< fsep
              [ "Telescope variable" <+> prettyTCM t
              , "is indirectly being used in the" <+> text (verbalize (getModality used)) <+> "modality"

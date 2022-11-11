@@ -463,7 +463,7 @@ moreUsableModality :: Modality -> Modality -> Bool
 moreUsableModality m m' = related m POLE m'
 
 usableModality :: LensModality a => a -> Bool
-usableModality a = usableRelevance m && usableQuantity m && usableCohesion m
+usableModality a = usableRelevance m && usableQuantity m && usableCohesion m && usablePolarity m
   where m = getModality a
 
 -- | Multiplicative monoid (standard monoid).

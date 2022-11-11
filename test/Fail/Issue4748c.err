@@ -1,3 +1,3 @@
 Issue4748c.agda:14,8-9
-(@0 x : A) (y : B x) → R is not usable at the required modality @ω
+(@0 x : A) (y : B x) → R is not usable at the required modality @++
 when checking the definition of R

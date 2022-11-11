@@ -1,4 +1,4 @@
 Issue5410-4.agda:6,8-9
 (f : {@0 A : Set} → A) →
-D is not usable at the required modality @ω
+D is not usable at the required modality @++
 when checking the definition of D
