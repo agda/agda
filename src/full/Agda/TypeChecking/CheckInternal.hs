@@ -148,6 +148,9 @@ instance CheckInternal Term where
         unless (usableCohesion d) $
           typeError $ VariableIsOfUnusableCohesion n (getCohesion d)
 
+        unless (usablePolarity d) $
+          typeError $ VariableIsOfUnusablePolarity n (getModalPolarity d)
+
         reportSDoc "tc.check.internal" 30 $ fsep
           [ "variable" , prettyTCM (var i) , "has type" , prettyTCM (unDom d)
           , "and modality", pretty (getModality d) ]
@@ -193,9 +196,10 @@ instance CheckInternal Term where
             -- Preserve NoAbs
             goInside = case b of
               Abs{}   -> addContext $ (absName b,) $
+                inverseApplyPolarity (withStandardLock UnusedPolarity) $
                 applyWhen experimental (mapRelevance irrelevantToShapeIrrelevant) a
               NoAbs{} -> id
-        a <- mkDom <$> checkInternal' action (unEl $ unDom a) CmpLeq (sort sa)
+        a <- applyPolarityToContext negativePolarity $ mkDom <$> checkInternal' action (unEl $ unDom a) CmpLeq (sort sa)
         v' <- goInside $ Pi a . mkRng <$> checkInternal' action (unEl $ unAbs b) CmpLeq (sort sb)
         s' <- sortOf v -- Issue #6205: do not use v' since it might not be valid syntax
         compareSort cmp s' s
