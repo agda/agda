@@ -515,6 +515,12 @@ instance PrettyTCM TypeError where
       , pretty (defName def) <+> ":" <+> prettyTCM (defType def)
       ]
 
+    VariableIsOfUnusablePolarity x c -> fsep $
+      ["Variable", prettyTCM (nameConcrete x), "is bound with", text (verbalize p)] ++  pwords "polarity, so it cannot be used here at" ++
+      [text (verbalize (Indefinite l)), "position"]
+      where
+        PolarityModality _ p l = c
+
     UnequalTerms cmp s t a -> case (s,t) of
       (Sort s1      , Sort s2      )
         | CmpEq  <- cmp              -> prettyTCM $ UnequalSorts s1 s2

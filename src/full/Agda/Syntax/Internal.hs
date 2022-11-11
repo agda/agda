@@ -116,6 +116,7 @@ instance LensAnnotation    (Dom' t e) where
 instance LensRelevance (Dom' t e) where
 instance LensQuantity  (Dom' t e) where
 instance LensCohesion  (Dom' t e) where
+instance LensModalPolarity (Dom' t e) where
 
 argFromDom :: Dom' t a -> Arg a
 argFromDom Dom{domInfo = i, unDom = a} = Arg i a
