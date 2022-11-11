@@ -1570,8 +1570,9 @@ checkLHS mf = updateModality checkLHS_ where
           liftTCM $ addContext delta' $ do
             withoutK <- collapseDefault . optWithoutK <$> pragmaOptions
             cubical <- collapseDefault . optCubicalCompatible <$> pragmaOptions
+            mod <- viewTC eModality
             when ((withoutK || cubical) && not (null ixs)) $
-              conSplitModalityCheck (getModality target) rho (length delta2) tel (unArg target)
+              conSplitModalityCheck mod rho (length delta2) tel (unArg target)
 
           -- if rest type reduces,
           -- extend the split problem by previously not considered patterns
