@@ -290,6 +290,7 @@ data ErrorName
   | VariableIsErased_
   | VariableIsIrrelevant_
   | VariableIsOfUnusableCohesion_
+  | VariableIsOfUnusablePolarity_
   | WithClausePatternMismatch_
   | WithOnFreeVariable_
   | WrongAnnotationInLambda_
