@@ -5,7 +5,6 @@
   module language.two-level where
 
   open import Agda.Primitive
-  open import Agda.Builtin.Equality
 
 
 ************
@@ -15,69 +14,99 @@ Two-Level Type Theory
 Basics
 ------
 
-Two-level type theory (2LTT) refers to versions of Martin-Lof
-type theory that combine two type theories: one level as a
-homotopy type theory, which may include univalent universes and
-higher inductive types, and the second level as a traditional form
-of type theory validating uniqueness of identity proofs.
+Two-level type theory (2LTT) refers to versions of Martin-Lof type
+theory that combine two type theories: one "inner" level that is
+potentially a homotopy type theory or cubical type theory, which may
+include univalent universes and higher inductive types, and a second
+"outer" level that validates uniqueness of identity proofs.
 
-Since version 2.6.2, Agda enables the use of strict (non-fibrant)
-type universes ``SSet`` with ``--two-level`` flag. With this option,
-Agda adds a new sort ``SSet`` of strict sets. We can define an
-equality type for this sort::
+Since version 2.6.2, Agda enables 2LTT with the ``--two-level`` flag.
+The two levels are distinguished with two hierarchies of universes:
+the usual universes ``Set`` for the inner level, and a new hierarchy
+of universes denoted ``SSet`` (for "strict sets") for the outer level.
 
-  infix 4 _≡ˢ_
+.. note::
+   The types in ``SSet`` have various names in the literature. They
+   are called `non-fibrant types` in [`HTS (2017)
+   <https://www.math.ias.edu/vladimir/sites/math.ias.edu.vladimir/files/HTS.pdf>`_],
+   `outer types` in [`2LTT (2017)
+   <https://arxiv.org/abs/1705.03307>`_], and `exo-types` in
+   [`UP (2021) <https://arxiv.org/abs/2102.06275>`_].  Similarly,
+   these references refer to the types in ``Set`` as `fibrant types`,
+   `inner types`, and `types`, respectively.
+
+Function-types belong to ``Set`` if both their domain and codomain do,
+and to ``SSet`` otherwise.  Records and datatypes can always be
+declared to belong to ``SSet``, and can be declared to belong to
+``Set`` instead if all their inputs belong to ``Set``.  In particular,
+any type in ``Set`` has an isomorphic copy in ``SSet`` defined as a
+trivial record::
+
+  record c (A : Set) : SSet where
+    constructor ↑
+    field
+      ↓ : A
+
+  open c
+
+The main differences between the two levels are that, firstly,
+homotopical flags such as ``--without-K`` and ``--cubical`` apply only
+to the ``Set`` level (the ``SSet`` level is never homotopical); and
+secondly, datatypes belonging to the inner level cannot be
+pattern-matched on when the motive belongs to the outer level (this is
+necessary to maintain the previous distinction).
+
+As a primary example, we can define separate inductive equality types
+for both levels::
+
+  infix 4 _≡ˢ_ _≡_
+
   data _≡ˢ_ {a} {A : SSet a} (x : A) : A → SSet a where
-    refl : x ≡ˢ x
+    reflˢ : x ≡ˢ x
 
-It satisfies the UIP::
+  data _≡_ {a} {A : Set a} (x : A) : A → Set a where
+    refl : x ≡ x
+
+With these definitions, we can prove uniqueness of identity proofs for
+the strict equality even if ``--without-K`` or ``--cubical`` is
+enabled::
 
   UIP : {a : Level} {A : SSet a} {x y : A} (p q : x ≡ˢ y) → p ≡ˢ q
-  UIP refl refl = refl
+  UIP reflˢ reflˢ = reflˢ
 
-.. note::
-   In order to work with 2LTT, we use also the fundamental sort ``Set``
-   of Agda with the usual identity type ``_≡_``. To make distinction
-   between two equalities, we should assume ``--without-K``. This flag
-   disables UIP only for ``_≡_``, not for ``_≡ˢ_``. Thus, we indeed
-   obtain the two type theories.
+We can also prove that strictly equal elements are also non-strictly equal::
 
-.. note::
-   Strict Types have various names in the literature. These are `non-fibrant types` in
-   [`HTS (2017) <https://www.math.ias.edu/vladimir/sites/math.ias.edu.vladimir/files/HTS.pdf>`_],
-   `outer types` in [`2LTT (2017) <https://arxiv.org/abs/1705.03307>`_], and `exo-types` in
-   [`Univalence Principle (2021) <https://arxiv.org/abs/2102.06275>`_]. Besides, the sort ``Set``
-   is respresented by fibrant types, inner types, and types in these studies, respectively.
+  ≡ˢ-to-≡ : {A : Set} {x y : c A} → (x ≡ˢ y) → (↓ x ≡ ↓ y)
+  ≡ˢ-to-≡ reflˢ = refl
+  
+The opposite implication, however, fails because, as noted above, we
+cannot pattern-match against a datatype in ``Set`` when the motive
+lies in ``SSet``.  Similarly, we can map from the strict natural
+numbers into the ordinary ones::
 
-In 2LTT, it is commonly assumed that every type is a strict type. Agda reflects
-this idea via the option ``--cumulativity``. The flag enables the rule that ``Set a``
-is a  subtype of ``SSet a`` for each ``a : Level``. In this case, the new equality
-type can be viewed as “internalised judgmental equality”. In other words, if two terms
-are strictly equal, than they are path equal::
+  data ℕ : Set where
+    zero : ℕ
+    succ : ℕ → ℕ
 
-  ≡ˢto≡ : {a : Level} {A : Set a} {x y : A} → x ≡ˢ y → x ≡ y
-  ≡ˢto≡ refl = refl
+  data ℕˢ : SSet where
+    zeroˢ : ℕˢ
+    succˢ : ℕˢ → ℕˢ
 
-The inverse does not hold. Agda rejects a map like ``≡to≡ˢ`` via the message::
+  ℕˢ-to-ℕ : ℕˢ → ℕ
+  ℕˢ-to-ℕ zeroˢ = zero
+  ℕˢ-to-ℕ (succˢ n) = succ (ℕˢ-to-ℕ n)
+    
+but not vice versa.  (Agda does currently allow mapping from the empty
+``SSet`` to the empty ``Set``, but this is a bug.)
 
-  Panic: Pattern match failure in do expression at
-  src/full/Agda/TypeChecking/Primitive/Cubical.hs:2304:7-21
-  when checking the definition of ≡to≡ˢ
+If the ``--two-level`` flag is combined with ``--cumulativity``, then
+each universe ``Set a`` becomes a subtype of ``SSet a``.  In this case
+we can instead define the coercion ``c`` to be the identity function::
 
-Just as the equality type, any usual type former can be defined again for strict types.
-For example, the ``Σˢ``-type of dependent pairs is defined as follows::
+  c' : Set → SSet
+  c' A = A
 
-  record Σˢ {a b} (A : SSet a) (B : A → SSet b) : SSet (a ⊔ b) where
-    constructor _,ˢ_
-    field
-      fstˢ : A
-      sndˢ : B fstˢ
-
-When ``A : Set a`` and ``B : A → Set b``, we can show that ``Σˢ A B`` and ``Σ A B``
-are isomorphic. The same is true for the type of dependent products and the unit type.
-
-.. note::
-   Currently, Agda does not support the elimination from fibrant types to non-fibrant
-   types. However, there are some ways to circumvent this ban. See the issue `#5761
-   <https://github.com/agda/agda/issues/5761>` for the details.
- 
+and replace the coercions ``↑`` and ``↓`` with the identity function.
+However, this combination currently allows some functions to be
+defined that shouldn't be allowed; see issue `#5761
+<https://github.com/agda/agda/issues/5761>` for details.
