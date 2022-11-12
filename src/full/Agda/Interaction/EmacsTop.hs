@@ -351,6 +351,9 @@ prettyResponseContext ii rev ctx = withInteractionId ii $ do
         attribute = c ++ if null c then "" else " "
           where c = prettyShow (getCohesion ai)
 
+        pol :: ModalPolarity
+        pol = modPolarityAnn $ getModalPolarity ai
+
         extras :: [Doc]
         extras = concat $
           [ [ "not in scope" | isInScope nis == C.NotInScope ]
@@ -360,6 +363,8 @@ prettyResponseContext ii rev ctx = withInteractionId ii $ do
           , [ text $ verbalize r
                              | let r = getRelevance mod `inverseComposeRelevance` getRelevance ai
                              , r /= Relevant ]
+            -- Print variable polarity if it is other than mixed (default).
+          , [ text $ verbalize pol | not $ pol == MixedPolarity ]
             -- Print "instance" if variable is considered by instance search.
           , [ "instance"     | isInstance ai ]
           ]
