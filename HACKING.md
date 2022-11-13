@@ -25,7 +25,7 @@ Code of conduct
 
 * Run the full testsuite before pushing patches!
 
-  The recommended way is to run the testsuite on `travis-ci.org`.
+  The recommended way is to run the testsuite on via our CI (continuous integration suite).
   It is automatically started when submitting a pull request.
 
 Note: Some instructions in this document are likely outdated,
@@ -49,20 +49,14 @@ git clone --recurse-submodules git@github.com:agda/agda.git
 Branches
 ---------
 
-The two main branches of the repository are `master` and `future`. The
-master branch contains everything slated for the next release, and the
-future branch should be used for more experimental features that need
-longer to mature. Any changes on master must be merged into the future
-branch (NOTE: currently there are no additional features on future, so
-merging is not required or encouraged).
-
 Feature branches should be used generously when fixing bugs and adding
-features. Whenever possible, branches should be based on the master
-branch.  Even when working on features in the future branch, try to do
-as much of the work as possible on master to reduce the number and
-severity of merge conflicts.
+features.  Whenever possible, branches should be based on the `master`
+branch.  Feature branches should be merged when the feature is ready,
+no before, otherwise we risk releasing a half-baked feature.
 
-For instance, fixing issue 1234 would work as follows:
+For instance, fixing issue 1234 would work as follows.
+Suppose you are using `upstream` as your upstream Agda repository.
+This could be either `origin` (if you have push rights) or your own fork of Agda.
 
     git checkout master
     git checkout -b issue1234 # create a new branch based on master
@@ -73,50 +67,21 @@ For instance, fixing issue 1234 would work as follows:
     git rebase master          # get fresh upstream patches, keep own work on top
     git commit -p              # record some more patches
 
-    make install-bin test      # ensure compilation and tests
+    make type-check            # ensure compilation
+    make quicker-install-bin   # install non-optimized agda-quicker, use it for testing
+    make install-bin test      # ensure compilation and tests (optional)
 
-    # Done!  If you have commit rights:
+    # Done!
+    git push -u upstream issue1234
+    # Open a pull request and wait for CI to succeed.
+    # E.g. go to https://github.com/agda/agda and click the "New pull request" button
+    # next to the branch dropdown.
+    # Get feedback from other developers.
 
-    ## Merge into master
-    git checkout master
-    git merge issue1234        # merge into master
-    make install-bin test      # ensure compilation and tests
-    git push
-
-    ## Merge into future  (SKIP THIS STEP FOR NOW)
-    git checkout future
-    git merge master           # merge master into future
-    make install-bin test      # ensure compilation and tests
-    git push
-    git branch -d issue1234    # delete the branch
-
-    # Otherwise, push branch to your GitHub fork of Agda and create a pull
-    # request.
-    git push -u myfork issue1234
-    Go to https://github.com/agda/agda and click the "New pull request" button
-    next to the branch dropdown.
-
-The above procedure has the drawback that with each checkout, many
-source files are touched and recompilation is slow.  Here is an
-alternative workflow, if you have commit rights and two local
-repositories, one on master and one on future (both up-to-date).
-
-    master$  git checkout -b issue1234
-    master$  git commit ...
-    master$  git checkout master
-    master$  git merge issue1234
-    master$  make install-bin test
-    master$  git push
-    master$  git branch -d issue1234
-
-    # Now fast-forward master branch without checking it out.
-    # Merge it into future.
-
-    future$ git fetch origin master:master
-    future$ git pull
-    future$ git merge master
-    future$ make install-bin test
-    future$ git push
+    # The accepted pull request can be merged into master as follows:
+    # * "Squash and merge" if some commits in between are not meaningful or do not pass CI.
+    # * "Rebase and merge" if each commit is meaningful and compiles and ideally passes all tests.
+    # Creating merge commits is discouraged but might be preferable in exceptional cases..
 
 Finding the commit that introduced a regression
 -----------------------------------------------
@@ -205,8 +170,7 @@ Testing and documentation
 =========================
 
 * When you implement a new feature it needs to be documented in
-  `doc/user-manual/` and `doc/release-notes/<next-version>.txt`.  When
-  you fix a bug, drop a note in `CHANGELOG.md`.
+  `doc/user-manual/` and `CHANGELOG.md`.
 
 * In both cases, you need to add regression tests under `test/Succeed`
   and `test/Fail`, and maybe also `test/interaction`. When adding test
@@ -281,9 +245,8 @@ Testing and documentation
   given in an OPTIONS pragma, use `agda2-program-args`.
 
 * If you use GHC 9.2 or later and compile using the GHC options
-  `-finfo-table-map` and `-fdistinct-constructor-tables`, then [you
-  can
-  obtain](https://well-typed.com/blog/2021/01/first-look-at-hi-profiling-mode/)
+  `-finfo-table-map` and `-fdistinct-constructor-tables`, then you can
+  [obtain](https://well-typed.com/blog/2021/01/first-look-at-hi-profiling-mode/)
   heap profiles that tie heap closures to source code locations, even
   if the program is not compiled using `-prof`. However, use of these
   flags can make the Agda binary much larger, so they are not
@@ -299,8 +262,7 @@ Testing and documentation
   Here `VERSION` is Agda's version number. View the resulting file
   `agda-VERSION.eventlog.html` and check the tab called "Detailed".
 
-* [One
-  way](https://mpickering.github.io/posts/2019-11-07-hs-speedscope.html)
+* [One way](https://mpickering.github.io/posts/2019-11-07-hs-speedscope.html)
   to obtain time profiles is to compile with profiling enabled, using
   the GHC option
   [`-fprof-late`](https://downloads.haskell.org/ghc/9.4.2/docs/users_guide/profiling.html#ghc-flag--fprof-late)
@@ -345,7 +307,7 @@ Testing and documentation
 * To build the user manual locally, you need to install
   the following dependencies:
 
-    + Python >=3.4.6 from the Travis test.
+    + Python >=3.4.6.
 
     + Sphinx and sphinx-rtd-theme
 
@@ -395,33 +357,26 @@ Testing and documentation
   *** Exception: ExitSuccess
   ```
 
-Testing with Travis CI and GitHub Actions
-=========================================
-Since Dec 2019.
+Testing with GitHub Actions
+===========================
 
 Instead of running all test suites locally, it is encouraged that you compile
-Agda and run test suites by GitHub Actions and Travis on your own GitHub fork
+Agda and run test suites by GitHub Actions on your own GitHub fork
 when hacking Agda.
 
 Different tool chains, compilation flags, and platforms are tested. These tests
 are executed in parallel when possible for efficiency, so ideally it also saves
-you some time. One caveat:
+you some time.
 
-* *Travis CI* is not active by default. See:
-  https://docs.travis-ci.com/user/tutorial/
-
-  for signing up.
-
-You should see the status in your GitHub Actions page and
-the Travis dashboard page, if successful.
+You should see the status in your GitHub Actions page.
 
 ### Skipping workflows / Work-In-Progress (WIP) commits
 
-It is also possible to skip Travis jobs and/or GitHub workflows using a special
+It is also possible to skip GitHub workflows using a special
 phrase in the (head) commit message. The phrase may appear anywhere in the
 commit message. The acceptable phrases are listed below.
 
-The Travis jobs and GitHub workflows will check for the phrase in the head commit
+The GitHub workflows will check for the phrase in the head commit
 (only) of a push (i.e. if you push 3 commits at once, only the most recent
 commit's message is checked for the phrase).
 
@@ -429,10 +384,6 @@ commit's message is checked for the phrase).
 |---|---|
 | `[ci skip]` | Skips both Travis jobs and GitHub workflows |
 | `[skip ci]` | As-per `[ci skip]` |
-| `[travis skip]` | Skip only Travis jobs (i.e. GitHub workflows will still run) |
-| `[skip travis]` | As-per `[travis skip]` |
-| `[github skip]` | Skip only GitHub workflows (i.e. Travis jobs will still run) |
-| `[skip github]` | As-per `[github skip]` |
 
 Some Agda Hacking Lore
 ======================
@@ -587,7 +538,7 @@ Developing with Stack
 At the time of writing, the whole dev stack of Agda is still centered around
 tools like `Cabal` and `Makefile`.
 
-To develop Agda with `Stack`, copy one of the stack-x.x.x.yaml files of your
+To develop Agda with `Stack`, copy one of the stack-x.y.z.yaml files of your
 choice, and rename it to `stack.yaml`. For example:
 
     cp stack-8.4.4.yaml stack.yaml

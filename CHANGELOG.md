@@ -6,8 +6,8 @@ Highlights
 
 * Added support for [Erased Cubical
   Agda](https://agda.readthedocs.io/en/latest/language/cubical.html#cubical-agda-with-erased-glue),
-  a variant of Cubical Agda that is supported by the GHC and
-  JavaScript backends, under the flag `--erased-cubical`.
+  a variant of Cubical Agda that is supported by the GHC backend,
+  under the flag `--erased-cubical`.
 
 * Added a new flag `--cubical-compatible` to turn on generation of
   Cubical Agda-specific support code (previously this behaviour was
@@ -39,7 +39,7 @@ Highlights
 Installation and infrastructure
 -------------------------------
 
-Agda supports GHC versions 8.0.2 to 9.4.2.
+Agda supports GHC versions 8.0.2 to 9.4.3.
 
 Erasure
 -------
@@ -55,14 +55,17 @@ Erasure
   manual](https://agda.readthedocs.io/en/latest/language/cubical.html#cubical-agda-with-erased-glue-and-erased-higher-constructors)
   for more details.
 
-  The GHC and JS backends can compile code that uses
-  `--erased-cubical` if the top-level module uses this flag.
+  The GHC backend can compile code that uses `--erased-cubical` if the
+  top-level module uses this flag.
 
   This feature is experimental.
 
 * The parameter arguments of constructors and record fields are now
   marked as erased
-  ([#4786](https://github.com/agda/agda/issues/4786)).
+  ([#4786](https://github.com/agda/agda/issues/4786)), with one
+  exception: for indexed data types this only happens if the
+  `--with-K` flag is active
+  ([#6297](https://github.com/agda/agda/issues/6297)).
 
   For instance, the type of the constructor `c` below is now `{@0 A :
   Set} → D A`, and the type of the record field `R.f` is `{@0 A : Set}
@@ -403,7 +406,7 @@ Compiler backends
   `--cubical`.
 
   Note that support for compiling code that uses `--erased-cubical`
-  has been added to both backends (see above).
+  has been added to the GHC backend (see above).
 
 * If the GHC backend is invoked when `--interaction` or
   `--interaction-json` is active (for instance when the Emacs mode is
@@ -472,7 +475,6 @@ tracker](https://github.com/agda/agda/issues)):
   - [#5760](https://github.com/agda/agda/issues/5760): Some code related to Cubical Agda runs also when the K rule is on
   - [#5763](https://github.com/agda/agda/issues/5763): Internal parser error using syntax rules
   - [#5765](https://github.com/agda/agda/issues/5765): Erasure check failure when pattern matching on refl in erased definition
-  - [#5769](https://github.com/agda/agda/issues/5769): Parameter arguments of projections of instance-opened record type are not erased
   - [#5775](https://github.com/agda/agda/issues/5775): JSON interaction produces fully qualified terms
   - [#5794](https://github.com/agda/agda/issues/5794): Agsy/Auto crashes with `Prelude.!!: index too large`
   - [#5823](https://github.com/agda/agda/issues/5823): Singleton check loops on recursive eta record

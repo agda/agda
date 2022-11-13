@@ -111,6 +111,22 @@ The compiler checks that the types of the Agda constructors match the types of t
 corresponding Haskell constructors and that no constructors have been left out
 (on either side).
 
+Record types
+^^^^^^^^^^^^
+
+The ``data`` form of the ``COMPILE`` pragma also works with Agda's record types::
+
+  import Agda.Builtin.List
+  {-# FOREIGN GHC import Data.Tree #-}
+
+  record Tree (A : Set) : Set where
+    inductive
+    constructor node
+    field root-label : A
+    field sub-forest : Agda.Builtin.List.List (Tree A)
+
+  {-# COMPILE GHC Tree = data Tree (Node) #-}
+
 Built-in Types
 ^^^^^^^^^^^^^^
 
