@@ -50,6 +50,7 @@ Language Reference
    syntax-declarations
    telescopes
    termination-checking
+   two-level
    universe-levels
    with-abstraction
    without-k
