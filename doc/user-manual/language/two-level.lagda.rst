@@ -14,7 +14,7 @@ Two-Level Type Theory
 Basics
 ------
 
-Two-level type theory (2LTT) refers to versions of Martin-Lof type
+Two-level type theory (2LTT) refers to versions of Martin-Löf type
 theory that combine two type theories: one "inner" level that is
 potentially a homotopy type theory or cubical type theory, which may
 include univalent universes and higher inductive types, and a second
@@ -27,11 +27,11 @@ of universes denoted ``SSet`` (for "strict sets") for the outer level.
 
 .. note::
    The types in ``SSet`` have various names in the literature. They
-   are called `non-fibrant types` in [`HTS (2017)
-   <https://www.math.ias.edu/vladimir/sites/math.ias.edu.vladimir/files/HTS.pdf>`_],
-   `outer types` in [`2LTT (2017)
-   <https://arxiv.org/abs/1705.03307>`_], and `exo-types` in
-   [`UP (2021) <https://arxiv.org/abs/2102.06275>`_].  Similarly,
+   are called `non-fibrant types` in `HTS (2017)
+   <https://www.math.ias.edu/vladimir/sites/math.ias.edu.vladimir/files/HTS.pdf>`_,
+   `outer types` in `2LTT (2017)
+   <https://arxiv.org/abs/1705.03307>`_, and `exo-types` in
+   `UP (2021) <https://arxiv.org/abs/2102.06275>`_.  Similarly,
    these references refer to the types in ``Set`` as `fibrant types`,
    `inner types`, and `types`, respectively.
 
