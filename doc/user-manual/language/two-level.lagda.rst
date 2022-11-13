@@ -109,4 +109,4 @@ we can instead define the coercion ``c`` to be the identity function::
 and replace the coercions ``↑`` and ``↓`` with the identity function.
 However, this combination currently allows some functions to be
 defined that shouldn't be allowed; see issue `#5761
-<https://github.com/agda/agda/issues/5761>` for details.
+<https://github.com/agda/agda/issues/5761>`_ for details.
