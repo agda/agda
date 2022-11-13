@@ -6,10 +6,9 @@
 
   open import Agda.Primitive
 
-
-************
+*********************
 Two-Level Type Theory
-************
+*********************
 
 Basics
 ------
