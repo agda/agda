@@ -5024,6 +5024,8 @@ data TypeError
             -- ^ Wrong user-given quantity annotation in lambda.
         | WrongCohesionInLambda
             -- ^ Wrong user-given cohesion annotation in lambda.
+        | WrongPolarityInLambda
+            -- ^ Wrong user-given polarity annotation in lambda.
         | QuantityMismatch Quantity Quantity
             -- ^ The given quantity does not correspond to the expected quantity.
         | HidingMismatch Hiding Hiding
