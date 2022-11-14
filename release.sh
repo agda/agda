@@ -77,7 +77,7 @@ git clone "$url" "$srcdir"
 cd "$srcdir"
 
 version=$( sed -rn '/^version:\s*([0-9]+\.[0-9]+)\.([0-9]+)(\.[0-9]+)?\s*$/ {s//\1 \2/p; q}' Agda.cabal \
-         | { read -r maj min; echo "$maj.$(( 1 + $min))"; } )
+         | { read -r maj min; echo "$maj.$(( 1 + min))"; } )
 version=$( Question "Release version number?" "$version" )
 echo "$version" | grep -Eqx "[0-9]+(\.[0-9]+){2,3}" || { echo "Bad version number: $version" >&2; exit 1; }
 echo "$version" | grep -Eqx "[0-9]+(\.[0-9]+){2}" && maint=${version##*.} || maint=0
@@ -173,11 +173,11 @@ cabal upload "dist/Agda-$version.tar.gz"
 
 [ $maint = 0 ] && maintv="$version" || maintv="${version%.*}"
 git checkout -b "maint-$maintv"
-updateVersion "${maintv}.$(( $maint + 1 ))"
+updateVersion "${maintv}.$(( maint + 1 ))"
 
 sed -ri 's/^#\s*(override CABAL_OPTS\+=--program-suffix=-\$\(VERSION\))$/\1/' Makefile
 git add Makefile
-git commit -vm "Release ${maintv}.$(( $maint + 1))."
+git commit -vm "Release ${maintv}.$(( maint + 1))."
 
 git checkout master
 git merge "maint-$version"
