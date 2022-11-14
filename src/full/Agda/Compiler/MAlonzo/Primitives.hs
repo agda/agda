@@ -286,10 +286,10 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primQNameFixity"     |-> return "MAlonzo.RTE.qnameFixity"
   , "primQNameToWord64s"  |-> return "\\ qn -> (MAlonzo.RTE.nameId qn, MAlonzo.RTE.moduleId qn)"
   , "primQNameToWord64sInjective" |-> return mazErasedName
-  , "primMetaEquality"    |-> rel "(==)" "Integer"
-  , "primMetaLess"        |-> rel "(<)" "Integer"
-  , "primShowMeta"        |-> return "\\ x -> Data.Text.pack (\"_\" ++ show (x :: Integer))"
-  , "primMetaToNat"       |-> return "(id :: Integer -> Integer)"
+  , "primMetaEquality"    |-> rel "(==)" "(Integer, Integer)"
+  , "primMetaLess"        |-> rel "(<)" "(Integer, Integer)"
+  , "primShowMeta"        |-> return "\\ (m, h) -> Data.Text.pack (\"_\" ++ show (m :: Integer) ++ \"@\" ++ show (h :: Integer))"
+  , "primMetaToNat"       |-> return "\\ (m, h) -> (h :: Integer) * 2^64 + (m :: Integer)"
   , "primMetaToNatInjective" |-> return mazErasedName
 
   -- Seq

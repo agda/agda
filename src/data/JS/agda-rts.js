@@ -374,3 +374,18 @@ exports.primShowQName = x => x['name'];
 
 // primQNameFixity : Name -> Fixity
 exports.primQNameFixity = x => x['fixity'];
+
+// Meta
+
+// primShowMeta : Meta -> String
+exports.primShowMeta = x => "_" + x['id'] + "@" + x['module'];
+
+// primMetaToNat : Meta -> Nat
+exports.primMetaToNat = x => x['module'] * 2^64 + x['id'];
+
+// primMetaEquality : Meta -> Meta -> Bool
+exports.primMetaEquality = x => y => x['id'] === y['id'] && x['module'] === y['module'];
+
+// primMetaLess : Meta -> Meta -> Bool
+exports.primMetaLess = x => y => x['id'] === y['id'] ? x['module'] < y['module'] : x['id'] < y['id'];
+

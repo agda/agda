@@ -668,7 +668,7 @@ literal = \case
   (LitString x) -> String  x
   (LitChar   x) -> Char    x
   (LitQName  x) -> litqname x
-  LitMeta{}     -> __IMPOSSIBLE__
+  (LitMeta _ m) -> litmeta m
 
 litqname :: QName -> Exp
 litqname q =
@@ -694,6 +694,13 @@ litqname q =
 
     litPrec Unrelated   = String "unrelated"
     litPrec (Related l) = Double l
+
+litmeta :: MetaId -> Exp
+litmeta (MetaId m h) =
+  Object $ Map.fromListWith __IMPOSSIBLE__
+    [ (MemberId "id", Integer $ fromIntegral m)
+    , (MemberId "module", Integer $ fromIntegral $ moduleNameHash h) ]
+
 
 --------------------------------------------------
 -- Writing out an ECMAScript module
@@ -832,10 +839,10 @@ primitives = Set.fromList
   , "primQNameFixity"
   -- , "primQNameToWord64s"          -- missing
   -- , "primQNameToWord64sInjective" -- missing
-  -- , "primMetaEquality"            -- missing
-  -- , "primMetaLess"                -- missing
-  -- , "primShowMeta"                -- missing
-  -- , "primMetaToNat"               -- missing
+  , "primMetaEquality"
+  , "primMetaLess"
+  , "primShowMeta"
+  , "primMetaToNat"
   -- , "primMetaToNatInjective"      -- missing
   , builtinIMin
   , builtinIMax
