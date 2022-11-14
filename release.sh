@@ -8,10 +8,10 @@ ChoicesQuestion() {
     shift; shift; shift
     while true; do
         {   echo -n "$question ["
-            [ "$default" = "$first" ] && echo -n "$first" | tr '[a-z]' '[A-Z]' || echo -n "$first"
+            [ "$default" = "$first" ] && echo -n "$first" | tr 'a-z' 'A-Z' || echo -n "$first"
             for c in "$@"; do
                 echo -n '/'
-                [ "$default" = "$c" ] && echo -n "$c" | tr '[a-z]' '[A-Z]' || echo -n "$c"
+                [ "$default" = "$c" ] && echo -n "$c" | tr 'a-z' 'A-Z' || echo -n "$c"
             done
             echo -n '] '
             read ans;
