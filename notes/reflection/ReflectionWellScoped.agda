@@ -18,7 +18,7 @@ open import Agda.Builtin.String
 open import Agda.Builtin.Unit
 open import Agda.Builtin.Word
 import Agda.Builtin.Reflection as R
-open R using
+open R public using
  ( Name
  ; primQNameEquality
  ; primQNameLess
@@ -151,10 +151,6 @@ Type = Term
 
 Telescope : (n m : Nat) → Set
 Telescope = Tele (λ k → String × Arg (Type k))
-
--- data Telescope (n : Nat) : Nat → Set where
---   emptyTel : Telescope n zero
---   extTel   : String → Arg (Type n) → Telescope (suc n) m → Telescope n (suc m)
 
 data Term n where
   var       : (x : Var n) (args : List (Arg (Term n))) → Term n
@@ -380,11 +376,9 @@ module Example where
   id : ∀{ℓ} (A : Set ℓ) → A → A
   id A x = x
 
-  -- example : R.Term
-  -- example = {!quot (id (Nat → Nat) λ{ Nat.zero → Nat.zero; (Nat.suc x) → Nat.suc x})!}
-  --
-  -- example = {!scp (\ (x : Nat) → x + (λ y → y) x)!}
-  --
+  -- example₀ : Term 0
+  -- example₀ = {!scp (λ (x : Nat) → x + (λ y → y) x)!}
+
   -- example : (z : Nat) → Term 1
   -- example z = {!scp λ (y : Nat) → (id (Nat → Nat) λ{ Nat.zero → Nat.zero; (Nat.suc x) → x + y + z})!}
 
