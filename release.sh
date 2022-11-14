@@ -131,7 +131,7 @@ cabal sdist
 cabal check
 cabal install
 
-AGDA_BIN="`pwd`/.cabal-sandbox/bin/agda"
+AGDA_BIN="$(pwd)/.cabal-sandbox/bin/agda"
 export AGDA_BIN
 
 make install-fix-agda-whitespace
@@ -149,7 +149,7 @@ cabal install --only-dependencies -j
 cabal configure
 cabal install
 
-AGDA_BIN="`pwd`/.cabal-sandbox/bin/agda"
+AGDA_BIN="$(pwd)/.cabal-sandbox/bin/agda"
 export AGDA_BIN
 
 stdlib=std-lib
