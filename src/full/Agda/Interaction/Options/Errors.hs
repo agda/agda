@@ -296,6 +296,7 @@ data ErrorName
   | WrongAnnotationInLambda_
   | WrongArgInfoForPrimitive_
   | WrongCohesionInLambda_
+  | WrongPolarityInLambda_
   | WrongHidingInApplication_
   | WrongHidingInLHS_
   | WrongHidingInLambda_
