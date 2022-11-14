@@ -14,7 +14,7 @@ ChoicesQuestion() {
                 [ "$default" = "$c" ] && echo -n "$c" | tr 'a-z' 'A-Z' || echo -n "$c"
             done
             echo -n '] '
-            read ans;
+            read -r ans;
         } </dev/tty >/dev/tty
         if ! [ "$ans" ]; then
             echo "$default"
@@ -34,7 +34,7 @@ YesNoQuestion() {
 Question() {
     local question="$1" default="$2" ans
     echo -n "$question [$default] " >/dev/tty
-    read ans </dev/tty
+    read -r ans </dev/tty
     [ "$ans" ] || ans="$default"
     echo "$ans"
 }
@@ -77,7 +77,7 @@ git clone "$url" "$srcdir"
 cd "$srcdir"
 
 version=$( sed -rn '/^version:\s*([0-9]+\.[0-9]+)\.([0-9]+)(\.[0-9]+)?\s*$/ {s//\1 \2/p; q}' Agda.cabal \
-         | { read maj min; echo "$maj.$(( 1 + $min))"; } )
+         | { read -r maj min; echo "$maj.$(( 1 + $min))"; } )
 version=$( Question "Release version number?" "$version" )
 echo "$version" | grep -Eqx "[0-9]+(\.[0-9]+){2,3}" || { echo "Bad version number: $version" >&2; exit 1; }
 echo "$version" | grep -Eqx "[0-9]+(\.[0-9]+){2}" && maint=${version##*.} || maint=0
