@@ -64,7 +64,7 @@ pappToTerm x f ps ret = do
       pars =
         case theDef def of
           Constructor { conPars = p } -> p
-          Function { funProjection = Just Projection{projIndex = i} }
+          Function { funProjection = Right Projection{projIndex = i} }
             | i > 0 -> i - 1
           _ -> 0
 

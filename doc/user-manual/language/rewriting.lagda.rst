@@ -17,7 +17,8 @@ computation rules.
 Rewrite rules by example
 ------------------------
 
-To enable rewrite rules, you should run Agda with the flag ``--rewriting`` and import the modules ``Agda.Builtin.Equality`` and ``Agda.Builtin.Equality.Rewrite``:
+To enable rewrite rules, you should run Agda with the flag :option:`--rewriting`
+and import the modules ``Agda.Builtin.Equality`` and ``Agda.Builtin.Equality.Rewrite``:
 
 ::
 
@@ -164,7 +165,7 @@ Confluence checking
 -------------------
 
 Agda can optionally check confluence of rewrite rules by enabling the
-``--confluence-check`` flag. Concretely, it does so by enforcing two
+:option:`--confluence-check` flag. Concretely, it does so by enforcing two
 properties:
 
   1. For any two left-hand sides of the rewrite rules that overlap
@@ -179,7 +180,7 @@ properties:
      => v``, we should have another single-step parallel unfolding ``v
      => w``.
 
-There is also a flag ``--local-confluence-check`` that is less
+There is also a flag :option:`--local-confluence-check` that is less
 restrictive but only checks local confluence of rewrite rules. In case
 the rewrite rules are terminating (currently not checked), these two
 properties are equivalent.

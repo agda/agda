@@ -14,7 +14,7 @@ import Control.Monad.Trans.Maybe
 import qualified Data.Map as Map
 import qualified Text.PrettyPrint.Boxes as Boxes
 
-import Agda.Syntax.Concrete.Name as C
+import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
@@ -79,7 +79,7 @@ tickMax s n = modifyCounter s (max n)
 -- | Print the given statistics.
 printStatistics
   :: (MonadDebug m, MonadTCEnv m, HasOptions m)
-  => Maybe C.TopLevelModuleName -> Statistics -> m ()
+  => Maybe TopLevelModuleName -> Statistics -> m ()
 printStatistics mmname stats = do
   unlessNull (Map.toList stats) $ \ stats -> do
     let -- First column (left aligned) is accounts.

@@ -188,12 +188,12 @@ Pragmas and options
 
 .. _type-in-type:
 
-* The option ``--type-in-type`` disables the checking of universe level
+* The option :option:`--type-in-type` disables the checking of universe level
   consistency for the whole file.
 
 .. _omega-in-omega:
 
-* The option ``--omega-in-omega`` enables the typing rule ``Setω :
+* The option :option:`--omega-in-omega` enables the typing rule ``Setω :
   Setω`` (thus making Agda inconsistent) but otherwise leaves universe
   checks intact.
 
@@ -215,5 +215,5 @@ Pragmas and options
 
   .. versionadded:: 2.6.0
 
-The options ``--type-in-type`` and ``--omega-in-omega`` and the pragma
+The options :option:`--type-in-type` and :option:`--omega-in-omega` and the pragma
 ``{-# NO_UNIVERSE_CHECK #-}`` cannot be used with `--safe`.

@@ -99,20 +99,34 @@ In effect using private definitions means that, from the user’s perspective, w
 
 Name modifiers
 --------------
-An alternative to making definitions private is to exert finer control over what names are introduced when opening a module. This is done by qualifying an ``open`` statement with one or more of the modifiers ``using``, ``hiding``, or ``renaming``. You can combine both ``using`` and ``hiding`` with ``renaming``, but not with each other. The effect of
+An alternative to making definitions private is to exert finer control over what names are introduced when opening a module. This is done by qualifying an ``open`` (or ``open import`` or ``module X (args : Args) = ...``) statement with one or more of the modifiers ``using``, ``hiding``, or ``renaming``.
+
+* ``using`` is followed by a list of identifiers, separated by semicolons, and has the effect of introducing *only* those identifiers and the ones named in the ``renaming`` clause,
+* ``hiding`` is equally followed by a list of identifiers, separated by semicolons, and has the effect of introducing *all* identifiers but the ones named in the ``hiding`` clause,
+* ``renaming`` is followed by a list of ``<identifier> to <identifier>``, separated by semicolons, and has the effect of introducing the mentioned identifiers by their new names. An omitted ``renaming`` modifier is equivalent to an empty renaming.
+
+For example, the effect of
 
 .. code-block:: agda
 
   open A using (xs) renaming (ys to zs)
 
-is to introduce the names ``xs`` and ``zs`` where ``xs`` refers to the same definition as ``A.xs`` and ``zs`` refers to ``A.ys``. We do not permit ``xs``, ``ys`` and ``zs`` to overlap. The other forms of opening are defined in terms of this one.
-An omitted ``renaming`` modifier is equivalent to an empty renaming.
+is to introduce the names ``xs`` and ``zs`` where ``xs`` refers to the same definition as ``A.xs`` and ``zs`` refers to ``A.ys``. We do not permit ``xs``, ``ys`` and ``zs`` to overlap.
 
-To refer to a module ``M`` inside ``A`` you write ``module M``. For instance,
+Explicitly hiding ``x`` in a ``hiding`` clause and also using ``x`` in a ``using`` clause or renaming ``x to y`` in a ``renaming`` clause is an error.
+A ``renaming`` clause can be combined with either a ``using`` or a ``hiding`` clause.
+A ``using`` and a ``hiding`` clause can be combined, but the ``using`` clause takes precedence, hiding everything not mentioned, so except for a special situation with modules, there is nothing that the ``hiding`` clause can additionally hide.
 
-.. code-block:: agda
+For submodules of the module being opened, we need to distinguish three situations:
 
-  open A using (module M)
+* If ``M`` is only a module (and not an object), then use ``module M`` to refer to it, and ``module M to N`` to rename it. Mentioning just ``M`` will be ignored with a warning. For instance,
+
+  .. code-block:: agda
+
+    open A using (module M)
+
+* If ``M`` is only an object (and not a module), then use ``M`` to refer to it, and ``M to N`` to renaming. Mentioning ``module M`` will be ignored with a warning.
+* If ``M`` is both an object and a module (which happens automatically if ``M`` was introduced with a ``data`` or ``record`` definition), then ``M`` affects *both* the object *and* the module, *unless* ``module M`` is mentioned separately. In order to introduce only the module, you can write ``using (module B)``. In order to introduce only the object, you can write ``using (B) hiding (module B)``. In order to introduce all but the module, you can write ``hiding (module B)``. It does not seem possible to introduce all but the object: if you write ``hiding (B) using (module B)``, then the ``using`` clause takes precedence and only ``module B`` is introduced.
 
 Since 2.6.1: The fixity of an operator can be set or changed in a ``renaming`` directive::
 

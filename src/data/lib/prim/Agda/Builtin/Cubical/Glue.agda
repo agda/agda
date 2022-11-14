@@ -8,7 +8,7 @@ open import Agda.Primitive.Cubical renaming (primINeg to ~_; primIMax to _∨_; 
                                              primHComp to hcomp; primTransp to transp; primComp to comp;
                                              itIsOne to 1=1)
 open import Agda.Builtin.Cubical.Path
-open import Agda.Builtin.Cubical.Sub renaming (Sub to _[_↦_]; primSubOut to ouc)
+open import Agda.Builtin.Cubical.Sub renaming (Sub to _[_↦_])
 import Agda.Builtin.Cubical.HCompU as HCompU
 
 module Helpers = HCompU.Helpers
@@ -40,8 +40,9 @@ equivFun e = fst e
 -- case. This makes the computational behavior better, in particular
 -- for transp in Glue.
 equivProof : ∀ {la lt} (T : Set la) (A : Set lt) → (w : T ≃ A) → (a : A)
-           → ∀ ψ → (Partial ψ (fiber (w .fst) a)) → fiber (w .fst) a
-equivProof A B w a ψ fb = contr' {A = fiber (w .fst) a} (w .snd .equiv-proof a) ψ fb
+           → ∀ ψ (f : Partial ψ (fiber (w .fst) a)) → fiber (w .fst) a [ ψ ↦ f ]
+equivProof A B w a ψ fb =
+  inS (contr' {A = fiber (w .fst) a} (w .snd .equiv-proof a) ψ fb)
   where
     contr' : ∀ {ℓ} {A : Set ℓ} → isContr A → (φ : I) → (u : Partial φ A) → A
     contr' {A = A} (c , p) φ u = hcomp (λ i → λ { (φ = i1) → p (u 1=1) i
@@ -96,11 +97,11 @@ module _ {ℓ : I → Level} (P : (i : I) → Set (ℓ i)) where
           sys x i (j = i1) = u (~ i) x
         ω0 = comp ~E (sys x0) ((β0 (~ j)))
         ω1 = comp ~E (sys x1) ((β1 (~ j)))
-        θ0 = fill ~E (sys x0) (inc (β0 (~ j)))
-        θ1 = fill ~E (sys x1) (inc (β1 (~ j)))
+        θ0 = fill ~E (sys x0) (inS (β0 (~ j)))
+        θ1 = fill ~E (sys x1) (inS (β1 (~ j)))
       sys = λ {j (k = i0) → ω0 j ; j (k = i1) → ω1 j}
       ω = hcomp sys (g y)
-      θ = hfill sys (inc (g y))
+      θ = hfill sys (inS (g y))
       δ = λ (j : I) → comp E
             (λ i → λ { (j = i0) → v i y ; (k = i0) → θ0 j (~ i)
                      ; (j = i1) → u i ω ; (k = i1) → θ1 j (~ i) })

@@ -10,7 +10,7 @@
 Lossy Unification
 *****************
 
-The option ``--experimental-lossy-unification`` enables an
+The option ``--lossy-unification`` enables an
 experimental heuristic in the unification checker intended to improve
 its performance for unification problems of the form ``f es₀ = f es₁``,
 i.e. unifying two applications of the same defined function, here

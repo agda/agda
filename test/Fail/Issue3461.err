@@ -1,4 +1,4 @@
 Issue3461.agda:31,17-32
-cong (Id.id IdX) (lem x)
+cong (.Id.id IdX) (lem x)
 when checking that the expression
 unquote (follows-from (quoteTerm (cong id (lem x)))) has type T x

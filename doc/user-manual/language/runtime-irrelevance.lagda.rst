@@ -47,7 +47,9 @@ arguments.
 .. note::
   In the type signature of a constructor or record field the
   parameters are always marked as erased, even if the parameters are
-  not marked as erased in the data or record type's telescope.
+  not marked as erased in the data or record type's telescope, with
+  one exception: for indexed data types this only happens if the
+  :option:`--with-K` flag is active.
 
 Erasure annotations can also appear in function arguments (both first-order and higher-order). For instance, here is
 an implementation of ``foldl`` on vectors::
@@ -141,9 +143,8 @@ following restrictions apply:
 
 - Cannot use erased variables or definitions.
 - Cannot pattern match on erased arguments, unless there is at most
-  one valid case (not counting erased constructors). If
-  ``--without-K`` is enabled and there is one valid case, then the
-  datatype must also not be indexed.
+  one valid case. If :option:`--without-K` is enabled and there is one valid
+  case, then the datatype must also not be indexed.
 
 Consider the function ``foo`` taking an erased vector argument:
 
@@ -170,7 +171,10 @@ The type checker enters compile-time mode when
 
 - checking erased arguments to a constructor or function,
 - checking the body of an erased definition,
-- checking the body of a clause that matches on an erased constructor,
+- checking the body of a clause that matches (in a non-erased
+  position) on a constructor that was originally defined as erased (it
+  does not suffice for the constructor to be currently treated as
+  erased),
 - checking the domain of an erased Π type, or
 - checking a type, i.e. when moving to the right of a ``:``, with some
   exceptions:

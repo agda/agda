@@ -10,7 +10,6 @@ import Agda.TypeChecking.Warnings (MonadWarning)
 
 instance MonadConstraint TCM where
 
-solveAwakeConstraints' :: MonadConstraint m => Bool -> m ()
 noConstraints          :: (MonadConstraint m, MonadWarning m, MonadError TCErr m, MonadFresh ProblemId m)
                        => m a -> m a
 ifNoConstraints_       :: TCM () -> TCM a -> (ProblemId -> TCM a) -> TCM a

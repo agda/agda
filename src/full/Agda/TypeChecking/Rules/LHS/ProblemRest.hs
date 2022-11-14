@@ -96,18 +96,23 @@ initLHSState
   -> (LHSState a -> TCM a) -- ^ Continuation for when checking the patterns is complete.
   -> TCM (LHSState a)      -- ^ The initial LHS state constructed from the user patterns.
 initLHSState delta eqs ps a ret = do
+  reportSDoc "tc.lhs.init" 40 $ vcat
+    [ "initLHSState"
+    , nest 2 $ "delta = " <+> prettyTCM delta
+    , nest 2 $ "a     = " <+> addContext delta (prettyTCM a)
+    ]
   let problem = Problem eqs ps ret
       qs0     = teleNamedArgs delta
 
-  updateProblemRest $ LHSState delta qs0 problem (defaultArg a) []
+  updateProblemRest $ LHSState delta qs0 problem (defaultArg a) [] False
 
 -- | Try to move patterns from the problem rest into the problem.
 --   Possible if type of problem rest has been updated to a function type.
 updateProblemRest
   :: forall m a. (PureTCM m, MonadError TCErr m, MonadTrace m, MonadFresh NameId m)
   => LHSState a -> m (LHSState a)
-updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit) = do
-  ps <- addContext tel0 $ insertImplicitPatternsT ExpandLast ps $ unArg a
+updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit ixsplit) = addContext tel0 $ do
+  ps <- insertImplicitPatternsT ExpandLast ps $ unArg a
   reportSDoc "tc.lhs.imp" 20 $
     "insertImplicitPatternsT returned" <+> fsep (map prettyA ps)
   -- (Issue 734: Do only the necessary telView to preserve clause types as much as possible.)
@@ -157,4 +162,5 @@ updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit) = do
                    }
     , _lhsTarget  = a $> b
     , _lhsPartialSplit = psplit
+    , _lhsIndexedSplit = ixsplit
     }

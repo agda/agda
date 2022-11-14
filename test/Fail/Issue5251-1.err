@@ -1,4 +1,4 @@
 Issue5251-1.agda:2,5-19
 Incorrect quantity annotation in lambda
-when checking that the expression λ (_) → Set has type
+when checking that the expression λ (@0 _) → Set has type
 @ω Set → Set₁

@@ -262,7 +262,7 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
     -- the dropped arguments.
     -- Nor can abstract definitions be projection-like since they won't reduce
     -- outside the abstract block.
-    def@Function{funProjection = Nothing, funClauses = cls,
+    def@Function{funProjection = Left MaybeProjection, funClauses = cls,
                  funSplitTree = st0, funCompiled = cc0, funInv = NotInjective,
                  funMutual = Just [], -- Andreas, 2012-09-28: only consider non-mutual funs
                  funAbstr = ConcreteDef} -> do
@@ -307,7 +307,7 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
                     , projLams     = ProjLams $ map (argFromDom . fmap fst) tel
                     }
               let newDef = def
-                           { funProjection     = Just projection
+                           { funProjection     = Right projection
                            , funClauses        = cls'
                            , funSplitTree      = st
                            , funCompiled       = cc
@@ -322,8 +322,10 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
       reportSLn "tc.proj.like" 30 $ "  injective functions can't be projections"
     Function{funAbstr = AbstractDef} ->
       reportSLn "tc.proj.like" 30 $ "  abstract functions can't be projections"
-    Function{funProjection = Just{}} ->
+    Function{funProjection = Right{}} ->
       reportSLn "tc.proj.like" 30 $ "  already projection like"
+    Function{funProjection = Left NeverProjection} ->
+      reportSLn "tc.proj.like" 30 $ "  the user has asked for it not to be projection-like"
     Function{funMutual = Just (_:_)} ->
       reportSLn "tc.proj.like" 30 $ "  mutual functions can't be projections"
     Function{funMutual = Nothing} ->

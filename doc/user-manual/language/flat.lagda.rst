@@ -1,6 +1,8 @@
 ..
   ::
 
+  {-# OPTIONS --flat-split #-}
+
   module language.flat where
 
   open import Agda.Primitive
@@ -21,6 +23,8 @@ The flat/crisp attribute ``@♭/@flat`` is an idempotent comonadic
 modality modeled after `Spatial Type Theory
 <https://arxiv.org/abs/1509.07584/>`_ and `Crisp Type Theory
 <https://arxiv.org/abs/1801.07664/>`_. It is similar to a necessity modality.
+
+This attribute is enabled using the flag :option:`--cohesion`.
 
 We can define ``♭ A`` as a type for any ``(@♭ A : Set l)`` via an
 inductive definition:
@@ -48,7 +52,8 @@ For example the following will not typecheck:
 Pattern Matching on ``@♭``
 ----------------------------
 
-Agda allows matching on ``@♭`` arguments by default.
+By default matching on arguments marked with ``@♭`` is disallowed, but
+it can be enabled using the option :option:`--flat-split`.
 When matching on a ``@♭`` argument the flat
 status gets propagated to the arguments of the constructor
 
@@ -73,9 +78,7 @@ provided as ``@♭``
 
 if we simply had ``(eq : x ≡ y)`` the code would be rejected.
 
-Pattern matching on ``@♭`` arguments can be disabled entirely by using
-the ``--no-flat-split`` flag
-
-.. code-block:: agda
-
-  {-# OPTIONS --no-flat-split #-}
+Note that in Cubical Agda functions that match on an argument marked
+with ``@♭`` trigger the ``UnsupportedIndexedMatch`` warning (see
+:ref:`indexed-inductive-types`), and the code might not compute
+properly.

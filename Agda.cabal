@@ -1,10 +1,10 @@
 name:            Agda
-version:         2.6.3
-cabal-version:   >= 1.10
+version:         2.6.4
+cabal-version:   1.24
 build-type:      Custom
 license:         OtherLicense
 license-file:    LICENSE
-copyright:       (c) 2005-2021 The Agda Team.
+copyright:       (c) 2005-2022 The Agda Team.
 author:          Ulf Norell and The Agda Team, see https://agda.readthedocs.io/en/latest/team.html
 maintainer:      The Agda Team
 homepage:        http://wiki.portal.chalmers.se/agda/
@@ -41,7 +41,9 @@ tested-with:        GHC == 8.0.2
                     GHC == 8.8.4
                     GHC == 8.10.7
                     GHC == 9.0.2
-                    GHC == 9.2.3
+                    GHC == 9.2.4
+                    GHC == 9.4.2
+                    GHC == 9.4.3
 
 extra-source-files: CHANGELOG.md
                     README.md
@@ -82,8 +84,6 @@ extra-source-files: CHANGELOG.md
                     doc/release-notes/2.2.2.md
                     doc/release-notes/2.2.4.md
                     doc/release-notes/2.2.0.md
--- Liang-Ting (2019-11-26): See Issues #4216
---                    doc/user-manual.pdf
                     stack-8.0.2.yaml
                     stack-8.2.2.yaml
                     stack-8.4.4.yaml
@@ -91,7 +91,9 @@ extra-source-files: CHANGELOG.md
                     stack-8.8.4.yaml
                     stack-8.10.7.yaml
                     stack-9.0.2.yaml
-                    stack-9.2.3.yaml
+                    stack-9.2.4.yaml
+                    stack-9.4.2.yaml
+                    stack-9.4.3.yaml
 
 data-dir:           src/data
 data-files:         emacs-mode/*.el
@@ -146,7 +148,7 @@ source-repository head
 source-repository this
   type:     git
   location: https://github.com/agda/agda.git
-  tag:      v2.6.3
+  tag:      v2.6.4
 
 flag cpphs
   default:     False
@@ -171,8 +173,8 @@ flag optimise-heavily
     Enable some expensive optimisations when compiling Agda.
 
 custom-setup
-  setup-depends:  base >= 4.9.0.0 && < 4.17
-                , Cabal >= 1.24.0.0 && < 3.7
+  setup-depends:  base >= 4.9.0.0 && < 4.18
+                , Cabal >= 1.24.0.0 && < 3.9
                 , directory >= 1.2.6.2 && < 1.4
                 , filepath >= 1.4.1.0 && < 1.5
                 , process >= 1.4.2.0 && < 1.7
@@ -210,7 +212,7 @@ library
   build-depends:  aeson >= 1.1.2.0 && < 2.2
                 , array >= 0.5.1.1 && < 0.6
                 , async >= 2.2 && < 2.3
-                , base >= 4.9.0.0 && < 4.17
+                , base >= 4.9.0.0 && < 4.18
                 , binary >= 0.8.3.0 && < 0.9
                 , blaze-html >= 0.8 && < 0.10
                 , boxes >= 0.1.3 && < 0.2
@@ -221,6 +223,7 @@ library
                 , data-hash >= 0.2.0.0 && < 0.3
                 , deepseq >= 1.4.2.0 && < 1.5
                 , directory >= 1.2.6.2 && < 1.4
+                , dlist >= 0.8 && < 1.1
                 , edit-distance >= 0.2.1.2 && < 0.3
                 , equivalence >= 0.3.2 && < 0.5
                 -- exceptions-0.8 instead of 0.10 because of stack
@@ -245,8 +248,7 @@ library
                 , split >= 0.2.0.0 && < 0.2.4
                 , stm >= 2.4.4 && < 2.6
                 , STMonadTrans >= 0.4.3 && < 0.5
-                , strict >= 0.3.2 && < 0.5
-                , template-haskell >= 2.11.0.0 && < 2.19
+                , strict >= 0.4.0.1 && < 0.5
                 , text >= 1.2.3.0 && < 2.1
                 , time >= 1.6.0.1 && < 1.13
                 , time-compat >= 1.9.2 && < 1.10
@@ -419,7 +421,9 @@ library
                     Agda.Syntax.Position
                     Agda.Syntax.Reflected
                     Agda.Syntax.Scope.Base
+                    Agda.Syntax.Scope.Flat
                     Agda.Syntax.Scope.Monad
+                    Agda.Syntax.TopLevelModuleName
                     Agda.Syntax.Translation.AbstractToConcrete
                     Agda.Syntax.Translation.ConcreteToAbstract
                     Agda.Syntax.Translation.InternalToAbstract
@@ -512,6 +516,10 @@ library
                     Agda.TypeChecking.Primitive
                     Agda.TypeChecking.Primitive.Base
                     Agda.TypeChecking.Primitive.Cubical
+                    Agda.TypeChecking.Primitive.Cubical.Id
+                    Agda.TypeChecking.Primitive.Cubical.Glue
+                    Agda.TypeChecking.Primitive.Cubical.Base
+                    Agda.TypeChecking.Primitive.Cubical.HCompU
                     Agda.TypeChecking.ProjectionLike
                     Agda.TypeChecking.Quote
                     Agda.TypeChecking.ReconstructParameters
@@ -656,7 +664,6 @@ library
     ghc-options: -fexpose-all-unfoldings
                  -fspecialise-aggressively
 
-  -- NOTE: If adding flags, also add to `.ghci-8.0`
   if impl(ghc <= 8.0.2)
     ghc-options: -fprint-potential-instances
                  -- Initially, we disable all the warnings.
@@ -673,7 +680,9 @@ library
                  -Wduplicate-exports
                  -Wempty-enumerations
                  -Widentities
-                 -Wincomplete-patterns
+                 -- #6137: GHC 8.0 has no COMPLETE pragma, so we have to turn off the completeness checker
+                 -- -Wincomplete-patterns
+                 -- -Wincomplete-record-updates
                  -Winline-rule-shadowing
                  -Wmissing-fields
                  -Wmissing-methods
@@ -682,7 +691,8 @@ library
                  -Wnoncanonical-monad-instances
                  -Wnoncanonical-monoid-instances
                  -Woverflowed-literals
-                 -Woverlapping-patterns
+                 -- #6137: GHC 8.0 has no COMPLETE pragma, so we have to turn off the completeness checker
+                 -- -Woverlapping-patterns
                  -Wsemigroup
                  -Wtabs
                  -Wtyped-holes
@@ -705,7 +715,6 @@ library
                  -Werror=duplicate-exports
                  -Werror=empty-enumerations
                  -Werror=identities
-                 -Werror=incomplete-patterns
                  -Werror=inline-rule-shadowing
                  -Werror=missing-fields
                  -Werror=missing-methods
@@ -725,16 +734,12 @@ library
                  -Werror=warnings-deprecations
                  -Werror=wrong-do-bind
 
-  -- NOTE: If adding or removing flags, also change `.ghci-8.2`
   if impl(ghc >= 8.2)
     ghc-options: -Werror=cpp-undef
-                 -- ASR TODO (2017-07-23): `make haddock` fails when
-                 -- this flag is on.
-                 -- -Wmissing-home-modules
+                 -Werror=missing-home-modules
                  -Werror=simplifiable-class-constraints
                  -Werror=unbanged-strict-patterns
 
-  -- NOTE: If adding or removing flags, also change `.ghci-8.6`
   if impl(ghc >= 8.6)
     ghc-options: -Werror=inaccessible-code
                  -Werror=star-binder
@@ -744,39 +749,33 @@ library
   if impl(ghc >= 8.6) && impl(ghc < 8.10)
     ghc-options: -Werror=implicit-kind-vars
 
-  -- NOTE: If adding or removing flags, also change `.ghci-8.8`
   if impl(ghc >= 8.8)
     ghc-options: -Werror=missed-extra-shared-lib
 
-  -- NOTE: If adding or removing flags, also change `.ghci-8.10`
   if impl(ghc >= 8.10)
     ghc-options: -Werror=deriving-defaults
                  -Werror=redundant-record-wildcards
                  -Werror=unused-packages
                  -Werror=unused-record-wildcards
 
-  -- NOTE: If adding or removing flags, also change `.ghci-9.0`
   if impl(ghc >= 9.0)
     ghc-options: -Werror=invalid-haddock
+                 -- #6137: coverage checker works only sufficiently well from GHC 9.0
+                 -Werror=incomplete-patterns
+                 -Werror=incomplete-record-updates
 
-  -- NOTE: If adding or removing flags, also change `.ghci-9.0.2`
-  --
   -- ASR (2022-04-27). This warning was added in GHC 9.0.2, removed
   -- from 9.2.1 and added back in 9.2.2.
   if impl(ghc == 9.0.2)
     ghc-options: -Werror=unicode-bidirectional-format-characters
 
-  -- NOTE: If adding or removing flags, also change `.ghci-9.2.3`
   if impl(ghc >= 9.2.2)
     ghc-options: -Werror=redundant-bang-patterns
                  -Werror=unicode-bidirectional-format-characters
 
-  ghc-prof-options: -fprof-auto
-
   default-language: Haskell2010
 
   -- NOTE: If adding or removing default extensions, also change:
-  --         .ghci-8.0
   --         .hlint.yaml
   -- This should also use the same extensions as the `test-suite` target below.
   default-extensions: BangPatterns
@@ -786,7 +785,6 @@ library
                     -- slightly shorter, see PR #3920.
                     --, DataKinds
                     , DefaultSignatures
-                    , DeriveDataTypeable
                     , DeriveFoldable
                     , DeriveFunctor
                     , DeriveGeneric
@@ -842,7 +840,7 @@ executable agda-mode
   hs-source-dirs:   src/agda-mode
   main-is:          Main.hs
   other-modules:    Paths_Agda
-  build-depends:    base >= 4.9.0.0 && < 4.17
+  build-depends:    base >= 4.9.0.0 && < 4.18
                   , directory >= 1.2.6.2 && < 1.4
                   , filepath >= 1.4.1.0 && < 1.5
                   , process >= 1.4.2.0 && < 1.7
@@ -909,10 +907,11 @@ test-suite agda-tests
                     , Internal.Utils.Graph.AdjacencyMap.Unidirectional
                     , Internal.Utils.IntSet
                     , Internal.Utils.List
+                    , Internal.Utils.List1
+                    , Internal.Utils.List2
                     , Internal.Utils.ListT
                     , Internal.Utils.Maybe.Strict
                     , Internal.Utils.Monoid
-                    , Internal.Utils.NonEmptyList
                     , Internal.Utils.PartialOrd
                     , Internal.Utils.Permutation
                     , Internal.Utils.RangeMap
@@ -944,7 +943,8 @@ test-suite agda-tests
                 , process-extras >= 0.3.0 && < 0.3.4 || >= 0.4.1.3 && < 0.5 || >= 0.7.1 && < 0.8
                 , QuickCheck >= 2.14.1 && < 2.15
                 , regex-tdfa
-                , strict >= 0.3.2 && < 0.5
+                , split
+                , strict
                 , tasty >= 1.1.0.4 && < 1.5
                 , tasty-hunit >= 0.9.2 && < 0.11
                 , tasty-quickcheck >= 0.9.2 && < 0.11
@@ -955,7 +955,7 @@ test-suite agda-tests
                 , temporary >= 1.2.0.3 && < 1.4
                 , text
                 , unix-compat >= 0.4.3.1 && < 0.7
-                , unordered-containers >= 0.2.5.0 && < 0.3
+                , unordered-containers
                 , uri-encode
 
   -- Andreas (2021-10-11): tasty-silver < 3.3 does not work interactively under Windows
@@ -965,7 +965,6 @@ test-suite agda-tests
   default-language:  Haskell2010
 
   -- NOTE: If adding or removing default extensions, also change:
-  --         .ghci-8.0
   --         .hlint.yaml
   -- This should also use the same extensions as the `library` target above.
   default-extensions:  BangPatterns
@@ -1005,7 +1004,6 @@ test-suite agda-tests
     ghc-options: -fexpose-all-unfoldings
                  -fspecialise-aggressively
 
-  -- NOTE: If adding or removing flags, also change `.ghci-8.0`
   if impl(ghc <= 8.0.2)
     ghc-options: -threaded
                  -- Initially, we disable all the warnings.
@@ -1022,7 +1020,9 @@ test-suite agda-tests
                  -Wduplicate-exports
                  -Wempty-enumerations
                  -Widentities
-                 -Wincomplete-patterns
+                 -- #6137: GHC 8.0 has no COMPLETE pragma, so we have to turn off the completeness checker
+                 -- -Wincomplete-patterns
+                 -- -Wincomplete-record-updates
                  -Winline-rule-shadowing
                  -Wmissing-fields
                  -Wmissing-methods
@@ -1031,7 +1031,8 @@ test-suite agda-tests
                  -Wnoncanonical-monad-instances
                  -Wnoncanonical-monoid-instances
                  -Woverflowed-literals
-                 -Woverlapping-patterns
+                 -- #6137: GHC 8.0 has no COMPLETE pragma, so we have to turn off the completeness checker
+                 -- -Woverlapping-patterns
                  -Wsemigroup
                  -Wtabs
                  -Wtyped-holes
@@ -1054,7 +1055,6 @@ test-suite agda-tests
                  -Werror=duplicate-exports
                  -Werror=empty-enumerations
                  -Werror=identities
-                 -Werror=incomplete-patterns
                  -Werror=inline-rule-shadowing
                  -Werror=missing-fields
                  -Werror=missing-methods
@@ -1076,13 +1076,17 @@ test-suite agda-tests
 
   -- ASR (2017-04-11). TODO: Using -Werror=missing-home-modules generates an
   -- error.
-  -- NOTE: If adding or removing flags, also change `.ghci-8.2`
   if impl(ghc >= 8.2)
     ghc-options: -Werror=cpp-undef
                  -Werror=simplifiable-class-constraints
                  -Werror=unbanged-strict-patterns
+                 -- For some reason the missing-home-modules warning
+                 -- can be triggered for Internal.Helpers if the
+                 -- following line is removed, cabal repl tests -O0 is
+                 -- run, and :l Internal.Compiler.MAlonzo.Encode (say)
+                 -- is executed in GHCi.
+                 -Wno-missing-home-modules
 
-  -- NOTE: If adding or removing flags, also change `.ghci-8.6`
   if impl(ghc >= 8.6)
     ghc-options: -Werror=inaccessible-code
                  -Werror=star-binder
@@ -1091,30 +1095,27 @@ test-suite agda-tests
   if impl(ghc >= 8.6) && impl(ghc < 8.10)
     ghc-options: -Werror=implicit-kind-vars
 
-  -- NOTE: If adding or removing flags, also change `.ghci-8.8`
   if impl(ghc >= 8.8)
     ghc-options: -Werror=missed-extra-shared-lib
 
-  -- NOTE: If adding or removing flags, also change `.ghci-8.10`
   if impl(ghc >= 8.10)
     ghc-options: -Werror=deriving-defaults
                  -Werror=redundant-record-wildcards
                  -Werror=unused-packages
                  -Werror=unused-record-wildcards
 
-  -- NOTE: If adding or removing flags, also change `.ghci-9.0`
   if impl(ghc >= 9.0)
     ghc-options: -Werror=compat-unqualified-imports
                  -Werror=invalid-haddock
+                 -- #6137: coverage checker works only sufficiently well from GHC 9.0
+                 -Werror=incomplete-patterns
+                 -Werror=incomplete-record-updates
 
-  -- NOTE: If adding or removing flags, also change `.ghci-9.0.2`
-  --
   -- ASR (2022-04-27). This warning was added in GHC 9.0.2, removed
   -- from 9.2.1 and added back in 9.2.2.
   if impl(ghc == 9.0.2)
     ghc-options: -Werror=unicode-bidirectional-format-characters
 
-  -- NOTE: If adding or removing flags, also change `.ghci-9.2.3`
   if impl(ghc >= 9.2.2)
     ghc-options: -Werror=redundant-bang-patterns
                  -Werror=unicode-bidirectional-format-characters

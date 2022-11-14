@@ -3,6 +3,7 @@ module Agda.Utils.Graph.TopSort
     ( topSort
     ) where
 
+import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as G
@@ -21,14 +22,17 @@ mergeBy f (x:xs) (y:ys)
 --   Note: should be stable to preserve order of generalizable variables. Algorithm due to Richard
 --   Eisenberg, and works by walking over the list left-to-right and moving each node the minimum
 --   distance left to guarantee topological ordering.
-topSort :: Ord n => [n] -> [(n, n)] -> Maybe [n]
-topSort nodes edges = go [] nodes
+topSort :: Ord n => Set n -> [(n, n)] -> Maybe [n]
+topSort nodes edges = go [] (Set.toList nodes)
   where
     -- #4253: The input edges do not necessarily include transitive dependencies, so take transitive
     --        closure before sorting.
     w      = Just () -- () is not a good edge label since it counts as a "zero" edge and will be ignored
-    g      = G.transitiveClosure $ G.fromNodes nodes `G.union` G.fromEdges [G.Edge a b w | (a, b) <- edges]
-    deps a = Map.keysSet $ G.graph g Map.! a
+    g      = G.transitiveClosure $
+               G.fromNodeSet nodes `G.union`
+               G.fromEdges [G.Edge a b w | (a, b) <- edges]
+    -- Only the keys of these maps are used.
+    deps a = G.graph g Map.! a
 
     -- acc: Already sorted nodes in reverse order paired with accumulated set of nodes that must
     -- come before it
@@ -38,10 +42,9 @@ topSort nodes edges = go [] nodes
     insert a [] = Just [(a, deps a)]
     insert a bs0@((b, before_b) : bs)
       | before && after = Nothing
-      | before          = ((b, Set.union before_a before_b) :) <$> insert a bs  -- a must come before b
-      | otherwise       = Just $ (a, Set.union before_a before_b) : bs0
+      | before          = ((b, Map.union before_a before_b) :) <$> insert a bs  -- a must come before b
+      | otherwise       = Just $ (a, Map.union before_a before_b) : bs0
       where
         before_a = deps a
-        before = Set.member a before_b
-        after  = Set.member b before_a
-
+        before = Map.member a before_b
+        after  = Map.member b before_a

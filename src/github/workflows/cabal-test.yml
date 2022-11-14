@@ -30,34 +30,36 @@ jobs:
     runs-on: Ubuntu-latest # Required, but it can be anything here.
 
     steps:
-    - uses: styfle/cancel-workflow-action@0.6.0
+    - uses: styfle/cancel-workflow-action@0.11.0
       with:
         access_token: ${{ github.token }}
 
   cabal:
     needs: auto-cancel
 
+    timeout-minutes: 150
+
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-latest
-          - macos-latest
+          - ubuntu-22.04
+          - macos-12
           # - windows-latest
           ## Andreas, 2021-08-28, giving up on running the test-suite under Windows.
           ## There is e.g. https://github.com/phile314/tasty-silver/issues/16
           ## that may be responsible that diffs are not shown,
           ## and that prevents me from running the test-suite interactively.
-        ghc-ver: ['9.2']
-        cabal-ver: [latest]
+        ghc-ver: ['9.4']
+        cabal-ver: ['3.8']
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
 
-    - uses: haskell/actions/setup@v1
+    - uses: haskell/actions/setup@v2
       id: setup-haskell
       with:
         ghc-version: ${{ matrix.ghc-ver }}
@@ -78,7 +80,7 @@ jobs:
         cabal update
         cabal configure -O1 --enable-tests
 
-    - uses: actions/cache@v2
+    - uses: actions/cache@v3
       name: Cache dependencies
       id: cache
       with:

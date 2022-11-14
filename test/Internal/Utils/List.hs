@@ -10,9 +10,13 @@ module Internal.Utils.List ( tests ) where
 
 import Agda.Utils.List
 
+import Data.Bifunctor (first)
 import Data.Either (partitionEithers)
 import Data.Function
-import Data.List ( (\\), elemIndex, intercalate, isPrefixOf, isSuffixOf, nub, nubBy, sort, sortBy )
+import Data.List
+  ((\\), elemIndex, intercalate, isPrefixOf, isSuffixOf,
+   minimumBy, nub, nubBy, sort, sortBy)
+import qualified Data.List as List
 
 import Internal.Helpers
 
@@ -56,6 +60,10 @@ prop_stripSuffix_complete pre suf = stripSuffix suf (pre ++ suf) == Just pre
 
 prop_stripReversedSuffix_sound    rsuf xs  = maybe True (\ pre -> xs == pre ++ reverse rsuf) $ stripReversedSuffix rsuf xs
 prop_stripReversedSuffix_complete pre rsuf = stripReversedSuffix rsuf (pre ++ reverse rsuf) == Just pre
+
+prop_suffixesSatisfying :: (Int -> Bool) -> [Int] -> Bool
+prop_suffixesSatisfying p xs =
+  suffixesSatisfying p xs == map (all p) (List.init (List.tails xs))
 
 prop_chop_intercalate :: Property
 prop_chop_intercalate =
@@ -140,6 +148,17 @@ prop_zipWithKeepRest_init_zipWith f as bs =
 prop_nubOn :: (Integer -> Integer) -> [Integer] -> Bool
 prop_nubOn f xs = nubOn f xs == nubBy ((==) `on` f) xs
 
+prop_nubFavouriteOn ::
+  Fun Integer Integer -> Fun Integer Bool -> [Integer] -> Property
+prop_nubFavouriteOn (Fun _ f) (Fun _ p) xs =
+  nubFavouriteOn f p xs ===
+  map fst (sortBy (compare `on` snd) (find p xs ++ find (not . p) xs))
+  where
+  find p xs =
+    case filter (p . fst) $ zip xs [0..] of
+      [] -> []
+      xs -> [minimumBy (compare `on` first f) xs]
+
 prop_nubAndDuplicatesOn :: (Integer -> Integer) -> [Integer] -> Bool
 prop_nubAndDuplicatesOn f xs = nubAndDuplicatesOn f xs == (ys, xs \\ ys)
   where ys = nubBy ((==) `on` f) xs
@@ -162,6 +181,16 @@ prop_commonSuffix xs ys zs =
       , isSuffixOf zs' (ys ++ zs) ]
   where
     zs' = commonSuffix (xs ++ zs) (ys ++ zs)
+
+-- | If @xs@, @ys@ and @zs@ are pairwise disjoint, then the overlap between
+--   @xs ++ ys@ and @ys ++ zs@ is certainly @ys@.
+prop_findOverlap :: [Int] -> [Int] -> [Int] -> Bool
+prop_findOverlap xs ys zs = findOverlap (xs1 ++ ys2) (ys2 ++ zs3) == (length xs, length ys)
+  where
+  -- Make sure the lists are disjoint.
+  xs1 = (,1) <$> xs
+  ys2 = (,2) <$> ys
+  zs3 = (,3) <$> zs
 
 prop_editDistance :: Property
 prop_editDistance =

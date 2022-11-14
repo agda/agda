@@ -29,6 +29,8 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.PartialOrd
 import Agda.Utils.POMonoid
 
+import Agda.Utils.Impossible
+
 ------------------------------------------------------------------------
 -- QuickCheck helpers
 
@@ -217,7 +219,7 @@ listOfElements xs = listOf $ elements xs
 
 -- | Generates an officially non-empty list, while 'listOf1' does it inofficially.
 list1Of :: Gen a -> Gen (List1 a)
-list1Of = List1.fromList undefined <.> listOf1
+list1Of = List1.fromListSafe undefined <.> listOf1
 
 -- | If the given list is non-empty, then an element from the list is
 -- generated, and otherwise an arbitrary element is generated.
@@ -263,6 +265,10 @@ smaller k g = sized $ \ n -> resize (1 + div n k) g
 
 instance Fail.MonadFail Gen where
   fail = error
+
+instance Arbitrary a => Arbitrary (List1 a) where
+  arbitrary = List1.fromListSafe __IMPOSSIBLE__ . getNonEmpty <$> arbitrary
+  shrink = map (List1.fromListSafe __IMPOSSIBLE__ . getNonEmpty) . shrink . (NonEmpty . List1.toList)
 
 instance CoArbitrary a => CoArbitrary (List1 a) where
   coarbitrary (x :| xs) = coarbitrary (x, xs)

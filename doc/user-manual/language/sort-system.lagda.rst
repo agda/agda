@@ -210,7 +210,7 @@ these sorts during normal usage of Agda, but they might be useful for
 defining :ref:`reflection-based macros <macros>`.
 
 
-.. note:: When ``--omega-in-omega`` is enabled, ``Setωᵢ`` is
+.. note:: When :option:`--omega-in-omega` is enabled, ``Setωᵢ`` is
   considered to be equal to ``Setω`` for all ``i`` (thus rendering
   Agda inconsistent).
 

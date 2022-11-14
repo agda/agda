@@ -7,13 +7,13 @@ Basics
 ------
 
 Since version 2.6.1, Agda supports optional cumulativity of universes
-under the ``--cumulativity`` flag.
+under the :option:`--cumulativity` flag.
 
 .. code-block:: agda
 
   {-# OPTIONS --cumulativity #-}
 
-When the ``--cumulativity`` flag is enabled, Agda uses the subtyping
+When the :option:`--cumulativity` flag is enabled, Agda uses the subtyping
 rule ``Set i =< Set j`` whenever ``i =< j``. For example, in addition
 to its usual type ``Set``, ``Nat`` also has the type ``Set₁`` and even
 ``Set i`` for any ``i : Level``.

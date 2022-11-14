@@ -41,6 +41,7 @@ Projection patterns (@ProjP@) are excluded because metas cannot occupy their pla
 module Agda.TypeChecking.Injectivity where
 
 import Control.Applicative
+import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Fail
 import Control.Monad.State
@@ -52,6 +53,7 @@ import qualified Data.Set as Set
 import Data.Maybe
 import Data.Traversable hiding (for)
 import Data.Semigroup ((<>))
+import Data.Foldable (fold)
 
 import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
@@ -62,6 +64,9 @@ import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Irrelevance (isIrrelevantOrPropM)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope.Path
+import Agda.TypeChecking.Primitive.Base
+import Agda.TypeChecking.Primitive.Cubical
 import Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
@@ -78,6 +83,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty ( prettyShow )
+import qualified Agda.Utils.ProfileOptions as Profile
 
 import Agda.Utils.Impossible
 
@@ -128,8 +134,28 @@ headSymbol v = do -- ignoreAbstractMode $ do
     DontCare{} -> return Nothing
     Dummy s _ -> __IMPOSSIBLE_VERBOSE__ s
 
+-- | Is this a matchable definition, or constructor, which reduces based
+-- on interval substitutions?
+isUnstableDef :: PureTCM m => QName -> m Bool
+isUnstableDef qn = do
+  defn <- getConstInfo qn
+  prims <- traverse getPrimitiveName'
+    [ builtinHComp
+    , builtinComp
+    , builtinTrans
+    , builtinGlue
+    , builtin_glue
+    , builtin_glueU ]
+  case theDef defn of
+    _ | any (Just qn ==) prims -> pure True
+    Function{funIsKanOp = Just _} -> pure True
+    _ -> pure False
+
+
 -- | Do a full whnf and treat neutral terms as rigid. Used on the arguments to
---   an injective functions and to the right-hand side.
+--   an injective functions and to the right-hand side. Only returns
+--   heads which are stable under interval substitution, i.e. NOT path
+--   constructors or generated hcomp/transp!
 headSymbol'
   :: (PureTCM m, MonadError TCErr m)
   => Term -> m (Maybe TermHead)
@@ -138,8 +164,15 @@ headSymbol' v = do
   case v of
     Blocked{} -> return Nothing
     NotBlocked _ v -> case v of
-      Def g _    -> return $ Just $ ConsHead g
-      Con c _ _  -> return $ Just $ ConsHead $ conName c
+      Def g _    ->
+        ifM (isUnstableDef g)
+          (pure Nothing)
+          (pure . Just $ ConsHead g)
+      Con c _ _  -> do
+        q <- canonicalName (conName c)
+        ifM (isPathCons q)
+          (pure Nothing)
+          (return $ Just $ ConsHead q)
       Var i _    -> return $ Just (VarHead i)
       Sort _     -> return $ Just SortHead
       Pi _ _     -> return $ Just PiHead
@@ -196,13 +229,21 @@ checkInjectivity' f cs = fromMaybe NotInjective <.> runMaybeT $ do
   -- We don't need to consider absurd clauses
   let computeHead c | hasDefP (namedClausePats c) = return []
       -- hasDefP clauses are skipped, these matter only for --cubical, in which case the function will behave as NotInjective.
-      computeHead c@Clause{ clauseBody = Just body , clauseType = Just tbody } = do
+      computeHead c@Clause{ clauseBody = Just body , clauseType = Just tbody } = addContext (clauseTel c) $ do
         maybeIrr <- fromRight (const True) <.> runBlocked $ isIrrelevantOrPropM tbody
+        -- We treat ordinary clauses with IApply copatterns as *immediately*
+        -- failing the injectivity check. Consider e.g.
+        --   foo x = T
+        --   foo (y i) = Glue U λ { (i = i0) → T , _ ; (i = i1) → T , _ }
+        -- seeing foo α = Glue ... and inverting it to α = y β loses solutions. E.g. if we
+        -- later had some other α = x, now we're screwed, x ≠ y β. But if we had postponed
+        -- originally we'd just compare T = Glue ... which has a chance of going through.
+        let ivars = iApplyVars (namedClausePats c)
+        guard (null ivars)
         h <- if maybeIrr then return UnknownHead else
           varToArg c =<< do
             lift $ fromMaybe UnknownHead <$> do
-              addContext (clauseTel c) $
-                headSymbol body
+              headSymbol body
         return [Map.singleton h [c]]
       computeHead _ = return []
 
@@ -219,9 +260,7 @@ checkInjectivity' f cs = fromMaybe NotInjective <.> runMaybeT $ do
       case uc of
         [c] -> prettyTCM $ map namedArg $ namedClausePats c
         _   -> "(multiple clauses)"
-  let cond | any (hasDefP . namedClausePats) cs = UnlessCubical
-           | otherwise                          = AlwaysInjective
-  return $ Inverse cond hdMap
+  return $ Inverse hdMap
 
 -- | If a clause is over-applied we can't trust the head (Issue 2944). For
 --   instance, the clause might be `f ps = u , v` and the actual call `f vs
@@ -284,8 +323,7 @@ functionInverse = \case
     cubical <- optCubical <$> pragmaOptions
     case inv of
       NotInjective -> return NoInv
-      Inverse UnlessCubical m | isJust cubical -> return NoInv
-      Inverse w m -> maybe NoInv (Inv f es) <$> (traverse (checkOverapplication es) =<< instantiateVarHeads f es m)
+      Inverse m -> maybe NoInv (Inv f es) <$> (traverse (checkOverapplication es) =<< instantiateVarHeads f es m)
         -- NB: Invertible functions are never classified as
         --     projection-like, so this is fine, we are not
         --     missing parameters.  (Andreas, 2013-11-01)
@@ -313,6 +351,7 @@ useInjectivity dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
       reportSDoc "tc.inj.use" 30 $ fsep $
         pwords "useInjectivity on" ++
         [ prettyTCM blk, prettyTCM cmp, prettyTCM neu, prettyTCM ty]
+      whenProfile Profile.Conversion $ tick "compare by reduction: injectivity"
       let canReduceToSelf = Map.member (ConsHead f) hdMap || Map.member UnknownHead hdMap
       case neu of
         -- f us == f vs  <=>  us == vs
@@ -330,6 +369,7 @@ useInjectivity dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
           fs  <- getForcedArgs f
           pol <- getPolarity' cmp f
           reportSDoc "tc.inj.invert.success" 20 $ hsep ["Successful spine comparison of", prettyTCM f]
+          whenProfile Profile.Conversion $ tick "compare by reduction: injectivity successful"
           app (compareElims pol fs fTy (Def f [])) blkArgs neuArgs
 
         -- f us == c vs

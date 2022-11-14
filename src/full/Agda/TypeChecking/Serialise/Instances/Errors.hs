@@ -63,8 +63,8 @@ instance EmbPrj Warning where
     IllformedAsClause a                   -> icodeN 15 IllformedAsClause a
     WithoutKFlagPrimEraseEquality         -> icodeN 16 WithoutKFlagPrimEraseEquality
     InstanceWithExplicitArg a             -> icodeN 17 InstanceWithExplicitArg a
-    InfectiveImport a b                   -> icodeN 18 InfectiveImport a b
-    CoInfectiveImport a b                 -> icodeN 19 CoInfectiveImport a b
+    InfectiveImport a                     -> icodeN 18 InfectiveImport a
+    CoInfectiveImport a                   -> icodeN 19 CoInfectiveImport a
     InstanceNoOutputTypeName a            -> icodeN 20 InstanceNoOutputTypeName a
     InstanceArgWithExplicitArg a          -> icodeN 21 InstanceArgWithExplicitArg a
     WrongInstanceDeclaration              -> icodeN 22 WrongInstanceDeclaration
@@ -85,7 +85,7 @@ instance EmbPrj Warning where
     RewriteMissingRule a b c              -> icodeN 37 RewriteMissingRule a b c
     ParseWarning a                        -> icodeN 38 ParseWarning a
     NoGuardednessFlag a                   -> icodeN 39 NoGuardednessFlag a
-    NoEquivWhenSplitting a                -> icodeN 40 NoEquivWhenSplitting a
+    UnsupportedIndexedMatch f             -> icodeN 40 UnsupportedIndexedMatch f
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -106,8 +106,8 @@ instance EmbPrj Warning where
     [15, a]              -> valuN IllformedAsClause a
     [16]                 -> valuN WithoutKFlagPrimEraseEquality
     [17, a]              -> valuN InstanceWithExplicitArg a
-    [18, a, b]           -> valuN InfectiveImport a b
-    [19, a, b]           -> valuN CoInfectiveImport a b
+    [18, a]              -> valuN InfectiveImport a
+    [19, a]              -> valuN CoInfectiveImport a
     [20, a]              -> valuN InstanceNoOutputTypeName a
     [21, a]              -> valuN InstanceArgWithExplicitArg a
     [22]                 -> valuN WrongInstanceDeclaration
@@ -128,7 +128,7 @@ instance EmbPrj Warning where
     [37, a, b, c]        -> valuN RewriteMissingRule a b c
     [38, a]              -> valuN ParseWarning a
     [39, a]              -> valuN NoGuardednessFlag a
-    [40, a]              -> valuN NoEquivWhenSplitting a
+    [40, a]              -> valuN UnsupportedIndexedMatch a
     _ -> malformed
 
 instance EmbPrj ParseWarning where
@@ -270,14 +270,23 @@ instance EmbPrj Doc where
 
   value = valueN text
 
+instance EmbPrj InfectiveCoinfective where
+  icod_ Infective   = icodeN' Infective
+  icod_ Coinfective = icodeN 0 Coinfective
+
+  value = vcase valu where
+    valu []  = valuN Infective
+    valu [0] = valuN Coinfective
+    valu _   = malformed
+
 instance EmbPrj PragmaOptions where
   icod_ = \case
-    PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee ->
-      icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee
+    PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh ->
+      icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh
 
   value = vcase $ \case
-    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, aa, bb, cc, dd, ee, ff, gg, hh, ii, jj, kk, ll, mm, nn, oo, pp, qq, rr, ss, tt, uu, vv, ww, xx, yy, zz, aaa, bbb, ccc, ddd, eee] ->
-      valuN PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee
+    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, aa, bb, cc, dd, ee, ff, gg, hh, ii, jj, kk, ll, mm, nn, oo, pp, qq, rr, ss, tt, uu, vv, ww, xx, yy, zz, aaa, bbb, ccc, ddd, eee, fff, ggg, hhh] ->
+      valuN PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh
     _ -> malformed
 
 instance EmbPrj ProfileOptions where
@@ -373,7 +382,7 @@ instance EmbPrj WarningName where
     NoGuardednessFlag_                           -> 58
     NotInScope_                                  -> 59
     NotStrictlyPositive_                         -> 60
-    NoEquivWhenSplitting_                        -> 61
+    UnsupportedIndexedMatch_                        -> 61
     OldBuiltin_                                  -> 62
     PragmaCompileErased_                         -> 63
     RewriteMaybeNonConfluent_                    -> 64
@@ -470,7 +479,7 @@ instance EmbPrj WarningName where
     58 -> return NoGuardednessFlag_
     59 -> return NotInScope_
     60 -> return NotStrictlyPositive_
-    61 -> return NoEquivWhenSplitting_
+    61 -> return UnsupportedIndexedMatch_
     62 -> return OldBuiltin_
     63 -> return PragmaCompileErased_
     64 -> return RewriteMaybeNonConfluent_

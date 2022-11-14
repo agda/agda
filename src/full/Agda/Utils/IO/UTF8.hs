@@ -1,12 +1,14 @@
 -- | Text IO using the UTF8 character encoding.
 
 module Agda.Utils.IO.UTF8
-  ( readTextFile
+  ( ReadException
+  , readTextFile
   , Agda.Utils.IO.UTF8.readFile
   , Agda.Utils.IO.UTF8.writeFile
   , writeTextToFile
   ) where
 
+import Control.Exception
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.Encoding as T
@@ -34,24 +36,36 @@ convertLineEndings = T.map convert . convertNLCR
   -- Not a line ending (or '\x000A'):
   convert c        = c
 
+-- | A kind of exception that can be thrown by 'readTextFile' and
+-- 'readFile'.
+newtype ReadException
+  = DecodingError FilePath
+    -- ^ Decoding failed for the given file.
+  deriving Show
+
+instance Exception ReadException where
+  displayException (DecodingError file) =
+    "Failed to read " ++ file ++ ".\n" ++
+    "Please ensure that this file uses the UTF-8 character encoding."
+
 -- | Reads a UTF8-encoded text file and converts many character
 -- sequences which may be interpreted as line or paragraph separators
 -- into '\n'.
 --
--- If the file cannot be decoded, then an 'IOException' is raised.
+-- If the file cannot be decoded, then a 'ReadException' is raised.
 
 readTextFile :: FilePath -> IO Text
 readTextFile file = do
   s <- T.decodeUtf8' <$> B.readFile file
   case s of
     Right s -> return $ convertLineEndings s
-    Left _  -> E.ioError $ E.userError $
-      "Failed to read the file " ++ file ++ ".\n" ++
-      "Please ensure that this file uses the UTF-8 character encoding."
+    Left _  -> throw $ DecodingError file
 
 -- | Reads a UTF8-encoded text file and converts many character
 -- sequences which may be interpreted as line or paragraph separators
 -- into '\n'.
+--
+-- If the file cannot be decoded, then a 'ReadException' is raised.
 
 readFile :: FilePath -> IO String
 readFile f = do

@@ -14,9 +14,9 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - id: setup-haskell
-      uses: haskell/actions/setup@v1
+      uses: haskell/actions/setup@v2
       with:
         cabal-version: ${{ matrix.cabal-ver }}
         ghc-version: ${{ matrix.ghc-ver }}
@@ -34,7 +34,7 @@ jobs:
         cabal configure -fenable-cluster-counting --enable-tests --disable-library-profiling
     - id: cache
       name: Cache dependencies
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         key: ${{ runner.os }}-cabal-${{ env.GHC_VER }}-${{ env.CABAL_VER }}-${{ hashFiles('**/plan.json')
           }}
@@ -62,11 +62,11 @@ jobs:
     strategy:
       matrix:
         cabal-ver:
-        - latest
+        - '3.8'
         ghc-ver:
-        - '9.2'
+        - '9.4'
         os:
-        - ubuntu-latest
+        - ubuntu-22.04
 name: Haddock
 'on':
   pull_request:

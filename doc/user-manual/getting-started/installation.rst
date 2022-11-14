@@ -38,7 +38,7 @@ You need recent versions of the following programs to compile Agda:
 * GHC:           https://www.haskell.org/ghc/
 
   + Agda has been tested with GHC 8.0.2, 8.2.2, 8.4.4, 8.6.5, 8.8.4,
-    8.10.7, 9.0.2 and 9.2.3.
+    8.10.7, 9.0.2, 9.2.4 and 9.4.3.
 
 * cabal-install: https://www.haskell.org/cabal/
 * Alex:          https://www.haskell.org/alex/
@@ -172,8 +172,8 @@ GHC version, respectively.
 
 Running the ``agda-mode`` program
 ---------------------------------
-**Warning**: Intalling ``agda-mode`` via ``melpa`` is discouraged.
-It is stronly advised to install ``agda-mode`` for ``emacs`` as described below:
+**Warning**: Installing ``agda-mode`` via ``melpa`` is discouraged.
+It is strongly advised to install ``agda-mode`` for ``emacs`` as described below:
 
 After installing the ``agda-mode`` program using ``cabal`` or
 ``stack`` run the following command:
@@ -472,10 +472,11 @@ When installing Agda the following flags can be used:
 
 .. option:: enable-cluster-counting
 
-     Enable the :option:`--count-clusters` flag. Note that if
-     ``enable-cluster-counting`` is ``False``, then the
-     :option:`--count-clusters` flag triggers an error
-     message. Default: off.
+     Enable the Agda option :option:`--count-clusters`. Note that if
+     ``enable-cluster-counting`` is ``False``, then option
+     :option:`--count-clusters` triggers an error
+     message when given to Agda.
+     Default: off.
 
 .. option:: optimise-heavily
 

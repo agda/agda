@@ -1,12 +1,12 @@
 Issue2790-b.agda:7,1-21
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: WithKEnabled
-when checking the definition of uip
-Issue2790-b.agda:7,1-21
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: WithKEnabled
+This clause uses pattern-matching features that are not yet
+supported by Cubical Agda, the function to which it belongs will
+not compute when applied to transports.
+
+Reason: It relies on the K rule, which is incompatible with
+        Cubical Agda
+
 when checking the definition of uip
 Issue2790-b.agda:1,1-42
-Cannot set OPTIONS pragma --cubical and --with-K with safe flag.
+Cannot set OPTIONS pragma --cubical-compatible and --with-K
+with safe flag.

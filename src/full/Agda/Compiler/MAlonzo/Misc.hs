@@ -23,10 +23,11 @@ import Data.Semigroup
 
 import qualified Agda.Utils.Haskell.Syntax as HS
 
-import Agda.Compiler.Common
+import Agda.Compiler.Common as CC
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.TopLevelModuleName
 
 import Agda.TypeChecking.Monad
 
@@ -39,7 +40,7 @@ import Agda.Utils.Impossible
 --------------------------------------------------
 
 data HsModuleEnv = HsModuleEnv
-  { mazModuleName :: ModuleName
+  { mazModuleName :: TopLevelModuleName
     -- ^ The name of the Agda module
   , mazIsMainModule :: Bool
   -- ^ Whether this is the compilation root and therefore should have the `main` function.
@@ -133,7 +134,7 @@ instance ReadGHCModuleEnv m => ReadGHCModuleEnv (MaybeT m)
 instance ReadGHCModuleEnv m => ReadGHCModuleEnv (StateT s m)
 
 newtype HsCompileState = HsCompileState
-  { mazAccumlatedImports :: Set ModuleName
+  { mazAccumlatedImports :: Set TopLevelModuleName
   } deriving (Eq, Semigroup, Monoid)
 
 -- | Transformer adding read-only module info and a writable set of imported modules
@@ -161,7 +162,7 @@ curIsMainModule = mazIsMainModule <$> askHsModuleEnv
 -- | This is the same value as @curMName@, but does not rely on the TCM's state.
 --   (@curMName@ and co. should be removed, but the current @Backend@ interface
 --   is not sufficient yet to allow that)
-curAgdaMod :: ReadGHCModuleEnv m => m ModuleName
+curAgdaMod :: ReadGHCModuleEnv m => m TopLevelModuleName
 curAgdaMod = mazModuleName <$> askHsModuleEnv
 
 -- | Get the Haskell module name of the currently-focused Agda module
@@ -237,14 +238,14 @@ unqhname k q =
 
 -- the toplevel module containing the given one
 tlmodOf :: ReadTCState m => ModuleName -> m HS.ModuleName
-tlmodOf = fmap mazMod . topLevelModuleName
+tlmodOf = fmap mazMod . CC.topLevelModuleName
 
 
 -- qualify HS.Name n by the module of QName q, if necessary;
 -- accumulates the used module in stImportedModules at the same time.
 xqual :: QName -> HS.Name -> HsCompileM HS.QName
 xqual q n = do
-  m1 <- topLevelModuleName (qnameModule q)
+  m1 <- CC.topLevelModuleName (qnameModule q)
   m2 <- curAgdaMod
   if m1 == m2
     then return (HS.UnQual n)
@@ -331,7 +332,7 @@ mazName = mkName_ __IMPOSSIBLE__ mazstr
 mazMod' :: String -> HS.ModuleName
 mazMod' s = HS.ModuleName $ mazstr ++ "." ++ s
 
-mazMod :: ModuleName -> HS.ModuleName
+mazMod :: TopLevelModuleName -> HS.ModuleName
 mazMod = mazMod' . prettyShow
 
 mazCoerceName :: String

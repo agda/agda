@@ -17,8 +17,9 @@ tested-with: GHC == 8.0.2
              GHC == 8.4.4
              GHC == 8.6.5
              GHC == 8.8.4
-             GHC == 8.10.6
-             GHC == 9.0.1
+             GHC == 8.10.7
+             GHC == 9.0.2
+             GHC == 9.2.4
 
 source-repository head
   type:     git
@@ -28,7 +29,7 @@ executable size-solver
   hs-source-dirs: .
   main-is:        Main.hs
   build-depends:
-    Agda == 2.6.3
+    Agda == 2.6.4
     , base >= 4.9.0.0 && < 6
     , containers >= 0.5.7.1 && < 0.7
     , mtl >= 2.2.1 && < 2.3

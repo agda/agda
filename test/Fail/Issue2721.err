@@ -1,4 +1,3 @@
 Failed to solve the following constraints:
-  Is empty: (Nat , 0) ≡ (Nat , 1)
-    (blocked on any(_a_9, _a_10, _b_11))
+  Is empty: (Nat , 0) ≡ (Nat , 1) (stuck)
       [ at Issue2721.agda:16,4-6 ]

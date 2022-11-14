@@ -23,6 +23,8 @@ The implementation of ``Prop`` is based on the POPL 2019 paper
 <https://hal.inria.fr/hal-01859964/>`_ by Gaëtan Gilbert, Jesper Cockx,
 Matthieu Sozeau, and Nicolas Tabareau.
 
+This is an experimental extension of Agda guarded by option
+:option:`--prop`.
 
 Usage
 -----

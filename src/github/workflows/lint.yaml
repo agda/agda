@@ -29,18 +29,16 @@ jobs:
       && !contains(github.event.head_commit.message, '[github skip]')
       && !contains(github.event.head_commit.message, '[skip github]')
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2.3.1
-    # NOTE: Because `src/fix-whitespace` currently has lint warnings, (See
-    # https://github.com/agda/fix-whitespace/pull/8), we do not checking out
-    # submodules recursively here like we normally do. Perhaps the submodule
-    # should be moved to a separate non-linted directory like lib/.
+    - uses: actions/checkout@v3
+    # We don't currently have any submodules that need hlinting,
+    # so we don't checkout submodules recursively here.
 
     - name: Set up hlint
       uses: rwe/actions-hlint-setup@v1
       with:
-        version: '3.1.6'
+        version: '3.5'
 
     - name: Run hlint
       uses: rwe/actions-hlint-run@v2

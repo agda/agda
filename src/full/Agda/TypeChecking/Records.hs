@@ -8,6 +8,7 @@ import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Trans.Maybe
 import Control.Monad.Writer
+import Control.Applicative
 
 import Data.Bifunctor
 import qualified Data.List as List
@@ -20,6 +21,7 @@ import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Concrete (FieldAssignment'(..))
 import Agda.Syntax.Abstract.Name
+import Agda.Syntax.Internal.MetaVars (unblockOnAnyMetaIn)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base (isNameInScope)
@@ -32,12 +34,14 @@ import Agda.TypeChecking.Reduce.Monad () --instance only
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
+import {-# SOURCE #-} Agda.TypeChecking.Primitive.Cubical.Base (isCubicalSubtype)
 
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike (eligibleForProjectionLike)
 
 import Agda.Utils.Either
 import Agda.Utils.Function (applyWhen)
-import Agda.Utils.Functor (for, ($>))
+import Agda.Utils.Functor (for, ($>), (<&>))
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -399,10 +403,23 @@ typeElims a self (e : es) = do
     IApply{} -> __IMPOSSIBLE__
 
 -- | Check if a name refers to an eta expandable record.
+--
+-- The answer is no for a record type with an erased constructor
+-- unless the current quantity is \"erased\".
 {-# SPECIALIZE isEtaRecord :: QName -> TCM Bool #-}
 {-# SPECIALIZE isEtaRecord :: QName -> ReduceM Bool #-}
 isEtaRecord :: HasConstInfo m => QName -> m Bool
-isEtaRecord r = maybe False ((YesEta ==) . recEtaEquality) <$> isRecord r
+isEtaRecord r = do
+  isRec <- isRecord r
+  case isRec of
+    Nothing -> return False
+    Just r
+      | recEtaEquality r /= YesEta -> return False
+      | otherwise                  -> do
+        constructorQ <- getQuantity <$>
+                          getConstInfo (conName (recConHead r))
+        currentQ     <- viewTC eQuantity
+        return $ constructorQ `moreQuantity` currentQ
 
 isEtaCon :: HasConstInfo m => QName -> m Bool
 isEtaCon c = getConstInfo' c >>= \case
@@ -461,30 +478,31 @@ unguardedRecord q pat = modifySignature $ updateDefinition q $ updateTheDef $ \c
   r@Record{} -> r { recEtaEquality' = setEtaEquality (recEtaEquality' r) $ NoEta pat }
   _ -> __IMPOSSIBLE__
 
+-- | Turn on eta for non-recursive and inductive guarded recursive records,
+--   unless user declared otherwise.
+--   Projections do not preserve guardedness.
+updateEtaForRecord :: QName -> TCM ()
+updateEtaForRecord q = whenM etaEnabled $ do
+
+  -- Do we need to switch on eta for record q?
+  switchEta <- getConstInfo q <&> theDef <&> \case
+    Record{ recInduction = ind, recEtaEquality' = eta }
+      | Inferred NoEta{} <- eta, ind /= Just CoInductive -> True
+      | otherwise -> False
+    _ -> __IMPOSSIBLE__
+
+  when switchEta $ do
+    modifySignature $ updateDefinition q $ over (lensTheDef . lensRecord) $ \ d ->
+      d{ _recEtaEquality' = Inferred YesEta }
+
 -- | Turn on eta for inductive guarded recursive records.
 --   Projections do not preserve guardedness.
 recursiveRecord :: QName -> TCM ()
-recursiveRecord q = do
-  ok <- etaEnabled
-  modifySignature $ updateDefinition q $ updateTheDef $ \case
-    r@Record{ recInduction = ind, recEtaEquality' = eta } ->
-      r { recEtaEquality' = eta' }
-      where
-      eta' | ok, Inferred NoEta{} <- eta, ind /= Just CoInductive = Inferred YesEta
-           | otherwise = eta
-    _ -> __IMPOSSIBLE__
+recursiveRecord = updateEtaForRecord
 
 -- | Turn on eta for non-recursive record, unless user declared otherwise.
 nonRecursiveRecord :: QName -> TCM ()
-nonRecursiveRecord q = whenM etaEnabled $ do
-  -- Do nothing if eta is disabled by option.
-  modifySignature $ updateDefinition q $ updateTheDef $ \case
-    r@Record{ recInduction = ind, recEtaEquality' = Inferred (NoEta _) }
-      | ind /= Just CoInductive ->
-      r { recEtaEquality' = Inferred YesEta }
-    r@Record{} -> r
-    _          -> __IMPOSSIBLE__
-
+nonRecursiveRecord = updateEtaForRecord
 
 -- | Check whether record type is marked as recursive.
 --
@@ -833,7 +851,7 @@ isSingletonTypeModuloRelevance :: (PureTCM m, MonadBlock m) => Type -> m Bool
 isSingletonTypeModuloRelevance t = isJust <$> isSingletonType' True t mempty
 
 isSingletonType'
-  :: (PureTCM m, MonadBlock m)
+  :: forall m. (PureTCM m, MonadBlock m)
   => Bool            -- ^ Should disregard irrelevant fields?
   -> Type            -- ^ Type to check.
   -> Set QName       -- ^ Non-terminating record typess we already encountered.
@@ -844,11 +862,36 @@ isSingletonType' regardIrrelevance t rs = do
     TelV tel t <- telView t
     t <- abortIfBlocked t
     addContext tel $ do
-      res <- isRecordType t
-      case res of
-        Just (r, ps, def) | YesEta <- recEtaEquality def -> do
-          fmap (abstract tel) <$> isSingletonRecord' regardIrrelevance r ps rs
-        _ -> return Nothing
+      let
+        -- Easy case: η for records.
+        record :: m (Maybe Term)
+        record = runMaybeT $ do
+          (r, ps, def) <- MaybeT $ isRecordType t
+          guard (YesEta == recEtaEquality def)
+          abstract tel <$> MaybeT (isSingletonRecord' regardIrrelevance r ps rs)
+
+        -- Slightly harder case: η for Sub {level} tA phi elt.
+        -- tA : Type level, phi : I, elt : Partial phi tA.
+        subtype :: m (Maybe Term)
+        subtype = runMaybeT $ do
+          (level, tA, phi, elt) <- MaybeT $ isCubicalSubtype t
+          subin <- MaybeT $ getBuiltinName' builtinSubIn
+          itIsOne <- MaybeT $ getBuiltinName' builtinIsOne
+          phiV <- intervalView phi
+          case phiV of
+            -- If phi = i1, then inS (elt 1=1) is the only inhabitant.
+            IOne -> do
+              let
+                argH = Arg $ setHiding Hidden defaultArgInfo
+                it = elt `apply` [defaultArg (Def itIsOne [])]
+              pure (Def subin [] `apply` [argH level, argH tA, argH phi, defaultArg it])
+            -- Otherwise we're blocked
+            OTerm phi' -> patternViolation (unblockOnAnyMetaIn phi')
+            -- This fails the MaybeT: we're not looking at a
+            -- definitional singleton.
+            _ -> fail ""
+
+      (<|>) <$> record <*> subtype
 
 -- | Checks whether the given term (of the given type) is beta-eta-equivalent
 --   to a variable. Returns just the de Bruijn-index of the variable if it is,

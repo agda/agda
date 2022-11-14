@@ -52,6 +52,8 @@ import Data.Foldable (toList)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 import Agda.Interaction.Options
 
@@ -84,6 +86,7 @@ import Agda.Utils.Size
 import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
+import Agda.Utils.Either
 
 requireOptionRewriting :: TCM ()
 requireOptionRewriting =
@@ -153,6 +156,9 @@ addRewriteRules qs = do
   -- Run confluence check for the new rules
   -- (should be done after adding all rules, see #3795)
   whenJustM (optConfluenceCheck <$> pragmaOptions) $ \confChk -> do
+    -- Warn if --cubical is enabled
+    whenJustM (optCubical <$> pragmaOptions) $ \_ -> genericWarning
+      "Confluence checking for --cubical is not yet supported, confluence checking might be incomplete"
     -- Global confluence checker requires rules to be sorted
     -- according to the generality of their lhs
     when (confChk == GlobalConfluenceCheck) $
@@ -211,9 +217,18 @@ checkRewriteRule q = do
   let failureWrongTarget :: TCM a
       failureWrongTarget = typeError . GenericDocError =<< hsep
         [ prettyTCM q , " does not target rewrite relation" ]
-  let failureMetas :: TCM a
-      failureMetas       = typeError . GenericDocError =<< hsep
-        [ prettyTCM q , " is not a legal rewrite rule, since it contains unsolved meta variables" ]
+  let failureBlocked :: Blocker -> TCM a
+      failureBlocked b
+        | not (null ms) = err $ "it contains the unsolved meta variable(s)" <+> prettyList_ (map prettyTCM $ Set.toList ms)
+        | not (null ps) = err $ "it is blocked on problem(s)" <+> prettyList_ (map prettyTCM $ Set.toList ps)
+        | not (null qs) = err $ "it requires the definition(s) of" <+> prettyList_ (map prettyTCM $ Set.toList qs)
+        | otherwise = __IMPOSSIBLE__
+        where
+          err reason = typeError . GenericDocError =<< hsep
+            [ prettyTCM q , " is not a legal rewrite rule, since" , reason ]
+          ms = allBlockingMetas b
+          ps = allBlockingProblems b
+          qs = allBlockingDefs b
   let failureNotDefOrCon :: TCM a
       failureNotDefOrCon = typeError . GenericDocError =<< hsep
         [ prettyTCM q , " is not a legal rewrite rule, since the left-hand side is neither a defined symbol nor a constructor" ]
@@ -248,10 +263,6 @@ checkRewriteRule q = do
       gamma1 <- instantiateFull gamma1
       let gamma = gamma0 `abstract` gamma1
 
-      unless (noMetas (telToList gamma1)) $ do
-        reportSDoc "rewriting" 30 $ "metas in gamma1: " <+> text (show $ allMetasList $ telToList gamma1)
-        failureMetas
-
       -- 2017-06-18, Jesper: Unfold inlined definitions on the LHS.
       -- This is necessary to replace copies created by imports by their
       -- original definition.
@@ -276,13 +287,9 @@ checkRewriteRule q = do
 
         checkNoLhsReduction f hd es
 
-        unless (noMetas (es, rhs, b)) $ do
-          reportSDoc "rewriting" 30 $ "metas in lhs: " <+> text (show $ allMetasList es)
-          reportSDoc "rewriting" 30 $ "metas in rhs: " <+> text (show $ allMetasList rhs)
-          reportSDoc "rewriting" 30 $ "metas in b  : " <+> text (show $ allMetasList b)
-          failureMetas
+        ps <- catchPatternErr failureBlocked $
+          patternFrom Relevant 0 (t , Def f []) es
 
-        ps <- patternFrom Relevant 0 (t , Def f []) es
         reportSDoc "rewriting" 30 $
           "Pattern generated from lhs: " <+> prettyTCM (PDef f ps)
 
@@ -357,7 +364,20 @@ checkRewriteRule q = do
     checkAxFunOrCon :: QName -> Definition -> TCM ()
     checkAxFunOrCon f def = case theDef def of
       Axiom{}        -> return ()
-      Function{}     -> return ()
+      def@Function{} -> whenJust (maybeRight (funProjection def)) $ \proj ->
+        case projProper proj of
+          Just{} -> typeError . GenericDocError =<< hsep
+            [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
+            , prettyTCM f , "is a projection"
+            ]
+          Nothing -> typeError . GenericDocError =<< hsep
+            [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
+            , hd , "is a projection-like function."
+            , "You can turn off the projection-like optimization for", hd
+            , "with the pragma {-# NOT_PROJECTION_LIKE", hd, "#-}"
+            , "or globally with the flag --no-projection-like"
+            ]
+            where hd = prettyTCM f
       Constructor{}  -> return ()
       AbstractDefn{} -> return ()
       Primitive{}    -> return () -- TODO: is this fine?

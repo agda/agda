@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical-compatible #-}
+{-# OPTIONS --without-K #-}
 
 module NewWithoutK where
 

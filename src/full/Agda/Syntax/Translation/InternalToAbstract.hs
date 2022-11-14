@@ -528,11 +528,15 @@ reifyTerm expandAnonDefs0 v0 = do
     I.Level l      -> reify l
     I.Pi a b       -> case b of
         NoAbs _ b'
-          | visible a   -> uncurry (A.Fun $ noExprInfo) <$> reify (a, b')
+          | visible a, not (domIsFinite a) -> uncurry (A.Fun $ noExprInfo) <$> reify (a, b')
             -- Andreas, 2013-11-11 Hidden/Instance I.Pi must be A.Pi
             -- since (a) the syntax {A} -> B or {{A}} -> B is not legal
             -- and (b) the name of the binder might matter.
             -- See issue 951 (a) and 952 (b).
+            --
+            -- Amy, 2022-09-05: Can't be finite either, since otherwise
+            -- we say ".(IsOne φ) → A ≠ .(IsOne φ) → A" with no
+            -- indication of which is finite and which isn't
           | otherwise   -> mkPi b =<< reify a
         b               -> mkPi b =<< do
           ifM (domainFree a (absBody b))
@@ -543,7 +547,9 @@ reifyTerm expandAnonDefs0 v0 = do
           tac <- traverse reify $ domTactic a
           (x, b) <- reify b
           let xs = singleton $ Arg info $ Named (domName a) $ mkBinder_ x
-          return $ A.Pi noExprInfo (singleton $ TBind noRange tac xs a') b
+          return $ A.Pi noExprInfo
+            (singleton $ TBind noRange (TypedBindingInfo tac (domIsFinite a)) xs a')
+            b
         -- We can omit the domain type if it doesn't have any free variables
         -- and it's mentioned in the target type.
         domainFree a b = do
@@ -689,7 +695,7 @@ reifyTerm expandAnonDefs0 v0 = do
         alreadyPrinting <- viewTC ePrintingPatternLambdas
 
         extLam <- case def of
-          Function{ funExtLam = Just{}, funProjection = Just{} } -> __IMPOSSIBLE__
+          Function{ funExtLam = Just{}, funProjection = Right{} } -> __IMPOSSIBLE__
           Function{ funExtLam = Just (ExtLamInfo m b sys) } ->
             Just . (,Strict.toLazy sys) . size <$> lookupSection m
           _ -> return Nothing
@@ -703,7 +709,7 @@ reifyTerm expandAnonDefs0 v0 = do
           _ -> do
            (pad, nes :: [Elim' (Named_ Term)]) <- case def of
 
-            Function{ funProjection = Just Projection{ projIndex = np } } | np > 0 -> do
+            Function{ funProjection = Right Projection{ projIndex = np } } | np > 0 -> do
               reportSLn "reify.def" 70 $ "  def. is a projection with projIndex = " ++ show np
 
               -- This is tricky:
@@ -1048,7 +1054,6 @@ instance BlankVars A.Expr where
     A.Let _ _ _              -> __IMPOSSIBLE__
     A.Rec i es               -> A.Rec i $ blank bound es
     A.RecUpdate i e es       -> uncurry (A.RecUpdate i) $ blank bound (e, es)
-    A.ETel _                 -> __IMPOSSIBLE__
     A.Quote {}               -> __IMPOSSIBLE__
     A.QuoteTerm {}           -> __IMPOSSIBLE__
     A.Unquote {}             -> __IMPOSSIBLE__
@@ -1360,7 +1365,7 @@ instance Reify Sort where
     reifyWhen = reifyWhenE
     reify s = do
       s <- instantiateFull s
-      SortKit{..} <- sortKit
+      SortKit{..} <- infallibleSortKit
       case s of
         I.Type (I.ClosedLevel 0) -> return $ A.Def' nameOfSet A.NoSuffix
         I.Type (I.ClosedLevel n) -> return $ A.Def' nameOfSet (A.Suffix n)
@@ -1442,7 +1447,7 @@ instance Reify I.Telescope where
         name = domName arg
     tac <- traverse reify $ domTactic arg
     let xs = singleton $ Arg info $ Named name $ A.mkBinder_ x
-    return $ TBind r tac xs e : bs
+    return $ TBind r (TypedBindingInfo tac (domIsFinite arg)) xs e : bs
 
 instance Reify i => Reify (Dom i) where
     type ReifiesTo (Dom i) = Arg (ReifiesTo i)

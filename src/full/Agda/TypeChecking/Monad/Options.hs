@@ -19,9 +19,9 @@ import System.Directory
 import System.FilePath
 
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete (TopLevelModuleName)
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.TopLevelModuleName
 import Agda.TypeChecking.Monad.Debug (reportSDoc)
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Monad.Base
@@ -62,8 +62,7 @@ setPragmaOptions opts = do
 --
 -- Relative include directories are made absolute with respect to the
 -- current working directory. If the include directories have changed
--- (thus, they are 'Left' now, and were previously @'Right' something@),
--- then the state is reset (completely, see setIncludeDirs) .
+-- then the state is reset (partly, see 'setIncludeDirs').
 --
 -- An empty list of relative include directories (@'Left' []@) is
 -- interpreted as @["."]@.
@@ -119,7 +118,7 @@ getAgdaLibFiles f m = do
   if | useLibs   -> libToTCM $ mkLibM [] $ getAgdaLibFiles' root
      | otherwise -> return []
   where
-  root = filePath (C.projectRoot f m)
+  root = filePath (projectRoot f m)
 
 -- | Returns the library options for a given file.
 
@@ -290,16 +289,16 @@ setIncludeDirs incs root = do
     -- A graph with one node per module in old, and an edge from m to
     -- n if the module corresponding to m imports the module
     -- corresponding to n.
-    dependencyGraph :: G.Graph A.ModuleName ()
+    dependencyGraph :: G.Graph TopLevelModuleName ()
     dependencyGraph =
       G.fromNodes
-        [ iModuleName $ miInterface m
+        [ iTopLevelModuleName $ miInterface m
         | m <- Map.elems old
         ]
         `G.union`
       G.fromEdges
         [ G.Edge
-            { source = iModuleName $ miInterface m
+            { source = iTopLevelModuleName $ miInterface m
             , target = d
             , label = ()
             }
@@ -316,17 +315,16 @@ setIncludeDirs incs root = do
                 -- Agda does not allow cycles in the dependency graph.
                 __IMPOSSIBLE__
               Graph.AcyclicSCC m ->
-                case Map.lookup (A.toTopLevelModuleName m) old of
+                case Map.lookup m old of
                   Just m  -> m
                   Nothing -> __IMPOSSIBLE__) $
       G.sccs' dependencyGraph
 
     process ::
-      Map A.ModuleName ModuleInfo -> ModuleToSource -> [ModuleInfo] ->
-      TCM (DecodedModules, ModuleToSource)
+      Map TopLevelModuleName ModuleInfo -> ModuleToSource ->
+      [ModuleInfo] -> TCM (DecodedModules, ModuleToSource)
     process !keep !modFile [] = return
       ( Map.fromList $
-        map (mapFst A.toTopLevelModuleName) $
         Map.toList keep
       , modFile
       )
@@ -335,13 +333,12 @@ setIncludeDirs incs root = do
           depsKept = all (`Map.member` keep) deps
       (keep, modFile) <-
         if not depsKept then return (keep, modFile) else do
-        let n = iModuleName $ miInterface m
-            t = A.toTopLevelModuleName n
+        let t = iTopLevelModuleName $ miInterface m
         oldF            <- findFile' t
         (newF, modFile) <- liftIO $ findFile'' incs t modFile
         return $ case (oldF, newF) of
           (Right f1, Right f2) | f1 == f2 ->
-            (Map.insert n m keep, modFile)
+            (Map.insert t m keep, modFile)
           _ -> (keep, modFile)
       process keep modFile ms
 

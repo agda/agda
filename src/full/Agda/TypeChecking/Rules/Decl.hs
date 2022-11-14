@@ -193,6 +193,9 @@ checkDecl d = setCurrentRange d $ do
       -- TODO: Benchmarking for unquote.
       A.UnquoteDecl mi is xs e -> checkMaybeAbstractly is $ checkUnquoteDecl mi is xs e
       A.UnquoteDef is xs e     -> impossible $ checkMaybeAbstractly is $ checkUnquoteDef is xs e
+      A.UnquoteData is x uc js cs e -> checkMaybeAbstractly (is ++ js) $ do
+        reportSDoc "tc.unquote.data" 20 $ "Checking unquoteDecl data" <+> prettyTCM x
+        Nothing <$ unquoteTop (x:cs) e
 
     whenNothingM (asksTC envMutualBlock) $ do
 
@@ -219,10 +222,6 @@ checkDecl d = setCurrentRange d $ do
         theMutualChecks
 
     where
-
-    -- check record or data type signature
-    checkSig kind i x gtel t = checkTypeSignature' (Just gtel) $
-      A.Axiom kind i defaultArgInfo Nothing x t
 
     -- Switch maybe to abstract mode, benchmark, and debug print bracket.
     check :: forall m i a
@@ -308,7 +307,7 @@ revisitRecordPatternTranslation qs = do
     case theDef def of
       Record{ recEtaEquality' = Inferred YesEta } -> return $ Just $ Left q
       Function
-        { funProjection = Nothing
+        { funProjection = Left MaybeProjection
             -- Andreas, 2017-08-10, issue #2664:
             -- Do not record pattern translate record projection definitions!
         , funCompiled   = Just cc
@@ -384,6 +383,10 @@ data HighlightModuleContents = DontHightlightModuleContents | DoHighlightModuleC
 --   mutual block we have. Hence the flag.
 highlight_ :: HighlightModuleContents -> A.Declaration -> TCM ()
 highlight_ hlmod d = do
+  reportSDoc "tc.decl" 45 $
+    text "Highlighting a declaration with the following spine:"
+      $$
+    text (show $ A.declarationSpine d)
   let highlight d = generateAndPrintSyntaxInfo d Full True
   Bench.billTo [Bench.Highlighting] $ case d of
     A.Axiom{}                -> highlight d
@@ -402,11 +405,13 @@ highlight_ hlmod d = do
     A.Generalize{}           -> highlight d
     A.UnquoteDecl{}          -> highlight d
     A.UnquoteDef{}           -> highlight d
+    A.UnquoteData{}           -> highlight d
     A.Section i x tel ds     -> do
       highlight (A.Section i x tel [])
       when (hlmod == DoHighlightModuleContents) $ mapM_ (highlight_ hlmod) (deepUnscopeDecls ds)
     A.RecSig{}               -> highlight d
-    A.RecDef i x uc dir ps tel cs -> highlight (A.RecDef i x uc dir A.noDataDefParams dummy cs)
+    A.RecDef i x uc dir ps tel cs ->
+      highlight (A.RecDef i x uc dir ps dummy cs)
       -- The telescope has already been highlighted.
       where
       -- Andreas, 2016-01-22, issue 1790
@@ -637,8 +642,8 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
 
   -- Set blocking tag to MissingClauses if we still expect clauses
   let blk = case kind of
-        FunName   -> NotBlocked MissingClauses   ()
-        MacroName -> NotBlocked MissingClauses   ()
+        FunName   -> NotBlocked (MissingClauses x) ()
+        MacroName -> NotBlocked (MissingClauses x) ()
         _         -> NotBlocked ReallyNotBlocked ()
 
   -- Not safe. See Issue 330
@@ -647,12 +652,13 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
   lang <- getLanguage
   let defn = defaultDefn info x t lang $
         case kind of   -- #4833: set abstract already here so it can be inherited by with functions
-          FunName   -> emptyFunction{ funAbstr = Info.defAbstract i }
-          MacroName -> set funMacro True emptyFunction{ funAbstr = Info.defAbstract i }
+          FunName   -> fun
+          MacroName -> set funMacro True fun
           DataName  -> DataOrRecSig npars
           RecName   -> DataOrRecSig npars
           AxiomName -> defaultAxiom     -- Old comment: NB: used also for data and record type sigs
           _         -> __IMPOSSIBLE__
+        where fun = FunctionDefn $ emptyFunctionData{ _funAbstr = Info.defAbstract i }
 
   addConstant x =<< do
     useTerPragma $ defn
@@ -743,6 +749,12 @@ checkPragma r p =
             Function{} -> markStatic x
             _          -> typeError $ GenericError "STATIC directive only works on functions"
         A.InjectivePragma x -> markInjective x
+        A.NotProjectionLikePragma qn -> do
+          def <- getConstInfo qn
+          case theDef def of
+            it@Function{} ->
+              modifyGlobalDefinition qn $ \def -> def { theDef = it { funProjection = Left NeverProjection } }
+            _ -> typeError $ GenericError "NOT_PROJECTION_LIKE directive only applies to functions"
         A.InlinePragma b x -> do
           def <- getConstInfo x
           case theDef def of
@@ -782,6 +794,12 @@ checkMutual i ds = inMutualBlock $ \ blockId -> defaultOpenLevelsToZero $ do
     mapM_ checkDecl ds
 
   (blockId, ) . mutualNames <$> lookupMutualBlock blockId
+
+    -- check record or data type signature
+checkSig :: KindOfName -> A.DefInfo -> QName -> A.GeneralizeTelescope -> A.Expr -> TCM ()
+checkSig kind i x gtel t = checkTypeSignature' (Just gtel) $
+  A.Axiom kind i defaultArgInfo Nothing x t
+
 
 -- | Type check the type signature of an inductive or recursive definition.
 checkTypeSignature :: A.TypeSignature -> TCM ()
@@ -1031,6 +1049,7 @@ instance ShowHead A.Declaration where
       A.UnquoteDecl  {} -> "UnquoteDecl"
       A.ScopedDecl   {} -> "ScopedDecl"
       A.UnquoteDef   {} -> "UnquoteDef"
+      A.UnquoteData   {} -> "UnquoteDecl data"
 
 debugPrintDecl :: A.Declaration -> TCM ()
 debugPrintDecl d = do

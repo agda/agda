@@ -24,6 +24,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Builtin
 import Agda.Syntax.Internal as I
+import Agda.Interaction.Options.Base (PragmaOptions(..))
 import Agda.TypeChecking.Monad.Base
 -- import Agda.TypeChecking.Functions  -- LEADS TO IMPORT CYCLE
 import Agda.TypeChecking.Substitute
@@ -119,7 +120,7 @@ getBuiltinRewriteRelations = fmap rels <$> getBuiltinThing builtinRewrite
     Prim{}    -> __IMPOSSIBLE__
     Builtin{} -> __IMPOSSIBLE__
 
-getBuiltin :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+getBuiltin :: (HasBuiltins m, MonadTCError m)
            => String -> m Term
 getBuiltin x =
   fromMaybeM (typeError $ NoBindingForBuiltin x) $ getBuiltin' x
@@ -237,7 +238,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMTypeError, primAgdaTCMInferType, primAgdaTCMCheckType,
     primAgdaTCMNormalise, primAgdaTCMReduce,
     primAgdaTCMCatchError, primAgdaTCMGetContext, primAgdaTCMExtendContext, primAgdaTCMInContext,
-    primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDeclarePostulate, primAgdaTCMDefineFun,
+    primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDeclarePostulate, primAgdaTCMDeclareData, primAgdaTCMDefineData, primAgdaTCMDefineFun,
     primAgdaTCMGetType, primAgdaTCMGetDefinition,
     primAgdaTCMQuoteTerm, primAgdaTCMUnquoteTerm, primAgdaTCMQuoteOmegaTerm,
     primAgdaTCMBlockOnMeta, primAgdaTCMCommit, primAgdaTCMIsMacro,
@@ -431,6 +432,8 @@ primAgdaTCMInContext                  = getBuiltin builtinAgdaTCMInContext
 primAgdaTCMFreshName                  = getBuiltin builtinAgdaTCMFreshName
 primAgdaTCMDeclareDef                 = getBuiltin builtinAgdaTCMDeclareDef
 primAgdaTCMDeclarePostulate           = getBuiltin builtinAgdaTCMDeclarePostulate
+primAgdaTCMDeclareData                = getBuiltin builtinAgdaTCMDeclareData
+primAgdaTCMDefineData                 = getBuiltin builtinAgdaTCMDefineData
 primAgdaTCMDefineFun                  = getBuiltin builtinAgdaTCMDefineFun
 primAgdaTCMGetType                    = getBuiltin builtinAgdaTCMGetType
 primAgdaTCMGetDefinition              = getBuiltin builtinAgdaTCMGetDefinition
@@ -484,13 +487,18 @@ data SortKit = SortKit
   , nameOfSetOmega :: IsFibrant -> QName
   }
 
-sortKit :: HasBuiltins m => m SortKit
+-- | Compute a 'SortKit' in an environment that supports failures.
+--
+-- When 'optLoadPrimitives' is set to 'False', 'sortKit' is a fallible operation,
+-- so for the uses of 'sortKit' in fallible contexts (e.g. 'TCM'),
+-- we report a type error rather than exploding.
+sortKit :: (HasBuiltins m, MonadTCError m, HasOptions m) => m SortKit
 sortKit = do
-  Def set      _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSet
-  Def prop     _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinProp
-  Def setomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSetOmega
-  Def sset     _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinStrictSet
-  Def ssetomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSSetOmega
+  Def set      _  <- getBuiltin builtinSet
+  Def prop     _  <- getBuiltin builtinProp
+  Def setomega _  <- getBuiltin builtinSetOmega
+  Def sset     _  <- getBuiltin builtinStrictSet
+  Def ssetomega _ <- getBuiltin builtinSSetOmega
   return $ SortKit
     { nameOfSet      = set
     , nameOfProp     = prop
@@ -500,6 +508,25 @@ sortKit = do
         IsStrict  -> ssetomega
     }
 
+-- | Compute a 'SortKit' in contexts that do not support failure (e.g.
+-- 'Reify'). This should only be used when we are sure that the
+-- primitive sorts have been bound, i.e. because it is "after" type
+-- checking.
+infallibleSortKit :: HasBuiltins m => m SortKit
+infallibleSortKit = do
+  Def set      _  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSet
+  Def prop     _  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinProp
+  Def setomega _  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSetOmega
+  Def sset     _  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinStrictSet
+  Def ssetomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSSetOmega
+  return $ SortKit
+    { nameOfSet      = set
+    , nameOfProp     = prop
+    , nameOfSSet     = sset
+    , nameOfSetOmega = \case
+        IsFibrant -> setomega
+        IsStrict  -> ssetomega
+    }
 
 ------------------------------------------------------------------------
 -- * Path equality
@@ -686,11 +713,18 @@ equalityView t0@(El s t) = do
 --
 --   Postcondition: type is reduced.
 
-equalityUnview :: EqualityView -> Type
-equalityUnview (OtherType t) = t
-equalityUnview (IdiomType t) = t
-equalityUnview (EqualityType s equality l t lhs rhs) =
-  El s $ Def equality $ map Apply (l ++ [t, lhs, rhs])
+class EqualityUnview a where
+  equalityUnview :: a -> Type
+
+instance EqualityUnview EqualityView where
+  equalityUnview = \case
+    OtherType t -> t
+    IdiomType t -> t
+    EqualityViewType eqt -> equalityUnview eqt
+
+instance EqualityUnview EqualityTypeData where
+  equalityUnview (EqualityTypeData s equality l t lhs rhs) =
+    El s $ Def equality $ map Apply (l ++ [t, lhs, rhs])
 
 -- | Primitives with typechecking constrants.
 constrainedPrims :: [String]

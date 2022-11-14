@@ -1,3 +1,5 @@
+{-# OPTIONS --cohesion #-}
+
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Equality
 open import Agda.Builtin.List

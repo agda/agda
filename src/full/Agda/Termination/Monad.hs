@@ -18,7 +18,10 @@ import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Except
 import Control.Monad.Reader
 
+import Data.DList (DList)
+import qualified Data.DList as DL
 import Data.Semigroup ( Semigroup(..) )
+import Data.Set (Set)
 import qualified Data.Set as Set
 
 import Agda.Interaction.Options (optTerminationDepth)
@@ -31,7 +34,7 @@ import Agda.Syntax.Position (noRange)
 
 import Agda.Termination.CutOff
 import Agda.Termination.Order (Order,le,unknown)
-import Agda.Termination.RecCheck (anyDefs)
+import Agda.Termination.RecCheck (MutualNames, anyDefs)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Benchmark
@@ -55,13 +58,6 @@ import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
-
--- | The mutual block we are checking.
---
---   The functions are numbered according to their order of appearance
---   in this list.
-
-type MutualNames = [QName]
 
 -- | The target of the function we are checking.
 
@@ -101,7 +97,7 @@ data TerEnv = TerEnv
     -- ^ The names of the functions in the mutual block we are checking.
     --   This includes the internally generated functions
     --   (with, extendedlambda, coinduction).
-  , terUserNames :: [QName]
+  , terUserNames :: Set QName
     -- ^ The list of name actually appearing in the file (abstract syntax).
     --   Excludes the internally generated functions.
   , terHaveInlinedWith :: Bool
@@ -286,7 +282,7 @@ terGetCutOff = terAsks terCutOff
 terGetMutual :: TerM MutualNames
 terGetMutual = terAsks terMutual
 
-terGetUserNames :: TerM [QName]
+terGetUserNames :: TerM (Set QName)
 terGetUserNames = terAsks terUserNames
 
 terGetTarget :: TerM Target
@@ -582,7 +578,11 @@ instance PrettyTCM a => PrettyTCM (Masked a) where
 
 -- * Call pathes
 
--- | The call information is stored as free monoid
+-- | Call paths.
+
+-- An old comment:
+--
+--   The call information is stored as free monoid
 --   over 'CallInfo'.  As long as we never look at it,
 --   only accumulate it, it does not matter whether we use
 --   'Set', (nub) list, or 'Tree'.
@@ -591,16 +591,24 @@ instance PrettyTCM a => PrettyTCM (Masked a) where
 --   Since we define no order on 'CallInfo' (expensive),
 --   we cannot use a 'Set' or nub list.
 --   Performance-wise, I could not see a difference between Set and list.
+--
+-- If the binary tree is balanced "incorrectly", then forcing it could
+-- be expensive, so a switch was made to difference lists.
 
-newtype CallPath = CallPath { callInfos :: [CallInfo] }
+newtype CallPath = CallPath (DList CallInfo)
   deriving (Show, Semigroup, Monoid)
+
+-- | The calls making up the call path.
+
+callInfos :: CallPath -> [CallInfo]
+callInfos (CallPath cs) = DL.toList cs
 
 -- | Only show intermediate nodes.  (Drop last 'CallInfo').
 instance Pretty CallPath where
-  pretty (CallPath cis0) = if null cis then empty else
+  pretty cis0 = if null cis then empty else
     P.hsep (map (\ ci -> arrow P.<+> P.pretty ci) cis) P.<+> arrow
     where
-      cis   = init cis0
+      cis   = init (callInfos cis0)
       arrow = "-->"
 
 -- * Size depth estimation

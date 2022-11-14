@@ -1,6 +1,13 @@
 Issue1266a.agda:13,34-35
 Ambiguous name A. It could refer to any one of
-  A bound at Issue1266a.agda:13,9-10
-  M.A bound at Issue1266a.agda:11,3-4
-(hint: Use C-c C-w (in Emacs) if you want to know why)
+  A bound at
+    Issue1266a.agda:13,9-10
+  M.A bound at
+    Issue1266a.agda:11,3-4
+A is in scope as
+  * a variable bound at Issue1266a.agda:13,9-10
+    in conflict with
+    * a defined name Issue1266a.M.A brought into scope by
+      - the opening of M at Issue1266a.agda:13,29-30
+      - its definition at Issue1266a.agda:11,3-4
 when scope checking A

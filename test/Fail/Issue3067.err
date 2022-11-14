@@ -6,6 +6,6 @@ increase the maximum depth using the flag --inversion-max-depth=N
 when checking that the expression p _ (eternity _ n) has type
 P (A-on-Nat a (suc n))
 Failed to solve the following constraints:
-  A-false _b_178 = a : A (blocked on _b_178)
+  A-false _b_128 = a : A (blocked on _b_128)
 Unsolved metas at the following locations:
   Issue3067.agda:25,27-45

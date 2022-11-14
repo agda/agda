@@ -98,6 +98,14 @@ import Agda.Utils.Size
 checkConfluenceOfClauses :: ConfluenceCheck -> QName -> TCM ()
 checkConfluenceOfClauses confChk f = do
   rews <- getClausesAsRewriteRules f
+  let noMetasInPats rew
+        | noMetas (rewPats rew) = return True
+        | otherwise             = do
+            genericWarning =<< do
+              text "Confluence checking incomplete because the definition of" <+>
+                prettyTCM f <+> text "contains unsolved metavariables."
+            return False
+  rews <- filterM noMetasInPats rews
   let matchables = map getMatchables rews
   reportSDoc "rewriting.confluence" 30 $
     "Function" <+> prettyTCM f <+> "has matchable symbols" <+> prettyList_ (map prettyTCM matchables)
@@ -262,6 +270,11 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
             g          = ohHeadName hole0
             es0        = applySubst (liftS k sub1) $ ohElims hole0
             qs2        = rewPats rew2
+
+        -- TODO: support IApply in forceEtaExpansion
+        let isIApply IApply{} = True
+            isIApply _        = False
+        unless (any isIApply $ drop (size es0) qs2) $ do
 
         -- If the second rewrite rule has more eliminations than the
         -- subpattern of the first rule, the only chance of overlap is
@@ -474,7 +487,7 @@ makeHead def a = case theDef def of
   -- For record projections @f : R Δ → A@, we rely on the invariant
   -- that any clause is fully general in the parameters, i.e. it
   -- is quantified over the parameter telescope @Δ@
-  Function { funProjection = Just proj } -> do
+  Function { funProjection = Right proj } -> do
     let f          = projOrig proj
         r          = unArg $ projFromType proj
     rtype <- defType <$> getConstInfo r
@@ -604,7 +617,7 @@ instance ParallelReduce a => ParallelReduce [a] where
 instance ParallelReduce a => ParallelReduce (Elim' a) where
   parReduce (Apply u)  = Apply <$> parReduce u
   parReduce e@Proj{}   = pure e
-  parReduce IApply{}   = __IMPOSSIBLE__ -- not yet supported
+  parReduce e@IApply{} = pure e -- TODO
 
 instance (Free a, Subst a, ParallelReduce a) => ParallelReduce (Abs a) where
   parReduce = mapAbstraction __DUMMY_DOM__ parReduce
@@ -625,11 +638,11 @@ abstractOverMetas ms x = do
     ns <- forM ms' getMetaNameSuggestion
 
     -- Construct telescope (still containing the metas)
-    let gamma = unflattenTel ns $ map defaultDom as
+    let n     = size ms'
+        gamma = unflattenTel' n ns $ map defaultDom as
 
     -- Replace metas by variables
-    let n           = size ms'
-        metaIndex x = (n-1-) <$> elemIndex x ms'
+    let metaIndex x = (n-1-) <$> elemIndex x ms'
     runReaderT (metasToVars (gamma, x)) metaIndex
 
 -- ^ A @OneHole p@ is a @p@ with a subpattern @f ps@ singled out.
@@ -788,7 +801,7 @@ instance AllHoles Elims where
         let a' = c `absApp` hd []
         hd' <- applyE <$> applyDef o f (argFromDom b $> hd [])
         fmap (e:) <$> allHoles (a' , hd') es
-      IApply x y u -> __IMPOSSIBLE__ -- Not yet implemented
+      IApply x y u -> empty -- TODO: support --confluence-check + --cubical
 
 instance AllHoles Type where
   type PType Type = ()
@@ -859,7 +872,7 @@ instance AllHoles [PlusLevel] where
 instance AllHoles PlusLevel where
   type PType PlusLevel = ()
   allHoles _ (Plus n l) = do
-    la <- levelType
+    la <- levelType'
     fmap (Plus n) <$> allHoles la l
 
 

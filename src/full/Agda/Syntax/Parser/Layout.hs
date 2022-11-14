@@ -13,7 +13,7 @@
     > [Layout 12, Layout 4, Layout 0]
 
     The closest layout block is the one following @do@ which is
-    started by token @foo@ at column 12.  The second closest block is the
+    started by token @y@ at column 12.  The second closest block is the
     @where@ clause started by the @x'@ token which has indentation 4.
     Finally, there is a top-level layout block with indentation 0.
 

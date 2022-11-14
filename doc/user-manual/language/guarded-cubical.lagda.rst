@@ -13,20 +13,23 @@ Guarded Cubical
 .. note::
    This is a stub.
 
-Cubical Agda is extended with Nakano's later modality and guarded recursion based on Ticked Cubical Type Theory :ref:`[2] <cubical-refs>`.
-For its usage, see :ref:`[1] <cubical-refs>` or the `example <https://github.com/agda/agda/blob/master/test/Succeed/LaterPrims.agda>`_.
+Option :option:`--guarded` extends Cubical Agda with
+Nakano's later modality and guarded recursion
+based on Ticked Cubical Type Theory :ref:`[2] <cubical-refs>`.
+For its usage, see :ref:`[1] <cubical-refs>` or the
+`example <https://github.com/agda/agda/blob/172366db528b28fb2eda03c5fc9804f2cdb1be18/test/Succeed/LaterPrims.agda>`_.
 
 The implementation currently allows for something more general than in the above reference, in
 preparation for the ticks described in :ref:`[3] <cubical-refs>`.
 
-Given a type `A` in the `primLockUniv` universe we can form function
-types annotated with `@tick` (or its synonym `@lock`): `(@tick x : A)
--> B`.  Lambda abstraction at such a type introduces the variable in
-the context with a `@tick` annotation. Application `t u` for
-`t : (@tick x : A) → B` is restricted so that `t` is typable in the prefix
-of the context that does not include any `@tick` variables in `u`. The
+Given a type ``A`` in the ``primLockUniv`` universe we can form function
+types annotated with ``@tick`` (or its synonym ``@lock``): ``(@tick x : A)
+-> B``.  Lambda abstraction at such a type introduces the variable in
+the context with a ``@tick`` annotation. Application ``t u`` for
+``t : (@tick x : A) → B`` is restricted so that ``t`` is typable in the prefix
+of the context that does not include any ``@tick`` variables in ``u``. The
 only exception to that restriction, at the moment, are variables of
-interval `I`, or `IsOne _` type.
+interval ``I``, or ``IsOne _`` type.
 
 
 .. _cubical-refs:

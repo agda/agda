@@ -8,11 +8,11 @@
 Safe Agda
 *********
 
-By using the option ``--safe`` (as a pragma option, or on the
+By using the option :option:`--safe` (as a pragma option, or on the
 command-line), a user can specify that Agda should ensure that
 features leading to possible inconsistencies should be disabled.
 
-Here is a list of the features ``--safe`` is incompatible with:
+Here is a list of the features :option:`--safe` is incompatible with:
 
 * ``postulate``; can be used to assume any axiom.
 
@@ -57,38 +57,9 @@ Here is a list of the features ``--safe`` is incompatible with:
 
 * :option:`--allow-exec`; allows system calls during type checking.
 
-The option ``--safe`` is coinfective (see
+* :option:`--no-load-primitives`; allows the user to bind the sort
+  and level primitives manually.
+
+The option :option:`--safe` is coinfective (see
 :ref:`consistency-checking-options`); if a module is declared safe,
 then all its imported modules must also be declared safe.
-
-.. NOTE::
-
-   The :option:`--guardedness` and :option:`--sized-types` options are
-   both on by default.  However, unless they have been set explicitly
-   by the user, setting the ``--safe`` option will turn them both
-   off. That is to say that
-
-   .. code-block:: agda
-
-     {-# OPTIONS --safe #-}
-
-   will correspond to ``--safe``, :option:`--no-guardedness`, and
-   :option:`--no-sized-types`.  When both
-
-   .. code-block:: agda
-
-     {-# OPTIONS --safe --guardedness #-}
-
-   and
-
-   .. code-block:: agda
-
-     {-# OPTIONS --guardedness --safe #-}
-
-   will turn on ``--safe``, :option:`--guardedness`, and
-   :option:`--no-sized-types`.
-
-
-   Setting both :option:`--sized-types` and :option:`--guardedness`
-   whilst demanding that the module is ``--safe`` will lead to an
-   error as combining these options currently is inconsistent.

@@ -2,7 +2,6 @@
 module Agda.Syntax.Internal.Elim where
 
 import Control.DeepSeq
-import Data.Data (Data)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Pretty () -- Pretty Arg instance
@@ -20,7 +19,7 @@ data Elim' a
   = Apply (Arg a)         -- ^ Application.
   | Proj ProjOrigin QName -- ^ Projection.  'QName' is name of a record projection.
   | IApply a a a -- ^ IApply x y r, x and y are the endpoints
-  deriving (Data, Show, Functor, Foldable, Traversable)
+  deriving (Show, Functor, Foldable, Traversable)
 
 -- | This instance cheats on 'Proj', use with care.
 --   'Proj's are always assumed to be 'UserWritten', since they have no 'ArgInfo'.
@@ -41,6 +40,13 @@ isApplyElim (IApply _ _ r) = Just (defaultArg r)
 
 isApplyElim' :: Empty -> Elim' a -> Arg a
 isApplyElim' e = fromMaybe (absurd e) . isApplyElim
+
+-- | Only 'Apply' variant.
+isProperApplyElim :: Elim' a -> Bool
+isProperApplyElim = \case
+  Apply _  -> True
+  IApply{} -> False
+  Proj{}   -> False
 
 -- | Drop 'Apply' constructors. (Safe)
 allApplyElims :: [Elim' a] -> Maybe [Arg a]
@@ -80,4 +86,3 @@ instance NFData a => NFData (Elim' a) where
   rnf (Apply x) = rnf x
   rnf Proj{}    = ()
   rnf (IApply x y r) = rnf x `seq` rnf y `seq` rnf r
-

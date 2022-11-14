@@ -1,0 +1,9 @@
+Issue3382.agda:15,1-30
+Confluence checking for --cubical is not yet supported, confluence checking might be incomplete
+when checking the pragma REWRITE hcompIntEmpty
+
+———— All done; warnings encountered ————————————————————————
+
+Issue3382.agda:15,1-30
+Confluence checking for --cubical is not yet supported, confluence checking might be incomplete
+when checking the pragma REWRITE hcompIntEmpty

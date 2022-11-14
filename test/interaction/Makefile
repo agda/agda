@@ -25,7 +25,9 @@ Tests=$(patsubst %.lagda,%.cmp,$(patsubst %.agda,%.cmp,$(AgdaFiles)))
 
 default : $(Tests)
 
-export TMPDIR=highlighting-tmp
+# TMPDIR is an absolute path because Issue6194.hs changes the working
+# directory.
+export TMPDIR=$(PWD)/highlighting-tmp
 export BUILDDIR=_build/
 
 # Filter out absolute pathes, make all whitespace equal, remove

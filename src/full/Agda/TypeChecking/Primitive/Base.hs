@@ -2,8 +2,10 @@
 
 module Agda.TypeChecking.Primitive.Base where
 
--- Control.Monad.Fail import is redundant since GHC 8.8.1
-import Control.Monad.Fail (MonadFail)
+import Control.Monad             ( mzero )
+import Control.Monad.Fail        ( MonadFail )
+  -- Control.Monad.Fail import is redundant since GHC 8.8.1
+import Control.Monad.Trans.Maybe ( MaybeT(..), runMaybeT )
 
 import qualified Data.Map as Map
 
@@ -69,11 +71,16 @@ pPi' :: (MonadAddContext m, HasBuiltins m, MonadDebug m)
      => String -> NamesT m Term -> (NamesT m Term -> NamesT m Type) -> NamesT m Type
 pPi' n phi b = toFinitePi <$> nPi' n (elSSet $ cl isOne <@> phi) b
  where
-   toFinitePi :: Type -> Type
-   toFinitePi (El s (Pi d b)) = El s $ Pi (setRelevance Irrelevant $ d { domFinite = True }) b
-   toFinitePi _               = __IMPOSSIBLE__
-
    isOne = fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIsOne
+
+-- | Turn a 'Pi' type into one whose domain is annotated finite, i.e.,
+-- one that represents a @Partial@ element rather than an actual
+-- function.
+toFinitePi :: Type -> Type
+toFinitePi (El s (Pi d b)) = El s $ Pi
+  (setRelevance Irrelevant $ d { domIsFinite = True })
+  b
+toFinitePi _ = __IMPOSSIBLE__
 
 el' :: Applicative m => m Term -> m Term -> m Type
 el' l a = El <$> (tmSort <$> l) <*> a
@@ -176,18 +183,18 @@ lookupPrimitiveFunctionQ q = do
   return (s, PrimImpl t $ pf { primFunName = q })
 
 getBuiltinName :: (HasBuiltins m, MonadReduce m) => String -> m (Maybe QName)
-getBuiltinName b = traverse getQNameFromTerm =<< getBuiltin' b
+getBuiltinName b = runMaybeT $ getQNameFromTerm =<< MaybeT (getBuiltin' b)
 
 -- | Convert a name in 'Term' form back to 'QName'.
 --
-getQNameFromTerm :: MonadReduce m => Term -> m QName
+getQNameFromTerm :: MonadReduce m => Term -> MaybeT m QName
 getQNameFromTerm v = do
     v <- reduce v
     case unSpine v of
       Def x _   -> return x
       Con x _ _ -> return $ conName x
       Lam _ b   -> getQNameFromTerm $ unAbs b
-      _ -> __IMPOSSIBLE__
+      _ -> mzero
 
 isBuiltin :: (HasBuiltins m, MonadReduce m) => QName -> String -> m Bool
 isBuiltin q b = (Just q ==) <$> getBuiltinName b

@@ -8,6 +8,7 @@ import Data.Maybe (fromMaybe)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
+import Agda.Syntax.TopLevelModuleName
 
 import Agda.TypeChecking.Monad.Base
 

@@ -73,6 +73,7 @@ import Agda.Utils.Size
 import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
+import Agda.Utils.WithDefault
 
 ---------------------------------------------------------------------------
 -- * Definitions by pattern matching
@@ -82,7 +83,7 @@ checkFunDef :: Delayed -> A.DefInfo -> QName -> [A.Clause] -> TCM ()
 checkFunDef delayed i name cs = do
         -- Reset blocking tag (in case a previous attempt was blocked)
         modifySignature $ updateDefinition name $ updateDefBlocked $ const $
-          NotBlocked MissingClauses ()
+          NotBlocked (MissingClauses name) ()
         -- Get the type and relevance of the function
         def <- instantiateDef =<< getConstInfo name
         let t    = defType def
@@ -184,28 +185,27 @@ checkAlias t ai delayed i name e mc =
         _          -> id
 
   -- Add the definition
-  addConstant' name ai name t
-                   $ set funMacro (Info.defMacro i == MacroDef) $
-                     emptyFunction
-                      { funClauses = [ Clause  -- trivial clause @name = v@
-                          { clauseLHSRange  = getRange i
-                          , clauseFullRange = getRange i
-                          , clauseTel       = EmptyTel
-                          , namedClausePats = []
-                          , clauseBody      = Just $ bodyMod v
-                          , clauseType      = Just $ Arg ai t
-                          , clauseCatchall    = False
-                          , clauseExact       = Just True
-                          , clauseRecursive   = Nothing   -- we don't know yet
-                          , clauseUnreachable = Just False
-                          , clauseEllipsis    = NoEllipsis
-                          , clauseWhereModule = Nothing
-                          } ]
-                      , funCompiled = Just $ Done [] $ bodyMod v
-                      , funSplitTree = Just $ SplittingDone 0
-                      , funDelayed  = delayed
-                      , funAbstr    = Info.defAbstract i
-                      }
+  addConstant' name ai name t $ set funMacro (Info.defMacro i == MacroDef) $
+      FunctionDefn emptyFunctionData
+          { _funClauses   = [ Clause  -- trivial clause @name = v@
+              { clauseLHSRange    = getRange i
+              , clauseFullRange   = getRange i
+              , clauseTel         = EmptyTel
+              , namedClausePats   = []
+              , clauseBody        = Just $ bodyMod v
+              , clauseType        = Just $ Arg ai t
+              , clauseCatchall    = False
+              , clauseExact       = Just True
+              , clauseRecursive   = Nothing   -- we don't know yet
+              , clauseUnreachable = Just False
+              , clauseEllipsis    = NoEllipsis
+              , clauseWhereModule = Nothing
+              } ]
+          , _funCompiled  = Just $ Done [] $ bodyMod v
+          , _funSplitTree = Just $ SplittingDone 0
+          , _funDelayed   = delayed
+          , _funAbstr     = Info.defAbstract i
+          }
 
   -- Andreas, 2017-01-01, issue #2372:
   -- Add the definition to the instance table, if needed, to update its type.
@@ -420,16 +420,16 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
           -- funTerminates field directly.
           defn <- autoInline $
              set funMacro (ismacro || Info.defMacro i == MacroDef) $
-             emptyFunction
-             { funClauses        = cs
-             , funCompiled       = Just cc
-             , funSplitTree      = mst
-             , funDelayed        = delayed
-             , funInv            = inv
-             , funAbstr          = Info.defAbstract i
-             , funExtLam         = (\ e -> e { extLamSys = sys }) <$> extlam
-             , funWith           = with
-             , funCovering       = covering
+             FunctionDefn emptyFunctionData
+             { _funClauses        = cs
+             , _funCompiled       = Just cc
+             , _funSplitTree      = mst
+             , _funDelayed        = delayed
+             , _funInv            = inv
+             , _funAbstr          = Info.defAbstract i
+             , _funExtLam         = (\ e -> e { extLamSys = sys }) <$> extlam
+             , _funWith           = with
+             , _funCovering       = covering
              }
           lang <- getLanguage
           useTerPragma $
@@ -601,7 +601,7 @@ checkSystemCoverage f [n] t cs = do
              initWithDefault __IMPOSSIBLE__ $ List.tails pcs) $ \ ((phi1,cl1):pcs') -> do
         forM_ pcs' $ \ (phi2,cl2) -> do
           phi12 <- reduce (imin `apply` [argN phi1, argN phi2])
-          forallFaceMaps phi12 (\ _ _ -> __IMPOSSIBLE__) $ \ sigma -> do
+          forallFaceMaps phi12 (\ _ _ -> __IMPOSSIBLE__) $ \_ sigma -> do
             let args = sigma `applySubst` teleArgs gamma
                 t' = sigma `applySubst` t
                 fromReduced (YesReduction _ x) = x
@@ -611,7 +611,7 @@ checkSystemCoverage f [n] t cs = do
                   TelV delta _ <- telViewUpTo extra t'
                   fmap (abstract delta) $ addContext delta $ do
                     fmap fromReduced $ runReduceM $
-                      appDef' (Def f []) [cl] [] (map notReduced $ raise (size delta) args ++ teleArgs delta)
+                      appDef' f (Def f []) [cl] [] (map notReduced $ raise (size delta) args ++ teleArgs delta)
             v1 <- body cl1
             v2 <- body cl2
             equalTerm t' v1 v2
@@ -681,7 +681,7 @@ checkClause
 
 checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) = do
   cxtNames <- reverse . map (fst . unDom) <$> getContext
-  checkClauseLHS t withSub c $ \ lhsResult@(LHSResult npars delta ps absurdPat trhs patSubst asb psplit) -> do
+  checkClauseLHS t withSub c $ \ lhsResult@(LHSResult npars delta ps absurdPat trhs patSubst asb psplit ixsplit) -> do
         -- Note that we might now be in irrelevant context,
         -- in case checkLeftHandSide walked over an irrelevant projection pattern.
 
@@ -726,7 +726,7 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
               [ "double checking rhs"
               , nest 2 (prettyTCM v <+> " : " <+> prettyTCM (unArg trhs))
               ]
-            nonConstraining $ checkInternal v CmpLeq $ unArg trhs
+            noConstraints $ withFrozenMetas $ checkInternal v CmpLeq $ unArg trhs
           Nothing -> return ()
 
         reportSDoc "tc.lhs.top" 10 $ vcat
@@ -801,7 +801,7 @@ checkRHS
   -> A.RHS                   -- ^ Rhs to check.
   -> TCM (Maybe Term, WithFunctionProblem)
                                               -- Note: the as-bindings are already bound (in checkClause)
-checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0 =
+checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rhs0 =
   handleRHS rhs0 where
 
   handleRHS :: A.RHS -> TCM (Maybe Term, WithFunctionProblem)
@@ -1017,7 +1017,7 @@ checkWithRHS
   -> [A.Clause]                        -- ^ With-clauses to check.
   -> TCM (Maybe Term, WithFunctionProblem)
                                 -- Note: as-bindings already bound (in checkClause)
-checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 cs =
+checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _ _) vtys0 cs =
   verboseBracket "tc.with.top" 25 "checkWithRHS" $ do
     Bench.billTo [Bench.Typing, Bench.With] $ do
         withArgs <- withArguments vtys0
@@ -1205,7 +1205,8 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
 
   -- Check the with function
   let info = Info.mkDefInfo (nameConcrete $ qnameName aux) noFixity' PublicAccess abstr (getRange cs)
-  checkFunDefS withFunType defaultArgInfo NotDelayed Nothing (Just f) info aux (Just withSub) cs
+  ai <- defArgInfo <$> getConstInfo f
+  checkFunDefS withFunType ai NotDelayed Nothing (Just f) info aux (Just withSub) cs
   return $ Just $ call_in_parent
 
 -- | Type check a where clause.

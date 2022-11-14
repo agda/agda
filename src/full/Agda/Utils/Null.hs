@@ -8,8 +8,12 @@ module Agda.Utils.Null where
 import Prelude hiding (null)
 
 import Control.Monad
-import Control.Monad.Reader
-import Control.Monad.State
+import Control.Monad.Except   ( ExceptT )
+import Control.Monad.Identity ( Identity(..) )
+import Control.Monad.Reader   ( ReaderT )
+import Control.Monad.State    ( StateT  )
+import Control.Monad.Writer   ( WriterT )
+import Control.Monad.Trans    ( lift    )
 
 import qualified Data.ByteString.Char8 as ByteStringChar8
 import qualified Data.ByteString.Lazy as ByteStringLazy
@@ -122,11 +126,27 @@ instance Null Doc where
   empty = mempty
   null  = isEmpty
 
+instance Null a => Null (Identity a) where
+  empty = return empty
+  null  = null . runIdentity
+
+instance Null a => Null (IO a) where
+  empty = return empty
+  null  = __IMPOSSIBLE__
+
+instance (Null (m a), Monad m) => Null (ExceptT e m a) where
+  empty = lift empty
+  null  = __IMPOSSIBLE__
+
 instance (Null (m a), Monad m) => Null (ReaderT r m a) where
   empty = lift empty
   null  = __IMPOSSIBLE__
 
-instance (Null (m a), Monad m) => Null (StateT r m a) where
+instance (Null (m a), Monad m) => Null (StateT s m a) where
+  empty = lift empty
+  null  = __IMPOSSIBLE__
+
+instance (Null (m a), Monad m, Monoid w) => Null (WriterT w m a) where
   empty = lift empty
   null  = __IMPOSSIBLE__
 

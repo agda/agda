@@ -1,4 +1,3 @@
-
 {-| This module contains the building blocks used to construct the lexer.
 -}
 module Agda.Syntax.Parser.LexActions
@@ -35,6 +34,8 @@ import Agda.Syntax.Position
 import Agda.Syntax.Literal
 
 import Agda.Utils.List
+import Agda.Utils.List1 (String1, toList)
+import qualified Agda.Utils.List1 as List1
 
 import Agda.Utils.Impossible
 
@@ -251,15 +252,15 @@ literal = literal' read
 -- | Parse an identifier. Identifiers can be qualified (see 'Name').
 --   Example: @Foo.Bar.f@
 identifier :: LexAction Token
-identifier = qualified (either TokId TokQId)
+identifier = qualified $ either (TokId . second toList) (TokQId . map (second toList))
 
 
 -- | Parse a possibly qualified name.
-qualified :: (Either (Interval, String) [(Interval, String)] -> a) -> LexAction a
+qualified :: (Either (Interval, String1) [(Interval, String1)] -> a) -> LexAction a
 qualified tok =
     token $ \s ->
     do  i <- getParseInterval
-        case mkName i $ wordsBy (=='.') s of
+        case mkName i $ List1.wordsBy (== '.') s of
             []  -> lexError "lex error on .."
             [x] -> return $ tok $ Left  x
             xs  -> return $ tok $ Right xs
@@ -267,7 +268,7 @@ qualified tok =
         -- Compute the ranges for the substrings (separated by '.') of
         -- a name. Dots are included: the intervals generated for
         -- "A.B.x" correspond to "A.", "B." and "x".
-        mkName :: Interval -> [String] -> [(Interval, String)]
+        mkName :: Interval -> [String1] -> [(Interval, String1)]
         mkName _ []     = []
         mkName i [x]    = [(i, x)]
         mkName i (x:xs) = (i0, x) : mkName i1 xs

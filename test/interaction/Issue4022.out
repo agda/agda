@@ -5,7 +5,7 @@
 (agda2-info-action "*All Done*" "" nil)
 ((last . 1) . (agda2-goals-action '()))
 (agda2-status-action "Checked")
-(agda2-info-action "*Search About*" "Definitions about _≡_ primCharToNatInjective : (a b : Char) → primCharToNat a ≡ primCharToNat b → a ≡ b primFloatToWord64Injective : (a b : Float) → primFloatToWord64 a ≡ primFloatToWord64 b → a ≡ b primStringFromListInjective : (a b : List Char) → primStringFromList a ≡ primStringFromList b → a ≡ b primStringToListInjective : (a b : String) → primStringToList a ≡ primStringToList b → a ≡ b refl : {@0 a : Agda.Primitive.Level} {@0 A : Set a} {@0 x : A} → x ≡ x" nil)
+(agda2-info-action "*Search About*" "Definitions about _≡_ primCharToNatInjective : (a b : Char) → primCharToNat a ≡ primCharToNat b → a ≡ b primFloatToWord64Injective : (a b : Float) → primFloatToWord64 a ≡ primFloatToWord64 b → a ≡ b primStringFromListInjective : (a b : List Char) → primStringFromList a ≡ primStringFromList b → a ≡ b primStringToListInjective : (a b : String) → primStringToList a ≡ primStringToList b → a ≡ b refl : {a : Agda.Primitive.Level} {A : Set a} {x : A} → x ≡ x" nil)
 (agda2-status-action "Checked")
 (agda2-info-action "*Search About*" "Definitions about _≡_, \"prim\" primCharToNatInjective : (a b : Char) → primCharToNat a ≡ primCharToNat b → a ≡ b primFloatToWord64Injective : (a b : Float) → primFloatToWord64 a ≡ primFloatToWord64 b → a ≡ b primStringFromListInjective : (a b : List Char) → primStringFromList a ≡ primStringFromList b → a ≡ b primStringToListInjective : (a b : String) → primStringToList a ≡ primStringToList b → a ≡ b" nil)
 (agda2-status-action "Checked")

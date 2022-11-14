@@ -171,7 +171,7 @@ initialInstanceCandidates t = do
               rel = getRelevance $ defArgInfo def
           let v = case theDef def of
                -- drop parameters if it's a projection function...
-               Function{ funProjection = Just p } -> projDropParsApply p ProjSystem rel args
+               Function{ funProjection = Right p } -> projDropParsApply p ProjSystem rel args
                -- Andreas, 2014-08-19: constructors cannot be declared as
                -- instances (at least as of now).
                -- I do not understand why the Constructor case is not impossible.
@@ -558,16 +558,6 @@ checkCandidates m t cands =
           handle err
             | hardFailure err = return $ HellNo err
             | otherwise       = No <$ debugTypeFail err
-
-isInstanceConstraint :: Constraint -> Bool
-isInstanceConstraint FindInstance{} = True
-isInstanceConstraint _              = False
-
-shouldPostponeInstanceSearch :: (ReadTCState m, HasOptions m) => m Bool
-shouldPostponeInstanceSearch =
-  and2M ((^. stConsideringInstance) <$> getTCState)
-        (not . optOverlappingInstances <$> pragmaOptions)
-  `or2M` ((^. stPostponeInstanceSearch) <$> getTCState)
 
 nowConsideringInstance :: (ReadTCState m) => m a -> m a
 nowConsideringInstance = locallyTCState stConsideringInstance $ const True

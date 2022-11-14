@@ -26,7 +26,6 @@ on:
     - '!macros/**'
     - '!notes/**'
     - '!.mailmap'
-    - '!.ghci*'
     - '!.gitignore'
     - '!.hlint.yaml'
     - '!.travis.yml'
@@ -35,7 +34,7 @@ on:
     - '!LICENSE'
     - '!README.md'
     - '!fix-whitespace.yaml'
-    - '!hie.yaml'
+    - '!hie*.yaml'
     - '!stack-*.yaml'
     - '!touchup.sh'
 
@@ -63,9 +62,12 @@ jobs:
         # Andreas, 2022-03-26:
         # ghc-ver should be given as x.y.z (as opposed to x.y only)
         # because it is used verbatim when referring to stack-x.y.z.yaml.
-        ghc-ver: ['9.2.3']
-        stack-ver: [latest]
-        os: [ubuntu-20.04]
+        ghc-ver: ['9.2.4']
+        stack-ver: ['2.9.1']
+        os: [ubuntu-22.04]
+          # Andreas, 2022-10-18
+          # - on ubuntu-22.04 with stack-2.7.5 I experienced a build failure:
+          #   libicuuc.so.66: cannot open shared object file: No such file or directory
 
     if: |
       !contains(github.event.head_commit.message, '[skip ci]')
@@ -80,15 +82,15 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: styfle/cancel-workflow-action@0.6.0
+    - uses: styfle/cancel-workflow-action@0.11.0
       with:
         access_token: ${{ github.token }}
 
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
 
-    - uses: haskell/actions/setup@v1
+    - uses: haskell/actions/setup@v2
       with:
         ghc-version: ${{ matrix.ghc-ver }}
         stack-version: ${{ matrix.stack-ver }}
@@ -104,16 +106,17 @@ jobs:
         cp stack-${{ matrix.ghc-ver }}.yaml stack.yaml
         make STACK_INSTALL_OPTS='--dry-run' install-deps
 
-    - uses: actions/cache@v2
+    - uses: actions/cache@v3
       name: Cache dependencies
       id: cache
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-01-${{ matrix.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
+        key: ${{ runner.os }}-stack-02-${{ matrix.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
 
-    - name: "Install and configure the icu library"
-      run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
+    # ICU is already installed on ubuntu >= 20.04
+    # - name: "Install and configure the icu library"
+    #   run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
 
     - name: "Install dependencies for Agda and its test suites"
       if: ${{ !steps.cache.outputs.cache-hit }}
@@ -142,7 +145,7 @@ jobs:
         tar --use-compress-program zstd -cvf stack-work.tzst .stack-work stack.yaml stack.yaml.lock
 
     - name: "Upload artifacts"
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         if-no-files-found: error
         retention-days: 1
@@ -159,17 +162,17 @@ jobs:
     needs: build
     runs-on: ${{ needs.build.outputs.os }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
 
-    - uses: haskell/actions/setup@v1
+    - uses: haskell/actions/setup@v2
       with:
         ghc-version: ${{ needs.build.outputs.ghc-ver }}
         stack-version: ${{ needs.build.outputs.stack-ver }}
         enable-stack: true
 
-    - uses: actions/download-artifact@v2
+    - uses: actions/download-artifact@v3
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
 
@@ -178,13 +181,13 @@ jobs:
         tar --use-compress-program zstd -xvf dist.tzst
         tar --use-compress-program zstd -xvf stack-work.tzst
 
-    - uses: actions/cache@v2
+    - uses: actions/cache@v3
       name: Cache dependencies
       id: cache
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
+        key: ${{ runner.os }}-stack-02-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
 
     - name: "Suite of tests for bugs"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" bugs
@@ -241,17 +244,17 @@ jobs:
 
     runs-on: ${{ needs.build.outputs.os }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
 
-    - uses: haskell/actions/setup@v1
+    - uses: haskell/actions/setup@v2
       with:
         ghc-version: ${{ needs.build.outputs.ghc-ver }}
         stack-version: ${{ needs.build.outputs.stack-ver }}
         enable-stack: true
 
-    - uses: actions/download-artifact@v2
+    - uses: actions/download-artifact@v3
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
 
@@ -260,13 +263,13 @@ jobs:
         tar --use-compress-program zstd -xvf dist.tzst
         tar --use-compress-program zstd -xvf stack-work.tzst
 
-    - uses: actions/cache@v2
+    - uses: actions/cache@v3
       name: Cache dependencies
       id: cache
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
+        key: ${{ runner.os }}-stack-02-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
 
     - name: "Install and configure the icu library"
       run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
@@ -296,17 +299,17 @@ jobs:
 
     runs-on: ${{ needs.build.outputs.os }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
 
-    - uses: haskell/actions/setup@v1
+    - uses: haskell/actions/setup@v2
       with:
         ghc-version: ${{ needs.build.outputs.ghc-ver }}
         stack-version: ${{ needs.build.outputs.stack-ver }}
         enable-stack: true
 
-    - uses: actions/download-artifact@v2
+    - uses: actions/download-artifact@v3
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
 
@@ -315,13 +318,13 @@ jobs:
         tar --use-compress-program zstd -xvf dist.tzst
         tar --use-compress-program zstd -xvf stack-work.tzst
 
-    - uses: actions/cache@v2
+    - uses: actions/cache@v3
       name: Cache dependencies
       id: cache
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
+        key: ${{ runner.os }}-stack-02-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
 
     - name: "Install and configure the icu library"
       run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
@@ -351,17 +354,17 @@ jobs:
 
     runs-on: ${{ needs.build.outputs.os }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
 
-    - uses: haskell/actions/setup@v1
+    - uses: haskell/actions/setup@v2
       with:
         ghc-version: ${{ needs.build.outputs.ghc-ver }}
         stack-version: ${{ needs.build.outputs.stack-ver }}
         enable-stack: true
 
-    - uses: actions/download-artifact@v2
+    - uses: actions/download-artifact@v3
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
 
@@ -370,13 +373,13 @@ jobs:
         tar --use-compress-program zstd -xvf dist.tzst
         tar --use-compress-program zstd -xvf stack-work.tzst
 
-    - uses: actions/cache@v2
+    - uses: actions/cache@v3
       name: Cache dependencies
       id: cache
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
+        key: ${{ runner.os }}-stack-02-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
 
     - name: "Install and configure the icu library"
       run: sudo apt-get install libicu-dev ${APT_GET_OPTS}

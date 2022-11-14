@@ -1,6 +1,5 @@
 Checking Issue2487.A (Issue2487/A.agda).
 Checking Issue2487-2 (Issue2487-2.agda).
-Changes in the following options in Issue2487/A.agda, re-typechecking: [--safe]
 Checking Issue2487.A (Issue2487/A.agda).
 Issue2487-2.agda:4,8-19
 Importing module Issue2487.A not using the --safe flag from a

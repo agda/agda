@@ -108,11 +108,14 @@ prettyWarning = \case
       [prettyTCM d] ++ pwords "is not strictly positive, because it occurs"
       ++ [prettyTCM ocs]
 
-    NoEquivWhenSplitting doc -> vcat
-            [ fwords $ "Could not generate equivalence when splitting on indexed family, " ++
-                       "the function will not compute on transports by a path."
-            , nest 2 $ "Reason:" <+> pure doc
-            ]
+    UnsupportedIndexedMatch doc -> vcat
+      [ fsep (pwords "This clause uses pattern-matching features that are not yet supported by Cubical Agda,"
+           ++ pwords "the function to which it belongs will not compute when applied to transports."
+             )
+      , ""
+      , "Reason:" <+> pure doc
+      , ""
+      ]
 
     CantGeneralizeOverSorts ms -> vcat
             [ text "Cannot generalize over unsolved sort metas:"
@@ -143,6 +146,7 @@ prettyWarning = \case
 
     UselessPatternDeclarationForRecord s -> fwords $ unwords
       [ "`pattern' attribute ignored for", s, "record" ]
+      -- the @s@ is a qualifier like "eta" or "coinductive"
 
     UselessPublic -> fwords $ "Keyword `public' is ignored here"
 
@@ -254,13 +258,9 @@ prettyWarning = \case
 
     LibraryWarning lw -> pretty lw
 
-    InfectiveImport o m -> fsep $
-      pwords "Importing module" ++ [pretty m] ++ pwords "using the" ++
-      [pretty o] ++ pwords "flag from a module which does not."
+    InfectiveImport msg -> return msg
 
-    CoInfectiveImport o m -> fsep $
-      pwords "Importing module" ++ [pretty m] ++ pwords "not using the" ++
-      [pretty o] ++ pwords "flag from a module which does."
+    CoInfectiveImport msg -> return msg
 
     RewriteNonConfluent lhs rhs1 rhs2 err -> fsep
       [ "Local confluence check failed:"

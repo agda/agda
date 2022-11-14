@@ -131,7 +131,6 @@ instance ExprLike Expr where
      As r x e           -> f $ As r x                 $ mapE e
      Dot r e            -> f $ Dot r                  $ mapE e
      DoubleDot r e      -> f $ DoubleDot r            $ mapE e
-     ETel tel           -> f $ ETel                   $ mapE tel
      Tactic r e         -> f $ Tactic r     (mapE e)
      Quote{}            -> f $ e0
      QuoteTerm{}        -> f $ e0
@@ -246,6 +245,7 @@ instance ExprLike Declaration where
      Module r n tel ds         -> Module r n (mapE tel)                $ mapE ds
      UnquoteDecl r x e         -> UnquoteDecl r x (mapE e)
      UnquoteDef r x e          -> UnquoteDef r x (mapE e)
+     UnquoteData r x xs e      -> UnquoteData r x xs (mapE e)
      e@Pragma{}                -> e
    where
      mapE :: ExprLike e => e -> e

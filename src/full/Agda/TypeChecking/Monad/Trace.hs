@@ -61,6 +61,7 @@ interestingCall = \case
     CheckDataDef{}            -> True
     CheckRecDef{}             -> True
     CheckConstructor{}        -> True
+    CheckIApplyConfluence{}   -> True
     CheckConstructorFitsIn{}  -> True
     CheckFunDefCall{}         -> True
     CheckPragma{}             -> True
@@ -135,7 +136,7 @@ instance MonadTrace TCM where
     verboseS "check.ranges" 90 $
       Strict.whenJust (rangeFile callRange) $ \f -> do
         currentFile <- asksTC envCurrentPath
-        when (currentFile /= Just f) $ do
+        when (currentFile /= Just (rangeFilePath f)) $ do
           reportSLn "check.ranges" 90 $
             prettyShow call ++
             " is setting the current range to " ++ show callRange ++
@@ -190,6 +191,7 @@ instance MonadTrace TCM where
       CheckPrimitive{}          -> True
       CheckIsEmpty{}            -> True
       CheckConfluence{}         -> False
+      CheckIApplyConfluence{}   -> False
       CheckWithFunctionType{}   -> True
       CheckSectionApplication{} -> True
       CheckNamedWhere{}         -> False

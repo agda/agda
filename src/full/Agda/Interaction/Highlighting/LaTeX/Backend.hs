@@ -35,8 +35,8 @@ import Agda.Interaction.Options
   , OptDescr(..)
   )
 
-import Agda.Syntax.Abstract.Name (ModuleName, toTopLevelModuleName)
-import Agda.Syntax.Concrete.Name (TopLevelModuleName, projectRoot)
+import Agda.Syntax.Position (mkRangeFile, rangeFilePath)
+import Agda.Syntax.TopLevelModuleName (TopLevelModuleName, projectRoot)
 
 import Agda.TypeChecking.Monad
   ( HasOptions(commandLineOptions)
@@ -122,14 +122,18 @@ resolveLaTeXOptions flags moduleName = do
   options <- commandLineOptions
   modFiles <- useTC stModuleToSource
   let
-    mSrcFileName = (mkAbsolute . filePath) <$> Map.lookup moduleName modFiles
+    mSrcFileName =
+      (\f -> mkRangeFile (mkAbsolute (filePath f)) (Just moduleName)) <$>
+      Map.lookup moduleName modFiles
     countClusters = optCountClusters . optPragmaOptions $ options
     latexDir = latexFlagOutDir flags
     -- FIXME: This reliance on emacs-mode to decide whether to interpret the output location as project-relative or
     -- cwd-relative is gross. Also it currently behaves differently for JSON mode :-/
     -- And it prevents us from doing a real "one-time" setup.
     outDir = case (mSrcFileName, optGHCiInteraction options) of
-      (Just sourceFile, True) -> filePath (projectRoot sourceFile moduleName) </> latexDir
+      (Just sourceFile, True) ->
+        filePath (projectRoot (rangeFilePath sourceFile) moduleName) </>
+        latexDir
       _ -> latexDir
   return LaTeXOptions
     { latexOptOutDir         = outDir
@@ -147,11 +151,11 @@ preModuleLaTeX
   :: (HasOptions m, ReadTCState m)
   => LaTeXCompileEnv
   -> IsMain
-  -> ModuleName
+  -> TopLevelModuleName
   -> Maybe FilePath
   -> m (Recompile LaTeXModuleEnv LaTeXModule)
 preModuleLaTeX (LaTeXCompileEnv flags) isMain moduleName _ifacePath = case isMain of
-  IsMain  -> Recompile . LaTeXModuleEnv <$> resolveLaTeXOptions flags (toTopLevelModuleName moduleName)
+  IsMain  -> Recompile . LaTeXModuleEnv <$> resolveLaTeXOptions flags moduleName
   NotMain -> return $ Skip LaTeXModule
 
 compileDefLaTeX
@@ -168,7 +172,7 @@ postModuleLaTeX
   => LaTeXCompileEnv
   -> LaTeXModuleEnv
   -> IsMain
-  -> ModuleName
+  -> TopLevelModuleName
   -> [LaTeXDef]
   -> m LaTeXModule
 postModuleLaTeX _cenv (LaTeXModuleEnv latexOpts) _main _moduleName _defs = do
@@ -186,6 +190,6 @@ postCompileLaTeX
   :: Applicative m
   => LaTeXCompileEnv
   -> IsMain
-  -> Map ModuleName LaTeXModule
+  -> Map TopLevelModuleName LaTeXModule
   -> m ()
 postCompileLaTeX _cenv _main _modulesByName = pure ()

@@ -90,7 +90,7 @@ primitive
   primFloatIsInfinite        : Float → Bool
   primFloatIsNaN             : Float → Bool
   primFloatIsNegativeZero    : Float → Bool
-  primFloatToWord64          : Float → Word64
+  primFloatToWord64          : Float → Maybe Word64
   primNatToFloat             : Nat → Float
   primIntToFloat             : Int → Float
   primFloatRound             : Float → Maybe Int

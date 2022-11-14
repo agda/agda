@@ -1,0 +1,14 @@
+# From:
+# - https://github.com/rhysd/actionlint/issues/228#issuecomment-1272493095
+# - https://docs.github.com/en/code-security/dependabot/working-with-dependabot/keeping-your-actions-up-to-date-with-dependabot
+
+# Set update schedule for GitHub Actions
+
+version: 2
+updates:
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      # Check for updates to GitHub Actions every week
+      interval: "weekly"

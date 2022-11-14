@@ -15,7 +15,6 @@ module Agda.TypeChecking.Coverage.SplitTree where
 import Control.DeepSeq
 
 import Data.Tree
-import Data.Data (Data)
 
 import GHC.Generics (Generic)
 
@@ -46,10 +45,10 @@ data SplitTree' a
     , splitLazy  :: LazySplit
     , splitTrees :: SplitTrees' a -- ^ Sub split trees.
     }
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 data LazySplit = LazySplit | StrictSplit
-  deriving (Data, Show, Eq, Ord, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 -- | Split tree branching.  A finite map from constructor names to splittrees
 --   A list representation seems appropriate, since we are expecting not
@@ -64,7 +63,7 @@ data SplitTag
   = SplitCon QName
   | SplitLit Literal
   | SplitCatchall
-  deriving (Show, Eq, Ord, Data, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 instance Pretty SplitTag where
   pretty (SplitCon c) = pretty c

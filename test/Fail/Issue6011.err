@@ -1,0 +1,3 @@
+Issue6011.agda:11,1-26
+Invalid rewrite relation
+when checking the pragma BUILTIN REWRITE P

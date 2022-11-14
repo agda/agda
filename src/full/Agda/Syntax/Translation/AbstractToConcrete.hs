@@ -96,7 +96,7 @@ data Env = Env { takenVarNames :: Set A.Name
                   -- ^ Abstract names currently in scope. Unlike the
                   --   ScopeInfo, this includes names for hidden
                   --   arguments inserted by the system.
-               , takenDefNames :: Set C.Name
+               , takenDefNames :: Set C.NameParts
                   -- ^ Concrete names of all definitions in scope
                , currentScope :: ScopeInfo
                , builtins     :: Map String A.QName
@@ -137,14 +137,20 @@ makeEnv scope = do
         , foldPatternSynonyms = foldPatSyns
         }
   where
+    defs = Set.map nameParts . Map.keysSet $
+        Map.filterWithKey usefulDef $
+        nsNames $ everythingInScope scope
+
     -- Jesper, 2018-12-10: It's fine to shadow generalizable names as
     -- they will never show up directly in printed terms.
     notGeneralizeName AbsName{ anameKind = k }  =
       not (k == GeneralizeName || k == DisallowedGeneralizeName)
 
-    defs = Map.keysSet $
-           Map.filter (all notGeneralizeName) $
-           nsNames $ everythingInScope scope
+    usefulDef C.NoName{} _ = False
+    usefulDef C.Name{} names = all notGeneralizeName names
+
+    nameParts (C.NoName {}) = __IMPOSSIBLE__
+    nameParts (C.Name { nameNameParts }) = nameNameParts
 
 currentPrecedence :: AbsToCon PrecedenceStack
 currentPrecedence = asks $ (^. scopePrecedence) . currentScope
@@ -184,7 +190,7 @@ isBuiltinFun = asks $ is . builtins
   where is m q b = Just q == Map.lookup b m
 
 -- | Resolve a concrete name. If illegally ambiguous fail with the ambiguous names.
-resolveName :: KindsOfNames -> Maybe (Set A.Name) -> C.QName -> AbsToCon (Either (List1 A.QName) ResolvedName)
+resolveName :: KindsOfNames -> Maybe (Set A.Name) -> C.QName -> AbsToCon (Either AmbiguousNameReason ResolvedName)
 resolveName kinds candidates q = runExceptT $ tryResolveName kinds candidates q
 
 -- | Treat illegally ambiguous names as UnknownNames.
@@ -402,7 +408,9 @@ pickConcreteName x y = modifyConcreteNames $ flip Map.alter x $ \case
 -- | For the given abstract name, return the names that could shadow it.
 shadowingNames :: (ReadTCState m, MonadStConcreteNames m)
                => A.Name -> m (Set RawName)
-shadowingNames x = Set.fromList . Map.findWithDefault [] x <$> useR stShadowingNames
+shadowingNames x =
+  Set.fromList . Fold.toList . Map.findWithDefault mempty x <$>
+    useR stShadowingNames
 
 toConcreteName :: A.Name -> AbsToCon C.Name
 toConcreteName x | y <- nameConcrete x , isNoName y = return y
@@ -439,13 +447,21 @@ chooseName x = lookupNameInScope (nameConcrete x) >>= \case
     return $ nameConcrete x
   -- Otherwise we pick a name that does not shadow other names
   _ -> do
+    takenDefs <- asks takenDefNames
     taken   <- takenNames
     toAvoid <- shadowingNames x
     glyphMode <- optUseUnicode <$> pragmaOptions
     let freshNameMode = case glyphMode of
           UnicodeOk -> A.UnicodeSubscript
           AsciiOnly -> A.AsciiCounter
-    let shouldAvoid = (`Set.member` (taken `Set.union` toAvoid)) . C.nameToRawName
+
+        shouldAvoid C.NoName {} = False
+        shouldAvoid name@C.Name { nameNameParts } =
+          let raw = C.nameToRawName name in
+          nameNameParts `Set.member` takenDefs ||
+          raw `Set.member` taken ||
+          raw `Set.member` toAvoid
+
         y = firstNonTakenName freshNameMode shouldAvoid $ nameConcrete x
     reportSLn "toConcrete.bindName" 80 $ render $ vcat
       [ "picking concrete name for:" <+> text (C.nameToRawName $ nameConcrete x)
@@ -458,11 +474,10 @@ chooseName x = lookupNameInScope (nameConcrete x) >>= \case
   where
     takenNames :: AbsToCon (Set RawName)
     takenNames = do
-      xs <- asks takenDefNames
       ys0 <- asks takenVarNames
       reportSLn "toConcrete.bindName" 90 $ render $ "abstract names of local vars: " <+> prettyList_ (map (C.nameToRawName . nameConcrete) $ Set.toList ys0)
       ys <- Set.fromList . concat <$> mapM hasConcreteNames (Set.toList ys0)
-      return $ Set.map C.nameToRawName $ xs `Set.union` ys
+      return $ Set.map C.nameToRawName ys
 
 
 -- | Add a abstract name to the scope and produce an available concrete version of it.
@@ -867,7 +882,7 @@ instance ToConcrete A.Expr where
                 reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda patterns ps = " ++ prettyShow ps
                 return $ LamClause ps rhs ca
               decl2clause _ = __IMPOSSIBLE__
-          C.ExtendedLam (getRange i) erased . List1.fromList __IMPOSSIBLE__ <$>
+          C.ExtendedLam (getRange i) erased . List1.fromListSafe __IMPOSSIBLE__ <$>
             mapM decl2clause decls
             -- TODO List1: can we demonstrate non-emptiness?
 
@@ -916,8 +931,6 @@ instance ToConcrete A.Expr where
       bracket appBrackets $ do
         C.RecUpdate (getRange i) <$> toConcrete e <*> toConcreteTop fs
 
-    toConcrete (A.ETel tel) = C.ETel . catMaybes <$> toConcrete tel
-
     toConcrete (A.ScopedExpr _ e) = toConcrete e
     toConcrete (A.Quote i) = return $ C.Quote (getRange i)
     toConcrete (A.QuoteTerm i) = return $ C.QuoteTerm (getRange i)
@@ -933,7 +946,7 @@ makeDomainFree :: A.LamBinding -> A.LamBinding
 makeDomainFree b@(A.DomainFull (A.TBind _ tac (x :| []) t)) =
   case unScope t of
     A.Underscore A.MetaInfo{metaNumber = Nothing} ->
-      A.DomainFree tac x
+      A.DomainFree (tbTacticAttr tac) x
     _ -> b
 makeDomainFree b = b
 
@@ -987,10 +1000,10 @@ instance ToConcrete A.TypedBinding where
     type ConOfAbs A.TypedBinding = Maybe C.TypedBinding
 
     bindToConcrete (A.TBind r t xs e) ret = do
-        t <- traverse toConcrete t
+        tac <- traverse toConcrete (tbTacticAttr t)
         bindToConcrete (fmap forceNameIfHidden xs) $ \ xs -> do
           e <- toConcreteTop e
-          let setTac x = x { bnameTactic = t }
+          let setTac x = x { bnameTactic = tac , C.bnameIsFinite = tbFinite t }
           ret $ Just $ C.TBind r (fmap (updateNamedArg (fmap setTac)) xs) e
     bindToConcrete (A.TLet r lbs) ret =
         bindToConcrete lbs $ \ ds -> do
@@ -1264,6 +1277,8 @@ instance ToConcrete A.Declaration where
     xs <- mapM (unqual <=< toConcrete) xs
     (:[]) . C.UnquoteDef (getRange i) xs <$> toConcrete e
 
+  toConcrete (A.UnquoteData i xs uc j cs e) = __IMPOSSIBLE__
+
 
 data RangeAndPragma = RangeAndPragma Range A.Pragma
 
@@ -1281,6 +1296,7 @@ instance ToConcrete RangeAndPragma where
     A.StaticPragma x -> C.StaticPragma r <$> toConcrete x
     A.InjectivePragma x -> C.InjectivePragma r <$> toConcrete x
     A.InlinePragma b x -> C.InlinePragma r b <$> toConcrete x
+    A.NotProjectionLikePragma q -> C.NotProjectionLikePragma r <$> toConcrete q
     A.EtaPragma x    -> C.EtaPragma    r <$> toConcrete x
     A.DisplayPragma f ps rhs ->
       C.DisplayPragma r <$> toConcrete (A.DefP (PatRange noRange) (unambiguous f) ps) <*> toConcrete rhs

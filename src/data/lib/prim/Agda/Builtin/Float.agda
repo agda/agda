@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --safe --no-sized-types --no-guardedness #-}
+{-# OPTIONS --cubical-compatible --safe --no-sized-types --no-guardedness #-}
 
 module Agda.Builtin.Float where
 
@@ -23,7 +23,7 @@ primitive
   primFloatIsNegativeZero    : Float → Bool
   primFloatIsSafeInteger     : Float → Bool
   -- Conversions
-  primFloatToWord64          : Float → Word64
+  primFloatToWord64          : Float → Maybe Word64
   primNatToFloat             : Nat → Float
   primIntToFloat             : Int → Float
   primFloatRound             : Float → Maybe Int

@@ -14,7 +14,7 @@ jobs:
       == 'success' }}
     runs-on: Ubuntu-latest
     steps:
-    - uses: styfle/cancel-workflow-action@0.6.0
+    - uses: styfle/cancel-workflow-action@0.11.0
       with:
         access_token: ${{ github.token }}
   build:
@@ -30,50 +30,60 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Check out the master branch
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - id: vars
       name: Set up platform-dependent variables
       run: |
-        sha=`echo $(git rev-parse --short=7 HEAD)`
-        nightly=`echo Agda-nightly`
+        sha="$(git rev-parse --short=7 HEAD)"
+        nightly=Agda-nightly
 
-        echo ::set-output name=sha::${sha}
-        echo ::set-output name=nightly::${nightly}
+        echo sha="${sha}"                                           >> ${GITHUB_OUTPUT}
+        echo nightly="${nightly}"                                   >> ${GITHUB_OUTPUT}
 
         if [[ "$OSTYPE" == "msys"* ]]; then
-          echo "::set-output name=args::${ARGS} ${WIN64_ARGS}"
+
           filename="${nightly}-win64.zip"
-          echo ::set-output name=exe::agda.exe
-          echo ::set-output name=filename::${filename}
-          echo ::set-output name=content-type::application/zip
-          echo "::set-output name=compress-cmd::7z a ${filename} ${nightly} -bb -mx=9"
+          echo args="${ARGS} ${WIN64_ARGS}"                         >> ${GITHUB_OUTPUT}
+          echo compress-cmd="7z a ${filename} ${nightly} -bb -mx=9" >> ${GITHUB_OUTPUT}
+          echo content-type="application/zip"                       >> ${GITHUB_OUTPUT}
+          echo exe="agda.exe"                                       >> ${GITHUB_OUTPUT}
+          echo filename="${filename}"                               >> ${GITHUB_OUTPUT}
+
         elif [[ "$OSTYPE" == "darwin"* ]]; then
-          echo "::set-output name=args::${ARGS} ${MACOS_ARGS}"
+
           filename="${nightly}-macOS.tar.xz"
-          echo ::set-output name=exe::agda
-          echo "::set-output name=filename::${filename}"
-          echo "::set-output name=content-type::application/x-xz"
-          echo "::set-output name=compress-cmd::tar -a -cvf ${filename} ${nightly}"
+          echo args="${ARGS} ${MACOS_ARGS}"                         >> ${GITHUB_OUTPUT}
+          echo compress-cmd="tar -a -cvf ${filename} ${nightly}"    >> ${GITHUB_OUTPUT}
+          echo content-type="application/x-xz"                      >> ${GITHUB_OUTPUT}
+          echo exe="agda"                                           >> ${GITHUB_OUTPUT}
+          echo filename="${filename}"                               >> ${GITHUB_OUTPUT}
+
         elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-          echo "::set-output name=args::${ARGS} ${LINUX_ARGS}"
+
           filename="${nightly}-linux.tar.xz"
-          echo ::set-output name=exe::agda
-          echo "::set-output name=filename::${filename}"
-          echo "::set-output name=content-type::application/x-xz"
-          echo "::set-output name=compress-cmd::tar -a -cvf ${filename} ${nightly}"
+          echo args="${ARGS} ${LINUX_ARGS}"                         >> ${GITHUB_OUTPUT}
+          echo compress-cmd="tar -a -cvf ${filename} ${nightly}"    >> ${GITHUB_OUTPUT}
+          echo content-type="application/x-xz"                      >> ${GITHUB_OUTPUT}
+          echo exe="agda"                                           >> ${GITHUB_OUTPUT}
+          echo filename="${filename}"                               >> ${GITHUB_OUTPUT}
+
         fi
     - name: Display build variables
       run: |
-        echo nightly=${{ steps.vars.outputs.nightly }}
-        echo compress-cmd=${{ steps.vars.outputs.compress-cmd }}
-        echo filename=${{ steps.vars.outputs.filename }}
-        echo content-type=${{ steps.vars.outputs.content-type }}
-        echo args=${{ steps.vars.outputs.args }}
+        echo args         = ${{ steps.vars.outputs.args         }}
+        echo compress-cmd = ${{ steps.vars.outputs.compress-cmd }}
+        echo content-type = ${{ steps.vars.outputs.content-type }}
+        echo filename     = ${{ steps.vars.outputs.filename     }}
+        echo nightly      = ${{ steps.vars.outputs.nightly      }}
     - id: setup-haskell
-      uses: haskell/actions/setup@v1
+      uses: haskell/actions/setup@v2
       with:
         cabal-version: ${{ matrix.cabal-ver }}
         ghc-version: ${{ matrix.ghc-ver }}
+    - if: ${{ runner.os == 'macOS' }}
+      name: Set up pkg-config for the ICU library (macOS)
+      run: |
+        echo "PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig" >> ${GITHUB_ENV}
     - if: ${{ runner.os == 'Windows' }}
       name: Setup MSYS path (Windows)
       run: |
@@ -87,42 +97,50 @@ jobs:
       run: |
         cabal configure ${{ steps.vars.outputs.args }}
     - name: Build dependencies
-      run: cabal build exe:agda exe:agda-mode --only-dependencies -v0
+      run: cabal build exe:agda exe:agda-mode --only-dependencies
     - name: Build Agda
       run: cabal build exe:agda exe:agda-mode
     - env:
         DLL: /c/msys64/mingw64/bin/libicu*.dll
         ICU_DIR: /usr/local/opt/icu4c/lib
-        ICU_VER: '70'
+        ICU_VER: '71'
       name: Move artefacts to ${{ steps.vars.outputs.nightly }}
       run: |
-        mkdir -p ${{ steps.vars.outputs.nightly }}/bin
-        cp -a src/data ${{ steps.vars.outputs.nightly }}
+        nightly="${{ steps.vars.outputs.nightly }}"
+        mkdir -p "${nightly}"/bin
+        cp -a src/data "${nightly}"
 
         if [[ "$OSTYPE" == "msys"* ]]; then
-          find dist-newstyle/build \( -name 'agda.exe' -o -name 'agda-mode.exe' \) -type f -exec cp {} ${{ steps.vars.outputs.nightly }}/bin \;
-          cp -a .github/*.bat ${{ steps.vars.outputs.nightly }}
-          cp ${DLL} ${{ steps.vars.outputs.nightly }}/bin/
-          C:/ProgramData/Chocolatey/bin/strip.exe ${{ steps.vars.outputs.nightly }}/bin/*
+
+          find dist-newstyle/build \( -name 'agda.exe' -o -name 'agda-mode.exe' \) -type f -exec cp {} "${nightly}"/bin \;
+          cp -a .github/*.bat "${nightly}"
+          cp ${DLL} "${nightly}"/bin/
+          C:/ProgramData/Chocolatey/bin/strip.exe "${nightly}"/bin/*
+
         else
-          find dist-newstyle/build \( -name 'agda' -o -name 'agda-mode' \) -type f -exec cp {} ${{ steps.vars.outputs.nightly }}/bin \;
-          strip ${{ steps.vars.outputs.nightly }}/bin/*
-          cp -a .github/*.sh ${{ steps.vars.outputs.nightly }}
+
+          find dist-newstyle/build \( -name 'agda' -o -name 'agda-mode' \) -type f -exec cp {} "${nightly}"/bin \;
+          strip "${nightly}"/bin/*
+          cp -a .github/*.sh "${nightly}"
+
           if [[ "$OSTYPE" == "darwin"* ]]; then
+
           # Change the path to the dynamic library icu4c to the run-time search path:
           #
           # 1. the same directory of executable, i.e. @executable_path
           # 2. @executable_path/../lib
           # 3. the default location of system-wide icu4c installed by homebrew, ie. /usr/local/opt/icu4c/lib
           #
-          mkdir ${{ steps.vars.outputs.nightly }}/lib
-          cp ${ICU_DIR}/libicuuc.${ICU_VER}.dylib ${ICU_DIR}/libicui18n.${ICU_VER}.dylib ${ICU_DIR}/libicudata.${ICU_VER}.dylib ${{ steps.vars.outputs.nightly }}/lib
-          install_name_tool -change ${ICU_DIR}/libicuuc.${ICU_VER}.dylib @rpath/libicuuc.${ICU_VER}.dylib ${{ steps.vars.outputs.nightly }}/bin/agda
-          install_name_tool -change ${ICU_DIR}/libicui18n.${ICU_VER}.dylib @rpath/libicui18n.${ICU_VER}.dylib ${{ steps.vars.outputs.nightly }}/bin/agda
-          install_name_tool -add_rpath @executable_path -add_rpath @executable_path/../lib -add_rpath ${ICU_DIR} ${{ steps.vars.outputs.nightly }}/bin/agda
-          otool -L ${{ steps.vars.outputs.nightly }}/bin/agda
+          mkdir "${nightly}"/lib
+          cp ${ICU_DIR}/libicuuc.${ICU_VER}.dylib ${ICU_DIR}/libicui18n.${ICU_VER}.dylib ${ICU_DIR}/libicudata.${ICU_VER}.dylib "${nightly}"/lib
+          install_name_tool -change ${ICU_DIR}/libicuuc.${ICU_VER}.dylib @rpath/libicuuc.${ICU_VER}.dylib "${nightly}"/bin/agda
+          install_name_tool -change ${ICU_DIR}/libicui18n.${ICU_VER}.dylib @rpath/libicui18n.${ICU_VER}.dylib "${nightly}"/bin/agda
+          install_name_tool -add_rpath @executable_path -add_rpath @executable_path/../lib -add_rpath ${ICU_DIR} "${nightly}"/bin/agda
+          otool -L "${nightly}"/bin/agda
+
           fi
         fi
+
         file ${{ steps.vars.outputs.nightly }}/bin/agda
     - if: ${{ runner.os != 'macOS' }}
       name: Compress the Agda executable
@@ -136,7 +154,7 @@ jobs:
     - name: Pack artefacts
       run: |
         ${{ steps.vars.outputs.compress-cmd }}
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         if-no-files-found: error
         name: ${{ steps.vars.outputs.filename }}
@@ -146,27 +164,27 @@ jobs:
       fail-fast: false
       matrix:
         cabal-ver:
-        - 3.6
+        - '3.8'
         ghc-ver:
-        - '9.2'
+        - '9.4'
         os:
-        - windows-2022
+        - windows-latest
         - macos-latest
-        - ubuntu-18.04
+        - ubuntu-latest
   deploy:
     if: ${{ github.ref == 'refs/heads/master' && github.event_name == 'workflow_run'
       }}
     needs: build
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/download-artifact@v2
+    - uses: actions/checkout@v3
+    - uses: actions/download-artifact@v3
       with:
         path: artifacts
     - env:
         GITHUB_TOKEN: ${{ github.token }}
       name: Delete the nightly tag if any
-      uses: dev-drprasad/delete-tag-and-release@v0.1.2
+      uses: dev-drprasad/delete-tag-and-release@v0.2.0
       with:
         delete_release: true
         tag_name: nightly

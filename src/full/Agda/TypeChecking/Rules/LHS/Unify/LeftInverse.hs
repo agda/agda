@@ -69,12 +69,13 @@ import Agda.Utils.Tuple
 import Agda.Utils.Impossible
 
 instance PrettyTCM NoLeftInv where
-  prettyTCM (UnsupportedYet s) = text "UnsupportedYet" <+> prettyTCM s
-  prettyTCM (Illegal s) = text "Illegal" <+> prettyTCM s
-  prettyTCM NoCubical = text "NoCubical"
-  prettyTCM WithKEnabled     = text "WithKEnabled"
-  prettyTCM SplitOnStrict = text "SplitOnStrict"
-  prettyTCM UnsupportedCxt = text "UnsupportedCxt"
+  prettyTCM (UnsupportedYet s) = fsep $ pwords "It relies on" ++ [explainStep s <> ","] ++ pwords "which is not yet supported"
+  prettyTCM UnsupportedCxt     = fwords "it relies on higher-dimensional unification, which is not yet supported"
+  prettyTCM (Illegal s)        = fsep $ pwords "It relies on" ++ [explainStep s <> ","] ++ pwords "which is incompatible with" ++ [text "Cubical Agda"]
+  prettyTCM NoCubical          = fwords "Cubical Agda is disabled"
+  prettyTCM WithKEnabled       = fwords "The K rule is enabled"
+  prettyTCM SplitOnStrict      = fwords "It splits on a type in SSet"
+  prettyTCM SplitOnFlat        = fwords "It splits on a @♭ argument"
 
 data NoLeftInv
   = UnsupportedYet {badStep :: UnifyStep}
@@ -82,6 +83,7 @@ data NoLeftInv
   | NoCubical
   | WithKEnabled
   | SplitOnStrict  -- ^ splitting on a Strict Set.
+  | SplitOnFlat    -- ^ splitting on a @♭ argument
   | UnsupportedCxt
   deriving Show
 
@@ -328,12 +330,12 @@ buildEquiv (UnificationStep st step@(Solution k ty fx tm side) output) next = ru
                   -- csingl :: NamesT tcm Term -> NamesT tcm [Arg Term]
                   csingl i = mapM (fmap defaultArg) $ csingl' i
                   -- csingl' :: NamesT tcm Term -> [NamesT tcm Term]
-                  csingl' i = [ k_arg <@@> (u,v,appSide <$> i)
+                  csingl' i = [ k_arg <@@> (u, v, appSide <$> i)
                               , lam "j" $ \ j ->
                                   let r i j = case side of
                                             Left{} -> unview (IMax (argN j) (argN i))
                                             Right{} -> unview (IMin (argN j) (argN . unview $ INeg $ argN i))
-                                  in k_arg <@@> (u,v,r <$> i <*> j)
+                                  in k_arg <@@> (u, v, r <$> i <*> j)
                               ]
           let replaceAt n x xs = xs0 ++ x:xs1
                 where (xs0,_:xs1) = splitAt n xs
@@ -459,3 +461,19 @@ buildEquiv (UnificationStep st step output) _ = do
     LitConflict{} -> __IMPOSSIBLE__
     Cycle{}       -> __IMPOSSIBLE__
     _ -> unsupported
+
+explainStep :: MonadPretty m => UnifyStep -> m Doc
+explainStep Injectivity{injectConstructor = ch} =
+  "injectivity of the data constructor" <+> prettyTCM (conName ch)
+explainStep TypeConInjectivity{} = "injectivity of type constructors"
+explainStep Deletion{}           = "the K rule"
+explainStep Solution{}           = "substitution in Setω"
+-- Note: this is the actual reason that a Solution step can fail, rather
+-- than the explanation for the actual step
+explainStep Conflict{}          = "the disjointness of data constructors"
+explainStep LitConflict{}       = "the disjointness of literal values"
+explainStep Cycle{}             = "the impossibility of cyclic values"
+explainStep EtaExpandVar{}      = "eta-expansion of variables"
+explainStep EtaExpandEquation{} = "eta-expansion of equations"
+explainStep StripSizeSuc{}      = "the injectivity of size successors"
+explainStep SkipIrrelevantEquation{} = "ignoring irrelevant equations"

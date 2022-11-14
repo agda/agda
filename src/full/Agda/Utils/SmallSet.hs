@@ -25,7 +25,7 @@ module Agda.Utils.SmallSet
   , insert
   , intersection
   , isSubsetOf
-  , mapMemberShip
+  , mapMembership
   , member
   , notMember
   , null
@@ -33,7 +33,7 @@ module Agda.Utils.SmallSet
   , toList, toAscList
   , total
   , union
-  , zipMemberShipWith
+  , zipMembershipWith
   ) where
 
 import Prelude hiding (null)
@@ -42,14 +42,20 @@ import Control.DeepSeq
 
 import Data.Array.IArray (Ix, Array)
 import qualified Data.Array.IArray as Array
-import Data.Data (Data)
 
 -- Note: we might want to use unboxed arrays, but they have no Data instance
+--
+-- Update: There is currently no need for a Data instance. An attempt
+-- was made to replace Array with Data.Array.Unboxed.UArray. Limited
+-- testing suggested that this does not make much of a difference in
+-- practice (at least not when it comes to type-checking the standard
+-- library up to and including Data.Nat, with Agda compiled without
+-- -foptimise-heavily).
 
 -- | Let @n@ be the size of type @a@.
 type SmallSetElement a = (Bounded a, Ix a)
 newtype SmallSet a = SmallSet { theSmallSet :: Array a Bool }
-  deriving (Eq, Ord, Show, Data, NFData)
+  deriving (Eq, Ord, Show, NFData)
 
 -- * Query
 
@@ -96,28 +102,28 @@ delete a = update [(a,False)]
 
 -- | Time O(n).
 complement :: SmallSetElement a => SmallSet a -> SmallSet a
-complement = mapMemberShip not
+complement = mapMembership not
 
 -- | Time O(n).
 difference, (\\) :: SmallSetElement a => SmallSet a -> SmallSet a -> SmallSet a
-difference = zipMemberShipWith $ \ b c -> b && not c
+difference = zipMembershipWith $ \ b c -> b && not c
 (\\)       = difference
 
 -- | Time O(n).
 intersection ::  SmallSetElement a => SmallSet a -> SmallSet a -> SmallSet a
-intersection = zipMemberShipWith (&&)
+intersection = zipMembershipWith (&&)
 
 -- | Time O(n).
 union ::  SmallSetElement a => SmallSet a -> SmallSet a -> SmallSet a
-union = zipMemberShipWith (||)
+union = zipMembershipWith (||)
 
 -- | Time O(n).
-mapMemberShip :: SmallSetElement a => (Bool -> Bool) -> SmallSet a -> SmallSet a
-mapMemberShip f = SmallSet . Array.amap f . theSmallSet
+mapMembership :: SmallSetElement a => (Bool -> Bool) -> SmallSet a -> SmallSet a
+mapMembership f = SmallSet . Array.amap f . theSmallSet
 
 -- | Time O(n).
-zipMemberShipWith :: SmallSetElement a => (Bool -> Bool -> Bool) -> SmallSet a -> SmallSet a -> SmallSet a
-zipMemberShipWith f s t = fromBoolList $ toBoolListZipWith f s t
+zipMembershipWith :: SmallSetElement a => (Bool -> Bool -> Bool) -> SmallSet a -> SmallSet a -> SmallSet a
+zipMembershipWith f s t = fromBoolList $ toBoolListZipWith f s t
 
 -- * Conversion
 

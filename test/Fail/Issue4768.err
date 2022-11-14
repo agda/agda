@@ -1,3 +1,4 @@
 Issue4768.agda:8,6-13
-Not a finite domain: IsOne i
+Splitting on partial elements is only allowed at the type Partial, but the domain here is
+  IsOne i
 when checking that the pattern (i0 = i1) has type IsOne i

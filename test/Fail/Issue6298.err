@@ -1,0 +1,10 @@
+Issue6298.agda:10,19-23
+The argument P has type
+  (y : A) → x ≡ y → Set
+which is not usable at the required modality @ω.
+
+Note: to maintain compatibility with Cubical Agda, this argument's
+type must be usable at the modality in which the function was
+defined, since it will be used for computing transports
+
+when checking that the pattern refl has type xyz ≡ x

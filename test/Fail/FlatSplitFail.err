@@ -1,4 +1,4 @@
-FlatSplitFail.agda:15,11-15
+FlatSplitFail.agda:17,11-15
 I'm not sure if there should be a case for the constructor refl,
 because I get stuck when trying to solve the following unification
 problems (inferred index ≟ expected index):

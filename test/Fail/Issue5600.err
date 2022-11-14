@@ -1,0 +1,3 @@
+Issue5600.agda:19,53-63
+s n != f 1 n of type A
+when checking that the expression refl (s n) has type f 1 n ≡ f 1 n

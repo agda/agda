@@ -2,3 +2,5 @@ name: test-lib-succeed
 include:
   .
   ../../std-lib/src
+flags:
+  --warning=noUnsupportedIndexedMatch

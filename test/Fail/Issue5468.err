@@ -1,4 +1,9 @@
-Issue5468.agda:33,1-16
-primTransp (λ i → x i) φ
-(unbox [ x₁ ]) is not usable at the required modality .
-when checking the definition of unbox
+Issue5468.agda:33,7-12
+This clause has target type A which is not usable at the required
+modality @ω.
+
+Note: in Cubical Agda, the target type must be usable at the
+modality in which the function was defined, since it will be used
+for computing transports
+
+when checking that the pattern [ x ] has type Box A

@@ -5,8 +5,6 @@ module Agda.Syntax.Fixity where
 
 import Control.DeepSeq
 
-import Data.Data (Data)
-
 import GHC.Generics (Generic)
 
 import Agda.Syntax.Position
@@ -21,7 +19,7 @@ import Agda.Utils.Impossible
 
 -- | Decorating something with @Fixity'@.
 data ThingWithFixity x = ThingWithFixity x Fixity'
-  deriving (Functor, Foldable, Traversable, Data, Show)
+  deriving (Functor, Foldable, Traversable, Show)
 
 instance LensFixity' (ThingWithFixity a) where
   lensFixity' f (ThingWithFixity a fix') = ThingWithFixity a <$> f fix'
@@ -32,7 +30,7 @@ instance LensFixity (ThingWithFixity a) where
 -- | Do we prefer parens around arguments like @λ x → x@ or not?
 --   See 'lamBrackets'.
 data ParenPreference = PreferParen | PreferParenless
-  deriving (Eq, Ord, Show, Data, Generic)
+  deriving (Eq, Ord, Show, Generic)
 
 instance NFData ParenPreference
 
@@ -49,7 +47,7 @@ data Precedence = TopCtx | FunctionSpaceDomainCtx
                 | LeftOperandCtx Fixity | RightOperandCtx Fixity ParenPreference
                 | FunctionCtx | ArgumentCtx ParenPreference | InsideOperandCtx
                 | WithFunCtx | WithArgCtx | DotPatternCtx
-    deriving (Show, Data, Eq, Generic)
+    deriving (Show, Eq, Generic)
 
 instance NFData Precedence
 

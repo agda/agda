@@ -4,10 +4,15 @@ module Agda.TypeChecking.IApplyConfluence where
 import Prelude hiding (null, (!!))  -- do not use partial functions like !!
 
 import Control.Monad
-import Control.Arrow (first,second)
+import Control.Monad.Except
 
-import qualified Data.List as List
-import qualified Data.Map as Map
+import Data.Bifunctor (first, second)
+import Data.DList (DList)
+import Data.Foldable (toList)
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -31,9 +36,11 @@ import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Maybe
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Impossible
 import Agda.Utils.Functor
+import Control.Monad.Reader
 
 
 checkIApplyConfluence_ :: QName -> TCM ()
@@ -51,8 +58,9 @@ checkIApplyConfluence_ f = whenM (isJust . optCubical <$> pragmaOptions) $ do
       reportSDoc "tc.cover.iapply" 10 $ text "length cls =" <+> pretty (length cls)
       when (null cls && any (not . null . iApplyVars . namedClausePats) cls') $
         __IMPOSSIBLE__
-      modifySignature $ updateDefinition f $ updateTheDef
-        $ updateCovering (const [])
+      unlessM (optKeepCoveringClauses <$> pragmaOptions) $
+        modifySignature $ updateDefinition f $ updateTheDef
+          $ updateCovering (const [])
 
       traceCall (CheckFunDefCall (getRange f) f [] False) $
         forM_ cls $ checkIApplyConfluence f
@@ -68,9 +76,10 @@ checkIApplyConfluence f cl = case cl of
                 , namedClausePats = ps
                 , clauseType = Just t
                 , clauseBody = Just body
-                } -> setCurrentRange (getRange f) $ do
+                } -> setCurrentRange (clauseLHSRange cl) $ do
           let
             trhs = unArg t
+          oldCall <- asksTC envCall
           reportSDoc "tc.cover.iapply" 40 $ "tel =" <+> prettyTCM clTel
           reportSDoc "tc.cover.iapply" 40 $ "ps =" <+> pretty ps
           ps <- normaliseProjP ps
@@ -83,7 +92,46 @@ checkIApplyConfluence f cl = case cl of
             reportSDoc "tc.iapply" 40 $ text "clause:" <+> pretty ps <+> "->" <+> pretty body
             reportSDoc "tc.iapply" 20 $ "body =" <+> prettyTCM body
 
-            addContext clTel $ equalTermOnFace phi trhs lhs body
+            let
+              k :: Substitution -> Comparison -> Type -> Term -> Term -> TCM ()
+              k phi cmp ty u v = do
+                u_e <- simplify u
+                ty_e <- simplify ty
+                let
+                  -- Make note of the context (literally): we're
+                  -- checking that this specific clause in f is
+                  -- confluent with IApply reductions. That way if we
+                  -- can tell the user what the endpoints are.
+                  why = CheckIApplyConfluence
+                    (getRange cl) f
+                    (applySubst phi lhs)
+                    u_e v ty
+
+                  -- But if the conversion checking failed really early, we drop the extra
+                  -- information. In that case, it's just noise.
+                  maybeDropCall e@(TypeError x y err)
+                    | UnequalTerms _ u' v' _ <- clValue err = do
+                      u <- prettyTCM u_e
+                      v <- prettyTCM =<< simplify v
+                      enterClosure err $ \e' -> do
+                        u' <- prettyTCM =<< simplify u'
+                        v' <- prettyTCM =<< simplify v'
+                        -- Specifically, we compare how the things are pretty-printed, to avoid
+                        -- double-printing, rather than a more refined heuristic, since the
+                        -- “failure case” here is *at worst* accidentally reminding the user of how
+                        -- IApplyConfluence works.
+                        if (u == u' && v == v')
+                          then localTC (\e -> e { envCall = oldCall }) $ typeError e'
+                          else throwError e
+                  maybeDropCall x = throwError x
+
+                -- Note: Any postponed constraint with this call *will* have the extra
+                -- information. This is a feature: if the constraint is woken up later,
+                -- then it's probably a good idea to remind the user of what's going on,
+                -- instead of presenting a mysterious error.
+                traceCall why (compareTerm cmp ty u v `catchError` maybeDropCall)
+
+            addContext clTel $ compareTermOnFace' k CmpEq phi trhs lhs body
 
             case body of
               MetaV m es_m' | Just es_m <- allApplyElims es_m' ->
@@ -110,7 +158,7 @@ checkIApplyConfluence f cl = case cl of
 
                   addContext clTel $ do -- mTel.clTel ⊢
                     () <- reportSDoc "tc.iapply.ip" 40 $ "mTel.clTel =" <+> (prettyTCM =<< getContextTelescope)
-                    forallFaceMaps phi __IMPOSSIBLE__ $ \ alpha -> do
+                    forallFaceMaps phi __IMPOSSIBLE__ $ \_ alpha -> do
                     -- mTel.clTel' ⊢
                     -- mTel.clTel  ⊢ alpha : mTel.clTel'
                     reportSDoc "tc.iapply.ip" 40 $ "mTel.clTel' =" <+> (prettyTCM =<< getContextTelescope)
@@ -164,7 +212,6 @@ checkIApplyConfluence f cl = case cl of
                 modifyInteractionPoints (BiMap.adjust f ii)
               _ -> return ()
 
-
 -- | current context is of the form Γ.Δ
 unifyElims :: Args
               -- ^ variables to keep   Γ ⊢ x_n .. x_0 : Γ
@@ -177,33 +224,48 @@ unifyElims :: Args
               -- Γ.Δ', [(x = u)] ⊢ id_g = ts[σ] : Γ
            -> TCM a
 unifyElims vs ts k = do
-                      dom <- getContext
-                      let (binds' , eqs' ) = candidate (map unArg vs) (map unArg ts)
-                          (binds'', eqss') =
-                            unzip $ map (\ (j,t:ts) -> ((j,t),map (,var j) ts)) $ Map.toList $ Map.fromListWith (++) (map (second (:[])) binds')
-                          cod   = codomain s (map fst binds) dom
-                          binds = map (second (raise (size cod - size vs))) binds''
-                          eqs   = map (first  (raise $ size dom - size vs)) $ eqs' ++ concat eqss'
-                          s     = bindS binds
-                      updateContext s (codomain s (map fst binds)) $ do
-                      k s (s `applySubst` eqs)
+  dom <- getContext
+  let (binds' , eqs' ) = candidate (map unArg vs) (map unArg ts)
+      (binds'', eqss') =
+        unzip $
+        map (\(j, tts) -> case toList tts of
+                t : ts -> ((j, t), map (, var j) ts)
+                []     -> __IMPOSSIBLE__) $
+        IntMap.toList $ IntMap.fromListWith (<>) binds'
+      cod'  = codomain s (IntSet.fromList $ map fst binds'')
+      cod   = cod' dom
+      svs   = size vs
+      binds = IntMap.fromList $
+              map (second (raise (size cod - svs))) binds''
+      eqs   = map (first  (raise (size dom - svs))) $
+              eqs' ++ concat eqss'
+      s     = bindS binds
+  updateContext s cod' $ k s (s `applySubst` eqs)
   where
-    candidate :: [Term] -> [Term] -> ([(Nat,Term)],[(Term,Term)])
-    candidate (i:is) (Var j []:ts) = first ((j,i):) (candidate is ts)
-    candidate (i:is) (t:ts)        = second ((i,t):) (candidate is ts)
-    candidate [] [] = ([],[])
-    candidate _ _ = __IMPOSSIBLE__
+  candidate :: [Term] -> [Term] -> ([(Nat, DList Term)], [(Term, Term)])
+  candidate is ts = case (is, ts) of
+    (i : is, Var j [] : ts) -> first ((j, singleton i) :) $
+                               candidate is ts
+    (i : is, t : ts)        -> second ((i, t) :) $
+                               candidate is ts
+    ([],     [])            -> ([], [])
+    _                       -> __IMPOSSIBLE__
 
+  bindS binds = parallelS $
+    case IntMap.lookupMax binds of
+      Nothing       -> []
+      Just (max, _) -> for [0 .. max] $ \i ->
+        fromMaybe (deBruijnVar i) (IntMap.lookup i binds)
 
-    bindS binds = parallelS (for [0..maximum (-1:map fst binds)] $ (\ i -> fromMaybe (deBruijnVar i) (List.lookup i binds)))
-
-    codomain :: Substitution
-             -> [Nat]  -- support
-             -> Context -> Context
-    codomain s vs cxt = map snd $ filter (\ (i,c) -> i `List.notElem` vs) $ zip [0..] cxt'
-     where
-      cxt' = zipWith (\ n d -> dropS n s `applySubst` d) [1..] cxt
-
+  codomain
+    :: Substitution
+    -> IntSet  -- Support.
+    -> Context -> Context
+  codomain s vs =
+    mapMaybe (\(i, c) -> if i `IntSet.member` vs
+                         then Nothing
+                         else Just c) .
+    zipWith (\i c -> (i, dropS (i + 1) s `applySubst` c)) [0..]
 
 -- | Like @unifyElims@ but @Γ@ is from the the meta's @MetaInfo@ and
 -- the context extension @Δ@ is taken from the @Closure@.

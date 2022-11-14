@@ -22,6 +22,8 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rules.Builtin
 import Agda.TypeChecking.Rules.Term
 
+import Agda.Utils.Lens
+
 -- | The type of @∞@.
 
 typeOfInf :: TCM Type
@@ -154,20 +156,20 @@ bindBuiltinFlat x =
       flatDefn { defPolarity       = []
                , defArgOccurrences = [StrictPos]  -- changing that to [Mixed] destroys monotonicity of 'Rec' in test/succeed/GuardednessPreservingTypeConstructors
                , defCopatternLHS = hasProjectionPatterns cc
-               , theDef = emptyFunction
-                   { funClauses      = [clause]
-                   , funCompiled     = Just $ cc
-                   , funProjection   = Just projection
-                   , funMutual       = Just []
-                   , funTerminates   = Just True
+               , theDef = FunctionDefn emptyFunctionData
+                   { _funClauses      = [clause]
+                   , _funCompiled     = Just $ cc
+                   , _funProjection   = Right projection
+                   , _funMutual       = Just []
+                   , _funTerminates   = Just True
                    }
                 }
 
     -- register flat as record field for constructor sharp
-    modifySignature $ updateDefinition sharp $ updateTheDef $ \ def ->
-      def { conSrcCon = sharpCon }
-    modifySignature $ updateDefinition inf $ updateTheDef $ \ def ->
-      def { recConHead = sharpCon, recFields = [defaultDom flat] }
+    modifySignature $ updateDefinition sharp $ updateTheDef $ over lensConstructor $ \ def ->
+      def { _conSrcCon = sharpCon }
+    modifySignature $ updateDefinition inf $ updateTheDef $ over lensRecord $ \ def ->
+      def { _recConHead = sharpCon, _recFields = [defaultDom flat] }
     return $ Def flat []
 
 -- The coinductive primitives.

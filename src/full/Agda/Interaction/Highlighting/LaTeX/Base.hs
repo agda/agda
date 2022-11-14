@@ -25,6 +25,7 @@ import Data.Foldable (toList)
 #if !(MIN_VERSION_base(4,11,0))
 import Data.Semigroup (Semigroup(..))
 #endif
+import qualified Data.Text as T
 
 import Control.Exception.Base (IOException, try)
 import Control.Monad (forM_, mapM_, unless, when)
@@ -60,18 +61,17 @@ import qualified Data.List    as List
 
 import Paths_Agda
 
-import Agda.Syntax.Abstract (toTopLevelModuleName)
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete (TopLevelModuleName, moduleNameParts)
 import Agda.Syntax.Parser.Literate (literateTeX, LayerRole, atomizeLayers)
 import qualified Agda.Syntax.Parser.Literate as L
-import Agda.Syntax.Position (startPos)
+import Agda.Syntax.Position (RangeFile, startPos)
+import Agda.Syntax.TopLevelModuleName
+  (TopLevelModuleName, moduleNameParts)
 
 import Agda.Interaction.Highlighting.Precise hiding (toList)
 
 import Agda.TypeChecking.Monad (Interface(..)) --, reportSLn)
 
-import Agda.Utils.FileName (AbsolutePath)
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor  ((<&>))
 import Agda.Utils.List     (last1, updateHead, updateLast)
@@ -697,7 +697,7 @@ defaultStyFile = "agda.sty"
 
 data LaTeXOptions = LaTeXOptions
   { latexOptOutDir         :: FilePath
-  , latexOptSourceFileName :: Maybe AbsolutePath
+  , latexOptSourceFileName :: Maybe RangeFile
     -- ^ The parser uses a @Position@ which includes a source filename for
     -- error reporting and such. We don't actually get the source filename
     -- with an @Interface@, and it isn't necessary to look it up.
@@ -757,7 +757,8 @@ generateLaTeXIO :: (MonadLogLaTeX m, MonadIO m) => LaTeXOptions -> Interface -> 
 generateLaTeXIO opts i = do
   let textWidthEstimator = getTextWidthEstimator (latexOptCountClusters opts)
   let baseDir = latexOptOutDir opts
-  let outPath = baseDir </> (latexOutRelativeFilePath $ toTopLevelModuleName $ iModuleName i)
+  let outPath = baseDir </>
+                latexOutRelativeFilePath (iTopLevelModuleName i)
   latex <- E.encodeUtf8 <$> toLaTeX
               (emptyEnv textWidthEstimator)
               (latexOptSourceFileName opts)
@@ -768,7 +769,10 @@ generateLaTeXIO opts i = do
     BS.writeFile outPath latex
 
 latexOutRelativeFilePath :: TopLevelModuleName -> FilePath
-latexOutRelativeFilePath m = List.intercalate [pathSeparator] (List1.toList $ moduleNameParts m) <.> "tex"
+latexOutRelativeFilePath m =
+  List.intercalate [pathSeparator]
+    (map T.unpack $ List1.toList $ moduleNameParts m) <.>
+  "tex"
 
 groupByFst :: forall a b. Eq a => [(a,b)] -> [(a,[b])]
 groupByFst =
@@ -783,7 +787,7 @@ groupByFst =
 toLaTeX
   :: MonadLogLaTeX m
   => Env
-  -> Maybe AbsolutePath
+  -> Maybe RangeFile
   -> L.Text
   -> HighlightingInfo
   -> m L.Text

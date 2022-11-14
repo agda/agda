@@ -1,4 +1,4 @@
 Issue5920b.agda:7,3-4
-P c is not usable at the required modality
+P c is not usable at the required modality @ω
 when checking that the type P c of the constructor d fits in the
 sort Set of the datatype.

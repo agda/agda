@@ -7,12 +7,12 @@ module Agda.Builtin.Cubical.Sub where
   {-# BUILTIN SUB Sub #-}
 
   postulate
-    inc : ∀ {ℓ} {A : Set ℓ} {φ} (x : A) → Sub A φ (λ _ → x)
+    inS : ∀ {ℓ} {A : Set ℓ} {φ} (x : A) → Sub A φ (λ _ → x)
 
-  {-# BUILTIN SUBIN inc #-}
+  {-# BUILTIN SUBIN inS #-}
 
-  -- Sub A φ u is treated as A.
-  {-# COMPILE JS inc = _ => _ => _ => x => x #-}
+  -- Sub A φ u is treated as A.
+  {-# COMPILE JS inS = _ => _ => _ => x => x #-}
 
   primitive
     primSubOut : ∀ {ℓ} {A : Set ℓ} {φ : I} {u : Partial φ A} → Sub _ φ u → A

@@ -17,7 +17,11 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Info
 import Agda.Syntax.Common
-import Agda.Syntax.Abstract as A hiding (Apply)
+import Agda.Syntax.Abstract
+  ( Name, QName, QNamed(QNamed)
+  , isNoName, nameConcrete, nextName, qualify, unambiguous
+  )
+import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pattern
 import Agda.Syntax.Reflected as R
 import Agda.Syntax.Internal (Dom,Dom'(..))
@@ -133,37 +137,42 @@ instance ToAbstract r => ToAbstract (Arg r) where
 instance ToAbstract r => ToAbstract [Arg r] where
   type AbsOfRef [Arg r] = [NamedArg (AbsOfRef r)]
 
--- instance ToAbstract r Expr => ToAbstract (Dom r, Name) (A.TypedBinding) where
-instance (ToAbstract r, AbsOfRef r ~ Expr) => ToAbstract (Dom r, Name) where
+-- instance ToAbstract r A.Expr => ToAbstract (Dom r, Name) (A.TypedBinding) where
+instance (ToAbstract r, AbsOfRef r ~ A.Expr) => ToAbstract (Dom r, Name) where
   type AbsOfRef (Dom r, Name) = A.TypedBinding
-  toAbstract (Dom{domInfo = i,unDom = x, domTactic = tac}, name) = do
+  toAbstract (Dom{domInfo = i, domIsFinite = isfin, unDom = x, domTactic = tac}, name) = do
     dom <- toAbstract x
-    return $ mkTBind noRange (singleton $ unnamedArg i $ mkBinder_ name) dom
+    -- TODO(Amy): Anyone know why this discards the tactic? It was like
+    -- that when I got here!
+    return $ A.TBind noRange
+      (A.TypedBindingInfo Nothing isfin)
+      (singleton $ unnamedArg i $ A.mkBinder_ name)
+      dom
 
-instance ToAbstract (Expr, Elim) where
-  type AbsOfRef (Expr, Elim) = Expr
+instance ToAbstract (A.Expr, Elim) where
+  type AbsOfRef (A.Expr, Elim) = A.Expr
   toAbstract (f, Apply arg) = do
     arg     <- toAbstract arg
     showImp <- showImplicitArguments
     return $ if showImp || visible arg
-             then App (setOrigin Reflected defaultAppInfo_) f arg
+             then A.App (setOrigin Reflected defaultAppInfo_) f arg
              else f
 
-instance ToAbstract (Expr, Elims) where
-  type AbsOfRef (Expr, Elims) = Expr
+instance ToAbstract (A.Expr, Elims) where
+  type AbsOfRef (A.Expr, Elims) = A.Expr
   toAbstract (f, elims) = foldM (curry toAbstract) f elims
 
 instance ToAbstract r => ToAbstract (R.Abs r) where
   type AbsOfRef (R.Abs r) = (AbsOfRef r, Name)
-  toAbstract (Abs s x) = withName s' $ \name -> (,) <$> toAbstract x <*> return name
+  toAbstract (Abs s x) = withName s' $ \name -> (,name) <$> toAbstract x
     where s' = if (isNoName s) then "z" else s -- TODO: only do this when var is free
 
 instance ToAbstract Literal where
-  type AbsOfRef Literal = Expr
+  type AbsOfRef Literal = A.Expr
   toAbstract l = return $ A.Lit empty l
 
 instance ToAbstract Term where
-  type AbsOfRef Term = Expr
+  type AbsOfRef Term = A.Expr
   toAbstract = \case
     R.Var i es -> do
       name <- mkVarName i
@@ -175,7 +184,7 @@ instance ToAbstract Term where
     R.Lam h t  -> do
       (e, name) <- toAbstract t
       let info  = setHiding h $ setOrigin Reflected defaultArgInfo
-      return $ A.Lam exprNoRange (mkDomainFree $ unnamedArg info $ mkBinder_ name) e
+      return $ A.Lam exprNoRange (A.mkDomainFree $ unnamedArg info $ A.mkBinder_ name) e
     R.ExtLam cs es -> do
       name <- freshName_ extendedLambdaName
       m    <- getCurrentModule
@@ -195,7 +204,7 @@ instance ToAbstract Term where
       info <- mkMetaInfo
       let info' = info{ metaNumber = Just x }
       toAbstract (A.Underscore info', es)
-    R.Unknown      -> Underscore <$> mkMetaInfo
+    R.Unknown      -> A.Underscore <$> mkMetaInfo
 
 mkMetaInfo :: ReadTCState m => m MetaInfo
 mkMetaInfo = do
@@ -203,13 +212,21 @@ mkMetaInfo = do
   return $ emptyMetaInfo { metaScope = scope }
 
 mkDef :: HasConstInfo m => QName -> m A.Expr
-mkDef f =
-  ifM (isMacro . theDef <$> getConstInfo f)
-      (return $ A.Macro f)
-      (return $ A.Def f)
+mkDef f = getConstInfo f <&> theDef <&> \case
 
-mkApp :: Expr -> Expr -> Expr
-mkApp e1 e2 = App (setOrigin Reflected defaultAppInfo_) e1 $ defaultNamedArg e2
+  Constructor{}
+    -> A.Con $ unambiguous f
+
+  Function{ funProjection = Right Projection{ projProper = Just{} } }
+    -> A.Proj ProjSystem $ unambiguous f
+
+  d@Function{} | isMacro d
+    -> A.Macro f
+
+  _ -> A.Def f
+
+mkApp :: A.Expr -> A.Expr -> A.Expr
+mkApp e1 e2 = A.App (setOrigin Reflected defaultAppInfo_) e1 $ defaultNamedArg e2
 
 
 mkVar :: MonadReflectedToAbstract m => Int -> m (Name, R.Type)
@@ -228,7 +245,7 @@ annotatePattern i t p = local (drop $ i + 1) $ do
   return $ A.AnnP patNoRange t p
 
 instance ToAbstract Sort where
-  type AbsOfRef Sort = Expr
+  type AbsOfRef Sort = A.Expr
   toAbstract s = do
     setName <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinSet
     propName <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinProp
@@ -239,7 +256,7 @@ instance ToAbstract Sort where
       PropS x -> mkApp (A.Def propName) <$> toAbstract x
       PropLitS x -> return $ A.Def' propName $ A.Suffix x
       InfS x -> return $ A.Def' infName $ A.Suffix x
-      UnknownS -> mkApp (A.Def setName) . Underscore <$> mkMetaInfo
+      UnknownS -> mkApp (A.Def setName) . A.Underscore <$> mkMetaInfo
 
 instance ToAbstract R.Pattern where
   type AbsOfRef R.Pattern = A.Pattern
@@ -250,7 +267,7 @@ instance ToAbstract R.Pattern where
     R.DotP t -> A.DotP patNoRange <$> toAbstract t
     R.VarP i -> do
       (x, t) <- mkVar i
-      annotatePattern i t $ A.VarP $ mkBindName x
+      annotatePattern i t $ A.VarP $ A.mkBindName x
     R.LitP l  -> return $ A.LitP patNoRange l
     R.AbsurdP i -> do
       (_, t) <- mkVar i
@@ -264,13 +281,13 @@ instance ToAbstract (QNamed R.Clause) where
     checkClauseTelescopeBindings tel pats
     pats <- toAbstract pats
     rhs  <- toAbstract rhs
-    let lhs = spineToLhs $ SpineLHS empty name pats
-    return $ A.Clause lhs [] (RHS rhs Nothing) noWhereDecls False
+    let lhs = spineToLhs $ A.SpineLHS empty name pats
+    return $ A.Clause lhs [] (A.RHS rhs Nothing) A.noWhereDecls False
   toAbstract (QNamed name (R.AbsurdClause tel pats)) = withVars (map (Text.unpack *** unArg) tel) $ \_ -> do
     checkClauseTelescopeBindings tel pats
     pats <- toAbstract pats
-    let lhs = spineToLhs $ SpineLHS empty name pats
-    return $ A.Clause lhs [] AbsurdRHS noWhereDecls False
+    let lhs = spineToLhs $ A.SpineLHS empty name pats
+    return $ A.Clause lhs [] A.AbsurdRHS A.noWhereDecls False
 
 instance ToAbstract [QNamed R.Clause] where
   type AbsOfRef [QNamed R.Clause] = [A.Clause]

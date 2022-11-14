@@ -1,9 +1,9 @@
-Tested with `ghc-8.10.5` and `cabal-install 3.4.0.0`.
+Tested with `ghc-9.2.4` and `cabal-install 3.8.1.0`.
 
 When releasing a release candidate (RC) the following procedure can be
 followed:
 
-* Verify that the Travis builds and GitHub workflows have no errors.
+* Verify that GitHub workflows have no errors.
 
 * Finish the release notes in the CHANGELOG.
 
@@ -77,23 +77,14 @@ followed:
 
 1) Remove the Cabal test-suite from Agda.cabal.
 
-2) Remove -Werror and -fprof-auto from Agda.cabal (this is required by
-  `cabal --check`).
+2) Remove -Werror from Agda.cabal (this is required by `cabal
+   --check`).
 
 3) Removed unnecessary dependencies from stack-XYZ.yaml files:
 
   + Removed QuickCheck dependency
   + Removed tasty-* dependencies
   + Removed local package (src/size-solver)
-
-4) Added to the extra-source-files field in Agda.cabal the file (see
-  Issues #4216):
-
-    doc/user-manual.pdf
-
-* Update the user manual:
-
-    make user-manual-pdf
 
 * Build source distributions:
 
@@ -128,7 +119,7 @@ followed:
     cabal upload dist-newstyle/sdist/Agda-$RC_VERSION.tar.gz
     cabal upload -d dist-newstyle/Agda-$RC_VERSION-docs.tar.gz
 
-* Revert changes made in 1), 2), 3) and 4).
+* Revert changes made in 1), 2) and 3).
 
 * Restore the Agda version
 

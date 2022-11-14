@@ -1,5 +1,7 @@
 Failed to solve the following constraints:
-  Sort _5 of Big admits data/record definitions. (blocked on _5)
-  Agda.Primitive.Setω =< _5 (blocked on _5)
+  Sort _4 of Big admits data/record definitions. (blocked on _4)
+  Agda.Primitive.Setω =< _4 (blocked on _4)
+  _7 is a sort (blocked on _4)
 Unsolved metas at the following locations:
   Issue2285.agda:13,8-11
+  Issue2285.agda:14,29-32

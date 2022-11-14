@@ -122,6 +122,18 @@ createMissingIndexedClauses f n x old_sc scs cs = do
 --         return $ ([],[])
     xs | otherwise -> return ([],cs)
 
+covFillTele :: QName -> Abs Telescope -> Term -> Args -> Term -> TCM [Term]
+covFillTele func tel face d j = do
+  ed_f <- liftTCM $ runExceptT $ trFillTel tel face d j
+  case ed_f of
+    Right d_f -> pure $ map unArg d_f
+    Left failed_t -> enterClosure failed_t $ \failed_t -> addContext ("i" :: String, __DUMMY_DOM__) $ do
+      typeError . GenericDocError =<< vcat
+        [ "Could not generate a transport clause for" <+> prettyTCM func
+        , "because a term of type" <+> prettyTCM (unAbs failed_t)
+        , "lives in the sort" <+> prettyTCM (getSort (unAbs failed_t)) <+> "and thus can not be transported"
+        ]
+
 createMissingTrXTrXClause :: QName -- ^ trX
                             -> QName -- ^ f defined
                             -> Arg Nat
@@ -304,8 +316,7 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
             face <- min phi psi `max` (min i (max phi psi))
             j <- j
             d <- map defaultArg <$> sequence d
-            Right d_f <- lift $ runExceptT $ trFillTel tel face d j
-            pure $ map unArg d_f
+            lift $ covFillTele f tel face d j
           let args = bind "j" $ \ j -> do
                 g1 <- sequence g1
                 x <- pr `applyN` [i,neg j]
@@ -597,8 +608,7 @@ createMissingTrXHCompClause q_trX f n x old_sc = do
         let face = iz
         j <- j
         d <- map defaultArg <$> sequence d
-        Right d_f <- lift $ runExceptT $ trFillTel tel face d j
-        pure $ map unArg d_f
+        lift $ covFillTele f tel face d j
       let args = bind "j" $ \ j -> do
             g1 <- sequence g1
             x <- absApp <$> pat_rec <*> neg j
@@ -763,7 +773,8 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
             (phi:p) <- sequence phi_p
             args <- sequence args
             let cargs = defaultArg $ unnamed $ ConP chead noConPatternInfo args
-            param_args <- fmap (map (setHiding Hidden . fmap (unnamed . dotP))) $
+            -- Amy (2022-11-06): Set the parameters to quantity-0.
+            param_args <- fmap (map (setQuantity (Quantity0 Q0Inferred) . setHiding Hidden . fmap (unnamed . dotP))) $
               pure params `applyN` take gamma1_size (fmap unArg <$> g1_args)
             pure $ DefP defaultPatternInfo q_trX $ param_args ++ p ++ [phi,cargs]
       pat = (fmap . fmap) patternToTerm <$> pat'
@@ -817,8 +828,7 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
       phi <- phi
       d <- map defaultArg <$> sequence d
       i <- i
-      Right d_f <- lift $ runExceptT $ trFillTel delta_f phi d i
-      pure $ map unArg d_f
+      lift $ covFillTele f delta_f phi d i
 
     -- w = Def f (old_ps[g1_left[i],pat_left[i],d_f[~ i]])
     w <- (open =<<) $ bind "i" $ \ i -> do
@@ -892,7 +902,7 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
   applyModalityToContext mod $ do
     unlessM (asksTC hasQuantity0) $ do
     reportSDoc "tc.cover.trxcon" 20 $ text "testing usable at mod: " <+> pretty mod
-    addContext cTel $ usableAtModality mod rhs
+    addContext cTel $ usableAtModality IndexedClause mod rhs
 
   return cl
 
@@ -1245,7 +1255,7 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) cs 
               case x of
                 Left bad_t -> cannotCreate "Cannot transport with type family:" bad_t
                 Right args -> return args
-          comp <- mkComp "hcompClause"
+          comp <- mkCompLazy "hcompClause"
           let
             hcomp la bA phi u u0 = pure tHComp <#> la <#> bA
                                                <#> phi

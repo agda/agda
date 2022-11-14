@@ -6,6 +6,6 @@
 ((last . 1) . (agda2-goals-action '()))
 (agda2-status-action "Checked")
 (agda2-info-action "*Normal Form*" "0" nil)
-(agda2-info-action "*Error*" "1,1-4 Ambiguous name Nat. It could refer to any one of Nat bound at Issue2371.agda:4,19-22 Agda.Builtin.Nat.Nat bound at agda-default-include-path/Agda/Builtin/Nat.agda:8,6-9 (hint: Use C-c C-w (in Emacs) if you want to know why) when scope checking Nat" nil)
+(agda2-info-action "*Error*" "1,1-4 Ambiguous name Nat. It could refer to any one of Nat bound at Issue2371.agda:4,19-22 Agda.Builtin.Nat.Nat bound at agda-default-include-path/Agda/Builtin/Nat.agda:8,6-9 Nat is in scope as * a variable bound at Issue2371.agda:4,19-22 in conflict with * a data type Agda.Builtin.Nat.Nat brought into scope by - the opening of Agda.Builtin.Nat at - its definition at agda-default-include-path/Agda/Builtin/Nat.agda:8,6-9 when scope checking Nat" nil)
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")

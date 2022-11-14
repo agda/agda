@@ -1,0 +1,13 @@
+Failed to solve the following constraints:
+  Issue6022.Cubical.primConId i0
+  (transp (λ i → x₁ ≡ p₁ i) i0 (Issue6022.Cubical.primIdPath refl))
+    = ?0 (p = p₁) (i = i1)
+    : Id x₁ y₁
+    (blocked on _21)
+  Issue6022.Cubical.primConId i0
+  (transp (λ i → x₁ ≡ p₁ i) i0 (Issue6022.Cubical.primIdPath refl))
+    = ?0 (p = p₁) (i = i0)
+    : Id x₁ y₁
+    (blocked on _21)
+Unsolved interaction metas at the following locations:
+  Issue6022.agda:22,12-16

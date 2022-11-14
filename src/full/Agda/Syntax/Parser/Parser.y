@@ -31,9 +31,12 @@ import Prelude hiding ( null )
 
 import Control.Applicative ( (<|>) )
 import Control.Monad
+import Control.Monad.State
 
 import Data.Bifunctor (first, second)
 import Data.Char
+import Data.DList (DList)
+import qualified Data.DList as DL
 import qualified Data.List as List
 import Data.Maybe
 import Data.Semigroup ((<>), sconcat)
@@ -166,6 +169,7 @@ import Agda.Utils.Impossible
     'NO_UNIVERSE_CHECK'       { TokKeyword KwNO_UNIVERSE_CHECK $$ }
     'NON_TERMINATING'         { TokKeyword KwNON_TERMINATING $$ }
     'NON_COVERING'            { TokKeyword KwNON_COVERING $$ }
+    'NOT_PROJECTION_LIKE'     { TokKeyword KwNOT_PROJECTION_LIKE $$ }
     'OPTIONS'                 { TokKeyword KwOPTIONS $$ }
     'POLARITY'                { TokKeyword KwPOLARITY $$ }
     'WARNING_ON_USAGE'        { TokKeyword KwWARNING_ON_USAGE $$ }
@@ -294,6 +298,7 @@ Token
     | 'NO_UNIVERSE_CHECK'       { TokKeyword KwNO_UNIVERSE_CHECK $1 }
     | 'NON_TERMINATING'         { TokKeyword KwNON_TERMINATING $1 }
     | 'NON_COVERING'            { TokKeyword KwNON_COVERING $1 }
+    | 'NOT_PROJECTION_LIKE'     { TokKeyword KwNOT_PROJECTION_LIKE $1 }
     | 'OPTIONS'                 { TokKeyword KwOPTIONS $1 }
     | 'POLARITY'                { TokKeyword KwPOLARITY $1 }
     | 'REWRITE'                 { TokKeyword KwREWRITE $1 }
@@ -572,11 +577,12 @@ Strings :: { [(Interval, String)] }
 Strings : {- empty -}    { [] }
         | string Strings { $1 : $2 }
 
-ForeignCode :: { [(Interval, String)] }
+ForeignCode :: { DList (Interval, String) }
 ForeignCode
-  : {- empty -} { [] }
-  | string ForeignCode { $1 : $2 }
-  | '{-#' ForeignCode '#-}' ForeignCode { [($1, "{-#")] ++ $2 ++ [($3, "#-}")] ++ $4 }
+  : {- empty -} { mempty }
+  | string ForeignCode { $1 `DL.cons` $2 }
+  | '{-#' ForeignCode '#-}' ForeignCode
+    { (($1, "{-#") `DL.cons` $2) <> (($3, "#-}") `DL.cons` $4) }
 
 PragmaName :: { Name }
 PragmaName : string {% mkName $1 }
@@ -851,7 +857,7 @@ LamBindings
   : LamBinds '->' {%
       case absurdBinding $1 of
         Just{}  -> parseError "Absurd lambda cannot have a body."
-        Nothing -> return $ List1.fromList __IMPOSSIBLE__ $ lamBindings $1
+        Nothing -> return $ List1.fromListSafe __IMPOSSIBLE__ $ lamBindings $1
       }
 
 AbsurdLamBindings :: { Either ([LamBinding], Hiding) (List1 Expr) }
@@ -1307,6 +1313,8 @@ Primitive : 'primitive' ArgTypeSignaturesOrEmpty  {
 UnquoteDecl :: { Declaration }
 UnquoteDecl
   : 'unquoteDecl' '=' Expr { UnquoteDecl (fuseRange $1 $3) [] $3 }
+  | 'unquoteDecl' 'data' Id '=' Expr { UnquoteData (getRange($1, $2, $5)) $3 [] $5 }
+  | 'unquoteDecl' 'data' Id 'constructor' SpaceIds '=' Expr { UnquoteData (getRange($1, $2, $4, $7)) $3 (List1.toList $5) $7 }
   | 'unquoteDecl' SpaceIds '=' Expr { UnquoteDecl (fuseRange $1 $4) (List1.toList $2) $4 }
   | 'unquoteDef'  SpaceIds '=' Expr { UnquoteDef (fuseRange $1 $4) (List1.toList $2) $4 }
 
@@ -1314,7 +1322,7 @@ UnquoteDecl
 Syntax :: { Declaration }
 Syntax : 'syntax' Id HoleNames '=' SimpleIds  {%
   case $2 of
-    Name _ _ (_ :| []) -> case mkNotation $3 (reverse $5) of
+    Name _ _ (_ :| []) -> case mkNotation (DL.toList $3) (reverse $5) of
       Left err -> parseError $ "Malformed syntax declaration: " ++ err
       Right n -> return $ Syntax $2 n
     _ -> parseError "Syntax declarations are allowed only for simple names (without holes)"
@@ -1343,9 +1351,9 @@ SimpleIdsOrWildcards
   : SimpleIdOrWildcard                      { List1.singleton $1 }
   | SimpleIdsOrWildcards SimpleIdOrWildcard { $2 <| $1 }
 
-HoleNames :: { [NamedArg HoleName] }
-HoleNames :                    { [] }
-          | HoleNames HoleName {$1 ++ [$2]}
+HoleNames :: { DList (NamedArg HoleName) }
+HoleNames :                    { mempty }
+          | HoleNames HoleName { $1 `DL.snoc` $2 }
 
 HoleName :: { NamedArg HoleName }
 HoleName
@@ -1513,6 +1521,7 @@ DeclarationPragma
   | NonTerminatingPragma     { $1 }
   | NoTerminationCheckPragma { $1 }
   | NonCoveringPragma        { $1 }
+  | NotProjectionLikePragma  { $1 }
   | WarningOnUsagePragma     { $1 }
   | WarningOnImportPragma    { $1 }
   | MeasurePragma            { $1 }
@@ -1545,7 +1554,9 @@ RewritePragma
 
 ForeignPragma :: { Pragma }
 ForeignPragma
-  : '{-#' 'FOREIGN' string ForeignCode '#-}' { ForeignPragma (getRange ($1, $2, fst $3, $5)) (mkRString $3) (recoverLayout $4) }
+  : '{-#' 'FOREIGN' string ForeignCode '#-}'
+    { ForeignPragma (getRange ($1, $2, fst $3, $5))
+        (mkRString $3) (recoverLayout (DL.toList $4)) }
 
 CompilePragma :: { Pragma }
 CompilePragma
@@ -1566,6 +1577,11 @@ NoInlinePragma :: { Pragma }
 NoInlinePragma
   : '{-#' 'NOINLINE' PragmaQName '#-}'
     { InlinePragma (getRange ($1,$2,$3,$4)) False $3 }
+
+NotProjectionLikePragma :: { Pragma }
+NotProjectionLikePragma
+  : '{-#' 'NOT_PROJECTION_LIKE' PragmaQName '#-}'
+    { NotProjectionLikePragma (getRange ($1,$2,$3,$4)) $3 }
 
 InjectivePragma :: { Pragma }
 InjectivePragma
@@ -2388,8 +2404,15 @@ instance SetRange Attr where
 
 -- | Parse an attribute.
 toAttribute :: Expr -> Parser Attr
-toAttribute x = maybe failure (return . Attr (getRange x) y) $ exprToAttribute x
+toAttribute x = do
+  attr <- maybe failure (return . Attr r y) $ exprToAttribute x
+  case theAttr attr of
+    CohesionAttribute{} ->
+      modify' (\s -> s { parseCohesion = (y, r) : parseCohesion s })
+    _                   -> return ()
+  return attr
   where
+  r = getRange x
   y = prettyShow x
   failure = parseErrorRange x $ "Unknown attribute: " ++ y
 

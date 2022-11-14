@@ -13,17 +13,18 @@ module Agda.Interaction.Options.Base
     , checkOpts
     , parsePragmaOptions
     , parsePluginOptions
+    , parseVerboseKey
     , stripRTS
     , defaultOptions
     , defaultInteractionOptions
-    , defaultVerbosity
     , defaultCutOff
     , defaultPragmaOptions
     , standardOptions_
     , unsafePragmaOptions
-    , restartOptions
-    , infectiveOptions
-    , coinfectiveOptions
+    , recheckBecausePragmaOptionsChanged
+    , InfectiveCoinfective(..)
+    , InfectiveCoinfectiveOption(..)
+    , infectiveCoinfectiveOptions
     , safeFlag
     , mapFlag
     , usage
@@ -64,13 +65,17 @@ import Agda.Interaction.Options.Help
 import Agda.Interaction.Options.Warnings
 import Agda.Syntax.Concrete.Glyph ( unsafeSetUnicodeOrAscii, UnicodeOrAscii(..) )
 import Agda.Syntax.Common (Cubical(..))
+import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 
 import Agda.Utils.FileName      ( AbsolutePath )
 import Agda.Utils.Functor       ( (<&>) )
 import Agda.Utils.Lens          ( Lens', over )
-import Agda.Utils.List          ( groupOn, initLast1, wordsBy )
+import Agda.Utils.List          ( groupOn, initLast1 )
+import Agda.Utils.List1         ( String1, toList )
+import qualified Agda.Utils.List1        as List1
 import qualified Agda.Utils.Maybe.Strict as Strict
-import Agda.Utils.Pretty        ( singPlural )
+import Agda.Utils.Null (empty)
+import Agda.Utils.Pretty
 import Agda.Utils.ProfileOptions
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
@@ -80,9 +85,17 @@ import Agda.Version
 
 -- OptDescr is a Functor --------------------------------------------------
 
-type VerboseKey   = String
-type VerboseLevel = Int
-type Verbosity    = Trie VerboseKey VerboseLevel
+type VerboseKey     = String
+type VerboseKeyItem = String1
+type VerboseLevel   = Int
+-- | 'Strict.Nothing' is used if no verbosity options have been given,
+-- thus making it possible to handle the default case relatively
+-- quickly. Note that 'Strict.Nothing' corresponds to a trie with
+-- verbosity level 1 for the empty path.
+type Verbosity = Strict.Maybe (Trie VerboseKeyItem VerboseLevel)
+
+parseVerboseKey :: VerboseKey -> [VerboseKeyItem]
+parseVerboseKey = List1.wordsBy (`elem` ['.', ':'])
 
 -- Don't forget to update
 --   doc/user-manual/tools/command-line-options.rst
@@ -110,7 +123,8 @@ data CommandLineOptions = Options
       -- ^ Agda REPL (-I).
   , optGHCiInteraction       :: Bool
   , optJSONInteraction       :: Bool
-  , optOptimSmashing         :: Bool
+  , optExitOnError           :: !Bool
+    -- ^ Exit if an interactive command fails.
   , optCompileDir            :: Maybe FilePath
   -- ^ In the absence of a path the project root is used.
   , optGenerateVimFile       :: Bool
@@ -134,7 +148,7 @@ data PragmaOptions = PragmaOptions
   { optShowImplicit              :: Bool
   , optShowIrrelevant            :: Bool
   , optUseUnicode                :: UnicodeOrAscii
-  , optVerbose                   :: Verbosity
+  , optVerbose                   :: !Verbosity
   , optProfiling                 :: ProfileOptions
   , optProp                      :: Bool
   , optTwoLevel                  :: WithDefault 'False
@@ -144,7 +158,6 @@ data PragmaOptions = PragmaOptions
   , optTerminationCheck          :: Bool
   , optTerminationDepth          :: CutOff
     -- ^ Cut off structural order comparison at some depth in termination checker?
-  , optCompletenessCheck         :: Bool
   , optUniverseCheck             :: Bool
   , optOmegaInOmega              :: Bool
   , optCumulativity              :: Bool
@@ -155,6 +168,7 @@ data PragmaOptions = PragmaOptions
   , optIrrelevantProjections     :: Bool
   , optExperimentalIrrelevance   :: Bool  -- ^ irrelevant levels, irrelevant data matching
   , optWithoutK                  :: WithDefault 'False
+  , optCubicalCompatible         :: WithDefault 'False
   , optCopatterns                :: Bool  -- ^ Allow definitions by copattern matching?
   , optPatternMatching           :: Bool  -- ^ Is pattern matching allowed in the current file?
   , optExactSplit                :: Bool
@@ -202,17 +216,25 @@ data PragmaOptions = PragmaOptions
     -- ^ Use call-by-name instead of call-by-need
   , optConfluenceCheck           :: Maybe ConfluenceCheck
     -- ^ Check confluence of rewrite rules?
-  , optFlatSplit                 :: Bool
+  , optCohesion                  :: Bool
+     -- ^ Are the cohesion modalities available?
+  , optFlatSplit                 :: WithDefault 'False
      -- ^ Can we split on a (@flat x : A) argument?
   , optImportSorts               :: Bool
      -- ^ Should every top-level module start with an implicit statement
      --   @open import Agda.Primitive using (Set; Prop)@?
+  , optLoadPrimitives            :: Bool
+    -- ^ Should we load the primitive modules at all? This is a stronger
+    -- form of 'optImportSorts'.
   , optAllowExec                 :: Bool
   , optSaveMetas                 :: WithDefault 'False
     -- ^ Save meta-variables.
   , optShowIdentitySubstitutions :: Bool
     -- ^ Show identity substitutions when pretty-printing terms
     --   (i.e. always show all arguments of a metavariable)
+  , optKeepCoveringClauses       :: Bool
+    -- ^ Do not discard clauses constructed by the coverage checker
+    --   (needed for some external backends)
   }
   deriving (Show, Eq, Generic)
 
@@ -237,9 +259,6 @@ type OptionsPragma = [String]
 mapFlag :: (String -> String) -> OptDescr a -> OptDescr a
 mapFlag f (Option _ long arg descr) = Option [] (map f long) arg descr
 
-defaultVerbosity :: Verbosity
-defaultVerbosity = Trie.singleton [] 1
-
 defaultInteractionOptions :: PragmaOptions
 defaultInteractionOptions = defaultPragmaOptions
 
@@ -260,7 +279,7 @@ defaultOptions = Options
   , optInteractive           = False
   , optGHCiInteraction       = False
   , optJSONInteraction       = False
-  , optOptimSmashing         = True
+  , optExitOnError           = False
   , optCompileDir            = Nothing
   , optGenerateVimFile       = False
   , optIgnoreInterfaces      = False
@@ -276,7 +295,7 @@ defaultPragmaOptions = PragmaOptions
   { optShowImplicit              = False
   , optShowIrrelevant            = False
   , optUseUnicode                = UnicodeOk
-  , optVerbose                   = defaultVerbosity
+  , optVerbose                   = Strict.Nothing
   , optProfiling                 = noProfileOptions
   , optProp                      = False
   , optTwoLevel                  = Default
@@ -287,7 +306,6 @@ defaultPragmaOptions = PragmaOptions
   , optDisablePositivity         = False
   , optTerminationCheck          = True
   , optTerminationDepth          = defaultCutOff
-  , optCompletenessCheck         = True
   , optUniverseCheck             = True
   , optOmegaInOmega              = False
   , optCumulativity              = False
@@ -296,6 +314,7 @@ defaultPragmaOptions = PragmaOptions
   , optInjectiveTypeConstructors = False
   , optUniversePolymorphism      = True
   , optWithoutK                  = Default
+  , optCubicalCompatible         = Default
   , optCopatterns                = True
   , optPatternMatching           = True
   , optExactSplit                = False
@@ -325,11 +344,14 @@ defaultPragmaOptions = PragmaOptions
   , optFastReduce                = True
   , optCallByName                = False
   , optConfluenceCheck           = Nothing
-  , optFlatSplit                 = True
+  , optCohesion                  = False
+  , optFlatSplit                 = Default
   , optImportSorts               = True
   , optAllowExec                 = False
   , optSaveMetas                 = Default
   , optShowIdentitySubstitutions = False
+  , optLoadPrimitives            = True
+  , optKeepCoveringClauses       = False
   }
 
 type OptM = Except String
@@ -378,99 +400,155 @@ unsafePragmaOptions clo opts =
   [ "--irrelevant-projections"                   | optIrrelevantProjections opts     ] ++
   [ "--experimental-irrelevance"                 | optExperimentalIrrelevance opts   ] ++
   [ "--rewriting"                                | optRewriting opts                 ] ++
-  [ "--cubical and --with-K"                     | optCubical opts == Just CFull
+  [ "--cubical-compatible and --with-K"          | collapseDefault (optCubicalCompatible opts)
                                                  , not (collapseDefault $ optWithoutK opts) ] ++
-  [ "--erased-cubical and --with-K"              | optCubical opts == Just CErased
-                                                 , not (collapseDefault $ optWithoutK opts) ] ++
+  [ "--without-K and --flat-split"               | collapseDefault (optWithoutK opts)
+                                                 , collapseDefault (optFlatSplit opts) ] ++
   [ "--cumulativity"                             | optCumulativity opts              ] ++
   [ "--allow-exec"                               | optAllowExec opts                 ] ++
+  [ "--no-load-primitives"                       | not $ optLoadPrimitives opts      ] ++
   []
 
--- | If any these options have changed, then the file will be
---   rechecked. Boolean options are negated to mention non-default
---   options, where possible.
+-- | This function returns 'True' if the file should be rechecked.
 
-restartOptions :: [(PragmaOptions -> RestartCodomain, String)]
-restartOptions =
-  [ (C . optTerminationDepth, "--termination-depth")
-  , (B . (/= UnicodeOk) . optUseUnicode, "--no-unicode")
-  , (B . optAllowUnsolved, "--allow-unsolved-metas")
-  , (B . optAllowIncompleteMatch, "--allow-incomplete-matches")
-  , (B . optDisablePositivity, "--no-positivity-check")
-  , (B . optTerminationCheck,  "--no-termination-check")
-  , (B . not . optUniverseCheck, "--type-in-type")
-  , (B . optOmegaInOmega, "--omega-in-omega")
-  , (B . optCumulativity, "--cumulativity")
-  , (B . collapseDefault . optSizedTypes, "--no-sized-types")
-  , (B . collapseDefault . optGuardedness, "--no-guardedness")
-  , (B . optInjectiveTypeConstructors, "--injective-type-constructors")
-  , (B . optProp, "--prop")
-  , (B . collapseDefault . optTwoLevel, "--two-level")
-  , (B . not . optUniversePolymorphism, "--no-universe-polymorphism")
-  , (B . optIrrelevantProjections, "--irrelevant-projections")
-  , (B . optExperimentalIrrelevance, "--experimental-irrelevance")
-  , (B . collapseDefault . optWithoutK, "--without-K")
-  , (B . collapseDefault . optWithoutK, "--cubical-compatible")
-  , (B . optExactSplit, "--exact-split")
-  , (B . not . optEta, "--no-eta-equality")
-  , (B . optRewriting, "--rewriting")
-  , (B . (== Just CFull) . optCubical, "--cubical")
-  , (B . (== Just CErased) . optCubical, "--erased-cubical")
-  , (B . optGuarded, "--guarded")
-  , (B . optOverlappingInstances, "--overlapping-instances")
-  , (B . optQualifiedInstances, "--qualified-instances")
-  , (B . not . optQualifiedInstances, "--no-qualified-instances")
-  , (B . optSafe, "--safe")
-  , (B . optDoubleCheck, "--double-check")
-  , (M . optSyntacticEquality, "--syntactic-equality")
-  , (B . not . optAutoInline, "--no-auto-inline")
-  , (B . not . optFastReduce, "--no-fast-reduce")
-  , (B . optCallByName, "--call-by-name")
-  , (I . optInstanceSearchDepth, "--instance-search-depth")
-  , (I . optInversionMaxDepth, "--inversion-max-depth")
-  , (W . optWarningMode, "--warning")
-  , (B . (== Just LocalConfluenceCheck) . optConfluenceCheck, "--local-confluence-check")
-  , (B . (== Just GlobalConfluenceCheck) . optConfluenceCheck, "--confluence-check")
-  , (B . not . optImportSorts, "--no-import-sorts")
-  , (B . optAllowExec, "--allow-exec")
-  , (B . collapseDefault . optSaveMetas, "--save-metas")
-  , (B . optEraseRecordParameters, "--erase-record-parameters")
-  ]
+recheckBecausePragmaOptionsChanged
+  :: PragmaOptions
+     -- ^ The options that were used to check the file.
+  -> PragmaOptions
+     -- ^ The options that are currently in effect.
+  -> Bool
+recheckBecausePragmaOptionsChanged used current =
+  blankOut used /= blankOut current
+  where
+  -- "Blank out" irrelevant options.
+  blankOut opts = opts
+    { optShowImplicit              = False
+    , optShowIrrelevant            = False
+    , optVerbose                   = empty
+    , optProfiling                 = noProfileOptions
+    , optPostfixProjections        = False
+    , optCompileNoMain             = False
+    , optCaching                   = False
+    , optCountClusters             = False
+    , optPrintPatternSynonyms      = False
+    , optShowIdentitySubstitutions = False
+    }
 
--- to make all restart options have the same type
-data RestartCodomain
-  = C CutOff | B Bool | I Int | M !(Strict.Maybe Int) | W WarningMode
-  deriving Eq
+-- | Infective or coinfective?
 
--- | An infective option is an option that if used in one module, must
---   be used in all modules that depend on this module.
+data InfectiveCoinfective
+  = Infective
+  | Coinfective
+    deriving (Eq, Show, Generic)
+
+instance NFData InfectiveCoinfective
+
+-- | Descriptions of infective and coinfective options.
+
+data InfectiveCoinfectiveOption = ICOption
+  { icOptionActive :: PragmaOptions -> Bool
+    -- ^ Is the option active?
+  , icOptionDescription :: String
+    -- ^ A description of the option (typically a flag that activates
+    -- the option).
+  , icOptionKind :: InfectiveCoinfective
+    -- ^ Is the option (roughly speaking) infective or coinfective?
+  , icOptionOK :: PragmaOptions -> PragmaOptions -> Bool
+    -- ^ This function returns 'True' exactly when, from the
+    -- perspective of the option in question, the options in the
+    -- current module (the first argument) are compatible with the
+    -- options in a given imported module (the second argument).
+  , icOptionWarning :: TopLevelModuleName -> Doc
+    -- ^ A warning message that should be used if this option is not
+    -- used correctly. The given module name is the name of an
+    -- imported module for which 'icOptionOK' failed.
+  }
+
+-- | A standard infective option: If the option is active in an
+-- imported module, then it must be active in the current module.
+
+infectiveOption
+  :: (PragmaOptions -> Bool)
+     -- ^ Is the option active?
+  -> String
+    -- ^ A description of the option.
+  -> InfectiveCoinfectiveOption
+infectiveOption opt s = ICOption
+  { icOptionActive      = opt
+  , icOptionDescription = s
+  , icOptionKind        = Infective
+  , icOptionOK          = \current imported ->
+                           opt imported <= opt current
+  , icOptionWarning     = \m -> fsep $
+      pwords "Importing module" ++ [pretty m] ++ pwords "using the" ++
+      [text s] ++ pwords "flag from a module which does not."
+  }
+
+-- | A standard coinfective option: If the option is active in the
+-- current module, then it must be active in all imported modules.
+
+coinfectiveOption
+  :: (PragmaOptions -> Bool)
+     -- ^ Is the option active?
+  -> String
+    -- ^ A description of the option.
+  -> InfectiveCoinfectiveOption
+coinfectiveOption opt s = ICOption
+  { icOptionActive      = opt
+  , icOptionDescription = s
+  , icOptionKind        = Coinfective
+  , icOptionOK          = \current imported ->
+                           opt current <= opt imported
+  , icOptionWarning     = \m -> fsep $
+      pwords "Importing module" ++ [pretty m] ++
+      pwords "not using the" ++ [text s] ++
+      pwords "flag from a module which does."
+  }
+
+-- | Infective and coinfective options.
 --
 -- Note that @--cubical@ and @--erased-cubical@ are \"jointly
 -- infective\": if one of them is used in one module, then one or the
 -- other must be used in all modules that depend on this module.
 
-infectiveOptions :: [(PragmaOptions -> Bool, String)]
-infectiveOptions =
-  [ (isJust . optCubical, "--cubical/--erased-cubical")
-  , (optGuarded, "--guarded")
-  , (optProp, "--prop")
-  , (collapseDefault . optTwoLevel, "--two-level")
-  , (optRewriting, "--rewriting")
-  , (collapseDefault . optSizedTypes, "--sized-types")
-  , (collapseDefault . optGuardedness, "--guardedness")
+infectiveCoinfectiveOptions :: [InfectiveCoinfectiveOption]
+infectiveCoinfectiveOptions =
+  [ coinfectiveOption optSafe "--safe"
+  , coinfectiveOption (collapseDefault . optWithoutK) "--without-K"
+  , cubicalCompatible
+  , coinfectiveOption (not . optUniversePolymorphism)
+                      "--no-universe-polymorphism"
+  , coinfectiveOption (not . optCumulativity) "--no-cumulativity"
+  , infectiveOption (isJust . optCubical) "--cubical/--erased-cubical"
+  , infectiveOption optGuarded "--guarded"
+  , infectiveOption optProp "--prop"
+  , infectiveOption (collapseDefault . optTwoLevel) "--two-level"
+  , infectiveOption optRewriting "--rewriting"
+  , infectiveOption (collapseDefault . optSizedTypes) "--sized-types"
+  , infectiveOption (collapseDefault . optGuardedness) "--guardedness"
+  , infectiveOption (collapseDefault . optFlatSplit) "--flat-split"
+  , infectiveOption optCohesion "--cohesion"
   ]
-
--- | A coinfective option is an option that if used in one module, must
---   be used in all modules that this module depends on.
-
-coinfectiveOptions :: [(PragmaOptions -> Bool, String)]
-coinfectiveOptions =
-  [ (optSafe, "--safe")
-  , (collapseDefault . optWithoutK, "--without-K")
-  , (collapseDefault . optWithoutK, "--cubical-compatible")
-  , (not . optUniversePolymorphism, "--no-universe-polymorphism")
-  , (not . optCumulativity, "--no-cumulativity")
-  ]
+  where
+  cubicalCompatible =
+    (coinfectiveOption
+       (collapseDefault . optCubicalCompatible)
+       "--cubical-compatible")
+      { icOptionOK = \current imported ->
+        -- One must use --cubical-compatible in the imported module if
+        -- it is used in the current module, except if the current
+        -- module also uses --with-K and not --safe, and the imported
+        -- module uses --with-K.
+        if collapseDefault (optCubicalCompatible current)
+        then collapseDefault (optCubicalCompatible imported)
+               ||
+             not (collapseDefault (optWithoutK imported))
+               &&
+             not (collapseDefault (optWithoutK current))
+               &&
+             not (optSafe current)
+        else True
+      }
 
 inputFlag :: FilePath -> Flag CommandLineOptions
 inputFlag f o =
@@ -498,11 +576,14 @@ safeFlag o = do
              , optSizedTypes  = setDefault False sizedTypes
              }
 
-flatSplitFlag :: Flag PragmaOptions
-flatSplitFlag o = return $ o { optFlatSplit = True }
+cohesionFlag :: Flag PragmaOptions
+cohesionFlag o = return $ o { optCohesion = True }
 
-noFlatSplitFlag :: Flag PragmaOptions
-noFlatSplitFlag o = return $ o { optFlatSplit = False }
+flatSplitFlag :: Flag PragmaOptions
+flatSplitFlag o = return $ o
+  { optFlatSplit = Value True
+  , optCohesion  = True
+  }
 
 doubleCheckFlag :: Bool -> Flag PragmaOptions
 doubleCheckFlag b o = return $ o { optDoubleCheck = b }
@@ -518,13 +599,6 @@ syntacticEqualityFlag s o =
     Just s  -> case readMaybe s of
       Just n | n >= 0 -> Right (Strict.Just n)
       _               -> Left $ "Not a natural number: " ++ s
-
-noSortComparisonFlag :: Flag PragmaOptions
-noSortComparisonFlag o = return o
-
-sharingFlag :: Bool -> Flag CommandLineOptions
-sharingFlag _ _ = throwError $
-  "Feature --sharing has been removed (in favor of the Agda abstract machine)."
 
 cachingFlag :: Bool -> Flag PragmaOptions
 cachingFlag b o = return $ o { optCaching = b }
@@ -555,6 +629,12 @@ ignoreAllInterfacesFlag o = return $ o { optIgnoreAllInterfaces = True }
 
 localInterfacesFlag :: Flag CommandLineOptions
 localInterfacesFlag o = return $ o { optLocalInterfaces = True }
+
+noLoadPrimitivesFlag :: Flag PragmaOptions
+noLoadPrimitivesFlag o = return $ o
+  { optLoadPrimitives = False
+  , optImportSorts = False
+  }
 
 allowUnsolvedFlag :: Flag PragmaOptions
 allowUnsolvedFlag o = do
@@ -589,6 +669,9 @@ ghciInteractionFlag o = return $ o { optGHCiInteraction = True }
 
 jsonInteractionFlag :: Flag CommandLineOptions
 jsonInteractionFlag o = return $ o { optJSONInteraction = True }
+
+interactionExitFlag :: Flag CommandLineOptions
+interactionExitFlag o = return $ o { optExitOnError = True }
 
 vimFlag :: Flag CommandLineOptions
 vimFlag o = return $ o { optGenerateVimFile = True }
@@ -637,11 +720,6 @@ dontTerminationCheckFlag o = do
              , optWarningMode   = upd (optWarningMode o)
              }
 
--- The option was removed. See Issue 1918.
-dontCompletenessCheckFlag :: Flag PragmaOptions
-dontCompletenessCheckFlag _ =
-  throwError "The --no-coverage-check option has been removed."
-
 dontUniverseCheckFlag :: Flag PragmaOptions
 dontUniverseCheckFlag o = return $ o { optUniverseCheck = False }
 
@@ -676,10 +754,6 @@ noGuardedness o = return $ o { optGuardedness = Value False }
 injectiveTypeConstructorFlag :: Flag PragmaOptions
 injectiveTypeConstructorFlag o = return $ o { optInjectiveTypeConstructors = True }
 
-guardingTypeConstructorFlag :: Flag PragmaOptions
-guardingTypeConstructorFlag _ = throwError $
-  "Experimental feature --guardedness-preserving-type-constructors has been removed."
-
 universePolymorphismFlag :: Flag PragmaOptions
 universePolymorphismFlag o = return $ o { optUniversePolymorphism = True }
 
@@ -696,7 +770,10 @@ withKFlag :: Flag PragmaOptions
 withKFlag o = return $ o { optWithoutK = Value False }
 
 withoutKFlag :: Flag PragmaOptions
-withoutKFlag o = return $ o { optWithoutK = Value True }
+withoutKFlag o = return $ o
+  { optWithoutK = Value True
+  , optFlatSplit = setDefault False (optFlatSplit o)
+  }
 
 copatternsFlag :: Flag PragmaOptions
 copatternsFlag o = return $ o { optCopatterns = True }
@@ -727,14 +804,22 @@ rewritingFlag o = return $ o { optRewriting = True }
 firstOrderFlag :: Flag PragmaOptions
 firstOrderFlag o = return $ o { optFirstOrder = True }
 
+cubicalCompatibleFlag :: Flag PragmaOptions
+cubicalCompatibleFlag o =
+  return $ o { optCubicalCompatible = Value True
+             , optWithoutK = setDefault True $ optWithoutK o
+             , optFlatSplit = setDefault False (optFlatSplit o)
+             }
+
 cubicalFlag
   :: Cubical  -- ^ Which variant of Cubical Agda?
   -> Flag PragmaOptions
-cubicalFlag variant o = do
-  let withoutK = optWithoutK o
+cubicalFlag variant o =
   return $ o { optCubical  = Just variant
-             , optWithoutK = setDefault True withoutK
+             , optCubicalCompatible = setDefault True $ optCubicalCompatible o
+             , optWithoutK = setDefault True $ optWithoutK o
              , optTwoLevel = setDefault True $ optTwoLevel o
+             , optFlatSplit = setDefault False (optFlatSplit o)
              }
 
 guardedFlag :: Flag PragmaOptions
@@ -800,14 +885,21 @@ noLibsFlag o = return $ o { optUseLibs = False }
 verboseFlag :: String -> Flag PragmaOptions
 verboseFlag s o =
     do  (k,n) <- parseVerbose s
-        return $ o { optVerbose = Trie.insert k n $ optVerbose o }
+        return $
+          o { optVerbose =
+                Strict.Just $ Trie.insert k n $
+                case optVerbose o of
+                  Strict.Nothing -> Trie.singleton [] 1
+                  Strict.Just v  -> v
+            }
   where
-    parseVerbose :: String -> OptM ([VerboseKey], VerboseLevel)
-    parseVerbose s = case wordsBy (`elem` (":." :: String)) s of
+    parseVerbose :: String -> OptM ([VerboseKeyItem], VerboseLevel)
+    parseVerbose s = case parseVerboseKey s of
       []  -> usage
       s0:ss0 -> do
         let (ss, s) = initLast1 s0 ss0
-        n <- maybe usage return $ readMaybe s
+        -- The last entry must be a number.
+        n <- maybe usage return $ readMaybe $ toList s
         return (ss, n)
     usage = throwError "argument to verbose should be on the form x.y.z:N or N"
 
@@ -855,6 +947,10 @@ integerArgument flag s = maybe usage return $ readMaybe s
   where
   usage = throwError $ "option '" ++ flag ++ "' requires an integer argument"
 
+keepCoveringClausesFlag :: Flag PragmaOptions
+keepCoveringClausesFlag o = return $ o { optKeepCoveringClauses = True }
+
+
 standardOptions :: [OptDescr (Flag CommandLineOptions)]
 standardOptions =
     [ Option ['V']  ["version"] (NoArg versionFlag)
@@ -876,6 +972,9 @@ standardOptions =
                     "for use with the Emacs mode"
     , Option []     ["interaction-json"] (NoArg jsonInteractionFlag)
                     "for use with other editors such as Atom"
+    , Option []     ["interaction-exit-on-error"]
+                    (NoArg interactionExitFlag)
+                    "exit if a type error is encountered"
 
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
                     ("directory for compiler output (default: the project root)")
@@ -911,13 +1010,13 @@ lensPragmaOptions f st = f (optPragmaOptions st) <&> \ opts -> st { optPragmaOpt
 --   Should not be listed in the usage info, put parsed by GetOpt for good error messaging.
 deadStandardOptions :: [OptDescr (Flag CommandLineOptions)]
 deadStandardOptions =
-    [ Option []     ["sharing"] (NoArg $ sharingFlag True)
-                    "DEPRECATED: does nothing"
-    , Option []     ["no-sharing"] (NoArg $ sharingFlag False)
-                    "DEPRECATED: does nothing"
+    [ removedOption "sharing"    msgSharing
+    , removedOption "no-sharing" msgSharing
     , Option []     ["ignore-all-interfaces"] (NoArg ignoreAllInterfacesFlag) -- not deprecated! Just hidden
                     "ignore all interface files (re-type check everything, including builtin files)"
     ] ++ map (fmap lensPragmaOptions) deadPragmaOptions
+  where
+    msgSharing = "(in favor of the Agda abstract machine)"
 
 pragmaOptions :: [OptDescr (Flag PragmaOptions)]
 pragmaOptions =
@@ -948,7 +1047,7 @@ pragmaOptions =
     , Option []     ["omega-in-omega"] (NoArg omegaInOmegaFlag)
                     "enable typing rule Setω : Setω (this makes Agda inconsistent)"
     , Option []     ["cumulativity"] (NoArg cumulativityFlag)
-                    "enable subtyping of universes (e.g. Set =< Set₁) (implies --subtyping)"
+                    "enable subtyping of universes (e.g. Set =< Set₁)"
     , Option []     ["no-cumulativity"] (NoArg noCumulativityFlag)
                     "disable subtyping of universes (default)"
     , Option []     ["prop"] (NoArg propFlag)
@@ -958,17 +1057,17 @@ pragmaOptions =
     , Option []     ["two-level"] (NoArg twoLevelFlag)
                     "enable the use of SSet* universes"
     , Option []     ["sized-types"] (NoArg sizedTypes)
-                    "enable sized types (default, inconsistent with --guardedness, implies --subtyping)"
+                    "enable sized types (inconsistent with --guardedness)"
     , Option []     ["no-sized-types"] (NoArg noSizedTypes)
-                    "disable sized types"
+                    "disable sized types (default)"
+    , Option []     ["cohesion"] (NoArg cohesionFlag)
+                    "enable the cohesion modalities (in particular @flat)"
     , Option []     ["flat-split"] (NoArg flatSplitFlag)
-                    "allow split on (@flat x : A) arguments (default)"
-    , Option []     ["no-flat-split"] (NoArg noFlatSplitFlag)
-                    "disable split on (@flat x : A) arguments"
+                    "allow split on (@flat x : A) arguments (implies --cohesion)"
     , Option []     ["guardedness"] (NoArg guardedness)
-                    "enable constructor-based guarded corecursion (default, inconsistent with --sized-types)"
+                    "enable constructor-based guarded corecursion (inconsistent with --sized-types)"
     , Option []     ["no-guardedness"] (NoArg noGuardedness)
-                    "disable constructor-based guarded corecursion"
+                    "disable constructor-based guarded corecursion (default)"
     , Option []     ["injective-type-constructors"] (NoArg injectiveTypeConstructorFlag)
                     "enable injective type constructors (makes Agda anti-classical and possibly inconsistent)"
     , Option []     ["no-universe-polymorphism"] (NoArg noUniversePolymorphismFlag)
@@ -983,10 +1082,10 @@ pragmaOptions =
                     "enable potentially unsound irrelevance features (irrelevant levels, irrelevant data matching)"
     , Option []     ["with-K"] (NoArg withKFlag)
                     "enable the K rule in pattern matching (default)"
-    , Option []     ["cubical-compatible"] (NoArg withoutKFlag)
-                    "turn on checks to make code compatible with --cubical (e.g. disabling the K rule)"
+    , Option []     ["cubical-compatible"] (NoArg cubicalCompatibleFlag)
+                    "turn on generation of auxiliary code required for --cubical, implies --without-K"
     , Option []     ["without-K"] (NoArg withoutKFlag)
-                    "alias for --cubical-compatible (legacy)"
+                    "turn on checks to make code compatible with HoTT (e.g. disabling the K rule). Implies --no-flat-split."
     , Option []     ["copatterns"] (NoArg copatternsFlag)
                     "enable definitions by copattern matching (default)"
     , Option []     ["no-copatterns"] (NoArg noCopatternsFlag)
@@ -1021,7 +1120,7 @@ pragmaOptions =
                     "enable cubical features (some only in erased settings), implies --cubical-compatible"
     , Option []     ["guarded"] (NoArg guardedFlag)
                     "enable @lock/@tick attributes"
-    , Option []     ["experimental-lossy-unification"] (NoArg firstOrderFlag)
+    , Option []     ["lossy-unification"] (NoArg firstOrderFlag)
                     "enable heuristically unifying `f es = f es'` by unifying `es = es'`, even when it could lose solutions."
     , Option []     ["postfix-projections"] (NoArg postfixProjectionsFlag)
                     "make postfix projection notation the default"
@@ -1079,25 +1178,47 @@ pragmaOptions =
                     "use call-by-name evaluation instead of call-by-need"
     , Option []     ["no-import-sorts"] (NoArg noImportSorts)
                     "disable the implicit import of Agda.Primitive using (Set; Prop) at the start of each top-level module"
+    , Option []     ["no-load-primitives"] (NoArg noLoadPrimitivesFlag)
+                    "disable loading of primitive modules at all (implies --no-import-sorts)"
     , Option []     ["allow-exec"] (NoArg allowExec)
                     "allow system calls to trusted executables with primExec"
     , Option []     ["save-metas"] (NoArg $ saveMetas True)
                     "save meta-variables"
     , Option []     ["no-save-metas"] (NoArg $ saveMetas False)
                     "do not save meta-variables (the default)"
+    , Option []     ["keep-covering-clauses"] (NoArg keepCoveringClausesFlag)
+                    "do not discard covering clauses (required for some external backends)"
     ]
 
 -- | Pragma options of previous versions of Agda.
 --   Should not be listed in the usage info, put parsed by GetOpt for good error messaging.
 deadPragmaOptions :: [OptDescr (Flag PragmaOptions)]
-deadPragmaOptions =
-    [ Option []     ["guardedness-preserving-type-constructors"] (NoArg guardingTypeConstructorFlag)
-                    "treat type constructors as inductive constructors when checking productivity"
-    , Option []     ["no-coverage-check"] (NoArg dontCompletenessCheckFlag)
-                    "the option has been removed"
-    , Option []     ["no-sort-comparison"] (NoArg noSortComparisonFlag)
-                    "disable the comparison of sorts when checking conversion of types"
+deadPragmaOptions = map (uncurry removedOption) $
+    [ ("guardedness-preserving-type-constructors"
+      , "")
+    , ("no-coverage-check"
+      , inVersion "2.5.1") -- see issue #1918
+    , ("no-sort-comparison"
+      , "")
+    , ("subtyping"
+      , inVersion "2.6.3") -- see issue #5427
+    , ("no-subtyping"
+      , inVersion "2.6.3") -- see issue #5427
+    , ("no-flat-split", inVersion "2.6.3")  -- See issue #6263.
     ]
+  where
+    inVersion = ("in version " ++)
+
+-- | Generate a dead options that just error out saying this option has been removed.
+removedOption ::
+     String
+       -- ^ The name of the removed option.
+  -> String
+       -- ^ Optional: additional remark, like in which version the option was removed.
+  -> OptDescr (Flag a)
+removedOption name remark = Option [] [name] (NoArg $ const $ throwError msg) msg
+  where
+  msg = unwords ["Option", "--" ++ name, "has been removed", remark]
 
 -- | Used for printing usage info.
 --   Does not include the dead options.
