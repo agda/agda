@@ -234,6 +234,7 @@ typeErrorName = \case
   WrongAnnotationInLambda                                    {} -> WrongAnnotationInLambda_
   WrongArgInfoForPrimitive                                   {} -> WrongArgInfoForPrimitive_
   WrongCohesionInLambda                                      {} -> WrongCohesionInLambda_
+  WrongPolarityInLambda                                      {} -> WrongPolarityInLambda_
   WrongHidingInApplication                                   {} -> WrongHidingInApplication_
   WrongHidingInLHS                                           {} -> WrongHidingInLHS_
   WrongHidingInLambda                                        {} -> WrongHidingInLambda_

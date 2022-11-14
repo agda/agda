@@ -260,6 +260,9 @@ instance PrettyTCM TypeError where
     WrongCohesionInLambda ->
       fwords "Incorrect cohesion annotation in lambda"
 
+    WrongPolarityInLambda ->
+      fwords "Incorrect polarity annotation in lambda"
+
     WrongNamedArgument a xs0 -> fsep $
       pwords "Function does not accept argument "
       ++ [prettyTCM a] -- ++ pwords " (wrong argument name)"
