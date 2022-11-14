@@ -1207,10 +1207,14 @@ disambiguateConstructor cs0 args t = do
 -- | If type is of the form @F vs@, return @F@.
 getTypeHead :: Type -> TCM (Maybe QName)
 getTypeHead t = do
-  res <- ifBlocked t (\ _ _ -> return Nothing) $ \ _ t -> do
-    TelV _ core <- telViewUpTo' (0-1) (not . visible)  t
-    case unEl core of
-      Def q _ -> return $ Just q
+  res <- ifBlocked t (\ _ _ -> return Nothing) $ \ nb t -> do
+    case nb of
+      ReallyNotBlocked -> do
+        TelV _ core <- telViewUpTo' (0-1) (not . visible) t
+        case unEl core of
+          Def q _ -> return $ Just q
+          _ -> return Nothing
+      -- In the other cases, we do not get the data name.
       _ -> return Nothing
   reportSDoc "tc.check.term.con" 80 $ hcat $ "getTypeHead(" : prettyTCM t : ") = " : pretty res : []
   return res
