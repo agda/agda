@@ -378,9 +378,12 @@ exports.primQNameFixity = x => x['fixity'];
 // Meta
 
 // primShowMeta : Meta -> String
+//   Should be kept in sync with version in `primitiveFunctions` in
+//   Agda.TypeChecking.Primitive
 exports.primShowMeta = x => "_" + x['id'] + "@" + x['module'];
 
 // primMetaToNat : Meta -> Nat
+//   Should be kept in sync with `metaToNat` in Agda.TypeChecking.Primitive
 exports.primMetaToNat = x => x['module'] * 2^64 + x['id'];
 
 // primMetaEquality : Meta -> Meta -> Bool

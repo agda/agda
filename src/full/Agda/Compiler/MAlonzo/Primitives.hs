@@ -288,7 +288,10 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primQNameToWord64sInjective" |-> return mazErasedName
   , "primMetaEquality"    |-> rel "(==)" "(Integer, Integer)"
   , "primMetaLess"        |-> rel "(<)" "(Integer, Integer)"
+  -- Should be kept in sync with version in `primitiveFunctions` in
+  -- Agda.TypeChecking.Primitive
   , "primShowMeta"        |-> return "\\ (m, h) -> Data.Text.pack (\"_\" ++ show (m :: Integer) ++ \"@\" ++ show (h :: Integer))"
+  -- Should be kept in sync with `metaToNat` in Agda.TypeChecking.Primitive
   , "primMetaToNat"       |-> return "\\ (m, h) -> (h :: Integer) * 2^64 + (m :: Integer)"
   , "primMetaToNatInjective" |-> return mazErasedName
 
