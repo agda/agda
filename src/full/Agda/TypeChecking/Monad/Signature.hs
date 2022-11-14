@@ -76,6 +76,9 @@ import Agda.Utils.Size
 import Agda.Utils.Update
 
 import Agda.Utils.Impossible
+import Data.Map (Map)
+import Data.HashSet (HashSet)
+import qualified Data.HashSet as HashSet
 
 -- | If the first argument is @'Erased' something@, then hard
 -- compile-time mode is enabled when the continuation is run.
@@ -932,13 +935,19 @@ defaultGetConstInfo st env q = do
         []  -> return $ Left $ SigUnknown $ "Unbound name: " ++ prettyShow q ++ showQNameId q
         [d] -> checkErasureFixQuantity d >>= \case
                  Left err -> return (Left err)
-                 Right d  -> mkAbs env d
+                 Right d  -> mkAbs (st ^. stUnfoldDefs) env d
         ds  -> __IMPOSSIBLE_VERBOSE__ $ "Ambiguous name: " ++ prettyShow q
     where
-      mkAbs env d
-        | treatAbstractly' q' env =
+      mkAbs uf env d
+        | treatAbstractly' uf q' env =
           case makeAbstract d of
-            Just d      -> return $ Right d
+            Just d      -> do
+              reportSDoc "tc.const.info" 30 $ vcat
+                [ "defaultGetConstInfo" <+> prettyTCM q
+                , "treating as abstract"
+                , text (show (envAbstractMode env))
+                , pretty (Map.mapKeys show (fmap HashSet.toList uf))]
+              return $ Right d
             Nothing     -> return $ Left SigAbstract
               -- the above can happen since the scope checker is a bit sloppy with 'abstract'
         | otherwise = return $ Right d
@@ -1261,33 +1270,33 @@ instantiateRewriteRules = mapM instantiateRewriteRule
 makeAbstract :: Definition -> Maybe Definition
 makeAbstract d =
   case defAbstract d of
-    ConcreteDef -> return d
-    AbstractDef -> do
-      def <- makeAbs $ theDef d
+    NoAbstract -> return d
+    AbstractUnfolding i -> do
+      def <- makeAbs i $ theDef d
       return d { defArgOccurrences = [] -- no positivity info for abstract things!
                , defPolarity       = [] -- no polarity info for abstract things!
                , theDef = def
                }
   where
-    makeAbs d@Axiom{}            = Just d
-    makeAbs d@DataOrRecSig{}     = Just d
-    makeAbs d@GeneralizableVar{} = Just d
-    makeAbs d@Datatype {} = Just $ AbstractDefn d
-    makeAbs d@Function {} = Just $ AbstractDefn d
-    makeAbs Constructor{} = Nothing
+    makeAbs i d@Axiom{}            = Just d
+    makeAbs i d@DataOrRecSig{}     = Just d
+    makeAbs i d@GeneralizableVar{} = Just d
+    makeAbs i d@Datatype {} = Just $ AbstractDefn i d
+    makeAbs i d@Function {} = Just $ AbstractDefn i d
+    makeAbs i Constructor{} = Nothing
     -- Andreas, 2012-11-18:  Make record constructor and projections abstract.
     -- Andreas, 2017-08-14:  Projections are actually not abstract (issue #2682).
     -- Return the Defn under a wrapper to allow e.g. eligibleForProjectionLike
     -- to see whether the abstract thing is a record type or not.
-    makeAbs d@Record{}    = Just $ AbstractDefn d
-    makeAbs Primitive{}   = __IMPOSSIBLE__
-    makeAbs PrimitiveSort{} = __IMPOSSIBLE__
-    makeAbs AbstractDefn{}= __IMPOSSIBLE__
+    makeAbs i d@Record{}    = Just $ AbstractDefn i d
+    makeAbs i Primitive{}   = __IMPOSSIBLE__
+    makeAbs i PrimitiveSort{} = __IMPOSSIBLE__
+    makeAbs i AbstractDefn{}= __IMPOSSIBLE__
 
 -- | Enter abstract mode. Abstract definition in the current module are transparent.
-{-# SPECIALIZE inAbstractMode :: TCM a -> TCM a #-}
-inAbstractMode :: MonadTCEnv m => m a -> m a
-inAbstractMode = localTC $ \e -> e { envAbstractMode = AbstractMode }
+{-# SPECIALIZE inAbstractMode :: AbstractId -> TCM a -> TCM a #-}
+inAbstractMode :: MonadTCEnv m => AbstractId -> m a -> m a
+inAbstractMode i = localTC $ \e -> e { envAbstractMode = AbstractMode i }
 
 -- | Not in abstract mode. All abstract definitions are opaque.
 {-# SPECIALIZE inConcreteMode :: TCM a -> TCM a #-}
@@ -1307,14 +1316,16 @@ inConcreteOrAbstractMode q cont = do
   -- we will get ConcreteDef for abstract things, as they are turned into axioms.
   def <- ignoreAbstractMode $ getConstInfo q
   case defAbstract def of
-    AbstractDef -> inAbstractMode $ cont def
-    ConcreteDef -> inConcreteMode $ cont def
+    AbstractUnfolding i -> inAbstractMode i $ cont def
+    NoAbstract -> inConcreteMode $ cont def
 
 -- | Check whether a name might have to be treated abstractly (either if we're
 --   'inAbstractMode' or it's not a local name). Returns true for things not
 --   declared abstract as well, but for those 'makeAbstract' will have no effect.
-treatAbstractly :: MonadTCEnv m => QName -> m Bool
-treatAbstractly q = asksTC $ treatAbstractly' q
+treatAbstractly :: (MonadTCEnv m, ReadTCState m) => QName -> m Bool
+treatAbstractly q = do
+  st <- useTC stUnfoldDefs
+  asksTC $ treatAbstractly' st q
 
 -- | Andreas, 2015-07-01:
 --   If the @current@ module is a weak suffix of the identifier module,
@@ -1327,15 +1338,18 @@ treatAbstractly q = asksTC $ treatAbstractly' q
 --   of the local identifier.
 --   This problem is fixed by removing trailing anonymous module name parts
 --   (underscores) from both names.
-treatAbstractly' :: QName -> TCEnv -> Bool
-treatAbstractly' q env = case envAbstractMode env of
+treatAbstractly' :: Map AbstractId (HashSet QName) -> QName -> TCEnv -> Bool
+treatAbstractly' st q env = case envAbstractMode env of
   ConcreteMode       -> True
   IgnoreAbstractMode -> False
-  AbstractMode       -> not $ current `isLeChildModuleOf` m
+  AbstractMode i     -> not (current `isLeChildModuleOf` m || canUnfold i) -- TODO abstract unfolding
   where
     current = dropAnon $ envCurrentModule env
     m       = dropAnon $ qnameModule q
     dropAnon (MName ms) = MName $ List.dropWhileEnd isNoName ms
+    canUnfold i = case Map.lookup i st of
+      Just hs -> HashSet.member q hs
+      Nothing -> False
 
 -- | Get type of a constant, instantiated to the current context.
 {-# SPECIALIZE typeOfConst :: QName -> TCM Type #-}

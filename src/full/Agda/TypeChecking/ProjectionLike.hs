@@ -191,7 +191,7 @@ eligibleForProjectionLike d = eligible . theDef <$> getConstInfo d
     Primitive{}   -> False
     PrimitiveSort{} -> False
     Constructor{} -> __IMPOSSIBLE__
-    AbstractDefn d -> eligible d
+    AbstractDefn i d -> eligible d
       -- Andreas, 2017-08-14, issue #2682:
       -- Abstract records still export the projections.
       -- Andreas, 2016-10-11 AIM XXIV
@@ -265,7 +265,7 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
     def@Function{funProjection = Left MaybeProjection, funClauses = cls,
                  funSplitTree = st0, funCompiled = cc0, funInv = NotInjective,
                  funMutual = Just [], -- Andreas, 2012-09-28: only consider non-mutual funs
-                 funAbstr = ConcreteDef} -> do
+                 funAbstr = NoAbstract} -> do
       ps0 <- filterM validProj $ candidateArgs [] t
       reportSLn "tc.proj.like" 30 $ if null ps0 then "  no candidates found"
                                                 else "  candidates: " ++ prettyShow ps0
@@ -320,7 +320,7 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
                                    }
     Function{funInv = Inverse{}} ->
       reportSLn "tc.proj.like" 30 $ "  injective functions can't be projections"
-    Function{funAbstr = AbstractDef} ->
+    Function{funAbstr = AbstractUnfolding{}} ->
       reportSLn "tc.proj.like" 30 $ "  abstract functions can't be projections"
     Function{funProjection = Right{}} ->
       reportSLn "tc.proj.like" 30 $ "  already projection like"

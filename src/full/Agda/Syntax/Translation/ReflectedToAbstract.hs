@@ -190,7 +190,7 @@ instance ToAbstract Term where
       m    <- getCurrentModule
       let qname   = qualify m name
           cname   = nameConcrete name
-          defInfo = mkDefInfo cname noFixity' PublicAccess ConcreteDef noRange
+          defInfo = mkDefInfo cname noFixity' PublicAccess NoAbstract noRange
       cs <- toAbstract $ fmap (QNamed qname) cs
       toAbstract
         (A.ExtendedLam exprNoRange defInfo defaultErased qname cs, es)

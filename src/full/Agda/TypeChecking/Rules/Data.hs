@@ -347,7 +347,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
 
             defineProjections d con params names fields dataT
             -- Cannot compose indexed inductive types yet.
-            comp <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef)
+            comp <- if nofIxs /= 0 || not (null (Info.defAbstract i))
                     then return emptyCompKit
                     else inTopContext $ defineCompData d con params names fields dataT boundary
             return (con, comp, Just names)

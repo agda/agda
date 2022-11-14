@@ -527,7 +527,7 @@ checkProjectionLikeness_ names = Bench.billTo [Bench.ProjectionLikeness] $ do
 -- | Freeze metas created by given computation if in abstract mode.
 whenAbstractFreezeMetasAfter :: A.DefInfo -> TCM a -> TCM a
 whenAbstractFreezeMetasAfter Info.DefInfo{ defAccess, defAbstract} m = do
-  if defAbstract /= AbstractDef then m else do
+  if null defAbstract then m else do
     (a, ms) <- metasCreatedBy m
     reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
     wakeupConstraints_   -- solve emptiness and instance constraints
@@ -819,7 +819,7 @@ checkTypeSignature' gtel (A.Axiom funSig i info mp x e) =
   Bench.billTo [Bench.Typing, Bench.TypeSig] $
     let abstr = case Info.defAccess i of
           PrivateAccess{}
-            | Info.defAbstract i == AbstractDef -> inConcreteMode
+            | not (null (Info.defAbstract i)) -> inConcreteMode
               -- Issue #2321, only go to AbstractMode for abstract definitions
               -- Issue #418, #3744, in fact don't go to AbstractMode at all
             | otherwise -> inConcreteMode

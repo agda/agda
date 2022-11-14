@@ -18,6 +18,8 @@ import Agda.Utils.Pretty
 import Agda.Utils.Impossible
 import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Null
+import Data.Word
 
 {--------------------------------------------------------------------------
     Types
@@ -45,45 +47,46 @@ import qualified Agda.Utils.List1 as List1
       content (Expr, Declaration ...)
 -}
 data NiceDeclaration
-  = Axiom Range Access IsAbstract IsInstance ArgInfo Name Expr
-      -- ^ 'IsAbstract' argument: We record whether a declaration was made in an @abstract@ block.
+  = Axiom Range Access IsAbstractUnfolding IsInstance ArgInfo Name Expr
+      -- ^ 'IsAbstractUnfolding' argument: We record whether a declaration was made in an @abstract@ block.
       --
       --   'ArgInfo' argument: Axioms and functions can be declared irrelevant.
       --   ('Hiding' should be 'NotHidden'.)
-  | NiceField Range Access IsAbstract IsInstance TacticAttribute Name (Arg Expr)
-  | PrimitiveFunction Range Access IsAbstract Name (Arg Expr)
+  | NiceField Range Access IsAbstractUnfolding IsInstance TacticAttribute Name (Arg Expr)
+  | PrimitiveFunction Range Access IsAbstractUnfolding Name (Arg Expr)
   | NiceMutual Range TerminationCheck CoverageCheck PositivityCheck [NiceDeclaration]
-  | NiceModule Range Access IsAbstract Erased QName Telescope
+  | NiceModule Range Access IsAbstractUnfolding Erased QName Telescope
       [Declaration]
   | NiceModuleMacro Range Access Erased Name ModuleApplication
       OpenShortHand ImportDirective
   | NiceOpen Range QName ImportDirective
   | NiceImport Range QName (Maybe AsName) OpenShortHand ImportDirective
   | NicePragma Range Pragma
-  | NiceRecSig Range Erased Access IsAbstract PositivityCheck
+  | NiceRecSig Range Erased Access IsAbstractUnfolding PositivityCheck
       UniverseCheck Name [LamBinding] Expr
-  | NiceDataSig Range Erased Access IsAbstract PositivityCheck
+  | NiceDataSig Range Erased Access IsAbstractUnfolding PositivityCheck
       UniverseCheck Name [LamBinding] Expr
-  | NiceFunClause Range Access IsAbstract TerminationCheck CoverageCheck Catchall Declaration
+  | NiceFunClause Range Access IsAbstractUnfolding TerminationCheck CoverageCheck Catchall Declaration
     -- ^ An uncategorized function clause, could be a function clause
     --   without type signature or a pattern lhs (e.g. for irrefutable let).
     --   The 'Declaration' is the actual 'FunClause'.
-  | FunSig Range Access IsAbstract IsInstance IsMacro ArgInfo TerminationCheck CoverageCheck Name Expr
-  | FunDef Range [Declaration] IsAbstract IsInstance TerminationCheck CoverageCheck Name [Clause]
+  | FunSig Range Access IsAbstractUnfolding IsInstance IsMacro ArgInfo TerminationCheck CoverageCheck Name Expr
+  | FunDef Range [Declaration] IsAbstractUnfolding IsInstance TerminationCheck CoverageCheck Name [Clause]
       -- ^ Block of function clauses (we have seen the type signature before).
       --   The 'Declaration's are the original declarations that were processed
       --   into this 'FunDef' and are only used in 'notSoNiceDeclaration'.
       --   Andreas, 2017-01-01: Because of issue #2372, we add 'IsInstance' here.
       --   An alias should know that it is an instance.
-  | NiceDataDef Range Origin IsAbstract PositivityCheck UniverseCheck Name [LamBinding] [NiceConstructor]
+  | NiceDataDef Range Origin IsAbstractUnfolding PositivityCheck UniverseCheck Name [LamBinding] [NiceConstructor]
   | NiceLoneConstructor Range [NiceConstructor]
-  | NiceRecDef Range Origin IsAbstract PositivityCheck UniverseCheck Name RecordDirectives [LamBinding] [Declaration]
+  | NiceRecDef Range Origin IsAbstractUnfolding PositivityCheck UniverseCheck Name RecordDirectives [LamBinding] [Declaration]
       -- ^ @(Maybe Range)@ gives range of the 'pattern' declaration.
   | NicePatternSyn Range Access Name [Arg Name] Pattern
   | NiceGeneralize Range Access ArgInfo TacticAttribute Name Expr
-  | NiceUnquoteDecl Range Access IsAbstract IsInstance TerminationCheck CoverageCheck [Name] Expr
-  | NiceUnquoteDef Range Access IsAbstract TerminationCheck CoverageCheck [Name] Expr
-  | NiceUnquoteData Range Access IsAbstract PositivityCheck UniverseCheck Name [Name] Expr
+  | NiceUnquoteDecl Range Access IsAbstractUnfolding IsInstance TerminationCheck CoverageCheck [Name] Expr
+  | NiceUnquoteDef Range Access IsAbstractUnfolding TerminationCheck CoverageCheck [Name] Expr
+  | NiceUnquoteData Range Access IsAbstractUnfolding PositivityCheck UniverseCheck Name [Name] Expr
+  | NiceUnfolding Range AbstractId Unfolding
   deriving (Show, Generic)
 
 instance NFData NiceDeclaration
@@ -221,8 +224,9 @@ instance HasRange NiceDeclaration where
   getRange (NiceGeneralize r _ _ _ _ _)    = r
   getRange (NiceFunClause r _ _ _ _ _ _)   = r
   getRange (NiceUnquoteDecl r _ _ _ _ _ _ _) = r
-  getRange (NiceUnquoteDef r _ _ _ _ _ _)  = r
+  getRange (NiceUnquoteDef r _ _ _ _ _ _)    = r
   getRange (NiceUnquoteData r _ _ _ _ _ _ _) = r
+  getRange (NiceUnfolding r _ _)             = r
 
 instance Pretty NiceDeclaration where
   pretty = \case
@@ -248,30 +252,32 @@ instance Pretty NiceDeclaration where
     NiceUnquoteDecl _ _ _ _ _ _ xs _ -> text "<unquote declarations>"
     NiceUnquoteDef _ _ _ _ _ xs _    -> text "<unquote definitions>"
     NiceUnquoteData _ _ _ _ _ x xs _ -> text "<unquote data types>"
+    NiceUnfolding _ _ _              -> text "<unfolding id declaration>"
 
 declName :: NiceDeclaration -> String
-declName Axiom{}             = "Postulates"
-declName NiceField{}         = "Fields"
-declName NiceMutual{}        = "Mutual blocks"
-declName NiceModule{}        = "Modules"
-declName NiceModuleMacro{}   = "Modules"
-declName NiceOpen{}          = "Open declarations"
-declName NiceImport{}        = "Import statements"
-declName NicePragma{}        = "Pragmas"
-declName PrimitiveFunction{} = "Primitive declarations"
-declName NicePatternSyn{}    = "Pattern synonyms"
-declName NiceGeneralize{}    = "Generalized variables"
-declName NiceUnquoteDecl{}   = "Unquoted declarations"
-declName NiceUnquoteDef{}    = "Unquoted definitions"
-declName NiceUnquoteData{}   = "Unquoted data types"
-declName NiceRecSig{}        = "Records"
-declName NiceDataSig{}       = "Data types"
-declName NiceFunClause{}     = "Functions without a type signature"
-declName FunSig{}            = "Type signatures"
-declName FunDef{}            = "Function definitions"
-declName NiceRecDef{}        = "Records"
-declName NiceDataDef{}       = "Data types"
+declName Axiom{}               = "Postulates"
+declName NiceField{}           = "Fields"
+declName NiceMutual{}          = "Mutual blocks"
+declName NiceModule{}          = "Modules"
+declName NiceModuleMacro{}     = "Modules"
+declName NiceOpen{}            = "Open declarations"
+declName NiceImport{}          = "Import statements"
+declName NicePragma{}          = "Pragmas"
+declName PrimitiveFunction{}   = "Primitive declarations"
+declName NicePatternSyn{}      = "Pattern synonyms"
+declName NiceGeneralize{}      = "Generalized variables"
+declName NiceUnquoteDecl{}     = "Unquoted declarations"
+declName NiceUnquoteDef{}      = "Unquoted definitions"
+declName NiceUnquoteData{}     = "Unquoted data types"
+declName NiceRecSig{}          = "Records"
+declName NiceDataSig{}         = "Data types"
+declName NiceFunClause{}       = "Functions without a type signature"
+declName FunSig{}              = "Type signatures"
+declName FunDef{}              = "Function definitions"
+declName NiceRecDef{}          = "Records"
+declName NiceDataDef{}         = "Data types"
 declName NiceLoneConstructor{} = "Constructors"
+declName NiceUnfolding{}       = "Abstract unfoldings"
 
 
 data InMutual

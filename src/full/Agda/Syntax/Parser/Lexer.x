@@ -71,7 +71,7 @@ $white_nonl  = $white_notab # \n
 tokens :-
 
 -- White space
-<0,code,bol_,layout_,empty_layout_,imp_dir_>
+<0,code,bol_,layout_,empty_layout_,imp_dir_,abstract_>
     $white_nonl+    ;
 
 <pragma_,fpragma_> $white_notab ;
@@ -111,17 +111,17 @@ tokens :-
 -- Comments
     -- We need to rule out pragmas here. Usually longest match would take
     -- precedence, but in some states pragmas aren't valid but comments are.
-<0,code,bol_,layout_,empty_layout_,imp_dir_>
+<0,code,bol_,layout_,empty_layout_,imp_dir_,abstract_>
     "{-" / { not' (followedBy '#') }    { nestedComment }
     -- A misplaced end-comment, like in @f {x-} = x-@ gives a parse error.
     "-}"                                { symbol SymEndComment }
     @ident "-}"                         { symbol SymEndComment }
 
 -- Dashes followed by a name symbol should be parsed as a name.
-<0,code,bol_,layout_,empty_layout_,imp_dir_>
+<0,code,bol_,layout_,empty_layout_,imp_dir_,abstract_>
     "--" .* / { keepComments .&&. (followedBy '\n' .||. eof) }
               { confirmLayout `andThen` withInterval TokComment }
-<0,code,bol_,layout_,empty_layout_,imp_dir_>
+<0,code,bol_,layout_,empty_layout_,imp_dir_,abstract_>
     "--" .* / { followedBy '\n' .||. eof }
               { confirmLayout `andThen` skip }
 
@@ -132,7 +132,7 @@ tokens :-
 -- We need to check the offside rule for the first token on each line.  We
 -- should not check the offside rule for the end of file token or an
 -- '\end{code}'
-<0,code,imp_dir_> \n    { begin bol_ }  -- Note that @begin@ revisits '\n' in the new state!
+<0,code,imp_dir_,abstract_> \n    { begin bol_ }  -- Note that @begin@ revisits '\n' in the new state!
 <bol_>
     {
         \n                      { confirmLayout `andThen` skip }
@@ -198,6 +198,7 @@ tokens :-
 <0,code> using      { keyword KwUsing }
 <0,code> hiding     { keyword KwHiding }
 <0,code> renaming   { keyword KwRenaming }
+<0,code> unfolding  { keyword KwUnfolding }
 <imp_dir_> to       { endWith $ keyword KwTo }
 <0,code> public     { keyword KwPublic }
 
@@ -305,6 +306,7 @@ bol = bol_
 --   state by itself, that has to be done in the parser.
 imp_dir :: LexState
 imp_dir = imp_dir_
+
 
 
 -- | Return the next token. This is the function used by Happy in the parser.

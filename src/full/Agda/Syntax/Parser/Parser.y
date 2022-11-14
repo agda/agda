@@ -145,6 +145,7 @@ import Agda.Utils.Impossible
     'syntax'                  { TokKeyword KwSyntax $$ }
     'tactic'                  { TokKeyword KwTactic $$ }
     'to'                      { TokKeyword KwTo $$ }
+    'unfolding'               { TokKeyword KwUnfolding $$ }
     'unquote'                 { TokKeyword KwUnquote $$ }
     'unquoteDecl'             { TokKeyword KwUnquoteDecl $$ }
     'unquoteDef'              { TokKeyword KwUnquoteDef $$ }
@@ -273,6 +274,7 @@ Token
     | 'syntax'                  { TokKeyword KwSyntax $1 }
     | 'tactic'                  { TokKeyword KwTactic $1 }
     | 'to'                      { TokKeyword KwTo $1 }
+    | 'unfolding'               { TokKeyword KwUnfolding $1 }
     | 'unquote'                 { TokKeyword KwUnquote $1 }
     | 'unquoteDecl'             { TokKeyword KwUnquoteDecl $1 }
     | 'unquoteDef'              { TokKeyword KwUnquoteDef $1 }
@@ -382,6 +384,7 @@ semi : ';'    { $1 }
 -- Enter the 'imp_dir' lex state, where we can parse the keyword 'to'.
 beginImpDir :: { () }
 beginImpDir : {- empty -}   {% pushLexState imp_dir }
+
 
 {--------------------------------------------------------------------------
     Helper rules
@@ -1308,9 +1311,28 @@ Mutual :: { Declaration }
 Mutual : 'mutual' Declarations0  { Mutual (fuseRange $1 $2) $2 }
        | 'interleaved' 'mutual' Declarations0 { InterleavedMutual (getRange ($1,$2,$3)) $3 }
 
+
+-- semi-colon separated, possibly empty list of [module] QName.
+CommaUnfoldingNames :: { [QName] }
+CommaUnfoldingNames
+    : {- empty -}       { [] }
+    | CommaUnfoldingNames1 { List1.toList $1 }
+
+CommaUnfoldingNames1 :: { List1 (QName) }
+CommaUnfoldingNames1
+    : QId                           { singleton $1 }
+    | QId ';' CommaUnfoldingNames1  { $1 <| $3 }
+
+AbstractBody :: { (C.Unfolding, [Declaration]) }
+AbstractBody
+  :  vopen 'unfolding' '(' CommaUnfoldingNames ')' 'where' Declarations0 vclose
+    { (C.Unfolding { unfoldingRange = getRange $2 , unfoldingNames = $4 } , $7) }
+  | Declarations0 { (empty, $1) }
+
+
 -- Abstract declarations.
 Abstract :: { Declaration }
-Abstract : 'abstract' Declarations0  { Abstract (fuseRange $1 $2) $2 }
+Abstract : 'abstract' AbstractBody { Abstract (fuseRange $1 $2) (fst $2) (snd $2) }
 
 
 -- Private can only appear on the top-level (or rather the module level).

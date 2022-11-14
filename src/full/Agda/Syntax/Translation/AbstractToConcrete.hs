@@ -565,8 +565,8 @@ withAbstractPrivate i m =
         priv (PrivateAccess UserWritten)
                          ds = [ C.Private  (getRange ds) UserWritten ds ]
         priv _           ds = ds
-        abst AbstractDef ds = [ C.Abstract (getRange ds) ds ]
-        abst ConcreteDef ds = ds
+        abst (AbstractUnfolding i) ds = [ C.Abstract (getRange ds) empty ds ] -- TODO: add unfolding to AbstractDef
+        abst NoAbstract ds = ds
 
 addInstanceB :: Maybe Range -> [C.Declaration] -> [C.Declaration]
 addInstanceB (Just r) ds = [ C.InstanceB r ds ]

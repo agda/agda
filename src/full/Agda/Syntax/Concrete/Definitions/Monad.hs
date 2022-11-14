@@ -52,6 +52,9 @@ data NiceEnv = NiceEnv
     -- ^ Stack of warnings. Head is last warning.
   , _nameId  :: NameId
     -- ^ We distinguish different 'NoName's (anonymous definitions) by a unique 'NameId'.
+  , _abstractId  :: AbstractId
+    -- ^ Fresh 'AbstractId' counter for tying together "abstract
+    -- unfolding" blocks.
   }
 
 data LoneSig = LoneSig
@@ -89,6 +92,7 @@ initNiceEnv = NiceEnv
   , _covChk   = YesCoverageCheck
   , niceWarn  = []
   , _nameId   = NameId 1 noModuleNameHash
+  , _abstractId = AbstractId 1 noModuleNameHash
   }
 
 lensNameId :: Lens' NameId NiceEnv
@@ -98,6 +102,15 @@ nextNameId :: Nice NameId
 nextNameId = do
   i <- use lensNameId
   lensNameId %= succ
+  return i
+
+lensAbstractId :: Lens' AbstractId NiceEnv
+lensAbstractId f e = f (_abstractId e) <&> \ i -> e { _abstractId = i }
+
+nextAbstractId :: Nice AbstractId
+nextAbstractId = do
+  i <- use lensAbstractId
+  lensAbstractId %= \(AbstractId x y) -> AbstractId (x + 1) y
   return i
 
 -- * Handling the lone signatures, stored to infer mutual blocks.

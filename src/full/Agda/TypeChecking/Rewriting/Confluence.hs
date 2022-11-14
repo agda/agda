@@ -118,7 +118,8 @@ checkConfluenceOfClauses confChk f = do
 -- ^ Check confluence of the given rewrite rules wrt all other rewrite
 --   rules (also amongst themselves).
 checkConfluenceOfRules :: ConfluenceCheck -> [RewriteRule] -> TCM ()
-checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
+-- TODO: figure out why this is inAbstractMode/ignoreAbstractMode
+checkConfluenceOfRules confChk rews = inTopContext $ ignoreAbstractMode $ do
 
   -- Global confluence: we need to check the triangle property for each rewrite
   -- rule of each head symbol as well as rules that match on them

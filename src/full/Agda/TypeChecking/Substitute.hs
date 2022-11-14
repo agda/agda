@@ -305,7 +305,7 @@ instance Apply Defn where
     Axiom{} -> d
     DataOrRecSig n -> DataOrRecSig (n - length args)
     GeneralizableVar{} -> d
-    AbstractDefn d -> AbstractDefn $ apply d args
+    AbstractDefn i d -> AbstractDefn i $ apply d args
     Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv
             , funExtLam = extLam
             , funProjection = Left _ } ->
@@ -664,7 +664,7 @@ instance Abstract Defn where
     Axiom{} -> d
     DataOrRecSig n -> DataOrRecSig (size tel + n)
     GeneralizableVar{} -> d
-    AbstractDefn d -> AbstractDefn $ abstract tel d
+    AbstractDefn i d -> AbstractDefn i $ abstract tel d
     Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv
             , funExtLam = extLam
             , funProjection = Left _  } ->

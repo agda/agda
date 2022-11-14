@@ -926,16 +926,16 @@ instance AnyAbstract a => AnyAbstract [a] where
   anyAbstract = Fold.any anyAbstract
 
 instance AnyAbstract Declaration where
-  anyAbstract (Axiom _ i _ _ _ _)    = defAbstract i == AbstractDef
-  anyAbstract (Field i _ _)          = defAbstract i == AbstractDef
+  anyAbstract (Axiom _ i _ _ _ _)    = not . null . defAbstract $ i
+  anyAbstract (Field i _ _)          = not . null . defAbstract $ i
   anyAbstract (Mutual     _ ds)      = anyAbstract ds
   anyAbstract (ScopedDecl _ ds)      = anyAbstract ds
   anyAbstract (Section _ _ _ _ ds)   = anyAbstract ds
-  anyAbstract (FunDef i _ _ _)       = defAbstract i == AbstractDef
-  anyAbstract (DataDef i _ _ _ _)    = defAbstract i == AbstractDef
-  anyAbstract (RecDef i _ _ _ _ _ _) = defAbstract i == AbstractDef
-  anyAbstract (DataSig i _ _ _ _)    = defAbstract i == AbstractDef
-  anyAbstract (RecSig i _ _ _ _)     = defAbstract i == AbstractDef
+  anyAbstract (FunDef i _ _ _)       = not . null . defAbstract $ i
+  anyAbstract (DataDef i _ _ _ _)    = not . null . defAbstract $ i
+  anyAbstract (RecDef i _ _ _ _ _ _) = not . null . defAbstract $ i
+  anyAbstract (DataSig i _ _ _ _)    = not . null . defAbstract $ i
+  anyAbstract (RecSig i _ _ _ _)     = not . null . defAbstract $ i
   anyAbstract _                      = __IMPOSSIBLE__
 
 -- | Turn a name into an expression.

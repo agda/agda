@@ -692,6 +692,20 @@ instance EmbPrj IsAbstract where
     valu []  = valuN ConcreteDef
     valu _   = malformed
 
+instance EmbPrj AbstractId where
+  icod_ (AbstractId a b) = icodeN' AbstractId a b
+
+  value = valueN AbstractId
+
+instance EmbPrj IsAbstractUnfolding where
+  icod_ (AbstractUnfolding i) = icodeN' AbstractUnfolding i
+  icod_ NoAbstract = icodeN' NoAbstract
+
+  value = vcase valu where
+    valu [i] = valuN AbstractUnfolding i
+    valu []  = valuN NoAbstract
+    valu _   = malformed
+
 instance EmbPrj Delayed where
   icod_ Delayed    = icodeN 0 Delayed
   icod_ NotDelayed = icodeN' NotDelayed

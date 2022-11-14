@@ -656,7 +656,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
     Constructor{conSrcCon = c} -> do
       let hd = Con (c `withRangeOf` f) ConOSystem
       rewrite (NotBlocked ReallyNotBlocked ()) hd rewr es
-    Primitive{primAbstr = ConcreteDef, primName = x, primClauses = cls} -> do
+    Primitive{primAbstr = NoAbstract, primName = x, primClauses = cls} -> do
       pf <- fromMaybe __IMPOSSIBLE__ <$> getPrimitive' x
       if FunctionReductions `SmallSet.member` allowed
         then reducePrimitive x v0 f es pf dontUnfold
@@ -1595,7 +1595,7 @@ instance InstantiateFull Defn where
       Axiom{} -> return d
       DataOrRecSig{} -> return d
       GeneralizableVar{} -> return d
-      AbstractDefn d -> AbstractDefn <$> instantiateFull' d
+      AbstractDefn i d -> AbstractDefn i <$> instantiateFull' d
       Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv, funExtLam = extLam } -> do
         (cs, cc, cov, inv) <- instantiateFull' (cs, cc, cov, inv)
         extLam <- instantiateFull' extLam

@@ -1069,7 +1069,7 @@ highlightExpr e =
     generateAndPrintSyntaxInfo decl Full True
   where
     dummy = mkName_ (NameId 0 noModuleNameHash) ("dummy" :: String)
-    info  = mkDefInfo (nameConcrete dummy) noFixity' PublicAccess ConcreteDef (getRange e)
+    info  = mkDefInfo (nameConcrete dummy) noFixity' PublicAccess NoAbstract (getRange e)
     decl  = A.Axiom OtherDefName info defaultArgInfo Nothing (qnameFromList $ singleton dummy) e
 
 -- | Sorts interaction points based on their ranges.

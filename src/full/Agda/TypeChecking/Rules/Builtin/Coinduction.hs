@@ -88,7 +88,7 @@ bindBuiltinSharp x =
                   , recPatternMatching= CopatternMatching
                   , recMutual         = Just []
                   , recTerminates     = Just True  -- not recursive
-                  , recAbstr          = ConcreteDef
+                  , recAbstr          = NoAbstract
                   , recComp           = emptyCompKit
                   }
               }
@@ -98,7 +98,7 @@ bindBuiltinSharp x =
                     , conArity  = 1
                     , conSrcCon = ConHead sharp (IsRecord CopatternMatching) CoInductive [] -- flat is added as field later
                     , conData   = defName infDefn
-                    , conAbstr  = ConcreteDef
+                    , conAbstr  = NoAbstract
                     , conInd    = CoInductive
                     , conComp   = emptyCompKit
                     , conProj   = Nothing

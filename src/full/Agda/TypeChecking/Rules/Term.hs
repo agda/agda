@@ -834,8 +834,8 @@ checkExtendedLambda cmp i di erased qname cs e t = do
        return $ Def qname $ map Apply args
   where
     -- Concrete definitions cannot use information about abstract things.
-    abstract ConcreteDef = inConcreteMode
-    abstract AbstractDef = inAbstractMode
+    abstract NoAbstract = inConcreteMode
+    abstract (AbstractUnfolding i) = inAbstractMode i
 
 -- | Run a computation.
 --

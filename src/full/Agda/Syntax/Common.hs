@@ -2253,6 +2253,32 @@ instance KillRange Access where
 data IsAbstract = AbstractDef | ConcreteDef
     deriving (Show, Eq, Ord, Generic)
 
+data AbstractId = AbstractId {-# UNPACK #-} !Word64 {-# UNPACK #-} !ModuleNameHash
+  deriving (Eq, Ord, Show, Generic)
+
+instance NFData AbstractId
+
+data IsAbstractUnfolding
+  = AbstractUnfolding AbstractId
+  | NoAbstract
+  deriving (Eq, Show, Generic)
+
+instance NFData IsAbstractUnfolding
+
+instance Null IsAbstractUnfolding where
+  null NoAbstract{} = True
+  null _ = False
+
+  empty = NoAbstract
+
+instance Semigroup IsAbstractUnfolding where
+  NoAbstract <> x = x
+  x <> NoAbstract = x
+  AbstractUnfolding _ <> AbstractUnfolding y = AbstractUnfolding y
+
+instance Monoid IsAbstractUnfolding where
+  mempty = empty
+
 -- | Semigroup computes if any of several is an 'AbstractDef'.
 instance Semigroup IsAbstract where
   AbstractDef <> _ = AbstractDef
@@ -2266,22 +2292,25 @@ instance Monoid IsAbstract where
 instance KillRange IsAbstract where
   killRange = id
 
+instance KillRange IsAbstractUnfolding where
+  killRange = id
+
 instance NFData IsAbstract
 
 class LensIsAbstract a where
-  lensIsAbstract :: Lens' IsAbstract a
+  lensIsAbstract :: Lens' IsAbstractUnfolding a
 
-instance LensIsAbstract IsAbstract where
+instance LensIsAbstract IsAbstractUnfolding where
   lensIsAbstract = id
 
 -- | Is any element of a collection an 'AbstractDef'.
 class AnyIsAbstract a where
-  anyIsAbstract :: a -> IsAbstract
+  anyIsAbstract :: a -> IsAbstractUnfolding
 
-  default anyIsAbstract :: (Foldable t, AnyIsAbstract b, t b ~ a) => a -> IsAbstract
+  default anyIsAbstract :: (Foldable t, AnyIsAbstract b, t b ~ a) => a -> IsAbstractUnfolding
   anyIsAbstract = Fold.foldMap anyIsAbstract
 
-instance AnyIsAbstract IsAbstract where
+instance AnyIsAbstract IsAbstractUnfolding where
   anyIsAbstract = id
 
 instance AnyIsAbstract a => AnyIsAbstract [a] where

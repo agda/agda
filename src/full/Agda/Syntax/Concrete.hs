@@ -48,6 +48,7 @@ module Agda.Syntax.Concrete
   , TypeSignatureOrInstanceBlock
   , ImportDirective, Using, ImportedName
   , Renaming, RenamingDirective, HidingDirective
+  , Unfolding(..)
   , AsName'(..), AsName
   , OpenShortHand(..), RewriteEqn, WithExpr
   , LHS(..), Pattern(..), LHSCore(..)
@@ -96,6 +97,7 @@ import Agda.Utils.List2       ( List2, pattern List2 )
 import Agda.Utils.Null
 
 import Agda.Utils.Impossible
+import Data.Word
 
 data OpApp e
   = SyntaxBindingLambda Range (List1 LamBinding) e
@@ -462,7 +464,7 @@ data Declaration
   | PatternSyn  Range Name [Arg Name] Pattern
   | Mutual      Range [Declaration]  -- @Range@ of the whole @mutual@ block.
   | InterleavedMutual Range [Declaration]
-  | Abstract    Range [Declaration]
+  | Abstract    Range Unfolding [Declaration]
   | Private     Range Origin [Declaration]
     -- ^ In "Agda.Syntax.Concrete.Definitions" we generate private blocks
     --   temporarily, which should be treated different that user-declared
@@ -504,6 +506,30 @@ data ModuleApplication
 
 data OpenShortHand = DoOpen | DontOpen
   deriving (Eq, Show, Generic)
+
+-- | An optional @unfolding ... where@ statement attached to an @abstract@ keyword
+data Unfolding
+  = Unfolding
+    { unfoldingRange :: Range
+    , unfoldingNames :: [QName]
+    }
+  | UnfoldingId AbstractId
+  | NoUnfolding
+  deriving (Eq, Show)
+
+instance Semigroup Unfolding where
+  NoUnfolding <> x = x
+  x <> NoUnfolding = x
+  x <> UnfoldingId y = UnfoldingId y
+  UnfoldingId y <> _ = UnfoldingId y
+  Unfolding a b <> Unfolding a' b' = Unfolding (a <> a') (b <> b')
+
+instance Null Unfolding where
+  null Unfolding{} = False
+  null UnfoldingId{} = False
+  null NoUnfolding = True
+  empty = NoUnfolding
+
 
 -- Pragmas ----------------------------------------------------------------
 
@@ -885,7 +911,7 @@ instance HasRange Declaration where
   getRange (Mutual r _)            = r
   getRange (InterleavedMutual r _) = r
   getRange (LoneConstructor r _)   = r
-  getRange (Abstract r _)          = r
+  getRange (Abstract r _ _)        = r
   getRange (Generalize r _)        = r
   getRange (Open r _ _)            = r
   getRange (ModuleMacro r _ _ _ _ _)
@@ -970,6 +996,11 @@ instance HasRange Pattern where
   getRange (EllipsisP r _)    = r
   getRange (WithP r _)        = r
 
+instance HasRange Unfolding where
+  getRange (Unfolding r _) = r
+  getRange NoUnfolding     = noRange
+  getRange UnfoldingId{}   = noRange
+
 -- SetRange instances
 ------------------------------------------------------------------------
 
@@ -1040,7 +1071,7 @@ instance KillRange Declaration where
   killRange (Mutual _ d)            = killRange1 (Mutual noRange) d
   killRange (InterleavedMutual _ d) = killRange1 (InterleavedMutual noRange) d
   killRange (LoneConstructor _ d)   = killRange1 (LoneConstructor noRange) d
-  killRange (Abstract _ d)          = killRange1 (Abstract noRange) d
+  killRange (Abstract _ u d)        = killRange2 (Abstract noRange) u d
   killRange (Private _ o d)         = killRange2 (Private noRange) o d
   killRange (InstanceB _ d)         = killRange1 (InstanceB noRange) d
   killRange (Macro _ d)             = killRange1 (Macro noRange) d
@@ -1171,6 +1202,11 @@ instance KillRange WhereClause where
   killRange (SomeWhere r e n a d) =
     killRange4 (SomeWhere noRange) e n a d
 
+instance KillRange Unfolding where
+  killRange (Unfolding _ i) = killRange1 (Unfolding noRange) i
+  killRange NoUnfolding     = NoUnfolding
+  killRange UnfoldingId{}   = NoUnfolding
+
 ------------------------------------------------------------------------
 -- NFData instances
 
@@ -1260,7 +1296,7 @@ instance NFData Declaration where
   rnf (Mutual _ a)            = rnf a
   rnf (InterleavedMutual _ a) = rnf a
   rnf (LoneConstructor _ a)   = rnf a
-  rnf (Abstract _ a)          = rnf a
+  rnf (Abstract _ a b)        = rnf a `seq` rnf b
   rnf (Private _ _ a)         = rnf a
   rnf (InstanceB _ a)         = rnf a
   rnf (Macro _ a)             = rnf a
@@ -1362,3 +1398,8 @@ instance NFData DoStmt where
   rnf (DoBind _ p e w) = rnf (p, e, w)
   rnf (DoThen e)       = rnf e
   rnf (DoLet _ ds)     = rnf ds
+
+instance NFData Unfolding where
+  rnf (Unfolding _ a) = rnf a
+  rnf NoUnfolding{}   = ()
+  rnf (UnfoldingId a) = rnf a

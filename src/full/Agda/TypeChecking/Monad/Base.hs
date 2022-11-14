@@ -281,6 +281,7 @@ data PostScopeState = PostScopeState
   , stPostFreshCheckpointId   :: !CheckpointId
   , stPostFreshInt            :: !Int
   , stPostFreshNameId         :: !NameId
+  , stPostFreshAbstractId     :: !AbstractId
   , stPostAreWeCaching        :: !Bool
   , stPostPostponeInstanceSearch :: !Bool
   , stPostConsideringInstance :: !Bool
@@ -290,6 +291,13 @@ data PostScopeState = PostScopeState
     --   Best set to True only for calls to pretty*/reify to limit unwanted reductions.
   , stPostLocalPartialDefs    :: !(Set QName)
     -- ^ Local partial definitions, to be stored in the @Interface@
+  , stPostUnfoldDefs          :: !(Map AbstractId (HashSet QName))
+    -- ^ Associates 'AbstractId's to the 'HashSet' of QNames that may
+    -- (transitively) be unfolded when 'envAbstractMode' is
+    -- @'AbstractMode' i@, for @i@ an entry in this map.
+  , stPostAbstractBlocks      :: !(Map QName AbstractId)
+    -- ^ Associates definitions (only 'Def' names) to the abstract block
+    -- in which they were defined.
   }
   deriving (Generic)
 
@@ -441,11 +449,14 @@ initPostScopeState = PostScopeState
   , stPostFreshCheckpointId    = 1
   , stPostFreshInt             = 0
   , stPostFreshNameId          = NameId 0 noModuleNameHash
+  , stPostFreshAbstractId      = AbstractId 0 noModuleNameHash
   , stPostAreWeCaching         = False
   , stPostPostponeInstanceSearch = False
   , stPostConsideringInstance  = False
   , stPostInstantiateBlocking  = False
   , stPostLocalPartialDefs     = Set.empty
+  , stPostUnfoldDefs           = Map.empty
+  , stPostAbstractBlocks       = Map.empty
   }
 
 initState :: TCState
@@ -597,6 +608,11 @@ stFreshNameId :: Lens' NameId TCState
 stFreshNameId f s =
   f (stPostFreshNameId (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshNameId = x}}
+
+stFreshAbstractId :: Lens' AbstractId TCState
+stFreshAbstractId f s =
+  f (stPostFreshAbstractId (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshAbstractId = x}}
 
 stSyntaxInfo :: Lens' HighlightingInfo TCState
 stSyntaxInfo f s =
@@ -768,6 +784,16 @@ stInstantiateBlocking f s =
 
 stBuiltinThings :: TCState -> BuiltinThings PrimFun
 stBuiltinThings s = Map.unionWith unionBuiltin (s^.stLocalBuiltins) (s^.stImportedBuiltins)
+
+stUnfoldDefs :: Lens' (Map AbstractId (HashSet QName)) TCState
+stUnfoldDefs f s =
+  f (stPostUnfoldDefs (stPostScopeState s)) <&>
+    \x -> s {stPostScopeState = (stPostScopeState s) {stPostUnfoldDefs = x}}
+
+stAbstractBlocks :: Lens' (Map QName AbstractId) TCState
+stAbstractBlocks f s =
+  f (stPostAbstractBlocks (stPostScopeState s)) <&>
+    \x -> s {stPostScopeState = (stPostScopeState s) {stPostAbstractBlocks = x}}
 
 -- | Union two 'Builtin's.  Only defined for 'BuiltinRewriteRelations'.
 unionBuiltin :: Builtin a -> Builtin a -> Builtin a
@@ -2211,7 +2237,7 @@ data Defn
       -- ^ Data or record type signature that doesn't yet have a definition.
   | GeneralizableVar
       -- ^ Generalizable variable (introduced in `generalize` block).
-  | AbstractDefn Defn
+  | AbstractDefn AbstractId Defn
       -- ^ Returned by 'getConstInfo' if definition is abstract.
   | FunctionDefn FunctionData
   | DatatypeDefn DatatypeData
@@ -2279,7 +2305,7 @@ data FunctionData = FunctionData
       --   Does include this function.
       --   Empty list if not recursive.
       --   @Nothing@ if not yet computed (by positivity checker).
-  , _funAbstr          :: IsAbstract
+  , _funAbstr          :: IsAbstractUnfolding
   , _funDelayed        :: Delayed
       -- ^ Are the clauses of this definition delayed?
   , _funProjection     :: Either ProjectionLikenessMissing Projection
@@ -2314,7 +2340,7 @@ pattern Function
   -> [Clause]
   -> FunctionInverse
   -> Maybe [QName]
-  -> IsAbstract
+  -> IsAbstractUnfolding
   -> Delayed
   -> Either ProjectionLikenessMissing Projection
   -> Bool
@@ -2375,7 +2401,7 @@ data DatatypeData = DatatypeData
       --   Does include this data type.
       --   Empty if not recursive.
       --   @Nothing@ if not yet computed (by positivity checker).
-  , _dataAbstr          :: IsAbstract
+  , _dataAbstr          :: IsAbstractUnfolding
   , _dataPathCons       :: [QName]
       -- ^ Path constructor names (subset of @dataCons@).
   , _dataTranspIx       :: Maybe QName
@@ -2391,7 +2417,7 @@ pattern Datatype
   -> [QName]
   -> Sort
   -> Maybe [QName]
-  -> IsAbstract
+  -> IsAbstractUnfolding
   -> [QName]
   -> Maybe QName
   -> Maybe QName
@@ -2459,7 +2485,7 @@ data RecordData = RecordData
       -- ^ 'Just True' means that unfolding of the recursive record terminates,
       --   'Just False' means that we have no evidence for termination,
       --   and 'Nothing' means we have not run the termination checker yet.
-  , _recAbstr          :: IsAbstract
+  , _recAbstr          :: IsAbstractUnfolding
   , _recComp           :: CompKit
   } deriving (Show, Generic)
 
@@ -2475,7 +2501,7 @@ pattern Record
   -> PatternOrCopattern
   -> Maybe Induction
   -> Maybe Bool
-  -> IsAbstract
+  -> IsAbstractUnfolding
   -> CompKit
   -> Defn
 
@@ -2518,7 +2544,7 @@ data ConstructorData = ConstructorData
       -- ^ Name of (original) constructor and fields. (This might be in a module instance.)
   , _conData   :: QName
       -- ^ Name of datatype or record type.
-  , _conAbstr  :: IsAbstract
+  , _conAbstr  :: IsAbstractUnfolding
   , _conInd    :: Induction
       -- ^ Inductive or coinductive?
   , _conComp   :: CompKit
@@ -2543,7 +2569,7 @@ pattern Constructor
   -> Int
   -> ConHead
   -> QName
-  -> IsAbstract
+  -> IsAbstractUnfolding
   -> Induction
   -> CompKit
   -> Maybe [QName]
@@ -2578,7 +2604,7 @@ pattern Constructor
   )
 
 data PrimitiveData = PrimitiveData
-  { _primAbstr    :: IsAbstract
+  { _primAbstr    :: IsAbstractUnfolding
   , _primName     :: String
   , _primClauses  :: [Clause]
       -- ^ 'null' for primitive functions, @not null@ for builtin functions.
@@ -2590,7 +2616,7 @@ data PrimitiveData = PrimitiveData
   } deriving (Show, Generic)
 
 pattern Primitive
-  :: IsAbstract
+  :: IsAbstractUnfolding
   -> String
   -> [Clause]
   -> FunctionInverse
@@ -2676,7 +2702,7 @@ instance Pretty Defn where
     AxiomDefn _         -> "Axiom"
     DataOrRecSigDefn d  -> pretty d
     GeneralizableVar    -> "GeneralizableVar"
-    AbstractDefn def    -> "AbstractDefn" <?> parens (pretty def)
+    AbstractDefn _ def  -> "AbstractDefn" <?> parens (pretty def)
     FunctionDefn d      -> pretty d
     DatatypeDefn d      -> pretty d
     RecordDefn d        -> pretty d
@@ -2865,7 +2891,7 @@ emptyFunctionData = do
     , _funTreeless    = Nothing
     , _funInv         = NotInjective
     , _funMutual      = Nothing
-    , _funAbstr       = ConcreteDef
+    , _funAbstr       = NoAbstract
     , _funDelayed     = NotDelayed
     , _funProjection  = Left MaybeProjection
     , _funErasure     = erasure
@@ -3101,18 +3127,18 @@ defTerminationUnconfirmed Defn{theDef = Function{funTerminates = Just True}} = F
 defTerminationUnconfirmed Defn{theDef = Function{funTerminates = _        }} = True
 defTerminationUnconfirmed _ = False
 
-defAbstract :: Definition -> IsAbstract
+defAbstract :: Definition -> IsAbstractUnfolding
 defAbstract d = case theDef d of
-    Axiom{}                   -> ConcreteDef
-    DataOrRecSig{}            -> ConcreteDef
-    GeneralizableVar{}        -> ConcreteDef
-    AbstractDefn{}            -> AbstractDef
+    Axiom{}                   -> NoAbstract
+    DataOrRecSig{}            -> NoAbstract
+    GeneralizableVar{}        -> NoAbstract
+    (AbstractDefn i _)        -> AbstractUnfolding i
     Function{funAbstr = a}    -> a
     Datatype{dataAbstr = a}   -> a
     Record{recAbstr = a}      -> a
     Constructor{conAbstr = a} -> a
     Primitive{primAbstr = a}  -> a
-    PrimitiveSort{}           -> ConcreteDef
+    PrimitiveSort{}           -> NoAbstract
 
 defForced :: Definition -> [IsForced]
 defForced d = case theDef d of
@@ -3848,18 +3874,18 @@ onLetBindingType f b = b { letType = f $ letType b }
 ---------------------------------------------------------------------------
 
 data AbstractMode
-  = AbstractMode        -- ^ Abstract things in the current module can be accessed.
-  | ConcreteMode        -- ^ No abstract things can be accessed.
-  | IgnoreAbstractMode  -- ^ All abstract things can be accessed.
+  = AbstractMode AbstractId -- ^ Abstract things in the current module can be accessed.
+  | ConcreteMode            -- ^ No abstract things can be accessed.
+  | IgnoreAbstractMode      -- ^ All abstract things can be accessed.
   deriving (Show, Eq, Generic)
 
-aDefToMode :: IsAbstract -> AbstractMode
-aDefToMode AbstractDef = AbstractMode
-aDefToMode ConcreteDef = ConcreteMode
+aDefToMode :: IsAbstractUnfolding -> AbstractMode
+aDefToMode (AbstractUnfolding i) = AbstractMode i
+aDefToMode NoAbstract = ConcreteMode
 
-aModeToDef :: AbstractMode -> Maybe IsAbstract
-aModeToDef AbstractMode = Just AbstractDef
-aModeToDef ConcreteMode = Just ConcreteDef
+aModeToDef :: AbstractMode -> Maybe IsAbstractUnfolding
+aModeToDef (AbstractMode i) = Just (AbstractUnfolding i)
+aModeToDef ConcreteMode = Just NoAbstract
 aModeToDef _ = Nothing
 
 ---------------------------------------------------------------------------
