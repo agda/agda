@@ -164,7 +164,7 @@ cd "$srcdir"
 git diff-index --cached --quiet HEAD || git commit -vm "Preparing new release ($version)."
 git tag "$version"
 git push --tags HEAD
-git checkout Agda.cabal
+git restore Agda.cabal
 
 cabal upload "dist/Agda-$version.tar.gz"
 
@@ -172,14 +172,14 @@ cabal upload "dist/Agda-$version.tar.gz"
 # XXX Announce the release of the new version on the Agda mailing list.
 
 [ $maint = 0 ] && maintv="$version" || maintv="${version%.*}"
-git checkout -b "maint-$maintv"
+git switch -c "maint-$maintv"
 updateVersion "${maintv}.$(( maint + 1 ))"
 
 sed -ri 's/^#\s*(override CABAL_OPTS\+=--program-suffix=-\$\(VERSION\))$/\1/' Makefile
 git add Makefile
 git commit -vm "Release ${maintv}.$(( maint + 1))."
 
-git checkout master
+git switch master
 git merge "maint-$version"
 
 if [ $maint = 0 ]; then
@@ -194,5 +194,5 @@ if [ $maint = 0 ]; then
 fi
 
 git push
-git checkout "maint-$version"
+git switch "maint-$version"
 git push -u origin "maint-$version"
