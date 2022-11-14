@@ -467,8 +467,8 @@ recoverScope m = bindRTC m λ t → runScopeCheck (scopeCheckTerm t)
 recoverScope' : {B : Nat → Set} → ScopeCheck A B → R.TC A → TC n (B n)
 recoverScope' f m = bindRTC m λ a → runScopeCheck (f a)
 
-postulate
-  typeError        : ∀ {a} {A : Set a} → List (ErrorPart n) → TC n A
+typeError : ∀ {a} {A : Set a} → List (ErrorPart n) → TC n A
+typeError es .unTC = R.typeError (map unscopeErrorPart es)
 
 inferType : Term n → TC n (Type n)
 inferType t =
