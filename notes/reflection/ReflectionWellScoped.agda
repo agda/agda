@@ -1012,6 +1012,13 @@ getInstances x = recoverScope' (λ{n = n} → traverseList (scopeCheckTerm {n = 
 {-# COMPILE JS runSpeculative    = _ => _ => _ =>      undefined #-}
 {-# COMPILE JS getInstances      = _ =>                undefined #-}
 
+mkMacro : (∀ {n} → Term n → TC n ⊤) → R.Term → R.TC ⊤
+mkMacro f hole = R.bindTC R.getContext λ ctx →
+  let n = length ctx in
+  TC.unTC {n = n} (let _>>=_ = bindTC in do
+    just t ← returnTC (scopeCheckTerm hole)
+      where nothing → mkTC (R.typeError (R.strErr "The IMPOSSIBLE has happened" ∷ []))
+    f t)
 
 -- -}
 -- -}
