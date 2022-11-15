@@ -9,9 +9,6 @@ open import Common.Product
 Loop : Set
 Loop = Loop
 
-postulate
-  loop : Loop
-
 data Box (A : Set) : Set where
   box : A → Box A
 
@@ -33,15 +30,6 @@ macro
 
 test₄ : Set
 test₄ = m₄ Loop
-
-macro
-
-  m₅ : Term → TC ⊤
-  m₅ hole = bindTC (inferType (def (quote loop) [])) λ A →
-            unify hole A
-
-test₅ : Set
-test₅ = m₅
 
 macro
 
