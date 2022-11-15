@@ -1279,6 +1279,9 @@ checkLHS mf = updateModality checkLHS_ where
       unlessM (splittableCohesion info) $
         addContext delta1 $ softTypeError $ SplitOnUnusableCohesion dom
 
+      unless (splittablePolarity (getModalPolarity info)) $
+        addContext delta1 $ softTypeError $ SplitOnUnusablePolarity dom
+
       -- check that a is indeed the type of lit (otherwise fail softly)
       -- if not, fail softly since it could be instantiated by a later split.
       suspendErrors $ equalType a =<< litType lit
@@ -1327,6 +1330,9 @@ checkLHS mf = updateModality checkLHS_ where
 
       unlessM (splittableCohesion info) $
         addContext delta1 $ softTypeError $ SplitOnUnusableCohesion dom
+
+      unless (splittablePolarity (getModalPolarity info)) $
+        addContext delta1 $ softTypeError $ SplitOnUnusablePolarity dom
 
       -- Should we attempt to compute a left inverse for this clause? When
       -- --cubical-compatible --flat-split is given, we don't generate a

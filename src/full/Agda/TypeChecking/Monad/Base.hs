@@ -4575,6 +4575,7 @@ data TypeError
             --   @SizeUniv@, which is not allowed.
         | SplitOnIrrelevant (Dom Type)
         | SplitOnUnusableCohesion (Dom Type)
+        | SplitOnUnusablePolarity (Dom Type)
         -- UNUSED: -- | SplitOnErased (Dom Type)
         | SplitOnNonVariable Term Type
         | SplitOnNonEtaRecord QName
