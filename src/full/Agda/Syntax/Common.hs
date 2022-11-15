@@ -1955,6 +1955,10 @@ morePolarity' x y = case comparable x y of
   POEQ -> True
   _    -> False
 
+-- | @splittablePolarity pol == False@ iff we cannot split on a variable of @pol@.
+splittablePolarity :: LensModalPolarity a => a -> Bool
+splittablePolarity a = modPolarityAnn (getModalPolarity a) `morePolarity'` MixedPolarity
+
 -- | 'ModalPolarity' composition.
 --   'UnusedPolarity' is dominant, 'StrictlyPositive' is neutral.
 composePolarity' :: ModalPolarity -> ModalPolarity -> ModalPolarity
