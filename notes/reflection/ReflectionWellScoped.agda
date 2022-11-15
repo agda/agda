@@ -265,6 +265,9 @@ unscopeSort (inf m) = R.inf m
 unscopeSort unknown = R.unknown
 
 unscopeTelescope : Telescope n m → R.Telescope
+unscopeTele : {T : Nat → Set} {R : Set} →
+              (∀ {m} → T m → R) → Tele T n m → List R
+
 unscopePattern : Pattern n m → R.Pattern
 unscopePatterns : Patterns n m → List (Arg R.Pattern)
 unscopePatterns = map (mapArg unscopePattern)
@@ -272,8 +275,10 @@ unscopePatterns = map (mapArg unscopePattern)
 unscopeClause (clause tel ps t) = R.clause (unscopeTelescope tel) (unscopePatterns ps) (unscopeTerm t)
 unscopeClause (absurd-clause tel ps) = R.absurd-clause (unscopeTelescope tel) (unscopePatterns ps)
 
-unscopeTelescope emptyTel = []
-unscopeTelescope (extTel (s , t) tel) = (s , mapArg unscopeTerm t) ∷ unscopeTelescope tel
+unscopeTelescope = unscopeTele λ { (s , arg i t) → (s , arg i (unscopeTerm t)) }
+
+unscopeTele f emptyTel = []
+unscopeTele f (extTel t tel) = f t ∷ unscopeTele f tel
 
 unscopePattern (con c ps) = R.con c (unscopePatterns ps)
 unscopePattern (dot t) = R.dot (unscopeTerm t)
