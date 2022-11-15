@@ -215,6 +215,7 @@ typeErrorName = \case
   UnequalLevel                                               {} -> UnequalLevel_
   UnequalQuantity                                            {} -> UnequalQuantity_
   UnequalRelevance                                           {} -> UnequalRelevance_
+  UnequalPolarity                                            {} -> UnequalPolarity_
   UnequalSorts                                               {} -> UnequalSorts_
   UnequalTerms                                               {} -> UnequalTerms_
   UnexpectedModalityAnnotationInParameter                    {} -> UnexpectedModalityAnnotationInParameter_

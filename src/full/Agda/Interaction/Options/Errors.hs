@@ -266,6 +266,7 @@ data ErrorName
   | UnequalLevel_
   | UnequalQuantity_
   | UnequalRelevance_
+  | UnequalPolarity_
   | UnequalSorts_
   | UnequalTerms_
   | UnexpectedModalityAnnotationInParameter_

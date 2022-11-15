@@ -563,6 +563,10 @@ instance PrettyTCM TypeError where
       pwords "because one is a non-flat function type and the other is a flat function type"
       -- FUTURE Cohesion: update message if/when introducing sharp.
 
+    UnequalPolarity cmp a b -> fsep $
+      [prettyTCM a, notCmp cmp, prettyTCM b] ++
+      pwords "because they do not have the same polarity annotations"
+
     UnequalFiniteness cmp a b -> fsep $
       [prettyTCM a, notCmp cmp, prettyTCM b] ++
       pwords "because one is a type of partial elements and the other is a function type"
