@@ -8,6 +8,7 @@ open import Agda.Primitive
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Char
 open import Agda.Builtin.Equality
+open import Agda.Builtin.Equality.Erase
 open import Agda.Builtin.Float
 open import Agda.Builtin.Int
 open import Agda.Builtin.List
@@ -73,6 +74,9 @@ private
   variable
     A B : Set
 
+  trustMe : ∀ {a} {A : Set a} {x y : A} → x ≡ y
+  trustMe = primEraseEquality prf where postulate prf : _
+
   length : ∀{ℓ} {A : Set ℓ} → List A → Nat
   length [] = 0
   length (_ ∷ xs) = 1 + length xs
@@ -81,11 +85,18 @@ private
   map f [] = []
   map f (x ∷ xs) = f x ∷ map f xs
 
+  reverse : List A → List A
+  reverse {A} = go [] module Reverse where
+    go : List A → List A → List A
+    go acc [] = acc
+    go acc (x ∷ xs) = go (x ∷ acc) xs
+
   -- We do traversals in the Maybe Applicative.
 
-  -- _>>=_ : {A B : Set} → Maybe A → (A → Maybe B) → Maybe B
-  -- just x >>= k = k x
-  -- nothing >>= k = nothing
+  module MaybeBind where
+    _>>=_ : {A B : Set} → Maybe A → (A → Maybe B) → Maybe B
+    just x >>= k = k x
+    nothing >>= k = nothing
 
   infixl 4 _<$>_
 
@@ -108,22 +119,31 @@ private
 
   -- Deciding Nat equality
 
+  SemidecidableEq : Set → Set
+  SemidecidableEq A = (x y : A) → Maybe (x ≡ y)
+
   cong : {A B : Set} (f : A → B) {a b : A} → a ≡ b → f a ≡ f b
   cong f refl = refl
 
-  _≟_ : (n m : Nat) → Maybe (n ≡ m)
+  _≟_ : SemidecidableEq Nat
   zero ≟ zero = just refl
   suc m ≟ zero = nothing
   zero ≟ suc n = nothing
   suc m ≟ suc n = cong suc <$> m ≟ n
+
+  -- can't be bothered to prove this
+  length-reverse : (xs : List A) → length (reverse xs) ≡ length xs
+  length-reverse xs = trustMe
+
 
 -- Well-scoped de Bruijn indices version of Agda.Builtin.Reflection
 ------------------------------------------------------------------------
 
 -- Name abstraction --
 
-variable
-  n m : Nat
+private
+  variable
+    n m : Nat
 
 data Abs {a} (A : Nat → Set a) (n : Nat) : Set a where
   abs : (s : String) (x : A (suc n)) → Abs A n
@@ -259,6 +279,9 @@ unscopeSort (inf m) = R.inf m
 unscopeSort unknown = R.unknown
 
 unscopeTelescope : Telescope n m → R.Telescope
+unscopeTele : {T : Nat → Set} {R : Set} →
+              (∀ {m} → T m → R) → Tele T n m → List R
+
 unscopePattern : Pattern n m → R.Pattern
 unscopePatterns : Patterns n m → List (Arg R.Pattern)
 unscopePatterns = map (mapArg unscopePattern)
@@ -266,8 +289,10 @@ unscopePatterns = map (mapArg unscopePattern)
 unscopeClause (clause tel ps t) = R.clause (unscopeTelescope tel) (unscopePatterns ps) (unscopeTerm t)
 unscopeClause (absurd-clause tel ps) = R.absurd-clause (unscopeTelescope tel) (unscopePatterns ps)
 
-unscopeTelescope emptyTel = []
-unscopeTelescope (extTel (s , t) tel) = (s , mapArg unscopeTerm t) ∷ unscopeTelescope tel
+unscopeTelescope = unscopeTele λ { (s , arg i t) → (s , arg i (unscopeTerm t)) }
+
+unscopeTele f emptyTel = []
+unscopeTele f (extTel t tel) = f t ∷ unscopeTele f tel
 
 unscopePattern (con c ps) = R.con c (unscopePatterns ps)
 unscopePattern (dot t) = R.dot (unscopeTerm t)
@@ -332,7 +357,8 @@ scopeCheckTele f [] = just emptyTel
 scopeCheckTele f (x ∷ xs) = extTel <$> f x <*> scopeCheckTele f xs
 
 scopeCheckTelescope : ScopeCheckDep (List (String × Arg R.Type)) (λ n xs → Telescope n (length xs))
-scopeCheckTelescope = scopeCheckTele (traverseDeco (traverseArg scopeCheckType))
+scopeCheckTelescope args with length args | length-reverse args
+... | _ | refl = scopeCheckTele (traverseDeco (traverseArg scopeCheckType)) (reverse args)
 
 scopeCheckPattern : {m : Nat} → ScopeCheck R.Pattern (λ n → Pattern n m)
 scopeCheckPatterns : {m : Nat} → ScopeCheck (List (Arg R.Pattern)) (λ n → Patterns n m)
@@ -347,6 +373,342 @@ scopeCheckPattern (R.absurd x) = absurd <$> scopeCheckVar x
 
 scopeCheckClause (R.clause tel ps t) = clause <$> scopeCheckTelescope tel <*> scopeCheckPatterns ps <*> scopeCheckTerm t
 scopeCheckClause (R.absurd-clause tel ps) = absurd-clause <$> scopeCheckTelescope tel <*> scopeCheckPatterns ps
+
+
+data Thin : (m, n : Nat) → Set where
+  done : Thin 0 0
+  skip : Thin m n → Thin m (suc n)
+  keep : Thin m n → Thin (suc m) (suc n)
+
+ones : Thin m m
+ones {zero} = done
+ones {suc m} = keep ones
+
+none : Thin 0 m
+none {zero} = done
+none {suc m} = skip none
+
+_<>_ : ∀ {p q} → Thin m n → Thin p q → Thin (m + p) (n + q)
+done    <> ph = ph
+skip th <> ph = skip (th <> ph)
+keep th <> ph = keep (th <> ph)
+
+Strengthenable : (Nat → Set) → Set
+Strengthenable T = ∀ {m n} → Thin m n → T n → Maybe (T m)
+
+strengthenVar : Strengthenable Var
+strengthenVar done k = just k
+strengthenVar (skip th) zero = nothing
+strengthenVar (skip th) (suc k) = strengthenVar th k
+strengthenVar (keep th) zero = just zero
+strengthenVar (keep th) (suc v) = suc <$> strengthenVar th v
+
+strengthenAbs : ∀ {T} → Strengthenable T →
+                Strengthenable (Abs T)
+strengthenAbs f th (abs s x) = abs s <$> f (keep th) x
+
+{-# TERMINATING #-}
+strengthenType      : Strengthenable Type
+strengthenTerm      : Strengthenable Term
+strengthenSort      : Strengthenable Sort
+strengthenArg       : Strengthenable (λ n → Arg (Term n))
+strengthenArgs      : Strengthenable (λ n → List (Arg (Term n)))
+strengthenClause    : Strengthenable Clause
+strengthenClauses   : Strengthenable (λ n → List (Clause n))
+strengthenTele      : ∀ {T} → Strengthenable T → Strengthenable (λ n → Tele T n m)
+strengthenTelescope : Strengthenable (λ n → Telescope n m)
+strengthenPattern   : Strengthenable (λ n → Pattern n m)
+strengthenPatterns  : Strengthenable (λ n → Patterns n m)
+
+strengthenSort th (set t) = set <$> strengthenTerm th t
+strengthenSort th (lit l) = just (lit l)
+strengthenSort th (prop t) = prop <$> strengthenTerm th t
+strengthenSort th (propLit l) = just (propLit l)
+strengthenSort th (inf m) = just (inf m)
+strengthenSort th unknown = just unknown
+
+strengthenArg th = traverseArg (strengthenTerm th)
+
+strengthenArgs th = traverseList (strengthenArg th)
+
+strengthenTerm th (var v args) = var <$> strengthenVar th v <*> strengthenArgs th args
+strengthenTerm th (con c args) = con c <$> strengthenArgs th args
+strengthenTerm th (def f args) = def f <$> strengthenArgs th args
+strengthenTerm th (lam v t) = lam v <$> strengthenAbs strengthenTerm th t
+strengthenTerm th (pat-lam cs args) = pat-lam <$> strengthenClauses th cs <*> strengthenArgs th args
+strengthenTerm th (pi a b) = pi <$> strengthenArg th a <*> strengthenAbs strengthenTerm th b
+strengthenTerm th (agda-sort s) = agda-sort <$> strengthenSort th s
+strengthenTerm th (lit l) = just (lit l)
+strengthenTerm th (meta m args) = meta m <$> strengthenArgs th args
+strengthenTerm th unknown = just unknown
+
+strengthenType = strengthenTerm
+
+strengthenClause th (clause tel ps t) =
+  clause <$> strengthenTelescope th tel <*> strengthenPatterns th ps <*> strengthenTerm (th <> ones) t
+strengthenClause th (absurd-clause tel ps) =
+  absurd-clause <$> strengthenTelescope th tel <*> strengthenPatterns th ps
+
+strengthenClauses th = traverseList (strengthenClause th)
+
+strengthenTele f th emptyTel = just emptyTel
+strengthenTele f th (extTel t ts) = extTel <$> f th t <*> strengthenTele f (keep th) ts
+
+strengthenTelescope = strengthenTele (λ th → traverseDeco (strengthenArg th))
+
+strengthenPattern th (con c ps) = con c <$> strengthenPatterns th ps
+strengthenPattern th (dot t) = dot <$> strengthenTerm (th <> ones) t
+strengthenPattern th (var v) = just (var v)
+strengthenPattern th (lit l) = just (lit l)
+strengthenPattern th (proj f) = just (proj f)
+strengthenPattern th (absurd v) = just (absurd v)
+
+strengthenPatterns th = traverseList (traverseArg (strengthenPattern th))
+
+semidecidableEqFromBool : (A → A → Bool) →  SemidecidableEq A
+semidecidableEqFromBool test x y with (test x y)
+... | false = nothing
+... | true = just trustMe
+
+_≟Name_ : SemidecidableEq Name
+_≟Name_ = semidecidableEqFromBool primQNameEquality
+
+_≟Meta_ : SemidecidableEq Meta
+_≟Meta_ = semidecidableEqFromBool primMetaEquality
+
+_≟Float_ : SemidecidableEq Float
+_≟Float_ = semidecidableEqFromBool primFloatEquality
+
+_≟Char_ : SemidecidableEq Char
+_≟Char_ = semidecidableEqFromBool primCharEquality
+
+_≟String_ : SemidecidableEq String
+_≟String_ = semidecidableEqFromBool primStringEquality
+
+_≟Word64_ : SemidecidableEq Word64
+_≟Word64_ = semidecidableEqFromBool λ w w' →
+  primWord64ToNat w == primWord64ToNat w'
+
+
+module SemidecidableEq where
+
+  open MaybeBind
+
+  semidecidableEqAbs : ∀ {T} → (∀ {n} → SemidecidableEq (T n)) →
+                        SemidecidableEq (Abs T n)
+  semidecidableEqAbs f (abs s b) (abs s' b') = do
+    refl ← s ≟String s'
+    refl ← f b b'
+    just refl
+
+  _≟Visibility_ : SemidecidableEq Visibility
+  visible ≟Visibility visible = just refl
+  hidden ≟Visibility hidden = just refl
+  instance′ ≟Visibility instance′ = just refl
+  _ ≟Visibility _ = nothing
+
+  _≟Relevance_ : SemidecidableEq Relevance
+  relevant ≟Relevance relevant = just refl
+  irrelevant ≟Relevance irrelevant = just refl
+  _ ≟Relevance _ = nothing
+
+  _≟Quantity_ : SemidecidableEq Quantity
+  quantity-0 ≟Quantity quantity-0 = just refl
+  quantity-ω ≟Quantity quantity-ω = just refl
+  _ ≟Quantity _ = nothing
+
+  _≟Modality_ : SemidecidableEq Modality
+  modality r q ≟Modality modality r' q' = do
+    refl ← r ≟Relevance r'
+    refl ← q ≟Quantity q'
+    just refl
+
+  _≟Var_ : SemidecidableEq (Var n)
+  zero  ≟Var zero = just refl
+  suc v ≟Var suc v' = do
+    refl ← v ≟Var v'
+    just refl
+  _ ≟Var _ = nothing
+
+  _≟Lit_ : SemidecidableEq Literal
+  nat n ≟Lit nat n' = do
+    refl ← n ≟ n'
+    just refl
+  word64 w ≟Lit word64 w' = do
+    refl ← w ≟Word64 w'
+    just refl
+  float d ≟Lit float d' = do
+    refl ← d ≟Float d'
+    just refl
+  char c ≟Lit char c' = do
+    refl ← c ≟Char c'
+    just refl
+  string s ≟Lit string s' = do
+    refl ← s ≟String s'
+    just refl
+  name nm ≟Lit name nm' = do
+    refl ← nm ≟Name nm'
+    just refl
+  meta m ≟Lit meta m' = do
+    refl ← m ≟Meta m'
+    just refl
+  _ ≟Lit _ = nothing
+
+  _≟ArgInfo_ : SemidecidableEq ArgInfo
+  arg-info v m ≟ArgInfo arg-info v' m' = do
+    refl ← v ≟Visibility v'
+    refl ← m ≟Modality m'
+    just refl
+
+  semidecidableEqTele : ∀ {T} → (∀ {n} → SemidecidableEq (T n)) → SemidecidableEq (Tele T n m)
+  semidecidableEqTele eq emptyTel emptyTel = just refl
+  semidecidableEqTele eq (extTel t ts) (extTel t' ts') = do
+    refl ← eq t t'
+    refl ← semidecidableEqTele eq ts ts'
+    just refl
+
+  semidecidableEqDeco : ∀ {T} → SemidecidableEq T → SemidecidableEq (String × T)
+  semidecidableEqDeco eq (s , t) (s' , t') = do
+    refl ← s ≟String s'
+    refl ← eq t t'
+    just refl
+
+  semidecidableEqArg : ∀ {T} → SemidecidableEq T → SemidecidableEq (Arg T)
+  semidecidableEqArg eq (arg i t) (arg i' t') = do
+    refl ← i ≟ArgInfo i'
+    refl ← eq t t'
+    just refl
+
+  {-# TERMINATING #-}
+  _≟Term_      : SemidecidableEq (Term n)
+  _≟Type_      : SemidecidableEq (Term n)
+  _≟Sort_      : SemidecidableEq (Sort n)
+  _≟Arg_       : SemidecidableEq (Arg (Term n))
+  _≟Args_      : SemidecidableEq (List (Arg (Term n)))
+  _≟Clause_    : SemidecidableEq (Clause n)
+  _≟Clauses_   : SemidecidableEq (List (Clause n))
+  _≟Telescope_ : SemidecidableEq (Telescope n m)
+  _≟Pattern_   : SemidecidableEq (Pattern n m)
+  _≟Patterns_  : SemidecidableEq (Patterns n m)
+
+  var v args ≟Term var v' args' = do
+    refl ← v ≟Var v'
+    refl ← args ≟Args args'
+    just refl
+  con c args ≟Term con c' args' = do
+    refl ← c ≟Name c'
+    refl ← args ≟Args args'
+    just refl
+  def f args ≟Term def f' args' = do
+    refl ← f ≟Name f'
+    refl ← args ≟Args args'
+    just refl
+  lam v b ≟Term lam v' b' = do
+    refl ← v ≟Visibility v'
+    refl ← semidecidableEqAbs _≟Term_ b b'
+    just refl
+  pat-lam cs args ≟Term pat-lam cs' args' = do
+    refl ← cs ≟Clauses cs'
+    refl ← args ≟Args args'
+    just refl
+  pi a b ≟Term pi a' b' = do
+    refl ← a ≟Arg a'
+    refl ← semidecidableEqAbs _≟Term_ b b'
+    just refl
+  agda-sort s ≟Term agda-sort s' = do
+    refl ← s ≟Sort s'
+    just refl
+  lit l ≟Term lit l' = do
+    refl ← l ≟Lit l'
+    just refl
+  meta m args ≟Term meta m' args' = do
+    refl ← m ≟Meta m'
+    refl ← args ≟Args args'
+    just refl
+  unknown ≟Term unknown = just refl
+  _ ≟Term _ = nothing
+
+  _≟Type_ = _≟Term_
+
+  set t ≟Sort set t' = do
+    refl ← t ≟Term t'
+    just refl
+  lit l ≟Sort lit l' = do
+    refl ← l ≟ l'
+    just refl
+  prop t ≟Sort prop t' = do
+    refl ← t ≟Term t'
+    just refl
+  propLit l ≟Sort propLit l' = do
+    refl ← l ≟ l'
+    just refl
+  inf m ≟Sort inf m' = do
+    refl ← m ≟ m'
+    just refl
+  unknown ≟Sort unknown = just refl
+  _ ≟Sort _ = nothing
+
+  _≟Arg_ = semidecidableEqArg _≟Term_
+
+  [] ≟Args [] = just refl
+  (a ∷ as) ≟Args (a' ∷ as') = do
+    refl ← a ≟Arg a'
+    refl ← as ≟Args as'
+    just refl
+  _ ≟Args _ = nothing
+
+
+  clause {m} tel ps t ≟Clause clause {m = m'} tel' ps' t' = do
+    refl ← m ≟ m'
+    refl ← tel ≟Telescope tel'
+    refl ← ps ≟Patterns ps'
+    refl ← t ≟Term t'
+    just refl
+  absurd-clause {m} tel ps ≟Clause absurd-clause {m = m'} tel' ps' = do
+    refl ← m ≟ m'
+    refl ← tel ≟Telescope tel'
+    refl ← ps ≟Patterns ps'
+    just refl
+  _ ≟Clause _ = nothing
+
+  [] ≟Clauses [] = just refl
+  (cl ∷ cls) ≟Clauses (cl' ∷ cls') = do
+    refl ← cl ≟Clause cl'
+    refl ← cls ≟Clauses cls'
+    just refl
+  _ ≟Clauses _ = nothing
+
+  _≟Telescope_ = semidecidableEqTele (semidecidableEqDeco _≟Arg_)
+
+  con c ps ≟Pattern con c' ps' = do
+    refl ← c ≟Name c'
+    refl ← ps ≟Patterns ps'
+    just refl
+  dot t ≟Pattern dot t' = do
+    refl ← t ≟Term t'
+    just refl
+  var v ≟Pattern var v' = do
+    refl ← v ≟Var v'
+    just refl
+  lit l ≟Pattern lit l' = do
+    refl ← l ≟Lit l'
+    just refl
+  proj f ≟Pattern proj f' = do
+    refl ← f ≟Name f'
+    just refl
+  absurd v ≟Pattern absurd v' = do
+    refl ← v ≟Var v'
+    just refl
+  _ ≟Pattern _ = nothing
+
+  [] ≟Patterns [] = just refl
+  (p ∷ ps) ≟Patterns (p' ∷ ps') = do
+    refl ← semidecidableEqArg _≟Pattern_ p p'
+    refl ← ps ≟Patterns ps'
+    just refl
+  _ ≟Patterns _ = nothing
+
+open SemidecidableEq public
 
 module Example where
 
@@ -665,6 +1027,13 @@ getInstances x = recoverScope' (λ{n = n} → traverseList (scopeCheckTerm {n = 
 {-# COMPILE JS runSpeculative    = _ => _ => _ =>      undefined #-}
 {-# COMPILE JS getInstances      = _ =>                undefined #-}
 
+mkMacro : (∀ {n} → Term n → TC n ⊤) → R.Term → R.TC ⊤
+mkMacro f hole = R.bindTC R.getContext λ ctx →
+  let n = length ctx in
+  TC.unTC {n = n} (let _>>=_ = bindTC in do
+    just t ← returnTC (scopeCheckTerm hole)
+      where nothing → mkTC (R.typeError (R.strErr "The IMPOSSIBLE has happened" ∷ []))
+    f t)
 
 -- -}
 -- -}
