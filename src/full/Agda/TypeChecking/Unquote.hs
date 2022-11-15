@@ -5,7 +5,7 @@ import Control.Arrow          ( first, second, (&&&) )
 import Control.Monad          ( (<=<), liftM2 )
 import Control.Monad.Except   ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class ( MonadIO(..) )
-import Control.Monad.Reader   ( ReaderT(..), runReaderT )
+import Control.Monad.Reader   ( ReaderT(..), runReaderT, ask )
 import Control.Monad.State    ( gets, modify, StateT(..), runStateT )
 import Control.Monad.Writer   ( MonadWriter(..), WriterT(..), runWriterT )
 import Control.Monad.Trans    ( lift )
@@ -120,8 +120,9 @@ liftU2 f m1 m2 = packUnquoteM $ \ cxt s -> f (unpackUnquoteM m1 cxt s) (unpackUn
 
 inOriginalContext :: UnquoteM a -> UnquoteM a
 inOriginalContext m =
-  packUnquoteM $ \ cxt s ->
-    unsafeModifyContext (const cxt) $ unpackUnquoteM m cxt s
+  packUnquoteM $ \ cxt s -> do
+    n <- getContextSize
+    escapeContext __IMPOSSIBLE__ (n - length cxt) $ unpackUnquoteM m cxt s
 
 isCon :: ConHead -> TCM Term -> UnquoteM Bool
 isCon con tm = do t <- liftTCM tm
@@ -832,7 +833,7 @@ evalTCM v = do
     tcInContext :: Term -> Term -> UnquoteM Term
     tcInContext c m = do
       c <- unquote c
-      liftU1 unsafeInTopContext $ go c (evalTCM m)
+      inOriginalContext $ go c (evalTCM m)
       where
         go :: [(Text , Arg R.Type)] -> UnquoteM Term -> UnquoteM Term
         go []             m = m
