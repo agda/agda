@@ -201,6 +201,7 @@ typeErrorName = \case
   SplitOnPartial                                             {} -> SplitOnPartial_
   SplitOnUnchecked                                           {} -> SplitOnUnchecked_
   SplitOnUnusableCohesion                                    {} -> SplitOnUnusableCohesion_
+  SplitOnUnusablePolarity                                    {} -> SplitOnUnusablePolarity_
   TacticAttributeNotAllowed                                  {} -> TacticAttributeNotAllowed_
   TooFewArgumentsToPatternSynonym                            {} -> TooFewArgumentsToPatternSynonym_
   TooFewPatternsInWithClause                                 {} -> TooFewPatternsInWithClause_

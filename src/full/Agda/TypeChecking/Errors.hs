@@ -451,6 +451,10 @@ instance PrettyTCM TypeError where
       pwords "Cannot pattern match against" ++ [text $ verbalize $ getCohesion t] ++
       pwords "argument of type" ++ [prettyTCM $ unDom t]
 
+    SplitOnUnusablePolarity t -> fsep $
+      pwords "Cannot pattern match against" ++ [text $ verbalize $ getModalPolarity t] ++
+      pwords "argument of type" ++ [prettyTCM $ unDom t]
+
     -- UNUSED:
     -- SplitOnErased t -> fsep $
     --   pwords "Cannot pattern match against" ++ [text $ verbalize $ getQuantity t] ++

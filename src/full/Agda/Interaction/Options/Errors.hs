@@ -254,6 +254,7 @@ data ErrorName
   | SplitOnPartial_
   | SplitOnUnchecked_
   | SplitOnUnusableCohesion_
+  | SplitOnUnusablePolarity_
   | TacticAttributeNotAllowed_
   | TooFewArgumentsToPatternSynonym_
   | TooFewPatternsInWithClause_

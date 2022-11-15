@@ -4848,6 +4848,7 @@ data TypeError
         | SplitOnCoinductive
         | SplitOnIrrelevant (Dom Type)
         | SplitOnUnusableCohesion (Dom Type)
+        | SplitOnUnusablePolarity (Dom Type)
         -- UNUSED: -- | SplitOnErased (Dom Type)
         | SplitOnNonVariable Term Type
         | SplitOnNonEtaRecord QName
