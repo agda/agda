@@ -122,8 +122,9 @@ private
 
 -- Name abstraction --
 
-variable
-  n m : Nat
+private
+  variable
+    n m : Nat
 
 data Abs {a} (A : Nat → Set a) (n : Nat) : Set a where
   abs : (s : String) (x : A (suc n)) → Abs A n
@@ -347,6 +348,97 @@ scopeCheckPattern (R.absurd x) = absurd <$> scopeCheckVar x
 
 scopeCheckClause (R.clause tel ps t) = clause <$> scopeCheckTelescope tel <*> scopeCheckPatterns ps <*> scopeCheckTerm t
 scopeCheckClause (R.absurd-clause tel ps) = absurd-clause <$> scopeCheckTelescope tel <*> scopeCheckPatterns ps
+
+
+data Thin : (m, n : Nat) → Set where
+  done : Thin 0 0
+  skip : Thin m n → Thin m (suc n)
+  keep : Thin m n → Thin (suc m) (suc n)
+
+ones : Thin m m
+ones {zero} = done
+ones {suc m} = keep ones
+
+none : Thin 0 m
+none {zero} = done
+none {suc m} = skip none
+
+_<>_ : ∀ {p q} → Thin m n → Thin p q → Thin (m + p) (n + q)
+done    <> ph = ph
+skip th <> ph = skip (th <> ph)
+keep th <> ph = keep (th <> ph)
+
+Strengthenable : (Nat → Set) → Set
+Strengthenable T = ∀ {m n} → Thin m n → T n → Maybe (T m)
+
+strengthenVar : Strengthenable Var
+strengthenVar done k = just k
+strengthenVar (skip th) zero = nothing
+strengthenVar (skip th) (suc k) = strengthenVar th k
+strengthenVar (keep th) zero = just zero
+strengthenVar (keep th) (suc v) = suc <$> strengthenVar th v
+
+strengthenAbs : ∀ {T} → Strengthenable T →
+                Strengthenable (Abs T)
+strengthenAbs f th (abs s x) = abs s <$> f (keep th) x
+
+{-# TERMINATING #-}
+strengthenType      : Strengthenable Type
+strengthenTerm      : Strengthenable Term
+strengthenArg       : Strengthenable (λ n → Arg (Term n))
+strengthenArgs      : Strengthenable (λ n → List (Arg (Term n)))
+strengthenClause    : Strengthenable Clause
+strengthenClauses   : Strengthenable (λ n → List (Clause n))
+strengthenTele      : ∀ {T} → Strengthenable T → Strengthenable (λ n → Tele T n m)
+strengthenTelescope : Strengthenable (λ n → Telescope n m)
+strengthenPattern   : Strengthenable (λ n → Pattern n m)
+strengthenPatterns  : Strengthenable (λ n → Patterns n m)
+
+strengthenSort : Strengthenable Sort
+strengthenSort th (set t) = set <$> strengthenTerm th t
+strengthenSort th (lit l) = just (lit l)
+strengthenSort th (prop t) = prop <$> strengthenTerm th t
+strengthenSort th (propLit l) = just (propLit l)
+strengthenSort th (inf m) = just (inf m)
+strengthenSort th unknown = just unknown
+
+strengthenArg th = traverseArg (strengthenTerm th)
+
+strengthenArgs th = traverseList (strengthenArg th)
+
+strengthenTerm th (var v args) = var <$> strengthenVar th v <*> strengthenArgs th args
+strengthenTerm th (con c args) = con c <$> strengthenArgs th args
+strengthenTerm th (def f args) = def f <$> strengthenArgs th args
+strengthenTerm th (lam v t) = lam v <$> strengthenAbs strengthenTerm th t
+strengthenTerm th (pat-lam cs args) = pat-lam <$> strengthenClauses th cs <*> strengthenArgs th args
+strengthenTerm th (pi a b) = pi <$> strengthenArg th a <*> strengthenAbs strengthenTerm th b
+strengthenTerm th (agda-sort s) = agda-sort <$> strengthenSort th s
+strengthenTerm th (lit l) = just (lit l)
+strengthenTerm th (meta m args) = meta m <$> strengthenArgs th args
+strengthenTerm th unknown = just unknown
+
+strengthenType = strengthenTerm
+
+strengthenClause th (clause tel ps t) =
+  clause <$> strengthenTelescope th tel <*> strengthenPatterns th ps <*> strengthenTerm (th <> ones) t
+strengthenClause th (absurd-clause tel ps) =
+  absurd-clause <$> strengthenTelescope th tel <*> strengthenPatterns th ps
+
+strengthenClauses th = traverseList (strengthenClause th)
+
+strengthenTele f th emptyTel = just emptyTel
+strengthenTele f th (extTel t ts) = extTel <$> f th t <*> strengthenTele f (keep th) ts
+
+strengthenTelescope = strengthenTele (λ th → traverseDeco (strengthenArg th))
+
+strengthenPattern th (con c ps) = con c <$> strengthenPatterns th ps
+strengthenPattern th (dot t) = dot <$> strengthenTerm (th <> ones) t
+strengthenPattern th (var v) = just (var v)
+strengthenPattern th (lit l) = just (lit l)
+strengthenPattern th (proj f) = just (proj f)
+strengthenPattern th (absurd v) = just (absurd v)
+
+strengthenPatterns th = traverseList (traverseArg (strengthenPattern th))
 
 module Example where
 
