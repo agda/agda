@@ -8,6 +8,7 @@ module Agda.TypeChecking.Positivity.Occurrence
   , Where(..)
   , boundToEverySome
   , productOfEdgesInBoundedWalk
+  , modalPolarityToOccurrence
   ) where
 
 import Prelude hiding (null)
@@ -59,18 +60,20 @@ instance Null OccursWhere where
 -- | One part of the description of an occurrence.
 data Where
   = LeftOfArrow
-  | DefArg QName Nat -- ^ in the nth argument of a define constant
-  | UnderInf         -- ^ in the principal argument of built-in ∞
-  | VarArg           -- ^ as an argument to a bound variable
-  | MetaArg          -- ^ as an argument of a metavariable
-  | ConArgType QName -- ^ in the type of a constructor
-  | IndArgType QName -- ^ in a datatype index of a constructor
+  | DefArg QName Nat       -- ^ in the nth argument of a define constant
+  | UnderInf               -- ^ in the principal argument of built-in ∞
+  | VarArg Occurrence Nat  -- ^ as an argument to a bound variable.
+                           --   The polarity, if given, is the polarity of
+                           --   the argument the occurence is in
+  | MetaArg                -- ^ as an argument of a metavariable
+  | ConArgType QName       -- ^ in the type of a constructor
+  | IndArgType QName       -- ^ in a datatype index of a constructor
   | ConEndpoint QName
-                     -- ^ in an endpoint of a higher constructor
-  | InClause Nat     -- ^ in the nth clause of a defined function
-  | Matched          -- ^ matched against in a clause of a defined function
-  | IsIndex          -- ^ is an index of an inductive family
-  | InDefOf QName    -- ^ in the definition of a constant
+                           -- ^ in an endpoint of a higher constructor
+  | InClause Nat           -- ^ in the nth clause of a defined function
+  | Matched                -- ^ matched against in a clause of a defined function
+  | IsIndex                -- ^ is an index of an inductive family
+  | InDefOf QName          -- ^ in the definition of a constant
   deriving (Show, Eq, Ord, Generic)
 
 instance NFData Where
@@ -104,7 +107,7 @@ instance Pretty Where where
     LeftOfArrow  -> "LeftOfArrow"
     DefArg q i   -> "DefArg"     <+> pretty q <+> pretty i
     UnderInf     -> "UnderInf"
-    VarArg       -> "VarArg"
+    VarArg k i   -> "VarArg" <+> pretty k <+> pretty i
     MetaArg      -> "MetaArg"
     ConArgType q -> "ConArgType" <+> pretty q
     IndArgType q -> "IndArgType" <+> pretty q
@@ -235,3 +238,11 @@ productOfEdgesInBoundedWalk occ g u v bound =
         Just es@(_ : _) -> Just (foldr1 otimes (map Graph.label es))
         Just []         -> __IMPOSSIBLE__
         Nothing         -> Nothing
+
+modalPolarityToOccurrence :: ModalPolarity -> Occurrence
+modalPolarityToOccurrence = \case
+  UnusedPolarity -> Unused
+  StrictlyPositive -> StrictPos
+  Positive -> JustPos
+  Negative -> JustNeg
+  MixedPolarity -> Mixed
