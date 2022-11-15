@@ -8,6 +8,7 @@ open import Agda.Primitive
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Char
 open import Agda.Builtin.Equality
+open import Agda.Builtin.Equality.Erase
 open import Agda.Builtin.Float
 open import Agda.Builtin.Int
 open import Agda.Builtin.List
@@ -73,6 +74,9 @@ private
   variable
     A B : Set
 
+  trustMe : ∀ {a} {A : Set a} {x y : A} → x ≡ y
+  trustMe = primEraseEquality prf where postulate prf : _
+
   length : ∀{ℓ} {A : Set ℓ} → List A → Nat
   length [] = 0
   length (_ ∷ xs) = 1 + length xs
@@ -80,6 +84,12 @@ private
   map : (A → B) → List A → List B
   map f [] = []
   map f (x ∷ xs) = f x ∷ map f xs
+
+  reverse : List A → List A
+  reverse {A} = go [] module Reverse where
+    go : List A → List A → List A
+    go acc [] = acc
+    go acc (x ∷ xs) = go (x ∷ acc) xs
 
   -- We do traversals in the Maybe Applicative.
 
@@ -109,18 +119,22 @@ private
 
   -- Deciding Nat equality
 
-  cong : {A B : Set} (f : A → B) {a b : A} → a ≡ b → f a ≡ f b
-  cong f refl = refl
-
   SemidecidableEq : Set → Set
   SemidecidableEq A = (x y : A) → Maybe (x ≡ y)
 
+  cong : {A B : Set} (f : A → B) {a b : A} → a ≡ b → f a ≡ f b
+  cong f refl = refl
 
   _≟_ : SemidecidableEq Nat
   zero ≟ zero = just refl
   suc m ≟ zero = nothing
   zero ≟ suc n = nothing
   suc m ≟ suc n = cong suc <$> m ≟ n
+
+  -- can't be bothered to prove this
+  length-reverse : (xs : List A) → length (reverse xs) ≡ length xs
+  length-reverse xs = trustMe
+
 
 -- Well-scoped de Bruijn indices version of Agda.Builtin.Reflection
 ------------------------------------------------------------------------
@@ -343,7 +357,8 @@ scopeCheckTele f [] = just emptyTel
 scopeCheckTele f (x ∷ xs) = extTel <$> f x <*> scopeCheckTele f xs
 
 scopeCheckTelescope : ScopeCheckDep (List (String × Arg R.Type)) (λ n xs → Telescope n (length xs))
-scopeCheckTelescope = scopeCheckTele (traverseDeco (traverseArg scopeCheckType))
+scopeCheckTelescope args with length args | length-reverse args
+... | _ | refl = scopeCheckTele (traverseDeco (traverseArg scopeCheckType)) (reverse args)
 
 scopeCheckPattern : {m : Nat} → ScopeCheck R.Pattern (λ n → Pattern n m)
 scopeCheckPatterns : {m : Nat} → ScopeCheck (List (Arg R.Pattern)) (λ n → Patterns n m)
@@ -453,7 +468,7 @@ strengthenPatterns th = traverseList (traverseArg (strengthenPattern th))
 semidecidableEqFromBool : (A → A → Bool) →  SemidecidableEq A
 semidecidableEqFromBool test x y with (test x y)
 ... | false = nothing
-... | true = just trustMe where postulate trustMe : _
+... | true = just trustMe
 
 _≟Name_ : SemidecidableEq Name
 _≟Name_ = semidecidableEqFromBool primQNameEquality
