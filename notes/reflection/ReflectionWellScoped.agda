@@ -83,9 +83,10 @@ private
 
   -- We do traversals in the Maybe Applicative.
 
-  -- _>>=_ : {A B : Set} → Maybe A → (A → Maybe B) → Maybe B
-  -- just x >>= k = k x
-  -- nothing >>= k = nothing
+  module MaybeBind where
+    _>>=_ : {A B : Set} → Maybe A → (A → Maybe B) → Maybe B
+    just x >>= k = k x
+    nothing >>= k = nothing
 
   infixl 4 _<$>_
 
@@ -111,7 +112,11 @@ private
   cong : {A B : Set} (f : A → B) {a b : A} → a ≡ b → f a ≡ f b
   cong f refl = refl
 
-  _≟_ : (n m : Nat) → Maybe (n ≡ m)
+  SemidecidableEq : Set → Set
+  SemidecidableEq A = (x y : A) → Maybe (x ≡ y)
+
+
+  _≟_ : SemidecidableEq Nat
   zero ≟ zero = just refl
   suc m ≟ zero = nothing
   zero ≟ suc n = nothing
@@ -385,6 +390,7 @@ strengthenAbs f th (abs s x) = abs s <$> f (keep th) x
 {-# TERMINATING #-}
 strengthenType      : Strengthenable Type
 strengthenTerm      : Strengthenable Term
+strengthenSort      : Strengthenable Sort
 strengthenArg       : Strengthenable (λ n → Arg (Term n))
 strengthenArgs      : Strengthenable (λ n → List (Arg (Term n)))
 strengthenClause    : Strengthenable Clause
@@ -394,7 +400,6 @@ strengthenTelescope : Strengthenable (λ n → Telescope n m)
 strengthenPattern   : Strengthenable (λ n → Pattern n m)
 strengthenPatterns  : Strengthenable (λ n → Patterns n m)
 
-strengthenSort : Strengthenable Sort
 strengthenSort th (set t) = set <$> strengthenTerm th t
 strengthenSort th (lit l) = just (lit l)
 strengthenSort th (prop t) = prop <$> strengthenTerm th t
@@ -439,6 +444,251 @@ strengthenPattern th (proj f) = just (proj f)
 strengthenPattern th (absurd v) = just (absurd v)
 
 strengthenPatterns th = traverseList (traverseArg (strengthenPattern th))
+
+semidecidableEqFromBool : (A → A → Bool) →  SemidecidableEq A
+semidecidableEqFromBool test x y with (test x y)
+... | false = nothing
+... | true = just trustMe where postulate trustMe : _
+
+_≟Name_ : SemidecidableEq Name
+_≟Name_ = semidecidableEqFromBool primQNameEquality
+
+_≟Meta_ : SemidecidableEq Meta
+_≟Meta_ = semidecidableEqFromBool primMetaEquality
+
+_≟Float_ : SemidecidableEq Float
+_≟Float_ = semidecidableEqFromBool primFloatEquality
+
+_≟Char_ : SemidecidableEq Char
+_≟Char_ = semidecidableEqFromBool primCharEquality
+
+_≟String_ : SemidecidableEq String
+_≟String_ = semidecidableEqFromBool primStringEquality
+
+_≟Word64_ : SemidecidableEq Word64
+_≟Word64_ = semidecidableEqFromBool λ w w' →
+  primWord64ToNat w == primWord64ToNat w'
+
+
+module SemidecidableEq where
+
+  open MaybeBind
+
+  semidecidableEqAbs : ∀ {T} → (∀ {n} → SemidecidableEq (T n)) →
+                        SemidecidableEq (Abs T n)
+  semidecidableEqAbs f (abs s b) (abs s' b') = do
+    refl ← s ≟String s'
+    refl ← f b b'
+    just refl
+
+  _≟Visibility_ : SemidecidableEq Visibility
+  visible ≟Visibility visible = just refl
+  hidden ≟Visibility hidden = just refl
+  instance′ ≟Visibility instance′ = just refl
+  _ ≟Visibility _ = nothing
+
+  _≟Relevance_ : SemidecidableEq Relevance
+  relevant ≟Relevance relevant = just refl
+  irrelevant ≟Relevance irrelevant = just refl
+  _ ≟Relevance _ = nothing
+
+  _≟Quantity_ : SemidecidableEq Quantity
+  quantity-0 ≟Quantity quantity-0 = just refl
+  quantity-ω ≟Quantity quantity-ω = just refl
+  _ ≟Quantity _ = nothing
+
+  _≟Modality_ : SemidecidableEq Modality
+  modality r q ≟Modality modality r' q' = do
+    refl ← r ≟Relevance r'
+    refl ← q ≟Quantity q'
+    just refl
+
+  _≟Var_ : SemidecidableEq (Var n)
+  zero  ≟Var zero = just refl
+  suc v ≟Var suc v' = do
+    refl ← v ≟Var v'
+    just refl
+  _ ≟Var _ = nothing
+
+  _≟Lit_ : SemidecidableEq Literal
+  nat n ≟Lit nat n' = do
+    refl ← n ≟ n'
+    just refl
+  word64 w ≟Lit word64 w' = do
+    refl ← w ≟Word64 w'
+    just refl
+  float d ≟Lit float d' = do
+    refl ← d ≟Float d'
+    just refl
+  char c ≟Lit char c' = do
+    refl ← c ≟Char c'
+    just refl
+  string s ≟Lit string s' = do
+    refl ← s ≟String s'
+    just refl
+  name nm ≟Lit name nm' = do
+    refl ← nm ≟Name nm'
+    just refl
+  meta m ≟Lit meta m' = do
+    refl ← m ≟Meta m'
+    just refl
+  _ ≟Lit _ = nothing
+
+  _≟ArgInfo_ : SemidecidableEq ArgInfo
+  arg-info v m ≟ArgInfo arg-info v' m' = do
+    refl ← v ≟Visibility v'
+    refl ← m ≟Modality m'
+    just refl
+
+  semidecidableEqTele : ∀ {T} → (∀ {n} → SemidecidableEq (T n)) → SemidecidableEq (Tele T n m)
+  semidecidableEqTele eq emptyTel emptyTel = just refl
+  semidecidableEqTele eq (extTel t ts) (extTel t' ts') = do
+    refl ← eq t t'
+    refl ← semidecidableEqTele eq ts ts'
+    just refl
+
+  semidecidableEqDeco : ∀ {T} → SemidecidableEq T → SemidecidableEq (String × T)
+  semidecidableEqDeco eq (s , t) (s' , t') = do
+    refl ← s ≟String s'
+    refl ← eq t t'
+    just refl
+
+  semidecidableEqArg : ∀ {T} → SemidecidableEq T → SemidecidableEq (Arg T)
+  semidecidableEqArg eq (arg i t) (arg i' t') = do
+    refl ← i ≟ArgInfo i'
+    refl ← eq t t'
+    just refl
+
+  {-# TERMINATING #-}
+  _≟Term_      : SemidecidableEq (Term n)
+  _≟Type_      : SemidecidableEq (Term n)
+  _≟Sort_      : SemidecidableEq (Sort n)
+  _≟Arg_       : SemidecidableEq (Arg (Term n))
+  _≟Args_      : SemidecidableEq (List (Arg (Term n)))
+  _≟Clause_    : SemidecidableEq (Clause n)
+  _≟Clauses_   : SemidecidableEq (List (Clause n))
+  _≟Telescope_ : SemidecidableEq (Telescope n m)
+  _≟Pattern_   : SemidecidableEq (Pattern n m)
+  _≟Patterns_  : SemidecidableEq (Patterns n m)
+
+  var v args ≟Term var v' args' = do
+    refl ← v ≟Var v'
+    refl ← args ≟Args args'
+    just refl
+  con c args ≟Term con c' args' = do
+    refl ← c ≟Name c'
+    refl ← args ≟Args args'
+    just refl
+  def f args ≟Term def f' args' = do
+    refl ← f ≟Name f'
+    refl ← args ≟Args args'
+    just refl
+  lam v b ≟Term lam v' b' = do
+    refl ← v ≟Visibility v'
+    refl ← semidecidableEqAbs _≟Term_ b b'
+    just refl
+  pat-lam cs args ≟Term pat-lam cs' args' = do
+    refl ← cs ≟Clauses cs'
+    refl ← args ≟Args args'
+    just refl
+  pi a b ≟Term pi a' b' = do
+    refl ← a ≟Arg a'
+    refl ← semidecidableEqAbs _≟Term_ b b'
+    just refl
+  agda-sort s ≟Term agda-sort s' = do
+    refl ← s ≟Sort s'
+    just refl
+  lit l ≟Term lit l' = do
+    refl ← l ≟Lit l'
+    just refl
+  meta m args ≟Term meta m' args' = do
+    refl ← m ≟Meta m'
+    refl ← args ≟Args args'
+    just refl
+  unknown ≟Term unknown = just refl
+  _ ≟Term _ = nothing
+
+  _≟Type_ = _≟Term_
+
+  set t ≟Sort set t' = do
+    refl ← t ≟Term t'
+    just refl
+  lit l ≟Sort lit l' = do
+    refl ← l ≟ l'
+    just refl
+  prop t ≟Sort prop t' = do
+    refl ← t ≟Term t'
+    just refl
+  propLit l ≟Sort propLit l' = do
+    refl ← l ≟ l'
+    just refl
+  inf m ≟Sort inf m' = do
+    refl ← m ≟ m'
+    just refl
+  unknown ≟Sort unknown = just refl
+  _ ≟Sort _ = nothing
+
+  _≟Arg_ = semidecidableEqArg _≟Term_
+
+  [] ≟Args [] = just refl
+  (a ∷ as) ≟Args (a' ∷ as') = do
+    refl ← a ≟Arg a'
+    refl ← as ≟Args as'
+    just refl
+  _ ≟Args _ = nothing
+
+
+  clause {m} tel ps t ≟Clause clause {m = m'} tel' ps' t' = do
+    refl ← m ≟ m'
+    refl ← tel ≟Telescope tel'
+    refl ← ps ≟Patterns ps'
+    refl ← t ≟Term t'
+    just refl
+  absurd-clause {m} tel ps ≟Clause absurd-clause {m = m'} tel' ps' = do
+    refl ← m ≟ m'
+    refl ← tel ≟Telescope tel'
+    refl ← ps ≟Patterns ps'
+    just refl
+  _ ≟Clause _ = nothing
+
+  [] ≟Clauses [] = just refl
+  (cl ∷ cls) ≟Clauses (cl' ∷ cls') = do
+    refl ← cl ≟Clause cl'
+    refl ← cls ≟Clauses cls'
+    just refl
+  _ ≟Clauses _ = nothing
+
+  _≟Telescope_ = semidecidableEqTele (semidecidableEqDeco _≟Arg_)
+
+  con c ps ≟Pattern con c' ps' = do
+    refl ← c ≟Name c'
+    refl ← ps ≟Patterns ps'
+    just refl
+  dot t ≟Pattern dot t' = do
+    refl ← t ≟Term t'
+    just refl
+  var v ≟Pattern var v' = do
+    refl ← v ≟Var v'
+    just refl
+  lit l ≟Pattern lit l' = do
+    refl ← l ≟Lit l'
+    just refl
+  proj f ≟Pattern proj f' = do
+    refl ← f ≟Name f'
+    just refl
+  absurd v ≟Pattern absurd v' = do
+    refl ← v ≟Var v'
+    just refl
+  _ ≟Pattern _ = nothing
+
+  [] ≟Patterns [] = just refl
+  (p ∷ ps) ≟Patterns (p' ∷ ps') = do
+    refl ← semidecidableEqArg _≟Pattern_ p p'
+    refl ← ps ≟Patterns ps'
+    just refl
+  _ ≟Patterns _ = nothing
+
+open SemidecidableEq public
 
 module Example where
 
