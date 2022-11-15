@@ -5081,6 +5081,8 @@ data TypeError
             -- ^ The two function types have different relevance.
         | UnequalCohesion Comparison Term Term
             -- ^ The two function types have different cohesion.
+        | UnequalPolarity Comparison Term Term
+            -- ^ The two function types have different polarity.
         | UnequalFiniteness Comparison Term Term
             -- ^ One of the function types has a finite domain (i.e. is a @Partia@l@) and the other isonot.
         | UnequalHiding Term Term
