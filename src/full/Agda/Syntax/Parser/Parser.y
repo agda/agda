@@ -1325,7 +1325,7 @@ CommaUnfoldingNames1
 
 AbstractBody :: { (C.Unfolding, [Declaration]) }
 AbstractBody
-  :  vopen 'unfolding' '(' CommaUnfoldingNames ')' 'where' Declarations0 vclose
+  :  vopen 'unfolding' '(' CommaUnfoldingNames ')' 'where' Declarations0 close
     { (C.Unfolding { unfoldingRange = getRange $2 , unfoldingNames = $4 } , $7) }
   | Declarations0 { (empty, $1) }
 
