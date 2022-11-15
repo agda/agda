@@ -259,6 +259,7 @@ errorString err = case err of
   UnequalRelevance{}                       -> "UnequalRelevance"
   UnequalQuantity{}                        -> "UnequalQuantity"
   UnequalCohesion{}                        -> "UnequalCohesion"
+  UnequalPolarity{}                        -> "UnequalPolarity"
   UnequalFiniteness{}                      -> "UnequalFiniteness"
   UnequalHiding{}                          -> "UnequalHiding"
   UnequalLevel{}                           -> "UnequalLevel"
@@ -716,6 +717,10 @@ instance PrettyTCM TypeError where
       [prettyTCM a, notCmp cmp, prettyTCM b] ++
       pwords "because one is a non-flat function type and the other is a flat function type"
       -- FUTURE Cohesion: update message if/when introducing sharp.
+
+    UnequalPolarity cmp a b -> fsep $
+      [prettyTCM a, notCmp cmp, prettyTCM b] ++
+      pwords "because they do not have the same polarity annotations"
 
     UnequalFiniteness cmp a b -> fsep $
       [prettyTCM a, notCmp cmp, prettyTCM b] ++
