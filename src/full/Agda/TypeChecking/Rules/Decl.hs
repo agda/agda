@@ -631,22 +631,20 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
     whenM ((== SizeUniv) <$> do reduce $ getSort t) $ do
       whenM ((> 0) <$> getContextSize) $ typeError PostulatedSizeInModule
 
-  -- Ensure that polarity pragmas do not contain too many occurrences.
-  (occs, pols) <- case mp of
-    Nothing    -> return ([], [])
+  TelV tel _ <- telView t
+  let eoccs = modalPolarityToOccurrence . modPolarityAnn . getModalPolarity <$> telToList tel
+
+  occs <- case mp of
+    Nothing -> return eoccs
     Just occs1 -> do
+      -- Ensure that polarity pragmas do not contain too many occurrences.
       let occs = List1.toList occs1
       let m = length occs
       TelV tel _ <- telViewUpTo m t
       let n = size tel
       when (n < m) $
         typeError $ TooManyPolarities x n
-      let pols = map polFromOcc occs
-      reportSLn "tc.polarity.pragma" 10 $
-        "Setting occurrences and polarity for " ++ prettyShow x ++ ":\n  " ++
-        prettyShow occs ++ "\n  " ++ prettyShow pols
-      return (occs, pols)
-
+      return occs
 
   -- Set blocking tag to MissingClauses if we still expect clauses
   let blk = case kind of
@@ -671,6 +669,8 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
         where
           fun = FunctionDefn $ set funAbstr_ (Info.defAbstract i) funD{ _funOpaque = Info.defOpaque i }
 
+  let pols = map polFromOcc eoccs
+
   addConstant x =<< do
     useTerPragma $ defn
         { defArgOccurrences    = occs
@@ -678,6 +678,10 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
         , defGeneralizedParams = genParams
         , defBlocked           = blk
         }
+
+  reportSLn "tc.polarity" 10 $
+    "Setting occurrences and polarity for " ++ prettyShow x ++ ":\n  " ++
+    prettyShow occs ++ "\n  " ++ prettyShow pols
 
   -- Add the definition to the instance table, if needed
   case Info.defInstance i of

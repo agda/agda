@@ -1,5 +1,6 @@
 Issue6336.agda:8.1-10.27: error: [NotStrictlyPositive]
 A is not strictly positive, because it occurs
-in an argument of a bound variable
+in an argument of a bound variable at position 0 which uses its
+argument with polarity *
 in an endpoint of the target of the higher constructor p
 in the definition of A.

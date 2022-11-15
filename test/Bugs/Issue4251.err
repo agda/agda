@@ -15,7 +15,9 @@ out >                        in the definition of s), which occurs
 out >                                               in the first clause
 out >                                               in the definition of Cocone.x, which occurs
 out >                                                                            in an argument of a bound
-out >                                                                            variable
+out >                                                                            variable at position 0
+out >                                                                            which uses its argument
+out >                                                                            with polarity *
 out >                                                                            in the definition of
 out >                                                                            CoconeDep.
 out >
