@@ -1183,7 +1183,7 @@ disambiguateConstructor cs0 args t = do
     visibleVarArgs = forM (filter visible args) $ \ (arg :: NamedArg A.Expr) -> do
         let v = unScope $ namedArg arg
         reportSDoc "tc.check.term.con" 40 $ "is this a variable? :" <+> prettyTCM v
-        reportSDoc "tc.check.term.con" 80 $ "is this a variable? :" <+> (text . show) v
+        reportSDoc "tc.check.term.con" 90 $ "is this a variable? :" <+> (text . show) v
         case v of
           A.Var x -> do
             t <- unDom . snd <$> getVarInfo x
@@ -1201,7 +1201,7 @@ disambiguateConstructor cs0 args t = do
     -- becomes vcons : ? → Vec → .
     visibleConDoms :: Type -> TCM [Maybe QName]
     visibleConDoms t = do
-      TelV tel _ <- telView t
+      TelV tel _ <- telViewPath t
       mapM (getTypeHead . snd . unDom) $ filter visible $ telToList tel
 
 -- | If type is of the form @F vs@, return @F@.
