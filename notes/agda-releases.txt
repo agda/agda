@@ -61,7 +61,7 @@ When releasing the following procedure can be followed:
     VERSION=<current-released-version-eg-2.4.0.2>
     git clone git@github.com:agda/agda.git agda-release
     cd agda-release
-    git checkout master
+    git switch master
 
 * Update the Agda version
 

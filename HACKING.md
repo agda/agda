@@ -58,8 +58,8 @@ For instance, fixing issue 1234 would work as follows.
 Suppose you are using `upstream` as your upstream Agda repository.
 This could be either `origin` (if you have push rights) or your own fork of Agda.
 
-    git checkout master
-    git checkout -b issue1234 # create a new branch based on master
+    git switch master
+    git switch -c issue1234 # create a new branch based on master
     ... work on issue 1234 ...
     git commit -p             # record some patches
 
@@ -92,7 +92,7 @@ the following recipe:
   ```sh
     git clone <agda repository> agda-bug
     cd agda-bug
-    git checkout <suitable branch>
+    git switch <suitable branch>
     cabal sandbox init
     git bisect start <bad commit> <good commit>
     cp <some path>/Module-that-should-be-accepted.agda .
@@ -160,7 +160,7 @@ Standard library submodule
   `/std-lib` subdirectory will appear as a git repository in a detached-HEAD
   state.
 
-  To avoid this, you may run, inside the submodule directory `git checkout <branch name>`
+  To avoid this, you may run, inside the submodule directory `git switch <branch name>`
 
   and then, from the root directory `git submodule update --remote [--merge|--rebase]`.
 
