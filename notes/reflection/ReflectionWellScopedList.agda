@@ -1083,6 +1083,11 @@ applyTerm (lit l) ts = unknown
 applyTerm (meta m args) ts = meta m (args ++ ts)
 applyTerm unknown ts = unknown
 
+specialise : Term n → List (Arg (Term n)) → Term n
+specialise t [] = t
+specialise (pi a (abs _ b)) (arg _ t ∷ ts) = specialise (subTerm [ t /0] b) ts
+specialise _ _ = unknown
+
 
 mkMacro : (∀ {n} → Term n → TC n ⊤) → R.Term → R.TC ⊤
 mkMacro f hole = R.bindTC R.getContext λ ctx →

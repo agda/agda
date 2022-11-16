@@ -1,7 +1,8 @@
-{-# OPTIONS -v intros:20 #-}
+{-# OPTIONS -v intros:40 #-}
 
 module ScopedIntroList where
 
+open import Data.Bool.Base
 open import Level using (Lift; Setω)
 open import Data.Nat.Base
 open import Data.List.Base
@@ -22,6 +23,30 @@ private
   m >> n = bindTC m (λ _ → n)
 
 {-# TERMINATING #-}
+isEmpty : Type n → TC n Bool
+anyEmpty : List (Arg Name) → List (Arg (Term n)) → TC n Bool
+
+anyEmpty [] _ = returnTC false
+anyEmpty (arg _ c ∷ ns) ts = do
+  ty ← getType c
+  pi a (abs x ty) ← returnTC (specialise ty ts)
+    where _ → typeError (strErr "IMPOSSIBLE" ∷ [])
+  b ← extendContext x a $ do
+    debugPrint "intros" 40 (nameErr c ∷ strErr "ts : " ∷ termErr ty ∷ [])
+    isEmpty ty
+  if b then returnTC true else anyEmpty ns ts
+
+isEmpty (def f args) = do
+  d ← getDefinition f
+  case d of λ where
+    (data-type pars []) → returnTC true
+    (record-type c flds) → anyEmpty flds args
+    _ → returnTC false
+isEmpty t = do
+  debugPrint "intros" 40 (termErr t ∷ strErr " is not a def" ∷ [])
+  returnTC false
+
+{-# TERMINATING #-}
 introsₙ : ℕ → ℕ → Term n → TC n (Term n)
 
 apply : ℕ → ℕ → (List (Arg (Term n)) → Term n) → Type n → TC n (Term n)
@@ -36,13 +61,14 @@ apply fuel lvl acc (pi (arg i a) (abs s b)) = do
 apply fuel lvl acc (def _ _) = returnTC (acc [])
 apply fuel lvl acc ty = typeError (strErr "IMPOSSIBLE: " ∷ termErr ty ∷ [])
 
-refine : ℕ → ℕ → Name → TC n (Term n)
-refine 0 lvl n = do
+refine : ℕ → ℕ → Name → List (Arg (Term n)) → TC n (Term n)
+refine 0 lvl n args = do
   debugPrint "intros" lvl
          $ strErr "Giving up on: " ∷ nameErr n ∷ []
   returnTC unknown
-refine (suc fuel) lvl n = do
+refine (suc fuel) lvl n args = do
   ty ← getType n
+  let ty = specialise ty args
   debugPrint "intros" 60 (nameErr n ∷ strErr ": " ∷ termErr ty ∷ [])
   apply fuel (suc lvl) (con n) ty
 
@@ -52,16 +78,20 @@ confused lvl ty
          $ strErr "I do not know how to proceed with type: " ∷ termErr ty ∷ []
        returnTC unknown
 
-introsₙ fuel lvl (pi a@(arg (arg-info v m) dom) (abs x b)) = do
-  debugPrint "intros" 40 (strErr "Binding " ∷ strErr x ∷ strErr " : " ∷ termErr dom ∷ [])
-  body ← extendContext x a (introsₙ fuel lvl b)
-  returnTC (lam v (abs x body))
+introsₙ fuel lvl (pi a@(arg info@(arg-info v m) dom) (abs x b)) = do
+  dom ← reduce dom
+  empty ← isEmpty dom
+  debugPrint "intros" 40 (strErr "The type " ∷ termErr dom ∷ strErr (if empty then " is " else " is not ") ∷ strErr "empty" ∷ [])
+  if empty then returnTC (pat-lam (absurd-clause (extTel x a emptyTel) (arg info (absurd (done x)) ∷ []) ∷ []) []) else do
+    debugPrint "intros" 40 (strErr "Binding " ∷ strErr x ∷ strErr " : " ∷ termErr dom ∷ [])
+    body ← extendContext x a (introsₙ fuel lvl b)
+    returnTC (lam v (abs x body))
 introsₙ fuel lvl t@(def f args) = do
   d ← getDefinition f
   case d of λ where
-    (data-type pars (c ∷ [])) → refine fuel lvl c
+    (data-type pars (c ∷ [])) → refine fuel lvl c (take pars args)
     (data-type pars cs) → confused lvl t
-    (record-type c fs) → refine fuel lvl c
+    (record-type c fs) → refine fuel lvl c args
     _ → confused lvl t
 introsₙ fuel = confused
 
@@ -74,7 +104,6 @@ macro
     debugPrint "intros" 20 (strErr "I came up with: " ∷ termErr tm ∷ [])
     unify goal tm
 
-{-
 data Tree (A : Set) : Set where
   node : (f : (x : A) → Tree A) → Tree A
 
@@ -82,10 +111,10 @@ data Empty : Set where
   oops : Empty → Empty
 
 example : (m n p : ℕ) → Tree ⊤
-example = {!intros!} -- intros
+example = {!!}
 
 example₀ : (l : Level.Level) → (A : Set l) → (x : A) → Σ A (λ _ → A) -- does not work due to erased parameters
-example₀ = {!intros!}
+example₀ = {!!}
 
 record Triple : Set where
   field
@@ -94,5 +123,10 @@ record Triple : Set where
    thd : ⊥ → ⊤
 
 example₁ : Triple
-example₁ = {!intros!}
--}
+example₁ = ?
+
+example₃ : Tree ⊥
+example₃ = {!!}
+
+example₄ : ⊥ → ℕ
+example₄ = ?
