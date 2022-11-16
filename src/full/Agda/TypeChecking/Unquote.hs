@@ -869,11 +869,11 @@ evalTCM v = do
       if r then
         tcGetDefinitionRecons x
       else
-        quoteDefn =<< constInfo x
+        quoteDefn =<< instantiateDef =<< constInfo x
 
     tcGetDefinitionRecons :: QName -> TCM Term
     tcGetDefinitionRecons x = do
-      ci@(Defn {theDef=d}) <- constInfo x
+      ci@(Defn {theDef=d}) <- constInfo x >>= instantiateDef
       case d of
         f@(Function {funClauses=cs}) -> do
           cs' <- mapM reconsClause cs
