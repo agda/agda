@@ -1066,7 +1066,7 @@ module KIT {◆} (k : Kit ◆) where
   _⟰_ : (Var m → ◆ n) → (p : Nat) →
          (Var (m + p) → ◆ (n + p))
   ρ ⟰ zero = subst₂ (λ m n → (Var m → ◆ n)) trustMe trustMe ρ
-  ρ ⟰ suc m = subst₂ (λ m n → (Var m → ◆ n)) trustMe trustMe ((ρ ⟰ m) ⇑)
+  ρ ⟰ suc m = subst₂ (λ m n → (Var m → ◆ n)) trustMe trustMe ((ρ ⇑) ⟰ m)
 
   Kittable : (Nat → Set) → Set
   Kittable T = ∀ {m n} → (Var m → ◆ n) → T m → T n

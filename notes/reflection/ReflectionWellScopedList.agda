@@ -102,9 +102,18 @@ private
   trustMe : ∀ {a} {A : Set a} {x y : A} → x ≡ y
   trustMe = primEraseEquality prf where postulate prf : _
 
+  subst₂ : {A B : Set} (P : A → B → Set) {a b : A} {x y : B} →
+           a ≡ b → x ≡ y → P a x → P b y
+  subst₂ P refl refl px = px
+
   map : (A → B) → List A → List B
   map f [] = []
   map f (x ∷ xs) = f x ∷ map f xs
+
+  infixr 10 _++_
+  _++_ : List A → List A → List A
+  [] ++ ys = ys
+  (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
 
   reverse : List A → List A
   reverse {A} = go [] module Reverse where
@@ -946,81 +955,134 @@ runSpeculative m .unTC = R.runSpeculative (m .unTC)
 getInstances : Meta → TC n (List (Term n))
 getInstances x = recoverScope' (λ{n = n} → traverseList (scopeCheckTerm {n = n})) (R.getInstances x)
 
--- {-# BUILTIN AGDATCM                           TC                         #-}
--- {-# BUILTIN AGDATCMRETURN                     returnTC                   #-}
--- {-# BUILTIN AGDATCMBIND                       bindTC                     #-}
--- {-# BUILTIN AGDATCMUNIFY                      unify                      #-}
--- {-# BUILTIN AGDATCMTYPEERROR                  typeError                  #-}
--- {-# BUILTIN AGDATCMINFERTYPE                  inferType                  #-}
--- {-# BUILTIN AGDATCMCHECKTYPE                  checkType                  #-}
--- {-# BUILTIN AGDATCMNORMALISE                  normalise                  #-}
--- {-# BUILTIN AGDATCMREDUCE                     reduce                     #-}
--- {-# BUILTIN AGDATCMCATCHERROR                 catchTC                    #-}
--- {-# BUILTIN AGDATCMQUOTETERM                  quoteTC                    #-}
--- {-# BUILTIN AGDATCMUNQUOTETERM                unquoteTC                  #-}
--- {-# BUILTIN AGDATCMQUOTEOMEGATERM             quoteωTC                   #-}
--- {-# BUILTIN AGDATCMGETCONTEXT                 getContext                 #-}
--- {-# BUILTIN AGDATCMEXTENDCONTEXT              extendContext              #-}
--- {-# BUILTIN AGDATCMINCONTEXT                  inContext                  #-}
--- {-# BUILTIN AGDATCMFRESHNAME                  freshName                  #-}
--- {-# BUILTIN AGDATCMDECLAREDEF                 declareDef                 #-}
--- {-# BUILTIN AGDATCMDECLAREPOSTULATE           declarePostulate           #-}
--- {-# BUILTIN AGDATCMDECLAREDATA                declareData                #-}
--- {-# BUILTIN AGDATCMDEFINEDATA                 defineData                 #-}
--- {-# BUILTIN AGDATCMDEFINEFUN                  defineFun                  #-}
--- {-# BUILTIN AGDATCMGETTYPE                    getType                    #-}
--- {-# BUILTIN AGDATCMGETDEFINITION              getDefinition              #-}
--- {-# BUILTIN AGDATCMBLOCKONMETA                blockOnMeta                #-}
--- {-# BUILTIN AGDATCMCOMMIT                     commitTC                   #-}
--- {-# BUILTIN AGDATCMISMACRO                    isMacro                    #-}
--- {-# BUILTIN AGDATCMWITHNORMALISATION          withNormalisation          #-}
--- {-# BUILTIN AGDATCMFORMATERRORPARTS           formatErrorParts           #-}
--- {-# BUILTIN AGDATCMDEBUGPRINT                 debugPrint                 #-}
--- {-# BUILTIN AGDATCMONLYREDUCEDEFS             onlyReduceDefs             #-}
--- {-# BUILTIN AGDATCMDONTREDUCEDEFS             dontReduceDefs             #-}
--- {-# BUILTIN AGDATCMWITHRECONSPARAMS           withReconstructed          #-}
--- {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
--- {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
--- {-# BUILTIN AGDATCMGETINSTANCES               getInstances               #-}
+record Kit (◆ : Context → Set) : Set where
+  field
+    reify : ◆ n → List (Arg (Term n)) → Term n
+    thin  : Thin n' n → ◆ n' → ◆ n
+    var₀  : {x : String} → ◆ (n :< x)
 
--- All the TC primitives are compiled to functions that return
--- undefined, rather than just undefined, in an attempt to make sure
--- that code will run properly.
-{-# COMPILE JS returnTC          = _ => _ => _ =>      undefined #-}
-{-# COMPILE JS bindTC            = _ => _ => _ => _ =>
-                                   _ => _ =>           undefined #-}
-{-# COMPILE JS unify             = _ => _ =>           undefined #-}
-{-# COMPILE JS typeError         = _ => _ => _ =>      undefined #-}
-{-# COMPILE JS inferType         = _ =>                undefined #-}
-{-# COMPILE JS checkType         = _ => _ =>           undefined #-}
-{-# COMPILE JS normalise         = _ =>                undefined #-}
-{-# COMPILE JS reduce            = _ =>                undefined #-}
-{-# COMPILE JS catchTC           = _ => _ => _ => _ => undefined #-}
-{-# COMPILE JS quoteTC           = _ => _ => _ =>      undefined #-}
-{-# COMPILE JS unquoteTC         = _ => _ => _ =>      undefined #-}
-{-# COMPILE JS quoteωTC          = _ => _ =>           undefined #-}
-{-# COMPILE JS getContext        =                     undefined #-}
-{-# COMPILE JS extendContext     = _ => _ => _ => _ => _ => undefined #-}
-{-# COMPILE JS inContext         = _ => _ => _ => _ => undefined #-}
-{-# COMPILE JS freshName         = _ =>                undefined #-}
-{-# COMPILE JS declareDef        = _ => _ =>           undefined #-}
-{-# COMPILE JS declarePostulate  = _ => _ =>           undefined #-}
-{-# COMPILE JS declareData       = _ => _ => _ =>      undefined #-}
-{-# COMPILE JS defineData        = _ => _ =>           undefined #-}
-{-# COMPILE JS defineFun         = _ => _ =>           undefined #-}
-{-# COMPILE JS getType           = _ =>                undefined #-}
-{-# COMPILE JS getDefinition     = _ =>                undefined #-}
-{-# COMPILE JS blockOnMeta       = _ => _ => _ =>      undefined #-}
-{-# COMPILE JS commitTC          =                     undefined #-}
-{-# COMPILE JS isMacro           = _ =>                undefined #-}
-{-# COMPILE JS withNormalisation = _ => _ => _ => _ => undefined #-}
-{-# COMPILE JS withReconstructed = _ => _ => _ =>      undefined #-}
-{-# COMPILE JS debugPrint        = _ => _ => _ =>      undefined #-}
-{-# COMPILE JS onlyReduceDefs    = _ => _ => _ => _ => undefined #-}
-{-# COMPILE JS dontReduceDefs    = _ => _ => _ => _ => undefined #-}
-{-# COMPILE JS noConstraints     = _ => _ => _ =>      undefined #-}
-{-# COMPILE JS runSpeculative    = _ => _ => _ =>      undefined #-}
-{-# COMPILE JS getInstances      = _ =>                undefined #-}
+module KIT {◆} (k : Kit ◆) where
+
+  open Kit k
+
+  _⇑ : (Var n' → ◆ n) →
+       (∀ {x} → Var (n' :< x) → ◆ (n :< x))
+  (ρ ⇑) (done x) = var₀
+  (ρ ⇑) (skip _ v) = thin (skip ones) (ρ v)
+
+  _⟰_ : (Var n' → ◆ n) → (p : List String) →
+         (Var (n' <>< p) → ◆ (n <>< p))
+  ρ ⟰ [] = ρ
+  ρ ⟰ (x ∷ xs) = (ρ ⇑) ⟰ xs
+
+  Kittable : (Context → Set) → Set
+  Kittable T = ∀ {m n} → (Var m → ◆ n) → T m → T n
+
+  {-# TERMINATING #-}
+  kitTerm      : Kittable Term
+  kitType      : Kittable Type
+  kitArg       : ∀ {T} → Kittable T → Kittable (λ n → Arg (T n))
+  kitArgs      : ∀ {T} → Kittable T → Kittable (λ n → List (Arg (T n)))
+  kitAbs       : ∀ {T} → Kittable T → Kittable (Abs T)
+  kitTele      : ∀ {T} → Kittable T → Kittable (λ n → Tele T n m)
+  kitDeco      : ∀ {A T} → Kittable T → Kittable (λ n → A × T n)
+  kitTelescope : Kittable (λ n → Telescope n m)
+  kitSort      : Kittable Sort
+  kitClause    : Kittable Clause
+  kitPattern   : Kittable (λ n → Pattern n m)
+  kitPatterns  : Kittable (λ n → Patterns n m)
+
+  kitTerm ρ (var v args) = reify (ρ v) (kitArgs kitTerm ρ args)
+  kitTerm ρ (con c args) = con c (kitArgs kitTerm ρ args)
+  kitTerm ρ (def f args) = def f (kitArgs kitTerm ρ args)
+  kitTerm ρ (lam v t) = lam v (kitAbs kitTerm ρ t)
+  kitTerm ρ (pat-lam cs args) = pat-lam (map (kitClause ρ) cs) (kitArgs kitTerm ρ args)
+  kitTerm ρ (pi a b) = pi (kitArg kitTerm ρ a) (kitAbs kitType ρ b)
+  kitTerm ρ (agda-sort s) = agda-sort (kitSort ρ s)
+  kitTerm ρ (lit l) = lit l
+  kitTerm ρ (meta v args) = meta v (kitArgs kitTerm ρ args)
+  kitTerm ρ unknown = unknown
+
+  kitArg f ρ = mapArg (f ρ)
+  kitArgs f ρ = map (kitArg f ρ)
+
+  kitAbs f ρ (abs x t) = abs x (f (ρ ⇑) t)
+
+  kitType = kitTerm
+
+  kitSort ρ (set t) = set (kitTerm ρ t)
+  kitSort ρ (lit m) = lit m
+  kitSort ρ (prop t) = prop (kitTerm ρ t)
+  kitSort ρ (propLit m) = lit m
+  kitSort ρ (inf m) = lit m
+  kitSort ρ unknown = unknown
+
+  kitClause ρ (clause {m = m} tel ps t) =
+    clause (kitTelescope ρ tel) (kitPatterns ρ ps) (kitTerm (ρ ⟰ m) t)
+  kitClause ρ (absurd-clause tel ps) = absurd-clause (kitTelescope ρ tel) (kitPatterns ρ ps)
+
+  kitTele f ρ emptyTel = emptyTel
+  kitTele f ρ (extTel s t tel) = extTel s (f ρ t) (kitTele f (ρ ⇑) tel)
+
+  kitDeco f ρ (a , t) = (a , f ρ t)
+
+  kitTelescope = kitTele (kitArg kitTerm)
+
+  kitPattern ρ (con c ps) = con c (kitPatterns ρ ps)
+  kitPattern {m} ρ (dot t) = dot (kitTerm (ρ ⟰ m) t)
+  kitPattern ρ (var v) = var v
+  kitPattern ρ (lit l) = lit l
+  kitPattern ρ (proj f) = proj f
+  kitPattern ρ (absurd v) = absurd v
+
+  kitPatterns = kitArgs kitPattern
+
+
+thVar : Thin n' n → Var n' → Var n
+thVar (skip th) v = skip _ (thVar th v)
+thVar (keep th) (done _) = (done _)
+thVar (keep th) (skip _ v) = skip _ (thVar th v)
+
+renKit : Kit Var
+renKit .Kit.reify = var
+renKit .Kit.thin = thVar
+renKit .Kit.var₀ = done _
+
+renTerm : (Var n' → Var n) → Term n' → Term n
+renTerm = KIT.kitTerm renKit
+
+-- Hereditary subst because Terms are in NF
+-- TODO: make the setup partial?
+{-# TERMINATING #-}
+subKit    : Kit Term
+subTerm   : (Var n' → Term n) → Term n' → Term n
+applyTerm : Term n → List (Arg (Term n)) → Term n
+
+subKit .Kit.reify = applyTerm
+subKit .Kit.thin = λ th → renTerm (thVar th)
+subKit .Kit.var₀ = var (done _) []
+
+subTerm = KIT.kitTerm subKit
+
+[_/0] : ∀ {x} → Term n → (Var (n :< x) → Term n)
+[ t /0] (done _) = t
+[ t /0] (skip _ v) = var v []
+
+applyAbs : Abs Term n → Term n → Term n
+applyAbs (abs s b) t = subTerm [ t /0] b
+
+applyTerm t [] = t
+applyTerm (var v args) ts = var v (args ++ ts)
+applyTerm (con c args) ts = con c (args ++ ts)
+applyTerm (def f args) ts = def f (args ++ ts)
+applyTerm (lam v b) (arg _ t ∷ ts) = applyTerm (applyAbs b t) ts
+applyTerm (pat-lam cs args) ts = pat-lam cs (args ++ ts)
+applyTerm (pi a b) ts = unknown
+applyTerm (agda-sort s) ts = unknown
+applyTerm (lit l) ts = unknown
+applyTerm (meta m args) ts = meta m (args ++ ts)
+applyTerm unknown ts = unknown
+
 
 mkMacro : (∀ {n} → Term n → TC n ⊤) → R.Term → R.TC ⊤
 mkMacro f hole = R.bindTC R.getContext λ ctx →
