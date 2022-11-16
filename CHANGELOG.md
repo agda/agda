@@ -239,6 +239,10 @@ Reflection
   instead of returning information that would be expected in the top
   context.
 
+* [**Breaking**] The reflection primitive `inContext` cannot step
+  outside of the context that the `TC` computation is invoked from
+  anymore. The telescope is now relative to that context instead.
+
 Syntax
 ------
 
