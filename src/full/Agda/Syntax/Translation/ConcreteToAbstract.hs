@@ -1813,9 +1813,7 @@ instance ToAbstract NiceDeclaration where
         let delayed = NotDelayed
         -- (delayed, cs) <- translateCopatternClauses cs -- TODO
         f <- getConcreteFixity x
-        case a of
-          AbstractUnfolding id -> addToUnfold id x'
-          NoAbstract -> pure ()
+        addToUnfoldMaybe a x'
         return [ A.FunDef (mkDefInfoInstance x f PublicAccess a i NotMacroDef r) x' delayed cs ]
 
   -- Uncategorized function clauses
@@ -1846,6 +1844,7 @@ instance ToAbstract NiceDeclaration where
 
           pars <- catMaybes <$> toAbstract pars
           let x' = anameName ax
+          addToUnfoldMaybe a x'
           -- Create the module for the qualified constructors
           checkForModuleClash x -- disallow shadowing previously defined modules
           let m = qnameToMName x'
@@ -1880,6 +1879,7 @@ instance ToAbstract NiceDeclaration where
           return (p, ax)
         _ -> genericError $ "Missing type signature for record definition " ++ prettyShow x
       ensureNoLetStms pars
+      addToUnfoldMaybe a (anameName ax)
       withLocalVars $ do
         gvars <- bindGeneralizablesIfInserted o ax
         -- Check that the generated module doesn't clash with a previously
@@ -2073,6 +2073,7 @@ instance ToAbstract NiceDeclaration where
       zipWithM_ (bindName p QuotableName) xs ys
       e <- toAbstract e
       zipWithM_ (rebindName p OtherDefName) xs ys
+      traverse_ (addToUnfoldMaybe a) ys
       let mi = MutualInfo tc cc YesPositivityCheck r
       return [ A.Mutual mi [A.UnquoteDecl mi [ mkDefInfoInstance x fx p a i NotMacroDef r | (fx, x) <- zip fxs xs ] ys e] ]
 
@@ -2082,6 +2083,7 @@ instance ToAbstract NiceDeclaration where
       zipWithM_ (rebindName p QuotableName) xs ys
       e <- toAbstract e
       zipWithM_ (rebindName p OtherDefName) xs ys
+      traverse_ (addToUnfoldMaybe a) ys
       return [ A.UnquoteDef [ mkDefInfo x fx PublicAccess a r | (fx, x) <- zip fxs xs ] ys e ]
 
     NiceUnquoteData r p a pc uc x cs e -> do
@@ -2100,6 +2102,7 @@ instance ToAbstract NiceDeclaration where
       e <- withCurrentModule m $ toAbstract e
 
       rebindName p DataName x x'
+      addToUnfoldMaybe a x'
       zipWithM_ (rebindName p ConName) cs cs'
       withCurrentModule m $ zipWithM_ (rebindName p ConName) cs cs'
 
@@ -2164,6 +2167,7 @@ instance ToAbstract NiceDeclaration where
         close c xs = do
           qname <- resolveName c >>= \case
             A.DefinedName _ an _ -> pure (anameName an)
+            A.UnknownName -> notInScopeError c
             _ -> typeError . GenericDocError =<<
                 "Name in unfolding clause should be unambiguous defined name:" <+> prettyTCM c
           fmap (HashSet.insert qname . (<> xs)) $ case Map.lookup qname qname_abs of
@@ -2192,7 +2196,7 @@ instance ToAbstract NiceDeclaration where
         return $ A.Axiom kind (mkDefInfoInstance x f p a i isMacro r) info mp y t'
       toAbstractNiceAxiom _ _ = __IMPOSSIBLE__
 
-addToUnfold :: AbstractId -> I.QName -> TCMT IO ()
+addToUnfold :: AbstractId -> I.QName -> ScopeM ()
 addToUnfold aid qn =
   do
     modifyTCLens stUnfoldDefs $ Map.alter k1 aid
@@ -2202,6 +2206,11 @@ addToUnfold aid qn =
     k1 (Just xs) = Just (HashSet.insert qn xs)
     k2 Nothing = Just aid
     k2 (Just x) = Just x
+
+addToUnfoldMaybe :: IsAbstractUnfolding -> I.QName -> ScopeM ()
+addToUnfoldMaybe a x' = case a of
+  AbstractUnfolding id -> addToUnfold id x'
+  NoAbstract -> pure ()
 
 unGeneralized :: A.Expr -> (Set.Set I.QName, A.Expr)
 unGeneralized (A.Generalized s t) = (s, t)
