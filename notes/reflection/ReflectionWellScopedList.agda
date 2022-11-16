@@ -957,13 +957,14 @@ getInstances x = recoverScope' (λ{n = n} → traverseList (scopeCheckTerm {n = 
 
 record Kit (◆ : Context → Set) : Set where
   field
-    reify : ◆ n → List (Arg (Term n)) → Term n
+    reify : ◆ n → List (Arg (Term n)) → Maybe (Term n)
     thin  : Thin n' n → ◆ n' → ◆ n
     var₀  : {x : String} → ◆ (n :< x)
 
 module KIT {◆} (k : Kit ◆) where
 
   open Kit k
+  open MaybeBind
 
   _⇑ : (Var n' → ◆ n) →
        (∀ {x} → Var (n' :< x) → ◆ (n :< x))
@@ -976,7 +977,7 @@ module KIT {◆} (k : Kit ◆) where
   ρ ⟰ (x ∷ xs) = (ρ ⇑) ⟰ xs
 
   Kittable : (Context → Set) → Set
-  Kittable T = ∀ {m n} → (Var m → ◆ n) → T m → T n
+  Kittable T = ∀ {m n} → (Var m → ◆ n) → T m → Maybe (T n)
 
   {-# TERMINATING #-}
   kitTerm      : Kittable Term
@@ -985,55 +986,52 @@ module KIT {◆} (k : Kit ◆) where
   kitArgs      : ∀ {T} → Kittable T → Kittable (λ n → List (Arg (T n)))
   kitAbs       : ∀ {T} → Kittable T → Kittable (Abs T)
   kitTele      : ∀ {T} → Kittable T → Kittable (λ n → Tele T n m)
-  kitDeco      : ∀ {A T} → Kittable T → Kittable (λ n → A × T n)
   kitTelescope : Kittable (λ n → Telescope n m)
   kitSort      : Kittable Sort
   kitClause    : Kittable Clause
   kitPattern   : Kittable (λ n → Pattern n m)
   kitPatterns  : Kittable (λ n → Patterns n m)
 
-  kitTerm ρ (var v args) = reify (ρ v) (kitArgs kitTerm ρ args)
-  kitTerm ρ (con c args) = con c (kitArgs kitTerm ρ args)
-  kitTerm ρ (def f args) = def f (kitArgs kitTerm ρ args)
-  kitTerm ρ (lam v t) = lam v (kitAbs kitTerm ρ t)
-  kitTerm ρ (pat-lam cs args) = pat-lam (map (kitClause ρ) cs) (kitArgs kitTerm ρ args)
-  kitTerm ρ (pi a b) = pi (kitArg kitTerm ρ a) (kitAbs kitType ρ b)
-  kitTerm ρ (agda-sort s) = agda-sort (kitSort ρ s)
-  kitTerm ρ (lit l) = lit l
-  kitTerm ρ (meta v args) = meta v (kitArgs kitTerm ρ args)
-  kitTerm ρ unknown = unknown
+  kitTerm ρ (var v args) = kitArgs kitTerm ρ args >>= reify (ρ v)
+  kitTerm ρ (con c args) = con c <$> kitArgs kitTerm ρ args
+  kitTerm ρ (def f args) = def f <$> kitArgs kitTerm ρ args
+  kitTerm ρ (lam v t) = lam v <$> kitAbs kitTerm ρ t
+  kitTerm ρ (pat-lam cs args) = pat-lam <$> traverseList (kitClause ρ) cs <*> kitArgs kitTerm ρ args
+  kitTerm ρ (pi a b) = pi <$> kitArg kitTerm ρ a <*> kitAbs kitType ρ b
+  kitTerm ρ (agda-sort s) = agda-sort <$> kitSort ρ s
+  kitTerm ρ (lit l) = just (lit l)
+  kitTerm ρ (meta v args) = meta v <$> kitArgs kitTerm ρ args
+  kitTerm ρ unknown = just unknown
 
-  kitArg f ρ = mapArg (f ρ)
-  kitArgs f ρ = map (kitArg f ρ)
+  kitArg f ρ = traverseArg (f ρ)
+  kitArgs f ρ = traverseList (kitArg f ρ)
 
-  kitAbs f ρ (abs x t) = abs x (f (ρ ⇑) t)
+  kitAbs f ρ (abs x t) = abs x <$> f (ρ ⇑) t
 
   kitType = kitTerm
 
-  kitSort ρ (set t) = set (kitTerm ρ t)
-  kitSort ρ (lit m) = lit m
-  kitSort ρ (prop t) = prop (kitTerm ρ t)
-  kitSort ρ (propLit m) = lit m
-  kitSort ρ (inf m) = lit m
-  kitSort ρ unknown = unknown
+  kitSort ρ (set t) = set <$> kitTerm ρ t
+  kitSort ρ (lit m) = just (lit m)
+  kitSort ρ (prop t) = prop <$> kitTerm ρ t
+  kitSort ρ (propLit m) = just (lit m)
+  kitSort ρ (inf m) = just (inf m)
+  kitSort ρ unknown = just unknown
 
   kitClause ρ (clause {m = m} tel ps t) =
-    clause (kitTelescope ρ tel) (kitPatterns ρ ps) (kitTerm (ρ ⟰ m) t)
-  kitClause ρ (absurd-clause tel ps) = absurd-clause (kitTelescope ρ tel) (kitPatterns ρ ps)
+    clause <$> kitTelescope ρ tel <*> kitPatterns ρ ps <*> kitTerm (ρ ⟰ m) t
+  kitClause ρ (absurd-clause tel ps) = absurd-clause <$> kitTelescope ρ tel <*> kitPatterns ρ ps
 
-  kitTele f ρ emptyTel = emptyTel
-  kitTele f ρ (extTel s t tel) = extTel s (f ρ t) (kitTele f (ρ ⇑) tel)
-
-  kitDeco f ρ (a , t) = (a , f ρ t)
+  kitTele f ρ emptyTel = just emptyTel
+  kitTele f ρ (extTel s t tel) = extTel s <$> f ρ t <*> kitTele f (ρ ⇑) tel
 
   kitTelescope = kitTele (kitArg kitTerm)
 
-  kitPattern ρ (con c ps) = con c (kitPatterns ρ ps)
-  kitPattern {m} ρ (dot t) = dot (kitTerm (ρ ⟰ m) t)
-  kitPattern ρ (var v) = var v
-  kitPattern ρ (lit l) = lit l
-  kitPattern ρ (proj f) = proj f
-  kitPattern ρ (absurd v) = absurd v
+  kitPattern ρ (con c ps) = con c <$> kitPatterns ρ ps
+  kitPattern {m} ρ (dot t) = dot <$> kitTerm (ρ ⟰ m) t
+  kitPattern ρ (var v) = just (var v)
+  kitPattern ρ (lit l) = just (lit l)
+  kitPattern ρ (proj f) = just (proj f)
+  kitPattern ρ (absurd v) = just (absurd v)
 
   kitPatterns = kitArgs kitPattern
 
@@ -1044,19 +1042,22 @@ thVar (keep th) (done _) = (done _)
 thVar (keep th) (skip _ v) = skip _ (thVar th v)
 
 renKit : Kit Var
-renKit .Kit.reify = var
+renKit .Kit.reify = λ v args → just (var v args)
 renKit .Kit.thin = thVar
 renKit .Kit.var₀ = done _
 
 renTerm : (Var n' → Var n) → Term n' → Term n
-renTerm = KIT.kitTerm renKit
+renTerm ρ t = go (KIT.kitTerm renKit ρ t) where
+  go : Maybe (Term n) → Term n
+  go (just t) = t
+  go _ = unknown -- trust me I'm a professional
 
 -- Hereditary subst because Terms are in NF
 -- TODO: make the setup partial?
 {-# TERMINATING #-}
 subKit    : Kit Term
-subTerm   : (Var n' → Term n) → Term n' → Term n
-applyTerm : Term n → List (Arg (Term n)) → Term n
+subTerm   : (Var n' → Term n) → Term n' → Maybe (Term n)
+applyTerm : Term n → List (Arg (Term n)) → Maybe (Term n)
 
 subKit .Kit.reify = applyTerm
 subKit .Kit.thin = λ th → renTerm (thVar th)
@@ -1068,26 +1069,29 @@ subTerm = KIT.kitTerm subKit
 [ t /0] (done _) = t
 [ t /0] (skip _ v) = var v []
 
-applyAbs : Abs Term n → Term n → Term n
+applyAbs : Abs Term n → Term n → Maybe (Term n)
 applyAbs (abs s b) t = subTerm [ t /0] b
 
-applyTerm t [] = t
-applyTerm (var v args) ts = var v (args ++ ts)
-applyTerm (con c args) ts = con c (args ++ ts)
-applyTerm (def f args) ts = def f (args ++ ts)
-applyTerm (lam v b) (arg _ t ∷ ts) = applyTerm (applyAbs b t) ts
-applyTerm (pat-lam cs args) ts = pat-lam cs (args ++ ts)
-applyTerm (pi a b) ts = unknown
-applyTerm (agda-sort s) ts = unknown
-applyTerm (lit l) ts = unknown
-applyTerm (meta m args) ts = meta m (args ++ ts)
-applyTerm unknown ts = unknown
+applyTerm t [] = just t
+applyTerm (var v args) ts = just (var v (args ++ ts))
+applyTerm (con c args) ts = just (con c (args ++ ts))
+applyTerm (def f args) ts = just (def f (args ++ ts))
+applyTerm (lam v b) (arg _ t ∷ ts) =
+  let open MaybeBind in
+  applyAbs b t >>= λ bt → applyTerm bt ts
+applyTerm (pat-lam cs args) ts = just (pat-lam cs (args ++ ts))
+applyTerm (pi a b) ts = nothing
+applyTerm (agda-sort s) ts = nothing
+applyTerm (lit l) ts = nothing
+applyTerm (meta m args) ts = just (meta m (args ++ ts))
+applyTerm unknown ts = just unknown
 
-specialise : Term n → List (Arg (Term n)) → Term n
-specialise t [] = t
-specialise (pi a (abs _ b)) (arg _ t ∷ ts) = specialise (subTerm [ t /0] b) ts
-specialise _ _ = unknown
-
+specialise : Term n → List (Arg (Term n)) → Maybe (Term n)
+specialise t [] = just t
+specialise (pi a (abs _ b)) (arg _ t ∷ ts) =
+  let open MaybeBind in
+  subTerm [ t /0] b >>= λ bt → specialise bt ts
+specialise _ _ = nothing
 
 mkMacro : (∀ {n} → Term n → TC n ⊤) → R.Term → R.TC ⊤
 mkMacro f hole = R.bindTC R.getContext λ ctx →

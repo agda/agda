@@ -2,7 +2,6 @@
 
 module ScopedAssumptionList where
 
--- Using https://github.com/agda/agda/blob/master/notes/reflection/ReflectionWellScoped.agda
 open import ReflectionWellScopedList
 
 

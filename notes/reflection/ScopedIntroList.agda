@@ -2,6 +2,7 @@
 
 module ScopedIntroList where
 
+open import Data.Maybe.Base using (Maybe; just)
 open import Data.Bool.Base
 open import Level using (Lift; Setω)
 open import Data.Nat.Base
@@ -22,6 +23,25 @@ private
   _>>_ : TC n A → TC n B → TC n B
   m >> n = bindTC m (λ _ → n)
 
+------------------------------------------------------------------------
+-- Errors
+
+impossible : List (ErrorPart n) → TC n A
+impossible fmt = typeError (strErr "IMPOSSIBLE" ∷ fmt)
+
+fromJust : Maybe A → TC n A
+fromJust (just a) = returnTC a
+fromJust _ = impossible []
+
+confused : ℕ → Type n → TC n (Term n)
+confused lvl ty
+  = do debugPrint "intros" lvl
+         $ strErr "I do not know how to proceed with type: " ∷ termErr ty ∷ []
+       returnTC unknown
+
+------------------------------------------------------------------------
+-- Emptiness check
+
 {-# TERMINATING #-}
 isEmpty : Type n → TC n Bool
 anyEmpty : List (Arg Name) → List (Arg (Term n)) → TC n Bool
@@ -29,8 +49,8 @@ anyEmpty : List (Arg Name) → List (Arg (Term n)) → TC n Bool
 anyEmpty [] _ = returnTC false
 anyEmpty (arg _ c ∷ ns) ts = do
   ty ← getType c
-  pi a (abs x ty) ← returnTC (specialise ty ts)
-    where _ → typeError (strErr "IMPOSSIBLE" ∷ [])
+  pi a (abs x ty) ← fromJust (specialise ty ts)
+    where _ → impossible []
   b ← extendContext x a $ do
     debugPrint "intros" 40 (nameErr c ∷ strErr "ts : " ∷ termErr ty ∷ [])
     isEmpty ty
@@ -46,6 +66,9 @@ isEmpty t = do
   debugPrint "intros" 40 (termErr t ∷ strErr " is not a def" ∷ [])
   returnTC false
 
+------------------------------------------------------------------------
+-- intros
+
 {-# TERMINATING #-}
 introsₙ : ℕ → ℕ → Term n → TC n (Term n)
 
@@ -54,12 +77,12 @@ apply fuel lvl acc (pi (arg i a) (abs s b)) = do
   debugPrint "intros" 40 (strErr "Searching for a value of type " ∷ termErr a ∷ [])
   x ← introsₙ fuel lvl a
   debugPrint "intros" 40 (strErr "Found " ∷ termErr x ∷ [])
-  let b = subTerm [ x /0] b
+  b ← fromJust (subTerm [ x /0] b)
   debugPrint "intros" 40 (strErr "Now searching for something of type " ∷ termErr b ∷ [])
   b ← reduce b
   apply fuel lvl (acc ∘′ (arg i x ∷_)) b
 apply fuel lvl acc (def _ _) = returnTC (acc [])
-apply fuel lvl acc ty = typeError (strErr "IMPOSSIBLE: " ∷ termErr ty ∷ [])
+apply fuel lvl acc ty = impossible (termErr ty ∷ [])
 
 refine : ℕ → ℕ → Name → List (Arg (Term n)) → TC n (Term n)
 refine 0 lvl n args = do
@@ -68,15 +91,9 @@ refine 0 lvl n args = do
   returnTC unknown
 refine (suc fuel) lvl n args = do
   ty ← getType n
-  let ty = specialise ty args
+  ty ← fromJust (specialise ty args)
   debugPrint "intros" 60 (nameErr n ∷ strErr ": " ∷ termErr ty ∷ [])
   apply fuel (suc lvl) (con n) ty
-
-confused : ℕ → Type n → TC n (Term n)
-confused lvl ty
-  = do debugPrint "intros" lvl
-         $ strErr "I do not know how to proceed with type: " ∷ termErr ty ∷ []
-       returnTC unknown
 
 introsₙ fuel lvl (pi a@(arg info@(arg-info v m) dom) (abs x b)) = do
   dom ← reduce dom
@@ -122,11 +139,14 @@ record Triple : Set where
    snd : ℕ → ⊤
    thd : ⊥ → ⊤
 
+example₁′ : ⊤ × (ℕ → ⊤) × (⊥ → ⊤)
+example₁′ = {!!}
+
 example₁ : Triple
-example₁ = ?
+example₁ = {!!}
 
 example₃ : Tree ⊥
 example₃ = {!!}
 
 example₄ : ⊥ → ℕ
-example₄ = ?
+example₄ = {!!}
