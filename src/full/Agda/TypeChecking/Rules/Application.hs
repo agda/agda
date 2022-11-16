@@ -1128,12 +1128,15 @@ disambiguateConstructor cs0 args t = do
       addContext tel $ do
        reportSDoc "tc.check.term.con" 40 $ nest 2 $
          "target type: " <+> prettyTCM t1
+       -- If we don't have a target type yet, try to look at the argument types.
        ifBlocked t1 (\ b _ -> disambiguateByArgs dcs $ return $ Left b) $ \ _ t' ->
          caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ d -> do
            let dcs' = filter ((d ==) . fst3) dcs
            case map thd3 dcs' of
              [c] -> decideOn c
              []  -> badCon $ t' $> Def d []
+             -- If the information from the target type did not eliminate ambiguity fully,
+             -- try to further eliminate alternatives by looking at the arguments.
              c:cs-> disambiguateByArgs dcs' $
                       typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $
                         fmap conName $ c :| cs
@@ -1144,29 +1147,45 @@ disambiguateConstructor cs0 args t = do
     storeDisambiguatedConstructor (conInductive c) (conName c)
     return $ Right c
 
+  -- Look at simple visible arguments (variables (bound and generalizable ones) and defined names).
+  -- From these we can compute an approximate type effortlessly:
+  -- 1. Throw away hidden domains (needed for generalizable variables).
+  -- 2. If the remainder is a defined name that is not blocked on anything, we take this name as
+  --    approximate type of the argument.
+  -- This gives us a skeleton @[Maybe QName]@.  Compute the same from the constructor types
+  -- of the candidates and see if we find any mismatches that allow us to rule out the candidate.
   disambiguateByArgs :: [(QName, Type, ConHead)] -> DisambiguateConstructor -> DisambiguateConstructor
   disambiguateByArgs dcs fallback = do
+
+    -- Look for visible arguments that are just variables,
+    -- so that we can get their type directly from the context
+    -- without full-fledged type inference.
     askel <- visibleVarArgs
     reportSDoc "tc.check.term.con" 40 $ hsep $
       "trying disambiguation by arguments" : map prettyTCM askel
     reportSDoc "tc.check.term.con" 80 $ hsep $
       "trying disambiguation by arguments" : map pretty askel
+
+    -- Filter out candidates with definitive mismatches.
     cands <- filterM (\ (_d, t, _c) -> matchSkel askel =<< visibleConDoms t) dcs
     case cands of
       [(_d, _t, c)] -> decideOn c
       _ -> fallback
-    -- Look for visible arguments that are just variables,
-    -- so that we can get their type directly from the context
-    -- without full-fledged type inference.
     where
 
-    match :: [Maybe QName] -> [Maybe QName] -> Bool
+    -- @match@ is successful if there no name conflict (q ≠ q')
+    -- and the argument skeleton is not longer thatn the constructor skeleton.
+    match ::
+          [Maybe QName]   -- ^ Specification (argument skeleton).
+       -> [Maybe QName]   -- ^ Candidate (constructor skeleton).
+       -> Bool
     match = curry $ \case
       ([], _ ) -> True
       (_ , []) -> False
       (Just q : ms, Just q' : ms') -> q == q' && match ms ms'
       (_ : ms, _ : ms') -> match ms ms'
 
+    -- @match@ with debug printing.
     matchSkel :: [Maybe QName] -> [Maybe QName] -> TCM Bool
     matchSkel argsSkel conSkel = do
       let res = match argsSkel conSkel
@@ -1177,19 +1196,23 @@ disambiguateConstructor cs0 args t = do
         ]
       return res
 
-    -- List of visible args.
-    -- For variables @Just getTypeHead@ else @Nothing@.
+    -- Only look at visible arguments that are variables or similar identifiers.
+    -- For variables/symbols @Just getTypeHead@ else @Nothing@.
     visibleVarArgs :: TCM [Maybe QName]
     visibleVarArgs = forM (filter visible args) $ \ (arg :: NamedArg A.Expr) -> do
         let v = unScope $ namedArg arg
         reportSDoc "tc.check.term.con" 40 $ "is this a variable? :" <+> prettyTCM v
         reportSDoc "tc.check.term.con" 90 $ "is this a variable? :" <+> (text . show) v
         case v of
+
+          -- We can readly grab the type of a variable from the context.
           A.Var x -> do
             t <- unDom . snd <$> getVarInfo x
             reportSDoc "tc.check.term.con" 40 $ "type of variable:" <+> prettyTCM t
             -- Just keep the name @D@ of type @D vs@
             getTypeHead t
+
+          -- We can also grab the type of defined symbols if we find them in the signature.
           A.Def x -> do
             getConstInfo' x >>= \case
               Right def -> getTypeHead $ defType def
@@ -1204,12 +1227,13 @@ disambiguateConstructor cs0 args t = do
       TelV tel _ <- telViewPath t
       mapM (getTypeHead . snd . unDom) $ filter visible $ telToList tel
 
--- | If type is of the form @F vs@, return @F@.
+-- | If type is of the form @F vs@ and not blocked in any way, return @F@.
 getTypeHead :: Type -> TCM (Maybe QName)
 getTypeHead t = do
   res <- ifBlocked t (\ _ _ -> return Nothing) $ \ nb t -> do
     case nb of
       ReallyNotBlocked -> do
+        -- Drop initial hidden domains (only needed for generalizable variables).
         TelV _ core <- telViewUpTo' (0-1) (not . visible) t
         case unEl core of
           Def q _ -> return $ Just q
