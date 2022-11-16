@@ -125,6 +125,9 @@ private
 
   -- Deciding Nat equality
 
+  SemidecidableEq : Set → Set
+  SemidecidableEq A = (x y : A) → Maybe (x ≡ y)
+
   cong : {A B : Set} (f : A → B) {a b : A} → a ≡ b → f a ≡ f b
   cong f refl = refl
 
