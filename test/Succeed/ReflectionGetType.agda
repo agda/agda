@@ -21,8 +21,8 @@ module Temp {A : Set} where
 
   -- inContext [] goes to the original context of the macro call, so
   -- it should not have any effect here.
-  id-type₁′ : Term
-  id-type₁′ = byTC (inContext [] (getType (quote id)))
+  id-type₁' : Term
+  id-type₁' = byTC (inContext [] (getType (quote id)))
 
   id-def₁ : Definition
   id-def₁ = byTC (getDefinition (quote id))
