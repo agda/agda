@@ -35,6 +35,7 @@ import Data.List ( stripPrefix, intercalate )
 
 import GHC.Generics (Generic)
 
+import Agda.Utils.Either ( maybeToEither )
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -92,10 +93,10 @@ warningModeUpdate str = case str of
             -> pure $ set warningSet ws
   _ -> case stripPrefix "no" str of
     Nothing   -> do
-      wname <- maybe (Left (Unknown str)) Right (string2WarningName str)
+      wname :: WarningName <- maybeToEither (Unknown str) $ string2WarningName str
       pure (over warningSet $ Set.insert wname)
     Just str' -> do
-      wname <- maybe (Left (Unknown str')) Right (string2WarningName str')
+      wname :: WarningName <- maybeToEither (Unknown str') $ string2WarningName str'
       when (wname `elem` errorWarnings) (Left (NoNoError str'))
       pure (over warningSet $ Set.delete wname)
 
