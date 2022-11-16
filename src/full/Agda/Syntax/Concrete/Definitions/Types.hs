@@ -87,6 +87,9 @@ data NiceDeclaration
   | NiceUnquoteDef Range Access IsAbstractUnfolding TerminationCheck CoverageCheck [Name] Expr
   | NiceUnquoteData Range Access IsAbstractUnfolding PositivityCheck UniverseCheck Name [Name] Expr
   | NiceUnfolding Range AbstractId Unfolding
+    -- ^ Unfolding declaration for the specified 'abstract' block. The
+    -- list of ids collects enclosing abstract blocks, whose unfolding
+    -- declarations should be merged with this one.
   deriving (Show, Generic)
 
 instance NFData NiceDeclaration
@@ -226,7 +229,7 @@ instance HasRange NiceDeclaration where
   getRange (NiceUnquoteDecl r _ _ _ _ _ _ _) = r
   getRange (NiceUnquoteDef r _ _ _ _ _ _)    = r
   getRange (NiceUnquoteData r _ _ _ _ _ _ _) = r
-  getRange (NiceUnfolding r _ _)             = r
+  getRange (NiceUnfolding r _ _)           = r
 
 instance Pretty NiceDeclaration where
   pretty = \case
@@ -252,7 +255,7 @@ instance Pretty NiceDeclaration where
     NiceUnquoteDecl _ _ _ _ _ _ xs _ -> text "<unquote declarations>"
     NiceUnquoteDef _ _ _ _ _ xs _    -> text "<unquote definitions>"
     NiceUnquoteData _ _ _ _ _ x xs _ -> text "<unquote data types>"
-    NiceUnfolding _ _ _              -> text "<unfolding id declaration>"
+    NiceUnfolding _ _ _            -> text "<unfolding id declaration>"
 
 declName :: NiceDeclaration -> String
 declName Axiom{}               = "Postulates"

@@ -67,6 +67,9 @@ restorePostScopeState pss = do
         ws = s^.stTCWarnings
         pss' = pss{stPostInteractionPoints = stPostInteractionPoints pss `mergeIPMap` ipoints
                   ,stPostTCWarnings = stPostTCWarnings pss `mergeWarnings` ws
+                  -- Scope checker must recompute these every time (TODO):
+                  ,stPostAbstractBlocks = s ^. stAbstractBlocks
+                  ,stPostUnfoldDefs = s ^. stUnfoldDefs
                   }
     in  s{stPostScopeState = pss'}
   where

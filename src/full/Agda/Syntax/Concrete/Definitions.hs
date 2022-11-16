@@ -462,8 +462,9 @@ niceDeclarations nextabs fixs ds = do
         Abstract r _ [] -> justWarning $ EmptyAbstract r
         Abstract r uf ds' -> do
           id <- nextAbstractId
-          ds' <- abstractBlock r id =<< nice ds'
-          pure (ds' ++ [NiceUnfolding r id uf], ds)
+          ds' <- abstractBlock r uf id =<< andUnfold uf (nice ds')
+          enclosing <- gets _enclosingUnfolding
+          pure (ds' ++ [NiceUnfolding r id (enclosing <> uf)], ds)
 
         Private r UserWritten []  -> justWarning $ EmptyPrivate r
         Private r o ds' ->
@@ -1211,9 +1212,9 @@ niceDeclarations nextabs fixs ds = do
         -- A mutual block cannot have a measure,
         -- but it can skip termination check.
 
-    abstractBlock _ uf [] = return []
-    abstractBlock r uf ds = do
-      (ds', anyChange) <- runChangeT $ mkAbstract uf ds
+    abstractBlock _ uf id [] = return []
+    abstractBlock r uf id ds = do
+      (ds', anyChange) <- runChangeT $ mkAbstract uf id ds
       let inherited = r == noRange
       if anyChange then return ds' else do
         -- hack to avoid failing on inherited abstract blocks in where clauses
@@ -1291,10 +1292,10 @@ niceDeclarations nextabs fixs ds = do
 -- Then, nested @abstract@s would sometimes also be complained about.
 
 class MakeAbstract a where
-  mkAbstract :: AbstractId -> UpdaterT Nice a
+  mkAbstract :: Unfolding -> AbstractId -> UpdaterT Nice a
 
-  default mkAbstract :: (Traversable f, MakeAbstract a', a ~ f a') => AbstractId -> UpdaterT Nice a
-  mkAbstract uf = traverse $ mkAbstract uf
+  default mkAbstract :: (Traversable f, MakeAbstract a', a ~ f a') => Unfolding -> AbstractId -> UpdaterT Nice a
+  mkAbstract uf id = traverse $ mkAbstract uf id
 
 instance MakeAbstract a => MakeAbstract [a]
 
@@ -1303,38 +1304,43 @@ instance MakeAbstract a => MakeAbstract [a]
 --   mkAbstract = traverse mkAbstract
 
 instance MakeAbstract IsAbstract where
-  mkAbstract uf = \case
+  mkAbstract _ _ = \case
     a@AbstractDef -> return a
     ConcreteDef -> dirty $ AbstractDef
 
 instance MakeAbstract IsAbstractUnfolding where
-  mkAbstract outer = \case
-    AbstractUnfolding inner -> dirty $ AbstractUnfolding inner
-    NoAbstract              -> dirty $ AbstractUnfolding outer
+  mkAbstract uf o_id =
+    \case
+      AbstractUnfolding i_id -> k $ AbstractUnfolding i_id
+      NoAbstract             -> dirty $ AbstractUnfolding o_id
+    where
+      k = case uf of
+        NoUnfolding -> pure
+        _ -> dirty
 
 instance MakeAbstract NiceDeclaration where
-  mkAbstract uf = \case
-      NiceMutual r termCheck cc pc ds  -> NiceMutual r termCheck cc pc <$> mkAbstract uf ds
-      NiceLoneConstructor r ds         -> NiceLoneConstructor r <$> mkAbstract uf ds
-      FunDef r ds a i tc cc x cs       -> (\ a -> FunDef r ds a i tc cc x) <$> mkAbstract uf a <*> mkAbstract uf cs
-      NiceDataDef r o a pc uc x ps cs  -> (\ a -> NiceDataDef r o a pc uc x ps) <$> mkAbstract uf a <*> mkAbstract uf cs
-      NiceRecDef r o a pc uc x dir ps cs -> (\ a -> NiceRecDef r o a pc uc x dir ps cs) <$> mkAbstract uf a
-      NiceFunClause r p a tc cc catchall d  -> (\ a -> NiceFunClause r p a tc cc catchall d) <$> mkAbstract uf a
+  mkAbstract uf id = \case
+      NiceMutual r termCheck cc pc ds  -> NiceMutual r termCheck cc pc <$> mkAbstract uf id ds
+      NiceLoneConstructor r ds         -> NiceLoneConstructor r <$> mkAbstract uf id ds
+      FunDef r ds a i tc cc x cs       -> (\ a -> FunDef r ds a i tc cc x) <$> mkAbstract uf id a <*> mkAbstract uf id cs
+      NiceDataDef r o a pc uc x ps cs  -> (\ a -> NiceDataDef r o a pc uc x ps) <$> mkAbstract uf id a <*> mkAbstract uf id cs
+      NiceRecDef r o a pc uc x dir ps cs -> (\ a -> NiceRecDef r o a pc uc x dir ps cs) <$> mkAbstract uf id a
+      NiceFunClause r p a tc cc catchall d  -> (\ a -> NiceFunClause r p a tc cc catchall d) <$> mkAbstract uf id a
       -- The following declarations have an @InAbstract@ field
       -- but are not really definitions, so we do count them into
       -- the declarations which can be made abstract
       -- (thus, do not notify progress with @dirty@).
-      Axiom r p a i rel x e          -> return $ Axiom             r p (AbstractUnfolding uf) i rel x e
-      FunSig r p a i m rel tc cc x e -> return $ FunSig            r p (AbstractUnfolding uf) i m rel tc cc x e
-      NiceRecSig  r er p a pc uc x ls t -> return $ NiceRecSig  r er p (AbstractUnfolding uf) pc uc x ls t
-      NiceDataSig r er p a pc uc x ls t -> return $ NiceDataSig r er p (AbstractUnfolding uf) pc uc x ls t
-      NiceField r p _ i tac x e      -> return $ NiceField         r p (AbstractUnfolding uf) i tac x e
-      PrimitiveFunction r p _ x e    -> return $ PrimitiveFunction r p (AbstractUnfolding uf) x e
+      Axiom r p a i rel x e          -> return $ Axiom             r p (AbstractUnfolding id) i rel x e
+      FunSig r p a i m rel tc cc x e -> return $ FunSig            r p (AbstractUnfolding id) i m rel tc cc x e
+      NiceRecSig  r er p a pc uc x ls t -> return $ NiceRecSig  r er p (AbstractUnfolding id) pc uc x ls t
+      NiceDataSig r er p a pc uc x ls t -> return $ NiceDataSig r er p (AbstractUnfolding id) pc uc x ls t
+      NiceField r p _ i tac x e      -> return $ NiceField         r p (AbstractUnfolding id) i tac x e
+      PrimitiveFunction r p _ x e    -> return $ PrimitiveFunction r p (AbstractUnfolding id) x e
       -- Andreas, 2016-07-17 it does have effect on unquoted defs.
       -- Need to set updater state to dirty!
-      NiceUnquoteDecl r p _ i tc cc x e -> tellDirty $> NiceUnquoteDecl r p (AbstractUnfolding uf) i tc cc x e
-      NiceUnquoteDef r p _ tc cc x e    -> tellDirty $> NiceUnquoteDef r p (AbstractUnfolding uf) tc cc x e
-      NiceUnquoteData r p _ tc cc x xs e -> tellDirty $> NiceUnquoteData r p (AbstractUnfolding uf) tc cc x xs e
+      NiceUnquoteDecl r p _ i tc cc x e -> tellDirty $> NiceUnquoteDecl r p (AbstractUnfolding id) i tc cc x e
+      NiceUnquoteDef r p _ tc cc x e    -> tellDirty $> NiceUnquoteDef r p (AbstractUnfolding id) tc cc x e
+      NiceUnquoteData r p _ tc cc x xs e -> tellDirty $> NiceUnquoteData r p (AbstractUnfolding id) tc cc x xs e
       d@NiceModule{}                 -> return d
       d@NiceModuleMacro{}            -> return d
       d@NicePragma{}                 -> return d
@@ -1347,14 +1353,14 @@ instance MakeAbstract NiceDeclaration where
       d@NiceUnfolding{}              -> return d
 
 instance MakeAbstract Clause where
-  mkAbstract uf (Clause x catchall lhs rhs wh with) = do
-    Clause x catchall lhs rhs <$> mkAbstract uf wh <*> mkAbstract uf with
+  mkAbstract id uf (Clause x catchall lhs rhs wh with) = do
+    Clause x catchall lhs rhs <$> mkAbstract id uf wh <*> mkAbstract id uf with
 
 -- | Contents of a @where@ clause are abstract if the parent is.
 instance MakeAbstract WhereClause where
-  mkAbstract uf  NoWhere             = return $ NoWhere
-  mkAbstract uf (AnyWhere r ds)      = dirty $ AnyWhere r [Abstract noRange (UnfoldingId uf) ds]
-  mkAbstract uf (SomeWhere r e m a ds) = dirty $ SomeWhere r e m a [Abstract noRange (UnfoldingId uf) ds]
+  mkAbstract _ uf  NoWhere             = return $ NoWhere
+  mkAbstract _ uf (AnyWhere r ds)      = dirty $ AnyWhere r [Abstract noRange (UnfoldingId uf) ds]
+  mkAbstract _ uf (SomeWhere r e m a ds) = dirty $ SomeWhere r e m a [Abstract noRange (UnfoldingId uf) ds]
 
 -- | Make a declaration private.
 --
@@ -1454,12 +1460,12 @@ notSoNiceDeclarations = \case
     FunDef _ ds _ _ _ _ _ _        -> ds
     NiceDataDef r _ _ _ _ x bs cs  -> [DataDef r x bs $ concatMap notSoNiceDeclarations cs]
     NiceRecDef r _ _ _ _ x dir bs ds -> [RecordDef r x dir bs ds]
-    NicePatternSyn r _ n as p      -> [PatternSyn r n as p]
-    NiceGeneralize r _ i tac n e   -> [Generalize r [TypeSig i tac n e]]
-    NiceUnquoteDecl r _ _ i _ _ x e -> inst i [UnquoteDecl r x e]
-    NiceUnquoteDef r _ _ _ _ x e    -> [UnquoteDef r x e]
-    NiceUnquoteData r _ _ _ _ x xs e  -> [UnquoteData r x xs e]
-    NiceUnfolding r _ uf              -> [Abstract r uf []]
+    NicePatternSyn r _ n as p        -> [PatternSyn r n as p]
+    NiceGeneralize r _ i tac n e     -> [Generalize r [TypeSig i tac n e]]
+    NiceUnquoteDecl r _ _ i _ _ x e  -> inst i [UnquoteDecl r x e]
+    NiceUnquoteDef r _ _ _ _ x e     -> [UnquoteDef r x e]
+    NiceUnquoteData r _ _ _ _ x xs e -> [UnquoteData r x xs e]
+    NiceUnfolding r _ uf             -> [Abstract r uf []]
   where
     inst (InstanceDef r) ds = [InstanceB r ds]
     inst NotInstanceDef  ds = ds

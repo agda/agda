@@ -2,7 +2,7 @@ module Agda.Syntax.Concrete.Definitions.Monad where
 
 import Control.Monad        ( unless )
 import Control.Monad.Except ( MonadError(..), ExceptT, runExceptT )
-import Control.Monad.State  ( MonadState(..), modify, State, runState )
+import Control.Monad.State  ( MonadState(..), modify, State, runState, gets )
 
 import Data.Bifunctor (second)
 import Data.Map (Map)
@@ -10,6 +10,7 @@ import qualified Data.Map as Map
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (TerminationCheck())
+import Agda.Syntax.Concrete (Unfolding)
 import Agda.Syntax.Concrete.Name
 import Agda.Syntax.Concrete.Definitions.Types
 import Agda.Syntax.Concrete.Definitions.Errors
@@ -18,6 +19,7 @@ import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.Lens
 
 import Agda.Utils.Impossible
+import Agda.Utils.Null (Null(empty))
 
 -- | Nicifier monad.
 --   Preserve the state when throwing an exception.
@@ -55,6 +57,10 @@ data NiceEnv = NiceEnv
   , _abstractId  :: AbstractId
     -- ^ Fresh 'AbstractId' counter for tying together "abstract
     -- unfolding" blocks.
+  , _enclosingUnfolding :: Unfolding
+    -- ^ Unfolding declarations which we have encountered lexically in
+    -- scope. Used for merging nested abstract blocks with differing
+    -- unfolding declarations.
   }
 
 data LoneSig = LoneSig
@@ -93,6 +99,7 @@ initNiceEnv = NiceEnv
   , niceWarn  = []
   , _nameId   = NameId 1 noModuleNameHash
   , _abstractId = AbstractId 1 noModuleNameHash
+  , _enclosingUnfolding = empty
   }
 
 lensNameId :: Lens' NameId NiceEnv
@@ -112,6 +119,12 @@ nextAbstractId = do
   i <- use lensAbstractId
   lensAbstractId %= \(AbstractId x y) -> AbstractId (x + 1) y
   return i
+
+andUnfold :: Unfolding -> Nice a -> Nice a
+andUnfold m k = do
+  saved <- gets _enclosingUnfolding
+  modify (\e -> e { _enclosingUnfolding = saved <> m })
+  k <* modify (\e -> e { _enclosingUnfolding = saved })
 
 -- * Handling the lone signatures, stored to infer mutual blocks.
 
