@@ -1176,8 +1176,8 @@ disambiguateConstructor cs0 args t = do
     -- @match@ is successful if there no name conflict (q ≠ q')
     -- and the argument skeleton is not longer thatn the constructor skeleton.
     match ::
-          [Maybe QName]   -- ^ Specification (argument skeleton).
-       -> [Maybe QName]   -- ^ Candidate (constructor skeleton).
+          [Maybe QName]   -- Specification (argument skeleton).
+       -> [Maybe QName]   -- Candidate (constructor skeleton).
        -> Bool
     match = curry $ \case
       ([], _ ) -> True
