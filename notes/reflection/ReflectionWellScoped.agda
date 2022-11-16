@@ -138,9 +138,6 @@ private
            a ≡ b → x ≡ y → P a x → P b y
   subst₂ P refl refl px = px
 
-  SemidecidableEq : Set → Set
-  SemidecidableEq A = (x y : A) → Maybe (x ≡ y)
-
   _≟_ : SemidecidableEq Nat
   zero ≟ zero = just refl
   suc m ≟ zero = nothing
