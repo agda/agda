@@ -1,4 +1,0 @@
-Issue357.agda:20,9-12
-Can't resolve overloaded constructors targeting the same datatype
-(Issue357.M.R): Issue357._.r Issue357.M.R.r
-when checking that the expression r q has type M.R Q

@@ -135,7 +135,7 @@ checkApplication cmp hd args e t =
       checkConstructorApplication cmp e t con args
 
     -- Subcase: ambiguous constructor
-    A.Con (AmbQ cs0) -> disambiguateConstructor cs0 t >>= \ case
+    A.Con (AmbQ cs0) -> disambiguateConstructor cs0 args t >>= \ case
       Left unblock -> postponeTypeCheckingProblem (CheckExpr cmp e t) unblock
       Right c      -> checkConstructorApplication cmp e t c args
 
@@ -1088,10 +1088,14 @@ checkConstructorApplication cmp org t c args = do
                               | otherwise = dropPar this ps
         dropPar _ [] = Nothing
 
+-- | Return an unblocking action in case of failure.
+type DisambiguateConstructor = TCM (Either Blocker ConHead)
+
 -- | Returns an unblocking action in case of failure.
-disambiguateConstructor :: List1 QName -> Type -> TCM (Either Blocker ConHead)
-disambiguateConstructor cs0 t = do
+disambiguateConstructor :: List1 QName -> A.Args -> Type -> DisambiguateConstructor
+disambiguateConstructor cs0 args t = do
   reportSLn "tc.check.term.con" 40 $ "Ambiguous constructor: " ++ prettyShow cs0
+  reportSDoc "tc.check.term.con" 40 $ vcat $ "Arguments:" : map (nest 2 . prettyTCM) args
 
   -- Get the datatypes of the various constructors
   let getData Constructor{conData = d} = d
@@ -1110,27 +1114,135 @@ disambiguateConstructor cs0 t = do
     [(c0,con)] -> do
       let c = setConName c0 con
       reportSLn "tc.check.term.con" 40 $ "  only one non-abstract constructor: " ++ prettyShow c
-      storeDisambiguatedConstructor (conInductive c) (conName c)
-      return (Right c)
+      decideOn c
     (c0,_):_   -> do
-      dcs <- forM ccons $ \ (c, con) -> (, setConName c con) . getData . theDef <$> getConInfo con
+      dcs :: [(QName, Type, ConHead)] <- forM ccons $ \ (c, con) -> do
+        t   <- defType <$> getConstInfo c
+        def <- getConInfo con
+        pure (getData (theDef def), t, setConName c con)
       -- Type error
       let badCon t = typeError $ DoesNotConstructAnElementOf c0 t
+
       -- Lets look at the target type at this point
       TelV tel t1 <- telViewPath t
       addContext tel $ do
        reportSDoc "tc.check.term.con" 40 $ nest 2 $
          "target type: " <+> prettyTCM t1
-       ifBlocked t1 (\ b t -> return $ Left b) $ \ _ t' ->
-         caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ d ->
-           case [ c | (d', c) <- dcs, d == d' ] of
-             [c] -> do
-               reportSLn "tc.check.term.con" 40 $ "  decided on: " ++ prettyShow c
-               storeDisambiguatedConstructor (conInductive c) (conName c)
-               return $ Right c
+       -- If we don't have a target type yet, try to look at the argument types.
+       ifBlocked t1 (\ b _ -> disambiguateByArgs dcs $ return $ Left b) $ \ _ t' ->
+         caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ d -> do
+           let dcs' = filter ((d ==) . fst3) dcs
+           case map thd3 dcs' of
+             [c] -> decideOn c
              []  -> badCon $ t' $> Def d []
-             c:cs-> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $
-                      fmap conName $ c :| cs
+             -- If the information from the target type did not eliminate ambiguity fully,
+             -- try to further eliminate alternatives by looking at the arguments.
+             c:cs-> disambiguateByArgs dcs' $
+                      typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $
+                        fmap conName $ c :| cs
+  where
+  decideOn :: ConHead -> DisambiguateConstructor
+  decideOn c = do
+    reportSLn "tc.check.term.con" 40 $ "  decided on: " ++ prettyShow c
+    storeDisambiguatedConstructor (conInductive c) (conName c)
+    return $ Right c
+
+  -- Look at simple visible arguments (variables (bound and generalizable ones) and defined names).
+  -- From these we can compute an approximate type effortlessly:
+  -- 1. Throw away hidden domains (needed for generalizable variables).
+  -- 2. If the remainder is a defined name that is not blocked on anything, we take this name as
+  --    approximate type of the argument.
+  -- This gives us a skeleton @[Maybe QName]@.  Compute the same from the constructor types
+  -- of the candidates and see if we find any mismatches that allow us to rule out the candidate.
+  disambiguateByArgs :: [(QName, Type, ConHead)] -> DisambiguateConstructor -> DisambiguateConstructor
+  disambiguateByArgs dcs fallback = do
+
+    -- Look for visible arguments that are just variables,
+    -- so that we can get their type directly from the context
+    -- without full-fledged type inference.
+    askel <- visibleVarArgs
+    reportSDoc "tc.check.term.con" 40 $ hsep $
+      "trying disambiguation by arguments" : map prettyTCM askel
+    reportSDoc "tc.check.term.con" 80 $ hsep $
+      "trying disambiguation by arguments" : map pretty askel
+
+    -- Filter out candidates with definitive mismatches.
+    cands <- filterM (\ (_d, t, _c) -> matchSkel askel =<< visibleConDoms t) dcs
+    case cands of
+      [(_d, _t, c)] -> decideOn c
+      _ -> fallback
+    where
+
+    -- @match@ is successful if there no name conflict (q ≠ q')
+    -- and the argument skeleton is not longer thatn the constructor skeleton.
+    match ::
+          [Maybe QName]   -- Specification (argument skeleton).
+       -> [Maybe QName]   -- Candidate (constructor skeleton).
+       -> Bool
+    match = curry $ \case
+      ([], _ ) -> True
+      (_ , []) -> False
+      (Just q : ms, Just q' : ms') -> q == q' && match ms ms'
+      (_ : ms, _ : ms') -> match ms ms'
+
+    -- @match@ with debug printing.
+    matchSkel :: [Maybe QName] -> [Maybe QName] -> TCM Bool
+    matchSkel argsSkel conSkel = do
+      let res = match argsSkel conSkel
+      reportSDoc "tc.check.term.con" 40 $ vcat
+        [ "matchSkel returns" <+> pretty res <+> "on:"
+        , nest 2 $ pretty argsSkel
+        , nest 2 $ pretty conSkel
+        ]
+      return res
+
+    -- Only look at visible arguments that are variables or similar identifiers.
+    -- For variables/symbols @Just getTypeHead@ else @Nothing@.
+    visibleVarArgs :: TCM [Maybe QName]
+    visibleVarArgs = forM (filter visible args) $ \ (arg :: NamedArg A.Expr) -> do
+        let v = unScope $ namedArg arg
+        reportSDoc "tc.check.term.con" 40 $ "is this a variable? :" <+> prettyTCM v
+        reportSDoc "tc.check.term.con" 90 $ "is this a variable? :" <+> (text . show) v
+        case v of
+
+          -- We can readly grab the type of a variable from the context.
+          A.Var x -> do
+            t <- unDom . snd <$> getVarInfo x
+            reportSDoc "tc.check.term.con" 40 $ "type of variable:" <+> prettyTCM t
+            -- Just keep the name @D@ of type @D vs@
+            getTypeHead t
+
+          -- We can also grab the type of defined symbols if we find them in the signature.
+          A.Def x -> do
+            getConstInfo' x >>= \case
+              Right def -> getTypeHead $ defType def
+              Left{} -> return Nothing
+          _ -> return Nothing
+
+    -- List of visible arguments of the constructor candidate.
+    -- E.g. vcons : {A : Set} {n : Nat} (x : A) (xs : Vec A n) → Vec A (suc n)
+    -- becomes vcons : ? → Vec → .
+    visibleConDoms :: Type -> TCM [Maybe QName]
+    visibleConDoms t = do
+      TelV tel _ <- telViewPath t
+      mapM (getTypeHead . snd . unDom) $ filter visible $ telToList tel
+
+-- | If type is of the form @F vs@ and not blocked in any way, return @F@.
+getTypeHead :: Type -> TCM (Maybe QName)
+getTypeHead t = do
+  res <- ifBlocked t (\ _ _ -> return Nothing) $ \ nb t -> do
+    case nb of
+      ReallyNotBlocked -> do
+        -- Drop initial hidden domains (only needed for generalizable variables).
+        TelV _ core <- telViewUpTo' (0-1) (not . visible) t
+        case unEl core of
+          Def q _ -> return $ Just q
+          _ -> return Nothing
+      -- In the other cases, we do not get the data name.
+      _ -> return Nothing
+  reportSDoc "tc.check.term.con" 80 $ hcat $ "getTypeHead(" : prettyTCM t : ") = " : pretty res : []
+  return res
+
 
 ---------------------------------------------------------------------------
 -- * Projections
