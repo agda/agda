@@ -1,7 +1,7 @@
 -- Andreas, 2018-11-23, issue #3304, report and test case by Nisse
 
 open import Agda.Builtin.Equality
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 map : {A B : Set} {P : A → Set} {Q : B → Set} →
       (f : A → B) → (∀ {x} → P x → Q (f x)) →

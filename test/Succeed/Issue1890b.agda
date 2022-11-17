@@ -3,7 +3,7 @@ module _ where
 open import Common.Prelude hiding (_>>=_)
 open import Common.Reflection
 open import Common.Equality
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 module _ (A : Set) where
   record R : Set where

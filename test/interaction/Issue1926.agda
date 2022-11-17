@@ -4,7 +4,7 @@
 
 module _ (Foo : Set) where
 
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 test : {A : Set} {B : A → Set} (r : Σ A B) → Set
 test r = {!r!}  -- C-c C-o

@@ -186,6 +186,10 @@ instance Pretty a => Pretty (MaybePlaceholder a) where
   pretty Placeholder{}       = "_"
   pretty (NoPlaceholder _ e) = pretty e
 
+instance Pretty PiOrSigma where
+  pretty (IsPi _)    = arrow
+  pretty (IsSigma _) = times
+
 instance Pretty Expr where
     pretty e =
         case e of
@@ -217,14 +221,16 @@ instance Pretty Expr where
             ExtendedLam _ e pes ->
               lambda <+>
               prettyErased e (bracesAndSemicolons (fmap pretty pes))
-            Fun _ e1 e2 ->
-                sep [ prettyCohesion e1 (prettyQuantity e1 (pretty e1)) <+> arrow
-                    , pretty e2
-                    ]
-            Pi tel e ->
-                sep [ pretty (Tel $ smashTel $ List1.toList tel) <+> arrow
-                    , pretty e
-                    ]
+            Fun _ ps e1 e2 ->
+              sep [ prettyCohesion e1 (prettyQuantity e1 (pretty e1)) <+>
+                    pretty ps
+                  , pretty e2
+                  ]
+            Pi ps tel e ->
+              sep [ pretty (Tel ps $ smashTel $ List1.toList tel) <+>
+                    pretty ps
+                  , pretty e
+                  ]
             Let _ ds me  ->
                 sep [ "let" <+> vcat (fmap pretty ds)
                     , maybe empty (\ e -> "in" <+> pretty e) me
@@ -340,13 +346,17 @@ instance Pretty TypedBinding where
           where (ys, zs) = span (same x) xs
                 same x y = getArgInfo x == getArgInfo y && isNothing (isLabeled y)
 
-newtype Tel = Tel Telescope
+data Tel = Tel PiOrSigma Telescope
 
 instance Pretty Tel where
-    pretty (Tel tel)
-      | any isMeta tel = forallQ <+> fsep (map pretty tel)
+    pretty (Tel ps tel)
+      | any isMeta tel = q <+> fsep (map pretty tel)
       | otherwise      = fsep (map pretty tel)
       where
+        q = case ps of
+          IsPi _    -> forallQ
+          IsSigma _ -> sigmaQ
+
         isMeta (TBind _ _ (Underscore _ Nothing)) = True
         isMeta _ = False
 

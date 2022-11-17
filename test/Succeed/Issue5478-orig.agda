@@ -5,7 +5,7 @@
 -- {-# OPTIONS -v tc.interaction:30 #-}
 -- {-# OPTIONS -v tc.check.internal:20 #-}
 
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 record R1 (A : Set) : Set where
 

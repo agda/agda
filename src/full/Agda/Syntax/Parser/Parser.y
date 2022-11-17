@@ -142,6 +142,7 @@ import Agda.Utils.Impossible
     'record'                  { TokKeyword KwRecord $$ }
     'renaming'                { TokKeyword KwRenaming $$ }
     'rewrite'                 { TokKeyword KwRewrite $$ }
+    'sigma'                   { TokKeyword KwSigma $$ }
     'syntax'                  { TokKeyword KwSyntax $$ }
     'tactic'                  { TokKeyword KwTactic $$ }
     'to'                      { TokKeyword KwTo $$ }
@@ -198,6 +199,7 @@ import Agda.Utils.Impossible
     '(|'                      { TokSymbol SymOpenIdiomBracket $$ }
     '|)'                      { TokSymbol SymCloseIdiomBracket $$ }
     '(|)'                     { TokSymbol SymEmptyIdiomBracket $$ }
+    '(x)'                     { TokSymbol SymTimes $$ }
     '{{'                      { TokSymbol SymDoubleOpenBrace $$ }
     '}}'                      { TokSymbol SymDoubleCloseBrace $$ }
     '{'                       { TokSymbol SymOpenBrace $$ }
@@ -270,6 +272,7 @@ Token
     | 'record'                  { TokKeyword KwRecord $1 }
     | 'renaming'                { TokKeyword KwRenaming $1 }
     | 'rewrite'                 { TokKeyword KwRewrite $1 }
+    | 'sigma'                   { TokKeyword KwSigma $1 }
     | 'syntax'                  { TokKeyword KwSyntax $1 }
     | 'tactic'                  { TokKeyword KwTactic $1 }
     | 'to'                      { TokKeyword KwTo $1 }
@@ -327,6 +330,7 @@ Token
     | '(|'                      { TokSymbol SymOpenIdiomBracket $1 }
     | '|)'                      { TokSymbol SymCloseIdiomBracket $1 }
     | '(|)'                     { TokSymbol SymEmptyIdiomBracket $1 }
+    | '(x)'                     { TokSymbol SymTimes $1 }
     | '{{'                      { TokSymbol SymDoubleOpenBrace $1 }
     | '}}'                      { TokSymbol SymDoubleCloseBrace $1 }
     | '{'                       { TokSymbol SymOpenBrace $1 }
@@ -617,13 +621,43 @@ PragmaQNames : Strings {% mapM pragmaQName $1 }
 -- Top level: Function types.
 Expr :: { Expr }
 Expr
-  : TeleArrow Expr                      { Pi $1 $2 }
-  | Application3 '->' Expr              { Fun (getRange ($1,$2,$3))
-                                              (defaultArg $ rawApp $1)
+  : Telescope1 '->' Expr                { Pi (IsPi (getRange $2)) $1 $3 }
+  | SigmaOrApplication3 '->' Expr       { Fun (getRange ($1,$2,$3))
+                                              (IsPi (getRange $2))
+                                              (defaultArg $1)
                                               $3 }
   | Attributes1 Application3 '->' Expr  {% applyAttrs1 $1 (defaultArg $ rawApp $2) <&> \ dom ->
-                                             Fun (getRange ($1,$2,$3,$4)) dom $4 }
-  | Expr1 %prec LOWEST                  { $1 }
+                                             Fun (getRange ($1,$2,$3,$4))
+                                               (IsPi (getRange $3)) dom $4 }
+  | SigmaExpr %prec LOWEST              { $1 }
+
+-- Sigma-types.
+SigmaExpr :: { Expr }
+SigmaExpr
+    : 'sigma' TypedUntypedBindings1
+        '(x)' SigmaExpr             { forallPi (IsSigma (getRange ($1, $3)))
+                                        $2 $4 }
+    | Telescope1 '(x)' SigmaExpr    { Pi (IsSigma (getRange $2)) $1 $3 }
+    | Application3 '(x)' SigmaExpr  { Fun (getRange ($1,$2,$3))
+                                        (IsSigma (getRange $2))
+                                        (defaultArg $ rawApp $1)
+                                        $3 }
+    | Expr1 %prec LOWEST            { $1 }
+
+-- Sigma-types or applications.
+SigmaOrApplication3 :: { Expr }
+SigmaOrApplication3
+    : 'sigma' TypedUntypedBindings1
+       '(x)' SigmaOrApplication3    { forallPi (IsSigma (getRange ($1, $3)))
+                                        $2 $4 }
+    | Telescope1 '(x)'
+        SigmaOrApplication3         { Pi (IsSigma (getRange $2)) $1 $3 }
+    | Application3 '(x)'
+        SigmaOrApplication3         { Fun (getRange ($1,$2,$3))
+                                        (IsSigma (getRange $2))
+                                        (defaultArg $ rawApp $1)
+                                        $3 }
+    | Application3 %prec LOWEST     { rawApp $1 }
 
 -- Level 1: Application
 Expr1 :: { Expr }
@@ -657,7 +691,8 @@ Expr2 :: { Expr }
 Expr2
     : '\\' LamBindings Expr        { Lam (getRange ($1,$2,$3)) $2 $3 }
     | ExtendedOrAbsurdLam          { $1 }
-    | 'forall' ForallBindings Expr { forallPi $2 $3 }
+    | 'forall' TypedUntypedBindings1 '->' Expr
+                                   { forallPi (IsPi (getRange ($1, $3))) $2 $4 }
     | 'let' Declarations LetBody   { Let (getRange ($1,$2,$3)) $2 $3 }
     | 'do' vopen DoStmts close     { DoBlock (getRange ($1, $3)) $3 }
     | Expr3                        { $1 }
@@ -769,10 +804,6 @@ FieldAssignment
 {--------------------------------------------------------------------------
     Bindings
  --------------------------------------------------------------------------}
-
--- "Delta ->" to avoid conflict between Delta -> Gamma and Delta -> A.
-TeleArrow :: { Telescope1 }
-TeleArrow : Telescope1 '->' { $1 }
 
 Telescope1 :: { Telescope1 }
 Telescope1 : TypedBindings { $1 }
@@ -928,10 +959,6 @@ LamWhereClauses :: { List1 LamClause }
 LamWhereClauses
    : LamWhereClauses semi LamClause { $3 <| $1 }
    | LamClause { singleton $1 }
-
-ForallBindings :: { List1 LamBinding }
-ForallBindings
-  : TypedUntypedBindings1 '->' { $1 }
 
 -- A non-empty sequence of possibly untyped bindings.
 TypedUntypedBindings1 :: { List1 LamBinding }
@@ -1908,15 +1935,17 @@ figureOutTopLevelModule ds =
 mkName :: (Interval, String) -> Parser Name
 mkName (i, s) = do
     let xs = C.stringNameParts s
-    mapM_ isValidId xs
+    flags <- parseFlags <$> get
+    mapM_ (isValidId flags) xs
     unless (alternating xs) $ parseError $ "a name cannot contain two consecutive underscores"
     return $ Name (getRange i) InScope xs
     where
-        isValidId Hole   = return ()
-        isValidId (Id y) = do
+        isValidId _     Hole   = return ()
+        isValidId flags (Id y) = do
           let x = rawNameToString y
               err = "in the name " ++ s ++ ", the part " ++ x ++ " is not valid"
-          case parse defaultParseFlags [0] (lexer return) x of
+          case parse flags{ parseKeepComments = False }
+                 [0] (lexer return) x of
             ParseOk _ TokId{}  -> return ()
             ParseFailed{}      -> parseError err
             ParseOk _ TokEOF{} -> parseError err
@@ -1932,6 +1961,7 @@ mkName (i, s) = do
                 SymBar               -> "used for with-arguments"
                 SymColon             -> "part of declaration syntax"
                 SymArrow             -> "the function arrow"
+                SymTimes             -> "the pair type symbol"
                 SymEqual             -> "part of declaration syntax"
                 SymLambda            -> "used for lambda-abstraction"
                 SymUnderscore        -> "used for anonymous identifiers"
@@ -2049,9 +2079,10 @@ mkAbsurdBinding = LamBinds [] . Just
 mkLamBinds :: a -> LamBinds' a
 mkLamBinds bs = LamBinds bs Nothing
 
--- | Build a forall pi (forall x y z -> ...)
-forallPi :: List1 LamBinding -> Expr -> Expr
-forallPi bs e = Pi (fmap addType bs) e
+-- | Constructs a pi-type or a sigma-type. Used for @forall x y z ->
+-- ...@ and @sigma x y z -> ...@.
+forallPi :: PiOrSigma -> List1 LamBinding -> Expr -> Expr
+forallPi ps bs e = Pi ps (fmap addType bs) e
 
 -- | Converts lambda bindings to typed bindings.
 addType :: LamBinding -> TypedBinding
@@ -2415,8 +2446,10 @@ funClauseOrTypeSigs attrs lhs' with mrhs wh = do
       _ -> parseError "A type signature cannot have a where clause"
 
 parseDisplayPragma :: Range -> Position -> String -> Parser Pragma
-parseDisplayPragma r pos s =
-  case parsePosString pos defaultParseFlags [normal] funclauseParser s of
+parseDisplayPragma r pos s = do
+  flags <- parseFlags <$> get
+  case parsePosString pos flags{ parseKeepComments = False }
+         [normal] funclauseParser s of
     ParseOk s (FunClause (LHS lhs [] []) (RHS rhs) NoWhere ca :| []) | null (parseInp s) ->
       return $ DisplayPragma r lhs rhs
     _ -> parseError "Invalid DISPLAY pragma. Should have form {-# DISPLAY LHS = RHS #-}."

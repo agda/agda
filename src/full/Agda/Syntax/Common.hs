@@ -3036,3 +3036,33 @@ instance NFData NotationPart where
   rnf (HolePart _ a) = rnf a
   rnf (WildPart a)   = rnf a
   rnf (IdPart a)     = rnf a
+
+------------------------------------------------------------------------
+-- * 'PiOrSigma'
+------------------------------------------------------------------------
+
+-- | Is the type a Π-type or a Σ-type?
+
+data PiOrSigma
+  = IsPi Range
+  | IsSigma Range
+    deriving Show
+
+instance Eq PiOrSigma where
+  IsPi _    == IsPi _    = True
+  IsSigma _ == IsSigma _ = True
+  _         == _         = False
+
+instance HasRange PiOrSigma where
+  getRange (IsPi    r) = r
+  getRange (IsSigma r) = r
+
+instance KillRange PiOrSigma where
+  killRange (IsPi    r) = IsPi    noRange
+  killRange (IsSigma r) = IsSigma noRange
+
+-- | Ranges are not forced.
+
+instance NFData PiOrSigma where
+  rnf (IsPi _)    = ()
+  rnf (IsSigma _) = ()

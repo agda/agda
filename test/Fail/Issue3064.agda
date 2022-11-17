@@ -1,5 +1,5 @@
 open import Agda.Builtin.Char
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 CC = Σ Char λ _ → Char
 

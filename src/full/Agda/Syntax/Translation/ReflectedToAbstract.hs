@@ -197,7 +197,7 @@ instance ToAbstract Term where
     R.Pi a b   -> do
       (b, name) <- toAbstract b
       a         <- toAbstract (a, name)
-      return $ A.Pi exprNoRange (singleton a) b
+      return $ A.Pi exprNoRange (IsPi noRange) (singleton a) b
     R.Sort s   -> toAbstract s
     R.Lit l    -> toAbstract l
     R.Meta x es    -> do

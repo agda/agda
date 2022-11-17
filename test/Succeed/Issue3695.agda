@@ -2,7 +2,7 @@
 {-# OPTIONS --cubical #-}
 
 open import Agda.Builtin.Cubical.Path using (_≡_)
-open import Agda.Builtin.Sigma using (Σ; fst; _,_)
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ) using (fst; _,_)
 
 postulate
   Is-proposition : Set → Set

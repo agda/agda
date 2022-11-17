@@ -1,6 +1,6 @@
 
 open import Agda.Builtin.Equality
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 data Unit : Set where
   unit : Unit

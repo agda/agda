@@ -96,7 +96,8 @@ setInterface :: Interface -> TCM ()
 setInterface i = do
   opts <- getsTC (stPersistentOptions . stPersistentState)
   setCommandLineOptions opts
-  mapM_ setOptionsFromPragma (iDefaultPragmaOptions i ++ iFilePragmaOptions i)
+  mapM_ (setOptionsFromPragma Other) (iDefaultPragmaOptions i)
+  mapM_ (setOptionsFromPragma File)  (iFilePragmaOptions i)
   -- One could perhaps make the following command lazy. Note, however,
   -- that it doesn't suffice to replace setTCLens' with setTCLens,
   -- because the stPreImportedModules field is strict.

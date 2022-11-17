@@ -183,6 +183,7 @@ tokens :-
 <0,code> quoteTerm         { keyword KwQuoteTerm }
 <0,code> record            { keyword KwRecord }
 <0,code> rewrite           { keyword KwRewrite }
+<0,code> sigma             { keyword KwSigma }
 <0,code> syntax            { keyword KwSyntax }
 <0,code> tactic            { keyword KwTactic }
 <0,code> unquote           { keyword KwUnquote }
@@ -217,6 +218,7 @@ tokens :-
 <0,code> "(|" /[$white] { symbol SymOpenIdiomBracket }
 <0,code> "|)"           { symbol SymCloseIdiomBracket }
 <0,code> "(|)"          { symbol SymEmptyIdiomBracket }
+<0,code> "(x)"          { symbol SymTimes }
 <0,code> "("            { symbol SymOpenParen }
 <0,code> ")"            { symbol SymCloseParen }
 <0,code> "->"           { symbol SymArrow }

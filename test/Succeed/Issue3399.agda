@@ -5,7 +5,7 @@ open import Agda.Builtin.Cubical.Path
 open import Agda.Builtin.Cubical.Sub
 open import Agda.Builtin.Cubical.Sub using () renaming (Sub to _[_↦_]; primSubOut to outS)
 open import Agda.Primitive renaming (_⊔_ to ℓ-max)
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 transpFill : ∀ {ℓ} {A' : Set ℓ} (φ : I)
                (A : (i : I) → Set ℓ [ φ ↦ (\ _ → A') ]) →

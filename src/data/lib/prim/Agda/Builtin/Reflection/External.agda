@@ -10,7 +10,7 @@ open import Agda.Builtin.Reflection
 
 postulate
   execTC : String → List String → String
-         → TC (Σ Nat (λ _ → Σ String (λ _ → String)))
+         → TC (Σ̂ Nat (λ _ → Σ̂ String (λ _ → String)))
 
 {-# BUILTIN AGDATCMEXEC execTC #-}
 

@@ -20,7 +20,7 @@ module _ {A : Set} where
     rewrite eq = cong (x ∷_) (filter-filter p xs)
 
 open import Agda.Builtin.Nat
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 double : Nat → Set
 double m = Σ Nat λ n → n + n ≡ m

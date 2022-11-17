@@ -886,24 +886,27 @@ instance ToConcrete A.Expr where
             mapM decl2clause decls
             -- TODO List1: can we demonstrate non-emptiness?
 
-    toConcrete (A.Pi _ tel1 e0) = do
+    toConcrete (A.Pi _ ps tel1 e0) = do
       let (tel, e) = piTel1 tel1 e0
       bracket piBrackets $
          bindToConcrete tel $ \ tel' ->
-           C.makePi (List1.catMaybes tel') <$> toConcreteTop e
+           C.makePi ps (List1.catMaybes tel') <$> toConcreteTop e
       where
-        piTel1 tel e         = first (List1.appendList tel) $ piTel e
-        piTel (A.Pi _ tel e) = first List1.toList $ piTel1 tel e
-        piTel e              = ([], e)
+      piTel1 tel e = first (List1.appendList tel) $ piTel e
+
+      piTel (A.Pi _ ps' tel e)
+        | ps' == ps =
+          first List1.toList $ piTel1 tel e
+      piTel e = ([], e)
 
     toConcrete (A.Generalized _ e) = C.Generalized <$> toConcrete e
 
-    toConcrete (A.Fun i a b) =
+    toConcrete (A.Fun i ps a b) =
         bracket piBrackets
         $ do a' <- toConcreteCtx ctx a
              b' <- toConcreteTop b
              let dom = setQuantity (getQuantity a') $ defaultArg $ addRel a' $ mkArg a'
-             return $ C.Fun (getRange i) dom b'
+             return $ C.Fun (getRange i) ps dom b'
              -- Andreas, 2018-06-14, issue #2513
              -- TODO: print attributes
         where

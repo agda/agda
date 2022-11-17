@@ -1,0 +1,3 @@
+Sigma-syntax-3.agda:4,7-26
+Sigma-bindings must be non-hidden
+when checking that the expression ⦃ A : Set ⦄ × Set is a type

@@ -2,7 +2,7 @@ module _ where
 
 open import Agda.Primitive
 open import Agda.Builtin.Equality
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 record Category {o h} : Set (lsuc (o ⊔ h)) where
   no-eta-equality

@@ -4,7 +4,7 @@ module Issue4949 where
 open import Agda.Builtin.Cubical.Path
 open import Agda.Primitive.Cubical renaming (primIMax to _∨_)
 open import Agda.Builtin.Unit
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 open import Agda.Builtin.Cubical.Glue renaming (prim^glue to glue)
 

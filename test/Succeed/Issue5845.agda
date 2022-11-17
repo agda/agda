@@ -1,4 +1,4 @@
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 data Ctx : Set₁
 Env : Ctx → Set

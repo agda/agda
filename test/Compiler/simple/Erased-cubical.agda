@@ -15,7 +15,7 @@ open import Agda.Builtin.Cubical.Path
 open import Agda.Builtin.Cubical.Sub
 open import Agda.Builtin.IO
 open import Agda.Builtin.Nat
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 open import Agda.Builtin.String
 open import Agda.Builtin.Unit
 open import Agda.Primitive.Cubical

@@ -1,6 +1,6 @@
 -- Two out-of-scope variables are given the same name #3678
 
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 open import Agda.Builtin.Equality
 
 postulate

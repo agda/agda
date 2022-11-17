@@ -6,7 +6,7 @@
 {-# OPTIONS --erasure #-}
 
 open import Agda.Builtin.Equality
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 open import Common.IO
 
 P : (A B : Set) → (A → B) → Set

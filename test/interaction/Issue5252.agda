@@ -1,5 +1,5 @@
 open import Agda.Primitive
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 data Empty : Set where
 

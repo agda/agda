@@ -3,7 +3,7 @@ module _ where
 
 open import Common.Prelude hiding (_>>=_)
 open import Common.Reflection
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 infix -100 This:_ this:_
 data This:_ {a} {A : Set a} : A → Set where

@@ -46,7 +46,7 @@ foo : Nat → Nat
 foo x = 1 + x
 
 bar : Nat → Nat
-bar x = foo (foo (x))
+bar x = foo (foo ( x ))
 
 -- Here we test that normalisation respects ReduceDefs
 -- when parameter reconstruction is on.

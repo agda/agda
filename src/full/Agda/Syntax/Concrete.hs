@@ -157,8 +157,8 @@ data Expr
   | AbsurdLam Range Hiding                     -- ^ ex: @\\ ()@
   | ExtendedLam Range Erased
       (List1 LamClause)                        -- ^ ex: @\\ { p11 .. p1a -> e1 ; .. ; pn1 .. pnz -> en }@
-  | Fun Range (Arg Expr) Expr                  -- ^ ex: @e -> e@ or @.e -> e@ (NYI: @{e} -> e@)
-  | Pi Telescope1 Expr                         -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
+  | Fun Range PiOrSigma (Arg Expr) Expr        -- ^ ex: @e -> e@ or @.e -> e@ (NYI: @{e} -> e@)
+  | Pi PiOrSigma Telescope1 Expr               -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
   | Rec Range RecordAssignments                -- ^ ex: @record {x = a; y = b}@, or @record { x = a; M1; M2 }@
   | RecUpdate Range Expr [FieldAssignment]     -- ^ ex: @record e {x = a; y = b}@
   | Let Range (List1 Declaration) (Maybe Expr) -- ^ ex: @let Ds in e@, missing body when parsing do-notation let
@@ -289,9 +289,9 @@ lamBindingsToTelescope r = fmap $ \case
 
 -- | Smart constructor for @Pi@: check whether the @Telescope@ is empty
 
-makePi :: Telescope -> Expr -> Expr
-makePi []     = id
-makePi (b:bs) = Pi (b :| bs)
+makePi :: PiOrSigma -> Telescope -> Expr -> Expr
+makePi ps []       = id
+makePi ps (b : bs) = Pi ps (b :| bs)
 
 -- | Smart constructor for @Lam@: check for non-zero bindings.
 
@@ -663,8 +663,8 @@ observeModifiers e =
   setRelevance rel $ setHiding hid $ defaultArg e'
 
 returnExpr :: Expr -> Maybe Expr
-returnExpr (Pi _ e)        = returnExpr e
-returnExpr (Fun _ _  e)    = returnExpr e
+returnExpr (Pi _ _ e)      = returnExpr e
+returnExpr (Fun _ _ _ e)   = returnExpr e
 returnExpr (Let _ _ e)     = returnExpr =<< e
 returnExpr (Paren _ e)     = returnExpr e
 returnExpr (Generalized e) = returnExpr e
@@ -808,8 +808,8 @@ instance HasRange Expr where
       Lam r _ _          -> r
       AbsurdLam r _      -> r
       ExtendedLam r _ _  -> r
-      Fun r _ _          -> r
-      Pi b e             -> fuseRange b e
+      Fun r _ _ _        -> r
+      Pi _ b e           -> fuseRange b e
       Let r _ _          -> r
       Paren r _          -> r
       IdiomBrackets r _  -> r
@@ -1072,8 +1072,8 @@ instance KillRange Expr where
   killRange (Lam _ l e)           = killRange2 (Lam noRange) l e
   killRange (AbsurdLam _ h)       = killRange1 (AbsurdLam noRange) h
   killRange (ExtendedLam _ e lrw) = killRange2 (ExtendedLam noRange) e lrw
-  killRange (Fun _ e1 e2)         = killRange2 (Fun noRange) e1 e2
-  killRange (Pi t e)              = killRange2 Pi t e
+  killRange (Fun _ ps e1 e2)      = killRange3 (Fun noRange) ps e1 e2
+  killRange (Pi ps t e)           = killRange3 Pi ps t e
   killRange (Rec _ ne)            = killRange1 (Rec noRange) ne
   killRange (RecUpdate _ e ne)    = killRange2 (RecUpdate noRange) e ne
   killRange (Let _ d e)           = killRange2 (Let noRange) d e
@@ -1190,8 +1190,8 @@ instance NFData Expr where
   rnf (Lam _ a b)         = rnf a `seq` rnf b
   rnf (AbsurdLam _ a)     = rnf a
   rnf (ExtendedLam _ a b) = rnf a `seq` rnf b
-  rnf (Fun _ a b)         = rnf a `seq` rnf b
-  rnf (Pi a b)            = rnf a `seq` rnf b
+  rnf (Fun _ _ a b)       = rnf a `seq` rnf b
+  rnf (Pi _ a b)          = rnf a `seq` rnf b
   rnf (Rec _ a)           = rnf a
   rnf (RecUpdate _ a b)   = rnf a `seq` rnf b
   rnf (Let _ a b)         = rnf a `seq` rnf b

@@ -186,6 +186,9 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
 
 generateTokenInfo :: AbsolutePath -> TCM HighlightingInfo
 generateTokenInfo file =
+  -- Use the flags in any .agda-lib files to determine how to lex the
+  -- file.
+  TCM.locallySetAgdaLibOptions file $ \_ -> do
   generateTokenInfoFromSource rf . Text.unpack =<<
     runPM (Pa.readFilePM rf)
   where
@@ -200,6 +203,9 @@ generateTokenInfo file =
 
 -- | Generate and return the syntax highlighting information for the
 -- tokens in the given file.
+--
+-- It is assumed that relevant pragma options (like 'optUnicodeSigma')
+-- have been set.
 
 generateTokenInfoFromSource
   :: RangeFile
@@ -208,21 +214,24 @@ generateTokenInfoFromSource
      -- ^ The file contents. Note that the file is /not/ read from
      -- disk.
   -> TCM HighlightingInfo
-generateTokenInfoFromSource file input =
-  runPM $ tokenHighlighting . fst . fst <$>
-          Pa.parseFile Pa.tokensParser file input
+generateTokenInfoFromSource file input = do
+  p <- TCM.instantiateParseFlags Pa.tokensParser
+  runPM $ tokenHighlighting . fst . fst <$> Pa.parseFile p file input
 
 -- | Generate and return the syntax highlighting information for the
 -- tokens in the given string, which is assumed to correspond to the
 -- given range.
+--
+-- It is assumed that relevant pragma options (like 'optUnicodeSigma')
+-- have been set.
 
 generateTokenInfoFromString :: Range -> String -> TCM HighlightingInfo
 generateTokenInfoFromString r _ | r == noRange = return mempty
 generateTokenInfoFromString r s = do
-  runPM $ tokenHighlighting . fst <$>
-          Pa.parsePosString Pa.tokensParser p s
+  p <- TCM.instantiateParseFlags Pa.tokensParser
+  runPM $ tokenHighlighting . fst <$> Pa.parsePosString p pos s
   where
-    Just p = P.rStart r
+  Just pos = P.rStart r
 
 -- | Compute syntax highlighting for the given tokens.
 tokenHighlighting :: [T.Token] -> HighlightingInfo
@@ -233,6 +242,7 @@ tokenHighlighting = convert . mconcat . map tokenToHI
 
   tokenToHI :: T.Token -> HighlightingInfoBuilder
   tokenToHI (T.TokKeyword T.KwForall i)  = aToF Symbol (getRange i)
+  tokenToHI (T.TokKeyword T.KwSigma i)   = aToF Symbol (getRange i)
   tokenToHI (T.TokKeyword T.KwREWRITE _) = mempty  -- #4361, REWRITE is not always a Keyword
   tokenToHI (T.TokKeyword _ i)           = aToF Keyword (getRange i)
   tokenToHI (T.TokSymbol T.SymQuestionMark i) = aToF Hole (getRange i)

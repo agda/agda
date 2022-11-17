@@ -2,7 +2,7 @@
 module _ where
 
 open import Agda.Builtin.Nat
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 open import Agda.Builtin.Equality
 
 issue : Nat → Σ Nat λ m → Σ Nat λ n → Σ Nat λ p → m ≡ n * p

@@ -42,7 +42,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Benchmark (billTo)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
-  (getIncludeDirs, libToTCM)
+  (getIncludeDirs, libToTCM, instantiateParseFlags)
 import Agda.TypeChecking.Monad.State (topLevelModuleName)
 import Agda.TypeChecking.Warnings (runPM)
 
@@ -241,6 +241,9 @@ checkModuleName name (SourceFile file) mexpected = do
 --
 -- If no top-level module name is given, then an attempt is made to
 -- use the file name as a module name.
+--
+-- It is assumed that relevant pragma options (like 'optUnicodeSigma')
+-- have been set.
 
 -- TODO: Perhaps it makes sense to move this procedure to some other
 -- module.
@@ -256,6 +259,7 @@ moduleName file parsedModule = billTo [Bench.ModuleName] $ do
       raw         = rawTopLevelModuleNameForModule parsedModule
   topLevelModuleName =<< if isNoName raw
     then do
+      moduleNameParser <- instantiateParseFlags moduleNameParser
       m <- runPM (fst <$> parse moduleNameParser defaultName)
              `catchError` \_ ->
            typeError $ GenericError $

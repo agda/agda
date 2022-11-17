@@ -29,7 +29,7 @@
           ; reflId
           )
 
-  open import Agda.Builtin.Sigma public
+  open import Agda.Builtin.Sigma public renaming (Σ̂ to Σ)
   open import Agda.Builtin.Bool public
   open import Agda.Builtin.Nat public
 

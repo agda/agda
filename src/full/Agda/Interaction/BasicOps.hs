@@ -98,6 +98,7 @@ import Agda.TypeChecking.ProjectionLike (reduceProjectionLike)
 
 parseExpr :: Range -> String -> TCM C.Expr
 parseExpr rng s = do
+  exprWhereParser <- instantiateParseFlags exprWhereParser
   (C.ExprWhere e wh, attrs) <-
     runPM $ parsePosString exprWhereParser pos s
   checkAttributes attrs

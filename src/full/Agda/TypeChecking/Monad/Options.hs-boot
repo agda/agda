@@ -2,8 +2,10 @@ module Agda.TypeChecking.Monad.Options where
 
 import Agda.Interaction.Library.Base
 import Agda.Interaction.Options.HasOptions
+import Agda.Syntax.Parser
 import Agda.TypeChecking.Monad.Base
 import Agda.Utils.FileName
 
-libToTCM       :: LibM a -> TCM a
-getIncludeDirs :: HasOptions m => m [AbsolutePath]
+libToTCM              :: LibM a -> TCM a
+getIncludeDirs        :: HasOptions m => m [AbsolutePath]
+instantiateParseFlags :: HasOptions m => (ParseFlags -> a) -> m a

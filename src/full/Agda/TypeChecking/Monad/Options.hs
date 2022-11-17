@@ -23,6 +23,7 @@ import System.FilePath
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Parser
 import Agda.Syntax.TopLevelModuleName
 
 import Agda.TypeChecking.Monad.Debug (reportSDoc)
@@ -45,6 +46,7 @@ import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as G
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
+import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.Size
@@ -212,14 +214,40 @@ addTrustedExecutables o = do
   -- or is a security risk.
   return o{ optTrustedExecutables = trustedExes }
 
-setOptionsFromPragma :: OptionsPragma -> TCM ()
-setOptionsFromPragma ps = setCurrentRange (pragmaRange ps) $ do
+setOptionsFromPragma :: PragmaSource -> OptionsPragma -> TCM ()
+setOptionsFromPragma src p = setCurrentRange (pragmaRange p) $ do
     opts <- commandLineOptions
-    let (z, warns) = runOptM (parsePragmaOptions ps opts)
+    let (z, warns) = runOptM (parsePragmaOptions src p opts)
     mapM_ (warning . OptionWarning) warns
     case z of
       Left err    -> typeError $ GenericError err
       Right opts' -> setPragmaOptions opts'
+
+-- | Sets pragma options from any @.agda-lib@ files for the given file
+-- locally in the given computation. The computation is also given
+-- access to information from the @.agda-lib@ files.
+--
+-- Note that 'getAgdaLibFilesWithoutTopLevelModuleName' is used. The
+-- options may thus come from @.agda-lib@ files which should not be
+-- used.
+
+locallySetAgdaLibOptions ::
+  AbsolutePath ->
+  ([AgdaLibFile] -> TCM a) ->
+  TCM a
+locallySetAgdaLibOptions f m =
+  bracket_ (useTC stPragmaOptions) (stPragmaOptions `setTCLens`) $ do
+    libs <- getAgdaLibFilesWithoutTopLevelModuleName f
+    mapM_ (setOptionsFromPragma Other . _libPragmas) libs
+    m libs
+
+-- | Uses options to instantiate 'ParseFlags'.
+
+instantiateParseFlags :: HasOptions m => (ParseFlags -> a) -> m a
+instantiateParseFlags f = do
+  opts <- pragmaOptions
+  return $
+    f defaultParseFlags{ parseUnicodeSigma = optUnicodeSigma opts }
 
 -- | Disable display forms.
 enableDisplayForms :: MonadTCEnv m => m a -> m a

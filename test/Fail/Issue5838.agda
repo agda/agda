@@ -9,7 +9,7 @@
 {-# OPTIONS --safe --cubical #-}
 
 open import Agda.Builtin.Bool
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 open import Agda.Primitive.Cubical
 open import Agda.Primitive.Cubical public

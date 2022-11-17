@@ -1186,6 +1186,7 @@ parseAndDoAtToplevel
   -> CommandM (Maybe CPUTime, a)
 parseAndDoAtToplevel cmd s = do
   localStateCommandM $ do
+    exprParser <- instantiateParseFlags exprParser
     (e, attrs) <- lift $ runPM $ parse exprParser s
     lift $ checkAttributes attrs
     maybeTimed $ atTopLevel $ lift $

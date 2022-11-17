@@ -4,7 +4,7 @@ module Issue3577 where
 
 open import Agda.Primitive.Cubical renaming (primTransp to transp; primHComp to hcomp)
 open import Agda.Builtin.Cubical.Path
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 open import Agda.Builtin.Cubical.Sub renaming (primSubOut to outS; Sub to _[_↦_])
 
 refl : ∀ {l} {A : Set l} {x : A} → x ≡ x

@@ -96,9 +96,9 @@ instance BoundAndUsed Expr where
     Lam _ bind expr        -> boundAndUsed (bind, expr)
     AbsurdLam{}            -> mempty
     ExtendedLam _ _ _ _ cs -> boundAndUsed cs
-    Pi _ tel expr          -> boundAndUsed (tel, expr)
+    Pi _ _ tel expr        -> boundAndUsed (tel, expr)
     Generalized _ expr     -> boundAndUsed expr
-    Fun _ arg expr         -> boundAndUsed (arg, expr)
+    Fun _ _ arg expr       -> boundAndUsed (arg, expr)
     Let _ binds expr       -> boundAndUsed (binds, expr)
     Rec _ as               -> boundAndUsed as
     RecUpdate _ expr as    -> boundAndUsed expr <> boundAndUsed as
@@ -179,4 +179,3 @@ instance BoundAndUsed e => BoundAndUsed (FieldAssignment' e) where
 instance BoundAndUsed ModuleApplication where
   boundAndUsed (SectionApp tel _ es)  = noBindings $ boundAndUsed (tel, es)
   boundAndUsed RecordModuleInstance{} = mempty
-

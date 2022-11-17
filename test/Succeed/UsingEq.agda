@@ -51,7 +51,7 @@ data All (P : Nat → Set) : ∀ {n} → Vec Nat n → Set where
   []  : All P []
   _∷_ : ∀ {n x xs} → P x → All P {n} xs → All P (x ∷ xs)
 
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 castAll : ∀ {P m n xs ys} → Σ (m ≡ n) (λ eq → castVec eq xs ≡ ys) →
           All P xs → All P ys

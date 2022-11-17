@@ -101,9 +101,13 @@ data Expr
   | Lam  ExprInfo LamBinding Expr      -- ^ @λ bs → e@.
   | AbsurdLam ExprInfo Hiding          -- ^ @λ()@ or @λ{}@.
   | ExtendedLam ExprInfo DefInfo Erased QName (List1 Clause)
-  | Pi   ExprInfo Telescope1 Type      -- ^ Dependent function space @Γ → A@.
+  | Pi ExprInfo PiOrSigma Telescope1 Type
+                                       -- ^ Dependent function space
+                                       --   or sigma-type.
   | Generalized (Set QName) Type       -- ^ Like a Pi, but the ordering is not known
-  | Fun  ExprInfo (Arg Type) Type      -- ^ Non-dependent function space.
+  | Fun ExprInfo PiOrSigma (Arg Type) Type
+                                       -- ^ Non-dependent function
+                                       -- space or sigma-type.
   | Let  ExprInfo (List1 LetBinding) Expr
                                        -- ^ @let bs in e@.
   | Rec  ExprInfo RecordAssigns        -- ^ Record construction.
@@ -329,9 +333,9 @@ mkTLet r (d:ds) = Just $ TLet r (d :| ds)
 type Telescope1 = List1 TypedBinding
 type Telescope  = [TypedBinding]
 
-mkPi :: ExprInfo -> Telescope -> Type -> Type
-mkPi i []     e = e
-mkPi i (x:xs) e = Pi i (x :| xs) e
+mkPi :: ExprInfo -> PiOrSigma -> Telescope -> Type -> Type
+mkPi i ps []       e = e
+mkPi i ps (x : xs) e = Pi i ps (x :| xs) e
 
 data GeneralizeTelescope = GeneralizeTel
   { generalizeTelVars :: Map QName Name
@@ -572,9 +576,11 @@ instance Eq Expr where
   AbsurdLam a1 b1            == AbsurdLam a2 b2            = (a1, b1) == (a2, b2)
   ExtendedLam a1 b1 c1 d1 e1 == ExtendedLam a2 b2 c2 d2 e2 = (a1, b1, c1, d1, e1) ==
                                                              (a2, b2, c2, d2, e2)
-  Pi a1 b1 c1                == Pi a2 b2 c2                = (a1, b1, c1) == (a2, b2, c2)
+  Pi a1 b1 c1 d1             == Pi a2 b2 c2 d2             = (a1, b1, c1, d1) ==
+                                                             (a2, b2, c2, d2)
   Generalized a1 b1          == Generalized a2 b2          = (a1, b1) == (a2, b2)
-  Fun a1 b1 c1               == Fun a2 b2 c2               = (a1, b1, c1) == (a2, b2, c2)
+  Fun a1 b1 c1 d1            == Fun a2 b2 c2 d2            = (a1, b1, c1, d1) ==
+                                                             (a2, b2, c2, d2)
   Let a1 b1 c1               == Let a2 b2 c2               = (a1, b1, c1) == (a2, b2, c2)
   Rec a1 b1                  == Rec a2 b2                  = (a1, b1) == (a2, b2)
   RecUpdate a1 b1 c1         == RecUpdate a2 b2 c2         = (a1, b1, c1) == (a2, b2, c2)
@@ -652,9 +658,9 @@ instance HasRange Expr where
     getRange (Lam i _ _)             = getRange i
     getRange (AbsurdLam i _)         = getRange i
     getRange (ExtendedLam i _ _ _ _) = getRange i
-    getRange (Pi i _ _)              = getRange i
+    getRange (Pi i _ _ _)            = getRange i
     getRange (Generalized _ x)       = getRange x
-    getRange (Fun i _ _)             = getRange i
+    getRange (Fun i _ _ _)           = getRange i
     getRange (Let i _ _)             = getRange i
     getRange (Rec i _)               = getRange i
     getRange (RecUpdate i _ _)       = getRange i
@@ -785,9 +791,9 @@ instance KillRange Expr where
   killRange (Lam i b e)              = killRange3 Lam i b e
   killRange (AbsurdLam i h)          = killRange2 AbsurdLam i h
   killRange (ExtendedLam i n e d ps) = killRange5 ExtendedLam i n e d ps
-  killRange (Pi i a b)               = killRange3 Pi i a b
+  killRange (Pi i a b c)             = killRange4 Pi i a b c
   killRange (Generalized s x)        = killRange1 (Generalized s) x
-  killRange (Fun i a b)              = killRange3 Fun i a b
+  killRange (Fun i a b c)            = killRange4 Fun i a b c
   killRange (Let i ds e)             = killRange3 Let i ds e
   killRange (Rec i fs)               = killRange2 Rec i fs
   killRange (RecUpdate i e fs)       = killRange3 RecUpdate i e fs

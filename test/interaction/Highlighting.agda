@@ -88,7 +88,7 @@ Issue-3989 _ A = A
 
 -- Issue #4356.
 
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 Issue-4356₁ : Σ Set (λ _ → Set) → Σ Set (λ _ → Set)
 Issue-4356₁ = λ P@(A , B) → P

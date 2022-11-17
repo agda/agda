@@ -29,9 +29,9 @@ primitive
   primFloatRound             : Float → Maybe Int
   primFloatFloor             : Float → Maybe Int
   primFloatCeiling           : Float → Maybe Int
-  primFloatToRatio           : Float → (Σ Int λ _ → Int)
+  primFloatToRatio           : Float → (Σ̂ Int λ _ → Int)
   primRatioToFloat           : Int → Int → Float
-  primFloatDecode            : Float → Maybe (Σ Int λ _ → Int)
+  primFloatDecode            : Float → Maybe (Σ̂ Int λ _ → Int)
   primFloatEncode            : Int → Int → Maybe Float
   primShowFloat              : Float → String
   -- Operations

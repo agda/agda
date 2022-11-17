@@ -1,5 +1,5 @@
 open import Agda.Builtin.Equality using (_≡_)
-open import Agda.Builtin.Sigma using (Σ; _,_)
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ) using (_,_)
 
 postulate
   F    : Set → Set₁

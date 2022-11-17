@@ -18,7 +18,7 @@ Irrefutable Patterns in Binding Positions
 ..
   ::
   module pattern-tele where
-    open import Agda.Builtin.Sigma
+    open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
     open import Agda.Builtin.Equality
     private
       variable

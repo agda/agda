@@ -30,7 +30,7 @@ infix 4 _≃_
 
 
 _≃_ : ∀ {ℓ ℓ'} (A : Set ℓ) (B : Set ℓ') → Set (ℓ ⊔ ℓ')
-A ≃ B = Σ (A → B) \ f → (isEquiv f)
+A ≃ B = Σ̂ (A → B) \ f → (isEquiv f)
 
 equivFun : ∀ {ℓ ℓ'} {A : Set ℓ} {B : Set ℓ'} → A ≃ B → A → B
 equivFun e = fst e

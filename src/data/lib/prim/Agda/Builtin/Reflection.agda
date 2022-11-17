@@ -70,7 +70,7 @@ data Fixity : Set where
 
 primitive
   primQNameFixity : Name → Fixity
-  primQNameToWord64s : Name → Σ Word64 (λ _ → Word64)
+  primQNameToWord64s : Name → Σ̂ Word64 (λ _ → Word64)
 
 -- Metavariables --
 
@@ -164,7 +164,7 @@ data Sort    : Set
 data Pattern : Set
 data Clause  : Set
 Type = Term
-Telescope = List (Σ String λ _ → Arg Type)
+Telescope = List (Σ̂ String λ _ → Arg Type)
 
 data Term where
   var       : (x : Nat) (args : List (Arg Term)) → Term
@@ -286,7 +286,7 @@ postulate
   declareDef       : Arg Name → Type → TC ⊤
   declarePostulate : Arg Name → Type → TC ⊤
   declareData      : Name → Nat → Type → TC ⊤
-  defineData       : Name → List (Σ Name (λ _ → Type)) → TC ⊤
+  defineData       : Name → List (Σ̂ Name (λ _ → Type)) → TC ⊤
   defineFun        : Name → List Clause → TC ⊤
   getType          : Name → TC Type
   getDefinition    : Name → TC Definition
@@ -312,8 +312,8 @@ postulate
 
   -- White/blacklist specific definitions for reduction while executing the TC computation
   -- 'true' for whitelist, 'false' for blacklist
-  withReduceDefs : ∀ {a} {A : Set a} → (Σ Bool λ _ → List Name) → TC A → TC A
-  askReduceDefs  : TC (Σ Bool λ _ → List Name)
+  withReduceDefs : ∀ {a} {A : Set a} → (Σ̂ Bool λ _ → List Name) → TC A → TC A
+  askReduceDefs  : TC (Σ̂ Bool λ _ → List Name)
 
   formatErrorParts : List ErrorPart → TC String
   -- Prints the third argument if the corresponding verbosity level is turned
@@ -327,7 +327,7 @@ postulate
   -- Run the given TC action and return the first component. Resets to
   -- the old TC state if the second component is 'false', or keep the
   -- new TC state if it is 'true'.
-  runSpeculative : ∀ {a} {A : Set a} → TC (Σ A λ _ → Bool) → TC A
+  runSpeculative : ∀ {a} {A : Set a} → TC (Σ̂ A λ _ → Bool) → TC A
 
   -- Get a list of all possible instance candidates for the given meta
   -- variable (it does not have to be an instance meta).
@@ -443,7 +443,7 @@ private
   [] ++ l       = l
   (x ∷ xs) ++ l = x ∷ (xs ++ l)
 
-  combineReduceDefs : (Σ Bool λ _ → List Name) → (Σ Bool λ _ → List Name) → (Σ Bool λ _ → List Name)
+  combineReduceDefs : (Σ̂ Bool λ _ → List Name) → (Σ̂ Bool λ _ → List Name) → (Σ̂ Bool λ _ → List Name)
   combineReduceDefs (true  , defs₁) (true  , defs₂) = (true  , filter (_∈ defs₁) defs₂)
   combineReduceDefs (false , defs₁) (true  , defs₂) = (true  , filter (_∉ defs₁) defs₂)
   combineReduceDefs (true  , defs₁) (false , defs₂) = (true  , filter (_∉ defs₂) defs₁)

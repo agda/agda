@@ -9,7 +9,7 @@
 
 {-# OPTIONS --cubical #-}
 
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 mutual
 

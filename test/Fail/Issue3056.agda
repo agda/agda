@@ -1,7 +1,7 @@
 
 open import Agda.Builtin.Unit
 open import Agda.Builtin.Bool
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 data ⊥ : Set where
 

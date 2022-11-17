@@ -112,14 +112,14 @@ isType_ e = traceCall (IsType_ e) $ do
   let fallback = isType' CmpEq e =<< do workOnTypes $ newSortMeta
   SortKit{..} <- sortKit
   case unScope e of
-    A.Fun i (Arg info t) b -> do
+    A.Fun i (IsPi _) (Arg info t) b -> do
       a <- setArgInfo info . defaultDom <$> checkPiDomain (info :| []) t
       b <- isType_ b
       s <- inferFunSort (getSort a) (getSort b)
       let t' = El s $ Pi a $ NoAbs underscore b
       --noFunctionsIntoSize t'
       return t'
-    A.Pi _ tel e -> do
+    A.Pi _ (IsPi _) tel e -> do
       (t0, t') <- checkPiTelescope (List1.toList tel) $ \ tel -> do
         t0  <- instantiateFull =<< isType_ e
         tel <- instantiateFull tel
@@ -132,6 +132,79 @@ isType_ e = traceCall (IsType_ e) $ do
       (_, t') <- generalizeType s $ isType_ e
       --noFunctionsIntoSize t'
       return t'
+
+    -- Non-dependent Σ-types.
+    A.Fun i ps@(IsSigma _) a@(Arg info _) b -> do
+      checkSigmaArgInfo info
+
+      sigma <- getBuiltinName builtinSigma
+      sigma <- case sigma of
+        Nothing    -> typeError $ NoBindingForBuiltin builtinSigma
+        Just sigma -> return sigma
+      x <- freshNoName_
+
+      isType_ $
+        A.App
+          (A.defaultAppInfo (getRange e))
+             { A.appOrigin = UserWritten }
+          (A.App
+             (A.defaultAppInfo (getRange a))
+                { A.appOrigin = UserWritten }
+             (A.Def' sigma NoSuffix)
+             (unnamed <$> a))
+          (Arg defaultArgInfo{ argInfoOrigin = Inserted } $
+           unnamed $
+           A.Lam (A.ExprRange (getRange b))
+             (A.DomainFree Nothing $
+              defaultNamedArg $
+              A.mkBinder_ x) $
+           b)
+
+    -- Σ-types.
+    A.Pi _ ps@(IsSigma _) (a :| tel) b -> do
+      case a of
+        A.TLet{} -> typeError $ GenericError
+          "Let bindings are not allowed in primitive sigma-types"
+        A.TBind _ i@(A.TypedBindingInfo tac fin) (arg :| args) a -> do
+          checkSigmaArgInfo (getArgInfo arg)
+          when fin __IMPOSSIBLE__
+          whenJust tac $ \_ -> typeError $ GenericError
+            "Sigma-bindings must not have tactic attributes"
+
+          sigma <- getBuiltinName builtinSigma
+          sigma <- case sigma of
+            Nothing    -> typeError $ NoBindingForBuiltin builtinSigma
+            Just sigma -> return sigma
+
+          isType_ $
+            A.App
+              (A.defaultAppInfo (getRange e))
+                 { A.appOrigin = UserWritten }
+              (A.App
+                 (A.defaultAppInfo (getRange a))
+                    { A.appOrigin = UserWritten }
+                 (A.Def' sigma NoSuffix)
+                 (Arg defaultArgInfo $ unnamed a))
+              (Arg defaultArgInfo $
+               unnamed $
+               A.Lam A.exprNoRange
+                 (-- At the time of writing checkExpr' does not
+                  -- support domain-free lambdas with patterns.
+                  A.DomainFull $
+                  A.TBind noRange A.defaultTbInfo
+                    (arg :| [])
+                    -- One could perhaps use "a" instead of an
+                    -- underscore, but "a" should not be type-checked
+                    -- twice.
+                    (A.Underscore A.emptyMetaInfo)) $
+               case args of
+                 arg : args ->
+                   A.Pi A.exprNoRange ps
+                     (A.TBind noRange i (arg :| args) a :| tel)
+                     b
+                 [] -> case tel of
+                   []      -> b
+                   a : tel -> A.Pi A.exprNoRange ps (a :| tel) b)
 
     -- Setᵢ
     A.Def' x suffix | x == nameOfSet -> case suffix of
@@ -237,6 +310,19 @@ checkLevel :: NamedArg A.Expr -> TCM Level
 checkLevel arg = do
   lvl <- levelType
   levelView =<< checkNamedArg arg lvl
+
+-- | Check's that 'ArgInfo's for Σ-binders are OK.
+checkSigmaArgInfo :: ArgInfo -> TCM ()
+checkSigmaArgInfo (ArgInfo hiding mod _origin _freeVars annotation) = do
+  unless (hiding == NotHidden) $
+    typeError $ GenericError
+      "Sigma-bindings must be non-hidden"
+  unless (mod == defaultModality) $
+    typeError $ GenericError
+      "Sigma-bindings must not use modalities"
+  unless (annotation == defaultAnnotation) $
+    typeError $ GenericError
+      "Sigma-bindings must not be annotated"
 
 -- | Ensure that a (freshly created) function type does not inhabit 'SizeUniv'.
 --   Precondition:  When @noFunctionsIntoSize t tBlame@ is called,

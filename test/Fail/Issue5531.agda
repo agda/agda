@@ -1,6 +1,6 @@
 {-# OPTIONS --type-in-type --rewriting #-}
 
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 open import Agda.Builtin.Equality
 
 coe : {A B : Set} → A ≡ B → A → B

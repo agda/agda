@@ -13,7 +13,7 @@ postulate String : Set
 {-# BUILTIN STRING String #-}
 
 primitive
-  primStringUncons   : String → Maybe (Σ Char (λ _ → String))
+  primStringUncons   : String → Maybe (Σ̂ Char (λ _ → String))
   primStringToList   : String → List Char
   primStringFromList : List Char → String
   primStringAppend   : String → String → String

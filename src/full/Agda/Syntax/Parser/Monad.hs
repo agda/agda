@@ -126,6 +126,8 @@ data LayoutStatus
 data ParseFlags = ParseFlags
   { parseKeepComments :: Bool
     -- ^ Should comment tokens be returned by the lexer?
+  , parseUnicodeSigma :: Bool
+    -- ^ Allow Unicode names in the builtin syntax for Σ-types.
   }
   deriving Show
 
@@ -310,7 +312,10 @@ initState file = initStatePos (startPos file)
 
 -- | The default flags.
 defaultParseFlags :: ParseFlags
-defaultParseFlags = ParseFlags { parseKeepComments = False }
+defaultParseFlags = ParseFlags
+  { parseKeepComments = False
+  , parseUnicodeSigma = False
+  }
 
 -- | The most general way of parsing a string. The "Agda.Syntax.Parser" will define
 --   more specialised functions that supply the 'ParseFlags' and the

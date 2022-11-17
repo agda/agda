@@ -9,7 +9,8 @@
 open import Agda.Builtin.Unit using (⊤; tt)
 open import Agda.Builtin.Nat renaming (Nat to ℕ)
 open import Agda.Builtin.Equality
-open import Agda.Builtin.Sigma renaming (fst to proj₁; snd to proj₂)
+open import Agda.Builtin.Sigma
+  renaming (Σ̂ to Σ; fst to proj₁; snd to proj₂)
 
 data ⊥ : Set where
 

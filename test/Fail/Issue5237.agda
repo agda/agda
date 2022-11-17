@@ -1,7 +1,7 @@
 {-# OPTIONS --cubical #-}
 open import Agda.Primitive.Cubical
 open import Agda.Builtin.Cubical.Path
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 data S1 : Set where
   base : S1

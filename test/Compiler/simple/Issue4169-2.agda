@@ -1,7 +1,7 @@
 module _ where
 
 import Agda.Builtin.Equality
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 open import Agda.Builtin.Unit
 open import Agda.Primitive
 open import Common.IO

@@ -546,7 +546,8 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
     I.Level l      -> reify l
     I.Pi a b       -> case b of
         NoAbs _ b'
-          | visible a, not (domIsFinite a) -> uncurry (A.Fun $ noExprInfo) <$> reify (a, b')
+          | visible a, not (domIsFinite a) ->
+            uncurry (A.Fun noExprInfo (IsPi noRange)) <$> reify (a, b')
             -- Andreas, 2013-11-11 Hidden/Instance I.Pi must be A.Pi
             -- since (a) the syntax {A} -> B or {{A}} -> B is not legal
             -- and (b) the name of the binder might matter.
@@ -565,7 +566,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
           tac <- traverse reify $ domTactic a
           (x, b) <- reify b
           let xs = singleton $ Arg info $ Named (domName a) $ mkBinder_ x
-          return $ A.Pi noExprInfo
+          return $ A.Pi noExprInfo (IsPi noRange)
             (singleton $ TBind noRange (TypedBindingInfo tac (domIsFinite a)) xs a')
             b
         -- We can omit the domain type if it doesn't have any free variables
@@ -1074,10 +1075,10 @@ instance BlankVars A.Expr where
                                 in  A.Lam i (blank bound b) (blank bound' e)
     A.AbsurdLam _ _          -> e
     A.ExtendedLam i d e f cs -> A.ExtendedLam i d e f $ blank bound cs
-    A.Pi i tel e             -> let bound' = varsBoundIn tel `Set.union` bound
-                                in  uncurry (A.Pi i) $ blank bound' (tel, e)
+    A.Pi i ps tel e          -> let bound' = varsBoundIn tel `Set.union` bound
+                                in  uncurry (A.Pi i ps) $ blank bound' (tel, e)
     A.Generalized {}         -> __IMPOSSIBLE__
-    A.Fun i a b              -> uncurry (A.Fun i) $ blank bound (a, b)
+    A.Fun i ps a b           -> uncurry (A.Fun i ps) $ blank bound (a, b)
     A.Let _ _ _              -> __IMPOSSIBLE__
     A.Rec i es               -> A.Rec i $ blank bound es
     A.RecUpdate i e es       -> uncurry (A.RecUpdate i) $ blank bound (e, es)

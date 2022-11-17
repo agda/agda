@@ -5,9 +5,9 @@ module Agda.Syntax.Concrete.Glyph
   , unsafeSetUnicodeOrAscii
   , specialCharactersForGlyphs
   , braces', dbraces
-  , forallQ
+  , forallQ, sigmaQ
   , leftIdiomBrkt, rightIdiomBrkt, emptyIdiomBrkt
-  , arrow, lambda
+  , arrow, times, lambda
   , SpecialCharacters(..)
   ) where
 
@@ -50,7 +50,9 @@ data SpecialCharacters = SpecialCharacters
   { _dbraces :: Doc -> Doc
   , _lambda  :: Doc
   , _arrow   :: Doc
+  , _times   :: Doc
   , _forallQ :: Doc
+  , _sigmaQ  :: Doc
   , _leftIdiomBrkt  :: Doc
   , _rightIdiomBrkt :: Doc
   , _emptyIdiomBrkt :: Doc
@@ -61,7 +63,9 @@ specialCharactersUnicode = SpecialCharacters
   { _dbraces = (("\x2983 " <>) . (<> " \x2984"))
   , _lambda  = "\x03bb"
   , _arrow   = "\x2192"
+  , _times   = "\x00d7"
   , _forallQ = "\x2200"
+  , _sigmaQ  = "\x03a3"
   , _leftIdiomBrkt  = "\x2987"
   , _rightIdiomBrkt = "\x2988"
   , _emptyIdiomBrkt = "\x2987\x2988"
@@ -72,7 +76,9 @@ specialCharactersAscii = SpecialCharacters
   { _dbraces = braces . braces'
   , _lambda  = "\\"
   , _arrow   = "->"
+  , _times   = "(x)"
   , _forallQ = "forall"
+  , _sigmaQ  = "sigma"
   , _leftIdiomBrkt  = "(|"
   , _rightIdiomBrkt = "|)"
   , _emptyIdiomBrkt = "(|)"
@@ -105,12 +111,17 @@ dbraces = _dbraces specialCharacters
 forallQ :: Doc
 forallQ = _forallQ specialCharacters
 
+-- Existential quantifier.
+sigmaQ :: Doc
+sigmaQ = _sigmaQ specialCharacters
+
 -- left, right, and empty idiom bracket
 leftIdiomBrkt, rightIdiomBrkt, emptyIdiomBrkt :: Doc
 leftIdiomBrkt  = _leftIdiomBrkt  specialCharacters
 rightIdiomBrkt = _rightIdiomBrkt specialCharacters
 emptyIdiomBrkt = _emptyIdiomBrkt specialCharacters
 
-arrow, lambda :: Doc
+arrow, times, lambda :: Doc
 arrow  = _arrow specialCharacters
+times  = _times specialCharacters
 lambda = _lambda specialCharacters

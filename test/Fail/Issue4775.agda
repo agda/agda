@@ -7,7 +7,7 @@
 -- -- {-# OPTIONS -v tc.term.let.pattern:80 #-}
 
 open import Agda.Builtin.Nat
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 data IsSuc : Nat → Set where
   isSuc : ∀ y → IsSuc (suc y)

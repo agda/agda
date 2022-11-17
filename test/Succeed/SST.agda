@@ -8,7 +8,7 @@
 open import Agda.Primitive
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Equality
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 variable
   ℓ ℓ′ ℓ₁ ℓ₂ ℓ₃ : Level

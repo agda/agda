@@ -4,6 +4,7 @@
 module Agda.Interaction.Options.Base
     ( CommandLineOptions(..)
     , PragmaOptions(..)
+    , PragmaSource(..)
     , OptionWarning(..), optionWarningName
     , Flag, OptM, runOptM, OptDescr(..), ArgDescr(..)
     , Verbosity, VerboseKey, VerboseLevel
@@ -156,6 +157,11 @@ data PragmaOptions = PragmaOptions
   { optShowImplicit              :: Bool
   , optShowIrrelevant            :: Bool
   , optUseUnicode                :: UnicodeOrAscii
+  , optUnicodeSigma              :: Bool
+    -- ^ Allow Unicode names in the builtin syntax for Σ-types.
+    --
+    -- This option can be used in @.agda-lib@ files, but not in
+    -- @OPTIONS@ pragmas.
   , optVerbose                   :: !Verbosity
   , optProfiling                 :: ProfileOptions
   , optProp                      :: Bool
@@ -263,6 +269,14 @@ data ConfluenceCheck
 
 instance NFData ConfluenceCheck
 
+-- | Where does the pragma come from?
+data PragmaSource
+  = File
+    -- ^ The source file.
+  | Other
+    -- ^ Another place, like a @.agda-lib@ file.
+    deriving (Show, Eq)
+
 -- | Map a function over the long options. Also removes the short options.
 --   Will be used to add the plugin name to the plugin options.
 mapFlag :: (String -> String) -> OptDescr a -> OptDescr a
@@ -305,6 +319,7 @@ defaultPragmaOptions = PragmaOptions
   { optShowImplicit              = False
   , optShowIrrelevant            = False
   , optUseUnicode                = UnicodeOk
+  , optUnicodeSigma              = False
   , optVerbose                   = Strict.Nothing
   , optProfiling                 = noProfileOptions
   , optProp                      = False
@@ -713,6 +728,9 @@ asciiOnlyFlag o = return $ UNSAFE.unsafePerformIO $ do
   unsafeSetUnicodeOrAscii AsciiOnly
   return $ o { optUseUnicode = AsciiOnly }
 
+unicodeSigmaFlag :: Flag PragmaOptions
+unicodeSigmaFlag o = return $ o { optUnicodeSigma = True }
+
 ghciInteractionFlag :: Flag CommandLineOptions
 ghciInteractionFlag o = return $ o { optGHCiInteraction = True }
 
@@ -1098,6 +1116,8 @@ pragmaOptions =
                     "show all arguments of metavariables when printing terms"
     , Option []     ["no-unicode"] (NoArg asciiOnlyFlag)
                     "don't use unicode characters when printing terms"
+    , Option []     ["unicode-sigma"] (NoArg unicodeSigmaFlag)
+                    "allow Unicode names in the builtin syntax for sigma-types"
     , Option ['v']  ["verbose"] (ReqArg verboseFlag "N")
                     "set verbosity level to N"
     , Option []     ["profile"] (ReqArg profileFlag "TYPE")
@@ -1379,19 +1399,28 @@ getOptSimple argv opts fileArg = \ defaults ->
 
 -- | Parse options from an options pragma.
 parsePragmaOptions
-  :: OptionsPragma
+  :: PragmaSource
+  -> OptionsPragma
      -- ^ Pragma options.
   -> CommandLineOptions
      -- ^ Command-line options which should be updated.
   -> OptM PragmaOptions
-parsePragmaOptions argv opts = do
-  ps <- getOptSimple
-          (pragmaStrings argv)
-          (deadPragmaOptions ++ pragmaOptions)
-          (\s _ -> throwError $ "Bad option in pragma: " ++ s)
-          (optPragmaOptions opts)
-  () <- checkOpts (opts { optPragmaOptions = ps })
-  return ps
+parsePragmaOptions src argv opts = do
+  let opts0 = optPragmaOptions opts
+  opts1 <- getOptSimple
+             (pragmaStrings argv)
+             (deadPragmaOptions ++ pragmaOptions)
+             (\s _ -> throwError $ "Bad option in pragma: " ++ s)
+             (case src of
+                File  -> opts0{ optUnicodeSigma = False }
+                Other -> opts0)
+  when (src == File && optUnicodeSigma opts1) $ throwError
+    "The option --unicode-sigma must not be used in an OPTIONS pragma"
+  let opts2 = case src of
+        File  -> opts1{ optUnicodeSigma = optUnicodeSigma opts0 }
+        Other -> opts1
+  () <- checkOpts opts{ optPragmaOptions = opts2 }
+  return opts2
 
 -- | Parse options for a plugin.
 parsePluginOptions :: [String] -> [OptDescr (Flag opts)] -> Flag opts

@@ -1084,7 +1084,8 @@ evalTCM v = do
 
     splitPars :: Int -> A.Expr -> ([A.TypedBinding], A.Expr)
     splitPars 0 e = ([] , e)
-    splitPars npars (A.Pi _ (n :| _) e) = first (n :) (splitPars (npars - 1) e)
+    splitPars npars (A.Pi _ (IsPi _) (n :| _) e) =
+      first (n :) (splitPars (npars - 1) e)
     splitPars npars e = __IMPOSSIBLE__
 ------------------------------------------------------------------------
 -- * Trusted executables

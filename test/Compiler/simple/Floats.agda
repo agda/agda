@@ -56,6 +56,7 @@ open import Agda.Builtin.Nat
            )
 open import Agda.Builtin.Maybe
 open import Agda.Builtin.Sigma
+  renaming (Σ̂ to Σ)
 open import Agda.Builtin.String
   using (String)
   renaming ( primStringEquality      to _==S_

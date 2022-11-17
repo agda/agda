@@ -9,7 +9,7 @@ open import Agda.Builtin.List
 open import Agda.Builtin.String
 open import Agda.Builtin.Char
 open import Agda.Builtin.Float
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 -- Names --
 

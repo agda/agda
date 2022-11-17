@@ -255,9 +255,9 @@ instance Hilite A.Expr where
       A.Lam _r bs e                 -> hl bs <> hl e
       A.AbsurdLam _r _h             -> mempty
       A.ExtendedLam _r _di er _q cs -> hl er <> hl cs -- No hilighting of generated extended lambda name!
-      A.Pi _r tel b                 -> hl tel <> hl b
+      A.Pi _r _ps tel b             -> hl tel <> hl b
       A.Generalized _qs e           -> hl e
-      A.Fun _r a b                  -> hl a <> hl b
+      A.Fun _r _ps a b              -> hl a <> hl b
       A.Let _r bs e                 -> hl bs <> hl e
       A.Rec _r ass                  -> hl ass
       A.RecUpdate _r e ass          -> hl e <> hl ass

@@ -44,10 +44,10 @@ module Helpers where
       cong f p = λ i → f (p i)
 
     isContr : ∀ {ℓ} → Set ℓ → Set ℓ
-    isContr A = Σ A \ x → (∀ y → x ≡ y)
+    isContr A = Σ̂ A \ x → (∀ y → x ≡ y)
 
     fiber : ∀ {ℓ ℓ'} {A : Set ℓ} {B : Set ℓ'} (f : A → B) (y : B) → Set (ℓ ⊔ ℓ')
-    fiber {A = A} f y = Σ A \ x → f x ≡ y
+    fiber {A = A} f y = Σ̂ A \ x → f x ≡ y
 
 open Helpers
 

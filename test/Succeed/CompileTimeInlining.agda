@@ -13,7 +13,7 @@ module _ where
 
 open import Agda.Builtin.Equality
 open import Agda.Builtin.Unit
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 ------------------------------------------------------------------------
 -- Prelude
@@ -44,15 +44,15 @@ data U : Set
 El : U → Set
 
 data U where
-  set   : U
-  el    : Set → U
-  sigma : (a : U) → (El a → U) → U
-  pi    : (a : U) → (El a → U) → U
+  set : U
+  el  : Set → U
+  sgm : (a : U) → (El a → U) → U
+  pi  : (a : U) → (El a → U) → U
 
-El set         = Set
-El (el A)      = A
-El (sigma a b) = Σ (El a) (λ x → El (b x))
-El (pi a b)    = (x : El a) → El (b x)
+El set       = Set
+El (el A)    = A
+El (sgm a b) = Σ (El a) (λ x → El (b x))
+El (pi a b)  = (x : El a) → El (b x)
 
 -- Abbreviations.
 
@@ -60,7 +60,7 @@ fun : U → U → U
 fun a b = pi a (λ _ → b)
 
 times : U → U → U
-times a b = sigma a (λ _ → b)
+times a b = sgm a (λ _ → b)
 
 -- -- Example.
 
@@ -125,20 +125,20 @@ data Term (G : Ctxt) (s : Ty G) : Set
 eval : ∀ {G s} → Term G s → (g : Env G) → El (s g)
 
 data Type G s where
-  set''   : s ≡ (λ _ → set) → Type G s
-  el''    : (x : Term G (λ _ → set)) →
-            (λ g → el (eval {s = λ _ → set} x g)) ≡ s →
-            Type G s
-  sigma'' : {t : _} {u : _} →
-            Type G t →
-            Type (snoc G t) u →
-            (λ g → sigma (t g) (λ v → u (g , v))) ≡ s →
-            Type G s
-  pi''    : {t : _} {u : _} →
-            Type G t →
-            Type (snoc G t) u →
-            (λ g → pi (t g) (λ v → u (g , v))) ≡ s →
-            Type G s
+  set'' : s ≡ (λ _ → set) → Type G s
+  el''  : (x : Term G (λ _ → set)) →
+          (λ g → el (eval {s = λ _ → set} x g)) ≡ s →
+          Type G s
+  sgm'' : {t : _} {u : _} →
+          Type G t →
+          Type (snoc G t) u →
+          (λ g → sgm (t g) (λ v → u (g , v))) ≡ s →
+          Type G s
+  pi''  : {t : _} {u : _} →
+          Type G t →
+          Type (snoc G t) u →
+          (λ g → pi (t g) (λ v → u (g , v))) ≡ s →
+          Type G s
 
 data Term G s where
   var   : Var G s → Term G s
@@ -166,11 +166,11 @@ el' : {G : Ctxt}
       Type G (λ g → el (eval {G} {λ _ → set} x g))
 el' x = el'' x refl
 
-sigma' : {G : Ctxt} {t : Env G → U} {u : Env (snoc G t) → U} →
-         Type G t →
-         Type (snoc G t) u →
-         Type G (λ g → sigma (t g) (λ v → u (g , v)))
-sigma' s t = sigma'' s t refl
+sgm' : {G : Ctxt} {t : Env G → U} {u : Env (snoc G t) → U} →
+       Type G t →
+       Type (snoc G t) u →
+       Type G (λ g → sgm (t g) (λ v → u (g , v)))
+sgm' s t = sgm'' s t refl
 
 pi' : {G : _} {t : _} {u : _} →
       Type G t →
@@ -193,8 +193,8 @@ app t1 t2 = app'' t1 t2 refl
 
 raw-categoryU : U
 raw-categoryU =
-  sigma set (λ obj →
-  sigma (fun (el obj) (fun (el obj) set)) (λ hom →
+  sgm set (λ obj →
+  sgm (fun (el obj) (fun (el obj) set)) (λ hom →
   times
     (pi (el obj) (λ x → el (hom x x)))
     (pi (el obj) (λ x → el (hom x x)))))
@@ -202,11 +202,11 @@ raw-categoryU =
 raw-category : Type empty (λ _ → raw-categoryU)
 raw-category =
      -- Objects.
-   sigma' set'
+   sgm' set'
      -- Morphisms.
-  (sigma' (pi' (el' (var zero)) (pi' (el' (var (suc zero))) set'))
+  (sgm' (pi' (el' (var zero)) (pi' (el' (var (suc zero))) set'))
      -- Identity.
-  (sigma' (pi' (el' (var (suc zero)))
-               (el' (app (app (var (suc zero)) (var zero)) (var zero))))
-          (pi' (el' (var (suc (suc zero))))
-               (el' (app (app (var (suc (suc zero))) (var zero)) (var zero))))))
+  (sgm' (pi' (el' (var (suc zero)))
+             (el' (app (app (var (suc zero)) (var zero)) (var zero))))
+        (pi' (el' (var (suc (suc zero))))
+             (el' (app (app (var (suc (suc zero))) (var zero)) (var zero))))))

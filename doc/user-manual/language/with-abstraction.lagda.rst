@@ -422,7 +422,7 @@ with-abstraction.
   ::
   module with-invert {a} {A : Set a} where
     open import Agda.Builtin.Nat
-    open import Agda.Builtin.Sigma
+    open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
     open import Agda.Builtin.Equality
     open import Agda.Builtin.Unit
 
@@ -596,7 +596,7 @@ over. This is possible using the ``in`` keyword.
 
 ..
   ::
-    open import Agda.Builtin.Sigma using (Σ; _,_)
+    open import Agda.Builtin.Sigma using (_,_) renaming (Σ̂ to Σ)
     open import Agda.Builtin.Nat using (_+_)
 
 In the following artificial example, we try to prove that there exists two

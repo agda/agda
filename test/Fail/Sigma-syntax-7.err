@@ -1,0 +1,4 @@
+Sigma-syntax-7.agda:4,7-38
+Sigma-bindings must not have tactic attributes
+when checking that the expression (@(tactic Set) A : Set) × Set is
+a type

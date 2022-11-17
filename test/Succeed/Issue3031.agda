@@ -5,7 +5,7 @@ open import Agda.Builtin.Nat hiding (_+_)
 import Agda.Builtin.Nat as N
 open import Agda.Builtin.TrustMe
 open import Agda.Builtin.Equality
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 data ⊥ : Set where
 

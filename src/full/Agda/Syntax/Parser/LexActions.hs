@@ -76,7 +76,8 @@ lexToken =
         case alexScanUser (lss, flags) inp (headWithDefault __IMPOSSIBLE__ lss) of
             AlexEOF                     -> returnEOF inp
             AlexSkip inp' len           -> skipTo inp'
-            AlexToken inp' len action   -> postToken <$> runLexAction action inp inp' len
+            AlexToken inp' len action   -> postToken flags <$>
+                                           runLexAction action inp inp' len
             AlexError i                 -> parseError $ concat
               [ "Lexical error"
               , case listToMaybe $ lexInput i of
@@ -92,17 +93,21 @@ isSub c = '\x2080' <= c && c <= '\x2089'
 readSubscript :: [Char] -> Integer
 readSubscript = read . map (\c -> toEnum (fromEnum c - 0x2080 + fromEnum '0'))
 
-postToken :: Token -> Token
-postToken (TokId (r, "\x03bb")) = TokSymbol SymLambda r
-postToken (TokId (r, "\x2026")) = TokSymbol SymEllipsis r
-postToken (TokId (r, "\x2192")) = TokSymbol SymArrow r
-postToken (TokId (r, "\x2983")) = TokSymbol SymDoubleOpenBrace r
-postToken (TokId (r, "\x2984")) = TokSymbol SymDoubleCloseBrace r
-postToken (TokId (r, "\x2987")) = TokSymbol SymOpenIdiomBracket r
-postToken (TokId (r, "\x2988")) = TokSymbol SymCloseIdiomBracket r
-postToken (TokId (r, "\x2987\x2988")) = TokSymbol SymEmptyIdiomBracket r
-postToken (TokId (r, "\x2200")) = TokKeyword KwForall r
-postToken t = t
+postToken :: ParseFlags -> Token -> Token
+postToken _ (TokId (r, "\x03bb"))       = TokSymbol SymLambda r
+postToken _ (TokId (r, "\x2026"))       = TokSymbol SymEllipsis r
+postToken _ (TokId (r, "\x2192"))       = TokSymbol SymArrow r
+postToken _ (TokId (r, "\x2983"))       = TokSymbol SymDoubleOpenBrace r
+postToken _ (TokId (r, "\x2984"))       = TokSymbol SymDoubleCloseBrace r
+postToken _ (TokId (r, "\x2987"))       = TokSymbol SymOpenIdiomBracket r
+postToken _ (TokId (r, "\x2988"))       = TokSymbol SymCloseIdiomBracket r
+postToken _ (TokId (r, "\x2987\x2988")) = TokSymbol SymEmptyIdiomBracket r
+postToken _ (TokId (r, "\x2200"))       = TokKeyword KwForall r
+postToken f (TokId (r, "\x03a3"))
+  | parseUnicodeSigma f                 = TokKeyword KwSigma r
+postToken f (TokId (r, "\x00d7"))
+  | parseUnicodeSigma f                 = TokSymbol SymTimes r
+postToken _ t                           = t
 
 {--------------------------------------------------------------------------
     Lex actions

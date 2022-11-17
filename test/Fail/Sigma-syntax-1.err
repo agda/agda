@@ -1,0 +1,4 @@
+Sigma-syntax-1.agda:2,7-18
+No binding for builtin thing SIGMA, use {-# BUILTIN SIGMA name #-}
+to bind it to 'name'
+when checking that the expression Set × Set is a type

@@ -15,7 +15,7 @@ data Keyword
         | KwOverlap
         | KwOpen | KwImport | KwModule | KwPrimitive | KwMacro
         | KwInfix | KwInfixL | KwInfixR | KwWith | KwRewrite
-        | KwForall | KwRecord | KwConstructor | KwField
+        | KwForall | KwSigma | KwRecord | KwConstructor | KwField
         | KwInductive | KwCoInductive
         | KwEta | KwNoEta
         | KwHiding | KwUsing | KwRenaming | KwTo | KwPublic
@@ -61,7 +61,7 @@ layoutKeywords =
 
 data Symbol
         = SymDot | SymSemi | SymVirtualSemi | SymBar
-        | SymColon | SymArrow | SymEqual | SymLambda
+        | SymColon | SymArrow | SymTimes | SymEqual | SymLambda
         | SymUnderscore | SymQuestionMark   | SymAs
         | SymOpenParen        | SymCloseParen
         | SymOpenIdiomBracket | SymCloseIdiomBracket | SymEmptyIdiomBracket

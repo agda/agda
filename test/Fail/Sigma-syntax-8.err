@@ -1,0 +1,7 @@
+Sigma-syntax-8.agda:4,7-28
+Let bindings are not allowed in primitive sigma-types
+when checking that the expression
+(let A : _
+     A = Set) ×
+Set
+is a type

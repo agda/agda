@@ -119,8 +119,8 @@ instance ExprLike Expr where
      Lam r bs e         -> f $ Lam r       (mapE bs)  $ mapE e
      AbsurdLam{}        -> f $ e0
      ExtendedLam r e cs -> f $ ExtendedLam r e        $ mapE cs
-     Fun r a b          -> f $ Fun r     (mapE <$> a) $ mapE b
-     Pi tel e           -> f $ Pi          (mapE tel) $ mapE e
+     Fun r ps a b       -> f $ Fun r ps  (mapE <$> a) $ mapE b
+     Pi ps tel e        -> f $ Pi ps       (mapE tel) $ mapE e
      Rec r es           -> f $ Rec r                  $ mapE es
      RecUpdate r e es   -> f $ RecUpdate r (mapE e)   $ mapE es
      Let r ds e         -> f $ Let r       (mapE ds)  $ mapE e

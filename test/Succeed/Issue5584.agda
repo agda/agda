@@ -1,5 +1,5 @@
 
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 dup : ∀ {A : Set} → A → Σ A λ _ → A
 dup x = x , x

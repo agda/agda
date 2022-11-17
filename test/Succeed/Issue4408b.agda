@@ -1,7 +1,7 @@
 module Issue4408b where
 
 open import Agda.Builtin.Equality
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 open import Agda.Primitive
 
 id : ∀ {a} {A : Set a} → A → A

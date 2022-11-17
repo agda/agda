@@ -1,0 +1,3 @@
+Sigma-syntax-2.agda:4,7-24
+Sigma-bindings must be non-hidden
+when checking that the expression {A : Set} × Set is a type

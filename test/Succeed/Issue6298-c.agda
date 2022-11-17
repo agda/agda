@@ -1,6 +1,6 @@
 {-# OPTIONS --erased-cubical --erasure -WnoUnsupportedIndexedMatch #-}
 
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 const : {A : Set₁} {B : Set} → A → (B → A)
 const x = λ _ → x

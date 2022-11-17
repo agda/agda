@@ -1,28 +1,28 @@
-Issue5819.agda:72,1-120,45
+Issue5819.agda:73,1-121,45
 Termination checking failed for the following functions:
   dl-iso, Fresh→Fresh′, Fresh→AllFresh
 Problematic calls:
   Fresh→Fresh′ eq p | l″ | sym eq
   Fresh→AllFresh eq p | l″ | sym eq
   f dl-iso (dcons a₁ l x)
-    (at Issue5819.agda:78,19-25)
+    (at Issue5819.agda:79,19-25)
   f dl-iso (dcons a l x)
-    (at Issue5819.agda:83,21-27)
+    (at Issue5819.agda:84,21-27)
   f⁻¹ dl-iso (dl″ l′ (proj₂ p))
-    (at Issue5819.agda:88,19-25)
+    (at Issue5819.agda:89,19-25)
   Fresh→Fresh′ refl p
-    (at Issue5819.agda:95,11-23)
+    (at Issue5819.agda:96,11-23)
   Fresh→AllFresh refl p
-    (at Issue5819.agda:96,11-25)
+    (at Issue5819.agda:97,11-25)
   Issue5819.invˡ
-    (at Issue5819.agda:104,20-24)
+    (at Issue5819.agda:105,20-24)
   f dl-iso (f⁻¹ dl-iso (dl″ l (?0 (x = x) (a = a) (l = l) (p = p))))
-    (at Issue5819.agda:106,19-25)
+    (at Issue5819.agda:107,19-25)
   f dl-iso l
-    (at Issue5819.agda:112,37-43)
+    (at Issue5819.agda:113,37-43)
   f dl-iso l
-    (at Issue5819.agda:116,84-90)
+    (at Issue5819.agda:117,84-90)
 Unsolved interaction metas at the following locations:
-  Issue5819.agda:108,48-52
-  Issue5819.agda:108,56-60
-  Issue5819.agda:120,25-45
+  Issue5819.agda:109,48-52
+  Issue5819.agda:109,56-60
+  Issue5819.agda:121,25-45

@@ -5,8 +5,8 @@ open import Agda.Primitive as Prim public
   renaming (lzero to zero; lsuc to suc)
 
 open import Agda.Builtin.Sigma public
-  renaming (fst to proj₁; snd to proj₂)
-  hiding (module Σ)
+  renaming (Σ̂ to Σ; fst to proj₁; snd to proj₂)
+  hiding (module Σ̂)
 
 infixr 2 _×_
 

@@ -16,6 +16,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete (FieldAssignment', exprFieldA)
 import Agda.Syntax.Info
+import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base (KindOfName(..), conKindOfName, WithKind(..))
 
 import Agda.Utils.Either
@@ -73,17 +74,18 @@ lamView (Lam i b e) = cons b $ lamView e
 lamView (ScopedExpr _ e) = lamView e
 lamView e = LamView [] e
 
--- | Collect @A.Pi@s.
-data PiView = PiView [(ExprInfo, Telescope1)] Type
+-- | Collect @A.Pi@s. (Only used for Π-types, not for Σ-types.)
+data PiView = PiView [(ExprInfo, Range, Telescope1)] Type
 
 piView :: Expr -> PiView
 piView = \case
-   Pi i tel b -> cons $ piView b
-     where cons (PiView tels t) = PiView ((i,tel) : tels) t
+   Pi i (IsPi r) tel b -> cons $ piView b
+     where cons (PiView tels t) = PiView ((i, r, tel) : tels) t
    e -> PiView [] e
 
 unPiView :: PiView -> Expr
-unPiView (PiView tels t) = foldr (uncurry Pi) t tels
+unPiView (PiView tels t) =
+  foldr (\(i, r, tel) -> Pi i (IsPi r) tel) t tels
 
 -- | Gather top-level 'AsP'atterns and 'AnnP'atterns to expose underlying pattern.
 asView :: A.Pattern -> ([Name], [A.Expr], A.Pattern)
@@ -171,9 +173,9 @@ instance ExprLike Expr where
       Lam ei b e                 -> Lam ei <$> recurse b <*> recurse e
       AbsurdLam{}                -> pure e0
       ExtendedLam ei di er x cls -> ExtendedLam ei di er x <$> recurse cls
-      Pi ei tel e                -> Pi ei <$> recurse tel <*> recurse e
+      Pi ei ps tel e             -> Pi ei ps <$> recurse tel <*> recurse e
       Generalized  s e           -> Generalized s <$> recurse e
-      Fun ei arg e               -> Fun ei <$> recurse arg <*> recurse e
+      Fun ei ps arg e            -> Fun ei ps <$> recurse arg <*> recurse e
       Let ei bs e                -> Let ei <$> recurse bs <*> recurse e
       Rec ei bs                  -> Rec ei <$> recurse bs
       RecUpdate ei e bs          -> RecUpdate ei <$> recurse e <*> recurse bs
@@ -203,9 +205,9 @@ instance ExprLike Expr where
       Lam _ b e              -> m `mappend` fold b `mappend` fold e
       AbsurdLam{}            -> m
       ExtendedLam _ _ _ _ cs -> m `mappend` fold cs
-      Pi _ tel e             -> m `mappend` fold tel `mappend` fold e
+      Pi _ _ tel e           -> m `mappend` fold tel `mappend` fold e
       Generalized _ e        -> m `mappend` fold e
-      Fun _ e e'             -> m `mappend` fold e `mappend` fold e'
+      Fun _ _ e e'           -> m `mappend` fold e `mappend` fold e'
       Let _ bs e             -> m `mappend` fold bs `mappend` fold e
       Rec _ as               -> m `mappend` fold as
       RecUpdate _ e as       -> m `mappend` fold e `mappend` fold as
@@ -238,9 +240,9 @@ instance ExprLike Expr where
       Lam ei b e                 -> f =<< Lam ei <$> trav b <*> trav e
       AbsurdLam{}                -> f e
       ExtendedLam ei di re x cls -> f =<< ExtendedLam ei di re x <$> trav cls
-      Pi ei tel e                -> f =<< Pi ei <$> trav tel <*> trav e
+      Pi ei ps tel e             -> f =<< Pi ei ps <$> trav tel <*> trav e
       Generalized s e            -> f =<< Generalized s <$> trav e
-      Fun ei arg e               -> f =<< Fun ei <$> trav arg <*> trav e
+      Fun ei ps arg e            -> f =<< Fun ei ps <$> trav arg <*> trav e
       Let ei bs e                -> f =<< Let ei <$> trav bs <*> trav e
       Rec ei bs                  -> f =<< Rec ei <$> trav bs
       RecUpdate ei e bs          -> f =<< RecUpdate ei <$> trav e <*> trav bs

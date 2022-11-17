@@ -182,7 +182,7 @@ recordConstructorType decls =
       -- The dummy was builtinSet, but this might not be defined yet.
       let dummy = A.Lit empty $ LitString "TYPE"
       tel   <- catMaybes <$> mapM makeBinding ds
-      return $ A.mkPi (ExprRange (getRange ds)) tel dummy
+      return $ A.mkPi (ExprRange (getRange ds)) (IsPi noRange) tel dummy
 
     makeBinding :: C.NiceDeclaration -> ScopeM (Maybe A.TypedBinding)
     makeBinding d = do
@@ -956,7 +956,7 @@ instance ToAbstract C.Expr where
       C.ExtendedLam r e cs -> scopeCheckExtendedLam r e cs
 
   -- Relevant and irrelevant non-dependent function type
-      C.Fun r (Arg info1 e1) e2 -> do
+      C.Fun r ps (Arg info1 e1) e2 -> do
         let arg = mkArg' info1 e1
         let mr = case getRelevance arg of
               Relevant  -> Nothing
@@ -971,17 +971,18 @@ instance ToAbstract C.Expr where
         let updHid = case hid of
               NotHidden -> id
               hid       -> setHiding hid
-        A.Fun (ExprRange r) (Arg (updRel $ updHid info) e1') <$> toAbstractCtx TopCtx e2
+        A.Fun (ExprRange r) ps (Arg (updRel $ updHid info) e1') <$>
+          toAbstractCtx TopCtx e2
 
   -- Dependent function type
-      e0@(C.Pi tel e) -> do
+      e0@(C.Pi ps tel e) -> do
         lvars0 <- getLocalVars
         localToAbstract tel $ \tel -> do
           lvars1 <- getLocalVars
           checkNoShadowing lvars0 lvars1
           e <- toAbstractCtx TopCtx e
           let info = ExprRange (getRange e0)
-          return $ A.mkPi info (List1.catMaybes tel) e
+          return $ A.mkPi info ps (List1.catMaybes tel) e
 
   -- Let
       e0@(C.Let _ ds (Just e)) ->

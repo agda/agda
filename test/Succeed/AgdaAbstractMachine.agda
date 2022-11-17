@@ -2,7 +2,7 @@
 
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Equality
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.Sigma renaming (Σ̂ to Σ)
 
 _×_ : Set → Set → Set
 A × B = Σ A λ _ → B

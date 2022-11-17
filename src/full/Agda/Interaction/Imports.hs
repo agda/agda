@@ -134,6 +134,11 @@ data Source = Source
 
 parseSource :: SourceFile -> TCM Source
 parseSource sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
+  -- Pragma options from any @.agda-lib@ files are used to control how
+  -- the file is parsed.
+  locallySetAgdaLibOptions f $ \libs -> do
+  moduleParser <- instantiateParseFlags moduleParser
+
   (source, fileType, parsedMod, attrs, parsedModName) <- mdo
     -- This piece of code uses mdo because the top-level module name
     -- (parsedModName) is obtained from the parser's result, but it is
@@ -145,7 +150,11 @@ parseSource sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
                                       TL.unpack source
     parsedModName                  <- moduleName f parsedMod
     return (source, fileType, parsedMod, attrs, parsedModName)
-  libs <- getAgdaLibFiles f parsedModName
+
+  -- Complain if the .agda-lib files were located too far down the
+  -- directory hierarchy.
+  mapM_ (checkLibraryFileNotTooFarDown parsedModName) libs
+
   return Source
     { srcText        = source
     , srcFileType    = fileType
@@ -174,8 +183,8 @@ srcFilePragmas src = pragmas
 --   ranges of the pragmas for error reporting.
 setOptionsFromSourcePragmas :: Source -> TCM ()
 setOptionsFromSourcePragmas src = do
-  mapM_ setOptionsFromPragma (srcDefaultPragmas src)
-  mapM_ setOptionsFromPragma (srcFilePragmas    src)
+  mapM_ (setOptionsFromPragma Other) (srcDefaultPragmas src)
+  mapM_ (setOptionsFromPragma File)  (srcFilePragmas    src)
 
 -- | Is the aim to type-check the top-level module, or only to
 -- scope-check it?
@@ -719,7 +728,9 @@ loadDecodedModule file mi = do
   libOptions <- lift $ getLibraryOptions
     (srcFilePath file)
     (iTopLevelModuleName i)
-  lift $ mapM_ setOptionsFromPragma (libOptions ++ iFilePragmaOptions i)
+  lift $ do
+    mapM_ (setOptionsFromPragma Other) libOptions
+    mapM_ (setOptionsFromPragma File)  (iFilePragmaOptions i)
 
   -- Check that options that matter haven't changed compared to
   -- current options (issue #2487)
@@ -979,6 +990,8 @@ createInterface mname file isMain msrc = do
 
     let srcPath = srcFilePath $ srcOrigin src
 
+    setOptionsFromSourcePragmas src
+
     fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
       generateTokenInfoFromSource
         (let !top = srcModuleName src in
@@ -986,7 +999,6 @@ createInterface mname file isMain msrc = do
         (TL.unpack $ srcText src)
     stTokens `modifyTCLens` (fileTokenInfo <>)
 
-    setOptionsFromSourcePragmas src
     checkAttributes (srcAttributes src)
     syntactic <- optSyntacticEquality <$> pragmaOptions
     localTC (\env -> env { envSyntacticEqualityFuel = syntactic }) $ do
