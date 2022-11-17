@@ -187,13 +187,13 @@ private
 -- Name abstraction --
 
 data Abs {a} (A : Context → Set a) (n : Context) : Set a where
-  abs : (x : String) (x : A (n :< x)) → Abs A n
+  abs : (x : String) → A (n :< x) → Abs A n
 
 -- Variables --
 
 data Var : Context → Set where
-  done : (x : String) → Var (n :< x)
-  skip  : (y : String) → (V∈n : Var n) → Var (n :< y)
+  here   : {x : String} → Var (n :< x)
+  there  : {y : String} → Var n → Var (n :< y)
 
 data SnocTele (A : Context → Set) (n : Context) : Context → Set where
   emptySnocTele : SnocTele A n n
@@ -264,8 +264,8 @@ unscopeAbs : ∀{A : Context → Set} → (∀ {n} → A n → B) → Abs A n �
 unscopeAbs f (abs s x) = R.abs s (f x)
 
 unscopeVar : Var n → Nat
-unscopeVar (done _) = zero
-unscopeVar (skip _ x) = suc (unscopeVar x)
+unscopeVar here = zero
+unscopeVar (there p) = suc (unscopeVar p)
 
 {-# TERMINATING #-}
 unscopeTerm : Term n → R.Term
@@ -337,8 +337,8 @@ scopeCheckAbs f (R.abs s x) = abs s <$> f x
 
 scopeCheckVar : ScopeCheck Nat Var
 scopeCheckVar {n = [<]} _ = nothing
-scopeCheckVar {n = xs :< x} zero = just (done x)
-scopeCheckVar {n = xs :< x} (suc i) = skip x <$> scopeCheckVar i
+scopeCheckVar {n = xs :< x} zero = just here
+scopeCheckVar {n = xs :< x} (suc i) = there <$> scopeCheckVar i
 
 {-# TERMINATING #-}
 scopeCheckTerm : ScopeCheck R.Term Term
@@ -433,10 +433,10 @@ Strengthenable : (Context → Set) → Set
 Strengthenable T = ∀ {m n} → Thin m n → T n → Maybe (T m)
 
 strengthenVar : Strengthenable Var
-strengthenVar (skip th) (done _) = nothing
-strengthenVar (skip th) (skip _ k) = strengthenVar th k
-strengthenVar (keep th) (done _) = just (done _)
-strengthenVar (keep th) (skip _ k) = skip _ <$> strengthenVar th k
+strengthenVar (skip th) here = nothing
+strengthenVar (skip th) (there p) = strengthenVar th p
+strengthenVar (keep th) here = just here
+strengthenVar (keep th) (there p) = there <$> strengthenVar th p
 
 strengthenAbs : ∀ {T} → Strengthenable T →
                 Strengthenable (Abs T)
@@ -556,10 +556,10 @@ module SemidecidableEq where
     just refl
 
   _≟Var_ : SemidecidableEq (Var n)
-  done x ≟Var done x' = do
+  here {x = x} ≟Var here {x = x'} = do
     refl <- x ≟String x'
     just refl
-  skip y p ≟Var skip y' p' = do
+  there {y = y} p ≟Var there {y = y'} p' = do
     refl <- y ≟String y'
     refl <- p ≟Var p'
     just refl
@@ -955,99 +955,99 @@ runSpeculative m .unTC = R.runSpeculative (m .unTC)
 getInstances : Meta → TC n (List (Term n))
 getInstances x = recoverScope' (λ{n = n} → traverseList (scopeCheckTerm {n = n})) (R.getInstances x)
 
-record Kit (◆ : Context → Set) : Set where
+record Kit (Rep : Context → Set) : Set where
   field
-    reify : ◆ n → List (Arg (Term n)) → Maybe (Term n)
-    thin  : Thin n' n → ◆ n' → ◆ n
-    var₀  : {x : String} → ◆ (n :< x)
+    reify : Rep n → List (Arg (Term n)) → Maybe (Term n)
+    thin  : Thin n' n → Rep n' → Rep n
+    var₀  : {x : String} → Rep (n :< x)
 
-module KIT {◆} (k : Kit ◆) where
+module Replace {Rep} (k : Kit Rep) where
 
   open Kit k
   open MaybeBind
 
-  _⇑ : (Var n' → ◆ n) →
-       (∀ {x} → Var (n' :< x) → ◆ (n :< x))
-  (ρ ⇑) (done x) = var₀
-  (ρ ⇑) (skip _ v) = thin (skip ones) (ρ v)
+  _⇑ : (Var n' → Rep n) →
+       (∀ {x} → Var (n' :< x) → Rep (n :< x))
+  (ρ ⇑) here = var₀
+  (ρ ⇑) (there p) = thin (skip ones) (ρ p)
 
-  _⟰_ : (Var n' → ◆ n) → (p : List String) →
-         (Var (n' <>< p) → ◆ (n <>< p))
+  _⟰_ : (Var n' → Rep n) → (p : List String) →
+         (Var (n' <>< p) → Rep (n <>< p))
   ρ ⟰ [] = ρ
   ρ ⟰ (x ∷ xs) = (ρ ⇑) ⟰ xs
 
-  Kittable : (Context → Set) → Set
-  Kittable T = ∀ {m n} → (Var m → ◆ n) → T m → Maybe (T n)
+  Replaceable : (Context → Set) → Set
+  Replaceable T = ∀ {m n} → (Var m → Rep n) → T m → Maybe (T n)
 
   {-# TERMINATING #-}
-  kitTerm      : Kittable Term
-  kitType      : Kittable Type
-  kitArg       : ∀ {T} → Kittable T → Kittable (λ n → Arg (T n))
-  kitArgs      : ∀ {T} → Kittable T → Kittable (λ n → List (Arg (T n)))
-  kitAbs       : ∀ {T} → Kittable T → Kittable (Abs T)
-  kitTele      : ∀ {T} → Kittable T → Kittable (λ n → Tele T n m)
-  kitTelescope : Kittable (λ n → Telescope n m)
-  kitSort      : Kittable Sort
-  kitClause    : Kittable Clause
-  kitPattern   : Kittable (λ n → Pattern n m)
-  kitPatterns  : Kittable (λ n → Patterns n m)
+  replaceTerm      : Replaceable Term
+  replaceType      : Replaceable Type
+  replaceArg       : ∀ {T} → Replaceable T → Replaceable (λ n → Arg (T n))
+  replaceArgs      : ∀ {T} → Replaceable T → Replaceable (λ n → List (Arg (T n)))
+  replaceAbs       : ∀ {T} → Replaceable T → Replaceable (Abs T)
+  replaceTele      : ∀ {T} → Replaceable T → Replaceable (λ n → Tele T n m)
+  replaceTelescope : Replaceable (λ n → Telescope n m)
+  replaceSort      : Replaceable Sort
+  replaceClause    : Replaceable Clause
+  replacePattern   : Replaceable (λ n → Pattern n m)
+  replacePatterns  : Replaceable (λ n → Patterns n m)
 
-  kitTerm ρ (var v args) = kitArgs kitTerm ρ args >>= reify (ρ v)
-  kitTerm ρ (con c args) = con c <$> kitArgs kitTerm ρ args
-  kitTerm ρ (def f args) = def f <$> kitArgs kitTerm ρ args
-  kitTerm ρ (lam v t) = lam v <$> kitAbs kitTerm ρ t
-  kitTerm ρ (pat-lam cs args) = pat-lam <$> traverseList (kitClause ρ) cs <*> kitArgs kitTerm ρ args
-  kitTerm ρ (pi a b) = pi <$> kitArg kitTerm ρ a <*> kitAbs kitType ρ b
-  kitTerm ρ (agda-sort s) = agda-sort <$> kitSort ρ s
-  kitTerm ρ (lit l) = just (lit l)
-  kitTerm ρ (meta v args) = meta v <$> kitArgs kitTerm ρ args
-  kitTerm ρ unknown = just unknown
+  replaceTerm ρ (var v args) = replaceArgs replaceTerm ρ args >>= reify (ρ v)
+  replaceTerm ρ (con c args) = con c <$> replaceArgs replaceTerm ρ args
+  replaceTerm ρ (def f args) = def f <$> replaceArgs replaceTerm ρ args
+  replaceTerm ρ (lam v t) = lam v <$> replaceAbs replaceTerm ρ t
+  replaceTerm ρ (pat-lam cs args) = pat-lam <$> traverseList (replaceClause ρ) cs <*> replaceArgs replaceTerm ρ args
+  replaceTerm ρ (pi a b) = pi <$> replaceArg replaceTerm ρ a <*> replaceAbs replaceType ρ b
+  replaceTerm ρ (agda-sort s) = agda-sort <$> replaceSort ρ s
+  replaceTerm ρ (lit l) = just (lit l)
+  replaceTerm ρ (meta v args) = meta v <$> replaceArgs replaceTerm ρ args
+  replaceTerm ρ unknown = just unknown
 
-  kitArg f ρ = traverseArg (f ρ)
-  kitArgs f ρ = traverseList (kitArg f ρ)
+  replaceArg f ρ = traverseArg (f ρ)
+  replaceArgs f ρ = traverseList (replaceArg f ρ)
 
-  kitAbs f ρ (abs x t) = abs x <$> f (ρ ⇑) t
+  replaceAbs f ρ (abs x t) = abs x <$> f (ρ ⇑) t
 
-  kitType = kitTerm
+  replaceType = replaceTerm
 
-  kitSort ρ (set t) = set <$> kitTerm ρ t
-  kitSort ρ (lit m) = just (lit m)
-  kitSort ρ (prop t) = prop <$> kitTerm ρ t
-  kitSort ρ (propLit m) = just (lit m)
-  kitSort ρ (inf m) = just (inf m)
-  kitSort ρ unknown = just unknown
+  replaceSort ρ (set t) = set <$> replaceTerm ρ t
+  replaceSort ρ (lit m) = just (lit m)
+  replaceSort ρ (prop t) = prop <$> replaceTerm ρ t
+  replaceSort ρ (propLit m) = just (lit m)
+  replaceSort ρ (inf m) = just (inf m)
+  replaceSort ρ unknown = just unknown
 
-  kitClause ρ (clause {m = m} tel ps t) =
-    clause <$> kitTelescope ρ tel <*> kitPatterns ρ ps <*> kitTerm (ρ ⟰ m) t
-  kitClause ρ (absurd-clause tel ps) = absurd-clause <$> kitTelescope ρ tel <*> kitPatterns ρ ps
+  replaceClause ρ (clause {m = m} tel ps t) =
+    clause <$> replaceTelescope ρ tel <*> replacePatterns ρ ps <*> replaceTerm (ρ ⟰ m) t
+  replaceClause ρ (absurd-clause tel ps) = absurd-clause <$> replaceTelescope ρ tel <*> replacePatterns ρ ps
 
-  kitTele f ρ emptyTel = just emptyTel
-  kitTele f ρ (extTel s t tel) = extTel s <$> f ρ t <*> kitTele f (ρ ⇑) tel
+  replaceTele f ρ emptyTel = just emptyTel
+  replaceTele f ρ (extTel s t tel) = extTel s <$> f ρ t <*> replaceTele f (ρ ⇑) tel
 
-  kitTelescope = kitTele (kitArg kitTerm)
+  replaceTelescope = replaceTele (replaceArg replaceTerm)
 
-  kitPattern ρ (con c ps) = con c <$> kitPatterns ρ ps
-  kitPattern {m} ρ (dot t) = dot <$> kitTerm (ρ ⟰ m) t
-  kitPattern ρ (var v) = just (var v)
-  kitPattern ρ (lit l) = just (lit l)
-  kitPattern ρ (proj f) = just (proj f)
-  kitPattern ρ (absurd v) = just (absurd v)
+  replacePattern ρ (con c ps) = con c <$> replacePatterns ρ ps
+  replacePattern {m} ρ (dot t) = dot <$> replaceTerm (ρ ⟰ m) t
+  replacePattern ρ (var v) = just (var v)
+  replacePattern ρ (lit l) = just (lit l)
+  replacePattern ρ (proj f) = just (proj f)
+  replacePattern ρ (absurd v) = just (absurd v)
 
-  kitPatterns = kitArgs kitPattern
+  replacePatterns = replaceArgs replacePattern
 
 
 thVar : Thin n' n → Var n' → Var n
-thVar (skip th) v = skip _ (thVar th v)
-thVar (keep th) (done _) = (done _)
-thVar (keep th) (skip _ v) = skip _ (thVar th v)
+thVar (skip th) v = there (thVar th v)
+thVar (keep th) here = here
+thVar (keep th) (there p) = there (thVar th p)
 
 renKit : Kit Var
 renKit .Kit.reify = λ v args → just (var v args)
 renKit .Kit.thin = thVar
-renKit .Kit.var₀ = done _
+renKit .Kit.var₀ = here
 
 renTerm : (Var n' → Var n) → Term n' → Term n
-renTerm ρ t = go (KIT.kitTerm renKit ρ t) where
+renTerm ρ t = go (Replace.replaceTerm renKit ρ t) where
   go : Maybe (Term n) → Term n
   go (just t) = t
   go _ = unknown -- trust me I'm a professional
@@ -1061,13 +1061,13 @@ applyTerm : Term n → List (Arg (Term n)) → Maybe (Term n)
 
 subKit .Kit.reify = applyTerm
 subKit .Kit.thin = λ th → renTerm (thVar th)
-subKit .Kit.var₀ = var (done _) []
+subKit .Kit.var₀ = var here []
 
-subTerm = KIT.kitTerm subKit
+subTerm = Replace.replaceTerm subKit
 
 [_/0] : ∀ {x} → Term n → (Var (n :< x) → Term n)
-[ t /0] (done _) = t
-[ t /0] (skip _ v) = var v []
+[ t /0] here = t
+[ t /0] (there p) = var p []
 
 applyAbs : Abs Term n → Term n → Maybe (Term n)
 applyAbs (abs s b) t = subTerm [ t /0] b

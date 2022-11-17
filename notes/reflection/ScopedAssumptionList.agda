@@ -33,8 +33,8 @@ searchEntry ty emptySnocTele = nothing
 searchEntry ty (extSnocTele ez s e) = let open M in do
   ty ← strengthenType (skip ones) ty
   case ty ≟Type e of λ where
-    (just eq) → just (done _)
-    nothing   → M.map (skip _) (searchEntry ty ez)
+    (just eq) → just here
+    nothing   → M.map there (searchEntry ty ez)
 
 mapSnocTele : {A B : SnocList String → Set} → (∀ {n} → A n → B n) → SnocTele A n m → SnocTele B n m
 mapSnocTele f emptySnocTele = emptySnocTele

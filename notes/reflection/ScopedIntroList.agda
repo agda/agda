@@ -99,7 +99,7 @@ introsₙ fuel lvl (pi a@(arg info@(arg-info v m) dom) (abs x b)) = do
   dom ← reduce dom
   empty ← isEmpty dom
   debugPrint "intros" 40 (strErr "The type " ∷ termErr dom ∷ strErr (if empty then " is " else " is not ") ∷ strErr "empty" ∷ [])
-  if empty then returnTC (pat-lam (absurd-clause (extTel x a emptyTel) (arg info (absurd (done x)) ∷ []) ∷ []) []) else do
+  if empty then returnTC (pat-lam (absurd-clause (extTel x a emptyTel) (arg info (absurd here) ∷ []) ∷ []) []) else do
     debugPrint "intros" 40 (strErr "Binding " ∷ strErr x ∷ strErr " : " ∷ termErr dom ∷ [])
     body ← extendContext x a (introsₙ fuel lvl b)
     returnTC (lam v (abs x body))

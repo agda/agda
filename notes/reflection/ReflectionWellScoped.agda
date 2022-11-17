@@ -1048,87 +1048,87 @@ mkMacro f hole = R.bindTC R.getContext λ ctx →
       where nothing → mkTC (R.typeError (R.strErr "The IMPOSSIBLE has happened" ∷ []))
     f t)
 
-record Kit (◆ : Nat → Set) : Set where
+record Kit (Rep : Nat → Set) : Set where
   field
-    reify : ◆ m → List (Arg (Term m)) → Term m
-    thin  : Thin m n → ◆ m → ◆ n
-    var₀  : ◆ (suc m)
+    reify : Rep m → List (Arg (Term m)) → Term m
+    thin  : Thin m n → Rep m → Rep n
+    var₀  : Rep (suc m)
 
-module KIT {◆} (k : Kit ◆) where
+module Replace {Rep} (k : Kit Rep) where
 
   open Kit k
 
-  _⇑ : (Var m → ◆ n) →
-       (Var (suc m) → ◆ (suc n))
+  _⇑ : (Var m → Rep n) →
+       (Var (suc m) → Rep (suc n))
   (ρ ⇑) zero = var₀
   (ρ ⇑) (suc v) = thin (skip ones) (ρ v)
 
-  _⟰_ : (Var m → ◆ n) → (p : Nat) →
-         (Var (m + p) → ◆ (n + p))
-  ρ ⟰ zero = subst₂ (λ m n → (Var m → ◆ n)) trustMe trustMe ρ
-  ρ ⟰ suc m = subst₂ (λ m n → (Var m → ◆ n)) trustMe trustMe ((ρ ⇑) ⟰ m)
+  _⟰_ : (Var m → Rep n) → (p : Nat) →
+         (Var (m + p) → Rep (n + p))
+  ρ ⟰ zero = subst₂ (λ m n → (Var m → Rep n)) trustMe trustMe ρ
+  ρ ⟰ suc m = subst₂ (λ m n → (Var m → Rep n)) trustMe trustMe ((ρ ⇑) ⟰ m)
 
-  Kittable : (Nat → Set) → Set
-  Kittable T = ∀ {m n} → (Var m → ◆ n) → T m → T n
+  Replaceable : (Nat → Set) → Set
+  Replaceable T = ∀ {m n} → (Var m → Rep n) → T m → T n
 
   {-# TERMINATING #-}
-  kitTerm      : Kittable Term
-  kitType      : Kittable Type
-  kitArg       : ∀ {T} → Kittable T → Kittable (λ n → Arg (T n))
-  kitArgs      : ∀ {T} → Kittable T → Kittable (λ n → List (Arg (T n)))
-  kitAbs       : ∀ {T} → Kittable T → Kittable (Abs T)
-  kitTele      : ∀ {T} → Kittable T → Kittable (λ n → Tele T n m)
-  kitDeco      : ∀ {A T} → Kittable T → Kittable (λ n → A × T n)
-  kitTelescope : Kittable (λ n → Telescope n m)
-  kitSort      : Kittable Sort
-  kitClause    : Kittable Clause
-  kitPattern   : Kittable (λ n → Pattern n m)
-  kitPatterns  : Kittable (λ n → Patterns n m)
+  replaceTerm      : Replaceable Term
+  replaceType      : Replaceable Type
+  replaceArg       : ∀ {T} → Replaceable T → Replaceable (λ n → Arg (T n))
+  replaceArgs      : ∀ {T} → Replaceable T → Replaceable (λ n → List (Arg (T n)))
+  replaceAbs       : ∀ {T} → Replaceable T → Replaceable (Abs T)
+  replaceTele      : ∀ {T} → Replaceable T → Replaceable (λ n → Tele T n m)
+  replaceDeco      : ∀ {A T} → Replaceable T → Replaceable (λ n → A × T n)
+  replaceTelescope : Replaceable (λ n → Telescope n m)
+  replaceSort      : Replaceable Sort
+  replaceClause    : Replaceable Clause
+  replacePattern   : Replaceable (λ n → Pattern n m)
+  replacePatterns  : Replaceable (λ n → Patterns n m)
 
-  kitTerm ρ (var v args) = reify (ρ v) (kitArgs kitTerm ρ args)
-  kitTerm ρ (con c args) = con c (kitArgs kitTerm ρ args)
-  kitTerm ρ (def f args) = def f (kitArgs kitTerm ρ args)
-  kitTerm ρ (lam v t) = lam v (kitAbs kitTerm ρ t)
-  kitTerm ρ (pat-lam cs args) = pat-lam (map (kitClause ρ) cs) (kitArgs kitTerm ρ args)
-  kitTerm ρ (pi a b) = pi (kitArg kitTerm ρ a) (kitAbs kitType ρ b)
-  kitTerm ρ (agda-sort s) = agda-sort (kitSort ρ s)
-  kitTerm ρ (lit l) = lit l
-  kitTerm ρ (meta v args) = meta v (kitArgs kitTerm ρ args)
-  kitTerm ρ unknown = unknown
+  replaceTerm ρ (var v args) = reify (ρ v) (replaceArgs replaceTerm ρ args)
+  replaceTerm ρ (con c args) = con c (replaceArgs replaceTerm ρ args)
+  replaceTerm ρ (def f args) = def f (replaceArgs replaceTerm ρ args)
+  replaceTerm ρ (lam v t) = lam v (replaceAbs replaceTerm ρ t)
+  replaceTerm ρ (pat-lam cs args) = pat-lam (map (replaceClause ρ) cs) (replaceArgs replaceTerm ρ args)
+  replaceTerm ρ (pi a b) = pi (replaceArg replaceTerm ρ a) (replaceAbs replaceType ρ b)
+  replaceTerm ρ (agda-sort s) = agda-sort (replaceSort ρ s)
+  replaceTerm ρ (lit l) = lit l
+  replaceTerm ρ (meta v args) = meta v (replaceArgs replaceTerm ρ args)
+  replaceTerm ρ unknown = unknown
 
-  kitArg f ρ = mapArg (f ρ)
-  kitArgs f ρ = map (kitArg f ρ)
+  replaceArg f ρ = mapArg (f ρ)
+  replaceArgs f ρ = map (replaceArg f ρ)
 
-  kitAbs f ρ (abs x t) = abs x (f (ρ ⇑) t)
+  replaceAbs f ρ (abs x t) = abs x (f (ρ ⇑) t)
 
-  kitType = kitTerm
+  replaceType = replaceTerm
 
-  kitSort ρ (set t) = set (kitTerm ρ t)
-  kitSort ρ (lit m) = lit m
-  kitSort ρ (prop t) = prop (kitTerm ρ t)
-  kitSort ρ (propLit m) = lit m
-  kitSort ρ (inf m) = lit m
-  kitSort ρ unknown = unknown
+  replaceSort ρ (set t) = set (replaceTerm ρ t)
+  replaceSort ρ (lit m) = lit m
+  replaceSort ρ (prop t) = prop (replaceTerm ρ t)
+  replaceSort ρ (propLit m) = lit m
+  replaceSort ρ (inf m) = lit m
+  replaceSort ρ unknown = unknown
 
-  kitClause ρ (clause {m = m} tel ps t) =
-    clause (kitTelescope ρ tel) (kitPatterns ρ ps) (kitTerm (ρ ⟰ m) t)
-  kitClause ρ (absurd-clause tel ps) = absurd-clause (kitTelescope ρ tel) (kitPatterns ρ ps)
+  replaceClause ρ (clause {m = m} tel ps t) =
+    clause (replaceTelescope ρ tel) (replacePatterns ρ ps) (replaceTerm (ρ ⟰ m) t)
+  replaceClause ρ (absurd-clause tel ps) = absurd-clause (replaceTelescope ρ tel) (replacePatterns ρ ps)
 
-  kitTele f ρ emptyTel = emptyTel
-  kitTele f ρ (extTel t tel) = extTel (f ρ t) (kitTele f (ρ ⇑) tel)
+  replaceTele f ρ emptyTel = emptyTel
+  replaceTele f ρ (extTel t tel) = extTel (f ρ t) (replaceTele f (ρ ⇑) tel)
 
-  kitDeco f ρ (a , t) = (a , f ρ t)
+  replaceDeco f ρ (a , t) = (a , f ρ t)
 
-  kitTelescope = kitTele (kitDeco (kitArg kitTerm))
+  replaceTelescope = replaceTele (replaceDeco (replaceArg replaceTerm))
 
-  kitPattern ρ (con c ps) = con c (kitPatterns ρ ps)
-  kitPattern {m} ρ (dot t) = dot (kitTerm (ρ ⟰ m) t)
-  kitPattern ρ (var v) = var v
-  kitPattern ρ (lit l) = lit l
-  kitPattern ρ (proj f) = proj f
-  kitPattern ρ (absurd v) = absurd v
+  replacePattern ρ (con c ps) = con c (replacePatterns ρ ps)
+  replacePattern {m} ρ (dot t) = dot (replaceTerm (ρ ⟰ m) t)
+  replacePattern ρ (var v) = var v
+  replacePattern ρ (lit l) = lit l
+  replacePattern ρ (proj f) = proj f
+  replacePattern ρ (absurd v) = absurd v
 
-  kitPatterns = kitArgs kitPattern
+  replacePatterns = replaceArgs replacePattern
 
 
 thVar : Thin m n → Var m → Var n
@@ -1142,7 +1142,7 @@ renKit .Kit.thin = thVar
 renKit .Kit.var₀ = zero
 
 renTerm : (Var m → Var n) → Term m → Term n
-renTerm = KIT.kitTerm renKit
+renTerm = Replace.replaceTerm renKit
 
 -- Hereditary subst because Terms are in NF
 -- TODO: make the setup partial?
@@ -1155,7 +1155,7 @@ subKit .Kit.reify = applyTerm
 subKit .Kit.thin = λ th → renTerm (thVar th)
 subKit .Kit.var₀ = var zero []
 
-subTerm = KIT.kitTerm subKit
+subTerm = Replace.replaceTerm subKit
 
 [_/0] : Term m → (Var (suc m) → Term m)
 [ t /0] zero = t
