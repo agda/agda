@@ -1161,11 +1161,6 @@ Declaration
     Individual declarations
  --------------------------------------------------------------------------}
 
--- Type signatures of the form "n1 n2 n3 ... : Type", with at least
--- one bound name.
-TypeSigs :: { List1 Declaration }
-TypeSigs : SpaceIds ':' Expr { fmap (\ x -> typeSig defaultArgInfo Nothing x $3) $1 }
-
 -- A variant of TypeSigs where any sub-sequence of names can be marked
 -- as hidden or irrelevant using braces and dots:
 -- {n1 .n2} n3 .n4 {n5} .{n6 n7} ... : Type.
@@ -1736,25 +1731,6 @@ Polarity : string {% polarity $1 }
 {--------------------------------------------------------------------------
     Sequences of declarations
  --------------------------------------------------------------------------}
-
--- Possibly empty list of type signatures, with several identifiers allowed
--- for every signature.
-TypeSignatures0 :: { [TypeSignature] }
-TypeSignatures
-    : vopen close    { [] }
-    | TypeSignatures { List1.toList $1 }
-
--- Non-empty list of type signatures, with several identifiers allowed
--- for every signature.
-TypeSignatures :: { List1 TypeSignature }
-TypeSignatures
-    : vopen TypeSignatures1 close   { List1.reverse $2 }
-
--- Inside the layout block.
-TypeSignatures1 :: { List1 TypeSignature }
-TypeSignatures1
-    : TypeSignatures1 semi TypeSigs { List1.reverse $3 <> $1 }
-    | TypeSigs                      { List1.reverse $1 }
 
 -- A variant of TypeSignatures which uses ArgTypeSigs instead of
 -- TypeSigs.
