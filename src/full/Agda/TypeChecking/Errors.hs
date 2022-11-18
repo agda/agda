@@ -1348,6 +1348,9 @@ instance PrettyTCM TypeError where
 
     NonFatalErrors ws -> vsep $ fmap prettyTCM $ Set1.toAscList ws
 
+    ExplicitPolarityVsPragma p -> fsep $
+      pwords "Polarity pragma used for " ++ [ prettyTCM p ] ++ pwords " but its type is already annotated with polarities."
+
     InstanceSearchDepthExhausted c a d -> fsep $
       pwords ("Instance search depth exhausted (max depth: " ++ show d ++ ") for candidate") ++
       [hang (prettyTCM c <+> ":") 2 (prettyTCM a)]
