@@ -5255,6 +5255,7 @@ data TypeError
         | GeneralizedVarInLetOpenedModule A.QName
         | MultipleFixityDecls (List1 (C.Name, Pair Fixity'))
         | MultiplePolarityPragmas (List1 C.Name)
+        | ExplicitPolarityVsPragma QName
         | ConstructorNameOfNonRecord ResolvedName
     -- Concrete to Abstract errors
         | CannotQuote CannotQuote
