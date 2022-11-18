@@ -360,7 +360,10 @@ instance Apply Defn where
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Apply PrimFun where
-  apply (PrimFun x ar def) args = PrimFun x (ar - size args) $ \ vs -> def (args ++ vs)
+  apply (PrimFun x ar occs def) args =
+    PrimFun x (ar - n) (drop n occs) $ \ vs -> def (args ++ vs)
+    where
+    n = size args
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Apply Clause where
@@ -716,7 +719,9 @@ instance Abstract Defn where
     PrimitiveSort{} -> d
 
 instance Abstract PrimFun where
-    abstract tel (PrimFun x ar def) = PrimFun x (ar + n) $ \ts -> def $ drop n ts
+    abstract tel (PrimFun x ar occs def) =
+      PrimFun x (ar + n) (replicate n Mixed ++ occs) $ \ts ->
+        def $ drop n ts
         where n = size tel
 
 instance Abstract Clause where

@@ -1,0 +1,5 @@
+Issue6336.agda:8,1-10,27
+A is not strictly positive, because it occurs
+in an argument of a bound variable
+in an endpoint of the target of the higher constructor p
+in the definition of A.
