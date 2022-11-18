@@ -194,6 +194,7 @@ errorString err = case err of
   GeneralizedVarInLetOpenedModule{}        -> "GeneralizedVarInLetOpenedModule"
   MultipleFixityDecls{}                    -> "MultipleFixityDecls"
   MultiplePolarityPragmas{}                -> "MultiplePolarityPragmas"
+  ExplicitPolarityVsPragma{}               -> "ExplicitPolarityVsPragma"
   NoBindingForBuiltin{}                    -> "NoBindingForBuiltin"
   NoBindingForPrimitive{}                  -> "NoBindingForPrimitive"
   NoParseForApplication{}                  -> "NoParseForApplication"
@@ -1355,6 +1356,9 @@ instance PrettyTCM TypeError where
 
     MultiplePolarityPragmas xs -> fsep $
       pwords "Multiple polarity pragmas for" ++ map pretty xs
+
+    ExplicitPolarityVsPragma p -> fsep $
+      pwords "Polarity pragma used for " ++ [ prettyTCM p ] ++ pwords " but its type is already annotated with polarities."
 
     NonFatalErrors ws -> foldr1 ($$) $ fmap prettyTCM ws
 
