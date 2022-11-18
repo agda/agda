@@ -1,9 +1,4 @@
--- {-# OPTIONS --cubical-compatible --safe --no-sized-types --no-guardedness #-}
 -- Well-scoped de Bruijn indices in reflection
-
--- module Agda.Builtin.ReflectionWellScope where
-
-module ReflectionWellScoped where
 
 open import Agda.Primitive
 open import Agda.Builtin.Bool
@@ -69,18 +64,47 @@ open R public using
 
 -- Standard definitions missing from the builtin modules
 
+-- Backwards lists
+
+data SnocList (A : Set) : Set where
+  [<] : SnocList A
+  _:<_ : SnocList A → A → SnocList A
+
+infixl 5 _:<_
+
+_+<+_ : {A : Set} → SnocList A → SnocList A → SnocList A
+xz +<+ [<] = xz
+xz +<+ (yz :< x) = (xz +<+ yz) :< x
+
+_<>>_ : {A : Set} → SnocList A → List A → List A
+[<] <>> ys = ys
+(xz :< x) <>> ys = xz <>> (x ∷ ys)
+
+_<><_ : {A : Set} → SnocList A → List A → SnocList A
+xz <>< [] = xz
+xz <>< (x ∷ ys) = (xz :< x) <>< ys
+
+revAppend : {A : Set} → SnocList A → List A → SnocList A
+revAppend xz [] = xz
+revAppend xz (x ∷ ys) = revAppend xz ys :< x
+
 private
   _×_ : ∀{ℓ ℓ'} (A : Set ℓ) (B : Set ℓ') → Set _
   A × B = Σ A λ _ → B
+
+  Context = SnocList String
+
   variable
+    n n' : Context
+    m : List String
     A B : Set
 
   trustMe : ∀ {a} {A : Set a} {x y : A} → x ≡ y
   trustMe = primEraseEquality prf where postulate prf : _
 
-  length : ∀{ℓ} {A : Set ℓ} → List A → Nat
-  length [] = 0
-  length (_ ∷ xs) = 1 + length xs
+  subst₂ : {A B : Set} (P : A → B → Set) {a b : A} {x y : B} →
+           a ≡ b → x ≡ y → P a x → P b y
+  subst₂ P refl refl px = px
 
   map : (A → B) → List A → List B
   map f [] = []
@@ -116,37 +140,45 @@ private
   nothing <*> ma = nothing
   just f  <*> ma = f <$> ma
 
-  traverseDeco : {C : Set} → (A → Maybe B) → C × A → Maybe (C × B)
-  traverseDeco f (c , a) = (c ,_) <$> f a
-
   traverseList : (A → Maybe B) → List A → Maybe (List B)
   traverseList f [] = just []
   traverseList f (x ∷ xs) = _∷_ <$> f x <*> traverseList f xs
 
-  -- Deciding Nat equality
+  -- Deciding List String equality
 
   SemidecidableEq : Set → Set
   SemidecidableEq A = (x y : A) → Maybe (x ≡ y)
 
-  cong : {A B : Set} (f : A → B) {a b : A} → a ≡ b → f a ≡ f b
-  cong f refl = refl
+  _≟String_ : SemidecidableEq String
+  x ≟String y with primStringEquality x y
+  ... | true = just trustMe
+  ... | false = nothing
 
-  subst : {A : Set} (P : A → Set) {a b : A} → a ≡ b → P a → P b
-  subst P refl px = px
+  _≟Context_ : (n m : Context) → Maybe (n ≡ m)
+  [<] ≟Context [<] = just refl
+  (xs :< x) ≟Context (ys :< y) = do
+    refl <- x ≟String y
+    refl <- xs ≟Context ys
+    just refl
+    where open MaybeBind
+  _ ≟Context _ = nothing
 
-  subst₂ : {A B : Set} (P : A → B → Set) {a b : A} {x y : B} →
-           a ≡ b → x ≡ y → P a x → P b y
-  subst₂ P refl refl px = px
+  _≟_ : (n m : List String) → Maybe (n ≡ m)
+  [] ≟ [] = just refl
+  (x ∷ xs) ≟ (y ∷ ys) = do
+    refl ← x ≟String y
+    refl ← xs ≟ ys
+    just refl
+    where open MaybeBind
+  _ ≟ _ = nothing
 
-  _≟_ : SemidecidableEq Nat
-  zero ≟ zero = just refl
-  suc m ≟ zero = nothing
-  zero ≟ suc n = nothing
-  suc m ≟ suc n = cong suc <$> m ≟ n
-
-  -- can't be bothered to prove this
-  length-reverse : (xs : List A) → length (reverse xs) ≡ length xs
-  length-reverse xs = trustMe
+  _≟Nat_ : SemidecidableEq Nat
+  zero ≟Nat zero = just refl
+  suc m ≟Nat suc n = do
+    refl ← m ≟Nat n
+    just refl
+    where open MaybeBind
+  _ ≟Nat _ = nothing
 
 
 -- Well-scoped de Bruijn indices version of Agda.Builtin.Reflection
@@ -154,36 +186,36 @@ private
 
 -- Name abstraction --
 
-private
-  variable
-    n m : Nat
-
-data Abs {a} (A : Nat → Set a) (n : Nat) : Set a where
-  abs : (s : String) (x : A (suc n)) → Abs A n
-
--- {-# BUILTIN ABS    Abs #-}
--- {-# BUILTIN ABSABS abs #-}
+data Abs {a} (A : Context → Set a) (n : Context) : Set a where
+  abs : (x : String) → A (n :< x) → Abs A n
 
 -- Variables --
 
-data Var : Nat → Set where
-  zero : Var (suc n)
-  suc  : (x : Var n) → Var (suc n)
+data Var : Context → Set where
+  here   : {x : String} → Var (n :< x)
+  there  : {y : String} → Var n → Var (n :< y)
 
-data Tele (A : Nat → Set) (n : Nat) : Nat → Set where
-  emptyTel : Tele A n zero
-  extTel   : A n → Tele A (suc n) m → Tele A n (suc m)
+data SnocTele (A : Context → Set) (n : Context) : Context → Set where
+  emptySnocTele : SnocTele A n n
+  extSnocTele   : SnocTele A n n' → (x : String) → A n' → SnocTele A n (n' :< x)
+
+data Tele (A : Context → Set) (n : Context) : List String → Set where
+  emptyTel : Tele A n []
+  extTel   :  (x : String) → A n → Tele A (n :< x) m → Tele A n (x ∷ m)
 
 -- Terms and patterns --
 
-data Term (n : Nat) : Set
-data Sort (n : Nat) : Set
-data Pattern (n m : Nat) : Set
-data Clause (n : Nat) : Set
+data Term (n : Context) : Set
+data Sort (n : Context) : Set
+data Pattern (n : Context)(m : List String) : Set
+data Clause (n : Context) : Set
 Type = Term
 
-Telescope : (n m : Nat) → Set
-Telescope = Tele (λ k → String × Arg (Type k))
+Telescope : Context → List String → Set
+Telescope = Tele (λ k → Arg (Type k))
+
+SnocTelescope : Context → Context → Set
+SnocTelescope = SnocTele (λ k → Arg (Type k))
 
 data Term n where
   var       : (x : Var n) (args : List (Arg (Term n))) → Term n
@@ -198,6 +230,7 @@ data Term n where
   meta      : (x : Meta) → List (Arg (Term n)) → Term n
   unknown   : Term n
 
+
 data Sort n where
   set     : (t : Term n) → Sort n  -- E.g. Set ℓ
   lit     : (m : Nat) → Sort n     -- E.g. Set₁
@@ -206,64 +239,33 @@ data Sort n where
   inf     : (m : Nat) → Sort n     -- E.g. Setω₅
   unknown : Sort n
 
+
 -- We don't track linearity of pattern variables here.
 -- We don't track arity of constructors either yet.
 data Pattern n m where
   con    : (c : Name) (ps : List (Arg (Pattern n m))) → Pattern n m
-  dot    : (t : Term (n + m))  → Pattern n m
-  var    : (x : Var m)     → Pattern n m
+  dot    : (t : Term (n <>< m))  → Pattern n m
+  var    : (x : Var ([<] <>< m))     → Pattern n m
   lit    : (l : Literal) → Pattern n m
   proj   : (f : Name)    → Pattern n m  -- only at the top-level
-  absurd : (x : Var m)     → Pattern n m  -- absurd patterns counts as variables
+  absurd : (x : Var ([<] <>< m))     → Pattern n m  -- absurd patterns counts as variables
 
 Patterns = λ n m → List (Arg (Pattern n m))
 
 data Clause n where
-  clause        : (tel : Telescope n m) (ps : List (Arg (Pattern n m))) (t : Term (n + m)) → Clause n
-  absurd-clause : (tel : Telescope n m) (ps : List (Arg (Pattern n m))) → Clause n
+  clause        :  (tel : Telescope n m) (ps : List (Arg (Pattern n m))) (t : Term (n <>< m)) → Clause n
+  absurd-clause :  (tel : Telescope n m) (ps : List (Arg (Pattern n m))) → Clause n
 
--- {-# BUILTIN AGDATERM      Term    #-}
--- {-# BUILTIN AGDASORT      Sort    #-}
--- {-# BUILTIN AGDAPATTERN   Pattern #-}
--- {-# BUILTIN AGDACLAUSE    Clause  #-}
-
--- {-# BUILTIN AGDATERMVAR         var       #-}
--- {-# BUILTIN AGDATERMCON         con       #-}
--- {-# BUILTIN AGDATERMDEF         def       #-}
--- {-# BUILTIN AGDATERMMETA        meta      #-}
--- {-# BUILTIN AGDATERMLAM         lam       #-}
--- {-# BUILTIN AGDATERMEXTLAM      pat-lam   #-}
--- {-# BUILTIN AGDATERMPI          pi        #-}
--- {-# BUILTIN AGDATERMSORT        agda-sort #-}
--- {-# BUILTIN AGDATERMLIT         lit       #-}
--- {-# BUILTIN AGDATERMUNSUPPORTED unknown   #-}
-
--- {-# BUILTIN AGDASORTSET         set     #-}
--- {-# BUILTIN AGDASORTLIT         lit     #-}
--- {-# BUILTIN AGDASORTPROP        prop    #-}
--- {-# BUILTIN AGDASORTPROPLIT     propLit #-}
--- {-# BUILTIN AGDASORTINF         inf     #-}
--- {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
-
--- {-# BUILTIN AGDAPATCON    con     #-}
--- {-# BUILTIN AGDAPATDOT    dot     #-}
--- {-# BUILTIN AGDAPATVAR    var     #-}
--- {-# BUILTIN AGDAPATLIT    lit     #-}
--- {-# BUILTIN AGDAPATPROJ   proj    #-}
--- {-# BUILTIN AGDAPATABSURD absurd  #-}
-
--- {-# BUILTIN AGDACLAUSECLAUSE clause        #-}
--- {-# BUILTIN AGDACLAUSEABSURD absurd-clause #-}
 
 mapArg : (A → B) → Arg A → Arg B
 mapArg f (arg i x) = arg i (f x)
 
-unscopeAbs : ∀{A : Nat → Set} → (∀ {n} → A n → B) → Abs A n → R.Abs B
+unscopeAbs : ∀{A : Context → Set} → (∀ {n} → A n → B) → Abs A n → R.Abs B
 unscopeAbs f (abs s x) = R.abs s (f x)
 
 unscopeVar : Var n → Nat
-unscopeVar zero = zero
-unscopeVar (suc x) = suc (unscopeVar x)
+unscopeVar here = zero
+unscopeVar (there p) = suc (unscopeVar p)
 
 {-# TERMINATING #-}
 unscopeTerm : Term n → R.Term
@@ -291,21 +293,28 @@ unscopeSort (propLit m) = R.propLit m
 unscopeSort (inf m) = R.inf m
 unscopeSort unknown = R.unknown
 
-unscopeTelescope : Telescope n m → R.Telescope
-unscopeTele : {T : Nat → Set} {R : Set} →
-              (∀ {m} → T m → R) → Tele T n m → List R
-
-unscopePattern : Pattern n m → R.Pattern
-unscopePatterns : Patterns n m → List (Arg R.Pattern)
+unscopeSnocTelescope : SnocTelescope n n' → R.Telescope
+unscopeTelescope :  Telescope n m → R.Telescope
+unscopePattern :  Pattern n m → R.Pattern
+unscopePatterns :  Patterns n m → List (Arg R.Pattern)
 unscopePatterns = map (mapArg unscopePattern)
 
 unscopeClause (clause tel ps t) = R.clause (unscopeTelescope tel) (unscopePatterns ps) (unscopeTerm t)
 unscopeClause (absurd-clause tel ps) = R.absurd-clause (unscopeTelescope tel) (unscopePatterns ps)
 
-unscopeTelescope = unscopeTele λ { (s , arg i t) → (s , arg i (unscopeTerm t)) }
+unscopeSnocTele : {T : Context → Set} {R : Set} →
+                  (∀ {n} → T n → R) → SnocTele T n n' → SnocList (String × R)
+unscopeSnocTele f emptySnocTele = [<]
+unscopeSnocTele f (extSnocTele tel s t) = unscopeSnocTele f tel :< (s , f t)
 
+unscopeTele :  {T : Context → Set} {R : Set} →
+               (∀ {n} → T n → R) → Tele T n m → List (String × R)
 unscopeTele f emptyTel = []
-unscopeTele f (extTel t tel) = f t ∷ unscopeTele f tel
+unscopeTele f (extTel s t tel) = (s , f t) ∷ unscopeTele f tel
+
+unscopeTelescope tel = reverse (unscopeTele (mapArg unscopeTerm) tel)
+
+unscopeSnocTelescope tel = (unscopeSnocTele (mapArg unscopeTerm) tel) <>> []
 
 unscopePattern (con c ps) = R.con c (unscopePatterns ps)
 unscopePattern (dot t) = R.dot (unscopeTerm t)
@@ -314,24 +323,22 @@ unscopePattern (lit l) = R.lit l
 unscopePattern (proj f) = R.proj f
 unscopePattern (absurd x) = R.absurd (unscopeVar x)
 
-ScopeCheck : (A : Set) (B : Nat → Set) → Set
-ScopeCheck A B = {n : Nat} (a : A) → Maybe (B n)
+ScopeCheck : (A : Set) (B : Context → Set) → Set
+ScopeCheck A B = {n : Context} (a : A) → Maybe (B n)
 
-ScopeCheckDep : (A : Set) (B : Nat → A → Set) → Set
-ScopeCheckDep A B = {n : Nat} (a : A) → Maybe (B n a)
+ScopeCheckDep : (A : Set) (B : Context → A → Set) → Set
+ScopeCheckDep A B = {n : Context} (a : A) → Maybe (B n a)
 
 traverseArg : (A → Maybe B) → Arg A → Maybe (Arg B)
 traverseArg f (arg i x) = arg i <$> f x
 
--- traverseArg : (∀ n → A n → Maybe (B n)) → Abs A n → Maybe (Abs B n)
-
-scopeCheckAbs : {B : Nat → Set} → ScopeCheck A B → ScopeCheck (R.Abs A) (Abs B)
+scopeCheckAbs : {B : Context → Set} → ScopeCheck A B → ScopeCheck (R.Abs A) (Abs B)
 scopeCheckAbs f (R.abs s x) = abs s <$> f x
 
 scopeCheckVar : ScopeCheck Nat Var
-scopeCheckVar {n = zero} _ = nothing
-scopeCheckVar {n = suc n} zero = just zero
-scopeCheckVar {n = suc n} (suc i) = suc <$> scopeCheckVar i
+scopeCheckVar {n = [<]} _ = nothing
+scopeCheckVar {n = xs :< x} zero = just here
+scopeCheckVar {n = xs :< x} (suc i) = there <$> scopeCheckVar i
 
 {-# TERMINATING #-}
 scopeCheckTerm : ScopeCheck R.Term Term
@@ -363,18 +370,23 @@ scopeCheckSort (R.propLit n) = just (propLit n)
 scopeCheckSort (R.inf n) = just (inf n)
 scopeCheckSort R.unknown = just unknown
 
-scopeCheckTele : {B : Nat → Set} → ScopeCheck A B → ScopeCheckDep (List A) (λ n xs → Tele B n (length xs))
--- scopeCheckTele : {B : Nat → Set}
---   → ScopeCheck A B → {n : Nat} (xs : List A) → Maybe (Tele B n (length xs))
+scopeCheckSnocTele : {B : Context → Set} → (f : ScopeCheck A B) → ScopeCheckDep (List (String × A)) λ n xs → SnocTele B n (revAppend n (map fst xs))
+scopeCheckSnocTele f [] = just emptySnocTele
+scopeCheckSnocTele f ((s , x) ∷ xs) = (λ tel → extSnocTele tel s) <$> scopeCheckSnocTele f xs <*> f x
+
+scopeCheckSnocTelescope : ScopeCheckDep (List (String × Arg R.Type)) (λ n xs → SnocTelescope n (revAppend n (map fst xs)))
+scopeCheckSnocTelescope args = scopeCheckSnocTele (traverseArg scopeCheckType) args
+
+scopeCheckTele : {B : Context → Set} → (f : ScopeCheck A B) → ScopeCheckDep (List (String × A)) λ n xs → Tele B n (map fst xs)
 scopeCheckTele f [] = just emptyTel
-scopeCheckTele f (x ∷ xs) = extTel <$> f x <*> scopeCheckTele f xs
+scopeCheckTele f ((s , x) ∷ xs) = extTel s <$> f x <*> scopeCheckTele f xs
 
-scopeCheckTelescope : ScopeCheckDep (List (String × Arg R.Type)) (λ n xs → Telescope n (length xs))
-scopeCheckTelescope args with length args | length-reverse args
-... | _ | refl = scopeCheckTele (traverseDeco (traverseArg scopeCheckType)) (reverse args)
+scopeCheckTelescope : ScopeCheckDep (List (String × Arg R.Type)) (λ n xs → Telescope n (map fst (reverse xs)))
+scopeCheckTelescope args = scopeCheckTele (traverseArg scopeCheckType) (reverse args)
 
-scopeCheckPattern : {m : Nat} → ScopeCheck R.Pattern (λ n → Pattern n m)
-scopeCheckPatterns : {m : Nat} → ScopeCheck (List (Arg R.Pattern)) (λ n → Patterns n m)
+{-# TERMINATING #-}
+scopeCheckPattern :  ScopeCheck R.Pattern (λ n → Pattern n m)
+scopeCheckPatterns :  ScopeCheck (List (Arg R.Pattern)) (λ n → Patterns n m)
 scopeCheckPatterns = traverseList (traverseArg scopeCheckPattern)
 
 scopeCheckPattern (R.con c ps) = con c <$> scopeCheckPatterns ps
@@ -384,37 +396,47 @@ scopeCheckPattern (R.lit l) = just (lit l)
 scopeCheckPattern (R.proj f) = just (proj f)
 scopeCheckPattern (R.absurd x) = absurd <$> scopeCheckVar x
 
-scopeCheckClause (R.clause tel ps t) = clause <$> scopeCheckTelescope tel <*> scopeCheckPatterns ps <*> scopeCheckTerm t
-scopeCheckClause (R.absurd-clause tel ps) = absurd-clause <$> scopeCheckTelescope tel <*> scopeCheckPatterns ps
+scopeCheckClause (R.clause tel ps t) = do
+  tel' <- scopeCheckTelescope tel
+  ps <- scopeCheckPatterns ps
+  t <- scopeCheckTerm t
+  just (clause tel'  ps t)
+  where open MaybeBind
+scopeCheckClause (R.absurd-clause tel ps) =  do
+  tel' <- scopeCheckTelescope tel
+  ps <- scopeCheckPatterns ps
+  just (absurd-clause tel' ps)
+  where open MaybeBind
+
+-- Strengthening
+
+-- How to embed one context into another
+data Thin : (m n : Context) → Set where
+  done : Thin [<] [<]
+  skip : {x : String} → Thin n' n → Thin n' (n :< x)
+  keep : {x : String} → Thin n' n → Thin (n' :< x) (n :< x)
+
+ones : Thin n n
+ones {[<]} = done
+ones {xs :< x} = keep ones
+
+none : Thin [<] n
+none {[<]} = done
+none {xs :< x} = skip none
+
+keeps : ∀ p → Thin n' n → Thin (n' <>< p) (n <>< p)
+keeps [] th = th
+keeps (x ∷ xs) th = keeps xs (keep th)
 
 
-data Thin : (m, n : Nat) → Set where
-  done : Thin 0 0
-  skip : Thin m n → Thin m (suc n)
-  keep : Thin m n → Thin (suc m) (suc n)
-
-ones : Thin m m
-ones {zero} = done
-ones {suc m} = keep ones
-
-none : Thin 0 m
-none {zero} = done
-none {suc m} = skip none
-
-_<>_ : ∀ {p q} → Thin m n → Thin p q → Thin (m + p) (n + q)
-done    <> ph = ph
-skip th <> ph = skip (th <> ph)
-keep th <> ph = keep (th <> ph)
-
-Strengthenable : (Nat → Set) → Set
+Strengthenable : (Context → Set) → Set
 Strengthenable T = ∀ {m n} → Thin m n → T n → Maybe (T m)
 
 strengthenVar : Strengthenable Var
-strengthenVar done k = just k
-strengthenVar (skip th) zero = nothing
-strengthenVar (skip th) (suc k) = strengthenVar th k
-strengthenVar (keep th) zero = just zero
-strengthenVar (keep th) (suc v) = suc <$> strengthenVar th v
+strengthenVar (skip th) here = nothing
+strengthenVar (skip th) (there p) = strengthenVar th p
+strengthenVar (keep th) here = just here
+strengthenVar (keep th) (there p) = there <$> strengthenVar th p
 
 strengthenAbs : ∀ {T} → Strengthenable T →
                 Strengthenable (Abs T)
@@ -428,10 +450,10 @@ strengthenArg       : Strengthenable (λ n → Arg (Term n))
 strengthenArgs      : Strengthenable (λ n → List (Arg (Term n)))
 strengthenClause    : Strengthenable Clause
 strengthenClauses   : Strengthenable (λ n → List (Clause n))
-strengthenTele      : ∀ {T} → Strengthenable T → Strengthenable (λ n → Tele T n m)
-strengthenTelescope : Strengthenable (λ n → Telescope n m)
-strengthenPattern   : Strengthenable (λ n → Pattern n m)
-strengthenPatterns  : Strengthenable (λ n → Patterns n m)
+strengthenTele      : ∀ {m} {T} → Strengthenable T → Strengthenable (λ n → Tele T n m)
+strengthenTelescope :  Strengthenable (λ n → Telescope n m)
+strengthenPattern   :  Strengthenable (λ n → Pattern n m)
+strengthenPatterns  :  Strengthenable (λ n → Patterns n m)
 
 strengthenSort th (set t) = set <$> strengthenTerm th t
 strengthenSort th (lit l) = just (lit l)
@@ -457,20 +479,20 @@ strengthenTerm th unknown = just unknown
 
 strengthenType = strengthenTerm
 
-strengthenClause th (clause tel ps t) =
-  clause <$> strengthenTelescope th tel <*> strengthenPatterns th ps <*> strengthenTerm (th <> ones) t
+strengthenClause th (clause {m = m} tel ps t) =
+  clause <$> strengthenTelescope th tel <*> strengthenPatterns th ps <*> strengthenTerm (keeps m th) t
 strengthenClause th (absurd-clause tel ps) =
   absurd-clause <$> strengthenTelescope th tel <*> strengthenPatterns th ps
 
 strengthenClauses th = traverseList (strengthenClause th)
 
 strengthenTele f th emptyTel = just emptyTel
-strengthenTele f th (extTel t ts) = extTel <$> f th t <*> strengthenTele f (keep th) ts
+strengthenTele f th (extTel s t ts) = extTel s <$> f th t <*> strengthenTele f (keep th) ts
 
-strengthenTelescope = strengthenTele (λ th → traverseDeco (strengthenArg th))
+strengthenTelescope = strengthenTele (λ th → (strengthenArg th))
 
 strengthenPattern th (con c ps) = con c <$> strengthenPatterns th ps
-strengthenPattern th (dot t) = dot <$> strengthenTerm (th <> ones) t
+strengthenPattern {m = m} th (dot t) = dot <$> strengthenTerm (keeps m th) t
 strengthenPattern th (var v) = just (var v)
 strengthenPattern th (lit l) = just (lit l)
 strengthenPattern th (proj f) = just (proj f)
@@ -495,13 +517,10 @@ _≟Float_ = semidecidableEqFromBool primFloatEquality
 _≟Char_ : SemidecidableEq Char
 _≟Char_ = semidecidableEqFromBool primCharEquality
 
-_≟String_ : SemidecidableEq String
-_≟String_ = semidecidableEqFromBool primStringEquality
 
 _≟Word64_ : SemidecidableEq Word64
 _≟Word64_ = semidecidableEqFromBool λ w w' →
   primWord64ToNat w == primWord64ToNat w'
-
 
 module SemidecidableEq where
 
@@ -537,15 +556,18 @@ module SemidecidableEq where
     just refl
 
   _≟Var_ : SemidecidableEq (Var n)
-  zero  ≟Var zero = just refl
-  suc v ≟Var suc v' = do
-    refl ← v ≟Var v'
+  here {x = x} ≟Var here {x = x'} = do
+    refl <- x ≟String x'
+    just refl
+  there {y = y} p ≟Var there {y = y'} p' = do
+    refl <- y ≟String y'
+    refl <- p ≟Var p'
     just refl
   _ ≟Var _ = nothing
 
   _≟Lit_ : SemidecidableEq Literal
   nat n ≟Lit nat n' = do
-    refl ← n ≟ n'
+    refl ← n ≟Nat n'
     just refl
   word64 w ≟Lit word64 w' = do
     refl ← w ≟Word64 w'
@@ -573,9 +595,10 @@ module SemidecidableEq where
     refl ← m ≟Modality m'
     just refl
 
-  semidecidableEqTele : ∀ {T} → (∀ {n} → SemidecidableEq (T n)) → SemidecidableEq (Tele T n m)
+  semidecidableEqTele : ∀ {m T} → (∀ {n} → SemidecidableEq (T n)) → SemidecidableEq (Tele T n m)
   semidecidableEqTele eq emptyTel emptyTel = just refl
-  semidecidableEqTele eq (extTel t ts) (extTel t' ts') = do
+  semidecidableEqTele eq (extTel s t ts) (extTel s' t' ts') = do
+    refl ← s ≟String s'
     refl ← eq t t'
     refl ← semidecidableEqTele eq ts ts'
     just refl
@@ -600,9 +623,9 @@ module SemidecidableEq where
   _≟Args_      : SemidecidableEq (List (Arg (Term n)))
   _≟Clause_    : SemidecidableEq (Clause n)
   _≟Clauses_   : SemidecidableEq (List (Clause n))
-  _≟Telescope_ : SemidecidableEq (Telescope n m)
-  _≟Pattern_   : SemidecidableEq (Pattern n m)
-  _≟Patterns_  : SemidecidableEq (Patterns n m)
+  _≟Telescope_ :  SemidecidableEq (Telescope n m)
+  _≟Pattern_   :  SemidecidableEq (Pattern n m)
+  _≟Patterns_  :  SemidecidableEq (Patterns n m)
 
   var v args ≟Term var v' args' = do
     refl ← v ≟Var v'
@@ -647,16 +670,16 @@ module SemidecidableEq where
     refl ← t ≟Term t'
     just refl
   lit l ≟Sort lit l' = do
-    refl ← l ≟ l'
+    refl ← l ≟Nat l'
     just refl
   prop t ≟Sort prop t' = do
     refl ← t ≟Term t'
     just refl
   propLit l ≟Sort propLit l' = do
-    refl ← l ≟ l'
+    refl ← l ≟Nat l'
     just refl
   inf m ≟Sort inf m' = do
-    refl ← m ≟ m'
+    refl ← m ≟Nat m'
     just refl
   unknown ≟Sort unknown = just refl
   _ ≟Sort _ = nothing
@@ -691,7 +714,7 @@ module SemidecidableEq where
     just refl
   _ ≟Clauses _ = nothing
 
-  _≟Telescope_ = semidecidableEqTele (semidecidableEqDeco _≟Arg_)
+  _≟Telescope_ = semidecidableEqTele _≟Arg_
 
   con c ps ≟Pattern con c' ps' = do
     refl ← c ≟Name c'
@@ -723,44 +746,10 @@ module SemidecidableEq where
 
 open SemidecidableEq public
 
-module Example where
-
-  macro
-
-    quot : A → R.Term → R.TC _
-    quot a goal = do
-      t ← R.quoteTC a
-      q ← R.quoteTC t
-      R.unify goal q
-      where
-      _>>=_ = R.bindTC
-
-    scp : A → R.Term → R.TC _
-    scp a goal = R.withNormalisation true do
-      cxt ← R.getContext
-      let n = length cxt
-      t ← R.quoteTC a
-      just t ← R.returnTC (scopeCheckTerm {n = n} t)
-        where nothing → R.typeError []
-      q ← R.quoteTC t
-      R.unify goal q
-      where
-      _>>=_ = R.bindTC
-      -- _=<<_ = λ k m → R.bindTC m k
-
-  id : ∀{ℓ} (A : Set ℓ) → A → A
-  id A x = x
-
-  -- example₀ : Term 0
-  -- example₀ = {!scp (λ (x : Nat) → x + (λ y → y) x)!}
-
-  -- example : (z : Nat) → Term 1
-  -- example z = {!scp λ (y : Nat) → (id (Nat → Nat) λ{ Nat.zero → Nat.zero; (Nat.suc x) → x + y + z})!}
-
 -- Definitions --
 
 data Definition : Set where
-  function    : (cs : List (Clause 0)) → Definition
+  function    : (cs : List (Clause [<])) → Definition
   data-type   : (pars : Nat) (cs : List Name) → Definition
   record-type : (c : Name) (fs : List (Arg Name)) → Definition
   data-cons   : (d : Name) → Definition
@@ -775,22 +764,14 @@ scopeCheckDefinition (R.data-cons d) = just (data-cons d)
 scopeCheckDefinition R.axiom = just axiom
 scopeCheckDefinition R.prim-fun = just prim-fun
 
--- {-# BUILTIN AGDADEFINITION                Definition  #-}
--- {-# BUILTIN AGDADEFINITIONFUNDEF          function    #-}
--- {-# BUILTIN AGDADEFINITIONDATADEF         data-type   #-}
--- {-# BUILTIN AGDADEFINITIONRECORDDEF       record-type #-}
--- {-# BUILTIN AGDADEFINITIONDATACONSTRUCTOR data-cons   #-}
--- {-# BUILTIN AGDADEFINITIONPOSTULATE       axiom       #-}
--- {-# BUILTIN AGDADEFINITIONPRIMITIVE       prim-fun    #-}
-
 -- Errors --
 
-data ErrorPart (n : Nat) : Set where
+data ErrorPart (n : Context) : Set where
   strErr  : (s : String) → ErrorPart n
   termErr : (t : Term n) → ErrorPart n
   pattErr : -- TODO: we need names for the pattern variables, don't we?
             -- Tele (λ _ → String) n m →
-            (p : Pattern n m) → ErrorPart n
+             (p : Pattern n m) → ErrorPart n
   nameErr : (x : Name) → ErrorPart n
 
 -- {-# BUILTIN AGDAERRORPART       ErrorPart #-}
@@ -814,7 +795,7 @@ unscopeErrorPart (nameErr x) = R.nameErr x
 
 -- TC monad --
 
-record TC {a} (n : Nat) (A : Set a) :  Set a where
+record TC {a} (n : Context) (A : Set a) :  Set a where
   constructor mkTC
   field unTC : R.TC A
 open TC
@@ -832,14 +813,14 @@ private
 unify : Term n → Term n → TC n ⊤
 unify t u .unTC = R.unify (unscopeTerm t) (unscopeTerm u)
 
-runScopeCheck : Maybe A → TC n A -- {A : Nat → Set} → Maybe (A n) → TC n (A n)
+runScopeCheck : Maybe A → TC n A -- {A : Context → Set} → Maybe (A n) → TC n (A n)
 runScopeCheck nothing .unTC  = R.typeError (R.strErr "Ill-scoped term" ∷ [])
 runScopeCheck (just a) = returnTC a
 
 recoverScope : R.TC R.Term → TC n (Term n)
 recoverScope m = bindRTC m λ t → runScopeCheck (scopeCheckTerm t)
 
-recoverScope' : {B : Nat → Set} → ScopeCheck A B → R.TC A → TC n (B n)
+recoverScope' : {B : Context → Set} → ScopeCheck A B → R.TC A → TC n (B n)
 recoverScope' f m = bindRTC m λ a → runScopeCheck (f a)
 
 typeError : ∀ {a} {A : Set a} → List (ErrorPart n) → TC n A
@@ -871,23 +852,33 @@ unquoteTC t .unTC = R.unquoteTC (unscopeTerm t)
 quoteωTC : ∀ {A : Setω} → A → TC n (Term n)
 quoteωTC a = recoverScope (R.quoteωTC a)
 
-getContext : TC n (Telescope 0 n)
+getContext : TC n (SnocTelescope [<] n)
 getContext {n = n} .unTC = do
   cxt ← R.getContext
-  let m  = length cxt
-  just refl ← R.returnTC (n ≟ m)
-    where nothing → R.typeError []
-  just tel ← R.returnTC (scopeCheckTelescope {n = 0} cxt)
-    where nothing → R.typeError []
+  let m  = revAppend [<] (map fst cxt)
+  just refl ← R.returnTC (n ≟Context m)
+    where nothing → do
+      qn <- R.quoteTC n
+      qm <- R.quoteTC m
+      R.typeError (R.strErr "context" ∷ R.termErr qn ∷ R.strErr "does not match" ∷ R.termErr qm ∷ [])
+  just tel ← R.returnTC (scopeCheckSnocTelescope cxt)
+    where nothing → do
+      qtel <- R.quoteTC cxt
+      qn <- R.quoteTC n
+      R.typeError (R.strErr "scopechecking telescope" ∷ R.termErr qtel ∷ R.strErr "failed with n = " ∷ R.termErr qn ∷ [])
   R.returnTC tel
   where
   _>>=_ = R.bindTC
 
-extendContext : ∀ {a} {A : Set a} → String → Arg (Type n) → TC (suc n) A → TC n A
+extendContext : ∀ {a} {A : Set a} → (x : String) → Arg (Type n) → TC (n :< x) A → TC n A
 extendContext s a m .unTC = R.extendContext s (mapArg unscopeTerm a) (m .unTC)
 
-inContext : ∀ {a} {A : Set a} → Telescope 0 m → TC m A → TC n A
-inContext tel m .unTC = R.inContext (unscopeTelescope tel) (m .unTC)
+
+
+inContext : ∀ {a} {A : Set a} {m} → SnocTelescope [<] m → TC m A → TC n A
+inContext tel m .unTC = R.inContext (unscopeSnocTelescope tel) (m .unTC)
+
+
 
 freshName : String → TC n Name
 freshName s .unTC = R.freshName s
@@ -901,7 +892,7 @@ declarePostulate x t .unTC = R.declarePostulate x (unscopeTerm t)
 declareData : Name → (pars : Nat) → Type n → TC n ⊤
 declareData x pars t .unTC = R.declareData x pars (unscopeTerm t)
 
-defineData : Name → (pars : Nat) → List (Σ Name (λ _ → Type (n + pars))) → TC n ⊤
+defineData : Name → (pars : Context) → List (Σ Name (λ _ → Type (n +<+ pars))) → TC n ⊤
 defineData x pars args .unTC = R.defineData x (map (λ (n , t) → n , unscopeTerm t) args)
 
 defineFun : Name → List (Clause n) → TC n ⊤
@@ -964,112 +955,29 @@ runSpeculative m .unTC = R.runSpeculative (m .unTC)
 getInstances : Meta → TC n (List (Term n))
 getInstances x = recoverScope' (λ{n = n} → traverseList (scopeCheckTerm {n = n})) (R.getInstances x)
 
--- {-# BUILTIN AGDATCM                           TC                         #-}
--- {-# BUILTIN AGDATCMRETURN                     returnTC                   #-}
--- {-# BUILTIN AGDATCMBIND                       bindTC                     #-}
--- {-# BUILTIN AGDATCMUNIFY                      unify                      #-}
--- {-# BUILTIN AGDATCMTYPEERROR                  typeError                  #-}
--- {-# BUILTIN AGDATCMINFERTYPE                  inferType                  #-}
--- {-# BUILTIN AGDATCMCHECKTYPE                  checkType                  #-}
--- {-# BUILTIN AGDATCMNORMALISE                  normalise                  #-}
--- {-# BUILTIN AGDATCMREDUCE                     reduce                     #-}
--- {-# BUILTIN AGDATCMCATCHERROR                 catchTC                    #-}
--- {-# BUILTIN AGDATCMQUOTETERM                  quoteTC                    #-}
--- {-# BUILTIN AGDATCMUNQUOTETERM                unquoteTC                  #-}
--- {-# BUILTIN AGDATCMQUOTEOMEGATERM             quoteωTC                   #-}
--- {-# BUILTIN AGDATCMGETCONTEXT                 getContext                 #-}
--- {-# BUILTIN AGDATCMEXTENDCONTEXT              extendContext              #-}
--- {-# BUILTIN AGDATCMINCONTEXT                  inContext                  #-}
--- {-# BUILTIN AGDATCMFRESHNAME                  freshName                  #-}
--- {-# BUILTIN AGDATCMDECLAREDEF                 declareDef                 #-}
--- {-# BUILTIN AGDATCMDECLAREPOSTULATE           declarePostulate           #-}
--- {-# BUILTIN AGDATCMDECLAREDATA                declareData                #-}
--- {-# BUILTIN AGDATCMDEFINEDATA                 defineData                 #-}
--- {-# BUILTIN AGDATCMDEFINEFUN                  defineFun                  #-}
--- {-# BUILTIN AGDATCMGETTYPE                    getType                    #-}
--- {-# BUILTIN AGDATCMGETDEFINITION              getDefinition              #-}
--- {-# BUILTIN AGDATCMBLOCKONMETA                blockOnMeta                #-}
--- {-# BUILTIN AGDATCMCOMMIT                     commitTC                   #-}
--- {-# BUILTIN AGDATCMISMACRO                    isMacro                    #-}
--- {-# BUILTIN AGDATCMWITHNORMALISATION          withNormalisation          #-}
--- {-# BUILTIN AGDATCMFORMATERRORPARTS           formatErrorParts           #-}
--- {-# BUILTIN AGDATCMDEBUGPRINT                 debugPrint                 #-}
--- {-# BUILTIN AGDATCMONLYREDUCEDEFS             onlyReduceDefs             #-}
--- {-# BUILTIN AGDATCMDONTREDUCEDEFS             dontReduceDefs             #-}
--- {-# BUILTIN AGDATCMWITHRECONSPARAMS           withReconstructed          #-}
--- {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
--- {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
--- {-# BUILTIN AGDATCMGETINSTANCES               getInstances               #-}
-
--- All the TC primitives are compiled to functions that return
--- undefined, rather than just undefined, in an attempt to make sure
--- that code will run properly.
-{-# COMPILE JS returnTC          = _ => _ => _ =>      undefined #-}
-{-# COMPILE JS bindTC            = _ => _ => _ => _ =>
-                                   _ => _ =>           undefined #-}
-{-# COMPILE JS unify             = _ => _ =>           undefined #-}
-{-# COMPILE JS typeError         = _ => _ => _ =>      undefined #-}
-{-# COMPILE JS inferType         = _ =>                undefined #-}
-{-# COMPILE JS checkType         = _ => _ =>           undefined #-}
-{-# COMPILE JS normalise         = _ =>                undefined #-}
-{-# COMPILE JS reduce            = _ =>                undefined #-}
-{-# COMPILE JS catchTC           = _ => _ => _ => _ => undefined #-}
-{-# COMPILE JS quoteTC           = _ => _ => _ =>      undefined #-}
-{-# COMPILE JS unquoteTC         = _ => _ => _ =>      undefined #-}
-{-# COMPILE JS quoteωTC          = _ => _ =>           undefined #-}
-{-# COMPILE JS getContext        =                     undefined #-}
-{-# COMPILE JS extendContext     = _ => _ => _ => _ => _ => undefined #-}
-{-# COMPILE JS inContext         = _ => _ => _ => _ => undefined #-}
-{-# COMPILE JS freshName         = _ =>                undefined #-}
-{-# COMPILE JS declareDef        = _ => _ =>           undefined #-}
-{-# COMPILE JS declarePostulate  = _ => _ =>           undefined #-}
-{-# COMPILE JS declareData       = _ => _ => _ =>      undefined #-}
-{-# COMPILE JS defineData        = _ => _ =>           undefined #-}
-{-# COMPILE JS defineFun         = _ => _ =>           undefined #-}
-{-# COMPILE JS getType           = _ =>                undefined #-}
-{-# COMPILE JS getDefinition     = _ =>                undefined #-}
-{-# COMPILE JS blockOnMeta       = _ => _ => _ =>      undefined #-}
-{-# COMPILE JS commitTC          =                     undefined #-}
-{-# COMPILE JS isMacro           = _ =>                undefined #-}
-{-# COMPILE JS withNormalisation = _ => _ => _ => _ => undefined #-}
-{-# COMPILE JS withReconstructed = _ => _ => _ =>      undefined #-}
-{-# COMPILE JS debugPrint        = _ => _ => _ =>      undefined #-}
-{-# COMPILE JS onlyReduceDefs    = _ => _ => _ => _ => undefined #-}
-{-# COMPILE JS dontReduceDefs    = _ => _ => _ => _ => undefined #-}
-{-# COMPILE JS noConstraints     = _ => _ => _ =>      undefined #-}
-{-# COMPILE JS runSpeculative    = _ => _ => _ =>      undefined #-}
-{-# COMPILE JS getInstances      = _ =>                undefined #-}
-
-mkMacro : (∀ {n} → Term n → TC n ⊤) → R.Term → R.TC ⊤
-mkMacro f hole = R.bindTC R.getContext λ ctx →
-  let n = length ctx in
-  TC.unTC {n = n} (let _>>=_ = bindTC in do
-    just t ← returnTC (scopeCheckTerm hole)
-      where nothing → mkTC (R.typeError (R.strErr "The IMPOSSIBLE has happened" ∷ []))
-    f t)
-
-record Kit (Rep : Nat → Set) : Set where
+record Kit (Rep : Context → Set) : Set where
   field
-    reify : Rep m → List (Arg (Term m)) → Term m
-    thin  : Thin m n → Rep m → Rep n
-    var₀  : Rep (suc m)
+    reify : Rep n → List (Arg (Term n)) → Maybe (Term n)
+    thin  : Thin n' n → Rep n' → Rep n
+    var₀  : {x : String} → Rep (n :< x)
 
 module Replace {Rep} (k : Kit Rep) where
 
   open Kit k
+  open MaybeBind
 
-  _⇑ : (Var m → Rep n) →
-       (Var (suc m) → Rep (suc n))
-  (ρ ⇑) zero = var₀
-  (ρ ⇑) (suc v) = thin (skip ones) (ρ v)
+  _⇑ : (Var n' → Rep n) →
+       (∀ {x} → Var (n' :< x) → Rep (n :< x))
+  (ρ ⇑) here = var₀
+  (ρ ⇑) (there p) = thin (skip ones) (ρ p)
 
-  _⟰_ : (Var m → Rep n) → (p : Nat) →
-         (Var (m + p) → Rep (n + p))
-  ρ ⟰ zero = subst₂ (λ m n → (Var m → Rep n)) trustMe trustMe ρ
-  ρ ⟰ suc m = subst₂ (λ m n → (Var m → Rep n)) trustMe trustMe ((ρ ⇑) ⟰ m)
+  _⟰_ : (Var n' → Rep n) → (p : List String) →
+         (Var (n' <>< p) → Rep (n <>< p))
+  ρ ⟰ [] = ρ
+  ρ ⟰ (x ∷ xs) = (ρ ⇑) ⟰ xs
 
-  Replaceable : (Nat → Set) → Set
-  Replaceable T = ∀ {m n} → (Var m → Rep n) → T m → T n
+  Replaceable : (Context → Set) → Set
+  Replaceable T = ∀ {m n} → (Var m → Rep n) → T m → Maybe (T n)
 
   {-# TERMINATING #-}
   replaceTerm      : Replaceable Term
@@ -1078,108 +986,147 @@ module Replace {Rep} (k : Kit Rep) where
   replaceArgs      : ∀ {T} → Replaceable T → Replaceable (λ n → List (Arg (T n)))
   replaceAbs       : ∀ {T} → Replaceable T → Replaceable (Abs T)
   replaceTele      : ∀ {T} → Replaceable T → Replaceable (λ n → Tele T n m)
-  replaceDeco      : ∀ {A T} → Replaceable T → Replaceable (λ n → A × T n)
   replaceTelescope : Replaceable (λ n → Telescope n m)
   replaceSort      : Replaceable Sort
   replaceClause    : Replaceable Clause
   replacePattern   : Replaceable (λ n → Pattern n m)
   replacePatterns  : Replaceable (λ n → Patterns n m)
 
-  replaceTerm ρ (var v args) = reify (ρ v) (replaceArgs replaceTerm ρ args)
-  replaceTerm ρ (con c args) = con c (replaceArgs replaceTerm ρ args)
-  replaceTerm ρ (def f args) = def f (replaceArgs replaceTerm ρ args)
-  replaceTerm ρ (lam v t) = lam v (replaceAbs replaceTerm ρ t)
-  replaceTerm ρ (pat-lam cs args) = pat-lam (map (replaceClause ρ) cs) (replaceArgs replaceTerm ρ args)
-  replaceTerm ρ (pi a b) = pi (replaceArg replaceTerm ρ a) (replaceAbs replaceType ρ b)
-  replaceTerm ρ (agda-sort s) = agda-sort (replaceSort ρ s)
-  replaceTerm ρ (lit l) = lit l
-  replaceTerm ρ (meta v args) = meta v (replaceArgs replaceTerm ρ args)
-  replaceTerm ρ unknown = unknown
+  replaceTerm ρ (var v args) = replaceArgs replaceTerm ρ args >>= reify (ρ v)
+  replaceTerm ρ (con c args) = con c <$> replaceArgs replaceTerm ρ args
+  replaceTerm ρ (def f args) = def f <$> replaceArgs replaceTerm ρ args
+  replaceTerm ρ (lam v t) = lam v <$> replaceAbs replaceTerm ρ t
+  replaceTerm ρ (pat-lam cs args) = pat-lam <$> traverseList (replaceClause ρ) cs <*> replaceArgs replaceTerm ρ args
+  replaceTerm ρ (pi a b) = pi <$> replaceArg replaceTerm ρ a <*> replaceAbs replaceType ρ b
+  replaceTerm ρ (agda-sort s) = agda-sort <$> replaceSort ρ s
+  replaceTerm ρ (lit l) = just (lit l)
+  replaceTerm ρ (meta v args) = meta v <$> replaceArgs replaceTerm ρ args
+  replaceTerm ρ unknown = just unknown
 
-  replaceArg f ρ = mapArg (f ρ)
-  replaceArgs f ρ = map (replaceArg f ρ)
+  replaceArg f ρ = traverseArg (f ρ)
+  replaceArgs f ρ = traverseList (replaceArg f ρ)
 
-  replaceAbs f ρ (abs x t) = abs x (f (ρ ⇑) t)
+  replaceAbs f ρ (abs x t) = abs x <$> f (ρ ⇑) t
 
   replaceType = replaceTerm
 
-  replaceSort ρ (set t) = set (replaceTerm ρ t)
-  replaceSort ρ (lit m) = lit m
-  replaceSort ρ (prop t) = prop (replaceTerm ρ t)
-  replaceSort ρ (propLit m) = lit m
-  replaceSort ρ (inf m) = lit m
-  replaceSort ρ unknown = unknown
+  replaceSort ρ (set t) = set <$> replaceTerm ρ t
+  replaceSort ρ (lit m) = just (lit m)
+  replaceSort ρ (prop t) = prop <$> replaceTerm ρ t
+  replaceSort ρ (propLit m) = just (lit m)
+  replaceSort ρ (inf m) = just (inf m)
+  replaceSort ρ unknown = just unknown
 
   replaceClause ρ (clause {m = m} tel ps t) =
-    clause (replaceTelescope ρ tel) (replacePatterns ρ ps) (replaceTerm (ρ ⟰ m) t)
-  replaceClause ρ (absurd-clause tel ps) = absurd-clause (replaceTelescope ρ tel) (replacePatterns ρ ps)
+    clause <$> replaceTelescope ρ tel <*> replacePatterns ρ ps <*> replaceTerm (ρ ⟰ m) t
+  replaceClause ρ (absurd-clause tel ps) = absurd-clause <$> replaceTelescope ρ tel <*> replacePatterns ρ ps
 
-  replaceTele f ρ emptyTel = emptyTel
-  replaceTele f ρ (extTel t tel) = extTel (f ρ t) (replaceTele f (ρ ⇑) tel)
+  replaceTele f ρ emptyTel = just emptyTel
+  replaceTele f ρ (extTel s t tel) = extTel s <$> f ρ t <*> replaceTele f (ρ ⇑) tel
 
-  replaceDeco f ρ (a , t) = (a , f ρ t)
+  replaceTelescope = replaceTele (replaceArg replaceTerm)
 
-  replaceTelescope = replaceTele (replaceDeco (replaceArg replaceTerm))
-
-  replacePattern ρ (con c ps) = con c (replacePatterns ρ ps)
-  replacePattern {m} ρ (dot t) = dot (replaceTerm (ρ ⟰ m) t)
-  replacePattern ρ (var v) = var v
-  replacePattern ρ (lit l) = lit l
-  replacePattern ρ (proj f) = proj f
-  replacePattern ρ (absurd v) = absurd v
+  replacePattern ρ (con c ps) = con c <$> replacePatterns ρ ps
+  replacePattern {m} ρ (dot t) = dot <$> replaceTerm (ρ ⟰ m) t
+  replacePattern ρ (var v) = just (var v)
+  replacePattern ρ (lit l) = just (lit l)
+  replacePattern ρ (proj f) = just (proj f)
+  replacePattern ρ (absurd v) = just (absurd v)
 
   replacePatterns = replaceArgs replacePattern
 
 
-thVar : Thin m n → Var m → Var n
-thVar (skip th) v = suc (thVar th v)
-thVar (keep th) zero = zero
-thVar (keep th) (suc v) = suc (thVar th v)
+thVar : Thin n' n → Var n' → Var n
+thVar (skip th) v = there (thVar th v)
+thVar (keep th) here = here
+thVar (keep th) (there p) = there (thVar th p)
 
 renKit : Kit Var
-renKit .Kit.reify = var
+renKit .Kit.reify = λ v args → just (var v args)
 renKit .Kit.thin = thVar
-renKit .Kit.var₀ = zero
+renKit .Kit.var₀ = here
 
-renTerm : (Var m → Var n) → Term m → Term n
-renTerm = Replace.replaceTerm renKit
+renTerm : (Var n' → Var n) → Term n' → Term n
+renTerm ρ t = go (Replace.replaceTerm renKit ρ t) where
+  go : Maybe (Term n) → Term n
+  go (just t) = t
+  go _ = unknown -- trust me I'm a professional
 
 -- Hereditary subst because Terms are in NF
 -- TODO: make the setup partial?
 {-# TERMINATING #-}
 subKit    : Kit Term
-subTerm   : (Var m → Term n) → Term m → Term n
-applyTerm : Term m → List (Arg (Term m)) → Term m
+subTerm   : (Var n' → Term n) → Term n' → Maybe (Term n)
+applyTerm : Term n → List (Arg (Term n)) → Maybe (Term n)
 
 subKit .Kit.reify = applyTerm
 subKit .Kit.thin = λ th → renTerm (thVar th)
-subKit .Kit.var₀ = var zero []
+subKit .Kit.var₀ = var here []
 
 subTerm = Replace.replaceTerm subKit
 
-[_/0] : Term m → (Var (suc m) → Term m)
-[ t /0] zero = t
-[ t /0] (suc v) = var v []
+[_/0] : ∀ {x} → Term n → (Var (n :< x) → Term n)
+[ t /0] here = t
+[ t /0] (there p) = var p []
 
-applyAbs : Abs Term n → Term n → Term n
+applyAbs : Abs Term n → Term n → Maybe (Term n)
 applyAbs (abs s b) t = subTerm [ t /0] b
 
-applyTerm t [] = t
-applyTerm (var v args) ts = var v (args ++ ts)
-applyTerm (con c args) ts = con c (args ++ ts)
-applyTerm (def f args) ts = def f (args ++ ts)
-applyTerm (lam v b) (arg _ t ∷ ts) = applyTerm (applyAbs b t) ts
-applyTerm (pat-lam cs args) ts = pat-lam cs (args ++ ts)
-applyTerm (pi a b) ts = unknown
-applyTerm (agda-sort s) ts = unknown
-applyTerm (lit l) ts = unknown
-applyTerm (meta m args) ts = meta m (args ++ ts)
-applyTerm unknown ts = unknown
+applyTerm t [] = just t
+applyTerm (var v args) ts = just (var v (args ++ ts))
+applyTerm (con c args) ts = just (con c (args ++ ts))
+applyTerm (def f args) ts = just (def f (args ++ ts))
+applyTerm (lam v b) (arg _ t ∷ ts) =
+  let open MaybeBind in
+  applyAbs b t >>= λ bt → applyTerm bt ts
+applyTerm (pat-lam cs args) ts = just (pat-lam cs (args ++ ts))
+applyTerm (pi a b) ts = nothing
+applyTerm (agda-sort s) ts = nothing
+applyTerm (lit l) ts = nothing
+applyTerm (meta m args) ts = just (meta m (args ++ ts))
+applyTerm unknown ts = just unknown
 
--- -}
--- -}
--- -}
--- -}
+specialise : Term n → List (Arg (Term n)) → Maybe (Term n)
+specialise t [] = just t
+specialise (pi a (abs _ b)) (arg _ t ∷ ts) =
+  let open MaybeBind in
+  subTerm [ t /0] b >>= λ bt → specialise bt ts
+specialise _ _ = nothing
+
+mkMacro : (∀ {n} → Term n → TC n ⊤) → R.Term → R.TC ⊤
+mkMacro f hole = R.bindTC R.getContext λ ctx →
+  let n = map fst ctx in
+  TC.unTC {n = revAppend [<] n} (let _>>=_ = bindTC in do
+    just t ← returnTC (scopeCheckTerm hole)
+      where nothing → mkTC (R.typeError (R.strErr "The IMPOSSIBLE has happened" ∷ []))
+    f t)
+
+module Example where
+
+  macro
+    scp : A → R.Term → R.TC _
+    scp a = mkMacro λ goal → withNormalisation true
+     do
+      t ← quoteTC a
+      q ← quoteTC t
+      unify goal q
+     where
+      _>>=_ = bindTC
+
+  id : ∀{ℓ} (A : Set ℓ) → A → A
+  id A x = x
+
+{-
+  example₀ : Term [<]
+  example₀ = {!scp (λ (x : Nat) → x + (λ y → y) x)!}
+
+  example₁ : (z : Nat)(w : List Nat) → Term ([<] :< "z" :< "w")
+  example₁ z w = {!scp λ (y : Nat) → w!}
+
+  example : (z : Nat)(w : List Nat) → Term ([<] :< "z" :< "w")
+  example z w = {!scp λ (y : Nat) → (id (Nat → Nat) λ{ Nat.zero → z; (Nat.suc x) → x + y + z})!}
+-}
+
 -- -}
 -- -}
 -- -}
