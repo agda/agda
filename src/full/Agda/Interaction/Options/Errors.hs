@@ -1,4 +1,4 @@
--- | Provide names for the errors Agda throws.
+-- | Provide names for the errors Agda throws.Options/Er
 
 module Agda.Interaction.Options.Errors where
 
@@ -189,6 +189,7 @@ data ErrorName
   | ModuleNameUnexpected_
   | MultipleFixityDecls_
   | MultiplePolarityPragmas_
+  | ExplicitPolarityVsPragma_
   | ConstructorNameOfNonRecord_
   | NamedWhereModuleInRefinedContext_
   | NeedOptionAllowExec_

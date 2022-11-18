@@ -638,6 +638,10 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
   occs <- case mp of
     Nothing -> return eoccs
     Just occs1 -> do
+      -- If any polarity retrieved from the type is not Mixed, it means an explicit
+      -- annotation was given, so we throw an error because the pragma shouldn't be used
+      when (any (/= Mixed) eoccs) $ typeError (ExplicitPolarityVsPragma x)
+
       -- Ensure that polarity pragmas do not contain too many occurrences.
       let occs = List1.toList occs1
       let m = length occs
@@ -670,7 +674,7 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
         where
           fun = FunctionDefn $ set funAbstr_ (Info.defAbstract i) funD{ _funOpaque = Info.defOpaque i }
 
-  let pols = map polFromOcc eoccs
+  let pols = map polFromOcc occs
 
   addConstant x =<< do
     useTerPragma $ defn
