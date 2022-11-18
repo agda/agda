@@ -555,11 +555,12 @@ removed. Otherwise all token-based syntax highlighting is removed."
 
 (defun agda2-highlight-add-annotations (remove &rest cmds)
   "Like `agda2-highlight-apply'.
-  (if agda2-highlight-in-progress
-      (apply 'agda2-highlight-apply remove cmds)))
 But only if `agda2-highlight-in-progress' is non-nil.  See
 `agda2-highlight-apply' for details on REMOVE and CMDS."
   (declare (agda2-cmd boolean &repeat list))
+  (if agda2-highlight-in-progress
+      (apply 'agda2-highlight-apply remove cmds)))
+
 
 (defun agda2-highlight-load (file)
   "Load syntax highlighting information from FILE.
