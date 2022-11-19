@@ -1,6 +1,8 @@
 
 module Agda.TypeChecking.Monad.Options where
 
+import Prelude hiding (null)
+
 import Control.Arrow          ( (&&&) )
 import Control.Monad          ( unless, when )
 import Control.Monad.IO.Class ( MonadIO(..) )
@@ -22,21 +24,25 @@ import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.TopLevelModuleName
+
 import Agda.TypeChecking.Monad.Debug (reportSDoc)
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Imports
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Benchmark
+
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Library
+
 import Agda.Utils.FileName
 import Agda.Utils.Functor
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as G
 import Agda.Utils.List
 import Agda.Utils.Maybe
+import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.Tuple
 import Agda.Utils.WithDefault
@@ -44,18 +50,16 @@ import Agda.Utils.WithDefault
 import Agda.Utils.Impossible
 
 -- | Sets the pragma options.
-
+--   Checks for unsafe combinations.
 setPragmaOptions :: PragmaOptions -> TCM ()
 setPragmaOptions opts = do
-  stPragmaOptions `modifyTCLens` Lens.mapSafeMode (Lens.getSafeMode opts ||)
-  clo <- commandLineOptions
-  let unsafe = unsafePragmaOptions clo opts
-  when (Lens.getSafeMode opts && not (null unsafe)) $ warning $ SafeFlagPragma unsafe
-  runOptM (checkOpts clo{ optPragmaOptions = opts }) >>= \case
-    Left err   -> __IMPOSSIBLE__
-    Right opts -> do
-      stPragmaOptions `setTCLens` optPragmaOptions opts
-      updateBenchmarkingStatus
+  -- Check for unsafe pragma options if @--safe@ is on.
+  when (Lens.getSafeMode opts) $
+    unlessNull (unsafePragmaOptions opts) $ \ unsafe ->
+      warning $ SafeFlagPragma unsafe
+
+  stPragmaOptions `setTCLens` opts
+  updateBenchmarkingStatus
 
 -- | Sets the command line options (both persistent and pragma options
 -- are updated).
@@ -77,9 +81,7 @@ setCommandLineOptions'
   -> CommandLineOptions
   -> TCM ()
 setCommandLineOptions' root opts = do
-  runOptM (checkOpts opts) >>= \case
-    Left err   -> __IMPOSSIBLE__
-    Right opts -> do
+  -- Andreas, 2022-11-19: removed a call to checkOpts which did nothing.
       incs <- case optAbsoluteIncludePaths opts of
         [] -> do
           opts' <- setLibraryPaths root opts
