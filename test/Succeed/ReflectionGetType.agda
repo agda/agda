@@ -18,11 +18,6 @@ module Temp {A : Set} where
   id-type₁ : Term
   id-type₁ = byTC (getType (quote id))
 
-  -- inContext [] goes to the original context of the macro call, so
-  -- it should not have any effect here.
-  id-type₁′ : Term
-  id-type₁′ = byTC (inContext [] (getType (quote id)))
-
 open Temp
 
 wrap : Term → Term
@@ -35,6 +30,3 @@ id-type₂ = byTC (getType (quote id))
 
 pf : ∀ {A} → wrap (id-type₁ {A}) ≡ id-type₂
 pf = refl
-
-pf′ : ∀ {A} → wrap (id-type₁′ {A}) ≡ id-type₂
-pf′ = refl
