@@ -174,7 +174,9 @@ addTrustedExecutables o = do
 setOptionsFromPragma :: OptionsPragma -> TCM ()
 setOptionsFromPragma ps = do
     opts <- commandLineOptions
-    runOptM (parsePragmaOptions ps opts) >>= \case
+    let (z, warns) = runOptM (parsePragmaOptions ps opts)
+    mapM_ (warning . OptionWarning) warns
+    case z of
       Left err    -> typeError $ GenericError err
       Right opts' -> setPragmaOptions opts'
 

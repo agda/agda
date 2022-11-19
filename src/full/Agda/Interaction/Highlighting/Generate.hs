@@ -477,6 +477,7 @@ warningHighlighting' b w = case tcWarning w of
   AsPatternShadowsConstructorOrPatternSynonym{}
                              -> deadcodeHighlighting w
   RecordFieldWarning w       -> recordFieldWarningHighlighting w
+  OptionWarning w            -> mempty
   ParseWarning w             -> case w of
     Pa.UnsupportedAttribute{}     -> deadcodeHighlighting w
     Pa.MultipleAttributes{}       -> deadcodeHighlighting w
