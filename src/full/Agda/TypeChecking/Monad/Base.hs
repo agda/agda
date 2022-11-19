@@ -3927,6 +3927,7 @@ data Warning
   | SafeFlagNoCoverageCheck
   | SafeFlagInjective
   | SafeFlagEta                            -- ^ ETA pragma is unsafe.
+  | OptionWarning            OptionWarning
   | ParseWarning             ParseWarning
   | LibraryWarning           LibWarning
   | DeprecationWarning String String String
@@ -3989,6 +3990,7 @@ warningName :: Warning -> WarningName
 warningName = \case
   -- special cases
   NicifierIssue dw             -> declarationWarningName dw
+  OptionWarning ow             -> optionWarningName ow
   ParseWarning pw              -> parseWarningName pw
   LibraryWarning lw            -> libraryWarningName lw
   AsPatternShadowsConstructorOrPatternSynonym{} -> AsPatternShadowsConstructorOrPatternSynonym_

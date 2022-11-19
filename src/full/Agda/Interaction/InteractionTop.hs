@@ -39,7 +39,7 @@ import qualified Agda.TypeChecking.Monad as TCM
 import qualified Agda.TypeChecking.Pretty as TCP
 import Agda.TypeChecking.Rules.Term (checkExpr, isType_)
 import Agda.TypeChecking.Errors
-import Agda.TypeChecking.Warnings (runPM)
+import Agda.TypeChecking.Warnings (runPM, warning)
 
 import Agda.Syntax.Fixity
 import Agda.Syntax.Position
@@ -926,9 +926,10 @@ cmd_load' file argv unsolvedOK mode cmd = do
     -- choice of whether or not to display implicit arguments.
     opts0 <- gets optionsOnReload
     backends <- useTC stBackends
-    z <- runOptM $ parseBackendOptions backends argv opts0
+    let (z, warns) = runOptM $ parseBackendOptions backends argv opts0
+    mapM_ (lift . warning . OptionWarning) warns
     case z of
-      Left err   -> lift $ typeError $ GenericError err
+      Left err -> lift $ typeError $ GenericError err
       Right (_, opts) -> do
         opts <- lift $ addTrustedExecutables opts
         let update o = o { optAllowUnsolved = unsolvedOK && optAllowUnsolved o}

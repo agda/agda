@@ -57,8 +57,10 @@ runAgda' :: [Backend] -> IO ()
 runAgda' backends = runTCMPrettyErrors $ do
   progName <- liftIO getProgName
   argv     <- liftIO getArgs
+  let (z, warns) = runOptM $ parseBackendOptions backends argv defaultOptions
+  mapM_ (warning . OptionWarning) warns
   conf     <- liftIO $ runExceptT $ do
-    (bs, opts) <- ExceptT $ runOptM $ parseBackendOptions backends argv defaultOptions
+    (bs, opts) <- ExceptT $ pure z
     -- The absolute path of the input file, if provided
     inputFile <- liftIO $ mapM absolute $ optInputFile opts
     mode      <- getMainMode bs inputFile opts
