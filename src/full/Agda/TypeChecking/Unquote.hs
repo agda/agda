@@ -845,7 +845,7 @@ evalTCM v = do
     tcGetType :: QName -> TCM Term
     tcGetType x = do
       r  <- isReconstructed
-      ci <- constInfo x >>= instantiateDef
+      ci <- constInfo x
       let t = defType ci
       if r then do
         t <- locallyReduceAllDefs $ reconstructParametersInType t
