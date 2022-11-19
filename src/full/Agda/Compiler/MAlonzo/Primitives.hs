@@ -286,10 +286,13 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primQNameFixity"     |-> return "MAlonzo.RTE.qnameFixity"
   , "primQNameToWord64s"  |-> return "\\ qn -> (MAlonzo.RTE.nameId qn, MAlonzo.RTE.moduleId qn)"
   , "primQNameToWord64sInjective" |-> return mazErasedName
-  , "primMetaEquality"    |-> rel "(==)" "Integer"
-  , "primMetaLess"        |-> rel "(<)" "Integer"
-  , "primShowMeta"        |-> return "\\ x -> Data.Text.pack (\"_\" ++ show (x :: Integer))"
-  , "primMetaToNat"       |-> return "(id :: Integer -> Integer)"
+  , "primMetaEquality"    |-> rel "(==)" "(Integer, Integer)"
+  , "primMetaLess"        |-> rel "(<)" "(Integer, Integer)"
+  -- Should be kept in sync with version in `primitiveFunctions` in
+  -- Agda.TypeChecking.Primitive
+  , "primShowMeta"        |-> return "\\ (m, h) -> Data.Text.pack (\"_\" ++ show (m :: Integer) ++ \"@\" ++ show (h :: Integer))"
+  -- Should be kept in sync with `metaToNat` in Agda.TypeChecking.Primitive
+  , "primMetaToNat"       |-> return "\\ (m, h) -> (h :: Integer) * 2^64 + (m :: Integer)"
   , "primMetaToNatInjective" |-> return mazErasedName
 
   -- Seq
