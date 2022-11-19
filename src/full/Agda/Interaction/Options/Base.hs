@@ -358,6 +358,7 @@ type OptM = Except String
 
 runOptM :: Monad m => OptM opts -> m (Either String opts)
 runOptM = pure . runExcept
+type OptError = String
 
 {- | @f :: Flag opts@  is an action on the option record that results from
      parsing an option.  @f opts@ produces either an error message or an
@@ -367,7 +368,7 @@ type Flag opts = opts -> OptM opts
 
 -- | Checks that the given options are consistent.
 
-checkOpts :: Flag CommandLineOptions
+checkOpts :: MonadError OptError m => CommandLineOptions -> m ()
 checkOpts opts = do
   -- NOTE: This is a temporary hold-out until --vim can be converted into a backend or plugin,
   -- whose options compatibility currently is checked in `Agda.Compiler.Backend`.
@@ -383,12 +384,11 @@ checkOpts opts = do
   --     to the rest of the type-checking system.
   when (optGenerateVimFile opts && optOnlyScopeChecking opts) $
     throwError $ "The --only-scope-checking flag cannot be combined with --vim."
-  return opts
 
 -- | Check for unsafe pragmas. Gives a list of used unsafe flags.
 
-unsafePragmaOptions :: CommandLineOptions -> PragmaOptions -> [String]
-unsafePragmaOptions clo opts =
+unsafePragmaOptions :: PragmaOptions -> [String]
+unsafePragmaOptions opts =
   [ "--allow-unsolved-metas"                     | optAllowUnsolved opts             ] ++
   [ "--allow-incomplete-matches"                 | optAllowIncompleteMatch opts      ] ++
   [ "--no-positivity-check"                      | optDisablePositivity opts         ] ++
@@ -1273,17 +1273,6 @@ getOptSimple argv opts fileArg = \ defaults ->
       sugs [a] = a
       sugs as  = "any of " ++ unwords as
 
-{- No longer used in favour of parseBackendOptions in Agda.Compiler.Backend
--- | Parse the standard options.
-parseStandardOptions :: [String] -> OptM CommandLineOptions
-parseStandardOptions argv = parseStandardOptions' argv defaultOptions
-
-parseStandardOptions' :: [String] -> Flag CommandLineOptions
-parseStandardOptions' argv opts = do
-  opts <- getOptSimple (stripRTS argv) (deadStandardOptions ++ standardOptions) inputFlag opts
-  checkOpts opts
--}
-
 -- | Parse options from an options pragma.
 parsePragmaOptions
   :: [String]
@@ -1295,7 +1284,7 @@ parsePragmaOptions argv opts = do
   ps <- getOptSimple argv (deadPragmaOptions ++ pragmaOptions)
           (\s _ -> throwError $ "Bad option in pragma: " ++ s)
           (optPragmaOptions opts)
-  _ <- checkOpts (opts { optPragmaOptions = ps })
+  () <- checkOpts (opts { optPragmaOptions = ps })
   return ps
 
 -- | Parse options for a plugin.
