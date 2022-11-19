@@ -96,8 +96,9 @@ numbers into the ordinary ones::
   ℕˢ-to-ℕ zeroˢ = zero
   ℕˢ-to-ℕ (succˢ n) = succ (ℕˢ-to-ℕ n)
 
-but not vice versa.  (Agda does currently allow mapping from the empty
-``SSet`` to the empty ``Set``, but this is a bug.)
+but not vice versa.
+(Agda does currently allow mapping from the empty ``SSet`` to the empty ``Set``,
+but this feature is `disputed <https://github.com/agda/agda/issues/5761#issuecomment-1154239427>`_.)
 
 If the ``--two-level`` flag is combined with ``--cumulativity``, then
 each universe ``Set a`` becomes a subtype of ``SSet a``.  In this case
@@ -108,5 +109,5 @@ we can instead define the coercion ``c`` to be the identity function::
 
 and replace the coercions ``↑`` and ``↓`` with the identity function.
 However, this combination currently allows some functions to be
-defined that shouldn't be allowed; see issue `#5761
+defined that shouldn't be allowed; see `Agda issue #5761
 <https://github.com/agda/agda/issues/5761>`_ for details.
