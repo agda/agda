@@ -1051,6 +1051,7 @@ alt sc a = do
                       (HS.GuardedRhss [HS.GuardedRhs [HS.Qualifier g] b])
                       emptyBinds
     T.TALit { T.aLit = LitQName q } -> mkAlt (litqnamepat q)
+    T.TALit { T.aLit = LitMeta _ m } -> mkAlt (litmetapat m)
     T.TALit { T.aLit = l@LitFloat{}, T.aBody = b } -> do
       tell YesFloat
       l <- literal l
@@ -1082,6 +1083,10 @@ literal l = case l of
   LitFloat  x   -> floatExp x "Double"
   LitQName  x   -> return $ litqname x
   LitString s   -> return $ litString s
+  LitMeta _ m   ->
+    return $ HS.FakeExp "(,)" `HS.App`
+             hsTypedInt (metaId m) `HS.App`
+             (hsTypedInt (moduleNameHash $ metaModule m))
   _             -> return $ l'
   where
     l'    = HS.Lit $ hslit l
@@ -1145,6 +1150,12 @@ litqnamepat x =
           , HS.PWildCard, HS.PWildCard ]
   where
     NameId n (ModuleNameHash m) = nameId $ qnameName x
+
+litmetapat :: MetaId -> HS.Pat
+litmetapat (MetaId m h) =
+  HS.PApp (hsName "(,)")
+          [ HS.PLit (HS.Int $ fromIntegral m)
+          , HS.PLit (HS.Int $ fromIntegral $ moduleNameHash h) ]
 
 condecl :: QName -> Induction -> HsCompileM HS.ConDecl
 condecl q _ind = do
