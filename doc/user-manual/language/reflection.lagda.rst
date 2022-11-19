@@ -464,12 +464,10 @@ following primitive operations::
     -- 'declareDef' or with an explicit type signature in the program.
     defineFun : Name → List Clause → TC ⊤
 
-    -- Get the type of a defined name relative to the current
-    -- module. Replaces 'primNameType'.
+    -- Get the type of a defined name. Replaces 'primNameType'.
     getType : Name → TC Type
 
-    -- Get the definition of a defined name relative to the current
-    -- module. Replaces 'primNameDefinition'.
+    -- Get the definition of a defined name. Replaces 'primNameDefinition'.
     getDefinition : Name → TC Definition
 
     -- Check if a name refers to a macro

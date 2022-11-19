@@ -234,10 +234,9 @@ Reflection
 * [**Breaking**] A new constructor `pattErr : Pattern → ErrorPart` of `ErrorPart` for reflection
   is added.
 
-* [**Breaking**] The reflection primitives `getType` and
-  `getDefinition` respect the module context they are invoked from
-  instead of returning information that would be expected in the top
-  context.
+* The reflection primitive `getType` respects the module context it is
+  invoked from instead of returning the type a name would have outside
+  of all modules.
 
 Syntax
 ------
