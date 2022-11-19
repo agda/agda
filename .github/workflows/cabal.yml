@@ -109,7 +109,7 @@ jobs:
           ghc-ver: 9.4.3
           os: macos-12
         - cabal-ver: '3.8'
-          ghc-ver: 9.4.2
+          ghc-ver: 9.4.3
           os: windows-2022
         os:
         - ubuntu-22.04

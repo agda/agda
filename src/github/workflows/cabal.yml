@@ -64,7 +64,7 @@ jobs:
             cabal-ver: '3.8'
           # Windows
           - os: windows-2022
-            ghc-ver: 9.4.2
+            ghc-ver: 9.4.3
             cabal-ver: '3.8'
     env:
       FLAGS: "-f enable-cluster-counting"
