@@ -206,7 +206,7 @@ parseBackendOptions backends argv opts0 =
       (backends, opts) <- getOptSimple (stripRTS argv)
                                        (agdaFlags ++ backendFlags) (embedFlag lSnd . inputFlag)
                                        (bs, opts0)
-      opts <- checkOpts opts
+      () <- checkOpts opts
       return (forgetAll forgetOpts backends, opts)
 
 backendInteraction :: AbsolutePath -> [Backend] -> TCM () -> (AbsolutePath -> TCM CheckResult) -> TCM ()
