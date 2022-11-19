@@ -230,6 +230,8 @@ prettyWarning = \case
     SafeFlagNoCoverageCheck -> fsep $
       pwords "Cannot use NON_COVERING pragma with safe flag."
 
+    OptionWarning ow -> pretty ow
+
     ParseWarning pw -> pretty pw
 
     DeprecationWarning old new version -> fsep $

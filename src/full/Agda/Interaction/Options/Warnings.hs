@@ -167,9 +167,10 @@ usualWarnings = allWarnings Set.\\ Set.fromList
 -- to existing warnings in the codebase.
 
 data WarningName
-  =
+  -- Option Warnings
+  = OptionRenamed_
   -- Parser Warnings
-    OverlappingTokensWarning_
+  | OverlappingTokensWarning_
   | UnsupportedAttribute_
   | MultipleAttributes_
   -- Library Warnings
@@ -324,6 +325,8 @@ usageWarning = intercalate "\n"
 
 warningNameDescription :: WarningName -> String
 warningNameDescription = \case
+  -- Option Warnings
+  OptionRenamed_                   -> "Renamed options."
   -- Parser Warnings
   OverlappingTokensWarning_        -> "Multi-line comments spanning one or more literate text blocks."
   UnsupportedAttribute_            -> "Unsupported attributes."
