@@ -268,6 +268,26 @@ Printing and debugging
 
      Do not use unicode characters to print terms.
 
+.. option:: --trace-imports[=(on-enter|on-exit|all)]
+
+     .. versionadded:: 2.6.4
+
+     Configure printing of messages when an imported module is accessed during type-checking.
+
+     .. list-table::
+
+       * - ``on-enter``
+         - | Print only `Checking ...` when an access to an uncompiled module occurs.
+           | This is the default behavior if ``--trace-imports`` is not specified.
+       * - ``on-exit``
+         - | Use the effect of ``on-enter``, but also print `Finished ...`
+           | when a compilation of a module finished.
+           | This is the behavior if ``--trace-imports`` is specified without a value.
+       * - ``all``
+         - | Use the effect of ``on-exit``, but also print `Loading ...`
+           | when a compiled module is accessed during the type-checking.
+
+
 .. option:: --show-implicit
 
      Show implicit arguments when printing.

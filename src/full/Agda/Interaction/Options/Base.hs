@@ -8,6 +8,7 @@ module Agda.Interaction.Options.Base
     , OptionWarning(..), optionWarningName
     , Flag, OptM, runOptM, OptDescr(..), ArgDescr(..)
     , Verbosity, VerboseKey, VerboseLevel
+    , TraceImportsMode(..)
     , WarningMode(..)
     , ConfluenceCheck(..)
     , UnicodeOrAscii(..)
@@ -104,6 +105,21 @@ type Verbosity = Strict.Maybe (Trie VerboseKeyItem VerboseLevel)
 parseVerboseKey :: VerboseKey -> [VerboseKeyItem]
 parseVerboseKey = List1.wordsBy (`elem` ['.', ':'])
 
+-- | The amount of printed information during the type checking
+data TraceImportsMode
+  = OnlyChecking
+  -- ^ Print only 'Checking ...' messages
+  | CheckingFinished
+  -- ^ Print 'Checking ...' and corresponding 'Finished ...' messages
+  | CheckingFinishedLoading
+  -- ^ Print 'Checking ...', 'Finished ...', and 'Loading ...' messages
+  deriving (Eq, Show, Ord, Enum, Bounded, Generic)
+
+instance NFData TraceImportsMode
+
+validTraceImportsArguments :: [String]
+validTraceImportsArguments = ["on-enter", "on-exit", "all"]
+
 -- Don't forget to update
 --   doc/user-manual/tools/command-line-options.rst
 -- if you make changes to the command-line options!
@@ -154,6 +170,7 @@ instance NFData CommandLineOptions
 data PragmaOptions = PragmaOptions
   { optShowImplicit              :: Bool
   , optShowIrrelevant            :: Bool
+  , optTraceImports              :: TraceImportsMode
   , optUseUnicode                :: UnicodeOrAscii
   , optVerbose                   :: !Verbosity
   , optProfiling                 :: ProfileOptions
@@ -301,6 +318,7 @@ defaultPragmaOptions :: PragmaOptions
 defaultPragmaOptions = PragmaOptions
   { optShowImplicit              = False
   , optShowIrrelevant            = False
+  , optTraceImports              = OnlyChecking
   , optUseUnicode                = UnicodeOk
   , optVerbose                   = Strict.Nothing
   , optProfiling                 = noProfileOptions
@@ -455,6 +473,7 @@ recheckBecausePragmaOptionsChanged used current =
   blankOut opts = opts
     { optShowImplicit              = False
     , optShowIrrelevant            = False
+    , optTraceImports              = OnlyChecking
     , optVerbose                   = empty
     , optProfiling                 = noProfileOptions
     , optPostfixProjections        = False
@@ -689,6 +708,17 @@ showIrrelevantFlag o = return $ o { optShowIrrelevant = True }
 
 showIdentitySubstitutionsFlag :: Flag PragmaOptions
 showIdentitySubstitutionsFlag o = return $ o { optShowIdentitySubstitutions = True }
+
+traceImportsFlag :: Maybe String -> Flag PragmaOptions
+traceImportsFlag arg o = do
+  mode <- case arg of
+            Nothing -> return CheckingFinished
+            Just "on-enter" -> return OnlyChecking
+            Just "on-exit" -> return CheckingFinished
+            Just "all" -> return CheckingFinishedLoading
+            Just str -> throwError $ "unknown printing option " ++ str ++ " (available: " ++
+                             intercalate ", " validTraceImportsArguments ++ ")"
+  return $ o { optTraceImports = mode }
 
 asciiOnlyFlag :: Flag PragmaOptions
 asciiOnlyFlag o = return $ UNSAFE.unsafePerformIO $ do
@@ -1059,6 +1089,9 @@ pragmaOptions =
                     "show all arguments of metavariables when printing terms"
     , Option []     ["no-unicode"] (NoArg asciiOnlyFlag)
                     "don't use unicode characters when printing terms"
+    , Option []     ["trace-imports"] (OptArg traceImportsFlag "MODE")
+                    ("print information about accessed modules during type-checking (where MODE=" ++
+                      intercalate "|" validTraceImportsArguments ++ ", default: on-exit)")
     , Option ['v']  ["verbose"] (ReqArg verboseFlag "N")
                     "set verbosity level to N"
     , Option []     ["profile"] (ReqArg profileFlag "TYPE")
