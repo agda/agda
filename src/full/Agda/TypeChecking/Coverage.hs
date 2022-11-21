@@ -1310,12 +1310,20 @@ split' checkEmpty ind allowPartialCover inserttrailing
       (con,) . (,info) . snd <$> insertTrailingArgs False sc
 
   mHCompName <- getPrimitiveName' builtinHComp
-  withoutK   <- collapseDefault . optWithoutK <$> pragmaOptions
+  opts       <- pragmaOptions
+  let withoutK        = collapseDefault (optWithoutK opts)
+      erasedMatches   = collapseDefault (optErasedMatches opts)
+      isRecordWithEta = case dr of
+        IsData       -> False
+        IsRecord{..} ->
+          case theEtaEquality recordEtaEquality of
+            YesEta{} -> True
+            NoEta{}  -> False
 
   erased <- hasQuantity0 <$> viewTC eQuantity
   reportSLn "tc.cover.split" 60 $ "We are in erased context = " ++ show erased
-  let erasedError causedByWithoutK =
-        throwError . ErasedDatatype causedByWithoutK =<<
+  let erasedError reason =
+        throwError . ErasedDatatype reason =<<
           do liftTCM $ inContextOfT $ buildClosure (unDom t)
 
   case numMatching of
@@ -1333,14 +1341,15 @@ split' checkEmpty ind allowPartialCover inserttrailing
 
     -- Andreas, 2018-10-17: If more than one constructor matches, we cannot erase.
     n | n > 1 && not erased && not (usableQuantity t) ->
-      erasedError False
+      erasedError SeveralConstructors
 
     -- If exactly one constructor matches and the K rule is turned
-    -- off, then we only allow erasure for non-indexed data types
-    -- (#4172).
-    1 | not erased && not (usableQuantity t) &&
-          withoutK && isIndexed ->
-      erasedError True
+    -- off, then we only allow erasure for non-indexed data/record
+    -- types (#4172). If the type is not a record type with
+    -- η-equality, then the flag --erased-matches must be active.
+    1 | not erased && not (usableQuantity t) && withoutK &&
+        (isIndexed || not isRecordWithEta && not erasedMatches) ->
+      erasedError (if isIndexed then NoK else NoErasedMatches)
 
     _ -> do
 

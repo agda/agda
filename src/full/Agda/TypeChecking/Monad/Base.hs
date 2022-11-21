@@ -4186,15 +4186,23 @@ data TerminationError = TerminationError
     -- ^ The problematic call sites.
   } deriving (Show, Generic)
 
+-- | The reason for an 'ErasedDatatype' error.
+
+data ErasedDatatypeReason
+  = SeveralConstructors
+    -- ^ There are several constructors.
+  | NoErasedMatches
+    -- ^ The flag @--erased-matches@ is not used.
+  | NoK
+    -- ^ The K rule is not activated.
+  deriving (Show, Generic)
+
 -- | Error when splitting a pattern variable into possible constructor patterns.
 data SplitError
   = NotADatatype        (Closure Type)  -- ^ Neither data type nor record.
   | BlockedType Blocker (Closure Type)  -- ^ Type could not be sufficiently reduced.
-  | ErasedDatatype Bool (Closure Type)  -- ^ Data type, but in erased position.
-                                        --   If the boolean is 'True',
-                                        --   then the reason for the
-                                        --   error is that the K rule
-                                        --   is turned off.
+  | ErasedDatatype ErasedDatatypeReason (Closure Type)
+                                        -- ^ Data type, but in erased position.
   | CoinductiveDatatype (Closure Type)  -- ^ Split on codata not allowed.
   -- UNUSED, but keep!
   -- -- | NoRecordConstructor Type  -- ^ record type, but no constructor
@@ -5476,6 +5484,7 @@ instance NFData RecordFieldWarning
 instance NFData TCWarning
 instance NFData CallInfo
 instance NFData TerminationError
+instance NFData ErasedDatatypeReason
 instance NFData SplitError
 instance NFData NegativeUnification
 instance NFData UnificationFailure

@@ -773,6 +773,18 @@ Other features
      record fields (if :option:`--with-K` is not active this is not
      done for indexed data types).
 
+.. option:: --erased-matches
+
+     .. versionadded:: 2.6.4
+
+     Allow matching in erased positions for single-constructor,
+     non-indexed data/record types. (This kind of matching is always
+     allowed for record types with η-equality.)
+
+     This option is implied by :option:`--with-K` (even implicit use
+     of :option:`--with-K` through the absence of options like
+     :option:`--without-K`).
+
 .. option:: --erase-record-parameters
 
      .. versionadded:: 2.6.3
@@ -1103,6 +1115,7 @@ are infective:
 * :option:`--cohesion`
 * :option:`--flat-split`
 * :option:`--erasure`
+* :option:`--erased-matches`
 
 Furthermore :option:`--cubical` and :option:`--erased-cubical` are
 *jointly infective*: if one of them is used in one module, then one or
@@ -1146,6 +1159,7 @@ again, the source file is re-typechecked instead:
 * :option:`--double-check`
 * :option:`--erase-record-parameters`
 * :option:`--erased-cubical`
+* :option:`--erased-matches`
 * :option:`--erasure`
 * :option:`--exact-split`
 * :option:`--experimental-irrelevance`

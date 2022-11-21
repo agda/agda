@@ -185,6 +185,10 @@ data PragmaOptions = PragmaOptions
   , optForcing                   :: Bool  -- ^ Perform the forcing analysis on data constructors?
   , optProjectionLike            :: Bool  -- ^ Perform the projection-likeness analysis on functions?
   , optErasure                   :: Bool
+  , optErasedMatches             :: WithDefault 'True
+    -- ^ Allow matching in erased positions for single-constructor,
+    -- non-indexed data/record types. (This kind of matching is always
+    -- allowed for record types with η-equality.)
   , optEraseRecordParameters     :: Bool  -- ^ Mark parameters of record modules as erased?
   , optRewriting                 :: Bool  -- ^ Can rewrite rules be added and used?
   , optCubical                   :: Maybe Cubical
@@ -333,6 +337,7 @@ defaultPragmaOptions = PragmaOptions
   , optForcing                   = True
   , optProjectionLike            = True
   , optErasure                   = False
+  , optErasedMatches             = Default
   , optEraseRecordParameters     = False
   , optRewriting                 = False
   , optCubical                   = Nothing
@@ -565,6 +570,8 @@ infectiveCoinfectiveOptions =
   , infectiveOption (collapseDefault . optFlatSplit) "--flat-split"
   , infectiveOption optCohesion "--cohesion"
   , infectiveOption optErasure "--erasure"
+  , infectiveOption (collapseDefault . optErasedMatches)
+                    "--erased-matches"
   ]
   where
   cubicalCompatible =
@@ -813,12 +820,16 @@ noProjectionLikeFlag :: Flag PragmaOptions
 noProjectionLikeFlag o = return $ o { optProjectionLike = False }
 
 withKFlag :: Flag PragmaOptions
-withKFlag o = return $ o { optWithoutK = Value False }
+withKFlag o = return $ o
+  { optWithoutK      = Value False
+  , optErasedMatches = Value True
+  }
 
 withoutKFlag :: Flag PragmaOptions
 withoutKFlag o = return $ o
   { optWithoutK = Value True
   , optFlatSplit = setDefault False (optFlatSplit o)
+  , optErasedMatches = setDefault False (optErasedMatches o)
   }
 
 copatternsFlag :: Flag PragmaOptions
@@ -855,6 +866,7 @@ cubicalCompatibleFlag o =
   return $ o { optCubicalCompatible = Value True
              , optWithoutK = setDefault True $ optWithoutK o
              , optFlatSplit = setDefault False (optFlatSplit o)
+             , optErasedMatches = setDefault False (optErasedMatches o)
              }
 
 cubicalFlag
@@ -866,6 +878,7 @@ cubicalFlag variant o =
              , optWithoutK = setDefault True $ optWithoutK o
              , optTwoLevel = setDefault True $ optTwoLevel o
              , optFlatSplit = setDefault False (optFlatSplit o)
+             , optErasedMatches = setDefault False (optErasedMatches o)
              }
 
 guardedFlag :: Flag PragmaOptions
@@ -984,6 +997,9 @@ saveMetas save o = return $ o { optSaveMetas = Value save }
 
 erasureFlag :: Flag PragmaOptions
 erasureFlag o = return $ o { optErasure = True }
+
+erasedMatchesFlag :: Flag PragmaOptions
+erasedMatchesFlag o = return $ o { optErasedMatches = Value True }
 
 eraseRecordParametersFlag :: Flag PragmaOptions
 eraseRecordParametersFlag o
@@ -1159,6 +1175,8 @@ pragmaOptions =
                     "disable the analysis whether function signatures liken those of projections (optimisation)"
     , Option []     ["erasure"] (NoArg erasureFlag)
                     "enable erasure"
+    , Option []     ["erased-matches"] (NoArg erasedMatchesFlag)
+                    "allow matching in erased positions for single-constructor types"
     , Option []     ["erase-record-parameters"] (NoArg eraseRecordParametersFlag)
                     "mark all parameters of record modules as erased"
     , Option []     ["no-erase-record-parameters"] (NoArg noEraseRecordParametersFlag)

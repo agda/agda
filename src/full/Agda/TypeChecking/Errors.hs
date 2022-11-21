@@ -1297,12 +1297,16 @@ instance PrettyTCM SplitError where
     BlockedType b t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot split on argument of unresolved type" ++ [prettyTCM t]
 
-    ErasedDatatype causedByWithoutK t -> enterClosure t $ \ t -> fsep $
+    ErasedDatatype reason t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot branch on erased argument of datatype" ++
       [prettyTCM t] ++
-      if causedByWithoutK
-      then pwords "because the K rule is turned off"
-      else []
+      case reason of
+        NoErasedMatches ->
+          pwords "because the option --erased-matches is not active"
+        NoK ->
+          pwords "because the K rule is turned off"
+        SeveralConstructors ->
+          []
 
     CoinductiveDatatype t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot pattern match on the coinductive type" ++ [prettyTCM t]

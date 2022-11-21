@@ -1,0 +1,4 @@
+Issue6349-2.agda:7,1-7
+Cannot branch on erased argument of datatype Unit because the
+option --erased-matches is not active
+when checking the definition of f
