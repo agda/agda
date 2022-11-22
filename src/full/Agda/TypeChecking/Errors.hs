@@ -192,7 +192,7 @@ errorString err = case err of
   NoSuchModule{}                           -> "NoSuchModule"
   DuplicatePrimitiveBinding{}              -> "DuplicatePrimitiveBinding"
   NoSuchPrimitiveFunction{}                -> "NoSuchPrimitiveFunction"
-  WrongModalityForPrimitive{}              -> "WrongModalityForPrimitive"
+  WrongArgInfoForPrimitive{}               -> "WrongArgInfoForPrimitive"
   NotAModuleExpr{}                         -> "NotAModuleExpr"
   NotAProperTerm                           -> "NotAProperTerm"
   InvalidType{}                            -> "InvalidType"
@@ -711,16 +711,14 @@ instance PrettyTCM TypeError where
     NoSuchPrimitiveFunction x -> fsep $
       pwords "There is no primitive function called" ++ [text x]
 
-    WrongModalityForPrimitive x got expect ->
-      vcat [ fsep $ pwords "Wrong modality for primitive" ++ [pretty x]
+    WrongArgInfoForPrimitive x got expect ->
+      vcat [ fsep $ pwords "Wrong definition properties for primitive" ++ [pretty x]
            , nest 2 $ text $ "Got:      " ++ intercalate ", " gs
            , nest 2 $ text $ "Expected: " ++ intercalate ", " es ]
       where
         (gs, es) = unzip [ p | p@(g, e) <- zip (things got) (things expect), g /= e ]
         things i = [verbalize $ getHiding i,
-                    verbalize $ getRelevance i,
-                    verbalize $ getQuantity i,
-                    verbalize $ getCohesion i]
+                    "at modality " ++ verbalize (getModality i)]
 
     BuiltinInParameterisedModule x -> fwords $
       "The BUILTIN pragma cannot appear inside a bound context " ++
@@ -1620,7 +1618,7 @@ instance Verbalize Cohesion where
 
 instance Verbalize Modality where
   verbalize mod | mod == defaultModality = "default"
-  verbalize (Modality rel qnt coh) = intercalate "," $
+  verbalize (Modality rel qnt coh) = intercalate ", " $
     [ verbalize rel | rel /= defaultRelevance ] ++
     [ verbalize qnt | qnt /= defaultQuantity ] ++
     [ verbalize coh | coh /= defaultCohesion ]

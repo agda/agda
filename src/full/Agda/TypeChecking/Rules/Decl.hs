@@ -719,15 +719,16 @@ checkPrimitive i x (Arg info e) =
     t <- isType_ e
     noConstraints $ equalType t t'
     let s  = prettyShow $ qnameName x
-    -- Checking the modality. Currently all primitives require default
-    -- modalities, and likely very few will have different modalities in the
-    -- future. Thus, rather than, the arguably nicer solution of adding a
-    -- modality to PrimImpl we simply check the few special primitives here.
+    -- Checking the ArgInfo. Currently all primitive definitions require default
+    -- ArgInfos, and likely very few will have different ArgInfos in the
+    -- future. Thus, rather than, the arguably nicer solution of adding an
+    -- ArgInfo to PrimImpl we simply check the few special primitives here.
     let expectedInfo =
           case name of
             -- Currently no special primitives
             _ -> defaultArgInfo
-    unless (info == expectedInfo) $ typeError $ WrongModalityForPrimitive name info expectedInfo
+    unless (info == expectedInfo) $
+      typeError $ WrongArgInfoForPrimitive name info expectedInfo
     bindPrimitive name pf
     addConstant' x info x t $
         Primitive { primAbstr    = Info.defAbstract i

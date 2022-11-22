@@ -4535,7 +4535,7 @@ data TypeError
         | NoBindingForBuiltin BuiltinId
         | NoSuchPrimitiveFunction String
         | DuplicatePrimitiveBinding PrimitiveId QName QName
-        | WrongModalityForPrimitive PrimitiveId ArgInfo ArgInfo
+        | WrongArgInfoForPrimitive PrimitiveId ArgInfo ArgInfo
         | ShadowedModule C.Name [A.ModuleName]
         | BuiltinInParameterisedModule BuiltinId
         | IllegalLetInTelescope C.TypedBinding
