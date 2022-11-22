@@ -12,6 +12,9 @@
 --       @private@,
 --       termination pragmas.
 --
+--   * Generate (internal) @unfolding@ declarations for each @abstract@
+--     block.
+--
 --   * Gather the function clauses belonging to one function definition.
 --
 --   * Expand ellipsis @...@ in function clauses following @with@.
@@ -460,9 +463,19 @@ niceDeclarations nextabs fixs ds = do
 
 
         Abstract r _ [] -> justWarning $ EmptyAbstract r
+
+        -- Note (abstract unfolding): If the abstract block is
+        -- non-empty, we have to generate a fresh 'AbstractId' and
+        -- associate each definition in the abstract block with this
+        -- identifier. The nicifier is the only place where we can do
+        -- this, since it is the last place where abstract blocks
+        -- /exist/.
         Abstract r uf ds' -> do
           id <- nextAbstractId
           ds' <- abstractBlock r uf id =<< andUnfold uf (nice ds')
+          -- We also generate a 'NiceUnfolding' declaration, which the
+          -- scope checker will use to associate this 'AbstractId' with
+          -- the names it is allowed to unfold.
           enclosing <- gets _enclosingUnfolding
           pure (ds' ++ [NiceUnfolding r id (enclosing <> uf)], ds)
 

@@ -2253,14 +2253,22 @@ instance KillRange Access where
 data IsAbstract = AbstractDef | ConcreteDef
     deriving (Show, Eq, Ord, Generic)
 
+-- | An identifier for abstract blocks. 'AbstractId's are internally
+-- generated (in the nicifier) and /never/ shown to the user, since
+-- their only purpose is to associate @abstract@ definitions with their
+-- @unfolding@ clauses (if any).
 data AbstractId = AbstractId {-# UNPACK #-} !Word64 {-# UNPACK #-} !ModuleNameHash
   deriving (Eq, Ord, Show, Generic)
 
 instance NFData AbstractId
 
+-- | Is this definition abstract or concrete, and, if it is abstract,
+-- what is its 'AbstractId'?
 data IsAbstractUnfolding
   = AbstractUnfolding AbstractId
+  -- ^ This is an abstract definition associated with the given block.
   | NoAbstract
+  -- ^ This is not an abstract definition.
   deriving (Eq, Show, Generic)
 
 instance NFData IsAbstractUnfolding

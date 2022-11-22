@@ -1342,14 +1342,21 @@ treatAbstractly' :: Map AbstractId (HashSet QName) -> QName -> TCEnv -> Bool
 treatAbstractly' st q env = case envAbstractMode env of
   ConcreteMode       -> True
   IgnoreAbstractMode -> False
-  AbstractMode i     -> not (current `isLeChildModuleOf` m || canUnfold i) -- TODO abstract unfolding
+  AbstractMode i     -> not (current `isLeChildModuleOf` m || canUnfold i)
   where
     current = dropAnon $ envCurrentModule env
     m       = dropAnon $ qnameModule q
     dropAnon (MName ms) = MName $ List.dropWhileEnd isNoName ms
+    -- Because of @abstract unfolding@ support, 'AbstractMode' stores
+    -- the identifier ('AbstractId') for the block which we're
+    -- type-checking under. If the given name @q@ is in the set of
+    -- identifiers allowed by the @unfolding@ clause of the current
+    -- abstract block, then the definition *can* be unfolded.
     canUnfold i = case Map.lookup i st of
       Just hs -> HashSet.member q hs
       Nothing -> False
+      -- Amy (2022-11-22): This is actually __IMPOSSIBLE__, I'm fairly
+      -- sure, but 'False' is the less explosive choice.
 
 -- | Get type of a constant, instantiated to the current context.
 {-# SPECIALIZE typeOfConst :: QName -> TCM Type #-}
