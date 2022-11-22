@@ -114,6 +114,7 @@ Coinductive Record Constructors
 It is possible to give an explicit constructor to coinductive record types like ``Stream``:
 
 ::
+
     record Stream' (A : Set) : Set where
       coinductive
       constructor cons
@@ -123,11 +124,13 @@ It is possible to give an explicit constructor to coinductive record types like 
 
 ..
   ::
+
     open Stream'
 
 However, this constructor cannot be pattern-matched:
 
 ::
+
     -- Get the third element of a stream
     third : ∀{A} → Stream' A → A
 
@@ -137,11 +140,13 @@ However, this constructor cannot be pattern-matched:
 Instead, you can use the record fields as projections:
 
 ::
+
     third str = str .tl .tl .hd
 
 The constructor can be used as usual in the right-hand side of definitions:
 
 ::
+
     -- Prepend a list to a stream
     prepend : ∀{A} → List A → Stream' A → Stream' A
     prepend [] str = str
@@ -150,6 +155,7 @@ The constructor can be used as usual in the right-hand side of definitions:
 However, it doesn't count as 'guarding' for the productivity checker:
 
 ::
+
     -- Make a stream with one element repeated forever
     cycle : ∀{A} → A → Stream' A
 
@@ -159,12 +165,14 @@ However, it doesn't count as 'guarding' for the productivity checker:
 Instead, you can use copattern matching:
 
 ::
+
     cycle a .hd = a
     cycle a .tl = cycle a
 
 It is also possible to use copattern-matching lambdas:
 
 ::
+
     cycle' : ∀{A} → A → Stream' A
     cycle' a = λ where
       .hd → a
