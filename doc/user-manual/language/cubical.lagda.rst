@@ -833,6 +833,7 @@ compute on transported values.
 
 ::
 
+
   sucInjEq : ∀ {n k} → Eq (suc n) (suc k) → Eq n k
   sucInjEq reflEq = reflEq
 
@@ -918,6 +919,28 @@ but ``Setω`` is not considered fibrant yet.
   test : ∀ {ℓ ℓ′} → Argh ℓ ℓ′ → Bool
   test {ℓ} (argh _) = true
 
+
+Modalities & indexed matching
+-----------------------------
+
+When using indexed matching in Cubical Agda, clauses' arguments (and
+their right-hand-sides) need to be transported to account for indexing,
+meaning that the *types* of those arguments must be well-formed *terms*.
+
+For example, the following code is forbidden in Cubical Agda, and when
+``--without-K`` is enabled:
+
+.. code-block:: agda
+
+  subst : (@0 P : A → Set p) → x ≡ y → P x → P y
+  subst _ refl p = p
+
+This is because the predicate ``P`` is erased, but internally, we have
+to transport along the argument ``p`` along a path involving ``P``, in a
+relevant position.
+
+Any argument which is used in the result type, or appears after a forced
+(dot) pattern, must have a modality-correct type.
 
 Cubical identity types and computational HoTT/UF
 ================================================
