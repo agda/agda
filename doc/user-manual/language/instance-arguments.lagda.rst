@@ -5,7 +5,7 @@
 
   open import language.built-ins
     using (Bool; true; false; List; _∷_; []; Nat; _-_; zero; suc; _+_)
-    renaming (_==_ to natEquals)
+    renaming (_==_ to _≡ᵇ_)
 
   open import Agda.Primitive
 
@@ -270,7 +270,7 @@ recursively during instance resolution. For instance,
       _==_ {{eqList}} _        _        = false
 
       eqNat : Eq Nat
-      _==_ {{eqNat}} = natEquals
+      _==_ {{eqNat}} = _≡ᵇ_  -- imported from Data.Nat.Base
 
     ex : Bool
     ex = (1 ∷ 2 ∷ 3 ∷ []) == (1 ∷ 2 ∷ []) -- false
