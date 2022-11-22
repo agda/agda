@@ -2286,6 +2286,7 @@ instance Semigroup IsAbstractUnfolding where
 
 instance Monoid IsAbstractUnfolding where
   mempty = empty
+  mappend = (<>)
 
 -- | Semigroup computes if any of several is an 'AbstractDef'.
 instance Semigroup IsAbstract where

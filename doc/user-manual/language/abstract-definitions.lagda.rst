@@ -79,11 +79,19 @@ natural numbers::
       _+ℤ_ : (x y : ℤ) → ℤ
       (p , n) +ℤ (p' , n') = (p + p') , (n + n')
 
+      _*ℤ_ : (x y : ℤ) → ℤ
+      (a , b) *ℤ (c , d) = ((a * c) + (b * d)) , ((a * d) + (b * c))
+
+      infixl 20 _+ℤ_
+      infixl 30 _*ℤ_
+
       -ℤ_ : ℤ → ℤ
       -ℤ (p , n) = (n , p)
 
       _≡ℤ_ : (x y : ℤ) → Set
       (p , n) ≡ℤ (p' , n') = (p + n') ≡ (p' + n)
+
+      infix 10 _≡ℤ_
 
       private
         postulate
@@ -176,3 +184,77 @@ uncles::
         where
         x≡y : x ≡ 0
         x≡y = refl
+
+Unfolding control
+-----------------
+
+Agda (since 2.6.4) implements a form of unfolding control for abstract
+definitions, where later abstract blocks (in possibly different modules)
+can choose to reduce abstract definitions from earlier blocks.
+
+For example, in a *different* module (here ``Integer-ring``), we could
+prove equations (using the extensional equality ``_≡ℤ_``) expressing
+that the type ``ℤ`` is a ring, for example distributivity of
+multiplication over addition on the left::
+
+  module Integer-ring where
+    open Integer
+    abstract unfolding (ℤ) where
+      distlℤ : ∀ x y z → x *ℤ (y +ℤ z) ≡ℤ x *ℤ y +ℤ x *ℤ z
+      distlℤ (a , b) (c , d) (e , f) = wow where postulate
+        wow : a * (c + e) + b * (d + f) + (a * d + b * c + (a * f + b * e))
+            ≡ a * c + b * d + (a * e + b * f) + (a * (d + f) + b * (c + e))
+
+We've left the proof of the underlying equation on naturals as a
+postulate, since it is best left for a semiring solver, but the point of
+the example is that in an ``abstract unfolding (ℤ)`` block, we're
+allowed to see that ``ℤ = Nat × Nat``, definitionally. Additionally, we
+can unfold anything that is declared in the same ``abstract`` block as
+one of the ``unfolding`` names, to keep subject reduction::
+
+  module SR1 where
+    abstract
+      X : Set
+      X = Nat
+
+      val : X
+      val = 123
+
+  module SR2 where
+    abstract unfolding (SR1.val) where
+      val′ : Nat
+      val′ = SR1.val
+
+It'd be incorrect for us to unfold ``SR1.val`` to ``123 : Nat`` if we
+don't have a definitional equality ``SR1.X = Nat``. This can also be
+seen if we have a **chain** of unfolding blocks::
+
+  module SR3 where abstract
+    X : Set
+    X = Nat
+
+  module SR4 where abstract unfolding (SR3.X) where
+    val : SR3.X
+    val = 123
+
+  module SR5 where abstract unfolding (SR4.val) where
+    val′ : SR3.X
+    val′ = 123
+    -- Even though we only asked for SR4.val, we must also have SR3.XA
+
+Note that ``unfolding`` declarations (intentionally) do not apply to the
+**type signatures** in an abstract block, and you must use a helper
+definition to cause the unfolding::
+
+  module TySig where abstract unfolding (SR5.val′) where
+    private
+      ty : Set
+      ty = SR5.val′ ≡ 123
+
+    _ : ty
+    _ = refl
+
+In the definition above, it'd be illegal to write ``_ : SR5.val′ ≡
+123``, since we do not unfold ``SR3.X = Nat`` **in the type signature**,
+but that unfolding is required since the arguments to ``_≡_`` must have
+the same type.

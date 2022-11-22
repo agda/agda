@@ -72,8 +72,9 @@ import Control.DeepSeq
 
 import qualified Data.DList as DL
 import Data.Functor.Identity
-import Data.Set         ( Set  )
+import Data.Semigroup   ( Semigroup(..) )
 import Data.Text        ( Text )
+import Data.Set         ( Set  )
 -- import Data.Traversable ( forM )
 
 import GHC.Generics     ( Generic )
@@ -97,7 +98,6 @@ import Agda.Utils.List2       ( List2, pattern List2 )
 import Agda.Utils.Null
 
 import Agda.Utils.Impossible
-import Data.Word
 
 data OpApp e
   = SyntaxBindingLambda Range (List1 LamBinding) e
