@@ -6,6 +6,7 @@ import Control.Monad.State  ( MonadState(..), modify, State, runState, gets )
 
 import Data.Bifunctor (second)
 import Data.Map (Map)
+import Data.Semigroup ((<>))
 import qualified Data.Map as Map
 
 import Agda.Syntax.Position

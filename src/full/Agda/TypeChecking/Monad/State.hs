@@ -361,6 +361,7 @@ setTopLevelModule :: TopLevelModuleName -> TCM ()
 setTopLevelModule top = do
   let hash = moduleNameId top
   stFreshNameId `setTCLens'` NameId 0 hash
+  stFreshAbstractId `setTCLens'` AbstractId 0 hash
   stFreshMetaId `setTCLens'`
     MetaId { metaId     = 0
            , metaModule = hash

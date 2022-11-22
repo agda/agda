@@ -1682,7 +1682,7 @@ instantiateFullExceptForDefinitions' :: Interface -> ReduceM Interface
 instantiateFullExceptForDefinitions'
   (Interface h s ft ms mod tlmod scope inside sig metas display userwarn
      importwarn b foreignCode highlighting libPragmas filePragmas
-     usedOpts patsyns warnings partialdefs) =
+     usedOpts patsyns warnings partialdefs abstract unfolding) =
   Interface h s ft ms mod tlmod scope inside
     <$> ((\s r -> Sig { _sigSections     = s
                       , _sigDefinitions  = sig ^. sigDefinitions
@@ -1703,6 +1703,8 @@ instantiateFullExceptForDefinitions'
     <*> return patsyns
     <*> return warnings
     <*> return partialdefs
+    <*> pure abstract
+    <*> pure unfolding
 
 -- | Instantiates everything except for definitions in the signature.
 

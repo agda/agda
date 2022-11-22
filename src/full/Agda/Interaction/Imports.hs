@@ -106,6 +106,7 @@ import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
+import qualified Data.HashSet as HashSet
 
 -- | Whether to ignore interfaces (@.agdai@) other than built-in modules
 
@@ -243,6 +244,8 @@ mergeInterface i = do
       (iUserWarnings i)
       (iPartialDefs i)
       warns
+      (iAbstractBlocks i)
+      (iUnfolds i)
     reportSLn "import.iface.merge" 20 $
       "  Rebinding primitives " ++ show prim
     mapM_ rebind prim
@@ -263,9 +266,11 @@ addImportedThings
   -> Map A.QName Text      -- ^ Imported user warnings
   -> Set QName             -- ^ Name of imported definitions which are partial
   -> [TCWarning]
+  -> Map QName AbstractId
+  -> Map AbstractId (Set QName)
   -> TCM ()
 addImportedThings isig metas ibuiltin patsyns display userwarn
-                  partialdefs warnings = do
+                  partialdefs warnings abstract unfolding = do
   stImports              `modifyTCLens` \ imp -> unionSignatures [imp, isig]
   stImportedMetaStore    `modifyTCLens` HMap.union metas
   stImportedBuiltins     `modifyTCLens` \ imp -> Map.union imp ibuiltin
@@ -274,6 +279,8 @@ addImportedThings isig metas ibuiltin patsyns display userwarn
   stPatternSynImports    `modifyTCLens` \ imp -> Map.union imp patsyns
   stImportedDisplayForms `modifyTCLens` \ imp -> HMap.unionWith (++) imp display
   stTCWarnings           `modifyTCLens` \ imp -> imp `List.union` warnings
+  stAbstractBlocks       `modifyTCLens` \ imp -> Map.union imp abstract
+  stUnfoldDefs           `modifyTCLens` \ imp -> Map.union imp (fmap (HashSet.fromList . Set.toList) unfolding)
   addImportedInstances isig
 
 -- | Scope checks the given module. A proper version of the module
@@ -806,7 +813,7 @@ createInterfaceIsolated x file msrc = do
                stModuleToSource `setTCLens` mf
                setVisitedModules vs
                addImportedThings isig metas ibuiltin ipatsyns display
-                 userwarn partialdefs []
+                 userwarn partialdefs [] mempty mempty
 
                r  <- createInterface x file NotMainInterface msrc
                mf' <- useTC stModuleToSource
@@ -1243,6 +1250,8 @@ buildInterface src topLevel = do
     syntaxInfo  <- useTC stSyntaxInfo
     optionsUsed <- useTC stPragmaOptions
     partialDefs <- useTC stLocalPartialDefs
+    abstract    <- useTC stAbstractBlocks
+    unfolding   <- useTC stUnfoldDefs
 
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files
@@ -1273,6 +1282,8 @@ buildInterface src topLevel = do
           , iPatternSyns     = patsyns
           , iWarnings        = warnings
           , iPartialDefs     = partialDefs
+          , iAbstractBlocks  = abstract
+          , iUnfolds         = fmap (Set.fromList . HashSet.toList) unfolding
           }
     i <-
       ifM (collapseDefault . optSaveMetas <$> pragmaOptions)

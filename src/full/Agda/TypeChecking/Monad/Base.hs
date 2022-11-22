@@ -1028,6 +1028,8 @@ data Interface = Interface
   , iPatternSyns     :: A.PatternSynDefns
   , iWarnings        :: [TCWarning]
   , iPartialDefs     :: Set QName
+  , iAbstractBlocks  :: Map QName AbstractId
+  , iUnfolds         :: Map AbstractId (Set QName)
   }
   deriving (Show, Generic)
 
@@ -1036,7 +1038,7 @@ instance Pretty Interface where
             sourceH source fileT importedM moduleN topModN scope insideS
             signature metas display userwarn importwarn builtin
             foreignCode highlighting libPragmaO filePragmaO oUsed
-            patternS warnings partialdefs) =
+            patternS warnings partialdefs abstract unfold) =
 
     hang "Interface" 2 $ vcat
       [ "source hash:"         <+> (pretty . show) sourceH
@@ -1061,6 +1063,8 @@ instance Pretty Interface where
       , "pattern syns:"        <+> (pretty . show) patternS
       , "warnings:"            <+> (pretty . show) warnings
       , "partial definitions:" <+> (pretty . show) partialdefs
+      , "abstract blocks:"     <+> (pretty . Map.toList) abstract
+      , "unfolding blocks:"    <+> (pretty . Map.toList) unfold
       ]
 
 -- | Combines the source hash and the (full) hashes of the imported modules.

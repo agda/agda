@@ -36,13 +36,15 @@ cachingStarts :: (MonadDebug m, MonadTCState m, ReadTCState m) => m ()
 cachingStarts = do
     NameId _ m <- useTC stFreshNameId
     stFreshNameId `setTCLens` NameId 1 m
+    stFreshAbstractId `setTCLens` AbstractId 1 m
     stAreWeCaching `setTCLens` True
     validateCache m -- fixes issue #4835
     where
       validateCache m = (localCache readFromCachedLog) >>= \case
         Just (_ , s) -> do
           let NameId _ m' = stPostFreshNameId s
-          when (m' /= m) cleanCachedLog
+          let AbstractId _ m'' = stPostFreshAbstractId s
+          when (m' /= m || m'' /= m) cleanCachedLog
         _ -> do
           return ()
 

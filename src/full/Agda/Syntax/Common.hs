@@ -2389,6 +2389,9 @@ instance KillRange NameId where
 instance Pretty NameId where
   pretty (NameId n m) = text $ show n ++ "@" ++ show m
 
+instance Pretty AbstractId where
+  pretty (AbstractId n m) = text $ show n ++ "@" ++ show m
+
 instance Enum NameId where
   succ (NameId n m)     = NameId (n + 1) m
   pred (NameId n m)     = NameId (n - 1) m
