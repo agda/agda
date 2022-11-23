@@ -65,7 +65,7 @@ jobs:
     - name: Configure the build plan
       run: |
         cabal update
-        cabal configure ${FLAGS} -O0
+        cabal configure ${FLAGS} -O0 ${{ matrix.cabal-flags }}
     - id: cache
       name: Cache dependencies
       uses: actions/cache@v3
@@ -105,6 +105,10 @@ jobs:
         - cabal-ver: '3.8'
           ghc-ver: 8.2.2
           os: ubuntu-20.04
+        - cabal-flags: -c 'mtl >= 2.3.1'
+          cabal-ver: '3.8'
+          ghc-ver: 9.4.3
+          os: ubuntu-22.04
         - cabal-ver: '3.8'
           ghc-ver: 9.4.3
           os: macos-12

@@ -58,6 +58,13 @@ jobs:
           - os: ubuntu-20.04
             ghc-ver: 8.2.2
             cabal-ver: '3.8'
+          ## Latest GHC
+          # Linux
+          - os: ubuntu-22.04
+            ghc-ver: 9.4.3
+            cabal-ver: '3.8'
+            ## Andreas, 2022-11-23: Test mtl-2.3.1 here which has breaking changes.
+            cabal-flags: "-c 'mtl >= 2.3.1'"
           # macOS
           - os: macos-12
             ghc-ver: 9.4.3
@@ -141,7 +148,7 @@ jobs:
     - name: Configure the build plan
       run: |
         cabal update
-        cabal configure ${FLAGS} -O0
+        cabal configure ${FLAGS} -O0 ${{ matrix.cabal-flags }}
 
     - uses: actions/cache@v3
       name: Cache dependencies
