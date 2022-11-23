@@ -43,6 +43,9 @@ elements of some type ``A`` as follows:
 As opposed to :ref:`inductive record types <recursive-records>`, we have to introduce the keyword
 ``coinductive`` before defining the fields that constitute the record.
 
+It is interesting to note that it is not necessary to give an :ref:`explicit
+constructor <coinductive-record-constructors>` to the record type ``Stream``.
+
 ..
   ::
 
@@ -109,7 +112,7 @@ Finally, we can prove that ``merge`` is a left inverse for ``split``:
     tl-≈ (merge-split-id xs) = merge-split-id (tl xs)
 
 Coinductive Record Constructors
--------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 It is possible to give an explicit constructor to coinductive record types like ``Stream``:
 
