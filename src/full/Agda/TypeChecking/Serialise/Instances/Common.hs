@@ -607,11 +607,35 @@ instance EmbPrj Cohesion where
   value 2 = return Squash
   value _ = malformed
 
+instance EmbPrj ModalPolarity where
+  icod_ UnusedPolarity = return 0
+  icod_ StrictlyPositive = return 1
+  icod_ Positive = return 2
+  icod_ Negative = return 3
+  icod_ MixedPolarity = return 4
+
+  value 0 = return UnusedPolarity
+  value 1 = return StrictlyPositive
+  value 2 = return Positive
+  value 3 = return Negative
+  value 4 = return MixedPolarity
+  value _ = malformed
+
+instance EmbPrj PolarityModality where
+  icod_ (PolarityModality p o l) = icod_ (p, o, l)
+
+  value n = do
+    (p, o, l) <- polPair
+    return $ PolarityModality p o l
+    where
+      polPair :: R (ModalPolarity, ModalPolarity, ModalPolarity)
+      polPair = value n
+
 instance EmbPrj Modality where
-  icod_ (Modality a b c) = icodeN' Modality a b c
+  icod_ (Modality a b c d) = icodeN' Modality a b c d
 
   value = vcase $ \case
-    [a, b, c] -> valuN Modality a b c
+    [a, b, c, d] -> valuN Modality a b c d
     _ -> malformed
 
 instance EmbPrj OriginRelevant where
