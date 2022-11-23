@@ -182,8 +182,8 @@ It is also possible to use copattern-matching lambdas:
       .tl → cycle' a
 
 
-For more information on these restrictions, see `this pull request<https://github.com/agda/agda/pull/4611>`,
-and `this commit<https://github.com/agda/agda/commit/d771ac257ee9a1f9662364e5db8a50f9994dac49>`.
+For more information on these restrictions, see `this pull request <https://github.com/agda/agda/pull/4611>`,
+and `this commit <https://github.com/agda/agda/commit/d771ac257ee9a1f9662364e5db8a50f9994dac49>`.
 
 Old Coinduction
 ---------------
