@@ -260,12 +260,6 @@ library
                 , vector-hashtables == 0.1.*
                 , zlib == 0.6.*
 
-  -- Andreas, 2022-02-02, issue #5659:
-  -- Build failure with transformers-0.6.0.{0,1,2} and GHC 8.6.
-  -- Transformers-0.6.0.3 might restored GHC 8.6 buildability.
-  if impl(ghc == 8.6.*)
-    build-depends: transformers < 0.6 || >= 0.6.0.3
-
   -- Andreas, 2021-03-10:
   -- All packages we depend upon should be mentioned in an unconditional
   -- build-depends field, but additional restrictions on their
