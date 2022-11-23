@@ -538,7 +538,7 @@ instance Free Term where
     Sort s       -> freeVars' s
     Level l      -> freeVars' l
     MetaV m ts   -> underFlexRig (Flexible $ singleton m) $ freeVars' ts
-    DontCare mt  -> underModality (Modality irrelevant unitQuantity unitCohesion) $ freeVars' mt
+    DontCare mt  -> underModality (Modality irrelevant unitQuantity unitCohesion unitPolarity) $ freeVars' mt
     Dummy{}      -> mempty
 
 instance Free t => Free (Type' t) where

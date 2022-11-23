@@ -594,7 +594,8 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
   -- Andrea, 2019-07-16 Cohesion is purely based on left-division, it
   -- does not take envModality into account.
   let c = getCohesion info0
-  let mod  = Modality rel (getQuantity info0) c
+  let p = getModalPolarity info0
+  let mod  = Modality rel (getQuantity info0) c p
   let info = setModality mod info0
   applyCohesionToContext c $ do
 
