@@ -43,8 +43,8 @@ elements of some type ``A`` as follows:
 As opposed to :ref:`inductive record types <recursive-records>`, we have to introduce the keyword
 ``coinductive`` before defining the fields that constitute the record.
 
-It is interesting to note that it is not necessary to give an explicit
-constructor to the record type ``Stream``.
+It is interesting to note that it is not necessary to give an :ref:`explicit
+constructor <coinductive-constructors>` to the record type ``Stream``.
 
 ..
   ::
@@ -111,6 +111,81 @@ Finally, we can prove that ``merge`` is a left inverse for ``split``:
     hd-≡ (merge-split-id _)  = refl
     tl-≈ (merge-split-id xs) = merge-split-id (tl xs)
 
+.. _coinductive-constructors:
+
+Coinductive Record Constructors
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+It is possible to give an explicit constructor to coinductive record types like ``Stream``:
+
+::
+
+    record Stream' (A : Set) : Set where
+      coinductive
+      constructor cons
+      field
+        hd : A
+        tl : Stream' A
+
+..
+  ::
+
+    open Stream'
+
+However, this constructor cannot be pattern-matched:
+
+::
+
+    -- Get the third element of a stream
+    third : ∀{A} → Stream' A → A
+
+    -- Not allowed:
+    -- third (cons _ (cons _ (cons x _))) = x
+
+Instead, you can use the record fields as projections:
+
+::
+
+    third str = str .tl .tl .hd
+
+The constructor can be used as usual in the right-hand side of definitions:
+
+::
+
+    -- Prepend a list to a stream
+    prepend : ∀{A} → List A → Stream' A → Stream' A
+    prepend [] str = str
+    prepend (a ∷ as) str = cons a (prepend as str)
+
+However, it doesn't count as 'guarding' for the productivity checker:
+
+::
+
+    -- Make a stream with one element repeated forever
+    cycle : ∀{A} → A → Stream' A
+
+    -- Does not termination-check:
+    -- cycle a = cons a (cycle a)
+
+Instead, you can use copattern matching:
+
+::
+
+    cycle a .hd = a
+    cycle a .tl = cycle a
+
+It is also possible to use copattern-matching lambdas:
+
+::
+
+    cycle' : ∀{A} → A → Stream' A
+    cycle' a = λ where
+      .hd → a
+      .tl → cycle' a
+
+
+For more information on these restrictions, see `this pull request <https://github.com/agda/agda/pull/4611>`_,
+and `this commit <https://github.com/agda/agda/commit/d771ac257ee9a1f9662364e5db8a50f9994dac49>`_.
 
 Old Coinduction
 ---------------
