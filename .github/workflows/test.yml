@@ -47,7 +47,7 @@ jobs:
       name: Cache dependencies
       uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-02-${{ matrix.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-03-${{ matrix.stack-ver }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
     - if: ${{ !steps.cache.outputs.cache-hit }}
@@ -83,7 +83,7 @@ jobs:
     strategy:
       matrix:
         ghc-ver:
-        - 9.2.5
+        - 9.4.3
         os:
         - ubuntu-22.04
         stack-ver:

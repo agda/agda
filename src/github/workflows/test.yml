@@ -62,7 +62,7 @@ jobs:
         # Andreas, 2022-03-26:
         # ghc-ver should be given as x.y.z (as opposed to x.y only)
         # because it is used verbatim when referring to stack-x.y.z.yaml.
-        ghc-ver: ['9.2.5']
+        ghc-ver: ['9.4.3']
         stack-ver: ['2.9.1']
         os: [ubuntu-22.04]
           # Andreas, 2022-10-18
@@ -112,7 +112,7 @@ jobs:
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-02-${{ matrix.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
+        key: ${{ runner.os }}-stack-03-${{ matrix.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
 
     # ICU is already installed on ubuntu >= 20.04
     # - name: "Install and configure the icu library"
