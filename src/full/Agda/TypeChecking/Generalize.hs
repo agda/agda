@@ -756,7 +756,7 @@ createGenValue x = setCurrentRange x $ do
   -- instantiated, and set the quantity of the meta to the declared
   -- quantity of the generalisable variable.
   updateMetaVar m $ \ mv ->
-    setQuantity (getQuantity (defArgInfo def)) $
+    setModality (getModality (defArgInfo def)) $
     mv { mvFrozen = Frozen }
 
   -- Set up names of arg metas
