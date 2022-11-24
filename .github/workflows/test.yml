@@ -10,6 +10,7 @@ env:
   APT_GET_OPTS: -yqq --no-install-suggests --no-install-recommends
   BUILD_DIR: dist
   PARALLEL_TESTS: 2
+  STACK_VER: 2.9.1
   TASTY_ANSI_TRICKS: 'false'
 jobs:
   build:
@@ -21,7 +22,6 @@ jobs:
     outputs:
       ghc-ver: ${{ matrix.ghc-ver }}
       os: ${{ matrix.os }}
-      stack-ver: ${{ matrix.stack-ver }}
     runs-on: ${{ matrix.os }}
     steps:
     - uses: styfle/cancel-workflow-action@0.11.0
@@ -34,7 +34,7 @@ jobs:
       with:
         enable-stack: true
         ghc-version: ${{ matrix.ghc-ver }}
-        stack-version: ${{ matrix.stack-ver }}
+        stack-version: ${{ env.STACK_VER }}
     - name: Update and configure stack
       run: |
         stack update --silent
@@ -47,7 +47,7 @@ jobs:
       name: Cache dependencies
       uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-03-${{ matrix.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-03-${{ env.STACK_VER }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
     - if: ${{ !steps.cache.outputs.cache-hit }}
@@ -86,8 +86,6 @@ jobs:
         - 9.4.3
         os:
         - ubuntu-22.04
-        stack-ver:
-        - 2.9.1
   cubical:
     needs: build
     runs-on: ${{ needs.build.outputs.os }}
@@ -99,7 +97,7 @@ jobs:
       with:
         enable-stack: true
         ghc-version: ${{ needs.build.outputs.ghc-ver }}
-        stack-version: ${{ needs.build.outputs.stack-ver }}
+        stack-version: ${{ env.STACK_VER }}
     - uses: actions/download-artifact@v3
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
@@ -111,7 +109,7 @@ jobs:
       name: Cache dependencies
       uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-03-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-03-${{ env.STACK_VER }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
     - name: Install and configure the icu library
@@ -131,7 +129,7 @@ jobs:
       with:
         enable-stack: true
         ghc-version: ${{ needs.build.outputs.ghc-ver }}
-        stack-version: ${{ needs.build.outputs.stack-ver }}
+        stack-version: ${{ env.STACK_VER }}
     - uses: actions/download-artifact@v3
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
@@ -143,7 +141,7 @@ jobs:
       name: Cache dependencies
       uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-03-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-03-${{ env.STACK_VER }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
     - name: Install and configure the icu library
@@ -170,7 +168,7 @@ jobs:
       with:
         enable-stack: true
         ghc-version: ${{ needs.build.outputs.ghc-ver }}
-        stack-version: ${{ needs.build.outputs.stack-ver }}
+        stack-version: ${{ env.STACK_VER }}
     - uses: actions/download-artifact@v3
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
@@ -182,7 +180,7 @@ jobs:
       name: Cache dependencies
       uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-03-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-03-${{ env.STACK_VER }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
     - name: Install and configure the icu library
@@ -210,7 +208,7 @@ jobs:
       with:
         enable-stack: true
         ghc-version: ${{ needs.build.outputs.ghc-ver }}
-        stack-version: ${{ needs.build.outputs.stack-ver }}
+        stack-version: ${{ env.STACK_VER }}
     - uses: actions/download-artifact@v3
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
@@ -222,7 +220,7 @@ jobs:
       name: Cache dependencies
       uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-03-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-03-${{ env.STACK_VER }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
     - name: Suite of tests for bugs
