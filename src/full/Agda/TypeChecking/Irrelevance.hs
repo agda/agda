@@ -220,7 +220,9 @@ instance UsableModality Term where
       return ok `and2M` usableMod mod vs
     Def f vs -> do
       fmod <- modalityOfConst f
-      let ok = fmod `moreUsableModality` mod
+      -- Pure modalities don't matter here, only positional ones, hence remove
+      -- them from the equation.
+      let ok = setCohesion Flat fmod `moreUsableModality` mod
       reportSDoc "tc.irr" 50 $
         "Definition" <+> prettyTCM (Def f []) <+>
         text ("has modality " ++ show fmod ++ ", which is a " ++
