@@ -1144,7 +1144,7 @@ checkExpr' cmp e t =
 
     irrelevantIfProp <- (runBlocked $ isPropM t) >>= \case
       Right True  -> do
-        let mod = defaultModality { modRelevance = Irrelevant }
+        let mod = unitModality { modRelevance = Irrelevant }
         return $ fmap dontCare . applyModalityToContext mod
       _ -> return id
 
