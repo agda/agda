@@ -104,7 +104,7 @@ initLHSState delta eqs ps a ret = do
   let problem = Problem eqs ps ret
       qs0     = teleNamedArgs delta
 
-  updateProblemRest $ LHSState delta qs0 problem (defaultArg a) [] False
+  updateProblemRest $ LHSState delta qs0 problem (Arg (defaultArgInfo { argInfoModality = unitModality }) a) [] False
 
 -- | Try to move patterns from the problem rest into the problem.
 --   Possible if type of problem rest has been updated to a function type.
