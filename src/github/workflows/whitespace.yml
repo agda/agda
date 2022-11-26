@@ -17,8 +17,6 @@ jobs:
 
     - name: Check for whitespace violations
       uses: andreasabel/fix-whitespace-action@v1
-      with:
-        fix: true
 
     - name: Check encoding of Parser.y
       run: |
