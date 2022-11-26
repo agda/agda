@@ -15,9 +15,11 @@ jobs:
     - name: Checkout agda sources
       uses: actions/checkout@v3
 
+    - name: Check for whitespace violations
+      uses: andreasabel/fix-whitespace-action@v1
+      with:
+        fix: true
+
     - name: Check encoding of Parser.y
       run: |
         make check-encoding
-
-    - name: Check for whitespace violations
-      uses: andreasabel/fix-whitespace-action@v1
