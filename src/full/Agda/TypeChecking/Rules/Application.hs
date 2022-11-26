@@ -1457,7 +1457,7 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta mpatm = do
               ]
             -- See issue 1960 for when the following assertion fails for
             -- the correct disambiguation.
-            -- guard (size tel == size pars)
+            -- guard (natSize tel == natSize pars)
 
             guard =<< do isNothing <$> do lift $ checkModality' d def
             return (orig, (d, (pars, (dom, u, tb))))

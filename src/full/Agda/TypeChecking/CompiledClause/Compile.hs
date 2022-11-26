@@ -27,6 +27,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.List
 import qualified Agda.Utils.Pretty as P
+import Agda.Utils.Size
 import Agda.Utils.Update
 
 import Agda.Utils.Impossible
@@ -119,7 +120,7 @@ unBruijn c = Cl (applySubst sub $ (map . fmap) (fmap dbPatVarName . namedThing) 
 
 compileWithSplitTree :: SplitTree -> Cls -> CompiledClauses
 compileWithSplitTree t cs = case t of
-  SplitAt i lz ts -> Case i $ compiles lz ts $ splitOn (length ts == 1) (unArg i) cs
+  SplitAt i lz ts -> Case i $ compiles lz ts $ splitOn (natSize ts == 1) (unArg i) cs
         -- if there is just one case, we force expansion of catch-alls
         -- this is needed to generate a sound tree on which we can
         -- collapse record pattern splits

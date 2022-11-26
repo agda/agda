@@ -481,8 +481,8 @@ underConstructor (ConHead _c _d i fs) es =
     -- Coinductive (record) constructors admit infinite cycles:
     CoInductive -> underFlexRig WeaklyRigid
     -- Inductive constructors do not admit infinite cycles:
-    Inductive   | size es == size fs -> underFlexRig StronglyRigid
-                | otherwise          -> underFlexRig WeaklyRigid
+    Inductive   | natSize es == natSize fs -> underFlexRig StronglyRigid
+                | otherwise                -> underFlexRig WeaklyRigid
     -- Jesper, 2020-10-22: Issue #4995: treat occurrences in non-fully
     -- applied constructors as weakly rigid.
     -- Ulf, 2019-10-18: Now the termination checker treats inductive recursive records

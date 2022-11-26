@@ -1101,8 +1101,12 @@ instance Sized (Tele a) where
   size  EmptyTel         = 0
   size (ExtendTel _ tel) = 1 + size tel
 
+  natSize EmptyTel          = Zero
+  natSize (ExtendTel _ tel) = Succ $ natSize tel
+
 instance Sized a => Sized (Abs a) where
-  size = size . unAbs
+  size    = size    . unAbs
+  natSize = natSize . unAbs
 
 -- | The size of a term is roughly the number of nodes in its
 --   syntax tree.  This number need not be precise for logical

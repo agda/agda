@@ -55,6 +55,7 @@ instance Ord RawTopLevelModuleName where
 
 instance Sized RawTopLevelModuleName where
   size = size . rawModuleNameParts
+  natSize = natSize . rawModuleNameParts
 
 instance Pretty RawTopLevelModuleName where
   pretty = text . rawTopLevelModuleNameToString
@@ -157,6 +158,7 @@ instance Hashable TopLevelModuleName where
 
 instance Sized TopLevelModuleName where
   size = size . rawTopLevelModuleName
+  natSize = natSize . rawTopLevelModuleName
 
 instance Pretty TopLevelModuleName where
   pretty = pretty . rawTopLevelModuleName

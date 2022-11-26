@@ -455,13 +455,13 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
           -- Set display form for the old name if it's not a constructor.
 {- BREAKS fail/Issue478
           -- Andreas, 2012-10-20 and if we are not an anonymous module
-          -- unless (isAnonymousModuleName new || isCon || size ptel > 0) $ do
+          -- unless (isAnonymousModuleName new || isCon || not (null ptel)) $ do
 -}
           -- BREAKS fail/Issue1643a
           -- -- Andreas, 2015-09-09 Issue 1643:
           -- -- Do not add a display form for a bare module alias.
-          -- when (not isCon && size ptel == 0 && not (null ts)) $ do
-          when (size ptel == 0) $ do
+          -- when (not isCon && null ptel && not (null ts)) $ do
+          when (null ptel) $ do
             addDisplayForms y
           where
             ts' = take np ts
@@ -714,7 +714,7 @@ singleConstructorType q = do
       di <- theDef <$> getConstInfo d
       return $ case di of
         Record {}                  -> True
-        Datatype { dataCons = cs } -> length cs == 1
+        Datatype { dataCons = cs } -> natSize cs == 1
         _                          -> __IMPOSSIBLE__
     _ -> __IMPOSSIBLE__
 
