@@ -491,10 +491,6 @@ getInterface x isMain msrc =
      -- We remember but reset the pragma options locally
      -- Issue #3644 (Abel 2020-05-08): Set approximate range for errors in options
      currentOptions <- useTC stPragmaOptions
-
-     -- We save global pragma options here, because they are to be applied to the dependent modules.
-     globalOptionsAdjuster <- buildGlobalPragmaOptionsAdjuster
-
      setCurrentRange (C.modPragmas . srcModule <$> msrc) $
        -- Now reset the options
        setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
@@ -536,21 +532,9 @@ getInterface x isMain msrc =
             setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
             case isMain of
               MainInterface _ -> createInterface x file isMain msrc
-              NotMainInterface -> createInterfaceIsolated x file msrc globalOptionsAdjuster
+              NotMainInterface -> createInterfaceIsolated x file msrc
 
       either recheck pure stored
-
-type GlobalPragmaOptionsAdjuster = PragmaOptions -> PragmaOptions
-
--- | Some options do not change the type-checking process,
---   but affect the printed information for the user.
---   Sometimes these options are specified as a file-level pragma.
---   The usual behavior of such pragmas is to act locally on the defining file,
---   but in some cases it makes sense to extend the effect to all dependent files.
-buildGlobalPragmaOptionsAdjuster :: TCM GlobalPragmaOptionsAdjuster
-buildGlobalPragmaOptionsAdjuster = do
-  traceImports <- optTraceImports <$> pragmaOptions
-  return $ \o -> o { optTraceImports = traceImports }
 
 -- | Check if the options used for checking an imported module are
 --   compatible with the current options. Raises Non-fatal errors if
@@ -775,10 +759,8 @@ createInterfaceIsolated
      -- ^ File we process.
   -> Maybe Source
      -- ^ Optional: the source code and some information about the source code.
-  -> GlobalPragmaOptionsAdjuster
-     -- ^ Pragma options from the main module, that should be applied to all dependent files
   -> TCM ModuleInfo
-createInterfaceIsolated x file msrc adjuster = do
+createInterfaceIsolated x file msrc = do
       cleanCachedLog
 
       ms          <- getImportPath
@@ -816,8 +798,6 @@ createInterfaceIsolated x file msrc adjuster = do
                             }) $ do
                setDecodedModules ds
                setCommandLineOptions opts
-               stPragmaOptions `modifyTCLens` adjuster
-
                setInteractionOutputCallback ho
                stModuleToSource `setTCLens` mf
                setVisitedModules vs
@@ -845,7 +825,7 @@ createInterfaceIsolated x file msrc adjuster = do
       -- reason it continually fails to validate interface.
       let recheckOnError = \msg -> do
             reportSLn "import.iface" 1 $ "Failed to validate just-loaded interface: " ++ msg
-            createInterfaceIsolated x file msrc adjuster
+            createInterfaceIsolated x file msrc
 
       either recheckOnError pure validated
 
@@ -859,7 +839,7 @@ chaseMsg
   -> TCM ()
 chaseMsg kind x file = do
   indentation <- (`replicate` ' ') <$> asksTC (pred . length . envImportPath)
-  traceImports <- optTraceImports <$> pragmaOptions
+  traceImports <- optTraceImports <$> commandLineOptions
   let maybeFile = caseMaybe file "." $ \ f -> " (" ++ f ++ ")."
       vLvl | kind == "Checking" = 1
            | kind == "Finished"

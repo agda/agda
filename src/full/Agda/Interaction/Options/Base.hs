@@ -137,6 +137,8 @@ data CommandLineOptions = Options
   -- ^ Use ~/.agda/defaults
   , optUseLibs               :: Bool
   -- ^ look for .agda-lib files
+  , optTraceImports          :: TraceImportsMode
+  -- ^ Configure notifications about imported modules
   , optTrustedExecutables    :: Map ExeName FilePath
   -- ^ Map names of trusted executables to absolute paths
   , optPrintAgdaDir          :: Bool
@@ -170,7 +172,6 @@ instance NFData CommandLineOptions
 data PragmaOptions = PragmaOptions
   { optShowImplicit              :: Bool
   , optShowIrrelevant            :: Bool
-  , optTraceImports              :: TraceImportsMode
   , optUseUnicode                :: UnicodeOrAscii
   , optVerbose                   :: !Verbosity
   , optProfiling                 :: ProfileOptions
@@ -296,6 +297,7 @@ defaultOptions = Options
   , optOverrideLibrariesFile = Nothing
   , optDefaultLibs           = True
   , optUseLibs               = True
+  , optTraceImports          = OnlyChecking
   , optTrustedExecutables    = Map.empty
   , optPrintAgdaDir          = False
   , optPrintVersion          = False
@@ -318,7 +320,6 @@ defaultPragmaOptions :: PragmaOptions
 defaultPragmaOptions = PragmaOptions
   { optShowImplicit              = False
   , optShowIrrelevant            = False
-  , optTraceImports              = OnlyChecking
   , optUseUnicode                = UnicodeOk
   , optVerbose                   = Strict.Nothing
   , optProfiling                 = noProfileOptions
@@ -473,7 +474,6 @@ recheckBecausePragmaOptionsChanged used current =
   blankOut opts = opts
     { optShowImplicit              = False
     , optShowIrrelevant            = False
-    , optTraceImports              = OnlyChecking
     , optVerbose                   = empty
     , optProfiling                 = noProfileOptions
     , optPostfixProjections        = False
@@ -709,7 +709,7 @@ showIrrelevantFlag o = return $ o { optShowIrrelevant = True }
 showIdentitySubstitutionsFlag :: Flag PragmaOptions
 showIdentitySubstitutionsFlag o = return $ o { optShowIdentitySubstitutions = True }
 
-traceImportsFlag :: Maybe String -> Flag PragmaOptions
+traceImportsFlag :: Maybe String -> Flag CommandLineOptions
 traceImportsFlag arg o = do
   mode <- case arg of
             Nothing -> return CheckingFinished
@@ -1040,6 +1040,10 @@ standardOptions =
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
                     ("directory for compiler output (default: the project root)")
 
+    , Option []     ["trace-imports"] (OptArg traceImportsFlag "MODE")
+                    ("print information about accessed modules during type-checking (where MODE=" ++
+                      intercalate "|" validTraceImportsArguments ++ ", default: on-exit)")
+
     , Option []     ["vim"] (NoArg vimFlag)
                     "generate Vim highlighting files"
     , Option []     ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
@@ -1089,9 +1093,6 @@ pragmaOptions =
                     "show all arguments of metavariables when printing terms"
     , Option []     ["no-unicode"] (NoArg asciiOnlyFlag)
                     "don't use unicode characters when printing terms"
-    , Option []     ["trace-imports"] (OptArg traceImportsFlag "MODE")
-                    ("print information about accessed modules during type-checking (where MODE=" ++
-                      intercalate "|" validTraceImportsArguments ++ ", default: on-exit)")
     , Option ['v']  ["verbose"] (ReqArg verboseFlag "N")
                     "set verbosity level to N"
     , Option []     ["profile"] (ReqArg profileFlag "TYPE")
