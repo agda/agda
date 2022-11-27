@@ -47,7 +47,7 @@ jobs:
       name: Cache dependencies
       uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-03-${{ matrix.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-04-${{ matrix.stack-ver }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
     - if: ${{ !steps.cache.outputs.cache-hit }}
@@ -111,7 +111,7 @@ jobs:
       name: Cache dependencies
       uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-03-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-04-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
     - name: Install and configure the icu library
@@ -143,7 +143,7 @@ jobs:
       name: Cache dependencies
       uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-03-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-04-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
     - name: Install and configure the icu library
@@ -182,7 +182,7 @@ jobs:
       name: Cache dependencies
       uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-03-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-04-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
     - name: Install and configure the icu library
@@ -222,7 +222,7 @@ jobs:
       name: Cache dependencies
       uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-03-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-04-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
     - name: Suite of tests for bugs
