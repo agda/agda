@@ -9,54 +9,15 @@ on:
 
 jobs:
   check:
-    if: |
-      !contains(github.event.head_commit.message, '[skip ci]')
-      && !contains(github.event.head_commit.message, '[ci skip]')
-      && !contains(github.event.head_commit.message, '[github skip]')
-      && !contains(github.event.head_commit.message, '[skip github]')
-
     runs-on: ubuntu-22.04
 
-    strategy:
-      matrix:
-        ghc-ver: ['9.4']
-        cabal-ver: ['3.8']
-        # stack-ver: [2.5.1]
-        fix-whitespace-ver: [0.0.10]
-
     steps:
-    - uses: actions/checkout@v3
-      name: Checkout agda sources
+    - name: Checkout agda sources
+      uses: actions/checkout@v3
+
+    - name: Check for whitespace violations
+      uses: andreasabel/fix-whitespace-action@v1
 
     - name: Check encoding of Parser.y
       run: |
         make check-encoding
-
-    - name: Create directory for binary
-      run: |
-        mkdir -p $HOME/.local/bin
-
-    - uses: actions/cache@v3
-      name: Cache the binary
-      id: cache
-      with:
-        path: "~/.local/bin"
-        key: fix-whitespace-${{ matrix.fix-whitespace-ver }}
-
-    - uses: haskell/actions/setup@v2
-      if: ${{ !steps.cache.outputs.cache-hit }}
-      with:
-        ghc-version: ${{ matrix.ghc-ver }}
-        cabal-version: ${{ matrix.cabal-ver }}
-        # stack-version: ${{ matrix.stack-ver }}
-        # enable-stack: true
-
-    - name: Install fix-whitespace
-      if: ${{ !steps.cache.outputs.cache-hit }}
-      run: |
-        cabal install --install-method=copy --installdir=$HOME/.local/bin fix-whitespace
-        strip $HOME/.local/bin/fix-whitespace
-
-    - name: Check the whitespace issue
-      run: |
-        $HOME/.local/bin/fix-whitespace --check
