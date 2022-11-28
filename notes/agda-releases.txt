@@ -11,14 +11,6 @@ When releasing the following procedure can be followed:
 
 * Finish the release notes in the CHANGELOG.
 
-* Replace in the CHANGELOG
-
-  https://agda.readthedocs.io/en/latest
-
-  by
-
-  https://agda.readthedocs.io/en/vMAJORVERSION
-
 * Run the `closed-issues-for-milestone` program for adding the list of
   closed issues to the CHANGELOG.
 
@@ -57,15 +49,19 @@ When releasing the following procedure can be followed:
 
 * Get a clean Agda repository.
 
-    MAJORVERSION=<current-development-version-eg-2.4.2>
-    VERSION=<current-released-version-eg-2.4.0.2>
+    export MAJORVERSION=<current-development-version-eg-2.4.2>
+    export VERSION=<current-released-version-eg-2.4.0.2>
     git clone git@github.com:agda/agda.git agda-release
     cd agda-release
     git switch master
 
+* Replace in CHANGELOG.md the links to Read the Docs:
+
+    agda.readthedocs.io/en/latest -> agda.readthedocs.io/en/v$MAJORVERSION
+
 * Update the Agda version
 
-    ./src/release-tools/change-version.bash VERSION MAJORVERSION
+    ./src/release-tools/change-version.bash $VERSION $MAJORVERSION
 
 * Obtain and install the standard library branch related to the Agda:
 

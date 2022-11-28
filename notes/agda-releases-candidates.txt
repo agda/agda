@@ -40,8 +40,8 @@ followed:
 
 * Get a clean Agda repository.
 
-    MAJORVERSION=<current-development-version-eg-2.4.2>
-    VERSION=<current-released-version-eg-2.4.0.2>
+    export MAJORVERSION=<current-development-version-eg-2.4.2>
+    export VERSION=<current-released-version-eg-2.4.0.2>
     git clone git@github.com:agda/agda.git agda-release
     cd agda-release
     git switch master
@@ -52,11 +52,15 @@ followed:
 
 * The version of the RC is $VERSION + current date
 
-    RC_VERSION=<current-released-version-current-date-eg-2.4.0.2.20150913>
+    export RC_VERSION=<current-released-version-current-date-eg-2.4.0.2.20150913>
+
+* Replace in CHANGELOG.md the links to Read the Docs:
+
+    agda.readthedocs.io/en/latest -> agda.readthedocs.io/en/v$RC_VERSION
 
 * Update the Agda version
 
-    ./src/release-tools/change-version.bash VERSION RC_VERSION
+    ./src/release-tools/change-version.bash $VERSION $RC_VERSION
 
 * Obtain and install the standard library branch related to the Agda:
 
