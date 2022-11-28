@@ -65,7 +65,7 @@ env:
   PARALLEL_TESTS: 2
   BUILD_DIR: "dist" # relative path, please!
   AGDA_TESTS_OPTIONS: "-j${PARALLEL_TESTS} --hide-successes"
-  STACK_OPTS: "--system-ghc"
+  STACK: "stack --system-ghc"
 
   # tasty configuration (see issue #3905)
   TASTY_ANSI_TRICKS: "false"
@@ -128,7 +128,7 @@ jobs:
     #   run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
 
     - name: "Install dependencies for Agda and its test suites"
-      if: ${{ !steps.cache.outputs.cache-hit }}
+      # if: ${{ !steps.cache.outputs.cache-hit }}
       run: make install-deps
 
     - name: "Build Agda"

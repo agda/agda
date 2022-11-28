@@ -10,7 +10,7 @@ env:
   BUILD_DIR: dist
   GHC_VER: 9.4.3
   PARALLEL_TESTS: 2
-  STACK_OPTS: --system-ghc
+  STACK: stack --system-ghc
   STACK_VER: 2.9.1
   TASTY_ANSI_TRICKS: 'false'
 jobs:
@@ -46,8 +46,7 @@ jobs:
         key: ${{ runner.os }}-stack-${{ env.STACK_VER }}-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml')
           }}
         path: ~/.stack
-    - if: ${{ !steps.cache.outputs.cache-hit }}
-      name: Install dependencies for Agda and its test suites
+    - name: Install dependencies for Agda and its test suites
       run: make install-deps
     - name: Build Agda
       run: make BUILD_DIR="${BUILD_DIR}" install-bin
