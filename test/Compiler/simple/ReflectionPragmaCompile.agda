@@ -17,8 +17,8 @@ id-type = pi (hArg $ sort $ lit 0) $
 
 unquoteDecl id = do
     _ ← declarePostulate (vArg id) id-type
-    _ ← pragmaForeign "GHC" "id' :: a -> a\nid' = id"
-    pragmaCompile "GHC" id "= \\ _ -> id'"
+    _ ← pragmaCompile "GHC" id "= \\ _ x -> x"
+    pragmaCompile "JS" id "= (a) => (x) => x"
 
 main : IO Unit
 main = putStrLn (id "Hello world")
