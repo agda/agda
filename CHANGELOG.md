@@ -26,9 +26,13 @@ Highlights
   `--cubical-compatible`, or if it is already making extensive use of
   indexed types.
 
-* New primitives `declareData`, `defineData`, and `unquoteDecl data`
-  for generating new data types have been added to the [reflection
-  API](https://agda.readthedocs.io/en/latest/language/reflection.html#metaprogramming).
+  Note that code that uses (only) `--without-K` can no longer be
+  imported from code that uses `--cubical`. Thus it may make sense to
+  replace `--without-K` with `--cubical-compatible` in library code,
+  if possible.
+
+  Note also that Agda tends to be quite a bit faster if `--without-K`
+  is used instead of `--cubical-compatible`.
 
 * Agda 2.6.3 seems to type-check one variant of the standard library
   about [30%
@@ -39,6 +43,10 @@ Highlights
   `--cubical-compatible`. With that flag enabled in all the files that
   used to use `--without-K` (and the warning `UnsupportedIndexedMatch`
   turned off) Agda 2.6.3 was still about 10% faster.
+
+* New primitives `declareData`, `defineData`, and `unquoteDecl data`
+  for generating new data types have been added to the [reflection
+  API](https://agda.readthedocs.io/en/latest/language/reflection.html#metaprogramming).
 
 Installation and infrastructure
 -------------------------------
@@ -110,14 +118,6 @@ Cubical Agda
   [#5843](https://github.com/agda/agda/issues/5843) and
   [#6049](https://github.com/agda/agda/issues/6049) for the
   rationale).
-
-  Note that code that uses (only) `--without-K` can no longer be
-  imported from code that uses `--cubical`. Thus it may make sense to
-  replace `--without-K` with `--cubical-compatible` in library code,
-  if possible.
-
-  Note also that Agda tends to be quite a bit faster if `--without-K`
-  is used instead of `--cubical-compatible`.
 
 * Cubical Agda now has experimental support for indexed inductive types
   ([#3733](https://github.com/agda/agda/issues/3733)).
