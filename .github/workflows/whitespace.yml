@@ -7,48 +7,15 @@
 ######################################################
 jobs:
   check:
-    if: |
-      !contains(github.event.head_commit.message, '[skip ci]')
-      && !contains(github.event.head_commit.message, '[ci skip]')
-      && !contains(github.event.head_commit.message, '[github skip]')
-      && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: ubuntu-22.04
     steps:
     - name: Checkout agda sources
       uses: actions/checkout@v3
+    - name: Check for whitespace violations
+      uses: andreasabel/fix-whitespace-action@v1
     - name: Check encoding of Parser.y
       run: |
         make check-encoding
-    - name: Create directory for binary
-      run: |
-        mkdir -p $HOME/.local/bin
-    - id: cache
-      name: Cache the binary
-      uses: actions/cache@v3
-      with:
-        key: fix-whitespace-${{ matrix.fix-whitespace-ver }}
-        path: ~/.local/bin
-    - if: ${{ !steps.cache.outputs.cache-hit }}
-      uses: haskell/actions/setup@v2
-      with:
-        cabal-version: ${{ matrix.cabal-ver }}
-        ghc-version: ${{ matrix.ghc-ver }}
-    - if: ${{ !steps.cache.outputs.cache-hit }}
-      name: Install fix-whitespace
-      run: |
-        cabal install --install-method=copy --installdir=$HOME/.local/bin fix-whitespace
-        strip $HOME/.local/bin/fix-whitespace
-    - name: Check the whitespace issue
-      run: |
-        $HOME/.local/bin/fix-whitespace --check
-    strategy:
-      matrix:
-        cabal-ver:
-        - '3.8'
-        fix-whitespace-ver:
-        - 0.0.10
-        ghc-ver:
-        - '9.4'
 name: Whitespace
 'on':
   pull_request: null
