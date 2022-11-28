@@ -463,6 +463,7 @@ tracker](https://github.com/agda/agda/issues)):
   - [#4755](https://github.com/agda/agda/issues/4755): Rewrite rule on constructor uses wrong type for matching
   - [#4763](https://github.com/agda/agda/issues/4763): Cubical Agda: Unquote anonymous copattern involving path
   - [#5191](https://github.com/agda/agda/issues/5191): Unifier can use erased variables in non-erased data parameters
+  - [#5257](https://github.com/agda/agda/issues/5257): Internal error when matching on user syntax with binding
   - [#5378](https://github.com/agda/agda/issues/5378): Internal error with tactic on record field
   - [#5448](https://github.com/agda/agda/issues/5448): Should the predicate be erasable in the subst rule (without-K)
   - [#5462](https://github.com/agda/agda/issues/5462): Internal error caused by a REWRITE on a projection-like function
@@ -481,6 +482,7 @@ tracker](https://github.com/agda/agda/issues)):
   - [#5728](https://github.com/agda/agda/issues/5728): Internal error when pattern matching on `...` in with statement without providing a pattern match
   - [#5734](https://github.com/agda/agda/issues/5734): Relevance check in reflection
   - [#5751](https://github.com/agda/agda/issues/5751): json interaction produces Haskell output for SolveAll
+  - [#5754](https://github.com/agda/agda/issues/5754): Internal error when compiling program with quoted metavariable
   - [#5760](https://github.com/agda/agda/issues/5760): Some code related to Cubical Agda runs also when the K rule is on
   - [#5763](https://github.com/agda/agda/issues/5763): Internal parser error using syntax rules
   - [#5765](https://github.com/agda/agda/issues/5765): Erasure check failure when pattern matching on refl in erased definition
@@ -492,6 +494,7 @@ tracker](https://github.com/agda/agda/issues)):
   - [#5848](https://github.com/agda/agda/issues/5848): Internal error with `--confluence-check`
   - [#5850](https://github.com/agda/agda/issues/5850): Warn about useless hiding in `variable` declaration
   - [#5856](https://github.com/agda/agda/issues/5856): Lambda with irrefutable pattern is not rejected when used on Path
+  - [#5868](https://github.com/agda/agda/issues/5868): Document --two-level
   - [#5875](https://github.com/agda/agda/issues/5875): Instance Search breaks Termination Highlighting
   - [#5891](https://github.com/agda/agda/issues/5891): SizeUniv : SizeUniv is inconsistent
   - [#5901](https://github.com/agda/agda/issues/5901): Use emacs --batch mode in agda-mode setup
@@ -520,6 +523,7 @@ tracker](https://github.com/agda/agda/issues)):
   - [#6082](https://github.com/agda/agda/issues/6082): Elaborate-and-give does not respect --postfix-projections
   - [#6095](https://github.com/agda/agda/issues/6095): Ambiguous pattern synonyms broken with anonymous module
   - [#6112](https://github.com/agda/agda/issues/6112): Internal error: non-confluent rewriting to singletons
+  - [#6200](https://github.com/agda/agda/issues/6200): The reflection machinery does not treat the module telescope consistently
   - [#6203](https://github.com/agda/agda/issues/6203): Projection-likeness and instance arguments
   - [#6205](https://github.com/agda/agda/issues/6205): Internal error with `withReconstructed`
   - [#6244](https://github.com/agda/agda/issues/6244): Make `--no-load-primitives` not `--safe`
@@ -529,3 +533,6 @@ tracker](https://github.com/agda/agda/issues)):
   - [#6273](https://github.com/agda/agda/issues/6273): Missing highlighting when interleaved mutual is used
   - [#6276](https://github.com/agda/agda/issues/6276): LaTeX/HTML generation doesn't properly render parameters of pre-declared records
   - [#6281](https://github.com/agda/agda/issues/6281): Special treatment of attribute followed by underscore in pretty-printer
+  - [#6285](https://github.com/agda/agda/issues/6285): Bump to GHC 9.4.3
+  - [#6337](https://github.com/agda/agda/issues/6337): --lossy-unification in Agda 2.6.3
+  - [#6338](https://github.com/agda/agda/issues/6338): internal error in Agda, perhaps related to --rewriting
