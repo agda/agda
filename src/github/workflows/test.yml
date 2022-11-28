@@ -45,7 +45,7 @@ on:
 
 env:
   # Part 1: Versions (need update)
-  ########################################################################
+  ###########################################################################
 
   # Andreas, 2022-11-24, set the stack version here so that it is easily
   # shared between the jobs.
@@ -56,7 +56,7 @@ env:
   GHC_VER: "9.4.3"
 
   # Part 2: Variables that should not have to be changed
-  ########################################################################
+  ###########################################################################
 
   # # Other variables (local to this workflow)
   # APT_GET_OPTS: "-yqq --no-install-suggests --no-install-recommends"
@@ -100,19 +100,9 @@ jobs:
         stack-version: ${{ env.STACK_VER }}
         enable-stack: true
 
-    ## This step is obsolete because we use --system-ghc in STACK_OPTS
-    # - name: "Update and configure stack"
-    #   run: |
-    #     stack update --silent
-    #     echo "system-ghc: true" >> ~/.stack/config.yaml
-
-    # The Makefile tests whether stack.yaml is present.
+    # The Makefile tests whether stack.yaml is present to decide on stack vs. cabal build.
     - name: "Copy stack-${{ env.GHC_VER}}.yaml to stack.yaml"
-      run: |
-        cp stack-${{ env.GHC_VER }}.yaml stack.yaml
-
-        # We skip the generation of stack.yaml.lock
-        # make STACK_INSTALL_OPTS='--dry-run' install-deps
+      run:  cp stack-${{ env.GHC_VER }}.yaml stack.yaml
 
     - &cache
       uses: actions/cache@v3
@@ -128,8 +118,11 @@ jobs:
     #   run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
 
     - name: "Install dependencies for Agda and its test suites"
+      ## Always do this step, even if we got a cache hit.  Should be fast in case we got a hit.
       # if: ${{ !steps.cache.outputs.cache-hit }}
       run: make install-deps
+      ## This used to be: make STACK_OPTS=--silent install-deps
+      ## but printing stuff might not hurt here.
 
     - name: "Build Agda"
       run: make BUILD_DIR="${BUILD_DIR}" install-bin
@@ -140,7 +133,7 @@ jobs:
         make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" size-solver-test
 
     - name: "Pack artifacts"
-      # This step should go to Makefile.
+      # This step should go into the Makefile.
       run: |
         strip ${BUILD_DIR}/build/agda-tests/agda-tests \
           ${BUILD_DIR}/build/agda/agda \
@@ -172,7 +165,6 @@ jobs:
     runs-on: *runs_on
 
     steps:
-
     - *checkout
     - *haskell_setup
 
@@ -244,7 +236,6 @@ jobs:
     runs-on: *runs_on
 
     steps:
-
     - *checkout
     - *haskell_setup
     - *download_artifact
@@ -276,7 +267,6 @@ jobs:
     runs-on: *runs_on
 
     steps:
-
     - *checkout
     - *haskell_setup
     - *download_artifact
@@ -308,7 +298,6 @@ jobs:
     runs-on: *runs_on
 
     steps:
-
     - *checkout
     - *haskell_setup
     - *download_artifact

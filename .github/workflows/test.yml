@@ -34,11 +34,7 @@ jobs:
         ghc-version: ${{ env.GHC_VER }}
         stack-version: ${{ env.STACK_VER }}
     - name: Copy stack-${{ env.GHC_VER}}.yaml to stack.yaml
-      run: |
-        cp stack-${{ env.GHC_VER }}.yaml stack.yaml
-
-        # We skip the generation of stack.yaml.lock
-        # make STACK_INSTALL_OPTS='--dry-run' install-deps
+      run: cp stack-${{ env.GHC_VER }}.yaml stack.yaml
     - id: cache
       name: Cache dependencies
       uses: actions/cache@v3
