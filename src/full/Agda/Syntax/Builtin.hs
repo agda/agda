@@ -75,7 +75,9 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMNoConstraints,
   builtinAgdaTCMRunSpeculative,
   builtinAgdaTCMExec,
-  builtinAgdaTCMGetInstances
+  builtinAgdaTCMGetInstances,
+  builtinAgdaTCMPragmaForeign,
+  builtinAgdaTCMPragmaCompile
   :: String
 
 builtinNat                               = "NATURAL"
@@ -284,6 +286,8 @@ builtinAgdaTCMNoConstraints              = "AGDATCMNOCONSTRAINTS"
 builtinAgdaTCMRunSpeculative             = "AGDATCMRUNSPECULATIVE"
 builtinAgdaTCMExec                       = "AGDATCMEXEC"
 builtinAgdaTCMGetInstances               = "AGDATCMGETINSTANCES"
+builtinAgdaTCMPragmaForeign              = "AGDATCMPRAGMAFOREIGN"
+builtinAgdaTCMPragmaCompile              = "AGDATCMPRAGMACOMPILE"
 
 -- | Builtins that come without a definition in Agda syntax.
 --   These are giving names to Agda internal concepts which

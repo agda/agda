@@ -293,6 +293,8 @@ postulate
   blockOnMeta      : ∀ {a} {A : Set a} → Meta → TC A
   commitTC         : TC ⊤
   isMacro          : Name → TC Bool
+  pragmaForeign    : String → String → TC ⊤
+  pragmaCompile    : String → Name → String → TC ⊤
 
   -- If the argument is 'true' makes the following primitives also normalise
   -- their results: inferType, checkType, quoteTC, getType, and getContext
@@ -353,6 +355,8 @@ postulate
 {-# BUILTIN AGDATCMBLOCKONMETA                blockOnMeta                #-}
 {-# BUILTIN AGDATCMCOMMIT                     commitTC                   #-}
 {-# BUILTIN AGDATCMISMACRO                    isMacro                    #-}
+{-# BUILTIN AGDATCMPRAGMAFOREIGN              pragmaForeign              #-}
+{-# BUILTIN AGDATCMPRAGMACOMPILE              pragmaCompile              #-}
 {-# BUILTIN AGDATCMWITHNORMALISATION          withNormalisation          #-}
 {-# BUILTIN AGDATCMFORMATERRORPARTS           formatErrorParts           #-}
 {-# BUILTIN AGDATCMDEBUGPRINT                 debugPrint                 #-}
@@ -393,6 +397,8 @@ postulate
 {-# COMPILE JS blockOnMeta       = _ => _ => _ =>      undefined #-}
 {-# COMPILE JS commitTC          =                     undefined #-}
 {-# COMPILE JS isMacro           = _ =>                undefined #-}
+{-# COMPILE JS pragmaForeign     = _ => _ =>           undefined #-}
+{-# COMPILE JS pragmaCompile     = _ => _ => _ =>      undefined #-}
 {-# COMPILE JS withNormalisation = _ => _ => _ => _ => undefined #-}
 {-# COMPILE JS withReconstructed = _ => _ => _ =>      undefined #-}
 {-# COMPILE JS debugPrint        = _ => _ => _ =>      undefined #-}
