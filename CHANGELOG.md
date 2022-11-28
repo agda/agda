@@ -30,11 +30,15 @@ Highlights
   for generating new data types have been added to the [reflection
   API](https://agda.readthedocs.io/en/latest/language/reflection.html#metaprogramming).
 
-* Thanks to a number of performance improvements, Agda 2.6.3 is about
-  30% faster than Agda 2.6.2.2 at type-checking the standard library
-  with the `--without-K` flag, and 10% faster when using with the
-  (new) `--cubical-compatible` flag instead (some details can be found
-  [here](https://github.com/agda/agda/issues/6049#issuecomment-1293698980)).
+* Agda 2.6.3 seems to type-check one variant of the standard library
+  about [30%
+  faster](https://github.com/agda/agda/issues/6049#issuecomment-1329163727)
+  than Agda 2.6.2.2 (on one system; the library was changed in a small
+  way between the tests to accommodate changes to Agda). In that test
+  the standard library did not use the new flag
+  `--cubical-compatible`. With that flag enabled in all the files that
+  used to use `--without-K` (and the warning `UnsupportedIndexedMatch`
+  turned off) Agda 2.6.3 was still about 10% faster.
 
 Installation and infrastructure
 -------------------------------
