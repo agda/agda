@@ -589,7 +589,7 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMDefineData, uqFun2 tcDefineData u v)
              , (f `isDef` primAgdaTCMDefineFun,  uqFun2 tcDefineFun  u v)
              , (f `isDef` primAgdaTCMQuoteOmegaTerm, tcQuoteTerm (sort $ Inf IsFibrant 0) (unElim v))
-             , (f `isDef` primAgdaTCMPragmaForeign, tcFun2 tcPragmaForeign u v)
+             , (f `isDef` primAgdaTCMPragmaForeign, uqFun2 tcPragmaForeign u v)
              ]
              failEval
     I.Def f [l, a, u] ->
@@ -604,7 +604,7 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMDeclareData, uqFun3 tcDeclareData l a u)
              , (f `isDef` primAgdaTCMRunSpeculative, tcRunSpeculative (unElim u))
              , (f `isDef` primAgdaTCMExec, tcFun3 tcExec l a u)
-             , (f `isDef` primAgdaTCMPragmaCompile, tcFun3 tcPragmaCompile l a u)
+             , (f `isDef` primAgdaTCMPragmaCompile, uqFun3 tcPragmaCompile l a u)
              ]
              failEval
     I.Def f [_, _, u, v] ->
@@ -1044,34 +1044,19 @@ evalTCM v = do
       locallyReduceAllDefs $ checkFunDef NotDelayed i x cs
       primUnitUnit
 
-    tcPragmaForeign :: Text -> Text -> TCM Term
+    tcPragmaForeign :: Text -> Text -> UnquoteM Term
     tcPragmaForeign backend code = do
-      modifyTC $ \ st -> let preScSt = stPreScopeState st in st
-        { stPreScopeState = preScSt
-          { stPreForeignCode = Map.insertWith
-            (flip (++))
-            (T.unpack backend)
-            [ForeignCode noRange $ T.unpack code]
-            (stPreForeignCode preScSt)
-          }
-        }
-      primUnitUnit
+      let x = ForeignCode noRange $ T.unpack code
+      lSnd . stForeignCode . key (T.unpack backend) %= Just . maybe [x] (x:)
+      liftTCM primUnitUnit
 
-    tcPragmaCompile :: Text -> QName -> Text -> TCM Term
+    tcPragmaCompile :: Text -> QName -> Text -> UnquoteM Term
     tcPragmaCompile backend name code = do
-      modifyTC $ \ st -> let postScSt = stPostScopeState st in st
-        { stPostScopeState = postScSt
-          { stPostSignature = (stPostSignature postScSt)
-            { _sigDefinitions = HashMap.adjust
-              (\ d -> d
-                { defCompiledRep = Map.insertWith (++) (T.unpack backend) [CompilerPragma noRange (T.unpack code)] $ defCompiledRep d
-                })
-              name
-              (_sigDefinitions $ stPostSignature postScSt)
-            }
-          }
-        }
-      primUnitUnit
+      let x = CompilerPragma noRange (T.unpack code)
+      lSnd . stSignature . sigDefinitions %= HashMap.adjust
+        (over dCompiledRep $ over (key $ T.unpack backend) $ Just . maybe [x] (x:))
+        name
+      liftTCM primUnitUnit
 
     tcRunSpeculative :: Term -> UnquoteM Term
     tcRunSpeculative mu = do

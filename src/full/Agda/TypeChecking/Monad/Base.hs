@@ -2030,6 +2030,9 @@ defaultDefn info x t lang def = Defn
   , theDef            = def
   }
 
+dCompiledRep :: Lens' CompiledRepresentation Definition
+dCompiledRep f d = f (defCompiledRep d) <&> \ x -> d { defCompiledRep = x }
+
 -- | Polarity for equality and subtype checking.
 data Polarity
   = Covariant      -- ^ monotone
