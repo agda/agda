@@ -7,9 +7,10 @@
 ######################################################
 env:
   AGDA_TESTS_OPTIONS: -j${PARALLEL_TESTS} --hide-successes
-  APT_GET_OPTS: -yqq --no-install-suggests --no-install-recommends
   BUILD_DIR: dist
+  GHC_VER: 9.4.3
   PARALLEL_TESTS: 2
+  STACK_OPTS: --system-ghc
   STACK_VER: 2.9.1
   TASTY_ANSI_TRICKS: 'false'
 jobs:
@@ -19,10 +20,7 @@ jobs:
       && !contains(github.event.head_commit.message, '[ci skip]')
       && !contains(github.event.head_commit.message, '[github skip]')
       && !contains(github.event.head_commit.message, '[skip github]')
-    outputs:
-      ghc-ver: ${{ matrix.ghc-ver }}
-      os: ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-22.04
     steps:
     - uses: styfle/cancel-workflow-action@0.11.0
       with:
@@ -33,26 +31,24 @@ jobs:
     - uses: haskell/actions/setup@v2
       with:
         enable-stack: true
-        ghc-version: ${{ matrix.ghc-ver }}
+        ghc-version: ${{ env.GHC_VER }}
         stack-version: ${{ env.STACK_VER }}
-    - name: Update and configure stack
+    - name: Copy stack-${{ env.GHC_VER}}.yaml to stack.yaml
       run: |
-        stack update --silent
-        echo "system-ghc: true" >> ~/.stack/config.yaml
-    - name: Copy stack-${{ matrix.ghc-ver}}.yaml to stack.yaml
-      run: |
-        cp stack-${{ matrix.ghc-ver }}.yaml stack.yaml
-        make STACK_INSTALL_OPTS='--dry-run' install-deps
+        cp stack-${{ env.GHC_VER }}.yaml stack.yaml
+
+        # We skip the generation of stack.yaml.lock
+        # make STACK_INSTALL_OPTS='--dry-run' install-deps
     - id: cache
       name: Cache dependencies
       uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-03-${{ env.STACK_VER }}-${{ hashFiles('stack.yaml')
-          }}-${{ hashFiles('stack.yaml.lock') }}
+        key: ${{ runner.os }}-stack-${{ env.STACK_VER }}-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml')
+          }}
         path: ~/.stack
     - if: ${{ !steps.cache.outputs.cache-hit }}
       name: Install dependencies for Agda and its test suites
-      run: make STACK_OPTS=--silent install-deps
+      run: make install-deps
     - name: Build Agda
       run: make BUILD_DIR="${BUILD_DIR}" install-bin
     - name: Run tests for the size solver
@@ -80,15 +76,9 @@ jobs:
           dist.tzst
           stack-work.tzst
         retention-days: 1
-    strategy:
-      matrix:
-        ghc-ver:
-        - 9.4.3
-        os:
-        - ubuntu-22.04
   cubical:
     needs: build
-    runs-on: ${{ needs.build.outputs.os }}
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
       with:
@@ -96,7 +86,7 @@ jobs:
     - uses: haskell/actions/setup@v2
       with:
         enable-stack: true
-        ghc-version: ${{ needs.build.outputs.ghc-ver }}
+        ghc-version: ${{ env.GHC_VER }}
         stack-version: ${{ env.STACK_VER }}
     - uses: actions/download-artifact@v3
       with:
@@ -109,18 +99,16 @@ jobs:
       name: Cache dependencies
       uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-03-${{ env.STACK_VER }}-${{ hashFiles('stack.yaml')
-          }}-${{ hashFiles('stack.yaml.lock') }}
+        key: ${{ runner.os }}-stack-${{ env.STACK_VER }}-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml')
+          }}
         path: ~/.stack
-    - name: Install and configure the icu library
-      run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
     - name: Cubical library test
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-test
     - name: Successful tests using the cubical library
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-succeed
   interaction-latex-html:
     needs: build
-    runs-on: ${{ needs.build.outputs.os }}
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
       with:
@@ -128,7 +116,7 @@ jobs:
     - uses: haskell/actions/setup@v2
       with:
         enable-stack: true
-        ghc-version: ${{ needs.build.outputs.ghc-ver }}
+        ghc-version: ${{ env.GHC_VER }}
         stack-version: ${{ env.STACK_VER }}
     - uses: actions/download-artifact@v3
       with:
@@ -141,11 +129,9 @@ jobs:
       name: Cache dependencies
       uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-03-${{ env.STACK_VER }}-${{ hashFiles('stack.yaml')
-          }}-${{ hashFiles('stack.yaml.lock') }}
+        key: ${{ runner.os }}-stack-${{ env.STACK_VER }}-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml')
+          }}
         path: ~/.stack
-    - name: Install and configure the icu library
-      run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
     - name: Install Tex Live and Emacs
       run: |
         sudo apt-get update
@@ -159,7 +145,7 @@ jobs:
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" interaction
   stdlib-test:
     needs: build
-    runs-on: ${{ needs.build.outputs.os }}
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
       with:
@@ -167,7 +153,7 @@ jobs:
     - uses: haskell/actions/setup@v2
       with:
         enable-stack: true
-        ghc-version: ${{ needs.build.outputs.ghc-ver }}
+        ghc-version: ${{ env.GHC_VER }}
         stack-version: ${{ env.STACK_VER }}
     - uses: actions/download-artifact@v3
       with:
@@ -180,11 +166,9 @@ jobs:
       name: Cache dependencies
       uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-03-${{ env.STACK_VER }}-${{ hashFiles('stack.yaml')
-          }}-${{ hashFiles('stack.yaml.lock') }}
+        key: ${{ runner.os }}-stack-${{ env.STACK_VER }}-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml')
+          }}
         path: ~/.stack
-    - name: Install and configure the icu library
-      run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
     - name: Standard library test
       run: |
         # ASR (2021-01-17). `cabal update` is required due to #5138.
@@ -199,7 +183,7 @@ jobs:
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" std-lib-interaction
   test:
     needs: build
-    runs-on: ${{ needs.build.outputs.os }}
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
       with:
@@ -207,7 +191,7 @@ jobs:
     - uses: haskell/actions/setup@v2
       with:
         enable-stack: true
-        ghc-version: ${{ needs.build.outputs.ghc-ver }}
+        ghc-version: ${{ env.GHC_VER }}
         stack-version: ${{ env.STACK_VER }}
     - uses: actions/download-artifact@v3
       with:
@@ -220,8 +204,8 @@ jobs:
       name: Cache dependencies
       uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-03-${{ env.STACK_VER }}-${{ hashFiles('stack.yaml')
-          }}-${{ hashFiles('stack.yaml.lock') }}
+        key: ${{ runner.os }}-stack-${{ env.STACK_VER }}-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml')
+          }}
         path: ~/.stack
     - name: Suite of tests for bugs
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" bugs

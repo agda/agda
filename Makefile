@@ -756,6 +756,7 @@ debug : ## Print debug information.
 	@echo "PARALLEL_TESTS        = $(PARALLEL_TESTS)"
 	@echo "STACK                 = $(STACK)"
 	@echo "STACK_INSTALL_OPTS    = $(STACK_INSTALL_OPTS)"
+	@echo "STACK_OPTS            = $(STACK_OPTS)"
 	@echo
 	@echo "Run \`make -pq\` to get a detailed report."
 	@echo
