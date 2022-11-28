@@ -243,13 +243,6 @@ Reflection
   outside of the context that the `TC` computation is invoked from
   anymore. The telescope is now relative to that context instead.
 
-* `FOREIGN` and `COMPILE` pragmas can now be generated using two new reflection primitives:
-
-  ```agda
-  pragmaForeign : String → String → TC ⊤
-  pragmaCompile : String → Name → String → TC ⊤
-  ```
-
 Syntax
 ------
 
