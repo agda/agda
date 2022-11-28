@@ -119,10 +119,6 @@ Cubical Agda
   Note also that Agda tends to be quite a bit faster if `--without-K`
   is used instead of `--cubical-compatible`.
 
-  Note finally that when `--without-K` is used it might not be safe to
-  compile and run programs that postulate erased univalence (but we
-  are currently not aware of a program that would go wrong).
-
 * Cubical Agda now has experimental support for indexed inductive types
   ([#3733](https://github.com/agda/agda/issues/3733)).
   See the [user guide](https://agda.readthedocs.io/en/latest/language/cubical.html#indexed-inductive-types)
