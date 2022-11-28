@@ -589,7 +589,7 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMDefineData, uqFun2 tcDefineData u v)
              , (f `isDef` primAgdaTCMDefineFun,  uqFun2 tcDefineFun  u v)
              , (f `isDef` primAgdaTCMQuoteOmegaTerm, tcQuoteTerm (sort $ Inf IsFibrant 0) (unElim v))
-             , (f `isDef` primAgdaTCMPragmaForeign, uqFun2 tcPragmaForeign u v)
+             , (f `isDef` primAgdaTCMPragmaForeign, tcFun2 tcPragmaForeign u v)
              ]
              failEval
     I.Def f [l, a, u] ->
@@ -604,7 +604,7 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMDeclareData, uqFun3 tcDeclareData l a u)
              , (f `isDef` primAgdaTCMRunSpeculative, tcRunSpeculative (unElim u))
              , (f `isDef` primAgdaTCMExec, tcFun3 tcExec l a u)
-             , (f `isDef` primAgdaTCMPragmaCompile, uqFun3 tcPragmaCompile l a u)
+             , (f `isDef` primAgdaTCMPragmaCompile, tcFun3 tcPragmaCompile l a u)
              ]
              failEval
     I.Def f [_, _, u, v] ->
@@ -1044,21 +1044,16 @@ evalTCM v = do
       locallyReduceAllDefs $ checkFunDef NotDelayed i x cs
       primUnitUnit
 
-    tcPragmaForeign :: Text -> Text -> UnquoteM Term
+    tcPragmaForeign :: Text -> Text -> TCM Term
     tcPragmaForeign backend code = do
-      let x = [ForeignCode noRange $ T.unpack code]
-      -- FOREIGN pragmas may rely on those defined earlier so they are appended
-      lSnd . stForeignCode . key (T.unpack backend) %= Just . maybe x (++ x)
-      liftTCM primUnitUnit
+      updateForeignCodes (T.unpack backend) (++ [ForeignCode noRange $ T.unpack code])
+      primUnitUnit
 
-    tcPragmaCompile :: Text -> QName -> Text -> UnquoteM Term
+    tcPragmaCompile :: Text -> QName -> Text -> TCM Term
     tcPragmaCompile backend name code = do
-      let x = CompilerPragma noRange (T.unpack code)
-      lSnd . stSignature . sigDefinitions %= HashMap.adjust
-        -- COMPILE pragmas may appear in any order so they can be prepended
-        (over dCompiledRep $ over (key $ T.unpack backend) $ Just . maybe [x] (x:))
-        name
-      liftTCM primUnitUnit
+      modifySignature $ updateDefinition name $
+        addCompilerPragma (T.unpack backend) $ CompilerPragma noRange (T.unpack code)
+      primUnitUnit
 
     tcRunSpeculative :: Term -> UnquoteM Term
     tcRunSpeculative mu = do

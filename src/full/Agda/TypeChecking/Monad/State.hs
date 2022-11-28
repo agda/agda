@@ -404,10 +404,13 @@ currentModuleNameHash = do
 -- * Foreign code
 ---------------------------------------------------------------------------
 
+updateForeignCodes :: BackendName -> ([ForeignCode] -> [ForeignCode]) -> TCM ()
+updateForeignCodes backend f = modifyTCLens (stForeignCode . key backend) $ Just . f . fromMaybe []
+
 addForeignCode :: BackendName -> String -> TCM ()
 addForeignCode backend code = do
   r <- asksTC envRange  -- can't use TypeChecking.Monad.Trace.getCurrentRange without cycle
-  modifyTCLens (stForeignCode . key backend) $ Just . (ForeignCode r code :) . fromMaybe []
+  updateForeignCodes backend (ForeignCode r code :)
 
 ---------------------------------------------------------------------------
 -- * Interaction output callback
