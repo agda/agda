@@ -1046,14 +1046,16 @@ evalTCM v = do
 
     tcPragmaForeign :: Text -> Text -> UnquoteM Term
     tcPragmaForeign backend code = do
-      let x = ForeignCode noRange $ T.unpack code
-      lSnd . stForeignCode . key (T.unpack backend) %= Just . maybe [x] (x:)
+      let x = [ForeignCode noRange $ T.unpack code]
+      -- FOREIGN pragmas may rely on those defined earlier so they are appended
+      lSnd . stForeignCode . key (T.unpack backend) %= Just . maybe x (++ x)
       liftTCM primUnitUnit
 
     tcPragmaCompile :: Text -> QName -> Text -> UnquoteM Term
     tcPragmaCompile backend name code = do
       let x = CompilerPragma noRange (T.unpack code)
       lSnd . stSignature . sigDefinitions %= HashMap.adjust
+        -- COMPILE pragmas may appear in any order so they can be prepended
         (over dCompiledRep $ over (key $ T.unpack backend) $ Just . maybe [x] (x:))
         name
       liftTCM primUnitUnit
