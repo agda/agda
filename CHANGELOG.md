@@ -321,10 +321,13 @@ Pragmas and options
   test = refl
   ```
 
-* [**Breaking**] Option `--experimental-lossy-unification` that turns on
-  (the incomplete) first-order unification has been renamed to
-  `--lossy-unification`.
-  ([#1625](https://github.com/agda/agda/issues/1625))
+* [**Breaking**] The option `--experimental-lossy-unification` that
+  makes Agda sometimes use first-order unification has been renamed to
+  `--lossy-unification`
+  ([#1625](https://github.com/agda/agda/issues/1625)).
+
+  Note that use of this option is associated with some potential
+  [drawbacks](https://agda.readthedocs.io/en/latest/language/lossy-unification.html#drawbacks).
 
 * The new option `--no-load-primitives` complements `--no-import-sorts`
   by foregoing loading of the primitive modules altogether. This option
