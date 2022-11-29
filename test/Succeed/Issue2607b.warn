@@ -1,0 +1,13 @@
+AGDA_UNEXPECTED_FAIL
+
+ret > ExitFailure 42
+out > Failed to solve the following constraints:
+out >   _23 = IrrFixerInstance : Fixer (blocked on _23)
+out >   Resolve instance argument _23 : Fixer
+out >   Candidates
+out >     IrrFixerInstance : .⦃ _ : InstanceWrapper ⦄ → Fixer
+out >     FixerInstance : Fixer
+out >     (stuck)
+out > Unsolved metas at the following locations:
+out >   Issue2607b.agda:30,35-46
+out >

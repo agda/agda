@@ -240,7 +240,7 @@ getInstanceCandidates m = do
       Left b -> return $ Left b
       Right cands -> checkCandidates m t' cands >>= \case
         Nothing -> return $ Right cands
-        Just (_ , cands') -> return $ Right cands'
+        Just (_ , cands') -> return $ Right $ map fst cands'
 
 -- | Result says whether we need to add constraint, and if so, the set of
 --   remaining candidates and an eventual blocking metavariable.
@@ -295,7 +295,11 @@ findInstance' m cands = ifM (isFrozen m) (do
           setCurrentRange (take 1 $ map snd sortedErrs) $
             typeError $ InstanceNoCandidate t [ (candidateTerm c, err) | (c, err) <- sortedErrs ]
 
-        Just (_, [c@(Candidate q term t' _)]) -> do
+        Just (_, [(c@(Candidate q term t' _), v)]) -> do
+
+          ctxElims <- map Apply <$> getContextArgs
+          equalTerm t (MetaV m ctxElims) v
+
           reportSDoc "tc.instance" 15 $ vcat
             [ "findInstance 5: solved by instance search using the only candidate"
             , nest 2 $ prettyTCM c <+> "=" <+> prettyTCM term
@@ -309,7 +313,7 @@ findInstance' m cands = ifM (isFrozen m) (do
           return Nothing  -- We’re done
 
         _ -> do
-          let cs = maybe cands snd mcands -- keep the current candidates if Nothing
+          let cs = maybe cands (map fst . snd) mcands -- keep the current candidates if Nothing
           reportSDoc "tc.instance" 15 $
             text ("findInstance 5: refined candidates: ") <+>
             prettyTCM (List.map candidateTerm cs)
@@ -339,38 +343,34 @@ insidePi t ret = reduce (unEl t) >>= \case
 --   Also returns the candidates that pass type checking but fails constraints,
 --   so that the error messages can be reported if there are no successful
 --   candidates.
-filterResetingState :: MetaId -> [Candidate] -> (Candidate -> TCM YesNoMaybe) -> TCM ([(Candidate, TCErr)], [Candidate])
+filterResetingState :: MetaId -> [Candidate] -> (Candidate -> TCM YesNo) -> TCM ([(Candidate, TCErr)], [(Candidate, Term)])
 filterResetingState m cands f = do
   ctxArgs  <- getContextArgs
   let ctxElims = map Apply ctxArgs
-      tryC c = do
-        ok <- f c
-        v  <- instantiateFull (MetaV m ctxElims)
-        return (ok, v)
+      tryC c = f c
   result <- mapM (\c -> do bs <- localTCStateSaving (tryC c); return (c, bs)) cands
 
   -- Check that there aren't any hard failures
-  case [ err | (_, ((HellNo err, _), _)) <- result ] of
+  case [ err | (_, (HellNo err, _)) <- result ] of
     err : _ -> throwError err
     []      -> return ()
 
   -- c : Candidate
-  -- r : YesNoMaybe
-  -- v : Term         (fully instantiated)
+  -- r : YesNo
   -- a : Type         (fully instantiated)
   -- s : TCState
-  let result' = [ (c, v, s) | (c, ((r, v), s)) <- result, not (isNo r) ]
+  let result' = [ (c, fromYes r, s) | (c, (r, s)) <- result, not (isNo r) ]
   result'' <- dropSameCandidates m result'
   case result'' of
-    [(c, _, s)] -> ([], [c]) <$ putTC s
+    [(c, Just v, s)] -> ([], [(c,v)]) <$ putTC s
     _           -> do
-      let bad  = [ (c, err) | (c, ((NoBecause err, _), _)) <- result ]
-          good = [ c | (c, _, _) <- result'' ]
+      let bad  = [ (c, err) | (c, (NoBecause err, _)) <- result ]
+          good = [ (c, v) | (c, Just v, _) <- result'' ]
       return (bad, good)
 
 -- Drop all candidates which are judgmentally equal to the first one.
 -- This is sufficient to reduce the list to a singleton should all be equal.
-dropSameCandidates :: MetaId -> [(Candidate, Term, a)] -> TCM [(Candidate, Term, a)]
+dropSameCandidates :: MetaId -> [(Candidate, Maybe Term, a)] -> TCM [(Candidate, Maybe Term, a)]
 dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidates" $ do
   !nextMeta    <- nextLocalMeta
   isRemoteMeta <- isRemoteMeta
@@ -389,24 +389,26 @@ dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidate
     [ "valid candidates:"
     , nest 2 $ vcat [ if freshMetas v then "(redacted)" else
                       sep [ prettyTCM v ]
-                    | (_, v, _) <- cands ] ]
+                    | (_, Just v, _) <- cands ] ]
   rel <- getRelevance <$> lookupMetaModality m
   case cands of
     []            -> return cands
     cvd : _ | isIrrelevant rel -> do
       reportSLn "tc.instance" 30 "dropSameCandidates: Meta is irrelevant so any candidate will do."
       return [cvd]
-    (_, MetaV m' _, _) : _ | m == m' -> do  -- We didn't instantiate, so can't compare
+    cvd@(_, Nothing, _) : vas -> return (cvd : vas)
+    (_, Just (MetaV m' _), _) : _ | m == m' -> do  -- We didn't instantiate, so can't compare
       reportSLn "tc.instance" 30 "dropSameCandidates: Meta was not instantiated so we don't filter equal candidates yet"
       return cands
-    cvd@(_, v, _) : vas
+    cvd@(_, Just v, _) : vas
       | freshMetas v -> do
           reportSLn "tc.instance" 30 "dropSameCandidates: Solution of instance meta has fresh metas so we don't filter equal candidates yet"
           return (cvd : vas)
       | otherwise -> (cvd :) <$> dropWhileM equal vas
       where
-        equal :: (Candidate, Term, a) -> TCM Bool
-        equal (_, v', _)
+        equal :: (Candidate, Maybe Term, a) -> TCM Bool
+        equal (_, Nothing, _) = return False
+        equal (_, Just v', _)
             | freshMetas v' = return False  -- If there are fresh metas we can't compare
             | otherwise     =
           verboseBracket "tc.instance" 30 "dropSameCandidates: " $ do
@@ -417,19 +419,23 @@ dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidate
                              {- else -} (\ _ -> return False)
                              `catchError` (\ _ -> return False)
 
-data YesNoMaybe = Yes | No | NoBecause TCErr | Maybe | HellNo TCErr
+data YesNo = Yes Term | No | NoBecause TCErr | HellNo TCErr
   deriving (Show)
 
-isNo :: YesNoMaybe -> Bool
+isNo :: YesNo -> Bool
 isNo No          = True
 isNo NoBecause{} = True
 isNo HellNo{}    = True
 isNo _           = False
 
+fromYes :: YesNo -> Maybe Term
+fromYes (Yes t) = Just t
+fromYes _       = Nothing
+
 -- | Given a meta @m@ of type @t@ and a list of candidates @cands@,
 -- @checkCandidates m t cands@ returns a refined list of valid candidates and
 -- candidates that failed some constraints.
-checkCandidates :: MetaId -> Type -> [Candidate] -> TCM (Maybe ([(Candidate, TCErr)], [Candidate]))
+checkCandidates :: MetaId -> Type -> [Candidate] -> TCM (Maybe ([(Candidate, TCErr)], [(Candidate,Term)]))
 checkCandidates m t cands =
   verboseBracket "tc.instance.candidates" 20 ("checkCandidates " ++ prettyShow m) $
   ifM (anyMetaTypes cands) (return Nothing) $ Just <$> do
@@ -442,11 +448,11 @@ checkCandidates m t cands =
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
       [ "valid candidates"
       , vcat [ "-" <+> (if overlap then "overlap" else empty) <+> prettyTCM c <+> ":" <+> prettyTCM t
-             | c@(Candidate q v t overlap) <- snd cands' ] ]
+             | c@(Candidate q v t overlap) <- map fst (snd cands') ] ]
     reportSDoc "tc.instance.candidates" 60 $ nest 2 $ vcat
       [ "valid candidates"
       , vcat [ "-" <+> (if overlap then "overlap" else empty) <+> prettyTCM v <+> ":" <+> prettyTCM t
-             | c@(Candidate q v t overlap) <- snd cands' ] ]
+             | c@(Candidate q v t overlap) <- map fst (snd cands') ] ]
     return cands'
   where
     anyMetaTypes :: [Candidate] -> TCM Bool
@@ -457,14 +463,14 @@ checkCandidates m t cands =
         MetaV{} -> return True
         _       -> anyMetaTypes cands
 
-    checkDepth :: Term -> Type -> TCM YesNoMaybe -> TCM YesNoMaybe
+    checkDepth :: Term -> Type -> TCM YesNo -> TCM YesNo
     checkDepth c a k = locallyTC eInstanceDepth succ $ do
       d        <- viewTC eInstanceDepth
       maxDepth <- maxInstanceSearchDepth
       when (d > maxDepth) $ typeError $ InstanceSearchDepthExhausted c a maxDepth
       k
 
-    checkCandidateForMeta :: MetaId -> Type -> Candidate -> TCM YesNoMaybe
+    checkCandidateForMeta :: MetaId -> Type -> Candidate -> TCM YesNo
     checkCandidateForMeta m t (Candidate q term t' _) = checkDepth term t' $ do
       -- Andreas, 2015-02-07: New metas should be created with range of the
       -- current instance meta, thus, we set the range.
@@ -493,25 +499,26 @@ checkCandidates m t cands =
               , nest 2 $ "<="
               , nest 4 $ pretty t
               ]
+            -- if constraints remain, we abort, but keep the candidate
+            -- Jesper, 05-12-2014: When we abort, we should add a constraint to
+            -- instantiate the meta at a later time (see issue 1377).
+            leqType t'' t
+            -- make a pass over constraints, to detect cases where some are made
+            -- unsolvable by the assignment, but don't do this for FindInstance's
+            -- to prevent loops.
+            debugConstraints
+
             v <- (`applyDroppingParameters` args) =<< reduce term
+            v <- instantiateFull v
             reportSDoc "tc.instance" 15 $ vcat
               [ "instance search: attempting"
               , nest 2 $ prettyTCM m <+> ":=" <+> prettyTCM v
               ]
             reportSDoc "tc.instance" 70 $ nest 2 $
               "candidate v = " <+> pretty v
-            -- if constraints remain, we abort, but keep the candidate
-            -- Jesper, 05-12-2014: When we abort, we should add a constraint to
-            -- instantiate the meta at a later time (see issue 1377).
-            ctxElims <- map Apply <$> getContextArgs
-            guardConstraint (ValueCmp CmpEq (AsTermsOf t'') (MetaV m ctxElims) v) $ leqType t'' t
-            -- make a pass over constraints, to detect cases where some are made
-            -- unsolvable by the assignment, but don't do this for FindInstance's
-            -- to prevent loops.
-            debugConstraints
 
             let debugSolution = verboseS "tc.instance" 15 $ do
-                  sol <- instantiateFull (MetaV m ctxElims)
+                  sol <- instantiateFull v
                   case sol of
                     MetaV m' _ | m == m' ->
                       reportSDoc "tc.instance" 15 $
@@ -523,7 +530,7 @@ checkCandidates m t cands =
                             , nest 2 $ prettyTCM sol ]
 
             do solveAwakeConstraints' True
-               Yes <$ debugSolution
+               Yes v <$ debugSolution
               `catchError` (return . NoBecause)
 
         where
@@ -532,12 +539,12 @@ checkCandidates m t cands =
             nowConsideringInstance $
             ifNoConstraints check
               (\ r -> case r of
-                  Yes           -> r <$ debugSuccess
+                  Yes v         -> r <$ debugSuccess
                   NoBecause why -> r <$ debugConstraintFail why
                   _             -> __IMPOSSIBLE__
               )
               (\ _ r -> case r of
-                  Yes           -> Maybe <$ debugInconclusive
+                  Yes v         -> Yes v <$ debugInconclusive
                   NoBecause why -> r <$ debugConstraintFail why
                   _             -> __IMPOSSIBLE__
               )
@@ -554,7 +561,7 @@ checkCandidates m t cands =
               _                              -> False
           hardFailure _ = False
 
-          handle :: TCErr -> TCM YesNoMaybe
+          handle :: TCErr -> TCM YesNo
           handle err
             | hardFailure err = return $ HellNo err
             | otherwise       = No <$ debugTypeFail err
