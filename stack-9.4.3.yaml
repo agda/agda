@@ -4,6 +4,7 @@ compiler-check: match-exact
 
 packages:
 - '.'
+- 'src/size-solver'
 
 flags:
   mintty:
