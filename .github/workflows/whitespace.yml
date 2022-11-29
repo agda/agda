@@ -16,6 +16,9 @@ jobs:
     - name: Check encoding of Parser.y
       run: |
         make check-encoding
+    - name: Check building the source tarball
+      run: |
+        cabal sdist
 name: Whitespace
 'on':
   pull_request: null
