@@ -1,14 +1,10 @@
-InstanceErrorMessageMultiple.agda:32,22-26
-No instance of type Semiring Nat was found in scope.
-- ringNat′ was ruled out because
+Failed to solve the following constraints:
+  Resolve instance argument _r_30 : Semiring Nat
+  Candidates
+    ringNat′ : Semiring Nat
+    ringNat : Semiring Nat
+    (stuck)
+  (_r_30 Semiring.+ a) c = c +N a : Nat (blocked on _r_30)
+Unsolved metas at the following locations:
+  InstanceErrorMessageMultiple.agda:32,16-17
   InstanceErrorMessageMultiple.agda:32,22-26
-  ((ringNat′ Semiring.+ a) c) != (c +N a) of type Nat
-  when checking that the expression refl has type
-  (ringNat′ Semiring.+ a) c ≡ (c +N a)
-- ringNat was ruled out because
-  InstanceErrorMessageMultiple.agda:32,22-26
-  a != c of type Nat
-  when checking that the expression refl has type
-  (ringNat Semiring.+ a) c ≡ (c +N a)
-when checking that a c are valid arguments to a function of type
-{A : Set} ⦃ r : Semiring A ⦄ → A → A → A
