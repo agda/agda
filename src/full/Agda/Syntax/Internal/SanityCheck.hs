@@ -36,7 +36,7 @@ sanityCheckSubst gamma rho delta = go gamma rho delta
       case rho of
 
         IdS      -> do
-          unless (natSize gamma == natSize delta) $ err $
+          unless (size gamma == size delta) $ err $
             "idS:" <+> hang (pretty gamma <+> "/=") 2 (pretty delta)
 
         EmptyS _ -> do
