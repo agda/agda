@@ -129,6 +129,10 @@ followed:
 
     ./src/release-tools/change-version.bash RC_VERSION VERSION
 
+* Restore in CHANGELOG.md the links to Read the Docs:
+
+    agda.readthedocs.io/en/v$RC_VERSION -> agda.readthedocs.io/en/latest
+
 * Push all changes (in the release-$MAJORVERSION branch):
 
     git push --set-upstream --follow-tags
