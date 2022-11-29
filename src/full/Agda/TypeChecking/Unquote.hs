@@ -1046,7 +1046,7 @@ evalTCM v = do
 
     tcPragmaForeign :: Text -> Text -> TCM Term
     tcPragmaForeign backend code = do
-      updateForeignCodes (T.unpack backend) (++ [ForeignCode noRange $ T.unpack code])
+      addForeignCode (T.unpack backend) (T.unpack code)
       primUnitUnit
 
     tcPragmaCompile :: Text -> QName -> Text -> TCM Term

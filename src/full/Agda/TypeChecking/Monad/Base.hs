@@ -194,7 +194,7 @@ data PreScopeState = PreScopeState
   , stPreImportedDisplayForms :: !DisplayForms
     -- ^ Display forms added by someone else to imported identifiers
   , stPreImportedInstanceDefs :: !InstanceTable
-  , stPreForeignCode        :: !(Map BackendName [ForeignCode])
+  , stPreForeignCode        :: !(Map BackendName ForeignCodeStack)
     -- ^ @{-\# FOREIGN \#-}@ code that should be included in the compiled output.
     -- Does not include code for imported modules.
   , stPreFreshInteractionId :: !InteractionId
@@ -514,7 +514,7 @@ stImportedBuiltins f s =
   f (stPreImportedBuiltins (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedBuiltins = x}}
 
-stForeignCode :: Lens' (Map BackendName [ForeignCode]) TCState
+stForeignCode :: Lens' (Map BackendName ForeignCodeStack) TCState
 stForeignCode f s =
   f (stPreForeignCode (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreForeignCode = x}}
@@ -948,6 +948,12 @@ type DecodedModules = Map TopLevelModuleName ModuleInfo
 data ForeignCode = ForeignCode Range String
   deriving (Show, Generic)
 
+-- | Foreign code fragments are stored in reversed order to support efficient appending:
+--   head points to the latest pragma in module.
+newtype ForeignCodeStack = ForeignCodeStack
+  { getForeignCodeStack :: [ForeignCode]
+  } deriving (Show, Generic, NFData)
+
 data Interface = Interface
   { iSourceHash      :: Hash
     -- ^ Hash of the source code.
@@ -984,7 +990,7 @@ data Interface = Interface
   , iImportWarning   :: Maybe Text
     -- ^ Whether this module should raise a warning when imported
   , iBuiltin         :: BuiltinThings (String, QName)
-  , iForeignCode     :: Map BackendName [ForeignCode]
+  , iForeignCode     :: Map BackendName ForeignCodeStack
   , iHighlighting    :: HighlightingInfo
   , iDefaultPragmaOptions :: [OptionsPragma]
     -- ^ Pragma options set in library files.
