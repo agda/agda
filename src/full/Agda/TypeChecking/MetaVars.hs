@@ -242,10 +242,7 @@ newInstanceMetaCtx s t vs = do
     [ nest 2 $ pretty x <+> ":" <+> prettyTCM t
     ]
   let c = FindInstance x Nothing
-  -- If we're not already solving instance constraints we should add this
-  -- to the awake constraints to make sure we don't forget about it. If we
-  -- are solving constraints it will get woken up later (see #2690)
-  ifM isSolvingConstraints (addConstraint alwaysUnblock c) (addAwakeConstraint alwaysUnblock c)
+  addAwakeConstraint alwaysUnblock c
   etaExpandMetaSafe x
   return (x, MetaV x $ map Apply vs)
 
