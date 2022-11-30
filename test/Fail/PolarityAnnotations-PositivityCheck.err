@@ -1,0 +1,5 @@
+PolarityAnnotations-PositivityCheck.agda:11,1-12,25
+Wrong is not strictly positive, because it occurs
+to the left of an arrow
+in the type of the constructor cons
+in the definition of Wrong.
