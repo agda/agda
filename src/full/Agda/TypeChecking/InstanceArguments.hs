@@ -359,18 +359,18 @@ filterResetingState m cands f = do
   -- r : YesNo
   -- a : Type         (fully instantiated)
   -- s : TCState
-  let result' = [ (c, fromYes r, s) | (c, (r, s)) <- result, not (isNo r) ]
+  let result' = [ (c, v, s) | (c, (r, s)) <- result, v <- maybeToList (fromYes r) ]
   result'' <- dropSameCandidates m result'
   case result'' of
-    [(c, Just v, s)] -> ([], [(c,v)]) <$ putTC s
+    [(c, v, s)] -> ([], [(c,v)]) <$ putTC s
     _           -> do
       let bad  = [ (c, err) | (c, (NoBecause err, _)) <- result ]
-          good = [ (c, v) | (c, Just v, _) <- result'' ]
+          good = [ (c, v) | (c, v, _) <- result'' ]
       return (bad, good)
 
 -- Drop all candidates which are judgmentally equal to the first one.
 -- This is sufficient to reduce the list to a singleton should all be equal.
-dropSameCandidates :: MetaId -> [(Candidate, Maybe Term, a)] -> TCM [(Candidate, Maybe Term, a)]
+dropSameCandidates :: MetaId -> [(Candidate, Term, a)] -> TCM [(Candidate, Term, a)]
 dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidates" $ do
   !nextMeta    <- nextLocalMeta
   isRemoteMeta <- isRemoteMeta
@@ -389,26 +389,24 @@ dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidate
     [ "valid candidates:"
     , nest 2 $ vcat [ if freshMetas v then "(redacted)" else
                       sep [ prettyTCM v ]
-                    | (_, Just v, _) <- cands ] ]
+                    | (_, v, _) <- cands ] ]
   rel <- getRelevance <$> lookupMetaModality m
   case cands of
     []            -> return cands
     cvd : _ | isIrrelevant rel -> do
       reportSLn "tc.instance" 30 "dropSameCandidates: Meta is irrelevant so any candidate will do."
       return [cvd]
-    cvd@(_, Nothing, _) : vas -> return (cvd : vas)
-    (_, Just (MetaV m' _), _) : _ | m == m' -> do  -- We didn't instantiate, so can't compare
+    (_, (MetaV m' _), _) : _ | m == m' -> do  -- We didn't instantiate, so can't compare
       reportSLn "tc.instance" 30 "dropSameCandidates: Meta was not instantiated so we don't filter equal candidates yet"
       return cands
-    cvd@(_, Just v, _) : vas
+    cvd@(_, v, _) : vas
       | freshMetas v -> do
           reportSLn "tc.instance" 30 "dropSameCandidates: Solution of instance meta has fresh metas so we don't filter equal candidates yet"
           return (cvd : vas)
       | otherwise -> (cvd :) <$> dropWhileM equal vas
       where
-        equal :: (Candidate, Maybe Term, a) -> TCM Bool
-        equal (_, Nothing, _) = return False
-        equal (_, Just v', _)
+        equal :: (Candidate, Term, a) -> TCM Bool
+        equal (_, v', _)
             | freshMetas v' = return False  -- If there are fresh metas we can't compare
             | otherwise     =
           verboseBracket "tc.instance" 30 "dropSameCandidates: " $ do
@@ -422,12 +420,6 @@ dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidate
 data YesNo = Yes Term | No | NoBecause TCErr | HellNo TCErr
   deriving (Show)
 
-isNo :: YesNo -> Bool
-isNo No          = True
-isNo NoBecause{} = True
-isNo HellNo{}    = True
-isNo _           = False
-
 fromYes :: YesNo -> Maybe Term
 fromYes (Yes t) = Just t
 fromYes _       = Nothing
@@ -435,7 +427,7 @@ fromYes _       = Nothing
 -- | Given a meta @m@ of type @t@ and a list of candidates @cands@,
 -- @checkCandidates m t cands@ returns a refined list of valid candidates and
 -- candidates that failed some constraints.
-checkCandidates :: MetaId -> Type -> [Candidate] -> TCM (Maybe ([(Candidate, TCErr)], [(Candidate,Term)]))
+checkCandidates :: MetaId -> Type -> [Candidate] -> TCM (Maybe ([(Candidate, TCErr)], [(Candidate, Term)]))
 checkCandidates m t cands =
   verboseBracket "tc.instance.candidates" 20 ("checkCandidates " ++ prettyShow m) $
   ifM (anyMetaTypes cands) (return Nothing) $ Just <$> do
@@ -509,7 +501,6 @@ checkCandidates m t cands =
             debugConstraints
 
             v <- (`applyDroppingParameters` args) =<< reduce term
-            v <- instantiateFull v
             reportSDoc "tc.instance" 15 $ vcat
               [ "instance search: attempting"
               , nest 2 $ prettyTCM m <+> ":=" <+> prettyTCM v
@@ -530,6 +521,8 @@ checkCandidates m t cands =
                             , nest 2 $ prettyTCM sol ]
 
             do solveAwakeConstraints' True
+               -- We need instantiateFull here to remove 'local' metas
+               v <- instantiateFull v
                Yes v <$ debugSolution
               `catchError` (return . NoBecause)
 
