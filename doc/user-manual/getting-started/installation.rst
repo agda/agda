@@ -51,7 +51,7 @@ This depends on your system for instance for ubuntu, you may need to
 add
 
 .. code-block:: bash
-  
+
   export PATH=~/.cabal/bin:$PATH
 
 in your ``.profile`` or ``bash_profile``
