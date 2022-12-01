@@ -31,6 +31,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Scope.Base (isNameInScope, inverseScopeLookupName', AllowAmbiguousNames(..))
 
+import Agda.TypeChecking.Conversion.Pure (pureEqualTerm)
 import Agda.TypeChecking.Errors () --instance only
 import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.Monad
@@ -412,10 +413,9 @@ dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidate
           verboseBracket "tc.instance" 30 "dropSameCandidates: " $ do
           reportSDoc "tc.instance" 30 $ sep [ prettyTCM v <+> "==", nest 2 $ prettyTCM v' ]
           a <- uncurry piApplyM =<< ((,) <$> getMetaType m <*> getContextArgs)
-          localTCState $ dontAssignMetas $ ifNoConstraints_ (equalTerm a v v')
-                             {- then -} (return True)
-                             {- else -} (\ _ -> return False)
-                             `catchError` (\ _ -> return False)
+          runBlocked (pureEqualTerm a v v') <&> \case
+            Left{}  -> False
+            Right b -> b
 
 data YesNo = Yes Term | No | NoBecause TCErr | HellNo TCErr
   deriving (Show)
