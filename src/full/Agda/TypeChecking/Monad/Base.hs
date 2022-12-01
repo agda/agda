@@ -3420,6 +3420,8 @@ data TCEnv =
                 --   equations even --without-K.
           , envDisplayFormsEnabled :: Bool
                 -- ^ Sometimes we want to disable display forms.
+          , envFoldLetBindings :: Bool
+                -- ^ Fold let-bindings when printing terms (default: True)
           , envRange :: Range
           , envHighlightingRange :: Range
                 -- ^ Interactive highlighting uses this range rather
@@ -3542,6 +3544,7 @@ initEnv = TCEnv { envContext             = []
                 , envModality               = unitModality
                 , envSplitOnStrict          = False
                 , envDisplayFormsEnabled    = True
+                , envFoldLetBindings        = True
                 , envRange                  = noRange
                 , envHighlightingRange      = noRange
                 , envClause                 = IPNoClause
@@ -3670,6 +3673,9 @@ eSplitOnStrict f e = f (envSplitOnStrict e) <&> \ x -> e { envSplitOnStrict = x 
 eDisplayFormsEnabled :: Lens' Bool TCEnv
 eDisplayFormsEnabled f e = f (envDisplayFormsEnabled e) <&> \ x -> e { envDisplayFormsEnabled = x }
 
+eFoldLetBindings :: Lens' Bool TCEnv
+eFoldLetBindings f e = f (envFoldLetBindings e) <&> \ x -> e { envFoldLetBindings = x }
+
 eRange :: Lens' Range TCEnv
 eRange f e = f (envRange e) <&> \ x -> e { envRange = x }
 
@@ -3766,7 +3772,16 @@ type ContextEntry = Dom (Name, Type)
 -- ** Let bindings
 ---------------------------------------------------------------------------
 
-type LetBindings = Map Name (Open (Term, Dom Type))
+type LetBindings = Map Name (Open LetBinding)
+
+data LetBinding = LetBinding { letOrigin :: Origin
+                             , letTerm   :: Term
+                             , letType   :: Dom Type
+                             }
+  deriving (Show, Generic)
+
+onLetBindingType :: (Dom Type -> Dom Type) -> LetBinding -> LetBinding
+onLetBindingType f b = b { letType = f $ letType b }
 
 ---------------------------------------------------------------------------
 -- ** Abstract mode
@@ -5388,6 +5403,7 @@ instance NFData pf => NFData (Builtin pf)
 instance NFData HighlightingLevel
 instance NFData HighlightingMethod
 instance NFData TCEnv
+instance NFData LetBinding
 instance NFData UnquoteFlags
 instance NFData AbstractMode
 instance NFData ExpandHidden

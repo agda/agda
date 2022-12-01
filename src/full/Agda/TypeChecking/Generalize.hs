@@ -99,7 +99,7 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
   --   Γ (r : R) Θ ⊢ letbinds
   --   Γ Δ Θρ      ⊢ letbinds' = letbinds(lift |Θ| ρ)
   letbinds' <- applySubst (liftS (size tel) sub) <$> instantiateFull letbinds
-  let addLet (x, (v, dom)) = addLetBinding' x v dom
+  let addLet (x, LetBinding o v dom) = addLetBinding' o x v dom
 
   updateContext sub ((genTelCxt ++) . drop 1) $
     updateContext (raiseS (size tel')) (newTelCxt ++) $

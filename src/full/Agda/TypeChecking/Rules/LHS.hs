@@ -604,7 +604,7 @@ bindAsPatterns (AsB x v a m : asb) ret = do
     sep [ ":" <+> prettyTCM a
         , "=" <+> prettyTCM v
         ]
-  addLetBinding (setModality m defaultArgInfo) x v a $ bindAsPatterns asb ret
+  addLetBinding (setModality m defaultArgInfo) Inserted x v a $ bindAsPatterns asb ret
 
 -- | Since with-abstraction can change the type of a variable, we have to
 --   recheck the stripped with patterns when checking a with function.

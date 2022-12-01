@@ -1089,7 +1089,7 @@ checkRecordUpdate cmp ei recexpr fs eupd t = do
       -- Bind the record value (before update) to a fresh @name@.
       v <- checkExpr' cmp recexpr t'
       name <- freshNoName $ getRange recexpr
-      addLetBinding defaultArgInfo name v t' $ do
+      addLetBinding defaultArgInfo Inserted name v t' $ do
 
         let projs = map argFromDom $ recFields defn
 
@@ -1629,7 +1629,7 @@ checkLetBinding b@(A.LetBind i info x t e) ret =
               | otherwise                  = checkExpr'
     t <- workOnTypes $ isType_ t
     v <- applyModalityToContext info $ check CmpLeq e t
-    addLetBinding info (A.unBind x) v t ret
+    addLetBinding info UserWritten (A.unBind x) v t ret
 
 checkLetBinding b@(A.LetPatBind i p e) ret =
   traceCall (CheckLetBinding b) $ do
@@ -1696,7 +1696,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         -- We get list of names of the let-bound vars from the context.
         let xs   = map (fst . unDom) (reverse binds)
         -- We add all the bindings to the context.
-        foldr (uncurry4 addLetBinding) ret $ List.zip4 infos xs sigma ts
+        foldr (uncurry4 $ flip addLetBinding UserWritten) ret $ List.zip4 infos xs sigma ts
 
 checkLetBinding (A.LetApply i x modapp copyInfo _adir) ret = do
   -- Any variables in the context that doesn't belong to the current

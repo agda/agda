@@ -59,6 +59,7 @@ import Agda.TypeChecking.Level
 import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.SyntacticEquality
 import Agda.TypeChecking.Telescope
 
 import Agda.Interaction.Options
@@ -431,8 +432,21 @@ reifyPathPConstAsPath x es@[I.Apply l, I.Apply t, I.Apply lhs, I.Apply rhs] = do
      _ -> fallback
 reifyPathPConstAsPath x es = return (x,es)
 
+-- | Check if the term matches an existing let-binding, in that case use the corresponding variable,
+--   otherwise reify using the continuation.
+tryReifyAsLetBinding :: MonadReify m => Term -> m Expr -> m Expr
+tryReifyAsLetBinding v fallback = ifM (asksTC $ not . envFoldLetBindings) fallback $ do
+  letBindings <- do
+    binds  <- asksTC (Map.toAscList . envLetBindings)
+    opened <- forM binds $ \ (name, open) -> (,name) <$> getOpen open
+    return [ (body, name) | (LetBinding UserWritten body _, name) <- opened, not $ isNoName name ]  -- Only fold user-written lets
+  matchingBindings <- filterM (\t -> checkSyntacticEquality v (fst t) (\_ _ -> return True) (\_ _ -> return False)) letBindings
+  case matchingBindings of
+    (_, name) : _ -> return $ A.Var name
+    []            -> fallback
+
 reifyTerm :: MonadReify m => Bool -> Term -> m Expr
-reifyTerm expandAnonDefs0 v0 = do
+reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
   -- Jesper 2018-11-02: If 'PrintMetasBare', drop all meta eliminations.
   metasBare <- asksTC envPrintMetasBare
   v <- instantiate v0 >>= \case
@@ -961,9 +975,12 @@ stripImplicits params ps = do
 
 -- | @blankNotInScope e@ replaces variables in expression @e@ with @_@
 -- if they are currently not in scope.
-blankNotInScope :: (MonadTCEnv m, BlankVars a) => a -> m a
+blankNotInScope :: (MonadTCEnv m, MonadDebug m, BlankVars a) => a -> m a
 blankNotInScope e = do
-  names <- Set.fromList . filter ((== C.InScope) . C.isInScope) <$> getContextNames
+  ctxNames <- getContextNames
+  letNames <- map fst <$> getLetBindings
+  let names = Set.fromList . filter ((== C.InScope) . C.isInScope) $ ctxNames ++ letNames
+  reportSDoc "reify.blank" 80 . pure $ "names in scope for blanking:" <+> pretty names
   return $ blank names e
 
 
@@ -1126,7 +1143,7 @@ instance Binder TypedBinding where
 instance Binder BindName where
   varsBoundIn x = singleton (unBind x)
 
-instance Binder LetBinding where
+instance Binder A.LetBinding where
   varsBoundIn (LetBind _ _ x _ _) = varsBoundIn x
   varsBoundIn (LetPatBind _ p _)  = varsBoundIn p
   varsBoundIn LetApply{}          = empty

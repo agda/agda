@@ -1,0 +1,4 @@
+Issue1181.agda:12,6-7
+a ≡ b * c !=< Σ Nat (λ m → Σ Nat (λ n₁ → Σ Nat (λ p → m ≡ n₁ * p)))
+when checking that the expression d has type
+Σ Nat (λ m → Σ Nat (λ n₁ → Σ Nat (λ p → m ≡ n₁ * p)))

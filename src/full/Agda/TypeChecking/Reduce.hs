@@ -1474,6 +1474,9 @@ instance (Subst a, InstantiateFull a) => InstantiateFull (Abs a) where
 instance (InstantiateFull t, InstantiateFull e) => InstantiateFull (Dom' t e) where
     instantiateFull' (Dom i n b tac x) = Dom i n b <$> instantiateFull' tac <*> instantiateFull' x
 
+instance InstantiateFull LetBinding where
+  instantiateFull' (LetBinding o v t) = LetBinding o <$> instantiateFull' v <*> instantiateFull' t
+
 -- Andreas, 2021-09-13, issue #5544, need to traverse @checkpoints@ map
 instance InstantiateFull t => InstantiateFull (Open t) where
   instantiateFull' (OpenThing checkpoint checkpoints modl t) =
