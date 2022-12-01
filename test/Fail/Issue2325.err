@@ -1,0 +1,8 @@
+Failed to solve the following constraints:
+  Resolve instance argument _x_136 : Nat
+  Candidates
+    zero : Nat
+    one : Nat
+    (stuck)
+Unsolved metas at the following locations:
+  Issue2325.agda:44,10-15
