@@ -224,7 +224,7 @@ is an additional step using `a separate repository <https://github.com/agda/agda
 Prebuilt Packages and System-Specific Instructions
 ==================================================
 
-**Warning** : Depending on the system, prebuild packages may not be 
+**Warning** : Depending on the system, prebuild packages may not be
 the last release. See https://repology.org/project/agda/versions.
 
 Arch Linux
