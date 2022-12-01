@@ -428,7 +428,7 @@ After getting the development version from the Git `repository
     cabal update
     make install
 
-  Note that on a Mac, because ICU is installed in a non-standard location.
+  Note that on a Mac ICU is installed in a non-standard location.
   On Intel hardware architectures you may need to set
 
   .. code-block:: bash
