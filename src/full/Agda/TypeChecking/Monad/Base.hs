@@ -1518,6 +1518,14 @@ data NamedMeta = NamedMeta
   , nmid         :: MetaId
   }
 
+-- | Append an 'ArgName' to a 'MetaNameSuggestion', for computing the
+-- name suggestions of eta-expansion metas. If the 'MetaNameSuggestion'
+-- is empty or an underscore, the field name is taken as the suggestion.
+suffixNameSuggestion :: MetaNameSuggestion -> ArgName -> MetaNameSuggestion
+suffixNameSuggestion "_"    field = field
+suffixNameSuggestion ""     field = field
+suffixNameSuggestion record field = record ++ "." ++ field
+
 instance Pretty NamedMeta where
   pretty (NamedMeta "" x) = pretty x
   pretty (NamedMeta "_" x) = pretty x

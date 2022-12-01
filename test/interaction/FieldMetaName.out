@@ -1,0 +1,6 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-status-action "")
+(agda2-info-action "*All Goals*" "_x.snd_15 : Bool [ at FieldMetaName.agda:16,5-6 ] " nil)
+((last . 1) . (agda2-goals-action '()))
