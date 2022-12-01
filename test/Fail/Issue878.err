@@ -1,8 +1,9 @@
 Failed to solve the following constraints:
-  _g_26 tt = tt : _P_25 tt (blocked on _g_26)
-  ext (record { P = _P_25 ; g = _g_26 }) tt = ext a tt tt : _P_25 tt
+  _r.g_26 tt = tt : _r.P_25 tt (blocked on _r.g_26)
+  ext (record { P = _r.P_25 ; g = _r.g_26 }) tt = ext a tt tt
+    : _r.P_25 tt
     (blocked on _28)
-  _P_25 tt = ⊤ : Set (blocked on _P_25)
+  _r.P_25 tt = ⊤ : Set (blocked on _r.P_25)
 Unsolved metas at the following locations:
   Issue878.agda:30,7-10
   Issue878.agda:30,7-13

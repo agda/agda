@@ -324,10 +324,10 @@ newArgsMeta' condition t = do
 newArgsMetaCtx :: Type -> Telescope -> Permutation -> Args -> TCM Args
 newArgsMetaCtx = newArgsMetaCtx' Instantiable trueCondition
 
-newArgsMetaCtx'
+newArgsMetaCtx''
   :: MonadMetaSolver m
-  => Frozen -> Condition -> Type -> Telescope -> Permutation -> Args -> m Args
-newArgsMetaCtx' frozen condition (El s tm) tel perm ctx = do
+  => MetaNameSuggestion -> Frozen -> Condition -> Type -> Telescope -> Permutation -> Args -> m Args
+newArgsMetaCtx'' pref frozen condition (El s tm) tel perm ctx = do
   tm <- reduce tm
   case tm of
     Pi dom@(Dom{domInfo = info, unDom = a}) codom | condition dom codom -> do
@@ -346,10 +346,15 @@ newArgsMetaCtx' frozen condition (El s tm) tel perm ctx = do
       -- as they should keep the defaul modality (see #5363).
       whenM ((== YesGeneralizeVar) <$> viewTC eGeneralizeMetas) $
         setMetaGeneralizableArgInfo m $ hideOrKeepInstance info
-      setMetaNameSuggestion m (absName codom)
-      args <- newArgsMetaCtx' frozen condition (codom `absApp` u) tel perm ctx
+      setMetaNameSuggestion m (suffixNameSuggestion pref (absName codom))
+      args <- newArgsMetaCtx'' pref frozen condition (codom `absApp` u) tel perm ctx
       return $ Arg info u : args
     _  -> return []
+
+newArgsMetaCtx'
+  :: MonadMetaSolver m
+  => Frozen -> Condition -> Type -> Telescope -> Permutation -> Args -> m Args
+newArgsMetaCtx' = newArgsMetaCtx'' mempty
 
 -- | Create a metavariable of record type. This is actually one metavariable
 --   for each field.
@@ -357,16 +362,19 @@ newRecordMeta :: QName -> Args -> TCM Term
 newRecordMeta r pars = do
   args <- getContextArgs
   tel  <- getContextTelescope
-  newRecordMetaCtx Instantiable r pars tel (idP $ size tel) args
+  newRecordMetaCtx mempty Instantiable r pars tel (idP $ size tel) args
 
 newRecordMetaCtx
-  :: Frozen  -- ^ Should the meta be created frozen?
+  :: MetaNameSuggestion
+  -- ^ Name suggestion to be used as a /prefix/ of the name suggestions
+  -- for the metas that represent each field
+  -> Frozen  -- ^ Should the meta be created frozen?
   -> QName   -- ^ Name of record type
   -> Args    -- ^ Parameters of record type.
   -> Telescope -> Permutation -> Args -> TCM Term
-newRecordMetaCtx frozen r pars tel perm ctx = do
+newRecordMetaCtx pref frozen r pars tel perm ctx = do
   ftel   <- flip apply pars <$> getRecordFieldTypes r
-  fields <- newArgsMetaCtx' frozen trueCondition
+  fields <- newArgsMetaCtx'' pref frozen trueCondition
               (telePi_ ftel __DUMMY_TYPE__) tel perm ctx
   con    <- getRecordConstructor r
   return $ Con con ConOSystem (map Apply fields)
@@ -684,7 +692,8 @@ etaExpandMetaTCM kinds m = whenM ((not <$> isFrozen m) `and2M` asksTC envAssignM
               let ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
               let expand = do
                     u <- withMetaInfo' meta $
-                      newRecordMetaCtx (mvFrozen meta) r ps tel (idP $ size tel) $ teleArgs tel
+                      newRecordMetaCtx (miNameSuggestion (mvInfo meta))
+                        (mvFrozen meta) r ps tel (idP $ size tel) $ teleArgs tel
                     -- Andreas, 2019-03-18, AIM XXIX, issue #3597
                     -- When meta is frozen instantiate it with in-turn frozen metas.
                     inTopContext $ do
