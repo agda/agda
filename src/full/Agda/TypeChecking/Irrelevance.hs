@@ -151,7 +151,7 @@ applyRelevanceToContext thing =
 applyRelevanceToContextOnly :: (MonadTCEnv tcm) => Relevance -> tcm a -> tcm a
 applyRelevanceToContextOnly rel = localTC
   $ over eContext     (map $ inverseApplyRelevance rel)
-  . over eLetBindings (Map.map . fmap . second $ inverseApplyRelevance rel)
+  . over eLetBindings (Map.map . fmap . onLetBindingType $ inverseApplyRelevance rel)
 
 -- | Apply relevance @rel@ the the relevance annotation of the (typing/equality)
 --   judgement.  This is part of the work done when going into a @rel@-context.
@@ -196,7 +196,7 @@ applyCohesionToContext thing =
 applyCohesionToContextOnly :: (MonadTCEnv tcm) => Cohesion -> tcm a -> tcm a
 applyCohesionToContextOnly q = localTC
   $ over eContext     (map $ inverseApplyCohesion q)
-  . over eLetBindings (Map.map . fmap . second $ inverseApplyCohesion q)
+  . over eLetBindings (Map.map . fmap . onLetBindingType $ inverseApplyCohesion q)
 
 -- | Can we split on arguments of the given cohesion?
 splittableCohesion :: (HasOptions m, LensCohesion a) => a -> m Bool
@@ -233,7 +233,7 @@ applyModalityToContextOnly :: (MonadTCEnv tcm) => Modality -> tcm a -> tcm a
 applyModalityToContextOnly m = localTC
   $ over eContext (map $ inverseApplyModalityButNotQuantity m)
   . over eLetBindings
-      (Map.map . fmap . second $ inverseApplyModalityButNotQuantity m)
+      (Map.map . fmap . onLetBindingType $ inverseApplyModalityButNotQuantity m)
 
 -- | Apply modality @m@ the the modality annotation of the (typing/equality)
 --   judgement.  This is part of the work done when going into a @m@-context.

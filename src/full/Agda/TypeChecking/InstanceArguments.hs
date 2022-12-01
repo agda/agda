@@ -107,7 +107,7 @@ initialInstanceCandidates t = do
       env <- asksTC envLetBindings
       env <- mapM (traverse getOpen) $ Map.toList env
       let lets = [ Candidate LocalCandidate v t False
-                 | (_,(v, Dom{domInfo = info, unDom = t})) <- env
+                 | (_, LetBinding _ v Dom{domInfo = info, unDom = t}) <- env
                  , isInstance info
                  , usableModality info
                  ]

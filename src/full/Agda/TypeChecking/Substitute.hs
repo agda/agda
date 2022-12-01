@@ -1073,6 +1073,10 @@ instance (Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst (Dom' a b) where
   applySubst rho dom = setFreeVariables unknownFreeVariables $
     fmap (applySubst rho) dom{ domTactic = applySubst rho (domTactic dom) }
 
+instance Subst LetBinding where
+  type SubstArg LetBinding = Term
+  applySubst rho (LetBinding o v t) = LetBinding o (applySubst rho v) (applySubst rho t)
+
 instance Subst a => Subst (Maybe a) where
   type SubstArg (Maybe a) = SubstArg a
 

@@ -1039,15 +1039,17 @@ contextOfMeta ii norm = withInteractionId ii $ do
         ty <- reifyUnblocked =<< normalForm norm t
         return $ ResponseContextEntry n x (Arg ai ty) Nothing s
 
-    mkLet :: (Name, Open (Term, Dom I.Type)) -> TCM (Maybe ResponseContextEntry)
+    mkLet :: (Name, Open M.LetBinding) -> TCM (Maybe ResponseContextEntry)
     mkLet (name, lb) = do
-      (tm, !dom) <- getOpen lb
+      LetBinding _ tm !dom <- getOpen lb
       if shouldHide (domInfo dom) name then return Nothing else Just <$> do
         let n = nameConcrete name
         x  <- abstractToConcrete_ name
         let s = C.isInScope x
         ty <- reifyUnblocked =<< normalForm norm dom
-        v  <- reifyUnblocked =<< normalForm norm tm
+              -- Remove let bindings from x and later, to avoid folding to x = x, or using bindings
+              -- not introduced when x was defined.
+        v  <- removeLetBindingsFrom name $ reifyUnblocked =<< normalForm norm tm
         return $ ResponseContextEntry n x ty (Just v) s
 
     shouldHide :: ArgInfo -> A.Name -> Bool
