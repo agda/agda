@@ -253,6 +253,9 @@ metaCheck m = do
     -- - If it is in a top-level position, we can instead solve the
     --   equation by instantiating the other way around, so promotion
     --   is not necessary.
+
+    -- Actually, this is not the case anymore, no new meta is created and
+    -- instead the metavar itself gets modified with the new modality.
     let fail reason = do
           reportSDoc "tc.meta.occurs" 20 $ "Meta occurs check found bad relevance"
           reportSDoc "tc.meta.occurs" 20 $ "aborting because" <+> reason
@@ -264,6 +267,7 @@ metaCheck m = do
     when (isUnguarded cxt)                   $ fail "occurrence is unguarded"
 
     reportSDoc "tc.meta.occurs" 20 $ "Promoting meta" <+> prettyTCM m <+> "to modality" <+> prettyTCM mmod'
+    -- The meta gets updated here
     updateMetaVar m $ \ mv -> mv { mvInfo = setModality mmod' $ mvInfo mv }
     etaExpandListeners m
     wakeupConstraints m

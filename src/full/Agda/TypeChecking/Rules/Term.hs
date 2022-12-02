@@ -276,6 +276,8 @@ checkTelescope' lamOrPi (b : tel) ret =
 --   Used in @checkTypedBindings@ and to typecheck @A.Fun@ cases.
 checkDomain :: (LensLock a, LensModality a) => LamOrPi -> List1 a -> A.Expr -> TCM Type
 checkDomain lamOrPi xs e = do
+    -- Get cohesion and quantity of arguments, which should all be equal because
+    -- they come from the same annotated Π-type.
     let (c :| cs) = fmap (getCohesion . getModality) xs
     unless (all (c ==) cs) $ __IMPOSSIBLE__
 
