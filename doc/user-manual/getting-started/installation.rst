@@ -30,8 +30,8 @@ Installation from source
 
 .. _prerequisites:
 
-Prerequisites
--------------
+Step 1 : Prerequisites
+----------------------
 
 You need recent versions of the following programs to compile Agda:
 
@@ -47,6 +47,14 @@ You need recent versions of the following programs to compile Agda:
 
 You should also make sure that programs installed by *cabal-install*
 are on your shell's search path.
+This depends on your system for instance for ubuntu, you may need to
+add
+
+.. code-block:: bash
+
+  export PATH=~/.cabal/bin:$PATH
+
+in your ``.profile`` or ``bash_profile``
 
 Non-Windows users need to ensure that the development files for the C
 libraries *zlib* and *ncurses* are installed (see http://zlib.net
@@ -78,8 +86,8 @@ https://github.com/haskell/text-icu/blob/master/README.markdown#prerequisites
 
 
 
-Installing the ``agda`` and the ``agda-mode`` programs
-------------------------------------------------------
+Step 2 : Installing the ``agda`` and the ``agda-mode`` programs
+---------------------------------------------------------------
 
 After installing the :ref:`prerequisites <prerequisites>` you can
 install the latest released version of Agda from `Hackage
@@ -170,8 +178,8 @@ For installing the ``agda`` and the ``agda-mode`` programs using
 replacing `X.Y.Z` and `a.b.c` for the Agda version on Hackage and your
 GHC version, respectively.
 
-Running the ``agda-mode`` program
----------------------------------
+Step 3 : Running the ``agda-mode`` program
+------------------------------------------
 **Warning**: Installing ``agda-mode`` via ``melpa`` is discouraged.
 It is strongly advised to install ``agda-mode`` for ``emacs`` as described below:
 
@@ -204,8 +212,8 @@ This can, in some cases, give a noticeable speedup.
 Emacs Lisp files, then Emacs may continue using the old, compiled
 files.
 
-Installing the standard library
--------------------------------
+Step 4 : Installing the standard library
+----------------------------------------
 
 Installing the standard library, should you choose to use it,
 is an additional step using `a separate repository <https://github.com/agda/agda-stdlib/blob/master/notes/installation-guide.md>`_.
@@ -216,7 +224,8 @@ is an additional step using `a separate repository <https://github.com/agda/agda
 Prebuilt Packages and System-Specific Instructions
 ==================================================
 
-See also https://repology.org/project/agda/versions.
+**Warning** : Depending on the system, prebuild packages may not be
+the last release. See https://repology.org/project/agda/versions.
 
 Arch Linux
 ----------
