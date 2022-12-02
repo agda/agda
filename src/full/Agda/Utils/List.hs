@@ -25,6 +25,7 @@ import Data.Maybe
 import qualified Data.Map as Map
 import qualified Data.HashMap.Strict as HMap
 import qualified Data.Set as Set
+import Data.Strict.These
 
 import qualified Agda.Utils.Bag as Bag
 import Agda.Utils.CallStack.Base
@@ -750,6 +751,11 @@ zipWithKeepRest f = loop
 -- zipWithTails f (x : xs) (y : ys) = (f x y : zs , as , bs)
 --   where (zs , as , bs) = zipWithTails f xs ys
 
+-- | Analogous to zip, combines two lists by taking the union using These (strict).
+align :: [a] -> [b] -> [These a b]
+align xs [] = This <$> xs
+align [] ys = That <$> ys
+align (x:xs) (y:ys) = These x y : align xs ys
 
 ---------------------------------------------------------------------------
 -- * Unzipping
