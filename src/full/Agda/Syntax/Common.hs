@@ -1069,6 +1069,16 @@ data Relevance
   | NonStrict   -- ^ The argument may never flow into evaluation position.
                 --   Therefore, it is irrelevant at run-time.
                 --   It is treated relevantly during equality checking.
+                --
+                --   The above comment is probably obsolete, as we currently have
+                --   erasure (/at/0, @Quantity0@) for that. What's described here is probably
+                --   shape-irrelevance (..). If you enable @--experimental-irrelevance@,
+                --   then the type of an irrelevant function is forced to be shape-irrelevant.
+                --   See:
+                --   - <https://doi.org/10.2168/LMCS-8(1:29)2012> example 2.8
+                --     (Not enforcing shape-irrelevant codomains can break subject reduction!)
+                --   - <https://dl.acm.org/doi/10.1145/3110277>
+                --   - <https://doi.org/10.1145/3209108.3209119>
   | Irrelevant  -- ^ The argument is irrelevant at compile- and runtime.
     deriving (Show, Eq, Enum, Bounded, Generic)
 
