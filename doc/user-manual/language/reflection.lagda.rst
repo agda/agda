@@ -476,6 +476,12 @@ following primitive operations::
     -- Check if a name refers to a macro
     isMacro : Name → TC Bool
 
+    -- Generate FOREIGN pragma with specified backend and top-level backend-dependent text.
+    pragmaForeign : String → String → TC ⊤
+
+    -- Generate COMPILE pragma with specified backend, associated name and backend-dependent text.
+    pragmaCompile : String → Name → String → TC ⊤
+
     -- Change the behaviour of inferType, checkType, quoteTC, getContext
     -- to normalise (or not) their results. The default behaviour is no
     -- normalisation.

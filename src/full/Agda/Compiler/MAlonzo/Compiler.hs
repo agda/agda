@@ -287,6 +287,8 @@ ghcPreCompile flags = do
       , builtinAgdaTCMRunSpeculative
       , builtinAgdaTCMExec
       , builtinAgdaTCMGetInstances
+      , builtinAgdaTCMPragmaForeign
+      , builtinAgdaTCMPragmaCompile
       ]
     return $
       flip HashSet.member $

@@ -400,6 +400,8 @@ coreBuiltins =
                                                                           (Lam defaultArgInfo . Abs "_" <$> (primSigma <#> primLevelZero <#> primLevelZero <@> primString <@>
                                                                            (Lam defaultArgInfo . Abs "_" <$> primString)))))
   , builtinAgdaTCMGetInstances               |-> builtinPostulate (tmeta --> tTCM_ (list primAgdaTerm))
+  , builtinAgdaTCMPragmaForeign              |-> builtinPostulate (tstring --> tstring --> tTCM_ primUnit)
+  , builtinAgdaTCMPragmaCompile              |-> builtinPostulate (tstring --> tqname --> tstring --> tTCM_ primUnit)
   ]
   where
         (|->) = BuiltinInfo

@@ -248,7 +248,9 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMNoConstraints,
     primAgdaTCMRunSpeculative,
     primAgdaTCMExec,
-    primAgdaTCMGetInstances
+    primAgdaTCMGetInstances,
+    primAgdaTCMPragmaForeign,
+    primAgdaTCMPragmaCompile
     :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m) => m Term
 
 primInteger                           = getBuiltin builtinInteger
@@ -453,6 +455,8 @@ primAgdaTCMNoConstraints              = getBuiltin builtinAgdaTCMNoConstraints
 primAgdaTCMRunSpeculative             = getBuiltin builtinAgdaTCMRunSpeculative
 primAgdaTCMExec                       = getBuiltin builtinAgdaTCMExec
 primAgdaTCMGetInstances               = getBuiltin builtinAgdaTCMGetInstances
+primAgdaTCMPragmaForeign              = getBuiltin builtinAgdaTCMPragmaForeign
+primAgdaTCMPragmaCompile              = getBuiltin builtinAgdaTCMPragmaCompile
 
 -- | The coinductive primitives.
 

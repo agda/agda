@@ -178,7 +178,7 @@ getHaskellConstructor c = do
 --   file header pragmas, import statements, rest.
 foreignHaskell :: Interface -> ([String], [String], [String])
 foreignHaskell = partitionByKindOfForeignCode classifyForeign
-    . map getCode . fromMaybe [] . Map.lookup ghcBackendName . iForeignCode
+    . map getCode . maybe [] (reverse . getForeignCodeStack) . Map.lookup ghcBackendName . iForeignCode
   where getCode (ForeignCode _ code) = code
 
 -- | Classify @FOREIGN@ Haskell code.
