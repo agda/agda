@@ -428,15 +428,21 @@ After getting the development version from the Git `repository
     cabal update
     make install
 
-  Note that on a Mac, because ICU is installed in a non-standard location,
-  you may need to set
+  Note that on a Mac ICU is installed in a non-standard location.
+  On Intel hardware architectures you may need to set
 
   .. code-block:: bash
 
     export PKG_CONFIG_PATH="/usr/local/opt/icu4c/lib/pkgconfig"
 
-  (cf. ``brew link icu4c``)
-  or specify this location on the command line:
+  and on Apple hardware architectures
+
+  .. code-block:: bash
+
+    export PKG_CONFIG_PATH="/opt/homebrew/opt/icu4c/lib/pkgconfig"
+
+  See ``brew info icu4c`` for details. Alternatively, you may specify
+  the location on the command line, e.g.:
 
   .. code-block:: bash
 
