@@ -8,7 +8,6 @@ module Agda.Interaction.Options.Base
     , OptionWarning(..), optionWarningName
     , Flag, OptM, runOptM, OptDescr(..), ArgDescr(..)
     , Verbosity, VerboseKey, VerboseLevel
-    , TraceImportsMode(..)
     , WarningMode(..)
     , ConfluenceCheck(..)
     , UnicodeOrAscii(..)
@@ -105,21 +104,6 @@ type Verbosity = Strict.Maybe (Trie VerboseKeyItem VerboseLevel)
 parseVerboseKey :: VerboseKey -> [VerboseKeyItem]
 parseVerboseKey = List1.wordsBy (`elem` ['.', ':'])
 
--- | The amount of printed information during the type checking
-data TraceImportsMode
-  = OnlyChecking
-  -- ^ Print only 'Checking ...' messages
-  | CheckingFinished
-  -- ^ Print 'Checking ...' and corresponding 'Finished ...' messages
-  | CheckingFinishedLoading
-  -- ^ Print 'Checking ...', 'Finished ...', and 'Loading ...' messages
-  deriving (Eq, Show, Ord, Enum, Bounded, Generic)
-
-instance NFData TraceImportsMode
-
-validTraceImportsArguments :: [String]
-validTraceImportsArguments = ["on-enter", "on-exit", "all"]
-
 -- Don't forget to update
 --   doc/user-manual/tools/command-line-options.rst
 -- if you make changes to the command-line options!
@@ -137,7 +121,7 @@ data CommandLineOptions = Options
   -- ^ Use ~/.agda/defaults
   , optUseLibs               :: Bool
   -- ^ look for .agda-lib files
-  , optTraceImports          :: TraceImportsMode
+  , optTraceImports          :: Integer
   -- ^ Configure notifications about imported modules
   , optTrustedExecutables    :: Map ExeName FilePath
   -- ^ Map names of trusted executables to absolute paths
@@ -297,7 +281,7 @@ defaultOptions = Options
   , optOverrideLibrariesFile = Nothing
   , optDefaultLibs           = True
   , optUseLibs               = True
-  , optTraceImports          = OnlyChecking
+  , optTraceImports          = 1
   , optTrustedExecutables    = Map.empty
   , optPrintAgdaDir          = False
   , optPrintVersion          = False
@@ -712,12 +696,10 @@ showIdentitySubstitutionsFlag o = return $ o { optShowIdentitySubstitutions = Tr
 traceImportsFlag :: Maybe String -> Flag CommandLineOptions
 traceImportsFlag arg o = do
   mode <- case arg of
-            Nothing -> return CheckingFinished
-            Just "on-enter" -> return OnlyChecking
-            Just "on-exit" -> return CheckingFinished
-            Just "all" -> return CheckingFinishedLoading
-            Just str -> throwError $ "unknown printing option " ++ str ++ " (available: " ++
-                             intercalate ", " validTraceImportsArguments ++ ")"
+            Nothing -> return 2
+            Just str -> case reads str :: [(Integer, String)] of
+                          [(n, "")] -> return n
+                          _ -> throwError $ "unknown printing option " ++ str ++ ". Please specify a number."
   return $ o { optTraceImports = mode }
 
 asciiOnlyFlag :: Flag PragmaOptions
@@ -1040,9 +1022,8 @@ standardOptions =
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
                     ("directory for compiler output (default: the project root)")
 
-    , Option []     ["trace-imports"] (OptArg traceImportsFlag "MODE")
-                    ("print information about accessed modules during type-checking (where MODE=" ++
-                      intercalate "|" validTraceImportsArguments ++ ", default: on-exit)")
+    , Option []     ["trace-imports"] (OptArg traceImportsFlag "LEVEL")
+                    ("print information about accessed modules during type-checking (where LEVEL=0|1|2|3, default: 2)")
 
     , Option []     ["vim"] (NoArg vimFlag)
                     "generate Vim highlighting files"

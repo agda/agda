@@ -841,11 +841,12 @@ chaseMsg kind x file = do
   indentation <- (`replicate` ' ') <$> asksTC (pred . length . envImportPath)
   traceImports <- optTraceImports <$> commandLineOptions
   let maybeFile = caseMaybe file "." $ \ f -> " (" ++ f ++ ")."
-      vLvl | kind == "Checking" = 1
+      vLvl | kind == "Checking"
+             && traceImports > 0 = 1
            | kind == "Finished"
-             && traceImports > OnlyChecking = 1
+             && traceImports > 1 = 1
            | List.isPrefixOf "Loading" kind
-             && traceImports == CheckingFinishedLoading = 1
+             && traceImports > 2 = 1
            | otherwise = 2
   reportSLn "import.chase" vLvl $ concat
     [ indentation, kind, " ", prettyShow x, maybeFile ]
