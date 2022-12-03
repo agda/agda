@@ -11,7 +11,7 @@ module Agda.TypeChecking.Rules.Application
 import Prelude hiding ( null )
 
 import Control.Applicative        ( (<|>) )
-import Control.Monad              ( filterM, forM, forM_, guard, liftM2, (>=>) )
+import Control.Monad              ( filterM, forM, forM_, guard, liftM2 )
 import Control.Monad.Except       ( ExceptT, runExceptT, MonadError, catchError, throwError )
 import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
@@ -33,7 +33,6 @@ import Agda.Syntax.Concrete.Pretty () -- only Pretty instances
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
-import Agda.Syntax.Translation.InternalToAbstract (reify)
 
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
@@ -1499,28 +1498,18 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta mpatm = do
 
 refuseProj :: List1 QName -> TCM Doc -> TCM a
 refuseProj ds reason = do
-  let nameRaw = pretty $ A.nameConcrete $ A.qnameName $ List1.head ds
-  doc <- vcat
-    [ fsep
-      [ text "Cannot resolve overloaded projection"
-      , nameRaw
-      , text "because"
-      , reason
-      ]
-    , nest 2 (text "Signatures in the scope:")
-    , vcat $ fmap (typeOfConst >=> reify >=> prettyA >=> (\typeDoc -> text "-" <+> nest 2 (nameRaw <+> text ":" <+> pure typeDoc))) ds
-    ]
-  typeError $ GenericDocError $ doc
+  doc <- reason
+  typeError $ AmbiguousProjectionError ds doc
 
 refuseProjNotApplied, refuseProjNoMatching :: List1 QName -> TCM a
 refuseProjNotApplied    ds = refuseProj ds $ fwords "it is not applied to a visible argument"
 refuseProjNoMatching    ds = refuseProj ds $ fwords "no matching candidate found"
 refuseProjNotRecordType :: List1 QName -> Maybe Term -> Type -> TCM a
 refuseProjNotRecordType ds pValue pType = do
-    let dType = (reify >=> prettyA) pType
-    let dValue = caseMaybe pValue (return empty) (reify >=> prettyA)
-    refuseProj ds $ fsep $
-      ["principal argument", dValue, "has type", dType, "while it should be of record type"]
+  let dType = prettyTCM pType
+  let dValue = caseMaybe pValue (return empty) prettyTCM
+  refuseProj ds $ fsep $
+    ["principal argument", dValue, "has type", dType, "while it should be of record type"]
 
 -----------------------------------------------------------------------------
 -- * Sorts

@@ -24,6 +24,7 @@ module Agda.TypeChecking.Errors
 import Prelude hiding ( null, foldl )
 
 import qualified Control.Exception as E
+import Control.Monad ((>=>))
 import Control.Monad.Except
 
 import qualified Data.CaseInsensitive as CaseInsens
@@ -46,6 +47,7 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Scope.Monad (isDatatypeModule)
 import Agda.Syntax.Scope.Base
 
+import Agda.TypeChecking.Monad (typeOfConst)
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Context
@@ -122,6 +124,7 @@ errorString err = case err of
   AmbiguousName{}                          -> "AmbiguousName"
   AmbiguousParseForApplication{}           -> "AmbiguousParseForApplication"
   AmbiguousParseForLHS{}                   -> "AmbiguousParseForLHS"
+  AmbiguousProjectionError{}               -> "AmbiguousProjectionError"
 --  AmbiguousParseForPatternSynonym{}        -> "AmbiguousParseForPatternSynonym"
   AmbiguousTopLevelModuleName {}           -> "AmbiguousTopLevelModuleName"
   BadArgumentsToPatternSynonym{}           -> "BadArgumentsToPatternSynonym"
@@ -760,6 +763,19 @@ instance PrettyTCM TypeError where
              [pretty x] ++
              pwords "could refer to any of the following files:"
            ) $$ nest 2 (vcat $ map (text . filePath) files)
+
+    AmbiguousProjectionError ds reason -> do
+      let nameRaw = pretty $ A.nameConcrete $ A.qnameName $ List1.head ds
+      vcat
+        [ fsep
+          [ text "Cannot resolve overloaded projection"
+          , nameRaw
+          , text "because"
+          , pure reason
+          ]
+        , nest 2 (text "Signatures in the scope:")
+        , vcat $ fmap (typeOfConst >=> prettyTCM >=> (\typeDoc -> text "-" <+> nest 2 (nameRaw <+> text ":" <+> pure typeDoc))) ds
+        ]
 
     ClashingFileNamesFor x files ->
       fsep ( pwords "Multiple possible sources for module"
