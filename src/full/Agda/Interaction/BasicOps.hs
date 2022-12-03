@@ -881,6 +881,12 @@ metaHelperType norm ii rng s = case words s of
     inCxt   <- hasElem <$> getContextNames
     cxtArgs <- getContextArgs
     a0      <- (`piApply` cxtArgs) <$> (getMetaType =<< lookupInteractionId ii)
+
+    -- Konstantin, 2022-10-23: We don't want to print section parameters in helper type.
+    freeVars <- getCurrentModuleFreeVars
+    contextForAbstracting <- drop freeVars . reverse <$> getContext
+    let escapeAbstractedContext = escapeContext impossible (length contextForAbstracting)
+
     case mapM (isVar . namedArg) args >>= \ xs -> xs <$ guard (all inCxt xs) of
 
      -- Andreas, 2019-10-11
@@ -889,24 +895,24 @@ metaHelperType norm ii rng s = case words s of
      Just xs -> do
       let inXs = hasElem xs
       let hideButXs dom = setHiding (if inXs $ fst $ unDom dom then NotHidden else Hidden) dom
-      tel  <- telFromList . map (fmap (first nameToArgName) . hideButXs) . reverse <$> getContext
+      let tel = telFromList . map (fmap (first nameToArgName) . hideButXs) $ contextForAbstracting
       OfType' h <$> do
         -- Andreas, 2019-10-11: I actually prefer pi-types over ->.
-        localTC (\e -> e { envPrintDomainFreePi = True }) $ reify $ telePiVisible tel a0
+        localTC (\e -> e { envPrintDomainFreePi = True }) $ escapeAbstractedContext $
+          reify $ telePiVisible tel a0
 
      -- If some arguments are not variables.
      Nothing -> do
-      cxtArgs  <- getContextArgs
       -- cleanupType relies on with arguments being named 'w',
       -- so we'd better rename any actual 'w's to avoid confusion.
-      tel  <- runIdentity . onNamesTel unW <$> getContextTelescope
+      let tel = runIdentity . onNamesTel unW . telFromList' nameToArgName $ contextForAbstracting
       let a = runIdentity . onNames unW $ a0
       vtys <- mapM (\ a -> fmap (Arg (getArgInfo a) . fmap OtherType) $ inferExpr $ namedArg a) args
       -- Remember the arity of a
       TelV atel _ <- telView a
       let arity = size atel
           (delta1, delta2, _, a', vtys') = splitTelForWith tel a vtys
-      a <- localTC (\e -> e { envPrintDomainFreePi = True }) $ do
+      a <- localTC (\e -> e { envPrintDomainFreePi = True }) $ escapeAbstractedContext $ do
         reify =<< cleanupType arity args =<< normalForm norm =<< fst <$> withFunctionType delta1 vtys' delta2 a' []
       reportSDoc "interaction.helper" 10 $ TP.vcat $
         let extractOtherType = \case { OtherType a -> a; _ -> __IMPOSSIBLE__ } in
