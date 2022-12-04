@@ -652,22 +652,38 @@ getOutputTypeName t = do
       DontCare{} -> __IMPOSSIBLE__
       Dummy s _ -> __IMPOSSIBLE_VERBOSE__ s
 
--- | Register the definition with the given type as an instance
-addTypedInstance :: QName -> Type -> TCM ()
-addTypedInstance x t = do
+
+-- | Register the definition with the given type as an instance.
+--   Issue warnings if instance is unusable.
+addTypedInstance ::
+     QName  -- ^ Name of instance.
+  -> Type   -- ^ Type of instance.
+  -> TCM ()
+addTypedInstance = addTypedInstance' True
+
+-- | Register the definition with the given type as an instance.
+addTypedInstance' ::
+     Bool   -- ^ Should we print warnings for unusable instance declarations?
+  -> QName  -- ^ Name of instance.
+  -> Type   -- ^ Type of instance.
+  -> TCM ()
+addTypedInstance' w x t = do
   (tel , n) <- getOutputTypeName t
   case n of
-    OutputTypeName n -> addNamedInstance x n
+    OutputTypeName n            -> addNamedInstance x n
     OutputTypeNameNotYetKnown{} -> addUnknownInstance x
-    NoOutputTypeName -> warning $ WrongInstanceDeclaration
-    OutputTypeVar -> warning $ WrongInstanceDeclaration
-    OutputTypeVisiblePi -> warning $ InstanceWithExplicitArg x
+    NoOutputTypeName            -> when w $ warning $ WrongInstanceDeclaration
+    OutputTypeVar               -> when w $ warning $ WrongInstanceDeclaration
+    OutputTypeVisiblePi         -> when w $ warning $ InstanceWithExplicitArg x
 
 resolveUnknownInstanceDefs :: TCM ()
 resolveUnknownInstanceDefs = do
   anonInstanceDefs <- getAnonInstanceDefs
   clearAnonInstanceDefs
-  forM_ anonInstanceDefs $ \ n -> addTypedInstance n =<< typeOfConst n
+  forM_ anonInstanceDefs $ \ n -> do
+    -- Andreas, 2022-12-04, issue #6380:
+    -- Do not warn about unusable instances here.
+    addTypedInstance' False n =<< typeOfConst n
 
 -- | Try to solve the instance definitions whose type is not yet known, report
 --   an error if it doesn't work and return the instance table otherwise.
