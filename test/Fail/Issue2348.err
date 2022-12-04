@@ -1,7 +1,8 @@
 Issue2348.agda:12,13-43
-Instance arguments whose type does not end in a named or variable
-type are never considered by instance search, so having an instance
-argument ⦃ A : Set ⦄ has no effect.
+Instance arguments whose type is not {Γ} → C vs, where C evaluates
+to a postulated name or the name of a data or record type, are
+never considered by instance search, so having an instance argument
+⦃ A : Set ⦄ has no effect.
 when checking that the expression ⦃ A : Set ⦄ ⦃ r : Wrap A ⦄ → A is
 a type
 Issue2348.agda:28,8-9

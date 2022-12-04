@@ -1,13 +1,15 @@
 Polarity-pragma.agda:69,8-25
-Instance arguments whose type does not end in a named or variable
-type are never considered by instance search, so having an instance
-argument ⦃ _ : Set ⦄ has no effect.
+Instance arguments whose type is not {Γ} → C vs, where C evaluates
+to a postulated name or the name of a data or record type, are
+never considered by instance search, so having an instance argument
+⦃ _ : Set ⦄ has no effect.
 when checking that the expression ⦃ _ : Set ⦄ → Set is a type
 
 ———— All done; warnings encountered ————————————————————————
 
 Polarity-pragma.agda:69,8-25
-Instance arguments whose type does not end in a named or variable
-type are never considered by instance search, so having an instance
-argument ⦃ _ : Set ⦄ has no effect.
+Instance arguments whose type is not {Γ} → C vs, where C evaluates
+to a postulated name or the name of a data or record type, are
+never considered by instance search, so having an instance argument
+⦃ _ : Set ⦄ has no effect.
 when checking that the expression ⦃ _ : Set ⦄ → Set is a type
