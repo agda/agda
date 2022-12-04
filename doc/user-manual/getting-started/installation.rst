@@ -47,14 +47,15 @@ You need recent versions of the following programs to compile Agda:
 
 You should also make sure that programs installed by *cabal-install*
 are on your shell's search path.
-This depends on your system for instance for ubuntu, you may need to
-add
+The installation location is described by field ``installdir`` in the cabal configuration
+(check ``~/.cabal/config``; it defaults to ``~/.cabal/bin``).
+So, e.g. under Ubuntu or macOS, you may need to add
 
 .. code-block:: bash
 
   export PATH=~/.cabal/bin:$PATH
 
-in your ``.profile`` or ``bash_profile``
+to your ``.profile`` or ``.bash_profile``.
 
 Non-Windows users need to ensure that the development files for the C
 libraries *zlib* and *ncurses* are installed (see http://zlib.net
