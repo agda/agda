@@ -188,10 +188,10 @@ For installing the ``agda`` and the ``agda-mode`` programs using
 
   cabal get Agda-X.Y.Z
   cd Agda-X.Y.Z
-  stack --stack-yaml stack-a.b.c.yaml install
+  stack --stack-yaml stack-x.y.z.yaml install
 
-replacing `X.Y.Z` and `a.b.c` for the Agda version on Hackage and your
-GHC version, respectively.
+replacing `X.Y.Z` by the Agda version on Hackage
+and `x.y.z` by your GHC version, respectively.
 
 Step 3 : Running the ``agda-mode`` program
 ------------------------------------------
@@ -457,7 +457,7 @@ After getting the development version from the Git `repository
     make install
 
   To install via ``stack`` instead of ``cabal``, copy one of the
-  ``stack-x.x.x.yaml`` files of your choice to a ``stack.yaml`` file before
+  ``stack-x.y.z.yaml`` files of your choice to a ``stack.yaml`` file before
   running ``make``. For example:
 
   .. code-block:: bash
