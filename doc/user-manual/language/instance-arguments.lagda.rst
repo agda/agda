@@ -29,8 +29,8 @@ Instance arguments are the Agda equivalent of Haskell type class
 constraints and can be used for many of the same purposes.
 
 An instance argument will be resolved if its type is a *named type*
-(i.e. a data type or record type) or a *postulated name* (i.e. a
-postulated variable of type `Set ℓ`), and a unique *instance* of
+(i.e. a data type or record type) or a *variable type* (i.e. a
+previously bound variable of type `Set ℓ`), and a unique *instance* of
 the required type can be built from :ref:`declared
 instances <declaring-instances>` and the current context.
 
@@ -122,10 +122,10 @@ Defining type classes
 ~~~~~~~~~~~~~~~~~~~~~
 
 The type of an instance argument should have the form ``{Γ} → C vs``,
-where ``C`` is a postulated name or the name of a data or record
-type, and ``{Γ}`` denotes an arbitrary number of implicit or instance
-arguments (see :ref:`dependent-instances` below for an example where
-``{Γ}`` is non-empty).
+where ``C`` is a postulated name, a bound variable, or the name of a
+data or record type, and ``{Γ}`` denotes an arbitrary number of
+implicit or instance arguments (see :ref:`dependent-instances` below
+for an example where ``{Γ}`` is non-empty).
 
 Instances with explicit arguments are also accepted but will not be
 considered as instances because the value of the explicit arguments
