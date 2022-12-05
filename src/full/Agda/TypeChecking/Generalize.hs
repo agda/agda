@@ -53,7 +53,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Size
 import Agda.Utils.Permutation
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Utils.Pretty (prettyShow, singPlural)
 import Agda.Utils.Tuple
 
 -- | Generalize a telescope over a set of generalizable variables.
@@ -376,8 +376,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
     prune cxt tel (x : xs) | not (isGeneralized x) = do
       -- If x is a blocked term we shouldn't instantiate it.
       whenM (not <$> isBlockedTerm x) $ do
-        x <- if size tel > 0 then prePrune x
-                             else return x
+        x <- if null tel then return x else prePrune x
         pruneMeta (telFromList $ reverse cxt) x
       prune cxt tel xs
     prune cxt (ExtendTel a tel) (x : xs) = prune (fmap (x,) a : cxt) (unAbs tel) xs
@@ -658,11 +657,11 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
                      "clear, but simply mentioning the variables in the right order should also work."
           order = sep [ fwords "Dependency analysis suggested this (likely incorrect) order:",
                         nest 2 $ fwords (unwords names) ]
-          guess = "After constraint solving it looks like " ++ commas late ++ " actually depend" ++ s ++
-                  " on " ++ commas early
-            where
-              s | length late == 1 = "s"
-                | otherwise        = ""
+          guess = unwords
+            [ "After constraint solving it looks like", commas late
+            , singPlural late (++ "s") id "actually depend"
+            , "on", commas early
+            ]
       genericDocError =<< vcat
         [ fwords $ "Variable generalization failed."
         , nest 2 $ sep ["- Probable cause", nest 4 $ fwords cause]

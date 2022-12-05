@@ -22,6 +22,7 @@ extra-deps:
 - optparse-applicative-0.15.1.0
 - parallel-3.2.2.0
 - parsec-3.1.15.1
+- peano-0.1.0.1
 - primitive-0.7.2.0
 - profunctors-5.2.2
 - random-1.2.0

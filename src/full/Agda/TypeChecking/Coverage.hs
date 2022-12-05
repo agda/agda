@@ -700,7 +700,7 @@ splitStrategy bs tel = return $ updateLast setBlockingVarOverlap xs
 -- the data type must be inductive.
 isDatatype :: (MonadTCM tcm, MonadError SplitError tcm) =>
               Induction -> Dom Type ->
-              tcm (DataOrRecord, QName, [Arg Term], [Arg Term], [QName], Bool)
+              tcm (DataOrRecord, QName, Args, Args, [QName], Bool)
 isDatatype ind at = do
   let t       = unDom at
       throw f = throwError . f =<< do liftTCM $ buildClosure t
@@ -1253,7 +1253,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
           NoCheckEmpty -> pure cons'
         mns  <- forM cons $ \ con -> fmap (SplitCon con,) <$>
           computeNeighbourhood delta1 n delta2 d pars ixs x tel ps cps con
-        hcompsc <- if isFib && (isHIT || (size ixs > 0)) && not (null mns) && inserttrailing == DoInsertTrailing
+        hcompsc <- if isFib && (isHIT || not (null ixs)) && not (null mns) && inserttrailing == DoInsertTrailing
                    then computeHCompSplit delta1 n delta2 d pars ixs x tel ps cps
                    else return Nothing
         let ns = catMaybes mns

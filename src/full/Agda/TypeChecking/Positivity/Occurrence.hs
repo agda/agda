@@ -171,7 +171,8 @@ instance Null Occurrence where
 -- Agda.TypeChecking.Positivity.
 
 instance Sized OccursWhere where
-  size (OccursWhere _ cs os) = 1 + size cs + size os
+  size    (OccursWhere _ cs os) = 1 + size cs + size os
+  natSize (OccursWhere _ cs os) = 1 + natSize cs + natSize os
 
 -- | The map contains bindings of the form @bound |-> ess@, satisfying
 -- the following property: for every non-empty list @w@,
