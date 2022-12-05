@@ -31,7 +31,10 @@ jobs:
         # We stick to '-latest' virtual environments here in the sense of
         # "most canonical", since this is the deploy action.
         # As of today, this is [windows-2022, macOS-11, ubuntu-20.04].
-        os: [windows-latest, macos-latest, ubuntu-latest]
+        # Andreas, 2022-12-05, issue #6384:
+        # Atm, building static executables with GHC 9.4 is broken on ubuntu-22.04,
+        # so, we downgrade to ubuntu-20.04.
+        os: [windows-latest, macos-latest, ubuntu-20.04]
         ghc-ver: ['9.4']
         cabal-ver: ['3.8']
 
