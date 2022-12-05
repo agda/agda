@@ -1342,7 +1342,7 @@ inferOrCheckProjApp e o ds args mt = do
       ifBlocked core (\ m _ -> postpone m) $ {-else-} \ _ core -> do
       ifNotPiType core (\ _ -> refuseProjNotApplied ds) $ {-else-} \ dom _b -> do
       ifBlocked (unDom dom) (\ m _ -> postpone m) $ {-else-} \ _ ta -> do
-      caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds) $ \ (_q, _pars, defn) -> do
+      caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds Nothing ta) $ \ (_q, _pars, defn) -> do
       case defn of
         Record { recFields = fs } -> do
           case forMaybe fs $ \ f -> Fold.find (unDom f ==) ds of
@@ -1403,7 +1403,7 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta mpatm = do
     Nothing -> uncurry PrincipalArgTypeMetas <$> implicitArgs (-1) (not . visible) ta
   let v = v0 `apply` vargs
   ifBlocked ta (\ m _ -> postpone m patm) {-else-} $ \ _ ta -> do
-  caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds) $ \ (q, _pars0, _) -> do
+  caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds (Just v0) ta) $ \ (q, _pars0, _) -> do
 
       -- try to project it with all of the possible projections
       let try d = do
@@ -1466,8 +1466,7 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta mpatm = do
       case cands of
         [] -> refuseProjNoMatching ds
         [[]] -> refuseProjNoMatching ds
-        (_:_:_) -> refuseProj ds $ "several matching candidates found: "
-             ++ prettyShow (map (fst . snd) $ concat cands)
+        (_:_:_) -> refuseProj ds $ fwords "several matching candidates can be applied."
         -- case: just one matching projection d
         -- the term u = d v
         -- the type tb is the type of this application
@@ -1497,16 +1496,19 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta mpatm = do
 
               return (v, tc, NotCheckedTarget)
 
-refuseProj :: List1 QName -> String -> TCM a
-refuseProj ds reason = typeError $ GenericError $
-        "Cannot resolve overloaded projection "
-        ++ prettyShow (A.nameConcrete $ A.qnameName $ List1.head ds)
-        ++ " because " ++ reason
+-- | Throw 'AmbiguousProjectionError' with additional explanation.
+refuseProj :: List1 QName -> TCM Doc -> TCM a
+refuseProj ds reason = typeError . AmbiguousProjectionError ds =<< reason
 
-refuseProjNotApplied, refuseProjNoMatching, refuseProjNotRecordType :: List1 QName -> TCM a
-refuseProjNotApplied    ds = refuseProj ds "it is not applied to a visible argument"
-refuseProjNoMatching    ds = refuseProj ds "no matching candidate found"
-refuseProjNotRecordType ds = refuseProj ds "principal argument is not of record type"
+refuseProjNotApplied, refuseProjNoMatching :: List1 QName -> TCM a
+refuseProjNotApplied    ds = refuseProj ds $ fwords "it is not applied to a visible argument"
+refuseProjNoMatching    ds = refuseProj ds $ fwords "no matching candidate found"
+refuseProjNotRecordType :: List1 QName -> Maybe Term -> Type -> TCM a
+refuseProjNotRecordType ds pValue pType = do
+  let dType = prettyTCM pType
+  let dValue = caseMaybe pValue (return empty) prettyTCM
+  refuseProj ds $ fsep $
+    ["principal argument", dValue, "has type", dType, "while it should be of record type"]
 
 -----------------------------------------------------------------------------
 -- * Sorts

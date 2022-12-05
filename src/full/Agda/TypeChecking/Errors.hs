@@ -24,6 +24,7 @@ module Agda.TypeChecking.Errors
 import Prelude hiding ( null, foldl )
 
 import qualified Control.Exception as E
+import Control.Monad ((>=>))
 import Control.Monad.Except
 
 import qualified Data.CaseInsensitive as CaseInsens
@@ -46,6 +47,7 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Scope.Monad (isDatatypeModule)
 import Agda.Syntax.Scope.Base
 
+import Agda.TypeChecking.Monad (typeOfConst)
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Context
@@ -64,6 +66,7 @@ import Agda.TypeChecking.Reduce (instantiate)
 import Agda.Utils.FileName
 import Agda.Utils.Float  ( toStringWithoutDotZero )
 import Agda.Utils.Function
+import Agda.Utils.Functor( for )
 import Agda.Utils.List   ( initLast )
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
@@ -122,6 +125,7 @@ errorString err = case err of
   AmbiguousName{}                          -> "AmbiguousName"
   AmbiguousParseForApplication{}           -> "AmbiguousParseForApplication"
   AmbiguousParseForLHS{}                   -> "AmbiguousParseForLHS"
+  AmbiguousProjectionError{}               -> "AmbiguousProjectionError"
 --  AmbiguousParseForPatternSynonym{}        -> "AmbiguousParseForPatternSynonym"
   AmbiguousTopLevelModuleName {}           -> "AmbiguousTopLevelModuleName"
   BadArgumentsToPatternSynonym{}           -> "BadArgumentsToPatternSynonym"
@@ -760,6 +764,21 @@ instance PrettyTCM TypeError where
              [pretty x] ++
              pwords "could refer to any of the following files:"
            ) $$ nest 2 (vcat $ map (text . filePath) files)
+
+    AmbiguousProjectionError ds reason -> do
+      let nameRaw = pretty $ A.nameConcrete $ A.qnameName $ List1.head ds
+      vcat
+        [ fsep
+          [ text "Cannot resolve overloaded projection"
+          , nameRaw
+          , text "because"
+          , pure reason
+          ]
+        , nest 2 $ text "candidates in scope:"
+        , vcat $ for ds $ \ d -> do
+            t <- typeOfConst d
+            text "-" <+> nest 2 (nameRaw <+> text ":" <+> prettyTCM t)
+        ]
 
     ClashingFileNamesFor x files ->
       fsep ( pwords "Multiple possible sources for module"

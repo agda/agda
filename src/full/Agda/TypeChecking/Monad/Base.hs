@@ -4383,6 +4383,7 @@ data TypeError
             --   If it is non-empty, the first entry could be printed as error hint.
         | AmbiguousParseForLHS LHSOrPatSyn C.Pattern [C.Pattern]
             -- ^ Pattern and its possible interpretations.
+        | AmbiguousProjectionError (List1 QName) Doc
         | OperatorInformation [NotationSection] TypeError
 {- UNUSED
         | NoParseForPatternSynonym C.Pattern
