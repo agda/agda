@@ -66,6 +66,7 @@ import Agda.TypeChecking.Reduce (instantiate)
 import Agda.Utils.FileName
 import Agda.Utils.Float  ( toStringWithoutDotZero )
 import Agda.Utils.Function
+import Agda.Utils.Functor( for )
 import Agda.Utils.List   ( initLast )
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
@@ -773,8 +774,10 @@ instance PrettyTCM TypeError where
           , text "because"
           , pure reason
           ]
-        , nest 2 (text "Signatures in the scope:")
-        , vcat $ fmap (typeOfConst >=> prettyTCM >=> (\typeDoc -> text "-" <+> nest 2 (nameRaw <+> text ":" <+> pure typeDoc))) ds
+        , nest 2 $ text "candidates in scope:"
+        , vcat $ for ds $ \ d -> do
+            t <- typeOfConst d
+            text "-" <+> nest 2 (nameRaw <+> text ":" <+> prettyTCM t)
         ]
 
     ClashingFileNamesFor x files ->
