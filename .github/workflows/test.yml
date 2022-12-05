@@ -22,7 +22,8 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: ubuntu-22.04
     steps:
-    - uses: styfle/cancel-workflow-action@0.11.0
+    - if: github.ref != 'refs/heads/master'
+      uses: styfle/cancel-workflow-action@0.11.0
       with:
         access_token: ${{ github.token }}
     - uses: actions/checkout@v3
