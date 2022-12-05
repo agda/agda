@@ -111,7 +111,7 @@ jobs:
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-${{ env.STACK_VER }}-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml') }}
+        key: ${{ runner.os }}-stack-${{ env.STACK_VER }}-ghc-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
 
     # ICU is already installed on ubuntu >= 20.04
     # - name: "Install and configure the icu library"
