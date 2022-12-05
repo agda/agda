@@ -421,7 +421,7 @@ warningNameDescription = \case
   UnsolvedMetaVariables_           -> "Unsolved meta variables."
   UserWarning_                     -> "User-defined warning added using one of the 'WARNING_ON_*' pragmas."
   WithoutKFlagPrimEraseEquality_   -> "`primEraseEquality' usages with the without-K flags."
-  WrongInstanceDeclaration_        -> "Instances should not be functions."
+  WrongInstanceDeclaration_        -> "Instances that do not adhere to the required format."
   -- Checking consistency of options
   CoInfectiveImport_               -> "Importing a file not using e.g. `--safe'  from one which does."
   InfectiveImport_                 -> "Importing a file using e.g. `--cubical' into one which doesn't."

@@ -160,7 +160,7 @@ prettyWarning = \case
       pwords "to have a separate Haskell definition"
 
     WrongInstanceDeclaration -> fwords $
-      "Instances should be of type {Γ} → C, where C is a postulated name or the name of " ++
+      "Instances should be of type {Γ} → C, where C evaluates to a postulated name or the name of " ++
       "a data or record type, so `instance' is ignored here."
 
     InstanceWithExplicitArg q -> fsep $
@@ -168,8 +168,8 @@ prettyWarning = \case
       pwords "so making" ++ [prettyTCM q] ++ pwords "into an instance has no effect."
 
     InstanceNoOutputTypeName b -> fsep $
-      pwords "Instance arguments whose type is not {Γ} → C, where C is a postulated type, a parameter type " ++
-      pwords "or the name of a data or record type, are never considered by instance search," ++
+      pwords "Instance arguments whose type is not {Γ} → C, where C evaluates to a postulated type, " ++
+      pwords "a parameter type or the name of a data or record type, are never considered by instance search," ++
       pwords "so having an instance argument" ++ [return b] ++ pwords "has no effect."
 
     InstanceArgWithExplicitArg b -> fsep $
