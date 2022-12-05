@@ -46,6 +46,7 @@ import qualified Data.HashMap.Strict as HMap
 import qualified Data.HashSet as HSet
 import Data.Set (Set)
 import qualified Data.Set as Set
+import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import qualified Data.Text.Lazy as TL
 
@@ -154,8 +155,25 @@ parseSource sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
     , srcCohesion    = coh
     }
 
-srcDefaultPragmas :: Source -> [OptionsPragma]
-srcDefaultPragmas src = map _libPragmas (srcProjectLibs src)
+srcDefaultPragmas :: Source -> TCM [OptionsPragma]
+srcDefaultPragmas src = do
+  let libs = srcProjectLibs src
+  forM libs $ \lib -> do
+    let pragmas = _libPragmas lib
+    let options = parsePragmaOptions pragmas defaultOptions
+    case fst $ runOptM options of
+      Left errorMsg -> do
+        doc <- P.fwords errorMsg
+        throwError (constructException doc lib)
+      Right b -> pure pragmas
+  where
+  constructException :: P.Doc -> AgdaLibFile -> TCErr
+  constructException doc lib = let
+    libAbsPath = mkAbsolute (_libFile lib)
+    libFile = Strict.Just (mkRangeFile libAbsPath Nothing)
+    emptyRange = Pn () 0 0 0
+    rng = Range libFile (Seq.singleton (posToInterval () emptyRange emptyRange))
+    in Exception rng doc
 
 srcFilePragmas :: Source -> [OptionsPragma]
 srcFilePragmas src = pragmas
@@ -163,15 +181,16 @@ srcFilePragmas src = pragmas
   cpragmas = C.modPragmas (srcModule src)
   pragmas = [ opts | C.OptionsPragma _ opts <- cpragmas ]
 
-srcPragmas :: Source -> [OptionsPragma]
-srcPragmas src = srcDefaultPragmas src ++ srcFilePragmas src
+srcPragmas :: Source -> TCM [OptionsPragma]
+srcPragmas src = srcDefaultPragmas src <&> (++ srcFilePragmas src)
 
 -- | Set options from a 'Source' pragma, using the source
 --   ranges of the pragmas for error reporting.
 setOptionsFromSourcePragmas :: Source -> TCM ()
-setOptionsFromSourcePragmas src =
+setOptionsFromSourcePragmas src = do
+  pragmas <- srcPragmas src
   setCurrentRange (C.modPragmas . srcModule $ src) $
-    mapM_ setOptionsFromPragma (srcPragmas src)
+    mapM_ setOptionsFromPragma pragmas
 
 -- | Is the aim to type-check the top-level module, or only to
 -- scope-check it?
@@ -1200,10 +1219,10 @@ buildInterface
   -> TCM Interface
 buildInterface src topLevel = do
     reportSLn "import.iface" 5 "Building interface..."
+    defPragmas <- srcDefaultPragmas src
     let mname = CToA.topLevelModuleName topLevel
         source   = srcText src
         fileType = srcFileType src
-        defPragmas = srcDefaultPragmas src
         filePragmas  = srcFilePragmas src
     -- Andreas, 2014-05-03: killRange did not result in significant reduction
     -- of .agdai file size, and lost a few seconds performance on library-test.
