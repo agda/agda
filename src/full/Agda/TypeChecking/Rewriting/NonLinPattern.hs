@@ -148,7 +148,7 @@ instance PatternFrom Type Term NLPat where
        -- in order to build a Miller pattern
        | Just vs <- allApplyElims es -> do
            TelV tel rest <- telViewPath =<< typeOfBV i
-           unless (size tel >= size vs) $ blockOnMetasIn rest >> addContext tel (errNotPi rest)
+           unless (natSize tel >= natSize vs) $ blockOnMetasIn rest >> addContext tel (errNotPi rest)
            let ts = applySubst (parallelS $ reverse $ map unArg vs) $ map unDom $ flattenTel tel
            mbvs <- forM (zip ts vs) $ \(t , v) -> do
              blockOnMetasIn (v,t)

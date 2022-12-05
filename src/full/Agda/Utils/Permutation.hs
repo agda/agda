@@ -47,7 +47,8 @@ instance Show Permutation where
           showList sep f (e:es) = f e ++ sep ++ showList sep f es
 
 instance Sized Permutation where
-  size (Perm _ xs) = size xs
+  size    (Perm _ xs) = size xs
+  natSize (Perm _ xs) = natSize xs
 
 instance Null Permutation where
   empty = Perm 0 []

@@ -46,7 +46,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List ( editDistance )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
-import Agda.Utils.Pretty ( Pretty, prettyShow )
+import Agda.Utils.Pretty ( Pretty, prettyShow, singPlural )
 import qualified Agda.Utils.Pretty as P
 
 instance PrettyTCM TCWarning where
@@ -196,11 +196,11 @@ prettyWarning = \case
     SafeFlagPostulate e -> fsep $
       pwords "Cannot postulate" ++ [pretty e] ++ pwords "with safe flag"
 
-    SafeFlagPragma xs ->
-      let plural | length xs == 1 = ""
-                 | otherwise      = "s"
-      in fsep $ [fwords ("Cannot set OPTIONS pragma" ++ plural)]
-                ++ map text xs ++ [fwords "with safe flag."]
+    SafeFlagPragma xs -> fsep $ concat
+      [ [ fwords $ singPlural xs id (++ "s") "Cannot set OPTIONS pragma" ]
+      , map text xs
+      , [ fwords "with safe flag." ]
+      ]
 
     SafeFlagNonTerminating -> fsep $
       pwords "Cannot use NON_TERMINATING pragma with safe flag."

@@ -726,7 +726,7 @@ bindBuiltinEquality x = do
   unless (isJust $ isSort $ unEl eqCore) __IMPOSSIBLE__
 
   -- The types of the last two arguments must be the third-last argument
-  unless (size eqTel >= 3) no
+  unless (natSize eqTel >= 3) no
   let (a, b) = fromMaybe __IMPOSSIBLE__ $ last2 $ telToList eqTel
   [a,b] <- reduce $ map (unEl . snd . unDom) [a,b]
   unless (deBruijnView a == Just 0) no
@@ -898,7 +898,7 @@ bindBuiltin b x = do
       PatternSynResName xs -> failure
       UnknownName          -> failure
     -- For ambiguous names, we check all of their definitions:
-    unlessM (allM xs $ ((0 ==) . size) <.> lookupSection . qnameModule . anameName) $
+    unlessM (allM xs $ null <.> lookupSection . qnameModule . anameName) $
       failure
   -- Since the name was define in a parameter-free context, we can switch to the empty context.
   -- (And we should!)

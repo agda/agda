@@ -21,6 +21,7 @@ extra-deps:
 - data-fix-0.3.2
 - generic-deriving-1.14.2
 - indexed-traversable-0.1.2
+- peano-0.1.0.1
 - primitive-0.7.4.0
 - random-1.2.0
 - regex-base-0.94.0.0

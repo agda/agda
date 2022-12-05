@@ -58,6 +58,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Pretty ( prettyShow )
+import Agda.Utils.Size
 import Agda.Utils.Tuple
 
 
@@ -347,7 +348,7 @@ auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
                            -- When Agsy produces an ill-typed solution, return nothing.
                            -- TODO: try other solution.
                            -- `catchError` const retry -- (return (Nothing, Nothing))
-                      let msg = if length exprs == 1 then
+                      let msg = if natSize exprs == 1 then
                                  Nothing
                                 else
                                  Just $ "Also gave solution(s) for hole(s)" ++

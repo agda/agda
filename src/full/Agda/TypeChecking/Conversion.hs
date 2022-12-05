@@ -1968,7 +1968,7 @@ equalSort s1 s2 = do
 --       f (INeg x)   = map (id -*- not) <$> (f . view . unArg) x
 --       f (OTerm (Var i [])) = return [(i,True)]
 --       f (OTerm _) = return [] -- what about metas? we should suspend? maybe no metas is a precondition?
---       isConsistent xs = all (\ xs -> length xs == 1) . map nub . Map.elems $ xs  -- optimize by not doing generate + filter
+--       isConsistent xs = all (\ xs -> natSize xs == 1) . map nub . Map.elems $ xs  -- optimize by not doing generate + filter
 --       as = map (map (id -*- head) . Map.toAscList) . filter isConsistent . map (Map.fromListWith (++) . map (id -*- (:[]))) $ (f (view t))
 --   xs <- mapM (mapM (\ (i,b) -> (,) i <$> intervalUnview (if b then IOne else IZero))) as
 --   return xs

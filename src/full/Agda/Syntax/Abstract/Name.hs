@@ -468,9 +468,11 @@ instance KillRange AmbiguousQName where
 
 instance Sized QName where
   size = size . qnameToList
+  natSize = natSize . qnameToList
 
 instance Sized ModuleName where
   size = size . mnameToList
+  natSize = natSize . mnameToList
 
 ------------------------------------------------------------------------
 -- * NFData instances

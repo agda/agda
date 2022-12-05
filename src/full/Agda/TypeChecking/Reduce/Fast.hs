@@ -134,8 +134,8 @@ compactDef bEnv def rewr = do
       _ | Just (defName def) == bPrimForce bEnv   -> pure CForce
       _ | Just (defName def) == bPrimErase bEnv ->
           case telView' (defType def) of
-            TelV tel _ | size tel == 5 -> pure CErase
-                       | otherwise     -> pure COther
+            TelV tel _ | natSize tel == 5 -> pure CErase
+                       | otherwise        -> pure COther
                           -- Non-standard equality. Fall back to slow reduce.
       _ | defBlocked def /= notBlocked_ -> pure COther -- Blocked definition
       Constructor{conSrcCon = c, conArity = n} -> pure CCon{cconSrcCon = c, cconArity = n}
