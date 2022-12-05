@@ -170,7 +170,7 @@ jobs:
         os:
         - windows-latest
         - macos-latest
-        - ubuntu-latest
+        - ubuntu-20.04
   deploy:
     if: ${{ github.ref == 'refs/heads/master' && github.event_name == 'workflow_run'
       }}
