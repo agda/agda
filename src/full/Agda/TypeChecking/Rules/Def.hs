@@ -29,6 +29,7 @@ import Agda.Syntax.Internal.MetaVars (allMetasList)
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Info hiding (defAbstract)
 
+import Agda.TypeChecking.Monad.Errors
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Warnings ( warning, genericWarning )
@@ -821,7 +822,10 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
           then do
             ps <- instantiateFull ps
             Nothing <$ setCurrentRange e (warning $ AbsurdPatternRequiresNoRHS ps)
-          else Just <$> checkExpr e (unArg trhs)
+          -- When checking the RHS, if a proper type error (i.e. not a
+          -- pattern violation) happens, defer reporting the error,
+          -- generate a recovery metavariable, and keep going.
+          else Just <$> guardingTypeErrors (unArg trhs) (checkExpr e (unArg trhs))
     return (mv, NoWithFunction)
 
   -- Absurd case: no right hand side

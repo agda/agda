@@ -29,6 +29,7 @@ import Agda.TypeChecking.Positivity () --instance only
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Call
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Constraint (prettyInterestingConstraints, interestingConstraint)
+import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Warnings (MonadWarning, isUnsolvedWarning, onlyShowIfUnsolved, classifyWarning, WhichWarnings(..), warning_)
 import Agda.TypeChecking.Monad.Constraints (getAllConstraints)
 
@@ -339,6 +340,8 @@ prettyWarning = \case
       ]
 
     RecordFieldWarning w -> prettyRecordFieldWarning w
+
+    RecoveredTypeErrorW e -> prettyTCM e
 
 prettyRecordFieldWarning :: MonadPretty m => RecordFieldWarning -> m Doc
 prettyRecordFieldWarning = \case

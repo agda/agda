@@ -12,7 +12,7 @@ import Agda.TypeChecking.Monad.Base
   ( TCM, ReadTCState, HasOptions, MonadTCEnv
   , Definition, RewriteRules
   )
-import Agda.TypeChecking.Monad.Debug (MonadDebug)
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Debug (MonadDebug)
 
 import Agda.Utils.Pretty (prettyShow)
 
@@ -48,4 +48,3 @@ instance HasConstInfo TCM where
 
 inFreshModuleIfFreeParams :: TCM a -> TCM a
 lookupSection :: (Functor m, ReadTCState m) => ModuleName -> m Telescope
-

@@ -51,6 +51,7 @@ instance EmbPrj Warning where
     SafeFlagNoCoverageCheck               -> __IMPOSSIBLE__
     SafeFlagInjective                     -> __IMPOSSIBLE__
     SafeFlagEta                           -> __IMPOSSIBLE__
+    RecoveredTypeErrorW{}                 -> __IMPOSSIBLE__
     DeprecationWarning a b c              -> icodeN 6 DeprecationWarning a b c
     NicifierIssue a                       -> icodeN 7 NicifierIssue a
     InversionDepthReached a               -> icodeN 8 InversionDepthReached a
@@ -427,6 +428,7 @@ instance EmbPrj WarningName where
     DuplicateFieldsWarning_                      -> 93
     TooManyFieldsWarning_                        -> 94
     OptionRenamed_                               -> 95
+    RecoveredTypeErrorW_                         -> 96
 
   value = \case
     0  -> return OverlappingTokensWarning_
@@ -525,6 +527,7 @@ instance EmbPrj WarningName where
     93 -> return DuplicateFieldsWarning_
     94 -> return TooManyFieldsWarning_
     95 -> return OptionRenamed_
+    96 -> return RecoveredTypeErrorW_
     _ -> malformed
 
 

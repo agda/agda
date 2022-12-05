@@ -463,6 +463,7 @@ warningHighlighting' b w = case tcWarning w of
   SafeFlagNoUniverseCheck               -> errorWarningHighlighting w
   InfectiveImport{}                     -> errorWarningHighlighting w
   CoInfectiveImport{}                   -> errorWarningHighlighting w
+  RecoveredTypeErrorW{}                 -> errorWarningHighlighting w
   WithoutKFlagPrimEraseEquality -> mempty
   DeprecationWarning{}       -> mempty
   UserWarning{}              -> mempty

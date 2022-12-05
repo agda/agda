@@ -470,6 +470,7 @@ instance Reify Constraint where
             DoQuoteTerm cmp v t -> do
               tm <- A.App defaultAppInfo_ (A.QuoteTerm exprNoRange) . defaultNamedArg <$> reify v
               OfType tm <$> reify t
+          RecoveredTypeError{} -> __IMPOSSIBLE__
           Open{}  -> __IMPOSSIBLE__
           OpenInstance{}  -> __IMPOSSIBLE__
           InstV{} -> __IMPOSSIBLE__
@@ -810,6 +811,7 @@ getSolvedInteractionPoints all norm = concat <$> do
           Open{}                         -> unsol
           OpenInstance{}                 -> unsol
           BlockedConst{}                 -> unsol
+          RecoveredTypeError{}           -> unsol
           PostponedTypeCheckingProblem{} -> unsol
 
 typeOfMetaMI :: Rewrite -> MetaId -> TCM (OutputConstraint Expr NamedMeta)
@@ -869,6 +871,7 @@ typesOfHiddenMetas norm = liftTCM $ do
       M.Open    -> x `notElem` is
       M.OpenInstance -> x `notElem` is  -- OR: True !?
       M.BlockedConst{} -> False
+      M.RecoveredTypeError -> False
       M.PostponedTypeCheckingProblem{} -> False
 
 -- | Create type of application of new helper function that would solve the goal.

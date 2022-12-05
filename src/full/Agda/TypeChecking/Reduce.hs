@@ -211,6 +211,7 @@ instance Instantiate Term where
            | otherwise -> return t
 
          PostponedTypeCheckingProblem _ -> return t
+         RecoveredTypeError -> return t
 
       Nothing -> __IMPOSSIBLE_VERBOSE__
                    ("Meta-variable not found: " ++ prettyShow x)

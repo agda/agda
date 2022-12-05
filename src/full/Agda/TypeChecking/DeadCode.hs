@@ -134,6 +134,7 @@ theInstantiation mv = case mvInstantiation mv of
   OpenInstance{}                 -> __IMPOSSIBLE__
   BlockedConst{}                 -> __IMPOSSIBLE__
   PostponedTypeCheckingProblem{} -> __IMPOSSIBLE__
+  RecoveredTypeError{}           -> __IMPOSSIBLE__
 
 -- | Converts from 'MetaVariable' to 'RemoteMetaVariable'.
 --

@@ -98,6 +98,7 @@ instance PrettyTCM Constraint where
               BlockedConst t -> prettyCmp ":=" m t
               PostponedTypeCheckingProblem cl -> enterClosure cl $ \p ->
                 prettyCmp ":=" m p
+              RecoveredTypeError{} -> __IMPOSSIBLE__
               Open{}  -> __IMPOSSIBLE__
               OpenInstance{} -> __IMPOSSIBLE__
               InstV{} -> empty

@@ -977,6 +977,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
             Just OpenInstance{}                 -> __IMPOSSIBLE__
             Just BlockedConst{}                 -> __IMPOSSIBLE__
             Just PostponedTypeCheckingProblem{} -> __IMPOSSIBLE__
+            Just RecoveredTypeError{}           -> __IMPOSSIBLE__
 
         -- Case: unsupported. These terms are not handled by the abstract machine, so we fall back
         -- to slowReduceTerm for these.

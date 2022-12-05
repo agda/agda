@@ -105,6 +105,7 @@ isBlockedTerm x = do
     i <- lookupMetaInstantiation x
     let r = case i of
             BlockedConst{}                 -> True
+            RecoveredTypeError{}           -> True
             PostponedTypeCheckingProblem{} -> True
             InstV{}                        -> False
             Open{}                         -> False
@@ -122,6 +123,7 @@ isEtaExpandable kinds x = do
       InstV{}                        -> False
       BlockedConst{}                 -> False
       PostponedTypeCheckingProblem{} -> False
+      RecoveredTypeError{}           -> False
 
 -- * Performing the assignment
 
@@ -1290,6 +1292,7 @@ checkMetaInst x = do
     PostponedTypeCheckingProblem{} -> postpone
     Open{} -> postpone
     OpenInstance{} -> postpone
+    RecoveredTypeError{} -> __IMPOSSIBLE__ -- These metas are never instantiable
     InstV inst -> do
       let n = size (instTel inst)
           t = jMetaType $ mvJudgement m

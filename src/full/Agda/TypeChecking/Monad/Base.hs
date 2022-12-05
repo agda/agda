@@ -1395,6 +1395,9 @@ data MetaInstantiation
         | Open                -- ^ unsolved
         | OpenInstance        -- ^ open, to be instantiated by instance search
         | BlockedConst Term   -- ^ solution blocked by unsolved constraints
+        | RecoveredTypeError
+        -- ^ Generated to represent the value of an RHS whose body had
+        -- type errors.
         | PostponedTypeCheckingProblem (Closure TypeCheckingProblem)
   deriving Generic
 
@@ -1473,6 +1476,7 @@ instance Pretty MetaInstantiation where
   pretty = \case
     Open                                     -> "Open"
     OpenInstance                             -> "OpenInstance"
+    RecoveredTypeError                       -> "RecoveredTypeError"
     PostponedTypeCheckingProblem{}           -> "PostponedTypeCheckingProblem (...)"
     BlockedConst t                           -> hsep [ "BlockedConst", parens (pretty t) ]
     InstV Instantiation{ instTel, instBody } -> hsep [ "InstV", pretty instTel, parens (pretty instBody) ]
@@ -4000,6 +4004,8 @@ data Warning
     --   or pattern synonym name (@True@),
     --   because this can be confusing to read.
   | RecordFieldWarning RecordFieldWarning
+  | RecoveredTypeErrorW TCErr
+    -- ^ A type error from which we have recovered
   deriving (Show, Generic)
 
 data RecordFieldWarning
@@ -4078,6 +4084,7 @@ warningName = \case
   RewriteAmbiguousRules{}      -> RewriteAmbiguousRules_
   RewriteMissingRule{}         -> RewriteMissingRule_
   PragmaCompileErased{}        -> PragmaCompileErased_
+  RecoveredTypeErrorW{}        -> RecoveredTypeErrorW_
   -- record field warnings
   RecordFieldWarning w -> case w of
     DuplicateFieldsWarning{}   -> DuplicateFieldsWarning_
@@ -4440,10 +4447,10 @@ instance Show TCErr where
   show PatternErr{}        = "Pattern violation (you shouldn't see this)"
 
 instance HasRange TCErr where
-  getRange (TypeError _ _ cl)  = envRange $ clEnv cl
-  getRange (Exception r _)     = r
-  getRange (IOException s r _) = r
-  getRange PatternErr{}        = noRange
+  getRange (TypeError _ _ cl)     = envRange $ clEnv cl
+  getRange (Exception r _)        = r
+  getRange (IOException s r _)    = r
+  getRange PatternErr{}           = noRange
 
 instance E.Exception TCErr
 

@@ -709,6 +709,7 @@ isOpenMeta Open                           = True
 isOpenMeta OpenInstance                   = True
 isOpenMeta BlockedConst{}                 = True
 isOpenMeta PostponedTypeCheckingProblem{} = True
+isOpenMeta RecoveredTypeError{}           = True
 isOpenMeta InstV{}                        = False
 
 -- | @listenToMeta l m@: register @l@ as a listener to @m@. This is done
