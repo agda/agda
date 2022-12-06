@@ -346,7 +346,7 @@ warningNameDescription = \case
   EmptyPrivate_                    -> "Empty `private' blocks."
   EmptyRewritePragma_              -> "Empty `REWRITE' pragmas."
   EmptyWhere_                      -> "Empty `where' blocks."
-  HiddenGeneralize_                -> "Hidden identifieres in variable blocks."
+  HiddenGeneralize_                -> "Hidden identifiers in variable blocks."
   InvalidCatchallPragma_           -> "`CATCHALL' pragmas before a non-function clause."
   InvalidConstructor_              -> "`constructor' blocks may only contain type signatures for constructors."
   InvalidConstructorBlock_         -> "No `constructor' blocks outside of `interleaved mutual' blocks."
@@ -421,7 +421,7 @@ warningNameDescription = \case
   UnsolvedMetaVariables_           -> "Unsolved meta variables."
   UserWarning_                     -> "User-defined warning added using one of the 'WARNING_ON_*' pragmas."
   WithoutKFlagPrimEraseEquality_   -> "`primEraseEquality' usages with the without-K flags."
-  WrongInstanceDeclaration_        -> "Terms marked as eligible for instance search should end with a name."
+  WrongInstanceDeclaration_        -> "Instances that do not adhere to the required format."
   -- Checking consistency of options
   CoInfectiveImport_               -> "Importing a file not using e.g. `--safe'  from one which does."
   InfectiveImport_                 -> "Importing a file using e.g. `--cubical' into one which doesn't."
