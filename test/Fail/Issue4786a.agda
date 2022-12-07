@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 record R (A : Set) : Set where
   constructor c₂
   field

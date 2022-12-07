@@ -1966,9 +1966,10 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
            -- its type, and maybe the state obtained after checking it
            -- (which may contain new constraints/solutions).
     tryCon constraintsOk cons d pars c = getConstInfo' c >>= \case
-      Left (SigUnknown err) -> __IMPOSSIBLE__
-      Left SigAbstract -> abstractConstructor c
-      Right def -> do
+      Left (SigUnknown err)     -> __IMPOSSIBLE__
+      Left SigCubicalNotErasure -> __IMPOSSIBLE__
+      Left SigAbstract          -> abstractConstructor c
+      Right def                 -> do
         let con = conSrcCon (theDef def) `withRangeOf` c
         unless (conName con `elem` cons) $ wrongDatatype c d
 

@@ -1063,8 +1063,10 @@ Agda in which Glue (and the other builtins defined in
 Regular Cubical Agda code can import code that uses
 :option:`--erased-cubical`. Regular Cubical Agda code can also be
 imported from code that uses :option:`--erased-cubical`, but names
-defined using Cubical Agda are treated as if they had been marked as
-erased, with an exception related to pattern matching:
+defined using Cubical Agda can only be used if the option
+:option:`--erasure` is used. In that case the names are treated as if
+they had been marked as erased, with an exception related to pattern
+matching:
 
 - Matching on a non-erased imported constructor does not, on its own,
   make Agda treat the right-hand side as erased.

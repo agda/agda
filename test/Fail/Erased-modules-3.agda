@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 F : Set₁
 F = Set
   -- Everything in the where module is erased.

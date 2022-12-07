@@ -1,4 +1,4 @@
-Erased-record-2.agda:6,5-23
+Erased-record-2.agda:8,5-23
 A record expression corresponding to an erased record constructor
 must only be used in erased settings
 when checking that the expression record { x = Set } has type R

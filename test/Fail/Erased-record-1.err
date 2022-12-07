@@ -1,3 +1,3 @@
-Erased-record-1.agda:7,5-10
+Erased-record-1.agda:9,5-10
 Identifier c is declared erased, so it cannot be used here
 when checking that the expression c Set has type R

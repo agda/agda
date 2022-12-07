@@ -72,13 +72,13 @@ warning w = PM (modify (w:))
 
 -- | Embed a 'ParseResult' as 'PM' computation.
 
-wrap :: ParseResult a -> PM (a, CohesionAttributes)
+wrap :: ParseResult a -> PM (a, Attributes)
 wrap (ParseFailed err)  = throwError err
 wrap (ParseOk s x)      = do
   modify' (parseWarnings s ++)
-  return (x, parseCohesion s)
+  return (x, parseAttributes s)
 
-wrapM :: IO (ParseResult a) -> PM (a, CohesionAttributes)
+wrapM :: IO (ParseResult a) -> PM (a, Attributes)
 wrapM m = liftIO m >>= wrap
 
 -- | Returns the contents of the given file.
@@ -107,7 +107,7 @@ data Parser a = Parser
   }
 
 type LiterateParser a =
-  Parser a -> [Layer] -> PM (a, CohesionAttributes)
+  Parser a -> [Layer] -> PM (a, Attributes)
 
 -- | Initial state for lexing.
 
@@ -121,7 +121,7 @@ layoutLexState = [layout, normal]
 
 -- | Parse without top-level layout.
 
-parse :: Parser a -> String -> PM (a, CohesionAttributes)
+parse :: Parser a -> String -> PM (a, Attributes)
 parse p = wrapM . return . M.parse (parseFlags p) normalLexState (parser p)
 
 -- | Parse with top-level layout.
@@ -130,7 +130,7 @@ parseFileFromString
   :: SrcFile   -- ^ Name of source file.
   -> Parser a  -- ^ Parser to use.
   -> String    -- ^ Contents of source file.
-  -> PM (a, CohesionAttributes)
+  -> PM (a, Attributes)
 parseFileFromString src p = wrapM . return . M.parseFromSrc (parseFlags p) layoutLexState (parser p) src
 
 -- | Parse with top-level layout.
@@ -164,11 +164,11 @@ parseLiterateFile
   -> String
      -- ^ The file contents. Note that the file is /not/ read from
      -- disk.
-  -> PM (a, CohesionAttributes)
+  -> PM (a, Attributes)
 parseLiterateFile po p path = parseLiterate p p . po (startPos (Just path))
 
 parsePosString ::
-  Parser a -> Position -> String -> PM (a, CohesionAttributes)
+  Parser a -> Position -> String -> PM (a, Attributes)
 parsePosString p pos = wrapM . return . M.parsePosString pos (parseFlags p) normalLexState (parser p)
 
 -- | Extensions supported by `parseFile`.
@@ -184,7 +184,7 @@ parseFile
   -> String
      -- ^ The file contents. Note that the file is /not/ read from
      -- disk.
-  -> PM ((a, CohesionAttributes), FileType)
+  -> PM ((a, Attributes), FileType)
 parseFile p file input =
   if ".agda" `List.isSuffixOf` path then
     (, AgdaFileType) <$> parseFileFromString (Strict.Just file) p input

@@ -20,6 +20,8 @@ import Data.List (partition, sortBy)
 import Data.Monoid
 import Data.Function (on)
 
+import Agda.Interaction.Options.Base
+
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name (LensInScope(..))
 import Agda.Syntax.Position
@@ -800,6 +802,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                   , conFields    = map argFromDom genRecFields
                   }
   projIx <- succ . size <$> getContext
+  erasure <- optErasure <$> pragmaOptions
   inTopContext $ forM_ (zip sortedMetas genRecFields) $ \ (meta, fld) -> do
     fieldTy <- getMetaType meta
     let field = unDom fld
@@ -818,6 +821,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                , funAbstr        = ConcreteDef
                , funDelayed      = NotDelayed
                , funProjection   = Right proj
+               , funErasure      = erasure
                , funFlags        = Set.empty
                , funTerminates   = Just True
                , funExtLam       = Nothing
@@ -836,6 +840,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                 , conProj   = Nothing
                 , conForced = []
                 , conErased = Nothing
+                , conErasure = erasure
                 }
   let dummyTel 0 = EmptyTel
       dummyTel n = ExtendTel (defaultDom __DUMMY_TYPE__) $ Abs "_" $ dummyTel (n - 1)

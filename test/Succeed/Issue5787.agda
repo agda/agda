@@ -1,3 +1,4 @@
+{-# OPTIONS --erasure #-}
 
 postulate
   A B : Set

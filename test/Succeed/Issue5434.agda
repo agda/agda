@@ -1,4 +1,4 @@
-{-# OPTIONS --two-level --cubical-compatible #-}
+{-# OPTIONS --two-level --cubical-compatible --erasure #-}
 
 open import Agda.Primitive
 

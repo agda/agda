@@ -1,4 +1,5 @@
-{-# OPTIONS --cubical-compatible #-}
+{-# OPTIONS --cubical-compatible --erasure #-}
+
 module Issue6298 where
 
 open import Agda.Builtin.Equality

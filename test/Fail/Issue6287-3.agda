@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 @0 A : Set₁
 A = Set
   module M where

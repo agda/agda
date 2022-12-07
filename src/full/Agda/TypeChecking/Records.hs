@@ -423,9 +423,10 @@ isEtaRecord r = do
 
 isEtaCon :: HasConstInfo m => QName -> m Bool
 isEtaCon c = getConstInfo' c >>= \case
-  Left (SigUnknown err) -> __IMPOSSIBLE__
-  Left SigAbstract -> return False
-  Right def -> case theDef def of
+  Left (SigUnknown err)     -> __IMPOSSIBLE__
+  Left SigCubicalNotErasure -> __IMPOSSIBLE__
+  Left SigAbstract          -> return False
+  Right def                 -> case theDef def of
     Constructor {conData = r} -> isEtaRecord r
     _ -> return False
 
@@ -453,9 +454,10 @@ isEtaRecordType a = case unEl a of
 --   If yes, return record definition.
 isRecordConstructor :: HasConstInfo m => QName -> m (Maybe (QName, Defn))
 isRecordConstructor c = getConstInfo' c >>= \case
-  Left (SigUnknown err)        -> __IMPOSSIBLE__
-  Left SigAbstract             -> return Nothing
-  Right def -> case theDef $ def of
+  Left (SigUnknown err)     -> __IMPOSSIBLE__
+  Left SigCubicalNotErasure -> __IMPOSSIBLE__
+  Left SigAbstract          -> return Nothing
+  Right def                 -> case theDef $ def of
     Constructor{ conData = r } -> fmap (r,) <$> isRecord r
     _                          -> return Nothing
 

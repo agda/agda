@@ -1,5 +1,7 @@
 -- Everything in this module is erased.
 
+{-# OPTIONS --erasure #-}
+
 module @0 Erased-modules-1 where
 
 open import Agda.Builtin.Bool

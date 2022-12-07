@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 postulate
   F : @0 Set → Set
 

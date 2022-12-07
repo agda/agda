@@ -1,4 +1,4 @@
-Issue5251-2.agda:2,11-12
+Issue5251-2.agda:4,11-12
 @0 Set → Set !=< @ω Set → Set because one is a non-erased function
 type and the other is an erased function type
 when checking that the expression f has type @ω Set → Set

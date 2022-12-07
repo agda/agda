@@ -50,6 +50,7 @@ import Agda.TypeChecking.Telescope
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( isType_ )
 
 import Agda.Utils.Either
+import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
@@ -124,9 +125,19 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   else throwError err
               reduce s
 
-            -- Parameters are always hidden in constructors.
+            withK   <- not . collapseDefault . optWithoutK <$>
+                       pragmaOptions
+            erasure <- optErasure <$> pragmaOptions
+            -- Parameters are always hidden in constructors. If
+            -- --erasure is used, then the parameters are erased for
+            -- non-indexed data types, and if --with-K is active this
+            -- applies also to indexed data types.
             let tel  = abstract gtel ptel
-                tel' = hideAndRelParams <$> tel
+                tel' = (if erasure && (withK || nofIxs == 0)
+                        then applyQuantity zeroQuantity
+                        else id) .
+                       hideAndRelParams <$>
+                       tel
 
             reportSDoc "tc.data.sort" 20 $ vcat
               [ "checking datatype" <+> prettyTCM name
@@ -343,7 +354,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
 
         -- add parameters to constructor type and put into signature
         escapeContext impossible (size tel) $ do
-
+          erasure <- optErasure <$> pragmaOptions
           addConstant' c ai c (telePi tel t) $ Constructor
               { conPars   = size tel
               , conArity  = arity
@@ -355,6 +366,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               , conProj   = projNames
               , conForced = forcedArgs
               , conErased = Nothing  -- computed during compilation to treeless
+              , conErasure = erasure
               }
 
         -- Add the constructor to the instance table, if needed
@@ -674,7 +686,7 @@ defineProjections dataName con params names fsT t = do
     noMutualBlock $ do
       let cs = [ clause ]
       (mst, _, cc) <- compileClauses Nothing cs
-      let fun = emptyFunctionData
+      fun          <- emptyFunctionData <&> \fun -> fun
                 { _funClauses    = cs
                 , _funCompiled   = Just cc
                 , _funSplitTree  = mst
@@ -789,7 +801,7 @@ defineTranspIx d = do
         let cs = [ clause ]
 --        we do not compile clauses as that leads to throwing missing clauses errors.
 --        (mst, _, cc) <- compileClauses Nothing cs
-        let fun = emptyFunctionData
+        fun <- emptyFunctionData <&> \fun -> fun
                   { _funClauses    = cs
                --   , _funCompiled   = Just cc
                --   , _funSplitTree  = mst
@@ -874,8 +886,9 @@ defineTranspFun d mtrX cons pathCons = do
 
 
       noMutualBlock $ do
+        fun <- emptyFunction
         inTopContext $ addConstant trD $
-          (defaultDefn defaultArgInfo trD theType (Cubical CErased) emptyFunction)
+          (defaultDefn defaultArgInfo trD theType (Cubical CErased) fun)
         let
           ctel = abstract telI $ ExtendTel (defaultDom $ subst 0 iz dTs) (Abs "t" EmptyTel)
           ps = telePatterns ctel []
@@ -900,7 +913,7 @@ defineTranspFun d mtrX cons pathCons = do
         ecs <- tryTranspError $ (clause:) <$> defineConClause trD (not $ null pathCons) mtrX npars nixs ixs telI sigma dTs cons
         caseEitherM (pure ecs) (\ cl -> debugNoTransp cl >> return Nothing) $ \ cs -> do
         (mst, _, cc) <- compileClauses Nothing cs
-        let fun = emptyFunctionData
+        fun <- emptyFunctionData <&> \fun -> fun
                   { _funClauses    = cs
                   , _funCompiled   = Just cc
                   , _funSplitTree  = mst
@@ -1368,9 +1381,12 @@ defineTranspForFields pathCons applyProj name params fsT fns rect = do
   reportSDoc "trans.rec" 60 $ text $ "sort = " ++ show (getSort rect')
 
   lang <- getLanguage
+  fun  <- emptyFunctionData
   noMutualBlock $ addConstant theName $
     (defaultDefn defaultArgInfo theName theType lang
-       (FunctionDefn $ emptyFunctionData { _funTerminates = Just True, _funIsKanOp = Just name }))
+       (FunctionDefn fun{ _funTerminates = Just True
+                        , _funIsKanOp    = Just name
+                        }))
       { defNoCompilation = True }
   -- ⊢ Γ = gamma = (δ : Δ^I) (φ : I) (u0 : R (δ i0))
   -- Γ ⊢     rtype = R (δ i1)
@@ -1526,9 +1542,12 @@ defineHCompForFields applyProj name params fsT fns rect = do
   reportSDoc "hcomp.rec" 60 $ text $ "sort = " ++ show (lTypeLevel rect)
 
   lang <- getLanguage
+  fun  <- emptyFunctionData
   noMutualBlock $ addConstant theName $
     (defaultDefn defaultArgInfo theName theType lang
-       (FunctionDefn $ emptyFunctionData { _funTerminates = Just True, _funIsKanOp = Just name }))
+       (FunctionDefn fun{ _funTerminates = Just True
+                        , _funIsKanOp    = Just name
+                        }))
       { defNoCompilation = True }
   --   ⊢ Γ = gamma = (δ : Δ) (φ : I) (_ : (i : I) -> Partial φ (R δ)) (_ : R δ)
   -- Γ ⊢     rtype = R δ

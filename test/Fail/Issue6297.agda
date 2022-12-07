@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --without-K --erasure #-}
 
 data _≡_ {A : Set} (x : A) : A → Set where
   refl : x ≡ x

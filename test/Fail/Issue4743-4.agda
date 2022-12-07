@@ -1,5 +1,7 @@
 -- An example involving an absurd lambda.
 
+{-# OPTIONS --erasure #-}
+
 open import Agda.Builtin.Equality
 
 data ⊥ : Set where

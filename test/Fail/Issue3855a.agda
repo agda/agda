@@ -1,6 +1,8 @@
 -- Andreas, 2019-06-17, LAIM 2019, issue #3855
 -- Only allow erased definitions in erased context.
 
+{-# OPTIONS --erasure #-}
+
 open import Common.IO
 open import Common.Unit
 open import Common.String

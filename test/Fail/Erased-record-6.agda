@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 record @0 R : Set₁ where
   field
     A : Set

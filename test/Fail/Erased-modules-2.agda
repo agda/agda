@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 module Erased-modules-2 where
 
 -- Everything in the following anonymous module is erased.

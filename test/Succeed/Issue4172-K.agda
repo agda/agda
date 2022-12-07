@@ -1,4 +1,4 @@
-{-# OPTIONS --with-K #-}
+{-# OPTIONS --with-K --erasure #-}
 
 -- Andreas 2019-11-06, issue #4172, examples by nad.
 

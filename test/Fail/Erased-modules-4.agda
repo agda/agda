@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 module Erased-modules-4 where
 
 module @0 M (@0 A : Set) where

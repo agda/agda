@@ -15,7 +15,7 @@ module Agda.Syntax.Translation.ConcreteToAbstract
     , NewName, OldQName
     , PatName, APatName
     , importPrimitives
-    , checkCohesionAttributes
+    , checkAttributes
     ) where
 
 import Prelude hiding ( null )
@@ -3137,20 +3137,37 @@ toAbstractOpApp op ns es = do
       set :: a -> NamedArg b -> NamedArg a
       set x arg = fmap (fmap (const x)) arg
 
--- | Raises an error if the list of cohesion attributes is non-empty
--- and cohesion modalities are not supported.
+-- | Raises an error if the list of attributes contains an unsupported
+-- attribute.
 
-checkCohesionAttributes :: CohesionAttributes -> ScopeM ()
-checkCohesionAttributes attrs =
-  unlessM (optCohesion <$> pragmaOptions) $
-  case attrs of
-    []         -> return ()
-    (s, r) : _ ->
-      setCurrentRange r $
-      typeError $ GenericDocError $ P.fsep $
-      P.pwords "Cohesion modalities have not been enabled" ++
-      P.pwords "(use --cohesion to enable them):" ++
-      [P.text s]
+checkAttributes :: Attributes -> ScopeM ()
+checkAttributes []                     = return ()
+checkAttributes ((attr, r, s) : attrs) =
+  case attr of
+    RelevanceAttribute{}          -> cont
+    TacticAttribute{}             -> cont
+    LockAttribute{}               -> cont
+    QuantityAttribute Quantityω{} -> cont
+    QuantityAttribute Quantity1{} -> __IMPOSSIBLE__
+    QuantityAttribute Quantity0{} -> do
+      unlessM (optErasure <$> pragmaOptions) $
+        err "Erasure" "--erasure"
+      cont
+    CohesionAttribute{} -> do
+      unlessM (optCohesion <$> pragmaOptions) $
+        err "Cohesion" "--cohesion"
+      cont
+  where
+  cont = checkAttributes attrs
+
+  err kind opt =
+    setCurrentRange r $
+    typeError $ GenericDocError $ P.fsep $
+    [P.text kind] ++
+    P.pwords "attributes have not been enabled (use" ++
+    [P.text opt] ++
+    P.pwords "to enable them):" ++
+    [P.text s]
 
 {--------------------------------------------------------------------------
     Things we parse but are not part of the Agda file syntax

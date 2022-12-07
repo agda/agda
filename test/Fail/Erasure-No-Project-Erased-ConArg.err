@@ -1,3 +1,3 @@
-Erasure-No-Project-Erased-ConArg.agda:13,28-29
+Erasure-No-Project-Erased-ConArg.agda:15,28-29
 Variable n is declared erased, so it cannot be used here
 when checking that the expression n has type Nat

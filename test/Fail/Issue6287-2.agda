@@ -1,4 +1,4 @@
-{-# OPTIONS --erased-cubical #-}
+{-# OPTIONS --erased-cubical --erasure #-}
 
 open import Issue6287-2.Cubical
 

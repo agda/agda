@@ -60,6 +60,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.Compiler.Treeless.Erase
 import {-# SOURCE #-} Agda.Compiler.Builtin
 
+import Agda.Utils.CallStack.Base
 import Agda.Utils.Either
 import Agda.Utils.Functor
 import Agda.Utils.Lens
@@ -69,7 +70,7 @@ import Agda.Utils.ListT
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Utils.Pretty (Doc, prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Update
@@ -631,11 +632,12 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                 GeneralizableVar -> return GeneralizableVar
                 _ -> do
                   (mst, _, cc) <- compileClauses Nothing [cl] -- Andreas, 2012-10-07 non need for record pattern translation
+                  fun          <- emptyFunctionData
                   let newDef =
                         set funMacro  (oldDef ^. funMacro) $
                         set funStatic (oldDef ^. funStatic) $
                         set funInline True $
-                        FunctionDefn emptyFunctionData
+                        FunctionDefn fun
                         { _funClauses        = [cl]
                         , _funCompiled       = Just cc
                         , _funSplitTree      = mst
@@ -807,12 +809,35 @@ singleConstructorType q = do
 data SigError
   = SigUnknown String -- ^ The name is not in the signature; default error message.
   | SigAbstract       -- ^ The name is not available, since it is abstract.
+  | SigCubicalNotErasure
+    -- ^ The name is not available because it was defined in Cubical
+    -- Agda, but the current language is Erased Cubical Agda, and
+    -- @--erasure@ is not active.
 
--- | Standard eliminator for 'SigError'.
-sigError :: (String -> a) -> a -> SigError -> a
-sigError f a = \case
-  SigUnknown s -> f s
-  SigAbstract  -> a
+-- | Generates an error message corresponding to
+-- 'SigCubicalNotErasure' for a given 'QName'.
+notSoPrettySigCubicalNotErasure :: QName -> String
+notSoPrettySigCubicalNotErasure q =
+  "The name " ++ prettyShow q ++ " which was defined in Cubical " ++
+  "Agda can only be used in Erased Cubical Agda if the option " ++
+  "--erasure is used"
+
+-- | Generates an error message corresponding to
+-- 'SigCubicalNotErasure' for a given 'QName'.
+prettySigCubicalNotErasure :: MonadPretty m => QName -> m Doc
+prettySigCubicalNotErasure q = fsep $
+  pwords "The name" ++
+  [prettyTCM q] ++
+  pwords "which was defined in Cubical Agda can only be used in" ++
+  pwords "Erased Cubical Agda if the option --erasure is used"
+
+-- | An eliminator for 'SigError'. All constructors except for
+-- 'SigAbstract' are assumed to be impossible.
+sigError :: (HasCallStack, MonadDebug m) => m a -> SigError -> m a
+sigError a = \case
+  SigUnknown s         -> __IMPOSSIBLE_VERBOSE__ s
+  SigAbstract          -> a
+  SigCubicalNotErasure -> __IMPOSSIBLE__
 
 class ( Functor m
       , Applicative m
@@ -829,6 +854,8 @@ class ( Functor m
       Left (SigUnknown err) -> __IMPOSSIBLE_VERBOSE__ err
       Left SigAbstract      -> __IMPOSSIBLE_VERBOSE__ $
         "Abstract, thus, not in scope: " ++ prettyShow q
+      Left SigCubicalNotErasure -> __IMPOSSIBLE_VERBOSE__ $
+        notSoPrettySigCubicalNotErasure q
 
   -- | Version that reports exceptions:
   getConstInfo' :: QName -> m (Either SigError Definition)
@@ -890,8 +917,10 @@ instance HasConstInfo (TCMT IO) where
     defaultGetConstInfo st env q
   getConstInfo q = getConstInfo' q >>= \case
       Right d -> return d
-      Left (SigUnknown err) -> fail err
-      Left SigAbstract      -> notInScopeError $ qnameToConcrete q
+      Left (SigUnknown err)     -> fail err
+      Left SigAbstract          -> notInScopeError $ qnameToConcrete q
+      Left SigCubicalNotErasure ->
+        typeError . GenericDocError =<< prettySigCubicalNotErasure q
 
 defaultGetConstInfo
   :: (HasOptions m, MonadDebug m, MonadTCEnv m)
@@ -901,7 +930,9 @@ defaultGetConstInfo st env q = do
         idefs = st^.(stImports . sigDefinitions)
     case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
         []  -> return $ Left $ SigUnknown $ "Unbound name: " ++ prettyShow q ++ showQNameId q
-        [d] -> mkAbs env =<< fixQuantity d
+        [d] -> checkErasureFixQuantity d >>= \case
+                 Left err -> return (Left err)
+                 Right d  -> mkAbs env d
         ds  -> __IMPOSSIBLE_VERBOSE__ $ "Ambiguous name: " ++ prettyShow q
     where
       mkAbs env d
@@ -924,15 +955,20 @@ defaultGetConstInfo st env q = do
                  initWithDefault __IMPOSSIBLE__ $ mnameToList m
              }
 
-      -- Names defined when --cubical is active are (to a large
-      -- degree) treated as erased when --erased-cubical is used.
-      fixQuantity d = do
+      -- Names defined in Cubical Agda may only be used in Erased
+      -- Cubical Agda if --erasure is used. In that case they are (to
+      -- a large degree) treated as erased.
+      checkErasureFixQuantity d = do
         current <- getLanguage
-        return $
-          if defLanguage d == Cubical CFull &&
-             current == Cubical CErased
-          then setQuantity zeroQuantity d
-          else d
+        if defLanguage d == Cubical CFull &&
+           current == Cubical CErased
+        then do
+          erasure <- optErasure <$> pragmaOptions
+          return $
+            if erasure
+            then Right $ setQuantity zeroQuantity d
+            else Left SigCubicalNotErasure
+        else return $ Right d
 
 -- HasConstInfo lifts through monad transformers
 -- (see default signatures in HasConstInfo class).

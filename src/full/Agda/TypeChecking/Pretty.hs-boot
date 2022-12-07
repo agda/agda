@@ -30,6 +30,7 @@ hang                  :: Applicative m => m Doc -> Int -> m Doc -> m Doc
 nest                  :: Functor m => Int -> m Doc -> m Doc
 pretty                :: (Applicative m, P.Pretty a) => a -> m Doc
 prettyList_           :: (Applicative m, Semigroup (m Doc), Foldable t) => t (m Doc) -> m Doc
+pwords                :: Applicative m => String -> [m Doc]
 
 -- The definition of MonadAbsToCon is inlined so that the module
 -- Agda.Syntax.Translation.AbstractToConcrete does not need to be

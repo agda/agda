@@ -18,6 +18,8 @@ import Control.Monad.Trans.Maybe
 import Data.List (find, sortBy)
 import Data.Function (on)
 
+import Agda.Interaction.Options.Base
+
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -951,8 +953,9 @@ bindBuiltinNoDef b q = inTopContext $ do
 
     Just (BuiltinPostulate rel mt) -> do
       -- We start by adding the corresponding postulate
-      t <- mt
-      addConstant' q (setRelevance rel defaultArgInfo) q t def
+      t   <- mt
+      fun <- emptyFunctionData
+      addConstant' q (setRelevance rel defaultArgInfo) q t (def fun)
       -- And we then *modify* the definition based on our needs:
       -- We add polarity information for SIZE-related definitions
       builtinSizeHook b q t
@@ -961,7 +964,8 @@ bindBuiltinNoDef b q = inTopContext $ do
       where
         -- Andreas, 2015-02-14
         -- Special treatment of SizeUniv, should maybe be a primitive.
-        def | b == builtinSizeUniv = FunctionDefn $ emptyFunctionData
+        def fun
+            | b == builtinSizeUniv = FunctionDefn $ fun
                 { _funClauses    = [ (empty :: Clause) { clauseBody = Just $ Sort sSizeUniv } ]
                 , _funCompiled   = Just (CC.Done [] $ Sort sSizeUniv)
                 , _funMutual     = Just []
@@ -984,8 +988,9 @@ bindBuiltinNoDef b q = inTopContext $ do
       bindBuiltinName b v
 
     Just (BuiltinDataCons mt) -> do
-      t <- mt
-      d <- return $! getPrimName $ unEl t
+      t       <- mt
+      d       <- return $! getPrimName $ unEl t
+      erasure <- optErasure <$> pragmaOptions
       let
         ch = ConHead q IsData Inductive []
         def = Constructor
@@ -999,6 +1004,7 @@ bindBuiltinNoDef b q = inTopContext $ do
               , conProj   = Nothing
               , conForced = []
               , conErased = Nothing
+              , conErasure = erasure
               }
       addConstant' q defaultArgInfo q t def
       addDataCons d [q]

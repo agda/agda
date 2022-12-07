@@ -1,6 +1,8 @@
 -- Test case for issue #4638.
 -- Partly based on code due to Andrea Vezzosi.
 
+{-# OPTIONS --erasure #-}
+
 open import Common.Prelude
 
 data D : Set where

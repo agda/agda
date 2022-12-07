@@ -5,6 +5,8 @@
 
 module Agda.TypeChecking.Rules.Builtin.Coinduction where
 
+import Agda.Interaction.Options.Base
+
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -70,6 +72,7 @@ bindBuiltinSharp x =
     _ <- checkExpr (A.Def sharp) sharpType
     Def inf _ <- primInf
     infDefn   <- getConstInfo inf
+    erasure   <- optErasure <$> pragmaOptions
     addConstant (defName infDefn) $
       infDefn { defPolarity       = [] -- not monotone
               , defArgOccurrences = [Unused, StrictPos]
@@ -101,6 +104,7 @@ bindBuiltinSharp x =
                     , conProj   = Nothing
                     , conForced = []
                     , conErased = Nothing
+                    , conErasure = erasure
                     }
                 }
     return $ Def sharp []
@@ -152,11 +156,12 @@ bindBuiltinFlat x =
           , projIndex    = 3
           , projLams     = ProjLams $ [ argH "a" , argH "A" , argN "x" ]
           }
+    fun <- emptyFunctionData
     addConstant flat $
       flatDefn { defPolarity       = []
                , defArgOccurrences = [StrictPos]  -- changing that to [Mixed] destroys monotonicity of 'Rec' in test/succeed/GuardednessPreservingTypeConstructors
                , defCopatternLHS = hasProjectionPatterns cc
-               , theDef = FunctionDefn emptyFunctionData
+               , theDef = FunctionDefn fun
                    { _funClauses      = [clause]
                    , _funCompiled     = Just $ cc
                    , _funProjection   = Right projection

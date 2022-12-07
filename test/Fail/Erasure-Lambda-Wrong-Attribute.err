@@ -1,4 +1,4 @@
-Erasure-Lambda-Wrong-Attribute.agda:7,23-35
+Erasure-Lambda-Wrong-Attribute.agda:9,23-35
 Incorrect quantity annotation in lambda
 when checking that the expression λ (@ω y) → y has type
 @0 _A_6 → _B_7

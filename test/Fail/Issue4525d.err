@@ -1,3 +1,3 @@
-Issue4525d.agda:5,16-17
+Issue4525d.agda:7,16-17
 Variable A is declared erased, so it cannot be used here
 when checking that the expression A has type Set

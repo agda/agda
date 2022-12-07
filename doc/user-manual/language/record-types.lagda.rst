@@ -1,6 +1,6 @@
 ..
   ::
-  {-# OPTIONS --guardedness #-}
+  {-# OPTIONS --guardedness --erasure #-}
 
   module language.record-types where
 

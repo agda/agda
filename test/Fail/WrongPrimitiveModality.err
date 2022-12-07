@@ -1,4 +1,4 @@
-WrongPrimitiveModality.agda:12,8-36
+WrongPrimitiveModality.agda:13,8-36
 Wrong modality for primitive primShowNat
   Got:      instance, erased
   Expected: visible, unrestricted

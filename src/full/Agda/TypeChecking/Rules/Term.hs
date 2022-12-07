@@ -744,11 +744,12 @@ checkAbsurdLambda cmp i h e t =
             , nest 2 $ "of type" <+> prettyTCM t'
             ]
           lang <- getLanguage
+          fun  <- emptyFunctionData
           addConstant aux $
             (\ d -> (defaultDefn (setModality mod info') aux t' lang d)
                     { defPolarity       = [Nonvariant]
                     , defArgOccurrences = [Unused] })
-            $ FunctionDefn emptyFunctionData
+            $ FunctionDefn fun
               { _funClauses        =
                   [ Clause
                     { clauseLHSRange  = getRange e
@@ -823,8 +824,9 @@ checkExtendedLambda cmp i di erased qname cs e t = do
        -- otherwise, @addClause@ in @checkFunDef'@ fails (see issue 1009).
        addConstant qname =<< do
          lang <- getLanguage
+         fun  <- emptyFunction
          useTerPragma $
-           (defaultDefn info qname t lang emptyFunction)
+           (defaultDefn info qname t lang fun)
              { defMutual = j }
        checkFunDef' t info NotDelayed (Just $ ExtLamInfo lamMod False empty) Nothing di qname $
          List1.toList cs

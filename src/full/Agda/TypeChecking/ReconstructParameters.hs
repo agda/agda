@@ -147,14 +147,19 @@ extractParameters q ty = reduce (unEl ty) >>= \case
     ((_,Def _ postPs),_) <- inferSpine' reconstructAction dt (Def d []) (Def d []) prePs
     reportSDoc "tc.reconstruct" 50 $ "The spine has been inferred:" <+> pretty postPs
     info <- getConstInfo q
-    let mkParam = hideAndRelParams
-                . isApplyElim' __IMPOSSIBLE__
+    let mkParam erasure =
+            (if erasure then applyQuantity zeroQuantity else id)
+          . hideAndRelParams
+          . isApplyElim' __IMPOSSIBLE__
     if -- Case: data or record constructor
-       | Constructor{ conPars = n } <- theDef info ->
-           return $ map mkParam $ take n postPs
+       | Constructor{ conPars = n, conErasure = e } <- theDef info ->
+           return $ map (mkParam e) $ take n postPs
        -- Case: regular projection
        | isProperProjection (theDef info) ->
-           return $ map mkParam postPs
+         case theDef info of
+           Function{ funErasure = e } ->
+             return $ map (mkParam e) postPs
+           _ -> __IMPOSSIBLE__
        -- Case: projection-like function
        | otherwise -> do
            TelV tel _ <- telViewUpTo (size postPs) $ defType info

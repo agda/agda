@@ -1,4 +1,4 @@
-{-# OPTIONS --cohesion #-}
+{-# OPTIONS --cohesion --erasure #-}
 
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Equality

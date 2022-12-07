@@ -248,9 +248,16 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
               , recComp           = emptyCompKit -- filled in later
               }
 
+        erasure <- optErasure <$> pragmaOptions
         -- Add record constructor to signature
         addConstant' conName defaultArgInfo conName
-            (telh `abstract` contype) $
+             -- If --erasure is used, then the parameters are erased
+             -- in the constructor's type.
+            ((if erasure
+              then fmap (applyQuantity zeroQuantity)
+              else id)
+               telh
+             `abstract` contype) $
             Constructor
               { conPars   = npars
               , conArity  = size fs
@@ -262,6 +269,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
               , conProj   = Nothing       -- filled in later
               , conForced = []
               , conErased = Nothing
+              , conErasure = erasure
               }
 
       -- Declare the constructor as eligible for instance search
@@ -350,7 +358,13 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
       -- For checking the record declarations, hide the record parameters
       -- and the parameters of the parent modules.
       modifyContextInfo (hideOrKeepInstance . maybeErase) $ do
-        params <- getContext
+        -- If --erasure is used, then the parameters are erased in the
+        -- types of the projections.
+        erasure <- optErasure <$> pragmaOptions
+        params  <- (if erasure
+                    then fmap (applyQuantity zeroQuantity)
+                    else id)
+                     <$> getContext
 
         -- Check the types of the fields and the other record declarations.
         addRecordVar $ withCurrentModule m $ do
@@ -559,7 +573,7 @@ defineKanOperationR cmd name params fsT fns rect = do
 
     [@con@  ]  name of the record constructor
 
-    [@tel@  ]  parameters and record variable r ("self")
+    [@tel@  ]  parameters (perhaps erased) and record variable r ("self")
 
     [@ftel@ ]  telescope of fields
 
@@ -749,6 +763,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
 
         escapeContext impossible (size tel) $ do
           lang <- getLanguage
+          fun  <- emptyFunctionData
           let -- It should be fine to mark a field with @ω in an
               -- erased record type: the field will be non-erased, but
               -- the projection will be erased. The following code
@@ -759,7 +774,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                       q           -> q
           addConstant projname $
             (defaultDefn ai' projname (killRange finalt) lang $ FunctionDefn
-              emptyFunctionData
+              fun
                 { _funClauses        = [clause]
                 , _funCompiled       = Just cc
                 , _funSplitTree      = mst

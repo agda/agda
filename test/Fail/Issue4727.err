@@ -1,4 +1,4 @@
-Issue4727.agda:9,7-10
+Issue4727.agda:11,7-10
 Cannot instantiate the metavariable _x_6 to solution c
 since (part of) the solution was created in an erased context
 when checking that the expression p _ has type P c

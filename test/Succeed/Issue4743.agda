@@ -1,4 +1,4 @@
-{-# OPTIONS --guardedness #-}
+{-# OPTIONS --guardedness --erasure #-}
 
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Coinduction

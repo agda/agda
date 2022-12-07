@@ -191,8 +191,9 @@ checkAlias t ai delayed i name e mc =
         _          -> id
 
   -- Add the definition
+  fun <- emptyFunctionData
   addConstant' name ai name t $ set funMacro (Info.defMacro i == MacroDef) $
-      FunctionDefn emptyFunctionData
+      FunctionDefn fun
           { _funClauses   = [ Clause  -- trivial clause @name = v@
               { clauseLHSRange    = getRange i
               , clauseFullRange   = getRange i
@@ -422,9 +423,10 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
 
           -- If there was a pragma for this definition, we can set the
           -- funTerminates field directly.
+          fun  <- emptyFunctionData
           defn <- autoInline $
              set funMacro (ismacro || Info.defMacro i == MacroDef) $
-             FunctionDefn emptyFunctionData
+             FunctionDefn fun
              { _funClauses        = cs
              , _funCompiled       = Just cc
              , _funSplitTree      = mst
@@ -1087,8 +1089,8 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _ _) vtys0
         -- Andreas, 2013-02-26 add with-name to signature for printing purposes
         addConstant aux =<< do
           lang <- getLanguage
-          useTerPragma $
-            defaultDefn defaultArgInfo aux __DUMMY_TYPE__ lang
+          useTerPragma =<<
+            defaultDefn defaultArgInfo aux __DUMMY_TYPE__ lang <$>
               emptyFunction
 
         reportSDoc "tc.with.top" 20 $ vcat $
@@ -1184,8 +1186,9 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
         ]
   addConstant aux =<< do
     lang <- getLanguage
+    fun  <- emptyFunction
     useTerPragma $
-      (defaultDefn defaultArgInfo aux withFunType lang emptyFunction)
+      (defaultDefn defaultArgInfo aux withFunType lang fun)
         { defDisplay = [df] }
   -- solveSizeConstraints -- Andreas, 2012-10-16 does not seem necessary
 

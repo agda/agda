@@ -93,17 +93,16 @@ cohesionAttributeTable =
   , ("flat" , Flat)
   ]
 
--- | Information about cohesion attributes (printed representations
--- and positions).
+-- | Information about attributes (attribute, range, printed
+-- representation).
 --
 -- This information is returned by the parser. Code that calls the
--- parser should, if appropriate, complain if support for cohesion
--- attributes has not been enabled and the returned list is non-empty.
--- This can be taken care of by
--- 'Agda.Syntax.Translation.ConcreteToAbstract.checkCohesionAttributes',
--- which should not be called until after pragma options have been set.
+-- parser should, if appropriate, complain if support for the given
+-- attributes has not been enabled. This can be taken care of by
+-- 'Agda.Syntax.Translation.ConcreteToAbstract.checkAttributes', which
+-- should not be called until after pragma options have been set.
 
-type CohesionAttributes = [(String, Range)]
+type Attributes = [(Attribute, Range, String)]
 
 -- | Modifiers for 'Quantity'.
 

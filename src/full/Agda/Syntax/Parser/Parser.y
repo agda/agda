@@ -2463,10 +2463,8 @@ instance SetRange Attr where
 toAttribute :: Expr -> Parser Attr
 toAttribute x = do
   attr <- maybe failure (return . Attr r y) $ exprToAttribute x
-  case theAttr attr of
-    CohesionAttribute{} ->
-      modify' (\s -> s { parseCohesion = (y, r) : parseCohesion s })
-    _                   -> return ()
+  modify' (\s -> s { parseAttributes =
+                       (theAttr attr, r, y) : parseAttributes s })
   return attr
   where
   r = getRange x

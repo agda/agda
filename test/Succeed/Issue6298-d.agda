@@ -1,4 +1,4 @@
-{-# OPTIONS --erased-cubical --safe -vtc.lhs.top:30 #-}
+{-# OPTIONS --erased-cubical --erasure --safe -vtc.lhs.top:30 #-}
 
 data I : Set where
 

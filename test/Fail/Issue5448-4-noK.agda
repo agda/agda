@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --without-K --erasure #-}
 
 open import Agda.Builtin.Equality
 

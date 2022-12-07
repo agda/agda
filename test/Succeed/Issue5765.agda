@@ -1,4 +1,4 @@
-{-# OPTIONS --allow-unsolved-metas #-}
+{-# OPTIONS --erasure --allow-unsolved-metas #-}
 
 open import Agda.Builtin.Equality
 

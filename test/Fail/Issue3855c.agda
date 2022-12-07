@@ -1,6 +1,8 @@
 -- Andreas, 2019-06-25, issue #3855 reported by nad
 -- Constraint solver needs to respect erasure.
 
+{-# OPTIONS --erasure #-}
+
 open import Agda.Builtin.Bool
 
 module _ where

@@ -3,7 +3,7 @@
 -- * The following primitives are not used at all: primPOr, primComp,
 --   primHComp, prim^glueU and prim^unglueU.
 
-{-# OPTIONS --erased-cubical --save-metas #-}
+{-# OPTIONS --erased-cubical --erasure --save-metas #-}
 
 -- The code from Agda.Builtin.Cubical.Glue should not be compiled.
 

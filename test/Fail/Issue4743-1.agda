@@ -1,5 +1,7 @@
 -- An example from the changelog.
 
+{-# OPTIONS --erasure #-}
+
 open import Agda.Builtin.Equality
 
 data Unit : Set where

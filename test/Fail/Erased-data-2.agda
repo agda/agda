@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 data @0 D : Set
 
 data D where

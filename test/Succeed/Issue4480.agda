@@ -1,4 +1,4 @@
-{-# OPTIONS --irrelevant-projections #-}
+{-# OPTIONS --irrelevant-projections --erasure #-}
 
 data _≡_ {A : Set} : A → A → Set where
   refl : (x : A) → x ≡ x

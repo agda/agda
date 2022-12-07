@@ -1,4 +1,4 @@
-{-# OPTIONS --cohesion #-}
+{-# OPTIONS --cohesion --erasure #-}
 
 module Highlighting where
 

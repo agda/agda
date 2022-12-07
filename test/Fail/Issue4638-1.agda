@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 open import Agda.Builtin.Unit
 
 data D : Set where

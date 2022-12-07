@@ -1,4 +1,4 @@
-Issue6298.agda:10,19-23
+Issue6298.agda:11,19-23
 The argument P has type
   (y : A) → x ≡ y → Set
 which is not usable at the required modality @ω.

@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 open import Agda.Builtin.Reflection
 open import Agda.Builtin.Unit
 

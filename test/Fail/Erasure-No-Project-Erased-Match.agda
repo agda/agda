@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 -- Andreas, 2018-10-17, re #2757
 --
 -- Don't project from erased matches.

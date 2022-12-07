@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 -- Andreas, 2018-10-16, runtime erasure
 --
 -- Should not be able to extract erased constructor field.

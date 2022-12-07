@@ -1,7 +1,7 @@
 -- Andreas, 2019-06-18, LAIM 2019, issue #3855:
 -- Successful tests for the erasure (@0) modality.
 
-{-# OPTIONS --guardedness #-}
+{-# OPTIONS --guardedness --erasure #-}
 
 module _ where
 
@@ -64,14 +64,13 @@ module ErasedEquality where
 
 module ParametersAreErased where
 
-  -- Parameter arguments of constructors of indexed data types are not
-  -- currently erased. However, once --erasure is added they will be
-  -- erased when --with-K is used.
+  -- This module uses --with-K, so the parameters of this indexed data
+  -- type are erased in the type of the constructor c.
 
   data D (A : Set) : Bool → Set where
     c : D A true
 
-  test : (A : Set) → D A true
+  test : (@0 A : Set) → D A true
   test A = c {A = A}
 
 module Records where
@@ -82,7 +81,7 @@ module Records where
     Par : Set
     Par = A    -- record module parameters are NOT erased, so, this should be accepted
 
-  proj : (A : Set) → R A → A
+  proj : (@0 A : Set) → R A → A
   proj A r = R.el {A = A} r
 
   MyPar : (A : Set) → R A → Set

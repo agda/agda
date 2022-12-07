@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 module Erased-modules-1 where
 
 -- Everything in this local module is erased.

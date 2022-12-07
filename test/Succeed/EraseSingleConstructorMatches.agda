@@ -3,6 +3,8 @@
 -- Matching on runtime-irrelevant arguments is fine
 -- as long as it produces only one branch.
 
+{-# OPTIONS --erasure #-}
+
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Equality
 open import Agda.Builtin.Nat

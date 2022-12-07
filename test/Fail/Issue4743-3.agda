@@ -1,6 +1,6 @@
 -- An example involving the "sharp" function.
 
-{-# OPTIONS --guardedness #-}
+{-# OPTIONS --guardedness --erasure #-}
 
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Equality

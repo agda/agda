@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 open import Agda.Builtin.Bool
 
 data @0 D₁ : Set where

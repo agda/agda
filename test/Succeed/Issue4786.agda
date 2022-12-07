@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 data D (A : Set) : Set where
   c₁ : D A
 

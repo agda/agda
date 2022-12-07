@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 module _ where
 
 open import Agda.Builtin.Bool

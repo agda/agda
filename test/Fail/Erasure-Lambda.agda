@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 -- Andreas, 2018-10-16, erased lambda-arguments
 
 applyErased : {@0 A B : Set} → (@0 A → B) → @0 A → B

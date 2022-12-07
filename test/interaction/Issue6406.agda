@@ -1,3 +1,4 @@
+{-# OPTIONS --erasure #-}
 
 record R (A : Set) : Set where
   field

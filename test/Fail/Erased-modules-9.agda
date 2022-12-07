@@ -2,6 +2,8 @@
 -- allowed, then the re-exported definitions should arguably be
 -- erased.)
 
+{-# OPTIONS --erasure #-}
+
 module _ where
 
 module @0 Bool where

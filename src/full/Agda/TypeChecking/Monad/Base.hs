@@ -2289,6 +2289,9 @@ data FunctionData = FunctionData
       --   it is already applied to the record. (Can happen in module
       --   instantiation.) This information is used in the termination
       --   checker.
+  , _funErasure :: !Bool
+    -- ^ Was @--erasure@ in effect when the function was defined?
+    -- (This can affect the type of a projection.)
   , _funFlags          :: Set FunctionFlag
   , _funTerminates     :: Maybe Bool
       -- ^ Has this function been termination checked?  Did it pass?
@@ -2314,6 +2317,7 @@ pattern Function
   -> IsAbstract
   -> Delayed
   -> Either ProjectionLikenessMissing Projection
+  -> Bool
   -> Set FunctionFlag
   -> Maybe Bool
   -> Maybe ExtLamInfo
@@ -2331,6 +2335,7 @@ pattern Function
   , funAbstr
   , funDelayed
   , funProjection
+  , funErasure
   , funFlags
   , funTerminates
   , funExtLam
@@ -2347,6 +2352,7 @@ pattern Function
     funAbstr
     funDelayed
     funProjection
+    funErasure
     funFlags
     funTerminates
     funExtLam
@@ -2527,6 +2533,9 @@ data ConstructorData = ConstructorData
       --   'True' means erased, 'False' means retained.
       --   'Nothing' if no erasure analysis has been performed yet.
       --   The length of the list is @conArity@.
+  , _conErasure :: !Bool
+    -- ^ Was @--erasure@ in effect when the constructor was defined?
+    -- (This can affect the constructor's type.)
   } deriving (Show, Generic)
 
 pattern Constructor
@@ -2540,6 +2549,7 @@ pattern Constructor
   -> Maybe [QName]
   -> [IsForced]
   -> Maybe [Bool]
+  -> Bool
   -> Defn
 pattern Constructor
   { conPars
@@ -2552,6 +2562,7 @@ pattern Constructor
   , conProj
   , conForced
   , conErased
+  , conErasure
   } = ConstructorDefn (ConstructorData
     conPars
     conArity
@@ -2563,6 +2574,7 @@ pattern Constructor
     conProj
     conForced
     conErased
+    conErasure
   )
 
 data PrimitiveData = PrimitiveData
@@ -2691,6 +2703,7 @@ instance Pretty FunctionData where
       funAbstr
       funDelayed
       funProjection
+      funErasure
       funFlags
       funTerminates
       _funExtLam
@@ -2707,6 +2720,7 @@ instance Pretty FunctionData where
       , "funAbstr        =" <?> pshow funAbstr
       , "funDelayed      =" <?> pshow funDelayed
       , "funProjection   =" <?> pretty funProjection
+      , "funErasure      =" <?> pretty funErasure
       , "funFlags        =" <?> pshow funFlags
       , "funTerminates   =" <?> pshow funTerminates
       , "funWith         =" <?> pretty funWith
@@ -2777,15 +2791,17 @@ instance Pretty ConstructorData where
       _conProj
       _conForced
       conErased
+      conErasure
     ) =
     "Constructor {" <?> vcat
-      [ "conPars   =" <?> pshow conPars
-      , "conArity  =" <?> pshow conArity
-      , "conSrcCon =" <?> pretty conSrcCon
-      , "conData   =" <?> pretty conData
-      , "conAbstr  =" <?> pshow conAbstr
-      , "conInd    =" <?> pshow conInd
-      , "conErased =" <?> pshow conErased
+      [ "conPars    =" <?> pshow conPars
+      , "conArity   =" <?> pshow conArity
+      , "conSrcCon  =" <?> pretty conSrcCon
+      , "conData    =" <?> pretty conData
+      , "conAbstr   =" <?> pshow conAbstr
+      , "conInd     =" <?> pshow conInd
+      , "conErased  =" <?> pshow conErased
+      , "conErasure =" <?> pshow conErasure
       ] <?> "}"
 
 instance Pretty PrimitiveData where
@@ -2837,28 +2853,32 @@ recRecursive _ = __IMPOSSIBLE__
 recEtaEquality :: Defn -> HasEta
 recEtaEquality = theEtaEquality . recEtaEquality'
 
--- | A template for creating 'Function' definitions, with sensible defaults.
-emptyFunctionData :: FunctionData
-emptyFunctionData = FunctionData
-  { _funClauses     = []
-  , _funCompiled    = Nothing
-  , _funSplitTree   = Nothing
-  , _funTreeless    = Nothing
-  , _funInv         = NotInjective
-  , _funMutual      = Nothing
-  , _funAbstr       = ConcreteDef
-  , _funDelayed     = NotDelayed
-  , _funProjection  = Left MaybeProjection
-  , _funFlags       = Set.empty
-  , _funTerminates  = Nothing
-  , _funExtLam      = Nothing
-  , _funWith        = Nothing
-  , _funCovering    = []
-  , _funIsKanOp     = Nothing
-  }
+-- | A template for creating 'Function' definitions, with sensible
+-- defaults.
+emptyFunctionData :: HasOptions m => m FunctionData
+emptyFunctionData = do
+  erasure <- optErasure <$> pragmaOptions
+  return $ FunctionData
+    { _funClauses     = []
+    , _funCompiled    = Nothing
+    , _funSplitTree   = Nothing
+    , _funTreeless    = Nothing
+    , _funInv         = NotInjective
+    , _funMutual      = Nothing
+    , _funAbstr       = ConcreteDef
+    , _funDelayed     = NotDelayed
+    , _funProjection  = Left MaybeProjection
+    , _funErasure     = erasure
+    , _funFlags       = Set.empty
+    , _funTerminates  = Nothing
+    , _funExtLam      = Nothing
+    , _funWith        = Nothing
+    , _funCovering    = []
+    , _funIsKanOp     = Nothing
+    }
 
-emptyFunction :: Defn
-emptyFunction = FunctionDefn emptyFunctionData
+emptyFunction :: HasOptions m => m Defn
+emptyFunction = FunctionDefn <$> emptyFunctionData
 
 funFlag :: FunctionFlag -> Lens' Bool Defn
 funFlag flag f def@Function{ funFlags = flags } =
@@ -5289,11 +5309,11 @@ instance KillRange Defn where
       DataOrRecSig n -> DataOrRecSig n
       GeneralizableVar -> GeneralizableVar
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
-      Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with iskan ->
-        killRange14 Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with iskan
+      Function a b c d e f g h i j k l m n o p ->
+        killRange16 Function a b c d e f g h i j k l m n o p
       Datatype a b c d e f g h i j   -> killRange10 Datatype a b c d e f g h i j
       Record a b c d e f g h i j k l m -> killRange13 Record a b c d e f g h i j k l m
-      Constructor a b c d e f g h i j-> killRange10 Constructor a b c d e f g h i j
+      Constructor a b c d e f g h i j k -> killRange11 Constructor a b c d e f g h i j k
       Primitive a b c d e            -> killRange5 Primitive a b c d e
       PrimitiveSort a b              -> killRange2 PrimitiveSort a b
 

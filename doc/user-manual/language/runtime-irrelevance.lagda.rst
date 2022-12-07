@@ -1,7 +1,7 @@
 ..
   ::
 
-  {-# OPTIONS --cubical #-}
+  {-# OPTIONS --cubical --erasure #-}
 
   module language.runtime-irrelevance where
 
@@ -29,6 +29,7 @@ Syntax
 ======
 
 A function or constructor argument is declared erased using the ``@0`` or ``@erased`` annotation.
+(These annotations may only be used if the option :option:`--erasure` is active.)
 For example, the following definition of vectors guarantees that the length argument to ``_∷_`` is not
 present at runtime::
 
@@ -43,6 +44,13 @@ arguments.
   In this particular case, the compiler identifies that the length argument can be erased also without the
   annotation, using Brady et al's forcing analysis :ref:`[1] <references>`. Marking it erased explictly, however,
   ensures that it is erased without relying on the analysis.
+
+.. note::
+  If :option:`--erasure` is used, then parameters are marked as erased
+  in the type signatures of constructors and record fields, even if
+  the parameters are not marked as erased in the data or record type's
+  telescope, with one exception: for indexed data types this only
+  happens if the :option:`--with-K` flag is active.
 
 Erasure annotations can also appear in function arguments (both first-order and higher-order). For instance, here is
 an implementation of ``foldl`` on vectors::

@@ -1,6 +1,6 @@
 -- Currently open public is not allowed in erased modules.
 
-{-# OPTIONS --warning=error #-}
+{-# OPTIONS --erasure --warning=error #-}
 
 module _ where
 

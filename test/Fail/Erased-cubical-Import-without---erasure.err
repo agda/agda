@@ -1,0 +1,4 @@
+Erased-cubical-Import-without---erasure.agda:11,21-26
+The name ∥_∥ which was defined in Cubical Agda can only be used in
+Erased Cubical Agda if the option --erasure is used
+when checking that the expression ∥ A ∥ has type _1

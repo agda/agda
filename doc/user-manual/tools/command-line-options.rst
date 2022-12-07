@@ -763,12 +763,23 @@ Other features
      This option can affect performance. The default is to not save
      the meta-variables.
 
+.. option:: --erasure
+
+     .. versionadded:: 2.6.4
+
+     Allow use of the annotations `@0` and `@erased`; allow use of
+     names defined in Cubical Agda in Erased Cubical Agda; and mark
+     parameters as erased in the type signatures of constructors and
+     record fields (if :option:`--with-K` is not active this is not
+     done for indexed data types).
+
 .. option:: --erase-record-parameters
 
      .. versionadded:: 2.6.3
 
-     Automatically marks parameters to record projections and
-     definitions in a record module as erased.
+     Mark parameters as erased in record module telescopes.
+
+     This option implies :option:`--erasure`.
 
 .. _warnings:
 
@@ -1091,6 +1102,7 @@ are infective:
 * :option:`--cumulativity`
 * :option:`--cohesion`
 * :option:`--flat-split`
+* :option:`--erasure`
 
 Furthermore :option:`--cubical` and :option:`--erased-cubical` are
 *jointly infective*: if one of them is used in one module, then one or
@@ -1134,6 +1146,7 @@ again, the source file is re-typechecked instead:
 * :option:`--double-check`
 * :option:`--erase-record-parameters`
 * :option:`--erased-cubical`
+* :option:`--erasure`
 * :option:`--exact-split`
 * :option:`--experimental-irrelevance`
 * :option:`--flat-split`

@@ -1,4 +1,4 @@
-Issue4743-4.agda:13,7-11
+Issue4743-4.agda:15,7-11
 Cannot instantiate the metavariable _5 to solution (λ ()) x
 since (part of) the solution was created in an erased context
 when checking that the expression refl has type h ≡ (λ ())

@@ -1,4 +1,4 @@
-Issue5410-1.agda:16,7-24
+Issue5410-1.agda:18,7-24
 Identifier A.M′.some-boolean is declared erased, so it cannot be
 used here
 when checking that the expression A.M′.some-boolean has type

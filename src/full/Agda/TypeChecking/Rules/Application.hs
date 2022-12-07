@@ -129,8 +129,10 @@ checkApplication cmp hd args e t =
     -- Subcase: unambiguous constructor
     A.Con ambC | Just c <- getUnambiguous ambC -> do
       -- augment c with record fields, but do not revert to original name
-      con <- fromRightM (sigError __IMPOSSIBLE_VERBOSE__ (typeError $ AbstractConstructorNotInScope c)) $
-        getOrigConHead c
+      con <-
+        fromRightM
+          (sigError (typeError $ AbstractConstructorNotInScope c)) $
+          getOrigConHead c
       checkConstructorApplication cmp e t con args
 
     -- Subcase: ambiguous constructor
@@ -314,8 +316,10 @@ inferHead e = do
 
       -- First, inferDef will try to apply the constructor
       -- to the free parameters of the current context. We ignore that.
-      con <- fromRightM (sigError __IMPOSSIBLE_VERBOSE__ (typeError $ AbstractConstructorNotInScope c)) $
-        getOrigConHead c
+      con <-
+        fromRightM
+          (sigError (typeError $ AbstractConstructorNotInScope c)) $
+          getOrigConHead c
       (u, a) <- inferDef (\ _ -> Con con ConOCon []) c
 
       -- Next get the number of parameters in the current context.
@@ -1658,8 +1662,9 @@ checkSharpApplication e t c args = do
     addConstant c' =<< do
       let ai = setModality mod defaultArgInfo
       lang <- getLanguage
+      fun  <- emptyFunction
       useTerPragma $
-        (defaultDefn ai c' forcedType lang emptyFunction)
+        (defaultDefn ai c' forcedType lang fun)
         { defMutual = i }
 
     checkFunDef NotDelayed info c' [clause]

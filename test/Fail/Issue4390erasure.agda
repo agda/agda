@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 open import Agda.Builtin.Equality
 
 postulate

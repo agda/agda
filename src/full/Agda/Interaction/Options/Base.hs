@@ -184,6 +184,7 @@ data PragmaOptions = PragmaOptions
   , optEta                       :: Bool
   , optForcing                   :: Bool  -- ^ Perform the forcing analysis on data constructors?
   , optProjectionLike            :: Bool  -- ^ Perform the projection-likeness analysis on functions?
+  , optErasure                   :: Bool
   , optEraseRecordParameters     :: Bool  -- ^ Mark parameters of record modules as erased?
   , optRewriting                 :: Bool  -- ^ Can rewrite rules be added and used?
   , optCubical                   :: Maybe Cubical
@@ -331,6 +332,7 @@ defaultPragmaOptions = PragmaOptions
   , optEta                       = True
   , optForcing                   = True
   , optProjectionLike            = True
+  , optErasure                   = False
   , optEraseRecordParameters     = False
   , optRewriting                 = False
   , optCubical                   = Nothing
@@ -562,6 +564,7 @@ infectiveCoinfectiveOptions =
   , infectiveOption (collapseDefault . optGuardedness) "--guardedness"
   , infectiveOption (collapseDefault . optFlatSplit) "--flat-split"
   , infectiveOption optCohesion "--cohesion"
+  , infectiveOption optErasure "--erasure"
   ]
   where
   cubicalCompatible =
@@ -979,8 +982,14 @@ allowExec o = return $ o { optAllowExec = True }
 saveMetas :: Bool -> Flag PragmaOptions
 saveMetas save o = return $ o { optSaveMetas = Value save }
 
+erasureFlag :: Flag PragmaOptions
+erasureFlag o = return $ o { optErasure = True }
+
 eraseRecordParametersFlag :: Flag PragmaOptions
-eraseRecordParametersFlag o = return $ o { optEraseRecordParameters = True }
+eraseRecordParametersFlag o =
+  return $ o { optEraseRecordParameters = True
+             , optErasure               = True
+             }
 
 noEraseRecordParametersFlag :: Flag PragmaOptions
 noEraseRecordParametersFlag o = return $ o { optEraseRecordParameters = False }
@@ -1148,6 +1157,8 @@ pragmaOptions =
                     "disable the forcing analysis for data constructors (optimisation)"
     , Option []     ["no-projection-like"] (NoArg noProjectionLikeFlag)
                     "disable the analysis whether function signatures liken those of projections (optimisation)"
+    , Option []     ["erasure"] (NoArg erasureFlag)
+                    "enable erasure"
     , Option []     ["erase-record-parameters"] (NoArg eraseRecordParametersFlag)
                     "mark all parameters of record modules as erased"
     , Option []     ["no-erase-record-parameters"] (NoArg noEraseRecordParametersFlag)

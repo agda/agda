@@ -1,4 +1,4 @@
-{-# OPTIONS --safe --cubical #-}
+{-# OPTIONS --safe --cubical --erasure #-}
 
 module Erased-cubical.Cubical-again where
 

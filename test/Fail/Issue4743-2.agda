@@ -1,6 +1,8 @@
 -- Macros that are run in type signatures of erased definitions can
 -- only create erased definitions.
 
+{-# OPTIONS --erasure #-}
+
 open import Agda.Builtin.Equality
 open import Agda.Builtin.List
 open import Agda.Builtin.Reflection

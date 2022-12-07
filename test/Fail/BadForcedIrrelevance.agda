@@ -1,3 +1,4 @@
+{-# OPTIONS --erasure #-}
 
 open import Agda.Builtin.Nat
 

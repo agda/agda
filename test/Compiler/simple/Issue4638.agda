@@ -3,6 +3,8 @@
 -- the test by something like a factor of two or three (for the GHC
 -- backend, on one system).
 
+{-# OPTIONS --erasure #-}
+
 open import Agda.Builtin.IO
 open import Agda.Builtin.String
 open import Agda.Builtin.Unit

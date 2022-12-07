@@ -126,24 +126,25 @@ data Source = Source
   , srcModule      :: C.Module              -- ^ The parsed module.
   , srcModuleName  :: TopLevelModuleName    -- ^ The top-level module name.
   , srcProjectLibs :: [AgdaLibFile]         -- ^ The .agda-lib file(s) of the project this file belongs to.
-  , srcCohesion    :: !CohesionAttributes
-    -- ^ Every encountered occurrence of a cohesion attribute.
+  , srcAttributes  :: !Attributes
+    -- ^ Every encountered attribute.
   }
 
 -- | Parses a source file and prepares the 'Source' record.
 
 parseSource :: SourceFile -> TCM Source
 parseSource sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
-  (source, fileType, parsedMod, coh, parsedModName) <- mdo
+  (source, fileType, parsedMod, attrs, parsedModName) <- mdo
     -- This piece of code uses mdo because the top-level module name
     -- (parsedModName) is obtained from the parser's result, but it is
     -- also used by the parser.
     let rf = mkRangeFile f (Just parsedModName)
-    source                       <- runPM $ readFilePM rf
-    ((parsedMod, coh), fileType) <- runPM $ parseFile moduleParser rf $
-                                    TL.unpack source
-    parsedModName                <- moduleName f parsedMod
-    return (source, fileType, parsedMod, coh, parsedModName)
+    source                         <- runPM $ readFilePM rf
+    ((parsedMod, attrs), fileType) <- runPM $
+                                      parseFile moduleParser rf $
+                                      TL.unpack source
+    parsedModName                  <- moduleName f parsedMod
+    return (source, fileType, parsedMod, attrs, parsedModName)
   libs <- getAgdaLibFiles f parsedModName
   return Source
     { srcText        = source
@@ -152,7 +153,7 @@ parseSource sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
     , srcModule      = parsedMod
     , srcModuleName  = parsedModName
     , srcProjectLibs = libs
-    , srcCohesion    = coh
+    , srcAttributes  = attrs
     }
 
 srcDefaultPragmas :: Source -> TCM [OptionsPragma]
@@ -1002,7 +1003,7 @@ createInterface mname file isMain msrc = do
     stTokens `modifyTCLens` (fileTokenInfo <>)
 
     setOptionsFromSourcePragmas src
-    checkCohesionAttributes (srcCohesion src)
+    checkAttributes (srcAttributes src)
     syntactic <- optSyntacticEquality <$> pragmaOptions
     localTC (\env -> env { envSyntacticEqualityFuel = syntactic }) $ do
 

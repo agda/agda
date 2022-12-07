@@ -1,4 +1,4 @@
-{-# OPTIONS --erased-cubical --no-main --save-metas #-}
+{-# OPTIONS --erased-cubical --erasure --no-main --save-metas #-}
 
 open import Agda.Builtin.Bool
 

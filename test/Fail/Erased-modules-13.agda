@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 module _ where
 
 module Not-erased where

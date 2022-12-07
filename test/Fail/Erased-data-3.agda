@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 interleaved mutual
 
   data @0 D : Set where

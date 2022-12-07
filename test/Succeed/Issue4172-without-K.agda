@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical-compatible #-}
+{-# OPTIONS --cubical-compatible --erasure #-}
 
 record Erased (A : Set) : Set where
   constructor [_]

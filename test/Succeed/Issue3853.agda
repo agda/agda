@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 postulate
   A : Set
   B : A → Set
