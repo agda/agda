@@ -1106,9 +1106,9 @@ introTactic pmLambda ii = do
           I.Def d _ -> do
             def <- getConstInfo d
             case theDef def of
-              Datatype{}    -> addContext tel' $ introData t
+              Datatype{}    -> addContext tel' $ introData AmbiguousNothing t
               Record{ recNamedCon = name }
-                | name      -> addContext tel' $ introData t
+                | name      -> addContext tel' $ introData AmbiguousConProjs t
                 | otherwise -> addContext tel' $ introRec d
               _ -> fallback
           _ -> fallback
@@ -1119,8 +1119,8 @@ introTactic pmLambda ii = do
     conName [p] = [ c | I.ConP c _ _ <- [namedArg p] ]
     conName _   = __IMPOSSIBLE__
 
-    showUnambiguousConName v =
-       render . pretty <$> runAbsToCon (lookupQName AmbiguousNothing $ I.conName v)
+    showUnambiguousConName amb v =
+       render . pretty <$> runAbsToCon (lookupQName amb $ I.conName v)
 
     showTCM :: PrettyTCM a => a -> TCM String
     showTCM v = render <$> prettyTCM v
@@ -1150,15 +1150,15 @@ introTactic pmLambda ii = do
         makeName ("_", t) = ("x", t)
         makeName (x, t)   = (x, t)
 
-    introData :: I.Type -> TCM [String]
-    introData t = do
+    introData :: AllowAmbiguousNames -> I.Type -> TCM [String]
+    introData amb t = do
       let tel  = telFromList [defaultDom ("_", t)]
           pat  = [defaultArg $ unnamed $ debruijnNamedVar "c" 0]
       r <- splitLast CoInductive tel pat
       case r of
         Left err -> return []
         Right cov ->
-           mapM showUnambiguousConName $ concatMap (conName . scPats) $ splitClauses cov
+           mapM (showUnambiguousConName amb) $ concatMap (conName . scPats) $ splitClauses cov
 
     introRec :: QName -> TCM [String]
     introRec d = do
