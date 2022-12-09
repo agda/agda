@@ -305,6 +305,7 @@ ghcPreCompile flags = do
       , builtinAgdaTCMFormatErrorParts
       , builtinAgdaTCMDebugPrint
       , builtinAgdaTCMNoConstraints
+      , builtinAgdaTCMWorkOnTypes
       , builtinAgdaTCMRunSpeculative
       , builtinAgdaTCMExec
       , builtinAgdaTCMGetInstances

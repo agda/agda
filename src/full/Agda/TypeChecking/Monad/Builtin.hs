@@ -291,6 +291,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMAskNormalisation, primAgdaTCMAskReconstructed,
     primAgdaTCMAskExpandLast, primAgdaTCMAskReduceDefs,
     primAgdaTCMNoConstraints,
+    primAgdaTCMWorkOnTypes,
     primAgdaTCMRunSpeculative,
     primAgdaTCMExec,
     primAgdaTCMGetInstances,
@@ -508,6 +509,7 @@ primAgdaTCMAskReduceDefs              = getBuiltin builtinAgdaTCMAskReduceDefs
 primAgdaTCMFormatErrorParts           = getBuiltin builtinAgdaTCMFormatErrorParts
 primAgdaTCMDebugPrint                 = getBuiltin builtinAgdaTCMDebugPrint
 primAgdaTCMNoConstraints              = getBuiltin builtinAgdaTCMNoConstraints
+primAgdaTCMWorkOnTypes                = getBuiltin builtinAgdaTCMWorkOnTypes
 primAgdaTCMRunSpeculative             = getBuiltin builtinAgdaTCMRunSpeculative
 primAgdaTCMExec                       = getBuiltin builtinAgdaTCMExec
 primAgdaTCMGetInstances               = getBuiltin builtinAgdaTCMGetInstances
