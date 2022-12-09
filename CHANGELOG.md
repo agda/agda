@@ -191,6 +191,21 @@ Reflection
     pickWhatever _ = typeError (strErr "Already solved!" ∷ [])
   ```
 
+* A new reflection primitive `workOnTypes : TC A → TC A` was added to
+  `Agda.Builtin.Reflection`. This runs the given computation at the type level,
+  which enables the use of erased things. In particular, this is needed when
+  working with (dependent) function types with erased arguments. For example,
+  one can get the type of the tuple constructor `_,_` (which now takes its type
+  parameters as erased arguments, see above) and unify it with the current goal
+  as follows:
+  ```agda
+  macro
+    testM : Term → TC ⊤
+    testM hole = bindTC (getType (quote _,_)) (λ t → workOnTypes (unify hole t))
+
+  typeOfComma = testM
+  ```
+
 * [**Breaking**] The reflection primitives `getContext` and `inContext` use a nominal context
   `List (Σ String λ _ → Arg Type)` instead of  `List (Arg Type)` for printing
   type information better. Similarly, `extendContext` takes an extra argument
