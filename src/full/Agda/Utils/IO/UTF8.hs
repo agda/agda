@@ -21,10 +21,10 @@ import qualified System.IO.Error as E
 -- line or paragraph separators into '\n'.
 
 convertLineEndings :: Text -> Text
-convertLineEndings = T.map convert . convertNLCR
+convertLineEndings = T.map convert . convertCRLF
   where
-  -- Replaces NL CR with NL.
-  convertNLCR = T.replace "\n\x000D" "\n"
+  -- Replaces CR LF with LF.
+  convertCRLF = T.replace "\x000D\n" "\n"
 
   -- ASCII:
   convert '\x000D' = '\n'  -- CR  (Carriage return)
