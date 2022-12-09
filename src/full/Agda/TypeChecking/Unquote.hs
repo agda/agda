@@ -605,6 +605,7 @@ evalTCM v = do
              , (f `isDef` getBuiltin' builtinAgdaTCMRunSpeculative, tcRunSpeculative (unElim u))
              , (f `isDef` getBuiltin' builtinAgdaTCMExec, tcFun3 tcExec l a u)
              , (f `isDef` getBuiltin' builtinAgdaTCMPragmaCompile, tcFun3 tcPragmaCompile l a u)
+             , (f `isDef` getBuiltin' builtinAgdaTCMWorkOnTypes, tcWorkOnTypes (unElim u))
              ]
              failEval
     I.Def f [_, _, u, v] ->
@@ -726,6 +727,9 @@ evalTCM v = do
 
     tcNoConstraints :: Term -> UnquoteM Term
     tcNoConstraints m = liftU1 noConstraints (evalTCM m)
+
+    tcWorkOnTypes :: Term -> UnquoteM Term
+    tcWorkOnTypes m = liftU1 workOnTypes (evalTCM m)
 
     tcInferType :: R.Term -> TCM Term
     tcInferType v = do

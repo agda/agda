@@ -284,6 +284,7 @@ ghcPreCompile flags = do
       , builtinAgdaTCMOnlyReduceDefs
       , builtinAgdaTCMDontReduceDefs
       , builtinAgdaTCMNoConstraints
+      , builtinAgdaTCMWorkOnTypes
       , builtinAgdaTCMRunSpeculative
       , builtinAgdaTCMExec
       , builtinAgdaTCMGetInstances

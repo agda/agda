@@ -73,6 +73,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMWithNormalisation, builtinAgdaTCMWithReconsParams,
   builtinAgdaTCMOnlyReduceDefs, builtinAgdaTCMDontReduceDefs,
   builtinAgdaTCMNoConstraints,
+  builtinAgdaTCMWorkOnTypes,
   builtinAgdaTCMRunSpeculative,
   builtinAgdaTCMExec,
   builtinAgdaTCMGetInstances,
@@ -283,6 +284,7 @@ builtinAgdaTCMDebugPrint                 = "AGDATCMDEBUGPRINT"
 builtinAgdaTCMOnlyReduceDefs             = "AGDATCMONLYREDUCEDEFS"
 builtinAgdaTCMDontReduceDefs             = "AGDATCMDONTREDUCEDEFS"
 builtinAgdaTCMNoConstraints              = "AGDATCMNOCONSTRAINTS"
+builtinAgdaTCMWorkOnTypes                = "AGDATCMWORKONTYPES"
 builtinAgdaTCMRunSpeculative             = "AGDATCMRUNSPECULATIVE"
 builtinAgdaTCMExec                       = "AGDATCMEXEC"
 builtinAgdaTCMGetInstances               = "AGDATCMGETINSTANCES"

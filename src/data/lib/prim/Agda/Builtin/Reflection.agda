@@ -319,6 +319,9 @@ postulate
   -- "blocking" constraints.
   noConstraints : ∀ {a} {A : Set a} → TC A → TC A
 
+  -- Run the given computation at the type level, allowing use of erased things.
+  workOnTypes : ∀ {a} {A : Set a} → TC A → TC A
+
   -- Run the given TC action and return the first component. Resets to
   -- the old TC state if the second component is 'false', or keep the
   -- new TC state if it is 'true'.
@@ -364,6 +367,7 @@ postulate
 {-# BUILTIN AGDATCMDONTREDUCEDEFS             dontReduceDefs             #-}
 {-# BUILTIN AGDATCMWITHRECONSPARAMS           withReconstructed          #-}
 {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
+{-# BUILTIN AGDATCMWORKONTYPES                workOnTypes                #-}
 {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
 {-# BUILTIN AGDATCMGETINSTANCES               getInstances               #-}
 
