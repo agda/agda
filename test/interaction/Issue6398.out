@@ -1,0 +1,7 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-info-action "*Error*" "Issue6398.agda:5,5-8 Set₁ != Set when checking that the expression Set has type Set" nil)
+((last . 3) . (agda2-maybe-goto '("Issue6398.agda" . 114)))
+(agda2-highlight-load-and-delete-action)
+(agda2-status-action "")
