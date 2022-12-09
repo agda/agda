@@ -131,8 +131,8 @@ isCon con tm = do t <- liftTCM tm
                     Con con' _ _ -> return (con == con')
                     _ -> return False
 
-isDef :: QName -> TCM Term -> UnquoteM Bool
-isDef f tm = loop <$> liftTCM tm
+isDef :: QName -> TCM (Maybe Term) -> UnquoteM Bool
+isDef f tm = maybe False loop <$> liftTCM tm
   where
     loop (Def g _) = f == g
     loop (Lam _ b) = loop $ unAbs b
@@ -565,62 +565,62 @@ evalTCM v = do
 
   case v of
     I.Def f [] ->
-      choice [ (f `isDef` primAgdaTCMGetContext,       tcGetContext)
-             , (f `isDef` primAgdaTCMCommit,           tcCommit)
+      choice [ (f `isDef` getBuiltin' builtinAgdaTCMGetContext,       tcGetContext)
+             , (f `isDef` getBuiltin' builtinAgdaTCMCommit,           tcCommit)
              ]
              failEval
     I.Def f [u] ->
-      choice [ (f `isDef` primAgdaTCMInferType,                  tcFun1 tcInferType                  u)
-             , (f `isDef` primAgdaTCMNormalise,                  tcFun1 tcNormalise                  u)
-             , (f `isDef` primAgdaTCMReduce,                     tcFun1 tcReduce                     u)
-             , (f `isDef` primAgdaTCMGetType,                    tcFun1 tcGetType                    u)
-             , (f `isDef` primAgdaTCMGetDefinition,              tcFun1 tcGetDefinition              u)
-             , (f `isDef` primAgdaTCMFormatErrorParts,           tcFun1 tcFormatErrorParts           u)
-             , (f `isDef` primAgdaTCMIsMacro,                    tcFun1 tcIsMacro                    u)
-             , (f `isDef` primAgdaTCMFreshName,                  tcFun1 tcFreshName                  u)
-             , (f `isDef` primAgdaTCMGetInstances,               uqFun1 tcGetInstances               u)
+      choice [ (f `isDef` getBuiltin' builtinAgdaTCMInferType,                  tcFun1 tcInferType                  u)
+             , (f `isDef` getBuiltin' builtinAgdaTCMNormalise,                  tcFun1 tcNormalise                  u)
+             , (f `isDef` getBuiltin' builtinAgdaTCMReduce,                     tcFun1 tcReduce                     u)
+             , (f `isDef` getBuiltin' builtinAgdaTCMGetType,                    tcFun1 tcGetType                    u)
+             , (f `isDef` getBuiltin' builtinAgdaTCMGetDefinition,              tcFun1 tcGetDefinition              u)
+             , (f `isDef` getBuiltin' builtinAgdaTCMFormatErrorParts,           tcFun1 tcFormatErrorParts           u)
+             , (f `isDef` getBuiltin' builtinAgdaTCMIsMacro,                    tcFun1 tcIsMacro                    u)
+             , (f `isDef` getBuiltin' builtinAgdaTCMFreshName,                  tcFun1 tcFreshName                  u)
+             , (f `isDef` getBuiltin' builtinAgdaTCMGetInstances,               uqFun1 tcGetInstances               u)
              ]
              failEval
     I.Def f [u, v] ->
-      choice [ (f `isDef` primAgdaTCMUnify,      tcFun2 tcUnify      u v)
-             , (f `isDef` primAgdaTCMCheckType,  tcFun2 tcCheckType  u v)
-             , (f `isDef` primAgdaTCMDeclareDef, uqFun2 tcDeclareDef u v)
-             , (f `isDef` primAgdaTCMDeclarePostulate, uqFun2 tcDeclarePostulate u v)
-             , (f `isDef` primAgdaTCMDefineData, uqFun2 tcDefineData u v)
-             , (f `isDef` primAgdaTCMDefineFun,  uqFun2 tcDefineFun  u v)
-             , (f `isDef` primAgdaTCMQuoteOmegaTerm, tcQuoteTerm (sort $ Inf IsFibrant 0) (unElim v))
-             , (f `isDef` primAgdaTCMPragmaForeign, tcFun2 tcPragmaForeign u v)
+      choice [ (f `isDef` getBuiltin' builtinAgdaTCMUnify,      tcFun2 tcUnify      u v)
+             , (f `isDef` getBuiltin' builtinAgdaTCMCheckType,  tcFun2 tcCheckType  u v)
+             , (f `isDef` getBuiltin' builtinAgdaTCMDeclareDef, uqFun2 tcDeclareDef u v)
+             , (f `isDef` getBuiltin' builtinAgdaTCMDeclarePostulate, uqFun2 tcDeclarePostulate u v)
+             , (f `isDef` getBuiltin' builtinAgdaTCMDefineData, uqFun2 tcDefineData u v)
+             , (f `isDef` getBuiltin' builtinAgdaTCMDefineFun,  uqFun2 tcDefineFun  u v)
+             , (f `isDef` getBuiltin' builtinAgdaTCMQuoteOmegaTerm, tcQuoteTerm (sort $ Inf IsFibrant 0) (unElim v))
+             , (f `isDef` getBuiltin' builtinAgdaTCMPragmaForeign, tcFun2 tcPragmaForeign u v)
              ]
              failEval
     I.Def f [l, a, u] ->
-      choice [ (f `isDef` primAgdaTCMReturn,      return (unElim u))
-             , (f `isDef` primAgdaTCMTypeError,   tcFun1 tcTypeError   u)
-             , (f `isDef` primAgdaTCMQuoteTerm,   tcQuoteTerm (mkT (unElim l) (unElim a)) (unElim u))
-             , (f `isDef` primAgdaTCMUnquoteTerm, tcFun1 (tcUnquoteTerm (mkT (unElim l) (unElim a))) u)
-             , (f `isDef` primAgdaTCMBlockOnMeta, uqFun1 tcBlockOnMeta u)
-             , (f `isDef` primAgdaTCMDebugPrint,  tcFun3 tcDebugPrint l a u)
-             , (f `isDef` primAgdaTCMNoConstraints, tcNoConstraints (unElim u))
-             , (f `isDef` primAgdaTCMWithReconsParams, tcWithReconsParams (unElim u))
-             , (f `isDef` primAgdaTCMDeclareData, uqFun3 tcDeclareData l a u)
-             , (f `isDef` primAgdaTCMRunSpeculative, tcRunSpeculative (unElim u))
-             , (f `isDef` primAgdaTCMExec, tcFun3 tcExec l a u)
-             , (f `isDef` primAgdaTCMPragmaCompile, tcFun3 tcPragmaCompile l a u)
+      choice [ (f `isDef` getBuiltin' builtinAgdaTCMReturn,      return (unElim u))
+             , (f `isDef` getBuiltin' builtinAgdaTCMTypeError,   tcFun1 tcTypeError   u)
+             , (f `isDef` getBuiltin' builtinAgdaTCMQuoteTerm,   tcQuoteTerm (mkT (unElim l) (unElim a)) (unElim u))
+             , (f `isDef` getBuiltin' builtinAgdaTCMUnquoteTerm, tcFun1 (tcUnquoteTerm (mkT (unElim l) (unElim a))) u)
+             , (f `isDef` getBuiltin' builtinAgdaTCMBlockOnMeta, uqFun1 tcBlockOnMeta u)
+             , (f `isDef` getBuiltin' builtinAgdaTCMDebugPrint,  tcFun3 tcDebugPrint l a u)
+             , (f `isDef` getBuiltin' builtinAgdaTCMNoConstraints, tcNoConstraints (unElim u))
+             , (f `isDef` getBuiltin' builtinAgdaTCMWithReconsParams, tcWithReconsParams (unElim u))
+             , (f `isDef` getBuiltin' builtinAgdaTCMDeclareData, uqFun3 tcDeclareData l a u)
+             , (f `isDef` getBuiltin' builtinAgdaTCMRunSpeculative, tcRunSpeculative (unElim u))
+             , (f `isDef` getBuiltin' builtinAgdaTCMExec, tcFun3 tcExec l a u)
+             , (f `isDef` getBuiltin' builtinAgdaTCMPragmaCompile, tcFun3 tcPragmaCompile l a u)
              ]
              failEval
     I.Def f [_, _, u, v] ->
-      choice [ (f `isDef` primAgdaTCMCatchError,    tcCatchError    (unElim u) (unElim v))
-             , (f `isDef` primAgdaTCMWithNormalisation, tcWithNormalisation (unElim u) (unElim v))
-             , (f `isDef` primAgdaTCMInContext,     tcInContext     (unElim u) (unElim v))
-             , (f `isDef` primAgdaTCMOnlyReduceDefs, tcOnlyReduceDefs (unElim u) (unElim v))
-             , (f `isDef` primAgdaTCMDontReduceDefs, tcDontReduceDefs (unElim u) (unElim v))
+      choice [ (f `isDef` getBuiltin' builtinAgdaTCMCatchError,    tcCatchError    (unElim u) (unElim v))
+             , (f `isDef` getBuiltin' builtinAgdaTCMWithNormalisation, tcWithNormalisation (unElim u) (unElim v))
+             , (f `isDef` getBuiltin' builtinAgdaTCMInContext,     tcInContext     (unElim u) (unElim v))
+             , (f `isDef` getBuiltin' builtinAgdaTCMOnlyReduceDefs, tcOnlyReduceDefs (unElim u) (unElim v))
+             , (f `isDef` getBuiltin' builtinAgdaTCMDontReduceDefs, tcDontReduceDefs (unElim u) (unElim v))
              ]
              failEval
     I.Def f [_, _, u, v, w] ->
-      choice [ (f `isDef` primAgdaTCMExtendContext, tcExtendContext (unElim u) (unElim v) (unElim w))
+      choice [ (f `isDef` getBuiltin' builtinAgdaTCMExtendContext, tcExtendContext (unElim u) (unElim v) (unElim w))
              ]
              failEval
     I.Def f [_, _, _, _, m, k] ->
-      choice [ (f `isDef` primAgdaTCMBind, tcBind (unElim m) (unElim k)) ]
+      choice [ (f `isDef` getBuiltin' builtinAgdaTCMBind, tcBind (unElim m) (unElim k)) ]
              failEval
     _ -> failEval
   where
