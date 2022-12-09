@@ -268,9 +268,9 @@ mode:
   ("``M …``").
 - Applications of ``♯`` (see :ref:`old-coinduction`).
 
-.. note::
-  The text above should be extended with information about how the
-  reflection machinery interacts with run-time irrelevance.
+The reflection API provides a primitive function
+`workOnTypes : TC A → TC A` that manually switches the type-checker
+from run-time mode to compile-time mode.
 
 .. _references:
 
