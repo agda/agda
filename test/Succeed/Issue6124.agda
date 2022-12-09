@@ -1,7 +1,8 @@
+{-# OPTIONS --erasure #-}
+
 open import Agda.Primitive
 open import Agda.Builtin.List
 open import Agda.Builtin.Reflection
---open import Agda.Builtin.Reflection.External
 open import Agda.Builtin.Unit
 open import Agda.Builtin.Sigma
 
