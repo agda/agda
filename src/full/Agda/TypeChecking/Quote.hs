@@ -124,7 +124,7 @@ quotingKit = do
 
       (!@) :: Apply a => a -> ReduceM Term -> ReduceM a
       t !@ u = pure t @@ u
-      
+
       (@!) :: Apply a => ReduceM a -> Term -> ReduceM a
       t @! u = t @@ pure u
 

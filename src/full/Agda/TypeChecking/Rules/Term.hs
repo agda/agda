@@ -1208,7 +1208,7 @@ checkExpr' cmp e t =
           | A.QuoteTerm _ <- unScope q -> do
              (et, _) <- inferExpr (namedThing e)
              doQuoteTerm cmp et t
-             
+
           | A.QuotePostponedTerm ei <- unScope q -> do
               -- Create a fresh meta that will be used for the postponed terms type,
               -- and block checking of the postponed term on that meta.
