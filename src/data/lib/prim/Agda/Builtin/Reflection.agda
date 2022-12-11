@@ -198,6 +198,9 @@ data Clause where
   clause        : (tel : Telescope) (ps : List (Arg Pattern)) (t : Term) → Clause
   absurd-clause : (tel : Telescope) (ps : List (Arg Pattern)) → Clause
 
+data PostponedTerm : Set where
+  postponed : Term → Meta → PostponedTerm
+
 {-# BUILTIN AGDATERM      Term    #-}
 {-# BUILTIN AGDASORT      Sort    #-}
 {-# BUILTIN AGDAPATTERN   Pattern #-}
@@ -230,6 +233,9 @@ data Clause where
 
 {-# BUILTIN AGDACLAUSECLAUSE clause        #-}
 {-# BUILTIN AGDACLAUSEABSURD absurd-clause #-}
+
+{-# BUILTIN AGDAPOSTPONEDTERM PostponedTerm #-}
+{-# BUILTIN AGDAPOSTPONEDTERMPOSTPONE postponed #-}
 
 -- Definitions --
 
