@@ -264,6 +264,7 @@ instance Hilite A.Expr where
       A.ScopedExpr _ e              -> hl e
       A.Quote _r                    -> mempty
       A.QuoteTerm _r                -> mempty
+      A.QuotePostponedTerm _r       -> mempty
       A.Unquote _r                  -> mempty
       A.DontCare e                  -> hl e
     where

@@ -159,16 +159,20 @@ checkApplication cmp hd args e t =
       TelV tel _ <- telView . defType =<< instantiateDef =<< getConstInfo x
 
       tTerm <- primAgdaTerm
+      tPostponedTerm <- primAgdaPostponedTerm
       tName <- primQName
 
       -- Andreas, 2021-05-13, can we use @initWithDefault __IMPOSSIBLE__@ here?
       let argTel   = init $ telToList tel -- last argument is the hole term
 
-          -- inspect macro type to figure out if arguments need to be wrapped in quote/quoteTerm
+          -- inspect macro type to figure out if arguments need to be wrapped in quote/quoteTerm/quotePostponedTerm
           mkArg :: Type -> NamedArg A.Expr -> NamedArg A.Expr
           mkArg t a | unEl t == tTerm =
             (fmap . fmap)
               (A.App (A.defaultAppInfo (getRange a)) (A.QuoteTerm A.exprNoRange) . defaultNamedArg) a
+          mkArg t a | unEl t == tPostponedTerm =
+            (fmap . fmap)
+              (A.App (A.defaultAppInfo (getRange a)) (A.QuotePostponedTerm A.exprNoRange) . defaultNamedArg) a
           mkArg t a | unEl t == tName =
             (fmap . fmap)
               (A.App (A.defaultAppInfo (getRange a)) (A.Quote A.exprNoRange) . defaultNamedArg) a

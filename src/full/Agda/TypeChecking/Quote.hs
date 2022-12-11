@@ -50,11 +50,12 @@ quotedName = \case
 
 
 data QuotingKit = QuotingKit
-  { quoteTermWithKit   :: Term       -> ReduceM Term
-  , quoteTypeWithKit   :: Type       -> ReduceM Term
-  , quoteDomWithKit    :: Dom Type   -> ReduceM Term
-  , quoteDefnWithKit   :: Definition -> ReduceM Term
-  , quoteListWithKit   :: forall a. (a -> ReduceM Term) -> [a] -> ReduceM Term
+  { quoteTermWithKit          :: Term       -> ReduceM Term
+  , quotePostponedTermWithKit :: Term -> MetaId -> ReduceM Term
+  , quoteTypeWithKit          :: Type       -> ReduceM Term
+  , quoteDomWithKit           :: Dom Type   -> ReduceM Term
+  , quoteDefnWithKit          :: Definition -> ReduceM Term
+  , quoteListWithKit          :: forall a. (a -> ReduceM Term) -> [a] -> ReduceM Term
   }
 
 quotingKit :: TCM QuotingKit
@@ -82,6 +83,7 @@ quotingKit = do
   sort            <- primAgdaTermSort
   meta            <- primAgdaTermMeta
   lit             <- primAgdaTermLit
+  postpone        <- primAgdaPostponedTermPostpone
   litNat          <- primAgdaLitNat
   litWord64       <- primAgdaLitNat
   litFloat        <- primAgdaLitFloat
@@ -122,6 +124,9 @@ quotingKit = do
 
       (!@) :: Apply a => a -> ReduceM Term -> ReduceM a
       t !@ u = pure t @@ u
+      
+      (@!) :: Apply a => ReduceM a -> Term -> ReduceM a
+      t @! u = t @@ pure u
 
       (!@!) :: Apply a => a -> Term -> ReduceM a
       t !@! u = pure t @@ pure u
@@ -305,6 +310,11 @@ quotingKit = do
           DontCare u -> quoteTerm u
           Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
+      quotePostponedTerm :: Term -> MetaId -> ReduceM Term
+      quotePostponedTerm tm metaId =
+          let qmeta = quoteMeta currentModule metaId in
+          postpone !@ quoteTerm tm @! qmeta
+
       defParameters :: Definition -> Bool -> [ReduceM Term]
       defParameters def True  = []
       defParameters def False = map par hiding
@@ -343,7 +353,7 @@ quotingKit = do
           Constructor{conData = d} ->
             agdaDefinitionDataConstructor !@! quoteName d
 
-  return $ QuotingKit quoteTerm quoteType (quoteDom quoteType) quoteDefn quoteList
+  return $ QuotingKit quoteTerm quotePostponedTerm quoteType (quoteDom quoteType) quoteDefn quoteList
 
 quoteString :: String -> Term
 quoteString = Lit . LitString . T.pack
@@ -366,6 +376,11 @@ quoteTerm :: Term -> TCM Term
 quoteTerm v = do
   kit <- quotingKit
   runReduceM (quoteTermWithKit kit v)
+
+quotePostponedTerm :: Term -> MetaId -> TCM Term
+quotePostponedTerm v metaId = do
+  kit <- quotingKit
+  runReduceM (quotePostponedTermWithKit kit v metaId)
 
 quoteType :: Type -> TCM Term
 quoteType v = do

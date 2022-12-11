@@ -1073,6 +1073,7 @@ instance BlankVars A.Expr where
     A.RecUpdate i e es       -> uncurry (A.RecUpdate i) $ blank bound (e, es)
     A.Quote {}               -> __IMPOSSIBLE__
     A.QuoteTerm {}           -> __IMPOSSIBLE__
+    A.QuotePostponedTerm {}  -> __IMPOSSIBLE__
     A.Unquote {}             -> __IMPOSSIBLE__
     A.DontCare v             -> A.DontCare $ blank bound v
     A.PatternSyn {}          -> e

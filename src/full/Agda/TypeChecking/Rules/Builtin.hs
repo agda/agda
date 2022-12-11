@@ -234,6 +234,7 @@ coreBuiltins =
                                                    , builtinAgdaTermPi, builtinAgdaTermSort
                                                    , builtinAgdaTermLit, builtinAgdaTermMeta
                                                    , builtinAgdaTermUnsupported])
+  , (builtinAgdaPostponedTerm                |-> BuiltinData tset [ builtinAgdaPostponedTermPostpone ])
   , builtinAgdaErrorPart                     |-> BuiltinData tset [ builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartPatt, builtinAgdaErrorPartName ]
   , builtinAgdaErrorPartString               |-> BuiltinDataCons (tstring --> terrorpart)
   , builtinAgdaErrorPartTerm                 |-> BuiltinDataCons (tterm --> terrorpart)
@@ -297,6 +298,7 @@ coreBuiltins =
   , (builtinAgdaTermLit                      |-> BuiltinDataCons (tliteral --> tterm))
   , (builtinAgdaTermMeta                     |-> BuiltinDataCons (tmeta --> targs --> tterm))
   , (builtinAgdaTermUnsupported              |-> BuiltinDataCons tterm)
+  , (builtinAgdaPostponedTermPostpone        |-> BuiltinDataCons (tterm --> tmeta --> tpostponed))
   , (builtinAgdaLitNat                       |-> BuiltinDataCons (tnat --> tliteral))
   , (builtinAgdaLitWord64                    |-> BuiltinDataCons (tword64 --> tliteral))
   , (builtinAgdaLitFloat                     |-> BuiltinDataCons (tfloat --> tliteral))
@@ -431,6 +433,7 @@ coreBuiltins =
         tabs x     = el (primAbs <@> fmap unEl x)
         targs      = el (list (arg primAgdaTerm))
         tterm      = el primAgdaTerm
+        tpostponed = el primAgdaPostponedTerm
         terrorpart = el primAgdaErrorPart
         tnat       = el primNat
         tword64    = el primWord64
