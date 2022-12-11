@@ -245,6 +245,7 @@ instance Pretty Expr where
               sep ["record" <+> pretty e, bracesAndSemicolons (map pretty xs)]
             Quote _ -> "quote"
             QuoteTerm _ -> "quoteTerm"
+            QuotePostponedTerm _ -> "quotePostponedTerm"
             Unquote _  -> "unquote"
             Tactic _ t -> "tactic" <+> pretty t
             -- Andreas, 2011-10-03 print irrelevant things as .(e)

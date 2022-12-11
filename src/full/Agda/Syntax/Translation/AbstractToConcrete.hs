@@ -934,6 +934,7 @@ instance ToConcrete A.Expr where
     toConcrete (A.ScopedExpr _ e) = toConcrete e
     toConcrete (A.Quote i) = return $ C.Quote (getRange i)
     toConcrete (A.QuoteTerm i) = return $ C.QuoteTerm (getRange i)
+    toConcrete (A.QuotePostponedTerm i) = return $ C.QuotePostponedTerm (getRange i)
     toConcrete (A.Unquote i) = return $ C.Unquote (getRange i)
 
     -- Andreas, 2012-04-02: TODO!  print DontCare as irrAxiom
