@@ -217,7 +217,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAbs, primAbsAbs, primAgdaTerm, primAgdaTermVar,
     primAgdaTermLam, primAgdaTermExtLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,
     primAgdaTermSort, primAgdaTermLit, primAgdaTermUnsupported, primAgdaTermMeta,
-    primAgdaPostponedTerm, primAgdaPostponedTermPostpone,
+    primAgdaPostponedTerm,
     primAgdaErrorPart, primAgdaErrorPartString, primAgdaErrorPartTerm, primAgdaErrorPartPatt, primAgdaErrorPartName,
     primHiding, primHidden, primInstance, primVisible,
     primRelevance, primRelevant, primIrrelevant,
@@ -226,7 +226,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAssoc, primAssocLeft, primAssocRight, primAssocNon,
     primPrecedence, primPrecRelated, primPrecUnrelated,
     primFixity, primFixityFixity,
-    primAgdaLiteral, primAgdaLitNat, primAgdaLitWord64, primAgdaLitFloat, primAgdaLitString, primAgdaLitChar, primAgdaLitQName, primAgdaLitMeta,
+    primAgdaLiteral, primAgdaLitNat, primAgdaLitWord64, primAgdaLitFloat, primAgdaLitString, primAgdaLitChar, primAgdaLitQName, primAgdaLitMeta, primAgdaLitPostponedTerm,
     primAgdaSort, primAgdaSortSet, primAgdaSortLit, primAgdaSortProp, primAgdaSortPropLit, primAgdaSortInf, primAgdaSortUnsupported,
     primAgdaDefinition, primAgdaDefinitionFunDef, primAgdaDefinitionDataDef, primAgdaDefinitionRecordDef,
     primAgdaDefinitionPostulate, primAgdaDefinitionPrimitive, primAgdaDefinitionDataConstructor,
@@ -236,7 +236,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaPatAbsurd,
     primAgdaMeta,
     primAgdaTCM, primAgdaTCMReturn, primAgdaTCMBind, primAgdaTCMUnify,
-    primAgdaTCMTypeError, primAgdaTCMInferType, primAgdaTCMCheckType,
+    primAgdaTCMTypeError, primAgdaTCMInferType, primAgdaTCMCheckType, primAgdaTCMElaborate,
     primAgdaTCMNormalise, primAgdaTCMReduce,
     primAgdaTCMCatchError, primAgdaTCMGetContext, primAgdaTCMExtendContext, primAgdaTCMInContext,
     primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDeclarePostulate, primAgdaTCMDeclareData, primAgdaTCMDefineData, primAgdaTCMDefineFun,
@@ -389,7 +389,6 @@ primAgdaTermLit                       = getBuiltin builtinAgdaTermLit
 primAgdaTermUnsupported               = getBuiltin builtinAgdaTermUnsupported
 primAgdaTermMeta                      = getBuiltin builtinAgdaTermMeta
 primAgdaPostponedTerm                 = getBuiltin builtinAgdaPostponedTerm
-primAgdaPostponedTermPostpone         = getBuiltin builtinAgdaPostponedTermPostpone
 primAgdaErrorPart                     = getBuiltin builtinAgdaErrorPart
 primAgdaErrorPartString               = getBuiltin builtinAgdaErrorPartString
 primAgdaErrorPartTerm                 = getBuiltin builtinAgdaErrorPartTerm
@@ -403,6 +402,7 @@ primAgdaLitChar                       = getBuiltin builtinAgdaLitChar
 primAgdaLitString                     = getBuiltin builtinAgdaLitString
 primAgdaLitQName                      = getBuiltin builtinAgdaLitQName
 primAgdaLitMeta                       = getBuiltin builtinAgdaLitMeta
+primAgdaLitPostponedTerm              = getBuiltin builtinAgdaLitPostponedTerm
 primAgdaPattern                       = getBuiltin builtinAgdaPattern
 primAgdaPatCon                        = getBuiltin builtinAgdaPatCon
 primAgdaPatVar                        = getBuiltin builtinAgdaPatVar
@@ -428,6 +428,7 @@ primAgdaTCMUnify                      = getBuiltin builtinAgdaTCMUnify
 primAgdaTCMTypeError                  = getBuiltin builtinAgdaTCMTypeError
 primAgdaTCMInferType                  = getBuiltin builtinAgdaTCMInferType
 primAgdaTCMCheckType                  = getBuiltin builtinAgdaTCMCheckType
+primAgdaTCMElaborate                  = getBuiltin builtinAgdaTCMElaborate
 primAgdaTCMNormalise                  = getBuiltin builtinAgdaTCMNormalise
 primAgdaTCMReduce                     = getBuiltin builtinAgdaTCMReduce
 primAgdaTCMCatchError                 = getBuiltin builtinAgdaTCMCatchError

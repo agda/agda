@@ -9,8 +9,10 @@ open import Common.Prelude renaming (Nat to ℕ; module Nat to ℕ)
 -- the problem until the macro unblocks it.
 macro
   test : PostponedTerm → Term → TC ⊤
-  test (postponed argument m) hole = do
-    unify hole argument
+  test chk hole = do
+    tp ← inferType hole
+    tm ← elaborate chk tp
+    unify hole tm
 
 foo : Nat → Nat
 foo = test (λ n → n)

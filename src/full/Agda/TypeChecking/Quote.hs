@@ -51,7 +51,6 @@ quotedName = \case
 
 data QuotingKit = QuotingKit
   { quoteTermWithKit          :: Term       -> ReduceM Term
-  , quotePostponedTermWithKit :: Term -> MetaId -> ReduceM Term
   , quoteTypeWithKit          :: Type       -> ReduceM Term
   , quoteDomWithKit           :: Dom Type   -> ReduceM Term
   , quoteDefnWithKit          :: Definition -> ReduceM Term
@@ -83,7 +82,6 @@ quotingKit = do
   sort            <- primAgdaTermSort
   meta            <- primAgdaTermMeta
   lit             <- primAgdaTermLit
-  postpone        <- primAgdaPostponedTermPostpone
   litNat          <- primAgdaLitNat
   litWord64       <- primAgdaLitNat
   litFloat        <- primAgdaLitFloat
@@ -91,6 +89,7 @@ quotingKit = do
   litString       <- primAgdaLitString
   litQName        <- primAgdaLitQName
   litMeta         <- primAgdaLitMeta
+  litPostponed    <- primAgdaLitPostponedTerm
   normalClause    <- primAgdaClauseClause
   absurdClause    <- primAgdaClauseAbsurd
   varP            <- primAgdaPatVar
@@ -158,13 +157,14 @@ quotingKit = do
                 @@ quoteModality m
 
       quoteLit :: Literal -> ReduceM Term
-      quoteLit l@LitNat{}    = litNat    !@! Lit l
-      quoteLit l@LitWord64{} = litWord64 !@! Lit l
-      quoteLit l@LitFloat{}  = litFloat  !@! Lit l
-      quoteLit l@LitChar{}   = litChar   !@! Lit l
-      quoteLit l@LitString{} = litString !@! Lit l
-      quoteLit l@LitQName{}  = litQName  !@! Lit l
-      quoteLit l@LitMeta {}  = litMeta   !@! Lit l
+      quoteLit l@LitNat{}        = litNat       !@! Lit l
+      quoteLit l@LitWord64{}     = litWord64    !@! Lit l
+      quoteLit l@LitFloat{}      = litFloat     !@! Lit l
+      quoteLit l@LitChar{}       = litChar      !@! Lit l
+      quoteLit l@LitString{}     = litString    !@! Lit l
+      quoteLit l@LitQName{}      = litQName     !@! Lit l
+      quoteLit l@LitMeta {}      = litMeta      !@! Lit l
+      quoteLit l@LitPostponed {} = litPostponed !@! Lit l
 
       -- We keep no ranges in the quoted term, so the equality on terms
       -- is only on the structure.
@@ -310,11 +310,6 @@ quotingKit = do
           DontCare u -> quoteTerm u
           Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
-      quotePostponedTerm :: Term -> MetaId -> ReduceM Term
-      quotePostponedTerm tm metaId =
-          let qmeta = quoteMeta currentModule metaId in
-          postpone !@ quoteTerm tm @! qmeta
-
       defParameters :: Definition -> Bool -> [ReduceM Term]
       defParameters def True  = []
       defParameters def False = map par hiding
@@ -353,7 +348,7 @@ quotingKit = do
           Constructor{conData = d} ->
             agdaDefinitionDataConstructor !@! quoteName d
 
-  return $ QuotingKit quoteTerm quotePostponedTerm quoteType (quoteDom quoteType) quoteDefn quoteList
+  return $ QuotingKit quoteTerm quoteType (quoteDom quoteType) quoteDefn quoteList
 
 quoteString :: String -> Term
 quoteString = Lit . LitString . T.pack
@@ -377,10 +372,10 @@ quoteTerm v = do
   kit <- quotingKit
   runReduceM (quoteTermWithKit kit v)
 
-quotePostponedTerm :: Term -> MetaId -> TCM Term
-quotePostponedTerm v metaId = do
-  kit <- quotingKit
-  runReduceM (quotePostponedTermWithKit kit v metaId)
+quotePostponedTerm :: Term -> MetaId -> MetaId -> TCM Term
+quotePostponedTerm v tpMeta sortMeta = do
+    currentModule   <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
+    pure $ Lit (LitPostponed currentModule v tpMeta sortMeta)
 
 quoteType :: Type -> TCM Term
 quoteType v = do

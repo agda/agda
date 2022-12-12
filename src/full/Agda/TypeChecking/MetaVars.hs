@@ -172,8 +172,8 @@ newSortMetaBelowInf = do
   return x
 
 -- | Create a sort meta that may be instantiated with 'Inf' (Setω).
-newSortMeta :: MonadMetaSolver m => m Sort
-newSortMeta =
+newSortMeta' :: MonadMetaSolver m => m (MetaId, Sort)
+newSortMeta' =
   ifM hasUniversePolymorphism (newSortMetaCtx =<< getContextArgs)
   -- else (no universe polymorphism)
   $ do i   <- createMetaInfo
@@ -181,10 +181,14 @@ newSortMeta =
        x   <- newMeta Instantiable i normalMetaPriority (idP 0) j
        reportSDoc "tc.meta.new" 50 $
          "new sort meta" <+> prettyTCM x
-       return $ MetaS x []
+       return (x, MetaS x [])
 
 -- | Create a sort meta that may be instantiated with 'Inf' (Setω).
-newSortMetaCtx :: MonadMetaSolver m => Args -> m Sort
+newSortMeta :: MonadMetaSolver m => m Sort
+newSortMeta = snd <$> newSortMeta'
+
+-- | Create a sort meta that may be instantiated with 'Inf' (Setω).
+newSortMetaCtx :: MonadMetaSolver m => Args -> m (MetaId, Sort)
 newSortMetaCtx vs = do
     i   <- createMetaInfo
     tel <- getContextTelescope
@@ -192,7 +196,7 @@ newSortMetaCtx vs = do
     x   <- newMeta Instantiable i normalMetaPriority (idP $ size tel) $ IsSort () t
     reportSDoc "tc.meta.new" 50 $
       "new sort meta" <+> prettyTCM x <+> ":" <+> prettyTCM t
-    return $ MetaS x $ map Apply vs
+    return (x, MetaS x $ map Apply vs)
 
 newTypeMeta' :: Comparison -> Sort -> TCM Type
 newTypeMeta' cmp s = El s . snd <$> newValueMeta RunMetaOccursCheck cmp (sort s)

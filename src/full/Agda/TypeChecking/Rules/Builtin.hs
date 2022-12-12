@@ -89,7 +89,8 @@ coreBuiltins =
   , (builtinUnit                             |-> BuiltinData tset [builtinUnitUnit])  -- actually record, but they are treated the same
   , (builtinAgdaLiteral                      |-> BuiltinData tset [builtinAgdaLitNat, builtinAgdaLitWord64, builtinAgdaLitFloat,
                                                                    builtinAgdaLitChar, builtinAgdaLitString,
-                                                                   builtinAgdaLitQName, builtinAgdaLitMeta])
+                                                                   builtinAgdaLitQName, builtinAgdaLitMeta,
+                                                                   builtinAgdaLitPostponedTerm])
   , (builtinAgdaPattern                      |-> BuiltinData tset [builtinAgdaPatVar, builtinAgdaPatCon, builtinAgdaPatDot,
                                                                    builtinAgdaPatLit, builtinAgdaPatProj, builtinAgdaPatAbsurd])
   , (builtinAgdaPatVar                       |-> BuiltinDataCons (tnat --> tpat))
@@ -234,7 +235,7 @@ coreBuiltins =
                                                    , builtinAgdaTermPi, builtinAgdaTermSort
                                                    , builtinAgdaTermLit, builtinAgdaTermMeta
                                                    , builtinAgdaTermUnsupported])
-  , (builtinAgdaPostponedTerm                |-> BuiltinData tset [ builtinAgdaPostponedTermPostpone ])
+  , builtinAgdaPostponedTerm                 |-> builtinPostulate tset
   , builtinAgdaErrorPart                     |-> BuiltinData tset [ builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartPatt, builtinAgdaErrorPartName ]
   , builtinAgdaErrorPartString               |-> BuiltinDataCons (tstring --> terrorpart)
   , builtinAgdaErrorPartTerm                 |-> BuiltinDataCons (tterm --> terrorpart)
@@ -298,7 +299,6 @@ coreBuiltins =
   , (builtinAgdaTermLit                      |-> BuiltinDataCons (tliteral --> tterm))
   , (builtinAgdaTermMeta                     |-> BuiltinDataCons (tmeta --> targs --> tterm))
   , (builtinAgdaTermUnsupported              |-> BuiltinDataCons tterm)
-  , (builtinAgdaPostponedTermPostpone        |-> BuiltinDataCons (tterm --> tmeta --> tpostponed))
   , (builtinAgdaLitNat                       |-> BuiltinDataCons (tnat --> tliteral))
   , (builtinAgdaLitWord64                    |-> BuiltinDataCons (tword64 --> tliteral))
   , (builtinAgdaLitFloat                     |-> BuiltinDataCons (tfloat --> tliteral))
@@ -306,6 +306,7 @@ coreBuiltins =
   , (builtinAgdaLitString                    |-> BuiltinDataCons (tstring --> tliteral))
   , (builtinAgdaLitQName                     |-> BuiltinDataCons (tqname --> tliteral))
   , (builtinAgdaLitMeta                      |-> BuiltinDataCons (tmeta --> tliteral))
+  , (builtinAgdaLitPostponedTerm             |-> BuiltinDataCons (tpostponed --> tliteral))
   , (builtinHidden                           |-> BuiltinDataCons thiding)
   , (builtinInstance                         |-> BuiltinDataCons thiding)
   , (builtinVisible                          |-> BuiltinDataCons thiding)
@@ -364,6 +365,7 @@ coreBuiltins =
   , builtinAgdaTCMTypeError                  |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tlist terrorpart --> tTCM 1 (varM 0))
   , builtinAgdaTCMInferType                  |-> builtinPostulate (tterm --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMCheckType                  |-> builtinPostulate (tterm --> ttype --> tTCM_ primAgdaTerm)
+  , builtinAgdaTCMElaborate                  |-> builtinPostulate (tpostponed --> ttype --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMNormalise                  |-> builtinPostulate (tterm --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMReduce                     |-> builtinPostulate (tterm --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMCatchError                 |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $
