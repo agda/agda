@@ -234,7 +234,7 @@ data Clause where
 
 -- Postponed terms --
 
-abstract data PostponedTerm : Set where
+data PostponedTerm : Set where
   postpone : Term → Meta → Meta → List (Arg Term) → PostponedTerm
 {-# BUILTIN AGDAPOSTPONEDTERM         PostponedTerm #-}
 {-# BUILTIN AGDAPOSTPONEDTERMPOSTPONE postpone      #-}
