@@ -58,7 +58,7 @@ foo-def :
     (("A" , hArg (agda-sort (lit 0))) ∷
      ("r" , iArg (def (quote Foo) (vArg (var 0 []) ∷ []))) ∷ [])
     (hArg (var 1)) (iArg (var 0))
-    (def (quote Foo.foo) (`? quantity-0 ∷ vArg (var 0 []) ∷ []))
+    (def (quote Foo.foo) (`? quantity-ω ∷ vArg (var 0 []) ∷ []))
 foo-def = refl
 
 -- Andreas, 2018-03-12: Behavior before fix of #2963:
@@ -76,7 +76,7 @@ foo₁-def = refl
 bar-def :
   getDef bar ≡
   fun₀ (def (quote Foo.foo)
-            (`? quantity-0 ∷ vArg (def (quote FooA) []) ∷ []))
+            (`? quantity-ω ∷ vArg (def (quote FooA) []) ∷ []))
 bar-def = refl
 
 -- bar₁ = Foo.foo₁ {A} FooA

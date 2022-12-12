@@ -147,8 +147,7 @@ extractParameters q ty = reduce (unEl ty) >>= \case
     ((_,Def _ postPs),_) <- inferSpine' reconstructAction dt (Def d []) (Def d []) prePs
     reportSDoc "tc.reconstruct" 50 $ "The spine has been inferred:" <+> pretty postPs
     info <- getConstInfo q
-    let mkParam = applyQuantity zeroQuantity
-                . hideAndRelParams
+    let mkParam = hideAndRelParams
                 . isApplyElim' __IMPOSSIBLE__
     if -- Case: data or record constructor
        | Constructor{ conPars = n } <- theDef info ->
