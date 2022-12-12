@@ -90,8 +90,10 @@ instance Ord Literal where
   compare _ LitChar{}   = GT
   compare LitQName{} _  = LT
   compare _ LitQName{}  = GT
-  -- compare LitMeta{} _   = LT
-  -- compare _ LitMeta{}   = GT
+  compare LitMeta{} _   = LT
+  compare _ LitMeta{}   = GT
+  -- compare LitPostponed{} _   = LT
+  -- compare _ LitPostponed{}   = GT
 
 instance KillRange Literal where
   killRange (LitNat    x)          = LitNat    x
