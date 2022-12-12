@@ -246,9 +246,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
 
         -- Add record constructor to signature
         addConstant' conName defaultArgInfo conName
-             -- The parameters are erased in the constructor's type.
-            (fmap (applyQuantity zeroQuantity) telh
-             `abstract` contype) $
+            (telh `abstract` contype) $
             Constructor
               { conPars   = npars
               , conArity  = size fs
@@ -348,8 +346,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
       -- For checking the record declarations, hide the record parameters
       -- and the parameters of the parent modules.
       modifyContextInfo (hideOrKeepInstance . maybeErase) $ do
-        -- The parameters are erased in the types of the projections.
-        params <- fmap (applyQuantity zeroQuantity) <$> getContext
+        params <- getContext
 
         -- Check the types of the fields and the other record declarations.
         addRecordVar $ withCurrentModule m $ do
@@ -558,7 +555,7 @@ defineKanOperationR cmd name params fsT fns rect = do
 
     [@con@  ]  name of the record constructor
 
-    [@tel@  ]  parameters (erased) and record variable r ("self")
+    [@tel@  ]  parameters and record variable r ("self")
 
     [@ftel@ ]  telescope of fields
 
