@@ -54,6 +54,7 @@ data QuotingKit = QuotingKit
   , quoteTypeWithKit          :: Type       -> ReduceM Term
   , quoteDomWithKit           :: Dom Type   -> ReduceM Term
   , quoteDefnWithKit          :: Definition -> ReduceM Term
+  , quotePostponedTermWithKit :: Term -> Term -> Sort -> ReduceM Term
   , quoteListWithKit          :: forall a. (a -> ReduceM Term) -> [a] -> ReduceM Term
   }
 
@@ -73,6 +74,7 @@ quotingKit = do
   abs             <- primAbsAbs
   arg             <- primArgArg
   arginfo         <- primArgArgInfo
+  postpone        <- primAgdaPostponedTermPostpone
   var             <- primAgdaTermVar
   lam             <- primAgdaTermLam
   extlam          <- primAgdaTermExtLam
@@ -89,7 +91,6 @@ quotingKit = do
   litString       <- primAgdaLitString
   litQName        <- primAgdaLitQName
   litMeta         <- primAgdaLitMeta
-  litPostponed    <- primAgdaLitPostponedTerm
   normalClause    <- primAgdaClauseClause
   absurdClause    <- primAgdaClauseAbsurd
   varP            <- primAgdaPatVar
@@ -164,7 +165,6 @@ quotingKit = do
       quoteLit l@LitString{}     = litString    !@! Lit l
       quoteLit l@LitQName{}      = litQName     !@! Lit l
       quoteLit l@LitMeta {}      = litMeta      !@! Lit l
-      quoteLit l@LitPostponed {} = litPostponed !@! Lit l
 
       -- We keep no ranges in the quoted term, so the equality on terms
       -- is only on the structure.
@@ -310,6 +310,14 @@ quotingKit = do
           DontCare u -> quoteTerm u
           Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
+      quotePostponedTerm :: Term -> Term -> Sort -> ReduceM Term
+      quotePostponedTerm v (MetaV type_ es) (MetaS sort _) =
+        let typeMeta = Lit (LitMeta currentModule type_)
+            sortMeta = Lit (LitMeta currentModule type_)
+            args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+        in postpone !@ quoteTerm v @! typeMeta @! sortMeta @@ quoteArgs args
+      quotePostponedTerm _ _ _ = __IMPOSSIBLE__
+
       defParameters :: Definition -> Bool -> [ReduceM Term]
       defParameters def True  = []
       defParameters def False = map par hiding
@@ -348,7 +356,7 @@ quotingKit = do
           Constructor{conData = d} ->
             agdaDefinitionDataConstructor !@! quoteName d
 
-  return $ QuotingKit quoteTerm quoteType (quoteDom quoteType) quoteDefn quoteList
+  return $ QuotingKit quoteTerm quoteType (quoteDom quoteType) quoteDefn quotePostponedTerm quoteList
 
 quoteString :: String -> Term
 quoteString = Lit . LitString . T.pack
@@ -372,10 +380,10 @@ quoteTerm v = do
   kit <- quotingKit
   runReduceM (quoteTermWithKit kit v)
 
-quotePostponedTerm :: Term -> MetaId -> MetaId -> TCM Term
-quotePostponedTerm v tpMeta sortMeta = do
-    currentModule   <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
-    pure $ Lit (LitPostponed currentModule v tpMeta sortMeta)
+quotePostponedTerm :: Term -> Term -> Sort -> TCM Term
+quotePostponedTerm v type_ sort = do
+  kit <- quotingKit
+  runReduceM (quotePostponedTermWithKit kit v type_ sort)
 
 quoteType :: Type -> TCM Term
 quoteType v = do

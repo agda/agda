@@ -8,7 +8,6 @@ import Agda.Syntax.Common
 import Agda.Syntax.Literal
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal (Dom)
-import qualified Agda.Syntax.Internal as I
 
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
@@ -40,9 +39,10 @@ data Term = Var Int Elims
 
 data PostponedTerm
   = Postponed
-    { postponedTerm :: I.Term
-    , postponedType :: MetaId
-    , postponedSort :: MetaId
+    { postponedTerm  :: Term
+    , postponedType  :: MetaId
+    , postponedSort  :: MetaId
+    , postponedSpine :: [Elims]
     }
   deriving (Show)
 

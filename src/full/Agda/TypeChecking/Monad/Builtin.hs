@@ -217,7 +217,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAbs, primAbsAbs, primAgdaTerm, primAgdaTermVar,
     primAgdaTermLam, primAgdaTermExtLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,
     primAgdaTermSort, primAgdaTermLit, primAgdaTermUnsupported, primAgdaTermMeta,
-    primAgdaPostponedTerm,
+    primAgdaPostponedTerm, primAgdaPostponedTermPostpone,
     primAgdaErrorPart, primAgdaErrorPartString, primAgdaErrorPartTerm, primAgdaErrorPartPatt, primAgdaErrorPartName,
     primHiding, primHidden, primInstance, primVisible,
     primRelevance, primRelevant, primIrrelevant,
@@ -226,7 +226,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAssoc, primAssocLeft, primAssocRight, primAssocNon,
     primPrecedence, primPrecRelated, primPrecUnrelated,
     primFixity, primFixityFixity,
-    primAgdaLiteral, primAgdaLitNat, primAgdaLitWord64, primAgdaLitFloat, primAgdaLitString, primAgdaLitChar, primAgdaLitQName, primAgdaLitMeta, primAgdaLitPostponedTerm,
+    primAgdaLiteral, primAgdaLitNat, primAgdaLitWord64, primAgdaLitFloat, primAgdaLitString, primAgdaLitChar, primAgdaLitQName, primAgdaLitMeta,
     primAgdaSort, primAgdaSortSet, primAgdaSortLit, primAgdaSortProp, primAgdaSortPropLit, primAgdaSortInf, primAgdaSortUnsupported,
     primAgdaDefinition, primAgdaDefinitionFunDef, primAgdaDefinitionDataDef, primAgdaDefinitionRecordDef,
     primAgdaDefinitionPostulate, primAgdaDefinitionPrimitive, primAgdaDefinitionDataConstructor,
@@ -389,6 +389,7 @@ primAgdaTermLit                       = getBuiltin builtinAgdaTermLit
 primAgdaTermUnsupported               = getBuiltin builtinAgdaTermUnsupported
 primAgdaTermMeta                      = getBuiltin builtinAgdaTermMeta
 primAgdaPostponedTerm                 = getBuiltin builtinAgdaPostponedTerm
+primAgdaPostponedTermPostpone         = getBuiltin builtinAgdaPostponedTermPostpone
 primAgdaErrorPart                     = getBuiltin builtinAgdaErrorPart
 primAgdaErrorPartString               = getBuiltin builtinAgdaErrorPartString
 primAgdaErrorPartTerm                 = getBuiltin builtinAgdaErrorPartTerm
@@ -402,7 +403,6 @@ primAgdaLitChar                       = getBuiltin builtinAgdaLitChar
 primAgdaLitString                     = getBuiltin builtinAgdaLitString
 primAgdaLitQName                      = getBuiltin builtinAgdaLitQName
 primAgdaLitMeta                       = getBuiltin builtinAgdaLitMeta
-primAgdaLitPostponedTerm              = getBuiltin builtinAgdaLitPostponedTerm
 primAgdaPattern                       = getBuiltin builtinAgdaPattern
 primAgdaPatCon                        = getBuiltin builtinAgdaPatCon
 primAgdaPatVar                        = getBuiltin builtinAgdaPatVar

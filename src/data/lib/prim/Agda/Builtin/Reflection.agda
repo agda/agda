@@ -136,11 +136,6 @@ data Abs {a} (A : Set a) : Set a where
 {-# BUILTIN ABS    Abs #-}
 {-# BUILTIN ABSABS abs #-}
 
--- Postponed terms --
-
-postulate PostponedTerm : Set
-{-# BUILTIN AGDAPOSTPONEDTERM PostponedTerm #-}
-
 -- Literals --
 
 data Literal : Set where
@@ -151,7 +146,6 @@ data Literal : Set where
   string      : (s : String)        → Literal
   name        : (x : Name)          → Literal
   meta        : (x : Meta)          → Literal
-  postponed   : (x : PostponedTerm) → Literal
 
 {-# BUILTIN AGDALITERAL          Literal   #-}
 {-# BUILTIN AGDALITNAT           nat       #-}
@@ -161,7 +155,6 @@ data Literal : Set where
 {-# BUILTIN AGDALITSTRING        string    #-}
 {-# BUILTIN AGDALITQNAME         name      #-}
 {-# BUILTIN AGDALITMETA          meta      #-}
-{-# BUILTIN AGDALITPOSTPONEDTERM postponed #-}
 
 
 -- Terms and patterns --
@@ -237,6 +230,14 @@ data Clause where
 
 {-# BUILTIN AGDACLAUSECLAUSE clause        #-}
 {-# BUILTIN AGDACLAUSEABSURD absurd-clause #-}
+
+
+-- Postponed terms --
+
+abstract data PostponedTerm : Set where
+  postpone : Term → Meta → Meta → List (Arg Term) → PostponedTerm
+{-# BUILTIN AGDAPOSTPONEDTERM         PostponedTerm #-}
+{-# BUILTIN AGDAPOSTPONEDTERMPOSTPONE postpone      #-}
 
 -- Definitions --
 

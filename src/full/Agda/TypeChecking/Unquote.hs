@@ -467,11 +467,6 @@ instance Unquote Literal where
              LitMeta
                <$> (fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule)
                <*> unquoteN x)
-          , (c `isCon` primAgdaLitPostponedTerm, do
-             R.Postponed{..} <- unquoteN x
-             mod <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
-             pure $ LitPostponed mod postponedTerm postponedType postponedSort
-            )
           ]
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
@@ -552,17 +547,17 @@ instance Unquote R.Clause where
       _ -> throwError $ NonCanonical "clause" t
 
 instance Unquote R.PostponedTerm where
-    unquote t = do
-      t <- reduceQuotedTerm t
-      case t of
-        Lit (LitPostponed modName v tpMeta sortMeta) -> liftTCM $ do
-            live <- (Just modName ==) <$> currentTopLevelModule
-            unless live $
-              typeError . GenericDocError =<<
-              sep [ "Can't unquote stale postponed term"
-                  , pretty modName <> "._" <> pretty (metaId tpMeta) ]
-            return (R.Postponed v tpMeta sortMeta)
-        _ -> throwError $ NonCanonical "postponed term" t
+  unquote t = do
+    t <- reduceQuotedTerm t
+    case t of
+      Con c _ es | Just [w, x, y, z] <- allApplyElims es ->
+        choice
+          [ (c `isCon` primAgdaPostponedTermPostpone,
+             R.Postponed <$> unquoteN w <*> unquoteN x <*> unquoteN y <*> unquoteN z)
+          ]
+          __IMPOSSIBLE__
+      Con c _ _ -> __IMPOSSIBLE__
+      _ -> throwError $ NonCanonical "postponed term" t
 
 -- Unquoting TCM computations ---------------------------------------------
 
@@ -778,12 +773,14 @@ evalTCM v = do
       u <- workOnTypes $ locallyReduceAllDefs $ isType_ =<< toAbstract_ u
       reportSDoc "tc.unquote.elaborate" 50 $ "Elaborating against Type:" <+> pretty u
       equalType u (El (MetaS postponedSort []) (MetaV postponedType []))
+      e <- toAbstract_ postponedTerm
+      v <- checkExpr e u
       if r then do
-        v <- process postponedTerm
+        v <- process v
         v <- locallyReduceAllDefs $ reconstructParameters u v
         locallyReconstructed (quoteTerm v)
       else
-        quoteTerm =<< process postponedTerm
+        quoteTerm =<< process v
 
     tcQuoteTerm :: Type -> Term -> UnquoteM Term
     tcQuoteTerm a v = liftTCM $ do

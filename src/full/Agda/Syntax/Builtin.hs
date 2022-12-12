@@ -49,10 +49,10 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTermVar, builtinAgdaTermLam, builtinAgdaTermExtLam,
   builtinAgdaTermDef, builtinAgdaTermCon, builtinAgdaTermPi,
   builtinAgdaTermSort, builtinAgdaTermLit, builtinAgdaTermUnsupported, builtinAgdaTermMeta,
-  builtinAgdaPostponedTerm,
+  builtinAgdaPostponedTerm, builtinAgdaPostponedTermPostpone,
   builtinAgdaErrorPart, builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartPatt, builtinAgdaErrorPartName,
   builtinAgdaLiteral, builtinAgdaLitNat, builtinAgdaLitWord64, builtinAgdaLitFloat,
-  builtinAgdaLitChar, builtinAgdaLitString, builtinAgdaLitQName, builtinAgdaLitMeta, builtinAgdaLitPostponedTerm,
+  builtinAgdaLitChar, builtinAgdaLitString, builtinAgdaLitQName, builtinAgdaLitMeta,
   builtinAgdaClause, builtinAgdaClauseClause, builtinAgdaClauseAbsurd, builtinAgdaPattern,
   builtinAgdaPatVar, builtinAgdaPatCon, builtinAgdaPatDot, builtinAgdaPatLit,
   builtinAgdaPatProj, builtinAgdaPatAbsurd,
@@ -220,6 +220,7 @@ builtinAgdaTermLit                       = "AGDATERMLIT"
 builtinAgdaTermUnsupported               = "AGDATERMUNSUPPORTED"
 builtinAgdaTermMeta                      = "AGDATERMMETA"
 builtinAgdaPostponedTerm                 = "AGDAPOSTPONEDTERM"
+builtinAgdaPostponedTermPostpone         = "AGDAPOSTPONEDTERMPOSTPONE"
 builtinAgdaErrorPart                     = "AGDAERRORPART"
 builtinAgdaErrorPartString               = "AGDAERRORPARTSTRING"
 builtinAgdaErrorPartTerm                 = "AGDAERRORPARTTERM"
@@ -233,7 +234,6 @@ builtinAgdaLitChar                       = "AGDALITCHAR"
 builtinAgdaLitString                     = "AGDALITSTRING"
 builtinAgdaLitQName                      = "AGDALITQNAME"
 builtinAgdaLitMeta                       = "AGDALITMETA"
-builtinAgdaLitPostponedTerm              = "AGDALITPOSTPONEDTERM"
 builtinAgdaClause                        = "AGDACLAUSE"
 builtinAgdaClauseClause                  = "AGDACLAUSECLAUSE"
 builtinAgdaClauseAbsurd                  = "AGDACLAUSEABSURD"
