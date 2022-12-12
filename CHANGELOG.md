@@ -72,7 +72,7 @@ Erasure
 
   This feature is experimental.
 
-* The parameter arguments of constructors and record fields are now
+* The parameter arguments of constructors and projections are now
   marked as erased
   ([#4786](https://github.com/agda/agda/issues/4786)), with one
   exception: for indexed data types this only happens if the
@@ -80,7 +80,7 @@ Erasure
   ([#6297](https://github.com/agda/agda/issues/6297)).
 
   For instance, the type of the constructor `c` below is now `{@0 A :
-  Set} → D A`, and the type of the record field `R.f` is `{@0 A : Set}
+  Set} → D A`, and the type of the projection `R.f` is `{@0 A : Set}
   → R A → A`:
   ```agda
   data D (A : Set) : Set where
