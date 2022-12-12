@@ -184,7 +184,7 @@ jobs:
     - env:
         GITHUB_TOKEN: ${{ github.token }}
       name: Delete the nightly tag if any
-      uses: dev-drprasad/delete-tag-and-release@v0.2.0
+      uses: dev-drprasad/delete-tag-and-release@v0.2.1
       with:
         delete_release: true
         tag_name: nightly
