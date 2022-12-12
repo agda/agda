@@ -173,9 +173,9 @@ arg′ v q = arg (arg-info v (modality relevant q))
 test₈ :
   inf-type₂ ≡
   def (quote RVec.sel)
-    (arg′ hidden  quantity-0 (def (quote lzero) []) ∷
-     arg′ hidden  quantity-0 (def (quote Nat) []) ∷
-     arg′ hidden  quantity-0 (lit (nat 0)) ∷
+    (arg′ hidden  quantity-ω (def (quote lzero) []) ∷
+     arg′ hidden  quantity-ω (def (quote Nat) []) ∷
+     arg′ hidden  quantity-ω (lit (nat 0)) ∷
      arg′ visible quantity-ω (def (quote r) []) ∷
      [])
 test₈ = refl

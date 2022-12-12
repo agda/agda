@@ -6,5 +6,7 @@ data _≡ʷ_ {A : Set} (@ω x : A) : @ω A → Set where refl : x ≡ʷ x
 works : ∀ {A} {@0 x y : A} → x ≡⁰ y → x ≡ʷ y
 works refl = refl
 
-also-works : ∀ {A} {@0 x y : A} → x ≡⁰ y → x ≡ʷ y
-also-works {x = x} refl = refl {x = x}
+-- The following code will work once --erasure is implemented.
+
+-- also-works : ∀ {A} {@0 x y : A} → x ≡⁰ y → x ≡ʷ y
+-- also-works {x = x} refl = refl {x = x}

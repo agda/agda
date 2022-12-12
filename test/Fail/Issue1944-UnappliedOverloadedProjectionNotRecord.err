@@ -2,6 +2,6 @@ Issue1944-UnappliedOverloadedProjectionNotRecord.agda:15,8-9
 Cannot resolve overloaded projection f because
 principal argument has type A₁ while it should be of record type
   candidates in scope:
-- f : {@0 B : Set} → R B → B
-- f : {@0 B : Set} → S B → B
+- f : {B : Set} → R B → B
+- f : {B : Set} → S B → B
 when checking that the expression f has type A₁ → A₁

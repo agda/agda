@@ -48,19 +48,19 @@ projection functions
 
 .. code-block:: agda
 
-  Pair.fst : {@0 A B : Set} → Pair A B → A
-  Pair.snd : {@0 A B : Set} → Pair A B → B
+  Pair.fst : {A B : Set} → Pair A B → A
+  Pair.snd : {A B : Set} → Pair A B → B
 
 ..
   ::
-   test-fst : {@0 A B : Set} → Pair A B → A
+   test-fst : {A B : Set} → Pair A B → A
    test-fst {A = A} {B = B} p = Pair.fst {A = A} {B = B} p
 
-   test-snd : {@0 A B : Set} → Pair A B → B
+   test-snd : {A B : Set} → Pair A B → B
    test-snd {A = A} {B = B} p = Pair.snd {A = A} {B = B} p
 
-Note that the parameters ``A`` and ``B`` are implicit, :ref:`erased
-<runtime-irrelevance>` arguments to the projection functions.
+Note that the parameters ``A`` and ``B`` are implicit arguments to the
+projection functions.
 
 Elements of record types can be defined using a record expression
 

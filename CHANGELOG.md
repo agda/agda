@@ -72,25 +72,6 @@ Erasure
 
   This feature is experimental.
 
-* The parameter arguments of constructors and projections are now
-  marked as erased
-  ([#4786](https://github.com/agda/agda/issues/4786)), with one
-  exception: for indexed data types this only happens if the
-  `--with-K` flag is active
-  ([#6297](https://github.com/agda/agda/issues/6297)).
-
-  For instance, the type of the constructor `c` below is now `{@0 A :
-  Set} → D A`, and the type of the projection `R.f` is `{@0 A : Set}
-  → R A → A`:
-  ```agda
-  data D (A : Set) : Set where
-    c : D A
-
-  record R (A : Set) : Set where
-    field
-      f : A
-  ```
-
 * Added an option `--erase-record-parameters` that additionally marks
   parameters to definitions in a record module as erased
   ([#5770](https://github.com/agda/agda/issues/5770)). For example:

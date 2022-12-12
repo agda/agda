@@ -44,13 +44,6 @@ arguments.
   annotation, using Brady et al's forcing analysis :ref:`[1] <references>`. Marking it erased explictly, however,
   ensures that it is erased without relying on the analysis.
 
-.. note::
-  In the type signature of a constructor or record field the
-  parameters are always marked as erased, even if the parameters are
-  not marked as erased in the data or record type's telescope, with
-  one exception: for indexed data types this only happens if the
-  :option:`--with-K` flag is active.
-
 Erasure annotations can also appear in function arguments (both first-order and higher-order). For instance, here is
 an implementation of ``foldl`` on vectors::
 

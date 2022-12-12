@@ -3,5 +3,5 @@ Cannot resolve overloaded projection test because
 principal argument x has type A while it should be of record type
   candidates in scope:
 - test : ({A = A₁ : Set} ⦃ r : Testable A₁ ⦄ → A₁ → Bool)
-- test : ({@0 A = A₁ : Set} → Testable A₁ → A₁ → Bool)
+- test : ({A = A₁ : Set} → Testable A₁ → A₁ → Bool)
 when checking that the expression test x has type Bool

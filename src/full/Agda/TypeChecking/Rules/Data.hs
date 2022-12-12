@@ -124,18 +124,9 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   else throwError err
               reduce s
 
-            withK <- not . collapseDefault . optWithoutK <$>
-                     pragmaOptions
-            -- Parameters are always hidden in constructors. For
-            -- non-indexed data types the parameters are erased, and
-            -- if --with-K is active this applies also to indexed data
-            -- types.
+            -- Parameters are always hidden in constructors.
             let tel  = abstract gtel ptel
-                tel' = (if withK || nofIxs == 0
-                        then applyQuantity zeroQuantity
-                        else id) .
-                       hideAndRelParams <$>
-                       tel
+                tel' = hideAndRelParams <$> tel
 
             reportSDoc "tc.data.sort" 20 $ vcat
               [ "checking datatype" <+> prettyTCM name
