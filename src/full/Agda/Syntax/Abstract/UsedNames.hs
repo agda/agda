@@ -3,29 +3,15 @@ module Agda.Syntax.Abstract.UsedNames
   ( allUsedNames
   ) where
 
-import Prelude hiding (null)
-
-import Control.Applicative ( Const(Const), getConst )
-import Control.Arrow (first)
-import Control.Monad.Identity
-
 import Data.Foldable (foldMap)
-import qualified Data.DList as DL
-import Data.Semigroup ((<>))
+import Data.Semigroup (Semigroup, (<>))
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Void
 
 import Agda.Syntax.Common
-import Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract
 import Agda.Syntax.Concrete (FieldAssignment'(..))
-import Agda.Syntax.Info
-import Agda.Syntax.Scope.Base (KindOfName(..), conKindOfName, WithKind(..))
-
-import Agda.Utils.Either
 import Agda.Utils.List1 (List1)
-import Agda.Utils.Null
-import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
 
@@ -95,32 +81,32 @@ instance (BoundAndUsed a, BoundAndUsed b) => BoundAndUsed (a, b) where
 
 instance BoundAndUsed Expr where
   boundAndUsed = noBindings . \ case
-    A.Var x                  -> singleUse x
-    A.Def'{}                 -> mempty
-    A.Proj{}                 -> mempty
-    A.Con{}                  -> mempty
-    A.PatternSyn{}           -> mempty
-    A.Macro{}                -> mempty
-    A.Lit{}                  -> mempty
-    A.QuestionMark{}         -> mempty
-    A.Underscore{}           -> mempty
-    A.Dot _ expr             -> boundAndUsed expr
-    A.App _ expr arg         -> boundAndUsed (expr, arg)
-    A.WithApp _ expr exprs   -> boundAndUsed (expr, exprs)
-    A.Lam _ bind expr        -> boundAndUsed (bind, expr)
-    A.AbsurdLam{}            -> mempty
-    A.ExtendedLam _ _ _ _ cs -> boundAndUsed cs
-    A.Pi _ tel expr          -> boundAndUsed (tel, expr)
-    A.Generalized _ expr     -> boundAndUsed expr
-    A.Fun _ arg expr         -> boundAndUsed (arg, expr)
-    A.Let _ binds expr       -> boundAndUsed (binds, expr)
-    A.Rec _ as               -> boundAndUsed as
-    A.RecUpdate _ expr as    -> boundAndUsed expr <> boundAndUsed as
-    A.ScopedExpr _ expr      -> boundAndUsed expr
-    A.Quote{}                -> mempty
-    A.QuoteTerm{}            -> mempty
-    A.Unquote{}              -> mempty
-    A.DontCare expr          -> boundAndUsed expr
+    Var x                  -> singleUse x
+    Def'{}                 -> mempty
+    Proj{}                 -> mempty
+    Con{}                  -> mempty
+    PatternSyn{}           -> mempty
+    Macro{}                -> mempty
+    Lit{}                  -> mempty
+    QuestionMark{}         -> mempty
+    Underscore{}           -> mempty
+    Dot _ expr             -> boundAndUsed expr
+    App _ expr arg         -> boundAndUsed (expr, arg)
+    WithApp _ expr exprs   -> boundAndUsed (expr, exprs)
+    Lam _ bind expr        -> boundAndUsed (bind, expr)
+    AbsurdLam{}            -> mempty
+    ExtendedLam _ _ _ _ cs -> boundAndUsed cs
+    Pi _ tel expr          -> boundAndUsed (tel, expr)
+    Generalized _ expr     -> boundAndUsed expr
+    Fun _ arg expr         -> boundAndUsed (arg, expr)
+    Let _ binds expr       -> boundAndUsed (binds, expr)
+    Rec _ as               -> boundAndUsed as
+    RecUpdate _ expr as    -> boundAndUsed expr <> boundAndUsed as
+    ScopedExpr _ expr      -> boundAndUsed expr
+    Quote{}                -> mempty
+    QuoteTerm{}            -> mempty
+    Unquote{}              -> mempty
+    DontCare expr          -> boundAndUsed expr
 
 instance BoundAndUsed lhs => BoundAndUsed (Clause' lhs) where
   -- Note: where declarations are ignored. We use this only on expressions coming from
