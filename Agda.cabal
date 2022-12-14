@@ -367,6 +367,7 @@ library
                     Agda.Syntax.Abstract.Pattern
                     Agda.Syntax.Abstract.PatternSynonyms
                     Agda.Syntax.Abstract.Pretty
+                    Agda.Syntax.Abstract.UsedNames
                     Agda.Syntax.Abstract.Views
                     Agda.Syntax.Abstract
                     Agda.Syntax.Builtin
