@@ -147,6 +147,7 @@ giveExpr force mii mi e = do
       -- when not in a mutual block.
       v <- locallyTC eMutualBlock (const Nothing) $
         checkExpr e t'
+      reportSDoc "interaction.give" 40 $ "give: checked expression:" TP.<+> pure (pretty v)
       case mvInstantiation mv of
 
         InstV{} -> unlessM ((Irrelevant ==) <$> viewTC eRelevance) $ do
@@ -247,6 +248,7 @@ elaborate_give norm force ii mr e = withInteractionId ii $ do
   -- Reduce projection-likes before quoting, otherwise instance
   -- selection may fail on reload (see #6203).
   nv <- reduceProjectionLike =<< normalForm norm v
+  reportSDoc "interaction.give" 40 $ "nv = " TP.<+> pure (pretty v)
   locallyTC ePrintMetasBare (const True) $ reify nv
 
 -- | Try to refine hole by expression @e@.
