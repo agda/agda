@@ -856,7 +856,7 @@ solutionStep retry s
   -- Jesper, Andreas, 2018-10-17: the quantity of the equation is morally
   -- always @Quantity0@, since the indices of the data type are runtime erased.
   -- Thus, we need not change the quantity of the solution.
-  envmod <- viewTC eModality
+  envmod <- currentModality
   let eqrel  = getRelevance dom
       eqmod  = getModality dom
       varmod = getModality dom'

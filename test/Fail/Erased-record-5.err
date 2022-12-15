@@ -1,0 +1,3 @@
+Erased-record-5.agda:11,11-14
+Identifier R.A is declared erased, so it cannot be used here
+when checking that the expression R.A r has type Set₁

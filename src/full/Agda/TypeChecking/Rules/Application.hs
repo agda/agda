@@ -292,7 +292,7 @@ inferHead e = do
       -- The available quantity for variable x must be below
       -- the required quantity to construct the term x.
       -- Note: this whole thing does not work for linearity, where we need some actual arithmetics.
-      unlessM ((getQuantity a `moreQuantity`) <$> asksTC getQuantity) $
+      unlessM ((getQuantity a `moreQuantity`) <$> viewTC eQuantity) $
         typeError $ VariableIsErased x
 
       unless (usableCohesion a) $
@@ -413,7 +413,7 @@ checkRelevance' x def = do
       -- irrelevant projections are only allowed if --irrelevant-projections
       ifM (return (isJust $ isProjection_ $ theDef def) `and2M`
            (not .optIrrelevantProjections <$> pragmaOptions)) {-then-} needIrrProj {-else-} $ do
-        rel <- asksTC getRelevance
+        rel <- viewTC eRelevance
         reportSDoc "tc.irr" 50 $ vcat
           [ "declaration relevance =" <+> text (show drel)
           , "context     relevance =" <+> text (show rel)
@@ -437,7 +437,7 @@ checkQuantity' x def = do
         ]
       return Nothing -- Abundant definitions can be used in any context.
     dq -> do
-      q <- asksTC getQuantity
+      q <- viewTC eQuantity
       reportSDoc "tc.irr" 50 $ vcat
         [ "declaration quantity =" <+> text (show dq)
         , "context     quantity =" <+> text (show q)
@@ -1342,7 +1342,7 @@ inferOrCheckProjApp e o ds args mt = do
       ifBlocked core (\ m _ -> postpone m) $ {-else-} \ _ core -> do
       ifNotPiType core (\ _ -> refuseProjNotApplied ds) $ {-else-} \ dom _b -> do
       ifBlocked (unDom dom) (\ m _ -> postpone m) $ {-else-} \ _ ta -> do
-      caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds) $ \ (_q, _pars, defn) -> do
+      caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds Nothing ta) $ \ (_q, _pars, defn) -> do
       case defn of
         Record { recFields = fs } -> do
           case forMaybe fs $ \ f -> Fold.find (unDom f ==) ds of
@@ -1403,7 +1403,7 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta mpatm = do
     Nothing -> uncurry PrincipalArgTypeMetas <$> implicitArgs (-1) (not . visible) ta
   let v = v0 `apply` vargs
   ifBlocked ta (\ m _ -> postpone m patm) {-else-} $ \ _ ta -> do
-  caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds) $ \ (q, _pars0, _) -> do
+  caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds (Just v0) ta) $ \ (q, _pars0, _) -> do
 
       -- try to project it with all of the possible projections
       let try d = do
@@ -1466,8 +1466,7 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta mpatm = do
       case cands of
         [] -> refuseProjNoMatching ds
         [[]] -> refuseProjNoMatching ds
-        (_:_:_) -> refuseProj ds $ "several matching candidates found: "
-             ++ prettyShow (map (fst . snd) $ concat cands)
+        (_:_:_) -> refuseProj ds $ fwords "several matching candidates can be applied."
         -- case: just one matching projection d
         -- the term u = d v
         -- the type tb is the type of this application
@@ -1497,16 +1496,19 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta mpatm = do
 
               return (v, tc, NotCheckedTarget)
 
-refuseProj :: List1 QName -> String -> TCM a
-refuseProj ds reason = typeError $ GenericError $
-        "Cannot resolve overloaded projection "
-        ++ prettyShow (A.nameConcrete $ A.qnameName $ List1.head ds)
-        ++ " because " ++ reason
+-- | Throw 'AmbiguousProjectionError' with additional explanation.
+refuseProj :: List1 QName -> TCM Doc -> TCM a
+refuseProj ds reason = typeError . AmbiguousProjectionError ds =<< reason
 
-refuseProjNotApplied, refuseProjNoMatching, refuseProjNotRecordType :: List1 QName -> TCM a
-refuseProjNotApplied    ds = refuseProj ds "it is not applied to a visible argument"
-refuseProjNoMatching    ds = refuseProj ds "no matching candidate found"
-refuseProjNotRecordType ds = refuseProj ds "principal argument is not of record type"
+refuseProjNotApplied, refuseProjNoMatching :: List1 QName -> TCM a
+refuseProjNotApplied    ds = refuseProj ds $ fwords "it is not applied to a visible argument"
+refuseProjNoMatching    ds = refuseProj ds $ fwords "no matching candidate found"
+refuseProjNotRecordType :: List1 QName -> Maybe Term -> Type -> TCM a
+refuseProjNotRecordType ds pValue pType = do
+  let dType = prettyTCM pType
+  let dValue = caseMaybe pValue (return empty) prettyTCM
+  refuseProj ds $ fsep $
+    ["principal argument", dValue, "has type", dType, "while it should be of record type"]
 
 -----------------------------------------------------------------------------
 -- * Sorts
@@ -1627,15 +1629,17 @@ checkSharpApplication e t c args = do
     (_, a) <- newValueMeta RunMetaOccursCheck CmpEq (sort $ Type lv)
     return $ El (Type lv) $ Def inf [Apply $ setHiding Hidden $ defaultArg l, Apply $ defaultArg a]
 
-  wrapper <- inFreshModuleIfFreeParams $ localTC (set eQuantity topQuantity) $ do
+  wrapper <- inFreshModuleIfFreeParams $
+             setRunTimeModeUnlessInHardCompileTimeMode $ do
     -- Andreas, 2019-10-12: create helper functions in non-erased mode.
     -- Otherwise, they are not usable in meta-solutions in the term world.
+    -- #4743: Except if hard compile-time mode is enabled.
     c' <- setRange (getRange c) <$>
             liftM2 qualify (killRange <$> currentModule)
                            (freshName_ name)
 
     -- Define and type check the fresh function.
-    mod <- asksTC getModality
+    mod <- currentModality
     abs <- asksTC (^. lensIsAbstract)
     let info   = A.mkDefInfo (A.nameConcrete $ A.qnameName c') noFixity'
                              PublicAccess abs noRange

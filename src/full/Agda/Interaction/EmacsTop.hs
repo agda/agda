@@ -326,7 +326,7 @@ prettyResponseContext
   -> [ResponseContextEntry]
   -> TCM Doc
 prettyResponseContext ii rev ctx = withInteractionId ii $ do
-  mod   <- asksTC getModality
+  mod <- currentModality
   align 10 . concat . applyWhen rev reverse <$> do
     forM ctx $ \ (ResponseContextEntry n x (Arg ai expr) letv nis) -> do
       let

@@ -292,7 +292,7 @@ newValueMetaCtx' frozen b cmp a tel perm vs = do
   i <- createMetaInfo' b
   let t     = telePi_ tel a
   x <- newMeta frozen i normalMetaPriority perm (HasType () cmp t)
-  modality <- viewTC eModality
+  modality <- currentModality
   reportSDoc "tc.meta.new" 50 $ fsep
     [ text $ "new meta (" ++ show (i ^. lensIsAbstract) ++ "):"
     , nest 2 $ prettyTCM vs <+> "|-"

@@ -435,7 +435,7 @@ createMetaInfo' b = do
   r        <- getCurrentRange
   cl       <- buildClosure r
   gen      <- viewTC eGeneralizeMetas
-  modality <- viewTC eModality
+  modality <- currentModality
   return MetaInfo
     { miClosRange       = cl
     , miModality        = modality

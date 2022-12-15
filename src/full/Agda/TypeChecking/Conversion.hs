@@ -140,7 +140,10 @@ equalType = compareType CmpEq
 -- convError ::  MonadTCM tcm => TypeError -> tcm a
 -- | Ignore errors in irrelevant context.
 convError :: TypeError -> TCM ()
-convError err = ifM ((==) Irrelevant <$> asksTC getRelevance) (return ()) $ typeError err
+convError err =
+  ifM ((==) Irrelevant <$> viewTC eRelevance)
+    (return ())
+    (typeError err)
 
 -- | Type directed equality on values.
 --
@@ -2024,7 +2027,7 @@ forallFaceMaps t kb k = do
       let t = foldr (\ x r -> and `apply` [argN x,argN r]) io ts
       ifBlocked t blocked unblocked
     addBindings [] m = m
-    addBindings ((Dom{domInfo = info,unDom = (nm,ty)},t):bs) m = addLetBinding info nm t ty (addBindings bs m)
+    addBindings ((Dom{domInfo = info,unDom = (nm,ty)},t):bs) m = addLetBinding info Inserted nm t ty (addBindings bs m)
 
     substContextN :: MonadConversion m => Context -> [(Int,Term)] -> m (Context , Substitution)
     substContextN c [] = return (c, idS)

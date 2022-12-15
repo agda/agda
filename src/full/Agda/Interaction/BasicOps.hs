@@ -149,7 +149,7 @@ giveExpr force mii mi e = do
         checkExpr e t'
       case mvInstantiation mv of
 
-        InstV{} -> unlessM ((Irrelevant ==) <$> asksTC getRelevance) $ do
+        InstV{} -> unlessM ((Irrelevant ==) <$> viewTC eRelevance) $ do
           v' <- instantiate $ MetaV mi $ map Apply ctx
           reportSDoc "interaction.give" 20 $ TP.sep
             [ "meta was already set to value v' = " TP.<+> prettyTCM v'
@@ -1039,15 +1039,17 @@ contextOfMeta ii norm = withInteractionId ii $ do
         ty <- reifyUnblocked =<< normalForm norm t
         return $ ResponseContextEntry n x (Arg ai ty) Nothing s
 
-    mkLet :: (Name, Open (Term, Dom I.Type)) -> TCM (Maybe ResponseContextEntry)
+    mkLet :: (Name, Open M.LetBinding) -> TCM (Maybe ResponseContextEntry)
     mkLet (name, lb) = do
-      (tm, !dom) <- getOpen lb
+      LetBinding _ tm !dom <- getOpen lb
       if shouldHide (domInfo dom) name then return Nothing else Just <$> do
         let n = nameConcrete name
         x  <- abstractToConcrete_ name
         let s = C.isInScope x
         ty <- reifyUnblocked =<< normalForm norm dom
-        v  <- reifyUnblocked =<< normalForm norm tm
+              -- Remove let bindings from x and later, to avoid folding to x = x, or using bindings
+              -- not introduced when x was defined.
+        v  <- removeLetBindingsFrom name $ reifyUnblocked =<< normalForm norm tm
         return $ ResponseContextEntry n x ty (Just v) s
 
     shouldHide :: ArgInfo -> A.Name -> Bool
@@ -1104,9 +1106,9 @@ introTactic pmLambda ii = do
           I.Def d _ -> do
             def <- getConstInfo d
             case theDef def of
-              Datatype{}    -> addContext tel' $ introData t
+              Datatype{}    -> addContext tel' $ introData AmbiguousNothing t
               Record{ recNamedCon = name }
-                | name      -> addContext tel' $ introData t
+                | name      -> addContext tel' $ introData AmbiguousConProjs t
                 | otherwise -> addContext tel' $ introRec d
               _ -> fallback
           _ -> fallback
@@ -1117,8 +1119,8 @@ introTactic pmLambda ii = do
     conName [p] = [ c | I.ConP c _ _ <- [namedArg p] ]
     conName _   = __IMPOSSIBLE__
 
-    showUnambiguousConName v =
-       render . pretty <$> runAbsToCon (lookupQName AmbiguousNothing $ I.conName v)
+    showUnambiguousConName amb v =
+       render . pretty <$> runAbsToCon (lookupQName amb $ I.conName v)
 
     showTCM :: PrettyTCM a => a -> TCM String
     showTCM v = render <$> prettyTCM v
@@ -1148,15 +1150,15 @@ introTactic pmLambda ii = do
         makeName ("_", t) = ("x", t)
         makeName (x, t)   = (x, t)
 
-    introData :: I.Type -> TCM [String]
-    introData t = do
+    introData :: AllowAmbiguousNames -> I.Type -> TCM [String]
+    introData amb t = do
       let tel  = telFromList [defaultDom ("_", t)]
           pat  = [defaultArg $ unnamed $ debruijnNamedVar "c" 0]
       r <- splitLast CoInductive tel pat
       case r of
         Left err -> return []
         Right cov ->
-           mapM showUnambiguousConName $ concatMap (conName . scPats) $ splitClauses cov
+           mapM (showUnambiguousConName amb) $ concatMap (conName . scPats) $ splitClauses cov
 
     introRec :: QName -> TCM [String]
     introRec d = do

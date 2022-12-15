@@ -46,6 +46,7 @@ import Agda.Syntax.Abstract as A hiding (Binder)
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pattern
 import Agda.Syntax.Abstract.Pretty
+import Agda.Syntax.Abstract.UsedNames
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
 import Agda.Syntax.Scope.Base (inverseScopeLookupName)
@@ -59,6 +60,7 @@ import Agda.TypeChecking.Level
 import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.SyntacticEquality
 import Agda.TypeChecking.Telescope
 
 import Agda.Interaction.Options
@@ -431,8 +433,21 @@ reifyPathPConstAsPath x es@[I.Apply l, I.Apply t, I.Apply lhs, I.Apply rhs] = do
      _ -> fallback
 reifyPathPConstAsPath x es = return (x,es)
 
+-- | Check if the term matches an existing let-binding, in that case use the corresponding variable,
+--   otherwise reify using the continuation.
+tryReifyAsLetBinding :: MonadReify m => Term -> m Expr -> m Expr
+tryReifyAsLetBinding v fallback = ifM (asksTC $ not . envFoldLetBindings) fallback $ do
+  letBindings <- do
+    binds  <- asksTC (Map.toAscList . envLetBindings)
+    opened <- forM binds $ \ (name, open) -> (,name) <$> getOpen open
+    return [ (body, name) | (LetBinding UserWritten body _, name) <- opened, not $ isNoName name ]  -- Only fold user-written lets
+  matchingBindings <- filterM (\t -> checkSyntacticEquality v (fst t) (\_ _ -> return True) (\_ _ -> return False)) letBindings
+  case matchingBindings of
+    (_, name) : _ -> return $ A.Var name
+    []            -> fallback
+
 reifyTerm :: MonadReify m => Bool -> Term -> m Expr
-reifyTerm expandAnonDefs0 v0 = do
+reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
   -- Jesper 2018-11-02: If 'PrintMetasBare', drop all meta eliminations.
   metasBare <- asksTC envPrintMetasBare
   v <- instantiate v0 >>= \case
@@ -887,8 +902,10 @@ removeNameUnlessUserWritten a
 -- | Removes implicit arguments that are not needed, that is, that don't bind
 --   any variables that are actually used and doesn't do pattern matching.
 --   Doesn't strip any arguments that were written explicitly by the user.
-stripImplicits :: MonadReify m => A.Patterns -> A.Patterns -> m A.Patterns
-stripImplicits params ps = do
+stripImplicits :: MonadReify m
+  => Set Name -- ^ Variables to always include (occurs on RHS of clause)
+  -> A.Patterns -> A.Patterns -> m A.Patterns
+stripImplicits toKeep params ps = do
   -- if --show-implicit we don't need the names
   ifM showImplicitArguments (return $ map (fmap removeNameUnlessUserWritten) ps) $ do
     reportSDoc "reify.implicit" 100 $ return $ vcat
@@ -930,7 +947,11 @@ stripImplicits params ps = do
             , getOrigin a `notElem` [ UserWritten , CaseSplit ]
             , (getOrigin <$> getNameOf a) /= Just UserWritten
             , varOrDot (namedArg a)
+            , not $ mustKeepVar (namedArg a)
             ]
+
+          mustKeepVar (A.VarP (A.BindName x)) = Set.member x toKeep
+          mustKeepVar _                       = False
 
           isUnnamedHidden x = notVisible x && isNothing (getNameOf x) && isNothing (isProjP x)
 
@@ -961,9 +982,12 @@ stripImplicits params ps = do
 
 -- | @blankNotInScope e@ replaces variables in expression @e@ with @_@
 -- if they are currently not in scope.
-blankNotInScope :: (MonadTCEnv m, BlankVars a) => a -> m a
+blankNotInScope :: (MonadTCEnv m, MonadDebug m, BlankVars a) => a -> m a
 blankNotInScope e = do
-  names <- Set.fromList . filter ((== C.InScope) . C.isInScope) <$> getContextNames
+  ctxNames <- getContextNames
+  letNames <- map fst <$> getLetBindings
+  let names = Set.fromList . filter ((== C.InScope) . C.isInScope) $ ctxNames ++ letNames
+  reportSDoc "reify.blank" 80 . pure $ "names in scope for blanking:" <+> pretty names
   return $ blank names e
 
 
@@ -1126,7 +1150,7 @@ instance Binder TypedBinding where
 instance Binder BindName where
   varsBoundIn x = singleton (unBind x)
 
-instance Binder LetBinding where
+instance Binder A.LetBinding where
   varsBoundIn (LetBind _ _ x _ _) = varsBoundIn x
   varsBoundIn (LetPatBind _ p _)  = varsBoundIn p
   varsBoundIn LetApply{}          = empty
@@ -1297,6 +1321,21 @@ instance Reify NamedClause where
       , "  toDrop =" <+> pshow toDrop
       , "  cl     =" <+> pretty cl
       ]
+
+    let clBody = clauseBody cl
+        rhsVars = maybe [] freeVars clBody
+
+    rhsBody     <- traverse reify clBody
+    rhsVarNames <- mapM nameOfBV' rhsVars
+    let rhsUsedNames = maybe mempty allUsedNames rhsBody
+        rhsUsedVars  = [i | (i, Just n) <- zip rhsVars rhsVarNames, n `Set.member` rhsUsedNames]
+
+    reportSDoc "reify.clause" 60 $ return $ "RHS:" <+> pretty clBody
+    reportSDoc "reify.clause" 60 $ return $ "variables occurring on RHS:" <+> pretty rhsVars
+      <+> "variable names:" <+> pretty rhsVarNames
+      <+> parens (maybe "no clause body" (const "there was a clause body") clBody)
+    reportSDoc "reify.clause" 60 $ return $ "names occurring on RHS" <+> pretty (Set.toList rhsUsedNames)
+
     let ell = clauseEllipsis cl
     ps  <- reifyPatterns $ namedClausePats cl
     lhs <- uncurry (SpineLHS $ empty { lhsEllipsis = ell }) <$> reifyDisplayFormP f ps []
@@ -1309,20 +1348,16 @@ instance Reify NamedClause where
         Left _  -> return 0
         Right m -> size <$> lookupSection m
       return $ splitParams nfv lhs
-    lhs <- stripImps params lhs
-    reportSDoc "reify.clause" 100 $ return $ "reifying NamedClause, lhs =" <?> pshow lhs
-    rhs <- caseMaybe (clauseBody cl) (return AbsurdRHS) $ \ e ->
-      RHS <$> reify e <*> pure Nothing
-    reportSDoc "reify.clause" 100 $ return $ "reifying NamedClause, rhs =" <?> pshow rhs
-    let result = A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls (I.clauseCatchall cl)
-    reportSDoc "reify.clause" 100 $ return $ "reified NamedClause, result =" <?> pshow result
+    lhs <- stripImps rhsUsedNames params lhs
+    let rhs    = caseMaybe rhsBody AbsurdRHS $ \ e -> RHS e Nothing
+        result = A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls (I.clauseCatchall cl)
     return result
     where
       splitParams n (SpineLHS i f ps) =
         let (params , pats) = splitAt n ps
         in  (params , SpineLHS i f pats)
-      stripImps :: MonadReify m => [NamedArg A.Pattern] -> SpineLHS -> m SpineLHS
-      stripImps params (SpineLHS i f ps) =  SpineLHS i f <$> stripImplicits params ps
+      stripImps :: MonadReify m => Set Name -> [NamedArg A.Pattern] -> SpineLHS -> m SpineLHS
+      stripImps rhsUsedNames params (SpineLHS i f ps) =  SpineLHS i f <$> stripImplicits rhsUsedNames params ps
 
 instance Reify (QNamed System) where
   type ReifiesTo (QNamed System) = [A.Clause]
@@ -1347,7 +1382,7 @@ instance Reify (QNamed System) where
         reify (phi, d b)
 
       ps <- reifyPatterns $ teleNamedArgs tel
-      ps <- stripImplicits [] $ ps ++ [defaultNamedArg ep]
+      ps <- stripImplicits mempty [] $ ps ++ [defaultNamedArg ep]
       let
         lhs = SpineLHS empty f ps
         result = A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls False

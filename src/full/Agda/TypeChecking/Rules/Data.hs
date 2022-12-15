@@ -83,6 +83,10 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                 DataOrRecSig n -> n
                 _              -> __IMPOSSIBLE__
 
+        -- If the data type is erased, then hard compile-time mode is
+        -- entered.
+        setHardCompileTimeModeIfErased' def $ do
+
         -- Make sure the shape of the type is visible
         let unTelV (TelV tel a) = telePi tel a
         t <- unTelV <$> telView t
@@ -287,9 +291,13 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
           Quantityω{} -> return ()
           Quantity0{} -> return ()
           Quantity1{} -> typeError $ GenericError $ "Quantity-restricted constructors are not supported"
+
+        -- If the constructor is erased, then hard compile-time mode
+        -- is entered.
+        setHardCompileTimeModeIfErased' ai $ do
+
         -- check that the type of the constructor is well-formed
-        (t, isPathCons) <- applyQuantityToContext ai $
-                           checkConstructorType e d
+        (t, isPathCons) <- checkConstructorType e d
 
         -- compute which constructor arguments are forced (only point constructors)
         forcedArgs <- if isPathCons == PointCons
@@ -305,7 +313,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               Prop l -> Type l
               _      -> s
         arity <- traceCall (CheckConstructorFitsIn c t s') $
-                 applyQuantityToContext ai $
+                 applyQuantityToJudgement ai $
                  fitsIn uc forcedArgs t s'
         -- this may have instantiated some metas in s, so we reduce
         s <- reduce s

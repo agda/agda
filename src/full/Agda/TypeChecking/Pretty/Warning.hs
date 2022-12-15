@@ -159,14 +159,17 @@ prettyWarning = \case
       pwords "It is pointless for INLINE'd function" ++ [prettyTCM q] ++
       pwords "to have a separate Haskell definition"
 
-    WrongInstanceDeclaration -> fwords "Terms marked as eligible for instance search should end with a name, so `instance' is ignored here."
+    WrongInstanceDeclaration -> fwords $
+      "Instances should be of type {Γ} → C, where C evaluates to a postulated name or the name of " ++
+      "a data or record type, so `instance' is ignored here."
 
     InstanceWithExplicitArg q -> fsep $
       pwords "Instance declarations with explicit arguments are never considered by instance search," ++
       pwords "so making" ++ [prettyTCM q] ++ pwords "into an instance has no effect."
 
     InstanceNoOutputTypeName b -> fsep $
-      pwords "Instance arguments whose type does not end in a named or variable type are never considered by instance search," ++
+      pwords "Instance arguments whose type is not {Γ} → C, where C evaluates to a postulated type, " ++
+      pwords "a parameter type or the name of a data or record type, are never considered by instance search," ++
       pwords "so having an instance argument" ++ [return b] ++ pwords "has no effect."
 
     InstanceArgWithExplicitArg b -> fsep $
@@ -337,6 +340,10 @@ prettyWarning = \case
       [ pwords "Name bound in @-pattern ignored because it shadows"
       , if patsyn then pwords "pattern synonym" else [ "constructor" ]
       ]
+
+    PlentyInHardCompileTimeMode o -> fsep $
+      pwords "Ignored use of" ++ [pretty o] ++
+      pwords "in hard compile-time mode"
 
     RecordFieldWarning w -> prettyRecordFieldWarning w
 

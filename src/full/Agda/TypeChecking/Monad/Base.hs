@@ -355,7 +355,7 @@ type CurrentTypeCheckLog = [(TypeCheckAction, PostScopeState)]
 --
 --   * 'LeaveSection', leaving the main module.
 data TypeCheckAction
-  = EnterSection !ModuleName !A.Telescope
+  = EnterSection !Erased !ModuleName !A.Telescope
   | LeaveSection !ModuleName
   | Decl !A.Declaration
     -- ^ Never a Section or ScopeDecl
@@ -3183,7 +3183,7 @@ data Call
   | CheckIsEmpty Range Type
   | CheckConfluence QName QName
   | CheckWithFunctionType Type
-  | CheckSectionApplication Range ModuleName A.ModuleApplication
+  | CheckSectionApplication Range Erased ModuleName A.ModuleApplication
   | CheckNamedWhere ModuleName
   -- | Checking a clause for confluence with endpoint reductions. Always
   -- @φ ⊢ f vs = rhs@ for now, but we store the simplifications of
@@ -3272,7 +3272,7 @@ instance HasRange Call where
     getRange (ScopeCheckLHS _ p)                 = getRange p
     getRange (CheckDotPattern e _)               = getRange e
     getRange (SetRange r)                        = r
-    getRange (CheckSectionApplication r _ _)     = r
+    getRange (CheckSectionApplication r _ _ _)   = r
     getRange (CheckIsEmpty r _)                  = r
     getRange (CheckConfluence rule1 rule2)       = max (getRange rule1) (getRange rule2)
     getRange NoHighlighting                      = noRange
@@ -3416,17 +3416,18 @@ data TCEnv =
                 --   or the body of a non-abstract definition this is true.
                 --   To prevent information about abstract things leaking
                 --   outside the module.
-          , envModality            :: Modality
-                -- ^ 'Relevance' component:
-                -- Are we checking an irrelevant argument? (=@Irrelevant@)
+          , envRelevance           :: Relevance
+                -- ^ Are we checking an irrelevant argument? (=@Irrelevant@)
                 -- Then top-level irrelevant declarations are enabled.
                 -- Other value: @Relevant@, then only relevant decls. are available.
-                --
-                -- 'Quantity' component:
-                -- Are we checking a runtime-irrelevant thing? (='Quantity0')
+          , envQuantity            :: Quantity
+                -- ^ Are we checking a runtime-irrelevant thing? (='Quantity0')
                 -- Then runtime-irrelevant things are usable.
-                -- Other value: @Quantity1@, runtime relevant.
-                -- @Quantityω@ is not allowed here, see Bob Atkey, LiCS 2018.
+          , envHardCompileTimeMode :: Bool
+                -- ^ Is the \"hard\" compile-time mode enabled? In
+                -- this mode the quantity component of the environment
+                -- is always zero, and every new definition is treated
+                -- as erased.
           , envSplitOnStrict       :: Bool
                 -- ^ Are we currently case-splitting on a strict
                 --   datatype (i.e. in SSet)? If yes, the
@@ -3434,6 +3435,8 @@ data TCEnv =
                 --   equations even --without-K.
           , envDisplayFormsEnabled :: Bool
                 -- ^ Sometimes we want to disable display forms.
+          , envFoldLetBindings :: Bool
+                -- ^ Fold let-bindings when printing terms (default: True)
           , envRange :: Range
           , envHighlightingRange :: Range
                 -- ^ Interactive highlighting uses this range rather
@@ -3553,9 +3556,12 @@ initEnv = TCEnv { envContext             = []
   -- The initial mode should be 'ConcreteMode', ensuring you
   -- can only look into abstract things in an abstract
   -- definition (which sets 'AbstractMode').
-                , envModality               = unitModality
+                , envRelevance              = unitRelevance
+                , envQuantity               = unitQuantity
+                , envHardCompileTimeMode    = False
                 , envSplitOnStrict          = False
                 , envDisplayFormsEnabled    = True
+                , envFoldLetBindings        = True
                 , envRange                  = noRange
                 , envHighlightingRange      = noRange
                 , envClause                 = IPNoClause
@@ -3593,14 +3599,6 @@ class LensTCEnv a where
 
 instance LensTCEnv TCEnv where
   lensTCEnv = id
-
-instance LensModality TCEnv where
-  -- Cohesion shouldn't have an environment component.
-  getModality = setCohesion defaultCohesion . envModality
-  mapModality f e = e { envModality = setCohesion defaultCohesion $ f $ envModality e }
-
-instance LensRelevance TCEnv where
-instance LensQuantity  TCEnv where
 
 data UnquoteFlags = UnquoteFlags
   { _unquoteNormalise :: Bool }
@@ -3667,22 +3665,37 @@ eActiveProblems f e = f (envActiveProblems e) <&> \ x -> e { envActiveProblems =
 eAbstractMode :: Lens' AbstractMode TCEnv
 eAbstractMode f e = f (envAbstractMode e) <&> \ x -> e { envAbstractMode = x }
 
--- Andrea 23/02/2020: use get/setModality to enforce invariants of the
---                    envModality field.
-eModality :: Lens' Modality TCEnv
-eModality f e = f (getModality e) <&> \ x -> setModality x e
-
 eRelevance :: Lens' Relevance TCEnv
-eRelevance = eModality . lModRelevance
+eRelevance f e = f (envRelevance e) <&> \x -> e { envRelevance = x }
+
+-- | Note that this lens does not satisfy all lens laws: If hard
+-- compile-time mode is enabled, then quantities other than zero are
+-- replaced by '__IMPOSSIBLE__'.
 
 eQuantity :: Lens' Quantity TCEnv
-eQuantity = eModality . lModQuantity
+eQuantity f e =
+  if envHardCompileTimeMode e
+  then f (check (envQuantity e)) <&>
+       \x -> e { envQuantity = check x }
+  else f (envQuantity e) <&> \x -> e { envQuantity = x }
+  where
+  check q
+    | hasQuantity0 q = q
+    | otherwise      = __IMPOSSIBLE__
+
+eHardCompileTimeMode :: Lens' Bool TCEnv
+eHardCompileTimeMode f e =
+  f (envHardCompileTimeMode e) <&>
+  \x -> e { envHardCompileTimeMode = x }
 
 eSplitOnStrict :: Lens' Bool TCEnv
 eSplitOnStrict f e = f (envSplitOnStrict e) <&> \ x -> e { envSplitOnStrict = x }
 
 eDisplayFormsEnabled :: Lens' Bool TCEnv
 eDisplayFormsEnabled f e = f (envDisplayFormsEnabled e) <&> \ x -> e { envDisplayFormsEnabled = x }
+
+eFoldLetBindings :: Lens' Bool TCEnv
+eFoldLetBindings f e = f (envFoldLetBindings e) <&> \ x -> e { envFoldLetBindings = x }
 
 eRange :: Lens' Range TCEnv
 eRange f e = f (envRange e) <&> \ x -> e { envRange = x }
@@ -3768,6 +3781,22 @@ eConflComputingOverlap f e = f (envConflComputingOverlap e) <&> \ x -> e { envCo
 eCurrentlyElaborating :: Lens' Bool TCEnv
 eCurrentlyElaborating f e = f (envCurrentlyElaborating e) <&> \ x -> e { envCurrentlyElaborating = x }
 
+-- | The current modality.
+--
+-- Note that the returned cohesion component is always 'unitCohesion'.
+
+{-# SPECIALISE currentModality :: TCM Modality #-}
+
+currentModality :: MonadTCEnv m => m Modality
+currentModality = do
+  r <- viewTC eRelevance
+  q <- viewTC eQuantity
+  return Modality
+    { modRelevance = r
+    , modQuantity  = q
+    , modCohesion  = unitCohesion
+    }
+
 ---------------------------------------------------------------------------
 -- ** Context
 ---------------------------------------------------------------------------
@@ -3780,7 +3809,16 @@ type ContextEntry = Dom (Name, Type)
 -- ** Let bindings
 ---------------------------------------------------------------------------
 
-type LetBindings = Map Name (Open (Term, Dom Type))
+type LetBindings = Map Name (Open LetBinding)
+
+data LetBinding = LetBinding { letOrigin :: Origin
+                             , letTerm   :: Term
+                             , letType   :: Dom Type
+                             }
+  deriving (Show, Generic)
+
+onLetBindingType :: (Dom Type -> Dom Type) -> LetBinding -> LetBinding
+onLetBindingType f b = b { letType = f $ letType b }
 
 ---------------------------------------------------------------------------
 -- ** Abstract mode
@@ -3984,6 +4022,8 @@ data Warning
     -- ^ The as-name in an as-pattern may not shadow a constructor (@False@)
     --   or pattern synonym name (@True@),
     --   because this can be confusing to read.
+  | PlentyInHardCompileTimeMode QωOrigin
+    -- ^ Explicit use of @@ω@ or @@plenty@ in hard compile-time mode.
   | RecordFieldWarning RecordFieldWarning
   deriving (Show, Generic)
 
@@ -4063,6 +4103,8 @@ warningName = \case
   RewriteAmbiguousRules{}      -> RewriteAmbiguousRules_
   RewriteMissingRule{}         -> RewriteMissingRule_
   PragmaCompileErased{}        -> PragmaCompileErased_
+  PlentyInHardCompileTimeMode{}
+                               -> PlentyInHardCompileTimeMode_
   -- record field warnings
   RecordFieldWarning w -> case w of
     DuplicateFieldsWarning{}   -> DuplicateFieldsWarning_
@@ -4368,6 +4410,7 @@ data TypeError
             --   If it is non-empty, the first entry could be printed as error hint.
         | AmbiguousParseForLHS LHSOrPatSyn C.Pattern [C.Pattern]
             -- ^ Pattern and its possible interpretations.
+        | AmbiguousProjectionError (List1 QName) Doc
         | OperatorInformation [NotationSection] TypeError
 {- UNUSED
         | NoParseForPatternSynonym C.Pattern
@@ -5402,6 +5445,7 @@ instance NFData pf => NFData (Builtin pf)
 instance NFData HighlightingLevel
 instance NFData HighlightingMethod
 instance NFData TCEnv
+instance NFData LetBinding
 instance NFData UnquoteFlags
 instance NFData AbstractMode
 instance NFData ExpandHidden

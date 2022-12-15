@@ -1,0 +1,3 @@
+Erased-modules-13.agda:14,26-27
+Variable x is declared erased, so it cannot be used here
+when checking that the expression x has type A

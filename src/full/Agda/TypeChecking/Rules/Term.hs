@@ -324,7 +324,7 @@ checkDomain lamOrPi xs e = do
     let (q :| qs) = fmap (getQuantity . getModality) xs
     unless (all (q ==) qs) $ __IMPOSSIBLE__
 
-    t <- applyQuantityToContext q $
+    t <- applyQuantityToJudgement q $
          applyCohesionToContext c $
          modEnv lamOrPi $ isType_ e
     -- Andrea TODO: also make sure that LockUniv implies IsLock
@@ -719,11 +719,13 @@ insertHiddenLambdas h target postpone ret = do
 -- | @checkAbsurdLambda i h e t@ checks absurd lambda against type @t@.
 --   Precondition: @e = AbsurdLam i h@
 checkAbsurdLambda :: Comparison -> A.ExprInfo -> Hiding -> A.Expr -> Type -> TCM Term
-checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
+checkAbsurdLambda cmp i h e t =
+  setRunTimeModeUnlessInHardCompileTimeMode $ do
       -- Andreas, 2019-10-01: check absurd lambdas in non-erased mode.
       -- Otherwise, they are not usable in meta-solutions in the term world.
       -- See test/Succeed/Issue3176.agda for an absurd lambda
       -- created in types.
+      -- #4743: Except if hard compile-time mode is enabled.
   t <- instantiateFull t
   ifBlocked t (\ blocker t' -> postponeTypeCheckingProblem (CheckExpr cmp e t') blocker) $ \ _ t' -> do
     case unEl t' of
@@ -736,7 +738,7 @@ checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
           aux <- qualify top <$> freshName_ (getRange i, absurdLambdaName)
           -- if we are in irrelevant / erased position, the helper function
           -- is added as irrelevant / erased
-          mod <- asksTC getModality
+          mod <- currentModality
           reportSDoc "tc.term.absurd" 10 $ vcat
             [ ("Adding absurd function" <+> prettyTCM mod) <> prettyTCM aux
             , nest 2 $ "of type" <+> prettyTCM t'
@@ -780,13 +782,17 @@ checkExtendedLambda ::
   Comparison -> A.ExprInfo -> A.DefInfo -> Erased -> QName ->
   List1 A.Clause -> A.Expr -> Type -> TCM Term
 checkExtendedLambda cmp i di erased qname cs e t = do
-  mod <- asksTC getModality
+  mod <- currentModality
   if isErased erased && not (hasQuantity0 mod) then
     genericError $ unwords
       [ "Erased pattern-matching lambdas may only be used in erased"
       , "contexts"
       ]
-   else localTC (set eQuantity $ asQuantity erased) $ do
+   else setModeUnlessInHardCompileTimeMode erased $ do
+        -- Erased pattern-matching lambdas are checked in hard
+        -- compile-time mode. For non-erased pattern-matching lambdas
+        -- run-time mode is used, unless the current mode is hard
+        -- compile-time mode.
    -- Andreas, 2016-06-16 issue #2045
    -- Try to get rid of unsolved size metas before we
    -- fix the type of the extended lambda auxiliary function
@@ -795,7 +801,7 @@ checkExtendedLambda cmp i di erased qname cs e t = do
    t <- instantiateFull t
    ifBlocked t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr cmp e t') $ \ _ t -> do
      j   <- currentOrFreshMutualBlock
-     mod <- asksTC getModality
+     mod <- currentModality
      let info = setModality mod defaultArgInfo
 
      reportSDoc "tc.term.exlam" 20 $ vcat
@@ -1089,7 +1095,7 @@ checkRecordUpdate cmp ei recexpr fs eupd t = do
       -- Bind the record value (before update) to a fresh @name@.
       v <- checkExpr' cmp recexpr t'
       name <- freshNoName $ getRange recexpr
-      addLetBinding defaultArgInfo name v t' $ do
+      addLetBinding defaultArgInfo Inserted name v t' $ do
 
         let projs = map argFromDom $ recFields defn
 
@@ -1245,7 +1251,7 @@ checkExpr' cmp e t =
         A.RecUpdate ei recexpr fs -> checkRecordUpdate cmp ei recexpr fs e t
 
         A.DontCare e -> -- resurrect vars
-          ifM ((Irrelevant ==) <$> asksTC getRelevance)
+          ifM ((Irrelevant ==) <$> viewTC eRelevance)
             (dontCare <$> do applyRelevanceToContext Irrelevant $ checkExpr' cmp e t)
             (internalError "DontCare may only appear in irrelevant contexts")
 
@@ -1348,7 +1354,7 @@ doQuoteTerm cmp et t = do
 -- | Unquote a TCM computation in a given hole.
 unquoteM :: A.Expr -> Term -> Type -> TCM ()
 unquoteM tacA hole holeType = do
-  tac <- applyQuantityToContext zeroQuantity $
+  tac <- applyQuantityToJudgement zeroQuantity $
     checkExpr tacA =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
   inFreshModuleIfFreeParams $ unquoteTactic tac hole holeType
 
@@ -1629,7 +1635,7 @@ checkLetBinding b@(A.LetBind i info x t e) ret =
               | otherwise                  = checkExpr'
     t <- workOnTypes $ isType_ t
     v <- applyModalityToContext info $ check CmpLeq e t
-    addLetBinding info (A.unBind x) v t ret
+    addLetBinding info UserWritten (A.unBind x) v t ret
 
 checkLetBinding b@(A.LetPatBind i p e) ret =
   traceCall (CheckLetBinding b) $ do
@@ -1643,8 +1649,8 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
       , nest 2 $ vcat
         [ "p (A) =" <+> prettyA p
         , "t     =" <+> prettyTCM t
-        , "cxtRel=" <+> do pretty =<< asksTC getRelevance
-        , "cxtQnt=" <+> do pretty =<< asksTC getQuantity
+        , "cxtRel=" <+> do pretty =<< viewTC eRelevance
+        , "cxtQnt=" <+> do pretty =<< viewTC eQuantity
         ]
       ]
     fvs <- getContextSize
@@ -1656,8 +1662,8 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
       reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
         [ "p (I) =" <+> prettyTCM p
         , "delta =" <+> prettyTCM delta
-        , "cxtRel=" <+> do pretty =<< asksTC getRelevance
-        , "cxtQnt=" <+> do pretty =<< asksTC getQuantity
+        , "cxtRel=" <+> do pretty =<< viewTC eRelevance
+        , "cxtQnt=" <+> do pretty =<< viewTC eQuantity
         ]
       reportSDoc "tc.term.let.pattern" 80 $ nest 2 $ vcat
         [ "p (I) =" <+> (text . show) p
@@ -1696,9 +1702,9 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         -- We get list of names of the let-bound vars from the context.
         let xs   = map (fst . unDom) (reverse binds)
         -- We add all the bindings to the context.
-        foldr (uncurry4 addLetBinding) ret $ List.zip4 infos xs sigma ts
+        foldr (uncurry4 $ flip addLetBinding UserWritten) ret $ List.zip4 infos xs sigma ts
 
-checkLetBinding (A.LetApply i x modapp copyInfo _adir) ret = do
+checkLetBinding (A.LetApply i erased x modapp copyInfo dir) ret = do
   -- Any variables in the context that doesn't belong to the current
   -- module should go with the new module.
   -- Example: @f x y = let open M t in u@.
@@ -1713,7 +1719,12 @@ checkLetBinding (A.LetApply i x modapp copyInfo _adir) ret = do
     , "module  =" <+> (prettyTCM =<< currentModule)
     , "fv      =" <+> text (show fv)
     ]
-  checkSectionApplication i x modapp copyInfo
+  checkSectionApplication i erased x modapp copyInfo
+    -- Some other part of the code ensures that "open public" is
+    -- ignored in let expressions. Thus there is no need for
+    -- checkSectionApplication to throw an error if the import
+    -- directive does contain "open public".
+    dir{ publicOpen = Nothing }
   withAnonymousModule x new ret
 -- LetOpen and LetDeclaredVariable are only used for highlighting.
 checkLetBinding A.LetOpen{} ret = ret

@@ -1,0 +1,4 @@
+Erased-modules-12.agda:11,45-51
+Keyword 'public' is ignored here
+when scope checking
+let open module M = Agda.Builtin.Bool public in Set₁

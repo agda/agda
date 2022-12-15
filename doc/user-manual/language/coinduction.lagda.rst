@@ -187,6 +187,8 @@ It is also possible to use copattern-matching lambdas:
 For more information on these restrictions, see `this pull request <https://github.com/agda/agda/pull/4611>`_,
 and `this commit <https://github.com/agda/agda/commit/d771ac257ee9a1f9662364e5db8a50f9994dac49>`_.
 
+.. _old-coinduction:
+
 Old Coinduction
 ---------------
 

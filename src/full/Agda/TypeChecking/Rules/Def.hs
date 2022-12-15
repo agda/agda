@@ -19,6 +19,7 @@ import Agda.Interaction.Options
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
+import qualified Agda.Syntax.Concrete.Pretty as C
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract.Pattern as A
 import qualified Agda.Syntax.Abstract as A
@@ -88,6 +89,11 @@ checkFunDef delayed i name cs = do
         def <- instantiateDef =<< getConstInfo name
         let t    = defType def
         let info = getArgInfo def
+
+        -- If the function is erased, then hard compile-time mode is
+        -- entered.
+        setHardCompileTimeModeIfErased' info $ do
+
         case isAlias cs t of  -- #418: Don't use checkAlias for abstract definitions, since the type
                               -- of an abstract function must not be informed by its definition.
           Just (e, mc, x)
@@ -320,9 +326,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
               ]
 
         -- Needed to calculate the proper fullType below.
-        -- Also: issue #4173, allow splitting on erased arguments in erased definitions
-        -- in the coverage checker.
-        applyCohesionToContext ai $ applyQuantityToContext ai $ do
+        applyCohesionToContext ai $ do
 
         -- Systems have their own coverage and "coherence" check, we
         -- also add an absurd clause for the cases not needed.
@@ -749,7 +753,7 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
           ]
 
         -- compute body modification for irrelevant definitions, see issue 610
-        rel <- asksTC getRelevance
+        rel <- viewTC eRelevance
         let bodyMod body = case rel of
               Irrelevant -> dontCare <$> body
               _          -> body
@@ -1221,7 +1225,7 @@ checkWhere wh@(A.WhereDecls whmod whNamed ds) ret = do
     loop = \case
       Nothing -> ret
       -- [A.ScopedDecl scope ds] -> withScope_ scope $ loop ds  -- IMPOSSIBLE
-      Just (A.Section _ m tel ds) -> newSection m tel $ do
+      Just (A.Section _ e m tel ds) -> newSection e m tel $ do
           localTC (\ e -> e { envCheckingWhere = True }) $ do
             checkDecls ds
             ret
@@ -1255,10 +1259,15 @@ checkWhere wh@(A.WhereDecls whmod whNamed ds) ret = do
 
 -- | Enter a new section during type-checking.
 
-newSection :: ModuleName -> A.GeneralizeTelescope -> TCM a -> TCM a
-newSection m gtel@(A.GeneralizeTel _ tel) cont = do
+newSection ::
+  Erased -> ModuleName -> A.GeneralizeTelescope -> TCM a -> TCM a
+newSection e m gtel@(A.GeneralizeTel _ tel) cont = do
+  -- If the section is erased, then hard compile-time mode is entered.
+  warnForPlentyInHardCompileTimeMode e
+  setHardCompileTimeModeIfErased e $ do
   reportSDoc "tc.section" 10 $
-    "checking section" <+> prettyTCM m <+> fsep (map prettyA tel)
+    "checking section" <+> (C.prettyErased e <$> prettyTCM m) <+>
+    fsep (map prettyA tel)
 
   checkGeneralizeTelescope gtel $ \ _ tel' -> do
     reportSDoc "tc.section" 10 $

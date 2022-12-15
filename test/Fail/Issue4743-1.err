@@ -1,0 +1,6 @@
+Issue4743-1.agda:14,8-12
+Cannot instantiate the metavariable _7 to solution
+(λ @0 { unit → unit }) x
+since (part of) the solution was created in an erased context
+when checking that the expression refl has type
+f ≡ (λ @0 { unit → unit })

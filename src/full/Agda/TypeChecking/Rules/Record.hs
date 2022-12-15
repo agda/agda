@@ -104,6 +104,10 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
             DataOrRecSig n -> n
             _              -> __IMPOSSIBLE__
 
+    -- If the record type is erased, then hard compile-time mode is
+    -- entered.
+    setHardCompileTimeModeIfErased' def $ do
+
     parNames <- getGeneralizedParameters gpars name
 
     bindGeneralizedParameters parNames t $ \ gtel t0 ->
@@ -748,8 +752,16 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
 
         escapeContext impossible (size tel) $ do
           lang <- getLanguage
+          let -- It should be fine to mark a field with @ω in an
+              -- erased record type: the field will be non-erased, but
+              -- the projection will be erased. The following code
+              -- ensures that the use of addConstant does not trigger
+              -- a PlentyInHardCompileTimeMode warning.
+              ai' = flip mapQuantity ai $ \case
+                      Quantityω _ -> Quantityω QωInferred
+                      q           -> q
           addConstant projname $
-            (defaultDefn ai projname (killRange finalt) lang $ FunctionDefn
+            (defaultDefn ai' projname (killRange finalt) lang $ FunctionDefn
               emptyFunctionData
                 { _funClauses        = [clause]
                 , _funCompiled       = Just cc

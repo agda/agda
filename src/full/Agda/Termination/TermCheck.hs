@@ -103,7 +103,7 @@ termDecl' = \case
     A.Field {}            -> return mempty
     A.Primitive {}        -> return mempty
     A.Mutual i ds         -> termMutual $ getNames ds
-    A.Section _ _ _ ds    -> termDecls ds
+    A.Section _ _ _ _ ds  -> termDecls ds
         -- section structure can be ignored as we are termination checking
         -- definitions lifted to the top-level
     A.Apply {}            -> return mempty
@@ -136,7 +136,7 @@ termDecl' = \case
     getName (A.FunDef i x delayed cs)   = [x]
     getName (A.RecDef _ x _ _ _ _ ds)   = x : getNames ds
     getName (A.Mutual _ ds)             = getNames ds
-    getName (A.Section _ _ _ ds)        = getNames ds
+    getName (A.Section _ _ _ _ ds)      = getNames ds
     getName (A.ScopedDecl _ ds)         = getNames ds
     getName (A.UnquoteDecl _ _ xs _)    = xs
     getName (A.UnquoteDef _ xs _)       = xs

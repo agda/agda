@@ -109,12 +109,15 @@ deepUnscopeDecls :: [A.Declaration] -> [A.Declaration]
 deepUnscopeDecls = concatMap deepUnscopeDecl
 
 deepUnscopeDecl :: A.Declaration -> [A.Declaration]
-deepUnscopeDecl (A.ScopedDecl _ ds)              = deepUnscopeDecls ds
-deepUnscopeDecl (A.Mutual i ds)                  = [A.Mutual i (deepUnscopeDecls ds)]
-deepUnscopeDecl (A.Section i m tel ds)           = [A.Section i m (deepUnscope tel) (deepUnscopeDecls ds)]
-deepUnscopeDecl (A.RecDef i x uc dir bs e ds) =
-  [ A.RecDef i x uc dir (deepUnscope bs) (deepUnscope e) (deepUnscopeDecls ds) ]
-deepUnscopeDecl d                                = [deepUnscope d]
+deepUnscopeDecl = \case
+  A.ScopedDecl _ ds           -> deepUnscopeDecls ds
+  A.Mutual i ds               -> [A.Mutual i (deepUnscopeDecls ds)]
+  A.Section i e m tel ds      -> [A.Section i e m (deepUnscope tel)
+                                   (deepUnscopeDecls ds)]
+  A.RecDef i x uc dir bs e ds -> [ A.RecDef i x uc dir (deepUnscope bs)
+                                     (deepUnscope e)
+                                     (deepUnscopeDecls ds) ]
+  d                           -> [deepUnscope d]
 
 -- * Traversal
 ---------------------------------------------------------------------------
@@ -433,15 +436,15 @@ instance ExprLike Declaration where
       Field i x e               -> Field i x <$> rec e
       Primitive i x e           -> Primitive i x <$> rec e
       Mutual i ds               -> Mutual i <$> rec ds
-      Section i m tel ds        -> Section i m <$> rec tel <*> rec ds
-      Apply i m a ci d          -> (\ a -> Apply i m a ci d) <$> rec a
+      Section i e m tel ds      -> Section i e m <$> rec tel <*> rec ds
+      Apply i e m a ci d        -> (\a -> Apply i e m a ci d) <$> rec a
       Import{}                  -> pure d
       Pragma i p                -> Pragma i <$> rec p
       Open{}                    -> pure d
       FunDef i f d cs           -> FunDef i f d <$> rec cs
-      DataSig i d tel e         -> DataSig i d <$> rec tel <*> rec e
+      DataSig i er d tel e      -> DataSig i er d <$> rec tel <*> rec e
       DataDef i d uc bs cs      -> DataDef i d uc <$> rec bs <*> rec cs
-      RecSig i r tel e          -> RecSig i r <$> rec tel <*> rec e
+      RecSig i er r tel e       -> RecSig i er r <$> rec tel <*> rec e
       RecDef i r uc dir bs e ds -> RecDef i r uc dir <$> rec bs <*> rec e <*> rec ds
       PatternSynDef f xs p      -> PatternSynDef f xs <$> rec p
       UnquoteDecl i is xs e     -> UnquoteDecl i is xs <$> rec e
@@ -502,9 +505,9 @@ instance DeclaredNames Declaration where
       Field _ q _                  -> singleton (WithKind FldName q)
       Primitive _ q _              -> singleton (WithKind PrimName q)
       Mutual _ decls               -> declaredNames decls
-      DataSig _ q _ _              -> singleton (WithKind DataName q)
+      DataSig _ _ q _ _            -> singleton (WithKind DataName q)
       DataDef _ q _ _ decls        -> singleton (WithKind DataName q) <> foldMap con decls
-      RecSig _ q _ _               -> singleton (WithKind RecName q)
+      RecSig _ _ q _ _             -> singleton (WithKind RecName q)
       RecDef _ q _ dir _ _ decls   -> singleton (WithKind RecName q) <> declaredNames dir <> declaredNames decls
       PatternSynDef q _ _          -> singleton (WithKind PatternSynName q)
       UnquoteDecl _ _ qs _         -> fromList $ map (WithKind OtherDefName) qs  -- could be Fun or Axiom
@@ -512,7 +515,7 @@ instance DeclaredNames Declaration where
       UnquoteData _ d _ _ cs _     -> singleton (WithKind DataName d) <> (fromList $ map (WithKind ConName) cs) -- singleton _ <> map (WithKind ConName) cs
       FunDef _ q _ cls             -> singleton (WithKind FunName q) <> declaredNames cls
       ScopedDecl _ decls           -> declaredNames decls
-      Section _ _ _ decls          -> declaredNames decls
+      Section _ _ _ _ decls        -> declaredNames decls
       Pragma _ pragma              -> declaredNames pragma
       Apply{}                      -> mempty
       Import{}                     -> mempty

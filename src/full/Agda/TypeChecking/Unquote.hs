@@ -970,7 +970,8 @@ evalTCM v = do
         let (tel, e') = splitPars (fromInteger npars) e
         ac <- asksTC (^. lensIsAbstract)
         let defIn = mkDefInfo (nameConcrete $ qnameName x) noFixity' PublicAccess ac noRange
-        checkSig DataName defIn x (A.GeneralizeTel Map.empty tel) e'
+        checkSig DataName defIn defaultErased x
+          (A.GeneralizeTel Map.empty tel) e'
         primUnitUnit
 
     tcDefineData :: QName -> [(QName, R.Type)] -> UnquoteM Term

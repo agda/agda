@@ -1,0 +1,89 @@
+Erased-modules-2.agda:26,11-12
+Ignored use of @plenty in hard compile-time mode
+Erased-modules-2.agda:30,7-21
+Ignored use of @ω in hard compile-time mode
+when checking that the expression λ @ω { A → A } has type
+@0 Set → Set
+Erased-modules-2.agda:32,3-37,12
+Ignored use of @ω in hard compile-time mode
+Erased-modules-2.agda:39,11-18
+Ignored use of @ω in hard compile-time mode
+Erased-modules-2.agda:40,13-18
+Ignored use of @plenty in hard compile-time mode
+when checking the constructor c in the declaration of E
+Erased-modules-2.agda:42,13-21
+Ignored use of @ω in hard compile-time mode
+Erased-modules-2.agda:47,13-15
+Ignored use of @plenty in hard compile-time mode
+when checking the projection C : Set
+Erased-modules-2.agda:48,5-50,15
+Ignored use of @ω in hard compile-time mode
+when checking that the clause
+C′ = C″
+  where
+    syntax C″ ...
+    postulate C″ : _
+    C″ = C
+has type Set
+Erased-modules-2.agda:88,8-9
+Ignored use of @ω in hard compile-time mode
+when checking that the clause
+G = Set
+  module @0 _ where
+    syntax H ...
+    postulate H : @0 Set → Set
+    H A = A
+    syntax I ...
+    postulate @ω I : @0 Set → Set
+    I A = A
+has type Set₁
+
+———— All done; warnings encountered ————————————————————————
+
+Erased-modules-2.agda:26,11-12
+Ignored use of @plenty in hard compile-time mode
+
+Erased-modules-2.agda:30,7-21
+Ignored use of @ω in hard compile-time mode
+when checking that the expression λ @ω { A → A } has type
+@0 Set → Set
+
+Erased-modules-2.agda:32,3-37,12
+Ignored use of @ω in hard compile-time mode
+
+Erased-modules-2.agda:39,11-18
+Ignored use of @ω in hard compile-time mode
+
+Erased-modules-2.agda:40,13-18
+Ignored use of @plenty in hard compile-time mode
+when checking the constructor c in the declaration of E
+
+Erased-modules-2.agda:42,13-21
+Ignored use of @ω in hard compile-time mode
+
+Erased-modules-2.agda:47,13-15
+Ignored use of @plenty in hard compile-time mode
+when checking the projection C : Set
+
+Erased-modules-2.agda:48,5-50,15
+Ignored use of @ω in hard compile-time mode
+when checking that the clause
+C′ = C″
+  where
+    syntax C″ ...
+    postulate C″ : _
+    C″ = C
+has type Set
+
+Erased-modules-2.agda:88,8-9
+Ignored use of @ω in hard compile-time mode
+when checking that the clause
+G = Set
+  module @0 _ where
+    syntax H ...
+    postulate H : @0 Set → Set
+    H A = A
+    syntax I ...
+    postulate @ω I : @0 Set → Set
+    I A = A
+has type Set₁

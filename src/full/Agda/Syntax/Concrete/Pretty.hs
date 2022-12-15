@@ -141,6 +141,9 @@ instance Pretty Quantity where
     Quantity1 o -> ifNull (pretty o) "@1" id
     Quantityω o -> pretty o
 
+instance Pretty Erased where
+  pretty = pretty . asQuantity
+
 instance Pretty Cohesion where
   pretty Flat   = "@♭"
   pretty Continuous = mempty
@@ -361,12 +364,13 @@ instance Pretty RHS where
 
 instance Pretty WhereClause where
   pretty  NoWhere = empty
-  pretty (AnyWhere _ [Module _ x [] ds]) | isNoName (unqualify x)
+  pretty (AnyWhere _ [Module _ NotErased{} x [] ds])
+    | isNoName (unqualify x)
                        = vcat [ "where", nest 2 (vcat $ map pretty ds) ]
   pretty (AnyWhere _ ds) = vcat [ "where", nest 2 (vcat $ map pretty ds) ]
-  pretty (SomeWhere _ m a ds) =
+  pretty (SomeWhere _ erased m a ds) =
     vcat [ hsep $ applyWhen (a == PrivateAccess UserWritten) ("private" :)
-             [ "module", pretty m, "where" ]
+             [ "module", prettyErased erased (pretty m), "where" ]
          , nest 2 (vcat $ map pretty ds)
          ]
 
@@ -433,9 +437,9 @@ instance Pretty Declaration where
       sep [ pretty lhs
           , nest 2 $ pretty rhs
           ] $$ nest 2 (pretty wh)
-    DataSig _ x tel e ->
+    DataSig _ erased x tel e ->
       sep [ hsep  [ "data"
-                  , pretty x
+                  , prettyErased erased (pretty x)
                   , fcat (map pretty tel)
                   ]
           , nest 2 $ hsep
@@ -443,9 +447,9 @@ instance Pretty Declaration where
                   , pretty e
                   ]
           ]
-    Data _ x tel e cs ->
+    Data _ erased x tel e cs ->
       sep [ hsep  [ "data"
-                  , pretty x
+                  , prettyErased erased (pretty x)
                   , fcat (map pretty tel)
                   ]
           , nest 2 $ hsep
@@ -461,9 +465,9 @@ instance Pretty Declaration where
                   ]
           , nest 2 $ "where"
           ] $$ nest 2 (vcat $ map pretty cs)
-    RecordSig _ x tel e ->
+    RecordSig _ erased x tel e ->
       sep [ hsep  [ "record"
-                  , pretty x
+                  , prettyErased erased (pretty x)
                   , fcat (map pretty tel)
                   ]
           , nest 2 $ hsep
@@ -471,10 +475,10 @@ instance Pretty Declaration where
                   , pretty e
                   ]
           ]
-    Record _ x dir tel e cs ->
-      pRecord x dir tel (Just e) cs
+    Record _ erased x dir tel e cs ->
+      pRecord erased x dir tel (Just e) cs
     RecordDef _ x dir tel cs ->
-      pRecord x dir tel Nothing cs
+      pRecord defaultErased x dir tel Nothing cs
     RecordDirective r -> pRecordDirective r
     Infix f xs  ->
       pretty f <+> fsep (punctuate comma $ fmap pretty xs)
@@ -491,23 +495,25 @@ instance Pretty Declaration where
     Postulate _ ds  -> namedBlock "postulate" ds
     Primitive _ ds  -> namedBlock "primitive" ds
     Generalize _ ds -> namedBlock "variable" ds
-    Module _ x tel ds ->
+    Module _ erased x tel ds ->
       hsep [ "module"
-           , pretty x
+           , prettyErased erased (pretty x)
            , fcat (map pretty tel)
            , "where"
            ] $$ nest 2 (vcat $ map pretty ds)
-    ModuleMacro _ x (SectionApp _ [] e) DoOpen i | isNoName x ->
+    ModuleMacro _ NotErased{} x (SectionApp _ [] e) DoOpen i
+      | isNoName x ->
       sep [ pretty DoOpen
           , nest 2 $ pretty e
           , nest 4 $ pretty i
           ]
-    ModuleMacro _ x (SectionApp _ tel e) open i ->
-      sep [ pretty open <+> "module" <+> pretty x <+> fcat (map pretty tel)
+    ModuleMacro _ erased x (SectionApp _ tel e) open i ->
+      sep [ pretty open <+> "module" <+>
+            prettyErased erased (pretty x) <+> fcat (map pretty tel)
           , nest 2 $ "=" <+> pretty e <+> pretty i
           ]
-    ModuleMacro _ x (RecordModuleInstance _ rec) open i ->
-      sep [ pretty open <+> "module" <+> pretty x
+    ModuleMacro _ erased x (RecordModuleInstance _ rec) open i ->
+      sep [ pretty open <+> "module" <+> prettyErased erased (pretty x)
           , nest 2 $ "=" <+> pretty rec <+> "{{...}}"
           ]
     Open _ x i  -> hsep [ "open", pretty x, pretty i ]
@@ -545,16 +551,17 @@ pRecordDirective = \case
   PatternOrCopattern{} -> "pattern"
 
 pRecord
-  :: Name
+  :: Erased
+  -> Name
   -> RecordDirectives
   -> [LamBinding]
   -> Maybe Expr
   -> [Declaration]
   -> Doc
-pRecord x (RecordDirectives ind eta pat con) tel me ds = vcat
+pRecord erased x (RecordDirectives ind eta pat con) tel me ds = vcat
     [ sep
       [ hsep  [ "record"
-              , pretty x
+              , prettyErased erased (pretty x)
               , fcat (map pretty tel)
               ]
       , nest 2 $ pType me

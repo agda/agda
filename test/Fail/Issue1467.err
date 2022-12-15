@@ -1,4 +1,3 @@
 Issue1467.agda:25,14-19
 (D → D) × D != D → D of type Set
-when checking that the expression bar H has type
-P (foo (λ A → (A → A) × A))
+when checking that the expression bar H has type P (foo H)

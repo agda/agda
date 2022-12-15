@@ -47,14 +47,15 @@ You need recent versions of the following programs to compile Agda:
 
 You should also make sure that programs installed by *cabal-install*
 are on your shell's search path.
-This depends on your system for instance for ubuntu, you may need to
-add
+The installation location is described by field ``installdir`` in the cabal configuration
+(check ``~/.cabal/config``; it defaults to ``~/.cabal/bin``).
+So, e.g. under Ubuntu or macOS, you may need to add
 
 .. code-block:: bash
 
   export PATH=~/.cabal/bin:$PATH
 
-in your ``.profile`` or ``bash_profile``
+to your ``.profile`` or ``.bash_profile``.
 
 Non-Windows users need to ensure that the development files for the C
 libraries *zlib* and *ncurses* are installed (see http://zlib.net
@@ -68,22 +69,36 @@ it should suffice to run
 
 as root to get the correct files installed.
 
-Optionally one can also install the `ICU
-<http://site.icu-project.org>`_ library, which is used to implement
-the :option:`--count-clusters` flag. Under Debian or Ubuntu it may suffice
-to install ``libicu-dev``. Once the ICU library is installed one can
-hopefully enable the :option:`--count-clusters` flag by giving the
-:option:`enable-cluster-counting` flag to *cabal install*:
+.. _icu-install:
+
+ICU and cluster counting
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Optionally one can also install the `ICU <http://site.icu-project.org>`_ library,
+which is used to implement the :option:`--count-clusters` option.
+Once the ICU library is installed and configured,
+one can enable the :option:`--count-clusters` option
+by giving the :option:`enable-cluster-counting` flag to *cabal install*:
 
 .. code-block:: bash
 
   cabal install -f enable-cluster-counting
 
-More information on installing the ICU prerequisite (like for other OSs)
-is available at
+Information on installing the ICU prerequisite on various OSs is available at
 https://github.com/haskell/text-icu/blob/master/README.markdown#prerequisites
 (retrieved 2022-02-09).
 
+- Under Debian or Ubuntu it may suffice to install ``libicu-dev``.
+
+- Under macOS, try ``brew install icu4c``.
+  Note that this installs ICU in a non-standard location.
+  You may need to set
+
+  .. code-block:: bash
+
+    export PKG_CONFIG_PATH="$(brew --prefix)/opt/icu4c/lib/pkgconfig"
+
+  See ``brew info icu4c`` for details.
 
 
 Step 2 : Installing the ``agda`` and the ``agda-mode`` programs
@@ -173,10 +188,10 @@ For installing the ``agda`` and the ``agda-mode`` programs using
 
   cabal get Agda-X.Y.Z
   cd Agda-X.Y.Z
-  stack --stack-yaml stack-a.b.c.yaml install
+  stack --stack-yaml stack-x.y.z.yaml install
 
-replacing `X.Y.Z` and `a.b.c` for the Agda version on Hackage and your
-GHC version, respectively.
+replacing `X.Y.Z` by the Agda version on Hackage
+and `x.y.z` by your GHC version, respectively.
 
 Step 3 : Running the ``agda-mode`` program
 ------------------------------------------
@@ -428,7 +443,11 @@ Installation of the Development Version
 After getting the development version from the Git `repository
 <https://github.com/agda/agda>`_
 
-* Install the :ref:`prerequisites <prerequisites>`
+* Install the :ref:`prerequisites <prerequisites>`.
+  Note that for the development version
+  :option:`enable-cluster-counting` is on by default,
+  so unless you manage to turn it off, you also need to
+  install the :ref:`ICU library <icu-install>`.
 
 * In the top-level directory of the Agda source tree, run:
 
@@ -437,36 +456,13 @@ After getting the development version from the Git `repository
     cabal update
     make install
 
-  Note that on a Mac ICU is installed in a non-standard location.
-  On Intel hardware architectures you may need to set
-
-  .. code-block:: bash
-
-    export PKG_CONFIG_PATH="/usr/local/opt/icu4c/lib/pkgconfig"
-
-  and on Apple hardware architectures
-
-  .. code-block:: bash
-
-    export PKG_CONFIG_PATH="/opt/homebrew/opt/icu4c/lib/pkgconfig"
-
-  See ``brew info icu4c`` for details. Alternatively, you may specify
-  the location on the command line, e.g.:
-
-  .. code-block:: bash
-
-    make install CABAL_OPTS='--extra-lib-dirs=/usr/local/opt/icu4c/lib --extra-include-dirs=/usr/local/opt/icu4c/include'
-
-  You can also add the ``CABAL_OPTS`` variable to ``mk/config.mk`` (see
-  ``HACKING.md``) instead of passing it via the command line.
-
   To install via ``stack`` instead of ``cabal``, copy one of the
-  ``stack-x.x.x.yaml`` files of your choice to a ``stack.yaml`` file before
+  ``stack-x.y.z.yaml`` files of your choice to a ``stack.yaml`` file before
   running ``make``. For example:
 
   .. code-block:: bash
 
-    cp stack-8.10.1.yaml stack.yaml
+    cp stack-8.10.7.yaml stack.yaml
     make install
 
 .. _installation-flags:

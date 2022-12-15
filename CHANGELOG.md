@@ -26,15 +26,27 @@ Highlights
   `--cubical-compatible`, or if it is already making extensive use of
   indexed types.
 
+  Note that code that uses (only) `--without-K` can no longer be
+  imported from code that uses `--cubical`. Thus it may make sense to
+  replace `--without-K` with `--cubical-compatible` in library code,
+  if possible.
+
+  Note also that Agda tends to be quite a bit faster if `--without-K`
+  is used instead of `--cubical-compatible`.
+
+* Agda 2.6.3 seems to type-check one variant of the standard library
+  about [30%
+  faster](https://github.com/agda/agda/issues/6049#issuecomment-1329163727)
+  than Agda 2.6.2.2 (on one system; the library was changed in a small
+  way between the tests to accommodate changes to Agda). In that test
+  the standard library did not use the new flag
+  `--cubical-compatible`. With that flag enabled in all the files that
+  used to use `--without-K` (and the warning `UnsupportedIndexedMatch`
+  turned off) Agda 2.6.3 was still about 10% faster.
+
 * New primitives `declareData`, `defineData`, and `unquoteDecl data`
   for generating new data types have been added to the [reflection
   API](https://agda.readthedocs.io/en/latest/language/reflection.html#metaprogramming).
-
-* Thanks to a number of performance improvements, Agda 2.6.3 is about
-  30% faster than Agda 2.6.2.2 at type-checking the standard library
-  with the `--without-K` flag, and 10% faster when using with the
-  (new) `--cubical-compatible` flag instead (some details can be found
-  [here](https://github.com/agda/agda/issues/6049#issuecomment-1293698980)).
 
 Installation and infrastructure
 -------------------------------
@@ -60,7 +72,7 @@ Erasure
 
   This feature is experimental.
 
-* The parameter arguments of constructors and record fields are now
+* The parameter arguments of constructors and projections are now
   marked as erased
   ([#4786](https://github.com/agda/agda/issues/4786)), with one
   exception: for indexed data types this only happens if the
@@ -68,7 +80,7 @@ Erasure
   ([#6297](https://github.com/agda/agda/issues/6297)).
 
   For instance, the type of the constructor `c` below is now `{@0 A :
-  Set} → D A`, and the type of the record field `R.f` is `{@0 A : Set}
+  Set} → D A`, and the type of the projection `R.f` is `{@0 A : Set}
   → R A → A`:
   ```agda
   data D (A : Set) : Set where
@@ -106,18 +118,6 @@ Cubical Agda
   [#5843](https://github.com/agda/agda/issues/5843) and
   [#6049](https://github.com/agda/agda/issues/6049) for the
   rationale).
-
-  Note that code that uses (only) `--without-K` can no longer be
-  imported from code that uses `--cubical`. Thus it may make sense to
-  replace `--without-K` with `--cubical-compatible` in library code,
-  if possible.
-
-  Note also that Agda tends to be quite a bit faster if `--without-K`
-  is used instead of `--cubical-compatible`.
-
-  Note finally that when `--without-K` is used it might not be safe to
-  compile and run programs that postulate erased univalence (but we
-  are currently not aware of a program that would go wrong).
 
 * Cubical Agda now has experimental support for indexed inductive types
   ([#3733](https://github.com/agda/agda/issues/3733)).
@@ -321,10 +321,13 @@ Pragmas and options
   test = refl
   ```
 
-* [**Breaking**] Option `--experimental-lossy-unification` that turns on
-  (the incomplete) first-order unification has been renamed to
-  `--lossy-unification`.
-  ([#1625](https://github.com/agda/agda/issues/1625))
+* [**Breaking**] The option `--experimental-lossy-unification` that
+  makes Agda sometimes use first-order unification has been renamed to
+  `--lossy-unification`
+  ([#1625](https://github.com/agda/agda/issues/1625)).
+
+  Note that use of this option is associated with some potential
+  [drawbacks](https://agda.readthedocs.io/en/latest/language/lossy-unification.html#drawbacks).
 
 * The new option `--no-load-primitives` complements `--no-import-sorts`
   by foregoing loading of the primitive modules altogether. This option

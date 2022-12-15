@@ -236,6 +236,7 @@ data WarningName
   | NotStrictlyPositive_
   | UnsupportedIndexedMatch_
   | OldBuiltin_
+  | PlentyInHardCompileTimeMode_
   | PragmaCompileErased_
   | RewriteMaybeNonConfluent_
   | RewriteNonConfluent_
@@ -346,7 +347,7 @@ warningNameDescription = \case
   EmptyPrivate_                    -> "Empty `private' blocks."
   EmptyRewritePragma_              -> "Empty `REWRITE' pragmas."
   EmptyWhere_                      -> "Empty `where' blocks."
-  HiddenGeneralize_                -> "Hidden identifieres in variable blocks."
+  HiddenGeneralize_                -> "Hidden identifiers in variable blocks."
   InvalidCatchallPragma_           -> "`CATCHALL' pragmas before a non-function clause."
   InvalidConstructor_              -> "`constructor' blocks may only contain type signatures for constructors."
   InvalidConstructorBlock_         -> "No `constructor' blocks outside of `interleaved mutual' blocks."
@@ -398,6 +399,7 @@ warningNameDescription = \case
   NotStrictlyPositive_             -> "Failed strict positivity checks."
   UnsupportedIndexedMatch_         -> "Failed to compute full equivalence when splitting on indexed family."
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
+  PlentyInHardCompileTimeMode_     -> "Use of @ω or @plenty in hard compile-time mode."
   PragmaCompileErased_             -> "`COMPILE' pragma targeting an erased symbol."
   RewriteMaybeNonConfluent_        -> "Failed local confluence check while computing overlap."
   RewriteNonConfluent_             -> "Failed local confluence check while joining critical pairs."
@@ -421,7 +423,7 @@ warningNameDescription = \case
   UnsolvedMetaVariables_           -> "Unsolved meta variables."
   UserWarning_                     -> "User-defined warning added using one of the 'WARNING_ON_*' pragmas."
   WithoutKFlagPrimEraseEquality_   -> "`primEraseEquality' usages with the without-K flags."
-  WrongInstanceDeclaration_        -> "Terms marked as eligible for instance search should end with a name."
+  WrongInstanceDeclaration_        -> "Instances that do not adhere to the required format."
   -- Checking consistency of options
   CoInfectiveImport_               -> "Importing a file not using e.g. `--safe'  from one which does."
   InfectiveImport_                 -> "Importing a file using e.g. `--cubical' into one which doesn't."

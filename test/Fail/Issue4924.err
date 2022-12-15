@@ -1,4 +1,7 @@
 Issue4924.agda:15,7-12
-Cannot resolve overloaded projection f because principal argument
-is not of record type
+Cannot resolve overloaded projection f because
+principal argument pri has type A while it should be of record type
+  candidates in scope:
+- f : A → A
+- f : B → B
 when checking that the expression f pri has type A

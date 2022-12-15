@@ -125,7 +125,7 @@ workOnTypes' experimental
   = (if experimental
      then modifyContextInfo (mapRelevance irrToNonStrict)
      else id)
-  . applyQuantityToContext zeroQuantity
+  . applyQuantityToJudgement zeroQuantity
   . typeLevelReductions
   . localTC (\ e -> e { envWorkingOnTypes = True })
 
@@ -151,7 +151,7 @@ applyRelevanceToContext thing =
 applyRelevanceToContextOnly :: (MonadTCEnv tcm) => Relevance -> tcm a -> tcm a
 applyRelevanceToContextOnly rel = localTC
   $ over eContext     (map $ inverseApplyRelevance rel)
-  . over eLetBindings (Map.map . fmap . second $ inverseApplyRelevance rel)
+  . over eLetBindings (Map.map . fmap . onLetBindingType $ inverseApplyRelevance rel)
 
 -- | Apply relevance @rel@ the the relevance annotation of the (typing/equality)
 --   judgement.  This is part of the work done when going into a @rel@-context.
@@ -171,19 +171,14 @@ applyRelevanceToContextFunBody thing cont =
       (applyRelevanceToContextOnly rel) $    -- enable local irr. defs only when option
       applyRelevanceToJudgementOnly rel cont -- enable global irr. defs alway
 
--- | Sets the current quantity (unless the given quantity is 1).
-applyQuantityToContext :: (MonadTCEnv tcm, LensQuantity q) => q -> tcm a -> tcm a
-applyQuantityToContext thing =
-  case getQuantity thing of
-    Quantity1{} -> id
-    q           -> applyQuantityToJudgementOnly q
-
--- | Apply quantity @q@ the the quantity annotation of the (typing/equality)
---   judgement.  This is part of the work done when going into a @q@-context.
+-- | Apply the quantity to the quantity annotation of the
+-- (typing/equality) judgement.
 --
---   Precondition: @Quantity /= Quantity1@
-applyQuantityToJudgementOnly :: (MonadTCEnv tcm) => Quantity -> tcm a -> tcm a
-applyQuantityToJudgementOnly = localTC . over eQuantity . composeQuantity
+-- Precondition: The quantity must not be @'Quantity1' something@.
+applyQuantityToJudgement ::
+  (MonadTCEnv tcm, LensQuantity q) => q -> tcm a -> tcm a
+applyQuantityToJudgement =
+  localTC . over eQuantity . composeQuantity . getQuantity
 
 -- | Apply inverse composition with the given cohesion to the typing context.
 applyCohesionToContext :: (MonadTCEnv tcm, LensCohesion m) => m -> tcm a -> tcm a
@@ -196,7 +191,7 @@ applyCohesionToContext thing =
 applyCohesionToContextOnly :: (MonadTCEnv tcm) => Cohesion -> tcm a -> tcm a
 applyCohesionToContextOnly q = localTC
   $ over eContext     (map $ inverseApplyCohesion q)
-  . over eLetBindings (Map.map . fmap . second $ inverseApplyCohesion q)
+  . over eLetBindings (Map.map . fmap . onLetBindingType $ inverseApplyCohesion q)
 
 -- | Can we split on arguments of the given cohesion?
 splittableCohesion :: (HasOptions m, LensCohesion a) => a -> m Bool
@@ -233,14 +228,16 @@ applyModalityToContextOnly :: (MonadTCEnv tcm) => Modality -> tcm a -> tcm a
 applyModalityToContextOnly m = localTC
   $ over eContext (map $ inverseApplyModalityButNotQuantity m)
   . over eLetBindings
-      (Map.map . fmap . second $ inverseApplyModalityButNotQuantity m)
+      (Map.map . fmap . onLetBindingType $ inverseApplyModalityButNotQuantity m)
 
--- | Apply modality @m@ the the modality annotation of the (typing/equality)
---   judgement.  This is part of the work done when going into a @m@-context.
+-- | Apply the relevance and quantity components of the modality to
+-- the modality annotation of the (typing/equality) judgement.
 --
---   Precondition: @Modality /= Relevant@
+-- Precondition: The relevance component must not be 'Relevant'.
 applyModalityToJudgementOnly :: (MonadTCEnv tcm) => Modality -> tcm a -> tcm a
-applyModalityToJudgementOnly = localTC . over eModality . composeModality
+applyModalityToJudgementOnly m =
+  localTC $ over eRelevance (composeRelevance (getRelevance m)) .
+            over eQuantity  (composeQuantity  (getQuantity m))
 
 -- | Like 'applyModalityToContext', but only act on context (for Relevance) if
 --   @--irrelevant-projections@.
@@ -251,7 +248,7 @@ applyModalityToContextFunBody thing cont = do
       {-then-} (applyModalityToContext m cont)                -- enable global irr. defs always
       {-else-} (applyRelevanceToContextFunBody (getRelevance m)
                $ applyCohesionToContext (getCohesion m)
-               $ applyQuantityToContext (getQuantity m) cont) -- enable local irr. defs only when option
+               $ applyQuantityToJudgement (getQuantity m) cont) -- enable local irr. defs only when option
   where
     m = getModality thing
 
@@ -268,7 +265,7 @@ applyModalityToContextFunBody thing cont = do
 wakeIrrelevantVars :: (MonadTCEnv tcm) => tcm a -> tcm a
 wakeIrrelevantVars
   = applyRelevanceToContextOnly Irrelevant
-  . applyQuantityToJudgementOnly zeroQuantity
+  . applyQuantityToJudgement zeroQuantity
 
 -- | Check whether something can be used in a position of the given relevance.
 --

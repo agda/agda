@@ -218,12 +218,12 @@ declaredNames = \case
     | IdentP (QName x) <- removeParenP p
                         -> declaresName x
   FunClause{}           -> mempty
-  DataSig _ x _ _       -> declaresName x
+  DataSig _ _ x _ _     -> declaresName x
   DataDef _ _ _ cs      -> foldMap declaredNames cs
-  Data _ x _ _ cs       -> declaresName x <> foldMap declaredNames cs
-  RecordSig _ x _ _     -> declaresName x
+  Data _ _ x _ _ cs     -> declaresName x <> foldMap declaredNames cs
+  RecordSig _ _ x _ _   -> declaresName x
   RecordDef _ x d _ _   -> declaresNames $     foldMap (:[]) (fst <$> recConstructor d)
-  Record _ x d _ _ _    -> declaresNames $ x : foldMap (:[]) (fst <$> recConstructor d)
+  Record _ _ x d _ _ _  -> declaresNames $ x : foldMap (:[]) (fst <$> recConstructor d)
   RecordDirective _     -> mempty
   Infix _ _             -> mempty
   Syntax _ _            -> mempty

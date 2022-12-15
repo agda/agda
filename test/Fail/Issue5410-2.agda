@@ -9,9 +9,6 @@ module M (b : Bool) where
     some-boolean : Bool
     some-boolean = b
 
-postulate
-  @0 a-postulate : Bool
-
 @0 A : @0 Bool → Set
 A b = Bool
   module A where
