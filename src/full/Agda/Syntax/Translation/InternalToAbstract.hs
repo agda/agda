@@ -46,6 +46,7 @@ import Agda.Syntax.Abstract as A hiding (Binder)
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pattern
 import Agda.Syntax.Abstract.Pretty
+import Agda.Syntax.Abstract.UsedNames
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
 import Agda.Syntax.Scope.Base (inverseScopeLookupName)
@@ -901,8 +902,10 @@ removeNameUnlessUserWritten a
 -- | Removes implicit arguments that are not needed, that is, that don't bind
 --   any variables that are actually used and doesn't do pattern matching.
 --   Doesn't strip any arguments that were written explicitly by the user.
-stripImplicits :: MonadReify m => A.Patterns -> A.Patterns -> m A.Patterns
-stripImplicits params ps = do
+stripImplicits :: MonadReify m
+  => Set Name -- ^ Variables to always include (occurs on RHS of clause)
+  -> A.Patterns -> A.Patterns -> m A.Patterns
+stripImplicits toKeep params ps = do
   -- if --show-implicit we don't need the names
   ifM showImplicitArguments (return $ map (fmap removeNameUnlessUserWritten) ps) $ do
     reportSDoc "reify.implicit" 100 $ return $ vcat
@@ -944,7 +947,11 @@ stripImplicits params ps = do
             , getOrigin a `notElem` [ UserWritten , CaseSplit ]
             , (getOrigin <$> getNameOf a) /= Just UserWritten
             , varOrDot (namedArg a)
+            , not $ mustKeepVar (namedArg a)
             ]
+
+          mustKeepVar (A.VarP (A.BindName x)) = Set.member x toKeep
+          mustKeepVar _                       = False
 
           isUnnamedHidden x = notVisible x && isNothing (getNameOf x) && isNothing (isProjP x)
 
@@ -1314,6 +1321,21 @@ instance Reify NamedClause where
       , "  toDrop =" <+> pshow toDrop
       , "  cl     =" <+> pretty cl
       ]
+
+    let clBody = clauseBody cl
+        rhsVars = maybe [] freeVars clBody
+
+    rhsBody     <- traverse reify clBody
+    rhsVarNames <- mapM nameOfBV' rhsVars
+    let rhsUsedNames = maybe mempty allUsedNames rhsBody
+        rhsUsedVars  = [i | (i, Just n) <- zip rhsVars rhsVarNames, n `Set.member` rhsUsedNames]
+
+    reportSDoc "reify.clause" 60 $ return $ "RHS:" <+> pretty clBody
+    reportSDoc "reify.clause" 60 $ return $ "variables occurring on RHS:" <+> pretty rhsVars
+      <+> "variable names:" <+> pretty rhsVarNames
+      <+> parens (maybe "no clause body" (const "there was a clause body") clBody)
+    reportSDoc "reify.clause" 60 $ return $ "names occurring on RHS" <+> pretty (Set.toList rhsUsedNames)
+
     let ell = clauseEllipsis cl
     ps  <- reifyPatterns $ namedClausePats cl
     lhs <- uncurry (SpineLHS $ empty { lhsEllipsis = ell }) <$> reifyDisplayFormP f ps []
@@ -1326,20 +1348,16 @@ instance Reify NamedClause where
         Left _  -> return 0
         Right m -> size <$> lookupSection m
       return $ splitParams nfv lhs
-    lhs <- stripImps params lhs
-    reportSDoc "reify.clause" 100 $ return $ "reifying NamedClause, lhs =" <?> pshow lhs
-    rhs <- caseMaybe (clauseBody cl) (return AbsurdRHS) $ \ e ->
-      RHS <$> reify e <*> pure Nothing
-    reportSDoc "reify.clause" 100 $ return $ "reifying NamedClause, rhs =" <?> pshow rhs
-    let result = A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls (I.clauseCatchall cl)
-    reportSDoc "reify.clause" 100 $ return $ "reified NamedClause, result =" <?> pshow result
+    lhs <- stripImps rhsUsedNames params lhs
+    let rhs    = caseMaybe rhsBody AbsurdRHS $ \ e -> RHS e Nothing
+        result = A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls (I.clauseCatchall cl)
     return result
     where
       splitParams n (SpineLHS i f ps) =
         let (params , pats) = splitAt n ps
         in  (params , SpineLHS i f pats)
-      stripImps :: MonadReify m => [NamedArg A.Pattern] -> SpineLHS -> m SpineLHS
-      stripImps params (SpineLHS i f ps) =  SpineLHS i f <$> stripImplicits params ps
+      stripImps :: MonadReify m => Set Name -> [NamedArg A.Pattern] -> SpineLHS -> m SpineLHS
+      stripImps rhsUsedNames params (SpineLHS i f ps) =  SpineLHS i f <$> stripImplicits rhsUsedNames params ps
 
 instance Reify (QNamed System) where
   type ReifiesTo (QNamed System) = [A.Clause]
@@ -1364,7 +1382,7 @@ instance Reify (QNamed System) where
         reify (phi, d b)
 
       ps <- reifyPatterns $ teleNamedArgs tel
-      ps <- stripImplicits [] $ ps ++ [defaultNamedArg ep]
+      ps <- stripImplicits mempty [] $ ps ++ [defaultNamedArg ep]
       let
         lhs = SpineLHS empty f ps
         result = A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls False
