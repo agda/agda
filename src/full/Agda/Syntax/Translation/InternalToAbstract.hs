@@ -449,9 +449,11 @@ reifyTerm :: MonadReify m => Bool -> Term -> m Expr
 reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
   -- Jesper 2018-11-02: If 'PrintMetasBare', drop all meta eliminations.
   metasBare <- asksTC envPrintMetasBare
+  reportSDoc "reify.term" 80 $ pure $ "reifyTerm v0 = " <+> pretty v0
   v <- instantiate v0 >>= \case
     I.MetaV x _ | metasBare -> return $ I.MetaV x []
     v -> return v
+  reportSDoc "reify.term" 80 $ pure $ "reifyTerm v = " <+> pretty v
   -- Ulf 2014-07-10: Don't expand anonymous when display forms are disabled
   -- (i.e. when we don't care about nice printing)
   expandAnonDefs <- return expandAnonDefs0 `and2M` displayFormsEnabled
@@ -459,6 +461,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
   -- then we print system-generated projections as postfix, else prefix.
   havePfp <- optPostfixProjections <$> pragmaOptions
   let pred = if havePfp then (== ProjPrefix) else (/= ProjPostfix)
+  reportSDoc "reify.term" 80 $ pure $ "reifyTerm (unSpine v) = " <+> pretty (unSpine' pred v)
   case unSpine' pred v of
     -- Hack to print generalized field projections with nicer names. Should
     -- only show up in errors. Check the spined form!
