@@ -44,6 +44,27 @@ General options
 
      Start in interactive mode (not maintained).
 
+.. option:: --trace-imports[=(0|1|2|3)]
+
+     .. versionadded:: 2.6.4
+
+     Configure printing of messages when an imported module is accessed during type-checking.
+
+     .. list-table::
+
+       * - ``0``
+         - Do not print any messages about checking a module.
+       * - ``1``
+         - | Print only `Checking ...` when an access to an uncompiled module occurs.
+           | This is the default behavior if ``--trace-imports`` is not specified.
+       * - ``2``
+         - | Use the effect of ``1``, but also print `Finished ...`
+           | when a compilation of an uncompiled module is finished.
+           | This is the behavior if ``--trace-imports`` is specified without a value.
+       * - ``3``
+         - | Use the effect of ``2``, but also print `Loading ...`
+           | when a compiled module (interface) is accessed during the type-checking.
+
 .. option:: --no-projection-like
 
      .. versionadded:: 2.6.1

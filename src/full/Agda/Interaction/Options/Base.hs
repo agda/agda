@@ -121,6 +121,8 @@ data CommandLineOptions = Options
   -- ^ Use ~/.agda/defaults
   , optUseLibs               :: Bool
   -- ^ look for .agda-lib files
+  , optTraceImports          :: Integer
+  -- ^ Configure notifications about imported modules
   , optTrustedExecutables    :: Map ExeName FilePath
   -- ^ Map names of trusted executables to absolute paths
   , optPrintAgdaDir          :: Bool
@@ -279,6 +281,7 @@ defaultOptions = Options
   , optOverrideLibrariesFile = Nothing
   , optDefaultLibs           = True
   , optUseLibs               = True
+  , optTraceImports          = 1
   , optTrustedExecutables    = Map.empty
   , optPrintAgdaDir          = False
   , optPrintVersion          = False
@@ -690,6 +693,15 @@ showIrrelevantFlag o = return $ o { optShowIrrelevant = True }
 showIdentitySubstitutionsFlag :: Flag PragmaOptions
 showIdentitySubstitutionsFlag o = return $ o { optShowIdentitySubstitutions = True }
 
+traceImportsFlag :: Maybe String -> Flag CommandLineOptions
+traceImportsFlag arg o = do
+  mode <- case arg of
+            Nothing -> return 2
+            Just str -> case reads str :: [(Integer, String)] of
+                          [(n, "")] -> return n
+                          _ -> throwError $ "unknown printing option " ++ str ++ ". Please specify a number."
+  return $ o { optTraceImports = mode }
+
 asciiOnlyFlag :: Flag PragmaOptions
 asciiOnlyFlag o = return $ UNSAFE.unsafePerformIO $ do
   unsafeSetUnicodeOrAscii AsciiOnly
@@ -1009,6 +1021,9 @@ standardOptions =
 
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
                     ("directory for compiler output (default: the project root)")
+
+    , Option []     ["trace-imports"] (OptArg traceImportsFlag "LEVEL")
+                    ("print information about accessed modules during type-checking (where LEVEL=0|1|2|3, default: 2)")
 
     , Option []     ["vim"] (NoArg vimFlag)
                     "generate Vim highlighting files"
