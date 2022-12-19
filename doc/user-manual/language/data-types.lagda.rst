@@ -135,6 +135,8 @@ where the types ``A₁``, ..., ``Aₙ`` are function types of the form
   (z₁ : B₁) → ... → (zₘ : Bₘ) → D x₁ ... xₖ t₁ ... tₗ
 
 
+.. _strict-positivity:
+
 Strict positivity
 =================
 
