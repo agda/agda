@@ -43,7 +43,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04]
-        stack-ver: ['2.9.1']
+        stack-ver: ['2.9.3']
         ghc-ver: [9.4.3, 9.2.5, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4]
           # Andreas, 2022-03-26:
           # Note: ghc-ver needs to be spelled out with minor version, i.e., x.y.z
@@ -57,21 +57,21 @@ jobs:
           # (maybe stack could install it).
           - os: ubuntu-20.04
             ghc-ver: 8.2.2
-            stack-ver: '2.9.1'
+            stack-ver: '2.9.3'
           - os: ubuntu-20.04
             ghc-ver: 8.0.2
-            stack-ver: '2.9.1'
+            stack-ver: '2.9.3'
           - os: macos-12
             ghc-ver: 9.4.3
-            stack-ver: '2.9.1'
+            stack-ver: '2.9.3'
           # Andreas, 2022-10-06, issue #6128
           # The action stalls. Last message is "installing agda-mode in ...".
-          # Happens on windows-2019 and windows-2022, with stack 2.7.5 and 2.9.1.
+          # Happens on windows-2019 and windows-2022, with stack 2.7.5 and 2.9.3.
           # I have no clue what causes this.
           # Temporarily disable the windows build.
           - os: windows-2022
             ghc-ver: 9.4.2
-            stack-ver: '2.9.1'
+            stack-ver: '2.9.3'
     # # Try "allowed-failure" for Windows with GHC 9.2
     # continue-on-error: ${{ startsWith(matrix.os, 'windows') && startsWith(matrix.ghc-ver,'9.2') }}
     env:

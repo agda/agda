@@ -11,7 +11,7 @@ env:
   GHC_VER: 9.4.3
   PARALLEL_TESTS: 2
   STACK: stack --system-ghc
-  STACK_VER: 2.9.1
+  STACK_VER: 2.9.3
   TASTY_ANSI_TRICKS: 'false'
 jobs:
   build:
