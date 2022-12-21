@@ -795,7 +795,7 @@ command is sent to Agda (if it is sent)."
   "Reset certain variables.
 Intended to be used by the backend if an abort command was
 successful."
-  (declare (agda2-cmd))
+  (declare (agda2-command))
   (agda2-info-action "*Aborted*" "Aborted." t)
   (setq agda2-highlight-in-progress nil
         agda2-last-responses        nil))
@@ -867,8 +867,9 @@ The action depends on the prefix argument:
 (defun agda2-give-action (old-g paren)
   "Update the goal OLD-G with the expression in it.
 See `agda2-update' for details on PAREN."
-  (declare (agda2-cmd integer (or (eql paren)
+  (declare (agda2-command integer (or (eql paren)
                                   (eql no-paren)
+                                  string
                                   null)))
   (let
       ;; Don't run modification hooks: we don't want this to
@@ -913,7 +914,7 @@ Assumes that <clause> = {!<variables>!} is on one line."
 
 (defun agda2-make-case-action (newcls)
   "Replace the line at point with new clauses NEWCLS and reload."
-  (declare (agda2-cmd list))
+  (declare (agda2-command list))
   (agda2-forget-all-goals);; we reload later anyway.
   (let* ((p0 (point))
          (p1 (goto-char (+ (current-indentation) (line-beginning-position))))
@@ -928,7 +929,7 @@ Assumes that <clause> = {!<variables>!} is on one line."
 
 (defun agda2-make-case-action-extendlam (newcls)
   "Replace definition of extended lambda with new clauses NEWCLS and reload."
-  (declare (agda2-cmd list))
+  (declare (agda2-command list))
   (agda2-forget-all-goals);; we reload later anyway.
   (let* ((p0 (point))
          (pmax (re-search-forward "!}"))
@@ -956,7 +957,7 @@ Assumes that <clause> = {!<variables>!} is on one line."
   "Display the string STATUS in the current buffer's mode line.
 \(precondition: the current buffer has to use the Agda mode as the
 major mode)."
-  (declare (agda2-cmd string))
+  (declare (agda2-command string))
   (setq agda2-buffer-external-status status)
   (force-mode-line-update))
 
@@ -1007,7 +1008,7 @@ buffer, and point placed after this text.
 
 If APPEND is nil, then any previous text is removed before TEXT
 is inserted, and point is placed before this text."
-  (declare (agda2-cmd string string boolean))
+  (declare (agda2-command string string boolean))
   (interactive)
   (let ((buf (agda2-info-buffer)))
     (with-current-buffer buf
@@ -1080,7 +1081,7 @@ is inserted, and point is placed before this text."
 (defun agda2-info-action-and-copy (name text &optional append)
   "Add TEXT to kill ring before invoking `agda2-info-action'.
 For NAME, TEXT and APPEND see `agda2-info-action'."
-  (declare (agda2-cmd string string t))
+  (declare (agda2-command string string t))
   (kill-new text)
   (agda2-info-action name text append))
 
@@ -1440,7 +1441,7 @@ Either only one if point is a goal, or all of them."
   "Call `agda2-solve-action' on every pair of the the plist ISS.
 The key of the plist is a goal, and the value is a string that
 ought to be inserted."
-  (declare (agda2-cmd list))
+  (declare (agda2-command list))
   (while iss
     (let* ((g (pop iss)) (txt (pop iss))
            (cmd (cons #'agda2-solve-action (cons g (cons txt nil)))))
@@ -1534,7 +1535,7 @@ which they appear in the buffer.  Note that this function should
 be run /after/ syntax highlighting information has been loaded,
 because the two highlighting mechanisms interact in unfortunate
 ways."
-  (declare (agda2-cmd list))
+  (declare (agda2-command list))
   (agda2-forget-all-goals)
   (let ((literate (agda2-literate-p))
         ;; Don't run modification hooks: we don't want this function to
@@ -1814,7 +1815,7 @@ To do: dealing with semicolon separated decls."
   "Append the string MSG to the `agda2-debug-buffer-name' buffer.
 Note that this buffer's contents is not erased automatically when
 a file is loaded."
-  (declare (agda2-cmd string))
+  (declare (agda2-command string))
   (with-current-buffer (get-buffer-create agda2-debug-buffer-name)
     (save-excursion
       (goto-char (point-max))
@@ -1915,7 +1916,7 @@ FILE (assuming that the FILE is readable).  Otherwise point is
 moved to the given position in the buffer visiting the file, if
 any, and in every window displaying the buffer, but the window
 configuration and the selected window are not changed."
-  (declare (agda2-cmd cons))
+  (declare (agda2-command cons))
   (when (and agda2-highlight-in-progress
              (consp filepos)
              (stringp (car filepos))

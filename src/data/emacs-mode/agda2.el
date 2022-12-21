@@ -23,7 +23,7 @@ execution."
 
   (add-to-list
    'defun-declarations-alist
-   (list 'agda2-cmd #'agda2--mark-as-safe)))
+   (list 'agda2-command #'agda2--mark-as-safe)))
 
 (defvar agda2-directory (file-name-directory load-file-name)
   "Path to the directory that contains agda2.el(c).")
