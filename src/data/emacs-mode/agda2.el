@@ -3,6 +3,8 @@
 ;; loaded
 ;; SPDX-License-Identifier: MIT License
 
+;;; Code:
+
 ;; By adding an `agda2--mark-as-safe' to `defun-declarations-alist', we can use the
 ;; `declare' syntax at the beginning of a `defun' to denote that the
 ;; function may be invoked and what form the arguments ought to have.
