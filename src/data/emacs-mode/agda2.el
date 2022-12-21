@@ -3,6 +3,8 @@
 ;; loaded
 ;; SPDX-License-Identifier: MIT License
 
+;;; Code:
+
 (defvar agda2-directory (file-name-directory load-file-name)
   "Path to the directory that contains agda2.el(c).")
 
