@@ -1,7 +1,7 @@
 ;;; agda2-mode.el --- Major mode for Agda       -*- lexical-binding: t; -*-
 
 ;; Version: 2.6.3
-;; Package-Requires: ((emacs "25.1") (annotation "1.0") (xref "1.0.2"))
+;; Package-Requires: ((emacs "25.1") (xref "1.0.2"))
 ;; Keywords: languages
 ;; URL: https://github.com/agda/agda/tree/master/src/data/emacs-mode
 ;; SPDX-License-Identifier: MIT License
@@ -32,12 +32,12 @@ Note that the same version of the Agda executable must be used.")
 (require 'compile)
 (require 'time-date)
 (require 'eri)
-(require 'annotation)
 (require 'fontset)
 (require 'agda-input)
 (require 'agda2)
 (require 'agda2-highlight)
 (require 'agda2-abbrevs)
+(require 'xref)
 
 ;; Load filladapt, if it is installed.
 (require 'filladapt nil :noerror)
@@ -189,7 +189,7 @@ constituents.")
     (define-key m (kbd "S-<iso-lefttab>") #'eri-indent-reverse)
     (define-key m (kbd "S-<lefttab>")     #'eri-indent-reverse)
     (define-key m (kbd "S-<tab>")         #'eri-indent-reverse)
-    (define-key m (kbd "<mouse-2>")       #'xref-find-definitions-at-mouse)
+    (define-key m (kbd "<mouse-1>")       #'xref-find-definitions-at-mouse)
     (define-key m (kbd "C-c C-l")         #'agda2-load)
     (define-key m (kbd "C-c C-x C-c")     #'agda2-compile)
     (define-key m (kbd "C-c C-x C-q")     #'agda2-quit)
@@ -361,17 +361,6 @@ Note that this variable is not buffer-local.")
 (define-derived-mode agda2-mode prog-mode "Agda"
   "Major mode for Agda files.
 
-The following paragraph does not apply to Emacs 23 or newer.
-
-  Note that when this mode is activated the default font of the
-  current frame is changed to the fontset `agda2-fontset-name'.
-  The reason is that Agda programs often use mathematical symbols
-  and other Unicode characters, so we try to provide a suitable
-  default font setting, which can display many of the characters
-  encountered.  If you prefer to use your own settings, set
-  `agda2-fontset-name' to nil.
-
-Special commands:
 \\{agda2-mode-map}"
 
  (if (boundp 'agda2-include-dirs)
@@ -417,6 +406,8 @@ agda2-include-dirs is not bound." :warning))
  ;; is activated before the LaTeX mode, and the LaTeX mode does not
  ;; seem to remove the text properties set by the Agda mode.
  (add-hook 'change-major-mode-hook #'agda2-quit nil 'local)
+ ;; Enable Xref
+ (add-hook 'xref-backend-functions #'agda2-xref-backend -90 t)
  ;; Use ERI for indentation
  (setq-local indent-line-function #'eri-indent))
 
@@ -500,12 +491,11 @@ process."
     (agda2-restart)
     (unless (agda2-running-p)
       (agda2-raise-error)))
-  (let ((command (apply #'concat (agda2-intersperse " " args))))
-    (with-current-buffer agda2-process-buffer
-      (goto-char (point-max))
-      (insert command)
-      (insert "\n")
-      (process-send-string agda2-process (concat command "\n")))))
+  (with-current-buffer agda2-process-buffer
+    (goto-char (point-max))
+    (let ((point (point)))
+      (insert (mapconcat #'identity args " ") "\n")
+      (process-send-region agda2-process point (point-max)))))
 
 (defun agda2-go (save highlight how-busy do-abort &rest args)
   "Execute commands in the Agda2 interpreter.
@@ -540,7 +530,7 @@ is non-nil and the Agda process is `busy'."
 
   (when (and do-abort
              (eq agda2-in-progress 'busy))
-    (error "Agda is busy with something
+    (error "Agda is busy with something \
 \(you have the option to abort or restart Agda)"))
 
   (setq agda2-file-buffer (current-buffer))
@@ -1837,32 +1827,38 @@ command might save the buffer."
               (agda2-string-quote (buffer-file-name))
               "Keep")))
 
-;;;; Go to definition site
+;;;; Xref inregration
 
-(defun agda2-goto-definition-keyboard (&optional other-window)
-  "Go to the definition site of the name under point (if any).
-If this function is invoked with a prefix argument, or
-OTHER-WINDOW is non-nil, then another window is used to display
-the given position."
-  (interactive "P")
-  (annotation-goto-indirect (point) other-window))
+(defun agda2-xref-backend ()
+  "Return an Xref backend."
+  'agda2)
 
-(defun agda2-goto-definition-mouse (ev)
-  "Go to the definition site of the name clicked on, if any.
-Otherwise, yank (see `mouse-yank-primary').
-EV is the event object describing the click."
-  (interactive "e")
-  (unless (annotation-goto-indirect ev)
-    ;; FIXME: Shouldn't we use something like
-    ;; (call-interactively (key-binding ev))?  --Stef
-    (mouse-yank-primary ev)))
+;; The default implementation of `xref-backend-identifier-at-point' is
+;; fine and doesn't have to be changed.
 
-(defun agda2-go-back nil
-  "Return to the previous position before a jump.
-This `agda2-goto-definition-keyboard' or `agda2-goto-definition-mouse' was
-invoked."
-  (interactive)
-  (annotation-go-back))
+(cl-defmethod xref-backend-identifier-at-point ((_ (eql 'agda2)))
+  "Return the symbol at point with text properties."
+  (thing-at-point 'symbol))
+
+;; (cl-defmethod xref-backend-identifier-completion-table ((_ (eql 'agda2)))
+;;   "Generate a list of possible candidates."
+;;   (lambda (string pred action)
+;;     ))
+
+(cl-defmethod xref-backend-definitions ((_ (eql 'agda2)) ident)
+  "Generate a list of definitions for identifier IDENT."
+  (let ((xref-info (get-text-property 0 'agda2-xref-info ident)))
+    (and xref-info
+         (let ((loc (make-xref-buffer-location
+                     :buffer (find-file-noselect (car xref-info))
+                     :position (cdr xref-info))))
+           (list (make-xref-item :location loc))))))
+
+;; (cl-defmethod xref-backend-references ((_ (eql 'agda2)) identifier)
+;;   "Generate a list of references for IDENTIFIER.")
+
+;; (cl-defmethod xref-backend-apropos ((_ (eql 'agda2)) pattern)
+;;   "Generate a list of definitions matching PATTERN.")
 
 (defun agda2-maybe-goto (filepos)
   "Might move point to the given error.
@@ -1880,19 +1876,29 @@ configuration and the selected window are not changed."
              (consp filepos)
              (stringp (car filepos))
              (integerp (cdr filepos)))
-    (if agda2-in-agda2-file-buffer
-        (annotation-goto-and-push (current-buffer) (point) filepos)
-      (save-excursion
-        (let ((buffer (find-buffer-visiting (car filepos))))
-          (when buffer
-            (let ((windows (get-buffer-window-list buffer
-                                                   'no-minibuffer t)))
-              (if windows
-                  (dolist (window windows)
-                    (with-selected-window window
-                      (goto-char (cdr filepos))))
-                (with-current-buffer buffer
-                  (goto-char (cdr filepos)))))))))))
+    (xref-show-xrefs
+     (let ((loc (make-xref-buffer-location
+                 :buffer (find-file-noselect (car filepos))
+                 :position (cdr filepos))))
+       (list (xref-make "-" loc)))
+     nil)
+    ;; (if agda2-in-agda2-file-buffer
+    ;;     (progn
+    ;;       (xref-show-xrefs )
+    ;;       (xref-push-marker-stack)
+    ;;       (goto-char (cdr filepos)))
+    ;;   (save-excursion                   ;TODO
+    ;;     (let ((buffer (find-buffer-visiting (car filepos))))
+    ;;       (when buffer
+    ;;         (let ((windows (get-buffer-window-list buffer
+    ;;                                                'no-minibuffer t)))
+    ;;           (if windows
+    ;;               (dolist (window windows)
+    ;;                 (with-selected-window window
+    ;;                   (goto-char (cdr filepos))))
+    ;;             (with-current-buffer buffer
+    ;;               (goto-char (cdr filepos)))))))))
+    ))
 
 ;;;; Implicit arguments
 
@@ -2018,7 +2024,6 @@ An attempt is made to preserve the default value of
     (unload-feature 'agda2-mode      'force)
     (unload-feature 'agda2           'force)
     (unload-feature 'eri             'force)
-    (unload-feature 'annotation      'force)
     (unload-feature 'agda-input      'force)
     (unload-feature 'agda2-highlight 'force)
     (unload-feature 'agda2-abbrevs   'force)
