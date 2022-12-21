@@ -12,7 +12,7 @@
 
 ;;; Code:
 
-(require 'annotation)
+(eval-when-compile (require 'pcase))
 (require 'font-lock)
 (require 'agda2)
 
@@ -536,42 +536,173 @@ The aspects currently recognised are the following:
 
 ;;;; Functions
 
-(defun agda2-highlight-setup nil
-  "Set up the `annotation' library for use with `agda2-mode'."
-  (agda2-highlight-set-faces 'agda2-highlight-face-groups agda2-highlight-face-groups)
-  (setq annotation-bindings agda2-highlight-faces))
+(defvar-local agda2-highlight-annotation-bindings nil
+  "An association list mapping symbols to faces.")
 
-(defun agda2-highlight-apply (remove &rest cmds)
-  "Adds the syntax highlighting information in the annotation list CMDS.
+(defun agda2-highlight-setup ()
+  "Set up the `annotation' library for use with `agda2-mode'."
+  (agda2-highlight-set-faces 'agda2-highlight-face-groups agda2-highlight-face-groups))
+
+(defun agda2-highlight-annotate (start end anns token-based info goto)
+  "Annotate text between START and END in the current buffer.
+
+Nothing happens if either START or END are out of bounds for the
+current (possibly narrowed) buffer, or (<= END START).
+
+If ANNS is nil, then those text properties between START and END
+that have been set by this function are deleted.  Otherwise the
+following happens.
+
+All the symbols in ANNS are looked up in `agda2-highlight-faces',
+and the resulting list of faces is used to set the face text
+property.  For each position in the range the faces are merged
+with the current value of the `agda2-highlight-faces' text
+property, and both the face and the `agda2-highlight-faces' text
+properties are set to the resulting list of faces.
+
+If TOKEN-BASED is non-nil, then the agda2-highlight-token-based
+property is set to t. This means that all text properties set by
+`agda2-highlight-annotate' in this range are interpreted as being
+token-based, including those set by previous calls to this
+procedure.
+
+If the string INFO is non-nil, the mouse-face
+property is set to highlight, and INFO is used as the help-echo
+string.  If GOTO has the form (FILENAME . POSITION), then the
+mouse-face property is set to highlight, and the given
+filename/position will be used by `agda2-highlight-goto-indirect' when
+it is invoked with a position in the given range.
+
+Note that if a given attribute is defined by several faces, then
+the first face's setting takes precedence.
+
+All characters whose text properties get set also have the
+agda2-highlight-annotated property set to t, and
+agda2-highlight-annotations is set to a list with all the properties
+that have been set; this ensures that the text properties can
+later be removed (if the agda2-highlight-* properties are not tampered
+with)."
+  (when (and (<= (point-min) start)
+             (< start end)
+             (<= end (point-max)))
+    (if (null anns)
+        (agda2-highlight-clean-up nil start end)
+      (let (faces props)
+        (dolist (ann anns)
+          (let ((face (cdr (assoc ann agda2-highlight-faces))))
+            (when face (push face faces))))
+        (when faces
+          (save-excursion
+            (save-restriction
+              (narrow-to-region start end)
+              (goto-char (point-min))
+              (while (not (eobp))
+                (let ((next (or (next-single-property-change (point) 'agda2-highlight-faces)
+                                (point-max))))
+                  ;; THINKME: Why do we need `agda2-highlight-faces'?
+                  (let* ((old-faces (get-text-property (point) 'agda2-highlight-faces))
+                         (all-faces (delete-dups (append faces old-faces))))
+                    (put-text-property (point) next 'agda2-highlight-faces all-faces)
+                    (put-text-property (point) next 'face all-faces))
+                  (goto-char next)))))
+          (push 'face props)
+          (push 'agda2-highlight-faces props))
+        (when token-based
+          (add-text-properties start end
+                               (list 'agda2-highlight-token-based t))
+          (push 'agda2-highlight-token-based props))
+        (when (consp goto)
+          (add-text-properties
+           start end
+           (list 'agda2-xref-info goto))
+          (push 'agda2-highlight-goto props)
+          (push 'mouse-face props))
+        (when info
+          (add-text-properties start end
+                               (list 'mouse-face 'highlight
+                                     'help-echo info))
+          (push 'mouse-face props)
+          (push 'help-echo props))
+        (when props
+          (push 'agda2-highlight-annotated props)
+          (save-excursion
+            (save-restriction
+              (narrow-to-region start end)
+              (while (not (eobp))
+                (let* ((next (or (next-single-property-change
+                                  (point) 'agda2-highlight-annotations)
+                                 (point-max)))
+                       (old-props (get-text-property (point) 'agda2-highlight-annotations))
+                       (all-props (delete-dups (append props old-props))))
+                  (add-text-properties
+                   (point) next
+                   (list 'agda2-highlight-annotated t
+                         'agda2-highlight-annotations all-props))
+                  (goto-char next))))))))))
+
+(defun agda2-highlight-clean-up (token-based start end)
+  "Remove highlighting between START and END.
+TOKEN-BASED is non-nil, then only token-based properties are
+removed."
+  (save-excursion
+    (save-restriction
+      (narrow-to-region start end)
+      (goto-char (point-max))
+      (let ((tag (if token-based
+                     'agda2-highlight-token-based
+                   'agda2-highlight-annotated)))
+        (while (not (eobp))
+          (let ((props (get-text-property (point) 'agda2-highlight-annotations))
+                (next (next-single-property-change (point) tag nil end)))
+            (when (or (not token-based)
+                      (member 'agda2-highlight-token-based props))
+              (remove-text-properties
+               (point) next
+               (mapcan (lambda (p) (list p nil)) ;intersperse nils in the list
+                       (cons 'agda2-highlight-annotations props))))
+            (when next (goto-char next))))))))
+
+(defun agda2-highlight-apply (remove cmds)
+  "Add the syntax highlighting information in the annotation list CMDS.
 
 If REMOVE is nil, then old syntax highlighting information is not
-removed. Otherwise all token-based syntax highlighting is removed."
-  (let (;; Ignore read-only status, otherwise this function may fail.
-        (inhibit-read-only t))
-    (apply 'annotation-load
-           "Click mouse-2 to jump to definition"
-           remove
-           cmds)))
+removed.  Otherwise all token-based syntax highlighting is removed."
+  (with-silent-modifications
+    (save-excursion
+      (goto-char (point-min))
+      (pcase-dolist ((or `(,start ,end ,anns ,token-based ,info ,goto)
+                         `(,start ,end ,anns ,token-based ,info)
+                         `(,start ,end ,anns ,token-based)
+                         `(,start ,end ,anns))
+                     (if (listp (car cmds)) cmds (list cmds)))
+        (let ((info (if (and (not info) (consp goto))
+                        ;; Fall back to a generic message:
+                        "Click mouse-2 to jump to definition"
+                      info)))
+          (when remove
+            (agda2-highlight-clean-up t (point) end)
+            (goto-char end))
+          (agda2-highlight-annotate start end anns token-based info goto)))
+      (when remove
+        (agda2-highlight-clean-up t (point) (point-max))))))
 
 (defun agda2-highlight-add-annotations (remove &rest cmds)
   "Like `agda2-highlight-apply'.
 But only if `agda2-highlight-in-progress' is non-nil.  See
 `agda2-highlight-apply' for details on REMOVE and CMDS."
-  (if agda2-highlight-in-progress
-      (apply 'agda2-highlight-apply remove cmds)))
-
   (declare (agda2-command boolean &repeat list))
+  (when agda2-highlight-in-progress
+    (agda2-highlight-apply remove cmds)))
 
 (defun agda2-highlight-load (file)
   "Load syntax highlighting information from FILE.
-
 Old syntax highlighting information is not removed."
   (let* ((coding-system-for-read 'utf-8)
-         (cmds (with-temp-buffer
+         (expr (with-temp-buffer
                  (insert-file-contents file)
                  (goto-char (point-min))
                  (read (current-buffer)))))
-      (apply 'agda2-highlight-apply cmds)))
+    (agda2-highlight-apply (car expr) (cdr expr))))
 
 (defun agda2-highlight-load-and-delete-action (file)
   "Like `agda2-highlight-load', but deletes FILE when done.
@@ -579,9 +710,10 @@ And highlighting is only updated if `agda2-highlight-in-progress'
 is non-nil."
   (declare (agda2-command string))
   (unwind-protect
-      (if agda2-highlight-in-progress
-          (agda2-highlight-load file))
-    (delete-file file)))
+      (when agda2-highlight-in-progress
+        (agda2-highlight-load file))
+    ;; (delete-file file)
+    ))
 
 (defun agda2-highlight-clear (&optional token-based)
   "Remove all syntax highlighting.
@@ -590,10 +722,7 @@ If TOKEN-BASED is non-nil, then only token-based highlighting is
 removed."
   (declare (agda2-command boolean))
   (interactive)
-  (let ((inhibit-read-only t))
-       ; Ignore read-only status, otherwise this function may fail.
-    (annotation-remove-annotations token-based)))
-
+  (agda2-highlight-clean-up token-based (point-min) (point-max)))
 
 (provide 'agda2-highlight)
 ;;; agda2-highlight.el ends here
