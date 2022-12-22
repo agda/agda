@@ -72,22 +72,20 @@ Erasure
 
   This feature is experimental.
 
-* Added an option `--erase-record-parameters` that additionally marks
-  parameters to definitions in a record module as erased
-  ([#5770](https://github.com/agda/agda/issues/5770)). For example:
+* Added an option `--erase-record-parameters` that marks parameters to
+  record fields and definitions in a record module as erased (see
+  [#4786](https://github.com/agda/agda/issues/4786) and
+  [#5770](https://github.com/agda/agda/issues/5770)). For example:
 
   ```agda
   {-# OPTIONS --erase-record-parameters #-}
 
-  postulate A : Set
-  postulate a : A
+  record R (A : Set) : Set where
+    field
+      f : A
 
-  record R (x : A) : Set where
-    y : A
-    y = a
-
-  f : (@0 x : A) → R x → A
-  f x r = R.y {x} r
+  test : {@0 A : Set} → R A → A
+  test = R.f
   ```
 
 Cubical Agda
