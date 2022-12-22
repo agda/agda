@@ -227,192 +227,159 @@ order for the change to take effect."
   :initialize 'custom-initialize-default
   :type 'sexp)
 
-(defcustom agda-input-inherit
-  `(("TeX" . (agda-input-compose
-              (agda-input-drop '("geq" "leq" "bullet" "qed" "par"))
-              (agda-input-or
-               (agda-input-drop-prefix "\\")
-               (agda-input-compose
-                (agda-input-drop '("^l" "^o" "^r" "^v"))
-                (agda-input-prefix "^"))
-               (agda-input-prefix "_")))))
-  "A list of Quail input methods for the Agda input mode.
-Their translations should be inherited by the Agda input
-method (with the exception of translations corresponding to ASCII
-characters).
-
-The list consists of pairs (qp . tweak), where qp is the name of
-a Quail package, and tweak is an expression of the same kind as
-`agda-input-tweak-all' which is used to tweak the translation
-pairs of the input method.
-
-The inherited translation pairs are added last, after
-`agda-input-user-translations' and `agda-input-translations'.
-
-If you change this setting manually (without using the
-customization buffer) you need to call `agda-input-setup' in
-order for the change to take effect."
-  :group 'agda-input
-  :set 'agda-input-incorporate-changed-setting
-  :initialize 'custom-initialize-default
-  :type '(repeat (cons (string :tag "Quail package")
-                       (sexp :tag "Tweaking function"))))
-
-;;;; Input Translation Table
-
 (defcustom agda-input-translations
-  `(
+  (let ((max-lisp-eval-depth 2800))
 ;;;;; Equality and similar symbols.
-    ("eq"  . ,(agda-input-to-string-list "=∼∽≈≋∻∾∿≀≃⋍≂≅ ≌≊≡≣≐≑≒≓≔≕≖≗≘≙≚≛≜≝≞≟≍≎≏≬⋕＝"))
-    ("eqn" . ,(agda-input-to-string-list "≠≁ ≉     ≄  ≇≆  ≢                 ≭    "))
+    `(("eq"  . ,(agda-input-to-string-list "=∼∽≈≋∻∾∿≀≃⋍≂≅ ≌≊≡≣≐≑≒≓≔≕≖≗≘≙≚≛≜≝≞≟≍≎≏≬⋕＝"))
+      ("eqn" . ,(agda-input-to-string-list "≠≁ ≉     ≄  ≇≆  ≢                 ≭    "))
 
-    ("=n"  . ("≠"))
-    ("~"    . ,(agda-input-to-string-list "∼～"))
-    ("~n"  . ("≁"))
-    ("~~"   . ("≈"))  ("~~n" . ("≉"))
-    ("~~~"  . ("≋"))
-    (":~"   . ("∻"))
-    ("~-"   . ("≃"))  ("~-n" . ("≄"))
-    ("-~"   . ("≂"))
-    ("~="   . ("≅"))  ("~=n" . ("≇"))
-    ("~~-"  . ("≊"))
-    ("=="   . ("≡"))  ("==n" . ("≢"))
-    ("==="  . ("≣"))
-    ("="    . ("＝"))
-    (".="   . ("≐"))  (".=." . ("≑"))
-    (":="   . ("≔"))  ("=:"  . ("≕"))
-    ("=o"   . ("≗"))
-    ("(="   . ("≘"))
-    ("and=" . ("≙"))  ("or=" . ("≚"))
-    ("*="   . ("≛"))
-    ("t="   . ("≜"))
-    ("def=" . ("≝"))
-    ("m="   . ("≞"))
-    ("?="   . ("≟"))
+      ("=n"  . ("≠"))
+      ("~"    . ,(agda-input-to-string-list "∼～"))
+      ("~n"  . ("≁"))
+      ("~~"   . ("≈"))  ("~~n" . ("≉"))
+      ("~~~"  . ("≋"))
+      (":~"   . ("∻"))
+      ("~-"   . ("≃"))  ("~-n" . ("≄"))
+      ("-~"   . ("≂"))
+      ("~="   . ("≅"))  ("~=n" . ("≇"))
+      ("~~-"  . ("≊"))
+      ("=="   . ("≡"))  ("==n" . ("≢"))
+      ("==="  . ("≣"))
+      ("="    . ("＝"))
+      (".="   . ("≐"))  (".=." . ("≑"))
+      (":="   . ("≔"))  ("=:"  . ("≕"))
+      ("=o"   . ("≗"))
+      ("(="   . ("≘"))
+      ("and=" . ("≙"))  ("or=" . ("≚"))
+      ("*="   . ("≛"))
+      ("t="   . ("≜"))
+      ("def=" . ("≝"))
+      ("m="   . ("≞"))
+      ("?="   . ("≟"))
 
 ;;;;; Inequality and similar symbols.
-    ("leq"  . ,(agda-input-to-string-list "<≪⋘≤≦≲ ≶≺≼≾⊂⊆ ⋐⊏⊑ ⊰⊲⊴⋖⋚⋜⋞＜"))
-    ("leqn" . ,(agda-input-to-string-list "≮  ≰≨≴⋦≸⊀ ⋨⊄⊈⊊  ⋢⋤ ⋪⋬   ⋠"))
-    ("geq"  . ,(agda-input-to-string-list ">≫⋙≥≧≳ ≷≻≽≿⊃⊇ ⋑⊐⊒ ⊱⊳⊵⋗⋛⋝⋟＞"))
-    ("geqn" . ,(agda-input-to-string-list "≯  ≱≩≵⋧≹⊁ ⋩⊅⊉⊋  ⋣⋥ ⋫⋭   ⋡"))
+      ("leq"  . ,(agda-input-to-string-list "<≪⋘≤≦≲ ≶≺≼≾⊂⊆ ⋐⊏⊑ ⊰⊲⊴⋖⋚⋜⋞＜"))
+      ("leqn" . ,(agda-input-to-string-list "≮  ≰≨≴⋦≸⊀ ⋨⊄⊈⊊  ⋢⋤ ⋪⋬   ⋠"))
+      ("geq"  . ,(agda-input-to-string-list ">≫⋙≥≧≳ ≷≻≽≿⊃⊇ ⋑⊐⊒ ⊱⊳⊵⋗⋛⋝⋟＞"))
+      ("geqn" . ,(agda-input-to-string-list "≯  ≱≩≵⋧≹⊁ ⋩⊅⊉⊋  ⋣⋥ ⋫⋭   ⋡"))
 
-    ("<="   . ("≤"))  (">="   . ("≥"))
-    ("<=n"  . ("≰"))  (">=n"  . ("≱"))
-    ("len"  . ("≰"))  ("gen"  . ("≱"))
-    ("<n"   . ("≮"))  (">n"   . ("≯"))
-    ("<~"   . ("≲"))  (">~"   . ("≳"))
-    ("<~n"  . ("⋦"))  (">~n"  . ("⋧"))
-    ("<~nn" . ("≴"))  (">~nn" . ("≵"))
+      ("<="   . ("≤"))  (">="   . ("≥"))
+      ("<=n"  . ("≰"))  (">=n"  . ("≱"))
+      ("len"  . ("≰"))  ("gen"  . ("≱"))
+      ("<n"   . ("≮"))  (">n"   . ("≯"))
+      ("<~"   . ("≲"))  (">~"   . ("≳"))
+      ("<~n"  . ("⋦"))  (">~n"  . ("⋧"))
+      ("<~nn" . ("≴"))  (">~nn" . ("≵"))
 
-    ("sub"   . ("⊂"))  ("sup"   . ("⊃"))
-    ("subn"  . ("⊄"))  ("supn"  . ("⊅"))
-    ("sub="  . ("⊆"))  ("sup="  . ("⊇"))
-    ("sub=n" . ("⊈"))  ("sup=n" . ("⊉"))
+      ("sub"   . ("⊂"))  ("sup"   . ("⊃"))
+      ("subn"  . ("⊄"))  ("supn"  . ("⊅"))
+      ("sub="  . ("⊆"))  ("sup="  . ("⊇"))
+      ("sub=n" . ("⊈"))  ("sup=n" . ("⊉"))
 
-    ("squb"   . ("⊏"))  ("squp"   . ("⊐"))
-    ("squb="  . ("⊑"))  ("squp="  . ("⊒"))
-    ("squb=n" . ("⋢"))  ("squp=n" . ("⋣"))
+      ("squb"   . ("⊏"))  ("squp"   . ("⊐"))
+      ("squb="  . ("⊑"))  ("squp="  . ("⊒"))
+      ("squb=n" . ("⋢"))  ("squp=n" . ("⋣"))
 
 ;;;;; Set membership etc.
-    ("member" . ,(agda-input-to-string-list "∈∉∊∋∌∍⋲⋳⋴⋵⋶⋷⋸⋹⋺⋻⋼⋽⋾⋿"))
+      ("member" . ,(agda-input-to-string-list "∈∉∊∋∌∍⋲⋳⋴⋵⋶⋷⋸⋹⋺⋻⋼⋽⋾⋿"))
 
-    ("inn" . ("∉"))
-    ("nin" . ("∌"))
+      ("inn" . ("∉"))
+      ("nin" . ("∌"))
 
 ;;;;; Intersections, unions etc.
-    ("intersection" . ,(agda-input-to-string-list "∩⋂∧⋀⋏⨇⊓⨅⋒∏ ⊼      ⨉"))
-    ("union"        . ,(agda-input-to-string-list "∪⋃∨⋁⋎⨈⊔⨆⋓∐⨿⊽⊻⊍⨃⊎⨄⊌∑⅀"))
+      ("intersection" . ,(agda-input-to-string-list "∩⋂∧⋀⋏⨇⊓⨅⋒∏ ⊼      ⨉"))
+      ("union"        . ,(agda-input-to-string-list "∪⋃∨⋁⋎⨈⊔⨆⋓∐⨿⊽⊻⊍⨃⊎⨄⊌∑⅀"))
 
-    ("and" . ("∧"))  ("or"  . ("∨"))
-    ("And" . ("⋀"))  ("Or"  . ("⋁"))
-    ("i"   . ("∩"))  ("un"  . ("∪"))  ("u+" . ("⊎"))  ("u." . ("⊍"))
-    ("I"   . ("⋂"))  ("Un"  . ("⋃"))  ("U+" . ("⨄"))  ("U." . ("⨃"))
-    ("glb" . ("⊓"))  ("lub" . ("⊔"))
-    ("Glb" . ("⨅"))  ("Lub" . ("⨆"))
+      ("and" . ("∧"))  ("or"  . ("∨"))
+      ("And" . ("⋀"))  ("Or"  . ("⋁"))
+      ("i"   . ("∩"))  ("un"  . ("∪"))  ("u+" . ("⊎"))  ("u." . ("⊍"))
+      ("I"   . ("⋂"))  ("Un"  . ("⋃"))  ("U+" . ("⨄"))  ("U." . ("⨃"))
+      ("glb" . ("⊓"))  ("lub" . ("⊔"))
+      ("Glb" . ("⨅"))  ("Lub" . ("⨆"))
 
 ;;;;; Entailment etc.
-    ("entails" . ,(agda-input-to-string-list "⊢⊣⊤⊥⊦⊧⊨⊩⊪⊫⊬⊭⊮⊯"))
+      ("entails" . ,(agda-input-to-string-list "⊢⊣⊤⊥⊦⊧⊨⊩⊪⊫⊬⊭⊮⊯"))
 
-    ("|-"   . ("⊢"))  ("|-n"  . ("⊬"))
-    ("-|"   . ("⊣"))
-    ("|="   . ("⊨"))  ("|=n"  . ("⊭"))
-    ("||-"  . ("⊩"))  ("||-n" . ("⊮"))
-    ("||="  . ("⊫"))  ("||=n" . ("⊯"))
-    ("|||-" . ("⊪"))
+      ("|-"   . ("⊢"))  ("|-n"  . ("⊬"))
+      ("-|"   . ("⊣"))
+      ("|="   . ("⊨"))  ("|=n"  . ("⊭"))
+      ("||-"  . ("⊩"))  ("||-n" . ("⊮"))
+      ("||="  . ("⊫"))  ("||=n" . ("⊯"))
+      ("|||-" . ("⊪"))
 
 ;;;;; Divisibility, parallelity.
-    ("|"  . ("∣"))  ("|n"  . ("∤"))
-    ("||" . ("∥"))  ("||n" . ("∦"))
+      ("|"  . ("∣"))  ("|n"  . ("∤"))
+      ("||" . ("∥"))  ("||n" . ("∦"))
 
 ;;;;; Some symbols from logic and set theory.
-    ("all" . ("∀"))
-    ("ex"  . ("∃"))
-    ("exn" . ("∄"))
-    ("0"   . ("∅"))
-    ("C"   . ("∁"))
+      ("all" . ("∀"))
+      ("ex"  . ("∃"))
+      ("exn" . ("∄"))
+      ("0"   . ("∅"))
+      ("C"   . ("∁"))
 
 ;;;;; Corners, ceilings and floors.
-    ("c"  . ,(agda-input-to-string-list "⌜⌝⌞⌟⌈⌉⌊⌋"))
-    ("cu" . ,(agda-input-to-string-list "⌜⌝  ⌈⌉  "))
-    ("cl" . ,(agda-input-to-string-list "  ⌞⌟  ⌊⌋"))
+      ("c"  . ,(agda-input-to-string-list "⌜⌝⌞⌟⌈⌉⌊⌋"))
+      ("cu" . ,(agda-input-to-string-list "⌜⌝  ⌈⌉  "))
+      ("cl" . ,(agda-input-to-string-list "  ⌞⌟  ⌊⌋"))
 
-    ("cul" . ("⌜"))  ("cuL" . ("⌈"))
-    ("cur" . ("⌝"))  ("cuR" . ("⌉"))
-    ("cll" . ("⌞"))  ("clL" . ("⌊"))
-    ("clr" . ("⌟"))  ("clR" . ("⌋"))
+      ("cul" . ("⌜"))  ("cuL" . ("⌈"))
+      ("cur" . ("⌝"))  ("cuR" . ("⌉"))
+      ("cll" . ("⌞"))  ("clL" . ("⌊"))
+      ("clr" . ("⌟"))  ("clR" . ("⌋"))
 
 ;;;;; Various operators/symbols.
-    ("qed"       . ("∎"))
-    ("x"         . ("×"))
-    ("o"         . ("∘"))
-    ("comp"      . ("∘"))
-    ("."         . ,(agda-input-to-string-list "∙．"))
-    ("*"         . ("⋆"))
-    (".+"        . ("∔"))
-    (".-"        . ("∸"))
-    (":"         . ,(agda-input-to-string-list "∶⦂ː꞉˸፥፦：﹕︓"))
-    (","         . ,(agda-input-to-string-list "ʻ،⸲⸴⹁⹉、︐︑﹐﹑，､"))
-    (";"         . ,(agda-input-to-string-list "⨾⨟⁏፤꛶；︔﹔⍮⸵;"))
-    ("::"        . ("∷"))
-    ("::-"       . ("∺"))
-    ("-:"        . ("∹"))
-    ("+ "        . ("⊹"))
-    ("+"         . ("＋"))
-    ("sqrt"      . ("√"))
-    ("surd3"     . ("∛"))
-    ("surd4"     . ("∜"))
-    ("increment" . ("∆"))
-    ("inf"       . ("∞"))
-    ("&"         . ("⅋"))
-    ("z;"        . ,(agda-input-to-string-list "⨟⨾"))
-    ("z:"        . ("⦂"))
+      ("qed"       . ("∎"))
+      ("x"         . ("×"))
+      ("o"         . ("∘"))
+      ("comp"      . ("∘"))
+      ("."         . ,(agda-input-to-string-list "∙．"))
+      ("*"         . ("⋆"))
+      (".+"        . ("∔"))
+      (".-"        . ("∸"))
+      (":"         . ,(agda-input-to-string-list "∶⦂ː꞉˸፥፦：﹕︓"))
+      (","         . ,(agda-input-to-string-list "ʻ،⸲⸴⹁⹉、︐︑﹐﹑，､"))
+      (";"         . ,(agda-input-to-string-list "⨾⨟⁏፤꛶；︔﹔⍮⸵;"))
+      ("::"        . ("∷"))
+      ("::-"       . ("∺"))
+      ("-:"        . ("∹"))
+      ("+ "        . ("⊹"))
+      ("+"         . ("＋"))
+      ("sqrt"      . ("√"))
+      ("surd3"     . ("∛"))
+      ("surd4"     . ("∜"))
+      ("increment" . ("∆"))
+      ("inf"       . ("∞"))
+      ("&"         . ("⅋"))
+      ("z;"        . ,(agda-input-to-string-list "⨟⨾"))
+      ("z:"        . ("⦂"))
 
 ;;;;; Circled operators.
-    ("o+"  . ("⊕"))
-    ("o--" . ("⊖"))
-    ("ox"  . ("⊗"))
-    ("o/"  . ("⊘"))
-    ("o."  . ("⊙"))
-    ("oo"  . ("⊚"))
-    ("o*"  . ("⊛"))
-    ("o="  . ("⊜"))
-    ("o-"  . ("⊝"))
+      ("o+"  . ("⊕"))
+      ("o--" . ("⊖"))
+      ("ox"  . ("⊗"))
+      ("o/"  . ("⊘"))
+      ("o."  . ("⊙"))
+      ("oo"  . ("⊚"))
+      ("o*"  . ("⊛"))
+      ("o="  . ("⊜"))
+      ("o-"  . ("⊝"))
 
-    ("O+"  . ("⨁"))
-    ("Ox"  . ("⨂"))
-    ("O."  . ("⨀"))
-    ("O*"  . ("⍟"))
+      ("O+"  . ("⨁"))
+      ("Ox"  . ("⨂"))
+      ("O."  . ("⨀"))
+      ("O*"  . ("⍟"))
 
 ;;;;; Boxed operators.
-    ("b+" . ("⊞"))
-    ("b-" . ("⊟"))
-    ("bx" . ("⊠"))
-    ("b." . ("⊡"))
+      ("b+" . ("⊞"))
+      ("b-" . ("⊟"))
+      ("bx" . ("⊠"))
+      ("b." . ("⊡"))
 
 ;;;;; Various symbols.
-    ("integral" . ,(agda-input-to-string-list "∫∬∭∮∯∰∱∲∳"))
-    ("angle"    . ,(agda-input-to-string-list "∟∡∢⊾⊿"))
-    ("join"     . ,(agda-input-to-string-list "⋈⋉⋊⋋⋌⨝⟕⟖⟗"))
+      ("integral" . ,(agda-input-to-string-list "∫∬∭∮∯∰∱∲∳"))
+      ("angle"    . ,(agda-input-to-string-list "∟∡∢⊾⊿"))
+      ("join"     . ,(agda-input-to-string-list "⋈⋉⋊⋋⋌⨝⟕⟖⟗"))
 
   ("b+" . ("⊞"))
   ("b-" . ("⊟"))
@@ -451,314 +418,314 @@ order for the change to take effect."
   ("boxnabla"   . ("⍔"))
 
 ;;;;; Arrows.
-    ("l"  . ,(agda-input-to-string-list "←⇐⇚⭅⇇⇆↤⇦↞↼↽⇠⇺↜⇽⟵⟸↚⇍⇷ ↹     ↢↩↫⇋⇜⇤⟻⟽⤆↶↺⟲                                     "))
-    ("r"  . ,(agda-input-to-string-list "→⇒⇛⭆⇉⇄↦⇨↠⇀⇁⇢⇻↝⇾⟶⟹↛⇏⇸⇶ ↴    ↣↪↬⇌⇝⇥⟼⟾⤇↷↻⟳⇰⇴⟴⟿ ➵➸➙➔➛➜➝➞➟➠➡➢➣➤➧➨➩➪➫➬➭➮➯➱➲➳➺➻➼➽➾⊸"))
-    ("u"  . ,(agda-input-to-string-list "↑⇑⤊⟰⇈⇅↥⇧↟↿↾⇡⇞          ↰↱➦ ⇪⇫⇬⇭⇮⇯                                           "))
-    ("d"  . ,(agda-input-to-string-list "↓⇓⤋⟱⇊⇵↧⇩↡⇃⇂⇣⇟         ↵↲↳➥ ↯                                                "))
-    ("ud" . ,(agda-input-to-string-list "↕⇕   ↨⇳                                                                    "))
-    ("lr" . ,(agda-input-to-string-list "↔⇔         ⇼↭⇿⟷⟺↮⇎⇹                                                        "))
-    ("ul" . ,(agda-input-to-string-list "↖⇖                        ⇱↸                                               "))
-    ("ur" . ,(agda-input-to-string-list "↗⇗                                         ➶➹➚                             "))
-    ("dr" . ,(agda-input-to-string-list "↘⇘                        ⇲                ➴➷➘                             "))
-    ("dl" . ,(agda-input-to-string-list "↙⇙                                                                         "))
+      ("l"  . ,(agda-input-to-string-list "←⇐⇚⭅⇇⇆↤⇦↞↼↽⇠⇺↜⇽⟵⟸↚⇍⇷ ↹     ↢↩↫⇋⇜⇤⟻⟽⤆↶↺⟲                                     "))
+      ("r"  . ,(agda-input-to-string-list "→⇒⇛⭆⇉⇄↦⇨↠⇀⇁⇢⇻↝⇾⟶⟹↛⇏⇸⇶ ↴    ↣↪↬⇌⇝⇥⟼⟾⤇↷↻⟳⇰⇴⟴⟿ ➵➸➙➔➛➜➝➞➟➠➡➢➣➤➧➨➩➪➫➬➭➮➯➱➲➳➺➻➼➽➾⊸"))
+      ("u"  . ,(agda-input-to-string-list "↑⇑⤊⟰⇈⇅↥⇧↟↿↾⇡⇞          ↰↱➦ ⇪⇫⇬⇭⇮⇯                                           "))
+      ("d"  . ,(agda-input-to-string-list "↓⇓⤋⟱⇊⇵↧⇩↡⇃⇂⇣⇟         ↵↲↳➥ ↯                                                "))
+      ("ud" . ,(agda-input-to-string-list "↕⇕   ↨⇳                                                                    "))
+      ("lr" . ,(agda-input-to-string-list "↔⇔         ⇼↭⇿⟷⟺↮⇎⇹                                                        "))
+      ("ul" . ,(agda-input-to-string-list "↖⇖                        ⇱↸                                               "))
+      ("ur" . ,(agda-input-to-string-list "↗⇗                                         ➶➹➚                             "))
+      ("dr" . ,(agda-input-to-string-list "↘⇘                        ⇲                ➴➷➘                             "))
+      ("dl" . ,(agda-input-to-string-list "↙⇙                                                                         "))
 
-    ("l-"  . ("←"))  ("<-"  . ("←"))  ("l="  . ("⇐"))  ("<="  . ("⇐"))
-    ("r-"  . ("→"))  ("->"  . ("→"))  ("r="  . ("⇒"))  ("=>"  . ("⇒"))
-    ("u-"  . ("↑"))                   ("u="  . ("⇑"))
-    ("d-"  . ("↓"))                   ("d="  . ("⇓"))
-    ("ud-" . ("↕"))                   ("ud=" . ("⇕"))
-    ("lr-" . ("↔"))  ("<->" . ("↔"))  ("lr=" . ("⇔"))  ("<=>" . ("⇔"))
-    ("ul-" . ("↖"))                   ("ul=" . ("⇖"))
-    ("ur-" . ("↗"))                   ("ur=" . ("⇗"))
-    ("dr-" . ("↘"))                   ("dr=" . ("⇘"))
-    ("dl-" . ("↙"))                   ("dl=" . ("⇙"))
+      ("l-"  . ("←"))  ("<-"  . ("←"))  ("l="  . ("⇐"))  ("<="  . ("⇐"))
+      ("r-"  . ("→"))  ("->"  . ("→"))  ("r="  . ("⇒"))  ("=>"  . ("⇒"))
+      ("u-"  . ("↑"))                   ("u="  . ("⇑"))
+      ("d-"  . ("↓"))                   ("d="  . ("⇓"))
+      ("ud-" . ("↕"))                   ("ud=" . ("⇕"))
+      ("lr-" . ("↔"))  ("<->" . ("↔"))  ("lr=" . ("⇔"))  ("<=>" . ("⇔"))
+      ("ul-" . ("↖"))                   ("ul=" . ("⇖"))
+      ("ur-" . ("↗"))                   ("ur=" . ("⇗"))
+      ("dr-" . ("↘"))                   ("dr=" . ("⇘"))
+      ("dl-" . ("↙"))                   ("dl=" . ("⇙"))
 
-    ("l==" . ("⇚"))  ("l-2" . ("⇇"))                   ("l-r-" . ("⇆"))
-    ("r==" . ("⇛"))  ("r-2" . ("⇉"))  ("r-3" . ("⇶"))  ("r-l-" . ("⇄"))
-    ("u==" . ("⟰"))  ("u-2" . ("⇈"))                   ("u-d-" . ("⇅"))
-    ("d==" . ("⟱"))  ("d-2" . ("⇊"))                   ("d-u-" . ("⇵"))
+      ("l==" . ("⇚"))  ("l-2" . ("⇇"))                   ("l-r-" . ("⇆"))
+      ("r==" . ("⇛"))  ("r-2" . ("⇉"))  ("r-3" . ("⇶"))  ("r-l-" . ("⇄"))
+      ("u==" . ("⟰"))  ("u-2" . ("⇈"))                   ("u-d-" . ("⇅"))
+      ("d==" . ("⟱"))  ("d-2" . ("⇊"))                   ("d-u-" . ("⇵"))
 
-    ("l--"  . ("⟵"))  ("<--"  . ("⟵"))  ("l~"  . ("↜" "⇜"))
-    ("r--"  . ("⟶"))  ("-->"  . ("⟶"))  ("r~"  . ("↝" "⇝" "⟿"))
-    ("lr--" . ("⟷"))  ("<-->" . ("⟷"))  ("lr~" . ("↭"))
+      ("l--"  . ("⟵"))  ("<--"  . ("⟵"))  ("l~"  . ("↜" "⇜"))
+      ("r--"  . ("⟶"))  ("-->"  . ("⟶"))  ("r~"  . ("↝" "⇝" "⟿"))
+      ("lr--" . ("⟷"))  ("<-->" . ("⟷"))  ("lr~" . ("↭"))
 
-    ("l-n"  . ("↚"))  ("<-n"  . ("↚"))  ("l=n"  . ("⇍"))
-    ("r-n"  . ("↛"))  ("->n"  . ("↛"))  ("r=n"  . ("⇏"))  ("=>n"  . ("⇏"))
-    ("lr-n" . ("↮"))  ("<->n" . ("↮"))  ("lr=n" . ("⇎"))  ("<=>n" . ("⇎"))
+      ("l-n"  . ("↚"))  ("<-n"  . ("↚"))  ("l=n"  . ("⇍"))
+      ("r-n"  . ("↛"))  ("->n"  . ("↛"))  ("r=n"  . ("⇏"))  ("=>n"  . ("⇏"))
+      ("lr-n" . ("↮"))  ("<->n" . ("↮"))  ("lr=n" . ("⇎"))  ("<=>n" . ("⇎"))
 
-    ("l-|"  . ("↤"))  ("ll-" . ("↞"))
-    ("r-|"  . ("↦"))  ("rr-" . ("↠"))
-    ("u-|"  . ("↥"))  ("uu-" . ("↟"))
-    ("d-|"  . ("↧"))  ("dd-" . ("↡"))
-    ("ud-|" . ("↨"))
+      ("l-|"  . ("↤"))  ("ll-" . ("↞"))
+      ("r-|"  . ("↦"))  ("rr-" . ("↠"))
+      ("u-|"  . ("↥"))  ("uu-" . ("↟"))
+      ("d-|"  . ("↧"))  ("dd-" . ("↡"))
+      ("ud-|" . ("↨"))
 
-    ("l->" . ("↢"))
-    ("r->" . ("↣"))
+      ("l->" . ("↢"))
+      ("r->" . ("↣"))
 
-    ("r-o" . ("⊸"))  ("-o"  . ("⊸"))
+      ("r-o" . ("⊸"))  ("-o"  . ("⊸"))
 
-    ("dz" . ("↯"))
+      ("dz" . ("↯"))
 
 ;;;;;; Ellipsis.
-    ("..." . ,(agda-input-to-string-list "⋯⋮⋰⋱"))
+      ("..." . ,(agda-input-to-string-list "⋯⋮⋰⋱"))
 
 ;;;;; Box-drawing characters.
-    ("---" . ,(agda-input-to-string-list "─│┌┐└┘├┤┬┼┴╴╵╶╷╭╮╯╰╱╲╳"))
-    ("--=" . ,(agda-input-to-string-list "═║╔╗╚╝╠╣╦╬╩     ╒╕╘╛╞╡╤╪╧ ╓╖╙╜╟╢╥╫╨"))
-    ("--_" . ,(agda-input-to-string-list "━┃┏┓┗┛┣┫┳╋┻╸╹╺╻
+      ("---" . ,(agda-input-to-string-list "─│┌┐└┘├┤┬┼┴╴╵╶╷╭╮╯╰╱╲╳"))
+      ("--=" . ,(agda-input-to-string-list "═║╔╗╚╝╠╣╦╬╩     ╒╕╘╛╞╡╤╪╧ ╓╖╙╜╟╢╥╫╨"))
+      ("--_" . ,(agda-input-to-string-list "━┃┏┓┗┛┣┫┳╋┻╸╹╺╻
                                         ┍┯┑┕┷┙┝┿┥┎┰┒┖┸┚┠╂┨┞╀┦┟╁┧┢╈┪┡╇┩
                                         ┮┭┶┵┾┽┲┱┺┹╊╉╆╅╄╃ ╿╽╼╾"))
-    ("--." . ,(agda-input-to-string-list "╌╎┄┆┈┊
+      ("--." . ,(agda-input-to-string-list "╌╎┄┆┈┊
                                         ╍╏┅┇┉┋"))
 
 ;;;;; Triangles (big/small, black/white)
-    ("t" . ,(agda-input-to-string-list "◂◃◄◅▸▹►▻▴▵▾▿◢◿◣◺◤◸◥◹"))
-    ("T" . ,(agda-input-to-string-list "◀◁▶▷▲△▼▽◬◭◮"))
+      ("t" . ,(agda-input-to-string-list "◂◃◄◅▸▹►▻▴▵▾▿◢◿◣◺◤◸◥◹"))
+      ("T" . ,(agda-input-to-string-list "◀◁▶▷▲△▼▽◬◭◮"))
 
-    ("tb" . ,(agda-input-to-string-list "◂▸▴▾◄►◢◣◤◥"))
-    ("tw" . ,(agda-input-to-string-list "◃▹▵▿◅▻◿◺◸◹"))
+      ("tb" . ,(agda-input-to-string-list "◂▸▴▾◄►◢◣◤◥"))
+      ("tw" . ,(agda-input-to-string-list "◃▹▵▿◅▻◿◺◸◹"))
 
-    ("Tb" . ,(agda-input-to-string-list "◀▶▲▼"))
-    ("Tw" . ,(agda-input-to-string-list "◁▷△▽"))
+      ("Tb" . ,(agda-input-to-string-list "◀▶▲▼"))
+      ("Tw" . ,(agda-input-to-string-list "◁▷△▽"))
 
 ;;;;; Squares.
-    ("sq"  . ,(agda-input-to-string-list "■□◼◻◾◽▣▢▤▥▦▧▨▩◧◨◩◪◫◰◱◲◳"))
-    ("sqb" . ,(agda-input-to-string-list "■◼◾"))
-    ("sqw" . ,(agda-input-to-string-list "□◻◽"))
-    ("sq." . ("▣"))
-    ("sqo" . ("▢"))
+      ("sq"  . ,(agda-input-to-string-list "■□◼◻◾◽▣▢▤▥▦▧▨▩◧◨◩◪◫◰◱◲◳"))
+      ("sqb" . ,(agda-input-to-string-list "■◼◾"))
+      ("sqw" . ,(agda-input-to-string-list "□◻◽"))
+      ("sq." . ("▣"))
+      ("sqo" . ("▢"))
 
 ;;;;; Rectangles.
-    ("re"  . ,(agda-input-to-string-list "▬▭▮▯"))
-    ("reb" . ,(agda-input-to-string-list "▬▮"))
-    ("rew" . ,(agda-input-to-string-list "▭▯"))
+      ("re"  . ,(agda-input-to-string-list "▬▭▮▯"))
+      ("reb" . ,(agda-input-to-string-list "▬▮"))
+      ("rew" . ,(agda-input-to-string-list "▭▯"))
 
 ;;;;; Parallelograms.
-    ("pa"  . ,(agda-input-to-string-list "▰▱"))
-    ("pab" . ("▰"))
-    ("paw" . ("▱"))
+      ("pa"  . ,(agda-input-to-string-list "▰▱"))
+      ("pab" . ("▰"))
+      ("paw" . ("▱"))
 
 ;;;;; Diamonds.
-    ("di"  . ,(agda-input-to-string-list "◆◇◈"))
-    ("dib" . ("◆"))
-    ("diw" . ("◇"))
-    ("di." . ("◈"))
+      ("di"  . ,(agda-input-to-string-list "◆◇◈"))
+      ("dib" . ("◆"))
+      ("diw" . ("◇"))
+      ("di." . ("◈"))
 
 ;;;;; Circles.
-    ("ci"   . ,(agda-input-to-string-list "●○◎◌◯◍◐◑◒◓◔◕◖◗◠◡◴◵◶◷⚆⚇⚈⚉"))
-    ("cib"  . ("●"))
-    ("ciw"  . ("○"))
-    ("ci."  . ("◎"))
-    ("ci.." . ("◌"))
-    ("ciO"  . ("◯"))
+      ("ci"   . ,(agda-input-to-string-list "●○◎◌◯◍◐◑◒◓◔◕◖◗◠◡◴◵◶◷⚆⚇⚈⚉"))
+      ("cib"  . ("●"))
+      ("ciw"  . ("○"))
+      ("ci."  . ("◎"))
+      ("ci.." . ("◌"))
+      ("ciO"  . ("◯"))
 
 ;;;;; Stars.
-    ("st"   . ,(agda-input-to-string-list "⋆✦✧✶✴✹ ★☆✪✫✯✰✵✷✸"))
-    ("st4"  . ,(agda-input-to-string-list "✦✧"))
-    ("st6"  . ("✶"))
-    ("st8"  . ("✴"))
-    ("st12" . ("✹"))
+      ("st"   . ,(agda-input-to-string-list "⋆✦✧✶✴✹ ★☆✪✫✯✰✵✷✸"))
+      ("st4"  . ,(agda-input-to-string-list "✦✧"))
+      ("st6"  . ("✶"))
+      ("st8"  . ("✴"))
+      ("st12" . ("✹"))
 
 ;;;;; Blackboard bold letters.
-    ,@(agda-input-latin-range "b%s" "MATHEMATICAL DOUBLE-STRUCK CAPITAL %s")
-    ,@(agda-input-latin-range "b%s" "MATHEMATICAL DOUBLE-STRUCK SMALL %s" t)
-    ,@(agda-input-greek-range "bG%s" "DOUBLE-STRUCK CAPITAL %s")
-    ("bGS"  . ("⅀"))                  ;DOUBLE-STRUCK N-ARY SUMMATION
-    ,@(agda-input-greek-range "bG%s" "DOUBLE-STRUCK SMALL %s" t)
+      ,@(agda-input-latin-range "b%s" "MATHEMATICAL DOUBLE-STRUCK CAPITAL %s")
+      ,@(agda-input-latin-range "b%s" "MATHEMATICAL DOUBLE-STRUCK SMALL %s" t)
+      ,@(agda-input-greek-range "bG%s" "DOUBLE-STRUCK CAPITAL %s")
+      ("bGS"  . ("⅀"))                  ;DOUBLE-STRUCK N-ARY SUMMATION
+      ,@(agda-input-greek-range "bG%s" "DOUBLE-STRUCK SMALL %s" t)
 
 ;;;;; Blackboard bold numbers.
-    ,@(agda-input-number-range "d%s" "MATHEMATICAL DOUBLE-STRUCK DIGIT %s")
+      ,@(agda-input-number-range "d%s" "MATHEMATICAL DOUBLE-STRUCK DIGIT %s")
 
 ;;;;; Mathematical bold letters.
-    ,@(agda-input-latin-range "B%s" "MATHEMATICAL BOLD CAPITAL %s")
-    ,@(agda-input-latin-range "B%s" "MATHEMATICAL BOLD SMALL %s" t)
+      ,@(agda-input-latin-range "B%s" "MATHEMATICAL BOLD CAPITAL %s")
+      ,@(agda-input-latin-range "B%s" "MATHEMATICAL BOLD SMALL %s" t)
 
 ;;;;; Mathematical bold Greek letters.
-    ,@(agda-input-greek-range "B%s" "MATHEMATICAL BOLD CAPITAL %s")
-    ,@(agda-input-greek-range "B%s" "MATHEMATICAL BOLD SMALL %s" t)
+      ,@(agda-input-greek-range "B%s" "MATHEMATICAL BOLD CAPITAL %s")
+      ,@(agda-input-greek-range "B%s" "MATHEMATICAL BOLD SMALL %s" t)
 
 ;;;;; Mathematical bold digits.
-    ,@(agda-input-number-range "B%s" "MATHEMATICAL BOLD DIGIT %s")
+      ,@(agda-input-number-range "B%s" "MATHEMATICAL BOLD DIGIT %s")
 
 ;;;;; Fullwidth letters
-    ,@(agda-input-latin-range "F%s" "FULLWIDTH LATIN CAPITAL LETTER %s")
-    ,@(agda-input-latin-range "F%s" "FULLWIDTH LATIN CAPITAL LETTER %s" t)
+      ,@(agda-input-latin-range "F%s" "FULLWIDTH LATIN CAPITAL LETTER %s")
+      ,@(agda-input-latin-range "F%s" "FULLWIDTH LATIN CAPITAL LETTER %s" t)
 
 ;;;;; Fullwidth digits
-    ,@(agda-input-number-range "F%s" "FULLWIDTH DIGIT %s")
+      ,@(agda-input-number-range "F%s" "FULLWIDTH DIGIT %s")
 
 ;;;;; Parentheses.
-    ("(" . ,(agda-input-to-string-list "([{⁅⁽₍〈⎴⟅⟦⟨⟪⦃〈《「『【〔〖〚︵︷︹︻︽︿﹁﹃﹙﹛﹝（［｛｢❪❬❰❲❴⟮⦅⦗⧼⸨❮⦇⦉"))
-    (")" . ,(agda-input-to-string-list ")]}⁆⁾₎〉⎵⟆⟧⟩⟫⦄〉》」』】〕〗〛︶︸︺︼︾﹀﹂﹄﹚﹜﹞）］｝｣❫❭❱❳❵⟯⦆⦘⧽⸩❯⦈⦊"))
+      ("(" . ,(agda-input-to-string-list "([{⁅⁽₍〈⎴⟅⟦⟨⟪⦃〈《「『【〔〖〚︵︷︹︻︽︿﹁﹃﹙﹛﹝（［｛｢❪❬❰❲❴⟮⦅⦗⧼⸨❮⦇⦉"))
+      (")" . ,(agda-input-to-string-list ")]}⁆⁾₎〉⎵⟆⟧⟩⟫⦄〉》」』】〕〗〛︶︸︺︼︾﹀﹂﹄﹚﹜﹞）］｝｣❫❭❱❳❵⟯⦆⦘⧽⸩❯⦈⦊"))
 
-    ("[[" . ("⟦"))
-    ("]]" . ("⟧"))
-    ("<"  . ,(agda-input-to-string-list "⟨<≪⋘≺⊂⋐⊏⊰⊲⋖＜"))
-    (">"  . ,(agda-input-to-string-list "⟩>≫⋙≻⊃⋑⊐⊱⊳⋗＞"))
-    ("<<" . ("⟪"))
-    (">>" . ("⟫"))
-    ("{{" . ("⦃"))
-    ("}}" . ("⦄"))
+      ("[[" . ("⟦"))
+      ("]]" . ("⟧"))
+      ("<"  . ,(agda-input-to-string-list "⟨<≪⋘≺⊂⋐⊏⊰⊲⋖＜"))
+      (">"  . ,(agda-input-to-string-list "⟩>≫⋙≻⊃⋑⊐⊱⊳⋗＞"))
+      ("<<" . ("⟪"))
+      (">>" . ("⟫"))
+      ("{{" . ("⦃"))
+      ("}}" . ("⦄"))
 
-    ("(b" . ("⟅"))
-    (")b" . ("⟆"))
+      ("(b" . ("⟅"))
+      (")b" . ("⟆"))
 
-    ("lbag" . ("⟅"))
-    ("rbag" . ("⟆"))
+      ("lbag" . ("⟅"))
+      ("rbag" . ("⟆"))
 
-    ("<|" . ("⦉"))  ;; Angle bar brackets
-    ("|>" . ("⦊"))
+      ("<|" . ("⦉"))  ;; Angle bar brackets
+      ("|>" . ("⦊"))
 
-    ("(|" . ("⦇"))  ;; Idiom brackets
-    ("|)" . ("⦈"))
+      ("(|" . ("⦇"))  ;; Idiom brackets
+      ("|)" . ("⦈"))
 
-    ("((" . ,(agda-input-to-string-list "⦅｟"))  ;; Banana brackets
-    ("))" . ,(agda-input-to-string-list "⦆｠"))
+      ("((" . ,(agda-input-to-string-list "⦅｟"))  ;; Banana brackets
+      ("))" . ,(agda-input-to-string-list "⦆｠"))
 
 ;;;;; Primes.
-    ("'" . ,(agda-input-to-string-list "′″‴⁗＇"))
-    ("`" . ,(agda-input-to-string-list "‵‶‷｀"))
+      ("'" . ,(agda-input-to-string-list "′″‴⁗＇"))
+      ("`" . ,(agda-input-to-string-list "‵‶‷｀"))
 
 ;;;;; Fractions.
-    ("frac" . ,(agda-input-to-string-list "¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞⅟"))
+      ("frac" . ,(agda-input-to-string-list "¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞⅟"))
 
 ;;;;; Bullets.
-    ("bu"  . ,(agda-input-to-string-list "•◦‣⁌⁍"))
-    ("bub" . ("•"))
-    ("buw" . ("◦"))
-    ("but" . ("‣"))
+      ("bu"  . ,(agda-input-to-string-list "•◦‣⁌⁍"))
+      ("bub" . ("•"))
+      ("buw" . ("◦"))
+      ("but" . ("‣"))
 
 ;;;;; Musical symbols.
-    ("note" . ,(agda-input-to-string-list "♩♪♫♬"))
-    ("b"    . ("♭"))
-    ("#"    . ("♯"))
+      ("note" . ,(agda-input-to-string-list "♩♪♫♬"))
+      ("b"    . ("♭"))
+      ("#"    . ("♯"))
 
 ;;;;; Other punctuation and symbols.
-    ("\\"         . ("\\"))
-    ("en"         . ("–"))
-    ("em"         . ("—"))
-    ("!"          . ("！"))
-    ("!!"         . ("‼"))
-    ("?"          . ("？"))
-    ("??"         . ("⁇"))
-    ("?!"         . ("‽" "⁈"))
-    ("!?"         . ("⁉"))
-    ("die"        . ,(agda-input-to-string-list "⚀⚁⚂⚃⚄⚅"))
-    ("asterisk"   . ,(agda-input-to-string-list "⁎⁑⁂✢✣✤✥✱✲✳✺✻✼✽❃❉❊❋＊"))
-    ("8<"         . ("✂" "✄"))
-    ("tie"        . ("⁀"))
-    ("undertie"   . ("‿"))
-    ("apl"        . ,(agda-input-to-string-list "⌶⌷⌸⌹⌺⌻⌼⌽⌾⌿⍀⍁⍂⍃⍄⍅⍆⍇⍈
+      ("\\"         . ("\\"))
+      ("en"         . ("–"))
+      ("em"         . ("—"))
+      ("!"          . ("！"))
+      ("!!"         . ("‼"))
+      ("?"          . ("？"))
+      ("??"         . ("⁇"))
+      ("?!"         . ("‽" "⁈"))
+      ("!?"         . ("⁉"))
+      ("die"        . ,(agda-input-to-string-list "⚀⚁⚂⚃⚄⚅"))
+      ("asterisk"   . ,(agda-input-to-string-list "⁎⁑⁂✢✣✤✥✱✲✳✺✻✼✽❃❉❊❋＊"))
+      ("8<"         . ("✂" "✄"))
+      ("tie"        . ("⁀"))
+      ("undertie"   . ("‿"))
+      ("apl"        . ,(agda-input-to-string-list "⌶⌷⌸⌹⌺⌻⌼⌽⌾⌿⍀⍁⍂⍃⍄⍅⍆⍇⍈
                                                ⍉⍊⍋⍌⍍⍎⍏⍐⍑⍒⍓⍔⍕⍖⍗⍘⍙⍚⍛
                                                ⍜⍝⍞⍟⍠⍡⍢⍣⍤⍥⍦⍧⍨⍩⍪⍫⍬⍭⍮
                                                ⍯⍰⍱⍲⍳⍴⍵⍶⍷⍸⍹⍺⎕"))
-    ("#"          . ("＃"))
-    ("%"          . ("％"))
-    ("&"          . ("＆"))
-    ("*"          . ("＊"))
-    ("/"          . ,(agda-input-to-string-list "／＼"))
-    ("@"          . ("＠"))
-    ("__"         . ("＿"))
-    ("\""         . ("＂"))
+      ("#"          . ("＃"))
+      ("%"          . ("％"))
+      ("&"          . ("＆"))
+      ("*"          . ("＊"))
+      ("/"          . ,(agda-input-to-string-list "／＼"))
+      ("@"          . ("＠"))
+      ("__"         . ("＿"))
+      ("\""         . ("＂"))
 
 ;;;;; Some combining characters.
 
-    ;; The following combining characters also have (other)
-    ;; translations:
-    ;; ̀ ́ ̂ ̃ ̄ ̆ ̇ ̈ ̋ ̌ ̣ ̧ ̱
+      ;; The following combining characters also have (other)
+      ;; translations:
+      ;; ̀ ́ ̂ ̃ ̄ ̆ ̇ ̈ ̋ ̌ ̣ ̧ ̱
 
-    ("^--" . ,(agda-input-to-string-list"̅̿"))
-    ("_--" . ,(agda-input-to-string-list"̲̳"))
-    ("^~"  . ,(agda-input-to-string-list"̃͌"))
-    ("_~"  .  (                         "̰"))
-    ("^."  . ,(agda-input-to-string-list"̇̈⃛⃜"))
-    ("_."  . ,(agda-input-to-string-list"̣̤"))
-    ("^l"  . ,(agda-input-to-string-list"⃖⃐⃔"))
-    ("^l-" .  (                         "⃖"))
-    ("^r"  . ,(agda-input-to-string-list"⃗⃑⃕"))
-    ("^r-" .  (                         "⃗"))
-    ("^lr" .  (                         "⃡"))
-    ("_lr" .  (                         "͍"))
-    ("^^"  . ,(agda-input-to-string-list"̂̑͆"))
-    ("_^"  . ,(agda-input-to-string-list"̭̯̪"))
-    ("^v"  . ,(agda-input-to-string-list"̌̆"))
-    ("_v"  . ,(agda-input-to-string-list"̬̮̺"))
+      ("^--" . ,(agda-input-to-string-list"̅̿"))
+      ("_--" . ,(agda-input-to-string-list"̲̳"))
+      ("^~"  . ,(agda-input-to-string-list"̃͌"))
+      ("_~"  .  (                         "̰"))
+      ("^."  . ,(agda-input-to-string-list"̇̈⃛⃜"))
+      ("_."  . ,(agda-input-to-string-list"̣̤"))
+      ("^l"  . ,(agda-input-to-string-list"⃖⃐⃔"))
+      ("^l-" .  (                         "⃖"))
+      ("^r"  . ,(agda-input-to-string-list"⃗⃑⃕"))
+      ("^r-" .  (                         "⃗"))
+      ("^lr" .  (                         "⃡"))
+      ("_lr" .  (                         "͍"))
+      ("^^"  . ,(agda-input-to-string-list"̂̑͆"))
+      ("_^"  . ,(agda-input-to-string-list"̭̯̪"))
+      ("^v"  . ,(agda-input-to-string-list"̌̆"))
+      ("_v"  . ,(agda-input-to-string-list"̬̮̺"))
 
 ;;;;; Shorter forms of many greek letters plus ƛ.
-    ,@(agda-input-greek-range "G%s" "GREEK CAPITAL LETTER %s")
-    ,@(agda-input-greek-range "G%s" "GREEK SMALL LETTER %s" t)
-    ("Gl-" . ("ƛ"))                     ;LATIN SMALL LETTER LAMBDA WITH STROKE
+      ,@(agda-input-greek-range "G%s" "GREEK CAPITAL LETTER %s")
+      ,@(agda-input-greek-range "G%s" "GREEK SMALL LETTER %s" t)
+      ("Gl-" . ("ƛ"))                     ;LATIN SMALL LETTER LAMBDA WITH STROKE
 
 ;;;;; Mathematical characters
-    ,@(agda-input-latin-range "Mi%s" "MATHEMATICAL ITALIC CAPITAL %s")
-    ,@(agda-input-latin-range "Mi%s" "MATHEMATICAL ITALIC SMALL %s" t)
-    ,@(agda-input-latin-range "MI%s" "MATHEMATICAL BOLD ITALIC CAPITAL %s")
-    ,@(agda-input-latin-range "MI%s" "MATHEMATICAL BOLD ITALIC SMALL %s" t)
-    ,@(agda-input-latin-range "Mc%s" "MATHEMATICAL SCRIPT CAPITAL %s")
-    ,@(agda-input-latin-range "Mc%s" "MATHEMATICAL SCRIPT SMALL %s" t)
-    ,@(agda-input-latin-range "MC%s" "MATHEMATICAL BOLD SCRIPT CAPITAL %s")
-    ,@(agda-input-latin-range "MC%s" "MATHEMATICAL BOLD SCRIPT SMALL %s" t)
-    ,@(agda-input-latin-range "Mf%s" "MATHEMATICAL FRAKTUR CAPITAL %s")
-    ,@(agda-input-latin-range "Mf%s" "MATHEMATICAL FRAKTUR SMALL %s" t)
+      ,@(agda-input-latin-range "Mi%s" "MATHEMATICAL ITALIC CAPITAL %s")
+      ,@(agda-input-latin-range "Mi%s" "MATHEMATICAL ITALIC SMALL %s" t)
+      ,@(agda-input-latin-range "MI%s" "MATHEMATICAL BOLD ITALIC CAPITAL %s")
+      ,@(agda-input-latin-range "MI%s" "MATHEMATICAL BOLD ITALIC SMALL %s" t)
+      ,@(agda-input-latin-range "Mc%s" "MATHEMATICAL SCRIPT CAPITAL %s")
+      ,@(agda-input-latin-range "Mc%s" "MATHEMATICAL SCRIPT SMALL %s" t)
+      ,@(agda-input-latin-range "MC%s" "MATHEMATICAL BOLD SCRIPT CAPITAL %s")
+      ,@(agda-input-latin-range "MC%s" "MATHEMATICAL BOLD SCRIPT SMALL %s" t)
+      ,@(agda-input-latin-range "Mf%s" "MATHEMATICAL FRAKTUR CAPITAL %s")
+      ,@(agda-input-latin-range "Mf%s" "MATHEMATICAL FRAKTUR SMALL %s" t)
 
 ;;;;; (Sub / Super) scripts
 
-    ;; Unicode 12.1 omits several latin characters from sub/superscript.
-    ;; https://www.quora.com/Why-is-there-no-character-for-superscript-q-in-Unicode
-    ;;
-    ;; Perhaps they will be added in future versions, however there
-    ;; are no proposals for it currently in the pipeline:
-    ;; https://www.unicode.org/alloc/Pipeline.html.  As soon as they
-    ;; are avaliable `agda-input-latin-range' will generate them here:
+      ;; Unicode 12.1 omits several latin characters from sub/superscript.
+      ;; https://www.quora.com/Why-is-there-no-character-for-superscript-q-in-Unicode
+      ;;
+      ;; Perhaps they will be added in future versions, however there
+      ;; are no proposals for it currently in the pipeline:
+      ;; https://www.unicode.org/alloc/Pipeline.html.  As soon as they
+      ;; are avaliable `agda-input-latin-range' will generate them here:
 
-    ,@(agda-input-latin-range "_%s" "LATIN SUBSCRIPT CAPITAL LETTER %s")
-    ,@(agda-input-latin-range "_%s" "LATIN SUBSCRIPT SMALL LETTER %s" t)
-    ,@(agda-input-greek-range "_G%s" "GREEK SUBSCRIPT CAPITAL LETTER %s")
-    ,@(agda-input-greek-range "_G%s" "GREEK SUBSCRIPT SMALL LETTER %s" t)
+      ,@(agda-input-latin-range "_%s" "LATIN SUBSCRIPT CAPITAL LETTER %s")
+      ,@(agda-input-latin-range "_%s" "LATIN SUBSCRIPT SMALL LETTER %s" t)
+      ,@(agda-input-greek-range "_G%s" "GREEK SUBSCRIPT CAPITAL LETTER %s")
+      ,@(agda-input-greek-range "_G%s" "GREEK SUBSCRIPT SMALL LETTER %s" t)
 
-    ,@(agda-input-latin-range "^%s" "MODIFIER LETTER CAPITAL %s")
-    ,@(agda-input-latin-range "^%s" "MODIFIER LETTER SMALL %s" t)
-    ,@(agda-input-greek-range "^G%s" "MODIFIER LETTER CAPITAL %s")
-    ,@(agda-input-greek-range "^G%s" "MODIFIER LETTER SMALL %s" t)
+      ,@(agda-input-latin-range "^%s" "MODIFIER LETTER CAPITAL %s")
+      ,@(agda-input-latin-range "^%s" "MODIFIER LETTER SMALL %s" t)
+      ,@(agda-input-greek-range "^G%s" "MODIFIER LETTER CAPITAL %s")
+      ,@(agda-input-greek-range "^G%s" "MODIFIER LETTER SMALL %s" t)
 
 ;;;;; Some ISO8859-1 characters.
-    (" "         . (" "))
-    ("!"         . ("¡"))
-    ("cent"      . ("¢"))
-    ("brokenbar" . ("¦"))
-    ("degree"    . ("°"))
-    ("?"         . ("¿"))
-    ("^a_"       . ("ª"))
-    ("^o_"       . ("º"))
+      (" "         . (" "))
+      ("!"         . ("¡"))
+      ("cent"      . ("¢"))
+      ("brokenbar" . ("¦"))
+      ("degree"    . ("°"))
+      ("?"         . ("¿"))
+      ("^a_"       . ("ª"))
+      ("^o_"       . ("º"))
 
 ;;;;; Circled, parenthesised etc. numbers and letters.
-    ,@(agda-input-number-range
-       "(%s)"
-       "PARENTHESIZED DIGIT %s"
-       "CIRCLED DIGIT %s"
-       "DIGIT %s FULL STOP"
-       "DINGBAT NEGATIVE CIRCLED DIGIT %s"
-       "DINGBAT CIRCLED SANS-SERIF DIGIT %s"
-       "DINGBAT NEGATIVE CIRCLED SANS-SERIF DIGIT %s"
-       )
-    ,@(agda-input-number-range*
-       "(%s)"
-       "PARENTHESIZED NUMBER %s"
-       "CIRCLED NUMBER %s"
-       "NUMBER %s FULL STOP"
-       "DINGBAT NEGATIVE CIRCLED NUMBER %s"
-       "DINGBAT CIRCLED SANS-SERIF NUMBER %s"
-       "DINGBAT NEGATIVE CIRCLED SANS-SERIF NUMBER %s"
-       )
-    ,@(agda-input-latin-range
-       "(%s)"
-       '("PARENTHESIZED LATIN SMALL LETTER %s"
-         "CIRCLED LATIN CAPITAL LETTER %s"
-         "CIRCLED LATIN SMALL LETTER %s"
-         "NEGATIVE CIRCLED LATIN CAPITAL LETTER %s"
-         "SQUARED LATIN CAPITAL LETTER %s"
-         "NEGATIVE SQUARED LATIN CAPITAL LETTER %s")
-       t))
+      ,@(agda-input-number-range
+         "(%s)"
+         "PARENTHESIZED DIGIT %s"
+         "CIRCLED DIGIT %s"
+         "DIGIT %s FULL STOP"
+         "DINGBAT NEGATIVE CIRCLED DIGIT %s"
+         "DINGBAT CIRCLED SANS-SERIF DIGIT %s"
+         "DINGBAT NEGATIVE CIRCLED SANS-SERIF DIGIT %s"
+         )
+      ,@(agda-input-number-range*
+         "(%s)"
+         "PARENTHESIZED NUMBER %s"
+         "CIRCLED NUMBER %s"
+         "NUMBER %s FULL STOP"
+         "DINGBAT NEGATIVE CIRCLED NUMBER %s"
+         "DINGBAT CIRCLED SANS-SERIF NUMBER %s"
+         "DINGBAT NEGATIVE CIRCLED SANS-SERIF NUMBER %s"
+         )
+      ,@(agda-input-latin-range
+         "(%s)"
+         '("PARENTHESIZED LATIN SMALL LETTER %s"
+           "CIRCLED LATIN CAPITAL LETTER %s"
+           "CIRCLED LATIN SMALL LETTER %s"
+           "NEGATIVE CIRCLED LATIN CAPITAL LETTER %s"
+           "SQUARED LATIN CAPITAL LETTER %s"
+           "NEGATIVE SQUARED LATIN CAPITAL LETTER %s")
+         t)))
   "A list of translations specific to the Agda input method.
 Each element is a pair (KEY-SEQUENCE-STRING . LIST-OF-TRANSLATION-STRINGS).
 All the translation strings are possible translations
