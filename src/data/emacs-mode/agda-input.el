@@ -125,8 +125,8 @@ the unicode name of the sign.  You can find the name using
 optionally also be a list, if you want to describe multiple
 alternative mappings. This function is not meant to be used
 directly, but via one of the wrapper functions
-`agda-input-latin-range', `agda-input-greek-range' or
-`agda-input-number-range'."
+`agda-input-latin-range', `agda-input-greek-range',
+`agda-input-number-range' or `agda-input-number-range*'."
   (let ((rules '()))
     (dolist (map mappings)
       (let ((assoc '()))
@@ -179,10 +179,19 @@ For details on INPUT-FMT and NAME-FMT, see
    input-fmt name-fmt
    '(("0" . "ZERO") ("1" . "ONE") ("2" . "TWO") ("3" . "THREE")
      ("4" . "FOUR") ("5" . "FIVE") ("6" . "SIX") ("7" . "SEVEN")
-     ("8" . "EIGHT") ("9" . "NINE") ("10" . "TEN") ("11" . "ELEVEN")
-     ("12" . "TWELVE") ("13" . "THIRTEEN") ("14" . "FOURTEEN")
-     ("15" . "FIFTEEN") ("16" . "SIXTEEN") ("17" . "SEVENTEEN")
-     ("18" . "EIGHTEEN") ("19" . "NINETEEN") ("20" . "TWENTY"))))
+     ("8" . "EIGHT") ("9" . "NINE") ("10" . "TEN"))))
+
+(defun agda-input-number-range* (input-fmt &rest name-fmt)
+  "Create a mapping for numbers from 10 to 20.
+For details on INPUT-FMT and NAME-FMT, see
+`agda-input-common-range'."
+  (declare (pure t))
+  (agda-input-common-range
+   input-fmt name-fmt
+   '(("10" . "TEN") ("11" . "ELEVEN") ("12" . "TWELVE") ("13" . "THIRTEEN")
+     ("14" . "FOURTEEN") ("15" . "FIFTEEN") ("16" . "SIXTEEN")
+     ("17" . "SEVENTEEN") ("18" . "EIGHTEEN") ("19" . "NINETEEN")
+     ("20" . "TWENTY"))))
 
 ;;;; Customization
 
@@ -731,6 +740,15 @@ order for the change to take effect."
        "DINGBAT NEGATIVE CIRCLED DIGIT %s"
        "DINGBAT CIRCLED SANS-SERIF DIGIT %s"
        "DINGBAT NEGATIVE CIRCLED SANS-SERIF DIGIT %s"
+       )
+    ,@(agda-input-number-range*
+       "(%s)"
+       "PARENTHESIZED NUMBER %s"
+       "CIRCLED NUMBER %s"
+       "NUMBER %s FULL STOP"
+       "DINGBAT NEGATIVE CIRCLED NUMBER %s"
+       "DINGBAT CIRCLED SANS-SERIF NUMBER %s"
+       "DINGBAT NEGATIVE CIRCLED SANS-SERIF NUMBER %s"
        )
     ,@(agda-input-latin-range
        "(%s)"
