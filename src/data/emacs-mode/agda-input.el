@@ -135,8 +135,8 @@ directly, but via one of the wrapper functions
             (when char
               (push (string char) assoc))))
         (when assoc
-          (push (list (cons (format input-fmt (car map))
-                            (nreverse assoc)))
+          (push (cons (format input-fmt (car map))
+                      (nreverse assoc))
                 rules))))
     (nreverse rules)))
 
