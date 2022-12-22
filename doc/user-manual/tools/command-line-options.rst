@@ -746,8 +746,8 @@ Other features
 
      .. versionadded:: 2.6.3
 
-     Automatically marks parameters to definitions in a record module
-     as erased.
+     Automatically marks parameters to record projections and
+     definitions in a record module as erased.
 
 .. _warnings:
 
