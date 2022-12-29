@@ -91,29 +91,25 @@ jobs:
         cabal-ver:
         - '3.8'
         ghc-ver:
-        - 9.4.3
-        - 9.2.4
+        - 9.4.4
+        - 9.2.5
         - 9.0.2
         - 8.10.7
         - 8.8.4
         - 8.6.5
         - 8.4.4
+        - 8.2.2
+        - 8.0.2
         include:
-        - cabal-ver: '3.8'
-          ghc-ver: 8.0.2
-          os: ubuntu-20.04
-        - cabal-ver: '3.8'
-          ghc-ver: 8.2.2
-          os: ubuntu-20.04
         - cabal-flags: -c 'mtl >= 2.3.1'
           cabal-ver: '3.8'
-          ghc-ver: 9.4.3
+          ghc-ver: 9.4.4
           os: ubuntu-22.04
         - cabal-ver: '3.8'
-          ghc-ver: 9.4.3
+          ghc-ver: 9.4.4
           os: macos-12
         - cabal-ver: '3.8'
-          ghc-ver: 9.4.2
+          ghc-ver: 9.4.4
           os: windows-2022
         os:
         - ubuntu-22.04

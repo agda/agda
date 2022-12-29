@@ -66,7 +66,7 @@ jobs:
       uses: actions/cache@v3
       with:
         key: |
-          ${{ runner.os }}-stack-20220503-${{ env.STACK_VER }}-${{ env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}
+          ${{ runner.os }}-stack-20221229-${{ env.STACK_VER }}-${{ env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}
         path: ${{ steps.haskell-setup.outputs.stack-root }}
     - if: ${{ runner.os == 'macOS' }}
       name: Set up pkg-config for the ICU library (macOS)
@@ -80,10 +80,6 @@ jobs:
         stack exec ${ARGS} -- pacman --noconfirm -Sy msys2-keyring
         stack exec ${ARGS} -- bash -c "curl -LO ${ICU_URL} && pacman --noconfirm -U *.pkg.tar.zst"
         stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-pkg-config
-    - if: ${{ runner.os == 'Linux' && env.GHC_VER == '8.4.4' }}
-      name: Install the numa library (Ubuntu, GHC 8.4.4)
-      run: |
-        sudo apt-get install libnuma-dev -qq
     - if: ${{ !steps.cache.outputs.cache-hit }}
       name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
@@ -103,17 +99,13 @@ jobs:
         - 8.8.4
         - 8.6.5
         - 8.4.4
+        - 8.2.2
+        - 8.0.2
         include:
-        - ghc-ver: 8.2.2
-          os: ubuntu-20.04
-          stack-ver: 2.9.3
-        - ghc-ver: 8.0.2
-          os: ubuntu-20.04
-          stack-ver: 2.9.3
         - ghc-ver: 9.4.3
           os: macos-12
           stack-ver: 2.9.3
-        - ghc-ver: 9.4.2
+        - ghc-ver: 9.4.3
           os: windows-2022
           stack-ver: 2.9.3
         os:

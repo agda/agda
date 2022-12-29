@@ -45,33 +45,23 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04]
-        ghc-ver: [9.4.3, 9.2.4, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4]
+        ghc-ver: [9.4.4, 9.2.5, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
         cabal-ver: ['3.8']
         include:
-          # Andreas, 2022-10-18
-          # Installation of 8.0.2 and 8.2.2 for ubuntu-22.04 (jammy) fails
-          # because there is no hvr-ppa for jammy.
-          # (The other versions are supported via ghcup.)
-          - os: ubuntu-20.04
-            ghc-ver: 8.0.2
-            cabal-ver: '3.8'
-          - os: ubuntu-20.04
-            ghc-ver: 8.2.2
-            cabal-ver: '3.8'
           ## Latest GHC
           # Linux
           - os: ubuntu-22.04
-            ghc-ver: 9.4.3
+            ghc-ver: 9.4.4
             cabal-ver: '3.8'
             ## Andreas, 2022-11-23: Test mtl-2.3.1 here which has breaking changes.
             cabal-flags: "-c 'mtl >= 2.3.1'"
           # macOS
           - os: macos-12
-            ghc-ver: 9.4.3
+            ghc-ver: 9.4.4
             cabal-ver: '3.8'
           # Windows
           - os: windows-2022
-            ghc-ver: 9.4.2
+            ghc-ver: 9.4.4
             cabal-ver: '3.8'
     env:
       FLAGS: "-f enable-cluster-counting"
