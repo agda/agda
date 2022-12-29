@@ -44,7 +44,7 @@ jobs:
       matrix:
         os: [ubuntu-22.04]
         stack-ver: ['2.9.3']
-        ghc-ver: [9.4.3, 9.2.5, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4]
+        ghc-ver: [9.4.3, 9.2.5, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
           # Andreas, 2022-03-26:
           # Note: ghc-ver needs to be spelled out with minor version, i.e., x.y.z
           # rather than x.y (which haskell-setup would resolve to a suitable .z)
@@ -52,25 +52,11 @@ jobs:
           # If switching to a new GHC minor version needs manual action, i.e.,
           # adding the respective stack-x.y.z.yaml file.
         include:
-          # Andreas, 2022-10-18
-          # system-ghc installation of 8.0 and 8.2 fails on ubuntu-22.04
-          # (maybe stack could install it).
-          - os: ubuntu-20.04
-            ghc-ver: 8.2.2
-            stack-ver: '2.9.3'
-          - os: ubuntu-20.04
-            ghc-ver: 8.0.2
-            stack-ver: '2.9.3'
           - os: macos-12
             ghc-ver: 9.4.3
             stack-ver: '2.9.3'
-          # Andreas, 2022-10-06, issue #6128
-          # The action stalls. Last message is "installing agda-mode in ...".
-          # Happens on windows-2019 and windows-2022, with stack 2.7.5 and 2.9.3.
-          # I have no clue what causes this.
-          # Temporarily disable the windows build.
           - os: windows-2022
-            ghc-ver: 9.4.2
+            ghc-ver: 9.4.3
             stack-ver: '2.9.3'
     # # Try "allowed-failure" for Windows with GHC 9.2
     # continue-on-error: ${{ startsWith(matrix.os, 'windows') && startsWith(matrix.ghc-ver,'9.2') }}
@@ -145,20 +131,13 @@ jobs:
         # A unique cache is used for each stack.yaml.
         # Note that matrix.stack-ver might be simply 'latest', so we use STACK_VER.
         key: |
-          ${{ runner.os }}-stack-20220503-${{ env.STACK_VER }}-${{ env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}
+          ${{ runner.os }}-stack-20221229-${{ env.STACK_VER }}-${{ env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}
 
     - name: Set up pkg-config for the ICU library (macOS)
       if: ${{ runner.os == 'macOS' }}
       shell: bash
       run: |
         echo "PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig" >> ${GITHUB_ENV}
-
-    # # On ubuntu >= 20.04, ICU is already installed.
-    # - name: Install the icu library (Ubuntu)
-    #   if: ${{ matrix.os == 'ubuntu-18.04' }}
-    #   run: |
-    #     sudo apt-get update -qq
-    #     sudo apt-get install libicu-dev -qq
 
     # Note that msys2 libraries have to be installed via
     #   stack exec ${ARGS} -- pacman ...
@@ -180,10 +159,10 @@ jobs:
         stack exec ${ARGS} -- bash -c "curl -LO ${ICU_URL} && pacman --noconfirm -U *.pkg.tar.zst"
         stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-pkg-config
 
-    - name: Install the numa library (Ubuntu, GHC 8.4.4)
-      if: ${{ runner.os == 'Linux' && env.GHC_VER == '8.4.4' }}
-      run: |
-        sudo apt-get install libnuma-dev -qq
+    # - name: Install the numa library (Ubuntu, GHC 8.4.4)
+    #   if: ${{ runner.os == 'Linux' && env.GHC_VER == '8.4.4' }}
+    #   run: |
+    #     sudo apt-get install libnuma-dev -qq
 
     - name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
       if: ${{ !steps.cache.outputs.cache-hit }}
