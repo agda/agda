@@ -346,7 +346,7 @@ instance NamesIn TAlt where
 
 instance NamesIn CaseType where
   namesAndMetasIn' sg = \case
-    CTData _ x -> namesAndMetasIn' sg x
+    CTData x   -> namesAndMetasIn' sg x
     CTNat      -> mempty
     CTInt      -> mempty
     CTChar     -> mempty
@@ -355,7 +355,7 @@ instance NamesIn CaseType where
     CTQName    -> mempty
 
 instance NamesIn CaseInfo where
-  namesAndMetasIn' sg (CaseInfo _ t) = namesAndMetasIn' sg t
+  namesAndMetasIn' sg (CaseInfo _ _ t) = namesAndMetasIn' sg t
 
 instance NamesIn Compiled where
   namesAndMetasIn' sg (Compiled t _) = namesAndMetasIn' sg t
