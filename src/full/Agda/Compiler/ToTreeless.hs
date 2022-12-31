@@ -271,7 +271,7 @@ casetree cc = do
               where
               go (c:cs) = canonicalName c >>= getConstInfo <&> theDef >>= \case
                 Constructor{conData} ->
-                  return $ C.CTData (getQuantity i) conData
+                  return $ C.CTData conData
                 _ -> go cs
               go [] = __IMPOSSIBLE__
             ([], LitChar   _ : _) -> return C.CTChar
@@ -283,7 +283,12 @@ casetree cc = do
         updateCatchAll catchAll $ do
           x <- asks (lookupLevel n . ccCxt)
           def <- fromCatchAll
-          let caseInfo = C.CaseInfo { caseType = caseTy, caseLazy = lazy }
+          let caseInfo = C.CaseInfo
+                { caseType   = caseTy
+                , caseLazy   = lazy
+                , caseErased = fromMaybe __IMPOSSIBLE__ $
+                               erasedFromQuantity (getQuantity i)
+                }
           C.TCase x caseInfo def <$> do
             br1 <- conAlts n conBrs'
             br2 <- litAlts n litBrs

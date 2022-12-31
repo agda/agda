@@ -110,7 +110,7 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
                    _             -> erase $ subst 0 TErased b
             else tLet e <$> erase b
         TCase x t d bs -> do
-          (d, bs) <- pruneUnreachable x (caseType t) d bs
+          (d, bs) <- pruneUnreachable x (caseErased t) (caseType t) d bs
           d       <- erase d
           bs      <- mapM eraseAlt bs
           tCase x t d bs
@@ -137,16 +137,40 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
     tCase x t d bs
       | isErased d && all (isErased . aBody) bs = pure TErased
       | otherwise = case bs of
-        [TACon c a b] -> do
+        [b@(TACon c _ _)] -> do
           h <- snd <$> getFunInfo c
           case h of
-            NotErasable -> noerase
+            NotErasable -> fallback
             Empty       -> pure TErased
-            Erasable    -> (if a == 0 then pure else erase) $ applySubst (replicate a TErased ++# idS) b
-                              -- might enable more erasure
-        _ -> noerase
+            Erasable    -> erasedBody b
+        _ -> fallback
       where
         noerase = pure $ TCase x t d bs
+
+        erasedBody = \case
+          TACon _ arity body ->
+            (if arity == 0 then pure else erase) $
+               -- might enable more erasure
+            applySubst (replicate arity TErased ++# idS) body
+          TALit _ body   -> pure body
+          TAGuard _ body -> pure body
+
+        fallback = case (caseErased t, bs) of
+          (Erased{}, [b]) ->
+            -- The case variable is erased, and there is exactly one
+            -- case: use the case's body.
+            erasedBody b
+          (Erased{}, [])  ->
+            -- The case variable is erased, and there is no case: use
+            -- the default.
+            pure $ if isErased d then TErased else d
+          (Erased{}, _ : _ : _) ->
+            -- The case variable is erased, and there are at least two
+            -- cases: crash.
+            __IMPOSSIBLE__
+          _ ->
+            -- The case variable is not erased: do not erase anything.
+            noerase
 
     isErased t = t == TErased || isUnreachable t
 
@@ -161,29 +185,49 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
         TACon c a <$> erase (applySubst sub b)
       TAGuard g b -> TAGuard   <$> erase g <*> erase b
 
+pruneUnreachable ::
+  Int -> Erased -> CaseType -> TTerm -> [TAlt] -> E (TTerm, [TAlt])
+pruneUnreachable x erased t d bs = case erased of
+  NotErased{} -> pruneUnreachable' x erased t d bs
+  Erased{}    ->
+    -- If the match is on an erased argument, then the first branch
+    -- should match.
+    case bs of
+      []    -> pruneUnreachable' x erased t d            []
+      b : _ -> pruneUnreachable' x erased t tUnreachable [b]
+
 -- | Doesn't have any type information (other than the name of the data type),
 --   so we can't do better than checking if all constructors are present.
-pruneUnreachable :: Int -> CaseType -> TTerm -> [TAlt] -> E (TTerm, [TAlt])
-pruneUnreachable _ (CTData quantity q) d bs' = do
-  -- In an erased setting erased constructors are not treated
-  -- specially.
+pruneUnreachable' ::
+  Int -> Erased -> CaseType -> TTerm -> [TAlt] -> E (TTerm, [TAlt])
+pruneUnreachable' _ erased (CTData q) d bs' = do
+  -- Erased constructors are pruned iff the match is made on a
+  -- non-erased argument.
   cs <- lift $
-        if hasQuantity0 quantity
+        if isErased erased
         then getConstructors q
         else getNotErasedConstructors q
-  let bs | hasQuantity0 quantity = bs'
-         | otherwise             =
+  let bs | isErased erased = bs'
+         | otherwise       =
            flip filter bs' $ \case
              a@TACon{} -> (aCon a) `elem` cs
              TAGuard{} -> True
              TALit{}   -> True
-  let complete =length cs == length [ b | b@TACon{} <- bs ]
-  let d' | complete  = tUnreachable
+  let -- In the case of a match on an erased argument the value d is
+      -- equal to tUnreachable, except perhaps if bs is empty. In the
+      -- latter case complete is True exactly when the type has zero
+      -- constructors (erased or not), in which case it makes sense to
+      -- replace d with tUnreachable.
+      complete = length cs == length [ b | b@TACon{} <- bs ]
+      d' | complete  = tUnreachable
          | otherwise = d
   return (d', bs)
-pruneUnreachable x CTNat d bs = return $ pruneIntCase x d bs (IntSet.below 0)
-pruneUnreachable x CTInt d bs = return $ pruneIntCase x d bs IntSet.empty
-pruneUnreachable _ _ d bs = pure (d, bs)
+pruneUnreachable' x _ CTNat d bs =
+  return $ pruneIntCase x d bs (IntSet.below 0)
+pruneUnreachable' x _ CTInt d bs =
+  return $ pruneIntCase x d bs IntSet.empty
+pruneUnreachable' _ _ _ d bs =
+  pure (d, bs)
 
 -- These are the guards we generate for Int/Nat pattern matching
 pattern Below :: Int -> Integer -> TTerm

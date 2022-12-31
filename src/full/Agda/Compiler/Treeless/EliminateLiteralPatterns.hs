@@ -37,7 +37,7 @@ transform kit = tr
               (tr body)
               cont
           litAlt _ _ = __IMPOSSIBLE__
-      TCase sc t@CaseInfo{caseType = CTData _ dt} def alts ->
+      TCase sc t@CaseInfo{caseType = CTData dt} def alts ->
         TCase sc t (tr def) (map trAlt alts)
         where
           trAlt = \case
@@ -62,7 +62,7 @@ transform kit = tr
       TLet e b                -> TLet (tr e) (tr b)
 
     -- TODO:: Defined but not used
-    isCaseOn (CTData _ dt) xs = dt `elem` mapMaybe ($ kit) xs
+    isCaseOn (CTData dt) xs = dt `elem` mapMaybe ($ kit) xs
     isCaseOn _ _ = False
 
     eqFromLit :: Literal -> TPrim

@@ -991,11 +991,14 @@ instance NFData Quantity where
 -- ** Erased.
 
 -- | A special case of 'Quantity': erased or not.
+--
+-- Note that the 'Ord' instance does *not* ignore the origin
+-- arguments.
 
 data Erased
   = Erased Q0Origin
   | NotErased QωOrigin
-  deriving (Show, Eq, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 -- | The default value of type 'Erased': not erased.
 
