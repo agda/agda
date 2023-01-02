@@ -515,6 +515,5 @@ tracker](https://github.com/agda/agda/issues)):
   - [#6273](https://github.com/agda/agda/issues/6273): Missing highlighting when interleaved mutual is used
   - [#6276](https://github.com/agda/agda/issues/6276): LaTeX/HTML generation doesn't properly render parameters of pre-declared records
   - [#6281](https://github.com/agda/agda/issues/6281): Special treatment of attribute followed by underscore in pretty-printer
-  - [#6285](https://github.com/agda/agda/issues/6285): Bump to GHC 9.4.3
   - [#6337](https://github.com/agda/agda/issues/6337): --lossy-unification in Agda 2.6.3
   - [#6338](https://github.com/agda/agda/issues/6338): internal error in Agda, perhaps related to --rewriting
