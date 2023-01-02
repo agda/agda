@@ -44,7 +44,7 @@ jobs:
       matrix:
         os: [ubuntu-22.04]
         stack-ver: ['2.9.3']
-        ghc-ver: [9.4.3, 9.2.5, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
+        ghc-ver: [9.4.4, 9.2.5, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
           # Andreas, 2022-03-26:
           # Note: ghc-ver needs to be spelled out with minor version, i.e., x.y.z
           # rather than x.y (which haskell-setup would resolve to a suitable .z)
@@ -53,10 +53,10 @@ jobs:
           # adding the respective stack-x.y.z.yaml file.
         include:
           - os: macos-12
-            ghc-ver: 9.4.3
+            ghc-ver: 9.4.4
             stack-ver: '2.9.3'
           - os: windows-2022
-            ghc-ver: 9.4.3
+            ghc-ver: 9.4.4
             stack-ver: '2.9.3'
     # # Try "allowed-failure" for Windows with GHC 9.2
     # continue-on-error: ${{ startsWith(matrix.os, 'windows') && startsWith(matrix.ghc-ver,'9.2') }}
