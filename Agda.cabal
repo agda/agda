@@ -91,7 +91,7 @@ extra-source-files: CHANGELOG.md
                     stack-8.10.7.yaml
                     stack-9.0.2.yaml
                     stack-9.2.5.yaml
-                    stack-9.4.3.yaml
+                    stack-9.4.4.yaml
 
 data-dir:           src/data
 data-files:         emacs-mode/*.el
