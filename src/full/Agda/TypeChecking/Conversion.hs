@@ -396,22 +396,35 @@ compareTerm' cmp a m n =
               let mkUnglue m = apply unglue $ map (setHiding Hidden) args ++ [argN m]
               reportSDoc "conv.glue" 20 $ prettyTCM (aty,mkUnglue m,mkUnglue n)
 
-              -- When φ is an interval expression which can be
-              -- decomposed into substitutions σ, then we also compare
-              -- the terms m[σ] = n[σ] at the type (Glue a φ _)[σ]. This
-              -- is because, under decomposing φ, the Glue type might
-              -- reduce.
-              phi' <- decomposeInterval' (unArg phi)
-              -- However if φ is *not* decomposable (e.g. because it is
-              -- a function application φ i, see Issue #5955), then we
-              -- do not recur, otherwise we'd just end up right back
-              -- here.
-              unless (IntMap.null (foldMap fst phi')) $
-                compareTermOnFace cmp (unArg phi) a' m n
+              -- Amy, 2023-01-04: Here and in hcompu below we used to
+              -- also compare whatever the glued terms would evaluate to
+              -- on φ. This is very loopy (consider φ = f i or φ = i0:
+              -- both generate empty substitutions so get us back to
+              -- exactly the same conversion problem)!
+              --
+              -- But is there a reason to do this comparison? The
+              -- answer, it turns out, is no!
+              --
+              -- Suppose you had
+              --    Γ ⊢ x = glue [φ → t] xb : Glue T S
+              --    Γ ⊢ y = glue [φ → s] yb : Glue T S
+              --    Γ ⊢ xb = yb : T
+              -- Is there a need to check whether Γ φ ⊢ t = s : S? No!
+              -- That's because the typing rule for glue is something like
+              --   glue φ : (s : PartialP φ S) (t : T [ φ → s ]) → Glue T S
+              -- where the bracket notation stands for an "implicit
+              -- Sub"-type, i.e. Γ, φ ⊢ t = s (definitionally)
+              --
+              -- So if we have a glued element, and we have xb = yb, we
+              -- can be sure that
+              --   Γ , φ ⊢ t = xb = yb = s
+              --
+              -- But what about the general case, where we're not
+              -- looking at a literal glue? Well, eta for Glue
+              -- means x = glue [φ → x] (unglue x), so the logic above
+              -- still applies. On φ, for the reducts to agree, it's
+              -- enough for the bases to agree.
 
-              -- And in the general case, we compare the glued things by
-              -- "eta": m and n are the same if they unglue to the same
-              -- thing.
               compareTerm cmp aty (mkUnglue m) (mkUnglue n)
          Def q es | Just q == mHComp, Just (sl:s:args@[phi,u,u0]) <- allApplyElims es
                   , Sort (Type lvl) <- unArg s
@@ -422,7 +435,6 @@ compareTerm' cmp a m n =
               let bA = subIn `apply` [sl,s,phi,u0]
               let mkUnglue m = apply unglueU $ [argH l] ++ map (setHiding Hidden) [phi,u]  ++ [argH bA,argN m]
               reportSDoc "conv.hcompU" 20 $ prettyTCM (ty,mkUnglue m,mkUnglue n)
-              compareTermOnFace cmp (unArg phi) ty m n
               compareTerm cmp ty (mkUnglue m) (mkUnglue n)
          Def q es | Just q == mSub, Just args@(l:a:_) <- allApplyElims es -> do
               ty <- el' (pure $ unArg l) (pure $ unArg a)
