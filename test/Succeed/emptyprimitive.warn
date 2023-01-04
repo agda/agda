@@ -1,7 +1,9 @@
 emptyprimitive.agda:1,1-10
+warning: -W[no]EmptyPrimitive
 Empty primitive block.
 
 ———— All done; warnings encountered ————————————————————————
 
 emptyprimitive.agda:1,1-10
+warning: -W[no]EmptyPrimitive
 Empty primitive block.

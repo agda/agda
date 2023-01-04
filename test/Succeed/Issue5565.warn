@@ -1,4 +1,5 @@
 Issue5565.agda:2,3-8
+warning: -W[no]CantGeneralizeOverSorts
 Cannot generalize over unsolved sort metas:
   _1 at Issue5565.agda:2,7-8
 Suggestion: add a 'variable Any : Set _' and replace unsolved metas
@@ -7,6 +8,7 @@ by Any
 ———— All done; warnings encountered ————————————————————————
 
 Issue5565.agda:2,3-8
+warning: -W[no]CantGeneralizeOverSorts
 Cannot generalize over unsolved sort metas:
   _1 at Issue5565.agda:2,7-8
 Suggestion: add a 'variable Any : Set _' and replace unsolved metas

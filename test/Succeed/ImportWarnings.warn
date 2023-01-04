@@ -1,21 +1,27 @@
 Issue2243.agda:9,1-12
+warning: -W[no]UnreachableClauses
 Unreachable clause
 when checking the definition of f
 Issue708quote.agda:9,1-29
+warning: -W[no]UnreachableClauses
 Unreachable clause
 when checking the definition of example
 RewritingEmptyPragma.agda:3,1-16
+warning: -W[no]EmptyRewritePragma
 Empty REWRITE pragma
 when scope checking the declaration
   {-# REWRITE #-}
 Unreachable.agda:21,1-23,19
+warning: -W[no]UnreachableClauses
 Unreachable clauses
 when checking the definition of unreachable
 ImportWarningsB.agda:12,1-16
+warning: -W[no]EmptyRewritePragma
 Empty REWRITE pragma
 when scope checking the declaration
   {-# REWRITE #-}
 ImportWarnings.agda:6,1-16
+warning: -W[no]EmptyRewritePragma
 Empty REWRITE pragma
 when scope checking the declaration
   {-# REWRITE #-}
@@ -23,28 +29,34 @@ when scope checking the declaration
 ———— All done; warnings encountered ————————————————————————
 
 ImportWarningsB.agda:12,1-16
+warning: -W[no]EmptyRewritePragma
 Empty REWRITE pragma
 when scope checking the declaration
   {-# REWRITE #-}
 
 Unreachable.agda:21,1-23,19
+warning: -W[no]UnreachableClauses
 Unreachable clauses
 when checking the definition of unreachable
 
 Issue2243.agda:9,1-12
+warning: -W[no]UnreachableClauses
 Unreachable clause
 when checking the definition of f
 
 RewritingEmptyPragma.agda:3,1-16
+warning: -W[no]EmptyRewritePragma
 Empty REWRITE pragma
 when scope checking the declaration
   {-# REWRITE #-}
 
 Issue708quote.agda:9,1-29
+warning: -W[no]UnreachableClauses
 Unreachable clause
 when checking the definition of example
 
 ImportWarnings.agda:6,1-16
+warning: -W[no]EmptyRewritePragma
 Empty REWRITE pragma
 when scope checking the declaration
   {-# REWRITE #-}

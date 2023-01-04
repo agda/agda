@@ -1,10 +1,12 @@
 Issue1322.agda:16,5-38
+warning: -W[no]InstanceArgWithExplicitArg
 Instance arguments with explicit arguments are never considered by
 instance search, so having an instance argument
 ⦃ p : n == zero → ⊥ ⦄ has no effect.
 when checking that the expression (n : ℕ) ⦃ p : n == zero → ⊥ ⦄ → ℕ
 is a type
 Issue1322.agda:19,5-38
+warning: -W[no]InstanceArgWithExplicitArg
 Instance arguments with explicit arguments are never considered by
 instance search, so having an instance argument
 ⦃ q : n == zero → ⊥ ⦄ has no effect.

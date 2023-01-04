@@ -1,9 +1,11 @@
 Issue3065.agda:13,1-22
+warning: -W[no]UnreachableClauses
 Unreachable clause
 when checking the definition of test
 
 ———— All done; warnings encountered ————————————————————————
 
 Issue3065.agda:13,1-22
+warning: -W[no]UnreachableClauses
 Unreachable clause
 when checking the definition of test

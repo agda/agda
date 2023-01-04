@@ -1,9 +1,9 @@
 Issue2893.agda:10,9-10
+warning: -W[no]UnknownNamesInFixityDecl
 The following names are not declared in the same scope as their
 syntax or fixity declaration (i.e., either not in scope at all,
 imported from another module, or declared in a super module): F
 Issue2893.agda:14,7-8
 Not in scope:
-  [
-  at Issue2893.agda:14,7-8
+  [ at Issue2893.agda:14,7-8
 when scope checking [

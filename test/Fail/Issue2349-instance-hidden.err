@@ -1,4 +1,5 @@
 Issue2349-instance-hidden.agda:8,6-33
+warning: -W[no]InstanceNoOutputTypeName
 Instance arguments whose type is not {Γ} → C, where C evaluates to
 a postulated type, a parameter type or the name of a data or record
 type, are never considered by instance search, so having an

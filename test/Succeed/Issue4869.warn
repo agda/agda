@@ -1,4 +1,5 @@
 Issue4869.agda:12,16-19
+warning: -W[no]AbsurdPatternRequiresNoRHS
 The right-hand side must be omitted if there is an absurd pattern,
 () or {}, in the left-hand side.
 when checking that the clause foo (s≤s ()) = 123 has type
@@ -7,6 +8,7 @@ when checking that the clause foo (s≤s ()) = 123 has type
 ———— All done; warnings encountered ————————————————————————
 
 Issue4869.agda:12,16-19
+warning: -W[no]AbsurdPatternRequiresNoRHS
 The right-hand side must be omitted if there is an absurd pattern,
 () or {}, in the left-hand side.
 when checking that the clause foo (s≤s ()) = 123 has type

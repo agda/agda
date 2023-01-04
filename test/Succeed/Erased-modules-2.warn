@@ -1,22 +1,30 @@
 Erased-modules-2.agda:28,11-12
+warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @plenty in hard compile-time mode
 Erased-modules-2.agda:32,7-21
+warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @ω in hard compile-time mode
 when checking that the expression λ @ω { A → A } has type
 @0 Set → Set
 Erased-modules-2.agda:34,3-39,12
+warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @ω in hard compile-time mode
 Erased-modules-2.agda:41,11-18
+warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @ω in hard compile-time mode
 Erased-modules-2.agda:42,13-18
+warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @plenty in hard compile-time mode
 when checking the constructor c in the declaration of E
 Erased-modules-2.agda:44,13-21
+warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @ω in hard compile-time mode
 Erased-modules-2.agda:49,13-15
+warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @plenty in hard compile-time mode
 when checking the projection C : Set
 Erased-modules-2.agda:50,5-52,15
+warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @ω in hard compile-time mode
 when checking that the clause
 C′ = C″
@@ -26,6 +34,7 @@ C′ = C″
     C″ = C
 has type Set
 Erased-modules-2.agda:90,8-9
+warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @ω in hard compile-time mode
 when checking that the clause
 G = Set
@@ -41,31 +50,39 @@ has type Set₁
 ———— All done; warnings encountered ————————————————————————
 
 Erased-modules-2.agda:28,11-12
+warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @plenty in hard compile-time mode
 
 Erased-modules-2.agda:32,7-21
+warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @ω in hard compile-time mode
 when checking that the expression λ @ω { A → A } has type
 @0 Set → Set
 
 Erased-modules-2.agda:34,3-39,12
+warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @ω in hard compile-time mode
 
 Erased-modules-2.agda:41,11-18
+warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @ω in hard compile-time mode
 
 Erased-modules-2.agda:42,13-18
+warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @plenty in hard compile-time mode
 when checking the constructor c in the declaration of E
 
 Erased-modules-2.agda:44,13-21
+warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @ω in hard compile-time mode
 
 Erased-modules-2.agda:49,13-15
+warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @plenty in hard compile-time mode
 when checking the projection C : Set
 
 Erased-modules-2.agda:50,5-52,15
+warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @ω in hard compile-time mode
 when checking that the clause
 C′ = C″
@@ -76,6 +93,7 @@ C′ = C″
 has type Set
 
 Erased-modules-2.agda:90,8-9
+warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @ω in hard compile-time mode
 when checking that the clause
 G = Set

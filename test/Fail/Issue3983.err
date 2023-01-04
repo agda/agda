@@ -1,4 +1,5 @@
 Issue3983.agda:23,1-26,8
+warning: -W[no]GenericUseless
 Termination pragmas are ignored in record definitions
 (see https://github.com/agda/agda/issues/3008)
 when scope checking the declaration

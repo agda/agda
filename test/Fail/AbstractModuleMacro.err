@@ -1,4 +1,5 @@
 AbstractModuleMacro.agda:7,1-8,19
+warning: -W[no]UselessAbstract
 Using abstract here has no effect. Abstract applies to only
 definitions like data definitions, record type definitions and
 function clauses.

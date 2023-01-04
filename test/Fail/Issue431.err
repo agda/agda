@@ -1,4 +1,5 @@
 Issue431.agda:16,25-29
+warning: -W[no]InversionDepthReached
 Refusing to invert pattern matching of double because the maximum
 depth (10) has been reached. Most likely this means you have an
 unsatisfiable constraint, but it could also mean that you need to

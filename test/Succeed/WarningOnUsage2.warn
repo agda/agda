@@ -1,16 +1,20 @@
 WarningOnUsage.agda:16,25-29
+warning: -W[no]UserWarning
 DEPRECATED: Use 'id' instead of 'λx→x'
 when scope checking λx→x
 WarningOnUsage2.agda:5,9-13
+warning: -W[no]UserWarning
 DEPRECATED: Use 'id' instead of 'λx→x'
 when scope checking λx→x
 
 ———— All done; warnings encountered ————————————————————————
 
 WarningOnUsage.agda:16,25-29
+warning: -W[no]UserWarning
 DEPRECATED: Use 'id' instead of 'λx→x'
 when scope checking λx→x
 
 WarningOnUsage2.agda:5,9-13
+warning: -W[no]UserWarning
 DEPRECATED: Use 'id' instead of 'λx→x'
 when scope checking λx→x
