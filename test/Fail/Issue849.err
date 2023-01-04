@@ -1,4 +1,5 @@
 Issue849.agda:26,1-24
+warning: -W[no]UnreachableClauses
 Unreachable clause
 when checking the definition of f
 Issue849.agda:25,1-26,11

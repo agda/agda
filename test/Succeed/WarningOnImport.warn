@@ -1,18 +1,22 @@
 WarningOnImport.agda:1,1-33
+warning: -W[no]UserWarning
 Deprecated: Use Impossible instead
 when scope checking the declaration
   open import WarningOnImport.Impo
 WarningOnImport.agda:3,5-6
+warning: -W[no]UserWarning
 Deprecated: Use B instead
 when scope checking A
 
 ———— All done; warnings encountered ————————————————————————
 
 WarningOnImport.agda:1,1-33
+warning: -W[no]UserWarning
 Deprecated: Use Impossible instead
 when scope checking the declaration
   open import WarningOnImport.Impo
 
 WarningOnImport.agda:3,5-6
+warning: -W[no]UserWarning
 Deprecated: Use B instead
 when scope checking A

@@ -1,107 +1,137 @@
 Generalize.agda:64,14-15
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 Generalize.agda:64,16-17
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 Generalize.agda:64,18-19
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 Generalize.agda:69,14-15
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 Generalize.agda:69,16-17
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 Generalize.agda:69,18-19
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 Generalize.agda:73,14-15
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 Generalize.agda:73,16-17
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 Generalize.agda:73,18-19
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 Generalize.agda:82,14-15
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 Generalize.agda:82,16-17
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 Generalize.agda:82,18-19
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 Generalize.agda:129,14-15
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 Generalize.agda:129,16-17
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 Generalize.agda:129,18-19
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 
 ———— All done; warnings encountered ————————————————————————
 
 Generalize.agda:64,14-15
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 
 Generalize.agda:64,16-17
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 
 Generalize.agda:64,18-19
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 
 Generalize.agda:69,14-15
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 
 Generalize.agda:69,16-17
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 
 Generalize.agda:69,18-19
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 
 Generalize.agda:73,14-15
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 
 Generalize.agda:73,16-17
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 
 Generalize.agda:73,18-19
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 
 Generalize.agda:82,14-15
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 
 Generalize.agda:82,16-17
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 
 Generalize.agda:82,18-19
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 
 Generalize.agda:129,14-15
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 
 Generalize.agda:129,16-17
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 
 Generalize.agda:129,18-19
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.

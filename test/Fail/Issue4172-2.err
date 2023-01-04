@@ -1,4 +1,5 @@
 Issue4172-2.agda:10,1-14
+warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.
@@ -8,6 +9,7 @@ Reason: It relies on injectivity of the data constructor false,
 
 when checking the definition of F
 Issue4172-2.agda:10,1-14
+warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.

@@ -1,4 +1,5 @@
 Issue759a.agda:9,13-19
+warning: -W[no]OpenPublicAbstract
 public does not have any effect in an abstract block.
 Issue759a.agda:12,10-32
 Expected non-abstract record type, found Wrap

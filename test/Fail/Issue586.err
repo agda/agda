@@ -1,4 +1,5 @@
 Issue586.agda:6,1-29
+warning: -W[no]PragmaNoTerminationCheck
 Pragma {-# NO_TERMINATION_CHECK #-} has been removed. To skip the
 termination check, label your definitions either as {-# TERMINATING
 #-} or {-# NON_TERMINATING #-}.

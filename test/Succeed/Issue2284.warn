@@ -1,9 +1,11 @@
 Issue2284.agda:4,9-12
+warning: -W[no]ShadowingInTelescope
 Shadowing in telescope, repeated variable names: x
 when scope checking λ x x → x
 
 ———— All done; warnings encountered ————————————————————————
 
 Issue2284.agda:4,9-12
+warning: -W[no]ShadowingInTelescope
 Shadowing in telescope, repeated variable names: x
 when scope checking λ x x → x

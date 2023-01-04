@@ -1,136 +1,174 @@
 Issue3734.agda:40,5-6
+warning: -W[no]UserWarning
 Used pattern synonym c
 when scope checking c
 Issue3734.agda:19,5-6
+warning: -W[no]UserWarning
 Used constructor a
 when checking that the expression a has type A
 Issue3734.agda:24,5-6
+warning: -W[no]UserWarning
 Used constructor a
 when checking that the expression a has type A
 Issue3734.agda:28,3-4
+warning: -W[no]UserWarning
 Used constructor a
 when checking that the pattern a has type A
 Issue3734.agda:28,3-4
+warning: -W[no]UserWarning
 Used constructor a
 when checking that the pattern a has type A
 Issue3734.agda:29,5-6
+warning: -W[no]UserWarning
 Used constructor a
 when checking that the expression a has type A
 Issue3734.agda:40,5-6
+warning: -W[no]UserWarning
 Used constructor a
 when checking that the expression a has type A
 Issue3734.agda:44,3-4
+warning: -W[no]UserWarning
 Used pattern synonym c
 when checking that the clause .extendedlambda1 c = a has type A → A
 Issue3734.agda:44,3-4
+warning: -W[no]UserWarning
 Used constructor a
 when checking that the pattern a has type A
 Issue3734.agda:44,3-4
+warning: -W[no]UserWarning
 Used constructor a
 when checking that the pattern a has type A
 Issue3734.agda:45,5-6
+warning: -W[no]UserWarning
 Used constructor a
 when checking that the expression a has type A
 Issue3734.agda:60,6-10
+warning: -W[no]UserWarning
 Warning on D2.cons (should show)
 when checking that the expression cons has type D2
 Issue3734.agda:63,4-8
+warning: -W[no]UserWarning
 Warning on D2.cons (should show)
 when checking that the pattern cons has type D2
 Issue3734.agda:63,4-8
+warning: -W[no]UserWarning
 Warning on D2.cons (should show)
 when checking that the pattern cons has type D2
 Issue3734.agda:68,7-12
+warning: -W[no]UserWarning
 Warning on D2.cons (should show)
 when checking that the expression pcons has type D2
 Issue3734.agda:71,5-10
+warning: -W[no]UserWarning
 Warning on D2.cons (should show)
 when checking that the pattern pcons has type D2
 Issue3734.agda:71,5-10
+warning: -W[no]UserWarning
 Warning on D2.cons (should show)
 when checking that the pattern pcons has type D2
 Issue3734.agda:82,9-12
+warning: -W[no]UserWarning
 Ambiguous constructor amb was used
 when checking that the expression amb has type Amb1
 Issue3734.agda:85,9-12
+warning: -W[no]UserWarning
 Ambiguous constructor amb was used
 when checking that the expression amb has type Amb2
 
 ———— All done; warnings encountered ————————————————————————
 
 Issue3734.agda:40,5-6
+warning: -W[no]UserWarning
 Used pattern synonym c
 when scope checking c
 
 Issue3734.agda:19,5-6
+warning: -W[no]UserWarning
 Used constructor a
 when checking that the expression a has type A
 
 Issue3734.agda:24,5-6
+warning: -W[no]UserWarning
 Used constructor a
 when checking that the expression a has type A
 
 Issue3734.agda:28,3-4
+warning: -W[no]UserWarning
 Used constructor a
 when checking that the pattern a has type A
 
 Issue3734.agda:28,3-4
+warning: -W[no]UserWarning
 Used constructor a
 when checking that the pattern a has type A
 
 Issue3734.agda:29,5-6
+warning: -W[no]UserWarning
 Used constructor a
 when checking that the expression a has type A
 
 Issue3734.agda:40,5-6
+warning: -W[no]UserWarning
 Used constructor a
 when checking that the expression a has type A
 
 Issue3734.agda:44,3-4
+warning: -W[no]UserWarning
 Used pattern synonym c
 when checking that the clause .extendedlambda1 c = a has type
 A → A
 
 Issue3734.agda:44,3-4
+warning: -W[no]UserWarning
 Used constructor a
 when checking that the pattern a has type A
 
 Issue3734.agda:44,3-4
+warning: -W[no]UserWarning
 Used constructor a
 when checking that the pattern a has type A
 
 Issue3734.agda:45,5-6
+warning: -W[no]UserWarning
 Used constructor a
 when checking that the expression a has type A
 
 Issue3734.agda:60,6-10
+warning: -W[no]UserWarning
 Warning on D2.cons (should show)
 when checking that the expression cons has type D2
 
 Issue3734.agda:63,4-8
+warning: -W[no]UserWarning
 Warning on D2.cons (should show)
 when checking that the pattern cons has type D2
 
 Issue3734.agda:63,4-8
+warning: -W[no]UserWarning
 Warning on D2.cons (should show)
 when checking that the pattern cons has type D2
 
 Issue3734.agda:68,7-12
+warning: -W[no]UserWarning
 Warning on D2.cons (should show)
 when checking that the expression pcons has type D2
 
 Issue3734.agda:71,5-10
+warning: -W[no]UserWarning
 Warning on D2.cons (should show)
 when checking that the pattern pcons has type D2
 
 Issue3734.agda:71,5-10
+warning: -W[no]UserWarning
 Warning on D2.cons (should show)
 when checking that the pattern pcons has type D2
 
 Issue3734.agda:82,9-12
+warning: -W[no]UserWarning
 Ambiguous constructor amb was used
 when checking that the expression amb has type Amb1
 
 Issue3734.agda:85,9-12
+warning: -W[no]UserWarning
 Ambiguous constructor amb was used
 when checking that the expression amb has type Amb2

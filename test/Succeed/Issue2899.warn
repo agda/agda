@@ -1,9 +1,11 @@
 Issue2899.agda:7,1-18,6
+warning: -W[no]UnknownFixityInMixfixDecl
 The following mixfix names do not have an associated fixity
 declaration: _+_, _∷_
 
 ———— All done; warnings encountered ————————————————————————
 
 Issue2899.agda:7,1-18,6
+warning: -W[no]UnknownFixityInMixfixDecl
 The following mixfix names do not have an associated fixity
 declaration: _+_, _∷_

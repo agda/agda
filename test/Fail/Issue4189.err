@@ -1,5 +1,7 @@
 Issue4189.agda:15,17-38
-The module Unit doesn't export the following: tt
+warning: -W[no]ModuleDoesntExport
+The module Unit doesn't export the following:
+  tt
 when scope checking the declaration
   module Unit = ⊤ renaming (tt to unit)
 Issue4189.agda:20,7-11

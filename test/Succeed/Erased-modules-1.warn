@@ -1,7 +1,9 @@
 Erased-modules-1.agda:9,4-7
+warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @ω in hard compile-time mode
 
 ———— All done; warnings encountered ————————————————————————
 
 Erased-modules-1.agda:9,4-7
+warning: -W[no]PlentyInHardCompileTimeMode
 Ignored use of @ω in hard compile-time mode

@@ -1,7 +1,9 @@
 Issue759.agda:9,13-19
+warning: -W[no]OpenPublicAbstract
 public does not have any effect in an abstract block.
 
 ———— All done; warnings encountered ————————————————————————
 
 Issue759.agda:9,13-19
+warning: -W[no]OpenPublicAbstract
 public does not have any effect in an abstract block.

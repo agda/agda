@@ -1,16 +1,20 @@
 BuiltinSucWarning.agda:8,1-26
+warning: -W[no]OldBuiltin
 Builtin ZERO no longer exists. It is now bound by BUILTIN NATURAL
 when checking the pragma BUILTIN ZERO zero
 BuiltinSucWarning.agda:9,1-24
+warning: -W[no]OldBuiltin
 Builtin SUC no longer exists. It is now bound by BUILTIN NATURAL
 when checking the pragma BUILTIN SUC suc
 
 ———— All done; warnings encountered ————————————————————————
 
 BuiltinSucWarning.agda:8,1-26
+warning: -W[no]OldBuiltin
 Builtin ZERO no longer exists. It is now bound by BUILTIN NATURAL
 when checking the pragma BUILTIN ZERO zero
 
 BuiltinSucWarning.agda:9,1-24
+warning: -W[no]OldBuiltin
 Builtin SUC no longer exists. It is now bound by BUILTIN NATURAL
 when checking the pragma BUILTIN SUC suc

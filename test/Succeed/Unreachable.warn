@@ -1,9 +1,11 @@
 Unreachable.agda:21,1-23,19
+warning: -W[no]UnreachableClauses
 Unreachable clauses
 when checking the definition of unreachable
 
 ———— All done; warnings encountered ————————————————————————
 
 Unreachable.agda:21,1-23,19
+warning: -W[no]UnreachableClauses
 Unreachable clauses
 when checking the definition of unreachable

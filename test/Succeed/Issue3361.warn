@@ -1,7 +1,9 @@
 Issue3361.agda:5,1-9
+warning: -W[no]EmptyGeneralize
 Empty variable block.
 
 ———— All done; warnings encountered ————————————————————————
 
 Issue3361.agda:5,1-9
+warning: -W[no]EmptyGeneralize
 Empty variable block.

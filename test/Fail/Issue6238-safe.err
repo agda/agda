@@ -1,4 +1,5 @@
 Issue6238-safe.agda:11,1-30
+warning: -W[no]UnsupportedIndexedMatch
 This clause uses pattern-matching features that are not yet
 supported by Cubical Agda, the function to which it belongs will
 not compute when applied to transports.

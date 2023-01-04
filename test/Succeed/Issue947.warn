@@ -1,14 +1,17 @@
 Issue947.agda:6,3-8
+warning: -W[no]EmptyWhere
 Empty 'where' block (ignored)
 when scope checking the declaration
   A = Set
     where
 Issue947.agda:10,3-17
+warning: -W[no]EmptyWhere
 Empty 'where' block (ignored)
 when scope checking the declaration
   B = Set
     module _ where
 Issue947.agda:14,3-17
+warning: -W[no]EmptyWhere
 Empty 'where' block (ignored)
 when scope checking the declaration
   C = Set
@@ -17,18 +20,21 @@ when scope checking the declaration
 ———— All done; warnings encountered ————————————————————————
 
 Issue947.agda:6,3-8
+warning: -W[no]EmptyWhere
 Empty 'where' block (ignored)
 when scope checking the declaration
   A = Set
     where
 
 Issue947.agda:10,3-17
+warning: -W[no]EmptyWhere
 Empty 'where' block (ignored)
 when scope checking the declaration
   B = Set
     module _ where
 
 Issue947.agda:14,3-17
+warning: -W[no]EmptyWhere
 Empty 'where' block (ignored)
 when scope checking the declaration
   C = Set

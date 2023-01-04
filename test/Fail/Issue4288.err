@@ -1,4 +1,5 @@
 Issue4288.agda:1,22-29
+warning: -W[no]EmptyPrivate
 Empty private block.
 when scope checking the declaration
   a = b

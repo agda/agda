@@ -1,4 +1,5 @@
 Issue4026.agda:1,1-30
+warning: -W[no]NotInScope
 Not in scope:
   myNat
   at Issue4026.agda:1,17-22
@@ -8,6 +9,7 @@ when scope checking the declaration
 ———— All done; warnings encountered ————————————————————————
 
 Issue4026.agda:1,1-30
+warning: -W[no]NotInScope
 Not in scope:
   myNat
   at Issue4026.agda:1,17-22

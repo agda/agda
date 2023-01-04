@@ -1,4 +1,5 @@
 Issue5848.agda:6,1-12
+warning: -W[no]GenericWarning
 Confluence checking incomplete because the definition of l1 contains unsolved metavariables.
 when checking the definition of l1
 Failed to solve the following constraints:

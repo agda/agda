@@ -1,8 +1,10 @@
 Issue4154.agda:14,1-31
+warning: -W[no]ClashesViaRenaming
 Name clashes introduced by 'renaming': B
 when scope checking the declaration
   module N = M renaming (A to B)
 Issue4154.agda:15,1-25
+warning: -W[no]ClashesViaRenaming
 Name clashes introduced by 'renaming': B
 when scope checking the declaration
   open M renaming (A to B)

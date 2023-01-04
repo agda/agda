@@ -1,29 +1,35 @@
 Issue4486.agda:7,10-41
+warning: -W[no]ModuleDoesntExport
 The module Foo doesn't export the following:
   θ (did you mean 'Θ'?)
 when scope checking the declaration
   open Foo using () renaming (θ to unwrap)
 Issue4486.agda:16,8-17
+warning: -W[no]ModuleDoesntExport
 The module M doesn't export the following:
   S
 when scope checking the declaration
   open M using (S)
 Issue4486.agda:32,9-18
+warning: -W[no]ModuleDoesntExport
 The module N doesn't export the following:
   R
 when scope checking the declaration
   open N using (R)
 Issue4486.agda:33,9-25
+warning: -W[no]ModuleDoesntExport
 The module N' doesn't export the following:
   module R
 when scope checking the declaration
   open N' using (module R)
 Issue4486.agda:44,9-24
+warning: -W[no]ModuleDoesntExport
 The module AB doesn't export the following:
   Bananas (did you mean 'Ananas'?)
 when scope checking the declaration
   open AB using (Bananas)
 Issue4486.agda:50,9-31
+warning: -W[no]ModuleDoesntExport
 The module AB doesn't export the following:
   module Bananas (did you mean 'Ananas'?)
 when scope checking the declaration
@@ -32,36 +38,42 @@ when scope checking the declaration
 ———— All done; warnings encountered ————————————————————————
 
 Issue4486.agda:7,10-41
+warning: -W[no]ModuleDoesntExport
 The module Foo doesn't export the following:
   θ (did you mean 'Θ'?)
 when scope checking the declaration
   open Foo using () renaming (θ to unwrap)
 
 Issue4486.agda:16,8-17
+warning: -W[no]ModuleDoesntExport
 The module M doesn't export the following:
   S
 when scope checking the declaration
   open M using (S)
 
 Issue4486.agda:32,9-18
+warning: -W[no]ModuleDoesntExport
 The module N doesn't export the following:
   R
 when scope checking the declaration
   open N using (R)
 
 Issue4486.agda:33,9-25
+warning: -W[no]ModuleDoesntExport
 The module N' doesn't export the following:
   module R
 when scope checking the declaration
   open N' using (module R)
 
 Issue4486.agda:44,9-24
+warning: -W[no]ModuleDoesntExport
 The module AB doesn't export the following:
   Bananas (did you mean 'Ananas'?)
 when scope checking the declaration
   open AB using (Bananas)
 
 Issue4486.agda:50,9-31
+warning: -W[no]ModuleDoesntExport
 The module AB doesn't export the following:
   module Bananas (did you mean 'Ananas'?)
 when scope checking the declaration

@@ -2,12 +2,14 @@ AGDA_UNEXPECTED_SUCCESS
 
 ret > ExitSuccess
 out > Issue4723.agda:6,1-10
+out > warning: -W[no]UnreachableClauses
 out > Unreachable clause
 out > when checking the definition of f
 out >
 out > ———— All done; warnings encountered ————————————————————————
 out >
 out > Issue4723.agda:6,1-10
+out > warning: -W[no]UnreachableClauses
 out > Unreachable clause
 out > when checking the definition of f
 out >

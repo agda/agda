@@ -1,4 +1,5 @@
 Issue1137.agda:10,1-14,10
+warning: -W[no]GenericUseless
 Termination pragmas are ignored in where clauses
 (see https://github.com/agda/agda/issues/3355)
 when scope checking the declaration
@@ -11,6 +12,7 @@ when scope checking the declaration
 ———— All done; warnings encountered ————————————————————————
 
 Issue1137.agda:10,1-14,10
+warning: -W[no]GenericUseless
 Termination pragmas are ignored in where clauses
 (see https://github.com/agda/agda/issues/3355)
 when scope checking the declaration

@@ -1,26 +1,38 @@
 
 ———— All done; warnings encountered ————————————————————————
 
+warning: -W[no]UnsupportedAttribute
 Issue4525.agda:34,5-26: Tactic attributes are not supported here.
 
+warning: -W[no]UnsupportedAttribute
 Issue4525.agda:35,5-9: Relevance attributes are not supported here.
 
+warning: -W[no]UnsupportedAttribute
 Issue4525.agda:36,5-16: Relevance attributes are not supported here.
 
+warning: -W[no]UnsupportedAttribute
 Issue4525.agda:37,5-11: Relevance attributes are not supported here.
 
+warning: -W[no]UnsupportedAttribute
 Issue4525.agda:38,5-22: Relevance attributes are not supported here.
 
+warning: -W[no]UnsupportedAttribute
 Issue4525.agda:39,5-14: Relevance attributes are not supported here.
 
+warning: -W[no]UnsupportedAttribute
 Issue4525.agda:40,5-7: Cohesion attributes are not supported here.
 
+warning: -W[no]UnsupportedAttribute
 Issue4525.agda:41,5-10: Cohesion attributes are not supported here.
 
+warning: -W[no]UnsupportedAttribute
 Issue4525.agda:42,5-13: Lock attributes are not supported here.
 
+warning: -W[no]UnsupportedAttribute
 Issue4525.agda:43,5-10: Lock attributes are not supported here.
 
+warning: -W[no]UnsupportedAttribute
 Issue4525.agda:44,5-10: Lock attributes are not supported here.
 
+warning: -W[no]MultipleAttributes
 Issue4525.agda:31,6-33,12: Multiple erasure attributes (ignored).

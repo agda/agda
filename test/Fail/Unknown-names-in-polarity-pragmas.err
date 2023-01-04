@@ -1,4 +1,5 @@
 Unknown-names-in-polarity-pragmas.agda:3,14-4,15
+warning: -W[no]UnknownNamesInPolarityPragmas
 The following names are not declared in the same scope as their
 polarity pragmas (they could for instance be out of scope, imported
 from another module, or declared in a super module): F, G

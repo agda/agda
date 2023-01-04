@@ -1,4 +1,5 @@
 Issue1346ModuleFixity.agda:8,27-34
+warning: -W[no]FixityInRenamingModule
 Modules do not have fixity
 when scope checking the declaration
   open import Agda.Builtin.Equality using ()
@@ -7,6 +8,7 @@ when scope checking the declaration
 ———— All done; warnings encountered ————————————————————————
 
 Issue1346ModuleFixity.agda:8,27-34
+warning: -W[no]FixityInRenamingModule
 Modules do not have fixity
 when scope checking the declaration
   open import Agda.Builtin.Equality using ()
