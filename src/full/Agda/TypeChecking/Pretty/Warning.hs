@@ -54,6 +54,14 @@ instance PrettyTCM TCWarning where
     reportSLn "warning" 2 $ "Warning raised at " ++ prettyShow loc
     pure $ tcWarningPrintedWarning w
 
+-- | Prefix for a warning text showing name of the warning.
+--   E.g. @warning: -W[no]<warning_name>@
+prettyWarningName :: MonadPretty m => WarningName -> m Doc
+prettyWarningName w = hcat
+  [ "warning: -W[no]"
+  , text $ warningName2String w
+  ]
+
 prettyWarning :: MonadPretty m => Warning -> m Doc
 prettyWarning = \case
 
@@ -241,7 +249,7 @@ prettyWarning = \case
       [text old] ++ pwords "has been deprecated. Use" ++ [text new] ++ pwords
       "instead. This will be an error in Agda" ++ [text version <> "."]
 
-    NicifierIssue w -> sayWhere (getRange w) $ pretty w
+    NicifierIssue w -> pretty w
 
     UserWarning str -> text (T.unpack str)
 
