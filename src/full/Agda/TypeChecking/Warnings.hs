@@ -31,9 +31,9 @@ import Data.Semigroup ( Semigroup, (<>) )
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Caching
-import {-# SOURCE #-} Agda.TypeChecking.Pretty (MonadPretty, prettyTCM)
+import {-# SOURCE #-} Agda.TypeChecking.Pretty (MonadPretty, prettyTCM, ($$))
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Call
-import {-# SOURCE #-} Agda.TypeChecking.Pretty.Warning ( prettyWarning )
+import {-# SOURCE #-} Agda.TypeChecking.Pretty.Warning ( prettyWarning, prettyWarningName )
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Pure
 
 import Agda.Syntax.Abstract.Name ( QName )
@@ -46,6 +46,7 @@ import Agda.Interaction.Options.Warnings
 import {-# SOURCE #-} Agda.Interaction.Highlighting.Generate (highlightWarning)
 
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
+import Agda.Utils.Function  ( applyUnless )
 import Agda.Utils.Lens
 import qualified Agda.Utils.Pretty as P
 
@@ -95,11 +96,14 @@ warning'_ loc w = do
   r <- viewTC eRange
   c <- viewTC eCall
   b <- areWeCaching
-  -- NicifierIssues print their own error locations in their list of
-  -- issues (but we might need to keep the overall range `r` for
-  -- comparing ranges)
-  let r' = case w of { NicifierIssue{} -> NoRange ; _ -> r }
-  p <- sayWhen r' c $ prettyWarning w
+  -- NicifierIssues come with their own error locations.
+  let r' = case w of { NicifierIssue w0 -> getRange w0 ; _ -> r }
+  let wn = warningName w
+  p <- sayWhen r' c $
+    -- Only benign warnings can be deactivated with -WnoXXX, so don't
+    -- display hint for error warnings.
+    applyUnless (wn `elem` errorWarnings) (prettyWarningName wn $$) $
+      prettyWarning w
   return $ TCWarning loc r w p b
 
 {-# SPECIALIZE warning_ :: Warning -> TCM TCWarning #-}
