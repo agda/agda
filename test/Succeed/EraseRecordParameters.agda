@@ -1,4 +1,4 @@
-{-# OPTIONS --erase-record-parameters #-}
+{-# OPTIONS --erasure --erase-record-parameters #-}
 
 module _ where
 

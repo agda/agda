@@ -986,10 +986,10 @@ erasureFlag :: Flag PragmaOptions
 erasureFlag o = return $ o { optErasure = True }
 
 eraseRecordParametersFlag :: Flag PragmaOptions
-eraseRecordParametersFlag o =
-  return $ o { optEraseRecordParameters = True
-             , optErasure               = True
-             }
+eraseRecordParametersFlag o
+  | optErasure o = return $ o { optEraseRecordParameters = True }
+  | otherwise    = throwError
+    "The option --erase-record-parameters requires the use of --erasure"
 
 noEraseRecordParametersFlag :: Flag PragmaOptions
 noEraseRecordParametersFlag o = return $ o { optEraseRecordParameters = False }
