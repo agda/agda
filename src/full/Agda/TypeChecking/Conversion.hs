@@ -207,7 +207,14 @@ compareAs cmp a u v = do
           -- We do not shortcut projection-likes,
           -- Andreas, 2022-03-07, issue #5809:
           -- but irrelevant projections since they are applied to their parameters.
-          if isJust $ isRelevantProjection_ def then fallback else do
+          -- Amy, 2023-01-04, issue #6415: and not
+          -- prim^unglue/prim^unglueU either! removing the unglue from a
+          -- transport/hcomp may cause an infinite loop.
+          cubicalProjs <- traverse getName' [builtin_unglue, builtin_unglueU]
+          let
+            notFirstOrder = isJust (isRelevantProjection_ def)
+                         || any (Just f ==) cubicalProjs
+          if notFirstOrder then fallback else do
           pol <- getPolarity' cmp f
           whenProfile Profile.Conversion $ tick "compare first-order shortcut"
           compareElims pol [] (defType def) (Def f []) es es' `orelse` fallback
@@ -396,7 +403,7 @@ compareTerm' cmp a m n =
               let mkUnglue m = apply unglue $ map (setHiding Hidden) args ++ [argN m]
               reportSDoc "conv.glue" 20 $ prettyTCM (aty,mkUnglue m,mkUnglue n)
 
-              -- Amy, 2023-01-04: Here and in hcompu below we used to
+              -- Amy, 2023-01-04: Here and in hcompu below we *used to*
               -- also compare whatever the glued terms would evaluate to
               -- on φ. This is very loopy (consider φ = f i or φ = i0:
               -- both generate empty substitutions so get us back to
