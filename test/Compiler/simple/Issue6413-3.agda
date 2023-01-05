@@ -1,15 +1,12 @@
--- This test case is based on a bug report submitted by Xia Li-yao.
---
--- The test case does not require the use of --erased-matches, but is
--- still handled incorrectly by Agda 2.6.2.2 (if --erasure is
--- removed).
-
 {-# OPTIONS --without-K --erasure #-}
 
-module Issue6413-2 where
+module Issue6413-3 where
 
 open import Agda.Builtin.Bool
+open import Agda.Builtin.Equality
 open import Agda.Builtin.IO
+open import Agda.Builtin.Nat
+open import Agda.Builtin.Strict
 open import Agda.Builtin.Unit
 
 postulate
@@ -23,14 +20,17 @@ postulate
       x => cb => { process.stdout.write(x.toString() + "\n"); cb(0); }
   #-}
 
-record D (A : Set) : Set where
-  constructor c
-  field
-    x : ⊤
-    y : A
+data ⊥ : Set where
 
-f : @0 D (D ⊤) → Bool
-f (c _ (c _ _)) = true
+⊥-elim : {A : Set} → @0 ⊥ → A
+⊥-elim ()
+
+f : (n : Nat) → @0 (0 ≡ 0 → ⊥) → Nat
+f zero    not-zero = ⊥-elim (not-zero refl)
+f (suc n) _        = n
+
+x : @0 (0 ≡ 0 → ⊥) → Nat
+x = f zero
 
 main : IO ⊤
-main = print (f (c tt (c tt tt)))
+main = print (primForce x λ _ → true)

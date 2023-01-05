@@ -1,6 +1,6 @@
 -- This test case is based on a bug report submitted by Xia Li-yao.
 
-{-# OPTIONS --erasure #-}
+{-# OPTIONS --without-K --erasure --erased-matches #-}
 
 module Issue6413-1 where
 
