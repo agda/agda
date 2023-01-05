@@ -11,10 +11,10 @@ data S¹ : Type where
   loop : base ≡ base
 
 G : Type
-G = primGlue S¹ {i0} isOneEmpty ?
+G = primGlue S¹ {i0} isOneEmpty isOneEmpty
 
 g : G
-g = prim^glue isOneEmpty base
+g = prim^glue (isOneEmpty {A = λ .p → isOneEmpty p}) base
 
 hmm : primTransp (λ _ → G) i0 g ≡ g
 hmm = Helpers.refl
