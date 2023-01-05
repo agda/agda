@@ -53,7 +53,7 @@ Let's suppose the new version of GHC is X.Y.Z.
 
   If GHC X.Y.Z is a bug-fix release run
 
-    ./src/release-tools/change-tested-with-field.bash X.Y.(Z-1) X.Y.Z
+    `./src/release-tools/change-tested-with-field.bash X.Y.(Z-1) X.Y.Z`
 
   else update manually the field.
 
