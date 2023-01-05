@@ -5,7 +5,7 @@ Highlights
 ----------
 
 * Added support for [Erased Cubical
-  Agda](https://agda.readthedocs.io/en/latest/language/cubical.html#cubical-agda-with-erased-glue),
+  Agda](https://agda.readthedocs.io/en/v2.6.2.2.20230105/language/cubical.html#cubical-agda-with-erased-glue),
   a variant of Cubical Agda that is supported by the GHC backend,
   under the flag `--erased-cubical`.
 
@@ -15,7 +15,7 @@ Highlights
 
   Since `--cubical-compatible` mode implies that functions should work
   with the preliminary support for [indexed inductive types in Cubical
-  Agda](https://agda.readthedocs.io/en/latest/language/cubical.html#indexed-inductive-types),
+  Agda](https://agda.readthedocs.io/en/v2.6.2.2.20230105/language/cubical.html#indexed-inductive-types),
   many pattern matching functions will now emit an
   `UnsupportedIndexedMatch` warning, indicating that the function will
   not compute when applied to transports (from `--cubical` code).
@@ -46,7 +46,7 @@ Highlights
 
 * New primitives `declareData`, `defineData`, and `unquoteDecl data`
   for generating new data types have been added to the [reflection
-  API](https://agda.readthedocs.io/en/latest/language/reflection.html#metaprogramming).
+  API](https://agda.readthedocs.io/en/v2.6.2.2.20230105/language/reflection.html#metaprogramming).
 
 Installation and infrastructure
 -------------------------------
@@ -64,7 +64,7 @@ Erasure
   regular Cubical Agda code from this variant of Cubical Agda, but
   names defined using Cubical Agda are (mostly) treated as if they had
   been marked as erased. See the [reference
-  manual](https://agda.readthedocs.io/en/latest/language/cubical.html#cubical-agda-with-erased-glue-and-erased-higher-constructors)
+  manual](https://agda.readthedocs.io/en/v2.6.2.2.20230105/language/cubical.html#cubical-agda-with-erased-glue-and-erased-higher-constructors)
   for more details.
 
   The GHC backend can compile code that uses `--erased-cubical` if the
@@ -100,7 +100,7 @@ Cubical Agda
 
 * Cubical Agda now has experimental support for indexed inductive types
   ([#3733](https://github.com/agda/agda/issues/3733)).
-  See the [user guide](https://agda.readthedocs.io/en/latest/language/cubical.html#indexed-inductive-types)
+  See the [user guide](https://agda.readthedocs.io/en/v2.6.2.2.20230105/language/cubical.html#indexed-inductive-types)
   for caveats.
 
 * The cubical interval `I` now belongs to its own sort, `IUniv`, rather
@@ -306,7 +306,7 @@ Pragmas and options
   ([#1625](https://github.com/agda/agda/issues/1625)).
 
   Note that use of this option is associated with some potential
-  [drawbacks](https://agda.readthedocs.io/en/latest/language/lossy-unification.html#drawbacks).
+  [drawbacks](https://agda.readthedocs.io/en/v2.6.2.2.20230105/language/lossy-unification.html#drawbacks).
 
 * The new option `--no-load-primitives` complements `--no-import-sorts`
   by foregoing loading of the primitive modules altogether. This option
@@ -386,7 +386,7 @@ Library management
 Interaction
 -----------
 
-* Agsy ([automatic proof search](https://agda.readthedocs.io/en/latest/tools/auto.html)) can
+* Agsy ([automatic proof search](https://agda.readthedocs.io/en/v2.6.2.2.20230105/tools/auto.html)) can
   now be invoked in the right-hand-sides of copattern matching clauses.
   ([#5827](https://github.com/agda/agda/pull/5827))
 
