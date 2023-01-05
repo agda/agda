@@ -438,6 +438,7 @@ Other issues closed
 For 2.6.3, the following issues were also closed (see [bug
 tracker](https://github.com/agda/agda/issues)):
 
+  - [#3660](https://github.com/agda/agda/issues/3660): Wrong variable name in constraints for higher constructor
   - [#3986](https://github.com/agda/agda/issues/3986): Subtyping .A -> B <= A -> B leads to wrong ArgInfo
   - [#4103](https://github.com/agda/agda/issues/4103): Rewrite rule rejected because of projection likeness
   - [#4506](https://github.com/agda/agda/issues/4506): Lack of unicode support in locale may result in uncaught IOException
@@ -517,3 +518,5 @@ tracker](https://github.com/agda/agda/issues)):
   - [#6281](https://github.com/agda/agda/issues/6281): Special treatment of attribute followed by underscore in pretty-printer
   - [#6337](https://github.com/agda/agda/issues/6337): --lossy-unification in Agda 2.6.3
   - [#6338](https://github.com/agda/agda/issues/6338): internal error in Agda, perhaps related to --rewriting
+  - [#6377](https://github.com/agda/agda/issues/6377): Fix installation docs concerning icu libraries
+  - [#6379](https://github.com/agda/agda/issues/6379): Weird warning for instance declarations of bad type
