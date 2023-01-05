@@ -14,6 +14,16 @@ When releasing the following procedure can be followed:
 * Run the `closed-issues-for-milestone` program for adding the list of
   closed issues to the CHANGELOG.
 
+  The `closed-issues-for-milestone` program requires a GitHub access
+  token which can be generated from the GitHub site:
+
+  Settings ->
+  Developer settings ->
+  Personal access token ->
+  Tokens classic ->
+  Generate new token ->
+  Generate new token (classic)
+
 * Because some titles of some issues can generate new white-space
   issues after running the `closed-issues-for-milestone` program, run
 
