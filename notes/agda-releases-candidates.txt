@@ -94,11 +94,11 @@ followed:
 2) Remove -Werror from Agda.cabal (this is required by `cabal
    --check`).
 
-3) Removed unnecessary dependencies from stack-XYZ.yaml files:
+3) Remove unnecessary dependencies from stack-XYZ.yaml files:
 
-  + Removed QuickCheck dependency
-  + Removed tasty-* dependencies
-  + Removed local package (src/size-solver)
+  + Remove QuickCheck dependency
+  + Remove tasty-* dependencies
+  + Remove local package (src/size-solver)
 
 * Build source distributions:
 
