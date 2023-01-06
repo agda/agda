@@ -4,3 +4,8 @@ compiler-check: match-exact
 
 extra-deps:
 - vector-hashtables-0.1.1.1
+
+# Local packages, usually specified by relative directory name
+packages:
+- '.'
+- 'src/size-solver'

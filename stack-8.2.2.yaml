@@ -4,6 +4,7 @@ compiler-check: match-exact
 
 extra-deps:
 - OneTuple-0.3
+- QuickCheck-2.14.2
 - StateVar-1.2.2
 - aeson-1.5.6.0
 - assoc-1.0.2
@@ -27,6 +28,8 @@ extra-deps:
 - splitmix-0.1.0.3
 - strict-0.4.0.1
 - tagged-0.8.6.1
+- tasty-1.1.0.4
+- tasty-silver-3.1.13
 - text-1.2.3.1
 - th-abstraction-0.4.5.0
 - these-1.1.1.1
@@ -39,3 +42,8 @@ extra-deps:
 
 # instead of time-1.9, we add time-compat
 - time-compat-1.9.5
+
+# Local packages, usually specified by relative directory name
+packages:
+- '.'
+- 'src/size-solver'

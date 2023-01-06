@@ -2,6 +2,10 @@ resolver: nightly-2023-01-05
 compiler: ghc-9.4.4
 compiler-check: match-exact
 
+packages:
+- '.'
+- 'src/size-solver'
+
 flags:
   mintty:
     win32-2-13-1: false
