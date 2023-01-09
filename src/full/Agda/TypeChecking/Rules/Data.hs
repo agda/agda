@@ -1749,17 +1749,19 @@ fitsIn con uc forceds conT s = do
       Just (isPath, dom, b) -> do
         -- Lucas, 23-11-2022: we re-check the type of the constructor argument
         -- with the right polarity annotations in context.
-        arg <- instantiateFull (unEl (unDom dom))
-        reportSDoc "tc.polarity" 40 $
-          sep [ "checking constructor domain"
-              , prettyTCM (unEl $ unDom dom)
-              , "("
-              , prettyTCM (show arg)
-              , ")"
-              , "against sort"
-              , prettyTCM (getSort dom)
-              ]
-        checkInternal arg CmpLeq (sort (getSort dom))
+        polarity <- optPolarity <$> pragmaOptions
+        when polarity $ do
+          arg <- instantiateFull (unEl (unDom dom))
+          reportSDoc "tc.polarity" 40 $
+            sep [ "checking constructor domain"
+                , prettyTCM (unEl $ unDom dom)
+                , "("
+                , prettyTCM (show arg)
+                , ")"
+                , "against sort"
+                , prettyTCM (getSort dom)
+                ]
+          checkInternal arg CmpLeq (sort (getSort dom))
         let
           (forced, forceds') = nextIsForced forceds
           isf = isForced forced

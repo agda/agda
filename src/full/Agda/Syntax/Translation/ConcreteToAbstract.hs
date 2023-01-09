@@ -3568,7 +3568,10 @@ checkAttributes ((attr, r, s) : attrs) =
       unlessM (optCohesion <$> pragmaOptions) $
         setCurrentRange r $ typeError $ AttributeKindNotEnabled "Cohesion" "--cohesion" s
       cont
-    PolarityAttribute{} -> cont
+    PolarityAttribute{} -> do
+      unlessM (optPolarity <$> pragmaOptions) $
+        setCurrentRange r $ typeError $ AttributeKindNotEnabled "Polarity" "--polarity" s
+      cont
   where
   cont = checkAttributes attrs
 
