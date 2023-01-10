@@ -45,7 +45,6 @@ import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.IApplyConfluence
 import Agda.TypeChecking.Level
-import Agda.TypeChecking.Lock (requireGuarded)
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Patterns.Abstract
@@ -329,7 +328,6 @@ checkDomain lamOrPi xs e = do
          modEnv lamOrPi $ isType_ e
     -- Andrea TODO: also make sure that LockUniv implies IsLock
     when (any (\ x -> getLock x == IsLock) xs) $ do
-        requireGuarded "which is needed for @tick/@lock attributes."
          -- Solves issue #5033
         unlessM (isJust <$> getName' builtinLockUniv) $ do
           genericDocError $ "Missing binding for primLockUniv primitive."

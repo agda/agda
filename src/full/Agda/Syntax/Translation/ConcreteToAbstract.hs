@@ -3144,9 +3144,13 @@ checkAttributes :: Attributes -> ScopeM ()
 checkAttributes []                     = return ()
 checkAttributes ((attr, r, s) : attrs) =
   case attr of
-    RelevanceAttribute{}          -> cont
-    TacticAttribute{}             -> cont
-    LockAttribute{}               -> cont
+    RelevanceAttribute{}    -> cont
+    TacticAttribute{}       -> cont
+    LockAttribute IsNotLock -> cont
+    LockAttribute IsLock    -> do
+      unlessM (optGuarded <$> pragmaOptions) $
+        err "Lock" "--guarded"
+      cont
     QuantityAttribute Quantityω{} -> cont
     QuantityAttribute Quantity1{} -> __IMPOSSIBLE__
     QuantityAttribute Quantity0{} -> do
