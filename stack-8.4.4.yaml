@@ -2,6 +2,11 @@ resolver: lts-12.26
 compiler: ghc-8.4.4
 compiler-check: match-exact
 
+# Local packages specified by relative directory name.
+packages:
+- '.'
+- 'src/size-solver'
+
 extra-deps:
 - QuickCheck-2.14.2
 - aeson-1.5.6.0
@@ -30,8 +35,3 @@ extra-deps:
 
 # instead of time-1.9, we add time-compat
 - time-compat-1.9.5
-
-# Local packages, usually specified by relative directory name
-packages:
-- '.'
-- 'src/size-solver'

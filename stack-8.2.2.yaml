@@ -2,6 +2,11 @@ resolver: lts-11.22
 compiler: ghc-8.2.2
 compiler-check: match-exact
 
+# Local packages specified by relative directory name.
+packages:
+- '.'
+- 'src/size-solver'
+
 extra-deps:
 - OneTuple-0.3
 - QuickCheck-2.14.2
@@ -42,8 +47,3 @@ extra-deps:
 
 # instead of time-1.9, we add time-compat
 - time-compat-1.9.5
-
-# Local packages, usually specified by relative directory name
-packages:
-- '.'
-- 'src/size-solver'

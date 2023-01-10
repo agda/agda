@@ -2,6 +2,11 @@ resolver: lts-9.21
 compiler: ghc-8.0.2
 compiler-check: match-exact
 
+# Local packages specified by relative directory name.
+packages:
+- '.'
+- 'src/size-solver'
+
 extra-deps:
 - Cabal-3.6.3.0
 - QuickCheck-2.14.2
@@ -45,8 +50,3 @@ extra-deps:
 
 # instead of time-1.9, we add time-compat
 - time-compat-1.9.2.2
-
-# Local packages, usually specified by relative directory name
-packages:
-- '.'
-- 'src/size-solver'
