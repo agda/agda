@@ -2,6 +2,11 @@ resolver: lts-14.27
 compiler: ghc-8.6.5
 compiler-check: match-exact
 
+# Local packages specified by relative directory name.
+packages:
+- '.'
+- 'src/size-solver'
+
 extra-deps:
 - QuickCheck-2.14.2
 - STMonadTrans-0.4.3
@@ -19,8 +24,3 @@ extra-deps:
 - uuid-types-1.0.3
 - text-icu-0.8.0.2
 - vector-hashtables-0.1.1.1
-
-# Local packages, usually specified by relative directory name
-packages:
-- '.'
-- 'src/size-solver'
