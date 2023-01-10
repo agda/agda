@@ -370,7 +370,7 @@ inferDef mkTerm x =
         -- respect the pure modalities of the current context.
         -- Pure modalities are based on left-division, so it does not
         -- rely on "position" like positional modalities.
-        checkModalityArgs vs
+        checkModalityArgs d0 vs
 
         debug vs t v
         return (v, t)

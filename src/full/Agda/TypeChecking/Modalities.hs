@@ -19,6 +19,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Abstract.Name
 
 import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Lazy
 import Agda.TypeChecking.Monad
@@ -80,8 +81,8 @@ checkModality x def = checkModality' x def >>= mapM_ typeError
 
 -- | Checks that the given implicitely inserted arguments, are used in a modally
 --   correct way.
-checkModalityArgs :: (MonadConversion m) => Args -> m ()
-checkModalityArgs vs = do
+checkModalityArgs :: (MonadConversion m) => Definition -> Args -> m ()
+checkModalityArgs d vs = do
   let
     vmap :: VarMap
     vmap = freeVars vs
@@ -95,7 +96,10 @@ checkModalityArgs vs = do
           varModality <$> lookupVarMap v vmap
     whenJust m $ \ used -> do
         unless (getCohesion avail `moreCohesion` getCohesion used) $
-           (genericDocError =<<) $ fsep $
-                ["Variable" , prettyTCM t]
-             ++ pwords "is used as" ++ [text $ show $ getModality used]
-             ++ pwords "but only available as" ++ [text $ show $ getModality avail]
+           genericDocError =<< fsep
+             [ "Telescope variable" <+> prettyTCM t
+             , "is indirectly being used in the" <+> text (verbalize (getModality used)) <+> "modality"
+             , "but only available as in the" <+> text (verbalize (getModality avail)) <+> "modality"
+             , "when inserting into the top-level"
+             , pretty (defName d) <+> ":" <+> prettyTCM (defType d)
+             ]
