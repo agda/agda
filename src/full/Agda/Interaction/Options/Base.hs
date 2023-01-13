@@ -200,6 +200,11 @@ data PragmaOptions = PragmaOptions
   , optKeepPatternVariables      :: Bool
       -- ^ Should case splitting replace variables with dot patterns
       --   (False) or keep them as variables (True).
+  , optKeepAbsurdClauses         :: Bool
+      -- ^ Should case splitting and coverage checking keep clauses
+      --   that Agda can discharge as absurd at some cost?
+      --   Default: 'False', but 'True' might make coverage checking
+      --   considerably faster in some cases.
   , optInstanceSearchDepth       :: Int
   , optOverlappingInstances      :: Bool
   , optQualifiedInstances        :: Bool  -- ^ Should instance search consider instances with qualified names?
@@ -345,6 +350,7 @@ defaultPragmaOptions = PragmaOptions
   , optFirstOrder                = False
   , optPostfixProjections        = False
   , optKeepPatternVariables      = False
+  , optKeepAbsurdClauses         = False
   , optInstanceSearchDepth       = 500
   , optOverlappingInstances      = False
   , optQualifiedInstances        = True
@@ -891,6 +897,9 @@ postfixProjectionsFlag o = return $ o { optPostfixProjections = True }
 keepPatternVariablesFlag :: Flag PragmaOptions
 keepPatternVariablesFlag o = return $ o { optKeepPatternVariables = True }
 
+keepAbsurdClausesFlag :: Flag PragmaOptions
+keepAbsurdClausesFlag o = return $ o { optKeepAbsurdClauses = True }
+
 instanceDepthFlag :: String -> Flag PragmaOptions
 instanceDepthFlag s o = do
   d <- integerArgument "--instance-search-depth" s
@@ -1200,6 +1209,8 @@ pragmaOptions =
                     "make postfix projection notation the default"
     , Option []     ["keep-pattern-variables"] (NoArg keepPatternVariablesFlag)
                     "don't replace variables with dot patterns during case splitting"
+    , Option []     ["performance:absurd-clauses"] (NoArg keepAbsurdClausesFlag)
+                    "do not automatically eliminate absurd clauses in case splitting and coverage checking (can speed up type-checking)"
     , Option []     ["instance-search-depth"] (ReqArg instanceDepthFlag "N")
                     "set instance search depth to N (default: 500)"
     , Option []     ["overlapping-instances"] (NoArg overlappingInstancesFlag)
