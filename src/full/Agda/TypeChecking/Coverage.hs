@@ -168,7 +168,7 @@ coverageCheck f t cs = do
 
 
   -- filter out the missing clauses that are absurd.
-  pss <- ifM (optKeepAbsurdClauses <$> pragmaOptions) (pure pss) {-else-} $
+  pss <- ifNotM (optInferAbsurdClauses <$> pragmaOptions) (pure pss) {-else-} $
    flip filterM pss $ \(tel,ps) ->
     -- Andreas, 2019-04-13, issue #3692: when adding missing absurd
     -- clauses, also put the absurd pattern in.

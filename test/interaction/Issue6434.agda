@@ -1,7 +1,7 @@
 -- Andreas, 2023-01-13, issue #6434
 -- With the following option, case splitting should not eliminate absurd clauses automatically.
 
-{-# OPTIONS --performance:absurd-clauses #-}
+{-# OPTIONS --no-infer-absurd-clauses #-}
 
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Equality

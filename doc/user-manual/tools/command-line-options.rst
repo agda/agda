@@ -532,14 +532,15 @@ Pattern matching and equality
      Prevent interactive case splitting from replacing variables with
      dot patterns (see :ref:`dot-patterns`).
 
-.. option:: --performance:absurd-clauses
+.. option:: --infer-absurd-clauses, --no-infer-absurd-clauses
 
      .. versionadded:: 2.6.4
 
-     Prevent interactive case splitting and coverage checking from automatically filtering out absurd clauses.
+     ``--no-infer-absurd-clauses`` prevents interactive case splitting and coverage checking from automatically filtering out absurd clauses.
      This means that these absurd clauses have to be written out in the Agda text.
      Try this option if you experience type checking performance degradation with omitted absurd clauses.
 
+     Default: ``--infer-absurd-clauses``.
 
 Search depth and instances
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
