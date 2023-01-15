@@ -1175,6 +1175,7 @@ again, the source file is re-typechecked instead:
 * :option:`--experimental-irrelevance`
 * :option:`--flat-split`
 * :option:`--guarded`
+* :option:`--infer-absurd-clauses`
 * :option:`--injective-type-constructors`
 * :option:`--instance-search-depth`
 * :option:`--inversion-max-depth`
