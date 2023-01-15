@@ -415,7 +415,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
       then Just <$> makeAbsurdClause f ell' sc
       -- trivially empty clause due to the refined patterns
       else
-        ifM (liftTCM $ isEmptyTel (scTel sc))
+        ifM (liftTCM $ (optInferAbsurdClauses <$> pragmaOptions) `and2M` isEmptyTel (scTel sc))
           {- then -} (pure Nothing)
           {- else -} (Just <$> makeAbstractClause f rhs ell' sc)
     reportSLn "interaction.case" 70 $ "makeCase: survived filtering out impossible clauses"

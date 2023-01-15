@@ -200,6 +200,9 @@ data PragmaOptions = PragmaOptions
   , optKeepPatternVariables      :: Bool
       -- ^ Should case splitting replace variables with dot patterns
       --   (False) or keep them as variables (True).
+  , optInferAbsurdClauses        :: Bool
+      -- ^ Should case splitting and coverage checking try to discharge absurd clauses?
+      --   Default: 'True', but 'False' might make coverage checking considerably faster in some cases.
   , optInstanceSearchDepth       :: Int
   , optOverlappingInstances      :: Bool
   , optQualifiedInstances        :: Bool  -- ^ Should instance search consider instances with qualified names?
@@ -345,6 +348,7 @@ defaultPragmaOptions = PragmaOptions
   , optFirstOrder                = False
   , optPostfixProjections        = False
   , optKeepPatternVariables      = False
+  , optInferAbsurdClauses        = True
   , optInstanceSearchDepth       = 500
   , optOverlappingInstances      = False
   , optQualifiedInstances        = True
@@ -891,6 +895,9 @@ postfixProjectionsFlag o = return $ o { optPostfixProjections = True }
 keepPatternVariablesFlag :: Flag PragmaOptions
 keepPatternVariablesFlag o = return $ o { optKeepPatternVariables = True }
 
+inferAbsurdClausesFlag :: Bool -> Flag PragmaOptions
+inferAbsurdClausesFlag b o = return $ o { optInferAbsurdClauses = b }
+
 instanceDepthFlag :: String -> Flag PragmaOptions
 instanceDepthFlag s o = do
   d <- integerArgument "--instance-search-depth" s
@@ -1200,6 +1207,10 @@ pragmaOptions =
                     "make postfix projection notation the default"
     , Option []     ["keep-pattern-variables"] (NoArg keepPatternVariablesFlag)
                     "don't replace variables with dot patterns during case splitting"
+    , Option []     ["infer-absurd-clauses"] (NoArg (inferAbsurdClausesFlag True))
+                    "eliminate absurd clauses in case splitting and coverage checking (default)"
+    , Option []     ["no-infer-absurd-clauses"] (NoArg (inferAbsurdClausesFlag False))
+                    "do not automatically eliminate absurd clauses in case splitting and coverage checking (can speed up type-checking)"
     , Option []     ["instance-search-depth"] (ReqArg instanceDepthFlag "N")
                     "set instance search depth to N (default: 500)"
     , Option []     ["overlapping-instances"] (NoArg overlappingInstancesFlag)
