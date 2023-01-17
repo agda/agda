@@ -45,7 +45,6 @@ import Agda.TypeChecking.Telescope
 import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
-import Agda.Utils.Maybe
 
 import Agda.Utils.Impossible
 import Agda.Utils.Maybe
