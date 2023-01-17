@@ -5,48 +5,10 @@
 # This file contains a template configuration file, which is typically
 # placed as .hlint.yaml in the root of your project
 
-
-# Warnings currently triggered by your code
-- ignore: {name: "Avoid lambda using `infix`"}
-- ignore: {name: "Avoid lambda"}
-- ignore: {name: "Eta reduce"}
-- ignore: {name: "Evaluate"}
-- ignore: {name: "Fuse foldr/map"}
-- ignore: {name: "Fuse mapM/map"}
-- ignore: {name: "Hoist not"}
-- ignore: {name: "Move brackets to avoid $"}
-- ignore: {name: "Reduce duplication"}
-- ignore: {name: "Redundant $"}
-- ignore: {name: "Redundant <$>"}
-- ignore: {name: "Redundant bracket"}
-- ignore: {name: "Redundant case"}
-- ignore: {name: "Redundant guard"}
-- ignore: {name: "Redundant if"}
-- ignore: {name: "Redundant lambda"}
-- ignore: {name: "Redundant multi-way if"}
-- ignore: {name: "Redundant return"}
-- ignore: {name: "Redundant section"}
-- ignore: {name: "Redundant variable capture"}
-- ignore: {name: "Replace case with fromMaybe"}
-- ignore: {name: "Replace case with maybe"}
-- ignore: {name: "Use &&"}
-- ignore: {name: "Use ++"}
-- ignore: {name: "Use :"}
-- ignore: {name: "Use <$"}
-- ignore: {name: "Use <$>"}
-- ignore: {name: "Use <=<"}
-- ignore: {name: "Use >"}
-- ignore: {name: "Use Just"}
-- ignore: {name: "Use camelCase"}
-- ignore: {name: "Use const"}
 # Andreas, 2021-02-15
 # Silence specific hlint warnings, e.g.
 # https://github.com/agda/agda/pull/5214/checks?check_run_id=1909201141
 - ignore: {name: "Use curry", within: Agda.TypeChecking.Reduce.reduceWithBlocker }
-- ignore: {name: "Use empty"}
-# Andreas, 2021-03-03
-# "Use fewer imports" is quite silly if one has imports under #if.
-- ignore: {name: "Use fewer imports"}
 - ignore:
     name: "Use fmap"
     within:
@@ -54,64 +16,125 @@
       - Agda.TypeChecking.Primitive.Cubical.primTrans'
       - Agda.TypeChecking.Primitive.Cubical.primComp
       - Agda.Syntax.Concrete.Operators.parsePat
-- ignore: {name: "Use fromMaybe"}
-- ignore: {name: "Use id"}
-- ignore: {name: "Use infix"}
-- ignore: {name: "Use intercalate"}
-- ignore: {name: "Use lambda-case"}
-- ignore: {name: "Use list comprehension"}
-- ignore: {name: "Use list literal pattern"}
-- ignore: {name: "Use list literal"}
-- ignore: {name: "Use mapMaybe"}
-- ignore: {name: "Use maximum"}
-- ignore: {name: "Use maybe"}
-- ignore: {name: "Use mconcat"}
-- ignore: {name: "Use newtype instead of data"}
-- ignore: {name: "Use notElem"}
-- ignore: {name: "Use null"}
-- ignore: {name: "Use record patterns"}
-- ignore: {name: "Use second"}
-- ignore: {name: "Use section"}
-- ignore: {name: "Use sequenceA"}
-- ignore: {name: "Use ||"}
 
+# Warnings currently triggered by your code
+- ignore: {name: "Avoid lambda"} # 40 hints
+- ignore: {name: "Avoid lambda using `infix`"} # 11 hints
+- ignore: {name: "Eta reduce"} # 162 hints
+- ignore: {name: "Evaluate"} # 14 hints
+- ignore: {name: "Fuse concatMap/map"} # 1 hint
+- ignore: {name: "Fuse foldMap/fmap"} # 2 hints
+- ignore: {name: "Fuse foldr/map"} # 8 hints
+- ignore: {name: "Fuse mapM/map"} # 2 hints
+- ignore: {name: "Hoist not"} # 18 hints
+- ignore: {name: "Move brackets to avoid $"} # 47 hints
+- ignore: {name: "Move guards forward"} # 2 hints
+- ignore: {name: "Parse error: on input `,'"} # 1 hint
+- ignore: {name: "Parse error: on input `module'"} # 1 hint
+- ignore: {name: "Redundant $"} # 632 hints
+- ignore: {name: "Redundant <$>"} # 46 hints
+- ignore: {name: "Redundant =="} # 1 hint
+- ignore: {name: "Redundant bracket"} # 452 hints
+- ignore: {name: "Redundant case"} # 1 hint
+- ignore: {name: "Redundant flip"} # 2 hints
+- ignore: {name: "Redundant fmap"} # 2 hints
+- ignore: {name: "Redundant guard"} # 6 hints
+- ignore: {name: "Redundant id"} # 1 hint
+- ignore: {name: "Redundant if"} # 3 hints
+- ignore: {name: "Redundant lambda"} # 28 hints
+- ignore: {name: "Redundant map"} # 2 hints
+- ignore: {name: "Redundant multi-way if"} # 17 hints
+- ignore: {name: "Redundant return"} # 2 hints
+- ignore: {name: "Redundant section"} # 3 hints
+- ignore: {name: "Redundant variable capture"} # 6 hints
+- ignore: {name: "Replace case with fromMaybe"} # 3 hints
+- ignore: {name: "Replace case with maybe"} # 2 hints
+- ignore: {name: "Unused LANGUAGE pragma"} # 1 hint
+- ignore: {name: "Use &&"} # 4 hints
+- ignore: {name: "Use ++"} # 11 hints
+- ignore: {name: "Use /="} # 1 hint
+- ignore: {name: "Use :"} # 17 hints
+- ignore: {name: "Use <$"} # 4 hints
+- ignore: {name: "Use <$>"} # 18 hints
+- ignore: {name: "Use <&>"} # 1 hint
+- ignore: {name: "Use <=<"} # 3 hints
+- ignore: {name: "Use >"} # 1 hint
+- ignore: {name: "Use >=>"} # 1 hint
+- ignore: {name: "Use Just"} # 1 hint
+- ignore: {name: "Use LANGUAGE pragmas"} # 7 hints
+- ignore: {name: "Use camelCase"} # 73 hints
+- ignore: {name: "Use concatMap"} # 2 hints
+- ignore: {name: "Use const"} # 67 hints
+- ignore: {name: "Use elem"} # 2 hints
+- ignore: {name: "Use empty"} # 1 hint
+- ignore: {name: "Use fewer imports"} # 6 hints
+- ignore: {name: "Use fmap"} # 5 hints
+- ignore: {name: "Use fold"} # 1 hint
+- ignore: {name: "Use fromMaybe"} # 1 hint
+- ignore: {name: "Use id"} # 2 hints
+- ignore: {name: "Use infix"} # 11 hints
+- ignore: {name: "Use intercalate"} # 1 hint
+- ignore: {name: "Use isNothing"} # 2 hints
+- ignore: {name: "Use iterate"} # 1 hint
+- ignore: {name: "Use join"} # 2 hints
+- ignore: {name: "Use lambda-case"} # 54 hints
+- ignore: {name: "Use list comprehension"} # 3 hints
+- ignore: {name: "Use list literal"} # 11 hints
+- ignore: {name: "Use list literal pattern"} # 2 hints
+- ignore: {name: "Use map"} # 4 hints
+- ignore: {name: "Use map once"} # 1 hint
+- ignore: {name: "Use mapAndUnzipM"} # 1 hint
+- ignore: {name: "Use mapMaybe"} # 3 hints
+- ignore: {name: "Use maximum"} # 1 hint
+- ignore: {name: "Use negate"} # 1 hint
+- ignore: {name: "Use newtype instead of data"} # 27 hints
+- ignore: {name: "Use notElem"} # 2 hints
+- ignore: {name: "Use null"} # 4 hints
+- ignore: {name: "Use record patterns"} # 37 hints
+- ignore: {name: "Use second"} # 5 hints
+- ignore: {name: "Use section"} # 19 hints
+- ignore: {name: "Use sequenceA"} # 3 hints
+- ignore: {name: "Use unless"} # 1 hint
+- ignore: {name: "Use void"} # 13 hints
+- ignore: {name: "Use zipWith"} # 2 hints
+- ignore: {name: "Use ||"} # 4 hints
 
 # Specify additional command line arguments
 #
 # - arguments: [--color, --cpp-simple, -XQuasiQuotes]
-- arguments: [
-  -XBangPatterns,
-  -XConstraintKinds,
-  -XDefaultSignatures,
-  -XDeriveDataTypeable,
-  -XDeriveFoldable,
-  -XDeriveFunctor,
-  -XDeriveGeneric,
-  -XDeriveTraversable,
-  -XExistentialQuantification,
-  -XFlexibleContexts,
-  -XFlexibleInstances,
-  -XFunctionalDependencies,
-  -XGeneralizedNewtypeDeriving,
-  -XInstanceSigs,
-  -XLambdaCase,
-  -XMultiParamTypeClasses,
-  -XMultiWayIf,
-  -XNamedFieldPuns,
-  -XOverloadedStrings,
-  -XPatternSynonyms,
-  -XRankNTypes,
-  -XRecordWildCards,
-  -XScopedTypeVariables,
-  -XStandaloneDeriving,
-  -XTupleSections,
-  -XTypeFamilies,
-  -XTypeSynonymInstances,
-  # hlint (3.1.6, anyway), seems to assume -XTypeApplications,
+- arguments:
+  - --ignore-glob=notes/papers/iird/paper.lhs
+  - -XBangPatterns
+  - -XConstraintKinds
+  - -XDefaultSignatures
+  - -XDeriveDataTypeable
+  - -XDeriveFoldable
+  - -XDeriveFunctor
+  - -XDeriveGeneric
+  - -XDeriveTraversable
+  - -XExistentialQuantification
+  - -XFlexibleContexts
+  - -XFlexibleInstances
+  - -XFunctionalDependencies
+  - -XGeneralizedNewtypeDeriving
+  - -XInstanceSigs
+  - -XLambdaCase
+  - -XMultiParamTypeClasses
+  - -XMultiWayIf
+  - -XNamedFieldPuns
+  - -XOverloadedStrings
+  - -XPatternSynonyms
+  - -XRankNTypes
+  - -XRecordWildCards
+  - -XScopedTypeVariables
+  - -XStandaloneDeriving
+  - -XTupleSections
+  - -XTypeFamilies
+  - -XTypeSynonymInstances
+  # hlint (3.1.6 anyway), seems to assume - -XTypeApplications,
   # which causes a parsing error in some cases.
-  # (At the time of this note, a parse error in Agda.TypeChecking.Generalize)
-  -XNoTypeApplications,
-]
+  # (At the time of this note a parse error in Agda.TypeChecking.Generalize)
+  - -XNoTypeApplications
 
 # Control which extensions/flags/modules/functions can be used
 #
