@@ -55,9 +55,9 @@ data NiceEnv = NiceEnv
     -- ^ Stack of warnings. Head is last warning.
   , _nameId  :: NameId
     -- ^ We distinguish different 'NoName's (anonymous definitions) by a unique 'NameId'.
-  , _abstractId  :: AbstractId
-    -- ^ Fresh 'AbstractId' counter for tying together "abstract
-    -- unfolding" blocks.
+  , _OpaqueId  :: OpaqueId
+    -- ^ Fresh 'OpaqueId' counter for tying together
+    -- @opaque unfolding@ blocks.
   , _enclosingUnfolding :: Unfolding
     -- ^ Unfolding declarations which we have encountered lexically in
     -- scope. Used for merging nested abstract blocks with differing
@@ -99,7 +99,7 @@ initNiceEnv = NiceEnv
   , _covChk   = YesCoverageCheck
   , niceWarn  = []
   , _nameId   = NameId 1 noModuleNameHash
-  , _abstractId = AbstractId 1 noModuleNameHash
+  , _OpaqueId = OpaqueId 1 noModuleNameHash
   , _enclosingUnfolding = empty
   }
 
@@ -112,13 +112,13 @@ nextNameId = do
   lensNameId %= succ
   return i
 
-lensAbstractId :: Lens' AbstractId NiceEnv
-lensAbstractId f e = f (_abstractId e) <&> \ i -> e { _abstractId = i }
+lensOpaqueId :: Lens' OpaqueId NiceEnv
+lensOpaqueId f e = f (_OpaqueId e) <&> \ i -> e { _OpaqueId = i }
 
-nextAbstractId :: Nice AbstractId
-nextAbstractId = do
-  i <- use lensAbstractId
-  lensAbstractId %= \(AbstractId x y) -> AbstractId (x + 1) y
+nextOpaqueId :: Nice OpaqueId
+nextOpaqueId = do
+  i <- use lensOpaqueId
+  lensOpaqueId %= \(OpaqueId x y) -> OpaqueId (x + 1) y
   return i
 
 andUnfold :: Unfolding -> Nice a -> Nice a

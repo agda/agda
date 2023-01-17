@@ -182,7 +182,7 @@ inCompilerEnv checkResult cont = do
       stPragmaOptions `modifyTCLens` \ o -> o { optCubical = Just CErased }
 
     setScope (iInsideScope mainI) -- so that compiler errors don't use overly qualified names
-    ignoreAbstractMode cont
+    ignoreReducibility cont
   -- keep generated warnings
   let newWarnings = stPostTCWarnings $  stPostScopeState $ s
   stTCWarnings `setTCLens` newWarnings

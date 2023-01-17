@@ -19,8 +19,9 @@ abstract
   data Ok (A : Set) : Set where
     ok : T (Ok A) → Ok A
 
-opaque : ∀ {A} → T A ≡ A
-opaque = see-through
+-- Amy, 2023-01-17: stolen opaque as a keyword
+opaque′ : ∀ {A} → T A ≡ A
+opaque′ = see-through
 
 data Bad (A : Set) : Set where
   bad : T (Bad A) -> Bad A

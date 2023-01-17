@@ -488,7 +488,8 @@ instance Pretty Declaration where
     Mutual _ ds     -> namedBlock "mutual" ds
     InterleavedMutual _ ds  -> namedBlock "interleaved mutual" ds
     LoneConstructor _ ds -> namedBlock "constructor" ds
-    Abstract _ _ ds -> namedBlock "abstract" ds -- TODO
+    Abstract _ ds   -> namedBlock "abstract" ds -- TODO
+    Opaque _ u ds   -> namedBlock "opaque" ds -- TODO: opacity; print unfolding names
     Private _ _ ds  -> namedBlock "private" ds
     InstanceB _ ds  -> namedBlock "instance" ds
     Macro _ ds      -> namedBlock "macro" ds

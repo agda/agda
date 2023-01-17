@@ -131,7 +131,7 @@ getEtaAndArity SplitCatchall = return (False, 1)
 translateCompiledClauses
   :: forall m. (HasConstInfo m, MonadChange m)
   => CompiledClauses -> m CompiledClauses
-translateCompiledClauses cc = ignoreAbstractMode $ do
+translateCompiledClauses cc = ignoreReducibility $ do
   reportSDoc "tc.cc.record" 20 $ vcat
     [ "translate record patterns in compiled clauses"
     , nest 2 $ return $ pretty cc

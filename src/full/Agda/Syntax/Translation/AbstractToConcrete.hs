@@ -558,15 +558,21 @@ withInfixDecl i x m = ((fixDecl ++ synDecl) ++) <$> m
 withAbstractPrivate :: DefInfo -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
 withAbstractPrivate i m =
     priv (defAccess i)
-      . abst (A.defAbstract i)
+      . reduces (A.defReduces i)
       . addInstanceB (case A.defInstance i of InstanceDef r -> Just r; NotInstanceDef -> Nothing)
       <$> m
     where
         priv (PrivateAccess UserWritten)
                          ds = [ C.Private  (getRange ds) UserWritten ds ]
         priv _           ds = ds
-        abst (AbstractUnfolding i) ds = [ C.Abstract (getRange ds) empty ds ] -- TODO: add unfolding to AbstractDef
-        abst NoAbstract ds = ds
+
+        abst AbstractDef ds = [ C.Abstract (getRange ds) ds ]
+        abst ConcreteDef ds = ds
+
+        vis (OpaqueDef i) ds  = [ C.Opaque (getRange ds) (UnfoldingId i) ds ]
+        vis TransparentDef ds = ds
+
+        reduces r = abst (redIsAbstract r) . vis (redIsOpaque r)
 
 addInstanceB :: Maybe Range -> [C.Declaration] -> [C.Declaration]
 addInstanceB (Just r) ds = [ C.InstanceB r ds ]

@@ -266,8 +266,8 @@ addImportedThings
   -> Map A.QName Text      -- ^ Imported user warnings
   -> Set QName             -- ^ Name of imported definitions which are partial
   -> [TCWarning]
-  -> Map QName AbstractId
-  -> Map AbstractId (Set QName)
+  -> Map QName OpaqueId
+  -> Map OpaqueId (Set QName)
   -> TCM ()
 addImportedThings isig metas ibuiltin patsyns display userwarn
                   partialdefs warnings abstract unfolding = do

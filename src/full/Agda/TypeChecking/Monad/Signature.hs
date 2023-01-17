@@ -526,7 +526,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
       copyDef' ts' np def
       where
         copyDef' ts np d = do
-          reportSDoc "tc.mod.apply" 60 $ "making new def for" <+> pretty y <+> "from" <+> pretty x <+> "with" <+> text (show np) <+> "args" <+> text (show $ defAbstract d)
+          reportSDoc "tc.mod.apply" 60 $ "making new def for" <+> pretty y <+> "from" <+> pretty x <+> "with" <+> text (show np) <+> "args" <+> text (show $ defReducible d)
           reportSDoc "tc.mod.apply" 80 $ vcat
             [ "args = " <+> text (show ts')
             , "old type = " <+> pretty (defType d) ]
@@ -939,13 +939,15 @@ defaultGetConstInfo st env q = do
         ds  -> __IMPOSSIBLE_VERBOSE__ $ "Ambiguous name: " ++ prettyShow q
     where
       mkAbs uf env d
-        | treatAbstractly' uf q' env =
+        | not (isReducible (applyReducibilityRules uf q' env (defReducible d))) =
           case makeAbstract d of
             Just d      -> do
               reportSDoc "tc.const.info" 30 $ vcat
                 [ "defaultGetConstInfo" <+> prettyTCM q
                 , "treating as abstract"
-                , text (show (envAbstractMode env))
+                , text (show (envAbstractMode env)) <+> text (show (envOpaqueMode env))
+                , "before:" <+> text (show (defReducible d))
+                , "after: " <+> text (show (applyReducibilityRules uf q' env (defReducible d)))
                 , pretty (Map.mapKeys show (fmap HashSet.toList uf))]
               return $ Right d
             Nothing     -> return $ Left SigAbstract
@@ -1269,10 +1271,10 @@ instantiateRewriteRules = mapM instantiateRewriteRule
 -- | Give the abstract view of a definition.
 makeAbstract :: Definition -> Maybe Definition
 makeAbstract d =
-  case defAbstract d of
-    NoAbstract -> return d
-    AbstractUnfolding i -> do
-      def <- makeAbs i $ theDef d
+  if isReducible (defReducible d)
+    then return d
+    else do
+      def <- makeAbs (defReducible d) $ theDef d
       return d { defArgOccurrences = [] -- no positivity info for abstract things!
                , defPolarity       = [] -- no polarity info for abstract things!
                , theDef = def
@@ -1293,12 +1295,12 @@ makeAbstract d =
     makeAbs i PrimitiveSort{} = __IMPOSSIBLE__
     makeAbs i AbstractDefn{}= __IMPOSSIBLE__
 
--- | Enter abstract mode. Abstract definition in the current module are transparent.
-{-# SPECIALIZE inAbstractMode :: AbstractId -> TCM a -> TCM a #-}
-inAbstractMode :: MonadTCEnv m => AbstractId -> m a -> m a
-inAbstractMode i = localTC $ \e -> e { envAbstractMode = AbstractMode i }
+-- | Enter abstract mode. Abstract definitions in the current module are reducible.
+{-# SPECIALIZE inAbstractMode :: TCM a -> TCM a #-}
+inAbstractMode :: MonadTCEnv m => m a -> m a
+inAbstractMode = localTC $ \e -> e { envAbstractMode = AbstractMode }
 
--- | Not in abstract mode. All abstract definitions are opaque.
+-- | Not in abstract mode. All abstract definitions are irreducible.
 {-# SPECIALIZE inConcreteMode :: TCM a -> TCM a #-}
 inConcreteMode :: MonadTCEnv m => m a -> m a
 inConcreteMode = localTC $ \e -> e { envAbstractMode = ConcreteMode }
@@ -1307,21 +1309,56 @@ inConcreteMode = localTC $ \e -> e { envAbstractMode = ConcreteMode }
 ignoreAbstractMode :: MonadTCEnv m => m a -> m a
 ignoreAbstractMode = localTC $ \e -> e { envAbstractMode = IgnoreAbstractMode }
 
--- | Enter concrete or abstract mode depending on whether the given identifier
---   is concrete or abstract.
-{-# SPECIALIZE inConcreteOrAbstractMode :: QName -> (Definition -> TCM a) -> TCM a #-}
-inConcreteOrAbstractMode :: (MonadTCEnv m, HasConstInfo m) => QName -> (Definition -> m a) -> m a
-inConcreteOrAbstractMode q cont = do
+-- | Enter the opacity mode with filter corresponding to the given
+-- identifier. Identifiers (transitively) reachable from that
+-- UnfoldingId are transparent.
+{-# SPECIALIZE inOpaqueMode :: OpaqueId -> TCM a -> TCM a #-}
+inOpaqueMode :: MonadTCEnv m => OpaqueId -> m a -> m a
+inOpaqueMode i = localTC $ \e -> e { envOpaqueMode = OpaqueMode i }
+
+-- | Not in opaque mode.
+{-# SPECIALIZE inTransparentMode :: TCM a -> TCM a #-}
+inTransparentMode :: MonadTCEnv m => m a -> m a
+inTransparentMode = localTC $ \e -> e { envOpaqueMode = TransparentMode }
+
+-- | Ignore opacity
+ignoreOpaqueMode :: MonadTCEnv m => m a -> m a
+ignoreOpaqueMode = localTC $ \e -> e { envOpaqueMode = IgnoreOpaqueMode }
+
+-- | Ignore both abstract and opaque.
+ignoreReducibility :: MonadTCEnv m => m a -> m a
+ignoreReducibility = ignoreAbstractMode . ignoreOpaqueMode
+
+-- | Change to the appropriate reducibility mode for the given
+-- 'IsReducible'.
+{-# SPECIALIZE inReducibilityMode :: IsReducible -> TCM a -> TCM a #-}
+inReducibilityMode :: MonadTCEnv m => IsReducible -> m a -> m a
+inReducibilityMode (IsReducible AbstractDef (OpaqueDef i))  = inAbstractMode . inOpaqueMode i
+inReducibilityMode (IsReducible AbstractDef TransparentDef) = inAbstractMode . inTransparentMode
+inReducibilityMode (IsReducible ConcreteDef (OpaqueDef i))  = inConcreteMode . inOpaqueMode i
+inReducibilityMode (IsReducible ConcreteDef TransparentDef) = inConcreteMode . inTransparentMode
+
+-- | Change reducibility modes (abstract vs concrete; opaque vs
+-- transparent) depending on whether the given identifier is concrete or
+-- abstract.
+{-# SPECIALIZE inIdentifierReductionMode :: QName -> (Definition -> TCM a) -> TCM a #-}
+inIdentifierReductionMode :: (MonadTCEnv m, HasConstInfo m, MonadDebug m) => QName -> (Definition -> m a) -> m a
+inIdentifierReductionMode q cont = do
   -- Andreas, 2015-07-01: If we do not ignoreAbstractMode here,
   -- we will get ConcreteDef for abstract things, as they are turned into axioms.
-  def <- ignoreAbstractMode $ getConstInfo q
-  case defAbstract def of
-    AbstractUnfolding i -> inAbstractMode i $ cont def
-    NoAbstract -> inConcreteMode $ cont def
+  def <- ignoreReducibility $ getConstInfo q
+  reportSDoc "tc.const.info" 30 $ vcat
+    [ "entering reducibility mode for definition:" <+> pretty q
+    , "mode:" <+> text (show (defReducible def))
+    ]
+  inReducibilityMode (defReducible def) . cont $ def
 
--- | Check whether a name might have to be treated abstractly (either if we're
---   'inAbstractMode' or it's not a local name). Returns true for things not
---   declared abstract as well, but for those 'makeAbstract' will have no effect.
+-- | Check whether a given name would have its @abstract@ status ignored
+-- by in a parent module of the current module.
+--
+-- Returns 'True' if we're /not/ allowed to see the definition of the
+-- given QName, /or/ if 'makeAbstract' will have no effect (e.g.:
+-- postulates).
 treatAbstractly :: (MonadTCEnv m, ReadTCState m) => QName -> m Bool
 treatAbstractly q = do
   st <- useTC stUnfoldDefs
@@ -1338,25 +1375,42 @@ treatAbstractly q = do
 --   of the local identifier.
 --   This problem is fixed by removing trailing anonymous module name parts
 --   (underscores) from both names.
-treatAbstractly' :: Map AbstractId (HashSet QName) -> QName -> TCEnv -> Bool
-treatAbstractly' st q env = case envAbstractMode env of
-  ConcreteMode       -> True
-  IgnoreAbstractMode -> False
-  AbstractMode i     -> not (current `isLeChildModuleOf` m || canUnfold i)
-  where
-    current = dropAnon $ envCurrentModule env
-    m       = dropAnon $ qnameModule q
-    dropAnon (MName ms) = MName $ List.dropWhileEnd isNoName ms
-    -- Because of @abstract unfolding@ support, 'AbstractMode' stores
-    -- the identifier ('AbstractId') for the block which we're
-    -- type-checking under. If the given name @q@ is in the set of
-    -- identifiers allowed by the @unfolding@ clause of the current
-    -- abstract block, then the definition *can* be unfolded.
-    canUnfold i = case Map.lookup i st of
-      Just hs -> HashSet.member q hs
-      Nothing -> False
-      -- Amy (2022-11-22): This is actually __IMPOSSIBLE__, I'm fairly
-      -- sure, but 'False' is the less explosive choice.
+treatAbstractly' :: Map OpaqueId (HashSet QName) -> QName -> TCEnv -> Bool
+treatAbstractly' st q env =
+  let mask' = applyReducibilityRules st q env $ IsReducible AbstractDef TransparentDef
+  in ConcreteDef == redIsAbstract mask'
+
+applyReducibilityRules
+  :: Map OpaqueId (HashSet QName)
+  -> QName
+  -> TCEnv
+  -> IsReducible
+  -> IsReducible
+applyReducibilityRules st q env (IsReducible abs trans) = IsReducible abs' trans' where
+  current = dropAnon $ envCurrentModule env
+  m       = dropAnon $ qnameModule q
+  dropAnon (MName ms) = MName $ List.dropWhileEnd isNoName ms
+
+  abs' = case envAbstractMode env of
+    ConcreteMode       -> abs
+    IgnoreAbstractMode -> ConcreteDef
+    AbstractMode
+      | current `isLeChildModuleOf` m -> ConcreteDef
+      | otherwise                     -> abs
+
+  -- Because of @abstract unfolding@ support, 'AbstractMode' stores
+  -- the identifier ('OpaqueId') for the block which we're
+  -- type-checking under. If the given name @q@ is in the set of
+  -- identifiers allowed by the @unfolding@ clause of the current
+  -- abstract block, then the definition *can* be unfolded.
+  trans' = case envOpaqueMode env of
+    TransparentMode  -> trans
+    IgnoreOpaqueMode -> TransparentDef
+    OpaqueMode i -> case Map.lookup i st of
+      Just hs
+        | HashSet.member q hs -> TransparentDef
+        | otherwise -> trans
+      Nothing -> trans -- TODO: (Amy) this should be impossible but is it?
 
 -- | Get type of a constant, instantiated to the current context.
 {-# SPECIALIZE typeOfConst :: QName -> TCM Type #-}

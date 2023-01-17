@@ -35,6 +35,7 @@ import qualified Data.Map as Map
 import Data.Maybe
 import Data.Monoid (First(..))
 import Data.Void
+import Data.Either (partitionEithers)
 
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Attribute
@@ -70,6 +71,7 @@ import Agda.TypeChecking.Monad.MetaVars (registerInteractionPoint)
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Env (insideDotPattern, isInsideDotPattern, getCurrentPath)
 import Agda.TypeChecking.Rules.Builtin (isUntypedBuiltin, bindUntypedBuiltin, builtinKindOfName)
+import Agda.TypeChecking.Monad.Signature
 
 import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
 import Agda.TypeChecking.Pretty hiding (pretty, prettyA)
@@ -213,7 +215,7 @@ recordConstructorType decls =
           [ C.FunSig _ _ _ _ macro _ _ _ _ _
           , C.FunDef _ _ abstract _ _ _ _
              [ C.Clause _ _ (C.LHS _p [] []) (C.RHS _) NoWhere [] ]
-          ] | null abstract && macro /= MacroDef -> do
+          ] | isReducible abstract && macro /= MacroDef -> do
           mkLet d
 
         C.NiceLoneConstructor{} -> failure
@@ -823,7 +825,7 @@ scopeCheckExtendedLam r e cs = do
   -- Find an unused name for the extended lambda definition.
   cname <- freshConcreteName r 0 extendedLambdaName
   name  <- freshAbstractName_ cname
-  a <- asksTC (^. lensIsAbstract)
+  a <- asksTC (^. lensIsReducible)
   reportSDoc "scope.extendedLambda" 10 $ vcat
     [ text $ "new extended lambda name (" ++ show a ++ "): " ++ prettyShow name
     ]
@@ -1183,7 +1185,8 @@ telHasOpenStmsOrModuleMacros = any yesBind
       -- become an error later: "Not a valid let-declaration".
       -- (Andreas, 2015-11-17)
     yes (C.Mutual   _ ds) = any yes ds
-    yes (C.Abstract _ _ ds) = any yes ds
+    yes (C.Abstract _ ds) = any yes ds
+    yes (C.Opaque _ _ ds) = any yes ds
     yes (C.Private _ _ ds) = any yes ds
     yes _                 = False
 
@@ -1370,6 +1373,10 @@ instance ToAbstract (TopLevel [C.Declaration]) where
           -- let scope = over scopeModules (fmap $ restrictLocalPrivate am) insideScope
           let scope = insideScope
           setScope scope
+          reportSDoc "scope.top.opaque" 30 $
+            vcat [ "Opaque block map:"
+                , pretty <$> getsTC (stPostOpaqueBlocks . stPostScopeState)
+                ]
           return $ TopLevelInfo (primitiveImport ++ outsideDecls ++ [ insideDecl ]) scope
 
         -- We already inserted the missing top-level module, see
@@ -1396,11 +1403,11 @@ importPrimitives = do
 niceDecls :: DoWarn -> [C.Declaration] -> ([NiceDeclaration] -> ScopeM a) -> ScopeM a
 niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn ds $ do
   fixs <- useScope scopeFixities  -- We need to pass the fixities to the nicifier for clause grouping
-  id <- useTC stFreshAbstractId
+  id <- useTC stFreshOpaqueId
   reportSDoc "nice.top" 90 $ pure (pretty ds)
   let (result, warns') = runNice $ niceDeclarations id fixs ds
-  modifyTCLens stFreshAbstractId $ const $ case id of
-    AbstractId x y -> AbstractId (x + 1) y
+  modifyTCLens stFreshOpaqueId $ const $ case id of
+    OpaqueId x y -> OpaqueId (x + 1) y
 
   -- COMPILED pragmas are not allowed in safe mode unless we are in a builtin module.
   -- So we start by filtering out all the PragmaCompiled warnings if one of these two
@@ -1458,7 +1465,8 @@ instance ToAbstract Declarations where
                                    -> C.Record r er n dir lams e <$>
                                       mapM noUnsafePragma ds
        C.Mutual r ds               -> C.Mutual r <$> mapM noUnsafePragma ds
-       C.Abstract r u ds           -> C.Abstract r u <$> mapM noUnsafePragma ds
+       C.Opaque r u ds             -> C.Opaque r u <$> mapM noUnsafePragma ds
+       C.Abstract r ds             -> C.Abstract r <$> mapM noUnsafePragma ds
        C.Private r o ds            -> C.Private r o <$> mapM noUnsafePragma ds
        C.InstanceB r ds            -> C.InstanceB r <$> mapM noUnsafePragma ds
        C.Macro r ds                -> C.Macro r <$> mapM noUnsafePragma ds
@@ -1522,8 +1530,10 @@ instance ToAbstract LetDef where
   toAbstract (LetDef d) =
     case d of
       NiceMutual _ _ _ _ d@[C.FunSig _ _ _ instanc macro info _ _ x t, C.FunDef _ _ abstract _ _ _ _ [cl]] ->
-          do  unless (null abstract) $ do
+          do  unless (redIsAbstract abstract == ConcreteDef) $ do
                 genericError $ "`abstract` not allowed in let expressions"
+              unless (redIsOpaque abstract == TransparentDef) $ do
+                genericError $ "`opaque` not allowed in let expressions"
               when (macro == MacroDef) $ do
                 genericError $ "Macros cannot be defined in a let expression"
               t <- toAbstract t
@@ -1546,7 +1556,7 @@ instance ToAbstract LetDef where
                      ]
 
       -- irrefutable let binding, like  (x , y) = rhs
-      NiceFunClause r PublicAccess NoAbstract tc cc catchall d@(C.FunClause lhs@(C.LHS p0 [] []) rhs0 wh ca) -> do
+      NiceFunClause r PublicAccess AlwaysReducible tc cc catchall d@(C.FunClause lhs@(C.LHS p0 [] []) rhs0 wh ca) -> do
         noWhereInLetBinding wh
         rhs <- letBindingMustHaveRHS rhs0
         mp  <- setCurrentRange p0 $
@@ -1569,8 +1579,8 @@ instance ToAbstract LetDef where
             case definedName p0 of
               Nothing -> throwError err
               Just x  -> toAbstract $ LetDef $ NiceMutual r tc cc YesPositivityCheck
-                [ C.FunSig r PublicAccess NoAbstract NotInstanceDef NotMacroDef (setOrigin Inserted defaultArgInfo) tc cc x (C.Underscore (getRange x) Nothing)
-                , C.FunDef r __IMPOSSIBLE__ NoAbstract NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ __IMPOSSIBLE__
+                [ C.FunSig r PublicAccess AlwaysReducible NotInstanceDef NotMacroDef (setOrigin Inserted defaultArgInfo) tc cc x (C.Underscore (getRange x) Nothing)
+                , C.FunDef r __IMPOSSIBLE__ AlwaysReducible NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ __IMPOSSIBLE__
                   [C.Clause x (ca || catchall) lhs (C.RHS rhs) NoWhere []]
                 ]
             where
@@ -1694,7 +1704,7 @@ instance ToAbstract NiceDeclaration where
     -- We record in the environment whether we are scope checking an
     -- abstract definition.  This way, we can propagate this attribute
     -- the extended lambdas.
-    caseMaybe (niceHasAbstract d) id (\ a -> localTC $ \ e -> e { envAbstractMode = aDefToMode a }) $
+    caseMaybe (niceHasReducibility d) id inReducibilityMode $
     case d of
 
   -- Axiom (actual postulate)
@@ -1716,7 +1726,7 @@ instance ToAbstract NiceDeclaration where
       f <- getConcreteFixity x
       y <- freshAbstractQName f x
       bindName p GeneralizeName x y
-      let info = (mkDefInfo x f p NoAbstract r) { defTactic = tac }
+      let info = (mkDefInfo x f p AlwaysReducible r) { defTactic = tac }
       return [A.Generalize s info i y t]
 
   -- Fields
@@ -1915,7 +1925,7 @@ instance ToAbstract NiceDeclaration where
         bindModule p x m
         let kind = maybe ConName (conKindOfName . rangedThing) ind
         -- Andreas, 2019-11-11, issue #4189, no longer add record constructor to record module.
-        cm' <- forM cm $ \ (c, _) -> bindRecordConstructorName c kind a p
+        cm' <- forM cm $ \ (c, _) -> bindRecordConstructorName c kind (redIsAbstract a) p
         let inst = caseMaybe cm NotInstanceDef snd
         printScope "rec" 15 "record complete"
         f <- getConcreteFixity x
@@ -2167,19 +2177,20 @@ instance ToAbstract NiceDeclaration where
     -- do: Add each given QName @q@ to the set @id@, and merge in the
     -- unfolding set of @q@, thus automatically computing a transitive
     -- closure.
-    NiceUnfolding _ id (Unfolding _ xs) -> do
+    NiceUnfolding rng id (Unfolding _ xs) -> do
       qname_abs <- useTC stAbstractBlocks
       abs_unfold <- useTC stUnfoldDefs
       let
-        close :: C.QName -> HashSet I.QName -> ScopeM (HashSet I.QName)
-        close c xs = do
+        lookup :: C.QName -> TCM (Either (Either I.QName I.QName) (I.QName, HashSet I.QName))
+        lookup c = do
           qname <- resolveName c >>= \case
             A.DefinedName _ an _ -> pure (anameName an)
             A.UnknownName -> notInScopeError c
             _ -> typeError . GenericDocError =<<
-                "Name in unfolding clause should be unambiguous defined name:" <+> prettyTCM c
+              "Name in unfolding clause should be unambiguous defined name:" <+> prettyTCM c
 
-          fmap (HashSet.insert qname . (<> xs)) $ case Map.lookup qname qname_abs of
+          case Map.lookup qname qname_abs of
+            Just id' | id' == id -> pure $ Left (Right qname)
             Just id -> do
               -- Amy, 2022-11-22: Pretty sure this is __IMPOSSIBLE__ but
               -- 'fold' is the safer choice
@@ -2187,15 +2198,46 @@ instance ToAbstract NiceDeclaration where
               reportSDoc "scope.unfold" 30 $
                 vcat [ "qname" <+> pure (pretty qname) <+> "is associated with aid" <+> text (show id)
                      , "it pulled in" <+> prettyTCM (HashSet.toList uf') ]
-              pure uf'
-            Nothing -> pure mempty
+              pure $ Right $ (qname, HashSet.difference (HashSet.insert qname uf') uf)
+            Nothing -> pure $ Left (Left qname)
 
-      let uf = fold $ Map.lookup id abs_unfold
-      closed <- foldrM close uf xs
+        uf = fold $ Map.lookup id abs_unfold
+
+        redundant :: I.QName -> Map I.QName (HashSet I.QName) -> Maybe I.QName
+        redundant i ms = case filter ((i `HashSet.member`) . snd) (Map.toList ms) of
+          [] -> Nothing
+          ((x, _):_) -> Just x
+
+        compact :: Map I.QName (HashSet I.QName) -> (Map I.QName (HashSet I.QName), [(I.QName, I.QName)])
+        compact ms = case Map.minViewWithKey ms of
+          Just ((qn, its), map') ->
+            let (map'', covers) = compact map' in
+            case redundant qn map'' of
+              Just cover -> (map'', (qn, cover):covers)
+              Nothing -> (Map.insert qn its map'', covers)
+          Nothing -> (mempty, mempty)
+
+      (transparent_lexical, many) <- partitionEithers <$> traverse lookup xs
+      let (transparent, lexical) = partitionEithers transparent_lexical
+      let
+        (smallest, covered) = compact (Map.fromList many)
+        closed = uf <> fold smallest
       reportSDoc "scope.unfold" 30 $
-        "unfolding id" <+> text (show id) <+> "=" <+> pure (pretty (toList closed))
+        vcat [ "original names:" <+> prettyTCM (fmap toList <$> many)
+             , "smallest cover:" <+> prettyTCM (toList <$> smallest)
+             , "redundancies:  " <+> prettyTCM covered
+             , "setting" <+> text (show id) <+> ":=" <+> pure (pretty (toList closed))
+             ]
+      let
+        pre = foldr (\(a, b) m -> Map.insertWith (<>) b (Set.singleton a) m) mempty covered
+      unless (null covered && null transparent && null lexical)
+        $ warning
+        $ UnfoldingRedundancy
+          transparent lexical (Map.toList (Set.toList <$> pre))
+          (Map.keys smallest)
       modifyTCLens stUnfoldDefs $ Map.insert id closed
       pure []
+
     NiceUnfolding _ id NoUnfolding -> pure []
 
     where
@@ -2212,7 +2254,7 @@ instance ToAbstract NiceDeclaration where
         return $ A.Axiom kind (mkDefInfoInstance x f p a i isMacro r) info mp y t'
       toAbstractNiceAxiom _ _ = __IMPOSSIBLE__
 
-addToUnfold :: AbstractId -> I.QName -> ScopeM ()
+addToUnfold :: OpaqueId -> I.QName -> ScopeM ()
 addToUnfold aid qn =
   do
     modifyTCLens stUnfoldDefs $ Map.alter k1 aid
@@ -2223,10 +2265,10 @@ addToUnfold aid qn =
     k2 Nothing = Just aid
     k2 (Just x) = Just x
 
-addToUnfoldMaybe :: IsAbstractUnfolding -> I.QName -> ScopeM ()
-addToUnfoldMaybe a x' = case a of
-  AbstractUnfolding id -> addToUnfold id x'
-  NoAbstract -> pure ()
+addToUnfoldMaybe :: IsReducible -> I.QName -> ScopeM ()
+addToUnfoldMaybe a x' = case redIsOpaque a of
+  OpaqueDef id -> addToUnfold id x'
+  TransparentDef -> pure ()
 
 unGeneralized :: A.Expr -> (Set.Set I.QName, A.Expr)
 unGeneralized (A.Generalized s t) = (s, t)
@@ -2339,13 +2381,13 @@ lookupModuleInCurrentModule :: C.Name -> ScopeM [AbstractModule]
 lookupModuleInCurrentModule x =
   fromMaybe [] . Map.lookup x . nsModules . thingsInScope [PublicNS, PrivateNS] <$> getCurrentScope
 
-data DataConstrDecl = DataConstrDecl A.ModuleName IsAbstractUnfolding Access C.NiceDeclaration
+data DataConstrDecl = DataConstrDecl A.ModuleName IsReducible Access C.NiceDeclaration
 
 -- | Bind a @data@ constructor.
 bindConstructorName
   :: ModuleName      -- ^ Name of @data@/@record@ module.
   -> C.Name          -- ^ Constructor name.
-  -> IsAbstractUnfolding
+  -> IsAbstract
   -> Access
   -> ScopeM A.QName
 bindConstructorName m x a p = do
@@ -2360,15 +2402,15 @@ bindConstructorName m x a p = do
     -- An abstract constructor is private (abstract constructor means
     -- abstract datatype, so the constructor should not be exported).
     p' = case a of
-      AbstractUnfolding{} -> PrivateAccess Inserted
+      AbstractDef -> PrivateAccess Inserted
       _           -> p
     p'' = case a of
-      AbstractUnfolding{} -> PrivateAccess Inserted
+      AbstractDef -> PrivateAccess Inserted
       _           -> PublicAccess
 
 -- | Record constructors do not live in the record module (as it is parameterized).
 --   Abstract constructors are bound privately, so that they are not exported.
-bindRecordConstructorName :: C.Name -> KindOfName -> IsAbstractUnfolding -> Access -> ScopeM A.QName
+bindRecordConstructorName :: C.Name -> KindOfName -> IsAbstract -> Access -> ScopeM A.QName
 bindRecordConstructorName x kind a p = do
   y <- freshAbstractQName' x
   bindName p' kind x y
@@ -2377,7 +2419,7 @@ bindRecordConstructorName x kind a p = do
     -- An abstract constructor is private (abstract constructor means
     -- abstract datatype, so the constructor should not be exported).
     p' = case a of
-      AbstractUnfolding{} -> PrivateAccess Inserted
+      AbstractDef -> PrivateAccess Inserted
       _           -> p
 
 bindUnquoteConstructorName :: ModuleName -> Access -> C.Name -> TCM A.QName
@@ -2411,7 +2453,7 @@ instance ToAbstract DataConstrDecl where
         -- The abstract name is the qualified one
         -- Bind it twice, once unqualified and once qualified
         f <- getConcreteFixity x
-        y <- bindConstructorName m x a p
+        y <- bindConstructorName m x (redIsAbstract a) p
         printScope "con" 15 "bound constructor"
         return $ A.Axiom ConName (mkDefInfoInstance x f p a i NotMacroDef r)
                          info Nothing y t'
@@ -2720,7 +2762,8 @@ checkNoTerminationPragma b ds =
 
 terminationPragmas :: C.Declaration -> [(TerminationOrPositivity, Range)]
 terminationPragmas (C.Private  _ _      ds) = concatMap terminationPragmas ds
-terminationPragmas (C.Abstract _ _      ds) = concatMap terminationPragmas ds
+terminationPragmas (C.Abstract _        ds) = concatMap terminationPragmas ds
+terminationPragmas (C.Opaque _ _        ds) = concatMap terminationPragmas ds
 terminationPragmas (C.InstanceB _       ds) = concatMap terminationPragmas ds
 terminationPragmas (C.Mutual _          ds) = concatMap terminationPragmas ds
 terminationPragmas (C.Module _ _ _ _    ds) = concatMap terminationPragmas ds

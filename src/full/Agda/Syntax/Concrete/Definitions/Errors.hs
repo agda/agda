@@ -115,6 +115,8 @@ data DeclarationWarning'
       -- ^ @abstract@ block with nothing that can (newly) be made abstract.
   | UselessInstance Range
       -- ^ @instance@ block with nothing that can (newly) become an instance.
+  | UselessOpaque Range
+      -- ^ @abstract@ block with nothing that can (newly) be made abstract.
   | UselessPrivate Range
       -- ^ @private@ block with nothing that can (newly) be made private.
   deriving (Show, Generic)
@@ -158,6 +160,7 @@ declarationWarningName' = \case
   UnknownNamesInPolarityPragmas{}   -> UnknownNamesInPolarityPragmas_
   UselessAbstract{}                 -> UselessAbstract_
   UselessInstance{}                 -> UselessInstance_
+  UselessOpaque{}                   -> UselessOpaque_
   UselessPrivate{}                  -> UselessPrivate_
 
 -- | Nicifier warnings turned into errors in @--safe@ mode.
@@ -200,6 +203,7 @@ unsafeDeclarationWarning' = \case
   UnknownNamesInPolarityPragmas{}   -> False
   UselessAbstract{}                 -> False
   UselessInstance{}                 -> False
+  UselessOpaque{}                   -> False
   UselessPrivate{}                  -> False
 
 ------------------------------------------------------------------------
@@ -237,6 +241,7 @@ instance HasRange DeclarationWarning' where
   getRange (NotAllowedInMutual r x)             = r
   getRange (UselessAbstract r)                  = r
   getRange (UselessInstance r)                  = r
+  getRange (UselessOpaque r)                    = r
   getRange (EmptyConstructor r)                 = r
   getRange (EmptyMutual r)                      = r
   getRange (EmptyAbstract r)                    = r
@@ -333,6 +338,8 @@ instance Pretty DeclarationWarning' where
     pwords "Using private here has no effect. Private applies only to declarations that introduce new identifiers into the module, like type signatures and data, record, and module declarations."
   pretty (UselessAbstract _)      = fsep $
     pwords "Using abstract here has no effect. Abstract applies to only definitions like data definitions, record type definitions and function clauses."
+  pretty (UselessOpaque _)      = fsep $
+    pwords "Using opaque here has no effect. Opacity applies to only definitions like data definitions, record type definitions and function clauses."
   pretty (UselessInstance _)      = fsep $
     pwords "Using instance here has no effect. Instance applies only to declarations that introduce new identifiers into the module, like type signatures and axioms."
   pretty (EmptyMutual    _)  = fsep $ pwords "Empty mutual block."

@@ -152,6 +152,7 @@ tokens :-
 
 -- Keywords
 <0,code> abstract          { keyword KwAbstract }
+<0,code> opaque            { keyword KwOpaque }
 <0,code> codata            { keyword KwCoData }
 <0,code> coinductive       { keyword KwCoInductive }
 <0,code> constructor       { keyword KwConstructor }

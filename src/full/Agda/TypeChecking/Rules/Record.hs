@@ -235,7 +235,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
               , recNamedCon       = hasNamedCon
               , recFields         = fs
               , recTel            = telh `abstract` ftel
-              , recAbstr          = Info.defAbstract i
+              , recAbstr          = Info.defReduces i
               , recEtaEquality'   = haveEta
               , recPatternMatching= patCopat
               , recInduction      = indCo
@@ -263,7 +263,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
               , conArity  = size fs
               , conSrcCon = con
               , conData   = name
-              , conAbstr  = Info.defAbstract i
+              , conAbstr  = Info.defReduces i
               , conInd    = conInduction
               , conComp   = emptyCompKit  -- filled in later
               , conProj   = Nothing       -- filled in later
@@ -621,7 +621,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
           ]
       reportSDoc "tc.rec.proj" 5 $ nest 2 $ vcat
           [ "vs    =" <+> prettyList_ (map prettyTCM vs)
-          , "abstr =" <+> (text . show) (Info.defAbstract info)
+          , "abstr =" <+> (text . show) (Info.defReduces info)
           , "quant =" <+> (text . show) (getQuantity ai)
           , "coh   =" <+> (text . show) (getCohesion ai)
           ]

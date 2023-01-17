@@ -1,8 +1,10 @@
+{-# OPTIONS -vscope.top.opaque:60 #-}
 module UnfoldingImport.A where
+
 
 open import Agda.Builtin.Nat public
 
-abstract
+opaque
   x : Set
   x = Nat
 

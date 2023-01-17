@@ -558,7 +558,7 @@ instance Occurs QName where
 
 metaOccursQName :: MetaId -> QName -> TCM ()
 metaOccursQName m x = metaOccurs m . theDef =<< do
-  ignoreAbstractMode $ getConstInfo x
+  ignoreReducibility $ getConstInfo x
   -- Andreas, 2019-05-03, issue #3742:
   -- ignoreAbstractMode necessary, as abstract
   -- constructors are also called up.

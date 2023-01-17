@@ -52,7 +52,7 @@ checkIApplyConfluence_ f = whenM (isJust . optCubical <$> pragmaOptions) $ do
   -- --cubical/--erased-cubical is active.
   __CRASH_WHEN__ "tc.cover.iapply.confluence.crash" 666
   reportSDoc "tc.cover.iapply" 10 $ text "Checking IApply confluence of" <+> pretty f
-  inConcreteOrAbstractMode f $ \ d -> do
+  inIdentifierReductionMode f $ \ d -> do
   case theDef d of
     Function{funClauses = cls', funCovering = cls} -> do
       reportSDoc "tc.cover.iapply" 10 $ text "length cls =" <+> pretty (length cls)

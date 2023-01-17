@@ -51,7 +51,6 @@ set l = over l . const
 over :: Lens' i o -> LensMap i o
 over l f o = runIdentity $ l (Identity . f) o
 
-
 -- * State accessors and modifiers using 'StateT'.
 
 -- | Focus on a part of the state for a stateful computation.

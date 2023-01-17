@@ -818,7 +818,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                , funTreeless     = Nothing
                , funInv          = NotInjective
                , funMutual       = Just []
-               , funAbstr        = NoAbstract
+               , funAbstr        = AlwaysReducible
                , funDelayed      = NotDelayed
                , funProjection   = Right proj
                , funErasure      = erasure
@@ -834,7 +834,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                 , conArity  = length genRecFields
                 , conSrcCon = genRecCon
                 , conData   = genRecName
-                , conAbstr  = NoAbstract
+                , conAbstr  = AlwaysReducible
                 , conInd    = Inductive
                 , conComp   = emptyCompKit
                 , conProj   = Nothing
@@ -856,7 +856,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
            , recPatternMatching = CopatternMatching
            , recInduction    = Nothing
            , recTerminates   = Just True    -- not recursive
-           , recAbstr        = NoAbstract
+           , recAbstr        = AlwaysReducible
            , recComp         = emptyCompKit
            }
   reportSDoc "tc.generalize" 20 $ vcat

@@ -2247,46 +2247,57 @@ instance HasRange Access where
 instance KillRange Access where
   killRange = id
 
--- ** abstract blocks
+-- ** Unfolding control
+--
+-- User control of unfolding varies along two Boolean-valued axes:
+-- abstractness ('IsAbstract') and transparency ('IsOpaque'). When these
+-- are taken together, the resulting property is reducibility
+-- ('IsReducible'). A definition is reducible iff it is concrete and transparent.
+--
+-- @abstract@ blocks and @opaque@ blocks act locally on the reducibility
+-- of things in scope:
+--
+--   * @abstract@ blocks can make definitions more concrete
+--   * @opaque@ blocks can make definitions more transparent
+--
+-- Each block has its own rule for what names are affected, of course.
 
 -- | Abstract or concrete.
-data IsAbstract = AbstractDef | ConcreteDef
-    deriving (Show, Eq, Ord, Generic)
+data IsAbstract
+  = AbstractDef | ConcreteDef
+  deriving (Show, Eq, Ord, Generic)
 
--- | An identifier for abstract blocks. 'AbstractId's are internally
+data IsOpaque
+  = OpaqueDef OpaqueId
+  | TransparentDef
+  deriving (Show, Eq, Ord, Generic)
+
+data IsReducible
+  = IsReducible
+    { redIsAbstract :: IsAbstract
+    , redIsOpaque   :: IsOpaque
+    }
+  deriving (Show, Eq, Ord, Generic)
+
+pattern AlwaysReducible :: IsReducible
+pattern AlwaysReducible = IsReducible ConcreteDef TransparentDef
+
+isReducible :: IsReducible -> Bool
+isReducible (IsReducible ConcreteDef TransparentDef) = True
+isReducible _ = False
+
+instance KillRange IsReducible where
+  killRange = id
+
+-- | An identifier for abstract blocks. 'OpaqueId's are internally
 -- generated (in the nicifier) and /never/ shown to the user, since
 -- their only purpose is to associate @abstract@ definitions with their
 -- @unfolding@ clauses (if any).
-data AbstractId = AbstractId {-# UNPACK #-} !Word64 {-# UNPACK #-} !ModuleNameHash
+data OpaqueId = OpaqueId {-# UNPACK #-} !Word64 {-# UNPACK #-} !ModuleNameHash
   deriving (Eq, Ord, Show, Generic)
 
-instance NFData AbstractId
-
--- | Is this definition abstract or concrete, and, if it is abstract,
--- what is its 'AbstractId'?
-data IsAbstractUnfolding
-  = AbstractUnfolding AbstractId
-  -- ^ This is an abstract definition associated with the given block.
-  | NoAbstract
-  -- ^ This is not an abstract definition.
-  deriving (Eq, Show, Generic)
-
-instance NFData IsAbstractUnfolding
-
-instance Null IsAbstractUnfolding where
-  null NoAbstract{} = True
-  null _ = False
-
-  empty = NoAbstract
-
-instance Semigroup IsAbstractUnfolding where
-  NoAbstract <> x = x
-  x <> NoAbstract = x
-  AbstractUnfolding _ <> AbstractUnfolding y = AbstractUnfolding y
-
-instance Monoid IsAbstractUnfolding where
-  mempty = empty
-  mappend = (<>)
+instance NFData OpaqueId
+instance NFData IsReducible
 
 -- | Semigroup computes if any of several is an 'AbstractDef'.
 instance Semigroup IsAbstract where
@@ -2301,29 +2312,99 @@ instance Monoid IsAbstract where
 instance KillRange IsAbstract where
   killRange = id
 
-instance KillRange IsAbstractUnfolding where
-  killRange = id
-
 instance NFData IsAbstract
 
-class LensIsAbstract a where
-  lensIsAbstract :: Lens' IsAbstractUnfolding a
+-- | Semigroup acts like 'First'.
+instance Semigroup IsOpaque where
+  OpaqueDef i <> _ = OpaqueDef i
+  TransparentDef <> a = a
 
-instance LensIsAbstract IsAbstractUnfolding where
+-- | Default is 'TransparentDef'.
+instance Monoid IsOpaque where
+  mempty  = TransparentDef
+  mappend = (<>)
+
+instance KillRange IsOpaque where
+  killRange = id
+
+instance NFData IsOpaque
+
+class LensIsAbstract a where
+  lensIsAbstract :: Lens' IsAbstract a
+
+instance LensIsAbstract IsAbstract where
   lensIsAbstract = id
+
+instance LensIsAbstract IsReducible where
+  lensIsAbstract k red = (\a -> red { redIsAbstract = a }) <$> k (redIsAbstract red)
+
+class LensIsOpaque a where
+  lensIsOpaque :: Lens' IsOpaque a
+
+instance LensIsOpaque IsOpaque where
+  lensIsOpaque = id
+
+instance LensIsOpaque IsReducible where
+  lensIsOpaque k red = (\a -> red { redIsOpaque = a }) <$> k (redIsOpaque red)
+
+class LensIsReducible a where
+  lensIsReducible :: Lens' IsReducible a
+
+instance LensIsReducible IsReducible where
+  lensIsReducible = id
 
 -- | Is any element of a collection an 'AbstractDef'.
 class AnyIsAbstract a where
-  anyIsAbstract :: a -> IsAbstractUnfolding
+  anyIsAbstract :: a -> IsAbstract
 
-  default anyIsAbstract :: (Foldable t, AnyIsAbstract b, t b ~ a) => a -> IsAbstractUnfolding
+  default anyIsAbstract :: (Foldable t, AnyIsAbstract b, t b ~ a) => a -> IsAbstract
   anyIsAbstract = Fold.foldMap anyIsAbstract
 
-instance AnyIsAbstract IsAbstractUnfolding where
+instance AnyIsAbstract IsAbstract where
   anyIsAbstract = id
+
+instance AnyIsAbstract IsReducible where
+  anyIsAbstract = redIsAbstract
 
 instance AnyIsAbstract a => AnyIsAbstract [a] where
 instance AnyIsAbstract a => AnyIsAbstract (Maybe a) where
+
+data AnyOpaque
+  = OneOpaque OpaqueId
+  | NoOpaque
+  | InconsistentOpaque
+
+instance Semigroup AnyOpaque where
+  OneOpaque a <> OneOpaque b
+    | a == b    = OneOpaque a
+    | otherwise = InconsistentOpaque
+
+  NoOpaque <> x = x
+  x <> NoOpaque = x
+
+  InconsistentOpaque <> _ = InconsistentOpaque
+  _ <> InconsistentOpaque = InconsistentOpaque
+
+instance Monoid AnyOpaque where
+  mempty = NoOpaque
+  mappend = (<>)
+
+class AnyIsOpaque a where
+  anyIsOpaque :: a -> AnyOpaque
+
+  default anyIsOpaque :: (Foldable t, AnyIsOpaque b, t b ~ a) => a -> AnyOpaque
+  anyIsOpaque = Fold.foldMap anyIsOpaque
+
+instance AnyIsOpaque IsOpaque where
+  anyIsOpaque = \case
+    OpaqueDef x -> OneOpaque x
+    TransparentDef -> NoOpaque
+
+instance AnyIsOpaque IsReducible where
+  anyIsOpaque = anyIsOpaque . redIsOpaque
+
+instance AnyIsOpaque a => AnyIsOpaque [a] where
+instance AnyIsOpaque a => AnyIsOpaque (Maybe a) where
 
 -- ** instance blocks
 
@@ -2389,8 +2470,8 @@ instance KillRange NameId where
 instance Pretty NameId where
   pretty (NameId n m) = text $ show n ++ "@" ++ show m
 
-instance Pretty AbstractId where
-  pretty (AbstractId n m) = text $ show n ++ "@" ++ show m
+instance Pretty OpaqueId where
+  pretty (OpaqueId n m) = text $ show n ++ "@" ++ show m
 
 instance Enum NameId where
   succ (NameId n m)     = NameId (n + 1) m

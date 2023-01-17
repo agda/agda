@@ -837,7 +837,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
                (mapM (reify . NamedClause x False . (`apply` pars)) cls)
                (reify . QNamed x . (`apply` pars))
       let cx     = nameConcrete $ qnameName x
-          dInfo  = mkDefInfo cx noFixity' PublicAccess NoAbstract
+          dInfo  = mkDefInfo cx noFixity' PublicAccess AlwaysReducible
                      (getRange x)
           erased = case getQuantity ai of
             Quantity0 o -> Erased o

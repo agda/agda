@@ -119,7 +119,7 @@ checkStrictlyPositive mi qset = do
     checkPos :: Graph Node (Edge OccursWhere) ->
                 Graph Node Occurrence ->
                 QName -> TCM ()
-    checkPos g gstar q = inConcreteOrAbstractMode q $ \ _def -> do
+    checkPos g gstar q = inIdentifierReductionMode q $ \ _def -> do
       -- we check positivity only for data or record definitions
       whenJustM (isDatatype q) $ \ dr -> do
         reportSDoc "tc.pos.check" 10 $ "Checking positivity of" <+> prettyTCM q
@@ -227,7 +227,7 @@ checkStrictlyPositive mi qset = do
       -- -- Compute a map from each name in q to the maximal argument index
       -- let maxs = Map.fromListWith max
       --      [ (q, i) | ArgNode q i <- Set.toList $ Graph.nodes g, q `Set.member` qset ]
-      forM_ qs $ \ q -> inConcreteOrAbstractMode q $ \ def -> when (hasDefinition $ theDef def) $ do
+      forM_ qs $ \ q -> inIdentifierReductionMode q $ \ def -> when (hasDefinition $ theDef def) $ do
         reportSDoc "tc.pos.args" 10 $ "checking args of" <+> prettyTCM q
         n <- getDefArity def
         -- If there is no outgoing edge @ArgNode q i@, all @n@ arguments are @Unused@.
@@ -503,9 +503,9 @@ computeOccurrences q = flatten <$> computeOccurrences' q
 
 -- | Computes the occurrences in the given definition.
 computeOccurrences' :: QName -> TCM OccurrencesBuilder
-computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
+computeOccurrences' q = inIdentifierReductionMode q $ \ def -> do
   reportSDoc "tc.pos" 25 $ do
-    let a = defAbstract def
+    let a = defReducible def
     m <- asksTC envAbstractMode
     cur <- asksTC envCurrentModule
     "computeOccurrences" <+> prettyTCM q <+> text (show a) <+> text (show m)
@@ -633,7 +633,7 @@ buildOccurrenceGraph qs =
     mapM defGraph (Set.toList qs)
   where
     defGraph :: QName -> TCM [Graph.Edge Node (Edge OccursWhere)]
-    defGraph q = inConcreteOrAbstractMode q $ \ _def -> do
+    defGraph q = inIdentifierReductionMode q $ \ _def -> do
       occs <- computeOccurrences' q
 
       reportSDoc "tc.pos.occs" 40 $

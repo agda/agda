@@ -186,7 +186,7 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
     sccs <- do
       -- Andreas, 2016-10-01 issue #2231
       -- Recursivity checker has to see through abstract definitions!
-      ignoreAbstractMode $ do
+      ignoreReducibility $ do
         billTo [Benchmark.Termination, Benchmark.RecCheck] $ recursive allNames
       -- -- Andreas, 2017-03-24, use positivity info to skip non-recursive functions
       -- skip = ignoreAbstractMode $ allM allNames $ \ x -> do
@@ -350,7 +350,7 @@ reportCalls no calls = do
 -- If it passes the termination check it is marked as "terminates" in the signature.
 
 termFunction :: QName -> TerM Result
-termFunction name = inConcreteOrAbstractMode name $ \ def -> do
+termFunction name = inIdentifierReductionMode name $ \ def -> do
 
   -- Function @name@ is henceforth referred to by its @index@
   -- in the list of @allNames@ of the mutual block.
@@ -474,7 +474,7 @@ typeEndsInDef t = liftTCM $ do
 --   Only the latter depends on the choice whether we
 --   consider dot patterns or not.
 termDef :: QName -> TerM Calls
-termDef name = terSetCurrent name $ inConcreteOrAbstractMode name $ \ def -> do
+termDef name = terSetCurrent name $ inIdentifierReductionMode name $ \ def -> do
 
  -- Skip calls to record types unless we are checking a record type in the first place.
  let isRecord_ = case theDef def of { Record{} -> True; _ -> False }

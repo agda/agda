@@ -96,7 +96,7 @@ headSymbol v = do -- ignoreAbstractMode $ do
     Def f _ -> do
       let yes = return $ Just $ ConsHead f
           no  = return $ Nothing
-      def <- theDef <$> do ignoreAbstractMode $ getConstInfo f
+      def <- theDef <$> do ignoreReducibility $ getConstInfo f
         -- Andreas, 2013-02-18
         -- if we do not ignoreAbstractMode here, abstract Functions get turned
         -- into Axioms, but we want to distinguish these.
@@ -119,7 +119,8 @@ headSymbol v = do -- ignoreAbstractMode $ do
         Constructor{} -> __IMPOSSIBLE__
         AbstractDefn{}-> __IMPOSSIBLE__
     -- Andreas, 2019-07-10, issue #3900: canonicalName needs ignoreAbstractMode
-    Con c _ _ -> ignoreAbstractMode $ do
+    -- Amy, 2023-01-17: ignore all reducibility guards
+    Con c _ _ -> ignoreReducibility $ do
                  q <- canonicalName (conName c)
                  ifM (isPathCons q) (return Nothing) $
                      {- else -}     return $ Just $ ConsHead q

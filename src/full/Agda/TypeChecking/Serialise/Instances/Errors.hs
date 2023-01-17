@@ -88,6 +88,7 @@ instance EmbPrj Warning where
     UnsupportedIndexedMatch f             -> icodeN 40 UnsupportedIndexedMatch f
     OptionWarning a                       -> icodeN 41 OptionWarning a
     PlentyInHardCompileTimeMode a         -> icodeN 42 PlentyInHardCompileTimeMode a
+    UnfoldingRedundancy a b c d           -> icodeN 43 UnfoldingRedundancy a b c d
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -133,6 +134,7 @@ instance EmbPrj Warning where
     [40, a]              -> valuN UnsupportedIndexedMatch a
     [41, a]              -> valuN OptionWarning a
     [42, a]              -> valuN PlentyInHardCompileTimeMode a
+    [43, a, b, c, d]     -> valuN UnfoldingRedundancy a b c d
     _ -> malformed
 
 instance EmbPrj OptionWarning where
@@ -207,6 +209,7 @@ instance EmbPrj DeclarationWarning' where
     InvalidConstructorBlock a         -> icodeN 31 InvalidConstructorBlock a
     MissingDeclarations a             -> icodeN 32 MissingDeclarations a
     HiddenGeneralize r                -> icodeN 33 HiddenGeneralize r
+    UselessOpaque r                   -> icodeN 34 UselessOpaque r
 
   value = vcase $ \case
     [0, a]   -> valuN UnknownNamesInFixityDecl a
@@ -243,6 +246,7 @@ instance EmbPrj DeclarationWarning' where
     [31,r]   -> valuN InvalidConstructorBlock r
     [32,r]   -> valuN MissingDeclarations r
     [33,r]   -> valuN HiddenGeneralize r
+    [34,r]   -> valuN UselessOpaque r
     _ -> malformed
 
 instance EmbPrj LibWarning where
@@ -394,7 +398,7 @@ instance EmbPrj WarningName where
     NoGuardednessFlag_                           -> 58
     NotInScope_                                  -> 59
     NotStrictlyPositive_                         -> 60
-    UnsupportedIndexedMatch_                        -> 61
+    UnsupportedIndexedMatch_                     -> 61
     OldBuiltin_                                  -> 62
     PragmaCompileErased_                         -> 63
     RewriteMaybeNonConfluent_                    -> 64
@@ -430,6 +434,8 @@ instance EmbPrj WarningName where
     TooManyFieldsWarning_                        -> 94
     OptionRenamed_                               -> 95
     PlentyInHardCompileTimeMode_                 -> 96
+    UselessOpaque_                               -> 97
+    UnfoldingRedundancy_                         -> 98
 
   value = \case
     0  -> return OverlappingTokensWarning_
@@ -529,6 +535,8 @@ instance EmbPrj WarningName where
     94 -> return TooManyFieldsWarning_
     95 -> return OptionRenamed_
     96 -> return PlentyInHardCompileTimeMode_
+    97 -> return UselessOpaque_
+    98 -> return UnfoldingRedundancy_
     _ -> malformed
 
 

@@ -234,7 +234,8 @@ instance ExprLike Declaration where
      Mutual    r ds            -> Mutual    r                          $ mapE ds
      InterleavedMutual r ds    -> InterleavedMutual r                  $ mapE ds
      LoneConstructor r ds      -> LoneConstructor r                    $ mapE ds
-     Abstract  r u ds          -> Abstract  r u                        $ mapE ds
+     Abstract  u ds            -> Abstract  u                          $ mapE ds
+     Opaque  r u ds            -> Opaque  r u                          $ mapE ds
      Private   r o ds          -> Private   r o                        $ mapE ds
      InstanceB r ds            -> InstanceB r                          $ mapE ds
      Macro     r ds            -> Macro     r                          $ mapE ds

@@ -213,6 +213,7 @@ data WarningName
   | UnknownNamesInPolarityPragmas_
   | UselessAbstract_
   | UselessInstance_
+  | UselessOpaque_
   | UselessPrivate_
   -- Scope and Type Checking Warnings
   | AbsurdPatternRequiresNoRHS_
@@ -273,6 +274,8 @@ data WarningName
   -- Record field warnings
   | DuplicateFieldsWarning_
   | TooManyFieldsWarning_
+  -- Unfolding warnings
+  | UnfoldingRedundancy_
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Generic)
 
 instance NFData WarningName
@@ -374,6 +377,7 @@ warningNameDescription = \case
   UselessHiding_                   -> "Names in `hiding' directive that are anyway not imported."
   UselessInline_                   -> "`INLINE' pragmas where they have no effect."
   UselessInstance_                 -> "`instance' blocks where they have no effect."
+  UselessOpaque_                   -> "`opaque' blocks where they have no effect."
   UselessPrivate_                  -> "`private' blocks where they have no effect."
   UselessPublic_                   -> "`public' blocks where they have no effect."
   UselessPatternDeclarationForRecord_ -> "`pattern' attributes where they have no effect."
@@ -432,3 +436,5 @@ warningNameDescription = \case
   -- Record field warnings
   DuplicateFieldsWarning_          -> "Record expression with duplicate field names."
   TooManyFieldsWarning_            -> "Record expression with invalid field names."
+  -- Unfolding warnings
+  UnfoldingRedundancy_           -> "Transparent name in unfolding clause."

@@ -10,7 +10,7 @@ import Agda.Syntax.Position
 
 data Keyword
         = KwLet | KwIn | KwWhere | KwData | KwCoData | KwDo
-        | KwPostulate | KwAbstract | KwPrivate | KwInstance
+        | KwPostulate | KwAbstract | KwOpaque | KwPrivate | KwInstance
         | KwInterleaved | KwMutual
         | KwOverlap
         | KwOpen | KwImport | KwModule | KwPrimitive | KwMacro
@@ -53,6 +53,7 @@ layoutKeywords =
     , KwLet
     , KwMacro
     , KwMutual
+    , KwOpaque
     , KwPostulate
     , KwPrimitive
     , KwPrivate

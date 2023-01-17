@@ -975,7 +975,7 @@ evalTCM v = do
         e <- toAbstract_ t
         -- The type to be checked with @checkSig@ is without parameters.
         let (tel, e') = splitPars (fromInteger npars) e
-        ac <- asksTC (^. lensIsAbstract)
+        ac <- asksTC (^. lensIsReducible)
         let defIn = mkDefInfo (nameConcrete $ qnameName x) noFixity' PublicAccess ac noRange
         checkSig DataName defIn defaultErased x
           (A.GeneralizeTel Map.empty tel) e'
@@ -1005,7 +1005,7 @@ evalTCM v = do
                  Nothing -> genericError $ "Number of parameters doesn't match!"
                  Just es -> return es
 
-        ac <- asksTC (^. lensIsAbstract)
+        ac <- asksTC (^. lensIsReducible)
         let i = mkDefInfo (nameConcrete $ qnameName x) noFixity' PublicAccess ac noRange
             conNames = map fst cs
             toAxiom c e = A.Axiom ConName i defaultArgInfo Nothing c e
@@ -1047,7 +1047,7 @@ evalTCM v = do
       cs <- mapM (toAbstract_ . QNamed x) cs
       reportSDoc "tc.unquote.def" 10 $ vcat $ map prettyA cs
       let accessDontCare = __IMPOSSIBLE__  -- or ConcreteDef, value not looked at
-      ac <- asksTC (^. lensIsAbstract)     -- Issue #4012, respect AbstractMode
+      ac <- asksTC (^. lensIsReducible)     -- Issue #4012, respect AbstractMode
       let i = mkDefInfo (nameConcrete $ qnameName x) noFixity' accessDontCare ac noRange
       locallyReduceAllDefs $ checkFunDef NotDelayed i x cs
       primUnitUnit

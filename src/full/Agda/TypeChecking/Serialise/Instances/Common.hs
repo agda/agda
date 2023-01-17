@@ -692,18 +692,18 @@ instance EmbPrj IsAbstract where
     valu []  = valuN ConcreteDef
     valu _   = malformed
 
-instance EmbPrj AbstractId where
-  icod_ (AbstractId a b) = icodeN' AbstractId a b
+instance EmbPrj OpaqueId where
+  icod_ (OpaqueId a b) = icodeN' OpaqueId a b
 
-  value = valueN AbstractId
+  value = valueN OpaqueId
 
-instance EmbPrj IsAbstractUnfolding where
-  icod_ (AbstractUnfolding i) = icodeN' AbstractUnfolding i
-  icod_ NoAbstract = icodeN' NoAbstract
+instance EmbPrj IsOpaque where
+  icod_ (OpaqueDef i) = icodeN' OpaqueDef i
+  icod_ TransparentDef = icodeN' TransparentDef
 
   value = vcase valu where
-    valu [i] = valuN AbstractUnfolding i
-    valu []  = valuN NoAbstract
+    valu [i] = valuN OpaqueDef i
+    valu []  = valuN TransparentDef
     valu _   = malformed
 
 instance EmbPrj Delayed where
@@ -714,6 +714,10 @@ instance EmbPrj Delayed where
     valu [0] = valuN Delayed
     valu []  = valuN NotDelayed
     valu _   = malformed
+
+instance EmbPrj IsReducible where
+  icod_ (IsReducible a b) = icodeN' IsReducible a b
+  value = valueN IsReducible
 
 instance EmbPrj SrcLoc where
   icod_ (SrcLoc p m f sl sc el ec) = icodeN' SrcLoc p m f sl sc el ec

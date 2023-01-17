@@ -466,7 +466,7 @@ isRecordConstructor c = getConstInfo' c >>= \case
 --   Works also for abstract constructors.
 isGeneratedRecordConstructor :: (MonadTCEnv m, HasConstInfo m)
                              => QName -> m Bool
-isGeneratedRecordConstructor c = ignoreAbstractMode $ do
+isGeneratedRecordConstructor c = ignoreReducibility $ do
   caseMaybeM (isRecordConstructor c) (return False) $ \ (_, def) ->
     case def of
       Record{ recNamedCon = False } -> return True

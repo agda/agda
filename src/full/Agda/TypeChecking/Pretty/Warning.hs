@@ -62,7 +62,7 @@ prettyWarningName w = hcat
   , text $ warningName2String w
   ]
 
-prettyWarning :: MonadPretty m => Warning -> m Doc
+prettyWarning :: forall m. MonadPretty m => Warning -> m Doc
 prettyWarning = \case
 
     UnsolvedMetaVariables ms  ->
@@ -354,6 +354,47 @@ prettyWarning = \case
       pwords "in hard compile-time mode"
 
     RecordFieldWarning w -> prettyRecordFieldWarning w
+
+    UnfoldingRedundancy trans lexical covered suggested ->
+      let
+        -- TODO: Investigate better NLG for error messages? Maybe?
+        pronoun x = singPlural x "it" "they"
+
+        list :: PrettyTCM a => [a] -> m Doc
+        list []     = empty
+        list [x]    = prettyTCM x
+        list [x, y] = fsep $ punctuate comma [prettyTCM x, prettyTCM y]
+        list xs     = (fsep (punctuate comma (prettyTCM <$> init xs)) <> ", and") <+> prettyTCM (last xs)
+
+        transparent = case trans of
+          [] -> []
+          xs -> [ " *" <+> (list xs <> ":")
+              <+> fsep ([pronoun xs, singPlural xs "doesn't" "don't", "belong"] ++ pwords "to any opaque block" )
+                ]
+
+        lexical' = case lexical of
+          [] -> []
+          xs -> [ " *" <+> (list xs <> ":")
+              <+> fsep ([pronoun xs, "already", singPlural xs "belongs" "belong"] ++ pwords "to this opaque block")
+                ]
+
+        covers a xs = case xs of
+          [] -> []
+          xs -> [ " *" <+> (list xs <> ":")
+              <+> fsep ([singPlural xs "its" "their"] ++ pwords "unfolding is implied by that of" ++ [prettyTCM a]) ]
+
+        all = (() <$ transparent) ++ (() <$ lexical) ++ (() <$ covered)
+
+      in vcat $
+        [ fsep ( pwords "The following"
+             ++ [singPlural all "name is" "names are"]
+             ++ pwords "redundant in this unfolding clause:")
+        ]
+        ++ transparent
+        ++ lexical'
+        ++ (covered >>= uncurry covers)
+        ++ [ "Suggestion: Why not: unfolding" <+> parens (fsep (punctuate ";" (prettyTCM <$> suggested)))
+           ]
 
 prettyRecordFieldWarning :: MonadPretty m => RecordFieldWarning -> m Doc
 prettyRecordFieldWarning = \case

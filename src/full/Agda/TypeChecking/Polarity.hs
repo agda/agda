@@ -95,7 +95,7 @@ purgeNonvariant = map (\ p -> if p == Nonvariant then Covariant else p)
 polarityFromPositivity
   :: (HasConstInfo m, MonadTCEnv m, MonadTCState m, MonadDebug m)
   => QName -> m ()
-polarityFromPositivity x = inConcreteOrAbstractMode x $ \ def -> do
+polarityFromPositivity x = inIdentifierReductionMode x $ \ def -> do
 
   -- Get basic polarity from positivity analysis.
   let npars = droppedPars def
@@ -123,7 +123,7 @@ computePolarity xs = do
  when (length xs >= 2) $ mapM_ polarityFromPositivity xs
 
  -- Then, refine it.
- forM_ xs $ \ x -> inConcreteOrAbstractMode x $ \ def -> do
+ forM_ xs $ \ x -> inIdentifierReductionMode x $ \ def -> do
   reportSLn "tc.polarity.set" 25 $ "Refining polarity of " ++ prettyShow x
 
   -- Again: get basic polarity from positivity analysis.

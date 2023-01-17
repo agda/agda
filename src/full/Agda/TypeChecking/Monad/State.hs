@@ -361,7 +361,7 @@ setTopLevelModule :: TopLevelModuleName -> TCM ()
 setTopLevelModule top = do
   let hash = moduleNameId top
   stFreshNameId `setTCLens'` NameId 0 hash
-  stFreshAbstractId `setTCLens'` AbstractId 0 hash
+  stFreshOpaqueId `setTCLens'` OpaqueId 0 hash
   stFreshMetaId `setTCLens'`
     MetaId { metaId     = 0
            , metaModule = hash
@@ -389,11 +389,13 @@ currentTopLevelModule = do
 withTopLevelModule :: TopLevelModuleName -> TCM a -> TCM a
 withTopLevelModule x m = do
   nextN <- useTC stFreshNameId
+  nextO <- useTC stFreshOpaqueId
   nextM <- useTC stFreshMetaId
   setTopLevelModule x
   y <- m
   stFreshMetaId `setTCLens` nextM
   stFreshNameId `setTCLens` nextN
+  stFreshOpaqueId `setTCLens` nextO
   return y
 
 currentModuleNameHash :: ReadTCState m => m ModuleNameHash

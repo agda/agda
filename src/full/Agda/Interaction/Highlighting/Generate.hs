@@ -140,7 +140,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
       TCM.$$
     TCM.prettyA decl
 
-  ignoreAbstractMode $ do
+  ignoreReducibility $ do
     kinds <- nameKinds hlLevel decl
 
     -- After the code has been type checked more information may be
@@ -506,6 +506,7 @@ warningHighlighting' b w = case tcWarning w of
       -- Highlighting the variable instead might be misleading,
       -- suggesting that it is not generalized over.
     UselessAbstract{}                -> deadcodeHighlighting w
+    UselessOpaque{}                  -> deadcodeHighlighting w
     UselessInstance{}                -> deadcodeHighlighting w
     UselessPrivate{}                 -> deadcodeHighlighting w
     InvalidNoPositivityCheckPragma{} -> deadcodeHighlighting w
@@ -530,6 +531,7 @@ warningHighlighting' b w = case tcWarning w of
     UnknownFixityInMixfixDecl{}       -> mempty
     UnknownNamesInFixityDecl{}        -> mempty
     UnknownNamesInPolarityPragmas{}   -> mempty
+  UnfoldingRedundancy{} -> mempty
 
 recordFieldWarningHighlighting ::
   RecordFieldWarning -> HighlightingInfoBuilder

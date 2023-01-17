@@ -28,7 +28,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
 import Agda.Syntax.Internal.MetaVars (allMetasList)
 import qualified Agda.Syntax.Info as Info
-import Agda.Syntax.Info hiding (defAbstract)
+import Agda.Syntax.Info
 
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
@@ -97,7 +97,7 @@ checkFunDef delayed i name cs = do
         case isAlias cs t of  -- #418: Don't use checkAlias for abstract definitions, since the type
                               -- of an abstract function must not be informed by its definition.
           Just (e, mc, x)
-            | null (Info.defAbstract i) ->
+            | isReducible (Info.defReduces i) ->
               traceCall (CheckFunDefCall (getRange i) name cs True) $ do
                 -- Andreas, 2012-11-22: if the alias is in an abstract block
                 -- it has been frozen.  We unfreeze it to enable type inference.
@@ -211,7 +211,7 @@ checkAlias t ai delayed i name e mc =
           , _funCompiled  = Just $ Done [] $ bodyMod v
           , _funSplitTree = Just $ SplittingDone 0
           , _funDelayed   = delayed
-          , _funAbstr     = Info.defAbstract i
+          , _funAbstr     = Info.defReduces i
           }
 
   -- Andreas, 2017-01-01, issue #2372:
@@ -401,17 +401,19 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
 
         -- Clause compilation runs the coverage checker, which might add
         -- some extra clauses.
-        cs <- defClauses <$> getConstInfo name
+        ci <- getConstInfo name
+        let
+          cs = defClauses ci
+          ismacro = isMacro (theDef ci)
+          covering = funCovering (theDef ci)
 
+        ac <- asksTC (^. lensIsReducible)
         reportSDoc "tc.cc" 60 $ inTopContext $ do
           sep [ "compiled clauses of" <+> prettyTCM name
               , nest 2 $ pretty cc
+              , nest 2 $ text $ show ac
+              , nest 2 $ text $ show (theDef ci)
               ]
-
-        -- The macro tag might be on the type signature
-        ismacro <- isMacro . theDef <$> getConstInfo name
-
-        covering <- funCovering . theDef <$> getConstInfo name
 
         -- Add the definition
         inTopContext $ addConstant name =<< do
@@ -432,7 +434,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
              , _funSplitTree      = mst
              , _funDelayed        = delayed
              , _funInv            = inv
-             , _funAbstr          = Info.defAbstract i
+             , _funAbstr          = Info.defReduces i
              , _funExtLam         = (\ e -> e { extLamSys = sys }) <$> extlam
              , _funWith           = with
              , _funCovering       = covering
@@ -1208,7 +1210,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
   cs <- return $ map (A.spineToLhs) cs
 
   -- #4833: inherit abstract mode from parent
-  abstr <- defAbstract <$> ignoreAbstractMode (getConstInfo f)
+  abstr <- defReducible <$> ignoreReducibility (getConstInfo f)
 
   -- Check the with function
   let info = Info.mkDefInfo (nameConcrete $ qnameName aux) noFixity' PublicAccess abstr (getRange cs)

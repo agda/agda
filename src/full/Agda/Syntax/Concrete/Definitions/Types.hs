@@ -47,47 +47,47 @@ import Data.Word
       content (Expr, Declaration ...)
 -}
 data NiceDeclaration
-  = Axiom Range Access IsAbstractUnfolding IsInstance ArgInfo Name Expr
+  = Axiom Range Access IsReducible IsInstance ArgInfo Name Expr
       -- ^ 'IsAbstractUnfolding' argument: We record whether a declaration was made in an @abstract@ block.
       --
       --   'ArgInfo' argument: Axioms and functions can be declared irrelevant.
       --   ('Hiding' should be 'NotHidden'.)
-  | NiceField Range Access IsAbstractUnfolding IsInstance TacticAttribute Name (Arg Expr)
-  | PrimitiveFunction Range Access IsAbstractUnfolding Name (Arg Expr)
+  | NiceField Range Access IsReducible IsInstance TacticAttribute Name (Arg Expr)
+  | PrimitiveFunction Range Access IsReducible Name (Arg Expr)
   | NiceMutual Range TerminationCheck CoverageCheck PositivityCheck [NiceDeclaration]
-  | NiceModule Range Access IsAbstractUnfolding Erased QName Telescope
+  | NiceModule Range Access IsReducible Erased QName Telescope
       [Declaration]
   | NiceModuleMacro Range Access Erased Name ModuleApplication
       OpenShortHand ImportDirective
   | NiceOpen Range QName ImportDirective
   | NiceImport Range QName (Maybe AsName) OpenShortHand ImportDirective
   | NicePragma Range Pragma
-  | NiceRecSig Range Erased Access IsAbstractUnfolding PositivityCheck
+  | NiceRecSig Range Erased Access IsReducible PositivityCheck
       UniverseCheck Name [LamBinding] Expr
-  | NiceDataSig Range Erased Access IsAbstractUnfolding PositivityCheck
+  | NiceDataSig Range Erased Access IsReducible PositivityCheck
       UniverseCheck Name [LamBinding] Expr
-  | NiceFunClause Range Access IsAbstractUnfolding TerminationCheck CoverageCheck Catchall Declaration
+  | NiceFunClause Range Access IsReducible TerminationCheck CoverageCheck Catchall Declaration
     -- ^ An uncategorized function clause, could be a function clause
     --   without type signature or a pattern lhs (e.g. for irrefutable let).
     --   The 'Declaration' is the actual 'FunClause'.
-  | FunSig Range Access IsAbstractUnfolding IsInstance IsMacro ArgInfo TerminationCheck CoverageCheck Name Expr
-  | FunDef Range [Declaration] IsAbstractUnfolding IsInstance TerminationCheck CoverageCheck Name [Clause]
+  | FunSig Range Access IsReducible IsInstance IsMacro ArgInfo TerminationCheck CoverageCheck Name Expr
+  | FunDef Range [Declaration] IsReducible IsInstance TerminationCheck CoverageCheck Name [Clause]
       -- ^ Block of function clauses (we have seen the type signature before).
       --   The 'Declaration's are the original declarations that were processed
       --   into this 'FunDef' and are only used in 'notSoNiceDeclaration'.
       --   Andreas, 2017-01-01: Because of issue #2372, we add 'IsInstance' here.
       --   An alias should know that it is an instance.
-  | NiceDataDef Range Origin IsAbstractUnfolding PositivityCheck UniverseCheck Name [LamBinding] [NiceConstructor]
+  | NiceDataDef Range Origin IsReducible PositivityCheck UniverseCheck Name [LamBinding] [NiceConstructor]
   | NiceLoneConstructor Range [NiceConstructor]
-  | NiceRecDef Range Origin IsAbstractUnfolding PositivityCheck UniverseCheck Name RecordDirectives [LamBinding] [Declaration]
+  | NiceRecDef Range Origin IsReducible PositivityCheck UniverseCheck Name RecordDirectives [LamBinding] [Declaration]
       -- ^ @(Maybe Range)@ gives range of the 'pattern' declaration.
   | NicePatternSyn Range Access Name [Arg Name] Pattern
   | NiceGeneralize Range Access ArgInfo TacticAttribute Name Expr
-  | NiceUnquoteDecl Range Access IsAbstractUnfolding IsInstance TerminationCheck CoverageCheck [Name] Expr
-  | NiceUnquoteDef Range Access IsAbstractUnfolding TerminationCheck CoverageCheck [Name] Expr
-  | NiceUnquoteData Range Access IsAbstractUnfolding PositivityCheck UniverseCheck Name [Name] Expr
-  | NiceUnfolding Range AbstractId Unfolding
-    -- ^ Unfolding declaration for the specified 'abstract' block. The
+  | NiceUnquoteDecl Range Access IsReducible IsInstance TerminationCheck CoverageCheck [Name] Expr
+  | NiceUnquoteDef Range Access IsReducible TerminationCheck CoverageCheck [Name] Expr
+  | NiceUnquoteData Range Access IsReducible PositivityCheck UniverseCheck Name [Name] Expr
+  | NiceUnfolding Range OpaqueId Unfolding
+    -- ^ Unfolding declaration for the specified 'opaque' block. The
     -- list of ids collects enclosing abstract blocks, whose unfolding
     -- declarations should be merged with this one.
   deriving (Show, Generic)

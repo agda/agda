@@ -79,7 +79,7 @@ etaCon :: (MonadTCEnv m, HasConstInfo m, HasOptions m)
   -> (QName -> ConHead -> ConInfo -> Args -> m Term)
               -- ^ Eta-contraction workhorse, gets also name of record type.
   -> m Term   -- ^ Returns @Con c ci args@ or its eta-contraction.
-etaCon c ci es cont = ignoreAbstractMode $ do
+etaCon c ci es cont = ignoreReducibility $ do
   let fallback = return $ Con c ci es
   -- reportSDoc "tc.eta" 20 $ "eta-contracting record" <+> prettyTCM t
   r <- getConstructorData $ conName c -- fails in ConcreteMode if c is abstract

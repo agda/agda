@@ -813,7 +813,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
 
             info <- getConstInfo qx
             let cls = defClauses info
-                a   = defAbstract info
+                a   = defReducible info
                 mcc = defCompiled info
                 inv = defInverse info
             bindPrimitive pfname $ pf { primFunName = qx }
@@ -981,7 +981,7 @@ bindBuiltinNoDef b q = inTopContext $ do
       PrimImpl t pf <- lookupPrimitiveFunction name
       bindPrimitive name $ pf { primFunName = q }
       let v   = Def q []
-          def = Primitive { primAbstr    = NoAbstract
+          def = Primitive { primAbstr    = AlwaysReducible
                           , primName     = name
                           , primClauses  = []
                           , primInv      = NotInjective
@@ -1002,7 +1002,7 @@ bindBuiltinNoDef b q = inTopContext $ do
               , conArity  = 0
               , conSrcCon = ch
               , conData   = d
-              , conAbstr  = NoAbstract
+              , conAbstr  = AlwaysReducible
               , conInd    = Inductive
               , conComp   = emptyCompKit
               , conProj   = Nothing
@@ -1029,7 +1029,7 @@ bindBuiltinNoDef b q = inTopContext $ do
               , dataClause     = Nothing
               , dataCons       = []     -- Constructors are added later
               , dataSort       = getSort t
-              , dataAbstr      = NoAbstract
+              , dataAbstr      = AlwaysReducible
               , dataMutual     = Nothing
               , dataPathCons   = []
               , dataTranspIx   = Nothing -- Id has custom transp def.

@@ -153,6 +153,7 @@ import Agda.Utils.Impossible
     'where'                   { TokKeyword KwWhere $$ }
     'do'                      { TokKeyword KwDo $$ }
     'with'                    { TokKeyword KwWith $$ }
+    'opaque'                  { TokKeyword KwOpaque $$ }
 
     'BUILTIN'                 { TokKeyword KwBUILTIN $$ }
     'CATCHALL'                { TokKeyword KwCATCHALL $$ }
@@ -260,6 +261,7 @@ Token
     | 'mutual'                  { TokKeyword KwMutual $1 }
     | 'no-eta-equality'         { TokKeyword KwNoEta $1 }
     | 'open'                    { TokKeyword KwOpen $1 }
+    | 'opaque'                  { TokKeyword KwOpaque $1 }
     | 'overlap'                 { TokKeyword KwOverlap $1 }
     | 'pattern'                 { TokKeyword KwPatternSyn $1 }
     | 'postulate'               { TokKeyword KwPostulate $1 }
@@ -1146,6 +1148,7 @@ Declaration
     | Generalize      { singleton $1 }
     | Mutual          { singleton $1 }
     | Abstract        { singleton $1 }
+    | Opaque          { singleton $1 }
     | Private         { singleton $1 }
     | Instance        { singleton $1 }
     | Macro           { singleton $1 }
@@ -1323,16 +1326,24 @@ CommaUnfoldingNames1
     : QId                           { singleton $1 }
     | QId ';' CommaUnfoldingNames1  { $1 <| $3 }
 
-AbstractBody :: { (C.Unfolding, [Declaration]) }
-AbstractBody
+
+-- Abstract blocks.
+Abstract :: { Declaration }
+Abstract : 'abstract' Declarations0 { Abstract (fuseRange $1 $2) $2 }
+
+-- Opaque blocks can be optionally followed by an 'unfolding' clause.
+-- Since the unfolding clause is OPTIONAL, we have to treat opaque as a
+-- layout keyword, too. So if there is an unfolding clause, we have to
+-- eat the layout keyword.
+OpaqueBody :: { (C.Unfolding, [Declaration]) }
+OpaqueBody
   :  vopen 'unfolding' '(' CommaUnfoldingNames ')' 'where' Declarations0 close
     { (C.Unfolding { unfoldingRange = getRange $2 , unfoldingNames = $4 } , $7) }
   | Declarations0 { (empty, $1) }
 
-
 -- Abstract declarations.
-Abstract :: { Declaration }
-Abstract : 'abstract' AbstractBody { Abstract (fuseRange $1 $2) (fst $2) (snd $2) }
+Opaque :: { Declaration }
+Opaque : 'opaque' OpaqueBody { Opaque (fuseRange $1 $2) (fst $2)  (snd $2) }
 
 
 -- Private can only appear on the top-level (or rather the module level).

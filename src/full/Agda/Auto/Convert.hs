@@ -26,7 +26,7 @@ import qualified Agda.Syntax.Position as SP
 
 import qualified Agda.TypeChecking.Monad.Base as MB
 
-import Agda.TypeChecking.Monad.Signature (getConstInfo, getDefFreeVars, ignoreAbstractMode)
+import Agda.TypeChecking.Monad.Signature (getConstInfo, getDefFreeVars, ignoreReducibility)
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Monad.Base (mvJudgement, mvPermutation, getMetaInfo, envContext, clEnv)
 import Agda.TypeChecking.Monad.MetaVars
@@ -728,7 +728,7 @@ negtype ee = f (0 :: Int)
 -- ---------------------------------------
 
 findClauseDeep :: Cm.InteractionId -> MB.TCM (Maybe (AN.QName, I.Clause, Bool))
-findClauseDeep ii = ignoreAbstractMode $ do  -- Andreas, 2016-09-04, issue #2162
+findClauseDeep ii = ignoreReducibility $ do  -- Andreas, 2016-09-04, issue #2162
   MB.InteractionPoint { MB.ipClause = ipCl} <- lookupInteractionPoint ii
   case ipCl of
     MB.IPNoClause -> return Nothing

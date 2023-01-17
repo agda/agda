@@ -153,7 +153,8 @@ fixitiesAndPolarities' = foldMap $ \case
   -- We look into these blocks:
   Mutual    _ ds' -> fixitiesAndPolarities' ds'
   InterleavedMutual _ ds' -> fixitiesAndPolarities' ds'
-  Abstract  _ _ ds' -> fixitiesAndPolarities' ds'
+  Opaque  _ _ ds' -> fixitiesAndPolarities' ds'
+  Abstract  _ ds' -> fixitiesAndPolarities' ds'
   Private _ _ ds' -> fixitiesAndPolarities' ds'
   InstanceB _ ds' -> fixitiesAndPolarities' ds'
   Macro     _ ds' -> fixitiesAndPolarities' ds'
@@ -231,7 +232,8 @@ declaredNames = \case
   Mutual    _ ds        -> foldMap declaredNames ds
   InterleavedMutual    _ ds -> foldMap declaredNames ds
   LoneConstructor _ ds  -> foldMap declaredNames ds
-  Abstract  _ _ ds      -> foldMap declaredNames ds
+  Abstract  _ ds        -> foldMap declaredNames ds
+  Opaque  _ _ ds        -> foldMap declaredNames ds
   Private _ _ ds        -> allPrivateNames $ foldMap declaredNames ds
   InstanceB _ ds        -> foldMap declaredNames ds
   Macro     _ ds        -> foldMap declaredNames ds

@@ -1644,7 +1644,7 @@ checkSharpApplication e t c args = do
 
     -- Define and type check the fresh function.
     mod <- currentModality
-    abs <- asksTC (^. lensIsAbstract)
+    abs <- asksTC (^. lensIsReducible)
     let info   = A.mkDefInfo (A.nameConcrete $ A.qnameName c') noFixity'
                              PublicAccess abs noRange
         core   = A.LHSProj { A.lhsDestructor = unambiguous flat

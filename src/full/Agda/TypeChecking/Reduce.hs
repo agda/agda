@@ -656,7 +656,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
     Constructor{conSrcCon = c} -> do
       let hd = Con (c `withRangeOf` f) ConOSystem
       rewrite (NotBlocked ReallyNotBlocked ()) hd rewr es
-    Primitive{primAbstr = NoAbstract, primName = x, primClauses = cls} -> do
+    Primitive{primAbstr = abs, primName = x, primClauses = cls} | isReducible abs -> do
       pf <- fromMaybe __IMPOSSIBLE__ <$> getPrimitive' x
       if FunctionReductions `SmallSet.member` allowed
         then reducePrimitive x v0 f es pf dontUnfold
@@ -788,10 +788,9 @@ reduceHead v = do -- ignoreAbstractMode $ do
 
   -- first, possibly rewrite literal v to constructor form
   v <- constructorForm v
-  traceSDoc "tc.inj.reduce" 30 (ignoreAbstractMode $ "reduceHead" <+> prettyTCM v) $ do
+  traceSDoc "tc.inj.reduce" 30 (ignoreReducibility $ "reduceHead" <+> prettyTCM v) $ do
   case v of
     Def f es -> do
-
       abstractMode <- envAbstractMode <$> askTC
       isAbstract <- treatAbstractly f
       traceSLn "tc.inj.reduce" 50 (

@@ -464,7 +464,8 @@ data Declaration
   | PatternSyn  Range Name [Arg Name] Pattern
   | Mutual      Range [Declaration]  -- @Range@ of the whole @mutual@ block.
   | InterleavedMutual Range [Declaration]
-  | Abstract    Range Unfolding [Declaration]
+  | Abstract    Range [Declaration]
+  | Opaque      Range Unfolding [Declaration]
   | Private     Range Origin [Declaration]
     -- ^ In "Agda.Syntax.Concrete.Definitions" we generate private blocks
     --   temporarily, which should be treated different that user-declared
@@ -513,7 +514,7 @@ data Unfolding
     { unfoldingRange :: Range
     , unfoldingNames :: [QName]
     }
-  | UnfoldingId AbstractId
+  | UnfoldingId OpaqueId
   | NoUnfolding
   deriving (Eq, Show)
 
@@ -911,7 +912,8 @@ instance HasRange Declaration where
   getRange (Mutual r _)            = r
   getRange (InterleavedMutual r _) = r
   getRange (LoneConstructor r _)   = r
-  getRange (Abstract r _ _)        = r
+  getRange (Abstract r _)          = r
+  getRange (Opaque r _ _)          = r
   getRange (Generalize r _)        = r
   getRange (Open r _ _)            = r
   getRange (ModuleMacro r _ _ _ _ _)
@@ -1071,7 +1073,8 @@ instance KillRange Declaration where
   killRange (Mutual _ d)            = killRange1 (Mutual noRange) d
   killRange (InterleavedMutual _ d) = killRange1 (InterleavedMutual noRange) d
   killRange (LoneConstructor _ d)   = killRange1 (LoneConstructor noRange) d
-  killRange (Abstract _ u d)        = killRange2 (Abstract noRange) u d
+  killRange (Abstract _ d)          = killRange1 (Abstract noRange) d
+  killRange (Opaque _ u d)          = killRange2 (Opaque noRange) u d
   killRange (Private _ o d)         = killRange2 (Private noRange) o d
   killRange (InstanceB _ d)         = killRange1 (InstanceB noRange) d
   killRange (Macro _ d)             = killRange1 (Macro noRange) d
@@ -1296,7 +1299,8 @@ instance NFData Declaration where
   rnf (Mutual _ a)            = rnf a
   rnf (InterleavedMutual _ a) = rnf a
   rnf (LoneConstructor _ a)   = rnf a
-  rnf (Abstract _ a b)        = rnf a `seq` rnf b
+  rnf (Opaque _ a b)          = rnf a `seq` rnf b
+  rnf (Abstract _ b)          = rnf b
   rnf (Private _ _ a)         = rnf a
   rnf (InstanceB _ a)         = rnf a
   rnf (Macro _ a)             = rnf a

@@ -159,7 +159,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   , _dataClause     = Nothing
                   , _dataCons       = []     -- Constructors are added later
                   , _dataSort       = s
-                  , _dataAbstr      = Info.defAbstract i
+                  , _dataAbstr      = Info.defReduces i
                   , _dataMutual     = Nothing
                   , _dataPathCons   = []     -- Path constructors are added later
                   , _dataTranspIx   = Nothing -- Generated later if nofIxs > 0.
@@ -347,7 +347,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
 
             defineProjections d con params names fields dataT
             -- Cannot compose indexed inductive types yet.
-            comp <- if nofIxs /= 0 || not (null (Info.defAbstract i))
+            comp <- if nofIxs /= 0 || not (isReducible (Info.defReduces i))
                     then return emptyCompKit
                     else inTopContext $ defineCompData d con params names fields dataT boundary
             return (con, comp, Just names)
@@ -360,7 +360,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               , conArity  = arity
               , conSrcCon = con
               , conData   = d
-              , conAbstr  = Info.defAbstract i
+              , conAbstr  = Info.defReduces i
               , conInd    = Inductive
               , conComp   = comp
               , conProj   = projNames

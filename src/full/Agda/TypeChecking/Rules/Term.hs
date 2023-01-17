@@ -805,7 +805,7 @@ checkExtendedLambda cmp i di erased qname cs e t = do
 
      reportSDoc "tc.term.exlam" 20 $ vcat
        [ hsep
-         [ text $ show $ A.defAbstract di
+         [ text $ show $ A.defReduces di
          , "extended lambda's implementation"
          , doubleQuotes $ prettyTCM qname
          , "has type:"
@@ -817,7 +817,7 @@ checkExtendedLambda cmp i di erased qname cs e t = do
      -- Andreas, Ulf, 2016-02-02: We want to postpone type checking an extended lambda
      -- in case the lhs checker failed due to insufficient type info for the patterns.
      -- Issues 480, 1159, 1811.
-     abstract (A.defAbstract di) $ do
+     inReducibilityMode (A.defReduces di) $ do
        -- Andreas, 2013-12-28: add extendedlambda as @Function@, not as @Axiom@;
        -- otherwise, @addClause@ in @checkFunDef'@ fails (see issue 1009).
        addConstant qname =<< do
@@ -833,9 +833,6 @@ checkExtendedLambda cmp i di erased qname cs e t = do
          checkIApplyConfluence_ qname
        return $ Def qname $ map Apply args
   where
-    -- Concrete definitions cannot use information about abstract things.
-    abstract NoAbstract = inConcreteMode
-    abstract (AbstractUnfolding i) = inAbstractMode i
 
 -- | Run a computation.
 --

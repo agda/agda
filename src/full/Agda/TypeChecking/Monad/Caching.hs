@@ -36,14 +36,14 @@ cachingStarts :: (MonadDebug m, MonadTCState m, ReadTCState m) => m ()
 cachingStarts = do
     NameId _ m <- useTC stFreshNameId
     stFreshNameId `setTCLens` NameId 1 m
-    stFreshAbstractId `setTCLens` AbstractId 1 m
+    stFreshOpaqueId `setTCLens` OpaqueId 1 m
     stAreWeCaching `setTCLens` True
     validateCache m -- fixes issue #4835
     where
       validateCache m = (localCache readFromCachedLog) >>= \case
         Just (_ , s) -> do
           let NameId _ m' = stPostFreshNameId s
-          let AbstractId _ m'' = stPostFreshAbstractId s
+          let OpaqueId _ m'' = stPostFreshOpaqueId s
           when (m' /= m || m'' /= m) cleanCachedLog
         _ -> do
           return ()
@@ -70,7 +70,7 @@ restorePostScopeState pss = do
         pss' = pss{stPostInteractionPoints = stPostInteractionPoints pss `mergeIPMap` ipoints
                   ,stPostTCWarnings = stPostTCWarnings pss `mergeWarnings` ws
                   -- Scope checker must recompute these every time (TODO):
-                  ,stPostAbstractBlocks = s ^. stAbstractBlocks
+                  ,stPostOpaqueBlocks = s ^. stAbstractBlocks
                   ,stPostUnfoldDefs = s ^. stUnfoldDefs
                   }
     in  s{stPostScopeState = pss'}

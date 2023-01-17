@@ -1,0 +1,83 @@
+UnfoldingWarnings.agda:15,1-17,15
+warning: -W[no]UnfoldingRedundancy
+The following name is redundant in this unfolding clause:
+ * foo: its unfolding is implied by that of bar
+Suggestion: Why not: unfolding (bar)
+when scope checking the declaration
+  opaque
+UnfoldingWarnings.agda:19,1-21,16
+warning: -W[no]UnfoldingRedundancy
+The following name is redundant in this unfolding clause:
+ * foo, bar: their unfolding is implied by that of baz
+Suggestion: Why not: unfolding (baz)
+when scope checking the declaration
+  opaque
+UnfoldingWarnings.agda:34,1-39,11
+warning: -W[no]UnfoldingRedundancy
+The following names are redundant in this unfolding clause:
+ * quux: it doesn't belong to any opaque block
+ * asdf, ghij: they already belong to this opaque block
+ * foo, bar, and baz: their unfolding is implied by that of baz′
+Suggestion: Why not: unfolding (baz′; some-other)
+when scope checking the declaration
+  opaque
+UnfoldingWarnings.agda:41,1-43,8
+warning: -W[no]UnfoldingRedundancy
+The following names are redundant in this unfolding clause:
+ * test, quux: they don't belong to any opaque block
+ * foo, bar, and baz: their unfolding is implied by that of asdf
+Suggestion: Why not: unfolding (asdf)
+when scope checking the declaration
+  opaque
+UnfoldingWarnings.agda:45,1-47,8
+warning: -W[no]UnfoldingRedundancy
+The following name is redundant in this unfolding clause:
+ * foo: its unfolding is implied by that of baz
+Suggestion: Why not: unfolding (baz)
+when scope checking the declaration
+  opaque
+
+———— All done; warnings encountered ————————————————————————
+
+UnfoldingWarnings.agda:15,1-17,15
+warning: -W[no]UnfoldingRedundancy
+The following name is redundant in this unfolding clause:
+ * foo: its unfolding is implied by that of bar
+Suggestion: Why not: unfolding (bar)
+when scope checking the declaration
+  opaque
+
+UnfoldingWarnings.agda:19,1-21,16
+warning: -W[no]UnfoldingRedundancy
+The following name is redundant in this unfolding clause:
+ * foo, bar: their unfolding is implied by that of baz
+Suggestion: Why not: unfolding (baz)
+when scope checking the declaration
+  opaque
+
+UnfoldingWarnings.agda:34,1-39,11
+warning: -W[no]UnfoldingRedundancy
+The following names are redundant in this unfolding clause:
+ * quux: it doesn't belong to any opaque block
+ * asdf, ghij: they already belong to this opaque block
+ * foo, bar, and baz: their unfolding is implied by that of baz′
+Suggestion: Why not: unfolding (baz′; some-other)
+when scope checking the declaration
+  opaque
+
+UnfoldingWarnings.agda:41,1-43,8
+warning: -W[no]UnfoldingRedundancy
+The following names are redundant in this unfolding clause:
+ * test, quux: they don't belong to any opaque block
+ * foo, bar, and baz: their unfolding is implied by that of asdf
+Suggestion: Why not: unfolding (asdf)
+when scope checking the declaration
+  opaque
+
+UnfoldingWarnings.agda:45,1-47,8
+warning: -W[no]UnfoldingRedundancy
+The following name is redundant in this unfolding clause:
+ * foo: its unfolding is implied by that of baz
+Suggestion: Why not: unfolding (baz)
+when scope checking the declaration
+  opaque
