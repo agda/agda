@@ -46,6 +46,7 @@ import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.InstanceArguments (postponeInstanceConstraints)
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
+import Agda.TypeChecking.Modalities
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive hiding (Nat)
@@ -366,10 +367,10 @@ inferDef mkTerm x =
             v = mkTerm vs -- applies x to vs, dropping parameters
 
         -- Andrea 2019-07-16, Check that the supplied arguments
-        -- respect the cohesion modalities of the current context.
-        -- Cohesion is purely based on left-division, so it does not
-        -- rely on "position" like Relevance/Quantity.
-        checkCohesionArgs vs
+        -- respect the pure modalities of the current context.
+        -- Pure modalities are based on left-division, so it does not
+        -- rely on "position" like positional modalities.
+        checkModalityArgs vs
 
         debug vs t v
         return (v, t)
@@ -382,81 +383,6 @@ inferDef mkTerm x =
         [ "inferred def " <+> prettyTCM x <+> hsep (map prettyTCM vs)
         , nest 2 $ ":" <+> prettyTCM t
         , nest 2 $ "-->" <+> prettyTCM v ]
-
-checkCohesionArgs :: Args -> TCM ()
-checkCohesionArgs vs = do
-  let
-    vmap :: VarMap
-    vmap = freeVars vs
-
-  -- we iterate over all vars in the context and their ArgInfo,
-  -- checking for each that "vs" uses them as allowed.
-  as <- getContextArgs
-  forM_ as $ \ (Arg avail t) -> do
-    let m = do
-          v <- deBruijnView t
-          varModality <$> lookupVarMap v vmap
-    whenJust m $ \ used -> do
-        unless (getCohesion avail `moreCohesion` getCohesion used) $
-           (genericDocError =<<) $ fsep $
-                ["Variable" , prettyTCM t]
-             ++ pwords "is used as" ++ [text $ show $ getCohesion used]
-             ++ pwords "but only available as" ++ [text $ show $ getCohesion avail]
-
--- | The second argument is the definition of the first.
---   Returns 'Nothing' if ok, otherwise the error message.
-checkRelevance' :: QName -> Definition -> TCM (Maybe TypeError)
-checkRelevance' x def = do
-  case getRelevance def of
-    Relevant -> return Nothing -- relevance functions can be used in any context.
-    drel -> do
-      -- Andreas,, 2018-06-09, issue #2170
-      -- irrelevant projections are only allowed if --irrelevant-projections
-      ifM (return (isJust $ isProjection_ $ theDef def) `and2M`
-           (not . optIrrelevantProjections <$> pragmaOptions)) {-then-} needIrrProj {-else-} $ do
-        rel <- viewTC eRelevance
-        reportSDoc "tc.irr" 50 $ vcat
-          [ "declaration relevance =" <+> text (show drel)
-          , "context     relevance =" <+> text (show rel)
-          ]
-        return $ if (drel `moreRelevant` rel) then Nothing else Just $ DefinitionIsIrrelevant x
-  where
-  needIrrProj = Just . GenericDocError <$> do
-    sep [ "Projection " , prettyTCM x, " is irrelevant."
-        , " Turn on option --irrelevant-projections to use it (unsafe)."
-        ]
-
--- | The second argument is the definition of the first.
---   Returns 'Nothing' if ok, otherwise the error message.
-checkQuantity' :: QName -> Definition -> TCM (Maybe TypeError)
-checkQuantity' x def = do
-  case getQuantity def of
-    dq@Quantityω{} -> do
-      reportSDoc "tc.irr" 50 $ vcat
-        [ "declaration quantity =" <+> text (show dq)
-        -- , "context     quantity =" <+> text (show q)
-        ]
-      return Nothing -- Abundant definitions can be used in any context.
-    dq -> do
-      q <- viewTC eQuantity
-      reportSDoc "tc.irr" 50 $ vcat
-        [ "declaration quantity =" <+> text (show dq)
-        , "context     quantity =" <+> text (show q)
-        ]
-      return $ if (dq `moreQuantity` q) then Nothing else Just $ DefinitionIsErased x
-
--- | The second argument is the definition of the first.
-checkModality' :: QName -> Definition -> TCM (Maybe TypeError)
-checkModality' x def = do
-  checkRelevance' x def >>= \case
-    Nothing    -> checkQuantity' x def
-    err@Just{} -> return err
-
--- | The second argument is the definition of the first.
-checkModality :: QName -> Definition -> TCM ()
-checkModality x def = justToError $ checkModality' x def
-  where
-  justToError m = maybe (return ()) typeError =<< m
 
 -- | @checkHeadApplication e t hd args@ checks that @e@ has type @t@,
 -- assuming that @e@ has the form @hd args@. The corresponding
