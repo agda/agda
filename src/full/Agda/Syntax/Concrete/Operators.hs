@@ -23,7 +23,8 @@ import Control.Monad.Except (throwError)
 
 import Data.Either (partitionEithers)
 import qualified Data.Foldable as Fold
-import Data.Function
+import Data.Function (on)
+import qualified Data.Function
 import qualified Data.List as List
 import Data.Maybe
 import Data.Map (Map)

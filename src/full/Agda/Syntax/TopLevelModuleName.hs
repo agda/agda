@@ -6,7 +6,7 @@ module Agda.Syntax.TopLevelModuleName where
 
 import Control.DeepSeq
 
-import Data.Function
+import Data.Function (on)
 import Data.Hashable
 import qualified Data.List as List
 import Data.Text (Text)

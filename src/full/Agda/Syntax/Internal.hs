@@ -14,7 +14,7 @@ import Prelude hiding (null)
 import Control.Monad.Identity
 import Control.DeepSeq
 
-import Data.Function
+import Data.Function (on)
 import qualified Data.List as List
 import Data.Maybe
 import Data.Semigroup ( Semigroup, (<>), Sum(..) )

@@ -7,7 +7,7 @@ import Control.Monad (filterM)
 import Data.Array (Array, array, listArray)
 import qualified Data.Array as Array
 import Data.Bifunctor
-import Data.Function
+import Data.Function (on)
 import Data.Hashable
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as List1

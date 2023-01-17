@@ -51,7 +51,7 @@ import Control.Monad.IO.Class ( MonadIO(..) )
 
 import Data.Char
 import Data.Either
-import Data.Function
+import Data.Function (on)
 import Data.Map ( Map )
 import qualified Data.Map as Map
 import Data.Maybe ( catMaybes, fromMaybe )

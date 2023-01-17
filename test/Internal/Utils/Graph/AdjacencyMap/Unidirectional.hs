@@ -26,7 +26,7 @@ import Agda.Utils.Pretty
 import Control.Monad
 
 import qualified Data.Foldable as Fold
-import Data.Function
+import Data.Function (on)
 import qualified Data.Graph as Graph
 import qualified Data.List as List
 import Data.Maybe

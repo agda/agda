@@ -8,7 +8,7 @@ import Control.Monad.Except
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
 
-import Data.Function
+import Data.Function (on)
 import Data.Semigroup ((<>))
 import Data.IntMap (IntMap)
 

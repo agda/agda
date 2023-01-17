@@ -11,7 +11,7 @@ import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
 import qualified Data.HashSet as HSet
 import Data.Char
-import Data.Function
+import Data.Function (on)
 #if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup
 #endif

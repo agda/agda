@@ -29,7 +29,7 @@ import Control.Monad.Except
 
 import qualified Data.CaseInsensitive as CaseInsens
 import Data.Foldable (foldl)
-import Data.Function
+import Data.Function (on)
 import Data.List (sortBy, dropWhileEnd, intercalate)
 import Data.Maybe
 import qualified Data.Set as Set

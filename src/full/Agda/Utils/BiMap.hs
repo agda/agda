@@ -12,7 +12,7 @@ import Prelude hiding (null, lookup)
 import Control.Monad.Identity
 import Control.Monad.State
 
-import Data.Function
+import Data.Function (on)
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map

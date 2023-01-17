@@ -5,7 +5,7 @@ module Agda.TypeChecking.Abstract where
 import Control.Monad
 import Control.Monad.Except
 
-import Data.Function
+import Data.Function (on)
 import qualified Data.HashMap.Strict as HMap
 
 import Agda.Syntax.Common

@@ -9,7 +9,7 @@ import Control.Monad ( guard )
 import Control.Monad.Fail ( MonadFail )
 
 import Data.Char ( toLower )
-import Data.Function
+import Data.Function (on)
 import Data.Maybe
 
 import qualified Data.Set as Set

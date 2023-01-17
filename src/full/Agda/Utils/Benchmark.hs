@@ -15,7 +15,7 @@ import Control.Monad.State
 import Control.Monad.IO.Class ( MonadIO(..) )
 
 
-import Data.Function
+import Data.Function (on)
 import qualified Data.List as List
 import Data.Monoid
 import Data.Maybe
