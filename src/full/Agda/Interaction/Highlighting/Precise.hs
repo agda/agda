@@ -33,7 +33,7 @@ import Control.Arrow (second)
 import Control.DeepSeq
 import Control.Monad
 
-import Data.Function
+import Data.Function (on)
 import qualified Data.List as List
 import Data.Maybe
 import Data.Semigroup

@@ -48,7 +48,7 @@ module Agda.Termination.SparseMatrix
   ) where
 
 import Data.Array
-import Data.Function
+import Data.Function (on)
 import qualified Data.List as List
 import Data.Maybe
 

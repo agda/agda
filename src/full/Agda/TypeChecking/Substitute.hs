@@ -22,7 +22,7 @@ import Control.Monad (guard)
 import Control.Monad.Except (throwError)
 
 import Data.Coerce
-import Data.Function
+import Data.Function (on)
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map.Strict as MapS

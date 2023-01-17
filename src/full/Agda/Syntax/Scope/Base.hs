@@ -12,7 +12,7 @@ import Control.Monad
 
 import Data.Either (partitionEithers)
 import Data.Foldable ( length, toList )
-import Data.Function
+import Data.Function (on)
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map

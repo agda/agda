@@ -12,7 +12,7 @@ import Prelude hiding (length)
 import Control.DeepSeq
 
 import Data.Foldable (length)
-import Data.Function
+import Data.Function (on)
 import Data.Hashable (Hashable(..))
 import qualified Data.List as List
 import Data.Maybe

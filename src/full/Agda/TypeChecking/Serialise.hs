@@ -50,7 +50,7 @@ import qualified Data.Binary as B
 import qualified Data.Binary.Get as B
 import qualified Data.Binary.Put as B
 import qualified Data.List as List
-import Data.Function
+import Data.Function (on)
 #if !(MIN_VERSION_base(4,11,0))
 import Data.Semigroup((<>))
 #endif

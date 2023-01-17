@@ -20,7 +20,7 @@ import Prelude hiding (log)
 import Data.Bifunctor (second)
 import Data.Char
 import Data.Maybe
-import Data.Function
+import Data.Function (on)
 import Data.Foldable (toList)
 #if !(MIN_VERSION_base(4,11,0))
 import Data.Semigroup (Semigroup(..))

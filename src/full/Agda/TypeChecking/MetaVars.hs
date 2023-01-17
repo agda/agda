@@ -9,7 +9,7 @@ import Control.Monad        ( foldM, forM, forM_, liftM2, void )
 import Control.Monad.Except ( MonadError(..), ExceptT, runExceptT )
 import Control.Monad.Trans  ( lift )
 
-import Data.Function
+import Data.Function (on)
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import qualified Data.Map.Strict as MapS
