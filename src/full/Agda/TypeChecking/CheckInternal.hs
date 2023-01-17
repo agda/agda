@@ -22,7 +22,9 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Datatypes -- (getConType, getFullyAppliedConType)
+import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Level
+import Agda.TypeChecking.Modalities (checkModalityArgs)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.ProjectionLike (elimView, ProjEliminator(..))
@@ -33,12 +35,16 @@ import Agda.TypeChecking.Sort
 import Agda.TypeChecking.Telescope
 
 
+import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor (($>))
 import Agda.Utils.Maybe
+import Agda.Utils.Monad (unlessM)
 import Agda.Utils.Pretty  (prettyShow)
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
+
+import Agda.Interaction.Options
 
 -- * Bidirectional rechecker
 
@@ -128,11 +134,26 @@ instance CheckInternal Term where
     v <- elimViewAction action =<< preAction action t v
     postAction action t =<< case v of
       Var i es   -> do
-        a <- typeOfBV i
+        d <- domOfBV i
+        n <- nameOfBV i
+
+        -- Lucas, 23-11-2022:
+        -- For now we only check if pure modalities are respected.
+        -- In the future we SHOULD also be doing the same checks for every modality, as in Rules/Applications.hs
+        -- (commented below)
+        -- but this will break stuff that is allowed right now
+
+        unless (usableCohesion d) $
+          typeError $ VariableIsOfUnusableCohesion n (getCohesion d)
+
         reportSDoc "tc.check.internal" 30 $ fsep
-          [ "variable" , prettyTCM (var i) , "has type" , prettyTCM a ]
-        checkSpine action a (Var i) es cmp t
+          [ "variable" , prettyTCM (var i) , "has type" , prettyTCM (unDom d)
+          , "and modality", pretty (getModality d) ]
+        checkSpine action (unDom d) (Var i) es cmp t
       Def f es   -> do  -- f is not projection(-like)!
+        -- There is no "implicitely applied module telescope" at this stage, so no
+        -- need to check it for modal errors, everything is covered by the
+        -- variable rule!
         a <- defType <$> getConstInfo f
         checkSpine action a (Def f) es cmp t
       MetaV x es -> do -- we assume meta instantiations to be well-typed
@@ -160,13 +181,16 @@ instance CheckInternal Term where
         s <- shouldBeSort t
         reportSDoc "tc.check.internal" 30 $ "pi type should have sort" <+> prettyTCM s
         when (s == SizeUniv) $ typeError $ FunctionTypeInSizeUniv v
+        experimental <- optExperimentalIrrelevance <$> pragmaOptions
         let sa  = getSort a
             sb  = getSort (unAbs b)
             mkDom v = El sa v <$ a
             mkRng v = fmap (v <$) b
             -- Preserve NoAbs
-            goInside = case b of Abs{}   -> addContext (absName b, a)
-                                 NoAbs{} -> id
+            goInside = case b of
+              Abs{}   -> addContext $ (absName b,) $
+                applyWhen experimental (mapRelevance irrToNonStrict) a
+              NoAbs{} -> id
         a <- mkDom <$> checkInternal' action (unEl $ unDom a) CmpLeq (sort sa)
         v' <- goInside $ Pi a . mkRng <$> checkInternal' action (unEl $ unAbs b) CmpLeq (sort sb)
         s' <- sortOf v -- Issue #6205: do not use v' since it might not be valid syntax
@@ -271,7 +295,7 @@ inferSpine action t hd es = loop t hd id es
         Apply (Arg ai v) -> do
           (a, b) <- shouldBePi t
           ai <- checkArgInfo action ai $ domInfo a
-          v' <- checkInternal' action v CmpLeq $ unDom a
+          v' <- applyModalityToContext (getModality a) $ checkInternal' action v CmpLeq $ unDom a
           let e' = Apply (Arg ai v')
           loop (b `absApp` v) (hd . (e:)) (acc . (e':)) es
         -- case: projection or projection-like
