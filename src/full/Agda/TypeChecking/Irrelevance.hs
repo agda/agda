@@ -96,7 +96,6 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.WithDefault
 import qualified Agda.Utils.Null as Null
-import Agda.Utils.WithDefault (collapseDefault)
 
 -- | data 'Relevance'
 --   see "Agda.Syntax.Common".

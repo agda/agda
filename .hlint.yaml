@@ -67,7 +67,6 @@
 - ignore: {name: "Use const"} # 67 hints
 - ignore: {name: "Use elem"} # 2 hints
 - ignore: {name: "Use empty"} # 1 hint
-- ignore: {name: "Use fewer imports"} # 6 hints
 - ignore: {name: "Use fmap"} # 5 hints
 - ignore: {name: "Use fold"} # 1 hint
 - ignore: {name: "Use fromMaybe"} # 1 hint

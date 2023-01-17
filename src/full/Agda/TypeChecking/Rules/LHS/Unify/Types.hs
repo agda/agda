@@ -48,7 +48,6 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Rules.LHS.Problem
 
 import Agda.Utils.Empty
-import Agda.Utils.Either
 import Agda.Utils.Benchmark
 import Agda.Utils.Either
 import Agda.Utils.Function

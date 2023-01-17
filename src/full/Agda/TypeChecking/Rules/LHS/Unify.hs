@@ -170,7 +170,6 @@ import Agda.TypeChecking.Rules.LHS.Unify.Types
 import Agda.TypeChecking.Rules.LHS.Unify.LeftInverse
 
 import Agda.Utils.Empty
-import Agda.Utils.Either
 import Agda.Utils.Benchmark
 import Agda.Utils.Either
 import Agda.Utils.Function
