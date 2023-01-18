@@ -523,7 +523,15 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
       reportSDoc "tc.mod.apply" 80 $ vcat
         [ "copyDef" <+> pretty x <+> "->" <+> pretty y
         , "ts' = " <+> pretty ts' ]
-      copyDef' ts' np def
+      -- The module telescope had been divided by some μ, so the corresponding
+      -- top level definition had type μ \ Γ → B, so if we have a substitution
+      -- Δ → Γ we actually want to apply μ \ - to it, so the new top-level
+      -- definition we get will have signature μ \ Δ → B.  This is only valid
+      -- for pure modality systems though.
+      let ai = defArgInfo def
+          m = unitModality { modCohesion = getCohesion ai }
+      localTC (over eContext (map (mapModality (m `inverseComposeModality`)))) $
+        copyDef' ts' np def
       where
         copyDef' ts np d = do
           reportSDoc "tc.mod.apply" 60 $ "making new def for" <+> pretty y <+> "from" <+> pretty x <+> "with" <+> text (show np) <+> "args" <+> text (show $ defAbstract d)
