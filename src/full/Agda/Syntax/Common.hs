@@ -458,7 +458,7 @@ moreUsableModality :: Modality -> Modality -> Bool
 moreUsableModality m m' = related m POLE m'
 
 usableModality :: LensModality a => a -> Bool
-usableModality a = usableRelevance m && usableQuantity m
+usableModality a = usableRelevance m && usableQuantity m && usableCohesion m
   where m = getModality a
 
 -- | Multiplicative monoid (standard monoid).
@@ -1458,7 +1458,7 @@ inverseComposeCohesion r x =
   case (r, x) of
     (Continuous  , x) -> x          -- going to continous arg.: nothing changes
                                     -- because Continuous is comp.-neutral
-    (Squash, x)       -> Squash     -- artificial case, should not be needed.
+    (Squash, x)       -> Flat       -- in squash position everything is usable
     (Flat , Flat)     -> Flat       -- otherwise: Flat things remain Flat
     (Flat , _)        -> Squash     -- but everything else becomes unusable.
 
