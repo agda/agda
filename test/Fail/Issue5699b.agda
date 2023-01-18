@@ -1,6 +1,7 @@
 open import Agda.Builtin.List
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Unit
+open import Agda.Builtin.Bool
 open import Agda.Builtin.Reflection renaming (bindTC to _>>=_)
 
 data D (A : Set) (x : A) : Set where
@@ -11,7 +12,7 @@ f A _ (c y) = y
 
 macro
   m : Term → TC ⊤
-  m hole = withReconstructed do
+  m hole = withReconstructed true do
     qf ← quoteTC (f (D Nat 0))
     qqf ← quoteTC qf
     typeError (termErr qqf ∷ [])

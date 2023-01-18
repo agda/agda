@@ -70,8 +70,10 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMQuoteTerm, builtinAgdaTCMUnquoteTerm, builtinAgdaTCMQuoteOmegaTerm,
   builtinAgdaTCMBlockOnMeta, builtinAgdaTCMCommit, builtinAgdaTCMIsMacro,
   builtinAgdaTCMFormatErrorParts, builtinAgdaTCMDebugPrint,
-  builtinAgdaTCMWithNormalisation, builtinAgdaTCMWithReconsParams,
-  builtinAgdaTCMOnlyReduceDefs, builtinAgdaTCMDontReduceDefs,
+  builtinAgdaTCMWithNormalisation, builtinAgdaTCMWithReconstructed,
+  builtinAgdaTCMWithExpandLast, builtinAgdaTCMWithReduceDefs,
+  builtinAgdaTCMAskNormalisation, builtinAgdaTCMAskReconstructed,
+  builtinAgdaTCMAskExpandLast, builtinAgdaTCMAskReduceDefs,
   builtinAgdaTCMNoConstraints,
   builtinAgdaTCMRunSpeculative,
   builtinAgdaTCMExec,
@@ -277,11 +279,15 @@ builtinAgdaTCMUnquoteTerm                = "AGDATCMUNQUOTETERM"
 builtinAgdaTCMQuoteOmegaTerm             = "AGDATCMQUOTEOMEGATERM"
 builtinAgdaTCMIsMacro                    = "AGDATCMISMACRO"
 builtinAgdaTCMWithNormalisation          = "AGDATCMWITHNORMALISATION"
-builtinAgdaTCMWithReconsParams           = "AGDATCMWITHRECONSPARAMS"
+builtinAgdaTCMWithReconstructed          = "AGDATCMWITHRECONSTRUCTED"
+builtinAgdaTCMWithExpandLast             = "AGDATCMWITHEXPANDLAST"
+builtinAgdaTCMWithReduceDefs             = "AGDATCMWITHREDUCEDEFS"
+builtinAgdaTCMAskNormalisation           = "AGDATCMASKNORMALISATION"
+builtinAgdaTCMAskReconstructed           = "AGDATCMASKRECONSTRUCTED"
+builtinAgdaTCMAskExpandLast              = "AGDATCMASKEXPANDLAST"
+builtinAgdaTCMAskReduceDefs              = "AGDATCMASKREDUCEDEFS"
 builtinAgdaTCMFormatErrorParts           = "AGDATCMFORMATERRORPARTS"
 builtinAgdaTCMDebugPrint                 = "AGDATCMDEBUGPRINT"
-builtinAgdaTCMOnlyReduceDefs             = "AGDATCMONLYREDUCEDEFS"
-builtinAgdaTCMDontReduceDefs             = "AGDATCMDONTREDUCEDEFS"
 builtinAgdaTCMNoConstraints              = "AGDATCMNOCONSTRAINTS"
 builtinAgdaTCMRunSpeculative             = "AGDATCMRUNSPECULATIVE"
 builtinAgdaTCMExec                       = "AGDATCMEXEC"

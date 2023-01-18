@@ -1,3 +1,4 @@
+open import Agda.Builtin.Bool
 open import Agda.Builtin.Reflection renaming (bindTC to _>>=_)
 open import Agda.Builtin.Sigma
 open import Agda.Builtin.List
@@ -25,7 +26,7 @@ postulate
 macro
   rtest : Name → Term → TC ⊤
   rtest f a = do
-     (function (clause tel _ t ∷ [])) ← withReconstructed (getDefinition f) where
+     (function (clause tel _ t ∷ [])) ← withReconstructed true (getDefinition f) where
         _ → typeError (strErr "ERROR" ∷ [])
      t ← inContext (reverse tel) (normalise t)
      quoteTC t >>= unify a

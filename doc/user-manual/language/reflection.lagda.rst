@@ -486,6 +486,21 @@ following primitive operations::
     -- to normalise (or not) their results. The default behaviour is no
     -- normalisation.
     withNormalisation : ∀ {a} {A : Set a} → Bool → TC A → TC A
+    askNormalisation  : TC Bool
+
+    -- If 'true', makes the following primitives to reconstruct hidden arguments:
+    -- getDefinition, normalise, reduce, inferType, checkType and getContext
+    withReconstructed : ∀ {a} {A : Set a} → Bool → TC A → TC A
+    askReconstructed  : TC Bool
+
+    -- Whether implicit arguments at the end should be turned into metavariables
+    withExpandLast : ∀ {a} {A : Set a} → Bool → TC A → TC A
+    askExpandLast  : TC Bool
+
+    -- White/blacklist specific definitions for reduction while executing the TC computation
+    -- 'true' for whitelist, 'false' for blacklist
+    withReduceDefs : ∀ {a} {A : Set a} → (Σ Bool λ _ → List Name) → TC A → TC A
+    askReduceDefs  : TC (Σ Bool λ _ → List Name)
 
     -- Prints the third argument to the debug buffer in Emacs
     -- if the verbosity level (set by the -v flag to Agda)
@@ -496,16 +511,6 @@ following primitive operations::
 
     -- Return the formatted string of the argument using the internal pretty printer.
     formatErrorParts : List ErrorPart → TC String
-
-    -- Only allow reduction of specific definitions while executing the TC computation
-    onlyReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
-
-    -- Don't allow reduction of specific definitions while executing the TC computation
-    dontReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
-
-    -- Makes the following primitives to reconstruct hidden parameters:
-    -- getDefinition, normalise, reduce, inferType, checkType and getContext
-    withReconstructed : ∀ {a} {A : Set a} → TC A → TC A
 
     -- Fail if the given computation gives rise to new, unsolved
     -- "blocking" constraints.
@@ -545,9 +550,14 @@ following primitive operations::
   {-# BUILTIN AGDATCMCOMMIT                     commitTC                   #-}
   {-# BUILTIN AGDATCMISMACRO                    isMacro                    #-}
   {-# BUILTIN AGDATCMWITHNORMALISATION          withNormalisation          #-}
+  {-# BUILTIN AGDATCMWITHRECONSTRUCTED          withReconstructed          #-}
+  {-# BUILTIN AGDATCMWITHEXPANDLAST             withExpandLast             #-}
+  {-# BUILTIN AGDATCMWITHREDUCEDEFS             withReduceDefs             #-}
+  {-# BUILTIN AGDATCMASKNORMALISATION           askNormalisation           #-}
+  {-# BUILTIN AGDATCMASKRECONSTRUCTED           askReconstructed           #-}
+  {-# BUILTIN AGDATCMASKEXPANDLAST              askExpandLast              #-}
+  {-# BUILTIN AGDATCMASKREDUCEDEFS              askReduceDefs              #-}
   {-# BUILTIN AGDATCMDEBUGPRINT                 debugPrint                 #-}
-  {-# BUILTIN AGDATCMONLYREDUCEDEFS             onlyReduceDefs             #-}
-  {-# BUILTIN AGDATCMDONTREDUCEDEFS             dontReduceDefs             #-}
   {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
   {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
   {-# BUILTIN AGDATCMGETINSTANCES               getInstances               #-}

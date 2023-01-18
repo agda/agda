@@ -567,6 +567,10 @@ evalTCM v = do
     I.Def f [] ->
       choice [ (f `isDef` primAgdaTCMGetContext,       tcGetContext)
              , (f `isDef` primAgdaTCMCommit,           tcCommit)
+             , (f `isDef` primAgdaTCMAskNormalisation, tcAskNormalisation)
+             , (f `isDef` primAgdaTCMAskReconstructed, tcAskReconstructed)
+             , (f `isDef` primAgdaTCMAskExpandLast,    tcAskExpandLast)
+             , (f `isDef` primAgdaTCMAskReduceDefs,    tcAskReduceDefs)
              ]
              failEval
     I.Def f [u] ->
@@ -593,26 +597,26 @@ evalTCM v = do
              ]
              failEval
     I.Def f [l, a, u] ->
-      choice [ (f `isDef` primAgdaTCMReturn,      return (unElim u))
-             , (f `isDef` primAgdaTCMTypeError,   tcFun1 tcTypeError   u)
-             , (f `isDef` primAgdaTCMQuoteTerm,   tcQuoteTerm (mkT (unElim l) (unElim a)) (unElim u))
-             , (f `isDef` primAgdaTCMUnquoteTerm, tcFun1 (tcUnquoteTerm (mkT (unElim l) (unElim a))) u)
-             , (f `isDef` primAgdaTCMBlockOnMeta, uqFun1 tcBlockOnMeta u)
-             , (f `isDef` primAgdaTCMDebugPrint,  tcFun3 tcDebugPrint l a u)
-             , (f `isDef` primAgdaTCMNoConstraints, tcNoConstraints (unElim u))
-             , (f `isDef` primAgdaTCMWithReconsParams, tcWithReconsParams (unElim u))
+      choice [ (f `isDef` primAgdaTCMReturn,             return (unElim u))
+             , (f `isDef` primAgdaTCMTypeError,          tcFun1 tcTypeError   u)
+             , (f `isDef` primAgdaTCMQuoteTerm,          tcQuoteTerm (mkT (unElim l) (unElim a)) (unElim u))
+             , (f `isDef` primAgdaTCMUnquoteTerm,        tcFun1 (tcUnquoteTerm (mkT (unElim l) (unElim a))) u)
+             , (f `isDef` primAgdaTCMBlockOnMeta,        uqFun1 tcBlockOnMeta u)
+             , (f `isDef` primAgdaTCMDebugPrint,         tcFun3 tcDebugPrint l a u)
+             , (f `isDef` primAgdaTCMNoConstraints,      tcNoConstraints (unElim u))
              , (f `isDef` primAgdaTCMDeclareData, uqFun3 tcDeclareData l a u)
-             , (f `isDef` primAgdaTCMRunSpeculative, tcRunSpeculative (unElim u))
+             , (f `isDef` primAgdaTCMRunSpeculative,     tcRunSpeculative (unElim u))
              , (f `isDef` primAgdaTCMExec, tcFun3 tcExec l a u)
              , (f `isDef` primAgdaTCMPragmaCompile, tcFun3 tcPragmaCompile l a u)
              ]
              failEval
     I.Def f [_, _, u, v] ->
-      choice [ (f `isDef` primAgdaTCMCatchError,    tcCatchError    (unElim u) (unElim v))
+      choice [ (f `isDef` primAgdaTCMCatchError,        tcCatchError    (unElim u) (unElim v))
              , (f `isDef` primAgdaTCMWithNormalisation, tcWithNormalisation (unElim u) (unElim v))
-             , (f `isDef` primAgdaTCMInContext,     tcInContext     (unElim u) (unElim v))
-             , (f `isDef` primAgdaTCMOnlyReduceDefs, tcOnlyReduceDefs (unElim u) (unElim v))
-             , (f `isDef` primAgdaTCMDontReduceDefs, tcDontReduceDefs (unElim u) (unElim v))
+             , (f `isDef` primAgdaTCMWithReconstructed, tcWithReconstructed (unElim u) (unElim v))
+             , (f `isDef` primAgdaTCMWithExpandLast,    tcWithExpandLast (unElim u) (unElim v))
+             , (f `isDef` primAgdaTCMWithReduceDefs,    tcWithReduceDefs (unElim u) (unElim v))
+             , (f `isDef` primAgdaTCMInContext,         tcInContext     (unElim u) (unElim v))
              ]
              failEval
     I.Def f [_, _, u, v, w] ->
@@ -641,22 +645,25 @@ evalTCM v = do
     tcCatchError m h =
       liftU2 (\ m1 m2 -> m1 `catchError` \ _ -> m2) (evalTCM m) (evalTCM h)
 
-    tcWithNormalisation :: Term -> Term -> UnquoteM Term
-    tcWithNormalisation b m = do
+    tcAskLens :: ToTerm a => Lens' a TCEnv -> UnquoteM Term
+    tcAskLens l = liftTCM (toTerm <*> asksTC (\ e -> e ^. l))
+
+    tcWithLens :: Unquote a => Lens' a TCEnv -> Term -> Term -> UnquoteM Term
+    tcWithLens l b m = do
       v <- unquote b
-      liftU1 (locallyTC eUnquoteNormalise $ const v) (evalTCM m)
+      liftU1 (locallyTC l $ const v) (evalTCM m)
 
-    tcOnlyReduceDefs = tcDoReduceDefs OnlyReduceDefs
-    tcDontReduceDefs = tcDoReduceDefs DontReduceDefs
+    tcWithNormalisation, tcWithReconstructed, tcWithExpandLast, tcWithReduceDefs :: Term -> Term -> UnquoteM Term
+    tcWithNormalisation = tcWithLens eUnquoteNormalise
+    tcWithReconstructed = tcWithLens eReconstructed
+    tcWithExpandLast    = tcWithLens eExpandLastBool
+    tcWithReduceDefs    = tcWithLens eReduceDefsPair
 
-    tcWithReconsParams :: Term -> UnquoteM Term
-    tcWithReconsParams m = liftU1 locallyReconstructed $ evalTCM m
-
-    tcDoReduceDefs :: (Set QName -> ReduceDefs) -> Term -> Term -> UnquoteM Term
-    tcDoReduceDefs reduceDefs v m = do
-      qs <- unquote v
-      let defs = reduceDefs $ Set.fromList qs
-      liftU1 (locallyTC eReduceDefs (<> defs)) (evalTCM m)
+    tcAskNormalisation, tcAskReconstructed, tcAskExpandLast, tcAskReduceDefs :: UnquoteM Term
+    tcAskNormalisation = tcAskLens eUnquoteNormalise
+    tcAskReconstructed = tcAskLens eReconstructed
+    tcAskExpandLast    = tcAskLens eExpandLastBool
+    tcAskReduceDefs    = tcAskLens eReduceDefsPair
 
     uqFun1 :: Unquote a => (a -> UnquoteM b) -> Elim -> UnquoteM b
     uqFun1 fun a = do

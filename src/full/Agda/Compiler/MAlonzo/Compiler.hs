@@ -278,11 +278,15 @@ ghcPreCompile flags = do
       , builtinAgdaTCMCommit
       , builtinAgdaTCMIsMacro
       , builtinAgdaTCMWithNormalisation
-      , builtinAgdaTCMWithReconsParams
+      , builtinAgdaTCMWithReconstructed
+      , builtinAgdaTCMWithExpandLast
+      , builtinAgdaTCMWithReduceDefs
+      , builtinAgdaTCMAskNormalisation
+      , builtinAgdaTCMAskReconstructed
+      , builtinAgdaTCMAskExpandLast
+      , builtinAgdaTCMAskReduceDefs
       , builtinAgdaTCMFormatErrorParts
       , builtinAgdaTCMDebugPrint
-      , builtinAgdaTCMOnlyReduceDefs
-      , builtinAgdaTCMDontReduceDefs
       , builtinAgdaTCMNoConstraints
       , builtinAgdaTCMRunSpeculative
       , builtinAgdaTCMExec

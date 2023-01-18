@@ -41,7 +41,7 @@ import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map -- hiding (singleton, null, empty)
 import Data.Sequence (Seq)
-import Data.Set (Set)
+import Data.Set (Set, toList, fromList)
 import qualified Data.Set as Set -- hiding (singleton, null, empty)
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
@@ -3031,16 +3031,13 @@ shouldReduceDef f = asksTC envReduceDefs <&> \case
   OnlyReduceDefs defs -> f `Set.member` defs
   DontReduceDefs defs -> not $ f `Set.member` defs
 
-instance Semigroup ReduceDefs where
-  OnlyReduceDefs qs1 <> OnlyReduceDefs qs2 = OnlyReduceDefs $ Set.intersection qs1 qs2
-  OnlyReduceDefs qs1 <> DontReduceDefs qs2 = OnlyReduceDefs $ Set.difference   qs1 qs2
-  DontReduceDefs qs1 <> OnlyReduceDefs qs2 = OnlyReduceDefs $ Set.difference   qs2 qs1
-  DontReduceDefs qs1 <> DontReduceDefs qs2 = DontReduceDefs $ Set.union        qs1 qs2
+toReduceDefs :: (Bool, [QName]) -> ReduceDefs
+toReduceDefs (True,  ns) = OnlyReduceDefs (Data.Set.fromList ns)
+toReduceDefs (False, ns) = DontReduceDefs (Data.Set.fromList ns)
 
-instance Monoid ReduceDefs where
-  mempty  = reduceAllDefs
-  mappend = (<>)
-
+fromReduceDefs :: ReduceDefs -> (Bool, [QName])
+fromReduceDefs (OnlyReduceDefs ns) = (True,  toList ns)
+fromReduceDefs (DontReduceDefs ns) = (False, toList ns)
 
 locallyReconstructed :: MonadTCEnv m => m a -> m a
 locallyReconstructed = locallyTC eReconstructed . const $ True
@@ -3735,6 +3732,9 @@ eHighlightingMethod f e = f (envHighlightingMethod e) <&> \ x -> e { envHighligh
 eExpandLast :: Lens' ExpandHidden TCEnv
 eExpandLast f e = f (envExpandLast e) <&> \ x -> e { envExpandLast = x }
 
+eExpandLastBool :: Lens' Bool TCEnv
+eExpandLastBool f e = f (isExpandLast $ envExpandLast e) <&> \ x -> e { envExpandLast = toExpandLast x }
+
 eAppDef :: Lens' (Maybe QName) TCEnv
 eAppDef f e = f (envAppDef e) <&> \ x -> e { envAppDef = x }
 
@@ -3746,6 +3746,9 @@ eAllowedReductions f e = f (envAllowedReductions e) <&> \ x -> e { envAllowedRed
 
 eReduceDefs :: Lens' ReduceDefs TCEnv
 eReduceDefs f e = f (envReduceDefs e) <&> \ x -> e { envReduceDefs = x }
+
+eReduceDefsPair :: Lens' (Bool, [QName]) TCEnv
+eReduceDefsPair f e = f (fromReduceDefs $ envReduceDefs e) <&> \ x -> e { envReduceDefs = toReduceDefs x }
 
 eReconstructed :: Lens' Bool TCEnv
 eReconstructed f e = f (envReconstructed e) <&> \ x -> e { envReconstructed = x }
@@ -3869,10 +3872,17 @@ data ExpandHidden
   | ReallyDontExpandLast -- ^ Makes 'doExpandLast' have no effect. Used to avoid implicit insertion of arguments to metavariables.
   deriving (Eq, Generic)
 
+isExpandLast :: ExpandHidden -> Bool
+isExpandLast ExpandLast           = True
+isExpandLast DontExpandLast       = False
+isExpandLast ReallyDontExpandLast = False
+
 isDontExpandLast :: ExpandHidden -> Bool
-isDontExpandLast ExpandLast           = False
-isDontExpandLast DontExpandLast       = True
-isDontExpandLast ReallyDontExpandLast = True
+isDontExpandLast = not . isExpandLast
+
+toExpandLast :: Bool -> ExpandHidden
+toExpandLast True  = ExpandLast
+toExpandLast False = DontExpandLast
 
 data CandidateKind
   = LocalCandidate

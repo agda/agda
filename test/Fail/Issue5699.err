@@ -1,4 +1,4 @@
-Issue5699.agda:19,7-15
+Issue5699.agda:20,7-15
 bar {_24} {_25}
 when checking that the expression unquote (test (quoteTerm bar))
 has type ⊤

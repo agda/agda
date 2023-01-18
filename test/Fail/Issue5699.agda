@@ -3,12 +3,13 @@
 open import Agda.Builtin.Reflection renaming ( bindTC to _>>=_ )
 open import Agda.Builtin.List
 open import Agda.Builtin.Unit
+open import Agda.Builtin.Bool
 open import Agda.Primitive
 
 macro
   test : Term → Term → TC ⊤
   test argument _ = do
-    evaluated ← withReconstructed (reduce argument)
+    evaluated ← withReconstructed true (reduce argument)
     typeError (termErr evaluated ∷ [])
 
 module _ {ℓ} where

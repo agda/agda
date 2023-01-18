@@ -1,4 +1,4 @@
-Issue5699b.agda:19,8-9
+Issue5699b.agda:20,8-9
 lam visible
 (abs "x"
  (lam visible
