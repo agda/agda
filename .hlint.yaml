@@ -29,8 +29,6 @@
 - ignore: {name: "Hoist not"} # 18 hints
 - ignore: {name: "Move brackets to avoid $"} # 47 hints
 - ignore: {name: "Move guards forward"} # 2 hints
-- ignore: {name: "Parse error: on input `,'"} # 1 hint
-- ignore: {name: "Parse error: on input `module'"} # 1 hint
 - ignore: {name: "Redundant $"} # 632 hints
 - ignore: {name: "Redundant <$>"} # 46 hints
 - ignore: {name: "Redundant =="} # 1 hint
@@ -103,6 +101,8 @@
 # - arguments: [--color, --cpp-simple, -XQuasiQuotes]
 - arguments:
   - --ignore-glob=notes/papers/iird/paper.lhs
+  - --ignore-glob=notes/style/haskell-style.lhs
+  - --ignore-glob=notes/papers/implicit/examples.lhs
   - -XBangPatterns
   - -XConstraintKinds
   - -XDefaultSignatures
