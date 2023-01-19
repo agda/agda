@@ -19,7 +19,7 @@
 
 # Warnings currently triggered by your code
 - ignore: {name: "Avoid lambda"} # 40 hints
-- ignore: {name: "Avoid lambda using `infix`"} # 11 hints
+- ignore: {name: "Avoid lambda using `infix`"} # 12 hints
 - ignore: {name: "Eta reduce"} # 162 hints
 - ignore: {name: "Evaluate"} # 14 hints
 - ignore: {name: "Fuse concatMap/map"} # 1 hint
@@ -32,10 +32,9 @@
 - ignore: {name: "Redundant $"} # 632 hints
 - ignore: {name: "Redundant <$>"} # 46 hints
 - ignore: {name: "Redundant =="} # 1 hint
-- ignore: {name: "Redundant bracket"} # 452 hints
+- ignore: {name: "Redundant bracket"} # 454 hints
 - ignore: {name: "Redundant case"} # 1 hint
 - ignore: {name: "Redundant flip"} # 2 hints
-- ignore: {name: "Redundant fmap"} # 2 hints
 - ignore: {name: "Redundant guard"} # 6 hints
 - ignore: {name: "Redundant id"} # 1 hint
 - ignore: {name: "Redundant if"} # 3 hints

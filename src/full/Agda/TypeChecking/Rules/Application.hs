@@ -840,7 +840,7 @@ checkArgumentsE'
                 lift $ reportSDoc "tc.term.lock" 40 $ text "lock =" <+> text (show $ getLock info')
                 lift $ reportSDoc "tc.term.lock" 40 $
                   addContext (defaultDom $ sFun) $
-                  maybe (text "nothing") prettyTCM (absBody <$> c)
+                  maybe (text "nothing") (prettyTCM . absBody) c
                 -- save relevance info' from domain in argument
                 addCheckedArgs us (getRange e) (Apply $ Arg info' u) c $
                   checkArgumentsE' s{ sFun = absApp b u }
