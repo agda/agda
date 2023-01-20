@@ -137,7 +137,7 @@ jobs:
       if: ${{ runner.os == 'macOS' }}
       shell: bash
       run: |
-        echo "PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig" >> ${GITHUB_ENV}
+        echo "PKG_CONFIG_PATH=$(brew --prefix)/opt/icu4c/lib/pkgconfig" >> ${GITHUB_ENV}
 
     # Note that msys2 libraries have to be installed via
     #   stack exec ${ARGS} -- pacman ...
