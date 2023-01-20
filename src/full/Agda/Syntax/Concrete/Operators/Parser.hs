@@ -98,7 +98,8 @@ instance IsExpr Expr where
 
 instance IsExpr Pattern where
     exprView = \case
-        IdentP x         -> LocalV x
+        IdentP True x    -> LocalV x
+        IdentP False _   -> __IMPOSSIBLE__
         AppP e1 e2       -> AppV e1 e2
         OpAppP r d ns es -> OpAppV d ns $ (fmap . fmap . fmap) (noPlaceholder . Ordinary) es
         HiddenP _ e      -> HiddenArgV e
@@ -107,7 +108,7 @@ instance IsExpr Pattern where
         e@WildP{}        -> WildV e
         e                -> OtherV e
     unExprView = \case
-        LocalV x       -> IdentP x
+        LocalV x       -> IdentP True x
         AppV e1 e2     -> AppP e1 e2
         OpAppV d ns es -> let ess :: [NamedArg Pattern]
                               ess = (fmap . fmap . fmap)

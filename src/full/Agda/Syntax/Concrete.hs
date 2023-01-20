@@ -184,7 +184,16 @@ type OpAppArgs' e = [NamedArg (MaybePlaceholder (OpApp e))]
 
 -- | Concrete patterns. No literals in patterns at the moment.
 data Pattern
-  = IdentP QName                           -- ^ @c@ or @x@
+  = IdentP Bool QName                      -- ^ @c@ or @x@
+                                           --
+                                           -- If the boolean is
+                                           -- 'False', then the
+                                           -- 'QName' must not refer
+                                           -- to a constructor or a
+                                           -- pattern synonym. The
+                                           -- value 'False' is used
+                                           -- when a hidden argument
+                                           -- pun is expanded.
   | QuoteP Range                           -- ^ @quote@
   | AppP Pattern (NamedArg Pattern)        -- ^ @p p'@ or @p {x = p'}@
   | RawAppP Range (List2 Pattern)          -- ^ @p1..pn@ before parsing operators
@@ -632,10 +641,10 @@ unAppView (AppView e nargs) = rawApp (e :| map unNamedArg nargs)
 
 isSingleIdentifierP :: Pattern -> Maybe Name
 isSingleIdentifierP = \case
-  IdentP (QName x) -> Just x
-  WildP r          -> Just $ noName r
-  ParenP _ p       -> isSingleIdentifierP p
-  _                -> Nothing
+  IdentP _ (QName x) -> Just x
+  WildP r            -> Just $ noName r
+  ParenP _ p         -> isSingleIdentifierP p
+  _                  -> Nothing
 
 removeParenP :: Pattern -> Pattern
 removeParenP = \case
@@ -690,7 +699,7 @@ exprToPattern :: Applicative m
 exprToPattern fallback = loop
   where
   loop = \case
-    Ident       x        -> pure $ IdentP x
+    Ident       x        -> pure $ IdentP True x
     App         _ e1 e2  -> AppP <$> loop e1 <*> traverse (traverse loop) e2
     Paren       r e      -> ParenP r <$> loop e
     Underscore  r _      -> pure $ WildP r
@@ -744,7 +753,8 @@ isAbsurdP = \case
 
 isBinderP :: Pattern -> Maybe Binder
 isBinderP = \case
-  IdentP qn  -> mkBinder_ <$> isUnqualified qn
+  IdentP _ qn
+             -> mkBinder_ <$> isUnqualified qn
   WildP r    -> pure $ mkBinder_ $ setRange r simpleHole
   AsP r n p  -> pure $ Binder (Just p) $ mkBoundName_ n
   ParenP r p -> pure $ Binder (Just p) $ mkBoundName_ $ setRange r simpleHole
@@ -952,7 +962,7 @@ instance HasRange AsName where
   getRange a = getRange (asRange a, asName a)
 
 instance HasRange Pattern where
-  getRange (IdentP x)         = getRange x
+  getRange (IdentP _ x)       = getRange x
   getRange (AppP p q)         = fuseRange p q
   getRange (OpAppP r _ _ _)   = r
   getRange (RawAppP r _)      = r
@@ -974,7 +984,7 @@ instance HasRange Pattern where
 ------------------------------------------------------------------------
 
 instance SetRange Pattern where
-  setRange r (IdentP x)         = IdentP (setRange r x)
+  setRange r (IdentP c x)       = IdentP c (setRange r x)
   setRange r (AppP p q)         = AppP (setRange r p) (setRange r q)
   setRange r (OpAppP _ x ns ps) = OpAppP r x ns ps
   setRange r (RawAppP _ ps)     = RawAppP r ps
@@ -1117,7 +1127,7 @@ instance KillRange e => KillRange (OpApp e) where
   killRange (Ordinary e)                = killRange1 Ordinary e
 
 instance KillRange Pattern where
-  killRange (IdentP q)        = killRange1 IdentP q
+  killRange (IdentP c q)      = killRange2 IdentP c q
   killRange (AppP p ps)       = killRange2 AppP p ps
   killRange (RawAppP _ p)     = killRange1 (RawAppP noRange) p
   killRange (OpAppP _ n ns p) = killRange3 (OpAppP noRange) n ns p
@@ -1214,7 +1224,7 @@ instance NFData Expr where
 -- | Ranges are not forced.
 
 instance NFData Pattern where
-  rnf (IdentP a)       = rnf a
+  rnf (IdentP a b)     = rnf a `seq` rnf b
   rnf (QuoteP _)       = ()
   rnf (AppP a b)       = rnf a `seq` rnf b
   rnf (RawAppP _ a)    = rnf a

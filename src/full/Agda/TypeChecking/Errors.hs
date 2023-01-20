@@ -1008,7 +1008,7 @@ instance PrettyTCM TypeError where
         unambiguousP (C.InstanceP r x)    = C.InstanceP r $ fmap unambiguousP x
         unambiguousP (C.ParenP r x)       = C.ParenP r $ unambiguousP x
         unambiguousP (C.AsP r n x)        = C.AsP r n $ unambiguousP x
-        unambiguousP (C.OpAppP r op _ xs) = foldl C.AppP (C.IdentP op) xs
+        unambiguousP (C.OpAppP r op _ xs) = foldl C.AppP (C.IdentP True op) xs
         unambiguousP e                    = e
 
     OperatorInformation sects err ->

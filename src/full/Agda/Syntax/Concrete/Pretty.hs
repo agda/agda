@@ -682,7 +682,7 @@ instance Pretty e => Pretty (Named_ e) where
 instance Pretty Pattern where
     prettyList = fsep . map pretty
     pretty = \case
-            IdentP x        -> pretty x
+            IdentP _ x      -> pretty x
             AppP p1 p2      -> sep [ pretty p1, nest 2 $ pretty p2 ]
             RawAppP _ ps    -> fsep $ map pretty $ List2.toList ps
             OpAppP _ q _ ps -> fsep $ prettyOpApp q $ fmap (fmap (fmap (NoPlaceholder Strict.Nothing))) ps
