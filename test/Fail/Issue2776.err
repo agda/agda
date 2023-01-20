@@ -1,3 +1,3 @@
 Issue2776.agda:15,8-11
-(z : C) {y : D} (x : Set) → D → Set₁ !=< Set
+C → {y : D} → Set → D → Set₁ !=< Set
 when checking that the expression M.G has type Set

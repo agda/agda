@@ -104,7 +104,7 @@ isType' c e s =
 
 -- | Check that an expression is a type and infer its (minimal) sort.
 isType_ :: A.Expr -> TCM Type
-isType_ e = traceCall (IsType_ e) $ do
+isType_ e = traceCall (IsType_ e) $ normaliseSort =<< do
   reportResult "tc.term.istype" 15 (\a -> vcat
     [ "isType_" <?> prettyTCM e
     , nest 2 $ "returns" <?> prettyTCM a
@@ -232,6 +232,9 @@ isType_ e = traceCall (IsType_ e) $ do
         _ -> __IMPOSSIBLE__
 
     _ -> fallback
+  where
+    normaliseSort :: Type -> TCM Type
+    normaliseSort (El s a) = (\s -> El s a) <$> normalise s
 
 checkLevel :: NamedArg A.Expr -> TCM Level
 checkLevel arg = do
