@@ -83,7 +83,7 @@ jobs:
     - if: ${{ runner.os == 'macOS' }}
       name: Set up pkg-config for the ICU library (macOS)
       run: |
-        echo "PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig" >> ${GITHUB_ENV}
+        echo "PKG_CONFIG_PATH=$(brew --prefix)/opt/icu4c/lib/pkgconfig" >> ${GITHUB_ENV}
     - if: ${{ runner.os == 'Windows' }}
       name: Setup MSYS path (Windows)
       run: |
