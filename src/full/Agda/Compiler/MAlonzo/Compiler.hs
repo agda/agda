@@ -528,7 +528,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
       -- Compiling Bool
       Datatype{} | is ghcEnvBool -> do
-        _ <- sequence_ [primTrue, primFalse] -- Just to get the proper error for missing TRUE/FALSE
+        sequence_ [primTrue, primFalse] -- Just to get the proper error for missing TRUE/FALSE
         let d = dname q
         Just true  <- getBuiltinName builtinTrue
         Just false <- getBuiltinName builtinFalse
@@ -539,7 +539,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
       -- Compiling List
       Datatype{ dataPars = np } | is ghcEnvList -> do
-        _ <- sequence_ [primNil, primCons] -- Just to get the proper error for missing NIL/CONS
+        sequence_ [primNil, primCons] -- Just to get the proper error for missing NIL/CONS
         caseMaybe pragma (return ()) $ \ p -> setCurrentRange p $ warning . GenericWarning =<< do
           fsep $ pwords "Ignoring GHC pragma for builtin lists; they always compile to Haskell lists."
         let d = dname q
@@ -554,7 +554,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
       -- Compiling Maybe
       Datatype{ dataPars = np } | is ghcEnvMaybe -> do
-        _ <- sequence_ [primNothing, primJust] -- Just to get the proper error for missing NOTHING/JUST
+        sequence_ [primNothing, primJust] -- Just to get the proper error for missing NOTHING/JUST
         caseMaybe pragma (return ()) $ \ p -> setCurrentRange p $ warning . GenericWarning =<< do
           fsep $ pwords "Ignoring GHC pragma for builtin maybe; they always compile to Haskell lists."
         let d = dname q
@@ -584,7 +584,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       -- The interval is compiled as the type of booleans: 0 is
       -- compiled as False and 1 as True.
       Axiom{} | is ghcEnvInterval -> do
-        _       <- sequence_ [primIZero, primIOne]
+        sequence_ [primIZero, primIOne]
         Just i0 <- getBuiltinName builtinIZero
         Just i1 <- getBuiltinName builtinIOne
         cs      <- mapM (compiledcondecl (Just 0)) [i0, i1]
@@ -637,7 +637,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       -- PathP is compiled as a function from the interval (booleans)
       -- to the underlying type.
       Axiom{} | is ghcEnvPathP -> do
-        _        <- sequence_ [primInterval]
+        sequence_ [primInterval]
         Just int <- getBuiltinName builtinInterval
         int      <- xhqn TypeK int
         retDecls $
@@ -674,7 +674,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       -- Id x y is compiled as a pair of a boolean and whatever
       -- Path x y is compiled to.
       Datatype{} | is ghcEnvId -> do
-        _        <- sequence_ [primInterval]
+        sequence_ [primInterval]
         Just int <- getBuiltinName builtinInterval
         int      <- xhqn TypeK int
         -- re  #3733: implement reflId
