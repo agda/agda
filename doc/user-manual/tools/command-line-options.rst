@@ -477,6 +477,15 @@ Pattern matching and equality
 
      Default: ``--no-exact-split``.
 
+.. option:: --hidden-argument-puns, --no-hidden-argument-puns
+
+     .. versionadded:: 2.6.4
+
+     Enable [disable] :ref:`hidden argument puns
+     <hidden_argument_puns>`.
+
+     Default: ``--no-hidden-argument-puns``.
+
 .. option:: --no-eta-equality
 
      .. versionadded:: 2.5.1
@@ -1175,6 +1184,7 @@ again, the source file is re-typechecked instead:
 * :option:`--experimental-irrelevance`
 * :option:`--flat-split`
 * :option:`--guarded`
+* :option:`--hidden-argument-puns`
 * :option:`--infer-absurd-clauses`
 * :option:`--injective-type-constructors`
 * :option:`--instance-search-depth`

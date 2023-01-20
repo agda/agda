@@ -640,12 +640,12 @@ classifyPattern conf p =
   case patternAppView p of
 
     -- case @f ps@
-    Arg _ (Named _ (IdentP x)) :| ps | Just x == topName conf -> do
+    Arg _ (Named _ (IdentP _ x)) :| ps | Just x == topName conf -> do
       mapM_ (valid . namedArg) ps
       return $ ParseLHS x $ lhsCoreAddSpine (LHSHead x []) ps
 
     -- case @d ps@
-    Arg _ (Named _ (IdentP x)) :| ps | fldName conf x -> do
+    Arg _ (Named _ (IdentP _ x)) :| ps | fldName conf x -> do
 
       -- Step 1: check for valid copattern lhs.
       ps0 :: [NamedArg ParseLHS] <- mapM classPat ps
@@ -727,7 +727,7 @@ validConPattern cons = loop
   loop p = case appView p of
       WithP _ p :| [] -> loop p
       _ :| []         -> ok
-      IdentP x :| ps
+      IdentP _ x :| ps
         | cons x      -> mapM_ loop ps
         | otherwise   -> failure
       QuoteP _ :| [_] -> ok
@@ -744,7 +744,7 @@ appView = loop []
   where
   loop acc = \case
     AppP p a         -> loop (namedArg a : acc) p
-    OpAppP _ op _ ps -> (IdentP op :| fmap namedArg ps)
+    OpAppP _ op _ ps -> (IdentP True op :| fmap namedArg ps)
                           `List1.appendList`
                         reverse acc
     ParenP _ p       -> loop acc p

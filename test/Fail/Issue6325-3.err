@@ -1,0 +1,5 @@
+Issue6325-3.agda:22,6-9
+A pun must not use the pattern synonym one
+when scope checking the left-hand side
+.extendedlambda0 _ {one} {(A)} _ in the definition of
+.extendedlambda0

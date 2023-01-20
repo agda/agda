@@ -61,6 +61,25 @@ Syntactic Sugar
    :depth: 2
    :local:
 
+.. _hidden_argument_puns:
+
+Hidden argument puns
+====================
+
+If the option :option:`--hidden-argument-puns` is used, then the
+pattern ``{x}`` is interpreted as ``{x = x}``, and the pattern
+``⦃ x ⦄`` is interpreted as ``⦃ x = x ⦄``. Here ``x`` must be an
+unqualified name that does not refer to a constructor that is in
+scope: if ``x`` is qualified, then the pattern is not interpreted as a
+pun, and if ``x`` is unqualified and refers to a constructor that is
+in scope, then the code is rejected.
+
+Note that ``{(x)}`` and ``⦃ (x) ⦄`` are not interpreted as puns.
+
+Note also that ``{x}`` is not interpreted as a pun in ``λ {x} → …`` or
+``syntax f {x} = …``. However, ``{x}`` is interpreted as a pun in
+``λ (c {x}) → …``.
+
 .. _do-notation:
 
 Do-notation

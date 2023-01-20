@@ -2384,7 +2384,7 @@ data RHSOrTypeSigs
 
 patternToNames :: Pattern -> Parser (List1 (ArgInfo, Name))
 patternToNames = \case
-    IdentP (QName i)         -> return $ singleton $ (defaultArgInfo, i)
+    IdentP _ (QName i)       -> return $ singleton $ (defaultArgInfo, i)
     WildP r                  -> return $ singleton $ (defaultArgInfo, C.noName r)
     DotP _ (Ident (QName i)) -> return $ singleton $ (setRelevance Irrelevant defaultArgInfo, i)
     RawAppP _ ps             -> sconcat . List2.toList1 <$> mapM patternToNames ps

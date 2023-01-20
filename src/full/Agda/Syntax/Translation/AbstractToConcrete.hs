@@ -856,15 +856,22 @@ instance ToConcrete A.Expr where
     toConcrete (A.ExtendedLam i di erased qname cs) =
         bracket lamBrackets $ do
           decls <- concat <$> toConcrete cs
-          let namedPat np = case getHiding np of
+          puns  <- optHiddenArgumentPuns <$> pragmaOptions
+          let -- If --hidden-argument-puns is active, then {x} is
+              -- replaced by {(x)} and ⦃ x ⦄ by ⦃ (x) ⦄.
+              noPun (Named Nothing p@C.IdentP{}) | puns =
+                Named Nothing (C.ParenP noRange p)
+              noPun p = p
+
+              namedPat np = case getHiding np of
                  NotHidden  -> namedArg np
-                 Hidden     -> C.HiddenP noRange (unArg np)
-                 Instance{} -> C.InstanceP noRange (unArg np)
+                 Hidden     -> C.HiddenP noRange (noPun (unArg np))
+                 Instance{} -> C.InstanceP noRange (noPun (unArg np))
               -- we know all lhs are of the form `.extlam p1 p2 ... pn`,
               -- with the name .extlam leftmost. It is our mission to remove it.
           let removeApp :: C.Pattern -> AbsToCon [C.Pattern]
               removeApp (C.RawAppP _ (List2 _ p ps)) = return $ p:ps
-              removeApp (C.AppP (C.IdentP _) np) = return [namedPat np]
+              removeApp (C.AppP (C.IdentP _ _) np) = return [namedPat np]
               removeApp (C.AppP p np)            = removeApp p <&> (++ [namedPat np])
               -- Andreas, 2018-06-18, issue #3136
               -- Empty pattern list also allowed in extended lambda,
@@ -1017,8 +1024,9 @@ instance ToConcrete A.LetBinding where
         do (t, (e, [], [], [])) <- toConcrete (t, A.RHS e Nothing)
            ret $ addInstanceB (if isInstance info then Just noRange else Nothing) $
                [ C.TypeSig info Nothing (C.boundName x) t
-               , C.FunClause (C.LHS (C.IdentP $ C.QName $ C.boundName x) [] [])
-                             e C.NoWhere False
+               , C.FunClause
+                   (C.LHS (C.IdentP True $ C.QName $ C.boundName x) [] [])
+                   e C.NoWhere False
                ]
     -- TODO: bind variables
     bindToConcrete (LetPatBind i p e) ret = do
@@ -1455,14 +1463,14 @@ instance ToConcrete A.Pattern where
   toConcrete p =
     case p of
       A.VarP x ->
-        C.IdentP . C.QName . C.boundName <$> toConcrete x
+        C.IdentP True . C.QName . C.boundName <$> toConcrete x
 
       A.WildP i ->
         return $ C.WildP (getRange i)
 
       A.ConP i c args  -> tryOp (headAmbQ c) (A.ConP i c) args
 
-      A.ProjP i ProjPrefix p -> C.IdentP <$> toConcrete (headAmbQ p)
+      A.ProjP i ProjPrefix p -> C.IdentP True <$> toConcrete (headAmbQ p)
       A.ProjP i _          p -> C.DotP noRange . C.Ident <$> toConcrete (headAmbQ p)
 
       A.DefP i x args -> tryOp (headAmbQ x) (A.DefP i x)  args
@@ -1476,7 +1484,9 @@ instance ToConcrete A.Pattern where
 
       A.LitP i (LitQName x) -> do
         x <- lookupQName AmbiguousNothing x
-        bracketP_ appBrackets $ return $ C.AppP (C.QuoteP (getRange i)) (defaultNamedArg (C.IdentP x))
+        bracketP_ appBrackets $ return $
+          C.AppP (C.QuoteP (getRange i))
+            (defaultNamedArg (C.IdentP True x))
       A.LitP i l ->
         return $ C.LitP (getRange i) l
 
@@ -1538,10 +1548,22 @@ instance ToConcrete A.Pattern where
       let funCtx = applyUnless (null args2) (withPrecedence FunctionCtx)
       tryToRecoverPatternSynP (f args) $ funCtx (tryToRecoverOpAppP $ f args1) >>= \case
         Just c  -> applyTo args2 c
-        Nothing -> applyTo args . C.IdentP =<< toConcrete x
+        Nothing -> applyTo args . C.IdentP True =<< toConcrete x
     -- Note: applyTo [] c = return c
     applyTo args c = bracketP_ (appBracketsArgs args) $ do
-      foldl C.AppP c <$> toConcreteCtx argumentCtx_ args
+      foldl C.AppP c <$>
+        (mapM avoidPun =<< toConcreteCtx argumentCtx_ args)
+
+    -- If --hidden-argument-puns is active, then {x} is replaced by
+    -- {(x)} and ⦃ x ⦄ by ⦃ (x) ⦄.
+    avoidPun :: NamedArg C.Pattern -> AbsToCon (NamedArg C.Pattern)
+    avoidPun arg =
+      ifM (optHiddenArgumentPuns <$> pragmaOptions)
+          (return $ case arg of
+             Arg i (Named Nothing x@C.IdentP{}) | notVisible i ->
+               Arg i (Named Nothing (C.ParenP noRange x))
+             arg -> arg)
+          (return arg)
 
 instance ToConcrete (Maybe A.Pattern) where
   type ConOfAbs (Maybe A.Pattern) = Maybe C.Pattern

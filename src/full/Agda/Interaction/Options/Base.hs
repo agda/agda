@@ -180,6 +180,9 @@ data PragmaOptions = PragmaOptions
   , optCopatterns                :: Bool  -- ^ Allow definitions by copattern matching?
   , optPatternMatching           :: Bool  -- ^ Is pattern matching allowed in the current file?
   , optExactSplit                :: Bool
+  , optHiddenArgumentPuns        :: Bool
+    -- ^ Should patterns of the form @{x}@ or @⦃ x ⦄@ be interpreted
+    -- as puns?
   , optEta                       :: Bool
   , optForcing                   :: Bool  -- ^ Perform the forcing analysis on data constructors?
   , optProjectionLike            :: Bool  -- ^ Perform the projection-likeness analysis on functions?
@@ -328,6 +331,7 @@ defaultPragmaOptions = PragmaOptions
   , optCopatterns                = True
   , optPatternMatching           = True
   , optExactSplit                = False
+  , optHiddenArgumentPuns        = False
   , optEta                       = True
   , optForcing                   = True
   , optProjectionLike            = True
@@ -851,6 +855,14 @@ noExactSplitFlag o = do
              , optWarningMode   = upd (optWarningMode o)
              }
 
+hiddenArgumentPunsFlag :: Flag PragmaOptions
+hiddenArgumentPunsFlag o =
+  return $ o { optHiddenArgumentPuns = True }
+
+noHiddenArgumentPunsFlag :: Flag PragmaOptions
+noHiddenArgumentPunsFlag o =
+  return $ o { optHiddenArgumentPuns = False }
+
 rewritingFlag :: Flag PragmaOptions
 rewritingFlag o = return $ o { optRewriting = True }
 
@@ -1166,6 +1178,12 @@ pragmaOptions =
                     "require all clauses in a definition to hold as definitional equalities (unless marked CATCHALL)"
     , Option []     ["no-exact-split"] (NoArg noExactSplitFlag)
                     "do not require all clauses in a definition to hold as definitional equalities (default)"
+    , Option []     ["hidden-argument-puns"]
+                    (NoArg hiddenArgumentPunsFlag)
+                    "interpret the patterns {x} and {{x}} as puns"
+    , Option []     ["no-hidden-argument-puns"]
+                    (NoArg noHiddenArgumentPunsFlag)
+                    "do not interpret the patterns {x} and {{x}} as puns (default)"
     , Option []     ["no-eta-equality"] (NoArg noEtaFlag)
                     "default records to no-eta-equality"
     , Option []     ["no-forcing"] (NoArg noForcingFlag)

@@ -620,12 +620,14 @@ instance EmbPrj Origin where
   icod_ Reflected   = return 2
   icod_ CaseSplit   = return 3
   icod_ Substitution = return 4
+  icod_ ExpandedPun = return 5
 
   value 0 = return UserWritten
   value 1 = return Inserted
   value 2 = return Reflected
   value 3 = return CaseSplit
   value 4 = return Substitution
+  value 5 = return ExpandedPun
   value _ = malformed
 
 instance EmbPrj a => EmbPrj (WithOrigin a) where
