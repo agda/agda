@@ -43,7 +43,6 @@
 - ignore: {name: "Redundant multi-way if"} # 17 hints
 - ignore: {name: "Redundant return"} # 2 hints
 - ignore: {name: "Redundant section"} # 3 hints
-- ignore: {name: "Redundant variable capture"} # 6 hints
 - ignore: {name: "Replace case with fromMaybe"} # 3 hints
 - ignore: {name: "Replace case with maybe"} # 2 hints
 - ignore: {name: "Unused LANGUAGE pragma"} # 1 hint
