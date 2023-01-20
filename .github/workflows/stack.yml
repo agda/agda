@@ -66,12 +66,12 @@ jobs:
       uses: actions/cache@v3
       with:
         key: |
-          ${{ runner.os }}-stack-20221229-${{ env.STACK_VER }}-${{ env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}
+          ${{ runner.os }}-stack-20230120-${{ env.STACK_VER }}-${{ env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}
         path: ${{ steps.haskell-setup.outputs.stack-root }}
     - if: ${{ runner.os == 'macOS' }}
       name: Set up pkg-config for the ICU library (macOS)
       run: |
-        echo "PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig" >> ${GITHUB_ENV}
+        echo "PKG_CONFIG_PATH=$(brew --prefix)/opt/icu4c/lib/pkgconfig" >> ${GITHUB_ENV}
       shell: bash
     - if: ${{ runner.os == 'Windows' }}
       name: Install the icu library (Windows)
