@@ -529,7 +529,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
       r <- getMetaRange x
       genericDocError =<<
         (fwords (msg ++ " The problematic unsolved meta is") $$
-                 (nest 2 $ prettyTCM (MetaV x []) <+> "at" <+> pretty r)
+                 nest 2 (prettyTCM (MetaV x []) <+> "at" <+> pretty r)
         )
 
     -- If one of the fields depend on this meta, we have to make sure that this meta doesn't depend

@@ -149,7 +149,7 @@ parseLiterateWithComments p layers = do
   forM_ (map fst overlaps) $ \c ->
     warning $ OverlappingTokensWarning { warnRange = getRange c }
 
-  (, coh) <$> (return $ forMaybe terms $ \case
+  (, coh) <$> return (forMaybe terms $ \case
     Left t                           -> Just t
     Right (Layer Comment interval s) -> Just $ TokTeX    (interval, s)
     Right (Layer Markup  interval s) -> Just $ TokMarkup (interval, s)

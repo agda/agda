@@ -323,13 +323,13 @@ combineSys' l ty xs = do
 
   let
     pOr l ty phi psi u0 u1 = pure tPOr
-      <#> l <@> phi <@> psi <#> (ilam "o" $ \ _ -> ty)
+      <#> l <@> phi <@> psi <#> ilam "o" (\ _ -> ty)
       <@> u0 <@> u1
 
     -- In one pass, compute the disjunction of all the cofibrations and
     -- compute the primPOr expression.
     combine :: [(NamesT m Term, NamesT m Term)] -> NamesT m (Term, Term)
-    combine [] = (iz,) <$> (pure tEmpty <#> l <#> (ilam "o" $ \ _ -> ty))
+    combine [] = (iz,) <$> (pure tEmpty <#> l <#> ilam "o" (\ _ -> ty))
     combine [(psi, u)] = (,) <$> psi <*> u
     combine ((psi, u):xs) = do
       (phi, c) <- combine xs

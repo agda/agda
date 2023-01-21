@@ -203,7 +203,7 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
           bindNArg (teleArgNames $ unAbsN xTel) $ \ x -> do
           params <- pure params `applyN` (fmap unArg <$> g1)
           x      <- sequence x
-          s <- s `applyN` (map (pure . unArg) $ params ++ x)
+          s <- s `applyN` map (pure . unArg) (params ++ x)
           pure $ El s $ Def d [] `apply` (params ++ x)
     return $ (params, xTel,dT)
 
@@ -242,7 +242,7 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
     abstractN (xTelI `applyN` g1) $ \ p -> do
     abstractT "ψ" (pure interval) $ \ psi -> do
     abstractN (xTelI `applyN` g1) $ \ q -> do
-    abstractT "x0" (pure dT `applyN` g1 `applyN` (for q $ \ f -> f <@> pure iz)) $ \ x0 -> do
+    abstractT "x0" (pure dT `applyN` g1 `applyN` (flip map q $ \ f -> f <@> pure iz)) $ \ x0 -> do
     deltaPat g1 phi p psi q x0
 
   ps_ty_rhs <- runNamesT [] $ do
@@ -320,14 +320,14 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
         Abs n (data_ty,lines) <- bind "k" $ \ k -> do
           let phi_k = max phi (neg k)
           let p_k = for p $ \ p -> lam "h" $ \ h -> p <@> (min k h)
-          data_ty <- pure dT `applyN` g1 `applyN` (for p $ \ p -> p <@> k)
+          data_ty <- pure dT `applyN` g1 `applyN` for p (\ p -> p <@> k)
           line1 <- trX `applyN` g1 `applyN` (phi_k:p_k) `applyN` [x0]
 
           line2 <- trX `applyN` g1
-                       `applyN` (max phi_k j      : (for p_k $ \ p -> lam "h" $ \ h -> p <@> (max h j)))
+                       `applyN` (max phi_k j      : for p_k (\ p -> lam "h" $ \ h -> p <@> (max h j)))
                        `applyN`
                   [trX `applyN` g1
-                       `applyN` (max phi_k (neg j): (for p_k $ \ p -> lam "h" $ \ h -> p <@> (min h j)))
+                       `applyN` (max phi_k (neg j): for p_k (\ p -> lam "h" $ \ h -> p <@> (min h j)))
                        `applyN` [x0]]
           pure (data_ty,[line1,line2])
         data_ty <- open $ Abs n data_ty
@@ -492,7 +492,7 @@ createMissingTrXHCompClause q_trX f n x old_sc = do
           bindNArg (teleArgNames $ unAbsN xTel) $ \ x -> do
           params <- pure params `applyN` (fmap unArg <$> g1)
           x      <- sequence x
-          s <- s `applyN` (map (pure . unArg) $ params ++ x)
+          s <- s `applyN` map (pure . unArg) (params ++ x)
           pure $ El s $ Def d [] `apply` (params ++ x)
     return $ (params, xTel,dT)
 
@@ -935,7 +935,7 @@ createMissingConIdClause f _n x old_sc (TheInfo info) = setCurrentRange f $ do
     hdelta <- open hdelta
     params <- open params
     abstractN (pure gamma) $ \ args -> do
-      pTel <- open =<< (lift $ pathTelescope (infoEqTel info) (map defaultArg $ infoEqLHS info) (map defaultArg $ infoEqRHS info))
+      pTel <- open =<< lift (pathTelescope (infoEqTel info) (map defaultArg $ infoEqLHS info) (map defaultArg $ infoEqRHS info))
       abstractN (pure (telFromList [defaultDom ("phi",interval)] :: Telescope)) $ \ [phi] ->
         abstractN pTel $ \ [p] -> do
           [l,bA,x,y] <- mapM open =<< applyN params args
@@ -1023,7 +1023,7 @@ createMissingConIdClause f _n x old_sc (TheInfo info) = setCurrentRange f $ do
     delta_args_f <- bind "i" $ \ i -> do
 
       m <- trFillTel' True <$> delta_f <*> phi <*> delta_args <*> i
-      either __IMPOSSIBLE__ id <$> (lift $ runExceptT m)
+      either __IMPOSSIBLE__ id <$> lift (runExceptT m)
     delta_args_f <- open delta_args_f
     old_t_f <- (open =<<) $ bind "i" $ \ i -> do
       g <- lazyAbsApp <$> gamma_args_left <*> i
@@ -1068,7 +1068,7 @@ createMissingConIdClause f _n x old_sc (TheInfo info) = setCurrentRange f $ do
           [phi,psi] <- mapM open [phi,psi]
           pure tPOr <#> l
                     <@> phi <@> psi
-                    <#> (ilam "o" $ \ _ -> ty) <@> noilam u0 <@> u1
+                    <#> ilam "o" (\ _ -> ty) <@> noilam u0 <@> u1
 
       noilam u = do
          u <- open u
@@ -1086,12 +1086,12 @@ createMissingConIdClause f _n x old_sc (TheInfo info) = setCurrentRange f $ do
          n <- length . unAbs <$> sides
          -- TODO don't comp if the family and the sides "j. [ α ↦ u ]" are constant?
          if n > 1 then
-           pure tComp <#> l <@> (lam "i" $ \ i -> unEl . unDom <$> ty i)
+           pure tComp <#> l <@> lam "i" (\ i -> unEl . unDom <$> ty i)
                 <@> (cl primIMax <@> phi <@> alphas)
-                <@> (lam "i" $ \ i -> combine (l <@> i) (unEl . unDom <$> ty i) =<< (lazyAbsApp <$> sides <*> i))
+                <@> lam "i" (\ i -> combine (l <@> i) (unEl . unDom <$> ty i) =<< (lazyAbsApp <$> sides <*> i))
                 <@> (lazyAbsApp <$> w <*> primIZero)
          else
-           pure tTrans <#> l <@> (lam "i" $ \ i -> unEl . unDom <$> ty i)
+           pure tTrans <#> l <@> lam "i" (\ i -> unEl . unDom <$> ty i)
                 <@> phi
                 <@> (lazyAbsApp <$> w <*> primIZero)
 

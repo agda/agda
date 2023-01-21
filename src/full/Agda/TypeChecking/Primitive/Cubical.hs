@@ -183,8 +183,8 @@ mkComp s = do
 
   let
     forward la bA r u = pure tTrans
-      <#> (lam "i" $ \i -> la <@> (i `imax` r))
-      <@> (lam "i" $ \i -> bA <@> (i `imax` r))
+      <#> lam "i" (\i -> la <@> (i `imax` r))
+      <@> lam "i" (\i -> bA <@> (i `imax` r))
       <@> r
       <@> u
 
@@ -556,7 +556,7 @@ primTransHComp cmd ts nelims = do
               -- compData knows what to do for the general cases.
               Datatype{dataPars = pars, dataIxs = ixs, dataPathCons = pcons, dataTransp = mtrD}
                 | and [null pcons && ixs == 0 | DoHComp  <- [cmd]], Just as <- allApplyElims es ->
-                  compData mtrD ((not $ null $ pcons) || ixs > 0) (pars + ixs) cmd l (as <$ t) sbA sphi u u0
+                  compData mtrD (not (null $ pcons) || ixs > 0) (pars+ixs) cmd l (as <$ t) sbA sphi u u0
 
               -- Is this an axiom with constrant transport? Then. Well. Transport is constant.
               Axiom constTransp | constTransp, [] <- es, DoTransp <- cmd -> redReturn $ unArg u0
@@ -872,7 +872,7 @@ transpSysTel' flag delta us phi args = do
     combine l ty d [(psi,u)] = u
     combine l ty d ((psi,u):xs)
             = pure tPOr <#> l <@> psi <@> (foldr (\ x y -> pure imax <@> x <@> y) (pure iz) (map fst xs))
-                        <#> (ilam "o" $ \ _ -> ty) -- the type
+                        <#> ilam "o" (\ _ -> ty) -- the type
                         <@> u <@> (combine l ty d xs)
 
     gTransp :: Maybe (LM m Term) -> LM m (Abs Type) -> [(LM m Term,LM m (Abs Term))] -> LM m Term -> LM m Term -> LM m Term

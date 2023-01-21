@@ -139,13 +139,12 @@ prop_boundToEverySome1 (NonEmpty w) =
 prop_boundToEverySome2 :: Property
 prop_boundToEverySome2 =
   forAll (elements $ Map.toList boundToEverySome) $ \(bound, ess) ->
-    (forAll (oneof [ do os1 <- listOf (arbitrary `suchThat` every)
-                        o   <- arbitrary
-                                 `suchThat` (\o -> every o && some o)
-                        os2 <- listOf (arbitrary `suchThat` every)
-                        return (os1 ++ [o] ++ os2)
-                   | (every, some) <- ess
-                   ]) $ \w ->
+    forAll (oneof [ do os1 <- listOf (arbitrary `suchThat` every)
+                       o   <- arbitrary `suchThat` (\o -> every o && some o)
+                       os2 <- listOf (arbitrary `suchThat` every)
+                       return (os1 ++ [o] ++ os2)
+                  | (every, some) <- ess
+                  ]) (\w ->
        foldr1 otimes w <= bound)
       .&&.
     (forAll (do
