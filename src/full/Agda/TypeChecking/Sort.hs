@@ -175,7 +175,7 @@ sortOf t = do
         let a = unEl $ unDom adom
         sa <- sortOf a
         sb <- mapAbstraction adom (sortOf . unEl) b
-        return $ piSort (unEl <$> adom) sa sb
+        inferPiSort (adom $> El sa a) sb
       Sort s     -> return $ univSort s
       Var i es   -> do
         a <- typeOfBV i

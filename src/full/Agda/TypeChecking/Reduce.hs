@@ -426,10 +426,10 @@ instance Reduce Sort where
           NotBlocked _ s1' -> case univSort' s1' of
             Left b -> return $ Blocked b $ UnivSort s1'
             Right s -> reduceB' s
-        Prop l     -> done
-        Type l     -> done
+        Prop l     -> notBlocked . Prop <$> reduce l
+        Type l     -> notBlocked . Type <$> reduce l
         Inf f n    -> done
-        SSet l     -> done
+        SSet l     -> notBlocked . SSet <$> reduce l
         SizeUniv   -> done
         LockUniv   -> done
         IntervalUniv -> done
