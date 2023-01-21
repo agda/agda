@@ -5,6 +5,8 @@
 ##  Edit source in /src/github/workflows/ instead!  ##
 ##                                                  ##
 ######################################################
+env:
+  GH_TOKEN: ${{ github.token }}
 jobs:
   auto-cancel:
     if: |
@@ -84,17 +86,15 @@ jobs:
         echo "GHC_VER           = ${GHC_VER}"
         echo "ICU_VER           = ${ICU_VER}"
     - id: cache
-      name: Cache dependencies
-      uses: actions/cache@v3
+      name: Restore cache
+      uses: actions/cache/restore@v3
       with:
-        key: |
-          ${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER }}-ghc-${{ env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}-${{ github.sha }}
+        key: ${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER }}-ghc-${{
+          env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}
         path: |
           ${{ env.STACK_ROOT }}
           ${{ env.HOME }}/.stack-work
           ${{ env.HOME }}/.stack-work-fast
-        restore-keys: |
-          ${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER }}-ghc-${{ env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}-
     - name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
     - name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests`
@@ -102,6 +102,24 @@ jobs:
       run: stack build ${ARGS} ${EXTRA_ARGS} --work-dir=.stack-work-fast --test --no-run-tests
     - name: Build Agda with the non-default flags Agda.cabal.
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}
+    - env:
+        KEY: ${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER }}-ghc-${{
+          env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}
+      if: ${{ steps.cache.outputs.cache-hit }}
+      name: Clear cache
+      run: |
+        gh extension install actions/gh-actions-cache
+        gh actions-cache delete ${{ env.KEY }} --confirm
+    - if: always()
+      name: Save cache
+      uses: actions/cache/save@v3
+      with:
+        key: ${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER }}-ghc-${{
+          env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}
+        path: |
+          ${{ env.STACK_ROOT }}
+          ${{ env.HOME }}/.stack-work
+          ${{ env.HOME }}/.stack-work-fast
     strategy:
       fail-fast: false
       matrix:

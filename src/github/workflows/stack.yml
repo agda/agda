@@ -19,6 +19,10 @@ on:
   pull_request:
     paths: *trigger_path_list
 
+# Github token needed to delete caches with gh
+env:
+  GH_TOKEN: ${{ github.token }}
+
 jobs:
   auto-cancel:
     if: |
@@ -162,20 +166,17 @@ jobs:
         echo "GHC_VER           = ${GHC_VER}"
         echo "ICU_VER           = ${ICU_VER}"
 
-    - uses: actions/cache@v3
-      name: Cache dependencies
-      id: cache
+    - name: Restore cache
+      uses: actions/cache/restore@v3
+      id:   cache
       with:
-        path: |
+        path: &cache_pathes |
           ${{ env.STACK_ROOT }}
           ${{ env.HOME }}/.stack-work
           ${{ env.HOME }}/.stack-work-fast
         # A unique cache is used for each stack.yaml.
         # Note that matrix.stack-ver might be simply 'latest', so we use STACK_VER.
-        key: |
-          ${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER }}-ghc-${{ env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}-${{ github.sha }}
-        restore-keys: |
-          ${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER }}-ghc-${{ env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}-
+        key: &cache_key ${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER }}-ghc-${{ env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}
 
     - name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
       # if: ${{ !steps.cache.outputs.cache-hit }}
@@ -186,3 +187,18 @@ jobs:
 
     - name: Build Agda with the non-default flags Agda.cabal.
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}
+
+    - name: Clear cache
+      if:   ${{ steps.cache.outputs.cache-hit }}
+      env:
+        KEY: *cache_key
+      run: |
+        gh extension install actions/gh-actions-cache
+        gh actions-cache delete ${{ env.KEY }} --confirm
+
+    - name: Save cache
+      uses: actions/cache/save@v3
+      if:   always()  # save cache even when build fails
+      with:
+        path: *cache_pathes
+        key:  *cache_key
