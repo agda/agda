@@ -80,7 +80,7 @@ jobs:
       # GHC does not work with ICU ≠ 69
       ICU_URL: "https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-icu-69.1-1-any.pkg.tar.zst"
       ICU_VER: "69.1"
-      # Andreas, 2022-01-21: the ICU_VER is needed for Windows, it is automatically determined on Linux/macOS.
+      # Andreas, 2023-01-21: the ICU_VER is needed for Windows, it is automatically determined on Linux/macOS.
 
     # Need bash on Windows for piping and evaluation.
     defaults:
@@ -169,13 +169,15 @@ jobs:
       uses: actions/cache/restore@v3
       id:   cache
       with:
-        path: &cache_pathes |
-          ${{ env.STACK_ROOT }}
-          .stack-work
-          .stack-work-fast
         # A unique cache is used for each stack.yaml.
         # Note that matrix.stack-ver might be simply 'latest', so we use STACK_VER.
-        key: &cache_key ${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER }}-ghc-${{ env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}
+        key:  &cache_key ${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER }}-ghc-${{ env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}
+        path: &cache_pathes |
+          ${{ env.STACK_ROOT }}
+        # Andreas, 2023-01-23: also caching the two work dirs balloons a cache entry from 300MB to 800MB,
+        # which is more than we can tolerate with out total cache size of mac 10GB.
+          # .stack-work
+          # .stack-work-fast
 
     - name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
       # if: ${{ !steps.cache.outputs.cache-hit }}
@@ -200,5 +202,5 @@ jobs:
       uses: actions/cache/save@v3
       if:   always()  # save cache even when build fails
       with:
-        path: *cache_pathes
         key:  *cache_key
+        path: *cache_pathes
