@@ -97,7 +97,7 @@ jobs:
       if: ${{ runner.os != 'Windows' }}
       run: |
         uconv --version
-        export ICU_VER="$(uconv --version | sed -ne 's/uconv v.\+ ICU \([0-9.]\+\)/\1/p')"
+        export ICU_VER="$(uconv --version | sed -ne 's/uconv v.* ICU \([0-9][0-9.]*\)/\1/p')"
         echo "ICU_VER=${ICU_VER}"
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
       # The output of unconv --version looks like "uconv v2.1  ICU 72.1" from which we extract "72.1"
