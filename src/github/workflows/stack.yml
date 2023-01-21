@@ -86,6 +86,22 @@ jobs:
 
     steps:
 
+    - name: Set up for the ICU library (macOS)
+      if: ${{ runner.os == 'macOS' }}
+      run: |
+        export ICU4C="$(brew --prefix)/opt/icu4c"
+        echo "PKG_CONFIG_PATH=${ICU4C}/lib/pkgconfig" >> "${GITHUB_ENV}"
+        echo "${ICU4C}/bin" >> "${GITHUB_PATH}"
+
+    - name: Determine the ICU version (Linux, macOS)
+      if: ${{ runner.os != 'Windows' }}
+      run: |
+        uconv --version
+        export ICU_VER="$(uconv --version | sed -ne 's/uconv v.+ ICU \([0-9.]+\)/\1/p')"
+        echo "ICU_VER=${ICU_VER}"
+        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
+      # The output of unconv --version looks like "uconv v2.1  ICU 72.1" from which we extract "72.1"
+
     # Checkout is needed before the first call to stack exec ${ARGS}
     # because it provides the stack-*.yaml file.
     - uses: actions/checkout@v3
@@ -119,13 +135,6 @@ jobs:
         echo "ARGS=--stack-yaml=stack-${GHC_VER}.yaml --system-ghc --no-terminal"    >> ${GITHUB_ENV}
     # From now on, use env.GHC_VER rather than matrix.ghc-ver
 
-    - name: Set up for the ICU library (macOS)
-      if: ${{ runner.os == 'macOS' }}
-      run: |
-        export ICU4C="$(brew --prefix)/opt/icu4c"
-        echo "PKG_CONFIG_PATH=${ICU4C}/lib/pkgconfig" >> "${GITHUB_ENV}"
-        echo "${ICU4C}/bin" >> "${GITHUB_PATH}"
-
     # Note that msys2 libraries have to be installed via
     #   stack exec ${ARGS} -- pacman ...
     # because stack comes with its own msys2 instance, see
@@ -145,12 +154,6 @@ jobs:
         stack exec ${ARGS} -- pacman --noconfirm -Sy msys2-keyring
         stack exec ${ARGS} -- bash -c "curl -LO ${ICU_URL} && pacman --noconfirm -U *.pkg.tar.zst"
         stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-pkg-config
-
-    - name: Determine the ICU version (Linux, macOS)
-      if: ${{ runner.os != 'Windows' }}
-      run: |
-        echo "ICU_VER=$(uconv --version | sed -ne 's/uconv v.+ ICU \([0-9.]+\)/\1/p')" >> "${GITHUB_ENV}"
-      # The output of unconv --version looks like "uconv v2.1  ICU 72.1" from which we extract "72.1"
 
     - name: Environment (review)
       run: |
