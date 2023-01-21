@@ -109,7 +109,7 @@ jobs:
       name: Clear cache
       run: |
         gh extension install actions/gh-actions-cache
-        gh actions-cache delete ${{ env.KEY }} --confirm
+        gh actions-cache delete ${{ env.KEY }} --confirm || true
     - if: always()
       name: Save cache
       uses: actions/cache/save@v3
@@ -125,6 +125,14 @@ jobs:
       matrix:
         ghc-ver:
         - 9.4.4
+        - 9.2.5
+        - 9.0.2
+        - 8.10.7
+        - 8.8.4
+        - 8.6.5
+        - 8.4.4
+        - 8.2.2
+        - 8.0.2
         include:
         - ghc-ver: 9.4.4
           os: macos-12
