@@ -167,7 +167,7 @@ instance Match [Elim' NLPat] Elims where
 
    let no  = matchingBlocked $ NotBlocked ReallyNotBlocked ()
    case (p,v) of
-    (Apply p, Apply v) -> (addContext k $ unEl <$> reduce t) >>= \case
+    (Apply p, Apply v) -> addContext k (unEl <$> reduce t) >>= \case
       Pi a b -> do
         match r gamma k a p v
         let t'  = absApp b (unArg v)
@@ -176,7 +176,7 @@ instance Match [Elim' NLPat] Elims where
       t -> traceSDoc "rewriting.match" 20
         ("application at non-pi type (possible non-confluence?) " <+> prettyTCM t) mzero
 
-    (IApply x y p , IApply u v i) -> (addContext k $ pathView =<< reduce t) >>= \case
+    (IApply x y p , IApply u v i) -> addContext k (pathView =<< reduce t) >>= \case
       PathType s q l b _u _v -> do
         Right interval <- runExceptT primIntervalType
         match r gamma k interval p i

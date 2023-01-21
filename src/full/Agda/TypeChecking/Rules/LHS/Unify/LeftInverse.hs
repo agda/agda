@@ -212,7 +212,7 @@ composeRetract (prob0,rho0,tau0,leftInv0) phi0 (prob1,rho1,tau1,leftInv1) = do
               leftInv0 <- leftInv0
               i <- i
               -- this composition could be optimized further whenever step0i is actually constant in i.
-              lift $ (runExceptT $ map unArg <$> transpSysTel' True tel [(i, leftInv0)] face step0i)
+              lift $ runExceptT (map unArg <$> transpSysTel' True tel [(i, leftInv0)] face step0i)
   addContext prob0 $ addContext ("r" :: String, __DUMMY_DOM__) $
     reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv  :" <+> prettyTCM (absBody leftInv)
   addContext prob0 $ addContext ("r" :: String, __DUMMY_DOM__) $
@@ -349,7 +349,7 @@ buildEquiv (UnificationStep st step@(Solution k ty fx tm side) output) next = ru
             delta1 <- bind "i" $ \ i -> do
 
                    args <- mapM (open . unArg) =<< (lazyAbsApp <$> xi0f <*> i)
-                   apply <$> applyN krest ((take 1 $ csingl' i) ++ args) <*> (drop 1 `fmap` csingl i)
+                   apply <$> applyN krest (take 1 (csingl' i) ++ args) <*> (drop 1 `fmap` csingl i)
             delta1 <- open delta1
             xi1f <- bind "i" $ \ i -> do
                                  m <- trFillTel' flag <$> delta1 <*> phi <*> xi1 <*> i

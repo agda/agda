@@ -104,8 +104,8 @@ primConId' = do
     hPi' "x" (el' a bA) $ \ x ->
     hPi' "y" (el' a bA) $ \ y ->
     primIntervalType -- Cofibration
-    --> (el' a $ cl primPath <#> a <#> bA <@> x <@> y)
-    --> (el' a $ cl primId <#> a <#> bA <@> x <@> y)
+    --> el' a (cl primPath <#> a <#> bA <@> x <@> y)
+    --> el' a (cl primId <#> a <#> bA <@> x <@> y)
 
   -- Implementation note: conId, as the name implies, is a constructor.
   -- It's not represented as a constructor because users can't match on

@@ -654,7 +654,7 @@ getStoredInterface x file msrc = do
       Bench.billTo [Bench.Deserialization] $ do
         checkSourceHashET (iSourceHash i)
 
-        reportSLn "import.iface" 5 $ "  using stored version of " ++ (filePath $ intFilePath ifile)
+        reportSLn "import.iface" 5 $ "  using stored version of " ++ filePath (intFilePath ifile)
         loadDecodedModule file mi
 
     Left whyNotCached -> withExceptT (\e -> concat [whyNotCached, " and ", e]) $ do
