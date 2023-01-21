@@ -40,7 +40,7 @@ jobs:
       name: Determine the ICU version (Linux, macOS)
       run: |
         uconv --version
-        export ICU_VER="$(uconv --version | sed -ne 's/uconv v.+ ICU \([0-9.]+\)/\1/p')"
+        export ICU_VER="$(uconv --version | sed -ne 's/uconv v.\+ ICU \([0-9.]\+\)/\1/p')"
         echo "ICU_VER=${ICU_VER}"
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - uses: actions/checkout@v3
