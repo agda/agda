@@ -82,14 +82,16 @@ jobs:
           dist.tzst
           stack-work.tzst
         retention-days: 1
-    - env:
+    - continue-on-error: true
+      env:
+        GH_TOKEN: ${{ github.token }}
         KEY: test.yml-${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER
           }}-ghc-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
       if: ${{ steps.cache.outputs.cache-hit }}
       name: Clear cache
       run: |
         gh extension install actions/gh-actions-cache
-        gh actions-cache delete ${{ env.KEY }} --confirm || true
+        gh actions-cache delete ${{ env.KEY }} --confirm
     - if: always()
       name: Save cache
       uses: actions/cache/save@v3

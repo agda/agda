@@ -170,10 +170,12 @@ jobs:
       if:   ${{ steps.cache.outputs.cache-hit }}
       env:
         KEY: *cache_key
+        GH_TOKEN: ${{ github.token }}
       run: |
         gh extension install actions/gh-actions-cache
-        gh actions-cache delete ${{ env.KEY }} --confirm || true
+        gh actions-cache delete ${{ env.KEY }} --confirm
       # Don't fail if cache cannot be deleted
+      continue-on-error: true
 
     - name: Save cache
       uses: actions/cache/save@v3

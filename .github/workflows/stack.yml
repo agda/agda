@@ -5,8 +5,6 @@
 ##  Edit source in /src/github/workflows/ instead!  ##
 ##                                                  ##
 ######################################################
-env:
-  GH_TOKEN: ${{ github.token }}
 jobs:
   auto-cancel:
     if: |
@@ -100,14 +98,16 @@ jobs:
       run: stack build ${ARGS} ${EXTRA_ARGS} --work-dir=.stack-work-fast --test --no-run-tests
     - name: Build Agda with the non-default flags Agda.cabal.
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}
-    - env:
+    - continue-on-error: true
+      env:
+        GH_TOKEN: ${{ github.token }}
         KEY: ${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER }}-ghc-${{
           env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}
       if: ${{ steps.cache.outputs.cache-hit }}
       name: Clear cache
       run: |
         gh extension install actions/gh-actions-cache
-        gh actions-cache delete ${{ env.KEY }} --confirm || true
+        gh actions-cache delete ${{ env.KEY }} --confirm
     - if: always()
       name: Save cache
       uses: actions/cache/save@v3
