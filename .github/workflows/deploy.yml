@@ -29,6 +29,25 @@ jobs:
       sha: ${{ steps.vars.outputs.sha }}
     runs-on: ${{ matrix.os }}
     steps:
+    - if: ${{ runner.os == 'macOS' }}
+      name: Set up for the ICU library (macOS)
+      run: |
+        ICU4C="$(brew --prefix)/opt/icu4c"
+        echo "${ICU4C}/bin" >> "${GITHUB_PATH}"
+        ICU_DIR="${ICU4C}/lib"
+        echo "ICU_DIR=${ICU_DIR}"
+        echo "ICU_DIR=${ICU_DIR}" >> "${GITHUB_ENV}"
+        echo "PKG_CONFIG_PATH=${ICU_DIR}/pkgconfig" >> "${GITHUB_ENV}"
+    - if: ${{ runner.os != 'Windows' }}
+      name: Determine the ICU version (Linux, macOS)
+      run: |
+        uconv --version
+        ICU_VER="$(uconv --version | sed -ne 's/uconv v.* ICU \([0-9][0-9.]*\)/\1/p')"
+        echo "ICU_VER=${ICU_VER}"
+        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
+        ICU_MAJOR_VER="$(cut -d '.' -f 1 <<< ${ICU_VER})"
+        echo "ICU_MAJOR_VER=${ICU_MAJOR_VER}"
+        echo "ICU_MAJOR_VER=${ICU_MAJOR_VER}" >> "${GITHUB_ENV}"
     - name: Check out the master branch
       uses: actions/checkout@v3
     - id: vars
@@ -80,10 +99,6 @@ jobs:
       with:
         cabal-version: ${{ matrix.cabal-ver }}
         ghc-version: ${{ matrix.ghc-ver }}
-    - if: ${{ runner.os == 'macOS' }}
-      name: Set up pkg-config for the ICU library (macOS)
-      run: |
-        echo "PKG_CONFIG_PATH=$(brew --prefix)/opt/icu4c/lib/pkgconfig" >> ${GITHUB_ENV}
     - if: ${{ runner.os == 'Windows' }}
       name: Setup MSYS path (Windows)
       run: |
@@ -102,8 +117,6 @@ jobs:
       run: cabal build exe:agda exe:agda-mode
     - env:
         DLL: /c/msys64/mingw64/bin/libicu*.dll
-        ICU_DIR: /usr/local/opt/icu4c/lib
-        ICU_VER: '71'
       name: Move artefacts to ${{ steps.vars.outputs.nightly }}
       run: |
         nightly="${{ steps.vars.outputs.nightly }}"
@@ -132,9 +145,9 @@ jobs:
           # 3. the default location of system-wide icu4c installed by homebrew, ie. /usr/local/opt/icu4c/lib
           #
           mkdir "${nightly}"/lib
-          cp ${ICU_DIR}/libicuuc.${ICU_VER}.dylib ${ICU_DIR}/libicui18n.${ICU_VER}.dylib ${ICU_DIR}/libicudata.${ICU_VER}.dylib "${nightly}"/lib
-          install_name_tool -change ${ICU_DIR}/libicuuc.${ICU_VER}.dylib @rpath/libicuuc.${ICU_VER}.dylib "${nightly}"/bin/agda
-          install_name_tool -change ${ICU_DIR}/libicui18n.${ICU_VER}.dylib @rpath/libicui18n.${ICU_VER}.dylib "${nightly}"/bin/agda
+          cp ${ICU_DIR}/libicuuc.${ICU_MAJOR_VER}.dylib ${ICU_DIR}/libicui18n.${ICU_MAJOR_VER}.dylib ${ICU_DIR}/libicudata.${ICU_MAJOR_VER}.dylib "${nightly}"/lib
+          install_name_tool -change ${ICU_DIR}/libicuuc.${ICU_MAJOR_VER}.dylib @rpath/libicuuc.${ICU_MAJOR_VER}.dylib "${nightly}"/bin/agda
+          install_name_tool -change ${ICU_DIR}/libicui18n.${ICU_MAJOR_VER}.dylib @rpath/libicui18n.${ICU_MAJOR_VER}.dylib "${nightly}"/bin/agda
           install_name_tool -add_rpath @executable_path -add_rpath @executable_path/../lib -add_rpath ${ICU_DIR} "${nightly}"/bin/agda
           otool -L "${nightly}"/bin/agda
 

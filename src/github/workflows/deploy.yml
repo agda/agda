@@ -55,6 +55,28 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
 
+    - name: Set up for the ICU library (macOS)
+      if: ${{ runner.os == 'macOS' }}
+      run: |
+        ICU4C="$(brew --prefix)/opt/icu4c"
+        echo "${ICU4C}/bin" >> "${GITHUB_PATH}"
+        ICU_DIR="${ICU4C}/lib"
+        echo "ICU_DIR=${ICU_DIR}"
+        echo "ICU_DIR=${ICU_DIR}" >> "${GITHUB_ENV}"
+        echo "PKG_CONFIG_PATH=${ICU_DIR}/pkgconfig" >> "${GITHUB_ENV}"
+
+    - name: Determine the ICU version (Linux, macOS)
+      if: ${{ runner.os != 'Windows' }}
+      run: |
+        uconv --version
+        ICU_VER="$(uconv --version | sed -ne 's/uconv v.* ICU \([0-9][0-9.]*\)/\1/p')"
+        echo "ICU_VER=${ICU_VER}"
+        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
+        ICU_MAJOR_VER="$(cut -d '.' -f 1 <<< ${ICU_VER})"
+        echo "ICU_MAJOR_VER=${ICU_MAJOR_VER}"
+        echo "ICU_MAJOR_VER=${ICU_MAJOR_VER}" >> "${GITHUB_ENV}"
+      # The output of unconv --version looks like "uconv v2.1  ICU 72.1" from which we extract "72.1"
+
     - name: Check out the master branch
       uses: actions/checkout@v3
 
@@ -109,11 +131,6 @@ jobs:
       with:
         ghc-version: ${{ matrix.ghc-ver }}
         cabal-version: ${{ matrix.cabal-ver }}
-
-    - name: Set up pkg-config for the ICU library (macOS)
-      if: ${{ runner.os == 'macOS' }}
-      run: |
-        echo "PKG_CONFIG_PATH=$(brew --prefix)/opt/icu4c/lib/pkgconfig" >> ${GITHUB_ENV}
 
     # from: https://github.com/haskell/text-icu/blob/c73d7fe6f29e178d3ea40160e904ab39236e3c9d/.github/workflows/cabal-mac-win.yml#L29-L32
     - name: Setup MSYS path (Windows)
@@ -177,11 +194,7 @@ jobs:
     - name: Move artefacts to ${{ steps.vars.outputs.nightly }}
       # TODO: Move this part to Makefile
       env:
-        # Andreas, 2022-03-11, the ICU version has been updated upstream from 69 to 70
-        # Andreas, 2022-09-20, the ICU version has been updated upstream from 70 to 71
-        ICU_VER: '71'
-        ICU_DIR: '/usr/local/opt/icu4c/lib'
-        DLL:     "/c/msys64/mingw64/bin/libicu*.dll"
+        DLL: "/c/msys64/mingw64/bin/libicu*.dll"
           ## was /c/icu4c/icu*.dll
       run: |
         nightly="${{ steps.vars.outputs.nightly }}"
@@ -210,9 +223,9 @@ jobs:
           # 3. the default location of system-wide icu4c installed by homebrew, ie. /usr/local/opt/icu4c/lib
           #
           mkdir "${nightly}"/lib
-          cp ${ICU_DIR}/libicuuc.${ICU_VER}.dylib ${ICU_DIR}/libicui18n.${ICU_VER}.dylib ${ICU_DIR}/libicudata.${ICU_VER}.dylib "${nightly}"/lib
-          install_name_tool -change ${ICU_DIR}/libicuuc.${ICU_VER}.dylib @rpath/libicuuc.${ICU_VER}.dylib "${nightly}"/bin/agda
-          install_name_tool -change ${ICU_DIR}/libicui18n.${ICU_VER}.dylib @rpath/libicui18n.${ICU_VER}.dylib "${nightly}"/bin/agda
+          cp ${ICU_DIR}/libicuuc.${ICU_MAJOR_VER}.dylib ${ICU_DIR}/libicui18n.${ICU_MAJOR_VER}.dylib ${ICU_DIR}/libicudata.${ICU_MAJOR_VER}.dylib "${nightly}"/lib
+          install_name_tool -change ${ICU_DIR}/libicuuc.${ICU_MAJOR_VER}.dylib @rpath/libicuuc.${ICU_MAJOR_VER}.dylib "${nightly}"/bin/agda
+          install_name_tool -change ${ICU_DIR}/libicui18n.${ICU_MAJOR_VER}.dylib @rpath/libicui18n.${ICU_MAJOR_VER}.dylib "${nightly}"/bin/agda
           install_name_tool -add_rpath @executable_path -add_rpath @executable_path/../lib -add_rpath ${ICU_DIR} "${nightly}"/bin/agda
           otool -L "${nightly}"/bin/agda
 
