@@ -36,13 +36,23 @@ jobs:
         stack-version: ${{ env.STACK_VER }}
     - name: Copy stack-${{ env.GHC_VER}}.yaml to stack.yaml
       run: cp stack-${{ env.GHC_VER }}.yaml stack.yaml
+    - name: Determine the ICU version
+      run: |
+        uconv --version
+        export ICU_VER="$(uconv --version | sed -ne 's/uconv v.* ICU \([0-9][0-9.]*\)/\1/p')"
+        echo "ICU_VER=${ICU_VER}"
+        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
-      name: Cache dependencies
-      uses: actions/cache@v3
+      name: Restore cache from approximate key
+      uses: actions/cache/restore@v3
       with:
-        key: ${{ runner.os }}-stack-${{ env.STACK_VER }}-ghc-${{ env.GHC_VER }}-${{
-          hashFiles('stack.yaml', 'Agda.cabal') }}
-        path: ~/.stack
+        key: test.yml-${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER
+          }}-ghc-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
+        path: |
+          ~/.stack
+          ~/.stack-work
+        restore-keys: |
+          test.yml-${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER }}-ghc-${{ env.GHC_VER }}-
     - name: Install dependencies for Agda and its test suites
       run: make install-deps
     - name: Build Agda
@@ -72,6 +82,23 @@ jobs:
           dist.tzst
           stack-work.tzst
         retention-days: 1
+    - env:
+        KEY: test.yml-${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER
+          }}-ghc-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
+      if: ${{ steps.cache.outputs.cache-hit }}
+      name: Clear cache
+      run: |
+        gh extension install actions/gh-actions-cache
+        gh actions-cache delete ${{ env.KEY }} --confirm || true
+    - if: always()
+      name: Save cache
+      uses: actions/cache/save@v3
+      with:
+        key: test.yml-${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER
+          }}-ghc-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
+        path: |
+          ~/.stack
+          ~/.stack-work
   cubical:
     needs: build
     runs-on: ubuntu-22.04
@@ -91,13 +118,21 @@ jobs:
       run: |
         tar --use-compress-program zstd -xvf dist.tzst
         tar --use-compress-program zstd -xvf stack-work.tzst
+    - name: Determine the ICU version
+      run: |
+        uconv --version
+        export ICU_VER="$(uconv --version | sed -ne 's/uconv v.* ICU \([0-9][0-9.]*\)/\1/p')"
+        echo "ICU_VER=${ICU_VER}"
+        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
-      name: Cache dependencies
-      uses: actions/cache@v3
+      name: Restore cache from exact key
+      uses: actions/cache/restore@v3
       with:
-        key: ${{ runner.os }}-stack-${{ env.STACK_VER }}-ghc-${{ env.GHC_VER }}-${{
-          hashFiles('stack.yaml', 'Agda.cabal') }}
-        path: ~/.stack
+        key: test.yml-${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER
+          }}-ghc-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
+        path: |
+          ~/.stack
+          ~/.stack-work
     - name: Cubical library test
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-test
     - name: Successful tests using the cubical library
@@ -121,13 +156,21 @@ jobs:
       run: |
         tar --use-compress-program zstd -xvf dist.tzst
         tar --use-compress-program zstd -xvf stack-work.tzst
+    - name: Determine the ICU version
+      run: |
+        uconv --version
+        export ICU_VER="$(uconv --version | sed -ne 's/uconv v.* ICU \([0-9][0-9.]*\)/\1/p')"
+        echo "ICU_VER=${ICU_VER}"
+        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
-      name: Cache dependencies
-      uses: actions/cache@v3
+      name: Restore cache from exact key
+      uses: actions/cache/restore@v3
       with:
-        key: ${{ runner.os }}-stack-${{ env.STACK_VER }}-ghc-${{ env.GHC_VER }}-${{
-          hashFiles('stack.yaml', 'Agda.cabal') }}
-        path: ~/.stack
+        key: test.yml-${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER
+          }}-ghc-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
+        path: |
+          ~/.stack
+          ~/.stack-work
     - name: Install Tex Live and Emacs
       run: |
         sudo apt-get update
@@ -158,13 +201,21 @@ jobs:
       run: |
         tar --use-compress-program zstd -xvf dist.tzst
         tar --use-compress-program zstd -xvf stack-work.tzst
+    - name: Determine the ICU version
+      run: |
+        uconv --version
+        export ICU_VER="$(uconv --version | sed -ne 's/uconv v.* ICU \([0-9][0-9.]*\)/\1/p')"
+        echo "ICU_VER=${ICU_VER}"
+        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
-      name: Cache dependencies
-      uses: actions/cache@v3
+      name: Restore cache from exact key
+      uses: actions/cache/restore@v3
       with:
-        key: ${{ runner.os }}-stack-${{ env.STACK_VER }}-ghc-${{ env.GHC_VER }}-${{
-          hashFiles('stack.yaml', 'Agda.cabal') }}
-        path: ~/.stack
+        key: test.yml-${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER
+          }}-ghc-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
+        path: |
+          ~/.stack
+          ~/.stack-work
     - name: Standard library test
       run: |
         # ASR (2021-01-17). `cabal update` is required due to #5138.
@@ -196,13 +247,21 @@ jobs:
       run: |
         tar --use-compress-program zstd -xvf dist.tzst
         tar --use-compress-program zstd -xvf stack-work.tzst
+    - name: Determine the ICU version
+      run: |
+        uconv --version
+        export ICU_VER="$(uconv --version | sed -ne 's/uconv v.* ICU \([0-9][0-9.]*\)/\1/p')"
+        echo "ICU_VER=${ICU_VER}"
+        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
-      name: Cache dependencies
-      uses: actions/cache@v3
+      name: Restore cache from exact key
+      uses: actions/cache/restore@v3
       with:
-        key: ${{ runner.os }}-stack-${{ env.STACK_VER }}-ghc-${{ env.GHC_VER }}-${{
-          hashFiles('stack.yaml', 'Agda.cabal') }}
-        path: ~/.stack
+        key: test.yml-${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER
+          }}-ghc-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
+        path: |
+          ~/.stack
+          ~/.stack-work
     - name: Suite of tests for bugs
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" bugs
     - name: 'Suite of successful tests: mini-library Common'

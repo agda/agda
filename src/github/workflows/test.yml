@@ -106,18 +106,26 @@ jobs:
     - name: "Copy stack-${{ env.GHC_VER}}.yaml to stack.yaml"
       run:  cp stack-${{ env.GHC_VER }}.yaml stack.yaml
 
-    - &cache
-      uses: actions/cache@v3
-      name: Cache dependencies
+    - &icu
+      name: Determine the ICU version
+      run: |
+        uconv --version
+        export ICU_VER="$(uconv --version | sed -ne 's/uconv v.* ICU \([0-9][0-9.]*\)/\1/p')"
+        echo "ICU_VER=${ICU_VER}"
+        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
+      # The output of unconv --version looks like "uconv v2.1  ICU 72.1" from which we extract "72.1"
+
+    - name: Restore cache from approximate key
+      uses: actions/cache/restore@v3
       id: cache
       with:
-        path: "~/.stack"
+        path: &cache_path |
+          ~/.stack
+          ~/.stack-work
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-${{ env.STACK_VER }}-ghc-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
-
-    # ICU is already installed on ubuntu >= 20.04
-    # - name: "Install and configure the icu library"
-    #   run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
+        key: &cache_key test.yml-${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER }}-ghc-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
+        restore-keys: |
+          test.yml-${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER }}-ghc-${{ env.GHC_VER }}-
 
     - name: "Install dependencies for Agda and its test suites"
       ## Always do this step, even if we got a cache hit.  Should be fast in case we got a hit.
@@ -158,6 +166,21 @@ jobs:
           dist.tzst
           stack-work.tzst
 
+    - name: Clear cache
+      if:   ${{ steps.cache.outputs.cache-hit }}
+      env:
+        KEY: *cache_key
+      run: |
+        gh extension install actions/gh-actions-cache
+        gh actions-cache delete ${{ env.KEY }} --confirm || true
+      # Don't fail if cache cannot be deleted
+
+    - name: Save cache
+      uses: actions/cache/save@v3
+      if:   always()  # save cache even when build fails
+      with:
+        key:  *cache_key
+        path: *cache_path
 
   # Step 2a: Basic testsuites: succeed, fail, etc.
   ###########################################################################
@@ -181,7 +204,14 @@ jobs:
         tar --use-compress-program zstd -xvf dist.tzst
         tar --use-compress-program zstd -xvf stack-work.tzst
 
-    - *cache
+    - *icu
+    - &cache
+      name: Restore cache from exact key
+      uses: actions/cache/restore@v3
+      id: cache
+      with:
+        path: *cache_path
+        key:  *cache_key
 
     - name: "Suite of tests for bugs"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" bugs
@@ -242,6 +272,7 @@ jobs:
     - *haskell_setup
     - *download_artifact
     - *unpack_artifact
+    - *icu
     - *cache
 
     - name: "Standard library test"
@@ -273,6 +304,7 @@ jobs:
     - *haskell_setup
     - *download_artifact
     - *unpack_artifact
+    - *icu
     - *cache
 
     - name: "Install Tex Live and Emacs"
@@ -304,6 +336,7 @@ jobs:
     - *haskell_setup
     - *download_artifact
     - *unpack_artifact
+    - *icu
     - *cache
 
     - name: "Cubical library test"
