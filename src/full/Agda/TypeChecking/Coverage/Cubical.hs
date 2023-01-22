@@ -262,7 +262,7 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
     abstractN (xTelI `applyN` g1) $ \ p -> do
     abstractT "ψ" (pure interval) $ \ psi -> do
     abstractN (xTelI `applyN` g1) $ \ q -> do
-    abstractT "x0" (pure dT `applyN` g1 `applyN` (flip map q $ \ f -> f <@> pure iz)) $ \ x0 -> do
+    abstractT "x0" (pure dT `applyN` g1 `applyN` (for q $ \ f -> f <@> pure iz)) $ \ x0 -> do
     deltaPat g1 phi p psi q x0
 
   ps_ty_rhs <- runNamesT [] $ do
@@ -339,15 +339,15 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
       c <- mkComp $ bindN ["i","j"] $ \ [i,j] -> do
         Abs n (data_ty,lines) <- bind "k" $ \ k -> do
           let phi_k = max phi (neg k)
-          let p_k = flip map p $ \ p -> lam "h" $ \ h -> p <@> (min k h)
-          data_ty <- pure dT `applyN` g1 `applyN` (flip map p $ \ p -> p <@> k)
+          let p_k = for p $ \ p -> lam "h" $ \ h -> p <@> (min k h)
+          data_ty <- pure dT `applyN` g1 `applyN` (for p $ \ p -> p <@> k)
           line1 <- trX `applyN` g1 `applyN` (phi_k:p_k) `applyN` [x0]
 
           line2 <- trX `applyN` g1
-                       `applyN` (max phi_k j      : (flip map p_k $ \ p -> lam "h" $ \ h -> p <@> (max h j)))
+                       `applyN` (max phi_k j      : (for p_k $ \ p -> lam "h" $ \ h -> p <@> (max h j)))
                        `applyN`
                   [trX `applyN` g1
-                       `applyN` (max phi_k (neg j): (flip map p_k $ \ p -> lam "h" $ \ h -> p <@> (min h j)))
+                       `applyN` (max phi_k (neg j): (for p_k $ \ p -> lam "h" $ \ h -> p <@> (min h j)))
                        `applyN` [x0]]
           pure (data_ty,[line1,line2])
         data_ty <- open $ Abs n data_ty
@@ -546,7 +546,7 @@ createMissingTrXHCompClause q_trX f n x old_sc = do
             bindN (map unArg $ ([defaultArg "phi"] ++ xTelIArgNames)) $ \ phi_p -> do
             bindN ["psi","u","u0"] $ \ x0 -> do
             let trX = trX' `applyN` g1
-            let p0 = flip map (tail phi_p) $ \ p -> p <@> pure iz
+            let p0 = for (tail phi_p) $ \ p -> p <@> pure iz
             trX `applyN` phi_p `applyN` [hcompD' g1 p0 `applyN` x0]
       pat = (fmap . fmap . fmap) patternToTerm <$> pat'
   let deltaPat g1 phi p x0 =
@@ -556,7 +556,7 @@ createMissingTrXHCompClause q_trX f n x old_sc = do
     abstractN (pure gamma1) $ \ g1 -> do
     abstractT "φ" (pure interval) $ \ phi -> do
     abstractN (xTelI `applyN` g1) $ \ p -> do
-    let p0 = flip map p $ \ p -> p <@> pure iz
+    let p0 = for p $ \ p -> p <@> pure iz
     let ty = pure dT `applyN` g1 `applyN` p0
     abstractT "ψ" (pure interval) $ \ psi -> do
     abstractT "u" (pure interval --> pPi' "o" psi (\ _ -> ty)) $ \ u -> do
@@ -587,7 +587,7 @@ createMissingTrXHCompClause q_trX f n x old_sc = do
     -- Ξ ⊢ pat-rec[i] := trX .. (hfill ... (~ i))
     pat_rec <- (open =<<) $ bind "i" $ \ i -> do
           let tr x = trX `applyN` g1 `applyN` (phi:p) `applyN` [x]
-          let p0 = flip map p $ \ p -> p <@> pure iz
+          let p0 = for p $ \ p -> p <@> pure iz
           tr (hcomp (pure dT `applyN` g1 `applyN` p0)
                     [(psi,lam "j" $ \ j -> u <@> (min j (neg i)))
                     ,(i  ,lam "j" $ \ _ -> ilam "o" $ \ _ -> u0)]

@@ -41,6 +41,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 
 import Agda.Utils.Impossible
+import Agda.Utils.Functor
 
 
 -- | A @WarningMode@ has two components: a set of warnings to be displayed
@@ -319,7 +320,7 @@ usageWarning = intercalate "\n"
     untable :: [(String, String)] -> String
     untable rows =
       let len = maximum (map (length . fst) rows) in
-      unlines $ flip map rows $ \ (hdr, cnt) ->
+      unlines $ for rows $ \ (hdr, cnt) ->
         concat [ hdr, replicate (1 + len - length hdr) ' ', cnt ]
 
 -- | @WarningName@ descriptions used for generating usage information

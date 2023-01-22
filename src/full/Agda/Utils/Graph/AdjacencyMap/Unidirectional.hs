@@ -103,6 +103,7 @@ import Agda.Utils.SemiRing
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
+import Agda.Utils.Functor
 
 ------------------------------------------------------------------------
 -- Graphs and edges
@@ -502,7 +503,7 @@ filterNodesKeepingEdges p g =
             case Map.lookup n' remove of
               Nothing -> []
               Just es ->
-                flip map (Map.toList es) $ \(n', e') -> Edge
+                for (Map.toList es) $ \(n', e') -> Edge
                   { source = n
                   , target = n'
                   , label  = e `otimes` e'
@@ -516,7 +517,7 @@ filterNodesKeepingEdges p g =
       , Map.insert
           n
           (Map.unionsWith oplus $
-           flip map (neighbours n g) $ \(n', e) ->
+           for (neighbours n g) $ \(n', e) ->
              case Map.lookup n' remove of
                Nothing -> Map.singleton n' e
                Just es -> fmap (e `otimes`) es)
@@ -898,7 +899,7 @@ longestPaths g =
 
     candidates :: [Map n (Int, Seq [Edge n e])]
     candidates =
-      flip map (neighbours n g) $ \(n', e) ->
+      for (neighbours n g) $ \(n', e) ->
       let edge = Edge
             { source = n
             , target = n'
