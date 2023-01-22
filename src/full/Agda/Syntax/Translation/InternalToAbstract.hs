@@ -72,6 +72,7 @@ import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.Maybe.Strict as Strict
+import qualified Agda.Utils.Pretty.Aspect as Asp
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -497,7 +498,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
           -- the number of parameters is greater (if the data decl has
           -- extra parameters) or equal (if not) to n
           when (n > np) __IMPOSSIBLE__
-          let h = A.Con (unambiguous x)
+          let h = A.PrintedExpr Asp.conName (A.Con (unambiguous x))
           if null vs
             then return h
             else do
@@ -699,7 +700,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
                       | otherwise -> elims absLam =<< reify (drop n es)
 
       -- Otherwise (no absurd lambda):
-       _ -> do
+       theDefn -> do
 
         -- Andrea(s), 2016-07-06
         -- Extended lambdas are not considered to be projection like,
@@ -791,9 +792,24 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
              [ "  pad =" <+> pshow pad
              , "  nes =" <+> pshow nes
              ]
-           let hd0 | isProperProjection def = A.Proj ProjPrefix $ AmbQ $ singleton x
-                   | otherwise = A.Def x
-           let hd = List.foldl' (A.App defaultAppInfo_) hd0 pad
+           let
+              defnAspect = case theDefn of
+                _ | isMacro theDefn                 -> Asp.macroName
+                Agda.TypeChecking.Monad.Axiom{}     -> Asp.postulatedName
+                DataOrRecSig{}                      -> Asp.datatypeName
+                -- Default to datatype highlighting in lieu of a better
+                -- option
+                GeneralizableVar{}                  -> Asp.generalizableName
+                AbstractDefn{}                      -> Asp.functionName
+                Function{}                          -> Asp.functionName
+                Datatype{}                          -> Asp.datatypeName
+                Record{}                            -> Asp.recordName
+                Constructor{}                       -> Asp.conName
+                Agda.TypeChecking.Monad.Primitive{} -> Asp.primitiveName
+                PrimitiveSort{}                     -> Asp.Highlight Asp.PrimitiveType
+              hd0 | isProperProjection def = A.Proj ProjPrefix $ AmbQ $ singleton x
+                  | otherwise = A.PrintedExpr defnAspect $ A.Def x
+              hd = List.foldl' (A.App defaultAppInfo_) hd0 pad
            nelims hd =<< reify nes
 
     -- Andreas, 2016-07-06 Issue #2047
@@ -1087,6 +1103,7 @@ instance BlankVars A.Expr where
     A.DontCare v             -> A.DontCare $ blank bound v
     A.PatternSyn {}          -> e
     A.Macro {}               -> e
+    A.PrintedExpr a e        -> e
 
 instance BlankVars A.ModuleName where
   blank bound = id
@@ -1404,46 +1421,47 @@ instance Reify Sort where
     reify s = do
       s <- instantiateFull s
       SortKit{..} <- infallibleSortKit
+      let hl = A.PrintedExpr (Asp.Highlight Asp.PrimitiveType)
       case s of
-        I.Type (I.ClosedLevel 0) -> return $ A.Def' nameOfSet A.NoSuffix
-        I.Type (I.ClosedLevel n) -> return $ A.Def' nameOfSet (A.Suffix n)
+        I.Type (I.ClosedLevel 0) -> return . hl $ A.Def' nameOfSet A.NoSuffix
+        I.Type (I.ClosedLevel n) -> return . hl $ A.Def' nameOfSet (A.Suffix n)
         I.Type a -> do
           a <- reify a
-          return $ A.App defaultAppInfo_ (A.Def nameOfSet) (defaultNamedArg a)
-        I.Prop (I.ClosedLevel 0) -> return $ A.Def' nameOfProp A.NoSuffix
-        I.Prop (I.ClosedLevel n) -> return $ A.Def' nameOfProp (A.Suffix n)
+          return $ A.App defaultAppInfo_ (hl (A.Def nameOfSet)) (defaultNamedArg a)
+        I.Prop (I.ClosedLevel 0) -> return . hl $ A.Def' nameOfProp A.NoSuffix
+        I.Prop (I.ClosedLevel n) -> return . hl $ A.Def' nameOfProp (A.Suffix n)
         I.Prop a -> do
           a <- reify a
-          return $ A.App defaultAppInfo_ (A.Def nameOfProp) (defaultNamedArg a)
-        I.Inf f 0 -> return $ A.Def' (nameOfSetOmega f) A.NoSuffix
-        I.Inf f n -> return $ A.Def' (nameOfSetOmega f) (A.Suffix n)
+          return $ A.App defaultAppInfo_ (hl (A.Def nameOfProp)) (defaultNamedArg a)
+        I.Inf f 0 -> return . hl $ A.Def' (nameOfSetOmega f) A.NoSuffix
+        I.Inf f n -> return . hl $ A.Def' (nameOfSetOmega f) (A.Suffix n)
         I.SSet a  -> do
           I.Def sset [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinStrictSet
           a <- reify a
-          return $ A.App defaultAppInfo_ (A.Def sset) (defaultNamedArg a)
+          return $ A.App defaultAppInfo_ (hl (A.Def sset)) (defaultNamedArg a)
         I.SizeUniv  -> do
           I.Def sizeU [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeUniv
-          return $ A.Def sizeU
+          return . hl $ A.Def sizeU
         I.LockUniv  -> do
           lockU <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinLockUniv
-          return $ A.Def lockU
+          return . hl $ A.Def lockU
         I.IntervalUniv -> do
           intervalU <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinIntervalUniv
-          return $ A.Def intervalU
+          return . hl $ A.Def intervalU
         I.PiSort a s1 s2 -> do
           pis <- freshName_ ("piSort" :: String) -- TODO: hack
           (e1,e2) <- reify (s1, I.Lam defaultArgInfo $ fmap Sort s2)
           let app x y = A.App defaultAppInfo_ x (defaultNamedArg y)
-          return $ A.Var pis `app` e1 `app` e2
+          return $ hl (A.Var pis) `app` e1 `app` e2
         I.FunSort s1 s2 -> do
           funs <- freshName_ ("funSort" :: String) -- TODO: hack
           (e1,e2) <- reify (s1 , s2)
           let app x y = A.App defaultAppInfo_ x (defaultNamedArg y)
-          return $ A.Var funs `app` e1 `app` e2
+          return $ hl (A.Var funs) `app` e1 `app` e2
         I.UnivSort s -> do
           univs <- freshName_ ("univSort" :: String) -- TODO: hack
           e <- reify s
-          return $ A.App defaultAppInfo_ (A.Var univs) $ defaultNamedArg e
+          return $ A.App defaultAppInfo_ (hl (A.Var univs)) $ defaultNamedArg e
         I.MetaS x es -> reify $ I.MetaV x es
         I.DefS d es -> reify $ I.Def d es
         I.DummyS s -> return $ A.Lit empty $ LitString $ T.pack s

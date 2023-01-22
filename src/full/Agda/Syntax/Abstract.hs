@@ -42,6 +42,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
+import Agda.Utils.Pretty.Aspect (PrintingAspect)
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
@@ -113,6 +114,9 @@ data Expr
   | QuoteTerm ExprInfo                 -- ^ Quote a term.
   | Unquote ExprInfo                   -- ^ The splicing construct: unquote ...
   | DontCare Expr                      -- ^ For printing @DontCare@ from @Syntax.Internal@.
+  | PrintedExpr PrintingAspect Expr
+  -- ^ For printing expressions from @Syntax.Internal@ which we have
+  -- precise highlighting information for.
   deriving (Show, Generic)
 
 -- | Pattern synonym for regular 'Def'.
@@ -665,6 +669,7 @@ instance HasRange Expr where
     getRange (DontCare{})            = noRange
     getRange (PatternSyn x)          = getRange x
     getRange (Macro x)               = getRange x
+    getRange (PrintedExpr _ x)       = getRange x
 
 instance HasRange Declaration where
     getRange (Axiom    _ i _ _ _ _  ) = getRange i
@@ -798,6 +803,7 @@ instance KillRange Expr where
   killRange (DontCare e)             = killRange1 DontCare e
   killRange (PatternSyn x)           = killRange1 PatternSyn x
   killRange (Macro x)                = killRange1 Macro x
+  killRange (PrintedExpr e x)        = killRange1 (PrintedExpr e) x
 
 instance KillRange Suffix where
   killRange = id
@@ -1078,6 +1084,7 @@ instance SubstExpr Expr where
     Unquote{}       -> __IMPOSSIBLE__
     DontCare{}      -> __IMPOSSIBLE__
     Macro{}         -> __IMPOSSIBLE__
+    PrintedExpr{}   -> __IMPOSSIBLE__
 
 -- TODO: more informative failure
 insertImplicitPatSynArgs

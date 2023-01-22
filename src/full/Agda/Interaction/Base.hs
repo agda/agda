@@ -14,6 +14,8 @@ import           Control.Monad.State
 import qualified Data.List                    as List
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
+import qualified Data.IntMap.Strict           as IntMap
+import           Data.IntMap.Strict           (IntMap)
 import           Data.Maybe                   (listToMaybe)
 
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
@@ -30,7 +32,7 @@ import           Agda.Interaction.Options     (CommandLineOptions,
                                                defaultOptions)
 
 import           Agda.Utils.FileName          (AbsolutePath, mkAbsolute)
-import           Agda.Utils.Pretty            (Pretty(..), prettyShow, text)
+import           Agda.Utils.Pretty            (Doc, Pretty(..), prettyShow, text)
 import           Agda.Utils.Time              (ClockTime)
 
 ------------------------------------------------------------------------
@@ -60,6 +62,9 @@ data CommandState = CommandState
     --
     -- This queue should only be manipulated by
     -- 'initialiseCommandQueue' and 'maybeAbort'.
+  , lastActionFailure    :: Maybe (IntMap (IO ()), TCM Doc)
+    -- ^ Did the last action fail because of a type error? And if so,
+    -- why? Used to support error message interaction.
   }
 
 type OldInteractionScopes = Map InteractionId ScopeInfo
@@ -74,6 +79,7 @@ initCommandState commandQueue =
     , optionsOnReload      = defaultOptions
     , oldInteractionScopes = Map.empty
     , commandQueue         = commandQueue
+    , lastActionFailure    = Nothing
     }
 
 -- | Monad for computing answers to interactive commands.
@@ -308,7 +314,12 @@ data Interaction' range
     -- Does nothing if no computation is in progress.
   | Cmd_exit
     -- ^ Exit the program.
-        deriving (Show, Read, Functor, Foldable, Traversable)
+
+  -- | Invoke an interaction callback if we displayed an interaction
+  -- widget into the info buffer.
+  | Cmd_invoke_callback Int
+
+  deriving (Show, Read, Functor, Foldable, Traversable)
 
 data IOTCM' range
     = IOTCM

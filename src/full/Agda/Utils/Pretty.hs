@@ -3,7 +3,7 @@
 -}
 module Agda.Utils.Pretty
     ( module Agda.Utils.Pretty
-    , module Text.PrettyPrint
+    , module Text.PrettyPrint.Annotated
     -- This re-export can be removed once <GHC-8.4 is dropped.
     , module Data.Semigroup
     ) where
@@ -24,8 +24,9 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Word (Word64)
 
-import qualified Text.PrettyPrint as P
-import Text.PrettyPrint hiding (TextDetails(Str), empty, (<>), sep, fsep, hsep, hcat, vcat, punctuate)
+import qualified Text.PrettyPrint.Annotated.HughesPJ as Ph
+import qualified Text.PrettyPrint.Annotated as P
+import Text.PrettyPrint.Annotated hiding (Doc, TextDetails(Str), empty, (<>), sep, fsep, hsep, hcat, vcat, punctuate)
 import Data.Semigroup ((<>))
 
 import Agda.Utils.Float
@@ -33,10 +34,17 @@ import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
 import Agda.Utils.Size
+import Agda.Utils.Pretty.Aspect
 
 import Agda.Utils.Impossible
 
 -- * Pretty class
+
+-- | The pretty-printer generates documents annotated by a
+-- 'PrintingAspect'. We abbreviate the type of annotated documents as
+-- simply 'Doc'.
+
+type Doc = P.Doc PrintingAspect
 
 -- | While 'Show' is for rendering data in Haskell syntax,
 --   'Pretty' is for displaying data to the world, i.e., the
@@ -73,7 +81,7 @@ instance Pretty Char where
   pretty c = text [c]
   prettyList = text
 
-instance Pretty Doc where
+instance a ~ PrintingAspect => Pretty (P.Doc a) where
   pretty = id
 
 instance Pretty () where
@@ -192,3 +200,78 @@ prefixedThings :: Doc -> [Doc] -> Doc
 prefixedThings kw = \case
   []           -> P.empty
   (doc : docs) -> fsep $ (kw <+> doc) : map ("|" <+>) docs
+
+-- * Syntax highlighting
+
+withAspect :: PrintingAspect -> Doc -> Doc
+withAspect = P.annotate
+
+hiComment, hiKeyword, hiString, hiNumber, hiHole, hiSymbol, hiPrimitiveType,
+  hiPragma, hiDatatype, hiPostulate, hiRecord, hiField, hiFunction, hiPrimitive,
+  hiArgument, hiMacro, hiConstructor, hiInteraction :: Doc -> Doc
+
+hiComment       = withAspect (Highlight Comment)
+hiKeyword       = withAspect (Highlight Keyword)
+hiString        = withAspect (Highlight String)
+hiNumber        = withAspect (Highlight Number)
+hiHole          = withAspect (Highlight Hole)
+hiSymbol        = withAspect (Highlight Symbol)
+hiPrimitiveType = withAspect (Highlight PrimitiveType)
+hiPragma        = withAspect (Highlight Pragma)
+hiInteraction   = withAspect (Highlight Interaction)
+hiDatatype      = withAspect (Highlight (Name (Just Datatype) False))
+hiPostulate     = withAspect (Highlight (Name (Just Postulate) False))
+hiRecord        = withAspect (Highlight (Name (Just Record) False))
+hiField         = withAspect (Highlight (Name (Just Field) False))
+hiFunction      = withAspect (Highlight (Name (Just Function) False))
+hiPrimitive     = withAspect (Highlight (Name (Just Primitive) False))
+hiArgument      = withAspect (Highlight (Name (Just Argument) False))
+hiMacro         = withAspect (Highlight (Name (Just Macro) False))
+hiConstructor   = withAspect (Highlight (Name (Just (Constructor ())) False))
+
+hiTooltip :: String -> Doc -> Doc
+hiTooltip s = withAspect (WithTooltip s)
+
+renderAnsi3Bit :: Doc -> String
+renderAnsi3Bit =
+  Ph.renderDecorated to'
+    -- Always clear after an aspect:
+    (\_ -> reset)
+  where
+    reset, red, green, yellow, blue, magenta, cyan  :: String
+    reset   = "\ESC[0m"
+    red     = "\ESC[31m"
+    green   = "\ESC[32m"
+    yellow  = "\ESC[33m"
+    blue    = "\ESC[34m"
+    magenta = "\ESC[35m"
+    cyan    = "\ESC[36m"
+    bold    = "\ESC[1"
+
+    to' :: PrintingAspect -> String
+    to' (Highlight x)       = to x
+    to' (TriggerCallback _) = ""
+    to' (WithTooltip _)     = ""
+
+    to :: Aspect' a -> String
+    to Comment = reset
+    to Keyword = yellow
+    to String = green
+    to Number = green
+    to Hole = reset
+    to Symbol = reset
+    to PrimitiveType = bold ++ blue
+    to (Name nm _) = case nm of
+      Just Function        -> blue
+      Just Datatype        -> bold ++ blue
+      Just Record          -> bold ++ blue
+      Just Primitive       -> bold ++ blue
+      Just Postulate       -> blue
+      Just (Constructor _) -> bold ++ green
+      Just Argument        -> reset
+      Just Macro           -> cyan
+      _                    -> reset
+    to Pragma      = reset
+    to Background  = reset
+    to Markup      = reset
+    to Interaction = reset

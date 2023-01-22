@@ -3,7 +3,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Agda.TypeChecking.Errors
-  ( prettyError
+  ( prettyError, prettyErrorWithRenderer
   , tcErrString
   , prettyTCWarnings'
   , prettyTCWarnings
@@ -84,8 +84,12 @@ import Agda.Utils.Impossible
 
 {-# SPECIALIZE prettyError :: TCErr -> TCM String #-}
 prettyError :: MonadTCM tcm => TCErr -> tcm String
-prettyError err = liftTCM $ show <$> prettyError' err []
-  where
+prettyError = prettyErrorWithRenderer show
+
+{-# SPECIALIZE prettyErrorWithRenderer :: (Doc -> String) -> TCErr -> TCM String #-}
+prettyErrorWithRenderer
+  :: MonadTCM tcm => (Doc -> t) -> TCErr -> tcm t
+prettyErrorWithRenderer render err = liftTCM $ render <$> prettyError' err [] where
   prettyError' :: TCErr -> [TCErr] -> TCM Doc
   prettyError' err errs
     | length errs > 3 = fsep (

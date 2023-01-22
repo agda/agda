@@ -201,7 +201,7 @@ instance Pretty Expr where
 --                          , nest 2 $ fsep $ map pretty args
 --                          ]
             RawApp _ es    -> fsep $ map pretty $ List2.toList es
-            OpApp _ q _ es -> fsep $ prettyOpApp q es
+            OpApp _ q _ es -> fsep $ prettyOpApp pretty q es
 
             WithApp _ e es -> fsep $
               pretty e : map (("|" <+>) . pretty) es
@@ -226,8 +226,8 @@ instance Pretty Expr where
                     , pretty e
                     ]
             Let _ ds me  ->
-                sep [ "let" <+> vcat (fmap pretty ds)
-                    , maybe empty (\ e -> "in" <+> pretty e) me
+                sep [ hiKeyword "let" <+> vcat (fmap pretty ds)
+                    , maybe empty (\ e -> hiKeyword "in" <+> pretty e) me
                     ]
             Paren _ e -> parens $ pretty e
             IdiomBrackets _ es ->
@@ -235,23 +235,27 @@ instance Pretty Expr where
                 []   -> emptyIdiomBrkt
                 [e]  -> leftIdiomBrkt <+> pretty e <+> rightIdiomBrkt
                 e:es -> leftIdiomBrkt <+> pretty e <+> fsep (map (("|" <+>) . pretty) es) <+> rightIdiomBrkt
-            DoBlock _ ss -> "do" <+> vcat (fmap pretty ss)
+            DoBlock _ ss -> hiKeyword "do" <+> vcat (fmap pretty ss)
             As _ x e  -> pretty x <> "@" <> pretty e
             Dot _ e   -> "." <> pretty e
             DoubleDot _ e  -> ".." <> pretty e
             Absurd _  -> "()"
-            Rec _ xs  -> sep ["record", bracesAndSemicolons (map pretty xs)]
+            Rec _ xs  -> sep [hiKeyword "record", bracesAndSemicolons (map pretty xs)]
             RecUpdate _ e xs ->
-              sep ["record" <+> pretty e, bracesAndSemicolons (map pretty xs)]
-            Quote _ -> "quote"
-            QuoteTerm _ -> "quoteTerm"
-            Unquote _  -> "unquote"
-            Tactic _ t -> "tactic" <+> pretty t
+              sep [hiKeyword "record" <+> pretty e, bracesAndSemicolons (map pretty xs)]
+            Quote _ -> hiKeyword "quote"
+            QuoteTerm _ -> hiKeyword "quoteTerm"
+            Unquote _  -> hiKeyword "unquote"
+            Tactic _ t -> hiKeyword "tactic" <+> pretty t
             -- Andreas, 2011-10-03 print irrelevant things as .(e)
             DontCare e -> "." <> parens (pretty e)
             Equal _ a b -> pretty a <+> "=" <+> pretty b
             Ellipsis _  -> "..."
             Generalized e -> pretty e
+
+            -- Spreading the aspect out to the name parts:
+            PrintedExpr a (OpApp _ q _ es) -> fsep $ prettyOpApp (withAspect a . pretty) q es
+            PrintedExpr a e -> withAspect a (pretty e)
         where
           absurd NotHidden  = "()"
           absurd Instance{} = "{{}}"
@@ -685,7 +689,7 @@ instance Pretty Pattern where
             IdentP x        -> pretty x
             AppP p1 p2      -> sep [ pretty p1, nest 2 $ pretty p2 ]
             RawAppP _ ps    -> fsep $ map pretty $ List2.toList ps
-            OpAppP _ q _ ps -> fsep $ prettyOpApp q $ fmap (fmap (fmap (NoPlaceholder Strict.Nothing))) ps
+            OpAppP _ q _ ps -> fsep $ prettyOpApp pretty q $ fmap (fmap (fmap (NoPlaceholder Strict.Nothing))) ps
             HiddenP _ p     -> braces' $ pretty p
             InstanceP _ p   -> dbraces $ pretty p
             ParenP _ p      -> parens $ pretty p
@@ -701,8 +705,8 @@ instance Pretty Pattern where
             WithP _ p       -> "|" <+> pretty p
 
 prettyOpApp :: forall a .
-  Pretty a => QName -> [NamedArg (MaybePlaceholder a)] -> [Doc]
-prettyOpApp q es = merge [] $ prOp ms xs es
+  Pretty a => (Name -> Doc) -> QName -> [NamedArg (MaybePlaceholder a)] -> [Doc]
+prettyOpApp namePart q es = merge [] $ prOp ms xs es
   where
     -- ms: the module part of the name.
     ms = List1.init (qnameParts q)
@@ -718,7 +722,7 @@ prettyOpApp q es = merge [] $ prOp ms xs es
         NoPlaceholder{} -> (pretty e, Nothing) : prOp ms xs es
           -- Module qualifier needs to go on section holes (#3072)
     prOp _  (Hole : _)  []       = __IMPOSSIBLE__
-    prOp ms (Id x : xs) es       = ( qual ms $ pretty $ simpleName x
+    prOp ms (Id x : xs) es       = ( qual ms $ namePart $ simpleName x
                                    , Nothing
                                    ) : prOp [] xs es
       -- Qualify the name part with the module.

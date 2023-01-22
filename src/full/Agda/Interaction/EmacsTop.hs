@@ -13,6 +13,9 @@ import Control.Monad.State    ( evalStateT )
 import Control.Monad.Trans    ( lift )
 
 import qualified Data.List as List
+import qualified Data.Text as Text
+import Data.Text (Text)
+import Data.Either (partitionEithers)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -21,7 +24,7 @@ import Agda.Syntax.Abstract.Pretty (prettyATop)
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete as C
 
-import Agda.TypeChecking.Errors ( explainWhyInScope, getAllWarningsOfTCErr, prettyError )
+import Agda.TypeChecking.Errors ( explainWhyInScope, getAllWarningsOfTCErr, prettyErrorWithRenderer )
 import qualified Agda.TypeChecking.Pretty as TCP
 import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
@@ -33,11 +36,14 @@ import Agda.Interaction.BasicOps as B
 import Agda.Interaction.Response as R
 import Agda.Interaction.EmacsCommand hiding (putResponse)
 import Agda.Interaction.Highlighting.Emacs
-import Agda.Interaction.Highlighting.Precise (TokenBased(..))
+import Agda.Interaction.Highlighting.Common
+import Agda.Interaction.Highlighting.Precise (TokenBased(..), PrintingAspect, Aspects(..))
 import Agda.Interaction.InteractionTop (localStateCommandM)
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Null (empty)
 import Agda.Utils.Maybe
+import qualified Agda.Utils.Pretty as PP
+import qualified Agda.Utils.Pretty.Aspect as PP
 import Agda.Utils.Pretty
 import Agda.Utils.String
 import Agda.Utils.Time (CPUTime)
@@ -135,8 +141,12 @@ lispifyDisplayInfo info = case info of
       format body ("*All" ++ title ++ "*")
     Info_Auto s -> format s "*Auto*"
     Info_Error err -> do
-      s <- showInfoError err
-      format s "*Error*"
+      (s, spans) <- showInfoError err
+      errs <- format s "*Error*"
+      let
+        t = Text.pack s
+        spans' = lispifyPpSpans 1 spans
+      pure (errs ++ spans')
     Info_Time s -> format (render $ prettyTimed s) "*Time*"
     Info_NormalForm state cmode time expr -> do
       exprDoc <- evalStateT prettyExpr state
@@ -198,6 +208,37 @@ lispifyDisplayInfo info = case info of
       format (render doc) "*Intro*"
     Info_Version -> format ("Agda version " ++ versionWithCommitInfo) "*Agda Version*"
     Info_GoalSpecific ii kind -> lispifyGoalSpecificDisplayInfo ii kind
+
+lispifyPpSpans :: Int -> [PP.Span PP.PrintingAspect] -> [Lisp String]
+lispifyPpSpans offset xs = [hl, callback] where
+  classify (PP.Span a b (PP.Highlight x)) = Left (PP.Span a b x)
+  classify (PP.Span a b (PP.TriggerCallback d)) = Right (PP.Span a b (Left d))
+  classify (PP.Span a b (PP.WithTooltip d)) = Right (PP.Span a b (Right d))
+
+  hl = L $ A "agda2-highlight-info-buffer":map hi hilites
+  callback = L $ A "agda2-attach-callbacks":map cb cbs
+
+  (hilites, cbs) = partitionEithers (map classify xs)
+
+  fake a = Aspects (Just (Inductive <$ a)) mempty "" Nothing TokenBased
+  hi (PP.Span s l a) = Q $
+    L $ [ A (show (s + offset))
+        , A (show (s + l + offset))
+        , L (A <$> toAtoms (fake a))
+        , A "nil"
+        ]
+  cb (PP.Span s l (Left a)) = Q $
+    L $ [ A (show (s + offset))
+        , A (show (s + l + offset))
+        , A (show a)
+        , A "nil"
+        ]
+  cb (PP.Span s l (Right a)) = Q $
+    L $ [ A (show (s + offset))
+        , A (show (s + l + offset))
+        , A "nil"
+        , A (show a)
+        ]
 
 lispifyGoalSpecificDisplayInfo :: InteractionId -> GoalDisplayInfo -> TCM [Lisp String]
 lispifyGoalSpecificDisplayInfo ii kind = localTCState $ withInteractionId ii $
@@ -292,9 +333,9 @@ formatWarningsAndErrors g w e = (body, title)
 
 
 -- | Serializing Info_Error
-showInfoError :: Info_Error -> TCM String
+showInfoError :: Info_Error -> TCM (String, [Span PrintingAspect])
 showInfoError (Info_GenericError err) = do
-  e <- prettyError err
+  (e, spans) <- prettyErrorWithRenderer renderSpans err
   w <- prettyTCWarnings' =<< getAllWarningsOfTCErr err
 
   let errorMsg  = if null w
@@ -303,20 +344,28 @@ showInfoError (Info_GenericError err) = do
   let warningMsg = List.intercalate "\n" $ delimiter "Warning(s)"
                                       : filter (not . null) w
   return $ if null w
-            then errorMsg
-            else errorMsg ++ "\n\n" ++ warningMsg
+    then (errorMsg, spans)
+    else (errorMsg ++ "\n\n" ++ warningMsg, spans)
+
+showInfoError (Info_RenderedWidget doc) = do
+  let (e, spans) = renderSpans doc
+
+  return $ (e, spans)
+
 showInfoError (Info_CompilationError warnings) = do
   s <- prettyTCWarnings warnings
-  return $ unlines
+  return . (, []) $ unlines
             [ "You need to fix the following errors before you can compile"
             , "the module:"
             , ""
             , s
             ]
+
 showInfoError (Info_HighlightingParseError ii) =
-  return $ "Highlighting failed to parse expression in " ++ show ii
+  return . (, []) $ "Highlighting failed to parse expression in " ++ show ii
+
 showInfoError (Info_HighlightingScopeCheckError ii) =
-  return $ "Highlighting failed to scope check expression in " ++ show ii
+  return . (, []) $ "Highlighting failed to scope check expression in " ++ show ii
 
 -- | Pretty-prints the context of the given meta-variable.
 

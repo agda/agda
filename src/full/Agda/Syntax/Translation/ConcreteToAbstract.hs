@@ -1042,6 +1042,10 @@ instance ToAbstract C.Expr where
         (s, e) <- collectGeneralizables $ toAbstract e
         pure $ A.generalized s e
 
+    -- Printing aspects only matter when going abstract → concrete, not
+    -- concrete → abstract
+      C.PrintedExpr _ e -> toAbstract e
+
 instance ToAbstract C.ModuleAssignment where
   type AbsOfCon C.ModuleAssignment = (A.ModuleName, Maybe A.LetBinding)
   toAbstract (C.ModuleAssignment m es i)

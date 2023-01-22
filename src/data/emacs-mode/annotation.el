@@ -113,8 +113,11 @@ less than END."
                                              nil end))
       (let* ((old-faces (get-text-property pos 'annotation-faces))
              (all-faces (cl-union old-faces faces)))
-        (mapc (lambda (prop) (put-text-property pos mid prop all-faces))
-              '(annotation-faces face))
+        (mapc
+          (lambda (prop) (put-text-property pos mid prop all-faces))
+          (if font-lock-mode
+            '(annotation-faces font-lock-face)
+            '(annotation-faces face)))
         (setq pos mid)))))
 
 (defun annotation-annotate
@@ -176,11 +179,18 @@ with)."
                                `(annotation-token-based t))
           (add-to-list 'props 'annotation-token-based))
         (when (consp goto)
-          (add-text-properties start end
-                               `(annotation-goto ,goto
-                                 mouse-face highlight))
-          (add-to-list 'props 'annotation-goto)
-          (add-to-list 'props 'mouse-face))
+          (if (numberp (car goto))
+            (progn
+              (add-text-properties start end
+                                  `(annotation-callback ,goto mouse-face highlight))
+              (add-to-list 'props 'annotation-callback)
+              (add-to-list 'props 'mouse-face))
+            (progn
+              (add-text-properties start end
+                                  `(annotation-goto ,goto
+                                    mouse-face highlight))
+              (add-to-list 'props 'annotation-goto)
+              (add-to-list 'props 'mouse-face))))
         (when info
           (add-text-properties start end
                                `(mouse-face highlight help-echo ,info))

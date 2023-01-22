@@ -26,6 +26,7 @@ import Control.Monad.Trans          ( lift )
 
 import qualified Data.Char as Char
 import Data.Function
+import qualified Data.IntMap as IntMap
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Maybe
@@ -63,6 +64,8 @@ import Agda.Interaction.Options.Lenses as Lenses
 import Agda.Interaction.MakeCase
 import Agda.Interaction.SearchAbout
 import Agda.Interaction.Response hiding (Function, ExtendedLambda)
+import Agda.Interaction.Widget.Errors
+import Agda.Interaction.Widget
 import qualified Agda.Interaction.Response as R
 import qualified Agda.Interaction.BasicOps as B
 import Agda.Interaction.Highlighting.Precise hiding (Error, Postulate, singleton)
@@ -189,6 +192,16 @@ getOldInteractionScope ii = do
     Nothing    -> fail $ "not an old interaction point: " ++ show ii
     Just scope -> return scope
 
+resetLastActionFailure :: CommandM ()
+resetLastActionFailure = do
+  modify $ \s -> s { lastActionFailure = Nothing }
+
+setLastActionFailure :: TCErr -> CommandM Doc
+setLastActionFailure x = do
+  t@(_, r) <- liftTCM $ renderStaticT (toWidget x)
+  modify $ \s -> s { lastActionFailure = Just t }
+  liftTCM r
+
 -- | Do setup and error handling for a command.
 
 handleCommand_ :: CommandM () -> CommandM ()
@@ -263,12 +276,13 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
 
         -- TODO: make a better predicate for this
         noError <- lift $ null <$> prettyError e
+        rendered <- setLastActionFailure e
 
         showImpl <- lift $ optShowImplicit <$> useTC stPragmaOptions
         showIrr <- lift $ optShowIrrelevant <$> useTC stPragmaOptions
         unless noError $ do
           mapM_ putResponse $
-            [ Resp_DisplayInfo $ Info_Error $ Info_GenericError e ] ++
+            [ Resp_DisplayInfo $ Info_Error $ Info_RenderedWidget rendered ] ++
             tellEmacsToJumpToError (getRange e) ++
             [ Resp_HighlightingInfo info KeepHighlighting
                                     method modFile ] ++
@@ -458,6 +472,7 @@ independent (Cmd_compile {})                = True
 independent (Cmd_load_highlighting_info {}) = True
 independent Cmd_tokenHighlighting {}        = True
 independent Cmd_show_version                = True
+independent Cmd_invoke_callback{}           = True
 independent _                               = False
 
 -- | Should 'Resp_InteractionPoints' be issued after the command has
@@ -504,17 +519,19 @@ updateInteractionPointsAfter Cmd_why_in_scope_toplevel{}         = False
 updateInteractionPointsAfter Cmd_show_version{}                  = False
 updateInteractionPointsAfter Cmd_abort{}                         = False
 updateInteractionPointsAfter Cmd_exit{}                          = False
+updateInteractionPointsAfter Cmd_invoke_callback{}               = False
 
 -- | Interpret an interaction
 
 interpret :: Interaction -> CommandM ()
 
-interpret (Cmd_load m argv) =
+interpret (Cmd_load m argv) = do
+  resetLastActionFailure
   cmd_load' m argv True mode $ \_ -> interpret $ Cmd_metas AsIs
   where
   mode = TypeCheck
 
-interpret (Cmd_compile backend file argv) =
+interpret (Cmd_compile backend file argv) = do
   cmd_load' file argv allowUnsolved mode $ \ checkResult -> do
     mw <- lift $ applyFlagsToTCWarnings $ crWarnings checkResult
     case mw of
@@ -730,6 +747,7 @@ interpret (Cmd_autoOne ii rng hint) = do
   maybe (return ()) (display_info . Info_Time) time
 
 interpret Cmd_autoAll = do
+  resetLastActionFailure
   iis <- getInteractionPoints
   unless (null iis) $ do
     let time = 1000 `div` length iis
@@ -848,6 +866,14 @@ interpret (Cmd_compute cmode ii rng s) = do
   display_info $ Info_GoalSpecific ii (Goal_NormalForm cmode expr)
 
 interpret Cmd_show_version = display_info Info_Version
+
+interpret (Cmd_invoke_callback i) = gets lastActionFailure >>= \case
+  Just (callbacks, d) -> do
+    case IntMap.lookup i callbacks of
+      Just a -> liftIO a
+      Nothing -> pure ()
+    display_info . Info_Error . Info_RenderedWidget =<< liftTCM d
+  Nothing -> pure ()
 
 interpret Cmd_abort = return ()
 interpret Cmd_exit  = return ()

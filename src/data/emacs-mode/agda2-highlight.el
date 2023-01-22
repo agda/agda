@@ -373,6 +373,12 @@ If `agda2-highlight-face-groups' is nil."
   "The face used for unsolved constraints which are not connected to metas."
   :group 'agda2-highlight-faces)
 
+(defface agda2-highlight-interaction-face
+  '((((background light)) (:underline t))
+    (((background dark)) (:underline t)))
+  "The face used to indicate that text in the info buffer admits interaction."
+  :group 'agda2-highlight-faces)
+
 (defface agda2-highlight-termination-problem-face
   '((((background light))
      (:background "light salmon"))
@@ -482,7 +488,9 @@ If `agda2-highlight-face-groups' is nil."
     (catchallclause         . agda2-highlight-catchall-clause-face)
     (confluenceproblem      . agda2-highlight-confluence-problem-face)
     (missingdefinition      . agda2-highlight-missing-definition-face)
-    (typechecks             . agda2-highlight-typechecks-face))
+    (typechecks             . agda2-highlight-typechecks-face)
+    (interaction            . agda2-highlight-interaction-face)
+    )
   "Alist mapping code aspects to the face used when displaying them.
 
 The aspects currently recognised are the following:
@@ -524,7 +532,9 @@ The aspects currently recognised are the following:
 `typechecks'             Code which is being type-checked.
 `unsolvedconstraint'     Unsolved constraints, not connected to meta
                            variables.
-`unsolvedmeta'           Unsolved meta variables.")
+`unsolvedmeta'           Unsolved meta variables.
+`interaction'            Interactive snippets in error messages.
+")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Variables

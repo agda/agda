@@ -107,6 +107,7 @@ instance BoundAndUsed Expr where
     QuoteTerm{}            -> mempty
     Unquote{}              -> mempty
     DontCare expr          -> boundAndUsed expr
+    PrintedExpr a expr     -> boundAndUsed expr
 
 instance BoundAndUsed lhs => BoundAndUsed (Clause' lhs) where
   -- Note: where declarations are ignored. We use this only on expressions coming from
@@ -179,4 +180,3 @@ instance BoundAndUsed e => BoundAndUsed (FieldAssignment' e) where
 instance BoundAndUsed ModuleApplication where
   boundAndUsed (SectionApp tel _ es)  = noBindings $ boundAndUsed (tel, es)
   boundAndUsed RecordModuleInstance{} = mempty
-

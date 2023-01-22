@@ -973,7 +973,11 @@ The buffer is returned.")
       ;; error.
       (let ((map (copy-keymap (current-local-map))))
         (define-key map (kbd "g") 'undefined)
+        (define-key map [mouse-2] 'agda2-expand-or-fallback)
+        (define-key map "\C-m" 'agda2-expand-or-fallback)
         (use-local-map map))
+      ;; Set up highlighting for use in the info buffer.
+      (agda2-highlight-setup)
       (set (make-local-variable 'compile-command)
            'agda2-does-not-support-compilation-via-the-compilation-mode)
 
@@ -984,6 +988,14 @@ The buffer is returned.")
   ,buffer))
 
 (agda2-information-buffer agda2-info-buffer "info" "*Agda information*")
+
+(defvar agda2-mode--resize-regardless nil
+  "Internal variable. Should the next agda2-info-action resize the info
+  buffer regardless of whether it is currently selected?")
+
+(defvar agda2-mode--saved-point nil
+  "Internal variable. Should the next agda2-info-action restore the
+  point?")
 
 (defun agda2-info-action (name text &optional append)
   "Insert TEXT into the Agda info buffer and display it.
@@ -1007,7 +1019,9 @@ is inserted, and point is placed before this text."
       ;; Oleksandr Manzyuk
       ;; (https://github.com/haskell/haskell-mode/issues/67).
       (compilation-forget-errors)
-      (unless append (erase-buffer))
+      (unless append
+        (agda2-highlight-clear)
+        (erase-buffer))
       (save-excursion
         (goto-char (point-max))
         (insert text))
@@ -1016,7 +1030,7 @@ is inserted, and point is placed before this text."
       (force-mode-line-update))
     ;; If the current window displays the information buffer, then the
     ;; window configuration is left untouched.
-    (unless (equal (window-buffer) buf)
+    (unless (and (equal (window-buffer) buf) (not agda2-mode--resize-regardless))
       (let ((agda-window
               (and agda2-file-buffer
                    (car-safe
@@ -1024,6 +1038,7 @@ is inserted, and point is placed before this text."
                      ;; frame on the current terminal, displaying the
                      ;; present Agda file buffer.
                      (get-buffer-window-list agda2-file-buffer t 0)))))
+        (if agda2-mode--resize-regardless (setq agda2-mode--resize-regardless nil))
         (save-selected-window
           ;; Select a window displaying the Agda file buffer (if such
           ;; a window exists). With certain configurations of
@@ -1061,7 +1076,12 @@ is inserted, and point is placed before this text."
         (with-selected-window window
           (if append
               (goto-char (point-max))
-            (goto-char (point-min))))))))
+            (if agda2-mode--saved-point
+              (progn
+                (print `(goto-char ,agda2-mode--saved-point) #'external-debugging-output)
+                (goto-char agda2-mode--saved-point)
+                (setq agda2-mode--saved-point nil))
+              (goto-char (point-min)))))))))
 
 (defun agda2-info-action-and-copy (name text &optional append)
   "Same as agda2-info-action but also puts TEXT in the kill ring."
@@ -1845,6 +1865,42 @@ the buffer."
               "Cmd_tokenHighlighting"
               (agda2-string-quote (buffer-file-name))
               "Keep")))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Error message interaction
+
+(defun agda2-attach-callback (start end num desc)
+  (let ((buf (agda2-info-buffer))
+        (file (current-buffer)))
+    (with-current-buffer buf (annotation-annotate
+      start end '(nil) nil desc (when (numberp num) (cons num file))))))
+
+(defun agda2-attach-callbacks (&rest cb)
+  (print `(agda2-attach-callbacks . ,cb) #'external-debugging-output)
+  (mapcar (lambda (x) (apply 'agda2-attach-callback x)) cb))
+
+(defun agda2-highlight-info-buffer (&rest info)
+  (interactive)
+  (let ((buf (agda2-info-buffer)))
+    (print `(agda2-highlight-info-buffer . ,info) #'external-debugging-output)
+    (with-current-buffer buf
+      (apply 'agda2-highlight-apply 'nil info))))
+
+(defun agda2-expand-or-fallback (&optional event)
+  "Visit the source for the error message at point.
+Use this command in a compilation log buffer."
+  (interactive)
+  (if event (posn-set-point (event-end event)))
+  (if (get-text-property (point) 'annotation-callback)
+    (let ((prop (get-text-property (point) 'annotation-callback))
+          (save (point)))
+      (setq agda2-mode--resize-regardless t)
+      (setq agda2-mode--saved-point save)
+      (with-current-buffer (cdr prop)
+        (agda2-go nil t 'busy t "Cmd_invoke_callback"
+          (number-to-string (car prop)))))
+    (compile-goto-error event)))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Go to definition site

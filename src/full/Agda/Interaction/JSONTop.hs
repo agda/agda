@@ -402,7 +402,7 @@ instance EncodeTCM Info_Error where
   encodeTCM err = kind "Error"
     [ "warnings"          @= ([] :: [String])
     , "error"             #= obj
-      [ "message"           #= showInfoError err
+      [ "message"         #= fmap fst (showInfoError err)
       ]
     ]
 

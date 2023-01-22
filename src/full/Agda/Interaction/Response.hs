@@ -39,6 +39,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
   (TCM, TCErr, TCWarning, HighlightingMethod, ModuleToSource, NamedMeta, TCWarning, IPBoundary')
 import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors)
 import Agda.Utils.Impossible
+import Agda.Utils.Pretty (Doc)
 import Agda.Utils.Time
 
 import Control.Monad.Trans
@@ -133,6 +134,7 @@ type Goals = ( [OutputConstraint A.Expr InteractionId] -- visible metas (goals)
 --   used, if appropriate.
 data Info_Error
     = Info_GenericError TCErr
+    | Info_RenderedWidget Doc
     | Info_CompilationError [TCWarning]
     | Info_HighlightingParseError InteractionId
     | Info_HighlightingScopeCheckError InteractionId

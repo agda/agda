@@ -50,8 +50,9 @@ appView' e = f (DL.toList es)
       -> (Application f, singleton (defaultNamedArg (i, e1)))
     App i e1 arg | (f, es) <- appView'' e1 ->
       (f, es `DL.snoc` (fmap . fmap) (i,) arg)
-    ScopedExpr _ e -> appView'' e
-    _              -> (Application e, mempty)
+    ScopedExpr _ e  -> appView'' e
+    PrintedExpr _ e -> appView'' e
+    _               -> (Application e, mempty)
 
 maybeProjTurnPostfix :: Expr -> Maybe Expr
 maybeProjTurnPostfix e =
@@ -71,6 +72,7 @@ lamView :: Expr -> LamView
 lamView (Lam i b e) = cons b $ lamView e
   where cons b (LamView bs e) = LamView (b : bs) e
 lamView (ScopedExpr _ e) = lamView e
+lamView (PrintedExpr _ e) = lamView e
 lamView e = LamView [] e
 
 -- | Collect @A.Pi@s.
@@ -182,6 +184,7 @@ instance ExprLike Expr where
       QuoteTerm{}                -> pure e0
       Unquote{}                  -> pure e0
       DontCare e                 -> DontCare <$> recurse e
+      PrintedExpr a e            -> PrintedExpr a <$> recurse e
       PatternSyn{}               -> pure e0
       Macro{}                    -> pure e0
 
@@ -214,6 +217,7 @@ instance ExprLike Expr where
       QuoteTerm{}            -> m
       Unquote{}              -> m
       DontCare e             -> m `mappend` fold e
+      PrintedExpr a e        -> m `mappend` fold e
    where
      m = f e
      fold :: FoldExprRecFn m
@@ -249,6 +253,7 @@ instance ExprLike Expr where
       QuoteTerm{}                -> f e
       Unquote{}                  -> f e
       DontCare e                 -> f =<< DontCare <$> trav e
+      PrintedExpr a e            -> f =<< PrintedExpr a <$> trav e
       PatternSyn{}               -> f e
       Macro{}                    -> f e
 

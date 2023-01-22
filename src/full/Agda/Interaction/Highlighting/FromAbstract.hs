@@ -266,6 +266,11 @@ instance Hilite A.Expr where
       A.QuoteTerm _r                -> mempty
       A.Unquote _r                  -> mempty
       A.DontCare e                  -> hl e
+      A.PrintedExpr a e             -> hl e
+      -- The highligher does not run on internal syntax: this case does
+      -- not matter. (hl e) rather than __IMPOSSIBLE__ to avoid
+      -- fireworks if this ever changes.
+      -- See also: notes/document-highlighting
     where
     hl a = hilite a
 

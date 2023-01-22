@@ -18,7 +18,7 @@ module Agda.Syntax.Concrete.Operators.Parser.Monad
 
 import Data.Hashable
 import GHC.Generics (Generic)
-import Text.PrettyPrint.HughesPJ
+import Agda.Utils.Pretty
 
 import Agda.Syntax.Common
 import qualified Agda.Utils.Parser.MemoisedCPS as Parser

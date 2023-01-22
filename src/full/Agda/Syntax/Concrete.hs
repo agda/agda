@@ -18,6 +18,7 @@ module Agda.Syntax.Concrete
   , isPattern, isAbsurdP, isBinderP
   , exprToPatternWithHoles
   , returnExpr
+  , printedExpr
     -- * Bindings
   , Binder'(..)
   , Binder
@@ -93,6 +94,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List1       ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.List2       ( List2, pattern List2 )
+import Agda.Utils.Pretty.Aspect (PrintingAspect)
 import Agda.Utils.Null
 
 import Agda.Utils.Impossible
@@ -177,6 +179,9 @@ data Expr
   | Equal Range Expr Expr                      -- ^ ex: @a = b@, used internally in the parser
   | Ellipsis Range                             -- ^ @...@, used internally to parse patterns.
   | Generalized Expr
+  | PrintedExpr PrintingAspect Expr
+  -- ^ Generated in AbsToCon, for attaching pretty-printing aspects to
+  -- the syntax tree while we still have them,
   deriving Eq
 
 type OpAppArgs = OpAppArgs' Expr
@@ -663,12 +668,17 @@ observeModifiers e =
   setRelevance rel $ setHiding hid $ defaultArg e'
 
 returnExpr :: Expr -> Maybe Expr
-returnExpr (Pi _ e)        = returnExpr e
-returnExpr (Fun _ _  e)    = returnExpr e
-returnExpr (Let _ _ e)     = returnExpr =<< e
-returnExpr (Paren _ e)     = returnExpr e
-returnExpr (Generalized e) = returnExpr e
-returnExpr e               = pure e
+returnExpr (Pi _ e)          = returnExpr e
+returnExpr (Fun _ _  e)      = returnExpr e
+returnExpr (Let _ _ e)       = returnExpr =<< e
+returnExpr (Paren _ e)       = returnExpr e
+returnExpr (Generalized e)   = returnExpr e
+returnExpr (PrintedExpr _ e) = returnExpr e
+returnExpr e                 = pure e
+
+printedExpr :: PrintingAspect -> Expr -> Expr
+printedExpr a (PrintedExpr _ e) = printedExpr a e
+printedExpr a e = PrintedExpr a e
 
 -- | Turn an expression into a pattern. Fails if the expression is not a
 --   valid pattern.
@@ -830,6 +840,7 @@ instance HasRange Expr where
       Equal r _ _        -> r
       Ellipsis r         -> r
       Generalized e      -> getRange e
+      PrintedExpr _ e    -> getRange e
 
 -- instance HasRange Telescope where
 --     getRange (TeleBind bs) = getRange bs
@@ -1092,6 +1103,7 @@ instance KillRange Expr where
   killRange (Equal _ x y)         = Equal noRange x y
   killRange (Ellipsis _)          = Ellipsis noRange
   killRange (Generalized e)       = killRange1 Generalized e
+  killRange (PrintedExpr a e)     = killRange1 (PrintedExpr a) e
 
 instance KillRange LamBinding where
   killRange (DomainFree b) = killRange1 DomainFree b
@@ -1210,6 +1222,7 @@ instance NFData Expr where
   rnf (Equal _ a b)       = rnf a `seq` rnf b
   rnf (Ellipsis _)        = ()
   rnf (Generalized e)     = rnf e
+  rnf (PrintedExpr a e)   = rnf a `seq` rnf e
 
 -- | Ranges are not forced.
 

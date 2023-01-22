@@ -29,11 +29,11 @@ data Literal
   deriving Show
 
 instance Pretty Literal where
-    pretty (LitNat n)     = pretty n
-    pretty (LitWord64 n)  = pretty n
-    pretty (LitFloat d)   = pretty d
-    pretty (LitString s)  = text $ showText s ""
-    pretty (LitChar c)    = text $ "'" ++ showChar' c "'"
+    pretty (LitNat n)     = hiNumber $ pretty n
+    pretty (LitWord64 n)  = hiNumber $ pretty n
+    pretty (LitFloat d)   = hiNumber $ pretty d
+    pretty (LitString s)  = hiString . text $ showText s ""
+    pretty (LitChar c)    = hiString . text $ "'" ++ showChar' c "'"
     pretty (LitQName x)   = pretty x
     pretty (LitMeta _ x)  = pretty x
 

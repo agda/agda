@@ -6,7 +6,6 @@
 module Agda.Compiler.MAlonzo.Pretty where
 
 import qualified Agda.Utils.Haskell.Syntax as HS
-import Text.PrettyPrint (empty)
 
 import Agda.Compiler.MAlonzo.Encode
 import Agda.Utils.Pretty
@@ -38,11 +37,11 @@ instance Pretty HS.ImportDecl where
                       , HS.importQualified = q
                       , HS.importSpecs     = specs } =
       hsep [ "import"
-           , if q then "qualified" else empty
+           , if q then "qualified" else mempty
            , pretty m
-           , maybe empty prSpecs specs ]
+           , maybe mempty prSpecs specs ]
     where prSpecs (hide, specs) =
-            hsep [ if hide then "hiding" else empty
+            hsep [ if hide then "hiding" else mempty
                  , parens $ fsep $ punctuate comma $ map pretty specs ]
 
 instance Pretty HS.ImportSpec where
@@ -55,11 +54,11 @@ instance Pretty HS.Decl where
           , nest 2 $ pretty t ]
     HS.DataDecl newt d xs cons derv ->
       sep [ pretty newt <+> pretty d <+> fsep (map pretty xs)
-          , nest 2 $ if null cons then empty
+          , nest 2 $ if null cons then mempty
                      else "=" <+> fsep (punctuate " |" $ map pretty cons)
           , nest 2 $ prDeriving derv ]
       where
-        prDeriving [] = empty
+        prDeriving [] = mempty
         prDeriving ds = "deriving" <+> parens (fsep $ punctuate comma $ map prDer ds)
         prDer (d, ts) = pretty (foldl HS.TyApp (HS.TyCon d) ts)
     HS.TypeSig fs t ->
@@ -77,11 +76,11 @@ instance Pretty HS.Decl where
 instance Pretty HS.ConDecl where
   pretty (HS.ConDecl c sts) =
     pretty c <+>
-    fsep (map (\(s, t) -> maybe empty pretty s <> prettyPrec 10 t) sts)
+    fsep (map (\(s, t) -> maybe mempty pretty s <> prettyPrec 10 t) sts)
 
 instance Pretty HS.Strictness where
   pretty HS.Strict = "!"
-  pretty HS.Lazy   = empty
+  pretty HS.Lazy   = mempty
 
 instance Pretty HS.Match where
   pretty (HS.Match f ps rhs wh) =

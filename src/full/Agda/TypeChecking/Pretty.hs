@@ -15,6 +15,7 @@ import Control.Monad.State  (StateT)
 
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.IntMap as IntMap
 import qualified Data.Set as Set
 import Data.Maybe
 import Data.String
@@ -46,6 +47,8 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
 
+import qualified Agda.Utils.Pretty.Aspect as Asp
+import qualified Agda.Utils.Pretty as P
 import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Graph)
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
@@ -53,9 +56,9 @@ import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
+import Agda.Utils.Lens
 import Agda.Utils.Permutation ( Permutation )
 import Agda.Utils.Pretty      ( Pretty, prettyShow )
-import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size        ( natSize )
 
 import Agda.Utils.Impossible
@@ -142,6 +145,32 @@ punctuate d ts
   where
     ds = Fold.toList ts
     n  = length ds - 1
+
+hiComment, hiKeyword, hiString, hiNumber, hiHole, hiSymbol, hiPrimitiveType,
+  hiPragma, hiDatatype, hiPostulate, hiRecord, hiField, hiFunction, hiPrimitive,
+  hiArgument, hiMacro, hiConstructor, hiInteraction :: (Applicative m, Semigroup (m Doc)) => m Doc -> m Doc
+
+hiComment       = fmap P.hiComment
+hiKeyword       = fmap P.hiKeyword
+hiString        = fmap P.hiString
+hiNumber        = fmap P.hiNumber
+hiHole          = fmap P.hiHole
+hiSymbol        = fmap P.hiSymbol
+hiPrimitiveType = fmap P.hiPrimitiveType
+hiPragma        = fmap P.hiPragma
+hiDatatype      = fmap P.hiDatatype
+hiPostulate     = fmap P.hiPostulate
+hiRecord        = fmap P.hiRecord
+hiField         = fmap P.hiField
+hiFunction      = fmap P.hiFunction
+hiPrimitive     = fmap P.hiPrimitive
+hiArgument      = fmap P.hiArgument
+hiMacro         = fmap P.hiMacro
+hiConstructor   = fmap P.hiConstructor
+hiInteraction   = fmap P.hiInteraction
+
+hiTooltip :: Applicative f => f String -> f P.Doc -> f P.Doc
+hiTooltip s d = P.hiTooltip <$> s <*> d
 
 ---------------------------------------------------------------------------
 -- * The PrettyTCM class

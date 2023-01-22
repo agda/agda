@@ -74,6 +74,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.Interaction.Options
 
 import qualified Agda.Utils.AssocList as AssocList
+import qualified Agda.Utils.Pretty.Aspect as Asp
 import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
@@ -87,7 +88,6 @@ import Agda.Utils.Null
 import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Singleton
 import Agda.Utils.Suffix
-
 import Agda.Utils.Impossible
 
 -- Environment ------------------------------------------------------------
@@ -758,12 +758,18 @@ addSuffixConcrete' glyphMode i = set (C.lensQNameName . nameSuffix) suffix
 instance ToConcrete A.Expr where
     type ConOfAbs A.Expr = C.Expr
 
+    -- Keep propagating highlighting information from internal syntax,
+    -- if it exists; See notes/document-highlighting
+    toConcrete (A.PrintedExpr a e) = C.printedExpr a <$> toConcrete e
+
+    -- Must also add these aspects in case the type checker didn't catch
+    -- them (for example, printing CheckExprCall)
     toConcrete (Var x)             = Ident . C.QName <$> toConcrete x
-    toConcrete (Def' x suffix)     = Ident <$> addSuffixConcrete suffix (toConcrete x)
-    toConcrete (Proj ProjPrefix p) = Ident <$> toConcrete (headAmbQ p)
-    toConcrete (Proj _          p) = C.Dot noRange . Ident <$> toConcrete (headAmbQ p)
-    toConcrete (A.Macro x)         = Ident <$> toConcrete x
-    toConcrete e@(Con c)           = tryToRecoverPatternSyn e $ Ident <$> toConcrete (headAmbQ c)
+    toConcrete (Def' x suffix)     = C.PrintedExpr Asp.functionName . Ident <$> addSuffixConcrete suffix (toConcrete x)
+    toConcrete (Proj ProjPrefix p) = C.PrintedExpr Asp.fieldName . Ident <$> toConcrete (headAmbQ p)
+    toConcrete (Proj _          p) = C.PrintedExpr Asp.fieldName . C.Dot noRange . Ident <$> toConcrete (headAmbQ p)
+    toConcrete (A.Macro x)         = C.PrintedExpr Asp.macroName . Ident <$> toConcrete x
+    toConcrete e@(Con c)           = tryToRecoverPatternSyn e $ C.PrintedExpr Asp.conName . Ident <$> toConcrete (headAmbQ c)
         -- for names we have to use the name from the info, since the abstract
         -- name has been resolved to a fully qualified name (except for
         -- variables)
@@ -1585,12 +1591,25 @@ instance HasRange a => HasRange (MaybeSection a) where
     NoSection a -> getRange a
 
 getHead :: A.Expr -> Maybe Hd
-getHead (Var x)          = Just (HdVar x)
-getHead (Def f)          = Just (HdDef f)
-getHead (Proj o f)       = Just (HdDef $ headAmbQ f)
-getHead (Con c)          = Just (HdCon $ headAmbQ c)
-getHead (A.PatternSyn n) = Just (HdSyn $ headAmbQ n)
-getHead _                = Nothing
+getHead (Var x)             = Just (HdVar x)
+getHead (Def f)             = Just (HdDef f)
+getHead (Proj o f)          = Just (HdDef $ headAmbQ f)
+getHead (Con c)             = Just (HdCon $ headAmbQ c)
+getHead (A.PatternSyn n)    = Just (HdSyn $ headAmbQ n)
+
+-- Must move aspect out of the way of the head, otherwise we can't
+-- recover operator applications:
+getHead (A.PrintedExpr _ a) = getHead a
+getHead _                   = Nothing
+
+getAspect :: A.Expr -> Maybe Asp.PrintingAspect
+getAspect (A.PrintedExpr a _) = Just a
+getAspect (Var x)             = Nothing
+getAspect (Def f)             = Just Asp.functionName
+getAspect (Proj o f)          = Just Asp.fieldName
+getAspect (Con c)             = Just Asp.conName
+getAspect (A.PatternSyn n)    = Just Asp.conName
+getAspect _                   = Nothing
 
 cOpApp :: Range -> C.QName -> A.Name -> List1 (MaybeSection C.Expr) -> C.Expr
 cOpApp r x n es =
@@ -1608,9 +1627,22 @@ cOpApp r x n es =
     placeholder (NoSection e, _pos) = noPlaceholder (Ordinary e)
 
 tryToRecoverOpApp :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
-tryToRecoverOpApp e def = fromMaybeM def $
+tryToRecoverOpApp e def = maybeM def (pure . aspect e) $
   recoverOpApp bracket (isLambda . defaultNamedArg) cOpApp view e
   where
+    -- Recover the aspect of the head application and put it around the
+    -- whole OpApp. The concrete pretty printer will take care to
+    -- distribute it to only the name parts
+    aspect :: A.Expr -> C.Expr -> C.Expr
+    aspect e = asp where
+      LamView     bs body = A.lamView e
+      Application hd args = A.appView' body
+      asp = case getAspect hd of
+        Just a -> \case
+          Paren r x -> Paren r (asp x)
+          e -> C.PrintedExpr a e
+        Nothing -> id
+
     view :: A.Expr -> Maybe (Hd, [NamedArg (MaybeSection (AppInfo, A.Expr))])
     view e
         -- Do we have a series of inserted lambdas?
