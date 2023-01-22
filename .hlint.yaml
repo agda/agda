@@ -45,6 +45,7 @@
 - ignore: {name: "Redundant section"} # 3 hints
 - ignore: {name: "Replace case with fromMaybe"} # 3 hints
 - ignore: {name: "Replace case with maybe"} # 2 hints
+- ignore: {name: "Replace flip map with for"} # 19 hints
 - ignore: {name: "Unused LANGUAGE pragma"} # 1 hint
 - ignore: {name: "Use &&"} # 4 hints
 - ignore: {name: "Use ++"} # 11 hints
@@ -148,9 +149,7 @@
 
 
 # Add custom hints for this project
-#
-# Will suggest replacing "wibbleMany [myvar]" with "wibbleOne myvar"
-# - error: {lhs: "wibbleMany [x]", rhs: wibbleOne x}
+- hint: {lhs: flip map, rhs: for, name: Replace flip map with for, note: Prefer Agda.Utils.Functor.for over Data.Traversable.for}
 
 
 # Turn on hints that are off by default
