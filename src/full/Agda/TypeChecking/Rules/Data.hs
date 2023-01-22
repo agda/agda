@@ -1050,7 +1050,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
                      ixsI <- open $ AbsN (teleNames parI) ixsI
                      parI <- open parI
                      abstract_trD $ \ delta _ _ -> do
-                     let delta0_refl = flip map delta $ \ p -> lam "i" $ \ _ -> p <@> pure iz
+                     let delta0_refl = for delta $ \ p -> lam "i" $ \ _ -> p <@> pure iz
                      abstractN (ixsI `applyN` delta0_refl) $ \ x' -> do
                      abstractN (pure $ intervalTel "phi'") $ \ _ -> do
                      ty <- dT `applyN` (delta0_refl ++ x' ++ [pure iz])
@@ -1088,13 +1088,13 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
                 let [t] = map (fmap unArg) as0
                 let [phi'] = phi's
                 let telXdeltai = bind "i" $ \ i -> applyN xTel (map (<@> i) delta)
-                let reflx1 = flip map x $ \ q -> lam "i" $ \ _ -> q <@> pure io
-                let symx' = flip map x' $ \ q' -> lam "i" $ \ i -> q' <@> neg i
+                let reflx1 = for x $ \ q -> lam "i" $ \ _ -> q <@> pure io
+                let symx' = for x' $ \ q' -> lam "i" $ \ i -> q' <@> neg i
                 x_tr <- mapM (open . unArg) =<< transpPathTel' telXdeltai symx' reflx1 phi' x
                 let baseTrX = trD `applyN` delta `applyN` x_tr `applyN` [phi `min` phi',t]
                 let sideTrX = lam "j" $ \ j -> ilam "o" $ \ _ -> do
-                      let trD_f = trD `applyN` (flip map delta $ \ p -> lam "i" $ \ i -> p <@> (i `min` neg j))
-                                      `applyN` (flip map x_tr  $ \ p -> lam "i" $ \ i -> p <@> (i `min` neg j))
+                      let trD_f = trD `applyN` (for delta $ \ p -> lam "i" $ \ i -> p <@> (i `min` neg j))
+                                      `applyN` (for x_tr  $ \ p -> lam "i" $ \ i -> p <@> (i `min` neg j))
                                       `applyN` [(phi `min` phi') `max` j,t]
                       let x_tr_f = fmap (fmap (\ (Abs n (Arg i t)) -> Arg i $ Lam defaultArgInfo (Abs n t)) . sequence) $
                            bind "i" $ \ i -> do
@@ -1257,7 +1257,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
                 let squeezedv0 = ilam "o" $ \ o -> do
                       let
                         delta_f :: [NamesT TCM Term]
-                        delta_f = flip map delta $ \ p -> lam "j" $ \ j -> p <@> (j `max` i)
+                        delta_f = for delta $ \ p -> lam "j" $ \ j -> p <@> (j `max` i)
                       x_f <- (mapM open =<<) $ lamTel $ bind "j" $ \ j ->
                                  (absApp <$> q2_f <*> j) `appTel` i
                       trD `applyN` delta_f `applyN` x_f `applyN` [phi `max` i, v0 <..> o]
