@@ -25,14 +25,18 @@ results include:
 Storage
 -------
 
-In projects that do not use any Agda library, the ``.agdai`` files are
-stored alongside the ``.agda`` source file.
+If an Agda file has one or more
+:ref:`associated<The_agda-lib_files_associated_to_a_given_Agda_file>`
+``.agda-lib`` files, then the *project root* is the directory
+containing these files. In that case the Agda file's interface file is
+stored in the directory ``_build/VERSION`` under the project root.
+Different directories are used for different versions of Agda so that
+one can switch between versions without losing the interface files.
 
-If the ``.agda`` source file is part of a project with an *identifiable root*
-(i.e. if there is an ``.agda-lib`` file in any of the directories above it),
-then the interface file is stored in the ``_build/VERSION`` directory at the
-identified root. This prevents losing the interface file when switching between
-agda versions. You can revert this behaviour with the option :option:`--no-libraries`.
+If an Agda file does not have any associated ``.agda-lib`` file, then
+its ``.agdai`` file is stored in the same directory as the Agda file.
+(With at least one exception, see `Agda bug #6134
+<https://github.com/agda/agda/issues/6134>`_.)
 
 .. note::
    When an ``.agda`` file is renamed, the old ``.agdai`` file is kept, and a new
