@@ -146,7 +146,7 @@ Generating highlighted source code
 
      A module ``M`` is considered to be in the library ``L`` if ``L``
      is the ``name`` of a ``.agda-lib`` file ``A``
-     :ref:`associated<The_agda-lib_files_associated_to_a_give_Agda_file>`
+     :ref:`associated<The_agda-lib_files_associated_to_a_given_Agda_file>`
      to ``M`` (even if ``M``'s file can not be found via the
      ``include`` paths in ``A``).
 
