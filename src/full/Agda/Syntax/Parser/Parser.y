@@ -564,10 +564,10 @@ BIdsWithHiding : Application {%
 
 
 -- Space separated list of strings in a pragma.
-PragmaStrings :: { [String] }
+PragmaStrings :: { [(Interval, String)] }
 PragmaStrings
     : {- empty -}           { [] }
-    | string PragmaStrings  { snd $1 : $2 }
+    | string PragmaStrings  { $1 : $2 }
 {- Unused
 PragmaString :: { String }
 PragmaString
@@ -1588,7 +1588,9 @@ DeclarationPragma
     -- Give better error during type checking instead.
 
 OptionsPragma :: { Pragma }
-OptionsPragma : '{-#' 'OPTIONS' PragmaStrings '#-}' { OptionsPragma (getRange ($1,$2,$4)) $3 }
+OptionsPragma :
+  '{-#' 'OPTIONS' PragmaStrings '#-}'
+  { OptionsPragma (getRange ($1, $2, map fst $3, $4)) (map snd $3) }
 
 BuiltinPragma :: { Pragma }
 BuiltinPragma
@@ -1612,7 +1614,8 @@ ForeignPragma
 CompilePragma :: { Pragma }
 CompilePragma
   : '{-#' 'COMPILE' string PragmaQName PragmaStrings '#-}'
-    { CompilePragma (getRange ($1,$2,fst $3,$4,$6)) (mkRString $3) $4 (unwords $5) }
+    { CompilePragma (getRange ($1, $2, fst $3, $4, map fst $5, $6))
+        (mkRString $3) $4 (unwords (map snd $5)) }
 
 StaticPragma :: { Pragma }
 StaticPragma
@@ -1641,9 +1644,10 @@ InjectivePragma
 
 DisplayPragma :: { Pragma }
 DisplayPragma
-  : '{-#' 'DISPLAY' string PragmaStrings '#-}' {%
-      let (r, s) = $3 in
-      parseDisplayPragma (fuseRange $1 $5) (iStart r) (unwords (s : $4)) }
+  : '{-#' 'DISPLAY' string PragmaStrings '#-}'
+    {% let (r, s) = $3 in
+       parseDisplayPragma (getRange ($1, $2, r, map fst $4, $5))
+         (iStart r) (unwords (s : map snd $4)) }
 
 EtaPragma :: { Pragma }
 EtaPragma
@@ -1684,7 +1688,8 @@ CatchallPragma
 ImpossiblePragma :: { Pragma }
 ImpossiblePragma
   : '{-#' 'IMPOSSIBLE' PragmaStrings '#-}'
-    { ImpossiblePragma (getRange ($1,$2,$4)) $3 }
+    { ImpossiblePragma (getRange ($1, $2, map fst $3, $4))
+        (map snd $3) }
 
 NoPositivityCheckPragma :: { Pragma }
 NoPositivityCheckPragma
