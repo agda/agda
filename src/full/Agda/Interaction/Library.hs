@@ -27,6 +27,7 @@ module Agda.Interaction.Library
   , getAgdaLibFiles'
   , getPrimitiveLibDir
   , LibName
+  , OptionsPragma(..)
   , AgdaLibFile(..)
   , ExeName
   , LibM

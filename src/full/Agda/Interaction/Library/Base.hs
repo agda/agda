@@ -17,6 +17,7 @@ import Data.Char                   ( isDigit )
 import qualified Data.List         as List
 import Data.Map                    ( Map )
 import qualified Data.Map          as Map
+import Data.Semigroup              ( Semigroup(..) )
 import Data.Text                   ( Text, unpack )
 
 import GHC.Generics                ( Generic )
@@ -25,6 +26,8 @@ import System.Directory
 import System.FilePath
 
 import Agda.Interaction.Options.Warnings
+
+import Agda.Syntax.Position
 
 import Agda.Utils.FileName
 import Agda.Utils.Lens
@@ -74,6 +77,37 @@ data ProjectConfig
   | DefaultProjectConfig
   deriving Generic
 
+-- | The options from an @OPTIONS@ pragma (or a @.agda-lib@ file).
+--
+-- In the future it might be nice to switch to a more structured
+-- representation. Note that, currently, there is not a one-to-one
+-- correspondence between list elements and options.
+data OptionsPragma = OptionsPragma
+  { pragmaStrings :: [String]
+    -- ^ The options.
+  , pragmaRange :: Range
+    -- ^ The range of the options in the pragma (not including things
+    -- like an @OPTIONS@ keyword).
+  }
+  deriving Show
+
+instance Semigroup OptionsPragma where
+  OptionsPragma { pragmaStrings = ss1, pragmaRange = r1 } <>
+    OptionsPragma { pragmaStrings = ss2, pragmaRange = r2 } =
+    OptionsPragma
+      { pragmaStrings = ss1 ++ ss2
+      , pragmaRange   = fuseRanges r1 r2
+      }
+
+instance Monoid OptionsPragma where
+  mempty  = OptionsPragma { pragmaStrings = [], pragmaRange = noRange }
+  mappend = (<>)
+
+-- | Ranges are not forced.
+
+instance NFData OptionsPragma where
+  rnf (OptionsPragma a _) = rnf a
+
 -- | Content of a @.agda-lib@ file.
 --
 data AgdaLibFile = AgdaLibFile
@@ -81,7 +115,8 @@ data AgdaLibFile = AgdaLibFile
   , _libFile     :: FilePath    -- ^ Path to this @.agda-lib@ file (not content of the file).
   , _libIncludes :: [FilePath]  -- ^ Roots where to look for the modules of the library.
   , _libDepends  :: [LibName]   -- ^ Dependencies.
-  , _libPragmas  :: [String]    -- ^ Default pragma options for all files in the library.
+  , _libPragmas  :: OptionsPragma
+                                -- ^ Default pragma options for all files in the library.
   }
   deriving (Show, Generic)
 
@@ -91,7 +126,7 @@ emptyLibFile = AgdaLibFile
   , _libFile     = ""
   , _libIncludes = []
   , _libDepends  = []
-  , _libPragmas  = []
+  , _libPragmas  = mempty
   }
 
 -- | Lenses for AgdaLibFile
@@ -108,7 +143,7 @@ libIncludes f a = f (_libIncludes a) <&> \ x -> a { _libIncludes = x }
 libDepends :: Lens' [LibName] AgdaLibFile
 libDepends f a = f (_libDepends a) <&> \ x -> a { _libDepends = x }
 
-libPragmas :: Lens' [String] AgdaLibFile
+libPragmas :: Lens' OptionsPragma AgdaLibFile
 libPragmas f a = f (_libPragmas a) <&> \ x -> a { _libPragmas = x }
 
 

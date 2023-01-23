@@ -145,7 +145,7 @@ data RangeFile = RangeFile
   { rangeFilePath :: !AbsolutePath
     -- ^ The file's path.
   , rangeFileName :: !(Maybe TopLevelModuleName)
-    -- ^ The file's top-level module name.
+    -- ^ The file's top-level module name (if applicable).
     --
     -- This field is optional, but some things may break if the field
     -- is not instantiated with an actual top-level module name. For

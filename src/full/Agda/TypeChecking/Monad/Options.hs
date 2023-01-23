@@ -31,6 +31,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Imports
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Benchmark
+import Agda.TypeChecking.Monad.Trace
 
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
@@ -172,7 +173,7 @@ addTrustedExecutables o = do
   return o{ optTrustedExecutables = trustedExes }
 
 setOptionsFromPragma :: OptionsPragma -> TCM ()
-setOptionsFromPragma ps = do
+setOptionsFromPragma ps = setCurrentRange (pragmaRange ps) $ do
     opts <- commandLineOptions
     let (z, warns) = runOptM (parsePragmaOptions ps opts)
     mapM_ (warning . OptionWarning) warns

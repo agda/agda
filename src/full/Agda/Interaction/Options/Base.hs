@@ -4,7 +4,6 @@
 module Agda.Interaction.Options.Base
     ( CommandLineOptions(..)
     , PragmaOptions(..)
-    , OptionsPragma
     , OptionWarning(..), optionWarningName
     , Flag, OptM, runOptM, OptDescr(..), ArgDescr(..)
     , Verbosity, VerboseKey, VerboseLevel
@@ -59,7 +58,7 @@ import Text.Read                ( readMaybe )
 
 import Agda.Termination.CutOff  ( CutOff(..), defaultCutOff )
 
-import Agda.Interaction.Library ( ExeName, LibName )
+import Agda.Interaction.Library ( ExeName, LibName, OptionsPragma(..) )
 import Agda.Interaction.Options.Help
   ( Help(HelpFor, GeneralHelp)
   , string2HelpTopic
@@ -263,13 +262,6 @@ data ConfluenceCheck
   deriving (Show, Eq, Generic)
 
 instance NFData ConfluenceCheck
-
--- | The options from an @OPTIONS@ pragma.
---
--- In the future it might be nice to switch to a more structured
--- representation. Note that, currently, there is not a one-to-one
--- correspondence between list elements and options.
-type OptionsPragma = [String]
 
 -- | Map a function over the long options. Also removes the short options.
 --   Will be used to add the plugin name to the plugin options.
@@ -1387,13 +1379,15 @@ getOptSimple argv opts fileArg = \ defaults ->
 
 -- | Parse options from an options pragma.
 parsePragmaOptions
-  :: [String]
+  :: OptionsPragma
      -- ^ Pragma options.
   -> CommandLineOptions
      -- ^ Command-line options which should be updated.
   -> OptM PragmaOptions
 parsePragmaOptions argv opts = do
-  ps <- getOptSimple argv (deadPragmaOptions ++ pragmaOptions)
+  ps <- getOptSimple
+          (pragmaStrings argv)
+          (deadPragmaOptions ++ pragmaOptions)
           (\s _ -> throwError $ "Bad option in pragma: " ++ s)
           (optPragmaOptions opts)
   () <- checkOpts (opts { optPragmaOptions = ps })

@@ -40,6 +40,7 @@ import Agda.Syntax.Position as P
 import Agda.Syntax.Literal
 import Agda.Syntax.TopLevelModuleName
 import Agda.Interaction.FindFile
+import Agda.Interaction.Library
 
 import Agda.TypeChecking.Serialise.Base
 
@@ -727,3 +728,8 @@ instance EmbPrj ExpandedEllipsis where
     valu []      = valuN NoEllipsis
     valu [1,a,b] = valuN ExpandedEllipsis a b
     valu _       = malformed
+
+instance EmbPrj OptionsPragma where
+  icod_ (OptionsPragma a b) = icod_ (a, b)
+
+  value op = uncurry OptionsPragma <$> value op

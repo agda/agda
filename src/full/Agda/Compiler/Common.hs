@@ -27,6 +27,7 @@ import Agda.Syntax.TopLevelModuleName
 import Agda.Interaction.FindFile ( srcFilePath )
 import Agda.Interaction.Options
 import Agda.Interaction.Imports  ( CheckResult, crInterface, crSource, Source(..) )
+import Agda.Interaction.Library
 
 import Agda.TypeChecking.Monad as TCM
 
@@ -168,15 +169,16 @@ inCompilerEnv checkResult cont = do
     -- Unfortunately, a pragma option is stored in the interface file as
     -- just a list of strings, thus, the solution is a bit of hack:
     -- We match on whether @["--no-main"]@ is one of the stored options.
-    when (["--no-main"] `elem` iFilePragmaOptions mainI) $
+    let iFilePragmaStrings = map pragmaStrings . iFilePragmaOptions
+    when (["--no-main"] `elem` iFilePragmaStrings mainI) $
       stPragmaOptions `modifyTCLens` \ o -> o { optCompileNoMain = True }
 
     -- Perhaps all pragma options from the top-level module should be
     -- made available to the compiler in a suitable way. Here are more
     -- hacks:
-    when (any ("--cubical" `elem`) (iFilePragmaOptions mainI)) $
+    when (any ("--cubical" `elem`) $ iFilePragmaStrings mainI) $
       stPragmaOptions `modifyTCLens` \ o -> o { optCubical = Just CFull }
-    when (any ("--erased-cubical" `elem`) (iFilePragmaOptions mainI)) $
+    when (any ("--erased-cubical" `elem`) $ iFilePragmaStrings mainI) $
       stPragmaOptions `modifyTCLens` \ o -> o { optCubical = Just CErased }
 
     setScope (iInsideScope mainI) -- so that compiler errors don't use overly qualified names

@@ -39,13 +39,18 @@ import System.FilePath
 
 import Agda.Interaction.Library.Base
 
+import Agda.Syntax.Position
+
 import Agda.Utils.Applicative
+import Agda.Utils.FileName
 import Agda.Utils.IO                ( catchIO )
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Lens
 import Agda.Utils.List              ( duplicates )
 import Agda.Utils.List1             ( List1, toList )
 import qualified Agda.Utils.List1   as List1
+import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Utils.Singleton
 import Agda.Utils.String            ( ltrim )
 
 -- | Parser monad: Can throw @LibParseError@s, and collects
@@ -71,22 +76,26 @@ data GenericEntry = GenericEntry
 data Field = forall a. Field
   { fName     :: String            -- ^ Name of the field.
   , fOptional :: Bool              -- ^ Is it optional?
-  , fParse    :: [String] -> P a   -- ^ Content parser for this field.
+  , fParse    :: Range -> [String] -> P a
+                 -- ^ Content parser for this field.
+                 --
+                 -- The range points to the start of the file.
   , fSet      :: LensSet a AgdaLibFile
     -- ^ Sets parsed content in 'AgdaLibFile' structure.
   }
 
-optionalField :: String -> ([String] -> P a) -> Lens' a AgdaLibFile -> Field
+optionalField ::
+  String -> (Range -> [String] -> P a) -> Lens' a AgdaLibFile -> Field
 optionalField str p l = Field str True p (set l)
 
 -- | @.agda-lib@ file format with parsers and setters.
 agdaLibFields :: [Field]
 agdaLibFields =
   -- Andreas, 2017-08-23, issue #2708, field "name" is optional.
-  [ optionalField "name"    parseName                      libName
-  , optionalField "include" (pure . concatMap parsePaths)  libIncludes
-  , optionalField "depend"  (pure . concatMap splitCommas) libDepends
-  , optionalField "flags"   (pure . concatMap parseFlags)  libPragmas
+  [ optionalField "name"    (\_ -> parseName)                     libName
+  , optionalField "include" (\_ -> pure . concatMap parsePaths)   libIncludes
+  , optionalField "depend"  (\_ -> pure . concatMap splitCommas)  libDepends
+  , optionalField "flags"   (\r -> pure . foldMap (parseFlags r)) libPragmas
   ]
   where
     parseName :: [String] -> P LibName
@@ -102,8 +111,11 @@ agdaLibFields =
       go acc (       ' '  :cs) = fixup acc ++ go id cs
       go acc (c           :cs) = go (acc . (c:)) cs
 
-    parseFlags :: String -> [String]
-    parseFlags = words
+    parseFlags :: Range -> String -> OptionsPragma
+    parseFlags r s = OptionsPragma
+      { pragmaStrings = words s
+      , pragmaRange   = r
+      }
 
 -- | Parse @.agda-lib@ file.
 --
@@ -111,20 +123,27 @@ agdaLibFields =
 -- pathes (provided the given 'FilePath' is absolute).
 --
 parseLibFile :: FilePath -> IO (P AgdaLibFile)
-parseLibFile file =
-  (fmap setPath . parseLib <$> UTF8.readFile file) `catchIO` \e ->
+parseLibFile file = do
+  abs <- absolute file
+  (fmap setPath . parseLib abs <$> UTF8.readFile file) `catchIO` \e ->
     return $ throwError $ ReadFailure file e
   where
     setPath      lib = unrelativise (takeDirectory file) (set libFile file lib)
     unrelativise dir = over libIncludes (map (dir </>))
 
 -- | Parse file contents.
-parseLib :: String -> P AgdaLibFile
-parseLib s = fromGeneric =<< parseGeneric s
+parseLib
+  :: AbsolutePath
+     -- ^ The parsed file.
+  -> String -> P AgdaLibFile
+parseLib file s = fromGeneric file =<< parseGeneric s
 
 -- | Parse 'GenericFile' with 'agdaLibFields' descriptors.
-fromGeneric :: GenericFile -> P AgdaLibFile
-fromGeneric = fromGeneric' agdaLibFields
+fromGeneric
+  :: AbsolutePath
+     -- ^ The parsed file.
+  -> GenericFile -> P AgdaLibFile
+fromGeneric file = fromGeneric' file agdaLibFields
 
 -- | Given a list of 'Field' descriptors (with their custom parsers),
 --   parse a 'GenericFile' into the 'AgdaLibFile' structure.
@@ -132,17 +151,31 @@ fromGeneric = fromGeneric' agdaLibFields
 --   Checks mandatory fields are present;
 --   no duplicate fields, no unknown fields.
 
-fromGeneric' :: [Field] -> GenericFile -> P AgdaLibFile
-fromGeneric' fields fs = do
+fromGeneric'
+  :: AbsolutePath
+     -- ^ The parsed file.
+  -> [Field] -> GenericFile -> P AgdaLibFile
+fromGeneric' file fields fs = do
   checkFields fields (map geHeader fs)
   foldM upd emptyLibFile fs
   where
+    -- The range points to the start of the file.
+    r = Range
+          (Strict.Just $ mkRangeFile file Nothing)
+          (singleton (posToInterval () p p))
+      where
+      p = Pn { srcFile = ()
+             , posPos  = 1
+             , posLine = 1
+             , posCol  = 1
+             }
+
     upd :: AgdaLibFile -> GenericEntry -> P AgdaLibFile
     upd l (GenericEntry h cs) = do
       mf <- findField h fields
       case mf of
         Just Field{..} -> do
-          x <- fParse cs
+          x <- fParse r cs
           return $ fSet x l
         Nothing -> return l
 
