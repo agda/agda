@@ -119,6 +119,12 @@ Note that if the search finds two or more ``.agda-lib`` files, then
 the flags from all of these files are used, and flags from different
 files are ordered in an unspecified way.
 
+Note also that there must not be any ``.agda-lib`` files below the
+root, on the path to the Agda file. For instance, if the top-level
+module in the Agda file is called ``A.B.C``, and it is in the
+directory ``root/A/B``, then there must not be any ``.agda-lib`` files
+in ``root/A`` or ``root/A/B``.
+
 Installing libraries
 --------------------
 

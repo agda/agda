@@ -37,14 +37,17 @@ import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Library
+import Agda.Interaction.Library.Base (libAbove, libFile)
 
 import Agda.Utils.FileName
 import Agda.Utils.Functor
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as G
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Pretty
+import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.WithDefault
 
@@ -111,17 +114,54 @@ libToTCM m = do
     Right x -> return x
 
 -- | Returns the library files for a given file.
+--
+-- Nothing is returned if 'optUseLibs' is 'False'.
+--
+-- An error is raised if 'optUseLibs' is 'True' and a library file is
+-- located too far down the directory hierarchy (see
+-- 'checkLibraryFileNotTooFarDown').
 
 getAgdaLibFiles
   :: AbsolutePath        -- ^ The file name.
   -> TopLevelModuleName  -- ^ The top-level module name.
   -> TCM [AgdaLibFile]
 getAgdaLibFiles f m = do
+  ls <- getAgdaLibFilesWithoutTopLevelModuleName f
+  mapM_ (checkLibraryFileNotTooFarDown m) ls
+  return ls
+
+-- | Returns potential library files for a file without a known
+-- top-level module name.
+--
+-- Once the top-level module name is known one can use
+-- 'checkLibraryFileNotTooFarDown' to check that the potential library
+-- files were not located too far down the directory hierarchy.
+--
+-- Nothing is returned if 'optUseLibs' is 'False'.
+
+getAgdaLibFilesWithoutTopLevelModuleName
+  :: AbsolutePath  -- ^ The file.
+  -> TCM [AgdaLibFile]
+getAgdaLibFilesWithoutTopLevelModuleName f = do
   useLibs <- optUseLibs <$> commandLineOptions
   if | useLibs   -> libToTCM $ mkLibM [] $ getAgdaLibFiles' root
      | otherwise -> return []
   where
-  root = filePath (projectRoot f m)
+  root = takeDirectory $ filePath f
+
+-- | Checks that a library file for the module @A.B.C@ (say) in the
+-- directory @dir/A/B@ is located at least two directories above the
+-- file (not in @dir/A@ or @dir/A/B@).
+
+checkLibraryFileNotTooFarDown ::
+  TopLevelModuleName ->
+  AgdaLibFile ->
+  TCM ()
+checkLibraryFileNotTooFarDown m lib =
+  when (lib ^. libAbove < size m - 1) $ typeError $ GenericError $
+    "A .agda-lib file for " ++ prettyShow m ++
+    " must not be located in the directory " ++
+    takeDirectory (lib ^. libFile)
 
 -- | Returns the library options for a given file.
 

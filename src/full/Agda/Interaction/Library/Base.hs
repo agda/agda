@@ -73,6 +73,9 @@ data ProjectConfig
   = ProjectConfig
     { configRoot         :: FilePath
     , configAgdaLibFiles :: [FilePath]
+    , configAbove        :: !Int
+      -- ^ How many directories above the Agda file is the @.agda-lib@
+      -- file located?
     }
   | DefaultProjectConfig
   deriving Generic
@@ -113,6 +116,9 @@ instance NFData OptionsPragma where
 data AgdaLibFile = AgdaLibFile
   { _libName     :: LibName     -- ^ The symbolic name of the library.
   , _libFile     :: FilePath    -- ^ Path to this @.agda-lib@ file (not content of the file).
+  , _libAbove    :: !Int        -- ^ How many directories above the
+                                --   Agda file is the @.agda-lib@ file
+                                --   located?
   , _libIncludes :: [FilePath]  -- ^ Roots where to look for the modules of the library.
   , _libDepends  :: [LibName]   -- ^ Dependencies.
   , _libPragmas  :: OptionsPragma
@@ -124,6 +130,7 @@ emptyLibFile :: AgdaLibFile
 emptyLibFile = AgdaLibFile
   { _libName     = ""
   , _libFile     = ""
+  , _libAbove    = 0
   , _libIncludes = []
   , _libDepends  = []
   , _libPragmas  = mempty
@@ -136,6 +143,9 @@ libName f a = f (_libName a) <&> \ x -> a { _libName = x }
 
 libFile :: Lens' FilePath AgdaLibFile
 libFile f a = f (_libFile a) <&> \ x -> a { _libFile = x }
+
+libAbove :: Lens' Int AgdaLibFile
+libAbove f a = f (_libAbove a) <&> \ x -> a { _libAbove = x }
 
 libIncludes :: Lens' [FilePath] AgdaLibFile
 libIncludes f a = f (_libIncludes a) <&> \ x -> a { _libIncludes = x }
