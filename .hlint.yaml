@@ -43,7 +43,6 @@
 - ignore: {name: "Redundant section"} # 3 hints
 - ignore: {name: "Replace case with fromMaybe"} # 3 hints
 - ignore: {name: "Replace case with maybe"} # 2 hints
-- ignore: {name: "Replace flip map with for"} # 1 hint
 - ignore: {name: "Unused LANGUAGE pragma"} # 210 hints
 - ignore: {name: "Use &&"} # 4 hints
 - ignore: {name: "Use ++"} # 11 hints
