@@ -1,14 +1,11 @@
 # HLint configuration file
-# https://github.com/ndmitchell/hlint
-##########################
+# https://github.com/ndmitchell/hlint#readme
 
-# This file contains a template configuration file, which is typically
-# placed as .hlint.yaml in the root of your project
-
-# Andreas, 2021-02-15
-# Silence specific hlint warnings, e.g.
-# https://github.com/agda/agda/pull/5214/checks?check_run_id=1909201141
-- ignore: {name: "Use curry", within: Agda.TypeChecking.Reduce.reduceWithBlocker }
+# Silence specific warnings
+- ignore:
+    name: "Use curry"
+    within:
+      - Agda.TypeChecking.Reduce.reduceWithBlocker
 - ignore:
     name: "Use fmap"
     within:
@@ -18,9 +15,9 @@
       - Agda.Syntax.Concrete.Operators.parsePat
 
 # Warnings currently triggered by your code
-- ignore: {name: "Avoid lambda"} # 40 hints
+- ignore: {name: "Avoid lambda"} # 116 hints
 - ignore: {name: "Avoid lambda using `infix`"} # 12 hints
-- ignore: {name: "Eta reduce"} # 162 hints
+- ignore: {name: "Eta reduce"} # 374 hints
 - ignore: {name: "Evaluate"} # 14 hints
 - ignore: {name: "Fuse concatMap/map"} # 1 hint
 - ignore: {name: "Fuse foldMap/fmap"} # 2 hints
@@ -29,23 +26,25 @@
 - ignore: {name: "Hoist not"} # 18 hints
 - ignore: {name: "Move brackets to avoid $"} # 47 hints
 - ignore: {name: "Move guards forward"} # 2 hints
-- ignore: {name: "Redundant $"} # 632 hints
+- ignore: {name: "Redundant $"} # 644 hints
 - ignore: {name: "Redundant <$>"} # 46 hints
 - ignore: {name: "Redundant =="} # 1 hint
-- ignore: {name: "Redundant bracket"} # 454 hints
+- ignore: {name: "Redundant bracket"} # 2586 hints
 - ignore: {name: "Redundant case"} # 1 hint
 - ignore: {name: "Redundant flip"} # 2 hints
 - ignore: {name: "Redundant guard"} # 6 hints
 - ignore: {name: "Redundant id"} # 1 hint
-- ignore: {name: "Redundant if"} # 3 hints
-- ignore: {name: "Redundant lambda"} # 28 hints
+- ignore: {name: "Redundant if"} # 4 hints
+- ignore: {name: "Redundant irrefutable pattern"} # 36 hints
+- ignore: {name: "Redundant lambda"} # 43 hints
 - ignore: {name: "Redundant map"} # 2 hints
 - ignore: {name: "Redundant multi-way if"} # 17 hints
 - ignore: {name: "Redundant return"} # 2 hints
 - ignore: {name: "Redundant section"} # 3 hints
 - ignore: {name: "Replace case with fromMaybe"} # 3 hints
 - ignore: {name: "Replace case with maybe"} # 2 hints
-- ignore: {name: "Unused LANGUAGE pragma"} # 1 hint
+- ignore: {name: "Replace flip map with for"} # 1 hint
+- ignore: {name: "Unused LANGUAGE pragma"} # 210 hints
 - ignore: {name: "Use &&"} # 4 hints
 - ignore: {name: "Use ++"} # 11 hints
 - ignore: {name: "Use /="} # 1 hint
@@ -57,12 +56,13 @@
 - ignore: {name: "Use >"} # 1 hint
 - ignore: {name: "Use >=>"} # 1 hint
 - ignore: {name: "Use Just"} # 1 hint
-- ignore: {name: "Use LANGUAGE pragmas"} # 7 hints
-- ignore: {name: "Use camelCase"} # 73 hints
+- ignore: {name: "Use LANGUAGE pragmas"} # 8 hints
+- ignore: {name: "Use camelCase"} # 95 hints
 - ignore: {name: "Use concatMap"} # 2 hints
-- ignore: {name: "Use const"} # 67 hints
+- ignore: {name: "Use const"} # 75 hints
 - ignore: {name: "Use elem"} # 2 hints
 - ignore: {name: "Use empty"} # 1 hint
+- ignore: {name: "Use fewer imports"} # 2 hints
 - ignore: {name: "Use fmap"} # 5 hints
 - ignore: {name: "Use fold"} # 1 hint
 - ignore: {name: "Use fromMaybe"} # 1 hint
@@ -72,9 +72,9 @@
 - ignore: {name: "Use isNothing"} # 2 hints
 - ignore: {name: "Use iterate"} # 1 hint
 - ignore: {name: "Use join"} # 2 hints
-- ignore: {name: "Use lambda-case"} # 54 hints
+- ignore: {name: "Use lambda-case"} # 55 hints
 - ignore: {name: "Use list comprehension"} # 3 hints
-- ignore: {name: "Use list literal"} # 11 hints
+- ignore: {name: "Use list literal"} # 12 hints
 - ignore: {name: "Use list literal pattern"} # 2 hints
 - ignore: {name: "Use map"} # 4 hints
 - ignore: {name: "Use map once"} # 1 hint
@@ -82,10 +82,10 @@
 - ignore: {name: "Use mapMaybe"} # 3 hints
 - ignore: {name: "Use maximum"} # 1 hint
 - ignore: {name: "Use negate"} # 1 hint
-- ignore: {name: "Use newtype instead of data"} # 27 hints
+- ignore: {name: "Use newtype instead of data"} # 29 hints
 - ignore: {name: "Use notElem"} # 2 hints
 - ignore: {name: "Use null"} # 4 hints
-- ignore: {name: "Use record patterns"} # 37 hints
+- ignore: {name: "Use record patterns"} # 38 hints
 - ignore: {name: "Use second"} # 5 hints
 - ignore: {name: "Use section"} # 19 hints
 - ignore: {name: "Use sequenceA"} # 3 hints
@@ -95,82 +95,41 @@
 - ignore: {name: "Use ||"} # 4 hints
 
 # Specify additional command line arguments
-#
-# - arguments: [--color, --cpp-simple, -XQuasiQuotes]
 - arguments:
-  - --ignore-glob=notes/papers/iird/paper.lhs
-  - --ignore-glob=notes/style/haskell-style.lhs
-  - --ignore-glob=notes/papers/implicit/examples.lhs
-  - -XBangPatterns
-  - -XConstraintKinds
-  - -XDefaultSignatures
-  - -XDeriveDataTypeable
-  - -XDeriveFoldable
-  - -XDeriveFunctor
-  - -XDeriveGeneric
-  - -XDeriveTraversable
-  - -XExistentialQuantification
-  - -XFlexibleContexts
-  - -XFlexibleInstances
-  - -XFunctionalDependencies
-  - -XGeneralizedNewtypeDeriving
-  - -XInstanceSigs
-  - -XLambdaCase
-  - -XMultiParamTypeClasses
-  - -XMultiWayIf
-  - -XNamedFieldPuns
-  - -XOverloadedStrings
-  - -XPatternSynonyms
-  - -XRankNTypes
-  - -XRecordWildCards
-  - -XScopedTypeVariables
-  - -XStandaloneDeriving
-  - -XTupleSections
-  - -XTypeFamilies
-  - -XTypeSynonymInstances
-
-# Control which extensions/flags/modules/functions can be used
-#
-# - extensions:
-#   - default: false # all extension are banned by default
-#   - name: [PatternGuards, ViewPatterns] # only these listed extensions can be used
-#   - {name: CPP, within: CrossPlatform} # CPP can only be used in a given module
-#
-# - flags:
-#   - {name: -w, within: []} # -w is allowed nowhere
-#
-# - modules:
-#   - {name: [Data.Set, Data.HashSet], as: Set} # if you import Data.Set qualified, it must be as 'Set'
-#   - {name: Control.Arrow, within: []} # Certain modules are banned entirely
-#
-# - functions:
-#   - {name: unsafePerformIO, within: []} # unsafePerformIO can only appear in no modules
-
+    - --ignore-glob=notes/papers/iird/paper.lhs
+    - --ignore-glob=notes/style/haskell-style.lhs
+    - --ignore-glob=notes/papers/implicit/examples.lhs
+    - -XBangPatterns
+    - -XConstraintKinds
+    - -XDefaultSignatures
+    - -XDeriveDataTypeable
+    - -XDeriveFoldable
+    - -XDeriveFunctor
+    - -XDeriveGeneric
+    - -XDeriveTraversable
+    - -XExistentialQuantification
+    - -XFlexibleContexts
+    - -XFlexibleInstances
+    - -XFunctionalDependencies
+    - -XGeneralizedNewtypeDeriving
+    - -XInstanceSigs
+    - -XLambdaCase
+    - -XMultiParamTypeClasses
+    - -XMultiWayIf
+    - -XNamedFieldPuns
+    - -XOverloadedStrings
+    - -XPatternSynonyms
+    - -XRankNTypes
+    - -XRecordWildCards
+    - -XScopedTypeVariables
+    - -XStandaloneDeriving
+    - -XTupleSections
+    - -XTypeFamilies
+    - -XTypeSynonymInstances
 
 # Add custom hints for this project
-- hint: {lhs: flip map, rhs: for, name: Replace flip map with for, note: Prefer Agda.Utils.Functor.for over Data.Traversable.for}
-
-
-# Turn on hints that are off by default
-#
-# Ban "module X(module X) where", to require a real export list
-# - warn: {name: Use explicit module export list}
-#
-# Replace a $ b $ c with a . b $ c
-# - group: {name: dollar, enabled: true}
-#
-# Generalise map to fmap, ++ to <>
-# - group: {name: generalise, enabled: true}
-
-
-# Ignore some builtin hints
-# - ignore: {name: Use let}
-# - ignore: {name: Use const, within: SpecialModule} # Only within certain modules
-
-
-# Define some custom infix operators
-# - fixity: infixr 3 ~^#^~
-
-
-# To generate a suitable file for HLint do:
-# $ hlint --default > .hlint.yaml
+- hint:
+    lhs: flip map
+    rhs: for
+    name: Replace flip map with for
+    note: Prefer Agda.Utils.Functor.for over Data.Traversable.for
