@@ -439,9 +439,9 @@ For 2.6.3, the following issues were also closed (see [bug
 tracker](https://github.com/agda/agda/issues)):
 
   - [#3660](https://github.com/agda/agda/issues/3660): Wrong variable name in constraints for higher constructor
-  - [#3986](https://github.com/agda/agda/issues/3986): Subtyping .A -> B <= A -> B leads to wrong ArgInfo
+  - [#3986](https://github.com/agda/agda/issues/3986): Subtyping `.A -> B <= A -> B` leads to wrong `ArgInfo`
   - [#4103](https://github.com/agda/agda/issues/4103): Rewrite rule rejected because of projection likeness
-  - [#4506](https://github.com/agda/agda/issues/4506): Lack of unicode support in locale may result in uncaught IOException
+  - [#4506](https://github.com/agda/agda/issues/4506): Lack of unicode support in locale may result in uncaught `IOException`
   - [#4725](https://github.com/agda/agda/issues/4725): Cubical Agda: Program rejected by termination checker due to moved dot pattern
   - [#4755](https://github.com/agda/agda/issues/4755): Rewrite rule on constructor uses wrong type for matching
   - [#4763](https://github.com/agda/agda/issues/4763): Cubical Agda: Unquote anonymous copattern involving path
@@ -464,7 +464,7 @@ tracker](https://github.com/agda/agda/issues)):
   - [#5727](https://github.com/agda/agda/issues/5727): Reducing universe levels before checking is not sufficient
   - [#5728](https://github.com/agda/agda/issues/5728): Internal error when pattern matching on `...` in with statement without providing a pattern match
   - [#5734](https://github.com/agda/agda/issues/5734): Relevance check in reflection
-  - [#5751](https://github.com/agda/agda/issues/5751): json interaction produces Haskell output for SolveAll
+  - [#5751](https://github.com/agda/agda/issues/5751): json interaction produces Haskell output for `SolveAll`
   - [#5754](https://github.com/agda/agda/issues/5754): Internal error when compiling program with quoted metavariable
   - [#5760](https://github.com/agda/agda/issues/5760): Some code related to Cubical Agda runs also when the K rule is on
   - [#5763](https://github.com/agda/agda/issues/5763): Internal parser error using syntax rules
@@ -477,14 +477,14 @@ tracker](https://github.com/agda/agda/issues)):
   - [#5848](https://github.com/agda/agda/issues/5848): Internal error with `--confluence-check`
   - [#5850](https://github.com/agda/agda/issues/5850): Warn about useless hiding in `variable` declaration
   - [#5856](https://github.com/agda/agda/issues/5856): Lambda with irrefutable pattern is not rejected when used on Path
-  - [#5868](https://github.com/agda/agda/issues/5868): Document --two-level
+  - [#5868](https://github.com/agda/agda/issues/5868): Document `--two-level`
   - [#5875](https://github.com/agda/agda/issues/5875): Instance Search breaks Termination Highlighting
-  - [#5891](https://github.com/agda/agda/issues/5891): SizeUniv : SizeUniv is inconsistent
-  - [#5901](https://github.com/agda/agda/issues/5901): Use emacs --batch mode in agda-mode setup
+  - [#5891](https://github.com/agda/agda/issues/5891): `SizeUniv : SizeUniv` is inconsistent
+  - [#5901](https://github.com/agda/agda/issues/5901): Use `emacs --batch` mode in `agda-mode` setup
   - [#5920](https://github.com/agda/agda/issues/5920): Erased constructors skipped in modality check
   - [#5922](https://github.com/agda/agda/issues/5922): Failure of termination checking for reflection-generated code due to data projections
   - [#5923](https://github.com/agda/agda/issues/5923): Internal error in rewriting
-  - [#5944](https://github.com/agda/agda/issues/5944): Internal error in rewriting with --two-level
+  - [#5944](https://github.com/agda/agda/issues/5944): Internal error in rewriting with `--two-level`
   - [#5953](https://github.com/agda/agda/issues/5953): Recursor of inductive-inductive type does not pass termination check in Cubical Agda
   - [#5955](https://github.com/agda/agda/issues/5955): Composition of Glue Type Causes Infinite Loop
   - [#5956](https://github.com/agda/agda/issues/5956): Cubical Agda crashes when printing empty system
@@ -500,10 +500,10 @@ tracker](https://github.com/agda/agda/issues)):
   - [#6066](https://github.com/agda/agda/issues/6066): Document the meaning of `pattern` without `no-eta-equality`
   - [#6067](https://github.com/agda/agda/issues/6067): Another de Bruijn error in rewriting
   - [#6073](https://github.com/agda/agda/issues/6073): Constraint solving does not honour singleton types
-  - [#6074](https://github.com/agda/agda/issues/6074): piSort/funSort of IUniv should be blocked on the codomain
+  - [#6074](https://github.com/agda/agda/issues/6074): `piSort`/`funSort` of `IUniv` should be blocked on the codomain
   - [#6076](https://github.com/agda/agda/issues/6076): Agda input mode (emacs): Minibuffer display for `\;` is strange
-  - [#6080](https://github.com/agda/agda/issues/6080): A space leak due to absName
-  - [#6082](https://github.com/agda/agda/issues/6082): Elaborate-and-give does not respect --postfix-projections
+  - [#6080](https://github.com/agda/agda/issues/6080): A space leak due to `absName`
+  - [#6082](https://github.com/agda/agda/issues/6082): Elaborate-and-give does not respect `--postfix-projections`
   - [#6095](https://github.com/agda/agda/issues/6095): Ambiguous pattern synonyms broken with anonymous module
   - [#6112](https://github.com/agda/agda/issues/6112): Internal error: non-confluent rewriting to singletons
   - [#6200](https://github.com/agda/agda/issues/6200): The reflection machinery does not treat the module telescope consistently
@@ -516,7 +516,7 @@ tracker](https://github.com/agda/agda/issues)):
   - [#6273](https://github.com/agda/agda/issues/6273): Missing highlighting when interleaved mutual is used
   - [#6276](https://github.com/agda/agda/issues/6276): LaTeX/HTML generation doesn't properly render parameters of pre-declared records
   - [#6281](https://github.com/agda/agda/issues/6281): Special treatment of attribute followed by underscore in pretty-printer
-  - [#6337](https://github.com/agda/agda/issues/6337): --lossy-unification in Agda 2.6.3
-  - [#6338](https://github.com/agda/agda/issues/6338): internal error in Agda, perhaps related to --rewriting
+  - [#6337](https://github.com/agda/agda/issues/6337): `--lossy-unification` in Agda 2.6.3
+  - [#6338](https://github.com/agda/agda/issues/6338): internal error in Agda, perhaps related to `--rewriting`
   - [#6377](https://github.com/agda/agda/issues/6377): Fix installation docs concerning icu libraries
   - [#6379](https://github.com/agda/agda/issues/6379): Weird warning for instance declarations of bad type
