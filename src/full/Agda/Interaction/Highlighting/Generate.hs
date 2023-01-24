@@ -494,6 +494,7 @@ warningHighlighting' b w = case tcWarning w of
     EmptyInstance{}                  -> deadcodeHighlighting w
     EmptyMacro{}                     -> deadcodeHighlighting w
     EmptyMutual{}                    -> deadcodeHighlighting w
+    EmptyOpaque{}                    -> deadcodeHighlighting w
     EmptyPostulate{}                 -> deadcodeHighlighting w
     EmptyPrimitive{}                 -> deadcodeHighlighting w
     EmptyPrivate{}                   -> deadcodeHighlighting w

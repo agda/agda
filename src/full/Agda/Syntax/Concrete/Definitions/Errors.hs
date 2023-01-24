@@ -65,6 +65,7 @@ data DeclarationWarning'
   | EmptyInstance Range    -- ^ Empty @instance@  block
   | EmptyMacro Range       -- ^ Empty @macro@     block.
   | EmptyMutual Range      -- ^ Empty @mutual@    block.
+  | EmptyOpaque Range      -- ^ Empty @opaque@ block.
   | EmptyPostulate Range   -- ^ Empty @postulate@ block.
   | EmptyPrivate Range     -- ^ Empty @private@   block.
   | EmptyPrimitive Range   -- ^ Empty @primitive@ block.
@@ -134,6 +135,7 @@ declarationWarningName' = \case
   EmptyInstance{}                   -> EmptyInstance_
   EmptyMacro{}                      -> EmptyMacro_
   EmptyMutual{}                     -> EmptyMutual_
+  EmptyOpaque{}                     -> EmptyOpaque_
   EmptyPrivate{}                    -> EmptyPrivate_
   EmptyPostulate{}                  -> EmptyPostulate_
   EmptyPrimitive{}                  -> EmptyPrimitive_
@@ -177,6 +179,7 @@ unsafeDeclarationWarning' = \case
   EmptyInstance{}                   -> False
   EmptyMacro{}                      -> False
   EmptyMutual{}                     -> False
+  EmptyOpaque{}                     -> False
   EmptyPrivate{}                    -> False
   EmptyPostulate{}                  -> False
   EmptyPrimitive{}                  -> False
@@ -248,6 +251,7 @@ instance HasRange DeclarationWarning' where
   getRange (EmptyPrivate r)                     = r
   getRange (EmptyInstance r)                    = r
   getRange (EmptyMacro r)                       = r
+  getRange (EmptyOpaque r)                      = r
   getRange (EmptyPostulate r)                   = r
   getRange (EmptyGeneralize r)                  = r
   getRange (EmptyPrimitive r)                   = r
@@ -351,6 +355,7 @@ instance Pretty DeclarationWarning' where
   pretty (EmptyPostulate _)  = fsep $ pwords "Empty postulate block."
   pretty (EmptyGeneralize _) = fsep $ pwords "Empty variable block."
   pretty (EmptyPrimitive _)  = fsep $ pwords "Empty primitive block."
+  pretty (EmptyOpaque _)     = fsep $ pwords "Empty primitive block."
   pretty (EmptyField _)      = fsep $ pwords "Empty field block."
   pretty (HiddenGeneralize _) = fsep $ pwords "Declaring a variable as hidden has no effect in a variable block. Generalization never introduces visible arguments."
   pretty InvalidRecordDirective{} = fsep $

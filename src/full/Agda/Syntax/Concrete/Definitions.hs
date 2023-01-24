@@ -462,14 +462,13 @@ niceDeclarations nextabs fixs ds = do
           ((,ds) . singleton . NiceLoneConstructor r) <$> niceAxioms ConstructorBlock ds'
 
 
-        Opaque r _ [] -> justWarning $ EmptyAbstract r
+        Opaque r _ [] -> justWarning $ EmptyOpaque r
 
-        -- Note (abstract unfolding): If the abstract block is
-        -- non-empty, we have to generate a fresh 'OpaqueId' and
-        -- associate each definition in the abstract block with this
-        -- identifier. The nicifier is the only place where we can do
-        -- this, since it is the last place where abstract blocks
-        -- /exist/.
+        -- Note (opaque unfolding): If the opaque block is inhabited, we
+        -- have to generate a fresh 'OpaqueId' and associate each
+        -- definition in the abstract block with this identifier. The
+        -- nicifier is the only place where we can do this, since it is
+        -- the last place where abstract blocks /exist/.
         Opaque r uf ds' -> do
           id <- nextOpaqueId
           ds' <- opaqueBlock r uf id =<< andUnfold uf (nice ds')

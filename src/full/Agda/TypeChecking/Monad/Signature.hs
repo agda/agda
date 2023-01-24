@@ -950,7 +950,15 @@ defaultGetConstInfo st env q = do
                 , "after: " <+> text (show (applyReducibilityRules uf q' env (defReducible d)))
                 , pretty (Map.mapKeys show (fmap HashSet.toList uf))]
               return $ Right d
-            Nothing     -> return $ Left SigAbstract
+            Nothing -> do
+              reportSDoc "tc.const.info" 30 $ vcat
+                [ "defaultGetConstInfo" <+> prettyTCM q
+                , "!!! FAILED TO TREAT ABSTRACTLY !!!"
+                , text (show (envAbstractMode env)) <+> text (show (envOpaqueMode env))
+                , "before:" <+> text (show (defReducible d))
+                , "after: " <+> text (show (applyReducibilityRules uf q' env (defReducible d)))
+                , pretty (Map.mapKeys show (fmap HashSet.toList uf))]
+              return $ Left SigAbstract
               -- the above can happen since the scope checker is a bit sloppy with 'abstract'
         | otherwise = return $ Right d
         where
@@ -1351,7 +1359,13 @@ inIdentifierReductionMode q cont = do
     [ "entering reducibility mode for definition:" <+> pretty q
     , "mode:" <+> text (show (defReducible def))
     ]
-  inReducibilityMode (defReducible def) . cont $ def
+  inReducibilityMode (defReducible def) $ do
+    ab <- asksTC envAbstractMode
+    op <- asksTC envOpaqueMode
+    reportSDoc "tc.const.info" 30 $ vcat
+      [ "resulting mode:" <+> text (show (ab, op))
+      ]
+    cont def
 
 -- | Check whether a given name would have its @abstract@ status ignored
 -- by in a parent module of the current module.

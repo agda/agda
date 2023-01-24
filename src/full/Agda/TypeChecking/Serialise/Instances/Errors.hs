@@ -210,6 +210,7 @@ instance EmbPrj DeclarationWarning' where
     MissingDeclarations a             -> icodeN 32 MissingDeclarations a
     HiddenGeneralize r                -> icodeN 33 HiddenGeneralize r
     UselessOpaque r                   -> icodeN 34 UselessOpaque r
+    EmptyOpaque r                     -> icodeN 35 EmptyOpaque r
 
   value = vcase $ \case
     [0, a]   -> valuN UnknownNamesInFixityDecl a
@@ -247,6 +248,7 @@ instance EmbPrj DeclarationWarning' where
     [32,r]   -> valuN MissingDeclarations r
     [33,r]   -> valuN HiddenGeneralize r
     [34,r]   -> valuN UselessOpaque r
+    [35,r]   -> valuN EmptyOpaque r
     _ -> malformed
 
 instance EmbPrj LibWarning where
@@ -436,6 +438,7 @@ instance EmbPrj WarningName where
     PlentyInHardCompileTimeMode_                 -> 96
     UselessOpaque_                               -> 97
     UnfoldingRedundancy_                         -> 98
+    EmptyOpaque_                                 -> 99
 
   value = \case
     0  -> return OverlappingTokensWarning_
@@ -537,6 +540,7 @@ instance EmbPrj WarningName where
     96 -> return PlentyInHardCompileTimeMode_
     97 -> return UselessOpaque_
     98 -> return UnfoldingRedundancy_
+    99 -> return EmptyOpaque_
     _ -> malformed
 
 

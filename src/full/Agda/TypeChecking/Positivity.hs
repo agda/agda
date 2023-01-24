@@ -507,8 +507,9 @@ computeOccurrences' q = inIdentifierReductionMode q $ \ def -> do
   reportSDoc "tc.pos" 25 $ do
     let a = defReducible def
     m <- asksTC envAbstractMode
+    o <- asksTC envOpaqueMode
     cur <- asksTC envCurrentModule
-    "computeOccurrences" <+> prettyTCM q <+> text (show a) <+> text (show m)
+    "computeOccurrences" <+> prettyTCM q <+> text (show a) <+> text (show (m, o))
       <+> prettyTCM cur
   OccursAs (InDefOf q) <$> case theDef def of
 

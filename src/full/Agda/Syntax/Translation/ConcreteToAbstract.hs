@@ -2183,8 +2183,12 @@ instance ToAbstract NiceDeclaration where
       let
         lookup :: C.QName -> TCM (Either (Either I.QName I.QName) (I.QName, HashSet I.QName))
         lookup c = do
+          reportSDoc "scope.unfold" 30 $ vcat [ "resolving concrete name" <+> pure (pretty c) <+> "in unfolding list" ]
           qname <- resolveName c >>= \case
-            A.DefinedName _ an _ -> pure (anameName an)
+            A.DefinedName _ an _           -> pure (anameName an)
+            A.FieldName (an :| [])         -> pure (anameName an)
+            A.ConstructorName _ (an :| []) -> pure (anameName an)
+
             A.UnknownName -> notInScopeError c
             _ -> typeError . GenericDocError =<<
               "Name in unfolding clause should be unambiguous defined name:" <+> prettyTCM c
@@ -2454,6 +2458,7 @@ instance ToAbstract DataConstrDecl where
         -- Bind it twice, once unqualified and once qualified
         f <- getConcreteFixity x
         y <- bindConstructorName m x (redIsAbstract a) p
+        addToUnfoldMaybe a y
         printScope "con" 15 "bound constructor"
         return $ A.Axiom ConName (mkDefInfoInstance x f p a i NotMacroDef r)
                          info Nothing y t'
