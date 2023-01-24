@@ -34,6 +34,7 @@ Language Reference
    mixfix-operators
    module-system
    mutual-recursion
+   opaque-definitions
    pattern-synonyms
    positivity-checking
    postulates
