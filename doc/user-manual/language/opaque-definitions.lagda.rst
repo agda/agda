@@ -85,7 +85,7 @@ provably forming a ring.
 
 Fortunately, since ``ℤ`` is *opaque* rather than *abstract*, a different
 module, say ``Integer-ring``, can provide its own proofs, in an
-``opaque`` block that unfolds the definition of ‵`ℤ``::
+``opaque`` block that unfolds the definition of ``ℤ``::
 
   module Integer-ring where
     open Integer
