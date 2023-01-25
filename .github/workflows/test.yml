@@ -46,13 +46,12 @@ jobs:
       name: Restore cache from approximate key
       uses: actions/cache/restore@v3
       with:
-        key: test.yml-${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER
-          }}-ghc-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
+        key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
+          }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
         path: |
           ~/.stack
-          ~/.stack-work
-        restore-keys: |
-          test.yml-${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER }}-ghc-${{ env.GHC_VER }}-
+        restore-keys: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{
+          env.ICU_VER }}-
     - name: Install dependencies for Agda and its test suites
       run: make install-deps
     - name: Build Agda
@@ -85,8 +84,8 @@ jobs:
     - continue-on-error: true
       env:
         GH_TOKEN: ${{ github.token }}
-        KEY: test.yml-${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER
-          }}-ghc-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
+        KEY: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
+          }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
       if: ${{ steps.cache.outputs.cache-hit }}
       name: Clear cache
       run: |
@@ -96,11 +95,10 @@ jobs:
       name: Save cache
       uses: actions/cache/save@v3
       with:
-        key: test.yml-${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER
-          }}-ghc-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
+        key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
+          }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
         path: |
           ~/.stack
-          ~/.stack-work
   cubical:
     needs: build
     runs-on: ubuntu-22.04
@@ -130,11 +128,10 @@ jobs:
       name: Restore cache from exact key
       uses: actions/cache/restore@v3
       with:
-        key: test.yml-${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER
-          }}-ghc-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
+        key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
+          }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
         path: |
           ~/.stack
-          ~/.stack-work
     - name: Cubical library test
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-test
     - name: Successful tests using the cubical library
@@ -168,11 +165,10 @@ jobs:
       name: Restore cache from exact key
       uses: actions/cache/restore@v3
       with:
-        key: test.yml-${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER
-          }}-ghc-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
+        key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
+          }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
         path: |
           ~/.stack
-          ~/.stack-work
     - name: Install Tex Live and Emacs
       run: |
         sudo apt-get update
@@ -213,11 +209,10 @@ jobs:
       name: Restore cache from exact key
       uses: actions/cache/restore@v3
       with:
-        key: test.yml-${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER
-          }}-ghc-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
+        key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
+          }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
         path: |
           ~/.stack
-          ~/.stack-work
     - name: Standard library test
       run: |
         # ASR (2021-01-17). `cabal update` is required due to #5138.
@@ -259,11 +254,10 @@ jobs:
       name: Restore cache from exact key
       uses: actions/cache/restore@v3
       with:
-        key: test.yml-${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER
-          }}-ghc-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
+        key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
+          }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
         path: |
           ~/.stack
-          ~/.stack-work
     - name: Suite of tests for bugs
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" bugs
     - name: 'Suite of successful tests: mini-library Common'

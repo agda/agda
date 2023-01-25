@@ -119,13 +119,15 @@ jobs:
       uses: actions/cache/restore@v3
       id: cache
       with:
+        # Andreas, 2023-01-24:
+        # Stack seems to insist to rebuild Agda from scratch even when ~/.stack-work is restored.
+        # Since it balloons the cache entry from 330 MB to 790 MB, don't include it in the cache.
         path: &cache_path |
           ~/.stack
-          ~/.stack-work
+
         # A unique cache is used for each stack.yaml.
-        key: &cache_key test.yml-${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER }}-ghc-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
-        restore-keys: |
-          test.yml-${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER }}-ghc-${{ env.GHC_VER }}-
+        key: &cache_key test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
+        restore-keys:   test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-
 
     - name: "Install dependencies for Agda and its test suites"
       ## Always do this step, even if we got a cache hit.  Should be fast in case we got a hit.
