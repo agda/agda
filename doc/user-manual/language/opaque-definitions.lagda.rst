@@ -105,9 +105,10 @@ depending on the same abstract block.
 Transitive unfolding
 --------------------
 
-When unfolding a name, Agda will automatically mark the transitive
-closure of any names *it* might unfold as transparent, too. This is to
-preserve subject reduction. Consider::
+For every name ``X`` mentioned in the ``unfolding`` clause associated
+with an ``opaque`` block, each opaque name that ``X`` (transitively)
+unfolds will also be marked transparent. This is necessary to preserve
+subject reduction. Consider the following example::
 
   opaque
     foo : Set
@@ -117,9 +118,10 @@ preserve subject reduction. Consider::
     bar : foo
     bar = 123
 
-If we could then unfold ``bar`` independently of ``foo``, we'd end up
-with ``bar : foo`` reducing to ``123 : Nat``, and, in this block, ``foo
-!= Nat``. Therefore::
+If we could unfold ``bar`` independently of ``foo``, we'd end up with
+``bar : foo`` reducing to ``123 : Nat``, while in this block, ``foo !=
+Nat``. One can observe the transitivity of ``unfolding`` clauses with an
+example like this::
 
   opaque unfolding (bar) where
     _ : foo ≡ Nat
@@ -128,10 +130,11 @@ with ``bar : foo`` reducing to ``123 : Nat``, and, in this block, ``foo
 Unfolding in types
 ------------------
 
-Note that unfolding clauses do not apply to the type signatures inside
-an opaque block. If a type is only well-formed after a definition that
-would otherwise be opaque, it needs to be made into an auxiliary
-declaration::
+Note that unfolding clauses do not apply to the *type signatures* inside
+an ``opaque`` block. Much like for ``abstract`` blocks, this prevents
+leakage of implementation details, but it also necessary to ensure that
+the types of names defined by the opaque block remain valid outside the
+opaque block. Consider::
 
   opaque
     S : Set₁
@@ -141,16 +144,25 @@ declaration::
     foo′ = Nat
 
   opaque unfolding (foo′) where
-    -- _ : foo′
-    -- _ = 123
+    -- bar′ : foo′
+    -- bar′ = 123
     -- Error: S should be a sort, but it isn't
+
+If the definition of ``bar′`` were allowed, we would have ``bar′ :
+foo′`` in the context. Outside of the relevant opaque blocks, ``foo′``
+is not a type, for ``foo′ : S``, and ``S`` is not a sort. In cases like
+this, using an auxiliary definition whose type *is* a sort is required::
 
     -- Lift foo′ to a definition:
     ty′ : Set
     ty′ = foo′
 
-    _ : ty′
-    _ = 123
+    bar′ : ty′
+    bar′ = 123
+
+Since ``ty′ : Set`` is manifestly a well-formed type, even outside of
+this opaque block, there is no problem in adding ``bar′ : ty′`` to the
+context.
 
 Bibliography
 ------------
