@@ -118,8 +118,9 @@ intersectVars = zipWithM areVars where
     areVars (Apply (Arg _ (Var n []))) (Apply (Arg _ (Var m []))) = Just $ n /= m -- prune different vars
     areVars _ _                                   = Nothing
 
--- | Perform an action if two arguments are different as pointers, or report performance statistics otherwise.
--- Use with care, see the document for @unsafeComparePointers@
+-- | @guardPointerEquality x y s m@ behaves as @m@ if @x@ and @y@ are equal as pointers,
+-- or does nothing otherwise.
+-- Use with care, see the documentation for 'unsafeComparePointers'
 guardPointerEquality :: MonadConversion m => a -> a -> String -> m () -> m ()
 guardPointerEquality u v profileSection action =
   if unsafeComparePointers u v
