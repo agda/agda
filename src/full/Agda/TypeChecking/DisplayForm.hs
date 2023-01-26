@@ -30,16 +30,6 @@ import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 
--- | Convert a 'DisplayTerm' into a 'Term'.
-dtermToTerm :: DisplayTerm -> Term
-dtermToTerm dt = case dt of
-  DWithApp d ds es ->
-    dtermToTerm d `apply` map (defaultArg . dtermToTerm) ds `applyE` es
-  DCon c ci args   -> Con c ci $ map (Apply . fmap dtermToTerm) args
-  DDef f es        -> Def f $ map (fmap dtermToTerm) es
-  DDot v           -> v
-  DTerm v          -> v
-
 -- | Get the arities of all display forms for a name.
 displayFormArities :: (HasConstInfo m, ReadTCState m) => QName -> m [Int]
 displayFormArities q = map (length . dfPats . dget) <$> getDisplayForms q
