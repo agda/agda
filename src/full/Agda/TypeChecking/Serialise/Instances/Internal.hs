@@ -187,15 +187,15 @@ instance EmbPrj CheckpointId where
   value n                = CheckpointId `fmap` value n
 
 instance EmbPrj DisplayTerm where
-  icod_ (DTerm    a  )   = icodeN' DTerm a
-  icod_ (DDot     a  )   = icodeN 1 DDot a
+  icod_ (DTerm'   a b)   = icodeN' DTerm' a b
+  icod_ (DDot'    a b)   = icodeN 1 DDot' a b
   icod_ (DCon     a b c) = icodeN 2 DCon a b c
   icod_ (DDef     a b)   = icodeN 3 DDef a b
   icod_ (DWithApp a b c) = icodeN 4 DWithApp a b c
 
   value = vcase valu where
-    valu [a]          = valuN DTerm a
-    valu [1, a]       = valuN DDot a
+    valu [a, b]       = valuN DTerm' a b
+    valu [1, a, b]    = valuN DDot' a b
     valu [2, a, b, c] = valuN DCon a b c
     valu [3, a, b]    = valuN DDef a b
     valu [4, a, b, c] = valuN DWithApp a b c

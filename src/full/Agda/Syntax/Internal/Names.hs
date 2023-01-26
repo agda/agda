@@ -260,8 +260,8 @@ instance NamesIn DisplayTerm where
     DWithApp v us es -> namesAndMetasIn' sg (v, us, es)
     DCon c _ vs      -> namesAndMetasIn' sg (c, vs)
     DDef f es        -> namesAndMetasIn' sg (f, es)
-    DDot v           -> namesAndMetasIn' sg v
-    DTerm v          -> namesAndMetasIn' sg v
+    DDot' v es       -> namesAndMetasIn' sg (v, es)
+    DTerm' v es      -> namesAndMetasIn' sg (v, es)
 
 instance NamesIn a => NamesIn (Builtin a) where
   namesAndMetasIn' sg = \case
