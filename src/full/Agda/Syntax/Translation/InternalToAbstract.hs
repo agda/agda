@@ -201,11 +201,6 @@ instance Reify MetaId where
         Nothing     -> underscore
         Just ii     -> return $ A.QuestionMark mi' ii
 
--- Does not print with-applications correctly:
--- instance Reify DisplayTerm Expr where
---   reifyWhen = reifyWhenE
---   reify d = reifyTerm False $ dtermToTerm d
-
 instance Reify DisplayTerm where
   type ReifiesTo DisplayTerm = Expr
 
