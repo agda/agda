@@ -1584,8 +1584,8 @@ instance InstantiateFull DisplayForm where
   instantiateFull' (Display n ps v) = uncurry (Display n) <$> instantiateFull' (ps, v)
 
 instance InstantiateFull DisplayTerm where
-  instantiateFull' (DTerm v)       = DTerm <$> instantiateFull' v
-  instantiateFull' (DDot  v)       = DDot  <$> instantiateFull' v
+  instantiateFull' (DTerm' v es)   = DTerm' <$> instantiateFull' v <*> instantiateFull' es
+  instantiateFull' (DDot' v es)    = DDot'  <$> instantiateFull' v <*> instantiateFull' es
   instantiateFull' (DCon c ci vs)  = DCon c ci <$> instantiateFull' vs
   instantiateFull' (DDef c es)     = DDef c <$> instantiateFull' es
   instantiateFull' (DWithApp v vs ws) = uncurry3 DWithApp <$> instantiateFull' (v, vs, ws)

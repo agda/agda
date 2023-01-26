@@ -393,6 +393,8 @@ addDisplayForms x = do
         _ -> __IMPOSSIBLE__
       where
         mkDisplay xs es = Display (n - npars) es $ DTerm $ top `apply` args
+          -- Andreas, 2023-01-26, #6476:
+          -- I think this @apply@ is safe (rather than @DTerm' top (map Apply args)@).
           where
             n    = length xs
             args = zipWith (\ x i -> var i <$ x) xs (downFrom n)

@@ -1778,11 +1778,20 @@ data DisplayTerm
     -- ^ @c vs@.
   | DDef QName [Elim' DisplayTerm]
     -- ^ @d vs@.
-  | DDot Term
-    -- ^ @.v@.
-  | DTerm Term
-    -- ^ @v@.
+  | DDot' Term Elims
+    -- ^ @.(v es)@.  See 'DTerm''.
+  | DTerm' Term Elims
+    -- ^ @v es@.
+    --   This is a frozen elimination that is not always safe to run,
+    --   because display forms may be ill-typed.
+    --   (See issue #6476.)
   deriving (Show, Generic)
+
+pattern DDot :: Term -> DisplayTerm
+pattern DDot v = DDot' v []
+
+pattern DTerm :: Term -> DisplayTerm
+pattern DTerm v = DTerm' v []
 
 instance Free DisplayForm where
   freeVars' (Display n ps t) = underBinder (freeVars' ps) `mappend` underBinder' n (freeVars' t)
@@ -1791,14 +1800,16 @@ instance Free DisplayTerm where
   freeVars' (DWithApp t ws es) = freeVars' (t, (ws, es))
   freeVars' (DCon _ _ vs)      = freeVars' vs
   freeVars' (DDef _ es)        = freeVars' es
-  freeVars' (DDot v)           = freeVars' v
-  freeVars' (DTerm v)          = freeVars' v
+  freeVars' (DDot' v es)       = freeVars' (v, es)
+  freeVars' (DTerm' v es)      = freeVars' (v, es)
 
 instance Pretty DisplayTerm where
   prettyPrec p v =
     case v of
-      DTerm v          -> prettyPrec p v
-      DDot v           -> "." <> prettyPrec 10 v
+      DTerm v           -> prettyPrec p v
+      DTerm' v es       -> prettyPrec 9 v `pApp` es
+      DDot v            -> "." <> prettyPrec 10 v
+      DDot' v es        -> "." <> parens (prettyPrec 9 v `pAp` es)
       DDef f es        -> pretty f `pApp` es
       DCon c _ vs      -> pretty (conName c) `pApp` map Apply vs
       DWithApp h ws es ->
@@ -1808,8 +1819,9 @@ instance Pretty DisplayTerm where
         `pApp` es
     where
       pApp :: Pretty el => Doc -> [el] -> Doc
-      pApp d els = mparens (not (null els) && p > 9) $
-                   sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]
+      pApp d els = mparens (not (null els) && p > 9) $ pAp d els
+      pAp :: Pretty el => Doc -> [el] -> Doc
+      pAp d els = sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]
 
 instance Pretty DisplayForm where
   prettyPrec p (Display fv lhs rhs) = mparens (p > 9) $
@@ -5374,10 +5386,10 @@ instance KillRange DisplayTerm where
   killRange dt =
     case dt of
       DWithApp dt dts es -> killRange3 DWithApp dt dts es
-      DCon q ci dts     -> killRange3 DCon q ci dts
-      DDef q dts        -> killRange2 DDef q dts
-      DDot v            -> killRange1 DDot v
-      DTerm v           -> killRange1 DTerm v
+      DCon q ci dts      -> killRange3 DCon q ci dts
+      DDef q dts         -> killRange2 DDef q dts
+      DDot' v es         -> killRange2 DDot' v es
+      DTerm' v es        -> killRange2 DTerm' v es
 
 instance KillRange a => KillRange (Closure a) where
   killRange = id

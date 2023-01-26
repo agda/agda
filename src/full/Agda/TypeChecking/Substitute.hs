@@ -525,14 +525,14 @@ instance Apply FunctionInverse where
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Apply DisplayTerm where
-  apply (DTerm v)          args = DTerm $ apply v args
-  apply (DDot v)           args = DDot  $ apply v args
-  apply (DCon c ci vs)     args = DCon c ci $ vs ++ map (fmap DTerm) args
-  apply (DDef c es)        args = DDef c $ es ++ map (Apply . fmap DTerm) args
+  apply (DTerm' v es)      args = DTerm' v       $ es ++ map Apply args
+  apply (DDot' v es)       args = DDot' v        $ es ++ map Apply args
+  apply (DCon c ci vs)     args = DCon c ci     $ vs ++ map (fmap DTerm) args
+  apply (DDef c es)        args = DDef c        $ es ++ map (Apply . fmap DTerm) args
   apply (DWithApp v ws es) args = DWithApp v ws $ es ++ map Apply args
 
-  applyE (DTerm v)           es = DTerm $ applyE v es
-  applyE (DDot v)            es = DDot  $ applyE v es
+  applyE (DTerm' v es')      es = DTerm' v $ es' ++ es
+  applyE (DDot' v es')       es = DDot' v $ es' ++ es
   applyE (DCon c ci vs)      es = DCon c ci $ vs ++ map (fmap DTerm) ws
     where ws = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
   applyE (DDef c es')        es = DDef c $ es' ++ map (fmap DTerm) es
@@ -1002,10 +1002,10 @@ instance Subst DisplayForm where
 
 instance Subst DisplayTerm where
   type SubstArg DisplayTerm = Term
-  applySubst rho (DTerm v)        = DTerm $ applySubst rho v
-  applySubst rho (DDot v)         = DDot  $ applySubst rho v
-  applySubst rho (DCon c ci vs)   = DCon c ci $ applySubst rho vs
-  applySubst rho (DDef c es)      = DDef c $ applySubst rho es
+  applySubst rho (DTerm' v es)      = DTerm' (applySubst rho v) $ applySubst rho es
+  applySubst rho (DDot' v es)       = DDot'  (applySubst rho v) $ applySubst rho es
+  applySubst rho (DCon c ci vs)     = DCon c ci $ applySubst rho vs
+  applySubst rho (DDef c es)        = DDef c $ applySubst rho es
   applySubst rho (DWithApp v vs es) = uncurry3 DWithApp $ applySubst rho (v, vs, es)
 
 instance Subst a => Subst (Tele a) where

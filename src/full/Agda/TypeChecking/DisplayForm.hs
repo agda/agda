@@ -247,10 +247,10 @@ instance SubstWithOrigin Term where
 
 -- Do not go into dot pattern, otherwise interaction test #231 fails
 instance SubstWithOrigin DisplayTerm where
-  substWithOrigin rho ots dt =
-    case dt of
-      DTerm v        -> DTerm     $ substWithOrigin rho ots v
-      DDot  v        -> DDot      $ applySubst rho v
+  substWithOrigin rho ots =
+    \case
+      DTerm' v es    -> DTerm' (substWithOrigin rho ots v) $ substWithOrigin rho ots es
+      DDot'  v es    -> DDot'  (substWithOrigin rho ots v) $ substWithOrigin rho ots es
       DDef q es      -> DDef q    $ substWithOrigin rho ots es
       DCon c ci args -> DCon c ci $ substWithOrigin rho ots args
       DWithApp t ts es -> DWithApp
@@ -262,8 +262,8 @@ instance SubstWithOrigin DisplayTerm where
 instance SubstWithOrigin (Arg DisplayTerm) where
   substWithOrigin rho ots (Arg ai dt) =
     case dt of
-      DTerm v        -> fmap DTerm $ substWithOrigin rho ots $ Arg ai v
-      DDot  v        -> Arg ai $ DDot      $ applySubst rho v
+      DTerm' v es    -> substWithOrigin rho ots (Arg ai v) <&> (`DTerm'` substWithOrigin rho ots es)
+      DDot'  v es    -> Arg ai $ DDot' (applySubst rho v)  $ substWithOrigin rho ots es
       DDef q es      -> Arg ai $ DDef q    $ substWithOrigin rho ots es
       DCon c ci args -> Arg ai $ DCon c ci $ substWithOrigin rho ots args
       DWithApp t ts es -> Arg ai $ DWithApp
