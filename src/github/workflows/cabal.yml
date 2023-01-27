@@ -40,32 +40,67 @@ jobs:
 
     timeout-minutes: 60
 
+    # In these fields, we cannot refer to `env` (or even `runner.os`).
+    # Thus, we need redundant entries in the matrix.
+    name: Cabal ${{ matrix.description }}, ${{ matrix.ghc-ver }}
     runs-on: ${{ matrix.os }}
+
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04]
+        description: [Linux]      ## This just for pretty-printing the job name.
         ghc-ver: [9.4.4, 9.2.5, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
+        # Need to mention "cabal-ver" at least once in the matrix, otherwise matrix.cabal-ver is an actionlint error.
         cabal-ver: ['3.8']
+        cabal-flags: ['--enable-tests -f enable-cluster-counting']
         include:
-          ## Latest GHC
-          # Linux
+          ## Latest GHC, special builds
+
+          # Linux, w/o tests
           - os: ubuntu-22.04
-            ghc-ver: 9.4.4
-            cabal-ver: '3.8'
+            description: Linux w/o tests
+            ghc-ver: '9.4.4'
+            # Can't leave cabal-flags empty here lest it becomes the default value.
+            cabal-flags: '--disable-tests'
+
+          # Linux, with -f cpphs
+          - os: ubuntu-22.04
+            description: Linux cpphs
+            ghc-ver: '9.4.4'
+            cabal-flags: '--enable-tests -f cpphs'
+
+          # Linux, without -f enable-cluster-counting but with -f debug
+          - os: ubuntu-22.04
+            description: Linux debug
+            ghc-ver: '9.4.4'
+            cabal-flags: '--enable-tests -f debug'
+
+          # Linux, with mtl-2.3 and everything
+          - os: ubuntu-22.04
+            description: Linux mtl 2.3
+            ghc-ver: '9.4.4'
             ## Andreas, 2022-11-23: Test mtl-2.3.1 here which has breaking changes.
-            cabal-flags: "-c 'mtl >= 2.3.1'"
-          # macOS
+            ## Note: -c 'mtl >= 2.3.1' with single quotes does not get communicated properly.
+            ## (The single quotes stay, and "-c 'mtl" is an option parse error for cabal.)
+            cabal-flags: |
+              --enable-tests -f enable-cluster-counting -f debug -c mtl>=2.3.1
+
+          # macOS with default flags
           - os: macos-12
-            ghc-ver: 9.4.4
-            cabal-ver: '3.8'
-          # Windows
+            description: macOS
+            ghc-ver: '9.4.4'
+
+          # Windows with default flags
           - os: windows-2022
-            ghc-ver: 9.4.4
-            cabal-ver: '3.8'
+            description: Windows
+            ghc-ver: '9.4.4'
+
+    # Default values
     env:
-      FLAGS: "-f enable-cluster-counting"
-      # ICU_URL: 'https://github.com/unicode-org/icu/releases/download/release-69-1/icu4c-69_1-Win64-MSVC2019.zip'
+      GHC_VER:   ${{ matrix.ghc-ver || '9.4.4' }}
+      CABAL_VER: ${{ matrix.cabal-ver || '3.8' }}
+      FLAGS:     ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting' }}
 
     steps:
     - uses: actions/checkout@v3
@@ -75,8 +110,8 @@ jobs:
     - uses: haskell/actions/setup@v2
       id: setup-haskell
       with:
-        ghc-version: ${{ matrix.ghc-ver }}
-        cabal-version: ${{ matrix.cabal-ver }}
+        ghc-version: ${{ env.GHC_VER }}
+        cabal-version: ${{ env.CABAL-VER }}
 
     - name: Environment settings based on the Haskell setup
       run: |
@@ -86,7 +121,7 @@ jobs:
         echo "CABAL_VER = ${CABAL_VER}"
         echo "GHC_VER=${GHC_VER}"       >> ${GITHUB_ENV}
         echo "CABAL_VER=${CABAL_VER}"   >> ${GITHUB_ENV}
-      # From now on, use env.{GHC|CABAL}_VER rather than matrix.{ghc|cabal}-ver!
+      # From now on, env.{GHC|CABAL}_VER are the precise versions.
 
     # from: https://github.com/haskell/text-icu/blob/c73d7fe6f29e178d3ea40160e904ab39236e3c9d/.github/workflows/cabal-mac-win.yml#L29-L32
     - name: Setup MSYS path (Windows)
@@ -112,45 +147,27 @@ jobs:
         echo "$ pkg-config --modversion icu-i18n"
         pkg-config --modversion icu-i18n
 
-    # Andreas, 2022-02-07: This step seem no longer necessary for Ubuntu 20.04.
-    # But keep it here commented-out, we might need it in the future again.
-    # - name: Install the icu library (Ubuntu)
-    #   if: ${{ runner.os == 'Linux' }}
-    #   run: |
-    #     sudo apt-get update -qq
-    #     sudo apt-get install libicu-dev -qq
-
-    # Andreas, 2022-02-07: Installing with pacman is easier.
-    # Keep this here commented out, in case we need it again.
-    # - name: Download the icu4c library from unicode-org (Windows)
-    #   if: ${{ runner.os == 'Windows' }}
-    #   env:
-    #     ICU_DIR: '/c/icu4c'
-    #     ICU_FILE: '/tmp/icu4c.zip'
-    #   run: |
-    #     curl -sSLo ${ICU_FILE} ${ICU_URL}
-    #     7z e ${ICU_FILE} -o${ICU_DIR}
-    #     mkdir -p ${ICU_DIR}/include/unicode
-    #     mv ${ICU_DIR}/*.h ${ICU_DIR}/include/unicode
-
-    #     cabal user-config update --augment="extra-lib-dirs: $(cygpath -w ${ICU_DIR})" --augment="extra-include-dirs: $(cygpath -w ${ICU_DIR}/include)"
-
     - name: Configure the build plan
       run: |
         cabal update
-        cabal configure ${FLAGS} -O0 ${{ matrix.cabal-flags }}
+        cabal configure -O0 ${FLAGS}
 
-    - uses: actions/cache@v3
-      name: Cache dependencies
+    - name: Restore cache from approximate key
+      uses: actions/cache/restore@v3
       id: cache
       with:
-        path: |
+        path: &cache_path |
           ${{ steps.setup-haskell.outputs.cabal-store }}
-        # The file `plan.json` contains the build information.
-        key: ${{ runner.os }}-cabal-01-${{ env.GHC_VER }}-${{ env.CABAL_VER }}-${{ hashFiles('**/plan.json') }}
+        key: &cache_key cabal.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-${{ hashFiles('**/plan.json') }}
+        restore-keys:   cabal.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-
 
     - name: Install dependencies
-      if: ${{ !steps.cache.outputs.cache-hit }}
+      # Formally skip this when we successfully restored the cache, to shave a few seconds.
+      # Note that the dependencies will anyway be built in the `cabal build` step.
+      # So, strictly speaking, this step is superfluous anyways.
+      # However, we keep it here so that we do not clutter the output of the
+      # `cabal build` step too much in the ordinary case.
+      if:   ${{ !steps.cache.outputs.cache-hit }}
       run: |
         cabal build --only-dependencies
 
@@ -158,7 +175,20 @@ jobs:
       run: |
         cabal build
 
-    - name: Build Agda without enable-cluster-counting
+    - name: Clear old cache
+      if:   ${{ steps.cache.outputs.cache-hit }}
+      env:
+        KEY: *cache_key
+        GH_TOKEN: ${{ github.token }}
       run: |
-        cabal configure -O0
-        cabal build
+        gh extension install actions/gh-actions-cache
+        gh actions-cache delete ${{ env.KEY }} --confirm
+      # Don't fail if cache cannot be deleted
+      continue-on-error: true
+
+    - name: Save cache
+      uses: actions/cache/save@v3
+      if:   always()  # save cache even when build fails
+      with:
+        key:  *cache_key
+        path: *cache_path

@@ -6,18 +6,26 @@ on:
     - master
     - ci-*
     - release*
+
     paths: &trigger_path_list
     - '.github/workflows/stack.yml'
     - 'Agda.cabal'
     - 'Setup.hs'
     - 'stack*.yaml'
-    - 'src/agda-mode/**'
-    - 'src/full/**'
-    - 'src/main/**'
-    - 'src/size-solver/**'
-    - 'test/**.hs'
+    - 'src/size-solver/size-solver.cabal'
+    # Andreas, 2023-01-27, issue #8460:
+    # Restrict this workflow to changes in the *.cabal and stack*.yaml files
+    # - 'src/agda-mode/**'
+    # - 'src/full/**'
+    # - 'src/main/**'
+    # - 'src/size-solver/**'
+    # - 'test/**.hs'
+
   pull_request:
     paths: *trigger_path_list
+
+  # Allow manual runs
+  workflow_dispatch:
 
 jobs:
   auto-cancel:
@@ -167,7 +175,7 @@ jobs:
       with:
         # A unique cache is used for each stack.yaml.
         # Note that matrix.stack-ver might be simply 'latest', so we use STACK_VER.
-        key:  &cache_key ${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER }}-ghc-${{ env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}
+        key:  &cache_key stack.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}
         path: &cache_pathes |
           ${{ env.STACK_ROOT }}
         # Andreas, 2023-01-23: also caching the two work dirs balloons a cache entry from 300MB to 800MB,

@@ -22,7 +22,11 @@ jobs:
         access_token: ${{ github.token }}
   cabal:
     env:
-      FLAGS: -f enable-cluster-counting
+      CABAL_VER: ${{ matrix.cabal-ver || '3.8' }}
+      FLAGS: ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting'
+        }}
+      GHC_VER: ${{ matrix.ghc-ver || '9.4.4' }}
+    name: Cabal ${{ matrix.description }}, ${{ matrix.ghc-ver }}
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
@@ -32,8 +36,8 @@ jobs:
     - id: setup-haskell
       uses: haskell/actions/setup@v2
       with:
-        cabal-version: ${{ matrix.cabal-ver }}
-        ghc-version: ${{ matrix.ghc-ver }}
+        cabal-version: ${{ env.CABAL-VER }}
+        ghc-version: ${{ env.GHC_VER }}
     - name: Environment settings based on the Haskell setup
       run: |
         export GHC_VER=$(ghc --numeric-version)
@@ -65,15 +69,17 @@ jobs:
     - name: Configure the build plan
       run: |
         cabal update
-        cabal configure ${FLAGS} -O0 ${{ matrix.cabal-flags }}
+        cabal configure -O0 ${FLAGS}
     - id: cache
-      name: Cache dependencies
-      uses: actions/cache@v3
+      name: Restore cache from approximate key
+      uses: actions/cache/restore@v3
       with:
-        key: ${{ runner.os }}-cabal-01-${{ env.GHC_VER }}-${{ env.CABAL_VER }}-${{
-          hashFiles('**/plan.json') }}
+        key: cabal.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
+          }}-${{ hashFiles('**/plan.json') }}
         path: |
           ${{ steps.setup-haskell.outputs.cabal-store }}
+        restore-keys: cabal.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{
+          env.CABAL_VER }}-
     - if: ${{ !steps.cache.outputs.cache-hit }}
       name: Install dependencies
       run: |
@@ -81,15 +87,33 @@ jobs:
     - name: Build Agda
       run: |
         cabal build
-    - name: Build Agda without enable-cluster-counting
+    - continue-on-error: true
+      env:
+        GH_TOKEN: ${{ github.token }}
+        KEY: cabal.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
+          }}-${{ hashFiles('**/plan.json') }}
+      if: ${{ steps.cache.outputs.cache-hit }}
+      name: Clear old cache
       run: |
-        cabal configure -O0
-        cabal build
+        gh extension install actions/gh-actions-cache
+        gh actions-cache delete ${{ env.KEY }} --confirm
+    - if: always()
+      name: Save cache
+      uses: actions/cache/save@v3
+      with:
+        key: cabal.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
+          }}-${{ hashFiles('**/plan.json') }}
+        path: |
+          ${{ steps.setup-haskell.outputs.cabal-store }}
     strategy:
       fail-fast: false
       matrix:
+        cabal-flags:
+        - --enable-tests -f enable-cluster-counting
         cabal-ver:
         - '3.8'
+        description:
+        - Linux
         ghc-ver:
         - 9.4.4
         - 9.2.5
@@ -101,14 +125,27 @@ jobs:
         - 8.2.2
         - 8.0.2
         include:
-        - cabal-flags: -c 'mtl >= 2.3.1'
-          cabal-ver: '3.8'
+        - cabal-flags: --disable-tests
+          description: Linux w/o tests
           ghc-ver: 9.4.4
           os: ubuntu-22.04
-        - cabal-ver: '3.8'
+        - cabal-flags: --enable-tests -f cpphs
+          description: Linux cpphs
+          ghc-ver: 9.4.4
+          os: ubuntu-22.04
+        - cabal-flags: --enable-tests -f debug
+          description: Linux debug
+          ghc-ver: 9.4.4
+          os: ubuntu-22.04
+        - cabal-flags: |
+            --enable-tests -f enable-cluster-counting -f debug -c mtl>=2.3.1
+          description: Linux mtl 2.3
+          ghc-ver: 9.4.4
+          os: ubuntu-22.04
+        - description: macOS
           ghc-ver: 9.4.4
           os: macos-12
-        - cabal-ver: '3.8'
+        - description: Windows
           ghc-ver: 9.4.4
           os: windows-2022
         os:

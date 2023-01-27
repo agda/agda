@@ -87,8 +87,9 @@ jobs:
       name: Restore cache
       uses: actions/cache/restore@v3
       with:
-        key: ${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER }}-ghc-${{
-          env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}
+        key: stack.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER
+          }}-icu-${{ env.ICU_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER))
+          }}
         path: |
           ${{ env.STACK_ROOT }}
     - name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
@@ -101,8 +102,9 @@ jobs:
     - continue-on-error: true
       env:
         GH_TOKEN: ${{ github.token }}
-        KEY: ${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER }}-ghc-${{
-          env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}
+        KEY: stack.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER
+          }}-icu-${{ env.ICU_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER))
+          }}
       if: ${{ steps.cache.outputs.cache-hit }}
       name: Clear cache
       run: |
@@ -112,8 +114,9 @@ jobs:
       name: Save cache
       uses: actions/cache/save@v3
       with:
-        key: ${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER }}-ghc-${{
-          env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}
+        key: stack.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER
+          }}-icu-${{ env.ICU_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER))
+          }}
         path: |
           ${{ env.STACK_ROOT }}
     strategy:
@@ -149,11 +152,7 @@ name: Build (stack)
     - Agda.cabal
     - Setup.hs
     - stack*.yaml
-    - src/agda-mode/**
-    - src/full/**
-    - src/main/**
-    - src/size-solver/**
-    - test/**.hs
+    - src/size-solver/size-solver.cabal
   push:
     branches:
     - master
@@ -164,8 +163,5 @@ name: Build (stack)
     - Agda.cabal
     - Setup.hs
     - stack*.yaml
-    - src/agda-mode/**
-    - src/full/**
-    - src/main/**
-    - src/size-solver/**
-    - test/**.hs
+    - src/size-solver/size-solver.cabal
+  workflow_dispatch: null
