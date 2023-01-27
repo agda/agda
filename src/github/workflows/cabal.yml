@@ -40,7 +40,11 @@ jobs:
 
     timeout-minutes: 60
 
-    runs-on: ${{ matrix.os }} # Can't have env value here, so no defaults for matrix.os
+    # In these fields, we cannot refer to env.
+    # Thus, we need redundant entries in the matrix.
+    name: Cabal ${{ matrix.os }} ${{ matrix.ghc-ver }} ${{ matrix.description }}
+    runs-on: ${{ matrix.os }}
+
     strategy:
       fail-fast: false
       matrix:
@@ -54,28 +58,40 @@ jobs:
 
           # Linux, w/o tests
           - os: ubuntu-22.04
+            ghc-ver: '9.4.4'
             # Can't leave cabal-flags empty here lest it becomes the default value.
             cabal-flags: '--disable-tests'
+            description: 'w/o tests'
 
           # Linux, with -f cpphs
           - os: ubuntu-22.04
+            ghc-ver: '9.4.4'
             cabal-flags: '--enable-tests -f cpphs'
+            description: '-f cpphs'
 
           # Linux, without -f enable-cluster-counting but with -f debug
           - os: ubuntu-22.04
+            ghc-ver: '9.4.4'
             cabal-flags: '--enable-tests -f debug'
+            description: '-f debug'
 
           # Linux, with mtl-2.3 and everything
           - os: ubuntu-22.04
+            ghc-ver: '9.4.4'
             ## Andreas, 2022-11-23: Test mtl-2.3.1 here which has breaking changes.
+            ## Note: -c 'mtl >= 2.3.1' with single quotes does not get communicated properly.
+            ## (The single quotes stay, and "-c 'mtl" is an option parse error for cabal.)
             cabal-flags: |
-              --enable-tests -f enable-cluster-counting -f debug -c 'mtl >= 2.3.1'
+              --enable-tests -f enable-cluster-counting -f debug -c mtl>=2.3.1
+            description: 'mtl 2.3'
 
           # macOS with default values
           - os: macos-12
+            ghc-ver: '9.4.4'
 
           # Windows with default values
           - os: windows-2022
+            ghc-ver: '9.4.4'
 
     # Default values
     env:
