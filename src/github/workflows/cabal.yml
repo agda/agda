@@ -45,32 +45,56 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04]
-        # Older GHCs:
-        ghc-ver: [9.2.5, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
+        ghc-ver: [9.4.4, 9.2.5, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
         cabal-ver: ['3.8']
+        # Andreas, 2023-01-27: The following line does not survive the roundtrip via JSON:
+        # The single quotes are removed, which makes it an illegal matrix range entry.
+        # cabal-flags: '--enable-tests -f enable-cluster-counting'
         include:
-          ## Latest GHC
-          # Linux, also without -f enable-cluster-counting
+          ## Latest GHC, special builds
+
+          # Linux, w/o tests
           - os: ubuntu-22.04
             ghc-ver: 9.4.4
             cabal-ver: '3.8'
-            no-icu: true
-          # Linux, with mtl-2.3
+            cabal-flags: ''
+
+          # Linux, with -f cpphs
+          - os: ubuntu-22.04
+            ghc-ver: 9.4.4
+            cabal-ver: '3.8'
+            cabal-flags: '--enable-tests -f cpphs'
+
+          # Linux, without -f enable-cluster-counting but with -f debug
+          - os: ubuntu-22.04
+            ghc-ver: 9.4.4
+            cabal-ver: '3.8'
+            cabal-flags: '--enable-tests -f debug'
+
+          # Linux, with mtl-2.3 and everything
           - os: ubuntu-22.04
             ghc-ver: 9.4.4
             cabal-ver: '3.8'
             ## Andreas, 2022-11-23: Test mtl-2.3.1 here which has breaking changes.
-            cabal-flags: "-c 'mtl >= 2.3.1'"
+            cabal-flags: '--enable-tests -f enable-cluster-counting -f debug -c ''mtl >= 2.3.1'''
+
           # macOS
           - os: macos-12
             ghc-ver: 9.4.4
             cabal-ver: '3.8'
+            cabal-flags: '--enable-tests -f enable-cluster-counting'
+
           # Windows
           - os: windows-2022
             ghc-ver: 9.4.4
             cabal-ver: '3.8'
+            cabal-flags: '--enable-tests -f enable-cluster-counting'
+
+    # Default values
     env:
-      ARGS: -O0 --enable-tests ${{ matrix.cabal-flags }}
+      GHC_VER:   ${{ matrix.ghc-ver || '9.4.4' }}
+      CABAL_VER: ${{ matrix.cabal-ver || '3.8' }}
+      FLAGS:     ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting' }}
 
     steps:
     - uses: actions/checkout@v3
@@ -120,7 +144,7 @@ jobs:
     - name: Configure the build plan
       run: |
         cabal update
-        cabal configure ${ARGS} -f enable-cluster-counting
+        cabal configure -O0 ${{ matrix.cabal-flags }}
 
     - name: Restore cache from approximate key
       uses: actions/cache/restore@v3
@@ -135,16 +159,8 @@ jobs:
       run: |
         cabal build --only-dependencies
 
-    - name: Build Agda with tests
+    - name: Build Agda with ${{ matrix.cabal-flags }}
       run: |
-        cabal build
-
-    - name: Build Agda without flag enable-cluster-counting
-      # Do this for at least one GHC version, so we covered the path where the flag is off.
-      # Doing it for all GHCs is a bit wasteful.
-      if: ${{ matrix.no-icu }}
-      run: |
-        cabal configure ${ARGS}
         cabal build
 
     - name: Clear old cache

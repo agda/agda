@@ -22,7 +22,10 @@ jobs:
         access_token: ${{ github.token }}
   cabal:
     env:
-      ARGS: -O0 --enable-tests ${{ matrix.cabal-flags }}
+      CABAL_VER: ${{ matrix.cabal-ver || '3.8' }}
+      FLAGS: ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting'
+        }}
+      GHC_VER: ${{ matrix.ghc-ver || '9.4.4' }}
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
@@ -65,7 +68,7 @@ jobs:
     - name: Configure the build plan
       run: |
         cabal update
-        cabal configure ${ARGS} -f enable-cluster-counting
+        cabal configure -O0 ${{ matrix.cabal-flags }}
     - id: cache
       name: Restore cache from approximate key
       uses: actions/cache/restore@v3
@@ -79,13 +82,8 @@ jobs:
     - name: Install dependencies
       run: |
         cabal build --only-dependencies
-    - name: Build Agda with tests
+    - name: Build Agda with ${{ matrix.cabal-flags }}
       run: |
-        cabal build
-    - if: ${{ matrix.no-icu }}
-      name: Build Agda without flag enable-cluster-counting
-      run: |
-        cabal configure ${ARGS}
         cabal build
     - continue-on-error: true
       env:
@@ -111,6 +109,7 @@ jobs:
         cabal-ver:
         - '3.8'
         ghc-ver:
+        - 9.4.4
         - 9.2.5
         - 9.0.2
         - 8.10.7
@@ -120,18 +119,29 @@ jobs:
         - 8.2.2
         - 8.0.2
         include:
-        - cabal-ver: '3.8'
-          ghc-ver: 9.4.4
-          no-icu: true
-          os: ubuntu-22.04
-        - cabal-flags: -c 'mtl >= 2.3.1'
+        - cabal-flags: ''
           cabal-ver: '3.8'
           ghc-ver: 9.4.4
           os: ubuntu-22.04
-        - cabal-ver: '3.8'
+        - cabal-flags: --enable-tests -f cpphs
+          cabal-ver: '3.8'
+          ghc-ver: 9.4.4
+          os: ubuntu-22.04
+        - cabal-flags: --enable-tests -f debug
+          cabal-ver: '3.8'
+          ghc-ver: 9.4.4
+          os: ubuntu-22.04
+        - cabal-flags: --enable-tests -f enable-cluster-counting -f debug -c 'mtl
+            >= 2.3.1'
+          cabal-ver: '3.8'
+          ghc-ver: 9.4.4
+          os: ubuntu-22.04
+        - cabal-flags: --enable-tests -f enable-cluster-counting
+          cabal-ver: '3.8'
           ghc-ver: 9.4.4
           os: macos-12
-        - cabal-ver: '3.8'
+        - cabal-flags: --enable-tests -f enable-cluster-counting
+          cabal-ver: '3.8'
           ghc-ver: 9.4.4
           os: windows-2022
         os:
