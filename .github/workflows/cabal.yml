@@ -22,7 +22,7 @@ jobs:
         access_token: ${{ github.token }}
   cabal:
     env:
-      FLAGS: -f enable-cluster-counting
+      ARGS: -O0 --enable-tests ${{ matrix.cabal-flags }}
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
@@ -65,33 +65,52 @@ jobs:
     - name: Configure the build plan
       run: |
         cabal update
-        cabal configure ${FLAGS} -O0 ${{ matrix.cabal-flags }}
+        cabal configure ${ARGS} -f enable-cluster-counting
     - id: cache
-      name: Cache dependencies
-      uses: actions/cache@v3
+      name: Restore cache from approximate key
+      uses: actions/cache/restore@v3
       with:
-        key: ${{ runner.os }}-cabal-01-${{ env.GHC_VER }}-${{ env.CABAL_VER }}-${{
-          hashFiles('**/plan.json') }}
+        key: cabal.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
+          }}-${{ hashFiles('**/plan.json') }}
         path: |
           ${{ steps.setup-haskell.outputs.cabal-store }}
-    - if: ${{ !steps.cache.outputs.cache-hit }}
-      name: Install dependencies
+        restore-keys: cabal.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{
+          env.CABAL_VER }}-
+    - name: Install dependencies
       run: |
         cabal build --only-dependencies
-    - name: Build Agda
+    - name: Build Agda with tests
       run: |
         cabal build
-    - name: Build Agda without enable-cluster-counting
+    - if: ${{ matrix.no-icu }}
+      name: Build Agda without flag enable-cluster-counting
       run: |
-        cabal configure -O0
+        cabal configure ${ARGS}
         cabal build
+    - continue-on-error: true
+      env:
+        GH_TOKEN: ${{ github.token }}
+        KEY: cabal.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
+          }}-${{ hashFiles('**/plan.json') }}
+      if: ${{ steps.cache.outputs.cache-hit }}
+      name: Clear old cache
+      run: |
+        gh extension install actions/gh-actions-cache
+        gh actions-cache delete ${{ env.KEY }} --confirm
+    - if: always()
+      name: Save cache
+      uses: actions/cache/save@v3
+      with:
+        key: cabal.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
+          }}-${{ hashFiles('**/plan.json') }}
+        path: |
+          ${{ steps.setup-haskell.outputs.cabal-store }}
     strategy:
       fail-fast: false
       matrix:
         cabal-ver:
         - '3.8'
         ghc-ver:
-        - 9.4.4
         - 9.2.5
         - 9.0.2
         - 8.10.7
@@ -101,6 +120,10 @@ jobs:
         - 8.2.2
         - 8.0.2
         include:
+        - cabal-ver: '3.8'
+          ghc-ver: 9.4.4
+          no-icu: true
+          os: ubuntu-22.04
         - cabal-flags: -c 'mtl >= 2.3.1'
           cabal-ver: '3.8'
           ghc-ver: 9.4.4
