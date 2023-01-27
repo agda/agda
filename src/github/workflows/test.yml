@@ -168,7 +168,7 @@ jobs:
           dist.tzst
           stack-work.tzst
 
-    - name: Clear cache
+    - name: Clear old cache
       if:   ${{ steps.cache.outputs.cache-hit }}
       env:
         KEY: *cache_key

@@ -87,7 +87,7 @@ jobs:
         KEY: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
           }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
       if: ${{ steps.cache.outputs.cache-hit }}
-      name: Clear cache
+      name: Clear old cache
       run: |
         gh extension install actions/gh-actions-cache
         gh actions-cache delete ${{ env.KEY }} --confirm
