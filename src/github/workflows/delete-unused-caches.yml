@@ -2,9 +2,11 @@
 
 name: Clear cache of a branch
 on:
-  pull_request:
-    types:
-      - closed
+  ## Andreas 2023-01-27: Shut this down as it malfunctions, deleting all the wrong caches.
+  ## It deletes from master when it should delete from the PR!
+  # pull_request:
+  #   types:
+  #     - closed
   workflow_dispatch:
 
 jobs:
@@ -17,6 +19,10 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Cleanup
+        # # Andreas, 2023-01-27: I thought that github.ref was refs/pull/NNNN/merge
+        # # as this is triggered from a pull request.
+        # # In reality, the ref is 'master' which does exactly the wrong thing!
+        # if: ${{ github.ref != 'master' }}
         run: |
           gh extension install actions/gh-actions-cache
 

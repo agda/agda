@@ -35,7 +35,4 @@ jobs:
         echo "Done"
 name: Clear cache of a branch
 'on':
-  pull_request:
-    types:
-    - closed
   workflow_dispatch: null
