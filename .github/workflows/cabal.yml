@@ -80,10 +80,11 @@ jobs:
           ${{ steps.setup-haskell.outputs.cabal-store }}
         restore-keys: cabal.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{
           env.CABAL_VER }}-
-    - name: Install dependencies
+    - if: ${{ !steps.cache.outputs.cache-hit }}
+      name: Install dependencies
       run: |
         cabal build --only-dependencies
-    - name: Build Agda with ${{ matrix.cabal-flags }}
+    - name: Build Agda
       run: |
         cabal build
     - continue-on-error: true
