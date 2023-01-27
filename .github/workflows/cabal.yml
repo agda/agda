@@ -106,8 +106,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        cabal-flags:
+        - --enable-tests -f enable-cluster-counting
         cabal-ver:
-        - 3,8
+        - '3.8'
         ghc-ver:
         - 9.4.4
         - 9.2.5
@@ -125,8 +127,8 @@ jobs:
           os: ubuntu-22.04
         - cabal-flags: --enable-tests -f debug
           os: ubuntu-22.04
-        - cabal-flags: --enable-tests -f enable-cluster-counting -f debug -c 'mtl
-            >= 2.3.1'
+        - cabal-flags: |
+            --enable-tests -f enable-cluster-counting -f debug -c 'mtl >= 2.3.1'
           os: ubuntu-22.04
         - os: macos-12
         - os: windows-2022

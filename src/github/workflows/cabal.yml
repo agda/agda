@@ -47,10 +47,8 @@ jobs:
         os: [ubuntu-22.04]
         ghc-ver: [9.4.4, 9.2.5, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
         # Need to mention "cabal-ver" at least once in the matrix, otherwise matrix.cabal-ver is an actionlint error.
-        cabal-ver: ['3,8']
-        # Andreas, 2023-01-27: The following line does not survive the roundtrip via JSON:
-        # The single quotes are removed, which makes it an illegal matrix range entry.
-        # cabal-flags: '--enable-tests -f enable-cluster-counting'
+        cabal-ver: ['3.8']
+        cabal-flags: ['--enable-tests -f enable-cluster-counting']
         include:
           ## Latest GHC, special builds
 
@@ -70,7 +68,8 @@ jobs:
           # Linux, with mtl-2.3 and everything
           - os: ubuntu-22.04
             ## Andreas, 2022-11-23: Test mtl-2.3.1 here which has breaking changes.
-            cabal-flags: '--enable-tests -f enable-cluster-counting -f debug -c ''mtl >= 2.3.1'''
+            cabal-flags: |
+              --enable-tests -f enable-cluster-counting -f debug -c 'mtl >= 2.3.1'
 
           # macOS with default values
           - os: macos-12
