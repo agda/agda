@@ -26,7 +26,7 @@ jobs:
       FLAGS: ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting'
         }}
       GHC_VER: ${{ matrix.ghc-ver || '9.4.4' }}
-    name: Cabal ${{ matrix.os }} ${{ matrix.ghc-ver }} ${{ matrix.description }}
+    name: Cabal ${{ matrix.description }}, ${{ matrix.ghc-ver }}
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
@@ -111,6 +111,8 @@ jobs:
         - --enable-tests -f enable-cluster-counting
         cabal-ver:
         - '3.8'
+        description:
+        - Linux
         ghc-ver:
         - 9.4.4
         - 9.2.5
@@ -123,25 +125,27 @@ jobs:
         - 8.0.2
         include:
         - cabal-flags: --disable-tests
-          description: w/o tests
+          description: Linux w/o tests
           ghc-ver: 9.4.4
           os: ubuntu-22.04
         - cabal-flags: --enable-tests -f cpphs
-          description: -f cpphs
+          description: Linux cpphs
           ghc-ver: 9.4.4
           os: ubuntu-22.04
         - cabal-flags: --enable-tests -f debug
-          description: -f debug
+          description: Linux debug
           ghc-ver: 9.4.4
           os: ubuntu-22.04
         - cabal-flags: |
             --enable-tests -f enable-cluster-counting -f debug -c mtl>=2.3.1
-          description: mtl 2.3
+          description: Linux mtl 2.3
           ghc-ver: 9.4.4
           os: ubuntu-22.04
-        - ghc-ver: 9.4.4
+        - description: macOS
+          ghc-ver: 9.4.4
           os: macos-12
-        - ghc-ver: 9.4.4
+        - description: Windows
+          ghc-ver: 9.4.4
           os: windows-2022
         os:
         - ubuntu-22.04
