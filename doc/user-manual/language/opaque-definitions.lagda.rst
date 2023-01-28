@@ -132,9 +132,9 @@ Unfolding in types
 
 Note that unfolding clauses do not apply to the *type signatures* inside
 an ``opaque`` block. Much like for ``abstract`` blocks, this prevents
-leakage of implementation details, but it also necessary to ensure that
-the types of names defined by the opaque block remain valid outside the
-opaque block. Consider::
+leakage of implementation details, but it is also necessary to ensure
+that the types of names defined by the opaque block remain valid outside
+the opaque block. Consider::
 
   opaque
     S : Set₁
