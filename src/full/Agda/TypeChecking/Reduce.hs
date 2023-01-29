@@ -1676,13 +1676,17 @@ instance InstantiateFull Interface where
     instantiateFullExceptForDefinitions'
       (set (intSignature . sigDefinitions) defs i)
 
+instance InstantiateFull TypeInContext where
+  instantiateFull' (TypeInContext ctx ty) =
+    TypeInContext <$> instantiateFull' ctx <*> instantiateFull ty
+
 -- | Instantiates everything except for definitions in the signature.
 
 instantiateFullExceptForDefinitions' :: Interface -> ReduceM Interface
 instantiateFullExceptForDefinitions'
   (Interface h s ft ms mod tlmod scope inside sig metas display userwarn
      importwarn b foreignCode highlighting libPragmas filePragmas
-     usedOpts patsyns warnings partialdefs) =
+     usedOpts patsyns warnings partialdefs outline) =
   Interface h s ft ms mod tlmod scope inside
     <$> ((\s r -> Sig { _sigSections     = s
                       , _sigDefinitions  = sig ^. sigDefinitions
@@ -1703,6 +1707,7 @@ instantiateFullExceptForDefinitions'
     <*> return patsyns
     <*> return warnings
     <*> return partialdefs
+    <*> traverse instantiateFull' outline
 
 -- | Instantiates everything except for definitions in the signature.
 

@@ -6,7 +6,7 @@ module Agda.Interaction.Highlighting.HTML.Base
   ( HtmlOptions(..)
   , HtmlHighlight(..)
   , prepareCommonDestinationAssets
-  , srcFileOfInterface
+  , srcFileOfInterface, addTypesByRange
   , defaultPageGen
   , MonadLogHtml(logHtml)
   , LogHtmlT
@@ -59,10 +59,14 @@ import Agda.Syntax.TopLevelModuleName
 
 import qualified Agda.TypeChecking.Monad as TCM
   ( Interface(..)
+  , TypeInContext(..)
+  , MonadTCM(..)
   )
+import qualified Agda.TypeChecking.Pretty as TCM
 
 import Agda.Utils.Function
 import qualified Agda.Utils.IO.UTF8 as UTF8
+import Agda.Utils.RangeMap (RangeMap)
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
@@ -144,13 +148,19 @@ data HtmlInputSourceFile = HtmlInputSourceFile
   -- ^ Source text
   , _srcFileHighlightInfo :: HighlightingInfo
   -- ^ Highlighting info
+  , _srcFileTypeRanges :: RangeMap Doc
   }
 
 -- | Bundle up the highlighting info for a source file
 
 srcFileOfInterface ::
   TopLevelModuleName -> TCM.Interface -> HtmlInputSourceFile
-srcFileOfInterface m i = HtmlInputSourceFile m (TCM.iFileType i) (TCM.iSource i) (TCM.iHighlighting i)
+srcFileOfInterface m i = HtmlInputSourceFile m (TCM.iFileType i) (TCM.iSource i) (TCM.iHighlighting i) mempty
+
+addTypesByRange :: TCM.MonadTCM m => TCM.Interface -> HtmlInputSourceFile -> m HtmlInputSourceFile
+addTypesByRange int inp = TCM.liftTCM $ do
+  t <- traverse TCM.prettyTCM (TCM.iContextOutline int)
+  pure $ inp { _srcFileTypeRanges = t }
 
 -- | Logging during HTML generation
 
@@ -176,15 +186,15 @@ renderSourceFile opts = renderSourcePage
   cssFile = fromMaybe defaultCSSFile (htmlOptCssFile opts)
   highlightOccur = htmlOptHighlightOccurrences opts
   htmlHighlight = htmlOptHighlight opts
-  renderSourcePage (HtmlInputSourceFile moduleName fileType sourceCode hinfo) =
+  renderSourcePage (HtmlInputSourceFile moduleName fileType sourceCode hinfo tyrange) =
     page cssFile highlightOccur onlyCode moduleName pageContents
     where
-      tokens = tokenStream sourceCode hinfo
+      tokens = tokenStream sourceCode hinfo tyrange
       onlyCode = highlightOnlyCode htmlHighlight fileType
       pageContents = code onlyCode fileType tokens
 
 defaultPageGen :: (MonadIO m, MonadLogHtml m) => HtmlOptions -> HtmlInputSourceFile -> m ()
-defaultPageGen opts srcFile@(HtmlInputSourceFile moduleName ft _ _) = do
+defaultPageGen opts srcFile@(HtmlInputSourceFile moduleName ft _ _ tyrange) = do
   logHtml $ render $ "Generating HTML for"  <+> pretty moduleName <+> ((parens (pretty target)) <> ".")
   writeRenderedHtml html target
   where
@@ -272,6 +282,7 @@ type TokenInfo =
   ( Int
   , String
   , Aspects
+  , Maybe String
   )
 
 -- | Constructs token stream ready to print.
@@ -279,16 +290,18 @@ type TokenInfo =
 tokenStream
      :: Text             -- ^ The contents of the module.
      -> HighlightingInfo -- ^ Highlighting information.
+     -> RangeMap Doc     -- ^ Type information
      -> [TokenInfo]
-tokenStream contents info =
+tokenStream contents info typeinfo =
   map (\cs -> case cs of
-          (mi, (pos, _)) : _ ->
-            (pos, map (snd . snd) cs, fromMaybe mempty mi)
+          (mi, (mt, (pos, _))) : _ ->
+            (pos, map (snd . snd . snd) cs, fromMaybe mempty mi, mt)
           [] -> __IMPOSSIBLE__) $
   List.groupBy ((==) `on` fst) $
-  zipWith (\pos c -> (IntMap.lookup pos infoMap, (pos, c))) [1..] (T.unpack contents)
+  zipWith (\pos c -> (IntMap.lookup pos infoMap, (IntMap.lookup pos typeinfomap, (pos, c)))) [1..] (T.unpack contents)
   where
   infoMap = toMap info
+  typeinfomap = toMap (fmap show typeinfo)
 
 -- | Constructs the HTML displaying the code.
 
@@ -309,22 +322,22 @@ code onlyCode fileType = mconcat . if onlyCode
          OrgFileType  -> map mkOrg . splitByMarkup
   else map mkHtml
   where
-  trd (_, _, a) = a
+  trd (_, _, a, _) = a
 
   splitByMarkup :: [TokenInfo] -> [[TokenInfo]]
   splitByMarkup = splitWhen $ (== Just Markup) . aspect . trd
 
   mkHtml :: TokenInfo -> Html
-  mkHtml (pos, s, mi) =
+  mkHtml (pos, s, mi, mt) =
     -- Andreas, 2017-06-16, issue #2605:
     -- Do not create anchors for whitespace.
-    applyUnless (mi == mempty) (annotate pos mi) $ toHtml s
+    applyUnless (mi == mempty) (annotate pos mi mt) $ toHtml s
 
   -- Proposed in #3373, implemented in #3384
   mkRst :: [TokenInfo] -> Html
   mkRst = mconcat . (toHtml rstDelimiter :) . map go
     where
-      go token@(_, s, mi) = if aspect mi == Just Background
+      go token@(_, s, mi, mt) = if aspect mi == Just Background
         then preEscapedToHtml s
         else mkHtml token
 
@@ -333,7 +346,7 @@ code onlyCode fileType = mconcat . if onlyCode
   mkMd :: [[TokenInfo]] -> Html
   mkMd = mconcat . go
     where
-      work token@(_, s, mi) = case aspect mi of
+      work token@(_, s, mi, mt) = case aspect mi of
         Just Background -> preEscapedToHtml s
         Just Markup     -> __IMPOSSIBLE__
         _               -> mkHtml token
@@ -354,7 +367,7 @@ code onlyCode fileType = mconcat . if onlyCode
       formatCode = startDelimiter : foldr (\x -> (go x :)) [endDelimiter] tokens
       formatNonCode = map go tokens
 
-      go token@(_, s, mi) = if aspect mi == Just Background
+      go token@(_, s, mi, mt) = if aspect mi == Just Background
         then preEscapedToHtml s
         else mkHtml token
 
@@ -362,8 +375,8 @@ code onlyCode fileType = mconcat . if onlyCode
   -- We put a fail safe numeric anchor (file position) for internal references
   -- (issue #2756), as well as a heuristic name anchor for external references
   -- (issue #2604).
-  annotate :: Int -> Aspects -> Html -> Html
-  annotate pos mi =
+  annotate :: Int -> Aspects -> Maybe String -> Html -> Html
+  annotate pos mi ms =
     applyWhen hereAnchor (anchorage nameAttributes mempty <>) . anchorage posAttributes
     where
     -- Warp an anchor (<A> tag) with the given attributes around some HTML.
@@ -373,9 +386,10 @@ code onlyCode fileType = mconcat . if onlyCode
     -- File position anchor (unique, reliable).
     posAttributes :: [Attribute]
     posAttributes = concat
-      [ [Attr.id $ stringValue $ show pos ]
+      [ [Attr.id $ stringValue $ show pos]
       , toList $ link <$> definitionSite mi
       , Attr.class_ (stringValue $ unwords classes) <$ guard (not $ null classes)
+      , [Html5.dataAttribute "type" (Html5.stringValue s) | Just s <- [ms]]
       ]
 
     -- Named anchor (not reliable, but useful in the general case for outside refs).

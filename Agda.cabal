@@ -568,6 +568,7 @@ library
                     Agda.TypeChecking.Unquote
                     Agda.TypeChecking.Warnings
                     Agda.TypeChecking.With
+                    Agda.TypeChecking.Outline
                     Agda.Utils.AffineHole
                     Agda.Utils.Applicative
                     Agda.Utils.AssocList

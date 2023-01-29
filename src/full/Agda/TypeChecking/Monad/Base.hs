@@ -46,7 +46,8 @@ import qualified Data.Set as Set -- hiding (singleton, null, empty)
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
 import Data.HashSet (HashSet)
-import Data.Semigroup ( Semigroup, (<>)) --, Any(..) )
+import Data.Semigroup (Semigroup, (<>)) --, Any(..) )
+import Data.Monoid (Last(..))
 import Data.String
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -74,6 +75,9 @@ import Agda.Syntax.Treeless (Compiled)
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
+import Agda.Utils.RangeMap (RangeMap)
+import qualified Agda.Interaction.Highlighting.Range as Range
+import qualified Agda.Utils.RangeMap as RangeMap
 import qualified Agda.Syntax.Info as Info
 
 import Agda.TypeChecking.CompiledClause
@@ -290,6 +294,7 @@ data PostScopeState = PostScopeState
     --   Best set to True only for calls to pretty*/reify to limit unwanted reductions.
   , stPostLocalPartialDefs    :: !(Set QName)
     -- ^ Local partial definitions, to be stored in the @Interface@
+  , stPostOutline             :: RangeMap (Last TypeInContext)
   }
   deriving (Generic)
 
@@ -334,6 +339,15 @@ data LoadedFileCache = LoadedFileCache
   , lfcCurrent :: !CurrentTypeCheckLog
   }
   deriving Generic
+
+-- | Simplified representation of a type together with the types of
+-- local variables of the context it lives in. These are what is stored
+-- in the interface file for the “outline” (--write-ranged-types).
+data TypeInContext = TypeInContext
+  { ticContext :: Context
+  , ticType    :: Type
+  }
+  deriving (Show, Generic)
 
 -- | A log of what the type checker does and states after the action is
 -- completed.  The cached version is stored first executed action first.
@@ -446,6 +460,7 @@ initPostScopeState = PostScopeState
   , stPostConsideringInstance  = False
   , stPostInstantiateBlocking  = False
   , stPostLocalPartialDefs     = Set.empty
+  , stPostOutline              = empty
   }
 
 initState :: TCState
@@ -662,6 +677,12 @@ stImportedDisplayForms :: Lens' DisplayForms TCState
 stImportedDisplayForms f s =
   f (stPreImportedDisplayForms (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedDisplayForms = x}}
+
+stOutline :: Lens' (RangeMap (Last TypeInContext)) TCState
+stOutline f s =
+  f (stPostOutline (stPostScopeState s)) <&>
+  \ x -> s {stPostScopeState = (stPostScopeState s) {stPostOutline = x}}
+
 
 -- | Note that the lens is \"strict\".
 
@@ -1002,6 +1023,7 @@ data Interface = Interface
   , iPatternSyns     :: A.PatternSynDefns
   , iWarnings        :: [TCWarning]
   , iPartialDefs     :: Set QName
+  , iContextOutline  :: RangeMap TypeInContext
   }
   deriving (Show, Generic)
 
@@ -1010,7 +1032,7 @@ instance Pretty Interface where
             sourceH source fileT importedM moduleN topModN scope insideS
             signature metas display userwarn importwarn builtin
             foreignCode highlighting libPragmaO filePragmaO oUsed
-            patternS warnings partialdefs) =
+            patternS warnings partialdefs outline) =
 
     hang "Interface" 2 $ vcat
       [ "source hash:"         <+> (pretty . show) sourceH
@@ -1035,6 +1057,7 @@ instance Pretty Interface where
       , "pattern syns:"        <+> (pretty . show) patternS
       , "warnings:"            <+> (pretty . show) warnings
       , "partial definitions:" <+> (pretty . show) partialdefs
+      , "context outline:"     <+> (pretty . show) outline
       ]
 
 -- | Combines the source hash and the (full) hashes of the imported modules.
@@ -5473,6 +5496,7 @@ instance NFData System
 instance NFData ExtLamInfo
 instance NFData EtaEquality
 instance NFData FunctionFlag
+instance NFData TypeInContext
 instance NFData CompKit
 instance NFData AxiomData
 instance NFData DataOrRecSigData

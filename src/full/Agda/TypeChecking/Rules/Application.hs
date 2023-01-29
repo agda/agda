@@ -21,6 +21,7 @@ import Data.Maybe
 import Data.Void
 import qualified Data.Foldable as Fold
 import qualified Data.IntSet   as IntSet
+import Data.Monoid (Last(..))
 
 import Agda.Interaction.Highlighting.Generate
   ( storeDisambiguatedConstructor, storeDisambiguatedProjection )
@@ -55,6 +56,7 @@ import Agda.TypeChecking.Rules.Def
 import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Outline
 
 import Agda.Utils.Either
 import Agda.Utils.Functor
@@ -731,6 +733,7 @@ checkArgumentsE'
           , sFun       = sFun
           , sSkipCheck = next
           }
+        recordTypeInContext sRange sFun
 
         -- Check the target type if we can get away with it.
         s <- lift $
@@ -964,7 +967,9 @@ checkArguments ::
 checkArguments cmp exph r args t0 t k = postponeInstanceConstraints $ do
   z <- runExceptT $ checkArgumentsE cmp exph r args t0 (Just t)
   case z of
-    Right st -> k st
+    Right st -> do
+      recordTypeInContext r (acType st)
+      k st
       -- vs = evaluated args
       -- t1 = remaining type (needs to be subtype of t)
     Left problem -> postponeArgs problem cmp exph r args t k

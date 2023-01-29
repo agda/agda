@@ -145,6 +145,8 @@ data CommandLineOptions = Options
     --   type-checked?
   , optTransliterate         :: Bool
     -- ^ Should code points that are not supported by the locale be transliterated?
+  , optPositionalTypes       :: Bool
+    -- ^ Should we generate positional type/context information?
   }
   deriving (Show, Generic)
 
@@ -301,6 +303,7 @@ defaultOptions = Options
   , optPragmaOptions         = defaultPragmaOptions
   , optOnlyScopeChecking     = False
   , optTransliterate         = False
+  , optPositionalTypes       = False
   }
 
 defaultPragmaOptions :: PragmaOptions
@@ -1029,6 +1032,11 @@ integerArgument flag s = maybe usage return $ readMaybe s
 keepCoveringClausesFlag :: Flag PragmaOptions
 keepCoveringClausesFlag o = return $ o { optKeepCoveringClauses = True }
 
+positionalTypesFlag :: Flag CommandLineOptions
+positionalTypesFlag o = return $ o { optPositionalTypes = True }
+
+noPositionalTypesFlag :: Flag CommandLineOptions
+noPositionalTypesFlag o = return $ o { optPositionalTypes = False }
 
 standardOptions :: [OptDescr (Flag CommandLineOptions)]
 standardOptions =
@@ -1081,6 +1089,10 @@ standardOptions =
                     "only scope-check the top-level module, do not type-check it"
     , Option []     ["transliterate"] (NoArg transliterateFlag)
                     "transliterate unsupported code points when printing to stdout/stderr"
+    , Option []     ["positional-type-info"] (NoArg positionalTypesFlag)
+                    "write positional type and context information to the interface file."
+    , Option []     ["no-positional-type-info"] (NoArg noPositionalTypesFlag)
+                    "don't write positional type and context information to the interface file. (this is the default)"
     ] ++ map (fmap lensPragmaOptions) pragmaOptions
 
 -- | Defined locally here since module ''Agda.Interaction.Options.Lenses''

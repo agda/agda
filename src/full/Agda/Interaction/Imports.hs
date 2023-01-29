@@ -49,6 +49,7 @@ import qualified Data.Set as Set
 import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import qualified Data.Text.Lazy as TL
+import Data.Monoid (Last(..))
 
 import System.Directory (doesFileExist, removeFile)
 import System.FilePath ((</>), takeDirectory)
@@ -104,6 +105,7 @@ import qualified Agda.Utils.ProfileOptions as Profile
 import Agda.Utils.Hash
 import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.WithDefault
+import qualified Agda.Utils.RangeMap as RangeMap
 
 import Agda.Utils.Impossible
 
@@ -1243,6 +1245,10 @@ buildInterface src topLevel = do
     syntaxInfo  <- useTC stSyntaxInfo
     optionsUsed <- useTC stPragmaOptions
     partialDefs <- useTC stLocalPartialDefs
+    outline     <- useTC stOutline
+
+    reportSDoc "import.iface.outline" 666 $
+      P.text "Outline:" P.$$ P.vcat (map (P.prettyTCM . (\(a,b) -> (show a, b)) . fmap getLast) (RangeMap.toList outline))
 
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files
@@ -1273,6 +1279,7 @@ buildInterface src topLevel = do
           , iPatternSyns     = patsyns
           , iWarnings        = warnings
           , iPartialDefs     = partialDefs
+          , iContextOutline  = fmap (fromMaybe __IMPOSSIBLE__ . getLast) outline
           }
     i <-
       ifM (collapseDefault . optSaveMetas <$> pragmaOptions)

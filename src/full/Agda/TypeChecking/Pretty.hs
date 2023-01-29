@@ -494,3 +494,6 @@ instance PrettyTCM Candidate where
   prettyTCM c = case candidateKind c of
     (GlobalCandidate q) -> prettyTCM q
     LocalCandidate      -> prettyTCM $ candidateTerm c
+
+instance PrettyTCM TypeInContext where
+  prettyTCM (TypeInContext ctx ty) = inTopContext $ addContext ctx $ prettyTCM ty

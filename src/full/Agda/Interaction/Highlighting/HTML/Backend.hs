@@ -6,6 +6,7 @@ module Agda.Interaction.Highlighting.HTML.Backend
   ) where
 
 import Agda.Interaction.Highlighting.HTML.Base
+import Agda.TypeChecking.Monad.Base (MonadTCM)
 
 import Prelude hiding ((!!), concatMap)
 
@@ -179,7 +180,7 @@ compileDefHtml
 compileDefHtml _env _menv _isMain _def = pure HtmlDef
 
 postModuleHtml
-  :: (MonadIO m, MonadDebug m, ReadTCState m)
+  :: (MonadIO m, MonadDebug m, ReadTCState m, MonadTCM m)
   => HtmlCompileEnv
   -> HtmlModuleEnv
   -> IsMain
@@ -188,7 +189,9 @@ postModuleHtml
   -> m HtmlModule
 postModuleHtml _env menv _isMain _modName _defs = do
   let generatePage = defaultPageGen . htmlCompileEnvOpts . htmlModEnvCompileEnv $ menv
-  htmlSrc <- srcFileOfInterface (htmlModEnvName menv) <$> curIF
+  ifile <- curIF
+  let htmlSrc = srcFileOfInterface (htmlModEnvName menv) ifile
+  htmlSrc <- addTypesByRange ifile htmlSrc
   runLogHtmlWithMonadDebug $ generatePage htmlSrc
   return HtmlModule
 

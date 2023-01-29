@@ -87,7 +87,7 @@ several rss m = mconcat $ map (flip singleton m) rss
 -- 'Pair' in the package @strict@ before version 4.
 
 newtype PairInt a = PairInt (Pair Int a)
-  deriving Show
+  deriving (Show, Functor, Foldable, Traversable)
 
 instance NFData a => NFData (PairInt a) where
   rnf (PairInt (_ :!: y)) = rnf y
@@ -113,7 +113,7 @@ newtype RangeMap a = RangeMap
     -- ^ The keys are starting points of ranges, and the pairs contain
     -- endpoints and values.
   }
-  deriving (Show, NFData)
+  deriving (Show, NFData, Functor, Foldable, Traversable)
 
 -- | Invariant for 'RangeMap'.
 --
