@@ -9,13 +9,13 @@ module Any where
 
 open import Algebra
 import Algebra.Definitions as FP
-open import Effect.Monad
+open import Category.Monad
 open import Data.Bool
 open import Data.Bool.Properties
 open import Data.Empty
 open import Data.List as List
 open import Data.List.Relation.Unary.Any as Any using (Any; here; there)
-import Data.List.Effectful
+import Data.List.Categorical
 open import Data.Product as Prod hiding (swap)
 open import Data.Product.Function.NonDependent.Propositional
   using (_×-cong_)
@@ -44,7 +44,7 @@ open Related.EquationalReasoning
 private
   module ×⊎ {k ℓ} = CommutativeSemiring (×-⊎-commutativeSemiring k ℓ)
   open module ListMonad {ℓ} =
-    RawMonad (Data.List.Effectful.monad {ℓ = ℓ})
+    RawMonad (Data.List.Categorical.monad {ℓ = ℓ})
 
 ------------------------------------------------------------------------
 -- Some lemmas related to map, find and lose

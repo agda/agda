@@ -45,7 +45,7 @@ run_test=\
          | $(SED) "s/goal_command \\([0-9]\+\\) (\\([^)]\+\\)) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
          | $(SED) "s/goal_command \\([0-9]\+\\) \\([^ ]\+\\) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
          | $(SED) "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
-         | $(AGDA_BIN) -v 0 -i . -i .. --interaction --no-default-libraries $(RTS_$*) \
+         | $(AGDA_BIN) -v 0 -W ignore -i . -i .. --interaction --no-default-libraries $(RTS_$*) \
            2>&1 | $(filter) ; \
     else /usr/bin/env bash ./$*.sh $(AGDA_BIN) > $(TMPDIR)/$*.tmp_out ; \
          cat $(TMPDIR)/$*.tmp_out | $(filter) ; \
