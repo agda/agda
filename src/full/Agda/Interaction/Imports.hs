@@ -1245,10 +1245,6 @@ buildInterface src topLevel = do
     syntaxInfo  <- useTC stSyntaxInfo
     optionsUsed <- useTC stPragmaOptions
     partialDefs <- useTC stLocalPartialDefs
-    outline     <- useTC stOutline
-
-    reportSDoc "import.iface.outline" 666 $
-      P.text "Outline:" P.$$ P.vcat (map (P.prettyTCM . (\(a,b) -> (show a, b)) . fmap getLast) (RangeMap.toList outline))
 
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files
@@ -1279,7 +1275,6 @@ buildInterface src topLevel = do
           , iPatternSyns     = patsyns
           , iWarnings        = warnings
           , iPartialDefs     = partialDefs
-          , iContextOutline  = fmap (fromMaybe __IMPOSSIBLE__ . getLast) outline
           }
     i <-
       ifM (collapseDefault . optSaveMetas <$> pragmaOptions)

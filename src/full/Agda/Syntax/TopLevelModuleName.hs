@@ -11,6 +11,7 @@ import Data.Hashable
 import qualified Data.List as List
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Aeson as Aeson
 
 import GHC.Generics (Generic)
 
@@ -176,6 +177,13 @@ instance KillRange TopLevelModuleName where
 
 instance NFData TopLevelModuleName where
   rnf (TopLevelModuleName _ x y) = rnf (x, y)
+
+-- | The 'Range' is not serialised.
+instance Aeson.ToJSON TopLevelModuleName where
+  toJSON (TopLevelModuleName _ (ModuleNameHash h) y) = Aeson.object
+    [ "moduleNameHash" Aeson..= h
+    , "moduleNameParts" Aeson..= y
+    ]
 
 -- | A lens focusing on the 'moduleNameParts'.
 

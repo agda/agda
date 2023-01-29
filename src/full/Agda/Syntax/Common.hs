@@ -21,6 +21,7 @@ import Data.Function
 import Data.Hashable (Hashable(..))
 import qualified Data.Strict.Maybe as Strict
 import Data.Word
+import Data.Aeson (ToJSON)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 
@@ -2327,7 +2328,7 @@ instance NFData IsMacro
 ---------------------------------------------------------------------------
 
 newtype ModuleNameHash = ModuleNameHash { moduleNameHash :: Word64 }
-  deriving (Eq, Ord, Hashable)
+  deriving (Eq, Ord, Generic, Hashable)
 
 instance HasTag ModuleNameHash where
   type Tag ModuleNameHash = ModuleNameHash
@@ -2361,6 +2362,9 @@ instance Enum NameId where
 
 instance NFData NameId where
   rnf (NameId _ _) = ()
+
+instance ToJSON NameId
+instance ToJSON ModuleNameHash
 
 instance NFData ModuleNameHash where
   rnf _ = ()

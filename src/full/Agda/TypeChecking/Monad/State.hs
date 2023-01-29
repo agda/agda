@@ -31,6 +31,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Position
 import Agda.Syntax.TopLevelModuleName
 
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Outline
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Warnings
 
@@ -425,6 +426,10 @@ appInteractionOutputCallback r
 setInteractionOutputCallback :: InteractionOutputCallback -> TCM ()
 setInteractionOutputCallback cb
   = modifyPersistentState $ \ s -> s { stInteractionOutputCallback = cb }
+
+setOutlineOutputCallback :: OutlineOutputCallback -> TCM ()
+setOutlineOutputCallback cb
+  = modifyPersistentState $ \ s -> s { stOutlineOutputCallback = cb }
 
 ---------------------------------------------------------------------------
 -- * Pattern synonyms

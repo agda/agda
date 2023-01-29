@@ -117,9 +117,6 @@ instance EncodeTCM MetaId    where
 
 instance ToJSON ProblemId where toJSON (ProblemId i) = toJSON i
 
-instance ToJSON ModuleNameHash where
-  toJSON (ModuleNameHash h) = toJSON h
-
 instance ToJSON MetaId where
   toJSON m = object
     [ "id"     .= toJSON (metaId m)

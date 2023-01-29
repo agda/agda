@@ -32,6 +32,8 @@ import Agda.TypeChecking.Monad.Imports
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Benchmark
 import Agda.TypeChecking.Monad.Trace
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Outline
+    ( jsonOutlineOutputCallback )
 
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
@@ -52,6 +54,8 @@ import Agda.Utils.Tuple
 import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
+
+import System.IO
 
 -- | Sets the pragma options.
 --   Checks for unsafe combinations.
@@ -95,6 +99,12 @@ setCommandLineOptions' root opts = do
         incs -> return incs
       modifyTC $ Lens.setCommandLineOptions opts{ optAbsoluteIncludePaths = incs }
       setPragmaOptions (optPragmaOptions opts)
+      case optOutlineJSON opts of
+        Just d -> do
+          let p = mkAbsolute $ filePath root </> d
+          liftIO $ withFile (filePath p) AppendMode $ const $ pure ()
+          setOutlineOutputCallback (jsonOutlineOutputCallback p)
+        Nothing -> pure ()
       updateBenchmarkingStatus
 
 libToTCM :: LibM a -> TCM a

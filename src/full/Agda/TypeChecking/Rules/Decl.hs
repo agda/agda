@@ -28,6 +28,7 @@ import Agda.Syntax.Scope.Base ( KindOfName(..) )
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Benchmark (MonadBench, Phase)
+import Agda.TypeChecking.Monad.Outline
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TypeChecking.Constraints
@@ -222,6 +223,9 @@ checkDecl d = setCurrentRange d $ do
               void $ freezeMetas (openMetas metas)
 
         theMutualChecks
+
+      -- After metas have been frozen, flush outline information for the past decl
+      flushPendingOutline
 
     where
 

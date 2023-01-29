@@ -100,6 +100,8 @@ import Agda.Interaction.Highlighting.Precise
   (HighlightingInfo, NameKind)
 import Agda.Interaction.Library
 
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Outline
+
 import Agda.Utils.Benchmark (MonadBench(..))
 import Agda.Utils.BiMap (BiMap, HasTag(..))
 import qualified Agda.Utils.BiMap as BiMap
@@ -294,7 +296,7 @@ data PostScopeState = PostScopeState
     --   Best set to True only for calls to pretty*/reify to limit unwanted reductions.
   , stPostLocalPartialDefs    :: !(Set QName)
     -- ^ Local partial definitions, to be stored in the @Interface@
-  , stPostOutline             :: RangeMap (Last TypeInContext)
+  , stPostPendingOutline      :: [Closure OutlinePending]
   }
   deriving (Generic)
 
@@ -331,6 +333,10 @@ data PersistentTCState = PersistentTCSt
     --   Should be @Nothing@ when checking imports.
   , stPersistBackends   :: [Backend]
     -- ^ Current backends with their options
+  , stOutlineOutputCallback  :: OutlineOutputCallback
+    -- ^ Callback function to call when there is a response
+    --   to give to the interactive frontend.
+    --   See the documentation of 'InteractionOutputCallback'.
   }
   deriving Generic
 
@@ -339,16 +345,6 @@ data LoadedFileCache = LoadedFileCache
   , lfcCurrent :: !CurrentTypeCheckLog
   }
   deriving Generic
-
--- | Simplified representation of a type together with the types of
--- local variables of the context it lives in. These are what is stored
--- in the interface file for the “outline” (--write-ranged-types).
-data TypeInContext = TypeInContext
-  { ticContext :: Context
-  , ticType    :: Type
-  , ticScope   :: ScopeInfo
-  }
-  deriving (Show, Generic)
 
 -- | A log of what the type checker does and states after the action is
 -- completed.  The cached version is stored first executed action first.
@@ -385,6 +381,7 @@ initPersistentState = PersistentTCSt
   , stPersistentTopLevelModuleNames = empty
   , stDecodedModules            = Map.empty
   , stInteractionOutputCallback = defaultInteractionOutputCallback
+  , stOutlineOutputCallback     = defaultOutlineOutputCallback
   , stBenchmark                 = empty
   , stAccumStatistics           = Map.empty
   , stPersistLoadedFileCache    = empty
@@ -461,7 +458,7 @@ initPostScopeState = PostScopeState
   , stPostConsideringInstance  = False
   , stPostInstantiateBlocking  = False
   , stPostLocalPartialDefs     = Set.empty
-  , stPostOutline              = empty
+  , stPostPendingOutline       = []
   }
 
 initState :: TCState
@@ -679,11 +676,10 @@ stImportedDisplayForms f s =
   f (stPreImportedDisplayForms (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedDisplayForms = x}}
 
-stOutline :: Lens' (RangeMap (Last TypeInContext)) TCState
-stOutline f s =
-  f (stPostOutline (stPostScopeState s)) <&>
-  \ x -> s {stPostScopeState = (stPostScopeState s) {stPostOutline = x}}
-
+stPendingOutline :: Lens' [Closure OutlinePending] TCState
+stPendingOutline f s =
+  f (stPostPendingOutline (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostPendingOutline = x}}
 
 -- | Note that the lens is \"strict\".
 
@@ -1024,7 +1020,6 @@ data Interface = Interface
   , iPatternSyns     :: A.PatternSynDefns
   , iWarnings        :: [TCWarning]
   , iPartialDefs     :: Set QName
-  , iContextOutline  :: RangeMap TypeInContext
   }
   deriving (Show, Generic)
 
@@ -1033,7 +1028,7 @@ instance Pretty Interface where
             sourceH source fileT importedM moduleN topModN scope insideS
             signature metas display userwarn importwarn builtin
             foreignCode highlighting libPragmaO filePragmaO oUsed
-            patternS warnings partialdefs outline) =
+            patternS warnings partialdefs) =
 
     hang "Interface" 2 $ vcat
       [ "source hash:"         <+> (pretty . show) sourceH
@@ -1058,7 +1053,6 @@ instance Pretty Interface where
       , "pattern syns:"        <+> (pretty . show) patternS
       , "warnings:"            <+> (pretty . show) warnings
       , "partial definitions:" <+> (pretty . show) partialdefs
-      , "context outline:"     <+> (pretty . show) outline
       ]
 
 -- | Combines the source hash and the (full) hashes of the imported modules.
@@ -5497,7 +5491,6 @@ instance NFData System
 instance NFData ExtLamInfo
 instance NFData EtaEquality
 instance NFData FunctionFlag
-instance NFData TypeInContext
 instance NFData CompKit
 instance NFData AxiomData
 instance NFData DataOrRecSigData

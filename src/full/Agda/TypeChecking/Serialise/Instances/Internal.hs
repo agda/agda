@@ -596,7 +596,3 @@ instance EmbPrj a => EmbPrj (Judgement a) where
 instance EmbPrj RemoteMetaVariable where
   icod_ (RemoteMetaVariable a b c) = icodeN' RemoteMetaVariable a b c
   value = valueN RemoteMetaVariable
-
-instance EmbPrj TypeInContext where
-  icod_ (TypeInContext ctx a scope) = icodeN' TypeInContext ctx a scope
-  value = valueN TypeInContext
