@@ -333,7 +333,7 @@ data PersistentTCState = PersistentTCSt
     --   Should be @Nothing@ when checking imports.
   , stPersistBackends   :: [Backend]
     -- ^ Current backends with their options
-  , stOutlineOutputCallback  :: OutlineOutputCallback
+  , stOutlineOutputCallback  :: Maybe OutlineOutputCallback
     -- ^ Callback function to call when there is a response
     --   to give to the interactive frontend.
     --   See the documentation of 'InteractionOutputCallback'.
@@ -381,7 +381,7 @@ initPersistentState = PersistentTCSt
   , stPersistentTopLevelModuleNames = empty
   , stDecodedModules            = Map.empty
   , stInteractionOutputCallback = defaultInteractionOutputCallback
-  , stOutlineOutputCallback     = defaultOutlineOutputCallback
+  , stOutlineOutputCallback     = Nothing
   , stBenchmark                 = empty
   , stAccumStatistics           = Map.empty
   , stPersistLoadedFileCache    = empty

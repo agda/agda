@@ -6,7 +6,6 @@ import Control.DeepSeq
 data OutlineOutputCallback
 data OutlinePending
 
-defaultOutlineOutputCallback :: OutlineOutputCallback
 jsonOutlineOutputCallback :: AbsolutePath -> OutlineOutputCallback
 
 instance NFData OutlineOutputCallback

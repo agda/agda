@@ -427,7 +427,7 @@ setInteractionOutputCallback :: InteractionOutputCallback -> TCM ()
 setInteractionOutputCallback cb
   = modifyPersistentState $ \ s -> s { stInteractionOutputCallback = cb }
 
-setOutlineOutputCallback :: OutlineOutputCallback -> TCM ()
+setOutlineOutputCallback :: Maybe OutlineOutputCallback -> TCM ()
 setOutlineOutputCallback cb
   = modifyPersistentState $ \ s -> s { stOutlineOutputCallback = cb }
 

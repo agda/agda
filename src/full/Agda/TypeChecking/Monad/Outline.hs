@@ -92,9 +92,6 @@ instance NFData OutlineOutputCallback where
 instance NFData OutlinePending where
   rnf (OutlinePending r c s t) = rnf (r, c, s, t)
 
-defaultOutlineOutputCallback :: OutlineOutputCallback
-defaultOutlineOutputCallback = OutlineOutputCallback $ const $ pure ()
-
 recordTypeInContext
   :: ( HasOptions m
      , MonadTCState m
@@ -104,25 +101,28 @@ recordTypeInContext
      )
   => Range -> Type
   -> m ()
-recordTypeInContext range ty = do
-  ctx <- reverse <$> getContext
-  scope <- getScope
-  let
-    pending = OutlinePending
-      { outlineRange   = Range.rangeToRange range
-      , outlineContext = ctx
-      , outlineScope   = scope
-      , outlineType    = ty
-      }
-  clo <- buildClosure pending
-  modifyTCLens' stPendingOutline (clo:)
+recordTypeInContext range ty = getsTC (stOutlineOutputCallback . stPersistentState) >>= \case
+  Just _ -> do
+    ctx <- reverse <$> getContext
+    scope <- getScope
+    let
+      pending = OutlinePending
+        { outlineRange   = Range.rangeToRange range
+        , outlineContext = ctx
+        , outlineScope   = scope
+        , outlineType    = ty
+        }
+    clo <- buildClosure pending
+    modifyTCLens' stPendingOutline (clo:)
+  Nothing -> pure ()
 
 flushPendingOutline :: TCM ()
-flushPendingOutline = do
-  t <- getsTC (view stPendingOutline)
-  callback <- getsTC (runCallback . stOutlineOutputCallback . stPersistentState)
-  traverse_ (flip enterClosure (callback <=< finishOutline)) t
-  modifyTCLens' stPendingOutline $ const []
+flushPendingOutline = getsTC (stOutlineOutputCallback . stPersistentState) >>= \case
+  Just (OutlineOutputCallback cb) -> do
+    t <- getsTC (view stPendingOutline)
+    traverse_ (flip enterClosure (cb <=< finishOutline)) t
+    modifyTCLens' stPendingOutline $ const []
+  Nothing -> pure ()
 
 finishOutline :: OutlinePending -> TCM OutlineEntry
 finishOutline OutlinePending{..} = do

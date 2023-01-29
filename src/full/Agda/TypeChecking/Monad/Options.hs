@@ -103,7 +103,7 @@ setCommandLineOptions' root opts = do
         Just d -> do
           let p = mkAbsolute $ filePath root </> d
           liftIO $ withFile (filePath p) AppendMode $ const $ pure ()
-          setOutlineOutputCallback (jsonOutlineOutputCallback p)
+          setOutlineOutputCallback $ Just $ jsonOutlineOutputCallback p
         Nothing -> pure ()
       updateBenchmarkingStatus
 
