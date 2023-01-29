@@ -66,8 +66,7 @@ addMul-lemma′ (suc x) zero d r r′ hyp = ⊥-elim (large x r (sym hyp))
 addMul-lemma′ (suc x) (suc x′) d r r′ hyp
                       rewrite +-assoc (suc d) (x * suc d) (toℕ r)
                             | +-assoc (suc d) (x′ * suc d) (toℕ r′)
-                      with addMul-lemma′ x x′ d r r′
-                             (+-cancelˡ-≡ (suc d) _ _ hyp)
+                      with addMul-lemma′ x x′ d r r′ (+-cancelˡ-≡ (suc d) hyp)
 ... | pf₁ , pf₂ = pf₁ , cong suc pf₂
 
 -- and now rearranged to the order that Data.Nat.DivMod uses
