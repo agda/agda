@@ -1677,8 +1677,8 @@ instance InstantiateFull Interface where
       (set (intSignature . sigDefinitions) defs i)
 
 instance InstantiateFull TypeInContext where
-  instantiateFull' (TypeInContext ctx ty) =
-    TypeInContext <$> instantiateFull' ctx <*> instantiateFull ty
+  instantiateFull' (TypeInContext ctx ty scope) =
+    TypeInContext <$> instantiateFull' ctx <*> instantiateFull ty <*> pure scope
 
 -- | Instantiates everything except for definitions in the signature.
 

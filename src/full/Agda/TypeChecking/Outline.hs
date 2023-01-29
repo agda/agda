@@ -1,6 +1,7 @@
 module Agda.TypeChecking.Outline where
 
 import Agda.TypeChecking.Monad.Context
+import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Base
 
 import Agda.Interaction.Options.Lenses
@@ -23,6 +24,7 @@ recordTypeInContext
   :: ( HasOptions m
      , MonadTCState m
      , MonadTCEnv m
+     , ReadTCState m
      )
   => Range -> Type
   -> m ()
@@ -30,7 +32,8 @@ recordTypeInContext range ty = do
   opt <- getCommandLineOptions <$> getTC
   when (optPositionalTypes opt) $ do
     ctx <- reverse <$> getContext
+    scope <- getScope
     modifyTCLens' stOutline $ \s -> RangeMap.insert mappend
       (Range.rangeToRange range)
-      (Last (Just (TypeInContext ctx ty)))
+      (Last (Just (TypeInContext ctx ty scope)))
       s

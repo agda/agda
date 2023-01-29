@@ -346,6 +346,7 @@ data LoadedFileCache = LoadedFileCache
 data TypeInContext = TypeInContext
   { ticContext :: Context
   , ticType    :: Type
+  , ticScope   :: ScopeInfo
   }
   deriving (Show, Generic)
 

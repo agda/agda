@@ -9,7 +9,8 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Position as P
 
 import Agda.TypeChecking.Serialise.Base
-import Agda.TypeChecking.Serialise.Instances.Compilers () --instance only
+import Agda.TypeChecking.Serialise.Instances.Compilers () -- instance only
+import Agda.TypeChecking.Serialise.Instances.Abstract () -- instance only (ScopeInfo)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.CompiledClause
@@ -597,5 +598,5 @@ instance EmbPrj RemoteMetaVariable where
   value = valueN RemoteMetaVariable
 
 instance EmbPrj TypeInContext where
-  icod_ (TypeInContext ctx a) = icodeN' TypeInContext ctx a
+  icod_ (TypeInContext ctx a scope) = icodeN' TypeInContext ctx a scope
   value = valueN TypeInContext
