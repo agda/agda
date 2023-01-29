@@ -59,7 +59,7 @@ data OutlineGlobal
     { globalNameId :: {-# UNPACK #-} !NameId
     , globalStart  :: {-# UNPACK #-} !Int
     , globalEnd    :: {-# UNPACK #-} !Int
-    , globalMod    :: {-# UNPACK #-} !TopLevelModuleName
+    , globalMod    :: {-# UNPACK #-} !ModuleNameHash
     , globalType   :: {-# UNPACK #-} !Text
     }
   deriving (Eq, Show, Generic)
@@ -136,16 +136,13 @@ finishOutline OutlinePending{..} = do
       let
         bs = Range.rangeToRange (nameBindingSite (qnameName (defName thedef)))
         NameId _ modh = nameId (qnameName (defName thedef))
-
-      mod <- iTopLevelModuleName . miInterface . fromMaybe __IMPOSSIBLE__ <$>
-        getVisitedModule (TopLevelModuleName noRange modh (mempty :| []))
       let
         gbl = OutlineGlobal
           { globalNameId = nameId (qnameName nm)
           , globalType   = ty
           , globalStart  = Range.from bs
           , globalEnd    = Range.to bs
-          , globalMod    = mod
+          , globalMod    = modh
           }
       pure (HashMap.singleton nm' gbl)
     (ctx_e, ty) <- go outlineContext outlineType
