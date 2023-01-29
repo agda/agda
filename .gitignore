@@ -29,6 +29,7 @@
 /benchmark/Create/hs-import-*
 /benchmark/Create/import-*
 /benchmark/Create/import0-*
+/benchmark/logs
 /examples/**/MAlonzo
 /examples/compiler/main
 /hie.yaml
