@@ -296,7 +296,7 @@ data PostScopeState = PostScopeState
     --   Best set to True only for calls to pretty*/reify to limit unwanted reductions.
   , stPostLocalPartialDefs    :: !(Set QName)
     -- ^ Local partial definitions, to be stored in the @Interface@
-  , stPostPendingOutline      :: [Closure OutlinePending]
+  , stPostPendingOutline      :: [Closure OutlineEntry]
   }
   deriving (Generic)
 
@@ -676,7 +676,7 @@ stImportedDisplayForms f s =
   f (stPreImportedDisplayForms (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedDisplayForms = x}}
 
-stPendingOutline :: Lens' [Closure OutlinePending] TCState
+stPendingOutline :: Lens' [Closure OutlineEntry] TCState
 stPendingOutline f s =
   f (stPostPendingOutline (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostPendingOutline = x}}

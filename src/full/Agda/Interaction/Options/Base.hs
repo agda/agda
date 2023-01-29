@@ -145,8 +145,6 @@ data CommandLineOptions = Options
     --   type-checked?
   , optTransliterate         :: Bool
     -- ^ Should code points that are not supported by the locale be transliterated?
-  , optOutlineJSON        :: Maybe FilePath
-    -- ^ If set, stream outline to the given JSON file, as json-seq.
   }
   deriving (Show, Generic)
 
@@ -303,7 +301,6 @@ defaultOptions = Options
   , optPragmaOptions         = defaultPragmaOptions
   , optOnlyScopeChecking     = False
   , optTransliterate         = False
-  , optOutlineJSON           = Nothing
   }
 
 defaultPragmaOptions :: PragmaOptions
@@ -738,9 +735,6 @@ onlyScopeCheckingFlag o = return $ o { optOnlyScopeChecking = True }
 transliterateFlag :: Flag CommandLineOptions
 transliterateFlag o = return $ o { optTransliterate = True }
 
-outlineJSONFlag :: FilePath -> Flag CommandLineOptions
-outlineJSONFlag fp o = return $ o { optOutlineJSON = Just fp }
-
 countClustersFlag :: Flag PragmaOptions
 countClustersFlag o =
 #ifdef COUNT_CLUSTERS
@@ -1062,9 +1056,6 @@ standardOptions =
 
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
                     ("directory for compiler output (default: the project root)")
-
-    , Option []     ["outline-json"] (ReqArg outlineJSONFlag "FILE")
-                    ("stream the outline, as json-seq, to the given file")
 
     , Option []     ["trace-imports"] (OptArg traceImportsFlag "LEVEL")
                     ("print information about accessed modules during type-checking (where LEVEL=0|1|2|3, default: 2)")

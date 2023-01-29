@@ -49,7 +49,7 @@ import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive hiding (Nat)
-import Agda.TypeChecking.Monad.Outline
+import Agda.TypeChecking.Monad.Outline (recordTypeInContext)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce

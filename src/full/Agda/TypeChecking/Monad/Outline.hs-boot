@@ -4,9 +4,7 @@ import Agda.Utils.FileName
 import Control.DeepSeq
 
 data OutlineOutputCallback
-data OutlinePending
-
-jsonOutlineOutputCallback :: AbsolutePath -> OutlineOutputCallback
+data OutlineEntry
 
 instance NFData OutlineOutputCallback
-instance NFData OutlinePending
+instance NFData OutlineEntry
