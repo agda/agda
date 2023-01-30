@@ -53,7 +53,7 @@ STACK_INSTALL_HELPER = $(STACK) build Agda $(STACK_OPT_NO_DOCS)
 # Developers running `make` will usually want to use the GHC version they've
 # specified in their stack.yaml. Otherwise they can put that option in
 # themselves.
-# Note that GitHub workflows currently do not use the Makefile, but instead
+# Note that some GitHub workflows currently do not use the Makefile, but instead
 # invoke `stack` directly. (See: .github/workflows/stack.yml)
 ifneq ($(TRAVIS),)
 STACK_INSTALL_HELPER += --system-ghc
@@ -644,11 +644,9 @@ size-solver-test : install-size-solver
 
 set-default-stack-file : remove-default-stack-file ##
 	ln -s stack-$(GHC_COMPILER).yaml stack.yaml
-	cd $(FIXW_PATH) && ln -s stack-$(GHC_COMPILER).yaml stack.yaml
 
 remove-default-stack-file : ##
 	rm -f stack.yaml
-	cd $(FIXW_PATH) && rm -f stack.yaml
 
 # Installing binaries for developer services
 
