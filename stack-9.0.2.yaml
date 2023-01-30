@@ -2,6 +2,11 @@ resolver: lts-19.33
 compiler: ghc-9.0.2
 compiler-check: match-exact
 
+# Local packages specified by relative directory name.
+packages:
+- '.'
+- 'src/size-solver'
+
 extra-deps:
 - text-icu-0.8.0.2
 - vector-hashtables-0.1.1.1

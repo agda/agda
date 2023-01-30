@@ -2,8 +2,14 @@ resolver: lts-9.21
 compiler: ghc-8.0.2
 compiler-check: match-exact
 
+# Local packages specified by relative directory name.
+packages:
+- '.'
+- 'src/size-solver'
+
 extra-deps:
 - Cabal-3.6.3.0
+- QuickCheck-2.14.2
 - ansi-terminal-0.10.3
 - ansi-wl-pprint-0.6.9
 - assoc-1.0.2
@@ -30,6 +36,9 @@ extra-deps:
 - splitmix-0.1.0.3
 - strict-0.4.0.1
 - tagged-0.8.6.1
+- tasty-1.1.0.4
+- tasty-silver-3.1.13
+- tasty-quickcheck-0.10.1.1
 - text-1.2.3.1
 - th-abstraction-0.4.5.0
 - these-1.1.1.1
