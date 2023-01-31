@@ -178,7 +178,7 @@ jobs:
     - name: Clear old cache
       if:   ${{ steps.cache.outputs.cache-hit }}
       env:
-        KEY: ${{ steps.cache.outputs.cache-primary-key }}
+        KEY: ${{ steps.cache.outputs.cache-matched-key }}
         GH_TOKEN: ${{ github.token }}
       run: |
         gh extension install actions/gh-actions-cache
