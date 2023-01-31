@@ -44,6 +44,7 @@ jobs:
       run: |
         cabal update
         cabal configure -O1 --enable-tests
+        cabal build --dry-run
     - id: cache
       name: Cache dependencies
       uses: actions/cache@v3

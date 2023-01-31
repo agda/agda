@@ -28,10 +28,11 @@ jobs:
         echo "CABLAL_VER = ${CABAL_VER}"
         echo "GHC_VER=${GHC_VER}"         >> ${GITHUB_ENV}
         echo "CABAL_VER=${CABAL_VER}"     >> ${GITHUB_ENV}
-    - name: Resolve dependencies
+    - name: Configure the build plan
       run: |
         cabal update
         cabal configure -fenable-cluster-counting --enable-tests --disable-library-profiling
+        cabal build --dry-run
     - id: cache
       name: Cache dependencies
       uses: actions/cache@v3

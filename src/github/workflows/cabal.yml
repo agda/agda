@@ -151,6 +151,10 @@ jobs:
       run: |
         cabal update
         cabal configure -O0 ${FLAGS}
+        cabal build --dry-run
+      # cabal build --dry-run creates dist-newstyle/cache/plan.json
+      # Keep a watch on this `cabal-3.9 build --dry-run` bug:
+      # https://github.com/haskell/cabal/issues/8706
 
     - name: Restore cache from approximate key
       uses: actions/cache/restore@v3
