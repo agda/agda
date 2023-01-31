@@ -5,6 +5,8 @@
 ##  Edit source in /src/github/workflows/ instead!  ##
 ##                                                  ##
 ######################################################
+env:
+  GH_TOKEN: ${{ github.token }}
 jobs:
   info:
     defaults:
@@ -43,7 +45,6 @@ jobs:
         gh actions-cache list -L 100 -B ${{ github.ref }}
     - continue-on-error: true
       env:
-        GH_TOKEN: ${{ github.token }}
         KEY: ${{ steps.cache.outputs.key }}
       if: ${{ steps.cache.outputs.cache-hit }}
       name: Clear cache

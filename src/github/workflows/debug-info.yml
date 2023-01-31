@@ -11,6 +11,9 @@ on:
   # Allow manual runs
   workflow_dispatch:
 
+env:
+  GH_TOKEN: ${{ github.token }}
+
 jobs:
   info:
     timeout-minutes: 60
@@ -68,7 +71,6 @@ jobs:
       if:   ${{ steps.cache.outputs.cache-hit }}
       env:
         KEY: ${{ steps.cache.outputs.key }}
-        GH_TOKEN: ${{ github.token }}
       run: |
         gh actions-cache delete -B ${{ github.ref }} ${{ env.KEY }} --confirm
       # Don't fail if cache cannot be deleted
