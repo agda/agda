@@ -32,6 +32,11 @@ jobs:
         path: |
           .github/workflows/debug-info.yml
           src/github/workflows/debug-info.yml
+    - name: Outputs of cache/restore
+      run: |
+        echo "steps.cache.outputs.cache-hit         = ${{ steps.cache.outputs.cache-hit }}"
+        echo "steps.cache.outputs.cache-primary-key = ${{ steps.cache.outputs.cache-primary-key }}"
+        echo "steps.cache.outputs.cache-matched-key = ${{ steps.cache.outputs.cache-matched-key }}"
     - name: Install gh actions-cache
       run: |
         gh extension install actions/gh-actions-cache
@@ -45,7 +50,7 @@ jobs:
         gh actions-cache list -L 100 -B ${{ github.ref }}
     - continue-on-error: true
       env:
-        KEY: ${{ steps.cache.outputs.key }}
+        KEY: ${{ steps.cache.outputs.cache-primary-key }}
       if: ${{ steps.cache.outputs.cache-hit }}
       name: Clear cache
       run: |
