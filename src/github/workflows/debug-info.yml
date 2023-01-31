@@ -1,0 +1,82 @@
+name: Explore GitHub Actions
+
+on:
+  push:
+    paths: &trigger_path_list
+    - '.github/workflows/debug-info.yml'
+
+  pull_request:
+    paths: *trigger_path_list
+
+  # Allow manual runs
+  workflow_dispatch:
+
+jobs:
+  info:
+    timeout-minutes: 60
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    # Need bash on Windows for piping and evaluation.
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+
+    - name: Info about the context
+      run: |
+        echo "github.ref = ${{ github.ref }}"
+        echo "GITHUB_REF = ${GITHUB_REF}"
+
+    - uses: actions/checkout@v3
+
+    - name: Debug info provided by Makefile
+      run: |
+        make debug
+      continue-on-error: true
+
+    - name: Restore cache
+      uses: actions/cache/restore@v3
+      id:   cache
+      with:
+        key:  &cache_key debug-info.yml-${{ runner.os }}
+        path: &cache_pathes |
+          .github/workflows/debug-info.yml
+          src/github/workflows/debug-info.yml
+      continue-on-error: true
+
+    - name: Install gh actions-cache
+      run: |
+        gh extension install actions/gh-actions-cache
+
+    - name: Print caches
+      run: |
+        gh actions-cache list -L 100
+      continue-on-error: true
+
+    - name: Print caches for github.ref
+      run: |
+        gh actions-cache list -L 100 -B ${{ github.ref }}
+      continue-on-error: true
+
+    - name: Clear cache
+      if:   ${{ steps.cache.outputs.cache-hit }}
+      env:
+        KEY: ${{ steps.cache.outputs.key }}
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh actions-cache delete -B ${{ github.ref }} ${{ env.KEY }} --confirm
+      # Don't fail if cache cannot be deleted
+      continue-on-error: true
+
+    - name: Save cache
+      uses: actions/cache/save@v3
+      if:   always()  # save cache even when build fails
+      with:
+        key:  *cache_key
+        path: *cache_pathes
