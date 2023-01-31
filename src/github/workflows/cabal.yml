@@ -178,11 +178,11 @@ jobs:
     - name: Clear old cache
       if:   ${{ steps.cache.outputs.cache-hit }}
       env:
-        KEY: *cache_key
+        KEY: ${{ steps.cache.outputs.cache-matched-key }}
         GH_TOKEN: ${{ github.token }}
       run: |
         gh extension install actions/gh-actions-cache
-        gh actions-cache delete ${{ env.KEY }} --confirm
+        gh actions-cache delete -B ${{ github.ref }} ${{ env.KEY }} --confirm
       # Don't fail if cache cannot be deleted
       continue-on-error: true
 

@@ -102,14 +102,12 @@ jobs:
     - continue-on-error: true
       env:
         GH_TOKEN: ${{ github.token }}
-        KEY: stack.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER
-          }}-icu-${{ env.ICU_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER))
-          }}
+        KEY: ${{ steps.cache.outputs.cache-matched-key }}
       if: ${{ steps.cache.outputs.cache-hit }}
       name: Clear cache
       run: |
         gh extension install actions/gh-actions-cache
-        gh actions-cache delete ${{ env.KEY }} --confirm
+        gh actions-cache delete -B ${{ github.ref }} ${{ env.KEY }} --confirm
     - if: always()
       name: Save cache
       uses: actions/cache/save@v3

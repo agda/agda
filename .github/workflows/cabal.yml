@@ -90,13 +90,12 @@ jobs:
     - continue-on-error: true
       env:
         GH_TOKEN: ${{ github.token }}
-        KEY: cabal.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
-          }}-${{ hashFiles('**/plan.json') }}
+        KEY: ${{ steps.cache.outputs.cache-matched-key }}
       if: ${{ steps.cache.outputs.cache-hit }}
       name: Clear old cache
       run: |
         gh extension install actions/gh-actions-cache
-        gh actions-cache delete ${{ env.KEY }} --confirm
+        gh actions-cache delete -B ${{ github.ref }} ${{ env.KEY }} --confirm
     - if: always()
       name: Save cache
       uses: actions/cache/save@v3
