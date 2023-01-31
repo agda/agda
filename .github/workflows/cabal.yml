@@ -70,6 +70,7 @@ jobs:
       run: |
         cabal update
         cabal configure -O0 ${FLAGS}
+        cabal build --dry-run
     - id: cache
       name: Restore cache from approximate key
       uses: actions/cache/restore@v3

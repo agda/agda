@@ -55,13 +55,17 @@ jobs:
         echo "CABAL_VER=${CABAL_VER}"     >> ${GITHUB_ENV}
       # From now on, use env.{GHC|CABAL}_VER rather than matrix.{ghc|cabal}-ver!
 
-    - name: Resolve dependencies
+    - name: Configure the build plan
       run: |
         cabal update
         cabal configure -fenable-cluster-counting --enable-tests --disable-library-profiling
+        cabal build --dry-run
+      # cabal build --dry-run creates dist-newstyle/cache/plan.json
+      # Keep a watch on this `cabal-3.9 build --dry-run` bug:
+      # https://github.com/haskell/cabal/issues/8706
 
-    - uses: actions/cache@v3
-      name: Cache dependencies
+    - name: Cache dependencies
+      uses: actions/cache@v3
       id: cache
       with:
         path: |
@@ -73,6 +77,7 @@ jobs:
       if: ${{ !steps.cache.outputs.cache-hit }}
       run: |
         cabal build --dependencies-only --force-reinstalls
+      # Andreas, 2023-01-31: do we need --force-reinstalls ?  What is its significance?
 
     # Testing Haddock [Issue 1773]
     - name: Build Haddock

@@ -79,6 +79,10 @@ jobs:
       run: |
         cabal update
         cabal configure -O1 --enable-tests
+        cabal build --dry-run
+      # cabal build --dry-run creates dist-newstyle/cache/plan.json
+      # Keep a watch on this `cabal-3.9 build --dry-run` bug:
+      # https://github.com/haskell/cabal/issues/8706
 
     - uses: actions/cache@v3
       name: Cache dependencies
