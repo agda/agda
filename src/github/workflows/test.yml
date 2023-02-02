@@ -116,7 +116,10 @@ jobs:
       # The output of unconv --version looks like "uconv v2.1  ICU 72.1" from which we extract "72.1"
 
     - name: Restore cache from approximate key
-      uses: actions/cache/restore@v3
+      # uses: actions/cache/restore@v3
+      # Andreas, 2023-02-02 revert to default cache saving logic.
+      # "Save always" is bad because it may duplicate caches from the base branch on the feature branch.
+      uses: actions/cache@v3
       id: cache
       with:
         # Andreas, 2023-01-24:
@@ -125,8 +128,9 @@ jobs:
         path: &cache_path |
           ~/.stack
 
-        # A unique cache is used for each stack.yaml.
-        key: &cache_key test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
+        # We include stack-${GHC_VER}.yaml in the primary cache key so that the cache gets rewritten
+        # everytime the resolver updates or extra-deps are added.
+        key: &cache_key test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-${{ hashFiles('stack.yaml') }}
         restore-keys:   test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-
 
     - name: "Install dependencies for Agda and its test suites"
@@ -168,23 +172,23 @@ jobs:
           dist.tzst
           stack-work.tzst
 
-    - name: Clear old cache
-      if:   ${{ steps.cache.outputs.cache-hit }}
-      env:
-        KEY: ${{ steps.cache.outputs.cache-matched-key }}
-        GH_TOKEN: ${{ github.token }}
-      run: |
-        gh extension install actions/gh-actions-cache
-        gh actions-cache delete -B ${{ github.ref }} ${{ env.KEY }} --confirm
-      # Don't fail if cache cannot be deleted
-      continue-on-error: true
+    # - name: Clear old cache
+    #   if:   ${{ steps.cache.outputs.cache-hit }}
+    #   env:
+    #     KEY: ${{ steps.cache.outputs.cache-matched-key }}
+    #     GH_TOKEN: ${{ github.token }}
+    #   run: |
+    #     gh extension install actions/gh-actions-cache
+    #     gh actions-cache delete -B ${{ github.ref }} ${{ env.KEY }} --confirm
+    #   # Don't fail if cache cannot be deleted
+    #   continue-on-error: true
 
-    - name: Save cache
-      uses: actions/cache/save@v3
-      if:   always()  # save cache even when build fails
-      with:
-        key:  *cache_key
-        path: *cache_path
+    # - name: Save cache
+    #   uses: actions/cache/save@v3
+    #   if:   always()  # save cache even when build fails
+    #   with:
+    #     key:  *cache_key
+    #     path: *cache_path
 
   # Step 2a: Basic testsuites: succeed, fail, etc.
   ###########################################################################

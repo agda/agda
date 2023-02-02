@@ -44,10 +44,10 @@ jobs:
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
       name: Restore cache from approximate key
-      uses: actions/cache/restore@v3
+      uses: actions/cache@v3
       with:
         key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
-          }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
+          }}-${{ hashFiles('stack.yaml') }}
         path: |
           ~/.stack
         restore-keys: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{
@@ -81,23 +81,6 @@ jobs:
           dist.tzst
           stack-work.tzst
         retention-days: 1
-    - continue-on-error: true
-      env:
-        GH_TOKEN: ${{ github.token }}
-        KEY: ${{ steps.cache.outputs.cache-matched-key }}
-      if: ${{ steps.cache.outputs.cache-hit }}
-      name: Clear old cache
-      run: |
-        gh extension install actions/gh-actions-cache
-        gh actions-cache delete -B ${{ github.ref }} ${{ env.KEY }} --confirm
-    - if: always()
-      name: Save cache
-      uses: actions/cache/save@v3
-      with:
-        key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
-          }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
-        path: |
-          ~/.stack
   cubical:
     needs: build
     runs-on: ubuntu-22.04
@@ -128,7 +111,7 @@ jobs:
       uses: actions/cache/restore@v3
       with:
         key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
-          }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
+          }}-${{ hashFiles('stack.yaml') }}
         path: |
           ~/.stack
     - name: Cubical library test
@@ -165,7 +148,7 @@ jobs:
       uses: actions/cache/restore@v3
       with:
         key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
-          }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
+          }}-${{ hashFiles('stack.yaml') }}
         path: |
           ~/.stack
     - name: Install Tex Live and Emacs
@@ -209,7 +192,7 @@ jobs:
       uses: actions/cache/restore@v3
       with:
         key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
-          }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
+          }}-${{ hashFiles('stack.yaml') }}
         path: |
           ~/.stack
     - name: Standard library test
@@ -254,7 +237,7 @@ jobs:
       uses: actions/cache/restore@v3
       with:
         key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
-          }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
+          }}-${{ hashFiles('stack.yaml') }}
         path: |
           ~/.stack
     - name: Suite of tests for bugs
