@@ -221,6 +221,7 @@ common language
       -Werror=noncanonical-monoid-instances
       -Werror=overflowed-literals
       -Werror=overlapping-patterns
+--      -Werror=redundant-constraints
       -Werror=semigroup
       -Werror=simplifiable-class-constraints
       -Werror=star-binder
@@ -247,6 +248,7 @@ common language
 
   if impl(ghc >= 8.10)
     ghc-options:
+      -Werror=compat-unqualified-imports
       -Werror=deriving-defaults
       -Werror=redundant-record-wildcards
       -Werror=unused-packages
@@ -261,14 +263,19 @@ common language
 
   -- ASR (2022-04-27). This warning was added in GHC 9.0.2, removed
   -- from 9.2.1 and added back in 9.2.2.
-  if impl(ghc == 9.0.2)
+  if impl(ghc == 9.0.2 || >= 9.2.2)
     ghc-options:
       -Werror=unicode-bidirectional-format-characters
 
-  if impl(ghc >= 9.2.2)
+  if impl(ghc >= 9.2)
     ghc-options:
+--      -Werror=operator-whitespace
       -Werror=redundant-bang-patterns
-      -Werror=unicode-bidirectional-format-characters
+
+  if impl(ghc >= 9.4)
+    ghc-options:
+      -Werror=forall-identifier
+      -Werror=type-equality-out-of-scope
 
   default-language: Haskell2010
 
