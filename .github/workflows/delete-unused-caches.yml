@@ -18,7 +18,7 @@ jobs:
         gh extension install actions/gh-actions-cache
 
         REPO=${{ github.repository }}
-        BRANCH=${{ github.ref }}
+        BRANCH="refs/pull/${{ github.event.pull_request.number }}/merge"
 
         echo "Fetching list of cache key"
         cacheKeysForPR=$(gh actions-cache list -R $REPO -B $BRANCH | cut -f 1 )
@@ -33,6 +33,8 @@ jobs:
             gh actions-cache delete $cacheKey -R $REPO -B $BRANCH --confirm
         done
         echo "Done"
-name: Clear cache of a branch
+name: Clear cache of closed PR
 'on':
-  workflow_dispatch: null
+  pull_request:
+    types:
+    - closed
