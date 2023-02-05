@@ -1851,6 +1851,9 @@ data NLPat
   deriving (Show, Generic)
 type PElims = [Elim' NLPat]
 
+type instance TypeOf NLPat = Type
+type instance TypeOf [Elim' NLPat] = (Type, Elims -> Term)
+
 instance TermLike NLPat where
   traverseTermM f = \case
     p@PVar{}       -> return p

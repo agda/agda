@@ -1054,6 +1054,26 @@ hasElims v =
     Dummy{}    -> Nothing
 
 ---------------------------------------------------------------------------
+-- * Type family for type-directed operations.
+---------------------------------------------------------------------------
+
+-- @TypeOf a@ contains sufficient type information to do
+-- a type-directed traversal of @a@.
+type family TypeOf a
+
+type instance TypeOf Term        = Type                  -- Type of the term
+type instance TypeOf Elims       = (Type, Elims -> Term) -- Head symbol type + constructor
+type instance TypeOf (Abs Term)  = (Dom Type, Abs Type)  -- Domain type + codomain type
+type instance TypeOf (Abs Type)  = Dom Type              -- Domain type
+type instance TypeOf (Arg a)     = Dom (TypeOf a)
+type instance TypeOf (Dom a)     = TypeOf a
+type instance TypeOf Type        = ()
+type instance TypeOf Sort        = ()
+type instance TypeOf Level       = ()
+type instance TypeOf [PlusLevel] = ()
+type instance TypeOf PlusLevel   = ()
+
+---------------------------------------------------------------------------
 -- * Null instances.
 ---------------------------------------------------------------------------
 
