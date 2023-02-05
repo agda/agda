@@ -20,22 +20,23 @@ jobs:
       && !contains(github.event.head_commit.message, '[github skip]')
       && !contains(github.event.head_commit.message, '[skip github]')
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: [3.7]
+        python-version: ['3.10']
     steps:
+
     - uses: actions/checkout@v3
-      with:
-        submodules: recursive
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
+
     - name: Install dependencies
       run: |
         pip install -r doc/user-manual/requirements.txt
+
     - name: Install Tex Live and LaTeX packages
       run: |
         export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
@@ -44,14 +45,17 @@ jobs:
         tlmgr option repository http://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2017/tlnet-final
         tlmgr update --self
         tlmgr install anyfontsize bbm capt-of cmap dvipng fncychap keystroke latexmk needspace tex-gyre
+
     - name: Build User Manual in HTML
       run: |
         export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
         make user-manual-html
+
     - name: Build User Manual in PDF
       run: |
         export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
         make user-manual-pdf
+
     - uses: actions/upload-artifact@v3
       with:
         name: user-manual-pdf
