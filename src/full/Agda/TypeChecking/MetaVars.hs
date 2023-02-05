@@ -1313,7 +1313,7 @@ checkSolutionForMeta x m v a = do
         prettyTCM x <+> ":=" <+> prettyTCM v <+> " is a sort"
       s <- shouldBeSort (El __DUMMY_SORT__ v)
       traceCall (CheckMetaSolution (getRange m) x (sort (univSort s)) (Sort s)) $
-        checkSort defaultAction s
+        inferInternal s
 
 -- | Given two types @a@ and @b@ with @a <: b@, check that @a == b@.
 checkSubtypeIsEqual :: Type -> Type -> TCM ()

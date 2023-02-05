@@ -28,9 +28,23 @@ data Action (m :: Hs.Type -> Hs.Type)
 defaultAction :: PureTCM m => Action m
 eraseUnusedAction :: Action TCM
 
+class CheckInternal a where
+  checkInternal' :: (MonadCheckInternal m) => Action m -> a -> Comparison -> TypeOf a -> m a
+
+  checkInternal :: (MonadCheckInternal m) => a -> Comparison -> TypeOf a -> m ()
+  checkInternal v cmp t = void $ checkInternal' defaultAction v cmp t
+
+  inferInternal' :: (MonadCheckInternal m, TypeOf a ~ ()) => Action m -> a -> m a
+  inferInternal' act v = checkInternal' act v CmpEq ()
+
+  inferInternal :: (MonadCheckInternal m, TypeOf a ~ ()) => a -> m ()
+  inferInternal v = checkInternal v CmpEq ()
+
+instance CheckInternal Term
+instance CheckInternal Type
+instance CheckInternal Sort
+instance CheckInternal Level
+instance CheckInternal Elims
+
 checkType :: (MonadCheckInternal m) => Type -> m ()
-checkType' :: (MonadCheckInternal m) => Type -> m Sort
-checkSort :: (MonadCheckInternal m) => Action m -> Sort -> m Sort
-checkInternal :: (MonadCheckInternal m) => Term -> Comparison -> Type -> m ()
-checkInternal' :: (MonadCheckInternal m) => Action m -> Term -> Comparison -> Type -> m Term
 infer :: (MonadCheckInternal m) => Term -> m Type
