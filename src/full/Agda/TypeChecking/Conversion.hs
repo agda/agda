@@ -45,6 +45,7 @@ import Agda.TypeChecking.Level
 import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Primitive
+import Agda.TypeChecking.ProjectionLike
 import Agda.TypeChecking.Warnings (MonadWarning)
 import Agda.Interaction.Options
 
@@ -470,7 +471,10 @@ computeElimHeadType f es es' = do
     -- Infer its type.
     reportSDoc "tc.conv.infer" 30 $
       "inferring type of internal arg: " <+> prettyTCM arg
-    targ <- infer $ unArg arg
+    -- Jesper, 2023-02-06: infer crashes on non-inferable terms,
+    -- e.g. applications of projection-like functions. Hence we bring them
+    -- into postfix form.
+    targ <- infer =<< elimView EvenLone (unArg arg)
     reportSDoc "tc.conv.infer" 30 $
       "inferred type: " <+> prettyTCM targ
     -- getDefType wants the argument type reduced.
