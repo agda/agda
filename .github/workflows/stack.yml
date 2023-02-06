@@ -44,8 +44,6 @@ jobs:
         echo "ICU_VER=${ICU_VER}"
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - uses: actions/checkout@v3
-      with:
-        submodules: recursive
     - id: haskell-setup
       uses: haskell/actions/setup@v2
       with:

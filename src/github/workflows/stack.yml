@@ -112,8 +112,6 @@ jobs:
     # Checkout is needed before the first call to stack exec ${ARGS}
     # because it provides the stack-*.yaml file.
     - uses: actions/checkout@v3
-      with:
-        submodules: recursive
 
     - uses: haskell/actions/setup@v2
       id: haskell-setup

@@ -31,14 +31,14 @@ jobs:
     - name: Configure the build plan
       run: |
         cabal update
-        cabal configure -fenable-cluster-counting --enable-tests --disable-library-profiling
+        cabal configure -fenable-cluster-counting --disable-library-profiling
         cabal build --dry-run
     - id: cache
       name: Cache dependencies
       uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-cabal-${{ env.GHC_VER }}-${{ env.CABAL_VER }}-${{ hashFiles('**/plan.json')
-          }}
+        key: haddock.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
+          }}-${{ hashFiles('**/plan.json') }}
         path: |
           ${{ steps.setup-haskell.outputs.cabal-store }}
     - if: ${{ !steps.cache.outputs.cache-hit }}
@@ -65,7 +65,7 @@ jobs:
         cabal-ver:
         - '3.8'
         ghc-ver:
-        - '9.4'
+        - 9.4.4
         os:
         - ubuntu-22.04
 name: Haddock

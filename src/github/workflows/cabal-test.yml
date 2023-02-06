@@ -91,7 +91,7 @@ jobs:
         path: |
           ${{ steps.setup-haskell.outputs.cabal-store }}
         # The file `plan.json` contains the build information.
-        key: ${{ runner.os }}-cabal-test-${{ env.GHC_VER }}-${{ env.CABAL_VER }}-${{ hashFiles('**/plan.json') }}
+        key: cabal-test.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-${{ hashFiles('**/plan.json') }}
 
     - name: Install dependencies
       if: ${{ !steps.cache.outputs.cache-hit }}

@@ -25,8 +25,9 @@ jobs:
         # not for the virtual environments, and also haskell/action/setup
         # is usually not up-to-date.
         os: [ubuntu-22.04]
-        ghc-ver: ['9.4']
+        ghc-ver: ['9.4.4']
         cabal-ver: ['3.8']
+          # Use the versions the come with the virtual environment, if possible.
 
     if: |
       !contains(github.event.head_commit.message, '[skip ci]')
@@ -58,7 +59,7 @@ jobs:
     - name: Configure the build plan
       run: |
         cabal update
-        cabal configure -fenable-cluster-counting --enable-tests --disable-library-profiling
+        cabal configure -fenable-cluster-counting --disable-library-profiling
         cabal build --dry-run
       # cabal build --dry-run creates dist-newstyle/cache/plan.json
       # Keep a watch on this `cabal-3.9 build --dry-run` bug:
@@ -71,7 +72,7 @@ jobs:
         path: |
           ${{ steps.setup-haskell.outputs.cabal-store }}
         # The file `plan.json` contains the build information.
-        key: ${{ runner.os }}-cabal-${{ env.GHC_VER }}-${{ env.CABAL_VER }}-${{ hashFiles('**/plan.json') }}
+        key: haddock.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-${{ hashFiles('**/plan.json') }}
 
     - name: Install dependencies
       if: ${{ !steps.cache.outputs.cache-hit }}

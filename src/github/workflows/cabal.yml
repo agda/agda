@@ -104,8 +104,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-      with:
-        submodules: recursive
 
     - uses: haskell/actions/setup@v2
       id: setup-haskell
