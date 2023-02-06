@@ -22,30 +22,19 @@ jobs:
       run:
         shell: bash
     env:
-      EXTRA_ARGS: --fast
-      ICU_URL: https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-icu-69.1-1-any.pkg.tar.zst
-      ICU_VER: '69.1'
+      EXTRA_ARGS: --dry-run
       NON_DEFAULT_FLAGS: --flag Agda:enable-cluster-counting --flag Agda:cpphs --flag
         Agda:debug
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
-    - if: ${{ runner.os == 'macOS' }}
-      name: Set up for the ICU library (macOS)
-      run: |
-        export ICU4C="$(brew --prefix)/opt/icu4c"
-        echo "PKG_CONFIG_PATH=${ICU4C}/lib/pkgconfig" >> "${GITHUB_ENV}"
-        echo "${ICU4C}/bin" >> "${GITHUB_PATH}"
-    - if: ${{ runner.os != 'Windows' }}
-      name: Determine the ICU version (Linux, macOS)
+    - name: Determine the ICU version
       run: |
         uconv --version
         export ICU_VER="$(uconv --version | sed -ne 's/uconv v.* ICU \([0-9][0-9.]*\)/\1/p')"
         echo "ICU_VER=${ICU_VER}"
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - uses: actions/checkout@v3
-      with:
-        submodules: recursive
     - id: haskell-setup
       uses: haskell/actions/setup@v2
       with:
@@ -70,57 +59,38 @@ jobs:
         export GHC_VER=$(ghc --numeric-version)
         echo "GHC_VER=${GHC_VER}"                                       >> ${GITHUB_ENV}
         echo "ARGS=--stack-yaml=stack-${GHC_VER}.yaml --system-ghc --no-terminal"    >> ${GITHUB_ENV}
-    - if: ${{ runner.os == 'Windows' }}
-      name: Install the icu library (Windows)
-      run: |
-        # stack exec ${ARGS} -- pacman --noconfirm -Syuu
-        stack exec ${ARGS} -- pacman --noconfirm -Sy msys2-keyring
-        stack exec ${ARGS} -- bash -c "curl -LO ${ICU_URL} && pacman --noconfirm -U *.pkg.tar.zst"
-        stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-pkg-config
     - name: Environment (review)
       run: |
         echo "STACK_ROOT (fix)  = ${STACK_ROOT}"
         echo "STACK_VER         = ${STACK_VER}"
         echo "GHC_VER           = ${GHC_VER}"
         echo "ICU_VER           = ${ICU_VER}"
-    - id: cache
-      name: Restore cache from approximate key
-      uses: actions/cache@v3
-      with:
-        key: stack.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER
-          }}-icu-${{ env.ICU_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER))
-          }}
-        path: |
-          ${{ env.STACK_ROOT }}
-        restore-keys: stack.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-stack-${{
-          env.STACK_VER }}-icu-${{ env.ICU_VER }}-
-    - name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
-      run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
-    - name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests`
-        (i.e. the test suite).
-      run: stack build ${ARGS} ${EXTRA_ARGS} --work-dir=.stack-work-fast --test --no-run-tests
-    - name: Build Agda with the non-default flags Agda.cabal.
+    - name: Stack dry-run with the default flags in Agda.cabal.
+      run: stack build ${ARGS} ${EXTRA_ARGS} --test
+    - name: Stack-dry-run Agda with the non-default flags in Agda.cabal.
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}
     strategy:
       fail-fast: false
       matrix:
         ghc-ver:
-        - 9.4.4
+        - 9.2.5
+        - 9.0.2
+        - 8.10.7
+        - 8.8.4
+        - 8.6.5
         os:
-        - ubuntu-22.04
-        - macos-12
-        - windows-2022
+        - ubuntu-latest
         stack-ver:
-        - 2.9.3
-    timeout-minutes: 60
-name: Build (stack)
+        - latest
+    timeout-minutes: 10
+name: Stack check snapshots
 'on':
   pull_request:
     paths:
-    - .github/workflows/stack.yml
+    - .github/workflows/stack-dry-run.yml
     - Agda.cabal
     - Setup.hs
-    - stack*.yaml
+    - stack-*.yaml
     - src/size-solver/size-solver.cabal
   push:
     branches:
@@ -128,9 +98,9 @@ name: Build (stack)
     - ci-*
     - release*
     paths:
-    - .github/workflows/stack.yml
+    - .github/workflows/stack-dry-run.yml
     - Agda.cabal
     - Setup.hs
-    - stack*.yaml
+    - stack-*.yaml
     - src/size-solver/size-solver.cabal
   workflow_dispatch: null
