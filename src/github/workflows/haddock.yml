@@ -37,6 +37,12 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    env:
+      FLAGS: -fenable-cluster-counting --disable-library-profiling --enable-documentation
+      # --enable-documentation build documentation for the dependencies too
+      # This is default in cabal-3.8.1.0 (not in 3.6.2.0).
+      # Could be turned off with --disable-documentation.
+
     steps:
     - uses: actions/checkout@v3
 
@@ -59,7 +65,7 @@ jobs:
     - name: Configure the build plan
       run: |
         cabal update
-        cabal configure -fenable-cluster-counting --disable-library-profiling
+        cabal configure ${FLAGS}
         cabal build --dry-run
       # cabal build --dry-run creates dist-newstyle/cache/plan.json
       # Keep a watch on this `cabal-3.9 build --dry-run` bug:
@@ -73,11 +79,14 @@ jobs:
           ${{ steps.setup-haskell.outputs.cabal-store }}
         # The file `plan.json` contains the build information.
         key: haddock.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-${{ hashFiles('**/plan.json') }}
+        restore-keys: |
+             haddock.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-
 
     - name: Install dependencies
       if: ${{ !steps.cache.outputs.cache-hit }}
       run: |
-        cabal build --dependencies-only --force-reinstalls
+        cabal build --dependencies-only
+      # cabal build --dependencies-only --force-reinstalls
       # Andreas, 2023-01-31: do we need --force-reinstalls ?  What is its significance?
 
     # Testing Haddock [Issue 1773]

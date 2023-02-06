@@ -7,6 +7,8 @@
 ######################################################
 jobs:
   build:
+    env:
+      FLAGS: -fenable-cluster-counting --disable-library-profiling --enable-documentation
     if: |
       !contains(github.event.head_commit.message, '[skip ci]')
       && !contains(github.event.head_commit.message, '[ci skip]')
@@ -31,7 +33,7 @@ jobs:
     - name: Configure the build plan
       run: |
         cabal update
-        cabal configure -fenable-cluster-counting --disable-library-profiling
+        cabal configure ${FLAGS}
         cabal build --dry-run
     - id: cache
       name: Cache dependencies
@@ -41,10 +43,12 @@ jobs:
           }}-${{ hashFiles('**/plan.json') }}
         path: |
           ${{ steps.setup-haskell.outputs.cabal-store }}
+        restore-keys: |
+          haddock.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-
     - if: ${{ !steps.cache.outputs.cache-hit }}
       name: Install dependencies
       run: |
-        cabal build --dependencies-only --force-reinstalls
+        cabal build --dependencies-only
     - name: Build Haddock
       run: |
         cabal haddock --haddock-html-location='https://hackage.haskell.org/package/$pkg-$version/docs' --haddock-hyperlink-source --haddock-quickjump

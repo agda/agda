@@ -53,6 +53,8 @@ jobs:
           }}-${{ hashFiles('**/plan.json') }}
         path: |
           ${{ steps.setup-haskell.outputs.cabal-store }}
+        restore-keys: |
+          cabal-install.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-
     - if: ${{ !steps.cache.outputs.cache-hit }}
       name: Install dependencies
       run: |
