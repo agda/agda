@@ -158,6 +158,7 @@ instance CheckInternal Term where
           Lam ai . Abs (absName vb) <$> checkInternal' action (absBody vb) cmp (absBody b)
       Pi a b     -> do
         s <- shouldBeSort t
+        reportSDoc "tc.check.internal" 30 $ "pi type should have sort" <+> prettyTCM s
         when (s == SizeUniv) $ typeError $ FunctionTypeInSizeUniv v
         let sa  = getSort a
             sb  = getSort (unAbs b)
@@ -245,7 +246,9 @@ checkModality action mod mod' = do
 
 -- | Infer type of a neutral term.
 infer :: (MonadCheckInternal m) => Term -> m Type
-infer = \case
+infer u = do
+  reportSDoc "tc.check.internal" 20 $ "CheckInternal.infer" <+> prettyTCM u
+  case u of
     Var i es -> do
       a <- typeOfBV i
       fst <$> inferSpine defaultAction a (Var i) es
@@ -279,9 +282,9 @@ inferSpine action t hd es = loop t hd id es
       let self = hd []
       reportSDoc "tc.check.internal" 30 $ sep
         [ "inferring spine: "
-        , "type t = " <+> pretty t
-        , "self  = " <+> pretty self
-        , "eliminated by e = " <+> pretty e
+        , "type t = " <+> prettyTCM t
+        , "self  = " <+> prettyTCM self
+        , "eliminated by e = " <+> prettyTCM e
         ]
       case e of
         IApply x y r -> do
