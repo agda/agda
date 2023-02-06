@@ -34,6 +34,7 @@ import Agda.TypeChecking.Telescope
 
 
 import Agda.Utils.Functor (($>))
+import Agda.Utils.Maybe
 import Agda.Utils.Pretty  (prettyShow)
 import Agda.Utils.Size
 
@@ -249,14 +250,18 @@ infer = \case
       a <- typeOfBV i
       fst <$> inferSpine defaultAction a (Var i) es
     Def f es -> do
+      whenJustM (isRelevantProjection f) $ \_ -> nonInferable
       a <- defType <$> getConstInfo f
       fst <$> inferSpine defaultAction a (Def f) es
     MetaV x es -> do -- we assume meta instantiations to be well-typed
       a <- metaType x
       fst <$> inferSpine defaultAction a (MetaV x) es
-    v -> __IMPOSSIBLE_VERBOSE__ $ unlines
+    _ -> nonInferable
+  where
+    nonInferable :: MonadDebug m => m a
+    nonInferable = __IMPOSSIBLE_VERBOSE__ $ unlines
       [ "CheckInternal.infer: non-inferable term:"
-      , "  " ++ prettyShow v
+      , "  " ++ prettyShow u
       ]
 
 instance CheckInternal Elims where
