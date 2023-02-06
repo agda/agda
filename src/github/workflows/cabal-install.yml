@@ -1,0 +1,100 @@
+# This workflow tests whether we can build Agda from the sdist tarball.
+
+name: Install (v2-cabal)
+
+on:
+  push:
+    branches:
+    - master
+    - ci-*
+    - release*
+    paths: &trigger_path_list
+    - '.github/workflows/cabal-install.yml'
+    - 'Agda.cabal'
+    - 'Setup.hs'
+    - 'src/full/**'
+    - 'src/main/**'
+  pull_request:
+    paths: *trigger_path_list
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  auto-cancel:
+    if: |
+      !contains(github.event.head_commit.message, '[skip ci]')
+      && !contains(github.event.head_commit.message, '[ci skip]')
+      && !contains(github.event.head_commit.message, '[github skip]')
+      && !contains(github.event.head_commit.message, '[skip github]')
+    runs-on: Ubuntu-latest # Required, but it can be anything here.
+
+    steps:
+    - uses: styfle/cancel-workflow-action@0.11.0
+      with:
+        access_token: ${{ github.token }}
+
+  cabal-install:
+    needs: auto-cancel
+
+    timeout-minutes: 60
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-22.04
+        ghc-ver: ['9.4.4']
+        cabal-ver: ['3.8']
+          # Use the versions preinstalled in the virtual environment, if possible.
+
+    env:
+      FLAGS: "-O0 -f enable-cluster-counting"
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: haskell/actions/setup@v2
+      id: setup-haskell
+      with:
+        ghc-version: ${{ matrix.ghc-ver }}
+        cabal-version: ${{ matrix.cabal-ver }}
+
+    - name: Environment settings based on the Haskell setup
+      run: |
+        export GHC_VER=$(ghc --numeric-version)
+        export CABAL_VER=$(cabal --numeric-version)
+        echo "GHC_VER   = ${GHC_VER}"
+        echo "CABAL_VER = ${CABAL_VER}"
+        echo "GHC_VER=${GHC_VER}"       >> ${GITHUB_ENV}
+        echo "CABAL_VER=${CABAL_VER}"   >> ${GITHUB_ENV}
+      # From now on, use env.{GHC|CABAL}_VER rather than matrix.{ghc|cabal}-ver!
+
+    - name: Configure the build plan
+      run: |
+        cabal update
+        cabal configure ${FLAGS}
+        cabal build --dry-run
+      # cabal build --dry-run creates dist-newstyle/cache/plan.json
+      # Keep a watch on this `cabal-3.9 build --dry-run` bug:
+      # https://github.com/haskell/cabal/issues/8706
+
+    - uses: actions/cache@v3
+      name: Cache dependencies
+      id: cache
+      with:
+        path: |
+          ${{ steps.setup-haskell.outputs.cabal-store }}
+        # The file `plan.json` contains the build information.
+        key: cabal-install.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-${{ hashFiles('**/plan.json') }}
+
+    - name: Install dependencies
+      if: ${{ !steps.cache.outputs.cache-hit }}
+      run: |
+        cabal build --only-dependencies
+
+    - name: Install Agda
+      run: |
+        cabal install ${FLAGS}

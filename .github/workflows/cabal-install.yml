@@ -20,13 +20,13 @@ jobs:
     - uses: styfle/cancel-workflow-action@0.11.0
       with:
         access_token: ${{ github.token }}
-  cabal:
+  cabal-install:
+    env:
+      FLAGS: -O0 -f enable-cluster-counting
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
-      with:
-        submodules: recursive
     - id: setup-haskell
       uses: haskell/actions/setup@v2
       with:
@@ -43,58 +43,50 @@ jobs:
     - name: Configure the build plan
       run: |
         cabal update
-        cabal configure -O1 --enable-tests
+        cabal configure ${FLAGS}
         cabal build --dry-run
     - id: cache
       name: Cache dependencies
       uses: actions/cache@v3
       with:
-        key: cabal-test.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
+        key: cabal-install.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
           }}-${{ hashFiles('**/plan.json') }}
         path: |
           ${{ steps.setup-haskell.outputs.cabal-store }}
     - if: ${{ !steps.cache.outputs.cache-hit }}
       name: Install dependencies
       run: |
-        cabal build --only-dependencies --enable-tests
+        cabal build --only-dependencies
     - name: Install Agda
       run: |
-        mkdir -p ${HOME}/bin
-        cabal install --installdir=${HOME}/bin
-    - name: Build and test Agda
-      run: |
-        export PATH=${HOME}/bin:${PATH}
-        cabal test
+        cabal install ${FLAGS}
     strategy:
       fail-fast: false
       matrix:
         cabal-ver:
         - '3.8'
         ghc-ver:
-        - '9.4'
+        - 9.4.4
         os:
         - ubuntu-22.04
-        - macos-12
-    timeout-minutes: 150
-name: cabal-test
+    timeout-minutes: 60
+name: Install (v2-cabal)
 'on':
   pull_request:
     paths:
-    - .github/workflows/cabal-test.yml
+    - .github/workflows/cabal-install.yml
     - Agda.cabal
     - Setup.hs
     - src/full/**
     - src/main/**
-    - test/**.hs
   push:
     branches:
     - master
     - ci-*
     - release*
     paths:
-    - .github/workflows/cabal-test.yml
+    - .github/workflows/cabal-install.yml
     - Agda.cabal
     - Setup.hs
     - src/full/**
     - src/main/**
-    - test/**.hs
