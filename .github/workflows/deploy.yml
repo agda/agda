@@ -29,25 +29,6 @@ jobs:
       sha: ${{ steps.vars.outputs.sha }}
     runs-on: ${{ matrix.os }}
     steps:
-    - if: ${{ runner.os == 'macOS' }}
-      name: Set up for the ICU library (macOS)
-      run: |
-        ICU4C="$(brew --prefix)/opt/icu4c"
-        echo "${ICU4C}/bin" >> "${GITHUB_PATH}"
-        ICU_DIR="${ICU4C}/lib"
-        echo "ICU_DIR=${ICU_DIR}"
-        echo "ICU_DIR=${ICU_DIR}" >> "${GITHUB_ENV}"
-        echo "PKG_CONFIG_PATH=${ICU_DIR}/pkgconfig" >> "${GITHUB_ENV}"
-    - if: ${{ runner.os != 'Windows' }}
-      name: Determine the ICU version (Linux, macOS)
-      run: |
-        uconv --version
-        ICU_VER="$(uconv --version | sed -ne 's/uconv v.* ICU \([0-9][0-9.]*\)/\1/p')"
-        echo "ICU_VER=${ICU_VER}"
-        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
-        ICU_MAJOR_VER="$(cut -d '.' -f 1 <<< ${ICU_VER})"
-        echo "ICU_MAJOR_VER=${ICU_MAJOR_VER}"
-        echo "ICU_MAJOR_VER=${ICU_MAJOR_VER}" >> "${GITHUB_ENV}"
     - name: Check out the master branch
       uses: actions/checkout@v3
     - id: vars
@@ -99,19 +80,53 @@ jobs:
       with:
         cabal-version: ${{ matrix.cabal-ver }}
         ghc-version: ${{ matrix.ghc-ver }}
-    - if: ${{ runner.os == 'Windows' }}
-      name: Setup MSYS path (Windows)
+    - name: Environment settings based on the Haskell setup
       run: |
-        echo "C:\msys64\mingw64\bin;C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
-      shell: pwsh
+        GHC_VER=$(ghc --numeric-version)
+        CABAL_VER=$(cabal --numeric-version)
+        echo "GHC_VER   = ${GHC_VER}"
+        echo "CABAL_VER = ${CABAL_VER}"
+        echo "GHC_VER=${GHC_VER}"       >> "${GITHUB_ENV}"
+        echo "CABAL_VER=${CABAL_VER}"   >> "${GITHUB_ENV}"
     - if: ${{ runner.os == 'Windows' }}
-      name: Install the icu4c library (Windows)
+      name: Install the ICU library (Windows)
       run: |
+        $env:PATH = "C:\msys64\usr\bin;$env:PATH"
         pacman -v --noconfirm -Sy mingw-w64-x86_64-pkg-config mingw-w64-x86_64-icu
+        echo "C:\msys64\mingw64\bin" | Out-File -FilePath "$env:GITHUB_PATH" -Append
+      shell: pwsh
+    - if: ${{ runner.os == 'macOS' }}
+      name: Set up for the ICU library (macOS)
+      run: |
+        ICU4C=$(brew --prefix)/opt/icu4c
+        # echo "${ICU4C}/bin" >> "${GITHUB_PATH}" ## Only needed for uconv
+        ICU_DIR=${ICU4C}/lib
+        echo "ICU_DIR=${ICU_DIR}"
+        echo "ICU_DIR=${ICU_DIR}" >> "${GITHUB_ENV}"
+        echo "PKG_CONFIG_PATH=${ICU_DIR}/pkgconfig" >> "${GITHUB_ENV}"
+    - name: Determine the ICU version
+      run: |
+        ICU_VER=$(pkg-config --modversion icu-i18n)
+        echo "ICU_VER=${ICU_VER}"
+        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
+        ICU_MAJOR_VER=$(cut -d '.' -f 1 <<< "${ICU_VER}")
+        echo "ICU_MAJOR_VER=${ICU_MAJOR_VER}"
+        echo "ICU_MAJOR_VER=${ICU_MAJOR_VER}" >> "${GITHUB_ENV}"
     - name: Configure the build plan
       run: |
         cabal configure ${{ steps.vars.outputs.args }}
-    - name: Build dependencies
+        cabal build --dry-run
+    - id: cache
+      name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        key: deploy.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
+          }}-${{ hashFiles('**/plan.json') }}
+        path: ${{ steps.setup-haskell.outputs.cabal-store }}
+        restore-keys: deploy.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{
+          env.CABAL_VER }}-
+    - if: ${{ !steps.cache.outputs.cache-hit }}
+      name: Build dependencies
       run: cabal build exe:agda exe:agda-mode --only-dependencies
     - name: Build Agda
       run: cabal build exe:agda exe:agda-mode
@@ -190,7 +205,6 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
     - uses: actions/download-artifact@v3
       with:
         path: artifacts
