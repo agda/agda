@@ -15,7 +15,7 @@ jobs:
       && !contains(github.event.head_commit.message, '[ci skip]')
       && !contains(github.event.head_commit.message, '[github skip]')
       && !contains(github.event.head_commit.message, '[skip github]')
-    runs-on: Ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
     - uses: styfle/cancel-workflow-action@0.11.0
       with:
@@ -24,14 +24,9 @@ jobs:
     env:
       FLAGS: -O0 -f enable-cluster-counting
     needs: auto-cancel
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - id: setup-haskell
-      uses: haskell/actions/setup@v2
-      with:
-        cabal-version: ${{ matrix.cabal-ver }}
-        ghc-version: ${{ matrix.ghc-ver }}
     - name: Environment settings based on the Haskell setup
       run: |
         export GHC_VER=$(ghc --numeric-version)
@@ -51,10 +46,9 @@ jobs:
       with:
         key: cabal-install.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
           }}-${{ hashFiles('**/plan.json') }}
-        path: |
-          ${{ steps.setup-haskell.outputs.cabal-store }}
-        restore-keys: |
-          cabal-install.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-
+        path: ~/.cabal/store
+        restore-keys: cabal-install.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{
+          env.CABAL_VER }}-
     - if: ${{ !steps.cache.outputs.cache-hit }}
       name: Install dependencies
       run: |
@@ -62,15 +56,6 @@ jobs:
     - name: Install Agda
       run: |
         cabal install ${FLAGS}
-    strategy:
-      fail-fast: false
-      matrix:
-        cabal-ver:
-        - '3.8'
-        ghc-ver:
-        - 9.4.4
-        os:
-        - ubuntu-22.04
     timeout-minutes: 60
 name: Install (v2-cabal)
 'on':
