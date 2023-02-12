@@ -24,7 +24,6 @@ jobs:
     env:
       EXTRA_ARGS: --fast
       ICU_URL: https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-icu-69.1-1-any.pkg.tar.zst
-      ICU_VER: '69.1'
       NON_DEFAULT_FLAGS: --flag Agda:enable-cluster-counting --flag Agda:cpphs --flag
         Agda:debug
     needs: auto-cancel
@@ -33,16 +32,8 @@ jobs:
     - if: ${{ runner.os == 'macOS' }}
       name: Set up for the ICU library (macOS)
       run: |
-        export ICU4C="$(brew --prefix)/opt/icu4c"
+        ICU4C=$(brew --prefix)/opt/icu4c
         echo "PKG_CONFIG_PATH=${ICU4C}/lib/pkgconfig" >> "${GITHUB_ENV}"
-        echo "${ICU4C}/bin" >> "${GITHUB_PATH}"
-    - if: ${{ runner.os != 'Windows' }}
-      name: Determine the ICU version (Linux, macOS)
-      run: |
-        uconv --version
-        export ICU_VER="$(uconv --version | sed -ne 's/uconv v.* ICU \([0-9][0-9.]*\)/\1/p')"
-        echo "ICU_VER=${ICU_VER}"
-        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - uses: actions/checkout@v3
     - id: haskell-setup
       uses: haskell/actions/setup@v2
@@ -75,6 +66,11 @@ jobs:
         stack exec ${ARGS} -- pacman --noconfirm -Sy msys2-keyring
         stack exec ${ARGS} -- bash -c "curl -LO ${ICU_URL} && pacman --noconfirm -U *.pkg.tar.zst"
         stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-pkg-config
+    - name: Determine the ICU version
+      run: |
+        ICU_VER=$(stack exec ${ARGS} -- pkg-config --modversion icu-i18n)
+        echo "ICU_VER=${ICU_VER}"
+        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - name: Environment (review)
       run: |
         echo "STACK_ROOT (fix)  = ${STACK_ROOT}"

@@ -38,8 +38,7 @@ jobs:
       run: cp stack-${{ env.GHC_VER }}.yaml stack.yaml
     - name: Determine the ICU version
       run: |
-        uconv --version
-        export ICU_VER="$(uconv --version | sed -ne 's/uconv v.* ICU \([0-9][0-9.]*\)/\1/p')"
+        ICU_VER=$(pkg-config --modversion icu-i18n)
         echo "ICU_VER=${ICU_VER}"
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
@@ -102,8 +101,7 @@ jobs:
         tar --use-compress-program zstd -xvf stack-work.tzst
     - name: Determine the ICU version
       run: |
-        uconv --version
-        export ICU_VER="$(uconv --version | sed -ne 's/uconv v.* ICU \([0-9][0-9.]*\)/\1/p')"
+        ICU_VER=$(pkg-config --modversion icu-i18n)
         echo "ICU_VER=${ICU_VER}"
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
@@ -139,8 +137,7 @@ jobs:
         tar --use-compress-program zstd -xvf stack-work.tzst
     - name: Determine the ICU version
       run: |
-        uconv --version
-        export ICU_VER="$(uconv --version | sed -ne 's/uconv v.* ICU \([0-9][0-9.]*\)/\1/p')"
+        ICU_VER=$(pkg-config --modversion icu-i18n)
         echo "ICU_VER=${ICU_VER}"
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
@@ -183,8 +180,7 @@ jobs:
         tar --use-compress-program zstd -xvf stack-work.tzst
     - name: Determine the ICU version
       run: |
-        uconv --version
-        export ICU_VER="$(uconv --version | sed -ne 's/uconv v.* ICU \([0-9][0-9.]*\)/\1/p')"
+        ICU_VER=$(pkg-config --modversion icu-i18n)
         echo "ICU_VER=${ICU_VER}"
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
@@ -228,8 +224,7 @@ jobs:
         tar --use-compress-program zstd -xvf stack-work.tzst
     - name: Determine the ICU version
       run: |
-        uconv --version
-        export ICU_VER="$(uconv --version | sed -ne 's/uconv v.* ICU \([0-9][0-9.]*\)/\1/p')"
+        ICU_VER=$(pkg-config --modversion icu-i18n)
         echo "ICU_VER=${ICU_VER}"
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
