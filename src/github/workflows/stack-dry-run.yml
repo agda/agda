@@ -64,13 +64,19 @@ jobs:
 
     steps:
 
-    - name: Determine the ICU version
+    # - name: Determine the ICU version
+    #   run: |
+    #     uconv --version
+    #     ICU_VER="$(uconv --version | sed -ne 's/uconv v.* ICU \([0-9][0-9.]*\)/\1/p')"
+    #     echo "ICU_VER=${ICU_VER}"
+    #     echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
+    #   # The output of unconv --version looks like "uconv v2.1  ICU 72.1" from which we extract "72.1"
+
+    - name: Get the ICU version from pkg-config
       run: |
-        uconv --version
-        export ICU_VER="$(uconv --version | sed -ne 's/uconv v.* ICU \([0-9][0-9.]*\)/\1/p')"
+        ICU_VER=$(pkg-config --modversion icu-i18n)
         echo "ICU_VER=${ICU_VER}"
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
-      # The output of unconv --version looks like "uconv v2.1  ICU 72.1" from which we extract "72.1"
 
     # Checkout is needed before the first call to stack exec ${ARGS}
     # because it provides the stack-*.yaml file.
@@ -96,11 +102,11 @@ jobs:
         echo "stack-exe         = ${{ steps.haskell-setup.outputs.stack-exe   }}"
         echo "stack-root        = ${{ steps.haskell-setup.outputs.stack-root  }}"
         echo "STACK_ROOT (orig) = ${{ env.STACK_ROOT                          }}"
-        echo "STACK_ROOT=${{ steps.haskell-setup.outputs.stack-root }}" >> ${GITHUB_ENV}
-        echo "STACK_VER=$(stack --numeric-version)"                     >> ${GITHUB_ENV}
-        export GHC_VER=$(ghc --numeric-version)
-        echo "GHC_VER=${GHC_VER}"                                       >> ${GITHUB_ENV}
-        echo "ARGS=--stack-yaml=stack-${GHC_VER}.yaml --system-ghc --no-terminal"    >> ${GITHUB_ENV}
+        echo "STACK_ROOT=${{ steps.haskell-setup.outputs.stack-root }}" >> "${GITHUB_ENV}"
+        echo "STACK_VER=$(stack --numeric-version)"                     >> "${GITHUB_ENV}"
+        GHC_VER=$(ghc --numeric-version)
+        echo "GHC_VER=${GHC_VER}"                                       >> "${GITHUB_ENV}"
+        echo "ARGS=--stack-yaml=stack-${GHC_VER}.yaml --system-ghc --no-terminal"    >> "${GITHUB_ENV}"
     # From now on, use env.GHC_VER rather than matrix.ghc-ver
 
     - name: Environment (review)

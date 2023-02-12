@@ -113,37 +113,45 @@ jobs:
 
     - name: Environment settings based on the Haskell setup
       run: |
-        export GHC_VER=$(ghc --numeric-version)
-        export CABAL_VER=$(cabal --numeric-version)
+        GHC_VER=$(ghc --numeric-version)
+        CABAL_VER=$(cabal --numeric-version)
         echo "GHC_VER   = ${GHC_VER}"
         echo "CABAL_VER = ${CABAL_VER}"
-        echo "GHC_VER=${GHC_VER}"       >> ${GITHUB_ENV}
-        echo "CABAL_VER=${CABAL_VER}"   >> ${GITHUB_ENV}
+        echo "GHC_VER=${GHC_VER}"       >> "${GITHUB_ENV}"
+        echo "CABAL_VER=${CABAL_VER}"   >> "${GITHUB_ENV}"
       # From now on, env.{GHC|CABAL}_VER are the precise versions.
 
-    # from: https://github.com/haskell/text-icu/blob/c73d7fe6f29e178d3ea40160e904ab39236e3c9d/.github/workflows/cabal-mac-win.yml#L29-L32
-    - name: Setup MSYS path (Windows)
+    # See: https://github.com/haskell/text-icu/pull/86
+    # pacman needs MSYS /usr/bin in PATH, but this breaks the latest cache action.
+    # -  https://github.com/actions/cache/issues/1073
+    # MSYS' pkg-config needs MSYS /mingw64/bin which we can safely add to the PATH
+    #
+    - name: Install the ICU library (Windows)
       if: ${{ runner.os == 'Windows' }}
       shell: pwsh
       run: |
-        echo "C:\msys64\mingw64\bin;C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
-
-    - name: Install the ICU library (Windows)
-      if: ${{ runner.os == 'Windows' }}
-      run: |
+        $env:PATH = "C:\msys64\usr\bin;$env:PATH"
         pacman --noconfirm -Sy msys2-keyring mingw-w64-x86_64-pkg-config mingw-w64-x86_64-icu
+        echo "C:\msys64\mingw64\bin" | Out-File -FilePath "$env:GITHUB_PATH" -Append
 
     - name: Set up pkg-config for the ICU library (macOS)
       if: ${{ runner.os == 'macOS' }}
       run: |
-        export PKG_CONFIG_PATH=$(brew --prefix)/opt/icu4c/lib/pkgconfig
-        echo "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}" >> ${GITHUB_ENV}
-        # print some information to debug pkg-config
-        echo "$ export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}"
-        echo "$ ls -l ${PKG_CONFIG_PATH}"
-        ls -l ${PKG_CONFIG_PATH}
-        echo "$ pkg-config --modversion icu-i18n"
-        pkg-config --modversion icu-i18n
+        PKG_CONFIG_PATH=$(brew --prefix)/opt/icu4c/lib/pkgconfig
+        echo "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}" >> "${GITHUB_ENV}"
+        # # print some information to debug pkg-config
+        # echo "$ export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}"
+        # echo "$ ls -l ${PKG_CONFIG_PATH}"
+        # ls -l "${PKG_CONFIG_PATH}"
+        # export PKG_CONFIG_PATH
+        # echo "$ pkg-config --modversion icu-i18n"
+        # pkg-config --modversion icu-i18n
+
+    - name: Determine the ICU version
+      run: |
+        ICU_VER=$(pkg-config --modversion icu-i18n)
+        echo "ICU_VER=${ICU_VER}"
+        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
 
     - name: Configure the build plan
       run: |
