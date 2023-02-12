@@ -24,12 +24,12 @@ jobs:
         ghc-version: ${{ matrix.ghc-ver }}
     - name: Environment settings based on the Haskell setup
       run: |
-        export GHC_VER=$(ghc --numeric-version)
-        export CABAL_VER=$(cabal --numeric-version)
+        GHC_VER=$(ghc --numeric-version)
+        CABAL_VER=$(cabal --numeric-version)
         echo "GHC_VER    = ${GHC_VER}"
         echo "CABLAL_VER = ${CABAL_VER}"
-        echo "GHC_VER=${GHC_VER}"         >> ${GITHUB_ENV}
-        echo "CABAL_VER=${CABAL_VER}"     >> ${GITHUB_ENV}
+        echo "GHC_VER=${GHC_VER}"         >> "${GITHUB_ENV}"
+        echo "CABAL_VER=${CABAL_VER}"     >> "${GITHUB_ENV}"
     - name: Configure the build plan
       run: |
         cabal update
@@ -55,6 +55,7 @@ jobs:
     - name: Prepare to upload built htmls
       run: |
         find dist-newstyle -path '*/doc/html/Agda' -type d -exec cp -R {} html \;
+        find html -name '*.md' -delete
         ls -R html
     - if: github.ref == 'refs/heads/master'
       name: Deploy haddock
