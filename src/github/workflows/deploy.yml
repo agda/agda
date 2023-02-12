@@ -55,28 +55,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
 
-    - name: Set up for the ICU library (macOS)
-      if: ${{ runner.os == 'macOS' }}
-      run: |
-        ICU4C="$(brew --prefix)/opt/icu4c"
-        echo "${ICU4C}/bin" >> "${GITHUB_PATH}"
-        ICU_DIR="${ICU4C}/lib"
-        echo "ICU_DIR=${ICU_DIR}"
-        echo "ICU_DIR=${ICU_DIR}" >> "${GITHUB_ENV}"
-        echo "PKG_CONFIG_PATH=${ICU_DIR}/pkgconfig" >> "${GITHUB_ENV}"
-
-    - name: Determine the ICU version (Linux, macOS)
-      if: ${{ runner.os != 'Windows' }}
-      run: |
-        uconv --version
-        ICU_VER="$(uconv --version | sed -ne 's/uconv v.* ICU \([0-9][0-9.]*\)/\1/p')"
-        echo "ICU_VER=${ICU_VER}"
-        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
-        ICU_MAJOR_VER="$(cut -d '.' -f 1 <<< ${ICU_VER})"
-        echo "ICU_MAJOR_VER=${ICU_MAJOR_VER}"
-        echo "ICU_MAJOR_VER=${ICU_MAJOR_VER}" >> "${GITHUB_ENV}"
-      # The output of unconv --version looks like "uconv v2.1  ICU 72.1" from which we extract "72.1"
-
     - name: Check out the master branch
       uses: actions/checkout@v3
 
@@ -132,17 +110,28 @@ jobs:
         ghc-version: ${{ matrix.ghc-ver }}
         cabal-version: ${{ matrix.cabal-ver }}
 
-    # from: https://github.com/haskell/text-icu/blob/c73d7fe6f29e178d3ea40160e904ab39236e3c9d/.github/workflows/cabal-mac-win.yml#L29-L32
-    - name: Setup MSYS path (Windows)
+    - name: Environment settings based on the Haskell setup
+      run: |
+        GHC_VER=$(ghc --numeric-version)
+        CABAL_VER=$(cabal --numeric-version)
+        echo "GHC_VER   = ${GHC_VER}"
+        echo "CABAL_VER = ${CABAL_VER}"
+        echo "GHC_VER=${GHC_VER}"       >> "${GITHUB_ENV}"
+        echo "CABAL_VER=${CABAL_VER}"   >> "${GITHUB_ENV}"
+      # From now on, env.{GHC|CABAL}_VER are the precise versions.
+
+    # See: https://github.com/haskell/text-icu/pull/86
+    # pacman needs MSYS /usr/bin in PATH, but this breaks the latest cache action.
+    # -  https://github.com/actions/cache/issues/1073
+    # MSYS' pkg-config needs MSYS /mingw64/bin which we can safely add to the PATH
+    #
+    - name: Install the ICU library (Windows)
       if: ${{ runner.os == 'Windows' }}
       shell: pwsh
       run: |
-        echo "C:\msys64\mingw64\bin;C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
-
-    - name: Install the icu4c library (Windows)
-      if: ${{ runner.os == 'Windows' }}
-      run: |
+        $env:PATH = "C:\msys64\usr\bin;$env:PATH"
         pacman -v --noconfirm -Sy mingw-w64-x86_64-pkg-config mingw-w64-x86_64-icu
+        echo "C:\msys64\mingw64\bin" | Out-File -FilePath "$env:GITHUB_PATH" -Append
 
       ## Old method:
       # env:
@@ -156,23 +145,44 @@ jobs:
 
       #   cabal user-config update --augment="extra-lib-dirs: $(cygpath -w ${ICU_DIR})" --augment="extra-include-dirs: $(cygpath -w ${ICU_DIR}/include)"
 
+    - name: Set up for the ICU library (macOS)
+      if: ${{ runner.os == 'macOS' }}
+      run: |
+        ICU4C=$(brew --prefix)/opt/icu4c
+        # echo "${ICU4C}/bin" >> "${GITHUB_PATH}" ## Only needed for uconv
+        ICU_DIR=${ICU4C}/lib
+        echo "ICU_DIR=${ICU_DIR}"
+        echo "ICU_DIR=${ICU_DIR}" >> "${GITHUB_ENV}"
+        echo "PKG_CONFIG_PATH=${ICU_DIR}/pkgconfig" >> "${GITHUB_ENV}"
+
+    - name: Determine the ICU version
+      run: |
+        ICU_VER=$(pkg-config --modversion icu-i18n)
+        echo "ICU_VER=${ICU_VER}"
+        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
+        ICU_MAJOR_VER=$(cut -d '.' -f 1 <<< "${ICU_VER}")
+        echo "ICU_MAJOR_VER=${ICU_MAJOR_VER}"
+        echo "ICU_MAJOR_VER=${ICU_MAJOR_VER}" >> "${GITHUB_ENV}"
+      # The output of unconv --version looks like "uconv v2.1  ICU 72.1" from which we extract "72.1"
+
     - name: Configure the build plan
       run: |
         cabal configure ${{ steps.vars.outputs.args }}
+        cabal build --dry-run
+      # cabal build --dry-run creates dist-newstyle/cache/plan.json
+      # Keep a watch on this `cabal-3.9 build --dry-run` bug:
+      # https://github.com/haskell/cabal/issues/8706
 
-      # Caching is disabled...
-        #    - uses: actions/cache@v3
-        #      name: Cache dependencies
-        #      id: cache
-        #      with:
-        #        path: |
-        #          ${{ steps.setup-haskell.outputs.cabal-store }}
-        #        # A unique cache is used for each stack.yaml.
-        #        key: nightly-${{ runner.os }}-ghc-${{ matrix.ghc-ver }}-cabal-${{ hashFiles('**/plan.json') }}
-        #
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      id: cache
+      with:
+        path: ${{ steps.setup-haskell.outputs.cabal-store }}
+        key:          deploy.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-${{ hashFiles('**/plan.json') }}
+        restore-keys: deploy.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-
+
     - name: Build dependencies
-      # Caching is disabled...
-      # if: ${{ !steps.cache.outputs.cache-hit }}
+      if: ${{ !steps.cache.outputs.cache-hit }}
       run: cabal build exe:agda exe:agda-mode --only-dependencies
 
     - name: Build Agda
@@ -192,7 +202,6 @@ jobs:
     #     command: cabal build exe:agda exe:agda-mode
 
     - name: Move artefacts to ${{ steps.vars.outputs.nightly }}
-      # TODO: Move this part to Makefile
       env:
         DLL: "/c/msys64/mingw64/bin/libicu*.dll"
           ## was /c/icu4c/icu*.dll
@@ -265,10 +274,11 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+
     - uses: actions/download-artifact@v3
       with:
         path: artifacts
+
     - name: Delete the nightly tag if any
       uses: dev-drprasad/delete-tag-and-release@v0.2.0
       with:
@@ -276,6 +286,7 @@ jobs:
         tag_name: 'nightly'
       env:
         GITHUB_TOKEN: ${{ github.token }}
+
     - name: Create a nightly release and upload artifacts as release assets
       env:
         GITHUB_TOKEN: ${{ github.token }}
