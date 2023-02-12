@@ -279,20 +279,9 @@ jobs:
       with:
         path: artifacts
 
-    - name: Delete the nightly tag if any
-      uses: dev-drprasad/delete-tag-and-release@v0.2.0
-      with:
-        delete_release: true
-        tag_name: 'nightly'
-      env:
-        GITHUB_TOKEN: ${{ github.token }}
-
-    - name: Create a nightly release and upload artifacts as release assets
+    - name: Create/replace the nightly release and upload artifacts as release assets
       env:
         GITHUB_TOKEN: ${{ github.token }}
       run: |
-        assets=()
-        for asset in artifacts/**/*; do
-          assets+=("-a" "$asset")
-        done
-        hub release create "${assets[@]}" -m "Nightly Build (${{ needs.build.outputs.sha }}@master)" 'nightly'
+        gh release delete 'nightly' --repo agda/agda --cleanup-tag --yes || true
+        gh release create 'nightly' artifacts/* --repo agda/agda --generate-notes --title "Nightly Build (${{ needs.build.outputs.sha }}@master)"
