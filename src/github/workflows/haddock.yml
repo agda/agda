@@ -54,12 +54,12 @@ jobs:
 
     - name: Environment settings based on the Haskell setup
       run: |
-        export GHC_VER=$(ghc --numeric-version)
-        export CABAL_VER=$(cabal --numeric-version)
+        GHC_VER=$(ghc --numeric-version)
+        CABAL_VER=$(cabal --numeric-version)
         echo "GHC_VER    = ${GHC_VER}"
         echo "CABLAL_VER = ${CABAL_VER}"
-        echo "GHC_VER=${GHC_VER}"         >> ${GITHUB_ENV}
-        echo "CABAL_VER=${CABAL_VER}"     >> ${GITHUB_ENV}
+        echo "GHC_VER=${GHC_VER}"         >> "${GITHUB_ENV}"
+        echo "CABAL_VER=${CABAL_VER}"     >> "${GITHUB_ENV}"
       # From now on, use env.{GHC|CABAL}_VER rather than matrix.{ghc|cabal}-ver!
 
     - name: Configure the build plan
@@ -97,7 +97,9 @@ jobs:
     - name: Prepare to upload built htmls
       run: |
         find dist-newstyle -path '*/doc/html/Agda' -type d -exec cp -R {} html \;
+        find html -name '*.md' -delete
         ls -R html
+      # The last step is to fix #6502; the .md files can make Jekyll choke.
 
     - name: Deploy haddock
       uses: peaceiris/actions-gh-pages@v3
