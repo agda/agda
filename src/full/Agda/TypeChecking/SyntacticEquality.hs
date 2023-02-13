@@ -190,6 +190,7 @@ instance SynEq Sort where
       (UnivSort a, UnivSort a') -> UnivSort <$$> synEq a a'
       (SizeUniv, SizeUniv  ) -> pure2 s
       (LockUniv, LockUniv  ) -> pure2 s
+      (LevelUniv, LevelUniv  ) -> pure2 s
       (IntervalUniv, IntervalUniv) -> pure2 s
       (Prop l  , Prop l'   ) -> Prop <$$> synEq l l'
       (Inf f m , Inf f' n) | f == f', m == n -> pure2 s

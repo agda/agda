@@ -327,6 +327,7 @@ builtinsNoDef =
   , builtinIOne
   , builtinSet
   , builtinProp
+  , builtinLevelUniv
   , builtinSetOmega
   , builtinStrictSet
   , builtinSSetOmega

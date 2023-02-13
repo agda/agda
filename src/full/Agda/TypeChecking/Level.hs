@@ -34,7 +34,7 @@ data LevelKit = LevelKit
 {-# SPECIALIZE levelType :: TCM Type #-}
 -- | Get the 'primLevel' as a 'Type'.  Aborts if any of the level BUILTINs is undefined.
 levelType :: (HasBuiltins m, MonadTCError m) => m Type
-levelType = El (mkType 0) . lvlType <$> requireLevels
+levelType = El (LevelUniv) . lvlType <$> requireLevels
   -- Andreas, 2022-10-11, issue #6168
   -- It seems superfluous to require all level builtins here,
   -- but since we are in MonadTCError here, this is our chance to make sure
@@ -44,7 +44,7 @@ levelType = El (mkType 0) . lvlType <$> requireLevels
 
 -- | Get the 'primLevel' as a 'Type'.  Unsafe, crashes if the BUILTIN LEVEL is undefined.
 levelType' :: (HasBuiltins m) => m Type
-levelType' = El (mkType 0) . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
+levelType' = El (LevelUniv) . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
 
 isLevelType :: PureTCM m => Type -> m Bool
 isLevelType a = reduce (unEl a) >>= \case
@@ -98,7 +98,8 @@ haveLevels = caseMaybeM (allJustM $ map getBuiltin' levelBuiltins)
     (\ _bs -> return True)
   where
   levelBuiltins =
-    [ builtinLevel
+    [ builtinLevelUniv
+    , builtinLevel
     , builtinLevelZero
     , builtinLevelSuc
     , builtinLevelMax

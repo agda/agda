@@ -390,6 +390,9 @@ setIncludeDirs incs root = do
 isPropEnabled :: HasOptions m => m Bool
 isPropEnabled = optProp <$> pragmaOptions
 
+isSimpUnivPolyEnabled :: HasOptions m => m Bool
+isSimpUnivPolyEnabled = optSimpUnivPoly <$> pragmaOptions
+
 isTwoLevelEnabled :: HasOptions m => m Bool
 isTwoLevelEnabled = collapseDefault . optTwoLevel <$> pragmaOptions
 

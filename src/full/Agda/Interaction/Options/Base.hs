@@ -160,6 +160,7 @@ data PragmaOptions = PragmaOptions
   , optVerbose                   :: !Verbosity
   , optProfiling                 :: ProfileOptions
   , optProp                      :: Bool
+  , optSimpUnivPoly              :: Bool
   , optTwoLevel                  :: WithDefault 'False
   , optAllowUnsolved             :: Bool
   , optAllowIncompleteMatch      :: Bool
@@ -322,6 +323,7 @@ defaultPragmaOptions = PragmaOptions
   , optVerbose                   = Strict.Nothing
   , optProfiling                 = noProfileOptions
   , optProp                      = False
+  , optSimpUnivPoly              = False
   , optTwoLevel                  = Default
   , optExperimentalIrrelevance   = False
   , optIrrelevantProjections     = False -- off by default in > 2.5.4, see issue #2170
@@ -574,6 +576,7 @@ infectiveCoinfectiveOptions =
   , infectiveOption (isJust . optCubical) "--cubical/--erased-cubical"
   , infectiveOption optGuarded "--guarded"
   , infectiveOption optProp "--prop"
+  , infectiveOption optSimpUnivPoly "--simp-univ-poly"
   , infectiveOption (collapseDefault . optTwoLevel) "--two-level"
   , infectiveOption optRewriting "--rewriting"
   , infectiveOption (collapseDefault . optSizedTypes) "--sized-types"
@@ -666,6 +669,9 @@ propFlag o = return $ o { optProp = True }
 
 noPropFlag :: Flag PragmaOptions
 noPropFlag o = return $ o { optProp = False }
+
+simpUnivPolyFlag :: Flag PragmaOptions
+simpUnivPolyFlag o = return $ o { optSimpUnivPoly = True }
 
 twoLevelFlag :: Flag PragmaOptions
 twoLevelFlag o = return $ o { optTwoLevel = Value True }
@@ -1153,6 +1159,8 @@ pragmaOptions =
                     "enable the use of the Prop universe"
     , Option []     ["no-prop"] (NoArg noPropFlag)
                     "disable the use of the Prop universe (default)"
+    , Option []     ["simp-univ-poly"] (NoArg simpUnivPolyFlag)
+                    "enables making Level live in a separate LevelUniv universe"
     , Option []     ["two-level"] (NoArg twoLevelFlag)
                     "enable the use of SSet* universes"
     , Option []     ["sized-types"] (NoArg sizedTypes)
