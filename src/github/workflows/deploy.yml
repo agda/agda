@@ -286,4 +286,5 @@ jobs:
         GITHUB_TOKEN: ${{ github.token }}
       run: |
         gh release delete 'nightly' --repo agda/agda --cleanup-tag --yes || true
-        gh release create 'nightly' artifacts/* --repo agda/agda --generate-notes --title "Nightly Build (${{ needs.build.outputs.sha }}@master)"
+        ls -R artifacts
+        gh release create 'nightly' artifacts/**/* --repo agda/agda --generate-notes --title "Nightly Build (${{ needs.build.outputs.sha }}@master)"
