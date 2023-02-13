@@ -200,8 +200,7 @@ jobs:
         - macos-latest
         - ubuntu-20.04
   deploy:
-    if: ${{ github.ref == 'refs/heads/master' && github.event_name == 'workflow_run'
-      }}
+    if: ${{ github.ref == 'refs/heads/master' }}
     needs: build
     runs-on: ubuntu-latest
     steps:

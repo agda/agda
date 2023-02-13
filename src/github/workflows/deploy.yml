@@ -270,7 +270,9 @@ jobs:
         retention-days: 3
 
   deploy: # release a nightly build if triggered on master }}
-    if: ${{ github.ref == 'refs/heads/master' && github.event_name == 'workflow_run' }}
+    if: ${{ github.ref == 'refs/heads/master' }}
+    # Andreas, 2023-02-13: Also run this part when manually triggered ('workflow_dispatch')
+    # if: ${{ github.ref == 'refs/heads/master' && github.event_name == 'workflow_run' }}
     needs: build
     runs-on: ubuntu-latest
     steps:
