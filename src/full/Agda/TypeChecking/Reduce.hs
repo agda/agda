@@ -432,6 +432,7 @@ instance Reduce Sort where
         SSet l     -> notBlocked . SSet <$> reduce l
         SizeUniv   -> done
         LockUniv   -> done
+        LevelUniv  -> done
         IntervalUniv -> done
         MetaS x es -> done
         DefS d es  -> done -- postulated sorts do not reduce
@@ -1051,6 +1052,7 @@ instance Simplify Sort where
         SSet s     -> SSet <$> simplify' s
         SizeUniv   -> return s
         LockUniv   -> return s
+        LevelUniv  -> return s
         IntervalUniv -> return s
         MetaS x es -> MetaS x <$> simplify' es
         DefS d es  -> DefS d <$> simplify' es
@@ -1202,6 +1204,7 @@ instance Normalise Sort where
         SSet s     -> SSet <$> normalise' s
         SizeUniv   -> return SizeUniv
         LockUniv   -> return LockUniv
+        LevelUniv  -> return LevelUniv
         IntervalUniv -> return IntervalUniv
         MetaS x es -> return s
         DefS d es  -> return s
@@ -1411,6 +1414,7 @@ instance InstantiateFull Sort where
             Inf _ _    -> return s
             SizeUniv   -> return s
             LockUniv   -> return s
+            LevelUniv  -> return s
             IntervalUniv -> return s
             MetaS x es -> MetaS x <$> instantiateFull' es
             DefS d es  -> DefS d <$> instantiateFull' es
@@ -1568,6 +1572,7 @@ instance InstantiateFull NLPSort where
   instantiateFull' (PInf f n) = return $ PInf f n
   instantiateFull' PSizeUniv = return PSizeUniv
   instantiateFull' PLockUniv = return PLockUniv
+  instantiateFull' PLevelUniv = return PLevelUniv
   instantiateFull' PIntervalUniv = return PIntervalUniv
 
 instance InstantiateFull RewriteRule where

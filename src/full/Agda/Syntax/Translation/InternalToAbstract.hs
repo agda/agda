@@ -1433,6 +1433,9 @@ instance Reify Sort where
         I.LockUniv  -> do
           lockU <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinLockUniv
           return $ A.Def lockU
+        I.LevelUniv -> do
+          levelU <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinLevelUniv
+          return $ A.Def levelU
         I.IntervalUniv -> do
           intervalU <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinIntervalUniv
           return $ A.Def intervalU

@@ -240,6 +240,7 @@ checkDataSort name s = setCurrentRange name $ do
       -- Sorts that do not admit data definitions.
       SizeUniv     -> no
       LockUniv     -> no
+      LevelUniv    -> no
       IntervalUniv -> no
       -- Blocked sorts.
       PiSort _ _ _ -> __IMPOSSIBLE__

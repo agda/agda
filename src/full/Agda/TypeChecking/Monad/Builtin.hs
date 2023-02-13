@@ -211,6 +211,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primEquality, primRefl,
     primLevel, primLevelZero, primLevelSuc, primLevelMax,
     primLockUniv,
+    primLevelUniv,
     primSet, primProp, primSetOmega, primStrictSet, primSSetOmega,
     primFromNat, primFromNeg, primFromString,
     -- builtins for reflection:
@@ -338,6 +339,7 @@ primSet                               = getBuiltin builtinSet
 primProp                              = getBuiltin builtinProp
 primSetOmega                          = getBuiltin builtinSetOmega
 primLockUniv                          = getPrimitiveTerm builtinLockUniv
+primLevelUniv                         = getPrimitiveTerm builtinLevelUniv
 primSSetOmega                         = getBuiltin builtinSSetOmega
 primStrictSet                         = getBuiltin builtinStrictSet
 primFromNat                           = getBuiltin builtinFromNat

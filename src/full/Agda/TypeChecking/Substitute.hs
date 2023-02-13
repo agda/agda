@@ -868,6 +868,7 @@ instance (Coercible a Term, Subst a) => Subst (Sort' a) where
     SSet n     -> SSet $ sub n
     SizeUniv   -> SizeUniv
     LockUniv   -> LockUniv
+    LevelUniv  -> LevelUniv
     IntervalUniv -> IntervalUniv
     PiSort a s1 s2 -> coerce $ piSort (coerce $ sub a) (coerce $ sub s1) (coerce $ sub s2)
     FunSort s1 s2 -> coerce $ funSort (coerce $ sub s1) (coerce $ sub s2)
@@ -978,6 +979,7 @@ instance Subst NLPSort where
     PInf f n  -> PInf f n
     PSizeUniv -> PSizeUniv
     PLockUniv -> PLockUniv
+    PLevelUniv -> PLevelUniv
     PIntervalUniv -> PIntervalUniv
 
 instance Subst RewriteRule where
@@ -1549,6 +1551,7 @@ univSort' (Inf f n)    = Right $ Inf f $ 1 + n
 univSort' (SSet l)     = Right $ SSet $ levelSuc l
 univSort' SizeUniv     = Right $ Inf IsFibrant 0
 univSort' LockUniv     = Right $ Inf IsFibrant 0 -- lock polymorphism is not actually supported
+univSort' LevelUniv      = Right $ Inf IsFibrant 0
 univSort' IntervalUniv = Right $ SSet $ ClosedLevel 1
 univSort' (MetaS m _)  = Left neverUnblock
 univSort' FunSort{}    = Left neverUnblock
@@ -1579,6 +1582,7 @@ sizeOfSort Type{}       = Right $ SmallSort IsFibrant
 sizeOfSort Prop{}       = Right $ SmallSort IsFibrant
 sizeOfSort SizeUniv     = Right $ SmallSort IsFibrant
 sizeOfSort LockUniv     = Right $ SmallSort IsFibrant
+sizeOfSort LevelUniv    = Right $ SmallSort IsFibrant
 sizeOfSort IntervalUniv = Right $ SmallSort IsStrict
 sizeOfSort (Inf f n)    = Right $ LargeSort f n
 sizeOfSort SSet{}       = Right $ SmallSort IsStrict
@@ -1633,6 +1637,8 @@ funSort' a b = case (a, b) of
   (a             , SizeUniv     ) -> sizeOfSort a >>= \case
     SmallSort{} -> Right SizeUniv
     LargeSort{} -> Left neverUnblock
+  (_             , LevelUniv    ) -> Right LevelUniv
+  (LevelUniv     , _            ) -> Right $ Inf IsFibrant 0
   (MetaS m _     , _            ) -> Left $ unblockOnMeta m
   (_             , MetaS m _    ) -> Left $ unblockOnMeta m
   (FunSort{}     , _            ) -> Left neverUnblock

@@ -1894,6 +1894,7 @@ data NLPSort
   | PInf IsFibrant Integer
   | PSizeUniv
   | PLockUniv
+  | PLevelUniv
   | PIntervalUniv
   deriving (Show, Generic)
 
@@ -1905,6 +1906,7 @@ instance TermLike NLPSort where
     s@PInf{}          -> return s
     s@PSizeUniv{}     -> return s
     s@PLockUniv{}     -> return s
+    s@PLevelUniv{}    -> return s
     s@PIntervalUniv{} -> return s
 
   foldTerm f t = case t of
@@ -1914,6 +1916,7 @@ instance TermLike NLPSort where
     s@PInf{}          -> mempty
     s@PSizeUniv{}     -> mempty
     s@PLockUniv{}     -> mempty
+    s@PLevelUniv{}    -> mempty
     s@PIntervalUniv{} -> mempty
 
 instance AllMetas NLPSort
@@ -5307,6 +5310,7 @@ instance KillRange NLPSort where
   killRange s@(PInf f n) = s
   killRange PSizeUniv = PSizeUniv
   killRange PLockUniv = PLockUniv
+  killRange PLevelUniv = PLevelUniv
   killRange PIntervalUniv = PIntervalUniv
 
 instance KillRange RewriteRule where
