@@ -151,6 +151,9 @@ sSizeUniv = SizeUniv
 tSizeUniv :: Applicative m => m Type
 tSizeUniv = pure $ sort sSizeUniv
 
+tLevelUniv :: Applicative m => m Type
+tLevelUniv = pure $ sort $ LevelUniv
+
 -- | Abbreviation: @argN = 'Arg' 'defaultArgInfo'@.
 argN :: e -> Arg e
 argN = Arg defaultArgInfo

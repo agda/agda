@@ -1762,6 +1762,7 @@ equalSort s1 s2 = do
             (Type a     , Type b     ) -> equalLevel a b `catchInequalLevel` no
             (SizeUniv   , SizeUniv   ) -> yes
             (LockUniv   , LockUniv   ) -> yes
+            (LevelUniv   , LevelUniv   ) -> yes
             (IntervalUniv , IntervalUniv) -> yes
             (Prop a     , Prop b     ) -> equalLevel a b `catchInequalLevel` no
             (Inf f m    , Inf f' n   ) ->
@@ -1848,6 +1849,7 @@ equalSort s1 s2 = do
           -- @Prop l@ and @SizeUniv@ are not successor sorts
           Prop{}     -> no
           SizeUniv{} -> no
+          LevelUniv{} -> no
           -- Anything else: postpone
           _          -> postpone
 
@@ -1947,6 +1949,7 @@ equalSort s1 s2 = do
                    Left _  -> patternViolation blocker
           -- We have @SizeUniv == funSort s1 s2@ iff @s2 == SizeUniv@
           SizeUniv -> equalSort SizeUniv s2
+          LevelUniv -> equalSort LevelUniv s2
           -- Anything else: postpone
           _        -> postpone
 

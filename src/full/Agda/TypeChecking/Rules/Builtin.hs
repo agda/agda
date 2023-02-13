@@ -100,7 +100,7 @@ coreBuiltins =
   , (builtinAgdaPatLit                       |-> BuiltinDataCons (tliteral --> tpat))
   , (builtinAgdaPatProj                      |-> BuiltinDataCons (tqname --> tpat))
   , (builtinAgdaPatAbsurd                    |-> BuiltinDataCons (tnat --> tpat))
-  , (builtinLevel                            |-> builtinPostulate tset)
+  , (builtinLevel                            |-> builtinPostulate tLevelUniv)
   , (builtinWord64                           |-> builtinPostulate tset)
   , (builtinInteger                          |-> BuiltinData tset [builtinIntegerPos, builtinIntegerNegSuc])
   , (builtinIntegerPos                       |-> BuiltinDataCons (tnat --> tinteger))
@@ -330,6 +330,7 @@ coreBuiltins =
   , (builtinNatModSucAux                     |-> BuiltinPrim "primNatModSucAux" verifyModSucAux)
   , (builtinNatEquals                        |-> BuiltinPrim "primNatEquality" verifyEquals)
   , (builtinNatLess                          |-> BuiltinPrim "primNatLess" verifyLess)
+  , (builtinLevelUniv                        |-> builtinPostulate tsetOmega) -- LevelUniv : Setω
   , (builtinLevelZero                        |-> BuiltinPrim "primLevelZero" (const $ return ()))
   , (builtinLevelSuc                         |-> BuiltinPrim "primLevelSuc" (const $ return ()))
   , (builtinLevelMax                         |-> BuiltinPrim "primLevelMax" verifyMax)

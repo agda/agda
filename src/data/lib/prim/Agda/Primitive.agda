@@ -15,12 +15,13 @@ infixl 6 _⊔_
 {-# BUILTIN SETOMEGA Setω #-}
 {-# BUILTIN STRICTSET      SSet  #-}
 {-# BUILTIN STRICTSETOMEGA SSetω #-}
+{-# BUILTIN LEVELUNIV LevelUniv #-}
 
 -- Level is the first thing we need to define.
 -- The other postulates can only be checked if built-in Level is known.
 
 postulate
-  Level : Set
+  Level : LevelUniv
 
 -- MAlonzo compiles Level to (). This should be safe, because it is
 -- not possible to pattern match on levels.
