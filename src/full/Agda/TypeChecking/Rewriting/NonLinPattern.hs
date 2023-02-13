@@ -100,6 +100,7 @@ instance PatternFrom Sort NLPSort where
       Inf f n  -> return $ PInf f n
       SizeUniv -> return PSizeUniv
       LockUniv -> return PLockUniv
+      LevelUniv -> return PLevelUniv
       IntervalUniv -> return PIntervalUniv
       PiSort _ _ _ -> __IMPOSSIBLE__
       FunSort _ _ -> __IMPOSSIBLE__
@@ -241,6 +242,7 @@ instance NLPatToTerm NLPSort Sort where
   nlPatToTerm (PInf f n) = return $ Inf f n
   nlPatToTerm PSizeUniv = return SizeUniv
   nlPatToTerm PLockUniv = return LockUniv
+  nlPatToTerm PLevelUniv = return LevelUniv
   nlPatToTerm PIntervalUniv = return IntervalUniv
 
 -- | Gather the set of pattern variables of a non-linear pattern
@@ -264,6 +266,7 @@ instance NLPatVars NLPSort where
     PInf f n  -> empty
     PSizeUniv -> empty
     PLockUniv -> empty
+    PLevelUniv -> empty
     PIntervalUniv -> empty
 
 instance NLPatVars NLPat where
@@ -322,6 +325,7 @@ instance GetMatchables NLPSort where
     PInf f n  -> empty
     PSizeUniv -> empty
     PLockUniv -> empty
+    PLevelUniv -> empty
     PIntervalUniv -> empty
 
 instance GetMatchables Term where
@@ -357,6 +361,7 @@ instance Free NLPSort where
     PInf f n  -> mempty
     PSizeUniv -> mempty
     PLockUniv -> mempty
+    PLevelUniv -> mempty
     PIntervalUniv -> mempty
 
 -- Throws a pattern violation if the given term contains any

@@ -675,6 +675,12 @@ primLockUniv' = do
   let t = sort $ Type $ levelSuc $ Max 0 []
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort LockUniv
 
+primLevelUniv' :: TCM PrimitiveImpl
+primLevelUniv' = do
+  let t = sort $ Inf IsFibrant 0
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort $ LevelUniv
+
+
 -- mkPrimStrictSet :: TCM PrimitiveImpl
 -- mkPrimStrictSet = do
 --   t <- nPi "ℓ" (el primLevel) (pure $ sort $ SSet $ Max 0 [Plus 1 $ var 0])
@@ -974,6 +980,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromListWith __IMPOSSIBL
   , builtin_glueU         |-> prim_glueU'
   , builtin_unglueU       |-> prim_unglueU'
   , builtinLockUniv       |-> primLockUniv'
+  , builtinLevelUniv      |-> primLevelUniv'
   ]
   where
     (|->) = (,)

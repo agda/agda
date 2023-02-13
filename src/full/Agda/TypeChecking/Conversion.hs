@@ -1309,16 +1309,17 @@ leqSort s1 s2 = do
       (SSet{}  , Inf IsStrict _) -> yes
       (SSet{}  , Inf IsFibrant _) -> no
 
-      -- @LockUniv@, @IntervalUniv@, @SizeUniv@, and @Prop0@ are bottom sorts.
+      -- @LockUniv@, @LevelUniv@, @IntervalUniv@, @SizeUniv@, and @Prop0@ are bottom sorts.
       -- So is @Set0@ if @Prop@ is not enabled.
       (_       , LockUniv) -> equalSort s1 s2
+      (_       , LevelUniv) -> equalSort s1 s2
       (_       , IntervalUniv) -> equalSort s1 s2
       (_       , SizeUniv) -> equalSort s1 s2
       (_       , Prop (Max 0 [])) -> equalSort s1 s2
       (_       , Type (Max 0 []))
         | not propEnabled  -> equalSort s1 s2
 
-      -- @SizeUniv@ and @LockUniv@ are unrelated to any @Set l@ or @Prop l@
+      -- @SizeUniv@, @LockUniv@ and @LevelUniv@ are unrelated to any @Set l@ or @Prop l@
       (SizeUniv, Type{}  ) -> no
       (SizeUniv, Prop{}  ) -> no
       (SizeUniv , Inf{}  ) -> no
@@ -1327,6 +1328,10 @@ leqSort s1 s2 = do
       (LockUniv, Prop{}  ) -> no
       (LockUniv , Inf{}  ) -> no
       (LockUniv, SSet{}  ) -> no
+      (LevelUniv, Type{}  ) -> no
+      (LevelUniv, Prop{}  ) -> no
+      (LevelUniv , Inf{}  ) -> no
+      (LevelUniv, SSet{}  ) -> no
 
       -- @IntervalUniv@ is below @SSet l@, but not @Set l@ or @Prop l@
       (IntervalUniv, Type{}) -> no

@@ -155,6 +155,7 @@ instance EmbPrj I.Sort where
   icod_ IntervalUniv = icodeN 10 IntervalUniv
   icod_ (MetaS a b)  = icodeN 11 MetaS a b
   icod_ (DummyS s)   = icodeN 12 DummyS s
+  icod_ LevelUniv    = icodeN 13 LevelUniv
 
   value = vcase valu where
     valu [0, a]    = valuN Type  a
@@ -170,6 +171,7 @@ instance EmbPrj I.Sort where
     valu [10]      = valuN IntervalUniv
     valu [11, a, b] = valuN MetaS a b
     valu [12, s]   = valuN DummyS s
+    valu [13]      = valuN LevelUniv
     valu _         = malformed
 
 instance EmbPrj DisplayForm where
@@ -267,6 +269,7 @@ instance EmbPrj NLPSort where
   icod_ PLockUniv   = icodeN 4 PLockUniv
   icod_ PIntervalUniv = icodeN 5 PIntervalUniv
   icod_ (PSSet a)   = icodeN 6 PSSet a
+  icod_ PLevelUniv = icodeN 8 PLevelUniv
 
   value = vcase valu where
     valu [0, a] = valuN PType a
@@ -276,6 +279,7 @@ instance EmbPrj NLPSort where
     valu [4]    = valuN PLockUniv
     valu [5]    = valuN PIntervalUniv
     valu [6, a] = valuN PSSet a
+    valu [7]    = valuN PLevelUniv
     valu _      = malformed
 
 instance EmbPrj RewriteRule where

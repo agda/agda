@@ -307,6 +307,7 @@ instance CheckInternal Sort where
     SSet l   -> SSet <$> inferInternal' action l
     SizeUniv -> return SizeUniv
     LockUniv -> return LockUniv
+    LevelUniv -> return LevelUniv
     IntervalUniv -> return IntervalUniv
     PiSort dom s1 s2 -> do
       let a = unDom dom

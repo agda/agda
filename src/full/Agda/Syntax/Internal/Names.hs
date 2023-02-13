@@ -199,6 +199,7 @@ instance NamesIn Sort where
     SSet l      -> namesAndMetasIn' sg l
     SizeUniv    -> mempty
     LockUniv    -> mempty
+    LevelUniv   -> mempty
     IntervalUniv -> mempty
     PiSort a b c  -> namesAndMetasIn' sg (a, b, c)
     FunSort a b -> namesAndMetasIn' sg (a, b)
@@ -300,6 +301,7 @@ instance NamesIn NLPSort where
     PInf _ _      -> mempty
     PSizeUniv     -> mempty
     PLockUniv     -> mempty
+    PLevelUniv    -> mempty
     PIntervalUniv -> mempty
 
 instance NamesIn RewriteRule where

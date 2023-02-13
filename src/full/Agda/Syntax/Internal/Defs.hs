@@ -81,6 +81,7 @@ instance GetDefs Sort where
     SSet l    -> getDefs l
     SizeUniv  -> return ()
     LockUniv  -> return ()
+    LevelUniv -> return ()
     IntervalUniv -> return ()
     PiSort a s1 s2 -> getDefs a >> getDefs s1 >> getDefs s2
     FunSort s1 s2 -> getDefs s1 >> getDefs s2

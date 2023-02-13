@@ -56,6 +56,7 @@ instance MentionsMeta Sort where
     SSet l     -> mentionsMetas xs l
     SizeUniv   -> False
     LockUniv   -> False
+    LevelUniv  -> False
     IntervalUniv -> False
     PiSort a s1 s2 -> mentionsMetas xs (a, s1, s2)
     FunSort s1 s2 -> mentionsMetas xs (s1, s2)

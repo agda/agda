@@ -321,6 +321,7 @@ instance UsableRelevance Sort where
     SSet l -> usableRel rel l
     SizeUniv -> return True
     LockUniv -> return True
+    LevelUniv -> return True
     IntervalUniv -> return True
     PiSort a s1 s2 -> usableRel rel (a,s1,s2)
     FunSort s1 s2 -> usableRel rel (s1,s2)
@@ -582,6 +583,7 @@ isFibrant a = abortIfBlocked (getSort a) <&> \case
   SSet{}     -> False
   SizeUniv{} -> False
   LockUniv{} -> False
+  LevelUniv{}  -> False
   IntervalUniv{} -> False
   PiSort{}   -> False
   FunSort{}  -> False
@@ -601,6 +603,7 @@ isCoFibrantSort a = abortIfBlocked (getSort a) <&> \case
   SSet{}     -> False
   SizeUniv{} -> False
   LockUniv{} -> True
+  LevelUniv{}  -> False
   IntervalUniv{} -> True
   PiSort{}   -> False
   FunSort{}  -> False

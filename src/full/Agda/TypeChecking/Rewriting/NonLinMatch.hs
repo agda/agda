@@ -233,6 +233,7 @@ instance Match NLPSort Sort where
         | fp == f, np == n   -> yes
       (PSizeUniv , SizeUniv) -> yes
       (PLockUniv , LockUniv) -> yes
+      (PLevelUniv, LevelUniv) -> yes
       (PIntervalUniv , IntervalUniv) -> yes
 
       -- blocked cases
