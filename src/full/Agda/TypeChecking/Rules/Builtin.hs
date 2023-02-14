@@ -330,10 +330,7 @@ coreBuiltins =
   , (builtinNatModSucAux                     |-> BuiltinPrim "primNatModSucAux" verifyModSucAux)
   , (builtinNatEquals                        |-> BuiltinPrim "primNatEquality" verifyEquals)
   , (builtinNatLess                          |-> BuiltinPrim "primNatLess" verifyLess)
-  , (builtinLevelUniv                        |-> builtinPostulate (do
-                                                      simpUnivPolyEnabled <- isSimpUnivPolyEnabled
-                                                      if simpUnivPolyEnabled then (pure $ sort (mkType 1)) else tsetOmega
-                                                    ))
+  , (builtinLevelUniv                        |-> BuiltinSort "primLevelUniv")
   , (builtinLevelZero                        |-> BuiltinPrim "primLevelZero" (const $ return ()))
   , (builtinLevelSuc                         |-> BuiltinPrim "primLevelSuc" (const $ return ()))
   , (builtinLevelMax                         |-> BuiltinPrim "primLevelMax" verifyMax)
@@ -1048,6 +1045,7 @@ bindBuiltinNoDef b q = inTopContext $ do
                 "primSetOmega" -> Inf IsFibrant 0
                 "primStrictSetOmega" -> Inf IsStrict 0
                 "primIntervalUniv" -> IntervalUniv
+                "primLevelUniv" -> LevelUniv
                 _              -> __IMPOSSIBLE__
           def = PrimitiveSort sortname s
       -- Check for the cubical flag if the sort requries it
