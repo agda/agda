@@ -330,7 +330,10 @@ coreBuiltins =
   , (builtinNatModSucAux                     |-> BuiltinPrim "primNatModSucAux" verifyModSucAux)
   , (builtinNatEquals                        |-> BuiltinPrim "primNatEquality" verifyEquals)
   , (builtinNatLess                          |-> BuiltinPrim "primNatLess" verifyLess)
-  , (builtinLevelUniv                        |-> builtinPostulate tsetOmega) -- LevelUniv : Setω
+  , (builtinLevelUniv                        |-> builtinPostulate (do
+                                                      simpUnivPolyEnabled <- isSimpUnivPolyEnabled
+                                                      if simpUnivPolyEnabled then (pure $ sort (mkType 1)) else tsetOmega
+                                                    ))
   , (builtinLevelZero                        |-> BuiltinPrim "primLevelZero" (const $ return ()))
   , (builtinLevelSuc                         |-> BuiltinPrim "primLevelSuc" (const $ return ()))
   , (builtinLevelMax                         |-> BuiltinPrim "primLevelMax" verifyMax)
