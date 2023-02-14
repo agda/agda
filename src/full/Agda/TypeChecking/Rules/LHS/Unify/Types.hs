@@ -87,7 +87,7 @@ data Equality = Equal
 eqConstructorForm :: HasBuiltins m => Equality -> m Equality
 eqConstructorForm (Equal a u v) = Equal a <$> constructorForm u <*> constructorForm v
 
-eqUnLevel :: HasBuiltins m => Equality -> m Equality
+eqUnLevel :: (HasBuiltins m, HasOptions m) => Equality -> m Equality
 eqUnLevel (Equal a u v) = Equal a <$> unLevel u <*> unLevel v
   where
     unLevel (Level l) = reallyUnLevelView l
