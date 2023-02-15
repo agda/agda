@@ -301,7 +301,7 @@ data Sort' t
   | SSet (Level' t)  -- ^ @SSet ℓ@.
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
   | LockUniv    -- ^ @LockUniv@, a sort for locks.
-  | LevelUniv   -- ^ @LevelUniv@, a sort inhabited by type @Level@.
+  | LevelUniv   -- ^ @LevelUniv@, a sort inhabited by type @Level@. When --level-universe isn't on, this universe reduces to @Set 0@
   | IntervalUniv -- ^ @IntervalUniv@, a sort inhabited by the cubical interval.
   | PiSort (Dom' t t) (Sort' t) (Abs (Sort' t)) -- ^ Sort of the pi type.
   | FunSort (Sort' t) (Sort' t) -- ^ Sort of a (non-dependent) function type.
