@@ -677,8 +677,7 @@ primLockUniv' = do
 
 primLevelUniv' :: TCM PrimitiveImpl
 primLevelUniv' = do
-  levelUniverseEnabled <- isLevelUniverseEnabled
-  let t = sort (if levelUniverseEnabled then Type $ ClosedLevel 1 else Inf IsFibrant 0)
+  let t = sort $ Type $ ClosedLevel 1
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort $ LevelUniv
 
 -- mkPrimStrictSet :: TCM PrimitiveImpl
