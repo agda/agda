@@ -433,8 +433,8 @@ instance Reduce Sort where
         SizeUniv   -> done
         LockUniv   -> done
         LevelUniv  -> do
-          simpUnivPolyEnabled <- isLevelUniverseEnabled
-          if simpUnivPolyEnabled
+          levelUniverseEnabled <- isLevelUniverseEnabled
+          if levelUniverseEnabled
           then done
           else return $ notBlocked (mkType 0)
         IntervalUniv -> done
