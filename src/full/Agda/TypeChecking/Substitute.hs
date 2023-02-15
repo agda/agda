@@ -1637,6 +1637,9 @@ funSort' a b = case (a, b) of
   (a             , SizeUniv     ) -> sizeOfSort a >>= \case
     SmallSort{} -> Right SizeUniv
     LargeSort{} -> Left neverUnblock
+  -- No need to handle @LevelUniv@ in a special way here when --level-universe isn't on,
+  -- since this function is currently always called after reduction. 
+  -- It would be safer to take it into account here, but would imply passing the option along as an argument. 
   (_             , LevelUniv    ) -> Right LevelUniv
   (LevelUniv     , _            ) -> Right $ Inf IsFibrant 0
   (MetaS m _     , _            ) -> Left $ unblockOnMeta m
