@@ -78,7 +78,7 @@ Marisa:
 
 .. raw:: html
    <a id="1150" class="Keyword">open</a> <a id="1155" class="Keyword">import</a> <a id="1162" href="Agda.Primitive.html" class="Module">Agda.Primitive</a>
-   <a id="1180" class="Keyword">variable</a> <a id="1189" href="RsTHighlightCode.html#1189" class="Generalizable">i</a> <a id="1191" class="Symbol">:</a> <a id="1193" href="Agda.Primitive.html#591" class="Postulate">Level</a>
+   <a id="1180" class="Keyword">variable</a> <a id="1189" href="RsTHighlightCode.html#1189" class="Generalizable">i</a> <a id="1191" class="Symbol">:</a> <a id="1193" href="Agda.Primitive.html#627" class="Postulate">Level</a>
 
 Alice:
 
