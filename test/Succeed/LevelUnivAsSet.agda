@@ -1,2 +1,0 @@
-{-# OPTIONS #-}
-{-# BUILTIN LEVELUNIV LevelU #-}
