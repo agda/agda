@@ -430,7 +430,11 @@ instance Reduce Sort where
         SSet l     -> notBlocked . SSet <$> reduce l
         SizeUniv   -> done
         LockUniv   -> done
-        LevelUniv  -> done
+        LevelUniv  -> do
+          simpUnivPolyEnabled <- isLevelUniverseEnabled
+          if simpUnivPolyEnabled
+          then done
+          else return $ notBlocked (mkType 0)
         IntervalUniv -> done
         MetaS x es -> done
         DefS d es  -> done -- postulated sorts do not reduce
