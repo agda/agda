@@ -1822,7 +1822,7 @@ equalSort s1 s2 = do
             infInInf <- (optOmegaInOmega <$> pragmaOptions) `or2M` typeInType
             if | infInInf  -> equalSort (Inf f 0) s2
                | otherwise -> no
-          -- @Prop l@ and @SizeUniv@ are not successor sorts
+          -- @Prop l@, @SizeUniv@ and @LevelUniv@ are not successor sorts
           Prop{}     -> no
           SizeUniv{} -> no
           LevelUniv{} -> no
