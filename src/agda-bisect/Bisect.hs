@@ -707,6 +707,8 @@ bisect opts =
          then return Skip
          else installAndRunAgda opts
 
+    putStrLn $ "Verdict: " ++ show r
+
     ok <- callProcessWithResult "git" ["bisect", map toLower (show r)]
 
     case logFile opts of
@@ -817,19 +819,28 @@ runAgda agda opts = do
         " (" ++ (if expectedResult then "good" else "bad") ++ ")"
       unless (null out) $ putStr $ "Stdout:\n" ++ indent out
       unless (null err) $ putStr $ "Stderr:\n" ++ indent err
-      putStrLn $ "Verdict: " ++ show result
-
       return result
+
   where
   indent = unlines . map ("  " ++) . lines
 
   readProcessCabal cmd args input
-    | v1cabal opts = readProcess cmd args input
-    | otherwise    = readProcess (cabal opts) (cabalArgs cmd args) input
+    | v1cabal opts = readProcess' cmd args input
+    | otherwise    = readProcess' (cabal opts) (cabalArgs cmd args) input
 
   readProcessWithExitCodeCabal cmd args input
-    | v1cabal opts = readProcessWithExitCode cmd args input
-    | otherwise    = readProcessWithExitCode (cabal opts) (cabalArgs cmd args) input
+    | v1cabal opts = readProcessWithExitCode' cmd args input
+    | otherwise    = readProcessWithExitCode' (cabal opts) (cabalArgs cmd args) input
+
+  readProcess' cmd args input = do
+    putStr "Running: "
+    putStrLn $ showCommandForUser cmd args
+    readProcess cmd args input
+
+  readProcessWithExitCode' cmd args input = do
+    putStr "Running: "
+    putStrLn $ showCommandForUser cmd args
+    readProcessWithExitCode cmd args input
 
   cabalArgs cmd args
     | cmd == agda = concat
