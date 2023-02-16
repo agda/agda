@@ -340,6 +340,37 @@ order for the change to take effect."
   ("bx" . ("⊠"))
   ("b." . ("⊡"))
 
+  ;; APL boxed operators
+
+  ("box="       . ("⌸"))
+  ("box?"       . ("⍰"))
+  ("box'"       . ("⍞"))
+  ("box:"       . ("⍠"))
+  ("box/"       . ("⍁"))
+  ("box\\"      . ("⍂"))
+  ("box<"       . ("⍃"))
+  ("box>"       . ("⍄"))
+  ("boxo"       . ("⌻"))
+  ("boxO"       . ("⌼"))
+
+  ("boxcomp"    . ("⌻"))
+  ("boxcircle"  . ("⌼"))
+  ("boxeq"      . ("⌸"))
+  ("boxneq"     . ("⍯"))
+  ("boxeqn"     . ("⍯"))
+
+  ("boxl"       . ("⍇"))
+  ("boxr"       . ("⍈"))
+  ("boxu"       . ("⍐"))
+  ("boxd"       . ("⍗"))
+
+  ("boxdi"      . ("⌺"))
+  ("boxdiv"     . ("⌹"))
+  ("boxwedge"   . ("⍓"))
+  ("boxvee"     . ("⍌"))
+  ("boxdelta"   . ("⍍"))
+  ("boxnabla"   . ("⍔"))
+
   ;; Various symbols.
 
   ("integral" . ,(agda-input-to-string-list "∫∬∭∮∯∰∱∲∳"))
