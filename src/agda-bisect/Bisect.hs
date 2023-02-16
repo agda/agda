@@ -731,8 +731,7 @@ data Result = Good | Bad | Skip
 
 installAndRunAgda :: Options -> IO Result
 installAndRunAgda opts@Options{ v1cabal } = do
-  ok <- if v1cabal then installAgda opts else buildAgda opts
-  case ok of
+  (if v1cabal then installAgda opts else buildAgda opts) >>= \case
     Nothing   -> return Skip
     Just agda -> runAgda agda opts
 
@@ -897,9 +896,11 @@ v2CabalFlags opts =
 -- | An absolute path to the Agda executable build by v2-cabal.
 
 compiledAgdaFromCabalPlan :: FilePath -> IO FilePath
-compiledAgdaFromCabalPlan cabalPlan =
-  readProcessChar8 cabalPlan ["--ascii", "list-bin", "agda"]
+compiledAgdaFromCabalPlan cabalPlan = do
+  agda <- readProcessChar8 cabalPlan ["--ascii", "list-bin", "agda"]
     -- TODO: should this be --unicode (UTF8 encoding)?
+  putStrLn $ unwords [ "Agda binary at:", agda ]
+  return agda
 
 -- | Option @--ascii@ requires @cabal-plan >= 0.7.1.0@.
 
@@ -1066,7 +1067,11 @@ readProcessChar8 cmd args = trim <$> withEncoding char8 (readProcess cmd args ""
 callProcessWithResult :: FilePath -> [String] -> IO Bool
 callProcessWithResult prog args = do
   code <- waitForProcess =<< spawnProcess prog args
-  return (code == ExitSuccess)
+  let success = code == ExitSuccess
+  unless success $ do
+    putStr "Command failed:"
+    putStrLn $ showCommandForUser prog args
+  return success
 
 -- | Like 'callProcessWithResult', but the process does not inherit
 -- stdin/stdout/stderr (and @"UTF-8//IGNORE"@ is used as the locale
