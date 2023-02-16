@@ -563,7 +563,7 @@ main = do
 
 checkOptions :: Options -> IO ()
 checkOptions Options{ .. } = do
-  mapM checkCompiler compiler
+  mapM_ checkCompiler compiler
   checkCabal v1cabal cabal
   unless v1cabal $ checkCabalPlan cabalPlan
 
@@ -606,10 +606,10 @@ checkCabalPlan cabalPlan = do
         ]
       return "(unkonwn)"
     version : _ -> do
-      unless (version >= makeVersion [0,2]) $
+      unless (version >= cabalPlanMinVersion) $
         die $ unwords
-          [ "Need cabal-plan >= 0.2, but got version"
-          , showVersion version
+          [ "Need cabal-plan >=", showVersion cabalPlanMinVersion
+          , "but got version", showVersion version
           ]
       return $ showVersion version
   putStrLn $ unwords [ "Using", cabalPlan, "version", versionString ]
@@ -889,6 +889,11 @@ compiledAgdaFromCabalPlan :: FilePath -> IO FilePath
 compiledAgdaFromCabalPlan cabalPlan =
   readProcessChar8 cabalPlan ["--ascii", "list-bin", "agda"]
     -- TODO: should this be --unicode (UTF8 encoding)?
+
+-- | Option @--ascii@ requires @cabal-plan >= 0.7.1.0@.
+
+cabalPlanMinVersion :: Version
+cabalPlanMinVersion = makeVersion [0,7,1,0]
 
 -- | Prepare Agda source code for compilation.
 
