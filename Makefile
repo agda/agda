@@ -438,6 +438,9 @@ workflows :
 ##############################################################################
 ## Testing
 
+# Use `make TEST_PATTERN=abc succeed` to run tests in Succeed that start with "abc"
+TEST_SUFFIX := $(shell if [ -z "$TEST_PATTERN" ]; then echo ""; else echo "/${TEST_PATTERN}"; fi )
+
 .PHONY : test ## Run all test suites.
 test : check-whitespace \
        check-encoding \
@@ -485,17 +488,17 @@ check-encoding :
 .PHONY : bugs ##
 bugs :
 	@$(call decorate, "Suite of tests for bugs", \
-	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Bugs)
+	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Bugs$(TEST_SUFFIX))
 
 .PHONY : internal-tests ##
 internal-tests :
 	@$(call decorate, "Internal test suite", \
-		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Internal )
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Internal$(TEST_SUFFIX) )
 
 .PHONY : fast-internal-tests ##
 fast-internal-tests :
 	@$(call decorate, "Internal test suite (using agda-fast)", \
-		AGDA_BIN=$(AGDA_FAST_BIN) $(AGDA_FAST_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Internal )
+		AGDA_BIN=$(AGDA_FAST_BIN) $(AGDA_FAST_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Internal$(TEST_SUFFIX) )
 
 .PHONY : common ##
 common :
@@ -506,13 +509,13 @@ common :
 succeed :
 	@$(call decorate, "Suite of successful tests", \
 		echo $(shell which $(AGDA_BIN)) > test/Succeed/exec-tc/executables && \
-		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed ; \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed$(TEST_SUFFIX) ; \
 		rm test/Succeed/exec-tc/executables )
 
 .PHONY : fail ##
 fail :
 	@$(call decorate, "Suite of failing tests", \
-		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Fail)
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Fail$(TEST_SUFFIX) )
 
 .PHONY : fast-fail ##
 fast-fail :
@@ -527,7 +530,7 @@ interaction :
 .PHONY : interactive ##
 interactive :
 	@$(call decorate, "Suite of interactive tests", \
-		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Interactive)
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Interactive$(TEST_SUFFIX))
 
 .PHONY : examples ##
 examples :
@@ -537,28 +540,28 @@ examples :
 .PHONY : latex-html-test ## Tests the LaTeX and HTML backends.
 latex-html-test :
 	@$(call decorate, "Suite of tests for the LaTeX and HTML backends", \
-	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXAndHTML)
+	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXAndHTML$(TEST_SUFFIX))
 
 .PHONY : html-test ##
 html-test :
 	@$(call decorate, "Suite of tests for the HTML backend", \
-	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXAndHTML/HTML)
+	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXAndHTML/HTML$(TEST_SUFFIX))
 
 .PHONY : latex-test ##
 latex-test :
 	@$(call decorate, "Suite of tests for the LaTeX backend", \
-		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXAndHTML/LaTeX)
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXAndHTML/LaTeX$(TEST_SUFFIX))
 
 .PHONY : quicklatex-test ##
 quicklatex-test :
 	@$(call decorate, "Suite of tests for the QuickLaTeX backend", \
-	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXAndHTML/QuickLaTeX)
+	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXAndHTML/QuickLaTeX$(TEST_SUFFIX))
 
 .PHONY : std-lib-test ##
 std-lib-test :
 	@$(call decorate, "Standard library test", \
 		(cd std-lib && cabal run GenerateEverything && \
-						time $(AGDA_BIN) $(AGDA_OPTS) --ignore-interfaces --no-default-libraries $(PROFILEOPTS) \
+						time $(AGDA_BIN) $(AGDA_OPTS) --ignore-interfaces --no-syntax-based-termination --type-based-termination -v term.tbt:11 --show-implicit --no-default-libraries $(PROFILEOPTS) \
 														 -i. -isrc Everything.agda \
 														 +RTS -s))
 
@@ -584,13 +587,13 @@ continue-std-lib-test :
 cubical-succeed :
 	@$(call decorate, "Successful tests using the cubical library", \
 	  find test/CubicalSucceed -type f -name '*.agdai' -delete ; \
-	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/CubicalSucceed)
+	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/CubicalSucceed$(TEST_SUFFIX))
 
 .PHONY : std-lib-succeed ##
 std-lib-succeed :
 	@$(call decorate, "Successful tests using the standard library", \
 	  find test/LibSucceed -type f -name '*.agdai' -delete ; \
-	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LibSucceed)
+	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LibSucceed$(TEST_SUFFIX))
 
 .PHONY : std-lib-interaction ##
 std-lib-interaction :

@@ -533,6 +533,7 @@ library
       Agda.Interaction.Options.Lenses
       Agda.Interaction.Options.Warnings
       Agda.Main
+      Agda.Repl
       Agda.Syntax.Abstract.Name
       Agda.Syntax.Abstract.Pattern
       Agda.Syntax.Abstract.PatternSynonyms
@@ -602,6 +603,7 @@ library
       Agda.Syntax.Treeless
       Agda.Termination.CallGraph
       Agda.Termination.CallMatrix
+      Agda.Termination.Common
       Agda.Termination.CutOff
       Agda.Termination.Monad
       Agda.Termination.Order
@@ -610,6 +612,15 @@ library
       Agda.Termination.Semiring
       Agda.Termination.TermCheck
       Agda.Termination.Termination
+      Agda.Termination.TypeBased.Checking
+      Agda.Termination.TypeBased.Common
+      Agda.Termination.TypeBased.Definitions
+      Agda.Termination.TypeBased.Encoding
+      Agda.Termination.TypeBased.Graph
+      Agda.Termination.TypeBased.Monad
+      Agda.Termination.TypeBased.Patterns
+      Agda.Termination.TypeBased.Preservation
+      Agda.Termination.TypeBased.Syntax
       Agda.TheTypeChecker
       Agda.TypeChecking.Abstract
       Agda.TypeChecking.CheckInternal

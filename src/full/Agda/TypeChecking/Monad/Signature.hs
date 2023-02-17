@@ -574,6 +574,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                     { defArgInfo        = defArgInfo d
                     , defName           = y
                     , defType           = t
+                    , defSizedType      = defSizedType d
                     , defPolarity       = pol
                     , defArgOccurrences = occ
                     , defArgGeneralizable = gen

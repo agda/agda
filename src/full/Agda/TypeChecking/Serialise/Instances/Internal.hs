@@ -18,6 +18,8 @@ import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Coverage.SplitTree
 
+import Agda.Termination.TypeBased.Syntax ( SizeSignature (..), SizeTele (..), Size (..), SizeBound (..) )
+
 import Agda.Utils.Functor
 import Agda.Utils.Permutation
 
@@ -213,9 +215,46 @@ instance EmbPrj CompKit where
   icod_ (CompKit a b) = icodeN' CompKit a b
   value = valueN CompKit
 
+instance EmbPrj SizeSignature where
+  icod_ (SizeSignature a b c) = icodeN' SizeSignature a b c
+  value = vcase valu where
+    valu [a, b, c] = valuN SizeSignature a b c
+    valu _      = malformed
+
+instance EmbPrj SizeBound where
+  icod_ SizeUnbounded = icodeN' SizeUnbounded
+  icod_ (SizeBounded i) = icodeN 0 SizeBounded i
+
+  value = vcase valu where
+    valu []     = valuN SizeUnbounded
+    valu [0, a] = valuN SizeBounded a
+    valu _      = malformed
+
+instance EmbPrj SizeTele where
+  icod_ (SizeTree a b)      = icodeN 0 SizeTree a b
+  icod_ (SizeArrow a b)     = icodeN 1 SizeArrow a b
+  icod_ (SizeGeneric a b c) = icodeN 2 SizeGeneric a b c
+  icod_ (SizeGenericVar a b)  = icodeN 3 SizeGenericVar a b
+
+  value = vcase valu where
+    valu [0, a, b]    = valuN SizeTree a b
+    valu [1, a, b]    = valuN SizeArrow a b
+    valu [2, a, b, c] = valuN SizeGeneric a b c
+    valu [3, a, b]    = valuN SizeGenericVar a b
+    valu _            = malformed
+
+instance EmbPrj Size where
+  icod_ (SUndefined) = icodeN' SUndefined
+  icod_ (SDefined i) = icodeN 0 SDefined i
+
+  value = vcase valu where
+    valu [] = valuN SUndefined
+    valu [0, i] = valuN SDefined i
+    valu _      = malformed
+
 instance EmbPrj Definition where
-  icod_ (Defn a b c d e f g h i j k l m n o p blocked r s) =
-    icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o p (ossify blocked) r s
+  icod_ (Defn a b c d e f g h i j k l m n o p r blocked s t) =
+    icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o p r (ossify blocked) s t
     where
       -- Andreas, 2024-01-02, issue #7044:
       -- After serialization, a definition can never be unblocked,
