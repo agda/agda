@@ -26,7 +26,7 @@ import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.ProjectionLike (elimView, ProjEliminator(..))
-import Agda.TypeChecking.Records (getDefType)
+import Agda.TypeChecking.Records (shouldBeProjectible)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Sort
@@ -304,9 +304,8 @@ inferSpine action t hd es = loop t hd id es
           loop (b `absApp` v) (hd . (e:)) (acc . (e':)) es
         -- case: projection or projection-like
         Proj o f -> do
-          (a, b) <- shouldBePi =<< shouldBeProjectible t f
-          u <- applyDef o f (argFromDom a $> self)
-          loop (b `absApp` self) (hd . (e:)) (acc . (e:)) es
+          (hd', t') <- shouldBeProjectible self t o f
+          loop t' (hd . (e:)) (acc . (e:)) es
 
 checkSpine
   :: (MonadCheckInternal m)
@@ -327,16 +326,6 @@ checkSpine action a hd es cmp t = do
   (t' , es') <- inferSpine action a hd es
   coerceSize (compareType cmp) (hd es) t' t
   return $ hd es'
-
--- | Type should either be a record type of a type eligible for
---   the principal argument of projection-like functions.
-shouldBeProjectible :: (MonadCheckInternal m) => Type -> QName -> m Type
--- shouldBeProjectible t f = maybe failure return =<< projectionType t f
-shouldBeProjectible t f = do
-    t <- abortIfBlocked t
-    maybe failure return =<< getDefType f t
-  where failure = typeError $ ShouldBeRecordType t
-    -- TODO: more accurate error that makes sense also for proj.-like funs.
 
 instance CheckInternal Sort where
   checkInternal' action s cmp _ = case s of
