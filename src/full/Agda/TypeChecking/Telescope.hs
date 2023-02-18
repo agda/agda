@@ -26,6 +26,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Warnings
 
 import Agda.Utils.CallStack ( withCallerCallStack )
+import Agda.Utils.Either
 import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.List
@@ -538,7 +539,30 @@ telView'Path :: Type -> TCM TelView
 telView'Path = telView'UpToPath (-1)
 
 isPath :: PureTCM m => Type -> m (Maybe (Dom Type, Abs Type))
-isPath = either Just (const Nothing) <.> pathViewAsPi
+isPath t = ifPath t (\a b -> return $ Just (a,b)) (const $ return Nothing)
+
+ifPath :: PureTCM m => Type -> (Dom Type -> Abs Type -> m a) -> (Type -> m a) -> m a
+ifPath t yes no = ifPathB t yes $ no . ignoreBlocking
+
+ifPathB :: PureTCM m => Type -> (Dom Type -> Abs Type -> m a) -> (Blocked Type -> m a) -> m a
+ifPathB t yes no = ifBlocked t
+  (\b t -> no $ Blocked b t)
+  (\nb t -> caseEitherM (pathViewAsPi'whnf <*> pure t)
+    (uncurry yes . fst)
+    (no . NotBlocked nb))
+
+ifNotPathB :: PureTCM m => Type -> (Blocked Type -> m a) -> (Dom Type -> Abs Type -> m a) -> m a
+ifNotPathB = flip . ifPathB
+
+ifPiOrPathB :: PureTCM m => Type -> (Dom Type -> Abs Type -> m a) -> (Blocked Type -> m a) -> m a
+ifPiOrPathB t yes no = ifPiTypeB t
+  (\a b -> yes a b)
+  (\bt -> caseEitherM (pathViewAsPi'whnf <*> pure (ignoreBlocking bt))
+    (uncurry yes . fst)
+    (no . (bt $>)))
+
+ifNotPiOrPathB :: PureTCM m => Type -> (Blocked Type -> m a) -> (Dom Type -> Abs Type -> m a) -> m a
+ifNotPiOrPathB = flip . ifPiOrPathB
 
 telePatterns :: DeBruijn a => Telescope -> Boundary -> [NamedArg (Pattern' a)]
 telePatterns = telePatterns' teleNamedArgs
@@ -566,11 +590,17 @@ mustBePi t = ifNotPiType t __IMPOSSIBLE__ $ curry return
 -- | If the given type is a @Pi@, pass its parts to the first continuation.
 --   If not (or blocked), pass the reduced type to the second continuation.
 ifPi :: MonadReduce m => Term -> (Dom Type -> Abs Type -> m a) -> (Term -> m a) -> m a
-ifPi t yes no = do
-  t <- reduce t
-  case t of
+ifPi t yes no = ifPiB t yes (no . ignoreBlocking)
+
+ifPiB :: (MonadReduce m) => Term -> (Dom Type -> Abs Type -> m a) -> (Blocked Term -> m a) -> m a
+ifPiB t yes no = ifBlocked t
+  (\b t -> no $ Blocked b t) -- Pi type is never blocked
+  (\nb t -> case t of
     Pi a b -> yes a b
-    _      -> no t
+    _      -> no $ NotBlocked nb t)
+
+ifPiTypeB :: (MonadReduce m) => Type -> (Dom Type -> Abs Type -> m a) -> (Blocked Type -> m a) -> m a
+ifPiTypeB (El s t) yes no = ifPiB t yes (\bt -> no $ El s <$> bt)
 
 -- | If the given type is a @Pi@, pass its parts to the first continuation.
 --   If not (or blocked), pass the reduced type to the second continuation.
@@ -591,6 +621,20 @@ ifNotPiOrPathType :: (MonadReduce tcm, HasBuiltins tcm) => Type -> (Type -> tcm 
 ifNotPiOrPathType t no yes = do
   ifPiType t yes (\ t -> either (uncurry yes . fst) (const $ no t) =<< (pathViewAsPi'whnf <*> pure t))
 
+shouldBePath :: (PureTCM m, MonadBlock m, MonadTCError m) => Type -> m (Dom Type, Abs Type)
+shouldBePath t = ifPathB t 
+  (curry return) 
+  (fromBlocked >=> typeError . ShouldBePath)
+  
+shouldBePi :: (PureTCM m, MonadBlock m, MonadTCError m) => Type -> m (Dom Type, Abs Type)
+shouldBePi t = ifPiTypeB t
+  (curry return)
+  (fromBlocked >=> typeError . ShouldBePi)
+
+shouldBePiOrPath :: (PureTCM m, MonadBlock m, MonadTCError m) => Type -> m (Dom Type, Abs Type)
+shouldBePiOrPath t = ifPiOrPathB t
+  (curry return)
+  (fromBlocked >=> typeError . ShouldBePi) -- TODO: separate error
 
 -- | A safe variant of 'piApply'.
 
