@@ -17,7 +17,7 @@ module Agda.TypeChecking.Reduce
  , unfoldDefinitionE, unfoldDefinitionStep
  , unfoldInlined
  , appDef', appDefE'
- , abortIfBlocked, ifBlocked, isBlocked
+ , abortIfBlocked, ifBlocked, isBlocked, fromBlocked
  -- Simplification
  , Simplify, simplify, simplifyBlocked'
  -- Normalization
@@ -387,6 +387,12 @@ isBlocked
   :: (Reduce t, IsMeta t, MonadReduce m)
   => t -> m (Maybe Blocker)
 isBlocked t = ifBlocked t (\m _ -> return $ Just m) (\_ _ -> return Nothing)
+
+-- | Throw a pattern violation if the argument is @Blocked@,
+--   otherwise return the value embedded in the @NotBlocked@.
+fromBlocked :: MonadBlock m => Blocked a -> m a
+fromBlocked (Blocked b _) = patternViolation b
+fromBlocked (NotBlocked _ x) = return x
 
 class Reduce t where
   reduce'  :: t -> ReduceM t

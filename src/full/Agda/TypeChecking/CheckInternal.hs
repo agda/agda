@@ -151,7 +151,7 @@ instance CheckInternal Term where
         compareType cmp lt t
         return $ Lit l
       Lam ai vb  -> do
-        (a, b) <- maybe (shouldBePi t) return =<< isPath t
+        (a, b) <- shouldBePiOrPath t
         ai <- checkArgInfo action ai $ domInfo a
         let name = suggests [ Suggestion vb , Suggestion b ]
         addContext (name, a) $ do
@@ -337,19 +337,6 @@ shouldBeProjectible t f = do
     maybe failure return =<< getDefType f t
   where failure = typeError $ ShouldBeRecordType t
     -- TODO: more accurate error that makes sense also for proj.-like funs.
-
-shouldBePath :: (MonadCheckInternal m) => Type -> m (Dom Type, Abs Type)
-shouldBePath t = do
-  t <- abortIfBlocked t
-  m <- isPath t
-  case m of
-    Just p  -> return p
-    Nothing -> typeError $ ShouldBePath t
-
-shouldBePi :: (MonadCheckInternal m) => Type -> m (Dom Type, Abs Type)
-shouldBePi t = abortIfBlocked t >>= \ case
-  El _ (Pi a b) -> return (a, b)
-  _             -> typeError $ ShouldBePi t
 
 instance CheckInternal Sort where
   checkInternal' action s cmp _ = case s of
