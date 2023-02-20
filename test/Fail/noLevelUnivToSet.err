@@ -1,0 +1,3 @@
+noLevelUnivToSet.agda:7,5-9
+LevelUniv != Set
+when checking that the expression refl has type LevelUniv ≡ Set

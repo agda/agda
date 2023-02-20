@@ -5,7 +5,7 @@
 
 module Common.Level where
 
-open import Agda.Primitive public using (Level; lzero; lsuc; _⊔_)
+open import Agda.Primitive public using (LevelUniv; Level; lzero; lsuc; _⊔_)
 
 -- Lifting.
 
