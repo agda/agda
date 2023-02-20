@@ -88,7 +88,8 @@ hasBiggerSort = void . inferUnivSort
 inferPiSort :: PureTCM m => Dom Type -> Abs Sort -> m Sort
 inferPiSort a s2 = do
   s1' <- reduce $ getSort a
-  s2' <- mapAbstraction a reduce s2
+  s2' <- reduce s2
+  s2' <- mapAbstraction a reduce s2'
   -- we do instantiateFull here to perhaps remove some (flexible)
   -- dependencies of s2 on var 0, thus allowing piSort' to reduce
   s2' <- instantiateFull s2'
