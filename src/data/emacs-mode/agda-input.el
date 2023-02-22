@@ -26,16 +26,11 @@
 ;; that with-temp-buffer is used below whenever buffer-local state is
 ;; modified.
 
-;;;; Utility functions
-(defun agda-input-concat-map (f xs)
-  "Apply F to every element in XS and flatten the results into a list."
-  (apply #'append (mapcar f xs)))
-
 (defun agda-input-to-string-list (s)
   "Convert a string S to a list of one-character strings.
 Spaces and newlines are ignored."
   (declare (pure t))
-  (agda-input-concat-map
+  (mapcan
    (lambda (c)
      (and (not (memq c '(?\s ?\n))) (list (string c))))
    (string-to-list s)))
@@ -50,7 +45,7 @@ Spaces and newlines are ignored."
 ;;;; Functions used to tweak translation pairs
 (defun agda-input-compose (f g)
   "Apply G before calling `agda-input-concat-map' with F."
-  (lambda (x) (agda-input-concat-map f (funcall g x))))
+  (lambda (x) (mapcan f (funcall g x))))
 
 (defun agda-input-or (&rest fns)
   "Return a function that will apply and contact the results of FNS."
@@ -210,9 +205,9 @@ translations using `agda-input-show-translations'."
   :group 'leim)
 
 (defcustom agda-input-tweak-all
-  '(agda-input-compose
-    (agda-input-prepend "\\")
-    (agda-input-nonempty))
+  (agda-input-compose
+   (agda-input-prepend "\\")
+   (agda-input-nonempty))
   "Expression describing the transformations made upon the input mode.
 The resulting function (if non-nil) is applied to every
 \(KEY-SEQUENCE . TRANSLATION) pair and should return a list of such
@@ -226,6 +221,38 @@ order for the change to take effect."
   :set 'agda-input-incorporate-changed-setting
   :initialize 'custom-initialize-default
   :type 'sexp)
+
+(defcustom agda-input-inherit
+  `(("TeX" . ,(agda-input-compose
+               (agda-input-drop '("geq" "leq" "bullet" "qed" "par"))
+               (agda-input-or
+                (agda-input-drop-prefix "\\")
+                (agda-input-compose
+                 (agda-input-drop '("^l" "^o" "^r" "^v"))
+                 (agda-input-prefix "^"))
+                (agda-input-prefix "_")))))
+  "A list of Quail input methods for the Agda input mode.
+Their translations should be inherited by the Agda input
+method (with the exception of translations corresponding to ASCII
+characters).
+
+The list consists of pairs (qp . tweak), where qp is the name of
+a Quail package, and tweak is an expression of the same kind as
+`agda-input-tweak-all' which is used to tweak the translation
+pairs of the input method.
+
+The inherited translation pairs are added last, after
+`agda-input-user-translations' and `agda-input-translations'.
+
+If you change this setting manually (without using the
+customization buffer) you need to call `agda-input-setup' in
+order for the change to take effect."
+  :group 'agda-input
+  :set 'agda-input-incorporate-changed-setting
+  :initialize 'custom-initialize-default
+  :type '(repeat (cons (string :tag "Quail package")
+                       (sexp :tag "Tweaking function"))))
+
 
 (defcustom agda-input-translations
   (let ((max-lisp-eval-depth 2800))
@@ -757,7 +784,7 @@ list has the form (KEY-SEQUENCE . TRANSLATION)."
 TRANS is a list of pairs (KEY-SEQUENCE . TRANSLATION).  The
 translations are appended to the current translations."
   (with-temp-buffer
-    (dolist (tr (agda-input-concat-map (eval agda-input-tweak-all) trans))
+    (dolist (tr (mapcan agda-input-tweak-all trans))
       (quail-defrule (car tr) (cdr tr) "Agda" t))))
 
 (defun agda-input-inherit-package (qp &optional fun)
@@ -768,8 +795,7 @@ pair (KEY-SEQUENCE . TRANSLATION) and should return a list of
 such pairs."
   (let ((trans (agda-input-get-translations qp)))
     (agda-input-add-translations
-     (if fun (agda-input-concat-map fun trans)
-       trans))))
+     (if fun (mapcan fun trans) trans))))
 
 ;;;; Setting up the input method
 
@@ -791,8 +817,7 @@ tasks as well."
            (append agda-input-user-translations
                    agda-input-translations)))
   (dolist (def agda-input-inherit)
-    (agda-input-inherit-package (car def)
-                                (eval (cdr def)))))
+    (agda-input-inherit-package (car def) (cdr def))))
 
 (defun agda-input-incorporate-changed-setting (sym val)
   "Update the Agda input method and set SYM to VAL.
