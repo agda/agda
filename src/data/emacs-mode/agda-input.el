@@ -26,6 +26,13 @@
 ;; that with-temp-buffer is used below whenever buffer-local state is
 ;; modified.
 
+(unless (fboundp 'mapcan)
+  (defun mapcan (func sequence)
+    "Apply FUNC to each element of SEQUENCE.
+Concatenate the results by altering them (using `nconc').
+SEQUENCE may be a list, a vector, a boolean vector, or a string."
+    (apply #'nconc (mapcar func sequence))))
+
 (defun agda-input-to-string-list (s)
   "Convert a string S to a list of one-character strings.
 Spaces and newlines are ignored."
