@@ -1849,10 +1849,10 @@ command might save the buffer."
   "Generate a list of definitions for identifier IDENT."
   (let ((xref-info (get-text-property 0 'agda2-xref-info ident)))
     (and xref-info
-         (let ((loc (make-xref-buffer-location
-                     :buffer (find-file-noselect (car xref-info))
-                     :position (cdr xref-info))))
-           (list (make-xref-item :location loc))))))
+         (let ((loc (xref-make-buffer-location
+                     (find-file-noselect (car xref-info))
+                     (cdr xref-info))))
+           (list (xref-make ident loc))))))
 
 ;; (cl-defmethod xref-backend-references ((_ (eql 'agda2)) identifier)
 ;;   "Generate a list of references for IDENTIFIER.")
@@ -1877,9 +1877,9 @@ configuration and the selected window are not changed."
              (stringp (car filepos))
              (integerp (cdr filepos)))
     (xref--show-xrefs
-     (let ((loc (make-xref-buffer-location
-                 :buffer (find-file-noselect (car filepos))
-                 :position (cdr filepos))))
+     (let ((loc (xref-make-buffer-location
+                 (find-file-noselect (car filepos))
+                 (cdr filepos))))
        (list (xref-make "-" loc)))
      nil)))
 
