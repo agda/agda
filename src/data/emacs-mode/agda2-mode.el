@@ -1,7 +1,7 @@
 ;;; agda2-mode.el --- Major mode for Agda       -*- lexical-binding: t; -*-
 
 ;; Version: 2.6.3
-;; Package-Requires: ((emacs "25.1") (eri "1.0") (xref "1.0.2"))
+;; Package-Requires: ((emacs "25.1") (xref "1.0.2"))
 ;; Keywords: languages
 ;; URL: https://github.com/agda/agda/tree/master/src/data/emacs-mode
 ;; SPDX-License-Identifier: MIT License
