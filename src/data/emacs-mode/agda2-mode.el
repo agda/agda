@@ -1876,29 +1876,12 @@ configuration and the selected window are not changed."
              (consp filepos)
              (stringp (car filepos))
              (integerp (cdr filepos)))
-    (xref-show-xrefs
+    (xref--show-xrefs
      (let ((loc (make-xref-buffer-location
                  :buffer (find-file-noselect (car filepos))
                  :position (cdr filepos))))
        (list (xref-make "-" loc)))
-     nil)
-    ;; (if agda2-in-agda2-file-buffer
-    ;;     (progn
-    ;;       (xref-show-xrefs )
-    ;;       (xref-push-marker-stack)
-    ;;       (goto-char (cdr filepos)))
-    ;;   (save-excursion                   ;TODO
-    ;;     (let ((buffer (find-buffer-visiting (car filepos))))
-    ;;       (when buffer
-    ;;         (let ((windows (get-buffer-window-list buffer
-    ;;                                                'no-minibuffer t)))
-    ;;           (if windows
-    ;;               (dolist (window windows)
-    ;;                 (with-selected-window window
-    ;;                   (goto-char (cdr filepos))))
-    ;;             (with-current-buffer buffer
-    ;;               (goto-char (cdr filepos)))))))))
-    ))
+     nil)))
 
 ;;;; Implicit arguments
 

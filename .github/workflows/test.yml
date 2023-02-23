@@ -156,7 +156,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install texlive-binaries ${APT_GET_OPTS}
-        sudo apt-get install emacs-nox ${APT_GET_OPTS}
+        sudo apt-get install emacs-nox elpa-xref ${APT_GET_OPTS}
     - name: Suite of tests for the LaTeX and HTML backends
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" DONT_RUN_LATEX=Y latex-html-test
     - if: always()
