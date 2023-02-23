@@ -10,8 +10,6 @@
 
 ;;; Code:
 
-(require 'cl-lib)
-
 (defun eri-current-line-length nil
   "Calculate length of current line."
   (- (line-end-position) (line-beginning-position)))
@@ -19,24 +17,6 @@
 (defun eri-current-line-empty nil
   "Return non-nil if the current line is empty (not counting white space)."
   (= (current-indentation) (eri-current-line-length)))
-
-(defun eri-maximum (xs)
-  "Calculate maximum element in XS.
-Returns nil if the list is empty."
-  (if xs (apply 'max xs)))
-
-(defun eri-take (n xs)
-  "Return the first N elements of XS."
-  (butlast xs (- (length xs) n)))
-
-(defun eri-split (x xs)
-  "Return a pair of lists (XS1 . XS2).
-If XS is sorted, then XS = (append XS1 XS2), and all elements in
-XS1 are <= X, whereas all elements in XS2 are > X."
-  (let* ((pos (or (cl-position-if (lambda (y) (> y x)) xs) (length xs)))
-         (xs1 (eri-take pos xs))
-         (xs2 (nthcdr pos xs)))
-    (cons xs1 xs2)))
 
 (defun eri-calculate-indentation-points-on-line (max)
   "Calculate indentation points on current line.
@@ -54,7 +34,7 @@ Example (positions marked with ^ are returned):
     (save-excursion
       (save-restriction
         (beginning-of-line)
-        ; To make \\` work in the regexp below:
+        ;; To make \\` work in the regexp below:
         (narrow-to-region (line-beginning-position) (line-end-position))
         (while
             (progn
@@ -68,7 +48,7 @@ Example (positions marked with ^ are returned):
                 (and pos
                      (< (point) (line-end-position))
                      (or (null max) (< (current-column) max))))))
-        (nreverse result) ; Destructive operation.
+        (nreverse result) ;Destructive operation.
         ))))
 
 (defun eri-new-indentation-points ()
@@ -79,7 +59,7 @@ excluded) above the current line. If there is no such line,
 then the empty list is returned."
   (let ((start (line-beginning-position)))
     (save-excursion
-      ; Find a non-empty line above the current one, if any.
+      ;; Find a non-empty line above the current one, if any.
       (while
           (progn
             (forward-line -1)
@@ -104,8 +84,8 @@ the returned list."
       (while
           (progn
             (forward-line -1)
-            ; Skip the line we started from and lines with nothing but
-            ; white space.
+            ;; Skip the line we started from and lines with nothing
+            ;; but white space.
             (unless (or (= (point) start)
                         (eri-current-line-empty))
               (setq points
@@ -122,14 +102,16 @@ the returned list."
     ;; Sort the indentations. Rearrange the points so that the next
     ;; point is the one after the current one. Reverse if necessary.
     ;;
-    ;; Note: sort and nreverse are destructive.
-    (let* ((ps0 (remove (current-indentation)
-                        (append (eri-new-indentation-points) points)))
-           (ps1 (eri-split (current-indentation) (sort ps0 '<)))
-           (ps2 (append (cdr ps1) (car ps1))))
-      (if reverse
-          (nreverse ps2)
-        ps2))))
+    ;; Note: `sort' and `nreverse' are destructive.
+    (let* ((ci (current-indentation))
+           (points (sort (remove ci (append (eri-new-indentation-points) points))
+                         #'<)))
+      (when (< 0 ci (length points))
+        (let ((last (last points)) (mid (nthcdr ci points)))
+          (setf (nthcdr ci points) nil
+                (cdr last) points
+                points mid)))
+      (if reverse (nreverse points) points))))
 
 (defun eri-indent (&optional reverse)
   "Cycle between some possible indentation points.
