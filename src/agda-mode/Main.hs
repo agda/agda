@@ -265,7 +265,6 @@ compileElispFiles = do
       , "--eval"
       , "(progn \
            \(setq byte-compile-error-on-warn t) \
-           \(byte-compile-disable-warning 'cl-functions) \
            \(batch-byte-compile))"
       , f
       ]
