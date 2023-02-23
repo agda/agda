@@ -720,8 +720,7 @@ is non-nil."
   (unwind-protect
       (when agda2-highlight-in-progress
         (agda2-highlight-load file))
-    ;; (delete-file file)
-    ))
+    (delete-file file)))
 
 (defun agda2-highlight-clear (&optional token-based)
   "Remove all syntax highlighting.
