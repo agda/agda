@@ -10,11 +10,11 @@
 
 ;;; Code:
 
-(defun eri-current-line-length nil
+(defun eri-current-line-length ()
   "Calculate length of current line."
   (- (line-end-position) (line-beginning-position)))
 
-(defun eri-current-line-empty nil
+(defun eri-current-line-empty ()
   "Return non-nil if the current line is empty (not counting white space)."
   (= (current-indentation) (eri-current-line-length)))
 
