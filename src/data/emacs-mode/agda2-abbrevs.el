@@ -80,6 +80,7 @@
 (defvar agda2-mode-abbrev-table nil
   "Agda mode abbrev table.")
 
+(defvar agda2-mode-abbrevs-use-defaults)
 (defun agda2-mode-abbrevs-use-defaults ()
   "Load or disable Agda abbrevs."
   (define-abbrev-table
