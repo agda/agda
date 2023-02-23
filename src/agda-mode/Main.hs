@@ -264,6 +264,7 @@ compileElispFiles = do
       , "--batch"                -- 'batch' implies 'no-init-file' but not 'no-site-file'.
       , "--eval"
       , "(progn \
+           \(setq debug-on-error t) \
            \(setq byte-compile-error-on-warn t) \
            \(batch-byte-compile))"
       , f
