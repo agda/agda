@@ -186,7 +186,6 @@ constituents.")
     (define-key m (kbd "C-c C-z") #'agda2-search-about-toplevel)
     (define-key m (kbd "C-c C-o") #'agda2-module-contents-maybe-toplevel)
     (define-key m (kbd "C-c C-n") #'agda2-compute-normalised-maybe-toplevel)
-    (define-key m (kbd "TAB")             #'eri-indent)
     (define-key m (kbd "S-<iso-lefttab>") #'eri-indent-reverse)
     (define-key m (kbd "S-<lefttab>")     #'eri-indent-reverse)
     (define-key m (kbd "S-<tab>")         #'eri-indent-reverse)
@@ -417,7 +416,9 @@ agda2-include-dirs is not bound." :warning))
  ;; including "mode: latex" is loaded chances are that the Agda mode
  ;; is activated before the LaTeX mode, and the LaTeX mode does not
  ;; seem to remove the text properties set by the Agda mode.
- (add-hook 'change-major-mode-hook #'agda2-quit nil 'local))
+ (add-hook 'change-major-mode-hook #'agda2-quit nil 'local)
+ ;; Use ERI for indentation
+ (setq-local indent-line-function #'eri-indent))
 
 (defun agda2-restart ()
   "Try to start or restart the Agda process."
