@@ -114,8 +114,9 @@ This suffix is dropped."
    (agda-input-suffix suffix)))
 
 ;;;; Functions to generate common ranges
-(defun agda-input-common-range (input-fmt name-fmt mappings)
-  "Generate a character range based on MAPPINGS.
+(eval-and-compile
+  (defun agda-input-common-range (input-fmt name-fmt mappings)
+    "Generate a character range based on MAPPINGS.
 MAPPINGS is an alist, mapping a input key to a part of a
 character name.  E.g. `agda-input-greek-range' maps the \"α\" to
 \"ALPHA\".  These are composed into entries adequat for
@@ -132,71 +133,71 @@ alternative mappings. This function is not meant to be used
 directly, but via one of the wrapper functions
 `agda-input-latin-range', `agda-input-greek-range',
 `agda-input-number-range' or `agda-input-number-range*'."
-  (let ((rules '()))
-    (dolist (map mappings)
-      (let ((assoc '()))
-        (dolist (fmt name-fmt)
-          (let ((char (char-from-name (format fmt (cdr map)))))
-            (when char
-              (push (string char) assoc))))
-        (when assoc
-          (push (cons (format input-fmt (car map))
-                      (nreverse assoc))
-                rules))))
-    (nreverse rules)))
+    (let ((rules '()))
+      (dolist (map mappings)
+        (let ((assoc '()))
+          (dolist (fmt name-fmt)
+            (let ((char (char-from-name (format fmt (cdr map)))))
+              (when char
+                (push (string char) assoc))))
+          (when assoc
+            (push (cons (format input-fmt (car map))
+                        (nreverse assoc))
+                  rules))))
+      (nreverse rules)))
 
-(defun agda-input-latin-range (input-fmt name-fmt &optional lower)
-  "Create a mapping for latin characters.
+  (defun agda-input-latin-range (input-fmt name-fmt &optional lower)
+    "Create a mapping for latin characters.
 If LOWER is non-nil, map lower case letters.  For details on
 INPUT-FMT and NAME-FMT, see `agda-input-common-range'."
-  (declare (pure t))
-  (agda-input-common-range
-   input-fmt (if (listp name-fmt) name-fmt (list name-fmt))
-   (mapcar
-    (lambda (c)
-      (cons (string (if lower (downcase c) c)) (string c)))
-    (number-sequence ?A ?Z))))
+    (declare (pure t))
+    (agda-input-common-range
+     input-fmt (if (listp name-fmt) name-fmt (list name-fmt))
+     (mapcar
+      (lambda (c)
+        (cons (string (if lower (downcase c) c)) (string c)))
+      (number-sequence ?A ?Z))))
 
-(defun agda-input-greek-range (input-fmt name-fmt &optional lower)
-  "Create a mapping for greek characters.
+  (defun agda-input-greek-range (input-fmt name-fmt &optional lower)
+    "Create a mapping for greek characters.
 If LOWER is non-nil, map lower case letters.  For details on
 INPUT-FMT and NAME-FMT, see `agda-input-common-range'."
-  (declare (pure t))
-  (agda-input-common-range
-   input-fmt (list name-fmt)
-   (mapcar
-    (lambda (c)
-      (cons (concat "G" (if lower (downcase (car c)) (car c))) c))
-    '(("A" . "ALPHA") ("B" . "BETA") ("G" . "GAMMA") ("D" . "DELTA")
-      ("E" . "EPSILON") ("Z" . "ZETA") ("H" . "ETA") ("Th" . "THETA")
-      ("I" . "IOTA") ("K" . "KAPPA") ("L" . "LAMBDA") ("M" . "MU")
-      ("N" . "NU") ("X" . "XI") ("R" . "RHO") ("S" . "SIGMA")
-      ("T" . "TAU") ("U" . "UPSILON") ("F" . "PHI") ("C" . "CHI")
-      ("P" . "PSI") ("Pi" . "PI") ("O" . "OMEGA") ("Omicron" . "OMICRON")
-      ("X" . "XI") ("Z" . "ZETA")))))
+    (declare (pure t))
+    (agda-input-common-range
+     input-fmt (list name-fmt)
+     (mapcar
+      (lambda (c)
+        (cons (concat "G" (if lower (downcase (car c)) (car c))) c))
+      '(("A" . "ALPHA") ("B" . "BETA") ("G" . "GAMMA") ("D" . "DELTA")
+        ("E" . "EPSILON") ("Z" . "ZETA") ("H" . "ETA") ("Th" . "THETA")
+        ("I" . "IOTA") ("K" . "KAPPA") ("L" . "LAMBDA") ("M" . "MU")
+        ("N" . "NU") ("X" . "XI") ("R" . "RHO") ("S" . "SIGMA")
+        ("T" . "TAU") ("U" . "UPSILON") ("F" . "PHI") ("C" . "CHI")
+        ("P" . "PSI") ("Pi" . "PI") ("O" . "OMEGA") ("Omicron" . "OMICRON")
+        ("X" . "XI") ("Z" . "ZETA")))))
 
-(defun agda-input-number-range (input-fmt &rest name-fmt)
-  "Create a mapping for digits.
+  (defun agda-input-number-range (input-fmt &rest name-fmt)
+    "Create a mapping for digits.
 For details on INPUT-FMT and NAME-FMT, see
 `agda-input-common-range'."
-  (declare (pure t))
-  (agda-input-common-range
-   input-fmt name-fmt
-   '(("0" . "ZERO") ("1" . "ONE") ("2" . "TWO") ("3" . "THREE")
-     ("4" . "FOUR") ("5" . "FIVE") ("6" . "SIX") ("7" . "SEVEN")
-     ("8" . "EIGHT") ("9" . "NINE") ("10" . "TEN"))))
+    (declare (pure t))
+    (agda-input-common-range
+     input-fmt name-fmt
+     '(("0" . "ZERO") ("1" . "ONE") ("2" . "TWO") ("3" . "THREE")
+       ("4" . "FOUR") ("5" . "FIVE") ("6" . "SIX") ("7" . "SEVEN")
+       ("8" . "EIGHT") ("9" . "NINE") ("10" . "TEN"))))
 
-(defun agda-input-number-range* (input-fmt &rest name-fmt)
-  "Create a mapping for numbers from 10 to 20.
+  (defun agda-input-number-range* (input-fmt &rest name-fmt)
+    "Create a mapping for numbers from 10 to 20.
 For details on INPUT-FMT and NAME-FMT, see
 `agda-input-common-range'."
-  (declare (pure t))
-  (agda-input-common-range
-   input-fmt name-fmt
-   '(("10" . "TEN") ("11" . "ELEVEN") ("12" . "TWELVE") ("13" . "THIRTEEN")
-     ("14" . "FOURTEEN") ("15" . "FIFTEEN") ("16" . "SIXTEEN")
-     ("17" . "SEVENTEEN") ("18" . "EIGHTEEN") ("19" . "NINETEEN")
-     ("20" . "TWENTY"))))
+    (declare (pure t))
+    (agda-input-common-range
+     input-fmt name-fmt
+     '(("10" . "TEN") ("11" . "ELEVEN") ("12" . "TWELVE") ("13" . "THIRTEEN")
+       ("14" . "FOURTEEN") ("15" . "FIFTEEN") ("16" . "SIXTEEN")
+       ("17" . "SEVENTEEN") ("18" . "EIGHTEEN") ("19" . "NINETEEN")
+       ("20" . "TWENTY")))))
 
 ;;;; Customization
 
