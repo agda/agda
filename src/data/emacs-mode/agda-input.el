@@ -33,16 +33,17 @@ Concatenate the results by altering them (using `nconc').
 SEQUENCE may be a list, a vector, a boolean vector, or a string."
     (apply #'nconc (mapcar func sequence))))
 
-(defun agda-input-to-string-list (s)
-  "Convert a string S to a list of one-character strings.
+(eval-and-compile
+  (defun agda-input-to-string-list (s)
+    "Convert a string S to a list of one-character strings.
 Spaces and newlines are ignored."
-  (declare (pure t))
-  (let (list)
-    (dotimes (i (length s))
-      (let ((sub (substring s i (1+ i))))
-        (unless (string-match-p "[[:space:]]" sub)
-          (push sub list))))
-    (nreverse list)))
+    (declare (pure t))
+    (let (list)
+      (dotimes (i (length s))
+        (let ((sub (substring s i (1+ i))))
+          (unless (string-match-p "[[:space:]]" sub)
+            (push sub list))))
+      (nreverse list))))
 
 (defun agda-input-character-range (from to)
   "A string consisting of the characters from FROM to TO."
