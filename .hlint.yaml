@@ -17,7 +17,7 @@
 # Warnings currently triggered by your code
 - ignore: {name: "Avoid lambda"} # 116 hints
 - ignore: {name: "Avoid lambda using `infix`"} # 13 hints
-- ignore: {name: "Eta reduce"} # 374 hints
+- ignore: {name: "Eta reduce"} # 375 hints
 - ignore: {name: "Evaluate"} # 14 hints
 - ignore: {name: "Fuse concatMap/map"} # 1 hint
 - ignore: {name: "Fuse foldMap/fmap"} # 2 hints
@@ -26,8 +26,8 @@
 - ignore: {name: "Hoist not"} # 18 hints
 - ignore: {name: "Move brackets to avoid $"} # 2 hints
 - ignore: {name: "Move guards forward"} # 2 hints
-- ignore: {name: "Redundant $"} # 642 hints
-- ignore: {name: "Redundant <$>"} # 46 hints
+- ignore: {name: "Redundant $"} # 641 hints
+- ignore: {name: "Redundant <$>"} # 45 hints
 - ignore: {name: "Redundant =="} # 1 hint
 - ignore: {name: "Redundant bracket"} # 2586 hints
 - ignore: {name: "Redundant case"} # 1 hint
@@ -59,7 +59,7 @@
 - ignore: {name: "Use LANGUAGE pragmas"} # 8 hints
 - ignore: {name: "Use camelCase"} # 95 hints
 - ignore: {name: "Use concatMap"} # 2 hints
-- ignore: {name: "Use const"} # 76 hints
+- ignore: {name: "Use const"} # 77 hints
 - ignore: {name: "Use elem"} # 2 hints
 - ignore: {name: "Use empty"} # 1 hint
 - ignore: {name: "Use fewer imports"} # 2 hints
