@@ -242,7 +242,7 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
     abstractN (xTelI `applyN` g1) $ \ p -> do
     abstractT "ψ" (pure interval) $ \ psi -> do
     abstractN (xTelI `applyN` g1) $ \ q -> do
-    abstractT "x0" (pure dT `applyN` g1 `applyN` (flip map q $ \ f -> f <@> pure iz)) $ \ x0 -> do
+    abstractT "x0" (pure dT `applyN` g1 `applyN` for q (\ f -> f <@> pure iz)) $ \ x0 -> do
     deltaPat g1 phi p psi q x0
 
   ps_ty_rhs <- runNamesT [] $ do
