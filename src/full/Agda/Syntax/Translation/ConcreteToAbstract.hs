@@ -843,7 +843,7 @@ scopeCheckExtendedLam r e cs = do
   d <- C.FunDef r [] a NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ cname . List1.toList <$> do
           forM cs $ \ (LamClause ps rhs ca) -> do
             let p   = C.rawAppP $
-                        (killRange $ IdentP True $ C.QName cname) :| ps
+                        killRange (IdentP True $ C.QName cname) :| ps
             let lhs = C.LHS p [] []
             return $ C.Clause cname ca lhs rhs NoWhere []
   scdef <- toAbstract d
