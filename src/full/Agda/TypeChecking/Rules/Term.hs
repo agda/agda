@@ -117,6 +117,7 @@ isType_ e = traceCall (IsType_ e) $ do
       b <- isType_ b
       s <- inferFunSort (getSort a) (getSort b)
       let t' = El s $ Pi a $ NoAbs underscore b
+      checkTelePiSort t'
       --noFunctionsIntoSize t'
       return t'
     A.Pi _ tel e -> do
