@@ -622,19 +622,25 @@ ifNotPiOrPathType t no yes = do
   ifPiType t yes (\ t -> either (uncurry yes . fst) (const $ no t) =<< (pathViewAsPi'whnf <*> pure t))
 
 shouldBePath :: (PureTCM m, MonadBlock m, MonadTCError m) => Type -> m (Dom Type, Abs Type)
-shouldBePath t = ifPathB t 
-  (curry return) 
-  (fromBlocked >=> typeError . ShouldBePath)
-  
+shouldBePath t = ifPathB t
+  (curry return)
+  (fromBlocked >=> \case
+    El _ Dummy{} -> return (__DUMMY_DOM__, Abs "x" __DUMMY_TYPE__)
+    t -> typeError $ ShouldBePath t)
+
 shouldBePi :: (PureTCM m, MonadBlock m, MonadTCError m) => Type -> m (Dom Type, Abs Type)
 shouldBePi t = ifPiTypeB t
   (curry return)
-  (fromBlocked >=> typeError . ShouldBePi)
+  (fromBlocked >=> \case
+    El _ Dummy{} -> return (__DUMMY_DOM__, Abs "x" __DUMMY_TYPE__)
+    t -> typeError $ ShouldBePi t)
 
 shouldBePiOrPath :: (PureTCM m, MonadBlock m, MonadTCError m) => Type -> m (Dom Type, Abs Type)
 shouldBePiOrPath t = ifPiOrPathB t
   (curry return)
-  (fromBlocked >=> typeError . ShouldBePi) -- TODO: separate error
+  (fromBlocked >=> \case
+    El _ Dummy{} -> return (__DUMMY_DOM__, Abs "x" __DUMMY_TYPE__)
+    t -> typeError $ ShouldBePi t) -- TODO: separate error
 
 -- | A safe variant of 'piApply'.
 
