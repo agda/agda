@@ -336,7 +336,7 @@ getDefType f t = do
               [ text $ "head d     = " ++ prettyShow d
               , "parameters =" <+> sep (map prettyTCM pars)
               ]
-            reportSLn "tc.deftype" 60 $ "parameters = " ++ show pars
+            reportSDoc "tc.deftype" 60 $ "parameters = " <+> pretty pars
             if length pars < npars then failure "does not supply enough parameters"
             else Just <$> a `piApplyM` pars
         _ -> failNotDef
