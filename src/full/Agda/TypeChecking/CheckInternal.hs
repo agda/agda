@@ -185,7 +185,9 @@ instance CheckInternal Term where
         compareType cmp lt t
         return $ Level l
       DontCare v -> DontCare <$> checkInternal' action v cmp t
-      Dummy s _ -> __IMPOSSIBLE_VERBOSE__ s
+      -- Jesper, 2023-02-23: these can appear because of eta-expansion of
+      -- records with irrelevant fields
+      Dummy s _ -> return v -- __IMPOSSIBLE_VERBOSE__ s
 
 -- | @checkArgInfo actual expected@.
 --

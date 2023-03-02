@@ -350,7 +350,10 @@ getDefType f t = do
         , prettyTCM t
         , text $ "of its argument " ++ reason
         ]
-      return Nothing
+      reportSDoc "tc.deftype" 60 $ "raw type: " <+> pretty t
+      return $ case unEl t of
+        Dummy{} -> Just __DUMMY_TYPE__
+        _       -> Nothing
 
 -- | Apply a projection to an expression with a known type, returning
 --   the type of the projected value.
@@ -362,8 +365,10 @@ shouldBeProjectible :: (PureTCM m, MonadTCError m, MonadBlock m)
 shouldBeProjectible v t o f = do
   t <- abortIfBlocked t
   projectTyped v t o f >>= \case
-    Nothing -> typeError $ ShouldBeRecordType t
     Just (_ , _ , ft) -> return ft
+    Nothing -> case t of
+      El _ Dummy{} -> return __DUMMY_TYPE__
+      _ -> typeError $ ShouldBeRecordType t
     -- TODO: more accurate error that makes sense also for proj.-like funs.
 
 -- | The analogue of 'piApply'.  If @v@ is a value of record type @t@
