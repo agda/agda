@@ -187,36 +187,6 @@ instance CheckInternal Term where
       DontCare v -> DontCare <$> checkInternal' action v cmp t
       Dummy s _ -> __IMPOSSIBLE_VERBOSE__ s
 
--- | Make sure a constructor is fully applied
---   and infer the type of the constructor.
---   Raises a type error if the constructor does not belong to the given type.
-fullyApplyCon
-  :: (MonadCheckInternal m)
-  => ConHead -- ^ Constructor.
-  -> Elims    -- ^ Constructor arguments.
-  -> Type    -- ^ Type of the constructor application.
-  -> (QName -> Type -> Args -> Type -> Elims -> Telescope -> Type -> m a)
-       -- ^ Name of the data/record type,
-       --   type of the data/record type,
-       --   reconstructed parameters,
-       --   type of the constructor (applied to parameters),
-       --   full application arguments,
-       --   types of missing arguments (already added to context),
-       --   type of the full application.
-  -> m a
-fullyApplyCon c vs t0 ret = do
-  (TelV tel t, boundary) <- telViewPathBoundaryP t0
-  -- The type of the constructor application may still be a function
-  -- type.  In this case, we introduce the domains @tel@ into the context
-  -- and apply the constructor to these fresh variables.
-  addContext tel $ do
-    t <- abortIfBlocked t
-    getFullyAppliedConType c t >>= \case
-      Nothing ->
-        typeError $ DoesNotConstructAnElementOf (conName c) t
-      Just ((d, dt, pars), a) ->
-        ret d dt pars a (raise (size tel) vs ++ teleElims tel boundary) tel t
-
 -- | @checkArgInfo actual expected@.
 --
 --   The @expected@ 'ArgInfo' comes from the type.
