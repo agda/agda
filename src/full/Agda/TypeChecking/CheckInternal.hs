@@ -274,7 +274,7 @@ inferSpine action t hd es = loop t hd id es
           loop (b `absApp` v) (hd . (e:)) (acc . (e':)) es
         -- case: projection or projection-like
         Proj o f -> do
-          (hd', t') <- shouldBeProjectible self t o f
+          t' <- shouldBeProjectible self t o f
           loop t' (hd . (e:)) (acc . (e:)) es
 
 checkSpine

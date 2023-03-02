@@ -356,14 +356,14 @@ getDefType f t = do
 --   the type of the projected value.
 --   The given type should either be a record type or a type eligible for
 --   the principal argument of a projection-like function.
-shouldBeProjectible :: (PureTCM m, MonadTCError m, MonadBlock m) 
-                    => Term -> Type -> ProjOrigin -> QName -> m (Term , Type)
+shouldBeProjectible :: (PureTCM m, MonadTCError m, MonadBlock m)
+                    => Term -> Type -> ProjOrigin -> QName -> m Type
 -- shouldBeProjectible t f = maybe failure return =<< projectionType t f
 shouldBeProjectible v t o f = do
   t <- abortIfBlocked t
   projectTyped v t o f >>= \case
-    Just (_ , fv , ft) -> return (fv , ft)
     Nothing -> typeError $ ShouldBeRecordType t
+    Just (_ , _ , ft) -> return ft
     -- TODO: more accurate error that makes sense also for proj.-like funs.
 
 -- | The analogue of 'piApply'.  If @v@ is a value of record type @t@
