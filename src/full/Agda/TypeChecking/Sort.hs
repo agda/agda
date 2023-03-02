@@ -31,6 +31,7 @@ import Agda.Interaction.Options (optCumulativity, optRewriting)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.MetaVars
 
 import {-# SOURCE #-} Agda.TypeChecking.Constraints () -- instance only
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
@@ -103,7 +104,7 @@ inferPiSort a s2 = do
     Left b -> do
       addConstraint b $ HasPTSRule a s2'
       return $ PiSort (unEl <$> a) s1' s2'
-  
+
 
 -- | As @inferPiSort@, but for a nondependent function type.
 inferFunSort :: Sort -> Sort -> TCM Sort
@@ -135,12 +136,9 @@ ptsRule' a b c = do
 hasPTSRule :: Dom Type -> Abs Sort -> TCM ()
 hasPTSRule a b = do
   infer <- inferPiSort a b
-  -- This case somehow makes the compilation using `make` or `make v1-install` crash, 
-  -- though `make quicker-install-bin` works just fine
-  -- replacing it with `return ()` makes everything compile fine
   case infer of
-    PiSort{} -> typeError $ InvalidTypeSort infer
-    _                        -> return ()
+    PiSort{} | noMetas infer -> typeError $ InvalidTypeSort infer
+    _        -> return ()
 
 -- | Recursively check that an iterated function type constructed by @telePi@
 --   is well-sorted.
