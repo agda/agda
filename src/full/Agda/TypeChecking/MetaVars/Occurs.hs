@@ -32,7 +32,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.MetaVars
 
-import Agda.TypeChecking.Constraints ( wakeupConstraints )
+import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Reduce
