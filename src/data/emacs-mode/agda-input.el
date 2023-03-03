@@ -173,8 +173,8 @@ INPUT-FMT and NAME-FMT, see `agda-input-common-range'."
         ("I" . "IOTA") ("K" . "KAPPA") ("L" . "LAMBDA") ("M" . "MU")
         ("N" . "NU") ("X" . "XI") ("R" . "RHO") ("S" . "SIGMA")
         ("T" . "TAU") ("U" . "UPSILON") ("F" . "PHI") ("C" . "CHI")
-        ("P" . "PSI") ("Pi" . "PI") ("O" . "OMEGA") ("Omicron" . "OMICRON")
-        ("X" . "XI") ("Z" . "ZETA")))))
+        ("P" . "PSI") ("Pi" . "PI") ("P" . "PI") ("O" . "OMEGA")
+        ("Omicron" . "OMICRON") ("X" . "XI") ("Z" . "ZETA")))))
 
   (defun agda-input-number-range (input-fmt &rest name-fmt)
     "Create a mapping for digits.
@@ -575,7 +575,7 @@ order for the change to take effect."
    (agda-input-greek-range "bG%s" "DOUBLE-STRUCK SMALL %s" t)
 
 ;;;;; Blackboard bold numbers.
-   (agda-input-number-range "d%s" "MATHEMATICAL DOUBLE-STRUCK DIGIT %s")
+   (agda-input-number-range "b%s" "MATHEMATICAL DOUBLE-STRUCK DIGIT %s")
 
 ;;;;; Mathematical bold letters.
    (agda-input-latin-range "B%s" "MATHEMATICAL BOLD CAPITAL %s")
@@ -584,13 +584,19 @@ order for the change to take effect."
 ;;;;; Mathematical bold Greek letters.
    (agda-input-greek-range "BG%s" "MATHEMATICAL BOLD CAPITAL %s")
    (agda-input-greek-range "BG%s" "MATHEMATICAL BOLD SMALL %s" t)
+   '(("BOmicron" "𝚶")                   ;shorter alternatives (without "G")
+     ("BPi" "𝚷")
+     ("BGTH" "𝚯")
+     ("Bomicron" "𝛐")
+     ("Bpi" "𝛑")
+     ("GTH" "Θ"))
 
 ;;;;; Mathematical bold digits.
    (agda-input-number-range "B%s" "MATHEMATICAL BOLD DIGIT %s")
 
 ;;;;; Fullwidth letters
    (agda-input-latin-range "F%s" "FULLWIDTH LATIN CAPITAL LETTER %s")
-   (agda-input-latin-range "F%s" "FULLWIDTH LATIN CAPITAL LETTER %s" t)
+   (agda-input-latin-range "F%s" "FULLWIDTH LATIN SMALL LETTER %s" t)
 
 ;;;;; Fullwidth digits
    (agda-input-number-range "F%s" "FULLWIDTH DIGIT %s")
@@ -698,14 +704,18 @@ order for the change to take effect."
    '(("Gl-" . ("ƛ")))                     ;LATIN SMALL LETTER LAMBDA WITH STROKE
 
 ;;;;; Mathematical characters
+   '(("Mih" "ℎ"))                       ;PLANCK CONSTANT
    (agda-input-latin-range "Mi%s" "MATHEMATICAL ITALIC CAPITAL %s")
    (agda-input-latin-range "Mi%s" "MATHEMATICAL ITALIC SMALL %s" t)
    (agda-input-latin-range "MI%s" "MATHEMATICAL BOLD ITALIC CAPITAL %s")
    (agda-input-latin-range "MI%s" "MATHEMATICAL BOLD ITALIC SMALL %s" t)
+   (agda-input-latin-range "Mc%s" "SCRIPT CAPITAL %s")
    (agda-input-latin-range "Mc%s" "MATHEMATICAL SCRIPT CAPITAL %s")
+   (agda-input-latin-range "Mc%s" "SCRIPT SMALL %s" t)
    (agda-input-latin-range "Mc%s" "MATHEMATICAL SCRIPT SMALL %s" t)
    (agda-input-latin-range "MC%s" "MATHEMATICAL BOLD SCRIPT CAPITAL %s")
    (agda-input-latin-range "MC%s" "MATHEMATICAL BOLD SCRIPT SMALL %s" t)
+   (agda-input-latin-range "Mf%s" "BLACK-LETTER CAPITAL %s")
    (agda-input-latin-range "Mf%s" "MATHEMATICAL FRAKTUR CAPITAL %s")
    (agda-input-latin-range "Mf%s" "MATHEMATICAL FRAKTUR SMALL %s" t)
 
@@ -726,8 +736,13 @@ order for the change to take effect."
 
    (agda-input-latin-range "^%s" "MODIFIER LETTER CAPITAL %s")
    (agda-input-latin-range "^%s" "MODIFIER LETTER SMALL %s" t)
+   (agda-input-latin-range "^%s" "SUPERSCRIPT LATIN SMALL LETTER %s" t)
    (agda-input-greek-range "^G%s" "MODIFIER LETTER CAPITAL %s")
    (agda-input-greek-range "^G%s" "MODIFIER LETTER SMALL %s" t)
+   '(("^Gg" "ᵞ")                        ;LETTER SMALL GREEK GAMMA
+     ("^Ge" "ᵋ")                        ;MODIFIER LETTER SMALL OPEN E
+     ("^Gf" "ᵠ")                        ;MODIFIER LETTER SMALL GREEK PHI
+     )
 
 ;;;;; Some ISO8859-1 characters.
    `((" "         . (" "))
@@ -745,6 +760,7 @@ order for the change to take effect."
     "PARENTHESIZED DIGIT %s"
     "CIRCLED DIGIT %s"
     "DIGIT %s FULL STOP"
+    "NEGATIVE CIRCLED DIGIT %s"
     "DINGBAT NEGATIVE CIRCLED DIGIT %s"
     "DINGBAT CIRCLED SANS-SERIF DIGIT %s"
     "DINGBAT NEGATIVE CIRCLED SANS-SERIF DIGIT %s"
@@ -757,6 +773,7 @@ order for the change to take effect."
     "DINGBAT NEGATIVE CIRCLED NUMBER %s"
     "DINGBAT CIRCLED SANS-SERIF NUMBER %s"
     "DINGBAT NEGATIVE CIRCLED SANS-SERIF NUMBER %s"
+    "NEGATIVE CIRCLED NUMBER %s"
     )
    (agda-input-latin-range
     "(%s)"
