@@ -753,8 +753,8 @@ order for the change to take effect."
   :group 'agda-input
   :set #'agda-input-incorporate-changed-setting
   :initialize #'custom-initialize-default
-  :type '(repeat (cons (string :tag "Key sequence")
-                       (repeat :tag "Translations" string))))
+  :type '(alist :key-type key-sequence
+                :value-type (repeat :tag "Translations" string)))
 
 (defcustom agda-input-user-translations nil
   "Additional user rules akin to `agda-input-translations'.
