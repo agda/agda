@@ -150,6 +150,7 @@ hasPTSRule a b =
                                = True
     alwaysValidCodomain Type{} = True
     alwaysValidCodomain Prop{} = True
+    alwaysValidCodomain SSet{} = True
     alwaysValidCodomain (PiSort _ _ s) = alwaysValidCodomain $ unAbs s
     alwaysValidCodomain (FunSort _ s) = alwaysValidCodomain s
     alwaysValidCodomain _      = False

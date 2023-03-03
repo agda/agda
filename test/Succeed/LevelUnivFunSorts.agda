@@ -1,4 +1,4 @@
-{-# OPTIONS --level-universe --prop #-}
+{-# OPTIONS --level-universe #-}
 
 open import Common.Level
 open import Agda.Primitive
@@ -14,5 +14,4 @@ _ = Level -> Set
 _ : Setω2
 _ = Setω1 -> Level
 -- should this really work ?
-_ = Set -> Level
 
