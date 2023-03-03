@@ -167,7 +167,7 @@ INPUT-FMT and NAME-FMT, see `agda-input-common-range'."
      input-fmt (list name-fmt)
      (mapcar
       (lambda (c)
-        (cons (concat "G" (if lower (downcase (car c)) (car c))) c))
+        (cons (if lower (downcase (car c)) (car c)) (cdr c)))
       '(("A" . "ALPHA") ("B" . "BETA") ("G" . "GAMMA") ("D" . "DELTA")
         ("E" . "EPSILON") ("Z" . "ZETA") ("H" . "ETA") ("Th" . "THETA")
         ("I" . "IOTA") ("K" . "KAPPA") ("L" . "LAMBDA") ("M" . "MU")
@@ -581,8 +581,8 @@ order for the change to take effect."
    (agda-input-latin-range "B%s" "MATHEMATICAL BOLD SMALL %s" t)
 
 ;;;;; Mathematical bold Greek letters.
-   (agda-input-greek-range "B%s" "MATHEMATICAL BOLD CAPITAL %s")
-   (agda-input-greek-range "B%s" "MATHEMATICAL BOLD SMALL %s" t)
+   (agda-input-greek-range "BG%s" "MATHEMATICAL BOLD CAPITAL %s")
+   (agda-input-greek-range "BG%s" "MATHEMATICAL BOLD SMALL %s" t)
 
 ;;;;; Mathematical bold digits.
    (agda-input-number-range "B%s" "MATHEMATICAL BOLD DIGIT %s")
