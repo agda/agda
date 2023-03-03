@@ -264,14 +264,13 @@ order for the change to take effect."
   :type '(repeat (cons (string :tag "Quail package")
                        (sexp :tag "Tweaking function"))))
 
-
 (defcustom agda-input-translations
   ;; The following list has been split into multiple smaller lists
   ;; to avoid triggering a stack overflow during evaluation, on
   ;; systems with a lower `max-lisp-eval-depth'.
   (append
 ;;;;; Equality and similar symbols.
-   `(("eq" ,(agda-input-to-string-list "=∼∽≈≋∻∾∿≀≃⋍≂≅ ≌≊≡≣≐≑≒≓≔≕≖≗≘≙≚≛≜≝≞≟≍≎≏≬⋕＝"))
+   `(("eq" . ,(agda-input-to-string-list "=∼∽≈≋∻∾∿≀≃⋍≂≅ ≌≊≡≣≐≑≒≓≔≕≖≗≘≙≚≛≜≝≞≟≍≎≏≬⋕＝"))
      ("eqn" . ,(agda-input-to-string-list "≠≁ ≉     ≄  ≇≆  ≢                 ≭    "))
 
      ("=n"  . ("≠"))
