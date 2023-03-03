@@ -567,6 +567,7 @@ order for the change to take effect."
      ("st12" . ("✹")))
 
 ;;;;; Blackboard bold letters.
+   (agda-input-latin-range "b%s" "DOUBLE-STRUCK CAPITAL %s")
    (agda-input-latin-range "b%s" "MATHEMATICAL DOUBLE-STRUCK CAPITAL %s")
    (agda-input-latin-range "b%s" "MATHEMATICAL DOUBLE-STRUCK SMALL %s" t)
    (agda-input-greek-range "bG%s" "DOUBLE-STRUCK CAPITAL %s")
