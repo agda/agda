@@ -102,7 +102,8 @@ inferPiSort a s2 = do
   case piSort' (unEl <$> a) s1' s2' of
     Right s -> return s
     Left b -> do
-      addConstraint b $ HasPTSRule a s2'
+      let b' = unblockOnAllMetasIn (s1' ,unAbs s2')
+      addConstraint (unblockOnBoth b b') $ HasPTSRule a s2'
       return $ PiSort (unEl <$> a) s1' s2'
 
 
@@ -110,12 +111,13 @@ inferPiSort a s2 = do
 inferFunSort :: Sort -> Sort -> TCM Sort
 inferFunSort s1 s2 = do
   ss1 <- sortOf (Sort s1)
-  s1' <- reduce s1
-  s2' <- reduce s2
+  s1' <- instantiateFull =<< reduce s1
+  s2' <- instantiateFull =<< reduce s2
   case funSort' s1' s2' of
     Right s -> return s
     Left b -> do
-      addConstraint b $ HasPTSRule (defaultDom (El (univSort s1) (Sort s1))) (NoAbs "_" s2')
+      let b' = unblockOnAllMetasIn (s1' ,s2')
+      addConstraint (unblockOnBoth b b') $ HasPTSRule (defaultDom (El (univSort s1) (Sort s1))) (mkAbs "_" s2')
       return $ FunSort s1 s2
 
 ptsRule :: Dom Type -> Abs Sort -> Sort -> TCM ()
@@ -134,11 +136,23 @@ ptsRule' a b c = do
     (equalSort c' c)
 
 hasPTSRule :: Dom Type -> Abs Sort -> TCM ()
-hasPTSRule a b = do
-  infer <- inferPiSort a b
-  case infer of
-    PiSort{} | noMetas infer -> typeError $ InvalidTypeSort infer
-    _        -> return ()
+hasPTSRule a b =
+  if alwaysValidCodomain $ unAbs b
+  then return ()
+  else do
+    infer <- reduce =<< instantiateFull =<< inferPiSort a b
+    case infer of
+      PiSort a s1 s2  | noMetas s1 && noMetas (unAbs s2) -> typeError $ InvalidTypeSort infer
+      FunSort s1 s2   | noMetas s1 && noMetas s2 -> typeError $ InvalidTypeSort infer
+      _        -> return ()
+  where
+    alwaysValidCodomain s | Right LargeSort{} <- sizeOfSort s
+                               = True
+    alwaysValidCodomain Type{} = True
+    alwaysValidCodomain Prop{} = True
+    alwaysValidCodomain (PiSort _ _ s) = alwaysValidCodomain $ unAbs s
+    alwaysValidCodomain (FunSort _ s) = alwaysValidCodomain s
+    alwaysValidCodomain _      = False
 
 -- | Recursively check that an iterated function type constructed by @telePi@
 --   is well-sorted.
@@ -239,3 +253,4 @@ sortOfType
   :: forall m. (PureTCM m, MonadBlock m,MonadConstraint m)
   => Type -> m Sort
 sortOfType = sortOf . unEl
+
