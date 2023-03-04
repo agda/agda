@@ -1627,8 +1627,7 @@ the arguments ACTION, BEG and END."
       (delete-overlay ol))
      ((or (< beg (+ (overlay-start ol) 2))
           (> end (- (overlay-end ol) 2)))
-      (unless inhibit-read-only
-        (signal 'text-read-only nil))))))
+      (barf-if-buffer-read-only)))))
 
 (defun agda2-update (old-g new-txt)
   "Update the goal OLD-G.
