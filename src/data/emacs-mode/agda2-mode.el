@@ -1918,12 +1918,9 @@ configuration and the selected window are not changed."
              (consp filepos)
              (stringp (car filepos))
              (integerp (cdr filepos)))
-    (xref--show-xrefs
-     (let ((loc (xref-make-buffer-location
-                 (find-file-noselect (car filepos))
-                 (cdr filepos))))
-       (list (xref-make "-" loc)))
-     nil)))
+    (xref-push-marker-stack)
+    (set-buffer (find-file-noselect (car filepos)))
+    (goto-char (cdr filepos))))
 
 ;;;; Implicit arguments
 
