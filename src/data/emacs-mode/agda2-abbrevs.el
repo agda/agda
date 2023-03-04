@@ -85,12 +85,12 @@
   "Load or disable Agda abbrevs."
   (define-abbrev-table
     'agda2-mode-abbrev-table
-    (if agda2-mode-abbrevs-use-defaults
-        (mapcar (lambda (abbrev)
-                  (append abbrev
-                          (make-list (- 4 (length abbrev)) nil)
-                          '((:system t))))
-                agda2-abbrevs-defaults))))
+    (and (bound-and-true-p agda2-mode-abbrevs-use-defaults)
+         (mapcar (lambda (abbrev)
+                   (append abbrev
+                           (make-list (- 4 (length abbrev)) nil)
+                           '((:system t))))
+                 agda2-abbrevs-defaults))))
 
 (defcustom agda2-mode-abbrevs-use-defaults nil
   "If non-nil include the default Agda mode abbrevs in `agda2-mode-abbrev-table'.
