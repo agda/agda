@@ -1,3 +1,4 @@
+{-# OPTIONS --level-universe #-}
 -- Andreas, 2012-01-12
 module Common.Irrelevance where
 
