@@ -1640,12 +1640,13 @@ instance LensIsAbstract MetaInfo where
 --   The meta variable is created by the type checker and then hooked up to the
 --   interaction point.
 data InteractionPoint = InteractionPoint
-  { ipRange :: Range        -- ^ The position of the interaction point.
-  , ipMeta  :: Maybe MetaId -- ^ The meta variable, if any, holding the type etc.
-  , ipSolved:: Bool         -- ^ Has this interaction point already been solved?
-  , ipClause:: IPClause
+  { ipRange  :: Range        -- ^ The position of the interaction point.
+  , ipMeta   :: Maybe MetaId -- ^ The meta variable, if any, holding the type etc.
+  , ipSolved :: Bool         -- ^ Has this interaction point already been solved?
+  , ipClause :: IPClause
       -- ^ The clause of the interaction point (if any).
       --   Used for case splitting.
+  , ipBoundary :: IPBoundary
   }
   deriving Generic
 
@@ -1670,11 +1671,13 @@ data Overapplied = Overapplied | NotOverapplied
 
 -- | Datatype representing a single boundary condition:
 --   x_0 = u_0, ... ,x_n = u_n ⊢ t = ?n es
-data IPBoundary' t = IPBoundary
-  { ipbEquations :: [(t,t)] -- ^ [x_0 = u_0, ... ,x_n = u_n]
-  , ipbValue     :: t          -- ^ @t@
-  , ipbMetaApp   :: t          -- ^ @?n es@
-  , ipbOverapplied :: Overapplied -- ^ Is @?n@ overapplied in @?n es@ ?
+data IPFace' t = IPFace'
+  { faceEqns :: [(t, t)]
+  , faceRHS  :: t
+  }
+
+newtype IPBoundary' t = IPBoundary
+  { getBoundary :: Map (IntMap Bool) t
   }
   deriving (Show, Functor, Foldable, Traversable, Generic)
 
@@ -1688,14 +1691,13 @@ data IPClause = IPClause
   , ipcWithSub  :: Maybe Substitution -- ^ Module parameter substitution
   , ipcClause   :: A.SpineClause      -- ^ The original AST clause.
   , ipcClosure  :: Closure ()         -- ^ Environment for rechecking the clause.
-  , ipcBoundary :: [Closure IPBoundary] -- ^ The boundary imposed by the LHS.
   }
   | IPNoClause -- ^ The interaction point is not in the rhs of a clause.
   deriving (Generic)
 
 instance Eq IPClause where
   IPNoClause           == IPNoClause             = True
-  IPClause x i _ _ _ _ _ == IPClause x' i' _ _ _ _ _ = x == x' && i == i'
+  IPClause x i _ _ _ _ == IPClause x' i' _ _ _ _ = x == x' && i == i'
   _                    == _                      = False
 
 ---------------------------------------------------------------------------

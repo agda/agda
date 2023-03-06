@@ -11,6 +11,7 @@ import Control.Monad.Trans  ( lift )
 
 import Data.Function (on)
 import qualified Data.IntSet as IntSet
+import qualified Data.IntMap as IntMap
 import qualified Data.List as List
 import qualified Data.Map.Strict as MapS
 import qualified Data.Set as Set
@@ -50,6 +51,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Conversion
 -- import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (checkInternal)
 import Agda.TypeChecking.MetaVars.Occurs
 
+import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Function
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -779,7 +781,9 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
   -- check will first try without unfolding any definitions (treating
   -- arguments to definitions as flexible), if that fails it tries again
   -- with full unfolding.
+  reportSDoc "tc.meta.assign" 25 $ "v = " <+> prettyTCM v
   v <- instantiate v
+  reportSDoc "tc.meta.assign" 25 $ "v = " <+> prettyTCM v
   reportSDoc "tc.meta.assign" 45 $
     "MetaVars.assign: assigning meta " <+> prettyTCM (MetaV x []) <+>
     " with args " <+> prettyList_ (map (prettyTCM . unArg) args) <+>
@@ -789,6 +793,13 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
 
   reportSDoc "tc.meta.assign" 75 $
     text "MetaVars.assign: assigning meta  " <> pretty x <> text "  with args  " <> pretty args <> text "  to  " <> pretty v
+
+  let
+    boundary v = do
+      cubical <- optCubical <$> pragmaOptions
+      isip <- isInteractionMeta x
+      when (isJust cubical && isJust isip) $
+        tryAddBoundary dir x (fromJust isip) args v target
 
   case (v, mvJudgement mvar) of
       (Sort s, HasType{}) -> hasBiggerSort s
@@ -852,6 +863,8 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
   -- We don't instantiate frozen mvars
   when (mvFrozen mvar == Frozen) $ do
     reportSLn "tc.meta.assign" 25 $ "aborting: meta is frozen!"
+    -- IApplyConfluence can contribute boundary conditions to frozen metas
+    boundary v
     patternViolation neverUnblock
 
   -- We never get blocked terms here anymore. TODO: we actually do. why?
@@ -866,12 +879,14 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
     case v0 of
       Blocked m0 _ -> "r.h.s. blocked on:" <+> prettyTCM m0
       NotBlocked{} -> "r.h.s. not blocked"
+  reportSDoc "tc.meta.assign" 25 $ "v = " <+> prettyTCM v
 
   -- Turn the assignment problem @_X args >= SizeLt u@ into
   -- @_X args = SizeLt (_Y args@ and constraint
   -- @_Y args >= u@.
   subtypingForSizeLt dir x mvar t args v $ \ v -> do
 
+    reportSDoc "tc.meta.assign" 25 $ "v = " <+> prettyTCM v
     reportSDoc "tc.meta.assign.proj" 45 $ do
       cxt <- getContextTelescope
       vcat
@@ -968,6 +983,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
       v <- liftTCM $ occursCheck x vars v target
 
       reportSLn "tc.meta.assign" 15 "passed occursCheck"
+      reportSDoc "tc.meta.assign" 25 $ "v = " <+> prettyTCM v
       verboseS "tc.meta.assign" 30 $ do
         let n = termSize v
         when (n > 200) $ reportSDoc "tc.meta.assign" 30 $
@@ -987,7 +1003,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
 
       -- Check that the arguments are variables
       mids <- do
-        res <- runExceptT $ inverseSubst args
+        res <- runExceptT $ inverseSubst' (const False) args
         case res of
           -- all args are variables
           Right ids -> do
@@ -1001,7 +1017,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
               else return Nothing
           -- we have proper values as arguments which could be cased on
           -- here, we cannot prune, since offending vars could be eliminated
-          Left CantInvert  -> return Nothing
+          Left (CantInvert tm) -> Nothing <$ boundary v
           -- we have non-variables, but these are not eliminateable
           Left NeutralArg  -> Just <$> attemptPruning x args fvs
           -- we have a projected variable which could not be eta-expanded away:
@@ -1554,7 +1570,7 @@ type Res = [(Arg Nat, Term)]
 
 -- | Exceptions raised when substitution cannot be inverted.
 data InvertExcept
-  = CantInvert                -- ^ Cannot recover.
+  = CantInvert Term           -- ^ Cannot recover.
   | NeutralArg                -- ^ A potentially neutral arg: can't invert, but can try pruning.
   | ProjVar ProjectedVar      -- ^ Try to eta-expand var to remove projs.
 
@@ -1569,16 +1585,16 @@ data InvertExcept
 --   Linearity, i.e., whether the substitution is deterministic,
 --   has to be checked separately.
 --
-inverseSubst :: Args -> ExceptT InvertExcept TCM SubstCand
-inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
+inverseSubst' :: (Term -> Bool) -> Args -> ExceptT InvertExcept TCM SubstCand
+inverseSubst' skip args = map (mapFst unArg) <$> loop (zip args terms)
   where
   loop  = foldM isVarOrIrrelevant []
   terms = map var (downFrom (size args))
-  failure = do
+  failure c = do
     lift $ reportSDoc "tc.meta.assign" 15 $ vcat
       [ "not all arguments are variables: " <+> prettyTCM args
       , "  aborting assignment" ]
-    throwError CantInvert
+    throwError (CantInvert c)
   neutralArg = throwError NeutralArg
 
   isVarOrIrrelevant :: Res -> (Arg Term, Term) -> ExceptT InvertExcept TCM Res
@@ -1596,10 +1612,11 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
 
       -- (i, j) := x  becomes  [i := fst x, j := snd x]
       -- Andreas, 2013-09-17 but only if constructor is fully applied
-      Con c ci es -> do
+      tm@(Con c ci es) -> do
         let fallback
              | isIrrelevant info = return vars
-             | otherwise                              = failure
+             | skip tm           = return vars
+             | otherwise         = failure tm
         irrProj <- optIrrelevantProjections <$> pragmaOptions
         lift (isRecordConstructor $ conName c) >>= \case
           Just (_, r@Record{ recFields = fs })
@@ -1634,9 +1651,9 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
       -- from those that can only put somewhere as a whole ==> neutralArg
       Var{}      -> neutralArg
       Def{}      -> neutralArg  -- Note that this Def{} is in normal form and might be prunable.
-      Lam{}      -> failure
-      Lit{}      -> failure
-      MetaV{}    -> failure
+      t@Lam{}    -> failure t
+      t@Lit{}    -> failure t
+      t@MetaV{}  -> failure t
       Pi{}       -> neutralArg
       Sort{}     -> neutralArg
       Level{}    -> neutralArg
@@ -1655,6 +1672,97 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
         -- filter out duplicate irrelevants
         filter (not . (\ a@(Arg info j, t) -> isIrrelevant info && i == j)) vars
 
+tryAddBoundary :: CompareDirection -> MetaId -> InteractionId -> Args -> Term -> CompareAs -> TCM ()
+tryAddBoundary dir x iid args v target = do
+  iv   <- intervalView'
+  mvar <- lookupLocalMeta x  -- information associated with meta x
+
+  let
+    t = jMetaType $ mvJudgement mvar
+    n = length args
+
+    isEndpoint tm = case iv tm of
+      IOne  -> True
+      IZero -> True
+      _ -> False
+
+    fin (Arg _ tm) i = case iv tm of
+      IOne  -> Just (i, True)
+      IZero -> Just (i, False)
+      _     -> Nothing
+
+  m <- getContextSize
+  (telv@(TelV tel' a), bs) <- telViewUpToPathBoundary n t
+
+  runExceptT (inverseSubst' isEndpoint args) >>= \case
+    Right sub -> runExceptT (checkLinearity sub) >>= \case
+      Right ids -> do
+        tel'' <- enterClosure mvar $ \_ -> getContextTelescope
+
+        let
+          assocToList i = \case
+            _           | i >= m -> []
+            ((j,u) : l) | i == j -> Just u  : assocToList (i+1) l
+            l                    -> Nothing : assocToList (i+1) l
+          ivs = assocToList 0 ids
+          rho = prependS impossible ivs $ raiseS n
+          v'  = applySubst rho v
+
+          over  = size tel' - size tel''
+          endps = IntMap.fromList $ catMaybes $ zipWith (\a i -> fin a (i - over)) args (downFrom n)
+
+        inTopContext $ addContext tel' $ do
+          reportSDoc "tc.ip.boundary" 30 $ vcat
+            [ "recovered interaction point boundary"
+
+            , ("meta" <+> prettyTCM (MetaV x (Apply <$> args))) <> ":"
+            , "  args  =" <+> pretty args
+            , "  inv   =" <+> pretty sub
+            , "  t     =" <+> inTopContext (prettyTCM t)
+            , "  tel'  =" <+> inTopContext (prettyTCM tel'')
+            , "  tel'' =" <+> inTopContext (prettyTCM tel'')
+            , "  rho   =" <+> pretty rho
+
+            , "rhs:"
+            , "  v  ="  <+> pretty v
+
+            , "endps =" <+> pretty endps
+            , "ivs   =" <+> pretty ivs
+            ]
+
+          reportSDoc "tc.ip.boundary" 30 $ vcat
+            [ "  v' ="  <+> pretty v'
+            , "     ="  <+> prettyTCM v'
+            ]
+
+          let
+            upd (IPBoundary m) = case MapS.lookup endps m of
+              Just t -> if termSize t < termSize v'
+                then IPBoundary m
+                else IPBoundary $ MapS.insert endps v' m
+              Nothing -> IPBoundary $ MapS.insert endps v' m
+            f ip = ip{ ipBoundary = upd (ipBoundary ip) }
+
+          modifyInteractionPoints (BiMap.adjust f iid)
+
+      Left{} ->
+        reportSDoc "tc.ip.boundary" 30 $ vcat
+          [ "could not recover interaction point boundary from equation"
+          , "  " <+> prettyTCM (MetaV x (Apply <$> args))
+          , "because the inversion"
+          , "  " <+> prettyTCM sub
+          , "is non-linear"
+          ]
+    Left e -> do
+      reportSDoc "tc.ip.boundary" 30 $ vcat
+        [ "could not recover interaction point boundary from equation"
+        , "  " <+> prettyTCM (MetaV x (Apply <$> args))
+        , "because of a failure inverting:"
+        , case e of
+            CantInvert e -> "CantInvert" <+> prettyTCM e
+            NeutralArg   -> "NeutralArg"
+            ProjVar v    -> "ProjVar" <+> text (show v)
+        ]
 
 -- | Turn open metas into postulates.
 --

@@ -1288,4 +1288,4 @@ newSection e m gtel@(A.GeneralizeTel _ tel) cont = do
 atClause :: QName -> Int -> Type -> Maybe Substitution -> A.SpineClause -> TCM a -> TCM a
 atClause name i t sub cl ret = do
   clo <- buildClosure ()
-  localTC (\ e -> e { envClause = IPClause name i t sub cl clo [] }) ret
+  localTC (\ e -> e { envClause = IPClause name i t sub cl clo }) ret

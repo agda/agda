@@ -14,6 +14,7 @@ import Control.Monad.State
 import Control.Monad.Identity
 
 import qualified Data.Map as Map
+import qualified Data.IntMap as IntMap
 import qualified Data.Map.Strict as MapS
 import qualified Data.Set as Set
 import qualified Data.List as List
@@ -611,14 +612,14 @@ instance ToConcrete a => ToConcrete (IPBoundary' a) where
 
   toConcrete = traverse (toConcreteCtx TopCtx)
 
-instance Pretty c => Pretty (IPBoundary' c) where
-  pretty (IPBoundary eqs val meta over) = do
+instance Pretty c => Pretty (IPFace' c) where
+  pretty (IPFace' eqs val) = do
     let
       xs = map (\ (l,r) -> pretty l <+> "=" <+> pretty r) eqs
-      rhs = case over of
-              Overapplied    -> "=" <+> pretty meta
-              NotOverapplied -> mempty
-    prettyList_ xs <+> "⊢" <+> pretty val <+> rhs
+      -- rhs = case over of
+      --         Overapplied    -> "=" <+> pretty meta
+      --         NotOverapplied -> mempty
+    prettyList_ xs <+> "⊢" <+> pretty val -- <+> rhs
 
 prettyConstraints :: [Closure Constraint] -> TCM [OutputForm C.Expr C.Expr]
 prettyConstraints cs = do
@@ -728,14 +729,43 @@ getConstraints' g f = liftTCM $ do
         abstractToConcrete_ $ OutputForm noRange [] alwaysUnblock $ Assign m e
 
 
-getIPBoundary :: Rewrite -> InteractionId -> TCM [IPBoundary' C.Expr]
+getIPBoundary :: Rewrite -> InteractionId -> TCM [IPFace' C.Expr]
 getIPBoundary norm ii = do
-      ip <- lookupInteractionPoint ii
-      case ipClause ip of
-        IPClause { ipcBoundary = cs } -> do
-          forM cs $ \ cl -> enterClosure cl $ \ b ->
-            abstractToConcrete_ =<< reifyUnblocked =<< normalForm norm b
-        IPNoClause -> return []
+  ip <- lookupInteractionPoint ii
+
+  io <- primIOne
+  iz <- primIZero
+
+  lookupInteractionMeta ii >>= \case
+    Just mi -> do
+      mv <- lookupLocalMeta mi
+
+      let t = jMetaType $ mvJudgement mv
+      telv@(TelV tel a) <- telView t
+
+      reportSDoc "tc.ip.boundary" 30 $ TP.vcat
+        [ "reifying interaction point boundary"
+        , "tel:       " TP.<+> prettyTCM tel
+        , "meta type: " TP.<+> prettyTCM t
+        , "meta:      " TP.<+> prettyTCM mi
+        ]
+      -- reportSDoc "tc.ip.boundary" 30 $ "boundary:  " TP.<+> pure (pretty (getBoundary (ipBoundary ip)))
+
+      inTopContext $ addContext tel $ do
+        let
+          c = abstractToConcrete_ <=< reifyUnblocked <=< normalForm norm
+          go (im, rhs) = do
+            reportSDoc "tc.ip.boundary" 30 $ TP.vcat
+              [ "reifying constraint for face" TP.<+> TP.pretty im
+              ]
+            reportSDoc "tc.ip.boundary" 30 $ "term " TP.<+> TP.pretty rhs
+            rhs <- c rhs
+            eqns <- forM (IntMap.toList im) $ \(a, b) -> do
+              a <- c (I.Var a [])
+              (,) a <$> c (if b then io else iz)
+            pure $ IPFace' eqns rhs
+        traverse go $ MapS.toList (getBoundary (ipBoundary ip))
+    Nothing -> pure []
 
 -- | Goals and Warnings
 
