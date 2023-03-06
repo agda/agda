@@ -573,10 +573,10 @@ infectiveCoinfectiveOptions =
   , coinfectiveOption (not . optUniversePolymorphism)
                       "--no-universe-polymorphism"
   , coinfectiveOption (not . optCumulativity) "--no-cumulativity"
+  , coinfectiveOption optLevelUniv "--level-universe"
   , infectiveOption (isJust . optCubical) "--cubical/--erased-cubical"
   , infectiveOption optGuarded "--guarded"
   , infectiveOption optProp "--prop"
-  , infectiveOption optLevelUniv "--level-universe"
   , infectiveOption (collapseDefault . optTwoLevel) "--two-level"
   , infectiveOption optRewriting "--rewriting"
   , infectiveOption (collapseDefault . optSizedTypes) "--sized-types"

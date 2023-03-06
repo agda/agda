@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical-compatible --safe --no-sized-types --no-guardedness #-}
+{-# OPTIONS --cubical-compatible --safe --no-sized-types --no-guardedness --level-universe #-}
 
 module Agda.Builtin.String where
 
