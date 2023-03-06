@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical --safe --no-sized-types --no-guardedness #-}
+{-# OPTIONS --cubical --safe --no-sized-types --no-guardedness --level-universe #-}
 
 module Agda.Builtin.Cubical.Glue where
 

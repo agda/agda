@@ -1630,6 +1630,7 @@ funSort' a b = case (a, b) of
   (IntervalUniv  , IntervalUniv ) -> Right $ SSet $ ClosedLevel 0
   (IntervalUniv  , SSet b       ) -> Right $ SSet $ b
   (IntervalUniv  , Type b       ) -> Right $ Type $ b
+  (IntervalUniv  , LevelUniv    ) -> Right $ LevelUniv
   (IntervalUniv  , _            ) -> Left neverUnblock
   (Type a        , IntervalUniv ) -> Right $ SSet $ a
   (SSet a        , IntervalUniv ) -> Right $ SSet $ a
