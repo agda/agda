@@ -378,9 +378,12 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     -- This function takes "name suggestions" from both variable
     -- patterns and IApply co/patterns, and replaces any existing names
     -- in the telescope by the name in that pattern.
-    renTeleFromNap :: Telescope -> NAPs -> Telescope
-    renTeleFromNap tel ps = telFromList $ evalState (traverse upd (telToList tel)) (size - 1)
+    renTeleFromNap :: SplitClause -> Clause -> Telescope
+    renTeleFromNap SClause{scTel = tel, scPats = sps} clause =
+      telFromList $ evalState (traverse upd (telToList tel)) (size - offset)
       where
+        ps = namedClausePats clause
+        offset = 1 + length (fromSplitPatterns sps) - length ps
         -- Fold a single pattern into a map of name suggestions:
         -- In the running example above, we have
         --    f (p i@1 j@0)
@@ -402,6 +405,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
         -- + recursion, traverse handles iteration and the State handles
         -- counting down.
         size = length (telToList tel)
+
         upd :: Dom (ArgName , Type) -> State Int (Dom (ArgName , Type))
         upd dom = state $ \s -> do
           case IntMap.lookup s suggestions of
@@ -411,10 +415,11 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
             Nothing -> (dom , s - 1)
 
     applyCl :: SplitClause -> Clause -> [(Nat, SplitPattern)] -> TCM Clause
-    applyCl SClause{scTel = pretel, scPats = sps} cl mps
-        | tel <- renTeleFromNap pretel (namedClausePats cl) = addContext tel $ do
+    applyCl sc@SClause{scTel = pretel, scPats = sps} cl mps
+        | tel <- renTeleFromNap sc cl = addContext tel $ do
         let ps = namedClausePats cl
         reportSDoc "tc.cover.applyCl" 40 $ "applyCl"
+        reportSDoc "tc.cover.applyCl" 40 $ "pretel =" <+> pretty pretel
         reportSDoc "tc.cover.applyCl" 40 $ "tel    =" <+> pretty tel
         reportSDoc "tc.cover.applyCl" 40 $ "ps     =" <+> pretty ps
         reportSDoc "tc.cover.applyCl" 40 $ "mps    =" <+> pretty mps
