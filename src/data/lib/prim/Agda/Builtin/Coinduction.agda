@@ -1,5 +1,5 @@
 {-# OPTIONS --cubical-compatible --safe --universe-polymorphism --no-sized-types
-            --guardedness #-}
+            --guardedness --level-universe #-}
 
 module Agda.Builtin.Coinduction where
 
