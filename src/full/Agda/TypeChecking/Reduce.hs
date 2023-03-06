@@ -411,18 +411,12 @@ instance Reduce Sort where
             -- don't instantiate we might end up blocking on a solved
             -- metavariable.
             s2' <- instantiateFull s2'
-            -- piSort' should only be called on reduced sorts
-            s1' <- reduce s1'
-            s2' <- reduce s2'
             case piSort' a s1' s2' of
               Left b -> return $ Blocked b $ PiSort a s1' s2'
               Right s -> reduceB' s
         FunSort s1 s2 -> reduceB' (s1 , s2) >>= \case
           Blocked b (s1',s2') -> return $ Blocked b $ FunSort s1' s2'
           NotBlocked _ (s1',s2') -> do
-            -- funSort' should only be called on reduced sorts
-            s1' <- reduce s1'
-            s2' <- reduce s2'
             case funSort' s1' s2' of
               Left b -> return $ Blocked b $ FunSort s1' s2'
               Right s -> reduceB' s
