@@ -269,7 +269,7 @@ instance EmbPrj NLPSort where
   icod_ PLockUniv   = icodeN 4 PLockUniv
   icod_ PIntervalUniv = icodeN 5 PIntervalUniv
   icod_ (PSSet a)   = icodeN 6 PSSet a
-  icod_ PLevelUniv = icodeN 8 PLevelUniv
+  icod_ PLevelUniv = icodeN 7 PLevelUniv
 
   value = vcase valu where
     valu [0, a] = valuN PType a

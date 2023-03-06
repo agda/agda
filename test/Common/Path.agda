@@ -1,4 +1,4 @@
-{-# OPTIONS --erased-cubical #-}
+{-# OPTIONS --erased-cubical --level-universe #-}
 module Common.Path where
 
 open import Agda.Builtin.Cubical.Path public
