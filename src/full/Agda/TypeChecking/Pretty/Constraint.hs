@@ -7,7 +7,7 @@ import qualified Data.Set as Set
 import Data.Foldable (Foldable)
 import qualified Data.Foldable as Foldable
 import qualified Data.List as List
-import Data.Function
+import Data.Function (on)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position

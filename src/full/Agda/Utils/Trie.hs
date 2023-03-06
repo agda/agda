@@ -14,7 +14,7 @@ import Prelude hiding (null, lookup, filter)
 
 import Control.DeepSeq
 
-import Data.Function
+import Data.Function (on)
 import qualified Data.Maybe as Lazy
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map

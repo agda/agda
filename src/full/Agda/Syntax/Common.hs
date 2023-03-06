@@ -17,7 +17,7 @@ import Data.Bifunctor
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
 import qualified Data.Foldable as Fold
-import Data.Function
+import Data.Function (on)
 import Data.Hashable (Hashable(..))
 import qualified Data.Strict.Maybe as Strict
 import Data.Word

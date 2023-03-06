@@ -343,8 +343,6 @@ doPathPKanOp (HCompOp phi u u0) (IsNot l) (IsNot (bA,x,y)) = do
         <@> (u0 <@@> (x, y, j))
 
 doPathPKanOp (TranspOp phi u0) (IsFam l) (IsFam (bA,x,y)) = do
-  -- Γ    ⊢ l
-  -- Γ, i ⊢ bA, x, y
   let getTermLocal = getTerm "transport for path types"
   iz <- getTermLocal builtinIZero
   io <- getTermLocal builtinIOne
@@ -353,6 +351,20 @@ doPathPKanOp (TranspOp phi u0) (IsFam l) (IsFam (bA,x,y)) = do
   -- underlying line of spaces. The intuition is that not only do we
   -- have to fix the endpoints (using composition) but also actually
   -- transport. CCHM composition conveniently does that for us!
+  --
+  -- Γ ⊢ l : I → Level
+  --     l is already a function "coming in"
+  -- Γ, i ⊢ bA   : Type (l i)
+  -- Γ, i ⊢ x, y : bA
+  -- Γ ⊢ u0 : PathP (A/i0) (x/i0) (y/i0)
+  -- Γ, φ ⊢ bA constant
+  --
+  --   transp {l} (λ i → PathP A x y) φ p = λ j →
+  --      comp {λ i → l j} (λ i → A i j) (φ ∨ j ∨ ~ j) λ i where
+  --        (φ = i1 ∨ i = i0) → p j
+  --        (j = i0)          → x i
+  --        (j = i1)          → y i
+  --   : PathP A/i1 x/i1 y/i1
 
   redReturn <=< runNamesT [] $ do
     -- In reality to avoid a round-trip between primComp we use mkComp
@@ -360,12 +372,14 @@ doPathPKanOp (TranspOp phi u0) (IsFam l) (IsFam (bA,x,y)) = do
     comp <- mkComp $ "transport for path types"
     [l, u0, phi] <- traverse (open . unArg) [l, u0, ignoreBlocking phi]
     [bA, x, y] <- mapM (\ a -> open . runNames [] $ lam "i" (const (pure $ unArg a))) [bA, x, y]
+    -- Γ ⊢ bA : (i : I) → Type (l i)
+    -- Γ ⊢ x, y : (i : I) → bA i
 
     lam "j" $ \ j ->
       comp l (lam "i" $ \ i -> bA <@> i <@> j) (phi `imax` (ineg j `imax` j))
-        (lam "i'" $ \i -> combineSys l (bA <@> i <@> j)
+        (lam "i'" $ \i -> combineSys (l <@> i) (bA <@> i <@> j)
           [ (phi, ilam "o" (\o -> u0 <@@> (x <@> pure iz, y <@> pure iz, j)))
-          -- Note that here we have lines of endpoints which we must
+          -- Note that here we have lines of endpoints, which we must
           -- apply to fix the endpoints:
           , (j,      ilam "_" (const (y <@> i)))
           , (ineg j, ilam "_" (const (x <@> i)))

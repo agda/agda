@@ -32,7 +32,7 @@ import Control.Parallel             ( pseq )
 
 import Data.Array (Ix)
 import Data.DList (DList)
-import Data.Function
+import Data.Function (on)
 import Data.Int
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap

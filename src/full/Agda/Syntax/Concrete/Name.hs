@@ -8,7 +8,7 @@ import Prelude hiding ((!!))
 import Control.DeepSeq
 
 import Data.ByteString.Char8 (ByteString)
-import Data.Function
+import Data.Function (on)
 import qualified Data.Foldable as Fold
 
 import GHC.Generics (Generic)

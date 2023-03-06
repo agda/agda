@@ -8,7 +8,7 @@ import Control.Monad        ( forM, forM_ )
 import Control.Monad.Except ( MonadError(..) )
 
 import Data.Bifunctor
-import Data.Function
+import Data.Function (on)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List

@@ -28,7 +28,7 @@ jobs:
       && !contains(github.event.head_commit.message, '[ci skip]')
       && !contains(github.event.head_commit.message, '[github skip]')
       && !contains(github.event.head_commit.message, '[skip github]')
-    runs-on: Ubuntu-latest # Required, but it can be anything here.
+    runs-on: ubuntu-latest # Required, but it can be anything here.
 
     steps:
     - uses: styfle/cancel-workflow-action@0.11.0
@@ -40,15 +40,19 @@ jobs:
 
     timeout-minutes: 60
 
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - ubuntu-22.04
-        ghc-ver: ['9.4.4']
-        cabal-ver: ['3.8']
-          # Use the versions preinstalled in the virtual environment, if possible.
+    runs-on: ubuntu-latest
+
+    ## Use preinstalled GHC and Cabal
+    #
+    # runs-on: ${{ matrix.os }}
+    # strategy:
+    #   fail-fast: false
+    #   matrix:
+    #     os:
+    #       - ubuntu-22.04
+    #     ghc-ver: ['9.4.4']
+    #     cabal-ver: ['3.8']
+    #       # Use the versions preinstalled in the virtual environment, if possible.
 
     env:
       FLAGS: "-O0 -f enable-cluster-counting"
@@ -56,11 +60,16 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - uses: haskell/actions/setup@v2
-      id: setup-haskell
-      with:
-        ghc-version: ${{ matrix.ghc-ver }}
-        cabal-version: ${{ matrix.cabal-ver }}
+    ## Disable the setup action: Use preinstalled GHC and Cabal.
+    ##
+    ## In case the ubuntu-22.04 environment moves GHC beyond
+    ## what Agda supports, bring back the setup action.
+    #
+    # - uses: haskell/actions/setup@v2
+    #   id: setup-haskell
+    #   with:
+    #     ghc-version: ${{ matrix.ghc-ver }}
+    #     cabal-version: ${{ matrix.cabal-ver }}
 
     - name: Environment settings based on the Haskell setup
       run: |
@@ -70,7 +79,6 @@ jobs:
         echo "CABAL_VER = ${CABAL_VER}"
         echo "GHC_VER=${GHC_VER}"       >> ${GITHUB_ENV}
         echo "CABAL_VER=${CABAL_VER}"   >> ${GITHUB_ENV}
-      # From now on, use env.{GHC|CABAL}_VER rather than matrix.{ghc|cabal}-ver!
 
     - name: Configure the build plan
       run: |
@@ -81,16 +89,15 @@ jobs:
       # Keep a watch on this `cabal-3.9 build --dry-run` bug:
       # https://github.com/haskell/cabal/issues/8706
 
-    - uses: actions/cache@v3
-      name: Cache dependencies
+    - name: Cache dependencies
+      uses: actions/cache@v3
       id: cache
       with:
-        path: |
-          ${{ steps.setup-haskell.outputs.cabal-store }}
+        path: ~/.cabal/store
+        # ${{ steps.setup-haskell.outputs.cabal-store }}
         # The file `plan.json` contains the build information.
-        key: cabal-install.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-${{ hashFiles('**/plan.json') }}
-        restore-keys: |
-             cabal-install.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-
+        key:          cabal-install.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-${{ hashFiles('**/plan.json') }}
+        restore-keys: cabal-install.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-
 
     - name: Install dependencies
       if: ${{ !steps.cache.outputs.cache-hit }}

@@ -25,7 +25,7 @@ import Control.Monad.STM
 import Control.Monad.Trans          ( lift )
 
 import qualified Data.Char as Char
-import Data.Function
+import Data.Function (on)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Maybe

@@ -57,7 +57,7 @@ import Control.Monad.Trans.Maybe
 import Data.Either
 import Data.Foldable (forM_)
 import qualified Data.Foldable as Fold
-import Data.Function
+import Data.Function (on)
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Monoid

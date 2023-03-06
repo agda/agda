@@ -23,7 +23,7 @@ import Control.Exception   ( bracket )
 import System.Win32        ( findFirstFile, findClose, getFindDataFileName )
 #endif
 
-import Data.Function
+import Data.Function (on)
 import Data.Hashable       ( Hashable )
 import Data.Text           ( Text )
 import qualified Data.Text as Text
