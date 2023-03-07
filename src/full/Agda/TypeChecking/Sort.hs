@@ -101,8 +101,7 @@ inferPiSort a s2 = do
   case piSort' (unEl <$> a) s1' s2' of
     Right s -> return s
     Left b -> do
-      let b' = unblockOnAllMetasIn (s1' ,unAbs s2')
-      addConstraint (unblockOnBoth b b') $ HasPTSRule a s2'
+      addConstraint b $ HasPTSRule a s2'
       return $ PiSort (unEl <$> a) s1' s2'
 
 
@@ -110,13 +109,13 @@ inferPiSort a s2 = do
 inferFunSort :: Sort -> Sort -> TCM Sort
 inferFunSort s1 s2 = do
   ss1 <- sortOf (Sort s1)
-  s1' <- instantiateFull =<< reduce s1
-  s2' <- instantiateFull =<< reduce s2
-  case funSort' s1' s2' of
+  s1' <- reduceB s1
+  s2' <- reduceB s2
+  case funSort' (ignoreBlocking s1') (ignoreBlocking s2') of
     Right s -> return s
     Left b -> do
-      let b' = unblockOnAllMetasIn (s1' ,s2')
-      addConstraint (unblockOnBoth b b') $ HasPTSRule (defaultDom (El (univSort s1) (Sort s1))) (mkAbs "_" s2')
+      let b' = unblockOnEither (getBlocker s1') (getBlocker s2')
+      addConstraint (unblockOnEither b b') $ HasPTSRule (defaultDom (El (univSort s1) (Sort s1))) (mkAbs "_" $ ignoreBlocking s2')
       return $ FunSort s1 s2
 
 ptsRule :: Dom Type -> Abs Sort -> Sort -> TCM ()
@@ -139,11 +138,12 @@ hasPTSRule a b =
   if alwaysValidCodomain $ unAbs b
   then return ()
   else do
-    infer <- reduce =<< instantiateFull =<< inferPiSort a b
+    infer <- reduceB =<< inferPiSort a b
     case infer of
-      PiSort a s1 s2  | noMetas s1 && noMetas (unAbs s2) -> typeError $ InvalidTypeSort infer
-      FunSort s1 s2   | noMetas s1 && noMetas s2 -> typeError $ InvalidTypeSort infer
-      _        -> return ()
+      Blocked b t | neverUnblock == b -> typeError $ InvalidTypeSort t
+      NotBlocked _ t@FunSort{}                  -> typeError $ InvalidTypeSort t
+      NotBlocked _ t@PiSort{}                  -> typeError $ InvalidTypeSort t
+      _ -> return ()
   where
     alwaysValidCodomain s | Right LargeSort{} <- sizeOfSort s
                                = True
