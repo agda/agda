@@ -1647,7 +1647,7 @@ funSort' a b = case (a, b) of
     SmallSort{} -> Left neverUnblock
     LargeSort{} -> Right LevelUniv
   (LevelUniv     , b            ) -> sizeOfSort b >>= \case
-    SmallSort{} -> Right $ Inf IsFibrant 0
+    SmallSort bf -> Right $ Inf bf 0
     LargeSort{} -> Right b
   (MetaS m _     , _            ) -> Left $ unblockOnMeta m
   (_             , MetaS m _    ) -> Left $ unblockOnMeta m
