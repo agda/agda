@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical #-}
+{-# OPTIONS --cubical --no-double-check #-}
 module Issue6506 where
 
 open import Agda.Primitive renaming (Set to Type)
