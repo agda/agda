@@ -774,10 +774,11 @@ interpret (Cmd_goal_type_context_infer norm ii rng s) = do
   aux <- if all Char.isSpace s
             then return GoalOnly
             else do
-              typ <- liftLocalState
-                    $ withInteractionId ii
-                    $ B.typeInMeta ii norm =<< B.parseExprIn ii rng s
-              return (GoalAndHave typ)
+              liftLocalState $ withInteractionId ii $ do
+                parsed <- B.parseExprIn ii rng s
+                typ <- B.typeInMeta ii norm parsed
+                faces <- B.facesInMeta ii norm parsed
+                return (GoalAndHave typ faces)
   cmd_goal_type_context_and aux norm ii rng s
 
 interpret (Cmd_goal_type_context_check norm ii rng s) = do

@@ -7,11 +7,12 @@ module Agda.Interaction.BasicOps where
 import Prelude hiding (null)
 
 import Control.Arrow          ( first )
-import Control.Monad          ( (>=>), forM, guard )
+import Control.Monad          ( (>=>), forM, filterM, guard )
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Identity
+import Control.Monad.Trans.Maybe
 
 import qualified Data.Map as Map
 import qualified Data.IntMap as IntMap
@@ -645,6 +646,9 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
       = locallyTCState stInstantiateBlocking (const True) $
           instantiateFull p
 
+    nay :: MaybeT TCM Elims
+    nay = MaybeT $ pure Nothing
+
     -- Trying to find the actual meta application, as long as it's not
     -- buried too deep.
     -- We could look further but probably not under binders as that would mess with
@@ -671,20 +675,33 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
         CheckLockedVars t _ _ _    -> isMeta t
         UsableAtModality _ ms _ t  -> caseMaybe ms (isMeta t) $ \ s -> isMetaS s `mplus` isMeta t
 
-    isMeta (MetaV m' es_m)
-      | m == m' = Just es_m
+    isMeta :: Term -> Maybe Elims
+    isMeta (MetaV m' es_m) | m == m' = pure es_m
     isMeta _  = Nothing
 
+    isMetaS :: I.Sort -> Maybe Elims
     isMetaS (MetaS m' es_m)
-      | m == m' = Just es_m
+      | m == m' = pure es_m
     isMetaS _  = Nothing
 
     getConstrs g f = liftTCM $ do
       cs <- stripConstraintPids . filter f <$> (mapM g =<< M.getAllConstraints)
-      reportSDoc "constr.ment" 20 $ "getConstraintsMentioning"
+      cs <- caseMaybeM (traverse lookupInteractionPoint =<< isInteractionMeta m) (pure cs) $ \ip -> do
+        let
+          boundary = MapS.keysSet (getBoundary (ipBoundary ip))
+          isRedundant c = case allApplyElims =<< hasHeadMeta c of
+            Just apps -> caseMaybeM (isFaceConstraint m apps) (pure False) $ \(endps, _, _) ->
+              pure $ Set.member endps boundary
+            Nothing -> pure False
+        filterM (flip enterClosure (fmap not . isRedundant) . theConstraint) cs
+
+      reportSDoc "tc.constr.mentioning" 20 $ "getConstraintsMentioning"
       forM cs $ \(PConstr s ub c) -> do
         c <- normalForm norm c
-        case allApplyElims =<< hasHeadMeta (clValue c) of
+        let hm = hasHeadMeta (clValue c)
+        reportSDoc "tc.constr.mentioning" 20 $ "constraint:  " TP.<+> prettyTCM c
+        reportSDoc "tc.constr.mentioning" 20 $ "hasHeadMeta: " TP.<+> prettyTCM hm
+        case allApplyElims =<< hm of
           Just as_m -> do
             -- unifyElimsMeta tries to move the constraint into
             -- (an extension of) the context where @m@ comes from.
@@ -728,7 +745,6 @@ getConstraints' g f = liftTCM $ do
         let m = QuestionMark emptyMetaInfo{ metaNumber = Just mi } ii
         abstractToConcrete_ $ OutputForm noRange [] alwaysUnblock $ Assign m e
 
-
 getIPBoundary :: Rewrite -> InteractionId -> TCM [IPFace' C.Expr]
 getIPBoundary norm ii = do
   ip <- lookupInteractionPoint ii
@@ -766,6 +782,27 @@ getIPBoundary norm ii = do
             pure $ IPFace' eqns rhs
         traverse go $ MapS.toList (getBoundary (ipBoundary ip))
     Nothing -> pure []
+
+facesInMeta :: InteractionId -> Rewrite -> A.Expr -> TCM [IPFace' C.Expr]
+facesInMeta ii norm expr = withInteractionId ii $ do
+  (ex, _) <- inferExpr expr
+  ip <- lookupInteractionPoint ii
+
+  io <- primIOne
+  iz <- primIZero
+  let
+    go im = do
+      let
+        c = abstractToConcrete_ <=< reifyUnblocked <=< normalForm norm
+        fa = IntMap.toList im
+        face (i, m) = inplaceS i $ if m then io else iz
+        sub = foldr (\f s -> composeS (face f) s) idS fa
+      eqns <- forM fa $ \(a, b) -> do
+        a <- c (I.Var a [])
+        (,) a <$> c (if b then io else iz)
+      fmap (IPFace' eqns) . c =<< simplify (applySubst sub ex)
+
+  traverse go $ MapS.keys (getBoundary (ipBoundary ip))
 
 -- | Goals and Warnings
 

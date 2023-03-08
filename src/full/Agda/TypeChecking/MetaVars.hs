@@ -5,9 +5,10 @@ module Agda.TypeChecking.MetaVars where
 
 import Prelude hiding (null)
 
-import Control.Monad        ( foldM, forM, forM_, liftM2, void )
+import Control.Monad        ( foldM, forM, forM_, liftM2, void, guard )
 import Control.Monad.Except ( MonadError(..), ExceptT, runExceptT )
 import Control.Monad.Trans  ( lift )
+import Control.Monad.Trans.Maybe
 
 import Data.Function (on)
 import qualified Data.IntSet as IntSet
@@ -1672,6 +1673,42 @@ inverseSubst' skip args = map (mapFst unArg) <$> loop (zip args terms)
         -- filter out duplicate irrelevants
         filter (not . (\ a@(Arg info j, t) -> isIrrelevant info && i == j)) vars
 
+isFaceConstraint :: MetaId -> Args -> TCM (Maybe (IntMap.IntMap Bool, SubstCand, Substitution))
+isFaceConstraint mid args = runMaybeT $ do
+  iv   <- intervalView'
+  mvar <- lookupLocalMeta mid  -- information associated with meta x
+
+  let
+    t = jMetaType $ mvJudgement mvar
+    n = length args
+
+    isEndpoint tm = isJust (fin (defaultArg tm) 0)
+
+    fin (Arg _ tm) i = case iv tm of
+      IOne  -> Just (i, True)
+      IZero -> Just (i, False)
+      _     -> Nothing
+
+  sub <- MaybeT $ either (const Nothing) Just <$> runExceptT (inverseSubst' isEndpoint args)
+  ids <- MaybeT $ either (const Nothing) Just <$> runExceptT (checkLinearity sub)
+
+  m           <- getContextSize
+  TelV tel' _ <- telViewUpToPath n t
+  tel''       <- enterClosure mvar $ \_ -> getContextTelescope
+
+  let
+    assocToList i = \case
+      _           | i >= m -> []
+      ((j,u) : l) | i == j -> Just u  : assocToList (i+1) l
+      l                    -> Nothing : assocToList (i+1) l
+    ivs = assocToList 0 ids
+    rho = prependS impossible ivs $ raiseS n
+
+    over  = size tel' - size tel''
+    endps = IntMap.fromList $ catMaybes $ zipWith (\a i -> fin a (i - over)) args (downFrom n)
+
+  pure (endps, ids, rho)
+
 tryAddBoundary :: CompareDirection -> MetaId -> InteractionId -> Args -> Term -> CompareAs -> TCM ()
 tryAddBoundary dir x iid args v target = do
   iv   <- intervalView'
@@ -1680,89 +1717,38 @@ tryAddBoundary dir x iid args v target = do
   let
     t = jMetaType $ mvJudgement mvar
     n = length args
+    rhsv = allFreeVars v
 
-    isEndpoint tm = case iv tm of
-      IOne  -> True
-      IZero -> True
-      _ -> False
+    allVars :: SubstCand -> Bool
+    allVars sub = rhsv `VarSet.isSubsetOf` VarSet.fromList (map fst sub)
 
-    fin (Arg _ tm) i = case iv tm of
-      IOne  -> Just (i, True)
-      IZero -> Just (i, False)
-      _     -> Nothing
+  TelV tel' _ <- telViewUpToPath n t
 
-  m <- getContextSize
-  (telv@(TelV tel' a), bs) <- telViewUpToPathBoundary n t
+  void . runMaybeT $ do
+    (endps, ids, rho) <- MaybeT $ isFaceConstraint x args
+    guard (allVars ids)
+    let v' = applySubst rho v
 
-  runExceptT (inverseSubst' isEndpoint args) >>= \case
-    Right sub -> runExceptT (checkLinearity sub) >>= \case
-      Right ids -> do
-        tel'' <- enterClosure mvar $ \_ -> getContextTelescope
-
-        let
-          assocToList i = \case
-            _           | i >= m -> []
-            ((j,u) : l) | i == j -> Just u  : assocToList (i+1) l
-            l                    -> Nothing : assocToList (i+1) l
-          ivs = assocToList 0 ids
-          rho = prependS impossible ivs $ raiseS n
-          v'  = applySubst rho v
-
-          over  = size tel' - size tel''
-          endps = IntMap.fromList $ catMaybes $ zipWith (\a i -> fin a (i - over)) args (downFrom n)
-
-        inTopContext $ addContext tel' $ do
-          reportSDoc "tc.ip.boundary" 30 $ vcat
-            [ "recovered interaction point boundary"
-
-            , ("meta" <+> prettyTCM (MetaV x (Apply <$> args))) <> ":"
-            , "  args  =" <+> pretty args
-            , "  inv   =" <+> pretty sub
-            , "  t     =" <+> inTopContext (prettyTCM t)
-            , "  tel'  =" <+> inTopContext (prettyTCM tel'')
-            , "  tel'' =" <+> inTopContext (prettyTCM tel'')
-            , "  rho   =" <+> pretty rho
-
-            , "rhs:"
-            , "  v  ="  <+> pretty v
-
-            , "endps =" <+> pretty endps
-            , "ivs   =" <+> pretty ivs
-            ]
-
-          reportSDoc "tc.ip.boundary" 30 $ vcat
-            [ "  v' ="  <+> pretty v'
-            , "     ="  <+> prettyTCM v'
-            ]
-
-          let
-            upd (IPBoundary m) = case MapS.lookup endps m of
-              Just t -> if termSize t < termSize v'
-                then IPBoundary m
-                else IPBoundary $ MapS.insert endps v' m
-              Nothing -> IPBoundary $ MapS.insert endps v' m
-            f ip = ip{ ipBoundary = upd (ipBoundary ip) }
-
-          modifyInteractionPoints (BiMap.adjust f iid)
-
-      Left{} ->
-        reportSDoc "tc.ip.boundary" 30 $ vcat
-          [ "could not recover interaction point boundary from equation"
-          , "  " <+> prettyTCM (MetaV x (Apply <$> args))
-          , "because the inversion"
-          , "  " <+> prettyTCM sub
-          , "is non-linear"
-          ]
-    Left e -> do
+    inTopContext $ addContext tel' $ do
       reportSDoc "tc.ip.boundary" 30 $ vcat
-        [ "could not recover interaction point boundary from equation"
-        , "  " <+> prettyTCM (MetaV x (Apply <$> args))
-        , "because of a failure inverting:"
-        , case e of
-            CantInvert e -> "CantInvert" <+> prettyTCM e
-            NeutralArg   -> "NeutralArg"
-            ProjVar v    -> "ProjVar" <+> text (show v)
+        [ "recovered interaction point boundary"
+        , "  t     =" <+> inTopContext (prettyTCM t)
+        , "  rho   =" <+> pretty rho
+        , "  endps =" <+> pretty endps
+
+        , "  v'    ="  <+> pretty v'
+        , "        ="  <+> prettyTCM v'
         ]
+
+      let
+        upd (IPBoundary m) = case MapS.lookup endps m of
+          Just t -> if termSize t < termSize v'
+            then IPBoundary m
+            else IPBoundary $ MapS.insert endps v' m
+          Nothing -> IPBoundary $ MapS.insert endps v' m
+        f ip = ip{ ipBoundary = upd (ipBoundary ip) }
+
+      lift $ modifyInteractionPoints (BiMap.adjust f iid)
 
 -- | Turn open metas into postulates.
 --

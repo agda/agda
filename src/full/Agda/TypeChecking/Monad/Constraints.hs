@@ -16,7 +16,9 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Debug
+import {-# SOURCE #-} Agda.TypeChecking.Monad.MetaVars
 
+import Agda.Utils.Maybe
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 
@@ -103,6 +105,15 @@ takeAwakeConstraint' p = do
     (cs0, c : cs) -> do
       modifyAwakeConstraints $ const (cs0 ++ cs)
       return $ Just c
+
+isBlockedOnIP :: ReadTCState m => Blocker -> m Bool
+isBlockedOnIP (UnblockOnAll m)  = allM (Set.toList m) isBlockedOnIP
+isBlockedOnIP (UnblockOnAny m)  = anyM (Set.toList m) isBlockedOnIP
+isBlockedOnIP (UnblockOnMeta m) = isJust <$> isInteractionMeta m
+isBlockedOnIP (UnblockOnProblem i) =
+  flip anyM (isBlockedOnIP . constraintUnblocker) =<< getConstraintsForProblem i
+
+isBlockedOnIP UnblockOnDef{}     = pure False
 
 getAllConstraints :: ReadTCState m => m Constraints
 getAllConstraints = do

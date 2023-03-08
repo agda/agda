@@ -9,6 +9,8 @@ import qualified Data.Foldable as Foldable
 import qualified Data.List as List
 import Data.Function (on)
 
+import Control.Monad
+
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Abstract as A
@@ -36,19 +38,27 @@ prettyConstraint c = f (locallyTCState stInstantiateBlocking (const True) $ pret
           then d
           else d $$ nest 4 ("[ at" <+> prettyTCM r <+> "]")
 
-interestingConstraint :: ProblemConstraint -> Bool
-interestingConstraint pc = go $ clValue (theConstraint pc)
-  where
-    go UnBlock{} = False
-    go _         = True
+interestingConstraint :: (ReadTCState m, HasBuiltins m) => ProblemConstraint -> m Bool
+interestingConstraint pc = go $ clValue (theConstraint pc) where
+  go (UnBlock mi) = lookupMetaInstantiation mi >>= \case
+    BlockedConst{} -> pure False
+    PostponedTypeCheckingProblem{} -> pure True
+
+    -- Amy (2023-03-07): I think these cases should be impossible, but
+    -- better safe than sorry.
+    InstV{}        -> pure False
+    Open           -> pure False
+    OpenInstance   -> pure False
+  go _         = pure True
 
 prettyInterestingConstraints :: MonadPretty m => [ProblemConstraint] -> m [Doc]
-prettyInterestingConstraints cs = mapM (prettyConstraint . stripPids) $ List.sortBy (compare `on` isBlocked) cs'
-  where
+prettyInterestingConstraints cs = do
+  cs' <- filterM interestingConstraint cs
+  let
     isBlocked = not . null . allBlockingProblems . constraintUnblocker
-    cs' = filter interestingConstraint cs
     interestingPids = Set.unions $ map (allBlockingProblems . constraintUnblocker) cs'
     stripPids (PConstr pids unblock c) = PConstr (Set.intersection pids interestingPids) unblock c
+  mapM (prettyConstraint . stripPids) $ List.sortBy (compare `on` isBlocked) cs'
 
 prettyRangeConstraint ::
   (MonadPretty m, Foldable f, Null (f ProblemId)) =>

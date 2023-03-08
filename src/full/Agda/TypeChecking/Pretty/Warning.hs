@@ -3,7 +3,7 @@ module Agda.TypeChecking.Pretty.Warning where
 
 import Prelude hiding ( null )
 
-import Control.Monad ( guard )
+import Control.Monad ( guard, filterM, (<=<) )
 
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail ( MonadFail )
@@ -19,10 +19,12 @@ import qualified Data.List as List
 import qualified Data.Text as T
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Builtin
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.MetaVars
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Debug
+import Agda.TypeChecking.Monad.Constraints
 import Agda.TypeChecking.Monad.State ( getScope )
 import Agda.TypeChecking.Monad ( localTCState )
 import Agda.TypeChecking.Positivity () --instance only
@@ -42,6 +44,7 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 
+import Agda.Utils.Monad
 import Agda.Utils.Lens
 import Agda.Utils.List ( editDistance )
 import qualified Agda.Utils.List1 as List1
@@ -429,20 +432,20 @@ prettyTCWarnings :: [TCWarning] -> TCM String
 prettyTCWarnings = fmap (unlines . List.intersperse "") . prettyTCWarnings'
 
 prettyTCWarnings' :: [TCWarning] -> TCM [String]
-prettyTCWarnings' = mapM (fmap P.render . prettyTCM) . filterTCWarnings
+prettyTCWarnings' = mapM (fmap P.render . prettyTCM) <=< filterTCWarnings
 
 -- | If there are several warnings, remove the unsolved-constraints warning
 -- in case there are no interesting constraints to list.
-filterTCWarnings :: [TCWarning] -> [TCWarning]
+filterTCWarnings :: [TCWarning] -> TCM [TCWarning]
 filterTCWarnings = \case
   -- #4065: Always keep the only warning
-  [w] -> [w]
+  [w] -> pure [w]
   -- Andreas, 2019-09-10, issue #4065:
   -- If there are several warnings, remove the unsolved-constraints warning
   -- in case there are no interesting constraints to list.
-  ws  -> (`filter` ws) $ \ w -> case tcWarning w of
-    UnsolvedConstraints cs -> any interestingConstraint cs
-    _ -> True
+  ws  -> flip filterM ws $ \ w -> case tcWarning w of
+    UnsolvedConstraints cs -> anyM cs interestingConstraint
+    _ -> pure True
 
 
 -- | Turns warnings, if any, into errors.
@@ -490,10 +493,20 @@ applyFlagsToTCWarningsPreserving additionalKeptWarnings ws = do
 applyFlagsToTCWarnings :: HasOptions m => [TCWarning] -> m [TCWarning]
 applyFlagsToTCWarnings = applyFlagsToTCWarningsPreserving Set.empty
 
+
 getAllUnsolvedWarnings :: (MonadFail m, ReadTCState m, MonadWarning m) => m [TCWarning]
 getAllUnsolvedWarnings = do
   unsolvedInteractions <- getUnsolvedInteractionMetas
+
   unsolvedConstraints  <- getAllConstraints
+  reportSDoc "tc.warning.unsolved" 90 $ vcat $
+    text "all unsolved constraints:":map (("  " <+>) . prettyTCM) unsolvedConstraints
+
+  unsolvedConstraints
+    <- filterM (fmap not . isBlockedOnIP . constraintUnblocker) unsolvedConstraints
+  reportSDoc "tc.warning.unsolved" 90 $ vcat $
+    text "constraints not blocked on an IP:":map (("  " <+>) . prettyTCM) unsolvedConstraints
+
   unsolvedMetas        <- getUnsolvedMetas
 
   let checkNonEmpty c rs = c rs <$ guard (not $ null rs)
