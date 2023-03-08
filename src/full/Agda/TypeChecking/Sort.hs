@@ -88,21 +88,18 @@ hasBiggerSort = void . inferUnivSort
 --   ensure we can compute the sort eventually.
 inferPiSort :: (PureTCM m,MonadConstraint m) => Dom Type -> Abs Sort -> m Sort
 inferPiSort a s2 = do
-  s1' <- reduce $ getSort a
-  s2' <- mapAbstraction a reduce s2
-  -- we do instantiateFull here to perhaps remove some (flexible)
-  -- dependencies of s2 on var 0, thus allowing piSort' to reduce
-  s2' <- instantiateFull s2'
-
+  s1' <- reduceB $ getSort a
+  s2' <- mapAbstraction a reduceB s2
   --Jesper, 2018-04-23: disabled PTS constraints for now,
   --this assumes that piSort can only be blocked by unsolved metas.
   --Arthur Adjedj, 2023-02-27, Turned PTS back on,
   --piSort can now be blocked by Leveluniv
-  case piSort' (unEl <$> a) s1' s2' of
+  let b' = unblockOnEither (getBlocker s1') (getBlocker $ unAbs s2')
+  case piSort' (unEl <$> a) (ignoreBlocking s1') (ignoreBlocking <$> s2') of
     Right s -> return s
     Left b -> do
-      addConstraint b $ HasPTSRule a s2'
-      return $ PiSort (unEl <$> a) s1' s2'
+      addConstraint (unblockOnEither b b') $ HasPTSRule a (ignoreBlocking <$> s2')
+      return $ PiSort (unEl <$> a) (ignoreBlocking s1') (ignoreBlocking <$> s2')
 
 
 -- | As @inferPiSort@, but for a nondependent function type.
@@ -118,21 +115,6 @@ inferFunSort s1 s2 = do
       addConstraint (unblockOnEither b b') $ HasPTSRule (defaultDom (El (univSort s1) (Sort s1))) (mkAbs "_" $ ignoreBlocking s2')
       return $ FunSort s1 s2
 
-ptsRule :: Dom Type -> Abs Sort -> Sort -> TCM ()
-ptsRule a b c = do
-  c' <- inferPiSort a b
-  ifM (optCumulativity <$> pragmaOptions)
-    (leqSort c' c)
-    (equalSort c' c)
-
--- | Non-dependent version of ptsRule
-ptsRule' :: Sort -> Sort -> Sort -> TCM ()
-ptsRule' a b c = do
-  c' <- inferFunSort a b
-  ifM (optCumulativity <$> pragmaOptions)
-    (leqSort c' c)
-    (equalSort c' c)
-
 hasPTSRule :: Dom Type -> Abs Sort -> TCM ()
 hasPTSRule a b =
   if alwaysValidCodomain $ unAbs b
@@ -141,8 +123,8 @@ hasPTSRule a b =
     infer <- reduceB =<< inferPiSort a b
     case infer of
       Blocked b t | neverUnblock == b -> typeError $ InvalidTypeSort t
-      NotBlocked _ t@FunSort{}                  -> typeError $ InvalidTypeSort t
-      NotBlocked _ t@PiSort{}                  -> typeError $ InvalidTypeSort t
+      NotBlocked _ t@FunSort{}        -> typeError $ InvalidTypeSort t
+      NotBlocked _ t@PiSort{}         -> typeError $ InvalidTypeSort t
       _ -> return ()
   where
     alwaysValidCodomain s | Right LargeSort{} <- sizeOfSort s

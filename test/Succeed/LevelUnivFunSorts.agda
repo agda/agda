@@ -13,5 +13,3 @@ _ : Setω
 _ = Level -> Set
 _ : Setω2
 _ = Setω1 -> Level
--- should this really work ?
-
