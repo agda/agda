@@ -1623,7 +1623,7 @@ funSort' a b = case (a, b) of
   (a             , Inf bf n     ) -> sizeOfSort a >>= \case
     SmallSort af   -> Right $ Inf (fibrantLub af bf) n
     LargeSort af m -> Right $ Inf (fibrantLub af bf) $ max m n
-  (LockUniv      , LevelUniv    ) -> Left neverUnblock 
+  (LockUniv      , LevelUniv    ) -> Left neverUnblock
   (LockUniv      , b            ) -> Right b
   -- No functions into lock types
   (a             , LockUniv     ) -> Left neverUnblock
