@@ -85,6 +85,9 @@ toFinitePi _ = __IMPOSSIBLE__
 el' :: Applicative m => m Term -> m Term -> m Type
 el' l a = El <$> (tmSort <$> l) <*> a
 
+els :: Applicative m => m Sort -> m Term -> m Type
+els l a = El <$> l <*> a
+
 el's :: Applicative m => m Term -> m Term -> m Type
 el's l a = El <$> (SSet . atomicLevel <$> l) <*> a
 
