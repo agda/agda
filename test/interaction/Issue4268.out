@@ -6,5 +6,5 @@
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-give-action 0 "(x y : A) → ?")
 (agda2-status-action "")
-(agda2-info-action "*All Goals, Errors*" "?1 : Set _9 _9 : Agda.Primitive.Level [ at 1,1-14 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: _9 =< Agda.Primitive.lsuc Agda.Primitive.lzero (blocked on _9) Has PTS rule: (A , funSort Set₁ (Set _9)) (stuck) " nil)
+(agda2-info-action "*All Goals, Errors*" "?1 : Set _9 _9 : Agda.Primitive.Level [ at 1,1-14 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: _9 =< Agda.Primitive.lsuc Agda.Primitive.lzero (blocked on _9) " nil)
 ((last . 1) . (agda2-goals-action '(1)))

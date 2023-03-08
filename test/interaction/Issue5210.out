@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals, Errors*" "?0 : _9 ?1 : ?0 (n = n) Sort _9 [ at Issue5210.agda:9,20-27 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: Has PTS rule: (Nat , funSort Prop (_9 (n = n))) (stuck) Has PTS rule: (Prop , _9 (n = _)) (blocked on _9) " nil)
+(agda2-info-action "*All Goals, Errors*" "?0 : _9 ?1 : ?0 (n = n) Sort _9 [ at Issue5210.agda:9,20-27 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: Has PTS rule: (Nat , funSort Prop (_9 (n = n))) (blocked on _9) Has PTS rule: (Prop , _9 (n = _)) (blocked on _9) " nil)
 ((last . 1) . (agda2-goals-action '(0 1)))
 (agda2-info-action "*Error*" "Issue5210.agda:10,12-20 Cannot split on datatype in Prop unless target is in Prop when checking that the expression ? has type ?0 (n = n)" nil)
 ((last . 3) . (agda2-maybe-goto '("Issue5210.agda" . 151)))
