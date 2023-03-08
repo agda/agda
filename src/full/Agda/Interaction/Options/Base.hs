@@ -1160,7 +1160,7 @@ pragmaOptions =
     , Option []     ["no-prop"] (NoArg noPropFlag)
                     "disable the use of the Prop universe (default)"
     , Option []     ["level-universe"] (NoArg levelUniverseFlag)
-                    "enables making Level live in a separate LevelUniv universe"
+                    "place type Level in a dedicated LevelUniv universe"
     , Option []     ["two-level"] (NoArg twoLevelFlag)
                     "enable the use of SSet* universes"
     , Option []     ["sized-types"] (NoArg sizedTypes)
