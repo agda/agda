@@ -141,7 +141,7 @@ data Info_Error
 
 data GoalTypeAux
     = GoalOnly
-    | GoalAndHave A.Expr
+    | GoalAndHave A.Expr [IPFace' Expr]
     | GoalAndElaboration I.Term
 
 -- | Entry in context.

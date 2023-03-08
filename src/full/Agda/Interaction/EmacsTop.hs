@@ -216,19 +216,19 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ withInteractionId ii $
     Goal_GoalType norm aux ctx bndry constraints -> do
       ctxDoc <- prettyResponseContext ii True ctx
       goalDoc <- prettyTypeOfMeta norm ii
+      let boundaryDoc hd bndry
+            | null bndry = []
+            | otherwise  = [ text $ delimiter hd
+                           , vcat $ map pretty bndry
+                           ]
       auxDoc <- case aux of
             GoalOnly -> return empty
-            GoalAndHave expr -> do
+            GoalAndHave expr bndry -> do
               doc <- prettyATop expr
-              return $ "Have:" <+> doc
+              return $ ("Have:" <+> doc) $$ vcat (boundaryDoc ("Boundary (actual)") bndry)
             GoalAndElaboration term -> do
               doc <- TCP.prettyTCM term
               return $ "Elaborates to:" <+> doc
-      let boundaryDoc
-            | null bndry = []
-            | otherwise  = [ text $ delimiter "Boundary"
-                           , vcat $ map pretty bndry
-                           ]
       let constraintsDoc
             | null constraints = []
             | otherwise        =
@@ -237,8 +237,8 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ withInteractionId ii $
               ]
       doc <- TCP.vcat $
         [ "Goal:" TCP.<+> return goalDoc
+        , return (vcat (boundaryDoc "Boundary (wanted)" bndry))
         , return auxDoc
-        , return (vcat boundaryDoc)
         , TCP.text (replicate 60 '\x2014')
         , return ctxDoc
         ] ++ constraintsDoc

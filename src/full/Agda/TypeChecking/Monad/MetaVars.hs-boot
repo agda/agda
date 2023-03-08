@@ -5,7 +5,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Identity ( IdentityT )
 
-import Agda.Syntax.Common (InteractionId)
+import Agda.Syntax.Common (InteractionId, MetaId)
 import Agda.TypeChecking.Monad.Base
 
 class (MonadTCEnv m, ReadTCState m) => MonadInteractionPoints m where
@@ -27,3 +27,5 @@ instance MonadInteractionPoints m => MonadInteractionPoints (ReaderT r m)
 instance MonadInteractionPoints m => MonadInteractionPoints (StateT s m)
 
 instance MonadInteractionPoints TCM
+
+isInteractionMeta :: ReadTCState m => MetaId -> m (Maybe InteractionId)
