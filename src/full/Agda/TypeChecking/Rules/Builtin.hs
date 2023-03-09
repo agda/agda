@@ -171,7 +171,7 @@ coreBuiltins =
                                                               hPi' "A" (sort . tmSort <$> l) $ \ bA ->
                                                               hPi' "x" (el' l bA) $ \ x ->
                                                               el' l (primId <#> l <#> bA <@> x <@> x)))
-  , (builtinEquiv                            |-> BuiltinUnknown (Just $ requireCubical CFull "" >> runNamesT [] (
+  , (builtinEquiv                            |-> BuiltinUnknown (Just $ requireCubical CErased "" >> runNamesT [] (
                                                                     hPi' "l" (el $ cl primLevel) $ \ a ->
                                                                     hPi' "l'" (el $ cl primLevel) $ \ b ->
                                                                     nPi' "A" (sort . tmSort <$> a) $ \bA ->
@@ -179,7 +179,7 @@ coreBuiltins =
                                                                     ((sort . tmSort) <$> (cl primLevelMax <@> a <@> b))
                                                                   ))
                                                                    (const $ const $ return ()))
-  , (builtinEquivFun                         |-> BuiltinUnknown (Just $ requireCubical CFull "" >> runNamesT [] (
+  , (builtinEquivFun                         |-> BuiltinUnknown (Just $ requireCubical CErased "" >> runNamesT [] (
                                                                  hPi' "l" (el $ cl primLevel) $ \ a ->
                                                                  hPi' "l'" (el $ cl primLevel) $ \ b ->
                                                                  hPi' "A" (sort . tmSort <$> a) $ \bA ->
@@ -188,7 +188,7 @@ coreBuiltins =
                                                                  (el' a bA --> el' b bB)
                                                                ))
                                                                 (const $ const $ return ()))
-  , (builtinEquivProof                       |-> BuiltinUnknown (Just $ requireCubical CFull "" >> runNamesT [] (
+  , (builtinEquivProof                       |-> BuiltinUnknown (Just $ requireCubical CErased "" >> runNamesT [] (
                                                                hPi' "l" (el $ cl primLevel) $ \ la ->
                                                                hPi' "l'" (el $ cl primLevel) $ \ lb ->
                                                                nPi' "A" (sort . tmSort <$> la) $ \ bA ->

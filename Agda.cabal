@@ -111,6 +111,7 @@ data-files:
     lib/prim/Agda/Builtin/Cubical/Id.agda
     lib/prim/Agda/Builtin/Cubical/Sub.agda
     lib/prim/Agda/Builtin/Cubical/Glue.agda
+    lib/prim/Agda/Builtin/Cubical/Equiv.agda
     lib/prim/Agda/Builtin/Cubical/HCompU.agda
     lib/prim/Agda/Builtin/Equality.agda
     lib/prim/Agda/Builtin/Equality/Erase.agda
