@@ -11,6 +11,39 @@ Reflection
   pragmaCompile : String → Name → String → TC ⊤
   ```
 
+
+* Add 4 reflection primitives of the form `ask*` and `with*`:
+
+  ```agda
+  withNormalisation : ∀ {a} {A : Set a} → Bool → TC A → TC A
+  askNormalisation  : TC Bool
+
+  withExpandLast : ∀ {a} {A : Set a} → Bool → TC A → TC A
+  askExpandLast  : TC Bool
+
+  withReduceDefs : ∀ {a} {A : Set a} → (Σ Bool λ _ → List Name) → TC A → TC A
+  askReduceDefs  : TC (Σ Bool λ _ → List Name)
+
+  askReconstructed  : TC Bool
+  ```
+  to change the behaviour of `inferType`, `checkType`, `quoteTC`, `getContext`.
+
+* [**Breaking**] The type of `withReconstructed` has been changed from
+
+  ```agda
+  withReconstructed : ∀ {a} {A : Set a} →        TC A → TC A
+
+  ```
+  to
+  ```agda
+  withReconstructed : ∀ {a} {A : Set a} → Bool → TC A → TC A
+  ```
+  to match the type of primitives of the form `with*`.
+
+* Two primitives `onlyReduceDefs` and `dontReduceDefs` are removed but re-implemented
+  using the new family of primitives `with*` and `ask*` for backward compatibility.
+
+
 Erasure
 -------
 
