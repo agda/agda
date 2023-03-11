@@ -9,6 +9,7 @@ module Agda.Interaction.Options.Base
     , Verbosity, VerboseKey, VerboseLevel
     , WarningMode(..)
     , ConfluenceCheck(..)
+    , PrintAgdaVersion(..)
     , UnicodeOrAscii(..)
     , checkOpts
     , parsePragmaOptions
@@ -125,7 +126,7 @@ data CommandLineOptions = Options
   , optTrustedExecutables    :: Map ExeName FilePath
   -- ^ Map names of trusted executables to absolute paths
   , optPrintAgdaDir          :: Bool
-  , optPrintVersion          :: Bool
+  , optPrintVersion          :: Maybe PrintAgdaVersion
   , optPrintHelp             :: Maybe Help
   , optInteractive           :: Bool
       -- ^ Agda REPL (-I).
@@ -266,6 +267,16 @@ data ConfluenceCheck
 
 instance NFData ConfluenceCheck
 
+-- | Options @--version@ and @--numeric-version@ (last wins).
+data PrintAgdaVersion
+  = PrintAgdaVersion
+      -- ^ Print Agda version information and exit.
+  | PrintAgdaNumericVersion
+      -- ^ Print Agda version number and exit.
+  deriving (Show, Generic)
+
+instance NFData PrintAgdaVersion
+
 -- | Map a function over the long options. Also removes the short options.
 --   Will be used to add the plugin name to the plugin options.
 mapFlag :: (String -> String) -> OptDescr a -> OptDescr a
@@ -287,7 +298,7 @@ defaultOptions = Options
   , optTraceImports          = 1
   , optTrustedExecutables    = Map.empty
   , optPrintAgdaDir          = False
-  , optPrintVersion          = False
+  , optPrintVersion          = Nothing
   , optPrintHelp             = Nothing
   , optInteractive           = False
   , optGHCiInteraction       = False
@@ -604,7 +615,10 @@ printAgdaDirFlag :: Flag CommandLineOptions
 printAgdaDirFlag o = return $ o { optPrintAgdaDir = True }
 
 versionFlag :: Flag CommandLineOptions
-versionFlag o = return $ o { optPrintVersion = True }
+versionFlag o = return $ o { optPrintVersion = Just PrintAgdaVersion }
+
+numericVersionFlag :: Flag CommandLineOptions
+numericVersionFlag o = return $ o { optPrintVersion = Just PrintAgdaNumericVersion }
 
 helpFlag :: Maybe String -> Flag CommandLineOptions
 helpFlag Nothing    o = return $ o { optPrintHelp = Just GeneralHelp }
@@ -1033,6 +1047,9 @@ keepCoveringClausesFlag o = return $ o { optKeepCoveringClauses = True }
 standardOptions :: [OptDescr (Flag CommandLineOptions)]
 standardOptions =
     [ Option ['V']  ["version"] (NoArg versionFlag)
+                    ("print version information and exit")
+
+    , Option []     ["numeric-version"] (NoArg numericVersionFlag)
                     ("print version number and exit")
 
     , Option ['?']  ["help"]    (OptArg helpFlag "TOPIC") $ concat

@@ -221,6 +221,8 @@ Instance arguments
 Pragmas and options
 -------------------
 
+* New command-line option `--numeric-version` to just print the version number of Agda.
+
 * New command-line option `--trace-imports` to switch on notification messages
   on the end of compilation of an imported module
   or on access to an interface file during the type-checking.
@@ -257,4 +259,3 @@ Emacs mode
 
 * Helper function (`C-c C-h`) does not abstract over module parameters anymore
   (see [#2271](https://github.com/agda/agda/issues/2271)).
-
