@@ -1,0 +1,6 @@
+TickVariableAfterTerm.agda:16,21-37
+The variable later can not be mentioned here, since it was not
+introduced before the variable tic.
+Variables introduced after tic can not be used, since that is the
+leftmost @tick variable in the locking term endo tic.
+when checking that the expression later (endo tic) has type A

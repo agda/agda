@@ -1299,17 +1299,25 @@ instance LensAnnotation (Arg t) where
 -- * Locks
 ---------------------------------------------------------------------------
 
-data Lock = IsNotLock
-          | IsLock -- ^ In the future there might be different kinds of them.
-                   --   For now we assume lock weakening.
+data LockOrigin
+  = LockOLock -- ^ The user wrote @lock.
+  | LockOTick -- ^ The user wrote @tick.
   deriving (Show, Generic, Eq, Enum, Bounded, Ord)
+
+data Lock
+  = IsNotLock
+  | IsLock LockOrigin
+  -- ^ In the future there might be different kinds of them.
+  --   For now we assume lock weakening.
+  deriving (Show, Generic, Eq, Ord)
 
 defaultLock :: Lock
 defaultLock = IsNotLock
 
 instance NFData Lock where
-  rnf IsNotLock = ()
-  rnf IsLock    = ()
+  rnf IsNotLock          = ()
+  rnf (IsLock LockOLock) = ()
+  rnf (IsLock LockOTick) = ()
 
 class LensLock a where
 

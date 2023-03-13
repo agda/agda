@@ -104,6 +104,10 @@ instance LensArgInfo (Dom' t e) where
   setArgInfo ai dom = dom { domInfo = ai }
   mapArgInfo f  dom = dom { domInfo = f $ domInfo dom }
 
+instance LensLock (Dom' t e) where
+  getLock = getLock . getArgInfo
+  setLock = mapArgInfo . setLock
+
 -- The other lenses are defined through LensArgInfo
 
 instance LensHiding        (Dom' t e) where
@@ -1333,10 +1337,12 @@ instance Pretty t => Pretty (Abs t) where
   pretty (NoAbs x t) = "NoAbs" <+> (text x <> ".") <+> pretty t
 
 instance (Pretty t, Pretty e) => Pretty (Dom' t e) where
-  pretty dom = pTac <+> pDom dom (pretty $ unDom dom)
+  pretty dom = pLock <+> pTac <+> pDom dom (pretty $ unDom dom)
     where
       pTac | Just t <- domTactic dom = "@" <> parens ("tactic" <+> pretty t)
            | otherwise               = empty
+      pLock | IsLock{} <- getLock dom = "@lock"
+            | otherwise = empty
 
 pDom :: LensHiding a => a -> Doc -> Doc
 pDom i =

@@ -1,0 +1,5 @@
+TickVariablesAfter.agda:13,24-36
+The variable arg can not be mentioned here, since it was not
+introduced before the variable tic.
+The following variable is not allowed here, either: func
+when checking that the expression func arg tic has type B

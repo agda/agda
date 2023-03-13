@@ -1,0 +1,4 @@
+TickJoin.agda:13,14-23
+The lock variable tic can not appear simultaneously in the "later"
+term x tic and in the lock term tic.
+when checking that the expression x tic tic has type A

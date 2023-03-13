@@ -4402,6 +4402,13 @@ data TypeError
         | ModuleArityMismatch A.ModuleName Telescope [NamedArg A.Expr]
         | GeneralizeCyclicDependency
         | GeneralizeUnsolvedMeta
+        | ReferencesFutureVariables Term (List1.NonEmpty Int) (Arg Term) Int
+          -- ^ The first term references the given list of variables,
+          -- which are in "the future" with respect to the given lock
+          -- (and its leftmost variable)
+        | DoesNotMentionTicks Term Type (Arg Term)
+          -- ^ Arguments: later term, its type, lock term. The lock term
+          -- does not mention any @lock variables.
     -- Coverage errors
 -- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | SplitError SplitError

@@ -328,7 +328,7 @@ checkDomain lamOrPi xs e = do
          applyCohesionToContext c $
          modEnv lamOrPi $ isType_ e
     -- Andrea TODO: also make sure that LockUniv implies IsLock
-    when (any (\ x -> getLock x == IsLock) xs) $ do
+    when (any (\x -> case getLock x of { IsLock{} -> True ; _ -> False }) xs) $ do
          -- Solves issue #5033
         unlessM (isJust <$> getName' builtinLockUniv) $ do
           genericDocError $ "Missing binding for primLockUniv primitive."
