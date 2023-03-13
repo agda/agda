@@ -644,23 +644,24 @@ with)."
   "Remove highlighting between START and END.
 TOKEN-BASED is non-nil, then only token-based properties are
 removed."
-  (save-excursion
-    (save-restriction
-      (narrow-to-region start end)
-      (goto-char (point-max))
-      (let ((tag (if token-based
-                     'agda2-highlight-token-based
-                   'agda2-highlight-annotated)))
-        (while (not (eobp))
-          (let ((props (get-text-property (point) 'agda2-highlight-annotations))
-                (next (next-single-property-change (point) tag nil end)))
-            (when (or (not token-based)
-                      (member 'agda2-highlight-token-based props))
-              (remove-text-properties
-               (point) next
-               (mapcan (lambda (p) (list p nil)) ;intersperse nils in the list
-                       (cons 'agda2-highlight-annotations props))))
-            (when next (goto-char next))))))))
+  (with-silent-modifications
+    (save-excursion
+      (save-restriction
+        (narrow-to-region start end)
+        (goto-char (point-min))
+        (let ((tag (if token-based
+                       'agda2-highlight-token-based
+                     'agda2-highlight-annotated)))
+          (while (not (eobp))
+            (let ((props (get-text-property (point) 'agda2-highlight-annotations))
+                  (next (next-single-property-change (point) tag nil end)))
+              (when (or (not token-based)
+                        (member 'agda2-highlight-token-based props))
+                (remove-text-properties
+                 (point) next
+                 (mapcan (lambda (p) (list p nil)) ;intersperse nils in the list
+                         (cons 'agda2-highlight-annotations props))))
+              (when next (goto-char next)))))))))
 
 (defun agda2-highlight-apply (remove cmds)
   "Add the syntax highlighting information in the annotation list CMDS.
