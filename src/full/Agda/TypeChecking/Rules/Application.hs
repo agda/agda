@@ -832,11 +832,12 @@ checkArgumentsE'
                   let e' = e { nameOf = (nameOf e) <|> dname }
                   checkNamedArg (Arg info' e') a
 
-                let c | IsLock == getLock info' =
-                        Just $ Abs "t" $
+                let
+                  c = case getLock info' of
+                    IsLock{} -> Just $ Abs "t" $
                         CheckLockedVars (Var 0 []) (raise 1 sFun)
                           (raise 1 $ Arg info' u) (raise 1 a)
-                      | otherwise = Nothing
+                    _ -> Nothing
                 lift $ reportSDoc "tc.term.lock" 40 $ text "lock =" <+> text (show $ getLock info')
                 lift $ reportSDoc "tc.term.lock" 40 $
                   addContext (defaultDom $ sFun) $

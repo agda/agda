@@ -607,11 +607,13 @@ instance EmbPrj Annotation where
     _ -> malformed
 
 instance EmbPrj Lock where
-  icod_ IsNotLock = return 0
-  icod_ IsLock    = return 1
+  icod_ IsNotLock          = pure 0
+  icod_ (IsLock LockOTick) = pure 1
+  icod_ (IsLock LockOLock) = pure 2
 
-  value 0 = return IsNotLock
-  value 1 = return IsLock
+  value 0 = pure IsNotLock
+  value 1 = pure (IsLock LockOTick)
+  value 2 = pure (IsLock LockOLock)
   value _ = malformed
 
 instance EmbPrj Origin where

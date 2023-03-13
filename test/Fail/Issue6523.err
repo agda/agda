@@ -1,0 +1,6 @@
+Issue6523.agda:39,19-28
+The term tic, given as an argument to the guarded value
+  later : Tick → X
+can not be used as a @tick argument, since it does not mention any
+@tick variables.
+when checking that the expression later tic has type X

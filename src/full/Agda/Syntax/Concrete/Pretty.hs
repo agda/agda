@@ -85,6 +85,12 @@ prettyRelevance a = (pretty (getRelevance a) <>)
 prettyQuantity :: LensQuantity a => a -> Doc -> Doc
 prettyQuantity a = (pretty (getQuantity a) <+>)
 
+prettyLock :: LensLock a => a -> Doc -> Doc
+prettyLock a doc = case getLock a of
+  IsLock LockOLock -> "@lock" <+> doc
+  IsLock LockOTick -> "@tick" <+> doc
+  IsNotLock -> doc
+
 prettyErased :: Erased -> Doc -> Doc
 prettyErased = prettyQuantity . asQuantity
 
@@ -328,6 +334,7 @@ instance Pretty TypedBinding where
         $ prettyFiniteness (binderName $ namedArg y)
         $ prettyCohesion y
         $ prettyQuantity y
+        $ prettyLock y
         $ prettyTactic (binderName $ namedArg y) $
         sep [ fsep (map (pretty . NamedBinding False) ys)
             , ":" <+> pretty e ]

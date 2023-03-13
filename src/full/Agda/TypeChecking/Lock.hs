@@ -25,10 +25,12 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute.Class
 import Agda.TypeChecking.Free
 
+import qualified Agda.Utils.List1 as List1
+import qualified Agda.Utils.VarSet as VSet
+import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
-import Agda.Utils.VarSet as VSet
 
 import Agda.Utils.Impossible
 
@@ -53,7 +55,7 @@ checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) 
 
   -- Strategy: compute allowed variables, check that @t@ doesn't use more.
   mi <- getLockVar (unArg lk)
-  caseMaybe mi (return ()) $ \ i -> do
+  caseMaybe mi (typeError (DoesNotMentionTicks t ty lk)) $ \ i -> do
 
   cxt <- getContext
   let toCheck = zip [0..] $ zipWith raise [1..] (take i cxt)
@@ -83,8 +85,9 @@ checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) 
     -- flexVars = flexibleVars fv
     -- blockingMetas = map (`lookupVarMap` flexVars) (ISet.toList $ termVars ISet.\\ allowedVars)
     patternViolation alwaysUnblock
-  else do
-    notAllowedVarsError (unArg lk) (ISet.toList illegalVars)
+  else
+    typeError $ ReferencesFutureVariables t (List1.fromList (ISet.toList illegalVars)) lk i
+    -- List1.fromList is guarded by not (null illegalVars)
 
 
 getLockVar :: Term -> TCMT IO (Maybe Int)
@@ -93,9 +96,13 @@ getLockVar lk = do
     fv = freeVarsIgnore IgnoreInAnnotations lk
     flex = flexibleVars fv
 
+    isLock i = fmap (getLock . domInfo) (lookupBV i) <&> \case
+      IsLock{} -> True
+      IsNotLock{} -> False
+
   unless (IMap.null flex) $ do
     let metas = Set.unions $ map (foldrMetaSet Set.insert Set.empty) $ IMap.elems flex
-    patternViolation $ unblockOnAnyMeta $ metas
+    patternViolation $ unblockOnAnyMeta metas
 
   is <- filterM isLock $ ISet.toList $ rigidVars fv
 
@@ -105,12 +112,7 @@ getLockVar lk = do
   let mi | Prelude.null is   = Nothing
          | otherwise = Just $ maximum is
 
-  return $ mi
-
-  where
-   isLock i = do
-     islock <- getLock . domInfo <$> lookupBV i
-     return $ islock == IsLock
+  pure mi
 
 isTimeless :: Type -> TCM Bool
 isTimeless t = do
@@ -126,7 +128,7 @@ notAllowedVarsError lk is = do
          ("The following vars are not allowed in a later value applied to"
           <+> prettyTCM lk <+> ":" <+> prettyTCM (map var $ is))
 
-checkEarlierThan :: Term -> VarSet -> TCM ()
+checkEarlierThan :: Term -> VSet.VarSet -> TCM ()
 checkEarlierThan lk fvs = do
   mv <- getLockVar lk
   caseMaybe mv (return ()) $ \ i -> do

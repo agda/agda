@@ -3226,7 +3226,7 @@ checkAttributes ((attr, r, s) : attrs) =
     RelevanceAttribute{}    -> cont
     TacticAttribute{}       -> cont
     LockAttribute IsNotLock -> cont
-    LockAttribute IsLock    -> do
+    LockAttribute IsLock{}  -> do
       unlessM (optGuarded <$> pragmaOptions) $
         err "Lock" "--guarded"
       cont
