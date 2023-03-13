@@ -761,7 +761,6 @@ command is sent to Agda (if it is sent)."
   ;; done to avoid the possible security risks of evaluating foreign
   ;; code.  The arguments are likewise not evaluated, just unquoted
   ;; and checked if they satisfy the expected types.
-  (save-buffer)
   (let* ((inhibit-read-only t)
          (func (car response))
          (safe-p (plist-member (symbol-plist func) 'agda2-safe-function))
