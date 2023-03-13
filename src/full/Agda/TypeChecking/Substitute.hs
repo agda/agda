@@ -1631,7 +1631,6 @@ funSort' a b = case (a, b) of
   (IntervalUniv  , IntervalUniv ) -> Right $ SSet $ ClosedLevel 0
   (IntervalUniv  , SSet b       ) -> Right $ SSet $ b
   (IntervalUniv  , Type b       ) -> Right $ Type $ b
-  (IntervalUniv  , LevelUniv    ) -> Right $ LevelUniv
   (IntervalUniv  , _            ) -> Left neverUnblock
   (Type a        , IntervalUniv ) -> Right $ SSet $ a
   (SSet a        , IntervalUniv ) -> Right $ SSet $ a
@@ -1644,9 +1643,7 @@ funSort' a b = case (a, b) of
   -- since this function is currently always called after reduction.
   -- It would be safer to take it into account here, but would imply passing the option along as an argument.
   (LevelUniv     , LevelUniv    ) -> Right LevelUniv
-  (a             , LevelUniv    ) -> sizeOfSort a >>= \case
-    SmallSort{} -> Left neverUnblock
-    LargeSort{} -> Right LevelUniv
+  (_             , LevelUniv    ) -> Left neverUnblock
   (LevelUniv     , b            ) -> sizeOfSort b >>= \case
     SmallSort bf -> Right $ Inf bf 0
     LargeSort{} -> Right b

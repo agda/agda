@@ -1,4 +1,4 @@
-{-# OPTIONS --erased-cubical --level-universe #-}
+{-# OPTIONS --erased-cubical #-}
 
 module Agda.Primitive.Cubical where
 
