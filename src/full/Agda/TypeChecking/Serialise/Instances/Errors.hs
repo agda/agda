@@ -34,6 +34,7 @@ instance EmbPrj Warning where
     UnsolvedMetaVariables a               -> __IMPOSSIBLE__
     UnsolvedInteractionMetas a            -> __IMPOSSIBLE__
     UnsolvedConstraints a                 -> __IMPOSSIBLE__
+    InteractionMetaBoundaries a           -> __IMPOSSIBLE__
     OldBuiltin a b                        -> icodeN 1 OldBuiltin a b
     EmptyRewritePragma                    -> icodeN 2 EmptyRewritePragma
     UselessPublic                         -> icodeN 3 UselessPublic
@@ -430,6 +431,7 @@ instance EmbPrj WarningName where
     TooManyFieldsWarning_                        -> 94
     OptionRenamed_                               -> 95
     PlentyInHardCompileTimeMode_                 -> 96
+    InteractionMetaBoundaries_                   -> 97
 
   value = \case
     0  -> return OverlappingTokensWarning_
@@ -529,6 +531,7 @@ instance EmbPrj WarningName where
     94 -> return TooManyFieldsWarning_
     95 -> return OptionRenamed_
     96 -> return PlentyInHardCompileTimeMode_
+    97 -> return InteractionMetaBoundaries_
     _ -> malformed
 
 

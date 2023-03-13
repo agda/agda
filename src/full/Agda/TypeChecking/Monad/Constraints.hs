@@ -106,19 +106,10 @@ takeAwakeConstraint' p = do
       modifyAwakeConstraints $ const (cs0 ++ cs)
       return $ Just c
 
-isBlockedOnIP :: ReadTCState m => Blocker -> m Bool
-isBlockedOnIP (UnblockOnAll m)  = allM (Set.toList m) isBlockedOnIP
-isBlockedOnIP (UnblockOnAny m)  = anyM (Set.toList m) isBlockedOnIP
-isBlockedOnIP (UnblockOnMeta m) = isJust <$> isInteractionMeta m
-isBlockedOnIP (UnblockOnProblem i) =
-  flip anyM (isBlockedOnIP . constraintUnblocker) =<< getConstraintsForProblem i
-
-isBlockedOnIP UnblockOnDef{}     = pure False
-
 getAllConstraints :: ReadTCState m => m Constraints
 getAllConstraints = do
   s <- getTCState
-  return $ s^.stAwakeConstraints ++ s^.stSleepingConstraints
+  return $ s^.stAwakeConstraints ++ s ^. stSleepingConstraints
 
 withConstraint :: MonadConstraint m => (Constraint -> m a) -> ProblemConstraint -> m a
 withConstraint f (PConstr pids _ c) = do

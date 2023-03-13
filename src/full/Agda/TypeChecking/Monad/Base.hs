@@ -3960,10 +3960,14 @@ data Warning
   -- ^ `CoverageIssue f pss` means that `pss` are not covered in `f`
   | CoverageNoExactSplit     QName [Clause]
   | NotStrictlyPositive      QName (Seq OccursWhere)
+
   | UnsolvedMetaVariables    [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedInteractionMetas [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedConstraints      Constraints
     -- ^ Do not use directly with 'warning'
+  | InteractionMetaBoundaries [Range]
+    -- ^ Do not use directly with 'warning'
+
   | CantGeneralizeOverSorts [MetaId]
   | AbsurdPatternRequiresNoRHS [NamedArg DeBruijnPattern]
   | OldBuiltin               String String
@@ -4117,6 +4121,7 @@ warningName = \case
   GenericUseless{}             -> GenericUseless_
   GenericWarning{}             -> GenericWarning_
   InversionDepthReached{}      -> InversionDepthReached_
+  InteractionMetaBoundaries{}  -> InteractionMetaBoundaries_{}
   ModuleDoesntExport{}         -> ModuleDoesntExport_
   NoGuardednessFlag{}          -> NoGuardednessFlag_
   NotInScopeW{}                -> NotInScope_

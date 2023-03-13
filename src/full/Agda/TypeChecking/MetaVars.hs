@@ -798,9 +798,10 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
   let
     boundary v = do
       cubical <- optCubical <$> pragmaOptions
-      isip <- isInteractionMeta x
-      when (isJust cubical && isJust isip) $
-        tryAddBoundary dir x (fromJust isip) args v target
+      isip <- isInteractionMetaB x args
+      case (,) <$> cubical <*> isip of
+        Just (_, (x, ip, args)) -> tryAddBoundary dir x ip args v target
+        _ -> pure ()
 
   case (v, mvJudgement mvar) of
       (Sort s, HasType{}) -> hasBiggerSort s
@@ -1105,6 +1106,40 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
              -- TODO: could be more precise: only unblock on metas
              --       applied to offending variables
       patternViolation blocker
+
+-- | Is the given metavariable application secretly an interaction point
+-- application? Ugly.
+isInteractionMetaB
+  :: forall m. (ReadTCState m, MonadReduce m, MonadPretty m)
+  => MetaId
+  -> Args
+  -> m (Maybe (MetaId, InteractionId, Args))
+isInteractionMetaB mid args =
+  runMaybeT $ here mid args `mplus` do
+    -- If the meta isn't literally an interaction point it might still
+    -- be instantiable to an interaction point, as long as we ignore
+    -- blocking
+    lift (instantiateBlockingFull (MetaV mid (Apply <$> args))) >>= there
+  where
+    here mid args = do
+      iid <- MaybeT (isInteractionMeta mid)
+      pure (mid, iid, args)
+
+    instantiateBlockingFull = locallyTCState stInstantiateBlocking (const True) . instantiateFull
+
+    there :: Term -> MaybeT m (MetaId, InteractionId, Args)
+    there (MetaV m args) = do
+      iid  <- MaybeT (isInteractionMeta m)
+      args <- MaybeT (pure (allApplyElims args))
+      pure (m, iid, args)
+    -- It might be the case that the inner meta (the interaction point)
+    -- exists in a larger context, so instantiating the outer meta (the
+    -- original argument) will produce lambdas.
+    --
+    -- Since the boundary code runs in the inner, larger context, we can
+    -- peel off the lambdas without running afoul of the scope.
+    there (Lam _ as) = there (absApp as (var 0))
+    there _ = mzero
 
 {- UNUSED
 -- | When faced with @_X us == D vs@ for an inert D we can solve this by
@@ -1673,7 +1708,30 @@ inverseSubst' skip args = map (mapFst unArg) <$> loop (zip args terms)
         -- filter out duplicate irrelevants
         filter (not . (\ a@(Arg info j, t) -> isIrrelevant info && i == j)) vars
 
-isFaceConstraint :: MetaId -> Args -> TCM (Maybe (IntMap.IntMap Bool, SubstCand, Substitution))
+-- | If the given metavariable application represents a face, return:
+--
+--    * The metavariable information;
+--    * The actual face, as an assignment of booleans to variables;
+--
+--    * The substitution candidate resulting from @inverseSubst'@. This
+--    is guaranteed to be linear and deterministic.
+--
+--    * The actual substitution, mapping from the constraint context to
+--    the metavariable's context.
+--
+--  Put concisely, a face constraint is an equation in the pattern
+--  fragment modulo the presence of endpoints (@i0@ and @i1@) in the
+--  telescope. In more detail, a face constraint has the form
+--
+--    @?0 Δ (i = i0) (j = i0) Γ (k = i1) Θ (l = i0) = t@
+--
+--  where all the greek letters consist entirely of distinct bound
+--  variables (and, of course, arbitrarily many endpoints are allowed
+--  between each substitution fragment).
+isFaceConstraint
+  :: MetaId
+  -> Args
+  -> TCM (Maybe (MetaVariable, IntMap.IntMap Bool, SubstCand, Substitution))
 isFaceConstraint mid args = runMaybeT $ do
   iv   <- intervalView'
   mvar <- lookupLocalMeta mid  -- information associated with meta x
@@ -1689,6 +1747,11 @@ isFaceConstraint mid args = runMaybeT $ do
       IZero -> Just (i, False)
       _     -> Nothing
 
+  -- The logic here is essentially the same as for actually solving the
+  -- meta.. We just return the pieces instead of doing the assignment.
+  -- We must check the "face condition" (the relaxed pattern condition)
+  -- and check linearity of the substitution candidate, otherwise the
+  -- equation can't be inverted into a face constraint.
   sub <- MaybeT $ either (const Nothing) Just <$> runExceptT (inverseSubst' isEndpoint args)
   ids <- MaybeT $ either (const Nothing) Just <$> runExceptT (checkLinearity sub)
 
@@ -1707,12 +1770,13 @@ isFaceConstraint mid args = runMaybeT $ do
     over  = size tel' - size tel''
     endps = IntMap.fromList $ catMaybes $ zipWith (\a i -> fin a (i - over)) args (downFrom n)
 
-  reportSDoc "tc.ip.boundary" 30 $ vcat
+  reportSDoc "tc.ip.boundary" 45 $ vcat
     [ "ivs   =" <+> prettyTCM ivs
     , "tel'  =" <+> prettyTCM tel'
     , "tel'' =" <+> prettyTCM tel''
     , "ids   =" <+> prettyTCM ids
     , "sub   =" <+> prettyTCM sub
+    , "endps =" <+> pretty endps
     ]
 
   guard (not (IntMap.null endps))
@@ -1722,10 +1786,17 @@ isFaceConstraint mid args = runMaybeT $ do
   guard (all (>= 0) (IntMap.keys endps))
   -- In that case we fail here — when the user writes some more
   -- patterns, they'll become positive
-  pure (endps, ids, rho)
+  pure (mvar, endps, ids, rho)
 
+-- | Record a "face" equation onto an interaction point into the actual
+-- interaction point boundary. Takes all the same arguments as
+-- @assignMeta'@.
 tryAddBoundary :: CompareDirection -> MetaId -> InteractionId -> Args -> Term -> CompareAs -> TCM ()
 tryAddBoundary dir x iid args v target = do
+  reportSDoc "tc.ip.boundary" 30 $ vcat
+    [ "boundary: looking at equational constraint"
+    , prettyTCM (MetaV x (Apply <$> args)) <+> "=?" <+> prettyTCM v
+    ]
   iv   <- intervalView'
   mvar <- lookupLocalMeta x  -- information associated with meta x
 
@@ -1740,9 +1811,17 @@ tryAddBoundary dir x iid args v target = do
   TelV tel' _ <- telViewUpToPath n t
 
   void . runMaybeT $ do
-    (endps, ids, rho) <- MaybeT $ isFaceConstraint x args
+    -- Make sure we're looking at a face constraint:
+    (_, endps, ids, rho) <- MaybeT $ isFaceConstraint x args
+    -- And that the non-endpoint parts of the 'Args' cover the free
+    -- variables of the RHS:
     guard (allVars ids)
+
+    -- ρ is a substitution from the "constraint context" (the context
+    -- we're in) to the metavariable's context. moreover, v[ρ] is
+    -- well-scoped in the meta's context.
     let v' = abstract tel' $ applySubst rho v
+    -- We store the boundary faces directly as lambdas for simplicity.
 
     enterClosure mvar $ \_ -> do
       reportSDoc "tc.ip.boundary" 30 $ vcat
@@ -1754,6 +1833,7 @@ tryAddBoundary dir x iid args v target = do
         ]
 
       let
+        -- Always store the constraint with the smaller termSize:
         upd (IPBoundary m) = case MapS.lookup endps m of
           Just t -> if termSize t < termSize v'
             then IPBoundary m

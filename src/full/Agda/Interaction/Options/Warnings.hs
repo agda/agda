@@ -231,6 +231,7 @@ data WarningName
   | InstanceArgWithExplicitArg_
   | InstanceWithExplicitArg_
   | InstanceNoOutputTypeName_
+  | InteractionMetaBoundaries_
   | InversionDepthReached_
   | ModuleDoesntExport_
   | NoGuardednessFlag_
@@ -422,6 +423,7 @@ warningNameDescription = \case
   UnreachableClauses_              -> "Unreachable function clauses."
   UnsolvedConstraints_             -> "Unsolved constraints."
   UnsolvedInteractionMetas_        -> "Unsolved interaction meta variables."
+  InteractionMetaBoundaries_       -> "Some interaction meta variables have boundary constraints."
   UnsolvedMetaVariables_           -> "Unsolved meta variables."
   UserWarning_                     -> "User-defined warning added using one of the 'WARNING_ON_*' pragmas."
   WithoutKFlagPrimEraseEquality_   -> "`primEraseEquality' usages with the without-K flags."

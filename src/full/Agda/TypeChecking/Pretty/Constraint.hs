@@ -38,23 +38,15 @@ prettyConstraint c = f (locallyTCState stInstantiateBlocking (const True) $ pret
           then d
           else d $$ nest 4 ("[ at" <+> prettyTCM r <+> "]")
 
-interestingConstraint :: (ReadTCState m, HasBuiltins m) => ProblemConstraint -> m Bool
+interestingConstraint :: ProblemConstraint -> Bool
 interestingConstraint pc = go $ clValue (theConstraint pc) where
-  go (UnBlock mi) = lookupMetaInstantiation mi >>= \case
-    BlockedConst{} -> pure False
-    PostponedTypeCheckingProblem{} -> pure True
-
-    -- Amy (2023-03-07): I think these cases should be impossible, but
-    -- better safe than sorry.
-    InstV{}        -> pure False
-    Open           -> pure False
-    OpenInstance   -> pure False
-  go _         = pure True
+  go (UnBlock mi) = False
+  go _            = True
 
 prettyInterestingConstraints :: MonadPretty m => [ProblemConstraint] -> m [Doc]
 prettyInterestingConstraints cs = do
-  cs' <- filterM interestingConstraint cs
   let
+    cs' = filter interestingConstraint cs
     isBlocked = not . null . allBlockingProblems . constraintUnblocker
     interestingPids = Set.unions $ map (allBlockingProblems . constraintUnblocker) cs'
     stripPids (PConstr pids unblock c) = PConstr (Set.intersection pids interestingPids) unblock c
