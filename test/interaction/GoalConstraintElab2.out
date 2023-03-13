@@ -1,0 +1,8 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-status-action "")
+(agda2-info-action "*All Goals, Errors, Warnings*" "?0 : p i ≡ r i ———— Errors ———————————————————————————————————————————————— Unsolved constraints ———— Warnings —————————————————————————————————————————————— warning: -W[no]InteractionMetaBoundaries Interaction meta(s) at the following location(s) have unsolved boundary constraints: GoalConstraintElab2.agda:39,41-66 " nil)
+((last . 1) . (agda2-goals-action '(0)))
+(agda2-status-action "")
+(agda2-info-action "*Goal type etc.*" "Goal: p i ≡ r i ———— Boundary (wanted) ————————————————————————————————————— i = i0 ⊢ q i = i1 ⊢ s Have: (j : I) → A ———— Boundary (actual) ————————————————————————————————————— i = i0 ⊢ λ j → q j i = i1 ⊢ λ j → s j ———————————————————————————————————————————————————————————— i : I sq : PathP (λ i₁ → p i₁ ≡ r i₁) q s r : a10 ≡ a11 s : a01 ≡ a11 q : a00 ≡ a10 p : a00 ≡ a01 a11 : A (not in scope) a10 : A (not in scope) a01 : A (not in scope) a00 : A (not in scope) A : Type ℓ (not in scope) ℓ : Level (not in scope) ———— Constraints ——————————————————————————————————————————— _45 := λ {ℓ} {A} {a00} {a01} {a10} {a11} p q s r sq i → ?0 (p = p) (q = q) (s = s) (r = r) (sq = sq) (i = i) (blocked on problem 85)" nil)

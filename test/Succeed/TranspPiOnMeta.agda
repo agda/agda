@@ -1,4 +1,5 @@
 {-# OPTIONS --cubical --allow-unsolved-metas #-}
+{-# OPTIONS -WnoInteractionMetaBoundaries #-}
 module TranspPiOnMeta where
 
 open import Agda.Primitive.Cubical
