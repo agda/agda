@@ -419,7 +419,7 @@ agda2-include-dirs is not bound." :warning))
  ;; Enable Xref
  (add-hook 'xref-backend-functions #'agda2-xref-backend -90 t)
  ;; Use ERI for indentation
- (setq indent-line-function #'eri-indent))
+ (setq-local indent-line-function #'eri-indent))
 
 (defun agda2-restart ()
   "Try to start or restart the Agda process."
