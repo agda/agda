@@ -746,7 +746,7 @@ getConstraints' g f = liftTCM $ do
         abstractToConcrete_ $ OutputForm noRange [] alwaysUnblock $ Assign m e
 
 getIPBoundary :: Rewrite -> InteractionId -> TCM [IPFace' C.Expr]
-getIPBoundary norm ii = do
+getIPBoundary norm ii = withInteractionId ii $ do
   ip <- lookupInteractionPoint ii
 
   io <- primIOne
@@ -762,25 +762,25 @@ getIPBoundary norm ii = do
       reportSDoc "tc.ip.boundary" 30 $ TP.vcat
         [ "reifying interaction point boundary"
         , "tel:       " TP.<+> prettyTCM tel
-        , "meta type: " TP.<+> prettyTCM t
         , "meta:      " TP.<+> prettyTCM mi
         ]
       -- reportSDoc "tc.ip.boundary" 30 $ "boundary:  " TP.<+> pure (pretty (getBoundary (ipBoundary ip)))
 
-      inTopContext $ addContext tel $ do
-        let
-          c = abstractToConcrete_ <=< reifyUnblocked <=< normalForm norm
-          go (im, rhs) = do
-            reportSDoc "tc.ip.boundary" 30 $ TP.vcat
-              [ "reifying constraint for face" TP.<+> TP.pretty im
-              ]
-            reportSDoc "tc.ip.boundary" 30 $ "term " TP.<+> TP.pretty rhs
-            rhs <- c rhs
-            eqns <- forM (IntMap.toList im) $ \(a, b) -> do
-              a <- c (I.Var a [])
-              (,) a <$> c (if b then io else iz)
-            pure $ IPFace' eqns rhs
-        traverse go $ MapS.toList (getBoundary (ipBoundary ip))
+      withInteractionId ii $ do
+      as <- getContextArgs
+      let
+        c = abstractToConcrete_ <=< reifyUnblocked <=< normalForm norm
+        go (im, rhs) = do
+          reportSDoc "tc.ip.boundary" 30 $ TP.vcat
+            [ "reifying constraint for face" TP.<+> TP.pretty im
+            ]
+          reportSDoc "tc.ip.boundary" 30 $ "term " TP.<+> TP.prettyTCM rhs
+          rhs <- c (rhs `apply` as)
+          eqns <- forM (IntMap.toList im) $ \(a, b) -> do
+            a <- c (I.Var a [])
+            (,) a <$> c (if b then io else iz)
+          pure $ IPFace' eqns rhs
+      traverse go $ MapS.toList (getBoundary (ipBoundary ip))
     Nothing -> pure []
 
 facesInMeta :: InteractionId -> Rewrite -> A.Expr -> TCM [IPFace' C.Expr]
