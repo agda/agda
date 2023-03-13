@@ -1707,6 +1707,21 @@ isFaceConstraint mid args = runMaybeT $ do
     over  = size tel' - size tel''
     endps = IntMap.fromList $ catMaybes $ zipWith (\a i -> fin a (i - over)) args (downFrom n)
 
+  reportSDoc "tc.ip.boundary" 30 $ vcat
+    [ "ivs   =" <+> prettyTCM ivs
+    , "tel'  =" <+> prettyTCM tel'
+    , "tel'' =" <+> prettyTCM tel''
+    , "ids   =" <+> prettyTCM ids
+    , "sub   =" <+> prettyTCM sub
+    ]
+
+  guard (not (IntMap.null endps))
+  -- Can happen when the metavariable's context does not yet know about
+  -- an interval variable it will be applied to later, eg in the partial
+  -- argument to hcomp:
+  guard (all (>= 0) (IntMap.keys endps))
+  -- In that case we fail here — when the user writes some more
+  -- patterns, they'll become positive
   pure (endps, ids, rho)
 
 tryAddBoundary :: CompareDirection -> MetaId -> InteractionId -> Args -> Term -> CompareAs -> TCM ()
@@ -1727,17 +1742,15 @@ tryAddBoundary dir x iid args v target = do
   void . runMaybeT $ do
     (endps, ids, rho) <- MaybeT $ isFaceConstraint x args
     guard (allVars ids)
-    let v' = applySubst rho v
+    let v' = abstract tel' $ applySubst rho v
 
-    inTopContext $ addContext tel' $ do
+    enterClosure mvar $ \_ -> do
       reportSDoc "tc.ip.boundary" 30 $ vcat
         [ "recovered interaction point boundary"
-        , "  t     =" <+> inTopContext (prettyTCM t)
-        , "  rho   =" <+> pretty rho
         , "  endps =" <+> pretty endps
-
-        , "  v'    ="  <+> pretty v'
-        , "        ="  <+> prettyTCM v'
+        , "  rho   =" <+> pretty rho
+        , "  t     =" <+> inTopContext (prettyTCM t)
+        , "  v'    =" <+> inTopContext (prettyTCM v')
         ]
 
       let
