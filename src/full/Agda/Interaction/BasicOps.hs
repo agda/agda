@@ -690,13 +690,14 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
         let
           boundary = MapS.keysSet (getBoundary (ipBoundary ip))
           isRedundant c = case allApplyElims =<< hasHeadMeta c of
-            Just apps -> caseMaybeM (isFaceConstraint m apps) (pure False) $ \(endps, _, _) ->
+            Just apps -> caseMaybeM (isFaceConstraint m apps) (pure False) $ \(_, endps, _, _) ->
               pure $ Set.member endps boundary
             Nothing -> pure False
         filterM (flip enterClosure (fmap not . isRedundant) . theConstraint) cs
 
       reportSDoc "tc.constr.mentioning" 20 $ "getConstraintsMentioning"
       forM cs $ \(PConstr s ub c) -> do
+        reportSDoc "tc.constr.mentioning" 20 $ "constraint:  " TP.<+> prettyTCM c
         c <- normalForm norm c
         let hm = hasHeadMeta (clValue c)
         reportSDoc "tc.constr.mentioning" 20 $ "constraint:  " TP.<+> prettyTCM c
@@ -745,6 +746,8 @@ getConstraints' g f = liftTCM $ do
         let m = QuestionMark emptyMetaInfo{ metaNumber = Just mi } ii
         abstractToConcrete_ $ OutputForm noRange [] alwaysUnblock $ Assign m e
 
+-- | Reify the boundary of an interaction point as something that can be
+-- shown to the user.
 getIPBoundary :: Rewrite -> InteractionId -> TCM [IPFace' C.Expr]
 getIPBoundary norm ii = withInteractionId ii $ do
   ip <- lookupInteractionPoint ii
@@ -764,9 +767,14 @@ getIPBoundary norm ii = withInteractionId ii $ do
         , "tel:       " TP.<+> prettyTCM tel
         , "meta:      " TP.<+> prettyTCM mi
         ]
-      -- reportSDoc "tc.ip.boundary" 30 $ "boundary:  " TP.<+> pure (pretty (getBoundary (ipBoundary ip)))
+      reportSDoc "tc.ip.boundary" 30 $ "boundary:  " TP.<+> pure (pretty (getBoundary (ipBoundary ip)))
 
       withInteractionId ii $ do
+      -- The boundary is a map associating terms (lambda abstractions)
+      -- to IntMap Bools. The meta solver will wrap each LHS in lambdas
+      -- corresponding to the interaction point's context. Each key of
+      -- the boundary has a subset of (the interval variables in) the
+      -- interaction point's context as a keysSet.
       as <- getContextArgs
       let
         c = abstractToConcrete_ <=< reifyUnblocked <=< normalForm norm
@@ -775,7 +783,11 @@ getIPBoundary norm ii = withInteractionId ii $ do
             [ "reifying constraint for face" TP.<+> TP.pretty im
             ]
           reportSDoc "tc.ip.boundary" 30 $ "term " TP.<+> TP.prettyTCM rhs
+          -- Since the RHS is a lambda we have to apply it to the
+          -- context:
           rhs <- c (rhs `apply` as)
+
+          -- Reify the IntMap Bool as a list of (i = i0) (j = i1) terms:
           eqns <- forM (IntMap.toList im) $ \(a, b) -> do
             a <- c (I.Var a [])
             (,) a <$> c (if b then io else iz)

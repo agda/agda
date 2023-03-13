@@ -7,6 +7,6 @@ import Agda.TypeChecking.Monad.Base (ProblemConstraint, ReadTCState)
 import Agda.TypeChecking.Monad.Builtin (HasBuiltins)
 
 prettyInterestingConstraints :: MonadPretty m => [ProblemConstraint] -> m [Doc]
-interestingConstraint        :: (ReadTCState m, HasBuiltins m) => ProblemConstraint -> m Bool
+interestingConstraint        :: ProblemConstraint -> Bool
 
 instance PrettyTCM ProblemConstraint
