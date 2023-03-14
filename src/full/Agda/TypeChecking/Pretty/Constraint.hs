@@ -44,13 +44,13 @@ interestingConstraint pc = go $ clValue (theConstraint pc) where
   go _            = True
 
 prettyInterestingConstraints :: MonadPretty m => [ProblemConstraint] -> m [Doc]
-prettyInterestingConstraints cs = do
-  let
-    cs' = filter interestingConstraint cs
+prettyInterestingConstraints cs = mapM (prettyConstraint . stripPids) $ List.sortBy (compare `on` isBlocked) cs'
+  where
     isBlocked = not . null . allBlockingProblems . constraintUnblocker
+    cs' = filter interestingConstraint cs
     interestingPids = Set.unions $ map (allBlockingProblems . constraintUnblocker) cs'
     stripPids (PConstr pids unblock c) = PConstr (Set.intersection pids interestingPids) unblock c
-  mapM (prettyConstraint . stripPids) $ List.sortBy (compare `on` isBlocked) cs'
+
 
 prettyRangeConstraint ::
   (MonadPretty m, Foldable f, Null (f ProblemId)) =>

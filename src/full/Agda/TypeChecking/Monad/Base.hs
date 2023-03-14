@@ -1640,12 +1640,12 @@ instance LensIsAbstract MetaInfo where
 --   The meta variable is created by the type checker and then hooked up to the
 --   interaction point.
 data InteractionPoint = InteractionPoint
-  { ipRange  :: Range        -- ^ The position of the interaction point.
-  , ipMeta   :: Maybe MetaId -- ^ The meta variable, if any, holding the type etc.
-  , ipSolved :: Bool         -- ^ Has this interaction point already been solved?
-  , ipClause :: IPClause
-      -- ^ The clause of the interaction point (if any).
-      --   Used for case splitting.
+  { ipRange    :: Range        -- ^ The position of the interaction point.
+  , ipMeta     :: Maybe MetaId -- ^ The meta variable, if any, holding the type etc.
+  , ipSolved   :: Bool         -- ^ Has this interaction point already been solved?
+  , ipClause   :: IPClause
+    -- ^ The clause of the interaction point (if any).
+    --   Used for case splitting.
   , ipBoundary :: IPBoundary
   }
   deriving Generic
