@@ -448,7 +448,7 @@ filterTCWarnings = \case
   -- Andreas, 2019-09-10, issue #4065:
   -- If there are several warnings, remove the unsolved-constraints warning
   -- in case there are no interesting constraints to list.
-  ws  -> flip filter ws $ \ w -> case tcWarning w of
+  ws  -> (`filter` ws) $ \ w -> case tcWarning w of
     UnsolvedConstraints cs -> any interestingConstraint cs
     _ -> True
 

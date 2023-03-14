@@ -287,8 +287,8 @@ instance EncodeTCM Blocker where
 instance EncodeTCM DisplayInfo where
   encodeTCM (Info_CompilationOk backend wes) = kind "CompilationOk"
     [ "backend"           @= encodePretty backend
-    , "warnings"          #= (encodeTCM $ filterTCWarnings (tcWarnings wes))
-    , "errors"            #= (encodeTCM $ filterTCWarnings (nonFatalErrors wes))
+    , "warnings"          #= encodeTCM (filterTCWarnings (tcWarnings wes))
+    , "errors"            #= encodeTCM (filterTCWarnings (nonFatalErrors wes))
     ]
   encodeTCM (Info_Constraints constraints) = kind "Constraints"
     [ "constraints"       #= forM constraints encodeTCM
@@ -296,8 +296,8 @@ instance EncodeTCM DisplayInfo where
   encodeTCM (Info_AllGoalsWarnings (vis, invis) wes) = kind "AllGoalsWarnings"
     [ "visibleGoals"      #= forM vis (\i -> withInteractionId (B.outputFormId $ OutputForm noRange [] alwaysUnblock i) $ encodeOC encodeTCM encodePrettyTCM i)
     , "invisibleGoals"    #= forM invis (encodeOC encodeTCM encodePrettyTCM)
-    , "warnings"          #= (encodeTCM $ filterTCWarnings (tcWarnings wes))
-    , "errors"            #= (encodeTCM $ filterTCWarnings (nonFatalErrors wes))
+    , "warnings"          #= encodeTCM (filterTCWarnings (tcWarnings wes))
+    , "errors"            #= encodeTCM (filterTCWarnings (nonFatalErrors wes))
     ]
   encodeTCM (Info_Time time) = kind "Time"
     [ "time"              @= time
@@ -396,8 +396,7 @@ encodeGoalSpecific ii = go
 instance EncodeTCM Info_Error where
   encodeTCM (Info_GenericError err) = kind "Error"
     [ "warnings"          #= (getAllWarningsOfTCErr err
-                            >>= pure . filterTCWarnings
-                            >>= encodeTCM)
+                            >>= encodeTCM . filterTCWarnings)
     , "error"             #= encodeTCM err
     ]
   encodeTCM err = kind "Error"
