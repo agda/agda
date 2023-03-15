@@ -50,9 +50,9 @@ jobs:
       matrix:
         os: [ubuntu-22.04]
         description: [Linux]      ## This just for pretty-printing the job name.
-        ghc-ver: [9.4.4, 9.2.7, 9.0.2, 8.10.7, 8.8.4, 8.6.5]
+        ghc-ver: [9.6.1, 9.4.4, 9.2.7, 9.0.2, 8.10.7, 8.8.4, 8.6.5]
         # Need to mention "cabal-ver" at least once in the matrix, otherwise matrix.cabal-ver is an actionlint error.
-        cabal-ver: ['3.8']
+        cabal-ver: ['3.10']
         cabal-flags: ['--enable-tests -f enable-cluster-counting']
         include:
           ## Latest GHC, special builds
@@ -60,46 +60,47 @@ jobs:
           # Linux, w/o tests
           - os: ubuntu-22.04
             description: Linux w/o tests
-            ghc-ver: '9.4.4'
+            ghc-ver: '9.6.1'
             # Can't leave cabal-flags empty here lest it becomes the default value.
             cabal-flags: '--disable-tests'
 
           # Linux, with -f cpphs
           - os: ubuntu-22.04
             description: Linux cpphs
-            ghc-ver: '9.4.4'
+            ghc-ver: '9.6.1'
             cabal-flags: '--enable-tests -f cpphs'
 
           # Linux, without -f enable-cluster-counting but with -f debug
           - os: ubuntu-22.04
             description: Linux debug
-            ghc-ver: '9.4.4'
+            ghc-ver: '9.6.1'
             cabal-flags: '--enable-tests -f debug'
 
-          # Linux, with mtl-2.3 and everything
-          - os: ubuntu-22.04
-            description: Linux mtl 2.3
-            ghc-ver: '9.4.4'
-            ## Andreas, 2022-11-23: Test mtl-2.3.1 here which has breaking changes.
-            ## Note: -c 'mtl >= 2.3.1' with single quotes does not get communicated properly.
-            ## (The single quotes stay, and "-c 'mtl" is an option parse error for cabal.)
-            cabal-flags: |
-              --enable-tests -f enable-cluster-counting -f debug -c mtl>=2.3.1
+          ## Andreas, 2023-03-15: Obsolete with GHC 9.6 which ships mtl-2.3
+          # # Linux, with mtl-2.3 and everything
+          # - os: ubuntu-22.04
+          #   description: Linux mtl 2.3
+          #   ghc-ver: '9.6.1'
+          #   ## Andreas, 2022-11-23: Test mtl-2.3.1 here which has breaking changes.
+          #   ## Note: -c 'mtl >= 2.3.1' with single quotes does not get communicated properly.
+          #   ## (The single quotes stay, and "-c 'mtl" is an option parse error for cabal.)
+          #   cabal-flags: |
+          #     --enable-tests -f enable-cluster-counting -f debug -c mtl>=2.3.1
 
           # macOS with default flags
           - os: macos-12
             description: macOS
-            ghc-ver: '9.4.4'
+            ghc-ver: '9.6.1'
 
           # Windows with default flags
           - os: windows-2022
             description: Windows
-            ghc-ver: '9.4.4'
+            ghc-ver: '9.6.1'
 
     # Default values
     env:
-      GHC_VER:   ${{ matrix.ghc-ver || '9.4.4' }}
-      CABAL_VER: ${{ matrix.cabal-ver || '3.8' }}
+      GHC_VER:   ${{ matrix.ghc-ver || '9.6.1' }}
+      CABAL_VER: ${{ matrix.cabal-ver || '3.10' }}
       FLAGS:     ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting' }}
 
     steps:

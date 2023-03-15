@@ -192,9 +192,9 @@ jobs:
       fail-fast: false
       matrix:
         cabal-ver:
-        - '3.8'
+        - '3.10'
         ghc-ver:
-        - '9.4'
+        - '9.6'
         os:
         - windows-latest
         - macos-latest
