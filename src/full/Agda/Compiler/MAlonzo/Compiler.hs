@@ -1080,7 +1080,10 @@ alt sc a = do
     mkAlt :: HS.Pat -> CC HS.Alt
     mkAlt pat = do
         body' <- term $ T.aBody a
-        return $ HS.Alt pat (HS.UnGuardedRhs body') emptyBinds
+        let body'' = case body' of
+                       HS.Lambda{} -> hsCoerce body'
+                       _           -> body'
+        return $ HS.Alt pat (HS.UnGuardedRhs body'') emptyBinds
 
 literal :: forall m. Monad m => Literal -> CCT m HS.Exp
 literal l = case l of
