@@ -68,9 +68,9 @@ jobs:
     strategy:
       matrix:
         cabal-ver:
-        - '3.8'
+        - '3.10'
         ghc-ver:
-        - 9.4.4
+        - 9.6.1
         os:
         - ubuntu-22.04
 name: Haddock
