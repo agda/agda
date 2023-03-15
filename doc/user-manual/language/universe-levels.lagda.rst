@@ -203,7 +203,21 @@ Pragmas and options
   universe ``LevelUniverse`` and disallows having levels depend on terms
   that are not levels themselves. When this option is turned off,
   ``LevelUniverse`` still exists, but reduces to ``Set``.
-  Note : This option is currently not compatible with cubical primitives.
+  Note: This option is currently not compatible with cubical primitives.
+
+  .. code-block:: agda
+
+    {-# OPTIONS --level-universe #-}
+    open import Agda.Primitive
+    open import Agda.Builtin.Nat
+
+    toLevel : Nat → Level
+    toLevel _ = lzero
+
+  .. code-block:: text
+
+    funSort Set LevelUniv is not a valid sort
+    when checking that the expression Nat → Level is a type
 
 .. _no_universe_check-pragma:
 

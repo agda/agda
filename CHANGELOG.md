@@ -242,7 +242,7 @@ Pragmas and options
 
 * New option `--level-universe` to make `Level` inhabit its own universe `LevelUniverse`:
   When this option is turned on, `Level` can now only depend on terms of type `Level`.
-  Note : This option is currently not compatible with cubical primitives
+  Note: This option is currently not compatible with cubical primitives.
 
 Library management
 ------------------

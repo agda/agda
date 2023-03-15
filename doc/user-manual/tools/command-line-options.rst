@@ -739,8 +739,8 @@ Other features
      Makes ``Level`` live in its own universe ``LevelUniverse`` and
      disallows having levels depend on terms that are not levels themselves.
      When this option is turned off, ``LevelUniverse`` still exists,
-     but reduces to ``Set``.
-     Note : This option is currently not compatible with cubical primitives
+     but reduces to ``Set`` (see :ref:`level-universe <level-universe>`).
+     Note: This option is currently not compatible with cubical primitives.
 
 .. option:: --universe-polymorphism, --no-universe-polymorphism
 
@@ -1159,6 +1159,7 @@ options are coinfective:
 * :option:`--no-universe-polymorphism`
 * :option:`--no-sized-types`
 * :option:`--no-guardedness`
+* :option:`--level-universe`
 
 Furthermore the option :option:`--cubical-compatible` is mostly
 coinfective. If a module uses :option:`--cubical-compatible` then all
