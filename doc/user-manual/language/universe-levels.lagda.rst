@@ -197,6 +197,14 @@ Pragmas and options
   Setω`` (thus making Agda inconsistent) but otherwise leaves universe
   checks intact.
 
+.. _level-universe:
+
+* The option :option:`--level-universe` makes ``Level`` live in its own
+  universe ``LevelUniverse`` and disallows having levels depend on terms
+  that are not levels themselves. When this option is turned off,
+  ``LevelUniverse`` still exists, but reduces to ``Set``.
+  Note : This option is currently not compatible with cubical primitives.
+
 .. _no_universe_check-pragma:
 
 * The pragma ``{-# NO_UNIVERSE_CHECK #-}`` can be put in front of a
