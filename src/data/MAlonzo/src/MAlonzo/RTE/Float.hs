@@ -2,6 +2,15 @@
 
 module MAlonzo.RTE.Float where
 
+import Prelude
+  ( Bool, Double, Int, Integer, Maybe(..), Ordering(..)
+  , Eq(..), Ord(..), Functor(..)
+  , Floating(..), Fractional(..), Integral(..), Num(..), Real(..), RealFloat(..), RealFrac(..)
+  , ($), (.), otherwise, uncurry, undefined
+  , (&&), fst, snd
+  , (^), even, fromIntegral
+  )
+
 import Data.Bifunctor   ( bimap, second )
 import Data.Function    ( on )
 import Data.Maybe       ( fromMaybe )
