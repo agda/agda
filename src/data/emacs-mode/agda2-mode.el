@@ -1833,12 +1833,21 @@ command might save the buffer."
   "Return an Xref backend."
   'agda2)
 
-;; The default implementation of `xref-backend-identifier-at-point' is
-;; fine and doesn't have to be changed.
-
 (cl-defmethod xref-backend-identifier-at-point ((_ (eql 'agda2)))
   "Return the symbol at point with text properties."
-  (thing-at-point 'symbol))
+  (and (get-text-property (point) 'agda2-xref-info)
+       (save-excursion
+         (let ((initial (point)) start end)
+           (goto-char (previous-single-property-change
+                       (point) 'agda2-xref-info))
+           (goto-char (setq start (next-single-property-change
+                                   (point) 'agda2-xref-info)))
+           (if (< initial start)
+               (setq start initial end (point)) ;swap
+             (goto-char (setq end (next-single-property-change
+                                   (point) 'agda2-xref-info))))
+           (and (<= start initial (1- end))
+                (buffer-substring start end))))))
 
 ;; (cl-defmethod xref-backend-identifier-completion-table ((_ (eql 'agda2)))
 ;;   "Generate a list of possible candidates."
