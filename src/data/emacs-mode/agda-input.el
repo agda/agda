@@ -54,7 +54,7 @@ Spaces and newlines are ignored."
 
 ;;;; Functions used to tweak translation pairs
 (defun agda-input-compose (f g)
-  "Apply G before calling `agda-input-concat-map' with F."
+  "Apply G before calling `mapcan' with F."
   (lambda (x) (mapcan f (funcall g x))))
 
 (defun agda-input-or (&rest fns)
