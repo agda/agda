@@ -114,7 +114,7 @@ jobs:
       id: setup-haskell
       with:
         ghc-version: ${{ matrix.ghc-ver }}
-        cabal-version: default
+        cabal-version: latest
         # cabal-version: ${{ matrix.cabal-ver }}
 
     - name: Environment settings based on the Haskell setup
