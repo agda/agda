@@ -31,6 +31,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
+    - if: ${{ runner.os == 'Linux' }}
+      name: Switch off XDG directories for cabal (Linux)
+      run: |
+        mkdir -p ~/.cabal
     - id: setup-haskell
       uses: haskell/actions/setup@v2
       with:
