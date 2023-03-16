@@ -1889,14 +1889,40 @@ command might save the buffer."
            (and (<= start initial (1- end))
                 (buffer-substring start end))))))
 
-;; (cl-defmethod xref-backend-identifier-completion-table ((_ (eql 'agda2)))
-;;   "Generate a list of possible candidates."
-;;   (lambda (string pred action)
-;;     ))
+(defvar agda2-last-xref-ict (make-hash-table :test 'equal)
+  "Cached table of unambiguous identifiers and their locations.")
+
+(cl-defmethod xref-backend-identifier-completion-table ((_ (eql 'agda2)))
+  "Generate a list of possible candidates."
+  (save-excursion
+    (let ((idents (make-hash-table)) start end)
+      (goto-char (point-min))
+      (catch 'done
+        (while t
+          (setq start (next-single-property-change
+                       (point) 'agda2-xref-info))
+          (goto-char (or start (throw 'done t)))
+          (cl-assert (get-text-property (point) 'agda2-xref-info))
+          (setq end (next-single-property-change
+                     (point) 'agda2-xref-info))
+          (goto-char (or end (throw 'done t)))
+          (cl-assert (null (get-text-property (point) 'agda2-xref-info)))
+          (when (< start end)
+            (push (get-text-property (1- (point)) 'agda2-xref-info)
+                  (gethash (buffer-substring-no-properties start end)
+                           idents)))))
+      (clrhash agda2-last-xref-ict)
+      (maphash
+       (lambda (ident refs)
+         (when (and (car refs) (null (cadr refs))) ;(length= refs 1q)
+           (puthash ident (car refs) agda2-last-xref-ict)))
+       idents)
+      agda2-last-xref-ict)))
 
 (cl-defmethod xref-backend-definitions ((_ (eql 'agda2)) ident)
   "Generate a list of definitions for identifier IDENT."
-  (let ((xref-info (get-text-property 0 'agda2-xref-info ident)))
+  (let ((xref-info (or (get-text-property 0 'agda2-xref-info ident)
+                       (gethash ident agda2-last-xref-ict))))
     (and xref-info
          (let ((loc (xref-make-buffer-location
                      (find-file-noselect (car xref-info))
