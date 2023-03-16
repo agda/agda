@@ -78,7 +78,7 @@ jobs:
     - id: setup-haskell
       uses: haskell/actions/setup@v2
       with:
-        cabal-version: ${{ matrix.cabal-ver }}
+        cabal-version: default
         ghc-version: ${{ matrix.ghc-ver }}
     - name: Environment settings based on the Haskell setup
       run: |
@@ -191,14 +191,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        cabal-ver:
-        - '3.10'
         ghc-ver:
         - '9.6'
+        include:
+        - ghc-ver: '9.4'
+          os: ubuntu-20.04
         os:
         - windows-latest
         - macos-latest
-        - ubuntu-20.04
   deploy:
     if: ${{ github.ref == 'refs/heads/master' }}
     needs: build

@@ -31,12 +31,18 @@ jobs:
         # We stick to '-latest' virtual environments here in the sense of
         # "most canonical", since this is the deploy action.
         # As of today, this is [windows-2022, macOS-11, ubuntu-20.04].
+        os: [windows-latest, macos-latest]
+        ghc-ver: ['9.6']
+        # Use default (= latest) cabal version
+        # cabal-ver: ['3.10']
+
         # Andreas, 2022-12-05, issue #6384:
         # Atm, building static executables with GHC 9.4 is broken on ubuntu-22.04,
         # so, we downgrade to ubuntu-20.04.
-        os: [windows-latest, macos-latest, ubuntu-20.04]
-        ghc-ver: ['9.6']
-        cabal-ver: ['3.10']
+        # Andreas, 2023-03-16: GHC 9.6 does not seem to do static linking even on ubuntu-20.04.
+        include:
+          - os: ubuntu-20.04
+            ghc-ver: '9.4'
 
     env:
       ARGS: "--disable-executable-profiling --disable-library-profiling"
@@ -108,7 +114,8 @@ jobs:
       id: setup-haskell
       with:
         ghc-version: ${{ matrix.ghc-ver }}
-        cabal-version: ${{ matrix.cabal-ver }}
+        cabal-version: default
+        # cabal-version: ${{ matrix.cabal-ver }}
 
     - name: Environment settings based on the Haskell setup
       run: |
