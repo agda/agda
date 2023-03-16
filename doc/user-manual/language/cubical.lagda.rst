@@ -1196,7 +1196,7 @@ The Cubical subtypes are exported by ``Agda.Builtin.Cubical.Sub``:
   primitive
     primSubOut : ∀ {ℓ} {A : Set ℓ} {φ : I} {u : Partial φ A} → Sub _ φ u → A
 
-The Glue types are exported by ``Agda.Builtin.Cubical.Glue``:
+Equivalences are exported by ``Agda.Builtin.Cubical.Equiv``:
 
 .. code-block:: agda
 
@@ -1223,6 +1223,12 @@ The Glue types are exported by ``Agda.Builtin.Cubical.Glue``:
   {-# BUILTIN EQUIVFUN   equivFun   #-}
   {-# BUILTIN EQUIVPROOF equivProof #-}
 
+The Glue types are exported by ``Agda.Builtin.Cubical.Glue``:
+
+.. code-block:: agda
+
+  open import Agda.Builtin.Cubical.Equiv public
+
   primitive
     primGlue    : ∀ {ℓ ℓ'} (A : Set ℓ) {φ : I}
       → (T : Partial φ (Set ℓ')) → (e : PartialP φ (λ o → T o ≃ A))
@@ -1234,10 +1240,6 @@ The Glue types are exported by ``Agda.Builtin.Cubical.Glue``:
       → {T : Partial φ (Set ℓ')} → {e : PartialP φ (λ o → T o ≃ A)}
       → primGlue A T e → A
     primFaceForall : (I → I) → I
-
-  -- pathToEquiv proves that transport is an equivalence (for details
-  -- see Agda.Builtin.Cubical.Glue). This is needed internally.
-  {-# BUILTIN PATHTOEQUIV pathToEquiv #-}
 
 Note that the Glue types are uncurried in ``agda/cubical`` to make
 them more pleasant to use:

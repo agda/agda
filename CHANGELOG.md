@@ -190,6 +190,11 @@ Erasure
   names can be used in the application, as in the definition of `N`
   above.
 
+* Equivalence primitives no longer require full `--cubical` mode,
+  `--erased-cubical` suffices. Equivalence definition is moved out of
+  `Agda.Builtin.Cubical.Glue` into its own module `Agda.Builtin.Cubical.Equiv`,
+  the former reexports the latter.
+
 Syntax
 ------
 

@@ -146,6 +146,7 @@ builtinModulesWithSafePostulates =
   , "Agda" </> "Builtin" </> "Char.agda"
   , "Agda" </> "Builtin" </> "Char" </> "Properties.agda"
   , "Agda" </> "Builtin" </> "Coinduction.agda"
+  , "Agda" </> "Builtin" </> "Cubical" </> "Equiv.agda"
   , "Agda" </> "Builtin" </> "Cubical" </> "Glue.agda"
   , "Agda" </> "Builtin" </> "Cubical" </> "HCompU.agda"
   , "Agda" </> "Builtin" </> "Cubical" </> "Id.agda"
