@@ -106,6 +106,12 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - name: Switch off XDG directories for cabal (Linux)
+      if: ${{ runner.os == 'Linux' }}
+      run: |
+        mkdir -p ~/.cabal
+      # The presence of ~/.cabal should switch cabal 3.10 to not use the XDG layout.
+
     - uses: haskell/actions/setup@v2
       id: setup-haskell
       with:
