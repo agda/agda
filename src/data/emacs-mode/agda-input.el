@@ -64,7 +64,7 @@ Spaces and newlines are ignored."
 
 (defun agda-input-nonempty ()
   "Only keep pairs with a non-empty first component."
-  (lambda (x) (if (> (length (car x)) 0) (list x))))
+  (lambda (x) (and (car x) (list x))))
 
 (defun agda-input-prepend (prefix)
   "Prepend PREFIX to all key sequences."
