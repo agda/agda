@@ -303,8 +303,8 @@ instance PrettyTCM ErrorPart where
 -- | We do a little bit of work here to make it possible to generate nice
 --   layout for multi-line error messages. Specifically we split the parts
 --   into lines (indicated by \n in a string part) and vcat all the lines.
-prettyErrorParts :: [ErrorPart] -> TCM Doc
-prettyErrorParts = vcat . map (hcat . map prettyTCM) . splitLines
+renderErrorParts :: [ErrorPart] -> TCM Doc
+renderErrorParts = vcat . map (hcat . map prettyTCM) . splitLines
   where
     splitLines [] = []
     splitLines (StrPart s : ss) =
@@ -721,14 +721,14 @@ evalTCM v = do
       liftTCM primUnitUnit
 
     tcFormatErrorParts :: [ErrorPart] -> TCM Term
-    tcFormatErrorParts msg = quoteString . prettyShow <$> prettyErrorParts msg
+    tcFormatErrorParts msg = quoteString . prettyShow <$> renderErrorParts msg
 
     tcTypeError :: [ErrorPart] -> TCM a
-    tcTypeError err = typeError . GenericDocError =<< prettyErrorParts err
+    tcTypeError err = typeError . GenericDocError =<< renderErrorParts err
 
     tcDebugPrint :: Text -> Integer -> [ErrorPart] -> TCM Term
     tcDebugPrint s n msg = do
-      reportSDoc (T.unpack s) (fromIntegral n) $ prettyErrorParts msg
+      reportSDoc (T.unpack s) (fromIntegral n) $ renderErrorParts msg
       primUnitUnit
 
     tcNoConstraints :: Term -> UnquoteM Term

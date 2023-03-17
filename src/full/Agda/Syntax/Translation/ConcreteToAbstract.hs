@@ -868,6 +868,8 @@ instance ToAbstract C.Expr where
 
   -- Names
       Ident x -> toAbstract (OldQName x Nothing)
+      KnownIdent _ x -> toAbstract (OldQName x Nothing)
+      -- Just discard the syntax highlighting information.
 
   -- Literals
       C.Lit r l -> do
@@ -937,6 +939,7 @@ instance ToAbstract C.Expr where
 
   -- Operator application
       C.OpApp r op ns es -> toAbstractOpApp op ns es
+      C.KnownOpApp _ r op ns es -> toAbstractOpApp op ns es
 
   -- With application
       C.WithApp r e es -> do

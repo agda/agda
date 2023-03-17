@@ -21,10 +21,10 @@ import Agda.Syntax.Abstract.Pretty (prettyATop)
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete as C
 
-import Agda.TypeChecking.Errors ( explainWhyInScope, getAllWarningsOfTCErr, prettyError )
+import Agda.TypeChecking.Errors ( explainWhyInScope, getAllWarningsOfTCErr, renderError )
 import qualified Agda.TypeChecking.Pretty as TCP
 import Agda.TypeChecking.Pretty (prettyTCM)
-import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
+import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, renderTCWarnings')
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors(..))
 import Agda.Interaction.AgdaTop
@@ -294,8 +294,8 @@ formatWarningsAndErrors g w e = (body, title)
 -- | Serializing Info_Error
 showInfoError :: Info_Error -> TCM String
 showInfoError (Info_GenericError err) = do
-  e <- prettyError err
-  w <- prettyTCWarnings' =<< getAllWarningsOfTCErr err
+  e <- renderError err
+  w <- renderTCWarnings' =<< getAllWarningsOfTCErr err
 
   let errorMsg  = if null w
                       then e

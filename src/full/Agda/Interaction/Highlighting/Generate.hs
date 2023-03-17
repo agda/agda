@@ -377,7 +377,7 @@ printErrorInfo e =
 -- | Generate highlighting for error.
 
 errorHighlighting :: TCErr -> TCM HighlightingInfoBuilder
-errorHighlighting e = errorHighlighting' (getRange e) <$> TCM.prettyError e
+errorHighlighting e = errorHighlighting' (getRange e) <$> TCM.renderError e
 
 errorHighlighting'
   :: Range     -- ^ Error range.

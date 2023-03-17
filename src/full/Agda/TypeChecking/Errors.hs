@@ -3,7 +3,8 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Agda.TypeChecking.Errors
-  ( prettyError
+  ( renderError
+  , prettyError
   , tcErrString
   , prettyTCWarnings'
   , prettyTCWarnings
@@ -82,19 +83,22 @@ import Agda.Utils.Impossible
 -- * Top level function
 ---------------------------------------------------------------------------
 
-{-# SPECIALIZE prettyError :: TCErr -> TCM String #-}
-prettyError :: MonadTCM tcm => TCErr -> tcm String
-prettyError err = liftTCM $ show <$> prettyError' err []
-  where
-  prettyError' :: TCErr -> [TCErr] -> TCM Doc
-  prettyError' err errs
+{-# SPECIALIZE renderError :: TCErr -> TCM String #-}
+renderError :: MonadTCM tcm => TCErr -> tcm String
+renderError = fmap show . prettyError
+
+{-# SPECIALIZE prettyError :: TCErr -> TCM Doc #-}
+prettyError :: MonadTCM tcm => TCErr -> tcm Doc
+prettyError = liftTCM . flip renderError' [] where
+  renderError' :: TCErr -> [TCErr] -> TCM Doc
+  renderError' err errs
     | length errs > 3 = fsep (
         pwords "total panic: error when printing error from printing error from printing error." ++
         pwords "I give up! Approximations of errors (original error last):" )
         $$ vcat (map (text . tcErrString) errs)
     | otherwise = applyUnless (null errs) ("panic: error when printing error!" $$) $ do
         (prettyTCM err $$ vcat (map (text . ("when printing error " ++) . tcErrString) errs))
-        `catchError` \ err' -> prettyError' err' (err:errs)
+        `catchError` \ err' -> renderError' err' (err:errs)
 
 ---------------------------------------------------------------------------
 -- * Helpers

@@ -364,6 +364,14 @@ library
   if os(windows) && impl(ghc == 8.6.3)
     buildable: False
 
+  -- Unix 2.7.2 is is included with GHC 8.6.1, the least version we
+  -- support
+  if os(linux) || os(macos)
+    build-depends:
+      unix >= 2.7.0 && < 2.9
+    cpp-options:
+      -DHAS_ISATTY
+
   -- For libraries that come with GHC, we take the shipped version as default lower bound.
   build-depends:
     , aeson                >= 1.1.2.0   && < 2.2
@@ -760,6 +768,8 @@ library
       Agda.Utils.Permutation
       Agda.Utils.Pointer
       Agda.Utils.POMonoid
+      Agda.Utils.Pretty.Aspect
+      Agda.Utils.Pretty.ANSI
       Agda.Utils.Pretty
       Agda.Utils.ProfileOptions
       Agda.Utils.RangeMap

@@ -262,7 +262,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
                      -- Errors take precedence over unsolved things.
 
         -- TODO: make a better predicate for this
-        noError <- lift $ null <$> prettyError e
+        noError <- lift $ null <$> renderError e
 
         showImpl <- lift $ optShowImplicit <$> useTC stPragmaOptions
         showIrr <- lift $ optShowIrrelevant <$> useTC stPragmaOptions

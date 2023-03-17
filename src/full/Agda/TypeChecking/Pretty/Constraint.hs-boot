@@ -1,7 +1,7 @@
 
 module Agda.TypeChecking.Pretty.Constraint where
 
-import Text.PrettyPrint (Doc)
+import Agda.Utils.Pretty (Doc)
 import Agda.TypeChecking.Pretty (MonadPretty, PrettyTCM)
 import Agda.TypeChecking.Monad.Base (ProblemConstraint, ReadTCState)
 import Agda.TypeChecking.Monad.Builtin (HasBuiltins)

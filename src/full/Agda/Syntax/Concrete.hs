@@ -93,6 +93,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List1       ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.List2       ( List2, pattern List2 )
+import Agda.Utils.Pretty.Aspect (NameKind)
 import Agda.Utils.Null
 
 import Agda.Utils.Impossible
@@ -176,6 +177,12 @@ data Expr
   | DontCare Expr                              -- ^ to print irrelevant things
   | Equal Range Expr Expr                      -- ^ ex: @a = b@, used internally in the parser
   | Ellipsis Range                             -- ^ @...@, used internally to parse patterns.
+  | KnownIdent NameKind QName
+    -- ^ An identifier coming from abstract syntax, for which we know a
+    -- precise syntactic highlighting class (used in printing).
+  | KnownOpApp NameKind Range QName (Set A.Name) OpAppArgs
+    -- ^ An identifier coming from abstract syntax, for which we know a
+    -- precise syntactic highlighting class (used in printing).
   | Generalized Expr
   deriving Eq
 
@@ -840,6 +847,8 @@ instance HasRange Expr where
       Equal r _ _        -> r
       Ellipsis r         -> r
       Generalized e      -> getRange e
+      KnownIdent _ q     -> getRange q
+      KnownOpApp _ r _ _ _ -> r
 
 -- instance HasRange Telescope where
 --     getRange (TeleBind bs) = getRange bs
@@ -1102,6 +1111,8 @@ instance KillRange Expr where
   killRange (Equal _ x y)         = Equal noRange x y
   killRange (Ellipsis _)          = Ellipsis noRange
   killRange (Generalized e)       = killRange1 Generalized e
+  killRange (KnownIdent a b)      = killRange1 (KnownIdent a) b
+  killRange (KnownOpApp a b c d e) = killRange4 (KnownOpApp a) b c d e
 
 instance KillRange LamBinding where
   killRange (DomainFree b) = killRange1 DomainFree b
@@ -1220,6 +1231,8 @@ instance NFData Expr where
   rnf (Equal _ a b)       = rnf a `seq` rnf b
   rnf (Ellipsis _)        = ()
   rnf (Generalized e)     = rnf e
+  rnf (KnownIdent a b)    = rnf b
+  rnf (KnownOpApp a b c d e) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf c
 
 -- | Ranges are not forced.
 

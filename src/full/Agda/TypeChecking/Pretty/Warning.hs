@@ -434,10 +434,13 @@ didYouMean inscope canon x
 
 
 prettyTCWarnings :: [TCWarning] -> TCM String
-prettyTCWarnings = fmap (unlines . List.intersperse "") . prettyTCWarnings'
+prettyTCWarnings = fmap (P.render . P.vcat) . prettyTCWarnings'
 
-prettyTCWarnings' :: [TCWarning] -> TCM [String]
-prettyTCWarnings' = mapM (fmap P.render . prettyTCM) . filterTCWarnings
+renderTCWarnings' :: [TCWarning] -> TCM [String]
+renderTCWarnings' = fmap (map P.render) . prettyTCWarnings'
+
+prettyTCWarnings' :: [TCWarning] -> TCM [Doc]
+prettyTCWarnings' = traverse prettyTCM . filterTCWarnings
 
 -- | If there are several warnings, remove the unsolved-constraints warning
 -- in case there are no interesting constraints to list.

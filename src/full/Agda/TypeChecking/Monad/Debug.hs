@@ -157,7 +157,7 @@ instance MonadDebug TCM where
 
   formatDebugMessage k n d = catchAndPrintImpossible k n $ do
     render <$> d `catchError` \ err -> do
-      prettyError err <&> \ s -> vcat
+      renderError err <&> \ s -> vcat
         [ sep $ map text
           [ "Printing debug message"
           , k  ++ ":" ++ show n

@@ -107,7 +107,7 @@ interaction prompt cmds eval = loop
                     Just _ ->
                         do  go =<< liftTCM (eval $ fromJust ms)
             `catchError` \e ->
-                do  s <- prettyError e
+                do  s <- renderError e
                     liftIO $ putStrLn s
                     loop
 
@@ -142,7 +142,7 @@ interactionLoop = do
               -- @open import Agda.Primitive using (Set; Prop)@
               void $ liftTCM importPrimitives
           `catchError` \e -> do
-            s <- prettyError e
+            s <- renderError e
             liftIO $ putStrLn s
             liftIO $ putStrLn "Failed."
 

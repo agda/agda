@@ -6,10 +6,10 @@
 module Agda.Compiler.MAlonzo.Pretty where
 
 import qualified Agda.Utils.Haskell.Syntax as HS
-import Text.PrettyPrint (empty)
 
 import Agda.Compiler.MAlonzo.Encode
 import Agda.Utils.Pretty
+import Agda.Utils.Null (empty)
 
 
 prettyPrint :: Pretty a => a -> String

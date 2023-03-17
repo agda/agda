@@ -44,10 +44,9 @@ import Data.IntMap.Strict (IntMap)
 import qualified Data.List as List
 import Data.Maybe
 
-import Text.PrettyPrint.HughesPJ hiding (empty)
-import qualified Text.PrettyPrint.HughesPJ as PP
-
-import Agda.Utils.Pretty ( mparens )
+import qualified Agda.Utils.Pretty as PP
+import qualified Agda.Utils.Null as Null
+import Agda.Utils.Pretty hiding (annotate)
 
 import Agda.Utils.Impossible
 
@@ -173,7 +172,7 @@ instance ParserClass (Parser k r tok) k r tok where
       if j == n then return [x] else return []
     where n = List.genericLength toks
 
-  grammar _ = PP.empty
+  grammar _ = Null.empty
 
   sat' p = P $ \input i k ->
     if inRange (bounds input) i then
