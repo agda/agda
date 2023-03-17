@@ -366,7 +366,7 @@ library
 
   -- Unix 2.7.2 is is included with GHC 8.6.1, the least version we
   -- support
-  if os(linux) || os(macos)
+  if os(linux) || os(osx)
     build-depends:
       unix >= 2.7.0 && < 2.9
     cpp-options:
