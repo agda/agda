@@ -24,9 +24,14 @@ jobs:
     env:
       FLAGS: -O0 -f enable-cluster-counting
     needs: auto-cancel
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
+    - id: setup-haskell
+      uses: haskell/actions/setup@v2
+      with:
+        cabal-version: ${{ matrix.cabal-ver }}
+        ghc-version: ${{ matrix.ghc-ver }}
     - name: Environment settings based on the Haskell setup
       run: |
         export GHC_VER=$(ghc --numeric-version)
@@ -56,6 +61,15 @@ jobs:
     - name: Install Agda
       run: |
         cabal install ${FLAGS}
+    strategy:
+      fail-fast: false
+      matrix:
+        cabal-ver:
+        - 3.10.1.0
+        ghc-ver:
+        - 9.6.1
+        os:
+        - ubuntu-latest
     timeout-minutes: 60
 name: Install (v2-cabal)
 'on':
