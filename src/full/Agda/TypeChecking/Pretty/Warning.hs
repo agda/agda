@@ -434,7 +434,7 @@ didYouMean inscope canon x
 
 
 prettyTCWarnings :: [TCWarning] -> TCM String
-prettyTCWarnings = fmap (P.render . P.vcat) . prettyTCWarnings'
+prettyTCWarnings = fmap (unlines . List.intersperse "" . map P.render) . prettyTCWarnings'
 
 renderTCWarnings' :: [TCWarning] -> TCM [String]
 renderTCWarnings' = fmap (map P.render) . prettyTCWarnings'

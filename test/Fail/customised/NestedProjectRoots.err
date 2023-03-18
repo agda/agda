@@ -6,7 +6,8 @@ customised/Imports/A.agda
 can be accessed via several project roots. Both A and Imports.A
 point to this file.
 when scope checking the declaration
-  import Imports.AChecking NestedProjectRoots (customised/NestedProjectRoots.agda).
+  import Imports.A
+Checking NestedProjectRoots (customised/NestedProjectRoots.agda).
 customised/NestedProjectRoots.agda:3,1-17
 The file
 customised/Imports/A.agda

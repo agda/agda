@@ -1,10 +1,8 @@
-{-# LANGUAGE CPP #-}
 module Agda.Utils.Pretty.ANSI where
-
 import Control.Monad.IO.Class
 import Control.Monad
 
-import Text.PrettyPrint.Annotated.HughesPJ (renderDecorated)
+import Text.PrettyPrint.Annotated.HughesPJ (renderDecoratedM)
 
 import Agda.Interaction.Options.HasOptions
 import Agda.Interaction.Options.Base
@@ -12,58 +10,50 @@ import Agda.Utils.Pretty.Aspect
 import Agda.Utils.Pretty
 import Agda.Utils.Monad
 
-#ifdef HAS_ISATTY
-import System.Posix.Terminal
-import System.Posix.IO
-#endif
+import System.Console.ANSI
+import System.IO
 
 -- | Render an annotated, pretty-printing 'Doc'ument into a string
 -- suitable for printing on VT100-compatible terminals.
-renderAnsiTerminal :: Doc -> String
-renderAnsiTerminal = renderDecorated (maybe mempty aspSGR . aspect) (maybe mempty (const reset) . aspect) where
+renderAnsiIO :: Doc -> IO ()
+renderAnsiIO = renderDecoratedM start end putStr (putStr "\n") where
   reset :: String
   reset = "\x1b[0m"
 
   red, green, yellow, blue, magenta, cyan :: String
   [red, green, yellow, blue, magenta, cyan] = map (\c -> "\x1b[" ++ show c ++ "m") [31..36]
 
-  aspSGR :: Aspect -> String
-  aspSGR String        = red
-  aspSGR Number        = magenta
-  aspSGR PrimitiveType = cyan
+  start = maybe mempty (setSGR . aspSGR) . aspect
+  end _ = setSGR [Reset]
+
+  aspSGR :: Aspect -> [SGR]
+  aspSGR String        = [SetColor Foreground Dull Red]
+  aspSGR Number        = [SetColor Foreground Dull Magenta]
+  aspSGR PrimitiveType = [SetColor Foreground Dull Blue]
   aspSGR (Name (Just nk) _) = case nk of
-    Bound                   -> ""
-    Generalizable           -> ""
-    Argument                -> ""
+    Bound                   -> []
+    Generalizable           -> []
+    Argument                -> []
 
-    Constructor Inductive   -> green
-    Constructor CoInductive -> green
+    Constructor Inductive   -> [SetColor Foreground Dull Green]
+    Constructor CoInductive -> [SetColor Foreground Dull Green]
 
-    Field                   -> magenta
+    Field                   -> [SetColor Foreground Vivid Magenta]
 
-    Module                  -> magenta
+    Module                  -> [SetColor Foreground Vivid Magenta]
 
-    Function                -> blue
-    Postulate               -> blue
-    Datatype                -> blue
-    Record                  -> blue
-    Primitive               -> blue
+    Function                -> [SetColor Foreground Dull Blue]
+    Postulate               -> [SetColor Foreground Dull Blue]
+    Datatype                -> [SetColor Foreground Dull Blue]
+    Record                  -> [SetColor Foreground Dull Blue]
+    Primitive               -> [SetColor Foreground Dull Blue]
 
-    Macro                   -> cyan
-  aspSGR _ = ""
-
-stdoutHasColours :: MonadIO m => m Bool
-#if defined(HAS_ISATTY)
-stdoutHasColours = liftIO $ queryTerminal stdOutput
-
-#else
-
-stdoutHasColours = pure False
-#endif
+    Macro                   -> [SetColor Foreground Dull Cyan]
+  aspSGR _ = []
 
 putDoc :: (MonadIO m, HasOptions m) => Doc -> m ()
 putDoc doc = do
-  outputcol <- stdoutHasColours
+  outputcol <- liftIO (hSupportsANSI stdout)
   wantscol <- commandLineOptions
   let
     col = case optDiagnosticsColour wantscol of
@@ -71,6 +61,6 @@ putDoc doc = do
       AlwaysColour -> True
       NeverColour  -> False
 
-  liftIO . putStr $ if col
-    then renderAnsiTerminal doc
-    else render doc
+  liftIO $ if col
+    then renderAnsiIO doc
+    else putStrLn (render doc)
