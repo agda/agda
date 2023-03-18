@@ -40,19 +40,17 @@ jobs:
 
     timeout-minutes: 60
 
-    runs-on: ubuntu-latest
-
     ## Use preinstalled GHC and Cabal
     #
-    # runs-on: ${{ matrix.os }}
-    # strategy:
-    #   fail-fast: false
-    #   matrix:
-    #     os:
-    #       - ubuntu-22.04
-    #     ghc-ver: ['9.4.4']
-    #     cabal-ver: ['3.8']
-    #       # Use the versions preinstalled in the virtual environment, if possible.
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+        ghc-ver: ['9.6.1']
+        cabal-ver: ['3.10.1.0']
+        # Use the versions preinstalled in the virtual environment, if possible.
 
     env:
       FLAGS: "-O0 -f enable-cluster-counting"
@@ -65,11 +63,11 @@ jobs:
     ## In case the ubuntu-22.04 environment moves GHC beyond
     ## what Agda supports, bring back the setup action.
     #
-    # - uses: haskell/actions/setup@v2
-    #   id: setup-haskell
-    #   with:
-    #     ghc-version: ${{ matrix.ghc-ver }}
-    #     cabal-version: ${{ matrix.cabal-ver }}
+    - uses: haskell/actions/setup@v2
+      id: setup-haskell
+      with:
+        ghc-version: ${{ matrix.ghc-ver }}
+        cabal-version: ${{ matrix.cabal-ver }}
 
     - name: Environment settings based on the Haskell setup
       run: |
