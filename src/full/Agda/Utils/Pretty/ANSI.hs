@@ -17,12 +17,6 @@ import System.IO
 -- suitable for printing on VT100-compatible terminals.
 renderAnsiIO :: Doc -> IO ()
 renderAnsiIO = renderDecoratedM start end putStr (putStr "\n") where
-  reset :: String
-  reset = "\x1b[0m"
-
-  red, green, yellow, blue, magenta, cyan :: String
-  [red, green, yellow, blue, magenta, cyan] = map (\c -> "\x1b[" ++ show c ++ "m") [31..36]
-
   start = maybe mempty (setSGR . aspSGR) . aspect
   end _ = setSGR [Reset]
 
