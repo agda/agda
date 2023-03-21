@@ -57,7 +57,7 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import qualified Agda.Utils.Pretty as P
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Size
 import Agda.Utils.WithDefault
 

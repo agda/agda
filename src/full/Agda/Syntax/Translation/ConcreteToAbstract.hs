@@ -97,8 +97,8 @@ import qualified Agda.Utils.Map as Map
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import qualified Agda.Utils.Pretty as P
-import Agda.Utils.Pretty (render, Pretty, pretty, prettyShow)
+import qualified Agda.Syntax.Common.Pretty as P
+import Agda.Syntax.Common.Pretty (render, Pretty, pretty, prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Tuple
 

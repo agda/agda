@@ -1,4 +1,4 @@
-module Agda.Utils.Pretty.ANSI where
+module Agda.Syntax.Common.Pretty.ANSI where
 import Control.Monad.IO.Class
 import Control.Monad
 
@@ -6,8 +6,8 @@ import Text.PrettyPrint.Annotated.HughesPJ (renderDecoratedM)
 
 import Agda.Interaction.Options.HasOptions
 import Agda.Interaction.Options.Base
-import Agda.Utils.Pretty.Aspect
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Aspect
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Monad
 
 import System.Console.ANSI

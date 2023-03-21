@@ -82,7 +82,7 @@ import Agda.Utils.Lens
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty hiding (Mode)
+import Agda.Syntax.Common.Pretty hiding (Mode)
 import qualified Agda.Utils.ProfileOptions as Profile
 import Agda.Utils.Singleton
 import Agda.Utils.String

@@ -15,7 +15,7 @@ import {-# SOURCE #-} Agda.Syntax.TopLevelModuleName
   (TopLevelModuleName)
 import Agda.Utils.FileName
 import Agda.Utils.Float ( doubleDenotEq, doubleDenotOrd )
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 
 type RLiteral = Ranged Literal
 data Literal

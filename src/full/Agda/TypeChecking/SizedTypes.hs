@@ -34,13 +34,13 @@ import Agda.Utils.List1 (pattern (:|))
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty (Pretty, prettyShow)
+import Agda.Syntax.Common.Pretty (Pretty, prettyShow)
 import qualified Agda.Utils.ProfileOptions as Profile
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
-import qualified Agda.Utils.Pretty as P
+import qualified Agda.Syntax.Common.Pretty as P
 import qualified Agda.Utils.Warshall as W
 
 import Agda.Utils.Impossible

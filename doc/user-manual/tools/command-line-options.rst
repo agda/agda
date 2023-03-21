@@ -65,7 +65,7 @@ General options
          - | Use the effect of ``2``, but also print `Loading ...`
            | when a compiled module (interface) is accessed during the type-checking.
 
-.. option:: --diagnostics-colour[=(auto|always|never)]
+.. option:: --colour[=(auto|always|never)]
 
     .. versionadded:: 2.6.4
 
@@ -87,7 +87,7 @@ General options
         * - ``never``
           - Never print output in colour.
 
-    The American spelling, ``--diagnostics-color``, is also accepted.
+    The American spelling, ``--color``, is also accepted.
 
 .. option:: --no-projection-like
 

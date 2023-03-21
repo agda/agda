@@ -43,8 +43,8 @@ import Agda.Compiler.Builtin
 import Agda.VersionCommit
 
 import qualified Agda.Utils.Benchmark as UtilsBench
-import qualified Agda.Utils.Pretty.ANSI as ANSI
-import qualified Agda.Utils.Pretty as P
+import qualified Agda.Syntax.Common.Pretty.ANSI as ANSI
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.FileName (absolute, filePath, AbsolutePath)
 import Agda.Utils.String
 import Agda.Utils.Monad

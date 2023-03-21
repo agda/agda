@@ -54,8 +54,8 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe ( boolToMaybe, catMaybes, caseMaybeM, fromMaybe, whenNothing )
 import Agda.Utils.Monad ( ifM, when )
 import Agda.Utils.Null  ( null )
-import Agda.Utils.Pretty (prettyShow, render)
-import qualified Agda.Utils.Pretty as P
+import Agda.Syntax.Common.Pretty (prettyShow, render)
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.IO.Directory
 import Agda.Utils.IO.UTF8 ( writeFile )
 import Agda.Utils.Singleton ( singleton )

@@ -36,7 +36,7 @@ import Agda.Syntax.Internal.Defs
 import Agda.TypeChecking.Monad
 
 import Agda.Utils.List    (hasElem)
-import Agda.Utils.Pretty  (prettyShow)
+import Agda.Syntax.Common.Pretty  (prettyShow)
 
 import Agda.Utils.Impossible
 

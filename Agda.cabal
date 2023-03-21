@@ -513,6 +513,9 @@ library
       Agda.Syntax.Abstract
       Agda.Syntax.Builtin
       Agda.Syntax.Common
+      Agda.Syntax.Common.Pretty
+      Agda.Syntax.Common.Aspect
+      Agda.Syntax.Common.Pretty.ANSI
       Agda.Syntax.Concrete.Attribute
       Agda.Syntax.Concrete.Definitions
       Agda.Syntax.Concrete.Definitions.Errors
@@ -761,9 +764,6 @@ library
       Agda.Utils.Permutation
       Agda.Utils.Pointer
       Agda.Utils.POMonoid
-      Agda.Utils.Pretty.Aspect
-      Agda.Utils.Pretty.ANSI
-      Agda.Utils.Pretty
       Agda.Utils.ProfileOptions
       Agda.Utils.RangeMap
       Agda.Utils.SemiRing

@@ -55,7 +55,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Size
 import Agda.Utils.Permutation
-import Agda.Utils.Pretty (prettyShow, singPlural)
+import Agda.Syntax.Common.Pretty (prettyShow, singPlural)
 import Agda.Utils.Tuple
 
 -- | Generalize a telescope over a set of generalizable variables.

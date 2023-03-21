@@ -34,7 +34,7 @@ import qualified Agda.Utils.Haskell.Syntax as HS
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Syntax.Common.Pretty (prettyShow)
 
 import Agda.Utils.Impossible
 

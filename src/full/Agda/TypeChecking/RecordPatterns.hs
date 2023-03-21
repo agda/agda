@@ -40,8 +40,8 @@ import Agda.Interaction.Options
 import Agda.Utils.Either
 import Agda.Utils.Functor
 import Agda.Utils.Permutation hiding (dropFrom)
-import Agda.Utils.Pretty (Pretty(..))
-import qualified Agda.Utils.Pretty as P
+import Agda.Syntax.Common.Pretty (Pretty(..))
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Size
 import Agda.Utils.Update (MonadChange, tellDirty)
 

@@ -93,7 +93,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List1       ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.List2       ( List2, pattern List2 )
-import Agda.Utils.Pretty.Aspect (NameKind)
+import Agda.Syntax.Common.Aspect (NameKind)
 import Agda.Utils.Null
 
 import Agda.Utils.Impossible

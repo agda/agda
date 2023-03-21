@@ -11,7 +11,7 @@ import qualified Data.Map as Map
 
 import Agda.Syntax.Treeless
 import Agda.Compiler.Treeless.Subst
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.List
 
 import Agda.Utils.Impossible

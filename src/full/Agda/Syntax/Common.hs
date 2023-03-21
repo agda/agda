@@ -41,8 +41,8 @@ import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
 import Agda.Utils.POMonoid
-import Agda.Utils.Pretty.Aspect (Induction(..))
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Aspect (Induction(..))
+import Agda.Syntax.Common.Pretty
 
 import Agda.Utils.Impossible
 

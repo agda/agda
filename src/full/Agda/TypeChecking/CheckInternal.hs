@@ -35,7 +35,7 @@ import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Functor (($>))
 import Agda.Utils.Maybe
-import Agda.Utils.Pretty  (prettyShow)
+import Agda.Syntax.Common.Pretty  (prettyShow)
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible

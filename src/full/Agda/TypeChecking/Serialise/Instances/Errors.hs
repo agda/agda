@@ -15,7 +15,7 @@ import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 import Agda.Interaction.Library.Base
 import Agda.Termination.CutOff
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.ProfileOptions
 
 import Agda.Utils.Impossible

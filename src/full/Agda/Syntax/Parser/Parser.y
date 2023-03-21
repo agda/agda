@@ -62,7 +62,7 @@ import Agda.Utils.List ( spanJust, chopWhen )
 import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty hiding ((<>))
+import Agda.Syntax.Common.Pretty hiding ((<>))
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Maybe.Strict as Strict
 import qualified Agda.Utils.List1 as List1

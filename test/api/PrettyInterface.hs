@@ -26,7 +26,7 @@ import Agda.TypeChecking.Pretty
 
 import Agda.Utils.FileName
 
-import Agda.Utils.Pretty (render)
+import Agda.Syntax.Common.Pretty (render)
 
 ------------------------------------------------------------------------------
 

@@ -20,7 +20,7 @@ import GHC.Generics (Generic)
 
 import Agda.Utils.List
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 
 -- | We want to know whether we are allowed to insert unicode characters or not.
 data UnicodeOrAscii

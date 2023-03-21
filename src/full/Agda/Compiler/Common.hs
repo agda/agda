@@ -37,7 +37,7 @@ import Agda.Utils.List
 import Agda.Utils.List1          ( pattern (:|) )
 import Agda.Utils.Maybe
 import Agda.Utils.Monad          ( ifNotM )
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 
 import Agda.Utils.Impossible
 

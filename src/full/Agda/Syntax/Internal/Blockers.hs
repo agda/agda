@@ -13,7 +13,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Internal.Elim
 
-import Agda.Utils.Pretty hiding ((<>))
+import Agda.Syntax.Common.Pretty hiding ((<>))
 import Agda.Utils.Functor
 
 ---------------------------------------------------------------------------

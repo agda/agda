@@ -68,8 +68,8 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
-import Agda.Utils.Pretty ( prettyShow )
-import qualified Agda.Utils.Pretty as P
+import Agda.Syntax.Common.Pretty ( prettyShow )
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Size
 import qualified Agda.Utils.SmallSet as SmallSet
 

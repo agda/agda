@@ -30,7 +30,7 @@ import           Agda.Interaction.Options     (CommandLineOptions,
                                                defaultOptions)
 
 import           Agda.Utils.FileName          (AbsolutePath, mkAbsolute)
-import           Agda.Utils.Pretty            (Pretty(..), prettyShow, text)
+import           Agda.Syntax.Common.Pretty            (Pretty(..), prettyShow, text)
 import           Agda.Utils.Time              (ClockTime)
 
 ------------------------------------------------------------------------

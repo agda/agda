@@ -1,4 +1,4 @@
-module Agda.Utils.Pretty.Aspect where
+module Agda.Syntax.Common.Aspect where
 
 import {-# SOURCE #-} Agda.Syntax.TopLevelModuleName
 import Agda.Utils.Maybe

@@ -13,7 +13,7 @@ import Agda.Syntax.Scope.Monad
 import Agda.TypeChecking.Monad
 
 import Agda.Utils.List1  ( List1, pattern (:|), (<|) )
-import Agda.Utils.Pretty ( prettyShow )
+import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Utils.Singleton
 
 parseIdiomBracketsSeq :: Range -> [Expr] -> ScopeM Expr

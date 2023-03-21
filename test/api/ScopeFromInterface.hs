@@ -37,7 +37,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Hash           ( Hash )
 import Agda.Utils.IO.Binary      ( readBinaryFile' )
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Impossible
 
 

@@ -48,7 +48,7 @@ import Agda.Syntax.Parser.Tokens ( Keyword( KwMutual ) )
 import Agda.Utils.FileName
 import Agda.Utils.List ( tailWithDefault )
 import qualified Agda.Utils.Maybe.Strict as Strict
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 
 import Agda.Utils.Impossible
 

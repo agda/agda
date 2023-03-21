@@ -28,7 +28,7 @@ import Agda.Utils.Either
 import Agda.Utils.Lens
 import Agda.Utils.List   (hasElem)
 import Agda.Utils.Maybe
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Syntax.Common.Pretty (prettyShow)
 import qualified Agda.Utils.Haskell.Syntax as HS
 
 import Agda.Utils.Impossible

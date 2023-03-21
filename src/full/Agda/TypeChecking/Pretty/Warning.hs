@@ -50,8 +50,8 @@ import Agda.Utils.Lens
 import Agda.Utils.List ( editDistance )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
-import Agda.Utils.Pretty ( Pretty, prettyShow, singPlural )
-import qualified Agda.Utils.Pretty as P
+import Agda.Syntax.Common.Pretty ( Pretty, prettyShow, singPlural )
+import qualified Agda.Syntax.Common.Pretty as P
 
 instance PrettyTCM TCWarning where
   prettyTCM w@(TCWarning loc _ _ _ _) = do

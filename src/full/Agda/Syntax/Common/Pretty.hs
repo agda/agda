@@ -1,8 +1,8 @@
 
 {-| Pretty printing functions.
 -}
-module Agda.Utils.Pretty
-    ( module Agda.Utils.Pretty
+module Agda.Syntax.Common.Pretty
+    ( module Agda.Syntax.Common.Pretty
     , module Text.PrettyPrint.Annotated
     -- This re-export can be removed once <GHC-8.4 is dropped.
     , module Data.Semigroup
@@ -11,18 +11,18 @@ module Agda.Utils.Pretty
 import Prelude hiding (null)
 
 import qualified Data.Foldable as Fold
-import Data.Int (Int32)
-import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
-import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Set (Set)
-import qualified Data.Set as Set
-import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Map as Map
+import qualified Data.Set as Set
+import Data.IntSet (IntSet)
+import Data.IntMap (IntMap)
 import Data.Word (Word64)
+import Data.Text (Text)
+import Data.Int (Int32)
+import Data.Map (Map)
+import Data.Set (Set)
 
 import qualified Text.PrettyPrint.Annotated as P
 import Text.PrettyPrint.Annotated hiding
@@ -42,7 +42,7 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
 import Agda.Utils.Size
 
-import Agda.Utils.Pretty.Aspect
+import Agda.Syntax.Common.Aspect
 import Agda.Utils.Impossible
 
 -- * Pretty class

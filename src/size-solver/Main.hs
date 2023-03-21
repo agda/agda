@@ -28,7 +28,7 @@ import Agda.TypeChecking.SizedTypes.Utils (setDebugging, traceM)
 import Agda.TypeChecking.SizedTypes.Syntax
 import Agda.TypeChecking.SizedTypes.WarshallSolver
 
-import Agda.Utils.Pretty (Pretty, prettyShow, render, (<+>))
+import Agda.Syntax.Common.Pretty (Pretty, prettyShow, render, (<+>))
 
 import Parser
 

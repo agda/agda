@@ -44,9 +44,9 @@ import Data.IntMap.Strict (IntMap)
 import qualified Data.List as List
 import Data.Maybe
 
-import qualified Agda.Utils.Pretty as PP
+import qualified Agda.Syntax.Common.Pretty as PP
 import qualified Agda.Utils.Null as Null
-import Agda.Utils.Pretty hiding (annotate)
+import Agda.Syntax.Common.Pretty hiding (annotate)
 
 import Agda.Utils.Impossible
 

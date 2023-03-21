@@ -44,8 +44,8 @@ import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe (filterMaybe)
 import Agda.Utils.Null
-import Agda.Utils.Pretty hiding ((<>))
-import qualified Agda.Utils.Pretty as P
+import Agda.Syntax.Common.Pretty hiding ((<>))
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Map as Map
 

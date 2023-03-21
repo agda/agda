@@ -26,7 +26,7 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.Maybe
-import Agda.Utils.Pretty ( prettyShow )
+import Agda.Syntax.Common.Pretty ( prettyShow )
 
 -- Type combinators
 

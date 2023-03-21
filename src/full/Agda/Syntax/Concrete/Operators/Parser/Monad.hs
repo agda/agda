@@ -20,7 +20,7 @@ import Data.Hashable
 import GHC.Generics (Generic)
 
 import Agda.Syntax.Common
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 
 import qualified Agda.Utils.Parser.MemoisedCPS as Parser
 

@@ -74,7 +74,7 @@ import Agda.Utils.List
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Pretty (prettyShow, render)
+import Agda.Syntax.Common.Pretty (prettyShow, render)
 import Agda.Utils.Singleton
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.String

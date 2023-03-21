@@ -63,7 +63,7 @@ import Agda.Utils.Null
 import Agda.Utils.RangeMap (RangeMap, IsBasicRangeMap(..))
 import qualified Agda.Utils.RangeMap as RangeMap
 
-import Agda.Utils.Pretty.Aspect
+import Agda.Syntax.Common.Aspect
 import Agda.Utils.String
 
 import Agda.Utils.Impossible

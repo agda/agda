@@ -81,7 +81,7 @@ import qualified Agda.Utils.List1        as List1
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad         ( tell1 )
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.ProfileOptions
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
@@ -1123,7 +1123,7 @@ standardOptions =
                     "only scope-check the top-level module, do not type-check it"
     , Option []     ["transliterate"] (NoArg transliterateFlag)
                     "transliterate unsupported code points when printing to stdout/stderr"
-    , Option []     ["diagnostics-colour", "diagnostics-color"] (OptArg diagnosticsColour "always|auto|never")
+    , Option []     ["colour", "color"] (OptArg diagnosticsColour "always|auto|never")
                     ("whether or not to colour diagnostics output. The default is auto.")
     ] ++ map (fmap lensPragmaOptions) pragmaOptions
 

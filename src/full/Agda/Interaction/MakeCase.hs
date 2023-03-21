@@ -45,8 +45,8 @@ import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty (prettyShow)
-import qualified Agda.Utils.Pretty as P
+import Agda.Syntax.Common.Pretty (prettyShow)
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible

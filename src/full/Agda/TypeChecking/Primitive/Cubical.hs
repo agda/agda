@@ -53,7 +53,7 @@ import Agda.Utils.Null
 import Agda.Utils.Tuple
 import Agda.Utils.Size
 import Agda.Utils.BoolSet (BoolSet)
-import qualified Agda.Utils.Pretty as P
+import qualified Agda.Syntax.Common.Pretty as P
 import qualified Agda.Utils.BoolSet as BoolSet
 
 import Agda.TypeChecking.Primitive.Cubical.HCompU

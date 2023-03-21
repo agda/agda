@@ -40,7 +40,7 @@ import Agda.Utils.List
 import Agda.Utils.Null
 import Agda.Utils.Singleton
 import Agda.Utils.Size
-import qualified Agda.Utils.Pretty as PP
+import qualified Agda.Syntax.Common.Pretty as PP
 
 type FlexibleVars   = [FlexibleVar Nat]
 

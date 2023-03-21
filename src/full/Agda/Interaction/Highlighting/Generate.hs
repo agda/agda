@@ -78,7 +78,7 @@ import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible

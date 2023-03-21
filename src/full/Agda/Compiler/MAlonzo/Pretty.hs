@@ -8,7 +8,7 @@ module Agda.Compiler.MAlonzo.Pretty where
 import qualified Agda.Utils.Haskell.Syntax as HS
 
 import Agda.Compiler.MAlonzo.Encode
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Null (empty)
 
 
