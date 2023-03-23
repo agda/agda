@@ -736,11 +736,13 @@ Other features
 
      .. versionadded:: 2.6.4
 
-     Makes ``Level`` live in its own universe ``LevelUniverse`` and
+     Makes ``Level`` live in its own universe ``LevelUniv`` and
      disallows having levels depend on terms that are not levels themselves.
-     When this option is turned off, ``LevelUniverse`` still exists,
+     When this option is turned off, ``LevelUniv`` still exists,
      but reduces to ``Set`` (see :ref:`level-universe <level-universe>`).
-     Note: This option is currently not compatible with cubical primitives.
+
+     Note: While compatible with the :option:`--cubical` option, this option is
+     currently not compatible with cubical builtin files.
 
 .. option:: --universe-polymorphism, --no-universe-polymorphism
 

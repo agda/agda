@@ -200,10 +200,13 @@ Pragmas and options
 .. _level-universe:
 
 * The option :option:`--level-universe` makes ``Level`` live in its own
-  universe ``LevelUniverse`` and disallows having levels depend on terms
+  universe ``LevelUniv`` and disallows having levels depend on terms
   that are not levels themselves. When this option is turned off,
-  ``LevelUniverse`` still exists, but reduces to ``Set``.
-  Note: This option is currently not compatible with cubical primitives.
+  ``LevelUniv`` still exists, but reduces to ``Set``.
+
+  Note: While compatible with the :option:`--cubical` option, this option is currently
+  not compatible with cubical builtin files, and an error will be raised when
+  trying to import them in a file using :option:`--level-universe`.
 
   .. code-block:: agda
 
