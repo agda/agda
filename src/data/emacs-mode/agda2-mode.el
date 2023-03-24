@@ -375,10 +375,10 @@ agda2-include-dirs is not bound." :warning))
  (let ((l '(max-specpdl-size    2600
             max-lisp-eval-depth 2800)))
    (while l (set (make-local-variable (pop l)) (pop l))))
- (if (and window-system agda2-fontset-name)
-     (condition-case nil
-         (set-frame-font agda2-fontset-name)
-       (error (error "Unable to change the font; change agda2-fontset-name or tweak agda2-fontset-spec-of-fontset-agda2"))))
+ (when (and (display-graphic-p) agda2-fontset-name)
+   (condition-case nil
+       (set-frame-font agda2-fontset-name)
+     (error (error "Unable to change the font; change agda2-fontset-name or tweak agda2-fontset-spec-of-fontset-agda2"))))
  ;; Deactivate highlighting if the buffer is edited before
  ;; typechecking is complete.
  (add-hook 'first-change-hook #'agda2-abort-highlighting nil 'local)
