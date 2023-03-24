@@ -372,9 +372,6 @@ agda2-include-dirs is not bound." :warning))
        mode-line-process
          '((:eval (unless (eq 0 (length agda2-buffer-external-status))
                     (concat ":" agda2-buffer-external-status)))))
- (let ((l '(max-specpdl-size    2600
-            max-lisp-eval-depth 2800)))
-   (while l (set (make-local-variable (pop l)) (pop l))))
  (when (and (display-graphic-p) agda2-fontset-name)
    (condition-case nil
        (set-frame-font agda2-fontset-name)
