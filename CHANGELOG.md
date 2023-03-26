@@ -245,6 +245,11 @@ Pragmas and options
 * Benign warnings are now printed together with their warning name, to give a hint how they can be disabled
   (see [#6229](https://github.com/agda/agda/issues/6229)).
 
+* New option `--level-universe` to make `Level` inhabit its own universe `LevelUniv`:
+  When this option is turned on, `Level` can now only depend on terms of type `Level`.
+
+  Note: While compatible with the `--cubical` option, this option is currently not compatible with cubical builtin files, and an error will be raised when trying to import them in a file using `--level-universe`.
+
 Library management
 ------------------
 

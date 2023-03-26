@@ -732,6 +732,18 @@ Other features
      Enable typing rule ``Setω : Setω`` (this makes Agda inconsistent;
      see :ref:`omega-in-omega <omega-in-omega>`).
 
+.. option:: --level-universe
+
+     .. versionadded:: 2.6.4
+
+     Makes ``Level`` live in its own universe ``LevelUniv`` and
+     disallows having levels depend on terms that are not levels themselves.
+     When this option is turned off, ``LevelUniv`` still exists,
+     but reduces to ``Set`` (see :ref:`level-universe <level-universe>`).
+
+     Note: While compatible with the :option:`--cubical` option, this option is
+     currently not compatible with cubical builtin files.
+
 .. option:: --universe-polymorphism, --no-universe-polymorphism
 
      .. versionadded:: 2.3.0
@@ -1149,6 +1161,7 @@ options are coinfective:
 * :option:`--no-universe-polymorphism`
 * :option:`--no-sized-types`
 * :option:`--no-guardedness`
+* :option:`--level-universe`
 
 Furthermore the option :option:`--cubical-compatible` is mostly
 coinfective. If a module uses :option:`--cubical-compatible` then all
