@@ -228,6 +228,9 @@ Pragmas and options
 
 * New command-line option `--numeric-version` to just print the version number of Agda.
 
+* Option `--version` now also prints the cabal flags active in this build of Agda
+  (e.g. whether Agda was built with `-f enable-cluster-counting`).
+
 * New command-line option `--trace-imports` to switch on notification messages
   on the end of compilation of an imported module
   or on access to an interface file during the type-checking.
