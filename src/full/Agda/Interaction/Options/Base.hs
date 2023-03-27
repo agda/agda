@@ -475,17 +475,18 @@ recheckBecausePragmaOptionsChanged used current =
   blankOut used /= blankOut current
   where
   -- "Blank out" irrelevant options.
+  -- It does not matter what we replace them with, so we take the null value.
   blankOut opts = opts
-    { optShowImplicit              = False
-    , optShowIrrelevant            = False
+    { optShowImplicit              = empty
+    , optShowIrrelevant            = empty
     , optVerbose                   = empty
-    , optProfiling                 = noProfileOptions
-    , optPostfixProjections        = False
-    , optCompileNoMain             = False
-    , optCaching                   = False
-    , optCountClusters             = False
-    , optPrintPatternSynonyms      = False
-    , optShowIdentitySubstitutions = False
+    , optProfiling                 = empty
+    , optPostfixProjections        = empty
+    , optCompileNoMain             = empty
+    , optCaching                   = empty
+    , optCountClusters             = empty
+    , optPrintPatternSynonyms      = empty
+    , optShowIdentitySubstitutions = empty
     }
 
 -- | Infective or coinfective?
