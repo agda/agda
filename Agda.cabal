@@ -194,6 +194,8 @@ custom-setup
 common language
 
   if flag(optimise-heavily)
+    cpp-options:
+      -DOPTIMISE_HEAVILY
     ghc-options:
       -fexpose-all-unfoldings
       -fspecialise-aggressively

@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 
 {-| Agda main module.
 -}
@@ -261,9 +262,25 @@ printVersion :: [Backend] -> PrintAgdaVersion -> IO ()
 printVersion _ PrintAgdaNumericVersion = putStrLn versionWithCommitInfo
 printVersion backends PrintAgdaVersion = do
   putStrLn $ "Agda version " ++ versionWithCommitInfo
+  unless (null flags) $
+    mapM_ putStrLn $ ("Built with flags (cabal -f)" :) $ map bullet flags
   mapM_ putStrLn
-    [ "  - " ++ name ++ " backend version " ++ ver
+    [ bullet $ name ++ " backend version " ++ ver
     | Backend Backend'{ backendName = name, backendVersion = Just ver } <- backends ]
+  where
+  bullet = (" - " ++)
+  -- Print cabal flags that were involved in compilation.
+  flags =
+#ifdef COUNT_CLUSTERS
+    "enable-cluster-counting: unicode cluster counting in LaTeX backend using the ICU library" :
+#endif
+#ifdef OPTIMISE_HEAVILY
+    "optimise-heavily: extra optimizations" :
+#endif
+#ifdef DEBUG
+    "debug: extra debug info" :
+#endif
+    []
 
 printAgdaDir :: IO ()
 printAgdaDir = putStrLn =<< getDataDir
