@@ -1,5 +1,7 @@
 {-# LANGUAGE CPP       #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE PartialTypeSignatures #-}
+{-# OPTIONS_GHC -Wno-partial-type-signatures #-}
 
 module Agda.Interaction.Options.Base
     ( CommandLineOptions(..)
@@ -277,6 +279,205 @@ data PrintAgdaVersion
   deriving (Show, Generic)
 
 instance NFData PrintAgdaVersion
+
+-- Lenses for PragmaOptions
+-- N.B.: We use PartialTypeSignatures here to not repeat default values (DRY!).
+
+lensOptShowImplicit :: Lens' _ PragmaOptions
+lensOptShowImplicit f o = f (optShowImplicit o) <&> \ i -> o{ optShowImplicit = i }
+
+lensOptShowIrrelevant :: Lens' _ PragmaOptions
+lensOptShowIrrelevant f o = f (optShowIrrelevant o) <&> \ i -> o{ optShowIrrelevant = i }
+
+lensOptUseUnicode :: Lens' _ PragmaOptions
+lensOptUseUnicode f o = f (optUseUnicode o) <&> \ i -> o{ optUseUnicode = i }
+
+lensOptVerbose :: Lens' _ PragmaOptions
+lensOptVerbose f o = f (optVerbose o) <&> \ i -> o{ optVerbose = i }
+
+lensOptProfiling :: Lens' _ PragmaOptions
+lensOptProfiling f o = f (optProfiling o) <&> \ i -> o{ optProfiling = i }
+
+lensOptProp :: Lens' _ PragmaOptions
+lensOptProp f o = f (optProp o) <&> \ i -> o{ optProp = i }
+
+lensOptLevelUniv :: Lens' _ PragmaOptions
+lensOptLevelUniv f o = f (optLevelUniv o) <&> \ i -> o{ optLevelUniv = i }
+
+lensOptTwoLevel :: Lens' _ PragmaOptions
+lensOptTwoLevel f o = f (optTwoLevel o) <&> \ i -> o{ optTwoLevel = i }
+
+lensOptAllowUnsolved :: Lens' _ PragmaOptions
+lensOptAllowUnsolved f o = f (optAllowUnsolved o) <&> \ i -> o{ optAllowUnsolved = i }
+
+lensOptAllowIncompleteMatch :: Lens' _ PragmaOptions
+lensOptAllowIncompleteMatch f o = f (optAllowIncompleteMatch o) <&> \ i -> o{ optAllowIncompleteMatch = i }
+
+lensOptDisablePositivity :: Lens' _ PragmaOptions
+lensOptDisablePositivity f o = f (optDisablePositivity o) <&> \ i -> o{ optDisablePositivity = i }
+
+lensOptTerminationCheck :: Lens' _ PragmaOptions
+lensOptTerminationCheck f o = f (optTerminationCheck o) <&> \ i -> o{ optTerminationCheck = i }
+
+lensOptTerminationDepth :: Lens' _ PragmaOptions
+lensOptTerminationDepth f o = f (optTerminationDepth o) <&> \ i -> o{ optTerminationDepth = i }
+
+lensOptUniverseCheck :: Lens' _ PragmaOptions
+lensOptUniverseCheck f o = f (optUniverseCheck o) <&> \ i -> o{ optUniverseCheck = i }
+
+lensOptOmegaInOmega :: Lens' _ PragmaOptions
+lensOptOmegaInOmega f o = f (optOmegaInOmega o) <&> \ i -> o{ optOmegaInOmega = i }
+
+lensOptCumulativity :: Lens' _ PragmaOptions
+lensOptCumulativity f o = f (optCumulativity o) <&> \ i -> o{ optCumulativity = i }
+
+lensOptSizedTypes :: Lens' _ PragmaOptions
+lensOptSizedTypes f o = f (optSizedTypes o) <&> \ i -> o{ optSizedTypes = i }
+
+lensOptGuardedness :: Lens' _ PragmaOptions
+lensOptGuardedness f o = f (optGuardedness o) <&> \ i -> o{ optGuardedness = i }
+
+lensOptInjectiveTypeConstructors :: Lens' _ PragmaOptions
+lensOptInjectiveTypeConstructors f o = f (optInjectiveTypeConstructors o) <&> \ i -> o{ optInjectiveTypeConstructors = i }
+
+lensOptUniversePolymorphism :: Lens' _ PragmaOptions
+lensOptUniversePolymorphism f o = f (optUniversePolymorphism o) <&> \ i -> o{ optUniversePolymorphism = i }
+
+lensOptIrrelevantProjections :: Lens' _ PragmaOptions
+lensOptIrrelevantProjections f o = f (optIrrelevantProjections o) <&> \ i -> o{ optIrrelevantProjections = i }
+
+lensOptExperimentalIrrelevance :: Lens' _ PragmaOptions
+lensOptExperimentalIrrelevance f o = f (optExperimentalIrrelevance o) <&> \ i -> o{ optExperimentalIrrelevance = i }
+
+lensOptWithoutK :: Lens' _ PragmaOptions
+lensOptWithoutK f o = f (optWithoutK o) <&> \ i -> o{ optWithoutK = i }
+
+lensOptCubicalCompatible :: Lens' _ PragmaOptions
+lensOptCubicalCompatible f o = f (optCubicalCompatible o) <&> \ i -> o{ optCubicalCompatible = i }
+
+lensOptCopatterns :: Lens' _ PragmaOptions
+lensOptCopatterns f o = f (optCopatterns o) <&> \ i -> o{ optCopatterns = i }
+
+lensOptPatternMatching :: Lens' _ PragmaOptions
+lensOptPatternMatching f o = f (optPatternMatching o) <&> \ i -> o{ optPatternMatching = i }
+
+lensOptExactSplit :: Lens' _ PragmaOptions
+lensOptExactSplit f o = f (optExactSplit o) <&> \ i -> o{ optExactSplit = i }
+
+lensOptHiddenArgumentPuns :: Lens' _ PragmaOptions
+lensOptHiddenArgumentPuns f o = f (optHiddenArgumentPuns o) <&> \ i -> o{ optHiddenArgumentPuns = i }
+
+lensOptEta :: Lens' _ PragmaOptions
+lensOptEta f o = f (optEta o) <&> \ i -> o{ optEta = i }
+
+lensOptForcing :: Lens' _ PragmaOptions
+lensOptForcing f o = f (optForcing o) <&> \ i -> o{ optForcing = i }
+
+lensOptProjectionLike :: Lens' _ PragmaOptions
+lensOptProjectionLike f o = f (optProjectionLike o) <&> \ i -> o{ optProjectionLike = i }
+
+lensOptErasure :: Lens' _ PragmaOptions
+lensOptErasure f o = f (optErasure o) <&> \ i -> o{ optErasure = i }
+
+lensOptErasedMatches :: Lens' _ PragmaOptions
+lensOptErasedMatches f o = f (optErasedMatches o) <&> \ i -> o{ optErasedMatches = i }
+
+lensOptEraseRecordParameters :: Lens' _ PragmaOptions
+lensOptEraseRecordParameters f o = f (optEraseRecordParameters o) <&> \ i -> o{ optEraseRecordParameters = i }
+
+lensOptRewriting :: Lens' _ PragmaOptions
+lensOptRewriting f o = f (optRewriting o) <&> \ i -> o{ optRewriting = i }
+
+lensOptCubical :: Lens' _ PragmaOptions
+lensOptCubical f o = f (optCubical o) <&> \ i -> o{ optCubical = i }
+
+lensOptGuarded :: Lens' _ PragmaOptions
+lensOptGuarded f o = f (optGuarded o) <&> \ i -> o{ optGuarded = i }
+
+lensOptFirstOrder :: Lens' _ PragmaOptions
+lensOptFirstOrder f o = f (optFirstOrder o) <&> \ i -> o{ optFirstOrder = i }
+
+lensOptPostfixProjections :: Lens' _ PragmaOptions
+lensOptPostfixProjections f o = f (optPostfixProjections o) <&> \ i -> o{ optPostfixProjections = i }
+
+lensOptKeepPatternVariables :: Lens' _ PragmaOptions
+lensOptKeepPatternVariables f o = f (optKeepPatternVariables o) <&> \ i -> o{ optKeepPatternVariables = i }
+
+lensOptInferAbsurdClauses :: Lens' _ PragmaOptions
+lensOptInferAbsurdClauses f o = f (optInferAbsurdClauses o) <&> \ i -> o{ optInferAbsurdClauses = i }
+
+lensOptInstanceSearchDepth :: Lens' _ PragmaOptions
+lensOptInstanceSearchDepth f o = f (optInstanceSearchDepth o) <&> \ i -> o{ optInstanceSearchDepth = i }
+
+lensOptOverlappingInstances :: Lens' _ PragmaOptions
+lensOptOverlappingInstances f o = f (optOverlappingInstances o) <&> \ i -> o{ optOverlappingInstances = i }
+
+lensOptQualifiedInstances :: Lens' _ PragmaOptions
+lensOptQualifiedInstances f o = f (optQualifiedInstances o) <&> \ i -> o{ optQualifiedInstances = i }
+
+lensOptInversionMaxDepth :: Lens' _ PragmaOptions
+lensOptInversionMaxDepth f o = f (optInversionMaxDepth o) <&> \ i -> o{ optInversionMaxDepth = i }
+
+lensOptSafe :: Lens' _ PragmaOptions
+lensOptSafe f o = f (optSafe o) <&> \ i -> o{ optSafe = i }
+
+lensOptDoubleCheck :: Lens' _ PragmaOptions
+lensOptDoubleCheck f o = f (optDoubleCheck o) <&> \ i -> o{ optDoubleCheck = i }
+
+lensOptSyntacticEquality :: Lens' _ PragmaOptions
+lensOptSyntacticEquality f o = f (optSyntacticEquality o) <&> \ i -> o{ optSyntacticEquality = i }
+
+lensOptWarningMode :: Lens' _ PragmaOptions
+lensOptWarningMode f o = f (optWarningMode o) <&> \ i -> o{ optWarningMode = i }
+
+lensOptCompileNoMain :: Lens' _ PragmaOptions
+lensOptCompileNoMain f o = f (optCompileNoMain o) <&> \ i -> o{ optCompileNoMain = i }
+
+lensOptCaching :: Lens' _ PragmaOptions
+lensOptCaching f o = f (optCaching o) <&> \ i -> o{ optCaching = i }
+
+lensOptCountClusters :: Lens' _ PragmaOptions
+lensOptCountClusters f o = f (optCountClusters o) <&> \ i -> o{ optCountClusters = i }
+
+lensOptAutoInline :: Lens' _ PragmaOptions
+lensOptAutoInline f o = f (optAutoInline o) <&> \ i -> o{ optAutoInline = i }
+
+lensOptPrintPatternSynonyms :: Lens' _ PragmaOptions
+lensOptPrintPatternSynonyms f o = f (optPrintPatternSynonyms o) <&> \ i -> o{ optPrintPatternSynonyms = i }
+
+lensOptFastReduce :: Lens' _ PragmaOptions
+lensOptFastReduce f o = f (optFastReduce o) <&> \ i -> o{ optFastReduce = i }
+
+lensOptCallByName :: Lens' _ PragmaOptions
+lensOptCallByName f o = f (optCallByName o) <&> \ i -> o{ optCallByName = i }
+
+lensOptConfluenceCheck :: Lens' _ PragmaOptions
+lensOptConfluenceCheck f o = f (optConfluenceCheck o) <&> \ i -> o{ optConfluenceCheck = i }
+
+lensOptCohesion :: Lens' _ PragmaOptions
+lensOptCohesion f o = f (optCohesion o) <&> \ i -> o{ optCohesion = i }
+
+lensOptFlatSplit :: Lens' _ PragmaOptions
+lensOptFlatSplit f o = f (optFlatSplit o) <&> \ i -> o{ optFlatSplit = i }
+
+lensOptImportSorts :: Lens' _ PragmaOptions
+lensOptImportSorts f o = f (optImportSorts o) <&> \ i -> o{ optImportSorts = i }
+
+lensOptLoadPrimitives :: Lens' _ PragmaOptions
+lensOptLoadPrimitives f o = f (optLoadPrimitives o) <&> \ i -> o{ optLoadPrimitives = i }
+
+lensOptAllowExec :: Lens' _ PragmaOptions
+lensOptAllowExec f o = f (optAllowExec o) <&> \ i -> o{ optAllowExec = i }
+
+lensOptSaveMetas :: Lens' _ PragmaOptions
+lensOptSaveMetas f o = f (optSaveMetas o) <&> \ i -> o{ optSaveMetas = i }
+
+lensOptShowIdentitySubstitutions :: Lens' _ PragmaOptions
+lensOptShowIdentitySubstitutions f o = f (optShowIdentitySubstitutions o) <&> \ i -> o{ optShowIdentitySubstitutions = i }
+
+lensOptKeepCoveringClauses :: Lens' _ PragmaOptions
+lensOptKeepCoveringClauses f o = f (optKeepCoveringClauses o) <&> \ i -> o{ optKeepCoveringClauses = i }
+
 
 -- | Map a function over the long options. Also removes the short options.
 --   Will be used to add the plugin name to the plugin options.
