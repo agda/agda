@@ -391,10 +391,10 @@ isPropEnabled :: HasOptions m => m Bool
 isPropEnabled = optProp <$> pragmaOptions
 
 isLevelUniverseEnabled :: HasOptions m => m Bool
-isLevelUniverseEnabled = optLevelUniv <$> pragmaOptions
+isLevelUniverseEnabled = optLevelUniverse <$> pragmaOptions
 
 isTwoLevelEnabled :: HasOptions m => m Bool
-isTwoLevelEnabled = collapseDefault . optTwoLevel <$> pragmaOptions
+isTwoLevelEnabled = optTwoLevel <$> pragmaOptions
 
 {-# SPECIALIZE hasUniversePolymorphism :: TCM Bool #-}
 hasUniversePolymorphism :: HasOptions m => m Bool
@@ -421,7 +421,7 @@ withShowAllArguments = withShowAllArguments' True
 
 withShowAllArguments' :: ReadTCState m => Bool -> m a -> m a
 withShowAllArguments' yes = withPragmaOptions $ \ opts ->
-  opts { optShowImplicit = yes, optShowIrrelevant = yes }
+  opts { _optShowImplicit = Value yes, _optShowIrrelevant = Value yes }
 
 -- | Change 'PragmaOptions' for a computation and restore afterwards.
 withPragmaOptions :: ReadTCState m => (PragmaOptions -> PragmaOptions) -> m a -> m a
@@ -449,7 +449,7 @@ getLanguage :: HasOptions m => m Language
 getLanguage = do
   opts <- pragmaOptions
   return $
-    if not (collapseDefault (optWithoutK opts)) then WithK else
+    if not (optWithoutK opts) then WithK else
     case optCubical opts of
       Just variant -> Cubical variant
       Nothing      -> WithoutK

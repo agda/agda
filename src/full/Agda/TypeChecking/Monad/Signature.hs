@@ -893,8 +893,8 @@ getOriginalConstInfo q = do
   case (lang, defLanguage def) of
     (Cubical CErased, Cubical CFull) ->
       locallyTCState
-        stPragmaOptions
-        (\opts -> opts { optCubical = Just CFull })
+        (stPragmaOptions . lensOptCubical)
+        (const $ Just CFull)
         (getConstInfo q)
     _ -> return def
 

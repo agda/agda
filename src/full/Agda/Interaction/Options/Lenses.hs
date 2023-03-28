@@ -20,6 +20,7 @@ import Agda.Interaction.Options
 
 import Agda.Utils.Lens
 import Agda.Utils.FileName
+import Agda.Utils.WithDefault (pattern Value)
 
 ---------------------------------------------------------------------------
 -- * Pragma options
@@ -63,8 +64,8 @@ class LensVerbosity a where
   mapVerbosity f a = setVerbosity (f $ getVerbosity a) a
 
 instance LensVerbosity PragmaOptions where
-  getVerbosity = optVerbose
-  setVerbosity is opts = opts { optVerbose = is }
+  getVerbosity = _optVerbose
+  setVerbosity is opts = opts { _optVerbose = is }
 
 instance LensVerbosity TCState where
   getVerbosity = getVerbosity . getPragmaOptions
@@ -117,7 +118,7 @@ class LensSafeMode a where
 
 instance LensSafeMode PragmaOptions where
   getSafeMode = optSafe
-  setSafeMode is opts = opts { optSafe = is } -- setSafeOption
+  setSafeMode is opts = opts { _optSafe = Value is } -- setSafeOption
 
 instance LensSafeMode CommandLineOptions where
   getSafeMode = getSafeMode . getPragmaOptions

@@ -416,7 +416,7 @@ checkRelevance' x def = do
       -- Andreas,, 2018-06-09, issue #2170
       -- irrelevant projections are only allowed if --irrelevant-projections
       ifM (return (isJust $ isProjection_ $ theDef def) `and2M`
-           (not .optIrrelevantProjections <$> pragmaOptions)) {-then-} needIrrProj {-else-} $ do
+           (not . optIrrelevantProjections <$> pragmaOptions)) {-then-} needIrrProj {-else-} $ do
         rel <- viewTC eRelevance
         reportSDoc "tc.irr" 50 $ vcat
           [ "declaration relevance =" <+> text (show drel)
