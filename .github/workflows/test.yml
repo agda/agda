@@ -46,7 +46,7 @@ jobs:
       uses: actions/cache@v3
       with:
         key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
-          }}-${{ hashFiles('stack.yaml') }}
+          }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
         path: |
           ~/.stack
         restore-keys: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{
@@ -109,7 +109,7 @@ jobs:
       uses: actions/cache/restore@v3
       with:
         key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
-          }}-${{ hashFiles('stack.yaml') }}
+          }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
         path: |
           ~/.stack
     - name: Cubical library test
@@ -145,7 +145,7 @@ jobs:
       uses: actions/cache/restore@v3
       with:
         key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
-          }}-${{ hashFiles('stack.yaml') }}
+          }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
         path: |
           ~/.stack
     - name: Install Tex Live and Emacs
@@ -188,7 +188,7 @@ jobs:
       uses: actions/cache/restore@v3
       with:
         key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
-          }}-${{ hashFiles('stack.yaml') }}
+          }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
         path: |
           ~/.stack
     - name: Standard library test
@@ -232,7 +232,7 @@ jobs:
       uses: actions/cache/restore@v3
       with:
         key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
-          }}-${{ hashFiles('stack.yaml') }}
+          }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
         path: |
           ~/.stack
     - name: Suite of tests for bugs

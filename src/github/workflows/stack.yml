@@ -184,7 +184,8 @@ jobs:
         # Note that matrix.stack-ver might be simply 'latest', so we use STACK_VER.
         # We include stack-${GHC_VER}.yaml in the primary cache key so that the cache gets rewritten
         # everytime the resolver updates or extra-deps are added.
-        key:  &cache_key stack.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}
+        # 2023-03-28: We also include Agda.cabal so that the cache gets rewritten if a new dependency is added.
+        key:  &cache_key stack.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-plan-${{ hashFiles('Agda.cabal', format('stack-{0}.yaml', env.GHC_VER)) }}
         restore-keys:    stack.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-
         path: &cache_pathes |
           ${{ env.STACK_ROOT }}
@@ -198,7 +199,9 @@ jobs:
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
 
     - name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests` (i.e. the test suite).
-      run: stack build ${ARGS} ${EXTRA_ARGS} --work-dir=.stack-work-fast --test --no-run-tests
+      run: stack build ${ARGS} ${EXTRA_ARGS} --test --no-run-tests
+        ## Since we do not cache .stack-work and .stack-work-fast, we can fuse them.
+      # run: stack build ${ARGS} ${EXTRA_ARGS} --work-dir=.stack-work-fast --test --no-run-tests
 
     - name: Build Agda with the non-default flags Agda.cabal.
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}

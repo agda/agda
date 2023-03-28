@@ -82,8 +82,8 @@ jobs:
       uses: actions/cache@v3
       with:
         key: stack.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER
-          }}-icu-${{ env.ICU_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER))
-          }}
+          }}-icu-${{ env.ICU_VER }}-plan-${{ hashFiles('Agda.cabal', format('stack-{0}.yaml',
+          env.GHC_VER)) }}
         path: |
           ${{ env.STACK_ROOT }}
         restore-keys: stack.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-stack-${{
@@ -92,7 +92,7 @@ jobs:
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
     - name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests`
         (i.e. the test suite).
-      run: stack build ${ARGS} ${EXTRA_ARGS} --work-dir=.stack-work-fast --test --no-run-tests
+      run: stack build ${ARGS} ${EXTRA_ARGS} --test --no-run-tests
     - name: Build Agda with the non-default flags Agda.cabal.
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}
     strategy:

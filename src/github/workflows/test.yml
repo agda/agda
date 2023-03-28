@@ -129,7 +129,12 @@ jobs:
 
         # We include stack-${GHC_VER}.yaml in the primary cache key so that the cache gets rewritten
         # everytime the resolver updates or extra-deps are added.
-        key: &cache_key test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-${{ hashFiles('stack.yaml') }}
+        # Andreas, 2023-03-28:
+        # We need to make sure that the cache is written if a new dependency was added to Agda.cabal.
+        # Thus, we include Agda.cabal in the hash.
+        # Note that a 'stack.yaml.lock' file would not be sufficient (I think),
+        # because it does not list all the dependencies.
+        key: &cache_key test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
         restore-keys:   test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-
 
     - name: "Install dependencies for Agda and its test suites"
