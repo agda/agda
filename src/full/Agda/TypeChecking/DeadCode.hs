@@ -43,7 +43,7 @@ eliminateDeadCode ::
 eliminateDeadCode bs disp sig ms = Bench.billTo [Bench.DeadCode] $ do
   patsyn <- getPatternSyns
   public <- Set.mapMonotonic anameName . publicNames <$> getScope
-  save   <- collapseDefault . optSaveMetas <$> pragmaOptions
+  save   <- optSaveMetas <$> pragmaOptions
   defs   <- (if save then return else traverse instantiateFull)
                  (sig ^. sigDefinitions)
   -- #2921: Eliminating definitions with attached COMPILE pragmas results in

@@ -5,6 +5,7 @@ module Agda.TypeChecking.Rules.Record where
 import Prelude hiding (null)
 
 import Control.Monad
+import Data.Boolean ( (||*) )
 import Data.Maybe
 import qualified Data.Set as Set
 
@@ -213,9 +214,8 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
       -- Jesper, 2021-05-26: Warn when declaring coinductive record
       -- but neither --guardedness nor --sized-types is enabled.
       when (conInduction == CoInductive) $ do
-        guardedness <- collapseDefault . optGuardedness <$> pragmaOptions
-        sizedTypes  <- collapseDefault . optSizedTypes  <$> pragmaOptions
-        unless (guardedness || sizedTypes) $ warning $ NoGuardednessFlag name
+        unlessM ((optGuardedness ||* optSizedTypes) <$> pragmaOptions) $
+          warning $ NoGuardednessFlag name
 
       -- Add the record definition.
 

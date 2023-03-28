@@ -1275,7 +1275,7 @@ buildInterface src topLevel = do
           , iPartialDefs     = partialDefs
           }
     i <-
-      ifM (collapseDefault . optSaveMetas <$> pragmaOptions)
+      ifM (optSaveMetas <$> pragmaOptions)
         (return i)
         (do reportSLn "import.iface" 7
               "  instantiating all meta variables"

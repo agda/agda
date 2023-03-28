@@ -196,7 +196,7 @@ applyCohesionToContextOnly q = localTC
 splittableCohesion :: (HasOptions m, LensCohesion a) => a -> m Bool
 splittableCohesion a = do
   let c = getCohesion a
-  pure (usableCohesion c) `and2M` (pure (c /= Flat) `or2M` do collapseDefault . optFlatSplit <$> pragmaOptions)
+  pure (usableCohesion c) `and2M` (pure (c /= Flat) `or2M` do optFlatSplit <$> pragmaOptions)
 
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,
@@ -497,7 +497,7 @@ usableAtModality' ms why mod t =
         Left blocker -> patternViolation blocker
   where
     formatWhy = do
-      compatible <- collapseDefault . optCubicalCompatible <$> pragmaOptions
+      compatible <- optCubicalCompatible <$> pragmaOptions
       cubical <- isJust . optCubical <$> pragmaOptions
       let
         context

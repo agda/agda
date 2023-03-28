@@ -857,7 +857,7 @@ computeHCompSplit  :: Telescope   -- ^ Telescope before split point.
   -- -> QName                        -- ^ Constructor to fit into hole.
   -> CoverM (Maybe (SplitTag,SplitClause))   -- ^ New split clause if successful.
 computeHCompSplit delta1 n delta2 d pars ixs hix tel ps cps = do
-  withK   <- not . collapseDefault . optCubicalCompatible <$> pragmaOptions
+  withK   <- not . optCubicalCompatible <$> pragmaOptions
   if withK then return Nothing else do
     -- Get the type of the datatype
   -- Δ1 ⊢ dtype
@@ -1031,8 +1031,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
         Right{} -> return ()
         Left SplitOnStrict -> return ()
         Left x -> do
-          whenM (collapseDefault . optCubicalCompatible <$>
-                 pragmaOptions) $ do
+          whenM (optCubicalCompatible <$> pragmaOptions) $ do
             -- re #3733: TODO better error msg.
             lift $ warning . UnsupportedIndexedMatch =<< prettyTCM x
 
@@ -1317,8 +1316,8 @@ split' checkEmpty ind allowPartialCover inserttrailing
 
   mHCompName <- getPrimitiveName' builtinHComp
   opts       <- pragmaOptions
-  let withoutK        = collapseDefault (optWithoutK opts)
-      erasedMatches   = collapseDefault (optErasedMatches opts)
+  let withoutK        = optWithoutK opts
+      erasedMatches   = optErasedMatches opts
       isRecordWithEta = case dr of
         IsData       -> False
         IsRecord{..} ->

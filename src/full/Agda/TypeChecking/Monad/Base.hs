@@ -118,7 +118,6 @@ import Agda.Utils.Singleton
 import Agda.Utils.SmallSet (SmallSet)
 import qualified Agda.Utils.SmallSet as SmallSet
 import Agda.Utils.Update
-import Agda.Utils.WithDefault ( collapseDefault )
 
 import Agda.Utils.Impossible
 
@@ -4563,23 +4562,21 @@ instance MonadIO m => HasOptions (TCMT m) where
 -- HasOptions lifts through monad transformers
 -- (see default signatures in the HasOptions class).
 
--- Ternary options are annoying to deal with so we provide auxiliary
--- definitions using @collapseDefault@.
-
 sizedTypesOption :: HasOptions m => m Bool
-sizedTypesOption = collapseDefault . optSizedTypes <$> pragmaOptions
+sizedTypesOption = optSizedTypes <$> pragmaOptions
 
 guardednessOption :: HasOptions m => m Bool
-guardednessOption = collapseDefault . optGuardedness <$> pragmaOptions
+guardednessOption = optGuardedness <$> pragmaOptions
 
 withoutKOption :: HasOptions m => m Bool
-withoutKOption = collapseDefault . optWithoutK <$> pragmaOptions
+withoutKOption = optWithoutK <$> pragmaOptions
 
 cubicalCompatibleOption :: HasOptions m => m Bool
-cubicalCompatibleOption = collapseDefault . optCubicalCompatible <$> pragmaOptions
+cubicalCompatibleOption = optCubicalCompatible <$> pragmaOptions
 
 enableCaching :: HasOptions m => m Bool
 enableCaching = optCaching <$> pragmaOptions
+
 -----------------------------------------------------------------------------
 -- * The reduce monad
 -----------------------------------------------------------------------------

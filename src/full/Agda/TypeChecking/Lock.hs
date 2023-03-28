@@ -16,8 +16,6 @@ import qualified Data.Set as Set
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.Interaction.Options ( optGuarded )
-
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Constraints
