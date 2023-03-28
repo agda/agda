@@ -236,25 +236,16 @@ updateProblemEqs eqs = do
               "insertImplicitPatternsT returned" <+> fsep (map prettyA ps)
 
             -- Check argument count and hiding (not just count: #3074)
-            let checkArgs [] [] = return ()
-                checkArgs (p : ps) (v : vs)
-                  | getHiding p == getHiding v = checkArgs ps vs
-                  | otherwise                  = setCurrentRange p $ genericDocError =<< do
-                      fsep $ pwords ("Expected an " ++ which (getHiding v) ++ " argument " ++
-                                     "instead of "  ++ which (getHiding p) ++ " argument") ++
-                             [ prettyA p ]
-                  where which NotHidden  = "explicit"
-                        which Hidden     = "implicit"
-                        which Instance{} = "instance"
-                checkArgs [] vs = genericDocError =<< do
-                    fsep $ pwords "Too few arguments to constructor" ++ [prettyTCM c <> ","] ++
-                           pwords ("expected " ++ show n ++ " more explicit "  ++ arguments)
-                  where n = length (filter visible vs)
-                        arguments | n == 1    = "argument"
-                                  | otherwise = "arguments"
-                checkArgs (p : _) [] = setCurrentRange p $ genericDocError =<< do
-                  fsep $ pwords "Too many arguments to constructor" ++ [prettyTCM c]
-            checkArgs ps vs
+            let checkArgs [] [] _ _ = return ()
+                checkArgs (p : ps) (v : vs) nExpected nActual
+                  | getHiding p == getHiding v = checkArgs ps vs (nExpected + 1) (nActual + 1)
+                  | otherwise                  = setCurrentRange p $ typeError WrongHidingInLHS
+                checkArgs [] vs nExpected nActual = typeError $
+                  WrongNumberOfConstructorArguments (conName c) (nExpected + length vs) nActual
+                checkArgs (p : ps) [] nExpected nActual = setCurrentRange p $ typeError $
+                  WrongNumberOfConstructorArguments (conName c) nExpected (nActual + 1 + (length ps))
+
+            checkArgs ps vs 0 0
 
             updates $ zipWith3 ProblemEq (map namedArg ps) (map unArg vs) bs
 
