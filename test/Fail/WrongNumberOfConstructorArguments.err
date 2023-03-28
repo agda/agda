@@ -1,3 +1,4 @@
 WrongNumberOfConstructorArguments.agda:9,9-10
-Too many arguments to constructor zero
+The constructor zero expects 0 arguments (including hidden ones),
+but has been given 1 (including hidden ones)
 when checking that the pattern zero n has type Nat
