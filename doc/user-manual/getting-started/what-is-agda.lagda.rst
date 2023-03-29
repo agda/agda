@@ -25,7 +25,7 @@ other loosely related languages are `Coq <https://coq.inria.fr/>`_,
 <https://idris-lang.org/>`_.
 
 Because of strong typing and dependent types, Agda can be used as a
-proof assistant, allowing to prove mathematical theorems (in a
+proof assistant, allowing one to prove mathematical theorems (in a
 constructive setting) and to run such proofs as algorithms.
 
 Dependent types
@@ -68,7 +68,7 @@ one of the following:
 
 * the program terminates with a value in the type ``T``
 * the program ``e`` does not terminate
-* the program raises an exception (which has been caused by an
+* the program raises an exception which has been caused by an
   incomplete definition -- for instance, a function is only defined for
   positive integers but is applied to a negative integer.
 
@@ -91,7 +91,7 @@ Having dependent types, we must generalize the type of functions and
 the type of pairs.
 
 The **dependent function space** ``(a : A) -> (B a)`` is the type of the
-functions taking an argument ``a`` in a type ``A`` and a result in ``B
+functions taking an argument ``a`` in a type ``A`` and returning a result in ``B
 a``. Here, ``A`` is a type, and ``B`` is a family of types indexed by
 elements in ``A``.
 
@@ -102,7 +102,7 @@ and produces the ``n x n`` identity matrix, is then a function of type
 ``identity : (n : Nat) -> (Mat n n)``.
 
 **Remark**: We could, of course, just specify the ``identity`` function
-with the type ``Nat -> Nat -> Mat``, where ``Mat`` is the type of
+with the type ``Nat -> Mat``, where ``Mat`` is the type of
 matrices, but this is not as precise as the dependent version.
 
 The advantage of using dependent types is that it makes it possible to
@@ -117,7 +117,7 @@ multiplication is
    ∀ {i j k} → (Mat i j) -> (Mat j k) -> (Mat i k)
 
 and the type system can check that a program for matrix multiplication
-really takes arguments of the correct size. It can also check that
+really produces matrices of the correct size. It can also check that
 matrix multiplication is only applied to matrices, where the number of
 columns of the first argument is the same as the number of rows in the
 second argument.
@@ -133,7 +133,7 @@ only typing it is  possible to define:
 * equality on natural numbers
 * properties of arithmetical operations
 * the type ``(n : Nat) -> (PrimRoot n)`` consisting of functions
-  computing primitive root in modular arithmetic.
+  computing primitive roots in modular arithmetic.
 
 Of course, a program of the above type will be more difficult to write
 than the corresponding program of type ``Nat -> Nat``, which produces a
