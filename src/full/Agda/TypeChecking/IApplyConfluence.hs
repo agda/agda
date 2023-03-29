@@ -66,7 +66,7 @@ checkIApplyConfluence_ f = whenM (isJust . optCubical <$> pragmaOptions) $ do
         forM_ cls $ checkIApplyConfluence f
     _ -> return ()
 
--- | @addClause f (Clause {namedClausePats = ps})@ checks that @f ps@
+-- | @checkIApplyConfluence f (Clause {namedClausePats = ps})@ checks that @f ps@
 -- reduces in a way that agrees with @IApply@ reductions.
 checkIApplyConfluence :: QName -> Clause -> TCM ()
 checkIApplyConfluence f cl = case cl of
