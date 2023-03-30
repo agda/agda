@@ -272,6 +272,7 @@ errorString err = case err of
   SortOfSplitVarError{}                    -> "SortOfSplitVarError"
   ReferencesFutureVariables{}              -> "ReferencesFutureVariables"
   DoesNotMentionTicks{}                    -> "DoesNotMentionTicks"
+  MismatchedProjectionsError{}             -> "MismatchedProjectionsError"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1271,6 +1272,12 @@ instance PrettyTCM TypeError where
         , nest 2 (prettyTCM term <+> ":" <+> prettyTCM ty)
         , fsep (pwords ("can not be used as a " ++ mod ++ " argument, since it does not mention any " ++ mod ++ " variables."))
         ]
+
+    MismatchedProjectionsError left right -> fsep $
+      pwords "The projections" ++ [prettyTCM left] ++
+      pwords "and" ++ [prettyTCM right] ++
+      pwords "do not match"
+
     where
     mpar n args
       | n > 0 && not (null args) = parens
