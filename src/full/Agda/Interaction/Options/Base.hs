@@ -1222,7 +1222,7 @@ pragmaOptions =
     , Option []     ["erase-record-parameters"] (NoArg eraseRecordParametersFlag)
                     "mark all parameters of record modules as erased"
     , Option []     ["no-erase-record-parameters"] (NoArg noEraseRecordParametersFlag)
-                    "do mark all parameters of record modules as erased (default)"
+                    "do not mark all parameters of record modules as erased (default)"
     , Option []     ["rewriting"] (NoArg rewritingFlag)
                     "enable declaration and use of REWRITE rules"
     , Option []     ["local-confluence-check"] (NoArg $ confluenceCheckFlag LocalConfluenceCheck)
