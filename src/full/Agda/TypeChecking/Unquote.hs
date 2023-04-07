@@ -617,6 +617,7 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMWithExpandLast,    tcWithExpandLast (unElim u) (unElim v))
              , (f `isDef` primAgdaTCMWithReduceDefs,    tcWithReduceDefs (unElim u) (unElim v))
              , (f `isDef` primAgdaTCMInContext,         tcInContext     (unElim u) (unElim v))
+             , (f `isDef` primAgdaTCMInTopContext,      tcInTopContext  (unElim u) (unElim v))
              ]
              failEval
     I.Def f [_, _, u, v, w] ->
@@ -844,6 +845,15 @@ evalTCM v = do
     tcInContext c m = do
       c <- unquote c
       inOriginalContext $ go c (evalTCM m)
+      where
+        go :: [(Text , Arg R.Type)] -> UnquoteM Term -> UnquoteM Term
+        go []             m = m
+        go ((s , a) : as) m = go as (extendCxt s a m)
+
+    tcInTopContext :: Term -> Term -> UnquoteM Term
+    tcInTopContext c m = do
+      c <- unquote c
+      inTopContext $ go c (evalTCM m)
       where
         go :: [(Text , Arg R.Type)] -> UnquoteM Term -> UnquoteM Term
         go []             m = m

@@ -65,7 +65,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMTypeError, builtinAgdaTCMInferType,
   builtinAgdaTCMCheckType, builtinAgdaTCMNormalise, builtinAgdaTCMReduce,
   builtinAgdaTCMCatchError,
-  builtinAgdaTCMGetContext, builtinAgdaTCMExtendContext, builtinAgdaTCMInContext,
+  builtinAgdaTCMGetContext, builtinAgdaTCMExtendContext, builtinAgdaTCMInContext, builtinAgdaTCMInTopContext,
   builtinAgdaTCMFreshName, builtinAgdaTCMDeclareDef, builtinAgdaTCMDeclarePostulate, builtinAgdaTCMDeclareData, builtinAgdaTCMDefineData, builtinAgdaTCMDefineFun,
   builtinAgdaTCMGetType, builtinAgdaTCMGetDefinition,
   builtinAgdaTCMQuoteTerm, builtinAgdaTCMUnquoteTerm, builtinAgdaTCMQuoteOmegaTerm,
@@ -266,6 +266,7 @@ builtinAgdaTCMCatchError                 = "AGDATCMCATCHERROR"
 builtinAgdaTCMGetContext                 = "AGDATCMGETCONTEXT"
 builtinAgdaTCMExtendContext              = "AGDATCMEXTENDCONTEXT"
 builtinAgdaTCMInContext                  = "AGDATCMINCONTEXT"
+builtinAgdaTCMInTopContext               = "AGDATCMINTOPCONTEXT"
 builtinAgdaTCMFreshName                  = "AGDATCMFRESHNAME"
 builtinAgdaTCMDeclareDef                 = "AGDATCMDECLAREDEF"
 builtinAgdaTCMDeclarePostulate           = "AGDATCMDECLAREPOSTULATE"

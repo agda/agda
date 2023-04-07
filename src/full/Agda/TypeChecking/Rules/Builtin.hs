@@ -374,6 +374,8 @@ coreBuiltins =
                                                                    tstring --> targ ttype --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   , builtinAgdaTCMInContext                  |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $
                                                                    ttelescope --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
+  , builtinAgdaTCMInTopContext               |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $
+                                                                   ttelescope --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   , builtinAgdaTCMFreshName                  |-> builtinPostulate (tstring --> tTCM_ primQName)
   , builtinAgdaTCMDeclareDef                 |-> builtinPostulate (targ tqname --> ttype --> tTCM_ primUnit)
   , builtinAgdaTCMDeclarePostulate           |-> builtinPostulate (targ tqname --> ttype --> tTCM_ primUnit)
