@@ -215,13 +215,13 @@ checkDecl d = setCurrentRange d $ do
         checkingWhere <- asksTC envCheckingWhere
         solveSizeConstraints $ if checkingWhere then DontDefaultToInfty else DefaultToInfty
         wakeupConstraints_   -- Size solver might have unblocked some constraints
+        theMutualChecks
+
         case d of
             A.Generalize{} -> pure ()
             _ -> do
               reportSLn "tc.decl" 20 $ "Freezing all open metas."
               void $ freezeMetas (openMetas metas)
-
-        theMutualChecks
 
     where
 
