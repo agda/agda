@@ -204,18 +204,17 @@ checkApplication cmp hd args e t =
           -- Example: unquote v a b : A
           --  Create meta H : (x : X) (y : Y x) → Z x y for the hole
           --  Check a : X, b : Y a
-          --  Unify Z a b == A
           --  Run the tactic on H
+          --  Check H a b : A
           tel    <- metaTel args                    -- (x : X) (y : Y x)
-          target <- addContext tel newTypeMeta_      -- Z x y
+          target <- addContext tel newTypeMeta_     -- Z x y
           let holeType = telePi_ tel target         -- (x : X) (y : Y x) → Z x y
           (Just vs, EmptyTel) <- mapFst allApplyElims <$> checkArguments_ CmpLeq ExpandLast (getRange args) args tel
                                                     -- a b : (x : X) (y : Y x)
-          let rho = reverse (map unArg vs) ++# IdS  -- [x := a, y := b]
-          equalType (applySubst rho target) t       -- Z a b == A
           (_, hole) <- newValueMeta RunMetaOccursCheck CmpLeq holeType
           unquoteM (namedArg arg) hole holeType
-          return $ apply hole vs
+          let rho = reverse (map unArg vs) ++# IdS  -- [x := a, y := b]
+          coerce CmpEq (apply hole vs) (applySubst rho target) t -- H a b : A
       where
         metaTel :: [Arg a] -> TCM Telescope
         metaTel []           = pure EmptyTel
