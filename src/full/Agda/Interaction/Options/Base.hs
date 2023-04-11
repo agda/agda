@@ -111,7 +111,7 @@ module Agda.Interaction.Options.Base
     , optTwoLevel
     , optAllowUnsolved
     , optAllowIncompleteMatch
-    , optDisablePositivity
+    , optPositivityCheck
     , optTerminationCheck
     , optUniverseCheck
     , optOmegaInOmega
@@ -443,7 +443,7 @@ optLevelUniverse             :: PragmaOptions -> Bool
 optTwoLevel                  :: PragmaOptions -> Bool
 optAllowUnsolved             :: PragmaOptions -> Bool
 optAllowIncompleteMatch      :: PragmaOptions -> Bool
-optDisablePositivity         :: PragmaOptions -> Bool
+optPositivityCheck           :: PragmaOptions -> Bool
 optTerminationCheck          :: PragmaOptions -> Bool
 optUniverseCheck             :: PragmaOptions -> Bool
 optOmegaInOmega              :: PragmaOptions -> Bool
@@ -499,7 +499,7 @@ optLevelUniverse             = collapseDefault . _optLevelUniverse
 optTwoLevel                  = collapseDefault . _optTwoLevel
 optAllowUnsolved             = collapseDefault . _optAllowUnsolved
 optAllowIncompleteMatch      = collapseDefault . _optAllowIncompleteMatch
-optDisablePositivity         = not . collapseDefault . _optPositivityCheck
+optPositivityCheck           = collapseDefault . _optPositivityCheck
 optTerminationCheck          = collapseDefault . _optTerminationCheck
 optUniverseCheck             = collapseDefault . _optUniverseCheck
 optOmegaInOmega              = collapseDefault . _optOmegaInOmega
@@ -976,7 +976,7 @@ unsafePragmaOptions :: PragmaOptions -> [String]
 unsafePragmaOptions opts =
   [ "--allow-unsolved-metas"            | optAllowUnsolved opts                             ] ++
   [ "--allow-incomplete-matches"        | optAllowIncompleteMatch opts                      ] ++
-  [ "--no-positivity-check"             | optDisablePositivity opts                         ] ++
+  [ "--no-positivity-check"             | not (optPositivityCheck opts)                     ] ++
   [ "--no-termination-check"            | not (optTerminationCheck opts)                    ] ++
   [ "--type-in-type"                    | not (optUniverseCheck opts)                       ] ++
   [ "--omega-in-omega"                  | optOmegaInOmega opts                              ] ++
