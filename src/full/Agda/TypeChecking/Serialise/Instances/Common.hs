@@ -199,7 +199,7 @@ instance EmbPrj a => EmbPrj (Position' a) where
 
   value = valueN P.Pn
 
-instance Typeable b => EmbPrj (WithDefault b) where
+instance (EmbPrj a, Typeable b) => EmbPrj (WithDefault' a b) where
   icod_ = \case
     Default -> icodeN' Default
     Value b -> icodeN' Value b

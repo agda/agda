@@ -13,6 +13,7 @@ module Agda.Utils.WithDefault where
 
 import Control.DeepSeq
 
+import Agda.Utils.Boolean
 import Agda.Utils.Null
 import Agda.Utils.TypeLits
 
@@ -20,16 +21,18 @@ import Agda.Utils.TypeLits
 -- is @True@ or @False@. So we bake it into the representation: the flag's type
 -- will mention its default value as a phantom parameter.
 --
-data WithDefault (b :: Bool) = Default | Value !Bool
+data WithDefault' a (b :: Bool) = Default | Value !a
   deriving (Eq, Show)
 
-instance NFData (WithDefault b) where
+type WithDefault b = WithDefault' Bool b
+
+instance NFData (WithDefault' a b) where
   rnf Default   = ()
   rnf (Value _) = ()
 
 -- | The null value of 'WithDefault b' is 'Default'.
 --
-instance Null (WithDefault b) where
+instance Null (WithDefault' a b) where
   empty = Default
   null = \case
     Default -> True
@@ -38,7 +41,7 @@ instance Null (WithDefault b) where
 -- | The main mode of operation of these flags, apart from setting them explicitly,
 -- is to toggle them one way or the other if they hadn't been set already.
 --
-setDefault :: Bool -> WithDefault b -> WithDefault b
+setDefault :: Boolean a => a -> WithDefault' a b -> WithDefault' a b
 setDefault b = \case
   Default -> Value b
   t -> t
@@ -46,27 +49,27 @@ setDefault b = \case
 -- | Provided that the default value is a known boolean (in practice we only use
 -- @True@ or @False@), we can collapse a potentially uninitialised value to a boolean.
 --
-collapseDefault :: KnownBool b => WithDefault b -> Bool
+collapseDefault :: (Boolean a, KnownBool b) => WithDefault' a b -> a
 collapseDefault = \case
-  w@Default -> boolVal w
+  w@Default -> fromBool (boolVal w)
   Value b -> b
 
 -- | Update, overwriting 'Default'.
 --
-mapCollapseDefault :: KnownBool b => (Bool -> Bool) -> WithDefault b -> WithDefault b
+mapCollapseDefault :: (Boolean a, KnownBool b) => (a -> a) -> WithDefault' a b -> WithDefault' a b
 mapCollapseDefault f = Value . f . collapseDefault
 
 -- | Update, but keep 'Default' when new value is default value.
 --
-mapKeepDefault :: KnownBool b => (Bool -> Bool) -> WithDefault b -> WithDefault b
+mapKeepDefault :: (Boolean a, Eq a, KnownBool b) => (a -> a) -> WithDefault' a b -> WithDefault' a b
 mapKeepDefault f = \case
   Value b   -> Value (f b)
   w@Default -> if b == b' then Default else Value b'
     where
-    b  = boolVal w
+    b  = fromBool (boolVal w)
     b' = f b
 
 -- | Set, but keep 'Default' when new value is default value.
 --
-setKeepDefault :: KnownBool b => Bool -> WithDefault b -> WithDefault b
+setKeepDefault :: (Boolean a, Eq a, KnownBool b) => a -> WithDefault' a b -> WithDefault' a b
 setKeepDefault = mapKeepDefault . const
