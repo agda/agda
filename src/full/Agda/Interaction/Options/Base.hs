@@ -945,7 +945,7 @@ checkOpts opts = do
 
 checkPragmaOptions :: MonadError OptionError m => PragmaOptions -> m PragmaOptions
 checkPragmaOptions opts = do
-  unless ((optEraseRecordParameters `implies` optErasure) opts) $
+  when ((optEraseRecordParameters `butNot` optErasure) opts) $
     throwError
       "The option --erase-record-parameters requires the use of --erasure"
 
