@@ -2,10 +2,9 @@
 
 module Agda.TypeChecking.Rules.Record where
 
-import Prelude hiding (null)
+import Prelude hiding (null, not, (&&), (||))
 
 import Control.Monad
-import Data.Boolean ( (||*) )
 import Data.Maybe
 import qualified Data.Set as Set
 
@@ -41,6 +40,7 @@ import Agda.TypeChecking.Rules.Data
 import Agda.TypeChecking.Rules.Term ( isType_ )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
+import Agda.Utils.Boolean
 import Agda.Utils.List (headWithDefault)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -214,7 +214,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
       -- Jesper, 2021-05-26: Warn when declaring coinductive record
       -- but neither --guardedness nor --sized-types is enabled.
       when (conInduction == CoInductive) $ do
-        unlessM ((optGuardedness ||* optSizedTypes) <$> pragmaOptions) $
+        unlessM ((optGuardedness || optSizedTypes) <$> pragmaOptions) $
           warning $ NoGuardednessFlag name
 
       -- Add the record definition.
