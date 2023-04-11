@@ -175,7 +175,7 @@ module Agda.Interaction.Options.Base
 import Prelude hiding ( null, not, (&&), (||) )
 
 import Control.DeepSeq
-import Control.Monad ( when, void )
+import Control.Monad        ( when, unless, void )
 import Control.Monad.Except ( ExceptT, MonadError(throwError), runExceptT )
 import Control.Monad.Writer ( Writer, runWriter, MonadWriter(..) )
 
@@ -935,6 +935,16 @@ checkOpts opts = do
   when (optGenerateVimFile opts && optOnlyScopeChecking opts) $
     throwError $ "The --only-scope-checking flag cannot be combined with --vim."
 
+  checkPragmaOptions (optPragmaOptions opts)
+
+-- | Check for pragma option consistency.
+
+checkPragmaOptions :: MonadError OptionError m => PragmaOptions -> m ()
+checkPragmaOptions opts = do
+  unless ((optEraseRecordParameters `implies` optErasure) opts) $
+    throwError
+      "The option --erase-record-parameters requires the use of --erasure"
+
 -- | Check for unsafe pragmas. Gives a list of used unsafe flags.
 
 unsafePragmaOptions :: PragmaOptions -> [String]
@@ -1372,15 +1382,6 @@ confluenceCheckFlag f o = return $ o { _optConfluenceCheck = Just f }
 noConfluenceCheckFlag :: Flag PragmaOptions
 noConfluenceCheckFlag o = return $ o { _optConfluenceCheck = Nothing }
 
-eraseRecordParametersFlag :: Flag PragmaOptions
-eraseRecordParametersFlag o
-  | optErasure o = return $ o { _optEraseRecordParameters = Value True }
-  | otherwise    = throwError
-    "The option --erase-record-parameters requires the use of --erasure"
-
-noEraseRecordParametersFlag :: Flag PragmaOptions
-noEraseRecordParametersFlag o = return $ o { _optEraseRecordParameters = Value False }
-
 integerArgument :: String -> String -> OptM Int
 integerArgument flag s = maybe usage return $ readMaybe s
   where
@@ -1610,11 +1611,9 @@ pragmaOptions = concat
   , pragmaFlag      "erased-matches" lensOptErasedMatches
                     "allow matching in erased positions for single-constructor types" ""
                     Nothing
-  , [ Option []     ["erase-record-parameters"] (NoArg eraseRecordParametersFlag)
-                    "mark all parameters of record modules as erased"
-    , Option []     ["no-erase-record-parameters"] (NoArg noEraseRecordParametersFlag)
-                    "do not mark all parameters of record modules as erased (default)"
-    ]
+  , pragmaFlag      "erase-record-parameters" lensOptEraseRecordParameters
+                    "mark all parameters of record modules as erased" "(requires --erasure)"
+                    Nothing
   , pragmaFlag      "rewriting" lensOptRewriting
                     "enable declaration and use of REWRITE rules" ""
                     $ Just "disable declaration and use of REWRITE rules"
