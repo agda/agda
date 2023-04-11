@@ -1,5 +1,11 @@
+{-# LANGUAGE RebindableSyntax #-}
 
 module Agda.Utils.Function where
+
+import Prelude hiding ( not, (&&), (||) )
+import Data.String    ( fromString )       -- for RebindableSyntax, somehow not covered by Prelude
+
+import Agda.Utils.Boolean
 
 -- | Repeat a state transition @f :: a -> (b, a)@ with output @b@
 --   while condition @cond@ on the output is true.
@@ -103,17 +109,18 @@ iterate' n f x | n > 0     = iterate' (n - 1) f $! f x
 -- * Iteration over Booleans.
 
 -- | @applyWhen b f a@ applies @f@ to @a@ when @b@.
-applyWhen :: Bool -> (a -> a) -> a -> a
+applyWhen :: IsBool b => b -> (a -> a) -> a -> a
 applyWhen b f = if b then f else id
+  -- Note: RebindableSyntax translates this if-then-else to ifThenElse of IsBool.
 
 -- | @applyUnless b f a@ applies @f@ to @a@ unless @b@.
-applyUnless :: Bool -> (a -> a) -> a -> a
+applyUnless :: IsBool b => b -> (a -> a) -> a -> a
 applyUnless b f = if b then id else f
 
 -- | Monadic version of @applyWhen@
-applyWhenM :: (Monad m) => m Bool -> (m a -> m a) -> m a -> m a
+applyWhenM :: (IsBool b, Monad m) => m b -> (m a -> m a) -> m a -> m a
 applyWhenM mb f x = mb >>= \ b -> applyWhen b f x
 
 -- | Monadic version of @applyUnless@
-applyUnlessM :: (Monad m) => m Bool -> (m a -> m a) -> m a -> m a
+applyUnlessM :: (IsBool b, Monad m) => m b -> (m a -> m a) -> m a -> m a
 applyUnlessM mb f x = mb >>= \ b -> applyUnless b f x
