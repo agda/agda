@@ -949,6 +949,12 @@ checkPragmaOptions opts = do
     throwError
       "The option --erase-record-parameters requires the use of --erasure"
 
+#ifndef COUNT_CLUSTERS
+  when (optCountClusters opts) $
+    throwError
+      "Cluster counting has not been enabled in this build of Agda."
+#endif
+
   -- Set activation of warning CoverageNoExactSplit to activation of --exact-split
   let opts = opts & over (lensOptWarningMode . warningSet) ((if optExactSplit opts then Set.insert else Set.delete) CoverageNoExactSplit_)
   return opts
@@ -1226,20 +1232,6 @@ onlyScopeCheckingFlag o = return $ o { optOnlyScopeChecking = True }
 
 transliterateFlag :: Flag CommandLineOptions
 transliterateFlag o = return $ o { optTransliterate = True }
-
-haveClusterCounting :: Bool
-haveClusterCounting =
-#ifdef COUNT_CLUSTERS
-  True
-#else
-  False
-#endif
-
-countClustersFlag :: Bool -> Flag PragmaOptions
-countClustersFlag b o = do
-  when (b && not haveClusterCounting) $ throwError $
-    "Cluster counting has not been enabled in this build of Agda."
-  return $ o { _optCountClusters = Value b }
 
 noPositivityFlag :: Flag PragmaOptions
 noPositivityFlag o = do
@@ -1659,16 +1651,16 @@ pragmaOptions = concat
   , pragmaFlag      "caching" lensOptCaching
                     "enable caching of typechecking" ""
                     $ Just "disable caching of typechecking"
-  , [ Option []     ["count-clusters"] (NoArg $ countClustersFlag True)
-                    ("count extended grapheme clusters when " ++
-                     "generating LaTeX (note that this flag " ++
+  , pragmaFlag      "count-clusters" lensOptCountClusters
+                    "count extended grapheme clusters when generating LaTeX"
+                    ("(note that this flag " ++
 #ifdef COUNT_CLUSTERS
-                     "is not enabled in all builds of Agda)"
+                      "is not enabled in all builds"
 #else
-                     "has not been enabled in this build of Agda)"
+                      "has not been enabled in this build"
 #endif
-                    )
-    ]
+                      ++ " of Agda)")
+                    Nothing
   , pragmaFlag      "auto-inline" lensOptAutoInline
                     "enable automatic compile-time inlining" ""
                     $ Just "disable automatic compile-time inlining, only definitions marked INLINE will be inlined"
