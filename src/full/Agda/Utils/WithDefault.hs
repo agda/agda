@@ -23,6 +23,10 @@ import Agda.Utils.TypeLits
 --
 data WithDefault' a (b :: Bool) = Default | Value !a
   deriving (Eq, Show)
+  -- Note: the argument @b@ must be last, because this is matched against @proxy b@
+  -- in 'Agda.Utils.TypeLits.boolVal'.
+  -- Thus, we cannot make it a 'Functor' in @a@.
+  -- Instead, we define 'mapValue'.
 
 type WithDefault b = WithDefault' Bool b
 
@@ -45,6 +49,13 @@ setDefault :: Boolean a => a -> WithDefault' a b -> WithDefault' a b
 setDefault b = \case
   Default -> Value b
   t -> t
+
+-- | Only modify non-'Default' values.
+--
+mapValue :: Boolean a => (a -> a) -> WithDefault' a b -> WithDefault' a b
+mapValue f = \case
+  Default -> Default
+  Value b -> Value (f b)
 
 -- | Provided that the default value is a known boolean (in practice we only use
 -- @True@ or @False@), we can collapse a potentially uninitialised value to a boolean.

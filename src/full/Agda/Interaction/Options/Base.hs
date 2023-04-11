@@ -51,7 +51,7 @@ module Agda.Interaction.Options.Base
     , lensOptPositivityCheck
     , lensOptTerminationCheck
     , lensOptTerminationDepth
-    , lensOptUniverseCheck
+    , lensOptUniverseCheck, lensOptNoUniverseCheck
     , lensOptOmegaInOmega
     , lensOptCumulativity
     , lensOptSizedTypes
@@ -616,6 +616,9 @@ lensOptTerminationDepth f o = f (_optTerminationDepth o) <&> \ i -> o{ _optTermi
 
 lensOptUniverseCheck :: Lens' _ PragmaOptions
 lensOptUniverseCheck f o = f (_optUniverseCheck o) <&> \ i -> o{ _optUniverseCheck = i }
+
+lensOptNoUniverseCheck :: Lens' _ PragmaOptions
+lensOptNoUniverseCheck f o = f (mapValue not $ _optUniverseCheck o) <&> \ i -> o{ _optUniverseCheck = mapValue not i }
 
 lensOptOmegaInOmega :: Lens' _ PragmaOptions
 lensOptOmegaInOmega f o = f (_optOmegaInOmega o) <&> \ i -> o{ _optOmegaInOmega = i }
@@ -1234,12 +1237,6 @@ dontTerminationCheckFlag o = do
              , _optWarningMode      = upd (_optWarningMode o)
              }
 
-dontUniverseCheckFlag :: Flag PragmaOptions
-dontUniverseCheckFlag o = return $ o { _optUniverseCheck = Value False }
-
-omegaInOmegaFlag :: Flag PragmaOptions
-omegaInOmegaFlag o = return $ o { _optOmegaInOmega = Value True }
-
 withKFlag :: Flag PragmaOptions
 withKFlag o = return $ o
   { _optWithoutK      = Value False
@@ -1471,10 +1468,12 @@ pragmaFlag :: (IsBool a, KnownBool b)
        -- ^ Field to switch.
   -> String
        -- ^ Explanation for positive option.
+  -> String
+       -- ^ Additional info for positive option (not repeated for negative option).
   -> Maybe String
        -- ^ Explanation for negative option.
   -> [OptDescr (Flag PragmaOptions)]
-pragmaFlag long field pos neg = pragmaFlag' long field (const return) pos neg
+pragmaFlag long field pos info neg = pragmaFlag' long field (const return) pos info neg
 
 
 -- | Construct a flag of type @WithDefault _@
@@ -1487,11 +1486,13 @@ pragmaFlag' :: (IsBool a, KnownBool b)
        -- ^ Given the new value, perform additional effect (can override field setting).
   -> String
        -- ^ Explanation for positive option.
+  -> String
+       -- ^ Additional info for positive option (not repeated for negative option).
   -> Maybe String
        -- ^ Explanation for negative option.
   -> [OptDescr (Flag PragmaOptions)]
        -- ^ Pair of option descriptors (positive, negative)
-pragmaFlag' long field effect pos neg =
+pragmaFlag' long field effect pos info neg =
   [ Option [] [no b long] (flag b) (def b $ expl b) | b <- [True,False] ]
   where
   b0     = collapseDefault $ defaultPragmaOptions ^. field
@@ -1499,21 +1500,21 @@ pragmaFlag' long field effect pos neg =
   flag b = NoArg $ effect a . set field (Value a)
     where a = fromBool b
   def  b = applyWhen (fromBool b == b0) (++ " (default)")
-  expl b = if b then pos else fromMaybe ("do not " ++ pos) neg
+  expl b = if b then unwords [pos, info] else fromMaybe ("do not " ++ pos) neg
 
 pragmaOptions :: [OptDescr (Flag PragmaOptions)]
 pragmaOptions = concat
   [ pragmaFlag      "show-implicit" lensOptShowImplicit
-                    "show implicit arguments when printing"
+                    "show implicit arguments when printing" ""
                     Nothing
   , pragmaFlag      "show-irrelevant" lensOptShowIrrelevant
-                    "show irrelevant arguments when printing"
+                    "show irrelevant arguments when printing" ""
                     Nothing
   , pragmaFlag      "show-identity-substitutions" lensOptShowIdentitySubstitutions
-                    "show all arguments of metavariables when printing terms"
+                    "show all arguments of metavariables when printing terms" ""
                     Nothing
   , pragmaFlag'     "unicode" lensOptUseUnicode unicodeOrAsciiEffect
-                    "use unicode characters when printing terms"
+                    "use unicode characters when printing terms" ""
                     Nothing
   , [ Option ['v']  ["verbose"] (ReqArg verboseFlag "N")
                     "set verbosity level to N"
@@ -1529,46 +1530,48 @@ pragmaOptions = concat
                     "do not warn about possibly nonterminating code"
     , Option []     ["termination-depth"] (ReqArg terminationDepthFlag "N")
                     "allow termination checker to count decrease/increase upto N (default N=1)"
-    , Option []     ["type-in-type"] (NoArg dontUniverseCheckFlag)
-                    "ignore universe levels (this makes Agda inconsistent)"
-    , Option []     ["omega-in-omega"] (NoArg omegaInOmegaFlag)
-                    "enable typing rule Setω : Setω (this makes Agda inconsistent)"
     ]
+  , pragmaFlag      "type-in-type" lensOptNoUniverseCheck
+                    "ignore universe levels"  "(this makes Agda inconsistent)"
+                    Nothing
+  , pragmaFlag      "omega-in-omega" lensOptOmegaInOmega
+                    "enable typing rule Setω : Setω" "(this makes Agda inconsistent)"
+                    Nothing
   , pragmaFlag      "cumulativity" lensOptCumulativity
-                    "enable subtyping of universes (e.g. Set =< Set₁)"
+                    "enable subtyping of universes" "(e.g. Set =< Set₁)"
                     $ Just "disable subtyping of universes"
   , pragmaFlag      "prop" lensOptProp
-                    "enable the use of the Prop universe"
+                    "enable the use of the Prop universe" ""
                     $ Just "disable the use of the Prop universe"
   , pragmaFlag      "level-universe" lensOptLevelUniverse
-                    "place type Level in a dedicated LevelUniv universe"
+                    "place type Level in a dedicated LevelUniv universe" ""
                     Nothing
   , pragmaFlag      "two-level" lensOptTwoLevel
-                    "enable the use of SSet* universes"
+                    "enable the use of SSet* universes" ""
                     Nothing
   , pragmaFlag      "sized-types" lensOptSizedTypes
-                    "enable sized types (inconsistent with --guardedness)"
+                    "enable sized types" "(inconsistent with --guardedness)"
                     $ Just "disable sized types"
   , pragmaFlag      "cohesion" lensOptCohesion
-                    "enable the cohesion modalities (in particular @flat)"
+                    "enable the cohesion modalities" "(in particular @flat)"
                     Nothing
   , [ Option []     ["flat-split"] (NoArg flatSplitFlag)
                     "allow split on (@flat x : A) arguments (implies --cohesion)"
     ]
   , pragmaFlag      "guardedness" lensOptGuardedness
-                    "enable constructor-based guarded corecursion (inconsistent with --sized-types)"
+                    "enable constructor-based guarded corecursion" "(inconsistent with --sized-types)"
                     $ Just "disable constructor-based guarded corecursion"
   , pragmaFlag      "injective-type-constructors" lensOptInjectiveTypeConstructors
-                    "enable injective type constructors (makes Agda anti-classical and possibly inconsistent)"
+                    "enable injective type constructors" "(makes Agda anti-classical and possibly inconsistent)"
                     $ Just "disable injective type constructors"
   , pragmaFlag      "universe-polymorphism" lensOptUniversePolymorphism
-                    "enable universe polymorphism"
+                    "enable universe polymorphism" ""
                     $ Just "disable universe polymorphism"
   , pragmaFlag      "irrelevant-projections" lensOptIrrelevantProjections
-                    "enable projection of irrelevant record fields and similar irrelevant definitions (inconsistent)"
+                    "enable projection of irrelevant record fields and similar irrelevant definitions" "(inconsistent)"
                     $ Just "disable projection of irrelevant record fields and similar irrelevant definitions"
   , pragmaFlag      "experimental-irrelevance" lensOptExperimentalIrrelevance
-                    "enable potentially unsound irrelevance features (irrelevant levels, irrelevant data matching)"
+                    "enable potentially unsound irrelevance features" "(irrelevant levels, irrelevant data matching)"
                     Nothing
   , [ Option []     ["with-K"] (NoArg withKFlag)
                     "enable the K rule in pattern matching (default)"
@@ -1578,10 +1581,10 @@ pragmaOptions = concat
                     "turn on checks to make code compatible with HoTT (e.g. disabling the K rule). Implies --no-flat-split."
     ]
   , pragmaFlag      "copatterns" lensOptCopatterns
-                    "enable definitions by copattern matching"
+                    "enable definitions by copattern matching" ""
                     $ Just "disable definitions by copattern matching"
   , pragmaFlag      "pattern-matching" lensOptPatternMatching
-                    "enable pattern matching"
+                    "enable pattern matching" ""
                     $ Just "disable pattern matching completely"
 
   , [ Option []     ["exact-split"] (NoArg exactSplitFlag)
@@ -1590,22 +1593,22 @@ pragmaOptions = concat
                     "do not require all clauses in a definition to hold as definitional equalities (default)"
     ]
   , pragmaFlag      "hidden-argument-puns" lensOptHiddenArgumentPuns
-                    "interpret the patterns {x} and {{x}} as puns"
+                    "interpret the patterns {x} and {{x}} as puns" ""
                     Nothing
   , pragmaFlag      "eta-equality" lensOptEta
-                    "default records to eta-equality"
+                    "default records to eta-equality" ""
                     $ Just "default records to no-eta-equality"
   , pragmaFlag      "forcing" lensOptForcing
-                    "enable the forcing analysis for data constructors (optimisation)"
+                    "enable the forcing analysis for data constructors" "(optimisation)"
                     $ Just "disable the forcing analysis"
   , pragmaFlag      "projection-like" lensOptProjectionLike
-                    "enable the analysis whether function signatures liken those of projections (optimisation)"
+                    "enable the analysis whether function signatures liken those of projections" "(optimisation)"
                     $ Just "disable the projection-like analysis"
   , pragmaFlag      "erasure" lensOptErasure
-                    "enable erasure"
+                    "enable erasure" ""
                     Nothing
   , pragmaFlag      "erased-matches" lensOptErasedMatches
-                    "allow matching in erased positions for single-constructor types"
+                    "allow matching in erased positions for single-constructor types" ""
                     Nothing
   , [ Option []     ["erase-record-parameters"] (NoArg eraseRecordParametersFlag)
                     "mark all parameters of record modules as erased"
@@ -1613,7 +1616,7 @@ pragmaOptions = concat
                     "do not mark all parameters of record modules as erased (default)"
     ]
   , pragmaFlag      "rewriting" lensOptRewriting
-                    "enable declaration and use of REWRITE rules"
+                    "enable declaration and use of REWRITE rules" ""
                     $ Just "disable declaration and use of REWRITE rules"
   , [ Option []     ["local-confluence-check"] (NoArg $ confluenceCheckFlag LocalConfluenceCheck)
                     "enable checking of local confluence of REWRITE rules"
@@ -1627,26 +1630,26 @@ pragmaOptions = concat
                     "enable cubical features (some only in erased settings), implies --cubical-compatible"
     ]
   , pragmaFlag      "guarded" lensOptGuarded
-                    "enable @lock/@tick attributes"
+                    "enable @lock/@tick attributes" ""
                     $ Just "disable @lock/@tick attributes"
   , [ lossyUnificationOption ]
   , pragmaFlag      "postfix-projections" lensOptPostfixProjections
-                    "prefer postfix projection notation"
+                    "prefer postfix projection notation" ""
                     $ Just "prefer prefix projection notation"
   , pragmaFlag      "keep-pattern-variables" lensOptKeepPatternVariables
-                    "don't replace variables with dot patterns during case splitting"
+                    "don't replace variables with dot patterns during case splitting" ""
                     $ Just "replace variables with dot patterns during case splitting"
   , pragmaFlag      "infer-absurd-clauses" lensOptInferAbsurdClauses
-                    "eliminate absurd clauses in case splitting and coverage checking"
+                    "eliminate absurd clauses in case splitting and coverage checking" ""
                     $ Just "do not automatically eliminate absurd clauses in case splitting and coverage checking (can speed up type-checking)"
   , [ Option []     ["instance-search-depth"] (ReqArg instanceDepthFlag "N")
                     "set instance search depth to N (default: 500)"
     ]
   , pragmaFlag      "overlapping-instances" lensOptOverlappingInstances
-                    "consider recursive instance arguments during pruning of instance candidates"
+                    "consider recursive instance arguments during pruning of instance candidates" ""
                     Nothing
   , pragmaFlag      "qualified-instances" lensOptQualifiedInstances
-                    "use instances with qualified names"
+                    "use instances with qualified names" ""
                     Nothing
   , [ Option []     ["inversion-max-depth"] (ReqArg inversionMaxDepthFlag "N")
                     "set maximum depth for pattern match inversion to N (default: 50)"
@@ -1654,7 +1657,7 @@ pragmaOptions = concat
                     "disable postulates, unsafe OPTION pragmas and primEraseEquality, implies --no-sized-types"
     ]
   , pragmaFlag      "double-check" lensOptDoubleCheck
-                    "enable double-checking of all terms using the internal typechecker"
+                    "enable double-checking of all terms using the internal typechecker" ""
                     $ Just "disable double-checking of terms"
   , [ Option []     ["no-syntactic-equality"] (NoArg $ syntacticEqualityFlag (Just "0"))
                     "disable the syntactic equality shortcut in the conversion checker"
@@ -1666,7 +1669,7 @@ pragmaOptions = concat
                     "do not treat the requested module as the main module of a program when compiling"
     ]
   , pragmaFlag      "caching" lensOptCaching
-                    "enable caching of typechecking"
+                    "enable caching of typechecking" ""
                     $ Just "disable caching of typechecking"
   , [ Option []     ["count-clusters"] (NoArg $ countClustersFlag True)
                     ("count extended grapheme clusters when " ++
@@ -1679,32 +1682,32 @@ pragmaOptions = concat
                     )
     ]
   , pragmaFlag      "auto-inline" lensOptAutoInline
-                    "enable automatic compile-time inlining"
+                    "enable automatic compile-time inlining" ""
                     $ Just "disable automatic compile-time inlining, only definitions marked INLINE will be inlined"
   , pragmaFlag      "print-pattern-synonyms" lensOptPrintPatternSynonyms
-                    "keep pattern synonyms when printing terms"
+                    "keep pattern synonyms when printing terms" ""
                     $ Just "expand pattern synonyms when printing terms"
   , pragmaFlag      "fast-reduce" lensOptFastReduce
-                    "enable reduction using the Agda Abstract Machine"
+                    "enable reduction using the Agda Abstract Machine" ""
                     $ Just "disable reduction using the Agda Abstract Machine"
   , pragmaFlag      "call-by-name" lensOptCallByName
-                    "use call-by-name evaluation instead of call-by-need"
+                    "use call-by-name evaluation instead of call-by-need" ""
                     $ Just "use call-by-need evaluation"
 
   , pragmaFlag      "import-sorts" lensOptImportSorts
-                    "implicitly import Agda.Primitive using (Set; Prop) at the start of each top-level module"
+                    "implicitly import Agda.Primitive using (Set; Prop) at the start of each top-level module" ""
                     $ Just "disable the implicit import of Agda.Primitive using (Set; Prop) at the start of each top-level module"
   , [ Option []     ["no-load-primitives"] (NoArg noLoadPrimitivesFlag)
                     "disable loading of primitive modules at all (implies --no-import-sorts)"
     ]
   , pragmaFlag      "allow-exec" lensOptAllowExec
-                    "allow system calls to trusted executables with primExec"
+                    "allow system calls to trusted executables with primExec" ""
                     Nothing
   , pragmaFlag      "save-metas" lensOptSaveMetas
-                    "save meta-variables"
+                    "save meta-variables" ""
                     Nothing
   , pragmaFlag      "keep-covering-clauses" lensOptKeepCoveringClauses
-                    "do not discard covering clauses (required for some external backends)"
+                    "do not discard covering clauses" "(required for some external backends)"
                     $ Just "discard covering clauses"
   ]
 
