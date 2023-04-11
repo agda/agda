@@ -179,7 +179,7 @@ import Control.Monad        ( when, unless, void )
 import Control.Monad.Except ( ExceptT, MonadError(throwError), runExceptT )
 import Control.Monad.Writer ( Writer, runWriter, MonadWriter(..) )
 
-import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
+import Data.Function            ( (&) )
 import Data.Maybe
 import Data.Map                 ( Map )
 import qualified Data.Map as Map
@@ -191,6 +191,8 @@ import GHC.Generics (Generic)
 import System.Console.GetOpt    ( getOpt', usageInfo, ArgOrder(ReturnInOrder)
                                 , OptDescr(..), ArgDescr(..)
                                 )
+import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
+
 import Text.EditDistance
 import Text.Read                ( readMaybe )
 
@@ -917,8 +919,9 @@ optionWarningName = \case
   OptionRenamed{} -> OptionRenamed_
 
 -- | Checks that the given options are consistent.
+--   Also makes adjustments (e.g. when one option implies another).
 
-checkOpts :: MonadError OptionError m => CommandLineOptions -> m ()
+checkOpts :: MonadError OptionError m => CommandLineOptions -> m CommandLineOptions
 checkOpts opts = do
   -- NOTE: This is a temporary hold-out until --vim can be converted into a backend or plugin,
   -- whose options compatibility currently is checked in `Agda.Compiler.Backend`.
@@ -935,15 +938,19 @@ checkOpts opts = do
   when (optGenerateVimFile opts && optOnlyScopeChecking opts) $
     throwError $ "The --only-scope-checking flag cannot be combined with --vim."
 
-  checkPragmaOptions (optPragmaOptions opts)
+  lensPragmaOptions checkPragmaOptions opts
 
--- | Check for pragma option consistency.
+-- | Check for pragma option consistency and make adjustments
 
-checkPragmaOptions :: MonadError OptionError m => PragmaOptions -> m ()
+checkPragmaOptions :: MonadError OptionError m => PragmaOptions -> m PragmaOptions
 checkPragmaOptions opts = do
   unless ((optEraseRecordParameters `implies` optErasure) opts) $
     throwError
       "The option --erase-record-parameters requires the use of --erasure"
+
+  -- Set activation of warning CoverageNoExactSplit to activation of --exact-split
+  let opts = opts & over (lensOptWarningMode . warningSet) ((if optExactSplit opts then Set.insert else Set.delete) CoverageNoExactSplit_)
+  return opts
 
 -- | Check for unsafe pragmas. Gives a list of used unsafe flags.
 
@@ -1260,20 +1267,6 @@ withoutKFlag o = return $ o
   , _optErasedMatches = setDefault False (_optErasedMatches o)
   }
 
-exactSplitFlag :: Flag PragmaOptions
-exactSplitFlag o = do
-  let upd = over warningSet (Set.insert CoverageNoExactSplit_)
-  return $ o { _optExactSplit  = Value True
-             , _optWarningMode = upd (_optWarningMode o)
-             }
-
-noExactSplitFlag :: Flag PragmaOptions
-noExactSplitFlag o = do
-  let upd = over warningSet (Set.delete CoverageNoExactSplit_)
-  return $ o { _optExactSplit  = Value False
-             , _optWarningMode = upd (_optWarningMode o)
-             }
-
 firstOrderFlag :: Flag PragmaOptions
 firstOrderFlag o = return $ o { _optFirstOrder = Value True }
 
@@ -1587,12 +1580,9 @@ pragmaOptions = concat
   , pragmaFlag      "pattern-matching" lensOptPatternMatching
                     "enable pattern matching" ""
                     $ Just "disable pattern matching completely"
-
-  , [ Option []     ["exact-split"] (NoArg exactSplitFlag)
-                    "require all clauses in a definition to hold as definitional equalities (unless marked CATCHALL)"
-    , Option []     ["no-exact-split"] (NoArg noExactSplitFlag)
-                    "do not require all clauses in a definition to hold as definitional equalities (default)"
-    ]
+  , pragmaFlag      "exact-split" lensOptExactSplit
+                    "require all clauses in a definition to hold as definitional equalities" "(unless marked CATCHALL)"
+                    Nothing
   , pragmaFlag      "hidden-argument-puns" lensOptHiddenArgumentPuns
                     "interpret the patterns {x} and {{x}} as puns" ""
                     Nothing
@@ -1837,8 +1827,7 @@ parsePragmaOptions argv opts = do
           (deadPragmaOptions ++ pragmaOptions)
           (\s _ -> throwError $ "Bad option in pragma: " ++ s)
           (optPragmaOptions opts)
-  () <- checkOpts (opts { optPragmaOptions = ps })
-  return ps
+  checkPragmaOptions ps
 
 -- | Parse options for a plugin.
 parsePluginOptions :: [String] -> [OptDescr (Flag opts)] -> Flag opts
