@@ -14,6 +14,7 @@ module Agda.Utils.WithDefault where
 import Control.DeepSeq
 
 import Agda.Utils.Boolean
+import Agda.Utils.Lens
 import Agda.Utils.Null
 import Agda.Utils.TypeLits
 
@@ -65,22 +66,16 @@ collapseDefault = \case
   w@Default -> fromBool (boolVal w)
   Value b -> b
 
--- | Update, overwriting 'Default'.
+-- | Focus, overwriting 'Default'.
 --
-mapCollapseDefault :: (Boolean a, KnownBool b) => (a -> a) -> WithDefault' a b -> WithDefault' a b
-mapCollapseDefault f = Value . f . collapseDefault
+lensCollapseDefault :: (Boolean a, KnownBool b) => Lens' a (WithDefault' a b)
+lensCollapseDefault f w = Value <$> f (collapseDefault w)
 
 -- | Update, but keep 'Default' when new value is default value.
 --
-mapKeepDefault :: (Boolean a, Eq a, KnownBool b) => (a -> a) -> WithDefault' a b -> WithDefault' a b
-mapKeepDefault f = \case
-  Value b   -> Value (f b)
-  w@Default -> if b == b' then Default else Value b'
+lensKeepDefault :: (Boolean a, Eq a, KnownBool b) => Lens' a (WithDefault' a b)
+lensKeepDefault f = \case
+  Value b   -> Value <$> f b
+  w@Default -> f b <&> \ b' -> if b == b' then Default else Value b'
     where
     b  = fromBool (boolVal w)
-    b' = f b
-
--- | Set, but keep 'Default' when new value is default value.
---
-setKeepDefault :: (Boolean a, Eq a, KnownBool b) => a -> WithDefault' a b -> WithDefault' a b
-setKeepDefault = mapKeepDefault . const
