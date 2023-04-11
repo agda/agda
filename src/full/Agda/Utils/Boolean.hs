@@ -42,6 +42,10 @@ class Boolean a where
   implies :: a -> a -> a
   implies a b = b || not a
 
+  -- | Set difference, dual to 'implies'.
+  butNot :: a -> a -> a
+  butNot a b = a && not b
+
   default not :: IsBool a => a -> a
   not = fromBool1 P.not
 
