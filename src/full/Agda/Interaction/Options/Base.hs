@@ -960,15 +960,35 @@ checkPragmaOptions opts = do
 
   -- Perform corrections in pragma options.
 
-  opts
-    -- Set activation of warning CoverageNoExactSplit to activation of --exact-split
-    & (lensOptWarningMode $ warningSet $ pure . (if optExactSplit opts then Set.insert else Set.delete) CoverageNoExactSplit_)
+  return $ opts
+
+    -- -WCoverageNoExactSplit iff --exact-split
+    & conformWarningToOption CoverageNoExactSplit_ optExactSplit
+
+    -- -WTerminationIssue iff --termination-check
+    . conformWarningToOption TerminationIssue_ optTerminationCheck
+
+    -- -WNotStrictlyPositive iff --positivity-check
+    . conformWarningToOption NotStrictlyPositive_ optPositivityCheck
 
     -- --no-load-primitives implies --no-import-sorts
     . applyUnless (optLoadPrimitives opts) (set (lensOptImportSorts . lensKeepDefault) False)
 
     -- --flat-split implies --cohesion
     . applyWhen (optFlatSplit opts) (set (lensOptCohesion . lensKeepDefault) True)
+
+-- | Activate warning when option is on and vice versa
+conformWarningToOption ::
+     WarningName
+       -- ^ Warning to toggle.
+  -> (PragmaOptions -> Bool)
+       -- ^ Which flag to conform to?
+  -> PragmaOptions
+       -- ^ Options to modify.
+  -> PragmaOptions
+       -- ^ Modified options.
+conformWarningToOption w f opts =
+  set (lensOptWarningMode . warningSet . (`Set.alterF` w)) (f opts) opts
 
 -- | Check for unsafe pragmas. Gives a list of used unsafe flags.
 
@@ -1232,20 +1252,6 @@ onlyScopeCheckingFlag o = return $ o { optOnlyScopeChecking = True }
 transliterateFlag :: Flag CommandLineOptions
 transliterateFlag o = return $ o { optTransliterate = True }
 
-noPositivityFlag :: Flag PragmaOptions
-noPositivityFlag o = do
-  let upd = over warningSet (Set.delete NotStrictlyPositive_)
-  return $ o { _optPositivityCheck = Value False
-             , _optWarningMode     = upd (_optWarningMode o)
-             }
-
-dontTerminationCheckFlag :: Flag PragmaOptions
-dontTerminationCheckFlag o = do
-  let upd = over warningSet (Set.delete TerminationIssue_)
-  return $ o { _optTerminationCheck = Value False
-             , _optWarningMode      = upd (_optWarningMode o)
-             }
-
 withKFlag :: Flag PragmaOptions
 withKFlag o = return $ o
   { _optWithoutK      = Value False
@@ -1507,11 +1513,14 @@ pragmaOptions = concat
                     "succeed and create interface file regardless of unsolved meta variables"
     , Option []     ["allow-incomplete-matches"] (NoArg allowIncompleteMatchFlag)
                     "succeed and create interface file regardless of incomplete pattern matches"
-    , Option []     ["no-positivity-check"] (NoArg noPositivityFlag)
-                    "do not warn about not strictly positive data types"
-    , Option []     ["no-termination-check"] (NoArg dontTerminationCheckFlag)
-                    "do not warn about possibly nonterminating code"
-    , Option []     ["termination-depth"] (ReqArg terminationDepthFlag "N")
+    ]
+  , pragmaFlag      "positivity-check" lensOptPositivityCheck
+                    "warn about not strictly positive data types" ""
+                    Nothing
+  , pragmaFlag      "termination-check" lensOptTerminationCheck
+                    "warn about possibly nonterminating code" ""
+                    Nothing
+  , [ Option []     ["termination-depth"] (ReqArg terminationDepthFlag "N")
                     "allow termination checker to count decrease/increase upto N (default N=1)"
     ]
   , pragmaFlag      "type-in-type" lensOptNoUniverseCheck
