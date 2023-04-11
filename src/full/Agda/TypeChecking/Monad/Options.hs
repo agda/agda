@@ -428,7 +428,7 @@ withPragmaOptions :: ReadTCState m => (PragmaOptions -> PragmaOptions) -> m a ->
 withPragmaOptions = locallyTCState stPragmaOptions
 
 positivityCheckEnabled :: HasOptions m => m Bool
-positivityCheckEnabled = not . optDisablePositivity <$> pragmaOptions
+positivityCheckEnabled = optPositivityCheck <$> pragmaOptions
 
 {-# SPECIALIZE typeInType :: TCM Bool #-}
 typeInType :: HasOptions m => m Bool
