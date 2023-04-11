@@ -87,7 +87,7 @@ module Agda.Interaction.Options.Base
     , lensOptDoubleCheck
     , lensOptSyntacticEquality
     , lensOptWarningMode
-    , lensOptCompileNoMain
+    , lensOptCompileMain
     , lensOptCaching
     , lensOptCountClusters
     , lensOptAutoInline
@@ -372,7 +372,8 @@ data PragmaOptions = PragmaOptions
     -- decreased in the failure continuation of
     -- 'Agda.TypeChecking.SyntacticEquality.checkSyntacticEquality'.
   , _optWarningMode               :: WarningMode
-  , _optCompileNoMain             :: WithDefault 'False
+  , _optCompileMain               :: WithDefault 'True
+    -- ^ Treat the module given at the command line or via interaction as main module in compilation?
   , _optCaching                   :: WithDefault 'True
   , _optCountClusters             :: WithDefault
 #ifdef COUNT_CLUSTERS
@@ -531,7 +532,7 @@ optOverlappingInstances      = collapseDefault . _optOverlappingInstances
 optQualifiedInstances        = collapseDefault . _optQualifiedInstances
 optSafe                      = collapseDefault . _optSafe
 optDoubleCheck               = collapseDefault . _optDoubleCheck
-optCompileNoMain             = collapseDefault . _optCompileNoMain
+optCompileNoMain             = not . collapseDefault . _optCompileMain
 optCaching                   = collapseDefault . _optCaching
 optCountClusters             = collapseDefault . _optCountClusters
 optAutoInline                = collapseDefault . _optAutoInline
@@ -727,8 +728,8 @@ lensOptSyntacticEquality f o = f (_optSyntacticEquality o) <&> \ i -> o{ _optSyn
 lensOptWarningMode :: Lens' _ PragmaOptions
 lensOptWarningMode f o = f (_optWarningMode o) <&> \ i -> o{ _optWarningMode = i }
 
-lensOptCompileNoMain :: Lens' _ PragmaOptions
-lensOptCompileNoMain f o = f (_optCompileNoMain o) <&> \ i -> o{ _optCompileNoMain = i }
+lensOptCompileMain :: Lens' _ PragmaOptions
+lensOptCompileMain f o = f (_optCompileMain o) <&> \ i -> o{ _optCompileMain = i }
 
 lensOptCaching :: Lens' _ PragmaOptions
 lensOptCaching f o = f (_optCaching o) <&> \ i -> o{ _optCaching = i }
@@ -864,7 +865,7 @@ defaultPragmaOptions = PragmaOptions
   , _optDoubleCheck               = Default
   , _optSyntacticEquality         = Strict.Nothing
   , _optWarningMode               = defaultWarningMode
-  , _optCompileNoMain             = Default
+  , _optCompileMain               = Default
   , _optCaching                   = Default
   , _optCountClusters             = Default
   , _optAutoInline                = Default
@@ -993,7 +994,7 @@ recheckBecausePragmaOptionsChanged used current =
     , _optVerbose                   = empty
     , _optProfiling                 = empty
     , _optPostfixProjections        = empty
-    , _optCompileNoMain             = empty
+    , _optCompileMain               = empty
     , _optCaching                   = empty
     , _optCountClusters             = empty
     , _optPrintPatternSynonyms      = empty
@@ -1304,9 +1305,6 @@ inversionMaxDepthFlag s o = do
 
 interactiveFlag :: Flag CommandLineOptions
 interactiveFlag  o = return $ o { optInteractive = True }
-
-compileFlagNoMain :: Flag PragmaOptions
-compileFlagNoMain o = return $ o { _optCompileNoMain = Value True }
 
 compileDirFlag :: FilePath -> Flag CommandLineOptions
 compileDirFlag f o = return $ o { optCompileDir = Just f }
@@ -1654,9 +1652,10 @@ pragmaOptions = concat
                     "give the syntactic equality shortcut FUEL units of fuel (default: unlimited)"
     , Option ['W']  ["warning"] (ReqArg warningModeFlag "FLAG")
                     ("set warning flags. See --help=warning.")
-    , Option []     ["no-main"] (NoArg compileFlagNoMain)
-                    "do not treat the requested module as the main module of a program when compiling"
     ]
+  , pragmaFlag      "main" lensOptCompileMain
+                    "treat the requested module as the main module of a program when compiling" ""
+                    Nothing
   , pragmaFlag      "caching" lensOptCaching
                     "enable caching of typechecking" ""
                     $ Just "disable caching of typechecking"

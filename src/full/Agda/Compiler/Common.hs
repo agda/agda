@@ -38,7 +38,7 @@ import Agda.Utils.List1          ( pattern (:|) )
 import Agda.Utils.Maybe
 import Agda.Utils.Monad          ( ifNotM )
 import Agda.Utils.Pretty
-import Agda.Utils.WithDefault    ( pattern Value )
+import Agda.Utils.WithDefault    ( lensCollapseDefault )
 
 import Agda.Utils.Impossible
 
@@ -172,7 +172,7 @@ inCompilerEnv checkResult cont = do
     -- We match on whether @["--no-main"]@ is one of the stored options.
     let iFilePragmaStrings = map pragmaStrings . iFilePragmaOptions
     when (["--no-main"] `elem` iFilePragmaStrings mainI) $
-      setTCLens (stPragmaOptions . lensOptCompileNoMain) $ Value True
+      setTCLens (stPragmaOptions . lensOptCompileMain . lensCollapseDefault) False
 
     -- Perhaps all pragma options from the top-level module should be
     -- made available to the compiler in a suitable way. Here are more
