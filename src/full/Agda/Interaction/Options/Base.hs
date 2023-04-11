@@ -180,10 +180,11 @@ import Control.Monad.Except ( ExceptT, MonadError(throwError), runExceptT )
 import Control.Monad.Writer ( Writer, runWriter, MonadWriter(..) )
 
 import Data.Function            ( (&) )
+import Data.List                ( intercalate )
 import Data.Maybe
 import Data.Map                 ( Map )
 import qualified Data.Map as Map
-import Data.List                ( intercalate )
+import Data.Set                 ( Set )
 import qualified Data.Set as Set
 
 import GHC.Generics (Generic)
@@ -971,13 +972,19 @@ checkPragmaOptions opts = do
     -- -WNotStrictlyPositive iff --positivity-check
     . conformWarningToOption NotStrictlyPositive_ optPositivityCheck
 
+    -- unsolvedWarnings iff --no-allow-unsolved-metas
+    . conformWarningsToOption unsolvedWarnings (not . optAllowUnsolved)
+
+    -- incompleteMatchWarnings iff --no-allow-incomplete-matches
+    . conformWarningsToOption incompleteMatchWarnings (not . optAllowIncompleteMatch)
+
     -- --no-load-primitives implies --no-import-sorts
     . applyUnless (optLoadPrimitives opts) (set (lensOptImportSorts . lensKeepDefault) False)
 
     -- --flat-split implies --cohesion
     . applyWhen (optFlatSplit opts) (set (lensOptCohesion . lensKeepDefault) True)
 
--- | Activate warning when option is on and vice versa
+-- | Activate warning when and only when option is on.
 conformWarningToOption ::
      WarningName
        -- ^ Warning to toggle.
@@ -987,8 +994,20 @@ conformWarningToOption ::
        -- ^ Options to modify.
   -> PragmaOptions
        -- ^ Modified options.
-conformWarningToOption w f opts =
-  set (lensOptWarningMode . warningSet . (`Set.alterF` w)) (f opts) opts
+conformWarningToOption = conformWarningsToOption . Set.singleton
+
+-- | Activate warnings when option is on and deactivate them when option is off.
+conformWarningsToOption ::
+     Set WarningName
+       -- ^ Warnings to toggle.
+  -> (PragmaOptions -> Bool)
+       -- ^ Which flag to conform to?
+  -> PragmaOptions
+       -- ^ Options to modify.
+  -> PragmaOptions
+       -- ^ Modified options.
+conformWarningsToOption ws f opts =
+  over (lensOptWarningMode . warningSet) (if f opts then (`Set.union` ws) else (Set.\\ ws)) opts
 
 -- | Check for unsafe pragmas. Gives a list of used unsafe flags.
 
@@ -1203,20 +1222,6 @@ ignoreAllInterfacesFlag o = return $ o { optIgnoreAllInterfaces = True }
 
 localInterfacesFlag :: Flag CommandLineOptions
 localInterfacesFlag o = return $ o { optLocalInterfaces = True }
-
-allowUnsolvedFlag :: Flag PragmaOptions
-allowUnsolvedFlag o = do
-  let upd = over warningSet (Set.\\ unsolvedWarnings)
-  return $ o { _optAllowUnsolved = Value True
-             , _optWarningMode   = upd (_optWarningMode o)
-             }
-
-allowIncompleteMatchFlag :: Flag PragmaOptions
-allowIncompleteMatchFlag o = do
-  let upd = over warningSet (Set.\\ incompleteMatchWarnings)
-  return $ o { _optAllowIncompleteMatch = Value True
-             , _optWarningMode          = upd (_optWarningMode o)
-             }
 
 traceImportsFlag :: Maybe String -> Flag CommandLineOptions
 traceImportsFlag arg o = do
@@ -1509,11 +1514,13 @@ pragmaOptions = concat
                     "set verbosity level to N"
     , Option []     ["profile"] (ReqArg profileFlag "TYPE")
                     ("turn on profiling for TYPE (where TYPE=" ++ intercalate "|" validProfileOptionStrings ++ ")")
-    , Option []     ["allow-unsolved-metas"] (NoArg allowUnsolvedFlag)
-                    "succeed and create interface file regardless of unsolved meta variables"
-    , Option []     ["allow-incomplete-matches"] (NoArg allowIncompleteMatchFlag)
-                    "succeed and create interface file regardless of incomplete pattern matches"
     ]
+  , pragmaFlag      "allow-unsolved-metas" lensOptAllowUnsolved
+                    "succeed and create interface file regardless of unsolved meta variables" ""
+                    Nothing
+  , pragmaFlag      "allow-incomplete-matches" lensOptAllowIncompleteMatch
+                    "succeed and create interface file regardless of incomplete pattern matches" ""
+                    Nothing
   , pragmaFlag      "positivity-check" lensOptPositivityCheck
                     "warn about not strictly positive data types" ""
                     Nothing
