@@ -941,10 +941,13 @@ checkOpts opts = do
 
   lensPragmaOptions checkPragmaOptions opts
 
--- | Check for pragma option consistency and make adjustments
+-- | Check for pragma option consistency and make adjustments.
 
 checkPragmaOptions :: MonadError OptionError m => PragmaOptions -> m PragmaOptions
 checkPragmaOptions opts = do
+
+  -- Check for errors in pragma options.
+
   when ((optEraseRecordParameters `butNot` optErasure) opts) $
     throwError
       "The option --erase-record-parameters requires the use of --erasure"
@@ -955,9 +958,14 @@ checkPragmaOptions opts = do
       "Cluster counting has not been enabled in this build of Agda."
 #endif
 
-  -- Set activation of warning CoverageNoExactSplit to activation of --exact-split
-  let opts = opts & over (lensOptWarningMode . warningSet) ((if optExactSplit opts then Set.insert else Set.delete) CoverageNoExactSplit_)
-  return opts
+  -- Perform corrections in pragma options.
+
+  opts
+    -- Set activation of warning CoverageNoExactSplit to activation of --exact-split
+    & (lensOptWarningMode $ warningSet $ pure . (if optExactSplit opts then Set.insert else Set.delete) CoverageNoExactSplit_)
+
+    -- --no-load-primitives implies --no-import-sorts
+    . applyUnless (optLoadPrimitives opts) (set (lensOptImportSorts . lensKeepDefault) False)
 
 -- | Check for unsafe pragmas. Gives a list of used unsafe flags.
 
@@ -1178,12 +1186,6 @@ ignoreAllInterfacesFlag o = return $ o { optIgnoreAllInterfaces = True }
 
 localInterfacesFlag :: Flag CommandLineOptions
 localInterfacesFlag o = return $ o { optLocalInterfaces = True }
-
-noLoadPrimitivesFlag :: Flag PragmaOptions
-noLoadPrimitivesFlag o = return $ o
-  { _optLoadPrimitives = Value False
-  , _optImportSorts    = Value False
-  }
 
 allowUnsolvedFlag :: Flag PragmaOptions
 allowUnsolvedFlag o = do
@@ -1677,9 +1679,9 @@ pragmaOptions = concat
   , pragmaFlag      "import-sorts" lensOptImportSorts
                     "implicitly import Agda.Primitive using (Set; Prop) at the start of each top-level module" ""
                     $ Just "disable the implicit import of Agda.Primitive using (Set; Prop) at the start of each top-level module"
-  , [ Option []     ["no-load-primitives"] (NoArg noLoadPrimitivesFlag)
-                    "disable loading of primitive modules at all (implies --no-import-sorts)"
-    ]
+  , pragmaFlag      "load-primitives" lensOptLoadPrimitives
+                    "load primitives modules" ""
+                    $ Just "disable loading of primitive modules completely (implies --no-import-sorts)"
   , pragmaFlag      "allow-exec" lensOptAllowExec
                     "allow system calls to trusted executables with primExec" ""
                     Nothing
