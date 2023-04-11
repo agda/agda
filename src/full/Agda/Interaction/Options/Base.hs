@@ -172,7 +172,7 @@ module Agda.Interaction.Options.Base
     , optWarningMode
     ) where
 
-import Prelude hiding ( null )
+import Prelude hiding ( null, not, (&&), (||) )
 
 import Control.DeepSeq
 import Control.Monad ( when, void )
@@ -208,6 +208,7 @@ import Agda.Syntax.Concrete.Glyph ( unsafeSetUnicodeOrAscii, UnicodeOrAscii(..) 
 import Agda.Syntax.Common (Cubical(..))
 import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 
+import Agda.Utils.Boolean
 import Agda.Utils.FileName      ( AbsolutePath )
 import Agda.Utils.Function      ( applyWhen, applyUnless )
 import Agda.Utils.Functor       ( (<&>) )
@@ -294,7 +295,7 @@ instance NFData CommandLineOptions
 data PragmaOptions = PragmaOptions
   { _optShowImplicit              :: WithDefault 'False
   , _optShowIrrelevant            :: WithDefault 'False
-  , _optUseUnicode                :: UnicodeOrAscii
+  , _optUseUnicode                :: WithDefault' UnicodeOrAscii 'True -- Would like to write UnicodeOk instead of True here
   , _optVerbose                   :: !Verbosity
   , _optProfiling                 :: ProfileOptions
   , _optProp                      :: WithDefault 'False
@@ -544,6 +545,11 @@ optSaveMetas                 = collapseDefault . _optSaveMetas
 optShowIdentitySubstitutions = collapseDefault . _optShowIdentitySubstitutions
 optKeepCoveringClauses       = collapseDefault . _optKeepCoveringClauses
 
+-- Collapse defaults (non-Bool)
+
+optUseUnicode                :: PragmaOptions -> UnicodeOrAscii
+optUseUnicode                = collapseDefault . _optUseUnicode
+
 -- Extra trivial accessors (keep in alphabetical order)
 
 optConfluenceCheck     :: PragmaOptions -> _
@@ -553,7 +559,6 @@ optInversionMaxDepth   :: PragmaOptions -> _
 optProfiling           :: PragmaOptions -> _
 optSyntacticEquality   :: PragmaOptions -> _
 optTerminationDepth    :: PragmaOptions -> _
-optUseUnicode          :: PragmaOptions -> _
 optVerbose             :: PragmaOptions -> _
 optWarningMode         :: PragmaOptions -> _
 
@@ -564,7 +569,6 @@ optInversionMaxDepth   = _optInversionMaxDepth
 optProfiling           = _optProfiling
 optSyntacticEquality   = _optSyntacticEquality
 optTerminationDepth    = _optTerminationDepth
-optUseUnicode          = _optUseUnicode
 optVerbose             = _optVerbose
 optWarningMode         = _optWarningMode
 
@@ -808,7 +812,7 @@ defaultPragmaOptions :: PragmaOptions
 defaultPragmaOptions = PragmaOptions
   { _optShowImplicit              = Default
   , _optShowIrrelevant            = Default
-  , _optUseUnicode                = UnicodeOk
+  , _optUseUnicode                = Default -- UnicodeOk
   , _optVerbose                   = Strict.Nothing
   , _optProfiling                 = noProfileOptions
   , _optProp                      = Default
@@ -1177,10 +1181,12 @@ traceImportsFlag arg o = do
                           _ -> throwError $ "unknown printing option " ++ str ++ ". Please specify a number."
   return $ o { optTraceImports = mode }
 
-asciiOnlyFlag :: Flag PragmaOptions
-asciiOnlyFlag o = return $ UNSAFE.unsafePerformIO $ do
-  unsafeSetUnicodeOrAscii AsciiOnly
-  return $ o { _optUseUnicode = AsciiOnly }
+-- | Side effect for setting '_optUseUnicode'.
+--
+unicodeOrAsciiEffect :: UnicodeOrAscii -> Flag PragmaOptions
+unicodeOrAsciiEffect a o = return $ UNSAFE.unsafePerformIO $ do
+  unsafeSetUnicodeOrAscii a
+  return o
 
 ghciInteractionFlag :: Flag CommandLineOptions
 ghciInteractionFlag o = return $ o { optGHCiInteraction = True }
@@ -1458,24 +1464,41 @@ deadStandardOptions =
     msgSharing = "(in favor of the Agda abstract machine)"
 
 -- | Construct a flag of type @WithDefault _@
-pragmaFlag :: KnownBool b
+pragmaFlag :: (IsBool a, KnownBool b)
   => String
        -- ^ Long option name.  Prepended with @no-@ for negative version.
-  -> Lens' (WithDefault b) PragmaOptions
+  -> Lens' (WithDefault' a b) PragmaOptions
        -- ^ Field to switch.
   -> String
        -- ^ Explanation for positive option.
   -> Maybe String
        -- ^ Explanation for negative option.
   -> [OptDescr (Flag PragmaOptions)]
+pragmaFlag long field pos neg = pragmaFlag' long field (const return) pos neg
+
+
+-- | Construct a flag of type @WithDefault _@
+pragmaFlag' :: (IsBool a, KnownBool b)
+  => String
+       -- ^ Long option name.  Prepended with @no-@ for negative version.
+  -> Lens' (WithDefault' a b) PragmaOptions
+       -- ^ Field to switch.
+  -> (a -> Flag PragmaOptions)
+       -- ^ Given the new value, perform additional effect (can override field setting).
+  -> String
+       -- ^ Explanation for positive option.
+  -> Maybe String
+       -- ^ Explanation for negative option.
+  -> [OptDescr (Flag PragmaOptions)]
        -- ^ Pair of option descriptors (positive, negative)
-pragmaFlag long field pos neg =
+pragmaFlag' long field effect pos neg =
   [ Option [] [no b long] (flag b) (def b $ expl b) | b <- [True,False] ]
   where
   b0     = collapseDefault $ defaultPragmaOptions ^. field
   no   b = applyUnless b ("no-" ++)
-  flag b = NoArg $ return . set field (Value b)
-  def  b = applyWhen (b == b0) (++ " (default)")
+  flag b = NoArg $ effect a . set field (Value a)
+    where a = fromBool b
+  def  b = applyWhen (fromBool b == b0) (++ " (default)")
   expl b = if b then pos else fromMaybe ("do not " ++ pos) neg
 
 pragmaOptions :: [OptDescr (Flag PragmaOptions)]
@@ -1489,9 +1512,10 @@ pragmaOptions = concat
   , pragmaFlag      "show-identity-substitutions" lensOptShowIdentitySubstitutions
                     "show all arguments of metavariables when printing terms"
                     Nothing
-  , [ Option []     ["no-unicode"] (NoArg asciiOnlyFlag)
-                    "don't use unicode characters when printing terms"
-    , Option ['v']  ["verbose"] (ReqArg verboseFlag "N")
+  , pragmaFlag'     "unicode" lensOptUseUnicode unicodeOrAsciiEffect
+                    "use unicode characters when printing terms"
+                    Nothing
+  , [ Option ['v']  ["verbose"] (ReqArg verboseFlag "N")
                     "set verbosity level to N"
     , Option []     ["profile"] (ReqArg profileFlag "TYPE")
                     ("turn on profiling for TYPE (where TYPE=" ++ intercalate "|" validProfileOptionStrings ++ ")")
