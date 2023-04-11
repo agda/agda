@@ -967,6 +967,9 @@ checkPragmaOptions opts = do
     -- --no-load-primitives implies --no-import-sorts
     . applyUnless (optLoadPrimitives opts) (set (lensOptImportSorts . lensKeepDefault) False)
 
+    -- --flat-split implies --cohesion
+    . applyWhen (optFlatSplit opts) (set (lensOptCohesion . lensKeepDefault) True)
+
 -- | Check for unsafe pragmas. Gives a list of used unsafe flags.
 
 unsafePragmaOptions :: PragmaOptions -> [String]
@@ -1159,12 +1162,6 @@ safeFlag o = do
   return $ o { _optSafe        = Value True
              , _optSizedTypes  = setDefault False (_optSizedTypes o)
              }
-
-flatSplitFlag :: Flag PragmaOptions
-flatSplitFlag o = return $ o
-  { _optFlatSplit = Value True
-  , _optCohesion  = Value True
-  }
 
 syntacticEqualityFlag :: Maybe String -> Flag PragmaOptions
 syntacticEqualityFlag s o =
@@ -1541,9 +1538,9 @@ pragmaOptions = concat
   , pragmaFlag      "cohesion" lensOptCohesion
                     "enable the cohesion modalities" "(in particular @flat)"
                     Nothing
-  , [ Option []     ["flat-split"] (NoArg flatSplitFlag)
-                    "allow split on (@flat x : A) arguments (implies --cohesion)"
-    ]
+  , pragmaFlag      "flat-split" lensOptFlatSplit
+                    "allow splitting on `(@flat x : A)' arguments" "(implies --cohesion)"
+                    Nothing
   , pragmaFlag      "guardedness" lensOptGuardedness
                     "enable constructor-based guarded corecursion" "(inconsistent with --sized-types)"
                     $ Just "disable constructor-based guarded corecursion"
