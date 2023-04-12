@@ -428,18 +428,20 @@ class VALU t b where
                Proxy t -> Node -> Maybe (Products (Constant Int32 (Domains t)))
 
 instance VALU t 'True where
-
+  {-# INLINE valuN' #-}
   valuN' c () = return c
 
+  {-# INLINE valueArgs #-}
   valueArgs _ xs = case xs of
     [] -> Just ()
     _  -> Nothing
 
 
 instance VALU t (IsBase t) => VALU (a -> t) 'False where
-
+  {-# INLINE valuN' #-}
   valuN' c (a, as) = value a >>= \ v -> valuN' (c v) as
 
+  {-# INLINE valueArgs #-}
   valueArgs _ xs = case xs of
     (x : xs') -> (x,) <$> valueArgs (Proxy :: Proxy t) xs'
     _         -> Nothing
