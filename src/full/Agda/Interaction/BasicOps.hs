@@ -795,9 +795,10 @@ getIPBoundary norm ii = withInteractionId ii $ do
       traverse go $ MapS.toList (getBoundary (ipBoundary ip))
     Nothing -> pure []
 
-facesInMeta :: InteractionId -> Rewrite -> A.Expr -> TCM [IPFace' C.Expr]
-facesInMeta ii norm expr = withInteractionId ii $ do
-  (ex, _) <- inferExpr expr
+typeAndFacesInMeta :: InteractionId -> Rewrite -> Expr -> TCM (Expr, [IPFace' C.Expr])
+typeAndFacesInMeta ii norm expr = withInteractionId ii $ do
+  (ex, ty) <- inferExpr expr
+  ty <- normalForm norm ty
   ip <- lookupInteractionPoint ii
 
   io <- primIOne
@@ -814,7 +815,9 @@ facesInMeta ii norm expr = withInteractionId ii $ do
         (,) a <$> c (if b then io else iz)
       fmap (IPFace' eqns) . c =<< simplify (applySubst sub ex)
 
-  traverse go $ MapS.keys (getBoundary (ipBoundary ip))
+  faces <- traverse go $ MapS.keys (getBoundary (ipBoundary ip))
+  ty <- reifyUnblocked ty
+  pure (ty, faces)
 
 -- | Goals and Warnings
 

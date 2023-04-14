@@ -776,8 +776,7 @@ interpret (Cmd_goal_type_context_infer norm ii rng s) = do
             else do
               liftLocalState $ withInteractionId ii $ do
                 parsed <- B.parseExprIn ii rng s
-                typ <- B.typeInMeta ii norm parsed
-                faces <- B.facesInMeta ii norm parsed
+                (typ, faces) <- B.typeAndFacesInMeta ii norm parsed
                 return (GoalAndHave typ faces)
   cmd_goal_type_context_and aux norm ii rng s
 
