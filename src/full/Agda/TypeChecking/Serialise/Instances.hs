@@ -28,8 +28,5 @@ instance EmbPrj Interface where
       icodeN' interface a b c (fromImportedModules d) e f g h i j k l m n o p q r s t u v
     where interface a b c = Interface a b c . toImportedModules
 
-  value = vcase valu where
-    valu [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v] =
-        valuN interface a b c d e f g h i j k l m n o p q r s t u v
-      where interface a b c = Interface a b c . toImportedModules
-    valu _ = malformed
+  value = valueN interface
+    where interface a b c = Interface a b c . toImportedModules
