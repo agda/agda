@@ -307,11 +307,6 @@ instance EmbPrj ProfileOptions where
   value = fmap profileOptionsFromList . value
 
 instance EmbPrj ProfileOption where
-  icod_ = icode . fromEnum
-  value = value >=> \ n -> if lo <= n && n <= hi then pure (toEnum n) else malformed
-    where
-      lo = fromEnum (minBound :: ProfileOption)
-      hi = fromEnum (maxBound :: ProfileOption)
 
 instance EmbPrj UnicodeOrAscii
 
@@ -395,7 +390,7 @@ instance EmbPrj WarningName where
     NoGuardednessFlag_                           -> 58
     NotInScope_                                  -> 59
     NotStrictlyPositive_                         -> 60
-    UnsupportedIndexedMatch_                        -> 61
+    UnsupportedIndexedMatch_                     -> 61
     OldBuiltin_                                  -> 62
     PragmaCompileErased_                         -> 63
     RewriteMaybeNonConfluent_                    -> 64
