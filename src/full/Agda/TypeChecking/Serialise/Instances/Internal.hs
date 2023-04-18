@@ -427,15 +427,15 @@ instance EmbPrj a => EmbPrj (SplitTree' a) where
     valu _            = malformed
 
 instance EmbPrj FunctionFlag where
-  icod_ FunStatic       = icodeN 0 FunStatic
-  icod_ FunInline       = icodeN 1 FunInline
-  icod_ FunMacro        = icodeN 2 FunMacro
+  icod_ FunStatic       = pure 0
+  icod_ FunInline       = pure 1
+  icod_ FunMacro        = pure 2
 
-  value = vcase valu where
-    valu [0] = valuN FunStatic
-    valu [1] = valuN FunInline
-    valu [2] = valuN FunMacro
-    valu _   = malformed
+  value = \case
+    0 -> pure FunStatic
+    1 -> pure FunInline
+    2 -> pure FunMacro
+    _ -> malformed
 
 instance EmbPrj a => EmbPrj (WithArity a) where
   icod_ (WithArity a b) = icodeN' WithArity a b

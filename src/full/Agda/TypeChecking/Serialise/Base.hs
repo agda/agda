@@ -189,10 +189,14 @@ class Typeable a => EmbPrj a where
 
   -- Simple enumeration types can be (de)serialized using (from/to)Enum.
 
-  default value :: (Enum a) => Int32 -> R a
-  value i = liftIO (evaluate (toEnum (fromIntegral i))) `catchAll` const malformed
+  default value :: (Enum a, Bounded a) => Int32 -> R a
+  value i =
+    let i' = fromIntegral i in
+    if i' >= fromEnum (minBound :: a) && i' <= fromEnum (maxBound :: a)
+    then pure (toEnum i')
+    else malformed
 
-  default icod_ :: (Enum a) => a -> S Int32
+  default icod_ :: (Enum a, Bounded a) => a -> S Int32
   icod_ = return . fromIntegral . fromEnum
 
 -- | Increase entry for @a@ in 'stats'.
