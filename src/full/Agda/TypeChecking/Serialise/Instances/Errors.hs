@@ -293,14 +293,10 @@ instance EmbPrj InfectiveCoinfective where
     valu _   = malformed
 
 instance EmbPrj PragmaOptions where
-  icod_ = \case
-    PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm ->
-      icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm
+  icod_    (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm) =
+    icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm
 
-  value = vcase $ \case
-    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, aa, bb, cc, dd, ee, ff, gg, hh, ii, jj, kk, ll, mm, nn, oo, pp, qq, rr, ss, tt, uu, vv, ww, xx, yy, zz, aaa, bbb, ccc, ddd, eee, fff, ggg, hhh, iii, jjj, kkk, lll, mmm] ->
-      valuN PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm
-    _ -> malformed
+  value = valueN PragmaOptions
 
 instance EmbPrj ProfileOptions where
   icod_ opts = icode (profileOptionsToList opts)
@@ -320,12 +316,9 @@ instance EmbPrj ConfluenceCheck where
     valu _   = malformed
 
 instance EmbPrj WarningMode where
-  icod_ = \case
-    WarningMode a b -> icodeN' WarningMode a b
+  icod_ (WarningMode a b) = icodeN' WarningMode a b
 
-  value = vcase $ \case
-    [a, b]   -> valuN WarningMode a b
-    _ -> malformed
+  value = valueN WarningMode
 
 instance EmbPrj WarningName where
   icod_ = return . \case

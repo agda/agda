@@ -310,13 +310,9 @@ instance EmbPrj Range where
 newtype SerialisedRange = SerialisedRange { underlyingRange :: Range }
 
 instance EmbPrj SerialisedRange where
-  icod_ (SerialisedRange r) =
-    icodeN' (undefined :: SrcFile -> [IntervalWithoutFile] -> SerialisedRange)
-            (P.rangeFile r) (P.rangeIntervals r)
+  icod_ (SerialisedRange r) = icodeN' P.intervalsToRange (P.rangeFile r) (P.rangeIntervals r)
 
-  value = vcase valu where
-    valu [a, b] = SerialisedRange <$> valuN P.intervalsToRange a b
-    valu _      = malformed
+  value i = SerialisedRange <$> valueN P.intervalsToRange i
 
 instance EmbPrj C.Name where
   icod_ (C.NoName a b)     = icodeN 0 C.NoName a b
@@ -600,9 +596,7 @@ instance EmbPrj Relevance where
 instance EmbPrj Annotation where
   icod_ (Annotation l) = icodeN' Annotation l
 
-  value = vcase $ \case
-    [l] -> valuN Annotation l
-    _ -> malformed
+  value = valueN Annotation
 
 instance EmbPrj Lock where
   icod_ IsNotLock          = pure 0
