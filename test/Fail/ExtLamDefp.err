@@ -1,0 +1,3 @@
+ExtLamDefp.agda:12,5-9
+(λ { refl → refl }) x != x of type 0 ≡ 0
+when checking that the expression refl has type f ≡ (λ x → x)
