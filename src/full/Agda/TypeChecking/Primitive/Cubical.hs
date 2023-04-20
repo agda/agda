@@ -514,29 +514,24 @@ primTransHComp cmd ts nelims = do
 
           Def q es -> do
             info <- getConstInfo q
-            let   lam_i = Lam defaultArgInfo . Abs "i"
+            let
+              lam_i = Lam defaultArgInfo . Abs "i"
+              doR r@Record{recEtaEquality' = eta} = (nelims > 0) || theEtaEquality eta == NoEta PatternMatching
+              doR _ = False
 
             -- Record and data types have their own implementations of
             -- the Kan operations, which get generated as part of their
             -- definition.
             case theDef info of
               r@Record{recComp = kit, recEtaEquality' = eta}
-                | nelims > 0, Just as <- allApplyElims es, DoTransp <- cmd, Just transpR <- nameOfTransp kit ->
+                | doR r, Just as <- allApplyElims es, DoTransp <- cmd, Just transpR <- nameOfTransp kit ->
                   -- Optimisation: If the record has no parameters then we can ditch the transport.
                   if recPars r == 0
                      then redReturn $ unArg u0
                      else redReturn $ Def transpR [] `apply` (map (fmap lam_i) as ++ [ignoreBlocking sphi, u0])
 
-                -- If this is a record with no-eta-equality but pattern matching, then we must compute
-                -- to constructors regardless of there being extra eliminations:
-                | Just as <- allApplyElims es, DoTransp <- cmd, Just transpR <- nameOfTransp kit
-                , NoEta PatternMatching <- theEtaEquality eta ->
-                  if recPars r == 0
-                     then redReturn $ unArg u0
-                     else redReturn $ Def transpR [] `apply` (map (fmap lam_i) as ++ [ignoreBlocking sphi, u0])
-
                 -- Records know how to hcomp themselves:
-                | nelims > 0, Just as <- allApplyElims es, DoHComp <- cmd, Just hCompR <- nameOfHComp kit ->
+                | doR r, Just as <- allApplyElims es, DoHComp <- cmd, Just hCompR <- nameOfHComp kit ->
                   redReturn $ Def hCompR [] `apply` (as ++ [ignoreBlocking sphi, fromMaybe __IMPOSSIBLE__ u,u0])
 
                 -- If this is a record with no fields, then compData
