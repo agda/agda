@@ -520,9 +520,17 @@ primTransHComp cmd ts nelims = do
             -- the Kan operations, which get generated as part of their
             -- definition.
             case theDef info of
-              r@Record{recComp = kit}
+              r@Record{recComp = kit, recEtaEquality' = eta}
                 | nelims > 0, Just as <- allApplyElims es, DoTransp <- cmd, Just transpR <- nameOfTransp kit ->
                   -- Optimisation: If the record has no parameters then we can ditch the transport.
+                  if recPars r == 0
+                     then redReturn $ unArg u0
+                     else redReturn $ Def transpR [] `apply` (map (fmap lam_i) as ++ [ignoreBlocking sphi, u0])
+
+                -- If this is a record with no-eta-equality but pattern matching, then we must compute
+                -- to constructors regardless of there being extra eliminations:
+                | Just as <- allApplyElims es, DoTransp <- cmd, Just transpR <- nameOfTransp kit
+                , NoEta PatternMatching <- theEtaEquality eta ->
                   if recPars r == 0
                      then redReturn $ unArg u0
                      else redReturn $ Def transpR [] `apply` (map (fmap lam_i) as ++ [ignoreBlocking sphi, u0])
