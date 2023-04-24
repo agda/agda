@@ -484,6 +484,7 @@ optAutoInline                :: PragmaOptions -> Bool
 optPrintPatternSynonyms      :: PragmaOptions -> Bool
 optFastReduce                :: PragmaOptions -> Bool
 optCallByName                :: PragmaOptions -> Bool
+-- | 'optCohesion' is implied by 'optFlatSplit'.
 optCohesion                  :: PragmaOptions -> Bool
 optFlatSplit                 :: PragmaOptions -> Bool
 optImportSorts               :: PragmaOptions -> Bool
@@ -540,7 +541,8 @@ optAutoInline                = collapseDefault . _optAutoInline
 optPrintPatternSynonyms      = collapseDefault . _optPrintPatternSynonyms
 optFastReduce                = collapseDefault . _optFastReduce
 optCallByName                = collapseDefault . _optCallByName
-optCohesion                  = collapseDefault . _optCohesion
+-- --flat-split implies --cohesion
+optCohesion                  = collapseDefault . _optCohesion      || optFlatSplit
 optFlatSplit                 = collapseDefault . _optFlatSplit
 optImportSorts               = collapseDefault . _optImportSorts
 optLoadPrimitives            = collapseDefault . _optLoadPrimitives
@@ -980,9 +982,6 @@ checkPragmaOptions opts = do
 
     -- --no-load-primitives implies --no-import-sorts
     . applyUnless (optLoadPrimitives opts) (set (lensOptImportSorts . lensKeepDefault) False)
-
-    -- --flat-split implies --cohesion
-    . applyWhen (optFlatSplit opts) (set (lensOptCohesion . lensKeepDefault) True)
 
 -- | Activate warning when and only when option is on.
 conformWarningToOption ::

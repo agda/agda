@@ -258,6 +258,9 @@ Pragmas and options
   Options given on the command line are overwritten by options given in the `.agda-lib` file,
   which in turn get overwritten by options given in the individual `.agda` file.
 
+* Option `--flat-split` again implies `--cohesion`.
+  Reverts change introduced in Agda 2.6.3 where `--cohesion` was a prerequisite for `--flat-split`.
+
 Library management
 ------------------
 
