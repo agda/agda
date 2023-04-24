@@ -505,6 +505,7 @@ Pattern matching and equality
 
      Enable pattern matching on ``@♭`` arguments (see
      :ref:`pattern-matching-on-flat`).
+     Implies :option:`--cohesion`.
 
 .. option:: --no-pattern-matching
 
