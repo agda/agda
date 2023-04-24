@@ -487,6 +487,7 @@ optCallByName                :: PragmaOptions -> Bool
 -- | 'optCohesion' is implied by 'optFlatSplit'.
 optCohesion                  :: PragmaOptions -> Bool
 optFlatSplit                 :: PragmaOptions -> Bool
+-- | 'optImportSorts' requires 'optLoadPrimitives'.
 optImportSorts               :: PragmaOptions -> Bool
 optLoadPrimitives            :: PragmaOptions -> Bool
 optAllowExec                 :: PragmaOptions -> Bool
@@ -544,7 +545,8 @@ optCallByName                = collapseDefault . _optCallByName
 -- --flat-split implies --cohesion
 optCohesion                  = collapseDefault . _optCohesion      || optFlatSplit
 optFlatSplit                 = collapseDefault . _optFlatSplit
-optImportSorts               = collapseDefault . _optImportSorts
+-- --no-load-primitives implies --no-import-sorts
+optImportSorts               = collapseDefault . _optImportSorts   && optLoadPrimitives
 optLoadPrimitives            = collapseDefault . _optLoadPrimitives
 optAllowExec                 = collapseDefault . _optAllowExec
 optSaveMetas                 = collapseDefault . _optSaveMetas
@@ -979,9 +981,6 @@ checkPragmaOptions opts = do
 
     -- incompleteMatchWarnings iff --no-allow-incomplete-matches
     . conformWarningsToOption incompleteMatchWarnings (not . optAllowIncompleteMatch)
-
-    -- --no-load-primitives implies --no-import-sorts
-    . applyUnless (optLoadPrimitives opts) (set (lensOptImportSorts . lensKeepDefault) False)
 
 -- | Activate warning when and only when option is on.
 conformWarningToOption ::
