@@ -514,21 +514,37 @@ primTransHComp cmd ts nelims = do
 
           Def q es -> do
             info <- getConstInfo q
-            let   lam_i = Lam defaultArgInfo . Abs "i"
+            let
+              lam_i = Lam defaultArgInfo . Abs "i"
+
+              -- When should Kan operations on a record value reduce?
+              doR r@Record{recEtaEquality' = eta} = case theEtaEquality eta of
+                -- If it's a no-eta, pattern-matching record, then the
+                -- Kan operations behave as they do for data types; Only
+                -- reduce when the base is a constructor
+                NoEta PatternMatching -> case unArg u0 of
+                  Con{} -> True
+                  _ -> False
+                -- For every other case, we can reduce into a value
+                -- defined by copatterns; However, this would expose the
+                -- internal name of transp/hcomp when printed, so hold
+                -- off until there are projections.
+                _ -> nelims > 0
+              doR _ = False
 
             -- Record and data types have their own implementations of
             -- the Kan operations, which get generated as part of their
             -- definition.
             case theDef info of
-              r@Record{recComp = kit}
-                | nelims > 0, Just as <- allApplyElims es, DoTransp <- cmd, Just transpR <- nameOfTransp kit ->
+              r@Record{recComp = kit, recEtaEquality' = eta}
+                | doR r, Just as <- allApplyElims es, DoTransp <- cmd, Just transpR <- nameOfTransp kit ->
                   -- Optimisation: If the record has no parameters then we can ditch the transport.
                   if recPars r == 0
                      then redReturn $ unArg u0
                      else redReturn $ Def transpR [] `apply` (map (fmap lam_i) as ++ [ignoreBlocking sphi, u0])
 
                 -- Records know how to hcomp themselves:
-                | nelims > 0, Just as <- allApplyElims es, DoHComp <- cmd, Just hCompR <- nameOfHComp kit ->
+                | doR r, Just as <- allApplyElims es, DoHComp <- cmd, Just hCompR <- nameOfHComp kit ->
                   redReturn $ Def hCompR [] `apply` (as ++ [ignoreBlocking sphi, fromMaybe __IMPOSSIBLE__ u,u0])
 
                 -- If this is a record with no fields, then compData
