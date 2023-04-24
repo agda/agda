@@ -253,6 +253,11 @@ Pragmas and options
 
   Note: While compatible with the `--cubical` option, this option is currently not compatible with cubical builtin files, and an error will be raised when trying to import them in a file using `--level-universe`.
 
+* Most boolean options now have their opposite, e.g., `--allow-unsolved-metas` is complemented by `--no-allow-unsolved-metas`.
+  With the opposite one can override a previously given option.
+  Options given on the command line are overwritten by options given in the `.agda-lib` file,
+  which in turn get overwritten by options given in the individual `.agda` file.
+
 Library management
 ------------------
 
