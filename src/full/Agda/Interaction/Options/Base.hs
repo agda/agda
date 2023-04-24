@@ -464,6 +464,7 @@ optHiddenArgumentPuns        :: PragmaOptions -> Bool
 optEta                       :: PragmaOptions -> Bool
 optForcing                   :: PragmaOptions -> Bool
 optProjectionLike            :: PragmaOptions -> Bool
+-- | 'optErasure' is implied by 'optEraseRecordParameters'.
 optErasure                   :: PragmaOptions -> Bool
 optErasedMatches             :: PragmaOptions -> Bool
 optEraseRecordParameters     :: PragmaOptions -> Bool
@@ -522,7 +523,8 @@ optHiddenArgumentPuns        = collapseDefault . _optHiddenArgumentPuns
 optEta                       = collapseDefault . _optEta
 optForcing                   = collapseDefault . _optForcing
 optProjectionLike            = collapseDefault . _optProjectionLike
-optErasure                   = collapseDefault . _optErasure
+-- --erase-record-parameters implies --erasure
+optErasure                   = collapseDefault . _optErasure || optEraseRecordParameters
 optErasedMatches             = collapseDefault . _optErasedMatches
 optEraseRecordParameters     = collapseDefault . _optEraseRecordParameters
 optRewriting                 = collapseDefault . _optRewriting

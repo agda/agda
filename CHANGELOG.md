@@ -261,6 +261,8 @@ Pragmas and options
 * Option `--flat-split` again implies `--cohesion`.
   Reverts change introduced in Agda 2.6.3 where `--cohesion` was a prerequisite for `--flat-split`.
 
+* Option `--erase-record-parameters` now implies `--erasure`.
+
 Library management
 ------------------
 
