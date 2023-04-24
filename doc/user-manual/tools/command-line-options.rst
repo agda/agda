@@ -825,7 +825,7 @@ Other features
 
      Mark parameters as erased in record module telescopes.
 
-     This option may only be used if :option:`--erasure` is used.
+     Implies :option:`--erasure`.
 
 .. _warnings:
 
