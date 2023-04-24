@@ -31,17 +31,18 @@ import Text.Read ( readMaybe )
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
-import Data.List ( stripPrefix, intercalate )
+import Data.List ( stripPrefix, intercalate, partition, sort )
 
 import GHC.Generics (Generic)
 
 import Agda.Utils.Either ( maybeToEither )
+import Agda.Utils.Function
+import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 
 import Agda.Utils.Impossible
-import Agda.Utils.Functor
 
 
 -- | A @WarningMode@ has two components: a set of warnings to be displayed
@@ -301,28 +302,37 @@ usageWarning = intercalate "\n"
     \ one of the following:"
   , ""
   , untable (fmap (fst &&& snd . snd) warningSets)
+
   , "Individual benign warnings can be turned on and off by -W Name and\
     \ -W noName, respectively, where Name comes from the following\
-    \ list (warnings marked with 'd' are turned on by default, and 'b'\
-    \ stands for \"benign warning\"):"
+    \ list (warnings marked with 'd' are turned on by default):"
   , ""
-  , untable $ forMaybe [minBound..maxBound] $ \ w ->
-    let wnd = warningNameDescription w in
-    ( warningName2String w
-    , (if w `Set.member` usualWarnings then "d" else " ") ++
-      (if not (w `Set.member` errorWarnings) then "b" else " ") ++
-      " " ++
-      wnd
-    ) <$ guard (not $ null wnd)
+  , warningTable True benign
+
+  , "Error warnings are always on and cannot be turned off:"
+  , ""
+  , warningTable False severe
   ]
 
   where
 
+    (severe, benign) = partition (`Set.member` errorWarnings) [minBound..maxBound]
+
+    warningTable printD ws =
+      untable $ forMaybe ws $ \ w ->
+        let wnd = warningNameDescription w in
+        ( warningName2String w
+        , applyWhen printD ((if w `Set.member` usualWarnings then "d" else " ") ++)
+          " " ++
+          wnd
+        ) <$ guard (not $ null wnd)
+
     untable :: [(String, String)] -> String
     untable rows =
       let len = maximum (map (length . fst) rows) in
-      unlines $ for rows $ \ (hdr, cnt) ->
+      unlines $ for (sort rows) $ \ (hdr, cnt) ->
         concat [ hdr, replicate (1 + len - length hdr) ' ', cnt ]
+
 
 -- | @WarningName@ descriptions used for generating usage information
 -- Leave String empty to skip that name.
