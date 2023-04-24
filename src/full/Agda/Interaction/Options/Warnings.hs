@@ -4,6 +4,7 @@ module Agda.Interaction.Options.Warnings
          WarningMode (..)
        , warningSet
        , warn2Error
+       , lensSingleWarning
        , defaultWarningSet
        , allWarnings
        , usualWarnings
@@ -54,11 +55,16 @@ data WarningMode = WarningMode
 
 instance NFData WarningMode
 
+-- Lenses
+
 warningSet :: Lens' (Set WarningName) WarningMode
 warningSet f o = (\ ws -> o { _warningSet = ws }) <$> f (_warningSet o)
 
 warn2Error :: Lens' Bool WarningMode
 warn2Error f o = (\ ws -> o { _warn2Error = ws }) <$> f (_warn2Error o)
+
+lensSingleWarning :: WarningName -> Lens' Bool WarningMode
+lensSingleWarning w = warningSet . contains w
 
 -- | The @defaultWarningMode@ is a curated set of warnings covering non-fatal
 -- errors and disabling style-related ones
