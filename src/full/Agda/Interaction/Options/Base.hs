@@ -126,7 +126,6 @@ module Agda.Interaction.Options.Base
     , optCubicalCompatible
     , optCopatterns
     , optPatternMatching
-    , optExactSplit
     , optHiddenArgumentPuns
     , optEta
     , optForcing
@@ -327,7 +326,6 @@ data PragmaOptions = PragmaOptions
       -- ^ Allow definitions by copattern matching?
   , _optPatternMatching           :: WithDefault 'True
       -- ^ Is pattern matching allowed in the current file?
-  , _optExactSplit                :: WithDefault 'False
   , _optHiddenArgumentPuns        :: WithDefault 'False
       -- ^ Should patterns of the form @{x}@ or @⦃ x ⦄@ be interpreted as puns?
   , _optEta                       :: WithDefault 'True
@@ -459,7 +457,6 @@ optWithoutK                  :: PragmaOptions -> Bool
 optCubicalCompatible         :: PragmaOptions -> Bool
 optCopatterns                :: PragmaOptions -> Bool
 optPatternMatching           :: PragmaOptions -> Bool
-optExactSplit                :: PragmaOptions -> Bool
 optHiddenArgumentPuns        :: PragmaOptions -> Bool
 optEta                       :: PragmaOptions -> Bool
 optForcing                   :: PragmaOptions -> Bool
@@ -518,7 +515,6 @@ optWithoutK                  = collapseDefault . _optWithoutK
 optCubicalCompatible         = collapseDefault . _optCubicalCompatible
 optCopatterns                = collapseDefault . _optCopatterns
 optPatternMatching           = collapseDefault . _optPatternMatching
-optExactSplit                = collapseDefault . _optExactSplit
 optHiddenArgumentPuns        = collapseDefault . _optHiddenArgumentPuns
 optEta                       = collapseDefault . _optEta
 optForcing                   = collapseDefault . _optForcing
@@ -666,9 +662,6 @@ lensOptCopatterns f o = f (_optCopatterns o) <&> \ i -> o{ _optCopatterns = i }
 lensOptPatternMatching :: Lens' _ PragmaOptions
 lensOptPatternMatching f o = f (_optPatternMatching o) <&> \ i -> o{ _optPatternMatching = i }
 
-lensOptExactSplit :: Lens' _ PragmaOptions
-lensOptExactSplit f o = f (_optExactSplit o) <&> \ i -> o{ _optExactSplit = i }
-
 lensOptHiddenArgumentPuns :: Lens' _ PragmaOptions
 lensOptHiddenArgumentPuns f o = f (_optHiddenArgumentPuns o) <&> \ i -> o{ _optHiddenArgumentPuns = i }
 
@@ -783,6 +776,11 @@ lensOptShowIdentitySubstitutions f o = f (_optShowIdentitySubstitutions o) <&> \
 lensOptKeepCoveringClauses :: Lens' _ PragmaOptions
 lensOptKeepCoveringClauses f o = f (_optKeepCoveringClauses o) <&> \ i -> o{ _optKeepCoveringClauses = i }
 
+-- Lenses for particular warnings
+
+lensOptExactSplit :: Lens' Bool PragmaOptions
+lensOptExactSplit = lensOptWarningMode . lensSingleWarning CoverageNoExactSplit_
+
 
 -- | Map a function over the long options. Also removes the short options.
 --   Will be used to add the plugin name to the plugin options.
@@ -849,7 +847,6 @@ defaultPragmaOptions = PragmaOptions
   , _optCubicalCompatible         = Default
   , _optCopatterns                = Default
   , _optPatternMatching           = Default
-  , _optExactSplit                = Default
   , _optHiddenArgumentPuns        = Default
   , _optEta                       = Default
   , _optForcing                   = Default
@@ -969,11 +966,8 @@ checkPragmaOptions opts = do
 
   return $ opts
 
-    -- -WCoverageNoExactSplit iff --exact-split
-    & conformWarningToOption CoverageNoExactSplit_ optExactSplit
-
     -- -WTerminationIssue iff --termination-check
-    . conformWarningToOption TerminationIssue_ optTerminationCheck
+    & conformWarningToOption TerminationIssue_ optTerminationCheck
 
     -- -WNotStrictlyPositive iff --positivity-check
     . conformWarningToOption NotStrictlyPositive_ optPositivityCheck
@@ -1455,6 +1449,7 @@ deadStandardOptions =
     msgSharing = "(in favor of the Agda abstract machine)"
 
 -- | Construct a flag of type @WithDefault _@
+--
 pragmaFlag :: (IsBool a, KnownBool b)
   => String
        -- ^ Long option name.  Prepended with @no-@ for negative version.
@@ -1467,10 +1462,10 @@ pragmaFlag :: (IsBool a, KnownBool b)
   -> Maybe String
        -- ^ Explanation for negative option.
   -> [OptDescr (Flag PragmaOptions)]
-pragmaFlag long field pos info neg = pragmaFlag' long field (const return) pos info neg
-
+pragmaFlag long field = pragmaFlag' long field (const return)
 
 -- | Construct a flag of type @WithDefault _@
+--
 pragmaFlag' :: (IsBool a, KnownBool b)
   => String
        -- ^ Long option name.  Prepended with @no-@ for negative version.
@@ -1486,15 +1481,51 @@ pragmaFlag' :: (IsBool a, KnownBool b)
        -- ^ Explanation for negative option.
   -> [OptDescr (Flag PragmaOptions)]
        -- ^ Pair of option descriptors (positive, negative)
-pragmaFlag' long field effect pos info neg =
+pragmaFlag' long field = pragmaFlagBool' long (field . lensCollapseDefault)
+
+-- | Construct a flag of type 'IsBool'.
+--
+pragmaFlagBool :: (IsBool a)
+  => String
+       -- ^ Long option name.  Prepended with @no-@ for negative version.
+  -> Lens' a PragmaOptions
+       -- ^ Field to switch.
+  -> String
+       -- ^ Explanation for positive option.
+  -> String
+       -- ^ Additional info for positive option (not repeated for negative option).
+  -> Maybe String
+       -- ^ Explanation for negative option.
+  -> [OptDescr (Flag PragmaOptions)]
+pragmaFlagBool long field = pragmaFlagBool' long field (const return)
+
+-- | Construct a flag of type 'IsBool' with extra effect.
+--
+pragmaFlagBool' :: IsBool a
+  => String
+       -- ^ Long option name.  Prepended with @no-@ for negative version.
+  -> Lens' a PragmaOptions
+       -- ^ Field to switch.
+  -> (a -> Flag PragmaOptions)
+       -- ^ Given the new value, perform additional effect (can override field setting).
+  -> String
+       -- ^ Explanation for positive option.
+  -> String
+       -- ^ Additional info for positive option (not repeated for negative option).
+  -> Maybe String
+       -- ^ Explanation for negative option.
+  -> [OptDescr (Flag PragmaOptions)]
+       -- ^ Pair of option descriptors (positive, negative)
+pragmaFlagBool' long field effect pos info neg =
   [ Option [] [no b long] (flag b) (def b $ expl b) | b <- [True,False] ]
   where
-  b0     = collapseDefault $ defaultPragmaOptions ^. field
+  b0     = defaultPragmaOptions ^. field
   no   b = applyUnless b ("no-" ++)
-  flag b = NoArg $ effect a . set field (Value a)
+  flag b = NoArg $ effect a . set field a
     where a = fromBool b
   def  b = applyWhen (fromBool b == b0) (++ " (default)")
   expl b = if b then unwords [pos, info] else fromMaybe ("do not " ++ pos) neg
+
 
 pragmaOptions :: [OptDescr (Flag PragmaOptions)]
 pragmaOptions = concat
@@ -1585,9 +1616,11 @@ pragmaOptions = concat
   , pragmaFlag      "pattern-matching" lensOptPatternMatching
                     "enable pattern matching" ""
                     $ Just "disable pattern matching completely"
-  , pragmaFlag      "exact-split" lensOptExactSplit
-                    "require all clauses in a definition to hold as definitional equalities" "(unless marked CATCHALL)"
-                    Nothing
+
+  -- -WCoverageNoExactSplit iff --exact-split
+  , pragmaFlagBool  "exact-split" lensOptExactSplit
+                    ("synonym of -W" ++ warningName2String CoverageNoExactSplit_ ++ ": warn if not all clauses in a definition hold as definitional equalities") "(unless marked CATCHALL)"
+                    (Just $ "synonym of -Wno" ++ warningName2String CoverageNoExactSplit_ ++ ": allow clauses that are not definitional equalities without warning")
   , pragmaFlag      "hidden-argument-puns" lensOptHiddenArgumentPuns
                     "interpret the patterns {x} and {{x}} as puns" ""
                     Nothing

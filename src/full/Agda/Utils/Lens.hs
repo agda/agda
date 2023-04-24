@@ -13,6 +13,8 @@ import Control.Monad.Writer
 
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 import Data.Functor.Identity
 
@@ -113,5 +115,14 @@ locally l = local . over l
 locally' :: ((o -> o) -> m a -> m a) -> Lens' i o -> (i -> i) -> m a -> m a
 locally' local l = local . over l
 
+-- * Lenses for collections
+
+-- | Access a map value at a given key.
 key :: Ord k => k -> Lens' (Maybe v) (Map k v)
 key k f m = f (Map.lookup k m) <&> \ v -> Map.alter (const v) k m
+
+-- | Focus on given element in a set.
+contains :: Ord k => k -> Lens' Bool (Set k)
+contains k f s = f (Set.member k s) <&> \case
+  True  -> Set.insert k s
+  False -> Set.delete k s
