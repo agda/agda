@@ -784,6 +784,8 @@ Other features
      that all of the ``BUILTIN`` things defined in those modules are
      loaded. Agda will not work otherwise.
 
+     Implies :option:`--no-import-sorts`.
+
      Incompatible with :option:`--safe`.
 
 .. option:: --save-metas, --no-save-metas
