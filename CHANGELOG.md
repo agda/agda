@@ -253,10 +253,48 @@ Pragmas and options
 
   Note: While compatible with the `--cubical` option, this option is currently not compatible with cubical builtin files, and an error will be raised when trying to import them in a file using `--level-universe`.
 
+  Opposite: `--no-level-universe`.
+
 * Most boolean options now have their opposite, e.g., `--allow-unsolved-metas` is complemented by `--no-allow-unsolved-metas`.
   With the opposite one can override a previously given option.
   Options given on the command line are overwritten by options given in the `.agda-lib` file,
   which in turn get overwritten by options given in the individual `.agda` file.
+
+  New options (all on by default):
+  - `--no-allow-exec`
+  - `--no-allow-incomplete-matches`
+  - `--no-allow-unsolved-metas`
+  - `--no-call-by-name`
+  - `--no-cohesion`
+  - `--no-count-clusters`
+  - `--no-erased-matches`
+  - `--no-erasure`
+  - `--no-experimental-irrelevance`
+  - `--no-flat-split`
+  - `--no-guarded`
+  - `--no-injective-type-constructors`
+  - `--no-keep-covering-clauses`
+  - `--no-keep-pattern-variables`
+  - `--no-omega-in-omega`
+  - `--no-postfix-projections`
+  - `--no-rewriting`
+  - `--no-show-identity-substitutions`
+  - `--no-show-implicit`
+  - `--no-show-irrelevant`
+  - `--no-two-level`
+  - `--no-type-in-type`
+  - `--eta-equality`
+  - `--fast-reduce`
+  - `--forcing`
+  - `--import-sorts`
+  - `--load-primitives`
+  - `--main`
+  - `--pattern-matching`
+  - `--positivity-check`
+  - `--print-pattern-synonyms`
+  - `--projection-like`
+  - `--termination-check`
+  - `--unicode`
 
 * Option `--flat-split` again implies `--cohesion`.
   Reverts change introduced in Agda 2.6.3 where `--cohesion` was a prerequisite for `--flat-split`.
