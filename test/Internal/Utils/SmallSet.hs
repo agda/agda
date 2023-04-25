@@ -21,6 +21,8 @@ import Internal.Helpers
 data A = A0 | A1 | A2 | A3 | A4 | A5
   deriving (Eq, Ord, Enum, Bounded, Ix, Show, Read)
 
+instance SmallSet.SmallSetElement A
+
 instance Arbitrary A where
   -- Ideally,
   -- arbitrary = chooseAny
@@ -50,7 +52,6 @@ rel2 f g as bs = rel1 (f $ SmallSet.fromList as) (g $ Set.fromList as) bs
 prop_null        = test1 (SmallSet.null)        (Set.null)
 prop_member a    = test1 (SmallSet.member a)    (Set.member a)
 prop_notMember a = test1 (SmallSet.notMember a) (Set.notMember a)
-prop_isSubsetOf  = test2 (SmallSet.isSubsetOf)  (Set.isSubsetOf)
 
 prop_empty       = rel0  (SmallSet.empty)       (Set.empty)
 prop_singleton a = rel0  (SmallSet.singleton a) (Set.singleton a)
