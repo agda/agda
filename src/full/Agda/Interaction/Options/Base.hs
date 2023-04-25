@@ -376,7 +376,7 @@ data PragmaOptions = PragmaOptions
   , _optCaching                   :: WithDefault 'True
   , _optCountClusters             :: WithDefault
 #ifdef COUNT_CLUSTERS
-      'False  -- TODO: True
+      'True
 #else
       'False
 #endif

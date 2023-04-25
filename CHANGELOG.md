@@ -263,6 +263,8 @@ Pragmas and options
 
 * Option `--erase-record-parameters` now implies `--erasure`.
 
+* Option `--count-clusters` is now on by default when Agda was built with ICU support (Cabal flag `enable-cluster-counting`).
+
 Library management
 ------------------
 

@@ -141,6 +141,7 @@ Generating highlighted source code
      Count extended grapheme clusters when generating LaTeX code (see
      :ref:`grapheme-clusters`).
      Available only when Agda was built with Cabal flag :option:`enable-cluster-counting`.
+     Then default (since 2.6.4).
 
      Pragma option since 2.5.4.
 
