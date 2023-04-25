@@ -1,4 +1,4 @@
-resolver: nightly-2023-01-29
+resolver: nightly-2023-04-24
 compiler: ghc-9.4.4
 compiler-check: match-exact
 
@@ -10,6 +10,3 @@ packages:
 flags:
   mintty:
     win32-2-13-1: false
-
-extra-deps:
-- vector-hashtables-0.1.1.1

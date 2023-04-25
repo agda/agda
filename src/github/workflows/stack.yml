@@ -12,6 +12,7 @@ on:
     - 'Agda.cabal'
     - 'Setup.hs'
     - 'stack-9.4.4.yaml'
+    - 'stack-9.4.5.yaml'
       # !!! MATCH THIS WITH ghc_ver IN THE matrix BELOW !!!
       #
     - 'src/size-solver/size-solver.cabal'
@@ -52,9 +53,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04,macos-12,windows-2022]
-        stack-ver: ['2.9.3']
-        ghc-ver: [9.4.4]
+        os: [ubuntu-22.04,macos-12]
+        ghc-ver: [9.4.5]
           # !!! MAKE SURE THIS GHC VERSION IS IN SYNC WITH trigger_path_list !!!
           #
           # The LTS snapshots are covered in workflow stack-dry-run.yml.
@@ -65,6 +65,10 @@ jobs:
           # because ghc-ver is to pick the stack-$(ghc-ver).yaml file.
           # If switching to a new GHC minor version needs manual action, i.e.,
           # adding the respective stack-x.y.z.yaml file.
+        include:
+        - os: windows-2022
+          ghc-ver: 9.4.4
+          # !!! MAKE SURE THIS GHC VERSION IS IN SYNC WITH trigger_path_list !!!
 
     # # Try "allowed-failure" for Windows with GHC 9.2
     # continue-on-error: ${{ startsWith(matrix.os, 'windows') && startsWith(matrix.ghc-ver,'9.2') }}
@@ -118,7 +122,7 @@ jobs:
       id: haskell-setup
       with:
         ghc-version: ${{ matrix.ghc-ver }}
-        stack-version: ${{ matrix.stack-ver }}
+        stack-version: latest
         enable-stack: true
 
     - name: Environment settings based on the Haskell setup
@@ -134,11 +138,11 @@ jobs:
         echo "stack-exe         = ${{ steps.haskell-setup.outputs.stack-exe   }}"
         echo "stack-root        = ${{ steps.haskell-setup.outputs.stack-root  }}"
         echo "STACK_ROOT (orig) = ${{ env.STACK_ROOT                          }}"
-        echo "STACK_ROOT=${{ steps.haskell-setup.outputs.stack-root }}" >> ${GITHUB_ENV}
-        echo "STACK_VER=$(stack --numeric-version)"                     >> ${GITHUB_ENV}
-        export GHC_VER=$(ghc --numeric-version)
-        echo "GHC_VER=${GHC_VER}"                                       >> ${GITHUB_ENV}
-        echo "ARGS=--stack-yaml=stack-${GHC_VER}.yaml --system-ghc --no-terminal"    >> ${GITHUB_ENV}
+        echo "STACK_ROOT=${{ steps.haskell-setup.outputs.stack-root }}" >> "${GITHUB_ENV}"
+        echo "STACK_VER=$(stack --numeric-version)"                     >> "${GITHUB_ENV}"
+        GHC_VER=$(ghc --numeric-version)
+        echo "GHC_VER=${GHC_VER}"                                       >> "${GITHUB_ENV}"
+        echo "ARGS=--stack-yaml=stack-${GHC_VER}.yaml --system-ghc --no-terminal"    >> "${GITHUB_ENV}"
     # From now on, use env.GHC_VER rather than matrix.ghc-ver
 
     # Note that msys2 libraries have to be installed via
@@ -181,7 +185,6 @@ jobs:
       uses: actions/cache@v3
       id:   cache
       with:
-        # Note that matrix.stack-ver might be simply 'latest', so we use STACK_VER.
         # We include stack-${GHC_VER}.yaml in the primary cache key so that the cache gets rewritten
         # everytime the resolver updates or extra-deps are added.
         # 2023-03-28: We also include Agda.cabal so that the cache gets rewritten if a new dependency is added.

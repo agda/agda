@@ -1,5 +1,5 @@
-resolver: lts-20.18
-compiler: ghc-9.2.7
+resolver: nightly-2023-04-25
+compiler: ghc-9.4.5
 compiler-check: match-exact
 
 # Local packages specified by relative directory name.
@@ -7,5 +7,6 @@ packages:
 - '.'
 - 'src/size-solver'
 
-extra-deps:
-- vector-hashtables-0.1.1.1
+flags:
+  mintty:
+    win32-2-13-1: false

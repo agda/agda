@@ -40,7 +40,7 @@ jobs:
       with:
         enable-stack: true
         ghc-version: ${{ matrix.ghc-ver }}
-        stack-version: ${{ matrix.stack-ver }}
+        stack-version: latest
     - name: Environment settings based on the Haskell setup
       run: |
         echo "runner.os         = ${{ runner.os                               }}"
@@ -54,11 +54,11 @@ jobs:
         echo "stack-exe         = ${{ steps.haskell-setup.outputs.stack-exe   }}"
         echo "stack-root        = ${{ steps.haskell-setup.outputs.stack-root  }}"
         echo "STACK_ROOT (orig) = ${{ env.STACK_ROOT                          }}"
-        echo "STACK_ROOT=${{ steps.haskell-setup.outputs.stack-root }}" >> ${GITHUB_ENV}
-        echo "STACK_VER=$(stack --numeric-version)"                     >> ${GITHUB_ENV}
-        export GHC_VER=$(ghc --numeric-version)
-        echo "GHC_VER=${GHC_VER}"                                       >> ${GITHUB_ENV}
-        echo "ARGS=--stack-yaml=stack-${GHC_VER}.yaml --system-ghc --no-terminal"    >> ${GITHUB_ENV}
+        echo "STACK_ROOT=${{ steps.haskell-setup.outputs.stack-root }}" >> "${GITHUB_ENV}"
+        echo "STACK_VER=$(stack --numeric-version)"                     >> "${GITHUB_ENV}"
+        GHC_VER=$(ghc --numeric-version)
+        echo "GHC_VER=${GHC_VER}"                                       >> "${GITHUB_ENV}"
+        echo "ARGS=--stack-yaml=stack-${GHC_VER}.yaml --system-ghc --no-terminal"    >> "${GITHUB_ENV}"
     - if: ${{ runner.os == 'Windows' }}
       name: Install the icu library (Windows)
       run: |
@@ -99,13 +99,13 @@ jobs:
       fail-fast: false
       matrix:
         ghc-ver:
-        - 9.4.4
+        - 9.4.5
+        include:
+        - ghc-ver: 9.4.4
+          os: windows-2022
         os:
         - ubuntu-22.04
         - macos-12
-        - windows-2022
-        stack-ver:
-        - 2.9.3
     timeout-minutes: 60
 name: Build (stack)
 'on':
@@ -115,6 +115,7 @@ name: Build (stack)
     - Agda.cabal
     - Setup.hs
     - stack-9.4.4.yaml
+    - stack-9.4.5.yaml
     - src/size-solver/size-solver.cabal
   push:
     branches:
@@ -126,5 +127,6 @@ name: Build (stack)
     - Agda.cabal
     - Setup.hs
     - stack-9.4.4.yaml
+    - stack-9.4.5.yaml
     - src/size-solver/size-solver.cabal
   workflow_dispatch: null

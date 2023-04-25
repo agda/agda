@@ -50,7 +50,7 @@ jobs:
       matrix:
         os: [ubuntu-22.04]
         description: [Linux]      ## This just for pretty-printing the job name.
-        ghc-ver: [9.6.1, 9.4.4, 9.2.7, 9.0.2, 8.10.7, 8.8.4, 8.6.5]
+        ghc-ver: [9.6.1, 9.4.5, 9.2.7, 9.0.2, 8.10.7, 8.8.4, 8.6.5]
         # Need to mention "cabal-ver" at least once in the matrix, otherwise matrix.cabal-ver is an actionlint error.
         cabal-ver: ['3.10']
         cabal-flags: ['--enable-tests -f enable-cluster-counting']
