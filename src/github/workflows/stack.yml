@@ -11,7 +11,6 @@ on:
     - '.github/workflows/stack.yml'
     - 'Agda.cabal'
     - 'Setup.hs'
-    - 'stack-9.4.4.yaml'
     - 'stack-9.4.5.yaml'
       # !!! MATCH THIS WITH ghc_ver IN THE matrix BELOW !!!
       #
@@ -67,7 +66,7 @@ jobs:
           # adding the respective stack-x.y.z.yaml file.
         include:
         - os: windows-2022
-          ghc-ver: 9.4.4
+          ghc-ver: 9.4.5
           # !!! MAKE SURE THIS GHC VERSION IS IN SYNC WITH trigger_path_list !!!
 
     # # Try "allowed-failure" for Windows with GHC 9.2
@@ -118,7 +117,7 @@ jobs:
     # because it provides the stack-*.yaml file.
     - uses: actions/checkout@v3
 
-    - uses: haskell/actions/setup@v2
+    - uses: haskell/actions/setup@wz1000-ghcup
       id: haskell-setup
       with:
         ghc-version: ${{ matrix.ghc-ver }}

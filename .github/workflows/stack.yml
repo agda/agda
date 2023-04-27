@@ -35,7 +35,7 @@ jobs:
         echo "PKG_CONFIG_PATH=${ICU4C}/lib/pkgconfig" >> "${GITHUB_ENV}"
     - uses: actions/checkout@v3
     - id: haskell-setup
-      uses: haskell/actions/setup@v2
+      uses: haskell/actions/setup@wz1000-ghcup
       with:
         enable-stack: true
         ghc-version: ${{ matrix.ghc-ver }}
@@ -100,7 +100,7 @@ jobs:
         ghc-ver:
         - 9.4.5
         include:
-        - ghc-ver: 9.4.4
+        - ghc-ver: 9.4.5
           os: windows-2022
         os:
         - ubuntu-22.04
@@ -113,7 +113,6 @@ name: Build (stack)
     - .github/workflows/stack.yml
     - Agda.cabal
     - Setup.hs
-    - stack-9.4.4.yaml
     - stack-9.4.5.yaml
     - src/size-solver/size-solver.cabal
   push:
@@ -125,7 +124,6 @@ name: Build (stack)
     - .github/workflows/stack.yml
     - Agda.cabal
     - Setup.hs
-    - stack-9.4.4.yaml
     - stack-9.4.5.yaml
     - src/size-solver/size-solver.cabal
   workflow_dispatch: null
