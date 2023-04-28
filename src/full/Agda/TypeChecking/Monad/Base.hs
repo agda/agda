@@ -3023,6 +3023,8 @@ data AllowedReduction
   | NonTerminatingReductions -- ^ Functions that have failed termination checking.
   deriving (Show, Eq, Ord, Enum, Bounded, Ix, Generic)
 
+instance SmallSet.SmallSetElement AllowedReduction
+
 type AllowedReductions = SmallSet AllowedReduction
 
 -- | Not quite all reductions (skip non-terminating reductions)
