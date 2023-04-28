@@ -123,6 +123,7 @@ jobs:
         ghc-version: ${{ matrix.ghc-ver }}
         stack-version: latest
         enable-stack: true
+        cabal-update: false
 
     - name: Environment settings based on the Haskell setup
       run: |

@@ -37,6 +37,7 @@ jobs:
     - id: haskell-setup
       uses: haskell/actions/setup@wz1000-ghcup
       with:
+        cabal-update: false
         enable-stack: true
         ghc-version: ${{ matrix.ghc-ver }}
         stack-version: latest
