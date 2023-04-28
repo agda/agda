@@ -15,6 +15,7 @@ module Agda.Utils.SmallSet
   , SmallSetElement
   , Ix
   , (\\)
+  , complement
   , delete
   , difference
   , elems
@@ -37,7 +38,8 @@ import Control.DeepSeq
 
 import Data.Word (Word64)
 import Data.List (foldl')
-import Data.Bits
+import Data.Bits hiding (complement)
+import qualified Data.Bits as Bits
 import Data.Ix
 
 -- | An element in a small set.
@@ -70,9 +72,7 @@ empty = SmallSet 0
 
 -- | The full set.  Time O(1).
 total :: forall a. SmallSetElement a => SmallSet a
-total = SmallSet mask where
-  size = rangeSize (bounds :: (a, a))
-  mask = (1 `shiftL` size) - 1
+total = SmallSet $ Bits.complement 0
 
 -- | A singleton set.  Time O(1).
 singleton :: SmallSetElement a => a -> SmallSet a
@@ -88,9 +88,13 @@ delete a s = SmallSet $ theSmallSet s `clearBit` idx a
 
 -- * Combine
 
+-- | Time O(n).
+complement :: SmallSetElement a => SmallSet a -> SmallSet a
+complement = SmallSet . Bits.complement . theSmallSet
+
 -- | Time O(1).
 difference, (\\) :: SmallSetElement a => SmallSet a -> SmallSet a -> SmallSet a
-difference s t = SmallSet $ theSmallSet s .&. complement (theSmallSet t)
+difference s t = SmallSet $ theSmallSet s .&. Bits.complement (theSmallSet t)
 (\\)       = difference
 
 -- | Time O(1).
