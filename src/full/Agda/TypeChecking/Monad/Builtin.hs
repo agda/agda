@@ -30,6 +30,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.ListT
 import Agda.Utils.Monad
 import Agda.Utils.Maybe
@@ -62,6 +63,28 @@ instance MonadIO m => HasBuiltins (TCMT m) where
     liftM2 (unionMaybeWith unionBuiltin)
       (Map.lookup b <$> useTC stLocalBuiltins)
       (Map.lookup b <$> useTC stImportedBuiltins)
+
+
+-- | The trivial implementation of 'HasBuiltins', using a constant 'TCState'.
+--
+-- This may be used instead of 'TCMT'/'ReduceM' where builtins must be accessed
+-- in a pure context.
+newtype BuiltinAccess a = BuiltinAccess { unBuiltinAccess :: TCState -> a }
+  deriving (Functor, Applicative, Monad)
+
+instance Fail.MonadFail BuiltinAccess where
+  fail msg = BuiltinAccess $ \_ -> error msg
+
+instance HasBuiltins BuiltinAccess where
+  getBuiltinThing b = BuiltinAccess $ \state ->
+    unionMaybeWith unionBuiltin
+      (Map.lookup b $ state ^. stLocalBuiltins)
+      (Map.lookup b $ state ^. stImportedBuiltins)
+
+-- | Run a 'BuiltinAccess' monad.
+runBuiltinAccess :: TCState -> BuiltinAccess a -> a
+runBuiltinAccess s m = unBuiltinAccess m s
+
 
 -- If Agda is changed so that the type of a literal can belong to an
 -- inductive family (with at least one index), then the implementation
@@ -126,12 +149,10 @@ getBuiltin x =
   fromMaybeM (typeError $ NoBindingForBuiltin x) $ getBuiltin' x
 
 getBuiltin' :: HasBuiltins m => String -> m (Maybe Term)
-getBuiltin' x = do
-    builtin <- getBuiltinThing x
-    case builtin of
-        Just BuiltinRewriteRelations{} -> __IMPOSSIBLE__
-        Just (Builtin t) -> return $ Just $ killRange t
-        _                -> return Nothing
+getBuiltin' x = (getBuiltin =<<) <$> getBuiltinThing x where
+  getBuiltin BuiltinRewriteRelations{} = __IMPOSSIBLE__
+  getBuiltin (Builtin t)               = Just $ killRange t
+  getBuiltin _                         = Nothing
 
 getPrimitive' :: HasBuiltins m => String -> m (Maybe PrimFun)
 getPrimitive' x = (getPrim =<<) <$> getBuiltinThing x
