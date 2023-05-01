@@ -24,8 +24,7 @@ jobs:
     env:
       EXTRA_ARGS: --fast
       ICU_URL: https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-icu-69.1-1-any.pkg.tar.zst
-      NON_DEFAULT_FLAGS: --flag Agda:enable-cluster-counting --flag Agda:cpphs --flag
-        Agda:debug
+      NON_DEFAULT_FLAGS: --flag Agda:enable-cluster-counting --flag Agda:debug
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:

@@ -56,7 +56,7 @@ jobs:
     env:
       EXTRA_ARGS: "--dry-run"
         # stack build --only-configure also installs dependencies, so we need --dry-run
-      NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
+      NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:debug"
 
     defaults:
       run:

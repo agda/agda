@@ -23,8 +23,7 @@ jobs:
         shell: bash
     env:
       EXTRA_ARGS: --dry-run
-      NON_DEFAULT_FLAGS: --flag Agda:enable-cluster-counting --flag Agda:cpphs --flag
-        Agda:debug
+      NON_DEFAULT_FLAGS: --flag Agda:enable-cluster-counting --flag Agda:debug
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:

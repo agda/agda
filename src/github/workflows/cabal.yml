@@ -64,12 +64,6 @@ jobs:
             # Can't leave cabal-flags empty here lest it becomes the default value.
             cabal-flags: '--disable-tests'
 
-          # Linux, with -f cpphs
-          - os: ubuntu-22.04
-            description: Linux cpphs
-            ghc-ver: '9.6.1'
-            cabal-flags: '--enable-tests -f cpphs'
-
           # Linux, without -f enable-cluster-counting but with -f debug
           - os: ubuntu-22.04
             description: Linux debug

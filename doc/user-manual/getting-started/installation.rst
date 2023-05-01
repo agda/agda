@@ -472,11 +472,6 @@ Installation Flags
 
 When installing Agda the following flags can be used:
 
-.. option:: cpphs
-
-     Use `cpphs <https://hackage.haskell.org/package/cpphs>`_ instead
-     of cpp. Default: off.
-
 .. option:: debug
 
      Enable debugging features that may slow Agda down. Default: off.

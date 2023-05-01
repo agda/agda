@@ -116,10 +116,6 @@ jobs:
           description: Linux w/o tests
           ghc-ver: 9.6.1
           os: ubuntu-22.04
-        - cabal-flags: --enable-tests -f cpphs
-          description: Linux cpphs
-          ghc-ver: 9.6.1
-          os: ubuntu-22.04
         - cabal-flags: --enable-tests -f debug
           description: Linux debug
           ghc-ver: 9.6.1

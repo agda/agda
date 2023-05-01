@@ -157,11 +157,6 @@ source-repository this
 -- Build flags
 ---------------------------------------------------------------------------
 
-flag cpphs
-  default:     False
-  manual:      True
-  description: Use cpphs instead of cpp.
-
 flag debug
   default: False
   manual: True
@@ -343,13 +338,6 @@ library
   --
   -- An exceptions are packages that are only needed for certain configurations,
   -- like for flags, Windows, etc.
-
-  if flag(cpphs)
-    -- We don't write an upper bound for cpphs because the
-    -- `build-tool-depends` field can not be modified in Hackage.
-
-    build-tool-depends: cpphs:cpphs >= 1.20.9
-    ghc-options:        -pgmP cpphs -optP --cpp
 
   if flag(debug)
     cpp-options:    -DDEBUG

@@ -76,7 +76,7 @@ jobs:
       ## ARGS is set later, depending on the actually picked GHC version
       # ARGS: "--stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal"
       EXTRA_ARGS: "--fast"
-      NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
+      NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:debug"
 
       # Liang-Ting Chen (2021-08-18):
       # Let pacman choose the file name for ICU4C.
