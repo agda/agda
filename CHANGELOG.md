@@ -1,6 +1,11 @@
 Release notes for Agda version 2.6.4
 ====================================
 
+Installation
+------------
+
+* Removed the cabal flag `cpphs` that enabled building Agda with `cpphs` instead of the default C preprocessor.
+
 Reflection
 ----------
 
