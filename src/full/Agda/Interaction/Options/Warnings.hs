@@ -57,13 +57,13 @@ instance NFData WarningMode
 
 -- Lenses
 
-warningSet :: Lens' (Set WarningName) WarningMode
+warningSet :: Lens' WarningMode (Set WarningName)
 warningSet f o = (\ ws -> o { _warningSet = ws }) <$> f (_warningSet o)
 
-warn2Error :: Lens' Bool WarningMode
+warn2Error :: Lens' WarningMode Bool
 warn2Error f o = (\ ws -> o { _warn2Error = ws }) <$> f (_warn2Error o)
 
-lensSingleWarning :: WarningName -> Lens' Bool WarningMode
+lensSingleWarning :: WarningName -> Lens' WarningMode Bool
 lensSingleWarning w = warningSet . contains w
 
 -- | The @defaultWarningMode@ is a curated set of warnings covering non-fatal

@@ -8,7 +8,7 @@ import Agda.TypeChecking.Monad.State
 
 import Agda.Utils.Lens
 
-enterClosure :: (MonadTCEnv m, ReadTCState m, LensClosure a c)
+enterClosure :: (MonadTCEnv m, ReadTCState m, LensClosure c a)
              => c -> (a -> m b) -> m b
 enterClosure c k | Closure _sig env scope cps x <- c ^. lensClosure = do
   isDbg <- viewTC eIsDebugPrinting

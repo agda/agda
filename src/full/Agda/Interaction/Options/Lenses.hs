@@ -30,7 +30,7 @@ class LensPragmaOptions a where
   getPragmaOptions  :: a -> PragmaOptions
   setPragmaOptions  :: PragmaOptions -> a -> a
   mapPragmaOptions  :: (PragmaOptions -> PragmaOptions) -> a -> a
-  lensPragmaOptions :: Lens' PragmaOptions a
+  lensPragmaOptions :: Lens' a PragmaOptions
   -- lensPragmaOptions :: forall f. Functor f => (PragmaOptions -> f PragmaOptions) -> a -> f a
 
   -- default implementations

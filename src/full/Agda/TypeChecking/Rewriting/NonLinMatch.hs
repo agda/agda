@@ -93,10 +93,10 @@ instance Null NLMState where
   empty  = NLMState { _nlmSub = empty , _nlmEqs = empty }
   null s = null (s^.nlmSub) && null (s^.nlmEqs)
 
-nlmSub :: Lens' Sub NLMState
+nlmSub :: Lens' NLMState Sub
 nlmSub f s = f (_nlmSub s) <&> \x -> s {_nlmSub = x}
 
-nlmEqs :: Lens' PostponedEquations NLMState
+nlmEqs :: Lens' NLMState PostponedEquations
 nlmEqs f s = f (_nlmEqs s) <&> \x -> s {_nlmEqs = x}
 
 runNLM :: (MonadReduce m) => NLM () -> m (Either Blocked_ NLMState)

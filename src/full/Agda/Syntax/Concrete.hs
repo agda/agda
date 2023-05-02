@@ -123,20 +123,20 @@ data ModuleAssignment  = ModuleAssignment
 type RecordAssignment  = Either FieldAssignment ModuleAssignment
 type RecordAssignments = [RecordAssignment]
 
-nameFieldA :: Lens' Name (FieldAssignment' a)
+nameFieldA :: Lens' (FieldAssignment' a) Name
 nameFieldA f r = f (_nameFieldA r) <&> \x -> r { _nameFieldA = x }
 
-exprFieldA :: Lens' a (FieldAssignment' a)
+exprFieldA :: Lens' (FieldAssignment' a) a
 exprFieldA f r = f (_exprFieldA r) <&> \x -> r { _exprFieldA = x }
 
 -- UNUSED Liang-Ting Chen 2019-07-16
---qnameModA :: Lens' QName ModuleAssignment
+--qnameModA :: Lens' ModuleAssignment QName
 --qnameModA f r = f (_qnameModA r) <&> \x -> r { _qnameModA = x }
 --
 --exprModA :: Lens' [Expr] ModuleAssignment
 --exprModA f r = f (_exprModA r) <&> \x -> r { _exprModA = x }
 --
---importDirModA :: Lens' ImportDirective ModuleAssignment
+--importDirModA :: Lens' ModuleAssignment ImportDirective
 --importDirModA f r = f (_importDirModA r) <&> \x -> r { _importDirModA = x }
 
 -- | Concrete expressions. Should represent exactly what the user wrote.

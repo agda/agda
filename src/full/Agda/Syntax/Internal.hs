@@ -266,7 +266,7 @@ instance Decoration (Type'' t) where
   traverseF f (El s a) = El s <$> f a
 
 class LensSort a where
-  lensSort ::  Lens' Sort a
+  lensSort ::  Lens' a Sort
   getSort  :: a -> Sort
   getSort a = a ^. lensSort
 
@@ -948,7 +948,7 @@ telToList (ExtendTel arg (Abs x tel)) = fmap (x,) arg : telToList tel
 telToList (ExtendTel _    NoAbs{}   ) = __IMPOSSIBLE__
 
 -- | Lens to edit a 'Telescope' as a list.
-listTel :: Lens' ListTel Telescope
+listTel :: Lens' Telescope ListTel
 listTel f = fmap telFromList . f . telToList
 
 -- | Drop the types from a telescope.

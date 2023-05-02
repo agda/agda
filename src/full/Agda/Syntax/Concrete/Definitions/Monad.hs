@@ -91,7 +91,7 @@ initNiceEnv = NiceEnv
   , _nameId   = NameId 1 noModuleNameHash
   }
 
-lensNameId :: Lens' NameId NiceEnv
+lensNameId :: Lens' NiceEnv NameId
 lensNameId f e = f (_nameId e) <&> \ i -> e { _nameId = i }
 
 nextNameId :: Nice NameId
@@ -104,7 +104,7 @@ nextNameId = do
 
 -- | Lens for field '_loneSigs'.
 
-loneSigs :: Lens' LoneSigs NiceEnv
+loneSigs :: Lens' NiceEnv LoneSigs
 loneSigs f e = f (_loneSigs e) <&> \ s -> e { _loneSigs = s }
 
 -- | Adding a lone signature to the state.
@@ -162,7 +162,7 @@ loneSigsFromLoneNames = Map.fromListWith __IMPOSSIBLE__ . map (\(r,x,k) -> (x, L
 
 -- | Lens for field '_termChk'.
 
-terminationCheckPragma :: Lens' TerminationCheck NiceEnv
+terminationCheckPragma :: Lens' NiceEnv TerminationCheck
 terminationCheckPragma f e = f (_termChk e) <&> \ s -> e { _termChk = s }
 
 withTerminationCheckPragma :: TerminationCheck -> Nice a -> Nice a
@@ -173,7 +173,7 @@ withTerminationCheckPragma tc f = do
   terminationCheckPragma .= tc_old
   return result
 
-coverageCheckPragma :: Lens' CoverageCheck NiceEnv
+coverageCheckPragma :: Lens' NiceEnv CoverageCheck
 coverageCheckPragma f e = f (_covChk e) <&> \ s -> e { _covChk = s }
 
 withCoverageCheckPragma :: CoverageCheck -> Nice a -> Nice a
@@ -186,7 +186,7 @@ withCoverageCheckPragma tc f = do
 
 -- | Lens for field '_posChk'.
 
-positivityCheckPragma :: Lens' PositivityCheck NiceEnv
+positivityCheckPragma :: Lens' NiceEnv PositivityCheck
 positivityCheckPragma f e = f (_posChk e) <&> \ s -> e { _posChk = s }
 
 withPositivityCheckPragma :: PositivityCheck -> Nice a -> Nice a
@@ -199,7 +199,7 @@ withPositivityCheckPragma pc f = do
 
 -- | Lens for field '_uniChk'.
 
-universeCheckPragma :: Lens' UniverseCheck NiceEnv
+universeCheckPragma :: Lens' NiceEnv UniverseCheck
 universeCheckPragma f e = f (_uniChk e) <&> \ s -> e { _uniChk = s }
 
 withUniverseCheckPragma :: UniverseCheck -> Nice a -> Nice a
@@ -218,7 +218,7 @@ getUniverseCheckFromSig x = maybe YesUniverseCheck universeCheck <$> getSig x
 
 -- | Lens for field '_catchall'.
 
-catchallPragma :: Lens' Catchall NiceEnv
+catchallPragma :: Lens' NiceEnv Catchall
 catchallPragma f e = f (_catchall e) <&> \ s -> e { _catchall = s }
 
 -- | Get current catchall pragma, and reset it for the next clause.

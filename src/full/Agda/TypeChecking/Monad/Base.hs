@@ -137,7 +137,7 @@ data TCState = TCSt
 
 class Monad m => ReadTCState m where
   getTCState :: m TCState
-  locallyTCState :: Lens' a TCState -> (a -> a) -> m b -> m b
+  locallyTCState :: Lens' TCState a -> (a -> a) -> m b -> m b
 
   withTCState :: (TCState -> TCState) -> m a -> m a
   withTCState = locallyTCState id
@@ -147,7 +147,7 @@ class Monad m => ReadTCState m where
 
   default locallyTCState
     :: (MonadTransControl t, ReadTCState n, t n ~ m)
-    => Lens' a TCState -> (a -> a) -> m b -> m b
+    => Lens' TCState a -> (a -> a) -> m b -> m b
   locallyTCState l = liftThrough . locallyTCState l
 
 instance ReadTCState m => ReadTCState (ListT m) where
@@ -457,78 +457,78 @@ initState = TCSt
 -- * st-prefixed lenses
 ------------------------------------------------------------------------
 
-stTokens :: Lens' HighlightingInfo TCState
+stTokens :: Lens' TCState HighlightingInfo
 stTokens f s =
   f (stPreTokens (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreTokens = x}}
 
-stImports :: Lens' Signature TCState
+stImports :: Lens' TCState Signature
 stImports f s =
   f (stPreImports (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreImports = x}}
 
 stImportedModules ::
-  Lens' (HashSet TopLevelModuleName) TCState
+  Lens' TCState (HashSet TopLevelModuleName)
 stImportedModules f s =
   f (stPreImportedModules (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedModules = x}}
 
-stModuleToSource :: Lens' ModuleToSource TCState
+stModuleToSource :: Lens' TCState ModuleToSource
 stModuleToSource f s =
   f (stPreModuleToSource (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreModuleToSource = x}}
 
-stVisitedModules :: Lens' VisitedModules TCState
+stVisitedModules :: Lens' TCState VisitedModules
 stVisitedModules f s =
   f (stPreVisitedModules (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreVisitedModules = x}}
 
-stScope :: Lens' ScopeInfo TCState
+stScope :: Lens' TCState ScopeInfo
 stScope f s =
   f (stPreScope (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreScope = x}}
 
-stPatternSyns :: Lens' A.PatternSynDefns TCState
+stPatternSyns :: Lens' TCState A.PatternSynDefns
 stPatternSyns f s =
   f (stPrePatternSyns (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPrePatternSyns = x}}
 
-stPatternSynImports :: Lens' A.PatternSynDefns TCState
+stPatternSynImports :: Lens' TCState A.PatternSynDefns
 stPatternSynImports f s =
   f (stPrePatternSynImports (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPrePatternSynImports = x}}
 
-stGeneralizedVars :: Lens' (Maybe (Set QName)) TCState
+stGeneralizedVars :: Lens' TCState (Maybe (Set QName))
 stGeneralizedVars f s =
   f (Strict.toLazy $ stPreGeneralizedVars (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreGeneralizedVars = Strict.toStrict x}}
 
-stPragmaOptions :: Lens' PragmaOptions TCState
+stPragmaOptions :: Lens' TCState PragmaOptions
 stPragmaOptions f s =
   f (stPrePragmaOptions (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPrePragmaOptions = x}}
 
-stImportedBuiltins :: Lens' (BuiltinThings PrimFun) TCState
+stImportedBuiltins :: Lens' TCState (BuiltinThings PrimFun)
 stImportedBuiltins f s =
   f (stPreImportedBuiltins (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedBuiltins = x}}
 
-stForeignCode :: Lens' (Map BackendName ForeignCodeStack) TCState
+stForeignCode :: Lens' TCState (Map BackendName ForeignCodeStack)
 stForeignCode f s =
   f (stPreForeignCode (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreForeignCode = x}}
 
-stFreshInteractionId :: Lens' InteractionId TCState
+stFreshInteractionId :: Lens' TCState InteractionId
 stFreshInteractionId f s =
   f (stPreFreshInteractionId (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreFreshInteractionId = x}}
 
-stImportedUserWarnings :: Lens' (Map A.QName Text) TCState
+stImportedUserWarnings :: Lens' TCState (Map A.QName Text)
 stImportedUserWarnings f s =
   f (stPreImportedUserWarnings (stPreScopeState s)) <&>
   \ x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedUserWarnings = x}}
 
-stLocalUserWarnings :: Lens' (Map A.QName Text) TCState
+stLocalUserWarnings :: Lens' TCState (Map A.QName Text)
 stLocalUserWarnings f s =
   f (stPreLocalUserWarnings (stPreScopeState s)) <&>
   \ x -> s {stPreScopeState = (stPreScopeState s) {stPreLocalUserWarnings = x}}
@@ -539,17 +539,17 @@ getUserWarnings = do
   luw <- useR stLocalUserWarnings
   return $ iuw `Map.union` luw
 
-stWarningOnImport :: Lens' (Maybe Text) TCState
+stWarningOnImport :: Lens' TCState (Maybe Text)
 stWarningOnImport f s =
   f (Strict.toLazy $ stPreWarningOnImport (stPreScopeState s)) <&>
   \ x -> s {stPreScopeState = (stPreScopeState s) {stPreWarningOnImport = Strict.toStrict x}}
 
-stImportedPartialDefs :: Lens' (Set QName) TCState
+stImportedPartialDefs :: Lens' TCState (Set QName)
 stImportedPartialDefs f s =
   f (stPreImportedPartialDefs (stPreScopeState s)) <&>
   \ x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedPartialDefs = x}}
 
-stLocalPartialDefs :: Lens' (Set QName) TCState
+stLocalPartialDefs :: Lens' TCState (Set QName)
 stLocalPartialDefs f s =
   f (stPostLocalPartialDefs (stPostScopeState s)) <&>
   \ x -> s {stPostScopeState = (stPostScopeState s) {stPostLocalPartialDefs = x}}
@@ -560,104 +560,104 @@ getPartialDefs = do
   lpd <- useR stLocalPartialDefs
   return $ ipd `Set.union` lpd
 
-stLoadedFileCache :: Lens' (Maybe LoadedFileCache) TCState
+stLoadedFileCache :: Lens' TCState (Maybe LoadedFileCache)
 stLoadedFileCache f s =
   f (Strict.toLazy $ stPersistLoadedFileCache (stPersistentState s)) <&>
   \x -> s {stPersistentState = (stPersistentState s) {stPersistLoadedFileCache = Strict.toStrict x}}
 
-stBackends :: Lens' [Backend] TCState
+stBackends :: Lens' TCState [Backend]
 stBackends f s =
   f (stPersistBackends (stPersistentState s)) <&>
   \x -> s {stPersistentState = (stPersistentState s) {stPersistBackends = x}}
 
-stProjectConfigs :: Lens' (Map FilePath ProjectConfig) TCState
+stProjectConfigs :: Lens' TCState (Map FilePath ProjectConfig)
 stProjectConfigs f s =
   f (stPreProjectConfigs (stPreScopeState s)) <&>
   \ x -> s {stPreScopeState = (stPreScopeState s) {stPreProjectConfigs = x}}
 
-stAgdaLibFiles :: Lens' (Map FilePath AgdaLibFile) TCState
+stAgdaLibFiles :: Lens' TCState (Map FilePath AgdaLibFile)
 stAgdaLibFiles f s =
   f (stPreAgdaLibFiles (stPreScopeState s)) <&>
   \ x -> s {stPreScopeState = (stPreScopeState s) {stPreAgdaLibFiles = x}}
 
 stTopLevelModuleNames ::
-  Lens' (BiMap RawTopLevelModuleName ModuleNameHash) TCState
+  Lens' TCState (BiMap RawTopLevelModuleName ModuleNameHash)
 stTopLevelModuleNames f s =
   f (stPersistentTopLevelModuleNames (stPersistentState s)) <&>
   \ x -> s {stPersistentState =
               (stPersistentState s) {stPersistentTopLevelModuleNames = x}}
 
-stImportedMetaStore :: Lens' RemoteMetaStore TCState
+stImportedMetaStore :: Lens' TCState RemoteMetaStore
 stImportedMetaStore f s =
   f (stPreImportedMetaStore (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedMetaStore = x}}
 
-stFreshNameId :: Lens' NameId TCState
+stFreshNameId :: Lens' TCState NameId
 stFreshNameId f s =
   f (stPostFreshNameId (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshNameId = x}}
 
-stSyntaxInfo :: Lens' HighlightingInfo TCState
+stSyntaxInfo :: Lens' TCState HighlightingInfo
 stSyntaxInfo f s =
   f (stPostSyntaxInfo (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostSyntaxInfo = x}}
 
-stDisambiguatedNames :: Lens' DisambiguatedNames TCState
+stDisambiguatedNames :: Lens' TCState DisambiguatedNames
 stDisambiguatedNames f s =
   f (stPostDisambiguatedNames (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostDisambiguatedNames = x}}
 
-stOpenMetaStore :: Lens' LocalMetaStore TCState
+stOpenMetaStore :: Lens' TCState LocalMetaStore
 stOpenMetaStore f s =
   f (stPostOpenMetaStore (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostOpenMetaStore = x}}
 
-stSolvedMetaStore :: Lens' LocalMetaStore TCState
+stSolvedMetaStore :: Lens' TCState LocalMetaStore
 stSolvedMetaStore f s =
   f (stPostSolvedMetaStore (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostSolvedMetaStore = x}}
 
-stInteractionPoints :: Lens' InteractionPoints TCState
+stInteractionPoints :: Lens' TCState InteractionPoints
 stInteractionPoints f s =
   f (stPostInteractionPoints (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostInteractionPoints = x}}
 
-stAwakeConstraints :: Lens' Constraints TCState
+stAwakeConstraints :: Lens' TCState Constraints
 stAwakeConstraints f s =
   f (stPostAwakeConstraints (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostAwakeConstraints = x}}
 
-stSleepingConstraints :: Lens' Constraints TCState
+stSleepingConstraints :: Lens' TCState Constraints
 stSleepingConstraints f s =
   f (stPostSleepingConstraints (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostSleepingConstraints = x}}
 
-stDirty :: Lens' Bool TCState
+stDirty :: Lens' TCState Bool
 stDirty f s =
   f (stPostDirty (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostDirty = x}}
 
-stOccursCheckDefs :: Lens' (Set QName) TCState
+stOccursCheckDefs :: Lens' TCState (Set QName)
 stOccursCheckDefs f s =
   f (stPostOccursCheckDefs (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostOccursCheckDefs = x}}
 
-stSignature :: Lens' Signature TCState
+stSignature :: Lens' TCState Signature
 stSignature f s =
   f (stPostSignature (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostSignature = x}}
 
-stModuleCheckpoints :: Lens' (Map ModuleName CheckpointId) TCState
+stModuleCheckpoints :: Lens' TCState (Map ModuleName CheckpointId)
 stModuleCheckpoints f s =
   f (stPostModuleCheckpoints (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostModuleCheckpoints = x}}
 
-stImportsDisplayForms :: Lens' DisplayForms TCState
+stImportsDisplayForms :: Lens' TCState DisplayForms
 stImportsDisplayForms f s =
   f (stPostImportsDisplayForms (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostImportsDisplayForms = x}}
 
-stImportedDisplayForms :: Lens' DisplayForms TCState
+stImportedDisplayForms :: Lens' TCState DisplayForms
 stImportedDisplayForms f s =
   f (stPreImportedDisplayForms (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedDisplayForms = x}}
@@ -665,7 +665,7 @@ stImportedDisplayForms f s =
 -- | Note that the lens is \"strict\".
 
 stCurrentModule ::
-  Lens' (Maybe (ModuleName, TopLevelModuleName)) TCState
+  Lens' TCState (Maybe (ModuleName, TopLevelModuleName))
 stCurrentModule f s =
   f (stPostCurrentModule (stPostScopeState s)) <&>
   \x -> s {stPostScopeState =
@@ -674,93 +674,93 @@ stCurrentModule f s =
                   Nothing         -> Nothing
                   Just (!m, !top) -> Just (m, top)}}
 
-stImportedInstanceDefs :: Lens' InstanceTable TCState
+stImportedInstanceDefs :: Lens' TCState InstanceTable
 stImportedInstanceDefs f s =
   f (stPreImportedInstanceDefs (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedInstanceDefs = x}}
 
-stInstanceDefs :: Lens' TempInstanceTable TCState
+stInstanceDefs :: Lens' TCState TempInstanceTable
 stInstanceDefs f s =
   f (stPostInstanceDefs (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostInstanceDefs = x}}
 
-stConcreteNames :: Lens' ConcreteNames TCState
+stConcreteNames :: Lens' TCState ConcreteNames
 stConcreteNames f s =
   f (stPostConcreteNames (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostConcreteNames = x}}
 
-stUsedNames :: Lens' (Map RawName (DList RawName)) TCState
+stUsedNames :: Lens' TCState (Map RawName (DList RawName))
 stUsedNames f s =
   f (stPostUsedNames (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostUsedNames = x}}
 
-stShadowingNames :: Lens' (Map Name (DList RawName)) TCState
+stShadowingNames :: Lens' TCState (Map Name (DList RawName))
 stShadowingNames f s =
   f (stPostShadowingNames (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostShadowingNames = x}}
 
-stStatistics :: Lens' Statistics TCState
+stStatistics :: Lens' TCState Statistics
 stStatistics f s =
   f (stPostStatistics (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostStatistics = x}}
 
-stTCWarnings :: Lens' [TCWarning] TCState
+stTCWarnings :: Lens' TCState [TCWarning]
 stTCWarnings f s =
   f (stPostTCWarnings (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostTCWarnings = x}}
 
-stMutualBlocks :: Lens' (Map MutualId MutualBlock) TCState
+stMutualBlocks :: Lens' TCState (Map MutualId MutualBlock)
 stMutualBlocks f s =
   f (stPostMutualBlocks (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostMutualBlocks = x}}
 
-stLocalBuiltins :: Lens' (BuiltinThings PrimFun) TCState
+stLocalBuiltins :: Lens' TCState (BuiltinThings PrimFun)
 stLocalBuiltins f s =
   f (stPostLocalBuiltins (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostLocalBuiltins = x}}
 
-stFreshMetaId :: Lens' MetaId TCState
+stFreshMetaId :: Lens' TCState MetaId
 stFreshMetaId f s =
   f (stPostFreshMetaId (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshMetaId = x}}
 
-stFreshMutualId :: Lens' MutualId TCState
+stFreshMutualId :: Lens' TCState MutualId
 stFreshMutualId f s =
   f (stPostFreshMutualId (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshMutualId = x}}
 
-stFreshProblemId :: Lens' ProblemId TCState
+stFreshProblemId :: Lens' TCState ProblemId
 stFreshProblemId f s =
   f (stPostFreshProblemId (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshProblemId = x}}
 
-stFreshCheckpointId :: Lens' CheckpointId TCState
+stFreshCheckpointId :: Lens' TCState CheckpointId
 stFreshCheckpointId f s =
   f (stPostFreshCheckpointId (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshCheckpointId = x}}
 
-stFreshInt :: Lens' Int TCState
+stFreshInt :: Lens' TCState Int
 stFreshInt f s =
   f (stPostFreshInt (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshInt = x}}
 
 -- use @areWeCaching@ from the Caching module instead.
-stAreWeCaching :: Lens' Bool TCState
+stAreWeCaching :: Lens' TCState Bool
 stAreWeCaching f s =
   f (stPostAreWeCaching (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostAreWeCaching = x}}
 
-stPostponeInstanceSearch :: Lens' Bool TCState
+stPostponeInstanceSearch :: Lens' TCState Bool
 stPostponeInstanceSearch f s =
   f (stPostPostponeInstanceSearch (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostPostponeInstanceSearch = x}}
 
-stConsideringInstance :: Lens' Bool TCState
+stConsideringInstance :: Lens' TCState Bool
 stConsideringInstance f s =
   f (stPostConsideringInstance (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostConsideringInstance = x}}
 
-stInstantiateBlocking :: Lens' Bool TCState
+stInstantiateBlocking :: Lens' TCState Bool
 stInstantiateBlocking f s =
   f (stPostInstantiateBlocking (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostInstantiateBlocking = x}}
@@ -779,7 +779,7 @@ unionBuiltin = curry $ \case
 ------------------------------------------------------------------------
 
 class Enum i => HasFresh i where
-    freshLens :: Lens' i TCState
+    freshLens :: Lens' TCState i
     nextFresh' :: i -> i
     nextFresh' = succ
 
@@ -1042,7 +1042,7 @@ iFullHash i = combineHashes $ iSourceHash i : List.map snd (iImportedModules i)
 
 -- | A lens for the 'iSignature' field of the 'Interface' type.
 
-intSignature :: Lens' Signature Interface
+intSignature :: Lens' Interface Signature
 intSignature f i = f (iSignature i) <&> \s -> i { iSignature = s }
 
 ---------------------------------------------------------------------------
@@ -1064,10 +1064,10 @@ instance Show a => Show (Closure a) where
 instance HasRange a => HasRange (Closure a) where
   getRange = getRange . clValue
 
-class LensClosure a b | b -> a where
-  lensClosure :: Lens' (Closure a) b
+class LensClosure b a | b -> a where
+  lensClosure :: Lens' b (Closure a)
 
-instance LensClosure a (Closure a) where
+instance LensClosure (Closure a) a where
   lensClosure = id
 
 instance LensTCEnv (Closure a) where
@@ -1601,18 +1601,18 @@ getMetaSig m = clSignature $ getMetaInfo m
 
 -- Lenses
 
-metaFrozen :: Lens' Frozen MetaVariable
+metaFrozen :: Lens' MetaVariable Frozen
 metaFrozen f mv = f (mvFrozen mv) <&> \ x -> mv { mvFrozen = x }
 
-_mvInfo :: Lens' MetaInfo MetaVariable
+_mvInfo :: Lens' MetaVariable MetaInfo
 _mvInfo f mv = (f $! mvInfo mv) <&> \ mi -> mv { mvInfo = mi }
 
 -- Lenses onto Closure Range
 
-instance LensClosure Range MetaInfo where
+instance LensClosure MetaInfo Range where
   lensClosure f mi = (f $! miClosRange mi) <&> \ cl -> mi { miClosRange = cl }
 
-instance LensClosure Range MetaVariable where
+instance LensClosure MetaVariable Range where
   lensClosure = _mvInfo . lensClosure
 
 -- Lenses onto IsAbstract
@@ -1710,17 +1710,17 @@ data Signature = Sig
       }
   deriving (Show, Generic)
 
-sigSections :: Lens' Sections Signature
+sigSections :: Lens' Signature Sections
 sigSections f s =
   f (_sigSections s) <&>
   \x -> s {_sigSections = x}
 
-sigDefinitions :: Lens' Definitions Signature
+sigDefinitions :: Lens' Signature Definitions
 sigDefinitions f s =
   f (_sigDefinitions s) <&>
   \x -> s {_sigDefinitions = x}
 
-sigRewriteRules :: Lens' RewriteRuleMap Signature
+sigRewriteRules :: Lens' Signature RewriteRuleMap
 sigRewriteRules f s =
   f (_sigRewriteRules s) <&>
   \x -> s {_sigRewriteRules = x}
@@ -1736,7 +1736,7 @@ newtype Section = Section { _secTelescope :: Telescope }
 instance Pretty Section where
   pretty = pretty . _secTelescope
 
-secTelescope :: Lens' Telescope Section
+secTelescope :: Lens' Section Telescope
 secTelescope f s =
   f (_secTelescope s) <&>
   \x -> s {_secTelescope = x}
@@ -2035,7 +2035,7 @@ data NumGeneralizableArgs
     --   'SomeGeneralizableArgs', also when the number is zero.
   deriving Show
 
-lensTheDef :: Lens' Defn Definition
+lensTheDef :: Lens' Definition Defn
 lensTheDef f d = f (theDef d) <&> \ df -> d { theDef = df }
 
 -- | Create a definition with sensible defaults.
@@ -2648,24 +2648,24 @@ pattern PrimitiveSort
 
 -- TODO: lenses for all Defn variants
 
-lensFunction :: Lens' FunctionData Defn
+lensFunction :: Lens' Defn FunctionData
 lensFunction f = \case
   FunctionDefn d -> FunctionDefn <$> f d
   _ -> __IMPOSSIBLE__
 
-lensConstructor :: Lens' ConstructorData Defn
+lensConstructor :: Lens' Defn ConstructorData
 lensConstructor f = \case
   ConstructorDefn d -> ConstructorDefn <$> f d
   _ -> __IMPOSSIBLE__
 
-lensRecord :: Lens' RecordData Defn
+lensRecord :: Lens' Defn RecordData
 lensRecord f = \case
   RecordDefn d -> RecordDefn <$> f d
   _ -> __IMPOSSIBLE__
 
 -- Lenses for Record
 
-lensRecTel :: Lens' Telescope RecordData
+lensRecTel :: Lens' RecordData Telescope
 lensRecTel f r =
   f (_recTel r) <&> \ tel -> r { _recTel = tel }
 
@@ -2899,13 +2899,13 @@ emptyFunctionData = do
 emptyFunction :: HasOptions m => m Defn
 emptyFunction = FunctionDefn <$> emptyFunctionData
 
-funFlag :: FunctionFlag -> Lens' Bool Defn
+funFlag :: FunctionFlag -> Lens' Defn Bool
 funFlag flag f def@Function{ funFlags = flags } =
   f (Set.member flag flags) <&>
   \ b -> def{ funFlags = (if b then Set.insert else Set.delete) flag flags }
 funFlag _ f def = f False $> def
 
-funStatic, funInline, funMacro :: Lens' Bool Defn
+funStatic, funInline, funMacro :: Lens' Defn Bool
 funStatic       = funFlag FunStatic
 funInline       = funFlag FunInline
 funMacro        = funFlag FunMacro
@@ -3633,7 +3633,7 @@ initEnv = TCEnv { envContext             = []
                 }
 
 class LensTCEnv a where
-  lensTCEnv :: Lens' TCEnv a
+  lensTCEnv :: Lens' a TCEnv
 
 instance LensTCEnv TCEnv where
   lensTCEnv = id
@@ -3646,71 +3646,71 @@ defaultUnquoteFlags :: UnquoteFlags
 defaultUnquoteFlags = UnquoteFlags
   { _unquoteNormalise = False }
 
-unquoteNormalise :: Lens' Bool UnquoteFlags
+unquoteNormalise :: Lens' UnquoteFlags Bool
 unquoteNormalise f e = f (_unquoteNormalise e) <&> \ x -> e { _unquoteNormalise = x }
 
-eUnquoteNormalise :: Lens' Bool TCEnv
+eUnquoteNormalise :: Lens' TCEnv Bool
 eUnquoteNormalise = eUnquoteFlags . unquoteNormalise
 
 -- * e-prefixed lenses
 ------------------------------------------------------------------------
 
-eContext :: Lens' Context TCEnv
+eContext :: Lens' TCEnv Context
 eContext f e = f (envContext e) <&> \ x -> e { envContext = x }
 
-eLetBindings :: Lens' LetBindings TCEnv
+eLetBindings :: Lens' TCEnv LetBindings
 eLetBindings f e = f (envLetBindings e) <&> \ x -> e { envLetBindings = x }
 
-eCurrentModule :: Lens' ModuleName TCEnv
+eCurrentModule :: Lens' TCEnv ModuleName
 eCurrentModule f e = f (envCurrentModule e) <&> \ x -> e { envCurrentModule = x }
 
-eCurrentPath :: Lens' (Maybe AbsolutePath) TCEnv
+eCurrentPath :: Lens' TCEnv (Maybe AbsolutePath)
 eCurrentPath f e = f (envCurrentPath e) <&> \ x -> e { envCurrentPath = x }
 
-eAnonymousModules :: Lens' [(ModuleName, Nat)] TCEnv
+eAnonymousModules :: Lens' TCEnv [(ModuleName, Nat)]
 eAnonymousModules f e = f (envAnonymousModules e) <&> \ x -> e { envAnonymousModules = x }
 
-eImportPath :: Lens' [TopLevelModuleName] TCEnv
+eImportPath :: Lens' TCEnv [TopLevelModuleName]
 eImportPath f e = f (envImportPath e) <&> \ x -> e { envImportPath = x }
 
-eMutualBlock :: Lens' (Maybe MutualId) TCEnv
+eMutualBlock :: Lens' TCEnv (Maybe MutualId)
 eMutualBlock f e = f (envMutualBlock e) <&> \ x -> e { envMutualBlock = x }
 
-eTerminationCheck :: Lens' (TerminationCheck ()) TCEnv
+eTerminationCheck :: Lens' TCEnv (TerminationCheck ())
 eTerminationCheck f e = f (envTerminationCheck e) <&> \ x -> e { envTerminationCheck = x }
 
-eCoverageCheck :: Lens' CoverageCheck TCEnv
+eCoverageCheck :: Lens' TCEnv CoverageCheck
 eCoverageCheck f e = f (envCoverageCheck e) <&> \ x -> e { envCoverageCheck = x }
 
-eMakeCase :: Lens' Bool TCEnv
+eMakeCase :: Lens' TCEnv Bool
 eMakeCase f e = f (envMakeCase e) <&> \ x -> e { envMakeCase = x }
 
-eSolvingConstraints :: Lens' Bool TCEnv
+eSolvingConstraints :: Lens' TCEnv Bool
 eSolvingConstraints f e = f (envSolvingConstraints e) <&> \ x -> e { envSolvingConstraints = x }
 
-eCheckingWhere :: Lens' Bool TCEnv
+eCheckingWhere :: Lens' TCEnv Bool
 eCheckingWhere f e = f (envCheckingWhere e) <&> \ x -> e { envCheckingWhere = x }
 
-eWorkingOnTypes :: Lens' Bool TCEnv
+eWorkingOnTypes :: Lens' TCEnv Bool
 eWorkingOnTypes f e = f (envWorkingOnTypes e) <&> \ x -> e { envWorkingOnTypes = x }
 
-eAssignMetas :: Lens' Bool TCEnv
+eAssignMetas :: Lens' TCEnv Bool
 eAssignMetas f e = f (envAssignMetas e) <&> \ x -> e { envAssignMetas = x }
 
-eActiveProblems :: Lens' (Set ProblemId) TCEnv
+eActiveProblems :: Lens' TCEnv (Set ProblemId)
 eActiveProblems f e = f (envActiveProblems e) <&> \ x -> e { envActiveProblems = x }
 
-eAbstractMode :: Lens' AbstractMode TCEnv
+eAbstractMode :: Lens' TCEnv AbstractMode
 eAbstractMode f e = f (envAbstractMode e) <&> \ x -> e { envAbstractMode = x }
 
-eRelevance :: Lens' Relevance TCEnv
+eRelevance :: Lens' TCEnv Relevance
 eRelevance f e = f (envRelevance e) <&> \x -> e { envRelevance = x }
 
 -- | Note that this lens does not satisfy all lens laws: If hard
 -- compile-time mode is enabled, then quantities other than zero are
 -- replaced by '__IMPOSSIBLE__'.
 
-eQuantity :: Lens' Quantity TCEnv
+eQuantity :: Lens' TCEnv Quantity
 eQuantity f e =
   if envHardCompileTimeMode e
   then f (check (envQuantity e)) <&>
@@ -3721,108 +3721,108 @@ eQuantity f e =
     | hasQuantity0 q = q
     | otherwise      = __IMPOSSIBLE__
 
-eHardCompileTimeMode :: Lens' Bool TCEnv
+eHardCompileTimeMode :: Lens' TCEnv Bool
 eHardCompileTimeMode f e =
   f (envHardCompileTimeMode e) <&>
   \x -> e { envHardCompileTimeMode = x }
 
-eSplitOnStrict :: Lens' Bool TCEnv
+eSplitOnStrict :: Lens' TCEnv Bool
 eSplitOnStrict f e = f (envSplitOnStrict e) <&> \ x -> e { envSplitOnStrict = x }
 
-eDisplayFormsEnabled :: Lens' Bool TCEnv
+eDisplayFormsEnabled :: Lens' TCEnv Bool
 eDisplayFormsEnabled f e = f (envDisplayFormsEnabled e) <&> \ x -> e { envDisplayFormsEnabled = x }
 
-eFoldLetBindings :: Lens' Bool TCEnv
+eFoldLetBindings :: Lens' TCEnv Bool
 eFoldLetBindings f e = f (envFoldLetBindings e) <&> \ x -> e { envFoldLetBindings = x }
 
-eRange :: Lens' Range TCEnv
+eRange :: Lens' TCEnv Range
 eRange f e = f (envRange e) <&> \ x -> e { envRange = x }
 
-eHighlightingRange :: Lens' Range TCEnv
+eHighlightingRange :: Lens' TCEnv Range
 eHighlightingRange f e = f (envHighlightingRange e) <&> \ x -> e { envHighlightingRange = x }
 
-eCall :: Lens' (Maybe (Closure Call)) TCEnv
+eCall :: Lens' TCEnv (Maybe (Closure Call))
 eCall f e = f (envCall e) <&> \ x -> e { envCall = x }
 
-eHighlightingLevel :: Lens' HighlightingLevel TCEnv
+eHighlightingLevel :: Lens' TCEnv HighlightingLevel
 eHighlightingLevel f e = f (envHighlightingLevel e) <&> \ x -> e { envHighlightingLevel = x }
 
-eHighlightingMethod :: Lens' HighlightingMethod TCEnv
+eHighlightingMethod :: Lens' TCEnv HighlightingMethod
 eHighlightingMethod f e = f (envHighlightingMethod e) <&> \ x -> e { envHighlightingMethod = x }
 
-eExpandLast :: Lens' ExpandHidden TCEnv
+eExpandLast :: Lens' TCEnv ExpandHidden
 eExpandLast f e = f (envExpandLast e) <&> \ x -> e { envExpandLast = x }
 
-eExpandLastBool :: Lens' Bool TCEnv
+eExpandLastBool :: Lens' TCEnv Bool
 eExpandLastBool f e = f (isExpandLast $ envExpandLast e) <&> \ x -> e { envExpandLast = toExpandLast x }
 
-eAppDef :: Lens' (Maybe QName) TCEnv
+eAppDef :: Lens' TCEnv (Maybe QName)
 eAppDef f e = f (envAppDef e) <&> \ x -> e { envAppDef = x }
 
-eSimplification :: Lens' Simplification TCEnv
+eSimplification :: Lens' TCEnv Simplification
 eSimplification f e = f (envSimplification e) <&> \ x -> e { envSimplification = x }
 
-eAllowedReductions :: Lens' AllowedReductions TCEnv
+eAllowedReductions :: Lens' TCEnv AllowedReductions
 eAllowedReductions f e = f (envAllowedReductions e) <&> \ x -> e { envAllowedReductions = x }
 
-eReduceDefs :: Lens' ReduceDefs TCEnv
+eReduceDefs :: Lens' TCEnv ReduceDefs
 eReduceDefs f e = f (envReduceDefs e) <&> \ x -> e { envReduceDefs = x }
 
-eReduceDefsPair :: Lens' (Bool, [QName]) TCEnv
+eReduceDefsPair :: Lens' TCEnv (Bool, [QName])
 eReduceDefsPair f e = f (fromReduceDefs $ envReduceDefs e) <&> \ x -> e { envReduceDefs = toReduceDefs x }
 
-eReconstructed :: Lens' Bool TCEnv
+eReconstructed :: Lens' TCEnv Bool
 eReconstructed f e = f (envReconstructed e) <&> \ x -> e { envReconstructed = x }
 
-eInjectivityDepth :: Lens' Int TCEnv
+eInjectivityDepth :: Lens' TCEnv Int
 eInjectivityDepth f e = f (envInjectivityDepth e) <&> \ x -> e { envInjectivityDepth = x }
 
-eCompareBlocked :: Lens' Bool TCEnv
+eCompareBlocked :: Lens' TCEnv Bool
 eCompareBlocked f e = f (envCompareBlocked e) <&> \ x -> e { envCompareBlocked = x }
 
-ePrintDomainFreePi :: Lens' Bool TCEnv
+ePrintDomainFreePi :: Lens' TCEnv Bool
 ePrintDomainFreePi f e = f (envPrintDomainFreePi e) <&> \ x -> e { envPrintDomainFreePi = x }
 
-ePrintMetasBare :: Lens' Bool TCEnv
+ePrintMetasBare :: Lens' TCEnv Bool
 ePrintMetasBare f e = f (envPrintMetasBare e) <&> \ x -> e { envPrintMetasBare = x }
 
-eInsideDotPattern :: Lens' Bool TCEnv
+eInsideDotPattern :: Lens' TCEnv Bool
 eInsideDotPattern f e = f (envInsideDotPattern e) <&> \ x -> e { envInsideDotPattern = x }
 
-eUnquoteFlags :: Lens' UnquoteFlags TCEnv
+eUnquoteFlags :: Lens' TCEnv UnquoteFlags
 eUnquoteFlags f e = f (envUnquoteFlags e) <&> \ x -> e { envUnquoteFlags = x }
 
-eInstanceDepth :: Lens' Int TCEnv
+eInstanceDepth :: Lens' TCEnv Int
 eInstanceDepth f e = f (envInstanceDepth e) <&> \ x -> e { envInstanceDepth = x }
 
-eIsDebugPrinting :: Lens' Bool TCEnv
+eIsDebugPrinting :: Lens' TCEnv Bool
 eIsDebugPrinting f e = f (envIsDebugPrinting e) <&> \ x -> e { envIsDebugPrinting = x }
 
-ePrintingPatternLambdas :: Lens' [QName] TCEnv
+ePrintingPatternLambdas :: Lens' TCEnv [QName]
 ePrintingPatternLambdas f e = f (envPrintingPatternLambdas e) <&> \ x -> e { envPrintingPatternLambdas = x }
 
-eCallByNeed :: Lens' Bool TCEnv
+eCallByNeed :: Lens' TCEnv Bool
 eCallByNeed f e = f (envCallByNeed e) <&> \ x -> e { envCallByNeed = x }
 
-eCurrentCheckpoint :: Lens' CheckpointId TCEnv
+eCurrentCheckpoint :: Lens' TCEnv CheckpointId
 eCurrentCheckpoint f e = f (envCurrentCheckpoint e) <&> \ x -> e { envCurrentCheckpoint = x }
 
-eCheckpoints :: Lens' (Map CheckpointId Substitution) TCEnv
+eCheckpoints :: Lens' TCEnv (Map CheckpointId Substitution)
 eCheckpoints f e = f (envCheckpoints e) <&> \ x -> e { envCheckpoints = x }
 
-eGeneralizeMetas :: Lens' DoGeneralize TCEnv
+eGeneralizeMetas :: Lens' TCEnv DoGeneralize
 eGeneralizeMetas f e = f (envGeneralizeMetas e) <&> \ x -> e { envGeneralizeMetas = x }
 
-eGeneralizedVars :: Lens' (Map QName GeneralizedValue) TCEnv
+eGeneralizedVars :: Lens' TCEnv (Map QName GeneralizedValue)
 eGeneralizedVars f e = f (envGeneralizedVars e) <&> \ x -> e { envGeneralizedVars = x }
 
-eActiveBackendName :: Lens' (Maybe BackendName) TCEnv
+eActiveBackendName :: Lens' TCEnv (Maybe BackendName)
 eActiveBackendName f e = f (envActiveBackendName e) <&> \ x -> e { envActiveBackendName = x }
 
-eConflComputingOverlap :: Lens' Bool TCEnv
+eConflComputingOverlap :: Lens' TCEnv Bool
 eConflComputingOverlap f e = f (envConflComputingOverlap e) <&> \ x -> e { envConflComputingOverlap = x }
 
-eCurrentlyElaborating :: Lens' Bool TCEnv
+eCurrentlyElaborating :: Lens' TCEnv Bool
 eCurrentlyElaborating f e = f (envCurrentlyElaborating e) <&> \ x -> e { envCurrentlyElaborating = x }
 
 -- | The current modality.
@@ -4602,10 +4602,10 @@ mapRedEnvSt :: (TCEnv -> TCEnv) -> (TCState -> TCState) -> ReduceEnv
 mapRedEnvSt f g (ReduceEnv e s p) = ReduceEnv (f e) (g s) p
 
 -- Lenses
-reduceEnv :: Lens' TCEnv ReduceEnv
+reduceEnv :: Lens' ReduceEnv TCEnv
 reduceEnv f s = f (redEnv s) <&> \ e -> s { redEnv = e }
 
-reduceSt :: Lens' TCState ReduceEnv
+reduceSt :: Lens' ReduceEnv TCState
 reduceSt f s = f (redSt s) <&> \ e -> s { redSt = e }
 
 newtype ReduceM a = ReduceM { unReduceM :: ReduceEnv -> a }
@@ -4717,7 +4717,7 @@ instance MonadTCEnv ReduceM where
 --   this usually prevents retaining the whole structure when we only need a field.
 --
 -- This fixes (or contributes to the fix of) the space leak issue #1829 (caching).
-useR :: (ReadTCState m) => Lens' a TCState -> m a
+useR :: (ReadTCState m) => Lens' TCState a -> m a
 useR l = do
   !x <- (^.l) <$> getTCState
   return x
@@ -4790,11 +4790,11 @@ instance MonadTCEnv m => MonadTCEnv (ListT m) where
 asksTC :: MonadTCEnv m => (TCEnv -> a) -> m a
 asksTC f = f <$> askTC
 
-viewTC :: MonadTCEnv m => Lens' a TCEnv -> m a
+viewTC :: MonadTCEnv m => Lens' TCEnv a -> m a
 viewTC l = asksTC (^. l)
 
 -- | Modify the lens-indicated part of the @TCEnv@ in a subcomputation.
-locallyTC :: MonadTCEnv m => Lens' a TCEnv -> (a -> a) -> m b -> m b
+locallyTC :: MonadTCEnv m => Lens' TCEnv a -> (a -> a) -> m b -> m b
 locallyTC l = localTC . over l
 
 ---------------------------------------------------------------------------
@@ -4845,7 +4845,7 @@ modifyTC' f = do
 
 -- ** @TCState@ accessors via lenses
 
-useTC :: ReadTCState m => Lens' a TCState -> m a
+useTC :: ReadTCState m => Lens' TCState a -> m a
 useTC l = do
   !x <- getsTC (^. l)
   return x
@@ -4853,33 +4853,33 @@ useTC l = do
 infix 4 `setTCLens`
 
 -- | Overwrite the part of the 'TCState' focused on by the lens.
-setTCLens :: MonadTCState m => Lens' a TCState -> a -> m ()
+setTCLens :: MonadTCState m => Lens' TCState a -> a -> m ()
 setTCLens l = modifyTC . set l
 
 -- | Overwrite the part of the 'TCState' focused on by the lens
 -- (strictly).
-setTCLens' :: MonadTCState m => Lens' a TCState -> a -> m ()
+setTCLens' :: MonadTCState m => Lens' TCState a -> a -> m ()
 setTCLens' l = modifyTC' . set l
 
 -- | Modify the part of the 'TCState' focused on by the lens.
-modifyTCLens :: MonadTCState m => Lens' a TCState -> (a -> a) -> m ()
+modifyTCLens :: MonadTCState m => Lens' TCState a -> (a -> a) -> m ()
 modifyTCLens l = modifyTC . over l
 
 -- | Modify the part of the 'TCState' focused on by the lens
 -- (strictly).
-modifyTCLens' :: MonadTCState m => Lens' a TCState -> (a -> a) -> m ()
+modifyTCLens' :: MonadTCState m => Lens' TCState a -> (a -> a) -> m ()
 modifyTCLens' l = modifyTC' . over l
 
 -- | Modify a part of the state monadically.
-modifyTCLensM :: MonadTCState m => Lens' a TCState -> (a -> m a) -> m ()
+modifyTCLensM :: MonadTCState m => Lens' TCState a -> (a -> m a) -> m ()
 modifyTCLensM l f = putTC =<< l f =<< getTC
 
 -- | Modify the part of the 'TCState' focused on by the lens, and return some result.
-stateTCLens :: MonadTCState m => Lens' a TCState -> (a -> (r , a)) -> m r
+stateTCLens :: MonadTCState m => Lens' TCState a -> (a -> (r , a)) -> m r
 stateTCLens l f = stateTCLensM l $ return . f
 
 -- | Modify a part of the state monadically, and return some result.
-stateTCLensM :: MonadTCState m => Lens' a TCState -> (a -> m (r , a)) -> m r
+stateTCLensM :: MonadTCState m => Lens' TCState a -> (a -> m (r , a)) -> m r
 stateTCLensM l f = do
   s <- getTC
   (result , x) <- f $ s ^. l

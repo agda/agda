@@ -374,7 +374,7 @@ isLambdaNotation n = any isBinder (notation n)
 
 -- | Lens for 'Fixity' in 'NewNotation'.
 
-_notaFixity :: Lens' Fixity NewNotation
+_notaFixity :: Lens' NewNotation Fixity
 _notaFixity f r = f (notaFixity r) <&> \x -> r { notaFixity = x }
 
 -- * Sections

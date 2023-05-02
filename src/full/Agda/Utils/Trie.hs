@@ -162,7 +162,7 @@ filter p (Trie mv ts) = Trie mv' (Map.filter (not . null) $ filter p <$> ts)
         _                   -> Strict.Nothing
 
 -- | Key lens.
-valueAt :: Ord k => [k] -> Lens' (Maybe v) (Trie k v)
+valueAt :: Ord k => [k] -> Lens' (Trie k v) (Maybe v)
 valueAt path f t = f (lookup path t) <&> \ case
   Nothing -> delete path t
   Just v  -> insert path v t

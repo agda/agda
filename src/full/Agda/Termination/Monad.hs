@@ -341,7 +341,7 @@ terUnguarded = terSetGuarded unknown
 
 -- | Lens for '_terSizeDepth'.
 
-terSizeDepth :: Lens' Int TerEnv
+terSizeDepth :: Lens' TerEnv Int
 terSizeDepth f e = f (_terSizeDepth e) <&> \ i -> e { _terSizeDepth = i }
 
 -- | Lens for 'terUsableVars'.

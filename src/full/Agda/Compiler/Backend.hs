@@ -184,13 +184,13 @@ backendWithOpts (Backend backend) = Some (BackendWithOpts backend)
 forgetOpts :: BackendWithOpts opts -> Backend
 forgetOpts (BackendWithOpts backend) = Backend backend
 
-bOptions :: Lens' opts (BackendWithOpts opts)
+bOptions :: Lens' (BackendWithOpts opts) opts
 bOptions f (BackendWithOpts b) = f (options b) <&> \ opts -> BackendWithOpts b{ options = opts }
 
-embedFlag :: Lens' a b -> Flag a -> Flag b
+embedFlag :: Lens' b a -> Flag a -> Flag b
 embedFlag l flag = l flag
 
-embedOpt :: Lens' a b -> OptDescr (Flag a) -> OptDescr (Flag b)
+embedOpt :: Lens' b a -> OptDescr (Flag a) -> OptDescr (Flag b)
 embedOpt l = fmap (embedFlag l)
 
 parseBackendOptions :: [Backend] -> [String] -> CommandLineOptions -> OptM ([Backend], CommandLineOptions)
