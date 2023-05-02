@@ -10,3 +10,5 @@ packages:
 flags:
   mintty:
     win32-2-13-1: false
+  ansi-terminal:
+    win32-2-13-1: false

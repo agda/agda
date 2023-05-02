@@ -11,7 +11,6 @@ on:
     - '.github/workflows/stack.yml'
     - 'Agda.cabal'
     - 'Setup.hs'
-    - 'stack-9.4.4.yaml'
     - 'stack-9.4.5.yaml'
       # !!! MATCH THIS WITH ghc_ver IN THE matrix BELOW !!!
       #
@@ -67,7 +66,7 @@ jobs:
           # adding the respective stack-x.y.z.yaml file.
         include:
         - os: windows-2022
-          ghc-ver: 9.4.4
+          ghc-ver: 9.4.5
           # !!! MAKE SURE THIS GHC VERSION IS IN SYNC WITH trigger_path_list !!!
 
     # # Try "allowed-failure" for Windows with GHC 9.2
@@ -124,6 +123,7 @@ jobs:
         ghc-version: ${{ matrix.ghc-ver }}
         stack-version: latest
         enable-stack: true
+        cabal-update: false
 
     - name: Environment settings based on the Haskell setup
       run: |
@@ -179,10 +179,7 @@ jobs:
         echo "ICU_VER           = ${ICU_VER}"
 
     - name: Restore cache from approximate key
-      # uses: actions/cache/restore@v3
-      # Andreas, 2023-02-02 revert to default cache saving logic.
-      # "Save always" is bad because it may duplicate caches from the base branch on the feature branch.
-      uses: actions/cache@v3
+      uses: actions/cache/restore@v3
       id:   cache
       with:
         # We include stack-${GHC_VER}.yaml in the primary cache key so that the cache gets rewritten
@@ -220,9 +217,10 @@ jobs:
     #   # Don't fail if cache cannot be deleted
     #   continue-on-error: true
 
-    # - name: Save cache
-    #   uses: actions/cache/save@v3
-    #   if:   always()  # save cache even when build fails
-    #   with:
-    #     key:  *cache_key
-    #     path: *cache_pathes
+    - name: Save cache
+      uses: actions/cache/save@v3
+      if:   always() && steps.cache.outputs.cache-matched-key != steps.cache.outputs.cache-primary-key
+            # save cache even when build fails
+      with:
+        key:  ${{ steps.cache.outputs.cache-primary-key }}
+        path: *cache_pathes

@@ -37,6 +37,7 @@ jobs:
     - id: haskell-setup
       uses: haskell/actions/setup@v2
       with:
+        cabal-update: false
         enable-stack: true
         ghc-version: ${{ matrix.ghc-ver }}
         stack-version: latest
@@ -78,7 +79,7 @@ jobs:
         echo "ICU_VER           = ${ICU_VER}"
     - id: cache
       name: Restore cache from approximate key
-      uses: actions/cache@v3
+      uses: actions/cache/restore@v3
       with:
         key: stack.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER
           }}-icu-${{ env.ICU_VER }}-plan-${{ hashFiles('Agda.cabal', format('stack-{0}.yaml',
@@ -94,13 +95,20 @@ jobs:
       run: stack build ${ARGS} ${EXTRA_ARGS} --test --no-run-tests
     - name: Build Agda with the non-default flags Agda.cabal.
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}
+    - if: always() && steps.cache.outputs.cache-matched-key != steps.cache.outputs.cache-primary-key
+      name: Save cache
+      uses: actions/cache/save@v3
+      with:
+        key: ${{ steps.cache.outputs.cache-primary-key }}
+        path: |
+          ${{ env.STACK_ROOT }}
     strategy:
       fail-fast: false
       matrix:
         ghc-ver:
         - 9.4.5
         include:
-        - ghc-ver: 9.4.4
+        - ghc-ver: 9.4.5
           os: windows-2022
         os:
         - ubuntu-22.04
@@ -113,7 +121,6 @@ name: Build (stack)
     - .github/workflows/stack.yml
     - Agda.cabal
     - Setup.hs
-    - stack-9.4.4.yaml
     - stack-9.4.5.yaml
     - src/size-solver/size-solver.cabal
   push:
@@ -125,7 +132,6 @@ name: Build (stack)
     - .github/workflows/stack.yml
     - Agda.cabal
     - Setup.hs
-    - stack-9.4.4.yaml
     - stack-9.4.5.yaml
     - src/size-solver/size-solver.cabal
   workflow_dispatch: null
