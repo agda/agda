@@ -866,10 +866,10 @@ data CCEnv = CCEnv
 type NameSupply = [HS.Name]
 type CCContext  = [HS.Name]
 
-ccNameSupply :: Lens' NameSupply CCEnv
+ccNameSupply :: Lens' CCEnv NameSupply
 ccNameSupply f e =  (\ ns' -> e { _ccNameSupply = ns' }) <$> f (_ccNameSupply e)
 
-ccContext :: Lens' CCContext CCEnv
+ccContext :: Lens' CCEnv CCContext
 ccContext f e = (\ cxt -> e { _ccContext = cxt }) <$> f (_ccContext e)
 
 -- | Initial environment for expression generation.

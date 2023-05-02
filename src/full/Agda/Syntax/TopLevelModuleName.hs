@@ -180,7 +180,7 @@ instance NFData TopLevelModuleName where
 -- | A lens focusing on the 'moduleNameParts'.
 
 lensTopLevelModuleNameParts ::
-  Lens' TopLevelModuleNameParts TopLevelModuleName
+  Lens' TopLevelModuleName TopLevelModuleNameParts
 lensTopLevelModuleNameParts f m =
   f (moduleNameParts m) <&> \ xs -> m{ moduleNameParts = xs }
 

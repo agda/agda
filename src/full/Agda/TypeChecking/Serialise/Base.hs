@@ -64,11 +64,11 @@ farEmpty = FreshAndReuse 0
                            0
 #endif
 
-lensFresh :: Lens' Int32 FreshAndReuse
+lensFresh :: Lens' FreshAndReuse Int32
 lensFresh f r = f (farFresh r) <&> \ i -> r { farFresh = i }
 
 #ifdef DEBUG
-lensReuse :: Lens' Int32 FreshAndReuse
+lensReuse :: Lens' FreshAndReuse Int32
 lensReuse f r = f (farReuse r) <&> \ i -> r { farReuse = i }
 #endif
 

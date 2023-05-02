@@ -317,7 +317,7 @@ instance NumHoles AmbiguousQName where
 -- * name lenses
 ------------------------------------------------------------------------
 
-lensQNameName :: Lens' Name QName
+lensQNameName :: Lens' QName Name
 lensQNameName f (QName m n) = QName m <$> f n
 
 ------------------------------------------------------------------------

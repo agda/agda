@@ -68,12 +68,12 @@ collapseDefault = \case
 
 -- | Focus, overwriting 'Default'.
 --
-lensCollapseDefault :: (Boolean a, KnownBool b) => Lens' a (WithDefault' a b)
+lensCollapseDefault :: (Boolean a, KnownBool b) => Lens' (WithDefault' a b) a
 lensCollapseDefault f w = Value <$> f (collapseDefault w)
 
 -- | Update, but keep 'Default' when new value is default value.
 --
-lensKeepDefault :: (Boolean a, Eq a, KnownBool b) => Lens' a (WithDefault' a b)
+lensKeepDefault :: (Boolean a, Eq a, KnownBool b) => Lens' (WithDefault' a b) a
 lensKeepDefault f = \case
   Value b   -> Value <$> f b
   w@Default -> f b <&> \ b' -> if b == b' then Default else Value b'
