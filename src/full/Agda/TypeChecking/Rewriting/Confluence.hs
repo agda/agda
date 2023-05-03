@@ -63,7 +63,7 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Conversion.Pure
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.Irrelevance ( workOnTypes , isIrrelevantOrPropM )
+import Agda.TypeChecking.Irrelevance ( isIrrelevantOrPropM )
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Monad

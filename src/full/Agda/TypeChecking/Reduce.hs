@@ -45,7 +45,7 @@ import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
 
-import {-# SOURCE #-} Agda.TypeChecking.Irrelevance (workOnTypes, isPropM)
+import {-# SOURCE #-} Agda.TypeChecking.Irrelevance (isPropM)
 import {-# SOURCE #-} Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Monad hiding ( enterClosure, constructorForm )
 import Agda.TypeChecking.Substitute

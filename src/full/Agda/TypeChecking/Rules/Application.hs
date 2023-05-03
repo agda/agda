@@ -41,7 +41,6 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Lazy (VarMap, lookupVarMap)
 import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.Injectivity
-import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.InstanceArguments (postponeInstanceConstraints)
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
