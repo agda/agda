@@ -1326,6 +1326,8 @@ prettyInEqual t1 t2 = do
         (I.Def{}, I.Var{}) -> varDef
         (I.Var{}, I.Con{}) -> varCon
         (I.Con{}, I.Var{}) -> varCon
+        (I.Def x _, I.Def y _)
+          | isExtendedLambdaName x, isExtendedLambdaName y -> extLamExtLam x y
         _                  -> empty
   where
     varDef, varCon, generic :: MonadPretty m => m Doc
@@ -1337,6 +1339,15 @@ prettyInEqual t1 t2 = do
     varVar i j = parens $ fwords $
                    "because one has de Bruijn index " ++ show i
                    ++ " and the other " ++ show j
+
+    extLamExtLam :: MonadPretty m => QName -> QName -> m Doc
+    extLamExtLam a b = vcat
+      [ fwords "Because they are distinct extended lambdas: one is defined at"
+      , "  " <+> pretty (nameBindingSite (qnameName a))
+      , fwords "and the other at"
+      , "  " <+> (pretty (nameBindingSite (qnameName b)) <> ",")
+      , fwords "so they have different internal representations."
+      ]
 
 class PrettyUnequal a where
   prettyUnequal :: MonadPretty m => a -> m Doc -> a -> m Doc
