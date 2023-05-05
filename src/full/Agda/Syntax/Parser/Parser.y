@@ -31,9 +31,12 @@ import Prelude hiding ( null )
 
 import Control.Applicative ( (<|>) )
 import Control.Monad
+import Control.Monad.State
 
 import Data.Bifunctor (first, second)
 import Data.Char
+import Data.DList (DList)
+import qualified Data.DList as DL
 import qualified Data.List as List
 import Data.Maybe
 import Data.Semigroup ((<>), sconcat)
@@ -166,6 +169,7 @@ import Agda.Utils.Impossible
     'NO_UNIVERSE_CHECK'       { TokKeyword KwNO_UNIVERSE_CHECK $$ }
     'NON_TERMINATING'         { TokKeyword KwNON_TERMINATING $$ }
     'NON_COVERING'            { TokKeyword KwNON_COVERING $$ }
+    'NOT_PROJECTION_LIKE'     { TokKeyword KwNOT_PROJECTION_LIKE $$ }
     'OPTIONS'                 { TokKeyword KwOPTIONS $$ }
     'POLARITY'                { TokKeyword KwPOLARITY $$ }
     'WARNING_ON_USAGE'        { TokKeyword KwWARNING_ON_USAGE $$ }
@@ -294,6 +298,7 @@ Token
     | 'NO_UNIVERSE_CHECK'       { TokKeyword KwNO_UNIVERSE_CHECK $1 }
     | 'NON_TERMINATING'         { TokKeyword KwNON_TERMINATING $1 }
     | 'NON_COVERING'            { TokKeyword KwNON_COVERING $1 }
+    | 'NOT_PROJECTION_LIKE'     { TokKeyword KwNOT_PROJECTION_LIKE $1 }
     | 'OPTIONS'                 { TokKeyword KwOPTIONS $1 }
     | 'POLARITY'                { TokKeyword KwPOLARITY $1 }
     | 'REWRITE'                 { TokKeyword KwREWRITE $1 }
@@ -559,10 +564,10 @@ BIdsWithHiding : Application {%
 
 
 -- Space separated list of strings in a pragma.
-PragmaStrings :: { [String] }
+PragmaStrings :: { [(Interval, String)] }
 PragmaStrings
     : {- empty -}           { [] }
-    | string PragmaStrings  { snd $1 : $2 }
+    | string PragmaStrings  { $1 : $2 }
 {- Unused
 PragmaString :: { String }
 PragmaString
@@ -572,11 +577,12 @@ Strings :: { [(Interval, String)] }
 Strings : {- empty -}    { [] }
         | string Strings { $1 : $2 }
 
-ForeignCode :: { [(Interval, String)] }
+ForeignCode :: { DList (Interval, String) }
 ForeignCode
-  : {- empty -} { [] }
-  | string ForeignCode { $1 : $2 }
-  | '{-#' ForeignCode '#-}' ForeignCode { [($1, "{-#")] ++ $2 ++ [($3, "#-}")] ++ $4 }
+  : {- empty -} { mempty }
+  | string ForeignCode { $1 `DL.cons` $2 }
+  | '{-#' ForeignCode '#-}' ForeignCode
+    { (($1, "{-#") `DL.cons` $2) <> (($3, "#-}") `DL.cons` $4) }
 
 PragmaName :: { Name }
 PragmaName : string {% mkName $1 }
@@ -851,7 +857,7 @@ LamBindings
   : LamBinds '->' {%
       case absurdBinding $1 of
         Just{}  -> parseError "Absurd lambda cannot have a body."
-        Nothing -> return $ List1.fromList __IMPOSSIBLE__ $ lamBindings $1
+        Nothing -> return $ List1.fromListSafe __IMPOSSIBLE__ $ lamBindings $1
       }
 
 AbsurdLamBindings :: { Either ([LamBinding], Hiding) (List1 Expr) }
@@ -1104,10 +1110,17 @@ HoleContent
 -- Where clauses are optional.
 WhereClause :: { WhereClause }
 WhereClause
-    : {- empty -}                               { NoWhere }
-    |                     'where' Declarations0 { AnyWhere  (getRange $1) $2 }
-    | 'module' Id         'where' Declarations0 { SomeWhere (getRange ($1,$3)) $2 PublicAccess $4 }
-    | 'module' Underscore 'where' Declarations0 { SomeWhere (getRange ($1,$3)) $2 PublicAccess $4 }
+    : {- empty -} { NoWhere }
+    |                                'where' Declarations0
+        { AnyWhere  (getRange $1) $2 }
+    | 'module' Attributes Id         'where' Declarations0
+         {% onlyErased $2 >>= \erased ->
+            return $ SomeWhere (getRange ($1,$4)) erased
+                       $3 PublicAccess $5 }
+    | 'module' Attributes Underscore 'where' Declarations0
+         {% onlyErased $2 >>= \erased ->
+            return $ SomeWhere (getRange ($1,$4)) erased
+                       $3 PublicAccess $5 }
   -- Note: The access modifier is a dummy, it is computed in the nicifier.
 
 ExprWhere :: { ExprWhere }
@@ -1147,11 +1160,6 @@ Declaration
 {--------------------------------------------------------------------------
     Individual declarations
  --------------------------------------------------------------------------}
-
--- Type signatures of the form "n1 n2 n3 ... : Type", with at least
--- one bound name.
-TypeSigs :: { List1 Declaration }
-TypeSigs : SpaceIds ':' Expr { fmap (\ x -> typeSig defaultArgInfo Nothing x $3) $1 }
 
 -- A variant of TypeSigs where any sub-sequence of names can be marked
 -- as hidden or irrelevant using braces and dots:
@@ -1198,7 +1206,14 @@ RHS
 -- Data declaration. Can be local.
 Data :: { Declaration }
 Data : 'data' Id TypedUntypedBindings ':' Expr 'where'
-            Declarations0       { Data (getRange ($1,$2,$3,$4,$5,$6,$7)) $2 $3 $5 $7 }
+            Declarations0
+       { Data (getRange ($1,$2,$3,$4,$5,$6,$7))
+           defaultErased $2 $3 $5 $7 }
+     | 'data' Attributes1 Id TypedUntypedBindings ':' Expr 'where'
+            Declarations0
+       {% onlyErased (List1.toList $2) >>= \e ->
+          return $ Data (getRange (($1,$2,$3,$4),($5,$6,$7,$8)))
+                     e $3 $4 $6 $8 }
 
   -- New cases when we already had a DataSig.  Then one can omit the sort.
      | 'data' Id TypedUntypedBindings 'where'
@@ -1206,8 +1221,12 @@ Data : 'data' Id TypedUntypedBindings ':' Expr 'where'
 
 -- Data type signature. Found in mutual blocks.
 DataSig :: { Declaration }
-DataSig : 'data' Id TypedUntypedBindings ':' Expr
-  { DataSig (getRange ($1,$2,$3,$4,$5)) $2 $3 $5 }
+DataSig
+  : 'data' Id TypedUntypedBindings ':' Expr
+    { DataSig (getRange ($1,$2,$3,$4,$5)) defaultErased $2 $3 $5 }
+  | 'data' Attributes1 Id TypedUntypedBindings ':' Expr
+    {% onlyErased (List1.toList $2) >>= \e ->
+       return $ DataSig (getRange ($1,$2,$3,$4,$5,$6)) e $3 $4 $6 }
 
 -- Andreas, 2012-03-16:  The Expr3NoCurly instead of Id in everything
 -- following 'record' is to remove the (harmless) shift/reduce conflict
@@ -1217,15 +1236,32 @@ DataSig : 'data' Id TypedUntypedBindings ':' Expr
 Record :: { Declaration }
 Record : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr 'where'
             RecordDeclarations
-         {% exprToName $2 >>= \ n -> let (dir, ds) = $7 in return $ Record (getRange ($1,$2,$3,$4,$5,$6,$7)) n dir $3 $5 ds }
+         {% exprToName $2 >>= \ n -> let (dir, ds) = $7 in
+            return $ Record (getRange ($1,$2,$3,$4,$5,$6,$7))
+                       defaultErased n dir $3 $5 ds }
+       | 'record' Attributes1 Expr3NoCurly TypedUntypedBindings ':' Expr
+            'where'
+            RecordDeclarations
+         {% onlyErased (List1.toList $2) >>= \e ->
+            exprToName $3                >>= \n ->
+            let (dir, ds) = $8 in
+            return $ Record (getRange (($1,$2,$3,$4),($5,$6,$7,$8)))
+                       e n dir $4 $6 ds }
        | 'record' Expr3NoCurly TypedUntypedBindings 'where'
             RecordDeclarations
          {% exprToName $2 >>= \ n -> let (dir, ds) = $5 in return $ RecordDef (getRange ($1,$2,$3,$4,$5)) n dir $3 ds }
 
 -- Record type signature. In mutual blocks.
 RecordSig :: { Declaration }
-RecordSig : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr
-  {% exprToName $2 >>= \ n -> return $ RecordSig (getRange ($1,$2,$3,$4,$5)) n $3 $5 }
+RecordSig
+  : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr
+    {% exprToName $2 >>= \n ->
+       return $ RecordSig (getRange ($1,$2,$3,$4,$5))
+                  defaultErased n $3 $5 }
+  | 'record' Attributes1 Expr3NoCurly TypedUntypedBindings ':' Expr
+    {% onlyErased (List1.toList $2) >>= \e ->
+       exprToName $3                >>= \n ->
+       return $ RecordSig (getRange ($1,$2,$3,$4,$5,$6)) e n $4 $6 }
 
 Constructor :: { Declaration }
 Constructor : 'data' '_' 'where' Declarations0
@@ -1307,6 +1343,8 @@ Primitive : 'primitive' ArgTypeSignaturesOrEmpty  {
 UnquoteDecl :: { Declaration }
 UnquoteDecl
   : 'unquoteDecl' '=' Expr { UnquoteDecl (fuseRange $1 $3) [] $3 }
+  | 'unquoteDecl' 'data' Id '=' Expr { UnquoteData (getRange($1, $2, $5)) $3 [] $5 }
+  | 'unquoteDecl' 'data' Id 'constructor' SpaceIds '=' Expr { UnquoteData (getRange($1, $2, $4, $7)) $3 (List1.toList $5) $7 }
   | 'unquoteDecl' SpaceIds '=' Expr { UnquoteDecl (fuseRange $1 $4) (List1.toList $2) $4 }
   | 'unquoteDef'  SpaceIds '=' Expr { UnquoteDef (fuseRange $1 $4) (List1.toList $2) $4 }
 
@@ -1314,7 +1352,7 @@ UnquoteDecl
 Syntax :: { Declaration }
 Syntax : 'syntax' Id HoleNames '=' SimpleIds  {%
   case $2 of
-    Name _ _ (_ :| []) -> case mkNotation $3 (reverse $5) of
+    Name _ _ (_ :| []) -> case mkNotation (DL.toList $3) (reverse $5) of
       Left err -> parseError $ "Malformed syntax declaration: " ++ err
       Right n -> return $ Syntax $2 n
     _ -> parseError "Syntax declarations are allowed only for simple names (without holes)"
@@ -1343,9 +1381,9 @@ SimpleIdsOrWildcards
   : SimpleIdOrWildcard                      { List1.singleton $1 }
   | SimpleIdsOrWildcards SimpleIdOrWildcard { $2 <| $1 }
 
-HoleNames :: { [NamedArg HoleName] }
-HoleNames :                    { [] }
-          | HoleNames HoleName {$1 ++ [$2]}
+HoleNames :: { DList (NamedArg HoleName) }
+HoleNames :                    { mempty }
+          | HoleNames HoleName { $1 `DL.snoc` $2 }
 
 HoleName :: { NamedArg HoleName }
 HoleName
@@ -1400,7 +1438,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
     ; impStm asR = Import noRange m (Just (AsName (Right fresh) asR)) DontOpen defaultImportDir
     ; appStm m' es =
         Private r Inserted
-          [ ModuleMacro r m'
+          [ ModuleMacro r defaultErased m'
              (SectionApp (getRange es) []
                (rawApp (Ident (QName fresh) :| es)))
              doOpen dir
@@ -1447,16 +1485,19 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
       case es of
       { []  -> Open r m dir
       ; _   -> Private r Inserted
-                 [ ModuleMacro r (noName $ beginningOf $ getRange m)
-                             (SectionApp (getRange (m , es)) [] (rawApp (Ident m :| es)))
-                             DoOpen dir
+                 [ ModuleMacro r defaultErased
+                     (noName $ beginningOf $ getRange m)
+                     (SectionApp (getRange (m , es)) []
+                        (rawApp (Ident m :| es)))
+                     DoOpen dir
                  ]
       }
   }
   | 'open' ModuleName '{{' '...' DoubleCloseBrace ImportDirective {
     let r = getRange $2 in singleton $
       Private r Inserted
-      [ ModuleMacro r (noName $ beginningOf $ getRange $2) (RecordModuleInstance r $2) DoOpen $6
+      [ ModuleMacro r defaultErased (noName $ beginningOf $ getRange $2)
+          (RecordModuleInstance r $2) DoOpen $6
       ]
   }
 
@@ -1475,19 +1516,37 @@ ModuleApplication : ModuleName '{{' '...' DoubleCloseBrace { (\ts ->
 
 -- Module instantiation
 ModuleMacro :: { Declaration }
-ModuleMacro : 'module' ModuleName TypedUntypedBindings '=' ModuleApplication ImportDirective
-                    {% do { ma <- $5 (map addType $3)
-                          ; name <- ensureUnqual $2
-                          ; return $ ModuleMacro (getRange ($1, $2, ma, $6)) name ma DontOpen $6 } }
-            | 'open' 'module' Id TypedUntypedBindings '=' ModuleApplication ImportDirective
-                    {% do {ma <- $6 (map addType $4); return $ ModuleMacro (getRange ($1, $2, $3, ma, $7)) $3 ma DoOpen $7 } }
+ModuleMacro
+  : 'module' Attributes ModuleName TypedUntypedBindings '='
+      ModuleApplication ImportDirective
+    {% do { ma     <- $6 (map addType $4)
+          ; erased <- onlyErased $2
+          ; name   <- ensureUnqual $3
+          ; return $ ModuleMacro (getRange ($1, $2, $3, ma, $7))
+                       erased name ma DontOpen $7
+          }
+    }
+  | 'open' 'module' Attributes Id TypedUntypedBindings '='
+      ModuleApplication ImportDirective
+    {% do { ma     <- $7 (map addType $5)
+          ; erased <- onlyErased $3
+          ; return $ ModuleMacro (getRange ($1, $2, $3, $4, ma, $8))
+                       erased $4 ma DoOpen $8
+          } }
 
 -- Module
 Module :: { Declaration }
-Module : 'module' ModuleName TypedUntypedBindings 'where' Declarations0
-                    { Module (getRange ($1,$2,$3,$4,$5)) $2 (map addType $3) $5 }
-       | 'module' Underscore TypedUntypedBindings 'where' Declarations0
-                    { Module (getRange ($1,$2,$3,$4,$5)) (QName $2) (map addType $3) $5 }
+Module
+  : 'module' Attributes ModuleName TypedUntypedBindings 'where'
+      Declarations0
+    {% onlyErased $2 >>= \erased ->
+       return $ Module (getRange ($1,$2,$3,$4,$5,$6)) erased
+                  $3 (map addType $4) $6 }
+  | 'module' Attributes Underscore TypedUntypedBindings 'where'
+      Declarations0
+    {% onlyErased $2 >>= \erased ->
+       return $ Module (getRange ($1,$2,$3,$4,$5,$6)) erased
+                  (QName $3) (map addType $4) $6 }
 
 Underscore :: { Name }
 Underscore : '_' { noName (getRange $1) }
@@ -1513,6 +1572,7 @@ DeclarationPragma
   | NonTerminatingPragma     { $1 }
   | NoTerminationCheckPragma { $1 }
   | NonCoveringPragma        { $1 }
+  | NotProjectionLikePragma  { $1 }
   | WarningOnUsagePragma     { $1 }
   | WarningOnImportPragma    { $1 }
   | MeasurePragma            { $1 }
@@ -1528,7 +1588,9 @@ DeclarationPragma
     -- Give better error during type checking instead.
 
 OptionsPragma :: { Pragma }
-OptionsPragma : '{-#' 'OPTIONS' PragmaStrings '#-}' { OptionsPragma (getRange ($1,$2,$4)) $3 }
+OptionsPragma :
+  '{-#' 'OPTIONS' PragmaStrings '#-}'
+  { OptionsPragma (getRange ($1, $2, map fst $3, $4)) (map snd $3) }
 
 BuiltinPragma :: { Pragma }
 BuiltinPragma
@@ -1545,12 +1607,15 @@ RewritePragma
 
 ForeignPragma :: { Pragma }
 ForeignPragma
-  : '{-#' 'FOREIGN' string ForeignCode '#-}' { ForeignPragma (getRange ($1, $2, fst $3, $5)) (mkRString $3) (recoverLayout $4) }
+  : '{-#' 'FOREIGN' string ForeignCode '#-}'
+    { ForeignPragma (getRange ($1, $2, fst $3, $5))
+        (mkRString $3) (recoverLayout (DL.toList $4)) }
 
 CompilePragma :: { Pragma }
 CompilePragma
   : '{-#' 'COMPILE' string PragmaQName PragmaStrings '#-}'
-    { CompilePragma (getRange ($1,$2,fst $3,$4,$6)) (mkRString $3) $4 (unwords $5) }
+    { CompilePragma (getRange ($1, $2, fst $3, $4, map fst $5, $6))
+        (mkRString $3) $4 (unwords (map snd $5)) }
 
 StaticPragma :: { Pragma }
 StaticPragma
@@ -1567,6 +1632,11 @@ NoInlinePragma
   : '{-#' 'NOINLINE' PragmaQName '#-}'
     { InlinePragma (getRange ($1,$2,$3,$4)) False $3 }
 
+NotProjectionLikePragma :: { Pragma }
+NotProjectionLikePragma
+  : '{-#' 'NOT_PROJECTION_LIKE' PragmaQName '#-}'
+    { NotProjectionLikePragma (getRange ($1,$2,$3,$4)) $3 }
+
 InjectivePragma :: { Pragma }
 InjectivePragma
   : '{-#' 'INJECTIVE' PragmaQName '#-}'
@@ -1574,9 +1644,10 @@ InjectivePragma
 
 DisplayPragma :: { Pragma }
 DisplayPragma
-  : '{-#' 'DISPLAY' string PragmaStrings '#-}' {%
-      let (r, s) = $3 in
-      parseDisplayPragma (fuseRange $1 $5) (iStart r) (unwords (s : $4)) }
+  : '{-#' 'DISPLAY' string PragmaStrings '#-}'
+    {% let (r, s) = $3 in
+       parseDisplayPragma (getRange ($1, $2, r, map fst $4, $5))
+         (iStart r) (unwords (s : map snd $4)) }
 
 EtaPragma :: { Pragma }
 EtaPragma
@@ -1617,7 +1688,8 @@ CatchallPragma
 ImpossiblePragma :: { Pragma }
 ImpossiblePragma
   : '{-#' 'IMPOSSIBLE' PragmaStrings '#-}'
-    { ImpossiblePragma (getRange ($1,$2,$4)) $3 }
+    { ImpossiblePragma (getRange ($1, $2, map fst $3, $4))
+        (map snd $3) }
 
 NoPositivityCheckPragma :: { Pragma }
 NoPositivityCheckPragma
@@ -1664,25 +1736,6 @@ Polarity : string {% polarity $1 }
 {--------------------------------------------------------------------------
     Sequences of declarations
  --------------------------------------------------------------------------}
-
--- Possibly empty list of type signatures, with several identifiers allowed
--- for every signature.
-TypeSignatures0 :: { [TypeSignature] }
-TypeSignatures
-    : vopen close    { [] }
-    | TypeSignatures { List1.toList $1 }
-
--- Non-empty list of type signatures, with several identifiers allowed
--- for every signature.
-TypeSignatures :: { List1 TypeSignature }
-TypeSignatures
-    : vopen TypeSignatures1 close   { List1.reverse $2 }
-
--- Inside the layout block.
-TypeSignatures1 :: { List1 TypeSignature }
-TypeSignatures1
-    : TypeSignatures1 semi TypeSigs { List1.reverse $3 <> $1 }
-    | TypeSigs                      { List1.reverse $1 }
 
 -- A variant of TypeSignatures which uses ArgTypeSigs instead of
 -- TypeSigs.
@@ -1826,20 +1879,21 @@ figureOutTopLevelModule ds =
 
     -- Case 2: The declarations in the module are not indented.
     -- This is allowed for the top level module, and thus rectified here.
-    (ds0, Module r m tel [] : ds2) -> ds0 ++ [Module r m tel ds2]
+    (ds0, Module r erased m tel [] : ds2) ->
+      ds0 ++ [Module r erased m tel ds2]
 
     -- Case 3: There is a module with indented declarations,
     -- followed by non-indented declarations.  This should be a
     -- parse error and be reported later (see @toAbstract TopLevel{}@),
     -- thus, we do not do anything here.
-    (ds0, Module r m tel ds1 : ds2) -> ds  -- Gives parse error in scope checker.
+    (ds0, Module r _ m tel ds1 : ds2) -> ds  -- Gives parse error in scope checker.
     -- OLD code causing issue 1388:
     -- (ds0, Module r m tel ds1 : ds2) -> ds0 ++ [Module r m tel $ ds1 ++ ds2]
 
     -- Case 4: a top-level module declaration is missing.
     -- Andreas, 2017-01-01, issue #2229:
     -- Put everything (except OPTIONS pragmas) into an anonymous module.
-    _ -> ds0 ++ [Module r (QName $ noName r) [] ds1]
+    _ -> ds0 ++ [Module r defaultErased (QName $ noName r) [] ds1]
       where
       (ds0, ds1) = (`span` ds) $ \case
         Pragma OptionsPragma{} -> True
@@ -2330,7 +2384,7 @@ data RHSOrTypeSigs
 
 patternToNames :: Pattern -> Parser (List1 (ArgInfo, Name))
 patternToNames = \case
-    IdentP (QName i)         -> return $ singleton $ (defaultArgInfo, i)
+    IdentP _ (QName i)       -> return $ singleton $ (defaultArgInfo, i)
     WildP r                  -> return $ singleton $ (defaultArgInfo, C.noName r)
     DotP _ (Ident (QName i)) -> return $ singleton $ (setRelevance Irrelevant defaultArgInfo, i)
     RawAppP _ ps             -> sconcat . List2.toList1 <$> mapM patternToNames ps
@@ -2388,8 +2442,13 @@ instance SetRange Attr where
 
 -- | Parse an attribute.
 toAttribute :: Expr -> Parser Attr
-toAttribute x = maybe failure (return . Attr (getRange x) y) $ exprToAttribute x
+toAttribute x = do
+  attr <- maybe failure (return . Attr r y) $ exprToAttribute x
+  modify' (\s -> s { parseAttributes =
+                       (theAttr attr, r, y) : parseAttributes s })
+  return attr
   where
+  r = getRange x
   y = prettyShow x
   failure = parseErrorRange x $ "Unknown attribute: " ++ y
 

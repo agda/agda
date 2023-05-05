@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE TypeApplications #-}
 
 {-| Coverage checking, case splitting, and splitting for refine tactics.
 
@@ -75,9 +76,13 @@ import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import Agda.Utils.Tuple
 import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
+import Control.Monad.State
 
 
 type CoverM = ExceptT SplitError TCM
@@ -156,12 +161,15 @@ coverageCheck f t cs = do
   -- Storing the covering clauses so that checkIApplyConfluence_ can
   -- find them later.
   -- Andreas, 2019-03-27, only needed when --cubical
-  whenM (isJust . optCubical <$> pragmaOptions) $ do
+  -- Jesper, 2022-10-18, also needed for some backends, so keep when flag says so
+  opts <- pragmaOptions
+  when (isJust (optCubical opts) || optKeepCoveringClauses opts) $
     modifySignature $ updateDefinition f $ updateTheDef $ updateCovering $ const qss
 
 
   -- filter out the missing clauses that are absurd.
-  pss <- flip filterM pss $ \(tel,ps) ->
+  pss <- ifNotM (optInferAbsurdClauses <$> pragmaOptions) (pure pss) {-else-} $
+   flip filterM pss $ \(tel,ps) ->
     -- Andreas, 2019-04-13, issue #3692: when adding missing absurd
     -- clauses, also put the absurd pattern in.
     caseEitherM (checkEmptyTel noRange tel) (\ _ -> return True) $ \ l -> do
@@ -351,11 +359,68 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
           Block{} -> Just c
           No{}    -> Nothing
 
+    -- Rename the variables in a telescope in accordance with their
+    -- first appearance in the given NAPs. This is done to preserve
+    -- variable names in IApplyConfluence error messages. Specifically,
+    -- consider e.g.
+    --
+    --  data T : Set where
+    --    x : T
+    --    p : Path (Path T x x) refl refl
+    --  f (p i j) = ...
+    --
+    -- When generating the covering clause corresponding to f's clause,
+    -- the names we have in scope are i and i₁, since those are the
+    -- names of both PathP binder arguments. (recall Path A x y = PathP (λ i → A) x y)
+    -- So if we tried to print (Var 0 []) in the context of
+    -- IApplyConfluence for that clause, what we see isn't j, it's i₁.
+    --
+    -- This function takes "name suggestions" from both variable
+    -- patterns and IApply co/patterns, and replaces any existing names
+    -- in the telescope by the name in that pattern.
+    renTeleFromNap :: SplitClause -> Clause -> Telescope
+    renTeleFromNap SClause{scTel = tel, scPats = sps} clause =
+      telFromList $ evalState (traverse upd (telToList tel)) (size - offset)
+      where
+        ps = namedClausePats clause
+        offset = 1 + length (fromSplitPatterns sps) - length ps
+        -- Fold a single pattern into a map of name suggestions:
+        -- In the running example above, we have
+        --    f (p i@1 j@0)
+        -- so the map that nameSuggest (p ...) returns is {0 → j, 1 → j}
+        nameSuggest :: DeBruijnPattern -> IntMap ArgName
+        nameSuggest ps = flip foldPattern ps $ \case
+          VarP _ i | dbPatVarName i /= "_" ->
+            IntMap.singleton (dbPatVarIndex i) (dbPatVarName i)
+          IApplyP _ _ _ i | dbPatVarName i /= "_" ->
+            IntMap.singleton (dbPatVarIndex i) (dbPatVarName i)
+          _ -> mempty
+
+        -- Suggestions from all patterns..
+        suggestions = foldMap (nameSuggest . namedThing . unArg) ps
+
+        -- The state will start counting from (length Γ - 1), which is
+        -- the *highest* variable index, i.e. the index of the variable
+        -- with level 0. Instead of doing a lot of de Bruijn arithmetic
+        -- + recursion, traverse handles iteration and the State handles
+        -- counting down.
+        size = length (telToList tel)
+
+        upd :: Dom (ArgName , Type) -> State Int (Dom (ArgName , Type))
+        upd dom = state $ \s -> do
+          case IntMap.lookup s suggestions of
+            Just nm' -> ( dom{ domName = Just (WithOrigin CaseSplit (unranged nm'))
+                             , unDom = (nm' , snd (unDom dom))
+                             } , s - 1)
+            Nothing -> (dom , s - 1)
+
     applyCl :: SplitClause -> Clause -> [(Nat, SplitPattern)] -> TCM Clause
-    applyCl SClause{scTel = tel, scPats = sps} cl mps = addContext tel $ do
+    applyCl sc@SClause{scTel = pretel, scPats = sps} cl mps
+        | tel <- renTeleFromNap sc cl = addContext tel $ do
         let ps = namedClausePats cl
         reportSDoc "tc.cover.applyCl" 40 $ "applyCl"
-        reportSDoc "tc.cover.applyCl" 40 $ "tel    =" <+> prettyTCM tel
+        reportSDoc "tc.cover.applyCl" 40 $ "pretel =" <+> pretty pretel
+        reportSDoc "tc.cover.applyCl" 40 $ "tel    =" <+> pretty tel
         reportSDoc "tc.cover.applyCl" 40 $ "ps     =" <+> pretty ps
         reportSDoc "tc.cover.applyCl" 40 $ "mps    =" <+> pretty mps
         reportSDoc "tc.cover.applyCl" 40 $ "s      =" <+> pretty s
@@ -399,9 +464,13 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
                     , clauseWhereModule = clauseWhereModule cl
                     }
       where
-        (vs,qs) = unzip mps
-        mps' = zip vs $ map namedArg $ fromSplitPatterns $ map defaultNamedArg qs
-        s = parallelS (for [0..maximum (-1:vs)] $ (\ i -> fromMaybe (deBruijnVar i) (List.lookup i mps')))
+      mps' =
+        Map.fromList $
+        map (mapSnd (namedArg . fromSplitPattern . defaultNamedArg)) mps
+      s = parallelS (for (case Map.lookupMax mps' of
+                            Nothing     -> []
+                            Just (i, _) -> [0..i]) $ \ i ->
+                     fromMaybe (deBruijnVar i) (Map.lookup i mps'))
 
     updateRelevance :: TCM a -> TCM a
     updateRelevance cont =
@@ -637,7 +706,7 @@ splitStrategy bs tel = return $ updateLast setBlockingVarOverlap xs
 -- the data type must be inductive.
 isDatatype :: (MonadTCM tcm, MonadError SplitError tcm) =>
               Induction -> Dom Type ->
-              tcm (DataOrRecord, QName, [Arg Term], [Arg Term], [QName], Bool)
+              tcm (DataOrRecord, QName, Args, Args, [QName], Bool)
 isDatatype ind at = do
   let t       = unDom at
       throw f = throwError . f =<< do liftTCM $ buildClosure t
@@ -714,7 +783,7 @@ insertTrailingArgs force sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma
   let fallback = return (empty, sc)
   caseMaybe target fallback $ \ a -> do
     if isJust (domTactic a) && not force then fallback else do
-    (TelV tel b) <- telViewUpTo (-1) $ unDom a
+    (TelV tel b) <- addContext sctel $ telViewUpTo (-1) $ unDom a
     reportSDoc "tc.cover.target" 15 $ sep
       [ "target type telescope: " <+> do
           addContext sctel $ prettyTCM tel
@@ -788,7 +857,7 @@ computeHCompSplit  :: Telescope   -- ^ Telescope before split point.
   -- -> QName                        -- ^ Constructor to fit into hole.
   -> CoverM (Maybe (SplitTag,SplitClause))   -- ^ New split clause if successful.
 computeHCompSplit delta1 n delta2 d pars ixs hix tel ps cps = do
-  withK   <- not . collapseDefault . optWithoutK <$> pragmaOptions
+  withK   <- not . optCubicalCompatible <$> pragmaOptions
   if withK then return Nothing else do
     -- Get the type of the datatype
   -- Δ1 ⊢ dtype
@@ -877,7 +946,8 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
 
   -- Lookup the type of the constructor at the given parameters
   (gamma0, cixs, boundary) <- do
-    (TelV gamma0 (El _ d), boundary) <- liftTCM $ telViewPathBoundaryP (ctype `piApply` pars)
+    (TelV gamma0 (El _ d), boundary) <- liftTCM $ addContext delta1 $
+      telViewPathBoundaryP (ctype `piApply` pars)
     let Def _ es = d
         Just cixs = allApplyElims es
     return (gamma0, cixs, boundary)
@@ -907,7 +977,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
   -- Andrea 2019-07-17 propagate the Cohesion to the equation telescope
   -- TODO: should we propagate the modality in general?
   -- See also LHS checking.
-  dtype <- do
+  dtype <- addContext delta1 $ do
          let updCoh = composeCohesion (getCohesion info)
          TelV dtel dt <- telView dtype
          return $ abstract (mapCohesion updCoh <$> dtel) dt
@@ -917,7 +987,16 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
     SSet{} -> return $ locallyTC eSplitOnStrict $ const True
     _      -> return id
 
-  r <- withKIfStrict $ lift $ unifyIndices'
+  -- Should we attempt to compute a left inverse for this clause? When
+  -- --cubical-compatible --flat-split is given, we don't generate a
+  -- left inverse (at all). This means that, when the coverage checker
+  -- gets to the clause this was in, it won't generate a (malformed!)
+  -- transpX clause for @♭ matching.
+  -- TODO(Amy): properly support transpX when @♭ stuff is in the
+  -- context.
+  let flatSplit = boolToMaybe (getCohesion info == Flat) SplitOnFlat
+
+  r <- withKIfStrict $ lift $ unifyIndices' flatSplit
          delta1Gamma
          flex
          (raise (size gamma) dtype)
@@ -952,9 +1031,9 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
         Right{} -> return ()
         Left SplitOnStrict -> return ()
         Left x -> do
-          whenM (isJust . optCubical <$> pragmaOptions) $ do
+          whenM (optCubicalCompatible <$> pragmaOptions) $ do
             -- re #3733: TODO better error msg.
-            lift $ warning . NoEquivWhenSplitting =<< prettyTCM x
+            lift $ warning . UnsupportedIndexedMatch =<< prettyTCM x
 
       debugSubst "rho0" rho0
 
@@ -1179,7 +1258,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
           NoCheckEmpty -> pure cons'
         mns  <- forM cons $ \ con -> fmap (SplitCon con,) <$>
           computeNeighbourhood delta1 n delta2 d pars ixs x tel ps cps con
-        hcompsc <- if isFib && (isHIT || (size ixs > 0)) && not (null mns) && inserttrailing == DoInsertTrailing
+        hcompsc <- if isFib && (isHIT || not (null ixs)) && not (null mns) && inserttrailing == DoInsertTrailing
                    then computeHCompSplit delta1 n delta2 d pars ixs x tel ps cps
                    else return Nothing
         let ns = catMaybes mns
@@ -1236,12 +1315,20 @@ split' checkEmpty ind allowPartialCover inserttrailing
       (con,) . (,info) . snd <$> insertTrailingArgs False sc
 
   mHCompName <- getPrimitiveName' builtinHComp
-  withoutK   <- collapseDefault . optWithoutK <$> pragmaOptions
+  opts       <- pragmaOptions
+  let withoutK        = optWithoutK opts
+      erasedMatches   = optErasedMatches opts
+      isRecordWithEta = case dr of
+        IsData       -> False
+        IsRecord{..} ->
+          case theEtaEquality recordEtaEquality of
+            YesEta{} -> True
+            NoEta{}  -> False
 
-  erased <- asksTC hasQuantity0
+  erased <- hasQuantity0 <$> viewTC eQuantity
   reportSLn "tc.cover.split" 60 $ "We are in erased context = " ++ show erased
-  let erasedError causedByWithoutK =
-        throwError . ErasedDatatype causedByWithoutK =<<
+  let erasedError reason =
+        throwError . ErasedDatatype reason =<<
           do liftTCM $ inContextOfT $ buildClosure (unDom t)
 
   case numMatching of
@@ -1259,14 +1346,15 @@ split' checkEmpty ind allowPartialCover inserttrailing
 
     -- Andreas, 2018-10-17: If more than one constructor matches, we cannot erase.
     n | n > 1 && not erased && not (usableQuantity t) ->
-      erasedError False
+      erasedError SeveralConstructors
 
     -- If exactly one constructor matches and the K rule is turned
-    -- off, then we only allow erasure for non-indexed data types
-    -- (#4172).
-    1 | not erased && not (usableQuantity t) &&
-          withoutK && isIndexed ->
-      erasedError True
+    -- off, then we only allow erasure for non-indexed data/record
+    -- types (#4172). If the type is not a record type with
+    -- η-equality, then the flag --erased-matches must be active.
+    1 | not erased && not (usableQuantity t) && withoutK &&
+        (isIndexed || not isRecordWithEta && not erasedMatches) ->
+      erasedError (if isIndexed then NoK else NoErasedMatches)
 
     _ -> do
 
@@ -1289,7 +1377,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
                 ]
               throwError (GenericSplitError "precomputed set of constructors does not cover all cases")
 
-      liftTCM $ checkSortOfSplitVar dr (unDom t) delta2 target
+      liftTCM $ inContextOfT $ checkSortOfSplitVar dr (unDom t) delta2 target
       return $ Right $ Covering (lookupPatternVar sc x) ns
 
   where

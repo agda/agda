@@ -1,9 +1,11 @@
 NoTerminationCheck5.agda:4,1-20
+warning: -W[no]InvalidTerminationCheckPragma
 Termination checking pragmas can only precede a function definition
 or a mutual block (that contains a function definition).
 
 ———— All done; warnings encountered ————————————————————————
 
 NoTerminationCheck5.agda:4,1-20
+warning: -W[no]InvalidTerminationCheckPragma
 Termination checking pragmas can only precede a function definition
 or a mutual block (that contains a function definition).

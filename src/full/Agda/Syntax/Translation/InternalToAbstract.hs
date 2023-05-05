@@ -46,6 +46,7 @@ import Agda.Syntax.Abstract as A hiding (Binder)
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pattern
 import Agda.Syntax.Abstract.Pretty
+import Agda.Syntax.Abstract.UsedNames
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
 import Agda.Syntax.Scope.Base (inverseScopeLookupName)
@@ -59,6 +60,7 @@ import Agda.TypeChecking.Level
 import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.SyntacticEquality
 import Agda.TypeChecking.Telescope
 
 import Agda.Interaction.Options
@@ -199,20 +201,15 @@ instance Reify MetaId where
         Nothing     -> underscore
         Just ii     -> return $ A.QuestionMark mi' ii
 
--- Does not print with-applications correctly:
--- instance Reify DisplayTerm Expr where
---   reifyWhen = reifyWhenE
---   reify d = reifyTerm False $ dtermToTerm d
-
 instance Reify DisplayTerm where
   type ReifiesTo DisplayTerm = Expr
 
   reifyWhen = reifyWhenE
   reify = \case
-    DTerm v -> reifyTerm False v
-    DDot  v -> reify v
-    DCon c ci vs -> recOrCon (conName c) ci =<< reify vs
-    DDef f es -> elims (A.Def f) =<< reify es
+    DTerm' v es       -> elims ==<< (reifyTerm False v, reify es)
+    DDot'  v es       -> elims ==<< (reify v, reify es)
+    DCon c ci vs      -> recOrCon (conName c) ci =<< reify vs
+    DDef f es         -> elims (A.Def f) =<< reify es
     DWithApp u us es0 -> do
       (e, es) <- reify (u, us)
       elims (if null es then e else A.WithApp noExprInfo e es) =<< reify es0
@@ -275,22 +272,24 @@ reifyDisplayFormP f ps wps = do
     -- defined name applied to valid lhs eliminators (projections or
     -- applications to constructor patterns).
     okDisplayForm :: DisplayTerm -> Bool
-    okDisplayForm (DWithApp d ds es) =
-      okDisplayForm d && all okDisplayTerm ds  && all okToDropE es
-      -- Andreas, 2016-05-03, issue #1950.
-      -- We might drop trailing hidden trivial (=variable) patterns.
-    okDisplayForm (DTerm (I.Def f vs)) = all okElim vs
-    okDisplayForm (DDef f es)          = all okDElim es
-    okDisplayForm DDot{}               = False
-    okDisplayForm DCon{}               = False
-    okDisplayForm DTerm{}              = False
+    okDisplayForm = \case
+      DWithApp d ds es ->
+        okDisplayForm d && all okDisplayTerm ds  && all okToDropE es
+        -- Andreas, 2016-05-03, issue #1950.
+        -- We might drop trailing hidden trivial (=variable) patterns.
+      DTerm' (I.Def f es') es -> all okElim es' && all okElim es
+      DDef f es               -> all okDElim es
+      DDot'{}                 -> False
+      DCon{}                  -> False
+      DTerm'{}                -> False
 
     okDisplayTerm :: DisplayTerm -> Bool
-    okDisplayTerm (DTerm v) = okTerm v
-    okDisplayTerm DDot{}    = True
-    okDisplayTerm DCon{}    = True
-    okDisplayTerm DDef{}    = False
-    okDisplayTerm _         = False
+    okDisplayTerm = \case
+      DTerm' v es -> null es && okTerm v
+      DDot'{}     -> True
+      DCon{}      -> True
+      DDef{}      -> False
+      DWithApp{}  -> False
 
     okDElim :: Elim' DisplayTerm -> Bool
     okDElim (I.IApply x y r) = okDisplayTerm r
@@ -329,7 +328,7 @@ reifyDisplayFormP f ps wps = do
       let (f, es, ds0) = flattenWith d
       in  (f, es, ds0 ++ map (I.Apply . defaultArg) ds1 ++ map (fmap DTerm) es2)
     flattenWith (DDef f es) = (f, es, [])     -- .^ hacky, but we should only hit this when printing debug info
-    flattenWith (DTerm (I.Def f es)) = (f, map (fmap DTerm) es, [])
+    flattenWith (DTerm' (I.Def f es') es) = (f, map (fmap DTerm) $ es' ++ es, [])
     flattenWith _ = __IMPOSSIBLE__
 
     displayLHS
@@ -355,21 +354,26 @@ reifyDisplayFormP f ps wps = do
         termToPat :: MonadReify m => DisplayTerm -> m (Named_ A.Pattern)
 
         -- Main action HERE:
-        termToPat (DTerm (I.Var n [])) = return $ unArg $ fromMaybe __IMPOSSIBLE__ $ ps !!! n
+        termToPat (DTerm (I.Var n [])) =
+          return $ unArg $ fromMaybe __IMPOSSIBLE__ $ ps !!! n
 
         termToPat (DCon c ci vs)          = fmap unnamed <$> tryRecPFromConP =<< do
            A.ConP (ConPatInfo ci patNoRange ConPatEager) (unambiguous (conName c)) <$> mapM argToPat vs
 
-        termToPat (DTerm (I.Con c ci vs)) = fmap unnamed <$> tryRecPFromConP =<< do
-           A.ConP (ConPatInfo ci patNoRange ConPatEager) (unambiguous (conName c)) <$> mapM (elimToPat . fmap DTerm) vs
+        termToPat (DTerm' (I.Con c ci vs) es) = fmap unnamed <$> tryRecPFromConP =<< do
+           A.ConP (ConPatInfo ci patNoRange ConPatEager) (unambiguous (conName c)) <$>
+             mapM (elimToPat . fmap DTerm) (vs ++ es)
 
         termToPat (DTerm (I.Def _ [])) = return $ unnamed $ A.WildP patNoRange
         termToPat (DDef _ [])          = return $ unnamed $ A.WildP patNoRange
 
         termToPat (DTerm (I.Lit l))    = return $ unnamed $ A.LitP patNoRange l
 
-        termToPat (DDot v)             = unnamed . A.DotP patNoRange <$> termToExpr v
-        termToPat v                    = unnamed . A.DotP patNoRange <$> reify v
+        termToPat (DDot' v es) =
+          unnamed . A.DotP patNoRange <$> do elims ==<< (termToExpr v, reify es)
+
+        termToPat v =
+          unnamed . A.DotP patNoRange <$> reify v
 
         len = length ps
 
@@ -431,13 +435,32 @@ reifyPathPConstAsPath x es@[I.Apply l, I.Apply t, I.Apply lhs, I.Apply rhs] = do
      _ -> fallback
 reifyPathPConstAsPath x es = return (x,es)
 
-reifyTerm :: MonadReify m => Bool -> Term -> m Expr
-reifyTerm expandAnonDefs0 v0 = do
+-- | Check if the term matches an existing let-binding, in that case use the corresponding variable,
+--   otherwise reify using the continuation.
+tryReifyAsLetBinding :: MonadReify m => Term -> m Expr -> m Expr
+tryReifyAsLetBinding v fallback = ifM (asksTC $ not . envFoldLetBindings) fallback $ do
+  letBindings <- do
+    binds  <- asksTC (Map.toAscList . envLetBindings)
+    opened <- forM binds $ \ (name, open) -> (,name) <$> getOpen open
+    return [ (body, name) | (LetBinding UserWritten body _, name) <- opened, not $ isNoName name ]  -- Only fold user-written lets
+  matchingBindings <- filterM (\t -> checkSyntacticEquality v (fst t) (\_ _ -> return True) (\_ _ -> return False)) letBindings
+  case matchingBindings of
+    (_, name) : _ -> return $ A.Var name
+    []            -> fallback
+
+reifyTerm ::
+      MonadReify m
+   => Bool           -- ^ Try to expand away anonymous definitions?
+   -> Term
+   -> m Expr
+reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
   -- Jesper 2018-11-02: If 'PrintMetasBare', drop all meta eliminations.
   metasBare <- asksTC envPrintMetasBare
+  reportSDoc "reify.term" 80 $ pure $ "reifyTerm v0 = " <+> pretty v0
   v <- instantiate v0 >>= \case
     I.MetaV x _ | metasBare -> return $ I.MetaV x []
     v -> return v
+  reportSDoc "reify.term" 80 $ pure $ "reifyTerm v = " <+> pretty v
   -- Ulf 2014-07-10: Don't expand anonymous when display forms are disabled
   -- (i.e. when we don't care about nice printing)
   expandAnonDefs <- return expandAnonDefs0 `and2M` displayFormsEnabled
@@ -445,6 +468,7 @@ reifyTerm expandAnonDefs0 v0 = do
   -- then we print system-generated projections as postfix, else prefix.
   havePfp <- optPostfixProjections <$> pragmaOptions
   let pred = if havePfp then (== ProjPrefix) else (/= ProjPostfix)
+  reportSDoc "reify.term" 80 $ pure $ "reifyTerm (unSpine v) = " <+> pretty (unSpine' pred v)
   case unSpine' pred v of
     -- Hack to print generalized field projections with nicer names. Should
     -- only show up in errors. Check the spined form!
@@ -528,11 +552,15 @@ reifyTerm expandAnonDefs0 v0 = do
     I.Level l      -> reify l
     I.Pi a b       -> case b of
         NoAbs _ b'
-          | visible a   -> uncurry (A.Fun $ noExprInfo) <$> reify (a, b')
+          | visible a, not (domIsFinite a) -> uncurry (A.Fun $ noExprInfo) <$> reify (a, b')
             -- Andreas, 2013-11-11 Hidden/Instance I.Pi must be A.Pi
             -- since (a) the syntax {A} -> B or {{A}} -> B is not legal
             -- and (b) the name of the binder might matter.
             -- See issue 951 (a) and 952 (b).
+            --
+            -- Amy, 2022-09-05: Can't be finite either, since otherwise
+            -- we say ".(IsOne φ) → A ≠ .(IsOne φ) → A" with no
+            -- indication of which is finite and which isn't
           | otherwise   -> mkPi b =<< reify a
         b               -> mkPi b =<< do
           ifM (domainFree a (absBody b))
@@ -543,7 +571,9 @@ reifyTerm expandAnonDefs0 v0 = do
           tac <- traverse reify $ domTactic a
           (x, b) <- reify b
           let xs = singleton $ Arg info $ Named (domName a) $ mkBinder_ x
-          return $ A.Pi noExprInfo (singleton $ TBind noRange tac xs a') b
+          return $ A.Pi noExprInfo
+            (singleton $ TBind noRange (TypedBindingInfo tac (domIsFinite a)) xs a')
+            b
         -- We can omit the domain type if it doesn't have any free variables
         -- and it's mentioned in the target type.
         domainFree a b = do
@@ -689,21 +719,35 @@ reifyTerm expandAnonDefs0 v0 = do
         alreadyPrinting <- viewTC ePrintingPatternLambdas
 
         extLam <- case def of
-          Function{ funExtLam = Just{}, funProjection = Just{} } -> __IMPOSSIBLE__
+          Function{ funExtLam = Just{}, funProjection = Right{} } -> __IMPOSSIBLE__
           Function{ funExtLam = Just (ExtLamInfo m b sys) } ->
             Just . (,Strict.toLazy sys) . size <$> lookupSection m
           _ -> return Nothing
+
+        -- Amy, 2023-04-12: Don't reify clauses generated by the cubical
+        -- coverage checker when printing an extended lambda. We can
+        -- identify these clauses by looking for patterns headed by DefP
+        -- (either transpX or hcomp associated with a data type).
+        --
+        -- Since these are always automatically derived, printing them
+        -- is noise, and shows up even in non-cubical modules, as long
+        -- as an imported extended lambda is defined cubical-compatibly.
+        let
+          isDefP I.DefP{} = True
+          isDefP _ = False
+
+          insClause = any (isDefP . namedArg) . namedClausePats
         case extLam of
           Just (pars, sys) | df, x `notElem` alreadyPrinting ->
             locallyTC ePrintingPatternLambdas (x :) $
             reifyExtLam x (defArgInfo defn) pars sys
-              (defClauses defn) es
+              (filter (not . insClause) (defClauses defn)) es
 
         -- Otherwise (ordinary function call):
           _ -> do
            (pad, nes :: [Elim' (Named_ Term)]) <- case def of
 
-            Function{ funProjection = Just Projection{ projIndex = np } } | np > 0 -> do
+            Function{ funProjection = Right Projection{ projIndex = np } } | np > 0 -> do
               reportSLn "reify.def" 70 $ "  def. is a projection with projIndex = " ++ show np
 
               -- This is tricky:
@@ -881,8 +925,10 @@ removeNameUnlessUserWritten a
 -- | Removes implicit arguments that are not needed, that is, that don't bind
 --   any variables that are actually used and doesn't do pattern matching.
 --   Doesn't strip any arguments that were written explicitly by the user.
-stripImplicits :: MonadReify m => A.Patterns -> A.Patterns -> m A.Patterns
-stripImplicits params ps = do
+stripImplicits :: MonadReify m
+  => Set Name -- ^ Variables to always include (occurs on RHS of clause)
+  -> A.Patterns -> A.Patterns -> m A.Patterns
+stripImplicits toKeep params ps = do
   -- if --show-implicit we don't need the names
   ifM showImplicitArguments (return $ map (fmap removeNameUnlessUserWritten) ps) $ do
     reportSDoc "reify.implicit" 100 $ return $ vcat
@@ -924,7 +970,11 @@ stripImplicits params ps = do
             , getOrigin a `notElem` [ UserWritten , CaseSplit ]
             , (getOrigin <$> getNameOf a) /= Just UserWritten
             , varOrDot (namedArg a)
+            , not $ mustKeepVar (namedArg a)
             ]
+
+          mustKeepVar (A.VarP (A.BindName x)) = Set.member x toKeep
+          mustKeepVar _                       = False
 
           isUnnamedHidden x = notVisible x && isNothing (getNameOf x) && isNothing (isProjP x)
 
@@ -955,9 +1005,12 @@ stripImplicits params ps = do
 
 -- | @blankNotInScope e@ replaces variables in expression @e@ with @_@
 -- if they are currently not in scope.
-blankNotInScope :: (MonadTCEnv m, BlankVars a) => a -> m a
+blankNotInScope :: (MonadTCEnv m, MonadDebug m, BlankVars a) => a -> m a
 blankNotInScope e = do
-  names <- Set.fromList . filter ((== C.InScope) . C.isInScope) <$> getContextNames
+  ctxNames <- getContextNames
+  letNames <- map fst <$> getLetBindings
+  let names = Set.fromList . filter ((== C.InScope) . C.isInScope) $ ctxNames ++ letNames
+  reportSDoc "reify.blank" 80 . pure $ "names in scope for blanking:" <+> pretty names
   return $ blank names e
 
 
@@ -1048,7 +1101,6 @@ instance BlankVars A.Expr where
     A.Let _ _ _              -> __IMPOSSIBLE__
     A.Rec i es               -> A.Rec i $ blank bound es
     A.RecUpdate i e es       -> uncurry (A.RecUpdate i) $ blank bound (e, es)
-    A.ETel _                 -> __IMPOSSIBLE__
     A.Quote {}               -> __IMPOSSIBLE__
     A.QuoteTerm {}           -> __IMPOSSIBLE__
     A.Unquote {}             -> __IMPOSSIBLE__
@@ -1121,7 +1173,7 @@ instance Binder TypedBinding where
 instance Binder BindName where
   varsBoundIn x = singleton (unBind x)
 
-instance Binder LetBinding where
+instance Binder A.LetBinding where
   varsBoundIn (LetBind _ _ x _ _) = varsBoundIn x
   varsBoundIn (LetPatBind _ p _)  = varsBoundIn p
   varsBoundIn LetApply{}          = empty
@@ -1292,6 +1344,21 @@ instance Reify NamedClause where
       , "  toDrop =" <+> pshow toDrop
       , "  cl     =" <+> pretty cl
       ]
+
+    let clBody = clauseBody cl
+        rhsVars = maybe [] freeVars clBody
+
+    rhsBody     <- traverse reify clBody
+    rhsVarNames <- mapM nameOfBV' rhsVars
+    let rhsUsedNames = maybe mempty allUsedNames rhsBody
+        rhsUsedVars  = [i | (i, Just n) <- zip rhsVars rhsVarNames, n `Set.member` rhsUsedNames]
+
+    reportSDoc "reify.clause" 60 $ return $ "RHS:" <+> pretty clBody
+    reportSDoc "reify.clause" 60 $ return $ "variables occurring on RHS:" <+> pretty rhsVars
+      <+> "variable names:" <+> pretty rhsVarNames
+      <+> parens (maybe "no clause body" (const "there was a clause body") clBody)
+    reportSDoc "reify.clause" 60 $ return $ "names occurring on RHS" <+> pretty (Set.toList rhsUsedNames)
+
     let ell = clauseEllipsis cl
     ps  <- reifyPatterns $ namedClausePats cl
     lhs <- uncurry (SpineLHS $ empty { lhsEllipsis = ell }) <$> reifyDisplayFormP f ps []
@@ -1304,20 +1371,16 @@ instance Reify NamedClause where
         Left _  -> return 0
         Right m -> size <$> lookupSection m
       return $ splitParams nfv lhs
-    lhs <- stripImps params lhs
-    reportSDoc "reify.clause" 100 $ return $ "reifying NamedClause, lhs =" <?> pshow lhs
-    rhs <- caseMaybe (clauseBody cl) (return AbsurdRHS) $ \ e ->
-      RHS <$> reify e <*> pure Nothing
-    reportSDoc "reify.clause" 100 $ return $ "reifying NamedClause, rhs =" <?> pshow rhs
-    let result = A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls (I.clauseCatchall cl)
-    reportSDoc "reify.clause" 100 $ return $ "reified NamedClause, result =" <?> pshow result
+    lhs <- stripImps rhsUsedNames params lhs
+    let rhs    = caseMaybe rhsBody AbsurdRHS $ \ e -> RHS e Nothing
+        result = A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls (I.clauseCatchall cl)
     return result
     where
       splitParams n (SpineLHS i f ps) =
         let (params , pats) = splitAt n ps
         in  (params , SpineLHS i f pats)
-      stripImps :: MonadReify m => [NamedArg A.Pattern] -> SpineLHS -> m SpineLHS
-      stripImps params (SpineLHS i f ps) =  SpineLHS i f <$> stripImplicits params ps
+      stripImps :: MonadReify m => Set Name -> [NamedArg A.Pattern] -> SpineLHS -> m SpineLHS
+      stripImps rhsUsedNames params (SpineLHS i f ps) =  SpineLHS i f <$> stripImplicits rhsUsedNames params ps
 
 instance Reify (QNamed System) where
   type ReifiesTo (QNamed System) = [A.Clause]
@@ -1342,7 +1405,7 @@ instance Reify (QNamed System) where
         reify (phi, d b)
 
       ps <- reifyPatterns $ teleNamedArgs tel
-      ps <- stripImplicits [] $ ps ++ [defaultNamedArg ep]
+      ps <- stripImplicits mempty [] $ ps ++ [defaultNamedArg ep]
       let
         lhs = SpineLHS empty f ps
         result = A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls False
@@ -1384,6 +1447,9 @@ instance Reify Sort where
         I.LockUniv  -> do
           lockU <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinLockUniv
           return $ A.Def lockU
+        I.LevelUniv -> do
+          levelU <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinLevelUniv
+          return $ A.Def levelU
         I.IntervalUniv -> do
           intervalU <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinIntervalUniv
           return $ A.Def intervalU
@@ -1442,7 +1508,7 @@ instance Reify I.Telescope where
         name = domName arg
     tac <- traverse reify $ domTactic arg
     let xs = singleton $ Arg info $ Named name $ A.mkBinder_ x
-    return $ TBind r tac xs e : bs
+    return $ TBind r (TypedBindingInfo tac (domIsFinite arg)) xs e : bs
 
 instance Reify i => Reify (Dom i) where
     type ReifiesTo (Dom i) = Arg (ReifiesTo i)

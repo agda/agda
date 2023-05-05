@@ -1,7 +1,9 @@
 Issue2349-instance-hidden.agda:8,6-33
-Instance arguments whose type does not end in a named or variable
-type are never considered by instance search, so having an instance
-argument ⦃ A : Set a ⦄ has no effect.
+warning: -W[no]InstanceNoOutputTypeName
+Instance arguments whose type is not {Γ} → C, where C evaluates to
+a postulated type, a parameter type or the name of a data or record
+type, are never considered by instance search, so having an
+instance argument ⦃ A : Set a ⦄ has no effect.
 Issue2349-instance-hidden.agda:12,16-20
 x != c {_} ⦃ _ ⦄ {a} of type D {ℓ} ⦃ A ⦄
 when checking that the expression refl has type

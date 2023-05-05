@@ -152,13 +152,13 @@ instance NamesIn Defn where
     PrimitiveSort _ s  -> namesAndMetasIn' sg s
     AbstractDefn{}     -> __IMPOSSIBLE__
     -- Andreas 2017-07-27, Q: which names can be in @cc@ which are not already in @cl@?
-    Function cl cc _ _ _ _ _ _ _ _ _ _ el _
+    Function cl cc _ _ _ _ _ _ _ _ _ _ _ el _ _
       -> namesAndMetasIn' sg (cl, cc, el)
     Datatype _ _ cl cs s _ _ _ trX trD
       -> namesAndMetasIn' sg (cl, cs, s, trX, trD)
     Record _ cl c _ fs recTel _ _ _ _ _ _ comp
       -> namesAndMetasIn' sg (cl, c, fs, recTel, comp)
-    Constructor _ _ c d _ _ kit fs _ _
+    Constructor _ _ c d _ _ kit fs _ _ _
       -> namesAndMetasIn' sg (c, d, kit, fs)
     Primitive _ _ cl _ cc
       -> namesAndMetasIn' sg (cl, cc)
@@ -199,6 +199,7 @@ instance NamesIn Sort where
     SSet l      -> namesAndMetasIn' sg l
     SizeUniv    -> mempty
     LockUniv    -> mempty
+    LevelUniv   -> mempty
     IntervalUniv -> mempty
     PiSort a b c  -> namesAndMetasIn' sg (a, b, c)
     FunSort a b -> namesAndMetasIn' sg (a, b)
@@ -245,12 +246,12 @@ instance NamesIn a => NamesIn (Elim' a) where
 
 instance NamesIn a => NamesIn (Substitution' a) where
   namesAndMetasIn' sg = \case
-    IdS            -> mempty
-    EmptyS _       -> mempty
-    t :# s         -> namesAndMetasIn' sg (t, s)
-    Strengthen _ s -> namesAndMetasIn' sg s
-    Wk _ s         -> namesAndMetasIn' sg s
-    Lift _ s       -> namesAndMetasIn' sg s
+    IdS              -> mempty
+    EmptyS _         -> mempty
+    t :# s           -> namesAndMetasIn' sg (t, s)
+    Strengthen _ _ s -> namesAndMetasIn' sg s
+    Wk _ s           -> namesAndMetasIn' sg s
+    Lift _ s         -> namesAndMetasIn' sg s
 
 instance NamesIn DisplayForm where
   namesAndMetasIn' sg (Display _ ps v) = namesAndMetasIn' sg (ps, v)
@@ -260,8 +261,8 @@ instance NamesIn DisplayTerm where
     DWithApp v us es -> namesAndMetasIn' sg (v, us, es)
     DCon c _ vs      -> namesAndMetasIn' sg (c, vs)
     DDef f es        -> namesAndMetasIn' sg (f, es)
-    DDot v           -> namesAndMetasIn' sg v
-    DTerm v          -> namesAndMetasIn' sg v
+    DDot' v es       -> namesAndMetasIn' sg (v, es)
+    DTerm' v es      -> namesAndMetasIn' sg (v, es)
 
 instance NamesIn a => NamesIn (Builtin a) where
   namesAndMetasIn' sg = \case
@@ -300,6 +301,7 @@ instance NamesIn NLPSort where
     PInf _ _      -> mempty
     PSizeUniv     -> mempty
     PLockUniv     -> mempty
+    PLevelUniv    -> mempty
     PIntervalUniv -> mempty
 
 instance NamesIn RewriteRule where
@@ -319,7 +321,7 @@ instance NamesIn ExtLamInfo where
 instance NamesIn a => NamesIn (FunctionInverse' a) where
   namesAndMetasIn' sg = \case
     NotInjective -> mempty
-    Inverse _ m  -> namesAndMetasIn' sg m
+    Inverse m  -> namesAndMetasIn' sg m
 
 instance NamesIn TTerm where
   namesAndMetasIn' sg = \case
@@ -346,7 +348,7 @@ instance NamesIn TAlt where
 
 instance NamesIn CaseType where
   namesAndMetasIn' sg = \case
-    CTData _ x -> namesAndMetasIn' sg x
+    CTData x   -> namesAndMetasIn' sg x
     CTNat      -> mempty
     CTInt      -> mempty
     CTChar     -> mempty
@@ -355,7 +357,7 @@ instance NamesIn CaseType where
     CTQName    -> mempty
 
 instance NamesIn CaseInfo where
-  namesAndMetasIn' sg (CaseInfo _ t) = namesAndMetasIn' sg t
+  namesAndMetasIn' sg (CaseInfo _ _ t) = namesAndMetasIn' sg t
 
 instance NamesIn Compiled where
   namesAndMetasIn' sg (Compiled t _) = namesAndMetasIn' sg t

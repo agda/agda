@@ -423,9 +423,10 @@ following primitive operations::
     -- Extend the current context with a variable of the given type and its name.
     extendContext : ∀ {a} {A : Set a} → String → Arg Type → TC A → TC A
 
-    -- Set the current context. Takes a context telescope entries in
-    -- reverse order, as given by `getContext`. Each type should be valid
-    -- in the context formed by the remaining elements in the list.
+    -- Set the current context relative to the context the TC computation
+    -- is invoked from.  Takes a context telescope entries in reverse
+    -- order, as given by `getContext`. Each type should be valid in the
+    -- context formed by the remaining elements in the list.
     inContext : ∀ {a} {A : Set a} → Telescope → TC A → TC A
 
     -- Quote a value, returning the corresponding Term.
@@ -450,23 +451,56 @@ following primitive operations::
     -- option.
     declarePostulate : Arg Name → Type → TC ⊤
 
+    -- Declare a new datatype. The second argument is the number of parameters.
+    -- The third argument is the type of the datatype, i.e. its parameters and
+    -- indices. The datatype must be defined later using 'defineData'.
+    declareData      : Name → Nat → Type → TC ⊤
+
+    -- Define a declared datatype. The datatype must have been declared using
+    -- 'declareData`. The second argument is a list of pairs in which each pair
+    -- is the name of a constructor and its type.
+    defineData       : Name → List (Σ Name (λ _ → Type)) → TC ⊤
+
     -- Define a declared function. The function may have been declared using
     -- 'declareDef' or with an explicit type signature in the program.
     defineFun : Name → List Clause → TC ⊤
 
-    -- Get the type of a defined name. Replaces 'primNameType'.
+    -- Get the type of a defined name relative to the current
+    -- module. Replaces 'primNameType'.
     getType : Name → TC Type
 
-    -- Get the definition of a defined name. Replaces 'primNameDefinition'.
+    -- Get the definition of a defined name relative to the current
+    -- module. Replaces 'primNameDefinition'.
     getDefinition : Name → TC Definition
 
     -- Check if a name refers to a macro
     isMacro : Name → TC Bool
 
+    -- Generate FOREIGN pragma with specified backend and top-level backend-dependent text.
+    pragmaForeign : String → String → TC ⊤
+
+    -- Generate COMPILE pragma with specified backend, associated name and backend-dependent text.
+    pragmaCompile : String → Name → String → TC ⊤
+
     -- Change the behaviour of inferType, checkType, quoteTC, getContext
     -- to normalise (or not) their results. The default behaviour is no
     -- normalisation.
     withNormalisation : ∀ {a} {A : Set a} → Bool → TC A → TC A
+    askNormalisation  : TC Bool
+
+    -- If 'true', makes the following primitives to reconstruct hidden arguments:
+    -- getDefinition, normalise, reduce, inferType, checkType and getContext
+    withReconstructed : ∀ {a} {A : Set a} → Bool → TC A → TC A
+    askReconstructed  : TC Bool
+
+    -- Whether implicit arguments at the end should be turned into metavariables
+    withExpandLast : ∀ {a} {A : Set a} → Bool → TC A → TC A
+    askExpandLast  : TC Bool
+
+    -- White/blacklist specific definitions for reduction while executing the TC computation
+    -- 'true' for whitelist, 'false' for blacklist
+    withReduceDefs : ∀ {a} {A : Set a} → (Σ Bool λ _ → List Name) → TC A → TC A
+    askReduceDefs  : TC (Σ Bool λ _ → List Name)
 
     -- Prints the third argument to the debug buffer in Emacs
     -- if the verbosity level (set by the -v flag to Agda)
@@ -477,16 +511,6 @@ following primitive operations::
 
     -- Return the formatted string of the argument using the internal pretty printer.
     formatErrorParts : List ErrorPart → TC String
-
-    -- Only allow reduction of specific definitions while executing the TC computation
-    onlyReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
-
-    -- Don't allow reduction of specific definitions while executing the TC computation
-    dontReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
-
-    -- Makes the following primitives to reconstruct hidden parameters:
-    -- getDefinition, normalise, reduce, inferType, checkType and getContext
-    withReconstructed : ∀ {a} {A : Set a} → TC A → TC A
 
     -- Fail if the given computation gives rise to new, unsolved
     -- "blocking" constraints.
@@ -518,15 +542,22 @@ following primitive operations::
   {-# BUILTIN AGDATCMFRESHNAME                  freshName                  #-}
   {-# BUILTIN AGDATCMDECLAREDEF                 declareDef                 #-}
   {-# BUILTIN AGDATCMDECLAREPOSTULATE           declarePostulate           #-}
+  {-# BUILTIN AGDATCMDECLAREDATA                declareData                #-}
+  {-# BUILTIN AGDATCMDEFINEDATA                 defineData                 #-}
   {-# BUILTIN AGDATCMDEFINEFUN                  defineFun                  #-}
   {-# BUILTIN AGDATCMGETTYPE                    getType                    #-}
   {-# BUILTIN AGDATCMGETDEFINITION              getDefinition              #-}
   {-# BUILTIN AGDATCMCOMMIT                     commitTC                   #-}
   {-# BUILTIN AGDATCMISMACRO                    isMacro                    #-}
   {-# BUILTIN AGDATCMWITHNORMALISATION          withNormalisation          #-}
+  {-# BUILTIN AGDATCMWITHRECONSTRUCTED          withReconstructed          #-}
+  {-# BUILTIN AGDATCMWITHEXPANDLAST             withExpandLast             #-}
+  {-# BUILTIN AGDATCMWITHREDUCEDEFS             withReduceDefs             #-}
+  {-# BUILTIN AGDATCMASKNORMALISATION           askNormalisation           #-}
+  {-# BUILTIN AGDATCMASKRECONSTRUCTED           askReconstructed           #-}
+  {-# BUILTIN AGDATCMASKEXPANDLAST              askExpandLast              #-}
+  {-# BUILTIN AGDATCMASKREDUCEDEFS              askReduceDefs              #-}
   {-# BUILTIN AGDATCMDEBUGPRINT                 debugPrint                 #-}
-  {-# BUILTIN AGDATCMONLYREDUCEDEFS             onlyReduceDefs             #-}
-  {-# BUILTIN AGDATCMDONTREDUCEDEFS             dontReduceDefs             #-}
   {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
   {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
   {-# BUILTIN AGDATCMGETINSTANCES               getInstances               #-}
@@ -695,10 +726,11 @@ Unquoting Declarations
 
 While macros let you write metaprograms to create terms, it is also useful to
 be able to create top-level definitions. You can do this from a macro using the
-``declareDef`` and ``defineFun`` primitives, but there is no way to bring such
-definitions into scope. For this purpose there are two top-level primitives
-``unquoteDecl`` and ``unquoteDef`` that runs a ``TC`` computation in a
-declaration position. They both have the same form:
+``declareDef``, ``declareData``, ``defineFun`` and ``defineData`` primitives,
+but there is no way to bring such definitions into scope. For this purpose
+there are two top-level primitives ``unquoteDecl`` and ``unquoteDef`` that runs
+a ``TC`` computation in a declaration position. They both have the same form
+for declaring function definitions:
 
 .. code-block:: agda
 
@@ -761,10 +793,21 @@ Example usage:
 
     unquoteDecl id′ = mkId id′
 
+Another form of ``unquoteDecl`` is used to declare data types:
+
+.. code-block:: agda
+
+  unquoteDecl data x constructor c₁ .. cₙ = m
+
+``m`` is a metaprogram required to declare and define a data type ``x`` and
+its constructors ``c₁`` to ``cₙ`` using ``declareData`` and ``defineData``.
+
 System Calls
 ~~~~~~~~~~~~
 
-It is possible to run system calls as part of a metaprogram, using the ``execTC`` builtin. You can use this feature to implement type providers, or to call external solvers. For instance, the following example calls ``/bin/echo`` from Agda:
+It is possible to run system calls as part of a metaprogram, using the ``execTC`` builtin.
+You can use this feature to implement type providers, or to call external solvers.
+For instance, the following example calls ``/bin/echo`` from Agda:
 
 .. code-block:: agda
 
@@ -783,13 +826,27 @@ It is possible to run system calls as part of a metaprogram, using the ``execTC`
   _ : echo ("hello" ∷ "world" ∷ []) ≡ "hello world\n"
   _ = refl
 
-The ``execTC`` builtin takes three arguments: the basename of the executable (e.g., ``"echo"``), a list of arguments, and the contents of the standard input. It returns a triple, consisting of the exit code (as a natural number), the contents of the standard output, and the contents of the standard error.
+The ``execTC`` builtin takes three arguments:
+the basename of the executable (e.g., ``"echo"``),
+a list of arguments,
+and the contents of the standard input.
+It returns a triple, consisting of
+the exit code (as a natural number),
+the contents of the standard output,
+and the contents of the standard error.
 
-It would be ill-advised to allow Agda to make arbitrary system calls. Hence, the feature must be activated by passing the ``--allow-exec`` option, either on the command-line or using a pragma. (Note that ``--allow-exec`` is incompatible with ``--safe``.) Furthermore, Agda can only call executables which are listed in the list of trusted executables, ``~/.agda/executables``. For instance, to run the example above, you must add ``/bin/echo`` to this file:
+It would be ill-advised to allow Agda to make arbitrary system calls.
+Hence, the feature must be activated by passing the :option:`--allow-exec` option,
+either on the command-line or using a pragma.
+(Note that :option:`--allow-exec` is incompatible with :option:`--safe`.)
+Furthermore, Agda can only call executables which are listed in the list of
+trusted executables, ``~/.agda/executables``.
+For instance, to run the example above, you must add ``/bin/echo`` to this file:
 
 .. code-block:: text
 
   # contents of ~/.agda/executables
   /bin/echo
 
-The executable can then be called by passing its basename to ``execTC``, subtracting the ``.exe`` on Windows.
+The executable can then be called by passing its basename to ``execTC``,
+subtracting the ``.exe`` on Windows.

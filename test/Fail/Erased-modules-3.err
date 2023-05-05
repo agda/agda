@@ -1,0 +1,3 @@
+Erased-modules-3.agda:11,5-8
+Identifier G.H is declared erased, so it cannot be used here
+when checking that the expression G.H has type @0 Set → Set

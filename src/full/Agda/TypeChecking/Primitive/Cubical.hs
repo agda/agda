@@ -17,7 +17,6 @@ import Control.Monad.Except
 import Control.Monad.Trans ( lift )
 import Control.Exception
 
-import Data.Typeable
 import Data.String
 
 import Data.Bifunctor ( second )
@@ -46,7 +45,6 @@ import Agda.TypeChecking.Telescope
 import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
-import Agda.Utils.Maybe
 
 import Agda.Utils.Impossible
 import Agda.Utils.Maybe
@@ -67,7 +65,7 @@ primPOr :: TCM PrimitiveImpl
 primPOr = do
   requireCubical CErased ""
   t    <- runNamesT [] $
-          hPi' "a" (el $ cl primLevel)    $ \ a  ->
+          hPi' "a" (els (pure LevelUniv) (cl primLevel))    $ \ a  ->
           nPi' "i" primIntervalType $ \ i  ->
           nPi' "j" primIntervalType $ \ j  ->
           hPi' "A" (pPi' "o" (imax i j) $ \o -> el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
@@ -97,43 +95,38 @@ primPartial' :: TCM PrimitiveImpl
 primPartial' = do
   requireCubical CErased ""
   t <- runNamesT [] $
-       hPi' "a" (el $ cl primLevel) (\ a ->
+       hPi' "a" (els (pure LevelUniv) (cl primLevel)) (\ a ->
         nPi' "φ" primIntervalType $ \ _ ->
         nPi' "A" (sort . tmSort <$> a) $ \ bA ->
         (sort . tmSSort <$> a))
   isOne <- primIsOne
-  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 3 $ \ ts -> do
-    case ts of
-      [l,phi,a] -> do
-          (El s (Pi d b)) <- runNamesT [] $ do
-                             [l,a,phi] <- mapM (open . unArg) [l,a,phi]
-                             elSSet (pure isOne <@> phi) --> el' l a
-          redReturn $ Pi (setRelevance Irrelevant $ d { domFinite = True }) b
-      _ -> __IMPOSSIBLE__
+  v <- runNamesT [] $
+        lam "a" $ \ l ->
+        lam "φ" $ \ phi ->
+        lam "A" $ \ a ->
+        unEl <$> pPi' "p" phi (\_ -> el' l a)
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \ _ -> redReturn v
 
 primPartialP' :: TCM PrimitiveImpl
 primPartialP' = do
   requireCubical CErased ""
   t <- runNamesT [] $
-       hPi' "a" (el $ cl primLevel) (\ a ->
+       hPi' "a" (els (pure LevelUniv) (cl primLevel)) (\ a ->
         nPi' "φ" primIntervalType $ \ phi ->
         nPi' "A" (pPi' "o" phi $ \ _ -> el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
         (sort . tmSSort <$> a))
-  let toFinitePi :: Type -> Term
-      toFinitePi (El _ (Pi d b)) = Pi (setRelevance Irrelevant $ d { domFinite = True }) b
-      toFinitePi _               = __IMPOSSIBLE__
   v <- runNamesT [] $
         lam "a" $ \ l ->
         lam "φ" $ \ phi ->
         lam "A" $ \ a ->
-        toFinitePi <$> nPi' "p" (elSSet $ cl primIsOne <@> phi) (\ p -> el' l (a <@> p))
+        unEl <$> pPi' "p" phi (\ p -> el' l (a <@> p))
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \ _ -> redReturn v
 
 primSubOut' :: TCM PrimitiveImpl
 primSubOut' = do
   requireCubical CErased ""
   t    <- runNamesT [] $
-          hPi' "a" (el $ cl primLevel) $ \ a ->
+          hPi' "a" (els (pure LevelUniv) (cl primLevel)) $ \ a ->
           hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
           hPi' "φ" primIntervalType $ \ phi ->
           hPi' "u" (el's a $ cl primPartial <#> a <@> phi <@> bA) $ \ u ->
@@ -157,7 +150,7 @@ primTrans' :: TCM PrimitiveImpl
 primTrans' = do
   requireCubical CErased ""
   t    <- runNamesT [] $
-          hPi' "a" (primIntervalType --> el (cl primLevel)) $ \ a ->
+          hPi' "a" (primIntervalType --> els (pure LevelUniv) (cl primLevel)) $ \ a ->
           nPi' "A" (nPi' "i" primIntervalType $ \ i -> (sort . tmSort <$> (a <@> i))) $ \ bA ->
           nPi' "φ" primIntervalType $ \ phi ->
           (el' (a <@> cl primIZero) (bA <@> cl primIZero) --> el' (a <@> cl primIOne) (bA <@> cl primIOne))
@@ -168,7 +161,7 @@ primHComp' :: TCM PrimitiveImpl
 primHComp' = do
   requireCubical CErased ""
   t    <- runNamesT [] $
-          hPi' "a" (el $ cl primLevel) $ \ a ->
+          hPi' "a" (els (pure LevelUniv) (cl primLevel)) $ \ a ->
           hPi' "A" (sort . tmSort <$> a) $ \ bA ->
           hPi' "φ" primIntervalType $ \ phi ->
           nPi' "i" primIntervalType (\ i -> pPi' "o" phi $ \ _ -> el' a bA) -->
@@ -201,7 +194,16 @@ mkComp s = do
                         forward la bA i (u <@> i <..> o))
                 <@> forward la bA (pure iz) u0
 
-
+-- | Construct an application of buitlinComp. Use instead of 'mkComp' if
+-- reducing directly to hcomp + transport would be problematic.
+mkCompLazy
+  :: HasBuiltins m
+  => String
+  -> NamesT m (NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term)
+mkCompLazy s = do
+  let getTermLocal = getTerm s
+  tComp <- getTermLocal builtinComp
+  pure $ \la bA phi u u0 -> pure tComp <#> la <#> bA <#> phi <@> u <@> u0
 
 -- | Implementation of Kan operations for Pi types. The implementation
 -- of @transp@ and @hcomp@ for Pi types has many commonalities, so most
@@ -341,8 +343,6 @@ doPathPKanOp (HCompOp phi u u0) (IsNot l) (IsNot (bA,x,y)) = do
         <@> (u0 <@@> (x, y, j))
 
 doPathPKanOp (TranspOp phi u0) (IsFam l) (IsFam (bA,x,y)) = do
-  -- Γ    ⊢ l
-  -- Γ, i ⊢ bA, x, y
   let getTermLocal = getTerm "transport for path types"
   iz <- getTermLocal builtinIZero
   io <- getTermLocal builtinIOne
@@ -351,6 +351,20 @@ doPathPKanOp (TranspOp phi u0) (IsFam l) (IsFam (bA,x,y)) = do
   -- underlying line of spaces. The intuition is that not only do we
   -- have to fix the endpoints (using composition) but also actually
   -- transport. CCHM composition conveniently does that for us!
+  --
+  -- Γ ⊢ l : I → Level
+  --     l is already a function "coming in"
+  -- Γ, i ⊢ bA   : Type (l i)
+  -- Γ, i ⊢ x, y : bA
+  -- Γ ⊢ u0 : PathP (A/i0) (x/i0) (y/i0)
+  -- Γ, φ ⊢ bA constant
+  --
+  --   transp {l} (λ i → PathP A x y) φ p = λ j →
+  --      comp {λ i → l j} (λ i → A i j) (φ ∨ j ∨ ~ j) λ i where
+  --        (φ = i1 ∨ i = i0) → p j
+  --        (j = i0)          → x i
+  --        (j = i1)          → y i
+  --   : PathP A/i1 x/i1 y/i1
 
   redReturn <=< runNamesT [] $ do
     -- In reality to avoid a round-trip between primComp we use mkComp
@@ -358,18 +372,23 @@ doPathPKanOp (TranspOp phi u0) (IsFam l) (IsFam (bA,x,y)) = do
     comp <- mkComp $ "transport for path types"
     [l, u0, phi] <- traverse (open . unArg) [l, u0, ignoreBlocking phi]
     [bA, x, y] <- mapM (\ a -> open . runNames [] $ lam "i" (const (pure $ unArg a))) [bA, x, y]
+    -- Γ ⊢ bA : (i : I) → Type (l i)
+    -- Γ ⊢ x, y : (i : I) → bA i
 
     lam "j" $ \ j ->
       comp l (lam "i" $ \ i -> bA <@> i <@> j) (phi `imax` (ineg j `imax` j))
-        (lam "i'" $ \i -> combineSys l (bA <@> i <@> j)
+        (lam "i'" $ \i -> combineSys (l <@> i) (bA <@> i <@> j)
           [ (phi, ilam "o" (\o -> u0 <@@> (x <@> pure iz, y <@> pure iz, j)))
-          -- Note that here we have lines of endpoints which we must
+          -- Note that here we have lines of endpoints, which we must
           -- apply to fix the endpoints:
           , (j,      ilam "_" (const (y <@> i)))
           , (ineg j, ilam "_" (const (x <@> i)))
           ])
         (u0 <@@> (x <@> pure iz, y <@> pure iz, j))
 doPathPKanOp a0 _ _ = __IMPOSSIBLE__
+
+redReturnNoSimpl :: a -> ReduceM (Reduced a' a)
+redReturnNoSimpl = pure . YesReduction NoSimplification
 
 primTransHComp :: Command -> [Arg Term] -> Int -> ReduceM (Reduced MaybeReducedArgs Term)
 primTransHComp cmd ts nelims = do
@@ -383,7 +402,8 @@ primTransHComp cmd ts nelims = do
 
   -- WORK
   case vphi of
-    -- When φ = i1, we know what to do!
+    -- When φ = i1, we know what to do! These cases are counted as
+    -- simplifications.
     IOne -> redReturn =<< case cmd of
       DoHComp -> runNamesT [] $ do
         -- If we're composing, then we definitely had a partial element
@@ -494,21 +514,37 @@ primTransHComp cmd ts nelims = do
 
           Def q es -> do
             info <- getConstInfo q
-            let   lam_i = Lam defaultArgInfo . Abs "i"
+            let
+              lam_i = Lam defaultArgInfo . Abs "i"
+
+              -- When should Kan operations on a record value reduce?
+              doR r@Record{recEtaEquality' = eta} = case theEtaEquality eta of
+                -- If it's a no-eta, pattern-matching record, then the
+                -- Kan operations behave as they do for data types; Only
+                -- reduce when the base is a constructor
+                NoEta PatternMatching -> case unArg u0 of
+                  Con{} -> True
+                  _ -> False
+                -- For every other case, we can reduce into a value
+                -- defined by copatterns; However, this would expose the
+                -- internal name of transp/hcomp when printed, so hold
+                -- off until there are projections.
+                _ -> nelims > 0
+              doR _ = False
 
             -- Record and data types have their own implementations of
             -- the Kan operations, which get generated as part of their
             -- definition.
             case theDef info of
-              r@Record{recComp = kit}
-                | nelims > 0, Just as <- allApplyElims es, DoTransp <- cmd, Just transpR <- nameOfTransp kit ->
+              r@Record{recComp = kit, recEtaEquality' = eta}
+                | doR r, Just as <- allApplyElims es, DoTransp <- cmd, Just transpR <- nameOfTransp kit ->
                   -- Optimisation: If the record has no parameters then we can ditch the transport.
                   if recPars r == 0
                      then redReturn $ unArg u0
                      else redReturn $ Def transpR [] `apply` (map (fmap lam_i) as ++ [ignoreBlocking sphi, u0])
 
                 -- Records know how to hcomp themselves:
-                | nelims > 0, Just as <- allApplyElims es, DoHComp <- cmd, Just hCompR <- nameOfHComp kit ->
+                | doR r, Just as <- allApplyElims es, DoHComp <- cmd, Just hCompR <- nameOfHComp kit ->
                   redReturn $ Def hCompR [] `apply` (as ++ [ignoreBlocking sphi, fromMaybe __IMPOSSIBLE__ u,u0])
 
                 -- If this is a record with no fields, then compData
@@ -687,7 +723,7 @@ primComp :: TCM PrimitiveImpl
 primComp = do
   requireCubical CErased ""
   t    <- runNamesT [] $
-          hPi' "a" (primIntervalType --> el (cl primLevel)) $ \ a ->
+          hPi' "a" (primIntervalType --> els (pure LevelUniv) (cl primLevel)) $ \ a ->
           nPi' "A" (nPi' "i" primIntervalType $ \ i -> (sort . tmSort <$> (a <@> i))) $ \ bA ->
           hPi' "φ" primIntervalType $ \ phi ->
           nPi' "i" primIntervalType (\ i -> pPi' "o" phi $ \ _ -> el' (a <@> i) (bA <@> i)) -->
@@ -705,7 +741,7 @@ primComp = do
           -- rather than going through the motions of hcomp and transp.
           IOne -> redReturn (unArg u `apply` [argN io, argN one])
           _    -> do
-            redReturn <=< runNamesT [] $ do
+            redReturnNoSimpl <=< runNamesT [] $ do
               comp <- mkComp builtinComp
               [l,c,phi,u,a0] <- mapM (open . unArg) [l,c,phi,u,a0]
               comp l c phi u a0
@@ -1205,7 +1241,7 @@ instance Subst CType where
   applySubst rho (LType t) = LType $ applySubst rho t
 
 hcomp
-  :: (HasBuiltins m, MonadError TCErr m, MonadReduce m)
+  :: (HasBuiltins m, MonadError TCErr m, MonadReduce m, MonadPretty m)
   => NamesT m Type
   -> [(NamesT m Term, NamesT m Term)]
   -> NamesT m Term
@@ -1217,7 +1253,9 @@ hcomp ty sys u0 = do
   ty <- ty
   (l, ty) <- toLType ty >>= \case
     Just (LEl l ty) -> return (l, ty)
-    Nothing -> return (__DUMMY_LEVEL__, unEl ty) -- TODO: support Setω properly
+    Nothing -> lift $ do -- TODO: support Setω properly
+      typeError . GenericDocError =<< sep
+        [ text "Cubical Agda: cannot generate hcomp clauses at type", prettyTCM ty ]
   l <- open $ Level l
   ty <- open $ ty
   face <- (foldr max (pure iz) $ map fst $ sys)

@@ -1,4 +1,4 @@
-{-# OPTIONS --safe --erased-cubical #-}
+{-# OPTIONS --safe --erased-cubical --erasure #-}
 
 module Erased-cubical where
 

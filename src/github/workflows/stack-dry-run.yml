@@ -1,0 +1,123 @@
+name: Stack check snapshots
+
+on:
+  push:
+    branches:
+    - master
+    - ci-*
+    - release*
+
+    paths: &trigger_path_list
+    - '.github/workflows/stack-dry-run.yml'
+    - 'Agda.cabal'
+    - 'Setup.hs'
+    - 'stack-*.yaml'
+    - 'src/size-solver/size-solver.cabal'
+
+  pull_request:
+    paths: *trigger_path_list
+
+  # Allow manual runs
+  workflow_dispatch:
+
+jobs:
+  auto-cancel:
+    if: |
+      !contains(github.event.head_commit.message, '[skip ci]')
+      && !contains(github.event.head_commit.message, '[ci skip]')
+      && !contains(github.event.head_commit.message, '[github skip]')
+      && !contains(github.event.head_commit.message, '[skip github]')
+
+    runs-on: Ubuntu-latest # Required, but it can be anything here.
+
+    steps:
+    - uses: styfle/cancel-workflow-action@0.11.0
+      with:
+        access_token: ${{ github.token }}
+  stack:
+    needs: auto-cancel
+
+    timeout-minutes: 10
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        stack-ver: ['latest']
+        # Only LTS versions here:
+        ghc-ver: [9.2.7, 9.0.2, 8.10.7, 8.8.4, 8.6.5]
+          # Andreas, 2022-03-26:
+          # Note: ghc-ver needs to be spelled out with minor version, i.e., x.y.z
+          # rather than x.y (which haskell-setup would resolve to a suitable .z)
+          # because ghc-ver is to pick the stack-$(ghc-ver).yaml file.
+          # If switching to a new GHC minor version needs manual action, i.e.,
+          # adding the respective stack-x.y.z.yaml file.
+    env:
+      EXTRA_ARGS: "--dry-run"
+        # stack build --only-configure also installs dependencies, so we need --dry-run
+      NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:debug"
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+
+    # - name: Determine the ICU version
+    #   run: |
+    #     uconv --version
+    #     ICU_VER="$(uconv --version | sed -ne 's/uconv v.* ICU \([0-9][0-9.]*\)/\1/p')"
+    #     echo "ICU_VER=${ICU_VER}"
+    #     echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
+    #   # The output of unconv --version looks like "uconv v2.1  ICU 72.1" from which we extract "72.1"
+
+    - name: Get the ICU version from pkg-config
+      run: |
+        ICU_VER=$(pkg-config --modversion icu-i18n)
+        echo "ICU_VER=${ICU_VER}"
+        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
+
+    # Checkout is needed before the first call to stack exec ${ARGS}
+    # because it provides the stack-*.yaml file.
+    - uses: actions/checkout@v3
+
+    - uses: haskell/actions/setup@v2
+      id: haskell-setup
+      with:
+        ghc-version: ${{ matrix.ghc-ver }}
+        stack-version: ${{ matrix.stack-ver }}
+        enable-stack: true
+
+    - name: Environment settings based on the Haskell setup
+      run: |
+        echo "runner.os         = ${{ runner.os                               }}"
+        echo "OSTYPE            = ${{ env.OSTYPE                              }}"
+        echo "ghc-path          = ${{ steps.haskell-setup.outputs.ghc-path    }}"
+        echo "ghc-exe           = ${{ steps.haskell-setup.outputs.ghc-exe     }}"
+        echo "cabal-path        = ${{ steps.haskell-setup.outputs.cabal-path  }}"
+        echo "cabal-exe         = ${{ steps.haskell-setup.outputs.cabal-exe   }}"
+        echo "cabal-store       = ${{ steps.haskell-setup.outputs.cabal-store }}"
+        echo "stack-path        = ${{ steps.haskell-setup.outputs.stack-path  }}"
+        echo "stack-exe         = ${{ steps.haskell-setup.outputs.stack-exe   }}"
+        echo "stack-root        = ${{ steps.haskell-setup.outputs.stack-root  }}"
+        echo "STACK_ROOT (orig) = ${{ env.STACK_ROOT                          }}"
+        echo "STACK_ROOT=${{ steps.haskell-setup.outputs.stack-root }}" >> "${GITHUB_ENV}"
+        echo "STACK_VER=$(stack --numeric-version)"                     >> "${GITHUB_ENV}"
+        GHC_VER=$(ghc --numeric-version)
+        echo "GHC_VER=${GHC_VER}"                                       >> "${GITHUB_ENV}"
+        echo "ARGS=--stack-yaml=stack-${GHC_VER}.yaml --system-ghc --no-terminal"    >> "${GITHUB_ENV}"
+    # From now on, use env.GHC_VER rather than matrix.ghc-ver
+
+    - name: Environment (review)
+      run: |
+        echo "STACK_ROOT (fix)  = ${STACK_ROOT}"
+        echo "STACK_VER         = ${STACK_VER}"
+        echo "GHC_VER           = ${GHC_VER}"
+        echo "ICU_VER           = ${ICU_VER}"
+
+    - name: Stack dry-run with the default flags in Agda.cabal.
+      run: stack build ${ARGS} ${EXTRA_ARGS} --test
+
+    - name: Stack-dry-run Agda with the non-default flags in Agda.cabal.
+      run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}

@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
   _11 (f = (λ (@ω x₁) → f x₁)) x = f x : X (blocked on _11)
 Unsolved metas at the following locations:
-  Issue4390erasure.agda:9,16-17
-  Issue4390erasure.agda:12,13-17
+  Issue4390erasure.agda:11,16-17
+  Issue4390erasure.agda:14,13-17

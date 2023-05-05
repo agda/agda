@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --without-K --erasure #-}
 
 data D : Set where
   @0 c : D

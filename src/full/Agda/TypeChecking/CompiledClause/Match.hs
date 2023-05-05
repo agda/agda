@@ -198,7 +198,7 @@ match' [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' 
   caseMaybeM (asksTC envAppDef) __IMPOSSIBLE__ $ \ f -> do
     pds <- getPartialDefs
     if f `elem` pds
-    then return (NoReduction $ NotBlocked MissingClauses [])
+    then return (NoReduction $ NotBlocked (MissingClauses f) [])
     else do
       ifM (optRewriting <$> pragmaOptions)
       {-then-} (return (NoReduction $ NotBlocked ReallyNotBlocked [])) -- See #5396

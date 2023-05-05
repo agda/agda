@@ -105,7 +105,7 @@ desugarDo qBind qThen = \case
 
 singleName :: Pattern -> Maybe Name
 singleName = \case
-  IdentP (QName x) -> Just x
+  IdentP _ (QName x) -> Just x
   _ -> Nothing
 
 matchingBind :: QName -> Range -> Pattern -> Expr -> Expr -> [LamClause] -> Expr

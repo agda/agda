@@ -88,7 +88,6 @@ labelsNotInChangelog :: [Text]
 labelsNotInChangelog =
   [ "Makefile"
   , "agda-bisect"
-  , "benchmark-suite"
   , "bug-tracker"
   , "closed-issues-for-milestone"
   , "devx"
@@ -96,10 +95,15 @@ labelsNotInChangelog =
   , "documented-in-changelog"
   , "faq"
   , "fix-agda-whitespace"
-  , "github-workflows"
   , "haddock"
+  , "hTags"
+  , "infra: github workflows"
+  , "infra: test suite"
+  , "maculata"
   , "not-in-changelog"
+  , "refactor"
   , "regression on master"
+  , "release"
   , "repository"
   , "status: abandoned"
   , "status: duplicate"
@@ -108,6 +112,7 @@ labelsNotInChangelog =
   , "status: working-as-intended"
   , "style"
   , "travis"
+  , "type: question"
   , "type: task"
   , "typo"
   ]
@@ -124,20 +129,20 @@ run mileStoneTitle = do
   debugPrint $ "Getting milestone " ++ Text.unpack mileStoneTitle
 
   -- Resolve milestone into milestone id.
-  mileStoneVector <- crashOr $ github auth (milestonesR (N owner) (N repo) FetchAll)
+  mileStoneVector <- crashOr $ github auth $ milestonesR (N owner) (N repo) FetchAll
   mileStoneId <- case filter ((mileStoneTitle ==) . milestoneTitle) $ toList mileStoneVector of
     []  -> die $ "Milestone " ++ Text.unpack mileStoneTitle ++ " not found in github repo " ++ theRepo
     [m] -> return $ milestoneNumber m
     _   -> die $ "Milestone " ++ Text.unpack mileStoneTitle ++ " ambiguous in github repo " ++ theRepo
 
   -- Debug.
-  debugPrint $ "Getting issues for milestone number " ++ show  mileStoneId
+  debugPrint $ "Getting issues for milestone number " ++ show mileStoneId
 
   let issueFilter = optionsMilestone mileStoneId <> stateClosed
   -- Get list of issues. GitHub's REST API v3 considers every pull
   -- request an issue. For this reason we get a list of both issues
   -- and pull requests when using the function 'issuesForRepo''.
-  issueVector <- crashOr $ github auth (issuesForRepoR (N owner) (N repo) issueFilter FetchAll)
+  issueVector <- crashOr $ github auth $ issuesForRepoR (N owner) (N repo) issueFilter FetchAll
     -- Symbols not exported.
     -- IssueRepoMod $ \ o ->
     --   o { issueRepoOptionsMilestone = FilterBy mileStoneId
@@ -162,7 +167,7 @@ run mileStoneTitle = do
   forM_ issues $ \ Issue{ issueNumber, issueTitle } -> do
     let n = unIssueNumber issueNumber
     putStrLn $
-      "  [#" ++ show n
+      "- [#" ++ show n
      ++ "](https://github.com/" ++ theRepo ++ "/issues/" ++ show n
      ++ "): " ++ Text.unpack issueTitle
 

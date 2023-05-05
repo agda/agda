@@ -1,0 +1,11 @@
+Issue6017.agda:24,1-13
+(~ j ∨ j) ∨ ~ i ∨ i != ~ j ∨ j of type I
+when checking that a clause of f has the correct boundary.
+
+Specifically, the terms
+  comp
+  (λ i .o → f ((λ { i₁ (j = i0) → p i0 ; i₁ (j = i1) → p i₁ }) i _))
+  (refl (p j))
+and
+  refl (surf i0 j)
+must be equal, since f (surf i0 j) could reduce to either.

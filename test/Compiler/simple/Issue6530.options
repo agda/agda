@@ -1,0 +1,9 @@
+TestOptions
+  { forCompilers =
+      [ (MAlonzo Lazy,       CompilerOptions {extraAgdaArgs = []})
+      , (MAlonzo StrictData, CompilerOptions {extraAgdaArgs = []})
+      , (MAlonzo Strict,     CompilerOptions {extraAgdaArgs = []})
+      ]
+  , runtimeOptions = []
+  , executeProg = False
+  }

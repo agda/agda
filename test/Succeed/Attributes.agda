@@ -1,5 +1,7 @@
 -- Andreas, 2018-06-14, issue #2513, parsing attributes
 
+{-# OPTIONS --erasure #-}
+
 -- Run-time only use.
 
 postulate

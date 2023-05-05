@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 
 {-| Agda main module.
 -}
@@ -5,6 +6,7 @@ module Agda.Main where
 
 import Prelude hiding (null)
 
+import qualified Control.Exception as E
 import Control.Monad          ( void )
 import Control.Monad.Except   ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class ( MonadIO(..) )
@@ -13,6 +15,7 @@ import qualified Data.List as List
 import Data.Maybe
 
 import System.Environment
+import System.Exit
 import System.Console.GetOpt
 import qualified System.IO as IO
 
@@ -55,8 +58,10 @@ runAgda' :: [Backend] -> IO ()
 runAgda' backends = runTCMPrettyErrors $ do
   progName <- liftIO getProgName
   argv     <- liftIO getArgs
+  let (z, warns) = runOptM $ parseBackendOptions backends argv defaultOptions
+  mapM_ (warning . OptionWarning) warns
   conf     <- liftIO $ runExceptT $ do
-    (bs, opts) <- ExceptT $ runOptM $ parseBackendOptions backends argv defaultOptions
+    (bs, opts) <- ExceptT $ pure z
     -- The absolute path of the input file, if provided
     inputFile <- liftIO $ mapM absolute $ optInputFile opts
     mode      <- getMainMode bs inputFile opts
@@ -83,7 +88,7 @@ runAgda' backends = runTCMPrettyErrors $ do
 
       case mode of
         MainModePrintHelp hp   -> liftIO $ printUsage bs hp
-        MainModePrintVersion   -> liftIO $ printVersion bs
+        MainModePrintVersion o -> liftIO $ printVersion bs o
         MainModePrintAgdaDir   -> liftIO $ printAgdaDir
         MainModeRun interactor -> do
           setTCLens stBackends bs
@@ -93,17 +98,17 @@ runAgda' backends = runTCMPrettyErrors $ do
 data MainMode
   = MainModeRun (Interactor ())
   | MainModePrintHelp Help
-  | MainModePrintVersion
+  | MainModePrintVersion PrintAgdaVersion
   | MainModePrintAgdaDir
 
 -- | Determine the main execution mode to run, based on the configured backends and command line options.
 -- | This is pure.
 getMainMode :: MonadError String m => [Backend] -> Maybe AbsolutePath -> CommandLineOptions -> m MainMode
 getMainMode configuredBackends maybeInputFile opts
-  | Just hp <- optPrintHelp opts = return $ MainModePrintHelp hp
-  | optPrintVersion opts         = return $ MainModePrintVersion
-  | optPrintAgdaDir opts         = return $ MainModePrintAgdaDir
-  | otherwise                    = do
+  | Just hp <- optPrintHelp opts    = return $ MainModePrintHelp hp
+  | Just o  <- optPrintVersion opts = return $ MainModePrintVersion o
+  | optPrintAgdaDir opts            = return $ MainModePrintAgdaDir
+  | otherwise = do
       mi <- getInteractor configuredBackends maybeInputFile opts
       -- If there was no selection whatsoever (e.g. just invoked "agda"), we just show help and exit.
       return $ maybe (MainModePrintHelp GeneralHelp) MainModeRun mi
@@ -253,12 +258,29 @@ backendUsage (Backend b) =
     map void (commandLineFlags b)
 
 -- | Print version information.
-printVersion :: [Backend] -> IO ()
-printVersion backends = do
+printVersion :: [Backend] -> PrintAgdaVersion -> IO ()
+printVersion _ PrintAgdaNumericVersion = putStrLn versionWithCommitInfo
+printVersion backends PrintAgdaVersion = do
   putStrLn $ "Agda version " ++ versionWithCommitInfo
+  unless (null flags) $
+    mapM_ putStrLn $ ("Built with flags (cabal -f)" :) $ map bullet flags
   mapM_ putStrLn
-    [ "  - " ++ name ++ " backend version " ++ ver
+    [ bullet $ name ++ " backend version " ++ ver
     | Backend Backend'{ backendName = name, backendVersion = Just ver } <- backends ]
+  where
+  bullet = (" - " ++)
+  -- Print cabal flags that were involved in compilation.
+  flags =
+#ifdef COUNT_CLUSTERS
+    "enable-cluster-counting: unicode cluster counting in LaTeX backend using the ICU library" :
+#endif
+#ifdef OPTIMISE_HEAVILY
+    "optimise-heavily: extra optimizations" :
+#endif
+#ifdef DEBUG
+    "debug: extra debug info" :
+#endif
+    []
 
 printAgdaDir :: IO ()
 printAgdaDir = putStrLn =<< getDataDir
@@ -297,9 +319,19 @@ runTCMPrettyErrors tcm = do
             liftIO $ helpForLocaleError err
             return (Just TCMError)
       ) `catchImpossible` \e -> do
-          liftIO $ putStr $ show e
+          liftIO $ putStr $ E.displayException e
           return (Just ImpossibleError)
-    )
+    ) `E.catches`
+        -- Catch all exceptions except for those of type ExitCode
+        -- (which are thrown by exitWith) and asynchronous exceptions
+        -- (which are for instance raised when Ctrl-C is used, or if
+        -- the program runs out of heap or stack space).
+        [ E.Handler $ \(e :: ExitCode)         -> E.throw e
+        , E.Handler $ \(e :: E.AsyncException) -> E.throw e
+        , E.Handler $ \(e :: E.SomeException)  -> do
+            liftIO $ putStr $ E.displayException e
+            return $ Right (Just UnknownError)
+        ]
   case r of
     Right Nothing       -> exitSuccess
     Right (Just reason) -> exitAgdaWith reason

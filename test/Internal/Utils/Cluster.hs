@@ -11,7 +11,6 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Foldable as Fold
 
 import Internal.Helpers
-import Internal.Utils.NonEmptyList () -- instances only
 
 ------------------------------------------------------------------------
 -- * Properties

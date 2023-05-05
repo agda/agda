@@ -1,7 +1,7 @@
 ..
   ::
 
-  {-# OPTIONS --cubical #-}
+  {-# OPTIONS --cubical --erasure #-}
 
   module language.runtime-irrelevance where
 
@@ -29,6 +29,7 @@ Syntax
 ======
 
 A function or constructor argument is declared erased using the ``@0`` or ``@erased`` annotation.
+(These annotations may only be used if the option :option:`--erasure` is active.)
 For example, the following definition of vectors guarantees that the length argument to ``_∷_`` is not
 present at runtime::
 
@@ -45,9 +46,11 @@ arguments.
   ensures that it is erased without relying on the analysis.
 
 .. note::
-  In the type signature of a constructor or record field the
-  parameters are always marked as erased, even if the parameters are
-  not marked as erased in the data or record type's telescope.
+  If :option:`--erasure` is used, then parameters are marked as erased
+  in the type signatures of constructors and record fields, even if
+  the parameters are not marked as erased in the data or record type's
+  telescope, with one exception: for indexed data types this only
+  happens if the :option:`--with-K` flag is active.
 
 Erasure annotations can also appear in function arguments (both first-order and higher-order). For instance, here is
 an implementation of ``foldl`` on vectors::
@@ -81,7 +84,7 @@ compiling without erasure:
         []     -> z
         x ∷ xs -> foldl (\ n -> f (1 + n)) (f 0 z x) xs
 
-It is also possible to mark top-level definitions as erased. This
+It is also possible to mark top-level function definitions as erased. This
 guarantees that they are only used in erased arguments and can be
 useful to ensure that code intended only for compile-time evaluation
 is not executed at run time. (One can also use erased things in the
@@ -121,11 +124,69 @@ In the code above the constructor ``trivial`` is only available at
 compile-time, whereas ``∣_∣`` is also available at run-time. Clauses
 that match on erased constructors in non-erased positions are omitted
 by (at least some) compiler backends, so one can use erased names in
-the bodies of such clauses. (There is an
-:ref:`exception<erased-cubical>` for constructors that were not
-declared as erased, but that are treated as erased because they were
-defined using Cubical Agda, and are used in a module that uses the
-option :option:`--erased-cubical`.)
+the bodies of such clauses. (There is an exception for constructors
+that were not originally declared as erased, but that are currently
+treated as erased.)
+
+One can also mark data and record types as erased. Such types can only
+be used in erased positions, their constructors and projections are
+erased, and definitions in record modules for erased record types are
+erased. A data or record type is marked as erased by writing ``@0`` or
+``@erased`` right after the ``data`` or ``record`` keyword of the data
+or record type's declaration:
+
+::
+
+  data @0 D₁ : Set where
+    c : D₁
+
+  data @0 D₂ : Set
+
+  data D₂ where
+    c : D₁ → D₂
+
+  interleaved mutual
+
+    data @0 D₃ : Set where
+
+    data D₃ where
+      c : D₃
+
+  record @0 R₁ : Set where
+    field
+      x : D₁
+
+  record @0 R₂ : Set
+
+  record R₂ where
+    field
+      x : R₁
+
+Finally one can mark modules as erased. The module identifier itself
+does not become erased, but all definitions inside the module. A
+module is marked as erased by writing ``@0`` or ``@erased`` right
+after the ``module`` keyword:
+
+::
+
+  module @0 _ where
+
+    F : @0 Set → Set
+    F A = A
+
+  module M (A : Set) where
+
+    record R : Set where
+      field
+        @0 x : A
+
+  module @0 N (@0 A : Set) = M A
+
+  G : (@0 A : Set) → let module @0 M₂ = M A in Set
+  G A = M.R C
+    module @0 _ where
+      C : Set
+      C = A
 
 .. _run-time-irrelevance-rules:
 
@@ -141,9 +202,12 @@ following restrictions apply:
 
 - Cannot use erased variables or definitions.
 - Cannot pattern match on erased arguments, unless there is at most
-  one valid case (not counting erased constructors). If
-  ``--without-K`` is enabled and there is one valid case, then the
-  datatype must also not be indexed.
+  one valid case. If :option:`--without-K` is enabled and there is one
+  valid case, then there are further restrictions:
+
+  - The constructor's data or record type must not be indexed.
+  - If the type is anything but a record type with η-equality, then
+    the option :option:`--erased-matches` must be enabled.
 
 Consider the function ``foo`` taking an erased vector argument:
 
@@ -168,9 +232,14 @@ match on the length first, the type checker complains:
 
 The type checker enters compile-time mode when
 
-- checking erased arguments to a constructor or function,
-- checking the body of an erased definition,
-- checking the body of a clause that matches on an erased constructor,
+- checking erased arguments to a constructor, function or module
+  application,
+- checking the body of an erased definition (including an erased
+  module application),
+- checking the body of a clause that matches (in a non-erased
+  position) on a constructor that was originally defined as erased (it
+  does not suffice for the constructor to be currently treated as
+  erased),
 - checking the domain of an erased Π type, or
 - checking a type, i.e. when moving to the right of a ``:``, with some
   exceptions:
@@ -184,6 +253,24 @@ Note that the type checker does not enter compile-time mode based on
 the type a term is checked against (except that a distinction is
 sometimes made between fibrant and non-fibrant types). In particular,
 checking a term against ``Set`` does not trigger compile-time mode.
+
+There is also a *hard compile-time mode*. In this mode all definitions
+are treated as erased. The hard compile-time mode is entered when an
+erased definition is checked.
+
+The type-checker switches from compile-time mode to run-time mode for
+certain expressions/declarations if it is not in the hard compile-time
+mode:
+
+- Absurd lambdas.
+- Non-erased pattern-matching lambdas.
+- Non-erased module definitions ("``module M … = …``") or applications
+  ("``M …``").
+- Applications of ``♯`` (see :ref:`old-coinduction`).
+
+.. note::
+  The text above should be extended with information about how the
+  reflection machinery interacts with run-time irrelevance.
 
 .. _references:
 

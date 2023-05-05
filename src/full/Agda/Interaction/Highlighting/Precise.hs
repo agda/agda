@@ -33,7 +33,7 @@ import Control.Arrow (second)
 import Control.DeepSeq
 import Control.Monad
 
-import Data.Function
+import Data.Function (on)
 import qualified Data.List as List
 import Data.Maybe
 import Data.Semigroup
@@ -51,7 +51,7 @@ import GHC.Generics (Generic)
 
 import qualified Agda.Syntax.Position as P
 import qualified Agda.Syntax.Common   as Common
-import qualified Agda.Syntax.Concrete as C
+import Agda.Syntax.TopLevelModuleName
 import Agda.Syntax.Scope.Base                   ( KindOfName(..) )
 
 import Agda.Interaction.Highlighting.Range
@@ -162,7 +162,7 @@ data Aspects = Aspects
   deriving (Show, Generic)
 
 data DefinitionSite = DefinitionSite
-  { defSiteModule :: C.TopLevelModuleName
+  { defSiteModule :: TopLevelModuleName
       -- ^ The defining module.
   , defSitePos    :: Int
       -- ^ The file position in that module. File positions are

@@ -60,7 +60,15 @@ addConstraintTCM unblock c = do
       pids <- asksTC envActiveProblems
       reportSDoc "tc.constr.add" 20 $ hsep
         [ "adding constraint"
-        , prettyTCM . PConstr pids unblock =<< buildClosure c ]
+        , prettyTCM . PConstr pids unblock =<< buildClosure c
+        , "unblocker: " , prettyTCM unblock
+        ]
+      -- Jesper, 2022-10-22: We should never block on a meta that is
+      -- already solved.
+      forM_ (Set.toList $ allBlockingMetas unblock) $ \m ->
+        whenM (isInstantiatedMeta m) $ do
+          reportSDoc "tc.constr.add" 5 $ "Attempted to block on solved meta" <+> prettyTCM m
+          __IMPOSSIBLE__
       -- Need to reduce to reveal possibly blocking metas
       c <- reduce =<< instantiateFull c
       caseMaybeM (simpl c) {-no-} (addConstraint' unblock c) $ {-yes-} \ cs -> do
@@ -194,16 +202,8 @@ whenConstraints action handler =
     stealConstraints pid
     handler
 
--- | Wake constraints matching the given predicate (and aren't instance
---   constraints if 'shouldPostponeInstanceSearch').
-wakeConstraints' :: (ProblemConstraint -> WakeUp) -> TCM ()
-wakeConstraints' p = do
-  skipInstance <- shouldPostponeInstanceSearch
-  let skip c = skipInstance && isInstanceConstraint (clValue $ theConstraint c)
-  wakeConstraints $ wakeUpWhen (not . skip) p
-
 -- | Wake up the constraints depending on the given meta.
-wakeupConstraints :: MetaId -> TCM ()
+wakeupConstraints :: MonadMetaSolver m => MetaId -> m ()
 wakeupConstraints x = do
   wakeConstraints' (wakeIfBlockedOnMeta x . constraintUnblocker)
   solveAwakeConstraints
@@ -216,12 +216,6 @@ wakeupConstraints_ = do
   where
     wakeup u | Set.null $ allBlockingProblems u = WakeUp
              | otherwise                        = DontWakeUp Nothing
-
-solveAwakeConstraints :: (MonadConstraint m) => m ()
-solveAwakeConstraints = solveAwakeConstraints' False
-
-solveAwakeConstraints' :: (MonadConstraint m) => Bool -> m ()
-solveAwakeConstraints' = solveSomeAwakeConstraints (const True)
 
 -- | Solve awake constraints matching the predicate. If the second argument is
 --   True solve constraints even if already 'isSolvingConstraints'.
@@ -301,7 +295,7 @@ solveConstraint_ (HasPTSRule a b)       = hasPTSRule a b
 solveConstraint_ (CheckDataSort q s)    = checkDataSort q s
 solveConstraint_ (CheckMetaInst m)      = checkMetaInst m
 solveConstraint_ (CheckType t)          = checkType t
-solveConstraint_ (UsableAtModality mod t) = usableAtModality mod t
+solveConstraint_ (UsableAtModality cc ms mod t) = usableAtModality' ms cc mod t
 
 checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
 checkTypeCheckingProblem = \case
@@ -320,3 +314,34 @@ debugConstraints = verboseS "tc.constr" 50 $ do
     [ "Current constraints"
     , nest 2 $ vcat [ "awake " <+> vcat (map prettyTCM awake)
                     , "asleep" <+> vcat (map prettyTCM sleeping) ] ]
+
+-- Update the blocker after some instantiation or pruning might have happened.
+updateBlocker :: (PureTCM m) => Blocker -> m Blocker
+updateBlocker b = case b of
+  UnblockOnAll xs -> unblockOnAll . Set.fromList <$> traverse updateBlocker (Set.toList xs)
+  UnblockOnAny xs -> unblockOnAny . Set.fromList <$> traverse updateBlocker (Set.toList xs)
+  UnblockOnMeta x -> ifM (isInstantiatedMeta x) (return alwaysUnblock) (return b)
+  UnblockOnProblem pi -> ifM (isProblemSolved pi) (return alwaysUnblock) (return $ UnblockOnProblem pi)
+  UnblockOnDef qn -> return (unblockOnDef qn)
+
+addAndUnblocker :: (PureTCM m, MonadBlock m) => Blocker -> m a -> m a
+addAndUnblocker u
+  | u == alwaysUnblock = id
+  | otherwise          = catchPatternErr $ \ u' -> do
+      u <- updateBlocker u
+      patternViolation (unblockOnBoth u u')
+
+addOrUnblocker :: (PureTCM m, MonadBlock m) => Blocker -> m a -> m a
+addOrUnblocker u
+  | u == neverUnblock = id
+  | otherwise         = catchPatternErr $ \ u' -> do
+      u <- updateBlocker u
+      patternViolation (unblockOnEither u u')
+
+-- Reduce a term and call the continuation. If the continuation is
+-- blocked, the whole call is blocked either on what blocked the reduction
+-- or on what blocked the continuation (using `blockedOnEither`).
+withReduced
+  :: (Reduce a, IsMeta a, PureTCM m, MonadBlock m)
+  => a -> (a -> m b) -> m b
+withReduced a cont = ifBlocked a (\b a' -> addOrUnblocker b $ cont a') (\_ a' -> cont a')

@@ -1,0 +1,4 @@
+Issue4743-3.agda:15,7-11
+Cannot instantiate the metavariable _7 to solution Issue4743-3.♯-0
+since (part of) the solution was created in an erased context
+when checking that the expression refl has type x ≡ Issue4743-3.♯-0

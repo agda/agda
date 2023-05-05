@@ -10,7 +10,6 @@ module Agda.Utils.Pretty
 
 import Prelude hiding (null)
 
-import Data.Data (Data(..))
 import qualified Data.Foldable as Fold
 import Data.Int (Int32)
 import Data.IntSet (IntSet)
@@ -175,12 +174,6 @@ align max rows =
 multiLineText :: String -> Doc
 multiLineText = vcat . map text . lines
 
--- cheating because you shouldn't be digging this far anyway
-instance Data Doc where
-  gunfold _ _ _ = __IMPOSSIBLE__
-  toConstr      = __IMPOSSIBLE__
-  dataTypeOf    = __IMPOSSIBLE__
-
 infixl 6 <?>
 -- | @a <?> b = hang a 2 b@
 (<?>) :: Doc -> Doc -> Doc
@@ -191,7 +184,7 @@ pshow :: Show a => a -> Doc
 pshow = text . show
 
 singPlural :: Sized a => a -> c -> c -> c
-singPlural xs singular plural = if size xs == 1 then singular else plural
+singPlural xs singular plural = if natSize xs == 1 then singular else plural
 
 -- | Used for with-like 'telescopes'
 

@@ -1,6 +1,29 @@
 {-# LANGUAGE NondecreasingIndentation #-}
 
-module Agda.TypeChecking.Reduce where
+module Agda.TypeChecking.Reduce
+ -- Meta instantiation
+ ( Instantiate, instantiate', instantiate, instantiateWhen
+ -- Recursive meta instantiation
+ , InstantiateFull, instantiateFull', instantiateFull
+ , instantiateFullExceptForDefinitions
+ -- Check for meta (no reduction)
+ , IsMeta, isMeta
+ -- Reduction and blocking
+ , Reduce, reduce', reduceB', reduce, reduceB, reduceWithBlocker, reduceIApply'
+ , reduceDefCopy, reduceDefCopyTCM
+ , reduceHead
+ , slowReduceTerm
+ , unfoldCorecursion, unfoldCorecursionE
+ , unfoldDefinitionE, unfoldDefinitionStep
+ , unfoldInlined
+ , appDef', appDefE'
+ , abortIfBlocked, ifBlocked, isBlocked, fromBlocked
+ -- Simplification
+ , Simplify, simplify, simplifyBlocked'
+ -- Normalization
+ , Normalise, normalise', normalise
+ , slowNormaliseArgs
+ ) where
 
 import Control.Monad ( (>=>), void )
 
@@ -81,21 +104,14 @@ reduceWithBlocker a = ifBlocked a
   (\b a' -> return (b, a'))
   (\_ a' -> return (neverUnblock, a'))
 
--- Reduce a term and call the continuation. If the continuation is
--- blocked, the whole call is blocked either on what blocked the reduction
--- or on what blocked the continuation (using `blockedOnEither`).
-withReduced
-  :: (Reduce a, IsMeta a, MonadReduce m, MonadBlock m)
-  => a -> (a -> m b) -> m b
-withReduced a cont = ifBlocked a (\b a' -> addOrUnblocker b $ cont a') (\_ a' -> cont a')
-
 normalise :: (Normalise a, MonadReduce m) => a -> m a
 normalise = liftReduce . normalise'
 
--- | Normalise the given term but also preserve blocking tags
---   TODO: implement a more efficient version of this.
-normaliseB :: (MonadReduce m, Reduce t, Normalise t) => t -> m (Blocked t)
-normaliseB = normalise >=> reduceB
+-- UNUSED
+-- -- | Normalise the given term but also preserve blocking tags
+-- --   TODO: implement a more efficient version of this.
+-- normaliseB :: (MonadReduce m, Reduce t, Normalise t) => t -> m (Blocked t)
+-- normaliseB = normalise >=> reduceB
 
 simplify :: (Simplify a, MonadReduce m) => a -> m a
 simplify = liftReduce . simplify'
@@ -234,6 +250,7 @@ instance Instantiate Blocker where
   instantiate' b@(UnblockOnMeta x) =
     ifM (isInstantiatedMeta x) (return alwaysUnblock) (return b)
   instantiate' b@UnblockOnProblem{} = return b
+  instantiate' b@UnblockOnDef{} = return b
 
 instance Instantiate Sort where
   instantiate' = \case
@@ -245,7 +262,7 @@ instance Instantiate Sort where
     s -> return s
 
 instance (Instantiate t, Instantiate e) => Instantiate (Dom' t e) where
-    instantiate' (Dom i fin n tac x) = Dom i fin n <$> instantiate' tac <*> instantiate' x
+    instantiate' (Dom i n b tac x) = Dom i n b <$> instantiate' tac <*> instantiate' x
 
 instance Instantiate a => Instantiate (Closure a) where
     instantiate' cl = do
@@ -276,7 +293,7 @@ instance Instantiate Constraint where
   instantiate' (CheckDataSort q s)  = CheckDataSort q <$> instantiate' s
   instantiate' c@CheckMetaInst{}    = return c
   instantiate' (CheckType t)        = CheckType <$> instantiate' t
-  instantiate' (UsableAtModality mod t) = UsableAtModality mod <$> instantiate' t
+  instantiate' (UsableAtModality cc ms mod t) = flip (UsableAtModality cc) mod <$> instantiate' ms <*> instantiate' t
 
 instance Instantiate CompareAs where
   instantiate' (AsTermsOf a) = AsTermsOf <$> instantiate' a
@@ -363,6 +380,12 @@ isBlocked
   => t -> m (Maybe Blocker)
 isBlocked t = ifBlocked t (\m _ -> return $ Just m) (\_ _ -> return Nothing)
 
+-- | Throw a pattern violation if the argument is @Blocked@,
+--   otherwise return the value embedded in the @NotBlocked@.
+fromBlocked :: MonadBlock m => Blocked a -> m a
+fromBlocked (Blocked b _) = patternViolation b
+fromBlocked (NotBlocked _ x) = return x
+
 class Reduce t where
   reduce'  :: t -> ReduceM t
   reduceB' :: t -> ReduceM (Blocked t)
@@ -375,28 +398,48 @@ instance Reduce Type where
     reduceB' (El s t) = workOnTypes $ fmap (El s) <$> reduceB' t
 
 instance Reduce Sort where
-    reduce' s = do
+    reduceB' s = do
       s <- instantiate' s
+      let done | MetaS x _ <- s = return $ blocked x s
+               | otherwise      = return $ notBlocked s
       case s of
-        PiSort a s1 s2 -> do
-          (s1' , s2') <- reduce' (s1 , s2)
-          maybe (return $ PiSort a s1' s2') reduce' $ piSort' a s1' s2'
-        FunSort s1 s2 -> do
-          (s1' , s2') <- reduce (s1 , s2)
-          maybe (return $ FunSort s1' s2') reduce' $ funSort' s1' s2'
-        UnivSort s' -> do
-          s' <- reduce' s'
-          caseMaybe (univSort' s') (return $ UnivSort s') reduce'
-        Prop s'    -> Prop <$> reduce' s'
-        Type s'    -> Type <$> reduce' s'
-        Inf f n    -> return $ Inf f n
-        SSet s'    -> SSet <$> reduce' s'
-        SizeUniv   -> return SizeUniv
-        LockUniv   -> return LockUniv
-        IntervalUniv -> return IntervalUniv
-        MetaS x es -> return s
-        DefS d es  -> return s -- postulated sorts do not reduce
-        DummyS{}   -> return s
+        PiSort a s1 s2 -> reduceB' (s1 , s2) >>= \case
+          Blocked b (s1',s2') -> return $ Blocked b $ PiSort a s1' s2'
+          NotBlocked _ (s1',s2') -> do
+            -- Jesper, 2022-10-12: do instantiateFull here because
+            -- `piSort'` does checking of free variables, and if we
+            -- don't instantiate we might end up blocking on a solved
+            -- metavariable.
+            s2' <- instantiateFull s2'
+            case piSort' a s1' s2' of
+              Left b -> return $ Blocked b $ PiSort a s1' s2'
+              Right s -> reduceB' s
+        FunSort s1 s2 -> reduceB' (s1 , s2) >>= \case
+          Blocked b (s1',s2') -> return $ Blocked b $ FunSort s1' s2'
+          NotBlocked _ (s1',s2') -> do
+            case funSort' s1' s2' of
+              Left b -> return $ Blocked b $ FunSort s1' s2'
+              Right s -> reduceB' s
+        UnivSort s1 -> reduceB' s1 >>= \case
+          Blocked b s1' -> return $ Blocked b $ UnivSort s1'
+          NotBlocked _ s1' -> case univSort' s1' of
+            Left b -> return $ Blocked b $ UnivSort s1'
+            Right s -> reduceB' s
+        Prop l     -> notBlocked . Prop <$> reduce l
+        Type l     -> notBlocked . Type <$> reduce l
+        Inf f n    -> done
+        SSet l     -> notBlocked . SSet <$> reduce l
+        SizeUniv   -> done
+        LockUniv   -> done
+        LevelUniv  -> do
+          levelUniverseEnabled <- isLevelUniverseEnabled
+          if levelUniverseEnabled
+          then done
+          else return $ notBlocked (mkType 0)
+        IntervalUniv -> done
+        MetaS x es -> done
+        DefS d es  -> done -- postulated sorts do not reduce
+        DummyS{}   -> done
 
 instance Reduce Elim where
   reduce' (Apply v) = Apply <$> reduce' v
@@ -411,11 +454,15 @@ instance Reduce PlusLevel where
   reduceB' (Plus n l) = fmap (Plus n) <$> reduceB' l
 
 instance (Subst a, Reduce a) => Reduce (Abs a) where
-  reduce' b@(Abs x _) = Abs x <$> underAbstraction_ b reduce'
-  reduce' (NoAbs x v) = NoAbs x <$> reduce' v
+  reduceB' b@(Abs x _) = fmap (Abs x) <$> underAbstraction_ b reduceB'
+  reduceB' (NoAbs x v) = fmap (NoAbs x) <$> reduceB' v
 
 -- Lists are never blocked
 instance Reduce t => Reduce [t] where
+    reduce' = traverse reduce'
+
+-- Maybes are never blocked
+instance Reduce t => Reduce (Maybe t) where
     reduce' = traverse reduce'
 
 instance Reduce t => Reduce (Arg t) where
@@ -514,7 +561,7 @@ slowReduceTerm v = do
           v <- flip reduceIApply es
                  $ unfoldDefinitionE False reduceB' (Con c ci []) (conName c) es
           traverse reduceNat v
-      Sort s   -> fmap Sort <$> reduceB' s
+      Sort s   -> done
       Level l  -> ifM (SmallSet.member LevelReductions <$> asksTC envAllowedReductions)
                     {- then -} (fmap levelTm <$> reduceB' l)
                     {- else -} done
@@ -619,7 +666,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
         then reducePrimitive x v0 f es pf dontUnfold
                              cls (defCompiled info) rewr
         else noReduction $ notBlocked v
-    PrimitiveSort{ primSort = s } -> yesReduction NoSimplification $ Sort s `applyE` es
+    PrimitiveSort{ primSortSort = s } -> yesReduction NoSimplification $ Sort s `applyE` es
 
     _  -> do
       if or
@@ -797,7 +844,7 @@ appDef_ f v0 cls mcc rewr args = appDefE_ f v0 cls mcc rewr $ map (fmap Apply) a
 appDefE_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
 appDefE_ f v0 cls mcc rewr args =
   localTC (\ e -> e { envAppDef = Just f }) $
-  maybe (appDefE' v0 cls rewr args)
+  maybe (appDefE'' v0 cls rewr args)
         (\cc -> appDefE v0 cc rewr args) mcc
 
 
@@ -815,11 +862,17 @@ appDefE v cc rewr es = do
     NoReduction es'      -> rewrite (void es') (applyE v) rewr (ignoreBlocking es')
 
 -- | Apply a defined function to it's arguments, using the original clauses.
-appDef' :: Term -> [Clause] -> RewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
-appDef' v cls rewr args = appDefE' v cls rewr $ map (fmap Apply) args
+appDef' :: QName -> Term -> [Clause] -> RewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
+appDef' f v cls rewr args = appDefE' f v cls rewr $ map (fmap Apply) args
 
-appDefE' :: Term -> [Clause] -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
-appDefE' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v) $ do
+appDefE' :: QName -> Term -> [Clause] -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+appDefE' f v cls rewr es =
+  localTC (\ e -> e { envAppDef = Just f }) $
+  appDefE'' v cls rewr es
+
+-- | Expects @'envAppDef' = Just f@ in 'TCEnv' to be able to report @'MissingClauses' f@.
+appDefE'' :: Term -> [Clause] -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v) $ do
   goCls cls $ map ignoreReduced es
   where
     goCls :: [Clause] -> [Elim] -> ReduceM (Reduced (Blocked Term) Term)
@@ -831,7 +884,9 @@ appDefE' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v)
         -- the remaining clauses (see Issue 907).
         -- Andrea(s), 2014-12-05:  We return 'MissingClauses' here, since this
         -- is the most conservative reason.
-        [] -> rewrite (NotBlocked MissingClauses ()) (applyE v) rewr es
+        [] -> do
+          f <- fromMaybe __IMPOSSIBLE__ <$> asksTC envAppDef
+          rewrite (NotBlocked (MissingClauses f) ()) (applyE v) rewr es
         cl : cls -> do
           let pats = namedClausePats cl
               body = clauseBody cl
@@ -887,7 +942,7 @@ instance Reduce Constraint where
   reduce' (CheckDataSort q s)   = CheckDataSort q <$> reduce' s
   reduce' c@CheckMetaInst{}     = return c
   reduce' (CheckType t)         = CheckType <$> reduce' t
-  reduce' (UsableAtModality mod t) = UsableAtModality mod <$> reduce' t
+  reduce' (UsableAtModality cc ms mod t) = flip (UsableAtModality cc) mod <$> reduce' ms <*> reduce' t
 
 instance Reduce CompareAs where
   reduce' (AsTermsOf a) = AsTermsOf <$> reduce' a
@@ -964,9 +1019,9 @@ instance Simplify Term where
       Def f vs   -> iapp vs $ do
         let keepGoing simp v = return (simp, notBlocked v)
         (simpl, v) <- unfoldDefinition' False keepGoing (Def f []) f vs
-        traceSDoc "tc.simplify'" 90 (
-          text ("simplify': unfolding definition returns " ++ show simpl)
-            <+> pretty (ignoreBlocking v)) $ do
+        when (simpl == YesSimplification) $
+          reportSDoc "tc.simplify'" 90 $
+            pretty f <+> text ("simplify': unfolding definition returns " ++ show simpl) <+> pretty (ignoreBlocking v)
         case simpl of
           YesSimplification -> simplifyBlocked' v -- Dangerous, but if @simpl@ then @v /= Def f vs@
           NoSimplification  -> Def f <$> simplify' vs
@@ -1000,6 +1055,7 @@ instance Simplify Sort where
         SSet s     -> SSet <$> simplify' s
         SizeUniv   -> return s
         LockUniv   -> return s
+        LevelUniv  -> return s
         IntervalUniv -> return s
         MetaS x es -> MetaS x <$> simplify' es
         DefS d es  -> DefS d <$> simplify' es
@@ -1054,7 +1110,7 @@ instance Simplify Constraint where
   simplify' (CheckDataSort q s)   = CheckDataSort q <$> simplify' s
   simplify' c@CheckMetaInst{}     = return c
   simplify' (CheckType t)         = CheckType <$> simplify' t
-  simplify' (UsableAtModality mod t) = UsableAtModality mod <$> simplify' t
+  simplify' (UsableAtModality cc ms mod t) = flip (UsableAtModality cc) mod <$> simplify' ms <*> simplify' t
 
 instance Simplify CompareAs where
   simplify' (AsTermsOf a) = AsTermsOf <$> simplify' a
@@ -1151,6 +1207,7 @@ instance Normalise Sort where
         SSet s     -> SSet <$> normalise' s
         SizeUniv   -> return SizeUniv
         LockUniv   -> return LockUniv
+        LevelUniv  -> return LevelUniv
         IntervalUniv -> return IntervalUniv
         MetaS x es -> return s
         DefS d es  -> return s
@@ -1236,7 +1293,7 @@ instance Normalise Constraint where
   normalise' (CheckDataSort q s)   = CheckDataSort q <$> normalise' s
   normalise' c@CheckMetaInst{}     = return c
   normalise' (CheckType t)         = CheckType <$> normalise' t
-  normalise' (UsableAtModality mod t) = UsableAtModality mod <$> normalise' t
+  normalise' (UsableAtModality cc ms mod t) = flip (UsableAtModality cc) mod <$> normalise' ms <*> normalise' t
 
 instance Normalise CompareAs where
   normalise' (AsTermsOf a) = AsTermsOf <$> normalise' a
@@ -1360,6 +1417,7 @@ instance InstantiateFull Sort where
             Inf _ _    -> return s
             SizeUniv   -> return s
             LockUniv   -> return s
+            LevelUniv  -> return s
             IntervalUniv -> return s
             MetaS x es -> MetaS x <$> instantiateFull' es
             DefS d es  -> DefS d <$> instantiateFull' es
@@ -1396,13 +1454,13 @@ instance InstantiateFull PlusLevel where
 instance InstantiateFull Substitution where
   instantiateFull' sigma =
     case sigma of
-      IdS                  -> return IdS
-      EmptyS err           -> return $ EmptyS err
-      Wk   n sigma         -> Wk   n         <$> instantiateFull' sigma
-      Lift n sigma         -> Lift n         <$> instantiateFull' sigma
-      Strengthen bot sigma -> Strengthen bot <$> instantiateFull' sigma
-      t :# sigma           -> consS <$> instantiateFull' t
-                                    <*> instantiateFull' sigma
+      IdS                    -> return IdS
+      EmptyS err             -> return $ EmptyS err
+      Wk   n sigma           -> Wk   n           <$> instantiateFull' sigma
+      Lift n sigma           -> Lift n           <$> instantiateFull' sigma
+      Strengthen bot n sigma -> Strengthen bot n <$> instantiateFull' sigma
+      t :# sigma             -> consS <$> instantiateFull' t
+                                      <*> instantiateFull' sigma
 
 instance InstantiateFull ConPatternInfo where
     instantiateFull' i = instantiateFull' (conPType i) <&> \ t -> i { conPType = t }
@@ -1421,7 +1479,10 @@ instance (Subst a, InstantiateFull a) => InstantiateFull (Abs a) where
     instantiateFull' (NoAbs x a) = NoAbs x <$> instantiateFull' a
 
 instance (InstantiateFull t, InstantiateFull e) => InstantiateFull (Dom' t e) where
-    instantiateFull' (Dom i fin n tac x) = Dom i fin n <$> instantiateFull' tac <*> instantiateFull' x
+    instantiateFull' (Dom i n b tac x) = Dom i n b <$> instantiateFull' tac <*> instantiateFull' x
+
+instance InstantiateFull LetBinding where
+  instantiateFull' (LetBinding o v t) = LetBinding o <$> instantiateFull' v <*> instantiateFull' t
 
 -- Andreas, 2021-09-13, issue #5544, need to traverse @checkpoints@ map
 instance InstantiateFull t => InstantiateFull (Open t) where
@@ -1471,7 +1532,7 @@ instance InstantiateFull Constraint where
     CheckDataSort q s   -> CheckDataSort q <$> instantiateFull' s
     c@CheckMetaInst{}   -> return c
     CheckType t         -> CheckType <$> instantiateFull' t
-    UsableAtModality mod t -> UsableAtModality mod <$> instantiateFull' t
+    UsableAtModality cc ms mod t -> flip (UsableAtModality cc) mod <$> instantiateFull' ms <*> instantiateFull' t
 
 instance InstantiateFull CompareAs where
   instantiateFull' (AsTermsOf a) = AsTermsOf <$> instantiateFull' a
@@ -1514,6 +1575,7 @@ instance InstantiateFull NLPSort where
   instantiateFull' (PInf f n) = return $ PInf f n
   instantiateFull' PSizeUniv = return PSizeUniv
   instantiateFull' PLockUniv = return PLockUniv
+  instantiateFull' PLevelUniv = return PLevelUniv
   instantiateFull' PIntervalUniv = return PIntervalUniv
 
 instance InstantiateFull RewriteRule where
@@ -1530,8 +1592,8 @@ instance InstantiateFull DisplayForm where
   instantiateFull' (Display n ps v) = uncurry (Display n) <$> instantiateFull' (ps, v)
 
 instance InstantiateFull DisplayTerm where
-  instantiateFull' (DTerm v)       = DTerm <$> instantiateFull' v
-  instantiateFull' (DDot  v)       = DDot  <$> instantiateFull' v
+  instantiateFull' (DTerm' v es)   = DTerm' <$> instantiateFull' v <*> instantiateFull' es
+  instantiateFull' (DDot' v es)    = DDot'  <$> instantiateFull' v <*> instantiateFull' es
   instantiateFull' (DCon c ci vs)  = DCon c ci <$> instantiateFull' vs
   instantiateFull' (DDef c es)     = DDef c <$> instantiateFull' es
   instantiateFull' (DWithApp v vs ws) = uncurry3 DWithApp <$> instantiateFull' (v, vs, ws)
@@ -1570,7 +1632,7 @@ instance InstantiateFull System where
 
 instance InstantiateFull FunctionInverse where
   instantiateFull' NotInjective = return NotInjective
-  instantiateFull' (Inverse w inv) = Inverse w <$> instantiateFull' inv
+  instantiateFull' (Inverse inv) = Inverse <$> instantiateFull' inv
 
 instance InstantiateFull a => InstantiateFull (Case a) where
   instantiateFull' (Branches cop cs eta ls m b lz) =
@@ -1626,10 +1688,10 @@ instance InstantiateFull Interface where
 
 instantiateFullExceptForDefinitions' :: Interface -> ReduceM Interface
 instantiateFullExceptForDefinitions'
-  (Interface h s ft ms mod scope inside sig metas display userwarn
+  (Interface h s ft ms mod tlmod scope inside sig metas display userwarn
      importwarn b foreignCode highlighting libPragmas filePragmas
      usedOpts patsyns warnings partialdefs) =
-  Interface h s ft ms mod scope inside
+  Interface h s ft ms mod tlmod scope inside
     <$> ((\s r -> Sig { _sigSections     = s
                       , _sigDefinitions  = sig ^. sigDefinitions
                       , _sigRewriteRules = r

@@ -83,6 +83,7 @@ import Agda.Interaction.Options
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Concrete.Pretty
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -93,6 +94,8 @@ import Agda.Utils.Function
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.WithDefault
+import qualified Agda.Utils.Null as Null
 
 -- | data 'Relevance'
 --   see "Agda.Syntax.Common".
@@ -121,7 +124,7 @@ workOnTypes' experimental
   = (if experimental
      then modifyContextInfo (mapRelevance irrToNonStrict)
      else id)
-  . applyQuantityToContext zeroQuantity
+  . applyQuantityToJudgement zeroQuantity
   . typeLevelReductions
   . localTC (\ e -> e { envWorkingOnTypes = True })
 
@@ -147,7 +150,7 @@ applyRelevanceToContext thing =
 applyRelevanceToContextOnly :: (MonadTCEnv tcm) => Relevance -> tcm a -> tcm a
 applyRelevanceToContextOnly rel = localTC
   $ over eContext     (map $ inverseApplyRelevance rel)
-  . over eLetBindings (Map.map . fmap . second $ inverseApplyRelevance rel)
+  . over eLetBindings (Map.map . fmap . onLetBindingType $ inverseApplyRelevance rel)
 
 -- | Apply relevance @rel@ the the relevance annotation of the (typing/equality)
 --   judgement.  This is part of the work done when going into a @rel@-context.
@@ -167,19 +170,14 @@ applyRelevanceToContextFunBody thing cont =
       (applyRelevanceToContextOnly rel) $    -- enable local irr. defs only when option
       applyRelevanceToJudgementOnly rel cont -- enable global irr. defs alway
 
--- | Sets the current quantity (unless the given quantity is 1).
-applyQuantityToContext :: (MonadTCEnv tcm, LensQuantity q) => q -> tcm a -> tcm a
-applyQuantityToContext thing =
-  case getQuantity thing of
-    Quantity1{} -> id
-    q           -> applyQuantityToJudgementOnly q
-
--- | Apply quantity @q@ the the quantity annotation of the (typing/equality)
---   judgement.  This is part of the work done when going into a @q@-context.
+-- | Apply the quantity to the quantity annotation of the
+-- (typing/equality) judgement.
 --
---   Precondition: @Quantity /= Quantity1@
-applyQuantityToJudgementOnly :: (MonadTCEnv tcm) => Quantity -> tcm a -> tcm a
-applyQuantityToJudgementOnly = localTC . over eQuantity . composeQuantity
+-- Precondition: The quantity must not be @'Quantity1' something@.
+applyQuantityToJudgement ::
+  (MonadTCEnv tcm, LensQuantity q) => q -> tcm a -> tcm a
+applyQuantityToJudgement =
+  localTC . over eQuantity . composeQuantity . getQuantity
 
 -- | Apply inverse composition with the given cohesion to the typing context.
 applyCohesionToContext :: (MonadTCEnv tcm, LensCohesion m) => m -> tcm a -> tcm a
@@ -192,7 +190,7 @@ applyCohesionToContext thing =
 applyCohesionToContextOnly :: (MonadTCEnv tcm) => Cohesion -> tcm a -> tcm a
 applyCohesionToContextOnly q = localTC
   $ over eContext     (map $ inverseApplyCohesion q)
-  . over eLetBindings (Map.map . fmap . second $ inverseApplyCohesion q)
+  . over eLetBindings (Map.map . fmap . onLetBindingType $ inverseApplyCohesion q)
 
 -- | Can we split on arguments of the given cohesion?
 splittableCohesion :: (HasOptions m, LensCohesion a) => a -> m Bool
@@ -229,14 +227,16 @@ applyModalityToContextOnly :: (MonadTCEnv tcm) => Modality -> tcm a -> tcm a
 applyModalityToContextOnly m = localTC
   $ over eContext (map $ inverseApplyModalityButNotQuantity m)
   . over eLetBindings
-      (Map.map . fmap . second $ inverseApplyModalityButNotQuantity m)
+      (Map.map . fmap . onLetBindingType $ inverseApplyModalityButNotQuantity m)
 
--- | Apply modality @m@ the the modality annotation of the (typing/equality)
---   judgement.  This is part of the work done when going into a @m@-context.
+-- | Apply the relevance and quantity components of the modality to
+-- the modality annotation of the (typing/equality) judgement.
 --
---   Precondition: @Modality /= Relevant@
+-- Precondition: The relevance component must not be 'Relevant'.
 applyModalityToJudgementOnly :: (MonadTCEnv tcm) => Modality -> tcm a -> tcm a
-applyModalityToJudgementOnly = localTC . over eModality . composeModality
+applyModalityToJudgementOnly m =
+  localTC $ over eRelevance (composeRelevance (getRelevance m)) .
+            over eQuantity  (composeQuantity  (getQuantity m))
 
 -- | Like 'applyModalityToContext', but only act on context (for Relevance) if
 --   @--irrelevant-projections@.
@@ -247,7 +247,7 @@ applyModalityToContextFunBody thing cont = do
       {-then-} (applyModalityToContext m cont)                -- enable global irr. defs always
       {-else-} (applyRelevanceToContextFunBody (getRelevance m)
                $ applyCohesionToContext (getCohesion m)
-               $ applyQuantityToContext (getQuantity m) cont) -- enable local irr. defs only when option
+               $ applyQuantityToJudgement (getQuantity m) cont) -- enable local irr. defs only when option
   where
     m = getModality thing
 
@@ -264,7 +264,7 @@ applyModalityToContextFunBody thing cont = do
 wakeIrrelevantVars :: (MonadTCEnv tcm) => tcm a -> tcm a
 wakeIrrelevantVars
   = applyRelevanceToContextOnly Irrelevant
-  . applyQuantityToJudgementOnly zeroQuantity
+  . applyQuantityToJudgement zeroQuantity
 
 -- | Check whether something can be used in a position of the given relevance.
 --
@@ -321,6 +321,7 @@ instance UsableRelevance Sort where
     SSet l -> usableRel rel l
     SizeUniv -> return True
     LockUniv -> return True
+    LevelUniv -> return True
     IntervalUniv -> return True
     PiSort a s1 s2 -> usableRel rel (a,s1,s2)
     FunSort s1 s2 -> usableRel rel (s1,s2)
@@ -349,7 +350,7 @@ instance UsableRelevance a => UsableRelevance (Elim' a) where
   usableRel rel (Proj _ p) = do
     prel <- relOfConst p
     return $ prel `moreRelevant` rel
-  usableRel rel (IApply x y v) = allM [x,y,v] $ usableRel rel
+  usableRel rel (IApply x y v) = usableRel rel v
 
 instance UsableRelevance a => UsableRelevance (Arg a) where
   usableRel rel (Arg info u) =
@@ -470,7 +471,7 @@ instance UsableModality a => UsableModality (Elim' a) where
   usableMod mod (Proj _ p) = do
     pmod <- modalityOfConst p
     return $ pmod `moreUsableModality` mod
-  usableMod mod (IApply x y v) = allM [x,y,v] $ usableMod mod
+  usableMod mod (IApply x y v) = usableMod mod v
 
 instance UsableModality a => UsableModality (Arg a) where
   usableMod mod (Arg info u) =
@@ -480,14 +481,74 @@ instance UsableModality a => UsableModality (Arg a) where
 instance UsableModality a => UsableModality (Dom a) where
   usableMod mod Dom{unDom = u} = usableMod mod u
 
-usableAtModality :: MonadConstraint TCM => Modality -> Term -> TCM ()
-usableAtModality mod t = catchConstraint (UsableAtModality mod t) $ do
-  res <- runExceptT $ usableMod mod t
-  case res of
-    Right b -> do
-      unless b $
-        typeError . GenericDocError =<< (prettyTCM t <+> "is not usable at the required modality" <+> prettyTCM mod)
-    Left blocker -> patternViolation blocker
+usableAtModality'
+  :: MonadConstraint TCM
+  -- Note: This weird-looking constraint is to trick GHC into accepting
+  -- that an instance of MonadConstraint TCM will exist, even if we
+  -- can't import the module in which it is defined.
+  => Maybe Sort -> WhyCheckModality -> Modality -> Term -> TCM ()
+usableAtModality' ms why mod t =
+  catchConstraint (UsableAtModality why ms mod t) $ do
+    whenM (maybe (pure True) isFibrant ms) $ do
+      res <- runExceptT $ usableMod mod t
+      case res of
+        Right b -> unless b $
+          typeError . GenericDocError =<< formatWhy
+        Left blocker -> patternViolation blocker
+  where
+    formatWhy = do
+      compatible <- optCubicalCompatible <$> pragmaOptions
+      cubical <- isJust . optCubical <$> pragmaOptions
+      let
+        context
+          | cubical    = "in Cubical Agda,"
+          | compatible = "to maintain compatibility with Cubical Agda,"
+          | otherwise  = "when --without-K is enabled,"
+
+        explanation what
+          | cubical || compatible =
+            [ ""
+            , fsep ( "Note:":pwords context
+                  ++ pwords what ++ pwords "must be usable at the modality"
+                  ++ pwords "in which the function was defined, since it will be"
+                  ++ pwords "used for computing transports"
+                  )
+            , ""
+            ]
+          | otherwise = []
+
+      case why of
+        IndexedClause ->
+          vcat $
+            ( fsep ( pwords "This clause has target type"
+                  ++ [prettyTCM t]
+                  ++ pwords "which is not usable at the required modality"
+                  ++ [pure (attributesForModality mod) <> "."]
+                   )
+            : explanation "the target type")
+
+        -- Arguments sometimes need to be transported too:
+        IndexedClauseArg forced the_arg ->
+          vcat $
+            ( fsep (pwords "The argument" ++ [prettyTCM the_arg] ++ pwords "has type")
+            : nest 2 (prettyTCM t)
+            : fsep ( pwords "which is not usable at the required modality"
+                  ++ [pure (attributesForModality mod) <> "."] )
+            : explanation "this argument's type")
+
+        -- Note: if a generated clause is modality-incorrect, that's a
+        -- bug in the LHS modality check
+        GeneratedClause ->
+          __IMPOSSIBLE_VERBOSE__ . show =<<
+                   prettyTCM t
+              <+> "is not usable at the required modality"
+              <+> pure (attributesForModality mod)
+        _ -> prettyTCM t <+> "is not usable at the required modality"
+         <+> pure (attributesForModality mod)
+
+
+usableAtModality :: MonadConstraint TCM => WhyCheckModality -> Modality -> Term -> TCM ()
+usableAtModality = usableAtModality' Nothing
 
 
 -- * Propositions
@@ -522,6 +583,7 @@ isFibrant a = abortIfBlocked (getSort a) <&> \case
   SSet{}     -> False
   SizeUniv{} -> False
   LockUniv{} -> False
+  LevelUniv{}  -> False
   IntervalUniv{} -> False
   PiSort{}   -> False
   FunSort{}  -> False
@@ -541,6 +603,7 @@ isCoFibrantSort a = abortIfBlocked (getSort a) <&> \case
   SSet{}     -> False
   SizeUniv{} -> False
   LockUniv{} -> True
+  LevelUniv{}  -> False
   IntervalUniv{} -> True
   PiSort{}   -> False
   FunSort{}  -> False

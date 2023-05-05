@@ -50,7 +50,7 @@ mapWithIndex f Nil = Nil
 mapWithIndex f (Cons p ps) = Cons (f Zero p) $ mapWithIndex (f . Suc) ps
 
 -- | If you have an index you can get a lens for the given element.
-lIndex :: Index xs x -> Lens' (p x) (All p xs)
+lIndex :: Index xs x -> Lens' (All p xs) (p x)
 lIndex Zero    f (Cons x xs) = f x           <&> \ x  -> Cons x xs
 lIndex (Suc i) f (Cons x xs) = lIndex i f xs <&> \ xs -> Cons x xs
 
@@ -66,4 +66,3 @@ lookupIndex = flip ix
 -- | All indices into an indexed list.
 allIndices :: All p xs -> All (Index xs) xs
 allIndices = mapWithIndex const
-

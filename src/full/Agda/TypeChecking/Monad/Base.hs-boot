@@ -7,7 +7,7 @@ import Data.IORef (IORef)
 import Data.Map (Map)
 
 import Agda.Syntax.Common (Nat)
-import Agda.Syntax.Concrete.Name (TopLevelModuleName)
+import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 import Agda.Utils.FileName (AbsolutePath)
 
 data Warning
@@ -32,7 +32,7 @@ instance Applicative m => Applicative (TCMT m)
 instance Functor m => Functor (TCMT m)
 instance MonadIO m => MonadIO (TCMT m)
 
-#if __GLASGOW_HASKELL__ < 808
+#if __GLASGOW_HASKELL__ < 806
 instance MonadIO m => Monad (TCMT m) where
 #else
 -- Andreas, 2022-02-02, issue #5659:
@@ -49,3 +49,4 @@ type BackendName = String
 
 data Comparison
 data Polarity
+data IPFace' a

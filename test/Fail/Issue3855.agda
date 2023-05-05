@@ -2,6 +2,8 @@
 -- Only allow erased definitions (such as projections of erased fields)
 -- in erased context.
 
+{-# OPTIONS --erasure #-}
+
 open import Common.IO
 open import Common.Unit
 open import Common.String

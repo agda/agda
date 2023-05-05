@@ -2,6 +2,7 @@
 -- Allow pattern matching on erased arguments in erased context.
 
 -- {-# OPTIONS -v tc.cover.split:60 #-}
+{-# OPTIONS --erasure #-}
 
 open import Agda.Builtin.Bool
 

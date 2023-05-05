@@ -1,0 +1,3 @@
+Erased-modules-8.agda:10,5-9
+Identifier true is declared erased, so it cannot be used here
+when checking that the expression true has type Bool

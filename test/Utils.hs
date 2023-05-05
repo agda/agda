@@ -42,6 +42,7 @@ import qualified Text.Regex.TDFA.Text as RT ( compile )
 import Agda.Interaction.ExitCode (AgdaError(..), agdaErrorFromInt)
 import Agda.Utils.Maybe
 import Agda.Utils.Environment
+import Agda.Utils.Functor
 import qualified Agda.Version (package)
 
 data ProgramResult = ProgramResult
@@ -207,7 +208,7 @@ getAgdaFilesInDir recurse dir = do
   -- ...and organize them in a map @baseName ↦ (modificationTime, baseName.ext)@.
   -- We may assume that all agda files have different @baseName@s.
   -- (Otherwise agda will complain when trying to load them.)
-  let m = Map.fromList $ flip map agdaFiles $
+  let m = Map.fromList $ for agdaFiles $
             {-key-} (dropAgdaExtension . Find.infoPath) &&&
             {-val-} (modificationTime . Find.infoStatus) &&& Find.infoPath
   -- Andreas, 2020-06-08, issue #4736: Go again through all the files.

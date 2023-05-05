@@ -2,10 +2,10 @@
 module Agda.TypeChecking.Unquote where
 
 import Control.Arrow          ( first, second, (&&&) )
-import Control.Monad          ( (<=<) )
+import Control.Monad          ( (<=<), liftM2 )
 import Control.Monad.Except   ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class ( MonadIO(..) )
-import Control.Monad.Reader   ( ReaderT(..), runReaderT )
+import Control.Monad.Reader   ( ReaderT(..), runReaderT, ask )
 import Control.Monad.State    ( gets, modify, StateT(..), runStateT )
 import Control.Monad.Writer   ( MonadWriter(..), WriterT(..), runWriterT )
 import Control.Monad.Trans    ( lift )
@@ -13,6 +13,7 @@ import Control.Monad.Trans    ( lift )
 import Data.Char
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.HashMap.Strict as HashMap
 import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -28,10 +29,13 @@ import Agda.Syntax.Common hiding ( Nat )
 import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Views
+import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Info
 import Agda.Syntax.Translation.ReflectedToAbstract
+import Agda.Syntax.Scope.Base (KindOfName(ConName, DataName))
 
 import Agda.Interaction.Library ( ExeName )
 import Agda.Interaction.Options ( optTrustedExecutables, optAllowExec )
@@ -54,6 +58,8 @@ import Agda.TypeChecking.InstanceArguments ( getInstanceCandidates )
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl
+import Agda.TypeChecking.Rules.Data
 
 import Agda.Utils.Either
 import Agda.Utils.Lens
@@ -64,6 +70,7 @@ import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Interaction.Options.Lenses as Lens
 
 import Agda.Utils.Impossible
+import Agda.Syntax.Abstract (TypedBindingInfo(tbTacticAttr))
 
 agdaTermType :: TCM Type
 agdaTermType = El (mkType 0) <$> primAgdaTerm
@@ -114,8 +121,9 @@ liftU2 f m1 m2 = packUnquoteM $ \ cxt s -> f (unpackUnquoteM m1 cxt s) (unpackUn
 
 inOriginalContext :: UnquoteM a -> UnquoteM a
 inOriginalContext m =
-  packUnquoteM $ \ cxt s ->
-    unsafeModifyContext (const cxt) $ unpackUnquoteM m cxt s
+  packUnquoteM $ \ cxt s -> do
+    n <- getContextSize
+    escapeContext __IMPOSSIBLE__ (n - length cxt) $ unpackUnquoteM m cxt s
 
 isCon :: ConHead -> TCM Term -> UnquoteM Bool
 isCon con tm = do t <- liftTCM tm
@@ -412,10 +420,9 @@ instance Unquote MetaId where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Lit (LitMeta f x) -> liftTCM $ do
-        live <- (f ==) <$> getCurrentPath
-        unless live $ do
-            m <- fromMaybe __IMPOSSIBLE__ <$> lookupModuleFromSource f
+      Lit (LitMeta m x) -> liftTCM $ do
+        live <- (Just m ==) <$> currentTopLevelModule
+        unless live $
             typeError . GenericDocError =<<
               sep [ "Can't unquote stale metavariable"
                   , pretty m <> "._" <> pretty (metaId x) ]
@@ -456,7 +463,11 @@ instance Unquote Literal where
           , (c `isCon` primAgdaLitChar,   LitChar   <$> unquoteN x)
           , (c `isCon` primAgdaLitString, LitString <$> unquoteNString x)
           , (c `isCon` primAgdaLitQName,  LitQName  <$> unquoteN x)
-          , (c `isCon` primAgdaLitMeta,   LitMeta   <$> getCurrentPath <*> unquoteN x) ]
+          , (c `isCon` primAgdaLitMeta,
+             LitMeta
+               <$> (fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule)
+               <*> unquoteN x)
+          ]
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
       _ -> throwError $ NonCanonical "literal" t
@@ -485,7 +496,7 @@ instance Unquote R.Term where
           , (c `isCon` primAgdaTermMeta,    R.Meta    <$> unquoteN x <*> unquoteN y)
           , (c `isCon` primAgdaTermLam,     R.Lam     <$> unquoteN x <*> unquoteN y)
           , (c `isCon` primAgdaTermPi,      mkPi      <$> unquoteN x <*> unquoteN y)
-          , (c `isCon` primAgdaTermExtLam,  R.ExtLam  <$> (List1.fromList __IMPOSSIBLE__ <$> unquoteN x) <*> unquoteN y)
+          , (c `isCon` primAgdaTermExtLam,  R.ExtLam  <$> (List1.fromListSafe __IMPOSSIBLE__ <$> unquoteN x) <*> unquoteN y)
           ]
           __IMPOSSIBLE__
         where
@@ -556,6 +567,10 @@ evalTCM v = do
     I.Def f [] ->
       choice [ (f `isDef` primAgdaTCMGetContext,       tcGetContext)
              , (f `isDef` primAgdaTCMCommit,           tcCommit)
+             , (f `isDef` primAgdaTCMAskNormalisation, tcAskNormalisation)
+             , (f `isDef` primAgdaTCMAskReconstructed, tcAskReconstructed)
+             , (f `isDef` primAgdaTCMAskExpandLast,    tcAskExpandLast)
+             , (f `isDef` primAgdaTCMAskReduceDefs,    tcAskReduceDefs)
              ]
              failEval
     I.Def f [u] ->
@@ -575,29 +590,33 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMCheckType,  tcFun2 tcCheckType  u v)
              , (f `isDef` primAgdaTCMDeclareDef, uqFun2 tcDeclareDef u v)
              , (f `isDef` primAgdaTCMDeclarePostulate, uqFun2 tcDeclarePostulate u v)
+             , (f `isDef` primAgdaTCMDefineData, uqFun2 tcDefineData u v)
              , (f `isDef` primAgdaTCMDefineFun,  uqFun2 tcDefineFun  u v)
-             , (f `isDef` primAgdaTCMQuoteOmegaTerm, tcQuoteTerm (unElim v))
+             , (f `isDef` primAgdaTCMQuoteOmegaTerm, tcQuoteTerm (sort $ Inf IsFibrant 0) (unElim v))
+             , (f `isDef` primAgdaTCMPragmaForeign, tcFun2 tcPragmaForeign u v)
              ]
              failEval
     I.Def f [l, a, u] ->
       choice [ (f `isDef` primAgdaTCMReturn,             return (unElim u))
              , (f `isDef` primAgdaTCMTypeError,          tcFun1 tcTypeError   u)
-             , (f `isDef` primAgdaTCMQuoteTerm,          tcQuoteTerm (unElim u))
+             , (f `isDef` primAgdaTCMQuoteTerm,          tcQuoteTerm (mkT (unElim l) (unElim a)) (unElim u))
              , (f `isDef` primAgdaTCMUnquoteTerm,        tcFun1 (tcUnquoteTerm (mkT (unElim l) (unElim a))) u)
              , (f `isDef` primAgdaTCMBlockOnMeta,        uqFun1 tcBlockOnMeta u)
              , (f `isDef` primAgdaTCMDebugPrint,         tcFun3 tcDebugPrint l a u)
              , (f `isDef` primAgdaTCMNoConstraints,      tcNoConstraints (unElim u))
-             , (f `isDef` primAgdaTCMWithReconsParams,   tcWithReconsParams (unElim u))
+             , (f `isDef` primAgdaTCMDeclareData, uqFun3 tcDeclareData l a u)
              , (f `isDef` primAgdaTCMRunSpeculative,     tcRunSpeculative (unElim u))
              , (f `isDef` primAgdaTCMExec, tcFun3 tcExec l a u)
+             , (f `isDef` primAgdaTCMPragmaCompile, tcFun3 tcPragmaCompile l a u)
              ]
              failEval
     I.Def f [_, _, u, v] ->
-      choice [ (f `isDef` primAgdaTCMCatchError,    tcCatchError    (unElim u) (unElim v))
+      choice [ (f `isDef` primAgdaTCMCatchError,        tcCatchError    (unElim u) (unElim v))
              , (f `isDef` primAgdaTCMWithNormalisation, tcWithNormalisation (unElim u) (unElim v))
-             , (f `isDef` primAgdaTCMInContext,     tcInContext     (unElim u) (unElim v))
-             , (f `isDef` primAgdaTCMOnlyReduceDefs, tcOnlyReduceDefs (unElim u) (unElim v))
-             , (f `isDef` primAgdaTCMDontReduceDefs, tcDontReduceDefs (unElim u) (unElim v))
+             , (f `isDef` primAgdaTCMWithReconstructed, tcWithReconstructed (unElim u) (unElim v))
+             , (f `isDef` primAgdaTCMWithExpandLast,    tcWithExpandLast (unElim u) (unElim v))
+             , (f `isDef` primAgdaTCMWithReduceDefs,    tcWithReduceDefs (unElim u) (unElim v))
+             , (f `isDef` primAgdaTCMInContext,         tcInContext     (unElim u) (unElim v))
              ]
              failEval
     I.Def f [_, _, u, v, w] ->
@@ -626,22 +645,25 @@ evalTCM v = do
     tcCatchError m h =
       liftU2 (\ m1 m2 -> m1 `catchError` \ _ -> m2) (evalTCM m) (evalTCM h)
 
-    tcWithNormalisation :: Term -> Term -> UnquoteM Term
-    tcWithNormalisation b m = do
+    tcAskLens :: ToTerm a => Lens' TCEnv a -> UnquoteM Term
+    tcAskLens l = liftTCM (toTerm <*> asksTC (\ e -> e ^. l))
+
+    tcWithLens :: Unquote a => Lens' TCEnv a -> Term -> Term -> UnquoteM Term
+    tcWithLens l b m = do
       v <- unquote b
-      liftU1 (locallyTC eUnquoteNormalise $ const v) (evalTCM m)
+      liftU1 (locallyTC l $ const v) (evalTCM m)
 
-    tcOnlyReduceDefs = tcDoReduceDefs OnlyReduceDefs
-    tcDontReduceDefs = tcDoReduceDefs DontReduceDefs
+    tcWithNormalisation, tcWithReconstructed, tcWithExpandLast, tcWithReduceDefs :: Term -> Term -> UnquoteM Term
+    tcWithNormalisation = tcWithLens eUnquoteNormalise
+    tcWithReconstructed = tcWithLens eReconstructed
+    tcWithExpandLast    = tcWithLens eExpandLastBool
+    tcWithReduceDefs    = tcWithLens eReduceDefsPair
 
-    tcWithReconsParams :: Term -> UnquoteM Term
-    tcWithReconsParams m = liftU1 locallyReconstructed $ evalTCM m
-
-    tcDoReduceDefs :: (Set QName -> ReduceDefs) -> Term -> Term -> UnquoteM Term
-    tcDoReduceDefs reduceDefs v m = do
-      qs <- unquote v
-      let defs = reduceDefs $ Set.fromList qs
-      liftU1 (locallyTC eReduceDefs (<> defs)) (evalTCM m)
+    tcAskNormalisation, tcAskReconstructed, tcAskExpandLast, tcAskReduceDefs :: UnquoteM Term
+    tcAskNormalisation = tcAskLens eUnquoteNormalise
+    tcAskReconstructed = tcAskLens eReconstructed
+    tcAskExpandLast    = tcAskLens eExpandLastBool
+    tcAskReduceDefs    = tcAskLens eReduceDefsPair
 
     uqFun1 :: Unquote a => (a -> UnquoteM b) -> Elim -> UnquoteM b
     uqFun1 fun a = do
@@ -733,13 +755,20 @@ evalTCM v = do
       v <- checkExpr e a
       if r then do
         v <- process v
-        v <- locallyReduceAllDefs $ reconstructParameters' defaultAction a v
+        v <- locallyReduceAllDefs $ reconstructParameters a v
         locallyReconstructed (quoteTerm v)
       else
         quoteTerm =<< process v
 
-    tcQuoteTerm :: Term -> UnquoteM Term
-    tcQuoteTerm v = liftTCM $ quoteTerm =<< process v
+    tcQuoteTerm :: Type -> Term -> UnquoteM Term
+    tcQuoteTerm a v = liftTCM $ do
+      r <- isReconstructed
+      if r then do
+        v <- process v
+        v <- locallyReduceAllDefs $ reconstructParameters a v
+        locallyReconstructed (quoteTerm v)
+      else
+        quoteTerm =<< process v
 
     tcUnquoteTerm :: Type -> R.Term -> TCM Term
     tcUnquoteTerm a v = do
@@ -814,7 +843,7 @@ evalTCM v = do
     tcInContext :: Term -> Term -> UnquoteM Term
     tcInContext c m = do
       c <- unquote c
-      liftU1 unsafeInTopContext $ go c (evalTCM m)
+      inOriginalContext $ go c (evalTCM m)
       where
         go :: [(Text , Arg R.Type)] -> UnquoteM Term -> UnquoteM Term
         go []             m = m
@@ -827,7 +856,7 @@ evalTCM v = do
     tcGetType :: QName -> TCM Term
     tcGetType x = do
       r  <- isReconstructed
-      ci <- constInfo x
+      ci <- constInfo x >>= instantiateDef
       let t = defType ci
       if r then do
         t <- locallyReduceAllDefs $ reconstructParametersInType t
@@ -850,11 +879,11 @@ evalTCM v = do
       if r then
         tcGetDefinitionRecons x
       else
-        quoteDefn =<< constInfo x
+        quoteDefn =<< instantiateDef =<< constInfo x
 
     tcGetDefinitionRecons :: QName -> TCM Term
     tcGetDefinitionRecons x = do
-      ci@(Defn {theDef=d}) <- constInfo x
+      ci@(Defn {theDef=d}) <- constInfo x >>= instantiateDef
       case d of
         f@(Function {funClauses=cs}) -> do
           cs' <- mapM reconsClause cs
@@ -905,7 +934,7 @@ evalTCM v = do
         a <- locallyReduceAllDefs $ isType_ =<< toAbstract_ a
         alreadyDefined <- isRight <$> getConstInfo' x
         when alreadyDefined $ genericError $ "Multiple declarations of " ++ prettyShow x
-        addConstant' x i x a emptyFunction
+        addConstant' x i x a =<< emptyFunction
         when (isInstance i) $ addTypedInstance x a
         primUnitUnit
 
@@ -930,6 +959,87 @@ evalTCM v = do
         when (isInstance i) $ addTypedInstance x a
         primUnitUnit
 
+    -- A datatype is expected to be declared with a function type.
+    -- The second argument indicates how many preceding types are parameters.
+    tcDeclareData :: QName -> Integer -> R.Type -> UnquoteM Term
+    tcDeclareData x npars t = inOriginalContext $ do
+      setDirty
+      tell [x]
+      liftTCM $ do
+        reportSDoc "tc.unquote.decl" 10 $ sep
+          [ "declare Data" <+> prettyTCM x <+> ":"
+          , nest 2 $ prettyR t
+          ]
+        alreadyDefined <- isRight <$> getConstInfo' x
+        when alreadyDefined $ genericError $ "Multiple declarations of " ++ prettyShow x
+        e <- toAbstract_ t
+        -- The type to be checked with @checkSig@ is without parameters.
+        let (tel, e') = splitPars (fromInteger npars) e
+        ac <- asksTC (^. lensIsAbstract)
+        let defIn = mkDefInfo (nameConcrete $ qnameName x) noFixity' PublicAccess ac noRange
+        checkSig DataName defIn defaultErased x
+          (A.GeneralizeTel Map.empty tel) e'
+        primUnitUnit
+
+    tcDefineData :: QName -> [(QName, R.Type)] -> UnquoteM Term
+    tcDefineData x cs = inOriginalContext $ (setDirty >>) $ liftTCM $ do
+      caseEitherM (getConstInfo' x)
+        (const $ genericError $ "Missing declaration for " ++ prettyShow x) $ \def -> do
+        npars <- case theDef def of
+                   DataOrRecSig n -> return n
+                   _              -> genericError $ prettyShow x ++
+                     " is not declared as a datatype or record, or it already has a definition."
+
+        -- For some reasons, reifying parameters and adding them to the context via
+        -- `addContext` before `toAbstract_` is different from substituting the type after
+        -- `toAbstract_, so some dummy parameters are added and removed later.
+        es <- mapM (toAbstract_ . addDummy npars . snd) cs
+        reportSDoc "tc.unquote.def" 10 $ vcat $
+          [ "declaring constructors of" <+> prettyTCM x <+> ":" ] ++ map prettyA es
+
+        -- Translate parameters from internal definitions back to abstract syntax.
+        t   <- instantiateFull . defType =<< instantiateDef def
+        tel <- reify =<< theTel <$> telViewUpTo npars t
+
+        es' <- case mapM (uncurry (substNames' tel) . splitPars npars) es of
+                 Nothing -> genericError $ "Number of parameters doesn't match!"
+                 Just es -> return es
+
+        ac <- asksTC (^. lensIsAbstract)
+        let i = mkDefInfo (nameConcrete $ qnameName x) noFixity' PublicAccess ac noRange
+            conNames = map fst cs
+            toAxiom c e = A.Axiom ConName i defaultArgInfo Nothing c e
+            as = zipWith toAxiom conNames es'
+            lams = map (\case {A.TBind _ tac (b :| []) _ -> A.DomainFree (tbTacticAttr tac) b
+                              ;_ -> __IMPOSSIBLE__ }) tel
+        reportSDoc "tc.unquote.def" 10 $ vcat $
+          [ "checking datatype: " <+> prettyTCM x <+> " with constructors:"
+          , nest 2 (vcat (map prettyTCM conNames))
+          ]
+        checkDataDef i x YesUniverseCheck (A.DataDefParams Set.empty lams) as
+        primUnitUnit
+      where
+        addDummy :: Int -> R.Type -> R.Type
+        addDummy 0 t = t
+        addDummy n t = R.Pi (defaultDom (R.Sort $ R.LitS 0)) (R.Abs "dummy" $ addDummy (n - 1) t)
+
+        substNames' :: [A.TypedBinding] -> [A.TypedBinding] -> A.Expr -> Maybe A.Expr
+        substNames' (a : as) (b : bs) e = do
+          let (A.TBind _ _ (na :| _) expra) = a
+              (A.TBind _ _ (nb :| _) exprb) = b
+              getName n = A.unBind . A.binderName $ namedArg n
+          e' <- substNames' as bs e
+          return $ mapExpr (substName (getName na) (getName nb)) e'
+          where
+            -- Substitute @Var x@ for @Var y@ in an @Expr@.
+            substName :: Name -> Name -> (A.Expr -> A.Expr)
+            substName x y e@(A.Var n)
+                    | y == n    = A.Var x
+                    | otherwise = e
+            substName _ _ e = e
+        substNames' [] [] e = return e
+        substNames' _ _ _ = Nothing
+
     tcDefineFun :: QName -> [R.Clause] -> UnquoteM Term
     tcDefineFun x cs = inOriginalContext $ (setDirty >>) $ liftTCM $ do
       whenM (isLeft <$> getConstInfo' x) $
@@ -940,6 +1050,17 @@ evalTCM v = do
       ac <- asksTC (^. lensIsAbstract)     -- Issue #4012, respect AbstractMode
       let i = mkDefInfo (nameConcrete $ qnameName x) noFixity' accessDontCare ac noRange
       locallyReduceAllDefs $ checkFunDef NotDelayed i x cs
+      primUnitUnit
+
+    tcPragmaForeign :: Text -> Text -> TCM Term
+    tcPragmaForeign backend code = do
+      addForeignCode (T.unpack backend) (T.unpack code)
+      primUnitUnit
+
+    tcPragmaCompile :: Text -> QName -> Text -> TCM Term
+    tcPragmaCompile backend name code = do
+      modifySignature $ updateDefinition name $
+        addCompilerPragma (T.unpack backend) $ CompilerPragma noRange (T.unpack code)
       primUnitUnit
 
     tcRunSpeculative :: Term -> UnquoteM Term
@@ -961,7 +1082,10 @@ evalTCM v = do
       Right cands -> liftTCM $
         buildList <*> mapM (quoteTerm . candidateTerm) cands
 
-
+    splitPars :: Int -> A.Expr -> ([A.TypedBinding], A.Expr)
+    splitPars 0 e = ([] , e)
+    splitPars npars (A.Pi _ (n :| _) e) = first (n :) (splitPars (npars - 1) e)
+    splitPars npars e = __IMPOSSIBLE__
 ------------------------------------------------------------------------
 -- * Trusted executables
 ------------------------------------------------------------------------

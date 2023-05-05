@@ -22,6 +22,7 @@
 module Agda.Utils.List1
   ( module Agda.Utils.List1
   , module List1
+  , module IsList
   ) where
 
 import Prelude hiding (filter)
@@ -35,23 +36,26 @@ import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 import qualified Data.Semigroup as Semigroup
 
-import qualified Data.List.NonEmpty (NonEmpty)
-import Data.List.NonEmpty as List1 hiding (NonEmpty, fromList)
+import Data.List.NonEmpty as List1 hiding (fromList, toList)
+import qualified Data.List.NonEmpty as List1 (toList)
+
+import GHC.Exts as IsList ( IsList(..) )
 
 import Agda.Utils.Functor ((<.>))
 import Agda.Utils.Null (Null(..))
 import qualified Agda.Utils.List as List
 
-type List1 = Data.List.NonEmpty.NonEmpty
+type List1 = NonEmpty
+type String1 = List1 Char
 
 -- | Safe version of 'Data.List.NonEmpty.fromList'.
 
-fromList
+fromListSafe
   :: List1 a  -- ^ Default value if convertee is empty.
   -> [a]      -- ^ List to convert, supposedly non-empty.
   -> List1 a  -- ^ Converted list.
-fromList err   [] = err
-fromList _ (x:xs) = x :| xs
+fromListSafe err   [] = err
+fromListSafe _ (x:xs) = x :| xs
 
 -- | Return the last element and the rest.
 
@@ -75,7 +79,7 @@ appendList (x :| xs) ys = x :| mappend xs ys
 -- | Prepend a list to a non-empty list.
 
 prependList :: [a] -> List1 a -> List1 a
-prependList as bs = foldr (<|) bs as
+prependList as bs = Prelude.foldr (<|) bs as
 #endif
 
 -- | More precise type for @snoc@.
@@ -98,6 +102,20 @@ groupBy' p xxs@(x : xs) = grp x $ List.zipWith (\ x y -> (p x y, y)) xxs xs
     = (x :| List.map snd xs) : case rest of
       []                 -> []
       ((_false, z) : zs) -> grp z zs
+
+-- | Split a list into sublists. Generalisation of the prelude function
+--   @words@.
+--   Same as 'Data.List.Split.wordsBy' and 'Data.List.Extra.wordsBy',
+--   but with the non-emptyness guarantee on the chunks.
+--   O(n).
+--
+--   > words xs == wordsBy isSpace xs
+wordsBy :: (a -> Bool) -> [a] -> [List1 a]
+wordsBy p = loop
+  where
+  loop as = case List.dropWhile p as of
+    []   -> []
+    x:xs -> (x :| ys) : loop zs where (ys, zs) = List.break p xs
 
 -- | Breaks a list just /after/ an element satisfying the predicate is
 --   found.
@@ -180,3 +198,11 @@ zipWithM f (a :| as) (b :| bs) = (:|) <$> f a b <*> List.zipWithM f as bs
 
 zipWithM_ :: Applicative m => (a -> b -> m c) -> List1 a -> List1 b -> m ()
 zipWithM_ f (a :| as) (b :| bs) = f a b *> List.zipWithM_ f as bs
+
+-- | List 'Data.List.foldr' but with a base case for the singleton list.
+
+foldr :: (a -> b -> b) -> (a -> b) -> List1 a -> b
+foldr f g (x :| xs) = loop x xs
+  where
+  loop x []       = g x
+  loop x (y : ys) = f x $ loop y ys

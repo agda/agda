@@ -1,19 +1,24 @@
 CompileBuiltinListWarning.agda:9,1-26
+warning: -W[no]OldBuiltin
 Builtin NIL no longer exists. It is now bound by BUILTIN LIST
 when checking the pragma BUILTIN NIL []
 CompileBuiltinListWarning.agda:10,1-26
+warning: -W[no]OldBuiltin
 Builtin CONS no longer exists. It is now bound by BUILTIN LIST
 when checking the pragma BUILTIN CONS _∷_
 
 ———— All done; warnings encountered ————————————————————————
 
 CompileBuiltinListWarning.agda:9,1-26
+warning: -W[no]OldBuiltin
 Builtin NIL no longer exists. It is now bound by BUILTIN LIST
 when checking the pragma BUILTIN NIL []
 
 CompileBuiltinListWarning.agda:10,1-26
+warning: -W[no]OldBuiltin
 Builtin CONS no longer exists. It is now bound by BUILTIN LIST
 when checking the pragma BUILTIN CONS _∷_
 CompileBuiltinListWarning.agda:7,1-44
+warning: -W[no]GenericWarning
 Ignoring GHC pragma for builtin lists; they always compile to
 Haskell lists.

@@ -1,4 +1,5 @@
 Issue5589c.agda:13,1-22
+warning: -W[no]GenericWarning
 Confluence checking for --cubical is not yet supported, confluence checking might be incomplete
 when checking the pragma REWRITE +ℕ-id
 Issue5589c.agda:13,13-18

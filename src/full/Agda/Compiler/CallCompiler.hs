@@ -32,13 +32,16 @@ callCompiler
      -- ^ The path to the compiler
   -> [String]
      -- ^ Command-line arguments.
+  -> Maybe FilePath
+     -- ^ The working directory that should be used when the compiler
+     -- is invoked. The default is the current working directory.
   -> Maybe TextEncoding
      -- ^ Use the given text encoding, if any, when reading the output
      -- from the process (stdout and stderr).
   -> TCM ()
-callCompiler doCall cmd args enc =
+callCompiler doCall cmd args cwd enc =
   if doCall then do
-    merrors <- callCompiler' cmd args enc
+    merrors <- callCompiler' cmd args cwd enc
     case merrors of
       Nothing     -> return ()
       Just errors -> typeError (CompilationError errors)
@@ -52,16 +55,20 @@ callCompiler'
      -- ^ The path to the compiler
   -> [String]
      -- ^ Command-line arguments.
+  -> Maybe FilePath
+     -- ^ The working directory that should be used when the compiler
+     -- is invoked. The default is the current working directory.
   -> Maybe TextEncoding
      -- ^ Use the given text encoding, if any, when reading the output
      -- from the process (stdout and stderr).
   -> TCM (Maybe String)
-callCompiler' cmd args enc = do
+callCompiler' cmd args cwd enc = do
   reportSLn "compile.cmd" 1 $ "Calling: " ++ unwords (cmd : args)
   (_, out, err, p) <-
     liftIO $ createProcess
                (proc cmd args) { std_err = CreatePipe
                                , std_out = CreatePipe
+                               , cwd     = cwd
                                }
 
   -- In -v0 mode we throw away any progress information printed to

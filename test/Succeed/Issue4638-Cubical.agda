@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical --safe #-}
+{-# OPTIONS --cubical --erasure --safe #-}
 
 open import Agda.Builtin.Cubical.Path
 open import Agda.Primitive

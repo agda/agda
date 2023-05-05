@@ -1,14 +1,30 @@
-Tested with `ghc-8.10.5` and `cabal-install 3.4.0.0`.
+Tested with `GHC 9.4.4` and `cabal-install 3.8.1.0`.
 
 When releasing a release candidate (RC) the following procedure can be
 followed:
 
-* Verify that the Travis builds and GitHub workflows have no errors.
+* If necessary obtain and install the newest version of the standard
+  library and the cubical library for the `master` branch:
+
+    make fast-forward-std-lib
+    make fast-forward-cubical
+
+* Verify that GitHub workflows have no errors.
 
 * Finish the release notes in the CHANGELOG.
 
 * Run the `closed-issues-for-milestone` program for adding the list of
   closed issues to the CHANGELOG.
+
+  The `closed-issues-for-milestone` program requires a GitHub access
+  token which can be generated from the GitHub site:
+
+  Settings ->
+  Developer settings ->
+  Personal access token ->
+  Tokens classic ->
+  Generate new token ->
+  Generate new token (classic)
 
 * Because some titles of some issues can generate new white-space
   issues after running the `closed-issues-for-milestone` program, run
@@ -38,32 +54,48 @@ followed:
   - /doc/user-manual/conf.py
   - LICENSE
 
+* We are using odd-only version numbers for final releases and
+  even-only version numbers for release-candidates (see Issue
+  #6445). For example,
+
+    ** 2.6.4 is a dev version
+
+    ** 2.6.4.date could be release candidates for next major version 2.6.5
+
+    ** 2.6.5.0.date could be release candidates for 2.6.5.1
+
+    ** subsequent minor releases would be 2.6.5.1, 2.6.5.3 etc
+
+    ** next dev version would be 2.6.6 etc.
+
 * Get a clean Agda repository.
 
-    MAJORVERSION=<current-development-version-eg-2.4.2>
-    VERSION=<current-released-version-eg-2.4.0.2>
+    export MAJOR_VERSION=<current-development-version-eg-2.4.2>
+    export VERSION=<current-released-version-eg-2.4.0.2>
     git clone git@github.com:agda/agda.git agda-release
     cd agda-release
-    git checkout master
+    git switch master
 
 * Create the branch used for the release
 
-    git checkout -b release-$MAJORVERSION
+    git switch -c release-$MAJOR_VERSION
 
 * The version of the RC is $VERSION + current date
 
-    RC_VERSION=<current-released-version-current-date-eg-2.4.0.2.20150913>
+    export RC_VERSION=<current-released-version-current-date-eg-2.4.0.2.20150913>
 
-* Update the Agda version
+1) Replace in CHANGELOG.md the links to Read the Docs:
 
-    ./src/release-tools/change-version.bash VERSION RC_VERSION
+    agda.readthedocs.io/en/latest -> agda.readthedocs.io/en/v$RC_VERSION
 
-* Obtain and install the standard library branch related to the Agda:
+2) Update the Agda version
+
+    ./src/release-tools/change-version.bash $VERSION $RC_VERSION
+
+* Obtain and install the standard library and the cubical library for
+  the release branch:
 
     make up-to-date-std-lib
-
-* Obtain and install the cubical library branch related to the Agda:
-
     make up-to-date-cubical
 
 * Run the test-suite:
@@ -75,25 +107,20 @@ followed:
   ensure that the Emacs mode can be compiled without errors or
   warnings (except for the "cl package required at runtime" warning).
 
-1) Remove the Cabal test-suite from Agda.cabal.
-
-2) Remove -Werror and -fprof-auto from Agda.cabal (this is required by
-  `cabal --check`).
-
-3) Removed unnecessary dependencies from stack-XYZ.yaml files:
-
-  + Removed QuickCheck dependency
-  + Removed tasty-* dependencies
-  + Removed local package (src/size-solver)
-
-4) Added to the extra-source-files field in Agda.cabal the file (see
-  Issues #4216):
-
-    doc/user-manual.pdf
-
-* Update the user manual:
+* Test the user-manual in PDF:
 
     make user-manual-pdf
+
+3) Remove the Cabal test-suite from Agda.cabal.
+
+4) Remove -Werror from Agda.cabal (this is required by `cabal
+   --check`).
+
+5) Remove unnecessary dependencies from stack-XYZ.yaml files:
+
+  + Remove QuickCheck dependency
+  + Remove tasty-* dependencies
+  + Remove the `packages` section.
 
 * Build source distributions:
 
@@ -120,7 +147,7 @@ followed:
   first):
 
     cd $BASE
-    git tag -a v$RC_VERSION -m "Agda $MAJORVERSION release candidate"
+    git tag -a v$RC_VERSION -m "Agda $MAJOR_VERSION release candidate"
 
 * Upload the tarball and the documentation to Hackage of the RC:
 
@@ -128,15 +155,19 @@ followed:
     cabal upload dist-newstyle/sdist/Agda-$RC_VERSION.tar.gz
     cabal upload -d dist-newstyle/Agda-$RC_VERSION-docs.tar.gz
 
-* Revert changes made in 1), 2), 3) and 4).
+* Revert changes made in 1), 2), 3) 4) and 5).
 
 * Restore the Agda version
 
     ./src/release-tools/change-version.bash RC_VERSION VERSION
 
-* Push all changes (in the release-$MAJORVERSION branch):
+* Restore in CHANGELOG.md the links to Read the Docs:
+
+    agda.readthedocs.io/en/v$RC_VERSION -> agda.readthedocs.io/en/latest
+
+* Push all changes (in the release-$MAJOR_VERSION branch):
 
     git push --set-upstream --follow-tags
 
 * Announce the release candidate on the Agda mailing lists (users and
-  developers).
+  developers) and Agda Zulip.

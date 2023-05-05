@@ -190,6 +190,7 @@ instance SynEq Sort where
       (UnivSort a, UnivSort a') -> UnivSort <$$> synEq a a'
       (SizeUniv, SizeUniv  ) -> pure2 s
       (LockUniv, LockUniv  ) -> pure2 s
+      (LevelUniv, LevelUniv  ) -> pure2 s
       (IntervalUniv, IntervalUniv) -> pure2 s
       (Prop l  , Prop l'   ) -> Prop <$$> synEq l l'
       (Inf f m , Inf f' n) | f == f', m == n -> pure2 s
@@ -234,8 +235,8 @@ instance SynEq a => SynEq (Arg a) where
 
 -- Ignore the tactic.
 instance SynEq a => SynEq (Dom a) where
-  synEq d@(Dom ai b x t a) d'@(Dom ai' b' x' _ a')
-    | x == x'   = Dom <$$> synEq ai ai' <**> synEq b b' <**> pure2 x <**> pure2 t <**> synEq a a'
+  synEq d@(Dom ai x f t a) d'@(Dom ai' x' f' _ a')
+    | x == x'   = Dom <$$> synEq ai ai' <**> pure2 x <**> synEq f f' <**> pure2 t <**> synEq a a'
     | otherwise = inequal (d, d')
 
 instance SynEq ArgInfo where

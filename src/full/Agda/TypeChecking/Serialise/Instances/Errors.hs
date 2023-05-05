@@ -34,6 +34,7 @@ instance EmbPrj Warning where
     UnsolvedMetaVariables a               -> __IMPOSSIBLE__
     UnsolvedInteractionMetas a            -> __IMPOSSIBLE__
     UnsolvedConstraints a                 -> __IMPOSSIBLE__
+    InteractionMetaBoundaries a           -> __IMPOSSIBLE__
     OldBuiltin a b                        -> icodeN 1 OldBuiltin a b
     EmptyRewritePragma                    -> icodeN 2 EmptyRewritePragma
     UselessPublic                         -> icodeN 3 UselessPublic
@@ -63,8 +64,8 @@ instance EmbPrj Warning where
     IllformedAsClause a                   -> icodeN 15 IllformedAsClause a
     WithoutKFlagPrimEraseEquality         -> icodeN 16 WithoutKFlagPrimEraseEquality
     InstanceWithExplicitArg a             -> icodeN 17 InstanceWithExplicitArg a
-    InfectiveImport a b                   -> icodeN 18 InfectiveImport a b
-    CoInfectiveImport a b                 -> icodeN 19 CoInfectiveImport a b
+    InfectiveImport a                     -> icodeN 18 InfectiveImport a
+    CoInfectiveImport a                   -> icodeN 19 CoInfectiveImport a
     InstanceNoOutputTypeName a            -> icodeN 20 InstanceNoOutputTypeName a
     InstanceArgWithExplicitArg a          -> icodeN 21 InstanceArgWithExplicitArg a
     WrongInstanceDeclaration              -> icodeN 22 WrongInstanceDeclaration
@@ -85,7 +86,9 @@ instance EmbPrj Warning where
     RewriteMissingRule a b c              -> icodeN 37 RewriteMissingRule a b c
     ParseWarning a                        -> icodeN 38 ParseWarning a
     NoGuardednessFlag a                   -> icodeN 39 NoGuardednessFlag a
-    NoEquivWhenSplitting a                -> icodeN 40 NoEquivWhenSplitting a
+    UnsupportedIndexedMatch f             -> icodeN 40 UnsupportedIndexedMatch f
+    OptionWarning a                       -> icodeN 41 OptionWarning a
+    PlentyInHardCompileTimeMode a         -> icodeN 42 PlentyInHardCompileTimeMode a
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -106,8 +109,8 @@ instance EmbPrj Warning where
     [15, a]              -> valuN IllformedAsClause a
     [16]                 -> valuN WithoutKFlagPrimEraseEquality
     [17, a]              -> valuN InstanceWithExplicitArg a
-    [18, a, b]           -> valuN InfectiveImport a b
-    [19, a, b]           -> valuN CoInfectiveImport a b
+    [18, a]              -> valuN InfectiveImport a
+    [19, a]              -> valuN CoInfectiveImport a
     [20, a]              -> valuN InstanceNoOutputTypeName a
     [21, a]              -> valuN InstanceArgWithExplicitArg a
     [22]                 -> valuN WrongInstanceDeclaration
@@ -128,7 +131,17 @@ instance EmbPrj Warning where
     [37, a, b, c]        -> valuN RewriteMissingRule a b c
     [38, a]              -> valuN ParseWarning a
     [39, a]              -> valuN NoGuardednessFlag a
-    [40, a]              -> valuN NoEquivWhenSplitting a
+    [40, a]              -> valuN UnsupportedIndexedMatch a
+    [41, a]              -> valuN OptionWarning a
+    [42, a]              -> valuN PlentyInHardCompileTimeMode a
+    _ -> malformed
+
+instance EmbPrj OptionWarning where
+  icod_ = \case
+    OptionRenamed a b -> icodeN' OptionRenamed a b
+
+  value = vcase $ \case
+    [a, b] -> valuN OptionRenamed a b
     _ -> malformed
 
 instance EmbPrj ParseWarning where
@@ -270,26 +283,26 @@ instance EmbPrj Doc where
 
   value = valueN text
 
-instance EmbPrj PragmaOptions where
-  icod_ = \case
-    PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ->
-      icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff
+instance EmbPrj InfectiveCoinfective where
+  icod_ Infective   = icodeN' Infective
+  icod_ Coinfective = icodeN 0 Coinfective
 
-  value = vcase $ \case
-    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, aa, bb, cc, dd, ee, ff, gg, hh, ii, jj, kk, ll, mm, nn, oo, pp, qq, rr, ss, tt, uu, vv, ww, xx, yy, zz, aaa, bbb, ccc, ddd, eee, fff] ->
-      valuN PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff
-    _ -> malformed
+  value = vcase valu where
+    valu []  = valuN Infective
+    valu [0] = valuN Coinfective
+    valu _   = malformed
+
+instance EmbPrj PragmaOptions where
+  icod_    (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll) =
+    icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll
+
+  value = valueN PragmaOptions
 
 instance EmbPrj ProfileOptions where
   icod_ opts = icode (profileOptionsToList opts)
   value = fmap profileOptionsFromList . value
 
 instance EmbPrj ProfileOption where
-  icod_ = icode . fromEnum
-  value = value >=> \ n -> if lo <= n && n <= hi then pure (toEnum n) else malformed
-    where
-      lo = fromEnum (minBound :: ProfileOption)
-      hi = fromEnum (maxBound :: ProfileOption)
 
 instance EmbPrj UnicodeOrAscii
 
@@ -303,12 +316,9 @@ instance EmbPrj ConfluenceCheck where
     valu _   = malformed
 
 instance EmbPrj WarningMode where
-  icod_ = \case
-    WarningMode a b -> icodeN' WarningMode a b
+  icod_ (WarningMode a b) = icodeN' WarningMode a b
 
-  value = vcase $ \case
-    [a, b]   -> valuN WarningMode a b
-    _ -> malformed
+  value = valueN WarningMode
 
 instance EmbPrj WarningName where
   icod_ = return . \case
@@ -373,7 +383,7 @@ instance EmbPrj WarningName where
     NoGuardednessFlag_                           -> 58
     NotInScope_                                  -> 59
     NotStrictlyPositive_                         -> 60
-    NoEquivWhenSplitting_                        -> 61
+    UnsupportedIndexedMatch_                     -> 61
     OldBuiltin_                                  -> 62
     PragmaCompileErased_                         -> 63
     RewriteMaybeNonConfluent_                    -> 64
@@ -407,6 +417,9 @@ instance EmbPrj WarningName where
     InfectiveImport_                             -> 92
     DuplicateFieldsWarning_                      -> 93
     TooManyFieldsWarning_                        -> 94
+    OptionRenamed_                               -> 95
+    PlentyInHardCompileTimeMode_                 -> 96
+    InteractionMetaBoundaries_                   -> 97
 
   value = \case
     0  -> return OverlappingTokensWarning_
@@ -470,7 +483,7 @@ instance EmbPrj WarningName where
     58 -> return NoGuardednessFlag_
     59 -> return NotInScope_
     60 -> return NotStrictlyPositive_
-    61 -> return NoEquivWhenSplitting_
+    61 -> return UnsupportedIndexedMatch_
     62 -> return OldBuiltin_
     63 -> return PragmaCompileErased_
     64 -> return RewriteMaybeNonConfluent_
@@ -504,6 +517,9 @@ instance EmbPrj WarningName where
     92 -> return InfectiveImport_
     93 -> return DuplicateFieldsWarning_
     94 -> return TooManyFieldsWarning_
+    95 -> return OptionRenamed_
+    96 -> return PlentyInHardCompileTimeMode_
+    97 -> return InteractionMetaBoundaries_
     _ -> malformed
 
 

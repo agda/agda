@@ -1,0 +1,4 @@
+Issue6325-2.agda:19,10-14
+A pun must not use the constructor zero
+when scope checking the left-hand side length ⦃ zero ⦄ {(A)} _ in
+the definition of length

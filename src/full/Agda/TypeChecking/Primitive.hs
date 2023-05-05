@@ -169,8 +169,8 @@ instance ToTerm Text    where toTerm = return $ Lit . LitString
 instance ToTerm QName   where toTerm = return $ Lit . LitQName
 instance ToTerm MetaId  where
   toTerm = do
-    file <- getCurrentPath
-    return $ Lit . LitMeta file
+    top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
+    return $ Lit . LitMeta top
 
 instance ToTerm Integer where
   toTerm = do
@@ -503,9 +503,9 @@ primWord64ToNatInjective =  do
 primFloatToWord64Injective :: TCM PrimitiveImpl
 primFloatToWord64Injective = do
   float  <- primType (undefined :: Double)
-  word   <- primType (undefined :: Word64)
+  mword  <- primType (undefined :: Maybe Word64)
   toWord <- primFunName <$> getPrimitive "primFloatToWord64"
-  mkPrimInjective float word toWord
+  mkPrimInjective float mword toWord
 
 primQNameToWord64sInjective :: TCM PrimitiveImpl
 primQNameToWord64sInjective = do
@@ -674,6 +674,11 @@ primLockUniv' :: TCM PrimitiveImpl
 primLockUniv' = do
   let t = sort $ Type $ levelSuc $ Max 0 []
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort LockUniv
+
+primLevelUniv' :: TCM PrimitiveImpl
+primLevelUniv' = do
+  let t = sort $ Type $ ClosedLevel 1
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort $ LevelUniv
 
 -- mkPrimStrictSet :: TCM PrimitiveImpl
 -- mkPrimStrictSet = do
@@ -974,6 +979,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromListWith __IMPOSSIBL
   , builtin_glueU         |-> prim_glueU'
   , builtin_unglueU       |-> prim_unglueU'
   , builtinLockUniv       |-> primLockUniv'
+  , builtinLevelUniv      |-> primLevelUniv'
   ]
   where
     (|->) = (,)

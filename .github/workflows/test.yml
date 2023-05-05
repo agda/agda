@@ -7,9 +7,11 @@
 ######################################################
 env:
   AGDA_TESTS_OPTIONS: -j${PARALLEL_TESTS} --hide-successes
-  APT_GET_OPTS: -yqq --no-install-suggests --no-install-recommends
   BUILD_DIR: dist
+  GHC_VER: 9.4.5
   PARALLEL_TESTS: 2
+  STACK: stack --system-ghc
+  STACK_VER: 2.9.3
   TASTY_ANSI_TRICKS: 'false'
 jobs:
   build:
@@ -18,43 +20,39 @@ jobs:
       && !contains(github.event.head_commit.message, '[ci skip]')
       && !contains(github.event.head_commit.message, '[github skip]')
       && !contains(github.event.head_commit.message, '[skip github]')
-    outputs:
-      ghc-ver: ${{ matrix.ghc-ver }}
-      os: ${{ matrix.os }}
-      stack-ver: ${{ matrix.stack-ver }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-22.04
     steps:
-    - uses: styfle/cancel-workflow-action@0.6.0
+    - if: github.ref != 'refs/heads/master'
+      uses: styfle/cancel-workflow-action@0.11.0
       with:
         access_token: ${{ github.token }}
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
-    - uses: haskell/actions/setup@v1
+    - uses: haskell/actions/setup@v2
       with:
         enable-stack: true
-        ghc-version: ${{ matrix.ghc-ver }}
-        stack-version: ${{ matrix.stack-ver }}
-    - name: Update and configure stack
+        ghc-version: ${{ env.GHC_VER }}
+        stack-version: ${{ env.STACK_VER }}
+    - name: Copy stack-${{ env.GHC_VER}}.yaml to stack.yaml
+      run: cp stack-${{ env.GHC_VER }}.yaml stack.yaml
+    - name: Determine the ICU version
       run: |
-        stack update --silent
-        echo "system-ghc: true" >> ~/.stack/config.yaml
-    - name: Copy stack-${{ matrix.ghc-ver}}.yaml to stack.yaml
-      run: |
-        cp stack-${{ matrix.ghc-ver }}.yaml stack.yaml
-        make STACK_INSTALL_OPTS='--dry-run' install-deps
+        ICU_VER=$(pkg-config --modversion icu-i18n)
+        echo "ICU_VER=${ICU_VER}"
+        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
-      name: Cache dependencies
-      uses: actions/cache@v2
+      name: Restore cache from approximate key
+      uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-stack-01-${{ matrix.stack-ver }}-${{ hashFiles('stack.yaml')
-          }}-${{ hashFiles('stack.yaml.lock') }}
-        path: ~/.stack
-    - name: Install and configure the icu library
-      run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
-    - if: ${{ !steps.cache.outputs.cache-hit }}
-      name: Install dependencies for Agda and its test suites
-      run: make STACK_OPTS=--silent install-deps
+        key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
+          }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
+        path: |
+          ~/.stack
+        restore-keys: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{
+          env.ICU_VER }}-
+    - name: Install dependencies for Agda and its test suites
+      run: make install-deps
     - name: Build Agda
       run: make BUILD_DIR="${BUILD_DIR}" install-bin
     - name: Run tests for the size solver
@@ -74,7 +72,7 @@ jobs:
 
         tar --use-compress-program zstd -cvf stack-work.tzst .stack-work stack.yaml stack.yaml.lock
     - name: Upload artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         if-no-files-found: error
         name: agda-${{ runner.os }}-${{ github.sha }}
@@ -82,74 +80,74 @@ jobs:
           dist.tzst
           stack-work.tzst
         retention-days: 1
-    strategy:
-      matrix:
-        ghc-ver:
-        - 9.2.4
-        os:
-        - ubuntu-20.04
-        stack-ver:
-        - latest
   cubical:
     needs: build
-    runs-on: ${{ needs.build.outputs.os }}
+    runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
-    - uses: haskell/actions/setup@v1
+    - uses: haskell/actions/setup@v2
       with:
         enable-stack: true
-        ghc-version: ${{ needs.build.outputs.ghc-ver }}
-        stack-version: ${{ needs.build.outputs.stack-ver }}
-    - uses: actions/download-artifact@v2
+        ghc-version: ${{ env.GHC_VER }}
+        stack-version: ${{ env.STACK_VER }}
+    - uses: actions/download-artifact@v3
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
       run: |
         tar --use-compress-program zstd -xvf dist.tzst
         tar --use-compress-program zstd -xvf stack-work.tzst
+    - name: Determine the ICU version
+      run: |
+        ICU_VER=$(pkg-config --modversion icu-i18n)
+        echo "ICU_VER=${ICU_VER}"
+        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
-      name: Cache dependencies
-      uses: actions/cache@v2
+      name: Restore cache from exact key
+      uses: actions/cache/restore@v3
       with:
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
-          }}-${{ hashFiles('stack.yaml.lock') }}
-        path: ~/.stack
-    - name: Install and configure the icu library
-      run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
+        key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
+          }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
+        path: |
+          ~/.stack
     - name: Cubical library test
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-test
     - name: Successful tests using the cubical library
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-succeed
   interaction-latex-html:
     needs: build
-    runs-on: ${{ needs.build.outputs.os }}
+    runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
-    - uses: haskell/actions/setup@v1
+    - uses: haskell/actions/setup@v2
       with:
         enable-stack: true
-        ghc-version: ${{ needs.build.outputs.ghc-ver }}
-        stack-version: ${{ needs.build.outputs.stack-ver }}
-    - uses: actions/download-artifact@v2
+        ghc-version: ${{ env.GHC_VER }}
+        stack-version: ${{ env.STACK_VER }}
+    - uses: actions/download-artifact@v3
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
       run: |
         tar --use-compress-program zstd -xvf dist.tzst
         tar --use-compress-program zstd -xvf stack-work.tzst
+    - name: Determine the ICU version
+      run: |
+        ICU_VER=$(pkg-config --modversion icu-i18n)
+        echo "ICU_VER=${ICU_VER}"
+        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
-      name: Cache dependencies
-      uses: actions/cache@v2
+      name: Restore cache from exact key
+      uses: actions/cache/restore@v3
       with:
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
-          }}-${{ hashFiles('stack.yaml.lock') }}
-        path: ~/.stack
-    - name: Install and configure the icu library
-      run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
+        key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
+          }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
+        path: |
+          ~/.stack
     - name: Install Tex Live and Emacs
       run: |
         sudo apt-get update
@@ -163,32 +161,36 @@ jobs:
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" interaction
   stdlib-test:
     needs: build
-    runs-on: ${{ needs.build.outputs.os }}
+    runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
-    - uses: haskell/actions/setup@v1
+    - uses: haskell/actions/setup@v2
       with:
         enable-stack: true
-        ghc-version: ${{ needs.build.outputs.ghc-ver }}
-        stack-version: ${{ needs.build.outputs.stack-ver }}
-    - uses: actions/download-artifact@v2
+        ghc-version: ${{ env.GHC_VER }}
+        stack-version: ${{ env.STACK_VER }}
+    - uses: actions/download-artifact@v3
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
       run: |
         tar --use-compress-program zstd -xvf dist.tzst
         tar --use-compress-program zstd -xvf stack-work.tzst
+    - name: Determine the ICU version
+      run: |
+        ICU_VER=$(pkg-config --modversion icu-i18n)
+        echo "ICU_VER=${ICU_VER}"
+        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
-      name: Cache dependencies
-      uses: actions/cache@v2
+      name: Restore cache from exact key
+      uses: actions/cache/restore@v3
       with:
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
-          }}-${{ hashFiles('stack.yaml.lock') }}
-        path: ~/.stack
-    - name: Install and configure the icu library
-      run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
+        key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
+          }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
+        path: |
+          ~/.stack
     - name: Standard library test
       run: |
         # ASR (2021-01-17). `cabal update` is required due to #5138.
@@ -203,30 +205,36 @@ jobs:
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" std-lib-interaction
   test:
     needs: build
-    runs-on: ${{ needs.build.outputs.os }}
+    runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
-    - uses: haskell/actions/setup@v1
+    - uses: haskell/actions/setup@v2
       with:
         enable-stack: true
-        ghc-version: ${{ needs.build.outputs.ghc-ver }}
-        stack-version: ${{ needs.build.outputs.stack-ver }}
-    - uses: actions/download-artifact@v2
+        ghc-version: ${{ env.GHC_VER }}
+        stack-version: ${{ env.STACK_VER }}
+    - uses: actions/download-artifact@v3
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
       run: |
         tar --use-compress-program zstd -xvf dist.tzst
         tar --use-compress-program zstd -xvf stack-work.tzst
+    - name: Determine the ICU version
+      run: |
+        ICU_VER=$(pkg-config --modversion icu-i18n)
+        echo "ICU_VER=${ICU_VER}"
+        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
-      name: Cache dependencies
-      uses: actions/cache@v2
+      name: Restore cache from exact key
+      uses: actions/cache/restore@v3
       with:
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
-          }}-${{ hashFiles('stack.yaml.lock') }}
-        path: ~/.stack
+        key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
+          }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
+        path: |
+          ~/.stack
     - name: Suite of tests for bugs
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" bugs
     - name: 'Suite of successful tests: mini-library Common'
@@ -268,7 +276,6 @@ name: Build, Test, and Benchmark
     - '!macros/**'
     - '!notes/**'
     - '!.mailmap'
-    - '!.ghci*'
     - '!.gitignore'
     - '!.hlint.yaml'
     - '!.travis.yml'
@@ -277,7 +284,7 @@ name: Build, Test, and Benchmark
     - '!LICENSE'
     - '!README.md'
     - '!fix-whitespace.yaml'
-    - '!hie.yaml'
+    - '!hie*.yaml'
     - '!stack-*.yaml'
     - '!touchup.sh'
   push:
@@ -299,7 +306,6 @@ name: Build, Test, and Benchmark
     - '!macros/**'
     - '!notes/**'
     - '!.mailmap'
-    - '!.ghci*'
     - '!.gitignore'
     - '!.hlint.yaml'
     - '!.travis.yml'
@@ -308,7 +314,7 @@ name: Build, Test, and Benchmark
     - '!LICENSE'
     - '!README.md'
     - '!fix-whitespace.yaml'
-    - '!hie.yaml'
+    - '!hie*.yaml'
     - '!stack-*.yaml'
     - '!touchup.sh'
   workflow_dispatch: null

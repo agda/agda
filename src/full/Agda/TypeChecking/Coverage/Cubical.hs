@@ -86,7 +86,7 @@ createMissingIndexedClauses f n x old_sc scs cs = do
          reportSDoc "tc.cover.indexed" 20 $ text "size (xs,infos):" <+> pretty (size xs,size infos)
          reportSDoc "tc.cover.indexed" 20 $ text "xs :" <+> pretty (map fst xs)
 
-         unless (size xs == size infos + 1) $
+         unless (size xs == 1 + size infos) $
             reportSDoc "tc.cover.indexed" 20 $ text "missing some infos"
             -- Andrea: what to do when we only managed to build a unification proof for some of the constructors?
          Constructor{conData} <- theDef <$> getConstInfo (fst (head infos))
@@ -121,6 +121,18 @@ createMissingIndexedClauses f n x old_sc scs cs = do
          return $ ([(SplitCon trX,res)],cs++clauses)
 --         return $ ([],[])
     xs | otherwise -> return ([],cs)
+
+covFillTele :: QName -> Abs Telescope -> Term -> Args -> Term -> TCM [Term]
+covFillTele func tel face d j = do
+  ed_f <- liftTCM $ runExceptT $ trFillTel tel face d j
+  case ed_f of
+    Right d_f -> pure $ map unArg d_f
+    Left failed_t -> enterClosure failed_t $ \failed_t -> addContext ("i" :: String, __DUMMY_DOM__) $ do
+      typeError . GenericDocError =<< vcat
+        [ "Could not generate a transport clause for" <+> prettyTCM func
+        , "because a term of type" <+> prettyTCM (unAbs failed_t)
+        , "lives in the sort" <+> prettyTCM (getSort (unAbs failed_t)) <+> "and thus can not be transported"
+        ]
 
 createMissingTrXTrXClause :: QName -- ^ trX
                             -> QName -- ^ f defined
@@ -250,7 +262,7 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
     abstractN (xTelI `applyN` g1) $ \ p -> do
     abstractT "ψ" (pure interval) $ \ psi -> do
     abstractN (xTelI `applyN` g1) $ \ q -> do
-    abstractT "x0" (pure dT `applyN` g1 `applyN` (flip map q $ \ f -> f <@> pure iz)) $ \ x0 -> do
+    abstractT "x0" (pure dT `applyN` g1 `applyN` (for q $ \ f -> f <@> pure iz)) $ \ x0 -> do
     deltaPat g1 phi p psi q x0
 
   ps_ty_rhs <- runNamesT [] $ do
@@ -304,8 +316,7 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
             face <- min phi psi `max` (min i (max phi psi))
             j <- j
             d <- map defaultArg <$> sequence d
-            Right d_f <- lift $ runExceptT $ trFillTel tel face d j
-            pure $ map unArg d_f
+            lift $ covFillTele f tel face d j
           let args = bind "j" $ \ j -> do
                 g1 <- sequence g1
                 x <- pr `applyN` [i,neg j]
@@ -328,15 +339,15 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
       c <- mkComp $ bindN ["i","j"] $ \ [i,j] -> do
         Abs n (data_ty,lines) <- bind "k" $ \ k -> do
           let phi_k = max phi (neg k)
-          let p_k = flip map p $ \ p -> lam "h" $ \ h -> p <@> (min k h)
-          data_ty <- pure dT `applyN` g1 `applyN` (flip map p $ \ p -> p <@> k)
+          let p_k = for p $ \ p -> lam "h" $ \ h -> p <@> (min k h)
+          data_ty <- pure dT `applyN` g1 `applyN` (for p $ \ p -> p <@> k)
           line1 <- trX `applyN` g1 `applyN` (phi_k:p_k) `applyN` [x0]
 
           line2 <- trX `applyN` g1
-                       `applyN` (max phi_k j      : (flip map p_k $ \ p -> lam "h" $ \ h -> p <@> (max h j)))
+                       `applyN` (max phi_k j      : (for p_k $ \ p -> lam "h" $ \ h -> p <@> (max h j)))
                        `applyN`
                   [trX `applyN` g1
-                       `applyN` (max phi_k (neg j): (flip map p_k $ \ p -> lam "h" $ \ h -> p <@> (min h j)))
+                       `applyN` (max phi_k (neg j): (for p_k $ \ p -> lam "h" $ \ h -> p <@> (min h j)))
                        `applyN` [x0]]
           pure (data_ty,[line1,line2])
         data_ty <- open $ Abs n data_ty
@@ -535,7 +546,7 @@ createMissingTrXHCompClause q_trX f n x old_sc = do
             bindN (map unArg $ ([defaultArg "phi"] ++ xTelIArgNames)) $ \ phi_p -> do
             bindN ["psi","u","u0"] $ \ x0 -> do
             let trX = trX' `applyN` g1
-            let p0 = flip map (tail phi_p) $ \ p -> p <@> pure iz
+            let p0 = for (tail phi_p) $ \ p -> p <@> pure iz
             trX `applyN` phi_p `applyN` [hcompD' g1 p0 `applyN` x0]
       pat = (fmap . fmap . fmap) patternToTerm <$> pat'
   let deltaPat g1 phi p x0 =
@@ -545,7 +556,7 @@ createMissingTrXHCompClause q_trX f n x old_sc = do
     abstractN (pure gamma1) $ \ g1 -> do
     abstractT "φ" (pure interval) $ \ phi -> do
     abstractN (xTelI `applyN` g1) $ \ p -> do
-    let p0 = flip map p $ \ p -> p <@> pure iz
+    let p0 = for p $ \ p -> p <@> pure iz
     let ty = pure dT `applyN` g1 `applyN` p0
     abstractT "ψ" (pure interval) $ \ psi -> do
     abstractT "u" (pure interval --> pPi' "o" psi (\ _ -> ty)) $ \ u -> do
@@ -576,7 +587,7 @@ createMissingTrXHCompClause q_trX f n x old_sc = do
     -- Ξ ⊢ pat-rec[i] := trX .. (hfill ... (~ i))
     pat_rec <- (open =<<) $ bind "i" $ \ i -> do
           let tr x = trX `applyN` g1 `applyN` (phi:p) `applyN` [x]
-          let p0 = flip map p $ \ p -> p <@> pure iz
+          let p0 = for p $ \ p -> p <@> pure iz
           tr (hcomp (pure dT `applyN` g1 `applyN` p0)
                     [(psi,lam "j" $ \ j -> u <@> (min j (neg i)))
                     ,(i  ,lam "j" $ \ _ -> ilam "o" $ \ _ -> u0)]
@@ -597,8 +608,7 @@ createMissingTrXHCompClause q_trX f n x old_sc = do
         let face = iz
         j <- j
         d <- map defaultArg <$> sequence d
-        Right d_f <- lift $ runExceptT $ trFillTel tel face d j
-        pure $ map unArg d_f
+        lift $ covFillTele f tel face d j
       let args = bind "j" $ \ j -> do
             g1 <- sequence g1
             x <- absApp <$> pat_rec <*> neg j
@@ -763,7 +773,8 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
             (phi:p) <- sequence phi_p
             args <- sequence args
             let cargs = defaultArg $ unnamed $ ConP chead noConPatternInfo args
-            param_args <- fmap (map (setHiding Hidden . fmap (unnamed . dotP))) $
+            -- Amy (2022-11-06): Set the parameters to quantity-0.
+            param_args <- fmap (map (setQuantity (Quantity0 Q0Inferred) . setHiding Hidden . fmap (unnamed . dotP))) $
               pure params `applyN` take gamma1_size (fmap unArg <$> g1_args)
             pure $ DefP defaultPatternInfo q_trX $ param_args ++ p ++ [phi,cargs]
       pat = (fmap . fmap) patternToTerm <$> pat'
@@ -817,8 +828,7 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
       phi <- phi
       d <- map defaultArg <$> sequence d
       i <- i
-      Right d_f <- lift $ runExceptT $ trFillTel delta_f phi d i
-      pure $ map unArg d_f
+      lift $ covFillTele f delta_f phi d i
 
     -- w = Def f (old_ps[g1_left[i],pat_left[i],d_f[~ i]])
     w <- (open =<<) $ bind "i" $ \ i -> do
@@ -890,9 +900,9 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
         getModality $ fromMaybe __IMPOSSIBLE__ $ scTarget old_sc
   -- we follow what `cover` does when updating the modality from the target.
   applyModalityToContext mod $ do
-    unlessM (asksTC hasQuantity0) $ do
+    unlessM (hasQuantity0 <$> viewTC eQuantity) $ do
     reportSDoc "tc.cover.trxcon" 20 $ text "testing usable at mod: " <+> pretty mod
-    addContext cTel $ usableAtModality mod rhs
+    addContext cTel $ usableAtModality IndexedClause mod rhs
 
   return cl
 
@@ -1245,7 +1255,7 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) cs 
               case x of
                 Left bad_t -> cannotCreate "Cannot transport with type family:" bad_t
                 Right args -> return args
-          comp <- mkComp "hcompClause"
+          comp <- mkCompLazy "hcompClause"
           let
             hcomp la bA phi u u0 = pure tHComp <#> la <#> bA
                                                <#> phi

@@ -38,7 +38,7 @@ tests = do
   where
   customizedTests =
     [ testGroup "customised" $
-        issue5644 :
+        issue6465 :
         issue5508 :
         issue5101 :
         issue4671 :
@@ -93,8 +93,8 @@ caseInsensitiveFileSystem4671 = do
     goldenFileInsens  = dir </> "Issue4671.err.case-insensitive"
     goldenFileInsens' = dir </> "Issue4671.err.cAsE-inSensitive" -- case variant, to test file system
 
-issue5644 :: TestTree
-issue5644 =
+issue6465 :: TestTree
+issue6465 =
   goldenTest1
     name
     (readTextFileMaybe goldenFile)
@@ -103,7 +103,7 @@ issue5644 =
     ShowText
     (writeTextFile goldenFile)
   where
-    name       = "Issue5644"
+    name       = "Issue6465"
     dir        = testDir </> "customised"
     goldenFile = dir </> name <.> "err"
     doRun = do

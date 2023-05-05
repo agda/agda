@@ -15,6 +15,7 @@ ScopeInfo
         names
           _⊔_ --> [Agda.Primitive._⊔_]
           Level --> [Agda.Primitive.Level]
+          LevelUniv --> [Agda.Primitive.LevelUniv]
           Prop --> [Agda.Primitive.Prop]
           SSet --> [Agda.Primitive.SSet]
           SSetω --> [Agda.Primitive.SSetω]
@@ -57,6 +58,7 @@ ScopeInfo
         names
           _⊔_ --> [Agda.Primitive._⊔_]
           Level --> [Agda.Primitive.Level]
+          LevelUniv --> [Agda.Primitive.LevelUniv]
           Prop --> [Agda.Primitive.Prop]
           SSet --> [Agda.Primitive.SSet]
           SSetω --> [Agda.Primitive.SSetω]

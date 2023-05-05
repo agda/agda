@@ -11,8 +11,8 @@ data Record a b = Record
   }
 
 -- | (View source:) This is how you implement a lens for a record field.
-lensField1 :: Lens' a (Record a b)
+lensField1 :: Lens' (Record a b) a
 lensField1 f r = f (field1 r) <&> \ a -> r { field1 = a }
 
-lensField2 :: Lens' b (Record a b)
+lensField2 :: Lens' (Record a b) b
 lensField2 f r = f (field2 r) <&> \ b -> r { field2 = b }

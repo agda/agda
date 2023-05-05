@@ -30,18 +30,18 @@ import Agda.Interaction.Base
   )
 import Agda.Interaction.Highlighting.Precise
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Common   (InteractionId(..), Arg)
-import Agda.Syntax.Concrete (Expr, Name)
-import Agda.Syntax.Concrete.Name (NameInScope)
-import Agda.Syntax.Scope.Base (AbstractModule, AbstractName, LocalVar)
+import Agda.Syntax.Common         (InteractionId(..), Arg)
+import Agda.Syntax.Concrete       (Expr)
+import Agda.Syntax.Concrete.Name  (Name, QName, NameInScope)
+import Agda.Syntax.Scope.Base     (AbstractModule, AbstractName, LocalVar, WhyInScopeData)
 import qualified Agda.Syntax.Internal as I
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
-  (TCM, TCErr, TCWarning, HighlightingMethod, ModuleToSource, NamedMeta, TCWarning, IPBoundary')
+  (TCM, TCErr, TCWarning, HighlightingMethod, ModuleToSource, NamedMeta, TCWarning, IPFace')
 import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors)
 import Agda.Utils.Impossible
 import Agda.Utils.Time
 
-import Control.Monad.Trans
+import Control.Monad.Trans ( MonadIO(liftIO) )
 import Data.Int
 import System.IO
 
@@ -108,7 +108,7 @@ data DisplayInfo
         --   TODO: split these into separate constructors
     | Info_ModuleContents [Name] I.Telescope [(Name, I.Type)]
     | Info_SearchAbout [(Name, I.Type)] String
-    | Info_WhyInScope String FilePath (Maybe LocalVar) [AbstractName] [AbstractModule]
+    | Info_WhyInScope WhyInScopeData
     | Info_NormalForm CommandState ComputeMode (Maybe CPUTime) A.Expr
     | Info_InferredType CommandState (Maybe CPUTime) A.Expr
     | Info_Context InteractionId [ResponseContextEntry]
@@ -118,7 +118,7 @@ data DisplayInfo
 data GoalDisplayInfo
     = Goal_HelperFunction (OutputConstraint' A.Expr A.Expr)
     | Goal_NormalForm ComputeMode A.Expr
-    | Goal_GoalType Rewrite GoalTypeAux [ResponseContextEntry] [IPBoundary' Expr] [OutputForm Expr Expr]
+    | Goal_GoalType Rewrite GoalTypeAux [ResponseContextEntry] [IPFace' Expr] [OutputForm Expr Expr]
     | Goal_CurrentGoal Rewrite
     | Goal_InferredType A.Expr
 
@@ -141,7 +141,7 @@ data Info_Error
 
 data GoalTypeAux
     = GoalOnly
-    | GoalAndHave A.Expr
+    | GoalAndHave A.Expr [IPFace' Expr]
     | GoalAndElaboration I.Term
 
 -- | Entry in context.

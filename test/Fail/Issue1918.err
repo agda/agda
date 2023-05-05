@@ -1,2 +1,2 @@
 Issue1918.agda:3,1-36
-The --no-coverage-check option has been removed.
+Option --no-coverage-check has been removed in version 2.5.1

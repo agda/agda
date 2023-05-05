@@ -93,10 +93,10 @@ instance Null NLMState where
   empty  = NLMState { _nlmSub = empty , _nlmEqs = empty }
   null s = null (s^.nlmSub) && null (s^.nlmEqs)
 
-nlmSub :: Lens' Sub NLMState
+nlmSub :: Lens' NLMState Sub
 nlmSub f s = f (_nlmSub s) <&> \x -> s {_nlmSub = x}
 
-nlmEqs :: Lens' PostponedEquations NLMState
+nlmEqs :: Lens' NLMState PostponedEquations
 nlmEqs f s = f (_nlmEqs s) <&> \x -> s {_nlmEqs = x}
 
 runNLM :: (MonadReduce m) => NLM () -> m (Either Blocked_ NLMState)
@@ -143,20 +143,20 @@ type PostponedEquations = [PostponedEquation]
 -- | Match a non-linear pattern against a neutral term,
 --   returning a substitution.
 
-class Match t a b where
+class Match a b where
   match :: Relevance  -- ^ Are we currently matching in an irrelevant context?
         -> Telescope  -- ^ The telescope of pattern variables
         -> Telescope  -- ^ The telescope of lambda-bound variables
-        -> t          -- ^ The type of the pattern
+        -> TypeOf b   -- ^ The type of the pattern
         -> a          -- ^ The pattern to match
         -> b          -- ^ The term to be matched against the pattern
         -> NLM ()
 
-instance Match t a b => Match (Dom t) (Arg a) (Arg b) where
+instance Match a b => Match (Arg a) (Arg b) where
   match r gamma k t p v = let r' = r `composeRelevance` getRelevance p
                           in  match r' gamma k (unDom t) (unArg p) (unArg v)
 
-instance Match (Type, Elims -> Term) [Elim' NLPat] Elims where
+instance Match [Elim' NLPat] Elims where
   match r gamma k (t, hd) [] [] = return ()
   match r gamma k (t, hd) [] _  = matchingBlocked $ NotBlocked ReallyNotBlocked ()
   match r gamma k (t, hd) _  [] = matchingBlocked $ NotBlocked ReallyNotBlocked ()
@@ -165,6 +165,8 @@ instance Match (Type, Elims -> Term) [Elim' NLPat] Elims where
      [ "matching elimination " <+> addContext (gamma `abstract` k) (prettyTCM p)
      , "  with               " <+> addContext k (prettyTCM v)
      , "  eliminating head   " <+> addContext k (prettyTCM $ hd []) <+> ":" <+> addContext k (prettyTCM t)]) $ do
+
+   let no  = matchingBlocked $ NotBlocked ReallyNotBlocked ()
    case (p,v) of
     (Apply p, Apply v) -> (addContext k $ unEl <$> reduce t) >>= \case
       Pi a b -> do
@@ -186,32 +188,34 @@ instance Match (Type, Elims -> Term) [Elim' NLPat] Elims where
         ("interval application at non-pi type (possible non-confluence?) " <+> prettyTCM (pathUnview t)) mzero
 
     (Proj o f, Proj o' f') | f == f' -> do
-      ~(Just (El _ (Pi a b))) <- addContext k $ getDefType f =<< reduce t
-      let u = hd []
-          t' = b `absApp` u
-      hd' <- addContext k $ applyE <$> applyDef o f (argFromDom a $> u)
-      match r gamma k (t',hd') ps vs
+      addContext k (getDefType f =<< reduce t) >>= \case
+        Just (El _ (Pi a b)) -> do
+          let u = hd []
+              t' = b `absApp` u
+          hd' <- addContext k $ applyE <$> applyDef o f (argFromDom a $> u)
+          match r gamma k (t',hd') ps vs
+        _ -> no
 
     (Proj _ f, Proj _ f') | otherwise -> do
       traceSDoc "rewriting.match" 20 (sep
         [ "mismatch between projections " <+> prettyTCM f
         , " and " <+> prettyTCM f' ]) mzero
 
-    (Apply{}, Proj{} ) -> __IMPOSSIBLE__
-    (Proj{} , Apply{}) -> __IMPOSSIBLE__
+    (Apply{}, Proj{} ) -> no
+    (Proj{} , Apply{}) -> no
 
     (IApply{} , _    ) -> __IMPOSSIBLE__ -- TODO
     (_ , IApply{}    ) -> __IMPOSSIBLE__ -- TODO
 
-instance Match t a b => Match t (Dom a) (Dom b) where
+instance Match a b => Match (Dom a) (Dom b) where
   match r gamma k t p v = match r gamma k t (unDom p) (unDom v)
 
-instance Match () NLPType Type where
+instance Match NLPType Type where
   match r gamma k _ (NLPType sp p) (El s a) = workOnTypes $ do
     match r gamma k () sp s
     match r gamma k (sort s) p a
 
-instance Match () NLPSort Sort where
+instance Match NLPSort Sort where
   match r gamma k _ p s = do
     bs <- addContext k $ reduceB s
     let b = void bs
@@ -229,6 +233,7 @@ instance Match () NLPSort Sort where
         | fp == f, np == n   -> yes
       (PSizeUniv , SizeUniv) -> yes
       (PLockUniv , LockUniv) -> yes
+      (PLevelUniv, LevelUniv) -> yes
       (PIntervalUniv , IntervalUniv) -> yes
 
       -- blocked cases
@@ -240,13 +245,13 @@ instance Match () NLPSort Sort where
       -- all other cases do not match
       (_ , _) -> no
 
-instance Match () NLPat Level where
+instance Match NLPat Level where
   match r gamma k _ p l = do
     t <- El (mkType 0) . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
     v <- reallyUnLevelView l
     match r gamma k t p v
 
-instance Match Type NLPat Term where
+instance Match NLPat Term where
   match r0 gamma k t p v = do
     vbt <- addContext k $ reduceB (v,t)
     let n = size k
@@ -318,8 +323,9 @@ instance Match Type NLPat Term where
                 match r gamma k (ft , Def f) ps es
           Con c ci vs
             | f == conName c -> do
-                ~(Just (_ , ct)) <- addContext k $ getFullyAppliedConType c t
-                match r gamma k (ct , Con c ci) ps vs
+                addContext k (getFullyAppliedConType c t) >>= \case
+                  Just (_ , ct) -> match r gamma k (ct , Con c ci) ps vs
+                  Nothing -> no ""
           _ | Pi a b <- unEl t -> do
             let ai    = domInfo a
                 pbody = PDef f $ raise 1 ps ++ [ Apply $ Arg ai $ PTerm $ var 0 ]
@@ -332,15 +338,17 @@ instance Match Type NLPat Term where
           -- the pattern (p = PDef f ps) to @c (p .f1) ... (p .fn)@.
             def <- addContext k $ theDef <$> getConstInfo d
             (tel, c, ci, vs) <- addContext k $ etaExpandRecord_ d pars def v
-            ~(Just (_ , ct)) <- addContext k $ getFullyAppliedConType c t
-            let flds = map argFromDom $ recFields def
-                mkField fld = PDef f (ps ++ [Proj ProjSystem fld])
-                -- Issue #3335: when matching against the record constructor,
-                -- don't add projections but take record field directly.
-                ps'
-                  | conName c == f = ps
-                  | otherwise      = map (Apply . fmap mkField) flds
-            match r gamma k (ct, Con c ci) ps' (map Apply vs)
+            addContext k (getFullyAppliedConType c t) >>= \case
+              Just (_ , ct) -> do
+                let flds = map argFromDom $ recFields def
+                    mkField fld = PDef f (ps ++ [Proj ProjSystem fld])
+                    -- Issue #3335: when matching against the record constructor,
+                    -- don't add projections but take record field directly.
+                    ps'
+                      | conName c == f = ps
+                      | otherwise      = map (Apply . fmap mkField) flds
+                match r gamma k (ct, Con c ci) ps' (map Apply vs)
+              Nothing -> no ""
           v -> maybeBlock v
       PLam i p' -> case unEl t of
         Pi a b -> do
@@ -374,42 +382,15 @@ instance Match Type NLPat Term where
         _ | Just (d, pars) <- etaRecord -> do
           def <- addContext k $ theDef <$> getConstInfo d
           (tel, c, ci, vs) <- addContext k $ etaExpandRecord_ d pars def v
-          ~(Just (_ , ct)) <- addContext k $ getFullyAppliedConType c t
-          let flds = map argFromDom $ recFields def
-              ps'  = map (fmap $ \fld -> PBoundVar i (ps ++ [Proj ProjSystem fld])) flds
-          match r gamma k (ct, Con c ci) (map Apply ps') (map Apply vs)
+          addContext k (getFullyAppliedConType c t) >>= \case
+            Just (_ , ct) -> do
+              let flds = map argFromDom $ recFields def
+                  ps'  = map (fmap $ \fld -> PBoundVar i (ps ++ [Proj ProjSystem fld])) flds
+              match r gamma k (ct, Con c ci) (map Apply ps') (map Apply vs)
+            Nothing -> no ""
         v -> maybeBlock v
       PTerm u -> traceSDoc "rewriting.match" 60 ("matching a PTerm" <+> addContext (gamma `abstract` k) (prettyTCM u)) $
         tellEq gamma k t u v
-
--- Checks if the given term contains any free variables that satisfy the
--- given condition on their DBI, possibly reducing the term in the process.
--- Returns `Right Nothing` if there are such variables, `Right (Just v')`
--- if there are none (where v' is the possibly reduced version of the given
--- term) or `Left b` if the problem is blocked on a meta.
-reallyFree :: (MonadReduce m, Reduce a, ForceNotFree a)
-           => IntSet -> a -> m (Either Blocked_ (Maybe a))
-reallyFree xs v = do
-  (mxs , v') <- forceNotFree xs v
-  case IntMap.foldr pickFree NotFree mxs of
-    MaybeFree ms
-      | null ms   -> return $ Right Nothing
-      | otherwise -> return $ Left $ Blocked blocker ()
-      where blocker = unblockOnAll $ foldrMetaSet (Set.insert . unblockOnMeta) Set.empty ms
-    NotFree -> return $ Right (Just v')
-
-  where
-    -- Check if any of the variables occur freely.
-    -- Prefer occurrences that do not depend on any metas.
-    pickFree :: IsFree -> IsFree -> IsFree
-    pickFree f1@(MaybeFree ms1) f2
-      | null ms1  = f1
-    pickFree f1@(MaybeFree ms1) f2@(MaybeFree ms2)
-      | null ms2  = f2
-      | otherwise = f1
-    pickFree f1@(MaybeFree ms1) NotFree = f1
-    pickFree NotFree f2 = f2
-
 
 makeSubstitution :: Telescope -> Sub -> Maybe Substitution
 makeSubstitution gamma sub =
@@ -431,8 +412,8 @@ checkPostponedEquations sub eqs = forM' eqs $
       addContext k $ equal a lhs' rhs
 
 -- main function
-nonLinMatch :: (PureTCM m, Match t a b)
-            => Telescope -> t -> a -> b -> m (Either Blocked_ Substitution)
+nonLinMatch :: (PureTCM m, Match a b)
+            => Telescope -> TypeOf b -> a -> b -> m (Either Blocked_ Substitution)
 nonLinMatch gamma t p v = do
   let no msg b = traceSDoc "rewriting.match" 10 (sep
                    [ "matching failed during" <+> text msg
@@ -472,9 +453,11 @@ getTypedHead = \case
     vs <- freeVarsToApply c
     -- Jesper, 2020-06-17, issue #4755: add dummy arguments in
     -- case we don't have enough parameters
-    npars <- fromMaybe __IMPOSSIBLE__ <$> getNumberOfParameters c
-    let ws = replicate (npars - size vs) $ defaultArg __DUMMY_TERM__
-    t0 <- defType <$> getConstInfo c
-    t <- t0 `piApplyM` (vs ++ ws)
-    return $ Just (c , t)
+    getNumberOfParameters c >>= \case
+      Just npars -> do
+        let ws = replicate (npars - size vs) $ defaultArg __DUMMY_TERM__
+        t0 <- defType <$> getConstInfo c
+        t <- t0 `piApplyM` (vs ++ ws)
+        return $ Just (c , t)
+      Nothing -> return Nothing
   _ -> return Nothing

@@ -1,0 +1,5 @@
+Issue6015.agda:13,7-12
+.(@finite p : IsOne i1) → Set != .(IsOne i1) → Set because one is a
+type of partial elements and the other is a function type
+when checking that the expression reflₛ has type
+Idₛ (SSet (lsuc lzero)) (Partial i1 Set) (.(IsOne i1) → Set)

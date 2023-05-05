@@ -1,0 +1,3 @@
+Issue5034-3.agda:2,8-12
+Lock attributes have not been enabled (use --guarded to enable
+them): lock

@@ -44,6 +44,7 @@ keywords
   ``eta-equality``
   ``field``
   :ref:`forall <notational-conventions>`
+  ``hiding``
   ``import``
   ``in``
   ``inductive``
@@ -63,9 +64,11 @@ keywords
   ``postulate``
   ``primitive``
   ``private``
+  ``public``
   :ref:`quote <reflection>`
   :ref:`quoteTerm <macros>`
   ``record``
+  ``renaming``
   ``rewrite``
   ``Set``
   ``syntax``
@@ -73,6 +76,7 @@ keywords
   :ref:`unquote <macros>`
   :ref:`unquoteDecl <unquoting-declarations>`
   :ref:`unquoteDef <unquoting-declarations>`
+  ``using``
   :ref:`variable <generalization-of-declared-variables>`
   ``where``
   ``with``
@@ -81,14 +85,9 @@ keywords
   subscripted (see :ref:`sort-system`). For instance ``Set42`` and
   ``Set₄₂`` are both keywords.
 
-keywords in import directives
-  The following words are only reserved in import directives
-  (in connection with ``import`` or ``open``):
+keywords in ``renaming`` directives
+  The following words are only reserved in ``renaming`` directives:
 
-  ``public``
-  ``using``
-  ``hiding``
-  ``renaming``
   ``to``
 
 .. _names:

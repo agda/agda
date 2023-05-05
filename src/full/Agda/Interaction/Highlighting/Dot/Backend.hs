@@ -37,7 +37,7 @@ import Agda.Interaction.Options
   , OptDescr(..)
   )
 
-import Agda.Syntax.Abstract (ModuleName, toTopLevelModuleName)
+import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 
 import Agda.TypeChecking.Monad
   ( Interface(iImportedModules, iModuleName)
@@ -101,8 +101,8 @@ data DotCompileEnv = DotCompileEnv
 data DotModuleEnv = DotModuleEnv
 
 data DotModule = DotModule
-  { dotModuleName          :: ModuleName
-  , dotModuleImportedNames :: Set ModuleName
+  { dotModuleName          :: TopLevelModuleName
+  , dotModuleImportedNames :: Set TopLevelModuleName
   , dotModuleInclude       :: Bool
     -- ^ Include the module in the graph?
   }
@@ -149,7 +149,7 @@ preModuleDot
   :: Applicative m
   => DotCompileEnv
   -> IsMain
-  -> ModuleName
+  -> TopLevelModuleName
   -> Maybe FilePath
   -> m (Recompile DotModuleEnv DotModule)
 preModuleDot _cenv _main _moduleName _ifacePath = pure $ Recompile DotModuleEnv
@@ -168,16 +168,15 @@ postModuleDot
   => DotCompileEnv
   -> DotModuleEnv
   -> IsMain
-  -> ModuleName
+  -> TopLevelModuleName
   -> [DotDef]
   -> m DotModule
-postModuleDot cenv DotModuleEnv _main moduleName _defs = do
+postModuleDot cenv DotModuleEnv _main m _defs = do
   i <- curIF
   let importedModuleNames = Set.fromList $ fst <$> (iImportedModules i)
   include <- case dotCompileEnvLibraries cenv of
     Nothing -> return True
     Just ls -> liftTCM $ do
-      let m = toTopLevelModuleName moduleName
       f    <- findFile m
       libs <- getAgdaLibFiles (srcFilePath f) m
 
@@ -185,7 +184,7 @@ postModuleDot cenv DotModuleEnv _main moduleName _defs = do
           inLib   = not (null incLibs)
 
       reportSDoc "dot.include" 10 $ do
-        let name = pretty moduleName
+        let name = pretty m
             list = nest 2 . vcat . map (text . _libName)
         if inLib then
           fsep
@@ -204,7 +203,7 @@ postModuleDot cenv DotModuleEnv _main moduleName _defs = do
       return inLib
 
   return $ DotModule
-    { dotModuleName          = moduleName
+    { dotModuleName          = m
     , dotModuleImportedNames = importedModuleNames
     , dotModuleInclude       = include
     }
@@ -213,21 +212,21 @@ postCompileDot
   :: (MonadIO m, ReadTCState m)
   => DotCompileEnv
   -> IsMain
-  -> Map ModuleName DotModule
+  -> Map TopLevelModuleName DotModule
   -> m ()
 postCompileDot cenv _main modulesByName =
   renderDotToFile moduleGraph (dotCompileEnvDestination cenv)
   where
-  modulesToInclude :: Set ModuleName
+  -- Only the keys of this map are used.
   modulesToInclude =
-    Map.keysSet $ Map.filter dotModuleInclude modulesByName
+    Map.filter dotModuleInclude modulesByName
 
   moduleGraph :: Graph (WithUniqueInt L.Text) ()
   moduleGraph =
     Graph.renameNodesMonotonic (fmap (L.pack . prettyShow)) $
     Graph.transitiveReduction $
     Graph.filterNodesKeepingEdges
-      (\n -> Graph.otherValue n `Set.member` modulesToInclude) $
+      (\n -> Graph.otherValue n `Map.member` modulesToInclude) $
     -- The following use of transitive reduction should not affect the
     -- semantics. It tends to make the graph smaller, so it might
     -- improve the overall performance of the code, but I did not

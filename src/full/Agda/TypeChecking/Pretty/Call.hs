@@ -15,6 +15,7 @@ import Agda.Syntax.Translation.AbstractToConcrete
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Context
+import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Pretty
 
@@ -188,13 +189,24 @@ instance PrettyTCM Call where
 
     SetRange r -> fsep (pwords "when doing something at") <+> prettyTCM r
 
-    CheckSectionApplication _ m1 modapp -> fsep $
+    CheckSectionApplication _ erased m1 modapp -> fsep $
       pwords "when checking the module application" ++
-      [prettyA $ A.Apply info m1 modapp initCopyInfo empty]
+      [prettyA $ A.Apply info erased m1 modapp initCopyInfo empty]
       where
       info = A.ModuleInfo noRange noRange Nothing Nothing Nothing
 
     ModuleContents -> fsep $ pwords "when retrieving the contents of a module"
+
+    CheckIApplyConfluence _ qn fn l r t -> do
+      vcat
+        [ fsep (pwords "when checking that a clause of" ++ [prettyTCM qn] ++ pwords "has the correct boundary.")
+        , ""
+        , "Specifically, the terms"
+        , nest 2 (prettyTCM l)
+        , "and"
+        , nest 2 (prettyTCM r)
+        , fsep (pwords "must be equal, since" ++ [prettyTCM fn] ++ pwords "could reduce to either.")
+        ]
 
     where
     hPretty :: MonadPretty m => Arg (Named_ Expr) -> m Doc

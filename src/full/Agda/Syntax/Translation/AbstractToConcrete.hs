@@ -190,7 +190,7 @@ isBuiltinFun = asks $ is . builtins
   where is m q b = Just q == Map.lookup b m
 
 -- | Resolve a concrete name. If illegally ambiguous fail with the ambiguous names.
-resolveName :: KindsOfNames -> Maybe (Set A.Name) -> C.QName -> AbsToCon (Either (List1 A.QName) ResolvedName)
+resolveName :: KindsOfNames -> Maybe (Set A.Name) -> C.QName -> AbsToCon (Either AmbiguousNameReason ResolvedName)
 resolveName kinds candidates q = runExceptT $ tryResolveName kinds candidates q
 
 -- | Treat illegally ambiguous names as UnknownNames.
@@ -281,8 +281,8 @@ instance HasConstInfo AbsToCon where
 instance MonadAddContext AbsToCon where
   addCtx a b c = AbsToCon (addCtx a b (unAbsToCon c))
 
-  addLetBinding' a b c d =
-    AbsToCon (addLetBinding' a b c (unAbsToCon d))
+  addLetBinding' o a b c d =
+    AbsToCon (addLetBinding' o a b c (unAbsToCon d))
 
   updateContext a b c = AbsToCon (updateContext a b (unAbsToCon c))
 
@@ -408,7 +408,9 @@ pickConcreteName x y = modifyConcreteNames $ flip Map.alter x $ \case
 -- | For the given abstract name, return the names that could shadow it.
 shadowingNames :: (ReadTCState m, MonadStConcreteNames m)
                => A.Name -> m (Set RawName)
-shadowingNames x = Set.fromList . Map.findWithDefault [] x <$> useR stShadowingNames
+shadowingNames x =
+  Set.fromList . Fold.toList . Map.findWithDefault mempty x <$>
+    useR stShadowingNames
 
 toConcreteName :: A.Name -> AbsToCon C.Name
 toConcreteName x | y <- nameConcrete x , isNoName y = return y
@@ -854,15 +856,22 @@ instance ToConcrete A.Expr where
     toConcrete (A.ExtendedLam i di erased qname cs) =
         bracket lamBrackets $ do
           decls <- concat <$> toConcrete cs
-          let namedPat np = case getHiding np of
+          puns  <- optHiddenArgumentPuns <$> pragmaOptions
+          let -- If --hidden-argument-puns is active, then {x} is
+              -- replaced by {(x)} and ⦃ x ⦄ by ⦃ (x) ⦄.
+              noPun (Named Nothing p@C.IdentP{}) | puns =
+                Named Nothing (C.ParenP noRange p)
+              noPun p = p
+
+              namedPat np = case getHiding np of
                  NotHidden  -> namedArg np
-                 Hidden     -> C.HiddenP noRange (unArg np)
-                 Instance{} -> C.InstanceP noRange (unArg np)
+                 Hidden     -> C.HiddenP noRange (noPun (unArg np))
+                 Instance{} -> C.InstanceP noRange (noPun (unArg np))
               -- we know all lhs are of the form `.extlam p1 p2 ... pn`,
               -- with the name .extlam leftmost. It is our mission to remove it.
           let removeApp :: C.Pattern -> AbsToCon [C.Pattern]
               removeApp (C.RawAppP _ (List2 _ p ps)) = return $ p:ps
-              removeApp (C.AppP (C.IdentP _) np) = return [namedPat np]
+              removeApp (C.AppP (C.IdentP _ _) np) = return [namedPat np]
               removeApp (C.AppP p np)            = removeApp p <&> (++ [namedPat np])
               -- Andreas, 2018-06-18, issue #3136
               -- Empty pattern list also allowed in extended lambda,
@@ -880,7 +889,7 @@ instance ToConcrete A.Expr where
                 reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda patterns ps = " ++ prettyShow ps
                 return $ LamClause ps rhs ca
               decl2clause _ = __IMPOSSIBLE__
-          C.ExtendedLam (getRange i) erased . List1.fromList __IMPOSSIBLE__ <$>
+          C.ExtendedLam (getRange i) erased . List1.fromListSafe __IMPOSSIBLE__ <$>
             mapM decl2clause decls
             -- TODO List1: can we demonstrate non-emptiness?
 
@@ -929,8 +938,6 @@ instance ToConcrete A.Expr where
       bracket appBrackets $ do
         C.RecUpdate (getRange i) <$> toConcrete e <*> toConcreteTop fs
 
-    toConcrete (A.ETel tel) = C.ETel . catMaybes <$> toConcrete tel
-
     toConcrete (A.ScopedExpr _ e) = toConcrete e
     toConcrete (A.Quote i) = return $ C.Quote (getRange i)
     toConcrete (A.QuoteTerm i) = return $ C.QuoteTerm (getRange i)
@@ -946,7 +953,7 @@ makeDomainFree :: A.LamBinding -> A.LamBinding
 makeDomainFree b@(A.DomainFull (A.TBind _ tac (x :| []) t)) =
   case unScope t of
     A.Underscore A.MetaInfo{metaNumber = Nothing} ->
-      A.DomainFree tac x
+      A.DomainFree (tbTacticAttr tac) x
     _ -> b
 makeDomainFree b = b
 
@@ -1000,10 +1007,10 @@ instance ToConcrete A.TypedBinding where
     type ConOfAbs A.TypedBinding = Maybe C.TypedBinding
 
     bindToConcrete (A.TBind r t xs e) ret = do
-        t <- traverse toConcrete t
+        tac <- traverse toConcrete (tbTacticAttr t)
         bindToConcrete (fmap forceNameIfHidden xs) $ \ xs -> do
           e <- toConcreteTop e
-          let setTac x = x { bnameTactic = t }
+          let setTac x = x { bnameTactic = tac , C.bnameIsFinite = tbFinite t }
           ret $ Just $ C.TBind r (fmap (updateNamedArg (fmap setTac)) xs) e
     bindToConcrete (A.TLet r lbs) ret =
         bindToConcrete lbs $ \ ds -> do
@@ -1017,15 +1024,16 @@ instance ToConcrete A.LetBinding where
         do (t, (e, [], [], [])) <- toConcrete (t, A.RHS e Nothing)
            ret $ addInstanceB (if isInstance info then Just noRange else Nothing) $
                [ C.TypeSig info Nothing (C.boundName x) t
-               , C.FunClause (C.LHS (C.IdentP $ C.QName $ C.boundName x) [] [])
-                             e C.NoWhere False
+               , C.FunClause
+                   (C.LHS (C.IdentP True $ C.QName $ C.boundName x) [] [])
+                   e C.NoWhere False
                ]
     -- TODO: bind variables
     bindToConcrete (LetPatBind i p e) ret = do
         p <- toConcrete p
         e <- toConcrete e
         ret [ C.FunClause (C.LHS p [] []) (C.RHS e) NoWhere False ]
-    bindToConcrete (LetApply i x modapp _ _) ret = do
+    bindToConcrete (LetApply i erased x modapp _ _) ret = do
       x' <- unqualify <$> toConcrete x
       modapp <- toConcrete modapp
       let r = getRange modapp
@@ -1033,7 +1041,7 @@ instance ToConcrete A.LetBinding where
           dir  = fromMaybe defaultImportDir{ importDirRange = r } $ minfoDirective i
       -- This is no use since toAbstract LetDefs is in localToAbstract.
       local (openModule' x dir id) $
-        ret [ C.ModuleMacro (getRange i) x' modapp open dir ]
+        ret [ C.ModuleMacro (getRange i) erased x' modapp open dir ]
     bindToConcrete (LetOpen i x _) ret = do
       x' <- toConcrete x
       let dir = fromMaybe defaultImportDir $ minfoDirective i
@@ -1047,21 +1055,25 @@ instance ToConcrete A.WhereDeclarations where
   type ConOfAbs A.WhereDeclarations = WhereClause
 
   bindToConcrete (A.WhereDecls _ _ Nothing) ret = ret C.NoWhere
-  bindToConcrete (A.WhereDecls (Just am) False (Just (A.Section _ _ _ ds))) ret = do
+  bindToConcrete (A.WhereDecls (Just am) False
+                    (Just (A.Section _ erased _ _ ds)))
+                 ret = do
     ds' <- declsToConcrete ds
     cm  <- unqualify <$> lookupModule am
     -- Andreas, 2016-07-08 I put PublicAccess in the following SomeWhere
     -- Should not really matter for printing...
-    let wh' = (if isNoName cm then AnyWhere noRange else SomeWhere noRange cm PublicAccess) $ ds'
+    let wh' = if isNoName cm && not (isErased erased)
+              then AnyWhere noRange ds'
+              else SomeWhere noRange erased cm PublicAccess ds'
     local (openModule' am defaultImportDir id) $ ret wh'
   bindToConcrete (A.WhereDecls _ _ (Just d)) ret =
     ret . AnyWhere noRange =<< toConcrete d
 
 mergeSigAndDef :: [C.Declaration] -> [C.Declaration]
-mergeSigAndDef (C.RecordSig _ x bs e : C.RecordDef r y dir _ fs : ds)
-  | x == y = C.Record r y dir bs e fs : mergeSigAndDef ds
-mergeSigAndDef (C.DataSig _ x bs e : C.DataDef r y _ cs : ds)
-  | x == y = C.Data r y bs e cs : mergeSigAndDef ds
+mergeSigAndDef (C.RecordSig _ er x bs e : C.RecordDef r y dir _ fs : ds)
+  | x == y = C.Record r er y dir bs e fs : mergeSigAndDef ds
+mergeSigAndDef (C.DataSig _ er x bs e : C.DataDef r y _ cs : ds)
+  | x == y = C.Data r er y bs e cs : mergeSigAndDef ds
 mergeSigAndDef (d : ds) = d : mergeSigAndDef ds
 mergeSigAndDef [] = []
 
@@ -1203,12 +1215,13 @@ instance ToConcrete A.Declaration where
   toConcrete (A.FunDef i _ _ cs) =
     withAbstractPrivate i $ concat <$> toConcrete cs
 
-  toConcrete (A.DataSig i x bs t) =
+  toConcrete (A.DataSig i erased x bs t) =
     withAbstractPrivate i $
     bindToConcrete (A.generalizeTel bs) $ \ tel' -> do
       x' <- unsafeQNameToName <$> toConcrete x
       t' <- toConcreteTop t
-      return [ C.DataSig (getRange i) x' (map C.DomainFull $ catMaybes tel') t' ]
+      return [ C.DataSig (getRange i) erased x'
+                 (map C.DomainFull $ catMaybes tel') t' ]
 
   toConcrete (A.DataDef i x uc bs cs) =
     withAbstractPrivate i $
@@ -1216,12 +1229,13 @@ instance ToConcrete A.Declaration where
       (x',cs') <- first unsafeQNameToName <$> toConcrete (x, map Constr cs)
       return [ C.DataDef (getRange i) x' (catMaybes tel') cs' ]
 
-  toConcrete (A.RecSig i x bs t) =
+  toConcrete (A.RecSig i erased x bs t) =
     withAbstractPrivate i $
     bindToConcrete (A.generalizeTel bs) $ \ tel' -> do
       x' <- unsafeQNameToName <$> toConcrete x
       t' <- toConcreteTop t
-      return [ C.RecordSig (getRange i) x' (map C.DomainFull $ catMaybes tel') t' ]
+      return [ C.RecordSig (getRange i) erased x'
+                 (map C.DomainFull $ catMaybes tel') t' ]
 
   toConcrete (A.RecDef  i x uc dir bs t cs) =
     withAbstractPrivate i $
@@ -1231,19 +1245,19 @@ instance ToConcrete A.Declaration where
 
   toConcrete (A.Mutual i ds) = declsToConcrete ds
 
-  toConcrete (A.Section i x (A.GeneralizeTel _ tel) ds) = do
+  toConcrete (A.Section i erased x (A.GeneralizeTel _ tel) ds) = do
     x <- toConcrete x
     bindToConcrete tel $ \ tel -> do
       ds <- declsToConcrete ds
-      return [ C.Module (getRange i) x (catMaybes tel) ds ]
+      return [ C.Module (getRange i) erased x (catMaybes tel) ds ]
 
-  toConcrete (A.Apply i x modapp _ _) = do
+  toConcrete (A.Apply i erased x modapp _ _) = do
     x  <- unsafeQNameToName <$> toConcrete x
     modapp <- toConcrete modapp
     let r = getRange modapp
         open = fromMaybe DontOpen $ minfoOpenShort i
         dir  = fromMaybe defaultImportDir{ importDirRange = r } $ minfoDirective i
-    return [ C.ModuleMacro (getRange i) x modapp open dir ]
+    return [ C.ModuleMacro (getRange i) erased x modapp open dir ]
 
   toConcrete (A.Import i x _) = do
     x <- toConcrete x
@@ -1277,6 +1291,8 @@ instance ToConcrete A.Declaration where
     xs <- mapM (unqual <=< toConcrete) xs
     (:[]) . C.UnquoteDef (getRange i) xs <$> toConcrete e
 
+  toConcrete (A.UnquoteData i xs uc j cs e) = __IMPOSSIBLE__
+
 
 data RangeAndPragma = RangeAndPragma Range A.Pragma
 
@@ -1294,6 +1310,7 @@ instance ToConcrete RangeAndPragma where
     A.StaticPragma x -> C.StaticPragma r <$> toConcrete x
     A.InjectivePragma x -> C.InjectivePragma r <$> toConcrete x
     A.InlinePragma b x -> C.InlinePragma r b <$> toConcrete x
+    A.NotProjectionLikePragma q -> C.NotProjectionLikePragma r <$> toConcrete q
     A.EtaPragma x    -> C.EtaPragma    r <$> toConcrete x
     A.DisplayPragma f ps rhs ->
       C.DisplayPragma r <$> toConcrete (A.DefP (PatRange noRange) (unambiguous f) ps) <*> toConcrete rhs
@@ -1446,14 +1463,14 @@ instance ToConcrete A.Pattern where
   toConcrete p =
     case p of
       A.VarP x ->
-        C.IdentP . C.QName . C.boundName <$> toConcrete x
+        C.IdentP True . C.QName . C.boundName <$> toConcrete x
 
       A.WildP i ->
         return $ C.WildP (getRange i)
 
       A.ConP i c args  -> tryOp (headAmbQ c) (A.ConP i c) args
 
-      A.ProjP i ProjPrefix p -> C.IdentP <$> toConcrete (headAmbQ p)
+      A.ProjP i ProjPrefix p -> C.IdentP True <$> toConcrete (headAmbQ p)
       A.ProjP i _          p -> C.DotP noRange . C.Ident <$> toConcrete (headAmbQ p)
 
       A.DefP i x args -> tryOp (headAmbQ x) (A.DefP i x)  args
@@ -1467,7 +1484,9 @@ instance ToConcrete A.Pattern where
 
       A.LitP i (LitQName x) -> do
         x <- lookupQName AmbiguousNothing x
-        bracketP_ appBrackets $ return $ C.AppP (C.QuoteP (getRange i)) (defaultNamedArg (C.IdentP x))
+        bracketP_ appBrackets $ return $
+          C.AppP (C.QuoteP (getRange i))
+            (defaultNamedArg (C.IdentP True x))
       A.LitP i l ->
         return $ C.LitP (getRange i) l
 
@@ -1529,10 +1548,22 @@ instance ToConcrete A.Pattern where
       let funCtx = applyUnless (null args2) (withPrecedence FunctionCtx)
       tryToRecoverPatternSynP (f args) $ funCtx (tryToRecoverOpAppP $ f args1) >>= \case
         Just c  -> applyTo args2 c
-        Nothing -> applyTo args . C.IdentP =<< toConcrete x
+        Nothing -> applyTo args . C.IdentP True =<< toConcrete x
     -- Note: applyTo [] c = return c
     applyTo args c = bracketP_ (appBracketsArgs args) $ do
-      foldl C.AppP c <$> toConcreteCtx argumentCtx_ args
+      foldl C.AppP c <$>
+        (mapM avoidPun =<< toConcreteCtx argumentCtx_ args)
+
+    -- If --hidden-argument-puns is active, then {x} is replaced by
+    -- {(x)} and ⦃ x ⦄ by ⦃ (x) ⦄.
+    avoidPun :: NamedArg C.Pattern -> AbsToCon (NamedArg C.Pattern)
+    avoidPun arg =
+      ifM (optHiddenArgumentPuns <$> pragmaOptions)
+          (return $ case arg of
+             Arg i (Named Nothing x@C.IdentP{}) | notVisible i ->
+               Arg i (Named Nothing (C.ParenP noRange x))
+             arg -> arg)
+          (return arg)
 
 instance ToConcrete (Maybe A.Pattern) where
   type ConOfAbs (Maybe A.Pattern) = Maybe C.Pattern

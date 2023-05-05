@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical-compatible #-}
+{-# OPTIONS --cubical-compatible --level-universe #-}
 module Common.Bool where
 
 open import Agda.Builtin.Bool public

@@ -4,7 +4,7 @@ Some notes when releasing from the future branch (INCOMPLETE).
 
     git clone git@github.com:agda/agda agda-release
     cd agda-release
-    git checkout future
+    git switch future
 
 * The version of the release is current version in the future branch, so if
   this is 2.5.0 the versions used in these notes are:
@@ -29,7 +29,7 @@ Some notes when releasing from the future branch (INCOMPLETE).
 
   ** Merge future into master
 
-       git checkout master
+       git switch master
        git merge future
 
   ** Update the version numbers to $NEXT_MASTER_VERSION in $FILES.
@@ -46,7 +46,7 @@ Some notes when releasing from the future branch (INCOMPLETE).
 
   ** Merge the master back into the future branch.
 
-       git checkout future
+       git switch future
        git merge master
 
 * Update the version numbers to $NEXT_FUTURE_VERSION in $FILES.

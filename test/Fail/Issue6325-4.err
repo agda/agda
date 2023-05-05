@@ -1,0 +1,5 @@
+Issue6325-4.agda:12,4-8
+The pattern variable true has the same name as the constructor
+Bool.true
+when checking the clause left hand side
+f {true = true} {(A)}

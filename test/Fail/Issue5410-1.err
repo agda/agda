@@ -1,3 +1,5 @@
-Issue5410-1.agda:16,19-20
-Variable b is declared erased, so it cannot be used here
-when checking that the expression b has type Bool
+Issue5410-1.agda:18,7-24
+Identifier A.M′.some-boolean is declared erased, so it cannot be
+used here
+when checking that the expression A.M′.some-boolean has type
+@0 Bool → Bool

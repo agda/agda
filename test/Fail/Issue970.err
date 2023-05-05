@@ -4,5 +4,5 @@ Termination checking failed for the following functions:
 Problematic calls:
   bug
   (subst (λ _ → proj₁ (update tt (nothing , tt)) ≡ nothing) refl
-   (cong proj₁ (lem-upd tt (nothing , tt))))
+   (cong (λ r → proj₁ r) (lem-upd tt (nothing , tt))))
     (at Issue970.agda:43,16-19)

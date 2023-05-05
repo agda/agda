@@ -3,6 +3,8 @@
 -- Meta variable solver should not use uncurrying
 -- if the record type contains erased fields.
 
+{-# OPTIONS --erasure #-}
+
 open import Agda.Builtin.Equality
 open import Agda.Builtin.Sigma
 open import Common.IO

@@ -1,10 +1,12 @@
+{-# OPTIONS --erasure #-}
+
 data D (A : Set) : Set where
   c₁ : D A
 
-_ : (@0 A : Set) → D A
+_ : (A : Set) → D A
 _ = λ A → c₁ {A = A}
 
-_ : (@0 A : Set) → D A
+_ : (A : Set) → D A
 _ = λ A → D.c₁ {A = A}
 
 record R (A : Set) : Set where
@@ -17,13 +19,13 @@ record R (A : Set) : Set where
 
 open R public
 
-_ : (@0 A : Set) → (A → A) → R A
+_ : (A : Set) → (A → A) → R A
 _ = λ A → c₂ {A = A}
 
-_ : (@0 A : Set) → R A → A → A
+_ : (A : Set) → R A → A → A
 _ = λ A → f {A = A}
 
-_ : (@0 A : Set) → R A → A → A
+_ : (A : Set) → R A → A → A
 _ = λ A → R.f {A = A}
 
 _ : (A : Set) → R A → A → A

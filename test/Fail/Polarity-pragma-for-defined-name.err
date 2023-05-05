@@ -1,3 +1,4 @@
 Polarity-pragma-for-defined-name.agda:6,14-15
+warning: -W[no]PolarityPragmasButNotPostulates
 Polarity pragmas have been given for the following identifiers
 which are not postulates: A

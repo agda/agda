@@ -4,12 +4,13 @@ module Agda.TypeChecking.Monad.MetaVars where
 
 import Prelude hiding (null)
 
-import Control.Monad                ( (<=<), guard )
-import Control.Monad.Except
-import Control.Monad.State
+import Control.Monad                ( (<=<), forM_, guard )
+import Control.Monad.Except         ( MonadError )
+import Control.Monad.State          ( StateT, execStateT, get, put )
+import Control.Monad.Trans          ( MonadTrans, lift )
 import Control.Monad.Trans.Identity ( IdentityT )
-import Control.Monad.Reader
-import Control.Monad.Writer
+import Control.Monad.Reader         ( ReaderT(ReaderT), runReaderT )
+import Control.Monad.Writer         ( WriterT, execWriterT, tell )
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
 
@@ -35,7 +36,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin (HasBuiltins)
 import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Monad.Closure
-import Agda.TypeChecking.Monad.Constraints (MonadConstraint)
+import Agda.TypeChecking.Monad.Constraints (MonadConstraint(..))
 import Agda.TypeChecking.Monad.Debug
   (MonadDebug, reportSLn, __IMPOSSIBLE_VERBOSE__)
 import Agda.TypeChecking.Monad.Context
@@ -121,6 +122,14 @@ class ( MonadConstraint m
   --    rolled back and 'fallback' is run instead.
   speculateMetas :: m () -> m KeepMetas -> m ()
 
+instance MonadMetaSolver m => MonadMetaSolver (ReaderT r m) where
+  newMeta' inst f i p perm j = lift $ newMeta' inst f i p perm j
+  assignV dir m us v cmp = lift $ assignV dir m us v cmp
+  assignTerm' m us v = lift $ assignTerm' m us v
+  etaExpandMeta k m = lift $ etaExpandMeta k m
+  updateMetaVar m f = lift $ updateMetaVar m f
+  speculateMetas fallback m = ReaderT $ \x -> speculateMetas (runReaderT fallback x) (runReaderT m x)
+
 -- | Switch off assignment of metas.
 dontAssignMetas :: (MonadTCEnv m, HasOptions m, MonadDebug m) => m a -> m a
 dontAssignMetas cont = do
@@ -160,7 +169,7 @@ metasCreatedBy m = do
   ss        <- created stSolvedMetaStore nextMeta
   return (a, LocalMetaStores { openMetas = os, solvedMetas = ss })
   where
-  created :: Lens' LocalMetaStore TCState -> MetaId -> m LocalMetaStore
+  created :: Lens' TCState LocalMetaStore -> MetaId -> m LocalMetaStore
   created store next = do
     ms <- useTC store
     return $ case MapS.splitLookup next ms of
@@ -426,7 +435,7 @@ createMetaInfo' b = do
   r        <- getCurrentRange
   cl       <- buildClosure r
   gen      <- viewTC eGeneralizeMetas
-  modality <- viewTC eModality
+  modality <- currentModality
   return MetaInfo
     { miClosRange       = cl
     , miModality        = modality
@@ -519,7 +528,7 @@ registerInteractionPoint preciseRange r maybeId = do
   ii <- case maybeId of
     Just i  -> return $ InteractionId i
     Nothing -> freshInteractionId
-  let ip = InteractionPoint { ipRange = r, ipMeta = Nothing, ipSolved = False, ipClause = IPNoClause }
+  let ip = InteractionPoint { ipRange = r, ipMeta = Nothing, ipSolved = False, ipClause = IPNoClause, ipBoundary = IPBoundary mempty }
   case BiMap.insertLookupWithKey (\ key new old -> old) ii ip m of
     -- If the interaction point is already present, we keep the old ip.
     -- However, it needs to be at the same range as the new one.
@@ -541,7 +550,7 @@ findInteractionPoint_ r m = do
   listToMaybe $ mapMaybe sameRange $ BiMap.toList m
   where
     sameRange :: (InteractionId, InteractionPoint) -> Maybe InteractionId
-    sameRange (ii, InteractionPoint r' _ False _) | r == r' = Just ii
+    sameRange (ii, InteractionPoint r' _ False _ _) | r == r' = Just ii
     sameRange _ = Nothing
 
 -- | Hook up a local meta-variable to an interaction point.
@@ -551,7 +560,7 @@ connectInteractionPoint
 connectInteractionPoint ii mi = do
   ipCl <- asksTC envClause
   m <- useR stInteractionPoints
-  let ip = InteractionPoint { ipRange = __IMPOSSIBLE__, ipMeta = Just mi, ipSolved = False, ipClause = ipCl }
+  let ip = InteractionPoint { ipRange = __IMPOSSIBLE__, ipMeta = Just mi, ipSolved = False, ipClause = ipCl, ipBoundary = IPBoundary mempty }
   -- The interaction point needs to be present already, we just set the meta.
   case BiMap.insertLookupWithKey (\ key new old -> new { ipRange = ipRange old }) ii ip m of
     (Nothing, _) -> __IMPOSSIBLE__
@@ -722,13 +731,39 @@ clearMetaListeners :: MonadMetaSolver m => MetaId -> m ()
 clearMetaListeners m =
   updateMetaVar m $ \mv -> mv { mvListeners = Set.empty }
 
+-- | Do safe eta-expansions for meta (@SingletonRecords,Levels@).
+etaExpandMetaSafe :: (MonadMetaSolver m) => MetaId -> m ()
+etaExpandMetaSafe = etaExpandMeta [SingletonRecords,Levels]
+
+-- | Eta expand metavariables listening on the current meta.
+etaExpandListeners :: MonadMetaSolver m => MetaId -> m ()
+etaExpandListeners m = do
+  ls <- getMetaListeners m
+  clearMetaListeners m  -- we don't really have to do this
+  mapM_ wakeupListener ls
+
+-- | Wake up a meta listener and let it do its thing
+wakeupListener :: MonadMetaSolver m => Listener -> m ()
+  -- Andreas 2010-10-15: do not expand record mvars, lazyness needed for irrelevance
+wakeupListener (EtaExpand x)         = etaExpandMetaSafe x
+wakeupListener (CheckConstraint _ c) = do
+  --reportSDoc "tc.meta.blocked" 20 $ "waking boxed constraint" <+> prettyTCM c
+  modifyAwakeConstraints (c:)
+  solveAwakeConstraints
+
+solveAwakeConstraints :: (MonadConstraint m) => m ()
+solveAwakeConstraints = solveAwakeConstraints' False
+
+solveAwakeConstraints' :: (MonadConstraint m) => Bool -> m ()
+solveAwakeConstraints' = solveSomeAwakeConstraints (const True)
+
 ---------------------------------------------------------------------------
 -- * Freezing and unfreezing metas.
 ---------------------------------------------------------------------------
 
 -- | Freeze the given meta-variables (but only if they are open) and
 -- return those that were not already frozen.
-freezeMetas :: LocalMetaStore -> TCM (Set MetaId)
+freezeMetas :: MonadTCState m => LocalMetaStore -> m (Set MetaId)
 freezeMetas ms =
   execWriterT $
   modifyTCLensM stOpenMetaStore $
@@ -759,6 +794,17 @@ isFrozen ::
 isFrozen x = do
   mvar <- lookupLocalMeta x
   return $ mvFrozen mvar == Frozen
+
+withFrozenMetas
+  :: (MonadMetaSolver m, MonadTCState m)
+  => m a -> m a
+withFrozenMetas act = do
+  openMetas <- useR stOpenMetaStore
+  frozenMetas <- freezeMetas openMetas
+  result <- act
+  forM_ (Set.toList frozenMetas) $ \m ->
+    updateMetaVar m $ \ mv -> mv { mvFrozen = Instantiable }
+  return result
 
 -- | Unfreeze a meta and its type if this is a meta again.
 --   Does not unfreeze deep occurrences of meta-variables or remote

@@ -1,8 +1,9 @@
+warning: -W[no]LibUnknownField
 unknown-field.agda-lib: Unknown field 'this-field-does-not-exist'
- Library 'standard-library' not found.
- Add the path to its .agda-lib file to
-   installed-libs/libraries'
- to install.
- Installed libraries:
-   test-succeed (succeed2.agda-lib)
-   unknown-field (unknown-field.agda-lib)
+Library 'standard-library' not found.
+Add the path to its .agda-lib file to
+  installed-libs/libraries'
+to install.
+Installed libraries:
+  test-succeed (succeed2.agda-lib)
+  unknown-field (unknown-field.agda-lib)

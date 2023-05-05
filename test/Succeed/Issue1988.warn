@@ -1,9 +1,11 @@
 Issue1988.agda:9,1-26
+warning: -W[no]OldBuiltin
 Builtin REFL no longer exists. It is now bound by BUILTIN EQUALITY
 when checking the pragma BUILTIN REFL refl
 
 ———— All done; warnings encountered ————————————————————————
 
 Issue1988.agda:9,1-26
+warning: -W[no]OldBuiltin
 Builtin REFL no longer exists. It is now bound by BUILTIN EQUALITY
 when checking the pragma BUILTIN REFL refl

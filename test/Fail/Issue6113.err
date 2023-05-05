@@ -1,0 +1,3 @@
+Issue6113.agda:11,30-32
+⊤ !=< X
+when checking that the expression tt has type X

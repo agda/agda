@@ -1,4 +1,5 @@
 {-# OPTIONS --guardedness #-}
+-- {-# OPTIONS -v tc.check.term.con:40 #-}
 -- {-# OPTIONS -v tc.polarity:10 -v tc.with:0 -v tc.with.top:15 -v tc.with.strip:0 #-}
 
 module InductiveAndCoinductiveConstructors where
@@ -75,7 +76,7 @@ mutual
   label xs ls = lab xs (lss xs ls)
 
   lss   : Prog (stream unit) → Stream ⊤ → _
-  lss   xs ls = (↓ (♯ (ls ≺ snd (label xs ls))))
+  lss   xs ls = ↓ (♯ (ls ≺ snd (label xs ls)))
 
 shape-preserved : ∀ xs ls → ⟦ fst (label xs ls) ⟧ ≈ ⟦ xs ⟧
 shape-preserved xs ls = lemma xs (lss xs ls)

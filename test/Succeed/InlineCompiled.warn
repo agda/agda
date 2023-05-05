@@ -1,3 +1,4 @@
 InlineCompiled.agda:10,1-36
+warning: -W[no]UselessInline
 It is pointless for INLINE'd function id to have a separate Haskell
 definition

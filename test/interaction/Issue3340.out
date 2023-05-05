@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "?0 : _14 (b = b) ?1 : _23 (c = c) ?2 : _32 (a′ = a′) (b = b) (b′ = b′) ?3 : _45 (a′ = a′) (b′ = b′) (c = c) (c′ = c′) Sort _14 [ at Issue3340.agda:16,19-23 ] Sort _23 [ at Issue3340.agda:17,19-23 ] Sort _32 [ at Issue3340.agda:21,33-37 ] Sort _45 [ at Issue3340.agda:22,44-48 ] " nil)
+(agda2-info-action "*All Goals, Errors*" "?0 : _14 (b = b) ?1 : _23 (c = c) ?2 : _32 (a′ = a′) (b = b) (b′ = b′) ?3 : _45 (a′ = a′) (b′ = b′) (c = c) (c′ = c′) Sort _14 [ at Issue3340.agda:16,19-23 ] Sort _23 [ at Issue3340.agda:17,19-23 ] Sort _32 [ at Issue3340.agda:21,33-37 ] Sort _45 [ at Issue3340.agda:22,44-48 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: Has PTS rule: (B a , piSort Set (λ c → piSort Set (λ c′ → _45 (a′ = a′) (b′ = b′) (c = c) (c′ = c′)))) (blocked on _45) Has PTS rule: (C b , piSort Set (λ c′ → _45 (a′ = a′) (b′ = b′) (c = c) (c′ = c′))) (blocked on _45) Has PTS rule: (C b′ , _45 (a′ = a′) (b′ = b′) (c = c) (c′ = c′)) (blocked on _45) Has PTS rule: (B a , piSort Set (λ b′ → _32 (a′ = a′) (b = b) (b′ = b′))) (blocked on _32) Has PTS rule: (B a′ , _32 (a′ = a′) (b = b) (b′ = b′)) (blocked on _32) Has PTS rule: (C b , _23 (c = c)) (blocked on _23) Has PTS rule: (B a , _14 (b = b)) (blocked on _14) " nil)
 ((last . 1) . (agda2-goals-action '(0 1 2 3)))
 (agda2-status-action "")
 (agda2-info-action "*Goal type etc.*" "Goal: _14 (b = b) ———————————————————————————————————————————————————————————— b : B a a : A" nil)

@@ -114,6 +114,8 @@ Courses using Agda
   EUTYPES Summer School '19 in Ohrid.
 - `Lectures on Agda <https://www.mathstat.dal.ca/~selinger/agda-lectures/>`__,
   a course by Peter Selinger at Dalhousie University, Winter 2021.
+- `HoTTEST Summer School 2022 <https://www.uwo.ca/math/faculty/kapulkin/seminars/hottest_summer_school_2022.html>`__,
+  online lectures by assorted instructors.
 
 Miscellaneous
 =============

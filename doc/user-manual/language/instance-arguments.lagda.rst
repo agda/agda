@@ -5,7 +5,7 @@
 
   open import language.built-ins
     using (Bool; true; false; List; _∷_; []; Nat; _-_; zero; suc; _+_)
-    renaming (_==_ to natEquals)
+    renaming (_==_ to _≡ᵇ_)
 
   open import Agda.Primitive
 
@@ -270,7 +270,7 @@ recursively during instance resolution. For instance,
       _==_ {{eqList}} _        _        = false
 
       eqNat : Eq Nat
-      _==_ {{eqNat}} = natEquals
+      _==_ {{eqNat}} = _≡ᵇ_  -- imported from Data.Nat.Base
 
     ex : Bool
     ex = (1 ∷ 2 ∷ 3 ∷ []) == (1 ∷ 2 ∷ []) -- false
@@ -288,7 +288,7 @@ and return the solution ``eqList {{eqNat}}``.
    ``loop : ∀ {a} {A : Set a} → {{Eq A}} → Eq A``.
    To prevent looping in cases like this, the search depth of instance search
    is limited, and once the maximum depth is reached, a type error will be
-   thrown. You can set the maximum depth using the ``--instance-search-depth``
+   thrown. You can set the maximum depth using the :option:`--instance-search-depth`
    flag.
 
 Restricting instance search
@@ -334,6 +334,10 @@ To restrict an instance to the current module, you can mark it as
 
     _ : test₂ ≡ 42
     _ = refl
+
+Alternatively, you can enable the :option:`--no-qualified-instances` flag to
+make Agda only consider instances from modules that have been opened
+(see :ref:`below<qualified-instances>` for more details).
 
 ..
 
@@ -413,10 +417,55 @@ goal when given appropriate arguments, hence instance search fails.
   ex₁ : 1 ∈ 1 ∷ 2 ∷ 3 ∷ 4 ∷ []
   ex₁ = it  -- overlapping instances
 
-Overlapping instances can be enabled via the ``--overlapping-instances``
+Overlapping instances can be enabled via the :option:`--overlapping-instances`
 flag.  Be aware that enabling this flag might lead to an exponential
 slowdown in instance resolution and possibly (apparent) looping
 behaviour.
+
+.. _qualified-instances:
+
+Qualified instances
++++++++++++++++++++
+
+By default, Agda considers all instances as candidates, even if they
+are only in scope under a qualified name. In particular, this means
+that instances from a module that is ``import``-ed but not ``open``-ed
+are still considered for instance search. You can use the
+:option:`--no-qualified-instances` flag to make Agda instead only consider
+instances that are in scope under an unqualified name.
+
+As an example, consider the following Agda code:
+
+::
+
+  record MyClass (A : Set) : Set where
+    field
+      myFun : A → A
+  open MyClass {{...}}
+
+  module Instances where
+
+    instance myNatInstance : MyClass Nat
+    myFun {{myNatInstance}} = suc
+
+  -- without --no-qualified-instances
+  test1 : Nat
+  test1 = myFun 41
+
+By default, this example is accepted by Agda, but if
+:option:`--no-qualified-instances` is enabled you have to open the module
+``Instances`` first:
+
+::
+
+  -- with --no-qualified-instances
+  open Instances
+
+  test2 : Nat
+  test2 = myFun 41
+
+This flag can be especially useful if you want to import a module
+without necessarily using all of the instances that it exports.
 
 .. _instance-arguments-examples:
 
@@ -495,7 +544,7 @@ Verify the goal
   the target type ``C`` is a variable from the context or the name of
   a data or record type, and ``{Γ}`` denotes a telescope of implicit or
   instance arguments. If this is not the case instance resolution
-  fails with an error message\ [#issue1322]_.
+  fails with an error message.
 
 Find candidates
   In the second stage we compute a set of
@@ -508,35 +557,30 @@ Find candidates
   target type computed in the previous stage and ``{Δ}`` only contains
   implicit or instance arguments, are considered.
 
-Check the candidates
-  We attempt to use each candidate in turn to build an instance of the
-  goal type ``{Γ} → C vs``. First we extend the current context by
-  ``{Γ}``. Then, given a candidate ``c : {Δ} → A`` we generate fresh
-  metavariables ``αs : {Δ}`` for the arguments of ``c``, with ordinary
-  metavariables for implicit arguments, and instance metavariables,
-  solved by a recursive call to instance resolution, for instance
-  arguments.
+Check the type of the candidates We check for each candidate in turn
+  whether it can be used to build an instance of the goal type ``{Γ} →
+  C vs``. First we extend the current context by ``{Γ}``. Then, given
+  a candidate ``c : {Δ} → A`` we generate fresh metavariables ``αs :
+  {Δ}`` for the arguments of ``c``, with ordinary metavariables for
+  implicit arguments, and instance metavariables, solved by a
+  recursive call to instance resolution, for instance arguments.
 
-  Next we :ref:`unify <unification>` ``A[Δ := αs]`` with ``C vs`` and apply
-  instance resolution to the instance metavariables in ``αs``. Both unification
-  and instance resolution have three possible outcomes: *yes*, *no*, or
-  *maybe*. In case we get a *no* answer from any of them, the current candidate
-  is discarded, otherwise we return the potential solution ``λ {Γ} → c αs``.
+  Next we :ref:`unify <unification>` ``A[Δ := αs]`` with ``C vs``
+  (and, if ``-overlapping-instances`` is enabled, also apply instance
+  resolution to the instance metavariables in ``αs``). In case this
+  results in a definite mismatch between the type of the instance and
+  the type of the goal, the current candidate is discarded, otherwise
+  we return the potential solution ``λ {Γ} → c αs``.
 
-Compute the result
-  From the previous stage we get a list of potential solutions. If the list is
-  empty we fail with an error saying that no instance for ``C vs`` could be
-  found (*no*). If there is a single solution we use it to solve the goal
-  (*yes*), and if there are multiple solutions we check if they are all equal.
-  If they are, we solve the goal with one of them (*yes*), but if they are not,
-  we postpone instance resolution (*maybe*), hoping that some of the *maybes*
-  will turn into *nos* once we know more about the involved metavariables.
+Compute the result From the previous stage we get a list of potential
+  solutions. If the list is empty we fail with an error saying that no
+  instance for ``C vs`` could be found. If there is a single solution
+  or if all of the solutions are equal, we use it to solve the
+  goal. Otherwise we postpone instance resolution until the type of
+  the candidates or the goal type are resolved further.
 
   If there are left-over instance problems at the end of type checking, the
   corresponding metavariables are printed in the Emacs status buffer together
   with their types and source location. The candidates that gave rise to
   potential solutions can be printed with the :ref:`show constraints command
   <emacs-global-commands>` (``C-c C-=``).
-
-.. [#issue1322] Instance goal verification is buggy at the moment. See `issue
-   #1322 <https://github.com/agda/agda/issues/1322>`_.

@@ -39,21 +39,24 @@ import qualified Agda.Syntax.Concrete.Pretty as CP
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Scope.Base  (AbstractName(..))
 import Agda.Syntax.Scope.Monad (withContextPrecedence)
+import Agda.Syntax.TopLevelModuleName
 
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
 
+import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Graph)
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
-import Agda.Utils.Permutation (Permutation)
-import Agda.Utils.Pretty (Pretty, prettyShow)
+import Agda.Utils.Permutation ( Permutation )
+import Agda.Utils.Pretty      ( Pretty, prettyShow )
 import qualified Agda.Utils.Pretty as P
+import Agda.Utils.Size        ( natSize )
 
 import Agda.Utils.Impossible
 
@@ -163,6 +166,8 @@ instance {-# OVERLAPPING #-} PrettyTCM String where prettyTCM = text
 instance PrettyTCM Bool        where prettyTCM = pretty
 instance PrettyTCM C.Name      where prettyTCM = pretty
 instance PrettyTCM C.QName     where prettyTCM = pretty
+instance PrettyTCM TopLevelModuleName
+                               where prettyTCM = pretty
 instance PrettyTCM Comparison  where prettyTCM = pretty
 instance PrettyTCM Literal     where prettyTCM = pretty
 instance PrettyTCM Nat         where prettyTCM = pretty
@@ -240,20 +245,20 @@ instance PrettyTCM MetaId where
 instance PrettyTCM NamedMeta where
   prettyTCM (NamedMeta s m) = do
     current <- currentModuleNameHash
-    modName <- Map.lookup (metaModule m) <$> useR stModuleNameHashes
-    case modName of
-      Nothing      -> __IMPOSSIBLE__
-      Just modName -> prefix <> inBetween <> text (show (metaId m))
-        where
-        prefix =
-          if metaModule m == current
-          then empty
-          else pretty modName <> text "."
-
-        inBetween = case s of
+    prefix  <-
+      if metaModule m == current
+      then return empty
+      else do
+        modName <- BiMap.invLookup (metaModule m) <$>
+                   useR stTopLevelModuleNames
+        return $ case modName of
+          Nothing      -> __IMPOSSIBLE__
+          Just modName -> pretty modName <> text "."
+    let inBetween = case s of
           ""  -> text "_"
           "_" -> text "_"
           s   -> text $ "_" ++ s ++ "_"
+    prefix <> inBetween <> text (show (metaId m))
 
 instance PrettyTCM a => PrettyTCM (Blocked a) where
   prettyTCM (Blocked x a) = ("[" <+> prettyTCM a <+> "]") <> text (P.prettyShow x)
@@ -293,6 +298,9 @@ instance PrettyTCM Relevance where
 instance PrettyTCM Quantity where
   prettyTCM = pretty
 
+instance PrettyTCM Erased where
+  prettyTCM = pretty
+
 instance PrettyTCM Modality where
   prettyTCM mod = hsep
     [ prettyTCM (getQuantity mod)
@@ -304,6 +312,7 @@ instance PrettyTCM Blocker where
   prettyTCM (UnblockOnAny us) = "any" <> parens (fsep $ punctuate "," $ map prettyTCM $ Set.toList us)
   prettyTCM (UnblockOnMeta m) = prettyTCM m
   prettyTCM (UnblockOnProblem p) = "problem" <+> pretty p
+  prettyTCM (UnblockOnDef q) = "definition" <+> pretty q
 
 instance PrettyTCM CompareAs where
   prettyTCM (AsTermsOf a) = ":" <+> prettyTCMCtx TopCtx a
@@ -321,7 +330,7 @@ instance PrettyTCM TypeCheckingProblem where
   prettyTCM (CheckLambda cmp (Arg ai (xs, mt)) e t) =
     sep [ pure CP.lambda <+>
           (CP.prettyRelevance ai .
-           CP.prettyHiding ai (if isNothing mt && length xs == 1 then id
+           CP.prettyHiding ai (if isNothing mt && natSize xs == 1 then id
                                else P.parens) <$> do
             fsep $
               map prettyTCM (List1.toList xs) ++
@@ -431,6 +440,7 @@ instance PrettyTCM NLPSort where
     PInf f n  -> prettyTCM (Inf f n :: Sort)
     PSizeUniv -> prettyTCM (SizeUniv :: Sort)
     PLockUniv -> prettyTCM (LockUniv :: Sort)
+    PLevelUniv -> prettyTCM (LevelUniv :: Sort)
     PIntervalUniv -> prettyTCM (IntervalUniv :: Sort)
 
 instance PrettyTCM (Elim' NLPat) where

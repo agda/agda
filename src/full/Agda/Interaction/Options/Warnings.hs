@@ -4,6 +4,7 @@ module Agda.Interaction.Options.Warnings
          WarningMode (..)
        , warningSet
        , warn2Error
+       , lensSingleWarning
        , defaultWarningSet
        , allWarnings
        , usualWarnings
@@ -31,10 +32,13 @@ import Text.Read ( readMaybe )
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
-import Data.List ( stripPrefix, intercalate )
+import Data.List ( stripPrefix, intercalate, partition, sort )
 
 import GHC.Generics (Generic)
 
+import Agda.Utils.Either ( maybeToEither )
+import Agda.Utils.Function
+import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -51,11 +55,16 @@ data WarningMode = WarningMode
 
 instance NFData WarningMode
 
-warningSet :: Lens' (Set WarningName) WarningMode
+-- Lenses
+
+warningSet :: Lens' WarningMode (Set WarningName)
 warningSet f o = (\ ws -> o { _warningSet = ws }) <$> f (_warningSet o)
 
-warn2Error :: Lens' Bool WarningMode
+warn2Error :: Lens' WarningMode Bool
 warn2Error f o = (\ ws -> o { _warn2Error = ws }) <$> f (_warn2Error o)
+
+lensSingleWarning :: WarningName -> Lens' WarningMode Bool
+lensSingleWarning w = warningSet . contains w
 
 -- | The @defaultWarningMode@ is a curated set of warnings covering non-fatal
 -- errors and disabling style-related ones
@@ -92,10 +101,10 @@ warningModeUpdate str = case str of
             -> pure $ set warningSet ws
   _ -> case stripPrefix "no" str of
     Nothing   -> do
-      wname <- maybe (Left (Unknown str)) Right (string2WarningName str)
+      wname :: WarningName <- maybeToEither (Unknown str) $ string2WarningName str
       pure (over warningSet $ Set.insert wname)
     Just str' -> do
-      wname <- maybe (Left (Unknown str')) Right (string2WarningName str')
+      wname :: WarningName <- maybeToEither (Unknown str') $ string2WarningName str'
       when (wname `elem` errorWarnings) (Left (NoNoError str'))
       pure (over warningSet $ Set.delete wname)
 
@@ -167,9 +176,10 @@ usualWarnings = allWarnings Set.\\ Set.fromList
 -- to existing warnings in the codebase.
 
 data WarningName
-  =
+  -- Option Warnings
+  = OptionRenamed_
   -- Parser Warnings
-    OverlappingTokensWarning_
+  | OverlappingTokensWarning_
   | UnsupportedAttribute_
   | MultipleAttributes_
   -- Library Warnings
@@ -228,13 +238,15 @@ data WarningName
   | InstanceArgWithExplicitArg_
   | InstanceWithExplicitArg_
   | InstanceNoOutputTypeName_
+  | InteractionMetaBoundaries_
   | InversionDepthReached_
   | ModuleDoesntExport_
   | NoGuardednessFlag_
   | NotInScope_
   | NotStrictlyPositive_
-  | NoEquivWhenSplitting_
+  | UnsupportedIndexedMatch_
   | OldBuiltin_
+  | PlentyInHardCompileTimeMode_
   | PragmaCompileErased_
   | RewriteMaybeNonConfluent_
   | RewriteNonConfluent_
@@ -296,34 +308,45 @@ usageWarning = intercalate "\n"
     \ one of the following:"
   , ""
   , untable (fmap (fst &&& snd . snd) warningSets)
+
   , "Individual benign warnings can be turned on and off by -W Name and\
     \ -W noName, respectively, where Name comes from the following\
-    \ list (warnings marked with 'd' are turned on by default, and 'b'\
-    \ stands for \"benign warning\"):"
+    \ list (warnings marked with 'd' are turned on by default):"
   , ""
-  , untable $ forMaybe [minBound..maxBound] $ \ w ->
-    let wnd = warningNameDescription w in
-    ( warningName2String w
-    , (if w `Set.member` usualWarnings then "d" else " ") ++
-      (if not (w `Set.member` errorWarnings) then "b" else " ") ++
-      " " ++
-      wnd
-    ) <$ guard (not $ null wnd)
+  , warningTable True benign
+
+  , "Error warnings are always on and cannot be turned off:"
+  , ""
+  , warningTable False severe
   ]
 
   where
 
+    (severe, benign) = partition (`Set.member` errorWarnings) [minBound..maxBound]
+
+    warningTable printD ws =
+      untable $ forMaybe ws $ \ w ->
+        let wnd = warningNameDescription w in
+        ( warningName2String w
+        , applyWhen printD ((if w `Set.member` usualWarnings then "d" else " ") ++)
+          " " ++
+          wnd
+        ) <$ guard (not $ null wnd)
+
     untable :: [(String, String)] -> String
     untable rows =
       let len = maximum (map (length . fst) rows) in
-      unlines $ flip map rows $ \ (hdr, cnt) ->
+      unlines $ for (sort rows) $ \ (hdr, cnt) ->
         concat [ hdr, replicate (1 + len - length hdr) ' ', cnt ]
+
 
 -- | @WarningName@ descriptions used for generating usage information
 -- Leave String empty to skip that name.
 
 warningNameDescription :: WarningName -> String
 warningNameDescription = \case
+  -- Option Warnings
+  OptionRenamed_                   -> "Renamed options."
   -- Parser Warnings
   OverlappingTokensWarning_        -> "Multi-line comments spanning one or more literate text blocks."
   UnsupportedAttribute_            -> "Unsupported attributes."
@@ -343,7 +366,7 @@ warningNameDescription = \case
   EmptyPrivate_                    -> "Empty `private' blocks."
   EmptyRewritePragma_              -> "Empty `REWRITE' pragmas."
   EmptyWhere_                      -> "Empty `where' blocks."
-  HiddenGeneralize_                -> "Hidden identifieres in variable blocks."
+  HiddenGeneralize_                -> "Hidden identifiers in variable blocks."
   InvalidCatchallPragma_           -> "`CATCHALL' pragmas before a non-function clause."
   InvalidConstructor_              -> "`constructor' blocks may only contain type signatures for constructors."
   InvalidConstructorBlock_         -> "No `constructor' blocks outside of `interleaved mutual' blocks."
@@ -393,8 +416,9 @@ warningNameDescription = \case
   FixityInRenamingModule_          -> "Found fixity annotation in renaming directive for module."
   NotInScope_                      -> "Out of scope name."
   NotStrictlyPositive_             -> "Failed strict positivity checks."
-  NoEquivWhenSplitting_            -> "Failed to compute full equivalence when splitting on indexed family."
+  UnsupportedIndexedMatch_         -> "Failed to compute full equivalence when splitting on indexed family."
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
+  PlentyInHardCompileTimeMode_     -> "Use of @ω or @plenty in hard compile-time mode."
   PragmaCompileErased_             -> "`COMPILE' pragma targeting an erased symbol."
   RewriteMaybeNonConfluent_        -> "Failed local confluence check while computing overlap."
   RewriteNonConfluent_             -> "Failed local confluence check while joining critical pairs."
@@ -415,10 +439,11 @@ warningNameDescription = \case
   UnreachableClauses_              -> "Unreachable function clauses."
   UnsolvedConstraints_             -> "Unsolved constraints."
   UnsolvedInteractionMetas_        -> "Unsolved interaction meta variables."
+  InteractionMetaBoundaries_       -> "Some interaction meta variables have boundary constraints."
   UnsolvedMetaVariables_           -> "Unsolved meta variables."
   UserWarning_                     -> "User-defined warning added using one of the 'WARNING_ON_*' pragmas."
   WithoutKFlagPrimEraseEquality_   -> "`primEraseEquality' usages with the without-K flags."
-  WrongInstanceDeclaration_        -> "Terms marked as eligible for instance search should end with a name."
+  WrongInstanceDeclaration_        -> "Instances that do not adhere to the required format."
   -- Checking consistency of options
   CoInfectiveImport_               -> "Importing a file not using e.g. `--safe'  from one which does."
   InfectiveImport_                 -> "Importing a file using e.g. `--cubical' into one which doesn't."

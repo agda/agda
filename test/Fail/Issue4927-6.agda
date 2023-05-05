@@ -1,0 +1,2 @@
+variable
+  @♭ A : Set

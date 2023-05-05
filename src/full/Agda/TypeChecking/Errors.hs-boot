@@ -1,6 +1,7 @@
 module Agda.TypeChecking.Errors where
 
 import Agda.Syntax.Abstract.Name
+import Agda.Syntax.Common
 
 import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Debug (MonadDebug)

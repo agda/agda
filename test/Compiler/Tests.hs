@@ -27,6 +27,7 @@ import Data.Maybe
 import Text.Read
 
 import Agda.Utils.List
+import Agda.Utils.List1 (wordsBy, toList)
 
 type GHCArgs = [String]
 
@@ -177,7 +178,12 @@ stdlibTests comp = do
     -- multiple times
 
   let extraArgs :: [String]
-      extraArgs = [ "-i" ++ testDir, "-i" ++ "std-lib" </> "src", "-istd-lib" ]
+      extraArgs =
+        [ "-i" ++ testDir
+        , "-i" ++ "std-lib" </> "src"
+        , "-istd-lib"
+        , "--warning=noUnsupportedIndexedMatch"
+        ]
 
   let -- Note that -M4G can trigger the following error on 32-bit
       -- systems: "error in RTS option -M4G: size outside allowed
@@ -340,6 +346,6 @@ findGHCVersion = do
     ExitSuccess   -> return $
       sequence $
       concat $
-      map (map readMaybe . wordsBy (== '.')) $
+      map (map (readMaybe . toList) . wordsBy (== '.')) $
       take 1 $
       lines version

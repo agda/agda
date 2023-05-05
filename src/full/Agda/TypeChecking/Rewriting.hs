@@ -52,6 +52,8 @@ import Data.Foldable (toList)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 import Agda.Interaction.Options
 
@@ -84,6 +86,7 @@ import Agda.Utils.Size
 import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
+import Agda.Utils.Either
 
 requireOptionRewriting :: TCM ()
 requireOptionRewriting =
@@ -214,9 +217,18 @@ checkRewriteRule q = do
   let failureWrongTarget :: TCM a
       failureWrongTarget = typeError . GenericDocError =<< hsep
         [ prettyTCM q , " does not target rewrite relation" ]
-  let failureMetas :: Blocker -> TCM a
-      failureMetas b     = typeError . GenericDocError =<< hsep
-        [ prettyTCM q , " is not a legal rewrite rule, since it contains the unsolved meta variable(s)" , prettyTCM b ]
+  let failureBlocked :: Blocker -> TCM a
+      failureBlocked b
+        | not (null ms) = err $ "it contains the unsolved meta variable(s)" <+> prettyList_ (map prettyTCM $ Set.toList ms)
+        | not (null ps) = err $ "it is blocked on problem(s)" <+> prettyList_ (map prettyTCM $ Set.toList ps)
+        | not (null qs) = err $ "it requires the definition(s) of" <+> prettyList_ (map prettyTCM $ Set.toList qs)
+        | otherwise = __IMPOSSIBLE__
+        where
+          err reason = typeError . GenericDocError =<< hsep
+            [ prettyTCM q , " is not a legal rewrite rule, since" , reason ]
+          ms = allBlockingMetas b
+          ps = allBlockingProblems b
+          qs = allBlockingDefs b
   let failureNotDefOrCon :: TCM a
       failureNotDefOrCon = typeError . GenericDocError =<< hsep
         [ prettyTCM q , " is not a legal rewrite rule, since the left-hand side is neither a defined symbol nor a constructor" ]
@@ -275,8 +287,8 @@ checkRewriteRule q = do
 
         checkNoLhsReduction f hd es
 
-        ps <- catchPatternErr failureMetas $
-          patternFrom Relevant 0 (t , Def f []) es
+        ps <- catchPatternErr failureBlocked $
+          patternFrom Relevant 0 (t , Def f) es
 
         reportSDoc "rewriting" 30 $
           "Pattern generated from lhs: " <+> prettyTCM (PDef f ps)
@@ -352,7 +364,20 @@ checkRewriteRule q = do
     checkAxFunOrCon :: QName -> Definition -> TCM ()
     checkAxFunOrCon f def = case theDef def of
       Axiom{}        -> return ()
-      Function{}     -> return ()
+      def@Function{} -> whenJust (maybeRight (funProjection def)) $ \proj ->
+        case projProper proj of
+          Just{} -> typeError . GenericDocError =<< hsep
+            [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
+            , prettyTCM f , "is a projection"
+            ]
+          Nothing -> typeError . GenericDocError =<< hsep
+            [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
+            , hd , "is a projection-like function."
+            , "You can turn off the projection-like optimization for", hd
+            , "with the pragma {-# NOT_PROJECTION_LIKE", hd, "#-}"
+            , "or globally with the flag --no-projection-like"
+            ]
+            where hd = prettyTCM f
       Constructor{}  -> return ()
       AbstractDefn{} -> return ()
       Primitive{}    -> return () -- TODO: is this fine?

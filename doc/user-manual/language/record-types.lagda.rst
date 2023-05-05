@@ -1,6 +1,6 @@
 ..
   ::
-  {-# OPTIONS --guardedness #-}
+  {-# OPTIONS --guardedness --erasure #-}
 
   module language.record-types where
 
@@ -48,19 +48,19 @@ projection functions
 
 .. code-block:: agda
 
-  Pair.fst : {@0 A B : Set} → Pair A B → A
-  Pair.snd : {@0 A B : Set} → Pair A B → B
+  Pair.fst : {A B : Set} → Pair A B → A
+  Pair.snd : {A B : Set} → Pair A B → B
 
 ..
   ::
-   test-fst : {@0 A B : Set} → Pair A B → A
+   test-fst : {A B : Set} → Pair A B → A
    test-fst {A = A} {B = B} p = Pair.fst {A = A} {B = B} p
 
-   test-snd : {@0 A B : Set} → Pair A B → B
+   test-snd : {A B : Set} → Pair A B → B
    test-snd {A = A} {B = B} p = Pair.snd {A = A} {B = B} p
 
-Note that the parameters ``A`` and ``B`` are implicit, :ref:`erased
-<runtime-irrelevance>` arguments to the projection functions.
+Note that the parameters ``A`` and ``B`` are implicit arguments to the
+projection functions.
 
 Elements of record types can be defined using a record expression
 
@@ -458,6 +458,12 @@ is on.  If you want the converse, you can add the record directive
 
   pred : HereditaryList → List HereditaryList
   pred record{ sublists = ts } = ts
+
+If both ``eta-equality`` and ``pattern`` are given for a record types,
+Agda will alert the user of a redundant ``pattern`` directive.
+However, if η is inferred but not declared explicitly, Agda will just
+ignore a redundant ``pattern`` directive; this is because the default
+can be changed globally by option :option:`--no-eta-equality`.
 
 .. _instance-fields:
 

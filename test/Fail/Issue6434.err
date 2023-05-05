@@ -1,0 +1,5 @@
+Issue6434.agda:14,1-20
+Incomplete pattern matching for test. Missing cases:
+  test false b x
+  test true false x
+when checking the definition of test

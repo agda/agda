@@ -7,17 +7,19 @@ import Agda.TypeChecking.Substitute ()
 
 import Internal.Helpers
 import Internal.Syntax.Common ()
+import Internal.Syntax.Abstract.Name ()
 
 ------------------------------------------------------------------------
 -- Instances
 
 instance Arbitrary NotBlocked where
-  arbitrary = elements [ Underapplied
-                       , AbsurdMatch
-                       , MissingClauses
-                       , ReallyNotBlocked
-                       -- , StuckOn Elim  -- TODO
-                       ]
+  arbitrary = oneof
+    [ pure Underapplied
+    , pure AbsurdMatch
+    , MissingClauses <$> arbitrary
+    , pure ReallyNotBlocked
+    -- , StuckOn Elim  -- TODO
+    ]
 
 instance Arbitrary (Blocked ()) where
   arbitrary = do

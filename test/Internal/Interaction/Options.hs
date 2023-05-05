@@ -16,29 +16,31 @@ import System.FilePath ((</>), takeExtension)
 
 import Utils (getAgdaFilesInDir, SearchMode(Rec))
 
-import Internal.Helpers
+import Internal.Helpers hiding (reason)
 
-prop_defaultOptions :: Property
-prop_defaultOptions = ioProperty $
-  either (const False) (const True) <$> runOptM (checkOpts defaultOptions)
+prop_defaultOptions :: Bool
+prop_defaultOptions =
+  case runOptM (checkOpts defaultOptions) of
+    (Right _, []) -> True
+    _ -> False
 
 -- | The default pragma options should be considered safe.
 
 prop_defaultPragmaOptionsSafe :: Property
-prop_defaultPragmaOptionsSafe = ioProperty helper
+prop_defaultPragmaOptionsSafe = ioProperty $
+  case runOptM $ safeFlag defaultPragmaOptions of
+    (Right opts, []) ->
+      case unsafePragmaOptions opts of
+        []         -> yes
+        unsafe     -> no $ "Following pragmas are default but not safe: " ++ intercalate ", " unsafe
+    (Right _ , ws) -> no $ "Unexpected warning(s): " ++ show ws
+    (Left errs, _) -> no $ "Unexpected error: " ++ errs
   where
-    helper :: IO Bool
-    helper = do
-      defaultSafe <- runOptM $ safeFlag defaultPragmaOptions
-      case defaultSafe of
-        Left errs -> do
-          putStrLn $ "Unexpected error: " ++ errs
-          return False
-        Right opts -> let unsafe = unsafePragmaOptions defaultOptions opts in
-          if null unsafe then return True else do
-            putStrLn $ "Following pragmas are default but not safe: "
-                                          ++ intercalate ", " unsafe
-            return False
+  yes :: IO Bool
+  yes = return True
+  no :: String -> IO Bool
+  no msg = False <$ putStrLn msg
+
 
 prop_allBuiltinsSafePostulatesOrNot :: Property
 prop_allBuiltinsSafePostulatesOrNot = ioProperty helper

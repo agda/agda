@@ -1,9 +1,11 @@
 Issue1997.agda:30,1-22
+warning: -W[no]GenericWarning
 Rewrite rule  plus0  has already been added
 when checking the pragma REWRITE plus0
 
 ———— All done; warnings encountered ————————————————————————
 
 Issue1997.agda:30,1-22
+warning: -W[no]GenericWarning
 Rewrite rule  plus0  has already been added
 when checking the pragma REWRITE plus0

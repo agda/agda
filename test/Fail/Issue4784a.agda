@@ -1,4 +1,5 @@
-{-# OPTIONS --cubical-compatible #-}
+{-# OPTIONS --cubical-compatible --erasure #-}
+
 postulate
   A : Set
   B : A → Set

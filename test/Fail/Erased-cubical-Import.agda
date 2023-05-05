@@ -1,4 +1,4 @@
-{-# OPTIONS --erased-cubical #-}
+{-# OPTIONS --erased-cubical --erasure #-}
 
 -- Modules that use --cubical can be imported when --erased-cubical is
 -- used.

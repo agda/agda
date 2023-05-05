@@ -1,7 +1,9 @@
 Issue1003.agda:7,12-33
-Instance arguments whose type does not end in a named or variable
-type are never considered by instance search, so having an instance
-argument ⦃ T : Set ⦄ has no effect.
+warning: -W[no]InstanceNoOutputTypeName
+Instance arguments whose type is not {Γ} → C, where C evaluates to
+a postulated type, a parameter type or the name of a data or record
+type, are never considered by instance search, so having an
+instance argument ⦃ T : Set ⦄ has no effect.
 when checking that the expression ⦃ T : Set ⦄ → T → Set is a type
 Issue1003.agda:10,38-44
 Instance search can only be used to find elements in a named type

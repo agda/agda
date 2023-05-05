@@ -68,7 +68,8 @@ import qualified Data.IntMap as IntMap
 import Data.HashSet (HashSet)
 import qualified Data.HashSet as HashSet
 import Data.Semigroup ( Semigroup, (<>) )
-
+import qualified Data.Set as Set
+import Data.Set (Set)
 
 
 import Agda.Syntax.Common
@@ -99,6 +100,9 @@ insertMetaSet m (MetaSet ms) = MetaSet $ HashSet.insert m ms
 foldrMetaSet :: (MetaId -> a -> a) -> a -> MetaSet -> a
 foldrMetaSet f e ms = HashSet.foldr f e $ theMetaSet ms
 
+metaSetToBlocker :: MetaSet -> Blocker
+metaSetToBlocker ms = unblockOnAny $ foldrMetaSet (Set.insert . unblockOnMeta) Set.empty ms
+
 ---------------------------------------------------------------------------
 -- * Flexible and rigid occurrences (semigroup)
 
@@ -121,28 +125,28 @@ data FlexRig' a
 
 type FlexRig = FlexRig' MetaSet
 
-class LensFlexRig a o | o -> a where
-  lensFlexRig :: Lens' (FlexRig' a) o
+class LensFlexRig o a | o -> a where
+  lensFlexRig :: Lens' o (FlexRig' a)
 
-instance LensFlexRig a (FlexRig' a) where
-  lensFlexRig f x = f x
+instance LensFlexRig (FlexRig' a) a where
+  lensFlexRig = id
 
-isFlexible :: LensFlexRig a o => o -> Bool
+isFlexible :: LensFlexRig o a => o -> Bool
 isFlexible o = case o ^. lensFlexRig of
   Flexible {} -> True
   _ -> False
 
-isUnguarded :: LensFlexRig a o => o -> Bool
+isUnguarded :: LensFlexRig o a => o -> Bool
 isUnguarded o = case o ^. lensFlexRig of
   Unguarded -> True
   _ -> False
 
-isWeaklyRigid :: LensFlexRig a o => o -> Bool
+isWeaklyRigid :: LensFlexRig o a => o -> Bool
 isWeaklyRigid o = case o ^. lensFlexRig of
    WeaklyRigid -> True
    _ -> False
 
-isStronglyRigid :: LensFlexRig a o => o -> Bool
+isStronglyRigid :: LensFlexRig o a => o -> Bool
 isStronglyRigid o = case o ^. lensFlexRig of
   StronglyRigid -> True
   _ -> False
@@ -228,9 +232,9 @@ instance LensRelevance (VarOcc' a) where
 instance LensQuantity (VarOcc' a) where
 
 -- | Access to 'varFlexRig' in 'VarOcc'.
-instance LensFlexRig a (VarOcc' a) where
+instance LensFlexRig (VarOcc' a) a where
   lensFlexRig f (VarOcc fr m) = f fr <&> \ fr' -> VarOcc fr' m
--- lensFlexRig :: Lens' (FlexRig' a) (VarOcc' a)
+-- lensFlexRig :: Lens' (VarOcc' a) (FlexRig' a)
 -- lensFlexRig f (VarOcc fr m) = f fr <&> \ fr' -> VarOcc fr' m
 
 
@@ -402,7 +406,7 @@ type FreeEnv c = FreeEnv' MetaSet IgnoreSorts c
 feIgnoreSorts :: FreeEnv' a IgnoreSorts c -> IgnoreSorts
 feIgnoreSorts = feExtra
 
-instance LensFlexRig a (FreeEnv' a b c) where
+instance LensFlexRig (FreeEnv' a b c) a where
   lensFlexRig f e = f (feFlexRig e) <&> \ fr -> e { feFlexRig = fr }
 
 instance LensModality (FreeEnv' a b c) where
@@ -467,18 +471,18 @@ underRelevance :: (MonadReader r m, LensRelevance r, LensRelevance o) => o -> m 
 underRelevance = local . mapRelevance . composeRelevance . getRelevance
 
 -- | Changing the 'FlexRig' context.
-underFlexRig :: (MonadReader r m, LensFlexRig a r, Semigroup a, LensFlexRig a o) => o -> m z -> m z
+underFlexRig :: (MonadReader r m, LensFlexRig r a, Semigroup a, LensFlexRig o a) => o -> m z -> m z
 underFlexRig = local . over lensFlexRig . composeFlexRig . view lensFlexRig
 
 -- | What happens to the variables occurring under a constructor?
-underConstructor :: (MonadReader r m, LensFlexRig a r, Semigroup a) => ConHead -> Elims -> m z -> m z
+underConstructor :: (MonadReader r m, LensFlexRig r a, Semigroup a) => ConHead -> Elims -> m z -> m z
 underConstructor (ConHead _c _d i fs) es =
   case i of
     -- Coinductive (record) constructors admit infinite cycles:
     CoInductive -> underFlexRig WeaklyRigid
     -- Inductive constructors do not admit infinite cycles:
-    Inductive   | size es == size fs -> underFlexRig StronglyRigid
-                | otherwise          -> underFlexRig WeaklyRigid
+    Inductive   | natSize es == natSize fs -> underFlexRig StronglyRigid
+                | otherwise                -> underFlexRig WeaklyRigid
     -- Jesper, 2020-10-22: Issue #4995: treat occurrences in non-fully
     -- applied constructors as weakly rigid.
     -- Ulf, 2019-10-18: Now the termination checker treats inductive recursive records
@@ -548,6 +552,7 @@ instance Free Sort where
       SSet a     -> freeVars' a
       SizeUniv   -> mempty
       LockUniv   -> mempty
+      LevelUniv  -> mempty
       IntervalUniv -> mempty
       PiSort a s1 s2 -> underFlexRig (Flexible mempty) (freeVars' $ unDom a) `mappend`
                         underFlexRig WeaklyRigid (freeVars' (s1, s2))

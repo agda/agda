@@ -30,6 +30,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.ListT
 import Agda.Utils.Monad
 import Agda.Utils.Maybe
@@ -62,6 +63,28 @@ instance MonadIO m => HasBuiltins (TCMT m) where
     liftM2 (unionMaybeWith unionBuiltin)
       (Map.lookup b <$> useTC stLocalBuiltins)
       (Map.lookup b <$> useTC stImportedBuiltins)
+
+
+-- | The trivial implementation of 'HasBuiltins', using a constant 'TCState'.
+--
+-- This may be used instead of 'TCMT'/'ReduceM' where builtins must be accessed
+-- in a pure context.
+newtype BuiltinAccess a = BuiltinAccess { unBuiltinAccess :: TCState -> a }
+  deriving (Functor, Applicative, Monad)
+
+instance Fail.MonadFail BuiltinAccess where
+  fail msg = BuiltinAccess $ \_ -> error msg
+
+instance HasBuiltins BuiltinAccess where
+  getBuiltinThing b = BuiltinAccess $ \state ->
+    unionMaybeWith unionBuiltin
+      (Map.lookup b $ state ^. stLocalBuiltins)
+      (Map.lookup b $ state ^. stImportedBuiltins)
+
+-- | Run a 'BuiltinAccess' monad.
+runBuiltinAccess :: TCState -> BuiltinAccess a -> a
+runBuiltinAccess s m = unBuiltinAccess m s
+
 
 -- If Agda is changed so that the type of a literal can belong to an
 -- inductive family (with at least one index), then the implementation
@@ -120,18 +143,16 @@ getBuiltinRewriteRelations = fmap rels <$> getBuiltinThing builtinRewrite
     Prim{}    -> __IMPOSSIBLE__
     Builtin{} -> __IMPOSSIBLE__
 
-getBuiltin :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+getBuiltin :: (HasBuiltins m, MonadTCError m)
            => String -> m Term
 getBuiltin x =
   fromMaybeM (typeError $ NoBindingForBuiltin x) $ getBuiltin' x
 
 getBuiltin' :: HasBuiltins m => String -> m (Maybe Term)
-getBuiltin' x = do
-    builtin <- getBuiltinThing x
-    case builtin of
-        Just BuiltinRewriteRelations{} -> __IMPOSSIBLE__
-        Just (Builtin t) -> return $ Just $ killRange t
-        _                -> return Nothing
+getBuiltin' x = (getBuiltin =<<) <$> getBuiltinThing x where
+  getBuiltin BuiltinRewriteRelations{} = __IMPOSSIBLE__
+  getBuiltin (Builtin t)               = Just $ killRange t
+  getBuiltin _                         = Nothing
 
 getPrimitive' :: HasBuiltins m => String -> m (Maybe PrimFun)
 getPrimitive' x = (getPrim =<<) <$> getBuiltinThing x
@@ -211,6 +232,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primEquality, primRefl,
     primLevel, primLevelZero, primLevelSuc, primLevelMax,
     primLockUniv,
+    primLevelUniv,
     primSet, primProp, primSetOmega, primStrictSet, primSSetOmega,
     primFromNat, primFromNeg, primFromString,
     -- builtins for reflection:
@@ -238,17 +260,21 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMTypeError, primAgdaTCMInferType, primAgdaTCMCheckType,
     primAgdaTCMNormalise, primAgdaTCMReduce,
     primAgdaTCMCatchError, primAgdaTCMGetContext, primAgdaTCMExtendContext, primAgdaTCMInContext,
-    primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDeclarePostulate, primAgdaTCMDefineFun,
+    primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDeclarePostulate, primAgdaTCMDeclareData, primAgdaTCMDefineData, primAgdaTCMDefineFun,
     primAgdaTCMGetType, primAgdaTCMGetDefinition,
     primAgdaTCMQuoteTerm, primAgdaTCMUnquoteTerm, primAgdaTCMQuoteOmegaTerm,
     primAgdaTCMBlockOnMeta, primAgdaTCMCommit, primAgdaTCMIsMacro,
     primAgdaTCMFormatErrorParts, primAgdaTCMDebugPrint,
-    primAgdaTCMWithNormalisation, primAgdaTCMWithReconsParams,
-    primAgdaTCMOnlyReduceDefs, primAgdaTCMDontReduceDefs,
+    primAgdaTCMWithNormalisation, primAgdaTCMWithReconstructed,
+    primAgdaTCMWithExpandLast, primAgdaTCMWithReduceDefs,
+    primAgdaTCMAskNormalisation, primAgdaTCMAskReconstructed,
+    primAgdaTCMAskExpandLast, primAgdaTCMAskReduceDefs,
     primAgdaTCMNoConstraints,
     primAgdaTCMRunSpeculative,
     primAgdaTCMExec,
-    primAgdaTCMGetInstances
+    primAgdaTCMGetInstances,
+    primAgdaTCMPragmaForeign,
+    primAgdaTCMPragmaCompile
     :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m) => m Term
 
 primInteger                           = getBuiltin builtinInteger
@@ -334,6 +360,7 @@ primSet                               = getBuiltin builtinSet
 primProp                              = getBuiltin builtinProp
 primSetOmega                          = getBuiltin builtinSetOmega
 primLockUniv                          = getPrimitiveTerm builtinLockUniv
+primLevelUniv                         = getBuiltin builtinLevelUniv
 primSSetOmega                         = getBuiltin builtinSSetOmega
 primStrictSet                         = getBuiltin builtinStrictSet
 primFromNat                           = getBuiltin builtinFromNat
@@ -432,6 +459,8 @@ primAgdaTCMInContext                  = getBuiltin builtinAgdaTCMInContext
 primAgdaTCMFreshName                  = getBuiltin builtinAgdaTCMFreshName
 primAgdaTCMDeclareDef                 = getBuiltin builtinAgdaTCMDeclareDef
 primAgdaTCMDeclarePostulate           = getBuiltin builtinAgdaTCMDeclarePostulate
+primAgdaTCMDeclareData                = getBuiltin builtinAgdaTCMDeclareData
+primAgdaTCMDefineData                 = getBuiltin builtinAgdaTCMDefineData
 primAgdaTCMDefineFun                  = getBuiltin builtinAgdaTCMDefineFun
 primAgdaTCMGetType                    = getBuiltin builtinAgdaTCMGetType
 primAgdaTCMGetDefinition              = getBuiltin builtinAgdaTCMGetDefinition
@@ -442,15 +471,21 @@ primAgdaTCMBlockOnMeta                = getBuiltin builtinAgdaTCMBlockOnMeta
 primAgdaTCMCommit                     = getBuiltin builtinAgdaTCMCommit
 primAgdaTCMIsMacro                    = getBuiltin builtinAgdaTCMIsMacro
 primAgdaTCMWithNormalisation          = getBuiltin builtinAgdaTCMWithNormalisation
-primAgdaTCMWithReconsParams           = getBuiltin builtinAgdaTCMWithReconsParams
+primAgdaTCMWithReconstructed          = getBuiltin builtinAgdaTCMWithReconstructed
+primAgdaTCMWithExpandLast             = getBuiltin builtinAgdaTCMWithExpandLast
+primAgdaTCMWithReduceDefs             = getBuiltin builtinAgdaTCMWithReduceDefs
+primAgdaTCMAskNormalisation           = getBuiltin builtinAgdaTCMAskNormalisation
+primAgdaTCMAskReconstructed           = getBuiltin builtinAgdaTCMAskReconstructed
+primAgdaTCMAskExpandLast              = getBuiltin builtinAgdaTCMAskExpandLast
+primAgdaTCMAskReduceDefs              = getBuiltin builtinAgdaTCMAskReduceDefs
 primAgdaTCMFormatErrorParts           = getBuiltin builtinAgdaTCMFormatErrorParts
 primAgdaTCMDebugPrint                 = getBuiltin builtinAgdaTCMDebugPrint
-primAgdaTCMOnlyReduceDefs             = getBuiltin builtinAgdaTCMOnlyReduceDefs
-primAgdaTCMDontReduceDefs             = getBuiltin builtinAgdaTCMDontReduceDefs
 primAgdaTCMNoConstraints              = getBuiltin builtinAgdaTCMNoConstraints
 primAgdaTCMRunSpeculative             = getBuiltin builtinAgdaTCMRunSpeculative
 primAgdaTCMExec                       = getBuiltin builtinAgdaTCMExec
 primAgdaTCMGetInstances               = getBuiltin builtinAgdaTCMGetInstances
+primAgdaTCMPragmaForeign              = getBuiltin builtinAgdaTCMPragmaForeign
+primAgdaTCMPragmaCompile              = getBuiltin builtinAgdaTCMPragmaCompile
 
 -- | The coinductive primitives.
 
@@ -485,23 +520,18 @@ data SortKit = SortKit
   , nameOfSetOmega :: IsFibrant -> QName
   }
 
--- | Compute a 'SortKit' in an environment that supports failures. When
--- 'optLoadPrimitives' is set to 'False', 'sortKit' is a fallible
--- operation, so for the uses of 'sortKit' in fallible contexts (e.g.
--- 'TCM'), we report a type error rather than exploding.
+-- | Compute a 'SortKit' in an environment that supports failures.
+--
+-- When 'optLoadPrimitives' is set to 'False', 'sortKit' is a fallible operation,
+-- so for the uses of 'sortKit' in fallible contexts (e.g. 'TCM'),
+-- we report a type error rather than exploding.
 sortKit :: (HasBuiltins m, MonadTCError m, HasOptions m) => m SortKit
 sortKit = do
-  loadPrim <- optLoadPrimitives <$> pragmaOptions
-  let
-    -- When '--no-load-primitives', recover by throwing a TC error.
-    recover s
-      | not loadPrim = typeError (GenericDocError ("Agda will not function without a binding for BUILTIN " <> s))
-      | otherwise = __IMPOSSIBLE__
-  Def set      _  <- maybe (recover "TYPE") pure           =<< getBuiltin' builtinSet
-  Def prop     _  <- maybe (recover "PROP") pure           =<< getBuiltin' builtinProp
-  Def setomega _  <- maybe (recover "SETOMEGA") pure       =<< getBuiltin' builtinSetOmega
-  Def sset     _  <- maybe (recover "STRICTSET") pure      =<< getBuiltin' builtinStrictSet
-  Def ssetomega _ <- maybe (recover "STRICTSETOMEGA") pure =<< getBuiltin' builtinSSetOmega
+  Def set      _  <- getBuiltin builtinSet
+  Def prop     _  <- getBuiltin builtinProp
+  Def setomega _  <- getBuiltin builtinSetOmega
+  Def sset     _  <- getBuiltin builtinStrictSet
+  Def ssetomega _ <- getBuiltin builtinSSetOmega
   return $ SortKit
     { nameOfSet      = set
     , nameOfProp     = prop
@@ -716,11 +746,18 @@ equalityView t0@(El s t) = do
 --
 --   Postcondition: type is reduced.
 
-equalityUnview :: EqualityView -> Type
-equalityUnview (OtherType t) = t
-equalityUnview (IdiomType t) = t
-equalityUnview (EqualityType s equality l t lhs rhs) =
-  El s $ Def equality $ map Apply (l ++ [t, lhs, rhs])
+class EqualityUnview a where
+  equalityUnview :: a -> Type
+
+instance EqualityUnview EqualityView where
+  equalityUnview = \case
+    OtherType t -> t
+    IdiomType t -> t
+    EqualityViewType eqt -> equalityUnview eqt
+
+instance EqualityUnview EqualityTypeData where
+  equalityUnview (EqualityTypeData s equality l t lhs rhs) =
+    El s $ Def equality $ map Apply (l ++ [t, lhs, rhs])
 
 -- | Primitives with typechecking constrants.
 constrainedPrims :: [String]

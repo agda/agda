@@ -53,3 +53,11 @@ AGDA_MODE := $(abspath $(AGDA_MODE))
 
 AGDA_TESTS_BIN ?= $(BUILD_DIR)/build/agda-tests/agda-tests
 AGDA_TESTS_BIN := $(abspath $(AGDA_TESTS_BIN))
+
+# Location of the -fast binaries for v1-cabal
+
+AGDA_FAST_BIN ?= $(FAST_BUILD_DIR)/build/agda/agda
+AGDA_FAST_BIN := $(abspath $(AGDA_FAST_BIN))
+
+AGDA_FAST_TESTS_BIN ?= $(FAST_BUILD_DIR)/build/agda-tests/agda-tests
+AGDA_FAST_TESTS_BIN := $(abspath $(AGDA_FAST_TESTS_BIN))

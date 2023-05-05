@@ -53,7 +53,7 @@ STACK_INSTALL_HELPER = $(STACK) build Agda $(STACK_OPT_NO_DOCS)
 # Developers running `make` will usually want to use the GHC version they've
 # specified in their stack.yaml. Otherwise they can put that option in
 # themselves.
-# Note that GitHub workflows currently do not use the Makefile, but instead
+# Note that some GitHub workflows currently do not use the Makefile, but instead
 # invoke `stack` directly. (See: .github/workflows/stack.yml)
 ifneq ($(TRAVIS),)
 STACK_INSTALL_HELPER += --system-ghc
@@ -280,12 +280,20 @@ type-check-no-deps :
 #           | $(SED) -e '/.*dist.*build.*: No such file or directory/d' \
 #                    -e '/.*Warning: the following files would be used as linker inputs, but linking is not being done:.*/d'
 
+# The default is to not include cost centres for libraries, but to
+# include cost centres for Agda using -fprof-late. (The use of
+# -fprof-late might lead to more informative profiles than if
+# -fprof-auto had been used.)
+PROFILING_DETAIL=\
+  --profiling-detail=none\
+  --ghc-options=-fprof-late
 
 .PHONY : install-prof-bin ## Install Agda with profiling enabled
 # --program-suffix is not for the executable name in
 # $(BUILD_DIR)/build/, only for installing it into .cabal/bin
 install-prof-bin : install-deps ensure-hash-is-correct
-	$(CABAL_INSTALL) -j1 --enable-library-profiling --enable-profiling \
+	$(CABAL_INSTALL) -j1 \
+          --enable-profiling $(PROFILING_DETAIL) \
           --program-suffix=-prof $(CABAL_INSTALL_OPTS)
 
 .PHONY : install-debug ## Install Agda with debug enabled
@@ -459,6 +467,11 @@ internal-tests :
 	@$(call decorate, "Internal test suite", \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Internal )
 
+.PHONY : fast-internal-tests ##
+fast-internal-tests :
+	@$(call decorate, "Internal test suite (using agda-fast)", \
+		AGDA_BIN=$(AGDA_FAST_BIN) $(AGDA_FAST_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Internal )
+
 .PHONY : common ##
 common :
 	@$(call decorate, "Suite of successful tests: mini-library Common", \
@@ -631,11 +644,9 @@ size-solver-test : install-size-solver
 
 set-default-stack-file : remove-default-stack-file ##
 	ln -s stack-$(GHC_COMPILER).yaml stack.yaml
-	cd $(FIXW_PATH) && ln -s stack-$(GHC_COMPILER).yaml stack.yaml
 
 remove-default-stack-file : ##
 	rm -f stack.yaml
-	cd $(FIXW_PATH) && rm -f stack.yaml
 
 # Installing binaries for developer services
 
@@ -743,6 +754,7 @@ debug : ## Print debug information.
 	@echo "PARALLEL_TESTS        = $(PARALLEL_TESTS)"
 	@echo "STACK                 = $(STACK)"
 	@echo "STACK_INSTALL_OPTS    = $(STACK_INSTALL_OPTS)"
+	@echo "STACK_OPTS            = $(STACK_OPTS)"
 	@echo
 	@echo "Run \`make -pq\` to get a detailed report."
 	@echo

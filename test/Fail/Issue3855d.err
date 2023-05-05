@@ -1,4 +1,4 @@
-Issue3855d.agda:25,15-18
+Issue3855d.agda:27,15-18
 (@0 erased₁ : _A_11) → Erased _A_11 !=< A → Erased A because one is
 a non-erased function type and the other is an erased function type
 when checking that the expression [_] has type A → Erased A

@@ -26,6 +26,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Warnings
 
 import Agda.Utils.CallStack ( withCallerCallStack )
+import Agda.Utils.Either
 import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.List
@@ -63,14 +64,21 @@ reorderTel_ tel = fromMaybe __IMPOSSIBLE__ (reorderTel tel)
 -- | Unflatten: turns a flattened telescope into a proper telescope. Must be
 --   properly ordered.
 unflattenTel :: [ArgName] -> [Dom Type] -> Telescope
-unflattenTel []   []            = EmptyTel
-unflattenTel (x : xs) (a : tel) = ExtendTel a' (Abs x tel')
-  where
-    tel' = unflattenTel xs tel
+unflattenTel xs tel = unflattenTel' (size tel) xs tel
+
+-- | A variant of 'unflattenTel' which takes the size of the last
+-- argument as an argument.
+unflattenTel' :: Int -> [ArgName] -> [Dom Type] -> Telescope
+unflattenTel' !n xs tel = case (xs, tel) of
+  ([],     [])      -> EmptyTel
+  (x : xs, a : tel) -> ExtendTel a' (Abs x tel')
+    where
+    tel' = unflattenTel' (n - 1) xs tel
     a'   = applySubst rho a
-    rho  = parallelS (replicate (size tel + 1) (withCallerCallStack impossibleTerm))
-unflattenTel [] (_ : _) = __IMPOSSIBLE__
-unflattenTel (_ : _) [] = __IMPOSSIBLE__
+    rho  = parallelS $
+           replicate n (withCallerCallStack impossibleTerm)
+  ([],    _ : _) -> __IMPOSSIBLE__
+  (_ : _, [])    -> __IMPOSSIBLE__
 
 -- | Rename the variables in the telescope to the given names
 --   Precondition: @size xs == size tel@.
@@ -160,7 +168,7 @@ varDependencies tel = addLocks . allDependencies IntSet.empty
     addLocks s | IntSet.null s = s
                | otherwise = IntSet.union s $ IntSet.fromList $ filter (>= m) locks
       where
-        locks = catMaybes [ deBruijnView (unArg a) | (a :: Arg Term) <- teleArgs tel, getLock a == IsLock]
+        locks = catMaybes [ deBruijnView (unArg a) | (a :: Arg Term) <- teleArgs tel, IsLock{} <- pure (getLock a)]
         m = IntSet.findMin s
     n  = size tel
     ts = flattenTel tel
@@ -376,9 +384,12 @@ telViewUpTo' 0 p t = return $ TelV EmptyTel t
 telViewUpTo' n p t = do
   t <- reduce t
   case unEl t of
-    Pi a b | p a -> absV a (absName b) <$> do
-                      underAbstractionAbs a b $ \b -> telViewUpTo' (n - 1) p b
-    _            -> return $ TelV EmptyTel t
+    Pi a b | p a ->
+          -- Force the name to avoid retaining the rest of b.
+      let !bn = absName b in
+      absV a bn <$> do
+        underAbstractionAbs a b $ \b -> telViewUpTo' (n - 1) p b
+    _ -> return $ TelV EmptyTel t
 
 telViewPath :: PureTCM m => Type -> m TelView
 telViewPath = telViewUpToPath (-1)
@@ -413,7 +424,8 @@ telViewUpToPathBoundary' n t = if n == 0 then done t else do
     Right t               -> done t
   where
     done t      = return (TelV EmptyTel t, [])
-    recurse a b = first (absV a (absName b)) <$> telViewUpToPathBoundary' (n - 1) (absBody b)
+    recurse a b = first (absV a (absName b)) <$> do
+      underAbstractionAbs a b $ \b -> telViewUpToPathBoundary' (n - 1) b
     addEndPoints xy (telv@(TelV tel _), cs) =
       (telv, (var $ size tel - 1, raise (size tel) xy) : cs)
 
@@ -527,7 +539,30 @@ telView'Path :: Type -> TCM TelView
 telView'Path = telView'UpToPath (-1)
 
 isPath :: PureTCM m => Type -> m (Maybe (Dom Type, Abs Type))
-isPath = either Just (const Nothing) <.> pathViewAsPi
+isPath t = ifPath t (\a b -> return $ Just (a,b)) (const $ return Nothing)
+
+ifPath :: PureTCM m => Type -> (Dom Type -> Abs Type -> m a) -> (Type -> m a) -> m a
+ifPath t yes no = ifPathB t yes $ no . ignoreBlocking
+
+ifPathB :: PureTCM m => Type -> (Dom Type -> Abs Type -> m a) -> (Blocked Type -> m a) -> m a
+ifPathB t yes no = ifBlocked t
+  (\b t -> no $ Blocked b t)
+  (\nb t -> caseEitherM (pathViewAsPi'whnf <*> pure t)
+    (uncurry yes . fst)
+    (no . NotBlocked nb))
+
+ifNotPathB :: PureTCM m => Type -> (Blocked Type -> m a) -> (Dom Type -> Abs Type -> m a) -> m a
+ifNotPathB = flip . ifPathB
+
+ifPiOrPathB :: PureTCM m => Type -> (Dom Type -> Abs Type -> m a) -> (Blocked Type -> m a) -> m a
+ifPiOrPathB t yes no = ifPiTypeB t
+  (\a b -> yes a b)
+  (\bt -> caseEitherM (pathViewAsPi'whnf <*> pure (ignoreBlocking bt))
+    (uncurry yes . fst)
+    (no . (bt $>)))
+
+ifNotPiOrPathB :: PureTCM m => Type -> (Blocked Type -> m a) -> (Dom Type -> Abs Type -> m a) -> m a
+ifNotPiOrPathB = flip . ifPiOrPathB
 
 telePatterns :: DeBruijn a => Telescope -> Boundary -> [NamedArg (Pattern' a)]
 telePatterns = telePatterns' teleNamedArgs
@@ -555,11 +590,17 @@ mustBePi t = ifNotPiType t __IMPOSSIBLE__ $ curry return
 -- | If the given type is a @Pi@, pass its parts to the first continuation.
 --   If not (or blocked), pass the reduced type to the second continuation.
 ifPi :: MonadReduce m => Term -> (Dom Type -> Abs Type -> m a) -> (Term -> m a) -> m a
-ifPi t yes no = do
-  t <- reduce t
-  case t of
+ifPi t yes no = ifPiB t yes (no . ignoreBlocking)
+
+ifPiB :: (MonadReduce m) => Term -> (Dom Type -> Abs Type -> m a) -> (Blocked Term -> m a) -> m a
+ifPiB t yes no = ifBlocked t
+  (\b t -> no $ Blocked b t) -- Pi type is never blocked
+  (\nb t -> case t of
     Pi a b -> yes a b
-    _      -> no t
+    _      -> no $ NotBlocked nb t)
+
+ifPiTypeB :: (MonadReduce m) => Type -> (Dom Type -> Abs Type -> m a) -> (Blocked Type -> m a) -> m a
+ifPiTypeB (El s t) yes no = ifPiB t yes (\bt -> no $ El s <$> bt)
 
 -- | If the given type is a @Pi@, pass its parts to the first continuation.
 --   If not (or blocked), pass the reduced type to the second continuation.
@@ -580,6 +621,26 @@ ifNotPiOrPathType :: (MonadReduce tcm, HasBuiltins tcm) => Type -> (Type -> tcm 
 ifNotPiOrPathType t no yes = do
   ifPiType t yes (\ t -> either (uncurry yes . fst) (const $ no t) =<< (pathViewAsPi'whnf <*> pure t))
 
+shouldBePath :: (PureTCM m, MonadBlock m, MonadTCError m) => Type -> m (Dom Type, Abs Type)
+shouldBePath t = ifPathB t
+  (curry return)
+  (fromBlocked >=> \case
+    El _ Dummy{} -> return (__DUMMY_DOM__, Abs "x" __DUMMY_TYPE__)
+    t -> typeError $ ShouldBePath t)
+
+shouldBePi :: (PureTCM m, MonadBlock m, MonadTCError m) => Type -> m (Dom Type, Abs Type)
+shouldBePi t = ifPiTypeB t
+  (curry return)
+  (fromBlocked >=> \case
+    El _ Dummy{} -> return (__DUMMY_DOM__, Abs "x" __DUMMY_TYPE__)
+    t -> typeError $ ShouldBePi t)
+
+shouldBePiOrPath :: (PureTCM m, MonadBlock m, MonadTCError m) => Type -> m (Dom Type, Abs Type)
+shouldBePiOrPath t = ifPiOrPathB t
+  (curry return)
+  (fromBlocked >=> \case
+    El _ Dummy{} -> return (__DUMMY_DOM__, Abs "x" __DUMMY_TYPE__)
+    t -> typeError $ ShouldBePi t) -- TODO: separate error
 
 -- | A safe variant of 'piApply'.
 
@@ -641,22 +702,38 @@ getOutputTypeName t = do
       DontCare{} -> __IMPOSSIBLE__
       Dummy s _ -> __IMPOSSIBLE_VERBOSE__ s
 
--- | Register the definition with the given type as an instance
-addTypedInstance :: QName -> Type -> TCM ()
-addTypedInstance x t = do
+
+-- | Register the definition with the given type as an instance.
+--   Issue warnings if instance is unusable.
+addTypedInstance ::
+     QName  -- ^ Name of instance.
+  -> Type   -- ^ Type of instance.
+  -> TCM ()
+addTypedInstance = addTypedInstance' True
+
+-- | Register the definition with the given type as an instance.
+addTypedInstance' ::
+     Bool   -- ^ Should we print warnings for unusable instance declarations?
+  -> QName  -- ^ Name of instance.
+  -> Type   -- ^ Type of instance.
+  -> TCM ()
+addTypedInstance' w x t = do
   (tel , n) <- getOutputTypeName t
   case n of
-    OutputTypeName n -> addNamedInstance x n
+    OutputTypeName n            -> addNamedInstance x n
     OutputTypeNameNotYetKnown{} -> addUnknownInstance x
-    NoOutputTypeName -> warning $ WrongInstanceDeclaration
-    OutputTypeVar -> warning $ WrongInstanceDeclaration
-    OutputTypeVisiblePi -> warning $ InstanceWithExplicitArg x
+    NoOutputTypeName            -> when w $ warning $ WrongInstanceDeclaration
+    OutputTypeVar               -> when w $ warning $ WrongInstanceDeclaration
+    OutputTypeVisiblePi         -> when w $ warning $ InstanceWithExplicitArg x
 
 resolveUnknownInstanceDefs :: TCM ()
 resolveUnknownInstanceDefs = do
   anonInstanceDefs <- getAnonInstanceDefs
   clearAnonInstanceDefs
-  forM_ anonInstanceDefs $ \ n -> addTypedInstance n =<< typeOfConst n
+  forM_ anonInstanceDefs $ \ n -> do
+    -- Andreas, 2022-12-04, issue #6380:
+    -- Do not warn about unusable instances here.
+    addTypedInstance' False n =<< typeOfConst n
 
 -- | Try to solve the instance definitions whose type is not yet known, report
 --   an error if it doesn't work and return the instance table otherwise.

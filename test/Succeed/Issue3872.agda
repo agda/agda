@@ -1,6 +1,6 @@
 -- Andreas, 2019-06-26, issue #3872, make --no-forcing a pragma option
 
-{-# OPTIONS --no-forcing #-}
+{-# OPTIONS --no-forcing --erasure #-}
 
 open import Agda.Builtin.Nat
 

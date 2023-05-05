@@ -40,27 +40,27 @@ initAutoOptions = AutoOptions
   , autoHintMode = AHMNone
   }
 
-aoHints :: Lens' Hints AutoOptions
+aoHints :: Lens' AutoOptions Hints
 aoHints f s =
   f (autoHints s) <&>
   \x -> s {autoHints = x}
 
-aoTimeOut :: Lens' TimeOut AutoOptions
+aoTimeOut :: Lens' AutoOptions TimeOut
 aoTimeOut f s =
   f (autoTimeOut s) <&>
   \x -> s {autoTimeOut = x}
 
-aoPick :: Lens' Int AutoOptions
+aoPick :: Lens' AutoOptions Int
 aoPick f s =
   f (autoPick s) <&>
   \x -> s {autoPick = x}
 
-aoMode :: Lens' Mode AutoOptions
+aoMode :: Lens' AutoOptions Mode
 aoMode f s =
   f (autoMode s) <&>
   \x -> s {autoMode = x}
 
-aoHintMode :: Lens' AutoHintMode AutoOptions
+aoHintMode :: Lens' AutoOptions AutoHintMode
 aoHintMode f s =
   f (autoHintMode s) <&>
   \x -> s {autoHintMode = x}

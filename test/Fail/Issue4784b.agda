@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical-compatible #-}
+{-# OPTIONS --cubical-compatible --erasure #-}
 
 open import Agda.Builtin.Equality
 postulate

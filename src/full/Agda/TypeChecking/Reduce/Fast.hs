@@ -134,14 +134,14 @@ compactDef bEnv def rewr = do
       _ | Just (defName def) == bPrimForce bEnv   -> pure CForce
       _ | Just (defName def) == bPrimErase bEnv ->
           case telView' (defType def) of
-            TelV tel _ | size tel == 5 -> pure CErase
-                       | otherwise     -> pure COther
+            TelV tel _ | natSize tel == 5 -> pure CErase
+                       | otherwise        -> pure COther
                           -- Non-standard equality. Fall back to slow reduce.
       _ | defBlocked def /= notBlocked_ -> pure COther -- Blocked definition
       Constructor{conSrcCon = c, conArity = n} -> pure CCon{cconSrcCon = c, cconArity = n}
       Function{funCompiled = Just cc, funClauses = _:_, funProjection = proj} ->
         pure CFun{ cfunCompiled   = fastCompiledClauses bEnv cc
-                 , cfunProjection = projOrig <$> proj }
+                 , cfunProjection = projOrig <$> either (const Nothing) Just proj }
       Function{funClauses = []}      -> pure CAxiom
       Function{}                     -> pure COther -- Incomplete definition
       Datatype{dataClause = Nothing} -> pure CTyCon
@@ -184,7 +184,7 @@ compactDef bEnv def rewr = do
           "primFloatIsDenormalized"    -> mkPrim 1 $ floatPred isDenormalized
           "primFloatIsNegativeZero"    -> mkPrim 1 $ floatPred isNegativeZero
           "primFloatIsSafeInteger"     -> mkPrim 1 $ floatPred isSafeInteger
-          "primFloatToWord64"          -> mkPrim 1 $ \ [LitFloat a] -> word (doubleToWord64 a)
+          -- "primFloatToWord64"          -- returns a maybe
           -- "primFloatToWord64Injective" -- identities are not literals
           "primNatToFloat"             -> mkPrim 1 $ \ [LitNat a] -> float (fromIntegral a)
           -- "primIntToFloat"             -- integers are not literals
@@ -422,16 +422,26 @@ fastNormalise v = ignoreBlocking <$> fastReduce' NF v
 
 fastReduce' :: Normalisation -> Term -> ReduceM (Blocked Term)
 fastReduce' norm v = do
+  tcState <- getTCState
   let name (Con c _ _) = c
       name _         = __IMPOSSIBLE__
-  zero  <- fmap name <$> getBuiltin' builtinZero
-  suc   <- fmap name <$> getBuiltin' builtinSuc
-  true  <- fmap name <$> getBuiltin' builtinTrue
-  false <- fmap name <$> getBuiltin' builtinFalse
-  refl  <- fmap name <$> getBuiltin' builtinRefl
-  force <- fmap primFunName <$> getPrimitive' "primForce"
-  erase <- fmap primFunName <$> getPrimitive' "primErase"
-  let bEnv = BuiltinEnv { bZero = zero, bSuc = suc, bTrue = true, bFalse = false, bRefl = refl,
+
+      -- Gather builtins using 'BuiltinAccess' rather than with the default
+      -- 'HasBuiltins ReduceM' instance. This increases laziness, allowing us to
+      -- avoid costly builtin lookups unless needed.
+      builtinName   = fmap name . runBuiltinAccess tcState . getBuiltin'
+      primitiveName = fmap primFunName . runBuiltinAccess tcState . getPrimitive'
+
+      zero  = builtinName builtinZero
+      suc   = builtinName builtinSuc
+      true  = builtinName builtinTrue
+      false = builtinName builtinFalse
+      refl  = builtinName builtinRefl
+
+      force = primitiveName "primForce"
+      erase = primitiveName "primErase"
+
+      bEnv = BuiltinEnv { bZero = zero, bSuc = suc, bTrue = true, bFalse = false, bRefl = refl,
                           bPrimForce = force, bPrimErase = erase }
   allowedReductions <- asksTC envAllowedReductions
   rwr <- optRewriting <$> pragmaOptions
@@ -1263,7 +1273,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
             (spine0, Proj o p : spine1) ->
               case lookupCon p bs <|> ((`lookupCon` bs) =<< op) of
                 Nothing
-                  | f `elem` partialDefs -> stuckMatch (NotBlocked MissingClauses ()) stack ctrl
+                  | f `elem` partialDefs -> stuckMatch (NotBlocked (MissingClauses f) ()) stack ctrl
                   | otherwise          -> __IMPOSSIBLE__
                 Just cc -> runAM (Match f cc (spine0 <> spine1) stack ctrl)
               where CFun{ cfunProjection = op } = cdefDef (constInfo p)
@@ -1386,8 +1396,8 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
     failedMatch f (CatchAll cc spine : stack :> cl) ctrl = runAM (Match f cc spine (stack :> cl) ctrl)
     failedMatch f ([] :> cl) ctrl
         -- Bad work-around for #3870: don't fail hard during instance search.
-      | speculative          = rewriteAM (Eval (mkValue (NotBlocked MissingClauses ()) cl) ctrl)
-      | f `elem` partialDefs = rewriteAM (Eval (mkValue (NotBlocked MissingClauses ()) cl) ctrl)
+      | speculative          = rewriteAM (Eval (mkValue (NotBlocked (MissingClauses f) ()) cl) ctrl)
+      | f `elem` partialDefs = rewriteAM (Eval (mkValue (NotBlocked (MissingClauses f) ()) cl) ctrl)
       | hasRewriting         = rewriteAM (Eval (mkValue (NotBlocked ReallyNotBlocked ()) cl) ctrl)  -- See #5396
       | otherwise            = runReduce $
           traceSLn "impossible" 10 ("Incomplete pattern matching when applying " ++ prettyShow f)

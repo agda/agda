@@ -7,7 +7,9 @@ import Control.Monad.State
 import Control.Monad.Writer (WriterT(..), MonadWriter(..))
 import Control.Monad.Except
 
+import Data.Foldable (toList)
 import Data.Semigroup hiding (Arg)
+import Data.DList (DList)
 import qualified Data.List as List
 import qualified Data.IntSet as IntSet
 import qualified Data.IntMap as IntMap
@@ -46,7 +48,6 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Rules.LHS.Problem
 
 import Agda.Utils.Empty
-import Agda.Utils.Either
 import Agda.Utils.Benchmark
 import Agda.Utils.Either
 import Agda.Utils.Function
@@ -76,13 +77,17 @@ data Equality = Equal
   , _eqRight :: Term
   }
 
-instance Reduce Equality where
-  reduce' (Equal a u v) = Equal <$> reduce' a <*> reduce' u <*> reduce' v
+-- Jesper, 2020-01-19: The type type lives in the context of the
+-- variables+equations, while the lhs/rhs only depend on the
+-- variables, so there is no way to give a correct Reduce instance.
+-- WRONG:
+-- instance Reduce Equality where
+--   reduce' (Equal a u v) = Equal <$> reduce' a <*> reduce' u <*> reduce' v
 
 eqConstructorForm :: HasBuiltins m => Equality -> m Equality
 eqConstructorForm (Equal a u v) = Equal a <$> constructorForm u <*> constructorForm v
 
-eqUnLevel :: HasBuiltins m => Equality -> m Equality
+eqUnLevel :: (HasBuiltins m, HasOptions m) => Equality -> m Equality
 eqUnLevel (Equal a u v) = Equal a <$> unLevel u <*> unLevel v
   where
     unLevel (Level l) = reallyUnLevelView l
@@ -101,21 +106,21 @@ data UnifyState = UState
   } deriving (Show)
 -- Issues #3578 and #4125: avoid unnecessary reduction in unifier.
 
-lensVarTel   :: Lens' Telescope UnifyState
+lensVarTel   :: Lens' UnifyState Telescope
 lensVarTel   f s = f (varTel s) <&> \ tel -> s { varTel = tel }
 --UNUSED Liang-Ting Chen 2019-07-16
---lensFlexVars :: Lens' FlexibleVars UnifyState
+--lensFlexVars :: Lens' UnifyState FlexibleVars
 --lensFlexVars f s = f (flexVars s) <&> \ flex -> s { flexVars = flex }
 
-lensEqTel    :: Lens' Telescope UnifyState
+lensEqTel    :: Lens' UnifyState Telescope
 lensEqTel    f s = f (eqTel s) <&> \ x -> s { eqTel = x }
 
 --UNUSED Liang-Ting Chen 2019-07-16
---lensEqLHS    :: Lens' Args UnifyState
+--lensEqLHS    :: Lens' UnifyState Args
 --lensEqLHS    f s = f (eqLHS s) <&> \ x -> s { eqLHS = x }
 
 --UNUSED Liang-Ting Chen 2019-07-16
---lensEqRHS    :: Lens' Args UnifyState
+--lensEqRHS    :: Lens' UnifyState Args
 --lensEqRHS    f s = f (eqRHS s) <&> \ x -> s { eqRHS = x }
 
 -- UNUSED Andreas, 2019-10-14
@@ -199,12 +204,32 @@ getEquality k UState { eqTel = eqs, eqLHS = lhs, eqRHS = rhs } =
           (unArg $ indexWithDefault __IMPOSSIBLE__ lhs k)
           (unArg $ indexWithDefault __IMPOSSIBLE__ rhs k)
 
+getReducedEquality
+  :: (MonadReduce m, MonadAddContext m)
+  => Int -> UnifyState -> m Equality
+getReducedEquality k s = do
+  let Equal a u v = getEquality k s
+  addContext (varTel s) $ Equal
+    <$> addContext (eqTel s) (reduce a)
+    <*> reduce u
+    <*> reduce v
+
 -- | As getEquality, but with the unraised type
 getEqualityUnraised :: Int -> UnifyState -> Equality
 getEqualityUnraised k UState { eqTel = eqs, eqLHS = lhs, eqRHS = rhs } =
     Equal (snd <$> indexWithDefault __IMPOSSIBLE__ (telToList eqs) k)
           (unArg $ indexWithDefault __IMPOSSIBLE__ lhs k)
           (unArg $ indexWithDefault __IMPOSSIBLE__ rhs k)
+
+getReducedEqualityUnraised
+  :: (MonadReduce m, MonadAddContext m)
+  => Int -> UnifyState -> m Equality
+getReducedEqualityUnraised k s = do
+  let Equal a u v = getEqualityUnraised k s
+  addContext (varTel s) $ Equal
+    <$> addContext (telFromList $ take k $ telToList $ eqTel s) (reduce a)
+    <*> reduce u
+    <*> reduce v
 
 --UNUSED Liang-Ting Chen 2019-07-16
 --getEqInfo :: Int -> UnifyState -> ArgInfo
@@ -443,6 +468,10 @@ data UnifyLogEntry
 
 type UnifyLog = [(UnifyLogEntry,UnifyState)]
 
+-- | This variant of 'UnifyLog' is used to ensure that 'tell' is not
+-- expensive.
+type UnifyLog' = DList (UnifyLogEntry, UnifyState)
+
 -- Given varΓ ⊢ eqΓ, varΓ ⊢ us, vs : eqΓ
 data UnifyOutput = UnifyOutput
   { unifySubst :: PatternSubstitution -- varΓ' ⊢ σ : varΓ
@@ -462,7 +491,7 @@ instance Monoid UnifyOutput where
   mempty  = UnifyOutput IdS IdS -- []
   mappend = (<>)
 
-type UnifyLogT m a = WriterT UnifyLog m a
+type UnifyLogT m a = WriterT UnifyLog' m a
 
 type UnifyStepT m a = WriterT UnifyOutput m a
 
@@ -472,8 +501,9 @@ tellUnifySubst sub = tell $ UnifyOutput sub IdS
 tellUnifyProof :: MonadWriter UnifyOutput m => PatternSubstitution -> m ()
 tellUnifyProof sub = tell $ UnifyOutput IdS sub
 
-writeUnifyLog :: MonadWriter UnifyLog m => (UnifyLogEntry,UnifyState) -> m ()
-writeUnifyLog x = tell $ [x] -- UnifyOutput IdS IdS [x]
+writeUnifyLog ::
+  MonadWriter UnifyLog' m => (UnifyLogEntry, UnifyState) -> m ()
+writeUnifyLog x = tell (singleton x) -- UnifyOutput IdS IdS [x]
 
-runUnifyLogT :: UnifyLogT m a -> m (a,UnifyLog)
-runUnifyLogT = runWriterT
+runUnifyLogT :: Functor m => UnifyLogT m a -> m (a, UnifyLog)
+runUnifyLogT m = mapSnd toList <$> runWriterT m

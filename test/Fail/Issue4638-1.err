@@ -1,3 +1,3 @@
-Issue4638-1.agda:8,1-10,5
+Issue4638-1.agda:10,1-12,5
 Cannot branch on erased argument of datatype D
 when checking the definition of f

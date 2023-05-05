@@ -1,9 +1,11 @@
 Issue708quote.agda:9,1-29
+warning: -W[no]UnreachableClauses
 Unreachable clause
 when checking the definition of example
 
 ———— All done; warnings encountered ————————————————————————
 
 Issue708quote.agda:9,1-29
+warning: -W[no]UnreachableClauses
 Unreachable clause
 when checking the definition of example

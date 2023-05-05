@@ -1,140 +1,184 @@
 Issue2759.agda:7,1-7
+warning: -W[no]EmptyMutual
 Empty mutual block.
 Issue2759.agda:9,1-9
+warning: -W[no]EmptyAbstract
 Empty abstract block.
 Issue2759.agda:11,1-8
+warning: -W[no]EmptyPrivate
 Empty private block.
 Issue2759.agda:13,1-9
+warning: -W[no]EmptyInstance
 Empty instance block.
 Issue2759.agda:15,1-6
+warning: -W[no]EmptyMacro
 Empty macro block.
 Issue2759.agda:17,1-10
+warning: -W[no]EmptyPostulate
 Empty postulate block.
 Issue2759.agda:23,3-12
+warning: -W[no]EmptyPostulate
 Empty postulate block.
 Issue2759.agda:27,27-32
+warning: -W[no]EmptyMacro
 Empty macro block.
 Issue2759.agda:33,12-20
+warning: -W[no]EmptyAbstract
 Empty abstract block.
 when scope checking λ (let abstract) → let abstract in Set
 Issue2759.agda:33,29-37
+warning: -W[no]EmptyAbstract
 Empty abstract block.
 when scope checking let abstract in Set
 Issue2759.agda:34,12-17
+warning: -W[no]EmptyField
 Empty field block.
 when scope checking λ (let field) → let field in Set
 Issue2759.agda:34,29-34
+warning: -W[no]EmptyField
 Empty field block.
 when scope checking let field in Set
 Issue2759.agda:35,12-20
+warning: -W[no]EmptyInstance
 Empty instance block.
 when scope checking λ (let instance) → let instance in Set
 Issue2759.agda:35,29-37
+warning: -W[no]EmptyInstance
 Empty instance block.
 when scope checking let instance in Set
 Issue2759.agda:36,12-17
+warning: -W[no]EmptyMacro
 Empty macro block.
 when scope checking λ (let macro) → let macro in Set
 Issue2759.agda:36,29-34
+warning: -W[no]EmptyMacro
 Empty macro block.
 when scope checking let macro in Set
 Issue2759.agda:37,12-18
+warning: -W[no]EmptyMutual
 Empty mutual block.
 when scope checking λ (let mutual) → let mutual in Set
 Issue2759.agda:37,29-35
+warning: -W[no]EmptyMutual
 Empty mutual block.
 when scope checking let mutual in Set
 Issue2759.agda:38,12-21
+warning: -W[no]EmptyPostulate
 Empty postulate block.
 when scope checking λ (let postulate) → let postulate in Set
 Issue2759.agda:38,29-38
+warning: -W[no]EmptyPostulate
 Empty postulate block.
 when scope checking let postulate in Set
 Issue2759.agda:39,12-19
+warning: -W[no]EmptyPrivate
 Empty private block.
 when scope checking λ (let private) → let private in Set
 Issue2759.agda:39,29-36
+warning: -W[no]EmptyPrivate
 Empty private block.
 when scope checking let private in Set
 
 ———— All done; warnings encountered ————————————————————————
 
 Issue2759.agda:7,1-7
+warning: -W[no]EmptyMutual
 Empty mutual block.
 
 Issue2759.agda:9,1-9
+warning: -W[no]EmptyAbstract
 Empty abstract block.
 
 Issue2759.agda:11,1-8
+warning: -W[no]EmptyPrivate
 Empty private block.
 
 Issue2759.agda:13,1-9
+warning: -W[no]EmptyInstance
 Empty instance block.
 
 Issue2759.agda:15,1-6
+warning: -W[no]EmptyMacro
 Empty macro block.
 
 Issue2759.agda:17,1-10
+warning: -W[no]EmptyPostulate
 Empty postulate block.
 
 Issue2759.agda:23,3-12
+warning: -W[no]EmptyPostulate
 Empty postulate block.
 
 Issue2759.agda:27,27-32
+warning: -W[no]EmptyMacro
 Empty macro block.
 
 Issue2759.agda:33,12-20
+warning: -W[no]EmptyAbstract
 Empty abstract block.
 when scope checking λ (let abstract) → let abstract in Set
 
 Issue2759.agda:33,29-37
+warning: -W[no]EmptyAbstract
 Empty abstract block.
 when scope checking let abstract in Set
 
 Issue2759.agda:34,12-17
+warning: -W[no]EmptyField
 Empty field block.
 when scope checking λ (let field) → let field in Set
 
 Issue2759.agda:34,29-34
+warning: -W[no]EmptyField
 Empty field block.
 when scope checking let field in Set
 
 Issue2759.agda:35,12-20
+warning: -W[no]EmptyInstance
 Empty instance block.
 when scope checking λ (let instance) → let instance in Set
 
 Issue2759.agda:35,29-37
+warning: -W[no]EmptyInstance
 Empty instance block.
 when scope checking let instance in Set
 
 Issue2759.agda:36,12-17
+warning: -W[no]EmptyMacro
 Empty macro block.
 when scope checking λ (let macro) → let macro in Set
 
 Issue2759.agda:36,29-34
+warning: -W[no]EmptyMacro
 Empty macro block.
 when scope checking let macro in Set
 
 Issue2759.agda:37,12-18
+warning: -W[no]EmptyMutual
 Empty mutual block.
 when scope checking λ (let mutual) → let mutual in Set
 
 Issue2759.agda:37,29-35
+warning: -W[no]EmptyMutual
 Empty mutual block.
 when scope checking let mutual in Set
 
 Issue2759.agda:38,12-21
+warning: -W[no]EmptyPostulate
 Empty postulate block.
 when scope checking λ (let postulate) → let postulate in Set
 
 Issue2759.agda:38,29-38
+warning: -W[no]EmptyPostulate
 Empty postulate block.
 when scope checking let postulate in Set
 
 Issue2759.agda:39,12-19
+warning: -W[no]EmptyPrivate
 Empty private block.
 when scope checking λ (let private) → let private in Set
 
 Issue2759.agda:39,29-36
+warning: -W[no]EmptyPrivate
 Empty private block.
 when scope checking let private in Set

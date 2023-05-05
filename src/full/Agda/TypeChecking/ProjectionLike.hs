@@ -74,7 +74,9 @@ import Agda.TypeChecking.Free (runFree, IgnoreSorts(..))
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Reduce (reduce)
+import Agda.TypeChecking.Records
+import Agda.TypeChecking.Reduce (reduce, abortIfBlocked)
+import Agda.TypeChecking.Telescope
 
 import Agda.TypeChecking.DropArgs
 
@@ -262,7 +264,7 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
     -- the dropped arguments.
     -- Nor can abstract definitions be projection-like since they won't reduce
     -- outside the abstract block.
-    def@Function{funProjection = Nothing, funClauses = cls,
+    def@Function{funProjection = Left MaybeProjection, funClauses = cls,
                  funSplitTree = st0, funCompiled = cc0, funInv = NotInjective,
                  funMutual = Just [], -- Andreas, 2012-09-28: only consider non-mutual funs
                  funAbstr = ConcreteDef} -> do
@@ -307,7 +309,7 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
                     , projLams     = ProjLams $ map (argFromDom . fmap fst) tel
                     }
               let newDef = def
-                           { funProjection     = Just projection
+                           { funProjection     = Right projection
                            , funClauses        = cls'
                            , funSplitTree      = st
                            , funCompiled       = cc
@@ -322,8 +324,10 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
       reportSLn "tc.proj.like" 30 $ "  injective functions can't be projections"
     Function{funAbstr = AbstractDef} ->
       reportSLn "tc.proj.like" 30 $ "  abstract functions can't be projections"
-    Function{funProjection = Just{}} ->
+    Function{funProjection = Right{}} ->
       reportSLn "tc.proj.like" 30 $ "  already projection like"
+    Function{funProjection = Left NeverProjection} ->
+      reportSLn "tc.proj.like" 30 $ "  the user has asked for it not to be projection-like"
     Function{funMutual = Just (_:_)} ->
       reportSLn "tc.proj.like" 30 $ "  mutual functions can't be projections"
     Function{funMutual = Nothing} ->
@@ -419,3 +423,70 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
       where
         candidateRec NoAbs{}   = []
         candidateRec (Abs x t) = candidateArgs (var (size vs) : vs) t
+
+-- | Infer type of a neutral term.
+--   See also @infer@ in @Agda.TypeChecking.CheckInternal@, which has a very similar
+--   logic but also type checks all arguments.
+inferNeutral :: (PureTCM m, MonadBlock m) => Term -> m Type
+inferNeutral u = do
+  reportSDoc "tc.infer" 20 $ "inferNeutral" <+> prettyTCM u
+  case u of
+    Var i es -> do
+      a <- typeOfBV i
+      loop a (Var i) es
+    Def f es -> do
+      whenJustM (isRelevantProjection f) $ \_ -> nonInferable
+      a <- defType <$> getConstInfo f
+      loop a (Def f) es
+    MetaV x es -> do -- we assume meta instantiations to be well-typed
+      a <- metaType x
+      loop a (MetaV x) es
+    _ -> nonInferable
+  where
+    nonInferable :: MonadDebug m => m a
+    nonInferable = __IMPOSSIBLE_VERBOSE__ $ unlines
+      [ "inferNeutral: non-inferable term:"
+      , "  " ++ prettyShow u
+      ]
+    loop :: (PureTCM m, MonadBlock m) => Type -> (Elims -> Term) -> Elims -> m Type
+    loop t hd [] = return t
+    loop t hd (e:es) = do
+      t' <- case e of
+        Apply (Arg ai v) ->
+          ifPiType t (\_ b -> return $ b `absApp` v) __IMPOSSIBLE__
+        IApply x y r ->
+          ifPath t (\_ b -> return $ b `absApp` r) __IMPOSSIBLE__
+        Proj o f -> do
+          -- @projectTyped@ expects the type to be reduced.
+          t <- reduce t
+          ifJustM (projectTyped (hd []) t o f) (\(_,_,t') -> return t') __IMPOSSIBLE__
+      loop t' (hd . (e:)) es
+
+-- | Compute the head type of a Def application. For projection-like functions
+--   this requires inferring the type of the principal argument.
+computeDefType :: (PureTCM m, MonadBlock m) => QName -> Elims -> m Type
+computeDefType f es = do
+  def <- getConstInfo f
+  -- To compute the type @a@ of a projection-like @f@,
+  -- we have to infer the type of its first argument.
+  let defaultResult = return $ defType def
+  -- Find a first argument to @f@.
+  case es of
+    _ | projectionArgs def <= 0 -> defaultResult
+    (Apply arg : _) -> do
+      -- Infer its type.
+      reportSDoc "tc.infer" 30 $
+        "inferring type of internal arg: " <+> prettyTCM arg
+      -- Jesper, 2023-02-06: infer crashes on non-inferable terms,
+      -- e.g. applications of projection-like functions. Hence we bring them
+      -- into postfix form.
+      targ <- inferNeutral =<< elimView EvenLone (unArg arg)
+      reportSDoc "tc.infer" 30 $
+        "inferred type: " <+> prettyTCM targ
+      -- getDefType wants the argument type reduced.
+      -- Andreas, 2016-02-09, Issue 1825: The type of arg might be
+      -- a meta-variable, e.g. in interactive development.
+      -- In this case, we postpone.
+      targ <- abortIfBlocked targ
+      fromMaybeM __IMPOSSIBLE__ $ getDefType f targ
+    _ -> defaultResult

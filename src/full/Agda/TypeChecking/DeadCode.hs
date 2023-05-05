@@ -43,15 +43,25 @@ eliminateDeadCode ::
 eliminateDeadCode bs disp sig ms = Bench.billTo [Bench.DeadCode] $ do
   patsyn <- getPatternSyns
   public <- Set.mapMonotonic anameName . publicNames <$> getScope
-  save   <- collapseDefault . optSaveMetas <$> pragmaOptions
+  save   <- optSaveMetas <$> pragmaOptions
   defs   <- (if save then return else traverse instantiateFull)
                  (sig ^. sigDefinitions)
   -- #2921: Eliminating definitions with attached COMPILE pragmas results in
   -- the pragmas not being checked. Simple solution: don't eliminate these.
-  let hasCompilePragma =
-        Set.fromList . HMap.keys .
-        HMap.filter (not . MapS.null . defCompiledRep) $ defs
-      rootNames = Set.union public hasCompilePragma
+  -- #6022 (Andreas, 2022-09-30): Eliminating cubical primitives can lead to crashes.
+   -- Simple solution: retain all primitives (shouldn't be many).
+  let hasCompilePragma = not . MapS.null . defCompiledRep
+      isPrimitive = \case
+        Primitive{}     -> True
+        PrimitiveSort{} -> True
+        _ -> False
+      extraRootsFilter (name, def)
+        | hasCompilePragma def || isPrimitive (theDef def) = Just name
+        | otherwise = Nothing
+      extraRoots =
+        Set.fromList $ mapMaybe extraRootsFilter $ HMap.toList defs
+
+      rootNames = Set.union public extraRoots
       rootMetas =
         if not save then Set.empty else metasIn
           ( bs

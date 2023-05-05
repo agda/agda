@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals, Warnings*" "?0 : Type ———— Warnings —————————————————————————————————————————————— Issue3829.agda:16,1-8 Unreachable clause when checking the definition of f " nil)
+(agda2-info-action "*All Goals, Warnings*" "?0 : Type ———— Warnings —————————————————————————————————————————————— Issue3829.agda:16,1-8 warning: -W[no]UnreachableClauses Unreachable clause when checking the definition of f " nil)
 ((last . 1) . (agda2-goals-action '(0)))
 ((last . 2) . (agda2-make-case-action '("f A = ?")))
 ((last . 1) . (agda2-goals-action '(0)))

@@ -11,9 +11,8 @@ import Prelude hiding (length)
 
 import Control.DeepSeq
 
-import Data.Data (Data)
 import Data.Foldable (length)
-import Data.Function
+import Data.Function (on)
 import Data.Hashable (Hashable(..))
 import qualified Data.List as List
 import Data.Maybe
@@ -46,7 +45,7 @@ data Name = Name
   , nameIsRecordName :: Bool
       -- ^ Is this the name of the invisible record variable `self`?
       --   Should not be printed or displayed in the context, see issue #3584.
-  } deriving Data
+  }
 
 -- | Useful for debugging scoping problems
 uglyShowName :: Name -> String
@@ -61,7 +60,6 @@ uglyShowName x = show (nameId x, nameConcrete x)
 data QName = QName { qnameModule :: ModuleName
                    , qnameName   :: Name
                    }
-    deriving Data
 
 -- | Something preceeded by a qualified name.
 data QNamed a = QNamed
@@ -75,14 +73,14 @@ data QNamed a = QNamed
 -- The 'SetRange' instance for module names sets all individual ranges
 -- to the given one.
 newtype ModuleName = MName { mnameToList :: [Name] }
-  deriving (Eq, Ord, Data)
+  deriving (Eq, Ord)
 
 -- | Ambiguous qualified names. Used for overloaded constructors.
 --
 -- Invariant: All the names in the list must have the same concrete,
 -- unqualified name.  (This implies that they all have the same 'Range').
 newtype AmbiguousQName = AmbQ { unAmbQ :: List1 QName }
-  deriving (Eq, Ord, Data, NFData)
+  deriving (Eq, Ord, NFData)
 
 -- | A singleton "ambiguous" name.
 unambiguous :: QName -> AmbiguousQName
@@ -105,7 +103,7 @@ getUnambiguous _                = Nothing
 data Suffix
   = NoSuffix
   | Suffix !Integer
-  deriving (Data, Show, Eq, Ord)
+  deriving (Show, Eq, Ord)
 
 instance NFData Suffix where
   rnf NoSuffix   = ()
@@ -225,16 +223,6 @@ mnameToConcrete (MName (x:xs)) = foldr C.Qual (C.QName $ List1.last cs) $ List1.
   where
     cs = fmap nameConcrete (x :| xs)
 
--- | Computes the 'TopLevelModuleName' corresponding to the given
--- module name, which is assumed to represent a top-level module name.
---
--- Precondition: The module name must be well-formed.
-
-toTopLevelModuleName :: ModuleName -> C.TopLevelModuleName
-toTopLevelModuleName (MName []) = __IMPOSSIBLE__
-toTopLevelModuleName (MName ms) = List1.ifNull ms __IMPOSSIBLE__ {-else-} $ \ ms1 ->
-  C.TopLevelModuleName (getRange ms1) $ fmap (C.nameToRawName . nameConcrete) ms1
-
 qualifyM :: ModuleName -> ModuleName -> ModuleName
 qualifyM m1 m2 = mnameFromList $ mnameToList m1 ++ mnameToList m2
 
@@ -329,7 +317,7 @@ instance NumHoles AmbiguousQName where
 -- * name lenses
 ------------------------------------------------------------------------
 
-lensQNameName :: Lens' Name QName
+lensQNameName :: Lens' QName Name
 lensQNameName f (QName m n) = QName m <$> f n
 
 ------------------------------------------------------------------------
@@ -480,9 +468,11 @@ instance KillRange AmbiguousQName where
 
 instance Sized QName where
   size = size . qnameToList
+  natSize = natSize . qnameToList
 
 instance Sized ModuleName where
   size = size . mnameToList
+  natSize = natSize . mnameToList
 
 ------------------------------------------------------------------------
 -- * NFData instances

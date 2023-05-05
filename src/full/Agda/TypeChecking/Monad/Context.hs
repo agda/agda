@@ -11,10 +11,12 @@ import Control.Monad.State
 import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough )
 import Control.Monad.Trans.Identity ( IdentityT )
 import Control.Monad.Trans.Maybe
-import Control.Monad.Writer
+import Control.Monad.Writer         ( WriterT )
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
 
+import qualified Data.DList as DL
+import Data.Foldable
 import qualified Data.List as List
 import qualified Data.Map as Map
 
@@ -125,7 +127,7 @@ checkpoint sub k = do
   -- created under refined parent parameters, but as long as those modules
   -- aren't named we shouldn't look at the checkpoint. The right thing to do
   -- would be to not store these modules in the checkpoint map, but todo..
-  stModuleCheckpoints `setTCLens` Map.union oldMods (old <$ Map.difference newMods oldMods)
+  stModuleCheckpoints `setTCLens` Map.union oldMods (old <$ newMods)
   unlessDebugPrinting $ reportSLn "tc.cxt.checkpoint" 105 "}"
   return x
 
@@ -159,7 +161,7 @@ class MonadTCEnv m => MonadAddContext m where
   addCtx :: Name -> Dom Type -> m a -> m a
 
   -- | Add a let bound variable to the context
-  addLetBinding' :: Name -> Term -> Dom Type -> m a -> m a
+  addLetBinding' :: Origin -> Name -> Term -> Dom Type -> m a -> m a
 
   -- | Update the context.
   --   Requires a substitution that transports things living in the old context
@@ -175,8 +177,8 @@ class MonadTCEnv m => MonadAddContext m where
 
   default addLetBinding'
     :: (MonadAddContext n, MonadTransControl t, t n ~ m)
-    => Name -> Term -> Dom Type -> m a -> m a
-  addLetBinding' x u a = liftThrough $ addLetBinding' x u a
+    => Origin -> Name -> Term -> Dom Type -> m a -> m a
+  addLetBinding' o x u a = liftThrough $ addLetBinding' o x u a
 
   default updateContext
     :: (MonadAddContext n, MonadTransControl t, t n ~ m)
@@ -209,7 +211,7 @@ deriving instance MonadAddContext m => MonadAddContext (BlockT m)
 
 instance MonadAddContext m => MonadAddContext (ListT m) where
   addCtx x a             = liftListT $ addCtx x a
-  addLetBinding' x u a   = liftListT $ addLetBinding' x u a
+  addLetBinding' o x u a = liftListT $ addLetBinding' o x u a
   updateContext sub f    = liftListT $ updateContext sub f
   withFreshName r x cont = ListT $ withFreshName r x $ runListT . cont
 
@@ -231,27 +233,30 @@ withShadowingNameTCM x f = do
         setTCLens stUsedNames Map.empty
         result <- f
         newUsedNames <- useTC stUsedNames
-        setTCLens stUsedNames $ Map.unionWith (++) origUsedNames newUsedNames
+        setTCLens stUsedNames $ Map.unionWith (<>) origUsedNames newUsedNames
         return (result , newUsedNames)
 
       tellUsedName x = do
         let concreteX = nameConcrete x
             rawX      = nameToRawName concreteX
             rootX     = nameRoot concreteX
-        modifyTCLens (stUsedNames . key rootX) $ Just . (rawX:) . concat
+        modifyTCLens (stUsedNames . key rootX) $
+          Just . (rawX `DL.cons`) . fold
 
       tellShadowing x useds = case Map.lookup (nameRoot $ nameConcrete x) useds of
         Just shadows -> do
-          reportSDoc "tc.cxt.shadowing" 80 $ pure $ "names shadowing" <+> pretty x <+> ": " <+> prettyList_ (map pretty shadows)
-          modifyTCLens stShadowingNames $ Map.insertWith (++) x shadows
+          reportSDoc "tc.cxt.shadowing" 80 $ pure $
+            "names shadowing" <+> pretty x <+> ": " <+>
+            prettyList_ (map pretty $ toList shadows)
+          modifyTCLens stShadowingNames $ Map.insertWith (<>) x shadows
         Nothing      -> return ()
 
 instance MonadAddContext TCM where
   addCtx x a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
     defaultAddCtx x a ret
 
-  addLetBinding' x u a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
-    defaultAddLetBinding' x u a ret
+  addLetBinding' o x u a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
+    defaultAddLetBinding' o x u a ret
 
   updateContext sub f = unsafeModifyContext f . checkpoint sub
 
@@ -400,23 +405,33 @@ mapAbstraction
   => Dom Type -> (a -> m b) -> Abs a -> m (Abs b)
 mapAbstraction dom f x = (x $>) <$> underAbstraction dom x f
 
-getLetBindings :: MonadTCM tcm => tcm [(Name,(Term,Dom Type))]
+getLetBindings :: MonadTCEnv tcm => tcm [(Name, LetBinding)]
 getLetBindings = do
   bs <- asksTC envLetBindings
-  forM (Map.toList bs) $ \ (n,o) -> (,) n <$> getOpen o
+  forM (Map.toList bs) $ \ (n, o) -> (,) n <$> getOpen o
 
 -- | Add a let bound variable
-{-# SPECIALIZE addLetBinding' :: Name -> Term -> Dom Type -> TCM a -> TCM a #-}
-defaultAddLetBinding' :: (ReadTCState m, MonadTCEnv m) => Name -> Term -> Dom Type -> m a -> m a
-defaultAddLetBinding' x v t ret = do
-    vt <- makeOpen (v, t)
+{-# SPECIALIZE addLetBinding' :: Origin -> Name -> Term -> Dom Type -> TCM a -> TCM a #-}
+defaultAddLetBinding' :: (ReadTCState m, MonadTCEnv m) => Origin -> Name -> Term -> Dom Type -> m a -> m a
+defaultAddLetBinding' o x v t ret = do
+    vt <- makeOpen $ LetBinding o v t
     flip localTC ret $ \e -> e { envLetBindings = Map.insert x vt $ envLetBindings e }
 
 -- | Add a let bound variable
-{-# SPECIALIZE addLetBinding :: ArgInfo -> Name -> Term -> Type -> TCM a -> TCM a #-}
-addLetBinding :: MonadAddContext m => ArgInfo -> Name -> Term -> Type -> m a -> m a
-addLetBinding info x v t0 ret = addLetBinding' x v (defaultArgDom info t0) ret
+{-# SPECIALIZE addLetBinding :: ArgInfo -> Origin -> Name -> Term -> Type -> TCM a -> TCM a #-}
+addLetBinding :: MonadAddContext m => ArgInfo -> Origin -> Name -> Term -> Type -> m a -> m a
+addLetBinding info o x v t0 ret = addLetBinding' o x v (defaultArgDom info t0) ret
 
+
+-- | Remove a let bound variable.
+removeLetBinding :: MonadTCEnv m => Name -> m a -> m a
+removeLetBinding x = localTC $ \ e -> e { envLetBindings = Map.delete x (envLetBindings e) }
+
+-- | Remove a let bound variable and all let bindings introduced after it. For instance before
+--   printing its body to avoid folding the binding itself, or using bindings defined later.
+--   Relies on the invariant that names introduced later are sorted after earlier names.
+removeLetBindingsFrom :: MonadTCEnv m => Name -> m a -> m a
+removeLetBindingsFrom x = localTC $ \ e -> e { envLetBindings = fst $ Map.split x (envLetBindings e) }
 
 -- * Querying the context
 
@@ -498,6 +513,8 @@ getVarInfo x =
                 return (var n, t)
             _       ->
                 case Map.lookup x def of
-                    Just vt -> getOpen vt
+                    Just vt -> do
+                      LetBinding _ v t <- getOpen vt
+                      return (v, t)
                     _       -> fail $ "unbound variable " ++ prettyShow (nameConcrete x) ++
                                 " (id: " ++ prettyShow (nameId x) ++ ")"

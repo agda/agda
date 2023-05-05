@@ -1,6 +1,8 @@
 -- Andreas, 2019-06-25, issue #3855 reported by nad
 -- Constraint solver needs to respect erasure.
 
+{-# OPTIONS --erasure #-}
+
 module _
   (_≡_ : {A : Set₁} → A → A → Set)
   (refl : {A : Set₁} (x : A) → x ≡ x)

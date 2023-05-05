@@ -25,7 +25,7 @@ import Control.Monad.STM
 import Control.Monad.Trans          ( lift )
 
 import qualified Data.Char as Char
-import Data.Function
+import Data.Function (on)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Maybe
@@ -39,7 +39,7 @@ import qualified Agda.TypeChecking.Monad as TCM
 import qualified Agda.TypeChecking.Pretty as TCP
 import Agda.TypeChecking.Rules.Term (checkExpr, isType_)
 import Agda.TypeChecking.Errors
-import Agda.TypeChecking.Warnings (runPM)
+import Agda.TypeChecking.Warnings (runPM, warning)
 
 import Agda.Syntax.Fixity
 import Agda.Syntax.Position
@@ -53,8 +53,10 @@ import Agda.Syntax.Info (mkDefInfo)
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete hiding (withScope)
 import Agda.Syntax.Scope.Base
+import Agda.Syntax.TopLevelModuleName
 
 import Agda.Interaction.Base
+import Agda.Interaction.ExitCode
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Lenses as Lenses
@@ -86,6 +88,7 @@ import Agda.Utils.Singleton
 import Agda.Utils.String
 import Agda.Utils.Time
 import Agda.Utils.Tuple
+import Agda.Utils.WithDefault (lensCollapseDefault, lensKeepDefault)
 
 import Agda.Utils.Impossible
 
@@ -234,7 +237,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
       let handle e =
             Right <$>
               toIO (handleErr (Just Direct) $
-                        Exception noRange $ text $ show e)
+                        Exception noRange $ text $ E.displayException e)
 
           asyncHandler e@AsyncCancelled = return (Left e)
 
@@ -264,7 +267,8 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
 
         showImpl <- lift $ optShowImplicit <$> useTC stPragmaOptions
         showIrr <- lift $ optShowIrrelevant <$> useTC stPragmaOptions
-        unless noError $ mapM_ putResponse $
+        unless noError $ do
+          mapM_ putResponse $
             [ Resp_DisplayInfo $ Info_Error $ Info_GenericError e ] ++
             tellEmacsToJumpToError (getRange e) ++
             [ Resp_HighlightingInfo info KeepHighlighting
@@ -273,6 +277,8 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
                                    , sShowImplicitArguments = showImpl
                                    , sShowIrrelevantArguments = showIrr
                                    } ]
+          whenM (optExitOnError <$> commandLineOptions) $
+            liftIO $ exitAgdaWith TCMError
 
 -- | Run an 'IOTCM' value, catch the exceptions, emit output
 --
@@ -281,15 +287,17 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
 --   loaded interfaces for example).
 
 runInteraction :: IOTCM -> CommandM ()
-runInteraction (IOTCM current highlighting highlightingMethod cmd) =
+runInteraction iotcm =
   handleCommand inEmacs onFail $ do
     currentAbs <- liftIO $ absolute current
-    -- Raises an error if the given file is not the one currently
-    -- loaded.
-    cf <- gets theCurrentFile
-    when (not (independent cmd) && Just currentAbs /= (currentFilePath <$> cf)) $ do
+    cf  <- gets theCurrentFile
+    cmd <- if independent cmd then return cmd else do
+      when (Just currentAbs /= (currentFilePath <$> cf)) $ do
         let mode = TypeCheck
         cmd_load' current [] True mode $ \_ -> return ()
+      cf <- fromMaybe __IMPOSSIBLE__ <$> gets theCurrentFile
+      return $ case iotcm (Just (currentFileModule cf)) of
+        IOTCM _ _ _ cmd -> cmd
 
     withCurrentFile $ interpret cmd
 
@@ -300,6 +308,10 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd) =
         putResponse . Resp_InteractionPoints =<< gets theInteractionPoints
 
   where
+    -- The ranges in cmd might be incorrect because of the use of
+    -- Nothing here. That is taken care of above.
+    IOTCM current highlighting highlightingMethod cmd = iotcm Nothing
+
     inEmacs :: forall a. CommandM a -> CommandM a
     inEmacs = liftCommandMT $ withEnv $ initEnv
             { envHighlightingLevel  = highlighting
@@ -338,13 +350,14 @@ maybeAbort m = do
       tcState <- getTC
       tcEnv   <- askTC
       result  <- liftIO $ race
-                   (runTCM tcEnv tcState $ runStateT (m c) commandState)
+                   (runTCM tcEnv tcState $
+                    runStateT (m c) commandState)
                    (waitForAbort n q)
       case result of
         Left ((x, commandState'), tcState') -> do
           putTC tcState'
           put commandState'
-          case c of
+          case c Nothing of
             IOTCM _ _ _ Cmd_exit -> do
               putResponse Resp_DoneExiting
               return Done
@@ -421,7 +434,7 @@ initialiseCommandQueue next = do
       readCommands n = do
         c <- next
         case c of
-          Command (IOTCM _ _ _ Cmd_abort) -> do
+          Command c | IOTCM _ _ _ Cmd_abort <- c Nothing -> do
             atomically $ writeTVar abort (Just n)
             readCommands n
           _ -> do
@@ -456,6 +469,7 @@ updateInteractionPointsAfter Cmd_load{}                          = True
 updateInteractionPointsAfter Cmd_compile{}                       = True
 updateInteractionPointsAfter Cmd_constraints{}                   = False
 updateInteractionPointsAfter Cmd_metas{}                         = False
+updateInteractionPointsAfter Cmd_no_metas{}                      = False
 updateInteractionPointsAfter Cmd_show_module_contents_toplevel{} = False
 updateInteractionPointsAfter Cmd_search_about_toplevel{}         = False
 updateInteractionPointsAfter Cmd_solveAll{}                      = True
@@ -525,6 +539,11 @@ interpret (Cmd_metas norm) = do
   ms <- lift $ B.getGoals' norm (max Simplified norm)
   display_info . Info_AllGoalsWarnings ms =<< lift B.getWarningsAndNonFatalErrors
 
+interpret Cmd_no_metas = do
+  metas <- getOpenMetas
+  unless (null metas) $
+    typeError $ GenericError "Unsolved meta-variables"
+
 interpret (Cmd_show_module_contents_toplevel norm s) =
   atTopLevel $ showModuleContents norm noRange s
 
@@ -566,28 +585,22 @@ interpret (Cmd_compute_toplevel cmode s) = do
 interpret (ShowImplicitArgs showImpl) = do
   opts <- lift commandLineOptions
   setCommandLineOpts $
-    opts { optPragmaOptions =
-             (optPragmaOptions opts) { optShowImplicit = showImpl } }
+    set (lensPragmaOptions . lensOptShowImplicit . lensKeepDefault) showImpl opts
 
 interpret ToggleImplicitArgs = do
   opts <- lift commandLineOptions
-  let ps = optPragmaOptions opts
   setCommandLineOpts $
-    opts { optPragmaOptions =
-             ps { optShowImplicit = not $ optShowImplicit ps } }
+    over (lensPragmaOptions . lensOptShowImplicit . lensCollapseDefault) not opts
 
 interpret (ShowIrrelevantArgs showIrr) = do
   opts <- lift commandLineOptions
   setCommandLineOpts $
-    opts { optPragmaOptions =
-             (optPragmaOptions opts) { optShowIrrelevant = showIrr } }
+    set (lensPragmaOptions . lensOptShowIrrelevant . lensKeepDefault) showIrr opts
 
 interpret ToggleIrrelevantArgs = do
   opts <- lift commandLineOptions
-  let ps = optPragmaOptions opts
   setCommandLineOpts $
-    opts { optPragmaOptions =
-             ps { optShowIrrelevant = not $ optShowIrrelevant ps } }
+    over (lensPragmaOptions . lensOptShowIrrelevant . lensCollapseDefault) not opts
 
 interpret (Cmd_load_highlighting_info source) = do
   l <- asksTC envHighlightingLevel
@@ -756,10 +769,10 @@ interpret (Cmd_goal_type_context_infer norm ii rng s) = do
   aux <- if all Char.isSpace s
             then return GoalOnly
             else do
-              typ <- liftLocalState
-                    $ withInteractionId ii
-                    $ B.typeInMeta ii norm =<< B.parseExprIn ii rng s
-              return (GoalAndHave typ)
+              liftLocalState $ withInteractionId ii $ do
+                parsed <- B.parseExprIn ii rng s
+                (typ, faces) <- B.typeAndFacesInMeta ii norm parsed
+                return (GoalAndHave typ faces)
   cmd_goal_type_context_and aux norm ii rng s
 
 interpret (Cmd_goal_type_context_check norm ii rng s) = do
@@ -908,13 +921,14 @@ cmd_load' file argv unsolvedOK mode cmd = do
     -- choice of whether or not to display implicit arguments.
     opts0 <- gets optionsOnReload
     backends <- useTC stBackends
-    z <- runOptM $ parseBackendOptions backends argv opts0
+    let (z, warns) = runOptM $ parseBackendOptions backends argv opts0
+    mapM_ (lift . warning . OptionWarning) warns
     case z of
-      Left err   -> lift $ typeError $ GenericError err
+      Left err -> lift $ typeError $ GenericError err
       Right (_, opts) -> do
         opts <- lift $ addTrustedExecutables opts
-        let update o = o { optAllowUnsolved = unsolvedOK && optAllowUnsolved o}
-            root     = projectRoot fp $ Imp.srcModuleName src
+        let update = over (lensOptAllowUnsolved . lensKeepDefault) (unsolvedOK &&)
+            root   = projectRoot fp $ Imp.srcModuleName src
         lift $ TCM.setCommandLineOptions' root $ mapPragmaOptions update opts
 
     -- Restore the warnings that were saved above.
@@ -929,7 +943,12 @@ cmd_load' file argv unsolvedOK mode cmd = do
     when (t == t') $ do
       is <- lift $ sortInteractionPoints =<< getInteractionPoints
       modify $ \st -> st { theInteractionPoints = is
-                         , theCurrentFile       = Just $ CurrentFile fp argv t
+                         , theCurrentFile       = Just $ CurrentFile
+                             { currentFilePath   = fp
+                             , currentFileModule = Imp.srcModuleName src
+                             , currentFileArgs   = argv
+                             , currentFileStamp  = t
+                             }
                          }
 
     cmd ok
@@ -1092,10 +1111,10 @@ searchAbout norm rg names = do
 
 whyInScope :: String -> CommandM ()
 whyInScope s = do
-  Just (CurrentFile file _ _) <- gets theCurrentFile
-  let cwd = takeDirectory (filePath file)
-  (v, xs, ms) <- liftLocalState (B.whyInScope s)
-  display_info $ Info_WhyInScope s cwd v xs ms
+  Just file <- gets theCurrentFile
+  let cwd = takeDirectory (filePath $ currentFilePath file)
+  why <- liftLocalState $ B.whyInScope cwd s
+  display_info $ Info_WhyInScope why
 
 -- | Sets the command line options and updates the status information.
 
@@ -1119,16 +1138,13 @@ status = do
   -- changed since. Note: This code does not check if any dependencies
   -- have changed, and uses a time stamp to check for changes.
   checked  <- lift $ case cf of
-    Nothing     -> return False
-    Just (CurrentFile f _ t) -> do
-      t' <- liftIO $ getModificationTime $ filePath f
-      if t == t'
+    Nothing -> return False
+    Just f  -> do
+      t <- liftIO $ getModificationTime $ filePath (currentFilePath f)
+      if currentFileStamp f == t
         then
-          do
-            mm <- lookupModuleFromSource f
-            case mm of
-              Nothing -> return False -- work-around for Issue1007
-              Just m  -> maybe False (null . miWarnings) <$> getVisitedModule m
+          maybe False (null . miWarnings) <$>
+          getVisitedModule (currentFileModule f)
         else
             return False
 
@@ -1165,7 +1181,8 @@ parseAndDoAtToplevel
   -> CommandM (Maybe CPUTime, a)
 parseAndDoAtToplevel cmd s = do
   localStateCommandM $ do
-    e <- lift $ runPM $ parse exprParser s
+    (e, attrs) <- lift $ runPM $ parse exprParser s
+    lift $ checkAttributes attrs
     maybeTimed $ atTopLevel $ lift $
       cmd =<< concreteToAbstract_ e
 
@@ -1195,4 +1212,4 @@ tellEmacsToJumpToError r =
     Nothing                                           -> []
     Just (Pn { srcFile = Strict.Nothing })            -> []
     Just (Pn { srcFile = Strict.Just f, posPos = p }) ->
-       [ Resp_JumpToError (filePath f) p ]
+       [ Resp_JumpToError (filePath (rangeFilePath f)) p ]

@@ -1,0 +1,7 @@
+Failed to solve the following constraints:
+  path (f x) (?0 (f = f) (x = x) (i = i1)) = c (f x) : D B
+    (blocked on _12)
+  path (f x) (?0 (f = f) (x = x) (i = i0)) = c (f x) : D B
+    (blocked on _12)
+Unsolved interaction metas at the following locations:
+  Issue3660.agda:15,31-35

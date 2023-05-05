@@ -1,11 +1,9 @@
 Issue2372.agda:13,3-4
-Terms marked as eligible for instance search should end with a
-name, so 'instance' is ignored here.
+warning: -W[no]WrongInstanceDeclaration
+Instances should be of type {Γ} → C, where C evaluates to a
+postulated name or the name of a data or record type, so 'instance'
+is ignored here.
 when checking the definition of i
-Issue2372.agda:21,5-6
-Terms marked as eligible for instance search should end with a
-name, so 'instance' is ignored here.
-when checking that the expression r has type Set
 Issue2372.agda:21,5-6
 No instance of type R was found in scope.
 when checking that the expression r has type Set

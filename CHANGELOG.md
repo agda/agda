@@ -1,38 +1,80 @@
-Release notes for Agda version 2.6.3
+Release notes for Agda version 2.6.4
 ====================================
 
-Installation and infrastructure
--------------------------------
+Installation
+------------
 
-Agda supports GHC versions 8.0.2 to 9.2.4.
+* Removed the cabal flag `cpphs` that enabled building Agda with `cpphs` instead of the default C preprocessor.
 
-Language
---------
+Reflection
+----------
 
-* The new option `--erased-cubical` turns on a variant of Cubical Agda
-  (see [#4701](https://github.com/agda/agda/issues/4701)).
+* `FOREIGN` and `COMPILE` pragmas can now be generated using two new reflection primitives:
 
-  When this variant of Cubical Agda is used glue (and some related
-  builtins) may only be used in erased settings. One can import
-  regular Cubical Agda code from this variant of Cubical Agda, but
-  names defined using Cubical Agda are (mostly) treated as if they had
-  been marked as erased. See the [reference
-  manual](https://agda.readthedocs.io/en/latest/language/cubical.html#cubical-agda-with-erased-glue-and-erased-higher-constructors)
-  for more details.
+  ```agda
+  pragmaForeign : String → String → TC ⊤
+  pragmaCompile : String → Name → String → TC ⊤
+  ```
 
-  The GHC and JS backends can compile code that uses
-  `--erased-cubical` if the top-level module uses this flag.
 
-  This feature is experimental.
+* Add 4 reflection primitives of the form `ask*` and `with*`:
 
-* The parameter arguments of constructors and record fields are now
-  marked as erased
-  ([#4786](https://github.com/agda/agda/issues/4786)).
+  ```agda
+  withNormalisation : ∀ {a} {A : Set a} → Bool → TC A → TC A
+  askNormalisation  : TC Bool
 
-  For instance, the type of the constructor `c` below is now `{@0 A :
-  Set} → D A`, and the type of the record field `R.f` is `{@0 A : Set}
+  withExpandLast : ∀ {a} {A : Set a} → Bool → TC A → TC A
+  askExpandLast  : TC Bool
+
+  withReduceDefs : ∀ {a} {A : Set a} → (Σ Bool λ _ → List Name) → TC A → TC A
+  askReduceDefs  : TC (Σ Bool λ _ → List Name)
+
+  askReconstructed  : TC Bool
+  ```
+  to change the behaviour of `inferType`, `checkType`, `quoteTC`, `getContext`.
+
+* [**Breaking**] The type of `withReconstructed` has been changed from
+
+  ```agda
+  withReconstructed : ∀ {a} {A : Set a} →        TC A → TC A
+
+  ```
+  to
+  ```agda
+  withReconstructed : ∀ {a} {A : Set a} → Bool → TC A → TC A
+  ```
+  to match the type of primitives of the form `with*`.
+
+* Two primitives `onlyReduceDefs` and `dontReduceDefs` are removed but re-implemented
+  using the new family of primitives `with*` and `ask*` for backward compatibility.
+
+
+Erasure
+-------
+
+* [**Breaking**] The new flag `--erasure` turns on support for erasure
+  ([#6349](https://github.com/agda/agda/issues/6349)).
+
+  This flag is infective.
+
+  Unless this flag is active the following things are prohibited:
+  * Use of the annotations `@0` and `@erased`.
+  * Use of names defined in Cubical Agda in Erased Cubical Agda.
+  * Use of the flag `--erase-record-parameters`.
+
+  When `--erasure` is used the parameter arguments of constructors and
+  projections are marked as erased
+  ([#4786](https://github.com/agda/agda/issues/4786)), with one
+  exception: for indexed data types this only happens if the
+  `--with-K` flag is active
+  ([#6297](https://github.com/agda/agda/issues/6297)).
+
+  For instance, the type of the constructor `c` below is `{@0 A :
+  Set} → D A`, and the type of the projection `R.f` is `{@0 A : Set}
   → R A → A`:
   ```agda
+  {-# OPTIONS --erasure #-}
+
   data D (A : Set) : Set where
     c : D A
 
@@ -41,239 +83,265 @@ Language
       f : A
   ```
 
-* Added an option `--erase-record-parameters` that additionally marks
-  parameters to definitions in a record module as erased
-  ([#5770](https://github.com/agda/agda/issues/5770)). For example:
+* [**Breaking**] Unless the new flag `--erased-matches` is used
+  matching is not allowed in erased positions for single-constructor
+  data types or record types without η-equality
+  ([#6349](https://github.com/agda/agda/issues/6349)).
 
+  This flag is infective and implied by `--with-K`.
+
+* [**Breaking**] Added a hard compile-time mode (see
+  [#4743](https://github.com/agda/agda/issues/4743)).
+
+  When the hard compile-time mode is used all definitions are treated
+  as erased. The hard compile-time mode is entered when an erased
+  definition is checked (including an erased data or record type or
+  module), but not when (for instance) a type-signature is checked.
+
+  Previously the following code was rejected:
   ```agda
-  {-# OPTIONS --erase-record-parameters #-}
+  open import Agda.Builtin.Bool
 
-  postulate A : Set
-  postulate a : A
+  @0 f : @0 Bool → Bool
+  f = λ where
+    true  → false
+    false → true
+  ```
+  Now this code is accepted (if `--erasure` is used). On the other
+  hand, the following code which used to be accepted is now rejected
+  (if `--erasure` is used), because the pattern-matching lambda is
+  treated as erased:
+  ```agda
+  open import Agda.Builtin.Equality
 
-  record R (x : A) : Set where
-    y : A
-    y = a
+  data Unit : Set where
+    unit : Unit
 
-  f : (@0 x : A) → R x → A
-  f x r = R.y {x} r
+  mutual
+
+    f : Unit → Unit
+    f = _
+
+    @0 f≡ : f ≡ λ { unit → unit }
+    f≡ = refl
   ```
 
-* The options `--subtyping` and `--no-subtyping` have been removed
-  (see [#5427](https://github.com/agda/agda/issues/5427)).
+* One can now mark data and record types and modules as erased (see
+  [#4743](https://github.com/agda/agda/issues/4743)).
 
-* The cubical interval `I` now belongs to its own sort, `IUniv`, rather
-  than `SSet`. For `J : ISet` and `A : J → Set l`, we have
-  `(j : J) → A : Set l`, that is, the type of functions from a type in `ISet`
-  to a fibrant type is fibrant.
-
-* The option `--experimental-irrelevance` is now perhaps incompatible
-  with Cubical Agda and perhaps also postulated univalence (see
-  [#5611](https://github.com/agda/agda/issues/5611) and
-  [#5861](https://github.com/agda/agda/pull/5861)).
-
-  This is not meant to imply that the option was not already
-  incompatible with those things. Note that
-  `--experimental-irrelevance` cannot be used together with `--safe`.
-
-* A new reflection primitive `getInstances : Meta → TC (List Term)`
-  was added to `Agda.Builtin.Reflection`. This operation returns the
-  list of all possibly valid instance candidates for a given
-  metavariable. For example, the following macro instantiates the goal
-  with the first instance candidate, even if there are several:
+  If a data type is marked as erased, then it can only be used in
+  erased settings, and its constructors are erased. A data type is
+  marked as erased by writing `@0` or `@erased` right after the `data`
+  keyword of the data type's declaration:
   ```agda
-  macro
-    pickWhatever : Term → TC ⊤
-    pickWhatever hole@(meta m _) = do
-      (cand ∷ _) ← getInstances m
-        where [] -> typeError (strErr "No candidates!" ∷ [])
-      unify hole cand
-    pickWhatever _ = typeError (strErr "Already solved!" ∷ [])
+  data @0 D₁ : Set where
+    c : D₁
+
+  data @0 D₂ : Set
+
+  data D₂ where
+    c : D₁ → D₂
+
+  interleaved mutual
+
+    data @0 D₃ : Set where
+
+    data D₃ where
+      c : D₃
   ```
 
-* The reflection primitives `getContext` and `inContext` use a nominal context
-  `List (Σ String λ _ → Arg Type)` instead of  `List (Arg Type)` for printing
-  type information better. Similarly, `extendContext` takes an extra argument
-  of type `String`.
-
-* `macro` definitions can now be used even when they are declared as erased.
-  For example, this is now accepted:
+  If a record type is marked as erased, then it can only be used in
+  erased settings, its constructors and fields are erased, and
+  definitions in the record module are erased. A record type is marked
+  as erased by writing `@0` or `@erased` right after the `record`
+  keyword of the record type's declaration:
   ```agda
-  macro
-    @0 trivial : Term → TC ⊤
-    trivial = unify (con (quote refl) [])
+  record @0 R₁ : Set where
+    field
+      x : D₁
 
-  test : 42 ≡ 42
-  test = trivial
+  record @0 R₂ : Set
+
+  record R₂ where
+    field
+      x : R₁
   ```
 
-* A new reflection primitive `formatErrorParts : List ErrorPart → TC String`
-  is added. It takes a list of `ErrorPart` and return its formatted string.
-
-* A new constructor `pattErr : Pattern → ErrorPart` of `ErrorPart` for reflection
-  is added.
-
-* The type expected by the builtin `EQUIVPROOF` has been changed to
-  properly encode the condition that `EQUVIFUN` is an equivalence.
-  ([#5661](https://github.com/agda/agda/issues/5661),
-  [#6032](https://github.com/agda/agda/pull/6032))
-
-* The primitive `primIdJ` has been removed
-  ([#6032](https://github.com/agda/agda/pull/6032)).
-
-* The builtin `SUBIN` is now exported from `Agda.Builtin.Cubical.Sub` as
-  **`inS`** rather than `inc`.
-
-* A new built-in constructor `REFLID` was added to the cubical identity
-  types. This is definitionally equal to the reflexivity identification
-  built with `conid`, with the difference being that matching on
-  `REFLID` is allowed.
-
+  If a module is marked as erased, then all definitions inside the
+  module (and in the module's telescope) are erased. A module is
+  marked as erased by writing `@0` or `@erased` right after the
+  `module` keyword:
   ```agda
-  symId : ∀ {a} {A : Set a} {x y : A} → Id x y → Id y x
-  symId reflId = reflId
-  ```
+  module @0 _ where
 
-* The new option `--no-load-primitives` complements `--no-import-sorts`
-  by foregoing loading of the primitive modules altogether. This option
-  leaves Agda in a very fragile state, as the built-in sorts are used
-  extensively throughout the implementation. It is intended to be used
-  with Literate Agda projects which want to bind `BUILTIN TYPE` (and
-  other primitives) in their own literate files.
+    F : @0 Set → Set
+    F A = A
+
+  module M (A : Set) where
+
+    record R : Set where
+      field
+        @0 x : A
+
+  module @0 N (@0 A : Set) = M A
+
+  G : (@0 A : Set) → let module @0 M₂ = M A in Set
+  G A = M.R B
+    module @0 _ where
+      B : Set
+      B = A
+  ```
+  If an erased module is defined by a module application, then erased
+  names can be used in the application, as in the definition of `N`
+  above.
+
+* Equivalence primitives no longer require full `--cubical` mode,
+  `--erased-cubical` suffices. Equivalence definition is moved out of
+  `Agda.Builtin.Cubical.Glue` into its own module `Agda.Builtin.Cubical.Equiv`,
+  the former reexports the latter.
 
 Syntax
 ------
 
-* It is now OK to put lambda-bound variables anywhere in the
-  right-hand side of a syntax declaration. However, there must always
-  be at least one "identifier" between any two regular "holes". For
-  instance, the following syntax declaration is accepted because `-`
-  is between the holes `B` and `D`.
+* If the new option `--hidden-argument-puns` is used, then the pattern
+  `{x}` is interpreted as `{x = x}`, and the pattern `⦃ x ⦄` is
+  interpreted as `⦃ x = x ⦄` (see
+  [#6325](https://github.com/agda/agda/issues/6325)). Here `x` must be
+  an unqualified name that does not refer to a constructor that is in
+  scope: if `x` is qualified, then the pattern is not interpreted as a
+  pun, and if `x` is unqualified and refers to a constructor that is
+  in scope, then the code is rejected.
 
-  ```agda
-  postulate
-    F : (Set → Set) → (Set → Set) → Set
+  This feature can be turned off using `--no-hidden-argument-puns`.
 
-  syntax F (λ A → B) (λ C → D) = B A C - D
-  ```
+  Note that `{(x)}` and `⦃ (x) ⦄` are not interpreted as puns.
 
-* Syntax can now use lambdas with multiple arguments
-  ([#394](https://github.com/agda/agda/issues/394)).
+  Note also that `{x}` is not interpreted as a pun in `λ {x} → …` or
+  `syntax f {x} = …`. However, `{x}` is interpreted as a pun in
+  `λ (c {x}) → …`.
 
-  Example:
-
-  ```agda
-  postulate
-    Σ₂ : (A : Set) → (A → A → Set) → Set
-
-  syntax Σ₂ A (λ x₁ x₂ → P) = [ x₁ x₂ ⦂ A ] × P
-  ```
-
-Library management
+Instance arguments
 ------------------
 
-* Library files below the "project root" are now ignored
-  (see [#5644](https://github.com/agda/agda/issues/5644)).
-
-  For instance, if you have a module called `A.B.C` in the directory
-  `Root/A/B`, then `.agda-lib` files in `Root/A` or `Root/A/B` do not
-  affect what options are used to type-check `A.B.C`: `.agda-lib`
-  files for `A.B.C` have to reside in `Root`, or further up the
-  directory hierarchy.
+* [**Breaking**] The algorithm for resolution of instance arguments
+  has been simplified. It will now only rely on the type of instances
+  to determine which candidate it should use, and no longer on their
+  values.
 
 Pragmas and options
 -------------------
 
-* It is now possible to declare several `BUILTIN REWRITE` relations.
-  Example:
-  ```agda
-  {-# OPTIONS --rewriting #-}
+* New command-line option `--numeric-version` to just print the version number of Agda.
 
-  open import Agda.Builtin.Equality
-  open import Agda.Builtin.Equality.Rewrite  -- 1st rewrite relation
+* Option `--version` now also prints the cabal flags active in this build of Agda
+  (e.g. whether Agda was built with `-f enable-cluster-counting`).
 
-  postulate
-    R : (A : Set) → A → A → Set
-    A : Set
-    a b c : A
-    foo : R A a b  -- using 2nd rewrite relation
-    bar : b ≡ c    -- using 1st rewrite relation
+* New command-line option `--trace-imports` to switch on notification messages
+  on the end of compilation of an imported module
+  or on access to an interface file during the type-checking.
 
-  {-# BUILTIN REWRITE R #-}  -- 2nd rewrite relation
-  {-# REWRITE foo bar #-}
+  See [--trace-imports](https://agda.readthedocs.io/en/v2.6.4/tools/command-line-options.html#cmdoption-trace-imports)
+  in the documentation for more.
 
-  test : a ≡ c
-  test = refl
-  ```
+* New option `--no-infer-absurd-clauses` to simplify coverage checking and case splitting:
+  Agda will then no longer attempt to automatically eliminate absurd clauses which can be a costly operation.
+  This means that these absurd clauses have to be written out in the Agda text.
+  Try this option if you experience type checking performance degradation with omitted absurd clauses.
 
-* New verbosity `-v debug.time:100` adds time stamps to debugging output.
+  Opposite: `--infer-absurd-clauses`.
 
-* Profiling options are now turned on with a new `--profile` flag instead of
-  abusing the debug verbosity option. (See [#5781](https://github.com/agda/agda/issues/5731).)
+* Benign warnings are now printed together with their warning name, to give a hint how they can be disabled
+  (see [#6229](https://github.com/agda/agda/issues/6229)).
 
-* The option `--without-K` has been renamed `--cubical-compatible` (See
-  [#5843](https://github.com/agda/agda/issues/5843).)
+* New option `--level-universe` to make `Level` inhabit its own universe `LevelUniv`:
+  When this option is turned on, `Level` can now only depend on terms of type `Level`.
 
-  The old name is retained for backwards compatibility.
+  Note: While compatible with the `--cubical` option, this option is currently not compatible with cubical builtin files, and an error will be raised when trying to import them in a file using `--level-universe`.
 
-Performance
------------
+  Opposite: `--no-level-universe`.
 
-* Meta-variables can now be saved in `.agdai` files, instead
-  of being expanded. This can affect performance. (See
-  [#5731](https://github.com/agda/agda/issues/5731).)
+* Most boolean options now have their opposite, e.g., `--allow-unsolved-metas` is complemented by `--no-allow-unsolved-metas`.
+  With the opposite one can override a previously given option.
+  Options given on the command line are overwritten by options given in the `.agda-lib` file,
+  which in turn get overwritten by options given in the individual `.agda` file.
 
-  Meta-variables are saved if the pragma option `--save-metas` is
-  used. This option can be overridden by `--no-save-metas`.
+  New options (all on by default):
+  - `--no-allow-exec`
+  - `--no-allow-incomplete-matches`
+  - `--no-allow-unsolved-metas`
+  - `--no-call-by-name`
+  - `--no-cohesion`
+  - `--no-count-clusters`
+  - `--no-erased-matches`
+  - `--no-erasure`
+  - `--no-experimental-irrelevance`
+  - `--no-flat-split`
+  - `--no-guarded`
+  - `--no-injective-type-constructors`
+  - `--no-keep-covering-clauses`
+  - `--no-keep-pattern-variables`
+  - `--no-omega-in-omega`
+  - `--no-postfix-projections`
+  - `--no-rewriting`
+  - `--no-show-identity-substitutions`
+  - `--no-show-implicit`
+  - `--no-show-irrelevant`
+  - `--no-two-level`
+  - `--no-type-in-type`
+  - `--eta-equality`
+  - `--fast-reduce`
+  - `--forcing`
+  - `--import-sorts`
+  - `--load-primitives`
+  - `--main`
+  - `--pattern-matching`
+  - `--positivity-check`
+  - `--print-pattern-synonyms`
+  - `--projection-like`
+  - `--termination-check`
+  - `--unicode`
 
-* The new option `--syntactic-equality[=FUEL]` can be used to limit
-  how many times the syntactic equality shortcut is allowed to fail
-  (see [#5801](https://github.com/agda/agda/issues/5801)).
+* Option `--flat-split` again implies `--cohesion`.
+  Reverts change introduced in Agda 2.6.3 where `--cohesion` was a prerequisite for `--flat-split`.
 
-  If `FUEL` is omitted, then the syntactic equality shortcut is
-  enabled without any restrictions.
+* Option `--erase-record-parameters` now implies `--erasure`.
 
-  If `FUEL` is given, then the syntactic equality shortcut is given
-  `FUEL` units of fuel. The exact meaning of this is
-  implementation-dependent, but successful uses of the shortcut do not
-  affect the amount of fuel. Currently the fuel is decreased in the
-  failure continuations of the implementation of the syntactic
-  equality shortcut. When a failure continuation completes the fuel is
-  restored to its previous amount.
+* Option `--count-clusters` is now on by default when Agda was built with ICU support (Cabal flag `enable-cluster-counting`).
 
-  The idea for this option comes from András Kovács'
-  [smalltt](https://github.com/AndrasKovacs/smalltt/blob/989b020309686e04374f1ab7844f468386d2eb2f/README.md#approximate-conversion-checking).
+Library management
+------------------
 
-Compiler backends
------------------
+* [**Breaking**] One can no longer have `.agda-lib` files that are
+  located below the "project root", on the path to the file that is
+  being type-checked (see
+  [#6465](https://github.com/agda/agda/issues/6465)).
 
-* Both the GHC and JS backends now refuse to compile code that uses
-  `--cubical`.
+  For instance, if you have a module called `A.B.C` in the directory
+  `Root/A/B`, then an error is raised if there are `.agda-lib` files
+  in `Root/A` or `Root/A/B`.
 
-  Note that support for compiling code that uses `--erased-cubical`
-  has been added to both backends (see above).
+  Previously such `.agda-lib` files were ignored.
 
-LaTeX backend
--------------
+Emacs mode
+----------
 
-DOT backend
------------
+* Helper function (`C-c C-h`) does not abstract over module parameters anymore
+  (see [#2271](https://github.com/agda/agda/issues/2271)).
 
-* The new option `--dependency-graph-include=LIBRARY` can be used to
-  restrict the dependency graph to modules from one or more libraries
-  (see [#5634](https://github.com/agda/agda/issues/5634)).
+* New Agda input mode prefix `box` for APL boxed operators, e.g. `\box=` for ⌸;
+  see PR [#6510](https://github.com/agda/agda/pull/6510/files) for full list of bindings.
 
-  Note that the module given on the command line might not be
-  included.
+Cubical Agda
+------------
 
-* The generated graphs no longer contain "redundant" edges: if a
-  module is imported both directly and indirectly, then the edge
-  corresponding to the direct import is omitted.
+* Cubical Agda will now report boundary information for interaction
+  points which are not at the top-level of their respective clauses.
+  This includes bodies of `Path`-typed values, the faces of a partial
+  element, arguments to functions returning paths, etc.
 
-JSON API
---------
+  Since this information is available in a structured way _during
+  interaction_, the "goal type, context, and inferred type" command will
+  also display the value of the expression at each relevant face.
 
-* The JSON API now represents meta-variables differently, using
-  objects containing two keys, `id` and `module`, both with values
-  that are (natural) numbers. See
-  [#5731](https://github.com/agda/agda/issues/5731).
+  See also [PR #6529](https://github.com/agda/agda/pull/6529) for a
+  deeper explanation and a demo video.

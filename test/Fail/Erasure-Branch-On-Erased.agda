@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 -- Andreas, 2018-10-17
 --
 -- Cannot branch on erased argument.

@@ -1,3 +1,3 @@
-Issue4525b.agda:4,5-14
+Issue4525b.agda:6,5-14
 Erased pattern-matching lambdas may only be used in erased contexts
 when checking that the expression λ @0 { () } has type @0 ⊥ → Set

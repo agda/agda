@@ -83,6 +83,22 @@ Known pitfalls and issues
       \usepackage{newunicodechar}
       \newunicodechar{λ}{\ensuremath{\mathnormal\lambda}}
 
+    In recent versions of LuaLaTeX, you can avoid using
+    ``\newunicodechar`` at all by instead setting up
+    a chain of fallback fonts, e.g.
+
+    .. code-block:: latex
+
+        \usepackage{luaotfload}
+        \directlua{luaotfload.add_fallback
+          ("mycustomfallback",
+            { "SymbolamonospacifiedforSourceCodePro:style=Regular;"
+            , "NotoSansMono:style=Regular;"
+            , "NotoSansMath:style=Regular;"
+            }
+          )}
+        \defaultfontfeatures{RawFeature={fallback=mycustomfallback}}
+
 * If ``<`` and ``>`` are typeset like ``¡`` and ``¿``, then the
   problem might be that you are using pdfLaTeX and have not selected a
   suitable font encoding.
@@ -317,7 +333,7 @@ The :option:`--count-clusters` flag is not enabled in all builds of Agda,
 because the implementation depends on the ICU_ library, the
 installation of which could cause extra trouble for some users. The
 presence of this flag is controlled by the Cabal flag
-``enable-cluster-counting``.
+:option:`enable-cluster-counting`.
 
 .. _breaking-up-code-blocks:
 

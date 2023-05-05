@@ -50,6 +50,7 @@ import Agda.TypeChecking.Telescope
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( isType_ )
 
 import Agda.Utils.Either
+import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
@@ -83,6 +84,10 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                 DataOrRecSig n -> n
                 _              -> __IMPOSSIBLE__
 
+        -- If the data type is erased, then hard compile-time mode is
+        -- entered.
+        setHardCompileTimeModeIfErased' def $ do
+
         -- Make sure the shape of the type is visible
         let unTelV (TelV tel a) = telePi tel a
         t <- unTelV <$> telView t
@@ -95,13 +100,6 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
         -- The parameters are in scope when checking the constructors.
         dataDef <- bindGeneralizedParameters parNames t $ \ gtel t0 ->
                    bindParameters (npars - length parNames) ps t0 $ \ ptel t0 -> do
-
-            -- Parameters are always hidden and erased in constructors
-            let tel  = abstract gtel ptel
-                tel' = applyQuantity zeroQuantity .
-                       hideAndRelParams <$>
-                       tel
-            -- let tel' = hideTel tel
 
             -- The type we get from bindParameters is Θ -> s where Θ is the type of
             -- the indices. We count the number of indices and return s.
@@ -127,6 +125,20 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   else throwError err
               reduce s
 
+            withK   <- not . optWithoutK <$>
+                       pragmaOptions
+            erasure <- optErasure <$> pragmaOptions
+            -- Parameters are always hidden in constructors. If
+            -- --erasure is used, then the parameters are erased for
+            -- non-indexed data types, and if --with-K is active this
+            -- applies also to indexed data types.
+            let tel  = abstract gtel ptel
+                tel' = (if erasure && (withK || nofIxs == 0)
+                        then applyQuantity zeroQuantity
+                        else id) .
+                       hideAndRelParams <$>
+                       tel
+
             reportSDoc "tc.data.sort" 20 $ vcat
               [ "checking datatype" <+> prettyTCM name
               , nest 2 $ vcat
@@ -141,21 +153,21 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
             let npars = size tel
 
             -- Change the datatype from an axiom to a datatype with no constructors.
-            let dataDef = Datatype
-                  { dataPars       = npars
-                  , dataIxs        = nofIxs
-                  , dataClause     = Nothing
-                  , dataCons       = []     -- Constructors are added later
-                  , dataSort       = s
-                  , dataAbstr      = Info.defAbstract i
-                  , dataMutual     = Nothing
-                  , dataPathCons   = []     -- Path constructors are added later
-                  , dataTranspIx   = Nothing -- Generated later if nofIxs > 0.
-                  , dataTransp     = Nothing -- Added later
+            let dataDef = DatatypeData
+                  { _dataPars       = npars
+                  , _dataIxs        = nofIxs
+                  , _dataClause     = Nothing
+                  , _dataCons       = []     -- Constructors are added later
+                  , _dataSort       = s
+                  , _dataAbstr      = Info.defAbstract i
+                  , _dataMutual     = Nothing
+                  , _dataPathCons   = []     -- Path constructors are added later
+                  , _dataTranspIx   = Nothing -- Generated later if nofIxs > 0.
+                  , _dataTransp     = Nothing -- Added later
                   }
 
             escapeContext impossible npars $ do
-              addConstant' name defaultArgInfo name t dataDef
+              addConstant' name defaultArgInfo name t $ DatatypeDefn dataDef
                 -- polarity and argOcc.s determined by the positivity checker
 
             -- Check the types of the constructors
@@ -180,26 +192,26 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                 checkIndexSorts s' ixTel
 
             -- Return the data definition
-            return dataDef{ dataPathCons = catMaybes pathCons
+            return dataDef{ _dataPathCons = catMaybes pathCons
                           }
 
         let cons   = map A.axiomName cs  -- get constructor names
 
         (mtranspix, transpFun) <-
-          ifM (collapseDefault . optWithoutK <$> pragmaOptions)
+          ifM (optCubicalCompatible <$> pragmaOptions)
             (do mtranspix <- inTopContext $ defineTranspIx name
                 transpFun <- inTopContext $
                                defineTranspFun name mtranspix cons
-                                 (dataPathCons dataDef)
+                                 (_dataPathCons dataDef)
                 return (mtranspix, transpFun))
             (return (Nothing, Nothing))
 
         -- Add the datatype to the signature with its constructors.
         -- It was previously added without them.
-        addConstant' name defaultArgInfo name t $
-            dataDef{ dataCons = cons
-                   , dataTranspIx = mtranspix
-                   , dataTransp   = transpFun
+        addConstant' name defaultArgInfo name t $ DatatypeDefn
+            dataDef{ _dataCons = cons
+                   , _dataTranspIx = mtranspix
+                   , _dataTransp   = transpFun
                    }
 
 -- | Make sure that the target universe admits data type definitions.
@@ -218,8 +230,6 @@ checkDataSort name s = setCurrentRange name $ do
                    , prettyTCM name
                    , "does not admit data or record declarations"
                    ]
-      dunno :: TCM ()
-      dunno = postpone (unblockOnAnyMetaIn s) s
     case s of
       -- Sorts that admit data definitions.
       Type _       -> yes
@@ -230,11 +240,12 @@ checkDataSort name s = setCurrentRange name $ do
       -- Sorts that do not admit data definitions.
       SizeUniv     -> no
       LockUniv     -> no
+      LevelUniv    -> no
       IntervalUniv -> no
-      -- Unsolved sorts.
-      PiSort _ _ _ -> dunno
-      FunSort _ _  -> dunno
-      UnivSort _   -> dunno
+      -- Blocked sorts.
+      PiSort _ _ _ -> __IMPOSSIBLE__
+      FunSort _ _  -> __IMPOSSIBLE__
+      UnivSort _   -> __IMPOSSIBLE__
       MetaS _ _    -> __IMPOSSIBLE__
       DummyS _     -> __IMPOSSIBLE__
   where
@@ -283,9 +294,13 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
           Quantityω{} -> return ()
           Quantity0{} -> return ()
           Quantity1{} -> typeError $ GenericError $ "Quantity-restricted constructors are not supported"
+
+        -- If the constructor is erased, then hard compile-time mode
+        -- is entered.
+        setHardCompileTimeModeIfErased' ai $ do
+
         -- check that the type of the constructor is well-formed
-        (t, isPathCons) <- applyQuantityToContext ai $
-                           checkConstructorType e d
+        (t, isPathCons) <- checkConstructorType e d
 
         -- compute which constructor arguments are forced (only point constructors)
         forcedArgs <- if isPathCons == PointCons
@@ -301,7 +316,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               Prop l -> Type l
               _      -> s
         arity <- traceCall (CheckConstructorFitsIn c t s') $
-                 applyQuantityToContext ai $
+                 applyQuantityToJudgement ai $
                  fitsIn uc forcedArgs t s'
         -- this may have instantiated some metas in s, so we reduce
         s <- reduce s
@@ -340,7 +355,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
 
         -- add parameters to constructor type and put into signature
         escapeContext impossible (size tel) $ do
-
+          erasure <- optErasure <$> pragmaOptions
           addConstant' c ai c (telePi tel t) $ Constructor
               { conPars   = size tel
               , conArity  = arity
@@ -352,6 +367,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               , conProj   = projNames
               , conForced = forcedArgs
               , conErased = Nothing  -- computed during compilation to treeless
+              , conErasure = erasure
               }
 
         -- Add the constructor to the instance table, if needed
@@ -671,23 +687,23 @@ defineProjections dataName con params names fsT t = do
     noMutualBlock $ do
       let cs = [ clause ]
       (mst, _, cc) <- compileClauses Nothing cs
-      let fun = emptyFunction
-                { funClauses    = cs
-                , funCompiled   = Just cc
-                , funSplitTree  = mst
-                , funProjection = Just $ Projection
+      fun          <- emptyFunctionData <&> \fun -> fun
+                { _funClauses    = cs
+                , _funCompiled   = Just cc
+                , _funSplitTree  = mst
+                , _funProjection = Right Projection
                     { projProper   = Nothing
                     , projOrig     = projName
                     , projFromType = Arg (getArgInfo ty) dataName
                     , projIndex    = np + 1
                     , projLams     = ProjLams $ map (argFromDom . fmap fst) $ telToList projTel
                     }
-                , funMutual     = Just []
-                , funTerminates = Just True
+                , _funMutual     = Just []
+                , _funTerminates = Just True
                 }
       lang <- getLanguage
       inTopContext $ addConstant projName $
-        (defaultDefn defaultArgInfo projName (unDom projType) lang fun)
+        (defaultDefn defaultArgInfo projName (unDom projType) lang $ FunctionDefn fun)
           { defNoCompilation  = True
           , defArgOccurrences = [StrictPos]
           }
@@ -786,13 +802,14 @@ defineTranspIx d = do
         let cs = [ clause ]
 --        we do not compile clauses as that leads to throwing missing clauses errors.
 --        (mst, _, cc) <- compileClauses Nothing cs
-        let fun = emptyFunction
-                  { funClauses    = cs
-               --   , funCompiled   = Just cc
-               --   , funSplitTree  = mst
-                  , funProjection = Nothing
-                  , funMutual     = Just []
-                  , funTerminates = Just True
+        fun <- emptyFunctionData <&> \fun -> fun
+                  { _funClauses    = cs
+               --   , _funCompiled   = Just cc
+               --   , _funSplitTree  = mst
+                  , _funProjection = Left MaybeProjection
+                  , _funMutual     = Just []
+                  , _funTerminates = Just True
+                  , _funIsKanOp    = Just d
                   }
         inTopContext $ do
          reportSDoc "tc.transpx.type" 15 $ vcat
@@ -801,7 +818,7 @@ defineTranspIx d = do
            ]
 
          addConstant trIx $
-          (defaultDefn defaultArgInfo trIx theType (Cubical CErased) fun)
+          (defaultDefn defaultArgInfo trIx theType (Cubical CErased) $ FunctionDefn fun)
             { defNoCompilation  = True
             }
 
@@ -870,8 +887,9 @@ defineTranspFun d mtrX cons pathCons = do
 
 
       noMutualBlock $ do
+        fun <- emptyFunction
         inTopContext $ addConstant trD $
-          (defaultDefn defaultArgInfo trD theType (Cubical CErased) emptyFunction)
+          (defaultDefn defaultArgInfo trD theType (Cubical CErased) fun)
         let
           ctel = abstract telI $ ExtendTel (defaultDom $ subst 0 iz dTs) (Abs "t" EmptyTel)
           ps = telePatterns ctel []
@@ -896,16 +914,17 @@ defineTranspFun d mtrX cons pathCons = do
         ecs <- tryTranspError $ (clause:) <$> defineConClause trD (not $ null pathCons) mtrX npars nixs ixs telI sigma dTs cons
         caseEitherM (pure ecs) (\ cl -> debugNoTransp cl >> return Nothing) $ \ cs -> do
         (mst, _, cc) <- compileClauses Nothing cs
-        let fun = emptyFunction
-                  { funClauses    = cs
-                  , funCompiled   = Just cc
-                  , funSplitTree  = mst
-                  , funProjection = Nothing
-                  , funMutual     = Just []
-                  , funTerminates = Just True
+        fun <- emptyFunctionData <&> \fun -> fun
+                  { _funClauses    = cs
+                  , _funCompiled   = Just cc
+                  , _funSplitTree  = mst
+                  , _funProjection = Left MaybeProjection
+                  , _funMutual     = Just []
+                  , _funTerminates = Just True
+                  , _funIsKanOp    = Just d
                   }
         inTopContext $ addConstant trD $
-          (defaultDefn defaultArgInfo trD theType (Cubical CErased) fun)
+          (defaultDefn defaultArgInfo trD theType (Cubical CErased) $ FunctionDefn fun)
             { defNoCompilation  = True
             }
         reportSDoc "tc.data.transp" 20 $ sep
@@ -1032,7 +1051,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
                      ixsI <- open $ AbsN (teleNames parI) ixsI
                      parI <- open parI
                      abstract_trD $ \ delta _ _ -> do
-                     let delta0_refl = flip map delta $ \ p -> lam "i" $ \ _ -> p <@> pure iz
+                     let delta0_refl = for delta $ \ p -> lam "i" $ \ _ -> p <@> pure iz
                      abstractN (ixsI `applyN` delta0_refl) $ \ x' -> do
                      abstractN (pure $ intervalTel "phi'") $ \ _ -> do
                      ty <- dT `applyN` (delta0_refl ++ x' ++ [pure iz])
@@ -1070,13 +1089,13 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
                 let [t] = map (fmap unArg) as0
                 let [phi'] = phi's
                 let telXdeltai = bind "i" $ \ i -> applyN xTel (map (<@> i) delta)
-                let reflx1 = flip map x $ \ q -> lam "i" $ \ _ -> q <@> pure io
-                let symx' = flip map x' $ \ q' -> lam "i" $ \ i -> q' <@> neg i
+                let reflx1 = for x $ \ q -> lam "i" $ \ _ -> q <@> pure io
+                let symx' = for x' $ \ q' -> lam "i" $ \ i -> q' <@> neg i
                 x_tr <- mapM (open . unArg) =<< transpPathTel' telXdeltai symx' reflx1 phi' x
                 let baseTrX = trD `applyN` delta `applyN` x_tr `applyN` [phi `min` phi',t]
                 let sideTrX = lam "j" $ \ j -> ilam "o" $ \ _ -> do
-                      let trD_f = trD `applyN` (flip map delta $ \ p -> lam "i" $ \ i -> p <@> (i `min` neg j))
-                                      `applyN` (flip map x_tr  $ \ p -> lam "i" $ \ i -> p <@> (i `min` neg j))
+                      let trD_f = trD `applyN` (for delta $ \ p -> lam "i" $ \ i -> p <@> (i `min` neg j))
+                                      `applyN` (for x_tr  $ \ p -> lam "i" $ \ i -> p <@> (i `min` neg j))
                                       `applyN` [(phi `min` phi') `max` j,t]
                       let x_tr_f = fmap (fmap (\ (Abs n (Arg i t)) -> Arg i $ Lam defaultArgInfo (Abs n t)) . sequence) $
                            bind "i" $ \ i -> do
@@ -1239,7 +1258,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
                 let squeezedv0 = ilam "o" $ \ o -> do
                       let
                         delta_f :: [NamesT TCM Term]
-                        delta_f = flip map delta $ \ p -> lam "j" $ \ j -> p <@> (j `max` i)
+                        delta_f = for delta $ \ p -> lam "j" $ \ j -> p <@> (j `max` i)
                       x_f <- (mapM open =<<) $ lamTel $ bind "j" $ \ j ->
                                  (absApp <$> q2_f <*> j) `appTel` i
                       trD `applyN` delta_f `applyN` x_f `applyN` [phi `max` i, v0 <..> o]
@@ -1363,9 +1382,12 @@ defineTranspForFields pathCons applyProj name params fsT fns rect = do
   reportSDoc "trans.rec" 60 $ text $ "sort = " ++ show (getSort rect')
 
   lang <- getLanguage
+  fun  <- emptyFunctionData
   noMutualBlock $ addConstant theName $
     (defaultDefn defaultArgInfo theName theType lang
-       (emptyFunction { funTerminates = Just True }))
+       (FunctionDefn fun{ _funTerminates = Just True
+                        , _funIsKanOp    = Just name
+                        }))
       { defNoCompilation = True }
   -- ⊢ Γ = gamma = (δ : Δ^I) (φ : I) (u0 : R (δ i0))
   -- Γ ⊢     rtype = R (δ i1)
@@ -1521,9 +1543,12 @@ defineHCompForFields applyProj name params fsT fns rect = do
   reportSDoc "hcomp.rec" 60 $ text $ "sort = " ++ show (lTypeLevel rect)
 
   lang <- getLanguage
+  fun  <- emptyFunctionData
   noMutualBlock $ addConstant theName $
     (defaultDefn defaultArgInfo theName theType lang
-       (emptyFunction { funTerminates = Just True }))
+       (FunctionDefn fun{ _funTerminates = Just True
+                        , _funIsKanOp    = Just name
+                        }))
       { defNoCompilation = True }
   --   ⊢ Γ = gamma = (δ : Δ) (φ : I) (_ : (i : I) -> Partial φ (R δ)) (_ : R δ)
   -- Γ ⊢     rtype = R δ
@@ -1732,9 +1757,9 @@ fitsIn uc forceds t s = do
   -- noConstraints $ s' `leqSort` s
 
   withoutK <- withoutKOption
-  when withoutK $ whenM (isFibrant s) $ do
+  when withoutK $ do
     q <- viewTC eQuantity
-    usableAtModality (setQuantity q defaultModality) (unEl t)
+    usableAtModality' (Just s) ConstructorType (setQuantity q defaultModality) (unEl t)
 
   fitsIn' withoutK forceds t s
   where

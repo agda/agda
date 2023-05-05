@@ -18,17 +18,28 @@ import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
 
 import GHC.Generics (Generic)
 
+import Agda.Utils.Boolean
 import Agda.Utils.List
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 
 -- | We want to know whether we are allowed to insert unicode characters or not.
 data UnicodeOrAscii
-  = UnicodeOk
-  | AsciiOnly
+  = UnicodeOk  -- ^ 'true': Unicode characters are allowed.
+  | AsciiOnly  -- ^ 'false: Stick to ASCII.
   deriving (Show, Eq, Enum, Bounded, Generic)
 
 instance NFData UnicodeOrAscii
+
+instance Boolean UnicodeOrAscii where
+  fromBool = \case
+    True -> UnicodeOk
+    False -> AsciiOnly
+
+instance IsBool UnicodeOrAscii where
+  toBool = \case
+    UnicodeOk -> True
+    AsciiOnly -> False
 
 {-# NOINLINE unsafeUnicodeOrAsciiIORef #-}
 unsafeUnicodeOrAsciiIORef :: IORef UnicodeOrAscii

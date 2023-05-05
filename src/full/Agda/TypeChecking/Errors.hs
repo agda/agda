@@ -17,15 +17,19 @@ module Agda.TypeChecking.Errors
   , dropTopLevelModule
   , topLevelModuleDropper
   , stringTCErr
+  , explainWhyInScope
+  , Verbalize(verbalize)
   ) where
 
 import Prelude hiding ( null, foldl )
 
+import qualified Control.Exception as E
+import Control.Monad ((>=>), (<=<))
 import Control.Monad.Except
 
 import qualified Data.CaseInsensitive as CaseInsens
 import Data.Foldable (foldl)
-import Data.Function
+import Data.Function (on)
 import Data.List (sortBy, dropWhileEnd, intercalate)
 import Data.Maybe
 import qualified Data.Set as Set
@@ -43,10 +47,12 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Scope.Monad (isDatatypeModule)
 import Agda.Syntax.Scope.Base
 
+import Agda.TypeChecking.Monad (typeOfConst)
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
+import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.SizedTypes ( sizeType )
 import Agda.TypeChecking.Monad.State
@@ -60,6 +66,7 @@ import Agda.TypeChecking.Reduce (instantiate)
 import Agda.Utils.FileName
 import Agda.Utils.Float  ( toStringWithoutDotZero )
 import Agda.Utils.Function
+import Agda.Utils.Functor( for )
 import Agda.Utils.List   ( initLast )
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
@@ -106,7 +113,7 @@ tcErrString :: TCErr -> String
 tcErrString err = prettyShow (getRange err) ++ " " ++ case err of
   TypeError _ _ cl  -> errorString $ clValue cl
   Exception r s     -> prettyShow r ++ " " ++ show s
-  IOException _ r e -> prettyShow r ++ " " ++ show e
+  IOException _ r e -> prettyShow r ++ " " ++ E.displayException e
   PatternErr{}      -> "PatternErr"
 
 stringTCErr :: String -> TCErr
@@ -118,6 +125,7 @@ errorString err = case err of
   AmbiguousName{}                          -> "AmbiguousName"
   AmbiguousParseForApplication{}           -> "AmbiguousParseForApplication"
   AmbiguousParseForLHS{}                   -> "AmbiguousParseForLHS"
+  AmbiguousProjectionError{}               -> "AmbiguousProjectionError"
 --  AmbiguousParseForPatternSynonym{}        -> "AmbiguousParseForPatternSynonym"
   AmbiguousTopLevelModuleName {}           -> "AmbiguousTopLevelModuleName"
   BadArgumentsToPatternSynonym{}           -> "BadArgumentsToPatternSynonym"
@@ -231,6 +239,7 @@ errorString err = case err of
   UnequalRelevance{}                       -> "UnequalRelevance"
   UnequalQuantity{}                        -> "UnequalQuantity"
   UnequalCohesion{}                        -> "UnequalCohesion"
+  UnequalFiniteness{}                      -> "UnequalFiniteness"
   UnequalHiding{}                          -> "UnequalHiding"
   UnequalLevel{}                           -> "UnequalLevel"
   UnequalSorts{}                           -> "UnequalSorts"
@@ -261,6 +270,9 @@ errorString err = case err of
   InstanceSearchDepthExhausted{}           -> "InstanceSearchDepthExhausted"
   TriedToCopyConstrainedPrim{}             -> "TriedToCopyConstrainedPrim"
   SortOfSplitVarError{}                    -> "SortOfSplitVarError"
+  ReferencesFutureVariables{}              -> "ReferencesFutureVariables"
+  DoesNotMentionTicks{}                    -> "DoesNotMentionTicks"
+  MismatchedProjectionsError{}             -> "MismatchedProjectionsError"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -290,14 +302,10 @@ dropTopLevelModule q = ($ q) <$> topLevelModuleDropper
 
 -- | Produces a function which drops the filename component of the qualified name.
 topLevelModuleDropper :: (MonadDebug m, MonadTCEnv m, ReadTCState m) => m (QName -> QName)
-topLevelModuleDropper = do
-  caseMaybeM (asksTC envCurrentPath) (return id) $ \ f -> do
-  reportSDoc "err.dropTopLevel" 60 $ vcat
-    [ "current path =" <+> (text . filePath) f
-    , "moduleToSource =" <+> do text . show =<< useR stModuleToSource
-    ]
-  m <- fromMaybe __IMPOSSIBLE__ <$> lookupModuleFromSource f
-  return $ dropTopLevelModule' $ size m
+topLevelModuleDropper =
+  caseMaybeM currentTopLevelModule
+    (return id)
+    (return . dropTopLevelModule' . size)
 
 instance PrettyTCM TypeError where
   prettyTCM err = case err of
@@ -504,7 +512,7 @@ instance PrettyTCM TypeError where
 
     NotAProperTerm -> fwords "Found a malformed term"
 
-    InvalidTypeSort s -> fsep $ prettyTCM s : pwords "is not a valid type"
+    InvalidTypeSort s -> fsep $ prettyTCM s : pwords "is not a valid sort"
     InvalidType v -> fsep $ prettyTCM v : pwords "is not a valid type"
 
     FunctionTypeInSizeUniv v -> fsep $
@@ -594,6 +602,11 @@ instance PrettyTCM TypeError where
     UnequalCohesion cmp a b -> fsep $
       [prettyTCM a, notCmp cmp, prettyTCM b] ++
       pwords "because one is a non-flat function type and the other is a flat function type"
+      -- FUTURE Cohesion: update message if/when introducing sharp.
+
+    UnequalFiniteness cmp a b -> fsep $
+      [prettyTCM a, notCmp cmp, prettyTCM b] ++
+      pwords "because one is a type of partial elements and the other is a function type"
       -- FUTURE Cohesion: update message if/when introducing sharp.
 
     UnequalHiding a b -> fsep $
@@ -755,6 +768,21 @@ instance PrettyTCM TypeError where
              pwords "could refer to any of the following files:"
            ) $$ nest 2 (vcat $ map (text . filePath) files)
 
+    AmbiguousProjectionError ds reason -> do
+      let nameRaw = pretty $ A.nameConcrete $ A.qnameName $ List1.head ds
+      vcat
+        [ fsep
+          [ text "Cannot resolve overloaded projection"
+          , nameRaw
+          , text "because"
+          , pure reason
+          ]
+        , nest 2 $ text "candidates in scope:"
+        , vcat $ for ds $ \ d -> do
+            t <- typeOfConst d
+            text "-" <+> nest 2 (nameRaw <+> text ":" <+> prettyTCM t)
+        ]
+
     ClashingFileNamesFor x files ->
       fsep ( pwords "Multiple possible sources for module"
              ++ [prettyTCM x] ++ pwords "found:"
@@ -803,11 +831,11 @@ instance PrettyTCM TypeError where
 
     NoSuchModule x -> fsep $ pwords "No module" ++ [pretty x] ++ pwords "in scope"
 
-    AmbiguousName x ys -> vcat
+    AmbiguousName x reason -> vcat
       [ fsep $ pwords "Ambiguous name" ++ [pretty x <> "."] ++
                pwords "It could refer to any one of"
-      , nest 2 $ vcat $ fmap nameWithBinding ys
-      , fwords "(hint: Use C-c C-w (in Emacs) if you want to know why)"
+      , nest 2 $ vcat $ fmap nameWithBinding $ ambiguousNamesInReason reason
+      , explainWhyInScope $ whyInScopeDataFromAmbiguousNameReason x reason
       ]
 
     AmbiguousModule x ys -> vcat
@@ -983,7 +1011,7 @@ instance PrettyTCM TypeError where
         unambiguousP (C.InstanceP r x)    = C.InstanceP r $ fmap unambiguousP x
         unambiguousP (C.ParenP r x)       = C.ParenP r $ unambiguousP x
         unambiguousP (C.AsP r n x)        = C.AsP r n $ unambiguousP x
-        unambiguousP (C.OpAppP r op _ xs) = foldl C.AppP (C.IdentP op) xs
+        unambiguousP (C.OpAppP r op _ xs) = foldl C.AppP (C.IdentP True op) xs
         unambiguousP e                    = e
 
     OperatorInformation sects err ->
@@ -1190,7 +1218,65 @@ instance PrettyTCM TypeError where
 
     TriedToCopyConstrainedPrim q -> fsep $
       pwords "Cannot create a module containing a copy of" ++ [prettyTCM q]
+
     SortOfSplitVarError _ doc -> return doc
+
+    ReferencesFutureVariables term (disallowed :| _) lock leftmost
+      | disallowed == leftmost
+      -> fsep $ pwords "The lock variable"
+             ++ pure (prettyTCM =<< nameOfBV disallowed)
+             ++ pwords "can not appear simultaneously in the \"later\" term"
+             ++ pure (prettyTCM term)
+             ++ pwords "and in the lock term"
+             ++ pure (prettyTCM lock <> ".")
+
+    ReferencesFutureVariables term (disallowed :| rest) lock leftmost -> do
+      explain <- (/=) <$> prettyTCM lock <*> (prettyTCM =<< nameOfBV leftmost)
+      let
+        name = prettyTCM =<< nameOfBV leftmost
+        mod = case getLock lock of
+          IsLock LockOLock -> "@lock"
+          IsLock LockOTick -> "@tick"
+          _ -> __IMPOSSIBLE__
+      vcat $ concat
+        [ pure . fsep $ concat
+          [ pwords "The variable", pure (prettyTCM =<< nameOfBV disallowed), pwords "can not be mentioned here,"
+          , pwords "since it was not introduced before the variable", pure (name <> ".")
+          ]
+        , [ fsep ( pwords "Variables introduced after"
+                ++ pure name
+                ++ pwords "can not be used, since that is the leftmost" ++ pure mod ++ pwords "variable in the locking term"
+                ++ pure (prettyTCM lock <> "."))
+          | explain
+          ]
+        , [ fsep ( pwords "The following"
+                  ++ P.singPlural rest (pwords "variable is") (pwords "variables are")
+                  ++ pwords "not allowed here, either:"
+                  ++ punctuate comma (map (prettyTCM <=< nameOfBV) rest))
+          | not (null rest)
+          ]
+        ]
+
+    DoesNotMentionTicks term ty lock ->
+      let
+        mod = case getLock lock of
+          IsLock LockOLock -> "@lock"
+          IsLock LockOTick -> "@tick"
+          _ -> __IMPOSSIBLE__
+      in
+        vcat
+        [ fsep $
+            pwords "The term"
+            ++ [prettyTCM lock <> ","]
+            ++ pwords "given as an argument to the guarded value"
+        , nest 2 (prettyTCM term <+> ":" <+> prettyTCM ty)
+        , fsep (pwords ("can not be used as a " ++ mod ++ " argument, since it does not mention any " ++ mod ++ " variables."))
+        ]
+
+    MismatchedProjectionsError left right -> fsep $
+      pwords "The projections" ++ [prettyTCM left] ++
+      pwords "and" ++ [prettyTCM right] ++
+      pwords "do not match"
 
     where
     mpar n args
@@ -1240,6 +1326,8 @@ prettyInEqual t1 t2 = do
         (I.Def{}, I.Var{}) -> varDef
         (I.Var{}, I.Con{}) -> varCon
         (I.Con{}, I.Var{}) -> varCon
+        (I.Def x _, I.Def y _)
+          | isExtendedLambdaName x, isExtendedLambdaName y -> extLamExtLam x y
         _                  -> empty
   where
     varDef, varCon, generic :: MonadPretty m => m Doc
@@ -1251,6 +1339,15 @@ prettyInEqual t1 t2 = do
     varVar i j = parens $ fwords $
                    "because one has de Bruijn index " ++ show i
                    ++ " and the other " ++ show j
+
+    extLamExtLam :: MonadPretty m => QName -> QName -> m Doc
+    extLamExtLam a b = vcat
+      [ fwords "Because they are distinct extended lambdas: one is defined at"
+      , "  " <+> pretty (nameBindingSite (qnameName a))
+      , fwords "and the other at"
+      , "  " <+> (pretty (nameBindingSite (qnameName b)) <> ",")
+      , fwords "so they have different internal representations."
+      ]
 
 class PrettyUnequal a where
   prettyUnequal :: MonadPretty m => a -> m Doc -> a -> m Doc
@@ -1272,12 +1369,16 @@ instance PrettyTCM SplitError where
     BlockedType b t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot split on argument of unresolved type" ++ [prettyTCM t]
 
-    ErasedDatatype causedByWithoutK t -> enterClosure t $ \ t -> fsep $
+    ErasedDatatype reason t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot branch on erased argument of datatype" ++
       [prettyTCM t] ++
-      if causedByWithoutK
-      then pwords "because the K rule is turned off"
-      else []
+      case reason of
+        NoErasedMatches ->
+          pwords "because the option --erased-matches is not active"
+        NoK ->
+          pwords "because the K rule is turned off"
+        SeveralConstructors ->
+          []
 
     CoinductiveDatatype t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot pattern match on the coinductive type" ++ [prettyTCM t]
@@ -1378,6 +1479,84 @@ instance PrettyTCM UnificationFailure where
       pwords "modality"
 
 
+
+explainWhyInScope :: forall m. MonadPretty m => WhyInScopeData -> m Doc
+explainWhyInScope (WhyInScopeData y _ Nothing [] []) = text (prettyShow  y ++ " is not in scope.")
+explainWhyInScope (WhyInScopeData y _ v xs ms) = vcat
+  [ text (prettyShow y ++ " is in scope as")
+  , nest 2 $ vcat [variable v xs, modules ms]
+  ]
+  where
+    -- variable :: Maybe _ -> [_] -> m Doc
+    variable Nothing vs = names vs
+    variable (Just x) vs
+      | null vs   = asVar
+      | otherwise = vcat
+         [ sep [ asVar, nest 2 $ shadowing x]
+         , nest 2 $ names vs
+         ]
+      where
+        asVar :: m Doc
+        asVar = do
+          "* a variable bound at" <+> prettyTCM (nameBindingSite $ localVar x)
+        shadowing :: LocalVar -> m Doc
+        shadowing (LocalVar _ _ [])    = "shadowing"
+        shadowing _ = "in conflict with"
+    names   = vcat . map pName
+    modules = vcat . map pMod
+
+    pKind = \case
+      ConName                  -> "constructor"
+      CoConName                -> "coinductive constructor"
+      FldName                  -> "record field"
+      PatternSynName           -> "pattern synonym"
+      GeneralizeName           -> "generalizable variable"
+      DisallowedGeneralizeName -> "generalizable variable from let open"
+      MacroName                -> "macro name"
+      QuotableName             -> "quotable name"
+      -- previously DefName:
+      DataName                 -> "data type"
+      RecName                  -> "record type"
+      AxiomName                -> "postulate"
+      PrimName                 -> "primitive function"
+      FunName                  -> "defined name"
+      OtherDefName             -> "defined name"
+
+    pName :: AbstractName -> m Doc
+    pName a = sep
+      [ "* a"
+        <+> pKind (anameKind a)
+        <+> text (prettyShow $ anameName a)
+      , nest 2 $ "brought into scope by"
+      ] $$
+      nest 2 (pWhy (nameBindingSite $ qnameName $ anameName a) (anameLineage a))
+    pMod :: AbstractModule -> m Doc
+    pMod  a = sep
+      [ "* a module" <+> text (prettyShow $ amodName a)
+      , nest 2 $ "brought into scope by"
+      ] $$
+      nest 2 (pWhy (nameBindingSite $ qnameName $ mnameToQName $ amodName a) (amodLineage a))
+
+    pWhy :: Range -> WhyInScope -> m Doc
+    pWhy r Defined = "- its definition at" <+> prettyTCM r
+    pWhy r (Opened (C.QName x) w) | isNoName x = pWhy r w
+    pWhy r (Opened m w) =
+      "- the opening of"
+      <+> prettyTCM m
+      <+> "at"
+      <+> prettyTCM (getRange m)
+      $$
+      pWhy r w
+    pWhy r (Applied m w) =
+      "- the application of"
+      <+> prettyTCM m
+      <+> "at"
+      <+> prettyTCM (getRange m)
+      $$
+      pWhy r w
+
+
+
 ---------------------------------------------------------------------------
 -- * Natural language
 ---------------------------------------------------------------------------
@@ -1411,6 +1590,13 @@ instance Verbalize Cohesion where
       Flat       -> "flat"
       Continuous -> "continuous"
       Squash     -> "squashed"
+
+instance Verbalize Modality where
+  verbalize mod | mod == defaultModality = "default"
+  verbalize (Modality rel qnt coh) = intercalate "," $
+    [ verbalize rel | rel /= defaultRelevance ] ++
+    [ verbalize qnt | qnt /= defaultQuantity ] ++
+    [ verbalize coh | coh /= defaultCohesion ]
 
 -- | Indefinite article.
 data Indefinite a = Indefinite a

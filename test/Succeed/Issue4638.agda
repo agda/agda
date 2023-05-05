@@ -1,6 +1,6 @@
 -- Partly based on code due to Andrea Vezzosi.
 
-{-# OPTIONS --cubical-compatible --safe #-}
+{-# OPTIONS --cubical-compatible --erasure --safe #-}
 
 open import Agda.Builtin.Bool
 

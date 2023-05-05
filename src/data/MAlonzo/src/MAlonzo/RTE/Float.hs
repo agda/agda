@@ -2,6 +2,15 @@
 
 module MAlonzo.RTE.Float where
 
+import Prelude
+  ( Bool, Double, Int, Integer, Maybe(..), Ordering(..)
+  , Eq(..), Ord(..), Functor(..)
+  , Floating(..), Fractional(..), Integral(..), Num(..), Real(..), RealFloat(..), RealFrac(..)
+  , ($), (.), otherwise, uncurry, undefined
+  , (&&), fst, snd
+  , (^), even, fromIntegral
+  )
+
 import Data.Bifunctor   ( bimap, second )
 import Data.Function    ( on )
 import Data.Maybe       ( fromMaybe )
@@ -174,8 +183,10 @@ normaliseNaN x
   | isNaN x   = nan
   | otherwise = x
 
-doubleToWord64 :: Double -> Word64
-doubleToWord64 = castDoubleToWord64 . normaliseNaN
+doubleToWord64 :: Double -> Maybe Word64
+doubleToWord64 x
+  | isNaN x   = Nothing
+  | otherwise = Just (castDoubleToWord64 x)
 
 -- |Denotational equality for floating point numbers, checks bitwise equality.
 --

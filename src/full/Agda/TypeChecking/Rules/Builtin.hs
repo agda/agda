@@ -18,6 +18,8 @@ import Control.Monad.Trans.Maybe
 import Data.List (find, sortBy)
 import Data.Function (on)
 
+import Agda.Interaction.Options.Base
+
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -98,7 +100,7 @@ coreBuiltins =
   , (builtinAgdaPatLit                       |-> BuiltinDataCons (tliteral --> tpat))
   , (builtinAgdaPatProj                      |-> BuiltinDataCons (tqname --> tpat))
   , (builtinAgdaPatAbsurd                    |-> BuiltinDataCons (tnat --> tpat))
-  , (builtinLevel                            |-> builtinPostulate tset)
+  , (builtinLevel                            |-> builtinPostulate tLevelUniv)
   , (builtinWord64                           |-> builtinPostulate tset)
   , (builtinInteger                          |-> BuiltinData tset [builtinIntegerPos, builtinIntegerNegSuc])
   , (builtinIntegerPos                       |-> BuiltinDataCons (tnat --> tinteger))
@@ -169,7 +171,7 @@ coreBuiltins =
                                                               hPi' "A" (sort . tmSort <$> l) $ \ bA ->
                                                               hPi' "x" (el' l bA) $ \ x ->
                                                               el' l (primId <#> l <#> bA <@> x <@> x)))
-  , (builtinEquiv                            |-> BuiltinUnknown (Just $ requireCubical CFull "" >> runNamesT [] (
+  , (builtinEquiv                            |-> BuiltinUnknown (Just $ requireCubical CErased "" >> runNamesT [] (
                                                                     hPi' "l" (el $ cl primLevel) $ \ a ->
                                                                     hPi' "l'" (el $ cl primLevel) $ \ b ->
                                                                     nPi' "A" (sort . tmSort <$> a) $ \bA ->
@@ -177,7 +179,7 @@ coreBuiltins =
                                                                     ((sort . tmSort) <$> (cl primLevelMax <@> a <@> b))
                                                                   ))
                                                                    (const $ const $ return ()))
-  , (builtinEquivFun                         |-> BuiltinUnknown (Just $ requireCubical CFull "" >> runNamesT [] (
+  , (builtinEquivFun                         |-> BuiltinUnknown (Just $ requireCubical CErased "" >> runNamesT [] (
                                                                  hPi' "l" (el $ cl primLevel) $ \ a ->
                                                                  hPi' "l'" (el $ cl primLevel) $ \ b ->
                                                                  hPi' "A" (sort . tmSort <$> a) $ \bA ->
@@ -186,7 +188,7 @@ coreBuiltins =
                                                                  (el' a bA --> el' b bB)
                                                                ))
                                                                 (const $ const $ return ()))
-  , (builtinEquivProof                       |-> BuiltinUnknown (Just $ requireCubical CFull "" >> runNamesT [] (
+  , (builtinEquivProof                       |-> BuiltinUnknown (Just $ requireCubical CErased "" >> runNamesT [] (
                                                                hPi' "l" (el $ cl primLevel) $ \ la ->
                                                                hPi' "l'" (el $ cl primLevel) $ \ lb ->
                                                                nPi' "A" (sort . tmSort <$> la) $ \ bA ->
@@ -328,6 +330,7 @@ coreBuiltins =
   , (builtinNatModSucAux                     |-> BuiltinPrim "primNatModSucAux" verifyModSucAux)
   , (builtinNatEquals                        |-> BuiltinPrim "primNatEquality" verifyEquals)
   , (builtinNatLess                          |-> BuiltinPrim "primNatLess" verifyLess)
+  , (builtinLevelUniv                        |-> BuiltinSort "primLevelUniv")
   , (builtinLevelZero                        |-> BuiltinPrim "primLevelZero" (const $ return ()))
   , (builtinLevelSuc                         |-> BuiltinPrim "primLevelSuc" (const $ return ()))
   , (builtinLevelMax                         |-> BuiltinPrim "primLevelMax" verifyMax)
@@ -374,6 +377,8 @@ coreBuiltins =
   , builtinAgdaTCMFreshName                  |-> builtinPostulate (tstring --> tTCM_ primQName)
   , builtinAgdaTCMDeclareDef                 |-> builtinPostulate (targ tqname --> ttype --> tTCM_ primUnit)
   , builtinAgdaTCMDeclarePostulate           |-> builtinPostulate (targ tqname --> ttype --> tTCM_ primUnit)
+  , builtinAgdaTCMDeclareData                |-> builtinPostulate (tqname --> tnat --> ttype --> tTCM_ primUnit)
+  , builtinAgdaTCMDefineData                 |-> builtinPostulate (tqname --> tlist (tpair primLevelZero primLevelZero tqname ttype) --> tTCM_ primUnit)
   , builtinAgdaTCMDefineFun                  |-> builtinPostulate (tqname --> tlist tclause --> tTCM_ primUnit)
   , builtinAgdaTCMGetType                    |-> builtinPostulate (tqname --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMGetDefinition              |-> builtinPostulate (tqname --> tTCM_ primAgdaDefinition)
@@ -384,11 +389,15 @@ coreBuiltins =
   , builtinAgdaTCMCommit                     |-> builtinPostulate (tTCM_ primUnit)
   , builtinAgdaTCMIsMacro                    |-> builtinPostulate (tqname --> tTCM_ primBool)
   , builtinAgdaTCMWithNormalisation          |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tbool --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
-  , builtinAgdaTCMWithReconsParams           |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tTCM 1 (varM 0) --> tTCM 1 (varM 0))
+  , builtinAgdaTCMWithReconstructed          |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tbool --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
+  , builtinAgdaTCMWithExpandLast             |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tbool --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
+  , builtinAgdaTCMWithReduceDefs             |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ (tpair primLevelZero primLevelZero tbool (tlist tqname)) --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
+  , builtinAgdaTCMAskNormalisation           |-> builtinPostulate (tTCM_ (unEl <$> tbool))
+  , builtinAgdaTCMAskReconstructed           |-> builtinPostulate (tTCM_ (unEl <$> tbool))
+  , builtinAgdaTCMAskExpandLast              |-> builtinPostulate (tTCM_ (unEl <$> tbool))
+  , builtinAgdaTCMAskReduceDefs              |-> builtinPostulate (tTCM_ (unEl <$> (tpair primLevelZero primLevelZero tbool (tlist tqname))))
   , builtinAgdaTCMFormatErrorParts           |-> builtinPostulate (tlist terrorpart --> tTCM_ primString)
   , builtinAgdaTCMDebugPrint                 |-> builtinPostulate (tstring --> tnat --> tlist terrorpart --> tTCM_ primUnit)
-  , builtinAgdaTCMOnlyReduceDefs             |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tlist tqname --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
-  , builtinAgdaTCMDontReduceDefs             |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tlist tqname --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
 
   , builtinAgdaTCMNoConstraints              |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   , builtinAgdaTCMRunSpeculative             |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $
@@ -398,6 +407,8 @@ coreBuiltins =
                                                                           (Lam defaultArgInfo . Abs "_" <$> (primSigma <#> primLevelZero <#> primLevelZero <@> primString <@>
                                                                            (Lam defaultArgInfo . Abs "_" <$> primString)))))
   , builtinAgdaTCMGetInstances               |-> builtinPostulate (tmeta --> tTCM_ (list primAgdaTerm))
+  , builtinAgdaTCMPragmaForeign              |-> builtinPostulate (tstring --> tstring --> tTCM_ primUnit)
+  , builtinAgdaTCMPragmaCompile              |-> builtinPostulate (tstring --> tqname --> tstring --> tTCM_ primUnit)
   ]
   where
         (|->) = BuiltinInfo
@@ -722,7 +733,7 @@ bindBuiltinEquality x = do
   unless (isJust $ isSort $ unEl eqCore) __IMPOSSIBLE__
 
   -- The types of the last two arguments must be the third-last argument
-  unless (size eqTel >= 3) no
+  unless (natSize eqTel >= 3) no
   let (a, b) = fromMaybe __IMPOSSIBLE__ $ last2 $ telToList eqTel
   [a,b] <- reduce $ map (unEl . snd . unDom) [a,b]
   unless (deBruijnView a == Just 0) no
@@ -894,7 +905,7 @@ bindBuiltin b x = do
       PatternSynResName xs -> failure
       UnknownName          -> failure
     -- For ambiguous names, we check all of their definitions:
-    unlessM (allM xs $ ((0 ==) . size) <.> lookupSection . qnameModule . anameName) $
+    unlessM (allM xs $ null <.> lookupSection . qnameModule . anameName) $
       failure
   -- Since the name was define in a parameter-free context, we can switch to the empty context.
   -- (And we should!)
@@ -947,8 +958,9 @@ bindBuiltinNoDef b q = inTopContext $ do
 
     Just (BuiltinPostulate rel mt) -> do
       -- We start by adding the corresponding postulate
-      t <- mt
-      addConstant' q (setRelevance rel defaultArgInfo) q t def
+      t   <- mt
+      fun <- emptyFunctionData
+      addConstant' q (setRelevance rel defaultArgInfo) q t (def fun)
       -- And we then *modify* the definition based on our needs:
       -- We add polarity information for SIZE-related definitions
       builtinSizeHook b q t
@@ -957,11 +969,12 @@ bindBuiltinNoDef b q = inTopContext $ do
       where
         -- Andreas, 2015-02-14
         -- Special treatment of SizeUniv, should maybe be a primitive.
-        def | b == builtinSizeUniv = emptyFunction
-                { funClauses = [ (empty :: Clause) { clauseBody = Just $ Sort sSizeUniv } ]
-                , funCompiled = Just (CC.Done [] $ Sort sSizeUniv)
-                , funMutual    = Just []
-                , funTerminates = Just True
+        def fun
+            | b == builtinSizeUniv = FunctionDefn $ fun
+                { _funClauses    = [ (empty :: Clause) { clauseBody = Just $ Sort sSizeUniv } ]
+                , _funCompiled   = Just (CC.Done [] $ Sort sSizeUniv)
+                , _funMutual     = Just []
+                , _funTerminates = Just True
                 }
             | otherwise = defaultAxiom
 
@@ -980,8 +993,9 @@ bindBuiltinNoDef b q = inTopContext $ do
       bindBuiltinName b v
 
     Just (BuiltinDataCons mt) -> do
-      t <- mt
-      d <- return $! getPrimName $ unEl t
+      t       <- mt
+      d       <- return $! getPrimName $ unEl t
+      erasure <- optErasure <$> pragmaOptions
       let
         ch = ConHead q IsData Inductive []
         def = Constructor
@@ -995,6 +1009,7 @@ bindBuiltinNoDef b q = inTopContext $ do
               , conProj   = Nothing
               , conForced = []
               , conErased = Nothing
+              , conErasure = erasure
               }
       addConstant' q defaultArgInfo q t def
       addDataCons d [q]
@@ -1030,6 +1045,7 @@ bindBuiltinNoDef b q = inTopContext $ do
                 "primSetOmega" -> Inf IsFibrant 0
                 "primStrictSetOmega" -> Inf IsStrict 0
                 "primIntervalUniv" -> IntervalUniv
+                "primLevelUniv" -> LevelUniv
                 _              -> __IMPOSSIBLE__
           def = PrimitiveSort sortname s
       -- Check for the cubical flag if the sort requries it

@@ -1,4 +1,4 @@
-{-# OPTIONS --erased-cubical #-}
+{-# OPTIONS --erased-cubical --erasure #-}
 
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Cubical.Path

@@ -1,3 +1,4 @@
+open import Agda.Builtin.Bool
 open import Agda.Builtin.Reflection renaming (bindTC to _>>=_)
 open import Agda.Builtin.Sigma
 open import Agda.Builtin.List
@@ -28,9 +29,9 @@ data Vec (A : Set) : Nat → Set where
 macro
   ntest : Name → Term → TC ⊤
   ntest f a = do
-     (function te@(clause tel _ t ∷ [])) ← withReconstructed $ getDefinition f where
+     (function te@(clause tel _ t ∷ [])) ← withReconstructed true $ getDefinition f where
         _ → typeError $ strErr "ERROR" ∷ []
-     t ← withReconstructed $ inContext (reverse tel) $ normalise t
+     t ← withReconstructed true $ inContext (reverse tel) $ normalise t
      quoteTC t >>= unify a
 
 -- A record with parameters.

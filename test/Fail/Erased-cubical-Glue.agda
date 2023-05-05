@@ -1,4 +1,4 @@
-{-# OPTIONS --erased-cubical #-}
+{-# OPTIONS --erased-cubical --erasure #-}
 
 open import Agda.Builtin.Cubical.Glue
 open import Agda.Primitive

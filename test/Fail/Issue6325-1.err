@@ -1,0 +1,4 @@
+Issue6325-1.agda:19,9-13
+A pun must not use the constructor zero
+when scope checking the left-hand side length {zero} {(A)} _ in the
+definition of length

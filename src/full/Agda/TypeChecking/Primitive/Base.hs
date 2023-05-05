@@ -71,14 +71,22 @@ pPi' :: (MonadAddContext m, HasBuiltins m, MonadDebug m)
      => String -> NamesT m Term -> (NamesT m Term -> NamesT m Type) -> NamesT m Type
 pPi' n phi b = toFinitePi <$> nPi' n (elSSet $ cl isOne <@> phi) b
  where
-   toFinitePi :: Type -> Type
-   toFinitePi (El s (Pi d b)) = El s $ Pi (setRelevance Irrelevant $ d { domFinite = True }) b
-   toFinitePi _               = __IMPOSSIBLE__
-
    isOne = fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIsOne
+
+-- | Turn a 'Pi' type into one whose domain is annotated finite, i.e.,
+-- one that represents a @Partial@ element rather than an actual
+-- function.
+toFinitePi :: Type -> Type
+toFinitePi (El s (Pi d b)) = El s $ Pi
+  (setRelevance Irrelevant $ d { domIsFinite = True })
+  b
+toFinitePi _ = __IMPOSSIBLE__
 
 el' :: Applicative m => m Term -> m Term -> m Type
 el' l a = El <$> (tmSort <$> l) <*> a
+
+els :: Applicative m => m Sort -> m Term -> m Type
+els l a = El <$> l <*> a
 
 el's :: Applicative m => m Term -> m Term -> m Type
 el's l a = El <$> (SSet . atomicLevel <$> l) <*> a
@@ -145,6 +153,9 @@ sSizeUniv = SizeUniv
 -- | @SizeUniv@ as a type.
 tSizeUniv :: Applicative m => m Type
 tSizeUniv = pure $ sort sSizeUniv
+
+tLevelUniv :: Applicative m => m Type
+tLevelUniv = pure $ sort $ LevelUniv
 
 -- | Abbreviation: @argN = 'Arg' 'defaultArgInfo'@.
 argN :: e -> Arg e

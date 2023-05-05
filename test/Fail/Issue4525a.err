@@ -1,4 +1,4 @@
-Issue4525a.agda:5,5-6,12
+Issue4525a.agda:7,5-8,12
 Erased pattern-matching lambdas may only be used in erased contexts
 when checking that the expression λ @0 { A G → G A } has type
 @0 Set → (Set → Set) → Set

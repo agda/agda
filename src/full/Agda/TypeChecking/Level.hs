@@ -5,6 +5,8 @@ import Data.Maybe
 import qualified Data.List as List
 import Data.Traversable (Traversable)
 
+import Agda.Interaction.Options
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
@@ -31,9 +33,22 @@ data LevelKit = LevelKit
   , zeroName :: QName
   }
 
--- | Get the 'primLevel' as a 'Type'.
-levelType :: (HasBuiltins m) => m Type
-levelType = El (mkType 0) . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
+{-# SPECIALIZE levelType :: TCM Type #-}
+-- | Get the 'primLevel' as a 'Type'.  Aborts if any of the level BUILTINs is undefined.
+levelType :: (HasBuiltins m, MonadTCError m) => m Type
+levelType =
+  El LevelUniv . lvlType <$> requireLevels
+  -- Andreas, 2022-10-11, issue #6168
+  -- It seems superfluous to require all level builtins here,
+  -- but since we are in MonadTCError here, this is our chance to make sure
+  -- that all level builtins are defined.
+  -- Otherwise, we might run into an __IMPOSSIBLE__ later,
+  -- e.g. if only BUILTIN LEVEL was defined by reallyUnLevelView requires all builtins.
+
+-- | Get the 'primLevel' as a 'Type'.  Unsafe, crashes if the BUILTIN LEVEL is undefined.
+levelType' :: (HasBuiltins m) => m Type
+levelType' =
+  El LevelUniv . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
 
 isLevelType :: PureTCM m => Type -> m Bool
 isLevelType a = reduce (unEl a) >>= \case
@@ -42,17 +57,14 @@ isLevelType a = reduce (unEl a) >>= \case
     return $ f == lvl
   _ -> return False
 
-levelSucFunction :: TCM (Term -> Term)
-levelSucFunction = apply1 <$> primLevelSuc
-
 {-# SPECIALIZE builtinLevelKit :: TCM LevelKit #-}
 {-# SPECIALIZE builtinLevelKit :: ReduceM LevelKit #-}
 builtinLevelKit :: (HasBuiltins m) => m LevelKit
 builtinLevelKit = do
-    level@(Def l []) <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
-    zero@(Def z [])  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelZero
-    suc@(Def s [])   <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelSuc
-    max@(Def m [])   <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelMax
+    level@(Def l [])     <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
+    zero@(Def z [])      <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelZero
+    suc@(Def s [])       <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelSuc
+    max@(Def m [])       <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelMax
     return $ LevelKit
       { lvlType  = level
       , lvlSuc   = \ a -> suc `apply1` a
@@ -64,9 +76,24 @@ builtinLevelKit = do
       , zeroName = z
       }
 
+{-# SPECIALIZE requireLevels :: TCM LevelKit #-}
 -- | Raises an error if no level kit is available.
-requireLevels :: HasBuiltins m => m LevelKit
-requireLevels = builtinLevelKit
+requireLevels :: (HasBuiltins m, MonadTCError m) => m LevelKit
+requireLevels = do
+    level@(Def l [])     <- getBuiltin builtinLevel
+    zero@(Def z [])      <- getBuiltin builtinLevelZero
+    suc@(Def s [])       <- getBuiltin builtinLevelSuc
+    max@(Def m [])       <- getBuiltin builtinLevelMax
+    return $ LevelKit
+      { lvlType  = level
+      , lvlSuc   = \ a -> suc `apply1` a
+      , lvlMax   = \ a b -> max `applys` [a, b]
+      , lvlZero  = zero
+      , typeName = l
+      , sucName  = s
+      , maxName  = m
+      , zeroName = z
+      }
 
 -- | Checks whether level kit is fully available.
 haveLevels :: HasBuiltins m => m Bool
@@ -75,7 +102,8 @@ haveLevels = caseMaybeM (allJustM $ map getBuiltin' levelBuiltins)
     (\ _bs -> return True)
   where
   levelBuiltins =
-    [ builtinLevel
+    [ builtinLevelUniv
+    , builtinLevel
     , builtinLevelZero
     , builtinLevelSuc
     , builtinLevelMax
@@ -90,13 +118,7 @@ unLevel v = return v
 {-# SPECIALIZE reallyUnLevelView :: Level -> TCM Term #-}
 {-# SPECIALIZE reallyUnLevelView :: Level -> ReduceM Term #-}
 reallyUnLevelView :: (HasBuiltins m) => Level -> m Term
-reallyUnLevelView nv = do
-  suc <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelSuc
-  zer <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelZero
-  case nv of
-    Max n []       -> return $ unConstV zer (apply1 suc) n
-    Max 0 [a]      -> return $ unPlusV (apply1 suc) a
-    _              -> (`unlevelWithKit` nv) <$> builtinLevelKit
+reallyUnLevelView nv = (`unlevelWithKit` nv) <$> builtinLevelKit
 
 unlevelWithKit :: LevelKit -> Level -> Term
 unlevelWithKit LevelKit{ lvlZero = zer, lvlSuc = suc, lvlMax = max } = \case

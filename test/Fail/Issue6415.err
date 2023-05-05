@@ -1,0 +1,24 @@
+Issue6415.agda:20,7-19
+primHComp (λ i → isOneEmpty)
+(primHComp
+ (λ i →
+    primPOr
+    (primIMax i0
+     (Agda.Builtin.Cubical.HCompU.primFaceForall (λ i₁ → i0)))
+    (primINeg
+     (primIMax i0
+      (Agda.Builtin.Cubical.HCompU.primFaceForall (λ i₁ → i0))))
+    (λ .o →
+       primTransp (λ i₁ → S¹) i
+       (primPOr i0
+        (Agda.Builtin.Cubical.HCompU.primFaceForall (λ i₁ → i0))
+        (λ .o₁ → prim^unglue g)
+        (λ .o₁ →
+           equivFun (isOneEmpty _)
+           (primTransp (λ j → isOneEmpty _) (primIMax i0 (primINeg i)) g))
+        _))
+    (λ .o → primTransp (λ i₁ → S¹) i0 (prim^unglue g)))
+ (primTransp (λ i → S¹) i0 (prim^unglue g)))
+!= base of type S¹
+when checking that the expression Helpers.refl has type
+primTransp (λ _ → G) i0 g ≡ g

@@ -4,6 +4,8 @@
 -- Occurs check needs to take erasure status of definitions
 -- (here: postulates) into account.
 
+{-# OPTIONS --erasure #-}
+
 postulate
   P    : Set → Set
   p    : (A : Set) → P A

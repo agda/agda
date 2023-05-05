@@ -26,7 +26,6 @@ on:
     - '!macros/**'
     - '!notes/**'
     - '!.mailmap'
-    - '!.ghci*'
     - '!.gitignore'
     - '!.hlint.yaml'
     - '!.travis.yml'
@@ -35,7 +34,7 @@ on:
     - '!LICENSE'
     - '!README.md'
     - '!fix-whitespace.yaml'
-    - '!hie.yaml'
+    - '!hie*.yaml'
     - '!stack-*.yaml'
     - '!touchup.sh'
 
@@ -45,11 +44,30 @@ on:
   workflow_dispatch:
 
 env:
+  # Part 1: Versions (need update)
+  ###########################################################################
+
+  # Andreas, 2022-11-24, set the stack version here so that it is easily
+  # shared between the jobs.
+  STACK_VER: "2.9.3"
+  # Andreas, 2022-03-26, 2022-11-28:
+  # GHC_VER should be given as x.y.z (as opposed to x.y only)
+  # because it is used verbatim when referring to stack-x.y.z.yaml.
+  GHC_VER: "9.4.5"
+
+  # Part 2: Variables that should not have to be changed
+  ###########################################################################
+
+  # # Other variables (local to this workflow)
+  # APT_GET_OPTS: "-yqq --no-install-suggests --no-install-recommends"
+
+  # Variables of/for the Makefile
   PARALLEL_TESTS: 2
   BUILD_DIR: "dist" # relative path, please!
-
-  APT_GET_OPTS: "-yqq --no-install-suggests --no-install-recommends"
   AGDA_TESTS_OPTIONS: "-j${PARALLEL_TESTS} --hide-successes"
+  STACK: "stack --system-ghc"
+
+  # tasty configuration (see issue #3905)
   TASTY_ANSI_TRICKS: "false"
 
 jobs:
@@ -58,66 +76,73 @@ jobs:
   ###########################################################################
 
   build:
-    strategy:
-      matrix:
-        # Andreas, 2022-03-26:
-        # ghc-ver should be given as x.y.z (as opposed to x.y only)
-        # because it is used verbatim when referring to stack-x.y.z.yaml.
-        ghc-ver: ['9.2.4']
-        stack-ver: [latest]
-        os: [ubuntu-20.04]
-
     if: |
       !contains(github.event.head_commit.message, '[skip ci]')
       && !contains(github.event.head_commit.message, '[ci skip]')
       && !contains(github.event.head_commit.message, '[github skip]')
       && !contains(github.event.head_commit.message, '[skip github]')
 
-    outputs:
-      ghc-ver: ${{ matrix.ghc-ver }}
-      stack-ver: ${{ matrix.stack-ver }}
-      os: ${{ matrix.os }}
-
-    runs-on: ${{ matrix.os }}
+    runs-on: &runs_on ubuntu-22.04
     steps:
-    - uses: styfle/cancel-workflow-action@0.6.0
+    - uses: styfle/cancel-workflow-action@0.11.0
+      # Andreas, 2022-12-05, issue #6388: do not cancel on `master`!
+      if: github.ref != 'refs/heads/master'
       with:
         access_token: ${{ github.token }}
 
-    - uses: actions/checkout@v2
+    - &checkout
+      uses: actions/checkout@v3
       with:
         submodules: recursive
 
-    - uses: haskell/actions/setup@v1
+    - &haskell_setup
+      uses: haskell/actions/setup@v2
       with:
-        ghc-version: ${{ matrix.ghc-ver }}
-        stack-version: ${{ matrix.stack-ver }}
+        ghc-version: ${{ env.GHC_VER }}
+        stack-version: ${{ env.STACK_VER }}
         enable-stack: true
 
-    - name: "Update and configure stack"
-      run: |
-        stack update --silent
-        echo "system-ghc: true" >> ~/.stack/config.yaml
+    # The Makefile tests whether stack.yaml is present to decide on stack vs. cabal build.
+    - name: "Copy stack-${{ env.GHC_VER}}.yaml to stack.yaml"
+      run:  cp stack-${{ env.GHC_VER }}.yaml stack.yaml
 
-    - name: "Copy stack-${{ matrix.ghc-ver}}.yaml to stack.yaml"
+    - &icu
+      name: Determine the ICU version
       run: |
-        cp stack-${{ matrix.ghc-ver }}.yaml stack.yaml
-        make STACK_INSTALL_OPTS='--dry-run' install-deps
+        ICU_VER=$(pkg-config --modversion icu-i18n)
+        echo "ICU_VER=${ICU_VER}"
+        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
+      # uconv --version
 
-    - uses: actions/cache@v2
-      name: Cache dependencies
+    - name: Restore cache from approximate key
+      # uses: actions/cache/restore@v3
+      # Andreas, 2023-02-02 revert to default cache saving logic.
+      # "Save always" is bad because it may duplicate caches from the base branch on the feature branch.
+      uses: actions/cache@v3
       id: cache
       with:
-        path: "~/.stack"
-        # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-01-${{ matrix.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
+        # Andreas, 2023-01-24:
+        # Stack seems to insist to rebuild Agda from scratch even when ~/.stack-work is restored.
+        # Since it balloons the cache entry from 330 MB to 790 MB, don't include it in the cache.
+        path: &cache_path |
+          ~/.stack
 
-    - name: "Install and configure the icu library"
-      run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
+        # We include stack-${GHC_VER}.yaml in the primary cache key so that the cache gets rewritten
+        # everytime the resolver updates or extra-deps are added.
+        # Andreas, 2023-03-28:
+        # We need to make sure that the cache is written if a new dependency was added to Agda.cabal.
+        # Thus, we include Agda.cabal in the hash.
+        # Note that a 'stack.yaml.lock' file would not be sufficient (I think),
+        # because it does not list all the dependencies.
+        key: &cache_key test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
+        restore-keys:   test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-
 
     - name: "Install dependencies for Agda and its test suites"
-      if: ${{ !steps.cache.outputs.cache-hit }}
-      run: make STACK_OPTS=--silent install-deps
+      ## Always do this step, even if we got a cache hit.  Should be fast in case we got a hit.
+      # if: ${{ !steps.cache.outputs.cache-hit }}
+      run: make install-deps
+      ## This used to be: make STACK_OPTS=--silent install-deps
+      ## but printing stuff might not hurt here.
 
     - name: "Build Agda"
       run: make BUILD_DIR="${BUILD_DIR}" install-bin
@@ -128,7 +153,7 @@ jobs:
         make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" size-solver-test
 
     - name: "Pack artifacts"
-      # This step should go to Makefile.
+      # This step should go into the Makefile.
       run: |
         strip ${BUILD_DIR}/build/agda-tests/agda-tests \
           ${BUILD_DIR}/build/agda/agda \
@@ -142,7 +167,7 @@ jobs:
         tar --use-compress-program zstd -cvf stack-work.tzst .stack-work stack.yaml stack.yaml.lock
 
     - name: "Upload artifacts"
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         if-no-files-found: error
         retention-days: 1
@@ -151,40 +176,54 @@ jobs:
           dist.tzst
           stack-work.tzst
 
+    # - name: Clear old cache
+    #   if:   ${{ steps.cache.outputs.cache-hit }}
+    #   env:
+    #     KEY: ${{ steps.cache.outputs.cache-matched-key }}
+    #     GH_TOKEN: ${{ github.token }}
+    #   run: |
+    #     gh extension install actions/gh-actions-cache
+    #     gh actions-cache delete -B ${{ github.ref }} ${{ env.KEY }} --confirm
+    #   # Don't fail if cache cannot be deleted
+    #   continue-on-error: true
+
+    # - name: Save cache
+    #   uses: actions/cache/save@v3
+    #   if:   always()  # save cache even when build fails
+    #   with:
+    #     key:  *cache_key
+    #     path: *cache_path
 
   # Step 2a: Basic testsuites: succeed, fail, etc.
   ###########################################################################
 
   test:
     needs: build
-    runs-on: ${{ needs.build.outputs.os }}
+    runs-on: *runs_on
+
     steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: recursive
+    - *checkout
+    - *haskell_setup
 
-    - uses: haskell/actions/setup@v1
-      with:
-        ghc-version: ${{ needs.build.outputs.ghc-ver }}
-        stack-version: ${{ needs.build.outputs.stack-ver }}
-        enable-stack: true
-
-    - uses: actions/download-artifact@v2
+    - &download_artifact
+      uses: actions/download-artifact@v3
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
 
-    - name: "Unpack artifacts"
+    - &unpack_artifact
+      name: "Unpack artifacts"
       run: |
         tar --use-compress-program zstd -xvf dist.tzst
         tar --use-compress-program zstd -xvf stack-work.tzst
 
-    - uses: actions/cache@v2
-      name: Cache dependencies
+    - *icu
+    - &cache
+      name: Restore cache from exact key
+      uses: actions/cache/restore@v3
       id: cache
       with:
-        path: "~/.stack"
-        # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
+        path: *cache_path
+        key:  *cache_key
 
     - name: "Suite of tests for bugs"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" bugs
@@ -238,38 +277,15 @@ jobs:
 
   stdlib-test:
     needs: build
+    runs-on: *runs_on
 
-    runs-on: ${{ needs.build.outputs.os }}
     steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: recursive
-
-    - uses: haskell/actions/setup@v1
-      with:
-        ghc-version: ${{ needs.build.outputs.ghc-ver }}
-        stack-version: ${{ needs.build.outputs.stack-ver }}
-        enable-stack: true
-
-    - uses: actions/download-artifact@v2
-      with:
-        name: agda-${{ runner.os }}-${{ github.sha }}
-
-    - name: "Unpack artifacts"
-      run: |
-        tar --use-compress-program zstd -xvf dist.tzst
-        tar --use-compress-program zstd -xvf stack-work.tzst
-
-    - uses: actions/cache@v2
-      name: Cache dependencies
-      id: cache
-      with:
-        path: "~/.stack"
-        # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
-
-    - name: "Install and configure the icu library"
-      run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
+    - *checkout
+    - *haskell_setup
+    - *download_artifact
+    - *unpack_artifact
+    - *icu
+    - *cache
 
     - name: "Standard library test"
       run: |
@@ -293,38 +309,15 @@ jobs:
 
   interaction-latex-html:
     needs: build
+    runs-on: *runs_on
 
-    runs-on: ${{ needs.build.outputs.os }}
     steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: recursive
-
-    - uses: haskell/actions/setup@v1
-      with:
-        ghc-version: ${{ needs.build.outputs.ghc-ver }}
-        stack-version: ${{ needs.build.outputs.stack-ver }}
-        enable-stack: true
-
-    - uses: actions/download-artifact@v2
-      with:
-        name: agda-${{ runner.os }}-${{ github.sha }}
-
-    - name: "Unpack artifacts"
-      run: |
-        tar --use-compress-program zstd -xvf dist.tzst
-        tar --use-compress-program zstd -xvf stack-work.tzst
-
-    - uses: actions/cache@v2
-      name: Cache dependencies
-      id: cache
-      with:
-        path: "~/.stack"
-        # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
-
-    - name: "Install and configure the icu library"
-      run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
+    - *checkout
+    - *haskell_setup
+    - *download_artifact
+    - *unpack_artifact
+    - *icu
+    - *cache
 
     - name: "Install Tex Live and Emacs"
       run: |
@@ -348,38 +341,15 @@ jobs:
 
   cubical:
     needs: build
+    runs-on: *runs_on
 
-    runs-on: ${{ needs.build.outputs.os }}
     steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: recursive
-
-    - uses: haskell/actions/setup@v1
-      with:
-        ghc-version: ${{ needs.build.outputs.ghc-ver }}
-        stack-version: ${{ needs.build.outputs.stack-ver }}
-        enable-stack: true
-
-    - uses: actions/download-artifact@v2
-      with:
-        name: agda-${{ runner.os }}-${{ github.sha }}
-
-    - name: "Unpack artifacts"
-      run: |
-        tar --use-compress-program zstd -xvf dist.tzst
-        tar --use-compress-program zstd -xvf stack-work.tzst
-
-    - uses: actions/cache@v2
-      name: Cache dependencies
-      id: cache
-      with:
-        path: "~/.stack"
-        # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
-
-    - name: "Install and configure the icu library"
-      run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
+    - *checkout
+    - *haskell_setup
+    - *download_artifact
+    - *unpack_artifact
+    - *icu
+    - *cache
 
     - name: "Cubical library test"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-test

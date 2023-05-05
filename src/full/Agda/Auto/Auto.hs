@@ -58,6 +58,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Pretty ( prettyShow )
+import Agda.Utils.Size
 import Agda.Utils.Tuple
 
 
@@ -347,7 +348,7 @@ auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
                            -- When Agsy produces an ill-typed solution, return nothing.
                            -- TODO: try other solution.
                            -- `catchError` const retry -- (return (Nothing, Nothing))
-                      let msg = if length exprs == 1 then
+                      let msg = if natSize exprs == 1 then
                                  Nothing
                                 else
                                  Just $ "Also gave solution(s) for hole(s)" ++
@@ -422,13 +423,14 @@ auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
             cn <- withMetaInfo minfo $ runAbsToCon $ toConcrete n
             if C.isInScope cn == C.NotInScope then
               return Nothing
-            else do
-              c <- getConstInfo n
-              ctyp <- normalise $ defType c
-              cdfv <- withMetaInfo minfo $ getDefFreeVars n
-              return $ case matchType cdfv tctx ctyp targettyp of
-               Nothing -> Nothing
-               Just score -> Just (prettyShow cn, score)
+            else getConstInfo' n >>= \case
+              Left{} -> return Nothing
+              Right c -> do
+                ctyp <- normalise $ defType c
+                cdfv <- withMetaInfo minfo $ getDefFreeVars n
+                return $ case matchType cdfv tctx ctyp targettyp of
+                  Nothing -> Nothing
+                  Just score -> Just (prettyShow cn, score)
          ) alldefs
        else do
         let scopeinfo = clScope (getMetaInfo mv)
@@ -438,13 +440,14 @@ auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
             modnames = case thisdefinfo of
                         Just (def, _, _) -> filter (\(_, n) -> n /= def) qnames
                         Nothing -> qnames
-        catMaybes <$> mapM (\(cn, n) -> do
-          c <- getConstInfo n
-          ctyp <- normalise $ defType c
-          cdfv <- withMetaInfo minfo $ getDefFreeVars n
-          return $ case matchType cdfv tctx ctyp targettyp of
-           Nothing -> Nothing
-           Just score -> Just (prettyShow cn, score)
+        catMaybes <$> mapM (\(cn, n) -> getConstInfo' n >>= \case
+          Left{} -> return Nothing
+          Right c -> do
+            ctyp <- normalise $ defType c
+            cdfv <- withMetaInfo minfo $ getDefFreeVars n
+            return $ case matchType cdfv tctx ctyp targettyp of
+              Nothing -> Nothing
+              Just score -> Just (prettyShow cn, score)
          ) modnames
 
       let sorthits = List.sortBy (\(_, (pa1, pb1)) (_, (pa2, pb2)) -> case compare pa2 pa1 of {EQ -> compare pb1 pb2; o -> o}) hits
@@ -472,9 +475,9 @@ autohints AHMModule mi (Just def) = do
       qnames    = map (Scope.anameName . head) $ Map.elems names
       modnames  = filter (\n -> AN.qnameModule n == AN.qnameModule def && n /= def) qnames
   map (Hint False) <$> do
-    (`filterM` modnames) $ \ n -> do
-      c <- getConstInfo n
-      case theDef c of
+    (`filterM` modnames) $ \ n -> getConstInfo' n >>= \case
+      Left{} -> return False
+      Right c -> case theDef c of
         Axiom{}    -> return True
         AbstractDefn{} -> return True
         Function{} -> return True

@@ -1,4 +1,4 @@
-{-# OPTIONS -v tc.conv.fun:20 #-}
+{-# OPTIONS --erasure -v tc.conv.fun:20 #-}
 
 -- Andreas, 2019-11-06, issue #4175, reported and test case by nad.
 -- Check quantity for function type subtyping.

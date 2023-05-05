@@ -21,7 +21,6 @@
 .cabal-sandbox/
 .DS_Store
 .ghc.environment.*
-.ghci.local
 .stack-work-*/
 .stack-work/
 .sw[a-p]
@@ -30,8 +29,10 @@
 /benchmark/Create/hs-import-*
 /benchmark/Create/import-*
 /benchmark/Create/import0-*
+/benchmark/logs
 /examples/**/MAlonzo
 /examples/compiler/main
+/hie.yaml
 /mk/config.mk
 /mk/parallel-tests.mk
 /notes/style/haskell-style.tex

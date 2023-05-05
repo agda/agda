@@ -1,9 +1,11 @@
 Issue3364.agda:6,30-44
+warning: -W[no]IllformedAsClause
 'as' must be followed by an identifier; a qualified name is not
 allowed here
 when scope checking the declaration
   open import Agda.Builtin.Nat as Builtin.Nat
 Issue3364.agda:18,27-33
+warning: -W[no]IllformedAsClause
 'as' must be followed by an identifier
 when scope checking the declaration
   import Agda.Builtin.Sigma as .as
@@ -11,12 +13,14 @@ when scope checking the declaration
 ———— All done; warnings encountered ————————————————————————
 
 Issue3364.agda:6,30-44
+warning: -W[no]IllformedAsClause
 'as' must be followed by an identifier; a qualified name is not
 allowed here
 when scope checking the declaration
   open import Agda.Builtin.Nat as Builtin.Nat
 
 Issue3364.agda:18,27-33
+warning: -W[no]IllformedAsClause
 'as' must be followed by an identifier
 when scope checking the declaration
   import Agda.Builtin.Sigma as .as

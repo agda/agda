@@ -1,4 +1,4 @@
 Issue2935.agda:9,5-8
-Too few arguments to constructor suc, expected 1 more explicit
-argument
+The constructor suc expects 1 arguments (including hidden ones),
+but has been given 0 (including hidden ones)
 when checking that the pattern suc has type ℕ

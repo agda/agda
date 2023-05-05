@@ -1,4 +1,5 @@
-{-# OPTIONS --no-flat-split #-}
+{-# OPTIONS --cohesion #-}
+
 module _ where
 
 postulate

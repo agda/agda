@@ -2,6 +2,8 @@
 -- Mark erased hypotheses as such in a non-erased goal.
 -- Same for irrelevance.
 
+{-# OPTIONS --erasure #-}
+
 Goal :
   (        A : Set)
   (@0      B : Set)

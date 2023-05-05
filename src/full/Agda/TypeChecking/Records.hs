@@ -8,6 +8,7 @@ import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Trans.Maybe
 import Control.Monad.Writer
+import Control.Applicative
 
 import Data.Bifunctor
 import qualified Data.List as List
@@ -20,6 +21,7 @@ import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Concrete (FieldAssignment'(..))
 import Agda.Syntax.Abstract.Name
+import Agda.Syntax.Internal.MetaVars (unblockOnAnyMetaIn)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base (isNameInScope)
@@ -32,12 +34,15 @@ import Agda.TypeChecking.Reduce.Monad () --instance only
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
+import {-# SOURCE #-} Agda.TypeChecking.Primitive.Cubical.Base (isCubicalSubtype)
 
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike (eligibleForProjectionLike)
 
 import Agda.Utils.Either
+import Agda.Utils.Empty
 import Agda.Utils.Function (applyWhen)
-import Agda.Utils.Functor (for, ($>))
+import Agda.Utils.Functor (for, ($>), (<&>))
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -47,6 +52,7 @@ import Agda.Utils.Singleton
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
+import qualified Data.Type.Bool as Bool
 
 mkCon :: ConHead -> ConInfo -> Args -> Term
 mkCon h info args = Con h info (map Apply args)
@@ -330,7 +336,7 @@ getDefType f t = do
               [ text $ "head d     = " ++ prettyShow d
               , "parameters =" <+> sep (map prettyTCM pars)
               ]
-            reportSLn "tc.deftype" 60 $ "parameters = " ++ show pars
+            reportSDoc "tc.deftype" 60 $ "parameters = " <+> pretty pars
             if length pars < npars then failure "does not supply enough parameters"
             else Just <$> a `piApplyM` pars
         _ -> failNotDef
@@ -344,7 +350,26 @@ getDefType f t = do
         , prettyTCM t
         , text $ "of its argument " ++ reason
         ]
-      return Nothing
+      reportSDoc "tc.deftype" 60 $ "raw type: " <+> pretty t
+      return $ case unEl t of
+        Dummy{} -> Just __DUMMY_TYPE__
+        _       -> Nothing
+
+-- | Apply a projection to an expression with a known type, returning
+--   the type of the projected value.
+--   The given type should either be a record type or a type eligible for
+--   the principal argument of a projection-like function.
+shouldBeProjectible :: (PureTCM m, MonadTCError m, MonadBlock m)
+                    => Term -> Type -> ProjOrigin -> QName -> m Type
+-- shouldBeProjectible t f = maybe failure return =<< projectionType t f
+shouldBeProjectible v t o f = do
+  t <- abortIfBlocked t
+  projectTyped v t o f >>= \case
+    Just (_ , _ , ft) -> return ft
+    Nothing -> case t of
+      El _ Dummy{} -> return __DUMMY_TYPE__
+      _ -> typeError $ ShouldBeRecordType t
+    -- TODO: more accurate error that makes sense also for proj.-like funs.
 
 -- | The analogue of 'piApply'.  If @v@ is a value of record type @t@
 --   with field @f@, then @projectTyped v t f@ returns the type of @f v@.
@@ -398,17 +423,50 @@ typeElims a self (e : es) = do
       (ProjT dom a :) <$> typeElims a self es
     IApply{} -> __IMPOSSIBLE__
 
+-- | Given a term with a given type and a list of eliminations, returning the
+--   type of the term applied to the eliminations.
+eliminateType :: (PureTCM m) => m Empty -> Term -> Type -> Elims -> m Type
+eliminateType err = eliminateType' err . applyE
+
+eliminateType' :: (PureTCM m) => m Empty -> (Elims -> Term) -> Type -> Elims -> m Type
+eliminateType' err hd t [] = return t
+eliminateType' err hd t (e : es) = case e of
+  Apply v -> do
+    t' <- piApplyM' err t v
+    eliminateType' err (hd . (e:)) t' es
+  Proj o f -> reduce t >>= getDefType f >>= \case
+    Just a -> ifNotPiType a (\_ -> absurd <$> err) $ \_ c ->
+      eliminateType' err (hd . (e:)) (c `absApp` (hd [])) es
+    Nothing -> absurd <$> err
+  IApply _ _ r -> do
+    t' <- piApplyM' err t r
+    eliminateType' err (hd . (e:)) t' es
+
 -- | Check if a name refers to an eta expandable record.
+--
+-- The answer is no for a record type with an erased constructor
+-- unless the current quantity is \"erased\".
 {-# SPECIALIZE isEtaRecord :: QName -> TCM Bool #-}
 {-# SPECIALIZE isEtaRecord :: QName -> ReduceM Bool #-}
 isEtaRecord :: HasConstInfo m => QName -> m Bool
-isEtaRecord r = maybe False ((YesEta ==) . recEtaEquality) <$> isRecord r
+isEtaRecord r = do
+  isRec <- isRecord r
+  case isRec of
+    Nothing -> return False
+    Just r
+      | recEtaEquality r /= YesEta -> return False
+      | otherwise                  -> do
+        constructorQ <- getQuantity <$>
+                          getConstInfo (conName (recConHead r))
+        currentQ     <- viewTC eQuantity
+        return $ constructorQ `moreQuantity` currentQ
 
 isEtaCon :: HasConstInfo m => QName -> m Bool
 isEtaCon c = getConstInfo' c >>= \case
-  Left (SigUnknown err) -> __IMPOSSIBLE__
-  Left SigAbstract -> return False
-  Right def -> case theDef def of
+  Left (SigUnknown err)     -> __IMPOSSIBLE__
+  Left SigCubicalNotErasure -> __IMPOSSIBLE__
+  Left SigAbstract          -> return False
+  Right def                 -> case theDef def of
     Constructor {conData = r} -> isEtaRecord r
     _ -> return False
 
@@ -436,9 +494,10 @@ isEtaRecordType a = case unEl a of
 --   If yes, return record definition.
 isRecordConstructor :: HasConstInfo m => QName -> m (Maybe (QName, Defn))
 isRecordConstructor c = getConstInfo' c >>= \case
-  Left (SigUnknown err)        -> __IMPOSSIBLE__
-  Left SigAbstract             -> return Nothing
-  Right def -> case theDef $ def of
+  Left (SigUnknown err)     -> __IMPOSSIBLE__
+  Left SigCubicalNotErasure -> __IMPOSSIBLE__
+  Left SigAbstract          -> return Nothing
+  Right def                 -> case theDef $ def of
     Constructor{ conData = r } -> fmap (r,) <$> isRecord r
     _                          -> return Nothing
 
@@ -461,30 +520,31 @@ unguardedRecord q pat = modifySignature $ updateDefinition q $ updateTheDef $ \c
   r@Record{} -> r { recEtaEquality' = setEtaEquality (recEtaEquality' r) $ NoEta pat }
   _ -> __IMPOSSIBLE__
 
+-- | Turn on eta for non-recursive and inductive guarded recursive records,
+--   unless user declared otherwise.
+--   Projections do not preserve guardedness.
+updateEtaForRecord :: QName -> TCM ()
+updateEtaForRecord q = whenM etaEnabled $ do
+
+  -- Do we need to switch on eta for record q?
+  switchEta <- getConstInfo q <&> theDef <&> \case
+    Record{ recInduction = ind, recEtaEquality' = eta }
+      | Inferred NoEta{} <- eta, ind /= Just CoInductive -> True
+      | otherwise -> False
+    _ -> __IMPOSSIBLE__
+
+  when switchEta $ do
+    modifySignature $ updateDefinition q $ over (lensTheDef . lensRecord) $ \ d ->
+      d{ _recEtaEquality' = Inferred YesEta }
+
 -- | Turn on eta for inductive guarded recursive records.
 --   Projections do not preserve guardedness.
 recursiveRecord :: QName -> TCM ()
-recursiveRecord q = do
-  ok <- etaEnabled
-  modifySignature $ updateDefinition q $ updateTheDef $ \case
-    r@Record{ recInduction = ind, recEtaEquality' = eta } ->
-      r { recEtaEquality' = eta' }
-      where
-      eta' | ok, Inferred NoEta{} <- eta, ind /= Just CoInductive = Inferred YesEta
-           | otherwise = eta
-    _ -> __IMPOSSIBLE__
+recursiveRecord = updateEtaForRecord
 
 -- | Turn on eta for non-recursive record, unless user declared otherwise.
 nonRecursiveRecord :: QName -> TCM ()
-nonRecursiveRecord q = whenM etaEnabled $ do
-  -- Do nothing if eta is disabled by option.
-  modifySignature $ updateDefinition q $ updateTheDef $ \case
-    r@Record{ recInduction = ind, recEtaEquality' = Inferred (NoEta _) }
-      | ind /= Just CoInductive ->
-      r { recEtaEquality' = Inferred YesEta }
-    r@Record{} -> r
-    _          -> __IMPOSSIBLE__
-
+nonRecursiveRecord = updateEtaForRecord
 
 -- | Check whether record type is marked as recursive.
 --
@@ -833,7 +893,7 @@ isSingletonTypeModuloRelevance :: (PureTCM m, MonadBlock m) => Type -> m Bool
 isSingletonTypeModuloRelevance t = isJust <$> isSingletonType' True t mempty
 
 isSingletonType'
-  :: (PureTCM m, MonadBlock m)
+  :: forall m. (PureTCM m, MonadBlock m)
   => Bool            -- ^ Should disregard irrelevant fields?
   -> Type            -- ^ Type to check.
   -> Set QName       -- ^ Non-terminating record typess we already encountered.
@@ -844,11 +904,36 @@ isSingletonType' regardIrrelevance t rs = do
     TelV tel t <- telView t
     t <- abortIfBlocked t
     addContext tel $ do
-      res <- isRecordType t
-      case res of
-        Just (r, ps, def) | YesEta <- recEtaEquality def -> do
-          fmap (abstract tel) <$> isSingletonRecord' regardIrrelevance r ps rs
-        _ -> return Nothing
+      let
+        -- Easy case: η for records.
+        record :: m (Maybe Term)
+        record = runMaybeT $ do
+          (r, ps, def) <- MaybeT $ isRecordType t
+          guard (YesEta == recEtaEquality def)
+          abstract tel <$> MaybeT (isSingletonRecord' regardIrrelevance r ps rs)
+
+        -- Slightly harder case: η for Sub {level} tA phi elt.
+        -- tA : Type level, phi : I, elt : Partial phi tA.
+        subtype :: m (Maybe Term)
+        subtype = runMaybeT $ do
+          (level, tA, phi, elt) <- MaybeT $ isCubicalSubtype t
+          subin <- MaybeT $ getBuiltinName' builtinSubIn
+          itIsOne <- MaybeT $ getBuiltinName' builtinIsOne
+          phiV <- intervalView phi
+          case phiV of
+            -- If phi = i1, then inS (elt 1=1) is the only inhabitant.
+            IOne -> do
+              let
+                argH = Arg $ setHiding Hidden defaultArgInfo
+                it = elt `apply` [defaultArg (Def itIsOne [])]
+              pure (Def subin [] `apply` [argH level, argH tA, argH phi, defaultArg it])
+            -- Otherwise we're blocked
+            OTerm phi' -> patternViolation (unblockOnAnyMetaIn phi')
+            -- This fails the MaybeT: we're not looking at a
+            -- definitional singleton.
+            _ -> fail ""
+
+      (<|>) <$> record <*> subtype
 
 -- | Checks whether the given term (of the given type) is beta-eta-equivalent
 --   to a variable. Returns just the de Bruijn-index of the variable if it is,

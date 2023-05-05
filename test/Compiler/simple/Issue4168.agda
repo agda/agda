@@ -3,6 +3,8 @@
 -- Eta-contraction of records with all-erased fields is unsound.
 -- In this case, it lead to a compilation error.
 
+{-# OPTIONS --erasure #-}
+
 open import Agda.Builtin.Unit
 open import Common.IO using (IO; return)
 

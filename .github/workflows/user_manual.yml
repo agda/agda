@@ -12,13 +12,11 @@ jobs:
       && !contains(github.event.head_commit.message, '[ci skip]')
       && !contains(github.event.head_commit.message, '[github skip]')
       && !contains(github.event.head_commit.message, '[skip github]')
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: recursive
+    - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
@@ -40,14 +38,14 @@ jobs:
       run: |
         export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
         make user-manual-pdf
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         name: user-manual-pdf
         path: doc/user-manual.pdf
     strategy:
       matrix:
         python-version:
-        - 3.7
+        - '3.10'
 name: User Manual
 'on':
   pull_request:

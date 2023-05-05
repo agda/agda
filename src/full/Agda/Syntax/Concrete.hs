@@ -61,7 +61,6 @@ module Agda.Syntax.Concrete
   , Module(..)
   , ThingWithFixity(..)
   , HoleContent, HoleContent'(..)
-  , topLevelModuleName
   , spanAllowedBeforeModule
   )
   where
@@ -70,7 +69,7 @@ import Prelude hiding (null)
 
 import Control.DeepSeq
 
-import Data.Data        ( Data )
+import qualified Data.DList as DL
 import Data.Functor.Identity
 import Data.Set         ( Set  )
 import Data.Text        ( Text )
@@ -103,14 +102,14 @@ data OpApp e
     -- ^ An abstraction inside a special syntax declaration
     --   (see Issue 358 why we introduce this).
   | Ordinary e
-  deriving (Data, Functor, Foldable, Traversable, Eq)
+  deriving (Functor, Foldable, Traversable, Eq)
 
 fromOrdinary :: e -> OpApp e -> e
 fromOrdinary d (Ordinary e) = e
 fromOrdinary d _            = d
 
 data FieldAssignment' a = FieldAssignment { _nameFieldA :: Name, _exprFieldA :: a }
-  deriving (Data, Functor, Foldable, Traversable, Show, Eq)
+  deriving (Functor, Foldable, Traversable, Show, Eq)
 
 type FieldAssignment = FieldAssignment' Expr
 
@@ -119,25 +118,25 @@ data ModuleAssignment  = ModuleAssignment
                            , _exprModA      :: [Expr]
                            , _importDirModA :: ImportDirective
                            }
-  deriving (Data, Eq)
+  deriving Eq
 
 type RecordAssignment  = Either FieldAssignment ModuleAssignment
 type RecordAssignments = [RecordAssignment]
 
-nameFieldA :: Lens' Name (FieldAssignment' a)
+nameFieldA :: Lens' (FieldAssignment' a) Name
 nameFieldA f r = f (_nameFieldA r) <&> \x -> r { _nameFieldA = x }
 
-exprFieldA :: Lens' a (FieldAssignment' a)
+exprFieldA :: Lens' (FieldAssignment' a) a
 exprFieldA f r = f (_exprFieldA r) <&> \x -> r { _exprFieldA = x }
 
 -- UNUSED Liang-Ting Chen 2019-07-16
---qnameModA :: Lens' QName ModuleAssignment
+--qnameModA :: Lens' ModuleAssignment QName
 --qnameModA f r = f (_qnameModA r) <&> \x -> r { _qnameModA = x }
 --
 --exprModA :: Lens' [Expr] ModuleAssignment
 --exprModA f r = f (_exprModA r) <&> \x -> r { _exprModA = x }
 --
---importDirModA :: Lens' ImportDirective ModuleAssignment
+--importDirModA :: Lens' ModuleAssignment ImportDirective
 --importDirModA f r = f (_importDirModA r) <&> \x -> r { _importDirModA = x }
 
 -- | Concrete expressions. Should represent exactly what the user wrote.
@@ -170,7 +169,6 @@ data Expr
   | As Range Name Expr                         -- ^ ex: @x\@p@, only in patterns
   | Dot Range Expr                             -- ^ ex: @.p@, only in patterns
   | DoubleDot Range Expr                       -- ^ ex: @..A@, used for parsing @..A -> B@
-  | ETel Telescope                             -- ^ only used for printing telescopes
   | Quote Range                                -- ^ ex: @quote@, should be applied to a name
   | QuoteTerm Range                            -- ^ ex: @quoteTerm@, should be applied to a term
   | Tactic Range Expr                          -- ^ ex: @\@(tactic t)@, used to declare tactic arguments
@@ -179,14 +177,23 @@ data Expr
   | Equal Range Expr Expr                      -- ^ ex: @a = b@, used internally in the parser
   | Ellipsis Range                             -- ^ @...@, used internally to parse patterns.
   | Generalized Expr
-  deriving (Data, Eq)
+  deriving Eq
 
 type OpAppArgs = OpAppArgs' Expr
 type OpAppArgs' e = [NamedArg (MaybePlaceholder (OpApp e))]
 
 -- | Concrete patterns. No literals in patterns at the moment.
 data Pattern
-  = IdentP QName                           -- ^ @c@ or @x@
+  = IdentP Bool QName                      -- ^ @c@ or @x@
+                                           --
+                                           -- If the boolean is
+                                           -- 'False', then the
+                                           -- 'QName' must not refer
+                                           -- to a constructor or a
+                                           -- pattern synonym. The
+                                           -- value 'False' is used
+                                           -- when a hidden argument
+                                           -- pun is expanded.
   | QuoteP Range                           -- ^ @quote@
   | AppP Pattern (NamedArg Pattern)        -- ^ @p p'@ or @p {x = p'}@
   | RawAppP Range (List2 Pattern)          -- ^ @p1..pn@ before parsing operators
@@ -210,19 +217,19 @@ data Pattern
                                            --   Second arg is @Nothing@ before expansion, and
                                            --   @Just p@ after expanding ellipsis to @p@.
   | WithP Range Pattern                    -- ^ @| p@, for with-patterns.
-  deriving (Data, Eq)
+  deriving Eq
 
 data DoStmt
   = DoBind Range Pattern Expr [LamClause]   -- ^ @p ← e where cs@
   | DoThen Expr
   | DoLet Range (List1 Declaration)
-  deriving (Data, Eq)
+  deriving Eq
 
 -- | A Binder @x\@p@, the pattern is optional
 data Binder' a = Binder
   { binderPattern :: Maybe Pattern
   , binderName    :: a
-  } deriving (Data, Eq, Functor, Foldable, Traversable)
+  } deriving (Eq, Functor, Foldable, Traversable)
 
 type Binder = Binder' BoundName
 
@@ -240,7 +247,7 @@ data LamBinding' a
     -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@ or @{.x}@ or @x\@p@ or @(p)@
   | DomainFull a
     -- ^ . @(xs : e)@ or @{xs : e}@
-  deriving (Data, Functor, Foldable, Traversable, Eq)
+  deriving (Functor, Foldable, Traversable, Eq)
 
 -- | Drop type annotations and lets from bindings.
 dropTypeAndModality :: LamBinding -> [LamBinding]
@@ -250,11 +257,12 @@ dropTypeAndModality (DomainFull TLet{}) = []
 dropTypeAndModality (DomainFree x) = [DomainFree $ setModality defaultModality x]
 
 data BoundName = BName
-  { boundName   :: Name
-  , bnameFixity :: Fixity'
-  , bnameTactic :: TacticAttribute -- From @tactic attribute
+  { boundName       :: Name
+  , bnameFixity     :: Fixity'
+  , bnameTactic     :: TacticAttribute -- From @tactic attribute
+  , bnameIsFinite   :: Bool
   }
-  deriving (Data, Eq)
+  deriving Eq
 
 type TacticAttribute = Maybe Expr
 
@@ -262,7 +270,7 @@ mkBoundName_ :: Name -> BoundName
 mkBoundName_ x = mkBoundName x noFixity'
 
 mkBoundName :: Name -> Fixity' -> BoundName
-mkBoundName x f = BName x f Nothing
+mkBoundName x f = BName x f Nothing False
 
 -- | A typed binding.
 
@@ -273,7 +281,7 @@ data TypedBinding' e
     -- ^ Binding @(x1\@p1 ... xn\@pn : A)@.
   | TLet  Range (List1 Declaration)
     -- ^ Let binding @(let Ds)@ or @(open M args)@.
-  deriving (Data, Functor, Foldable, Traversable, Eq)
+  deriving (Functor, Foldable, Traversable, Eq)
 
 -- | A telescope is a sequence of typed bindings. Bound variables are in scope
 --   in later types.
@@ -327,7 +335,7 @@ data LHS = LHS  -- ^ Original pattern (including with-patterns), rewrite equatio
   , lhsWithExpr        :: [WithExpr]
     -- ^ @with e1 in eq | {e2} | ...@ (many)
   }
-  deriving (Data, Eq)
+  deriving Eq
 
 type RewriteEqn = RewriteEqn' () Name Pattern Expr
 type WithExpr   = Named Name (Arg Expr)
@@ -351,13 +359,13 @@ data LHSCore
              { lhsEllipsisRange :: Range
              , lhsEllipsisPat   :: LHSCore           -- ^ Pattern that was expanded from an ellipsis @...@.
              }
-  deriving (Data, Eq)
+  deriving Eq
 
 type RHS = RHS' Expr
 data RHS' e
   = AbsurdRHS -- ^ No right hand side because of absurd match.
   | RHS e
-  deriving (Data, Functor, Foldable, Traversable, Eq)
+  deriving (Functor, Foldable, Traversable, Eq)
 
 -- | @where@ block following a clause.
 type WhereClause = WhereClause' [Declaration]
@@ -369,20 +377,20 @@ data WhereClause' decls
   | AnyWhere Range decls
       -- ^ Ordinary @where@.  'Range' of the @where@ keyword.
       --   List of declarations can be empty.
-  | SomeWhere Range Name Access decls
+  | SomeWhere Range Erased Name Access decls
       -- ^ Named where: @module M where ds@.
       --   'Range' of the keywords @module@ and @where@.
       --   The 'Access' flag applies to the 'Name' (not the module contents!)
       --   and is propagated from the parent function.
       --   List of declarations can be empty.
-  deriving (Data, Eq, Functor, Foldable, Traversable)
+  deriving (Eq, Functor, Foldable, Traversable)
 
 data LamClause = LamClause
   { lamLHS      :: [Pattern]   -- ^ Possibly empty sequence.
   , lamRHS      :: RHS
   , lamCatchAll :: Bool
   }
-  deriving (Data, Eq)
+  deriving Eq
 
 -- | An expression followed by a where clause.
 --   Currently only used to give better a better error message in interaction.
@@ -406,7 +414,7 @@ data AsName' a = AsName
   , asRange :: Range
     -- ^ The range of the \"as\" keyword.  Retained for highlighting purposes.
   }
-  deriving (Data, Show, Functor, Foldable, Traversable, Eq)
+  deriving (Show, Functor, Foldable, Traversable, Eq)
 
 -- | From the parser, we get an expression for the @as@-'Name', which
 --   we have to parse into a 'Name'.
@@ -434,7 +442,7 @@ data RecordDirective
        -- ^ Range of @[no-]eta-equality@ keyword.
    | PatternOrCopattern Range
        -- ^ If declaration @pattern@ is present, give its range.
-   deriving (Data,Eq,Show)
+   deriving (Eq, Show)
 
 type RecordDirectives = RecordDirectives' (Name, IsInstance)
 
@@ -449,12 +457,14 @@ data Declaration
   | Generalize Range [TypeSignature] -- ^ Variables to be generalized, can be hidden and/or irrelevant.
   | Field Range [FieldSignature]
   | FunClause LHS RHS WhereClause Bool
-  | DataSig     Range Name [LamBinding] Expr -- ^ lone data signature in mutual block
-  | Data        Range Name [LamBinding] Expr [TypeSignatureOrInstanceBlock]
+  | DataSig     Range Erased Name [LamBinding] Expr -- ^ lone data signature in mutual block
+  | Data        Range Erased Name [LamBinding] Expr
+                [TypeSignatureOrInstanceBlock]
   | DataDef     Range Name [LamBinding] [TypeSignatureOrInstanceBlock]
-  | RecordSig   Range Name [LamBinding] Expr -- ^ lone record signature in mutual block
+  | RecordSig   Range Erased Name [LamBinding] Expr -- ^ lone record signature in mutual block
   | RecordDef   Range Name RecordDirectives [LamBinding] [Declaration]
-  | Record      Range Name RecordDirectives [LamBinding] Expr [Declaration]
+  | Record      Range Erased Name RecordDirectives [LamBinding] Expr
+                [Declaration]
   | RecordDirective RecordDirective -- ^ Should not survive beyond the parser
   | Infix Fixity (List1 Name)
   | Syntax      Name Notation -- ^ notation declaration for a name
@@ -476,14 +486,17 @@ data Declaration
   | Primitive   Range [TypeSignature]
   | Open        Range QName ImportDirective
   | Import      Range QName (Maybe AsName) !OpenShortHand ImportDirective
-  | ModuleMacro Range  Name ModuleApplication !OpenShortHand ImportDirective
-  | Module      Range QName Telescope [Declaration]
+  | ModuleMacro Range Erased  Name ModuleApplication !OpenShortHand
+                ImportDirective
+  | Module      Range Erased QName Telescope [Declaration]
   | UnquoteDecl Range [Name] Expr
       -- ^ @unquoteDecl xs = e@
   | UnquoteDef  Range [Name] Expr
       -- ^ @unquoteDef xs = e@
+  | UnquoteData Range Name [Name] Expr
+      -- ^ @unquoteDecl data d constructor xs = e@
   | Pragma      Pragma
-  deriving (Data, Eq)
+  deriving Eq
 
 -- | Extract a record directive
 isRecordDirective :: Declaration -> Maybe RecordDirective
@@ -496,10 +509,10 @@ data ModuleApplication
     -- ^ @tel. M args@
   | RecordModuleInstance Range QName
     -- ^ @M {{...}}@
-  deriving (Data, Eq)
+  deriving Eq
 
 data OpenShortHand = DoOpen | DontOpen
-  deriving (Data, Eq, Show, Generic)
+  deriving (Eq, Show, Generic)
 
 -- Pragmas ----------------------------------------------------------------
 
@@ -541,7 +554,9 @@ data Pragma
   | PolarityPragma            Range Name [Occurrence]
   | NoUniverseCheckPragma     Range
     -- ^ Applies to the following data/record type.
-  deriving (Data, Eq)
+  | NotProjectionLikePragma   Range QName
+    -- ^ Applies to the stated function
+  deriving Eq
 
 ---------------------------------------------------------------------------
 
@@ -551,19 +566,6 @@ data Module = Mod
   { modPragmas :: [Pragma]
   , modDecls   :: [Declaration]
   }
-
--- | Computes the top-level module name.
---
--- Precondition: The 'Module' has to be well-formed.
--- This means that there are only allowed declarations before the
--- first module declaration, typically import declarations.
--- See 'spanAllowedBeforeModule'.
-
-topLevelModuleName :: Module -> TopLevelModuleName
-topLevelModuleName (Mod _ []) = __IMPOSSIBLE__
-topLevelModuleName (Mod _ ds) = case spanAllowedBeforeModule ds of
-  (_, Module _ n _ _ : _) -> toTopLevelModuleName n
-  _ -> __IMPOSSIBLE__
 
 -- | Splits off allowed (= import) declarations before the first
 --   non-allowed declaration.
@@ -612,13 +614,17 @@ rawAppP (p :| []) = p
 data AppView = AppView Expr [NamedArg Expr]
 
 appView :: Expr -> AppView
-appView = \case
-    App r e1 e2      -> vApp (appView e1) e2
-    RawApp _ (List2 e1 e2 es)
-                     -> AppView e1 $ map arg (e2:es)
-    e                -> AppView e []
+appView e = f (DL.toList ess)
   where
-    vApp (AppView e es) arg = AppView e (es ++ [arg])
+    (f, ess) = appView' e
+
+    appView' = \case
+      App r e1 e2      -> vApp (appView' e1) e2
+      RawApp _ (List2 e1 e2 es)
+                       -> (AppView e1, DL.fromList (map arg (e2 : es)))
+      e                -> (AppView e, mempty)
+
+    vApp (f, es) arg = (f, es `DL.snoc` arg)
 
     arg (HiddenArg   _ e) = hide         $ defaultArg e
     arg (InstanceArg _ e) = makeInstance $ defaultArg e
@@ -635,10 +641,10 @@ unAppView (AppView e nargs) = rawApp (e :| map unNamedArg nargs)
 
 isSingleIdentifierP :: Pattern -> Maybe Name
 isSingleIdentifierP = \case
-  IdentP (QName x) -> Just x
-  WildP r          -> Just $ noName r
-  ParenP _ p       -> isSingleIdentifierP p
-  _                -> Nothing
+  IdentP _ (QName x) -> Just x
+  WildP r            -> Just $ noName r
+  ParenP _ p         -> isSingleIdentifierP p
+  _                  -> Nothing
 
 removeParenP :: Pattern -> Pattern
 removeParenP = \case
@@ -693,7 +699,7 @@ exprToPattern :: Applicative m
 exprToPattern fallback = loop
   where
   loop = \case
-    Ident       x        -> pure $ IdentP x
+    Ident       x        -> pure $ IdentP True x
     App         _ e1 e2  -> AppP <$> loop e1 <*> traverse (traverse loop) e2
     Paren       r e      -> ParenP r <$> loop e
     Underscore  r _      -> pure $ WildP r
@@ -747,7 +753,8 @@ isAbsurdP = \case
 
 isBinderP :: Pattern -> Maybe Binder
 isBinderP = \case
-  IdentP qn  -> mkBinder_ <$> isUnqualified qn
+  IdentP _ qn
+             -> mkBinder_ <$> isUnqualified qn
   WildP r    -> pure $ mkBinder_ $ setRange r simpleHole
   AsP r n p  -> pure $ Binder (Just p) $ mkBoundName_ n
   ParenP r p -> pure $ Binder (Just p) $ mkBoundName_ $ setRange r simpleHole
@@ -825,7 +832,6 @@ instance HasRange Expr where
       InstanceArg r _    -> r
       Rec r _            -> r
       RecUpdate r _ _    -> r
-      ETel tel           -> getRange tel
       Quote r            -> r
       QuoteTerm r        -> r
       Unquote r          -> r
@@ -854,9 +860,9 @@ instance HasRange BoundName where
   getRange = getRange . boundName
 
 instance HasRange WhereClause where
-  getRange  NoWhere             = noRange
-  getRange (AnyWhere r ds)      = getRange (r, ds)
-  getRange (SomeWhere r x _ ds) = getRange (r, x, ds)
+  getRange  NoWhere               = noRange
+  getRange (AnyWhere r ds)        = getRange (r, ds)
+  getRange (SomeWhere r e x _ ds) = getRange (r, e, x, ds)
 
 instance HasRange ModuleApplication where
   getRange (SectionApp r _ _) = r
@@ -879,12 +885,12 @@ instance HasRange Declaration where
   getRange (FieldSig _ _ x t)      = fuseRange x t
   getRange (Field r _)             = r
   getRange (FunClause lhs rhs wh _) = fuseRange lhs rhs `fuseRange` wh
-  getRange (DataSig r _ _ _)       = r
-  getRange (Data r _ _ _ _)        = r
+  getRange (DataSig r _ _ _ _)     = r
+  getRange (Data r _ _ _ _ _)      = r
   getRange (DataDef r _ _ _)       = r
-  getRange (RecordSig r _ _ _)     = r
+  getRange (RecordSig r _ _ _ _)   = r
   getRange (RecordDef r _ _ _ _)   = r
-  getRange (Record r _ _ _ _ _)    = r
+  getRange (Record r _ _ _ _ _ _)  = r
   getRange (RecordDirective r)     = getRange r
   getRange (Mutual r _)            = r
   getRange (InterleavedMutual r _) = r
@@ -892,19 +898,21 @@ instance HasRange Declaration where
   getRange (Abstract r _)          = r
   getRange (Generalize r _)        = r
   getRange (Open r _ _)            = r
-  getRange (ModuleMacro r _ _ _ _) = r
+  getRange (ModuleMacro r _ _ _ _ _)
+                                   = r
   getRange (Import r _ _ _ _)      = r
   getRange (InstanceB r _)         = r
   getRange (Macro r _)             = r
   getRange (Private r _ _)         = r
   getRange (Postulate r _)         = r
   getRange (Primitive r _)         = r
-  getRange (Module r _ _ _)        = r
+  getRange (Module r _ _ _ _)      = r
   getRange (Infix f _)             = getRange f
   getRange (Syntax n _)            = getRange n
   getRange (PatternSyn r _ _ _)    = r
   getRange (UnquoteDecl r _ _)     = r
   getRange (UnquoteDef r _ _)      = r
+  getRange (UnquoteData r _ _ _)   = r
   getRange (Pragma p)              = getRange p
 
 instance HasRange LHS where
@@ -948,12 +956,13 @@ instance HasRange Pragma where
   getRange (NoPositivityCheckPragma r)       = r
   getRange (PolarityPragma r _ _)            = r
   getRange (NoUniverseCheckPragma r)         = r
+  getRange (NotProjectionLikePragma r _)     = r
 
 instance HasRange AsName where
   getRange a = getRange (asRange a, asName a)
 
 instance HasRange Pattern where
-  getRange (IdentP x)         = getRange x
+  getRange (IdentP _ x)       = getRange x
   getRange (AppP p q)         = fuseRange p q
   getRange (OpAppP r _ _ _)   = r
   getRange (RawAppP r _)      = r
@@ -975,7 +984,7 @@ instance HasRange Pattern where
 ------------------------------------------------------------------------
 
 instance SetRange Pattern where
-  setRange r (IdentP x)         = IdentP (setRange r x)
+  setRange r (IdentP c x)       = IdentP c (setRange r x)
   setRange r (AppP p q)         = AppP (setRange r p) (setRange r q)
   setRange r (OpAppP _ x ns ps) = OpAppP r x ns ps
   setRange r (RawAppP _ ps)     = RawAppP r ps
@@ -1013,7 +1022,7 @@ instance KillRange Binder where
   killRange (Binder a b) = killRange2 Binder a b
 
 instance KillRange BoundName where
-  killRange (BName n f t) = killRange3 BName n f t
+  killRange (BName n f t b) = killRange4 BName n f t b
 
 instance KillRange RecordDirective where
   killRange (Induction a)          = killRange1 Induction a
@@ -1027,13 +1036,14 @@ instance KillRange Declaration where
   killRange (Generalize r ds )      = killRange1 (Generalize noRange) ds
   killRange (Field r fs)            = killRange1 (Field noRange) fs
   killRange (FunClause l r w ca)    = killRange4 FunClause l r w ca
-  killRange (DataSig _ n l e)       = killRange3 (DataSig noRange) n l e
-  killRange (Data _ n l e c)        = killRange4 (Data noRange) n l e c
+  killRange (DataSig _ er n l e)    = killRange4 (DataSig noRange) er n l e
+  killRange (Data _ er n l e c)     = killRange5 (Data noRange) er n l e c
   killRange (DataDef _ n l c)       = killRange3 (DataDef noRange) n l c
-  killRange (RecordSig _ n l e)     = killRange3 (RecordSig noRange) n l e
+  killRange (RecordSig _ er n l e)  = killRange4 (RecordSig noRange) er n l e
   killRange (RecordDef _ n dir k d) = killRange4 (RecordDef noRange) n dir k d
   killRange (RecordDirective a)     = killRange1 RecordDirective a
-  killRange (Record _ n dir k e d)  = killRange5 (Record noRange) n dir k e d
+  killRange (Record _ er n dir k e d)
+                                    = killRange6 (Record noRange) er n dir k e d
   killRange (Infix f n)             = killRange2 Infix f n
   killRange (Syntax n no)           = killRange1 (\n -> Syntax n no) n
   killRange (PatternSyn _ n ns p)   = killRange3 (PatternSyn noRange) n ns p
@@ -1048,10 +1058,14 @@ instance KillRange Declaration where
   killRange (Primitive _ t)         = killRange1 (Primitive noRange) t
   killRange (Open _ q i)            = killRange2 (Open noRange) q i
   killRange (Import _ q a o i)      = killRange3 (\q a -> Import noRange q a o) q a i
-  killRange (ModuleMacro _ n m o i) = killRange3 (\n m -> ModuleMacro noRange n m o) n m i
-  killRange (Module _ q t d)        = killRange3 (Module noRange) q t d
+  killRange (ModuleMacro _ e n m o i)
+                                    = killRange4
+                                        (\e n m -> ModuleMacro noRange e n m o)
+                                        e n m i
+  killRange (Module _ e q t d)      = killRange4 (Module noRange) e q t d
   killRange (UnquoteDecl _ x t)     = killRange2 (UnquoteDecl noRange) x t
   killRange (UnquoteDef _ x t)      = killRange2 (UnquoteDef noRange) x t
+  killRange (UnquoteData _ xs cs t) = killRange3 (UnquoteData noRange) xs cs t
   killRange (Pragma p)              = killRange1 Pragma p
 
 instance KillRange Expr where
@@ -1080,7 +1094,6 @@ instance KillRange Expr where
   killRange (As _ n e)            = killRange2 (As noRange) n e
   killRange (Dot _ e)             = killRange1 (Dot noRange) e
   killRange (DoubleDot _ e)       = killRange1 (DoubleDot noRange) e
-  killRange (ETel t)              = killRange1 ETel t
   killRange (Quote _)             = Quote noRange
   killRange (QuoteTerm _)         = QuoteTerm noRange
   killRange (Unquote _)           = Unquote noRange
@@ -1114,7 +1127,7 @@ instance KillRange e => KillRange (OpApp e) where
   killRange (Ordinary e)                = killRange1 Ordinary e
 
 instance KillRange Pattern where
-  killRange (IdentP q)        = killRange1 IdentP q
+  killRange (IdentP c q)      = killRange2 IdentP c q
   killRange (AppP p ps)       = killRange2 AppP p ps
   killRange (RawAppP _ p)     = killRange1 (RawAppP noRange) p
   killRange (OpAppP _ n ns p) = killRange3 (OpAppP noRange) n ns p
@@ -1152,6 +1165,7 @@ instance KillRange Pragma where
   killRange (NoPositivityCheckPragma _)       = NoPositivityCheckPragma noRange
   killRange (PolarityPragma _ q occs)         = killRange1 (\q -> PolarityPragma noRange q occs) q
   killRange (NoUniverseCheckPragma _)         = NoUniverseCheckPragma noRange
+  killRange (NotProjectionLikePragma _ q)     = NotProjectionLikePragma noRange q
 
 instance KillRange RHS where
   killRange AbsurdRHS = AbsurdRHS
@@ -1162,9 +1176,10 @@ instance KillRange TypedBinding where
   killRange (TLet r ds)   = killRange2 TLet r ds
 
 instance KillRange WhereClause where
-  killRange NoWhere             = NoWhere
-  killRange (AnyWhere r d)      = killRange1 (AnyWhere noRange) d
-  killRange (SomeWhere r n a d) = killRange3 (SomeWhere noRange) n a d
+  killRange NoWhere               = NoWhere
+  killRange (AnyWhere r d)        = killRange1 (AnyWhere noRange) d
+  killRange (SomeWhere r e n a d) =
+    killRange4 (SomeWhere noRange) e n a d
 
 ------------------------------------------------------------------------
 -- NFData instances
@@ -1197,7 +1212,6 @@ instance NFData Expr where
   rnf (As _ a b)          = rnf a `seq` rnf b
   rnf (Dot _ a)           = rnf a
   rnf (DoubleDot _ a)     = rnf a
-  rnf (ETel a)            = rnf a
   rnf (Quote _)           = ()
   rnf (QuoteTerm _)       = ()
   rnf (Tactic _ a)        = rnf a
@@ -1210,7 +1224,7 @@ instance NFData Expr where
 -- | Ranges are not forced.
 
 instance NFData Pattern where
-  rnf (IdentP a)       = rnf a
+  rnf (IdentP a b)     = rnf a `seq` rnf b
   rnf (QuoteP _)       = ()
   rnf (AppP a b)       = rnf a `seq` rnf b
   rnf (RawAppP _ a)    = rnf a
@@ -1242,12 +1256,13 @@ instance NFData Declaration where
   rnf (Generalize _ a)        = rnf a
   rnf (Field _ fs)            = rnf fs
   rnf (FunClause a b c d)     = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
-  rnf (DataSig _ a b c)       = rnf a `seq` rnf b `seq` rnf c
-  rnf (Data _ a b c d)        = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+  rnf (DataSig _ a b c d)     = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+  rnf (Data _ a b c d e)      = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+                                      `seq` rnf e
   rnf (DataDef _ a b c)       = rnf a `seq` rnf b `seq` rnf c
-  rnf (RecordSig _ a b c)     = rnf a `seq` rnf b `seq` rnf c
+  rnf (RecordSig _ a b c d)   = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
   rnf (RecordDef _ a b c d)   = rnf (a, b, c, d)
-  rnf (Record _ a b c d e)    = rnf (a, b, c, d, e)
+  rnf (Record _ a b c d e f)  = rnf (a, b, c, d, e, f)
   rnf (RecordDirective a)     = rnf a
   rnf (Infix a b)             = rnf a `seq` rnf b
   rnf (Syntax a b)            = rnf a `seq` rnf b
@@ -1263,10 +1278,12 @@ instance NFData Declaration where
   rnf (Primitive _ a)         = rnf a
   rnf (Open _ a b)            = rnf a `seq` rnf b
   rnf (Import _ a b _ c)      = rnf a `seq` rnf b `seq` rnf c
-  rnf (ModuleMacro _ a b _ c) = rnf a `seq` rnf b `seq` rnf c
-  rnf (Module _ a b c)        = rnf a `seq` rnf b `seq` rnf c
+  rnf (ModuleMacro _ a b c _ d)
+                              = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+  rnf (Module _ a b c d)      = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
   rnf (UnquoteDecl _ a b)     = rnf a `seq` rnf b
   rnf (UnquoteDef _ a b)      = rnf a `seq` rnf b
+  rnf (UnquoteData _ a b c)   = rnf a `seq` rnf b `seq` rnf c
   rnf (Pragma a)              = rnf a
 
 instance NFData OpenShortHand
@@ -1293,6 +1310,7 @@ instance NFData Pragma where
   rnf (NoPositivityCheckPragma _)       = ()
   rnf (PolarityPragma _ a b)            = rnf a `seq` rnf b
   rnf (NoUniverseCheckPragma _)         = ()
+  rnf (NotProjectionLikePragma _ q)     = rnf q
 
 -- | Ranges are not forced.
 
@@ -1329,9 +1347,9 @@ instance NFData ModuleAssignment where
   rnf (ModuleAssignment a b c) = rnf a `seq` rnf b `seq` rnf c
 
 instance NFData a => NFData (WhereClause' a) where
-  rnf NoWhere             = ()
-  rnf (AnyWhere _ a)      = rnf a
-  rnf (SomeWhere _ a b c) = rnf a `seq` rnf b `seq` rnf c
+  rnf NoWhere               = ()
+  rnf (AnyWhere _ a)        = rnf a
+  rnf (SomeWhere _ a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
 
 instance NFData LamClause where
   rnf (LamClause a b c) = rnf (a, b, c)
@@ -1344,7 +1362,7 @@ instance NFData Binder where
   rnf (Binder a b) = rnf a `seq` rnf b
 
 instance NFData BoundName where
-  rnf (BName a b c) = rnf a `seq` rnf b `seq` rnf c
+  rnf (BName a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
 
 instance NFData a => NFData (RHS' a) where
   rnf AbsurdRHS = ()

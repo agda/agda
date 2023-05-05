@@ -14,15 +14,17 @@ module Agda.TypeChecking.Primitive.Cubical.Base
   , fiber, hfill
   , decomposeInterval', decomposeInterval
   , reduce2Lam
+  , isCubicalSubtype
   )
   where
 
-import Control.Arrow (second)
-import Control.Monad.Except
+import Control.Monad        ( msum, mzero )
+import Control.Monad.Except ( MonadError )
 
 import qualified Data.IntMap as IntMap
 import Data.IntMap (IntMap)
 import Data.String (IsString (fromString))
+import Data.Bifunctor (second)
 import Data.Either (partitionEithers)
 import Data.Maybe (fromMaybe, maybeToList)
 
@@ -50,7 +52,7 @@ import Agda.Syntax.Common
   (Cubical(..), Arg(..), Relevance(..), setRelevance, defaultArgInfo, hasQuantity0)
 
 import Agda.TypeChecking.Primitive.Base
-  (SigmaKit(..), (-->), nPi', pPi', (<@>), (<#>), (<..>), argN, getSigmaKit)
+  (SigmaKit(..), (-->), el', nPi', pPi', (<@>), (<#>), (<..>), argN, getSigmaKit)
 
 import Agda.Syntax.Internal
 
@@ -64,7 +66,7 @@ requireCubical
   -> TCM ()
 requireCubical wanted s = do
   cubical         <- optCubical <$> pragmaOptions
-  inErasedContext <- hasQuantity0 <$> getEnv
+  inErasedContext <- hasQuantity0 <$> viewTC eQuantity
   case cubical of
     Just CFull -> return ()
     Just CErased | wanted == CErased || inErasedContext -> return ()
@@ -421,3 +423,16 @@ reduce2Lam t = do
   where
     lam2Abs rel (Lam _ t) = absBody t <$ t
     lam2Abs rel t         = Abs "y" (raise 1 t `apply` [setRelevance rel $ argN $ var 0])
+
+-- | Are we looking at an application of the 'Sub' type? If so, return:
+-- * The type we're an extension of
+-- * The extent
+-- * The partial element.
+isCubicalSubtype :: PureTCM m => Type -> m (Maybe (Term, Term, Term, Term))
+isCubicalSubtype t = do
+  t <- reduce t
+  msub <- getBuiltinName' builtinSub
+  case unEl t of
+    Def q es | Just q == msub, Just (level:typ:phi:ext:_) <- allApplyElims es -> do
+      pure (pure (unArg level, unArg typ, unArg phi, unArg ext))
+    _ -> pure Nothing

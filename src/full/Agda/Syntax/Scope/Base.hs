@@ -12,7 +12,7 @@ import Control.Monad
 
 import Data.Either (partitionEithers)
 import Data.Foldable ( length, toList )
-import Data.Function
+import Data.Function (on)
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -20,8 +20,6 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Maybe
 import Data.Semigroup ( Semigroup(..) )
-
-import Data.Data (Data)
 
 import GHC.Generics (Generic)
 
@@ -41,7 +39,9 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1 ( List1, pattern (:|) )
+import Agda.Utils.List2 ( List2 )
 import qualified Agda.Utils.List1 as List1
+import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe (filterMaybe)
 import Agda.Utils.Null
 import Agda.Utils.Pretty hiding ((<>))
@@ -62,19 +62,19 @@ data Scope = Scope
       , scopeImports        :: Map C.QName A.ModuleName
       , scopeDatatypeModule :: Maybe DataOrRecordModule
       }
-  deriving (Data, Eq, Show, Generic)
+  deriving (Eq, Show, Generic)
 
 data DataOrRecordModule
   = IsDataModule
   | IsRecordModule
-  deriving (Data, Show, Eq, Enum, Bounded, Generic)
+  deriving (Show, Eq, Enum, Bounded, Generic)
 
 -- | See 'Agda.Syntax.Common.Access'.
 data NameSpaceId
   = PrivateNS        -- ^ Things not exported by this module.
   | PublicNS         -- ^ Things defined and exported by this module.
   | ImportedNS       -- ^ Things from open public, exported by this module.
-  deriving (Data, Eq, Bounded, Enum, Show, Generic)
+  deriving (Eq, Bounded, Enum, Show, Generic)
 
 allNameSpaces :: [NameSpaceId]
 allNameSpaces = [minBound..maxBound]
@@ -121,7 +121,7 @@ data ScopeInfo = ScopeInfo
       , _scopeFixities      :: C.Fixities    -- ^ Maps concrete names C.Name to fixities
       , _scopePolarities    :: C.Polarities  -- ^ Maps concrete names C.Name to polarities
       }
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 -- | For the sake of highlighting, the '_scopeInverseName' map also stores
 --   the 'KindOfName' of an @A.QName@.
@@ -129,7 +129,7 @@ data NameMapEntry = NameMapEntry
   { qnameKind     :: KindOfName     -- ^ The 'anameKind'.
   , qnameConcrete :: List1 C.QName  -- ^ Possible renderings of the abstract name.
   }
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 -- | Invariant: the 'KindOfName' components should be equal
 --   whenever we have to concrete renderings of an abstract name.
@@ -154,7 +154,7 @@ data BindingSource
   | PatternBound -- ^ @f ... =@
   | LetBound     -- ^ @let ... in@
   | WithBound    -- ^ @| ... in q@
-  deriving (Data, Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 instance Pretty BindingSource where
   pretty = \case
@@ -175,7 +175,7 @@ data LocalVar = LocalVar
      -- ^ If this list is not empty, the local variable is
      --   shadowed by one or more imports.
   }
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 instance Eq LocalVar where
   (==) = (==) `on` localVar
@@ -210,57 +210,57 @@ notShadowedLocals :: LocalVars -> AssocList C.Name A.Name
 notShadowedLocals = mapMaybe $ \ (c,x) -> (c,) <$> notShadowedLocal x
 
 -- | Lenses for ScopeInfo components
-scopeCurrent :: Lens' A.ModuleName ScopeInfo
+scopeCurrent :: Lens' ScopeInfo A.ModuleName
 scopeCurrent f s =
   f (_scopeCurrent s) <&>
   \x -> s { _scopeCurrent = x }
 
-scopeModules :: Lens' (Map A.ModuleName Scope) ScopeInfo
+scopeModules :: Lens' ScopeInfo (Map A.ModuleName Scope)
 scopeModules f s =
   f (_scopeModules s) <&>
   \x -> s { _scopeModules = x }
 
-scopeVarsToBind :: Lens' LocalVars ScopeInfo
+scopeVarsToBind :: Lens' ScopeInfo LocalVars
 scopeVarsToBind f s =
   f (_scopeVarsToBind s) <&>
   \x -> s { _scopeVarsToBind = x }
 
-scopeLocals :: Lens' LocalVars ScopeInfo
+scopeLocals :: Lens' ScopeInfo LocalVars
 scopeLocals f s =
   f (_scopeLocals s) <&>
   \x -> s { _scopeLocals = x }
 
-scopePrecedence :: Lens' PrecedenceStack ScopeInfo
+scopePrecedence :: Lens' ScopeInfo PrecedenceStack
 scopePrecedence f s =
   f (_scopePrecedence s) <&>
   \x -> s { _scopePrecedence = x }
 
-scopeInverseName :: Lens' NameMap ScopeInfo
+scopeInverseName :: Lens' ScopeInfo NameMap
 scopeInverseName f s =
   f (_scopeInverseName s) <&>
   \x -> s { _scopeInverseName = x }
 
-scopeInverseModule :: Lens' ModuleMap ScopeInfo
+scopeInverseModule :: Lens' ScopeInfo ModuleMap
 scopeInverseModule f s =
   f (_scopeInverseModule s) <&>
   \x -> s { _scopeInverseModule = x }
 
-scopeInScope :: Lens' InScopeSet ScopeInfo
+scopeInScope :: Lens' ScopeInfo InScopeSet
 scopeInScope f s =
   f (_scopeInScope s) <&>
   \x -> s { _scopeInScope = x }
 
-scopeFixities :: Lens' C.Fixities ScopeInfo
+scopeFixities :: Lens' ScopeInfo C.Fixities
 scopeFixities f s =
   f (_scopeFixities s) <&>
   \x -> s { _scopeFixities = x }
 
-scopePolarities :: Lens' C.Polarities ScopeInfo
+scopePolarities :: Lens' ScopeInfo C.Polarities
 scopePolarities f s =
   f (_scopePolarities s) <&>
   \x -> s { _scopePolarities = x }
 
-scopeFixitiesAndPolarities :: Lens' (C.Fixities, C.Polarities) ScopeInfo
+scopeFixitiesAndPolarities :: Lens' ScopeInfo (C.Fixities, C.Polarities)
 scopeFixitiesAndPolarities f s =
   f' (_scopeFixities s) (_scopePolarities s) <&>
   \ (fixs, pols) -> s { _scopeFixities = fixs, _scopePolarities = pols }
@@ -310,7 +310,7 @@ data NameSpace = NameSpace
         -- ^ All abstract names targeted by a concrete name in scope.
         --   Computed by 'recomputeInScopeSets'.
       }
-  deriving (Data, Eq, Show, Generic)
+  deriving (Eq, Show, Generic)
 
 type ThingsInScope a = Map C.Name [a]
 type NamesInScope    = ThingsInScope AbstractName
@@ -344,7 +344,7 @@ inNameSpace = case inScopeTag :: InScopeTag a of
 
 -- | Non-dependent tag for name or module.
 data NameOrModule = NameNotModule | ModuleNotName
-  deriving (Data, Eq, Ord, Show, Enum, Bounded, Generic)
+  deriving (Eq, Ord, Show, Enum, Bounded, Generic)
 
 ------------------------------------------------------------------------
 -- * Decorated names
@@ -375,7 +375,7 @@ data KindOfName
   | PrimName                 -- ^ Name of a @primitive@.
   | OtherDefName             -- ^ A @DefName@, but either other kind or don't know which kind.
   -- End @DefName@.  Keep these together in sequence, for sake of @isDefName@!
-  deriving (Eq, Ord, Show, Data, Enum, Bounded, Generic)
+  deriving (Eq, Ord, Show, Enum, Bounded, Generic)
 
 isDefName :: KindOfName -> Bool
 isDefName = (>= DataName)
@@ -437,7 +437,7 @@ exceptKindsOfNames = ExceptKindsOfNames . Set.fromList
 data WithKind a = WithKind
   { theKind     :: KindOfName
   , kindedThing :: a
-  } deriving (Data, Show, Eq, Ord, Functor, Foldable, Traversable)
+  } deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
 
 -- | Where does a name come from?
 --
@@ -450,7 +450,7 @@ data WhyInScope
     -- ^ Imported from another module.
   | Applied C.QName WhyInScope
     -- ^ Imported by a module application.
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 -- | A decoration of 'Agda.Syntax.Abstract.Name.QName'.
 data AbstractName = AbsName
@@ -464,11 +464,11 @@ data AbstractName = AbsName
     -- ^ Additional information needed during scope checking. Currently used
     --   for generalized data/record params.
   }
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 data NameMetadata = NoMetadata
                   | GeneralizedVarsMetadata (Map A.QName A.Name)
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 -- | A decoration of abstract syntax module names.
 data AbstractModule = AbsModule
@@ -477,7 +477,7 @@ data AbstractModule = AbsModule
   , amodLineage :: WhyInScope
     -- ^ Explanation where this name came from.
   }
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 instance Eq AbstractName where
   (==) = (==) `on` anameName
@@ -489,7 +489,7 @@ instance LensFixity AbstractName where
   lensFixity = lensAnameName . lensFixity
 
 -- | Van Laarhoven lens on 'anameName'.
-lensAnameName :: Lens' A.QName AbstractName
+lensAnameName :: Lens' AbstractName A.QName
 lensAnameName f am = f (anameName am) <&> \ m -> am { anameName = m }
 
 instance Eq AbstractModule where
@@ -499,7 +499,7 @@ instance Ord AbstractModule where
   compare = compare `on` amodName
 
 -- | Van Laarhoven lens on 'amodName'.
-lensAmodName :: Lens' A.ModuleName AbstractModule
+lensAmodName :: Lens' AbstractModule A.ModuleName
 lensAmodName f am = f (amodName am) <&> \ m -> am { amodName = m }
 
 
@@ -524,7 +524,7 @@ data ResolvedName
 
   | -- | Unbound name.
     UnknownName
-  deriving (Data, Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 instance Pretty ResolvedName where
   pretty = \case
@@ -538,6 +538,40 @@ instance Pretty ResolvedName where
 instance Pretty A.Suffix where
   pretty NoSuffix   = mempty
   pretty (Suffix i) = text (show i)
+
+-- | Why is a resolved name ambiguous?  What did it resolve to?
+--
+--   Invariant (statically enforced): At least two resolvents in total.
+data AmbiguousNameReason
+  = AmbiguousLocalVar LocalVar (List1 AbstractName)
+      -- ^ The name resolves both to a local variable and some declared names.
+  | AmbiguousDeclName (List2 AbstractName)
+      -- ^ The name resolves to at least 2 declared names.
+  deriving (Show, Generic)
+
+-- | The flat list of ambiguous names in 'AmbiguousNameReason'.
+ambiguousNamesInReason :: AmbiguousNameReason -> List2 (A.QName)
+ambiguousNamesInReason = \case
+  AmbiguousLocalVar (LocalVar y _ _) xs -> List2.cons (A.qualify_ y) $ fmap anameName xs
+  AmbiguousDeclName xs -> fmap anameName xs
+
+data WhyInScopeData
+  = WhyInScopeData
+      C.QName
+        -- ^ The name @x@ this explanation is about.
+      FilePath
+        -- ^ The directory in which the current module resides.
+      (Maybe LocalVar)
+        -- ^ The local variable that @x@ could denote, if any.
+      [AbstractName]
+        -- ^ The defined names that @x@ could denote.
+      [AbstractModule]
+        -- ^ The modules that @x@ could denote.
+
+whyInScopeDataFromAmbiguousNameReason :: C.QName -> AmbiguousNameReason -> WhyInScopeData
+whyInScopeDataFromAmbiguousNameReason q = \case
+  AmbiguousLocalVar x ys -> WhyInScopeData q empty (Just x) (toList ys) empty
+  AmbiguousDeclName ys   -> WhyInScopeData q empty Nothing  (toList ys) empty
 
 -- * Operations on name and module maps.
 
@@ -1041,41 +1075,6 @@ everythingInScopeQualified scope =
         imports = map lookP $ Map.elems $ scopeImports s
         submods = map (lookP . amodName) $ concat $ Map.elems $ Map.filterWithKey inscope $ allNamesInScope s
 
--- | Compute a flattened scope. Only include unqualified names or names
--- qualified by modules in the first argument.
-flattenScope :: [[C.Name]] -> ScopeInfo -> Map C.QName [AbstractName]
-flattenScope ms scope =
-  Map.unionWith (++)
-    (build ms allNamesInScope root)
-    imported
-  where
-    current = moduleScope $ scope ^. scopeCurrent
-    root    = mergeScopes $ current : map moduleScope (scopeParents current)
-
-    imported = Map.unionsWith (++)
-               [ qual c (build ms' exportedNamesInScope $ moduleScope a)
-               | (c, a) <- Map.toList $ scopeImports root
-               , let -- get the suffixes of c in ms
-                     ms' = mapMaybe (List.stripPrefix $ List1.toList $ C.qnameParts c) ms
-               , not $ null ms' ]
-    qual c = Map.mapKeys (q c)
-      where
-        q (C.QName x)  = C.Qual x
-        q (C.Qual m x) = C.Qual m . q x
-
-    build :: [[C.Name]] -> (forall a. InScope a => Scope -> ThingsInScope a) -> Scope -> Map C.QName [AbstractName]
-    build ms getNames s = Map.unionsWith (++) $
-        Map.mapKeysMonotonic C.QName (getNames s) :
-          [ Map.mapKeysMonotonic (\ y -> C.Qual x y) $
-              build ms' exportedNamesInScope $ moduleScope m
-          | (x, mods) <- Map.toList (getNames s)
-          , let ms' = [ tl | hd:tl <- ms, hd == x ]
-          , not $ null ms'
-          , AbsModule m _ <- mods ]
-
-    moduleScope :: A.ModuleName -> Scope
-    moduleScope m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scope ^. scopeModules
-
 -- | Get all concrete names in scope. Includes bound variables.
 concreteNamesInScope :: ScopeInfo -> Set C.QName
 concreteNamesInScope scope =
@@ -1096,7 +1095,9 @@ concreteNamesInScope scope =
 
     build :: (forall a. InScope a => Scope -> ThingsInScope a) -> Scope -> Set C.QName
     build getNames s = Set.unions $
-        Set.fromList (map C.QName $ Map.keys (getNames s :: ThingsInScope AbstractName)) :
+        Set.fromAscList
+          (map C.QName $
+           Map.keys (getNames s :: ThingsInScope AbstractName)) :
           [ Set.mapMonotonic (\ y -> C.Qual x y) $
               build exportedNamesInScope $ moduleScope m
           | (x, mods) <- Map.toList (getNames s)
@@ -1445,3 +1446,4 @@ instance NFData AbstractName
 instance NFData NameMetadata
 instance NFData AbstractModule
 instance NFData ResolvedName
+instance NFData AmbiguousNameReason

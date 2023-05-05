@@ -1,6 +1,8 @@
 Issue1273.agda:15,7-16
-Terms marked as eligible for instance search should end with a
-name, so 'instance' is ignored here.
+warning: -W[no]WrongInstanceDeclaration
+Instances should be of type {Γ} → C, where C evaluates to a
+postulated name or the name of a data or record type, so 'instance'
+is ignored here.
 when checking the projection set : Set
 Issue1273.agda:21,18-20
 No instance of type Eq (set A) was found in scope.

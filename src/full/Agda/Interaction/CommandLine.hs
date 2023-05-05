@@ -135,7 +135,7 @@ interactionLoop = do
     where
         reload :: ReplM () = do
             checked <- checkCurrentFile
-            liftTCM $ setScope $ maybe emptyScopeInfo iInsideScope (crInterface <$> checked)
+            liftTCM $ setScope $ maybe emptyScopeInfo (iInsideScope . crInterface) checked
             -- Andreas, 2021-01-27, issue #5132, make Set and Prop available from Agda.Primitive
             -- if no module is loaded.
             when (isNothing checked) $ do
@@ -237,7 +237,8 @@ metaParseExpr ii s =
         r <- getRange <$> lookupLocalMeta m
         -- liftIO $ putStrLn $ prettyShow scope
         let pos = fromMaybe __IMPOSSIBLE__ (rStart r)
-        e <- runPM $ parsePosString exprParser pos s
+        (e, attrs) <- runPM $ parsePosString exprParser pos s
+        checkAttributes attrs
         concreteToAbstract scope e
 
 actOnMeta :: [String] -> (InteractionId -> A.Expr -> TCM a) -> TCM a
@@ -277,7 +278,8 @@ evalIn _ = liftIO $ putStrLn ":eval metaid expr"
 
 parseExpr :: String -> TCM A.Expr
 parseExpr s = do
-    e <- runPM $ parse exprParser s
+    (e, attrs) <- runPM $ parse exprParser s
+    checkAttributes attrs
     localToAbstract e return
 
 evalTerm :: String -> TCM (ExitCode a)

@@ -1,6 +1,8 @@
 -- Andreas, 2019-07-04, issue #3886
 -- Override forcing with explicit quantity attributes.
 
+{-# OPTIONS --erasure #-}
+
 open import Common.Prelude
 
 pattern [_] x = x ∷ []

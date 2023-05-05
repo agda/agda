@@ -1,4 +1,5 @@
 WarningNoGuardedness.agda:4,8-9
+warning: -W[no]NoGuardednessFlag
 R is declared coinductive, but option --guardedness is not enabled.
 Coinductive functions on this type will likely be rejected by the
 termination checker unless this flag is enabled.
@@ -7,6 +8,7 @@ when checking the definition of R
 ———— All done; warnings encountered ————————————————————————
 
 WarningNoGuardedness.agda:4,8-9
+warning: -W[no]NoGuardednessFlag
 R is declared coinductive, but option --guardedness is not enabled.
 Coinductive functions on this type will likely be rejected by the
 termination checker unless this flag is enabled.

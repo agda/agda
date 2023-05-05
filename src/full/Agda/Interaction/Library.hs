@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedLists #-}
+
 -- | Library management.
 --
 --   Sample use:
@@ -25,6 +27,7 @@ module Agda.Interaction.Library
   , getAgdaLibFiles'
   , getPrimitiveLibDir
   , LibName
+  , OptionsPragma(..)
   , AgdaLibFile(..)
   , ExeName
   , LibM
@@ -39,16 +42,16 @@ module Agda.Interaction.Library
   ) where
 
 import Control.Arrow          ( first , second )
+import qualified Control.Exception as E
 import Control.Monad          ( filterM, forM )
 import Control.Monad.Except
 import Control.Monad.State
-import Control.Monad.Writer
+import Control.Monad.Writer   ( Writer, runWriter, WriterT(WriterT), runWriterT, tell )
 import Control.Monad.IO.Class ( MonadIO(..) )
 
 import Data.Char
-import Data.Data ( Data )
 import Data.Either
-import Data.Function
+import Data.Function (on)
 import Data.Map ( Map )
 import qualified Data.Map as Map
 import Data.Maybe ( catMaybes, fromMaybe )
@@ -58,6 +61,7 @@ import qualified Data.Text as T
 import System.Directory
 import System.FilePath
 import System.Environment
+import Text.Printf
 
 import Agda.Interaction.Library.Base
 import Agda.Interaction.Library.Parse
@@ -68,12 +72,16 @@ import Agda.Utils.FileName
 import Agda.Utils.Functor ( (<&>) )
 import Agda.Utils.IO ( catchIO )
 import qualified Agda.Utils.IO.UTF8 as UTF8
+import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.List1 ( List1, pattern (:|) )
-import qualified Agda.Utils.List1 as List1
+import Agda.Utils.List1             ( List1, pattern (:|) )
+import Agda.Utils.List2             ( List2 )
+import qualified Agda.Utils.List1   as List1
+import qualified Agda.Utils.List2   as List2
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
+import Agda.Utils.Singleton
 import Agda.Utils.String ( trim )
 
 import Agda.Version
@@ -140,10 +148,10 @@ getPrimitiveLibDir = do
 -- | The @~/.agda/libraries@ file lists the libraries Agda should know about.
 --   The content of @libraries@ is a list of paths to @.agda-lib@ files.
 --
---   Agda honors also version specific @libraries@ files, e.g. @libraries-2.6.0@.
+--   Agda honors also version-specific @libraries@ files, e.g. @libraries-2.6.0@.
 --
 --   @defaultLibraryFiles@ gives a list of all @libraries@ files Agda should process
---   by default.
+--   by default.  The first file in this list that exists is actually used.
 --
 defaultLibraryFiles :: List1 FilePath
 defaultLibraryFiles = ("libraries-" ++ version) :| "libraries" : []
@@ -156,10 +164,10 @@ defaultsFile = "defaults"
 -- | The @~/.agda/executables@ file lists the executables Agda should know about.
 --   The content of @executables@ is a list of paths to executables.
 --
---   Agda honors also version specific @executables@ files, e.g. @executables-2.6.0@.
+--   Agda honors also version-specific @executables@ files, e.g. @executables-2.6.0@.
 --
 --   @defaultExecutablesFiles@ gives a list of all @executables@ Agda should process
---   by default.
+--   by default.  The first file in this list that exists is actually used.
 --
 defaultExecutableFiles :: List1 FilePath
 defaultExecutableFiles = ("executables-" ++ version) :| "executables" : []
@@ -189,11 +197,17 @@ findProjectConfig' root = do
         []     -> liftIO (upPath root) >>= \case
           Just up -> do
             conf <- findProjectConfig' up
+            conf <- return $ case conf of
+                  DefaultProjectConfig{} -> conf
+                  ProjectConfig{..}      ->
+                    ProjectConfig{ configAbove = configAbove + 1
+                                 , ..
+                                 }
             storeCachedProjectConfig root conf
             return conf
           Nothing -> return DefaultProjectConfig
         files -> do
-          let conf = ProjectConfig root files
+          let conf = ProjectConfig root files 0
           storeCachedProjectConfig root conf
           return conf
 
@@ -221,15 +235,17 @@ findProjectConfig' root = do
 
 findProjectRoot :: FilePath -> LibM (Maybe FilePath)
 findProjectRoot root = findProjectConfig root <&> \case
-  ProjectConfig p _    -> Just p
+  ProjectConfig p _ _  -> Just p
   DefaultProjectConfig -> Nothing
 
 
 -- | Get the contents of @.agda-lib@ files in the given project root.
 getAgdaLibFiles' :: FilePath -> LibErrorIO [AgdaLibFile]
 getAgdaLibFiles' path = findProjectConfig' path >>= \case
-  DefaultProjectConfig    -> return []
-  ProjectConfig root libs -> parseLibFiles Nothing $ map ((0,) . (root </>)) libs
+  DefaultProjectConfig          -> return []
+  ProjectConfig root libs above ->
+    map (set libAbove above) <$>
+    parseLibFiles Nothing (map ((0,) . (root </>)) libs)
 
 -- | Get dependencies and include paths for given project root:
 --
@@ -263,7 +279,7 @@ readDefaultsFile = do
       ls <- liftIO $ map snd . stripCommentLines <$> UTF8.readFile file
       return $ concatMap splitCommas ls
   `catchIO` \ e -> do
-    raiseErrors' [ OtherError $ unlines ["Failed to read defaults file.", show e] ]
+    raiseErrors' [ ReadError e "Failed to read defaults file." ]
     return []
 
 ------------------------------------------------------------------------
@@ -274,15 +290,17 @@ readDefaultsFile = do
 --
 --   Note: file may not exist.
 --
+--   If the user specified an alternative @libraries@ file which does not exist,
+--   an exception is thrown containing the name of this file.
 getLibrariesFile
-  :: (MonadIO m, MonadError String m)
+  :: (MonadIO m, MonadError FilePath m)
   => Maybe FilePath -- ^ Override the default @libraries@ file?
   -> m LibrariesFile
 getLibrariesFile (Just overrideLibFile) = do
   -- A user-specified override file must exist.
   ifM (liftIO $ doesFileExist overrideLibFile)
     {-then-} (return $ LibrariesFile overrideLibFile True)
-    {-else-} (throwError $ "Libraries file not found: " ++ overrideLibFile)
+    {-else-} (throwError overrideLibFile)
 getLibrariesFile Nothing = do
   agdaDir <- liftIO $ getAgdaAppDir
   let defaults = List1.map (agdaDir </>) defaultLibraryFiles -- NB: very short list
@@ -301,14 +319,16 @@ getInstalledLibraries
 getInstalledLibraries overrideLibFile = mkLibM [] $ do
     filem <- liftIO $ runExceptT $ getLibrariesFile overrideLibFile
     case filem of
-      Left err -> raiseErrors' [OtherError err] >> return []
+      Left theOverrideLibFile -> do
+        raiseErrors' [ LibrariesFileNotFound theOverrideLibFile ]
+        return []
       Right file -> do
         if not (lfExists file) then return [] else do
           ls    <- liftIO $ stripCommentLines <$> UTF8.readFile (lfPath file)
           files <- liftIO $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- ls ]
           parseLibFiles (Just file) $ nubOn snd files
   `catchIO` \ e -> do
-    raiseErrors' [ OtherError $ unlines ["Failed to read installed libraries.", show e] ]
+    raiseErrors' [ ReadError e "Failed to read installed libraries." ]
     return []
 
 -- | Parse the given library files.
@@ -336,9 +356,9 @@ parseLibFiles mlibFile files = do
   let (xs, warns) = unzip anns
       (errs, als) = partitionEithers xs
 
-  unless (null warns) $ warnings $ concat warns
-  unless (null errs)  $
-    raiseErrors $ map (\(mc,s) -> LibError mc $ OtherError s) errs
+  List1.unlessNull (concat warns) warnings
+  List1.unlessNull errs $ \ errs1 ->
+    raiseErrors $ fmap (\ (mc, err) -> LibError mc $ LibParseError err) errs1
 
   return $ nubOn _libFile als
 
@@ -378,7 +398,7 @@ getTrustedExecutables = mkLibM [] $ do
       tmp   <- parseExecutablesFile file $ nubOn snd files
       return tmp
   `catchIO` \ e -> do
-    raiseErrors' [ OtherError $ unlines ["Failed to read trusted executables.", show e] ]
+    raiseErrors' [ ReadError e "Failed to read trusted executables." ]
     return Map.empty
 
 -- | Parse the @executables@ file.
@@ -387,15 +407,28 @@ parseExecutablesFile
   :: ExecutablesFile
   -> [(LineNumber, FilePath)]
   -> LibErrorIO (Map ExeName FilePath)
-parseExecutablesFile ef files =
-  fmap (Map.fromList . catMaybes) . forM files $ \(ln, fp) -> do
-
+parseExecutablesFile ef files = do
+  executables <- forM files $ \(ln, fp) -> do
     -- Compute canonical executable name and absolute filepath.
     let strExeName  = takeFileName fp
     let strExeName' = fromMaybe strExeName $ stripExtension exeExtension strExeName
     let txtExeName  = T.pack strExeName'
     exePath <- liftIO $ makeAbsolute fp
-    return $ Just (txtExeName, exePath)
+    return (txtExeName, exePath)
+
+  -- Create a map from executable names to their location(s).
+  let exeMap1 :: Map ExeName (List1 FilePath)
+      exeMap1 = Map.fromListWith (<>) $ map (second singleton) executables
+
+  -- Separate non-ambiguous from ambiguous mappings.
+  let (exeMap, duplicates) = Map.mapEither List2.fromList1Either exeMap1
+
+  -- Report ambiguous mappings.
+  List1.unlessNull (Map.toList duplicates) $ \ duplicates1 ->
+    raiseErrors' $ fmap (uncurry $ DuplicateExecutable $ efPath ef) duplicates1
+
+  -- Return non-ambiguous mappings.
+  return exeMap
 
 ------------------------------------------------------------------------
 -- * Resolving library names to include pathes
@@ -407,11 +440,13 @@ libraryIncludePaths
   -> [AgdaLibFile]   -- ^ Libraries Agda knows about.
   -> [LibName]       -- ^ (Non-empty) library names to be resolved to (lists of) pathes.
   -> LibM [FilePath] -- ^ Resolved pathes (no duplicates).  Contains "." if @[LibName]@ does.
-libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ WriterT $ do
+libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ do
     efile <- liftIO $ runExceptT $ getLibrariesFile overrideLibFile
     case efile of
-      Left err -> return ([], [Left $ LibError Nothing $ OtherError err])
-      Right file -> return $ runWriter $ (dot ++) . incs <$> find file [] xs
+      Left theOverrideLibFile -> do
+        raiseErrors' [ LibrariesFileNotFound theOverrideLibFile ]
+        return []
+      Right file -> embedWriter $ (dot ++) . incs <$> find file [] xs
   where
     (dots, xs) = List.partition (== libNameForCurrentDir) $ map trim xs0
     incs       = nubOn id . concatMap _libIncludes
@@ -422,7 +457,7 @@ libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ WriterT $ do
       :: LibrariesFile  -- Only for error reporting.
       -> [LibName]      -- Already resolved libraries.
       -> [LibName]      -- Work list: libraries left to be resolved.
-      -> Writer [Either LibError LibWarning] [AgdaLibFile]
+      -> Writer LibErrWarns [AgdaLibFile]
     find _ _ [] = pure []
     find file visited (x : xs)
       | x `elem` visited = find file visited xs

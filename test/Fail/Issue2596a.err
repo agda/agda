@@ -1,4 +1,5 @@
 Issue2596a.agda:4,1-16
+warning: -W[no]EmptyRewritePragma
 Empty REWRITE pragma
 when scope checking the declaration
   {-# REWRITE #-}

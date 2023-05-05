@@ -3,6 +3,8 @@
 -- Mismatches between original and repeated parameter list
 -- should not lead to internal errors.
 
+{-# OPTIONS --erasure #-}
+
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Equality
 

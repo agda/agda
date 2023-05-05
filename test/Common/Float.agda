@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical-compatible #-}
+{-# OPTIONS --cubical-compatible --level-universe #-}
 module Common.Float where
 
 open import Agda.Builtin.Float public

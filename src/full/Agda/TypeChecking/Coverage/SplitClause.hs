@@ -148,4 +148,3 @@ data CoverResult = CoverResult
   -- ^ The set of patterns used as cover.
   , coverNoExactClauses  :: IntSet -- Set Nat
   }
-

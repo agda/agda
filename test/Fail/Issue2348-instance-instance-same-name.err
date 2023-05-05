@@ -1,7 +1,9 @@
 Issue2348-instance-instance-same-name.agda:12,13-55
-Instance arguments whose type does not end in a named or variable
-type are never considered by instance search, so having an instance
-argument ⦃ A : Set ⦄ has no effect.
+warning: -W[no]InstanceNoOutputTypeName
+Instance arguments whose type is not {Γ} → C, where C evaluates to
+a postulated type, a parameter type or the name of a data or record
+type, are never considered by instance search, so having an
+instance argument ⦃ A : Set ⦄ has no effect.
 when checking that the expression
 ⦃ A : Set ⦄
 (let X : _

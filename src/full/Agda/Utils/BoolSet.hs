@@ -36,13 +36,11 @@ module Agda.Utils.BoolSet
 
 import Prelude hiding (null)
 
-import Data.Data (Data)
-
 import Agda.Utils.Impossible
 
 -- | Isomorphic to @'Set' 'Bool'@.
 data BoolSet = SetEmpty | SetTrue | SetFalse | SetBoth
-  deriving (Eq, Ord, Show, Enum, Bounded, Data)
+  deriving (Eq, Ord, Show, Enum, Bounded)
 
 -- * Query
 

@@ -1,5 +1,5 @@
-{-# OPTIONS --without-K --safe --no-universe-polymorphism
-            --no-sized-types --no-guardedness #-}
+{-# OPTIONS --cubical-compatible --safe --no-universe-polymorphism
+            --no-sized-types --no-guardedness --level-universe #-}
 
 module Agda.Builtin.Word where
 

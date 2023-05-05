@@ -29,28 +29,35 @@ module Agda.Interaction.Library.Parse
   , runP
   ) where
 
+import qualified Control.Exception as E
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Writer
 import Data.Char
-import Data.Data
 import qualified Data.List as List
 import System.FilePath
 
 import Agda.Interaction.Library.Base
 
+import Agda.Syntax.Position
+
 import Agda.Utils.Applicative
-import Agda.Utils.IO ( catchIO )
+import Agda.Utils.FileName
+import Agda.Utils.IO                ( catchIO )
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Lens
-import Agda.Utils.List   ( duplicates )
-import Agda.Utils.String ( ltrim )
+import Agda.Utils.List              ( duplicates )
+import Agda.Utils.List1             ( List1, toList )
+import qualified Agda.Utils.List1   as List1
+import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Utils.Singleton
+import Agda.Utils.String            ( ltrim )
 
--- | Parser monad: Can throw @String@ error messages, and collects
+-- | Parser monad: Can throw @LibParseError@s, and collects
 -- @LibWarning'@s library warnings.
-type P = ExceptT String (Writer [LibWarning'])
+type P = ExceptT LibParseError (Writer [LibWarning'])
 
-runP :: P a -> (Either String a, [LibWarning'])
+runP :: P a -> (Either LibParseError a, [LibWarning'])
 runP = runWriter . runExceptT
 
 warningP :: LibWarning' -> P ()
@@ -69,27 +76,31 @@ data GenericEntry = GenericEntry
 data Field = forall a. Field
   { fName     :: String            -- ^ Name of the field.
   , fOptional :: Bool              -- ^ Is it optional?
-  , fParse    :: [String] -> P a   -- ^ Content parser for this field.
-  , fSet      :: LensSet a AgdaLibFile
+  , fParse    :: Range -> [String] -> P a
+                 -- ^ Content parser for this field.
+                 --
+                 -- The range points to the start of the file.
+  , fSet      :: LensSet AgdaLibFile a
     -- ^ Sets parsed content in 'AgdaLibFile' structure.
   }
 
-optionalField :: String -> ([String] -> P a) -> Lens' a AgdaLibFile -> Field
+optionalField ::
+  String -> (Range -> [String] -> P a) -> Lens' AgdaLibFile a -> Field
 optionalField str p l = Field str True p (set l)
 
 -- | @.agda-lib@ file format with parsers and setters.
 agdaLibFields :: [Field]
 agdaLibFields =
   -- Andreas, 2017-08-23, issue #2708, field "name" is optional.
-  [ optionalField "name"    parseName                      libName
-  , optionalField "include" (pure . concatMap parsePaths)  libIncludes
-  , optionalField "depend"  (pure . concatMap splitCommas) libDepends
-  , optionalField "flags"   (pure . concatMap parseFlags)  libPragmas
+  [ optionalField "name"    (\_ -> parseName)                     libName
+  , optionalField "include" (\_ -> pure . concatMap parsePaths)   libIncludes
+  , optionalField "depend"  (\_ -> pure . concatMap splitCommas)  libDepends
+  , optionalField "flags"   (\r -> pure . foldMap (parseFlags r)) libPragmas
   ]
   where
     parseName :: [String] -> P LibName
     parseName [s] | [name] <- words s = pure name
-    parseName ls = throwError $ "Bad library name: '" ++ unwords ls ++ "'"
+    parseName ls = throwError $ BadLibraryName $ unwords ls
 
     parsePaths :: String -> [FilePath]
     parsePaths = go id where
@@ -100,8 +111,11 @@ agdaLibFields =
       go acc (       ' '  :cs) = fixup acc ++ go id cs
       go acc (c           :cs) = go (acc . (c:)) cs
 
-    parseFlags :: String -> [String]
-    parseFlags = words
+    parseFlags :: Range -> String -> OptionsPragma
+    parseFlags r s = OptionsPragma
+      { pragmaStrings = words s
+      , pragmaRange   = r
+      }
 
 -- | Parse @.agda-lib@ file.
 --
@@ -109,23 +123,27 @@ agdaLibFields =
 -- pathes (provided the given 'FilePath' is absolute).
 --
 parseLibFile :: FilePath -> IO (P AgdaLibFile)
-parseLibFile file =
-  (fmap setPath . parseLib <$> UTF8.readFile file) `catchIO` \e ->
-    return $ throwError $ unlines
-      [ "Failed to read library file " ++ file ++ "."
-      , "Reason: " ++ show e
-      ]
+parseLibFile file = do
+  abs <- absolute file
+  (fmap setPath . parseLib abs <$> UTF8.readFile file) `catchIO` \e ->
+    return $ throwError $ ReadFailure file e
   where
     setPath      lib = unrelativise (takeDirectory file) (set libFile file lib)
     unrelativise dir = over libIncludes (map (dir </>))
 
 -- | Parse file contents.
-parseLib :: String -> P AgdaLibFile
-parseLib s = fromGeneric =<< parseGeneric s
+parseLib
+  :: AbsolutePath
+     -- ^ The parsed file.
+  -> String -> P AgdaLibFile
+parseLib file s = fromGeneric file =<< parseGeneric s
 
 -- | Parse 'GenericFile' with 'agdaLibFields' descriptors.
-fromGeneric :: GenericFile -> P AgdaLibFile
-fromGeneric = fromGeneric' agdaLibFields
+fromGeneric
+  :: AbsolutePath
+     -- ^ The parsed file.
+  -> GenericFile -> P AgdaLibFile
+fromGeneric file = fromGeneric' file agdaLibFields
 
 -- | Given a list of 'Field' descriptors (with their custom parsers),
 --   parse a 'GenericFile' into the 'AgdaLibFile' structure.
@@ -133,33 +151,46 @@ fromGeneric = fromGeneric' agdaLibFields
 --   Checks mandatory fields are present;
 --   no duplicate fields, no unknown fields.
 
-fromGeneric' :: [Field] -> GenericFile -> P AgdaLibFile
-fromGeneric' fields fs = do
+fromGeneric'
+  :: AbsolutePath
+     -- ^ The parsed file.
+  -> [Field] -> GenericFile -> P AgdaLibFile
+fromGeneric' file fields fs = do
   checkFields fields (map geHeader fs)
   foldM upd emptyLibFile fs
   where
+    -- The range points to the start of the file.
+    r = Range
+          (Strict.Just $ mkRangeFile file Nothing)
+          (singleton (posToInterval () p p))
+      where
+      p = Pn { srcFile = ()
+             , posPos  = 1
+             , posLine = 1
+             , posCol  = 1
+             }
+
     upd :: AgdaLibFile -> GenericEntry -> P AgdaLibFile
     upd l (GenericEntry h cs) = do
       mf <- findField h fields
       case mf of
         Just Field{..} -> do
-          x <- fParse cs
+          x <- fParse r cs
           return $ fSet x l
         Nothing -> return l
 
 -- | Ensure that there are no duplicate fields and no mandatory fields are missing.
 checkFields :: [Field] -> [String] -> P ()
 checkFields fields fs = do
-  let mandatory = [ fName f | f <- fields, not $ fOptional f ]
-      -- Missing fields.
-      missing   = mandatory List.\\ fs
-      -- Duplicate fields.
-      dup       = duplicates fs
-      -- Plural s for error message.
-      s xs      = if length xs > 1 then "s" else ""
-      list xs   = List.intercalate ", " [ "'" ++ f ++ "'" | f <- xs ]
-  unless (null missing) $ throwError $ "Missing field" ++ s missing ++ " " ++ list missing
-  unless (null dup)     $ throwError $ "Duplicate field" ++ s dup ++ " " ++ list dup
+  -- Report missing mandatory fields.
+  () <- List1.unlessNull missing $ throwError . MissingFields
+  -- Report duplicate fields.
+  List1.unlessNull (duplicates fs) $ throwError . DuplicateFields
+  where
+  mandatory :: [String]
+  mandatory = [ fName f | f <- fields, not $ fOptional f ]
+  missing   :: [String]
+  missing   = mandatory List.\\ fs
 
 -- | Find 'Field' with given 'fName', throw error if unknown.
 findField :: String -> [Field] -> P (Maybe Field)
@@ -227,17 +258,17 @@ parseLine l s@(c:_)
       (h, ':' : r) ->
         case words h of
           [h] -> pure $ Header l h : [Content l r' | let r' = ltrim r, not (null r')]
-          []  -> throwError $ show l ++ ": Missing field name"
-          hs  -> throwError $ show l ++ ": Bad field name " ++ show h
-      _ -> throwError $ show l ++ ": Missing ':' for field " ++ show (ltrim s)
+          []  -> throwError $ MissingFieldName l
+          hs  -> throwError $ BadFieldName l h
+      _ -> throwError $ MissingColonForField l (ltrim s)
 
 -- | Collect 'Header' and subsequent 'Content's into 'GenericEntry'.
 --
---   Tailing 'Content's?  That's an error.
+--   Leading 'Content's?  That's an error.
 --
 groupLines :: [GenericLine] -> P GenericFile
 groupLines [] = pure []
-groupLines (Content l c : _) = throwError $ show l ++ ": Missing field"
+groupLines (Content l c : _) = throwError $ ContentWithoutField l
 groupLines (Header _ h : ls) = (GenericEntry h [ c | Content _ c <- cs ] :) <$> groupLines ls1
   where
     (cs, ls1) = span isContent ls
@@ -250,7 +281,7 @@ trimLineComment = stripComments . ltrim
 
 -- | Break a comma-separated string.  Result strings are @trim@med.
 splitCommas :: String -> [String]
-splitCommas s = words $ map (\c -> if c == ',' then ' ' else c) s
+splitCommas = words . map (\c -> if c == ',' then ' ' else c)
 
 -- | ...and trailing, but not leading, whitespace.
 stripComments :: String -> String

@@ -1,3 +1,4 @@
+{-# OPTIONS --erasure #-}
 
 module _ where
 

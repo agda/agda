@@ -21,7 +21,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Impossible
 
 instance EmbPrj a => EmbPrj (Dom a) where
-  icod_ (Dom a b c d e) = icodeN' Dom a b c d e
+  icod_ (Dom a c d e f) = icodeN' Dom a c d e f
 
   value = valueN Dom
 
@@ -155,6 +155,7 @@ instance EmbPrj I.Sort where
   icod_ IntervalUniv = icodeN 10 IntervalUniv
   icod_ (MetaS a b)  = icodeN 11 MetaS a b
   icod_ (DummyS s)   = icodeN 12 DummyS s
+  icod_ LevelUniv    = icodeN 13 LevelUniv
 
   value = vcase valu where
     valu [0, a]    = valuN Type  a
@@ -170,6 +171,7 @@ instance EmbPrj I.Sort where
     valu [10]      = valuN IntervalUniv
     valu [11, a, b] = valuN MetaS a b
     valu [12, s]   = valuN DummyS s
+    valu [13]      = valuN LevelUniv
     valu _         = malformed
 
 instance EmbPrj DisplayForm where
@@ -187,15 +189,15 @@ instance EmbPrj CheckpointId where
   value n                = CheckpointId `fmap` value n
 
 instance EmbPrj DisplayTerm where
-  icod_ (DTerm    a  )   = icodeN' DTerm a
-  icod_ (DDot     a  )   = icodeN 1 DDot a
+  icod_ (DTerm'   a b)   = icodeN' DTerm' a b
+  icod_ (DDot'    a b)   = icodeN 1 DDot' a b
   icod_ (DCon     a b c) = icodeN 2 DCon a b c
   icod_ (DDef     a b)   = icodeN 3 DDef a b
   icod_ (DWithApp a b c) = icodeN 4 DWithApp a b c
 
   value = vcase valu where
-    valu [a]          = valuN DTerm a
-    valu [1, a]       = valuN DDot a
+    valu [a, b]       = valuN DTerm' a b
+    valu [1, a, b]    = valuN DDot' a b
     valu [2, a, b, c] = valuN DCon a b c
     valu [3, a, b]    = valuN DDef a b
     valu [4, a, b, c] = valuN DWithApp a b c
@@ -219,14 +221,14 @@ instance EmbPrj NotBlocked where
   icod_ (StuckOn a)      = icodeN 0 StuckOn a
   icod_ Underapplied     = icodeN 1 Underapplied
   icod_ AbsurdMatch      = icodeN 2 AbsurdMatch
-  icod_ MissingClauses   = icodeN 3 MissingClauses
+  icod_ (MissingClauses a) = icodeN 3 MissingClauses a
 
   value = vcase valu where
     valu []     = valuN ReallyNotBlocked
     valu [0, a] = valuN StuckOn a
     valu [1]    = valuN Underapplied
     valu [2]    = valuN AbsurdMatch
-    valu [3]    = valuN MissingClauses
+    valu [3, a] = valuN MissingClauses a
     valu _      = malformed
 
 instance EmbPrj Blocked_ where
@@ -267,6 +269,7 @@ instance EmbPrj NLPSort where
   icod_ PLockUniv   = icodeN 4 PLockUniv
   icod_ PIntervalUniv = icodeN 5 PIntervalUniv
   icod_ (PSSet a)   = icodeN 6 PSSet a
+  icod_ PLevelUniv = icodeN 7 PLevelUniv
 
   value = vcase valu where
     valu [0, a] = valuN PType a
@@ -276,6 +279,7 @@ instance EmbPrj NLPSort where
     valu [4]    = valuN PLockUniv
     valu [5]    = valuN PIntervalUniv
     valu [6, a] = valuN PSSet a
+    valu [7]    = valuN PLevelUniv
     valu _      = malformed
 
 instance EmbPrj RewriteRule where
@@ -367,14 +371,14 @@ instance EmbPrj EtaEquality where
     valu [1,a] = valuN Inferred a
     valu _     = malformed
 
+instance EmbPrj ProjectionLikenessMissing
+
 instance EmbPrj Defn where
   icod_ (Axiom       a)                                 = icodeN 0 Axiom a
-  icod_ (Function    a b s t (_:_) c d e f g h i j k)   = __IMPOSSIBLE__
-  icod_ (Function    a b s t []    c d e f g h i j k)   =
-    icodeN 1 (\ a b s -> Function a b s t []) a b s c d e f g h i j k
+  icod_ (Function    a b s t u c d e f g h i j k l m)   = icodeN 1 (\ a b s -> Function a b s t) a b s u c d e f g h i j k l m
   icod_ (Datatype    a b c d e f g h i j)               = icodeN 2 Datatype a b c d e f g h i j
   icod_ (Record      a b c d e f g h i j k l m)         = icodeN 3 Record a b c d e f g h i j k l m
-  icod_ (Constructor a b c d e f g h i j)               = icodeN 4 Constructor a b c d e f g h i j
+  icod_ (Constructor a b c d e f g h i j k)             = icodeN 4 Constructor a b c d e f g h i j k
   icod_ (Primitive   a b c d e)                         = icodeN 5 Primitive a b c d e
   icod_ (PrimitiveSort a b)                             = icodeN 6 PrimitiveSort a b
   icod_ AbstractDefn{}                                  = __IMPOSSIBLE__
@@ -382,15 +386,16 @@ instance EmbPrj Defn where
   icod_ DataOrRecSig{}                                  = __IMPOSSIBLE__
 
   value = vcase valu where
-    valu [0, a]                                     = valuN Axiom a
-    valu [1, a, b, s, c, d, e, f, g, h, i, j, k]    = valuN (\ a b s -> Function a b s Nothing []) a b s c d e f g h i j k
-    valu [2, a, b, c, d, e, f, g, h, i, j]          = valuN Datatype a b c d e f g h i j
-    valu [3, a, b, c, d, e, f, g, h, i, j, k, l, m] = valuN Record   a b c d e f g h i j k l m
-    valu [4, a, b, c, d, e, f, g, h, i, j]          = valuN Constructor a b c d e f g h i j
-    valu [5, a, b, c, d, e]                         = valuN Primitive   a b c d e
-    valu [6, a, b]                                  = valuN PrimitiveSort a b
-    valu [7]                                        = valuN GeneralizableVar
-    valu _                                          = malformed
+    valu [0, a]                                        = valuN Axiom a
+    valu [1, a, b, s, u, c, d, e, f, g, h, i, j, k, l, m]
+                                                       = valuN (\ a b s -> Function a b s Nothing) a b s u c d e f g h i j k l m
+    valu [2, a, b, c, d, e, f, g, h, i, j]             = valuN Datatype a b c d e f g h i j
+    valu [3, a, b, c, d, e, f, g, h, i, j, k, l, m]    = valuN Record   a b c d e f g h i j k l m
+    valu [4, a, b, c, d, e, f, g, h, i, j, k]          = valuN Constructor a b c d e f g h i j k
+    valu [5, a, b, c, d, e]                            = valuN Primitive   a b c d e
+    valu [6, a, b]                                     = valuN PrimitiveSort a b
+    valu [7]                                           = valuN GeneralizableVar
+    valu _                                             = malformed
 
 instance EmbPrj LazySplit where
   icod_ StrictSplit = icodeN' StrictSplit
@@ -422,15 +427,15 @@ instance EmbPrj a => EmbPrj (SplitTree' a) where
     valu _            = malformed
 
 instance EmbPrj FunctionFlag where
-  icod_ FunStatic       = icodeN 0 FunStatic
-  icod_ FunInline       = icodeN 1 FunInline
-  icod_ FunMacro        = icodeN 2 FunMacro
+  icod_ FunStatic       = pure 0
+  icod_ FunInline       = pure 1
+  icod_ FunMacro        = pure 2
 
-  value = vcase valu where
-    valu [0] = valuN FunStatic
-    valu [1] = valuN FunInline
-    valu [2] = valuN FunMacro
-    valu _   = malformed
+  value = \case
+    0 -> pure FunStatic
+    1 -> pure FunInline
+    2 -> pure FunMacro
+    _ -> malformed
 
 instance EmbPrj a => EmbPrj (WithArity a) where
   icod_ (WithArity a b) = icodeN' WithArity a b
@@ -453,22 +458,13 @@ instance EmbPrj CompiledClauses where
     valu [2, a, b] = valuN Case a b
     valu _         = malformed
 
-instance EmbPrj WhenInjective where
-  icod_ AlwaysInjective = icodeN 0 AlwaysInjective
-  icod_ UnlessCubical   = icodeN 1 UnlessCubical
-
-  value = vcase valu where
-    valu [0] = valuN AlwaysInjective
-    valu [1] = valuN UnlessCubical
-    valu _   = malformed
-
 instance EmbPrj a => EmbPrj (FunctionInverse' a) where
   icod_ NotInjective = icodeN' NotInjective
-  icod_ (Inverse w a)  = icodeN' Inverse w a
+  icod_ (Inverse a)  = icodeN' Inverse a
 
   value = vcase valu where
     valu []  = valuN NotInjective
-    valu [w,a] = valuN Inverse w a
+    valu [a] = valuN Inverse a
     valu _   = malformed
 
 instance EmbPrj TermHead where
@@ -560,21 +556,21 @@ instance EmbPrj a => EmbPrj (Builtin a) where
     valu _      = malformed
 
 instance EmbPrj a => EmbPrj (Substitution' a) where
-  icod_ IdS              = icodeN' IdS
-  icod_ (EmptyS a)       = icodeN 1 EmptyS a
-  icod_ (a :# b)         = icodeN 2 (:#) a b
-  icod_ (Strengthen a b) = icodeN 3 Strengthen a b
-  icod_ (Wk a b)         = icodeN 4 Wk a b
-  icod_ (Lift a b)       = icodeN 5 Lift a b
+  icod_ IdS                = icodeN' IdS
+  icod_ (EmptyS a)         = icodeN' EmptyS a
+  icod_ (a :# b)           = icodeN' (:#) a b
+  icod_ (Strengthen a b c) = icodeN 0 Strengthen a b c
+  icod_ (Wk a b)           = icodeN 1 Wk a b
+  icod_ (Lift a b)         = icodeN 2 Lift a b
 
   value = vcase valu where
-    valu []        = valuN IdS
-    valu [1, a]    = valuN EmptyS a
-    valu [2, a, b] = valuN (:#) a b
-    valu [3, a, b]    = valuN Strengthen a b
-    valu [4, a, b] = valuN Wk a b
-    valu [5, a, b] = valuN Lift a b
-    valu _         = malformed
+    valu []           = valuN IdS
+    valu [a]          = valuN EmptyS a
+    valu [a, b]       = valuN (:#) a b
+    valu [0, a, b, c] = valuN Strengthen a b c
+    valu [1, a, b]    = valuN Wk a b
+    valu [2, a, b]    = valuN Lift a b
+    valu _            = malformed
 
 instance EmbPrj Instantiation where
   icod_ (Instantiation a b) = icodeN' Instantiation a b

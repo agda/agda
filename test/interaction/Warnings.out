@@ -2,5 +2,5 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals, Errors, Warnings*" "?0 : Set ———— Errors ———————————————————————————————————————————————— Warnings.agda:7,1-8,6 Termination checking failed for the following functions: A Problematic calls: A (at Warnings.agda:8,5-6) ———— Warnings —————————————————————————————————————————————— Warnings.agda:4,1-16 Empty REWRITE pragma when scope checking the declaration {-# REWRITE #-} Warnings.agda:17,1-26 Builtin ZERO no longer exists. It is now bound by BUILTIN NATURAL when checking the pragma BUILTIN ZERO zero " nil)
+(agda2-info-action "*All Goals, Errors, Warnings*" "?0 : Set ———— Errors ———————————————————————————————————————————————— Warnings.agda:7,1-8,6 Termination checking failed for the following functions: A Problematic calls: A (at Warnings.agda:8,5-6) ———— Warnings —————————————————————————————————————————————— Warnings.agda:4,1-16 warning: -W[no]EmptyRewritePragma Empty REWRITE pragma when scope checking the declaration {-# REWRITE #-} Warnings.agda:17,1-26 warning: -W[no]OldBuiltin Builtin ZERO no longer exists. It is now bound by BUILTIN NATURAL when checking the pragma BUILTIN ZERO zero " nil)
 ((last . 1) . (agda2-goals-action '(0)))

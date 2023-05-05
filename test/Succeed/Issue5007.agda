@@ -1,3 +1,5 @@
+{-# OPTIONS --erasure #-}
+
 record R₁ : Set₂ where
   field
     _≡_ : {A : Set₁} → A → A → Set

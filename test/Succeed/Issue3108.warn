@@ -1,9 +1,11 @@
 Issue3108.agda:3,11-12
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.
 
 ———— All done; warnings encountered ————————————————————————
 
 Issue3108.agda:3,11-12
+warning: -W[no]HiddenGeneralize
 Declaring a variable as hidden has no effect in a variable block.
 Generalization never introduces visible arguments.

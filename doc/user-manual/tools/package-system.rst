@@ -93,14 +93,15 @@ Naturally, unnamed libraries cannot be depended upon.
 But dropping the ``name`` is possible if the library file only serves to list
 include paths and/or dependencies of the current project.
 
-.. _The_agda-lib_files_associated_to_a_give_Agda_file:
+.. _The_agda-lib_files_associated_to_a_given_Agda_file:
 
 The ``.agda-lib`` files associated to a given Agda file
 -------------------------------------------------------
 
 When a given file is type-checked Agda uses the options from the
-``flags`` field of zero or more library files. These files are found
-in the following way:
+``flags`` fields of zero or more library files. If the command-line
+option :option:`--no-libraries` is used, then no library files are
+used. Otherwise library files are found in the following way:
 
 - First the file's root directory is found. If the top-level module in
   the file is called ``A.B.C``, then it has to be in the directory
@@ -117,6 +118,12 @@ in the following way:
 Note that if the search finds two or more ``.agda-lib`` files, then
 the flags from all of these files are used, and flags from different
 files are ordered in an unspecified way.
+
+Note also that there must not be any ``.agda-lib`` files below the
+root, on the path to the Agda file. For instance, if the top-level
+module in the Agda file is called ``A.B.C``, and it is in the
+directory ``root/A/B``, then there must not be any ``.agda-lib`` files
+in ``root/A`` or ``root/A/B``.
 
 Installing libraries
 --------------------
@@ -137,7 +144,7 @@ the root of a library.
 
 Environment variables in the paths (of the form ``$VAR`` or ``${VAR}``) are
 expanded. The location of the ``libraries`` file used can be overridden using
-the ``--library-file=FILE`` command line option.
+the :option:`--library-file` command line option.
 
 You can find out the precise location of the ``libraries`` file by
 calling ``agda -l fjdsk Dummy.agda`` at the command line and looking at the
@@ -158,21 +165,21 @@ There are three ways a library gets used:
   and its (transitive) dependencies. In this case the current directory is *not*
   implicitly added to the include paths.
 
-- No explicit ``--library`` flag is given, and the current project root
+- No explicit :option:`--library` option is given, and the current project root
   (of the Agda file that is being loaded) or one of its parent directories
   contains an ``.agda-lib`` file defining a library ``LIB``. This library is
   used as if a ``--library=LIB`` option had been given, except that it is not
   necessary for the library to be listed in the ``AGDA_DIR/libraries`` file.
 
-- No explicit ``--library`` flag, and no ``.agda-lib`` file in the project
+- No explicit :option:`--library` option, and no ``.agda-lib`` file in the project
   root. In this case the file ``AGDA_DIR/defaults`` is read and all libraries
   listed are added to the path. The ``defaults`` file should contain a list of
   library names, each on a separate line. In this case the current directory is
   *also* added to the path.
 
-  To disable default libraries, you can give the flag
-  ``--no-default-libraries``. To disable using libraries altogether, use the
-  ``--no-libraries`` flag.
+  To disable default libraries, you can give the option
+  :option:`--no-default-libraries`. To disable using libraries altogether, use the
+  :option:`--no-libraries` option.
 
 Default libraries
 -----------------
@@ -199,7 +206,7 @@ Version numbers
 ---------------
 
 Library names can end with a version number (for instance, ``mylib-1.2.3``).
-When resolving a library name (given in a ``--library`` flag, or listed as a
+When resolving a library name (given in a :option:`--library` option, or listed as a
 default library or library dependency) the following rules are followed:
 
 - If you don't give a version number, any version will do.

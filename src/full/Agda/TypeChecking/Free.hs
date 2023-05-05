@@ -57,7 +57,7 @@ module Agda.TypeChecking.Free
     , flexRigOccurrenceIn
     , closed
     , MetaSet
-    , insertMetaSet, foldrMetaSet
+    , insertMetaSet, foldrMetaSet, metaSetToBlocker
     ) where
 
 import Prelude hiding (null)
@@ -178,17 +178,17 @@ instance IsVarSet MetaSet SingleVarOcc where
 -- ** Flexible /rigid occurrence info for a single variable.
 
 -- | Get the full occurrence information of a free variable.
-flexRigOccurrenceIn :: Free a => Nat -> a -> Maybe (FlexRig' ())
+flexRigOccurrenceIn :: Free a => Nat -> a -> Maybe FlexRig
 flexRigOccurrenceIn = flexRigOccurrenceIn' IgnoreNot
 
-flexRigOccurrenceIn' :: Free a => IgnoreSorts -> Nat -> a -> Maybe (FlexRig' ())
+flexRigOccurrenceIn' :: Free a => IgnoreSorts -> Nat -> a -> Maybe FlexRig
 flexRigOccurrenceIn' ig x t = theSingleFlexRig $ runFree sg ig t
   where
   sg y = if x == y then oneSingleFlexRig else mempty
 
 -- | "Collection" just keeping track of the occurrence of a single variable.
 --   'Nothing' means variable does not occur freely.
-newtype SingleFlexRig = SingleFlexRig { theSingleFlexRig :: Maybe (FlexRig' ()) }
+newtype SingleFlexRig = SingleFlexRig { theSingleFlexRig :: Maybe FlexRig }
 
 oneSingleFlexRig :: SingleFlexRig
 oneSingleFlexRig = SingleFlexRig $ Just $ oneFlexRig
@@ -204,8 +204,8 @@ instance Monoid SingleFlexRig where
   mempty = SingleFlexRig Nothing
   mappend = (<>)
 
-instance IsVarSet () SingleFlexRig where
-  withVarOcc o = SingleFlexRig . fmap (composeFlexRig $ () <$ varFlexRig o) . theSingleFlexRig
+instance IsVarSet MetaSet SingleFlexRig where
+  withVarOcc o = SingleFlexRig . fmap (composeFlexRig $ varFlexRig o) . theSingleFlexRig
 
 -- ** Plain free occurrence.
 

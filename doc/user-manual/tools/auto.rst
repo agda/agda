@@ -190,8 +190,6 @@ Limitations
 
 * Primitive functions are not supported.
 
-* Copatterns are not supported.
-
 * Termination checking for recursive calls is done locally, so a
   non-terminating set of clauses might be sent back to Agda.
 

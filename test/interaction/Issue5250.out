@@ -1,11 +1,13 @@
 Checking Issue5250 (Issue5250/Issue5250.agda).
 Checking Issue5250 (Issue5250/Issue5250.agda).
 Issue5250/Issue5250.agda:2,6-9
+warning: -W[no]ShadowingInTelescope
 Shadowing in telescope, repeated variable names: A
 when scope checking (A A : Set) → Set
 
 ———— All done; warnings encountered ————————————————————————
 
 Issue5250/Issue5250.agda:2,6-9
+warning: -W[no]ShadowingInTelescope
 Shadowing in telescope, repeated variable names: A
 when scope checking (A A : Set) → Set

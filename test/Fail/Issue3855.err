@@ -1,4 +1,4 @@
-Issue3855.agda:22,11-22
+Issue3855.agda:24,11-22
 Identifier Erased.gone is declared erased, so it cannot be used
 here
 when checking that the expression Erased.gone has type Erased A → A

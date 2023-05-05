@@ -49,47 +49,48 @@ import Agda.Utils.Size
 --   The second argument is the number of bound variables (from pattern lambdas).
 --   The third argument is the type of the term.
 
-class PatternFrom t a b where
-  patternFrom :: Relevance -> Int -> t -> a -> TCM b
+class PatternFrom a b where
+  patternFrom :: Relevance -> Int -> TypeOf a -> a -> TCM b
 
-instance (PatternFrom t a b) => PatternFrom (Dom t) (Arg a) (Arg b) where
+instance (PatternFrom a b) => PatternFrom (Arg a) (Arg b) where
   patternFrom r k t u = let r' = r `composeRelevance` getRelevance u
                         in  traverse (patternFrom r' k $ unDom t) u
 
-instance PatternFrom (Type, Term) Elims [Elim' NLPat] where
+instance PatternFrom Elims [Elim' NLPat] where
   patternFrom r k (t,hd) = \case
     [] -> return []
     (Apply u : es) -> do
-      ~(Pi a b) <- unEl <$> abortIfBlocked t
+      (a, b) <- assertPi t
       p   <- patternFrom r k a u
-      t'  <- piApplyM' (blockOnMetasIn t >> __IMPOSSIBLE__) t u
-      let hd' = hd `apply` [ u ]
+      let t'  = absApp b (unArg u)
+      let hd' = hd . (Apply u:)
       ps  <- patternFrom r k (t',hd') es
       return $ Apply p : ps
     (IApply x y i : es) -> do
-      ~(PathType s q l b u v) <- pathView =<< abortIfBlocked t
+      (s, q, l, b, u, v) <- assertPath t
       let t' = El s $ unArg b `apply` [ defaultArg i ]
-      let hd' = hd `applyE` [IApply x y i]
+      let hd' = hd . (IApply x y i:)
       interval <- primIntervalType
       p   <- patternFrom r k interval i
       ps  <- patternFrom r k (t',hd') es
       return $ IApply (PTerm x) (PTerm y) p : ps
     (Proj o f : es) -> do
-      ~(Just (El _ (Pi a b))) <- getDefType f =<< abortIfBlocked t
-      let t' = b `absApp` hd
-      hd' <- applyDef o f (argFromDom a $> hd)
-      ps  <- patternFrom r k (t',hd') es
+      (a,b) <- assertProjOf f t
+      let u = hd []
+          t' = b `absApp` u
+      hd' <- applyDef o f (argFromDom a $> u)
+      ps  <- patternFrom r k (t',applyE hd') es
       return $ Proj o f : ps
 
-instance (PatternFrom t a b) => PatternFrom t (Dom a) (Dom b) where
+instance (PatternFrom a b) => PatternFrom (Dom a) (Dom b) where
   patternFrom r k t = traverse $ patternFrom r k t
 
-instance PatternFrom () Type NLPType where
+instance PatternFrom Type NLPType where
   patternFrom r k _ a = workOnTypes $
     NLPType <$> patternFrom r k () (getSort a)
             <*> patternFrom r k (sort $ getSort a) (unEl a)
 
-instance PatternFrom () Sort NLPSort where
+instance PatternFrom Sort NLPSort where
   patternFrom r k _ s = do
     s <- abortIfBlocked s
     case s of
@@ -99,6 +100,7 @@ instance PatternFrom () Sort NLPSort where
       Inf f n  -> return $ PInf f n
       SizeUniv -> return PSizeUniv
       LockUniv -> return PLockUniv
+      LevelUniv -> return PLevelUniv
       IntervalUniv -> return PIntervalUniv
       PiSort _ _ _ -> __IMPOSSIBLE__
       FunSort _ _ -> __IMPOSSIBLE__
@@ -112,13 +114,13 @@ instance PatternFrom () Sort NLPSort where
           ]
         __IMPOSSIBLE__
 
-instance PatternFrom () Level NLPat where
+instance PatternFrom Level NLPat where
   patternFrom r k _ l = do
     t <- levelType
     v <- reallyUnLevelView l
     patternFrom r k t v
 
-instance PatternFrom Type Term NLPat where
+instance PatternFrom Term NLPat where
   patternFrom r0 k t v = do
     t <- abortIfBlocked t
     etaRecord <- isEtaRecordType t
@@ -143,12 +145,12 @@ instance PatternFrom Type Term NLPat where
       (_ , Var i es)
        | i < k     -> do
            t <- typeOfBV i
-           PBoundVar i <$> patternFrom r k (t , var i) es
+           PBoundVar i <$> patternFrom r k (t , Var i) es
        -- The arguments of `var i` should be distinct bound variables
        -- in order to build a Miller pattern
        | Just vs <- allApplyElims es -> do
            TelV tel rest <- telViewPath =<< typeOfBV i
-           unless (size tel >= size vs) $ blockOnMetasIn rest >> __IMPOSSIBLE__
+           unless (natSize tel >= natSize vs) $ blockOnMetasIn rest >> addContext tel (errNotPi rest)
            let ts = applySubst (parallelS $ reverse $ map unArg vs) $ map unDom $ flattenTel tel
            mbvs <- forM (zip ts vs) $ \(t , v) -> do
              blockOnMetasIn (v,t)
@@ -166,9 +168,9 @@ instance PatternFrom Type Term NLPat where
       (_ , _ ) | Just (d, pars) <- etaRecord -> do
         def <- theDef <$> getConstInfo d
         (tel, c, ci, vs) <- etaExpandRecord_ d pars def v
-        caseMaybeM (getFullyAppliedConType c t) __IMPOSSIBLE__ $ \ (_ , ct) -> do
-        PDef (conName c) <$> patternFrom r k (ct , Con c ci []) (map Apply vs)
-      (_ , Lam i t) -> __IMPOSSIBLE__
+        ct <- assertConOf c t
+        PDef (conName c) <$> patternFrom r k (ct , Con c ci) (map Apply vs)
+      (_ , Lam{})   -> errNotPi t
       (_ , Lit{})   -> done
       (_ , Def f es) | isIrrelevant r -> done
       (_ , Def f es) -> do
@@ -179,11 +181,11 @@ instance PatternFrom Type Term NLPat where
           [x , y] | f == lmax -> done
           _                   -> do
             ft <- defType <$> getConstInfo f
-            PDef f <$> patternFrom r k (ft , Def f []) es
+            PDef f <$> patternFrom r k (ft , Def f) es
       (_ , Con c ci vs) | isIrrelevant r -> done
-      (_ , Con c ci vs) ->
-        caseMaybeM (getFullyAppliedConType c t) __IMPOSSIBLE__ $ \ (_ , ct) -> do
-        PDef (conName c) <$> patternFrom r k (ct , Con c ci []) vs
+      (_ , Con c ci vs) -> do
+        ct <- assertConOf c t
+        PDef (conName c) <$> patternFrom r k (ct , Con c ci) vs
       (_ , Pi a b) | isIrrelevant r -> done
       (_ , Pi a b) -> do
         pa <- patternFrom r k () a
@@ -240,6 +242,7 @@ instance NLPatToTerm NLPSort Sort where
   nlPatToTerm (PInf f n) = return $ Inf f n
   nlPatToTerm PSizeUniv = return SizeUniv
   nlPatToTerm PLockUniv = return LockUniv
+  nlPatToTerm PLevelUniv = return LevelUniv
   nlPatToTerm PIntervalUniv = return IntervalUniv
 
 -- | Gather the set of pattern variables of a non-linear pattern
@@ -263,6 +266,7 @@ instance NLPatVars NLPSort where
     PInf f n  -> empty
     PSizeUniv -> empty
     PLockUniv -> empty
+    PLevelUniv -> empty
     PIntervalUniv -> empty
 
 instance NLPatVars NLPat where
@@ -303,7 +307,7 @@ instance GetMatchables NLPat where
   getMatchables p =
     case p of
       PVar _ _       -> empty
-      PDef f _       -> singleton f
+      PDef f es      -> singleton f ++ getMatchables es
       PLam _ x       -> getMatchables x
       PPi a b        -> getMatchables (a,b)
       PSort s        -> getMatchables s
@@ -321,6 +325,7 @@ instance GetMatchables NLPSort where
     PInf f n  -> empty
     PSizeUniv -> empty
     PLockUniv -> empty
+    PLevelUniv -> empty
     PIntervalUniv -> empty
 
 instance GetMatchables Term where
@@ -356,6 +361,7 @@ instance Free NLPSort where
     PInf f n  -> mempty
     PSizeUniv -> mempty
     PLockUniv -> mempty
+    PLevelUniv -> mempty
     PIntervalUniv -> mempty
 
 -- Throws a pattern violation if the given term contains any
@@ -364,3 +370,56 @@ blockOnMetasIn :: (MonadBlock m, AllMetas t) => t -> m ()
 blockOnMetasIn t = case unblockOnAllMetasIn t of
   UnblockOnAll ms | null ms -> return ()
   b -> patternViolation b
+
+-- Helper functions
+
+
+assertPi :: Type -> TCM (Dom Type, Abs Type)
+assertPi t = abortIfBlocked t >>= \case
+  El _ (Pi a b) -> return (a,b)
+  t             -> errNotPi t
+
+errNotPi :: Type -> TCM a
+errNotPi t = typeError . GenericDocError =<< fsep
+    [ prettyTCM t
+    , "should be a function type, but it isn't."
+    , "Do you have any non-confluent rewrite rules?"
+    ]
+
+assertPath :: Type -> TCM (Sort, QName, Arg Term, Arg Term, Arg Term, Arg Term)
+assertPath t = abortIfBlocked t >>= pathView >>= \case
+  PathType s q l b u v -> return (s,q,l,b,u,v)
+  OType t -> errNotPath t
+
+errNotPath :: Type -> TCM a
+errNotPath t = typeError . GenericDocError =<< fsep
+    [ prettyTCM t
+    , "should be a path type, but it isn't."
+    , "Do you have any non-confluent rewrite rules?"
+    ]
+
+assertProjOf :: QName -> Type -> TCM (Dom Type, Abs Type)
+assertProjOf f t = do
+  t <- abortIfBlocked t
+  getDefType f t >>= \case
+    Just (El _ (Pi a b)) -> return (a,b)
+    _ -> errNotProjOf f t
+
+errNotProjOf :: QName -> Type -> TCM a
+errNotProjOf f t = typeError . GenericDocError =<< fsep
+      [ prettyTCM f , "should be a projection from type"
+      , prettyTCM t , "but it isn't."
+      , "Do you have any non-confluent rewrite rules?"
+      ]
+
+assertConOf :: ConHead -> Type -> TCM Type
+assertConOf c t = getFullyAppliedConType c t >>= \case
+    Just (_ , ct) -> return ct
+    Nothing -> errNotConOf c t
+
+errNotConOf :: ConHead -> Type -> TCM a
+errNotConOf c t = typeError . GenericDocError =<< fsep
+      [ prettyTCM c , "should be a constructor of type"
+      , prettyTCM t , "but it isn't."
+      , "Do you have any non-confluent rewrite rules?"
+      ]

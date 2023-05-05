@@ -1,9 +1,11 @@
 Issue3972.agda:24,3-25
+warning: -W[no]UnreachableClauses
 Unreachable clause
 when checking the definition of cs
 
 ———— All done; warnings encountered ————————————————————————
 
 Issue3972.agda:24,3-25
+warning: -W[no]UnreachableClauses
 Unreachable clause
 when checking the definition of cs

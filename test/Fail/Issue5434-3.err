@@ -1,4 +1,4 @@
 Issue5434-3.agda:6,5-6
-(@0 A : Set) → A → D A is not usable at the required modality
+(@0 A : Set) → A → D A is not usable at the required modality @ω
 when checking that the type (@0 A : Set) → A → D A of the
 constructor c fits in the sort Set₁ of the datatype.

@@ -19,15 +19,17 @@ module Agda.TypeChecking.Substitute
 
 import Control.Arrow (first, second)
 import Control.Monad (guard)
+import Control.Monad.Except (throwError)
+
 import Data.Coerce
-import Data.Function
+import Data.Function (on)
 import qualified Data.List as List
 import Data.Map (Map)
+import qualified Data.Map.Strict as MapS
 import Data.Maybe
 import Data.HashMap.Strict (HashMap)
 
 import Debug.Trace (trace)
-import Language.Haskell.TH.Syntax (thenCmp) -- lexicographic combination of Ordering
 
 import Agda.Interaction.Options
 
@@ -46,6 +48,7 @@ import Agda.TypeChecking.Positivity.Occurrence as Occ
 import Agda.TypeChecking.Substitute.Class
 import Agda.TypeChecking.Substitute.DeBruijn
 
+import Agda.Utils.Either
 import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.List
@@ -305,7 +308,7 @@ instance Apply Defn where
     AbstractDefn d -> AbstractDefn $ apply d args
     Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv
             , funExtLam = extLam
-            , funProjection = Nothing } ->
+            , funProjection = Left _ } ->
       d { funClauses    = apply cs args
         , funCompiled   = apply cc args
         , funCovering   = apply cov args
@@ -315,19 +318,19 @@ instance Apply Defn where
 
     Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv
             , funExtLam = extLam
-            , funProjection = Just p0} ->
+            , funProjection = Right p0 } ->
       case p0 `apply` args of
         p@Projection{ projIndex = n }
           | n < 0     -> d { funProjection = __IMPOSSIBLE__ } -- TODO (#3123): we actually get here!
           -- case: applied only to parameters
-          | n > 0     -> d { funProjection = Just p }
+          | n > 0     -> d { funProjection = Right p }
           -- case: applied also to record value (n == 0)
           | otherwise ->
               d { funClauses        = apply cs args'
                 , funCompiled       = apply cc args'
                 , funCovering       = apply cov args'
                 , funInv            = apply inv args'
-                , funProjection     = if isVar0 then Just p{ projIndex = 0 } else Nothing
+                , funProjection     = if isVar0 then Right p{ projIndex = 0 } else Left MaybeProjection
                 , funExtLam         = modifySystem (\ _ -> __IMPOSSIBLE__) <$> extLam
                 }
               where
@@ -517,19 +520,19 @@ instance Apply a => Apply (Case a) where
 
 instance Apply FunctionInverse where
   apply NotInjective  args = NotInjective
-  apply (Inverse w inv) args = Inverse w $ apply inv args
+  apply (Inverse inv) args = Inverse $ apply inv args
 
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Apply DisplayTerm where
-  apply (DTerm v)          args = DTerm $ apply v args
-  apply (DDot v)           args = DDot  $ apply v args
-  apply (DCon c ci vs)     args = DCon c ci $ vs ++ map (fmap DTerm) args
-  apply (DDef c es)        args = DDef c $ es ++ map (Apply . fmap DTerm) args
+  apply (DTerm' v es)      args = DTerm' v       $ es ++ map Apply args
+  apply (DDot' v es)       args = DDot' v        $ es ++ map Apply args
+  apply (DCon c ci vs)     args = DCon c ci     $ vs ++ map (fmap DTerm) args
+  apply (DDef c es)        args = DDef c        $ es ++ map (Apply . fmap DTerm) args
   apply (DWithApp v ws es) args = DWithApp v ws $ es ++ map Apply args
 
-  applyE (DTerm v)           es = DTerm $ applyE v es
-  applyE (DDot v)            es = DDot  $ applyE v es
+  applyE (DTerm' v es')      es = DTerm' v $ es' ++ es
+  applyE (DDot' v es')       es = DDot' v $ es' ++ es
   applyE (DCon c ci vs)      es = DCon c ci $ vs ++ map (fmap DTerm) ws
     where ws = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
   applyE (DDef c es')        es = DDef c $ es' ++ map (fmap DTerm) es
@@ -664,7 +667,7 @@ instance Abstract Defn where
     AbstractDefn d -> AbstractDefn $ abstract tel d
     Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv
             , funExtLam = extLam
-            , funProjection = Nothing  } ->
+            , funProjection = Left _  } ->
       d { funClauses  = abstract tel cs
         , funCompiled = abstract tel cc
         , funCovering = abstract tel cov
@@ -673,19 +676,22 @@ instance Abstract Defn where
         }
     Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv
             , funExtLam = extLam
-            , funProjection = Just p } ->
+            , funProjection = Right p } ->
       -- Andreas, 2015-05-11 if projection was applied to Var 0
       -- then abstract over last element of tel (the others are params).
-      if projIndex p > 0 then d' else
-        d' { funClauses  = map (abstractClause tel1) cs
-           , funCompiled = abstract tel1 cc
-           , funCovering = abstract tel1 cov
-           , funInv      = abstract tel1 inv
-           , funExtLam   = modifySystem (\ _ -> __IMPOSSIBLE__) <$> extLam
-           }
+      if projIndex p > 0 then
+        d { funProjection = Right $ abstract tel p
+          , funClauses    = map (abstractClause EmptyTel) cs
+          }
+      else
+        d { funProjection = Right $ abstract tel p
+          , funClauses    = map (abstractClause tel1) cs
+          , funCompiled   = abstract tel1 cc
+          , funCovering   = abstract tel1 cov
+          , funInv        = abstract tel1 inv
+          , funExtLam     = modifySystem (\ _ -> __IMPOSSIBLE__) <$> extLam
+          }
         where
-          d' = d { funProjection = Just $ abstract tel p
-                 , funClauses    = map (abstractClause EmptyTel) cs }
           tel1 = telFromList $ drop (size tel - 1) $ telToList tel
           -- #5128: clause telescopes should be abstracted over the full telescope, regardless of
           --        projection shenanigans.
@@ -751,7 +757,7 @@ namedTelVars m (ExtendTel !dom tel) =
 
 instance Abstract FunctionInverse where
   abstract tel NotInjective  = NotInjective
-  abstract tel (Inverse w inv) = Inverse w $ abstract tel inv
+  abstract tel (Inverse inv) = Inverse $ abstract tel inv
 
 instance {-# OVERLAPPABLE #-} Abstract t => Abstract [t] where
   abstract tel = map (abstract tel)
@@ -787,7 +793,27 @@ renaming err p = prependS err gamma $ raiseS $ size p
 
 -- | If @permute π : [a]Γ -> [a]Δ@, then @applySubst (renamingR π) : Term Δ -> Term Γ@
 renamingR :: DeBruijn a => Permutation -> Substitution' a
-renamingR p@(Perm n _) = permute (reverseP p) (map deBruijnVar [0..]) ++# raiseS n
+renamingR p@(Perm n is) = xs ++# raiseS n
+  where
+  xs = map (\i -> deBruijnVar (n - 1 - i)) (reverse is)
+
+  -- The list xs used to be defined in the following way:
+  --
+  --   permute (reverseP p) (map deBruijnVar [0..])
+  --
+  -- We have that
+  --
+  --     permute (reverseP p) (map deBruijnVar [0..])
+  --   = permute (Perm n $ map ((n - 1) -) $ reverse is)
+  --       (map deBruijnVar [0..])
+  --   = map (map deBruijnVar [0..] !!)
+  --       (map ((n - 1) -) $ reverse is)
+  --   = map deBruijnVar (map ((n - 1) -) $ reverse is)
+  --   = map (\i -> deBruijnVar (n - 1 - i)) (reverse is).
+  --
+  -- The latter code is linear in the length of is (if deBruijnVar
+  -- takes constant time), while the time complexity of the former
+  -- code depends on the value of the largest index in is.
 
 -- | The permutation should permute the corresponding context. (right-to-left list)
 renameP :: Subst a => Impossible -> Permutation -> a -> a
@@ -842,6 +868,7 @@ instance (Coercible a Term, Subst a) => Subst (Sort' a) where
     SSet n     -> SSet $ sub n
     SizeUniv   -> SizeUniv
     LockUniv   -> LockUniv
+    LevelUniv  -> LevelUniv
     IntervalUniv -> IntervalUniv
     PiSort a s1 s2 -> coerce $ piSort (coerce $ sub a) (coerce $ sub s1) (coerce $ sub s2)
     FunSort s1 s2 -> coerce $ funSort (coerce $ sub s1) (coerce $ sub s2)
@@ -952,6 +979,7 @@ instance Subst NLPSort where
     PInf f n  -> PInf f n
     PSizeUniv -> PSizeUniv
     PLockUniv -> PLockUniv
+    PLevelUniv -> PLevelUniv
     PIntervalUniv -> PIntervalUniv
 
 instance Subst RewriteRule where
@@ -976,10 +1004,10 @@ instance Subst DisplayForm where
 
 instance Subst DisplayTerm where
   type SubstArg DisplayTerm = Term
-  applySubst rho (DTerm v)        = DTerm $ applySubst rho v
-  applySubst rho (DDot v)         = DDot  $ applySubst rho v
-  applySubst rho (DCon c ci vs)   = DCon c ci $ applySubst rho vs
-  applySubst rho (DDef c es)      = DDef c $ applySubst rho es
+  applySubst rho (DTerm' v es)      = DTerm' (applySubst rho v) $ applySubst rho es
+  applySubst rho (DDot' v es)       = DDot'  (applySubst rho v) $ applySubst rho es
+  applySubst rho (DCon c ci vs)     = DCon c ci $ applySubst rho vs
+  applySubst rho (DDef c es)        = DDef c $ applySubst rho es
   applySubst rho (DWithApp v vs es) = uncurry3 DWithApp $ applySubst rho (v, vs, es)
 
 instance Subst a => Subst (Tele a) where
@@ -1008,7 +1036,7 @@ instance Subst Constraint where
     CheckDataSort q s        -> CheckDataSort q (rf s)
     CheckMetaInst m          -> CheckMetaInst m
     CheckType t              -> CheckType (rf t)
-    UsableAtModality mod m   -> UsableAtModality mod (rf m)
+    UsableAtModality cc ms mod m -> UsableAtModality cc (rf ms) mod (rf m)
     where
       rf :: forall a. TermSubst a => a -> a
       rf x = applySubst rho x
@@ -1046,6 +1074,10 @@ instance (Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst (Dom' a b) where
   applySubst IdS dom = dom
   applySubst rho dom = setFreeVariables unknownFreeVariables $
     fmap (applySubst rho) dom{ domTactic = applySubst rho (domTactic dom) }
+
+instance Subst LetBinding where
+  type SubstArg LetBinding = Term
+  applySubst rho (LetBinding o v t) = LetBinding o (applySubst rho v) (applySubst rho t)
 
 instance Subst a => Subst (Maybe a) where
   type SubstArg (Maybe a) = SubstArg a
@@ -1086,11 +1118,14 @@ instance Subst Candidate where
 
 instance Subst EqualityView where
   type SubstArg EqualityView = Term
-  applySubst rho (OtherType t) = OtherType
-    (applySubst rho t)
-  applySubst rho (IdiomType t) = IdiomType
-    (applySubst rho t)
-  applySubst rho (EqualityType s eq l t a b) = EqualityType
+  applySubst rho = \case
+    OtherType t          -> OtherType $ applySubst rho t
+    IdiomType t          -> IdiomType $ applySubst rho t
+    EqualityViewType eqt -> EqualityViewType $ applySubst rho eqt
+
+instance Subst EqualityTypeData where
+  type SubstArg EqualityTypeData = Term
+  applySubst rho (EqualityTypeData s eq l t a b) = EqualityTypeData
     (applySubst rho s)
     eq
     (map (applySubst rho) l)
@@ -1419,7 +1454,8 @@ instance Eq a => Eq (Pattern' a) where
   _               == _                 = False
 
 instance Ord Term where
-  Var a b    `compare` Var x y    = compare x a `thenCmp` compare b y -- sort de Bruijn indices down (#2765)
+  Var a b    `compare` Var x y    = compare (x, b) (a, y)
+                                    -- sort de Bruijn indices down (#2765)
   Var{}      `compare` _          = LT
   _          `compare` Var{}      = GT
   Def a b    `compare` Def x y    = compare (a, b) (x, y)
@@ -1508,18 +1544,24 @@ instance (Subst a, Ord a) => Ord (Elim' a) where
 --   known (i.e. it is not just @UnivSort s@).
 --
 --   Precondition: @s@ is reduced
-univSort' :: Sort -> Maybe Sort
-univSort' (Type l) = Just $ Type $ levelSuc l
-univSort' (Prop l) = Just $ Type $ levelSuc l
-univSort' (Inf f n) = Just $ Inf f $ 1 + n
-univSort' (SSet l) = Just $ SSet $ levelSuc l
-univSort' SizeUniv = Just $ Inf IsFibrant 0
-univSort' LockUniv = Just $ Inf IsFibrant 0 -- lock polymorphism is not actually supported
-univSort' IntervalUniv = Just $ SSet $ ClosedLevel 1
-univSort' s        = Nothing
+univSort' :: Sort -> Either Blocker Sort
+univSort' (Type l)     = Right $ Type $ levelSuc l
+univSort' (Prop l)     = Right $ Type $ levelSuc l
+univSort' (Inf f n)    = Right $ Inf f $ 1 + n
+univSort' (SSet l)     = Right $ SSet $ levelSuc l
+univSort' SizeUniv     = Right $ Inf IsFibrant 0
+univSort' LockUniv     = Right $ Inf IsFibrant 0 -- lock polymorphism is not actually supported
+univSort' LevelUniv    = Right $ Type $ ClosedLevel 1
+univSort' IntervalUniv = Right $ SSet $ ClosedLevel 1
+univSort' (MetaS m _)  = Left neverUnblock
+univSort' FunSort{}    = Left neverUnblock
+univSort' PiSort{}     = Left neverUnblock
+univSort' UnivSort{}   = Left neverUnblock
+univSort' DefS{}       = Left neverUnblock
+univSort' DummyS{}     = Left neverUnblock
 
 univSort :: Sort -> Sort
-univSort s = fromMaybe (UnivSort s) $ univSort' s
+univSort s = fromRight (const $ UnivSort s) $ univSort' s
 
 sort :: Sort -> Type
 sort s = El (univSort s) $ Sort s
@@ -1527,24 +1569,34 @@ sort s = El (univSort s) $ Sort s
 ssort :: Level -> Type
 ssort l = sort (SSet l)
 
--- | Returns @Nothing@ for unknown (meta) sorts, and otherwise returns
---   @Just (b,f)@ where @b@ indicates smallness and @f@ fibrancy.
---   I.e., @b@ is @True@ for (relatively) small sorts like @Set l@ and
---   @Prop l@, and instead @b@ is @False@ for large sorts such as @Setω@.
-isSmallSort :: Sort -> Maybe (Bool,IsFibrant)
-isSmallSort Type{}     = Just (True,IsFibrant)
-isSmallSort Prop{}     = Just (True,IsFibrant)
-isSmallSort SizeUniv   = Just (True,IsFibrant)
-isSmallSort LockUniv   = Just (True,IsFibrant)
-isSmallSort IntervalUniv = Just (True,IsStrict)
-isSmallSort (Inf f _)  = Just (False,f)
-isSmallSort SSet{}     = Just (True,IsStrict)
-isSmallSort MetaS{}    = Nothing
-isSmallSort FunSort{}  = Nothing
-isSmallSort PiSort{}   = Nothing
-isSmallSort UnivSort{} = Nothing
-isSmallSort DefS{}     = Nothing
-isSmallSort DummyS{}   = Nothing
+-- | A sort can either be small (Set l, Prop l, Size, ...)  or large
+--   (Setω n).
+data SizeOfSort
+  = SmallSort IsFibrant
+  | LargeSort IsFibrant Integer
+
+-- | Returns @Left blocker@ for unknown (blocked) sorts, and otherwise
+--   returns @Right s@ where @s@ indicates the size and fibrancy.
+sizeOfSort :: Sort -> Either Blocker SizeOfSort
+sizeOfSort Type{}       = Right $ SmallSort IsFibrant
+sizeOfSort Prop{}       = Right $ SmallSort IsFibrant
+sizeOfSort SizeUniv     = Right $ SmallSort IsFibrant
+sizeOfSort LockUniv     = Right $ SmallSort IsFibrant
+sizeOfSort LevelUniv    = Right $ SmallSort IsFibrant
+sizeOfSort IntervalUniv = Right $ SmallSort IsStrict
+sizeOfSort (Inf f n)    = Right $ LargeSort f n
+sizeOfSort SSet{}       = Right $ SmallSort IsStrict
+sizeOfSort (MetaS m _)  = Left $ unblockOnMeta m
+sizeOfSort FunSort{}    = Left neverUnblock
+sizeOfSort PiSort{}     = Left neverUnblock
+sizeOfSort UnivSort{}   = Left neverUnblock
+sizeOfSort DefS{}       = Left neverUnblock
+sizeOfSort DummyS{}     = Left neverUnblock
+
+isSmallSort :: Sort -> Bool
+isSmallSort s = case sizeOfSort s of
+  Right SmallSort{} -> True
+  _                 -> False
 
 fibrantLub :: IsFibrant -> IsFibrant -> IsFibrant
 fibrantLub IsStrict a = IsStrict
@@ -1553,47 +1605,82 @@ fibrantLub a b = a
 
 -- | Compute the sort of a function type from the sorts of its
 --   domain and codomain.
-funSort' :: Sort -> Sort -> Maybe Sort
+-- This function should only be called on reduced sorts, since the @LevelUniv@ rules should only apply when the sort doesn't reduce to @Set@
+funSort' :: Sort -> Sort -> Either Blocker Sort
 funSort' a b = case (a, b) of
-  (Inf af m      , Inf bf n     ) -> Just $ Inf (fibrantLub af bf) $ max m n
-  (Inf af m      , b            ) | Just (True,bf) <- isSmallSort b -> Just $ Inf (fibrantLub af bf) m
-  (a             , Inf bf n     ) | Just (True,af) <- isSmallSort a -> Just $ Inf (fibrantLub af bf) n
-  (Type a        , Type b       ) -> Just $ Type $ levelLub a b
-  (LockUniv      , b            ) -> Just b
+  (Type a        , Type b       ) -> Right $ Type $ levelLub a b
+  (Prop a        , Type b       ) -> Right $ Type $ levelLub a b
+  (Type a        , Prop b       ) -> Right $ Prop $ levelLub a b
+  (Prop a        , Prop b       ) -> Right $ Prop $ levelLub a b
+  (SSet a        , SSet b       ) -> Right $ SSet $ levelLub a b
+  (Type a        , SSet b       ) -> Right $ SSet $ levelLub a b
+  (SSet a        , Type b       ) -> Right $ SSet $ levelLub a b
+  (SSet a        , Prop b       ) -> Right $ SSet $ levelLub a b
+  (Prop a        , SSet b       ) -> Right $ SSet $ levelLub a b
+  (Inf af m      , b            ) -> sizeOfSort b >>= \case
+    SmallSort bf   -> Right $ Inf (fibrantLub af bf) m
+    LargeSort bf n -> Right $ Inf (fibrantLub af bf) $ max m n
+  (a             , Inf bf n     ) -> sizeOfSort a >>= \case
+    SmallSort af   -> Right $ Inf (fibrantLub af bf) n
+    LargeSort af m -> Right $ Inf (fibrantLub af bf) $ max m n
+  (LockUniv      , LevelUniv    ) -> Left neverUnblock
+  (LockUniv      , b            ) -> Right b
   -- No functions into lock types
-  (a             , LockUniv     ) -> Nothing
-  -- @IntervalUniv@ behaves like @SSet@, but functions into @Type@ land in @Type
-  (IntervalUniv  , IntervalUniv ) -> Just $ SSet $ ClosedLevel 0
-  (IntervalUniv  , SSet b       ) -> Just $ SSet $ b
-  (IntervalUniv  , Type b       ) -> Just $ Type $ b
-  (Type a        , IntervalUniv ) -> Just $ SSet $ a
-  (SSet a        , IntervalUniv ) -> Just $ SSet $ a
-  (SizeUniv      , b            ) -> Just b
-  (a             , SizeUniv     ) | Just (True,_) <- isSmallSort a -> Just SizeUniv
-  (Prop a        , Type b       ) -> Just $ Type $ levelLub a b
-  (Type a        , Prop b       ) -> Just $ Prop $ levelLub a b
-  (Prop a        , Prop b       ) -> Just $ Prop $ levelLub a b
-  (SSet a        , SSet b       ) -> Just $ SSet $ levelLub a b
-  (Type a        , SSet b       ) -> Just $ SSet $ levelLub a b
-  (SSet a        , Type b       ) -> Just $ SSet $ levelLub a b
-  (a             , b            ) -> Nothing
+  (a             , LockUniv     ) -> Left neverUnblock
+  -- @IntervalUniv@ behaves like @SSet@, but functions into @Type@ land in @Type@
+  (IntervalUniv  , IntervalUniv ) -> Right $ SSet $ ClosedLevel 0
+  (IntervalUniv  , SSet b       ) -> Right $ SSet $ b
+  (IntervalUniv  , Type b       ) -> Right $ Type $ b
+  (IntervalUniv  , _            ) -> Left neverUnblock
+  (Type a        , IntervalUniv ) -> Right $ SSet $ a
+  (SSet a        , IntervalUniv ) -> Right $ SSet $ a
+  (_             , IntervalUniv ) -> Left neverUnblock
+  (SizeUniv      , b            ) -> Right b
+  (a             , SizeUniv     ) -> sizeOfSort a >>= \case
+    SmallSort{} -> Right SizeUniv
+    LargeSort{} -> Left neverUnblock
+  -- No need to handle @LevelUniv@ in a special way here when --level-universe isn't on,
+  -- since this function is currently always called after reduction.
+  -- It would be safer to take it into account here, but would imply passing the option along as an argument.
+  (LevelUniv     , LevelUniv    ) -> Right LevelUniv
+  (_             , LevelUniv    ) -> Left neverUnblock
+  (LevelUniv     , b            ) -> sizeOfSort b >>= \case
+    SmallSort bf -> Right $ Inf bf 0
+    LargeSort{} -> Right b
+  (MetaS m _     , _            ) -> Left $ unblockOnMeta m
+  (_             , MetaS m _    ) -> Left $ unblockOnMeta m
+  (FunSort{}     , _            ) -> Left neverUnblock
+  (_             , FunSort{}    ) -> Left neverUnblock
+  (PiSort{}      , _            ) -> Left neverUnblock
+  (_             , PiSort{}     ) -> Left neverUnblock
+  (UnivSort{}    , _            ) -> Left neverUnblock
+  (_             , UnivSort{}   ) -> Left neverUnblock
+  (DefS{}        , _            ) -> Left neverUnblock
+  (_             , DefS{}       ) -> Left neverUnblock
+  (DummyS{}      , _            ) -> Left neverUnblock
+  (_             , DummyS{}     ) -> Left neverUnblock
 
 funSort :: Sort -> Sort -> Sort
-funSort a b = fromMaybe (FunSort a b) $ funSort' a b
+funSort a b = fromRight (const $ FunSort a b) $ funSort' a b
 
 -- | Compute the sort of a pi type from the sorts of its domain
 --   and codomain.
-piSort' :: Dom Term -> Sort -> Abs Sort -> Maybe Sort
-piSort' a s1       (NoAbs _ s2) = Just $ FunSort s1 s2
+-- This function should only be called on reduced sorts, since the @LevelUniv@ rules should only apply when the sort doesn't reduce to @Set@
+piSort' :: Dom Term -> Sort -> Abs Sort -> Either Blocker Sort
+piSort' a s1       (NoAbs _ s2) = Right $ FunSort s1 s2
 piSort' a s1 s2Abs@(Abs   _ s2) = case flexRigOccurrenceIn 0 s2 of
-  Nothing -> Just $ FunSort s1 $ noabsApp __IMPOSSIBLE__ s2Abs
-  Just o | Just (True, f1) <- isSmallSort s1, Just (True, f2) <- isSmallSort s2 -> case o of
-    StronglyRigid -> Just $ Inf (fibrantLub f1 f2) 0
-    Unguarded     -> Just $ Inf (fibrantLub f1 f2) 0
-    WeaklyRigid   -> Just $ Inf (fibrantLub f1 f2) 0
-    Flexible _    -> Nothing
-  Just o | Inf f1 n <- s1 , Just (True, f2) <- isSmallSort s2 -> Just $ Inf (fibrantLub f1 f2) n
-  Just _ -> Nothing
+  Nothing -> Right $ FunSort s1 $ noabsApp __IMPOSSIBLE__ s2Abs
+  Just o  -> case (sizeOfSort s1 , sizeOfSort s2) of
+    (Right (SmallSort f1) , Right (SmallSort f2)) -> case o of
+      StronglyRigid -> Right $ Inf (fibrantLub f1 f2) 0
+      Unguarded     -> Right $ Inf (fibrantLub f1 f2) 0
+      WeaklyRigid   -> Right $ Inf (fibrantLub f1 f2) 0
+      Flexible ms   -> Left $ metaSetToBlocker ms
+    (Right (LargeSort f1 n) , Right (SmallSort f2)) -> Right $ Inf (fibrantLub f1 f2) n
+    (_                     , Right LargeSort{}    ) -> __IMPOSSIBLE__ -- large sorts cannot depend on variables
+    (Left blocker          , Right _              ) -> Left blocker
+    (Right _               , Left blocker         ) -> Left blocker
+    (Left blocker1         , Left blocker2        ) -> Left $ unblockOnBoth blocker1 blocker2
 
 -- Andreas, 2019-06-20
 -- KEEP the following commented out code for the sake of the discussion on irrelevance.
@@ -1625,9 +1712,7 @@ piSort' a s1 s2Abs@(Abs   _ s2) = case flexRigOccurrenceIn 0 s2 of
 --     Flexible _    -> Nothing
 
 piSort :: Dom Term -> Sort -> Abs Sort -> Sort
-piSort a s1 s2 = case piSort' a s1 s2 of
-  Just s  -> s
-  Nothing -> PiSort a s1 s2
+piSort a s1 s2 = fromRight (const $ PiSort a s1 s2) $ piSort' a s1 s2
 
 ---------------------------------------------------------------------------
 -- * Level stuff
@@ -1635,15 +1720,13 @@ piSort a s1 s2 = case piSort' a s1 s2 of
 
 -- ^ Computes @n0 ⊔ a₁ ⊔ a₂ ⊔ ... ⊔ aₙ@ and return its canonical form.
 levelMax :: Integer -> [PlusLevel] -> Level
-levelMax n0 as0 = Max n as
+levelMax !n0 as0 = Max n as
   where
     -- step 1: flatten nested @Level@ expressions in @PlusLevel@s
     Max n1 as1 = expandLevel $ Max n0 as0
-    -- step 2: remove subsumed @PlusLevel@s
-    as2       = removeSubsumed as1
-    -- step 3: sort remaining @PlusLevel@s
-    as        = List.sort as2
-    -- step 4: set constant to 0 if it is subsumed by one of the @PlusLevel@s
+    -- step 2: remove subsumed @PlusLevel@s and sort what remains
+    as        = removeSubsumed as1
+    -- step 3: set constant to 0 if it is subsumed by one of the @PlusLevel@s
     greatestB = Prelude.maximum $ 0 : [ n | Plus n _ <- as ]
     n | n1 > greatestB = n1
       | otherwise      = 0
@@ -1661,12 +1744,11 @@ levelMax n0 as0 = Max n as
     expandTm (Level l)       = expandLevel l
     expandTm l               = atomicLevel l
 
-    removeSubsumed [] = []
-    removeSubsumed (Plus n a : bs)
-      | not $ null ns = removeSubsumed bs
-      | otherwise     = Plus n a : removeSubsumed [ b | b@(Plus _ a') <- bs, a /= a' ]
-      where
-        ns = [ m | Plus m a' <- bs, a == a', m > n ]
+    removeSubsumed =
+      map (\(a, n) -> Plus n a) .
+      MapS.toAscList .
+      MapS.fromListWith max .
+      map (\(Plus n a) -> (a, n))
 
 -- | Given two levels @a@ and @b@, compute @a ⊔ b@ and return its
 --   canonical form.

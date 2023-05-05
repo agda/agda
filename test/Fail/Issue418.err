@@ -1,8 +1,10 @@
 Issue418.agda:30,3-10
+warning: -W[no]GenericWarning
 Missing type signature for abstract definition B.
 Types of abstract definitions are never inferred since this would
 leak information that should be abstract.
 Issue418.agda:33,3-10
+warning: -W[no]GenericWarning
 Missing type signature for abstract definition C.
 Types of abstract definitions are never inferred since this would
 leak information that should be abstract.

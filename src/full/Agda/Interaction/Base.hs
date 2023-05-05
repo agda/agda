@@ -24,6 +24,7 @@ import           Agda.Syntax.Common           (InteractionId (..), Modality)
 import           Agda.Syntax.Internal         (ProblemId, Blocker)
 import           Agda.Syntax.Position
 import           Agda.Syntax.Scope.Base       (ScopeInfo)
+import           Agda.Syntax.TopLevelModuleName
 
 import           Agda.Interaction.Options     (CommandLineOptions,
                                                defaultOptions)
@@ -85,6 +86,8 @@ type CommandM = StateT CommandState TCM
 data CurrentFile = CurrentFile
   { currentFilePath  :: AbsolutePath
       -- ^ The file currently loaded into interaction.
+  , currentFileModule :: TopLevelModuleName
+      -- ^ The top-level module name of the currently loaded file.
   , currentFileArgs  :: [String]
       -- ^ The arguments to Agda used for loading the file.
   , currentFileStamp :: ClockTime
@@ -108,6 +111,15 @@ data Command' a
 -- | IOTCM commands.
 
 type Command = Command' IOTCM
+
+-- | IOTCM commands.
+--
+-- The commands are obtained by applying the functions to the current
+-- top-level module name, if any. Note that the top-level module name
+-- is not used by independent commands. For other commands the
+-- top-level module name should be known.
+
+type IOTCM = Maybe TopLevelModuleName -> IOTCM' Range
 
 -- | Command queues.
 
@@ -142,6 +154,11 @@ data Interaction' range
     -- | Show unsolved metas. If there are no unsolved metas but unsolved constraints
     -- show those instead.
   | Cmd_metas Rewrite
+
+    -- | A command that fails if there are any unsolved
+    -- meta-variables. By default no output is generated if the
+    -- command is successful.
+  | Cmd_no_metas
 
     -- | Shows all the top-level names in the given module, along with
     -- their types. Uses the top-level scope.
@@ -293,7 +310,6 @@ data Interaction' range
     -- ^ Exit the program.
         deriving (Show, Read, Functor, Foldable, Traversable)
 
-type IOTCM = IOTCM' Range
 data IOTCM' range
     = IOTCM
         FilePath
@@ -319,6 +335,18 @@ data Remove
 ---------------------------------------------------------
 -- Read instances
 
+-- | An 'IOTCM' parser.
+--
+-- If the parse fails, then an error message is returned.
+
+parseIOTCM ::
+  String -> Either String IOTCM
+parseIOTCM s = case listToMaybe $ reads s of
+  Just (x, "")  -> Right $ \top -> case x of
+    IOTCM f l m i -> IOTCM f l m $
+      (fmap . fmap . fmap) (\rf -> mkRangeFile (rangeFilePath rf) top) i
+  Just (_, rem) -> Left $ "not consumed: " ++ rem
+  _             -> Left $ "cannot read: " ++ s
 
 -- | The 'Parse' monad.
 --   'StateT' state holds the remaining input.
@@ -383,6 +411,14 @@ instance Read AbsolutePath where
     readsPrec = parseToReadsPrec $ do
         exact "mkAbsolute"
         fmap mkAbsolute readParse
+
+-- | This instance fills in the 'TopLevelModuleName's using 'Nothing'.
+-- Note that these occurrences of 'Nothing' are \"overwritten\" by
+-- 'parseIOTCM'.
+
+instance Read RangeFile where
+    readsPrec = parseToReadsPrec $
+      fmap (flip mkRangeFile Nothing) readParse
 
 instance Read a => Read (Position' a) where
     readsPrec = parseToReadsPrec $ do

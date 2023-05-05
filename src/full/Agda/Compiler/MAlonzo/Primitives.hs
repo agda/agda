@@ -44,17 +44,17 @@ data CheckedMainFunctionDef = CheckedMainFunctionDef
 -- TODO: Also only consider top-level definition (not buried inside a module).
 asMainFunctionDef :: Definition -> Maybe MainFunctionDef
 asMainFunctionDef d = case (theDef d) of
-    Axiom{}                             -> perhaps
-    Function{ funProjection = Nothing } -> perhaps
-    Function{ funProjection = Just{}  } -> no
-    AbstractDefn{}                      -> no
-    GeneralizableVar{}                  -> no
-    DataOrRecSig{}                      -> no
-    Datatype{}                          -> no
-    Record{}                            -> no
-    Constructor{}                       -> no
-    Primitive{}                         -> no
-    PrimitiveSort{}                     -> no
+    Axiom{}                              -> perhaps
+    Function{ funProjection = Left _ }   -> perhaps
+    Function{ funProjection = Right{}  } -> no
+    AbstractDefn{}                       -> no
+    GeneralizableVar{}                   -> no
+    DataOrRecSig{}                       -> no
+    Datatype{}                           -> no
+    Record{}                             -> no
+    Constructor{}                        -> no
+    Primitive{}                          -> no
+    PrimitiveSort{}                      -> no
   where
   isNamedMain = "main" == prettyShow (nameConcrete . qnameName . defName $ d)  -- ignores the qualification!?
   perhaps | isNamedMain = Just $ MainFunctionDef d
@@ -286,10 +286,13 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primQNameFixity"     |-> return "MAlonzo.RTE.qnameFixity"
   , "primQNameToWord64s"  |-> return "\\ qn -> (MAlonzo.RTE.nameId qn, MAlonzo.RTE.moduleId qn)"
   , "primQNameToWord64sInjective" |-> return mazErasedName
-  , "primMetaEquality"    |-> rel "(==)" "Integer"
-  , "primMetaLess"        |-> rel "(<)" "Integer"
-  , "primShowMeta"        |-> return "\\ x -> Data.Text.pack (\"_\" ++ show (x :: Integer))"
-  , "primMetaToNat"       |-> return "(id :: Integer -> Integer)"
+  , "primMetaEquality"    |-> rel "(==)" "(Integer, Integer)"
+  , "primMetaLess"        |-> rel "(<)" "(Integer, Integer)"
+  -- Should be kept in sync with version in `primitiveFunctions` in
+  -- Agda.TypeChecking.Primitive
+  , "primShowMeta"        |-> return "\\ (m, h) -> Data.Text.pack (\"_\" ++ show (m :: Integer) ++ \"@\" ++ show (h :: Integer))"
+  -- Should be kept in sync with `metaToNat` in Agda.TypeChecking.Primitive
+  , "primMetaToNat"       |-> return "\\ (m, h) -> (h :: Integer) * 2^64 + (m :: Integer)"
   , "primMetaToNatInjective" |-> return mazErasedName
 
   -- Seq

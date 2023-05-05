@@ -90,6 +90,7 @@
 \DeclareUnicodeCharacter{1100}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol ᄀ
 \DeclareUnicodeCharacter{11F9}{\ensuremath{\mathrm{PDF\;TODO}}}  % Symbol ᇹ
 
+\DeclareUnicodeCharacter{1D47}{\ensuremath{^b}}  % Symbol ᵇ
 \DeclareUnicodeCharacter{1D48}{\ensuremath{^d}}  % Symbol ᵈ
 \DeclareUnicodeCharacter{1D50}{\ensuremath{^m}}  % Symbol ᵐ
 \DeclareUnicodeCharacter{1D56}{\ensuremath{^p}}  % Symbol ᵖ

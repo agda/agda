@@ -5,6 +5,8 @@
 
 module Agda.TypeChecking.Rules.Builtin.Coinduction where
 
+import Agda.Interaction.Options.Base
+
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -21,6 +23,8 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rules.Builtin
 import Agda.TypeChecking.Rules.Term
+
+import Agda.Utils.Lens
 
 -- | The type of @∞@.
 
@@ -68,6 +72,7 @@ bindBuiltinSharp x =
     _ <- checkExpr (A.Def sharp) sharpType
     Def inf _ <- primInf
     infDefn   <- getConstInfo inf
+    erasure   <- optErasure <$> pragmaOptions
     addConstant (defName infDefn) $
       infDefn { defPolarity       = [] -- not monotone
               , defArgOccurrences = [Unused, StrictPos]
@@ -99,6 +104,7 @@ bindBuiltinSharp x =
                     , conProj   = Nothing
                     , conForced = []
                     , conErased = Nothing
+                    , conErasure = erasure
                     }
                 }
     return $ Def sharp []
@@ -150,24 +156,25 @@ bindBuiltinFlat x =
           , projIndex    = 3
           , projLams     = ProjLams $ [ argH "a" , argH "A" , argN "x" ]
           }
+    fun <- emptyFunctionData
     addConstant flat $
       flatDefn { defPolarity       = []
                , defArgOccurrences = [StrictPos]  -- changing that to [Mixed] destroys monotonicity of 'Rec' in test/succeed/GuardednessPreservingTypeConstructors
                , defCopatternLHS = hasProjectionPatterns cc
-               , theDef = emptyFunction
-                   { funClauses      = [clause]
-                   , funCompiled     = Just $ cc
-                   , funProjection   = Just projection
-                   , funMutual       = Just []
-                   , funTerminates   = Just True
+               , theDef = FunctionDefn fun
+                   { _funClauses      = [clause]
+                   , _funCompiled     = Just $ cc
+                   , _funProjection   = Right projection
+                   , _funMutual       = Just []
+                   , _funTerminates   = Just True
                    }
                 }
 
     -- register flat as record field for constructor sharp
-    modifySignature $ updateDefinition sharp $ updateTheDef $ \ def ->
-      def { conSrcCon = sharpCon }
-    modifySignature $ updateDefinition inf $ updateTheDef $ \ def ->
-      def { recConHead = sharpCon, recFields = [defaultDom flat] }
+    modifySignature $ updateDefinition sharp $ updateTheDef $ over lensConstructor $ \ def ->
+      def { _conSrcCon = sharpCon }
+    modifySignature $ updateDefinition inf $ updateTheDef $ over lensRecord $ \ def ->
+      def { _recConHead = sharpCon, _recFields = [defaultDom flat] }
     return $ Def flat []
 
 -- The coinductive primitives.

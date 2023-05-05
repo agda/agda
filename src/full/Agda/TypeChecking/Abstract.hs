@@ -5,7 +5,7 @@ module Agda.TypeChecking.Abstract where
 import Control.Monad
 import Control.Monad.Except
 
-import Data.Function
+import Data.Function (on)
 import qualified Data.HashMap.Strict as HMap
 
 import Agda.Syntax.Common
@@ -81,9 +81,10 @@ piAbstract (Arg info (v, IdiomType a)) b = do
   pure $ mkPi (setHiding (getHiding info) $ defaultDom ("w", a))
        $ mkPi (setHiding NotHidden        $ defaultDom ("eq", eq))
        $ b
-piAbstract (Arg info (prf, eqt@(EqualityType _ _ _ (Arg _ a) v _))) b = do
+piAbstract (Arg info (prf, EqualityViewType eqt@(EqualityTypeData _ _ _ (Arg _ a) v _))) b = do
   s <- sortOf a
-  let prfTy = equalityUnview eqt
+  let prfTy :: Type
+      prfTy = equalityUnview eqt
       vTy   = El s a
   b <- abstractType prfTy prf b
   b <- addContext ("w" :: String, defaultDom prfTy) $
@@ -92,8 +93,10 @@ piAbstract (Arg info (prf, eqt@(EqualityType _ _ _ (Arg _ a) v _))) b = do
   where
     funType str a = mkPi $ setArgInfo info $ defaultDom (str, a)
     -- Abstract the lhs (@a@) of the equality only.
+    eqt1 :: EqualityTypeData
     eqt1  = raise 1 eqt
-    eqTy' = equalityUnview $ eqt1 { eqtLhs = eqtLhs eqt1 $> var 0 }
+    eqTy' :: Type
+    eqTy' = equalityUnview $ eqt1{ _eqtLhs = _eqtLhs eqt1 $> var 0 }
 
 
 -- | @isPrefixOf u v = Just es@ if @v == u `applyE` es@.
@@ -208,7 +211,8 @@ instance AbsTerm Sort where
     SSet n     -> SSet $ absS n
     SizeUniv   -> SizeUniv
     LockUniv   -> LockUniv
-    IntervalUniv -> LockUniv
+    LevelUniv  -> LevelUniv
+    IntervalUniv -> IntervalUniv
     PiSort a s1 s2 -> PiSort (absS a) (absS s1) (absS s2)
     FunSort s1 s2 -> FunSort (absS s1) (absS s2)
     UnivSort s -> UnivSort $ absS s
@@ -294,6 +298,7 @@ instance EqualSy Sort where
     (Inf f m   , Inf f' n    ) -> f == f' && m == n
     (SSet l    , SSet l'     ) -> equalSy l l'
     (SizeUniv  , SizeUniv    ) -> True
+    (LevelUniv  , LevelUniv    ) -> True
     (PiSort a b c, PiSort a' b' c') -> equalSy a a' && equalSy b b' && equalSy c c'
     (FunSort a b, FunSort a' b') -> equalSy a a' && equalSy b b'
     (UnivSort a, UnivSort a' ) -> equalSy a a'
@@ -330,9 +335,9 @@ instance EqualSy ArgInfo where
 
 -- | Ignore the tactic.
 instance EqualSy a => EqualSy (Dom a) where
-  equalSy d@(Dom ai b x _tac a) d'@(Dom ai' b' x' _tac' a') = and
+  equalSy d@(Dom ai x f _tac a) d'@(Dom ai' x' f' _tac' a') = and
     [ x == x'
-    , b == b'
+    , f == f'
     , equalSy ai ai'
     , equalSy a a'
     ]

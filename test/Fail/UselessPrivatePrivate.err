@@ -1,4 +1,5 @@
 UselessPrivatePrivate.agda:5,1-8,14
+warning: -W[no]UselessPrivate
 Using private here has no effect. Private applies only to
 declarations that introduce new identifiers into the module, like
 type signatures and data, record, and module declarations.

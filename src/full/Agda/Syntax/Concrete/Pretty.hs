@@ -80,22 +80,30 @@ prettyHiding a parens =
     NotHidden  -> parens
 
 prettyRelevance :: LensRelevance a => a -> Doc -> Doc
-prettyRelevance a d =
-  if render d == "_" then d else pretty (getRelevance a) <> d
+prettyRelevance a = (pretty (getRelevance a) <>)
 
 prettyQuantity :: LensQuantity a => a -> Doc -> Doc
-prettyQuantity a d =
-  if render d == "_" then d else pretty (getQuantity a) <+> d
+prettyQuantity a = (pretty (getQuantity a) <+>)
+
+prettyLock :: LensLock a => a -> Doc -> Doc
+prettyLock a doc = case getLock a of
+  IsLock LockOLock -> "@lock" <+> doc
+  IsLock LockOTick -> "@tick" <+> doc
+  IsNotLock -> doc
 
 prettyErased :: Erased -> Doc -> Doc
 prettyErased = prettyQuantity . asQuantity
 
 prettyCohesion :: LensCohesion a => a -> Doc -> Doc
-prettyCohesion a d =
-  if render d == "_" then d else pretty (getCohesion a) <+> d
+prettyCohesion a = (pretty (getCohesion a) <+>)
 
 prettyTactic :: BoundName -> Doc -> Doc
 prettyTactic = prettyTactic' . bnameTactic
+
+prettyFiniteness :: BoundName -> Doc -> Doc
+prettyFiniteness name
+  | bnameIsFinite name = ("@finite" <+>)
+  | otherwise = id
 
 prettyTactic' :: TacticAttribute -> Doc -> Doc
 prettyTactic' Nothing  d = d
@@ -139,6 +147,9 @@ instance Pretty Quantity where
     Quantity1 o -> ifNull (pretty o) "@1" id
     Quantityω o -> pretty o
 
+instance Pretty Erased where
+  pretty = pretty . asQuantity
+
 instance Pretty Cohesion where
   pretty Flat   = "@♭"
   pretty Continuous = mempty
@@ -150,6 +161,28 @@ instance Pretty Modality where
     , pretty (getQuantity mod)
     , pretty (getCohesion mod)
     ]
+
+-- | Show the attributes necessary to recover a modality, in long-form
+-- (e.g. using at-syntax rather than dots). For the default modality,
+-- the result is at-ω (rather than the empty document). Suitable for
+-- showing modalities outside of binders.
+attributesForModality :: Modality -> Doc
+attributesForModality mod
+  | mod == defaultModality = text "@ω"
+  | otherwise = fsep $ catMaybes [relevance, quantity, cohesion]
+  where
+    relevance = case getRelevance mod of
+      Relevant   -> Nothing
+      Irrelevant -> Just "@irrelevant"
+      NonStrict  -> Just "@shape-irrelevant"
+    quantity = case getQuantity mod of
+      Quantity0{} -> Just "@0"
+      Quantity1{} -> Just "@1"
+      Quantityω{} -> Nothing
+    cohesion = case getCohesion mod of
+      Flat{}       -> Just "@♭"
+      Continuous{} -> Nothing
+      Squash{}     -> Just "@⊤"
 
 instance Pretty (OpApp Expr) where
   pretty (Ordinary e) = pretty e
@@ -216,8 +249,6 @@ instance Pretty Expr where
             Rec _ xs  -> sep ["record", bracesAndSemicolons (map pretty xs)]
             RecUpdate _ e xs ->
               sep ["record" <+> pretty e, bracesAndSemicolons (map pretty xs)]
-            ETel []  -> "()"
-            ETel tel -> fsep $ map pretty tel
             Quote _ -> "quote"
             QuoteTerm _ -> "quoteTerm"
             Unquote _  -> "unquote"
@@ -300,8 +331,10 @@ instance Pretty TypedBinding where
     pretty (TBind _ xs e) = fsep
       [ prettyRelevance y
         $ prettyHiding y parens
+        $ prettyFiniteness (binderName $ namedArg y)
         $ prettyCohesion y
         $ prettyQuantity y
+        $ prettyLock y
         $ prettyTactic (binderName $ namedArg y) $
         sep [ fsep (map (pretty . NamedBinding False) ys)
             , ":" <+> pretty e ]
@@ -338,12 +371,13 @@ instance Pretty RHS where
 
 instance Pretty WhereClause where
   pretty  NoWhere = empty
-  pretty (AnyWhere _ [Module _ x [] ds]) | isNoName (unqualify x)
+  pretty (AnyWhere _ [Module _ NotErased{} x [] ds])
+    | isNoName (unqualify x)
                        = vcat [ "where", nest 2 (vcat $ map pretty ds) ]
   pretty (AnyWhere _ ds) = vcat [ "where", nest 2 (vcat $ map pretty ds) ]
-  pretty (SomeWhere _ m a ds) =
+  pretty (SomeWhere _ erased m a ds) =
     vcat [ hsep $ applyWhen (a == PrivateAccess UserWritten) ("private" :)
-             [ "module", pretty m, "where" ]
+             [ "module", prettyErased erased (pretty m), "where" ]
          , nest 2 (vcat $ map pretty ds)
          ]
 
@@ -386,128 +420,127 @@ instance Pretty DoStmt where
   pretty (DoLet _ ds) = "let" <+> vcat (fmap pretty ds)
 
 instance Pretty Declaration where
-    prettyList = vcat . map pretty
-    pretty d =
-        case d of
-            TypeSig i tac x e ->
-                sep [ prettyTactic' tac $ prettyRelevance i $ prettyCohesion i $ prettyQuantity i $ pretty x <+> ":"
-                    , nest 2 $ pretty e
-                    ]
+  prettyList = vcat . map pretty
+  pretty = \case
+    TypeSig i tac x e ->
+      sep [ prettyTactic' tac $ prettyRelevance i $ prettyCohesion i $ prettyQuantity i $ pretty x <+> ":"
+          , nest 2 $ pretty e
+          ]
+    FieldSig inst tac x (Arg i e) ->
+      mkInst inst $ mkOverlap i $
+      prettyRelevance i $ prettyHiding i id $ prettyCohesion i $ prettyQuantity i $
+      pretty $ TypeSig (setRelevance Relevant i) tac x e
+      where
+        mkInst (InstanceDef _) d = sep [ "instance", nest 2 d ]
+        mkInst NotInstanceDef  d = d
 
-            FieldSig inst tac x (Arg i e) ->
-                mkInst inst $ mkOverlap i $
-                prettyRelevance i $ prettyHiding i id $ prettyCohesion i $ prettyQuantity i $
-                pretty $ TypeSig (setRelevance Relevant i) tac x e
-
-                where
-
-                  mkInst (InstanceDef _) d = sep [ "instance", nest 2 d ]
-                  mkInst NotInstanceDef  d = d
-
-                  mkOverlap i d | isOverlappable i = "overlap" <+> d
-                                | otherwise        = d
-
-            Field _ fs ->
-              sep [ "field"
-                  , nest 2 $ vcat (map pretty fs)
+        mkOverlap i d | isOverlappable i = "overlap" <+> d
+                      | otherwise        = d
+    Field _ fs ->
+      sep [ "field"
+          , nest 2 $ vcat (map pretty fs)
+          ]
+    FunClause lhs rhs wh _ ->
+      sep [ pretty lhs
+          , nest 2 $ pretty rhs
+          ] $$ nest 2 (pretty wh)
+    DataSig _ erased x tel e ->
+      sep [ hsep  [ "data"
+                  , prettyErased erased (pretty x)
+                  , fcat (map pretty tel)
                   ]
-            FunClause lhs rhs wh _ ->
-                sep [ pretty lhs
-                    , nest 2 $ pretty rhs
-                    ] $$ nest 2 (pretty wh)
-            DataSig _ x tel e ->
-                sep [ hsep  [ "data"
-                            , pretty x
-                            , fcat (map pretty tel)
-                            ]
-                    , nest 2 $ hsep
-                            [ ":"
-                            , pretty e
-                            ]
-                    ]
-            Data _ x tel e cs ->
-                sep [ hsep  [ "data"
-                            , pretty x
-                            , fcat (map pretty tel)
-                            ]
-                    , nest 2 $ hsep
-                            [ ":"
-                            , pretty e
-                            , "where"
-                            ]
-                    ] $$ nest 2 (vcat $ map pretty cs)
-            DataDef _ x tel cs ->
-                sep [ hsep  [ "data"
-                            , pretty x
-                            , fcat (map pretty tel)
-                            ]
-                    , nest 2 $ "where"
-                    ] $$ nest 2 (vcat $ map pretty cs)
-            RecordSig _ x tel e ->
-                sep [ hsep  [ "record"
-                            , pretty x
-                            , fcat (map pretty tel)
-                            ]
-                    , nest 2 $ hsep
-                            [ ":"
-                            , pretty e
-                            ]
-                    ]
-            Record _ x dir tel e cs ->
-              pRecord x dir tel (Just e) cs
-            RecordDef _ x dir tel cs ->
-              pRecord x dir tel Nothing cs
-            RecordDirective r -> pRecordDirective r
-            Infix f xs  ->
-                pretty f <+> fsep (punctuate comma $ fmap pretty xs)
-            Syntax n xs -> "syntax" <+> pretty n <+> "..."
-            PatternSyn _ n as p -> "pattern" <+> pretty n <+> fsep (map pretty as)
-                                     <+> "=" <+> pretty p
-            Mutual _ ds     -> namedBlock "mutual" ds
-            InterleavedMutual _ ds  -> namedBlock "interleaved mutual" ds
-            LoneConstructor _ ds -> namedBlock "constructor" ds
-            Abstract _ ds   -> namedBlock "abstract" ds
-            Private _ _ ds  -> namedBlock "private" ds
-            InstanceB _ ds  -> namedBlock "instance" ds
-            Macro _ ds      -> namedBlock "macro" ds
-            Postulate _ ds  -> namedBlock "postulate" ds
-            Primitive _ ds  -> namedBlock "primitive" ds
-            Generalize _ ds -> namedBlock "variable" ds
-            Module _ x tel ds ->
-                hsep [ "module"
-                     , pretty x
-                     , fcat (map pretty tel)
-                     , "where"
-                     ] $$ nest 2 (vcat $ map pretty ds)
-            ModuleMacro _ x (SectionApp _ [] e) DoOpen i | isNoName x ->
-                sep [ pretty DoOpen
-                    , nest 2 $ pretty e
-                    , nest 4 $ pretty i
-                    ]
-            ModuleMacro _ x (SectionApp _ tel e) open i ->
-                sep [ pretty open <+> "module" <+> pretty x <+> fcat (map pretty tel)
-                    , nest 2 $ "=" <+> pretty e <+> pretty i
-                    ]
-            ModuleMacro _ x (RecordModuleInstance _ rec) open i ->
-                sep [ pretty open <+> "module" <+> pretty x
-                    , nest 2 $ "=" <+> pretty rec <+> "{{...}}"
-                    ]
-            Open _ x i  -> hsep [ "open", pretty x, pretty i ]
-            Import _ x rn open i   ->
-                hsep [ pretty open, "import", pretty x, as rn, pretty i ]
-                where
-                    as Nothing  = empty
-                    as (Just x) = "as" <+> pretty (asName x)
-            UnquoteDecl _ xs t ->
-              sep [ "unquoteDecl" <+> fsep (map pretty xs) <+> "=", nest 2 $ pretty t ]
-            UnquoteDef _ xs t ->
-              sep [ "unquoteDef" <+> fsep (map pretty xs) <+> "=", nest 2 $ pretty t ]
-            Pragma pr   -> sep [ "{-#" <+> pretty pr, "#-}" ]
-        where
-            namedBlock s ds =
-                sep [ text s
-                    , nest 2 $ vcat $ map pretty ds
-                    ]
+          , nest 2 $ hsep
+                  [ ":"
+                  , pretty e
+                  ]
+          ]
+    Data _ erased x tel e cs ->
+      sep [ hsep  [ "data"
+                  , prettyErased erased (pretty x)
+                  , fcat (map pretty tel)
+                  ]
+          , nest 2 $ hsep
+                  [ ":"
+                  , pretty e
+                  , "where"
+                  ]
+          ] $$ nest 2 (vcat $ map pretty cs)
+    DataDef _ x tel cs ->
+      sep [ hsep  [ "data"
+                  , pretty x
+                  , fcat (map pretty tel)
+                  ]
+          , nest 2 $ "where"
+          ] $$ nest 2 (vcat $ map pretty cs)
+    RecordSig _ erased x tel e ->
+      sep [ hsep  [ "record"
+                  , prettyErased erased (pretty x)
+                  , fcat (map pretty tel)
+                  ]
+          , nest 2 $ hsep
+                  [ ":"
+                  , pretty e
+                  ]
+          ]
+    Record _ erased x dir tel e cs ->
+      pRecord erased x dir tel (Just e) cs
+    RecordDef _ x dir tel cs ->
+      pRecord defaultErased x dir tel Nothing cs
+    RecordDirective r -> pRecordDirective r
+    Infix f xs  ->
+      pretty f <+> fsep (punctuate comma $ fmap pretty xs)
+    Syntax n xs -> "syntax" <+> pretty n <+> "..."
+    PatternSyn _ n as p -> "pattern" <+> pretty n <+> fsep (map pretty as)
+                             <+> "=" <+> pretty p
+    Mutual _ ds     -> namedBlock "mutual" ds
+    InterleavedMutual _ ds  -> namedBlock "interleaved mutual" ds
+    LoneConstructor _ ds -> namedBlock "constructor" ds
+    Abstract _ ds   -> namedBlock "abstract" ds
+    Private _ _ ds  -> namedBlock "private" ds
+    InstanceB _ ds  -> namedBlock "instance" ds
+    Macro _ ds      -> namedBlock "macro" ds
+    Postulate _ ds  -> namedBlock "postulate" ds
+    Primitive _ ds  -> namedBlock "primitive" ds
+    Generalize _ ds -> namedBlock "variable" ds
+    Module _ erased x tel ds ->
+      hsep [ "module"
+           , prettyErased erased (pretty x)
+           , fcat (map pretty tel)
+           , "where"
+           ] $$ nest 2 (vcat $ map pretty ds)
+    ModuleMacro _ NotErased{} x (SectionApp _ [] e) DoOpen i
+      | isNoName x ->
+      sep [ pretty DoOpen
+          , nest 2 $ pretty e
+          , nest 4 $ pretty i
+          ]
+    ModuleMacro _ erased x (SectionApp _ tel e) open i ->
+      sep [ pretty open <+> "module" <+>
+            prettyErased erased (pretty x) <+> fcat (map pretty tel)
+          , nest 2 $ "=" <+> pretty e <+> pretty i
+          ]
+    ModuleMacro _ erased x (RecordModuleInstance _ rec) open i ->
+      sep [ pretty open <+> "module" <+> prettyErased erased (pretty x)
+          , nest 2 $ "=" <+> pretty rec <+> "{{...}}"
+          ]
+    Open _ x i  -> hsep [ "open", pretty x, pretty i ]
+    Import _ x rn open i   ->
+      hsep [ pretty open, "import", pretty x, as rn, pretty i ]
+      where
+        as Nothing  = empty
+        as (Just x) = "as" <+> pretty (asName x)
+    UnquoteDecl _ xs t ->
+      sep [ "unquoteDecl" <+> fsep (map pretty xs) <+> "=", nest 2 $ pretty t ]
+    UnquoteDef _ xs t ->
+      sep [ "unquoteDef" <+> fsep (map pretty xs) <+> "=", nest 2 $ pretty t ]
+    UnquoteData _ x xs t ->
+      sep [ "unquoteData" <+> pretty x <+> fsep (map pretty xs) <+> "=", nest 2 $ pretty t ]
+    Pragma pr   -> sep [ "{-#" <+> pretty pr, "#-}" ]
+    where
+      namedBlock s ds =
+          sep [ text s
+              , nest 2 $ vcat $ map pretty ds
+              ]
 
 pHasEta0 :: HasEta0 -> Doc
 pHasEta0 = \case
@@ -525,16 +558,17 @@ pRecordDirective = \case
   PatternOrCopattern{} -> "pattern"
 
 pRecord
-  :: Name
+  :: Erased
+  -> Name
   -> RecordDirectives
   -> [LamBinding]
   -> Maybe Expr
   -> [Declaration]
   -> Doc
-pRecord x (RecordDirectives ind eta pat con) tel me ds = vcat
+pRecord erased x (RecordDirectives ind eta pat con) tel me ds = vcat
     [ sep
       [ hsep  [ "record"
-              , pretty x
+              , prettyErased erased (pretty x)
               , fcat (map pretty tel)
               ]
       , nest 2 $ pType me
@@ -584,6 +618,8 @@ instance Pretty Pragma where
       hsep $ ["INJECTIVE", pretty i]
     pretty (InlinePragma _ True i) =
       hsep $ ["INLINE", pretty i]
+    pretty (NotProjectionLikePragma _ i) =
+      hsep $ ["NOT_PROJECTION_LIKE", pretty i]
     pretty (InlinePragma _ False i) =
       hsep $ ["NOINLINE", pretty i]
     pretty (ImpossiblePragma _ strs) =
@@ -653,7 +689,7 @@ instance Pretty e => Pretty (Named_ e) where
 instance Pretty Pattern where
     prettyList = fsep . map pretty
     pretty = \case
-            IdentP x        -> pretty x
+            IdentP _ x      -> pretty x
             AppP p1 p2      -> sep [ pretty p1, nest 2 $ pretty p2 ]
             RawAppP _ ps    -> fsep $ map pretty $ List2.toList ps
             OpAppP _ q _ ps -> fsep $ prettyOpApp q $ fmap (fmap (fmap (NoPlaceholder Strict.Nothing))) ps

@@ -7,7 +7,7 @@ import Prelude hiding ((!!), null)
 import Control.Monad
 
 import Data.Either
-import Data.Function
+import Data.Function (on)
 import qualified Data.List as List
 import Data.Maybe
 import Data.Monoid
@@ -42,12 +42,14 @@ import Agda.Interaction.BasicOps
 import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Function
 import Agda.Utils.Functor
+import Agda.Utils.Lens   (set)
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
+import Agda.Utils.WithDefault (lensKeepDefault)
 
 import Agda.Utils.Impossible
 
@@ -252,7 +254,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
   -- Get function clause which contains the interaction point.
   InteractionPoint { ipMeta = mm, ipClause = ipCl} <- lookupInteractionPoint hole
   (f, clauseNo, clTy, clWithSub, absCl@A.Clause{ clauseRHS = rhs }, clClos) <- case ipCl of
-    IPClause f i t sub cl clo _ -> return (f, i, t, sub, cl, clo)
+    IPClause f i t sub cl clo -> return (f, i, t, sub, cl, clo)
     IPNoClause                -> typeError $ GenericError $
       "Cannot split here, as we are not in a function definition"
   (casectxt, (prevClauses0, _clause, follClauses0)) <- getClauseZipperForIP f clauseNo
@@ -324,7 +326,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
     -- When we introduce projection patterns in an extended lambda,
     -- we need to print them postfix.
     let postProjInExtLam = applyWhen (isJust casectxt) $
-          withPragmaOptions $ \ opt -> opt { optPostfixProjections = True }
+          withPragmaOptions $ set (lensOptPostfixProjections . lensKeepDefault) True
     (piTel, sc) <- insertTrailingArgs False $ clauseToSplitClause clause
     -- Andreas, 2015-05-05 If we introduced new function arguments
     -- do not split on result.  This might be more what the user wants.
@@ -415,7 +417,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
       then Just <$> makeAbsurdClause f ell' sc
       -- trivially empty clause due to the refined patterns
       else
-        ifM (liftTCM $ isEmptyTel (scTel sc))
+        ifM (liftTCM $ (optInferAbsurdClauses <$> pragmaOptions) `and2M` isEmptyTel (scTel sc))
           {- then -} (pure Nothing)
           {- else -} (Just <$> makeAbstractClause f rhs ell' sc)
     reportSLn "interaction.case" 70 $ "makeCase: survived filtering out impossible clauses"

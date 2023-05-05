@@ -8,7 +8,7 @@ import Control.Monad        ( forM, forM_ )
 import Control.Monad.Except ( MonadError(..) )
 
 import Data.Bifunctor
-import Data.Function
+import Data.Function (on)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
@@ -19,6 +19,7 @@ import Agda.Interaction.Options
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
+import qualified Agda.Syntax.Concrete.Pretty as C
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract.Pattern as A
 import qualified Agda.Syntax.Abstract as A
@@ -73,6 +74,7 @@ import Agda.Utils.Size
 import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
+import Agda.Utils.WithDefault
 
 ---------------------------------------------------------------------------
 -- * Definitions by pattern matching
@@ -82,11 +84,16 @@ checkFunDef :: Delayed -> A.DefInfo -> QName -> [A.Clause] -> TCM ()
 checkFunDef delayed i name cs = do
         -- Reset blocking tag (in case a previous attempt was blocked)
         modifySignature $ updateDefinition name $ updateDefBlocked $ const $
-          NotBlocked MissingClauses ()
+          NotBlocked (MissingClauses name) ()
         -- Get the type and relevance of the function
         def <- instantiateDef =<< getConstInfo name
         let t    = defType def
         let info = getArgInfo def
+
+        -- If the function is erased, then hard compile-time mode is
+        -- entered.
+        setHardCompileTimeModeIfErased' info $ do
+
         case isAlias cs t of  -- #418: Don't use checkAlias for abstract definitions, since the type
                               -- of an abstract function must not be informed by its definition.
           Just (e, mc, x)
@@ -184,28 +191,28 @@ checkAlias t ai delayed i name e mc =
         _          -> id
 
   -- Add the definition
-  addConstant' name ai name t
-                   $ set funMacro (Info.defMacro i == MacroDef) $
-                     emptyFunction
-                      { funClauses = [ Clause  -- trivial clause @name = v@
-                          { clauseLHSRange  = getRange i
-                          , clauseFullRange = getRange i
-                          , clauseTel       = EmptyTel
-                          , namedClausePats = []
-                          , clauseBody      = Just $ bodyMod v
-                          , clauseType      = Just $ Arg ai t
-                          , clauseCatchall    = False
-                          , clauseExact       = Just True
-                          , clauseRecursive   = Nothing   -- we don't know yet
-                          , clauseUnreachable = Just False
-                          , clauseEllipsis    = NoEllipsis
-                          , clauseWhereModule = Nothing
-                          } ]
-                      , funCompiled = Just $ Done [] $ bodyMod v
-                      , funSplitTree = Just $ SplittingDone 0
-                      , funDelayed  = delayed
-                      , funAbstr    = Info.defAbstract i
-                      }
+  fun <- emptyFunctionData
+  addConstant' name ai name t $ set funMacro (Info.defMacro i == MacroDef) $
+      FunctionDefn fun
+          { _funClauses   = [ Clause  -- trivial clause @name = v@
+              { clauseLHSRange    = getRange i
+              , clauseFullRange   = getRange i
+              , clauseTel         = EmptyTel
+              , namedClausePats   = []
+              , clauseBody        = Just $ bodyMod v
+              , clauseType        = Just $ Arg ai t
+              , clauseCatchall    = False
+              , clauseExact       = Just True
+              , clauseRecursive   = Nothing   -- we don't know yet
+              , clauseUnreachable = Just False
+              , clauseEllipsis    = NoEllipsis
+              , clauseWhereModule = Nothing
+              } ]
+          , _funCompiled  = Just $ Done [] $ bodyMod v
+          , _funSplitTree = Just $ SplittingDone 0
+          , _funDelayed   = delayed
+          , _funAbstr     = Info.defAbstract i
+          }
 
   -- Andreas, 2017-01-01, issue #2372:
   -- Add the definition to the instance table, if needed, to update its type.
@@ -320,9 +327,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
               ]
 
         -- Needed to calculate the proper fullType below.
-        -- Also: issue #4173, allow splitting on erased arguments in erased definitions
-        -- in the coverage checker.
-        applyCohesionToContext ai $ applyQuantityToContext ai $ do
+        applyCohesionToContext ai $ do
 
         -- Systems have their own coverage and "coherence" check, we
         -- also add an absurd clause for the cases not needed.
@@ -418,18 +423,19 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
 
           -- If there was a pragma for this definition, we can set the
           -- funTerminates field directly.
+          fun  <- emptyFunctionData
           defn <- autoInline $
              set funMacro (ismacro || Info.defMacro i == MacroDef) $
-             emptyFunction
-             { funClauses        = cs
-             , funCompiled       = Just cc
-             , funSplitTree      = mst
-             , funDelayed        = delayed
-             , funInv            = inv
-             , funAbstr          = Info.defAbstract i
-             , funExtLam         = (\ e -> e { extLamSys = sys }) <$> extlam
-             , funWith           = with
-             , funCovering       = covering
+             FunctionDefn fun
+             { _funClauses        = cs
+             , _funCompiled       = Just cc
+             , _funSplitTree      = mst
+             , _funDelayed        = delayed
+             , _funInv            = inv
+             , _funAbstr          = Info.defAbstract i
+             , _funExtLam         = (\ e -> e { extLamSys = sys }) <$> extlam
+             , _funWith           = with
+             , _funCovering       = covering
              }
           lang <- getLanguage
           useTerPragma $
@@ -601,7 +607,7 @@ checkSystemCoverage f [n] t cs = do
              initWithDefault __IMPOSSIBLE__ $ List.tails pcs) $ \ ((phi1,cl1):pcs') -> do
         forM_ pcs' $ \ (phi2,cl2) -> do
           phi12 <- reduce (imin `apply` [argN phi1, argN phi2])
-          forallFaceMaps phi12 (\ _ _ -> __IMPOSSIBLE__) $ \ sigma -> do
+          forallFaceMaps phi12 (\ _ _ -> __IMPOSSIBLE__) $ \_ sigma -> do
             let args = sigma `applySubst` teleArgs gamma
                 t' = sigma `applySubst` t
                 fromReduced (YesReduction _ x) = x
@@ -611,7 +617,7 @@ checkSystemCoverage f [n] t cs = do
                   TelV delta _ <- telViewUpTo extra t'
                   fmap (abstract delta) $ addContext delta $ do
                     fmap fromReduced $ runReduceM $
-                      appDef' (Def f []) [cl] [] (map notReduced $ raise (size delta) args ++ teleArgs delta)
+                      appDef' f (Def f []) [cl] [] (map notReduced $ raise (size delta) args ++ teleArgs delta)
             v1 <- body cl1
             v2 <- body cl2
             equalTerm t' v1 v2
@@ -681,7 +687,7 @@ checkClause
 
 checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) = do
   cxtNames <- reverse . map (fst . unDom) <$> getContext
-  checkClauseLHS t withSub c $ \ lhsResult@(LHSResult npars delta ps absurdPat trhs patSubst asb psplit) -> do
+  checkClauseLHS t withSub c $ \ lhsResult@(LHSResult npars delta ps absurdPat trhs patSubst asb psplit ixsplit) -> do
         -- Note that we might now be in irrelevant context,
         -- in case checkLeftHandSide walked over an irrelevant projection pattern.
 
@@ -726,7 +732,7 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
               [ "double checking rhs"
               , nest 2 (prettyTCM v <+> " : " <+> prettyTCM (unArg trhs))
               ]
-            nonConstraining $ checkInternal v CmpLeq $ unArg trhs
+            noConstraints $ withFrozenMetas $ checkInternal v CmpLeq $ unArg trhs
           Nothing -> return ()
 
         reportSDoc "tc.lhs.top" 10 $ vcat
@@ -749,7 +755,7 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
           ]
 
         -- compute body modification for irrelevant definitions, see issue 610
-        rel <- asksTC getRelevance
+        rel <- viewTC eRelevance
         let bodyMod body = case rel of
               Irrelevant -> dontCare <$> body
               _          -> body
@@ -801,7 +807,7 @@ checkRHS
   -> A.RHS                   -- ^ Rhs to check.
   -> TCM (Maybe Term, WithFunctionProblem)
                                               -- Note: the as-bindings are already bound (in checkClause)
-checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0 =
+checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rhs0 =
   handleRHS rhs0 where
 
   handleRHS :: A.RHS -> TCM (Maybe Term, WithFunctionProblem)
@@ -1017,7 +1023,7 @@ checkWithRHS
   -> [A.Clause]                        -- ^ With-clauses to check.
   -> TCM (Maybe Term, WithFunctionProblem)
                                 -- Note: as-bindings already bound (in checkClause)
-checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 cs =
+checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _ _) vtys0 cs =
   verboseBracket "tc.with.top" 25 "checkWithRHS" $ do
     Bench.billTo [Bench.Typing, Bench.With] $ do
         withArgs <- withArguments vtys0
@@ -1083,8 +1089,8 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 c
         -- Andreas, 2013-02-26 add with-name to signature for printing purposes
         addConstant aux =<< do
           lang <- getLanguage
-          useTerPragma $
-            defaultDefn defaultArgInfo aux __DUMMY_TYPE__ lang
+          useTerPragma =<<
+            defaultDefn defaultArgInfo aux __DUMMY_TYPE__ lang <$>
               emptyFunction
 
         reportSDoc "tc.with.top" 20 $ vcat $
@@ -1180,8 +1186,9 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
         ]
   addConstant aux =<< do
     lang <- getLanguage
+    fun  <- emptyFunction
     useTerPragma $
-      (defaultDefn defaultArgInfo aux withFunType lang emptyFunction)
+      (defaultDefn defaultArgInfo aux withFunType lang fun)
         { defDisplay = [df] }
   -- solveSizeConstraints -- Andreas, 2012-10-16 does not seem necessary
 
@@ -1205,7 +1212,8 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
 
   -- Check the with function
   let info = Info.mkDefInfo (nameConcrete $ qnameName aux) noFixity' PublicAccess abstr (getRange cs)
-  checkFunDefS withFunType defaultArgInfo NotDelayed Nothing (Just f) info aux (Just withSub) cs
+  ai <- defArgInfo <$> getConstInfo f
+  checkFunDefS withFunType ai NotDelayed Nothing (Just f) info aux (Just withSub) cs
   return $ Just $ call_in_parent
 
 -- | Type check a where clause.
@@ -1220,7 +1228,7 @@ checkWhere wh@(A.WhereDecls whmod whNamed ds) ret = do
     loop = \case
       Nothing -> ret
       -- [A.ScopedDecl scope ds] -> withScope_ scope $ loop ds  -- IMPOSSIBLE
-      Just (A.Section _ m tel ds) -> newSection m tel $ do
+      Just (A.Section _ e m tel ds) -> newSection e m tel $ do
           localTC (\ e -> e { envCheckingWhere = True }) $ do
             checkDecls ds
             ret
@@ -1254,10 +1262,15 @@ checkWhere wh@(A.WhereDecls whmod whNamed ds) ret = do
 
 -- | Enter a new section during type-checking.
 
-newSection :: ModuleName -> A.GeneralizeTelescope -> TCM a -> TCM a
-newSection m gtel@(A.GeneralizeTel _ tel) cont = do
+newSection ::
+  Erased -> ModuleName -> A.GeneralizeTelescope -> TCM a -> TCM a
+newSection e m gtel@(A.GeneralizeTel _ tel) cont = do
+  -- If the section is erased, then hard compile-time mode is entered.
+  warnForPlentyInHardCompileTimeMode e
+  setHardCompileTimeModeIfErased e $ do
   reportSDoc "tc.section" 10 $
-    "checking section" <+> prettyTCM m <+> fsep (map prettyA tel)
+    "checking section" <+> (C.prettyErased e <$> prettyTCM m) <+>
+    fsep (map prettyA tel)
 
   checkGeneralizeTelescope gtel $ \ _ tel' -> do
     reportSDoc "tc.section" 10 $
@@ -1275,4 +1288,4 @@ newSection m gtel@(A.GeneralizeTel _ tel) cont = do
 atClause :: QName -> Int -> Type -> Maybe Substitution -> A.SpineClause -> TCM a -> TCM a
 atClause name i t sub cl ret = do
   clo <- buildClosure ()
-  localTC (\ e -> e { envClause = IPClause name i t sub cl clo [] }) ret
+  localTC (\ e -> e { envClause = IPClause name i t sub cl clo }) ret

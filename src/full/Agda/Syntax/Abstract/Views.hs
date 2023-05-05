@@ -8,6 +8,7 @@ import Control.Arrow (first)
 import Control.Monad.Identity
 
 import Data.Foldable (foldMap)
+import qualified Data.DList as DL
 import Data.Semigroup ((<>))
 import Data.Void
 
@@ -37,18 +38,20 @@ appView :: Expr -> AppView
 appView = fmap snd . appView'
 
 appView' :: Expr -> AppView' (AppInfo, Expr)
-appView' e =
-  case e of
+appView' e = f (DL.toList es)
+  where
+  (f, es) = appView'' e
+
+  appView'' e = case e of
     App i e1 e2
       | Dot _ e2' <- unScope $ namedArg e2
       , Just f <- maybeProjTurnPostfix e2'
       , getHiding e2 == NotHidden -- Jesper, 2018-12-13: postfix projections shouldn't be hidden
-                   -> Application f [defaultNamedArg (i, e1)]
-    App i e1 arg
-      | Application hd es <- appView' e1
-                   -> Application hd $ es ++ [(fmap . fmap) (i,) arg]
-    ScopedExpr _ e -> appView' e
-    _              -> Application e []
+      -> (Application f, singleton (defaultNamedArg (i, e1)))
+    App i e1 arg | (f, es) <- appView'' e1 ->
+      (f, es `DL.snoc` (fmap . fmap) (i,) arg)
+    ScopedExpr _ e -> appView'' e
+    _              -> (Application e, mempty)
 
 maybeProjTurnPostfix :: Expr -> Maybe Expr
 maybeProjTurnPostfix e =
@@ -69,6 +72,18 @@ lamView (Lam i b e) = cons b $ lamView e
   where cons b (LamView bs e) = LamView (b : bs) e
 lamView (ScopedExpr _ e) = lamView e
 lamView e = LamView [] e
+
+-- | Collect @A.Pi@s.
+data PiView = PiView [(ExprInfo, Telescope1)] Type
+
+piView :: Expr -> PiView
+piView = \case
+   Pi i tel b -> cons $ piView b
+     where cons (PiView tels t) = PiView ((i,tel) : tels) t
+   e -> PiView [] e
+
+unPiView :: PiView -> Expr
+unPiView (PiView tels t) = foldr (uncurry Pi) t tels
 
 -- | Gather top-level 'AsP'atterns and 'AnnP'atterns to expose underlying pattern.
 asView :: A.Pattern -> ([Name], [A.Expr], A.Pattern)
@@ -94,12 +109,15 @@ deepUnscopeDecls :: [A.Declaration] -> [A.Declaration]
 deepUnscopeDecls = concatMap deepUnscopeDecl
 
 deepUnscopeDecl :: A.Declaration -> [A.Declaration]
-deepUnscopeDecl (A.ScopedDecl _ ds)              = deepUnscopeDecls ds
-deepUnscopeDecl (A.Mutual i ds)                  = [A.Mutual i (deepUnscopeDecls ds)]
-deepUnscopeDecl (A.Section i m tel ds)           = [A.Section i m (deepUnscope tel) (deepUnscopeDecls ds)]
-deepUnscopeDecl (A.RecDef i x uc dir bs e ds) =
-  [ A.RecDef i x uc dir (deepUnscope bs) (deepUnscope e) (deepUnscopeDecls ds) ]
-deepUnscopeDecl d                                = [deepUnscope d]
+deepUnscopeDecl = \case
+  A.ScopedDecl _ ds           -> deepUnscopeDecls ds
+  A.Mutual i ds               -> [A.Mutual i (deepUnscopeDecls ds)]
+  A.Section i e m tel ds      -> [A.Section i e m (deepUnscope tel)
+                                   (deepUnscopeDecls ds)]
+  A.RecDef i x uc dir bs e ds -> [ A.RecDef i x uc dir (deepUnscope bs)
+                                     (deepUnscope e)
+                                     (deepUnscopeDecls ds) ]
+  d                           -> [deepUnscope d]
 
 -- * Traversal
 ---------------------------------------------------------------------------
@@ -157,7 +175,6 @@ instance ExprLike Expr where
       Generalized  s e           -> Generalized s <$> recurse e
       Fun ei arg e               -> Fun ei <$> recurse arg <*> recurse e
       Let ei bs e                -> Let ei <$> recurse bs <*> recurse e
-      ETel tel                   -> ETel <$> recurse tel
       Rec ei bs                  -> Rec ei <$> recurse bs
       RecUpdate ei e bs          -> RecUpdate ei <$> recurse e <*> recurse bs
       ScopedExpr sc e            -> ScopedExpr sc <$> recurse e
@@ -190,7 +207,6 @@ instance ExprLike Expr where
       Generalized _ e        -> m `mappend` fold e
       Fun _ e e'             -> m `mappend` fold e `mappend` fold e'
       Let _ bs e             -> m `mappend` fold bs `mappend` fold e
-      ETel tel               -> m `mappend` fold tel
       Rec _ as               -> m `mappend` fold as
       RecUpdate _ e as       -> m `mappend` fold e `mappend` fold as
       ScopedExpr _ e         -> m `mappend` fold e
@@ -226,7 +242,6 @@ instance ExprLike Expr where
       Generalized s e            -> f =<< Generalized s <$> trav e
       Fun ei arg e               -> f =<< Fun ei <$> trav arg <*> trav e
       Let ei bs e                -> f =<< Let ei <$> trav bs <*> trav e
-      ETel tel                   -> f =<< ETel <$> trav tel
       Rec ei bs                  -> f =<< Rec ei <$> trav bs
       RecUpdate ei e bs          -> f =<< RecUpdate ei <$> trav e <*> trav bs
       ScopedExpr sc e            -> f =<< ScopedExpr sc <$> trav e
@@ -288,6 +303,11 @@ instance ExprLike DataDefParams where
   recurseExpr  f (DataDefParams s tel) = DataDefParams s <$> recurseExpr f tel
   foldExpr     f (DataDefParams s tel) = foldExpr f tel
   traverseExpr f (DataDefParams s tel) = DataDefParams s <$> traverseExpr f tel
+
+instance ExprLike TypedBindingInfo where
+  recurseExpr f (TypedBindingInfo s t)  = TypedBindingInfo <$> recurseExpr f s <*> pure t
+  foldExpr f (TypedBindingInfo s t)     = foldExpr f s
+  traverseExpr f (TypedBindingInfo s t) = TypedBindingInfo <$> traverseExpr f s <*> pure t
 
 instance ExprLike TypedBinding where
   recurseExpr f e =
@@ -392,6 +412,7 @@ instance ExprLike Pragma where
       InjectivePragma{}           -> pure p
       InlinePragma{}              -> pure p
       EtaPragma{}                 -> pure p
+      NotProjectionLikePragma{}   -> pure p
       DisplayPragma f xs e        -> DisplayPragma f <$> rec xs <*> rec e
     where
       rec :: RecurseExprRecFn m
@@ -415,19 +436,20 @@ instance ExprLike Declaration where
       Field i x e               -> Field i x <$> rec e
       Primitive i x e           -> Primitive i x <$> rec e
       Mutual i ds               -> Mutual i <$> rec ds
-      Section i m tel ds        -> Section i m <$> rec tel <*> rec ds
-      Apply i m a ci d          -> (\ a -> Apply i m a ci d) <$> rec a
+      Section i e m tel ds      -> Section i e m <$> rec tel <*> rec ds
+      Apply i e m a ci d        -> (\a -> Apply i e m a ci d) <$> rec a
       Import{}                  -> pure d
       Pragma i p                -> Pragma i <$> rec p
       Open{}                    -> pure d
       FunDef i f d cs           -> FunDef i f d <$> rec cs
-      DataSig i d tel e         -> DataSig i d <$> rec tel <*> rec e
+      DataSig i er d tel e      -> DataSig i er d <$> rec tel <*> rec e
       DataDef i d uc bs cs      -> DataDef i d uc <$> rec bs <*> rec cs
-      RecSig i r tel e          -> RecSig i r <$> rec tel <*> rec e
+      RecSig i er r tel e       -> RecSig i er r <$> rec tel <*> rec e
       RecDef i r uc dir bs e ds -> RecDef i r uc dir <$> rec bs <*> rec e <*> rec ds
       PatternSynDef f xs p      -> PatternSynDef f xs <$> rec p
       UnquoteDecl i is xs e     -> UnquoteDecl i is xs <$> rec e
       UnquoteDef i xs e         -> UnquoteDef i xs <$> rec e
+      UnquoteData i xs uc j cs e -> UnquoteData i xs uc j cs <$> rec e
       ScopedDecl s ds           -> ScopedDecl s <$> rec ds
     where
       rec :: RecurseExprRecFn m
@@ -483,16 +505,17 @@ instance DeclaredNames Declaration where
       Field _ q _                  -> singleton (WithKind FldName q)
       Primitive _ q _              -> singleton (WithKind PrimName q)
       Mutual _ decls               -> declaredNames decls
-      DataSig _ q _ _              -> singleton (WithKind DataName q)
+      DataSig _ _ q _ _            -> singleton (WithKind DataName q)
       DataDef _ q _ _ decls        -> singleton (WithKind DataName q) <> foldMap con decls
-      RecSig _ q _ _               -> singleton (WithKind RecName q)
+      RecSig _ _ q _ _             -> singleton (WithKind RecName q)
       RecDef _ q _ dir _ _ decls   -> singleton (WithKind RecName q) <> declaredNames dir <> declaredNames decls
       PatternSynDef q _ _          -> singleton (WithKind PatternSynName q)
       UnquoteDecl _ _ qs _         -> fromList $ map (WithKind OtherDefName) qs  -- could be Fun or Axiom
       UnquoteDef _ qs _            -> fromList $ map (WithKind FunName) qs       -- cannot be Axiom
+      UnquoteData _ d _ _ cs _     -> singleton (WithKind DataName d) <> (fromList $ map (WithKind ConName) cs) -- singleton _ <> map (WithKind ConName) cs
       FunDef _ q _ cls             -> singleton (WithKind FunName q) <> declaredNames cls
       ScopedDecl _ decls           -> declaredNames decls
-      Section _ _ _ decls          -> declaredNames decls
+      Section _ _ _ _ decls        -> declaredNames decls
       Pragma _ pragma              -> declaredNames pragma
       Apply{}                      -> mempty
       Import{}                     -> mempty
@@ -505,15 +528,16 @@ instance DeclaredNames Declaration where
 instance DeclaredNames Pragma where
   declaredNames = \case
     BuiltinNoDefPragma _b kind x -> singleton $ WithKind kind x
-    BuiltinPragma{}         -> mempty
-    CompilePragma{}         -> mempty
-    RewritePragma{}         -> mempty
-    StaticPragma{}          -> mempty
-    EtaPragma{}             -> mempty
-    InjectivePragma{}       -> mempty
-    InlinePragma{}          -> mempty
-    DisplayPragma{}         -> mempty
-    OptionsPragma{}         -> mempty
+    BuiltinPragma{}           -> mempty
+    CompilePragma{}           -> mempty
+    RewritePragma{}           -> mempty
+    StaticPragma{}            -> mempty
+    EtaPragma{}               -> mempty
+    InjectivePragma{}         -> mempty
+    InlinePragma{}            -> mempty
+    NotProjectionLikePragma{} -> mempty
+    DisplayPragma{}           -> mempty
+    OptionsPragma{}           -> mempty
 
 instance DeclaredNames Clause where
   declaredNames (Clause _ _ rhs decls _) = declaredNames rhs <> declaredNames decls
@@ -575,7 +599,6 @@ instance DeclaredNames RHS where
 --     Set{}                 -> mempty
 --     Prop{}                -> mempty
 --     Let _ lbs e           -> declaredNames lbs <> declaredNames e
---     ETel{}                -> __IMPOSSIBLE__
 --     Rec _ fields          -> declaredNames fields
 --     RecUpdate _ e fs      -> declaredNames e <> declaredNames fs
 --     ScopedExpr _ e        -> declaredNames e

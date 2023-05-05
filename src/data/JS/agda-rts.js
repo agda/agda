@@ -185,7 +185,6 @@ exports.primFloatIsSafeInteger = function(x) {
 
 
 // These WORD64 values were obtained via `castDoubleToWord64` in Haskell:
-const WORD64_NAN      = 18444492273895866368n;
 const WORD64_POS_INF  = 9218868437227405312n;
 const WORD64_NEG_INF  = 18442240474082181120n;
 const WORD64_POS_ZERO = 0n;
@@ -193,7 +192,7 @@ const WORD64_NEG_ZERO = 9223372036854775808n;
 
 exports.primFloatToWord64 = function(x) {
     if (exports.primFloatIsNaN(x)) {
-        return WORD64_NAN;
+        return null;
     }
     else if (x < 0.0 && exports.primFloatIsInfinite(x)) {
         return WORD64_NEG_INF;
@@ -375,3 +374,21 @@ exports.primShowQName = x => x['name'];
 
 // primQNameFixity : Name -> Fixity
 exports.primQNameFixity = x => x['fixity'];
+
+// Meta
+
+// primShowMeta : Meta -> String
+//   Should be kept in sync with version in `primitiveFunctions` in
+//   Agda.TypeChecking.Primitive
+exports.primShowMeta = x => "_" + x['id'] + "@" + x['module'];
+
+// primMetaToNat : Meta -> Nat
+//   Should be kept in sync with `metaToNat` in Agda.TypeChecking.Primitive
+exports.primMetaToNat = x => x['module'] * 2^64 + x['id'];
+
+// primMetaEquality : Meta -> Meta -> Bool
+exports.primMetaEquality = x => y => x['id'] === y['id'] && x['module'] === y['module'];
+
+// primMetaLess : Meta -> Meta -> Bool
+exports.primMetaLess = x => y => x['id'] === y['id'] ? x['module'] < y['module'] : x['id'] < y['id'];
+

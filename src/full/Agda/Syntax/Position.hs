@@ -7,6 +7,8 @@ module Agda.Syntax.Position
   , PositionWithoutFile
   , Position'(..)
   , SrcFile
+  , RangeFile(..)
+  , mkRangeFile
   , positionInvariant
   , startPos
   , movePos
@@ -34,6 +36,8 @@ module Agda.Syntax.Position
   , intervalToRange
   , rangeIntervals
   , rangeFile
+  , rangeModule'
+  , rangeModule
   , rightMargin
   , noRange
   , posToRange, posToRange'
@@ -63,23 +67,26 @@ module Agda.Syntax.Position
 import Prelude hiding ( null )
 
 import Control.DeepSeq
+import Control.Monad
 import Control.Monad.Writer (runWriter, tell)
 
 import qualified Data.Foldable as Fold
-import Data.Function
+import Data.Function (on)
 import Data.Int
-import Data.List (foldl', sort)
+import Data.List (sort)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Data (Data)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Semigroup (Semigroup(..))
 import Data.Void
 
 import GHC.Generics (Generic)
+
+import {-# SOURCE #-} Agda.Syntax.TopLevelModuleName
+  (TopLevelModuleName)
 
 import Agda.Utils.FileName
 import Agda.Utils.List
@@ -115,7 +122,7 @@ data Position' a = Pn
   , posCol  :: !Int32
     -- ^ Column number, counting from 1.
   }
-  deriving (Show, Data, Functor, Foldable, Traversable, Generic)
+  deriving (Show, Functor, Foldable, Traversable, Generic)
 
 positionInvariant :: Position' a -> Bool
 positionInvariant p =
@@ -130,7 +137,49 @@ instance Eq a => Eq (Position' a) where
 instance Ord a => Ord (Position' a) where
   compare = compare `on` importantPart
 
-type SrcFile = Strict.Maybe AbsolutePath
+type SrcFile = Strict.Maybe RangeFile
+
+-- | File information used in the 'Position', 'Interval' and 'Range'
+-- types.
+data RangeFile = RangeFile
+  { rangeFilePath :: !AbsolutePath
+    -- ^ The file's path.
+  , rangeFileName :: !(Maybe TopLevelModuleName)
+    -- ^ The file's top-level module name (if applicable).
+    --
+    -- This field is optional, but some things may break if the field
+    -- is not instantiated with an actual top-level module name. For
+    -- instance, the 'Eq' and 'Ord' instances only make use of this
+    -- field.
+    --
+    -- The field uses 'Maybe' rather than 'Strict.Maybe' because it
+    -- should be possible to instantiate it with something that is not
+    -- yet defined (see 'Agda.Interaction.Imports.parseSource').
+    --
+    -- This 'TopLevelModuleName' should not contain a range.
+  }
+  deriving (Show, Generic)
+
+-- | A smart constructor for 'RangeFile'.
+
+mkRangeFile :: AbsolutePath -> Maybe TopLevelModuleName -> RangeFile
+mkRangeFile f top = RangeFile
+  { rangeFilePath = f
+  , rangeFileName = killRange top
+  }
+
+-- | Only the 'rangeFileName' component is compared.
+
+instance Eq RangeFile where
+  (==) = (==) `on` rangeFileName
+
+-- | Only the 'rangeFileName' component is compared.
+
+instance Ord RangeFile where
+  compare = compare `on` rangeFileName
+
+instance NFData RangeFile where
+  rnf (RangeFile _ n) = rnf n
 
 type Position            = Position' SrcFile
 type PositionWithoutFile = Position' ()
@@ -145,7 +194,7 @@ instance NFData PositionWithoutFile where
 --
 -- Note the invariant which intervals have to satisfy: 'intervalInvariant'.
 data Interval' a = Interval { iStart, iEnd :: !(Position' a) }
-  deriving (Show, Data, Eq, Ord, Functor, Foldable, Traversable, Generic)
+  deriving (Show, Eq, Ord, Functor, Foldable, Traversable, Generic)
 
 type Interval            = Interval' SrcFile
 type IntervalWithoutFile = Interval' ()
@@ -196,7 +245,7 @@ data Range' a
   = NoRange
   | Range !a (Seq IntervalWithoutFile)
   deriving
-    (Show, Data, Eq, Ord, Functor, Foldable, Traversable, Generic)
+    (Show, Eq, Ord, Functor, Foldable, Traversable, Generic)
 
 type Range = Range' SrcFile
 
@@ -208,18 +257,16 @@ instance Null (Range' a) where
 
   empty = NoRange
 
-instance Semigroup a => Semigroup (Range' a) where
+instance Eq a => Semigroup (Range' a) where
   NoRange <> r = r
   r <> NoRange = r
-  Range f is <> Range f' is' = Range (f <> f') (is <> is')
+  Range f is <> Range f' is'
+    | f /= f'   = __IMPOSSIBLE__
+    | otherwise = Range f (is <> is')
 
-instance Semigroup a => Monoid (Range' a) where
+instance Eq a => Monoid (Range' a) where
   mempty  = empty
   mappend = (<>)
-
--- | To get @'Semigroup' 'Range'@, we need a semigroup instance for 'AbsolutePath'.
-instance Semigroup AbsolutePath where
-  f <> f' = if f == f' then f else __IMPOSSIBLE__
 
 -- | The intervals that make up the range. The intervals are
 -- consecutive and separated ('consecutiveAndSeparated').
@@ -260,6 +307,20 @@ rangeInvariant r =
 rangeFile :: Range -> SrcFile
 rangeFile NoRange     = Strict.Nothing
 rangeFile (Range f _) = f
+
+-- | The range's top-level module name, if any.
+--
+-- If there is no range, then 'Nothing' is returned. If there is a
+-- range without a module name, then @'Just' 'Nothing'@ is returned.
+rangeModule' :: Range -> Maybe (Maybe TopLevelModuleName)
+rangeModule' NoRange     = Nothing
+rangeModule' (Range f _) = Just $ case f of
+  Strict.Nothing -> Nothing
+  Strict.Just f  -> rangeFileName f
+
+-- | The range's top-level module name, if any.
+rangeModule :: Range -> Maybe TopLevelModuleName
+rangeModule = join . rangeModule'
 
 -- | Conflate a range to its right margin.
 rightMargin :: Range -> Range
@@ -543,6 +604,9 @@ instance (KillRange a, KillRange b) => KillRange (Either a b) where
 -- Printing
 ------------------------------------------------------------------------
 
+instance Pretty RangeFile where
+  pretty = pretty . rangeFilePath
+
 instance Pretty a => Pretty (Position' (Strict.Maybe a)) where
   pretty (Pn Strict.Nothing  _ l c) = pretty l <> "," <> pretty c
   pretty (Pn (Strict.Just f) _ l c) =
@@ -594,7 +658,7 @@ startPos' f = Pn
   }
 
 -- | The first position in a file: position 1, line 1, column 1.
-startPos :: Maybe AbsolutePath -> Position
+startPos :: Maybe RangeFile -> Position
 startPos = startPos' . Strict.toStrict
 
 -- | Ranges between two unknown positions
@@ -612,8 +676,8 @@ movePos (Pn f p l c) _    = Pn f (p + 1) l (c + 1)
 -- | Advance the position by a string.
 --
 --   > movePosByString = foldl' movePos
-movePosByString :: Position' a -> String -> Position' a
-movePosByString = foldl' movePos
+movePosByString :: Foldable t => Position' a -> t Char -> Position' a
+movePosByString = Fold.foldl' movePos
 
 -- | Backup the position by one character.
 --

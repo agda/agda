@@ -86,9 +86,13 @@ parsePragma (CompilerPragma r s) =
 
     paren = between (skipSpaces *> char '(') (skipSpaces *> char ')')
 
+    isPrefixSpaceOf pre s = case List.stripPrefix pre s of
+      Just (x:_) -> isSpace x
+      _ -> False
+
     notTypeOrData = do
       s <- look
-      guard $ not $ any (`List.isPrefixOf` s) ["type", "data"]
+      guard $ not $ any (`isPrefixSpaceOf` s) ["type", "data"]
 
     exportP = HsExport r <$ wordsP ["as"]        <* whitespace <*> hsIdent <* skipSpaces
     typeP   = HsType   r <$ wordsP ["=", "type"] <* whitespace <*> hsCode
@@ -178,7 +182,7 @@ getHaskellConstructor c = do
 --   file header pragmas, import statements, rest.
 foreignHaskell :: Interface -> ([String], [String], [String])
 foreignHaskell = partitionByKindOfForeignCode classifyForeign
-    . map getCode . fromMaybe [] . Map.lookup ghcBackendName . iForeignCode
+    . map getCode . maybe [] (reverse . getForeignCodeStack) . Map.lookup ghcBackendName . iForeignCode
   where getCode (ForeignCode _ code) = code
 
 -- | Classify @FOREIGN@ Haskell code.

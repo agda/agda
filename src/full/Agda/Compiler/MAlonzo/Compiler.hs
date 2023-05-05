@@ -54,6 +54,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Names (namesIn)
 import qualified Agda.Syntax.Treeless as T
 import Agda.Syntax.Literal
+import Agda.Syntax.TopLevelModuleName
 
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Primitive (getBuiltinName)
@@ -70,6 +71,7 @@ import Agda.Utils.Float
 import Agda.Utils.IO.Directory
 import Agda.Utils.Lens
 import Agda.Utils.List
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow, render)
@@ -192,7 +194,7 @@ data GHCDefinition = GHCDefinition
   , ghcDefDecls      :: [HS.Decl]
   , ghcDefDefinition :: Definition
   , ghcDefMainDef    :: Maybe MainFunctionDef
-  , ghcDefImports    :: Set ModuleName
+  , ghcDefImports    :: Set TopLevelModuleName
   }
 
 --- Top-level compilation ---
@@ -267,6 +269,8 @@ ghcPreCompile flags = do
       , builtinAgdaTCMFreshName
       , builtinAgdaTCMDeclareDef
       , builtinAgdaTCMDeclarePostulate
+      , builtinAgdaTCMDeclareData
+      , builtinAgdaTCMDefineData
       , builtinAgdaTCMDefineFun
       , builtinAgdaTCMGetType
       , builtinAgdaTCMGetDefinition
@@ -274,15 +278,21 @@ ghcPreCompile flags = do
       , builtinAgdaTCMCommit
       , builtinAgdaTCMIsMacro
       , builtinAgdaTCMWithNormalisation
-      , builtinAgdaTCMWithReconsParams
+      , builtinAgdaTCMWithReconstructed
+      , builtinAgdaTCMWithExpandLast
+      , builtinAgdaTCMWithReduceDefs
+      , builtinAgdaTCMAskNormalisation
+      , builtinAgdaTCMAskReconstructed
+      , builtinAgdaTCMAskExpandLast
+      , builtinAgdaTCMAskReduceDefs
       , builtinAgdaTCMFormatErrorParts
       , builtinAgdaTCMDebugPrint
-      , builtinAgdaTCMOnlyReduceDefs
-      , builtinAgdaTCMDontReduceDefs
       , builtinAgdaTCMNoConstraints
       , builtinAgdaTCMRunSpeculative
       , builtinAgdaTCMExec
       , builtinAgdaTCMGetInstances
+      , builtinAgdaTCMPragmaForeign
+      , builtinAgdaTCMPragmaCompile
       ]
     return $
       flip HashSet.member $
@@ -322,7 +332,8 @@ ghcPreCompile flags = do
     , ghcEnvIsTCBuiltin = istcbuiltin
     }
 
-ghcPostCompile :: GHCEnv -> IsMain -> Map ModuleName GHCModule -> TCM ()
+ghcPostCompile ::
+  GHCEnv -> IsMain -> Map TopLevelModuleName GHCModule -> TCM ()
 ghcPostCompile _cenv _isMain mods = do
   -- FIXME: @curMName@ and @curIF@ are evil TCM state, but there does not appear to be
   --------- another way to retrieve the compilation root ("main" module or interaction focused).
@@ -338,7 +349,7 @@ ghcPostCompile _cenv _isMain mods = do
 ghcPreModule
   :: GHCEnv
   -> IsMain      -- ^ Are we looking at the main module?
-  -> ModuleName
+  -> TopLevelModuleName
   -> Maybe FilePath    -- ^ Path to the @.agdai@ file.
   -> TCM (Recompile GHCModuleEnv GHCModule)
                  -- ^ Could we confirm the existence of a main function?
@@ -358,7 +369,8 @@ ghcPreModule cenv isMain m mifile =
     ifileDesc = fromMaybe "(memory)" mifile
 
     noComp = do
-      reportSLn "compile.ghc" 2 . (++ " : no compilation is needed.") . prettyShow . A.mnameToConcrete =<< curMName
+      reportSLn "compile.ghc" 2 .
+        (++ " : no compilation is needed.") . prettyShow =<< curMName
       menv <- ask
       mainDefs <- ifM curIsMainModule
                          (mainFunctionDefs <$> curIF)
@@ -366,7 +378,7 @@ ghcPreModule cenv isMain m mifile =
       return . Skip $ GHCModule menv mainDefs
 
     yesComp = do
-      m   <- prettyShow . A.mnameToConcrete <$> curMName
+      m   <- prettyShow <$> curMName
       out <- curOutFile
       reportSLn "compile.ghc" 1 $ repl [m, ifileDesc, out] "Compiling <<0>> in <<1>> to <<2>>"
       asks Recompile
@@ -375,7 +387,7 @@ ghcPostModule
   :: GHCEnv
   -> GHCModuleEnv
   -> IsMain        -- ^ Are we looking at the main module?
-  -> ModuleName
+  -> TopLevelModuleName
   -> [GHCDefinition]   -- ^ Compiled module content.
   -> TCM GHCModule
 ghcPostModule _cenv menv _isMain _moduleName ghcDefs = do
@@ -423,7 +435,9 @@ ghcMayEraseType q = getHaskellPragma q <&> \case
 
 -- Compilation ------------------------------------------------------------
 
-imports :: BuiltinThings PrimFun -> Set ModuleName -> [Definition] -> [HS.ImportDecl]
+imports ::
+  BuiltinThings PrimFun -> Set TopLevelModuleName -> [Definition] ->
+  [HS.ImportDecl]
 imports builtinThings usedModules defs = hsImps ++ imps where
   hsImps :: [HS.ImportDecl]
   hsImps = [unqualRTE, decl mazRTE]
@@ -444,7 +458,7 @@ imports builtinThings usedModules defs = hsImps ++ imps where
   decl :: HS.ModuleName -> HS.ImportDecl
   decl m = HS.ImportDecl m True Nothing
 
-  mnames :: [ModuleName]
+  mnames :: [TopLevelModuleName]
   mnames = Set.elems usedModules
 
   uniq :: [HS.ModuleName] -> [HS.ModuleName]
@@ -514,7 +528,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
       -- Compiling Bool
       Datatype{} | is ghcEnvBool -> do
-        _ <- sequence_ [primTrue, primFalse] -- Just to get the proper error for missing TRUE/FALSE
+        sequence_ [primTrue, primFalse] -- Just to get the proper error for missing TRUE/FALSE
         let d = dname q
         Just true  <- getBuiltinName builtinTrue
         Just false <- getBuiltinName builtinFalse
@@ -525,7 +539,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
       -- Compiling List
       Datatype{ dataPars = np } | is ghcEnvList -> do
-        _ <- sequence_ [primNil, primCons] -- Just to get the proper error for missing NIL/CONS
+        sequence_ [primNil, primCons] -- Just to get the proper error for missing NIL/CONS
         caseMaybe pragma (return ()) $ \ p -> setCurrentRange p $ warning . GenericWarning =<< do
           fsep $ pwords "Ignoring GHC pragma for builtin lists; they always compile to Haskell lists."
         let d = dname q
@@ -540,7 +554,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
       -- Compiling Maybe
       Datatype{ dataPars = np } | is ghcEnvMaybe -> do
-        _ <- sequence_ [primNothing, primJust] -- Just to get the proper error for missing NOTHING/JUST
+        sequence_ [primNothing, primJust] -- Just to get the proper error for missing NOTHING/JUST
         caseMaybe pragma (return ()) $ \ p -> setCurrentRange p $ warning . GenericWarning =<< do
           fsep $ pwords "Ignoring GHC pragma for builtin maybe; they always compile to Haskell lists."
         let d = dname q
@@ -570,7 +584,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       -- The interval is compiled as the type of booleans: 0 is
       -- compiled as False and 1 as True.
       Axiom{} | is ghcEnvInterval -> do
-        _       <- sequence_ [primIZero, primIOne]
+        sequence_ [primIZero, primIOne]
         Just i0 <- getBuiltinName builtinIZero
         Just i1 <- getBuiltinName builtinIOne
         cs      <- mapM (compiledcondecl (Just 0)) [i0, i1]
@@ -623,7 +637,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       -- PathP is compiled as a function from the interval (booleans)
       -- to the underlying type.
       Axiom{} | is ghcEnvPathP -> do
-        _        <- sequence_ [primInterval]
+        sequence_ [primInterval]
         Just int <- getBuiltinName builtinInterval
         int      <- xhqn TypeK int
         retDecls $
@@ -660,7 +674,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       -- Id x y is compiled as a pair of a boolean and whatever
       -- Path x y is compiled to.
       Datatype{} | is ghcEnvId -> do
-        _        <- sequence_ [primInterval]
+        sequence_ [primInterval]
         Just int <- getBuiltinName builtinInterval
         int      <- xhqn TypeK int
         -- re  #3733: implement reflId
@@ -708,7 +722,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
                    fb axiomErr
       Primitive{ primName = s } -> (mempty,) . fb <$> (liftTCM . primBody) s
 
-      PrimitiveSort{ primName = s } -> retDecls []
+      PrimitiveSort{} -> retDecls []
 
       Function{} -> function pragma $ functionViaTreeless q
 
@@ -790,7 +804,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       def <- getConstInfo q
       (argTypes0, resType) <- hsTelApproximation $ defType def
       let pars = case theDef def of
-                   Function{ funProjection = Just Projection{ projIndex = i } } | i > 0 -> i - 1
+                   Function{ funProjection = Right Projection{ projIndex = i } } | i > 0 -> i - 1
                    _ -> 0
           argTypes  = drop pars argTypes0
           argTypesS = filterUsed used argTypes
@@ -852,10 +866,10 @@ data CCEnv = CCEnv
 type NameSupply = [HS.Name]
 type CCContext  = [HS.Name]
 
-ccNameSupply :: Lens' NameSupply CCEnv
+ccNameSupply :: Lens' CCEnv NameSupply
 ccNameSupply f e =  (\ ns' -> e { _ccNameSupply = ns' }) <$> f (_ccNameSupply e)
 
-ccContext :: Lens' CCContext CCEnv
+ccContext :: Lens' CCEnv CCContext
 ccContext f e = (\ cxt -> e { _ccContext = cxt }) <$> f (_ccContext e)
 
 -- | Initial environment for expression generation.
@@ -1043,6 +1057,7 @@ alt sc a = do
                       (HS.GuardedRhss [HS.GuardedRhs [HS.Qualifier g] b])
                       emptyBinds
     T.TALit { T.aLit = LitQName q } -> mkAlt (litqnamepat q)
+    T.TALit { T.aLit = LitMeta _ m } -> mkAlt (litmetapat m)
     T.TALit { T.aLit = l@LitFloat{}, T.aBody = b } -> do
       tell YesFloat
       l <- literal l
@@ -1065,7 +1080,10 @@ alt sc a = do
     mkAlt :: HS.Pat -> CC HS.Alt
     mkAlt pat = do
         body' <- term $ T.aBody a
-        return $ HS.Alt pat (HS.UnGuardedRhs body') emptyBinds
+        let body'' = case body' of
+                       HS.Lambda{} -> hsCoerce body'
+                       _           -> body'
+        return $ HS.Alt pat (HS.UnGuardedRhs body'') emptyBinds
 
 literal :: forall m. Monad m => Literal -> CCT m HS.Exp
 literal l = case l of
@@ -1074,6 +1092,10 @@ literal l = case l of
   LitFloat  x   -> floatExp x "Double"
   LitQName  x   -> return $ litqname x
   LitString s   -> return $ litString s
+  LitMeta _ m   ->
+    return $ HS.FakeExp "(,)" `HS.App`
+             hsTypedInt (metaId m) `HS.App`
+             (hsTypedInt (moduleNameHash $ metaModule m))
   _             -> return $ l'
   where
     l'    = HS.Lit $ hslit l
@@ -1137,6 +1159,12 @@ litqnamepat x =
           , HS.PWildCard, HS.PWildCard ]
   where
     NameId n (ModuleNameHash m) = nameId $ qnameName x
+
+litmetapat :: MetaId -> HS.Pat
+litmetapat (MetaId m h) =
+  HS.PApp (hsName "(,)")
+          [ HS.PLit (HS.Int $ fromIntegral m)
+          , HS.PLit (HS.Int $ fromIntegral $ moduleNameHash h) ]
 
 condecl :: QName -> Induction -> HsCompileM HS.ConDecl
 condecl q _ind = do
@@ -1273,10 +1301,11 @@ curOutFile = snd <$> curOutFileAndDir
 
 callGHC :: ReaderT GHCModule TCM ()
 callGHC = do
-  opts    <- askGhcOpts
-  hsmod   <- prettyPrint <$> curHsMod
-  agdaMod <- curAgdaMod
-  let outputName = lastWithDefault __IMPOSSIBLE__ $ mnameToList agdaMod
+  opts     <- askGhcOpts
+  agdaOpts <- lift commandLineOptions
+  hsmod    <- prettyPrint <$> curHsMod
+  agdaMod  <- curAgdaMod
+  let outputName = Text.unpack $ List1.last $ moduleNameParts agdaMod
   (mdir, fp) <- curOutFileAndDir
   let ghcopts = optGhcFlags opts
 
@@ -1291,7 +1320,7 @@ callGHC = do
 
   let overridableArgs =
         [ "-O"] ++
-        (if isMain then ["-o", mdir </> prettyShow (nameConcrete outputName)] else []) ++
+        (if isMain then ["-o", mdir </> outputName] else []) ++
         [ "-Werror"]
       otherArgs       =
         [ "-i" ++ mdir] ++
@@ -1310,4 +1339,8 @@ callGHC = do
   -- those versions of GHC we don't print any progress information
   -- unless an error is encountered.
   let doCall = optGhcCallGhc opts
-  liftTCM $ callCompiler doCall ghcBin args (Just utf8)
+      cwd    = if optGHCiInteraction agdaOpts ||
+                  optJSONInteraction agdaOpts
+               then Just mdir
+               else Nothing
+  liftTCM $ callCompiler doCall ghcBin args cwd (Just utf8)

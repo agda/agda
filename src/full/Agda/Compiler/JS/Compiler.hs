@@ -30,12 +30,13 @@ import Agda.Interaction.Options
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name ( isNoName )
 import Agda.Syntax.Abstract.Name
-  ( ModuleName, QName,
+  ( QName,
     mnameToList, qnameName, qnameModule, nameId )
 import Agda.Syntax.Internal
   ( Name, Type
   , nameFixity, unDom, telToList )
 import Agda.Syntax.Literal       ( Literal(..) )
+import Agda.Syntax.TopLevelModuleName (TopLevelModuleName(..))
 import Agda.Syntax.Treeless      ( ArgUsage(..), filterUsed )
 import qualified Agda.Syntax.Treeless as T
 
@@ -58,8 +59,9 @@ import qualified Agda.Utils.Pretty as P
 import Agda.Utils.IO.Directory
 import Agda.Utils.IO.UTF8 ( writeFile )
 import Agda.Utils.Singleton ( singleton )
+import Agda.Utils.Size (size)
 
-import Agda.Compiler.Common
+import Agda.Compiler.Common as CC
 import Agda.Compiler.ToTreeless
 import Agda.Compiler.Treeless.EliminateDefaults
 import Agda.Compiler.Treeless.EliminateLiteralPatterns
@@ -77,6 +79,7 @@ import Agda.Compiler.JS.Syntax
 import Agda.Compiler.JS.Substitution
   ( curriedLambda, curriedApply, emp, apply )
 import qualified Agda.Compiler.JS.Pretty as JSPretty
+import Agda.Compiler.JS.Pretty (JSModuleStyle(..))
 
 import Agda.Utils.Impossible (__IMPOSSIBLE__)
 
@@ -117,8 +120,11 @@ data JSOptions = JSOptions
       -- ^ Remove spaces etc. See https://en.wikipedia.org/wiki/Minification_(programming).
   , optJSVerify   :: Bool
       -- ^ Run generated code through interpreter.
+  , optJSModuleStyle :: JSModuleStyle
   }
   deriving Generic
+
+instance NFData JSModuleStyle
 
 instance NFData JSOptions
 
@@ -128,6 +134,7 @@ defaultJSOptions = JSOptions
   , optJSOptimize = False
   , optJSMinify   = False
   , optJSVerify   = False
+  , optJSModuleStyle = JSCJS
   }
 
 jsCommandLineFlags :: [OptDescr (Flag JSOptions)]
@@ -137,12 +144,16 @@ jsCommandLineFlags =
     -- Minification is described at https://en.wikipedia.org/wiki/Minification_(programming)
     , Option [] ["js-minify"] (NoArg enableMin) "minify generated JS code"
     , Option [] ["js-verify"] (NoArg enableVerify) "except for main module, run generated JS modules through `node` (needs to be in PATH)"
+    , Option [] ["js-cjs"] (NoArg setCJS) "use CommonJS module style (default)"
+    , Option [] ["js-amd"] (NoArg setAMD) "use AMD module style for JS"
     ]
   where
     enable       o = pure o{ optJSCompile  = True }
     enableOpt    o = pure o{ optJSOptimize = True }
     enableMin    o = pure o{ optJSMinify   = True }
     enableVerify o = pure o{ optJSVerify   = True }
+    setCJS       o = pure o{ optJSModuleStyle = JSCJS }
+    setAMD       o = pure o{ optJSModuleStyle = JSAMD }
 
 --- Top-level compilation ---
 
@@ -154,14 +165,15 @@ jsPreCompile opts = do
           "Compilation of code that uses " ++ s ++ " is not supported."
   case cubical of
     Nothing      -> return ()
-    Just CErased -> return ()
+    Just CErased -> notSupported "--erased-cubical"
     Just CFull   -> notSupported "--cubical"
 
   return opts
 
 -- | After all modules have been compiled, copy RTE modules and verify compiled modules.
 
-jsPostCompile :: JSOptions -> IsMain -> Map.Map ModuleName Module -> TCM ()
+jsPostCompile ::
+  JSOptions -> IsMain -> Map.Map TopLevelModuleName Module -> TCM ()
 jsPostCompile opts _ ms = do
 
   -- Copy RTE modules.
@@ -169,8 +181,12 @@ jsPostCompile opts _ ms = do
   compDir  <- compileDir
   liftIO $ do
     dataDir <- getDataDir
-    let srcDir = dataDir </> "JS"
-    copyDirContent srcDir compDir
+    let fname = case optJSModuleStyle opts of
+          JSCJS -> "agda-rts.js"
+          JSAMD -> "agda-rts.amd.js"
+        srcPath = dataDir </> "JS" </> fname
+        compPath = compDir </> fname
+    copyIfChanged srcPath compPath
 
   -- Verify generated JS modules (except for main).
 
@@ -193,14 +209,6 @@ jsPostCompile opts _ ms = do
         reportSLn "compile.js.verify" 20 $ unwords [ "calling:", cmd ]
         liftIO $ callCommand cmd
 
-
-mergeModules :: Map.Map ModuleName Module -> [(GlobalId, Export)]
-mergeModules ms
-    = [ (jsMod n, e)
-      | (n, Module _ _ es _) <- Map.toList ms
-      , e <- es
-      ]
-
 --- Module compilation ---
 
 data JSModuleEnv = JSModuleEnv
@@ -209,7 +217,9 @@ data JSModuleEnv = JSModuleEnv
     -- ^ Should this module be compiled?
   }
 
-jsPreModule :: JSOptions -> IsMain -> ModuleName -> Maybe FilePath -> TCM (Recompile JSModuleEnv Module)
+jsPreModule ::
+  JSOptions -> IsMain -> TopLevelModuleName -> Maybe FilePath ->
+  TCM (Recompile JSModuleEnv Module)
 jsPreModule _opts _ m mifile = do
   cubical <- optCubical <$> pragmaOptions
   let compile = case cubical of
@@ -241,12 +251,14 @@ jsPreModule _opts _ m mifile = do
         , jsCompile        = compile
         }
 
-jsPostModule :: JSOptions -> JSModuleEnv -> IsMain -> ModuleName -> [Maybe Export] -> TCM Module
+jsPostModule ::
+  JSOptions -> JSModuleEnv -> IsMain -> TopLevelModuleName ->
+  [Maybe Export] -> TCM Module
 jsPostModule opts _ isMain _ defs = do
-  m             <- jsMod <$> curMName
-  is            <- map (jsMod . fst) . iImportedModules <$> curIF
+  m  <- jsMod <$> curMName
+  is <- map (jsMod . fst) . iImportedModules <$> curIF
   let mod = Module m is (reorder es) callMain
-  writeModule (optJSMinify opts) mod
+  writeModule (optJSMinify opts) (optJSModuleStyle opts) mod
   return mod
   where
   es       = catMaybes defs
@@ -269,8 +281,9 @@ jsCompileDef opts kit _isMain def = definition (opts, kit) (defName def, def)
 prefix :: [Char]
 prefix = "jAgda"
 
-jsMod :: ModuleName -> GlobalId
-jsMod m = GlobalId (prefix : map prettyShow (mnameToList m))
+jsMod :: TopLevelModuleName -> GlobalId
+jsMod m =
+  GlobalId (prefix : map T.unpack (List1.toList (moduleNameParts m)))
 
 jsFileName :: GlobalId -> String
 jsFileName (GlobalId ms) = intercalate "." ms ++ ".js"
@@ -285,17 +298,17 @@ jsMember n
 
 global' :: QName -> TCM (Exp, JSQName)
 global' q = do
-  i <- iModuleName <$> curIF
-  modNm <- topLevelModuleName (qnameModule q)
+  i   <- iTopLevelModuleName <$> curIF
+  top <- CC.topLevelModuleName (qnameModule q)
   let
     -- Global module prefix
     qms = mnameToList $ qnameModule q
     -- File-local module prefix
-    localms = drop (length $ mnameToList modNm) qms
+    localms = drop (size top) qms
     nm = fmap jsMember $ List1.snoc localms $ qnameName q
-  if modNm == i
+  if top == i
     then return (Self, nm)
-    else return (Global (jsMod modNm), nm)
+    else return (Global (jsMod top), nm)
 
 global :: QName -> TCM (Exp, JSQName)
 global q = do
@@ -559,7 +572,7 @@ compileTerm kit t = go t
       T.TCon q -> do
         d <- getConstInfo q
         qname q
-      T.TCase sc ct def alts | T.CTData _ dt <- T.caseType ct -> do
+      T.TCase sc ct def alts | T.CTData dt <- T.caseType ct -> do
         dt <- getConstInfo dt
         alts' <- traverse (compileAlt kit) alts
         let cs  = defConstructors $ theDef dt
@@ -668,7 +681,7 @@ literal = \case
   (LitString x) -> String  x
   (LitChar   x) -> Char    x
   (LitQName  x) -> litqname x
-  LitMeta{}     -> __IMPOSSIBLE__
+  (LitMeta _ m) -> litmeta m
 
 litqname :: QName -> Exp
 litqname q =
@@ -695,14 +708,21 @@ litqname q =
     litPrec Unrelated   = String "unrelated"
     litPrec (Related l) = Double l
 
+litmeta :: MetaId -> Exp
+litmeta (MetaId m h) =
+  Object $ Map.fromListWith __IMPOSSIBLE__
+    [ (MemberId "id", Integer $ fromIntegral m)
+    , (MemberId "module", Integer $ fromIntegral $ moduleNameHash h) ]
+
+
 --------------------------------------------------
 -- Writing out an ECMAScript module
 --------------------------------------------------
 
-writeModule :: Bool -> Module -> TCM ()
-writeModule minify m = do
+writeModule :: Bool -> JSModuleStyle -> Module -> TCM ()
+writeModule minify ms m = do
   out <- outFile (modName m)
-  liftIO (writeFile out (JSPretty.prettyShow minify m))
+  liftIO (writeFile out (JSPretty.prettyShow minify ms m))
 
 outFile :: GlobalId -> TCM FilePath
 outFile m = do
@@ -832,10 +852,10 @@ primitives = Set.fromList
   , "primQNameFixity"
   -- , "primQNameToWord64s"          -- missing
   -- , "primQNameToWord64sInjective" -- missing
-  -- , "primMetaEquality"            -- missing
-  -- , "primMetaLess"                -- missing
-  -- , "primShowMeta"                -- missing
-  -- , "primMetaToNat"               -- missing
+  , "primMetaEquality"
+  , "primMetaLess"
+  , "primShowMeta"
+  , "primMetaToNat"
   -- , "primMetaToNatInjective"      -- missing
   , builtinIMin
   , builtinIMax

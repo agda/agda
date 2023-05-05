@@ -20,6 +20,8 @@ import Data.List (partition, sortBy)
 import Data.Monoid
 import Data.Function (on)
 
+import Agda.Interaction.Options.Base
+
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name (LensInScope(..))
 import Agda.Syntax.Position
@@ -46,13 +48,14 @@ import Agda.Utils.Benchmark
 import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
-import Agda.Utils.List   (hasElem)
+import Agda.Utils.Lens
+import Agda.Utils.List (downFrom, hasElem)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Size
 import Agda.Utils.Permutation
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Utils.Pretty (prettyShow, singPlural)
 import Agda.Utils.Tuple
 
 -- | Generalize a telescope over a set of generalizable variables.
@@ -98,7 +101,7 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
   --   Γ (r : R) Θ ⊢ letbinds
   --   Γ Δ Θρ      ⊢ letbinds' = letbinds(lift |Θ| ρ)
   letbinds' <- applySubst (liftS (size tel) sub) <$> instantiateFull letbinds
-  let addLet (x, (v, dom)) = addLetBinding' x v dom
+  let addLet (x, LetBinding o v dom) = addLetBinding' o x v dom
 
   updateContext sub ((genTelCxt ++) . drop 1) $
     updateContext (raiseS (size tel')) (newTelCxt ++) $
@@ -375,8 +378,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
     prune cxt tel (x : xs) | not (isGeneralized x) = do
       -- If x is a blocked term we shouldn't instantiate it.
       whenM (not <$> isBlockedTerm x) $ do
-        x <- if size tel > 0 then prePrune x
-                             else return x
+        x <- if null tel then return x else prePrune x
         pruneMeta (telFromList $ reverse cxt) x
       prune cxt tel xs
     prune cxt (ExtendTel a tel) (x : xs) = prune (fmap (x,) a : cxt) (unAbs tel) xs
@@ -585,10 +587,15 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
     findGenRec :: MetaVariable -> TCM (Maybe Int)
     findGenRec mv = do
       cxt <- instantiateFull =<< getContext
-      let notPruned = permute (takeP (length cxt) $ mvPermutation mv) $
-               reverse $ zipWith const [0..] cxt
-      case [ i | (i, Dom{unDom = (_, El _ (Def q _))}) <- zip [0..] cxt,
-                 q == genRecName, i `elem` notPruned ] of
+      let n         = length cxt
+          notPruned = IntSet.fromList $
+                      permute (takeP n $ mvPermutation mv) $
+                      downFrom n
+      case [ i
+           | (i, Dom{unDom = (_, El _ (Def q _))}) <- zip [0..] cxt
+           , q == genRecName
+           , i `IntSet.member` notPruned
+           ] of
         []    -> return Nothing
         _:_:_ -> __IMPOSSIBLE__
         [i]   -> return (Just i)
@@ -652,11 +659,11 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
                      "clear, but simply mentioning the variables in the right order should also work."
           order = sep [ fwords "Dependency analysis suggested this (likely incorrect) order:",
                         nest 2 $ fwords (unwords names) ]
-          guess = "After constraint solving it looks like " ++ commas late ++ " actually depend" ++ s ++
-                  " on " ++ commas early
-            where
-              s | length late == 1 = "s"
-                | otherwise        = ""
+          guess = unwords
+            [ "After constraint solving it looks like", commas late
+            , singPlural late (++ "s") id "actually depend"
+            , "on", commas early
+            ]
       genericDocError =<< vcat
         [ fwords $ "Variable generalization failed."
         , nest 2 $ sep ["- Probable cause", nest 4 $ fwords cause]
@@ -795,6 +802,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                   , conFields    = map argFromDom genRecFields
                   }
   projIx <- succ . size <$> getContext
+  erasure <- optErasure <$> pragmaOptions
   inTopContext $ forM_ (zip sortedMetas genRecFields) $ \ (meta, fld) -> do
     fieldTy <- getMetaType meta
     let field = unDom fld
@@ -812,12 +820,14 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                , funMutual       = Just []
                , funAbstr        = ConcreteDef
                , funDelayed      = NotDelayed
-               , funProjection   = Just proj
+               , funProjection   = Right proj
+               , funErasure      = erasure
                , funFlags        = Set.empty
                , funTerminates   = Just True
                , funExtLam       = Nothing
                , funWith         = Nothing
                , funCovering     = []
+               , funIsKanOp      = Nothing
                }
   addConstant' (conName genRecCon) defaultArgInfo (conName genRecCon) __DUMMY_TYPE__ $ -- Filled in later
     Constructor { conPars   = 0
@@ -830,6 +840,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                 , conProj   = Nothing
                 , conForced = []
                 , conErased = Nothing
+                , conErasure = erasure
                 }
   let dummyTel 0 = EmptyTel
       dummyTel n = ExtendTel (defaultDom __DUMMY_TYPE__) $ Abs "_" $ dummyTel (n - 1)
@@ -880,7 +891,6 @@ fillInGenRecordDetails name con fields recTy fieldTel = do
   reportSDoc "tc.generalize" 40 $ text "Final genRecCon type:" <+> inTopContext (prettyTCM conType)
   setType (conName con) conType
   -- Record telescope: Includes both parameters and fields.
-  modifyGlobalDefinition name $ \ r ->
-    r { theDef = (theDef r) { recTel = fullTel } }
+  modifyGlobalDefinition name $ set (lensTheDef . lensRecord . lensRecTel) fullTel
   where
     setType q ty = modifyGlobalDefinition q $ \ d -> d { defType = ty }

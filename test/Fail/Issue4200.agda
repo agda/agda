@@ -1,5 +1,7 @@
 -- Andreas, 2019-12-03, issue #4200 reported and testcase by nad
 
+{-# OPTIONS --erasure #-}
+
 open import Agda.Builtin.Bool
 
 data D : Set where

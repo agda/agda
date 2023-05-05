@@ -19,12 +19,12 @@ module Agda.Syntax.Concrete.Operators
     ) where
 
 import Control.Applicative ( Alternative((<|>)))
-import Control.Arrow (second)
 import Control.Monad.Except (throwError)
 
 import Data.Either (partitionEithers)
 import qualified Data.Foldable as Fold
-import Data.Function
+import Data.Function (on)
+import qualified Data.Function
 import qualified Data.List as List
 import Data.Maybe
 import Data.Map (Map)
@@ -42,6 +42,7 @@ import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Position
 import Agda.Syntax.Notation
 import Agda.Syntax.Scope.Base
+import Agda.Syntax.Scope.Flat
 import Agda.Syntax.Scope.Monad
 
 import Agda.TypeChecking.Monad.Base (typeError, TypeError(..), LHSOrPatSyn(..))
@@ -80,45 +81,6 @@ billToParser k = Bench.billTo
 ---------------------------------------------------------------------------
 -- * Building the parser
 ---------------------------------------------------------------------------
-
-type FlatScope = Map QName [AbstractName]
-
--- | Compute all defined names in scope and their fixities/notations.
--- Note that overloaded names (constructors) can have several
--- fixities/notations. Then we 'mergeNotations'. (See issue 1194.)
-getDefinedNames :: KindsOfNames -> FlatScope -> [[NewNotation]]
-getDefinedNames kinds names =
-  [ mergeNotations $ map (namesToNotation x . A.qnameName . anameName) ds
-  | (x, ds) <- Map.toList names
-  , any ((`elemKindsOfNames` kinds) . anameKind) ds
-  , not (null ds)
-  ]
-  -- Andreas, 2013-03-21 see Issue 822
-  -- Names can have different kinds, i.e., 'defined' and 'constructor'.
-  -- We need to consider all names that have *any* matching kind,
-  -- not only those whose first appearing kind is matching.
-
--- | Compute all names (first component) and operators/notations
--- (second component) in scope.
-localNames :: FlatScope -> ScopeM ([QName], [NewNotation])
-localNames flat = do
-  let defs = getDefinedNames allKindsOfNames flat
-  locals <- nubOn fst . notShadowedLocals <$> getLocalVars
-  -- Note: Debug printout aligned with the one in buildParsers.
-  reportS "scope.operators" 50
-    [ "flat  = " ++ prettyShow flat
-    , "defs  = " ++ prettyShow defs
-    , "locals= " ++ prettyShow locals
-    ]
-  let localNots  = map localOp locals
-      notLocal   = not . hasElem (map notaName localNots) . notaName
-      otherNots  = concatMap (filter notLocal) defs
-  return $ second (map useDefaultFixity) $ split $ localNots ++ otherNots
-  where
-    localOp (x, y) = namesToNotation (QName x) y
-    split          = partitionEithers . concatMap opOrNot
-    opOrNot n      = Left (notaName n) :
-                     [Right n | not (null (notation n))]
 
 -- | A data structure used internally by 'buildParsers'.
 data InternalParsers e = InternalParsers
@@ -679,12 +641,12 @@ classifyPattern conf p =
   case patternAppView p of
 
     -- case @f ps@
-    Arg _ (Named _ (IdentP x)) :| ps | Just x == topName conf -> do
+    Arg _ (Named _ (IdentP _ x)) :| ps | Just x == topName conf -> do
       mapM_ (valid . namedArg) ps
       return $ ParseLHS x $ lhsCoreAddSpine (LHSHead x []) ps
 
     -- case @d ps@
-    Arg _ (Named _ (IdentP x)) :| ps | fldName conf x -> do
+    Arg _ (Named _ (IdentP _ x)) :| ps | fldName conf x -> do
 
       -- Step 1: check for valid copattern lhs.
       ps0 :: [NamedArg ParseLHS] <- mapM classPat ps
@@ -766,7 +728,7 @@ validConPattern cons = loop
   loop p = case appView p of
       WithP _ p :| [] -> loop p
       _ :| []         -> ok
-      IdentP x :| ps
+      IdentP _ x :| ps
         | cons x      -> mapM_ loop ps
         | otherwise   -> failure
       QuoteP _ :| [_] -> ok
@@ -783,7 +745,7 @@ appView = loop []
   where
   loop acc = \case
     AppP p a         -> loop (namedArg a : acc) p
-    OpAppP _ op _ ps -> (IdentP op :| fmap namedArg ps)
+    OpAppP _ op _ ps -> (IdentP True op :| fmap namedArg ps)
                           `List1.appendList`
                         reverse acc
     ParenP _ p       -> loop acc p

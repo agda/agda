@@ -201,13 +201,13 @@ data Problem a = Problem
   }
   deriving Show
 
-problemEqs :: Lens' [ProblemEq] (Problem a)
+problemEqs :: Lens' (Problem a) [ProblemEq]
 problemEqs f p = f (_problemEqs p) <&> \x -> p {_problemEqs = x}
 
-problemRestPats :: Lens' [NamedArg A.Pattern] (Problem a)
+problemRestPats :: Lens' (Problem a) [NamedArg A.Pattern]
 problemRestPats f p = f (_problemRestPats p) <&> \x -> p {_problemRestPats = x}
 
-problemCont :: Lens' (LHSState a -> TCM a) (Problem a)
+problemCont :: Lens' (Problem a) (LHSState a -> TCM a)
 problemCont f p = f (_problemCont p) <&> \x -> p {_problemCont = x}
 
 problemInPats :: Problem a -> [A.Pattern]
@@ -236,23 +236,21 @@ data LHSState a = LHSState
     --   be type-checked in irrelevant mode.
   , _lhsPartialSplit :: ![Maybe Int]
     -- ^ have we splitted with a PartialFocus?
+  , _lhsIndexedSplit :: !Bool
+    -- ^ Have we split on any indexed inductive types?
   }
 
-lhsTel :: Lens' Telescope (LHSState a)
+lhsTel :: Lens' (LHSState a) Telescope
 lhsTel f p = f (_lhsTel p) <&> \x -> p {_lhsTel = x}
 
-lhsOutPat :: Lens' [NamedArg DeBruijnPattern] (LHSState a)
+lhsOutPat :: Lens' (LHSState a) [NamedArg DeBruijnPattern]
 lhsOutPat f p = f (_lhsOutPat p) <&> \x -> p {_lhsOutPat = x}
 
-lhsProblem :: Lens' (Problem a) (LHSState a)
+lhsProblem :: Lens' (LHSState a) (Problem a)
 lhsProblem f p = f (_lhsProblem p) <&> \x -> p {_lhsProblem = x}
 
-lhsTarget :: Lens' (Arg Type) (LHSState a)
+lhsTarget :: Lens' (LHSState a) (Arg Type)
 lhsTarget f p = f (_lhsTarget p) <&> \x -> p {_lhsTarget = x}
-
--- UNUSED Liang-Ting Chen 2019-07-16
---lhsPartialSplit :: Lens' [Maybe Int] (LHSState a)
---lhsPartialSplit f p = f (_lhsPartialSplit p) <&> \x -> p {_lhsPartialSplit = x}
 
 data PatVarPosition = PVLocal | PVParam
   deriving (Show, Eq)
@@ -409,7 +407,7 @@ instance InstantiateFull AsBinding where
   instantiateFull' (AsB x v a m) = AsB x <$> instantiateFull' v <*> instantiateFull' a <*> pure m
 
 instance PrettyTCM (LHSState a) where
-  prettyTCM (LHSState tel outPat (Problem eqs rps _) target _) = vcat
+  prettyTCM (LHSState tel outPat (Problem eqs rps _) target _ _) = vcat
     [ "tel             = " <+> prettyTCM tel
     , "outPat          = " <+> addContext tel (prettyTCMPatternList outPat)
     , "problemEqs      = " <+> addContext tel (prettyList_ $ map prettyTCM eqs)

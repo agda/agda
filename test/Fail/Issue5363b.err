@@ -1,3 +1,3 @@
-Issue5363b.agda:8,17-18
+Issue5363b.agda:10,17-18
 Variable a is declared erased, so it cannot be used here
 when checking that the expression a has type Level

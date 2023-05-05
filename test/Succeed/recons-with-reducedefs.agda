@@ -1,3 +1,4 @@
+open import Agda.Builtin.Bool
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Unit
 open import Agda.Builtin.Reflection renaming (bindTC to _>>=_)
@@ -18,9 +19,9 @@ d = record { fld = 5 }
 macro
   x : Term → TC ⊤
   x hole = do
-      (function (clause tel ps t ∷ [])) ← withReconstructed (getDefinition (quote d))
+      (function (clause tel ps t ∷ [])) ← withReconstructed true (getDefinition (quote d))
         where _ → quoteTC "ERROR" >>= unify hole
-      a ← withReconstructed (dontReduceDefs (quote lzero ∷ []) (normalise t))
+      a ← withReconstructed true (withReduceDefs (false , (quote lzero ∷ [])) (normalise t))
       quoteTC a >>= unify hole
 
 -- If we were to consider suppressed reduction of lzero, we end up with
@@ -52,10 +53,10 @@ bar x = foo (foo (x))
 macro
   y : Term → TC ⊤
   y hole = do
-      (function (clause tel ps t ∷ [])) ← withReconstructed (dontReduceDefs (quote foo ∷ []) (getDefinition (quote bar)))
+      (function (clause tel ps t ∷ [])) ← withReconstructed true (withReduceDefs (false , (quote foo ∷ [])) (getDefinition (quote bar)))
         where _ → quoteTC "ERROR" >>= unify hole
       t ← inContext (reverse tel)
-          (withReconstructed (dontReduceDefs (quote foo ∷ []) (normalise t)))
+          (withReconstructed true (withReduceDefs (false , (quote foo ∷ [])) (normalise t)))
       quoteTC t >>= unify hole
 
 test₂ : y ≡ def (quote foo) (arg _ (def (quote foo) _) ∷ [])

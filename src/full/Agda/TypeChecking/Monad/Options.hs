@@ -1,6 +1,8 @@
 
 module Agda.TypeChecking.Monad.Options where
 
+import Prelude hiding (null)
+
 import Control.Arrow          ( (&&&) )
 import Control.Monad          ( unless, when )
 import Control.Monad.IO.Class ( MonadIO(..) )
@@ -19,51 +21,56 @@ import System.Directory
 import System.FilePath
 
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete (TopLevelModuleName)
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.TopLevelModuleName
+
 import Agda.TypeChecking.Monad.Debug (reportSDoc)
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Imports
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Benchmark
+import Agda.TypeChecking.Monad.Trace
+
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Library
+import Agda.Interaction.Library.Base (libAbove, libFile)
+
 import Agda.Utils.FileName
 import Agda.Utils.Functor
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as G
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
+import Agda.Utils.Null
 import Agda.Utils.Pretty
+import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
 
 -- | Sets the pragma options.
-
+--   Checks for unsafe combinations.
 setPragmaOptions :: PragmaOptions -> TCM ()
 setPragmaOptions opts = do
-  stPragmaOptions `modifyTCLens` Lens.mapSafeMode (Lens.getSafeMode opts ||)
-  clo <- commandLineOptions
-  let unsafe = unsafePragmaOptions clo opts
-  when (Lens.getSafeMode opts && not (null unsafe)) $ warning $ SafeFlagPragma unsafe
-  runOptM (checkOpts clo{ optPragmaOptions = opts }) >>= \case
-    Left err   -> __IMPOSSIBLE__
-    Right opts -> do
-      stPragmaOptions `setTCLens` optPragmaOptions opts
-      updateBenchmarkingStatus
+  -- Check for unsafe pragma options if @--safe@ is on.
+  when (Lens.getSafeMode opts) $
+    unlessNull (unsafePragmaOptions opts) $ \ unsafe ->
+      warning $ SafeFlagPragma unsafe
+
+  stPragmaOptions `setTCLens` opts
+  updateBenchmarkingStatus
 
 -- | Sets the command line options (both persistent and pragma options
 -- are updated).
 --
 -- Relative include directories are made absolute with respect to the
 -- current working directory. If the include directories have changed
--- (thus, they are 'Left' now, and were previously @'Right' something@),
--- then the state is reset (completely, see setIncludeDirs) .
+-- then the state is reset (partly, see 'setIncludeDirs').
 --
 -- An empty list of relative include directories (@'Left' []@) is
 -- interpreted as @["."]@.
@@ -78,9 +85,7 @@ setCommandLineOptions'
   -> CommandLineOptions
   -> TCM ()
 setCommandLineOptions' root opts = do
-  runOptM (checkOpts opts) >>= \case
-    Left err   -> __IMPOSSIBLE__
-    Right opts -> do
+  -- Andreas, 2022-11-19: removed a call to checkOpts which did nothing.
       incs <- case optAbsoluteIncludePaths opts of
         [] -> do
           opts' <- setLibraryPaths root opts
@@ -109,17 +114,54 @@ libToTCM m = do
     Right x -> return x
 
 -- | Returns the library files for a given file.
+--
+-- Nothing is returned if 'optUseLibs' is 'False'.
+--
+-- An error is raised if 'optUseLibs' is 'True' and a library file is
+-- located too far down the directory hierarchy (see
+-- 'checkLibraryFileNotTooFarDown').
 
 getAgdaLibFiles
   :: AbsolutePath        -- ^ The file name.
   -> TopLevelModuleName  -- ^ The top-level module name.
   -> TCM [AgdaLibFile]
 getAgdaLibFiles f m = do
+  ls <- getAgdaLibFilesWithoutTopLevelModuleName f
+  mapM_ (checkLibraryFileNotTooFarDown m) ls
+  return ls
+
+-- | Returns potential library files for a file without a known
+-- top-level module name.
+--
+-- Once the top-level module name is known one can use
+-- 'checkLibraryFileNotTooFarDown' to check that the potential library
+-- files were not located too far down the directory hierarchy.
+--
+-- Nothing is returned if 'optUseLibs' is 'False'.
+
+getAgdaLibFilesWithoutTopLevelModuleName
+  :: AbsolutePath  -- ^ The file.
+  -> TCM [AgdaLibFile]
+getAgdaLibFilesWithoutTopLevelModuleName f = do
   useLibs <- optUseLibs <$> commandLineOptions
   if | useLibs   -> libToTCM $ mkLibM [] $ getAgdaLibFiles' root
      | otherwise -> return []
   where
-  root = filePath (C.projectRoot f m)
+  root = takeDirectory $ filePath f
+
+-- | Checks that a library file for the module @A.B.C@ (say) in the
+-- directory @dir/A/B@ is located at least two directories above the
+-- file (not in @dir/A@ or @dir/A/B@).
+
+checkLibraryFileNotTooFarDown ::
+  TopLevelModuleName ->
+  AgdaLibFile ->
+  TCM ()
+checkLibraryFileNotTooFarDown m lib =
+  when (lib ^. libAbove < size m - 1) $ typeError $ GenericError $
+    "A .agda-lib file for " ++ prettyShow m ++
+    " must not be located in the directory " ++
+    takeDirectory (lib ^. libFile)
 
 -- | Returns the library options for a given file.
 
@@ -171,9 +213,11 @@ addTrustedExecutables o = do
   return o{ optTrustedExecutables = trustedExes }
 
 setOptionsFromPragma :: OptionsPragma -> TCM ()
-setOptionsFromPragma ps = do
+setOptionsFromPragma ps = setCurrentRange (pragmaRange ps) $ do
     opts <- commandLineOptions
-    runOptM (parsePragmaOptions ps opts) >>= \case
+    let (z, warns) = runOptM (parsePragmaOptions ps opts)
+    mapM_ (warning . OptionWarning) warns
+    case z of
       Left err    -> typeError $ GenericError err
       Right opts' -> setPragmaOptions opts'
 
@@ -290,16 +334,16 @@ setIncludeDirs incs root = do
     -- A graph with one node per module in old, and an edge from m to
     -- n if the module corresponding to m imports the module
     -- corresponding to n.
-    dependencyGraph :: G.Graph A.ModuleName ()
+    dependencyGraph :: G.Graph TopLevelModuleName ()
     dependencyGraph =
       G.fromNodes
-        [ iModuleName $ miInterface m
+        [ iTopLevelModuleName $ miInterface m
         | m <- Map.elems old
         ]
         `G.union`
       G.fromEdges
         [ G.Edge
-            { source = iModuleName $ miInterface m
+            { source = iTopLevelModuleName $ miInterface m
             , target = d
             , label = ()
             }
@@ -316,17 +360,16 @@ setIncludeDirs incs root = do
                 -- Agda does not allow cycles in the dependency graph.
                 __IMPOSSIBLE__
               Graph.AcyclicSCC m ->
-                case Map.lookup (A.toTopLevelModuleName m) old of
+                case Map.lookup m old of
                   Just m  -> m
                   Nothing -> __IMPOSSIBLE__) $
       G.sccs' dependencyGraph
 
     process ::
-      Map A.ModuleName ModuleInfo -> ModuleToSource -> [ModuleInfo] ->
-      TCM (DecodedModules, ModuleToSource)
+      Map TopLevelModuleName ModuleInfo -> ModuleToSource ->
+      [ModuleInfo] -> TCM (DecodedModules, ModuleToSource)
     process !keep !modFile [] = return
       ( Map.fromList $
-        map (mapFst A.toTopLevelModuleName) $
         Map.toList keep
       , modFile
       )
@@ -335,21 +378,23 @@ setIncludeDirs incs root = do
           depsKept = all (`Map.member` keep) deps
       (keep, modFile) <-
         if not depsKept then return (keep, modFile) else do
-        let n = iModuleName $ miInterface m
-            t = A.toTopLevelModuleName n
+        let t = iTopLevelModuleName $ miInterface m
         oldF            <- findFile' t
         (newF, modFile) <- liftIO $ findFile'' incs t modFile
         return $ case (oldF, newF) of
           (Right f1, Right f2) | f1 == f2 ->
-            (Map.insert n m keep, modFile)
+            (Map.insert t m keep, modFile)
           _ -> (keep, modFile)
       process keep modFile ms
 
 isPropEnabled :: HasOptions m => m Bool
 isPropEnabled = optProp <$> pragmaOptions
 
+isLevelUniverseEnabled :: HasOptions m => m Bool
+isLevelUniverseEnabled = optLevelUniverse <$> pragmaOptions
+
 isTwoLevelEnabled :: HasOptions m => m Bool
-isTwoLevelEnabled = collapseDefault . optTwoLevel <$> pragmaOptions
+isTwoLevelEnabled = optTwoLevel <$> pragmaOptions
 
 {-# SPECIALIZE hasUniversePolymorphism :: TCM Bool #-}
 hasUniversePolymorphism :: HasOptions m => m Bool
@@ -376,14 +421,14 @@ withShowAllArguments = withShowAllArguments' True
 
 withShowAllArguments' :: ReadTCState m => Bool -> m a -> m a
 withShowAllArguments' yes = withPragmaOptions $ \ opts ->
-  opts { optShowImplicit = yes, optShowIrrelevant = yes }
+  opts { _optShowImplicit = Value yes, _optShowIrrelevant = Value yes }
 
 -- | Change 'PragmaOptions' for a computation and restore afterwards.
 withPragmaOptions :: ReadTCState m => (PragmaOptions -> PragmaOptions) -> m a -> m a
 withPragmaOptions = locallyTCState stPragmaOptions
 
 positivityCheckEnabled :: HasOptions m => m Bool
-positivityCheckEnabled = not . optDisablePositivity <$> pragmaOptions
+positivityCheckEnabled = optPositivityCheck <$> pragmaOptions
 
 {-# SPECIALIZE typeInType :: TCM Bool #-}
 typeInType :: HasOptions m => m Bool
@@ -404,7 +449,7 @@ getLanguage :: HasOptions m => m Language
 getLanguage = do
   opts <- pragmaOptions
   return $
-    if not (collapseDefault (optWithoutK opts)) then WithK else
+    if not (optWithoutK opts) then WithK else
     case optCubical opts of
       Just variant -> Cubical variant
       Nothing      -> WithoutK

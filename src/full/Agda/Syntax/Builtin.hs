@@ -31,6 +31,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinLevel, builtinLevelZero, builtinLevelSuc,
   builtinSet, builtinProp, builtinSetOmega, builtinStrictSet, builtinSSetOmega,
   builtinLockUniv,
+  builtinLevelUniv,
   builtinIntervalUniv,
   builtinFromNat, builtinFromNeg, builtinFromString,
   builtinQName, builtinAgdaSort, builtinAgdaSortSet, builtinAgdaSortLit,
@@ -65,17 +66,21 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMCheckType, builtinAgdaTCMNormalise, builtinAgdaTCMReduce,
   builtinAgdaTCMCatchError,
   builtinAgdaTCMGetContext, builtinAgdaTCMExtendContext, builtinAgdaTCMInContext,
-  builtinAgdaTCMFreshName, builtinAgdaTCMDeclareDef, builtinAgdaTCMDeclarePostulate, builtinAgdaTCMDefineFun,
+  builtinAgdaTCMFreshName, builtinAgdaTCMDeclareDef, builtinAgdaTCMDeclarePostulate, builtinAgdaTCMDeclareData, builtinAgdaTCMDefineData, builtinAgdaTCMDefineFun,
   builtinAgdaTCMGetType, builtinAgdaTCMGetDefinition,
   builtinAgdaTCMQuoteTerm, builtinAgdaTCMUnquoteTerm, builtinAgdaTCMQuoteOmegaTerm,
   builtinAgdaTCMBlockOnMeta, builtinAgdaTCMCommit, builtinAgdaTCMIsMacro,
   builtinAgdaTCMFormatErrorParts, builtinAgdaTCMDebugPrint,
-  builtinAgdaTCMWithNormalisation, builtinAgdaTCMWithReconsParams,
-  builtinAgdaTCMOnlyReduceDefs, builtinAgdaTCMDontReduceDefs,
+  builtinAgdaTCMWithNormalisation, builtinAgdaTCMWithReconstructed,
+  builtinAgdaTCMWithExpandLast, builtinAgdaTCMWithReduceDefs,
+  builtinAgdaTCMAskNormalisation, builtinAgdaTCMAskReconstructed,
+  builtinAgdaTCMAskExpandLast, builtinAgdaTCMAskReduceDefs,
   builtinAgdaTCMNoConstraints,
   builtinAgdaTCMRunSpeculative,
   builtinAgdaTCMExec,
-  builtinAgdaTCMGetInstances
+  builtinAgdaTCMGetInstances,
+  builtinAgdaTCMPragmaForeign,
+  builtinAgdaTCMPragmaCompile
   :: String
 
 builtinNat                               = "NATURAL"
@@ -165,6 +170,7 @@ builtinSet                               = "TYPE"
 builtinProp                              = "PROP"
 builtinSetOmega                          = "SETOMEGA"
 builtinLockUniv                          = "primLockUniv"
+builtinLevelUniv                         = "LEVELUNIV"
 builtinSSetOmega                         = "STRICTSETOMEGA"
 builtinStrictSet                         = "STRICTSET"
 builtinFromNat                           = "FROMNAT"
@@ -263,6 +269,8 @@ builtinAgdaTCMInContext                  = "AGDATCMINCONTEXT"
 builtinAgdaTCMFreshName                  = "AGDATCMFRESHNAME"
 builtinAgdaTCMDeclareDef                 = "AGDATCMDECLAREDEF"
 builtinAgdaTCMDeclarePostulate           = "AGDATCMDECLAREPOSTULATE"
+builtinAgdaTCMDeclareData                = "AGDATCMDECLAREDATA"
+builtinAgdaTCMDefineData                 = "AGDATCMDEFINEDATA"
 builtinAgdaTCMDefineFun                  = "AGDATCMDEFINEFUN"
 builtinAgdaTCMGetType                    = "AGDATCMGETTYPE"
 builtinAgdaTCMGetDefinition              = "AGDATCMGETDEFINITION"
@@ -273,15 +281,21 @@ builtinAgdaTCMUnquoteTerm                = "AGDATCMUNQUOTETERM"
 builtinAgdaTCMQuoteOmegaTerm             = "AGDATCMQUOTEOMEGATERM"
 builtinAgdaTCMIsMacro                    = "AGDATCMISMACRO"
 builtinAgdaTCMWithNormalisation          = "AGDATCMWITHNORMALISATION"
-builtinAgdaTCMWithReconsParams           = "AGDATCMWITHRECONSPARAMS"
+builtinAgdaTCMWithReconstructed          = "AGDATCMWITHRECONSTRUCTED"
+builtinAgdaTCMWithExpandLast             = "AGDATCMWITHEXPANDLAST"
+builtinAgdaTCMWithReduceDefs             = "AGDATCMWITHREDUCEDEFS"
+builtinAgdaTCMAskNormalisation           = "AGDATCMASKNORMALISATION"
+builtinAgdaTCMAskReconstructed           = "AGDATCMASKRECONSTRUCTED"
+builtinAgdaTCMAskExpandLast              = "AGDATCMASKEXPANDLAST"
+builtinAgdaTCMAskReduceDefs              = "AGDATCMASKREDUCEDEFS"
 builtinAgdaTCMFormatErrorParts           = "AGDATCMFORMATERRORPARTS"
 builtinAgdaTCMDebugPrint                 = "AGDATCMDEBUGPRINT"
-builtinAgdaTCMOnlyReduceDefs             = "AGDATCMONLYREDUCEDEFS"
-builtinAgdaTCMDontReduceDefs             = "AGDATCMDONTREDUCEDEFS"
 builtinAgdaTCMNoConstraints              = "AGDATCMNOCONSTRAINTS"
 builtinAgdaTCMRunSpeculative             = "AGDATCMRUNSPECULATIVE"
 builtinAgdaTCMExec                       = "AGDATCMEXEC"
 builtinAgdaTCMGetInstances               = "AGDATCMGETINSTANCES"
+builtinAgdaTCMPragmaForeign              = "AGDATCMPRAGMAFOREIGN"
+builtinAgdaTCMPragmaCompile              = "AGDATCMPRAGMACOMPILE"
 
 -- | Builtins that come without a definition in Agda syntax.
 --   These are giving names to Agda internal concepts which
@@ -313,6 +327,7 @@ builtinsNoDef =
   , builtinIOne
   , builtinSet
   , builtinProp
+  , builtinLevelUniv
   , builtinSetOmega
   , builtinStrictSet
   , builtinSSetOmega
