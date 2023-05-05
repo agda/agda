@@ -521,7 +521,7 @@ Experimental features
      .. versionadded:: 2.6.2
 
      Enable locks and ticks for guarded recursion
-     (see :ref:`Guarded Cubical Agda <guarded-cubical>`).
+     (see :ref:`Guarded Type Theory <guarded>`).
 
 .. option:: --no-guarded
 
