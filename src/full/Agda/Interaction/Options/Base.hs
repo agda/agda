@@ -1640,7 +1640,7 @@ pragmaOptions = concat
                     "allow matching in erased positions for single-constructor types" ""
                     Nothing
   , pragmaFlag      "erase-record-parameters" lensOptEraseRecordParameters
-                    "mark all parameters of record modules as erased" "(requires --erasure)"
+                    "mark all parameters of record modules as erased" "(implies --erasure)"
                     Nothing
   , pragmaFlag      "rewriting" lensOptRewriting
                     "enable declaration and use of REWRITE rules" ""
