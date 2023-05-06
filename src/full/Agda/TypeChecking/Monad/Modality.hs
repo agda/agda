@@ -1,3 +1,18 @@
+{- | Modality.
+
+Agda has support for several modalities, namely:
+
+ * 'Cohesion'
+ * 'Quantity'
+ * 'Relevance'
+
+In order to type check such modalities, we must store the current modality in
+the typing context. This module provides functions to update the context based
+on a given modality.
+
+See 'Agda.TypeChecking.Irrelevance'.
+-}
+
 module Agda.TypeChecking.Monad.Modality where
 
 import qualified Data.Map as Map
