@@ -174,7 +174,7 @@ module Agda.Interaction.Options.Base
 import Prelude hiding ( null, not, (&&), (||) )
 
 import Control.DeepSeq
-import Control.Monad        ( when, unless, void )
+import Control.Monad        ( (>=>), when, unless, void )
 import Control.Monad.Except ( ExceptT, MonadError(throwError), runExceptT )
 import Control.Monad.Writer ( Writer, runWriter, MonadWriter(..) )
 
@@ -462,6 +462,7 @@ optEta                       :: PragmaOptions -> Bool
 optForcing                   :: PragmaOptions -> Bool
 optProjectionLike            :: PragmaOptions -> Bool
 -- | 'optErasure' is implied by 'optEraseRecordParameters'.
+--   'optErasure' is also implied by an explicitly given `--erased-matches`.
 optErasure                   :: PragmaOptions -> Bool
 optErasedMatches             :: PragmaOptions -> Bool
 optEraseRecordParameters     :: PragmaOptions -> Bool
@@ -520,8 +521,8 @@ optEta                       = collapseDefault . _optEta
 optForcing                   = collapseDefault . _optForcing
 optProjectionLike            = collapseDefault . _optProjectionLike
 -- --erase-record-parameters implies --erasure
-optErasure                   = collapseDefault . _optErasure || optEraseRecordParameters
-optErasedMatches             = collapseDefault . _optErasedMatches
+optErasure                   = collapseDefault . _optErasure || optEraseRecordParameters || (Value True ==) . _optErasedMatches
+optErasedMatches             = collapseDefault . _optErasedMatches && optErasure
 optEraseRecordParameters     = collapseDefault . _optEraseRecordParameters
 optRewriting                 = collapseDefault . _optRewriting
 optGuarded                   = collapseDefault . _optGuarded
@@ -1252,10 +1253,13 @@ transliterateFlag :: Flag CommandLineOptions
 transliterateFlag o = return $ o { optTransliterate = True }
 
 withKFlag :: Flag PragmaOptions
-withKFlag o = return $ o
-  { _optWithoutK      = Value False
-  , _optErasedMatches = Value True
-  }
+withKFlag =
+  -- with-K is the opposite of --without-K, so collapse default when disabling --without-K
+  (lensOptWithoutK $ lensCollapseDefault $ const $ pure False)
+  >=>
+  -- with-K only restores any unsetting of --erased-matches, so keep its default
+  (lensOptErasedMatches $ lensKeepDefault $ const $ pure True)
+
 
 withoutKFlag :: Flag PragmaOptions
 withoutKFlag o = return $ o
@@ -1637,7 +1641,7 @@ pragmaOptions = concat
                     "enable erasure" ""
                     Nothing
   , pragmaFlag      "erased-matches" lensOptErasedMatches
-                    "allow matching in erased positions for single-constructor types" ""
+                    "allow matching in erased positions for single-constructor types" "(implies --erasure if supplied explicitly)"
                     Nothing
   , pragmaFlag      "erase-record-parameters" lensOptEraseRecordParameters
                     "mark all parameters of record modules as erased" "(implies --erasure)"
