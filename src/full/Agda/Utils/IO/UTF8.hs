@@ -9,11 +9,12 @@ module Agda.Utils.IO.UTF8
   ) where
 
 import Control.Exception
+import Data.Maybe (fromMaybe)
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.Encoding as T
 import qualified Data.Text.Lazy.IO as T
-import qualified Data.ByteString.Lazy as B
+import qualified Data.ByteString.Lazy as BS
 import qualified System.IO as IO
 import qualified System.IO.Error as E
 
@@ -36,6 +37,14 @@ convertLineEndings = T.map convert . convertCRLF
   -- Not a line ending (or '\x000A'):
   convert c        = c
 
+-- | Strip the byte order mark (BOM) from a Text.
+--
+-- - https://github.com/agda/agda/issues/6524
+-- - https://github.com/haskell-hvr/cassava/issues/106#issuecomment-373986176
+--
+stripUtf8Bom :: BS.ByteString -> BS.ByteString
+stripUtf8Bom bs = fromMaybe bs (BS.stripPrefix "\239\187\191" bs)
+
 -- | A kind of exception that can be thrown by 'readTextFile' and
 -- 'readFile'.
 newtype ReadException
@@ -56,7 +65,7 @@ instance Exception ReadException where
 
 readTextFile :: FilePath -> IO Text
 readTextFile file = do
-  s <- T.decodeUtf8' <$> B.readFile file
+  s <- T.decodeUtf8' . stripUtf8Bom <$> BS.readFile file
   case s of
     Right s -> return $ convertLineEndings s
     Left _  -> throw $ DecodingError file
