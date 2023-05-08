@@ -35,7 +35,6 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.IApplyConfluence
 import Agda.TypeChecking.Generalize
 import Agda.TypeChecking.Injectivity
-import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Level.Solve
 import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Positivity.Occurrence

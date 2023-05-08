@@ -622,6 +622,7 @@ library
       Agda.TypeChecking.Monad.Env
       Agda.TypeChecking.Monad.Imports
       Agda.TypeChecking.Monad.MetaVars
+      Agda.TypeChecking.Monad.Modality
       Agda.TypeChecking.Monad.Mutual
       Agda.TypeChecking.Monad.Open
       Agda.TypeChecking.Monad.Options

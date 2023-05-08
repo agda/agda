@@ -22,7 +22,7 @@ import Agda.Syntax.Internal.MetaVars ( AllMetas, unblockOnAllMetasIn )
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Lazy
-import Agda.TypeChecking.Irrelevance (workOnTypes, isPropM)
+import Agda.TypeChecking.Irrelevance (isPropM)
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
