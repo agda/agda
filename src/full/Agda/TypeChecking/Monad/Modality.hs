@@ -10,7 +10,7 @@ In order to type check such modalities, we must store the current modality in
 the typing context. This module provides functions to update the context based
 on a given modality.
 
-See 'Agda.TypeChecking.Irrelevance'.
+See "Agda.TypeChecking.Irrelevance".
 -}
 
 module Agda.TypeChecking.Monad.Modality where
