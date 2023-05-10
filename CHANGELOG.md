@@ -203,6 +203,10 @@ Erasure
 Syntax
 ------
 
+* Agda now skips the UTF8 byte order mark (BOM) at beginning of files
+  (see [#6524](https://github.com/agda/agda/issues/6524)).
+  Previously, the BOM caused a parse error.
+
 * If the new option `--hidden-argument-puns` is used, then the pattern
   `{x}` is interpreted as `{x = x}`, and the pattern `⦃ x ⦄` is
   interpreted as `⦃ x = x ⦄` (see
