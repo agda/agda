@@ -293,7 +293,7 @@ scopeCheckImport top x = do
     i <- Bench.billTo [] $ getNonMainInterface top Nothing
 
     -- Make sure the imported module has flags compatible with ours,
-    -- *even if* it is a primitive module.
+    -- EVEN IF it is a primitive module.
     currentOptions <- useTC stPragmaOptions
     ws <- getOptionsCompatibilityWarnings NotMainInterface False currentOptions i
     traverse_ tcWarningsToError ws
