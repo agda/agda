@@ -38,6 +38,7 @@ import Control.Monad.Fail (MonadFail)
 #endif
 
 import Data.Either
+import Data.Foldable (traverse_)
 import qualified Data.List as List
 import Data.Maybe
 import Data.Map (Map)
@@ -290,6 +291,13 @@ scopeCheckImport top x = do
     -- Since scopeCheckImport is called from the scope checker,
     -- we need to reimburse her account.
     i <- Bench.billTo [] $ getNonMainInterface top Nothing
+
+    -- Make sure the imported module has flags compatible with ours,
+    -- *even if* it is a primitive module.
+    currentOptions <- useTC stPragmaOptions
+    ws <- getOptionsCompatibilityWarnings NotMainInterface False currentOptions i
+    traverse_ tcWarningsToError ws
+
     addImport top
 
     -- If that interface was supposed to raise a warning on import, do so.
