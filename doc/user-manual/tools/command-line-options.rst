@@ -1018,11 +1018,11 @@ Other features
      non-indexed data/record types. (This kind of matching is always
      allowed for record types with η-equality.)
 
-     This option is implied by :option:`--with-K` (even implicit use
-     of :option:`--with-K` through the absence of options like
-     :option:`--without-K`).
+     Default: :option:`--erased-matches` when :option:`--with-K` is active,
+     either by explicit activation or the absence of options like :option:`--without-K`;
+     otherwise :option:`--no-erased-matches`.
 
-     Default: :option:`--no-erased-matches`.
+     If :option:`--erased-matches` is given explicitly, it implies :option:`--erasure`.
 
 .. option:: --erase-record-parameters
 

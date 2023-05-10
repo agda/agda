@@ -56,11 +56,11 @@ Erasure
   ([#6349](https://github.com/agda/agda/issues/6349)).
 
   This flag is infective.
+  It is implied by `--erase-record-parameters` and `--erased-matches`.
 
   Unless this flag is active the following things are prohibited:
   * Use of the annotations `@0` and `@erased`.
   * Use of names defined in Cubical Agda in Erased Cubical Agda.
-  * Use of the flag `--erase-record-parameters`.
 
   When `--erasure` is used the parameter arguments of constructors and
   projections are marked as erased
@@ -89,6 +89,7 @@ Erasure
   ([#6349](https://github.com/agda/agda/issues/6349)).
 
   This flag is infective and implied by `--with-K`.
+  If it is given explicitly, it implies `--erasure`.
 
 * [**Breaking**] Added a hard compile-time mode (see
   [#4743](https://github.com/agda/agda/issues/4743)).
@@ -307,8 +308,6 @@ Pragmas and options
 
 * Option `--flat-split` again implies `--cohesion`.
   Reverts change introduced in Agda 2.6.3 where `--cohesion` was a prerequisite for `--flat-split`.
-
-* Option `--erase-record-parameters` now implies `--erasure`.
 
 * Option `--count-clusters` is now on by default when Agda was built with ICU support (Cabal flag `enable-cluster-counting`).
 
