@@ -10,10 +10,12 @@
 Lexical Structure
 *****************
 
-Agda code is written in UTF-8 encoded plain text files with the
-extension ``.agda``. Most unicode characters can be used in
-identifiers and whitespace is important, see :ref:`names` and
-:ref:`lexical-structure-layout` below.
+Agda code is written in UTF-8 encoded plain text files with the extension ``.agda``;
+more file extensions are supported for :ref:`literate-programming`.
+A UTF-8 byte order mark (BOM) is ignored at the beginning of a file.
+
+Most unicode characters can be used in identifiers, see section :ref:`names`.
+Whitespace is important, see section :ref:`lexical-structure-layout`.
 
 Tokens
 ------
