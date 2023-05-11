@@ -4468,6 +4468,7 @@ data TypeError
         | InvalidPattern C.Pattern
         | RepeatedVariablesInPattern [C.Name]
         | GeneralizeNotSupportedHere A.QName
+        | GeneralizedVarInLetOpenedModule A.QName
         | MultipleFixityDecls [(C.Name, [Fixity'])]
         | MultiplePolarityPragmas [C.Name]
     -- Concrete to Abstract errors
