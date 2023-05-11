@@ -4430,6 +4430,7 @@ data TypeError
           -- ^ Arguments: later term, its type, lock term. The lock term
           -- does not mention any @lock variables.
         | MismatchedProjectionsError QName QName
+        | AttributeKindNotEnabled String String String
     -- Coverage errors
 -- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | SplitError SplitError

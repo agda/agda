@@ -3212,29 +3212,20 @@ checkAttributes ((attr, r, s) : attrs) =
     LockAttribute IsNotLock -> cont
     LockAttribute IsLock{}  -> do
       unlessM (optGuarded <$> pragmaOptions) $
-        err "Lock" "--guarded"
+        setCurrentRange r $ typeError $ AttributeKindNotEnabled "Lock" "--guarded" s
       cont
     QuantityAttribute Quantityω{} -> cont
     QuantityAttribute Quantity1{} -> __IMPOSSIBLE__
     QuantityAttribute Quantity0{} -> do
       unlessM (optErasure <$> pragmaOptions) $
-        err "Erasure" "--erasure"
+        setCurrentRange r $ typeError $ AttributeKindNotEnabled "Erasure" "--erasure" s
       cont
     CohesionAttribute{} -> do
       unlessM (optCohesion <$> pragmaOptions) $
-        err "Cohesion" "--cohesion"
+        setCurrentRange r $ typeError $ AttributeKindNotEnabled "Cohesion" "--cohesion" s
       cont
   where
   cont = checkAttributes attrs
-
-  err kind opt =
-    setCurrentRange r $
-    typeError $ GenericDocError $ P.fsep $
-    [P.text kind] ++
-    P.pwords "attributes have not been enabled (use" ++
-    [P.text opt] ++
-    P.pwords "to enable them):" ++
-    [P.text s]
 
 {--------------------------------------------------------------------------
     Things we parse but are not part of the Agda file syntax

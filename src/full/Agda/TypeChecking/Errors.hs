@@ -277,6 +277,7 @@ errorString err = case err of
   ReferencesFutureVariables{}              -> "ReferencesFutureVariables"
   DoesNotMentionTicks{}                    -> "DoesNotMentionTicks"
   MismatchedProjectionsError{}             -> "MismatchedProjectionsError"
+  AttributeKindNotEnabled{}                -> "AttributeKindNotEnabled"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1296,6 +1297,13 @@ instance PrettyTCM TypeError where
       pwords "The projections" ++ [prettyTCM left] ++
       pwords "and" ++ [prettyTCM right] ++
       pwords "do not match"
+
+    AttributeKindNotEnabled kind opt s -> fsep $
+      [text kind] ++
+      pwords "attributes have not been enabled (use" ++
+      [text opt] ++
+      pwords "to enable them):" ++
+      [text s]
 
     where
     mpar n args
