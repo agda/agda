@@ -156,7 +156,8 @@ errorString err = case err of
   GenericError{}                           -> "GenericError"
   GenericDocError{}                        -> "GenericDocError"
   InstanceNoCandidate{}                    -> "InstanceNoCandidate"
-  IllformedProjectionPattern{}             -> "IllformedProjectionPattern"
+  IllformedProjectionPatternAbstract{}     -> "IllformedProjectionPatternAbstract"
+  IllformedProjectionPatternConcrete{}     -> "IllformedProjectionPatternConcrete"
   CannotEliminateWithPattern{}             -> "CannotEliminateWithPattern"
   IllegalLetInTelescope{}                  -> "IllegalLetInTelescope"
   IllegalPatternInTelescope{}              -> "IllegalPatternInTelescope"
@@ -398,8 +399,11 @@ instance PrettyTCM TypeError where
       pwords "Failed to infer that constructor pattern "
       ++ [prettyA p] ++ pwords " is forced"
 
-    IllformedProjectionPattern p -> fsep $
+    IllformedProjectionPatternAbstract p -> fsep $
       pwords "Ill-formed projection pattern " ++ [prettyA p]
+
+    IllformedProjectionPatternConcrete p -> fsep $
+      pwords "Ill-formed projection pattern" ++ [pretty p]
 
     CannotEliminateWithPattern b p a -> do
       let isProj = isJust (isProjP p)

@@ -4341,7 +4341,8 @@ data TypeError
             -- ^ The given relevance does not correspond to the expected relevane.
         | UninstantiatedDotPattern A.Expr
         | ForcedConstructorNotInstantiated A.Pattern
-        | IllformedProjectionPattern A.Pattern
+        | IllformedProjectionPatternAbstract A.Pattern
+        | IllformedProjectionPatternConcrete C.Pattern
         | CannotEliminateWithPattern (Maybe Blocker) (NamedArg A.Pattern) Type
         | WrongNumberOfConstructorArguments QName Nat Nat
         | ShouldBeEmpty Type [DeBruijnPattern]
