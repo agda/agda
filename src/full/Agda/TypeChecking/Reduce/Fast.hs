@@ -124,13 +124,31 @@ compactDef bEnv def rewr = do
   let isPrp = case getSort (defType def) of
         Prop{} -> True
         _      -> False
-  let irr = isPrp || isIrrelevant (defArgInfo def)
 
-  dontReduce <- not <$> shouldReduceDef (defName def)
+  shouldReduce <- shouldReduceDef (defName def)
+  allowed <- asksTC envAllowedReductions
+
+  let allowReduce = and
+        [ shouldReduce
+        , or
+          [ RecursiveReductions `SmallSet.member` allowed
+          , isJust (isProjection_ $ theDef def) && ProjectionReductions `SmallSet.member` allowed
+          , isInlineFun (theDef def) && InlineReductions `SmallSet.member` allowed
+          , definitelyNonRecursive_ (theDef def) && or
+            [ defCopatternLHS def && CopatternReductions `SmallSet.member` allowed
+            , FunctionReductions `SmallSet.member` allowed
+            ]
+          ]
+        , not (defNonterminating def) || SmallSet.member NonTerminatingReductions allowed
+        , not (defTerminationUnconfirmed def) || SmallSet.member UnconfirmedReductions allowed
+        , not (defDelayed def == Delayed)
+        , not isPrp
+        , not (isIrrelevant def)
+        ]
 
   cdefn <-
     case theDef def of
-      _ | irr || dontReduce -> pure CAxiom
+      _ | not allowReduce -> pure CAxiom
       _ | Just (defName def) == bPrimForce bEnv   -> pure CForce
       _ | Just (defName def) == bPrimErase bEnv ->
           case telView' (defType def) of
@@ -153,6 +171,9 @@ compactDef bEnv def rewr = do
       AbstractDefn{}                 -> pure CAxiom
       GeneralizableVar{}             -> __IMPOSSIBLE__
       PrimitiveSort{}                -> pure COther -- TODO
+      Primitive{}
+        | not (FunctionReductions `SmallSet.member` allowed)
+        -> pure CAxiom
       Primitive{ primName = name, primCompiled = cc } ->
         case name of
           -- "primShowInteger"            -- integers are not literals
@@ -309,7 +330,7 @@ compactDef bEnv def rewr = do
                , cdefNonterminating = defNonterminating def
                , cdefUnconfirmed    = defTerminationUnconfirmed def
                , cdefDef            = cdefn
-               , cdefRewriteRules   = rewr
+               , cdefRewriteRules   = if allowReduce then rewr else []
                }
 
 -- Faster case trees ------------------------------------------------------
