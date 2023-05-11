@@ -4475,6 +4475,7 @@ data TypeError
         | TooFewArgumentsToPatternSynonym A.AmbiguousQName
         | CannotResolveAmbiguousPatternSynonym (List1 (A.QName, A.PatternSynDefn))
         | UnusedVariableInPatternSynonym
+        | UnboundVariablesInPatternSynonym [A.Name]
     -- Operator errors
         | NoParseForApplication (List2 C.Expr)
         | AmbiguousParseForApplication (List2 C.Expr) (List1 C.Expr)
