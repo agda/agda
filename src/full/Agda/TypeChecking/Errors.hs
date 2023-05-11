@@ -131,6 +131,7 @@ errorString err = case err of
   BadArgumentsToPatternSynonym{}           -> "BadArgumentsToPatternSynonym"
   TooFewArgumentsToPatternSynonym{}        -> "TooFewArgumentsToPatternSynonym"
   CannotResolveAmbiguousPatternSynonym{}   -> "CannotResolveAmbiguousPatternSynonym"
+  UnboundVariablesInPatternSynonym{}       -> "UnboundVariablesInPatternSynonym"
   BothWithAndRHS                           -> "BothWithAndRHS"
   BuiltinInParameterisedModule{}           -> "BuiltinInParameterisedModule"
   BuiltinMustBeConstructor{}               -> "BuiltinMustBeConstructor"
@@ -971,6 +972,10 @@ instance PrettyTCM TypeError where
 
     UnusedVariableInPatternSynonym -> fsep $
       pwords "Unused variable in pattern synonym."
+
+    UnboundVariablesInPatternSynonym xs -> fsep $
+      pwords "Unbound variables in pattern synonym: " ++
+      [sep (map prettyA xs)]
 
     NoParseForLHS lhsOrPatSyn errs p -> vcat
       [ fsep $ pwords "Could not parse the" ++ prettyLhsOrPatSyn ++ [pretty p]

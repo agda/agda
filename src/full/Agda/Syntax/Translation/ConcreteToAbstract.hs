@@ -2123,9 +2123,7 @@ instance ToAbstract NiceDeclaration where
          p <- noDotorEqPattern err p
          as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
          unlessNull (patternVars p List.\\ map unArg as) $ \ xs -> do
-           typeError . GenericDocError =<< do
-             "Unbound variables in pattern synonym: " <+>
-               sep (map prettyA xs)
+           typeError $ UnboundVariablesInPatternSynonym xs
          return (as, p)
       y <- freshAbstractQName' n
       bindName a PatternSynName n y
