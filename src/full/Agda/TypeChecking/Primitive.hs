@@ -665,11 +665,6 @@ mkPrimLevelMax = do
     b' <- levelView' $ unArg b
     redReturn $ Level $ levelLub a' b'
 
-mkPrimSetOmega :: IsFibrant -> TCM PrimitiveImpl
-mkPrimSetOmega f = do
-  let t = sort $ Inf f 1
-  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort $ Inf f 0
-
 primLockUniv' :: TCM PrimitiveImpl
 primLockUniv' = do
   let t = sort $ Type $ levelSuc $ Max 0 []
@@ -857,10 +852,6 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromListWith __IMPOSSIBL
   , "primLevelZero"       |-> mkPrimLevelZero
   , "primLevelSuc"        |-> mkPrimLevelSuc
   , "primLevelMax"        |-> mkPrimLevelMax
-
-  -- Sorts
-  , "primSetOmega"        |-> mkPrimSetOmega IsFibrant
-  , "primStrictSetOmega"  |-> mkPrimSetOmega IsStrict
 
   -- Floating point functions
   --

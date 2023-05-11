@@ -2630,12 +2630,12 @@ pattern Primitive
   )
 
 data PrimitiveSortData = PrimitiveSortData
-  { _primSortName :: String
+  { _primSortName :: BuiltinSort
   , _primSortSort :: Sort
   } deriving (Show, Generic)
 
 pattern PrimitiveSort
-  :: String
+  :: BuiltinSort
   -> Sort
   -> Defn
 pattern PrimitiveSort
@@ -3339,11 +3339,21 @@ type TempInstanceTable = (InstanceTable , Set QName)
 -- ** Builtin things
 ---------------------------------------------------------------------------
 
+data BuiltinSort
+  = SortSet
+  | SortProp
+  | SortStrictSet
+  | SortSetOmega
+  | SortStrictSetOmega
+  | SortIntervalUniv
+  | SortLevelUniv
+  deriving (Show, Eq, Bounded, Enum, Generic)
+
 data BuiltinDescriptor
   = BuiltinData (TCM Type) [String]
   | BuiltinDataCons (TCM Type)
   | BuiltinPrim String (Term -> TCM ())
-  | BuiltinSort String
+  | BuiltinSort BuiltinSort
   | BuiltinPostulate Relevance (TCM Type)
   | BuiltinUnknown (Maybe (TCM Type)) (Term -> Type -> TCM ())
     -- ^ Builtin of any kind.
@@ -5353,6 +5363,9 @@ instance KillRange CompKit where
 instance KillRange ProjectionLikenessMissing where
   killRange = id
 
+instance KillRange BuiltinSort where
+  killRange = id
+
 instance KillRange Defn where
   killRange def =
     case def of
@@ -5512,6 +5525,7 @@ instance NFData PrimFun
 instance NFData c => NFData (FunctionInverse' c)
 instance NFData TermHead
 instance NFData Call
+instance NFData BuiltinSort
 instance NFData pf => NFData (Builtin pf)
 instance NFData HighlightingLevel
 instance NFData HighlightingMethod
