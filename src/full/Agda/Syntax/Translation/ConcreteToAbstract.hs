@@ -2895,9 +2895,7 @@ instance ToAbstract C.LHSCore where
           toAbstract (OldName x)
         A.LHSHead x <$> do mergeEqualPs =<< toAbstract ps
     toAbstract (C.LHSProj d ps1 l ps2) = do
-        unless (null ps1) $ typeError $ GenericDocError $
-          "Ill-formed projection pattern" P.<+>
-          P.pretty (foldl C.AppP (C.IdentP True d) ps1)
+        unless (null ps1) $ typeError $ IllformedProjectionPatternConcrete (foldl C.AppP (C.IdentP True d) ps1)
         qx <- resolveName d
         ds <- case qx of
                 FieldName ds -> return $ fmap anameName ds
