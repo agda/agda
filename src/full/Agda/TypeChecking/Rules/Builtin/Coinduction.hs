@@ -105,6 +105,7 @@ bindBuiltinSharp x =
                     , conForced = []
                     , conErased = Nothing
                     , conErasure = erasure
+                    , conInductiveArgs = Nothing
                     }
                 }
     return $ Def sharp []

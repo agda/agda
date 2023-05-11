@@ -50,6 +50,7 @@ import Agda.TypeChecking.Rewriting
 import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Induction
 import Agda.TypeChecking.Warnings
 
 import Agda.TypeChecking.Rules.Application
@@ -254,6 +255,11 @@ mutualChecks mi d ds mid names = do
   -- to skip termination of non-recursive functions.
   modifyAllowedReductions (SmallSet.delete UnconfirmedReductions) $
     checkPositivity_ mi names
+
+  -- Populate which arguments for constructors of data types should be
+  -- considered structurally smaller when applied.
+  computeInductiveArgs $ Set.toList names
+
   -- Andreas, 2013-02-27: check termination before injectivity,
   -- to avoid making the injectivity checker loop.
   localTC (\ e -> e { envMutualBlock = Just mid }) $
@@ -284,6 +290,7 @@ mutualChecks mi d ds mid names = do
   -- more instances of injectivity can be recognized.
   checkInjectivity_        names
   checkProjectionLikeness_ names
+
 
 -- | Check if there is a inferred eta record type in the mutual block.
 --   If yes, repeat the record pattern translation for all function definitions
@@ -446,6 +453,7 @@ checkPositivity_ mi names = Bench.billTo [Bench.Positivity] $ do
   -- Andreas, 2012-02-13: Polarity computation uses information from the
   -- positivity check, so it needs happen after the positivity check.
   computePolarity $ Set.toList names
+
 
 -- | Check that all coinductive records are actually recursive.
 --   (Otherwise, one can implement invalid recursion schemes just like

@@ -600,6 +600,7 @@ library
       Agda.TypeChecking.Generalize
       Agda.TypeChecking.IApplyConfluence
       Agda.TypeChecking.Implicit
+      Agda.TypeChecking.Induction
       Agda.TypeChecking.Injectivity
       Agda.TypeChecking.Inlining
       Agda.TypeChecking.InstanceArguments

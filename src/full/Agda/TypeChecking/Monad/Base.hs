@@ -48,6 +48,7 @@ import qualified Data.HashMap.Strict as HMap
 import Data.HashSet (HashSet)
 import Data.Semigroup ( Semigroup, (<>)) --, Any(..) )
 import Data.String
+import Data.IntSet (IntSet)
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
@@ -2555,7 +2556,18 @@ data ConstructorData = ConstructorData
   , _conErasure :: !Bool
     -- ^ Was @--erasure@ in effect when the constructor was defined?
     -- (This can affect the constructor's type.)
+  , _conInductiveArgs :: Maybe [IsInductive]
+    -- ^ Which arguments are available for structural recursion? The
+    -- length of the list is @conArity@.
   } deriving (Show, Generic)
+
+-- | Is this argument available for use as a termination metric?
+data IsInductive
+  = InductiveArg
+    -- ^ Instances of this argument should be considered.
+  | NonInductiveArg
+    -- ^ Instances of this argument should not be considered.
+  deriving (Show, Generic, Enum, Bounded)
 
 pattern Constructor
   :: Int
@@ -2569,6 +2581,7 @@ pattern Constructor
   -> [IsForced]
   -> Maybe [Bool]
   -> Bool
+  -> Maybe [IsInductive]
   -> Defn
 pattern Constructor
   { conPars
@@ -2582,6 +2595,7 @@ pattern Constructor
   , conForced
   , conErased
   , conErasure
+  , conInductiveArgs
   } = ConstructorDefn (ConstructorData
     conPars
     conArity
@@ -2594,6 +2608,7 @@ pattern Constructor
     conForced
     conErased
     conErasure
+    conInductiveArgs
   )
 
 data PrimitiveData = PrimitiveData
@@ -2811,16 +2826,18 @@ instance Pretty ConstructorData where
       _conForced
       conErased
       conErasure
+      conInductive
     ) =
     "Constructor {" <?> vcat
-      [ "conPars    =" <?> pshow conPars
-      , "conArity   =" <?> pshow conArity
-      , "conSrcCon  =" <?> pretty conSrcCon
-      , "conData    =" <?> pretty conData
-      , "conAbstr   =" <?> pshow conAbstr
-      , "conInd     =" <?> pshow conInd
-      , "conErased  =" <?> pshow conErased
-      , "conErasure =" <?> pshow conErasure
+      [ "conPars      =" <?> pshow conPars
+      , "conArity     =" <?> pshow conArity
+      , "conSrcCon    =" <?> pretty conSrcCon
+      , "conData      =" <?> pretty conData
+      , "conAbstr     =" <?> pshow conAbstr
+      , "conInd       =" <?> pshow conInd
+      , "conErased    =" <?> pshow conErased
+      , "conErasure   =" <?> pshow conErasure
+      , "conInductive =" <?> pshow conErasure
       ] <?> "}"
 
 instance Pretty PrimitiveData where
@@ -5364,11 +5381,14 @@ instance KillRange Defn where
         killRange16 Function a b c d e f g h i j k l m n o p
       Datatype a b c d e f g h i j   -> killRange10 Datatype a b c d e f g h i j
       Record a b c d e f g h i j k l m -> killRange13 Record a b c d e f g h i j k l m
-      Constructor a b c d e f g h i j k -> killRange11 Constructor a b c d e f g h i j k
+      Constructor a b c d e f g h i j k l -> killRange12 Constructor a b c d e f g h i j k l
       Primitive a b c d e            -> killRange5 Primitive a b c d e
       PrimitiveSort a b              -> killRange2 PrimitiveSort a b
 
 instance KillRange MutualId where
+  killRange = id
+
+instance KillRange IsInductive where
   killRange = id
 
 instance KillRange c => KillRange (FunctionInverse' c) where
@@ -5534,3 +5554,4 @@ instance NFData UnificationFailure
 instance NFData UnquoteError
 instance NFData TypeError
 instance NFData LHSOrPatSyn
+instance NFData IsInductive

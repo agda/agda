@@ -25,6 +25,7 @@ import Data.Foldable (toList)
 import qualified Data.List as List
 import Data.Monoid hiding ((<>))
 import Data.Set (Set)
+import Data.Either
 import qualified Data.Set as Set
 
 import qualified Agda.Syntax.Abstract as A
@@ -1474,8 +1475,18 @@ compareVar i (Masked m p) = do
       setUsability True . decrease 1 <$> compareVar i (notMasked $ namedArg p)
 
     ConP c _ ps -> if m then no else setUsability True <$> do
-      decrease <$> offsetFromConstructor (conName c)
-               <*> (Order.supremum <$> mapM (compareVar i . notMasked . namedArg) ps)
+      fmap theDef (getConstInfo (conName c)) >>= \case
+        con@Constructor{} | Just as <- conInductiveArgs con -> do
+          let
+            (ind, nonind) = partitionEithers (zipWith keep as ps)
+            keep InductiveArg    = Left
+            keep NonInductiveArg = Right
+          smaller <- decrease
+            <$> offsetFromConstructor (conName c)
+            <*> (Order.supremum <$> mapM (compareVar i . notMasked . namedArg) ind)
+          same <- mapM (compareVar i . notMasked . namedArg) nonind
+          pure $ Order.supremum (smaller:same)
+        _ -> __IMPOSSIBLE__
     DefP _ c ps -> if m then no else setUsability True <$> do
       decrease <$> offsetFromConstructor c
                <*> (Order.supremum <$> mapM (compareVar i . notMasked . namedArg) ps)
