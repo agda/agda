@@ -1846,7 +1846,7 @@ instance ToAbstract NiceDeclaration where
           return [ A.DataDef (mkDefInfo x f PublicAccess a r) x' uc (DataDefParams gvars pars) cons ]
       where
         conName (C.Axiom _ _ _ _ _ c _) = return c
-        conName d = errorNotConstrDecl d
+        conName d = __IMPOSSIBLE__
 
   -- Record definitions (mucho interesting)
     C.NiceRecDef r o a _ uc x (RecordDirectives ind eta pat cm) pars fields -> do
@@ -2335,12 +2335,7 @@ instance ToAbstract DataConstrDecl where
         printScope "con" 15 "bound constructor"
         return $ A.Axiom ConName (mkDefInfoInstance x f p a i NotMacroDef r)
                          info Nothing y t'
-      _ -> errorNotConstrDecl d
-
-errorNotConstrDecl :: C.NiceDeclaration -> ScopeM a
-errorNotConstrDecl d = typeError . GenericDocError $
-        "Illegal declaration in data type definition " P.$$
-        P.nest 2 (P.vcat $ map pretty (notSoNiceDeclarations d))
+      _ -> __IMPOSSIBLE__
 
 instance ToAbstract C.Pragma where
   type AbsOfCon C.Pragma = [A.Pragma]
