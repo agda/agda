@@ -581,9 +581,7 @@ instance ToAbstract MaybeOldQName where
                           -- (Issue 3354).
                 Just s -> stGeneralizedVars `setTCLens` Just (s `Set.union` Set.singleton (anameName d))
                 Nothing -> typeError $ GeneralizeNotSupportedHere $ anameName d
-          DisallowedGeneralizeName -> do
-            typeError . GenericDocError =<<
-              text "Cannot use generalized variable from let-opened module:" <+> prettyTCM (anameName d)
+          DisallowedGeneralizeName -> typeError $ GeneralizedVarInLetOpenedModule $ anameName d
           _ -> return ()
         -- and then we return the name
         return $ withSuffix suffix $ nameToExpr d

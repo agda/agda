@@ -178,6 +178,7 @@ errorString err = case err of
   GeneralizeNotSupportedHere{}             -> "GeneralizeNotSupportedHere"
   GeneralizeCyclicDependency{}             -> "GeneralizeCyclicDependency"
   GeneralizeUnsolvedMeta{}                 -> "GeneralizeUnsolvedMeta"
+  GeneralizedVarInLetOpenedModule{}        -> "GeneralizedVarInLetOpenedModule"
   MultipleFixityDecls{}                    -> "MultipleFixityDecls"
   MultiplePolarityPragmas{}                -> "MultiplePolarityPragmas"
   NoBindingForBuiltin{}                    -> "NoBindingForBuiltin"
@@ -1199,6 +1200,10 @@ instance PrettyTCM TypeError where
 
     GeneralizeUnsolvedMeta -> fsep $
       pwords "Unsolved meta not generalized"
+
+    GeneralizedVarInLetOpenedModule x -> fsep $
+      pwords "Cannot use generalized variable from let-opened module: " ++
+      [prettyTCM x]
 
     MultipleFixityDecls xs ->
       sep [ fsep $ pwords "Multiple fixity or syntax declarations for"
