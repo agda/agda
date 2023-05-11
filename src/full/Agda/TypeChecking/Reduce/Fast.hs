@@ -422,16 +422,26 @@ fastNormalise v = ignoreBlocking <$> fastReduce' NF v
 
 fastReduce' :: Normalisation -> Term -> ReduceM (Blocked Term)
 fastReduce' norm v = do
+  tcState <- getTCState
   let name (Con c _ _) = c
       name _         = __IMPOSSIBLE__
-  zero  <- fmap name <$> getBuiltin' builtinZero
-  suc   <- fmap name <$> getBuiltin' builtinSuc
-  true  <- fmap name <$> getBuiltin' builtinTrue
-  false <- fmap name <$> getBuiltin' builtinFalse
-  refl  <- fmap name <$> getBuiltin' builtinRefl
-  force <- fmap primFunName <$> getPrimitive' "primForce"
-  erase <- fmap primFunName <$> getPrimitive' "primErase"
-  let bEnv = BuiltinEnv { bZero = zero, bSuc = suc, bTrue = true, bFalse = false, bRefl = refl,
+
+      -- Gather builtins using 'BuiltinAccess' rather than with the default
+      -- 'HasBuiltins ReduceM' instance. This increases laziness, allowing us to
+      -- avoid costly builtin lookups unless needed.
+      builtinName   = fmap name . runBuiltinAccess tcState . getBuiltin'
+      primitiveName = fmap primFunName . runBuiltinAccess tcState . getPrimitive'
+
+      zero  = builtinName builtinZero
+      suc   = builtinName builtinSuc
+      true  = builtinName builtinTrue
+      false = builtinName builtinFalse
+      refl  = builtinName builtinRefl
+
+      force = primitiveName "primForce"
+      erase = primitiveName "primErase"
+
+      bEnv = BuiltinEnv { bZero = zero, bSuc = suc, bTrue = true, bFalse = false, bRefl = refl,
                           bPrimForce = force, bPrimErase = erase }
   allowedReductions <- asksTC envAllowedReductions
   rwr <- optRewriting <$> pragmaOptions

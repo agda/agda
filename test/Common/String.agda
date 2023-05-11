@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical-compatible #-}
+{-# OPTIONS --cubical-compatible --level-universe #-}
 module Common.String where
 
 open import Agda.Builtin.String public

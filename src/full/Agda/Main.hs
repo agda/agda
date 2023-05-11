@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 
 {-| Agda main module.
 -}
@@ -87,7 +88,7 @@ runAgda' backends = runTCMPrettyErrors $ do
 
       case mode of
         MainModePrintHelp hp   -> liftIO $ printUsage bs hp
-        MainModePrintVersion   -> liftIO $ printVersion bs
+        MainModePrintVersion o -> liftIO $ printVersion bs o
         MainModePrintAgdaDir   -> liftIO $ printAgdaDir
         MainModeRun interactor -> do
           setTCLens stBackends bs
@@ -97,17 +98,17 @@ runAgda' backends = runTCMPrettyErrors $ do
 data MainMode
   = MainModeRun (Interactor ())
   | MainModePrintHelp Help
-  | MainModePrintVersion
+  | MainModePrintVersion PrintAgdaVersion
   | MainModePrintAgdaDir
 
 -- | Determine the main execution mode to run, based on the configured backends and command line options.
 -- | This is pure.
 getMainMode :: MonadError String m => [Backend] -> Maybe AbsolutePath -> CommandLineOptions -> m MainMode
 getMainMode configuredBackends maybeInputFile opts
-  | Just hp <- optPrintHelp opts = return $ MainModePrintHelp hp
-  | optPrintVersion opts         = return $ MainModePrintVersion
-  | optPrintAgdaDir opts         = return $ MainModePrintAgdaDir
-  | otherwise                    = do
+  | Just hp <- optPrintHelp opts    = return $ MainModePrintHelp hp
+  | Just o  <- optPrintVersion opts = return $ MainModePrintVersion o
+  | optPrintAgdaDir opts            = return $ MainModePrintAgdaDir
+  | otherwise = do
       mi <- getInteractor configuredBackends maybeInputFile opts
       -- If there was no selection whatsoever (e.g. just invoked "agda"), we just show help and exit.
       return $ maybe (MainModePrintHelp GeneralHelp) MainModeRun mi
@@ -257,12 +258,29 @@ backendUsage (Backend b) =
     map void (commandLineFlags b)
 
 -- | Print version information.
-printVersion :: [Backend] -> IO ()
-printVersion backends = do
+printVersion :: [Backend] -> PrintAgdaVersion -> IO ()
+printVersion _ PrintAgdaNumericVersion = putStrLn versionWithCommitInfo
+printVersion backends PrintAgdaVersion = do
   putStrLn $ "Agda version " ++ versionWithCommitInfo
+  unless (null flags) $
+    mapM_ putStrLn $ ("Built with flags (cabal -f)" :) $ map bullet flags
   mapM_ putStrLn
-    [ "  - " ++ name ++ " backend version " ++ ver
+    [ bullet $ name ++ " backend version " ++ ver
     | Backend Backend'{ backendName = name, backendVersion = Just ver } <- backends ]
+  where
+  bullet = (" - " ++)
+  -- Print cabal flags that were involved in compilation.
+  flags =
+#ifdef COUNT_CLUSTERS
+    "enable-cluster-counting: unicode cluster counting in LaTeX backend using the ICU library" :
+#endif
+#ifdef OPTIMISE_HEAVILY
+    "optimise-heavily: extra optimizations" :
+#endif
+#ifdef DEBUG
+    "debug: extra debug info" :
+#endif
+    []
 
 printAgdaDir :: IO ()
 printAgdaDir = putStrLn =<< getDataDir

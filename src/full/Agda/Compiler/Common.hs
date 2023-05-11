@@ -11,7 +11,7 @@ import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
 import qualified Data.HashSet as HSet
 import Data.Char
-import Data.Function
+import Data.Function (on)
 #if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup
 #endif
@@ -38,6 +38,7 @@ import Agda.Utils.List1          ( pattern (:|) )
 import Agda.Utils.Maybe
 import Agda.Utils.Monad          ( ifNotM )
 import Agda.Utils.Pretty
+import Agda.Utils.WithDefault    ( lensCollapseDefault )
 
 import Agda.Utils.Impossible
 
@@ -171,15 +172,15 @@ inCompilerEnv checkResult cont = do
     -- We match on whether @["--no-main"]@ is one of the stored options.
     let iFilePragmaStrings = map pragmaStrings . iFilePragmaOptions
     when (["--no-main"] `elem` iFilePragmaStrings mainI) $
-      stPragmaOptions `modifyTCLens` \ o -> o { optCompileNoMain = True }
+      setTCLens (stPragmaOptions . lensOptCompileMain . lensCollapseDefault) False
 
     -- Perhaps all pragma options from the top-level module should be
     -- made available to the compiler in a suitable way. Here are more
     -- hacks:
     when (any ("--cubical" `elem`) $ iFilePragmaStrings mainI) $
-      stPragmaOptions `modifyTCLens` \ o -> o { optCubical = Just CFull }
+      setTCLens (stPragmaOptions . lensOptCubical) $ Just CFull
     when (any ("--erased-cubical" `elem`) $ iFilePragmaStrings mainI) $
-      stPragmaOptions `modifyTCLens` \ o -> o { optCubical = Just CErased }
+      setTCLens (stPragmaOptions . lensOptCubical) $ Just CErased
 
     setScope (iInsideScope mainI) -- so that compiler errors don't use overly qualified names
     ignoreReducibility cont

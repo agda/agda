@@ -440,6 +440,7 @@ instance PrettyTCM NLPSort where
     PInf f n  -> prettyTCM (Inf f n :: Sort)
     PSizeUniv -> prettyTCM (SizeUniv :: Sort)
     PLockUniv -> prettyTCM (LockUniv :: Sort)
+    PLevelUniv -> prettyTCM (LevelUniv :: Sort)
     PIntervalUniv -> prettyTCM (IntervalUniv :: Sort)
 
 instance PrettyTCM (Elim' NLPat) where

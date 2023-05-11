@@ -1,0 +1,4 @@
+TickVariableAfter.agda:13,21-30
+The variable later can not be mentioned here, since it was not
+introduced before the variable tic.
+when checking that the expression later tic has type A

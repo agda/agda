@@ -1,3 +1,4 @@
+{-# OPTIONS --level-universe #-}
 
 module Common.Reflection where
 

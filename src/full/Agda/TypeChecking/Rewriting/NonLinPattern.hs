@@ -22,7 +22,7 @@ import Agda.Syntax.Internal.MetaVars ( AllMetas, unblockOnAllMetasIn )
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Lazy
-import Agda.TypeChecking.Irrelevance (workOnTypes, isPropM)
+import Agda.TypeChecking.Irrelevance (isPropM)
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -49,47 +49,48 @@ import Agda.Utils.Size
 --   The second argument is the number of bound variables (from pattern lambdas).
 --   The third argument is the type of the term.
 
-class PatternFrom t a b where
-  patternFrom :: Relevance -> Int -> t -> a -> TCM b
+class PatternFrom a b where
+  patternFrom :: Relevance -> Int -> TypeOf a -> a -> TCM b
 
-instance (PatternFrom t a b) => PatternFrom (Dom t) (Arg a) (Arg b) where
+instance (PatternFrom a b) => PatternFrom (Arg a) (Arg b) where
   patternFrom r k t u = let r' = r `composeRelevance` getRelevance u
                         in  traverse (patternFrom r' k $ unDom t) u
 
-instance PatternFrom (Type, Term) Elims [Elim' NLPat] where
+instance PatternFrom Elims [Elim' NLPat] where
   patternFrom r k (t,hd) = \case
     [] -> return []
     (Apply u : es) -> do
       (a, b) <- assertPi t
       p   <- patternFrom r k a u
       let t'  = absApp b (unArg u)
-      let hd' = hd `apply` [ u ]
+      let hd' = hd . (Apply u:)
       ps  <- patternFrom r k (t',hd') es
       return $ Apply p : ps
     (IApply x y i : es) -> do
       (s, q, l, b, u, v) <- assertPath t
       let t' = El s $ unArg b `apply` [ defaultArg i ]
-      let hd' = hd `applyE` [IApply x y i]
+      let hd' = hd . (IApply x y i:)
       interval <- primIntervalType
       p   <- patternFrom r k interval i
       ps  <- patternFrom r k (t',hd') es
       return $ IApply (PTerm x) (PTerm y) p : ps
     (Proj o f : es) -> do
       (a,b) <- assertProjOf f t
-      let t' = b `absApp` hd
-      hd' <- applyDef o f (argFromDom a $> hd)
-      ps  <- patternFrom r k (t',hd') es
+      let u = hd []
+          t' = b `absApp` u
+      hd' <- applyDef o f (argFromDom a $> u)
+      ps  <- patternFrom r k (t',applyE hd') es
       return $ Proj o f : ps
 
-instance (PatternFrom t a b) => PatternFrom t (Dom a) (Dom b) where
+instance (PatternFrom a b) => PatternFrom (Dom a) (Dom b) where
   patternFrom r k t = traverse $ patternFrom r k t
 
-instance PatternFrom () Type NLPType where
+instance PatternFrom Type NLPType where
   patternFrom r k _ a = workOnTypes $
     NLPType <$> patternFrom r k () (getSort a)
             <*> patternFrom r k (sort $ getSort a) (unEl a)
 
-instance PatternFrom () Sort NLPSort where
+instance PatternFrom Sort NLPSort where
   patternFrom r k _ s = do
     s <- abortIfBlocked s
     case s of
@@ -99,6 +100,7 @@ instance PatternFrom () Sort NLPSort where
       Inf f n  -> return $ PInf f n
       SizeUniv -> return PSizeUniv
       LockUniv -> return PLockUniv
+      LevelUniv -> return PLevelUniv
       IntervalUniv -> return PIntervalUniv
       PiSort _ _ _ -> __IMPOSSIBLE__
       FunSort _ _ -> __IMPOSSIBLE__
@@ -112,13 +114,13 @@ instance PatternFrom () Sort NLPSort where
           ]
         __IMPOSSIBLE__
 
-instance PatternFrom () Level NLPat where
+instance PatternFrom Level NLPat where
   patternFrom r k _ l = do
     t <- levelType
     v <- reallyUnLevelView l
     patternFrom r k t v
 
-instance PatternFrom Type Term NLPat where
+instance PatternFrom Term NLPat where
   patternFrom r0 k t v = do
     t <- abortIfBlocked t
     etaRecord <- isEtaRecordType t
@@ -143,7 +145,7 @@ instance PatternFrom Type Term NLPat where
       (_ , Var i es)
        | i < k     -> do
            t <- typeOfBV i
-           PBoundVar i <$> patternFrom r k (t , var i) es
+           PBoundVar i <$> patternFrom r k (t , Var i) es
        -- The arguments of `var i` should be distinct bound variables
        -- in order to build a Miller pattern
        | Just vs <- allApplyElims es -> do
@@ -167,7 +169,7 @@ instance PatternFrom Type Term NLPat where
         def <- theDef <$> getConstInfo d
         (tel, c, ci, vs) <- etaExpandRecord_ d pars def v
         ct <- assertConOf c t
-        PDef (conName c) <$> patternFrom r k (ct , Con c ci []) (map Apply vs)
+        PDef (conName c) <$> patternFrom r k (ct , Con c ci) (map Apply vs)
       (_ , Lam{})   -> errNotPi t
       (_ , Lit{})   -> done
       (_ , Def f es) | isIrrelevant r -> done
@@ -179,11 +181,11 @@ instance PatternFrom Type Term NLPat where
           [x , y] | f == lmax -> done
           _                   -> do
             ft <- defType <$> getConstInfo f
-            PDef f <$> patternFrom r k (ft , Def f []) es
+            PDef f <$> patternFrom r k (ft , Def f) es
       (_ , Con c ci vs) | isIrrelevant r -> done
       (_ , Con c ci vs) -> do
         ct <- assertConOf c t
-        PDef (conName c) <$> patternFrom r k (ct , Con c ci []) vs
+        PDef (conName c) <$> patternFrom r k (ct , Con c ci) vs
       (_ , Pi a b) | isIrrelevant r -> done
       (_ , Pi a b) -> do
         pa <- patternFrom r k () a
@@ -240,6 +242,7 @@ instance NLPatToTerm NLPSort Sort where
   nlPatToTerm (PInf f n) = return $ Inf f n
   nlPatToTerm PSizeUniv = return SizeUniv
   nlPatToTerm PLockUniv = return LockUniv
+  nlPatToTerm PLevelUniv = return LevelUniv
   nlPatToTerm PIntervalUniv = return IntervalUniv
 
 -- | Gather the set of pattern variables of a non-linear pattern
@@ -263,6 +266,7 @@ instance NLPatVars NLPSort where
     PInf f n  -> empty
     PSizeUniv -> empty
     PLockUniv -> empty
+    PLevelUniv -> empty
     PIntervalUniv -> empty
 
 instance NLPatVars NLPat where
@@ -321,6 +325,7 @@ instance GetMatchables NLPSort where
     PInf f n  -> empty
     PSizeUniv -> empty
     PLockUniv -> empty
+    PLevelUniv -> empty
     PIntervalUniv -> empty
 
 instance GetMatchables Term where
@@ -356,6 +361,7 @@ instance Free NLPSort where
     PInf f n  -> mempty
     PSizeUniv -> mempty
     PLockUniv -> mempty
+    PLevelUniv -> mempty
     PIntervalUniv -> mempty
 
 -- Throws a pattern violation if the given term contains any

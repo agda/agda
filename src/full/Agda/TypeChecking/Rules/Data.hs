@@ -125,7 +125,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   else throwError err
               reduce s
 
-            withK   <- not . collapseDefault . optWithoutK <$>
+            withK   <- not . optWithoutK <$>
                        pragmaOptions
             erasure <- optErasure <$> pragmaOptions
             -- Parameters are always hidden in constructors. If
@@ -198,7 +198,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
         let cons   = map A.axiomName cs  -- get constructor names
 
         (mtranspix, transpFun) <-
-          ifM (collapseDefault . optCubicalCompatible <$> pragmaOptions)
+          ifM (optCubicalCompatible <$> pragmaOptions)
             (do mtranspix <- inTopContext $ defineTranspIx name
                 transpFun <- inTopContext $
                                defineTranspFun name mtranspix cons
@@ -240,6 +240,7 @@ checkDataSort name s = setCurrentRange name $ do
       -- Sorts that do not admit data definitions.
       SizeUniv     -> no
       LockUniv     -> no
+      LevelUniv    -> no
       IntervalUniv -> no
       -- Blocked sorts.
       PiSort _ _ _ -> __IMPOSSIBLE__

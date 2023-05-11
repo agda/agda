@@ -6,7 +6,7 @@ module Agda.Syntax.TopLevelModuleName where
 
 import Control.DeepSeq
 
-import Data.Function
+import Data.Function (on)
 import Data.Hashable
 import qualified Data.List as List
 import Data.Text (Text)
@@ -180,7 +180,7 @@ instance NFData TopLevelModuleName where
 -- | A lens focusing on the 'moduleNameParts'.
 
 lensTopLevelModuleNameParts ::
-  Lens' TopLevelModuleNameParts TopLevelModuleName
+  Lens' TopLevelModuleName TopLevelModuleNameParts
 lensTopLevelModuleNameParts f m =
   f (moduleNameParts m) <&> \ xs -> m{ moduleNameParts = xs }
 

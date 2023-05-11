@@ -7,7 +7,7 @@
 \AgdaTarget{ℕ}
 \AgdaTarget{zero}
 </a><a id="123" class="Markup">\begin{code}</a>
-<a id="136" class="Keyword">data</a> <a id="ℕ"></a><a id="141" href="Links.html#141" class="Datatype">ℕ</a> <a id="143" class="Symbol">:</a> <a id="145" href="Agda.Primitive.html#320" class="Primitive">Set</a> <a id="149" class="Keyword">where</a>
+<a id="136" class="Keyword">data</a> <a id="ℕ"></a><a id="141" href="Links.html#141" class="Datatype">ℕ</a> <a id="143" class="Symbol">:</a> <a id="145" href="Agda.Primitive.html#337" class="Primitive">Set</a> <a id="149" class="Keyword">where</a>
   <a id="ℕ.zero"></a><a id="157" href="Links.html#157" class="InductiveConstructor">zero</a>  <a id="163" class="Symbol">:</a> <a id="165" href="Links.html#141" class="Datatype">ℕ</a>
   <a id="ℕ.suc"></a><a id="169" href="Links.html#169" class="InductiveConstructor">suc</a>   <a id="175" class="Symbol">:</a> <a id="177" href="Links.html#141" class="Datatype">ℕ</a> <a id="179" class="Symbol">→</a> <a id="181" href="Links.html#141" class="Datatype">ℕ</a>
 <a id="183" class="Markup">\end{code}</a><a id="193" class="Background">
@@ -35,7 +35,7 @@ Now that the target for \AgdaFunction{two} has been defined the link
 works automatically.
 
 </a><a id="750" class="Markup">\begin{code}</a>
-<a id="763" class="Keyword">data</a> <a id="Bool"></a><a id="768" href="Links.html#768" class="Datatype">Bool</a> <a id="773" class="Symbol">:</a> <a id="775" href="Agda.Primitive.html#320" class="Primitive">Set</a> <a id="779" class="Keyword">where</a>
+<a id="763" class="Keyword">data</a> <a id="Bool"></a><a id="768" href="Links.html#768" class="Datatype">Bool</a> <a id="773" class="Symbol">:</a> <a id="775" href="Agda.Primitive.html#337" class="Primitive">Set</a> <a id="779" class="Keyword">where</a>
   <a id="Bool.true"></a><a id="787" href="Links.html#787" class="InductiveConstructor">true</a> <a id="Bool.false"></a><a id="792" href="Links.html#792" class="InductiveConstructor">false</a> <a id="798" class="Symbol">:</a> <a id="800" href="Links.html#768" class="Datatype">Bool</a>
 <a id="805" class="Markup">\end{code}</a><a id="815" class="Background">
 
@@ -44,7 +44,7 @@ to be specified as follows:
 
 \AgdaTarget{if, then, else, if\_then\_else\_}
 </a><a id="963" class="Markup">\begin{code}</a>
-<a id="if_then_else_"></a><a id="976" href="Links.html#976" class="Function Operator">if_then_else_</a> <a id="990" class="Symbol">:</a> <a id="992" class="Symbol">{</a><a id="993" href="Links.html#993" class="Bound">A</a> <a id="995" class="Symbol">:</a> <a id="997" href="Agda.Primitive.html#320" class="Primitive">Set</a><a id="1000" class="Symbol">}</a> <a id="1002" class="Symbol">→</a> <a id="1004" href="Links.html#768" class="Datatype">Bool</a> <a id="1009" class="Symbol">→</a> <a id="1011" href="Links.html#993" class="Bound">A</a> <a id="1013" class="Symbol">→</a> <a id="1015" href="Links.html#993" class="Bound">A</a> <a id="1017" class="Symbol">→</a> <a id="1019" href="Links.html#993" class="Bound">A</a>
+<a id="if_then_else_"></a><a id="976" href="Links.html#976" class="Function Operator">if_then_else_</a> <a id="990" class="Symbol">:</a> <a id="992" class="Symbol">{</a><a id="993" href="Links.html#993" class="Bound">A</a> <a id="995" class="Symbol">:</a> <a id="997" href="Agda.Primitive.html#337" class="Primitive">Set</a><a id="1000" class="Symbol">}</a> <a id="1002" class="Symbol">→</a> <a id="1004" href="Links.html#768" class="Datatype">Bool</a> <a id="1009" class="Symbol">→</a> <a id="1011" href="Links.html#993" class="Bound">A</a> <a id="1013" class="Symbol">→</a> <a id="1015" href="Links.html#993" class="Bound">A</a> <a id="1017" class="Symbol">→</a> <a id="1019" href="Links.html#993" class="Bound">A</a>
 <a id="1021" href="Links.html#976" class="Function Operator">if</a> <a id="1024" href="Links.html#787" class="InductiveConstructor">true</a> <a id="1029" href="Links.html#976" class="Function Operator">then</a> <a id="1034" href="Links.html#1034" class="Bound">t</a> <a id="1036" href="Links.html#976" class="Function Operator">else</a> <a id="1041" href="Links.html#1041" class="Bound">f</a> <a id="1043" class="Symbol">=</a> <a id="1045" href="Links.html#1034" class="Bound">t</a>
 <a id="1047" href="Links.html#976" class="Function Operator">if</a> <a id="1050" href="Links.html#792" class="InductiveConstructor">false</a> <a id="1056" href="Links.html#976" class="Function Operator">then</a> <a id="1061" href="Links.html#1061" class="Bound">t</a> <a id="1063" href="Links.html#976" class="Function Operator">else</a> <a id="1068" href="Links.html#1068" class="Bound">f</a> <a id="1070" class="Symbol">=</a> <a id="1072" href="Links.html#1068" class="Bound">f</a>
 <a id="1074" class="Markup">\end{code}</a><a id="1084" class="Background">

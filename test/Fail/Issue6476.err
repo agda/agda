@@ -1,0 +1,3 @@
+Issue6476.agda:18,8-12
+0 != 1 of type Nat
+when checking that the expression refl has type 0 0 ≡ 1 1

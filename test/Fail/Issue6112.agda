@@ -4,13 +4,13 @@ postulate
   _≡_ : {A : Set₁} (a : A) → A → Set
 {-# BUILTIN REWRITE _≡_ #-}
 
-record ⊤ : Set where
+record ⊤ (A : Set) : Set where
   constructor ★
 
 postulate
   X Y : Set
   F : Set → Set
-  FX : F X ≡ ⊤
+  FX : F X ≡ ⊤ X
 {-# REWRITE FX #-}
 
 postulate

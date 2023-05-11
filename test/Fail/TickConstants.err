@@ -1,4 +1,4 @@
 TickConstants.agda:13,10-25
-The following vars are not allowed in a later value applied to c
-                                                               x : [x]
+The lock variable x can not appear simultaneously in the "later"
+term foo (c x) and in the lock term c x.
 when checking that the expression foo (c x) (c x) has type Set

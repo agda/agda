@@ -25,8 +25,8 @@ instance Arbitrary Name where
     where
     parts = do
       parts         <- list1Of $ elements ["x", "y", "z"]
-      startWithHole <- arbitrary
-      endWithHole   <- arbitrary
+      startWithHole <- arbitrary :: Gen Bool
+      endWithHole   <- arbitrary :: Gen Bool
       return $
         applyWhen startWithHole (Hole <|) $
         applyWhen endWithHole   (`List1.appendList` [Hole]) $

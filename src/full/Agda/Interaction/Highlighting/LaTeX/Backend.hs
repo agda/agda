@@ -30,7 +30,7 @@ import Agda.Compiler.Common (curIF, IsMain(IsMain, NotMain))
 import Agda.Interaction.Options
   ( ArgDescr(NoArg, ReqArg)
   , CommandLineOptions ( optGHCiInteraction, optPragmaOptions )
-  , PragmaOptions ( optCountClusters )
+  , optCountClusters
   , Flag
   , OptDescr(..)
   )

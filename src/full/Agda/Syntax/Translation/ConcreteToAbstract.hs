@@ -840,7 +840,8 @@ scopeCheckExtendedLam r e cs = do
   -- for testing issue #4016.
   d <- C.FunDef r [] a NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ cname . List1.toList <$> do
           forM cs $ \ (LamClause ps rhs ca) -> do
-            let p   = C.rawAppP $ (killRange $ IdentP $ C.QName cname) :| ps
+            let p   = C.rawAppP $
+                        (killRange $ IdentP True $ C.QName cname) :| ps
             let lhs = C.LHS p [] []
             return $ C.Clause cname ca lhs rhs NoWhere []
   scdef <- toAbstract d
@@ -1078,6 +1079,9 @@ instance ToAbstract (C.Binder' (NewName C.BoundName)) where
            n' <- freshConcreteName (getRange $ newName n) 0 patternInTeleName
            pure $ fmap (\ n -> n { C.boundName = n' }) n
     n <- toAbstract n
+    -- Expand puns if optHiddenArgumentPuns is True.
+    puns <- optHiddenArgumentPuns <$> pragmaOptions
+    p <- return $ if puns then fmap expandPuns p else p
     -- Actually parsing the pattern, checking it is linear,
     -- and bind its variables
     p <- traverse parsePattern p
@@ -1559,10 +1563,13 @@ instance ToAbstract LetDef where
       NiceFunClause r PublicAccess AlwaysReducible tc cc catchall d@(C.FunClause lhs@(C.LHS p0 [] []) rhs0 wh ca) -> do
         noWhereInLetBinding wh
         rhs <- letBindingMustHaveRHS rhs0
-        mp  <- setCurrentRange p0 $
-                 (Right <$> parsePattern p0)
-                   `catchError`
-                 (return . Left)
+        -- Expand puns if optHiddenArgumentPuns is True.
+        puns <- optHiddenArgumentPuns <$> pragmaOptions
+        p0   <- return $ if puns then expandPuns p0 else p0
+        mp   <- setCurrentRange p0 $
+                  (Right <$> parsePattern p0)
+                    `catchError`
+                  (return . Left)
         case mp of
           Right p -> do
             rhs <- toAbstract rhs
@@ -1584,7 +1591,7 @@ instance ToAbstract LetDef where
                   [C.Clause x (ca || catchall) lhs (C.RHS rhs) NoWhere []]
                 ]
             where
-              definedName (C.IdentP (C.QName x)) = Just x
+              definedName (C.IdentP _ (C.QName x)) = Just x
               definedName C.IdentP{}             = Nothing
               definedName (C.RawAppP _ (List2 p _ _)) = definedName p
               definedName (C.ParenP _ p)         = definedName p
@@ -2128,7 +2135,10 @@ instance ToAbstract NiceDeclaration where
     NicePatternSyn r a n as p -> do
       reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ prettyShow n
       (as, p) <- withLocalVars $ do
-         p  <- toAbstract =<< parsePatternSyn p
+         -- Expand puns if optHiddenArgumentPuns is True.
+         puns <- optHiddenArgumentPuns <$> pragmaOptions
+         p <- return $ if puns then expandPuns p else p
+         p <- toAbstract =<< parsePatternSyn p
          when (containsAsPattern p) $
            typeError $ GenericError $
              "@-patterns are not allowed in pattern synonyms"
@@ -2597,7 +2607,7 @@ instance ToAbstract C.Pragma where
 
   toAbstract (C.DisplayPragma _ lhs rhs) = withLocalVars $ do
     let err = genericError "DISPLAY pragma left-hand side must have form 'f e1 .. en'"
-        getHead (C.IdentP x)          = return x
+        getHead (C.IdentP _ x)        = return x
         getHead (C.RawAppP _ (List2 p _ _)) = getHead p
         getHead _                     = err
 
@@ -2834,6 +2844,9 @@ instance ToAbstract C.RewriteEqn where
       -- constraints of the form @p ≡ e@.
       nps <- forM nps $ \ (n, p) -> do
         -- first the pattern
+        -- Expand puns if optHiddenArgumentPuns is True.
+        puns <- optHiddenArgumentPuns <$> pragmaOptions
+        p <- return $ if puns then expandPuns p else p
         p <- parsePattern p
         p <- toAbstract p
         checkPatternLinearity p (typeError . RepeatedVariablesInPattern)
@@ -2901,6 +2914,18 @@ instance ToAbstract LeftHandSide where
         reportSLn "scope.lhs" 5 $ "original lhs: " ++ prettyShow lhs
         reportSLn "scope.lhs" 60 $ "patternQNames: " ++ prettyShow (patternQNames lhs)
         reportSLn "scope.lhs" 60 $ "original lhs (raw): " ++ show lhs
+
+        -- Expand puns if optHiddenArgumentPuns is True. Note that pun
+        -- expansion should happen before the left-hand side is
+        -- parsed, because {(x)} is not treated as a pun, whereas {x}
+        -- is.
+        puns <- optHiddenArgumentPuns <$> pragmaOptions
+        lhs  <- return $ if puns then expandPuns lhs else lhs
+        reportSLn "scope.lhs" 5 $
+          "lhs with expanded puns: " ++ prettyShow lhs
+        reportSLn "scope.lhs" 60 $
+          "lhs with expanded puns (raw): " ++ show lhs
+
         lhscore <- parseLHS top lhs
         let ell = hasExpandedEllipsis lhscore
         reportSLn "scope.lhs" 5 $ "parsed lhs: " ++ prettyShow lhscore
@@ -2922,6 +2947,46 @@ instance ToAbstract LeftHandSide where
         reportSLn "scope.lhs" 60 $ "parsed lhs dot patterns: " ++ show lhscore
         printLocals 10 "checked dots:"
         return $ A.LHS (LHSInfo (getRange lhs) ell) lhscore
+
+-- | Expands hidden argument puns.
+
+expandPuns :: C.Pattern -> C.Pattern
+expandPuns p = case p of
+  C.AppP p1 p2       -> C.AppP (expandPuns p1)
+                          ((fmap . fmap) expandPuns p2)
+  C.RawAppP r ps     -> C.RawAppP r (fmap expandPuns ps)
+  C.OpAppP r q xs ps -> C.OpAppP r q xs
+                          ((fmap . fmap . fmap) expandPuns ps)
+  C.ParenP r p       -> C.ParenP r (expandPuns p)
+  C.AsP r x p        -> C.AsP r x (expandPuns p)
+  C.RecP r ps        -> C.RecP r (fmap (fmap expandPuns) ps)
+  C.WithP r p        -> C.WithP r (expandPuns p)
+  C.EllipsisP r mp   -> C.EllipsisP r (fmap expandPuns mp)
+  C.IdentP{}         -> p
+  C.QuoteP{}         -> p
+  C.WildP{}          -> p
+  C.AbsurdP{}        -> p
+  C.DotP{}           -> p
+  C.LitP{}           -> p
+  C.EqualP{}         -> p
+
+  C.HiddenP r p   -> C.HiddenP r (expand (fmap expandPuns p))
+  C.InstanceP r p -> C.InstanceP r (expand (fmap expandPuns p))
+  where
+  -- Only patterns of the form {x} or ⦃ x ⦄, where x is an unqualified
+  -- name (not @_@), are interpreted as puns.
+  expand :: Named_ C.Pattern -> Named_ C.Pattern
+  expand (Named { nameOf     = Nothing
+                , namedThing = C.IdentP _ q@(C.QName x@C.Name{})
+                }) =
+    Named { namedThing = C.IdentP False q
+          , nameOf     = Just $
+                         WithOrigin
+                           { woOrigin = ExpandedPun
+                           , woThing  = unranged (prettyShow x)
+                           }
+          }
+  expand p = p
 
 hasExpandedEllipsis :: C.LHSCore -> ExpandedEllipsis
 hasExpandedEllipsis core = case core of
@@ -2964,7 +3029,8 @@ instance ToAbstract C.LHSCore where
         A.LHSHead x <$> do mergeEqualPs =<< toAbstract ps
     toAbstract (C.LHSProj d ps1 l ps2) = do
         unless (null ps1) $ typeError $ GenericDocError $
-          "Ill-formed projection pattern" P.<+> P.pretty (foldl C.AppP (C.IdentP d) ps1)
+          "Ill-formed projection pattern" P.<+>
+          P.pretty (foldl C.AppP (C.IdentP True d) ps1)
         qx <- resolveName d
         ds <- case qx of
                 FieldName ds -> return $ fmap anameName ds
@@ -3019,19 +3085,32 @@ instance ToAbstract (A.Pattern' C.Expr) where
   type AbsOfCon (A.Pattern' C.Expr) = A.Pattern' A.Expr
   toAbstract = traverse $ insideDotPattern . toAbstractCtx DotPatternCtx  -- Issue #3033
 
-resolvePatternIdentifier ::
-  Range -> C.QName -> Maybe (Set A.Name) -> ScopeM (A.Pattern' C.Expr)
-resolvePatternIdentifier r x ns = do
+resolvePatternIdentifier
+  :: Bool -- ^ Is the identifier allowed to refer to a constructor (or
+          --   a pattern synonym)?
+  -> Range -> C.QName -> Maybe (Set A.Name) -> ScopeM (A.Pattern' C.Expr)
+resolvePatternIdentifier canBeConstructor r x ns = do
   reportSLn "scope.pat" 60 $ "resolvePatternIdentifier " ++ prettyShow x ++ " at source position " ++ prettyShow r
   px <- toAbstract (PatName x ns)
   case px of
     VarPatName y         -> do
       reportSLn "scope.pat" 60 $ "  resolved to VarPatName " ++ prettyShow y ++ " with range " ++ prettyShow (getRange y)
       return $ VarP $ A.mkBindName y
-    ConPatName ds        -> return $ ConP (ConPatInfo ConOCon (PatRange r) ConPatEager)
-                                          (AmbQ $ fmap anameName ds) []
-    PatternSynPatName ds -> return $ PatternSynP (PatRange r)
-                                                 (AmbQ $ fmap anameName ds) []
+    ConPatName ds ->
+      if canBeConstructor
+      then return $ ConP (ConPatInfo ConOCon (PatRange r) ConPatEager)
+                         (AmbQ $ fmap anameName ds) []
+      else err "constructor"
+    PatternSynPatName ds ->
+      if canBeConstructor
+      then return $ PatternSynP (PatRange r)
+                                (AmbQ $ fmap anameName ds) []
+      else err "pattern synonym"
+  where
+  err s =
+    setCurrentRange r $
+    typeError $ GenericError $
+      "A pun must not use the " ++ s ++ " " ++ prettyShow x
 
 -- | Apply an abstract syntax pattern head to pattern arguments.
 --
@@ -3073,11 +3152,11 @@ applyAPattern p0 p ps = do
 instance ToAbstract C.Pattern where
     type AbsOfCon C.Pattern = A.Pattern' C.Expr
 
-    toAbstract (C.IdentP x) =
-      resolvePatternIdentifier (getRange x) x Nothing
+    toAbstract (C.IdentP canBeConstructor x) =
+      resolvePatternIdentifier canBeConstructor (getRange x) x Nothing
 
     toAbstract (AppP (QuoteP _) p)
-      | IdentP x <- namedArg p,
+      | IdentP _ x <- namedArg p,
         visible p = do
       e <- toAbstract (OldQName x Nothing)
       A.LitP (PatRange $ getRange x) . LitQName <$> quotedName e
@@ -3120,7 +3199,7 @@ instance ToAbstract C.Pattern where
 
     toAbstract p0@(OpAppP r op ns ps) = do
         reportSLn "scope.pat" 60 $ "ConcreteToAbstract.toAbstract OpAppP{}: " ++ show p0
-        p  <- resolvePatternIdentifier (getRange op) op (Just ns)
+        p  <- resolvePatternIdentifier True (getRange op) op (Just ns)
         ps <- toAbstract ps
         applyAPattern p0 p ps
 
@@ -3276,7 +3355,7 @@ checkAttributes ((attr, r, s) : attrs) =
     RelevanceAttribute{}    -> cont
     TacticAttribute{}       -> cont
     LockAttribute IsNotLock -> cont
-    LockAttribute IsLock    -> do
+    LockAttribute IsLock{}  -> do
       unlessM (optGuarded <$> pragmaOptions) $
         err "Lock" "--guarded"
       cont

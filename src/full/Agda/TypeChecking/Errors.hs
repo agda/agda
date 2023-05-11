@@ -24,12 +24,12 @@ module Agda.TypeChecking.Errors
 import Prelude hiding ( null, foldl )
 
 import qualified Control.Exception as E
-import Control.Monad ((>=>))
+import Control.Monad ((>=>), (<=<))
 import Control.Monad.Except
 
 import qualified Data.CaseInsensitive as CaseInsens
 import Data.Foldable (foldl)
-import Data.Function
+import Data.Function (on)
 import Data.List (sortBy, dropWhileEnd, intercalate)
 import Data.Maybe
 import qualified Data.Set as Set
@@ -270,6 +270,9 @@ errorString err = case err of
   InstanceSearchDepthExhausted{}           -> "InstanceSearchDepthExhausted"
   TriedToCopyConstrainedPrim{}             -> "TriedToCopyConstrainedPrim"
   SortOfSplitVarError{}                    -> "SortOfSplitVarError"
+  ReferencesFutureVariables{}              -> "ReferencesFutureVariables"
+  DoesNotMentionTicks{}                    -> "DoesNotMentionTicks"
+  MismatchedProjectionsError{}             -> "MismatchedProjectionsError"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -509,7 +512,7 @@ instance PrettyTCM TypeError where
 
     NotAProperTerm -> fwords "Found a malformed term"
 
-    InvalidTypeSort s -> fsep $ prettyTCM s : pwords "is not a valid type"
+    InvalidTypeSort s -> fsep $ prettyTCM s : pwords "is not a valid sort"
     InvalidType v -> fsep $ prettyTCM v : pwords "is not a valid type"
 
     FunctionTypeInSizeUniv v -> fsep $
@@ -1008,7 +1011,7 @@ instance PrettyTCM TypeError where
         unambiguousP (C.InstanceP r x)    = C.InstanceP r $ fmap unambiguousP x
         unambiguousP (C.ParenP r x)       = C.ParenP r $ unambiguousP x
         unambiguousP (C.AsP r n x)        = C.AsP r n $ unambiguousP x
-        unambiguousP (C.OpAppP r op _ xs) = foldl C.AppP (C.IdentP op) xs
+        unambiguousP (C.OpAppP r op _ xs) = foldl C.AppP (C.IdentP True op) xs
         unambiguousP e                    = e
 
     OperatorInformation sects err ->
@@ -1215,7 +1218,65 @@ instance PrettyTCM TypeError where
 
     TriedToCopyConstrainedPrim q -> fsep $
       pwords "Cannot create a module containing a copy of" ++ [prettyTCM q]
+
     SortOfSplitVarError _ doc -> return doc
+
+    ReferencesFutureVariables term (disallowed :| _) lock leftmost
+      | disallowed == leftmost
+      -> fsep $ pwords "The lock variable"
+             ++ pure (prettyTCM =<< nameOfBV disallowed)
+             ++ pwords "can not appear simultaneously in the \"later\" term"
+             ++ pure (prettyTCM term)
+             ++ pwords "and in the lock term"
+             ++ pure (prettyTCM lock <> ".")
+
+    ReferencesFutureVariables term (disallowed :| rest) lock leftmost -> do
+      explain <- (/=) <$> prettyTCM lock <*> (prettyTCM =<< nameOfBV leftmost)
+      let
+        name = prettyTCM =<< nameOfBV leftmost
+        mod = case getLock lock of
+          IsLock LockOLock -> "@lock"
+          IsLock LockOTick -> "@tick"
+          _ -> __IMPOSSIBLE__
+      vcat $ concat
+        [ pure . fsep $ concat
+          [ pwords "The variable", pure (prettyTCM =<< nameOfBV disallowed), pwords "can not be mentioned here,"
+          , pwords "since it was not introduced before the variable", pure (name <> ".")
+          ]
+        , [ fsep ( pwords "Variables introduced after"
+                ++ pure name
+                ++ pwords "can not be used, since that is the leftmost" ++ pure mod ++ pwords "variable in the locking term"
+                ++ pure (prettyTCM lock <> "."))
+          | explain
+          ]
+        , [ fsep ( pwords "The following"
+                  ++ P.singPlural rest (pwords "variable is") (pwords "variables are")
+                  ++ pwords "not allowed here, either:"
+                  ++ punctuate comma (map (prettyTCM <=< nameOfBV) rest))
+          | not (null rest)
+          ]
+        ]
+
+    DoesNotMentionTicks term ty lock ->
+      let
+        mod = case getLock lock of
+          IsLock LockOLock -> "@lock"
+          IsLock LockOTick -> "@tick"
+          _ -> __IMPOSSIBLE__
+      in
+        vcat
+        [ fsep $
+            pwords "The term"
+            ++ [prettyTCM lock <> ","]
+            ++ pwords "given as an argument to the guarded value"
+        , nest 2 (prettyTCM term <+> ":" <+> prettyTCM ty)
+        , fsep (pwords ("can not be used as a " ++ mod ++ " argument, since it does not mention any " ++ mod ++ " variables."))
+        ]
+
+    MismatchedProjectionsError left right -> fsep $
+      pwords "The projections" ++ [prettyTCM left] ++
+      pwords "and" ++ [prettyTCM right] ++
+      pwords "do not match"
 
     where
     mpar n args
@@ -1265,6 +1326,8 @@ prettyInEqual t1 t2 = do
         (I.Def{}, I.Var{}) -> varDef
         (I.Var{}, I.Con{}) -> varCon
         (I.Con{}, I.Var{}) -> varCon
+        (I.Def x _, I.Def y _)
+          | isExtendedLambdaName x, isExtendedLambdaName y -> extLamExtLam x y
         _                  -> empty
   where
     varDef, varCon, generic :: MonadPretty m => m Doc
@@ -1276,6 +1339,15 @@ prettyInEqual t1 t2 = do
     varVar i j = parens $ fwords $
                    "because one has de Bruijn index " ++ show i
                    ++ " and the other " ++ show j
+
+    extLamExtLam :: MonadPretty m => QName -> QName -> m Doc
+    extLamExtLam a b = vcat
+      [ fwords "Because they are distinct extended lambdas: one is defined at"
+      , "  " <+> pretty (nameBindingSite (qnameName a))
+      , fwords "and the other at"
+      , "  " <+> (pretty (nameBindingSite (qnameName b)) <> ",")
+      , fwords "so they have different internal representations."
+      ]
 
 class PrettyUnequal a where
   prettyUnequal :: MonadPretty m => a -> m Doc -> a -> m Doc

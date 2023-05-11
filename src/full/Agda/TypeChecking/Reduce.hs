@@ -17,7 +17,7 @@ module Agda.TypeChecking.Reduce
  , unfoldDefinitionE, unfoldDefinitionStep
  , unfoldInlined
  , appDef', appDefE'
- , abortIfBlocked, ifBlocked, isBlocked
+ , abortIfBlocked, ifBlocked, isBlocked, fromBlocked
  -- Simplification
  , Simplify, simplify, simplifyBlocked'
  -- Normalization
@@ -45,7 +45,7 @@ import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
 
-import {-# SOURCE #-} Agda.TypeChecking.Irrelevance (workOnTypes, isPropM)
+import {-# SOURCE #-} Agda.TypeChecking.Irrelevance (isPropM)
 import {-# SOURCE #-} Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Monad hiding ( enterClosure, constructorForm )
 import Agda.TypeChecking.Substitute
@@ -103,14 +103,6 @@ reduceWithBlocker :: (Reduce a, IsMeta a, MonadReduce m) => a -> m (Blocker, a)
 reduceWithBlocker a = ifBlocked a
   (\b a' -> return (b, a'))
   (\_ a' -> return (neverUnblock, a'))
-
--- Reduce a term and call the continuation. If the continuation is
--- blocked, the whole call is blocked either on what blocked the reduction
--- or on what blocked the continuation (using `blockedOnEither`).
-withReduced
-  :: (Reduce a, IsMeta a, MonadReduce m, MonadBlock m)
-  => a -> (a -> m b) -> m b
-withReduced a cont = ifBlocked a (\b a' -> addOrUnblocker b $ cont a') (\_ a' -> cont a')
 
 normalise :: (Normalise a, MonadReduce m) => a -> m a
 normalise = liftReduce . normalise'
@@ -388,6 +380,12 @@ isBlocked
   => t -> m (Maybe Blocker)
 isBlocked t = ifBlocked t (\m _ -> return $ Just m) (\_ _ -> return Nothing)
 
+-- | Throw a pattern violation if the argument is @Blocked@,
+--   otherwise return the value embedded in the @NotBlocked@.
+fromBlocked :: MonadBlock m => Blocked a -> m a
+fromBlocked (Blocked b _) = patternViolation b
+fromBlocked (NotBlocked _ x) = return x
+
 class Reduce t where
   reduce'  :: t -> ReduceM t
   reduceB' :: t -> ReduceM (Blocked t)
@@ -418,9 +416,10 @@ instance Reduce Sort where
               Right s -> reduceB' s
         FunSort s1 s2 -> reduceB' (s1 , s2) >>= \case
           Blocked b (s1',s2') -> return $ Blocked b $ FunSort s1' s2'
-          NotBlocked _ (s1',s2') -> case funSort' s1' s2' of
-            Left b -> return $ Blocked b $ FunSort s1' s2'
-            Right s -> reduceB' s
+          NotBlocked _ (s1',s2') -> do
+            case funSort' s1' s2' of
+              Left b -> return $ Blocked b $ FunSort s1' s2'
+              Right s -> reduceB' s
         UnivSort s1 -> reduceB' s1 >>= \case
           Blocked b s1' -> return $ Blocked b $ UnivSort s1'
           NotBlocked _ s1' -> case univSort' s1' of
@@ -432,6 +431,11 @@ instance Reduce Sort where
         SSet l     -> notBlocked . SSet <$> reduce l
         SizeUniv   -> done
         LockUniv   -> done
+        LevelUniv  -> do
+          levelUniverseEnabled <- isLevelUniverseEnabled
+          if levelUniverseEnabled
+          then done
+          else return $ notBlocked (mkType 0)
         IntervalUniv -> done
         MetaS x es -> done
         DefS d es  -> done -- postulated sorts do not reduce
@@ -1050,6 +1054,7 @@ instance Simplify Sort where
         SSet s     -> SSet <$> simplify' s
         SizeUniv   -> return s
         LockUniv   -> return s
+        LevelUniv  -> return s
         IntervalUniv -> return s
         MetaS x es -> MetaS x <$> simplify' es
         DefS d es  -> DefS d <$> simplify' es
@@ -1201,6 +1206,7 @@ instance Normalise Sort where
         SSet s     -> SSet <$> normalise' s
         SizeUniv   -> return SizeUniv
         LockUniv   -> return LockUniv
+        LevelUniv  -> return LevelUniv
         IntervalUniv -> return IntervalUniv
         MetaS x es -> return s
         DefS d es  -> return s
@@ -1410,6 +1416,7 @@ instance InstantiateFull Sort where
             Inf _ _    -> return s
             SizeUniv   -> return s
             LockUniv   -> return s
+            LevelUniv  -> return s
             IntervalUniv -> return s
             MetaS x es -> MetaS x <$> instantiateFull' es
             DefS d es  -> DefS d <$> instantiateFull' es
@@ -1567,6 +1574,7 @@ instance InstantiateFull NLPSort where
   instantiateFull' (PInf f n) = return $ PInf f n
   instantiateFull' PSizeUniv = return PSizeUniv
   instantiateFull' PLockUniv = return PLockUniv
+  instantiateFull' PLevelUniv = return PLevelUniv
   instantiateFull' PIntervalUniv = return PIntervalUniv
 
 instance InstantiateFull RewriteRule where
@@ -1583,8 +1591,8 @@ instance InstantiateFull DisplayForm where
   instantiateFull' (Display n ps v) = uncurry (Display n) <$> instantiateFull' (ps, v)
 
 instance InstantiateFull DisplayTerm where
-  instantiateFull' (DTerm v)       = DTerm <$> instantiateFull' v
-  instantiateFull' (DDot  v)       = DDot  <$> instantiateFull' v
+  instantiateFull' (DTerm' v es)   = DTerm' <$> instantiateFull' v <*> instantiateFull' es
+  instantiateFull' (DDot' v es)    = DDot'  <$> instantiateFull' v <*> instantiateFull' es
   instantiateFull' (DCon c ci vs)  = DCon c ci <$> instantiateFull' vs
   instantiateFull' (DDef c es)     = DDef c <$> instantiateFull' es
   instantiateFull' (DWithApp v vs ws) = uncurry3 DWithApp <$> instantiateFull' (v, vs, ws)

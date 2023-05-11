@@ -41,7 +41,6 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Lazy (VarMap, lookupVarMap)
 import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.Injectivity
-import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.InstanceArguments (postponeInstanceConstraints)
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
@@ -416,7 +415,7 @@ checkRelevance' x def = do
       -- Andreas,, 2018-06-09, issue #2170
       -- irrelevant projections are only allowed if --irrelevant-projections
       ifM (return (isJust $ isProjection_ $ theDef def) `and2M`
-           (not .optIrrelevantProjections <$> pragmaOptions)) {-then-} needIrrProj {-else-} $ do
+           (not . optIrrelevantProjections <$> pragmaOptions)) {-then-} needIrrProj {-else-} $ do
         rel <- viewTC eRelevance
         reportSDoc "tc.irr" 50 $ vcat
           [ "declaration relevance =" <+> text (show drel)
@@ -832,11 +831,12 @@ checkArgumentsE'
                   let e' = e { nameOf = (nameOf e) <|> dname }
                   checkNamedArg (Arg info' e') a
 
-                let c | IsLock == getLock info' =
-                        Just $ Abs "t" $
+                let
+                  c = case getLock info' of
+                    IsLock{} -> Just $ Abs "t" $
                         CheckLockedVars (Var 0 []) (raise 1 sFun)
                           (raise 1 $ Arg info' u) (raise 1 a)
-                      | otherwise = Nothing
+                    _ -> Nothing
                 lift $ reportSDoc "tc.term.lock" 40 $ text "lock =" <+> text (show $ getLock info')
                 lift $ reportSDoc "tc.term.lock" 40 $
                   addContext (defaultDom $ sFun) $

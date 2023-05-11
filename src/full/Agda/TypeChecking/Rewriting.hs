@@ -288,7 +288,7 @@ checkRewriteRule q = do
         checkNoLhsReduction f hd es
 
         ps <- catchPatternErr failureBlocked $
-          patternFrom Relevant 0 (t , Def f []) es
+          patternFrom Relevant 0 (t , Def f) es
 
         reportSDoc "rewriting" 30 $
           "Pattern generated from lhs: " <+> prettyTCM (PDef f ps)

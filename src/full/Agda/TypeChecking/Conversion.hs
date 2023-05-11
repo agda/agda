@@ -8,7 +8,7 @@ import Control.Monad.Except
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
 
-import Data.Function
+import Data.Function (on)
 import Data.Semigroup ((<>))
 import Data.IntMap (IntMap)
 
@@ -45,6 +45,7 @@ import Agda.TypeChecking.Level
 import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Primitive
+import Agda.TypeChecking.ProjectionLike
 import Agda.TypeChecking.Warnings (MonadWarning)
 import Agda.Interaction.Options
 
@@ -457,29 +458,8 @@ compareAtomDir dir a = dirToCmp (`compareAtom` a) dir
 -- | Compute the head type of an elimination. For projection-like functions
 --   this requires inferring the type of the principal argument.
 computeElimHeadType :: MonadConversion m => QName -> Elims -> Elims -> m Type
-computeElimHeadType f es es' = do
-  def <- getConstInfo f
-  -- To compute the type @a@ of a projection-like @f@,
-  -- we have to infer the type of its first argument.
-  if projectionArgs def <= 0 then return $ defType def else do
-    -- Find a first argument to @f@.
-    let arg = case (es, es') of
-              (Apply arg : _, _) -> arg
-              (_, Apply arg : _) -> arg
-              _ -> __IMPOSSIBLE__
-    -- Infer its type.
-    reportSDoc "tc.conv.infer" 30 $
-      "inferring type of internal arg: " <+> prettyTCM arg
-    targ <- infer $ unArg arg
-    reportSDoc "tc.conv.infer" 30 $
-      "inferred type: " <+> prettyTCM targ
-    -- getDefType wants the argument type reduced.
-    -- Andreas, 2016-02-09, Issue 1825: The type of arg might be
-    -- a meta-variable, e.g. in interactive development.
-    -- In this case, we postpone.
-    targ <- abortIfBlocked targ
-    fromMaybeM __IMPOSSIBLE__ $ getDefType f targ
-
+computeElimHeadType f [] es' = computeDefType f es'
+computeElimHeadType f es _   = computeDefType f es
 
 -- | Syntax directed equality on atomic values
 --
@@ -1031,7 +1011,7 @@ compareElims pols0 fors0 a v els01 els02 =
 
     -- case: f == f' are projections
     (Proj o f : els1, Proj _ f' : els2)
-      | f /= f'   -> typeError . GenericDocError =<< prettyTCM f <+> "/=" <+> prettyTCM f'
+      | f /= f'   -> typeError $ MismatchedProjectionsError f f'
       | otherwise -> do
         a   <- abortIfBlocked a
         res <- projectTyped v a o f -- fails only if f is proj.like but parameters cannot be retrieved
@@ -1329,16 +1309,17 @@ leqSort s1 s2 = do
       (SSet{}  , Inf IsStrict _) -> yes
       (SSet{}  , Inf IsFibrant _) -> no
 
-      -- @LockUniv@, @IntervalUniv@, @SizeUniv@, and @Prop0@ are bottom sorts.
+      -- @LockUniv@, @LevelUniv@, @IntervalUniv@, @SizeUniv@, and @Prop0@ are bottom sorts.
       -- So is @Set0@ if @Prop@ is not enabled.
       (_       , LockUniv) -> equalSort s1 s2
+      (_       , LevelUniv) -> equalSort s1 s2
       (_       , IntervalUniv) -> equalSort s1 s2
       (_       , SizeUniv) -> equalSort s1 s2
       (_       , Prop (Max 0 [])) -> equalSort s1 s2
       (_       , Type (Max 0 []))
         | not propEnabled  -> equalSort s1 s2
 
-      -- @SizeUniv@ and @LockUniv@ are unrelated to any @Set l@ or @Prop l@
+      -- @SizeUniv@, @LockUniv@ and @LevelUniv@ are unrelated to any @Set l@ or @Prop l@
       (SizeUniv, Type{}  ) -> no
       (SizeUniv, Prop{}  ) -> no
       (SizeUniv , Inf{}  ) -> no
@@ -1347,6 +1328,10 @@ leqSort s1 s2 = do
       (LockUniv, Prop{}  ) -> no
       (LockUniv , Inf{}  ) -> no
       (LockUniv, SSet{}  ) -> no
+      (LevelUniv, Type{}  ) -> no
+      (LevelUniv, Prop{}  ) -> no
+      (LevelUniv , Inf{}  ) -> no
+      (LevelUniv, SSet{}  ) -> no
 
       -- @IntervalUniv@ is below @SSet l@, but not @Set l@ or @Prop l@
       (IntervalUniv, Type{}) -> no
@@ -1753,6 +1738,7 @@ equalSort s1 s2 = do
             (Type a     , Type b     ) -> equalLevel a b `catchInequalLevel` no
             (SizeUniv   , SizeUniv   ) -> yes
             (LockUniv   , LockUniv   ) -> yes
+            (LevelUniv   , LevelUniv   ) -> yes
             (IntervalUniv , IntervalUniv) -> yes
             (Prop a     , Prop b     ) -> equalLevel a b `catchInequalLevel` no
             (Inf f m    , Inf f' n   ) ->
@@ -1836,9 +1822,10 @@ equalSort s1 s2 = do
             infInInf <- (optOmegaInOmega <$> pragmaOptions) `or2M` typeInType
             if | infInInf  -> equalSort (Inf f 0) s2
                | otherwise -> no
-          -- @Prop l@ and @SizeUniv@ are not successor sorts
+          -- @Prop l@, @SizeUniv@ and @LevelUniv@ are not successor sorts
           Prop{}     -> no
           SizeUniv{} -> no
+          LevelUniv{} -> no
           -- Anything else: postpone
           _          -> postpone
 
@@ -1938,6 +1925,7 @@ equalSort s1 s2 = do
                    Left _  -> patternViolation blocker
           -- We have @SizeUniv == funSort s1 s2@ iff @s2 == SizeUniv@
           SizeUniv -> equalSort SizeUniv s2
+          LevelUniv -> equalSort LevelUniv s2
           -- Anything else: postpone
           _        -> postpone
 

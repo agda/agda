@@ -1,0 +1,215 @@
+Failed to solve the following constraints:
+  Resolve instance argument _r_57 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
+  Resolve instance argument _r_51 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
+  Resolve instance argument _r_68 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
+  Resolve instance argument _r_67 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
+  Resolve instance argument _r_75 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
+  Resolve instance argument _r_95 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
+  Resolve instance argument _r_89 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
+  Resolve instance argument _r_86 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
+  Resolve instance argument _r_102 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
+  Resolve instance argument _r_114 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
+  Resolve instance argument _r_110 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
+  Resolve instance argument _r_130 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
+  Resolve instance argument _r_126 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
+  Resolve instance argument _r_122 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
+  Resolve instance argument _r_135 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
+  Resolve instance argument _r_146 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
+  Resolve instance argument _r_142 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
+  Resolve instance argument _r_151 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
+  Resolve instance argument _r_162 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
+  Resolve instance argument _r_173 : Structure
+  Candidates
+    D : Structure
+    C : Structure
+    (stuck)
+  (_r_173 Structure.⟶
+   (_r_173 Structure.× (_r_173 Structure.× _X_174) _X_174) _X_174)
+  _X_174
+    =< (_r_86 Structure.⟶ _X_87) _Y_88
+    (blocked on any(_r_86, _r_173))
+  (_r_89 Structure.⟶ _X_90) _Z_92 =< (_r_86 Structure.⟶ _X_87) _Y_88
+    (blocked on any(_r_86, _r_89))
+  (_r_102 Structure.⟶ _X_103) _Z_105
+    =< (_r_89 Structure.⟶ _X_90) _Y_91
+    (blocked on any(_r_89, _r_102))
+  (_r_110 Structure.⟶ _X_111) ((_r_110 Structure.× _A_112) _B_113)
+    =< (_r_102 Structure.⟶ _X_103) _Y_104
+    (blocked on any(_r_102, _r_110))
+  (_r_162 Structure.⟶ (_r_162 Structure.× _A_163) _B_164) _B_164
+    =< (_r_110 Structure.⟶ _X_111) _B_113
+    (blocked on any(_r_110, _r_162))
+  (_r_114 Structure.⟶ _X_115) _Z_117
+    =< (_r_110 Structure.⟶ _X_111) _A_112
+    (blocked on any(_r_110, _r_114))
+  (_r_122 Structure.⟶ _X_123) ((_r_122 Structure.× _A_124) _B_125)
+    =< (_r_114 Structure.⟶ _X_115) _Y_116
+    (blocked on any(_r_114, _r_122))
+  (_r_142 Structure.⟶ _X_143) _Z_145
+    =< (_r_122 Structure.⟶ _X_123) _B_125
+    (blocked on any(_r_122, _r_142))
+  (_r_151 Structure.⟶ (_r_151 Structure.× _A_152) _B_153) _A_152
+    =< (_r_142 Structure.⟶ _X_143) _Y_144
+    (blocked on any(_r_142, _r_151))
+  (_r_146 Structure.⟶ (_r_146 Structure.× _A_147) _B_148) _B_148
+    =< (_r_142 Structure.⟶ _Y_144) _Z_145
+    (blocked on any(_r_142, _r_146))
+  (_r_126 Structure.⟶ _X_127) _Z_129
+    =< (_r_122 Structure.⟶ _X_123) _A_124
+    (blocked on any(_r_122, _r_126))
+  (_r_135 Structure.⟶ (_r_135 Structure.× _A_136) _B_137) _A_136
+    =< (_r_126 Structure.⟶ _X_127) _Y_128
+    (blocked on any(_r_126, _r_135))
+  (_r_130 Structure.⟶ (_r_130 Structure.× _A_131) _B_132) _A_131
+    =< (_r_126 Structure.⟶ _Y_128) _Z_129
+    (blocked on any(_r_126, _r_130))
+  (_r_67 (Ty⟦_⟧ = Ty⟦_⟧) (Tm⟦_⟧ = Tm⟦_⟧) Structure.⟶
+   (_r_68 (Ty⟦_⟧ = Ty⟦_⟧) (Tm⟦_⟧ = Tm⟦_⟧) Structure.× Ty⟦ _X_118 ⟧)
+   Ty⟦ _A_119 ⟧)
+  Ty⟦
+  (_r_75 (Ty⟦_⟧ = Ty⟦_⟧) (Tm⟦_⟧ = Tm⟦_⟧) Structure.× _X_118) _A_119 ⟧
+    =< (_r_114 Structure.⟶ _Y_116) _Z_117
+    (blocked on any(_r_67, _r_114))
+  (_r_67 (Ty⟦_⟧ = Ty⟦_⟧) (Tm⟦_⟧ = Tm⟦_⟧) Structure.⟶
+   (_r_68 (Ty⟦_⟧ = Ty⟦_⟧) (Tm⟦_⟧ = Tm⟦_⟧) Structure.× Ty⟦ _X_106 ⟧)
+   Ty⟦ _A_107 ⟧)
+  Ty⟦
+  (_r_75 (Ty⟦_⟧ = Ty⟦_⟧) (Tm⟦_⟧ = Tm⟦_⟧) Structure.× _X_106) _A_107 ⟧
+    =< (_r_102 Structure.⟶ _Y_104) _Z_105
+    (blocked on any(_r_67, _r_102))
+  (_r_57 (Ty⟦_⟧ = Ty⟦_⟧) Structure.⟶ Ty⟦ _X_93 ⟧) Ty⟦ _A_94 ⟧
+    =< (_r_89 Structure.⟶ _Y_91) _Z_92
+    (blocked on any(_r_57, _r_89))
+  (_r_95 Structure.⟶ (_r_95 Structure.× (_r_95 Structure.× X) X) X) X
+    =< (_r_51 (Ty⟦_⟧ = Ty⟦_⟧) Structure.⟶ _X_93) _A_94
+    (blocked on any(_r_51, _r_95))
+  Structure.Type C =< Structure.Type _r_95 (blocked on _r_95)
+  Structure.Type D =< Structure.Type _r_67 (blocked on _r_67)
+  Structure.Type _r_75 =< Structure.Type C (blocked on _r_75)
+  Structure.Type C =< Structure.Type _r_75 (blocked on _r_75)
+  Structure.Type _r_68 =< Structure.Type _r_67
+    (blocked on any(_r_67, _r_68))
+  Structure.Type D =< Structure.Type _r_68 (blocked on _r_68)
+  Structure.Type D =< Structure.Type _r_57 (blocked on _r_57)
+  Structure.Type C =< Structure.Type _r_51 (blocked on _r_51)
+Unsolved metas at the following locations:
+  Issue1952.agda:29,25-26
+  Issue1952.agda:29,23-24
+  Issue1952.agda:29,27-28
+  Issue1952.agda:29,39-40
+  Issue1952.agda:29,31-38
+  Issue1952.agda:29,41-48
+  Issue1952.agda:31,41-42
+  Issue1952.agda:31,31-32
+  Issue1952.agda:31,23-30
+  Issue1952.agda:31,33-40
+  Issue1952.agda:31,23-40
+  Issue1952.agda:31,49-50
+  Issue1952.agda:31,47-48
+  Issue1952.agda:31,51-52
+  Issue1952.agda:31,47-52
+  Issue1952.agda:31,43-54
+  Issue1952.agda:33,103-104
+  Issue1952.agda:33,58-59
+  Issue1952.agda:33,40-57
+  Issue1952.agda:33,44-47
+  Issue1952.agda:33,53-54
+  Issue1952.agda:33,44-54
+  Issue1952.agda:33,40-57
+  Issue1952.agda:33,66-67
+  Issue1952.agda:33,60-65
+  Issue1952.agda:33,97-98
+  Issue1952.agda:33,75-76
+  Issue1952.agda:33,69-74
+  Issue1952.agda:33,86-87
+  Issue1952.agda:33,81-82
+  Issue1952.agda:33,78-80
+  Issue1952.agda:33,83-85
+  Issue1952.agda:33,78-85
+  Issue1952.agda:33,91-92
+  Issue1952.agda:33,88-90
+  Issue1952.agda:33,93-95
+  Issue1952.agda:33,88-95
+  Issue1952.agda:33,78-95
+  Issue1952.agda:33,69-95
+  Issue1952.agda:33,99-101
+  Issue1952.agda:33,69-101
+  Issue1952.agda:33,60-101
+  Issue1952.agda:33,40-101
+  Issue1952.agda:33,105-108

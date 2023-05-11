@@ -3,13 +3,13 @@ module Agda.TypeChecking.Pretty.Warning where
 
 import Prelude hiding ( null )
 
-import Control.Monad ( guard )
+import Control.Monad ( guard, filterM, (<=<) )
 
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail ( MonadFail )
 
 import Data.Char ( toLower )
-import Data.Function
+import Data.Function (on)
 import Data.Maybe
 
 import qualified Data.Set as Set
@@ -19,17 +19,20 @@ import qualified Data.List as List
 import qualified Data.Text as T
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Builtin
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.MetaVars
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Debug
+import Agda.TypeChecking.Monad.Constraints
 import Agda.TypeChecking.Monad.State ( getScope )
-import Agda.TypeChecking.Monad ( localTCState )
+import Agda.TypeChecking.Monad ( localTCState, enterClosure )
 import Agda.TypeChecking.Positivity () --instance only
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Call
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Constraint (prettyInterestingConstraints, interestingConstraint)
 import Agda.TypeChecking.Warnings (MonadWarning, isUnsolvedWarning, onlyShowIfUnsolved, classifyWarning, WhichWarnings(..), warning_)
+import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Monad.Constraints (getAllConstraints)
 
 import Agda.Syntax.Common ( ImportedName'(..), fromImportedName, partitionImportedNames )
@@ -42,6 +45,7 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 
+import Agda.Utils.Monad
 import Agda.Utils.Lens
 import Agda.Utils.List ( editDistance )
 import qualified Agda.Utils.List1 as List1
@@ -72,6 +76,10 @@ prettyWarning = \case
     UnsolvedInteractionMetas is ->
       fsep ( pwords "Unsolved interaction metas at the following locations:" )
       $$ nest 2 (vcat $ map prettyTCM is)
+
+    InteractionMetaBoundaries is ->
+      fsep ( pwords "Interaction meta(s) at the following location(s) have unsolved boundary constraints:" )
+      $$ nest 2 (vcat $ map prettyTCM (Set.toList (Set.fromList is)))
 
     UnsolvedConstraints cs -> do
       pcs <- prettyInterestingConstraints cs
@@ -531,25 +539,47 @@ applyFlagsToTCWarningsPreserving additionalKeptWarnings ws = do
 applyFlagsToTCWarnings :: HasOptions m => [TCWarning] -> m [TCWarning]
 applyFlagsToTCWarnings = applyFlagsToTCWarningsPreserving Set.empty
 
-getAllUnsolvedWarnings :: (MonadFail m, ReadTCState m, MonadWarning m) => m [TCWarning]
+isBoundaryConstraint
+  :: (ReadTCState m, MonadTCM m)
+  => ProblemConstraint
+  -> m (Maybe Range)
+isBoundaryConstraint c =
+  enterClosure (theConstraint c) $ \case
+    ValueCmp _ _ (MetaV mid xs) y | Just xs <- allApplyElims xs ->
+      fmap g <$> liftTCM (isFaceConstraint mid xs)
+    ValueCmp _ _ y (MetaV mid xs) | Just xs <- allApplyElims xs ->
+      fmap g <$> liftTCM (isFaceConstraint mid xs)
+    _ -> pure Nothing
+  where
+    g (a, _, _, _) = getRange a
+
+getAllUnsolvedWarnings :: (MonadFail m, ReadTCState m, MonadWarning m, MonadTCM m) => m [TCWarning]
 getAllUnsolvedWarnings = do
   unsolvedInteractions <- getUnsolvedInteractionMetas
-  unsolvedConstraints  <- getAllConstraints
+
+  allCons <- getAllConstraints
+  unsolvedConstraints  <- filterM (fmap isNothing . isBoundaryConstraint) allCons
+  interactionBoundary  <- catMaybes <$> traverse isBoundaryConstraint allCons
+
   unsolvedMetas        <- getUnsolvedMetas
 
   let checkNonEmpty c rs = c rs <$ guard (not $ null rs)
 
   mapM warning_ $ catMaybes
-                [ checkNonEmpty UnsolvedInteractionMetas unsolvedInteractions
-                , checkNonEmpty UnsolvedMetaVariables    unsolvedMetas
-                , checkNonEmpty UnsolvedConstraints      unsolvedConstraints ]
+                [ checkNonEmpty UnsolvedInteractionMetas  unsolvedInteractions
+                , checkNonEmpty UnsolvedMetaVariables     unsolvedMetas
+                , checkNonEmpty UnsolvedConstraints       unsolvedConstraints
+                , checkNonEmpty InteractionMetaBoundaries interactionBoundary
+                ]
 
 -- | Collect all warnings that have accumulated in the state.
 
-getAllWarnings :: (MonadFail m, ReadTCState m, MonadWarning m) => WhichWarnings -> m [TCWarning]
+getAllWarnings :: (MonadFail m, ReadTCState m, MonadWarning m, MonadTCM m) => WhichWarnings -> m [TCWarning]
 getAllWarnings = getAllWarningsPreserving Set.empty
 
-getAllWarningsPreserving :: (MonadFail m, ReadTCState m, MonadWarning m) => Set WarningName -> WhichWarnings -> m [TCWarning]
+getAllWarningsPreserving
+  :: (MonadFail m, ReadTCState m, MonadWarning m, MonadTCM m)
+  => Set WarningName -> WhichWarnings -> m [TCWarning]
 getAllWarningsPreserving keptWarnings ww = do
   unsolved            <- getAllUnsolvedWarnings
   collectedTCWarnings <- useTC stTCWarnings

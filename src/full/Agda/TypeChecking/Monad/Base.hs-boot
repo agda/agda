@@ -49,4 +49,4 @@ type BackendName = String
 
 data Comparison
 data Polarity
-data IPBoundary' a
+data IPFace' a

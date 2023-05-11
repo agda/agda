@@ -1,4 +1,4 @@
-{-# OPTIONS --guardedness #-}
+{-# OPTIONS --guardedness --level-universe #-}
 
 module Common.MAlonzo where
 

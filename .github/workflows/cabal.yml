@@ -22,58 +22,71 @@ jobs:
         access_token: ${{ github.token }}
   cabal:
     env:
-      FLAGS: -f enable-cluster-counting
+      CABAL_VER: ${{ matrix.cabal-ver || '3.10' }}
+      FLAGS: ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting'
+        }}
+      GHC_VER: ${{ matrix.ghc-ver || '9.6.1' }}
+    name: Cabal ${{ matrix.description }}, ${{ matrix.ghc-ver }}
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
-      with:
-        submodules: recursive
+    - if: ${{ runner.os == 'Linux' }}
+      name: Switch off XDG directories for cabal (Linux)
+      run: |
+        mkdir -p ~/.cabal
     - id: setup-haskell
       uses: haskell/actions/setup@v2
       with:
-        cabal-version: ${{ matrix.cabal-ver }}
-        ghc-version: ${{ matrix.ghc-ver }}
+        cabal-version: ${{ env.CABAL-VER }}
+        ghc-version: ${{ env.GHC_VER }}
     - name: Environment settings based on the Haskell setup
       run: |
-        export GHC_VER=$(ghc --numeric-version)
-        export CABAL_VER=$(cabal --numeric-version)
+        GHC_VER=$(ghc --numeric-version)
+        CABAL_VER=$(cabal --numeric-version)
         echo "GHC_VER   = ${GHC_VER}"
         echo "CABAL_VER = ${CABAL_VER}"
-        echo "GHC_VER=${GHC_VER}"       >> ${GITHUB_ENV}
-        echo "CABAL_VER=${CABAL_VER}"   >> ${GITHUB_ENV}
-    - if: ${{ runner.os == 'Windows' }}
-      name: Setup MSYS path (Windows)
-      run: |
-        echo "C:\msys64\mingw64\bin;C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
-      shell: pwsh
+        echo "GHC_VER=${GHC_VER}"       >> "${GITHUB_ENV}"
+        echo "CABAL_VER=${CABAL_VER}"   >> "${GITHUB_ENV}"
     - if: ${{ runner.os == 'Windows' }}
       name: Install the ICU library (Windows)
       run: |
+        $env:PATH = "C:\msys64\usr\bin;$env:PATH"
         pacman --noconfirm -Sy msys2-keyring mingw-w64-x86_64-pkg-config mingw-w64-x86_64-icu
+        echo "C:\msys64\mingw64\bin" | Out-File -FilePath "$env:GITHUB_PATH" -Append
+      shell: pwsh
     - if: ${{ runner.os == 'macOS' }}
       name: Set up pkg-config for the ICU library (macOS)
       run: |
-        export PKG_CONFIG_PATH=$(brew --prefix)/opt/icu4c/lib/pkgconfig
-        echo "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}" >> ${GITHUB_ENV}
-        # print some information to debug pkg-config
-        echo "$ export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}"
-        echo "$ ls -l ${PKG_CONFIG_PATH}"
-        ls -l ${PKG_CONFIG_PATH}
-        echo "$ pkg-config --modversion icu-i18n"
-        pkg-config --modversion icu-i18n
+        PKG_CONFIG_PATH=$(brew --prefix)/opt/icu4c/lib/pkgconfig
+        echo "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}" >> "${GITHUB_ENV}"
+        # # print some information to debug pkg-config
+        # echo "$ export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}"
+        # echo "$ ls -l ${PKG_CONFIG_PATH}"
+        # ls -l "${PKG_CONFIG_PATH}"
+        # export PKG_CONFIG_PATH
+        # echo "$ pkg-config --modversion icu-i18n"
+        # pkg-config --modversion icu-i18n
+    - name: Determine the ICU version
+      run: |
+        ICU_VER=$(pkg-config --modversion icu-i18n)
+        echo "ICU_VER=${ICU_VER}"
+        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - name: Configure the build plan
       run: |
         cabal update
-        cabal configure ${FLAGS} -O0 ${{ matrix.cabal-flags }}
+        cabal configure -O0 ${FLAGS}
+        cabal build --dry-run
     - id: cache
-      name: Cache dependencies
+      name: Restore cache from approximate key
       uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-cabal-01-${{ env.GHC_VER }}-${{ env.CABAL_VER }}-${{
-          hashFiles('**/plan.json') }}
+        key: cabal.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
+          }}-${{ hashFiles('**/plan.json') }}
         path: |
           ${{ steps.setup-haskell.outputs.cabal-store }}
+        restore-keys: cabal.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{
+          env.CABAL_VER }}-
     - if: ${{ !steps.cache.outputs.cache-hit }}
       name: Install dependencies
       run: |
@@ -81,35 +94,37 @@ jobs:
     - name: Build Agda
       run: |
         cabal build
-    - name: Build Agda without enable-cluster-counting
-      run: |
-        cabal configure -O0
-        cabal build
     strategy:
       fail-fast: false
       matrix:
+        cabal-flags:
+        - --enable-tests -f enable-cluster-counting
         cabal-ver:
-        - '3.8'
+        - '3.10'
+        description:
+        - Linux
         ghc-ver:
-        - 9.4.4
-        - 9.2.5
+        - 9.6.1
+        - 9.4.5
+        - 9.2.7
         - 9.0.2
         - 8.10.7
         - 8.8.4
         - 8.6.5
-        - 8.4.4
-        - 8.2.2
-        - 8.0.2
         include:
-        - cabal-flags: -c 'mtl >= 2.3.1'
-          cabal-ver: '3.8'
-          ghc-ver: 9.4.4
+        - cabal-flags: --disable-tests
+          description: Linux w/o tests
+          ghc-ver: 9.6.1
           os: ubuntu-22.04
-        - cabal-ver: '3.8'
-          ghc-ver: 9.4.4
+        - cabal-flags: --enable-tests -f debug
+          description: Linux debug
+          ghc-ver: 9.6.1
+          os: ubuntu-22.04
+        - description: macOS
+          ghc-ver: 9.6.1
           os: macos-12
-        - cabal-ver: '3.8'
-          ghc-ver: 9.4.4
+        - description: Windows
+          ghc-ver: 9.6.1
           os: windows-2022
         os:
         - ubuntu-22.04

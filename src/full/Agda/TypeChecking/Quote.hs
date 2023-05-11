@@ -176,6 +176,7 @@ quotingKit = do
       quoteSort SSet{}   = pure unsupportedSort
       quoteSort SizeUniv = pure unsupportedSort
       quoteSort LockUniv = pure unsupportedSort
+      quoteSort LevelUniv = pure unsupportedSort
       quoteSort IntervalUniv = pure unsupportedSort
       quoteSort PiSort{} = pure unsupportedSort
       quoteSort FunSort{} = pure unsupportedSort

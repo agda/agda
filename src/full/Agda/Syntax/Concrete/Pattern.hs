@@ -196,7 +196,7 @@ instance CPatternLike Pattern where
       RecP _ ps       -> foldrCPattern f ps
       EllipsisP _ mp  -> foldrCPattern f mp
       -- Nonrecursive cases:
-      IdentP _        -> mempty
+      IdentP _ _      -> mempty
       WildP _         -> mempty
       DotP _ _        -> mempty
       AbsurdP _       -> mempty
@@ -217,7 +217,7 @@ instance CPatternLike Pattern where
       RecP      r ps      -> RecP r        <$> traverseCPatternA f ps
       EllipsisP r mp      -> EllipsisP r   <$> traverseCPatternA f mp
       -- Nonrecursive cases:
-      IdentP _        -> pure p0
+      IdentP _ _      -> pure p0
       WildP _         -> pure p0
       DotP _ _        -> pure p0
       AbsurdP _       -> pure p0
@@ -240,7 +240,7 @@ instance CPatternLike Pattern where
       RecP      r ps      -> RecP r        <$> traverseCPatternM pre post ps
       EllipsisP r mp      -> EllipsisP r   <$> traverseCPatternM pre post mp
       -- Nonrecursive cases:
-      IdentP _        -> return p0
+      IdentP _ _      -> return p0
       WildP _         -> return p0
       DotP _ _        -> return p0
       AbsurdP _       -> return p0
@@ -307,7 +307,7 @@ patternQNames p = foldCPattern f p `appEndo` []
   where
   f :: Pattern -> Endo [QName]
   f = \case
-    IdentP x       -> Endo (x :)
+    IdentP _ x     -> Endo (x :)
     OpAppP _ x _ _ -> Endo (x :)
     AsP _ x _      -> mempty  -- x must be a bound name, can't be a constructor!
     AppP _ _       -> mempty
@@ -381,7 +381,7 @@ splitEllipsis k (p:ps)
 patternAppView :: Pattern -> List1 (NamedArg Pattern)
 patternAppView = \case
     AppP p arg      -> patternAppView p `List1.appendList` [arg]
-    OpAppP _ x _ ps -> defaultNamedArg (IdentP x) :| ps
+    OpAppP _ x _ ps -> defaultNamedArg (IdentP True x) :| ps
     ParenP _ p      -> patternAppView p
     RawAppP _ _     -> __IMPOSSIBLE__
     p               -> singleton $ defaultNamedArg p

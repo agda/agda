@@ -40,117 +40,152 @@ jobs:
 
     timeout-minutes: 60
 
+    # In these fields, we cannot refer to `env` (or even `runner.os`).
+    # Thus, we need redundant entries in the matrix.
+    name: Cabal ${{ matrix.description }}, ${{ matrix.ghc-ver }}
     runs-on: ${{ matrix.os }}
+
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04]
-        ghc-ver: [9.4.4, 9.2.5, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
-        cabal-ver: ['3.8']
+        description: [Linux]      ## This just for pretty-printing the job name.
+        ghc-ver: [9.6.1, 9.4.5, 9.2.7, 9.0.2, 8.10.7, 8.8.4, 8.6.5]
+        # Need to mention "cabal-ver" at least once in the matrix, otherwise matrix.cabal-ver is an actionlint error.
+        cabal-ver: ['3.10']
+        cabal-flags: ['--enable-tests -f enable-cluster-counting']
         include:
-          ## Latest GHC
-          # Linux
+          ## Latest GHC, special builds
+
+          # Linux, w/o tests
           - os: ubuntu-22.04
-            ghc-ver: 9.4.4
-            cabal-ver: '3.8'
-            ## Andreas, 2022-11-23: Test mtl-2.3.1 here which has breaking changes.
-            cabal-flags: "-c 'mtl >= 2.3.1'"
-          # macOS
+            description: Linux w/o tests
+            ghc-ver: '9.6.1'
+            # Can't leave cabal-flags empty here lest it becomes the default value.
+            cabal-flags: '--disable-tests'
+
+          # Linux, without -f enable-cluster-counting but with -f debug
+          - os: ubuntu-22.04
+            description: Linux debug
+            ghc-ver: '9.6.1'
+            cabal-flags: '--enable-tests -f debug'
+
+          ## Andreas, 2023-03-15: Obsolete with GHC 9.6 which ships mtl-2.3
+          # # Linux, with mtl-2.3 and everything
+          # - os: ubuntu-22.04
+          #   description: Linux mtl 2.3
+          #   ghc-ver: '9.6.1'
+          #   ## Andreas, 2022-11-23: Test mtl-2.3.1 here which has breaking changes.
+          #   ## Note: -c 'mtl >= 2.3.1' with single quotes does not get communicated properly.
+          #   ## (The single quotes stay, and "-c 'mtl" is an option parse error for cabal.)
+          #   cabal-flags: |
+          #     --enable-tests -f enable-cluster-counting -f debug -c mtl>=2.3.1
+
+          # macOS with default flags
           - os: macos-12
-            ghc-ver: 9.4.4
-            cabal-ver: '3.8'
-          # Windows
+            description: macOS
+            ghc-ver: '9.6.1'
+
+          # Windows with default flags
           - os: windows-2022
-            ghc-ver: 9.4.4
-            cabal-ver: '3.8'
+            description: Windows
+            ghc-ver: '9.6.1'
+
+    # Default values
     env:
-      FLAGS: "-f enable-cluster-counting"
-      # ICU_URL: 'https://github.com/unicode-org/icu/releases/download/release-69-1/icu4c-69_1-Win64-MSVC2019.zip'
+      GHC_VER:   ${{ matrix.ghc-ver || '9.6.1' }}
+      CABAL_VER: ${{ matrix.cabal-ver || '3.10' }}
+      FLAGS:     ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting' }}
 
     steps:
     - uses: actions/checkout@v3
-      with:
-        submodules: recursive
+
+    - name: Switch off XDG directories for cabal (Linux)
+      if: ${{ runner.os == 'Linux' }}
+      run: |
+        mkdir -p ~/.cabal
+      # The presence of ~/.cabal should switch cabal 3.10 to not use the XDG layout.
 
     - uses: haskell/actions/setup@v2
       id: setup-haskell
       with:
-        ghc-version: ${{ matrix.ghc-ver }}
-        cabal-version: ${{ matrix.cabal-ver }}
+        ghc-version: ${{ env.GHC_VER }}
+        cabal-version: ${{ env.CABAL-VER }}
 
     - name: Environment settings based on the Haskell setup
       run: |
-        export GHC_VER=$(ghc --numeric-version)
-        export CABAL_VER=$(cabal --numeric-version)
+        GHC_VER=$(ghc --numeric-version)
+        CABAL_VER=$(cabal --numeric-version)
         echo "GHC_VER   = ${GHC_VER}"
         echo "CABAL_VER = ${CABAL_VER}"
-        echo "GHC_VER=${GHC_VER}"       >> ${GITHUB_ENV}
-        echo "CABAL_VER=${CABAL_VER}"   >> ${GITHUB_ENV}
-      # From now on, use env.{GHC|CABAL}_VER rather than matrix.{ghc|cabal}-ver!
+        echo "GHC_VER=${GHC_VER}"       >> "${GITHUB_ENV}"
+        echo "CABAL_VER=${CABAL_VER}"   >> "${GITHUB_ENV}"
+      # From now on, env.{GHC|CABAL}_VER are the precise versions.
 
-    # from: https://github.com/haskell/text-icu/blob/c73d7fe6f29e178d3ea40160e904ab39236e3c9d/.github/workflows/cabal-mac-win.yml#L29-L32
-    - name: Setup MSYS path (Windows)
+    # See: https://github.com/haskell/text-icu/pull/86
+    # pacman needs MSYS /usr/bin in PATH, but this breaks the latest cache action.
+    # -  https://github.com/actions/cache/issues/1073
+    # MSYS' pkg-config needs MSYS /mingw64/bin which we can safely add to the PATH
+    #
+    - name: Install the ICU library (Windows)
       if: ${{ runner.os == 'Windows' }}
       shell: pwsh
       run: |
-        echo "C:\msys64\mingw64\bin;C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
-
-    - name: Install the ICU library (Windows)
-      if: ${{ runner.os == 'Windows' }}
-      run: |
+        $env:PATH = "C:\msys64\usr\bin;$env:PATH"
         pacman --noconfirm -Sy msys2-keyring mingw-w64-x86_64-pkg-config mingw-w64-x86_64-icu
+        echo "C:\msys64\mingw64\bin" | Out-File -FilePath "$env:GITHUB_PATH" -Append
 
     - name: Set up pkg-config for the ICU library (macOS)
       if: ${{ runner.os == 'macOS' }}
       run: |
-        export PKG_CONFIG_PATH=$(brew --prefix)/opt/icu4c/lib/pkgconfig
-        echo "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}" >> ${GITHUB_ENV}
-        # print some information to debug pkg-config
-        echo "$ export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}"
-        echo "$ ls -l ${PKG_CONFIG_PATH}"
-        ls -l ${PKG_CONFIG_PATH}
-        echo "$ pkg-config --modversion icu-i18n"
-        pkg-config --modversion icu-i18n
+        PKG_CONFIG_PATH=$(brew --prefix)/opt/icu4c/lib/pkgconfig
+        echo "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}" >> "${GITHUB_ENV}"
+        # # print some information to debug pkg-config
+        # echo "$ export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}"
+        # echo "$ ls -l ${PKG_CONFIG_PATH}"
+        # ls -l "${PKG_CONFIG_PATH}"
+        # export PKG_CONFIG_PATH
+        # echo "$ pkg-config --modversion icu-i18n"
+        # pkg-config --modversion icu-i18n
 
-    # Andreas, 2022-02-07: This step seem no longer necessary for Ubuntu 20.04.
-    # But keep it here commented-out, we might need it in the future again.
-    # - name: Install the icu library (Ubuntu)
-    #   if: ${{ runner.os == 'Linux' }}
-    #   run: |
-    #     sudo apt-get update -qq
-    #     sudo apt-get install libicu-dev -qq
-
-    # Andreas, 2022-02-07: Installing with pacman is easier.
-    # Keep this here commented out, in case we need it again.
-    # - name: Download the icu4c library from unicode-org (Windows)
-    #   if: ${{ runner.os == 'Windows' }}
-    #   env:
-    #     ICU_DIR: '/c/icu4c'
-    #     ICU_FILE: '/tmp/icu4c.zip'
-    #   run: |
-    #     curl -sSLo ${ICU_FILE} ${ICU_URL}
-    #     7z e ${ICU_FILE} -o${ICU_DIR}
-    #     mkdir -p ${ICU_DIR}/include/unicode
-    #     mv ${ICU_DIR}/*.h ${ICU_DIR}/include/unicode
-
-    #     cabal user-config update --augment="extra-lib-dirs: $(cygpath -w ${ICU_DIR})" --augment="extra-include-dirs: $(cygpath -w ${ICU_DIR}/include)"
+    - name: Determine the ICU version
+      run: |
+        ICU_VER=$(pkg-config --modversion icu-i18n)
+        echo "ICU_VER=${ICU_VER}"
+        echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
 
     - name: Configure the build plan
       run: |
         cabal update
-        cabal configure ${FLAGS} -O0 ${{ matrix.cabal-flags }}
+        cabal configure -O0 ${FLAGS}
+        cabal build --dry-run
+      # cabal build --dry-run creates dist-newstyle/cache/plan.json
+      # Keep a watch on this `cabal-3.9 build --dry-run` bug:
+      # https://github.com/haskell/cabal/issues/8706
 
-    - uses: actions/cache@v3
-      name: Cache dependencies
+    - name: Restore cache from approximate key
+      # uses: actions/cache/restore@v3
+      # Andreas, 2023-02-02 revert to default cache saving logic.
+      # "Save always" is bad because it may duplicate caches from the base branch on the feature branch.
+      uses: actions/cache@v3
       id: cache
       with:
-        path: |
+        # We don't cache dist-newstyle because it is too fat (e.g. >400MB on GHC 9.4.4)
+        path: &cache_path |
           ${{ steps.setup-haskell.outputs.cabal-store }}
-        # The file `plan.json` contains the build information.
-        key: ${{ runner.os }}-cabal-01-${{ env.GHC_VER }}-${{ env.CABAL_VER }}-${{ hashFiles('**/plan.json') }}
+
+        # Append the build plan to the cache key so that a new cache gets saved when dependencies update.
+        # `plan.json` is a good cache key because it does not contain time stamps (unlike `cabal.project.freeze`).
+        key: &cache_key cabal.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-${{ hashFiles('**/plan.json') }}
+        restore-keys:   cabal.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-
 
     - name: Install dependencies
-      if: ${{ !steps.cache.outputs.cache-hit }}
+      # Formally skip this when we successfully restored the cache, to shave a few seconds.
+      # Note that the dependencies will anyway be built in the `cabal build` step.
+      # So, strictly speaking, this step is superfluous anyways.
+      # However, we keep it here so that we do not clutter the output of the
+      # `cabal build` step too much in the ordinary case.
+      if:   ${{ !steps.cache.outputs.cache-hit }}
       run: |
         cabal build --only-dependencies
 
@@ -158,7 +193,20 @@ jobs:
       run: |
         cabal build
 
-    - name: Build Agda without enable-cluster-counting
-      run: |
-        cabal configure -O0
-        cabal build
+    # - name: Clear old cache
+    #   if:   ${{ steps.cache.outputs.cache-hit }}
+    #   env:
+    #     KEY: ${{ steps.cache.outputs.cache-matched-key }}
+    #     GH_TOKEN: ${{ github.token }}
+    #   run: |
+    #     gh extension install actions/gh-actions-cache
+    #     gh actions-cache delete -B ${{ github.ref }} ${{ env.KEY }} --confirm
+    #   # Don't fail if cache cannot be deleted
+    #   continue-on-error: true
+
+    # - name: Save cache
+    #   uses: actions/cache/save@v3
+    #   if:   always()  # save cache even when build fails
+    #   with:
+    #     key:  *cache_key
+    #     path: *cache_path

@@ -63,7 +63,7 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Conversion.Pure
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.Irrelevance ( workOnTypes , isIrrelevantOrPropM )
+import Agda.TypeChecking.Irrelevance ( isIrrelevantOrPropM )
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Monad
@@ -687,17 +687,16 @@ ohAddBV x a oh = oh { ohBoundVars = ExtendTel a $ Abs x $ ohBoundVars oh }
 -- ^ Given a @p : a@, @allHoles p@ lists all the possible
 --   decompositions @p = p'[(f ps)/x]@.
 class (TermSubst p, Free p) => AllHoles p where
-  type PType p
-  allHoles :: (Alternative m, PureTCM m) => PType p -> p -> m (OneHole p)
+  allHoles :: (Alternative m, PureTCM m) => TypeOf p -> p -> m (OneHole p)
 
 allHoles_
-  :: ( Alternative m , PureTCM m , AllHoles p , PType p ~ () )
+  :: ( Alternative m , PureTCM m , AllHoles p , TypeOf p ~ () )
   => p -> m (OneHole p)
 allHoles_ = allHoles ()
 
 allHolesList
   :: ( PureTCM m , AllHoles p)
-  => PType p -> p -> m [OneHole p]
+  => TypeOf p -> p -> m [OneHole p]
 allHolesList a = sequenceListT . allHoles a
 
 -- | Given a term @v : a@ and eliminations @es@, force eta-expansion
@@ -763,27 +762,22 @@ forceEtaExpansion a v (e:es) = case e of
 -- ^ Instances for @AllHoles@
 
 instance AllHoles p => AllHoles (Arg p) where
-  type PType (Arg p) = Dom (PType p)
   allHoles a x = fmap (x $>) <$> allHoles (unDom a) (unArg x)
 
 instance AllHoles p => AllHoles (Dom p) where
-  type PType (Dom p) = PType p
   allHoles a x = fmap (x $>) <$> allHoles a (unDom x)
 
 instance AllHoles (Abs Term) where
-  type PType (Abs Term) = (Dom Type , Abs Type)
   allHoles (dom , a) x = addContext (absName x , dom) $
     ohAddBV (absName a) dom . fmap (mkAbs $ absName x) <$>
       allHoles (absBody a) (absBody x)
 
 instance AllHoles (Abs Type) where
-  type PType (Abs Type) = Dom Type
   allHoles dom a = addContext (absName a , dom) $
     ohAddBV (absName a) dom . fmap (mkAbs $ absName a) <$>
       allHoles_ (absBody a)
 
 instance AllHoles Elims where
-  type PType Elims = (Type , Elims -> Term)
   allHoles (a,hd) [] = empty
   allHoles (a,hd) (e:es) = do
     reportSDoc "rewriting.confluence.hole" 65 $ fsep
@@ -805,12 +799,10 @@ instance AllHoles Elims where
       IApply x y u -> empty -- TODO: support --confluence-check + --cubical
 
 instance AllHoles Type where
-  type PType Type = ()
   allHoles _ (El s a) = workOnTypes $
     fmap (El s) <$> allHoles (sort s) a
 
 instance AllHoles Term where
-  type PType Term = Type
   allHoles a u = do
     reportSDoc "rewriting.confluence.hole" 60 $ fsep
       [ "Getting holes of term" , prettyTCM u , ":" , prettyTCM a ]
@@ -841,7 +833,6 @@ instance AllHoles Term where
       Dummy{}        -> empty
 
 instance AllHoles Sort where
-  type PType Sort = ()
   allHoles _ = \case
     Type l       -> fmap Type <$> allHoles_ l
     Prop l       -> fmap Prop <$> allHoles_ l
@@ -849,6 +840,7 @@ instance AllHoles Sort where
     SSet l       -> fmap SSet <$> allHoles_ l
     SizeUniv     -> empty
     LockUniv     -> empty
+    LevelUniv    -> empty
     IntervalUniv -> empty
     PiSort{}     -> __IMPOSSIBLE__
     FunSort{}    -> __IMPOSSIBLE__
@@ -860,18 +852,15 @@ instance AllHoles Sort where
     DummyS{}     -> empty
 
 instance AllHoles Level where
-  type PType Level = ()
   allHoles _ (Max n ls) = fmap (Max n) <$> allHoles_ ls
 
 instance AllHoles [PlusLevel] where
-  type PType [PlusLevel] = ()
   allHoles _ []     = empty
   allHoles _ (l:ls) =
     (fmap (:ls) <$> allHoles_ l)
     <|> (fmap (l:) <$> allHoles_ ls)
 
 instance AllHoles PlusLevel where
-  type PType PlusLevel = ()
   allHoles _ (Plus n l) = do
     la <- levelType'
     fmap (Plus n) <$> allHoles la l
@@ -926,6 +915,7 @@ instance MetasToVars Sort where
     SSet l     -> SSet     <$> metasToVars l
     SizeUniv   -> pure SizeUniv
     LockUniv   -> pure LockUniv
+    LevelUniv  -> pure LevelUniv
     IntervalUniv -> pure IntervalUniv
     PiSort s t u -> PiSort   <$> metasToVars s <*> metasToVars t <*> metasToVars u
     FunSort s t -> FunSort <$> metasToVars s <*> metasToVars t

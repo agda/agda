@@ -31,6 +31,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Scope.Base (isNameInScope, inverseScopeLookupName', AllowAmbiguousNames(..))
 
+import Agda.TypeChecking.Conversion.Pure (pureEqualTerm)
 import Agda.TypeChecking.Errors () --instance only
 import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.Monad
@@ -240,7 +241,7 @@ getInstanceCandidates m = do
       Left b -> return $ Left b
       Right cands -> checkCandidates m t' cands >>= \case
         Nothing -> return $ Right cands
-        Just (_ , cands') -> return $ Right cands'
+        Just (_ , cands') -> return $ Right $ map fst cands'
 
 -- | Result says whether we need to add constraint, and if so, the set of
 --   remaining candidates and an eventual blocking metavariable.
@@ -295,7 +296,17 @@ findInstance' m cands = ifM (isFrozen m) (do
           setCurrentRange (take 1 $ map snd sortedErrs) $
             typeError $ InstanceNoCandidate t [ (candidateTerm c, err) | (c, err) <- sortedErrs ]
 
-        Just (_, [c@(Candidate q term t' _)]) -> do
+        Just (_, [(c@(Candidate q term t' _), v)]) -> do
+
+          reportSDoc "tc.instance" 15 $ vcat
+            [ "instance search: attempting"
+            , nest 2 $ prettyTCM m <+> ":=" <+> prettyTCM v
+            ]
+          reportSDoc "tc.instance" 70 $ nest 2 $
+            "candidate v = " <+> pretty v
+          ctxElims <- map Apply <$> getContextArgs
+          equalTerm t (MetaV m ctxElims) v
+
           reportSDoc "tc.instance" 15 $ vcat
             [ "findInstance 5: solved by instance search using the only candidate"
             , nest 2 $ prettyTCM c <+> "=" <+> prettyTCM term
@@ -309,7 +320,7 @@ findInstance' m cands = ifM (isFrozen m) (do
           return Nothing  -- We’re done
 
         _ -> do
-          let cs = maybe cands snd mcands -- keep the current candidates if Nothing
+          let cs = maybe cands (map fst . snd) mcands -- keep the current candidates if Nothing
           reportSDoc "tc.instance" 15 $
             text ("findInstance 5: refined candidates: ") <+>
             prettyTCM (List.map candidateTerm cs)
@@ -339,33 +350,28 @@ insidePi t ret = reduce (unEl t) >>= \case
 --   Also returns the candidates that pass type checking but fails constraints,
 --   so that the error messages can be reported if there are no successful
 --   candidates.
-filterResetingState :: MetaId -> [Candidate] -> (Candidate -> TCM YesNoMaybe) -> TCM ([(Candidate, TCErr)], [Candidate])
+filterResetingState :: MetaId -> [Candidate] -> (Candidate -> TCM YesNo) -> TCM ([(Candidate, TCErr)], [(Candidate, Term)])
 filterResetingState m cands f = do
   ctxArgs  <- getContextArgs
   let ctxElims = map Apply ctxArgs
-      tryC c = do
-        ok <- f c
-        v  <- instantiateFull (MetaV m ctxElims)
-        return (ok, v)
-  result <- mapM (\c -> do bs <- localTCStateSaving (tryC c); return (c, bs)) cands
+  result <- mapM (\c -> do bs <- localTCStateSaving (f c); return (c, bs)) cands
 
   -- Check that there aren't any hard failures
-  case [ err | (_, ((HellNo err, _), _)) <- result ] of
+  case [ err | (_, (HellNo err, _)) <- result ] of
     err : _ -> throwError err
     []      -> return ()
 
   -- c : Candidate
-  -- r : YesNoMaybe
-  -- v : Term         (fully instantiated)
+  -- r : YesNo
   -- a : Type         (fully instantiated)
   -- s : TCState
-  let result' = [ (c, v, s) | (c, ((r, v), s)) <- result, not (isNo r) ]
+  let result' = [ (c, v, s) | (c, (r, s)) <- result, v <- maybeToList (fromYes r) ]
   result'' <- dropSameCandidates m result'
   case result'' of
-    [(c, _, s)] -> ([], [c]) <$ putTC s
+    [(c, v, s)] -> ([], [(c,v)]) <$ putTC s
     _           -> do
-      let bad  = [ (c, err) | (c, ((NoBecause err, _), _)) <- result ]
-          good = [ c | (c, _, _) <- result'' ]
+      let bad  = [ (c, err) | (c, (NoBecause err, _)) <- result ]
+          good = [ (c, v) | (c, v, _) <- result'' ]
       return (bad, good)
 
 -- Drop all candidates which are judgmentally equal to the first one.
@@ -396,9 +402,6 @@ dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidate
     cvd : _ | isIrrelevant rel -> do
       reportSLn "tc.instance" 30 "dropSameCandidates: Meta is irrelevant so any candidate will do."
       return [cvd]
-    (_, MetaV m' _, _) : _ | m == m' -> do  -- We didn't instantiate, so can't compare
-      reportSLn "tc.instance" 30 "dropSameCandidates: Meta was not instantiated so we don't filter equal candidates yet"
-      return cands
     cvd@(_, v, _) : vas
       | freshMetas v -> do
           reportSLn "tc.instance" 30 "dropSameCandidates: Solution of instance meta has fresh metas so we don't filter equal candidates yet"
@@ -412,24 +415,21 @@ dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidate
           verboseBracket "tc.instance" 30 "dropSameCandidates: " $ do
           reportSDoc "tc.instance" 30 $ sep [ prettyTCM v <+> "==", nest 2 $ prettyTCM v' ]
           a <- uncurry piApplyM =<< ((,) <$> getMetaType m <*> getContextArgs)
-          localTCState $ dontAssignMetas $ ifNoConstraints_ (equalTerm a v v')
-                             {- then -} (return True)
-                             {- else -} (\ _ -> return False)
-                             `catchError` (\ _ -> return False)
+          runBlocked (pureEqualTerm a v v') <&> \case
+            Left{}  -> False
+            Right b -> b
 
-data YesNoMaybe = Yes | No | NoBecause TCErr | Maybe | HellNo TCErr
+data YesNo = Yes Term | No | NoBecause TCErr | HellNo TCErr
   deriving (Show)
 
-isNo :: YesNoMaybe -> Bool
-isNo No          = True
-isNo NoBecause{} = True
-isNo HellNo{}    = True
-isNo _           = False
+fromYes :: YesNo -> Maybe Term
+fromYes (Yes t) = Just t
+fromYes _       = Nothing
 
 -- | Given a meta @m@ of type @t@ and a list of candidates @cands@,
 -- @checkCandidates m t cands@ returns a refined list of valid candidates and
 -- candidates that failed some constraints.
-checkCandidates :: MetaId -> Type -> [Candidate] -> TCM (Maybe ([(Candidate, TCErr)], [Candidate]))
+checkCandidates :: MetaId -> Type -> [Candidate] -> TCM (Maybe ([(Candidate, TCErr)], [(Candidate, Term)]))
 checkCandidates m t cands =
   verboseBracket "tc.instance.candidates" 20 ("checkCandidates " ++ prettyShow m) $
   ifM (anyMetaTypes cands) (return Nothing) $ Just <$> do
@@ -442,11 +442,11 @@ checkCandidates m t cands =
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
       [ "valid candidates"
       , vcat [ "-" <+> (if overlap then "overlap" else empty) <+> prettyTCM c <+> ":" <+> prettyTCM t
-             | c@(Candidate q v t overlap) <- snd cands' ] ]
+             | c@(Candidate q v t overlap) <- map fst (snd cands') ] ]
     reportSDoc "tc.instance.candidates" 60 $ nest 2 $ vcat
       [ "valid candidates"
       , vcat [ "-" <+> (if overlap then "overlap" else empty) <+> prettyTCM v <+> ":" <+> prettyTCM t
-             | c@(Candidate q v t overlap) <- snd cands' ] ]
+             | c@(Candidate q v t overlap) <- map fst (snd cands') ] ]
     return cands'
   where
     anyMetaTypes :: [Candidate] -> TCM Bool
@@ -457,107 +457,77 @@ checkCandidates m t cands =
         MetaV{} -> return True
         _       -> anyMetaTypes cands
 
-    checkDepth :: Term -> Type -> TCM YesNoMaybe -> TCM YesNoMaybe
+    checkDepth :: Term -> Type -> TCM YesNo -> TCM YesNo
     checkDepth c a k = locallyTC eInstanceDepth succ $ do
       d        <- viewTC eInstanceDepth
       maxDepth <- maxInstanceSearchDepth
       when (d > maxDepth) $ typeError $ InstanceSearchDepthExhausted c a maxDepth
       k
 
-    checkCandidateForMeta :: MetaId -> Type -> Candidate -> TCM YesNoMaybe
+    checkCandidateForMeta :: MetaId -> Type -> Candidate -> TCM YesNo
     checkCandidateForMeta m t (Candidate q term t' _) = checkDepth term t' $ do
       -- Andreas, 2015-02-07: New metas should be created with range of the
       -- current instance meta, thus, we set the range.
       mv <- lookupLocalMeta m
-      setCurrentRange mv $ do
-        debugConstraints
-        verboseBracket "tc.instance" 20 ("checkCandidateForMeta " ++ prettyShow m) $
-          liftTCM $ runCandidateCheck $ do
-            reportSLn "tc.instance" 70 $ "  t: " ++ prettyShow t ++ "\n  t':" ++ prettyShow t' ++ "\n  term: " ++ prettyShow term ++ "."
-            reportSDoc "tc.instance" 20 $ vcat
-              [ "checkCandidateForMeta"
-              , "t    =" <+> prettyTCM t
-              , "t'   =" <+> prettyTCM t'
-              , "term =" <+> prettyTCM term
-              ]
+      setCurrentRange mv $ runCandidateCheck $
+        verboseBracket "tc.instance" 20 ("checkCandidateForMeta " ++ prettyShow m) $ do
+          reportSDoc "tc.instance" 20 $ vcat
+            [ "checkCandidateForMeta"
+            , "  t    =" <+> prettyTCM t
+            , "  t'   =" <+> prettyTCM t'
+            , "  term =" <+> prettyTCM term
+            ]
+          reportSDoc "tc.instance" 70 $ vcat
+            [ "  t    =" <+> pretty t
+            , "  t'   =" <+> pretty t'
+            , "  term =" <+> pretty term
+            ]
+          debugConstraints
 
-            -- Apply hidden and instance arguments (recursive inst. search!).
-            (args, t'') <- implicitArgs (-1) (\h -> notVisible h) t'
+          -- Apply hidden and instance arguments (in case of
+          -- --overlapping-instances, this performs recursive
+          -- inst. search!).
+          (args, t'') <- implicitArgs (-1) (\h -> notVisible h) t'
 
-            reportSDoc "tc.instance" 20 $
-              "instance search: checking" <+> prettyTCM t''
-              <+> "<=" <+> prettyTCM t
-            reportSDoc "tc.instance" 70 $ vcat
-              [ "instance search: checking (raw)"
-              , nest 4 $ pretty t''
-              , nest 2 $ "<="
-              , nest 4 $ pretty t
-              ]
-            v <- (`applyDroppingParameters` args) =<< reduce term
-            reportSDoc "tc.instance" 15 $ vcat
-              [ "instance search: attempting"
-              , nest 2 $ prettyTCM m <+> ":=" <+> prettyTCM v
-              ]
-            reportSDoc "tc.instance" 70 $ nest 2 $
-              "candidate v = " <+> pretty v
-            -- if constraints remain, we abort, but keep the candidate
-            -- Jesper, 05-12-2014: When we abort, we should add a constraint to
-            -- instantiate the meta at a later time (see issue 1377).
-            ctxElims <- map Apply <$> getContextArgs
-            guardConstraint (ValueCmp CmpEq (AsTermsOf t'') (MetaV m ctxElims) v) $ leqType t'' t
-            -- make a pass over constraints, to detect cases where some are made
-            -- unsolvable by the assignment, but don't do this for FindInstance's
-            -- to prevent loops.
-            debugConstraints
+          reportSDoc "tc.instance" 20 $
+            "instance search: checking" <+> prettyTCM t'' <+> "<=" <+> prettyTCM t
+          reportSDoc "tc.instance" 70 $ vcat
+            [ "instance search: checking (raw)"
+            , nest 4 $ pretty t''
+            , nest 2 $ "<="
+            , nest 4 $ pretty t
+            ]
+          leqType t'' t
+          debugConstraints
 
-            let debugSolution = verboseS "tc.instance" 15 $ do
-                  sol <- instantiateFull (MetaV m ctxElims)
-                  case sol of
-                    MetaV m' _ | m == m' ->
-                      reportSDoc "tc.instance" 15 $
-                        sep [ ("instance search: maybe solution for" <+> prettyTCM m) <> ":"
-                            , nest 2 $ prettyTCM v ]
-                    _ ->
-                      reportSDoc "tc.instance" 15 $
-                        sep [ ("instance search: found solution for" <+> prettyTCM m) <> ":"
-                            , nest 2 $ prettyTCM sol ]
+          flip catchError (return . NoBecause) $ do
+            -- make a pass over constraints, to detect cases where
+            -- some are made unsolvable by the type comparison, but
+            -- don't do this for FindInstance's to prevent loops.
+            solveAwakeConstraints' True
+            -- We need instantiateFull here to remove 'local' metas
+            v <- instantiateFull =<< (term `applyDroppingParameters` args)
+            reportSDoc "tc.instance" 15 $
+              sep [ ("instance search: found solution for" <+> prettyTCM m) <> ":"
+                  , nest 2 $ prettyTCM v ]
+            return $ Yes v
+      where
+        runCandidateCheck = flip catchError handle . nowConsideringInstance
 
-            do solveAwakeConstraints' True
-               Yes <$ debugSolution
-              `catchError` (return . NoBecause)
+        hardFailure :: TCErr -> Bool
+        hardFailure (TypeError _ _ err) =
+          case clValue err of
+            InstanceSearchDepthExhausted{} -> True
+            _                              -> False
+        hardFailure _ = False
 
-        where
-          runCandidateCheck check =
-            flip catchError handle $
-            nowConsideringInstance $
-            ifNoConstraints check
-              (\ r -> case r of
-                  Yes           -> r <$ debugSuccess
-                  NoBecause why -> r <$ debugConstraintFail why
-                  _             -> __IMPOSSIBLE__
-              )
-              (\ _ r -> case r of
-                  Yes           -> Maybe <$ debugInconclusive
-                  NoBecause why -> r <$ debugConstraintFail why
-                  _             -> __IMPOSSIBLE__
-              )
+        handle :: TCErr -> TCM YesNo
+        handle err
+          | hardFailure err = return $ HellNo err
+          | otherwise       = do
+              reportSDoc "tc.instance" 50 $ "candidate failed type check:" <+> prettyTCM err
+              return No
 
-          debugSuccess            = reportSLn "tc.instance" 50 "assignment successful" :: TCM ()
-          debugInconclusive       = reportSLn "tc.instance" 50 "assignment inconclusive" :: TCM ()
-          debugConstraintFail why = reportSDoc "tc.instance" 50 $ "candidate failed constraints:" <+> prettyTCM why
-          debugTypeFail err       = reportSDoc "tc.instance" 50 $ "candidate failed type check:" <+> prettyTCM err
-
-          hardFailure :: TCErr -> Bool
-          hardFailure (TypeError _ _ err) =
-            case clValue err of
-              InstanceSearchDepthExhausted{} -> True
-              _                              -> False
-          hardFailure _ = False
-
-          handle :: TCErr -> TCM YesNoMaybe
-          handle err
-            | hardFailure err = return $ HellNo err
-            | otherwise       = No <$ debugTypeFail err
 
 nowConsideringInstance :: (ReadTCState m) => m a -> m a
 nowConsideringInstance = locallyTCState stConsideringInstance $ const True

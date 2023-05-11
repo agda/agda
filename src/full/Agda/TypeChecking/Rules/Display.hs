@@ -30,12 +30,6 @@ checkDisplayPragma f ps e = do
   reportSLn "tc.display.pragma" 20 $ "Adding display form for " ++ prettyShow f ++ "\n  " ++ show df
   addDisplayForm f df
 
---UNUSED Liang-Ting 2019-07-16
----- Compute a left-hand side for a display form. Inserts implicits, but no type
----- checking so does the wrong thing if implicitness is computed. Binds variables.
---displayLHS :: Telescope -> [NamedArg A.Pattern] -> (Int -> [Term] -> TCM a) -> TCM a
---displayLHS tel ps ret = patternsToTerms tel ps $ \n vs -> ret n (map unArg vs)
-
 type ToTm = StateT Nat TCM
 
 patternsToTerms :: Telescope -> [NamedArg A.Pattern] -> (Int -> Args -> TCM a) -> TCM a
@@ -44,8 +38,6 @@ patternsToTerms EmptyTel (p : ps) ret =
   patternToTerm (namedArg p) $ \n v ->
   patternsToTerms EmptyTel ps     $ \m vs -> ret (n + m) (inheritHiding p v : vs)
 patternsToTerms (ExtendTel a tel) (p : ps) ret
-  -- Andreas, 2019-07-22, while #3353: we should use domName, not absName !!
-  -- WAS: -- | sameHiding p a, visible p || maybe True (absName tel ==) (bareNameOf p) =  -- no ArgName or same as p
   | fromMaybe __IMPOSSIBLE__ $ fittingNamedArg p a =
       patternToTerm (namedArg p) $ \n v ->
       patternsToTerms (unAbs tel) ps  $ \m vs -> ret (n + m) (inheritHiding p v : vs)

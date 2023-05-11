@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical-compatible --sized-types #-}
+{-# OPTIONS --cubical-compatible --sized-types --level-universe #-}
 ------------------------------------------------------------------------
 -- From the Agda standard library
 --

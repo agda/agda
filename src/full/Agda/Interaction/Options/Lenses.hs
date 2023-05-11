@@ -20,6 +20,7 @@ import Agda.Interaction.Options
 
 import Agda.Utils.Lens
 import Agda.Utils.FileName
+import Agda.Utils.WithDefault (pattern Value)
 
 ---------------------------------------------------------------------------
 -- * Pragma options
@@ -29,7 +30,7 @@ class LensPragmaOptions a where
   getPragmaOptions  :: a -> PragmaOptions
   setPragmaOptions  :: PragmaOptions -> a -> a
   mapPragmaOptions  :: (PragmaOptions -> PragmaOptions) -> a -> a
-  lensPragmaOptions :: Lens' PragmaOptions a
+  lensPragmaOptions :: Lens' a PragmaOptions
   -- lensPragmaOptions :: forall f. Functor f => (PragmaOptions -> f PragmaOptions) -> a -> f a
 
   -- default implementations
@@ -63,8 +64,8 @@ class LensVerbosity a where
   mapVerbosity f a = setVerbosity (f $ getVerbosity a) a
 
 instance LensVerbosity PragmaOptions where
-  getVerbosity = optVerbose
-  setVerbosity is opts = opts { optVerbose = is }
+  getVerbosity = _optVerbose
+  setVerbosity is opts = opts { _optVerbose = is }
 
 instance LensVerbosity TCState where
   getVerbosity = getVerbosity . getPragmaOptions
@@ -117,7 +118,7 @@ class LensSafeMode a where
 
 instance LensSafeMode PragmaOptions where
   getSafeMode = optSafe
-  setSafeMode is opts = opts { optSafe = is } -- setSafeOption
+  setSafeMode is opts = opts { _optSafe = Value is } -- setSafeOption
 
 instance LensSafeMode CommandLineOptions where
   getSafeMode = getSafeMode . getPragmaOptions
@@ -146,6 +147,7 @@ builtinModulesWithSafePostulates =
   , "Agda" </> "Builtin" </> "Char.agda"
   , "Agda" </> "Builtin" </> "Char" </> "Properties.agda"
   , "Agda" </> "Builtin" </> "Coinduction.agda"
+  , "Agda" </> "Builtin" </> "Cubical" </> "Equiv.agda"
   , "Agda" </> "Builtin" </> "Cubical" </> "Glue.agda"
   , "Agda" </> "Builtin" </> "Cubical" </> "HCompU.agda"
   , "Agda" </> "Builtin" </> "Cubical" </> "Id.agda"

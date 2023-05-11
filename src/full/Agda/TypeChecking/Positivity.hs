@@ -12,7 +12,7 @@ import Control.Monad.Reader ( MonadReader(..), asks, Reader, runReader )
 
 import Data.Either
 import qualified Data.Foldable as Fold
-import Data.Function
+import Data.Function (on)
 import Data.Graph (SCC(..))
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap

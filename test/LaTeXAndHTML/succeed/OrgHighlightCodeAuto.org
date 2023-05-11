@@ -7,7 +7,7 @@
 <pre class="Agda">
 <a id="58" class="Keyword">module</a> <a id="65" href="OrgHighlightCodeAuto.html" class="Module">OrgHighlightCodeAuto</a> <a id="86" class="Keyword">where</a>
 
-<a id="93" class="Keyword">data</a> <a id="Bool"></a><a id="98" href="OrgHighlightCodeAuto.html#98" class="Datatype">Bool</a> <a id="103" class="Symbol">:</a> <a id="105" href="Agda.Primitive.html#320" class="Primitive">Set</a> <a id="109" class="Keyword">where</a>
+<a id="93" class="Keyword">data</a> <a id="Bool"></a><a id="98" href="OrgHighlightCodeAuto.html#98" class="Datatype">Bool</a> <a id="103" class="Symbol">:</a> <a id="105" href="Agda.Primitive.html#337" class="Primitive">Set</a> <a id="109" class="Keyword">where</a>
 </pre>
 #+END_EXPORT
 

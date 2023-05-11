@@ -109,11 +109,10 @@ instance EmbPrj Void where
   value = vcase valu where valu _ = malformed
 
 instance EmbPrj () where
-  icod_ () = icodeN' ()
+  icod_ () = pure 0
 
-  value = vcase valu where
-    valu [] = valuN ()
-    valu _  = malformed
+  value 0 = pure ()
+  value _ = malformed
 
 instance (EmbPrj a, EmbPrj b) => EmbPrj (a, b) where
   icod_ (a, b) = icodeN' (,) a b
@@ -153,28 +152,27 @@ instance EmbPrj a => EmbPrj (Strict.Maybe a) where
   value m = Strict.toStrict `fmap` value m
 
 instance EmbPrj Bool where
-  icod_ True  = icodeN' True
-  icod_ False = icodeN 0 False
+  icod_ False = pure 0
+  icod_ True  = pure 1
 
-  value = vcase valu where
-    valu []  = valuN True
-    valu [0] = valuN False
-    valu _   = malformed
+  value 0 = pure False
+  value 1 = pure True
+  value _ = malformed
 
 instance EmbPrj FileType where
-  icod_ AgdaFileType = icodeN'  AgdaFileType
-  icod_ MdFileType   = icodeN 0 MdFileType
-  icod_ RstFileType  = icodeN 1 RstFileType
-  icod_ TexFileType  = icodeN 2 TexFileType
-  icod_ OrgFileType  = icodeN 3 OrgFileType
+  icod_ AgdaFileType = pure 0
+  icod_ MdFileType   = pure 1
+  icod_ RstFileType  = pure 2
+  icod_ TexFileType  = pure 3
+  icod_ OrgFileType  = pure 4
 
-  value = vcase $ \case
-    []  -> valuN AgdaFileType
-    [0] -> valuN MdFileType
-    [1] -> valuN RstFileType
-    [2] -> valuN TexFileType
-    [3] -> valuN OrgFileType
-    _   -> malformed
+  value = \case
+    0 -> pure AgdaFileType
+    1 -> pure MdFileType
+    2 -> pure RstFileType
+    3 -> pure TexFileType
+    4 -> pure OrgFileType
+    _ -> malformed
 
 instance EmbPrj Cubical where
   icod_ CErased = icodeN'  CErased
@@ -201,7 +199,7 @@ instance EmbPrj a => EmbPrj (Position' a) where
 
   value = valueN P.Pn
 
-instance Typeable b => EmbPrj (WithDefault b) where
+instance (EmbPrj a, Typeable b) => EmbPrj (WithDefault' a b) where
   icod_ = \case
     Default -> icodeN' Default
     Value b -> icodeN' Value b
@@ -312,13 +310,9 @@ instance EmbPrj Range where
 newtype SerialisedRange = SerialisedRange { underlyingRange :: Range }
 
 instance EmbPrj SerialisedRange where
-  icod_ (SerialisedRange r) =
-    icodeN' (undefined :: SrcFile -> [IntervalWithoutFile] -> SerialisedRange)
-            (P.rangeFile r) (P.rangeIntervals r)
+  icod_ (SerialisedRange r) = icodeN' P.intervalsToRange (P.rangeFile r) (P.rangeIntervals r)
 
-  value = vcase valu where
-    valu [a, b] = SerialisedRange <$> valuN P.intervalsToRange a b
-    valu _      = malformed
+  value i = SerialisedRange <$> valueN P.intervalsToRange i
 
 instance EmbPrj C.Name where
   icod_ (C.NoName a b)     = icodeN 0 C.NoName a b
@@ -366,15 +360,15 @@ instance (EmbPrj a, EmbPrj b) => EmbPrj (ImportedName' a b) where
     valu _ = malformed
 
 instance EmbPrj Associativity where
-  icod_ LeftAssoc  = icodeN' LeftAssoc
-  icod_ RightAssoc = icodeN 1 RightAssoc
-  icod_ NonAssoc   = icodeN 2 NonAssoc
+  icod_ LeftAssoc  = pure 0
+  icod_ RightAssoc = pure 1
+  icod_ NonAssoc   = pure 2
 
-  value = vcase valu where
-    valu []  = valuN LeftAssoc
-    valu [1] = valuN RightAssoc
-    valu [2] = valuN NonAssoc
-    valu _   = malformed
+  value = \case
+    0 -> pure LeftAssoc
+    1 -> pure RightAssoc
+    2 -> pure NonAssoc
+    _ -> malformed
 
 instance EmbPrj FixityLevel where
   icod_ Unrelated   = icodeN' Unrelated
@@ -602,16 +596,16 @@ instance EmbPrj Relevance where
 instance EmbPrj Annotation where
   icod_ (Annotation l) = icodeN' Annotation l
 
-  value = vcase $ \case
-    [l] -> valuN Annotation l
-    _ -> malformed
+  value = valueN Annotation
 
 instance EmbPrj Lock where
-  icod_ IsNotLock = return 0
-  icod_ IsLock    = return 1
+  icod_ IsNotLock          = pure 0
+  icod_ (IsLock LockOTick) = pure 1
+  icod_ (IsLock LockOLock) = pure 2
 
-  value 0 = return IsNotLock
-  value 1 = return IsLock
+  value 0 = pure IsNotLock
+  value 1 = pure (IsLock LockOTick)
+  value 2 = pure (IsLock LockOLock)
   value _ = malformed
 
 instance EmbPrj Origin where
@@ -620,12 +614,14 @@ instance EmbPrj Origin where
   icod_ Reflected   = return 2
   icod_ CaseSplit   = return 3
   icod_ Substitution = return 4
+  icod_ ExpandedPun = return 5
 
   value 0 = return UserWritten
   value 1 = return Inserted
   value 2 = return Reflected
   value 3 = return CaseSplit
   value 4 = return Substitution
+  value 5 = return ExpandedPun
   value _ = malformed
 
 instance EmbPrj a => EmbPrj (WithOrigin a) where

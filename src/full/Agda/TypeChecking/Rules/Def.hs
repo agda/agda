@@ -8,7 +8,7 @@ import Control.Monad        ( forM, forM_ )
 import Control.Monad.Except ( MonadError(..) )
 
 import Data.Bifunctor
-import Data.Function
+import Data.Function (on)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
@@ -47,7 +47,6 @@ import Agda.TypeChecking.With
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Telescope.Path
 import Agda.TypeChecking.Injectivity
-import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.Rewriting.Confluence
 import Agda.TypeChecking.CompiledClause (CompiledClauses'(..), hasProjectionPatterns)
@@ -1290,4 +1289,4 @@ newSection e m gtel@(A.GeneralizeTel _ tel) cont = do
 atClause :: QName -> Int -> Type -> Maybe Substitution -> A.SpineClause -> TCM a -> TCM a
 atClause name i t sub cl ret = do
   clo <- buildClosure ()
-  localTC (\ e -> e { envClause = IPClause name i t sub cl clo [] }) ret
+  localTC (\ e -> e { envClause = IPClause name i t sub cl clo }) ret

@@ -8,7 +8,7 @@ import Control.Monad.Reader as Rd hiding (lift)
 import qualified Control.Monad.State as St
 import Control.Monad.IO.Class ( MonadIO(..) )
 
-import Data.Function
+import Data.Function (on)
 import Data.IORef
 import Data.Tuple (swap)
 import Data.List (elemIndex)

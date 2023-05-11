@@ -7,7 +7,9 @@ import qualified Data.Set as Set
 import Data.Foldable (Foldable)
 import qualified Data.Foldable as Foldable
 import qualified Data.List as List
-import Data.Function
+import Data.Function (on)
+
+import Control.Monad
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -37,10 +39,9 @@ prettyConstraint c = f (locallyTCState stInstantiateBlocking (const True) $ pret
           else d $$ nest 4 ("[ at" <+> prettyTCM r <+> "]")
 
 interestingConstraint :: ProblemConstraint -> Bool
-interestingConstraint pc = go $ clValue (theConstraint pc)
-  where
-    go UnBlock{} = False
-    go _         = True
+interestingConstraint pc = go $ clValue (theConstraint pc) where
+  go (UnBlock mi) = False
+  go _            = True
 
 prettyInterestingConstraints :: MonadPretty m => [ProblemConstraint] -> m [Doc]
 prettyInterestingConstraints cs = mapM (prettyConstraint . stripPids) $ List.sortBy (compare `on` isBlocked) cs'
@@ -49,6 +50,7 @@ prettyInterestingConstraints cs = mapM (prettyConstraint . stripPids) $ List.sor
     cs' = filter interestingConstraint cs
     interestingPids = Set.unions $ map (allBlockingProblems . constraintUnblocker) cs'
     stripPids (PConstr pids unblock c) = PConstr (Set.intersection pids interestingPids) unblock c
+
 
 prettyRangeConstraint ::
   (MonadPretty m, Foldable f, Null (f ProblemId)) =>

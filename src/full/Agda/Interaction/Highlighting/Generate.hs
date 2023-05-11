@@ -427,6 +427,7 @@ warningHighlighting' b w = case tcWarning w of
   -- expanded catch-all case to get a warning for new constructors
   CantGeneralizeOverSorts{}  -> mempty
   UnsolvedInteractionMetas{} -> mempty
+  InteractionMetaBoundaries{} -> mempty
   OldBuiltin{}               -> mempty
   EmptyRewritePragma{}       -> deadcodeHighlighting w
   EmptyWhere{}               -> deadcodeHighlighting w

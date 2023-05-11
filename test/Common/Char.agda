@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical-compatible #-}
+{-# OPTIONS --cubical-compatible --level-universe #-}
 module Common.Char where
 
 open import Agda.Builtin.Char public

@@ -109,7 +109,8 @@ type Attributes = [(Attribute, Range, String)]
 lockAttributeTable :: [(String, Lock)]
 lockAttributeTable = concat
   [ map (, IsNotLock) [ "notlock" ] -- default, shouldn't be used much
-  , map (, IsLock) [ "lock", "tick" ] -- 🔓
+  , map (, IsLock LockOTick) [ "tick" ] -- @tick
+  , map (, IsLock LockOLock) [ "lock" ] -- @lock
   ]
 
 

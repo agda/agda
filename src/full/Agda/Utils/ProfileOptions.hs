@@ -21,6 +21,8 @@ import qualified Data.Map as Map
 import GHC.Generics (Generic)
 import Text.EditDistance (restrictedDamerauLevenshteinDistance, defaultEditCosts)
 
+import Agda.Utils.Null (Null, empty)
+
 -- | Various things that can be measured when checking an Agda development. Turned on with
 --   the `--profile` flag, for instance `--profile=sharing` to turn on the 'Sharing' option.
 --   'Internal', 'Modules', and 'Definitions' are mutually exclusive.
@@ -42,11 +44,11 @@ instance NFData ProfileOption
 
 -- | A set of 'ProfileOption's
 newtype ProfileOptions = ProfileOpts { unProfileOpts :: Set ProfileOption }
-  deriving (Show, Eq, NFData)
+  deriving (Show, Eq, NFData, Null)
 
 -- | The empty set of profiling options.
 noProfileOptions :: ProfileOptions
-noProfileOptions = ProfileOpts Set.empty
+noProfileOptions = empty
 
 addAllProfileOptions :: ProfileOptions -> ProfileOptions
 addAllProfileOptions (ProfileOpts opts) = ProfileOpts $ foldl ins opts [minBound..maxBound]

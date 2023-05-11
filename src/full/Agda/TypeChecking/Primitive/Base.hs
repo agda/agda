@@ -85,6 +85,9 @@ toFinitePi _ = __IMPOSSIBLE__
 el' :: Applicative m => m Term -> m Term -> m Type
 el' l a = El <$> (tmSort <$> l) <*> a
 
+els :: Applicative m => m Sort -> m Term -> m Type
+els l a = El <$> l <*> a
+
 el's :: Applicative m => m Term -> m Term -> m Type
 el's l a = El <$> (SSet . atomicLevel <$> l) <*> a
 
@@ -150,6 +153,9 @@ sSizeUniv = SizeUniv
 -- | @SizeUniv@ as a type.
 tSizeUniv :: Applicative m => m Type
 tSizeUniv = pure $ sort sSizeUniv
+
+tLevelUniv :: Applicative m => m Type
+tLevelUniv = pure $ sort $ LevelUniv
 
 -- | Abbreviation: @argN = 'Arg' 'defaultArgInfo'@.
 argN :: e -> Arg e

@@ -65,7 +65,7 @@ in a file ``hello-world.agda``)
 
 This code is self-contained and has several declarations:
 
-1. Imports of the ``ÌO``, ``⊤`` and ``String`` types from the Agda Builtin
+1. Imports of the ``IO``, ``⊤`` and ``String`` types from the Agda Builtin
    library.
 2. A postulate of the function type ``putStrLn``.
 3. Two :ref:`pragmas <pragmas>` that tell Agda how to compile the function ``putStrLn``.

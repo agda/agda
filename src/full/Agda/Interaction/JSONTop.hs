@@ -362,7 +362,7 @@ instance EncodeTCM DisplayInfo where
 
 instance EncodeTCM GoalTypeAux where
   encodeTCM GoalOnly = kind "GoalOnly" []
-  encodeTCM (GoalAndHave expr) = kind "GoalAndHave"
+  encodeTCM (GoalAndHave expr _) = kind "GoalAndHave"
     [ "expr" #= encodePrettyTCM expr ]
   encodeTCM (GoalAndElaboration term) = kind "GoalAndElaboration"
     [ "term" #= encodePrettyTCM term ]

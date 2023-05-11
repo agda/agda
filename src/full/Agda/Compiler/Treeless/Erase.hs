@@ -49,10 +49,10 @@ data ESt = ESt
       -- ^ Memoize computed `TypeInfo` for data/record types `QName`.
   }
 
-funMap :: Lens' (Map QName FunInfo) ESt
+funMap :: Lens' ESt (Map QName FunInfo)
 funMap f r = f (_funMap r) <&> \ a -> r { _funMap = a }
 
-typeMap :: Lens' (Map QName TypeInfo) ESt
+typeMap :: Lens' ESt (Map QName TypeInfo)
 typeMap f r = f (_typeMap r) <&> \ a -> r { _typeMap = a }
 
 -- | Eraser monad.

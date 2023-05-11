@@ -373,7 +373,7 @@ addDisplayForms x = do
 
   -- Turn unfoldings into display forms
   npars <- subtract (projectionArgs def) <$> getContextSize
-  let dfs = catMaybes $ map (displayForm npars v) vs
+  let dfs = map (displayForm npars v) vs
   reportSDoc "tc.display.section" 20 $ nest 2 $ vcat
     [ "displayForms:" <?> vcat [ "-" <+> (pretty y <+> "-->" <?> pretty df) | (y, df) <- dfs ] ]
 
@@ -388,14 +388,16 @@ addDisplayForms x = do
     -- Given an unfolding `top = λ xs → y es` generate a display form
     -- `y es ==> top xs`. The first `npars` variables in `xs` are module parameters
     -- and should not be pattern variables, but matched literally.
-    displayForm :: Nat -> Term -> Term -> Maybe (QName, DisplayForm)
+    displayForm :: Nat -> Term -> Term -> (QName, DisplayForm)
     displayForm npars top v =
       case view v of
-        (xs, Def y es)   -> (y,)         <$> mkDisplay xs es
-        (xs, Con h i es) -> (conName h,) <$> mkDisplay xs es
+        (xs, Def y es)   -> (y,)         $ mkDisplay xs es
+        (xs, Con h i es) -> (conName h,) $ mkDisplay xs es
         _ -> __IMPOSSIBLE__
       where
-        mkDisplay xs es = Just (Display (n - npars) es $ DTerm $ top `apply` args)
+        mkDisplay xs es = Display (n - npars) es $ DTerm $ top `apply` args
+          -- Andreas, 2023-01-26, #6476:
+          -- I think this @apply@ is safe (rather than @DTerm' top (map Apply args)@).
           where
             n    = length xs
             args = zipWith (\ x i -> var i <$ x) xs (downFrom n)
@@ -894,8 +896,8 @@ getOriginalConstInfo q = do
   case (lang, defLanguage def) of
     (Cubical CErased, Cubical CFull) ->
       locallyTCState
-        stPragmaOptions
-        (\opts -> opts { optCubical = Just CFull })
+        (stPragmaOptions . lensOptCubical)
+        (const $ Just CFull)
         (getConstInfo q)
     _ -> return def
 

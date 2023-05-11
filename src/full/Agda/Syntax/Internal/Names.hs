@@ -199,6 +199,7 @@ instance NamesIn Sort where
     SSet l      -> namesAndMetasIn' sg l
     SizeUniv    -> mempty
     LockUniv    -> mempty
+    LevelUniv   -> mempty
     IntervalUniv -> mempty
     PiSort a b c  -> namesAndMetasIn' sg (a, b, c)
     FunSort a b -> namesAndMetasIn' sg (a, b)
@@ -260,8 +261,8 @@ instance NamesIn DisplayTerm where
     DWithApp v us es -> namesAndMetasIn' sg (v, us, es)
     DCon c _ vs      -> namesAndMetasIn' sg (c, vs)
     DDef f es        -> namesAndMetasIn' sg (f, es)
-    DDot v           -> namesAndMetasIn' sg v
-    DTerm v          -> namesAndMetasIn' sg v
+    DDot' v es       -> namesAndMetasIn' sg (v, es)
+    DTerm' v es      -> namesAndMetasIn' sg (v, es)
 
 instance NamesIn a => NamesIn (Builtin a) where
   namesAndMetasIn' sg = \case
@@ -300,6 +301,7 @@ instance NamesIn NLPSort where
     PInf _ _      -> mempty
     PSizeUniv     -> mempty
     PLockUniv     -> mempty
+    PLevelUniv    -> mempty
     PIntervalUniv -> mempty
 
 instance NamesIn RewriteRule where

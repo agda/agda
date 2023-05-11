@@ -201,20 +201,15 @@ instance Reify MetaId where
         Nothing     -> underscore
         Just ii     -> return $ A.QuestionMark mi' ii
 
--- Does not print with-applications correctly:
--- instance Reify DisplayTerm Expr where
---   reifyWhen = reifyWhenE
---   reify d = reifyTerm False $ dtermToTerm d
-
 instance Reify DisplayTerm where
   type ReifiesTo DisplayTerm = Expr
 
   reifyWhen = reifyWhenE
   reify = \case
-    DTerm v -> reifyTerm False v
-    DDot  v -> reify v
-    DCon c ci vs -> recOrCon (conName c) ci =<< reify vs
-    DDef f es -> elims (A.Def f) =<< reify es
+    DTerm' v es       -> elims ==<< (reifyTerm False v, reify es)
+    DDot'  v es       -> elims ==<< (reify v, reify es)
+    DCon c ci vs      -> recOrCon (conName c) ci =<< reify vs
+    DDef f es         -> elims (A.Def f) =<< reify es
     DWithApp u us es0 -> do
       (e, es) <- reify (u, us)
       elims (if null es then e else A.WithApp noExprInfo e es) =<< reify es0
@@ -277,22 +272,24 @@ reifyDisplayFormP f ps wps = do
     -- defined name applied to valid lhs eliminators (projections or
     -- applications to constructor patterns).
     okDisplayForm :: DisplayTerm -> Bool
-    okDisplayForm (DWithApp d ds es) =
-      okDisplayForm d && all okDisplayTerm ds  && all okToDropE es
-      -- Andreas, 2016-05-03, issue #1950.
-      -- We might drop trailing hidden trivial (=variable) patterns.
-    okDisplayForm (DTerm (I.Def f vs)) = all okElim vs
-    okDisplayForm (DDef f es)          = all okDElim es
-    okDisplayForm DDot{}               = False
-    okDisplayForm DCon{}               = False
-    okDisplayForm DTerm{}              = False
+    okDisplayForm = \case
+      DWithApp d ds es ->
+        okDisplayForm d && all okDisplayTerm ds  && all okToDropE es
+        -- Andreas, 2016-05-03, issue #1950.
+        -- We might drop trailing hidden trivial (=variable) patterns.
+      DTerm' (I.Def f es') es -> all okElim es' && all okElim es
+      DDef f es               -> all okDElim es
+      DDot'{}                 -> False
+      DCon{}                  -> False
+      DTerm'{}                -> False
 
     okDisplayTerm :: DisplayTerm -> Bool
-    okDisplayTerm (DTerm v) = okTerm v
-    okDisplayTerm DDot{}    = True
-    okDisplayTerm DCon{}    = True
-    okDisplayTerm DDef{}    = False
-    okDisplayTerm _         = False
+    okDisplayTerm = \case
+      DTerm' v es -> null es && okTerm v
+      DDot'{}     -> True
+      DCon{}      -> True
+      DDef{}      -> False
+      DWithApp{}  -> False
 
     okDElim :: Elim' DisplayTerm -> Bool
     okDElim (I.IApply x y r) = okDisplayTerm r
@@ -331,7 +328,7 @@ reifyDisplayFormP f ps wps = do
       let (f, es, ds0) = flattenWith d
       in  (f, es, ds0 ++ map (I.Apply . defaultArg) ds1 ++ map (fmap DTerm) es2)
     flattenWith (DDef f es) = (f, es, [])     -- .^ hacky, but we should only hit this when printing debug info
-    flattenWith (DTerm (I.Def f es)) = (f, map (fmap DTerm) es, [])
+    flattenWith (DTerm' (I.Def f es') es) = (f, map (fmap DTerm) $ es' ++ es, [])
     flattenWith _ = __IMPOSSIBLE__
 
     displayLHS
@@ -357,21 +354,26 @@ reifyDisplayFormP f ps wps = do
         termToPat :: MonadReify m => DisplayTerm -> m (Named_ A.Pattern)
 
         -- Main action HERE:
-        termToPat (DTerm (I.Var n [])) = return $ unArg $ fromMaybe __IMPOSSIBLE__ $ ps !!! n
+        termToPat (DTerm (I.Var n [])) =
+          return $ unArg $ fromMaybe __IMPOSSIBLE__ $ ps !!! n
 
         termToPat (DCon c ci vs)          = fmap unnamed <$> tryRecPFromConP =<< do
            A.ConP (ConPatInfo ci patNoRange ConPatEager) (unambiguous (conName c)) <$> mapM argToPat vs
 
-        termToPat (DTerm (I.Con c ci vs)) = fmap unnamed <$> tryRecPFromConP =<< do
-           A.ConP (ConPatInfo ci patNoRange ConPatEager) (unambiguous (conName c)) <$> mapM (elimToPat . fmap DTerm) vs
+        termToPat (DTerm' (I.Con c ci vs) es) = fmap unnamed <$> tryRecPFromConP =<< do
+           A.ConP (ConPatInfo ci patNoRange ConPatEager) (unambiguous (conName c)) <$>
+             mapM (elimToPat . fmap DTerm) (vs ++ es)
 
         termToPat (DTerm (I.Def _ [])) = return $ unnamed $ A.WildP patNoRange
         termToPat (DDef _ [])          = return $ unnamed $ A.WildP patNoRange
 
         termToPat (DTerm (I.Lit l))    = return $ unnamed $ A.LitP patNoRange l
 
-        termToPat (DDot v)             = unnamed . A.DotP patNoRange <$> termToExpr v
-        termToPat v                    = unnamed . A.DotP patNoRange <$> reify v
+        termToPat (DDot' v es) =
+          unnamed . A.DotP patNoRange <$> do elims ==<< (termToExpr v, reify es)
+
+        termToPat v =
+          unnamed . A.DotP patNoRange <$> reify v
 
         len = length ps
 
@@ -446,7 +448,11 @@ tryReifyAsLetBinding v fallback = ifM (asksTC $ not . envFoldLetBindings) fallba
     (_, name) : _ -> return $ A.Var name
     []            -> fallback
 
-reifyTerm :: MonadReify m => Bool -> Term -> m Expr
+reifyTerm ::
+      MonadReify m
+   => Bool           -- ^ Try to expand away anonymous definitions?
+   -> Term
+   -> m Expr
 reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
   -- Jesper 2018-11-02: If 'PrintMetasBare', drop all meta eliminations.
   metasBare <- asksTC envPrintMetasBare
@@ -717,11 +723,25 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
           Function{ funExtLam = Just (ExtLamInfo m b sys) } ->
             Just . (,Strict.toLazy sys) . size <$> lookupSection m
           _ -> return Nothing
+
+        -- Amy, 2023-04-12: Don't reify clauses generated by the cubical
+        -- coverage checker when printing an extended lambda. We can
+        -- identify these clauses by looking for patterns headed by DefP
+        -- (either transpX or hcomp associated with a data type).
+        --
+        -- Since these are always automatically derived, printing them
+        -- is noise, and shows up even in non-cubical modules, as long
+        -- as an imported extended lambda is defined cubical-compatibly.
+        let
+          isDefP I.DefP{} = True
+          isDefP _ = False
+
+          insClause = any (isDefP . namedArg) . namedClausePats
         case extLam of
           Just (pars, sys) | df, x `notElem` alreadyPrinting ->
             locallyTC ePrintingPatternLambdas (x :) $
             reifyExtLam x (defArgInfo defn) pars sys
-              (defClauses defn) es
+              (filter (not . insClause) (defClauses defn)) es
 
         -- Otherwise (ordinary function call):
           _ -> do
@@ -1427,6 +1447,9 @@ instance Reify Sort where
         I.LockUniv  -> do
           lockU <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinLockUniv
           return $ A.Def lockU
+        I.LevelUniv -> do
+          levelU <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinLevelUniv
+          return $ A.Def levelU
         I.IntervalUniv -> do
           intervalU <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinIntervalUniv
           return $ A.Def intervalU

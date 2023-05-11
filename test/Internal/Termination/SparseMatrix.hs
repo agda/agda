@@ -12,7 +12,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Tuple
 
 import Data.Array
-import Data.Function
+import Data.Function (on)
 import qualified Data.List as List
 
 import Internal.Helpers
@@ -304,4 +304,3 @@ return [] -- KEEP!
 
 tests :: TestTree
 tests = testProperties "Internal.Termination.SparseMatrix" $allProperties
-

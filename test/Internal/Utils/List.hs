@@ -12,7 +12,7 @@ import Agda.Utils.List
 
 import Data.Bifunctor (first)
 import Data.Either (partitionEithers)
-import Data.Function
+import Data.Function (on)
 import Data.List
   ((\\), elemIndex, intercalate, isPrefixOf, isSuffixOf,
    minimumBy, nub, nubBy, sort, sortBy)

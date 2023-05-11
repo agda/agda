@@ -1,3 +1,5 @@
+{-# OPTIONS --level-universe #-}
+
 module Common.Sum where
 
 open import Common.Level

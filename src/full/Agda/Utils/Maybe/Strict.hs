@@ -4,12 +4,6 @@
 --   @
 --     import qualified Agda.Utils.Maybe.Strict as Strict
 --   @
---
--- Copyright :  (c) 2006-2007 Roman Leshchinskiy
---              (c) 2013 Simon Meier
--- License   :  BSD-style (see the file LICENSE)
---
--- Copyright :  (c) 2014 Andreas Abel
 
 module Agda.Utils.Maybe.Strict
   ( module Data.Strict.Maybe

@@ -30,16 +30,6 @@ import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 
--- | Convert a 'DisplayTerm' into a 'Term'.
-dtermToTerm :: DisplayTerm -> Term
-dtermToTerm dt = case dt of
-  DWithApp d ds es ->
-    dtermToTerm d `apply` map (defaultArg . dtermToTerm) ds `applyE` es
-  DCon c ci args   -> Con c ci $ map (Apply . fmap dtermToTerm) args
-  DDef f es        -> Def f $ map (fmap dtermToTerm) es
-  DDot v           -> v
-  DTerm v          -> v
-
 -- | Get the arities of all display forms for a name.
 displayFormArities :: (HasConstInfo m, ReadTCState m) => QName -> m [Int]
 displayFormArities q = map (length . dfPats . dget) <$> getDisplayForms q
@@ -257,10 +247,10 @@ instance SubstWithOrigin Term where
 
 -- Do not go into dot pattern, otherwise interaction test #231 fails
 instance SubstWithOrigin DisplayTerm where
-  substWithOrigin rho ots dt =
-    case dt of
-      DTerm v        -> DTerm     $ substWithOrigin rho ots v
-      DDot  v        -> DDot      $ applySubst rho v
+  substWithOrigin rho ots =
+    \case
+      DTerm' v es    -> DTerm' (substWithOrigin rho ots v) $ substWithOrigin rho ots es
+      DDot'  v es    -> DDot'  (substWithOrigin rho ots v) $ substWithOrigin rho ots es
       DDef q es      -> DDef q    $ substWithOrigin rho ots es
       DCon c ci args -> DCon c ci $ substWithOrigin rho ots args
       DWithApp t ts es -> DWithApp
@@ -272,8 +262,8 @@ instance SubstWithOrigin DisplayTerm where
 instance SubstWithOrigin (Arg DisplayTerm) where
   substWithOrigin rho ots (Arg ai dt) =
     case dt of
-      DTerm v        -> fmap DTerm $ substWithOrigin rho ots $ Arg ai v
-      DDot  v        -> Arg ai $ DDot      $ applySubst rho v
+      DTerm' v es    -> substWithOrigin rho ots (Arg ai v) <&> (`DTerm'` substWithOrigin rho ots es)
+      DDot'  v es    -> Arg ai $ DDot' (applySubst rho v)  $ substWithOrigin rho ots es
       DDef q es      -> Arg ai $ DDef q    $ substWithOrigin rho ots es
       DCon c ci args -> Arg ai $ DCon c ci $ substWithOrigin rho ots args
       DWithApp t ts es -> Arg ai $ DWithApp

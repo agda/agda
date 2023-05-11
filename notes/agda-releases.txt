@@ -1,6 +1,12 @@
-Tested with `ghc-8.10.5` and `cabal-install 3.4.0.0`.
+Tested with GHC 9.4.4 and `cabal-install 3.8.10`.
 
 When releasing the following procedure can be followed:
+
+* If necessary obtain and install the newest version of the standard
+  library and the cubical library for the `master` branch:
+
+    make fast-forward-std-lib
+    make fast-forward-cubical
 
 * Verify that GitHub workflows have no errors.
 
@@ -57,28 +63,40 @@ When releasing the following procedure can be followed:
 * Update in the bug tracker the milestone field of open issues to the
   next Agda version.
 
+* We are using odd-only version numbers for final releases and
+  even-only version numbers for release-candidates (see Issue
+  #6445). For example,
+
+    ** 2.6.4 is a dev version
+
+    ** 2.6.4.date could be release candidates for next major version 2.6.5
+
+    ** 2.6.5.0.date could be release candidates for 2.6.5.1
+
+    ** subsequent minor releases would be 2.6.5.1, 2.6.5.3 etc
+
+    ** next dev version would be 2.6.6 etc.
+
 * Get a clean Agda repository.
 
-    export MAJORVERSION=<current-development-version-eg-2.4.2>
+    export MAJOR_VERSION=<current-development-version-eg-2.4.2>
     export VERSION=<current-released-version-eg-2.4.0.2>
     git clone git@github.com:agda/agda.git agda-release
     cd agda-release
     git switch master
 
-* Replace in CHANGELOG.md the links to Read the Docs:
+1) Replace in CHANGELOG.md the links to Read the Docs:
 
-    agda.readthedocs.io/en/latest -> agda.readthedocs.io/en/v$MAJORVERSION
+    agda.readthedocs.io/en/latest -> agda.readthedocs.io/en/v$MAJOR_VERSION
 
-* Update the Agda version
+2) Update the Agda version
 
-    ./src/release-tools/change-version.bash $VERSION $MAJORVERSION
+    ./src/release-tools/change-version.bash $VERSION $MAJOR_VERSION
 
-* Obtain and install the standard library branch related to the Agda:
+* Obtain and install the standard library and the cubical library for
+  the release branch:
 
     make up-to-date-std-lib
-
-* Obtain and install the cubical library branch related to the Agda:
-
     make up-to-date-cubical
 
 * Run the test-suite:
@@ -90,20 +108,20 @@ When releasing the following procedure can be followed:
   ensure that the Emacs mode can be compiled without errors or
   warnings (except for the "cl package required at runtime" warning).
 
-1) Remove the Cabal test-suite from Agda.cabal.
+* Test the user-manual in PDF:
 
-2) Remove -Werror from Agda.cabal (this is required by `cabal
+    make user-manual-pdf
+
+3) Remove the Cabal test-suite from Agda.cabal.
+
+4) Remove -Werror from Agda.cabal (this is required by `cabal
    --check`).
 
-3) Remove unnecessary dependencies from stack-XYZ.yaml files:
+5) Remove unnecessary dependencies from stack-XYZ.yaml files:
 
   + Remove QuickCheck dependency
   + Remove tasty-* dependencies
-  + Remove local package (src/size-solver)
-
-* Update the user manual:
-
-    make user-manual-pdf
+  + Remove the `packages` section.
 
 * Build source distributions:
 
@@ -120,26 +138,26 @@ When releasing the following procedure can be followed:
 
     BASE=`pwd`
     cd ${TMPDIR:-/tmp}
-    tar xzf $BASE/dist-newstyle/sdist/Agda-$MAJORVERSION.tar.gz
-    cd Agda-$MAJORVERSION
-    cabal install --program-suffix=-$MAJORVERSION
+    tar xzf $BASE/dist-newstyle/sdist/Agda-$MAJOR_VERSION.tar.gz
+    cd Agda-$MAJOR_VERSION
+    cabal install --program-suffix=-$MAJOR_VERSION
     agda-$MAJOR_VERSION --version
     agda-mode-$MAJOR_VERSION compile
 
 * Tag the relase (do not forget to record the changes above first):
 
     cd $BASE
-    git tag -a v$MAJORVERSION -m "Agda $MAJORVERSION stable release"
+    git tag -a v$MAJOR_VERSION -m "Agda $MAJOR_VERSION stable release"
 
 * Upload the tarball and the documentation to Hackage:
 
     cd $BASE
-    cabal upload --publish dist-newstyle/sdist/Agda-$RC_VERSION.tar.gz
-    cabal upload --publish -d dist-newstyle/Agda-$RC_VERSION-docs.tar.gz
+    cabal upload --publish dist-newstyle/sdist/Agda-$MAJOR_VERSION.tar.gz
+    cabal upload --publish -d dist-newstyle/Agda-$MAJOR_VERSION-docs.tar.gz
 
-* Revert changes made in 1), 2) and 3).
+* Revert changes made in 1), 2), 3) 4) and 5).
 
-* Push all changes (in the release-$MAJORVERSION branch):
+* Push all changes (in the release-$MAJOR_VERSION branch):
 
     git push --follow-tags
 
@@ -147,15 +165,13 @@ When releasing the following procedure can be followed:
 
   ** In a commit:
 
-     *** Move the CHANGELOG for $MAJORVERSION to a new entry in
+     *** Move the CHANGELOG for $MAJOR_VERSION to a new entry in
          doc/release-notes/<version-written-with-dashes>.md.
 
      *** Add doc/release-notes/<version-written-with-dashes>.md. to
          the extra-source-files field in Agda.cabal.
 
   ** In a different commit: Create a new CHANGELOG file.
-
-* Close in the bug tracker the milestone $MAJORVERSION.
 
 * Update Agda Manual on Readthedocs.org (see Issues #2844 and #3035)
 
@@ -164,11 +180,11 @@ When releasing the following procedure can be followed:
 
   ** Go to readthedocs.org -> Agda Project -> Versions
 
-     and mark $MAJORVERSION as active
+     and mark $MAJOR_VERSION as active
 
   ** Go to readthedocs.org -> Agda Project -> Admin -> Advanced Settings
 
-     and set the default documentation version to $MAJORVERSION
+     and set the default documentation version to $MAJOR_VERSION
 
   ** If a release candidate was released then remove the associated
      documentation.
@@ -192,6 +208,8 @@ When releasing the following procedure can be followed:
   buggy version.
 
 * Announce the release of the new version on the Agda mailing lists
-  (users and developers).
+  (users and developers) and Agda Zulip.
 
 * Enable the released version of Agda on Stackage, if necessary.
+
+* Close in the bug tracker the milestone $MAJOR_VERSION.

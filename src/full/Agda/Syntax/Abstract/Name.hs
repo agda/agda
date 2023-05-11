@@ -12,7 +12,7 @@ import Prelude hiding (length)
 import Control.DeepSeq
 
 import Data.Foldable (length)
-import Data.Function
+import Data.Function (on)
 import Data.Hashable (Hashable(..))
 import qualified Data.List as List
 import Data.Maybe
@@ -317,7 +317,7 @@ instance NumHoles AmbiguousQName where
 -- * name lenses
 ------------------------------------------------------------------------
 
-lensQNameName :: Lens' Name QName
+lensQNameName :: Lens' QName Name
 lensQNameName f (QName m n) = QName m <$> f n
 
 ------------------------------------------------------------------------

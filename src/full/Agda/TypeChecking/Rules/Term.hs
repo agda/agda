@@ -117,6 +117,7 @@ isType_ e = traceCall (IsType_ e) $ do
       b <- isType_ b
       s <- inferFunSort (getSort a) (getSort b)
       let t' = El s $ Pi a $ NoAbs underscore b
+      checkTelePiSort t'
       --noFunctionsIntoSize t'
       return t'
     A.Pi _ tel e -> do
@@ -327,7 +328,7 @@ checkDomain lamOrPi xs e = do
          applyCohesionToContext c $
          modEnv lamOrPi $ isType_ e
     -- Andrea TODO: also make sure that LockUniv implies IsLock
-    when (any (\ x -> getLock x == IsLock) xs) $ do
+    when (any (\x -> case getLock x of { IsLock{} -> True ; _ -> False }) xs) $ do
          -- Solves issue #5033
         unlessM (isJust <$> getName' builtinLockUniv) $ do
           genericDocError $ "Missing binding for primLockUniv primitive."

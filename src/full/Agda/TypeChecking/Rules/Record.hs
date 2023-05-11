@@ -2,7 +2,7 @@
 
 module Agda.TypeChecking.Rules.Record where
 
-import Prelude hiding (null)
+import Prelude hiding (null, not, (&&), (||))
 
 import Control.Monad
 import Data.Maybe
@@ -28,7 +28,6 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Warnings
-import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.CompiledClause (hasProjectionPatterns)
 import Agda.TypeChecking.CompiledClause.Compile
 
@@ -40,6 +39,7 @@ import Agda.TypeChecking.Rules.Data
 import Agda.TypeChecking.Rules.Term ( isType_ )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
+import Agda.Utils.Boolean
 import Agda.Utils.List (headWithDefault)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -213,9 +213,8 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
       -- Jesper, 2021-05-26: Warn when declaring coinductive record
       -- but neither --guardedness nor --sized-types is enabled.
       when (conInduction == CoInductive) $ do
-        guardedness <- collapseDefault . optGuardedness <$> pragmaOptions
-        sizedTypes  <- collapseDefault . optSizedTypes  <$> pragmaOptions
-        unless (guardedness || sizedTypes) $ warning $ NoGuardednessFlag name
+        unlessM ((optGuardedness || optSizedTypes) <$> pragmaOptions) $
+          warning $ NoGuardednessFlag name
 
       -- Add the record definition.
 
@@ -383,7 +382,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
 
       -- we define composition here so that the projections are already in the signature.
       escapeContext impossible npars $ do
-        addCompositionForRecord name con tel (map argFromDom fs) ftel rect
+        addCompositionForRecord name haveEta con tel (map argFromDom fs) ftel rect
 
       -- The confluence checker needs to know what symbols match against
       -- the constructor.
@@ -401,13 +400,14 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
 
 addCompositionForRecord
   :: QName       -- ^ Datatype name.
+  -> EtaEquality
   -> ConHead
   -> Telescope   -- ^ @Γ@ parameters.
   -> [Arg QName] -- ^ Projection names.
   -> Telescope   -- ^ @Γ ⊢ Φ@ field types.
   -> Type        -- ^ @Γ ⊢ T@ target type.
   -> TCM ()
-addCompositionForRecord name con tel fs ftel rect = do
+addCompositionForRecord name eta con tel fs ftel rect = do
   cxt <- getContextTelescope
   inTopContext $ do
 
@@ -416,6 +416,15 @@ addCompositionForRecord name con tel fs ftel rect = do
       kit <- defineCompData name con (abstract cxt tel) [] ftel rect []
       modifySignature $ updateDefinition (conName con) $ updateTheDef $ \case
         r@Constructor{} -> r { conComp = kit, conProj = Just [] }  -- no projections
+        _ -> __IMPOSSIBLE__
+
+    -- No-eta record with pattern matching (i.e., withOUT copattern
+    -- matching): define composition as for a data type, attach it to
+    -- the record.
+    else if theEtaEquality eta == NoEta PatternMatching then do
+      kit <- defineCompData name con (abstract cxt tel) (unArg <$> fs) ftel rect []
+      modifySignature $ updateDefinition name $ updateTheDef $ \case
+        r@Record{} -> r { recComp = kit }
         _ -> __IMPOSSIBLE__
 
     -- Record has fields: attach composition data to record type

@@ -66,7 +66,7 @@ The ``DISPLAY`` pragma
 ______________________
 
 
-Users can declare a ``DISPLAY`` pragma:
+Users can declare a display form via the ``DISPLAY`` pragma:
 
 .. code-block:: agda
 
@@ -87,15 +87,19 @@ the overloaded name:
 
   {-# DISPLAY natPlus a b = a + b #-}
 
-Limitations
+Limitations:
 
-  - Left-hand sides are restricted to variables, constructors, defined
+  - Left-hand sides of the display form are restricted to variables, constructors, defined
     functions or types, and literals. In particular, lambdas are not
     allowed in left-hand sides.
 
-  - Since `DISPLAY` pragmas are not type checked implicit argument
+  - Since display forms are not type checked, implicit argument
     insertion may not work properly if the type of `f` computes to an
     implicit function space after pattern matching.
+
+  - An ill-typed display form can make Agda crash with an internal error
+    when Agda tries to use it
+    (issue `#6476 <https://github.com/agda/agda/issues/6476>`).
 
 .. _injective-pragma:
 

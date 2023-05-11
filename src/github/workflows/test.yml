@@ -28,6 +28,7 @@ on:
     - '!.mailmap'
     - '!.gitignore'
     - '!.hlint.yaml'
+    - '!.readthedocs.yaml'
     - '!.travis.yml'
     - '!CHANGELOG.md'
     - '!HACKING.md'
@@ -53,7 +54,7 @@ env:
   # Andreas, 2022-03-26, 2022-11-28:
   # GHC_VER should be given as x.y.z (as opposed to x.y only)
   # because it is used verbatim when referring to stack-x.y.z.yaml.
-  GHC_VER: "9.4.4"
+  GHC_VER: "9.4.5"
 
   # Part 2: Variables that should not have to be changed
   ###########################################################################
@@ -109,23 +110,33 @@ jobs:
     - &icu
       name: Determine the ICU version
       run: |
-        uconv --version
-        export ICU_VER="$(uconv --version | sed -ne 's/uconv v.* ICU \([0-9][0-9.]*\)/\1/p')"
+        ICU_VER=$(pkg-config --modversion icu-i18n)
         echo "ICU_VER=${ICU_VER}"
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
-      # The output of unconv --version looks like "uconv v2.1  ICU 72.1" from which we extract "72.1"
+      # uconv --version
 
     - name: Restore cache from approximate key
-      uses: actions/cache/restore@v3
+      # uses: actions/cache/restore@v3
+      # Andreas, 2023-02-02 revert to default cache saving logic.
+      # "Save always" is bad because it may duplicate caches from the base branch on the feature branch.
+      uses: actions/cache@v3
       id: cache
       with:
+        # Andreas, 2023-01-24:
+        # Stack seems to insist to rebuild Agda from scratch even when ~/.stack-work is restored.
+        # Since it balloons the cache entry from 330 MB to 790 MB, don't include it in the cache.
         path: &cache_path |
           ~/.stack
-          ~/.stack-work
-        # A unique cache is used for each stack.yaml.
-        key: &cache_key test.yml-${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER }}-ghc-${{ env.GHC_VER }}-${{ hashFiles('stack.yaml', 'Agda.cabal') }}
-        restore-keys: |
-          test.yml-${{ runner.os }}-icu-${{ env.ICU_VER }}-stack-${{ env.STACK_VER }}-ghc-${{ env.GHC_VER }}-
+
+        # We include stack-${GHC_VER}.yaml in the primary cache key so that the cache gets rewritten
+        # everytime the resolver updates or extra-deps are added.
+        # Andreas, 2023-03-28:
+        # We need to make sure that the cache is written if a new dependency was added to Agda.cabal.
+        # Thus, we include Agda.cabal in the hash.
+        # Note that a 'stack.yaml.lock' file would not be sufficient (I think),
+        # because it does not list all the dependencies.
+        key: &cache_key test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
+        restore-keys:   test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-
 
     - name: "Install dependencies for Agda and its test suites"
       ## Always do this step, even if we got a cache hit.  Should be fast in case we got a hit.
@@ -166,23 +177,23 @@ jobs:
           dist.tzst
           stack-work.tzst
 
-    - name: Clear cache
-      if:   ${{ steps.cache.outputs.cache-hit }}
-      env:
-        KEY: *cache_key
-        GH_TOKEN: ${{ github.token }}
-      run: |
-        gh extension install actions/gh-actions-cache
-        gh actions-cache delete ${{ env.KEY }} --confirm
-      # Don't fail if cache cannot be deleted
-      continue-on-error: true
+    # - name: Clear old cache
+    #   if:   ${{ steps.cache.outputs.cache-hit }}
+    #   env:
+    #     KEY: ${{ steps.cache.outputs.cache-matched-key }}
+    #     GH_TOKEN: ${{ github.token }}
+    #   run: |
+    #     gh extension install actions/gh-actions-cache
+    #     gh actions-cache delete -B ${{ github.ref }} ${{ env.KEY }} --confirm
+    #   # Don't fail if cache cannot be deleted
+    #   continue-on-error: true
 
-    - name: Save cache
-      uses: actions/cache/save@v3
-      if:   always()  # save cache even when build fails
-      with:
-        key:  *cache_key
-        path: *cache_path
+    # - name: Save cache
+    #   uses: actions/cache/save@v3
+    #   if:   always()  # save cache even when build fails
+    #   with:
+    #     key:  *cache_key
+    #     path: *cache_path
 
   # Step 2a: Basic testsuites: succeed, fail, etc.
   ###########################################################################

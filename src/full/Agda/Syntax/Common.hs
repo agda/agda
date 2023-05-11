@@ -17,7 +17,7 @@ import Data.Bifunctor
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
 import qualified Data.Foldable as Fold
-import Data.Function
+import Data.Function (on)
 import Data.Hashable (Hashable(..))
 import qualified Data.Strict.Maybe as Strict
 import Data.Word
@@ -533,13 +533,13 @@ instance NFData Modality where
 
 -- Lens stuff
 
-lModRelevance :: Lens' Relevance Modality
+lModRelevance :: Lens' Modality Relevance
 lModRelevance f m = f (modRelevance m) <&> \ r -> m { modRelevance = r }
 
-lModQuantity :: Lens' Quantity Modality
+lModQuantity :: Lens' Modality Quantity
 lModQuantity f m = f (modQuantity m) <&> \ q -> m { modQuantity = q }
 
-lModCohesion :: Lens' Cohesion Modality
+lModCohesion :: Lens' Modality Cohesion
 lModCohesion f m = f (modCohesion m) <&> \ q -> m { modCohesion = q }
 
 class LensModality a where
@@ -579,35 +579,35 @@ instance LensCohesion Modality where
 
 -- default accessors for Relevance
 
-getRelevanceMod :: LensModality a => LensGet Relevance a
+getRelevanceMod :: LensModality a => LensGet a Relevance
 getRelevanceMod = getRelevance . getModality
 
-setRelevanceMod :: LensModality a => LensSet Relevance a
+setRelevanceMod :: LensModality a => LensSet a Relevance
 setRelevanceMod = mapModality . setRelevance
 
-mapRelevanceMod :: LensModality a => LensMap Relevance a
+mapRelevanceMod :: LensModality a => LensMap a Relevance
 mapRelevanceMod = mapModality . mapRelevance
 
 -- default accessors for Quantity
 
-getQuantityMod :: LensModality a => LensGet Quantity a
+getQuantityMod :: LensModality a => LensGet a Quantity
 getQuantityMod = getQuantity . getModality
 
-setQuantityMod :: LensModality a => LensSet Quantity a
+setQuantityMod :: LensModality a => LensSet a Quantity
 setQuantityMod = mapModality . setQuantity
 
-mapQuantityMod :: LensModality a => LensMap Quantity a
+mapQuantityMod :: LensModality a => LensMap a Quantity
 mapQuantityMod = mapModality . mapQuantity
 
 -- default accessors for Cohesion
 
-getCohesionMod :: LensModality a => LensGet Cohesion a
+getCohesionMod :: LensModality a => LensGet a Cohesion
 getCohesionMod = getCohesion . getModality
 
-setCohesionMod :: LensModality a => LensSet Cohesion a
+setCohesionMod :: LensModality a => LensSet a Cohesion
 setCohesionMod = mapModality . setCohesion
 
-mapCohesionMod :: LensModality a => LensMap Cohesion a
+mapCohesionMod :: LensModality a => LensMap a Cohesion
 mapCohesionMod = mapModality . mapCohesion
 
 ---------------------------------------------------------------------------
@@ -1299,17 +1299,25 @@ instance LensAnnotation (Arg t) where
 -- * Locks
 ---------------------------------------------------------------------------
 
-data Lock = IsNotLock
-          | IsLock -- ^ In the future there might be different kinds of them.
-                   --   For now we assume lock weakening.
+data LockOrigin
+  = LockOLock -- ^ The user wrote @lock.
+  | LockOTick -- ^ The user wrote @tick.
   deriving (Show, Generic, Eq, Enum, Bounded, Ord)
+
+data Lock
+  = IsNotLock
+  | IsLock LockOrigin
+  -- ^ In the future there might be different kinds of them.
+  --   For now we assume lock weakening.
+  deriving (Show, Generic, Eq, Ord)
 
 defaultLock :: Lock
 defaultLock = IsNotLock
 
 instance NFData Lock where
-  rnf IsNotLock = ()
-  rnf IsLock    = ()
+  rnf IsNotLock          = ()
+  rnf (IsLock LockOLock) = ()
+  rnf (IsLock LockOTick) = ()
 
 class LensLock a where
 
@@ -1516,6 +1524,7 @@ data Origin
   | Reflected    -- ^ Produced by the reflection machinery.
   | CaseSplit    -- ^ Produced by an interactive case split.
   | Substitution -- ^ Named application produced to represent a substitution. E.g. "?0 (x = n)" instead of "?0 n"
+  | ExpandedPun  -- ^ An expanded hidden argument pun.
   deriving (Show, Eq, Ord)
 
 instance HasRange Origin where
@@ -1530,6 +1539,7 @@ instance NFData Origin where
   rnf Reflected = ()
   rnf CaseSplit = ()
   rnf Substitution = ()
+  rnf ExpandedPun = ()
 
 -- | Decorating something with 'Origin' information.
 data WithOrigin a = WithOrigin
@@ -1739,46 +1749,46 @@ defaultArgInfo =  ArgInfo
 
 -- default accessors for Hiding
 
-getHidingArgInfo :: LensArgInfo a => LensGet Hiding a
+getHidingArgInfo :: LensArgInfo a => LensGet a Hiding
 getHidingArgInfo = getHiding . getArgInfo
 
-setHidingArgInfo :: LensArgInfo a => LensSet Hiding a
+setHidingArgInfo :: LensArgInfo a => LensSet a Hiding
 setHidingArgInfo = mapArgInfo . setHiding
 
-mapHidingArgInfo :: LensArgInfo a => LensMap Hiding a
+mapHidingArgInfo :: LensArgInfo a => LensMap a Hiding
 mapHidingArgInfo = mapArgInfo . mapHiding
 
 -- default accessors for Modality
 
-getModalityArgInfo :: LensArgInfo a => LensGet Modality a
+getModalityArgInfo :: LensArgInfo a => LensGet a Modality
 getModalityArgInfo = getModality . getArgInfo
 
-setModalityArgInfo :: LensArgInfo a => LensSet Modality a
+setModalityArgInfo :: LensArgInfo a => LensSet a Modality
 setModalityArgInfo = mapArgInfo . setModality
 
-mapModalityArgInfo :: LensArgInfo a => LensMap Modality a
+mapModalityArgInfo :: LensArgInfo a => LensMap a Modality
 mapModalityArgInfo = mapArgInfo . mapModality
 
 -- default accessors for Origin
 
-getOriginArgInfo :: LensArgInfo a => LensGet Origin a
+getOriginArgInfo :: LensArgInfo a => LensGet a Origin
 getOriginArgInfo = getOrigin . getArgInfo
 
-setOriginArgInfo :: LensArgInfo a => LensSet Origin a
+setOriginArgInfo :: LensArgInfo a => LensSet a Origin
 setOriginArgInfo = mapArgInfo . setOrigin
 
-mapOriginArgInfo :: LensArgInfo a => LensMap Origin a
+mapOriginArgInfo :: LensArgInfo a => LensMap a Origin
 mapOriginArgInfo = mapArgInfo . mapOrigin
 
 -- default accessors for FreeVariables
 
-getFreeVariablesArgInfo :: LensArgInfo a => LensGet FreeVariables a
+getFreeVariablesArgInfo :: LensArgInfo a => LensGet a FreeVariables
 getFreeVariablesArgInfo = getFreeVariables . getArgInfo
 
-setFreeVariablesArgInfo :: LensArgInfo a => LensSet FreeVariables a
+setFreeVariablesArgInfo :: LensArgInfo a => LensSet a FreeVariables
 setFreeVariablesArgInfo = mapArgInfo . setFreeVariables
 
-mapFreeVariablesArgInfo :: LensArgInfo a => LensMap FreeVariables a
+mapFreeVariablesArgInfo :: LensArgInfo a => LensMap a FreeVariables
 mapFreeVariablesArgInfo = mapArgInfo . mapFreeVariables
 
 -- inserted hidden arguments
@@ -1993,10 +2003,10 @@ userNamed = Named . Just . WithOrigin UserWritten
 class LensNamed a where
   -- | The type of the name
   type NameOf a
-  lensNamed :: Lens' (Maybe (NameOf a)) a
+  lensNamed :: Lens' a (Maybe (NameOf a))
 
   -- Lenses lift through decorations:
-  default lensNamed :: (Decoration f, LensNamed b, NameOf b ~ NameOf a, f b ~ a) => Lens' (Maybe (NameOf a)) a
+  default lensNamed :: (Decoration f, LensNamed b, NameOf b ~ NameOf a, f b ~ a) => Lens' a (Maybe (NameOf a))
   lensNamed = traverseF . lensNamed
 
 instance LensNamed a => LensNamed (Arg a) where
@@ -2330,7 +2340,7 @@ instance KillRange IsOpaque where
 instance NFData IsOpaque
 
 class LensIsAbstract a where
-  lensIsAbstract :: Lens' IsAbstract a
+  lensIsAbstract :: Lens' a IsAbstract
 
 instance LensIsAbstract IsAbstract where
   lensIsAbstract = id
@@ -2339,7 +2349,7 @@ instance LensIsAbstract IsReducible where
   lensIsAbstract k red = (\a -> red { redIsAbstract = a }) <$> k (redIsAbstract red)
 
 class LensIsOpaque a where
-  lensIsOpaque :: Lens' IsOpaque a
+  lensIsOpaque :: Lens' a IsOpaque
 
 instance LensIsOpaque IsOpaque where
   lensIsOpaque = id
@@ -2348,7 +2358,7 @@ instance LensIsOpaque IsReducible where
   lensIsOpaque k red = (\a -> red { redIsOpaque = a }) <$> k (redIsOpaque red)
 
 class LensIsReducible a where
-  lensIsReducible :: Lens' IsReducible a
+  lensIsReducible :: Lens' a IsReducible
 
 instance LensIsReducible IsReducible where
   lensIsReducible = id
@@ -2705,16 +2715,16 @@ instance KillRange Fixity' where
 
 -- lenses
 
-_fixityAssoc :: Lens' Associativity Fixity
+_fixityAssoc :: Lens' Fixity Associativity
 _fixityAssoc f r = f (fixityAssoc r) <&> \x -> r { fixityAssoc = x }
 
-_fixityLevel :: Lens' FixityLevel Fixity
+_fixityLevel :: Lens' Fixity FixityLevel
 _fixityLevel f r = f (fixityLevel r) <&> \x -> r { fixityLevel = x }
 
 -- Lens focusing on Fixity
 
 class LensFixity a where
-  lensFixity :: Lens' Fixity a
+  lensFixity :: Lens' a Fixity
 
 instance LensFixity Fixity where
   lensFixity = id
@@ -2725,7 +2735,7 @@ instance LensFixity Fixity' where
 -- Lens focusing on Fixity'
 
 class LensFixity' a where
-  lensFixity' :: Lens' Fixity' a
+  lensFixity' :: Lens' a Fixity'
 
 instance LensFixity' Fixity' where
   lensFixity' = id

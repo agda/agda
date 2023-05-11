@@ -1,0 +1,3 @@
+LevelUnivFunSorts.agda:6,5-17
+funSort Set₁ LevelUniv is not a valid sort
+when checking that the expression Set → Level is a type

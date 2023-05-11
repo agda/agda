@@ -140,7 +140,7 @@ freshTCM m = do
 -- * Lens for persistent states and its fields
 ---------------------------------------------------------------------------
 
-lensPersistentState :: Lens' PersistentTCState TCState
+lensPersistentState :: Lens' TCState PersistentTCState
 lensPersistentState f s =
   f (stPersistentState s) <&> \ p -> s { stPersistentState = p }
 
@@ -153,11 +153,11 @@ modifyPersistentState = modifyTC . updatePersistentState
 
 -- | Lens for 'stAccumStatistics'.
 
-lensAccumStatisticsP :: Lens' Statistics PersistentTCState
+lensAccumStatisticsP :: Lens' PersistentTCState Statistics
 lensAccumStatisticsP f s = f (stAccumStatistics s) <&> \ a ->
   s { stAccumStatistics = a }
 
-lensAccumStatistics :: Lens' Statistics TCState
+lensAccumStatistics :: Lens' TCState Statistics
 lensAccumStatistics =  lensPersistentState . lensAccumStatisticsP
 
 ---------------------------------------------------------------------------
@@ -181,11 +181,11 @@ modifyScope :: MonadTCState m => (ScopeInfo -> ScopeInfo) -> m ()
 modifyScope f = modifyScope_ (recomputeInverseScopeMaps . f)
 
 -- | Get a part of the current scope.
-useScope :: ReadTCState m => Lens' a ScopeInfo -> m a
+useScope :: ReadTCState m => Lens' ScopeInfo a -> m a
 useScope l = useR $ stScope . l
 
 -- | Run a computation in a modified scope.
-locallyScope :: ReadTCState m => Lens' a ScopeInfo -> (a -> a) -> m b -> m b
+locallyScope :: ReadTCState m => Lens' ScopeInfo a -> (a -> a) -> m b -> m b
 locallyScope l = locallyTCState $ stScope . l
 
 -- | Run a computation in a local scope.

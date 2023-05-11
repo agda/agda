@@ -37,8 +37,8 @@ You need recent versions of the following programs to compile Agda:
 
 * GHC:           https://www.haskell.org/ghc/
 
-  + Agda has been tested with GHC 8.0.2, 8.2.2, 8.4.4, 8.6.5, 8.8.4,
-    8.10.7, 9.0.2, 9.2.5 and 9.4.4.
+  + Agda has been tested with GHC 8.6.5, 8.8.4,
+    8.10.7, 9.0.2, 9.2.7, 9.4.5 and 9.6.1.
 
 * cabal-install: https://www.haskell.org/cabal/
 * Alex:          https://www.haskell.org/alex/
@@ -471,11 +471,6 @@ Installation Flags
 ==================
 
 When installing Agda the following flags can be used:
-
-.. option:: cpphs
-
-     Use `cpphs <https://hackage.haskell.org/package/cpphs>`_ instead
-     of cpp. Default: off.
 
 .. option:: debug
 

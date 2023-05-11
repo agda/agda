@@ -866,10 +866,10 @@ data CCEnv = CCEnv
 type NameSupply = [HS.Name]
 type CCContext  = [HS.Name]
 
-ccNameSupply :: Lens' NameSupply CCEnv
+ccNameSupply :: Lens' CCEnv NameSupply
 ccNameSupply f e =  (\ ns' -> e { _ccNameSupply = ns' }) <$> f (_ccNameSupply e)
 
-ccContext :: Lens' CCContext CCEnv
+ccContext :: Lens' CCEnv CCContext
 ccContext f e = (\ cxt -> e { _ccContext = cxt }) <$> f (_ccContext e)
 
 -- | Initial environment for expression generation.
@@ -1080,7 +1080,10 @@ alt sc a = do
     mkAlt :: HS.Pat -> CC HS.Alt
     mkAlt pat = do
         body' <- term $ T.aBody a
-        return $ HS.Alt pat (HS.UnGuardedRhs body') emptyBinds
+        let body'' = case body' of
+                       HS.Lambda{} -> hsCoerce body'
+                       _           -> body'
+        return $ HS.Alt pat (HS.UnGuardedRhs body'') emptyBinds
 
 literal :: forall m. Monad m => Literal -> CCT m HS.Exp
 literal l = case l of

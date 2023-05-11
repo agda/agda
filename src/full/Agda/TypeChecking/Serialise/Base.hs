@@ -64,11 +64,11 @@ farEmpty = FreshAndReuse 0
                            0
 #endif
 
-lensFresh :: Lens' Int32 FreshAndReuse
+lensFresh :: Lens' FreshAndReuse Int32
 lensFresh f r = f (farFresh r) <&> \ i -> r { farFresh = i }
 
 #ifdef DEBUG
-lensReuse :: Lens' Int32 FreshAndReuse
+lensReuse :: Lens' FreshAndReuse Int32
 lensReuse f r = f (farReuse r) <&> \ i -> r { farReuse = i }
 #endif
 
@@ -189,10 +189,14 @@ class Typeable a => EmbPrj a where
 
   -- Simple enumeration types can be (de)serialized using (from/to)Enum.
 
-  default value :: (Enum a) => Int32 -> R a
-  value i = liftIO (evaluate (toEnum (fromIntegral i))) `catchAll` const malformed
+  default value :: (Enum a, Bounded a) => Int32 -> R a
+  value i =
+    let i' = fromIntegral i in
+    if i' >= fromEnum (minBound :: a) && i' <= fromEnum (maxBound :: a)
+    then pure (toEnum i')
+    else malformed
 
-  default icod_ :: (Enum a) => a -> S Int32
+  default icod_ :: (Enum a, Bounded a) => a -> S Int32
   icod_ = return . fromIntegral . fromEnum
 
 -- | Increase entry for @a@ in 'stats'.
@@ -428,18 +432,20 @@ class VALU t b where
                Proxy t -> Node -> Maybe (Products (Constant Int32 (Domains t)))
 
 instance VALU t 'True where
-
+  {-# INLINE valuN' #-}
   valuN' c () = return c
 
+  {-# INLINE valueArgs #-}
   valueArgs _ xs = case xs of
     [] -> Just ()
     _  -> Nothing
 
 
 instance VALU t (IsBase t) => VALU (a -> t) 'False where
-
+  {-# INLINE valuN' #-}
   valuN' c (a, as) = value a >>= \ v -> valuN' (c v) as
 
+  {-# INLINE valueArgs #-}
   valueArgs _ xs = case xs of
     (x : xs') -> (x,) <$> valueArgs (Proxy :: Proxy t) xs'
     _         -> Nothing

@@ -155,6 +155,7 @@ instance EmbPrj I.Sort where
   icod_ IntervalUniv = icodeN 10 IntervalUniv
   icod_ (MetaS a b)  = icodeN 11 MetaS a b
   icod_ (DummyS s)   = icodeN 12 DummyS s
+  icod_ LevelUniv    = icodeN 13 LevelUniv
 
   value = vcase valu where
     valu [0, a]    = valuN Type  a
@@ -170,6 +171,7 @@ instance EmbPrj I.Sort where
     valu [10]      = valuN IntervalUniv
     valu [11, a, b] = valuN MetaS a b
     valu [12, s]   = valuN DummyS s
+    valu [13]      = valuN LevelUniv
     valu _         = malformed
 
 instance EmbPrj DisplayForm where
@@ -187,15 +189,15 @@ instance EmbPrj CheckpointId where
   value n                = CheckpointId `fmap` value n
 
 instance EmbPrj DisplayTerm where
-  icod_ (DTerm    a  )   = icodeN' DTerm a
-  icod_ (DDot     a  )   = icodeN 1 DDot a
+  icod_ (DTerm'   a b)   = icodeN' DTerm' a b
+  icod_ (DDot'    a b)   = icodeN 1 DDot' a b
   icod_ (DCon     a b c) = icodeN 2 DCon a b c
   icod_ (DDef     a b)   = icodeN 3 DDef a b
   icod_ (DWithApp a b c) = icodeN 4 DWithApp a b c
 
   value = vcase valu where
-    valu [a]          = valuN DTerm a
-    valu [1, a]       = valuN DDot a
+    valu [a, b]       = valuN DTerm' a b
+    valu [1, a, b]    = valuN DDot' a b
     valu [2, a, b, c] = valuN DCon a b c
     valu [3, a, b]    = valuN DDef a b
     valu [4, a, b, c] = valuN DWithApp a b c
@@ -267,6 +269,7 @@ instance EmbPrj NLPSort where
   icod_ PLockUniv   = icodeN 4 PLockUniv
   icod_ PIntervalUniv = icodeN 5 PIntervalUniv
   icod_ (PSSet a)   = icodeN 6 PSSet a
+  icod_ PLevelUniv = icodeN 7 PLevelUniv
 
   value = vcase valu where
     valu [0, a] = valuN PType a
@@ -276,6 +279,7 @@ instance EmbPrj NLPSort where
     valu [4]    = valuN PLockUniv
     valu [5]    = valuN PIntervalUniv
     valu [6, a] = valuN PSSet a
+    valu [7]    = valuN PLevelUniv
     valu _      = malformed
 
 instance EmbPrj RewriteRule where
@@ -423,15 +427,15 @@ instance EmbPrj a => EmbPrj (SplitTree' a) where
     valu _            = malformed
 
 instance EmbPrj FunctionFlag where
-  icod_ FunStatic       = icodeN 0 FunStatic
-  icod_ FunInline       = icodeN 1 FunInline
-  icod_ FunMacro        = icodeN 2 FunMacro
+  icod_ FunStatic       = pure 0
+  icod_ FunInline       = pure 1
+  icod_ FunMacro        = pure 2
 
-  value = vcase valu where
-    valu [0] = valuN FunStatic
-    valu [1] = valuN FunInline
-    valu [2] = valuN FunMacro
-    valu _   = malformed
+  value = \case
+    0 -> pure FunStatic
+    1 -> pure FunInline
+    2 -> pure FunMacro
+    _ -> malformed
 
 instance EmbPrj a => EmbPrj (WithArity a) where
   icod_ (WithArity a b) = icodeN' WithArity a b

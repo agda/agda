@@ -1,11 +1,14 @@
 # From: https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows#force-deleting-cache-entries
+# See also:
+# - https://github.com/github/docs/pull/23612
+# - https://github.com/github/docs/pull/23650
 
-name: Clear cache of a branch
+
+name: Clear cache of closed PR
 on:
   pull_request:
     types:
       - closed
-  workflow_dispatch:
 
 jobs:
   cleanup:
@@ -17,11 +20,14 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Cleanup
+        # Andreas, 2023-02-02:
+        # Note that, surprisingly, for closed PRs, ${{ github.ref }} is the base branch ('master').
+        # Thus, BRANCH has to be composed manually, see https://github.com/github/docs/pull/23612.
         run: |
           gh extension install actions/gh-actions-cache
 
           REPO=${{ github.repository }}
-          BRANCH=${{ github.ref }}
+          BRANCH="refs/pull/${{ github.event.pull_request.number }}/merge"
 
           echo "Fetching list of cache key"
           cacheKeysForPR=$(gh actions-cache list -R $REPO -B $BRANCH | cut -f 1 )

@@ -1,5 +1,5 @@
 {-# OPTIONS --cubical-compatible --no-universe-polymorphism --sized-types
-            --no-guardedness #-}
+            --no-guardedness --level-universe #-}
 
 module Agda.Builtin.Size where
 

@@ -47,7 +47,7 @@ type Args = [TTerm]
 -- this currently assumes that TApp is translated in a lazy/cbn fashion.
 -- The AST should also support strict translation.
 --
--- All local variables are using de Bruijn indices.
+-- | Treeless Term. All local variables are using de Bruijn indices.
 data TTerm = TVar Int
            | TPrim TPrim
            | TDef QName
@@ -56,7 +56,7 @@ data TTerm = TVar Int
            | TLit Literal
            | TCon QName
            | TLet TTerm TTerm
-           -- ^ introduces a new local binding. The bound term
+           -- ^ introduces a new (non-recursive) local binding. The bound term
            -- MUST only be evaluated if it is used inside the body.
            -- Sharing may happen, but is optional.
            -- It is also perfectly valid to just inline the bound term in the body.

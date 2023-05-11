@@ -43,7 +43,6 @@ import Agda.Interaction.Options ( optTrustedExecutables, optAllowExec )
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.Irrelevance ( workOnTypes )
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -645,10 +644,10 @@ evalTCM v = do
     tcCatchError m h =
       liftU2 (\ m1 m2 -> m1 `catchError` \ _ -> m2) (evalTCM m) (evalTCM h)
 
-    tcAskLens :: ToTerm a => Lens' a TCEnv -> UnquoteM Term
+    tcAskLens :: ToTerm a => Lens' TCEnv a -> UnquoteM Term
     tcAskLens l = liftTCM (toTerm <*> asksTC (\ e -> e ^. l))
 
-    tcWithLens :: Unquote a => Lens' a TCEnv -> Term -> Term -> UnquoteM Term
+    tcWithLens :: Unquote a => Lens' TCEnv a -> Term -> Term -> UnquoteM Term
     tcWithLens l b m = do
       v <- unquote b
       liftU1 (locallyTC l $ const v) (evalTCM m)

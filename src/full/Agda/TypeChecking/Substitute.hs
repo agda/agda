@@ -22,7 +22,7 @@ import Control.Monad (guard)
 import Control.Monad.Except (throwError)
 
 import Data.Coerce
-import Data.Function
+import Data.Function (on)
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map.Strict as MapS
@@ -525,14 +525,14 @@ instance Apply FunctionInverse where
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Apply DisplayTerm where
-  apply (DTerm v)          args = DTerm $ apply v args
-  apply (DDot v)           args = DDot  $ apply v args
-  apply (DCon c ci vs)     args = DCon c ci $ vs ++ map (fmap DTerm) args
-  apply (DDef c es)        args = DDef c $ es ++ map (Apply . fmap DTerm) args
+  apply (DTerm' v es)      args = DTerm' v       $ es ++ map Apply args
+  apply (DDot' v es)       args = DDot' v        $ es ++ map Apply args
+  apply (DCon c ci vs)     args = DCon c ci     $ vs ++ map (fmap DTerm) args
+  apply (DDef c es)        args = DDef c        $ es ++ map (Apply . fmap DTerm) args
   apply (DWithApp v ws es) args = DWithApp v ws $ es ++ map Apply args
 
-  applyE (DTerm v)           es = DTerm $ applyE v es
-  applyE (DDot v)            es = DDot  $ applyE v es
+  applyE (DTerm' v es')      es = DTerm' v $ es' ++ es
+  applyE (DDot' v es')       es = DDot' v $ es' ++ es
   applyE (DCon c ci vs)      es = DCon c ci $ vs ++ map (fmap DTerm) ws
     where ws = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
   applyE (DDef c es')        es = DDef c $ es' ++ map (fmap DTerm) es
@@ -868,6 +868,7 @@ instance (Coercible a Term, Subst a) => Subst (Sort' a) where
     SSet n     -> SSet $ sub n
     SizeUniv   -> SizeUniv
     LockUniv   -> LockUniv
+    LevelUniv  -> LevelUniv
     IntervalUniv -> IntervalUniv
     PiSort a s1 s2 -> coerce $ piSort (coerce $ sub a) (coerce $ sub s1) (coerce $ sub s2)
     FunSort s1 s2 -> coerce $ funSort (coerce $ sub s1) (coerce $ sub s2)
@@ -978,6 +979,7 @@ instance Subst NLPSort where
     PInf f n  -> PInf f n
     PSizeUniv -> PSizeUniv
     PLockUniv -> PLockUniv
+    PLevelUniv -> PLevelUniv
     PIntervalUniv -> PIntervalUniv
 
 instance Subst RewriteRule where
@@ -1002,10 +1004,10 @@ instance Subst DisplayForm where
 
 instance Subst DisplayTerm where
   type SubstArg DisplayTerm = Term
-  applySubst rho (DTerm v)        = DTerm $ applySubst rho v
-  applySubst rho (DDot v)         = DDot  $ applySubst rho v
-  applySubst rho (DCon c ci vs)   = DCon c ci $ applySubst rho vs
-  applySubst rho (DDef c es)      = DDef c $ applySubst rho es
+  applySubst rho (DTerm' v es)      = DTerm' (applySubst rho v) $ applySubst rho es
+  applySubst rho (DDot' v es)       = DDot'  (applySubst rho v) $ applySubst rho es
+  applySubst rho (DCon c ci vs)     = DCon c ci $ applySubst rho vs
+  applySubst rho (DDef c es)        = DDef c $ applySubst rho es
   applySubst rho (DWithApp v vs es) = uncurry3 DWithApp $ applySubst rho (v, vs, es)
 
 instance Subst a => Subst (Tele a) where
@@ -1549,6 +1551,7 @@ univSort' (Inf f n)    = Right $ Inf f $ 1 + n
 univSort' (SSet l)     = Right $ SSet $ levelSuc l
 univSort' SizeUniv     = Right $ Inf IsFibrant 0
 univSort' LockUniv     = Right $ Inf IsFibrant 0 -- lock polymorphism is not actually supported
+univSort' LevelUniv    = Right $ Type $ ClosedLevel 1
 univSort' IntervalUniv = Right $ SSet $ ClosedLevel 1
 univSort' (MetaS m _)  = Left neverUnblock
 univSort' FunSort{}    = Left neverUnblock
@@ -1579,6 +1582,7 @@ sizeOfSort Type{}       = Right $ SmallSort IsFibrant
 sizeOfSort Prop{}       = Right $ SmallSort IsFibrant
 sizeOfSort SizeUniv     = Right $ SmallSort IsFibrant
 sizeOfSort LockUniv     = Right $ SmallSort IsFibrant
+sizeOfSort LevelUniv    = Right $ SmallSort IsFibrant
 sizeOfSort IntervalUniv = Right $ SmallSort IsStrict
 sizeOfSort (Inf f n)    = Right $ LargeSort f n
 sizeOfSort SSet{}       = Right $ SmallSort IsStrict
@@ -1601,6 +1605,7 @@ fibrantLub a b = a
 
 -- | Compute the sort of a function type from the sorts of its
 --   domain and codomain.
+-- This function should only be called on reduced sorts, since the @LevelUniv@ rules should only apply when the sort doesn't reduce to @Set@
 funSort' :: Sort -> Sort -> Either Blocker Sort
 funSort' a b = case (a, b) of
   (Type a        , Type b       ) -> Right $ Type $ levelLub a b
@@ -1618,6 +1623,7 @@ funSort' a b = case (a, b) of
   (a             , Inf bf n     ) -> sizeOfSort a >>= \case
     SmallSort af   -> Right $ Inf (fibrantLub af bf) n
     LargeSort af m -> Right $ Inf (fibrantLub af bf) $ max m n
+  (LockUniv      , LevelUniv    ) -> Left neverUnblock
   (LockUniv      , b            ) -> Right b
   -- No functions into lock types
   (a             , LockUniv     ) -> Left neverUnblock
@@ -1633,6 +1639,14 @@ funSort' a b = case (a, b) of
   (a             , SizeUniv     ) -> sizeOfSort a >>= \case
     SmallSort{} -> Right SizeUniv
     LargeSort{} -> Left neverUnblock
+  -- No need to handle @LevelUniv@ in a special way here when --level-universe isn't on,
+  -- since this function is currently always called after reduction.
+  -- It would be safer to take it into account here, but would imply passing the option along as an argument.
+  (LevelUniv     , LevelUniv    ) -> Right LevelUniv
+  (_             , LevelUniv    ) -> Left neverUnblock
+  (LevelUniv     , b            ) -> sizeOfSort b >>= \case
+    SmallSort bf -> Right $ Inf bf 0
+    LargeSort{} -> Right b
   (MetaS m _     , _            ) -> Left $ unblockOnMeta m
   (_             , MetaS m _    ) -> Left $ unblockOnMeta m
   (FunSort{}     , _            ) -> Left neverUnblock
@@ -1651,6 +1665,7 @@ funSort a b = fromRight (const $ FunSort a b) $ funSort' a b
 
 -- | Compute the sort of a pi type from the sorts of its domain
 --   and codomain.
+-- This function should only be called on reduced sorts, since the @LevelUniv@ rules should only apply when the sort doesn't reduce to @Set@
 piSort' :: Dom Term -> Sort -> Abs Sort -> Either Blocker Sort
 piSort' a s1       (NoAbs _ s2) = Right $ FunSort s1 s2
 piSort' a s1 s2Abs@(Abs   _ s2) = case flexRigOccurrenceIn 0 s2 of

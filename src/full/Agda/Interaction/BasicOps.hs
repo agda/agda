@@ -7,13 +7,15 @@ module Agda.Interaction.BasicOps where
 import Prelude hiding (null)
 
 import Control.Arrow          ( first )
-import Control.Monad          ( (>=>), forM, guard )
+import Control.Monad          ( (<=<), (>=>), forM, filterM, guard )
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Identity
+import Control.Monad.Trans.Maybe
 
 import qualified Data.Map as Map
+import qualified Data.IntMap as IntMap
 import qualified Data.Map.Strict as MapS
 import qualified Data.Set as Set
 import qualified Data.List as List
@@ -60,7 +62,6 @@ import Agda.TypeChecking.With
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Coverage.Match ( SplitPattern )
 import Agda.TypeChecking.Records
-import Agda.TypeChecking.Irrelevance (wakeIrrelevantVars)
 import Agda.TypeChecking.Pretty ( PrettyTCM, prettyTCM )
 import Agda.TypeChecking.Pretty.Constraint (prettyRangeConstraint)
 import Agda.TypeChecking.IApplyConfluence
@@ -611,14 +612,14 @@ instance ToConcrete a => ToConcrete (IPBoundary' a) where
 
   toConcrete = traverse (toConcreteCtx TopCtx)
 
-instance Pretty c => Pretty (IPBoundary' c) where
-  pretty (IPBoundary eqs val meta over) = do
+instance Pretty c => Pretty (IPFace' c) where
+  pretty (IPFace' eqs val) = do
     let
       xs = map (\ (l,r) -> pretty l <+> "=" <+> pretty r) eqs
-      rhs = case over of
-              Overapplied    -> "=" <+> pretty meta
-              NotOverapplied -> mempty
-    prettyList_ xs <+> "⊢" <+> pretty val <+> rhs
+      -- rhs = case over of
+      --         Overapplied    -> "=" <+> pretty meta
+      --         NotOverapplied -> mempty
+    prettyList_ xs <+> "⊢" <+> pretty val -- <+> rhs
 
 prettyConstraints :: [Closure Constraint] -> TCM [OutputForm C.Expr C.Expr]
 prettyConstraints cs = do
@@ -643,6 +644,9 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
     instantiateBlockingFull p
       = locallyTCState stInstantiateBlocking (const True) $
           instantiateFull p
+
+    nay :: MaybeT TCM Elims
+    nay = MaybeT $ pure Nothing
 
     -- Trying to find the actual meta application, as long as it's not
     -- buried too deep.
@@ -670,20 +674,34 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
         CheckLockedVars t _ _ _    -> isMeta t
         UsableAtModality _ ms _ t  -> caseMaybe ms (isMeta t) $ \ s -> isMetaS s `mplus` isMeta t
 
-    isMeta (MetaV m' es_m)
-      | m == m' = Just es_m
+    isMeta :: Term -> Maybe Elims
+    isMeta (MetaV m' es_m) | m == m' = pure es_m
     isMeta _  = Nothing
 
+    isMetaS :: I.Sort -> Maybe Elims
     isMetaS (MetaS m' es_m)
-      | m == m' = Just es_m
+      | m == m' = pure es_m
     isMetaS _  = Nothing
 
     getConstrs g f = liftTCM $ do
       cs <- stripConstraintPids . filter f <$> (mapM g =<< M.getAllConstraints)
-      reportSDoc "constr.ment" 20 $ "getConstraintsMentioning"
+      cs <- caseMaybeM (traverse lookupInteractionPoint =<< isInteractionMeta m) (pure cs) $ \ip -> do
+        let
+          boundary = MapS.keysSet (getBoundary (ipBoundary ip))
+          isRedundant c = case allApplyElims =<< hasHeadMeta c of
+            Just apps -> caseMaybeM (isFaceConstraint m apps) (pure False) $ \(_, endps, _, _) ->
+              pure $ Set.member endps boundary
+            Nothing -> pure False
+        filterM (flip enterClosure (fmap not . isRedundant) . theConstraint) cs
+
+      reportSDoc "tc.constr.mentioning" 20 $ "getConstraintsMentioning"
       forM cs $ \(PConstr s ub c) -> do
+        reportSDoc "tc.constr.mentioning" 20 $ "constraint:  " TP.<+> prettyTCM c
         c <- normalForm norm c
-        case allApplyElims =<< hasHeadMeta (clValue c) of
+        let hm = hasHeadMeta (clValue c)
+        reportSDoc "tc.constr.mentioning" 20 $ "constraint:  " TP.<+> prettyTCM c
+        reportSDoc "tc.constr.mentioning" 20 $ "hasHeadMeta: " TP.<+> prettyTCM hm
+        case allApplyElims =<< hm of
           Just as_m -> do
             -- unifyElimsMeta tries to move the constraint into
             -- (an extension of) the context where @m@ comes from.
@@ -727,15 +745,78 @@ getConstraints' g f = liftTCM $ do
         let m = QuestionMark emptyMetaInfo{ metaNumber = Just mi } ii
         abstractToConcrete_ $ OutputForm noRange [] alwaysUnblock $ Assign m e
 
+-- | Reify the boundary of an interaction point as something that can be
+-- shown to the user.
+getIPBoundary :: Rewrite -> InteractionId -> TCM [IPFace' C.Expr]
+getIPBoundary norm ii = withInteractionId ii $ do
+  ip <- lookupInteractionPoint ii
 
-getIPBoundary :: Rewrite -> InteractionId -> TCM [IPBoundary' C.Expr]
-getIPBoundary norm ii = do
-      ip <- lookupInteractionPoint ii
-      case ipClause ip of
-        IPClause { ipcBoundary = cs } -> do
-          forM cs $ \ cl -> enterClosure cl $ \ b ->
-            abstractToConcrete_ =<< reifyUnblocked =<< normalForm norm b
-        IPNoClause -> return []
+  io <- primIOne
+  iz <- primIZero
+
+  lookupInteractionMeta ii >>= \case
+    Just mi -> do
+      mv <- lookupLocalMeta mi
+
+      let t = jMetaType $ mvJudgement mv
+      telv@(TelV tel a) <- telView t
+
+      reportSDoc "tc.ip.boundary" 30 $ TP.vcat
+        [ "reifying interaction point boundary"
+        , "tel:       " TP.<+> prettyTCM tel
+        , "meta:      " TP.<+> prettyTCM mi
+        ]
+      reportSDoc "tc.ip.boundary" 30 $ "boundary:  " TP.<+> pure (pretty (getBoundary (ipBoundary ip)))
+
+      withInteractionId ii $ do
+      -- The boundary is a map associating terms (lambda abstractions)
+      -- to IntMap Bools. The meta solver will wrap each LHS in lambdas
+      -- corresponding to the interaction point's context. Each key of
+      -- the boundary has a subset of (the interval variables in) the
+      -- interaction point's context as a keysSet.
+      as <- getContextArgs
+      let
+        c = abstractToConcrete_ <=< reifyUnblocked <=< normalForm norm
+        go (im, rhs) = do
+          reportSDoc "tc.ip.boundary" 30 $ TP.vcat
+            [ "reifying constraint for face" TP.<+> TP.pretty im
+            ]
+          reportSDoc "tc.ip.boundary" 30 $ "term " TP.<+> TP.prettyTCM rhs
+          -- Since the RHS is a lambda we have to apply it to the
+          -- context:
+          rhs <- c (rhs `apply` as)
+
+          -- Reify the IntMap Bool as a list of (i = i0) (j = i1) terms:
+          eqns <- forM (IntMap.toList im) $ \(a, b) -> do
+            a <- c (I.Var a [])
+            (,) a <$> c (if b then io else iz)
+          pure $ IPFace' eqns rhs
+      traverse go $ MapS.toList (getBoundary (ipBoundary ip))
+    Nothing -> pure []
+
+typeAndFacesInMeta :: InteractionId -> Rewrite -> Expr -> TCM (Expr, [IPFace' C.Expr])
+typeAndFacesInMeta ii norm expr = withInteractionId ii $ do
+  (ex, ty) <- inferExpr expr
+  ty <- normalForm norm ty
+  ip <- lookupInteractionPoint ii
+
+  io <- primIOne
+  iz <- primIZero
+  let
+    go im = do
+      let
+        c = abstractToConcrete_ <=< reifyUnblocked <=< normalForm norm
+        fa = IntMap.toList im
+        face (i, m) = inplaceS i $ if m then io else iz
+        sub = foldr (\f s -> composeS (face f) s) idS fa
+      eqns <- forM fa $ \(a, b) -> do
+        a <- c (I.Var a [])
+        (,) a <$> c (if b then io else iz)
+      fmap (IPFace' eqns) . c =<< simplify (applySubst sub ex)
+
+  faces <- traverse go $ MapS.keys (getBoundary (ipBoundary ip))
+  ty <- reifyUnblocked ty
+  pure (ty, faces)
 
 -- | Goals and Warnings
 

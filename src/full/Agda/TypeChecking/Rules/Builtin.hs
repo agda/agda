@@ -30,10 +30,9 @@ import Agda.TypeChecking.Monad
 
 import qualified Agda.TypeChecking.CompiledClause as CC
 import Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Constraints
+import Agda.TypeChecking.Constraints ( noConstraints )
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Functions
-import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive
@@ -100,7 +99,7 @@ coreBuiltins =
   , (builtinAgdaPatLit                       |-> BuiltinDataCons (tliteral --> tpat))
   , (builtinAgdaPatProj                      |-> BuiltinDataCons (tqname --> tpat))
   , (builtinAgdaPatAbsurd                    |-> BuiltinDataCons (tnat --> tpat))
-  , (builtinLevel                            |-> builtinPostulate tset)
+  , (builtinLevel                            |-> builtinPostulate tLevelUniv)
   , (builtinWord64                           |-> builtinPostulate tset)
   , (builtinInteger                          |-> BuiltinData tset [builtinIntegerPos, builtinIntegerNegSuc])
   , (builtinIntegerPos                       |-> BuiltinDataCons (tnat --> tinteger))
@@ -171,7 +170,7 @@ coreBuiltins =
                                                               hPi' "A" (sort . tmSort <$> l) $ \ bA ->
                                                               hPi' "x" (el' l bA) $ \ x ->
                                                               el' l (primId <#> l <#> bA <@> x <@> x)))
-  , (builtinEquiv                            |-> BuiltinUnknown (Just $ requireCubical CFull "" >> runNamesT [] (
+  , (builtinEquiv                            |-> BuiltinUnknown (Just $ requireCubical CErased "" >> runNamesT [] (
                                                                     hPi' "l" (el $ cl primLevel) $ \ a ->
                                                                     hPi' "l'" (el $ cl primLevel) $ \ b ->
                                                                     nPi' "A" (sort . tmSort <$> a) $ \bA ->
@@ -179,7 +178,7 @@ coreBuiltins =
                                                                     ((sort . tmSort) <$> (cl primLevelMax <@> a <@> b))
                                                                   ))
                                                                    (const $ const $ return ()))
-  , (builtinEquivFun                         |-> BuiltinUnknown (Just $ requireCubical CFull "" >> runNamesT [] (
+  , (builtinEquivFun                         |-> BuiltinUnknown (Just $ requireCubical CErased "" >> runNamesT [] (
                                                                  hPi' "l" (el $ cl primLevel) $ \ a ->
                                                                  hPi' "l'" (el $ cl primLevel) $ \ b ->
                                                                  hPi' "A" (sort . tmSort <$> a) $ \bA ->
@@ -188,7 +187,7 @@ coreBuiltins =
                                                                  (el' a bA --> el' b bB)
                                                                ))
                                                                 (const $ const $ return ()))
-  , (builtinEquivProof                       |-> BuiltinUnknown (Just $ requireCubical CFull "" >> runNamesT [] (
+  , (builtinEquivProof                       |-> BuiltinUnknown (Just $ requireCubical CErased "" >> runNamesT [] (
                                                                hPi' "l" (el $ cl primLevel) $ \ la ->
                                                                hPi' "l'" (el $ cl primLevel) $ \ lb ->
                                                                nPi' "A" (sort . tmSort <$> la) $ \ bA ->
@@ -330,6 +329,7 @@ coreBuiltins =
   , (builtinNatModSucAux                     |-> BuiltinPrim "primNatModSucAux" verifyModSucAux)
   , (builtinNatEquals                        |-> BuiltinPrim "primNatEquality" verifyEquals)
   , (builtinNatLess                          |-> BuiltinPrim "primNatLess" verifyLess)
+  , (builtinLevelUniv                        |-> BuiltinSort "primLevelUniv")
   , (builtinLevelZero                        |-> BuiltinPrim "primLevelZero" (const $ return ()))
   , (builtinLevelSuc                         |-> BuiltinPrim "primLevelSuc" (const $ return ()))
   , (builtinLevelMax                         |-> BuiltinPrim "primLevelMax" verifyMax)
@@ -1044,6 +1044,7 @@ bindBuiltinNoDef b q = inTopContext $ do
                 "primSetOmega" -> Inf IsFibrant 0
                 "primStrictSetOmega" -> Inf IsStrict 0
                 "primIntervalUniv" -> IntervalUniv
+                "primLevelUniv" -> LevelUniv
                 _              -> __IMPOSSIBLE__
           def = PrimitiveSort sortname s
       -- Check for the cubical flag if the sort requries it
