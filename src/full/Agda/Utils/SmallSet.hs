@@ -42,6 +42,8 @@ import Data.Bits hiding (complement)
 import qualified Data.Bits as Bits
 import Data.Ix
 
+import qualified Agda.Utils.Null as Null
+
 -- | An element in a small set.
 --
 -- This must implement 'Bounded' and 'Ix', and contain at most 64 values.
@@ -55,6 +57,10 @@ newtype SmallSet a = SmallSet { theSmallSet :: Word64 }
 -- | Time O(1).
 null :: SmallSetElement a => SmallSet a -> Bool
 null s = theSmallSet s == 0
+
+instance SmallSetElement a => Null.Null (SmallSet a) where
+  empty = empty
+  null = null
 
 -- | Time O(1).
 member :: SmallSetElement a => a -> SmallSet a -> Bool
