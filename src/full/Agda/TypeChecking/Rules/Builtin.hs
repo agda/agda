@@ -123,7 +123,7 @@ coreBuiltins =
                                                               (El (varSort 1) <$> varM 0 <@> primIZero) -->
                                                               (El (varSort 1) <$> varM 0 <@> primIOne) -->
                                                               return (sort $ varSort 1)))
-  , (builtinIntervalUniv                     |-> BuiltinSort "primIntervalUniv")
+  , (builtinIntervalUniv                     |-> BuiltinSort SortIntervalUniv)
   , (builtinInterval                         |-> BuiltinData (requireCubical CErased "" >>
                                                               (return $ sort IntervalUniv)) [builtinIZero,builtinIOne])
   , (builtinSub                              |-> builtinPostulateC CErased (runNamesT [] $ hPi' "a" (el $ cl primLevel) $ \ a ->
@@ -329,15 +329,15 @@ coreBuiltins =
   , (builtinNatModSucAux                     |-> BuiltinPrim "primNatModSucAux" verifyModSucAux)
   , (builtinNatEquals                        |-> BuiltinPrim "primNatEquality" verifyEquals)
   , (builtinNatLess                          |-> BuiltinPrim "primNatLess" verifyLess)
-  , (builtinLevelUniv                        |-> BuiltinSort "primLevelUniv")
+  , (builtinLevelUniv                        |-> BuiltinSort SortLevelUniv)
   , (builtinLevelZero                        |-> BuiltinPrim "primLevelZero" (const $ return ()))
   , (builtinLevelSuc                         |-> BuiltinPrim "primLevelSuc" (const $ return ()))
   , (builtinLevelMax                         |-> BuiltinPrim "primLevelMax" verifyMax)
-  , (builtinSet                              |-> BuiltinSort "primSet")
-  , (builtinProp                             |-> BuiltinSort "primProp")
-  , (builtinSetOmega                         |-> BuiltinSort "primSetOmega")
-  , (builtinSSetOmega                        |-> BuiltinSort "primStrictSetOmega")
-  , (builtinStrictSet                        |-> BuiltinSort "primStrictSet")
+  , (builtinSet                              |-> BuiltinSort SortSet)
+  , (builtinProp                             |-> BuiltinSort SortProp)
+  , (builtinSetOmega                         |-> BuiltinSort SortSetOmega)
+  , (builtinSSetOmega                        |-> BuiltinSort SortStrictSetOmega)
+  , (builtinStrictSet                        |-> BuiltinSort SortStrictSet)
   , (builtinAgdaClause                       |-> BuiltinData tset [builtinAgdaClauseClause, builtinAgdaClauseAbsurd])
   , (builtinAgdaClauseClause                 |-> BuiltinDataCons (ttelescope --> tlist (targ tpat) --> tterm --> tclause))
   , (builtinAgdaClauseAbsurd                 |-> BuiltinDataCons (ttelescope --> tlist (targ tpat) --> tclause))
@@ -1036,20 +1036,19 @@ bindBuiltinNoDef b q = inTopContext $ do
               , dataTransp     = Nothing
               }
 
-    Just (BuiltinSort sortname) -> do
-      let s = case sortname of
-                "primSet"      -> mkType 0
-                "primProp"     -> mkProp 0
-                "primStrictSet" -> mkSSet 0
-                "primSetOmega" -> Inf IsFibrant 0
-                "primStrictSetOmega" -> Inf IsStrict 0
-                "primIntervalUniv" -> IntervalUniv
-                "primLevelUniv" -> LevelUniv
-                _              -> __IMPOSSIBLE__
-          def = PrimitiveSort sortname s
+    Just (BuiltinSort builtinSort) -> do
+      let s = case builtinSort of
+                SortSet -> mkType 0
+                SortProp -> mkProp 0
+                SortStrictSet -> mkSSet 0
+                SortSetOmega -> Inf IsFibrant 0
+                SortStrictSetOmega -> Inf IsStrict 0
+                SortIntervalUniv -> IntervalUniv
+                SortLevelUniv -> LevelUniv
+          def = PrimitiveSort builtinSort s
       -- Check for the cubical flag if the sort requries it
-      case sortname of
-        "primIntervalUniv" -> requireCubical CErased ""
+      case builtinSort of
+        SortIntervalUniv -> requireCubical CErased ""
         _ -> return ()
       addConstant' q defaultArgInfo q (sort $ univSort s) def
       bindBuiltinName b $ Def q []

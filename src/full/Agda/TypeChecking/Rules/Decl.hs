@@ -700,9 +700,6 @@ checkPrimitive i x (Arg info e) =
           , "primLevelZero"
           , "primLevelSuc"
           , "primLevelMax"
-          , "primSetOmega"
-          , "primStrictSet"
-          , "primStrictSetOmega"
           ]
     when (name `elem` builtinPrimitives) $ do
       reportSDoc "tc.prim" 20 $ text name <+> "is a BUILTIN, not a primitive!"
