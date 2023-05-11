@@ -7,8 +7,5 @@ data D : Set1 where
 -- WAS: Internal error (on master)
 
 -- NOW:
--- Illegal declaration in data type definition
---   field A : Set
--- when scope checking the declaration
---   data D where
---     field A : Set
+-- A data definition can only contain type signatures, possibly under
+-- keyword instance
