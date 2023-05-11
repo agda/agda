@@ -847,15 +847,6 @@ scopeCheckExtendedLam r e cs = do
         List1.fromListSafe __IMPOSSIBLE__ cs
     _ -> __IMPOSSIBLE__
 
--- | Raise an error if argument is a C.Dot with Hiding info.
-
-rejectPostfixProjectionWithHiding :: NamedArg C.Expr -> ScopeM ()
-rejectPostfixProjectionWithHiding arg =
-  case namedArg arg of
-    C.Dot{} | notVisible arg -> setCurrentRange arg $ genericDocError $
-      "Illegal hiding in postfix projection " P.<+> P.pretty arg
-    _ -> return ()
-
 -- | Scope check an expression.
 
 instance ToAbstract C.Expr where
@@ -925,7 +916,11 @@ instance ToAbstract C.Expr where
   -- Application
       C.App r e1 e2 -> do
         -- Andreas, 2021-02-10, issue #3289: reject @e {.p}@ and @e ⦃ .p ⦄@.
-        rejectPostfixProjectionWithHiding e2
+
+        -- Raise an error if argument is a C.Dot with Hiding info.
+        case namedArg e2 of
+          C.Dot{} | notVisible e2 -> setCurrentRange e2 $ typeError $ IllegalHidingInPostfixProjection e2
+          _ -> return ()
 
         let parenPref = inferParenPreference (namedArg e2)
             info = (defaultAppInfo r) { appOrigin = UserWritten, appParens = parenPref }

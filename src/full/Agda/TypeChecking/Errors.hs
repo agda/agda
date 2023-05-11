@@ -261,6 +261,7 @@ errorString err = case err of
   WrongHidingInApplication{}               -> "WrongHidingInApplication"
   WrongHidingInLHS{}                       -> "WrongHidingInLHS"
   WrongHidingInLambda{}                    -> "WrongHidingInLambda"
+  IllegalHidingInPostfixProjection{}       -> "IllegalHidingInPostfixProjection"
   WrongIrrelevanceInLambda{}               -> "WrongIrrelevanceInLambda"
   WrongQuantityInLambda{}                  -> "WrongQuantityInLambda"
   WrongCohesionInLambda{}                  -> "WrongCohesionInLambda"
@@ -360,6 +361,10 @@ instance PrettyTCM TypeError where
 
     WrongHidingInLambda t ->
       fwords "Found an implicit lambda where an explicit lambda was expected"
+
+    IllegalHidingInPostfixProjection arg -> fsep $
+      pwords "Illegal hiding in postfix projection " ++
+      [pretty arg]
 
     WrongIrrelevanceInLambda ->
       fwords "Found a non-strict lambda where a irrelevant lambda was expected"

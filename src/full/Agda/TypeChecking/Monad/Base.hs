@@ -4324,6 +4324,7 @@ data TypeError
             -- ^ Expected a non-hidden function and found a hidden lambda.
         | WrongHidingInApplication Type
             -- ^ A function is applied to a hidden argument where a non-hidden was expected.
+        | IllegalHidingInPostfixProjection (NamedArg C.Expr)
         | WrongNamedArgument (NamedArg A.Expr) [NamedName]
             -- ^ A function is applied to a hidden named argument it does not have.
             -- The list contains names of possible hidden arguments at this point.
