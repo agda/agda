@@ -1359,9 +1359,8 @@ checkLHS mf = updateModality checkLHS_ where
 
       -- Jesper, 2019-09-13: if the data type we split on is a strict
       -- set, we locally enable --with-K during unification.
-      withKIfStrict <- reduce (getSort a) >>= \case
-        SSet{} -> return $ locallyTC eSplitOnStrict $ const True
-        _      -> return id
+      withKIfStrict <- reduce (getSort a) <&> \ dsort ->
+        applyWhen (isStrictDataSort dsort) $ locallyTC eSplitOnStrict $ const True
 
       -- The constructor should construct an element of this datatype
       (c :: ConHead, b :: Type) <- liftTCM $ addContext delta1 $ case ambC of

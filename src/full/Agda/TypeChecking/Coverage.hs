@@ -67,6 +67,7 @@ import Agda.TypeChecking.Warnings
 import Agda.Interaction.Options
 
 import Agda.Utils.Either
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -983,9 +984,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
          return $ abstract (mapCohesion updCoh <$> dtel) dt
   dsort <- addContext delta1 $ reduce (getSort dtype)
 
-  withKIfStrict <- case dsort of
-    SSet{} -> return $ locallyTC eSplitOnStrict $ const True
-    _      -> return id
+  let withKIfStrict = applyWhen (isStrictDataSort dsort) $ locallyTC eSplitOnStrict $ const True
 
   -- Should we attempt to compute a left inverse for this clause? When
   -- --cubical-compatible --flat-split is given, we don't generate a
