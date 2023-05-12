@@ -61,6 +61,7 @@ import GHC.Generics (Generic)
 import Agda.Benchmarking (Benchmark, Phase)
 
 import Agda.Syntax.Common
+import Agda.Syntax.Builtin (SomeBuiltin, BuiltinId, PrimitiveId)
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Definitions
   (NiceDeclaration, DeclarationWarning, dwWarning, declarationWarningName)
@@ -1016,7 +1017,7 @@ data Interface = Interface
     -- ^ User warnings for imported identifiers
   , iImportWarning   :: Maybe Text
     -- ^ Whether this module should raise a warning when imported
-  , iBuiltin         :: BuiltinThings (String, QName)
+  , iBuiltin         :: BuiltinThings (PrimitiveId, QName)
   , iForeignCode     :: Map BackendName ForeignCodeStack
   , iHighlighting    :: HighlightingInfo
   , iDefaultPragmaOptions :: [OptionsPragma]
@@ -2640,7 +2641,7 @@ pattern Constructor
 
 data PrimitiveData = PrimitiveData
   { _primAbstr    :: IsAbstract
-  , _primName     :: String
+  , _primName     :: PrimitiveId
   , _primClauses  :: [Clause]
       -- ^ 'null' for primitive functions, @not null@ for builtin functions.
   , _primInv      :: FunctionInverse
@@ -2654,7 +2655,7 @@ data PrimitiveData = PrimitiveData
 
 pattern Primitive
   :: IsAbstract
-  -> String
+  -> PrimitiveId
   -> [Clause]
   -> FunctionInverse
   -> Maybe CompiledClauses
@@ -3421,9 +3422,9 @@ data BuiltinSort
   deriving (Show, Eq, Bounded, Enum, Generic)
 
 data BuiltinDescriptor
-  = BuiltinData (TCM Type) [String]
+  = BuiltinData (TCM Type) [BuiltinId]
   | BuiltinDataCons (TCM Type)
-  | BuiltinPrim String (Term -> TCM ())
+  | BuiltinPrim PrimitiveId (Term -> TCM ())
   | BuiltinSort BuiltinSort
   | BuiltinPostulate Relevance (TCM Type)
   | BuiltinUnknown (Maybe (TCM Type)) (Term -> Type -> TCM ())
@@ -3432,10 +3433,10 @@ data BuiltinDescriptor
     --   The second argument is the hook for the verification function.
 
 data BuiltinInfo =
-   BuiltinInfo { builtinName :: String
+   BuiltinInfo { builtinName :: BuiltinId
                , builtinDesc :: BuiltinDescriptor }
 
-type BuiltinThings pf = Map String (Builtin pf)
+type BuiltinThings pf = Map SomeBuiltin (Builtin pf)
 
 data Builtin pf
         = Builtin Term
@@ -4093,7 +4094,7 @@ data Warning
 
   | CantGeneralizeOverSorts [MetaId]
   | AbsurdPatternRequiresNoRHS [NamedArg DeBruijnPattern]
-  | OldBuiltin               String String
+  | OldBuiltin               BuiltinId BuiltinId
     -- ^ In `OldBuiltin old new`, the BUILTIN old has been replaced by new
   | EmptyRewritePragma
     -- ^ If the user wrote just @{-\# REWRITE \#-}@.
@@ -4518,15 +4519,15 @@ data TypeError
         | GenericDocError Doc
         | SortOfSplitVarError (Maybe Blocker) Doc
           -- ^ the meta is what we might be blocked on.
-        | BuiltinMustBeConstructor String A.Expr
+        | BuiltinMustBeConstructor BuiltinId A.Expr
         | NoSuchBuiltinName String
-        | DuplicateBuiltinBinding String Term Term
-        | NoBindingForBuiltin String
+        | DuplicateBuiltinBinding BuiltinId Term Term
+        | NoBindingForBuiltin BuiltinId
         | NoSuchPrimitiveFunction String
-        | DuplicatePrimitiveBinding String QName QName
-        | WrongModalityForPrimitive String ArgInfo ArgInfo
+        | DuplicatePrimitiveBinding PrimitiveId QName QName
+        | WrongModalityForPrimitive PrimitiveId ArgInfo ArgInfo
         | ShadowedModule C.Name [A.ModuleName]
-        | BuiltinInParameterisedModule String
+        | BuiltinInParameterisedModule BuiltinId
         | IllegalLetInTelescope C.TypedBinding
         | IllegalPatternInTelescope C.Binder
         | NoRHSRequiresAbsurdPattern [NamedArg A.Pattern]

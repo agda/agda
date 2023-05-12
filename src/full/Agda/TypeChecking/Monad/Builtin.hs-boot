@@ -10,13 +10,14 @@ import Control.Monad.Trans          ( MonadTrans, lift )
 import qualified Control.Monad.Fail as Fail
 
 import Agda.TypeChecking.Monad.Base (TCMT, Builtin, PrimFun)
+import Agda.Syntax.Builtin (SomeBuiltin)
 
 class ( Functor m
       , Applicative m
       , Fail.MonadFail m
       ) => HasBuiltins m where
-  getBuiltinThing :: String -> m (Maybe (Builtin PrimFun))
-  default getBuiltinThing :: (MonadTrans t, HasBuiltins n, t n ~ m) => String -> m (Maybe (Builtin PrimFun))
+  getBuiltinThing :: SomeBuiltin -> m (Maybe (Builtin PrimFun))
+  default getBuiltinThing :: (MonadTrans t, HasBuiltins n, t n ~ m) => SomeBuiltin -> m (Maybe (Builtin PrimFun))
   getBuiltinThing = lift . getBuiltinThing
 
 instance HasBuiltins m => HasBuiltins (IdentityT m)

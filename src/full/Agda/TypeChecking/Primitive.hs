@@ -469,49 +469,49 @@ primMetaToNatInjective :: TCM PrimitiveImpl
 primMetaToNatInjective = do
   meta  <- primType (undefined :: MetaId)
   nat   <- primType (undefined :: Nat)
-  toNat <- primFunName <$> getPrimitive "primMetaToNat"
+  toNat <- primFunName <$> getPrimitive PrimMetaToNat
   mkPrimInjective meta nat toNat
 
 primCharToNatInjective :: TCM PrimitiveImpl
 primCharToNatInjective = do
   char  <- primType (undefined :: Char)
   nat   <- primType (undefined :: Nat)
-  toNat <- primFunName <$> getPrimitive "primCharToNat"
+  toNat <- primFunName <$> getPrimitive PrimCharToNat
   mkPrimInjective char nat toNat
 
 primStringToListInjective :: TCM PrimitiveImpl
 primStringToListInjective = do
   string <- primType (undefined :: Text)
   chars  <- primType (undefined :: String)
-  toList <- primFunName <$> getPrimitive "primStringToList"
+  toList <- primFunName <$> getPrimitive PrimStringToList
   mkPrimInjective string chars toList
 
 primStringFromListInjective :: TCM PrimitiveImpl
 primStringFromListInjective = do
   chars  <- primType (undefined :: String)
   string <- primType (undefined :: Text)
-  fromList <- primFunName <$> getPrimitive "primStringFromList"
+  fromList <- primFunName <$> getPrimitive PrimStringFromList
   mkPrimInjective chars string fromList
 
 primWord64ToNatInjective :: TCM PrimitiveImpl
 primWord64ToNatInjective =  do
   word  <- primType (undefined :: Word64)
   nat   <- primType (undefined :: Nat)
-  toNat <- primFunName <$> getPrimitive "primWord64ToNat"
+  toNat <- primFunName <$> getPrimitive PrimWord64ToNat
   mkPrimInjective word nat toNat
 
 primFloatToWord64Injective :: TCM PrimitiveImpl
 primFloatToWord64Injective = do
   float  <- primType (undefined :: Double)
   mword  <- primType (undefined :: Maybe Word64)
-  toWord <- primFunName <$> getPrimitive "primFloatToWord64"
+  toWord <- primFunName <$> getPrimitive PrimFloatToWord64
   mkPrimInjective float mword toWord
 
 primQNameToWord64sInjective :: TCM PrimitiveImpl
 primQNameToWord64sInjective = do
   name    <- primType (undefined :: QName)
   words   <- primType (undefined :: (Word64, Word64))
-  toWords <- primFunName <$> getPrimitive "primQNameToWord64s"
+  toWords <- primFunName <$> getPrimitive PrimQNameToWord64s
   mkPrimInjective name words toWords
 
 getRefl :: TCM (Arg Term -> Term)
@@ -637,7 +637,7 @@ primForceLemma = do
   let varEl s a = El (varSort s) <$> a
       varT s a  = varEl s (varM a)
   refl  <- primRefl
-  force <- primFunName <$> getPrimitive "primForce"
+  force <- primFunName <$> getPrimitive PrimForce
   genPrimForce (nPi "x" (varT 3 1) $
                 nPi "f" (nPi "y" (varT 4 2) $ varEl 4 $ varM 2 <@> varM 0) $
                 varEl 4 $ primEquality <#> varM 4 <#> (varM 2 <@> varM 1)
@@ -669,11 +669,6 @@ primLockUniv' :: TCM PrimitiveImpl
 primLockUniv' = do
   let t = sort $ Type $ levelSuc $ Max 0 []
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort LockUniv
-
-primLevelUniv' :: TCM PrimitiveImpl
-primLevelUniv' = do
-  let t = sort $ Type $ ClosedLevel 1
-  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort $ LevelUniv
 
 mkPrimFun1TCM :: (FromTerm a, ToTerm b) =>
                  TCM Type -> (a -> ReduceM b) -> TCM PrimitiveImpl
@@ -796,7 +791,7 @@ type Fun  a = a -> a
 type Rel  a = a -> a -> Bool
 type Pred a = a -> Bool
 
-primitiveFunctions :: Map String (TCM PrimitiveImpl)
+primitiveFunctions :: Map PrimitiveId (TCM PrimitiveImpl)
 primitiveFunctions = localTCStateSavingWarnings <$> Map.fromListWith __IMPOSSIBLE__
   -- Issue #4375          ^^^^^^^^^^^^^^^^^^^^^^^^^^
   --   Without this the next fresh checkpoint id gets changed building the primitive functions. This
@@ -820,31 +815,31 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromListWith __IMPOSSIBL
   -- , "primIntegerLess"     |-> mkPrimFun2 ((<)        :: Rel Integer)
   -- , "primIntegerAbs"      |-> mkPrimFun1 (Nat . abs  :: Integer -> Nat)
   -- , "primNatToInteger"    |-> mkPrimFun1 (toInteger  :: Nat -> Integer)
-  [ "primShowInteger"     |-> mkPrimFun1 (T.pack . prettyShow :: Integer -> Text)
+  [ PrimShowInteger     |-> mkPrimFun1 (T.pack . prettyShow :: Integer -> Text)
 
   -- Natural number functions
-  , "primNatPlus"         |-> mkPrimFun2 ((+)                     :: Op Nat)
-  , "primNatMinus"        |-> mkPrimFun2 ((\x y -> max 0 (x - y)) :: Op Nat)
-  , "primNatTimes"        |-> mkPrimFun2 ((*)                     :: Op Nat)
-  , "primNatDivSucAux"    |-> mkPrimFun4 ((\k m n j -> k + div (max 0 $ n + m - j) (m + 1)) :: Nat -> Nat -> Op Nat)
-  , "primNatModSucAux"    |->
+  , PrimNatPlus           |-> mkPrimFun2 ((+)                     :: Op Nat)
+  , PrimNatMinus          |-> mkPrimFun2 ((\x y -> max 0 (x - y)) :: Op Nat)
+  , PrimNatTimes          |-> mkPrimFun2 ((*)                     :: Op Nat)
+  , PrimNatDivSucAux      |-> mkPrimFun4 ((\k m n j -> k + div (max 0 $ n + m - j) (m + 1)) :: Nat -> Nat -> Op Nat)
+  , PrimNatModSucAux      |->
       let aux :: Nat -> Nat -> Op Nat
           aux k m n j | n > j     = mod (n - j - 1) (m + 1)
                       | otherwise = k + n
       in mkPrimFun4 aux
-  , "primNatEquality"     |-> mkPrimFun2 ((==) :: Rel Nat)
-  , "primNatLess"         |-> mkPrimFun2 ((<)  :: Rel Nat)
-  , "primShowNat"         |-> mkPrimFun1 (T.pack . prettyShow :: Nat -> Text)
+  , PrimNatEquality       |-> mkPrimFun2 ((==) :: Rel Nat)
+  , PrimNatLess           |-> mkPrimFun2 ((<)  :: Rel Nat)
+  , PrimShowNat           |-> mkPrimFun1 (T.pack . prettyShow :: Nat -> Text)
 
-  -- Machine words
-  , "primWord64ToNat"     |-> mkPrimFun1 (fromIntegral :: Word64 -> Nat)
-  , "primWord64FromNat"   |-> mkPrimFun1 (fromIntegral :: Nat -> Word64)
-  , "primWord64ToNatInjective" |-> primWord64ToNatInjective
+  -- -- Machine words
+  , PrimWord64ToNat      |-> mkPrimFun1 (fromIntegral :: Word64 -> Nat)
+  , PrimWord64FromNat    |-> mkPrimFun1 (fromIntegral :: Nat -> Word64)
+  , PrimWord64ToNatInjective |-> primWord64ToNatInjective
 
-  -- Level functions
-  , "primLevelZero"       |-> mkPrimLevelZero
-  , "primLevelSuc"        |-> mkPrimLevelSuc
-  , "primLevelMax"        |-> mkPrimLevelMax
+  -- -- Level functions
+  , PrimLevelZero         |-> mkPrimLevelZero
+  , PrimLevelSuc          |-> mkPrimLevelSuc
+  , PrimLevelMax          |-> mkPrimLevelMax
 
   -- Floating point functions
   --
@@ -855,115 +850,115 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromListWith __IMPOSSIBL
   -- `primFloatFloor`, `primFloatCeiling`, and `primFloatDecode`. The conversion
   -- `primFloatRatio` represents NaN as (0,0), and the infinities as (±1,0).
   --
-  , "primFloatEquality"          |-> mkPrimFun2 doubleEq
-  , "primFloatInequality"        |-> mkPrimFun2 doubleLe
-  , "primFloatLess"              |-> mkPrimFun2 doubleLt
-  , "primFloatIsInfinite"        |-> mkPrimFun1 (isInfinite :: Double -> Bool)
-  , "primFloatIsNaN"             |-> mkPrimFun1 (isNaN :: Double -> Bool)
-  , "primFloatIsNegativeZero"    |-> mkPrimFun1 (isNegativeZero :: Double -> Bool)
-  , "primFloatIsSafeInteger"     |-> mkPrimFun1 isSafeInteger
-  , "primFloatToWord64"          |-> mkPrimFun1 doubleToWord64
-  , "primFloatToWord64Injective" |-> primFloatToWord64Injective
-  , "primNatToFloat"             |-> mkPrimFun1 (intToDouble :: Nat -> Double)
-  , "primIntToFloat"             |-> mkPrimFun1 (intToDouble :: Integer -> Double)
-  , "primFloatRound"             |-> mkPrimFun1 doubleRound
-  , "primFloatFloor"             |-> mkPrimFun1 doubleFloor
-  , "primFloatCeiling"           |-> mkPrimFun1 doubleCeiling
-  , "primFloatToRatio"           |-> mkPrimFun1 doubleToRatio
-  , "primRatioToFloat"           |-> mkPrimFun2 ratioToDouble
-  , "primFloatDecode"            |-> mkPrimFun1 doubleDecode
-  , "primFloatEncode"            |-> mkPrimFun2 doubleEncode
-  , "primShowFloat"              |-> mkPrimFun1 (T.pack . show :: Double -> Text)
-  , "primFloatPlus"              |-> mkPrimFun2 doublePlus
-  , "primFloatMinus"             |-> mkPrimFun2 doubleMinus
-  , "primFloatTimes"             |-> mkPrimFun2 doubleTimes
-  , "primFloatNegate"            |-> mkPrimFun1 doubleNegate
-  , "primFloatDiv"               |-> mkPrimFun2 doubleDiv
-  , "primFloatPow"               |-> mkPrimFun2 doublePow
-  , "primFloatSqrt"              |-> mkPrimFun1 doubleSqrt
-  , "primFloatExp"               |-> mkPrimFun1 doubleExp
-  , "primFloatLog"               |-> mkPrimFun1 doubleLog
-  , "primFloatSin"               |-> mkPrimFun1 doubleSin
-  , "primFloatCos"               |-> mkPrimFun1 doubleCos
-  , "primFloatTan"               |-> mkPrimFun1 doubleTan
-  , "primFloatASin"              |-> mkPrimFun1 doubleASin
-  , "primFloatACos"              |-> mkPrimFun1 doubleACos
-  , "primFloatATan"              |-> mkPrimFun1 doubleATan
-  , "primFloatATan2"             |-> mkPrimFun2 doubleATan2
-  , "primFloatSinh"              |-> mkPrimFun1 doubleSinh
-  , "primFloatCosh"              |-> mkPrimFun1 doubleCosh
-  , "primFloatTanh"              |-> mkPrimFun1 doubleTanh
-  , "primFloatASinh"             |-> mkPrimFun1 doubleASinh
-  , "primFloatACosh"             |-> mkPrimFun1 doubleCosh
-  , "primFloatATanh"             |-> mkPrimFun1 doubleTanh
+  , PrimFloatEquality            |-> mkPrimFun2 doubleEq
+  , PrimFloatInequality          |-> mkPrimFun2 doubleLe
+  , PrimFloatLess                |-> mkPrimFun2 doubleLt
+  , PrimFloatIsInfinite          |-> mkPrimFun1 (isInfinite :: Double -> Bool)
+  , PrimFloatIsNaN               |-> mkPrimFun1 (isNaN :: Double -> Bool)
+  , PrimFloatIsNegativeZero      |-> mkPrimFun1 (isNegativeZero :: Double -> Bool)
+  , PrimFloatIsSafeInteger       |-> mkPrimFun1 isSafeInteger
+  , PrimFloatToWord64            |-> mkPrimFun1 doubleToWord64
+  , PrimFloatToWord64Injective   |-> primFloatToWord64Injective
+  , PrimNatToFloat               |-> mkPrimFun1 (intToDouble :: Nat -> Double)
+  , PrimIntToFloat               |-> mkPrimFun1 (intToDouble :: Integer -> Double)
+  , PrimFloatRound               |-> mkPrimFun1 doubleRound
+  , PrimFloatFloor               |-> mkPrimFun1 doubleFloor
+  , PrimFloatCeiling             |-> mkPrimFun1 doubleCeiling
+  , PrimFloatToRatio             |-> mkPrimFun1 doubleToRatio
+  , PrimRatioToFloat             |-> mkPrimFun2 ratioToDouble
+  , PrimFloatDecode              |-> mkPrimFun1 doubleDecode
+  , PrimFloatEncode              |-> mkPrimFun2 doubleEncode
+  , PrimShowFloat                |-> mkPrimFun1 (T.pack . show :: Double -> Text)
+  , PrimFloatPlus                |-> mkPrimFun2 doublePlus
+  , PrimFloatMinus               |-> mkPrimFun2 doubleMinus
+  , PrimFloatTimes               |-> mkPrimFun2 doubleTimes
+  , PrimFloatNegate              |-> mkPrimFun1 doubleNegate
+  , PrimFloatDiv                 |-> mkPrimFun2 doubleDiv
+  , PrimFloatPow                 |-> mkPrimFun2 doublePow
+  , PrimFloatSqrt                |-> mkPrimFun1 doubleSqrt
+  , PrimFloatExp                 |-> mkPrimFun1 doubleExp
+  , PrimFloatLog                 |-> mkPrimFun1 doubleLog
+  , PrimFloatSin                 |-> mkPrimFun1 doubleSin
+  , PrimFloatCos                 |-> mkPrimFun1 doubleCos
+  , PrimFloatTan                 |-> mkPrimFun1 doubleTan
+  , PrimFloatASin                |-> mkPrimFun1 doubleASin
+  , PrimFloatACos                |-> mkPrimFun1 doubleACos
+  , PrimFloatATan                |-> mkPrimFun1 doubleATan
+  , PrimFloatATan2               |-> mkPrimFun2 doubleATan2
+  , PrimFloatSinh                |-> mkPrimFun1 doubleSinh
+  , PrimFloatCosh                |-> mkPrimFun1 doubleCosh
+  , PrimFloatTanh                |-> mkPrimFun1 doubleTanh
+  , PrimFloatASinh               |-> mkPrimFun1 doubleASinh
+  , PrimFloatACosh               |-> mkPrimFun1 doubleCosh
+  , PrimFloatATanh               |-> mkPrimFun1 doubleTanh
 
   -- Character functions
-  , "primCharEquality"       |-> mkPrimFun2 ((==) :: Rel Char)
-  , "primIsLower"            |-> mkPrimFun1 isLower
-  , "primIsDigit"            |-> mkPrimFun1 isDigit
-  , "primIsAlpha"            |-> mkPrimFun1 isAlpha
-  , "primIsSpace"            |-> mkPrimFun1 isSpace
-  , "primIsAscii"            |-> mkPrimFun1 isAscii
-  , "primIsLatin1"           |-> mkPrimFun1 isLatin1
-  , "primIsPrint"            |-> mkPrimFun1 isPrint
-  , "primIsHexDigit"         |-> mkPrimFun1 isHexDigit
-  , "primToUpper"            |-> mkPrimFun1 toUpper
-  , "primToLower"            |-> mkPrimFun1 toLower
-  , "primCharToNat"          |-> mkPrimFun1 (fromIntegral . fromEnum :: Char -> Nat)
-  , "primCharToNatInjective" |-> primCharToNatInjective
-  , "primNatToChar"          |-> mkPrimFun1 (integerToChar . unNat)
-  , "primShowChar"           |-> mkPrimFun1 (T.pack . prettyShow . LitChar)
+  , PrimCharEquality         |-> mkPrimFun2 ((==) :: Rel Char)
+  , PrimIsLower              |-> mkPrimFun1 isLower
+  , PrimIsDigit              |-> mkPrimFun1 isDigit
+  , PrimIsAlpha              |-> mkPrimFun1 isAlpha
+  , PrimIsSpace              |-> mkPrimFun1 isSpace
+  , PrimIsAscii              |-> mkPrimFun1 isAscii
+  , PrimIsLatin1             |-> mkPrimFun1 isLatin1
+  , PrimIsPrint              |-> mkPrimFun1 isPrint
+  , PrimIsHexDigit           |-> mkPrimFun1 isHexDigit
+  , PrimToUpper              |-> mkPrimFun1 toUpper
+  , PrimToLower              |-> mkPrimFun1 toLower
+  , PrimCharToNat            |-> mkPrimFun1 (fromIntegral . fromEnum :: Char -> Nat)
+  , PrimCharToNatInjective   |-> primCharToNatInjective
+  , PrimNatToChar            |-> mkPrimFun1 (integerToChar . unNat)
+  , PrimShowChar             |-> mkPrimFun1 (T.pack . prettyShow . LitChar)
 
   -- String functions
-  , "primStringToList"            |-> mkPrimFun1 T.unpack
-  , "primStringToListInjective"   |-> primStringToListInjective
-  , "primStringFromList"          |-> mkPrimFun1 T.pack
-  , "primStringFromListInjective" |-> primStringFromListInjective
-  , "primStringAppend"            |-> mkPrimFun2 (T.append :: Text -> Text -> Text)
-  , "primStringEquality"          |-> mkPrimFun2 ((==) :: Rel Text)
-  , "primShowString"              |-> mkPrimFun1 (T.pack . prettyShow . LitString)
-  , "primStringUncons"            |-> mkPrimFun1 T.uncons
+  , PrimStringToList              |-> mkPrimFun1 T.unpack
+  , PrimStringToListInjective     |-> primStringToListInjective
+  , PrimStringFromList            |-> mkPrimFun1 T.pack
+  , PrimStringFromListInjective   |-> primStringFromListInjective
+  , PrimStringAppend              |-> mkPrimFun2 (T.append :: Text -> Text -> Text)
+  , PrimStringEquality            |-> mkPrimFun2 ((==) :: Rel Text)
+  , PrimShowString                |-> mkPrimFun1 (T.pack . prettyShow . LitString)
+  , PrimStringUncons              |-> mkPrimFun1 T.uncons
 
   -- Other stuff
-  , "primEraseEquality"   |-> primEraseEquality
+  , PrimEraseEquality     |-> primEraseEquality
     -- This needs to be force : A → ((x : A) → B x) → B x rather than seq because of call-by-name.
-  , "primForce"           |-> primForce
-  , "primForceLemma"      |-> primForceLemma
-  , "primQNameEquality"   |-> mkPrimFun2 ((==) :: Rel QName)
-  , "primQNameLess"       |-> mkPrimFun2 ((<) :: Rel QName)
-  , "primShowQName"       |-> mkPrimFun1 (T.pack . prettyShow :: QName -> Text)
-  , "primQNameFixity"     |-> mkPrimFun1 (nameFixity . qnameName)
-  , "primQNameToWord64s"  |-> mkPrimFun1 ((\ (NameId x (ModuleNameHash y)) -> (x, y)) . nameId . qnameName
+  , PrimForce             |-> primForce
+  , PrimForceLemma        |-> primForceLemma
+  , PrimQNameEquality     |-> mkPrimFun2 ((==) :: Rel QName)
+  , PrimQNameLess         |-> mkPrimFun2 ((<) :: Rel QName)
+  , PrimShowQName         |-> mkPrimFun1 (T.pack . prettyShow :: QName -> Text)
+  , PrimQNameFixity       |-> mkPrimFun1 (nameFixity . qnameName)
+  , PrimQNameToWord64s    |-> mkPrimFun1 ((\ (NameId x (ModuleNameHash y)) -> (x, y)) . nameId . qnameName
                                           :: QName -> (Word64, Word64))
-  , "primQNameToWord64sInjective" |-> primQNameToWord64sInjective
-  , "primMetaEquality"    |-> mkPrimFun2 ((==) :: Rel MetaId)
-  , "primMetaLess"        |-> mkPrimFun2 ((<) :: Rel MetaId)
-  , "primShowMeta"        |-> mkPrimFun1 (T.pack . prettyShow :: MetaId -> Text)
-  , "primMetaToNat"       |-> mkPrimFun1 metaToNat
-  , "primMetaToNatInjective" |-> primMetaToNatInjective
-  , "primIMin"            |-> primIMin'
-  , "primIMax"            |-> primIMax'
-  , "primINeg"            |-> primINeg'
-  , "primPOr"             |-> primPOr
-  , "primComp"            |-> primComp
-  , builtinTrans          |-> primTrans'
-  , builtinHComp          |-> primHComp'
-  , "primPartial"         |-> primPartial'
-  , "primPartialP"        |-> primPartialP'
-  , builtinGlue           |-> primGlue'
-  , builtin_glue          |-> prim_glue'
-  , builtin_unglue        |-> prim_unglue'
-  , builtinFaceForall     |-> primFaceForall'
-  , "primDepIMin"         |-> primDepIMin'
-  , "primIdFace"          |-> primIdFace'
-  , "primIdPath"          |-> primIdPath'
-  , builtinIdElim         |-> primIdElim'
-  , builtinSubOut         |-> primSubOut'
-  , builtinConId          |-> primConId'
-  , builtin_glueU         |-> prim_glueU'
-  , builtin_unglueU       |-> prim_unglueU'
-  , builtinLockUniv       |-> primLockUniv'
-  , builtinLevelUniv      |-> primLevelUniv'
+  , PrimQNameToWord64sInjective   |-> primQNameToWord64sInjective
+  , PrimMetaEquality      |-> mkPrimFun2 ((==) :: Rel MetaId)
+  , PrimMetaLess          |-> mkPrimFun2 ((<) :: Rel MetaId)
+  , PrimShowMeta          |-> mkPrimFun1 (T.pack . prettyShow :: MetaId -> Text)
+  , PrimMetaToNat         |-> mkPrimFun1 metaToNat
+  , PrimMetaToNatInjective   |-> primMetaToNatInjective
+
+  , PrimIMin              |-> primIMin'
+  , PrimIMax              |-> primIMax'
+  , PrimINeg              |-> primINeg'
+  , PrimPOr               |-> primPOr
+  , PrimComp              |-> primComp
+  , PrimTrans             |-> primTrans'
+  , PrimHComp             |-> primHComp'
+  , PrimPartial           |-> primPartial'
+  , PrimPartialP          |-> primPartialP'
+  , PrimGlue              |-> primGlue'
+  , Prim_glue             |-> prim_glue'
+  , Prim_unglue           |-> prim_unglue'
+  , PrimFaceForall        |-> primFaceForall'
+  , PrimDepIMin           |-> primDepIMin'
+  , PrimIdFace            |-> primIdFace'
+  , PrimIdPath            |-> primIdPath'
+  , PrimIdElim            |-> primIdElim'
+  , PrimSubOut            |-> primSubOut'
+  , PrimConId             |-> primConId'
+  , Prim_glueU            |-> prim_glueU'
+  , Prim_unglueU          |-> prim_unglueU'
+  , PrimLockUniv          |-> primLockUniv'
   ]
   where
     (|->) = (,)

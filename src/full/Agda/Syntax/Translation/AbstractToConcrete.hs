@@ -99,7 +99,7 @@ data Env = Env { takenVarNames :: Set A.Name
                , takenDefNames :: Set C.NameParts
                   -- ^ Concrete names of all definitions in scope
                , currentScope :: ScopeInfo
-               , builtins     :: Map String A.QName
+               , builtins     :: Map BuiltinId A.QName
                   -- ^ Certain builtins (like `fromNat`) have special printing
                , preserveIIds :: Bool
                   -- ^ Preserve interaction point ids
@@ -185,7 +185,7 @@ addBinding y x e =
     }
 
 -- | Get a function to check if a name refers to a particular builtin function.
-isBuiltinFun :: AbsToCon (A.QName -> String -> Bool)
+isBuiltinFun :: AbsToCon (A.QName -> BuiltinId -> Bool)
 isBuiltinFun = asks $ is . builtins
   where is m q b = Just q == Map.lookup b m
 
@@ -1577,7 +1577,7 @@ tryToRecoverNatural e def = do
   is <- isBuiltinFun
   caseMaybe (recoverNatural is e) def $ return . C.Lit noRange . LitNat
 
-recoverNatural :: (A.QName -> String -> Bool) -> A.Expr -> Maybe Integer
+recoverNatural :: (A.QName -> BuiltinId -> Bool) -> A.Expr -> Maybe Integer
 recoverNatural is e = explore (`is` builtinZero) (`is` builtinSuc) 0 e
   where
     explore :: (A.QName -> Bool) -> (A.QName -> Bool) -> Integer -> A.Expr -> Maybe Integer

@@ -400,7 +400,7 @@ compareTerm' cmp a m n =
        mHComp <- getPrimitiveName' builtinHComp
        mSub   <- getBuiltinName' builtinSub
        mUnglueU <- getPrimitiveTerm' builtin_unglueU
-       mSubIn   <- getPrimitiveTerm' builtinSubIn
+       mSubIn   <- getBuiltin' builtinSubIn
        case ty of
          Def q es | Just q == mIsOne -> return ()
          Def q es | Just q == mGlue, Just args@(l:_:a:phi:_) <- allApplyElims es -> do
@@ -2008,7 +2008,7 @@ forallFaceMaps t kb k = do
   where
     -- TODO Andrea: inefficient because we try to reduce the ts which we know are in whnf
     ifBlockeds ts blocked unblocked = do
-      and <- getPrimitiveTerm "primIMin"
+      and <- getPrimitiveTerm PrimIMin
       io  <- primIOne
       let t = foldr (\ x r -> and `apply` [argN x,argN r]) io ts
       ifBlocked t blocked unblocked
@@ -2131,8 +2131,8 @@ compareTermOnFace' k cmp phi ty u v = do
  where
   postponed ms blocker psi = do
     phi <- runNamesT [] $ do
-             imin <- cl $ getPrimitiveTerm "primIMin"
-             ineg <- cl $ getPrimitiveTerm "primINeg"
+             imin <- cl $ getPrimitiveTerm PrimIMin
+             ineg <- cl $ getPrimitiveTerm PrimINeg
              psi <- open psi
              let phi = foldr (\ (i,b) r -> do i <- open (var i); pure imin <@> (if b then i else pure ineg <@> i) <@> r)
                           psi (IntMap.toList ms) -- TODO Andrea: make a view?

@@ -123,38 +123,36 @@ treelessPrimName p =
 importsForPrim :: BuiltinThings PrimFun -> [Definition] -> [HS.ModuleName]
 importsForPrim builtinThings defs = xForPrim table builtinThings defs ++ [HS.ModuleName "Data.Text"]
   where
-  table = Map.fromDistinctAscList $ map (second HS.ModuleName)
-    -- KEEP THIS LIST IN ALPHABETICAL ORDER!
-    -- Otherwise, Map.fromDistinctAscList will produce garbage.
-    [ "CHAR"                       |-> "Data.Char"
-    , "primFloatCeiling"           |-> "MAlonzo.RTE.Float"
-    , "primFloatDecode"            |-> "MAlonzo.RTE.Float"
-    , "primFloatEncode"            |-> "MAlonzo.RTE.Float"
-    , "primFloatEquality"          |-> "MAlonzo.RTE.Float"
-    , "primFloatFloor"             |-> "MAlonzo.RTE.Float"
-    , "primFloatInequality"        |-> "MAlonzo.RTE.Float"
-    , "primFloatIsSafeInteger"     |-> "MAlonzo.RTE.Float"
-    , "primFloatLess"              |-> "MAlonzo.RTE.Float"
-    , "primFloatRound"             |-> "MAlonzo.RTE.Float"
-    , "primFloatToRatio"           |-> "MAlonzo.RTE.Float"
-    , "primFloatToWord64"          |-> "MAlonzo.RTE.Float"
-    , "primIsAlpha"                |-> "Data.Char"
-    , "primIsAscii"                |-> "Data.Char"
-    , "primIsDigit"                |-> "Data.Char"
-    , "primIsHexDigit"             |-> "Data.Char"
-    , "primIsLatin1"               |-> "Data.Char"
-    , "primIsLower"                |-> "Data.Char"
-    , "primIsPrint"                |-> "Data.Char"
-    , "primIsSpace"                |-> "Data.Char"
-    , "primRatioToFloat"           |-> "MAlonzo.RTE.Float"
-    , "primToLower"                |-> "Data.Char"
-    , "primToUpper"                |-> "Data.Char"
+  table = Map.fromList $ map (second HS.ModuleName)
+    [ someBuiltin BuiltinChar                |-> "Data.Char"
+    , someBuiltin PrimFloatCeiling           |-> "MAlonzo.RTE.Float"
+    , someBuiltin PrimFloatDecode            |-> "MAlonzo.RTE.Float"
+    , someBuiltin PrimFloatEncode            |-> "MAlonzo.RTE.Float"
+    , someBuiltin PrimFloatEquality          |-> "MAlonzo.RTE.Float"
+    , someBuiltin PrimFloatFloor             |-> "MAlonzo.RTE.Float"
+    , someBuiltin PrimFloatInequality        |-> "MAlonzo.RTE.Float"
+    , someBuiltin PrimFloatIsSafeInteger     |-> "MAlonzo.RTE.Float"
+    , someBuiltin PrimFloatLess              |-> "MAlonzo.RTE.Float"
+    , someBuiltin PrimFloatRound             |-> "MAlonzo.RTE.Float"
+    , someBuiltin PrimFloatToRatio           |-> "MAlonzo.RTE.Float"
+    , someBuiltin PrimFloatToWord64          |-> "MAlonzo.RTE.Float"
+    , someBuiltin PrimIsAlpha                |-> "Data.Char"
+    , someBuiltin PrimIsAscii                |-> "Data.Char"
+    , someBuiltin PrimIsDigit                |-> "Data.Char"
+    , someBuiltin PrimIsHexDigit             |-> "Data.Char"
+    , someBuiltin PrimIsLatin1               |-> "Data.Char"
+    , someBuiltin PrimIsLower                |-> "Data.Char"
+    , someBuiltin PrimIsPrint                |-> "Data.Char"
+    , someBuiltin PrimIsSpace                |-> "Data.Char"
+    , someBuiltin PrimRatioToFloat           |-> "MAlonzo.RTE.Float"
+    , someBuiltin PrimToLower                |-> "Data.Char"
+    , someBuiltin PrimToUpper                |-> "Data.Char"
     ]
   (|->) = (,)
 
 --------------
 
-xForPrim :: Map String a -> BuiltinThings PrimFun -> [Definition] -> [a]
+xForPrim :: Map SomeBuiltin a -> BuiltinThings PrimFun -> [Definition] -> [a]
 xForPrim table builtinThings defs = catMaybes
     [ Map.lookup s table
     | (s, def) <- Map.toList builtinThings
@@ -169,158 +167,144 @@ xForPrim table builtinThings defs = catMaybes
 
 
 -- | Definition bodies for primitive functions
-primBody :: MonadTCError m => String -> m HS.Exp
-primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
-             List.lookup s $
+primBody :: MonadTCError m => PrimitiveId -> m HS.Exp
+primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $ List.lookup s $
   [
   -- Integer functions
-    "primIntegerPlus"    |-> binAsis "(+)" "Integer"
-  , "primIntegerMinus"   |-> binAsis "(-)" "Integer"
-  , "primIntegerTimes"   |-> binAsis "(*)" "Integer"
-  , "primIntegerDiv"     |-> binAsis "div" "Integer"
-  , "primIntegerMod"     |-> binAsis "mod" "Integer"
-  , "primIntegerEquality"|-> rel "(==)" "Integer"
-  , "primIntegerLess"    |-> rel "(<)"  "Integer"
-  , "primIntegerAbs"     |-> return "(abs :: Integer -> Integer)"
-  , "primNatToInteger"   |-> return "(id :: Integer -> Integer)"
-  , "primShowInteger"    |-> return "(Data.Text.pack . show :: Integer -> Data.Text.Text)"
+    PrimShowInteger      |-> return "(Data.Text.pack . show :: Integer -> Data.Text.Text)"
 
   -- Levels
-  , "primLevelZero"   |-> return "()"
-  , "primLevelSuc"    |-> return "(\\ _ -> ())"
-  , "primLevelMax"    |-> return "(\\ _ _ -> ())"
-
-  -- Sorts
-  , "primSetOmega"    |-> return "()"
-  , "primStrictSet"   |-> return "\\ _ -> ()"
+  , PrimLevelZero        |-> return "()"
+  , PrimLevelSuc         |-> return "(\\ _ -> ())"
+  , PrimLevelMax         |-> return "(\\ _ _ -> ())"
 
   -- Natural number functions
-  , "primNatPlus"      |-> binNat "(+)"
-  , "primNatMinus"     |-> binNat "(\\ x y -> max 0 (x - y))"
-  , "primNatTimes"     |-> binNat "(*)"
-  , "primNatDivSucAux" |-> binNat4 "(\\ k m n j -> k + div (max 0 $ n + m - j) (m + 1))"
-  , "primNatModSucAux" |-> binNat4 "(\\ k m n j -> if n > j then mod (n - j - 1) (m + 1) else (k + n))"
-  , "primNatEquality"  |-> relNat "(==)"
-  , "primNatLess"      |-> relNat "(<)"
-  , "primShowNat"      |-> return "(Data.Text.pack . show :: Integer -> Data.Text.Text)"
+  , PrimNatPlus         |-> binNat "(+)"
+  , PrimNatMinus        |-> binNat "(\\ x y -> max 0 (x - y))"
+  , PrimNatTimes        |-> binNat "(*)"
+  , PrimNatDivSucAux    |-> binNat4 "(\\ k m n j -> k + div (max 0 $ n + m - j) (m + 1))"
+  , PrimNatModSucAux    |-> binNat4 "(\\ k m n j -> if n > j then mod (n - j - 1) (m + 1) else (k + n))"
+  , PrimNatEquality     |-> relNat "(==)"
+  , PrimNatLess         |-> relNat "(<)"
+  , PrimShowNat         |-> return "(Data.Text.pack . show :: Integer -> Data.Text.Text)"
 
   -- Machine word functions
-  , "primWord64ToNat"   |-> return "MAlonzo.RTE.word64ToNat"
-  , "primWord64FromNat" |-> return "MAlonzo.RTE.word64FromNat"
-  , "primWord64ToNatInjective" |-> return mazErasedName
+  , PrimWord64ToNat     |-> return "MAlonzo.RTE.word64ToNat"
+  , PrimWord64FromNat   |-> return "MAlonzo.RTE.word64FromNat"
+  , PrimWord64ToNatInjective   |-> return mazErasedName
 
   -- Floating point functions
-  , "primFloatEquality"          |-> return "MAlonzo.RTE.Float.doubleEq"
-  , "primFloatInequality"        |-> return "MAlonzo.RTE.Float.doubleLe"
-  , "primFloatLess"              |-> return "MAlonzo.RTE.Float.doubleLt"
-  , "primFloatIsInfinite"        |-> return "(isInfinite :: Double -> Bool)"
-  , "primFloatIsNaN"             |-> return "(isNaN :: Double -> Bool)"
-  , "primFloatIsNegativeZero"    |-> return "(isNegativeZero :: Double -> Bool)"
-  , "primFloatIsSafeInteger"     |-> return "MAlonzo.RTE.Float.isSafeInteger"
-  , "primFloatToWord64"          |-> return "MAlonzo.RTE.Float.doubleToWord64"
-  , "primFloatToWord64Injective" |-> return mazErasedName
-  , "primNatToFloat"             |-> return "(MAlonzo.RTE.Float.intToDouble :: Integer -> Double)"
-  , "primIntToFloat"             |-> return "(MAlonzo.RTE.Float.intToDouble :: Integer -> Double)"
-  , "primFloatRound"             |-> return "MAlonzo.RTE.Float.doubleRound"
-  , "primFloatFloor"             |-> return "MAlonzo.RTE.Float.doubleFloor"
-  , "primFloatCeiling"           |-> return "MAlonzo.RTE.Float.doubleCeiling"
-  , "primFloatToRatio"           |-> return "MAlonzo.RTE.Float.doubleToRatio"
-  , "primRatioToFloat"           |-> return "MAlonzo.RTE.Float.ratioToDouble"
-  , "primFloatDecode"            |-> return "MAlonzo.RTE.Float.doubleDecode"
-  , "primFloatEncode"            |-> return "MAlonzo.RTE.Float.doubleEncode"
-  , "primShowFloat"              |-> return "(Data.Text.pack . show :: Double -> Data.Text.Text)"
-  , "primFloatPlus"              |-> return "MAlonzo.RTE.Float.doublePlus"
-  , "primFloatMinus"             |-> return "MAlonzo.RTE.Float.doubleMinus"
-  , "primFloatTimes"             |-> return "MAlonzo.RTE.Float.doubleTimes"
-  , "primFloatNegate"            |-> return "MAlonzo.RTE.Float.doubleNegate"
-  , "primFloatDiv"               |-> return "MAlonzo.RTE.Float.doubleDiv"
-  , "primFloatPow"               |-> return "MAlonzo.RTE.Float.doublePow"
-  , "primFloatSqrt"              |-> return "MAlonzo.RTE.Float.doubleSqrt"
-  , "primFloatExp"               |-> return "MAlonzo.RTE.Float.doubleExp"
-  , "primFloatLog"               |-> return "MAlonzo.RTE.Float.doubleLog"
-  , "primFloatSin"               |-> return "MAlonzo.RTE.Float.doubleSin"
-  , "primFloatCos"               |-> return "MAlonzo.RTE.Float.doubleCos"
-  , "primFloatTan"               |-> return "MAlonzo.RTE.Float.doubleTan"
-  , "primFloatASin"              |-> return "MAlonzo.RTE.Float.doubleASin"
-  , "primFloatACos"              |-> return "MAlonzo.RTE.Float.doubleACos"
-  , "primFloatATan"              |-> return "MAlonzo.RTE.Float.doubleATan"
-  , "primFloatATan2"             |-> return "MAlonzo.RTE.Float.doubleATan2"
-  , "primFloatSinh"              |-> return "MAlonzo.RTE.Float.doubleSinh"
-  , "primFloatCosh"              |-> return "MAlonzo.RTE.Float.doubleCosh"
-  , "primFloatTanh"              |-> return "MAlonzo.RTE.Float.doubleTanh"
-  , "primFloatASinh"             |-> return "MAlonzo.RTE.Float.doubleASinh"
-  , "primFloatACosh"             |-> return "MAlonzo.RTE.Float.doubleACosh"
-  , "primFloatATanh"             |-> return "MAlonzo.RTE.Float.doubleATanh"
+  , PrimFloatEquality            |-> return "MAlonzo.RTE.Float.doubleEq"
+  , PrimFloatInequality          |-> return "MAlonzo.RTE.Float.doubleLe"
+  , PrimFloatLess                |-> return "MAlonzo.RTE.Float.doubleLt"
+  , PrimFloatIsInfinite          |-> return "(isInfinite :: Double -> Bool)"
+  , PrimFloatIsNaN               |-> return "(isNaN :: Double -> Bool)"
+  , PrimFloatIsNegativeZero      |-> return "(isNegativeZero :: Double -> Bool)"
+  , PrimFloatIsSafeInteger       |-> return "MAlonzo.RTE.Float.isSafeInteger"
+  , PrimFloatToWord64            |-> return "MAlonzo.RTE.Float.doubleToWord64"
+  , PrimFloatToWord64Injective   |-> return mazErasedName
+  , PrimNatToFloat               |-> return "(MAlonzo.RTE.Float.intToDouble :: Integer -> Double)"
+  , PrimIntToFloat               |-> return "(MAlonzo.RTE.Float.intToDouble :: Integer -> Double)"
+  , PrimFloatRound               |-> return "MAlonzo.RTE.Float.doubleRound"
+  , PrimFloatFloor               |-> return "MAlonzo.RTE.Float.doubleFloor"
+  , PrimFloatCeiling             |-> return "MAlonzo.RTE.Float.doubleCeiling"
+  , PrimFloatToRatio             |-> return "MAlonzo.RTE.Float.doubleToRatio"
+  , PrimRatioToFloat             |-> return "MAlonzo.RTE.Float.ratioToDouble"
+  , PrimFloatDecode              |-> return "MAlonzo.RTE.Float.doubleDecode"
+  , PrimFloatEncode              |-> return "MAlonzo.RTE.Float.doubleEncode"
+  , PrimShowFloat                |-> return "(Data.Text.pack . show :: Double -> Data.Text.Text)"
+  , PrimFloatPlus                |-> return "MAlonzo.RTE.Float.doublePlus"
+  , PrimFloatMinus               |-> return "MAlonzo.RTE.Float.doubleMinus"
+  , PrimFloatTimes               |-> return "MAlonzo.RTE.Float.doubleTimes"
+  , PrimFloatNegate              |-> return "MAlonzo.RTE.Float.doubleNegate"
+  , PrimFloatDiv                 |-> return "MAlonzo.RTE.Float.doubleDiv"
+  , PrimFloatPow                 |-> return "MAlonzo.RTE.Float.doublePow"
+  , PrimFloatSqrt                |-> return "MAlonzo.RTE.Float.doubleSqrt"
+  , PrimFloatExp                 |-> return "MAlonzo.RTE.Float.doubleExp"
+  , PrimFloatLog                 |-> return "MAlonzo.RTE.Float.doubleLog"
+  , PrimFloatSin                 |-> return "MAlonzo.RTE.Float.doubleSin"
+  , PrimFloatCos                 |-> return "MAlonzo.RTE.Float.doubleCos"
+  , PrimFloatTan                 |-> return "MAlonzo.RTE.Float.doubleTan"
+  , PrimFloatASin                |-> return "MAlonzo.RTE.Float.doubleASin"
+  , PrimFloatACos                |-> return "MAlonzo.RTE.Float.doubleACos"
+  , PrimFloatATan                |-> return "MAlonzo.RTE.Float.doubleATan"
+  , PrimFloatATan2               |-> return "MAlonzo.RTE.Float.doubleATan2"
+  , PrimFloatSinh                |-> return "MAlonzo.RTE.Float.doubleSinh"
+  , PrimFloatCosh                |-> return "MAlonzo.RTE.Float.doubleCosh"
+  , PrimFloatTanh                |-> return "MAlonzo.RTE.Float.doubleTanh"
+  , PrimFloatASinh               |-> return "MAlonzo.RTE.Float.doubleASinh"
+  , PrimFloatACosh               |-> return "MAlonzo.RTE.Float.doubleACosh"
+  , PrimFloatATanh               |-> return "MAlonzo.RTE.Float.doubleATanh"
 
   -- Character functions
-  , "primCharEquality"   |-> rel "(==)" "Char"
-  , "primIsLower"        |-> return "Data.Char.isLower"
-  , "primIsDigit"        |-> return "Data.Char.isDigit"
-  , "primIsAlpha"        |-> return "Data.Char.isAlpha"
-  , "primIsSpace"        |-> return "Data.Char.isSpace"
-  , "primIsAscii"        |-> return "Data.Char.isAscii"
-  , "primIsLatin1"       |-> return "Data.Char.isLatin1"
-  , "primIsPrint"        |-> return "Data.Char.isPrint"
-  , "primIsHexDigit"     |-> return "Data.Char.isHexDigit"
-  , "primToUpper"        |-> return "Data.Char.toUpper"
-  , "primToLower"        |-> return "Data.Char.toLower"
-  , "primCharToNat" |-> return "(fromIntegral . fromEnum :: Char -> Integer)"
-  , "primNatToChar" |-> return "MAlonzo.RTE.natToChar"
-  , "primShowChar"  |-> return "(Data.Text.pack . show :: Char -> Data.Text.Text)"
-  , "primCharToNatInjective" |-> return mazErasedName
+  , PrimCharEquality     |-> rel "(==)" "Char"
+  , PrimIsLower          |-> return "Data.Char.isLower"
+  , PrimIsDigit          |-> return "Data.Char.isDigit"
+  , PrimIsAlpha          |-> return "Data.Char.isAlpha"
+  , PrimIsSpace          |-> return "Data.Char.isSpace"
+  , PrimIsAscii          |-> return "Data.Char.isAscii"
+  , PrimIsLatin1         |-> return "Data.Char.isLatin1"
+  , PrimIsPrint          |-> return "Data.Char.isPrint"
+  , PrimIsHexDigit       |-> return "Data.Char.isHexDigit"
+  , PrimToUpper          |-> return "Data.Char.toUpper"
+  , PrimToLower          |-> return "Data.Char.toLower"
+  , PrimCharToNat   |-> return "(fromIntegral . fromEnum :: Char -> Integer)"
+  , PrimNatToChar   |-> return "MAlonzo.RTE.natToChar"
+  , PrimShowChar    |-> return "(Data.Text.pack . show :: Char -> Data.Text.Text)"
+  , PrimCharToNatInjective   |-> return mazErasedName
 
   -- String functions
-  , "primStringUncons"   |-> return "Data.Text.uncons"
-  , "primStringToList"   |-> return "Data.Text.unpack"
-  , "primStringFromList" |-> return "Data.Text.pack"
-  , "primStringAppend"   |-> binAsis "Data.Text.append" "Data.Text.Text"
-  , "primStringEquality" |-> rel "(==)" "Data.Text.Text"
-  , "primShowString"     |-> return "(Data.Text.pack . show :: Data.Text.Text -> Data.Text.Text)"
-  , "primStringToListInjective" |-> return mazErasedName
-  , "primStringFromListInjective" |-> return mazErasedName
+  , PrimStringUncons     |-> return "Data.Text.uncons"
+  , PrimStringToList     |-> return "Data.Text.unpack"
+  , PrimStringFromList   |-> return "Data.Text.pack"
+  , PrimStringAppend     |-> binAsis "Data.Text.append" "Data.Text.Text"
+  , PrimStringEquality   |-> rel "(==)" "Data.Text.Text"
+  , PrimShowString       |-> return "(Data.Text.pack . show :: Data.Text.Text -> Data.Text.Text)"
+  , PrimStringToListInjective   |-> return mazErasedName
+  , PrimStringFromListInjective   |-> return mazErasedName
 
   -- Reflection
-  , "primQNameEquality"   |-> rel "(==)" "MAlonzo.RTE.QName"
-  , "primQNameLess"       |-> rel "(<)" "MAlonzo.RTE.QName"
-  , "primShowQName"       |-> return "Data.Text.pack . MAlonzo.RTE.qnameString"
-  , "primQNameFixity"     |-> return "MAlonzo.RTE.qnameFixity"
-  , "primQNameToWord64s"  |-> return "\\ qn -> (MAlonzo.RTE.nameId qn, MAlonzo.RTE.moduleId qn)"
-  , "primQNameToWord64sInjective" |-> return mazErasedName
-  , "primMetaEquality"    |-> rel "(==)" "(Integer, Integer)"
-  , "primMetaLess"        |-> rel "(<)" "(Integer, Integer)"
+  , PrimQNameEquality     |-> rel "(==)" "MAlonzo.RTE.QName"
+  , PrimQNameLess         |-> rel "(<)" "MAlonzo.RTE.QName"
+  , PrimShowQName         |-> return "Data.Text.pack . MAlonzo.RTE.qnameString"
+  , PrimQNameFixity       |-> return "MAlonzo.RTE.qnameFixity"
+  , PrimQNameToWord64s    |-> return "\\ qn -> (MAlonzo.RTE.nameId qn, MAlonzo.RTE.moduleId qn)"
+  , PrimQNameToWord64sInjective   |-> return mazErasedName
+  , PrimMetaEquality      |-> rel "(==)" "(Integer, Integer)"
+  , PrimMetaLess          |-> rel "(<)" "(Integer, Integer)"
   -- Should be kept in sync with version in `primitiveFunctions` in
   -- Agda.TypeChecking.Primitive
-  , "primShowMeta"        |-> return "\\ (m, h) -> Data.Text.pack (\"_\" ++ show (m :: Integer) ++ \"@\" ++ show (h :: Integer))"
+  , PrimShowMeta          |-> return "\\ (m, h) -> Data.Text.pack (\"_\" ++ show (m :: Integer) ++ \"@\" ++ show (h :: Integer))"
   -- Should be kept in sync with `metaToNat` in Agda.TypeChecking.Primitive
-  , "primMetaToNat"       |-> return "\\ (m, h) -> (h :: Integer) * 2^64 + (m :: Integer)"
-  , "primMetaToNatInjective" |-> return mazErasedName
+  , PrimMetaToNat         |-> return "\\ (m, h) -> (h :: Integer) * 2^64 + (m :: Integer)"
+  , PrimMetaToNatInjective   |-> return mazErasedName
 
   -- Seq
-  , "primForce"      |-> return "\\ _ _ _ _ x f -> f $! x"
-  , "primForceLemma" |-> return mazErasedName
+  , PrimForce        |-> return "\\ _ _ _ _ x f -> f $! x"
+  , PrimForceLemma   |-> return mazErasedName
 
   -- Erase
-  , "primEraseEquality" |-> return mazErasedName
+  , PrimEraseEquality |-> return mazErasedName
 
   -- Cubical
-  , builtinIMin       |-> return "(&&)"
-  , builtinIMax       |-> return "(||)"
-  , builtinINeg       |-> return "not"
-  , "primPartial"     |-> return "\\_ _ x -> x"
-  , "primPartialP"    |-> return "\\_ _ x -> x"
-  , builtinPOr        |-> return "\\_ i _ _ x y -> if i then x else y"
-  , builtinComp       |-> return "\\_ _ _ _ x -> x"
-  , builtinTrans      |-> return "\\_ _ _ x -> x"
-  , builtinHComp      |-> return "\\_ _ _ _ x -> x"
-  , builtinSubOut     |-> return "\\_ _ _ _ x -> x"
-  , builtin_glueU     |-> return "\\_ _ _ _ _ x -> x"
-  , builtin_unglueU   |-> return "\\_ _ _ _ x -> x"
-  , builtinFaceForall |-> return
+  , PrimIMin          |-> return "(&&)"
+  , PrimIMax          |-> return "(||)"
+  , PrimINeg          |-> return "not"
+  , PrimPartial       |-> return "\\_ _ x -> x"
+  , PrimPartialP      |-> return "\\_ _ x -> x"
+  , PrimPOr           |-> return "\\_ i _ _ x y -> if i then x else y"
+  , PrimComp          |-> return "\\_ _ _ _ x -> x"
+  , PrimTrans         |-> return "\\_ _ _ x -> x"
+  , PrimHComp         |-> return "\\_ _ _ _ x -> x"
+  , PrimSubOut        |-> return "\\_ _ _ _ x -> x"
+  , Prim_glueU        |-> return "\\_ _ _ _ _ x -> x"
+  , Prim_unglueU      |-> return "\\_ _ _ _ x -> x"
+  , PrimFaceForall    |-> return
                             "\\f -> f True == True && f False == True"
-  , "primDepIMin"     |-> return "\\i f -> if i then f () else False"
-  , "primIdFace"      |-> return "\\_ _ _ _ -> fst"
-  , "primIdPath"      |-> return "\\_ _ _ _ -> snd"
-  , builtinIdElim     |-> return
+  , PrimDepIMin       |-> return "\\i f -> if i then f () else False"
+  , PrimIdFace        |-> return "\\_ _ _ _ -> fst"
+  , PrimIdPath        |-> return "\\_ _ _ _ -> snd"
+  , PrimIdElim        |-> return
                             "\\_ _ _ _ _ f x y -> f (fst y) x (snd y)"
   ]
   where
@@ -336,15 +320,10 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
       "(<<0>> :: Integer -> Integer -> Bool)"
   rel op ty  = rel' "" op ty
   opty t = t ++ "->" ++ t ++ "->" ++ t
-  unimplemented = typeError $ NotImplemented s
+  unimplemented = typeError $ NotImplemented (getBuiltinId s)
 
   hLam x t = Lam (setHiding Hidden defaultArgInfo) (Abs x t)
   nLam x t = Lam (setHiding NotHidden defaultArgInfo) (Abs x t)
 
 noCheckCover :: (HasBuiltins m, MonadReduce m) => QName -> m Bool
 noCheckCover q = (||) <$> isBuiltin q builtinNat <*> isBuiltin q builtinInteger
-
-----------------------
-
-bltQual' :: String -> String -> HsCompileM String
-bltQual' b s = prettyPrint <$> bltQual b s
