@@ -248,6 +248,9 @@ built-in functions are the following::
   suc n * m = (n * m) + m
   {-# BUILTIN NATTIMES _*_ #-}
 
+  infixl 30 _*_
+  infixl 20 _+_
+
   _==_ : Nat → Nat → Bool
   zero  == zero  = true
   suc n == suc m = n == m

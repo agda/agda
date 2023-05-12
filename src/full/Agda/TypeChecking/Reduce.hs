@@ -59,6 +59,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Patterns.Match
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import {-# SOURCE #-} Agda.TypeChecking.Rewriting
 import {-# SOURCE #-} Agda.TypeChecking.Reduce.Fast
+import {-# SOURCE #-} Agda.TypeChecking.Opacity
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens
@@ -795,7 +796,7 @@ reduceHead v = do -- ignoreAbstractMode $ do
     Def f es -> do
 
       abstractMode <- envAbstractMode <$> askTC
-      isAbstract <- treatAbstractly f
+      isAbstract <- not <$> hasAccessibleDef f
       traceSLn "tc.inj.reduce" 50 (
         "reduceHead: we are in " ++ show abstractMode++ "; " ++ prettyShow f ++
         " is treated " ++ if isAbstract then "abstractly" else "concretely"
@@ -1680,7 +1681,7 @@ instantiateFullExceptForDefinitions' :: Interface -> ReduceM Interface
 instantiateFullExceptForDefinitions'
   (Interface h s ft ms mod tlmod scope inside sig metas display userwarn
      importwarn b foreignCode highlighting libPragmas filePragmas
-     usedOpts patsyns warnings partialdefs) =
+     usedOpts patsyns warnings partialdefs oblocks onames) =
   Interface h s ft ms mod tlmod scope inside
     <$> ((\s r -> Sig { _sigSections     = s
                       , _sigDefinitions  = sig ^. sigDefinitions
@@ -1701,6 +1702,8 @@ instantiateFullExceptForDefinitions'
     <*> return patsyns
     <*> return warnings
     <*> return partialdefs
+    <*> return oblocks
+    <*> return onames
 
 -- | Instantiates everything except for definitions in the signature.
 

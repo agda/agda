@@ -827,6 +827,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                , funWith         = Nothing
                , funCovering     = []
                , funIsKanOp      = Nothing
+               , funOpaque       = TransparentDef
                }
   addConstant' (conName genRecCon) defaultArgInfo (conName genRecCon) __DUMMY_TYPE__ $ -- Filled in later
     Constructor { conPars   = 0

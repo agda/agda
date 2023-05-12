@@ -84,6 +84,7 @@ data NiceDeclaration
   | NiceUnquoteDecl Range Access IsAbstract IsInstance TerminationCheck CoverageCheck [Name] Expr
   | NiceUnquoteDef Range Access IsAbstract TerminationCheck CoverageCheck [Name] Expr
   | NiceUnquoteData Range Access IsAbstract PositivityCheck UniverseCheck Name [Name] Expr
+  | NiceOpaque Range [QName] [NiceDeclaration]
   deriving (Show, Generic)
 
 instance NFData NiceDeclaration
@@ -223,6 +224,7 @@ instance HasRange NiceDeclaration where
   getRange (NiceUnquoteDecl r _ _ _ _ _ _ _) = r
   getRange (NiceUnquoteDef r _ _ _ _ _ _)  = r
   getRange (NiceUnquoteData r _ _ _ _ _ _ _) = r
+  getRange (NiceOpaque r _ _)                = r
 
 instance Pretty NiceDeclaration where
   pretty = \case
@@ -230,6 +232,7 @@ instance Pretty NiceDeclaration where
     NiceField _ _ _ _ _ x _        -> text "field" <+> pretty x
     PrimitiveFunction _ _ _ x _    -> text "primitive" <+> pretty x
     NiceMutual{}                   -> text "mutual"
+    NiceOpaque{}                   -> text "opaque"
     NiceModule _ _ _ _ x _ _       -> text "module" <+> pretty x <+> text "where"
     NiceModuleMacro _ _ _ x _ _ _  -> text "module" <+> pretty x <+> text "= ..."
     NiceOpen _ x _                 -> text "open" <+> pretty x
@@ -272,6 +275,7 @@ declName FunDef{}            = "Function definitions"
 declName NiceRecDef{}        = "Records"
 declName NiceDataDef{}       = "Data types"
 declName NiceLoneConstructor{} = "Constructors"
+declName NiceOpaque{}          = "Opaque blocks"
 
 
 data InMutual

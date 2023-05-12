@@ -219,6 +219,7 @@ instance Hilite A.Declaration where
       A.UnquoteData _i xs _uc _j cs e        -> hl xs <> hl cs <> hl e
       A.ScopedDecl s ds                      -> hl ds
       A.Pragma _r pragma                     -> hl pragma
+      A.UnfoldingDecl _r names               -> hl names
     where
     hl      a = hilite a
     hlField x = hiliteField (concreteQualifier x) (concreteBase x) (Just $ bindingSite x)

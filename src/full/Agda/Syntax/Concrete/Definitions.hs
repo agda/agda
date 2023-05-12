@@ -171,6 +171,7 @@ declKind NicePatternSyn{}                    = OtherDecl
 declKind NiceGeneralize{}                    = OtherDecl
 declKind NiceUnquoteDecl{}                   = OtherDecl
 declKind NiceLoneConstructor{}               = OtherDecl
+declKind NiceOpaque{}                        = OtherDecl
 
 -- | Replace (Data/Rec/Fun)Sigs with Axioms for postulated names
 --   The first argument is a list of axioms only.
@@ -516,6 +517,27 @@ niceDeclarations fixs ds = do
           return ([NiceUnquoteData r PublicAccess ConcreteDef pc uc xs cs e], ds)
 
         Pragma p -> nicePragma p ds
+
+        Opaque r ds' -> do
+          -- The lone signatures encountered so far are not in scope for
+          -- the opaque block. Opaque blocks can't participate in mutual
+          -- recursion.
+          forgetLoneSigs
+
+          -- Split the enclosed declarations into an initial run of
+          -- 'unfolding' statements and the rest of the body.
+          let
+            (unfoldings, body) = flip spanMaybe ds' $ \case
+              Unfolding _ ns -> pure ns
+              _ -> Nothing
+
+          -- The body of an 'opaque' definition can have mutual
+          -- recursion by interleaving type signatures and definitions,
+          -- just like the body of a module.
+          body <- inferMutualBlocks =<< nice body
+          pure ([NiceOpaque r (concat unfoldings) body], ds)
+
+        Unfolding r _ -> declarationException $ UnfoldingOutsideOpaque r
 
     nicePragma :: Pragma -> [Declaration] -> Nice ([NiceDeclaration], [Declaration])
 
@@ -1060,6 +1082,12 @@ niceDeclarations fixs ds = do
             NiceUnquoteDecl{}   -> top
             NiceUnquoteDef{}    -> bottom
             NiceUnquoteData{}   -> top
+
+            -- Opaque blocks can not participate in old-style mutual
+            -- recursion. If some of the definitions are opaque then
+            -- they all need to be.
+            NiceOpaque{}        ->
+              In3 d <$ do declarationException $ OpaqueInMutual (getRange d)
             NicePragma r pragma -> case pragma of
 
               OptionsPragma{}           -> top     -- error thrown in the type checker
@@ -1095,6 +1123,7 @@ niceDeclarations fixs ds = do
               PolarityPragma{}          -> __IMPOSSIBLE__
               NoUniverseCheckPragma{}   -> __IMPOSSIBLE__
               NoCoverageCheckPragma{}   -> __IMPOSSIBLE__
+
 
         -- -- Pull type signatures to the top
         -- let (sigs, other) = List.partition isTypeSig ds
@@ -1148,23 +1177,24 @@ niceDeclarations fixs ds = do
         termCheck (NiceMutual _ tc _ _ _)            = tc
         termCheck (NiceUnquoteDecl _ _ _ _ tc _ _ _) = tc
         termCheck (NiceUnquoteDef _ _ _ tc _ _ _)    = tc
-        termCheck Axiom{}             = TerminationCheck
-        termCheck NiceField{}         = TerminationCheck
-        termCheck PrimitiveFunction{} = TerminationCheck
-        termCheck NiceModule{}        = TerminationCheck
-        termCheck NiceModuleMacro{}   = TerminationCheck
-        termCheck NiceOpen{}          = TerminationCheck
-        termCheck NiceImport{}        = TerminationCheck
-        termCheck NicePragma{}        = TerminationCheck
-        termCheck NiceRecSig{}        = TerminationCheck
-        termCheck NiceDataSig{}       = TerminationCheck
-        termCheck NiceFunClause{}     = TerminationCheck
-        termCheck NiceDataDef{}       = TerminationCheck
-        termCheck NiceRecDef{}        = TerminationCheck
-        termCheck NicePatternSyn{}    = TerminationCheck
-        termCheck NiceGeneralize{}    = TerminationCheck
+        termCheck Axiom{}               = TerminationCheck
+        termCheck NiceField{}           = TerminationCheck
+        termCheck PrimitiveFunction{}   = TerminationCheck
+        termCheck NiceModule{}          = TerminationCheck
+        termCheck NiceModuleMacro{}     = TerminationCheck
+        termCheck NiceOpen{}            = TerminationCheck
+        termCheck NiceImport{}          = TerminationCheck
+        termCheck NicePragma{}          = TerminationCheck
+        termCheck NiceRecSig{}          = TerminationCheck
+        termCheck NiceDataSig{}         = TerminationCheck
+        termCheck NiceFunClause{}       = TerminationCheck
+        termCheck NiceDataDef{}         = TerminationCheck
+        termCheck NiceRecDef{}          = TerminationCheck
+        termCheck NicePatternSyn{}      = TerminationCheck
+        termCheck NiceGeneralize{}      = TerminationCheck
         termCheck NiceLoneConstructor{} = TerminationCheck
-        termCheck NiceUnquoteData{}   = TerminationCheck
+        termCheck NiceUnquoteData{}     = TerminationCheck
+        termCheck NiceOpaque{}          = TerminationCheck
 
         covCheck :: NiceDeclaration -> CoverageCheck
         covCheck (FunSig _ _ _ _ _ _ _ cc _ _)      = cc
@@ -1173,23 +1203,24 @@ niceDeclarations fixs ds = do
         covCheck (NiceMutual _ _ cc _ _)            = cc
         covCheck (NiceUnquoteDecl _ _ _ _ _ cc _ _) = cc
         covCheck (NiceUnquoteDef _ _ _ _ cc _ _)    = cc
-        covCheck Axiom{}             = YesCoverageCheck
-        covCheck NiceField{}         = YesCoverageCheck
-        covCheck PrimitiveFunction{} = YesCoverageCheck
-        covCheck NiceModule{}        = YesCoverageCheck
-        covCheck NiceModuleMacro{}   = YesCoverageCheck
-        covCheck NiceOpen{}          = YesCoverageCheck
-        covCheck NiceImport{}        = YesCoverageCheck
-        covCheck NicePragma{}        = YesCoverageCheck
-        covCheck NiceRecSig{}        = YesCoverageCheck
-        covCheck NiceDataSig{}       = YesCoverageCheck
-        covCheck NiceFunClause{}     = YesCoverageCheck
-        covCheck NiceDataDef{}       = YesCoverageCheck
-        covCheck NiceRecDef{}        = YesCoverageCheck
-        covCheck NicePatternSyn{}    = YesCoverageCheck
-        covCheck NiceGeneralize{}    = YesCoverageCheck
+        covCheck Axiom{}               = YesCoverageCheck
+        covCheck NiceField{}           = YesCoverageCheck
+        covCheck PrimitiveFunction{}   = YesCoverageCheck
+        covCheck NiceModule{}          = YesCoverageCheck
+        covCheck NiceModuleMacro{}     = YesCoverageCheck
+        covCheck NiceOpen{}            = YesCoverageCheck
+        covCheck NiceImport{}          = YesCoverageCheck
+        covCheck NicePragma{}          = YesCoverageCheck
+        covCheck NiceRecSig{}          = YesCoverageCheck
+        covCheck NiceDataSig{}         = YesCoverageCheck
+        covCheck NiceFunClause{}       = YesCoverageCheck
+        covCheck NiceDataDef{}         = YesCoverageCheck
+        covCheck NiceRecDef{}          = YesCoverageCheck
+        covCheck NicePatternSyn{}      = YesCoverageCheck
+        covCheck NiceGeneralize{}      = YesCoverageCheck
         covCheck NiceLoneConstructor{} = YesCoverageCheck
-        covCheck NiceUnquoteData{}   = YesCoverageCheck
+        covCheck NiceUnquoteData{}     = YesCoverageCheck
+        covCheck NiceOpaque{}          = YesCoverageCheck
 
         -- ASR (26 December 2015): Do not positivity check a mutual
         -- block if any of its inner declarations comes with a
@@ -1244,6 +1275,7 @@ niceDeclarations fixs ds = do
         NiceLoneConstructor r ds       -> NiceLoneConstructor r <$> mapM (mkInstance r0) ds
         d@NiceFunClause{}              -> return d
         FunDef r ds a i tc cc x cs     -> (\ i -> FunDef r ds a i tc cc x cs) <$> setInstance r0 i
+        NiceOpaque r ns i              -> (\ i -> NiceOpaque r ns i) <$> traverse (mkInstance r0) i
         d@NiceField{}                  -> return d  -- Field instance are handled by the parser
         d@PrimitiveFunction{}          -> return d
         d@NiceUnquoteDef{}             -> return d
@@ -1332,6 +1364,7 @@ instance MakeAbstract NiceDeclaration where
       d@NiceImport{}                 -> return d
       d@NicePatternSyn{}             -> return d
       d@NiceGeneralize{}             -> return d
+      NiceOpaque r ns ds             -> NiceOpaque r ns <$> mkAbstract ds
 
 instance MakeAbstract Clause where
   mkAbstract (Clause x catchall lhs rhs wh with) = do
@@ -1388,6 +1421,7 @@ instance MakePrivate NiceDeclaration where
       NiceUnquoteDef r p a tc cc x e           -> (\ p -> NiceUnquoteDef r p a tc cc x e)       <$> mkPrivate o p
       NicePatternSyn r p x xs p'               -> (\ p -> NicePatternSyn r p x xs p')           <$> mkPrivate o p
       NiceGeneralize r p i tac x t             -> (\ p -> NiceGeneralize r p i tac x t)         <$> mkPrivate o p
+      NiceOpaque r ns ds                       -> (\ p -> NiceOpaque r ns p)                    <$> mkPrivate o ds
       d@NicePragma{}                           -> return d
       d@(NiceOpen _ _ directives)              -> do
         whenJust (publicOpen directives) $ lift . declarationWarning . OpenPublicPrivate
@@ -1447,6 +1481,7 @@ notSoNiceDeclarations = \case
     NiceUnquoteDecl r _ _ i _ _ x e -> inst i [UnquoteDecl r x e]
     NiceUnquoteDef r _ _ _ _ x e    -> [UnquoteDef r x e]
     NiceUnquoteData r _ _ _ _ x xs e  -> [UnquoteData r x xs e]
+    NiceOpaque r ns ds                -> [Opaque r (Unfolding r ns:concatMap notSoNiceDeclarations ds)]
   where
     inst (InstanceDef r) ds = [InstanceB r ds]
     inst NotInstanceDef  ds = ds
@@ -1476,3 +1511,4 @@ niceHasAbstract = \case
     NiceUnquoteDecl _ _ a _ _ _ _ _ -> Just a
     NiceUnquoteDef _ _ a _ _ _ _    -> Just a
     NiceUnquoteData _ _ a _ _ _ _ _ -> Just a
+    NiceOpaque{}                    -> Nothing

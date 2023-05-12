@@ -56,6 +56,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
 import {-# SOURCE #-} Agda.TypeChecking.Reduce
+import {-# SOURCE #-} Agda.TypeChecking.Opacity
 
 import {-# SOURCE #-} Agda.Compiler.Treeless.Erase
 import {-# SOURCE #-} Agda.Compiler.Builtin
@@ -938,8 +939,11 @@ defaultGetConstInfo st env q = do
         ds  -> __IMPOSSIBLE_VERBOSE__ $ "Ambiguous name: " ++ prettyShow q
     where
       mkAbs env d
-        | treatAbstractly' q' env =
-          case makeAbstract d of
+        -- Apply the reducibility rules (abstract, opaque) to check
+        -- whether the definition should be hidden behind an
+        -- 'AbstractDef'.
+        | not (isAccessibleDef env st d{defName = q'}) =
+          case alwaysMakeAbstract d of
             Just d      -> return $ Right d
             Nothing     -> return $ Left SigAbstract
               -- the above can happen since the scope checker is a bit sloppy with 'abstract'
@@ -1259,17 +1263,16 @@ instantiateRewriteRules :: (Functor m, HasConstInfo m, HasOptions m,
                         => RewriteRules -> m RewriteRules
 instantiateRewriteRules = mapM instantiateRewriteRule
 
--- | Give the abstract view of a definition.
-makeAbstract :: Definition -> Maybe Definition
-makeAbstract d =
-  case defAbstract d of
-    ConcreteDef -> return d
-    AbstractDef -> do
-      def <- makeAbs $ theDef d
-      return d { defArgOccurrences = [] -- no positivity info for abstract things!
-               , defPolarity       = [] -- no polarity info for abstract things!
-               , theDef = def
-               }
+-- | Return the abstract view of a definition, /regardless/ of whether
+-- the definition would be treated abstractly.
+alwaysMakeAbstract :: Definition -> Maybe Definition
+alwaysMakeAbstract d =
+  do
+    def <- makeAbs $ theDef d
+    pure d { defArgOccurrences = [] -- no positivity info for abstract things!
+           , defPolarity       = [] -- no polarity info for abstract things!
+           , theDef = def
+           }
   where
     makeAbs d@Axiom{}            = Just d
     makeAbs d@DataOrRecSig{}     = Just d
@@ -1284,7 +1287,7 @@ makeAbstract d =
     makeAbs d@Record{}    = Just $ AbstractDefn d
     makeAbs Primitive{}   = __IMPOSSIBLE__
     makeAbs PrimitiveSort{} = __IMPOSSIBLE__
-    makeAbs AbstractDefn{}= __IMPOSSIBLE__
+    makeAbs AbstractDefn{} = __IMPOSSIBLE__
 
 -- | Enter abstract mode. Abstract definition in the current module are transparent.
 {-# SPECIALIZE inAbstractMode :: TCM a -> TCM a #-}
@@ -1300,44 +1303,35 @@ inConcreteMode = localTC $ \e -> e { envAbstractMode = ConcreteMode }
 ignoreAbstractMode :: MonadTCEnv m => m a -> m a
 ignoreAbstractMode = localTC $ \e -> e { envAbstractMode = IgnoreAbstractMode }
 
--- | Enter concrete or abstract mode depending on whether the given identifier
---   is concrete or abstract.
+-- | Go under the given opaque block. The unfolding set will turn opaque
+-- definitions transparent.
+{-# SPECIALIZE underOpaqueId :: OpaqueId -> TCM a -> TCM a #-}
+underOpaqueId :: MonadTCEnv m => OpaqueId -> m a -> m a
+underOpaqueId i = localTC $ \e -> e { envCurrentOpaqueId = Just i }
+
+-- | Outside of any opaque blocks.
+{-# SPECIALIZE notUnderOpaque :: TCM a -> TCM a #-}
+notUnderOpaque :: MonadTCEnv m => m a -> m a
+notUnderOpaque = localTC $ \e -> e { envCurrentOpaqueId = Nothing }
+
+-- | Enter the reducibility environment associated with a definition:
+-- The environment will have the same concreteness as the name, and we
+-- will be in the opaque block enclosing the name, if any.
 {-# SPECIALIZE inConcreteOrAbstractMode :: QName -> (Definition -> TCM a) -> TCM a #-}
 inConcreteOrAbstractMode :: (MonadTCEnv m, HasConstInfo m) => QName -> (Definition -> m a) -> m a
 inConcreteOrAbstractMode q cont = do
   -- Andreas, 2015-07-01: If we do not ignoreAbstractMode here,
   -- we will get ConcreteDef for abstract things, as they are turned into axioms.
   def <- ignoreAbstractMode $ getConstInfo q
-  case defAbstract def of
-    AbstractDef -> inAbstractMode $ cont def
-    ConcreteDef -> inConcreteMode $ cont def
+  let
+    k1 = case defAbstract def of
+      AbstractDef -> inAbstractMode
+      ConcreteDef -> inConcreteMode
 
--- | Check whether a name might have to be treated abstractly (either if we're
---   'inAbstractMode' or it's not a local name). Returns true for things not
---   declared abstract as well, but for those 'makeAbstract' will have no effect.
-treatAbstractly :: MonadTCEnv m => QName -> m Bool
-treatAbstractly q = asksTC $ treatAbstractly' q
-
--- | Andreas, 2015-07-01:
---   If the @current@ module is a weak suffix of the identifier module,
---   we can see through its abstract definition if we are abstract.
---   (Then @treatAbstractly'@ returns @False@).
---
---   If I am not mistaken, then we cannot see definitions in the @where@
---   block of an abstract function from the perspective of the function,
---   because then the current module is a strict prefix of the module
---   of the local identifier.
---   This problem is fixed by removing trailing anonymous module name parts
---   (underscores) from both names.
-treatAbstractly' :: QName -> TCEnv -> Bool
-treatAbstractly' q env = case envAbstractMode env of
-  ConcreteMode       -> True
-  IgnoreAbstractMode -> False
-  AbstractMode       -> not $ current `isLeChildModuleOf` m
-  where
-    current = dropAnon $ envCurrentModule env
-    m       = dropAnon $ qnameModule q
-    dropAnon (MName ms) = MName $ List.dropWhileEnd isNoName ms
+    k2 = case defOpaque def of
+      OpaqueDef i    -> underOpaqueId i
+      TransparentDef -> notUnderOpaque
+  k2 (k1 (cont def))
 
 -- | Get type of a constant, instantiated to the current context.
 {-# SPECIALIZE typeOfConst :: QName -> TCM Type #-}

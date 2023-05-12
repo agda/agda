@@ -96,7 +96,7 @@ checkFunDef delayed i name cs = do
         case isAlias cs t of  -- #418: Don't use checkAlias for abstract definitions, since the type
                               -- of an abstract function must not be informed by its definition.
           Just (e, mc, x)
-            | Info.defAbstract i /= AbstractDef ->
+            | Info.defAbstract i == ConcreteDef, Info.defOpaque i == TransparentDef ->
               traceCall (CheckFunDefCall (getRange i) name cs True) $ do
                 -- Andreas, 2012-11-22: if the alias is in an abstract block
                 -- it has been frozen.  We unfreeze it to enable type inference.
@@ -112,11 +112,15 @@ checkFunDef delayed i name cs = do
               -- blocks you might actually have solved the type of an alias by the time you get to
               -- the definition. See test/Succeed/SizeInfinity.agda for an example where this
               -- happens.
+              let
+                what
+                  | Info.defOpaque i == TransparentDef = "abstract"
+                  | otherwise                          = "opaque"
               whenM (isOpenMeta <$> lookupMetaInstantiation x) $
                 setCurrentRange i $ genericWarning =<<
-                  "Missing type signature for abstract definition" <+> (prettyTCM name <> ".") $$
-                  fsep (pwords "Types of abstract definitions are never inferred since this would leak" ++
-                        pwords "information that should be abstract.")
+                  "Missing type signature for" <+> text what <+> "definition" <+> (prettyTCM name <> ".") $$
+                  fsep (pwords ("Types of " ++ what ++ " definitions are never inferred since this would leak") ++
+                        pwords ("information that should be " ++ what ++ "."))
               checkFunDef' t info delayed Nothing Nothing i name cs
           _ -> checkFunDef' t info delayed Nothing Nothing i name cs
 
@@ -211,6 +215,7 @@ checkAlias t ai delayed i name e mc =
           , _funSplitTree = Just $ SplittingDone 0
           , _funDelayed   = delayed
           , _funAbstr     = Info.defAbstract i
+          , _funOpaque    = Info.defOpaque i
           }
 
   -- Andreas, 2017-01-01, issue #2372:
@@ -432,6 +437,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
              , _funDelayed        = delayed
              , _funInv            = inv
              , _funAbstr          = Info.defAbstract i
+             , _funOpaque         = Info.defOpaque i
              , _funExtLam         = (\ e -> e { extLamSys = sys }) <$> extlam
              , _funWith           = with
              , _funCovering       = covering

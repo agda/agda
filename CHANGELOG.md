@@ -348,3 +348,23 @@ Cubical Agda
 
   See also [PR #6529](https://github.com/agda/agda/pull/6529) for a
   deeper explanation and a demo video.
+
+Language
+--------
+
+* Added [`opaque` definitions](https://agda.readthedocs.io/en/v2.6.4/language/opaque-definitions.html),
+  a mechanism for finer-grained control of unfolding. Unlike `abstract`
+  definitions, which can never be unfolded outside of (a child module
+  of) the defining module, opacity can be toggled at use-sites:
+
+  ```agda
+  opaque
+    foo : Set
+    foo = Nat
+
+  opaque
+    unfolding foo
+
+    _ : foo
+    _ = 123
+  ```

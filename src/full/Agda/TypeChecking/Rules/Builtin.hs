@@ -814,6 +814,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
             info <- getConstInfo qx
             let cls = defClauses info
                 a   = defAbstract info
+                o   = defOpaque info
                 mcc = defCompiled info
                 inv = defInverse info
             bindPrimitive pfname $ pf { primFunName = qx }
@@ -821,7 +822,9 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
                                                        , primName     = pfname
                                                        , primClauses  = cls
                                                        , primInv      = inv
-                                                       , primCompiled = mcc } }
+                                                       , primCompiled = mcc
+                                                       , primOpaque   = o
+                                                       } }
 
             -- needed? yes, for checking equations for mul
             bindBuiltinName s v
@@ -986,6 +989,7 @@ bindBuiltinNoDef b q = inTopContext $ do
                           , primClauses  = []
                           , primInv      = NotInjective
                           , primCompiled = Just (CC.Done [] $ Def q [])
+                          , primOpaque   = TransparentDef
                           }
       addConstant' q defaultArgInfo q t def
       axioms v

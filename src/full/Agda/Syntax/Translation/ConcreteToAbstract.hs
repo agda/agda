@@ -32,6 +32,7 @@ import Data.Functor (void)
 import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Map as Map
+import qualified Data.HashSet as HashSet
 import Data.Maybe
 import Data.Monoid (First(..))
 import Data.Void
@@ -48,7 +49,7 @@ import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Common
-import Agda.Syntax.Info
+import Agda.Syntax.Info as Info
 import Agda.Syntax.Concrete.Definitions as C
 import Agda.Syntax.Fixity
 import Agda.Syntax.Concrete.Fixity (DoWarn(..))
@@ -73,6 +74,7 @@ import Agda.TypeChecking.Rules.Builtin (isUntypedBuiltin, bindUntypedBuiltin, bu
 import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
 import Agda.TypeChecking.Pretty hiding (pretty, prettyA)
 import Agda.TypeChecking.Quote (quotedName)
+import Agda.TypeChecking.Opacity
 import Agda.TypeChecking.Warnings
 
 import Agda.Interaction.FindFile (checkModuleName, rootNameModule, SourceFile(SourceFile))
@@ -92,6 +94,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import Agda.Utils.List2 ( List2, pattern List2 )
+import qualified Agda.Utils.Maybe.Strict as Strict
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.Map as Map
 import Agda.Utils.Maybe
@@ -233,6 +236,7 @@ recordConstructorType decls =
         C.NiceUnquoteDecl{}   -> failure
         C.NiceUnquoteDef{}    -> failure
         C.NiceUnquoteData{}   -> failure
+        C.NiceOpaque{}        -> failure
 
 checkModuleApplication
   :: C.ModuleApplication
@@ -1363,6 +1367,13 @@ instance ToAbstract (TopLevel [C.Declaration]) where
           -- let scope = over scopeModules (fmap $ restrictLocalPrivate am) insideScope
           let scope = insideScope
           setScope scope
+
+          -- While scope-checking the top-level module we might have
+          -- encountered several (possibly nested) opaque blocks. We
+          -- must now ensure that these have transitively-closed
+          -- unfolding sets.
+          saturateOpaqueBlocks
+
           return $ TopLevelInfo (primitiveImport ++ outsideDecls ++ [ insideDecl ]) scope
 
         -- We already inserted the missing top-level module, see
@@ -1742,7 +1753,9 @@ instance ToAbstract NiceDeclaration where
       f  <- getConcreteFixity x
       y  <- freshAbstractQName f x
       bindName p PrimName x y
-      return [ A.Primitive (mkDefInfo x f p a r) y t' ]
+      unfoldFunction y
+      di <- updateDefInfoOpacity (mkDefInfo x f p a r)
+      return [ A.Primitive di y t' ]
 
   -- Definitions (possibly mutual)
     NiceMutual r tc cc pc ds -> do
@@ -1805,7 +1818,10 @@ instance ToAbstract NiceDeclaration where
         let delayed = NotDelayed
         -- (delayed, cs) <- translateCopatternClauses cs -- TODO
         f <- getConcreteFixity x
-        return [ A.FunDef (mkDefInfoInstance x f PublicAccess a i NotMacroDef r) x' delayed cs ]
+
+        unfoldFunction x'
+        di <- updateDefInfoOpacity (mkDefInfoInstance x f PublicAccess a i NotMacroDef r)
+        return [ A.FunDef di x' delayed cs ]
 
   -- Uncategorized function clauses
     C.NiceFunClause _ _ _ _ _ _ (C.FunClause lhs _ _ _) ->
@@ -1815,6 +1831,8 @@ instance ToAbstract NiceDeclaration where
 
   -- Data definitions
     C.NiceDataDef r o a _ uc x pars cons -> do
+        notAffectedByOpaque
+
         reportSLn "scope.data.def" 20 ("checking " ++ show o ++ " DataDef for " ++ prettyShow x)
         (p, ax) <- resolveName (C.QName x) >>= \case
           DefinedName p ax NoSuffix -> do
@@ -1850,6 +1868,8 @@ instance ToAbstract NiceDeclaration where
 
   -- Record definitions (mucho interesting)
     C.NiceRecDef r o a _ uc x (RecordDirectives ind eta pat cm) pars fields -> do
+      notAffectedByOpaque
+
       reportSLn "scope.rec.def" 20 ("checking " ++ show o ++ " RecDef for " ++ prettyShow x)
       -- #3008: Termination pragmas are ignored in records
       checkNoTerminationPragma InRecordDef fields
@@ -1913,6 +1933,8 @@ instance ToAbstract NiceDeclaration where
         return [ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' uc dir' params contel afields ]
 
     NiceModule r p a e x@(C.QName name) tel ds -> do
+      notAffectedByOpaque
+
       reportSDoc "scope.decl" 70 $ vcat $
         [ text $ "scope checking NiceModule " ++ prettyShow x
         ]
@@ -2063,7 +2085,13 @@ instance ToAbstract NiceDeclaration where
       e <- toAbstract e
       zipWithM_ (rebindName p OtherDefName) xs ys
       let mi = MutualInfo tc cc YesPositivityCheck r
-      return [ A.Mutual mi [A.UnquoteDecl mi [ mkDefInfoInstance x fx p a i NotMacroDef r | (fx, x) <- zip fxs xs ] ys e] ]
+      mapM_ unfoldFunction ys
+      opaque <- contextIsOpaque
+      return [ A.Mutual mi
+        [ A.UnquoteDecl mi
+            [ (mkDefInfoInstance x fx p a i NotMacroDef r) { Info.defOpaque = opaque } | (fx, x) <- zip fxs xs ]
+          ys e
+        ] ]
 
     NiceUnquoteDef r p a _ _ xs e -> do
       fxs <- mapM getConcreteFixity xs
@@ -2071,9 +2099,13 @@ instance ToAbstract NiceDeclaration where
       zipWithM_ (rebindName p QuotableName) xs ys
       e <- toAbstract e
       zipWithM_ (rebindName p OtherDefName) xs ys
-      return [ A.UnquoteDef [ mkDefInfo x fx PublicAccess a r | (fx, x) <- zip fxs xs ] ys e ]
+      mapM_ unfoldFunction ys
+      opaque <- contextIsOpaque
+      return [ A.UnquoteDef [ (mkDefInfo x fx PublicAccess a r) { Info.defOpaque = opaque } | (fx, x) <- zip fxs xs ] ys e ]
 
     NiceUnquoteData r p a pc uc x cs e -> do
+      notAffectedByOpaque
+
       fx <- getConcreteFixity x
       x' <- freshAbstractQName fx x
       bindName p QuotableName x x'
@@ -2134,6 +2166,40 @@ instance ToAbstract NiceDeclaration where
       warning $ NicifierIssue (DeclarationWarning stk (InvalidConstructorBlock (getRange d)))
       pure []
 
+    NiceOpaque r names decls -> do
+      -- The names in an 'unfolding' clause must be unambiguous names of
+      -- definitions:
+      let
+        findName c = resolveName c >>= \case
+          A.DefinedName _ an _           -> pure (anameName an)
+          A.FieldName (an :| [])         -> pure (anameName an)
+          A.ConstructorName _ (an :| []) -> pure (anameName an)
+
+          A.UnknownName -> notInScopeError c
+          _ -> typeError . GenericDocError =<<
+            "Name in unfolding clause should be unambiguous defined name:" <+> prettyTCM c
+
+      -- Resolve all the names, and use them as an initial unfolding
+      -- set:
+      names  <- traverse findName names
+      -- Generate the identifier for this block:
+      oid    <- fresh
+      -- Record the parent unfolding block, if any:
+      parent <- asksTC envCurrentOpaqueId
+
+      stOpaqueBlocks `modifyTCLens` Map.insert oid OpaqueBlock
+        { opaqueId        = oid
+        , opaqueUnfolding = HashSet.fromList names
+        , opaqueDecls     = mempty
+        , opaqueParent    = parent
+        , opaqueRange     = r
+        }
+
+      -- Keep going!
+      localTC (\e -> e { envCurrentOpaqueId = Just oid }) $ do
+        out <- traverse toAbstract decls
+        unless (any interestingOpaqueDecl out) $ warning UselessOpaque
+        pure $ UnfoldingDecl r names:out
     where
       -- checking postulate or type sig. without checking safe flag
       toAbstractNiceAxiom :: KindOfName -> C.NiceDeclaration -> ScopeM A.Declaration
@@ -2147,6 +2213,42 @@ instance ToAbstract NiceDeclaration where
         bindName p kind x y
         return $ A.Axiom kind (mkDefInfoInstance x f p a i isMacro r) info mp y t'
       toAbstractNiceAxiom _ _ = __IMPOSSIBLE__
+
+      interestingOpaqueDecl :: A.Declaration -> Bool
+      interestingOpaqueDecl (A.Mutual _ ds)     = any interestingOpaqueDecl ds
+      interestingOpaqueDecl (A.ScopedDecl _ ds) = any interestingOpaqueDecl ds
+
+      interestingOpaqueDecl A.FunDef{} = True
+      interestingOpaqueDecl A.UnquoteDecl{} = True
+      interestingOpaqueDecl A.UnquoteDef{} = True
+      interestingOpaqueDecl A.Primitive{} = True
+
+      interestingOpaqueDecl _ = False
+
+-- | Add a 'QName' to the set of declarations /contained in/ the current
+-- opaque block.
+unfoldFunction :: A.QName -> ScopeM ()
+unfoldFunction qn = asksTC envCurrentOpaqueId >>= \case
+  Just id -> do
+    let go Nothing   = __IMPOSSIBLE__
+        go (Just ob) = Just ob{ opaqueDecls = qn `HashSet.insert` opaqueDecls ob }
+    stOpaqueBlocks `modifyTCLens` Map.alter go id
+  Nothing -> pure ()
+
+-- | Look up the current opaque identifier as a value in 'IsOpaque'.
+contextIsOpaque :: ScopeM IsOpaque
+contextIsOpaque =  maybe TransparentDef OpaqueDef <$> asksTC envCurrentOpaqueId
+
+updateDefInfoOpacity :: DefInfo -> ScopeM DefInfo
+updateDefInfoOpacity di = (\a -> di { Info.defOpaque = a }) <$> contextIsOpaque
+
+-- | Raise a warning indicating that the current Declaration is not
+-- affected by opacity, but only if we are actually in an Opaque block.
+notAffectedByOpaque :: ScopeM ()
+notAffectedByOpaque = do
+  t <- asksTC envCheckingWhere
+  unless t $
+    maybe (pure ()) (const (warning NotAffectedByOpaque)) =<< asksTC envCurrentOpaqueId
 
 unGeneralized :: A.Expr -> (Set.Set I.QName, A.Expr)
 unGeneralized (A.Generalized s t) = (s, t)
@@ -2566,17 +2668,18 @@ whereToAbstract r wh inner = do
   case wh of
     NoWhere       -> ret
     AnyWhere _ [] -> warnEmptyWhere
-    AnyWhere _ ds -> do
+    AnyWhere _ ds -> enter $ do
       -- Andreas, 2016-07-17 issues #2081 and #2101
       -- where-declarations are automatically private.
       -- This allows their type signature to be checked InAbstractMode.
       whereToAbstract1 r defaultErased Nothing
         (singleton $ C.Private noRange Inserted ds) inner
-    SomeWhere _ e m a ds0 ->
+    SomeWhere _ e m a ds0 -> enter $
       List1.ifNull ds0 warnEmptyWhere {-else-} $ \ds -> do
       -- Named where-modules do not default to private.
       whereToAbstract1 r e (Just (m, a)) ds inner
   where
+  enter = localTC $ \env -> env { envCheckingWhere = True }
   ret = (,A.noWhereDecls) <$> inner
   warnEmptyWhere = do
     setCurrentRange r $ warning EmptyWhere

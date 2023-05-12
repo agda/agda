@@ -281,6 +281,10 @@ data WarningName
   -- Record field warnings
   | DuplicateFieldsWarning_
   | TooManyFieldsWarning_
+  -- Opaque/unfolding
+  | NotAffectedByOpaque_
+  | UnfoldTransparentName_
+  | UselessOpaque_
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Generic)
 
 instance NFData WarningName
@@ -450,3 +454,7 @@ warningNameDescription = \case
   -- Record field warnings
   DuplicateFieldsWarning_          -> "Record expression with duplicate field names."
   TooManyFieldsWarning_            -> "Record expression with invalid field names."
+  -- Opaque/unfolding warnings
+  NotAffectedByOpaque_             -> "Enclosing `opaque` block has no effect on this declaration."
+  UnfoldTransparentName_           -> "Name mentioned in an `unfolding` clause is not `opaque`."
+  UselessOpaque_                   -> "This `opaque` block has no effect."

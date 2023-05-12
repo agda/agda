@@ -243,6 +243,8 @@ mergeInterface i = do
       (iUserWarnings i)
       (iPartialDefs i)
       warns
+      (iOpaqueBlocks i)
+      (iOpaqueNames i)
     reportSLn "import.iface.merge" 20 $
       "  Rebinding primitives " ++ show prim
     mapM_ rebind prim
@@ -263,9 +265,11 @@ addImportedThings
   -> Map A.QName Text      -- ^ Imported user warnings
   -> Set QName             -- ^ Name of imported definitions which are partial
   -> [TCWarning]
+  -> Map OpaqueId OpaqueBlock
+  -> Map QName OpaqueId
   -> TCM ()
 addImportedThings isig metas ibuiltin patsyns display userwarn
-                  partialdefs warnings = do
+                  partialdefs warnings oblock oid = do
   stImports              `modifyTCLens` \ imp -> unionSignatures [imp, isig]
   stImportedMetaStore    `modifyTCLens` HMap.union metas
   stImportedBuiltins     `modifyTCLens` \ imp -> Map.union imp ibuiltin
@@ -274,6 +278,8 @@ addImportedThings isig metas ibuiltin patsyns display userwarn
   stPatternSynImports    `modifyTCLens` \ imp -> Map.union imp patsyns
   stImportedDisplayForms `modifyTCLens` \ imp -> HMap.unionWith (++) imp display
   stTCWarnings           `modifyTCLens` \ imp -> imp `List.union` warnings
+  stOpaqueBlocks         `modifyTCLens` \ imp -> imp `Map.union` oblock
+  stOpaqueIds            `modifyTCLens` \ imp -> imp `Map.union` oid
   addImportedInstances isig
 
 -- | Scope checks the given module. A proper version of the module
@@ -780,6 +786,8 @@ createInterfaceIsolated x file msrc = do
       display     <- useTC stImportsDisplayForms
       userwarn    <- useTC stImportedUserWarnings
       partialdefs <- useTC stImportedPartialDefs
+      opaqueblk   <- useTC stOpaqueBlocks
+      opaqueid    <- useTC stOpaqueIds
       ipatsyns <- getPatternSynImports
       ho       <- getInteractionOutputCallback
       -- Every interface is treated in isolation. Note: Some changes to
@@ -806,7 +814,7 @@ createInterfaceIsolated x file msrc = do
                stModuleToSource `setTCLens` mf
                setVisitedModules vs
                addImportedThings isig metas ibuiltin ipatsyns display
-                 userwarn partialdefs []
+                 userwarn partialdefs [] opaqueblk opaqueid
 
                r  <- createInterface x file NotMainInterface msrc
                mf' <- useTC stModuleToSource
@@ -1244,6 +1252,15 @@ buildInterface src topLevel = do
     optionsUsed <- useTC stPragmaOptions
     partialDefs <- useTC stLocalPartialDefs
 
+    -- Only serialise the opaque blocks actually defined in this
+    -- top-level module.
+    opaqueBlocks' <- useTC stOpaqueBlocks
+    opaqueIds' <- useTC stOpaqueIds
+    let
+      mh = moduleNameId (srcModuleName src)
+      opaqueBlocks = Map.filterWithKey (\(OpaqueId _ mod) _ -> mod == mh) opaqueBlocks'
+      opaqueIds    = Map.filterWithKey (\_ (OpaqueId _ mod) -> mod == mh) opaqueIds'
+
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files
     -- when expanding a pattern synonym.
@@ -1273,6 +1290,8 @@ buildInterface src topLevel = do
           , iPatternSyns     = patsyns
           , iWarnings        = warnings
           , iPartialDefs     = partialDefs
+          , iOpaqueBlocks    = opaqueBlocks
+          , iOpaqueNames     = opaqueIds
           }
     i <-
       ifM (optSaveMetas <$> pragmaOptions)

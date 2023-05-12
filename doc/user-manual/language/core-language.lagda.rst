@@ -16,8 +16,9 @@ definition. It is possible to declare:
 * :ref:`record types <record-types>` (including
   :ref:`coinductive records <copatterns-coinductive-records>`)
 * :ref:`function definitions <function-definitions>`
-  (including :ref:`mixfix operators <mixfix-operators>` and
-  :ref:`abstract definitions <abstract-definitions>`)
+  (including :ref:`mixfix operators <mixfix-operators>`,
+  :ref:`abstract definitions <abstract-definitions>`, and
+  :ref:`opaque definitions <opaque-definitions>`)
 * :ref:`modules <module-basics>`
 * local definitions :ref:`let <let-expressions>` and
   :ref:`where <where-blocks>`

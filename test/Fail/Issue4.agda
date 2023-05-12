@@ -19,8 +19,8 @@ abstract
   data Ok (A : Set) : Set where
     ok : T (Ok A) → Ok A
 
-opaque : ∀ {A} → T A ≡ A
-opaque = see-through
+opaque′ : ∀ {A} → T A ≡ A
+opaque′ = see-through
 
 data Bad (A : Set) : Set where
   bad : T (Bad A) -> Bad A

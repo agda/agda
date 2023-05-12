@@ -89,6 +89,9 @@ instance EmbPrj Warning where
     UnsupportedIndexedMatch f             -> icodeN 40 UnsupportedIndexedMatch f
     OptionWarning a                       -> icodeN 41 OptionWarning a
     PlentyInHardCompileTimeMode a         -> icodeN 42 PlentyInHardCompileTimeMode a
+    NotAffectedByOpaque                   -> icodeN 43 NotAffectedByOpaque
+    UnfoldTransparentName nm              -> icodeN 44 UnfoldTransparentName nm
+    UselessOpaque                         -> icodeN 45 UselessOpaque
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -134,6 +137,9 @@ instance EmbPrj Warning where
     [40, a]              -> valuN UnsupportedIndexedMatch a
     [41, a]              -> valuN OptionWarning a
     [42, a]              -> valuN PlentyInHardCompileTimeMode a
+    [43]                 -> valuN NotAffectedByOpaque
+    [44, a]              -> valuN UnfoldTransparentName a
+    [45]                 -> valuN UselessOpaque
     _ -> malformed
 
 instance EmbPrj OptionWarning where
@@ -420,107 +426,113 @@ instance EmbPrj WarningName where
     OptionRenamed_                               -> 95
     PlentyInHardCompileTimeMode_                 -> 96
     InteractionMetaBoundaries_                   -> 97
+    NotAffectedByOpaque_                         -> 98
+    UnfoldTransparentName_                       -> 99
+    UselessOpaque_                               -> 100
 
   value = \case
-    0  -> return OverlappingTokensWarning_
-    1  -> return UnsupportedAttribute_
-    2  -> return MultipleAttributes_
-    3  -> return LibUnknownField_
-    4  -> return EmptyAbstract_
-    5  -> return EmptyConstructor_
-    6  -> return EmptyField_
-    7  -> return EmptyGeneralize_
-    8  -> return EmptyInstance_
-    9  -> return EmptyMacro_
-    10 -> return EmptyMutual_
-    11 -> return EmptyPostulate_
-    12 -> return EmptyPrimitive_
-    13 -> return EmptyPrivate_
-    14 -> return EmptyRewritePragma_
-    15 -> return EmptyWhere_
-    16 -> return HiddenGeneralize_
-    17 -> return InvalidCatchallPragma_
-    18 -> return InvalidConstructor_
-    19 -> return InvalidConstructorBlock_
-    20 -> return InvalidCoverageCheckPragma_
-    21 -> return InvalidNoPositivityCheckPragma_
-    22 -> return InvalidNoUniverseCheckPragma_
-    23 -> return InvalidRecordDirective_
-    24 -> return InvalidTerminationCheckPragma_
-    25 -> return MissingDeclarations_
-    26 -> return MissingDefinitions_
-    27 -> return NotAllowedInMutual_
-    28 -> return OpenPublicAbstract_
-    29 -> return OpenPublicPrivate_
-    30 -> return PolarityPragmasButNotPostulates_
-    31 -> return PragmaCompiled_
-    32 -> return PragmaNoTerminationCheck_
-    33 -> return ShadowingInTelescope_
-    34 -> return UnknownFixityInMixfixDecl_
-    35 -> return UnknownNamesInFixityDecl_
-    36 -> return UnknownNamesInPolarityPragmas_
-    37 -> return UselessAbstract_
-    38 -> return UselessInstance_
-    39 -> return UselessPrivate_
-    40 -> return AbsurdPatternRequiresNoRHS_
-    41 -> return AsPatternShadowsConstructorOrPatternSynonym_
-    42 -> return CantGeneralizeOverSorts_
-    43 -> return ClashesViaRenaming_
-    44 -> return CoverageIssue_
-    45 -> return CoverageNoExactSplit_
-    46 -> return DeprecationWarning_
-    47 -> return DuplicateUsing_
-    48 -> return FixityInRenamingModule_
-    49 -> return GenericNonFatalError_
-    50 -> return GenericUseless_
-    51 -> return GenericWarning_
-    52 -> return IllformedAsClause_
-    53 -> return InstanceArgWithExplicitArg_
-    54 -> return InstanceWithExplicitArg_
-    55 -> return InstanceNoOutputTypeName_
-    56 -> return InversionDepthReached_
-    57 -> return ModuleDoesntExport_
-    58 -> return NoGuardednessFlag_
-    59 -> return NotInScope_
-    60 -> return NotStrictlyPositive_
-    61 -> return UnsupportedIndexedMatch_
-    62 -> return OldBuiltin_
-    63 -> return PragmaCompileErased_
-    64 -> return RewriteMaybeNonConfluent_
-    65 -> return RewriteNonConfluent_
-    66 -> return RewriteAmbiguousRules_
-    67 -> return RewriteMissingRule_
-    68 -> return SafeFlagEta_
-    69 -> return SafeFlagInjective_
-    70 -> return SafeFlagNoCoverageCheck_
-    71 -> return SafeFlagNonTerminating_
-    72 -> return SafeFlagNoPositivityCheck_
-    73 -> return SafeFlagNoUniverseCheck_
-    74 -> return SafeFlagPolarity_
-    75 -> return SafeFlagPostulate_
-    76 -> return SafeFlagPragma_
-    77 -> return SafeFlagTerminating_
-    78 -> return SafeFlagWithoutKFlagPrimEraseEquality_
-    79 -> return TerminationIssue_
-    80 -> return UnreachableClauses_
-    81 -> return UnsolvedConstraints_
-    82 -> return UnsolvedInteractionMetas_
-    83 -> return UnsolvedMetaVariables_
-    84 -> return UselessHiding_
-    85 -> return UselessInline_
-    86 -> return UselessPatternDeclarationForRecord_
-    87 -> return UselessPublic_
-    88 -> return UserWarning_
-    89 -> return WithoutKFlagPrimEraseEquality_
-    90 -> return WrongInstanceDeclaration_
-    91 -> return CoInfectiveImport_
-    92 -> return InfectiveImport_
-    93 -> return DuplicateFieldsWarning_
-    94 -> return TooManyFieldsWarning_
-    95 -> return OptionRenamed_
-    96 -> return PlentyInHardCompileTimeMode_
-    97 -> return InteractionMetaBoundaries_
-    _ -> malformed
+    0   -> return OverlappingTokensWarning_
+    1   -> return UnsupportedAttribute_
+    2   -> return MultipleAttributes_
+    3   -> return LibUnknownField_
+    4   -> return EmptyAbstract_
+    5   -> return EmptyConstructor_
+    6   -> return EmptyField_
+    7   -> return EmptyGeneralize_
+    8   -> return EmptyInstance_
+    9   -> return EmptyMacro_
+    10  -> return EmptyMutual_
+    11  -> return EmptyPostulate_
+    12  -> return EmptyPrimitive_
+    13  -> return EmptyPrivate_
+    14  -> return EmptyRewritePragma_
+    15  -> return EmptyWhere_
+    16  -> return HiddenGeneralize_
+    17  -> return InvalidCatchallPragma_
+    18  -> return InvalidConstructor_
+    19  -> return InvalidConstructorBlock_
+    20  -> return InvalidCoverageCheckPragma_
+    21  -> return InvalidNoPositivityCheckPragma_
+    22  -> return InvalidNoUniverseCheckPragma_
+    23  -> return InvalidRecordDirective_
+    24  -> return InvalidTerminationCheckPragma_
+    25  -> return MissingDeclarations_
+    26  -> return MissingDefinitions_
+    27  -> return NotAllowedInMutual_
+    28  -> return OpenPublicAbstract_
+    29  -> return OpenPublicPrivate_
+    30  -> return PolarityPragmasButNotPostulates_
+    31  -> return PragmaCompiled_
+    32  -> return PragmaNoTerminationCheck_
+    33  -> return ShadowingInTelescope_
+    34  -> return UnknownFixityInMixfixDecl_
+    35  -> return UnknownNamesInFixityDecl_
+    36  -> return UnknownNamesInPolarityPragmas_
+    37  -> return UselessAbstract_
+    38  -> return UselessInstance_
+    39  -> return UselessPrivate_
+    40  -> return AbsurdPatternRequiresNoRHS_
+    41  -> return AsPatternShadowsConstructorOrPatternSynonym_
+    42  -> return CantGeneralizeOverSorts_
+    43  -> return ClashesViaRenaming_
+    44  -> return CoverageIssue_
+    45  -> return CoverageNoExactSplit_
+    46  -> return DeprecationWarning_
+    47  -> return DuplicateUsing_
+    48  -> return FixityInRenamingModule_
+    49  -> return GenericNonFatalError_
+    50  -> return GenericUseless_
+    51  -> return GenericWarning_
+    52  -> return IllformedAsClause_
+    53  -> return InstanceArgWithExplicitArg_
+    54  -> return InstanceWithExplicitArg_
+    55  -> return InstanceNoOutputTypeName_
+    56  -> return InversionDepthReached_
+    57  -> return ModuleDoesntExport_
+    58  -> return NoGuardednessFlag_
+    59  -> return NotInScope_
+    60  -> return NotStrictlyPositive_
+    61  -> return UnsupportedIndexedMatch_
+    62  -> return OldBuiltin_
+    63  -> return PragmaCompileErased_
+    64  -> return RewriteMaybeNonConfluent_
+    65  -> return RewriteNonConfluent_
+    66  -> return RewriteAmbiguousRules_
+    67  -> return RewriteMissingRule_
+    68  -> return SafeFlagEta_
+    69  -> return SafeFlagInjective_
+    70  -> return SafeFlagNoCoverageCheck_
+    71  -> return SafeFlagNonTerminating_
+    72  -> return SafeFlagNoPositivityCheck_
+    73  -> return SafeFlagNoUniverseCheck_
+    74  -> return SafeFlagPolarity_
+    75  -> return SafeFlagPostulate_
+    76  -> return SafeFlagPragma_
+    77  -> return SafeFlagTerminating_
+    78  -> return SafeFlagWithoutKFlagPrimEraseEquality_
+    79  -> return TerminationIssue_
+    80  -> return UnreachableClauses_
+    81  -> return UnsolvedConstraints_
+    82  -> return UnsolvedInteractionMetas_
+    83  -> return UnsolvedMetaVariables_
+    84  -> return UselessHiding_
+    85  -> return UselessInline_
+    86  -> return UselessPatternDeclarationForRecord_
+    87  -> return UselessPublic_
+    88  -> return UserWarning_
+    89  -> return WithoutKFlagPrimEraseEquality_
+    90  -> return WrongInstanceDeclaration_
+    91  -> return CoInfectiveImport_
+    92  -> return InfectiveImport_
+    93  -> return DuplicateFieldsWarning_
+    94  -> return TooManyFieldsWarning_
+    95  -> return OptionRenamed_
+    96  -> return PlentyInHardCompileTimeMode_
+    97  -> return InteractionMetaBoundaries_
+    98  -> return NotAffectedByOpaque_
+    99  -> return UnfoldTransparentName_
+    100 -> return UselessOpaque_
+    _   -> malformed
 
 
 instance EmbPrj CutOff where

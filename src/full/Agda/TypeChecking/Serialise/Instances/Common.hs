@@ -461,6 +461,11 @@ instance EmbPrj NameId where
 
   value = valueN NameId
 
+instance EmbPrj OpaqueId where
+  icod_ (OpaqueId a b) = icodeN' OpaqueId a b
+
+  value = valueN OpaqueId
+
 instance (Eq k, Hashable k, EmbPrj k, EmbPrj v) => EmbPrj (HashMap k v) where
   icod_ m = mapPairsIcode (HMap.toList m)
   value = vcase (fmap HMap.fromList . mapPairsValue)
@@ -686,6 +691,15 @@ instance EmbPrj IsAbstract where
   value = vcase valu where
     valu [0] = valuN AbstractDef
     valu []  = valuN ConcreteDef
+    valu _   = malformed
+
+instance EmbPrj IsOpaque where
+  icod_ (OpaqueDef a)  = icodeN' OpaqueDef a
+  icod_ TransparentDef = icodeN' TransparentDef
+
+  value = vcase valu where
+    valu [a] = valuN OpaqueDef a
+    valu []  = valuN TransparentDef
     valu _   = malformed
 
 instance EmbPrj Delayed where

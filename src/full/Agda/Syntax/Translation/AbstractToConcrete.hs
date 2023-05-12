@@ -1243,7 +1243,7 @@ instance ToConcrete A.Declaration where
       (x',cs') <- first unsafeQNameToName <$> toConcrete (x, map Constr cs)
       return [ C.RecordDef (getRange i) x' (dir { recConstructor = Nothing }) (catMaybes tel') cs' ]
 
-  toConcrete (A.Mutual i ds) = declsToConcrete ds
+  toConcrete (A.Mutual i ds) = pure . C.Mutual noRange <$> declsToConcrete ds
 
   toConcrete (A.Section i erased x (A.GeneralizeTel _ tel) ds) = do
     x <- toConcrete x
@@ -1292,7 +1292,7 @@ instance ToConcrete A.Declaration where
     (:[]) . C.UnquoteDef (getRange i) xs <$> toConcrete e
 
   toConcrete (A.UnquoteData i xs uc j cs e) = __IMPOSSIBLE__
-
+  toConcrete (A.UnfoldingDecl r ns) = __IMPOSSIBLE__
 
 data RangeAndPragma = RangeAndPragma Range A.Pragma
 
