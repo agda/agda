@@ -22,6 +22,14 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: ubuntu-22.04
     steps:
+    - name: Info about the context
+      run: |
+        echo "github.base_ref   = ${{ github.base_ref   }}"
+        echo "github.head_ref   = ${{ github.head_ref   }}"
+        echo "github.event_name = ${{ github.event_name }}"
+        echo "github.ref        = ${{ github.ref        }}"
+        echo "github.ref_name   = ${{ github.ref_name   }}"
+        echo "github.ref_type   = ${{ github.ref_type   }}"
     - if: github.ref != 'refs/heads/master'
       uses: styfle/cancel-workflow-action@0.11.0
       with:

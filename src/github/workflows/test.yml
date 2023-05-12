@@ -85,6 +85,15 @@ jobs:
 
     runs-on: &runs_on ubuntu-22.04
     steps:
+    - name: Info about the context
+      run: |
+        echo "github.base_ref   = ${{ github.base_ref   }}"
+        echo "github.head_ref   = ${{ github.head_ref   }}"
+        echo "github.event_name = ${{ github.event_name }}"
+        echo "github.ref        = ${{ github.ref        }}"
+        echo "github.ref_name   = ${{ github.ref_name   }}"
+        echo "github.ref_type   = ${{ github.ref_type   }}"
+
     - uses: styfle/cancel-workflow-action@0.11.0
       # Andreas, 2022-12-05, issue #6388: do not cancel on `master`!
       if: github.ref != 'refs/heads/master'
