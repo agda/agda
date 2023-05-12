@@ -199,7 +199,6 @@ common language
   ghc-options:
       -fprint-potential-instances
       -- ASR (2022-05-31). Workaround to Issue #5932.
-      -Werror
       -Werror=cpp-undef
       -Werror=deprecated-flags
       -Werror=deriving-typeable
@@ -247,6 +246,9 @@ common language
 
   if impl(ghc >= 8.10)
     ghc-options:
+      -Werror
+         -- #6623: Cannot have -Werror on GHC < 8.10 because of (nameless!?) warning.
+         -- "Pattern match checker exceeded (2000000) iterations in a case alternative."
       -Werror=compat-unqualified-imports
       -Werror=deriving-defaults
       -Werror=redundant-record-wildcards
@@ -292,6 +294,7 @@ common language
       DeriveFunctor
       DeriveGeneric
       DeriveTraversable
+      DerivingStrategies
       ExistentialQuantification
       FlexibleContexts
       FlexibleInstances
@@ -315,6 +318,7 @@ common language
 
   other-extensions:
       CPP
+      DeriveAnyClass
       PartialTypeSignatures
 
 

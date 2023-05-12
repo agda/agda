@@ -647,10 +647,8 @@ instance Occurs Sort where
         s2' <- mapAbstraction (El s1' <$> a') (flexibly . underBinder . occurs_) s2
         return $ PiSort a' s1' s2'
       FunSort s1 s2 -> FunSort <$> flexibly (occurs_ s1) <*> flexibly (occurs_ s2)
-      Type a     -> Type <$> occurs_ a
-      Prop a     -> Prop <$> occurs_ a
+      Univ u a   -> Univ u <$> occurs_ a
       s@Inf{}    -> return s
-      SSet a     -> SSet <$> occurs_ a
       s@SizeUniv -> return s
       s@LockUniv -> return s
       s@LevelUniv -> return s
@@ -672,10 +670,8 @@ instance Occurs Sort where
         metaOccurs m s1
         metaOccurs m (absBody s2)
       FunSort s1 s2 -> metaOccurs2 m s1 s2
-      Type a     -> metaOccurs m a
-      Prop a     -> metaOccurs m a
+      Univ _ a   -> metaOccurs m a
       Inf _ _    -> return ()
-      SSet a     -> metaOccurs m a
       SizeUniv   -> return ()
       LockUniv   -> return ()
       LevelUniv  -> return ()
@@ -901,10 +897,8 @@ instance AnyRigid Type where
 instance AnyRigid Sort where
   anyRigid f s =
     case s of
-      Type l     -> anyRigid f l
-      Prop l     -> anyRigid f l
+      Univ _ l   -> anyRigid f l
       Inf _ _    -> return False
-      SSet l     -> anyRigid f l
       SizeUniv   -> return False
       LockUniv   -> return False
       LevelUniv  -> return False

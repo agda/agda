@@ -184,7 +184,7 @@ instance SynEq Sort where
   synEq s s' = do
     (s, s') <- lift $ instantiate' (s, s')
     case (s, s') of
-      (Type l  , Type l'   ) -> Type <$$> synEq l l'
+      (Univ u l, Univ u' l') | u == u' -> Univ u <$$> synEq l l'
       (PiSort a b c, PiSort a' b' c') -> piSort <$$> synEq a a' <**> synEq' b b' <**> synEq' c c'
       (FunSort a b, FunSort a' b') -> funSort <$$> synEq a a' <**> synEq' b b'
       (UnivSort a, UnivSort a') -> UnivSort <$$> synEq a a'
@@ -192,9 +192,7 @@ instance SynEq Sort where
       (LockUniv, LockUniv  ) -> pure2 s
       (LevelUniv, LevelUniv  ) -> pure2 s
       (IntervalUniv, IntervalUniv) -> pure2 s
-      (Prop l  , Prop l'   ) -> Prop <$$> synEq l l'
       (Inf f m , Inf f' n) | f == f', m == n -> pure2 s
-      (SSet l  , SSet l'   ) -> SSet <$$> synEq l l'
       (MetaS x es , MetaS x' es') | x == x' -> MetaS x <$$> synEq es es'
       (DefS  d es , DefS  d' es') | d == d' -> DefS d  <$$> synEq es es'
       (DummyS{}, DummyS{}) -> pure (s, s')

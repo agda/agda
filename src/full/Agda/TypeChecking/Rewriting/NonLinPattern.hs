@@ -94,9 +94,7 @@ instance PatternFrom Sort NLPSort where
   patternFrom r k _ s = do
     s <- abortIfBlocked s
     case s of
-      Type l   -> PType <$> patternFrom r k () l
-      Prop l   -> PProp <$> patternFrom r k () l
-      SSet l   -> PSSet <$> patternFrom r k () l
+      Univ u l -> PUniv u <$> patternFrom r k () l
       Inf f n  -> return $ PInf f n
       SizeUniv -> return PSizeUniv
       LockUniv -> return PLockUniv
@@ -236,9 +234,7 @@ instance NLPatToTerm NLPType Type where
   nlPatToTerm (NLPType s a) = El <$> nlPatToTerm s <*> nlPatToTerm a
 
 instance NLPatToTerm NLPSort Sort where
-  nlPatToTerm (PType l) = Type <$> nlPatToTerm l
-  nlPatToTerm (PProp l) = Prop <$> nlPatToTerm l
-  nlPatToTerm (PSSet l) = SSet <$> nlPatToTerm l
+  nlPatToTerm (PUniv u l) = Univ u <$> nlPatToTerm l
   nlPatToTerm (PInf f n) = return $ Inf f n
   nlPatToTerm PSizeUniv = return SizeUniv
   nlPatToTerm PLockUniv = return LockUniv
@@ -260,9 +256,7 @@ instance NLPatVars NLPType where
 
 instance NLPatVars NLPSort where
   nlPatVarsUnder k = \case
-    PType l   -> nlPatVarsUnder k l
-    PProp l   -> nlPatVarsUnder k l
-    PSSet l   -> nlPatVarsUnder k l
+    PUniv _ l   -> nlPatVarsUnder k l
     PInf f n  -> empty
     PSizeUniv -> empty
     PLockUniv -> empty
@@ -319,9 +313,7 @@ instance GetMatchables NLPType where
 
 instance GetMatchables NLPSort where
   getMatchables = \case
-    PType l   -> getMatchables l
-    PProp l   -> getMatchables l
-    PSSet l   -> getMatchables l
+    PUniv _ l -> getMatchables l
     PInf f n  -> empty
     PSizeUniv -> empty
     PLockUniv -> empty
@@ -355,9 +347,7 @@ instance Free NLPType where
 
 instance Free NLPSort where
   freeVars' = \case
-    PType l   -> freeVars' l
-    PProp l   -> freeVars' l
-    PSSet l   -> freeVars' l
+    PUniv _ l -> freeVars' l
     PInf f n  -> mempty
     PSizeUniv -> mempty
     PLockUniv -> mempty

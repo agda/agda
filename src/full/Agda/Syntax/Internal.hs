@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP                        #-}
-{-# LANGUAGE PatternSynonyms            #-}
+{-# LANGUAGE DeriveAnyClass             #-}
 
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal
@@ -293,16 +293,36 @@ data Tele a = EmptyTel
 
 type Telescope = Tele (Dom Type)
 
-data IsFibrant = IsFibrant | IsStrict
+-- | We have @IsFibrant < IsStrict@.
+data IsFibrant
+  = IsFibrant  -- ^ Fibrant universe.
+  | IsStrict   -- ^ Non-fibrant universe.
   deriving (Show, Eq, Ord, Generic)
+    -- NB: for deriving Ord, keep ordering IsFibrant < IsStrict!
+
+-- | Flavor of standard universe (@Prop < Type < SSet@,).
+data Univ
+  = UProp  -- ^ Fibrant universe of propositions.
+  | UType  -- ^ Fibrant universe.
+  | USSet  -- ^ Non-fibrant universe.
+  deriving stock (Eq, Ord, Show, Bounded, Enum, Generic)
+  deriving anyclass NFData
+    -- NB: for deriving Ord, keep ordering UProp < UType < USSet!
+
+-- | Fibrancy of standard universes.
+univFibrancy :: Univ -> IsFibrant
+univFibrancy = \case
+  UProp -> IsFibrant
+  UType -> IsFibrant
+  USSet -> IsStrict
 
 -- | Sorts.
 --
 data Sort' t
-  = Type (Level' t)  -- ^ @Set ℓ@.
-  | Prop (Level' t)  -- ^ @Prop ℓ@.
-  | Inf IsFibrant !Integer      -- ^ @Setωᵢ@.
-  | SSet (Level' t)  -- ^ @SSet ℓ@.
+  = Univ Univ (Level' t)
+      -- ^ @Prop ℓ@, @Set ℓ@, @SSet ℓ@.
+  | Inf IsFibrant !Integer
+      -- ^ @(S)Setωᵢ@.
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
   | LockUniv    -- ^ @LockUniv@, a sort for locks.
   | LevelUniv   -- ^ @LevelUniv@, a sort inhabited by type @Level@. When --level-universe isn't on, this universe reduces to @Set 0@
@@ -318,6 +338,16 @@ data Sort' t
     --   The @String@ typically describes the location where we create this dummy,
     --   but can contain other information as well.
   deriving Show
+
+pattern Prop, Type, SSet :: Level' t -> Sort' t
+pattern Prop l = Univ UProp l
+pattern Type l = Univ UType l
+pattern SSet l = Univ USSet l
+
+{-# COMPLETE
+  Prop, Type, SSet, Inf,
+  SizeUniv, LockUniv, LevelUniv, IntervalUniv,
+  PiSort, FunSort, UnivSort, MetaS, DefS, DummyS #-}
 
 type Sort = Sort' Term
 
@@ -1164,10 +1194,8 @@ instance TermSize Term where
 
 instance TermSize Sort where
   tsize = \case
-    Type l    -> 1 + tsize l
-    Prop l    -> 1 + tsize l
+    Univ _ l  -> 1 + tsize l
     Inf _ _   -> 1
-    SSet l    -> 1 + tsize l
     SizeUniv  -> 1
     LockUniv  -> 1
     LevelUniv -> 1
@@ -1233,9 +1261,7 @@ instance KillRange Sort where
     LockUniv   -> LockUniv
     LevelUniv  -> LevelUniv
     IntervalUniv -> IntervalUniv
-    Type a     -> killRange1 Type a
-    Prop a     -> killRange1 Prop a
-    SSet a     -> killRange1 SSet a
+    Univ u a   -> killRange1 (Univ u) a
     PiSort a s1 s2 -> killRange3 PiSort a s1 s2
     FunSort s1 s2 -> killRange2 FunSort s1 s2
     UnivSort s -> killRange1 UnivSort s
@@ -1387,15 +1413,11 @@ instance Pretty PlusLevel where
 instance Pretty Sort where
   prettyPrec p s =
     case s of
-      Type (ClosedLevel 0) -> "Set"
-      Type (ClosedLevel n) -> text $ "Set" ++ show n
-      Type l -> mparens (p > 9) $ "Set" <+> prettyPrec 10 l
-      Prop (ClosedLevel 0) -> "Prop"
-      Prop (ClosedLevel n) -> text $ "Prop" ++ show n
-      Prop l -> mparens (p > 9) $ "Prop" <+> prettyPrec 10 l
+      Univ u (ClosedLevel 0) -> text $ showUniv u
+      Univ u (ClosedLevel n) -> text $ showUniv u ++ show n
+      Univ u l -> mparens (p > 9) $ text (showUniv u) <+> prettyPrec 10 l
       Inf f 0 -> text $ addS f "Setω"
       Inf f n -> text $ addS f "Setω" ++ show n
-      SSet l -> mparens (p > 9) $ "SSet" <+> prettyPrec 10 l
       SizeUniv -> "SizeUniv"
       LockUniv -> "LockUniv"
       LevelUniv -> "LevelUniv"
@@ -1412,6 +1434,13 @@ instance Pretty Sort where
    where
      addS IsFibrant t = t
      addS IsStrict  t = "S" ++ t
+
+-- | Hacky showing of standard universes, does not take actual names into account.
+showUniv :: Univ -> String
+showUniv = \case
+  UProp -> "Prop"
+  UType -> "Set"
+  USSet -> "SSet"
 
 instance Pretty Type where
   prettyPrec p (El _ a) = prettyPrec p a
@@ -1470,10 +1499,8 @@ instance NFData Type where
 
 instance NFData Sort where
   rnf = \case
-    Type l   -> rnf l
-    Prop l   -> rnf l
+    Univ _ l   -> rnf l
     Inf _ _  -> ()
-    SSet l   -> rnf l
     SizeUniv -> ()
     LockUniv -> ()
     LevelUniv -> ()

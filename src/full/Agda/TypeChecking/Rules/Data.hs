@@ -232,10 +232,8 @@ checkDataSort name s = setCurrentRange name $ do
                    ]
     case s of
       -- Sorts that admit data definitions.
-      Type _       -> yes
-      Prop _       -> yes
+      Univ _ _     -> yes
       Inf _ _      -> yes
-      SSet _       -> yes
       DefS _ _     -> yes
       -- Sorts that do not admit data definitions.
       SizeUniv     -> no
