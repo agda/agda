@@ -1889,9 +1889,7 @@ instance TermLike NLPType where
 instance AllMetas NLPType
 
 data NLPSort
-  = PType NLPat
-  | PProp NLPat
-  | PSSet NLPat
+  = PUniv Univ NLPat
   | PInf IsFibrant Integer
   | PSizeUniv
   | PLockUniv
@@ -1899,11 +1897,18 @@ data NLPSort
   | PIntervalUniv
   deriving (Show, Generic)
 
+pattern PType, PProp, PSSet :: NLPat -> NLPSort
+pattern PType p = PUniv UType p
+pattern PProp p = PUniv UProp p
+pattern PSSet p = PUniv USSet p
+
+{-# COMPLETE
+  PType, PSSet, PProp, PInf,
+  PSizeUniv, PLockUniv, PLevelUniv, PIntervalUniv #-}
+
 instance TermLike NLPSort where
   traverseTermM f = \case
-    PType p           -> PType <$> traverseTermM f p
-    PProp p           -> PProp <$> traverseTermM f p
-    PSSet p           -> PSSet <$> traverseTermM f p
+    PUniv u p         -> PUniv u <$> traverseTermM f p
     s@PInf{}          -> return s
     s@PSizeUniv{}     -> return s
     s@PLockUniv{}     -> return s
@@ -1911,9 +1916,7 @@ instance TermLike NLPSort where
     s@PIntervalUniv{} -> return s
 
   foldTerm f t = case t of
-    PType p           -> foldTerm f p
-    PProp p           -> foldTerm f p
-    PSSet p           -> foldTerm f p
+    PUniv _ p         -> foldTerm f p
     s@PInf{}          -> mempty
     s@PSizeUniv{}     -> mempty
     s@PLockUniv{}     -> mempty
@@ -5333,9 +5336,7 @@ instance KillRange NLPType where
   killRange (NLPType s a) = killRange2 NLPType s a
 
 instance KillRange NLPSort where
-  killRange (PType l) = killRange1 PType l
-  killRange (PProp l) = killRange1 PProp l
-  killRange (PSSet l) = killRange1 PSSet l
+  killRange (PUniv u l) = killRange1 (PUniv u) l
   killRange s@(PInf f n) = s
   killRange PSizeUniv = PSizeUniv
   killRange PLockUniv = PLockUniv

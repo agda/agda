@@ -425,10 +425,8 @@ instance Reduce Sort where
           NotBlocked _ s1' -> case univSort' s1' of
             Left b -> return $ Blocked b $ UnivSort s1'
             Right s -> reduceB' s
-        Prop l     -> notBlocked . Prop <$> reduce l
-        Type l     -> notBlocked . Type <$> reduce l
+        Univ u l   -> notBlocked . Univ u <$> reduce l
         Inf f n    -> done
-        SSet l     -> notBlocked . SSet <$> reduce l
         SizeUniv   -> done
         LockUniv   -> done
         LevelUniv  -> do
@@ -1049,10 +1047,8 @@ instance Simplify Sort where
         PiSort a s1 s2 -> piSort <$> simplify' a <*> simplify' s1 <*> simplify' s2
         FunSort s1 s2 -> funSort <$> simplify' s1 <*> simplify' s2
         UnivSort s -> univSort <$> simplify' s
-        Type s     -> Type <$> simplify' s
-        Prop s     -> Prop <$> simplify' s
+        Univ u s   -> Univ u <$> simplify' s
         Inf _ _    -> return s
-        SSet s     -> SSet <$> simplify' s
         SizeUniv   -> return s
         LockUniv   -> return s
         LevelUniv  -> return s
@@ -1201,10 +1197,8 @@ instance Normalise Sort where
         PiSort a s1 s2 -> piSort <$> normalise' a <*> normalise' s1 <*> normalise' s2
         FunSort s1 s2 -> funSort <$> normalise' s1 <*> normalise' s2
         UnivSort s -> univSort <$> normalise' s
-        Prop s     -> Prop <$> normalise' s
-        Type s     -> Type <$> normalise' s
+        Univ u s   -> Univ u <$> normalise' s
         Inf _ _    -> return s
-        SSet s     -> SSet <$> normalise' s
         SizeUniv   -> return SizeUniv
         LockUniv   -> return LockUniv
         LevelUniv  -> return LevelUniv
@@ -1408,9 +1402,7 @@ instance InstantiateFull Sort where
     instantiateFull' s = do
         s <- instantiate' s
         case s of
-            Type n     -> Type <$> instantiateFull' n
-            Prop n     -> Prop <$> instantiateFull' n
-            SSet n     -> SSet <$> instantiateFull' n
+            Univ u n   -> Univ u <$> instantiateFull' n
             PiSort a s1 s2 -> piSort <$> instantiateFull' a <*> instantiateFull' s1 <*> instantiateFull' s2
             FunSort s1 s2 -> funSort <$> instantiateFull' s1 <*> instantiateFull' s2
             UnivSort s -> univSort <$> instantiateFull' s
@@ -1569,9 +1561,7 @@ instance InstantiateFull NLPType where
     <*> instantiateFull' a
 
 instance InstantiateFull NLPSort where
-  instantiateFull' (PType x) = PType <$> instantiateFull' x
-  instantiateFull' (PProp x) = PProp <$> instantiateFull' x
-  instantiateFull' (PSSet x) = PSSet <$> instantiateFull' x
+  instantiateFull' (PUniv u x) = PUniv u <$> instantiateFull' x
   instantiateFull' (PInf f n) = return $ PInf f n
   instantiateFull' PSizeUniv = return PSizeUniv
   instantiateFull' PLockUniv = return PLockUniv

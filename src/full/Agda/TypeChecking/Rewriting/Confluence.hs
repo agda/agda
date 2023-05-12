@@ -833,10 +833,8 @@ instance AllHoles Term where
 
 instance AllHoles Sort where
   allHoles _ = \case
-    Type l       -> fmap Type <$> allHoles_ l
-    Prop l       -> fmap Prop <$> allHoles_ l
+    Univ u l     -> fmap (Univ u) <$> allHoles_ l
     Inf f n      -> empty
-    SSet l       -> fmap SSet <$> allHoles_ l
     SizeUniv     -> empty
     LockUniv     -> empty
     LevelUniv    -> empty
@@ -908,10 +906,8 @@ instance MetasToVars Type where
 
 instance MetasToVars Sort where
   metasToVars = \case
-    Type l     -> Type     <$> metasToVars l
-    Prop l     -> Prop     <$> metasToVars l
+    Univ u l   -> Univ u <$> metasToVars l
     Inf f n    -> pure $ Inf f n
-    SSet l     -> SSet     <$> metasToVars l
     SizeUniv   -> pure SizeUniv
     LockUniv   -> pure LockUniv
     LevelUniv  -> pure LevelUniv

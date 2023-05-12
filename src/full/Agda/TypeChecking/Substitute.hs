@@ -862,10 +862,8 @@ instance (Coercible a Term, Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst 
 instance (Coercible a Term, Subst a) => Subst (Sort' a) where
   type SubstArg (Sort' a) = SubstArg a
   applySubst rho = \case
-    Type n     -> Type $ sub n
-    Prop n     -> Prop $ sub n
+    Univ u n   -> Univ u $ sub n
     Inf f n    -> Inf f n
-    SSet n     -> SSet $ sub n
     SizeUniv   -> SizeUniv
     LockUniv   -> LockUniv
     LevelUniv  -> LevelUniv
@@ -973,9 +971,7 @@ instance Subst NLPType where
 instance Subst NLPSort where
   type SubstArg NLPSort = NLPat
   applySubst rho = \case
-    PType l   -> PType $ applySubst rho l
-    PProp l   -> PProp $ applySubst rho l
-    PSSet l   -> PSSet $ applySubst rho l
+    PUniv u l -> PUniv u $ applySubst rho l
     PInf f n  -> PInf f n
     PSizeUniv -> PSizeUniv
     PLockUniv -> PLockUniv
@@ -1545,10 +1541,8 @@ instance (Subst a, Ord a) => Ord (Elim' a) where
 --
 --   Precondition: @s@ is reduced
 univSort' :: Sort -> Either Blocker Sort
-univSort' (Type l)     = Right $ Type $ levelSuc l
-univSort' (Prop l)     = Right $ Type $ levelSuc l
+univSort' (Univ u l)   = Right $ Univ (univUniv u) $ levelSuc l
 univSort' (Inf f n)    = Right $ Inf f $ 1 + n
-univSort' (SSet l)     = Right $ SSet $ levelSuc l
 univSort' SizeUniv     = Right $ Inf IsFibrant 0
 univSort' LockUniv     = Right $ Inf IsFibrant 0 -- lock polymorphism is not actually supported
 univSort' LevelUniv    = Right $ Type $ ClosedLevel 1
@@ -1562,6 +1556,13 @@ univSort' DummyS{}     = Left neverUnblock
 
 univSort :: Sort -> Sort
 univSort s = fromRight (const $ UnivSort s) $ univSort' s
+
+-- | The successor universe type of a universe.
+univUniv :: Univ -> Univ
+univUniv = \case
+  UProp -> UType
+  UType -> UType
+  USSet -> USSet
 
 sort :: Sort -> Type
 sort s = El (univSort s) $ Sort s
@@ -1578,20 +1579,19 @@ data SizeOfSort
 -- | Returns @Left blocker@ for unknown (blocked) sorts, and otherwise
 --   returns @Right s@ where @s@ indicates the size and fibrancy.
 sizeOfSort :: Sort -> Either Blocker SizeOfSort
-sizeOfSort Type{}       = Right $ SmallSort IsFibrant
-sizeOfSort Prop{}       = Right $ SmallSort IsFibrant
-sizeOfSort SizeUniv     = Right $ SmallSort IsFibrant
-sizeOfSort LockUniv     = Right $ SmallSort IsFibrant
-sizeOfSort LevelUniv    = Right $ SmallSort IsFibrant
-sizeOfSort IntervalUniv = Right $ SmallSort IsStrict
-sizeOfSort (Inf f n)    = Right $ LargeSort f n
-sizeOfSort SSet{}       = Right $ SmallSort IsStrict
-sizeOfSort (MetaS m _)  = Left $ unblockOnMeta m
-sizeOfSort FunSort{}    = Left neverUnblock
-sizeOfSort PiSort{}     = Left neverUnblock
-sizeOfSort UnivSort{}   = Left neverUnblock
-sizeOfSort DefS{}       = Left neverUnblock
-sizeOfSort DummyS{}     = Left neverUnblock
+sizeOfSort = \case
+  Univ u _     -> Right $ SmallSort $ univFibrancy u
+  SizeUniv     -> Right $ SmallSort IsFibrant
+  LockUniv     -> Right $ SmallSort IsFibrant
+  LevelUniv    -> Right $ SmallSort IsFibrant
+  IntervalUniv -> Right $ SmallSort IsStrict
+  Inf f n      -> Right $ LargeSort f n
+  MetaS m _    -> Left $ unblockOnMeta m
+  FunSort{}    -> Left neverUnblock
+  PiSort{}     -> Left neverUnblock
+  UnivSort{}   -> Left neverUnblock
+  DefS{}       -> Left neverUnblock
+  DummyS{}     -> Left neverUnblock
 
 isSmallSort :: Sort -> Bool
 isSmallSort s = case sizeOfSort s of
@@ -1603,20 +1603,25 @@ fibrantLub IsStrict a = IsStrict
 fibrantLub a IsStrict = IsStrict
 fibrantLub a b = a
 
--- | Compute the sort of a function type from the sorts of its
---   domain and codomain.
--- This function should only be called on reduced sorts, since the @LevelUniv@ rules should only apply when the sort doesn't reduce to @Set@
+
+-- | Compute the universe type of a function space from the universe types of domain and codomain.
+funUniv :: Univ -> Univ -> Univ
+funUniv = curry $ \case
+  (USSet, _) -> USSet
+  (_, USSet) -> USSet
+  (_, u)     -> u
+
+-- | Compute the sort of a function type from the sorts of its domain and codomain.
+--
+--   This function should only be called on reduced sorts,
+--   since the @LevelUniv@ rules should only apply when the sort does not reduce to @Set@.
 funSort' :: Sort -> Sort -> Either Blocker Sort
+-- Andreas, 2023-05-12, AIM XXXVI, pri #6623:
+-- On GHC 8.6 and 8.8 this pattern matching triggers warning
+-- "Pattern match checker exceeded (2000000) iterations in a case alternative."
+-- No clue how to turn off this warning, so we have to turn off -Werror for GHC < 8.10.
 funSort' a b = case (a, b) of
-  (Type a        , Type b       ) -> Right $ Type $ levelLub a b
-  (Prop a        , Type b       ) -> Right $ Type $ levelLub a b
-  (Type a        , Prop b       ) -> Right $ Prop $ levelLub a b
-  (Prop a        , Prop b       ) -> Right $ Prop $ levelLub a b
-  (SSet a        , SSet b       ) -> Right $ SSet $ levelLub a b
-  (Type a        , SSet b       ) -> Right $ SSet $ levelLub a b
-  (SSet a        , Type b       ) -> Right $ SSet $ levelLub a b
-  (SSet a        , Prop b       ) -> Right $ SSet $ levelLub a b
-  (Prop a        , SSet b       ) -> Right $ SSet $ levelLub a b
+  (Univ u a      , Univ u' b    ) -> Right $ Univ (funUniv u u') $ levelLub a b
   (Inf af m      , b            ) -> sizeOfSort b >>= \case
     SmallSort bf   -> Right $ Inf (fibrantLub af bf) m
     LargeSort bf n -> Right $ Inf (fibrantLub af bf) $ max m n

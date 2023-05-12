@@ -546,10 +546,8 @@ instance Free Sort where
   freeVars' s =
     ifM (asks ((IgnoreAll ==) . feIgnoreSorts)) mempty $ {- else -}
     case s of
-      Type a     -> freeVars' a
-      Prop a     -> freeVars' a
+      Univ _ a   -> freeVars' a
       Inf _ _    -> mempty
-      SSet a     -> freeVars' a
       SizeUniv   -> mempty
       LockUniv   -> mempty
       LevelUniv  -> mempty

@@ -193,10 +193,8 @@ instance NamesIn a => NamesIn (Type' a) where
 
 instance NamesIn Sort where
   namesAndMetasIn' sg = \case
-    Type l      -> namesAndMetasIn' sg l
-    Prop l      -> namesAndMetasIn' sg l
+    Univ _ l    -> namesAndMetasIn' sg l
     Inf _ _     -> mempty
-    SSet l      -> namesAndMetasIn' sg l
     SizeUniv    -> mempty
     LockUniv    -> mempty
     LevelUniv   -> mempty
@@ -295,9 +293,7 @@ instance NamesIn NLPType where
 
 instance NamesIn NLPSort where
   namesAndMetasIn' sg = \case
-    PType a       -> namesAndMetasIn' sg a
-    PProp a       -> namesAndMetasIn' sg a
-    PSSet a       -> namesAndMetasIn' sg a
+    PUniv _ a     -> namesAndMetasIn' sg a
     PInf _ _      -> mempty
     PSizeUniv     -> mempty
     PLockUniv     -> mempty

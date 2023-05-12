@@ -129,9 +129,7 @@ hasPTSRule a b =
   where
     alwaysValidCodomain s | Right LargeSort{} <- sizeOfSort s
                                = True
-    alwaysValidCodomain Type{} = True
-    alwaysValidCodomain Prop{} = True
-    alwaysValidCodomain SSet{} = True
+    alwaysValidCodomain Univ{} = True
     alwaysValidCodomain (PiSort _ _ s) = alwaysValidCodomain $ unAbs s
     alwaysValidCodomain (FunSort _ s) = alwaysValidCodomain s
     alwaysValidCodomain _      = False
@@ -235,4 +233,3 @@ sortOfType
   :: forall m. (PureTCM m, MonadBlock m,MonadConstraint m)
   => Type -> m Sort
 sortOfType = sortOf . unEl
-

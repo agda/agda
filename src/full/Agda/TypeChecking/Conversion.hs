@@ -1,4 +1,9 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE NondecreasingIndentation #-}
+
+#if __GLASGOW_HASKELL__ >= 810
+{-# OPTIONS_GHC -fmax-pmcheck-models=390 #-} -- Andreas, 2023-05-12, limit determined by binary search
+#endif
 
 module Agda.TypeChecking.Conversion where
 
@@ -1275,39 +1280,21 @@ leqSort s1 s2 = do
       (_, DummyS s) -> impossibleSort s
 
       -- The most basic rule: @Set l =< Set l'@ iff @l =< l'@
-      (Type a  , Type b  ) -> leqLevel a b
-
       -- Likewise for @Prop@
-      (Prop a  , Prop b  ) -> leqLevel a b
-
       -- Likewise for @SSet@
-      (SSet a  , SSet b  ) -> leqLevel a b
-
       -- @Prop l@ is below @Set l@
-      (Prop a  , Type b  ) -> leqLevel a b
-      (Type a  , Prop b  ) -> no
-
-      -- @Setωᵢ@ is above all small sorts (spelling out all cases
-      -- for the exhaustiveness checker)
-      (Inf f m , Inf f' n) ->
-        if leqFib f f' && (m <= n || typeInTypeEnabled || omegaInOmegaEnabled) then yes else no
-      (Type{}  , Inf f _) -> yes
-      (Prop{}  , Inf f _) -> yes
-      (Inf f _, Type{}  ) -> if f == IsFibrant && typeInTypeEnabled then yes else no
-      (Inf f _, SSet{}  ) -> if f == IsStrict  && typeInTypeEnabled then yes else no
-      (Inf _ _, Prop{}  ) -> no
-
       -- @Set l@ is below @SSet l@
-      (Type a  , SSet b  ) -> leqLevel a b
-      (SSet a  , Type b  ) -> no
-
       -- @Prop l@ is below @SSet l@
-      (Prop a  , SSet b  ) -> leqLevel a b
-      (SSet a  , Prop b  ) -> no
+      (Univ u a, Univ u' b) -> if u <= u' then leqLevel a b else no
 
-      -- @SSet@ is below @SSetω@
-      (SSet{}  , Inf IsStrict _) -> yes
-      (SSet{}  , Inf IsFibrant _) -> no
+      -- @Setωᵢ@ is above all small sorts
+      (Inf f m , Inf f' n) -> answer $
+        f <= f' && (m <= n || typeInTypeEnabled || omegaInOmegaEnabled)
+      (Univ u _, Inf f _) -> answer $ univFibrancy u <= f
+
+      (Inf f _, Type{}  ) -> answer $ f == IsFibrant && typeInTypeEnabled
+      (Inf f _, SSet{}  ) -> answer $ f == IsStrict  && typeInTypeEnabled
+      (Inf _ _, Prop{}  ) -> no
 
       -- @LockUniv@, @LevelUniv@, @IntervalUniv@, @SizeUniv@, and @Prop0@ are bottom sorts.
       -- So is @Set0@ if @Prop@ is not enabled.
@@ -1320,24 +1307,17 @@ leqSort s1 s2 = do
         | not propEnabled  -> equalSort s1 s2
 
       -- @SizeUniv@, @LockUniv@ and @LevelUniv@ are unrelated to any @Set l@ or @Prop l@
-      (SizeUniv, Type{}  ) -> no
-      (SizeUniv, Prop{}  ) -> no
+      (SizeUniv, Univ{}  ) -> no
       (SizeUniv , Inf{}  ) -> no
-      (SizeUniv, SSet{}  ) -> no
-      (LockUniv, Type{}  ) -> no
-      (LockUniv, Prop{}  ) -> no
+      (LockUniv, Univ{}  ) -> no
       (LockUniv , Inf{}  ) -> no
-      (LockUniv, SSet{}  ) -> no
-      (LevelUniv, Type{}  ) -> no
-      (LevelUniv, Prop{}  ) -> no
+      (LevelUniv, Univ{}  ) -> no
       (LevelUniv , Inf{}  ) -> no
-      (LevelUniv, SSet{}  ) -> no
 
       -- @IntervalUniv@ is below @SSet l@, but not @Set l@ or @Prop l@
       (IntervalUniv, Type{}) -> no
       (IntervalUniv, Prop{}) -> no
-      (IntervalUniv , Inf IsStrict _) -> yes
-      (IntervalUniv , Inf IsFibrant _) -> no
+      (IntervalUniv , Inf f _) -> answer $ f == IsStrict
       (IntervalUniv , SSet b) -> leqLevel (ClosedLevel 0) b
 
       -- If the first sort is a small sort that rigidly depends on a
@@ -1363,10 +1343,9 @@ leqSort s1 s2 = do
   where
   no  = patternViolation neverUnblock
   yes = return ()
-
-  leqFib IsFibrant _ = True
-  leqFib IsStrict IsStrict = True
-  leqFib _ _ = False
+  answer = \case
+    True -> yes
+    False -> no
   impossibleSort s = do
     reportS "impossible" 10
       [ "leqSort: found dummy sort with description:"
