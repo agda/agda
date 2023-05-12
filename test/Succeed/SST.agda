@@ -77,7 +77,7 @@ postulate
   funextₛ : {A : Set ℓ} {B : A → Set ℓ′} {f g : (x : A) → B x}
           → (∀ x → f x ≡ₛ g x) → f ≡ₛ g
 
-data sNat : SSet lzero where
+data sNat : SSet where
   zero : sNat
   suc  : sNat → sNat
 

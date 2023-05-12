@@ -39,7 +39,9 @@ import Agda.Syntax.Concrete.Definitions ( DeclarationWarning(..) ,DeclarationWar
 import Agda.Syntax.Scope.Base as A
 
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Builtin ( HasBuiltins , getBuiltinName' , builtinSet , builtinProp , builtinSetOmega, builtinSSetOmega )
+import Agda.TypeChecking.Monad.Builtin
+  ( HasBuiltins, getBuiltinName'
+  , builtinSet, builtinStrictSet, builtinProp, builtinSetOmega, builtinSSetOmega )
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Trace
@@ -411,14 +413,15 @@ tryResolveName kinds names x = do
     Just (C.Subscript i) -> Just $ A.Suffix i
 
 -- | Test if a given abstract name can appear with a suffix. Currently
---   only true for the names of builtin sorts @Set@ and @Prop@.
+--   only true for the names of builtin sorts.
 canHaveSuffixTest :: HasBuiltins m => m (A.QName -> Bool)
 canHaveSuffixTest = do
   builtinSet  <- getBuiltinName' builtinSet
+  builtinSSet <- getBuiltinName' builtinStrictSet
   builtinProp <- getBuiltinName' builtinProp
   builtinSetOmega <- getBuiltinName' builtinSetOmega
   builtinSSetOmega <- getBuiltinName' builtinSSetOmega
-  return $ \x -> Just x `elem` [builtinSet, builtinProp, builtinSetOmega, builtinSSetOmega]
+  return $ \x -> Just x `elem` [builtinSet, builtinSSet, builtinProp, builtinSetOmega, builtinSSetOmega]
 
 -- | Look up a module in the scope.
 resolveModule :: C.QName -> ScopeM AbstractModule
