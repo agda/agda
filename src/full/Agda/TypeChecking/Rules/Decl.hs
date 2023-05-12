@@ -184,6 +184,7 @@ checkDecl d = setCurrentRange d $ do
                                   -- they should be (unless we're in a mutual
                                   -- block).
       A.Open _ _ dir           -> none $ checkImportDirective dir
+      A.UnfoldingDecl{}        -> none $ return ()
       A.PatternSynDef{}        -> none $ return ()
                                   -- Open and PatternSynDef are just artifacts
                                   -- from the concrete syntax, retained for
@@ -413,6 +414,7 @@ highlight_ hlmod d = do
     A.DataSig{}              -> highlight d
     A.Open{}                 -> highlight d
     A.PatternSynDef{}        -> highlight d
+    A.UnfoldingDecl{}        -> highlight d
     A.Generalize{}           -> highlight d
     A.UnquoteDecl{}          -> highlight d
     A.UnquoteDef{}           -> highlight d
@@ -1083,6 +1085,7 @@ instance ShowHead A.Declaration where
       A.ScopedDecl   {} -> "ScopedDecl"
       A.UnquoteDef   {} -> "UnquoteDef"
       A.UnquoteData  {} -> "UnquoteDecl data"
+      A.UnfoldingDecl{} -> "UnfoldingDecl"
 
 debugPrintDecl :: A.Declaration -> TCM ()
 debugPrintDecl d = do

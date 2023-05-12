@@ -451,6 +451,7 @@ instance ExprLike Declaration where
       UnquoteDef i xs e         -> UnquoteDef i xs <$> rec e
       UnquoteData i xs uc j cs e -> UnquoteData i xs uc j cs <$> rec e
       ScopedDecl s ds           -> ScopedDecl s <$> rec ds
+      UnfoldingDecl r ds        -> UnfoldingDecl r <$> rec ds
     where
       rec :: RecurseExprRecFn m
       rec e = recurseExpr f e
@@ -520,6 +521,7 @@ instance DeclaredNames Declaration where
       Apply{}                      -> mempty
       Import{}                     -> mempty
       Open{}                       -> mempty
+      UnfoldingDecl{}              -> mempty
     where
     con = \case
       Axiom _ _ _ _ q _ -> singleton $ WithKind ConName q

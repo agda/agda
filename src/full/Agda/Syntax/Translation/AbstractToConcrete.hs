@@ -1292,6 +1292,7 @@ instance ToConcrete A.Declaration where
     (:[]) . C.UnquoteDef (getRange i) xs <$> toConcrete e
 
   toConcrete (A.UnquoteData i xs uc j cs e) = __IMPOSSIBLE__
+  toConcrete (A.UnfoldingDecl r ns) = __IMPOSSIBLE__
 
 data RangeAndPragma = RangeAndPragma Range A.Pragma
 

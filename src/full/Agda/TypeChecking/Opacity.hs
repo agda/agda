@@ -51,16 +51,16 @@ saturateOpaqueBlocks = entry where
       , stPostOpaqueIds    = names
       } }
 
-  -- | Actually compute the closure.
+  -- Actually compute the closure.
   computeClosure
     :: Map OpaqueId OpaqueBlock
-      -- ^ Accumulates the satured opaque blocks; also contains the
+      -- Accumulates the satured opaque blocks; also contains the
       -- opaque blocks of imported modules.
     -> Map QName OpaqueId
-      -- ^ Accumulates a mapping from names to opaque blocks; also
+      -- Accumulates a mapping from names to opaque blocks; also
       -- contains imported opaque names.
     -> [OpaqueBlock]
-      -- ^ List of our opaque blocks, in dependency order.
+      -- List of our opaque blocks, in dependency order.
     -> ( Map OpaqueId OpaqueBlock
        , Map QName OpaqueId
        )

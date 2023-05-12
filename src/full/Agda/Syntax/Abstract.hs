@@ -189,6 +189,8 @@ data Declaration
   | UnquoteDef  [DefInfo] [QName] Expr
   | UnquoteData [DefInfo] QName UniverseCheck [DefInfo] [QName] Expr
   | ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
+  | UnfoldingDecl Range [QName]
+    -- ^ Only for highlighting the unfolded names
   deriving (Show, Generic)
 
 type DefInfo = DefInfo' Expr
@@ -667,29 +669,30 @@ instance HasRange Expr where
     getRange (Macro x)               = getRange x
 
 instance HasRange Declaration where
-    getRange (Axiom    _ i _ _ _ _  ) = getRange i
-    getRange (Generalize _ i _ _ _)   = getRange i
-    getRange (Field      i _ _      ) = getRange i
-    getRange (Mutual     i _        ) = getRange i
-    getRange (Section    i _ _ _ _  ) = getRange i
-    getRange (Apply      i _ _ _ _ _) = getRange i
-    getRange (Import     i _ _      ) = getRange i
-    getRange (Primitive  i _ _      ) = getRange i
-    getRange (Pragma     i _        ) = getRange i
-    getRange (Open       i _ _      ) = getRange i
-    getRange (ScopedDecl _ d        ) = getRange d
-    getRange (FunDef     i _ _ _    ) = getRange i
-    getRange (DataSig    i _ _ _ _  ) = getRange i
-    getRange (DataDef    i _ _ _ _  ) = getRange i
-    getRange (RecSig     i _ _ _ _  ) = getRange i
-    getRange (RecDef i _ _ _ _ _ _)   = getRange i
-    getRange (PatternSynDef x _ _   ) = getRange x
-    getRange (UnquoteDecl _ i _ _)    = getRange i
-    getRange (UnquoteDef i _ _)       = getRange i
+    getRange (Axiom    _ i _ _ _ _  )  = getRange i
+    getRange (Generalize _ i _ _ _)    = getRange i
+    getRange (Field      i _ _      )  = getRange i
+    getRange (Mutual     i _        )  = getRange i
+    getRange (Section    i _ _ _ _  )  = getRange i
+    getRange (Apply      i _ _ _ _ _)  = getRange i
+    getRange (Import     i _ _      )  = getRange i
+    getRange (Primitive  i _ _      )  = getRange i
+    getRange (Pragma     i _        )  = getRange i
+    getRange (Open       i _ _      )  = getRange i
+    getRange (ScopedDecl _ d        )  = getRange d
+    getRange (FunDef     i _ _ _    )  = getRange i
+    getRange (DataSig    i _ _ _ _  )  = getRange i
+    getRange (DataDef    i _ _ _ _  )  = getRange i
+    getRange (RecSig     i _ _ _ _  )  = getRange i
+    getRange (RecDef i _ _ _ _ _ _)    = getRange i
+    getRange (PatternSynDef x _ _   )  = getRange x
+    getRange (UnquoteDecl _ i _ _)     = getRange i
+    getRange (UnquoteDef i _ _)        = getRange i
     getRange (UnquoteData i _ _ j _ _) = getRange (i, j)
+    getRange (UnfoldingDecl r _)       = r
 
 instance HasRange (Pattern' e) where
-    getRange (VarP x)           = getRange x
+    getRange (VarP x)            = getRange x
     getRange (ConP i _ _)        = getRange i
     getRange (ProjP i _ _)       = getRange i
     getRange (DefP i _ _)        = getRange i
@@ -823,6 +826,7 @@ instance KillRange Declaration where
   killRange (UnquoteDecl mi i x e     ) = killRange4 UnquoteDecl mi i x e
   killRange (UnquoteDef i x e         ) = killRange3 UnquoteDef i x e
   killRange (UnquoteData i xs uc j cs e) = killRange6 UnquoteData i xs uc j cs e
+  killRange (UnfoldingDecl r xs)         = killRange2 UnfoldingDecl r xs
 
 instance KillRange ModuleApplication where
   killRange (SectionApp a b c  ) = killRange3 SectionApp a b c
@@ -1134,6 +1138,7 @@ data DeclarationSpine
   | UnquoteDefS
   | UnquoteDataS
   | ScopedDeclS [DeclarationSpine]
+  | UnfoldingDeclS
   deriving Show
 
 -- | Clause spines.
@@ -1179,6 +1184,7 @@ declarationSpine = \case
   UnquoteDef _ _ _        -> UnquoteDefS
   UnquoteData _ _ _ _ _ _ -> UnquoteDataS
   ScopedDecl _ ds         -> ScopedDeclS (map declarationSpine ds)
+  UnfoldingDecl _ _       -> UnquoteDeclS
 
 -- | The clause spine corresponding to a clause.
 

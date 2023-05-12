@@ -2187,7 +2187,7 @@ instance ToAbstract NiceDeclaration where
 
       -- Resolve all the names, and use them as an initial unfolding
       -- set:
-      names  <- HashSet.fromList <$> traverse findName names
+      names  <- traverse findName names
       -- Generate the identifier for this block:
       oid    <- fresh
       -- Record the parent unfolding block, if any:
@@ -2195,14 +2195,14 @@ instance ToAbstract NiceDeclaration where
 
       stOpaqueBlocks `modifyTCLens` Map.insert oid OpaqueBlock
         { opaqueId        = oid
-        , opaqueUnfolding = names
+        , opaqueUnfolding = HashSet.fromList names
         , opaqueDecls     = mempty
         , opaqueParent    = parent
         }
 
       -- Keep going!
       localTC (\e -> e { envCurrentOpaqueId = Just oid }) $
-        traverse toAbstract decls
+        (UnfoldingDecl r names:) <$> traverse toAbstract decls
     where
       -- checking postulate or type sig. without checking safe flag
       toAbstractNiceAxiom :: KindOfName -> C.NiceDeclaration -> ScopeM A.Declaration
