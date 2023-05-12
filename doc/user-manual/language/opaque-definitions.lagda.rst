@@ -25,16 +25,15 @@ level, without a dependency on our (cubical) extension types.
 Overview
 --------
 
-* Functions, data types, and record types can be marked ``opaque``.
-  Outside of ``opaque`` blocks, these behave exactly as they would if
-  marked abstract
+* Functions (and primitive functions) can be marked ``opaque``.
+  Outside of ``opaque`` blocks, these behave like postulates.
 
-* Opaque modules, even in downstream modules, can have ``unfolding``
+* Opaque blocks, even in unrelated modules, can have ``unfolding``
   clauses, marking some subset of the opaque names in scope as
-  transparent again
+  transparent again.
 
 * Opaque definitions do not reduce in type signatures, even inside
-  opaque blocks where they are unfolded.
+  opaque blocks where they would otherwise be unfolded.
 
 
 Unfolding opaque definitions
