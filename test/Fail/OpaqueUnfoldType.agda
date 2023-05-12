@@ -21,6 +21,9 @@ opaque
   nil : ∀ {ℓ} {A : Set ℓ} → Vec A zero
   nil = record{}
 
+  cons : ∀ {ℓ} {A : Set ℓ} {n} → A → Vec A n → Vec A (suc n)
+  cons = _,_
+
 variable
   A : Set
   n k : Nat

@@ -5,6 +5,7 @@ module Agda.TypeChecking.Opacity
   )
   where
 
+import Control.Monad.State.Strict
 import Control.Monad
 
 import qualified Data.HashMap.Strict as HashMap
@@ -12,6 +13,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.HashSet as HashSet
 import qualified Data.List as List
 import Data.HashMap.Strict (HashMap)
+import Data.HashSet (HashSet)
 import Data.Map.Strict (Map)
 import Data.Foldable
 import Data.Maybe
@@ -26,6 +28,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Monad
 
 import Agda.Utils.Impossible
+import Agda.Utils.Monad
 import Agda.Utils.Lens
 
 -- | Ensure that opaque blocks defined in the current module have
@@ -40,9 +43,9 @@ saturateOpaqueBlocks = entry where
     let
       isOurs (OpaqueId _ mod, _) = mod == ourmod
       ours = snd <$> filter isOurs (Map.toAscList known)
-      -- Only compute transitive closure for opaque blocks declared in
-      -- the current top-level module. Deserialised blocks are always
-      -- closed, so this work would be redundant.
+    -- Only compute transitive closure for opaque blocks declared in
+    -- the current top-level module. Deserialised blocks are always
+    -- closed, so this work would be redundant.
     (blocks, names) <- computeClosure known inverse ours
 
     reportSDoc "tc.opaque" 30 $ vcat $
@@ -68,7 +71,6 @@ saturateOpaqueBlocks = entry where
          )
   computeClosure !blocks !names [] = pure (blocks, names)
   computeClosure blocks names (block:xs) = setCurrentRange (opaqueRange block) $ do
-    when (null (opaqueDecls block)) $ warning UselessOpaque
     let
       yell nm accum = setCurrentRange (getRange nm) $ do
         warning (UnfoldTransparentName nm)

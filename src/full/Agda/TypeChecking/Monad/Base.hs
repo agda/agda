@@ -46,6 +46,7 @@ import qualified Data.Set as Set -- hiding (singleton, null, empty)
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
 import qualified Data.HashSet as HashSet
+import Data.Hashable
 import Data.HashSet (HashSet)
 import Data.Semigroup ( Semigroup, (<>)) --, Any(..) )
 import Data.String
@@ -3983,7 +3984,7 @@ data OpaqueBlock = OpaqueBlock
     -- ^ Pointer to an enclosing opaque block, if one exists.
   , opaqueRange     :: Range
     -- ^ Where is this opaque block?
-  } deriving (Show, Eq, Generic)
+  } deriving (Show, Generic)
 
 instance Pretty OpaqueBlock where
   pretty (OpaqueBlock _ uf ds p _) = vcat
@@ -3994,6 +3995,12 @@ instance Pretty OpaqueBlock where
     ++ [ nest 2 "declares" ]
     ++ [ nest 4 (pretty n <+> ": _") | n <- HashSet.toList ds ]
     ++ [ "}" ]
+
+instance Eq OpaqueBlock where
+  xs == ys = opaqueId xs == opaqueId ys
+
+instance Hashable OpaqueBlock where
+  hashWithSalt s = hashWithSalt s . opaqueId
 
 ---------------------------------------------------------------------------
 -- ** Insertion of implicit arguments

@@ -1760,6 +1760,7 @@ instance ToAbstract NiceDeclaration where
       f  <- getConcreteFixity x
       y  <- freshAbstractQName f x
       bindName p PrimName x y
+      unfoldFunction y
       di <- updateDefInfoOpacity (mkDefInfo x f p a r)
       return [ A.Primitive di y t' ]
 
@@ -2091,6 +2092,7 @@ instance ToAbstract NiceDeclaration where
       e <- toAbstract e
       zipWithM_ (rebindName p OtherDefName) xs ys
       let mi = MutualInfo tc cc YesPositivityCheck r
+      mapM_ unfoldFunction ys
       opaque <- contextIsOpaque
       return [ A.Mutual mi
         [ A.UnquoteDecl mi
@@ -2104,6 +2106,7 @@ instance ToAbstract NiceDeclaration where
       zipWithM_ (rebindName p QuotableName) xs ys
       e <- toAbstract e
       zipWithM_ (rebindName p OtherDefName) xs ys
+      mapM_ unfoldFunction ys
       opaque <- contextIsOpaque
       return [ A.UnquoteDef [ (mkDefInfo x fx PublicAccess a r) { Info.defOpaque = opaque } | (fx, x) <- zip fxs xs ] ys e ]
 
@@ -2202,8 +2205,10 @@ instance ToAbstract NiceDeclaration where
         }
 
       -- Keep going!
-      localTC (\e -> e { envCurrentOpaqueId = Just oid }) $
-        (UnfoldingDecl r names:) <$> traverse toAbstract decls
+      localTC (\e -> e { envCurrentOpaqueId = Just oid }) $ do
+        out <- traverse toAbstract decls
+        unless (any interestingOpaqueDecl out) $ warning UselessOpaque
+        pure $ UnfoldingDecl r names:out
     where
       -- checking postulate or type sig. without checking safe flag
       toAbstractNiceAxiom :: KindOfName -> C.NiceDeclaration -> ScopeM A.Declaration
@@ -2217,6 +2222,17 @@ instance ToAbstract NiceDeclaration where
         bindName p kind x y
         return $ A.Axiom kind (mkDefInfoInstance x f p a i isMacro r) info mp y t'
       toAbstractNiceAxiom _ _ = __IMPOSSIBLE__
+
+      interestingOpaqueDecl :: A.Declaration -> Bool
+      interestingOpaqueDecl (A.Mutual _ ds)     = any interestingOpaqueDecl ds
+      interestingOpaqueDecl (A.ScopedDecl _ ds) = any interestingOpaqueDecl ds
+
+      interestingOpaqueDecl A.FunDef{} = True
+      interestingOpaqueDecl A.UnquoteDecl{} = True
+      interestingOpaqueDecl A.UnquoteDef{} = True
+      interestingOpaqueDecl A.Primitive{} = True
+
+      interestingOpaqueDecl _ = False
 
 -- | Add a 'QName' to the set of declarations /contained in/ the current
 -- opaque block.
@@ -2233,7 +2249,7 @@ contextIsOpaque :: ScopeM IsOpaque
 contextIsOpaque =  maybe TransparentDef OpaqueDef <$> asksTC envCurrentOpaqueId
 
 updateDefInfoOpacity :: DefInfo -> ScopeM DefInfo
-updateDefInfoOpacity di = (\a -> di { defOpaque = a }) <$> contextIsOpaque
+updateDefInfoOpacity di = (\a -> di { Info.defOpaque = a }) <$> contextIsOpaque
 
 -- | Raise a warning indicating that the current Declaration is not
 -- affected by opacity, but only if we are actually in an Opaque block.
