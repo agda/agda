@@ -9,7 +9,7 @@ open import Agda.Primitive.Cubical
 
 -- Glue can be used in erased contexts.
 
-@0 _ : SSet (lsuc lzero)
+@0 _ : SSet₁
 _ =
   (φ : I) (A : Set) (B : Partial φ Set)
   (f : PartialP φ (λ x → B x ≃ A)) →
