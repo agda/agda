@@ -33,6 +33,7 @@ import qualified Data.HashMap.Strict as HMap
 import Data.Void
 
 import Agda.Syntax.Common
+import Agda.Syntax.Builtin
 import Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
@@ -743,3 +744,15 @@ instance EmbPrj OptionsPragma where
   icod_ (OptionsPragma a b) = icod_ (a, b)
 
   value op = uncurry OptionsPragma <$> value op
+
+instance EmbPrj BuiltinId
+instance EmbPrj PrimitiveId
+
+instance EmbPrj SomeBuiltin where
+  icod_ (BuiltinName x)   = icodeN 0 BuiltinName x
+  icod_ (PrimitiveName x) = icodeN 1 PrimitiveName x
+
+  value = vcase valu where
+    valu [0, x] = valuN BuiltinName x
+    valu [1, x] = valuN PrimitiveName x
+    valu _      = malformed

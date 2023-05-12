@@ -702,20 +702,20 @@ checkPrimitive i x (Arg info e) =
     -- Certain "primitive" functions are BUILTIN rather than
     -- primitive.
     let builtinPrimitives =
-          [ "primNatPlus"
-          , "primNatMinus"
-          , "primNatTimes"
-          , "primNatDivSucAux"
-          , "primNatModSucAux"
-          , "primNatEquality"
-          , "primNatLess"
-          , "primLevelZero"
-          , "primLevelSuc"
-          , "primLevelMax"
+          [ PrimNatPlus
+          , PrimNatMinus
+          , PrimNatTimes
+          , PrimNatDivSucAux
+          , PrimNatModSucAux
+          , PrimNatEquality
+          , PrimNatLess
+          , PrimLevelZero
+          , PrimLevelSuc
+          , PrimLevelMax
           ]
     when (name `elem` builtinPrimitives) $ do
-      reportSDoc "tc.prim" 20 $ text name <+> "is a BUILTIN, not a primitive!"
-      typeError $ NoSuchPrimitiveFunction name
+      reportSDoc "tc.prim" 20 $ pretty name <+> "is a BUILTIN, not a primitive!"
+      typeError $ NoSuchPrimitiveFunction (getBuiltinId name)
     t <- isType_ e
     noConstraints $ equalType t t'
     let s  = prettyShow $ qnameName x
@@ -728,10 +728,10 @@ checkPrimitive i x (Arg info e) =
             -- Currently no special primitives
             _ -> defaultArgInfo
     unless (info == expectedInfo) $ typeError $ WrongModalityForPrimitive name info expectedInfo
-    bindPrimitive s pf
+    bindPrimitive name pf
     addConstant' x info x t $
         Primitive { primAbstr    = Info.defAbstract i
-                  , primName     = s
+                  , primName     = name
                   , primClauses  = []
                   , primInv      = NotInjective
                   , primCompiled = Nothing
@@ -743,10 +743,16 @@ checkPragma :: Range -> A.Pragma -> TCM ()
 checkPragma r p =
     traceCall (CheckPragma r p) $ case p of
         A.BuiltinPragma rb x
-          | isUntypedBuiltin b -> return ()
-          | otherwise          -> bindBuiltin b x
+          | any isUntypedBuiltin b -> return ()
+          | Just b' <- b -> bindBuiltin b' x
+          | otherwise -> typeError $ NoSuchBuiltinName ident
+          where
+            ident = rangedThing rb
+            b = builtinById ident
+        A.BuiltinNoDefPragma rb _kind x
+          | Just b' <- builtinById b -> bindBuiltinNoDef b' x
+          | otherwise -> typeError $ NoSuchBuiltinName b
           where b = rangedThing rb
-        A.BuiltinNoDefPragma b _kind x -> bindBuiltinNoDef (rangedThing b) x
         A.RewritePragma _ qs -> addRewriteRules qs
         A.CompilePragma b x s -> do
           -- Check that x resides in the same module (or a child) as the pragma.

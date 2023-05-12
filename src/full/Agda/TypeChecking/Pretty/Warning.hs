@@ -144,8 +144,8 @@ prettyWarning = \case
       "is an absurd pattern, () or {}, in the left-hand side."
 
     OldBuiltin old new -> fwords $
-      "Builtin " ++ old ++ " no longer exists. " ++
-      "It is now bound by BUILTIN " ++ new
+      "Builtin " ++ getBuiltinId old ++ " no longer exists. " ++
+      "It is now bound by BUILTIN " ++ getBuiltinId new
 
     EmptyRewritePragma -> fsep . pwords $ "Empty REWRITE pragma"
 

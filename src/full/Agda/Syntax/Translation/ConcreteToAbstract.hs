@@ -2518,37 +2518,37 @@ instance ToAbstract C.Pragma where
           _        -> genericError $ "Target of NOT_PROJECTION_LIKE pragma should be a function"
       return [ A.NotProjectionLikePragma y ]
   toAbstract (C.BuiltinPragma _ rb qx)
-    | isUntypedBuiltin b = do
+    | Just b' <- b, isUntypedBuiltin b' = do
         q <- toAbstract $ ResolveQName qx
-        bindUntypedBuiltin b q
+        bindUntypedBuiltin b' q
         return [ A.BuiltinPragma rb q ]
         -- Andreas, 2015-02-14
         -- Some builtins cannot be given a valid Agda type,
         -- thus, they do not come with accompanying postulate or definition.
-    | isBuiltinNoDef b = do
+    | Just b' <- b, isBuiltinNoDef b' = do
           case qx of
             C.QName x -> do
               -- The name shouldn't exist yet. If it does, we raise a warning
               -- and drop the existing definition.
               unlessM ((UnknownName ==) <$> resolveName qx) $ do
                 genericWarning $ P.text $
-                   "BUILTIN " ++ b ++ " declares an identifier " ++
+                   "BUILTIN " ++ getBuiltinId b' ++ " declares an identifier " ++
                    "(no longer expects an already defined identifier)"
                 modifyCurrentScope $ removeNameFromScope PublicNS x
               -- We then happily bind the name
               y <- freshAbstractQName' x
-              let kind = fromMaybe __IMPOSSIBLE__ $ builtinKindOfName b
+              let kind = fromMaybe __IMPOSSIBLE__ $ builtinKindOfName b'
               bindName PublicAccess kind x y
               return [ A.BuiltinNoDefPragma rb kind y ]
             _ -> genericError $
-              "Pragma BUILTIN " ++ b ++ ": expected unqualified identifier, " ++
+              "Pragma BUILTIN " ++ getBuiltinId b' ++ ": expected unqualified identifier, " ++
               "but found " ++ prettyShow qx
     | otherwise = do
           q0 <- toAbstract $ ResolveQName qx
 
           -- Andreas, 2020-04-12, pr #4574.  For highlighting purposes:
           -- Rebind 'BuiltinPrim' as 'PrimName' and similar.
-          q <- case (q0, builtinKindOfName b, qx) of
+          q <- case (q0, b >>= builtinKindOfName, qx) of
             (DefinedName acc y suffix, Just kind, C.QName x)
               | anameKind y /= kind
               , kind `elem` [ PrimName, AxiomName ] -> do
@@ -2557,7 +2557,7 @@ instance ToAbstract C.Pragma where
             _ -> return q0
 
           return [ A.BuiltinPragma rb q ]
-    where b = rangedThing rb
+    where b = builtinById (rangedThing rb)
 
   toAbstract (C.EtaPragma _ x) = do
     e <- toAbstract $ OldQName x Nothing

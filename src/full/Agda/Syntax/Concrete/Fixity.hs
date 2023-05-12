@@ -18,7 +18,7 @@ import qualified Data.Set as Set
 import Data.Semigroup
 #endif
 
-import Agda.Syntax.Builtin (isBuiltinNoDef)
+import Agda.Syntax.Builtin (builtinById, isBuiltinNoDef)
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete
 import Agda.Syntax.Position
@@ -252,5 +252,5 @@ declaredNames = \case
   -- BUILTIN pragmas which do not require an accompanying definition declare
   -- the (unqualified) name they mention.
   Pragma (BuiltinPragma _ b (QName x))
-    | isBuiltinNoDef $ rangedThing b -> declaresName x
+    | any isBuiltinNoDef . builtinById $ rangedThing b -> declaresName x
   Pragma{}             -> mempty

@@ -434,14 +434,14 @@ defineCompData :: QName      -- datatype name
                -> TCM CompKit
 defineCompData d con params names fsT t boundary = do
   required <- mapM getTerm'
-    [ builtinInterval
-    , builtinIZero
-    , builtinIOne
-    , builtinIMin
-    , builtinIMax
-    , builtinINeg
-    , builtinPOr
-    , builtinItIsOne
+    [ someBuiltin builtinInterval
+    , someBuiltin builtinIZero
+    , someBuiltin builtinIOne
+    , someBuiltin builtinIMin
+    , someBuiltin builtinIMax
+    , someBuiltin builtinINeg
+    , someBuiltin builtinPOr
+    , someBuiltin builtinItIsOne
     ]
   if not (all isJust required) then return $ emptyCompKit else do
     hcomp  <- whenDefined (null boundary) [builtinHComp,builtinTrans]
@@ -750,11 +750,11 @@ defineTranspIx d = do
       let deltaI = expTelescope interval ixs
       iz <- primIZero
       io@(Con c _ _) <- primIOne
-      imin <- getPrimitiveTerm "primIMin"
-      imax <- getPrimitiveTerm "primIMax"
-      ineg <- getPrimitiveTerm "primINeg"
+      imin <- getPrimitiveTerm builtinIMin
+      imax <- getPrimitiveTerm builtinIMax
+      ineg <- getPrimitiveTerm builtinINeg
       transp <- getPrimitiveTerm builtinTrans
-      por <- getPrimitiveTerm "primPOr"
+      por <- getPrimitiveTerm builtinPOr
       one <- primItIsOne
       -- reportSDoc "trans.rec" 20 $ text $ show params
       -- reportSDoc "trans.rec" 20 $ text $ show deltaI
@@ -1355,9 +1355,9 @@ defineTranspForFields pathCons applyProj name params fsT fns rect = do
   let deltaI = expTelescope interval params
   iz <- primIZero
   io <- primIOne
-  imin <- getPrimitiveTerm "primIMin"
-  imax <- getPrimitiveTerm "primIMax"
-  ineg <- getPrimitiveTerm "primINeg"
+  imin <- getPrimitiveTerm builtinIMin
+  imax <- getPrimitiveTerm builtinIMax
+  ineg <- getPrimitiveTerm builtinINeg
   transp <- getPrimitiveTerm builtinTrans
   -- por <- getPrimitiveTerm "primPOr"
   -- one <- primItIsOne
@@ -1513,13 +1513,13 @@ defineHCompForFields applyProj name params fsT fns rect = do
   let delta = params
   iz <- primIZero
   io <- primIOne
-  imin <- getPrimitiveTerm "primIMin"
-  imax <- getPrimitiveTerm "primIMax"
-  tIMax <- getPrimitiveTerm "primIMax"
-  ineg <- getPrimitiveTerm "primINeg"
+  imin <- getPrimitiveTerm builtinIMin
+  imax <- getPrimitiveTerm builtinIMax
+  tIMax <- getPrimitiveTerm builtinIMax
+  ineg <- getPrimitiveTerm builtinINeg
   hcomp <- getPrimitiveTerm builtinHComp
   transp <- getPrimitiveTerm builtinTrans
-  por <- getPrimitiveTerm "primPOr"
+  por <- getPrimitiveTerm builtinPOr
   one <- primItIsOne
   reportSDoc "comp.rec" 20 $ text $ show params
   reportSDoc "comp.rec" 20 $ text $ show delta

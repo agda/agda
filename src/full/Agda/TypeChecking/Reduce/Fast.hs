@@ -179,17 +179,17 @@ compactDef bEnv def rewr = do
           -- "primShowInteger"            -- integers are not literals
 
           -- Natural numbers
-          "primNatPlus"                -> mkPrim 2 $ natOp (+)
-          "primNatMinus"               -> mkPrim 2 $ natOp (\ x y -> max 0 (x - y))
-          "primNatTimes"               -> mkPrim 2 $ natOp (*)
-          "primNatDivSucAux"           -> mkPrim 4 $ natOp4 divAux
-          "primNatModSucAux"           -> mkPrim 4 $ natOp4 modAux
-          "primNatLess"                -> mkPrim 2 $ natRel (<)
-          "primNatEquality"            -> mkPrim 2 $ natRel (==)
+          PrimNatPlus                  -> mkPrim 2 $ natOp (+)
+          PrimNatMinus                 -> mkPrim 2 $ natOp (\ x y -> max 0 (x - y))
+          PrimNatTimes                 -> mkPrim 2 $ natOp (*)
+          PrimNatDivSucAux             -> mkPrim 4 $ natOp4 divAux
+          PrimNatModSucAux             -> mkPrim 4 $ natOp4 modAux
+          PrimNatLess                  -> mkPrim 2 $ natRel (<)
+          PrimNatEquality              -> mkPrim 2 $ natRel (==)
 
           -- Word64
-          "primWord64ToNat"            -> mkPrim 1 $ \ [LitWord64 a] -> nat (fromIntegral a)
-          "primWord64FromNat"          -> mkPrim 1 $ \ [LitNat a]    -> word (fromIntegral a)
+          PrimWord64ToNat              -> mkPrim 1 $ \ [LitWord64 a] -> nat (fromIntegral a)
+          PrimWord64FromNat            -> mkPrim 1 $ \ [LitNat a]    -> word (fromIntegral a)
 
           -- Levels
           -- "primLevelZero"              -- levels are not literals
@@ -197,17 +197,16 @@ compactDef bEnv def rewr = do
           -- "primLevelMax"               -- levels are not literals
 
           -- Floats
-          "primFloatInequality"        -> mkPrim 2 $ floatRel (<=)
-          "primFloatEquality"          -> mkPrim 2 $ floatRel (==)
-          "primFloatLess"              -> mkPrim 2 $ floatRel (<)
-          "primFloatIsInfinite"        -> mkPrim 1 $ floatPred isInfinite
-          "primFloatIsNaN"             -> mkPrim 1 $ floatPred isNaN
-          "primFloatIsDenormalized"    -> mkPrim 1 $ floatPred isDenormalized
-          "primFloatIsNegativeZero"    -> mkPrim 1 $ floatPred isNegativeZero
-          "primFloatIsSafeInteger"     -> mkPrim 1 $ floatPred isSafeInteger
+          PrimFloatInequality          -> mkPrim 2 $ floatRel (<=)
+          PrimFloatEquality            -> mkPrim 2 $ floatRel (==)
+          PrimFloatLess                -> mkPrim 2 $ floatRel (<)
+          PrimFloatIsInfinite          -> mkPrim 1 $ floatPred isInfinite
+          PrimFloatIsNaN               -> mkPrim 1 $ floatPred isNaN
+          PrimFloatIsNegativeZero      -> mkPrim 1 $ floatPred isNegativeZero
+          PrimFloatIsSafeInteger       -> mkPrim 1 $ floatPred isSafeInteger
           -- "primFloatToWord64"          -- returns a maybe
           -- "primFloatToWord64Injective" -- identities are not literals
-          "primNatToFloat"             -> mkPrim 1 $ \ [LitNat a] -> float (fromIntegral a)
+          PrimNatToFloat               -> mkPrim 1 $ \ [LitNat a] -> float (fromIntegral a)
           -- "primIntToFloat"             -- integers are not literals
           -- "primFloatRound"             -- integers and maybe are not literals
           -- "primFloatFloor"             -- integers and maybe are not literals
@@ -216,63 +215,63 @@ compactDef bEnv def rewr = do
           -- "primRatioToFloat"           -- integers are not literals
           -- "primFloatDecode"            -- integers and sigma are not literals
           -- "primFloatEncode"            -- integers are not literals
-          "primFloatPlus"              -> mkPrim 2 $ floatOp (+)
-          "primFloatMinus"             -> mkPrim 2 $ floatOp (-)
-          "primFloatTimes"             -> mkPrim 2 $ floatOp (*)
-          "primFloatNegate"            -> mkPrim 1 $ floatFun negate
-          "primFloatDiv"               -> mkPrim 2 $ floatOp (/)
-          "primFloatSqrt"              -> mkPrim 1 $ floatFun sqrt
-          "primFloatExp"               -> mkPrim 1 $ floatFun exp
-          "primFloatLog"               -> mkPrim 1 $ floatFun log
-          "primFloatSin"               -> mkPrim 1 $ floatFun sin
-          "primFloatCos"               -> mkPrim 1 $ floatFun cos
-          "primFloatTan"               -> mkPrim 1 $ floatFun tan
-          "primFloatASin"              -> mkPrim 1 $ floatFun asin
-          "primFloatACos"              -> mkPrim 1 $ floatFun acos
-          "primFloatATan"              -> mkPrim 1 $ floatFun atan
-          "primFloatATan2"             -> mkPrim 2 $ floatOp atan2
-          "primFloatSinh"              -> mkPrim 1 $ floatFun sinh
-          "primFloatCosh"              -> mkPrim 1 $ floatFun cosh
-          "primFloatTanh"              -> mkPrim 1 $ floatFun tanh
-          "primFloatASinh"             -> mkPrim 1 $ floatFun asinh
-          "primFloatACosh"             -> mkPrim 1 $ floatFun acosh
-          "primFloatATanh"             -> mkPrim 1 $ floatFun atanh
-          "primFloatPow"               -> mkPrim 2 $ floatOp (**)
-          "primShowFloat"              -> mkPrim 1 $ \ [LitFloat a] -> string (show a)
+          PrimFloatPlus                -> mkPrim 2 $ floatOp (+)
+          PrimFloatMinus               -> mkPrim 2 $ floatOp (-)
+          PrimFloatTimes               -> mkPrim 2 $ floatOp (*)
+          PrimFloatNegate              -> mkPrim 1 $ floatFun negate
+          PrimFloatDiv                 -> mkPrim 2 $ floatOp (/)
+          PrimFloatSqrt                -> mkPrim 1 $ floatFun sqrt
+          PrimFloatExp                 -> mkPrim 1 $ floatFun exp
+          PrimFloatLog                 -> mkPrim 1 $ floatFun log
+          PrimFloatSin                 -> mkPrim 1 $ floatFun sin
+          PrimFloatCos                 -> mkPrim 1 $ floatFun cos
+          PrimFloatTan                 -> mkPrim 1 $ floatFun tan
+          PrimFloatASin                -> mkPrim 1 $ floatFun asin
+          PrimFloatACos                -> mkPrim 1 $ floatFun acos
+          PrimFloatATan                -> mkPrim 1 $ floatFun atan
+          PrimFloatATan2               -> mkPrim 2 $ floatOp atan2
+          PrimFloatSinh                -> mkPrim 1 $ floatFun sinh
+          PrimFloatCosh                -> mkPrim 1 $ floatFun cosh
+          PrimFloatTanh                -> mkPrim 1 $ floatFun tanh
+          PrimFloatASinh               -> mkPrim 1 $ floatFun asinh
+          PrimFloatACosh               -> mkPrim 1 $ floatFun acosh
+          PrimFloatATanh               -> mkPrim 1 $ floatFun atanh
+          PrimFloatPow                 -> mkPrim 2 $ floatOp (**)
+          PrimShowFloat                -> mkPrim 1 $ \ [LitFloat a] -> string (show a)
 
           -- Characters
-          "primCharEquality"           -> mkPrim 2 $ charRel (==)
-          "primIsLower"                -> mkPrim 1 $ charPred isLower
-          "primIsDigit"                -> mkPrim 1 $ charPred isDigit
-          "primIsAlpha"                -> mkPrim 1 $ charPred isAlpha
-          "primIsSpace"                -> mkPrim 1 $ charPred isSpace
-          "primIsAscii"                -> mkPrim 1 $ charPred isAscii
-          "primIsLatin1"               -> mkPrim 1 $ charPred isLatin1
-          "primIsPrint"                -> mkPrim 1 $ charPred isPrint
-          "primIsHexDigit"             -> mkPrim 1 $ charPred isHexDigit
-          "primToUpper"                -> mkPrim 1 $ charFun toUpper
-          "primToLower"                -> mkPrim 1 $ charFun toLower
-          "primCharToNat"              -> mkPrim 1 $ \ [LitChar a] -> nat (fromIntegral (fromEnum a))
-          "primNatToChar"              -> mkPrim 1 $ \ [LitNat a] -> char (integerToChar a)
-          "primShowChar"               -> mkPrim 1 $ \ [a] -> string (prettyShow a)
+          PrimCharEquality             -> mkPrim 2 $ charRel (==)
+          PrimIsLower                  -> mkPrim 1 $ charPred isLower
+          PrimIsDigit                  -> mkPrim 1 $ charPred isDigit
+          PrimIsAlpha                  -> mkPrim 1 $ charPred isAlpha
+          PrimIsSpace                  -> mkPrim 1 $ charPred isSpace
+          PrimIsAscii                  -> mkPrim 1 $ charPred isAscii
+          PrimIsLatin1                 -> mkPrim 1 $ charPred isLatin1
+          PrimIsPrint                  -> mkPrim 1 $ charPred isPrint
+          PrimIsHexDigit               -> mkPrim 1 $ charPred isHexDigit
+          PrimToUpper                  -> mkPrim 1 $ charFun toUpper
+          PrimToLower                  -> mkPrim 1 $ charFun toLower
+          PrimCharToNat                -> mkPrim 1 $ \ [LitChar a] -> nat (fromIntegral (fromEnum a))
+          PrimNatToChar                -> mkPrim 1 $ \ [LitNat a] -> char (integerToChar a)
+          PrimShowChar                 -> mkPrim 1 $ \ [a] -> string (prettyShow a)
 
           -- Strings
           -- "primStringToList"           -- lists are not literals (TODO)
           -- "primStringFromList"         -- lists are not literals (TODO)
-          "primStringAppend"           -> mkPrim 2 $ \ [LitString a, LitString b] -> text (b <> a)
-          "primStringEquality"         -> mkPrim 2 $ \ [LitString a, LitString b] -> bool (b == a)
-          "primShowString"             -> mkPrim 1 $ \ [a] -> string (prettyShow a)
+          PrimStringAppend             -> mkPrim 2 $ \ [LitString a, LitString b] -> text (b <> a)
+          PrimStringEquality           -> mkPrim 2 $ \ [LitString a, LitString b] -> bool (b == a)
+          PrimShowString               -> mkPrim 1 $ \ [a] -> string (prettyShow a)
 
           -- "primErase"
           -- "primForce"
           -- "primForceLemma"
-          "primQNameEquality"          -> mkPrim 2 $ \ [LitQName a, LitQName b] -> bool (b == a)
-          "primQNameLess"              -> mkPrim 2 $ \ [LitQName a, LitQName b] -> bool (b < a)
-          "primShowQName"              -> mkPrim 1 $ \ [LitQName a] -> string (prettyShow a)
+          PrimQNameEquality            -> mkPrim 2 $ \ [LitQName a, LitQName b] -> bool (b == a)
+          PrimQNameLess                -> mkPrim 2 $ \ [LitQName a, LitQName b] -> bool (b < a)
+          PrimShowQName                -> mkPrim 1 $ \ [LitQName a] -> string (prettyShow a)
           -- "primQNameFixity"            -- fixities are not literals (TODO)
-          "primMetaEquality"           -> mkPrim 2 $ \ [LitMeta _ a, LitMeta _ b] -> bool (b == a)
-          "primMetaLess"               -> mkPrim 2 $ \ [LitMeta _ a, LitMeta _ b] -> bool (b < a)
-          "primShowMeta"               -> mkPrim 1 $ \ [LitMeta _ a] -> string (prettyShow a)
+          PrimMetaEquality             -> mkPrim 2 $ \ [LitMeta _ a, LitMeta _ b] -> bool (b == a)
+          PrimMetaLess                 -> mkPrim 2 $ \ [LitMeta _ a, LitMeta _ b] -> bool (b < a)
+          PrimShowMeta                 -> mkPrim 1 $ \ [LitMeta _ a] -> string (prettyShow a)
 
           _                            -> pure COther
         where
@@ -454,8 +453,8 @@ fastReduce' norm v = do
       false = builtinName builtinFalse
       refl  = builtinName builtinRefl
 
-      force = primitiveName "primForce"
-      erase = primitiveName "primErase"
+      force = primitiveName PrimForce
+      erase = primitiveName PrimErase
 
       bEnv = BuiltinEnv { bZero = zero, bSuc = suc, bTrue = true, bFalse = false, bRefl = refl,
                           bPrimForce = force, bPrimErase = erase }

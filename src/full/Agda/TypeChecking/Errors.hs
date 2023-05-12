@@ -686,33 +686,33 @@ instance PrettyTCM TypeError where
       pwords "solution was created in an erased context."
 
     BuiltinMustBeConstructor s e -> fsep $
-      [prettyA e] ++ pwords "must be a constructor in the binding to builtin" ++ [text s]
+      [prettyA e] ++ pwords "must be a constructor in the binding to builtin" ++ [pretty s]
 
     NoSuchBuiltinName s -> fsep $
-      pwords "There is no built-in thing called" ++ [text s]
+      pwords "There is no built-in thing called" ++ [pretty s]
 
     DuplicateBuiltinBinding b x y -> fsep $
-      pwords "Duplicate binding for built-in thing" ++ [text b <> comma] ++
+      pwords "Duplicate binding for built-in thing" ++ [pretty b <> comma] ++
       pwords "previous binding to" ++ [prettyTCM x]
 
     NoBindingForBuiltin x
       | x `elem` [builtinZero, builtinSuc] -> fsep $
-        pwords "No binding for builtin " ++ [text x <> comma] ++
-        pwords ("use {-# BUILTIN " ++ builtinNat ++ " name #-} to bind builtin natural " ++
+        pwords "No binding for builtin " ++ [pretty x <> comma] ++
+        pwords ("use {-# BUILTIN " ++ getBuiltinId builtinNat ++ " name #-} to bind builtin natural " ++
                 "numbers to the type 'name'")
       | otherwise -> fsep $
-        pwords "No binding for builtin thing" ++ [text x <> comma] ++
-        pwords ("use {-# BUILTIN " ++ x ++ " name #-} to bind it to 'name'")
+        pwords "No binding for builtin thing" ++ [pretty x <> comma] ++
+        pwords ("use {-# BUILTIN " ++ getBuiltinId x ++ " name #-} to bind it to 'name'")
 
     DuplicatePrimitiveBinding b x y -> fsep $
-      pwords "Duplicate binding for primitive thing" ++ [text b <> comma] ++
+      pwords "Duplicate binding for primitive thing" ++ [pretty b <> comma] ++
       pwords "previous binding to" ++ [prettyTCM x]
 
     NoSuchPrimitiveFunction x -> fsep $
       pwords "There is no primitive function called" ++ [text x]
 
     WrongModalityForPrimitive x got expect ->
-      vcat [ fsep $ pwords "Wrong modality for primitive" ++ [text x]
+      vcat [ fsep $ pwords "Wrong modality for primitive" ++ [pretty x]
            , nest 2 $ text $ "Got:      " ++ intercalate ", " gs
            , nest 2 $ text $ "Expected: " ++ intercalate ", " es ]
       where

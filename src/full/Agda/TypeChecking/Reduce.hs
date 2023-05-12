@@ -1393,6 +1393,9 @@ instance InstantiateFull ConHead where
 instance InstantiateFull DBPatVar where
     instantiateFull' = return
 
+instance InstantiateFull PrimitiveId where
+  instantiateFull' = return
+
 -- Rest:
 
 instance InstantiateFull Sort where

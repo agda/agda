@@ -175,20 +175,23 @@ domH = setHiding Hidden . defaultDom
 -- * Accessing the primitive functions
 ---------------------------------------------------------------------------
 
-lookupPrimitiveFunction :: String -> TCM PrimitiveImpl
+lookupPrimitiveFunction :: PrimitiveId -> TCM PrimitiveImpl
 lookupPrimitiveFunction x =
   fromMaybe (do
-                reportSDoc "tc.prim" 20 $ "Lookup of primitive function" <+> text x <+> "failed"
-                typeError $ NoSuchPrimitiveFunction x)
+                reportSDoc "tc.prim" 20 $ "Lookup of primitive function" <+> pretty x <+> "failed"
+                typeError $ NoSuchPrimitiveFunction (getBuiltinId x))
             (Map.lookup x primitiveFunctions)
 
-lookupPrimitiveFunctionQ :: QName -> TCM (String, PrimitiveImpl)
+lookupPrimitiveFunctionQ :: QName -> TCM (PrimitiveId, PrimitiveImpl)
 lookupPrimitiveFunctionQ q = do
   let s = prettyShow (nameCanonical $ qnameName q)
-  PrimImpl t pf <- lookupPrimitiveFunction s
-  return (s, PrimImpl t $ pf { primFunName = q })
+  case primitiveById s of
+    Nothing -> typeError $ NoSuchPrimitiveFunction s
+    Just s -> do
+      PrimImpl t pf <- lookupPrimitiveFunction s
+      return (s, PrimImpl t $ pf { primFunName = q })
 
-getBuiltinName :: (HasBuiltins m, MonadReduce m) => String -> m (Maybe QName)
+getBuiltinName :: (HasBuiltins m, MonadReduce m) => BuiltinId -> m (Maybe QName)
 getBuiltinName b = runMaybeT $ getQNameFromTerm =<< MaybeT (getBuiltin' b)
 
 -- | Convert a name in 'Term' form back to 'QName'.
@@ -202,7 +205,7 @@ getQNameFromTerm v = do
       Lam _ b   -> getQNameFromTerm $ unAbs b
       _ -> mzero
 
-isBuiltin :: (HasBuiltins m, MonadReduce m) => QName -> String -> m Bool
+isBuiltin :: (HasBuiltins m, MonadReduce m) => QName -> BuiltinId -> m Bool
 isBuiltin q b = (Just q ==) <$> getBuiltinName b
 
 ------------------------------------------------------------------------

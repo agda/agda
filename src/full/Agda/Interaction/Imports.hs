@@ -228,7 +228,7 @@ mergeInterface i = do
     reportSLn "import.iface.merge" 20 $
       "  Current builtins " ++ show (Map.keys bs) ++ "\n" ++
       "  New builtins     " ++ show (Map.keys bi)
-    let check b (Builtin x) (Builtin y)
+    let check (BuiltinName b) (Builtin x) (Builtin y)
               | x == y    = return ()
               | otherwise = typeError $ DuplicateBuiltinBinding b x y
         check _ (BuiltinRewriteRelations xs) (BuiltinRewriteRelations ys) = return ()
@@ -254,7 +254,7 @@ mergeInterface i = do
     where
         rebind (x, q) = do
             PrimImpl _ pf <- lookupPrimitiveFunction x
-            stImportedBuiltins `modifyTCLens` Map.insert x (Prim pf{ primFunName = q })
+            stImportedBuiltins `modifyTCLens` Map.insert (someBuiltin x) (Prim pf{ primFunName = q })
 
 addImportedThings
   :: Signature
@@ -1265,7 +1265,7 @@ buildInterface src topLevel = do
     -- serialization to avoid error locations pointing to external files
     -- when expanding a pattern synonym.
     patsyns <- killRange <$> getPatternSyns
-    let builtin' = Map.mapWithKey (\ x b -> (x,) . primFunName <$> b) builtin
+    let builtin' = Map.mapWithKey (\ x b -> primName x <$> b) builtin
     warnings <- getAllWarnings AllWarnings
     let i = Interface
           { iSourceHash      = hashText source
@@ -1304,6 +1304,10 @@ buildInterface src topLevel = do
             instantiateFullExceptForDefinitions i)
     reportSLn "import.iface" 7 "  interface complete"
     return i
+
+    where
+      primName (PrimitiveName x) b = (x, primFunName b)
+      primName (BuiltinName x)   b = __IMPOSSIBLE__
 
 -- | Returns (iSourceHash, iFullHash)
 --   We do not need to check that the file exist because we only

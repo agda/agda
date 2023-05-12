@@ -43,9 +43,9 @@ class ( Functor m
       , Applicative m
       , Fail.MonadFail m
       ) => HasBuiltins m where
-  getBuiltinThing :: String -> m (Maybe (Builtin PrimFun))
+  getBuiltinThing :: SomeBuiltin -> m (Maybe (Builtin PrimFun))
 
-  default getBuiltinThing :: (MonadTrans t, HasBuiltins n, t n ~ m) => String -> m (Maybe (Builtin PrimFun))
+  default getBuiltinThing :: (MonadTrans t, HasBuiltins n, t n ~ m) => SomeBuiltin -> m (Maybe (Builtin PrimFun))
   getBuiltinThing = lift . getBuiltinThing
 
 instance HasBuiltins m => HasBuiltins (ExceptT e m)
@@ -110,33 +110,35 @@ litType = \case
 setBuiltinThings :: BuiltinThings PrimFun -> TCM ()
 setBuiltinThings b = stLocalBuiltins `setTCLens` b
 
-bindBuiltinName :: String -> Term -> TCM ()
+bindBuiltinName :: BuiltinId -> Term -> TCM ()
 bindBuiltinName b x = do
-  builtin <- getBuiltinThing b
+  builtin <- getBuiltinThing b'
   case builtin of
     Just (Builtin y) -> typeError $ DuplicateBuiltinBinding b y x
-    Just (Prim _)    -> typeError $ NoSuchBuiltinName b
+    Just Prim{}      -> typeError $ __IMPOSSIBLE__
     Just BuiltinRewriteRelations{} -> __IMPOSSIBLE__
-    Nothing          -> stLocalBuiltins `modifyTCLens` Map.insert b (Builtin x)
+    Nothing          -> stLocalBuiltins `modifyTCLens` Map.insert b' (Builtin x)
+  where b' = BuiltinName b
 
-bindPrimitive :: String -> PrimFun -> TCM ()
+bindPrimitive :: PrimitiveId -> PrimFun -> TCM ()
 bindPrimitive b pf = do
-  builtin <- getBuiltinThing b
+  builtin <- getBuiltinThing b'
   case builtin of
-    Just (Builtin _) -> typeError $ NoSuchPrimitiveFunction b
+    Just (Builtin _) -> typeError $ NoSuchPrimitiveFunction (getBuiltinId b)
     Just (Prim x)    -> typeError $ (DuplicatePrimitiveBinding b `on` primFunName) x pf
     Just BuiltinRewriteRelations{} -> __IMPOSSIBLE__
-    Nothing          -> stLocalBuiltins `modifyTCLens` Map.insert b (Prim pf)
+    Nothing          -> stLocalBuiltins `modifyTCLens` Map.insert b' (Prim pf)
+  where b' = PrimitiveName b
 
 -- | Add one (more) relation symbol to the rewrite relations.
 bindBuiltinRewriteRelation :: QName -> TCM ()
 bindBuiltinRewriteRelation x =
   stLocalBuiltins `modifyTCLens`
-    Map.insertWith unionBuiltin builtinRewrite (BuiltinRewriteRelations $ singleton x)
+    Map.insertWith unionBuiltin (BuiltinName builtinRewrite) (BuiltinRewriteRelations $ singleton x)
 
 -- | Get the currently registered rewrite relation symbols.
 getBuiltinRewriteRelations :: HasBuiltins m => m (Maybe (Set QName))
-getBuiltinRewriteRelations = fmap rels <$> getBuiltinThing builtinRewrite
+getBuiltinRewriteRelations = fmap rels <$> getBuiltinThing (BuiltinName builtinRewrite)
   where
   rels = \case
     BuiltinRewriteRelations xs -> xs
@@ -144,48 +146,52 @@ getBuiltinRewriteRelations = fmap rels <$> getBuiltinThing builtinRewrite
     Builtin{} -> __IMPOSSIBLE__
 
 getBuiltin :: (HasBuiltins m, MonadTCError m)
-           => String -> m Term
+           => BuiltinId -> m Term
 getBuiltin x =
   fromMaybeM (typeError $ NoBindingForBuiltin x) $ getBuiltin' x
 
-getBuiltin' :: HasBuiltins m => String -> m (Maybe Term)
-getBuiltin' x = (getBuiltin =<<) <$> getBuiltinThing x where
+getBuiltin' :: HasBuiltins m => BuiltinId -> m (Maybe Term)
+getBuiltin' x = (getBuiltin =<<) <$> getBuiltinThing (BuiltinName x) where
   getBuiltin BuiltinRewriteRelations{} = __IMPOSSIBLE__
   getBuiltin (Builtin t)               = Just $ killRange t
   getBuiltin _                         = Nothing
 
-getPrimitive' :: HasBuiltins m => String -> m (Maybe PrimFun)
-getPrimitive' x = (getPrim =<<) <$> getBuiltinThing x
+getPrimitive' :: HasBuiltins m => PrimitiveId -> m (Maybe PrimFun)
+getPrimitive' x = (getPrim =<<) <$> getBuiltinThing (PrimitiveName x)
   where
     getPrim (Prim pf) = return pf
     getPrim BuiltinRewriteRelations{} = __IMPOSSIBLE__
     getPrim _         = Nothing
 
 getPrimitive :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
-             => String -> m PrimFun
+             => PrimitiveId -> m PrimFun
 getPrimitive x =
-  fromMaybeM (typeError $ NoSuchPrimitiveFunction x) $ getPrimitive' x
+  fromMaybeM (typeError . NoSuchPrimitiveFunction $ getBuiltinId x) $ getPrimitive' x
 
 getPrimitiveTerm :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
-                 => String -> m Term
+                 => PrimitiveId -> m Term
 getPrimitiveTerm x = (`Def` []) . primFunName <$> getPrimitive x
 
-getPrimitiveTerm' :: HasBuiltins m => String -> m (Maybe Term)
+getPrimitiveTerm' :: HasBuiltins m => PrimitiveId -> m (Maybe Term)
 getPrimitiveTerm' x = fmap (`Def` []) <$> getPrimitiveName' x
 
-getTerm' :: HasBuiltins m => String -> m (Maybe Term)
-getTerm' x = mplus <$> getBuiltin' x <*> getPrimitiveTerm' x
+getTerm' :: (HasBuiltins m, IsBuiltin a) => a -> m (Maybe Term)
+getTerm' = go . someBuiltin where
+  go (BuiltinName x)   = getBuiltin' x
+  go (PrimitiveName x) = getPrimitiveTerm' x
 
-getName' :: HasBuiltins m => String -> m (Maybe QName)
-getName' x = mplus <$> getBuiltinName' x <*> getPrimitiveName' x
+getName' :: (HasBuiltins m, IsBuiltin a) => a -> m (Maybe QName)
+getName' = go . someBuiltin where
+  go (BuiltinName x)   = getBuiltinName' x
+  go (PrimitiveName x) = getPrimitiveName' x
 
 -- | @getTerm use name@ looks up @name@ as a primitive or builtin, and
 -- throws an error otherwise.
 -- The @use@ argument describes how the name is used for the sake of
 -- the error message.
-getTerm :: (HasBuiltins m) => String -> String -> m Term
+getTerm :: (HasBuiltins m, IsBuiltin a) => String -> a -> m Term
 getTerm use name = flip fromMaybeM (getTerm' name) $
-  return $! throwImpossible (ImpMissingDefinitions [name] use)
+  return $! throwImpossible (ImpMissingDefinitions [getBuiltinId name] use)
 
 
 -- | Rewrite a literal to constructor form if possible.
@@ -308,8 +314,8 @@ primIOne                              = getBuiltin builtinIOne
 primIMin                              = getPrimitiveTerm builtinIMin
 primIMax                              = getPrimitiveTerm builtinIMax
 primINeg                              = getPrimitiveTerm builtinINeg
-primPartial                           = getPrimitiveTerm "primPartial"
-primPartialP                          = getPrimitiveTerm "primPartialP"
+primPartial                           = getPrimitiveTerm PrimPartial
+primPartialP                          = getPrimitiveTerm PrimPartialP
 primIsOne                             = getBuiltin builtinIsOne
 primItIsOne                           = getBuiltin builtinItIsOne
 primTrans                             = getPrimitiveTerm builtinTrans
@@ -576,11 +582,13 @@ getPrimName ty = do
             (_, Var 0 [Proj _ l]) -> l
             (_, t)          -> __IMPOSSIBLE__
 
-getBuiltinName', getPrimitiveName' :: HasBuiltins m => String -> m (Maybe QName)
+getBuiltinName' :: HasBuiltins m => BuiltinId -> m (Maybe QName)
 getBuiltinName' n = fmap getPrimName <$> getBuiltin' n
+
+getPrimitiveName' :: HasBuiltins m => PrimitiveId -> m (Maybe QName)
 getPrimitiveName' n = fmap primFunName <$> getPrimitive' n
 
-isPrimitive :: HasBuiltins m => String -> QName -> m Bool
+isPrimitive :: HasBuiltins m => PrimitiveId -> QName -> m Bool
 isPrimitive n q = (Just q ==) <$> getPrimitiveName' n
 
 intervalSort :: Sort
@@ -590,9 +598,9 @@ intervalView' :: HasBuiltins m => m (Term -> IntervalView)
 intervalView' = do
   iz <- getBuiltinName' builtinIZero
   io <- getBuiltinName' builtinIOne
-  imax <- getPrimitiveName' "primIMax"
-  imin <- getPrimitiveName' "primIMin"
-  ineg <- getPrimitiveName' "primINeg"
+  imax <- getPrimitiveName' builtinIMax
+  imin <- getPrimitiveName' builtinIMin
+  ineg <- getPrimitiveName' builtinINeg
   return $ \ t ->
     case t of
       Def q es ->
@@ -619,9 +627,9 @@ intervalUnview' :: HasBuiltins m => m (IntervalView -> Term)
 intervalUnview' = do
   iz <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIZero -- should it be a type error instead?
   io <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIOne
-  imin <- (`Def` []) . fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' "primIMin"
-  imax <- (`Def` []) . fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' "primIMax"
-  ineg <- (`Def` []) . fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' "primINeg"
+  imin <- (`Def` []) . fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' builtinIMin
+  imax <- (`Def` []) . fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' builtinIMax
+  ineg <- (`Def` []) . fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' builtinINeg
   return $ \ v -> case v of
              IZero -> iz
              IOne  -> io
@@ -692,7 +700,7 @@ pathUnview (PathType s path l t lhs rhs) =
 -- f x (< phi , p > : Id A x _) = Just (phi,p)
 conidView' :: HasBuiltins m => m (Term -> Term -> Maybe (Arg Term,Arg Term))
 conidView' = do
-  mn <- sequence <$> mapM getName' [builtinReflId, builtinConId]
+  mn <- sequence <$> mapM getName' [someBuiltin builtinReflId, someBuiltin builtinConId]
   mio <- getTerm' builtinIOne
   let fallback = return $ \ _ _ -> Nothing
   caseMaybe mn fallback $ \ [refl,conid] ->
@@ -760,7 +768,7 @@ instance EqualityUnview EqualityTypeData where
     El s $ Def equality $ map Apply (l ++ [t, lhs, rhs])
 
 -- | Primitives with typechecking constrants.
-constrainedPrims :: [String]
+constrainedPrims :: [PrimitiveId]
 constrainedPrims =
   [ builtinConId
   , builtinPOr
@@ -771,7 +779,7 @@ constrainedPrims =
   , builtin_glueU
   ]
 
-getNameOfConstrained :: HasBuiltins m => String -> m (Maybe QName)
+getNameOfConstrained :: HasBuiltins m => PrimitiveId -> m (Maybe QName)
 getNameOfConstrained s = do
   unless (s `elem` constrainedPrims) __IMPOSSIBLE__
   getName' s

@@ -137,7 +137,7 @@ primSubOut' = do
         view <- intervalView'
         sphi <- reduceB' phi
         case view $ unArg $ ignoreBlocking sphi of
-          IOne -> redReturn =<< (return (unArg u) <..> (getTerm builtinSubOut builtinItIsOne))
+          IOne -> redReturn =<< (return (unArg u) <..> getTerm (getBuiltinId PrimSubOut) BuiltinItIsOne)
           _ -> do
             sx <- reduceB' x
             mSubIn <- getBuiltinName' builtinSubIn
@@ -171,9 +171,12 @@ primHComp' = do
 
 -- | Construct a helper for CCHM composition, with a string indicating
 -- what function uses it.
-mkComp :: HasBuiltins m => String -> NamesT m (NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term)
+mkComp :: forall m. HasBuiltins m
+       => String
+       -> NamesT m (NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term)
 mkComp s = do
-  let getTermLocal = getTerm s
+  let getTermLocal :: IsBuiltin a => a -> NamesT m Term
+      getTermLocal = getTerm s
   tIMax  <- getTermLocal builtinIMax
   tINeg  <- getTermLocal builtinINeg
   tHComp <- getTermLocal builtinHComp
@@ -215,8 +218,8 @@ doPiKanOp
   -- ^ The domain and codomain of the Pi type.
   -> ReduceM (Maybe Term)
 doPiKanOp cmd t ab = do
-  let getTermLocal = getTerm $ kanOpName cmd ++ " for function types"
-
+  let getTermLocal :: IsBuiltin a => a -> ReduceM Term
+      getTermLocal = getTerm $ kanOpName cmd ++ " for function types"
   tTrans <- getTermLocal builtinTrans
   tHComp <- getTermLocal builtinHComp
   tINeg <- getTermLocal builtinINeg
@@ -580,7 +583,8 @@ primTransHComp cmd ts nelims = do
                  return $ (p $ ignoreBlocking t, listToMaybe [ (weaken `applySubst` (lamlam <$> t),bs) | null ts ])
             return $ (flags,t_alphas)
     compData mtrD False _ cmd@DoHComp (IsNot l) (IsNot ps) fsc sphi (Just u) a0 = do
-      let getTermLocal = getTerm $ "builtinHComp for data types"
+      let getTermLocal :: IsBuiltin a => a -> ReduceM Term
+          getTermLocal = getTerm $ "builtinHComp for data types"
 
       let sc = famThing <$> fsc
       tEmpty <- getTermLocal builtinIsOneEmpty
@@ -666,7 +670,8 @@ primTransHComp cmd ts nelims = do
       redReturn $ Def trD [] `apply` (map (fmap lam_i) ps ++ map argN [phi,unArg a0])
 
     compData mtrD isHIT _ cmd@DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = do
-      let getTermLocal = getTerm $ builtinTrans ++ " for data types"
+      let getTermLocal :: IsBuiltin a => a -> ReduceM Term
+          getTermLocal = getTerm $ getBuiltinId builtinTrans ++ " for data types"
       let sc = famThing <$> fsc
       mhcompName <- getName' builtinHComp
       constrForm <- do
@@ -742,7 +747,7 @@ primComp = do
           IOne -> redReturn (unArg u `apply` [argN io, argN one])
           _    -> do
             redReturnNoSimpl <=< runNamesT [] $ do
-              comp <- mkComp builtinComp
+              comp <- mkComp (getBuiltinId PrimComp)
               [l,c,phi,u,a0] <- mapM (open . unArg) [l,c,phi,u,a0]
               comp l c phi u a0
 
@@ -772,7 +777,7 @@ primFaceForall' = do
       view <- intervalView'
       unview <- intervalUnview'
       us' <- decomposeInterval t
-      fr <- getTerm builtinFaceForall builtinFaceForall
+      fr <- getTerm (getBuiltinId PrimFaceForall) PrimFaceForall
       let
         v = view t
         -- We decomposed the interval expression, without regard for
@@ -841,7 +846,8 @@ transpSysTel' flag delta us phi args = do
           , (text "phi    =" <+>) $ nest 2 $ prettyTCM phi
           , (text "args   =" <+>) $ nest 2 $ prettyList $ map prettyTCM args
           ]
-  let getTermLocal = getTerm "transpSys"
+  let getTermLocal :: IsBuiltin a => a -> ExceptT e m Term
+      getTermLocal = getTerm "transpSys"
   tTransp <- lift primTrans
   tComp <- getTermLocal builtinComp
   tPOr <- getTermLocal builtinPOr

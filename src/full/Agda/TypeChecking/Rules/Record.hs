@@ -448,14 +448,14 @@ defineCompKitR ::
   -> TCM CompKit
 defineCompKitR name params fsT fns rect = do
   required <- mapM getTerm'
-        [ builtinInterval
-        , builtinIZero
-        , builtinIOne
-        , builtinIMin
-        , builtinIMax
-        , builtinINeg
-        , builtinPOr
-        , builtinItIsOne
+        [ someBuiltin builtinInterval
+        , someBuiltin builtinIZero
+        , someBuiltin builtinIOne
+        , someBuiltin builtinIMin
+        , someBuiltin builtinIMax
+        , someBuiltin builtinINeg
+        , someBuiltin builtinPOr
+        , someBuiltin builtinItIsOne
         ]
   reportSDoc "tc.rec.cxt" 30 $ prettyTCM params
   reportSDoc "tc.rec.cxt" 30 $ prettyTCM fsT
