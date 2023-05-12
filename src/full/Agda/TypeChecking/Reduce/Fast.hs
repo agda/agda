@@ -429,11 +429,6 @@ memoQName f = unsafePerformIO $ do
 data Normalisation = WHNF | NF
   deriving (Eq)
 
-data ReductionFlags = ReductionFlags
-  { allowNonTerminating :: Bool
-  , allowUnconfirmed    :: Bool
-  , hasRewriting        :: Bool }
-
 -- | The entry point to the reduction machine.
 fastReduce :: Term -> ReduceM (Blocked Term)
 fastReduce = fastReduce' WHNF
@@ -471,10 +466,7 @@ fastReduce' norm v = do
     rewr <- if rwr then instantiateRewriteRules =<< getRewriteRulesFor f
                    else return []
     compactDef bEnv info rewr
-  let flags = ReductionFlags{ allowNonTerminating = NonTerminatingReductions `SmallSet.member` allowedReductions
-                            , allowUnconfirmed    = UnconfirmedReductions `SmallSet.member` allowedReductions
-                            , hasRewriting        = rwr }
-  ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) norm flags v
+  ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) norm v
 
 unKleisli :: (a -> ReduceM b) -> ReduceM (a -> b)
 unKleisli f = ReduceM $ \ env x -> unReduceM (f x) env
@@ -833,8 +825,8 @@ unusedPointer = Pure (Closure (Value $ notBlocked ())
 --   'getConstInfo' function, a couple of flags (allow non-terminating function unfolding, and
 --   whether rewriting is enabled), and a term to reduce. The result is the weak-head normal form of
 --   the term with an attached blocking tag.
-reduceTm :: ReduceEnv -> BuiltinEnv -> (QName -> CompactDef) -> Normalisation -> ReductionFlags -> Term -> Blocked Term
-reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
+reduceTm :: ReduceEnv -> BuiltinEnv -> (QName -> CompactDef) -> Normalisation -> Term -> Blocked Term
+reduceTm rEnv bEnv !constInfo normalisation =
     compileAndRun . traceDoc "-- fast reduce --"
   where
     -- Helpers to get information from the ReduceEnv.
@@ -910,9 +902,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
                         , cdefNonterminating = nonterm
                         , cdefUnconfirmed    = unconf
                         , cdefDef            = def } = constInfo f
-              dontUnfold = (nonterm && not allowNonTerminating) ||
-                           (unconf  && not allowUnconfirmed)    ||
-                           (delayed && not (unfoldDelayed ctrl))
+              dontUnfold = delayed && not (unfoldDelayed ctrl)
           in case def of
             CFun{ cfunCompiled = cc }
               | dontUnfold -> rewriteAM done
@@ -1357,17 +1347,11 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
               _                        -> (slowReduceTerm, ctrl)
     fallbackAM _ = __IMPOSSIBLE__
 
-    -- If rewriting is enabled, try to apply rewrite rules to the current focus before considering
-    -- it a value. The current state must be 'Eval' and the focus a value closure. Take care to only
-    -- test the 'hasRewriting' flag once.
-    rewriteAM :: AM s -> ST s (Blocked Term)
-    rewriteAM = if hasRewriting then rewriteAM' else runAM
-
     -- Applying rewrite rules to the current focus. This needs to decode the current focus, call
     -- rewriting and pack the result back up in a closure. In case some rewrite rules actually fired
     -- the next state is an unevaluated closure, otherwise it's a value closure.
-    rewriteAM' :: AM s -> ST s (Blocked Term)
-    rewriteAM' s@(Eval (Closure (Value blk) t env spine) ctrl)
+    rewriteAM :: AM s -> ST s (Blocked Term)
+    rewriteAM s@(Eval (Closure (Value blk) t env spine) ctrl)
       | null rewr = runAM s
       | otherwise = traceDoc ("R" <+> pretty s) $ do
         v0 <- decodeClosure_ (Closure Unevaled t env [])
@@ -1379,7 +1363,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
                      Def f []   -> rewriteRules f
                      Con c _ [] -> rewriteRules (conName c)
                      _          -> __IMPOSSIBLE__
-    rewriteAM' _ =
+    rewriteAM _ =
       __IMPOSSIBLE__
 
     -- Add a NatSucK frame to the control stack. Pack consecutive suc's into a single frame.
@@ -1419,10 +1403,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
         -- Bad work-around for #3870: don't fail hard during instance search.
       | speculative          = rewriteAM (Eval (mkValue (NotBlocked (MissingClauses f) ()) cl) ctrl)
       | f `elem` partialDefs = rewriteAM (Eval (mkValue (NotBlocked (MissingClauses f) ()) cl) ctrl)
-      | hasRewriting         = rewriteAM (Eval (mkValue (NotBlocked ReallyNotBlocked ()) cl) ctrl)  -- See #5396
-      | otherwise            = runReduce $
-          traceSLn "impossible" 10 ("Incomplete pattern matching when applying " ++ prettyShow f)
-                   __IMPOSSIBLE__
+      | otherwise            = rewriteAM (Eval (mkValue (NotBlocked ReallyNotBlocked ()) cl) ctrl)  -- See #5396
 
     -- Some helper functions to build machine states and closures.
     evalClosure t env spine = Eval (Closure Unevaled t env spine)

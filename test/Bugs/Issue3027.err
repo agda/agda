@@ -1,6 +1,7 @@
 AGDA_FAILURE
 
-ret > ExitFailure 154
-out > An internal error has occurred. Please report this as a bug.
-out > Location of the error: __IMPOSSIBLE__, called at src/full/Agda/TypeChecking/Reduce/Fast.hs:«line»:«col» in «Agda-package»:Agda.TypeChecking.Reduce.Fast
+ret > ExitFailure 42
+out > Issue3027.agda:40,13-17
+out > f false 1 != zero of type Nat
+out > when checking that the expression refl has type ?X 1 ≡ D 0
 out >
