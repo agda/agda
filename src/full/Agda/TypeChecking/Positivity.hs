@@ -508,7 +508,8 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
     let a = defAbstract def
     m <- asksTC envAbstractMode
     cur <- asksTC envCurrentModule
-    "computeOccurrences" <+> prettyTCM q <+> text (show a) <+> text (show m)
+    o <- asksTC envCurrentOpaqueId
+    "computeOccurrences" <+> prettyTCM q <+> text (show a) <+> text (show o) <+> text (show m)
       <+> prettyTCM cur
   OccursAs (InDefOf q) <$> case theDef def of
 

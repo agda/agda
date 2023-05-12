@@ -51,6 +51,7 @@ import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
+import Agda.TypeChecking.Opacity
 
 import Agda.TypeChecking.Rules.Application
 import Agda.TypeChecking.Rules.Term
@@ -228,7 +229,9 @@ checkDecl d = setCurrentRange d $ do
     check :: forall m i a
           . ( MonadTCEnv m, MonadPretty m, MonadDebug m
             , MonadBench m, Bench.BenchPhase m ~ Phase
-            , AnyIsAbstract i )
+            , AnyIsAbstract i
+            , AllAreOpaque i
+            )
           => QName -> i -> m a -> m a
     check x i m = Bench.billTo [Bench.Definition x] $ do
       reportSDoc "tc.decl" 5 $ ("Checking" <+> prettyTCM x) <> "."
@@ -238,9 +241,16 @@ checkDecl d = setCurrentRange d $ do
       return r
 
     -- Switch to AbstractMode if any of the i is AbstractDef.
-    checkMaybeAbstractly :: forall m i a . ( MonadTCEnv m , AnyIsAbstract i )
+    checkMaybeAbstractly :: forall m i a . ( MonadTCEnv m, AnyIsAbstract i, AllAreOpaque i )
                          => i -> m a -> m a
-    checkMaybeAbstractly = localTC . set lensIsAbstract . anyIsAbstract
+    checkMaybeAbstractly abs cont = do
+      let
+        k1 = localTC (set lensIsAbstract (anyIsAbstract abs))
+      k2 <- case jointOpacity abs of
+        UniqueOpaque i     -> pure $ localTC $ \env -> env { envCurrentOpaqueId = Just i }
+        NoOpaque           -> pure id
+        DifferentOpaque hs -> __IMPOSSIBLE__
+      k1 (k2 cont)
 
 -- Some checks that should be run at the end of a mutual block. The
 -- set names contains the names defined in the mutual block.
@@ -406,7 +416,7 @@ highlight_ hlmod d = do
     A.Generalize{}           -> highlight d
     A.UnquoteDecl{}          -> highlight d
     A.UnquoteDef{}           -> highlight d
-    A.UnquoteData{}           -> highlight d
+    A.UnquoteData{}          -> highlight d
     A.Section i er x tel ds  -> do
       highlight (A.Section i er x tel [])
       when (hlmod == DoHighlightModuleContents) $ mapM_ (highlight_ hlmod) (deepUnscopeDecls ds)
@@ -525,8 +535,8 @@ checkProjectionLikeness_ names = Bench.billTo [Bench.ProjectionLikeness] $ do
 
 -- | Freeze metas created by given computation if in abstract mode.
 whenAbstractFreezeMetasAfter :: A.DefInfo -> TCM a -> TCM a
-whenAbstractFreezeMetasAfter Info.DefInfo{ defAccess, defAbstract} m = do
-  if defAbstract /= AbstractDef then m else do
+whenAbstractFreezeMetasAfter Info.DefInfo{defAccess, defAbstract, defOpaque} m = do
+  if (defAbstract == ConcreteDef && defOpaque == TransparentDef) then m else do
     (a, ms) <- metasCreatedBy m
     reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
     wakeupConstraints_   -- solve emptiness and instance constraints
@@ -659,7 +669,7 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
           RecName   -> DataOrRecSig npars
           AxiomName -> defaultAxiom     -- Old comment: NB: used also for data and record type sigs
           _         -> __IMPOSSIBLE__
-        where fun = FunctionDefn funD{ _funAbstr = Info.defAbstract i }
+        where fun = FunctionDefn funD{ _funAbstr = Info.defAbstract i, _funOpaque = Info.defOpaque i }
 
   addConstant x =<< do
     useTerPragma $ defn
@@ -722,7 +732,9 @@ checkPrimitive i x (Arg info e) =
                   , primName     = s
                   , primClauses  = []
                   , primInv      = NotInjective
-                  , primCompiled = Nothing }
+                  , primCompiled = Nothing
+                  , primOpaque   = TransparentDef
+                  }
 
 -- | Check a pragma.
 checkPragma :: Range -> A.Pragma -> TCM ()
@@ -1070,7 +1082,7 @@ instance ShowHead A.Declaration where
       A.UnquoteDecl  {} -> "UnquoteDecl"
       A.ScopedDecl   {} -> "ScopedDecl"
       A.UnquoteDef   {} -> "UnquoteDef"
-      A.UnquoteData   {} -> "UnquoteDecl data"
+      A.UnquoteData  {} -> "UnquoteDecl data"
 
 debugPrintDecl :: A.Declaration -> TCM ()
 debugPrintDecl d = do

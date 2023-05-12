@@ -363,6 +363,8 @@ prettyWarning = \case
 
     RecordFieldWarning w -> prettyRecordFieldWarning w
 
+    NotAffectedByOpaque -> fwords "Only functions and primitives can be marked opaque. This declaration will be treated as transparent."
+
 prettyRecordFieldWarning :: MonadPretty m => RecordFieldWarning -> m Doc
 prettyRecordFieldWarning = \case
   DuplicateFieldsWarning xrs    -> prettyDuplicateFields $ map fst xrs

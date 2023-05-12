@@ -1,0 +1,3 @@
+OpaqueSibling.agda:23,16-20
+h != 3 of type Nat
+when checking that the expression refl has type k ≡ 6

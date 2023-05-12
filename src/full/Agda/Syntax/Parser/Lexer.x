@@ -191,6 +191,8 @@ tokens :-
 <0,code> variable          { keyword KwVariable }
 <0,code> where             { keyword KwWhere }
 <0,code> with              { keyword KwWith }
+<0,code> opaque            { keyword KwOpaque }
+<0,code> unfolding         { keyword KwUnfolding }
 
 -- The parser is responsible to put the lexer in the imp_dir_ state when it
 -- expects an import directive keyword. This means that if you run the

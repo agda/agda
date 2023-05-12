@@ -89,6 +89,7 @@ instance EmbPrj Warning where
     UnsupportedIndexedMatch f             -> icodeN 40 UnsupportedIndexedMatch f
     OptionWarning a                       -> icodeN 41 OptionWarning a
     PlentyInHardCompileTimeMode a         -> icodeN 42 PlentyInHardCompileTimeMode a
+    NotAffectedByOpaque                   -> icodeN 43 NotAffectedByOpaque
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -134,6 +135,7 @@ instance EmbPrj Warning where
     [40, a]              -> valuN UnsupportedIndexedMatch a
     [41, a]              -> valuN OptionWarning a
     [42, a]              -> valuN PlentyInHardCompileTimeMode a
+    [43]                 -> valuN NotAffectedByOpaque
     _ -> malformed
 
 instance EmbPrj OptionWarning where
@@ -420,6 +422,7 @@ instance EmbPrj WarningName where
     OptionRenamed_                               -> 95
     PlentyInHardCompileTimeMode_                 -> 96
     InteractionMetaBoundaries_                   -> 97
+    NotAffectedByOpaque_                         -> 98
 
   value = \case
     0  -> return OverlappingTokensWarning_
@@ -520,6 +523,7 @@ instance EmbPrj WarningName where
     95 -> return OptionRenamed_
     96 -> return PlentyInHardCompileTimeMode_
     97 -> return InteractionMetaBoundaries_
+    98 -> return NotAffectedByOpaque_
     _ -> malformed
 
 

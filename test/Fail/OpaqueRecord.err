@@ -1,0 +1,8 @@
+OpaqueRecord.agda:5,3-8,16
+warning: -W[no]NotAffectedByOpaque
+Only functions and primitives can be marked opaque. This
+declaration will be treated as transparent.
+when scope checking the declaration
+  record Foo where
+    inductive
+    field foo : Foo

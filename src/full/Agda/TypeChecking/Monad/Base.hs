@@ -45,6 +45,7 @@ import Data.Set (Set, toList, fromList)
 import qualified Data.Set as Set -- hiding (singleton, null, empty)
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
+import qualified Data.HashSet as HashSet
 import Data.HashSet (HashSet)
 import Data.Semigroup ( Semigroup, (<>)) --, Any(..) )
 import Data.String
@@ -280,6 +281,7 @@ data PostScopeState = PostScopeState
   , stPostFreshCheckpointId   :: !CheckpointId
   , stPostFreshInt            :: !Int
   , stPostFreshNameId         :: !NameId
+  , stPostFreshOpaqueId       :: !OpaqueId
   , stPostAreWeCaching        :: !Bool
   , stPostPostponeInstanceSearch :: !Bool
   , stPostConsideringInstance :: !Bool
@@ -289,6 +291,10 @@ data PostScopeState = PostScopeState
     --   Best set to True only for calls to pretty*/reify to limit unwanted reductions.
   , stPostLocalPartialDefs    :: !(Set QName)
     -- ^ Local partial definitions, to be stored in the @Interface@
+  , stPostOpaqueBlocks        :: Map OpaqueId OpaqueBlock
+    -- ^ Associates opaque identifiers to their actual blocks.
+  , stPostOpaqueIds           :: Map QName OpaqueId
+    -- ^ Associates each opaque QName to the block it was defined in.
   }
   deriving (Generic)
 
@@ -440,11 +446,14 @@ initPostScopeState = PostScopeState
   , stPostFreshCheckpointId    = 1
   , stPostFreshInt             = 0
   , stPostFreshNameId          = NameId 0 noModuleNameHash
+  , stPostFreshOpaqueId        = OpaqueId 0 noModuleNameHash
   , stPostAreWeCaching         = False
   , stPostPostponeInstanceSearch = False
   , stPostConsideringInstance  = False
   , stPostInstantiateBlocking  = False
   , stPostLocalPartialDefs     = Set.empty
+  , stPostOpaqueBlocks         = Map.empty
+  , stPostOpaqueIds            = Map.empty
   }
 
 initState :: TCState
@@ -596,6 +605,21 @@ stFreshNameId :: Lens' TCState NameId
 stFreshNameId f s =
   f (stPostFreshNameId (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshNameId = x}}
+
+stFreshOpaqueId :: Lens' TCState OpaqueId
+stFreshOpaqueId f s =
+  f (stPostFreshOpaqueId (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshOpaqueId = x}}
+
+stOpaqueBlocks :: Lens' TCState (Map OpaqueId OpaqueBlock)
+stOpaqueBlocks f s =
+  f (stPostOpaqueBlocks (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostOpaqueBlocks = x}}
+
+stOpaqueIds :: Lens' TCState (Map QName OpaqueId)
+stOpaqueIds f s =
+  f (stPostOpaqueIds (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostOpaqueIds = x}}
 
 stSyntaxInfo :: Lens' TCState HighlightingInfo
 stSyntaxInfo f s =
@@ -821,6 +845,9 @@ instance HasFresh NameId where
   -- before caching starts do not overlap with the ones used after.
   nextFresh' = succ . succ
 
+instance HasFresh OpaqueId where
+  freshLens = stFreshOpaqueId
+
 instance HasFresh Int where
   freshLens = stFreshInt
 
@@ -1001,6 +1028,8 @@ data Interface = Interface
   , iPatternSyns     :: A.PatternSynDefns
   , iWarnings        :: [TCWarning]
   , iPartialDefs     :: Set QName
+  , iOpaqueBlocks    :: Map OpaqueId OpaqueBlock
+  , iOpaqueNames     :: Map QName OpaqueId
   }
   deriving (Show, Generic)
 
@@ -1009,7 +1038,7 @@ instance Pretty Interface where
             sourceH source fileT importedM moduleN topModN scope insideS
             signature metas display userwarn importwarn builtin
             foreignCode highlighting libPragmaO filePragmaO oUsed
-            patternS warnings partialdefs) =
+            patternS warnings partialdefs oblocks onames) =
 
     hang "Interface" 2 $ vcat
       [ "source hash:"         <+> (pretty . show) sourceH
@@ -1034,6 +1063,8 @@ instance Pretty Interface where
       , "pattern syns:"        <+> (pretty . show) patternS
       , "warnings:"            <+> (pretty . show) warnings
       , "partial definitions:" <+> (pretty . show) partialdefs
+      , "opaque blocks:"       <+> pretty oblocks
+      , "opaque names"         <+> pretty onames
       ]
 
 -- | Combines the source hash and the (full) hashes of the imported modules.
@@ -2323,6 +2354,10 @@ data FunctionData = FunctionData
   , _funIsKanOp        :: Maybe QName
       -- ^ Is this a helper for one of the Kan operations (transp,
       -- hcomp) on data types/records? If so, for which data type?
+  , _funOpaque         :: IsOpaque
+      -- ^ Is this function opaque? If so, and we're not in an opaque
+      -- block that includes this function('s name), it will be treated
+      -- abstractly.
   } deriving (Show, Generic)
 
 pattern Function
@@ -2342,6 +2377,7 @@ pattern Function
   -> Maybe ExtLamInfo
   -> Maybe QName
   -> Maybe QName
+  -> IsOpaque
   -> Defn
 pattern Function
   { funClauses
@@ -2360,6 +2396,7 @@ pattern Function
   , funExtLam
   , funWith
   , funIsKanOp
+  , funOpaque
   } = FunctionDefn (FunctionData
     funClauses
     funCompiled
@@ -2377,6 +2414,7 @@ pattern Function
     funExtLam
     funWith
     funIsKanOp
+    funOpaque
   )
 
 data DatatypeData = DatatypeData
@@ -2606,6 +2644,8 @@ data PrimitiveData = PrimitiveData
   , _primCompiled :: Maybe CompiledClauses
       -- ^ 'Nothing' for primitive functions,
       --   @'Just' something@ for builtin functions.
+  , _primOpaque   :: IsOpaque
+      -- ^ Primitives can also live in opaque blocks.
   } deriving (Show, Generic)
 
 pattern Primitive
@@ -2614,6 +2654,7 @@ pattern Primitive
   -> [Clause]
   -> FunctionInverse
   -> Maybe CompiledClauses
+  -> IsOpaque
   -> Defn
 pattern Primitive
   { primAbstr
@@ -2621,12 +2662,14 @@ pattern Primitive
   , primClauses
   , primInv
   , primCompiled
+  , primOpaque
   } = PrimitiveDefn (PrimitiveData
     primAbstr
     primName
     primClauses
     primInv
     primCompiled
+    primOpaque
   )
 
 data PrimitiveSortData = PrimitiveSortData
@@ -2728,6 +2771,7 @@ instance Pretty FunctionData where
       _funExtLam
       funWith
       funIsKanOp
+      funOpaque
     ) =
     "Function {" <?> vcat
       [ "funClauses      =" <?> vcat (map pretty funClauses)
@@ -2743,7 +2787,8 @@ instance Pretty FunctionData where
       , "funFlags        =" <?> pshow funFlags
       , "funTerminates   =" <?> pshow funTerminates
       , "funWith         =" <?> pretty funWith
-      , "funIsKanOp      =" <?> pretty funWith
+      , "funIsKanOp      =" <?> pretty funIsKanOp
+      , "funOpaque       =" <?> pshow funOpaque
       ] <?> "}"
 
 instance Pretty DatatypeData where
@@ -2830,12 +2875,14 @@ instance Pretty PrimitiveData where
       primClauses
       _primInv
       primCompiled
+      primOpaque
       ) =
     "Primitive {" <?> vcat
       [ "primAbstr    =" <?> pshow primAbstr
       , "primName     =" <?> pshow primName
       , "primClauses  =" <?> pshow primClauses
       , "primCompiled =" <?> pshow primCompiled
+      , "primOpaque   =" <?> pshow primOpaque
       ] <?> "}"
 
 instance Pretty PrimitiveSortData where
@@ -2894,6 +2941,7 @@ emptyFunctionData = do
     , _funWith        = Nothing
     , _funCovering    = []
     , _funIsKanOp     = Nothing
+    , _funOpaque      = TransparentDef
     }
 
 emptyFunction :: HasOptions m => m Defn
@@ -3134,6 +3182,25 @@ defAbstract d = case theDef d of
     Constructor{conAbstr = a} -> a
     Primitive{primAbstr = a}  -> a
     PrimitiveSort{}           -> ConcreteDef
+
+defOpaque :: Definition -> IsOpaque
+defOpaque d = case theDef d of
+    -- These two can be opaque:
+    Function{funOpaque=o}     -> o
+    Primitive{primOpaque=o}   -> o
+
+    -- Doesn't matter whether or not it's opaque:
+    Axiom{}                   -> TransparentDef
+    -- Concreteness is orthogonal to opacity:
+    AbstractDefn{}            -> TransparentDef
+
+    -- None of these are supported in opaque blocks:
+    DataOrRecSig{}            -> TransparentDef
+    GeneralizableVar{}        -> TransparentDef
+    Datatype{}                -> TransparentDef
+    Record{}                  -> TransparentDef
+    Constructor{}             -> TransparentDef
+    PrimitiveSort{}           -> TransparentDef
 
 defForced :: Definition -> [IsForced]
 defForced d = case theDef d of
@@ -3576,6 +3643,11 @@ data TCEnv =
                 -- the counter is decreased in the failure
                 -- continuation of
                 -- 'Agda.TypeChecking.SyntacticEquality.checkSyntacticEquality'.
+          , envCurrentOpaqueId :: !(Maybe OpaqueId)
+                -- ^ Unique identifier of the opaque block we are
+                -- currently under, if any. Used by the scope checker
+                -- (to associate definitions to blocks), and by the type
+                -- checker (for unfolding control).
           }
     deriving (Generic)
 
@@ -3640,6 +3712,7 @@ initEnv = TCEnv { envContext             = []
                 , envConflComputingOverlap  = False
                 , envCurrentlyElaborating   = False
                 , envSyntacticEqualityFuel  = Strict.Nothing
+                , envCurrentOpaqueId        = Nothing
                 }
 
 class LensTCEnv a where
@@ -3894,6 +3967,33 @@ aModeToDef ConcreteMode = Just ConcreteDef
 aModeToDef _ = Nothing
 
 ---------------------------------------------------------------------------
+-- ** Opaque blocks
+---------------------------------------------------------------------------
+
+-- | A block of opaque definitions.
+data OpaqueBlock = OpaqueBlock
+  { opaqueId        :: {-# UNPACK #-} !OpaqueId
+    -- ^ Unique identifier for this block.
+  , opaqueUnfolding :: HashSet QName
+    -- ^ Set of names we are allowed to unfold. After scope-checking,
+    -- this set should be transitively closed.
+  , opaqueDecls     :: HashSet QName
+    -- ^ Declarations contained in this abstract block.
+  , opaqueParent    :: Maybe OpaqueId
+    -- ^ Pointer to an enclosing opaque block, if one exists.
+  } deriving (Show, Eq, Generic)
+
+instance Pretty OpaqueBlock where
+  pretty (OpaqueBlock _ uf ds p) = vcat
+    $ [ "opaque (extends " <> pretty p <> ") {"
+      , nest 2 "unfolds"
+      ]
+    ++ [ nest 4 (pretty n <> ",") | n <- HashSet.toList uf ]
+    ++ [ nest 2 "declares" ]
+    ++ [ nest 4 (pretty n <+> ": _") | n <- HashSet.toList ds ]
+    ++ [ "}" ]
+
+---------------------------------------------------------------------------
 -- ** Insertion of implicit arguments
 ---------------------------------------------------------------------------
 
@@ -4090,6 +4190,7 @@ data Warning
   | PlentyInHardCompileTimeMode QωOrigin
     -- ^ Explicit use of @@ω@ or @@plenty@ in hard compile-time mode.
   | RecordFieldWarning RecordFieldWarning
+  | NotAffectedByOpaque
   deriving (Show, Generic)
 
 data RecordFieldWarning
@@ -4175,6 +4276,8 @@ warningName = \case
   RecordFieldWarning w -> case w of
     DuplicateFieldsWarning{}   -> DuplicateFieldsWarning_
     TooManyFieldsWarning{}     -> TooManyFieldsWarning_
+
+  NotAffectedByOpaque{} -> NotAffectedByOpaque_
 
 data TCWarning
   = TCWarning
@@ -5373,12 +5476,12 @@ instance KillRange Defn where
       DataOrRecSig n -> DataOrRecSig n
       GeneralizableVar -> GeneralizableVar
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
-      Function a b c d e f g h i j k l m n o p ->
-        killRange16 Function a b c d e f g h i j k l m n o p
+      Function a b c d e f g h i j k l m n o p q ->
+        killRange17 Function a b c d e f g h i j k l m n o p q
       Datatype a b c d e f g h i j   -> killRange10 Datatype a b c d e f g h i j
       Record a b c d e f g h i j k l m -> killRange13 Record a b c d e f g h i j k l m
       Constructor a b c d e f g h i j k -> killRange11 Constructor a b c d e f g h i j k
-      Primitive a b c d e            -> killRange5 Primitive a b c d e
+      Primitive a b c d e f          -> killRange6 Primitive a b c d e f
       PrimitiveSort a b              -> killRange2 PrimitiveSort a b
 
 instance KillRange MutualId where
@@ -5457,6 +5560,7 @@ instance NFData PostScopeState
 instance NFData TCState
 instance NFData DisambiguatedName
 instance NFData MutualBlock
+instance NFData OpaqueBlock
 instance NFData (BiMap RawTopLevelModuleName ModuleNameHash)
 instance NFData PersistentTCState
 instance NFData LoadedFileCache

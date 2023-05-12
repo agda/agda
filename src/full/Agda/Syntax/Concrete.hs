@@ -496,6 +496,10 @@ data Declaration
   | UnquoteData Range Name [Name] Expr
       -- ^ @unquoteDecl data d constructor xs = e@
   | Pragma      Pragma
+  | Opaque      Range [Declaration]
+    -- ^ @opaque ...@
+  | Unfolding   Range [QName]
+    -- ^ @unfolding ...@
   deriving Eq
 
 -- | Extract a record directive
@@ -914,6 +918,8 @@ instance HasRange Declaration where
   getRange (UnquoteDef r _ _)      = r
   getRange (UnquoteData r _ _ _)   = r
   getRange (Pragma p)              = getRange p
+  getRange (Opaque r _)            = r
+  getRange (Unfolding r _)         = r
 
 instance HasRange LHS where
   getRange (LHS p eqns ws) = p `fuseRange` eqns `fuseRange` ws
@@ -1067,6 +1073,8 @@ instance KillRange Declaration where
   killRange (UnquoteDef _ x t)      = killRange2 (UnquoteDef noRange) x t
   killRange (UnquoteData _ xs cs t) = killRange3 (UnquoteData noRange) xs cs t
   killRange (Pragma p)              = killRange1 Pragma p
+  killRange (Opaque r xs)           = killRange2 Opaque r xs
+  killRange (Unfolding r xs)        = killRange2 Unfolding r xs
 
 instance KillRange Expr where
   killRange (Ident q)             = killRange1 Ident q
@@ -1285,6 +1293,8 @@ instance NFData Declaration where
   rnf (UnquoteDef _ a b)      = rnf a `seq` rnf b
   rnf (UnquoteData _ a b c)   = rnf a `seq` rnf b `seq` rnf c
   rnf (Pragma a)              = rnf a
+  rnf (Opaque r xs)           = rnf r `seq` rnf xs
+  rnf (Unfolding r xs)        = rnf r `seq` rnf xs
 
 instance NFData OpenShortHand
 

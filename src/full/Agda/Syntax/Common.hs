@@ -23,6 +23,8 @@ import qualified Data.Strict.Maybe as Strict
 import Data.Word
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
+import Data.HashSet (HashSet)
+import qualified Data.HashSet as HashSet
 
 import GHC.Generics (Generic)
 
@@ -2330,6 +2332,67 @@ instance HasRange  IsMacro where getRange _ = noRange
 
 instance NFData IsMacro
 
+-- ** opaque blocks
+
+-- | Opaque or transparent.
+data IsOpaque
+  = OpaqueDef {-# UNPACK #-} !OpaqueId
+    -- ^ This definition is opaque, and it is guarded by the given
+    -- opaque block.
+  | TransparentDef
+  deriving (Show, Eq, Ord, Generic)
+
+instance KillRange IsOpaque where
+  killRange = id
+
+instance NFData IsOpaque
+
+class LensIsOpaque a where
+  lensIsOpaque :: Lens' a IsOpaque
+
+instance LensIsOpaque IsOpaque where
+  lensIsOpaque = id
+
+-- | Monoid representing the combined opaque blocks of a 'Foldable'
+-- containing possibly-opaque declarations.
+data JointOpacity
+  = UniqueOpaque    {-# UNPACK #-} !OpaqueId
+  -- ^ Every definition agrees on what opaque block they belong to.
+  | DifferentOpaque !(HashSet OpaqueId)
+  -- ^ More than one opaque block was found.
+  | NoOpaque
+  -- ^ Nothing here is opaque.
+
+instance Semigroup JointOpacity where
+  UniqueOpaque i <> UniqueOpaque j
+    | i == j    = UniqueOpaque i
+    | otherwise = DifferentOpaque (HashSet.fromList [i, j])
+
+  DifferentOpaque is <> UniqueOpaque j     = DifferentOpaque (HashSet.insert j is)
+  UniqueOpaque i     <> DifferentOpaque js = DifferentOpaque (HashSet.insert i js)
+  DifferentOpaque is <> DifferentOpaque js = DifferentOpaque (HashSet.union is js)
+
+  NoOpaque <> x = x
+  x <> NoOpaque = x
+
+instance Monoid JointOpacity where
+  mappend = (<>)
+  mempty = NoOpaque
+
+class AllAreOpaque a where
+  jointOpacity :: a -> JointOpacity
+
+  default jointOpacity :: (Foldable t, AllAreOpaque b, t b ~ a) => a -> JointOpacity
+  jointOpacity = Fold.foldMap jointOpacity
+
+instance AllAreOpaque IsOpaque where
+  jointOpacity = \case
+    TransparentDef -> NoOpaque
+    OpaqueDef i    -> UniqueOpaque i
+
+instance AllAreOpaque a => AllAreOpaque [a] where
+instance AllAreOpaque a => AllAreOpaque (Maybe a) where
+
 ---------------------------------------------------------------------------
 -- * NameId
 ---------------------------------------------------------------------------
@@ -2431,6 +2494,30 @@ newtype ProblemId = ProblemId Nat
 -- This particular Show instance is ok because of the Num instance.
 instance Show   ProblemId where show   (ProblemId n) = show n
 instance Pretty ProblemId where pretty (ProblemId n) = pretty n
+
+-- | The unique identifier of an opaque block. Second argument is the
+-- top-level module identifier.
+data OpaqueId = OpaqueId {-# UNPACK #-} !Word64 {-# UNPACK #-} !ModuleNameHash
+    deriving (Eq, Ord, Generic, Show)
+
+instance KillRange OpaqueId where
+  killRange = id
+
+instance Pretty OpaqueId where
+  pretty (OpaqueId n m) = text $ show n ++ "@" ++ show m
+
+instance Enum OpaqueId where
+  succ (OpaqueId n m)     = OpaqueId (n + 1) m
+  pred (OpaqueId n m)     = OpaqueId (n - 1) m
+  toEnum n                = __IMPOSSIBLE__  -- should not be used
+  fromEnum (OpaqueId n _) = fromIntegral n
+
+instance NFData OpaqueId where
+  rnf (OpaqueId _ _) = ()
+
+instance Hashable OpaqueId where
+  {-# INLINE hashWithSalt #-}
+  hashWithSalt salt (OpaqueId n (ModuleNameHash m)) = hashWithSalt salt (n, m)
 
 ------------------------------------------------------------------------
 -- * Placeholders (used to parse sections)

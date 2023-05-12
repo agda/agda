@@ -485,6 +485,7 @@ warningHighlighting' b w = case tcWarning w of
     Pa.UnsupportedAttribute{}     -> deadcodeHighlighting w
     Pa.MultipleAttributes{}       -> deadcodeHighlighting w
     Pa.OverlappingTokensWarning{} -> mempty
+  NotAffectedByOpaque{}           -> deadcodeHighlighting w
   NicifierIssue (DeclarationWarning _ w) -> case w of
     -- we intentionally override the binding of `w` here so that our pattern of
     -- using `getRange w` still yields the most precise range information we
