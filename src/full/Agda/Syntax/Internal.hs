@@ -351,6 +351,14 @@ pattern SSet l = Univ USSet l
 
 type Sort = Sort' Term
 
+-- | Is this a strict universe inhabitable by data types?
+isStrictDataSort :: Sort' t -> Bool
+isStrictDataSort = \case
+  Univ u _ -> univFibrancy u == IsStrict
+  Inf  f _ -> f == IsStrict
+  _ -> False
+
+
 -- | A level is a maximum expression of a closed level and 0..n
 --   'PlusLevel' expressions each of which is an atom plus a number.
 data Level' t = Max !Integer [PlusLevel' t]
