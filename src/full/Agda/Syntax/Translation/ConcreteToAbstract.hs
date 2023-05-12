@@ -49,7 +49,7 @@ import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Common
-import Agda.Syntax.Info
+import Agda.Syntax.Info as Info
 import Agda.Syntax.Concrete.Definitions as C
 import Agda.Syntax.Fixity
 import Agda.Syntax.Concrete.Fixity (DoWarn(..))
@@ -2094,7 +2094,7 @@ instance ToAbstract NiceDeclaration where
       opaque <- contextIsOpaque
       return [ A.Mutual mi
         [ A.UnquoteDecl mi
-            [ (mkDefInfoInstance x fx p a i NotMacroDef r) { defOpaque = opaque } | (fx, x) <- zip fxs xs ]
+            [ (mkDefInfoInstance x fx p a i NotMacroDef r) { Info.defOpaque = opaque } | (fx, x) <- zip fxs xs ]
           ys e
         ] ]
 
@@ -2105,7 +2105,7 @@ instance ToAbstract NiceDeclaration where
       e <- toAbstract e
       zipWithM_ (rebindName p OtherDefName) xs ys
       opaque <- contextIsOpaque
-      return [ A.UnquoteDef [ (mkDefInfo x fx PublicAccess a r) { defOpaque = opaque } | (fx, x) <- zip fxs xs ] ys e ]
+      return [ A.UnquoteDef [ (mkDefInfo x fx PublicAccess a r) { Info.defOpaque = opaque } | (fx, x) <- zip fxs xs ] ys e ]
 
     NiceUnquoteData r p a pc uc x cs e -> do
       notAffectedByOpaque
@@ -2198,6 +2198,7 @@ instance ToAbstract NiceDeclaration where
         , opaqueUnfolding = HashSet.fromList names
         , opaqueDecls     = mempty
         , opaqueParent    = parent
+        , opaqueRange     = r
         }
 
       -- Keep going!

@@ -365,6 +365,11 @@ prettyWarning = \case
 
     NotAffectedByOpaque -> fwords "Only functions and primitives can be marked opaque. This declaration will be treated as transparent."
 
+    UnfoldTransparentName qn -> fsep $
+      pwords "The name" ++ [prettyTCM qn <> ","] ++ pwords "mentioned by an unfolding clause, does not belong to an opaque block. This has no effect."
+
+    UselessOpaque -> "This `opaque` block has no effect."
+
 prettyRecordFieldWarning :: MonadPretty m => RecordFieldWarning -> m Doc
 prettyRecordFieldWarning = \case
   DuplicateFieldsWarning xrs    -> prettyDuplicateFields $ map fst xrs

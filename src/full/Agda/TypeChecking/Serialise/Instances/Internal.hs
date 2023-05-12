@@ -455,10 +455,10 @@ instance EmbPrj a => EmbPrj (Case a) where
 -- compute the transitive closure during scope checking, never
 -- afterwards.
 instance EmbPrj OpaqueBlock where
-  icod_ (OpaqueBlock id uf _ _) =
+  icod_ (OpaqueBlock id uf _ _ r) =
     icodeN' (\id uf ->
       OpaqueBlock id (HashSet.fromList uf) mempty Nothing)
-    id (HashSet.toList uf)
+    id (HashSet.toList uf) r
 
   value = valueN (\id uf -> OpaqueBlock id (HashSet.fromList uf) mempty Nothing)
 

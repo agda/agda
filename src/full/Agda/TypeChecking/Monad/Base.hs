@@ -3981,10 +3981,12 @@ data OpaqueBlock = OpaqueBlock
     -- ^ Declarations contained in this abstract block.
   , opaqueParent    :: Maybe OpaqueId
     -- ^ Pointer to an enclosing opaque block, if one exists.
+  , opaqueRange     :: Range
+    -- ^ Where is this opaque block?
   } deriving (Show, Eq, Generic)
 
 instance Pretty OpaqueBlock where
-  pretty (OpaqueBlock _ uf ds p) = vcat
+  pretty (OpaqueBlock _ uf ds p _) = vcat
     $ [ "opaque (extends " <> pretty p <> ") {"
       , nest 2 "unfolds"
       ]
@@ -4191,6 +4193,8 @@ data Warning
     -- ^ Explicit use of @@ω@ or @@plenty@ in hard compile-time mode.
   | RecordFieldWarning RecordFieldWarning
   | NotAffectedByOpaque
+  | UnfoldTransparentName QName
+  | UselessOpaque
   deriving (Show, Generic)
 
 data RecordFieldWarning
@@ -4277,7 +4281,9 @@ warningName = \case
     DuplicateFieldsWarning{}   -> DuplicateFieldsWarning_
     TooManyFieldsWarning{}     -> TooManyFieldsWarning_
 
-  NotAffectedByOpaque{} -> NotAffectedByOpaque_
+  NotAffectedByOpaque{}   -> NotAffectedByOpaque_
+  UselessOpaque{}         -> UselessOpaque_
+  UnfoldTransparentName{} -> UnfoldTransparentName_
 
 data TCWarning
   = TCWarning

@@ -5,12 +5,14 @@ module Agda.TypeChecking.Opacity
   )
   where
 
+import Control.Monad
+
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Map.Strict as Map
 import qualified Data.HashSet as HashSet
 import qualified Data.List as List
-import Data.Map.Strict (Map)
 import Data.HashMap.Strict (HashMap)
+import Data.Map.Strict (Map)
 import Data.Foldable
 import Data.Maybe
 
@@ -28,7 +30,7 @@ import Agda.Utils.Lens
 
 -- | Ensure that opaque blocks defined in the current module have
 -- transitively-closed unfolding sets.
-saturateOpaqueBlocks :: (MonadTCState m, ReadTCState m, MonadFresh OpaqueId m, MonadDebug m) => m ()
+saturateOpaqueBlocks :: forall m. (MonadTCState m, ReadTCState m, MonadFresh OpaqueId m, MonadDebug m, MonadTrace m, MonadWarning m) => m ()
 saturateOpaqueBlocks = entry where
   entry = do
     known   <- useTC stOpaqueBlocks
@@ -41,7 +43,7 @@ saturateOpaqueBlocks = entry where
       -- Only compute transitive closure for opaque blocks declared in
       -- the current top-level module. Deserialised blocks are always
       -- closed, so this work would be redundant.
-      (blocks, names) = computeClosure known inverse ours
+    (blocks, names) <- computeClosure known inverse ours
 
     reportSDoc "tc.opaque" 30 $ vcat $
       text "Opaque blocks defined in this module:":map pretty ours
@@ -61,30 +63,35 @@ saturateOpaqueBlocks = entry where
       -- contains imported opaque names.
     -> [OpaqueBlock]
       -- List of our opaque blocks, in dependency order.
-    -> ( Map OpaqueId OpaqueBlock
-       , Map QName OpaqueId
-       )
-  computeClosure !blocks !names [] = (blocks, names)
-  computeClosure blocks names (block:xs) =
+    -> m ( Map OpaqueId OpaqueBlock
+         , Map QName OpaqueId
+         )
+  computeClosure !blocks !names [] = pure (blocks, names)
+  computeClosure blocks names (block:xs) = setCurrentRange (opaqueRange block) $ do
+    when (null (opaqueDecls block)) $ warning UselessOpaque
     let
+      yell nm accum = setCurrentRange (getRange nm) $ do
+        warning (UnfoldTransparentName nm)
+        pure accum
       -- Add the unfolding-set of the given name to the accumulator
       -- value.
-      transitive nm accum = fromMaybe accum $ do
+      transitive nm accum = fromMaybe (yell nm accum) $ do
         id    <- Map.lookup nm names
         block <- Map.lookup id blocks
-        pure $ HashSet.union (opaqueUnfolding block) accum
+        pure . pure $ HashSet.union (opaqueUnfolding block) accum
 
-      -- Compute the transitive closure: bring in names
-      --
-      --   ... that are defined as immediate children of the opaque block
-      --   ... that are unfolded by the parent opaque block
-      --   ... that are implied by each name in the unfolding clause.
-      closed = HashSet.foldr transitive
-        (  opaqueDecls block
-        <> foldMap opaqueUnfolding (opaqueParent block >>= flip Map.lookup blocks)
-        )
-        (opaqueUnfolding block)
+    -- Compute the transitive closure: bring in names
+    --
+    --   ... that are defined as immediate children of the opaque block
+    --   ... that are unfolded by the parent opaque block
+    --   ... that are implied by each name in the unfolding clause.
+    closed <- foldrM transitive
+      (  opaqueDecls block
+      <> foldMap opaqueUnfolding (opaqueParent block >>= flip Map.lookup blocks)
+      )
+      (opaqueUnfolding block)
 
+    let
       block' = block { opaqueUnfolding = closed }
 
       -- Update the mapping from names to blocks, so that future
@@ -93,7 +100,7 @@ saturateOpaqueBlocks = entry where
       names' = HashSet.foldr (\name -> Map.insert name (opaqueId block)) names
         (opaqueDecls block)
 
-    in computeClosure (Map.insert (opaqueId block) block' blocks) names' xs
+    computeClosure (Map.insert (opaqueId block) block' blocks) names' xs
 
 -- | Decide whether or not a definition is reducible. Returns 'True' if
 -- the definition /can/ step.
