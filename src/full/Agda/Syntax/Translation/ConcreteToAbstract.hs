@@ -2238,7 +2238,10 @@ updateDefInfoOpacity di = (\a -> di { defOpaque = a }) <$> contextIsOpaque
 -- | Raise a warning indicating that the current Declaration is not
 -- affected by opacity, but only if we are actually in an Opaque block.
 notAffectedByOpaque :: ScopeM ()
-notAffectedByOpaque = maybe (pure ()) (const (warning NotAffectedByOpaque)) =<< asksTC envCurrentOpaqueId
+notAffectedByOpaque = do
+  t <- asksTC envCheckingWhere
+  unless t $
+    maybe (pure ()) (const (warning NotAffectedByOpaque)) =<< asksTC envCurrentOpaqueId
 
 unGeneralized :: A.Expr -> (Set.Set I.QName, A.Expr)
 unGeneralized (A.Generalized s t) = (s, t)
@@ -2663,17 +2666,18 @@ whereToAbstract r wh inner = do
   case wh of
     NoWhere       -> ret
     AnyWhere _ [] -> warnEmptyWhere
-    AnyWhere _ ds -> do
+    AnyWhere _ ds -> enter $ do
       -- Andreas, 2016-07-17 issues #2081 and #2101
       -- where-declarations are automatically private.
       -- This allows their type signature to be checked InAbstractMode.
       whereToAbstract1 r defaultErased Nothing
         (singleton $ C.Private noRange Inserted ds) inner
-    SomeWhere _ e m a ds0 ->
+    SomeWhere _ e m a ds0 -> enter $
       List1.ifNull ds0 warnEmptyWhere {-else-} $ \ds -> do
       -- Named where-modules do not default to private.
       whereToAbstract1 r e (Just (m, a)) ds inner
   where
+  enter = localTC $ \env -> env { envCheckingWhere = True }
   ret = (,A.noWhereDecls) <$> inner
   warnEmptyWhere = do
     setCurrentRange r $ warning EmptyWhere
