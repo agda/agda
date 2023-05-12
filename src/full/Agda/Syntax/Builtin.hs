@@ -50,6 +50,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTermVar, builtinAgdaTermLam, builtinAgdaTermExtLam,
   builtinAgdaTermDef, builtinAgdaTermCon, builtinAgdaTermPi,
   builtinAgdaTermSort, builtinAgdaTermLit, builtinAgdaTermUnsupported, builtinAgdaTermMeta,
+  builtinAgdaPostponedTerm, builtinAgdaPostponedTermPostpone,
   builtinAgdaErrorPart, builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartPatt, builtinAgdaErrorPartName,
   builtinAgdaLiteral, builtinAgdaLitNat, builtinAgdaLitWord64, builtinAgdaLitFloat,
   builtinAgdaLitChar, builtinAgdaLitString, builtinAgdaLitQName, builtinAgdaLitMeta,
@@ -63,7 +64,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaMeta,
   builtinAgdaTCM, builtinAgdaTCMReturn, builtinAgdaTCMBind, builtinAgdaTCMUnify,
   builtinAgdaTCMTypeError, builtinAgdaTCMInferType,
-  builtinAgdaTCMCheckType, builtinAgdaTCMNormalise, builtinAgdaTCMReduce,
+  builtinAgdaTCMCheckType, builtinAgdaTCMElaborate, builtinAgdaTCMNormalise, builtinAgdaTCMReduce,
   builtinAgdaTCMCatchError,
   builtinAgdaTCMGetContext, builtinAgdaTCMExtendContext, builtinAgdaTCMInContext,
   builtinAgdaTCMFreshName, builtinAgdaTCMDeclareDef, builtinAgdaTCMDeclarePostulate, builtinAgdaTCMDeclareData, builtinAgdaTCMDefineData, builtinAgdaTCMDefineFun,
@@ -222,6 +223,8 @@ builtinAgdaTermSort                      = "AGDATERMSORT"
 builtinAgdaTermLit                       = "AGDATERMLIT"
 builtinAgdaTermUnsupported               = "AGDATERMUNSUPPORTED"
 builtinAgdaTermMeta                      = "AGDATERMMETA"
+builtinAgdaPostponedTerm                 = "AGDAPOSTPONEDTERM"
+builtinAgdaPostponedTermPostpone         = "AGDAPOSTPONEDTERMPOSTPONE"
 builtinAgdaErrorPart                     = "AGDAERRORPART"
 builtinAgdaErrorPartString               = "AGDAERRORPARTSTRING"
 builtinAgdaErrorPartTerm                 = "AGDAERRORPARTTERM"
@@ -260,6 +263,7 @@ builtinAgdaTCMUnify                      = "AGDATCMUNIFY"
 builtinAgdaTCMTypeError                  = "AGDATCMTYPEERROR"
 builtinAgdaTCMInferType                  = "AGDATCMINFERTYPE"
 builtinAgdaTCMCheckType                  = "AGDATCMCHECKTYPE"
+builtinAgdaTCMElaborate                  = "AGDATCMELABORATE"
 builtinAgdaTCMNormalise                  = "AGDATCMNORMALISE"
 builtinAgdaTCMReduce                     = "AGDATCMREDUCE"
 builtinAgdaTCMCatchError                 = "AGDATCMCATCHERROR"

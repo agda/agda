@@ -1024,6 +1024,7 @@ instance ToAbstract C.Expr where
   -- Quoting
       C.Quote r -> return $ A.Quote (ExprRange r)
       C.QuoteTerm r -> return $ A.QuoteTerm (ExprRange r)
+      C.QuotePostponedTerm r -> return $ A.QuotePostponedTerm (ExprRange r)
       C.Unquote r -> return $ A.Unquote (ExprRange r)
 
       C.Tactic r e -> genericError "Syntax error: 'tactic' can only appear in attributes"

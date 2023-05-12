@@ -16,6 +16,7 @@ import {-# SOURCE #-} Agda.Syntax.TopLevelModuleName
 import Agda.Utils.FileName
 import Agda.Utils.Float ( doubleDenotEq, doubleDenotOrd )
 import Agda.Utils.Pretty
+import {-# SOURCE #-} Agda.Syntax.Internal (Term)
 
 type RLiteral = Ranged Literal
 data Literal
@@ -29,13 +30,13 @@ data Literal
   deriving Show
 
 instance Pretty Literal where
-    pretty (LitNat n)     = pretty n
-    pretty (LitWord64 n)  = pretty n
-    pretty (LitFloat d)   = pretty d
-    pretty (LitString s)  = text $ showText s ""
-    pretty (LitChar c)    = text $ "'" ++ showChar' c "'"
-    pretty (LitQName x)   = pretty x
-    pretty (LitMeta _ x)  = pretty x
+    pretty (LitNat n)    = pretty n
+    pretty (LitWord64 n) = pretty n
+    pretty (LitFloat d)  = pretty d
+    pretty (LitString s) = text $ showText s ""
+    pretty (LitChar c)   = text $ "'" ++ showChar' c "'"
+    pretty (LitQName x)  = pretty x
+    pretty (LitMeta _ x) = pretty x
 
 showText :: Text -> ShowS
 showText s = showString "\""
@@ -61,7 +62,7 @@ instance Eq Literal where
   LitChar c   == LitChar d   = c == d
   LitQName x  == LitQName y  = x == y
   LitMeta f x == LitMeta g y = (f, x) == (g, y)
-  _           == _             = False
+  _           == _           = False
 
 instance Ord Literal where
   LitNat n    `compare` LitNat m    = n `compare` m

@@ -139,6 +139,7 @@ import Agda.Utils.Impossible
     'public'                  { TokKeyword KwPublic $$ }
     'quote'                   { TokKeyword KwQuote $$ }
     'quoteTerm'               { TokKeyword KwQuoteTerm $$ }
+    'quotePostponedTerm'      { TokKeyword KwQuotePostponedTerm $$ }
     'record'                  { TokKeyword KwRecord $$ }
     'renaming'                { TokKeyword KwRenaming $$ }
     'rewrite'                 { TokKeyword KwRewrite $$ }
@@ -704,6 +705,7 @@ Expr3NoCurly
     | '_'                               { Underscore (getRange $1) Nothing }
     | 'quote'                           { Quote (getRange $1) }
     | 'quoteTerm'                       { QuoteTerm (getRange $1) }
+    | 'quotePostponedTerm'              { QuotePostponedTerm (getRange $1) }
     | 'unquote'                         { Unquote (getRange $1) }
     | '(|' UnnamedWithExprs '|)'        { IdiomBrackets (getRange ($1,$2,$3)) (List1.toList $2) }
     | '(|)'                             { IdiomBrackets (getRange $1) [] }

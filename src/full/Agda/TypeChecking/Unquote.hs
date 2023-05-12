@@ -545,6 +545,19 @@ instance Unquote R.Clause where
       Con c _ _ -> __IMPOSSIBLE__
       _ -> throwError $ NonCanonical "clause" t
 
+instance Unquote R.PostponedTerm where
+  unquote t = do
+    t <- reduceQuotedTerm t
+    case t of
+      Con c _ es | Just [w, x, y, z] <- allApplyElims es ->
+        choice
+          [ (c `isCon` primAgdaPostponedTermPostpone,
+             R.Postponed <$> unquoteN w <*> unquoteN x <*> unquoteN y <*> unquoteN z)
+          ]
+          __IMPOSSIBLE__
+      Con c _ _ -> __IMPOSSIBLE__
+      _ -> throwError $ NonCanonical "postponed term" t
+
 -- Unquoting TCM computations ---------------------------------------------
 
 -- | Argument should be a term of type @Term → TCM A@ for some A. Returns the
@@ -587,6 +600,7 @@ evalTCM v = do
     I.Def f [u, v] ->
       choice [ (f `isDef` primAgdaTCMUnify,      tcFun2 tcUnify      u v)
              , (f `isDef` primAgdaTCMCheckType,  tcFun2 tcCheckType  u v)
+             , (f `isDef` primAgdaTCMElaborate,  tcFun2 tcElaborate  u v)
              , (f `isDef` primAgdaTCMDeclareDef, uqFun2 tcDeclareDef u v)
              , (f `isDef` primAgdaTCMDeclarePostulate, uqFun2 tcDeclarePostulate u v)
              , (f `isDef` primAgdaTCMDefineData, uqFun2 tcDefineData u v)
@@ -755,6 +769,21 @@ evalTCM v = do
       if r then do
         v <- process v
         v <- locallyReduceAllDefs $ reconstructParameters a v
+        locallyReconstructed (quoteTerm v)
+      else
+        quoteTerm =<< process v
+
+    tcElaborate :: R.PostponedTerm -> R.Type -> TCM Term
+    tcElaborate (R.Postponed {..}) u = do
+      r <- isReconstructed
+      u <- workOnTypes $ locallyReduceAllDefs $ isType_ =<< toAbstract_ u
+      reportSDoc "tc.unquote.elaborate" 50 $ "Elaborating against Type:" <+> pretty u
+      equalType u (El (MetaS postponedSort []) (MetaV postponedType []))
+      e <- toAbstract_ postponedTerm
+      v <- checkExpr e u
+      if r then do
+        v <- process v
+        v <- locallyReduceAllDefs $ reconstructParameters u v
         locallyReconstructed (quoteTerm v)
       else
         quoteTerm =<< process v

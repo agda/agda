@@ -171,6 +171,7 @@ data Expr
   | DoubleDot Range Expr                       -- ^ ex: @..A@, used for parsing @..A -> B@
   | Quote Range                                -- ^ ex: @quote@, should be applied to a name
   | QuoteTerm Range                            -- ^ ex: @quoteTerm@, should be applied to a term
+  | QuotePostponedTerm Range                   -- ^ ex: @quotePostponedTerm@, should be applied to a term
   | Tactic Range Expr                          -- ^ ex: @\@(tactic t)@, used to declare tactic arguments
   | Unquote Range                              -- ^ ex: @unquote@, should be applied to a term of type @Term@
   | DontCare Expr                              -- ^ to print irrelevant things
@@ -807,39 +808,40 @@ instance HasRange e => HasRange (OpApp e) where
 
 instance HasRange Expr where
   getRange = \case
-      Ident x            -> getRange x
-      Lit r _            -> r
-      QuestionMark r _   -> r
-      Underscore r _     -> r
-      App r _ _          -> r
-      RawApp r _         -> r
-      OpApp r _ _ _      -> r
-      WithApp r _ _      -> r
-      Lam r _ _          -> r
-      AbsurdLam r _      -> r
-      ExtendedLam r _ _  -> r
-      Fun r _ _          -> r
-      Pi b e             -> fuseRange b e
-      Let r _ _          -> r
-      Paren r _          -> r
-      IdiomBrackets r _  -> r
-      DoBlock r _        -> r
-      As r _ _           -> r
-      Dot r _            -> r
-      DoubleDot r _      -> r
-      Absurd r           -> r
-      HiddenArg r _      -> r
-      InstanceArg r _    -> r
-      Rec r _            -> r
-      RecUpdate r _ _    -> r
-      Quote r            -> r
-      QuoteTerm r        -> r
-      Unquote r          -> r
-      Tactic r _         -> r
-      DontCare{}         -> noRange
-      Equal r _ _        -> r
-      Ellipsis r         -> r
-      Generalized e      -> getRange e
+      Ident x              -> getRange x
+      Lit r _              -> r
+      QuestionMark r _     -> r
+      Underscore r _       -> r
+      App r _ _            -> r
+      RawApp r _           -> r
+      OpApp r _ _ _        -> r
+      WithApp r _ _        -> r
+      Lam r _ _            -> r
+      AbsurdLam r _        -> r
+      ExtendedLam r _ _    -> r
+      Fun r _ _            -> r
+      Pi b e               -> fuseRange b e
+      Let r _ _            -> r
+      Paren r _            -> r
+      IdiomBrackets r _    -> r
+      DoBlock r _          -> r
+      As r _ _             -> r
+      Dot r _              -> r
+      DoubleDot r _        -> r
+      Absurd r             -> r
+      HiddenArg r _        -> r
+      InstanceArg r _      -> r
+      Rec r _              -> r
+      RecUpdate r _ _      -> r
+      Quote r              -> r
+      QuoteTerm r          -> r
+      QuotePostponedTerm r -> r
+      Unquote r            -> r
+      Tactic r _           -> r
+      DontCare{}           -> noRange
+      Equal r _ _          -> r
+      Ellipsis r           -> r
+      Generalized e        -> getRange e
 
 -- instance HasRange Telescope where
 --     getRange (TeleBind bs) = getRange bs
@@ -1069,39 +1071,40 @@ instance KillRange Declaration where
   killRange (Pragma p)              = killRange1 Pragma p
 
 instance KillRange Expr where
-  killRange (Ident q)             = killRange1 Ident q
-  killRange (Lit _ l)             = killRange1 (Lit noRange) l
-  killRange (QuestionMark _ n)    = QuestionMark noRange n
-  killRange (Underscore _ n)      = Underscore noRange n
-  killRange (RawApp _ e)          = killRange1 (RawApp noRange) e
-  killRange (App _ e a)           = killRange2 (App noRange) e a
-  killRange (OpApp _ n ns o)      = killRange3 (OpApp noRange) n ns o
-  killRange (WithApp _ e es)      = killRange2 (WithApp noRange) e es
-  killRange (HiddenArg _ n)       = killRange1 (HiddenArg noRange) n
-  killRange (InstanceArg _ n)     = killRange1 (InstanceArg noRange) n
-  killRange (Lam _ l e)           = killRange2 (Lam noRange) l e
-  killRange (AbsurdLam _ h)       = killRange1 (AbsurdLam noRange) h
-  killRange (ExtendedLam _ e lrw) = killRange2 (ExtendedLam noRange) e lrw
-  killRange (Fun _ e1 e2)         = killRange2 (Fun noRange) e1 e2
-  killRange (Pi t e)              = killRange2 Pi t e
-  killRange (Rec _ ne)            = killRange1 (Rec noRange) ne
-  killRange (RecUpdate _ e ne)    = killRange2 (RecUpdate noRange) e ne
-  killRange (Let _ d e)           = killRange2 (Let noRange) d e
-  killRange (Paren _ e)           = killRange1 (Paren noRange) e
-  killRange (IdiomBrackets _ es)  = killRange1 (IdiomBrackets noRange) es
-  killRange (DoBlock _ ss)        = killRange1 (DoBlock noRange) ss
-  killRange (Absurd _)            = Absurd noRange
-  killRange (As _ n e)            = killRange2 (As noRange) n e
-  killRange (Dot _ e)             = killRange1 (Dot noRange) e
-  killRange (DoubleDot _ e)       = killRange1 (DoubleDot noRange) e
-  killRange (Quote _)             = Quote noRange
-  killRange (QuoteTerm _)         = QuoteTerm noRange
-  killRange (Unquote _)           = Unquote noRange
-  killRange (Tactic _ t)          = killRange1 (Tactic noRange) t
-  killRange (DontCare e)          = killRange1 DontCare e
-  killRange (Equal _ x y)         = Equal noRange x y
-  killRange (Ellipsis _)          = Ellipsis noRange
-  killRange (Generalized e)       = killRange1 Generalized e
+  killRange (Ident q)              = killRange1 Ident q
+  killRange (Lit _ l)              = killRange1 (Lit noRange) l
+  killRange (QuestionMark _ n)     = QuestionMark noRange n
+  killRange (Underscore _ n)       = Underscore noRange n
+  killRange (RawApp _ e)           = killRange1 (RawApp noRange) e
+  killRange (App _ e a)            = killRange2 (App noRange) e a
+  killRange (OpApp _ n ns o)       = killRange3 (OpApp noRange) n ns o
+  killRange (WithApp _ e es)       = killRange2 (WithApp noRange) e es
+  killRange (HiddenArg _ n)        = killRange1 (HiddenArg noRange) n
+  killRange (InstanceArg _ n)      = killRange1 (InstanceArg noRange) n
+  killRange (Lam _ l e)            = killRange2 (Lam noRange) l e
+  killRange (AbsurdLam _ h)        = killRange1 (AbsurdLam noRange) h
+  killRange (ExtendedLam _ e lrw)  = killRange2 (ExtendedLam noRange) e lrw
+  killRange (Fun _ e1 e2)          = killRange2 (Fun noRange) e1 e2
+  killRange (Pi t e)               = killRange2 Pi t e
+  killRange (Rec _ ne)             = killRange1 (Rec noRange) ne
+  killRange (RecUpdate _ e ne)     = killRange2 (RecUpdate noRange) e ne
+  killRange (Let _ d e)            = killRange2 (Let noRange) d e
+  killRange (Paren _ e)            = killRange1 (Paren noRange) e
+  killRange (IdiomBrackets _ es)   = killRange1 (IdiomBrackets noRange) es
+  killRange (DoBlock _ ss)         = killRange1 (DoBlock noRange) ss
+  killRange (Absurd _)             = Absurd noRange
+  killRange (As _ n e)             = killRange2 (As noRange) n e
+  killRange (Dot _ e)              = killRange1 (Dot noRange) e
+  killRange (DoubleDot _ e)        = killRange1 (DoubleDot noRange) e
+  killRange (Quote _)              = Quote noRange
+  killRange (QuoteTerm _)          = QuoteTerm noRange
+  killRange (QuotePostponedTerm _) = QuoteTerm noRange
+  killRange (Unquote _)            = Unquote noRange
+  killRange (Tactic _ t)           = killRange1 (Tactic noRange) t
+  killRange (DontCare e)           = killRange1 DontCare e
+  killRange (Equal _ x y)          = Equal noRange x y
+  killRange (Ellipsis _)           = Ellipsis noRange
+  killRange (Generalized e)        = killRange1 Generalized e
 
 instance KillRange LamBinding where
   killRange (DomainFree b) = killRange1 DomainFree b
@@ -1187,39 +1190,40 @@ instance KillRange WhereClause where
 -- | Ranges are not forced.
 
 instance NFData Expr where
-  rnf (Ident a)           = rnf a
-  rnf (Lit _ a)           = rnf a
-  rnf (QuestionMark _ a)  = rnf a
-  rnf (Underscore _ a)    = rnf a
-  rnf (RawApp _ a)        = rnf a
-  rnf (App _ a b)         = rnf a `seq` rnf b
-  rnf (OpApp _ a b c)     = rnf a `seq` rnf b `seq` rnf c
-  rnf (WithApp _ a b)     = rnf a `seq` rnf b
-  rnf (HiddenArg _ a)     = rnf a
-  rnf (InstanceArg _ a)   = rnf a
-  rnf (Lam _ a b)         = rnf a `seq` rnf b
-  rnf (AbsurdLam _ a)     = rnf a
-  rnf (ExtendedLam _ a b) = rnf a `seq` rnf b
-  rnf (Fun _ a b)         = rnf a `seq` rnf b
-  rnf (Pi a b)            = rnf a `seq` rnf b
-  rnf (Rec _ a)           = rnf a
-  rnf (RecUpdate _ a b)   = rnf a `seq` rnf b
-  rnf (Let _ a b)         = rnf a `seq` rnf b
-  rnf (Paren _ a)         = rnf a
-  rnf (IdiomBrackets _ a) = rnf a
-  rnf (DoBlock _ a)       = rnf a
-  rnf (Absurd _)          = ()
-  rnf (As _ a b)          = rnf a `seq` rnf b
-  rnf (Dot _ a)           = rnf a
-  rnf (DoubleDot _ a)     = rnf a
-  rnf (Quote _)           = ()
-  rnf (QuoteTerm _)       = ()
-  rnf (Tactic _ a)        = rnf a
-  rnf (Unquote _)         = ()
-  rnf (DontCare a)        = rnf a
-  rnf (Equal _ a b)       = rnf a `seq` rnf b
-  rnf (Ellipsis _)        = ()
-  rnf (Generalized e)     = rnf e
+  rnf (Ident a)              = rnf a
+  rnf (Lit _ a)              = rnf a
+  rnf (QuestionMark _ a)     = rnf a
+  rnf (Underscore _ a)       = rnf a
+  rnf (RawApp _ a)           = rnf a
+  rnf (App _ a b)            = rnf a `seq` rnf b
+  rnf (OpApp _ a b c)        = rnf a `seq` rnf b `seq` rnf c
+  rnf (WithApp _ a b)        = rnf a `seq` rnf b
+  rnf (HiddenArg _ a)        = rnf a
+  rnf (InstanceArg _ a)      = rnf a
+  rnf (Lam _ a b)            = rnf a `seq` rnf b
+  rnf (AbsurdLam _ a)        = rnf a
+  rnf (ExtendedLam _ a b)    = rnf a `seq` rnf b
+  rnf (Fun _ a b)            = rnf a `seq` rnf b
+  rnf (Pi a b)               = rnf a `seq` rnf b
+  rnf (Rec _ a)              = rnf a
+  rnf (RecUpdate _ a b)      = rnf a `seq` rnf b
+  rnf (Let _ a b)            = rnf a `seq` rnf b
+  rnf (Paren _ a)            = rnf a
+  rnf (IdiomBrackets _ a)    = rnf a
+  rnf (DoBlock _ a)          = rnf a
+  rnf (Absurd _)             = ()
+  rnf (As _ a b)             = rnf a `seq` rnf b
+  rnf (Dot _ a)              = rnf a
+  rnf (DoubleDot _ a)        = rnf a
+  rnf (Quote _)              = ()
+  rnf (QuoteTerm _)          = ()
+  rnf (QuotePostponedTerm _) = ()
+  rnf (Tactic _ a)           = rnf a
+  rnf (Unquote _)            = ()
+  rnf (DontCare a)           = rnf a
+  rnf (Equal _ a b)          = rnf a `seq` rnf b
+  rnf (Ellipsis _)           = ()
+  rnf (Generalized e)        = rnf e
 
 -- | Ranges are not forced.
 

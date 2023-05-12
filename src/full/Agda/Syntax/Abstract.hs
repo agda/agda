@@ -111,6 +111,7 @@ data Expr
   | ScopedExpr ScopeInfo Expr          -- ^ Scope annotation.
   | Quote ExprInfo                     -- ^ Quote an identifier 'QName'.
   | QuoteTerm ExprInfo                 -- ^ Quote a term.
+  | QuotePostponedTerm ExprInfo        -- ^ Quote a postponed term.
   | Unquote ExprInfo                   -- ^ The splicing construct: unquote ...
   | DontCare Expr                      -- ^ For printing @DontCare@ from @Syntax.Internal@.
   deriving (Show, Generic)
@@ -580,6 +581,7 @@ instance Eq Expr where
   RecUpdate a1 b1 c1         == RecUpdate a2 b2 c2         = (a1, b1, c1) == (a2, b2, c2)
   Quote a1                   == Quote a2                   = a1 == a2
   QuoteTerm a1               == QuoteTerm a2               = a1 == a2
+  QuotePostponedTerm a1      == QuotePostponedTerm a2      = a1 == a2
   Unquote a1                 == Unquote a2                 = a1 == a2
   DontCare a1                == DontCare a2                = a1 == a2
 
@@ -661,6 +663,7 @@ instance HasRange Expr where
     getRange (ScopedExpr _ e)        = getRange e
     getRange (Quote i)               = getRange i
     getRange (QuoteTerm i)           = getRange i
+    getRange (QuotePostponedTerm i)  = getRange i
     getRange (Unquote i)             = getRange i
     getRange (DontCare{})            = noRange
     getRange (PatternSyn x)          = getRange x
@@ -794,6 +797,7 @@ instance KillRange Expr where
   killRange (ScopedExpr s e)         = killRange1 (ScopedExpr s) e
   killRange (Quote i)                = killRange1 Quote i
   killRange (QuoteTerm i)            = killRange1 QuoteTerm i
+  killRange (QuotePostponedTerm i)   = killRange1 QuotePostponedTerm i
   killRange (Unquote i)              = killRange1 Unquote i
   killRange (DontCare e)             = killRange1 DontCare e
   killRange (PatternSyn x)           = killRange1 PatternSyn x
@@ -1051,33 +1055,34 @@ instance SubstExpr ModuleName where
 
 instance SubstExpr Expr where
   substExpr s e = case e of
-    Var n           -> fromMaybe e (lookup n s)
-    Con _           -> e
-    Proj{}          -> e
-    Def' _ _        -> e
-    PatternSyn{}    -> e
-    Lit _ _         -> e
-    Underscore   _  -> e
-    App  i e e'     -> App i (substExpr s e) (substExpr s e')
-    Rec  i nes      -> Rec i (substExpr s nes)
-    ScopedExpr si e -> ScopedExpr si (substExpr s e)
+    Var n                -> fromMaybe e (lookup n s)
+    Con _                -> e
+    Proj{}               -> e
+    Def' _ _             -> e
+    PatternSyn{}         -> e
+    Lit _ _              -> e
+    Underscore   _       -> e
+    App  i e e'          -> App i (substExpr s e) (substExpr s e')
+    Rec  i nes           -> Rec i (substExpr s nes)
+    ScopedExpr si e      -> ScopedExpr si (substExpr s e)
     -- The below cannot appear in pattern synonym right-hand sides
-    QuestionMark{}  -> __IMPOSSIBLE__
-    Dot{}           -> __IMPOSSIBLE__
-    WithApp{}       -> __IMPOSSIBLE__
-    Lam{}           -> __IMPOSSIBLE__
-    AbsurdLam{}     -> __IMPOSSIBLE__
-    ExtendedLam{}   -> __IMPOSSIBLE__
-    Pi{}            -> __IMPOSSIBLE__
-    Generalized{}   -> __IMPOSSIBLE__
-    Fun{}           -> __IMPOSSIBLE__
-    Let{}           -> __IMPOSSIBLE__
-    RecUpdate{}     -> __IMPOSSIBLE__
-    Quote{}         -> __IMPOSSIBLE__
-    QuoteTerm{}     -> __IMPOSSIBLE__
-    Unquote{}       -> __IMPOSSIBLE__
-    DontCare{}      -> __IMPOSSIBLE__
-    Macro{}         -> __IMPOSSIBLE__
+    QuestionMark{}       -> __IMPOSSIBLE__
+    Dot{}                -> __IMPOSSIBLE__
+    WithApp{}            -> __IMPOSSIBLE__
+    Lam{}                -> __IMPOSSIBLE__
+    AbsurdLam{}          -> __IMPOSSIBLE__
+    ExtendedLam{}        -> __IMPOSSIBLE__
+    Pi{}                 -> __IMPOSSIBLE__
+    Generalized{}        -> __IMPOSSIBLE__
+    Fun{}                -> __IMPOSSIBLE__
+    Let{}                -> __IMPOSSIBLE__
+    RecUpdate{}          -> __IMPOSSIBLE__
+    Quote{}              -> __IMPOSSIBLE__
+    QuoteTerm{}          -> __IMPOSSIBLE__
+    QuotePostponedTerm{} -> __IMPOSSIBLE__
+    Unquote{}            -> __IMPOSSIBLE__
+    DontCare{}           -> __IMPOSSIBLE__
+    Macro{}              -> __IMPOSSIBLE__
 
 -- TODO: more informative failure
 insertImplicitPatSynArgs

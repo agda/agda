@@ -37,6 +37,15 @@ data Term = Var Int Elims
           | Unknown
   deriving (Show)
 
+data PostponedTerm
+  = Postponed
+    { postponedTerm  :: Term
+    , postponedType  :: MetaId
+    , postponedSort  :: MetaId
+    , postponedSpine :: [Elims]
+    }
+  deriving (Show)
+
 type Type = Term
 
 data Sort = SetS Term

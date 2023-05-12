@@ -139,22 +139,22 @@ data Abs {a} (A : Set a) : Set a where
 -- Literals --
 
 data Literal : Set where
-  nat    : (n : Nat)    → Literal
-  word64 : (n : Word64) → Literal
-  float  : (x : Float)  → Literal
-  char   : (c : Char)   → Literal
-  string : (s : String) → Literal
-  name   : (x : Name)   → Literal
-  meta   : (x : Meta)   → Literal
+  nat         : (n : Nat)           → Literal
+  word64      : (n : Word64)        → Literal
+  float       : (x : Float)         → Literal
+  char        : (c : Char)          → Literal
+  string      : (s : String)        → Literal
+  name        : (x : Name)          → Literal
+  meta        : (x : Meta)          → Literal
 
-{-# BUILTIN AGDALITERAL   Literal #-}
-{-# BUILTIN AGDALITNAT    nat     #-}
-{-# BUILTIN AGDALITWORD64 word64  #-}
-{-# BUILTIN AGDALITFLOAT  float   #-}
-{-# BUILTIN AGDALITCHAR   char    #-}
-{-# BUILTIN AGDALITSTRING string  #-}
-{-# BUILTIN AGDALITQNAME  name    #-}
-{-# BUILTIN AGDALITMETA   meta    #-}
+{-# BUILTIN AGDALITERAL          Literal   #-}
+{-# BUILTIN AGDALITNAT           nat       #-}
+{-# BUILTIN AGDALITWORD64        word64    #-}
+{-# BUILTIN AGDALITFLOAT         float     #-}
+{-# BUILTIN AGDALITCHAR          char      #-}
+{-# BUILTIN AGDALITSTRING        string    #-}
+{-# BUILTIN AGDALITQNAME         name      #-}
+{-# BUILTIN AGDALITMETA          meta      #-}
 
 
 -- Terms and patterns --
@@ -198,10 +198,10 @@ data Clause where
   clause        : (tel : Telescope) (ps : List (Arg Pattern)) (t : Term) → Clause
   absurd-clause : (tel : Telescope) (ps : List (Arg Pattern)) → Clause
 
-{-# BUILTIN AGDATERM      Term    #-}
-{-# BUILTIN AGDASORT      Sort    #-}
-{-# BUILTIN AGDAPATTERN   Pattern #-}
-{-# BUILTIN AGDACLAUSE    Clause  #-}
+{-# BUILTIN AGDATERM          Term         #-}
+{-# BUILTIN AGDASORT          Sort         #-}
+{-# BUILTIN AGDAPATTERN       Pattern      #-}
+{-# BUILTIN AGDACLAUSE        Clause       #-}
 
 {-# BUILTIN AGDATERMVAR         var       #-}
 {-# BUILTIN AGDATERMCON         con       #-}
@@ -230,6 +230,14 @@ data Clause where
 
 {-# BUILTIN AGDACLAUSECLAUSE clause        #-}
 {-# BUILTIN AGDACLAUSEABSURD absurd-clause #-}
+
+
+-- Postponed terms --
+
+data PostponedTerm : Set where
+  postpone : Term → Meta → Meta → List (Arg Term) → PostponedTerm
+{-# BUILTIN AGDAPOSTPONEDTERM         PostponedTerm #-}
+{-# BUILTIN AGDAPOSTPONEDTERMPOSTPONE postpone      #-}
 
 -- Definitions --
 
@@ -273,6 +281,7 @@ postulate
   typeError        : ∀ {a} {A : Set a} → List ErrorPart → TC A
   inferType        : Term → TC Type
   checkType        : Term → Type → TC Term
+  elaborate        : PostponedTerm → Type → TC Term
   normalise        : Term → TC Term
   reduce           : Term → TC Term
   catchTC          : ∀ {a} {A : Set a} → TC A → TC A → TC A
@@ -340,6 +349,7 @@ postulate
 {-# BUILTIN AGDATCMTYPEERROR                  typeError                  #-}
 {-# BUILTIN AGDATCMINFERTYPE                  inferType                  #-}
 {-# BUILTIN AGDATCMCHECKTYPE                  checkType                  #-}
+{-# BUILTIN AGDATCMELABORATE                  elaborate                  #-}
 {-# BUILTIN AGDATCMNORMALISE                  normalise                  #-}
 {-# BUILTIN AGDATCMREDUCE                     reduce                     #-}
 {-# BUILTIN AGDATCMCATCHERROR                 catchTC                    #-}

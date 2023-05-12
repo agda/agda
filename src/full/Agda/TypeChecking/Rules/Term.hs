@@ -1210,8 +1210,21 @@ checkExpr' cmp e t =
              (et, _) <- inferExpr (namedThing e)
              doQuoteTerm cmp et t
 
+          | A.QuotePostponedTerm ei <- unScope q -> do
+              -- Create a fresh meta that will be used for the postponed terms type,
+              -- and block checking of the postponed term on that meta.
+              -- We need to get our hands on both the sort and type meta so that
+              -- the call to tcElaborate can instantiate them both.
+              sortMeta <- workOnTypes $ newSortMeta
+              (tpMetaId, tpMeta) <- newValueMeta RunMetaOccursCheck CmpEq (sort sortMeta)
+              let tp = El sortMeta tpMeta
+              let problem = CheckExpr CmpLeq (namedThing e) tp
+              term <- postponeTypeCheckingProblem problem (unblockOnMeta tpMetaId)
+              quotePostponedTerm term tpMeta sortMeta
+
         A.Quote{}     -> genericError "quote must be applied to a defined name"
         A.QuoteTerm{} -> genericError "quoteTerm must be applied to a term"
+        A.QuotePostponedTerm{} -> genericError "quotePostponedTerm must be applied to a term"
         A.Unquote{}   -> genericError "unquote must be applied to a term"
 
         A.AbsurdLam i h -> checkAbsurdLambda cmp i h e t

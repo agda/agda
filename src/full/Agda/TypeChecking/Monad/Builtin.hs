@@ -239,6 +239,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAbs, primAbsAbs, primAgdaTerm, primAgdaTermVar,
     primAgdaTermLam, primAgdaTermExtLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,
     primAgdaTermSort, primAgdaTermLit, primAgdaTermUnsupported, primAgdaTermMeta,
+    primAgdaPostponedTerm, primAgdaPostponedTermPostpone,
     primAgdaErrorPart, primAgdaErrorPartString, primAgdaErrorPartTerm, primAgdaErrorPartPatt, primAgdaErrorPartName,
     primHiding, primHidden, primInstance, primVisible,
     primRelevance, primRelevant, primIrrelevant,
@@ -257,7 +258,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaPatAbsurd,
     primAgdaMeta,
     primAgdaTCM, primAgdaTCMReturn, primAgdaTCMBind, primAgdaTCMUnify,
-    primAgdaTCMTypeError, primAgdaTCMInferType, primAgdaTCMCheckType,
+    primAgdaTCMTypeError, primAgdaTCMInferType, primAgdaTCMCheckType, primAgdaTCMElaborate,
     primAgdaTCMNormalise, primAgdaTCMReduce,
     primAgdaTCMCatchError, primAgdaTCMGetContext, primAgdaTCMExtendContext, primAgdaTCMInContext,
     primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDeclarePostulate, primAgdaTCMDeclareData, primAgdaTCMDefineData, primAgdaTCMDefineFun,
@@ -412,6 +413,8 @@ primAgdaTermSort                      = getBuiltin builtinAgdaTermSort
 primAgdaTermLit                       = getBuiltin builtinAgdaTermLit
 primAgdaTermUnsupported               = getBuiltin builtinAgdaTermUnsupported
 primAgdaTermMeta                      = getBuiltin builtinAgdaTermMeta
+primAgdaPostponedTerm                 = getBuiltin builtinAgdaPostponedTerm
+primAgdaPostponedTermPostpone         = getBuiltin builtinAgdaPostponedTermPostpone
 primAgdaErrorPart                     = getBuiltin builtinAgdaErrorPart
 primAgdaErrorPartString               = getBuiltin builtinAgdaErrorPartString
 primAgdaErrorPartTerm                 = getBuiltin builtinAgdaErrorPartTerm
@@ -450,6 +453,7 @@ primAgdaTCMUnify                      = getBuiltin builtinAgdaTCMUnify
 primAgdaTCMTypeError                  = getBuiltin builtinAgdaTCMTypeError
 primAgdaTCMInferType                  = getBuiltin builtinAgdaTCMInferType
 primAgdaTCMCheckType                  = getBuiltin builtinAgdaTCMCheckType
+primAgdaTCMElaborate                  = getBuiltin builtinAgdaTCMElaborate
 primAgdaTCMNormalise                  = getBuiltin builtinAgdaTCMNormalise
 primAgdaTCMReduce                     = getBuiltin builtinAgdaTCMReduce
 primAgdaTCMCatchError                 = getBuiltin builtinAgdaTCMCatchError

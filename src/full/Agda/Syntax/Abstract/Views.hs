@@ -180,6 +180,7 @@ instance ExprLike Expr where
       ScopedExpr sc e            -> ScopedExpr sc <$> recurse e
       Quote{}                    -> pure e0
       QuoteTerm{}                -> pure e0
+      QuotePostponedTerm{}       -> pure e0
       Unquote{}                  -> pure e0
       DontCare e                 -> DontCare <$> recurse e
       PatternSyn{}               -> pure e0
@@ -212,6 +213,7 @@ instance ExprLike Expr where
       ScopedExpr _ e         -> m `mappend` fold e
       Quote{}                -> m
       QuoteTerm{}            -> m
+      QuotePostponedTerm{}   -> m
       Unquote{}              -> m
       DontCare e             -> m `mappend` fold e
    where
@@ -247,6 +249,7 @@ instance ExprLike Expr where
       ScopedExpr sc e            -> f =<< ScopedExpr sc <$> trav e
       Quote{}                    -> f e
       QuoteTerm{}                -> f e
+      QuotePostponedTerm{}       -> f e
       Unquote{}                  -> f e
       DontCare e                 -> f =<< DontCare <$> trav e
       PatternSyn{}               -> f e

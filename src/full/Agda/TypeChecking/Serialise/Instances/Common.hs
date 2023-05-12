@@ -677,7 +677,7 @@ instance EmbPrj Agda.Syntax.Literal.Literal where
     valu [5, a]    = valuN LitQName  a
     valu [6, a, b] = valuN LitMeta   a b
     valu [7, a]    = valuN LitWord64 a
-    valu _            = malformed
+    valu _         = malformed
 
 instance EmbPrj IsAbstract where
   icod_ AbstractDef = icodeN 0 AbstractDef
