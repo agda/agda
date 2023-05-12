@@ -180,7 +180,7 @@ data Declaration
   | DataDef    DefInfo QName UniverseCheck DataDefParams [Constructor]
   | RecSig     DefInfo Erased QName GeneralizeTelescope Type -- ^ lone record signature
   | RecDef     DefInfo QName UniverseCheck RecordDirectives DataDefParams Type [Declaration]
-      -- ^ The 'Type' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
+      -- ^ The 'Type' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Dummy@,
       --   and the optional name is the constructor's name.
       --   The optional 'Range' is for the @pattern@ attribute.
   | PatternSynDef QName [Arg BindName] (Pattern' Void)
