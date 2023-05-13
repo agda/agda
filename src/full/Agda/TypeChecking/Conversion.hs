@@ -439,6 +439,9 @@ compareTerm' cmp a m n =
               -- enough for the bases to agree.
 
               compareTerm cmp aty (mkUnglue m) (mkUnglue n)
+         -- FIXME(Amy): This rule is overly eager, which can cause us to lose solutions.
+         -- See #6632.
+         {-
          Def q es | Just q == mHComp, Just (sl:s:args@[phi,u,u0]) <- allApplyElims es
                   , Sort (Type lvl) <- unArg s
                   , Just unglueU <- mUnglueU, Just subIn <- mSubIn
@@ -449,6 +452,7 @@ compareTerm' cmp a m n =
               let mkUnglue m = apply unglueU $ [argH l] ++ map (setHiding Hidden) [phi,u]  ++ [argH bA,argN m]
               reportSDoc "conv.hcompU" 20 $ prettyTCM (ty,mkUnglue m,mkUnglue n)
               compareTerm cmp ty (mkUnglue m) (mkUnglue n)
+         -}
          Def q es | Just q == mSub, Just args@(l:a:_) <- allApplyElims es -> do
               ty <- el' (pure $ unArg l) (pure $ unArg a)
               out <- primSubOut
