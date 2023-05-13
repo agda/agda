@@ -99,13 +99,14 @@
     - --ignore-glob=notes/style/haskell-style.lhs
     - --ignore-glob=notes/papers/implicit/examples.lhs
     - -XBangPatterns
+    - -XBlockArguments
     - -XConstraintKinds
     - -XDefaultSignatures
-    - -XDeriveDataTypeable
     - -XDeriveFoldable
     - -XDeriveFunctor
     - -XDeriveGeneric
     - -XDeriveTraversable
+    - -XDerivingStrategies
     - -XExistentialQuantification
     - -XFlexibleContexts
     - -XFlexibleInstances
@@ -124,6 +125,7 @@
     - -XStandaloneDeriving
     - -XTupleSections
     - -XTypeFamilies
+    - -XTypeOperators
     - -XTypeSynonymInstances
 
 # Add custom hints for this project

@@ -551,6 +551,8 @@ Experimental features
      (see :ref:`proof-irrelevant propositions <prop>`).
 
      Default: `--no-prop`.
+     In this case, ``Prop`` is since 2.6.4 not in scope
+     by default (:option:`--import-sorts`).
 
 .. option:: --rewriting
 
@@ -571,6 +573,7 @@ Experimental features
 
      Enable the use of strict (non-fibrant) type universes ``SSet``
      *(two-level type theory)*.
+     Since 2.6.4, brings ``SSet`` into scope unless :option:`--no-import-sorts`.
 
 .. option:: --no-two-level
 
@@ -957,7 +960,7 @@ Other features
      .. versionadded:: 2.6.2
 
      Disable the implicit statement
-     ``open import Agda.Primitive using (Set; Prop)``
+     ``open import Agda.Primitive using (Set; ...)``
      at the start of each top-level Agda module.
 
 .. option:: --import-sorts
@@ -965,6 +968,9 @@ Other features
      .. versionadded:: 2.6.4
 
      Default, opposite of :option:`--no-import-sorts`.
+
+     Brings ``Set`` into scope, and if :option:`--prop` is active,
+     also ``Prop``, and if :option:`--two-level` is active, even ``SSet``.
 
 .. option:: --no-load-primitives
 

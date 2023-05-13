@@ -1,4 +1,5 @@
 Issue3207.agda:7,8-12
-Universe Prop is disabled (use options --prop and --no-prop to
-enable/disable Prop)
-when checking that the expression Prop has type _1
+Not in scope:
+  Prop at Issue3207.agda:7,8-12
+    (did you mean 'Agda.Primitive.Prop'?)
+when scope checking Prop
