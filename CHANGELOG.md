@@ -368,3 +368,8 @@ Language
     _ : foo
     _ = 123
   ```
+
+* Unless `--no-import-sorts` is given, `Set` is in scope as before,
+  but `Prop` is only in scope when `--prop` is active.
+  Additionally `SSet` is now in scope when `--two-level` is active
+  (see [#6634](https://github.com/agda/agda/pull/6634)).

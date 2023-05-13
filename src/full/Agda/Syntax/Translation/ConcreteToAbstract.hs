@@ -1381,20 +1381,23 @@ instance ToAbstract (TopLevel [C.Declaration]) where
         -- thus, this case is impossible:
         _ -> __IMPOSSIBLE__
 
--- | Declaration @open import Agda.Primitive using (Set; Prop)@ when 'optImportSorts'.
+-- | Declaration @open import Agda.Primitive using (Set)@ when 'optImportSorts'.
+--   @Prop@ is added when 'optProp', and @SSet@ when 'optTwoLevel'.
 importPrimitives :: ScopeM [A.Declaration]
 importPrimitives = do
-    noImportSorts <- not . optImportSorts <$> pragmaOptions
-    -- Add implicit `open import Agda.Primitive using (Set; Prop)`
+  ifNotM (optImportSorts <$> pragmaOptions) (return []) {- else -} do
+    prop     <- optProp     <$> pragmaOptions
+    twoLevel <- optTwoLevel <$> pragmaOptions
+    -- Add implicit `open import Agda.Primitive using (Prop; Set; SSet)`
     let agdaPrimitiveName   = Qual (C.simpleName "Agda") $ C.QName $ C.simpleName "Primitive"
-        agdaSetName         = C.simpleName "Set"
-        agdaPropName        = C.simpleName "Prop"
-        usingDirective      = Using [ImportedName agdaSetName, ImportedName agdaPropName]
-        directives          = ImportDirective noRange usingDirective [] [] Nothing
+        usingDirective      = map (ImportedName . C.simpleName) $ concat
+          [ [ "Prop" | prop     ]
+          , [ "Set"  | True     ]
+          , [ "SSet" | twoLevel ]
+          ]
+        directives          = ImportDirective noRange (Using usingDirective) [] [] Nothing
         importAgdaPrimitive = [C.Import noRange agdaPrimitiveName Nothing C.DoOpen directives]
-    if noImportSorts
-      then return []
-      else toAbstract (Declarations importAgdaPrimitive)
+    toAbstract (Declarations importAgdaPrimitive)
 
 -- | runs Syntax.Concrete.Definitions.niceDeclarations on main module
 niceDecls :: DoWarn -> [C.Declaration] -> ([NiceDeclaration] -> ScopeM a) -> ScopeM a

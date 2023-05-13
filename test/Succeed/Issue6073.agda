@@ -1,5 +1,5 @@
 {-# OPTIONS --cubical #-}
-open import Agda.Primitive
+
 open import Agda.Builtin.Cubical.Sub
 open import Agda.Primitive.Cubical
 open import Agda.Builtin.Nat
@@ -26,8 +26,8 @@ refl {x = x} i = x
 -- should be F (inS 42), since that's the only value that “unit” can
 -- have.
 
-bla7 : (F : “unit” → Set) ->
+bla7 : (F : “unit” → Set) →
   let X : Set
       X = _
-  in (z : “unit”) -> PathP (λ i → Set) X (F z)
+  in (z : “unit”) → PathP (λ i → Set) X (F z)
 bla7 F z = refl

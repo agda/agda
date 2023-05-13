@@ -1,4 +1,6 @@
-Prop-Disabled.agda:8,18-24
-Universe Prop is disabled (use options --prop and --no-prop to
-enable/disable Prop)
-when checking that the expression Prop ℓ is a type
+Prop-Disabled.agda:8,18-22
+Not in scope:
+  Prop
+  at Prop-Disabled.agda:8,18-22
+    (did you mean 'Agda.Primitive.Prop'?)
+when scope checking Prop

@@ -284,6 +284,7 @@ common language
   --         .hlint.yaml
   default-extensions:
       BangPatterns
+      BlockArguments
       ConstraintKinds
       --L-T Chen (2019-07-15):
       -- Enabling DataKinds only locally makes the compile time

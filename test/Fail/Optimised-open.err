@@ -6,7 +6,6 @@ ScopeInfo
     scope
       private
         names
-          Prop --> [Agda.Primitive.Prop]
           Set --> [Agda.Primitive.Set]
       imports
         [Agda.Primitive]
@@ -49,7 +48,6 @@ ScopeInfo
     scope
       private
         names
-          Prop --> [Agda.Primitive.Prop]
           Set --> [Agda.Primitive.Set]
       imports
         [Agda.Primitive]
