@@ -374,12 +374,7 @@ data PragmaOptions = PragmaOptions
   , _optCompileMain               :: WithDefault 'True
     -- ^ Treat the module given at the command line or via interaction as main module in compilation?
   , _optCaching                   :: WithDefault 'True
-  , _optCountClusters             :: WithDefault
-#ifdef COUNT_CLUSTERS
-      'True
-#else
-      'False
-#endif
+  , _optCountClusters             :: WithDefault 'False
     -- ^ Count extended grapheme clusters rather than code points
     --   when generating LaTeX.
   , _optAutoInline                :: WithDefault 'False
