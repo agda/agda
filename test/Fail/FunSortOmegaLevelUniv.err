@@ -1,0 +1,5 @@
+Failed to solve the following constraints:
+  funSort _3 Set =< Setω (blocked on _3)
+  funSort _3 Set = Setω (blocked on _3)
+Unsolved metas at the following locations:
+  FunSortOmegaLevelUniv.agda:8,13-14

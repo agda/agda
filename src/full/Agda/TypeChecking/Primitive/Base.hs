@@ -92,7 +92,7 @@ el's :: Applicative m => m Term -> m Term -> m Type
 el's l a = El <$> (SSet . atomicLevel <$> l) <*> a
 
 elInf :: Functor m => m Term -> m Type
-elInf t = (El (Inf IsFibrant 0) <$> t)
+elInf t = (El (Inf UType 0) <$> t)
 
 elSSet :: Functor m => m Term -> m Type
 elSSet t = (El (SSet $ ClosedLevel 0) <$> t)

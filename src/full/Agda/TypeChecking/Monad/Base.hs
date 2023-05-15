@@ -1923,7 +1923,7 @@ instance AllMetas NLPType
 
 data NLPSort
   = PUniv Univ NLPat
-  | PInf IsFibrant Integer
+  | PInf Univ Integer
   | PSizeUniv
   | PLockUniv
   | PLevelUniv
@@ -3412,14 +3412,24 @@ type TempInstanceTable = (InstanceTable , Set QName)
 ---------------------------------------------------------------------------
 
 data BuiltinSort
-  = SortSet
-  | SortProp
-  | SortStrictSet
-  | SortSetOmega
-  | SortStrictSetOmega
+  = SortUniv Univ
+  | SortOmega Univ
   | SortIntervalUniv
   | SortLevelUniv
-  deriving (Show, Eq, Bounded, Enum, Generic)
+  deriving (Show, Eq, Generic)
+
+pattern SortProp, SortSet, SortStrictSet, SortPropOmega, SortSetOmega, SortStrictSetOmega :: BuiltinSort
+pattern SortProp           = SortUniv  UProp
+pattern SortSet            = SortUniv  UType
+pattern SortStrictSet      = SortUniv  USSet
+pattern SortPropOmega      = SortOmega UProp
+pattern SortSetOmega       = SortOmega UType
+pattern SortStrictSetOmega = SortOmega USSet
+
+{-# COMPLETE
+  SortProp, SortSet, SortStrictSet,
+  SortPropOmega, SortSetOmega, SortStrictSetOmega,
+  SortIntervalUniv, SortLevelUniv #-}
 
 data BuiltinDescriptor
   = BuiltinData (TCM Type) [BuiltinId]

@@ -226,13 +226,12 @@ instance Match NLPSort Sort where
       [ "matching pattern " <+> addContext (gamma `abstract` k) (prettyTCM p)
       , "  with sort      " <+> addContext k (prettyTCM s) ]) $ do
     case (p , s) of
-      (PUniv u lp  , Univ u' l) | u == u' -> match r gamma k () lp l
-      (PInf fp np , Inf f n)
-        | fp == f, np == n   -> yes
-      (PSizeUniv , SizeUniv) -> yes
-      (PLockUniv , LockUniv) -> yes
-      (PLevelUniv, LevelUniv) -> yes
-      (PIntervalUniv , IntervalUniv) -> yes
+      (PUniv u lp    , Univ u' l) | u == u'          -> match r gamma k () lp l
+      (PInf up np    , Inf u n)   | up == u, np == n -> yes
+      (PSizeUniv     , SizeUniv)                     -> yes
+      (PLockUniv     , LockUniv)                     -> yes
+      (PLevelUniv    , LevelUniv)                    -> yes
+      (PIntervalUniv , IntervalUniv)                 -> yes
 
       -- blocked cases
       (_ , UnivSort{}) -> matchingBlocked b

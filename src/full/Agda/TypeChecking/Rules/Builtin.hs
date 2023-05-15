@@ -333,11 +333,12 @@ coreBuiltins =
   , (builtinLevelZero                        |-> BuiltinPrim PrimLevelZero (const $ return ()))
   , (builtinLevelSuc                         |-> BuiltinPrim PrimLevelSuc (const $ return ()))
   , (builtinLevelMax                         |-> BuiltinPrim PrimLevelMax verifyMax)
-  , (builtinSet                              |-> BuiltinSort SortSet)
   , (builtinProp                             |-> BuiltinSort SortProp)
+  , (builtinSet                              |-> BuiltinSort SortSet)
+  , (builtinStrictSet                        |-> BuiltinSort SortStrictSet)
+  , (builtinPropOmega                        |-> BuiltinSort SortPropOmega)
   , (builtinSetOmega                         |-> BuiltinSort SortSetOmega)
   , (builtinSSetOmega                        |-> BuiltinSort SortStrictSetOmega)
-  , (builtinStrictSet                        |-> BuiltinSort SortStrictSet)
   , (builtinAgdaClause                       |-> BuiltinData tset [builtinAgdaClauseClause, builtinAgdaClauseAbsurd])
   , (builtinAgdaClauseClause                 |-> BuiltinDataCons (ttelescope --> tlist (targ tpat) --> tterm --> tclause))
   , (builtinAgdaClauseAbsurd                 |-> BuiltinDataCons (ttelescope --> tlist (targ tpat) --> tclause))
@@ -424,7 +425,7 @@ coreBuiltins =
         elV x a = El (varSort x) <$> a
 
         tsetL l    = return $ sort (varSort l)
-        tsetOmega  = return $ sort $ Inf IsFibrant 0
+        tsetOmega  = return $ sort $ Inf UType 0
         tlevel     = el primLevel
         tlist x    = el $ list (fmap unEl x)
         tmaybe x   = el $ tMaybe (fmap unEl x)
@@ -1042,13 +1043,10 @@ bindBuiltinNoDef b q = inTopContext $ do
 
     Just (BuiltinSort builtinSort) -> do
       let s = case builtinSort of
-                SortSet -> mkType 0
-                SortProp -> mkProp 0
-                SortStrictSet -> mkSSet 0
-                SortSetOmega -> Inf IsFibrant 0
-                SortStrictSetOmega -> Inf IsStrict 0
+                SortUniv u       -> Univ u $ ClosedLevel 0
+                SortOmega u      -> Inf u 0
                 SortIntervalUniv -> IntervalUniv
-                SortLevelUniv -> LevelUniv
+                SortLevelUniv    -> LevelUniv
           def = PrimitiveSort builtinSort s
       -- Check for the cubical flag if the sort requries it
       case builtinSort of

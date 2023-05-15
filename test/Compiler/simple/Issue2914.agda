@@ -3,10 +3,12 @@
 -- Andreas, 2022-10-06, PR #6161:
 -- Also test --no-load-primitives.
 
-{-# BUILTIN TYPE Type #-}
 {-# BUILTIN PROP Prop #-}
-{-# BUILTIN SETOMEGA Typeω #-}
+{-# BUILTIN TYPE Type #-}
 {-# BUILTIN STRICTSET SSet #-}
+
+{-# BUILTIN PROPOMEGA Propω #-}
+{-# BUILTIN SETOMEGA Typeω #-}
 {-# BUILTIN STRICTSETOMEGA SSetω #-}
 
 postulate

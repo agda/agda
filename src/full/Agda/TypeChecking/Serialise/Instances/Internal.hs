@@ -142,32 +142,31 @@ instance EmbPrj IsFibrant where
   value 1 = return IsStrict
   value _ = malformed
 
+instance EmbPrj Univ where
+
 instance EmbPrj I.Sort where
-  icod_ (Type  a  ) = icodeN 0 Type a
-  icod_ (Prop  a  ) = icodeN 1 Prop a
-  icod_ SizeUniv    = icodeN 2 SizeUniv
-  icod_ (Inf f a)   = icodeN 3 Inf f a
-  icod_ (PiSort a b c) = icodeN 4 PiSort a b c
-  icod_ (FunSort a b) = icodeN 5 FunSort a b
-  icod_ (UnivSort a) = icodeN 6 UnivSort a
-  icod_ (DefS a b)   = icodeN 7 DefS a b
-  icod_ (SSet  a  ) = icodeN 8 SSet a
-  icod_ LockUniv    = icodeN 9 LockUniv
-  icod_ IntervalUniv = icodeN 10 IntervalUniv
-  icod_ (MetaS a b)  = icodeN 11 MetaS a b
-  icod_ (DummyS s)   = icodeN 12 DummyS s
-  icod_ LevelUniv    = icodeN 13 LevelUniv
+  icod_ = \case
+    Univ a b     -> icodeN 0  Univ a b
+    SizeUniv     -> icodeN 2  SizeUniv
+    Inf a b      -> icodeN 3  Inf a b
+    PiSort a b c -> icodeN 4  PiSort a b c
+    FunSort a b  -> icodeN 5  FunSort a b
+    UnivSort a   -> icodeN 6  UnivSort a
+    DefS a b     -> icodeN 7  DefS a b
+    LockUniv     -> icodeN 9  LockUniv
+    IntervalUniv -> icodeN 10 IntervalUniv
+    MetaS a b    -> icodeN 11 MetaS a b
+    DummyS s     -> icodeN 12 DummyS s
+    LevelUniv    -> icodeN 13 LevelUniv
 
   value = vcase valu where
-    valu [0, a]    = valuN Type  a
-    valu [1, a]    = valuN Prop  a
+    valu [0, a, b] = valuN Univ a b
     valu [2]       = valuN SizeUniv
-    valu [3, f, a] = valuN Inf f a
+    valu [3, a, b] = valuN Inf a b
     valu [4, a, b, c] = valuN PiSort a b c
     valu [5, a, b] = valuN FunSort a b
     valu [6, a]    = valuN UnivSort a
     valu [7, a, b] = valuN DefS a b
-    valu [8, a]    = valuN SSet a
     valu [9]       = valuN LockUniv
     valu [10]      = valuN IntervalUniv
     valu [11, a, b] = valuN MetaS a b
@@ -374,7 +373,19 @@ instance EmbPrj EtaEquality where
 
 instance EmbPrj ProjectionLikenessMissing
 
-instance EmbPrj BuiltinSort
+instance EmbPrj BuiltinSort where
+  icod_ = \case
+    SortUniv  a      -> icodeN 0 SortUniv  a
+    SortOmega a      -> icodeN 1 SortOmega a
+    SortIntervalUniv -> icodeN 2 SortIntervalUniv
+    SortLevelUniv    -> icodeN 3 SortLevelUniv
+
+  value = vcase \case
+    [0, a] -> valuN SortUniv  a
+    [1, a] -> valuN SortOmega a
+    [2]    -> valuN SortIntervalUniv
+    [3]    -> valuN SortLevelUniv
+    _ -> malformed
 
 instance EmbPrj Defn where
   icod_ (Axiom       a)                                 = icodeN 0 Axiom a

@@ -436,7 +436,7 @@ instance PrettyTCM NLPSort where
   prettyTCM = \case
     PUniv u l -> parens $ text (showUniv u) <+> prettyTCM l
       -- Andreas, 2023-05-11, preserving Jesper's printing hack for now...
-    PInf f n  -> prettyTCM (Inf f n :: Sort)
+    PInf u n  -> prettyTCM (Inf u n :: Sort)
     PSizeUniv -> prettyTCM (SizeUniv :: Sort)
     PLockUniv -> prettyTCM (LockUniv :: Sort)
     PLevelUniv -> prettyTCM (LevelUniv :: Sort)

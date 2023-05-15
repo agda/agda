@@ -110,12 +110,13 @@ data BuiltinId
   | BuiltinLevel
   | BuiltinLevelZero
   | BuiltinLevelSuc
-  | BuiltinSet
   | BuiltinProp
-  | BuiltinSetOmega
-  | BuiltinLevelUniv
-  | BuiltinSSetOmega
+  | BuiltinSet
   | BuiltinStrictSet
+  | BuiltinPropOmega
+  | BuiltinSetOmega
+  | BuiltinSSetOmega
+  | BuiltinLevelUniv
   | BuiltinFromNat
   | BuiltinFromNeg
   | BuiltinFromString
@@ -324,12 +325,13 @@ instance IsBuiltin BuiltinId where
     BuiltinLevel                             -> "LEVEL"
     BuiltinLevelZero                         -> "LEVELZERO"
     BuiltinLevelSuc                          -> "LEVELSUC"
-    BuiltinSet                               -> "TYPE"
     BuiltinProp                              -> "PROP"
-    BuiltinSetOmega                          -> "SETOMEGA"
-    BuiltinLevelUniv                         -> "LEVELUNIV"
-    BuiltinSSetOmega                         -> "STRICTSETOMEGA"
+    BuiltinSet                               -> "TYPE"
     BuiltinStrictSet                         -> "STRICTSET"
+    BuiltinPropOmega                         -> "PROPOMEGA"
+    BuiltinSetOmega                          -> "SETOMEGA"
+    BuiltinSSetOmega                         -> "STRICTSETOMEGA"
+    BuiltinLevelUniv                         -> "LEVELUNIV"
     BuiltinFromNat                           -> "FROMNAT"
     BuiltinFromNeg                           -> "FROMNEG"
     BuiltinFromString                        -> "FROMSTRING"
@@ -482,12 +484,13 @@ builtinsNoDef =
   , builtinSub
   , builtinIZero
   , builtinIOne
-  , builtinSet
   , builtinProp
-  , builtinLevelUniv
-  , builtinSetOmega
+  , builtinSet
   , builtinStrictSet
+  , builtinPropOmega
+  , builtinSetOmega
   , builtinSSetOmega
+  , builtinLevelUniv
   ]
 
 sizeBuiltins :: [BuiltinId]
@@ -520,7 +523,8 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinInf, builtinSharp, builtinFlat,
   builtinEquality, builtinRefl, builtinRewrite, builtinLevelMax,
   builtinLevel, builtinLevelZero, builtinLevelSuc,
-  builtinSet, builtinProp, builtinSetOmega, builtinStrictSet, builtinSSetOmega,
+  builtinProp, builtinSet, builtinStrictSet,
+  builtinPropOmega, builtinSetOmega, builtinSSetOmega,
   builtinLevelUniv,
   builtinIntervalUniv,
   builtinFromNat, builtinFromNeg, builtinFromString,
@@ -640,12 +644,13 @@ builtinLevelMax                          = BuiltinLevelMax
 builtinLevel                             = BuiltinLevel
 builtinLevelZero                         = BuiltinLevelZero
 builtinLevelSuc                          = BuiltinLevelSuc
-builtinSet                               = BuiltinSet
 builtinProp                              = BuiltinProp
-builtinSetOmega                          = BuiltinSetOmega
-builtinLevelUniv                         = BuiltinLevelUniv
-builtinSSetOmega                         = BuiltinSSetOmega
+builtinSet                               = BuiltinSet
 builtinStrictSet                         = BuiltinStrictSet
+builtinPropOmega                         = BuiltinPropOmega
+builtinSetOmega                          = BuiltinSetOmega
+builtinSSetOmega                         = BuiltinSSetOmega
+builtinLevelUniv                         = BuiltinLevelUniv
 builtinFromNat                           = BuiltinFromNat
 builtinFromNeg                           = BuiltinFromNeg
 builtinFromString                        = BuiltinFromString

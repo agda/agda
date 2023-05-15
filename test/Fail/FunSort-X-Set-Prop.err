@@ -1,0 +1,3 @@
+FunSort-X-Set-Prop.agda:6,13-18
+Prop != Set _5
+when checking that the expression A → B has type Set

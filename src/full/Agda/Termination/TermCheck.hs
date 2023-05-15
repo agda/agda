@@ -754,7 +754,7 @@ instance ExtractCalls Sort where
       reportSDoc "term.sort" 50 $
         text ("s = " ++ show s)
     case s of
-      Inf f n    -> return empty
+      Inf _ _    -> return empty
       SizeUniv   -> return empty
       LockUniv   -> return empty
       LevelUniv  -> return empty

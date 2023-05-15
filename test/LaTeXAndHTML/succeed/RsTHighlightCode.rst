@@ -18,7 +18,7 @@ Shirou Emiya:
     People die when they're killed.
 
 .. raw:: html
-   <a id="221" class="Keyword">data</a> <a id="Bool"></a><a id="226" href="RsTHighlightCode.html#226" class="Datatype">Bool</a> <a id="231" class="Symbol">:</a> <a id="233" href="Agda.Primitive.html#337" class="Primitive">Set</a> <a id="237" class="Keyword">where</a>
+   <a id="221" class="Keyword">data</a> <a id="Bool"></a><a id="226" href="RsTHighlightCode.html#226" class="Datatype">Bool</a> <a id="231" class="Symbol">:</a> <a id="233" href="Agda.Primitive.html#388" class="Primitive">Set</a> <a id="237" class="Keyword">where</a>
      <a id="Bool.true"></a><a id="248" href="RsTHighlightCode.html#248" class="InductiveConstructor">true</a> <a id="Bool.false"></a><a id="253" href="RsTHighlightCode.html#253" class="InductiveConstructor">false</a> <a id="259" class="Symbol">:</a> <a id="261" href="RsTHighlightCode.html#226" class="Datatype">Bool</a>
 
 Keine:
@@ -29,7 +29,7 @@ Keine:
     You sure have guts.
 
 .. raw:: html
-   <a id="388" class="Keyword">record</a> <a id="Colist"></a><a id="395" href="RsTHighlightCode.html#395" class="Record">Colist</a> <a id="402" class="Symbol">(</a><a id="403" href="RsTHighlightCode.html#403" class="Bound">A</a> <a id="405" class="Symbol">:</a> <a id="407" href="Agda.Primitive.html#337" class="Primitive">Set</a><a id="410" class="Symbol">)</a> <a id="412" class="Symbol">:</a> <a id="414" href="Agda.Primitive.html#337" class="Primitive">Set</a> <a id="418" class="Keyword">where</a>
+   <a id="388" class="Keyword">record</a> <a id="Colist"></a><a id="395" href="RsTHighlightCode.html#395" class="Record">Colist</a> <a id="402" class="Symbol">(</a><a id="403" href="RsTHighlightCode.html#403" class="Bound">A</a> <a id="405" class="Symbol">:</a> <a id="407" href="Agda.Primitive.html#388" class="Primitive">Set</a><a id="410" class="Symbol">)</a> <a id="412" class="Symbol">:</a> <a id="414" href="Agda.Primitive.html#388" class="Primitive">Set</a> <a id="418" class="Keyword">where</a>
      <a id="429" class="Keyword">coinductive</a>
      <a id="446" class="Keyword">constructor</a> <a id="_::_"></a><a id="458" href="RsTHighlightCode.html#458" class="CoinductiveConstructor Operator">_::_</a>
      <a id="468" class="Keyword">field</a>
@@ -58,7 +58,7 @@ Keine:
    <a id="765" class="Keyword">open</a> <a id="770" href="RsTHighlightCode.html#395" class="Module">Colist</a>
 
    <a id="781" class="Keyword">postulate</a>
-     <a id="SomeSet"></a><a id="796" href="RsTHighlightCode.html#796" class="Postulate">SomeSet</a> <a id="804" class="Symbol">:</a> <a id="806" href="Agda.Primitive.html#337" class="Primitive">Set</a>
+     <a id="SomeSet"></a><a id="796" href="RsTHighlightCode.html#796" class="Postulate">SomeSet</a> <a id="804" class="Symbol">:</a> <a id="806" href="Agda.Primitive.html#388" class="Primitive">Set</a>
      <a id="SomeVal"></a><a id="815" href="RsTHighlightCode.html#815" class="Postulate">SomeVal</a> <a id="823" class="Symbol">:</a> <a id="825" href="RsTHighlightCode.html#796" class="Postulate">SomeSet</a>
 
 Mokou:
@@ -78,7 +78,7 @@ Marisa:
 
 .. raw:: html
    <a id="1150" class="Keyword">open</a> <a id="1155" class="Keyword">import</a> <a id="1162" href="Agda.Primitive.html" class="Module">Agda.Primitive</a>
-   <a id="1180" class="Keyword">variable</a> <a id="1189" href="RsTHighlightCode.html#1189" class="Generalizable">i</a> <a id="1191" class="Symbol">:</a> <a id="1193" href="Agda.Primitive.html#644" class="Postulate">Level</a>
+   <a id="1180" class="Keyword">variable</a> <a id="1189" href="RsTHighlightCode.html#1189" class="Generalizable">i</a> <a id="1191" class="Symbol">:</a> <a id="1193" href="Agda.Primitive.html#742" class="Postulate">Level</a>
 
 Alice:
 
@@ -105,7 +105,7 @@ Marisa:
     Human? Doesn't look like one.
 
 .. raw:: html
-   <a id="cotake"></a><a id="1661" href="RsTHighlightCode.html#1661" class="Function">cotake</a> <a id="1668" class="Symbol">:</a> <a id="1670" class="Symbol">{</a><a id="1671" href="RsTHighlightCode.html#1671" class="Bound">A</a> <a id="1673" class="Symbol">:</a> <a id="1675" href="Agda.Primitive.html#337" class="Primitive">Set</a><a id="1678" class="Symbol">}</a> <a id="1680" class="Symbol">-&gt;</a> <a id="1683" href="Agda.Builtin.Nat.html#203" class="Datatype">Nat</a> <a id="1687" class="Symbol">-&gt;</a> <a id="1690" href="RsTHighlightCode.html#395" class="Record">Colist</a> <a id="1697" href="RsTHighlightCode.html#1671" class="Bound">A</a> <a id="1699" class="Symbol">-&gt;</a> <a id="1702" href="Agda.Builtin.List.html#147" class="Datatype">List</a> <a id="1707" href="RsTHighlightCode.html#1671" class="Bound">A</a>
+   <a id="cotake"></a><a id="1661" href="RsTHighlightCode.html#1661" class="Function">cotake</a> <a id="1668" class="Symbol">:</a> <a id="1670" class="Symbol">{</a><a id="1671" href="RsTHighlightCode.html#1671" class="Bound">A</a> <a id="1673" class="Symbol">:</a> <a id="1675" href="Agda.Primitive.html#388" class="Primitive">Set</a><a id="1678" class="Symbol">}</a> <a id="1680" class="Symbol">-&gt;</a> <a id="1683" href="Agda.Builtin.Nat.html#203" class="Datatype">Nat</a> <a id="1687" class="Symbol">-&gt;</a> <a id="1690" href="RsTHighlightCode.html#395" class="Record">Colist</a> <a id="1697" href="RsTHighlightCode.html#1671" class="Bound">A</a> <a id="1699" class="Symbol">-&gt;</a> <a id="1702" href="Agda.Builtin.List.html#147" class="Datatype">List</a> <a id="1707" href="RsTHighlightCode.html#1671" class="Bound">A</a>
    <a id="1712" href="RsTHighlightCode.html#1661" class="Function">cotake</a> <a id="1719" href="RsTHighlightCode.html#1597" class="InductiveConstructor">O</a> <a id="1721" class="Symbol">_</a> <a id="1723" class="Symbol">=</a> <a id="1725" href="Agda.Builtin.List.html#184" class="InductiveConstructor">[]</a>
    <a id="1731" href="RsTHighlightCode.html#1661" class="Function">cotake</a> <a id="1738" class="Symbol">(</a><a id="1739" href="RsTHighlightCode.html#1607" class="InductiveConstructor">S</a> <a id="1741" href="RsTHighlightCode.html#1741" class="Bound">n</a><a id="1742" class="Symbol">)</a> <a id="1744" href="RsTHighlightCode.html#1744" class="Bound">as</a> <a id="1747" class="Symbol">=</a> <a id="1749" href="RsTHighlightCode.html#481" class="Field">cohead</a> <a id="1756" href="RsTHighlightCode.html#1744" class="Bound">as</a> <a id="1759" href="Agda.Builtin.List.html#199" class="InductiveConstructor Operator">∷</a> <a id="1761" href="RsTHighlightCode.html#1661" class="Function">cotake</a> <a id="1768" href="RsTHighlightCode.html#1741" class="Bound">n</a> <a id="1770" class="Symbol">(</a><a id="1771" href="RsTHighlightCode.html#499" class="Field">cotail</a> <a id="1778" href="RsTHighlightCode.html#1744" class="Bound">as</a><a id="1780" class="Symbol">)</a>
 
