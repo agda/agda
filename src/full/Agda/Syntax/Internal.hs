@@ -1,10 +1,10 @@
 {-# LANGUAGE CPP                        #-}
-{-# LANGUAGE DeriveAnyClass             #-}
 
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal
     , module Agda.Syntax.Internal.Blockers
     , module Agda.Syntax.Internal.Elim
+    , module Agda.Syntax.Internal.Univ
     , module Agda.Syntax.Abstract.Name
     , MetaId(..), ProblemId(..)
     ) where
@@ -32,6 +32,7 @@ import Agda.Syntax.Concrete.Pretty (prettyHiding)
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal.Blockers
 import Agda.Syntax.Internal.Elim
+import Agda.Syntax.Internal.Univ
 
 import Agda.Utils.CallStack
     ( CallStack
@@ -43,6 +44,7 @@ import Agda.Utils.CallStack
 
 import Agda.Utils.Empty
 
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Null
@@ -293,36 +295,18 @@ data Tele a = EmptyTel
 
 type Telescope = Tele (Dom Type)
 
--- | We have @IsFibrant < IsStrict@.
-data IsFibrant
-  = IsFibrant  -- ^ Fibrant universe.
-  | IsStrict   -- ^ Non-fibrant universe.
-  deriving (Show, Eq, Ord, Generic)
-    -- NB: for deriving Ord, keep ordering IsFibrant < IsStrict!
-
--- | Flavor of standard universe (@Prop < Type < SSet@,).
-data Univ
-  = UProp  -- ^ Fibrant universe of propositions.
-  | UType  -- ^ Fibrant universe.
-  | USSet  -- ^ Non-fibrant universe.
-  deriving stock (Eq, Ord, Show, Bounded, Enum, Generic)
-  deriving anyclass NFData
-    -- NB: for deriving Ord, keep ordering UProp < UType < USSet!
-
--- | Fibrancy of standard universes.
-univFibrancy :: Univ -> IsFibrant
-univFibrancy = \case
-  UProp -> IsFibrant
-  UType -> IsFibrant
-  USSet -> IsStrict
+data UnivSize
+  = USmall  -- ^ @Prop/Set/SSet ℓ@.
+  | ULarge  -- ^ @(Prop/Set/SSet)ωᵢ@.
+  deriving stock (Eq, Show)
 
 -- | Sorts.
 --
 data Sort' t
   = Univ Univ (Level' t)
       -- ^ @Prop ℓ@, @Set ℓ@, @SSet ℓ@.
-  | Inf IsFibrant !Integer
-      -- ^ @(S)Setωᵢ@.
+  | Inf Univ !Integer
+      -- ^ @Propωᵢ@, @(S)Setωᵢ@.
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
   | LockUniv    -- ^ @LockUniv@, a sort for locks.
   | LevelUniv   -- ^ @LevelUniv@, a sort inhabited by type @Level@. When --level-universe isn't on, this universe reduces to @Set 0@
@@ -355,7 +339,7 @@ type Sort = Sort' Term
 isStrictDataSort :: Sort' t -> Bool
 isStrictDataSort = \case
   Univ u _ -> univFibrancy u == IsStrict
-  Inf  f _ -> f == IsStrict
+  Inf  u _ -> univFibrancy u == IsStrict
   _ -> False
 
 
@@ -1264,7 +1248,7 @@ instance (KillRange a) => KillRange (Type' a) where
 
 instance KillRange Sort where
   killRange = \case
-    Inf f n    -> Inf f n
+    Inf u n    -> Inf u n
     SizeUniv   -> SizeUniv
     LockUniv   -> LockUniv
     LevelUniv  -> LevelUniv
@@ -1421,11 +1405,9 @@ instance Pretty PlusLevel where
 instance Pretty Sort where
   prettyPrec p s =
     case s of
-      Univ u (ClosedLevel 0) -> text $ showUniv u
-      Univ u (ClosedLevel n) -> text $ showUniv u ++ show n
+      Univ u (ClosedLevel n) -> text $ suffix n $ showUniv u
       Univ u l -> mparens (p > 9) $ text (showUniv u) <+> prettyPrec 10 l
-      Inf f 0 -> text $ addS f "Setω"
-      Inf f n -> text $ addS f "Setω" ++ show n
+      Inf u n -> text $ suffix n $ showUniv u ++ "ω"
       SizeUniv -> "SizeUniv"
       LockUniv -> "LockUniv"
       LevelUniv -> "LevelUniv"
@@ -1440,15 +1422,7 @@ instance Pretty Sort where
       DefS d es  -> prettyPrec p $ Def d es
       DummyS s   -> parens $ text s
    where
-     addS IsFibrant t = t
-     addS IsStrict  t = "S" ++ t
-
--- | Hacky showing of standard universes, does not take actual names into account.
-showUniv :: Univ -> String
-showUniv = \case
-  UProp -> "Prop"
-  UType -> "Set"
-  USSet -> "SSet"
+     suffix n = applyWhen (n /= 0) (++ show n)
 
 instance Pretty Type where
   prettyPrec p (El _ a) = prettyPrec p a

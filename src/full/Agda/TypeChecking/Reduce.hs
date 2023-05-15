@@ -438,7 +438,7 @@ instance Reduce Sort where
             Left b -> return $ Blocked b $ UnivSort s1'
             Right s -> reduceB' s
         Univ u l   -> notBlocked . Univ u <$> reduce l
-        Inf f n    -> done
+        Inf _ _    -> done
         SizeUniv   -> done
         LockUniv   -> done
         LevelUniv  -> do

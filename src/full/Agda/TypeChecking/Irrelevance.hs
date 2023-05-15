@@ -144,7 +144,7 @@ instance UsableRelevance a => UsableRelevance (Type' a) where
 instance UsableRelevance Sort where
   usableRel rel = \case
     Univ _ l -> usableRel rel l
-    Inf f n -> return True
+    Inf _ _ -> return True
     SizeUniv -> return True
     LockUniv -> return True
     LevelUniv -> return True
@@ -395,7 +395,7 @@ isFibrant
   => a -> m Bool
 isFibrant a = abortIfBlocked (getSort a) <&> \case
   Univ u _   -> univFibrancy u == IsFibrant
-  Inf f _    -> f == IsFibrant
+  Inf u _    -> univFibrancy u == IsFibrant
   SizeUniv{} -> False
   LockUniv{} -> False
   LevelUniv{}  -> False
@@ -413,7 +413,7 @@ isFibrant a = abortIfBlocked (getSort a) <&> \case
 isCoFibrantSort :: (LensSort a, PureTCM m, MonadBlock m) => a -> m Bool
 isCoFibrantSort a = abortIfBlocked (getSort a) <&> \case
   Univ u _   -> univFibrancy u == IsFibrant
-  Inf f _    -> f == IsFibrant
+  Inf u _    -> univFibrancy u == IsFibrant
   SizeUniv{} -> False
   LockUniv{} -> True
   LevelUniv{}  -> False

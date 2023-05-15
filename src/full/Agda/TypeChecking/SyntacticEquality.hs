@@ -192,7 +192,7 @@ instance SynEq Sort where
       (LockUniv, LockUniv  ) -> pure2 s
       (LevelUniv, LevelUniv  ) -> pure2 s
       (IntervalUniv, IntervalUniv) -> pure2 s
-      (Inf f m , Inf f' n) | f == f', m == n -> pure2 s
+      (Inf u m , Inf u' n) | u == u', m == n -> pure2 s
       (MetaS x es , MetaS x' es') | x == x' -> MetaS x <$$> synEq es es'
       (DefS  d es , DefS  d' es') | d == d' -> DefS d  <$$> synEq es es'
       (DummyS{}, DummyS{}) -> pure (s, s')

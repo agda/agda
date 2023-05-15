@@ -2077,11 +2077,10 @@ checkSortOfSplitVar :: (MonadTCM m, PureTCM m, MonadError TCErr m,
                     => DataOrRecord -> a -> Telescope -> Maybe ty -> m ()
 checkSortOfSplitVar dr a tel mtarget = do
   liftTCM (reduce $ getSort a) >>= \case
-    sa@Type{} -> whenM isTwoLevelEnabled checkFibrantSplit
+    Type{} -> whenM isTwoLevelEnabled checkFibrantSplit
     Prop{} -> checkPropSplit
-    Inf IsFibrant _ -> whenM isTwoLevelEnabled checkFibrantSplit
-    Inf IsStrict _ -> return ()
     SSet{} -> return ()
+    Inf u _ -> when (univFibrancy u == IsFibrant) $ whenM isTwoLevelEnabled checkFibrantSplit
     sa      -> softTypeError =<< do
       liftTCM $ SortOfSplitVarError <$> isBlocked sa <*> sep
         [ "Cannot split on datatype in sort" , prettyTCM (getSort a) ]

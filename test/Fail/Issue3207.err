@@ -1,5 +1,7 @@
 Issue3207.agda:7,8-12
 Not in scope:
   Prop at Issue3207.agda:7,8-12
-    (did you mean 'Agda.Primitive.Prop'?)
+    (did you mean
+       'Agda.Primitive.Prop' or
+       'Agda.Primitive.Propω'?)
 when scope checking Prop

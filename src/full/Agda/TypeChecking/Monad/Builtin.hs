@@ -239,7 +239,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primLevel, primLevelZero, primLevelSuc, primLevelMax,
     primLockUniv,
     primLevelUniv,
-    primSet, primProp, primSetOmega, primStrictSet, primSSetOmega,
+    primProp, primSet, primStrictSet, primPropOmega, primSetOmega, primSSetOmega,
     primFromNat, primFromNeg, primFromString,
     -- builtins for reflection:
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAbs, primAbsAbs, primAgdaTerm, primAgdaTermVar,
@@ -362,13 +362,14 @@ primLevel                             = getBuiltin builtinLevel
 primLevelZero                         = getBuiltin builtinLevelZero
 primLevelSuc                          = getBuiltin builtinLevelSuc
 primLevelMax                          = getBuiltin builtinLevelMax
-primSet                               = getBuiltin builtinSet
 primProp                              = getBuiltin builtinProp
+primSet                               = getBuiltin builtinSet
+primStrictSet                         = getBuiltin builtinStrictSet
+primPropOmega                         = getBuiltin builtinPropOmega
 primSetOmega                          = getBuiltin builtinSetOmega
+primSSetOmega                         = getBuiltin builtinSSetOmega
 primLockUniv                          = getPrimitiveTerm builtinLockUniv
 primLevelUniv                         = getBuiltin builtinLevelUniv
-primSSetOmega                         = getBuiltin builtinSSetOmega
-primStrictSet                         = getBuiltin builtinStrictSet
 primFromNat                           = getBuiltin builtinFromNat
 primFromNeg                           = getBuiltin builtinFromNeg
 primFromString                        = getBuiltin builtinFromString
@@ -520,10 +521,27 @@ coinductionKit = tryMaybe coinductionKit'
 -- | Sort primitives.
 
 data SortKit = SortKit
-  { nameOfSet      :: QName
-  , nameOfProp     :: QName
-  , nameOfSSet     :: QName
-  , nameOfSetOmega :: IsFibrant -> QName
+  { nameOfUniv   :: UnivSize -> Univ -> QName
+  , isNameOfUniv :: QName -> Maybe (UnivSize, Univ)
+  }
+
+mkSortKit :: QName -> QName -> QName -> QName -> QName -> QName -> SortKit
+mkSortKit prop set sset propomega setomega ssetomega = SortKit
+  { nameOfUniv = curry $ \case
+      (USmall , UProp) -> prop
+      (USmall , UType) -> set
+      (USmall , USSet) -> sset
+      (ULarge , UProp) -> propomega
+      (ULarge , UType) -> setomega
+      (ULarge , USSet) -> ssetomega
+  , isNameOfUniv = \ x -> if
+      | x == prop      -> Just (USmall , UProp)
+      | x == set       -> Just (USmall , UType)
+      | x == sset      -> Just (USmall , USSet)
+      | x == propomega -> Just (ULarge , UProp)
+      | x == setomega  -> Just (ULarge , UType)
+      | x == ssetomega -> Just (ULarge , USSet)
+      | otherwise -> Nothing
   }
 
 -- | Compute a 'SortKit' in an environment that supports failures.
@@ -533,19 +551,13 @@ data SortKit = SortKit
 -- we report a type error rather than exploding.
 sortKit :: (HasBuiltins m, MonadTCError m, HasOptions m) => m SortKit
 sortKit = do
-  Def set      _  <- getBuiltin builtinSet
   Def prop     _  <- getBuiltin builtinProp
-  Def setomega _  <- getBuiltin builtinSetOmega
+  Def set      _  <- getBuiltin builtinSet
   Def sset     _  <- getBuiltin builtinStrictSet
+  Def propomega _ <- getBuiltin builtinPropOmega
+  Def setomega _  <- getBuiltin builtinSetOmega
   Def ssetomega _ <- getBuiltin builtinSSetOmega
-  return $ SortKit
-    { nameOfSet      = set
-    , nameOfProp     = prop
-    , nameOfSSet     = sset
-    , nameOfSetOmega = \case
-        IsFibrant -> setomega
-        IsStrict  -> ssetomega
-    }
+  return $ mkSortKit prop set sset propomega setomega ssetomega
 
 -- | Compute a 'SortKit' in contexts that do not support failure (e.g.
 -- 'Reify'). This should only be used when we are sure that the
@@ -553,19 +565,13 @@ sortKit = do
 -- checking.
 infallibleSortKit :: HasBuiltins m => m SortKit
 infallibleSortKit = do
-  Def set      _  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSet
   Def prop     _  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinProp
-  Def setomega _  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSetOmega
+  Def set      _  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSet
   Def sset     _  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinStrictSet
+  Def propomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinPropOmega
+  Def setomega _  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSetOmega
   Def ssetomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSSetOmega
-  return $ SortKit
-    { nameOfSet      = set
-    , nameOfProp     = prop
-    , nameOfSSet     = sset
-    , nameOfSetOmega = \case
-        IsFibrant -> setomega
-        IsStrict  -> ssetomega
-    }
+  return $ mkSortKit prop set sset propomega setomega ssetomega
 
 ------------------------------------------------------------------------
 -- * Path equality

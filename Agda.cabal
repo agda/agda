@@ -543,6 +543,7 @@ library
       Agda.Syntax.Internal.Names
       Agda.Syntax.Internal.Pattern
       Agda.Syntax.Internal.SanityCheck
+      Agda.Syntax.Internal.Univ
       Agda.Syntax.Literal
       Agda.Syntax.Notation
       Agda.Syntax.Parser.Alex
@@ -878,6 +879,7 @@ test-suite agda-tests
       Internal.Syntax.Common
       Internal.Syntax.Concrete.Name
       Internal.Syntax.Internal
+      Internal.Syntax.Internal.Univ
       Internal.Syntax.Parser.Parser
       Internal.Syntax.Position
       Internal.Termination.CallGraph

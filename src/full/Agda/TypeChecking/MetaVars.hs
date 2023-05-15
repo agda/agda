@@ -1899,7 +1899,7 @@ openMetasToPostulates = do
     -- codomains by Setω.
     dummyTypeToOmega t =
       case telView' t of
-        TelV tel (El _ Dummy{}) -> abstract tel (sort $ Inf IsFibrant 0)
+        TelV tel (El _ Dummy{}) -> abstract tel (sort $ Inf UType 0)
         _ -> t
 
 -- | Sort metas in dependency order.

@@ -1278,13 +1278,9 @@ leqSort s1 s2 = do
       (Univ u a, Univ u' b) -> if u <= u' then leqLevel a b else no
 
       -- @Setωᵢ@ is above all small sorts
-      (Inf f m , Inf f' n) -> answer $
-        f <= f' && (m <= n || typeInTypeEnabled || omegaInOmegaEnabled)
-      (Univ u _, Inf f _) -> answer $ univFibrancy u <= f
-
-      (Inf f _, Type{}  ) -> answer $ f == IsFibrant && typeInTypeEnabled
-      (Inf f _, SSet{}  ) -> answer $ f == IsStrict  && typeInTypeEnabled
-      (Inf _ _, Prop{}  ) -> no
+      (Inf u m , Inf u' n) -> answer $ u <= u' && (m <= n || typeInTypeEnabled || omegaInOmegaEnabled)
+      (Univ u _, Inf u' _) -> answer $ u <= u'
+      (Inf u _, Univ u' _) -> answer $ u == u' && typeInTypeEnabled
 
       -- @LockUniv@, @LevelUniv@, @IntervalUniv@, @SizeUniv@, and @Prop0@ are bottom sorts.
       -- So is @Set0@ if @Prop@ is not enabled.
@@ -1307,7 +1303,7 @@ leqSort s1 s2 = do
       -- @IntervalUniv@ is below @SSet l@, but not @Set l@ or @Prop l@
       (IntervalUniv, Type{}) -> no
       (IntervalUniv, Prop{}) -> no
-      (IntervalUniv , Inf f _) -> answer $ f == IsStrict
+      (IntervalUniv , Inf u _) -> answer $ univFibrancy u == IsStrict
       (IntervalUniv , SSet b) -> leqLevel (ClosedLevel 0) b
 
       -- If the first sort is a small sort that rigidly depends on a
@@ -1704,33 +1700,29 @@ equalSort s1 s2 = do
             (_          , MetaS x es ) -> meta x es s1
 
             -- diagonal cases for rigid sorts
-            (Type a     , Type b     ) -> equalLevel a b `catchInequalLevel` no
+            (Univ u a   , Univ u' b  ) | u == u' -> equalLevel a b `catchInequalLevel` no
             (SizeUniv   , SizeUniv   ) -> yes
             (LockUniv   , LockUniv   ) -> yes
-            (LevelUniv   , LevelUniv   ) -> yes
+            (LevelUniv  , LevelUniv  ) -> yes
             (IntervalUniv , IntervalUniv) -> yes
-            (Prop a     , Prop b     ) -> equalLevel a b `catchInequalLevel` no
-            (Inf f m    , Inf f' n   ) ->
-              if f == f' && (m == n || typeInTypeEnabled || omegaInOmegaEnabled) then yes else no
-            (SSet a     , SSet b     ) -> equalLevel a b
+            (Inf u m    , Inf u' n   ) ->
+              if u == u' && (m == n || typeInTypeEnabled || omegaInOmegaEnabled) then yes else no
 
             -- if --type-in-type is enabled, Setωᵢ is equal to any Set ℓ (see #3439)
-            (Type{}     , Inf{}      )
-              | typeInTypeEnabled      -> yes
-            (Inf{}      , Type{}     )
-              | typeInTypeEnabled      -> yes
+            (Univ u _   , Inf  u' _  ) -> answer $ u == u' && typeInTypeEnabled
+            (Inf  u _   , Univ u' _  ) -> answer $ u == u' && typeInTypeEnabled
 
             -- equating @PiSort a b@ to another sort
-            (s1 , PiSort a b c) -> piSortEquals s1 a b c blocker
-            (PiSort a b c , s2) -> piSortEquals s2 a b c blocker
+            (s1 , PiSort a b c) -> piSortEquals propEnabled s1 a b c blocker
+            (PiSort a b c , s2) -> piSortEquals propEnabled s2 a b c blocker
 
             -- equating @FunSort a b@ to another sort
-            (s1 , FunSort a b) -> funSortEquals s1 a b blocker
-            (FunSort a b , s2) -> funSortEquals s2 a b blocker
+            (s1 , FunSort a b) -> funSortEquals propEnabled s1 a b blocker
+            (FunSort a b , s2) -> funSortEquals propEnabled s2 a b blocker
 
             -- equating @UnivSort s@ to another sort
-            (s1          , UnivSort s2) -> univSortEquals s1 s2 blocker
-            (UnivSort s1 , s2         ) -> univSortEquals s2 s1 blocker
+            (s1          , UnivSort s2) -> univSortEquals propEnabled s1 s2 blocker
+            (UnivSort s1 , s2         ) -> univSortEquals propEnabled s2 s1 blocker
 
             -- postulated sorts can only be equal if they have the same head
             (DefS d es  , DefS d' es')
@@ -1746,6 +1738,9 @@ equalSort s1 s2 = do
     where
       yes = return ()
       no  = patternViolation neverUnblock
+      answer = \case
+        True -> yes
+        False -> no
 
       -- perform assignment (MetaS x es) := s
       meta :: MetaId -> [Elim' Term] -> Sort -> m ()
@@ -1754,10 +1749,20 @@ equalSort s1 s2 = do
         reportSDoc "tc.meta.sort" 50 $ "meta" <+> sep [pretty x, prettyList $ map pretty es, pretty s]
         assignE DirEq x es (Sort s) AsTypes __IMPOSSIBLE__
 
+       -- Sorts that contain exactly one other kind of sorts.
+      invertibleSort :: Bool -> Univ -> Bool
+      invertibleSort propEnabled = \case
+        -- @SSetω(n+1)@ is the successor sort of exactly @SSetω(n)@.
+        USSet -> True
+        -- @Setω(n+1)@ is the successor sort of exactly @Setω(n)@ if we do not have @Prop@.
+        UType -> not propEnabled
+        -- @Prop@ sorts are not successor sorts.
+        UProp -> False
+
       -- Equate a sort @s1@ to @univSort s2@
       -- Precondition: @s1@ and @univSort s2@ are already reduced.
-      univSortEquals :: Sort -> Sort -> Blocker -> m ()
-      univSortEquals s1 s2 blocker = do
+      univSortEquals :: Bool -> Sort -> Sort -> Blocker -> m ()
+      univSortEquals propEnabled s1 s2 blocker = do
         reportSDoc "tc.conv.sort" 35 $ vcat
           [ "univSortEquals"
           , "  s1 =" <+> prettyTCM s1
@@ -1768,7 +1773,6 @@ equalSort s1 s2 = do
           -- @Set l1@ is the successor sort of either @Set l2@ or
           -- @Prop l2@ where @l1 == lsuc l2@.
           Type l1 -> do
-            propEnabled <- isPropEnabled
                -- @s2@ is definitely not @Inf n@ or @SizeUniv@
             if | Inf _ n  <- s2 -> no
                | SizeUniv <- s2 -> no
@@ -1784,26 +1788,29 @@ equalSort s1 s2 = do
                    equalSort (Type l2) s2
                -- Otherwise we postpone
                | otherwise -> postpone
-          -- @Setωᵢ@ is a successor sort if n > 0, or if
+          -- @SSetω(n+1)@ is the successor sort of exactly @SSetω(n)@.
+          -- @SSetω@ is the successor sort of exactly @SSetω@ if
           -- --type-in-type or --omega-in-omega is enabled.
-          Inf f n | n > 0 -> equalSort (Inf f $ n - 1) s2
-          Inf f 0 -> do
-            infInInf <- (optOmegaInOmega <$> pragmaOptions) `or2M` typeInType
-            if | infInInf  -> equalSort (Inf f 0) s2
-               | otherwise -> no
+          -- The same is only true for @Setωᵢ@ if @Propω...@ are disabled.
+          Inf u n | invertibleSort propEnabled u ->
+            if n > 0 then equalSort (Inf u $ n - 1) s2 else do
+              infInInf <- (optOmegaInOmega <$> pragmaOptions) `or2M` typeInType
+              if | infInInf  -> equalSort s1 s2
+                 | otherwise -> no
           -- @Prop l@, @SizeUniv@ and @LevelUniv@ are not successor sorts
-          Prop{}     -> no
-          SizeUniv{} -> no
+          Prop{}      -> no
+          Inf UProp _ -> no
+          SizeUniv{}  -> no
           LevelUniv{} -> no
           -- Anything else: postpone
-          _          -> postpone
+          _ -> postpone
 
 
       -- Equate a sort @s@ to @piSort a s1 s2@
       -- Precondition: @s@ and @piSort a s1 s2@ are already reduced.
-      piSortEquals :: Sort -> Dom Term -> Sort -> Abs Sort -> Blocker -> m ()
-      piSortEquals s a s1 NoAbs{} blocker = __IMPOSSIBLE__
-      piSortEquals s a s1 s2Abs@(Abs x s2) blocker = do
+      piSortEquals :: Bool -> Sort -> Dom Term -> Sort -> Abs Sort -> Blocker -> m ()
+      piSortEquals propEnabled s a s1 NoAbs{} blocker = __IMPOSSIBLE__
+      piSortEquals propEnabled s a s1 s2Abs@(Abs x s2) blocker = do
         let adom = El s1 <$> a
         reportSDoc "tc.conv.sort" 35 $ vcat
           [ "piSortEquals"
@@ -1812,7 +1819,6 @@ equalSort s1 s2 = do
           , "  s1 =" <+> prettyTCM s1
           , "  s2 =" <+> addContext (x,adom) (prettyTCM s2)
           ]
-        propEnabled <- isPropEnabled
         let postpone = patternViolation blocker
            -- If @s2@ is dependent, then @piSort a s1 s2@ computes to
            -- @Setωi@. Hence, if @s@ is small, then @s2@
@@ -1822,33 +1828,64 @@ equalSort s1 s2 = do
                -- a fresh meta that does not depend on @x : a@
                s2' <- newSortMeta
                addContext (x , adom) $ equalSort s2 (raise 1 s2')
-               funSortEquals s s1 s2' blocker
+               funSortEquals propEnabled s s1 s2' blocker
            -- Otherwise: postpone
            | otherwise -> postpone
 
       -- Equate a sort @s@ to @funSort s1 s2@
       -- Precondition: @s@ and @funSort s1 s2@ are already reduced
-      funSortEquals :: Sort -> Sort -> Sort -> Blocker -> m ()
-      funSortEquals s0 s1 s2 blocker = do
+      funSortEquals :: Bool -> Sort -> Sort -> Sort -> Blocker -> m ()
+      funSortEquals propEnabled s0 s1 s2 blocker = do
         reportSDoc "tc.conv.sort" 35 $ vcat
           [ "funSortEquals"
           , "  s0 =" <+> prettyTCM s0
           , "  s1 =" <+> prettyTCM s1
           , "  s2 =" <+> prettyTCM s2
           ]
-        propEnabled <- isPropEnabled
         sizedTypesEnabled <- sizedTypesOption
         cubicalEnabled <- isJust . optCubical <$> pragmaOptions
+        levelUnivEnabled <- optLevelUniverse <$> pragmaOptions
         let postpone = patternViolation blocker
+            err :: m ()
+            err = typeError $ UnequalSorts s0 (FunSort s1 s2)
         case s0 of
           -- If @Setωᵢ == funSort s1 s2@, then either @s1@ or @s2@ must
           -- be @Setωᵢ@.
-          Inf f n | isSmallSort s1, isSmallSort s2 -> do
-                    typeError $ UnequalSorts s0 (FunSort s1 s2)
-                  | Right (SmallSort IsFibrant) <- sizeOfSort s1 -> equalSort (Inf f n) s2
-                  | Right (SmallSort IsFibrant) <- sizeOfSort s2 -> equalSort (Inf f n) s1
-                  -- TODO 2ltt: handle IsStrict cases.
-                  | otherwise -> postpone
+
+          Inf u n ->
+            case (sizeOfSort s1, sizeOfSort s2) of
+
+              -- Both sorts have to be <= n in size, and their fibrancy <= u
+              (Right (SizeOfSort u' n'), _)
+                | n' > n                           -> err
+                | univFibrancy u' > univFibrancy u -> err
+              (_, Right (SizeOfSort u' n'))
+                | n' > n                           -> err
+                | univFibrancy u' > univFibrancy u -> err
+              -- Unless SSet, the kind of the funSort is the kind of the codomain
+                | u /= USSet, u /= u'              -> err
+
+              -- One sort has to be at least the same size as n
+              (Right (SizeOfSort u1 n1), Right (SizeOfSort u2 n2))
+                | n1 < n, n2 < n                   -> err
+                | u /= funUniv u1 u2               -> err
+
+              -- If have the domain sort only
+              (Right (SizeOfSort u' n'), _)
+                | u' /= USSet, n' < n              -> equalSort s0 s2
+                | otherwise                        -> postpone
+
+              -- If we just have the codomain sort
+              (_, Right (SizeOfSort USSet n'))     -> postpone
+              (_, Right (SizeOfSort _     n'))
+                | n' < n, u == USSet               -> equalSort s1 s2
+                | n' < n, not propEnabled,
+                  -- issue #6648: with --level-universe we have PTS rule (LevelUniv,Set,Setω)
+                  not levelUnivEnabled || n > 0    -> equalSort (Inf UType n) s1
+                | otherwise                        -> postpone
+
+              _ -> postpone
+
           -- If @Set l == funSort s1 s2@, then @s2@ must be of the
           -- form @Set l2@. @s1@ can be one of @Set l1@, @Prop l1@,
           -- @SizeUniv@, or @IUniv@.
@@ -1877,6 +1914,7 @@ equalSort s1 s2 = do
                | otherwise -> do
                    l1 <- forceUniv UType s1
                    equalLevel l (levelLub l1 l2)
+
           -- If @Prop l == funSort s1 s2@, then @s2@ must be of the
           -- form @Prop l2@, and @s1@ can be one of @Set l1@, Prop
           -- l1@, or @SizeUniv@.
@@ -1892,6 +1930,9 @@ equalSort s1 s2 = do
                    Right s -> equalSort (Prop l) s
                    -- Otherwise: postpone
                    Left _  -> patternViolation blocker
+
+          -- TODO: SSet l
+
           -- We have @SizeUniv == funSort s1 s2@ iff @s2 == SizeUniv@
           SizeUniv -> equalSort SizeUniv s2
           LevelUniv -> equalSort LevelUniv s2

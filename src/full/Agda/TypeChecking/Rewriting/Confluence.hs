@@ -834,7 +834,7 @@ instance AllHoles Term where
 instance AllHoles Sort where
   allHoles _ = \case
     Univ u l     -> fmap (Univ u) <$> allHoles_ l
-    Inf f n      -> empty
+    Inf _ _      -> empty
     SizeUniv     -> empty
     LockUniv     -> empty
     LevelUniv    -> empty
@@ -907,7 +907,7 @@ instance MetasToVars Type where
 instance MetasToVars Sort where
   metasToVars = \case
     Univ u l   -> Univ u <$> metasToVars l
-    Inf f n    -> pure $ Inf f n
+    Inf u n    -> pure $ Inf u n
     SizeUniv   -> pure SizeUniv
     LockUniv   -> pure LockUniv
     LevelUniv  -> pure LevelUniv

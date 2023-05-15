@@ -6,6 +6,8 @@ module Agda.TypeChecking.Rules.Application
   , checkApplication
   , inferApplication
   , checkProjAppToKnownPrincipalArg
+  , univChecks
+  , suffixToLevel
   ) where
 
 import Prelude hiding ( null )
@@ -242,11 +244,7 @@ inferApplication exh hd args e = postponeInstanceConstraints $ do
   SortKit{..} <- sortKit
   case unScope hd of
     A.Proj o p | isAmbiguous p -> inferProjApp e o (unAmbQ p) args
-    A.Def' x s | x == nameOfSet      -> inferSet e x s args
-    A.Def' x s | x == nameOfProp     -> inferProp e x s args
-    A.Def' x s | x == nameOfSSet     -> inferSSet e x s args
-    A.Def' x s | x == nameOfSetOmega IsFibrant -> inferSetOmega e x IsFibrant s args
-    A.Def' x s | x == nameOfSetOmega IsStrict  -> inferSetOmega e x IsStrict s args
+    A.Def' x s | Just (sz, u) <- isNameOfUniv x -> inferUniv sz u e x s args
     _ -> do
       (f, t0) <- inferHead hd
       let r = getRange hd
@@ -483,11 +481,7 @@ checkHeadApplication cmp e t hd args = do
   mglue  <- getNameOfConstrained builtin_glue
   mglueU  <- getNameOfConstrained builtin_glueU
   case hd of
-    A.Def' c s | c == nameOfSet      -> checkSet cmp e t c s args
-    A.Def' c s | c == nameOfProp     -> checkProp cmp e t c s args
-    A.Def' c s | c == nameOfSSet     -> checkSSet cmp e t c s args
-    A.Def' c s | c == nameOfSetOmega IsFibrant -> checkSetOmega cmp e t c IsFibrant s args
-    A.Def' c s | c == nameOfSetOmega IsStrict  -> checkSetOmega cmp e t c IsStrict s args
+    A.Def' c s | Just (sz, u) <- isNameOfUniv c -> checkUniv sz u cmp e t c s args
 
     -- Type checking #. The # that the user can write will be a Def, but the
     -- sharp we generate in the body of the wrapper is a Con.
@@ -1518,89 +1512,61 @@ refuseProjNotRecordType ds pValue pType = do
 -- * Sorts
 -----------------------------------------------------------------------------
 
-checkSet
-  :: Comparison -> A.Expr -> Type
+checkUniv
+  :: UnivSize -> Univ -> Comparison -> A.Expr -> Type
   -> QName -> Suffix -> [NamedArg A.Expr] -> TCM Term
-checkSet = checkSetOrProp Type
-
-checkProp
-  :: Comparison -> A.Expr -> Type
-  -> QName -> Suffix -> [NamedArg A.Expr] -> TCM Term
-checkProp cmp e t q s args = do
-  unlessM isPropEnabled $ typeError NeedOptionProp
-  checkSetOrProp Prop cmp e t q s args
-
-checkSSet
-  :: Comparison -> A.Expr -> Type
-  -> QName -> Suffix -> [NamedArg A.Expr] -> TCM Term
-checkSSet cmp e t q s args = do
-  unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
-  checkLeveledSort SSet SSet cmp e t q s args
-
-checkSetOrProp
-  :: (Level -> Sort) -> Comparison -> A.Expr -> Type
-  -> QName -> Suffix -> [NamedArg A.Expr] -> TCM Term
-checkSetOrProp mkSort cmp e t q suffix args = do
-  checkLeveledSort mkSort Type cmp e t q suffix args
-
-checkLeveledSort
-  :: (Level -> Sort) -> (Level -> Sort) -> Comparison -> A.Expr -> Type
-  -> QName -> Suffix -> [NamedArg A.Expr] -> TCM Term
-checkLeveledSort mkSort mkSortOfSort cmp e t q suffix args = do
-  (v, t0) <- inferLeveledSort mkSort mkSortOfSort e q suffix args
+checkUniv sz u cmp e t q suffix args = do
+  (v, t0) <- inferUniv sz u e q suffix args
   coerce cmp v t0 t
 
-inferSet :: A.Expr -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
-inferSet = inferSetOrProp Type
+inferUniv :: UnivSize -> Univ -> A.Expr -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
+inferUniv sz u e q s args = do
+  univChecks u
+  case sz of
+    USmall -> inferLeveledSort u q s args
+    ULarge -> inferUnivOmega u q s args
 
-inferProp :: A.Expr -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
-inferProp e q s args = do
-  unlessM isPropEnabled $ typeError NeedOptionProp
-  inferSetOrProp Prop e q s args
+univChecks :: Univ -> TCM ()
+univChecks = \case
+  UProp -> unlessM isPropEnabled $ typeError NeedOptionProp
+  UType -> pure ()
+  USSet -> unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
 
-inferSSet :: A.Expr -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
-inferSSet e q s args = do
-  unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
-  inferLeveledSort SSet SSet e q s args
+suffixToLevel :: Suffix -> Integer
+suffixToLevel = \case
+  NoSuffix -> 0
+  Suffix n -> n
 
-inferSetOrProp
-  :: (Level -> Sort) -> A.Expr
-  -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
-inferSetOrProp mkSort e q suffix args = inferLeveledSort mkSort Type e q suffix args
-
-inferLeveledSort
-  :: (Level -> Sort) -> (Level -> Sort) -> A.Expr
-  -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
-inferLeveledSort mkSort mkSortOfSort e q suffix args = case args of
+inferLeveledSort ::
+     Univ                -- ^ The universe type.
+  -> QName               -- ^ Name of the universe, for error reporting.
+  -> Suffix              -- ^ Level of the universe given via suffix (optional).
+  -> [NamedArg A.Expr]   -- ^ Level of the universe given via argument (absent if suffix).
+  -> TCM (Term, Type)    -- ^ Universe and its sort.
+inferLeveledSort u q suffix = \case
   [] -> do
-    let n = case suffix of
-              NoSuffix -> 0
-              Suffix n -> n
-    return (Sort (mkSort $ ClosedLevel n) , sort (mkSortOfSort $ ClosedLevel $ n + 1))
+    let n = suffixToLevel suffix
+    return (Sort (Univ u $ ClosedLevel n) , sort (Univ (univUniv u) $ ClosedLevel $ n + 1))
   [arg] -> do
-    unless (visible arg) $ typeError $ WrongHidingInApplication $ sort $ mkSort $ ClosedLevel 0
+    unless (visible arg) $ typeError $ WrongHidingInApplication $ sort $ Univ u $ ClosedLevel 0
     unlessM hasUniversePolymorphism $ genericError
       "Use --universe-polymorphism to enable level arguments to Set"
     l <- applyRelevanceToContext NonStrict $ checkLevel arg
-    return (Sort $ mkSort l , sort (mkSortOfSort $ levelSuc l))
+    return (Sort $ Univ u l , sort (Univ (univUniv u) $ levelSuc l))
   arg : _ -> typeError . GenericDocError =<< fsep
     [ prettyTCM q , "cannot be applied to more than one argument" ]
 
-checkSetOmega :: Comparison -> A.Expr -> Type -> QName -> IsFibrant -> Suffix -> [NamedArg A.Expr] -> TCM Term
-checkSetOmega cmp e t q f s args = do
-  (v, t0) <- inferSetOmega e q f s args
-  coerce cmp v t0 t
-
-inferSetOmega :: A.Expr -> QName -> IsFibrant -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
-inferSetOmega e q f suffix args = do
-  when (f == IsStrict) $
-    unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
-  let n = case suffix of
-            NoSuffix -> 0
-            Suffix n -> n
-  case args of
-    [] -> return (Sort (Inf f n) , sort (Inf f $ 1 + n))
-    arg : _ -> typeError . GenericDocError =<< fsep
+inferUnivOmega ::
+     Univ                -- ^ The universe type.
+  -> QName               -- ^ Name of the universe, for error reporting.
+  -> Suffix              -- ^ Level of the universe given via suffix (optional).
+  -> [NamedArg A.Expr]   -- ^ Level of the universe given via argument (should be absent).
+  -> TCM (Term, Type)    -- ^ Universe and its sort.
+inferUnivOmega u q suffix = \case
+  [] -> do
+    let n = suffixToLevel suffix
+    return (Sort (Inf u n) , sort (Inf (univUniv u) $ 1 + n))
+  arg : _ -> typeError . GenericDocError =<< fsep
         [ prettyTCM q , "cannot be applied to an argument" ]
 
 -----------------------------------------------------------------------------

@@ -23,6 +23,7 @@ import Test.QuickCheck
 import Test.Tasty            ( testGroup, TestName, TestTree )
 import Test.Tasty.QuickCheck ( testProperties, testProperty )
 
+import Agda.Utils.Boolean    ( Boolean, fromBool )
 import Agda.Utils.Functor
 import Agda.Utils.List1      ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
@@ -205,6 +206,11 @@ natural = fromInteger . abs <$> arbitrary
 
 positive :: (Integral i) => Gen i
 positive = succ <$> natural
+
+-- | Generates a 'Boolean'.
+
+arbitraryBoolean :: Boolean a => Gen a
+arbitraryBoolean = fromBool <$> elements [True, False]
 
 -- | Generates a list of elements picked from a given list.
 listOfElements :: [a] -> Gen [a]

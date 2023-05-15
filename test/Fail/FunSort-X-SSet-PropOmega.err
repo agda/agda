@@ -1,0 +1,3 @@
+FunSort-X-SSet-PropOmega.agda:6,13-18
+Propω != funSort _3 SSet
+when checking that the expression A → B has type Propω

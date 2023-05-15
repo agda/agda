@@ -2,5 +2,7 @@ Prop-Disabled.agda:8,18-22
 Not in scope:
   Prop
   at Prop-Disabled.agda:8,18-22
-    (did you mean 'Agda.Primitive.Prop'?)
+    (did you mean
+       'Agda.Primitive.Prop' or
+       'Agda.Primitive.Propω'?)
 when scope checking Prop

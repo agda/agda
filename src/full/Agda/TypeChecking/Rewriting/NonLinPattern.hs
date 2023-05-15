@@ -95,7 +95,7 @@ instance PatternFrom Sort NLPSort where
     s <- abortIfBlocked s
     case s of
       Univ u l -> PUniv u <$> patternFrom r k () l
-      Inf f n  -> return $ PInf f n
+      Inf u n  -> return $ PInf u n
       SizeUniv -> return PSizeUniv
       LockUniv -> return PLockUniv
       LevelUniv -> return PLevelUniv
@@ -235,7 +235,7 @@ instance NLPatToTerm NLPType Type where
 
 instance NLPatToTerm NLPSort Sort where
   nlPatToTerm (PUniv u l) = Univ u <$> nlPatToTerm l
-  nlPatToTerm (PInf f n) = return $ Inf f n
+  nlPatToTerm (PInf u n) = return $ Inf u n
   nlPatToTerm PSizeUniv = return SizeUniv
   nlPatToTerm PLockUniv = return LockUniv
   nlPatToTerm PLevelUniv = return LevelUniv

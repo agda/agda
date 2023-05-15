@@ -1425,22 +1425,13 @@ instance Reify Sort where
       s <- instantiateFull s
       SortKit{..} <- infallibleSortKit
       case s of
-        I.Type (I.ClosedLevel 0) -> return $ A.Def' nameOfSet A.NoSuffix
-        I.Type (I.ClosedLevel n) -> return $ A.Def' nameOfSet (A.Suffix n)
-        I.Type a -> do
+        I.Univ u (I.ClosedLevel 0) -> return $ A.Def' (nameOfUniv USmall u) A.NoSuffix
+        I.Univ u (I.ClosedLevel n) -> return $ A.Def' (nameOfUniv USmall u) (A.Suffix n)
+        I.Univ u a -> do
           a <- reify a
-          return $ A.App defaultAppInfo_ (A.Def nameOfSet) (defaultNamedArg a)
-        I.Prop (I.ClosedLevel 0) -> return $ A.Def' nameOfProp A.NoSuffix
-        I.Prop (I.ClosedLevel n) -> return $ A.Def' nameOfProp (A.Suffix n)
-        I.Prop a -> do
-          a <- reify a
-          return $ A.App defaultAppInfo_ (A.Def nameOfProp) (defaultNamedArg a)
-        I.Inf f 0 -> return $ A.Def' (nameOfSetOmega f) A.NoSuffix
-        I.Inf f n -> return $ A.Def' (nameOfSetOmega f) (A.Suffix n)
-        I.SSet a  -> do
-          I.Def sset [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinStrictSet
-          a <- reify a
-          return $ A.App defaultAppInfo_ (A.Def sset) (defaultNamedArg a)
+          return $ A.App defaultAppInfo_ (A.Def $ nameOfUniv USmall u) (defaultNamedArg a)
+        I.Inf u 0 -> return $ A.Def' (nameOfUniv ULarge u) A.NoSuffix
+        I.Inf u n -> return $ A.Def' (nameOfUniv ULarge u) (A.Suffix n)
         I.SizeUniv  -> do
           I.Def sizeU [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeUniv
           return $ A.Def sizeU

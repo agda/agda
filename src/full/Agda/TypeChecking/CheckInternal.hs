@@ -302,7 +302,7 @@ checkSpine action a hd es cmp t = do
 instance CheckInternal Sort where
   checkInternal' action s cmp _ = case s of
     Univ u l -> Univ u <$> inferInternal' action l
-    Inf f n  -> return $ Inf f n
+    Inf u n  -> return $ Inf u n
     SizeUniv -> return SizeUniv
     LockUniv -> return LockUniv
     LevelUniv -> return LevelUniv

@@ -934,7 +934,7 @@ transpSysTel' flag delta us phi args = do
             axi <- open axi
             usxi <- mapM open usxi
             gTransp (Just l) b' (zip psis usxi) phi axi
-          Inf _ n  -> noTranspSort
+          Inf _ _  -> noTranspSort
           SSet _  -> noTranspSort
           SizeUniv -> noTranspSort
           LockUniv -> noTranspSort
@@ -956,7 +956,7 @@ transpSysTel' flag delta us phi args = do
                IntervalUniv -> return Nothing
                SizeUniv     -> return Nothing
                LockUniv     -> return Nothing
-               Inf _ n -> return Nothing
+               Inf _ _ -> return Nothing
                Type l -> Just <$> open (lam_i (Level l))
                _ -> noTranspError (Abs "i" (unDom t))
         t <- open $ Abs "i" (unDom t)

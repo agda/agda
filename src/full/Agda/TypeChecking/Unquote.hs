@@ -591,7 +591,7 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMDeclarePostulate, uqFun2 tcDeclarePostulate u v)
              , (f `isDef` primAgdaTCMDefineData, uqFun2 tcDefineData u v)
              , (f `isDef` primAgdaTCMDefineFun,  uqFun2 tcDefineFun  u v)
-             , (f `isDef` primAgdaTCMQuoteOmegaTerm, tcQuoteTerm (sort $ Inf IsFibrant 0) (unElim v))
+             , (f `isDef` primAgdaTCMQuoteOmegaTerm, tcQuoteTerm (sort $ Inf UType 0) (unElim v))
              , (f `isDef` primAgdaTCMPragmaForeign, tcFun2 tcPragmaForeign u v)
              ]
              failEval
