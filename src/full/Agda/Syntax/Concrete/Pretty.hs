@@ -633,6 +633,8 @@ instance Pretty Pragma where
       hsep $ ["STATIC", pretty i]
     pretty (InjectivePragma _ i) =
       hsep $ ["INJECTIVE", pretty i]
+    pretty (InjectiveForInferencePragma _ i) =
+      hsep $ ["INJECTIVE_FOR_INFERENCE", pretty i]
     pretty (InlinePragma _ True i) =
       hsep $ ["INLINE", pretty i]
     pretty (NotProjectionLikePragma _ i) =

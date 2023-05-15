@@ -32,6 +32,8 @@ Pragmas and options
   backtracking during instance search, has been renamed to
   `--backtracking-instance-search`.
 
+* New pragma `INJECTIVE_FOR_INFERENCE`, which treats functions as injective for inferring implicit arguments.
+
 Syntax
 ------
 

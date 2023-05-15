@@ -1130,6 +1130,7 @@ niceDeclarations fixs ds = do
               WarningOnUsage{}          -> top
               WarningOnImport{}         -> top
               InjectivePragma{}         -> top     -- only needs name, not definition
+              InjectiveForInferencePragma{} -> top
               DisplayPragma{}           -> top     -- only for printing
 
               -- The attached pragmas have already been handled at this point.

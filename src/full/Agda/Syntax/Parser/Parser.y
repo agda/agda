@@ -164,6 +164,7 @@ import Agda.Utils.Impossible
     'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $$ }
     'INCOHERENT'              { TokKeyword KwINCOHERENT $$ }
     'INJECTIVE'               { TokKeyword KwINJECTIVE $$ }
+    'INJECTIVE_FOR_INFERENCE' { TokKeyword KwINJECTIVE_FOR_INFERENCE $$ }
     'INLINE'                  { TokKeyword KwINLINE $$ }
     'NOINLINE'                { TokKeyword KwNOINLINE $$ }
     'MEASURE'                 { TokKeyword KwMEASURE $$ }
@@ -299,6 +300,7 @@ Token
     | 'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $1 }
     | 'INCOHERENT'              { TokKeyword KwINCOHERENT $1 }
     | 'INJECTIVE'               { TokKeyword KwINJECTIVE $1 }
+    | 'INJECTIVE_FOR_INFERENCE' { TokKeyword KwINJECTIVE_FOR_INFERENCE $1 }
     | 'INLINE'                  { TokKeyword KwINLINE $1 }
     | 'MEASURE'                 { TokKeyword KwMEASURE $1 }
     | 'NOINLINE'                { TokKeyword KwNOINLINE $1 }
@@ -1569,6 +1571,7 @@ DeclarationPragma
   | ForeignPragma            { $1 }
   | StaticPragma             { $1 }
   | InjectivePragma          { $1 }
+  | InjectiveForInferencePragma { $1 }
   | InlinePragma             { $1 }
   | NoInlinePragma           { $1 }
   | ImpossiblePragma         { $1 }
@@ -1653,6 +1656,11 @@ InjectivePragma :: { Pragma }
 InjectivePragma
   : '{-#' 'INJECTIVE' PragmaQName '#-}'
     { InjectivePragma (getRange ($1,$2,$3,$4)) $3 }
+
+InjectiveForInferencePragma :: { Pragma }
+InjectiveForInferencePragma
+  : '{-#' 'INJECTIVE_FOR_INFERENCE' PragmaQName '#-}'
+    { InjectiveForInferencePragma (getRange ($1,$2,$3,$4)) $3 }
 
 DisplayPragma :: { Pragma }
 DisplayPragma
