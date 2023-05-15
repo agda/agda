@@ -269,15 +269,6 @@ instance UsableRelevance a => UsableModality (Type' a) where
 
 instance UsableModality Sort where
   usableMod mod s = usableRel (getRelevance mod) s
-  -- usableMod mod s = case s of
-  --   Type l -> usableMod mod l
-  --   Prop l -> usableMod mod l
-  --   Inf    -> return True
-  --   SizeUniv -> return True
-  --   PiSort a s -> usableMod mod (a,s)
-  --   UnivSort s -> usableMod mod s
-  --   MetaS x es -> usableMod mod es
-  --   DummyS{} -> return True
 
 instance UsableModality Level where
   usableMod mod (Max _ ls) = usableRel (getRelevance mod) ls
