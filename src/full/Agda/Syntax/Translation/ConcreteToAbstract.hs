@@ -2449,6 +2449,12 @@ instance ToAbstract C.Pragma where
             "INJECTIVE used on ambiguous name " ++ prettyShow x
           _        -> genericError "Target of INJECTIVE pragma should be a defined symbol"
       return [ A.InjectivePragma y ]
+  toAbstract (C.InjectiveForInferencePragma _ x) = do
+      e <- toAbstract $ OldQName x Nothing
+      y <- case e of
+          A.Def  x -> return x
+          _        -> genericError "Target of INJECTIVE_FOR_INFERENCE pragma should be a defined symbol"
+      return [ A.InjectiveForInferencePragma y ]
   toAbstract (C.InlinePragma _ b x) = do
       e <- toAbstract $ OldQName x Nothing
       let sINLINE = if b then "INLINE" else "NOINLINE"
@@ -2734,6 +2740,7 @@ checkNoTerminationPragma b ds =
       C.WarningOnUsage _ _ _        -> []
       C.WarningOnImport _ _         -> []
       C.InjectivePragma _ _         -> []
+      C.InjectiveForInferencePragma{} -> []
       C.DisplayPragma _ _ _         -> []
       C.CatchallPragma _            -> []
       C.NoCoverageCheckPragma _     -> []

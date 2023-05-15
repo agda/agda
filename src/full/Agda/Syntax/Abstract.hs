@@ -219,6 +219,7 @@ data Pragma
     -- ^ For coinductive records, use pragma instead of regular
     --   @eta-equality@ definition (as it is might make Agda loop).
   | InjectivePragma QName
+  | InjectiveForInferencePragma QName
   | InlinePragma Bool QName -- INLINE or NOINLINE
   | NotProjectionLikePragma QName
     -- ^ Mark the definition as not being projection-like

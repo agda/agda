@@ -581,44 +581,46 @@ data OpenShortHand = DoOpen | DontOpen
 -- Pragmas ----------------------------------------------------------------
 
 data Pragma
-  = OptionsPragma             Range [String]
-  | BuiltinPragma             Range RString QName
-  | RewritePragma             Range Range [QName]        -- ^ Second Range is for REWRITE keyword.
-  | ForeignPragma             Range RString String       -- ^ first string is backend name
-  | CompilePragma             Range RString QName String -- ^ first string is backend name
-  | StaticPragma              Range QName
-  | InlinePragma              Range Bool QName  -- ^ INLINE or NOINLINE
+  = OptionsPragma               Range [String]
+  | BuiltinPragma               Range RString QName
+  | RewritePragma               Range Range [QName]        -- ^ Second Range is for REWRITE keyword.
+  | ForeignPragma               Range RString String       -- ^ first string is backend name
+  | CompilePragma               Range RString QName String -- ^ first string is backend name
+  | StaticPragma                Range QName
+  | InlinePragma                Range Bool QName  -- ^ INLINE or NOINLINE
 
-  | ImpossiblePragma          Range [String]
+  | ImpossiblePragma            Range [String]
     -- ^ Throws an internal error in the scope checker.
     --   The 'String's are words to be displayed with the error.
-  | EtaPragma                 Range QName
+  | EtaPragma                   Range QName
     -- ^ For coinductive records, use pragma instead of regular
     --   @eta-equality@ definition (as it is might make Agda loop).
-  | WarningOnUsage            Range QName Text
+  | WarningOnUsage              Range QName Text
     -- ^ Applies to the named function
-  | WarningOnImport           Range Text
+  | WarningOnImport             Range Text
     -- ^ Applies to the current module
-  | InjectivePragma           Range QName
+  | InjectivePragma             Range QName
     -- ^ Mark a definition as injective for the pattern matching unifier.
-  | DisplayPragma             Range Pattern Expr
+  | InjectiveForInferencePragma Range QName
+    -- ^ Mark a definition as injective for the conversion checker
+  | DisplayPragma               Range Pattern Expr
     -- ^ Display lhs as rhs (modifies the printer).
 
   -- Attached (more or less) pragmas handled in the nicifier (Concrete.Definitions):
-  | CatchallPragma            Range
+  | CatchallPragma              Range
     -- ^ Applies to the following function clause.
-  | TerminationCheckPragma    Range (TerminationCheck Name)
+  | TerminationCheckPragma      Range (TerminationCheck Name)
     -- ^ Applies to the following function (and all that are mutually recursive with it)
     --   or to the functions in the following mutual block.
-  | NoCoverageCheckPragma     Range
+  | NoCoverageCheckPragma       Range
     -- ^ Applies to the following function (and all that are mutually recursive with it)
     --   or to the functions in the following mutual block.
-  | NoPositivityCheckPragma   Range
+  | NoPositivityCheckPragma     Range
     -- ^ Applies to the following data/record type or mutual block.
-  | PolarityPragma            Range Name [Occurrence]
-  | NoUniverseCheckPragma     Range
+  | PolarityPragma              Range Name [Occurrence]
+  | NoUniverseCheckPragma       Range
     -- ^ Applies to the following data/record type.
-  | NotProjectionLikePragma   Range QName
+  | NotProjectionLikePragma     Range QName
     -- ^ Applies to the stated function
   | OverlapPragma             Range [QName] OverlapMode
     -- ^ Applies to the given name(s), which must be instance names
@@ -1015,6 +1017,7 @@ instance HasRange Pragma where
   getRange (ForeignPragma r _ _)             = r
   getRange (StaticPragma r _)                = r
   getRange (InjectivePragma r _)             = r
+  getRange (InjectiveForInferencePragma r _) = r
   getRange (InlinePragma r _ _)              = r
   getRange (ImpossiblePragma r _)            = r
   getRange (EtaPragma r _)                   = r
@@ -1227,6 +1230,7 @@ instance KillRange Pragma where
   killRange (RewritePragma _ _ qs)            = killRangeN (RewritePragma noRange noRange) qs
   killRange (StaticPragma _ q)                = killRangeN (StaticPragma noRange) q
   killRange (InjectivePragma _ q)             = killRangeN (InjectivePragma noRange) q
+  killRange (InjectiveForInferencePragma _ q) = killRangeN (InjectiveForInferencePragma noRange) q
   killRange (InlinePragma _ b q)              = killRangeN (InlinePragma noRange b) q
   killRange (CompilePragma _ b q s)           = killRangeN (\ q -> CompilePragma noRange b q s) q
   killRange (ForeignPragma _ b s)             = ForeignPragma noRange b s
@@ -1379,6 +1383,7 @@ instance NFData Pragma where
   rnf (ForeignPragma _ b s)             = rnf b `seq` rnf s
   rnf (StaticPragma _ a)                = rnf a
   rnf (InjectivePragma _ a)             = rnf a
+  rnf (InjectiveForInferencePragma _ a) = rnf a
   rnf (InlinePragma _ _ a)              = rnf a
   rnf (ImpossiblePragma _ a)            = rnf a
   rnf (EtaPragma _ a)                   = rnf a

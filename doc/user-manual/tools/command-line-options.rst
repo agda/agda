@@ -1169,6 +1169,12 @@ Erasure
 
      Default, opposite of :option:`--erase-record-parameters`.
 
+.. option:: --lossy-unification
+
+     .. versionadded:: 2.6.4
+
+     Enable lossy unification, see :ref:`lossy-unification`
+
 .. _warnings:
 
 Warnings

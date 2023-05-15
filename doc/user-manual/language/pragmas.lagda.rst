@@ -34,6 +34,8 @@ Index of pragmas
 
 * :ref:`INJECTIVE <injective-pragma>`
 
+* :ref:`INJECTIVE_FOR_INFERENCE <injective-for-inference-pragma>`
+
 * :ref:`INLINE <inline-pragma>`
 
 * :ref:`NO_POSITIVITY_CHECK <no_positivity_check-pragma>`
@@ -138,6 +140,37 @@ so you can pattern match on a proof of `Fin x ≡ Fin y` in example above,
 but does not give you definitional injectivity,
 so the constraint solver does not know how to solve the constraint `Fin x = Fin _`.
 Relevant issue: https://github.com/agda/agda/issues/4106#issuecomment-534904561
+
+.. _injective-for-inference-pragma:
+
+The ``INJECTIVE_FOR_INFERENCE`` pragma
+______________________________________
+
+Treats functions as injective for type inference. This behaves like a
+local version of :option:`--lossy-unification` and has the same
+potential issues. Since Agda can not always infer whether a function
+is injective it can be used to get stronger unification for those
+functions.
+
+Example::
+
+  open import Agda.Builtin.Equality
+  open import Agda.Builtin.Nat
+  open import Agda.Builtin.Sigma
+
+  _×_ : Set → Set → Set
+  A × B = Σ A (λ _ → B)
+
+  f : {A : Set} → Nat × A → Nat × A
+  f (n , a) = (0 , a)
+
+  {-# INJECTIVE_FOR_INFERENCE f #-}
+
+  snd-f-cong : ∀ {A} {a a' : Nat × A} → snd a ≡ snd a' → f a ≡ f a'
+  snd-f-cong refl = refl
+
+  f-≡ : ∀ {A} {a : A} → f (0 , a) ≡ f (1 , a)
+  f-≡ = snd-f-cong refl
 
 .. _inline-pragma:
 

@@ -35,6 +35,8 @@ Pragmas and options
 * New warning `WarningProblem` when trying to switch an unknown or non-benign warning with the `-W` option.
   Used to be a hard error.
 
+* New pragma `INJECTIVE_FOR_INFERENCE`, which treats functions as injective for inferring implicit arguments.
+
 Syntax
 ------
 

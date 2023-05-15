@@ -211,9 +211,13 @@ compareAs cmp a u v = do
                              | otherwise = (assign rid y vs u, assign dir x us v)
         (MetaV x us, _) -> unlessSubtyping $ assign dir x us v `orelse` fallback
         (_, MetaV y vs) -> unlessSubtyping $ assign rid y vs u `orelse` fallback
-        (Def f es, Def f' es') | f == f' ->
-          ifNotM (optFirstOrder <$> pragmaOptions) fallback $ {- else -} unlessSubtyping $ do
+        (Def f es, Def f' es') | f == f' -> do
           def <- getConstInfo f
+          foFlag <- optFirstOrder <$> pragmaOptions
+          let shortcut = foFlag || case theDef def of
+                Function{funFirstOrder = x} -> x
+                _ -> False
+          if not shortcut then fallback else unlessSubtyping $ do
           -- We do not shortcut projection-likes,
           -- Andreas, 2022-03-07, issue #5809:
           -- but irrelevant projections since they are applied to their parameters.

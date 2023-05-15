@@ -412,6 +412,7 @@ instance ExprLike Pragma where
       CompilePragma{}             -> pure p
       StaticPragma{}              -> pure p
       InjectivePragma{}           -> pure p
+      InjectiveForInferencePragma{} -> pure p
       InlinePragma{}              -> pure p
       EtaPragma{}                 -> pure p
       NotProjectionLikePragma{}   -> pure p
@@ -539,6 +540,7 @@ instance DeclaredNames Pragma where
     StaticPragma{}            -> mempty
     EtaPragma{}               -> mempty
     InjectivePragma{}         -> mempty
+    InjectiveForInferencePragma{} -> mempty
     InlinePragma{}            -> mempty
     NotProjectionLikePragma{} -> mempty
     DisplayPragma{}           -> mempty
