@@ -1637,6 +1637,7 @@ inverseSubst' skip args = map (mapFst unArg) <$> loop (zip args terms)
     let irr | isIrrelevant info = True
             | DontCare{} <- v   = True
             | otherwise         = False
+    ineg <- getPrimitiveName' builtinINeg
     case stripDontCare v of
       -- i := x
       Var i [] -> return $ (Arg info i, t) `cons` vars
@@ -1685,6 +1686,12 @@ inverseSubst' skip args = map (mapFst unArg) <$> loop (zip args terms)
       -- Distinguish args that can be eliminated (Con,Lit,Lam,unsure) ==> failure
       -- from those that can only put somewhere as a whole ==> neutralArg
       Var{}      -> neutralArg
+
+      -- primINeg i := x becomes i := primINeg x
+      -- (primINeg is a definitional involution)
+      Def qn es | Just [Arg _ (Var i [])] <- allApplyElims es, Just qn == ineg ->
+        pure $ (Arg info i, Def qn [Apply (defaultArg t)]) `cons` vars
+
       Def{}      -> neutralArg  -- Note that this Def{} is in normal form and might be prunable.
       t@Lam{}    -> failure t
       t@Lit{}    -> failure t
