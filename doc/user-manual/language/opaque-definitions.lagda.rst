@@ -29,8 +29,8 @@ Overview
   Outside of ``opaque`` blocks, these behave like postulates.
 
 * Opaque blocks, even in unrelated modules, can have ``unfolding``
-  clauses, marking some subset of the opaque names in scope as
-  transparent again.
+  clauses, which allow the user to list their choice of names that
+  should be locally treated as transparent.
 
 * Opaque definitions do not reduce in type signatures, even inside
   opaque blocks where they would otherwise be unfolded.
@@ -98,38 +98,142 @@ module, say ``Integer-ring``, can provide its own proofs, in an
           : a * (c + e) + b * (d + f) + (a * d + b * c + (a * f + b * e))
           ≡ a * c + b * d + (a * e + b * f) + (a * (d + f) + b * (c + e))
 
-Since the definition of ``distlℤ`` is in an ``opaque unfolding (ℤ)``
-block, it sees through the opacity of ``ℤ``, and of every other name
-depending on the same abstract block.
+Since the definition of ``distlℤ`` is in an ``opaque`` block with an
+``unfolding ℤ`` clause, it sees through the opacity of ``ℤ``, and of all
+names unfolded by ``ℤ``'s opaque block (see below).
 
-Transitive unfolding
---------------------
+What actually unfolds?
+----------------------
 
-For every name ``X`` mentioned in the ``unfolding`` clause associated
-with an ``opaque`` block, each opaque name that ``X`` (transitively)
-unfolds will also be marked transparent. This is necessary to preserve
-subject reduction. Consider the following example::
+When an ``opaque`` block is checked, Agda will compute ahead-of-time the
+set of names it is allowed to unfold. This set is per-*block*, not
+per-*definition*. An ``unfolding`` clause, if it mentions opaque names,
+will cause the unfolding sets associated with those names to be added to
+the current block.
 
-  opaque
-    foo : Set
-    foo = Nat
+The following illustrates the behaviour of these rules:
 
-  opaque
-    unfolding foo
+- Unfolding any name in an opaque block will cause any of the *other*
+  names in that block to be unfolded as well. Example::
 
-    bar : foo
-    bar = 123
+    module _ where private
+      opaque
+        x : Nat
+        y : Nat
 
-If we could unfold ``bar`` independently of ``foo``, we'd end up with
-``bar : foo`` reducing to ``123 : Nat``, while in this block, ``foo !=
-Nat``. One can observe the transitivity of ``unfolding`` clauses with an
-example like this::
+        x = 3
+        y = 4
 
-  opaque
-    unfolding bar
+      opaque
+        unfolding x
 
-    _ : foo ≡ Nat
-    _ = refl
+        _ : y ≡ 4
+        _ = refl
+
+  Here, even though only ``x`` was asked for, ``y`` is also available
+  for unfolding.
+
+- Since the unfolding sets brought in by clauses are associated with the
+  block, unfolding is transitive::
+
+    module _ where private
+      opaque
+        x : Nat
+        x = 3
+
+      opaque
+        unfolding x
+        y : Nat
+        y = 4 + x
+
+      opaque
+        unfolding y
+        _ : y ≡ 7
+        _ = refl
+
+- Opaque blocks which are lexically nested can also unfold the names of
+  their *parent* blocks, even if the name is not in scope when the child
+  block is defined::
+
+    module _ where private
+      opaque
+        x : Nat
+        x = 3
+
+        opaque
+          y : Nat
+          y = 4
+
+          _ : x ≡ 3
+          _ = refl
+
+        z : Nat
+        z = 5
+
+      opaque
+        unfolding y
+        _ : z ≡ 5
+        _ = refl
+
+  This is because the ``x`` and ``z`` are direct children of the same
+  ``opaque`` block: the ``opaque`` block that defines ``y`` does not
+  "split" its parent block.
+
+Multiple unfolding clauses are supported, as well as unfolding more than
+one name per clause. The syntax for the latter is simply a
+space-separated list of names, which must refer to unambiguous
+functions::
+
+    module _ where private
+      opaque
+        x : Nat
+        x = 3
+
+      opaque
+        y : Nat
+        y = 4
+
+      opaque
+        z : Nat
+        z = 5
+
+      opaque
+        unfolding x y
+        unfolding z
+
+        _ : x + y + z ≡ 12
+        _ = refl
+
+Finally, ``unfolding`` clauses do not introduce new layout context, so
+that the following is legal: note that ``y`` appears to the left of
+``x``, but is still attached to the same ``unfolding`` clause. This
+allows the user their preference for how to lay out their unfolding
+sets::
+
+      opaque
+        unfolding x
+          y
+        unfolding z
+
+        _ : x + y + z ≡ 12
+        _ = refl
+
+Having an ``unfolding`` clause appear after other definitions, or
+outside of ``opaque`` blocks, is a syntax error.
+
+Note that unlike ``abstract`` blocks, which are treated on a per-module
+basis, ``opaque`` blocks will only unfold names according to the rules
+above::
+
+  module _ where private
+    opaque
+      x : Nat
+      x = 3
+
+    -- opaque
+      -- _ : x ≡ 3
+      -- _ = refl
+      -- Fails with: x != 3 of type Nat
 
 Unfolding in types
 ------------------
