@@ -105,14 +105,14 @@ instance Pretty a => Pretty (SplitTree' a) where
 
 instance KillRange SplitTag where
   killRange = \case
-    SplitCon c -> killRange1 SplitCon c
-    SplitLit l -> killRange1 SplitLit l
+    SplitCon c -> killRangeN SplitCon c
+    SplitLit l -> killRangeN SplitLit l
     SplitCatchall -> SplitCatchall
 
 instance KillRange a => KillRange (SplitTree' a) where
   killRange = \case
     SplittingDone n -> SplittingDone n
-    SplitAt i lz ts -> killRange1 (SplitAt i lz) ts
+    SplitAt i lz ts -> killRangeN (SplitAt i lz) ts
 
 instance NFData a => NFData (SplitTree' a)
 instance NFData LazySplit

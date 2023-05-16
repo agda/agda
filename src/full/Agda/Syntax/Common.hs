@@ -120,7 +120,7 @@ instance HasRange a => HasRange (RecordDirectives' a) where
   getRange (RecordDirectives a b c d) = getRange (a,b,c,d)
 
 instance KillRange a => KillRange (RecordDirectives' a) where
-  killRange (RecordDirectives a b c d) = killRange4 RecordDirectives a b c d
+  killRange (RecordDirectives a b c d) = killRangeN RecordDirectives a b c d
 
 instance NFData a => NFData (RecordDirectives' a) where
   rnf (RecordDirectives a b c d) = c `seq` rnf (a, b, d)
@@ -529,7 +529,7 @@ instance HasRange Modality where
   getRange (Modality r q c) = getRange (r, q, c)
 
 instance KillRange Modality where
-  killRange (Modality r q c) = killRange3 Modality r q c
+  killRange (Modality r q c) = killRangeN Modality r q c
 
 instance NFData Modality where
 
@@ -1679,7 +1679,7 @@ instance HasRange ArgInfo where
   getRange (ArgInfo h m o _fv a) = getRange (h, m, o, a)
 
 instance KillRange ArgInfo where
-  killRange (ArgInfo h m o fv a) = killRange5 ArgInfo h m o fv a
+  killRange (ArgInfo h m o fv a) = killRangeN ArgInfo h m o fv a
 
 class LensArgInfo a where
   getArgInfo :: a -> ArgInfo
@@ -1817,7 +1817,7 @@ instance SetRange a => SetRange (Arg a) where
   setRange r = fmap $ setRange r
 
 instance KillRange a => KillRange (Arg a) where
-  killRange (Arg info a) = killRange2 Arg info a
+  killRange (Arg info a) = killRangeN Arg info a
 
 -- Andreas, 2019-07-05, issue #3889
 -- A dedicated equality for with-abstraction now exists,
@@ -2557,7 +2557,7 @@ instance HasRange a => HasRange (MaybePlaceholder a) where
 
 instance KillRange a => KillRange (MaybePlaceholder a) where
   killRange p@Placeholder{}     = p
-  killRange (NoPlaceholder p e) = killRange1 (NoPlaceholder p) e
+  killRange (NoPlaceholder p e) = killRangeN (NoPlaceholder p) e
 
 instance NFData a => NFData (MaybePlaceholder a) where
   rnf (Placeholder _)     = ()
@@ -2676,7 +2676,7 @@ instance NFData Fixity' where
   rnf (Fixity' _ a _) = rnf a
 
 instance KillRange Fixity' where
-  killRange (Fixity' f n r) = killRange3 Fixity' f n r
+  killRange (Fixity' f n r) = killRangeN Fixity' f n r
 
 -- lenses
 
@@ -2838,18 +2838,18 @@ instance (HasRange a, HasRange b) => HasRange (ImportedName' a b) where
 
 instance (KillRange a, KillRange b) => KillRange (ImportDirective' a b) where
   killRange (ImportDirective _ u h r p) =
-    killRange3 (\u h r -> ImportDirective noRange u h r p) u h r
+    killRangeN (\u h r -> ImportDirective noRange u h r p) u h r
 
 instance (KillRange a, KillRange b) => KillRange (Using' a b) where
-  killRange (Using  i) = killRange1 Using  i
+  killRange (Using  i) = killRangeN Using  i
   killRange UseEverything = UseEverything
 
 instance (KillRange a, KillRange b) => KillRange (Renaming' a b) where
-  killRange (Renaming i n mf _to) = killRange3 (\ i n mf -> Renaming i n mf noRange) i n mf
+  killRange (Renaming i n mf _to) = killRangeN (\ i n mf -> Renaming i n mf noRange) i n mf
 
 instance (KillRange a, KillRange b) => KillRange (ImportedName' a b) where
-  killRange (ImportedModule n) = killRange1 ImportedModule n
-  killRange (ImportedName   n) = killRange1 ImportedName   n
+  killRange (ImportedModule n) = killRangeN ImportedModule n
+  killRange (ImportedName   n) = killRangeN ImportedName   n
 
 -- ** NFData instances
 
@@ -2998,8 +2998,8 @@ instance (HasRange qn, HasRange nm, HasRange p, HasRange e) => HasRange (Rewrite
 
 instance (KillRange qn, KillRange nm, KillRange e, KillRange p) => KillRange (RewriteEqn' qn nm p e) where
   killRange = \case
-    Rewrite es    -> killRange1 Rewrite es
-    Invert qn pes -> killRange2 Invert qn pes
+    Rewrite es    -> killRangeN Rewrite es
+    Invert qn pes -> killRangeN Invert qn pes
 
 -----------------------------------------------------------------------------
 -- * Information on expanded ellipsis (@...@)
