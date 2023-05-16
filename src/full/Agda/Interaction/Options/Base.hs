@@ -223,6 +223,7 @@ import Agda.Utils.Monad         ( tell1 )
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.ProfileOptions
+import Agda.Utils.String        ( unwords1 )
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.TypeLits
@@ -1523,7 +1524,7 @@ pragmaFlagBool' long field effect pos info neg =
   flag b = NoArg $ effect a . set field a
     where a = fromBool b
   def  b = applyWhen (fromBool b == b0) (++ " (default)")
-  expl b = if b then unwords [pos, info] else fromMaybe ("do not " ++ pos) neg
+  expl b = if b then unwords1 [pos, info] else fromMaybe ("do not " ++ pos) neg
 
 
 pragmaOptions :: [OptDescr (Flag PragmaOptions)]

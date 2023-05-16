@@ -75,6 +75,11 @@ addFinalNewLine s@(c:cs)
 indent :: Integral i => i -> String -> String
 indent i = unlines . map (List.genericReplicate i ' ' ++) . lines
 
+-- | 'unwords', but remove empty words first.
+
+unwords1 :: [String] -> String
+unwords1 = unwords . filter (not . null)
+
 -- | Show a number using comma to separate powers of 1,000.
 
 showThousandSep :: Show a => a -> String
