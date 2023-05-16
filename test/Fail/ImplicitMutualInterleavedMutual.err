@@ -1,0 +1,5 @@
+ImplicitMutualInterleavedMutual.agda:6,1-8,13
+The following name is declared, but not accompanied by a
+definition: test.
+Since 'interleaved mutual' blocks can not participate in mutual
+recursion, its definition must be given before this point.
