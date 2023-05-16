@@ -29,8 +29,8 @@ Overview
   Outside of ``opaque`` blocks, these behave like postulates.
 
 * Opaque blocks, even in unrelated modules, can have ``unfolding``
-  clauses, marking some subset of the opaque names in scope as
-  transparent again.
+  clauses, which allow the user to list their choice of names that
+  should be locally treated as transparent.
 
 * Opaque definitions do not reduce in type signatures, even inside
   opaque blocks where they would otherwise be unfolded.
@@ -204,9 +204,11 @@ functions::
         _ : x + y + z ≡ 12
         _ = refl
 
-Note finally that the names in ``unfolding`` clauses are not affected by
-layout, so the following is legal. This allows the user to choose their
-preference for how to lay out their unfolding sets::
+Finally, ``unfolding`` clauses do not introduce new layout context, so
+that the following is legal: note that ``y`` appears to the left of
+``x``, but is still attached to the same ``unfolding`` clause. This
+allows the user their preference for how to lay out their unfolding
+sets::
 
       opaque
         unfolding x
