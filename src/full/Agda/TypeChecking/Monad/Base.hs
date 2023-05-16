@@ -5418,7 +5418,7 @@ getGeneralizedFieldName q
 ---------------------------------------------------------------------------
 
 instance KillRange Signature where
-  killRange (Sig secs defs rews) = killRange2 Sig secs defs rews
+  killRange (Sig secs defs rews) = killRangeN Sig secs defs rews
 
 instance KillRange Sections where
   killRange = fmap killRange
@@ -5430,30 +5430,30 @@ instance KillRange RewriteRuleMap where
   killRange = fmap killRange
 
 instance KillRange Section where
-  killRange (Section tel) = killRange1 Section tel
+  killRange (Section tel) = killRangeN Section tel
 
 instance KillRange Definition where
   killRange (Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk lang def) =
-    killRange19 Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk lang def
+    killRangeN Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk lang def
     -- TODO clarify: Keep the range in the defName field?
 
 instance KillRange NumGeneralizableArgs where
   killRange = id
 
 instance KillRange NLPat where
-  killRange (PVar x y) = killRange2 PVar x y
-  killRange (PDef x y) = killRange2 PDef x y
-  killRange (PLam x y) = killRange2 PLam x y
-  killRange (PPi x y)  = killRange2 PPi x y
-  killRange (PSort x)  = killRange1 PSort x
-  killRange (PBoundVar x y) = killRange2 PBoundVar x y
-  killRange (PTerm x)  = killRange1 PTerm x
+  killRange (PVar x y) = killRangeN PVar x y
+  killRange (PDef x y) = killRangeN PDef x y
+  killRange (PLam x y) = killRangeN PLam x y
+  killRange (PPi x y)  = killRangeN PPi x y
+  killRange (PSort x)  = killRangeN PSort x
+  killRange (PBoundVar x y) = killRangeN PBoundVar x y
+  killRange (PTerm x)  = killRangeN PTerm x
 
 instance KillRange NLPType where
-  killRange (NLPType s a) = killRange2 NLPType s a
+  killRange (NLPType s a) = killRangeN NLPType s a
 
 instance KillRange NLPSort where
-  killRange (PUniv u l) = killRange1 (PUniv u) l
+  killRange (PUniv u l) = killRangeN (PUniv u) l
   killRange s@(PInf f n) = s
   killRange PSizeUniv = PSizeUniv
   killRange PLockUniv = PLockUniv
@@ -5462,7 +5462,7 @@ instance KillRange NLPSort where
 
 instance KillRange RewriteRule where
   killRange (RewriteRule q gamma f es rhs t c) =
-    killRange6 RewriteRule q gamma f es rhs t c
+    killRangeN RewriteRule q gamma f es rhs t c
 
 instance KillRange CompiledRepresentation where
   killRange = id
@@ -5475,7 +5475,7 @@ instance KillRange System where
   killRange (System tel sys) = System (killRange tel) (killRange sys)
 
 instance KillRange ExtLamInfo where
-  killRange (ExtLamInfo m b sys) = killRange3 ExtLamInfo m b sys
+  killRange (ExtLamInfo m b sys) = killRangeN ExtLamInfo m b sys
 
 instance KillRange FunctionFlag where
   killRange = id
@@ -5497,12 +5497,12 @@ instance KillRange Defn where
       GeneralizableVar -> GeneralizableVar
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
       Function a b c d e f g h i j k l m n o p q ->
-        killRange17 Function a b c d e f g h i j k l m n o p q
-      Datatype a b c d e f g h i j   -> killRange10 Datatype a b c d e f g h i j
-      Record a b c d e f g h i j k l m -> killRange13 Record a b c d e f g h i j k l m
-      Constructor a b c d e f g h i j k -> killRange11 Constructor a b c d e f g h i j k
-      Primitive a b c d e f          -> killRange6 Primitive a b c d e f
-      PrimitiveSort a b              -> killRange2 PrimitiveSort a b
+        killRangeN Function a b c d e f g h i j k l m n o p q
+      Datatype a b c d e f g h i j   -> killRangeN Datatype a b c d e f g h i j
+      Record a b c d e f g h i j k l m -> killRangeN Record a b c d e f g h i j k l m
+      Constructor a b c d e f g h i j k -> killRangeN Constructor a b c d e f g h i j k
+      Primitive a b c d e f          -> killRangeN Primitive a b c d e f
+      PrimitiveSort a b              -> killRangeN PrimitiveSort a b
 
 instance KillRange MutualId where
   killRange = id
@@ -5519,7 +5519,7 @@ instance KillRange TermHead where
   killRange UnknownHead  = UnknownHead
 
 instance KillRange Projection where
-  killRange (Projection a b c d e) = killRange5 Projection a b c d e
+  killRange (Projection a b c d e) = killRangeN Projection a b c d e
 
 instance KillRange ProjLams where
   killRange = id
@@ -5528,7 +5528,7 @@ instance KillRange a => KillRange (Open a) where
   killRange = fmap killRange
 
 instance KillRange DisplayForm where
-  killRange (Display n es dt) = killRange3 Display n es dt
+  killRange (Display n es dt) = killRangeN Display n es dt
 
 instance KillRange Polarity where
   killRange = id
@@ -5542,11 +5542,11 @@ instance KillRange DoGeneralize where
 instance KillRange DisplayTerm where
   killRange dt =
     case dt of
-      DWithApp dt dts es -> killRange3 DWithApp dt dts es
-      DCon q ci dts      -> killRange3 DCon q ci dts
-      DDef q dts         -> killRange2 DDef q dts
-      DDot' v es         -> killRange2 DDot' v es
-      DTerm' v es        -> killRange2 DTerm' v es
+      DWithApp dt dts es -> killRangeN DWithApp dt dts es
+      DCon q ci dts      -> killRangeN DCon q ci dts
+      DDef q dts         -> killRangeN DDef q dts
+      DDot' v es         -> killRangeN DDot' v es
+      DTerm' v es        -> killRangeN DTerm' v es
 
 instance KillRange a => KillRange (Closure a) where
   killRange = id

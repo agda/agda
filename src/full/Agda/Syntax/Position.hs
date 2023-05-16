@@ -1,3 +1,6 @@
+{-# LANGUAGE DataKinds            #-}
+{-# LANGUAGE UndecidableInstances #-} -- Due to KILLRANGE vararg typeclass
+
 {-| Position information for syntax. Crucial for giving good error messages.
 -}
 
@@ -53,9 +56,7 @@ module Agda.Syntax.Position
   , KillRange(..)
   , KillRangeT
   , killRangeMap
-  , killRange1, killRange2, killRange3, killRange4, killRange5, killRange6, killRange7
-  , killRange8, killRange9, killRange10, killRange11, killRange12, killRange13, killRange14
-  , killRange15, killRange16, killRange17, killRange18, killRange19
+  , KILLRANGE(..)
   , withRangeOf
   , fuseRange
   , fuseRanges
@@ -96,6 +97,8 @@ import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
+
+import Agda.Utils.TypeLevel (IsBase, All, Domains)
 
 import Agda.Utils.Impossible
 
@@ -421,132 +424,21 @@ class KillRange a where
 
 type KillRangeT a = a -> a
 
+class KILLRANGE t b where
+  killRangeN :: IsBase t ~ b => All KillRange (Domains t) =>
+                t -> t
+
+instance IsBase t ~ 'True => KILLRANGE t 'True where
+  {-# INLINE killRangeN #-}
+  killRangeN v = v
+
+instance KILLRANGE t (IsBase t) => KILLRANGE (a -> t) 'False where
+  {-# INLINE killRangeN #-}
+  killRangeN f a = killRangeN (f (killRange a))
+
 -- | Remove ranges in keys and values of a map.
 killRangeMap :: (KillRange k, KillRange v) => KillRangeT (Map k v)
 killRangeMap = Map.mapKeysMonotonic killRange . Map.map killRange
-
-killRange1 :: KillRange a => (a -> b) -> a -> b
-
-killRange2 :: (KillRange a, KillRange b) => (a -> b -> c) -> a -> b -> c
-
-killRange3 :: (KillRange a, KillRange b, KillRange c) =>
-              (a -> b -> c -> d) -> a -> b -> c -> d
-
-killRange4 :: (KillRange a, KillRange b, KillRange c, KillRange d) =>
-              (a -> b -> c -> d -> e) -> a -> b -> c -> d -> e
-
-killRange5 :: ( KillRange a, KillRange b, KillRange c, KillRange d
-              , KillRange e ) =>
-              (a -> b -> c -> d -> e -> f) -> a -> b -> c -> d -> e -> f
-
-killRange6 :: ( KillRange a, KillRange b, KillRange c, KillRange d
-              , KillRange e, KillRange f ) =>
-              (a -> b -> c -> d -> e -> f -> g) -> a -> b -> c -> d -> e -> f -> g
-
-killRange7 :: ( KillRange a, KillRange b, KillRange c, KillRange d
-              , KillRange e, KillRange f, KillRange g ) =>
-              (a -> b -> c -> d -> e -> f -> g -> h) -> a -> b -> c -> d -> e -> f -> g -> h
-
-killRange8 :: ( KillRange a, KillRange b, KillRange c, KillRange d
-              , KillRange e, KillRange f, KillRange g, KillRange h ) =>
-              (a -> b -> c -> d -> e -> f -> g -> h -> i) ->
-              a -> b -> c -> d -> e -> f -> g -> h -> i
-
-killRange9 :: ( KillRange a, KillRange b, KillRange c, KillRange d
-              , KillRange e, KillRange f, KillRange g, KillRange h
-              , KillRange i ) =>
-              (a -> b -> c -> d -> e -> f -> g -> h -> i -> j) ->
-              a -> b -> c -> d -> e -> f -> g -> h -> i -> j
-
-killRange10 :: ( KillRange a, KillRange b, KillRange c, KillRange d
-               , KillRange e, KillRange f, KillRange g, KillRange h
-               , KillRange i, KillRange j ) =>
-               (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k) ->
-               a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k
-
-killRange11 :: ( KillRange a, KillRange b, KillRange c, KillRange d
-               , KillRange e, KillRange f, KillRange g, KillRange h
-               , KillRange i, KillRange j, KillRange k ) =>
-               (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l) ->
-               a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l
-
-killRange12 :: ( KillRange a, KillRange b, KillRange c, KillRange d
-               , KillRange e, KillRange f, KillRange g, KillRange h
-               , KillRange i, KillRange j, KillRange k, KillRange l ) =>
-               (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m) ->
-               a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m
-
-killRange13 :: ( KillRange a, KillRange b, KillRange c, KillRange d
-               , KillRange e, KillRange f, KillRange g, KillRange h
-               , KillRange i, KillRange j, KillRange k, KillRange l
-               , KillRange m ) =>
-               (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n) ->
-               a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n
-
-killRange14 :: ( KillRange a, KillRange b, KillRange c, KillRange d
-               , KillRange e, KillRange f, KillRange g, KillRange h
-               , KillRange i, KillRange j, KillRange k, KillRange l
-               , KillRange m, KillRange n ) =>
-               (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o) ->
-               a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o
-
-killRange15 :: ( KillRange a, KillRange b, KillRange c, KillRange d
-               , KillRange e, KillRange f, KillRange g, KillRange h
-               , KillRange i, KillRange j, KillRange k, KillRange l
-               , KillRange m, KillRange n, KillRange o ) =>
-               (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p) ->
-               a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p
-
-killRange16 :: ( KillRange a, KillRange b, KillRange c, KillRange d
-               , KillRange e, KillRange f, KillRange g, KillRange h
-               , KillRange i, KillRange j, KillRange k, KillRange l
-               , KillRange m, KillRange n, KillRange o, KillRange p ) =>
-               (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q) ->
-               a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q
-
-killRange17 :: ( KillRange a, KillRange b, KillRange c, KillRange d
-               , KillRange e, KillRange f, KillRange g, KillRange h
-               , KillRange i, KillRange j, KillRange k, KillRange l
-               , KillRange m, KillRange n, KillRange o, KillRange p
-               , KillRange q ) =>
-               (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r) ->
-               a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r
-
-killRange18 :: ( KillRange a, KillRange b, KillRange c, KillRange d
-               , KillRange e, KillRange f, KillRange g, KillRange h
-               , KillRange i, KillRange j, KillRange k, KillRange l
-               , KillRange m, KillRange n, KillRange o, KillRange p
-               , KillRange q, KillRange r ) =>
-               (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s) ->
-               a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s
-
-killRange19 :: ( KillRange a, KillRange b, KillRange c, KillRange d
-               , KillRange e, KillRange f, KillRange g, KillRange h
-               , KillRange i, KillRange j, KillRange k, KillRange l
-               , KillRange m, KillRange n, KillRange o, KillRange p
-               , KillRange q, KillRange r, KillRange s ) =>
-               (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s -> t) ->
-               a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s -> t
-
-killRange1  f a = f (killRange a)
-killRange2  f a = killRange1 (f $ killRange a)
-killRange3  f a = killRange2 (f $ killRange a)
-killRange4  f a = killRange3 (f $ killRange a)
-killRange5  f a = killRange4 (f $ killRange a)
-killRange6  f a = killRange5 (f $ killRange a)
-killRange7  f a = killRange6 (f $ killRange a)
-killRange8  f a = killRange7 (f $ killRange a)
-killRange9  f a = killRange8 (f $ killRange a)
-killRange10 f a = killRange9 (f $ killRange a)
-killRange11 f a = killRange10 (f $ killRange a)
-killRange12 f a = killRange11 (f $ killRange a)
-killRange13 f a = killRange12 (f $ killRange a)
-killRange14 f a = killRange13 (f $ killRange a)
-killRange15 f a = killRange14 (f $ killRange a)
-killRange16 f a = killRange15 (f $ killRange a)
-killRange17 f a = killRange16 (f $ killRange a)
-killRange18 f a = killRange17 (f $ killRange a)
-killRange19 f a = killRange18 (f $ killRange a)
 
 instance KillRange Range where
   killRange _ = noRange
@@ -590,11 +482,11 @@ instance (KillRange a, KillRange b) => KillRange (a, b) where
 
 instance (KillRange a, KillRange b, KillRange c) =>
          KillRange (a, b, c) where
-  killRange (x, y, z) = killRange3 (,,) x y z
+  killRange (x, y, z) = killRangeN (,,) x y z
 
 instance (KillRange a, KillRange b, KillRange c, KillRange d) =>
          KillRange (a, b, c, d) where
-  killRange (x, y, z, u) = killRange4 (,,,) x y z u
+  killRange (x, y, z, u) = killRangeN (,,,) x y z u
 
 instance (KillRange a, KillRange b) => KillRange (Either a b) where
   killRange (Left  x) = Left  $ killRange x

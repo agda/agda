@@ -88,7 +88,7 @@ instance HasRange a => HasRange (Dom' t a) where
   getRange = getRange . unDom
 
 instance (KillRange t, KillRange a) => KillRange (Dom' t a) where
-  killRange (Dom info x t b a) = killRange4 Dom info x t b a
+  killRange (Dom info x t b a) = killRangeN Dom info x t b a
 
 -- | Ignores 'Origin' and 'FreeVariables' and tactic.
 instance Eq a => Eq (Dom' t a) where
@@ -1237,30 +1237,30 @@ instance KillRange DataOrRecord where
   killRange = id
 
 instance KillRange ConHead where
-  killRange (ConHead c d i fs) = killRange4 ConHead c d i fs
+  killRange (ConHead c d i fs) = killRangeN ConHead c d i fs
 
 instance KillRange Term where
   killRange = \case
-    Var i vs    -> killRange1 (Var i) vs
-    Def c vs    -> killRange2 Def c vs
-    Con c ci vs -> killRange3 Con c ci vs
-    MetaV m vs  -> killRange1 (MetaV m) vs
-    Lam i f     -> killRange2 Lam i f
-    Lit l       -> killRange1 Lit l
-    Level l     -> killRange1 Level l
-    Pi a b      -> killRange2 Pi a b
-    Sort s      -> killRange1 Sort s
-    DontCare mv -> killRange1 DontCare mv
+    Var i vs    -> killRangeN (Var i) vs
+    Def c vs    -> killRangeN Def c vs
+    Con c ci vs -> killRangeN Con c ci vs
+    MetaV m vs  -> killRangeN (MetaV m) vs
+    Lam i f     -> killRangeN Lam i f
+    Lit l       -> killRangeN Lit l
+    Level l     -> killRangeN Level l
+    Pi a b      -> killRangeN Pi a b
+    Sort s      -> killRangeN Sort s
+    DontCare mv -> killRangeN DontCare mv
     v@Dummy{}   -> v
 
 instance KillRange Level where
-  killRange (Max n as) = killRange1 (Max n) as
+  killRange (Max n as) = killRangeN (Max n) as
 
 instance KillRange PlusLevel where
-  killRange (Plus n l) = killRange1 (Plus n) l
+  killRange (Plus n l) = killRangeN (Plus n) l
 
 instance (KillRange a) => KillRange (Type' a) where
-  killRange (El s v) = killRange2 El s v
+  killRange (El s v) = killRangeN El s v
 
 instance KillRange Sort where
   killRange = \case
@@ -1269,48 +1269,48 @@ instance KillRange Sort where
     LockUniv   -> LockUniv
     LevelUniv  -> LevelUniv
     IntervalUniv -> IntervalUniv
-    Univ u a   -> killRange1 (Univ u) a
-    PiSort a s1 s2 -> killRange3 PiSort a s1 s2
-    FunSort s1 s2 -> killRange2 FunSort s1 s2
-    UnivSort s -> killRange1 UnivSort s
-    MetaS x es -> killRange1 (MetaS x) es
-    DefS d es  -> killRange2 DefS d es
+    Univ u a   -> killRangeN (Univ u) a
+    PiSort a s1 s2 -> killRangeN PiSort a s1 s2
+    FunSort s1 s2 -> killRangeN FunSort s1 s2
+    UnivSort s -> killRangeN UnivSort s
+    MetaS x es -> killRangeN (MetaS x) es
+    DefS d es  -> killRangeN DefS d es
     s@DummyS{} -> s
 
 instance KillRange Substitution where
   killRange IdS                    = IdS
   killRange (EmptyS err)           = EmptyS err
-  killRange (Wk n rho)             = killRange1 (Wk n) rho
-  killRange (t :# rho)             = killRange2 (:#) t rho
-  killRange (Strengthen err n rho) = killRange1 (Strengthen err n) rho
-  killRange (Lift n rho)           = killRange1 (Lift n) rho
+  killRange (Wk n rho)             = killRangeN (Wk n) rho
+  killRange (t :# rho)             = killRangeN (:#) t rho
+  killRange (Strengthen err n rho) = killRangeN (Strengthen err n) rho
+  killRange (Lift n rho)           = killRangeN (Lift n) rho
 
 instance KillRange PatOrigin where
   killRange = id
 
 instance KillRange PatternInfo where
-  killRange (PatternInfo o xs) = killRange2 PatternInfo o xs
+  killRange (PatternInfo o xs) = killRangeN PatternInfo o xs
 
 instance KillRange ConPatternInfo where
-  killRange (ConPatternInfo i mr b mt lz) = killRange1 (ConPatternInfo i mr b) mt lz
+  killRange (ConPatternInfo i mr b mt lz) = killRangeN (ConPatternInfo i mr b) mt lz
 
 instance KillRange DBPatVar where
-  killRange (DBPatVar x i) = killRange2 DBPatVar x i
+  killRange (DBPatVar x i) = killRangeN DBPatVar x i
 
 instance KillRange a => KillRange (Pattern' a) where
   killRange p =
     case p of
-      VarP o x         -> killRange2 VarP o x
-      DotP o v         -> killRange2 DotP o v
-      ConP con info ps -> killRange3 ConP con info ps
-      LitP o l         -> killRange2 LitP o l
-      ProjP o q        -> killRange1 (ProjP o) q
-      IApplyP o u t x  -> killRange3 (IApplyP o) u t x
-      DefP o q ps      -> killRange2 (DefP o) q ps
+      VarP o x         -> killRangeN VarP o x
+      DotP o v         -> killRangeN DotP o v
+      ConP con info ps -> killRangeN ConP con info ps
+      LitP o l         -> killRangeN LitP o l
+      ProjP o q        -> killRangeN (ProjP o) q
+      IApplyP o u t x  -> killRangeN (IApplyP o) u t x
+      DefP o q ps      -> killRangeN (DefP o) q ps
 
 instance KillRange Clause where
   killRange (Clause rl rf tel ps body t catchall exact recursive unreachable ell wm) =
-    killRange11 Clause rl rf tel ps body t catchall exact recursive unreachable ell wm
+    killRangeN Clause rl rf tel ps body t catchall exact recursive unreachable ell wm
 
 instance KillRange a => KillRange (Tele a) where
   killRange = fmap killRange

@@ -436,7 +436,7 @@ instance SetRange ModuleName where
 
 instance KillRange Name where
   killRange (Name a b c d e f) =
-    (killRange6 Name a b c d e f) { nameBindingSite = d }
+    (killRangeN Name a b c d e f) { nameBindingSite = d }
     -- Andreas, 2017-07-25, issue #2649
     -- Preserve the nameBindingSite for error message.
     --
@@ -454,7 +454,7 @@ instance KillRange ModuleName where
   killRange (MName xs) = MName $ killRange xs
 
 instance KillRange QName where
-  killRange (QName a b) = killRange2 QName a b
+  killRange (QName a b) = killRangeN QName a b
   -- killRange q = q { qnameModule = killRange $ qnameModule q
   --                 , qnameName   = killRange $ qnameName   q
   --                 }
