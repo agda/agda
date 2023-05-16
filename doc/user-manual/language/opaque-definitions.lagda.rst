@@ -99,8 +99,8 @@ module, say ``Integer-ring``, can provide its own proofs, in an
           ≡ a * c + b * d + (a * e + b * f) + (a * (d + f) + b * (c + e))
 
 Since the definition of ``distlℤ`` is in an ``opaque`` block with an
-``unfolding ℤ`` clause, it sees through the opacity of ``ℤ``, and of
-every other name depending on the same abstract block.
+``unfolding ℤ`` clause, it sees through the opacity of ``ℤ``, and of all
+names unfolded by ``ℤ``'s opaque block (see below).
 
 What actually unfolds?
 ----------------------
