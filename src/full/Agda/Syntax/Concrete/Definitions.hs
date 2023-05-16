@@ -441,7 +441,7 @@ niceDeclarations fixs ds = do
         Mutual r ds' -> do
           -- The lone signatures encountered so far are not in scope
           -- for the mutual definition
-          forgetLoneSigs
+          breakImplicitMutualBlock r "`mutual` blocks"
           case ds' of
             [] -> justWarning $ EmptyMutual r
             _  -> (,ds) <$> (singleton <$> (mkOldMutual r =<< nice ds'))
@@ -449,7 +449,7 @@ niceDeclarations fixs ds = do
         InterleavedMutual r ds' -> do
           -- The lone signatures encountered so far are not in scope
           -- for the mutual definition
-          forgetLoneSigs
+          breakImplicitMutualBlock r "`interleaved mutual` blocks"
           case ds' of
             [] -> justWarning $ EmptyMutual r
             _  -> (,ds) <$> (singleton <$> (mkInterleavedMutual r =<< nice ds'))
@@ -519,10 +519,7 @@ niceDeclarations fixs ds = do
         Pragma p -> nicePragma p ds
 
         Opaque r ds' -> do
-          -- The lone signatures encountered so far are not in scope for
-          -- the opaque block. Opaque blocks can't participate in mutual
-          -- recursion.
-          forgetLoneSigs
+          breakImplicitMutualBlock r "`opaque` blocks"
 
           -- Split the enclosed declarations into an initial run of
           -- 'unfolding' statements and the rest of the body.
@@ -598,6 +595,7 @@ niceDeclarations fixs ds = do
     nicePragma (BuiltinPragma r str qn@(QName x)) ds = do
       return ([NicePragma r (BuiltinPragma r str qn)], ds)
 
+    nicePragma p@RewritePragma{} ds = return ([NicePragma (getRange p) p], ds)
     nicePragma p ds = return ([NicePragma (getRange p) p], ds)
 
     canHaveTerminationMeasure :: [Declaration] -> Bool

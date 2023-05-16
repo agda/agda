@@ -1,5 +1,5 @@
-Issue3932-2.agda:6,1-7,9
+ImplicitMutualMutual.agda:6,1-8,13
 The following name is declared, but not accompanied by a
-definition: f.
+definition: test.
 Since 'mutual' blocks can not participate in mutual recursion, its
 definition must be given before this point.

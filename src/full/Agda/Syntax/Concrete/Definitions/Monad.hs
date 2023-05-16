@@ -61,6 +61,7 @@ data LoneSig = LoneSig
       --   than the key of 'LoneSigs' pointing to it.
   , loneSigKind  :: DataRecOrFun
   }
+  deriving Show
 
 type LoneSigs     = Map Name LoneSig
      -- ^ We retain the 'Name' also in the codomain since
@@ -139,15 +140,23 @@ getSig x = fmap loneSigKind . Map.lookup x <$> use loneSigs
 noLoneSigs :: Nice Bool
 noLoneSigs = null <$> use loneSigs
 
--- | Ensure that all forward declarations have been given a definition.
-
 forgetLoneSigs :: Nice ()
 forgetLoneSigs = loneSigs .= Map.empty
 
+-- | Ensure that all forward declarations have been given a definition.
 checkLoneSigs :: LoneSigs -> Nice ()
 checkLoneSigs xs = do
   forgetLoneSigs
   unless (Map.null xs) $ declarationWarning $ MissingDefinitions $
+    map (\s -> (loneSigName s , loneSigRange s)) $ Map.elems xs
+
+-- | Ensure that all forward declarations have been given a definition,
+-- raising an error indicating *why* they would have had to have been
+-- defined.
+breakImplicitMutualBlock :: Range -> String -> Nice ()
+breakImplicitMutualBlock r why = do
+  xs <- use loneSigs
+  unless (Map.null xs) $ declarationException $ DisallowedInterleavedMutual r why $
     map (\s -> (loneSigName s , loneSigRange s)) $ Map.elems xs
 
 -- | Get names of lone function signatures, plus their unique names.

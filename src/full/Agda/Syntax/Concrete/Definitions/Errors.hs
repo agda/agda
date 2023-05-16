@@ -51,6 +51,10 @@ data DeclarationException'
   | OpaqueInMutual Range
       -- ^ @opaque@ block nested in a @mutual@ block. This can never
       -- happen, even with reordering.
+  | DisallowedInterleavedMutual Range String [(Name, Range)]
+      -- ^ A declaration that breaks an implicit mutual block (named by
+      -- the String argument) was present while the given lone type
+      -- signatures were still without their definitions.
     deriving Show
 
 ------------------------------------------------------------------------
@@ -230,6 +234,7 @@ instance HasRange DeclarationException' where
   getRange (BadMacroDef d)                      = getRange d
   getRange (UnfoldingOutsideOpaque r)           = r
   getRange (OpaqueInMutual r)                   = r
+  getRange (DisallowedInterleavedMutual r _ _)  = r
 
 instance HasRange DeclarationWarning where
   getRange (DeclarationWarning _ w) = getRange w
@@ -316,6 +321,16 @@ instance Pretty DeclarationException' where
     "Unfolding declarations can only appear as the first declaration immediately contained in an opaque block."
   pretty (OpaqueInMutual _) = fsep $
     pwords "Opaque blocks can not participate in mutual recursion. If the opaque definitions are to be mutually recursive, move the `mutual` block inside the `opaque` block."
+  pretty (DisallowedInterleavedMutual _ what [(n, _)]) = vcat
+    [ fsep (pwords "The following name is declared, but not accompanied by a definition:" ++ [pretty n])
+        <> "."
+    , fwords ("Since " ++ what ++ " can not participate in mutual recursion, its definition must be given before this point.")
+    ]
+  pretty (DisallowedInterleavedMutual _ what xs) = vcat
+    [ fsep (pwords "The following names are declared, but not accompanied by a definition:" ++ punctuate comma (map (pretty . fst) xs))
+        <> "."
+    , fwords ("Since " ++ what ++ " can not participate in mutual recursion, their definition must be given before this point.")
+    ]
 
 instance Pretty DeclarationWarning where
   pretty (DeclarationWarning _ w) = pretty w
