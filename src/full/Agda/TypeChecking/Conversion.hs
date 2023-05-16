@@ -1853,11 +1853,11 @@ equalSort s1 s2 = do
           -- form @Set l2@. @s1@ can be one of @Set l1@, @Prop l1@,
           -- @SizeUniv@, or @IUniv@.
           Type l -> do
-            l2 <- forceType s2
+            l2 <- forceUniv UType s2
             -- We must have @l2 =< l@, this might help us to solve
             -- more constraints (in particular when @l == 0@).
             leqLevel l2 l
-            -- Jesper, 2022-10-22, #6211: the operations `forceType`
+            -- Jesper, 2022-10-22, #6211: the operations `forceUniv`
             -- and `leqLevel` above might have instantiated some
             -- metas, so we need to reduce s1 again to get an
             -- up-to-date Blocker.
@@ -1875,13 +1875,13 @@ equalSort s1 s2 = do
                -- If both Prop and sized types are disabled, only the
                -- case @s1 == Set l1@ remains.
                | otherwise -> do
-                   l1 <- forceType s1
+                   l1 <- forceUniv UType s1
                    equalLevel l (levelLub l1 l2)
           -- If @Prop l == funSort s1 s2@, then @s2@ must be of the
           -- form @Prop l2@, and @s1@ can be one of @Set l1@, Prop
           -- l1@, or @SizeUniv@.
           Prop l -> do
-            l2 <- forceProp s2
+            l2 <- forceUniv UProp s2
             leqLevel l2 l
             s1b <- reduceB s1
             let s1 = ignoreBlocking s1b
@@ -1906,19 +1906,13 @@ equalSort s1 s2 = do
       isBottomSort propEnabled _                      = False
       -- (NB: Defined but not currently used)
 
-      forceType :: Sort -> m Level
-      forceType (Type l) = return l
-      forceType s = do
-        l <- newLevelMeta
-        equalSort s (Type l)
-        return l
-
-      forceProp :: Sort -> m Level
-      forceProp (Prop l) = return l
-      forceProp s = do
-        l <- newLevelMeta
-        equalSort s (Prop l)
-        return l
+      forceUniv :: Univ -> Sort -> m Level
+      forceUniv u = \case
+        Univ u' l | u == u' -> return l
+        s -> do
+          l <- newLevelMeta
+          equalSort s (Univ u l)
+          return l
 
       impossibleSort s = do
         reportS "impossible" 10
