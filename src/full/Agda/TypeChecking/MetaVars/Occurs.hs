@@ -49,6 +49,7 @@ import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Either
+import Agda.Utils.Function
 import Agda.Utils.Lens
 import Agda.Utils.List (downFrom)
 import Agda.Utils.Maybe
@@ -488,7 +489,7 @@ instance Occurs Term where
               reportSDoc "tc.meta.occurs" 35 $ "offending variable: " <+> prettyTCM (var i)
               t <-  typeOfBV i
               reportSDoc "tc.meta.occurs" 35 $ nest 2 $ "of type " <+> prettyTCM t
-              isST <- isSingletonType t
+              isST <- typeLevelReductions $ isSingletonType t
               reportSDoc "tc.meta.occurs" 35 $ nest 2 $ "(after singleton test)"
               case isST of
                 -- not a singleton type
@@ -501,12 +502,13 @@ instance Occurs Term where
                 -- is a singleton type with unique inhabitant sv
                 (Just sv) -> return $ sv `applyE` es
           Lam h f     -> do
-            ab <- shouldBePiOrPath ty
+            ab <- typeLevelReductions $ shouldBePiOrPath ty
             Lam h <$> occurs f ab
           Level l     -> Level <$> occurs_ l
           Lit l       -> return v
           Dummy{}     -> return v
-          DontCare v  -> dontCare <$> do underRelevance Irrelevant $ occurs v ty
+          DontCare v  -> dontCare <$> do
+            onlyReduceTypes $ underRelevance Irrelevant $ occurs v ty
           Def d es    -> do
             definitionCheck d
             Def d <$> occDef d es
@@ -522,7 +524,7 @@ instance Occurs Term where
                   -- currently it is not due to primPOr.
                   -- (see https://github.com/agda/agda/issues/5837#issuecomment-1448757002)
                   patternViolation neverUnblock
-            (_, ct) <- fromMaybeM fail (getConType c ty)
+            (_, ct) <- typeLevelReductions $ fromMaybeM fail (getConType c ty)
             Con c ci <$> conArgs vs (occurs vs (ct , Con c ci))  -- if strongly rigid, remain so, except with unreduced IApply arguments.
           Pi a b      -> Pi <$> occurs_ a <*> occurs b a
           Sort s      -> Sort <$> do underRelevance NonStrict $ occurs_ s
@@ -687,14 +689,15 @@ instance Occurs Elims where
     (e',t') <- case e of
       (Proj o f)     -> do
         definitionCheck f
-        t' <- shouldBeProjectible (hd []) t o f
+        t' <- typeLevelReductions $ shouldBeProjectible (hd []) t o f
         return (e, t')
       (Apply u)      -> do
-        (a,b) <- shouldBePi t
+        (a,b) <- typeLevelReductions $ shouldBePi t
         u' <- occurs u a
         return (Apply u' , absApp b (unArg u'))
       (IApply x y u) -> do
-        (a, b) <- shouldBePiOrPath t -- TODO: using shouldBePath here causes errors in cubical library
+        -- TODO: using shouldBePath here causes errors in cubical library
+        (a, b) <- typeLevelReductions $ shouldBePiOrPath t
         izero <- primIZero
         ione  <- primIOne
         x' <- occurs x (b `absApp` izero)
@@ -723,7 +726,9 @@ instance Occurs (Abs Type) where
   metaOccurs m (NoAbs _ x) = metaOccurs m x
 
 instance Occurs a => Occurs (Arg a) where
-  occurs (Arg info v) t = Arg info <$> do underModality info $ occurs v (unDom t)
+  occurs (Arg info v) t = Arg info <$> do
+    applyWhen (isIrrelevant info) onlyReduceTypes $
+      underModality info $ occurs v (unDom t)
   metaOccurs m = metaOccurs m . unArg
 
 instance Occurs a => Occurs (Dom a) where
