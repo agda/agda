@@ -1634,11 +1634,9 @@ funSort' a b = case (a, b) of
   (a             , LockUniv     ) -> Left neverUnblock
   -- @IntervalUniv@ behaves like @SSet@, but functions into @Type@ land in @Type@
   (IntervalUniv  , IntervalUniv ) -> Right $ SSet $ ClosedLevel 0
-  (IntervalUniv  , SSet b       ) -> Right $ SSet $ b
-  (IntervalUniv  , Type b       ) -> Right $ Type $ b
+  (IntervalUniv  , Univ u b     ) -> Right $ Univ u b
   (IntervalUniv  , _            ) -> Left neverUnblock
-  (Type a        , IntervalUniv ) -> Right $ SSet $ a
-  (SSet a        , IntervalUniv ) -> Right $ SSet $ a
+  (Univ u a      , IntervalUniv ) -> Right $ SSet $ a
   (_             , IntervalUniv ) -> Left neverUnblock
   (SizeUniv      , b            ) -> Right b
   (a             , SizeUniv     ) -> sizeOfSort a >>= \case
