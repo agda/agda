@@ -981,7 +981,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
       -- since when abstracting irrelevant lhs vars, they may only occur
       -- irrelevantly on rhs.
       -- v <- liftTCM $ occursCheck x (relVL, nonstrictVL, irrVL) v
-      v <- liftTCM $ occursCheck x vars v target
+      v <- liftTCM $ occursCheck x vars v
 
       reportSLn "tc.meta.assign" 15 "passed occursCheck"
       reportSDoc "tc.meta.assign" 25 $ "v = " <+> prettyTCM v
