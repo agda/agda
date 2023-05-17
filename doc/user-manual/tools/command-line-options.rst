@@ -1173,7 +1173,7 @@ Erasure
 
      .. versionadded:: 2.6.4
 
-     Enable lossy unification, see :ref:`lossy-unification`
+     Enable lossy unification, see :ref:`lossy-unification`.
 
 .. _warnings:
 

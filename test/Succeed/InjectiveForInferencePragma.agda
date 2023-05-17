@@ -1,19 +1,21 @@
 module InjectiveForInferencePragma where
 
 open import Agda.Builtin.Equality
-open import Agda.Builtin.Nat
-open import Agda.Builtin.Sigma
+open import Agda.Builtin.List
 
-_×_ : Set → Set → Set
-A × B = Σ A (λ _ → B)
+module _ {A : Set} where
+  _++_ : List A → List A → List A
+  []       ++ ys = ys
+  (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
 
-f : {A : Set} → Nat × A → Nat × A
-f (n , a) = (0 , a)
+  reverse : List A → List A
+  reverse []      = []
+  reverse (x ∷ l) = reverse l ++ (x ∷ [])
 
-{-# INJECTIVE_FOR_INFERENCE f #-}
+  {-# INJECTIVE_FOR_INFERENCE reverse #-}
 
-snd-f-cong : ∀ {A} {a a' : Nat × A} → snd a ≡ snd a' → f a ≡ f a'
-snd-f-cong refl = refl
+  reverse-≡ : {l l' : List A} → reverse l ≡ reverse l' → reverse l ≡ reverse l'
+  reverse-≡ h = h
 
-f-≡ : ∀ {A} {a : A} → f (0 , a) ≡ f (1 , a)
-f-≡ = snd-f-cong refl
+  []≡[] : {l l' : List A} → [] ≡ []
+  []≡[] = reverse-≡ (refl {x = reverse []})
