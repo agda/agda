@@ -128,11 +128,15 @@ compactDef bEnv def rewr = do
   shouldReduce <- shouldReduceDef (defName def)
   allowed <- asksTC envAllowedReductions
 
+  let isConOrProj = case theDef def of
+        Constructor{} -> True
+        Function { funProjection = Right{} } -> True
+        _ -> False
   let allowReduce = and
         [ shouldReduce
         , or
           [ RecursiveReductions `SmallSet.member` allowed
-          , isJust (isProjection_ $ theDef def) && ProjectionReductions `SmallSet.member` allowed
+          , isConOrProj && ProjectionReductions `SmallSet.member` allowed
           , isInlineFun (theDef def) && InlineReductions `SmallSet.member` allowed
           , definitelyNonRecursive_ (theDef def) && or
             [ defCopatternLHS def && CopatternReductions `SmallSet.member` allowed
