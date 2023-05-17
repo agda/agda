@@ -52,15 +52,22 @@ class (Bounded a, Ix a) => SmallSetElement a where
 newtype SmallSet a = SmallSet { theSmallSet :: Word64 }
   deriving (Eq, Ord, Show, NFData)
 
+
+instance SmallSetElement a => Null.Null (SmallSet a) where
+  empty = empty
+  null = null
+
+instance SmallSetElement a => Semigroup (SmallSet a) where
+  (<>) = union
+
+instance SmallSetElement a => Monoid (SmallSet a) where
+  mempty = empty
+
 -- * Query
 
 -- | Time O(1).
 null :: SmallSetElement a => SmallSet a -> Bool
 null s = theSmallSet s == 0
-
-instance SmallSetElement a => Null.Null (SmallSet a) where
-  empty = empty
-  null = null
 
 -- | Time O(1).
 member :: SmallSetElement a => a -> SmallSet a -> Bool
