@@ -199,6 +199,7 @@ common language
   ghc-options:
       -fprint-potential-instances
       -- ASR (2022-05-31). Workaround to Issue #5932.
+      -Werror
       -Werror=cpp-undef
       -Werror=deprecated-flags
       -Werror=deriving-typeable
@@ -239,6 +240,11 @@ common language
   if impl(ghc < 8.10)
     ghc-options:
       -Werror=implicit-kind-vars
+      -- #6623: Turn off this (nameless) warning:
+      -- "Pattern match checker exceeded (2000000) iterations in a case alternative."
+      -- See: https://gitlab.haskell.org/ghc/ghc/-/issues/13464
+      -Wno-incomplete-patterns
+      -Wno-overlapping-patterns
 
   if impl(ghc >= 8.8)
     ghc-options:
@@ -246,9 +252,6 @@ common language
 
   if impl(ghc >= 8.10)
     ghc-options:
-      -Werror
-         -- #6623: Cannot have -Werror on GHC < 8.10 because of (nameless!?) warning.
-         -- "Pattern match checker exceeded (2000000) iterations in a case alternative."
       -Werror=compat-unqualified-imports
       -Werror=deriving-defaults
       -Werror=redundant-record-wildcards
@@ -261,6 +264,7 @@ common language
       -- #6137: coverage checker works only sufficiently well from GHC 9.0
       -Werror=incomplete-patterns
       -Werror=incomplete-record-updates
+      -Werror=overlapping-patterns
 
   -- ASR (2022-04-27). This warning was added in GHC 9.0.2, removed
   -- from 9.2.1 and added back in 9.2.2.
