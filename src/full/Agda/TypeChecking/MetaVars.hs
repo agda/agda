@@ -840,7 +840,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
     -- Case 1 (comparing term to meta as types)
     (AsTypes{}   , HasType _ cmp0 t) -> do
         let cmp   = if cumulativity then cmp0 else CmpEq
-            abort = patternViolation $ unblockOnAnyMetaIn t -- TODO: make piApplyM' compute unblocker
+            abort = patternViolation =<< updateBlocker (unblockOnAnyMetaIn t) -- TODO: make piApplyM' compute unblocker
         t' <- piApplyM' abort t args
         s <- shouldBeSort t'
         checkSolutionSort cmp s v
@@ -848,7 +848,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
     -- Case 2 (comparing term to type-level meta as terms, with --cumulativity)
     (AsTermsOf{} , HasType _ cmp t)
       | cumulativity -> do
-          let abort = patternViolation $ unblockOnAnyMetaIn t
+          let abort = patternViolation =<< updateBlocker (unblockOnAnyMetaIn t)
           t' <- piApplyM' abort t args
           TelV tel t'' <- telView t'
           addContext tel $ ifNotSort t'' (return ()) $ \s -> do
@@ -1026,7 +1026,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
           Left ProjVar{}   -> Just <$> attemptPruning x args fvs
 
       case mids of  -- vv Ulf 2014-07-13: actually not needed after all: attemptInertRHSImprovement x args v
-        Nothing  -> patternViolation (unblockOnAnyMetaIn v)  -- TODO: more precise
+        Nothing  -> patternViolation =<< updateBlocker (unblockOnAnyMetaIn v)  -- TODO: more precise
         Just ids -> do
           -- Check linearity
           ids <- do
@@ -1038,7 +1038,9 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
               -- If pruning fails we need to unblock on any meta in the rhs, since they might get
               -- rid of the dependency on the non-linear variable. TODO: be more precise (all metas
               -- using non-linear variables need to be solved).
-              Left ()   -> addOrUnblocker (unblockOnAnyMetaIn v) $ attemptPruning x args fvs
+              Left ()   -> do
+                block <- updateBlocker $ unblockOnAnyMetaIn v
+                addOrUnblocker block $ attemptPruning x args fvs
 
           -- Check ids is time respecting.
           () <- do
@@ -1383,7 +1385,7 @@ checkSubtypeIsEqual a b = do
         Dummy{} -> return () -- TODO: this shouldn't happen but
                              -- currently does because of generalized
                              -- metas being created in a dummy context
-        a -> patternViolation (unblockOnAnyMetaIn a) -- TODO: can this happen?
+        a -> patternViolation =<< updateBlocker (unblockOnAnyMetaIn a) -- TODO: can this happen?
       Pi b1 b2 -> abortIfBlocked (unEl a) >>= \case
         Pi a1 a2
           | getRelevance a1 /= getRelevance b1 -> patternViolation neverUnblock -- Can we recover from this?
@@ -1395,7 +1397,7 @@ checkSubtypeIsEqual a b = do
         Dummy{} -> return () -- TODO: this shouldn't happen but
                              -- currently does because of generalized
                              -- metas being created in a dummy context
-        a -> patternViolation (unblockOnAnyMetaIn a)
+        a -> patternViolation =<< updateBlocker (unblockOnAnyMetaIn a)
       -- TODO: check subtyping for Size< types
       _ -> return ()
 
