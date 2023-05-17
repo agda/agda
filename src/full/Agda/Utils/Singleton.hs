@@ -26,6 +26,8 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Agda.Utils.SmallSet (SmallSet, SmallSetElement)
+import qualified Agda.Utils.SmallSet as SmallSet
 
 -- | A create-only possibly empty collection is a monoid with the possibility
 --   to inject elements.
@@ -55,6 +57,8 @@ instance (Eq a, Hashable a) =>
 instance (Eq k, Hashable k) =>
          Collection (k, a)  (HashMap k a) where fromList = HashMap.fromList
 
+instance SmallSetElement a => Collection a (SmallSet a) where fromList = SmallSet.fromList
+
 -- | Overloaded @singleton@ constructor for collections.
 
 class Singleton el coll | coll -> el where
@@ -70,6 +74,7 @@ instance Singleton a   (NonEmpty a)
 instance Singleton a   (Seq a)     where singleton = Seq.singleton
 instance Singleton a   (Set a)     where singleton = Set.singleton
 instance Singleton Int IntSet      where singleton = IntSet.singleton
+instance SmallSetElement a => Singleton a (SmallSet a) where singleton = SmallSet.singleton
 
 instance Singleton (k  ,a) (Map  k a) where singleton = uncurry Map.singleton
 instance Singleton (Int,a) (IntMap a) where singleton = uncurry IntMap.singleton
