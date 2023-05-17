@@ -17,7 +17,7 @@ module Agda.TypeChecking.Reduce
  , unfoldDefinitionE, unfoldDefinitionStep
  , unfoldInlined
  , appDef', appDefE'
- , abortIfBlocked, ifBlocked, isBlocked, fromBlocked
+ , abortIfBlocked, ifBlocked, isBlocked, fromBlocked, blockOnError
  -- Simplification
  , Simplify, simplify, simplifyBlocked'
  -- Normalization
@@ -26,6 +26,7 @@ module Agda.TypeChecking.Reduce
  ) where
 
 import Control.Monad ( (>=>), void )
+import Control.Monad.Except
 
 import Data.Maybe
 import Data.Map (Map)
@@ -140,6 +141,16 @@ blockAny bs = blockedOn block $ fmap ignoreBlocking bs
                   bs -> unblockOnAny $ Set.fromList bs
         blocker NotBlocked{}  = []
         blocker (Blocked b _) = [b]
+
+-- | Run the given computation but turn any errors into blocked computations with the given blocker
+blockOnError :: MonadError TCErr m => Blocker -> m a -> m a
+blockOnError blocker f
+  | blocker == neverUnblock = f
+  | otherwise               = f `catchError` \case
+    TypeError{}         -> throwError $ PatternErr blocker
+    PatternErr blocker' -> throwError $ PatternErr $ unblockOnEither blocker blocker'
+    err@Exception{}     -> throwError err
+    err@IOException{}   -> throwError err
 
 -- | Instantiate something.
 --   Results in an open meta variable or a non meta.
