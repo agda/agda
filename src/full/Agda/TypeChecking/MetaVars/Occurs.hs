@@ -686,6 +686,8 @@ instance Occurs Sort where
 instance Occurs Elims where
   occurs []     _      = return []
   occurs (e:es) (t,hd) = do
+    reportSDoc "tc.meta.occurs.elim" 45 $ "occurs" <+> prettyTCM e <+> "elimating" <+> prettyTCM (hd []) <+> ":" <+> prettyTCM t
+    reportSDoc "tc.meta.occurs.elim" 70 $ "occurs" <+> pretty e <+> "eliminating" <+> pretty (hd []) <+> ":" <+> pretty t
     (e',t') <- case e of
       (Proj o f)     -> do
         definitionCheck f
