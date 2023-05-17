@@ -117,16 +117,6 @@ intersectVars = zipWithM areVars where
     areVars (Apply (Arg _ (Var n []))) (Apply (Arg _ (Var m []))) = Just $ n /= m -- prune different vars
     areVars _ _                                   = Nothing
 
--- | Run the given computation but turn any errors into blocked computations with the given blocker
-blockOnError :: MonadError TCErr m => Blocker -> m a -> m a
-blockOnError blocker f
-  | blocker == neverUnblock = f
-  | otherwise               = f `catchError` \case
-    TypeError{}         -> throwError $ PatternErr blocker
-    PatternErr blocker' -> throwError $ PatternErr $ unblockOnEither blocker blocker'
-    err@Exception{}     -> throwError err
-    err@IOException{}   -> throwError err
-
 equalTerm :: MonadConversion m => Type -> Term -> Term -> m ()
 equalTerm = compareTerm CmpEq
 
