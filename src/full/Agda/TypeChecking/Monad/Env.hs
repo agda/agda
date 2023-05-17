@@ -100,7 +100,8 @@ putAllowedReductions = modifyAllowedReductions . const
 
 -- | Reduce @Def f vs@ only if @f@ is a projection.
 onlyReduceProjections :: MonadTCEnv m => m a -> m a
-onlyReduceProjections = putAllowedReductions $ SmallSet.singleton ProjectionReductions
+onlyReduceProjections = modifyAllowedReductions $ SmallSet.intersection $
+  SmallSet.singleton ProjectionReductions
 
 -- | Allow all reductions except for non-terminating functions (default).
 allowAllReductions :: MonadTCEnv m => m a -> m a
@@ -113,7 +114,8 @@ allowNonTerminatingReductions = putAllowedReductions reallyAllReductions
 -- | Allow all reductions when reducing types. Otherwise only allow
 --   inlined functions to be unfolded.
 onlyReduceTypes :: MonadTCEnv m => m a -> m a
-onlyReduceTypes = putAllowedReductions $ SmallSet.fromList [TypeLevelReductions, InlineReductions]
+onlyReduceTypes = modifyAllowedReductions $ SmallSet.intersection $
+  SmallSet.fromList [TypeLevelReductions, InlineReductions]
 
 -- | Update allowed reductions when working on types
 typeLevelReductions :: MonadTCEnv m => m a -> m a
