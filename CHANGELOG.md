@@ -373,3 +373,33 @@ Language
   but `Prop` is only in scope when `--prop` is active.
   Additionally `SSet` is now in scope when `--two-level` is active
   (see [#6634](https://github.com/agda/agda/pull/6634)).
+
+* New sorts `Propω`, `Propω₁`, etc., in analogy to `Setω`, `Setω₁` etc.
+  Requires option `--prop`.
+
+  Example:
+  ```agda
+  {-# OPTIONS --prop #-}
+
+  open Agda.Primitive
+
+  variable
+    ℓ : Level
+    A : Set ℓ
+
+  -- Lists of elements of types at any finite level.
+
+  data HList : Setω where
+    []  : HList
+    _∷_ : A → HList → HList
+
+  variable
+    x  : A
+    xs : HList
+
+  -- Predicate stating that all elements satisfy a given property.
+
+  data All (P : {A : Set ℓ} → A → Prop ℓ) : HList → Propω where
+    []  : All P []
+    _∷_ : P x → All P xs → All P (x ∷ xs)
+  ```
