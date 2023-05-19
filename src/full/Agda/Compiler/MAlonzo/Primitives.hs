@@ -283,6 +283,9 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $ List.loo
   , PrimForce        |-> return "\\ _ _ _ _ x f -> f $! x"
   , PrimForceLemma   |-> return mazErasedName
 
+  -- Lock universe
+  , PrimLockUniv |-> return "()"
+
   -- Erase
   , PrimEraseEquality |-> return mazErasedName
 
