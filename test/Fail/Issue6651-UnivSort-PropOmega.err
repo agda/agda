@@ -1,0 +1,4 @@
+Issue6651-UnivSort-PropOmega.agda:15,5-6
+univSort _7 != Propω
+when checking that the solution _7 of metavariable _5 has the
+expected type Propω

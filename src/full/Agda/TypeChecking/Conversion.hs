@@ -1260,6 +1260,7 @@ leqSort s1 s2 = do
     propEnabled <- isPropEnabled
     typeInTypeEnabled <- typeInType
     omegaInOmegaEnabled <- optOmegaInOmega <$> pragmaOptions
+    let infInInf = typeInTypeEnabled || omegaInOmegaEnabled
 
     let fvsRHS = (`IntSet.member` allFreeVars s2)
     badRigid <- s1 `rigidVarsNotContainedIn` fvsRHS
@@ -1278,7 +1279,7 @@ leqSort s1 s2 = do
       (Univ u a, Univ u' b) -> if u <= u' then leqLevel a b else no
 
       -- @Setωᵢ@ is above all small sorts
-      (Inf u m , Inf u' n) -> answer $ u <= u' && (m <= n || typeInTypeEnabled || omegaInOmegaEnabled)
+      (Inf u m , Inf u' n) -> answer $ u <= u' && (m <= n || infInInf)
       (Univ u _, Inf u' _) -> answer $ u <= u'
       (Inf u _, Univ u' _) -> answer $ u == u' && typeInTypeEnabled
 
@@ -1685,6 +1686,7 @@ equalSort s1 s2 = do
     propEnabled <- isPropEnabled
     typeInTypeEnabled <- typeInType
     omegaInOmegaEnabled <- optOmegaInOmega <$> pragmaOptions
+    let infInInf = typeInTypeEnabled || omegaInOmegaEnabled
 
     postponeIfBlocked $ case (s1, s2) of
 
@@ -1706,7 +1708,7 @@ equalSort s1 s2 = do
             (LevelUniv  , LevelUniv  ) -> yes
             (IntervalUniv , IntervalUniv) -> yes
             (Inf u m    , Inf u' n   ) ->
-              if u == u' && (m == n || typeInTypeEnabled || omegaInOmegaEnabled) then yes else no
+              if u == u' && (m == n || infInInf) then yes else no
 
             -- if --type-in-type is enabled, Setωᵢ is equal to any Set ℓ (see #3439)
             (Univ u _   , Inf  u' _  ) -> answer $ u == u' && typeInTypeEnabled
@@ -1721,8 +1723,8 @@ equalSort s1 s2 = do
             (FunSort a b , s2) -> funSortEquals propEnabled s2 a b blocker
 
             -- equating @UnivSort s@ to another sort
-            (s1          , UnivSort s2) -> univSortEquals propEnabled s1 s2 blocker
-            (UnivSort s1 , s2         ) -> univSortEquals propEnabled s2 s1 blocker
+            (s1          , UnivSort s2) -> univSortEquals propEnabled infInInf s1 s2 blocker
+            (UnivSort s1 , s2         ) -> univSortEquals propEnabled infInInf s2 s1 blocker
 
             -- postulated sorts can only be equal if they have the same head
             (DefS d es  , DefS d' es')
@@ -1761,8 +1763,8 @@ equalSort s1 s2 = do
 
       -- Equate a sort @s1@ to @univSort s2@
       -- Precondition: @s1@ and @univSort s2@ are already reduced.
-      univSortEquals :: Bool -> Sort -> Sort -> Blocker -> m ()
-      univSortEquals propEnabled s1 s2 blocker = do
+      univSortEquals :: Bool -> Bool -> Sort -> Sort -> Blocker -> m ()
+      univSortEquals propEnabled infInInf s1 s2 blocker = do
         reportSDoc "tc.conv.sort" 35 $ vcat
           [ "univSortEquals"
           , "  s1 =" <+> prettyTCM s1
@@ -1774,7 +1776,7 @@ equalSort s1 s2 = do
           -- @Prop l2@ where @l1 == lsuc l2@.
           Type l1 -> do
                -- @s2@ is definitely not @Inf n@ or @SizeUniv@
-            if | Inf _ n  <- s2 -> no
+            if | Inf _ _n <- s2 -> no
                | SizeUniv <- s2 -> no
                -- If @Prop@ is not used, then @s2@ must be of the form
                -- @Set l2@
@@ -1791,12 +1793,25 @@ equalSort s1 s2 = do
           -- @SSetω(n+1)@ is the successor sort of exactly @SSetω(n)@.
           -- @SSetω@ is the successor sort of exactly @SSetω@ if
           -- --type-in-type or --omega-in-omega is enabled.
-          -- The same is only true for @Setωᵢ@ if @Propω...@ are disabled.
-          Inf u n | invertibleSort propEnabled u ->
-            if n > 0 then equalSort (Inf u $ n - 1) s2 else do
-              infInInf <- (optOmegaInOmega <$> pragmaOptions) `or2M` typeInType
-              if | infInInf  -> equalSort s1 s2
-                 | otherwise -> no
+          -- The same is only true for @Setω(n+1)@ if @Propω...@ are disabled.
+          -- @Setω@ is the successor sort of @Setω@ (type:type) or @SizeUniv@ (--sized-types).
+          Inf u 0 -> do
+              -- Compute the predecessor(s) of (S)Setω and return it if it is unique.
+              sizedTypesEnabled <- sizedTypesOption
+              -- guardedEnabled <- optGuarded <$> pragmaOptions
+              case concat
+                [ [ s1       | u /= UProp, infInInf ]
+                , [ dummy    | u == UType, infInInf, propEnabled, let dummy = Inf UProp 0 ]
+                    -- We enter a dummy into the solution set if --prop makes predecessor ambiguous.
+                , [ SizeUniv | u == UType, sizedTypesEnabled ]
+                -- , [ LockUniv | guardedEnabled ]  -- LockUniv is actually in Set₁, not Setω
+                ]
+                of
+                [ s ] -> equalSort s s2
+                []    -> no
+                _     -> postpone
+          Inf u n | n > 0, invertibleSort propEnabled u ->
+            equalSort (Inf u $ n - 1) s2
           -- @Prop l@, @SizeUniv@ and @LevelUniv@ are not successor sorts
           Prop{}      -> no
           Inf UProp _ -> no
