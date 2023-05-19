@@ -1784,12 +1784,17 @@ equalSort s1 s2 = do
           -- @Set l1@ is the successor sort of either @Set l2@ or
           -- @Prop l2@ where @l1 == lsuc l2@.
           Type l1 -> do
+            levelUnivEnabled <- optLevelUniverse <$> pragmaOptions
+            guardedEnabled   <- optGuarded       <$> pragmaOptions
                -- @s2@ is definitely not @Inf n@ or @SizeUniv@
-            if | Inf _ _n <- s2 -> no
-               | SizeUniv <- s2 -> no
-               -- If @Prop@ is not used, then @s2@ must be of the form
-               -- @Set l2@
-               | not propEnabled -> do
+            if | Inf _ _n <- s2 -> __IMPOSSIBLE__
+               | SizeUniv <- s2 -> __IMPOSSIBLE__
+               -- The predecessor @s2@ is can also not be @SSet _@ or @IntervalUniv@
+               | Univ USSet _ <- s2 -> __IMPOSSIBLE__
+               | IntervalUniv <- s2 -> __IMPOSSIBLE__
+               -- If @Prop@ is not used, then @s2@ must be of the form @Set l2@,
+               -- except when l1 == 1, then it could also be @LockUniv@ or @LevelUniv@.
+               | not (propEnabled || guardedEnabled || levelUnivEnabled) -> do
                    l2 <- case subLevel 1 l1 of
                      Just l2 -> return l2
                      Nothing -> do
