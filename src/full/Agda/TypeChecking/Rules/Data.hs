@@ -1759,25 +1759,27 @@ fitsIn uc forceds t s = do
     q <- viewTC eQuantity
     usableAtModality' (Just s) ConstructorType (setQuantity q unitModality) (unEl t)
 
-  fitsIn' withoutK forceds t s
+  fitsIn' t s
   where
-  fitsIn' withoutK forceds t s = do
+  fitsIn' t s = do
     vt <- do
       t <- pathViewAsPi t
       return $ case t of
-                    Left (a,b)     -> Just (True ,a,b)
-                    Right (El _ t) | Pi a b <- t
-                                   -> Just (False,a,b)
-                    _              -> Nothing
+        Left (a,b)      -> Just (True ,a,b)
+        Right (El _ t)
+          | Pi a b <- t -> Just (False,a,b)
+        _               -> Nothing
     case vt of
       Just (isPath, dom, b) -> do
-        let (forced,forceds') = nextIsForced forceds
-        unless (isForced forced && not withoutK) $ do
-          sa <- reduce $ getSort dom
-          unless (isPath || uc == NoUniverseCheck || sa == SizeUniv) $
-            sa `leqSort` s
+        sa <- reduce $ getSort dom
+        -- If this binder corresponds to a path then it "has an
+        -- argument" in IntervalUniv, which wouldn't fit in any universe
+        -- of fibrant types, but having path constructors is obviously
+        -- fine in HITs.
+        unless (isPath || uc == NoUniverseCheck || sa == SizeUniv) $
+          sa `leqSort` s
         addContext (absName b, dom) $ do
-          succ <$> fitsIn' withoutK forceds' (absBody b) (raise 1 s)
+          succ <$> fitsIn' (absBody b) (raise 1 s)
       _ -> do
         getSort t `leqSort` s
         return 0
