@@ -1,4 +1,8 @@
 {-# OPTIONS --level-universe #-}
-open import Common.Level
 
-data foo : LevelUniv where
+open import Agda.Primitive
+
+data D : LevelUniv where
+
+-- Error:
+-- The universe LevelUniv of D does not admit data or record declarations
