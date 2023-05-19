@@ -1,0 +1,4 @@
+Issue6651-UnivSort-IUniv.agda:15,5-6
+univSort _8 != IUniv
+when checking that the solution _8 of metavariable _6 has the
+expected type IUniv
