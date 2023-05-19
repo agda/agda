@@ -112,7 +112,7 @@ inferFunSort s1 s2 = do
     Right s -> return s
     Left b -> do
       let b' = unblockOnEither (getBlocker s1') (getBlocker s2')
-      addConstraint (unblockOnEither b b') $ HasPTSRule (defaultDom (El (univSort s1) (Sort s1))) (mkAbs "_" $ ignoreBlocking s2')
+      addConstraint (unblockOnEither b b') $ HasPTSRule (defaultDom $ sort s1) (mkAbs "_" $ ignoreBlocking s2')
       return $ FunSort s1 s2
 
 hasPTSRule :: Dom Type -> Abs Sort -> TCM ()

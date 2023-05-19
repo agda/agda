@@ -1,0 +1,4 @@
+Issue6651-UnivPred-SizeUniv.agda:17,5-9
+Setω != Set₁
+when checking that the solution SizeUniv of metavariable _0 has the
+expected type Set₁
