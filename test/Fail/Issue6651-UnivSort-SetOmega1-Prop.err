@@ -1,0 +1,7 @@
+Failed to solve the following constraints:
+  univSort _8 =< Setω₁ (blocked on _8)
+  univSort _8 = Setω₁ (blocked on _8)
+  _9 is a sort (blocked on _8)
+Unsolved metas at the following locations:
+  Issue6651-UnivSort-SetOmega1-Prop.agda:16,16-17
+  Issue6651-UnivSort-SetOmega1-Prop.agda:16,20-21

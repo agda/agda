@@ -1,0 +1,8 @@
+Failed to solve the following constraints:
+  univSort _9 = Setω (blocked on _9)
+  univSort _9 =< Setω (blocked on _9)
+Unsolved metas at the following locations:
+  Issue6651-UnivSort-SetOmega-SizedTypes.agda:17,21-22
+Unsolved interaction metas at the following locations:
+  Issue6651-UnivSort-SetOmega-SizedTypes.agda:15,5-9
+  Issue6651-UnivSort-SetOmega-SizedTypes.agda:17,13-17

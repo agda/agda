@@ -1547,7 +1547,7 @@ univSort' :: Sort -> Either Blocker Sort
 univSort' (Univ u l)   = Right $ Univ (univUniv u) $ levelSuc l
 univSort' (Inf u n)    = Right $ Inf (univUniv u) $ 1 + n
 univSort' SizeUniv     = Right $ Inf UType 0
-univSort' LockUniv     = Right $ Inf UType 0 -- lock polymorphism is not actually supported
+univSort' LockUniv     = Right $ Type $ ClosedLevel 1
 univSort' LevelUniv    = Right $ Type $ ClosedLevel 1
 univSort' IntervalUniv = Right $ SSet $ ClosedLevel 1
 univSort' (MetaS m _)  = Left neverUnblock
