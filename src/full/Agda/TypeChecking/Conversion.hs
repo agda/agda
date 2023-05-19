@@ -1772,6 +1772,15 @@ equalSort s1 s2 = do
           ]
         let postpone = patternViolation blocker
         case s1 of
+          -- @Prop l@, @SizeUniv@ and @LevelUniv@ are not successor sorts.
+          Prop{}      -> no
+          Inf UProp _ -> no
+          SizeUniv{}  -> no
+          LevelUniv{} -> no
+          -- Neither are @LockUniv@ or @IntervalUniv@.
+          LockUniv{}     -> no
+          IntervalUniv{} -> no
+
           -- @Set l1@ is the successor sort of either @Set l2@ or
           -- @Prop l2@ where @l1 == lsuc l2@.
           Type l1 -> do
@@ -1812,11 +1821,7 @@ equalSort s1 s2 = do
                 _     -> postpone
           Inf u n | n > 0, invertibleSort propEnabled u ->
             equalSort (Inf u $ n - 1) s2
-          -- @Prop l@, @SizeUniv@ and @LevelUniv@ are not successor sorts
-          Prop{}      -> no
-          Inf UProp _ -> no
-          SizeUniv{}  -> no
-          LevelUniv{} -> no
+
           -- Anything else: postpone
           _ -> postpone
 
