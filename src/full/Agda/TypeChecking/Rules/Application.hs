@@ -1706,9 +1706,6 @@ checkPOr c rs vs _ = do
    l : phi1 : phi2 : a : u : v : rest -> do
       phi <- intervalUnview (IMin phi1 phi2)
       reportSDoc "tc.term.por" 10 $ text (show phi)
-      -- phi <- reduce phi
-      -- alphas <- toFaceMaps phi
-      -- reportSDoc "tc.term.por" 10 $ text (show alphas)
       t1 <- runNamesT [] $ do
              [l,a] <- mapM (open . unArg) [l,a]
              psi <- open =<< intervalUnview (IMax phi1 phi2)
