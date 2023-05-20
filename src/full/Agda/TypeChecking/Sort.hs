@@ -83,37 +83,49 @@ sortFitsIn a b = do
 hasBiggerSort :: Sort -> TCM ()
 hasBiggerSort = void . inferUnivSort
 
--- | Infer the sort of a pi type. If we can compute the sort straight away,
---   return that. Otherwise, return @PiSort a s2@ and add a constraint to
---   ensure we can compute the sort eventually.
-inferPiSort :: (PureTCM m,MonadConstraint m) => Dom Type -> Abs Sort -> m Sort
-inferPiSort a s2 = do
+-- | Infer the sort of a Pi type.
+--   If we can compute the sort straight away, return that.
+--   Otherwise, return a 'PiSort' and add a constraint to ensure we can compute the sort eventually.
+--
+inferPiSort :: (PureTCM m, MonadConstraint m)
+  => Dom Type  -- ^ Domain of the Pi type.
+  -> Abs Sort  -- ^ (Dependent) sort of the codomain of the Pi type.
+  -> m Sort    -- ^ Sort of the Pi type.
+inferPiSort a s = do
   s1' <- reduceB $ getSort a
-  s2' <- mapAbstraction a reduceB s2
+  s2' <- mapAbstraction a reduceB s
+  let s1 = ignoreBlocking s1'
+  let s2 = ignoreBlocking <$> s2'
   --Jesper, 2018-04-23: disabled PTS constraints for now,
   --this assumes that piSort can only be blocked by unsolved metas.
   --Arthur Adjedj, 2023-02-27, Turned PTS back on,
   --piSort can now be blocked by Leveluniv
-  let b' = unblockOnEither (getBlocker s1') (getBlocker $ unAbs s2')
-  case piSort' (unEl <$> a) (ignoreBlocking s1') (ignoreBlocking <$> s2') of
+  case piSort' (unEl <$> a) s1 s2 of
     Right s -> return s
     Left b -> do
-      addConstraint (unblockOnEither b b') $ HasPTSRule a (ignoreBlocking <$> s2')
-      return $ PiSort (unEl <$> a) (ignoreBlocking s1') (ignoreBlocking <$> s2')
-
+      let b' = unblockOnEither (getBlocker s1') (getBlocker $ unAbs s2')
+      addConstraint (unblockOnEither b b') $ HasPTSRule a s2
+      return $ PiSort (unEl <$> a) s1 s2
 
 -- | As @inferPiSort@, but for a nondependent function type.
-inferFunSort :: Dom Type -> Sort -> TCM Sort
-inferFunSort a s2 = do
-  let s1 = getSort a
-  s1' <- reduceB s1
-  s2' <- reduceB s2
-  case funSort' (ignoreBlocking s1') (ignoreBlocking s2') of
+--
+inferFunSort :: (PureTCM m, MonadConstraint m)
+  => Dom Type  -- ^ Domain of the function type.
+  -> Sort      -- ^ Sort of the codomain of the function type.
+  -> m Sort    -- ^ Sort of the function type.
+inferFunSort a s = do
+  s1' <- reduceB $ getSort a
+  s2' <- reduceB s
+  let s1 = ignoreBlocking s1'
+  let s2 = ignoreBlocking s2'
+  case funSort' s1 s2 of
     Right s -> return s
     Left b -> do
       let b' = unblockOnEither (getBlocker s1') (getBlocker s2')
-      addConstraint (unblockOnEither b b') $ HasPTSRule a (NoAbs "_" $ ignoreBlocking s2')
+      addConstraint (unblockOnEither b b') $ HasPTSRule a (NoAbs "_" s2)
       return $ FunSort s1 s2
+  -- Andreas, 2023-05-20:  I made inferFunSort step-by-step analogous to inferPiSort.
+  -- Unifying them seems unfeasible, though; too much parametrization...
 
 -- | @hasPTSRule a x.s@ checks that we can form a Pi-type @(x : a) -> b@ where @b : s@.
 --
