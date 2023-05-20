@@ -1964,14 +1964,6 @@ equalSort s1 s2 = do
           -- Anything else: postpone
           _        -> postpone
 
-      -- check if the given sort @s0@ is a (closed) bottom sort
-      -- i.e. @piSort a b == s0@ implies @b == s0@.
-      isBottomSort :: Bool -> Sort -> Bool
-      isBottomSort propEnabled (Prop (ClosedLevel 0)) = True
-      isBottomSort propEnabled (Type (ClosedLevel 0)) = not propEnabled
-      isBottomSort propEnabled _                      = False
-      -- (NB: Defined but not currently used)
-
       forceUniv :: Univ -> Sort -> m Level
       forceUniv u = \case
         Univ u' l | u == u' -> return l
@@ -1991,26 +1983,6 @@ equalSort s1 s2 = do
         TypeError{} -> fail
         err         -> throwError err
 
-
--- -- This should probably represent face maps with a more precise type
--- toFaceMaps :: Term -> TCM [[(Int,Term)]]
--- toFaceMaps t = do
---   view <- intervalView'
---   iz <- primIZero
---   io <- primIOne
---   ineg <- (\ q t -> Def q [Apply $ Arg defaultArgInfo t]) <$> fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' "primINeg"
-
---   let f IZero = mzero
---       f IOne  = return []
---       f (IMin x y) = do xs <- (f . view . unArg) x; ys <- (f . view . unArg) y; return (xs ++ ys)
---       f (IMax x y) = msum $ map (f . view . unArg) [x,y]
---       f (INeg x)   = map (id -*- not) <$> (f . view . unArg) x
---       f (OTerm (Var i [])) = return [(i,True)]
---       f (OTerm _) = return [] -- what about metas? we should suspend? maybe no metas is a precondition?
---       isConsistent xs = all (\ xs -> natSize xs == 1) . map nub . Map.elems $ xs  -- optimize by not doing generate + filter
---       as = map (map (id -*- head) . Map.toAscList) . filter isConsistent . map (Map.fromListWith (++) . map (id -*- (:[]))) $ (f (view t))
---   xs <- mapM (mapM (\ (i,b) -> (,) i <$> intervalUnview (if b then IOne else IZero))) as
---   return xs
 
 forallFaceMaps
   :: MonadConversion m
