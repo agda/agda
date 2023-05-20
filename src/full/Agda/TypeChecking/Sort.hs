@@ -103,28 +103,36 @@ inferPiSort a s2 = do
 
 
 -- | As @inferPiSort@, but for a nondependent function type.
-inferFunSort :: Sort -> Sort -> TCM Sort
-inferFunSort s1 s2 = do
+inferFunSort :: Dom Type -> Sort -> TCM Sort
+inferFunSort a s2 = do
+  let s1 = getSort a
   s1' <- reduceB s1
   s2' <- reduceB s2
   case funSort' (ignoreBlocking s1') (ignoreBlocking s2') of
     Right s -> return s
     Left b -> do
       let b' = unblockOnEither (getBlocker s1') (getBlocker s2')
-      addConstraint (unblockOnEither b b') $ HasPTSRule (defaultDom $ sort s1) (NoAbs "_" $ ignoreBlocking s2')
+      addConstraint (unblockOnEither b b') $ HasPTSRule a (NoAbs "_" $ ignoreBlocking s2')
       return $ FunSort s1 s2
 
+-- | @hasPTSRule a x.s@ checks that we can form a Pi-type @(x : a) -> b@ where @b : s@.
+--
 hasPTSRule :: Dom Type -> Abs Sort -> TCM ()
-hasPTSRule a b =
-  if alwaysValidCodomain $ unAbs b
-  then return ()
+hasPTSRule a s = do
+  reportSDoc "tc.conv.sort" 35 $ vcat
+    [ "hasPTSRule"
+    , "a =" <+> prettyTCM a
+    , "s =" <+> prettyTCM (unAbs s)
+    ]
+  if alwaysValidCodomain $ unAbs s
+  then yes
   else do
-    infer <- reduceB =<< inferPiSort a b
-    case infer of
-      Blocked b t | neverUnblock == b -> typeError $ InvalidTypeSort t
-      NotBlocked _ t@FunSort{}        -> typeError $ InvalidTypeSort t
-      NotBlocked _ t@PiSort{}         -> typeError $ InvalidTypeSort t
-      _ -> return ()
+    sb <- reduceB =<< inferPiSort a s
+    case sb of
+      Blocked b t | neverUnblock == b -> no sb t
+      NotBlocked _ t@FunSort{}        -> no sb t
+      NotBlocked _ t@PiSort{}         -> no sb t
+      _ -> yes
   where
     -- Do we end in a standard sort (Prop, Type, SSet)?
     alwaysValidCodomain = \case
@@ -133,6 +141,12 @@ hasPTSRule a b =
       FunSort _ s -> alwaysValidCodomain s
       PiSort _ _ s -> alwaysValidCodomain $ unAbs s
       _ -> False
+
+    yes = do
+      reportSLn "tc.conv.sort" 35 "hasPTSRule succeeded"
+    no sb t = do
+      reportSDoc "tc.conv.sort" 35 $ "hasPTSRule fails on" <+> prettyTCM sb
+      typeError $ InvalidTypeSort t
 
 -- | Recursively check that an iterated function type constructed by @telePi@
 --   is well-sorted.

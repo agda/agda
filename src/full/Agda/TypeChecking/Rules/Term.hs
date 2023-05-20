@@ -115,7 +115,7 @@ isType_ e = traceCall (IsType_ e) $ do
     A.Fun i (Arg info t) b -> do
       a <- setArgInfo info . defaultDom <$> checkPiDomain (info :| []) t
       b <- isType_ b
-      s <- inferFunSort (getSort a) (getSort b)
+      s <- inferFunSort a (getSort b)
       let t' = El s $ Pi a $ NoAbs underscore b
       checkTelePiSort t'
       --noFunctionsIntoSize t'
