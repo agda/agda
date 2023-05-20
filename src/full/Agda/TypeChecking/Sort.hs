@@ -105,14 +105,13 @@ inferPiSort a s2 = do
 -- | As @inferPiSort@, but for a nondependent function type.
 inferFunSort :: Sort -> Sort -> TCM Sort
 inferFunSort s1 s2 = do
-  ss1 <- sortOf (Sort s1)
   s1' <- reduceB s1
   s2' <- reduceB s2
   case funSort' (ignoreBlocking s1') (ignoreBlocking s2') of
     Right s -> return s
     Left b -> do
       let b' = unblockOnEither (getBlocker s1') (getBlocker s2')
-      addConstraint (unblockOnEither b b') $ HasPTSRule (defaultDom $ sort s1) (mkAbs "_" $ ignoreBlocking s2')
+      addConstraint (unblockOnEither b b') $ HasPTSRule (defaultDom $ sort s1) (NoAbs "_" $ ignoreBlocking s2')
       return $ FunSort s1 s2
 
 hasPTSRule :: Dom Type -> Abs Sort -> TCM ()
@@ -127,12 +126,13 @@ hasPTSRule a b =
       NotBlocked _ t@PiSort{}         -> typeError $ InvalidTypeSort t
       _ -> return ()
   where
-    alwaysValidCodomain s | Right LargeSort{} <- sizeOfSort s
-                               = True
-    alwaysValidCodomain Univ{} = True
-    alwaysValidCodomain (PiSort _ _ s) = alwaysValidCodomain $ unAbs s
-    alwaysValidCodomain (FunSort _ s) = alwaysValidCodomain s
-    alwaysValidCodomain _      = False
+    -- Do we end in a standard sort (Prop, Type, SSet)?
+    alwaysValidCodomain = \case
+      Inf{} -> True
+      Univ{} -> True
+      FunSort _ s -> alwaysValidCodomain s
+      PiSort _ _ s -> alwaysValidCodomain $ unAbs s
+      _ -> False
 
 -- | Recursively check that an iterated function type constructed by @telePi@
 --   is well-sorted.
