@@ -1,4 +1,4 @@
--- Andreas, 2018-08-14, re issue #1558
+-- Andreas, 2018-08-14, re issue #1556
 -- Termination checking functions over inductive-inductive types
 
 -- {-# OPTIONS -v term:40 #-}
