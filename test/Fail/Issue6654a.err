@@ -1,0 +1,4 @@
+Issue6654a.agda:10,3-4
+Set₁ is not less or equal than Set
+when checking that the type (f : (P : Set) → P → P) → Bad f of the
+constructor b fits in the sort Set of the datatype.

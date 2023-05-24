@@ -1,6 +1,7 @@
 -- Andreas, 2018-08-14, re issue #1556
 -- Termination checking functions over inductive-inductive types
 
+{-# OPTIONS --forced-argument-recursion #-}
 -- {-# OPTIONS -v term:40 #-}
 
 mutual

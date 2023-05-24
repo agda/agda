@@ -1753,9 +1753,10 @@ fitsIn uc forceds t s = do
     q <- viewTC eQuantity
     usableAtModality' (Just s) ConstructorType (setQuantity q unitModality) (unEl t)
 
-  fitsIn' withoutK forceds t s
+  li <- optLargeIndices <$> pragmaOptions
+  fitsIn' li forceds t s
   where
-  fitsIn' withoutK forceds t s = do
+  fitsIn' li forceds t s = do
     vt <- do
       t <- pathViewAsPi t
       return $ case t of
@@ -1765,13 +1766,13 @@ fitsIn uc forceds t s = do
                     _              -> Nothing
     case vt of
       Just (isPath, dom, b) -> do
-        let (forced,forceds') = nextIsForced forceds
-        unless (isForced forced && not withoutK) $ do
+        let (forced, forceds') = nextIsForced forceds
+        unless (isForced forced && li) $ do
           sa <- reduce $ getSort dom
           unless (isPath || uc == NoUniverseCheck || sa == SizeUniv) $
             sa `leqSort` s
         addContext (absName b, dom) $ do
-          succ <$> fitsIn' withoutK forceds' (absBody b) (raise 1 s)
+          succ <$> fitsIn' li forceds' (absBody b) (raise 1 s)
       _ -> do
         getSort t `leqSort` s
         return 0
