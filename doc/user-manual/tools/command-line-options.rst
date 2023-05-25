@@ -785,6 +785,37 @@ Pattern matching and equality
 
      Default: ``--infer-absurd-clauses``.
 
+.. option:: --forced-argument-recursion
+
+     .. versionadded:: 2.6.4
+
+     Allow the use of forced constructor arguments as termination metrics. This is inconsistent when combined with :option:`--large-indices`.
+     Since forced arguments are fixed by the constructor's type, when the K rule is enabled, they are "not really there". Thus, they do not provide enough justification to assert a recursive call is size-decreasing.
+
+     Forced argument recursion is disabled by the default when the K rule is enabled, and are enabled by default if :option:`--without-K` is given.
+
+.. option:: --no-forced-argument-recursion
+
+     .. versionadded:: 2.6.4
+
+     Opposite of :option:`--forced-argument-recursion`.
+
+.. option:: --large-indices
+
+     .. versionadded:: 2.6.4
+
+     Allow constructors to store values of types whose sort is larger than that being defined, when these arguments are forced by the constructor's type.
+     This is a form of propositional resizing for equality, so it is only consistent if the K rule is enabled.
+     When :option`:`--no-forcing` is given, this option is redundant.
+
+     Large indices are enabled by the default when the K rule is enabled, and are disabled if :option:`--without-K` is given.
+
+.. option:: --no-large-indices
+
+     .. versionadded:: 2.6.4
+
+     Opposite of :option:`--large-indices`.
+
 Search depth and instances
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 

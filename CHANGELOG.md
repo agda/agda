@@ -354,6 +354,20 @@ Pragmas and options
   If option `--exact-split` is on, the inlining will trigger a `InlineNoExactSplit` warning for `nats`.
   This warning can be disabled as usual, with `-WnoInlineNoExactSplit`.
 
+* New option `--large-indices`, controlling whether constructors of
+  indexed data types are allowed to refer to data that would be "too
+  large" to fit in their declared sort. Large indices are allowed by
+  default when the K rule is on, but disallowed when `--without-K` is
+  enabled (this would be inconsistent).
+
+  Negation: `--no-large-indices`.
+
+* New option `--forced-argument-recursion`, off by default, controlling
+  whether forced constructor arguments are usable for termination
+  checking. See the [language changes](#language) for the details.
+
+  Negation: `--no-forced-argument-recursion`.
+
 Library management
 ------------------
 
@@ -408,6 +422,21 @@ Cubical Agda
 
 Language
 --------
+
+* [**Breaking**] Forced constructor arguments are no longer usable as
+  termination measures when the K rule is enabled (this is the default).
+  This fixes a particular instance of the incompatibility between
+  structural recursion and impredicativity, which could previously be
+  exploited through the use of large data-type indices.
+  (see [#6654](https://github.com/agda/agda/issues/6654)).
+
+  Forced argument recursion is controlled by the
+  `--forced-argument-recursion` flag (or its negation). When the K rule
+  is enabled, forced argument recursion is off by default, but it is
+  *on* by default when `--without-K` is given.
+
+  Using forced argument recursion and large indices in the same module
+  is incompatible with `--safe`.
 
 * Added [`opaque` definitions](https://agda.readthedocs.io/en/v2.6.4/language/opaque-definitions.html),
   a mechanism for finer-grained control of unfolding. Unlike `abstract`
