@@ -784,22 +784,6 @@ sameDef d1 d2 = do
   c2 <- canonicalName d2
   if (c1 == c2) then return $ Just c1 else return Nothing
 
--- | Can be called on either a (co)datatype, a record type or a
---   (co)constructor.
-whatInduction :: MonadTCM tcm => QName -> tcm Induction
-whatInduction c = liftTCM $ do
-  def <- theDef <$> getConstInfo c
-  mz <- getBuiltinName' builtinIZero
-  mo <- getBuiltinName' builtinIOne
-  case def of
-    Datatype{}                    -> return Inductive
-    Record{} | not (recRecursive def) -> return Inductive
-    Record{ recInduction = i    } -> return $ fromMaybe Inductive i
-    Constructor{ conInd = i }     -> return i
-    _ | Just c == mz || Just c == mo
-                                  -> return Inductive
-    _                             -> __IMPOSSIBLE__
-
 -- | Does the given constructor come from a single-constructor type?
 --
 -- Precondition: The name has to refer to a constructor.
