@@ -263,7 +263,6 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
               , conSrcCon = con
               , conData   = name
               , conAbstr  = Info.defAbstract i
-              , conInd    = conInduction
               , conComp   = emptyCompKit  -- filled in later
               , conProj   = Nothing       -- filled in later
               , conForced = []

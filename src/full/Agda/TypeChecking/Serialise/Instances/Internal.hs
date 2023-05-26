@@ -392,7 +392,7 @@ instance EmbPrj Defn where
   icod_ (Function    a b s t u c d e f g h i j k l m n) = icodeN 1 (\ a b s -> Function a b s t) a b s u c d e f g h i j k l m n
   icod_ (Datatype    a b c d e f g h i j)               = icodeN 2 Datatype a b c d e f g h i j
   icod_ (Record      a b c d e f g h i j k l m)         = icodeN 3 Record a b c d e f g h i j k l m
-  icod_ (Constructor a b c d e f g h i j k)             = icodeN 4 Constructor a b c d e f g h i j k
+  icod_ (Constructor a b c d e f g h i j)               = icodeN 4 Constructor a b c d e f g h i j
   icod_ (Primitive   a b c d e f)                       = icodeN 5 Primitive a b c d e f
   icod_ (PrimitiveSort a b)                             = icodeN 6 PrimitiveSort a b
   icod_ AbstractDefn{}                                  = __IMPOSSIBLE__
@@ -405,7 +405,7 @@ instance EmbPrj Defn where
                                                        = valuN (\ a b s -> Function a b s Nothing) a b s u c d e f g h i j k l m n
     valu [2, a, b, c, d, e, f, g, h, i, j]             = valuN Datatype a b c d e f g h i j
     valu [3, a, b, c, d, e, f, g, h, i, j, k, l, m]    = valuN Record   a b c d e f g h i j k l m
-    valu [4, a, b, c, d, e, f, g, h, i, j, k]          = valuN Constructor a b c d e f g h i j k
+    valu [4, a, b, c, d, e, f, g, h, i, j]             = valuN Constructor a b c d e f g h i j
     valu [5, a, b, c, d, e, f]                         = valuN Primitive   a b c d e f
     valu [6, a, b]                                     = valuN PrimitiveSort a b
     valu [7]                                           = valuN GeneralizableVar

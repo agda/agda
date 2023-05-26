@@ -2581,8 +2581,6 @@ data ConstructorData = ConstructorData
   , _conData   :: QName
       -- ^ Name of datatype or record type.
   , _conAbstr  :: IsAbstract
-  , _conInd    :: Induction
-      -- ^ Inductive or coinductive?
   , _conComp   :: CompKit
       -- ^ Cubical composition.
   , _conProj   :: Maybe [QName]
@@ -2606,7 +2604,6 @@ pattern Constructor
   -> ConHead
   -> QName
   -> IsAbstract
-  -> Induction
   -> CompKit
   -> Maybe [QName]
   -> [IsForced]
@@ -2619,7 +2616,6 @@ pattern Constructor
   , conSrcCon
   , conData
   , conAbstr
-  , conInd
   , conComp
   , conProj
   , conForced
@@ -2631,7 +2627,6 @@ pattern Constructor
     conSrcCon
     conData
     conAbstr
-    conInd
     conComp
     conProj
     conForced
@@ -2855,7 +2850,6 @@ instance Pretty ConstructorData where
       conSrcCon
       conData
       conAbstr
-      conInd
       _conComp
       _conProj
       _conForced
@@ -2868,7 +2862,6 @@ instance Pretty ConstructorData where
       , "conSrcCon  =" <?> pretty conSrcCon
       , "conData    =" <?> pretty conData
       , "conAbstr   =" <?> pshow conAbstr
-      , "conInd     =" <?> pshow conInd
       , "conErased  =" <?> pshow conErased
       , "conErasure =" <?> pshow conErasure
       ] <?> "}"
@@ -5510,7 +5503,7 @@ instance KillRange Defn where
         killRangeN Function a b c d e f g h i j k l m n o p q
       Datatype a b c d e f g h i j   -> killRangeN Datatype a b c d e f g h i j
       Record a b c d e f g h i j k l m -> killRangeN Record a b c d e f g h i j k l m
-      Constructor a b c d e f g h i j k -> killRangeN Constructor a b c d e f g h i j k
+      Constructor a b c d e f g h i j -> killRangeN Constructor a b c d e f g h i j
       Primitive a b c d e f          -> killRangeN Primitive a b c d e f
       PrimitiveSort a b              -> killRangeN PrimitiveSort a b
 
