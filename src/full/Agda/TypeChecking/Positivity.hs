@@ -559,13 +559,12 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
               -- In any case, if @t@ is not showing itself as the data type, we need to
               -- do something conservative.  We will just collect *all* occurrences
               -- and flip their sign (variance) using 'LeftOfArrow'.
-              let fallback = OccursAs LeftOfArrow <$> getOccurrences varsTel t -- NB::Defined but not used
               case unEl t of
                 Def q' vs
                   | q == q' -> do
                       let indices = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ drop np vs
                       OccursAs (IndArgType c) . OnlyVarsUpTo np <$> getOccurrences varsTel indices
-                  | otherwise -> __IMPOSSIBLE__  -- fallback -- this ought to be impossible now (but wasn't, see #4447)
+                  | otherwise -> __IMPOSSIBLE__  -- this ought to be impossible now (but hasn't been before, see #4447)
                 Pi{}       -> __IMPOSSIBLE__  -- eliminated  by telView
                 MetaV{}    -> __IMPOSSIBLE__  -- not a constructor target; should have been solved by now
                 Var{}      -> __IMPOSSIBLE__  -- not a constructor target
