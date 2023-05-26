@@ -56,8 +56,7 @@ import Agda.TypeChecking.Warnings ( raiseWarningsOnUsage, runPM )
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete.Definitions as W ( DeclarationWarning(..), DeclarationWarning'(..) )
-import Agda.Syntax.Common (pattern Ranged)
-import qualified Agda.Syntax.Common as Common
+import Agda.Syntax.Common (Induction(..), pattern Ranged)
 import qualified Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Literal as L
@@ -296,7 +295,7 @@ nameKinds hlLevel decl = do
   defnToKind   TCM.AbstractDefn{}                    = __IMPOSSIBLE__
 
   con :: NameKind
-  con = Constructor Common.Inductive
+  con = Constructor Inductive
 
 -- | The 'TCM.Axiom' constructor is used to represent various things
 -- which are not really axioms, so when maps are merged 'Postulate's
@@ -680,7 +679,7 @@ storeDisambiguatedField = storeDisambiguatedName Field
 storeDisambiguatedProjection :: A.QName -> TCM ()
 storeDisambiguatedProjection = storeDisambiguatedField
 
-storeDisambiguatedConstructor :: Common.Induction -> A.QName -> TCM ()
+storeDisambiguatedConstructor :: Induction -> A.QName -> TCM ()
 storeDisambiguatedConstructor i = storeDisambiguatedName $ Constructor i
 
 -- TODO: move the following function to a new module TypeChecking.Overloading
