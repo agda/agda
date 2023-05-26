@@ -7,10 +7,11 @@ module Agda.TypeChecking.RecordPatterns
   , translateCompiledClauses
   , translateSplitTree
   , recordPatternToProjections
+  , coinductiveRecordRHSsToCopatterns
   ) where
 
 import Control.Arrow          ( first, second )
-import Control.Monad          ( forM, unless, when, zipWithM )
+import Control.Monad          ( forM, join, unless, when, zipWithM )
 import Control.Monad.Fix      ( mfix )
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Reader   ( MonadReader(..), ReaderT(..), runReaderT )
@@ -39,10 +40,12 @@ import Agda.Interaction.Options
 
 import Agda.Utils.Either
 import Agda.Utils.Functor
+import Agda.Utils.Monad
 import Agda.Utils.Permutation hiding (dropFrom)
 import Agda.Utils.Pretty (Pretty(..))
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
+import Agda.Utils.Tuple
 import Agda.Utils.Update (MonadChange, tellDirty)
 
 import Agda.Utils.Impossible
@@ -205,6 +208,66 @@ mergeCatchAll cc ca = maybe cc (mappend cc) ca
     _                   -> __IMPOSSIBLE__ -- this would mean non-determinism
 -}
 -}
+
+
+-- | Transform definitions returning coinductive record values to use copatterns instead.
+--   This allows termination-checking constructor-style coinduction.
+--
+--   For example:
+--
+--   @
+--     nats : Nat → Stream Nat
+--     nats n = n ∷ nats (1 + n)
+--   @
+--
+--   The clause is translated to:
+--
+--   @
+--     nats n .head = n
+--     nats n .tail = nats (1 + n)
+--   @
+--
+coinductiveRecordRHSsToCopatterns ::
+     forall m. (HasConstInfo m, PureTCM m)
+  => [Clause]
+  -> m [Clause]
+coinductiveRecordRHSsToCopatterns = do
+  concatMapM $ \case
+
+    -- RHS must be fully applied coinductive constructor/record expression.
+    cl@Clause{ namedClausePats = ps
+             , clauseBody      = Just v0@(Con con@(ConHead _ _ CoInductive fs) ci es)
+             , clauseType      = mt
+             }
+      | not (null fs)           -- at least one field
+      , length fs == length es  -- fully applied
+      , Just vs <- allApplyElims es
+      , ci /= ConORec           -- give the user a way to opt out of this translation, by writing a record expression rhs
+        -> do
+          -- Iterate the translation for nested constructor rhss.
+          coinductiveRecordRHSsToCopatterns =<< do
+
+            -- Create one clause per projection.
+            forM (zip fs vs) $ \ (f, v) -> do
+
+              -- Get the type of the field.
+              let inst :: Type -> m (Maybe Type)
+                  inst t = fmap thd3 <$> projectTyped v0 t ProjSystem (unArg f)
+
+              let fuse :: Maybe (Arg (Maybe a)) -> Maybe (Arg a)
+                  fuse = join . fmap distributeF
+
+              mt' :: Maybe (Arg Type) <- fuse <$> traverse (traverse inst) mt
+
+              -- Make clause ... .f = v
+              return cl
+                { namedClausePats = ps ++ [ unnamed . ProjP ProjSystem <$> f ]
+                , clauseBody      = Just $ unArg v
+                , clauseType      = mt'
+                }
+
+    -- Otherwise: no change.
+    cl -> return [cl]
 
 -- | Transform definitions returning record expressions to use copatterns
 --   instead. This prevents terms from blowing up when reduced.
