@@ -785,7 +785,7 @@ Pattern matching and equality
 
      Default: ``--infer-absurd-clauses``.
 
-.. option:: --forced-argument-recursion
+.. option:: --forced-argument-recursion, --no-forced-argument-recursion
 
      .. versionadded:: 2.6.4
 
@@ -794,13 +794,7 @@ Pattern matching and equality
 
      Forced argument recursion is disabled by the default when the K rule is enabled, and are enabled by default if :option:`--without-K` is given.
 
-.. option:: --no-forced-argument-recursion
-
-     .. versionadded:: 2.6.4
-
-     Opposite of :option:`--forced-argument-recursion`.
-
-.. option:: --large-indices
+.. option:: --large-indices, --no-large-indices
 
      .. versionadded:: 2.6.4
 
@@ -809,12 +803,6 @@ Pattern matching and equality
      When :option`:`--no-forcing` is given, this option is redundant.
 
      Large indices are enabled by the default when the K rule is enabled, and are disabled if :option:`--without-K` is given.
-
-.. option:: --no-large-indices
-
-     .. versionadded:: 2.6.4
-
-     Opposite of :option:`--large-indices`.
 
 Search depth and instances
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
