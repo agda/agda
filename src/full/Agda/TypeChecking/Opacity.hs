@@ -1,3 +1,4 @@
+{-# LANGUAGE NondecreasingIndentation #-}
 module Agda.TypeChecking.Opacity
   ( saturateOpaqueBlocks
 
@@ -6,7 +7,7 @@ module Agda.TypeChecking.Opacity
   )
   where
 
-import Control.Monad.State.Strict
+import Control.Monad.State
 import Control.Exception
 import Control.DeepSeq
 import Control.Monad
@@ -35,14 +36,13 @@ import Agda.Utils.Monad
 import Agda.Utils.Lens
 
 -- | Ensure that opaque blocks defined in the current module have
--- transitively-closed unfolding sets.
+-- saturated unfolding sets.
 saturateOpaqueBlocks
   :: forall m. (MonadTCState m, ReadTCState m, MonadFresh OpaqueId m, MonadDebug m, MonadTrace m, MonadWarning m, MonadIO m)
   => [A.Declaration]
   -> m ()
 saturateOpaqueBlocks moddecs = entry where
   entry = do
-    () <- liftIO $ evaluate (rnf (canonical, backcopies))
     known   <- useTC stOpaqueBlocks
     inverse <- useTC stOpaqueIds
     OpaqueId _ ourmod <- fresh
@@ -54,6 +54,9 @@ saturateOpaqueBlocks moddecs = entry where
       isOurs (OpaqueId _ mod, _) = mod == ourmod
       ours = snd <$> filter isOurs (Map.toAscList known)
 
+    unless (null ours) $ do
+    () <- liftIO $ evaluate (rnf (canonical, backcopies))
+
     reportSDoc "tc.opaque" 30 $ vcat $
       text "Opaque blocks defined in this module:":map pretty ours
 
@@ -61,10 +64,17 @@ saturateOpaqueBlocks moddecs = entry where
     -- the current top-level module. Deserialised blocks are always
     -- closed, so this work would be redundant.
     (blocks, names) <- computeClosure known inverse ours
+
+    -- Associate copies with the opaque blocks of their originals. Since
+    -- modules importing this one won't know how to canonicalise names
+    -- we have defined, we make the work easier for them by associating
+    -- copies with their original's opaque blocks.
     let names' = foldr addBackcopy names (HashMap.toList backcopies)
 
-    reportSDoc "tc.opaque.sat" 45 $ vcat $
-      text "Saturated opaque blocks":[ pretty block | b@(_,block) <- Map.toList blocks, isOurs b ]
+    reportSDoc "tc.opaque.sat" 30 $ vcat $
+      text "Saturated local opaque blocks":[ pretty block | b@(_,block) <- Map.toList blocks, isOurs b ]
+
+    reportSDoc "tc.opaque.sat.full" 50 $ text "Saturated opaque blocks:" $+$ pretty blocks
 
     modifyTC' $ \st -> st { stPostScopeState = (stPostScopeState st)
       { stPostOpaqueBlocks = blocks
@@ -90,9 +100,13 @@ saturateOpaqueBlocks moddecs = entry where
       yell nm accum = setCurrentRange (getRange nm) $ do
         warning (UnfoldTransparentName nm)
         pure accum
+
       -- Add the unfolding-set of the given name to the accumulator
       -- value.
       transitive prenom accum = fromMaybe (yell prenom accum) $ do
+        -- NB: If the name is a local copy, we won't yet have added the
+        -- copy name to an opaque block, but we will have added the
+        -- reduced name (provided it is opaque)
         let nm = canonise prenom
         id    <- Map.lookup nm names
         block <- Map.lookup id blocks
@@ -102,6 +116,7 @@ saturateOpaqueBlocks moddecs = entry where
       vcat [ "Stated unfolding clause:  " <+> pretty (HashSet.toList (opaqueUnfolding block))
            , "with (sub)canonical names:" <+> pretty (canonise <$> HashSet.toList (opaqueUnfolding block))
            ]
+
     -- Compute the transitive closure: bring in names
     --
     --   ... that are defined as immediate children of the opaque block
@@ -111,7 +126,7 @@ saturateOpaqueBlocks moddecs = entry where
       (  opaqueDecls block
       <> foldMap opaqueUnfolding (opaqueParent block >>= flip Map.lookup blocks)
       )
-      (HashSet.map canonise (opaqueUnfolding block))
+      (opaqueUnfolding block)
 
     let
       block' = block { opaqueUnfolding = closed }
@@ -200,6 +215,10 @@ hasAccessibleDef qn = do
 
 type Invert = State (HashMap QName QName, HashMap QName (HashSet QName))
 
+-- | Compute maps inverting the module applications defined in the given
+-- declarations. The first returned map associates copied names to their
+-- (hereditary) originals, the second map associates original names to
+-- their (transitive) copies.
 invertDefCopies
   :: [A.Declaration]
   -> ( HashMap QName QName
@@ -217,16 +236,13 @@ invertDefCopies = flip execState mempty . traverse_ go where
   copy :: QName -> QName -> Invert ()
   copy from to = do
     from <- canon from
-    let
-      k Nothing = Just (HashSet.singleton to)
-      k (Just x) = Just (HashSet.insert to x)
     modify' $ \(canon, backrefs) ->
       ( HashMap.insert to from canon
-      , HashMap.alter k from backrefs
+      , HashMap.alter (pure . HashSet.insert to . fold) from backrefs
       )
 
-  -- Interesting case:
   go :: A.Declaration -> Invert ()
+  -- Interesting case:
   go (A.Apply _mi _e _mn _app info _imp) =
     forM_ (Map.toList (A.renNames info)) $ \(from, tos) -> traverse_ (copy from) tos
 
