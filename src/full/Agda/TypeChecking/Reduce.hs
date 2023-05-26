@@ -28,6 +28,7 @@ module Agda.TypeChecking.Reduce
 import Control.Monad ( (>=>), void )
 import Control.Monad.Except
 
+import Data.List ( intercalate )
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -834,10 +835,22 @@ unfoldInlined v = do
       info <- getConstInfo f
       let def = theDef info
           irr = isIrrelevant $ defArgInfo info
+      case def of
+        Function{} ->
+          reportSLn "tc.inline" 90 $
+            intercalate "\n"
+            [ "considering to inline " ++ prettyShow f
+            , "irr         = " ++ prettyShow irr
+            , "funInline   = " ++ prettyShow (def ^. funInline)
+            , "funCompiled = " ++ prettyShow (funCompiled def)
+            ]
+        _ -> pure ()
       case def of   -- Only for simple definitions with no pattern matching (TODO: maybe copatterns?)
         Function{ funCompiled = Just Done{} }
-          | def ^. funInline , not irr -> liftReduce $
-          ignoreBlocking <$> unfoldDefinitionE (return . notBlocked) (Def f []) f es
+          | def ^. funInline , not irr -> do
+              reportSLn "tc.inline" 70 $ "asking to inline " ++ prettyShow f
+              liftReduce $
+                ignoreBlocking <$> unfoldDefinitionE (return . notBlocked) (Def f []) f es
         _ -> return v
     _ -> return v
 
