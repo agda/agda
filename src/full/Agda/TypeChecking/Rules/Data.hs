@@ -360,7 +360,6 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               , conSrcCon = con
               , conData   = d
               , conAbstr  = Info.defAbstract i
-              , conInd    = Inductive
               , conComp   = comp
               , conProj   = projNames
               , conForced = forcedArgs

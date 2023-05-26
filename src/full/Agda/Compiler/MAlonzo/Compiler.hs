@@ -1170,9 +1170,9 @@ condecl :: QName -> Induction -> HsCompileM HS.ConDecl
 condecl q _ind = do
   opts <- askGhcOpts
   def <- getConstInfo q
-  let Constructor{ conPars = np, conErased = erased } = theDef def
+  let Constructor{ conPars = np, conSrcCon, conErased = erased } = theDef def
   (argTypes0, _) <- hsTelApproximation (defType def)
-  let strict     = if conInd (theDef def) == Inductive &&
+  let strict     = if conInductive conSrcCon == Inductive &&
                       optGhcStrictData opts
                    then HS.Strict
                    else HS.Lazy

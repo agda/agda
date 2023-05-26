@@ -1008,7 +1008,6 @@ bindBuiltinNoDef b q = inTopContext $ do
               , conSrcCon = ch
               , conData   = d
               , conAbstr  = ConcreteDef
-              , conInd    = Inductive
               , conComp   = emptyCompKit
               , conProj   = Nothing
               , conForced = []

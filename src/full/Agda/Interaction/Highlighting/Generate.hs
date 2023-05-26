@@ -289,7 +289,7 @@ nameKinds hlLevel decl = do
                             | otherwise            = Function
   defnToKind   TCM.Datatype{}                        = Datatype
   defnToKind   TCM.Record{}                          = Record
-  defnToKind   TCM.Constructor{ TCM.conInd = i }       = Constructor i
+  defnToKind   TCM.Constructor{ TCM.conSrcCon = c }  = Constructor $ I.conInductive c
   defnToKind   TCM.Primitive{}                       = Primitive
   defnToKind   TCM.PrimitiveSort{}                   = Primitive
   defnToKind   TCM.AbstractDefn{}                    = __IMPOSSIBLE__
