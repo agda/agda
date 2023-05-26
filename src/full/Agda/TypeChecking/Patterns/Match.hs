@@ -287,10 +287,7 @@ matchPattern p u = case (p, u) of
         w <- reduceB v
         -- Unfold delayed (corecursive) definitions one step. This is
         -- only necessary if c is a coinductive constructor, but
-        -- 1) it does not hurt to do it all the time, and
-        -- 2) whatInduction c sometimes crashes because c may point to
-        --    an axiom at this stage (if we are checking the
-        --    projection functions for a record type).
+        -- it does not hurt to do it all the time.
 {-
         w <- case w of
                NotBlocked r (Def f es) ->   -- Andreas, 2014-06-12 TODO: r == ReallyNotBlocked sufficient?

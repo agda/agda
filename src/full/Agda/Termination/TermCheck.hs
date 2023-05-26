@@ -691,13 +691,9 @@ termClause clause = do
     parseDotP = \case
       DotP o t -> termToDBP t
       p        -> return p
-    stripCoCon p = case p of
-      ConP (ConHead c _ _ _) _ _ -> do
-        ifM ((Just c ==) <$> terGetSizeSuc) (return p) $ {- else -} do
-        whatInduction c >>= \case
-          Inductive   -> return p
-          CoInductive -> return unusedVar
-      _ -> return p
+    stripCoCon = \case
+      ConP (ConHead c _ CoInductive _) _ _ -> return unusedVar
+      p -> return p
     reportBody :: Term -> TerM ()
     reportBody v = verboseS "term.check.clause" 6 $ do
       f       <- terGetCurrent
