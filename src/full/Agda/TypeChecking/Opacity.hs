@@ -1,11 +1,14 @@
 module Agda.TypeChecking.Opacity
   ( saturateOpaqueBlocks
+
   , isAccessibleDef
   , hasAccessibleDef
   )
   where
 
 import Control.Monad.State.Strict
+import Control.Exception
+import Control.DeepSeq
 import Control.Monad
 
 import qualified Data.HashMap.Strict as HashMap
@@ -33,27 +36,39 @@ import Agda.Utils.Lens
 
 -- | Ensure that opaque blocks defined in the current module have
 -- transitively-closed unfolding sets.
-saturateOpaqueBlocks :: forall m. (MonadTCState m, ReadTCState m, MonadFresh OpaqueId m, MonadDebug m, MonadTrace m, MonadWarning m) => m ()
-saturateOpaqueBlocks = entry where
+saturateOpaqueBlocks
+  :: forall m. (MonadTCState m, ReadTCState m, MonadFresh OpaqueId m, MonadDebug m, MonadTrace m, MonadWarning m, MonadIO m)
+  => [A.Declaration]
+  -> m ()
+saturateOpaqueBlocks moddecs = entry where
   entry = do
+    () <- liftIO $ evaluate (rnf (canonical, backcopies))
     known   <- useTC stOpaqueBlocks
     inverse <- useTC stOpaqueIds
     OpaqueId _ ourmod <- fresh
 
+    reportSDoc "tc.opaque.copy" 45 $ "Canonical names of copied definitions:" $+$ pretty (HashMap.toList canonical)
+    reportSDoc "tc.opaque.copy" 45 $ "Backcopies:" $+$ pretty (HashMap.toList (toList <$> backcopies))
+
     let
       isOurs (OpaqueId _ mod, _) = mod == ourmod
       ours = snd <$> filter isOurs (Map.toAscList known)
-    -- Only compute transitive closure for opaque blocks declared in
-    -- the current top-level module. Deserialised blocks are always
-    -- closed, so this work would be redundant.
-    (blocks, names) <- computeClosure known inverse ours
 
     reportSDoc "tc.opaque" 30 $ vcat $
       text "Opaque blocks defined in this module:":map pretty ours
 
+    -- Only compute transitive closure for opaque blocks declared in
+    -- the current top-level module. Deserialised blocks are always
+    -- closed, so this work would be redundant.
+    (blocks, names) <- computeClosure known inverse ours
+    let names' = foldr addBackcopy names (HashMap.toList backcopies)
+
+    reportSDoc "tc.opaque.sat" 45 $ vcat $
+      text "Saturated opaque blocks":[ pretty block | b@(_,block) <- Map.toList blocks, isOurs b ]
+
     modifyTC' $ \st -> st { stPostScopeState = (stPostScopeState st)
       { stPostOpaqueBlocks = blocks
-      , stPostOpaqueIds    = names
+      , stPostOpaqueIds    = names'
       } }
 
   -- Actually compute the closure.
@@ -77,11 +92,16 @@ saturateOpaqueBlocks = entry where
         pure accum
       -- Add the unfolding-set of the given name to the accumulator
       -- value.
-      transitive nm accum = fromMaybe (yell nm accum) $ do
+      transitive prenom accum = fromMaybe (yell prenom accum) $ do
+        let nm = canonise prenom
         id    <- Map.lookup nm names
         block <- Map.lookup id blocks
         pure . pure $ HashSet.union (opaqueUnfolding block) accum
 
+    reportSDoc "tc.opaque.copy" 45 $
+      vcat [ "Stated unfolding clause:  " <+> pretty (HashSet.toList (opaqueUnfolding block))
+           , "with (sub)canonical names:" <+> pretty (canonise <$> HashSet.toList (opaqueUnfolding block))
+           ]
     -- Compute the transitive closure: bring in names
     --
     --   ... that are defined as immediate children of the opaque block
@@ -91,7 +111,7 @@ saturateOpaqueBlocks = entry where
       (  opaqueDecls block
       <> foldMap opaqueUnfolding (opaqueParent block >>= flip Map.lookup blocks)
       )
-      (opaqueUnfolding block)
+      (HashSet.map canonise (opaqueUnfolding block))
 
     let
       block' = block { opaqueUnfolding = closed }
@@ -103,6 +123,14 @@ saturateOpaqueBlocks = entry where
         (opaqueDecls block)
 
     computeClosure (Map.insert (opaqueId block) block' blocks) names' xs
+
+  (canonical, backcopies) = invertDefCopies moddecs
+  canonise name = fromMaybe name (HashMap.lookup name canonical)
+
+  addBackcopy :: (QName, HashSet QName) -> Map QName OpaqueId -> Map QName OpaqueId
+  addBackcopy (from, prop) map
+    | Just id <- Map.lookup from map = foldr (flip Map.insert id) map prop
+    | otherwise = map
 
 -- | Decide whether or not a definition is reducible. Returns 'True' if
 -- the definition /can/ step.
@@ -169,3 +197,59 @@ hasAccessibleDef qn = do
   ignoreAbstractMode $ do
     def <- getConstInfo qn
     pure $ isAccessibleDef env st def
+
+type Invert = State (HashMap QName QName, HashMap QName (HashSet QName))
+
+invertDefCopies
+  :: [A.Declaration]
+  -> ( HashMap QName QName
+     , HashMap QName (HashSet QName)
+     )
+invertDefCopies = flip execState mempty . traverse_ go where
+  canon :: QName -> Invert QName
+  canon n = gets (HashMap.lookup n . fst) >>= \case
+    Just n' -> do
+      c <- canon n'
+      modify' $ \(canon, backrefs) -> (HashMap.insert n c canon, backrefs)
+      pure c
+    Nothing -> pure n
+
+  copy :: QName -> QName -> Invert ()
+  copy from to = do
+    from <- canon from
+    let
+      k Nothing = Just (HashSet.singleton to)
+      k (Just x) = Just (HashSet.insert to x)
+    modify' $ \(canon, backrefs) ->
+      ( HashMap.insert to from canon
+      , HashMap.alter k from backrefs
+      )
+
+  -- Interesting case:
+  go :: A.Declaration -> Invert ()
+  go (A.Apply _mi _e _mn _app info _imp) =
+    forM_ (Map.toList (A.renNames info)) $ \(from, tos) -> traverse_ (copy from) tos
+
+  -- Traversal:
+  go (A.Mutual _ ds)                       = traverse_ go ds
+  go (A.Section _r _e _mn _gt ds)          = traverse_ go ds
+  go (A.ScopedDecl _si ds)                 = traverse_ go ds
+  go (A.RecDef _di _qn _uc _rd _ddp _t ds) = traverse_ go ds
+
+  -- Boring:
+  go A.Axiom{}         = pure ()
+  go A.Generalize{}    = pure ()
+  go A.Field{}         = pure ()
+  go A.Primitive{}     = pure ()
+  go A.Import{}        = pure ()
+  go A.Pragma{}        = pure ()
+  go A.Open{}          = pure ()
+  go A.FunDef{}        = pure ()
+  go A.DataSig{}       = pure ()
+  go A.DataDef{}       = pure ()
+  go A.RecSig{}        = pure ()
+  go A.PatternSynDef{} = pure ()
+  go A.UnquoteDecl{}   = pure ()
+  go A.UnquoteDef{}    = pure ()
+  go A.UnquoteData{}   = pure ()
+  go A.UnfoldingDecl{} = pure ()
