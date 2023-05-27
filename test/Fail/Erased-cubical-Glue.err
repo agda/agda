@@ -1,3 +1,6 @@
 Erased-cubical-Glue.agda:14,3-11
 Identifier primGlue is declared erased, so it cannot be used here
 when checking that the expression primGlue A B f has type _7
+Unsolved metas at the following locations:
+  Erased-cubical-Glue.agda:14,3-17
+  Erased-cubical-Glue.agda:12,3-14,17

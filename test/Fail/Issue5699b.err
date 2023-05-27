@@ -16,3 +16,5 @@ lam visible
      arg (arg-info visible (modality relevant quantity-ω)) (var 0 []) ∷
      [])))))
 when checking that the expression unquote m has type _27
+Unsolved metas at the following locations:
+  Issue5699b.agda:20,1-5

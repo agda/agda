@@ -2,3 +2,34 @@ Issue2301.agda:12,11-15
 _A_8 → Box _A_8 !=< .A → Box A because one is a relevant function
 type and the other is an irrelevant function type
 when checking that the expression wrap has type .A → Box A
+Issue2301.agda:24,27-34
+._19 → Box _19 !=< Box _A_18
+when checking that the expression weird a has type Box _A_18
+Issue2301.agda:24,33-34
+Variable a is declared irrelevant, so it cannot be used here
+when checking that the expression a has type Set
+Issue2301.agda:40,23-25
+Bool !=< Set
+when checking that the expression tt has type Set
+Issue2301.agda:40,34-36
+Bool !=< Set
+when checking that the expression ff has type Set
+Issue2301.agda:46,18-20
+Bool !=< Set
+when checking that the expression tt has type Set
+Issue2301.agda:46,29-31
+Bool !=< Set
+when checking that the expression ff has type Set
+Issue2301.agda:47,19-24
+((A : Set) → .A → Box A) !=< (._A_47 → _B_48) because one is a
+relevant function type and the other is an irrelevant function type
+when checking that the expression weird has type ._A_47 → _B_48
+Failed to solve the following constraints:
+  Is empty: weird _31 ≡ _51 _ (blocked on any(_31, _y_50, _51))
+      [ at Issue2301.agda:41,15-17 ]
+  _8 (A = _43) _ = _8 (A = _31) _ : Box _43
+    (blocked on any(_8, _31, _43))
+  _43 = _31 : Set (blocked on any(_31, _43))
+  _31 = _43 (blocked on any(_31, _43))
+Unsolved metas at the following locations:
+  Issue2301.agda:47,12-18

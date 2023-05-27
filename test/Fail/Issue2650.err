@@ -1,3 +1,5 @@
 Issue2650.agda:16,14-18
 a != b of type A
 when checking that the expression refl has type _10 i ≡ b
+Unsolved metas at the following locations:
+  Issue2650.agda:15,54-55

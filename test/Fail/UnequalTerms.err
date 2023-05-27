@@ -1,3 +1,7 @@
 UnequalTerms.agda:8,8-11
 One !=< Zero
 when checking that the expression one has type Zero
+UnequalTerms.agda:11,8-26
+One !=< Zero
+when checking that the expression λ (x : Zero) → one has type
+One → One

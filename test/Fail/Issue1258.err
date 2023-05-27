@@ -3,5 +3,3 @@ Failed to solve the following constraints:
   Bool =< Foo _15 (blocked on _15)
 Unsolved metas at the following locations:
   Issue1258.agda:20,9-10
-  Issue1258.agda:21,8-13
-  Issue1258.agda:22,8-12

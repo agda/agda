@@ -1,3 +1,4 @@
+{-# OPTIONS -vtc.error:666 -verror:20 -vtc.term:30 #-}
 open import Common.Prelude
 
 postulate

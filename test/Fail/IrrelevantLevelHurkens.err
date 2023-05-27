@@ -1,3 +1,20 @@
 IrrelevantLevelHurkens.agda:12,31-32
 Variable i is declared irrelevant, so it cannot be used here
 when checking that the expression i has type Level
+IrrelevantLevelHurkens.agda:18,23-24
+Variable i is declared irrelevant, so it cannot be used here
+when checking that the expression i has type Level
+IrrelevantLevelHurkens.agda:21,20-21
+Variable i is declared irrelevant, so it cannot be used here
+when checking that the expression i has type Level
+IrrelevantLevelHurkens.agda:22,22-23
+Variable i is declared irrelevant, so it cannot be used here
+when checking that the expression i has type Level
+Failed to solve the following constraints:
+  lsuc zero = _21 (blocked on _21)
+Unsolved metas at the following locations:
+  IrrelevantLevelHurkens.agda:21,11-12
+  IrrelevantLevelHurkens.agda:22,66-67
+  IrrelevantLevelHurkens.agda:41,6-7
+  IrrelevantLevelHurkens.agda:47,7-8
+  IrrelevantLevelHurkens.agda:50,5-6

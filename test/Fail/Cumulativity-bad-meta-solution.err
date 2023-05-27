@@ -2,3 +2,5 @@ Cumulativity-bad-meta-solution.agda:7,18-19
 Set₁ is not less or equal than Set
 when checking that the solution X of metavariable _X_3 has the
 expected type Set
+Unsolved metas at the following locations:
+  Cumulativity-bad-meta-solution.agda:7,18-19

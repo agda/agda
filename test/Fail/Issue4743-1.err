@@ -4,3 +4,5 @@ Cannot instantiate the metavariable _7 to solution
 since (part of) the solution was created in an erased context
 when checking that the expression refl has type
 f ≡ (λ @0 { unit → unit })
+Unsolved metas at the following locations:
+  Issue4743-1.agda:13,7-8

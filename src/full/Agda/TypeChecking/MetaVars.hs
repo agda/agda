@@ -39,6 +39,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Lock
+import Agda.TypeChecking.Recover
 import Agda.TypeChecking.Level (levelType)
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
@@ -108,6 +109,7 @@ isBlockedTerm x = do
     let r = case i of
             BlockedConst{}                 -> True
             PostponedTypeCheckingProblem{} -> True
+            DeferredError{}                -> True
             InstV{}                        -> False
             Open{}                         -> False
             OpenInstance{}                 -> False
@@ -123,6 +125,7 @@ isEtaExpandable kinds x = do
       OpenInstance{}                 -> Records `notElem` kinds
       InstV{}                        -> False
       BlockedConst{}                 -> False
+      DeferredError{}                -> False
       PostponedTypeCheckingProblem{} -> False
 
 -- * Performing the assignment
@@ -836,9 +839,13 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
         traceCall (CheckMetaSolution (getRange mvar) x (sort s) v) $
           compareSort cmp s' s
 
-  case (target , mvJudgement mvar) of
+  case (mvInstantiation mvar, target , mvJudgement mvar) of
+    -- If the metavariable stands for a deferred type error, do not
+    -- attempt to check the solution sort.
+    (DeferredError, _, _) -> pure ()
+
     -- Case 1 (comparing term to meta as types)
-    (AsTypes{}   , HasType _ cmp0 t) -> do
+    (_, AsTypes{}   , HasType _ cmp0 t) -> do
         let cmp   = if cumulativity then cmp0 else CmpEq
             abort = patternViolation =<< updateBlocker (unblockOnAnyMetaIn t) -- TODO: make piApplyM' compute unblocker
         t' <- piApplyM' abort t args
@@ -846,7 +853,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
         checkSolutionSort cmp s v
 
     -- Case 2 (comparing term to type-level meta as terms, with --cumulativity)
-    (AsTermsOf{} , HasType _ cmp t)
+    (_, AsTermsOf{} , HasType _ cmp t)
       | cumulativity -> do
           let abort = patternViolation =<< updateBlocker (unblockOnAnyMetaIn t)
           t' <- piApplyM' abort t args
@@ -855,9 +862,9 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
             let v' = raise (size tel) v `apply` teleArgs tel
             checkSolutionSort cmp s v'
 
-    (AsTypes{}   , IsSort{}       ) -> return ()
-    (AsTermsOf{} , _              ) -> return ()
-    (AsSizes{}   , _              ) -> return ()  -- TODO: should we do something similar for sizes?
+    (_, AsTypes{}   , IsSort{}       ) -> return ()
+    (_, AsTermsOf{} , _              ) -> return ()
+    (_, AsSizes{}   , _              ) -> return ()  -- TODO: should we do something similar for sizes?
 
 
 
@@ -1307,7 +1314,11 @@ assignMeta' m x t n ids v = do
     let vsol = abstract tel' v'
 
     -- Andreas, 2013-10-25 double check solution before assigning
-    whenM (optDoubleCheck  <$> pragmaOptions) $ do
+    -- Amy, 2023-05-26, but not if we are in a failing state
+    double <- andM [ optDoubleCheck <$> pragmaOptions
+                   , not <$> hasDeferredErrors
+                   ]
+    when double $ do
       m <- lookupLocalMeta x
       reportSDoc "tc.meta.check" 30 $ "double checking solution"
       catchConstraint (CheckMetaInst x) $
@@ -1342,6 +1353,7 @@ checkMetaInst x = do
     PostponedTypeCheckingProblem{} -> postpone
     Open{} -> postpone
     OpenInstance{} -> postpone
+    DeferredError{} -> postpone
     InstV inst -> do
       let n = size (instTel inst)
           t = jMetaType $ mvJudgement m

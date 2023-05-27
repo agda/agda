@@ -1,11 +1,11 @@
-Issue418.agda:30,3-10
-warning: -W[no]GenericWarning
-Missing type signature for abstract definition B.
-Types of abstract definitions are never inferred since this would
-leak information that should be abstract.
 Issue418.agda:33,3-10
 warning: -W[no]GenericWarning
 Missing type signature for abstract definition C.
+Types of abstract definitions are never inferred since this would
+leak information that should be abstract.
+Issue418.agda:30,3-10
+warning: -W[no]GenericWarning
+Missing type signature for abstract definition B.
 Types of abstract definitions are never inferred since this would
 leak information that should be abstract.
 Failed to solve the following constraints:
@@ -17,10 +17,6 @@ Failed to solve the following constraints:
   Set₁ =< _11 (blocked on _11)
 Unsolved metas at the following locations:
   Issue418.agda:13,18-19
-  Issue418.agda:14,14-18
   Issue418.agda:25,26-27
-  Issue418.agda:26,22-26
   Issue418.agda:30,3-4
-  Issue418.agda:30,7-10
   Issue418.agda:32,7-8
-  Issue418.agda:33,7-10

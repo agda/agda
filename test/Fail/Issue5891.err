@@ -2,3 +2,15 @@ Issue5891.agda:16,9-27
 Setω != SizeUniv
 when checking that the expression (X : SizeUniv) → X has type
 SizeUniv
+Issue5891.agda:27,7-19
+Setω != SizeUniv
+when checking that the expression S → SizeUniv has type SizeUniv
+Issue5891.agda:30,7-47
+Setω != SizeUniv
+when checking that the expression
+(X : SizeUniv) → (℘ (℘ X) → X) → ℘ (℘ X) has type SizeUniv
+Issue5891.agda:63,15-30
+Cannot solve size constraints
+[i] ↑ _334 ≤ i
+Reason: inconsistent upper bound for _334
+when checking that the expression false (Size< i) has type Size< i

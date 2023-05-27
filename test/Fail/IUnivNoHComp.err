@@ -1,4 +1,8 @@
 IUnivNoHComp.agda:4,12-21
+IUniv != Set _ℓ_3
+when checking that the solution J of metavariable _A_4 has the
+expected type Set _ℓ_3
+IUnivNoHComp.agda:4,12-21
 IUniv != (Set _ℓ_3)
 when checking that the solution J of metavariable _A_4 has the
 expected type Set _ℓ_3

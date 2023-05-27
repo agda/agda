@@ -5,3 +5,5 @@ when checking that the inferred type of an application
   Σ _A_35 _B_36
 matches the expected type
   z .proj₁ ≡ y .proj₁ → _proj₂_32 (y = y) (z = z) ≡ z .proj₂
+Unsolved metas at the following locations:
+  Issue1963I380.agda:11,11-12

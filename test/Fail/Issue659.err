@@ -2,3 +2,5 @@ Issue659.agda:32,7-10
 Agda.Primitive.Setω != (Set _a_29)
 when checking that the solution (ℓ : Level) → R ℓ of metavariable
 _A_30 has the expected type Set _a_29
+Unsolved metas at the following locations:
+  Issue659.agda:32,7-10

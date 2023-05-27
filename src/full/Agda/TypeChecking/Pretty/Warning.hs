@@ -370,6 +370,10 @@ prettyWarning = \case
 
     UselessOpaque -> "This `opaque` block has no effect."
 
+    DeferredTypeError loc s e -> withTCState (const s) $ do
+      reportSLn "error.deferred" 2 $ "Error raised at " ++ prettyShow loc
+      sayWhen (envRange $ clEnv e) (envCall $ clEnv e) $ prettyTCM e
+
 prettyRecordFieldWarning :: MonadPretty m => RecordFieldWarning -> m Doc
 prettyRecordFieldWarning = \case
   DuplicateFieldsWarning xrs    -> prettyDuplicateFields $ map fst xrs
@@ -522,8 +526,11 @@ isBoundaryConstraint c =
 getAllUnsolvedWarnings :: (MonadFail m, ReadTCState m, MonadWarning m, MonadTCM m) => m [TCWarning]
 getAllUnsolvedWarnings = do
   unsolvedInteractions <- getUnsolvedInteractionMetas
+  ft <- useTC stFailedTasks
 
-  allCons <- getAllConstraints
+  allCons' <- getAllConstraints
+  let
+    allCons = filter (not . (`Set.member` ft) . envCurrentTask . clEnv . theConstraint) allCons'
   unsolvedConstraints  <- filterM (fmap isNothing . isBoundaryConstraint) allCons
   interactionBoundary  <- catMaybes <$> traverse isBoundaryConstraint allCons
 
@@ -550,12 +557,19 @@ getAllWarningsPreserving keptWarnings ww = do
   unsolved            <- getAllUnsolvedWarnings
   collectedTCWarnings <- useTC stTCWarnings
 
-  let showWarn w = classifyWarning w <= ww &&
-                    not (null unsolved && onlyShowIfUnsolved w)
+  let
+    showWarn w = classifyWarning w <= ww &&
+      not (null unsolved && onlyShowIfUnsolved w)
+
+    iserr = (`Set.member` errorWarnings) . warningName . tcWarning
+    (derrs, warns) = List.partition iserr collectedTCWarnings
+    derrs' = List.sortOn getRange derrs
+
+  reportSDoc "tc.warning" 666 $ prettyTCM collectedTCWarnings
 
   fmap (filter (showWarn . tcWarning))
     $ applyFlagsToTCWarningsPreserving keptWarnings
-    $ reverse $ unsolved ++ collectedTCWarnings
+    $ derrs' ++ reverse unsolved ++ warns
 
 getAllWarningsOfTCErr :: TCErr -> TCM [TCWarning]
 getAllWarningsOfTCErr err = case err of

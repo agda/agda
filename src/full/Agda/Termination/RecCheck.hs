@@ -167,4 +167,5 @@ anyDefs include a = do
   inst Open                           = __IMPOSSIBLE__
   inst OpenInstance                   = __IMPOSSIBLE__
   inst BlockedConst{}                 = __IMPOSSIBLE__
+  inst DeferredError{}                = __IMPOSSIBLE__
   inst PostponedTypeCheckingProblem{} = __IMPOSSIBLE__

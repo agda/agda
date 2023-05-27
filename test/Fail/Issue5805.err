@@ -8,9 +8,7 @@ Failed to solve the following constraints:
 Unsolved metas at the following locations:
   Issue5805.agda:20,19-30
   Issue5805.agda:28,20-21
-  Issue5805.agda:28,23-24
   Issue5805.agda:30,17-21
-  Issue5805.agda:30,27-31
 Unsolved interaction metas at the following locations:
   Issue5805.agda:19,13-17
   Issue5805.agda:30,22-26

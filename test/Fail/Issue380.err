@@ -5,3 +5,5 @@ when checking that the inferred type of an application
   Sigma _A_27 _B_28
 matches the expected type
   fst z == fst y → _snd_26 (y = y) (z = z) == snd z
+Unsolved metas at the following locations:
+  Issue380.agda:19,11-12

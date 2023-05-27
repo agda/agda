@@ -1,3 +1,7 @@
 Issue892b.agda:10,7-10
 (r : R) → R.A r → Set should be a sort, but it isn't
 when checking that the expression R.B has type _1
+Unsolved metas at the following locations:
+  Issue892b.agda:10,7-10
+Unsolved interaction metas at the following locations:
+  Issue892b.agda:11,7-8

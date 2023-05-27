@@ -1,3 +1,6 @@
 Issue5810.agda:8,15-24
 funSort Set LevelUniv is not a valid sort
 when checking that the expression ⊤ → Level is a type
+Unsolved metas at the following locations:
+  Issue5810.agda:8,8-43
+  Issue5810.agda:8,7-58

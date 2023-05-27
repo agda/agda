@@ -2,3 +2,11 @@ Issue5434-3.agda:6,5-6
 (@0 A : Set) → A → D A is not usable at the required modality @ω
 when checking that the type (@0 A : Set) → A → D A of the
 constructor c fits in the sort Set₁ of the datatype.
+Failed to solve the following constraints:
+  _3 (A = A) =< Set₁ (blocked on _3)
+  Is usable at default modality: (@0 A : Set) →
+                                 _4 (A = A) → D (_6 (A = A))
+    (blocked on _4)
+Unsolved metas at the following locations:
+  Issue5434-3.agda:6,24-25
+  Issue5434-3.agda:6,30-31

@@ -1,3 +1,10 @@
 ExistentialsProjections.agda:12,18-26
 Variable fwitness is declared irrelevant, so it cannot be used here
 when checking that the expression fwitness has type A
+ExistentialsProjections.agda:19,50-57
+Identifier witness is declared irrelevant, so it cannot be used
+here
+when checking that the expression witness x has type A
+Failed to solve the following constraints:
+  _5 (A = A) (P = P) (fwitness = _) = _19 (x = (exists _ p)) : A
+    (blocked on any(_5, _19))

@@ -1,4 +1,14 @@
+Issue1692.agda:30,12-29
+v₂ != v₁ of type Value k₂
+when checking that the expression anyOf t₁→t₂ t₂→t₁ has type
+k ∼ v ∈ node k₂ v₁ → k ∼ v ∈ node k₂ v₁
 Issue1692.agda:30,24-29
 v₁ != v₂ of type (Value k₂)
 when checking that the expression t₂→t₁ has type
 _k_51 ∼ _v_52 ∈ node k₂ v₁ → _k_51 ∼ _v_52 ∈ node k₂ v₂
+Issue1692.agda:60,24-29
+v₁ != v₂ of type (Value k₂)
+when checking that the expression t₂→t₁ has type
+_k_78 ∼ _v_79 ∈ node k₂ v₁ → _k_78 ∼ _v_79 ∈ node k₂ v₁
+Unsolved metas at the following locations:
+  Issue1692.agda:30,8-9

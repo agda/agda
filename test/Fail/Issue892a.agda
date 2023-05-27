@@ -9,5 +9,4 @@ record R : Set₁ where
 -- The type of R.g should print as (r : R) → Set
 -- rather than ( : R) → Set.
 bad : R.g
-bad = ?
-
+bad = {!   !}

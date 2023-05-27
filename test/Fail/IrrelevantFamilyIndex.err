@@ -1,3 +1,7 @@
 IrrelevantFamilyIndex.agda:26,9-10
 Variable n is declared irrelevant, so it cannot be used here
 when checking that the expression n has type Nat
+IrrelevantFamilyIndex.agda:26,5-10
+suc _21 != n of type Nat
+when checking that the given dot pattern suc n₁ matches the
+inferred value n

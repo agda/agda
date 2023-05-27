@@ -1,3 +1,5 @@
 FunSort-X-SSetOmega-SetOmega.agda:6,13-18
 Setω != funSort _3 SSetω
 when checking that the expression A → B has type Setω
+Unsolved metas at the following locations:
+  FunSort-X-SSetOmega-SetOmega.agda:5,5-6

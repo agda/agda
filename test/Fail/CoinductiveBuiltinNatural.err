@@ -1,3 +1,6 @@
 CoinductiveBuiltinNatural.agda:11,21-22
 ℕ !=< ∞ ℕ
 when checking that the expression suc has type ℕ → ℕ
+CoinductiveBuiltinNatural.agda:11,1-29
+suc must be a constructor in the binding to builtin SUC
+when checking the pragma BUILTIN NATURAL ℕ

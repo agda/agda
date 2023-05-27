@@ -52,6 +52,7 @@ instance EmbPrj Warning where
     SafeFlagNoCoverageCheck               -> __IMPOSSIBLE__
     SafeFlagInjective                     -> __IMPOSSIBLE__
     SafeFlagEta                           -> __IMPOSSIBLE__
+    DeferredTypeError{}                   -> __IMPOSSIBLE__
     DeprecationWarning a b c              -> icodeN 6 DeprecationWarning a b c
     NicifierIssue a                       -> icodeN 7 NicifierIssue a
     InversionDepthReached a               -> icodeN 8 InversionDepthReached a
@@ -429,6 +430,7 @@ instance EmbPrj WarningName where
     NotAffectedByOpaque_                         -> 98
     UnfoldTransparentName_                       -> 99
     UselessOpaque_                               -> 100
+    DeferredTypeError_                           -> 101
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -532,6 +534,7 @@ instance EmbPrj WarningName where
     98  -> return NotAffectedByOpaque_
     99  -> return UnfoldTransparentName_
     100 -> return UselessOpaque_
+    101 -> return DeferredTypeError_
     _   -> malformed
 
 

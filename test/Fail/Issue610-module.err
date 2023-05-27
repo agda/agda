@@ -2,3 +2,6 @@ Issue610-module.agda:29,8-40
 ack (set _) !=< ⊥
 when checking that the expression subst (λ x → x) (cong ack hah) _
 has type ⊥
+Issue610-module.agda:34,11-30
+ack (set _) !=< ⊥
+when checking that the expression subst (λ x → x) q _ has type ⊥

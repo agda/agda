@@ -1,3 +1,5 @@
 Issue228.agda:19,5-18
 Set (lsuc lzero ⊔ ∞) != Set
 when checking that the expression Large × Small has type Set
+Failed to solve the following constraints:
+  Large × Small =< _15 (blocked on _15)

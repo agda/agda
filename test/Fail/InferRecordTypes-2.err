@@ -1,3 +1,5 @@
 InferRecordTypes-2.agda:10,7-26
 There is no known record with the field x₃
 when checking that the expression record { x₃ = Set } has type _1
+Unsolved metas at the following locations:
+  InferRecordTypes-2.agda:10,1-4

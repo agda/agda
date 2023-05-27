@@ -5,9 +5,12 @@ import Agda.Syntax.Common
 
 import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Debug (MonadDebug)
+import {-# SOURCE #-} Agda.TypeChecking.Pretty (PrettyTCM)
 
 -- Misplaced SPECIALISE pragma:
 -- {-# SPECIALIZE prettyError :: TCErr -> TCM String #-}
 prettyError :: MonadTCM tcm => TCErr -> tcm String
 
 topLevelModuleDropper :: (MonadDebug m, MonadTCEnv m, ReadTCState m) => m (QName -> QName)
+
+instance PrettyTCM TypeError

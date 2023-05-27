@@ -3,5 +3,3 @@ Failed to solve the following constraints:
   _8 (A = A) true a b = a : A (blocked on _8)
 Unsolved metas at the following locations:
   DontPrune.agda:12,12-13
-  DontPrune.agda:15,14-18
-  DontPrune.agda:15,21-25

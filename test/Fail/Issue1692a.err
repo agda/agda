@@ -1,3 +1,6 @@
 Issue1692a.agda:14,30-33
 a != b of type A
 when checking that the expression f b has type b ≡ b
+Issue1692a.agda:24,29-32
+a != b of type A
+when checking that the expression f b has type b ≡ b

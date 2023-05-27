@@ -1,3 +1,6 @@
 Issue1815.agda:20,24-25
 Set !=< (R2 _A_11)
 when checking that the expression A has type R2 _A_11
+Unsolved metas at the following locations:
+  Issue1815.agda:20,18-23
+  Issue1815.agda:20,18-27

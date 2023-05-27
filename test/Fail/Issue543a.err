@@ -1,3 +1,17 @@
 Issue543a.agda:34,50-54
 true != (unsquash _) of type Bool
 when checking that the expression refl has type true ≡ unsquash _
+Issue543a.agda:37,52-56
+(unsquash _) != false of type Bool
+when checking that the expression refl has type unsquash _ ≡ false
+Issue543a.agda:44,10-19
+Type bad1 !=< true ≡ _y_33
+when checking that the expression elem bad1 has type true ≡ _y_33
+Issue543a.agda:44,27-35
+(.(Squash _A_40) → _A_40) !=< (_A_38 → _B_39) because one is a
+relevant function type and the other is an irrelevant function type
+when checking that the expression unsquash has type _A_38 → _B_39
+Issue543a.agda:44,46-55
+Type bad2 !=< _40 (squash _) ≡ false
+when checking that the expression elem bad2 has type
+_40 (squash _) ≡ false

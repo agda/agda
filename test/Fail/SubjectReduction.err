@@ -1,5 +1,20 @@
+SubjectReduction.agda:26,18-46
+SubjectReduction.♯-3 eq P Px t != SubjectReduction.♯-2 of type
+∞ Stream
+when checking that the expression eq (λ s → P (tick (♯ s))) Px has
+type P (tick SubjectReduction.♯-2)
 SubjectReduction.agda:26,44-46
 SubjectReduction.♯-1 != (SubjectReduction.♯-3 eq P Px s) of type
 (∞ Stream)
 when checking that the expression Px has type
 P (tick (SubjectReduction.♯-3 eq P Px s))
+SubjectReduction.agda:35,6-67
+SubjectReduction.♯-3 != SubjectReduction.♯-6 of type ∞ Stream
+when checking that the expression
+((_ → Eq (tick (♯ ticks)) (tick (♯ tick (♯ ticks)))) ∶ l₂) l₁ has
+type Goal
+SubjectReduction.agda:35,61-63
+SubjectReduction.♯-6 != SubjectReduction.♯-1 of type ∞ Stream
+when checking that the expression l₂ has type
+Eq _s_56 _t_57 →
+Eq (tick SubjectReduction.♯-6) (tick SubjectReduction.♯-7)

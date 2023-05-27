@@ -52,6 +52,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Opacity
+import Agda.TypeChecking.Recover
 
 import Agda.TypeChecking.Rules.Application
 import Agda.TypeChecking.Rules.Term
@@ -144,8 +145,8 @@ checkDecl d = setCurrentRange d $ do
         impossible  m = m $>  __IMPOSSIBLE__
                         -- We're definitely inside a mutual block.
 
-    (finalChecks, metas) <- metasCreatedBy $ case d of
-      A.Axiom{}                -> meta $ checkTypeSignature d
+    (finalChecks, metas) <- metasCreatedBy $ inNewTask $ case d of
+      A.Axiom{}                 -> meta $ checkTypeSignature d
       A.Generalize s i info x e -> meta $ inConcreteMode $ checkGeneralize s i info x e
       A.Field{}                -> typeError FieldOutsideRecord
       A.Primitive i x e        -> meta $ checkPrimitive i x e
@@ -929,6 +930,7 @@ checkSectionApplication'
   -- If the section application is erased, then hard compile-time mode
   -- is entered.
   warnForPlentyInHardCompileTimeMode e
+  disallowRecovery $ do
   setHardCompileTimeModeIfErased e $ do
   -- Module applications can appear in lets, in which case we treat
   -- lambda-bound variables as additional parameters to the module.
@@ -1000,7 +1002,7 @@ checkSectionApplication'
 checkSectionApplication' _ Erased{} _ A.RecordModuleInstance{} _ =
   __IMPOSSIBLE__
 checkSectionApplication'
-  i NotErased{} m1 (A.RecordModuleInstance x) copyInfo = do
+  i NotErased{} m1 (A.RecordModuleInstance x) copyInfo = disallowRecovery $ do
   let name = mnameToQName x
   tel' <- lookupSection x
   vs   <- moduleParamsToApply x

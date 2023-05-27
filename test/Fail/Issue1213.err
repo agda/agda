@@ -1,3 +1,5 @@
 Issue1213.agda:23,8-10
 ⊤ !=< ⊥
 when checking that the expression tt has type IsZero (suc _15)
+Unsolved metas at the following locations:
+  Issue1213.agda:22,20-21

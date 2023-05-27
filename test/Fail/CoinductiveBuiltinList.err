@@ -1,3 +1,6 @@
 CoinductiveBuiltinList.agda:11,18-22
 List A !=< ∞ (List A)
 when checking that the expression _∷_ has type A → List A → List A
+CoinductiveBuiltinList.agda:11,1-26
+_∷_ must be a constructor in the binding to builtin CONS
+when checking the pragma BUILTIN LIST List

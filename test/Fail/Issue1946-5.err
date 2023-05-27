@@ -1,3 +1,21 @@
 Issue1946-5.agda:16,16-23
 SizeUniv != Set
 when checking that the expression Size< i has type Set
+Issue1946-5.agda:20,1-22,24
+Termination checking failed for the following functions:
+  empty
+Problematic calls:
+  empty i x | force x
+  empty ∞ y
+    (at Issue1946-5.agda:22,15-20)
+Issue1946-5.agda:24,1-25,28
+Termination checking failed for the following functions:
+  inh
+Problematic calls:
+  λ { .force → _20 , inh }
+    (at Issue1946-5.agda:25,7-28)
+  inh
+    (at Issue1946-5.agda:25,23-26)
+Failed to solve the following constraints:
+  Size =< _8 (i = ∞) (blocked on _8)
+  _8 (i = i) =< Size (blocked on _8)

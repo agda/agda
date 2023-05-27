@@ -1,4 +1,242 @@
-Sections-2.agda:7,16-17
+{ checkExpr
+Checking Bool : _0
+           at  Sections-2.agda:5,19-23
+    -->  _0
+inferDef Bool
+  absolute type:     Set
+  instantiated type: Set
+  free vars:
+inferred def  Bool
+  : Set
+  --> Bool
+implicitNamedArgs Set
+checkApplication: checkHeadApplication returned
+  v =  Bool
+checkExpr Bool : Set
+  returns Bool
+}
+isType_ Bool
+  returns Bool
+{ checkExpr
+Checking if b then Nat else Bool : _1
+           at  Sections-2.agda:5,27-50
+    -->  _1
+inferDef if_then_else_
+  absolute type:     ({a : Agda.Primitive.Level} {A : Set a} →
+                      Bool → A → A → A)
+  instantiated type: ({a : Agda.Primitive.Level} {A : Set a} →
+                      Bool → A → A → A)
+  free vars:
+inferred def  if_then_else_
+  : ({a : Agda.Primitive.Level} {A : Set a} → Bool → A → A → A)
+  --> if_then_else_
+checkArgumentsE
+  e     = b
+  sFun  = ({a : Agda.Primitive.Level} {A : Set a} → Bool → A → A → A)
+  sApp  = _1
+calling implicitNamedArgs
+  sFun =  ({a : Agda.Primitive.Level} {A : Set a} → Bool → A → A → A)
+  hx   =  NotHidden
+  mx   =  nothing
+implicitNamedArgs ({a : Agda.Primitive.Level} {A : Set a} →
+                   Bool → A → A → A)
+implicitNamedArgs ({A : Set _a_2} → Bool → A → A → A)
+implicitNamedArgs (Bool → _A_3 → _A_3 → _A_3)
+Checking named arg b : Bool
+{ checkExpr
+Checking b : Bool
+           at  Sections-2.agda:5,30-31
+    -->  Bool
+variable b ( Var 0 [] ) has type: Bool
+implicitNamedArgs Bool
+checkApplication: checkHeadApplication returned
+  v =  b
+checkExpr b : Bool
+  returns b
+}
+checkArgumentsE
+  e     = Nat
+  sFun  = (_A_3 → _A_3 → _A_3)
+  sApp  = _1
+calling implicitNamedArgs
+  sFun =  (_A_3 → _A_3 → _A_3)
+  hx   =  NotHidden
+  mx   =  nothing
+implicitNamedArgs (_A_3 → _A_3 → _A_3)
+Checking named arg Nat : _A_3
+{ checkExpr
+Checking Nat : _A_3
+           at  Sections-2.agda:5,37-40
+    -->  _A_3
+inferDef Nat
+  absolute type:     Set
+  instantiated type: Set
+  free vars:
+inferred def  Nat
+  : Set
+  --> Nat
+implicitNamedArgs Set
+checkApplication: checkHeadApplication returned
+  v =  Nat
+checkExpr Nat : Set
+  returns Nat
+}
+checkArgumentsE
+  e     = Bool
+  sFun  = (Set → Set)
+  sApp  = _1
+calling implicitNamedArgs
+  sFun =  (Set → Set)
+  hx   =  NotHidden
+  mx   =  nothing
+implicitNamedArgs (Set → Set)
+Checking named arg Bool : Set
+{ checkExpr
+Checking Bool : Set
+           at  Sections-2.agda:5,46-50
+    -->  Set
+inferDef Bool
+  absolute type:     Set
+  instantiated type: Set
+  free vars:
+inferred def  Bool
+  : Set
+  --> Bool
+implicitNamedArgs Set
+checkApplication: checkHeadApplication returned
+  v =  Bool
+checkExpr Bool : Set
+  returns Bool
+}
+implicitNamedArgs Set
+checkApplication: checkHeadApplication returned
+  v =  if b then Nat else Bool
+checkExpr if b then Nat else Bool : Set
+  returns if b then Nat else Bool
+}
+isType_ if b then Nat else Bool
+  returns if b then Nat else Bool
+isType_ Set
+  returns Set
+isType_ if b then Nat else Bool → Set
+  returns if b then Nat else Bool → Set
+isType_ (b : Bool) → if b then Nat else Bool → Set
+  returns (b : Bool) → if b then Nat else Bool → Set
+isType_ Set
+  returns Set
+{ checkExpr
+Checking foo_bar 5 : Set
+           at  Sections-2.agda:8,8-17
+    -->  Set
+{ checkExpr
+Checking λ section → foo section bar 5 : Set
+           at  Sections-2.agda:8,8-17
+    -->  Set
+checkLambda before insertion xs = [section]
+insertImplicitBindersT
+  bs  =  [section]
+  tel = 
+  ty  =  Set
+checkLambda xs = [section]
+possiblePath   = True
+numbinds       = 1
+typ            = _
+{ checkExpr
+Checking _ : _4
+           at  Sections-2.agda:8,8-17
+    -->  _4
+checkExpr _ : _4
+  returns _section_5
+}
+isType_ _
+  returns _section_5
+dontUseTargetType tel = (section : _5@5468061560674487983)
+{ checkExpr
+Checking foo section bar 5 : _7
+           at  Sections-2.agda:8,8-17
+    -->  _7
+inferDef foo_bar_
+  absolute type:     (b : Bool) → if b then Nat else Bool → Set
+  instantiated type: (b : Bool) → if b then Nat else Bool → Set
+  free vars:
+inferred def  foo_bar_
+  : (b : Bool) → if b then Nat else Bool → Set
+  --> foo_bar_
+checkArgumentsE
+  e     = section
+  sFun  = (b : Bool) → if b then Nat else Bool → Set
+  sApp  = _7
+calling implicitNamedArgs
+  sFun =  (b : Bool) → if b then Nat else Bool → Set
+  hx   =  NotHidden
+  mx   =  nothing
+implicitNamedArgs (b : Bool) → if b then Nat else Bool → Set
+Checking named arg b = section : Bool
+{ checkExpr
+Checking section : Bool
+           at  Sections-2.agda:8,8-15
+    -->  Bool
+variable section ( Var 0 [] ) has type: _section_5
+implicitNamedArgs _section_5
+checkApplication: checkHeadApplication returned
+  v =  section
+checkExpr section : Bool
+  returns section
+}
+checkArgumentsE
+  e     = 5
+  sFun  = if section then Nat else Bool → Set
+  sApp  = _7
+calling implicitNamedArgs
+  sFun =  if section then Nat else Bool → Set
+  hx   =  NotHidden
+  mx   =  nothing
+implicitNamedArgs if section then Nat else Bool → Set
+Checking named arg 5 : if section then Nat else Bool
+{ checkExpr
+Checking 5 : if section then Nat else Bool
+           at  Sections-2.agda:8,16-17
+    -->  if section then Nat else Bool
+Error raised at typeError, called at src/full/Agda/TypeChecking/SizedTypes.hs:«line»:«col» in «Agda-package»:Agda.TypeChecking.SizedTypes
+Deferring type error:
+Sections-2.agda:8,16-17
+Nat != (if section then Nat else Bool)
+when checking that the expression 5 has type
+if section then Nat else Bool
+Current task:
+TaskId {getTaskId = 12}
+Error raised at typeError, called at src/full/Agda/TypeChecking/SizedTypes.hs:«line»:«col» in «Agda-package»:Agda.TypeChecking.SizedTypes
+Deferral token: _8
+checkExpr 5 : if section then Nat else Bool
+  returns _8
+}
+implicitNamedArgs Set
+checkApplication: checkHeadApplication returned
+  v =  foo section bar _8
+checkExpr foo section bar 5 : Set
+  returns foo section bar _8
+}
+Error raised at typeError, called at src/full/Agda/TypeChecking/Conversion.hs:«line»:«col» in «Agda-package»:Agda.TypeChecking.Conversion
+Deferring type error:
+Sections-2.agda:8,8-17
+(section : Bool) → Set !=< Set
+when checking that the expression λ section → foo section bar 5 has
+type Set
+Current task:
+TaskId {getTaskId = 12}
+Error raised at typeError, called at src/full/Agda/TypeChecking/Conversion.hs:«line»:«col» in «Agda-package»:Agda.TypeChecking.Conversion
+Deferral token: _4
+checkExpr λ section → foo section bar 5 : Set
+  returns _4
+}
+checkExpr foo_bar 5 : Set
+  returns _4
+}
+Sections-2.agda:8,8-17
+(section : Bool) → Set !=< Set
+when checking that the expression λ section → foo section bar 5 has
+type Set
+Sections-2.agda:8,16-17
 Nat != (if section then Nat else Bool)
 when checking that the expression 5 has type
 if section then Nat else Bool

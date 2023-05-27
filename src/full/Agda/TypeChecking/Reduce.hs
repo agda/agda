@@ -207,6 +207,8 @@ instance Instantiate Term where
 
          Open -> return t
 
+         DeferredError -> return t
+
          OpenInstance -> return t
 
          BlockedConst u

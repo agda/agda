@@ -1,3 +1,5 @@
 FunSort-X-Set-Prop.agda:6,13-18
 Prop != Set _5
 when checking that the expression A → B has type Set
+Unsolved metas at the following locations:
+  FunSort-X-Set-Prop.agda:5,5-6

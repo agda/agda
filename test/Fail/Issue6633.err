@@ -2,3 +2,22 @@ Issue6633.agda:32,47-48
 SSet != Set
 when checking that the solution x ≡ˢ y of metavariable _A_33 has
 the expected type Set
+Issue6633.agda:32,47-48
+SSet != Set
+when checking that the solution x ≡ˢ y of metavariable _A_33 has
+the expected type Set
+Issue6633.agda:37,9-15
+SSet != Set
+when checking that the expression x ≡ˢ y has type Set
+Issue6633.agda:42,10-11
+SSet != Set
+when checking that the expression A has type Set
+Failed to solve the following constraints:
+  _34 (p = reflˢ) (q = reflˢ) = _35 (p = reflˢ) (q = reflˢ)
+    : _A_33 (p = reflˢ) (q = reflˢ)
+    (blocked on any(_34, _35))
+Unsolved metas at the following locations:
+  Issue6633.agda:32,47-48
+  Issue6633.agda:38,17-22
+  Issue6633.agda:38,27-45
+  Issue6633.agda:39,5-9

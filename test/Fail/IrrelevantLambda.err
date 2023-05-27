@@ -1,3 +1,5 @@
 IrrelevantLambda.agda:8,5-16
 Found a non-strict lambda where a irrelevant lambda was expected
 when checking that the expression λ .x → P x has type _2 → Set
+Unsolved metas at the following locations:
+  IrrelevantLambda.agda:7,5-6

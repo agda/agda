@@ -6,6 +6,5 @@ Failed to solve the following constraints:
   _a_74 =< lsuc lzero (blocked on _a_74)
 Unsolved metas at the following locations:
   Issue3431.agda:49,24-28
-  Issue3431.agda:49,21-49
 Unsolved interaction metas at the following locations:
   Issue3431.agda:49,32-36

@@ -278,6 +278,7 @@ data PostScopeState = PostScopeState
   , stPostMutualBlocks        :: !(Map MutualId MutualBlock)
   , stPostLocalBuiltins       :: !(BuiltinThings PrimFun)
   , stPostFreshMetaId         :: !MetaId
+  , stPostFreshTaskId         :: !TaskId
   , stPostFreshMutualId       :: !MutualId
   , stPostFreshProblemId      :: !ProblemId
   , stPostFreshCheckpointId   :: !CheckpointId
@@ -297,6 +298,9 @@ data PostScopeState = PostScopeState
     -- ^ Associates opaque identifiers to their actual blocks.
   , stPostOpaqueIds           :: Map QName OpaqueId
     -- ^ Associates each opaque QName to the block it was defined in.
+  , stPostFailedTasks         :: !(Set TaskId)
+    -- ^ "Tasks" which failed. Constraints generated in these tasks will
+    -- not be reported to the user.
   }
   deriving (Generic)
 
@@ -447,6 +451,7 @@ initPostScopeState = PostScopeState
   , stPostFreshProblemId       = 1
   , stPostFreshCheckpointId    = 1
   , stPostFreshInt             = 0
+  , stPostFreshTaskId          = TaskId 0
   , stPostFreshNameId          = NameId 0 noModuleNameHash
   , stPostFreshOpaqueId        = OpaqueId 0 noModuleNameHash
   , stPostAreWeCaching         = False
@@ -456,6 +461,7 @@ initPostScopeState = PostScopeState
   , stPostLocalPartialDefs     = Set.empty
   , stPostOpaqueBlocks         = Map.empty
   , stPostOpaqueIds            = Map.empty
+  , stPostFailedTasks          = Set.empty
   }
 
 initState :: TCState
@@ -750,6 +756,11 @@ stFreshMetaId f s =
   f (stPostFreshMetaId (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshMetaId = x}}
 
+stFreshTaskId :: Lens' TCState TaskId
+stFreshTaskId f s =
+  f (stPostFreshTaskId (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshTaskId = x}}
+
 stFreshMutualId :: Lens' TCState MutualId
 stFreshMutualId f s =
   f (stPostFreshMutualId (stPostScopeState s)) <&>
@@ -790,6 +801,11 @@ stInstantiateBlocking :: Lens' TCState Bool
 stInstantiateBlocking f s =
   f (stPostInstantiateBlocking (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostInstantiateBlocking = x}}
+
+stFailedTasks :: Lens' TCState (Set TaskId)
+stFailedTasks f s =
+  f (stPostFailedTasks (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostFailedTasks = x}}
 
 stBuiltinThings :: TCState -> BuiltinThings PrimFun
 stBuiltinThings s = Map.unionWith unionBuiltin (s^.stLocalBuiltins) (s^.stImportedBuiltins)
@@ -1427,6 +1443,8 @@ data MetaInstantiation
         | Open                -- ^ unsolved
         | OpenInstance        -- ^ open, to be instantiated by instance search
         | BlockedConst Term   -- ^ solution blocked by unsolved constraints
+        | DeferredError
+        -- ^ stands for an expression whose elaboration is blocked by a hard type error
         | PostponedTypeCheckingProblem (Closure TypeCheckingProblem)
   deriving Generic
 
@@ -1505,6 +1523,7 @@ instance Pretty MetaInstantiation where
   pretty = \case
     Open                                     -> "Open"
     OpenInstance                             -> "OpenInstance"
+    DeferredError                            -> "DeferredError"
     PostponedTypeCheckingProblem{}           -> "PostponedTypeCheckingProblem (...)"
     BlockedConst t                           -> hsep [ "BlockedConst", parens (pretty t) ]
     InstV Instantiation{ instTel, instBody } -> hsep [ "InstV", pretty instTel, parens (pretty instBody) ]
@@ -3663,6 +3682,13 @@ data TCEnv =
                 -- currently under, if any. Used by the scope checker
                 -- (to associate definitions to blocks), and by the type
                 -- checker (for unfolding control).
+          , envCurrentTask     :: !TaskId
+                -- ^ Arbitrary partition of the program into "tasks" for
+                -- the purpose of improving error reporting in the
+                -- presence of error recovery
+          , envRecoveryAllowed :: Bool
+                -- ^ Are we in a situation where error recovery is
+                -- allowed?
           }
     deriving (Generic)
 
@@ -3728,6 +3754,8 @@ initEnv = TCEnv { envContext             = []
                 , envCurrentlyElaborating   = False
                 , envSyntacticEqualityFuel  = Strict.Nothing
                 , envCurrentOpaqueId        = Nothing
+                , envCurrentTask            = TaskId 0
+                , envRecoveryAllowed        = True
                 }
 
 class LensTCEnv a where
@@ -4216,6 +4244,8 @@ data Warning
   | NotAffectedByOpaque
   | UnfoldTransparentName QName
   | UselessOpaque
+  | DeferredTypeError CallStack TCState (Closure TypeError)
+    -- ^ Type error which we have turned into a warning. Fields are as in 'TypeError'.
   deriving (Show, Generic)
 
 data RecordFieldWarning
@@ -4295,6 +4325,7 @@ warningName = \case
   RewriteAmbiguousRules{}      -> RewriteAmbiguousRules_
   RewriteMissingRule{}         -> RewriteMissingRule_
   PragmaCompileErased{}        -> PragmaCompileErased_
+  DeferredTypeError{}          -> DeferredTypeError_
   PlentyInHardCompileTimeMode{}
                                -> PlentyInHardCompileTimeMode_
   -- record field warnings
@@ -4691,6 +4722,24 @@ instance HasRange TCErr where
   getRange PatternErr{}        = noRange
 
 instance E.Exception TCErr
+
+---------------------------------------------------------------------------
+-- * Recovering from type errors
+---------------------------------------------------------------------------
+
+-- To avoid printing unsolved constraints generated during a
+-- type-checking task that fails with a recoverable error, we
+-- arbitrarily partition the program into "tasks". Constraints
+-- associated with a failed task are not reported to the user.
+
+newtype TaskId = TaskId { getTaskId :: Int }
+  deriving (Eq, Show, Ord, Enum, NFData)
+
+instance HasFresh TaskId where
+  freshLens = stFreshTaskId
+
+disallowRecovery :: MonadTCEnv m => m a -> m a
+disallowRecovery = localTC $ \e -> e { envRecoveryAllowed = False }
 
 -----------------------------------------------------------------------------
 -- * Accessing options

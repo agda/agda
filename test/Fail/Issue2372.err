@@ -7,3 +7,5 @@ when checking the definition of i
 Issue2372.agda:21,5-6
 No instance of type R was found in scope.
 when checking that the expression r has type Set
+Unsolved metas at the following locations:
+  Issue2372.agda:21,5-6

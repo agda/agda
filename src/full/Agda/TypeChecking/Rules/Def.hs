@@ -42,6 +42,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Recover
 import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.With
 import Agda.TypeChecking.Telescope
@@ -731,7 +732,14 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
 
         body <- return $ body `mplus` wbody
 
-        whenM (optDoubleCheck <$> pragmaOptions) $ case body of
+        -- Deferred type errors in the body will be turned into open
+        -- metas, which the double checker can trip on: deferred
+        -- errors are a "failing code path", and it doesn't make sense
+        -- to ask whether code we *know* is type-incorrect
+        double <- andM [ optDoubleCheck <$> pragmaOptions
+                       , not <$> hasDeferredErrors
+                       ]
+        when double $ case body of
           Just v  -> do
             reportSDoc "tc.lhs.top" 30 $ vcat
               [ "double checking rhs"

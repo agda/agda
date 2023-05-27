@@ -1,3 +1,9 @@
 Issue5434-4.agda:5,10-11
 (@0 A : Set) (x : A) → R is not usable at the required modality @ω
 when checking the definition of R
+Failed to solve the following constraints:
+  _2 (A = A) =< Set₁ (blocked on _2)
+  Is usable at default modality: (@0 A : Set) (x : _3 (A = A)) → R
+    (blocked on _3)
+Unsolved metas at the following locations:
+  Issue5434-4.agda:9,14-15

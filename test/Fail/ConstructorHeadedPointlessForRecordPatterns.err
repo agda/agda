@@ -1,6 +1,11 @@
 checkFunDef': checking injectivity...
 Injectivity of ConstructorHeadedPointlessForRecordPatterns.swap would be pointless.
 Injectivity of ConstructorHeadedPointlessForRecordPatterns.swap would be pointless.
+checkFunDef': checking injectivity...
+Injectivity of ConstructorHeadedPointlessForRecordPatterns.CRASH would be pointless.
+Injectivity of ConstructorHeadedPointlessForRecordPatterns.CRASH would be pointless.
 ConstructorHeadedPointlessForRecordPatterns.agda:27,9-12
 Set₁ != Set
 when checking that the expression Set has type Set
+Unsolved metas at the following locations:
+  ConstructorHeadedPointlessForRecordPatterns.agda:12,19-20

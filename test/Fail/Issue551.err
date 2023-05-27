@@ -1,3 +1,6 @@
 Issue551.agda:30,17-25
 No instance of type PackBool was found in scope.
 when checking that the expression implicit has type PackBool
+Failed to solve the following constraints:
+  unpack (_25 (x = _)) = false : Bool (blocked on _25)
+  unpack (_25 (x = _)) = true : Bool (blocked on _25)

@@ -3,3 +3,6 @@ Foo _28 != Bool of type Set
 when checking that the expression refl has type
 f (Bool × Wrap Nat) (true , wrap zero) ==
 f (Stuck × Stuck) (Beta , Beta)
+Unsolved metas at the following locations:
+  Issue1258-2.agda:36,9-10
+  Issue1258-2.agda:37,9-10

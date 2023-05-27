@@ -2,3 +2,10 @@ Issue6651-UnivPred-SizeUniv.agda:17,5-9
 Setω != Set₁
 when checking that the solution SizeUniv of metavariable _0 has the
 expected type Set₁
+Failed to solve the following constraints:
+  univSort _3 = Set₁ (blocked on _3)
+  univSort _3 =< Set₁ (blocked on _3)
+Unsolved metas at the following locations:
+  Issue6651-UnivPred-SizeUniv.agda:19,16-17
+Unsolved interaction metas at the following locations:
+  Issue6651-UnivPred-SizeUniv.agda:17,5-9

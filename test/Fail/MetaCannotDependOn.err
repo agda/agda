@@ -3,3 +3,5 @@ Cannot instantiate the metavariable _A_10 to solution Vec n Nat
 since it contains the variable n
 which is not in scope of the metavariable
 when checking that the expression xs has type Vec n Nat
+Unsolved metas at the following locations:
+  MetaCannotDependOn.agda:13,9-10

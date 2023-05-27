@@ -2,3 +2,5 @@ NoBindingForBuiltin.agda:3,7-9
 No binding for builtin ZERO, use {-# BUILTIN NATURAL name #-} to
 bind builtin natural numbers to the type 'name'
 when checking that the expression 42 has type _1
+Unsolved metas at the following locations:
+  NoBindingForBuiltin.agda:3,1-4

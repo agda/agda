@@ -12,7 +12,7 @@ import Agda.TypeChecking.Monad.Base
   ( TCM, ReadTCState, HasOptions, MonadTCEnv
   , Definition, RewriteRules
   )
-import Agda.TypeChecking.Monad.Debug (MonadDebug)
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Debug (MonadDebug)
 
 import Agda.Utils.Pretty (prettyShow)
 

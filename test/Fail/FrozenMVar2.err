@@ -10,4 +10,3 @@ Failed to solve the following constraints:
   _A_28 =< ℕ (blocked on _A_28)
 Unsolved metas at the following locations:
   FrozenMVar2.agda:20,1-28
-  FrozenMVar2.agda:32,23-26

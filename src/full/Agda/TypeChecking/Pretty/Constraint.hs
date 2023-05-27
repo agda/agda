@@ -102,6 +102,7 @@ instance PrettyTCM Constraint where
                 prettyCmp ":=" m p
               Open{}  -> __IMPOSSIBLE__
               OpenInstance{} -> __IMPOSSIBLE__
+              DeferredError{} -> __IMPOSSIBLE__
               InstV{} -> empty
               -- Andreas, 2017-01-11, issue #2637:
               -- The size solver instantiates some metas with infinity

@@ -2,3 +2,5 @@ Issue4481.agda:25,14-15
 Unexpected implicit argument
 when checking that the expression λ {C = B} {A} → A has type
 {A B : Set} → Set
+Unsolved metas at the following locations:
+  Issue4481.agda:20,22-23

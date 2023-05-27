@@ -7,4 +7,3 @@ Failed to solve the following constraints:
   (_r_30 Semiring.+ a) c = c +N a : Nat (blocked on _r_30)
 Unsolved metas at the following locations:
   InstanceErrorMessageMultiple.agda:32,16-17
-  InstanceErrorMessageMultiple.agda:32,22-26

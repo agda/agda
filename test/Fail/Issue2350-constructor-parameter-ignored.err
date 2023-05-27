@@ -4,3 +4,9 @@ when checking that the inferred type of an application
   D _A_13
 matches the expected type
   D A
+Failed to solve the following constraints:
+  Resolve instance argument _a_12 : Agda.Primitive.Level
+  Candidates
+    ℓ' : Agda.Primitive.Level
+    ℓ : Agda.Primitive.Level
+    (stuck)

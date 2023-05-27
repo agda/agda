@@ -3,3 +3,27 @@ tt != ff of type Bool
 when checking that the expression
 refl {x = ap {A = Bool→cBool} (λ f → f tt) p} has type
 ap (λ f → f tt) p ≡ ap (λ f → f ff) p
+Failed to solve the following constraints:
+  _41 (f = swap) (x = ff) (y = tt) = ff
+    : _A_39 (f = swap) (x = ff) (y = tt)
+    (blocked on _41)
+  _41 (f = swap) (x = ff) (y = tt) = tt
+    : _A_39 (f = swap) (x = ff) (y = tt)
+    (blocked on _41)
+  _A_39 (f = swap) (x = ff) (y = tt) = Bool
+    : Set (_a_38 (f = swap) (x = ff) (y = tt))
+    (blocked on _A_39)
+  _a_38 (f = swap) (x = ff) (y = tt) = Agda.Primitive.lzero
+    (blocked on _a_38)
+  Check definition of swap : Bool→cBool
+    stuck because
+      Issue2480false.agda:29,6-8
+      Cannot eliminate type _33 with constructor pattern tt (did you
+      supply too many arguments?)
+      when checking the clause left hand side
+      swap tt
+    (blocked on _33)
+Unsolved metas at the following locations:
+  Issue2480false.agda:20,16-17
+  Issue2480false.agda:25,48-49
+  Issue2480false.agda:25,44-47

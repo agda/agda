@@ -3,4 +3,3 @@ Failed to solve the following constraints:
     (blocked on _14)
 Unsolved metas at the following locations:
   NotStronglyRigidOccurrence.agda:14,16-17
-  NotStronglyRigidOccurrence.agda:16,12-16

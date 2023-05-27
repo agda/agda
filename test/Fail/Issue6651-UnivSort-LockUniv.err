@@ -1,4 +1,14 @@
 Issue6651-UnivSort-LockUniv.agda:17,5-6
+univSort _12 != primLockUniv
+when checking that the solution _12 of metavariable _8 has the
+expected type primLockUniv
+Issue6651-UnivSort-LockUniv.agda:17,5-6
 univSort _10 != primLockUniv
 when checking that the solution _10 of metavariable _8 has the
 expected type primLockUniv
+Failed to solve the following constraints:
+  _11 (A = A) =< _13 (A = A) (blocked on any(_11, _13))
+Unsolved metas at the following locations:
+  Issue6651-UnivSort-LockUniv.agda:17,5-6
+  Issue6651-UnivSort-LockUniv.agda:19,16-17
+  Issue6651-UnivSort-LockUniv.agda:19,20-21

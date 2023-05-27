@@ -1,10 +1,10 @@
 Issue1209-4.agda:3,1-30
-Importing module Agda.Builtin.Size not using the --safe flag from a
-module which does.
+Importing module Agda.Builtin.Size using the --sized-types flag
+from a module which does not.
 when scope checking the declaration
   open import Agda.Builtin.Size
 Issue1209-4.agda:3,1-30
-Importing module Agda.Builtin.Size using the --sized-types flag
-from a module which does not.
+Importing module Agda.Builtin.Size not using the --safe flag from a
+module which does.
 when scope checking the declaration
   open import Agda.Builtin.Size

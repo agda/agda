@@ -1,3 +1,5 @@
 FunSort-X-SetOmega-PropOmega.agda:6,13-18
 Propω != funSort _3 Setω
 when checking that the expression A → B has type Propω
+Unsolved metas at the following locations:
+  FunSort-X-SetOmega-PropOmega.agda:5,5-6

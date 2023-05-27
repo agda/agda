@@ -465,7 +465,7 @@ checkCandidates m t cands =
       k
 
     checkCandidateForMeta :: MetaId -> Type -> Candidate -> TCM YesNo
-    checkCandidateForMeta m t (Candidate q term t' _) = checkDepth term t' $ do
+    checkCandidateForMeta m t (Candidate q term t' _) = disallowRecovery $ checkDepth term t' $ do
       -- Andreas, 2015-02-07: New metas should be created with range of the
       -- current instance meta, thus, we set the range.
       mv <- lookupLocalMeta m

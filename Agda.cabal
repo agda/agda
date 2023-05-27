@@ -668,6 +668,7 @@ library
       Agda.TypeChecking.ReconstructParameters
       Agda.TypeChecking.RecordPatterns
       Agda.TypeChecking.Records
+      Agda.TypeChecking.Recover
       Agda.TypeChecking.Reduce
       Agda.TypeChecking.Reduce.Fast
       Agda.TypeChecking.Reduce.Monad

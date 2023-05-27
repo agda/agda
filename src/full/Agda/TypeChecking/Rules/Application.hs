@@ -131,10 +131,7 @@ checkApplication cmp hd args e t =
     -- Subcase: unambiguous constructor
     A.Con ambC | Just c <- getUnambiguous ambC -> do
       -- augment c with record fields, but do not revert to original name
-      con <-
-        fromRightM
-          (sigError (typeError $ AbstractConstructorNotInScope c)) $
-          getOrigConHead c
+      con <- fromRightM (recoverUnambiguousCon c) $ getOrigConHead c
       checkConstructorApplication cmp e t con args
 
     -- Subcase: ambiguous constructor
@@ -272,6 +269,13 @@ inferHeadDef o x = do
           Just p  -> \ args -> projDropParsApply p o rel args
   mapFst applyE <$> inferDef app x
 
+recoverUnambiguousCon :: QName -> SigError -> TCM a
+recoverUnambiguousCon c = \case
+  SigAbstract{} -> typeError (AbstractConstructorNotInScope c)
+  SigCubicalNotErasure{} ->
+    typeError . GenericDocError =<< prettySigCubicalNotErasure c
+  SigUnknown{} -> __IMPOSSIBLE__
+
 -- | Infer the type of a head thing (variable, function symbol, or constructor).
 --   We return a function that applies the head to arguments.
 --   This is because in case of a constructor we want to drop the parameters.
@@ -314,10 +318,7 @@ inferHead e = do
 
       -- First, inferDef will try to apply the constructor
       -- to the free parameters of the current context. We ignore that.
-      con <-
-        fromRightM
-          (sigError (typeError $ AbstractConstructorNotInScope c)) $
-          getOrigConHead c
+      con <- fromRightM (recoverUnambiguousCon c) $ getOrigConHead c
       (u, a) <- inferDef (\ _ -> Con con ConOCon []) c
 
       -- Next get the number of parameters in the current context.

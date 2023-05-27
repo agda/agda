@@ -3,3 +3,7 @@ Issue2170-unify.agda:19,39-45
 one is a relevant function type and the other is an irrelevant
 function type
 when checking that the expression squash has type A → Squash A
+Failed to solve the following constraints:
+  _15 (p = (_14 a)) = a : A (blocked on _15)
+Unsolved metas at the following locations:
+  Issue2170-unify.agda:20,42-43

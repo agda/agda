@@ -787,9 +787,9 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
 
       BuiltinDataCons t -> do
 
-        let name (Lam h b)  = name (absBody b)
-            name (Con c ci _) = Con c ci []
-            name _          = __IMPOSSIBLE__
+        let name (Lam h b)    = name (absBody b)
+            name (Con c ci _) = pure $ Con c ci []
+            name _            = typeError $ BuiltinMustBeConstructor s e
 
         v0 <- checkExpr e =<< t
 
@@ -797,7 +797,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
           A.Con{} -> return ()
           _       -> typeError $ BuiltinMustBeConstructor s e
 
-        let v@(Con h _ []) = name v0
+        v@(Con h _ []) <- name v0
 
         bindBuiltinName s v
 

@@ -3,3 +3,7 @@ Cannot eliminate type P x with constructor pattern {nat n} (did you
 supply too many arguments?)
 when checking the clause left hand side
 .extendedlambda0 {nat n}
+Failed to solve the following constraints:
+  _22 = p : P (bool true) (blocked on _22)
+Unsolved metas at the following locations:
+  Issue2001.agda:23,11-12

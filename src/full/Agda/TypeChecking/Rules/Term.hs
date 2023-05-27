@@ -63,6 +63,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Unquote
 import Agda.TypeChecking.Warnings
+import Agda.TypeChecking.Recover
 
 import {-# SOURCE #-} Agda.TypeChecking.Empty ( ensureEmptyType )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def (checkFunDef', useTerPragma)
@@ -1130,7 +1131,7 @@ checkExpr' cmp e t =
   reportResult "tc.term.expr.top" 15 (\ v -> vcat
                                               [ "checkExpr" <?> fsep [ prettyTCM e, ":", prettyTCM t ]
                                               , "  returns" <?> prettyTCM v ]) $
-  traceCall (CheckExprCall cmp e t) $ localScope $ doExpandLast $ unfoldInlined =<< do
+  traceCall (CheckExprCall cmp e t) $ deferCheckingError t $ localScope $ doExpandLast $ unfoldInlined =<< do
     reportSDoc "tc.term.expr.top" 15 $
         "Checking" <+> sep
           [ fsep [ prettyTCM e, ":", prettyTCM t ]

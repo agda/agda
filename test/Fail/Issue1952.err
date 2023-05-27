@@ -170,28 +170,14 @@ Failed to solve the following constraints:
   Structure.Type C =< Structure.Type _r_51 (blocked on _r_51)
 Unsolved metas at the following locations:
   Issue1952.agda:29,25-26
-  Issue1952.agda:29,23-24
-  Issue1952.agda:29,27-28
   Issue1952.agda:29,39-40
-  Issue1952.agda:29,31-38
-  Issue1952.agda:29,41-48
   Issue1952.agda:31,41-42
   Issue1952.agda:31,31-32
-  Issue1952.agda:31,23-30
-  Issue1952.agda:31,33-40
-  Issue1952.agda:31,23-40
   Issue1952.agda:31,49-50
-  Issue1952.agda:31,47-48
-  Issue1952.agda:31,51-52
-  Issue1952.agda:31,47-52
-  Issue1952.agda:31,43-54
   Issue1952.agda:33,103-104
   Issue1952.agda:33,58-59
   Issue1952.agda:33,40-57
   Issue1952.agda:33,44-47
-  Issue1952.agda:33,53-54
-  Issue1952.agda:33,44-54
-  Issue1952.agda:33,40-57
   Issue1952.agda:33,66-67
   Issue1952.agda:33,60-65
   Issue1952.agda:33,97-98
@@ -201,15 +187,8 @@ Unsolved metas at the following locations:
   Issue1952.agda:33,81-82
   Issue1952.agda:33,78-80
   Issue1952.agda:33,83-85
-  Issue1952.agda:33,78-85
   Issue1952.agda:33,91-92
   Issue1952.agda:33,88-90
   Issue1952.agda:33,93-95
-  Issue1952.agda:33,88-95
-  Issue1952.agda:33,78-95
-  Issue1952.agda:33,69-95
   Issue1952.agda:33,99-101
-  Issue1952.agda:33,69-101
-  Issue1952.agda:33,60-101
-  Issue1952.agda:33,40-101
   Issue1952.agda:33,105-108

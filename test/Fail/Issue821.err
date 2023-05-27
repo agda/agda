@@ -1,3 +1,6 @@
+Issue821.agda:26,7-10
+Set != Set₁
+when checking that the expression Q p has type Set₁
 Issue821.agda:26,9-10
 x != (f _ x) of type (D A)
 when checking that the expression p has type P (f _ x)

@@ -464,6 +464,7 @@ warningHighlighting' b w = case tcWarning w of
   SafeFlagNoUniverseCheck               -> errorWarningHighlighting w
   InfectiveImport{}                     -> errorWarningHighlighting w
   CoInfectiveImport{}                   -> errorWarningHighlighting w
+  DeferredTypeError{}                   -> errorWarningHighlighting w
   WithoutKFlagPrimEraseEquality -> mempty
   DeprecationWarning{}       -> mempty
   UserWarning{}              -> mempty
@@ -629,9 +630,7 @@ computeUnsolvedMetaWarnings = do
   --   * there is always at least one proper meta responsible for the blocking
   --   * in many cases the blocked term covers the highlighting for this meta
   --   * for the same reason we skip metas with a twin, since the twin will be blocked.
-  let notBlocked m = not <$> isBlockedTerm m
-  let notHasTwin m = not <$> hasTwinMeta m
-  ms <- filterM notHasTwin =<< filterM notBlocked =<< getOpenMetas
+  ms <- filterM isActionableMeta =<< getOpenMetas
 
   let extend = map (rToR . P.continuousPerLine)
 

@@ -1,3 +1,6 @@
 Issue3744.agda:18,12-13
 Constructor d is abstract, thus, not in scope here
 when checking that the expression d has type D
+Failed to solve the following constraints:
+  _8 = d′ : D (blocked on _8)
+  d = _8 : D (blocked on _8)

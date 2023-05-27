@@ -1,4 +1,14 @@
 Issue6651-UnivSort-SetOmega.agda:9,5-6
+univSort _4 != Setω
+when checking that the solution _4 of metavariable _0 has the
+expected type Setω
+Issue6651-UnivSort-SetOmega.agda:9,5-6
 univSort _2 != Setω
 when checking that the solution _2 of metavariable _0 has the
 expected type Setω
+Failed to solve the following constraints:
+  _3 (A = A) =< _5 (A = A) (blocked on any(_3, _5))
+Unsolved metas at the following locations:
+  Issue6651-UnivSort-SetOmega.agda:9,5-6
+  Issue6651-UnivSort-SetOmega.agda:11,16-17
+  Issue6651-UnivSort-SetOmega.agda:11,20-21

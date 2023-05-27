@@ -475,6 +475,7 @@ instance Reify Constraint where
               OfType tm <$> reify t
           Open{}  -> __IMPOSSIBLE__
           OpenInstance{}  -> __IMPOSSIBLE__
+          DeferredError{} -> __IMPOSSIBLE__
           InstV{} -> __IMPOSSIBLE__
     reify (FindInstance m mcands) = FindInstanceOF
       <$> reify (MetaV m [])
@@ -894,6 +895,7 @@ getSolvedInteractionPoints all norm = concat <$> do
           OpenInstance{}                 -> unsol
           BlockedConst{}                 -> unsol
           PostponedTypeCheckingProblem{} -> unsol
+          DeferredError{}                -> unsol
 
 typeOfMetaMI :: Rewrite -> MetaId -> TCM (OutputConstraint Expr NamedMeta)
 typeOfMetaMI norm mi =
@@ -951,6 +953,7 @@ typesOfHiddenMetas norm = liftTCM $ do
       M.InstV{} -> __IMPOSSIBLE__
       M.Open    -> x `notElem` is
       M.OpenInstance -> x `notElem` is  -- OR: True !?
+      M.DeferredError{} -> False
       M.BlockedConst{} -> False
       M.PostponedTypeCheckingProblem{} -> False
 

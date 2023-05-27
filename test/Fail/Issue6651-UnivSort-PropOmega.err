@@ -1,4 +1,14 @@
 Issue6651-UnivSort-PropOmega.agda:15,5-6
+univSort _9 != Propω
+when checking that the solution _9 of metavariable _5 has the
+expected type Propω
+Issue6651-UnivSort-PropOmega.agda:15,5-6
 univSort _7 != Propω
 when checking that the solution _7 of metavariable _5 has the
 expected type Propω
+Failed to solve the following constraints:
+  _8 (A = A) =< _10 (A = A) (blocked on any(_8, _10))
+Unsolved metas at the following locations:
+  Issue6651-UnivSort-PropOmega.agda:15,5-6
+  Issue6651-UnivSort-PropOmega.agda:17,16-17
+  Issue6651-UnivSort-PropOmega.agda:17,20-21

@@ -1,3 +1,10 @@
 ShapeIrrelevantParameterNoBecauseOfRecursion.agda:15,12-13
 Variable b is declared irrelevant, so it cannot be used here
 when checking that the expression b has type Bool
+ShapeIrrelevantParameterNoBecauseOfRecursion.agda:26,14-15
+a != b of type Bool
+when checking that the expression x has type D b
+Failed to solve the following constraints:
+  _8 (b = b) = b : Bool (blocked on _8)
+Unsolved metas at the following locations:
+  ShapeIrrelevantParameterNoBecauseOfRecursion.agda:29,33-34

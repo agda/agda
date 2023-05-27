@@ -160,6 +160,7 @@ errorWarnings = Set.fromList
   , RewriteMaybeNonConfluent_
   , RewriteAmbiguousRules_
   , RewriteMissingRule_
+  , DeferredTypeError_
   ]
 
 allWarnings :: Set WarningName
@@ -275,6 +276,7 @@ data WarningName
   | UserWarning_
   | WithoutKFlagPrimEraseEquality_
   | WrongInstanceDeclaration_
+  | DeferredTypeError_
   -- Checking consistency of options
   | CoInfectiveImport_
   | InfectiveImport_
@@ -448,6 +450,7 @@ warningNameDescription = \case
   UserWarning_                     -> "User-defined warning added using one of the 'WARNING_ON_*' pragmas."
   WithoutKFlagPrimEraseEquality_   -> "`primEraseEquality' usages with the without-K flags."
   WrongInstanceDeclaration_        -> "Instances that do not adhere to the required format."
+  DeferredTypeError_               -> "A type error happened, but it was deferred."
   -- Checking consistency of options
   CoInfectiveImport_               -> "Importing a file not using e.g. `--safe'  from one which does."
   InfectiveImport_                 -> "Importing a file using e.g. `--cubical' into one which doesn't."

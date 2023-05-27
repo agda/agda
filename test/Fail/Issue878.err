@@ -6,4 +6,3 @@ Failed to solve the following constraints:
   _r.P_25 tt = ⊤ : Set (blocked on _r.P_25)
 Unsolved metas at the following locations:
   Issue878.agda:30,7-10
-  Issue878.agda:30,7-13

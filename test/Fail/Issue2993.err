@@ -22,8 +22,6 @@ Failed to solve the following constraints:
   F B =< _F_180 _B_164 (blocked on _F_180)
 Unsolved metas at the following locations:
   Issue2993.agda:66,80-83
-  Issue2993.agda:66,84-85
-  Issue2993.agda:66,80-87
   Issue2993.agda:62,40-43
 Unsolved interaction metas at the following locations:
   Issue2993.agda:51,19-23

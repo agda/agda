@@ -1,3 +1,26 @@
 Issue735.agda:16,12-16
 ((A₁ : Set _a_10) → Set _a_10) should be a sort, but it isn't
 when checking that the expression List has type _9
+Issue735.agda:16,19-23
+((A₁ : Set _a_12) → Set _a_12) should be a sort, but it isn't
+when checking that the expression List has type _11
+Issue735.agda:16,26-30
+(A₁ : Set _a_14) → Set _a_14 should be a sort, but it isn't
+when checking that the expression List has type _13
+Failed to solve the following constraints:
+  _14 =< List Nat (blocked on _14)
+  List Nat =< _12 (blocked on _12)
+  List Nat =< _10 (blocked on _10)
+  Check definition of _++_ : {a = a₁ : Agda.Primitive.Level}
+                             {A = A₁ : Set a₁} →
+                             _10 → _12 → _14
+    stuck because
+      Issue735.agda:17,5-7
+      Cannot split on argument of unresolved type _10
+      when checking that the pattern [] has type _10
+    (blocked on _10)
+Unsolved metas at the following locations:
+  Issue735.agda:16,12-16
+  Issue735.agda:16,19-23
+  Issue735.agda:16,26-30
+  Issue735.agda:24,17-19

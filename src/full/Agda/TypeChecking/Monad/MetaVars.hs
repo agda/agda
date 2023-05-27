@@ -4,7 +4,7 @@ module Agda.TypeChecking.Monad.MetaVars where
 
 import Prelude hiding (null)
 
-import Control.Monad                ( (<=<), forM_, guard )
+import Control.Monad                ( (<=<), forM_, filterM, guard )
 import Control.Monad.Except         ( MonadError )
 import Control.Monad.State          ( StateT, execStateT, get, put )
 import Control.Monad.Trans          ( MonadTrans, lift )
@@ -585,10 +585,35 @@ getUniqueMetasRanges ::
   (HasCallStack, MonadDebug m, ReadTCState m) => [MetaId] -> m [Range]
 getUniqueMetasRanges = fmap (nubOn id) . mapM getMetaRange
 
+-- | Does the 'MetaId' refer to a metavariable which is useful to report
+-- as unsolved?
+isActionableMeta :: (MonadDebug m, ReadTCState m) => MetaId -> m Bool
+isActionableMeta mid = do
+  mv <- lookupLocalMeta mid
+  let
+    -- We don't want to report blocked terms, since
+    --  * there is always at least one proper meta responsible for the blocking
+    --  * in many cases the blocked term covers the highlighting for this meta
+    --  * for the same reason we skip metas with a twin, since the twin will be blocked.
+    --
+    -- We also don't want to report metas standing for a deferred type
+    -- error, since the *actual error* will be reported, containing the
+    -- useful information.
+    twinned = isJust (mvTwin mv)
+    blocked = case mvInstantiation mv of
+      Open{}         -> False
+      OpenInstance{} -> False
+      InstV{}        -> False
+
+      DeferredError{}                -> True
+      PostponedTypeCheckingProblem{} -> True
+      BlockedConst{}                 -> True
+  pure $ not twinned && not blocked
+
 getUnsolvedMetas ::
   (HasCallStack, MonadDebug m, ReadTCState m) => m [Range]
 getUnsolvedMetas = do
-  openMetas            <- getOpenMetas
+  openMetas            <- filterM isActionableMeta =<< getOpenMetas
   interactionMetas     <- getInteractionMetas
   getUniqueMetasRanges (openMetas List.\\ interactionMetas)
 
@@ -601,6 +626,7 @@ getInteractionIdsAndMetas :: ReadTCState m => m [(InteractionId,MetaId)]
 getInteractionIdsAndMetas =
   mapMaybe f . filter (not . ipSolved . snd) . BiMap.toList <$> useR stInteractionPoints
   where f (ii, ip) = (ii,) <$> ipMeta ip
+
 
 -- | Does the meta variable correspond to an interaction point?
 --
@@ -709,6 +735,7 @@ isOpenMeta Open                           = True
 isOpenMeta OpenInstance                   = True
 isOpenMeta BlockedConst{}                 = True
 isOpenMeta PostponedTypeCheckingProblem{} = True
+isOpenMeta DeferredError{}                = True
 isOpenMeta InstV{}                        = False
 
 -- | @listenToMeta l m@: register @l@ as a listener to @m@. This is done
