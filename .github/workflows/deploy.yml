@@ -213,7 +213,7 @@ jobs:
       run: |
         gh release delete 'nightly' --repo agda/agda --cleanup-tag --yes || true
         ls -R artifacts
-        gh release create 'nightly' artifacts/**/* --repo agda/agda --generate-notes --title "Nightly Build (${{ needs.build.outputs.sha }}@master)"
+        gh release create 'nightly' artifacts/**/* --repo agda/agda --generate-notes --notes-start-tag v2.6.3 --title "Nightly Build (${{ needs.build.outputs.sha }}@master)"
 name: Deploy
 'on':
   workflow_dispatch: null
