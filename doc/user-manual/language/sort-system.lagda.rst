@@ -18,6 +18,15 @@ denotes the universe of small types. But for some applications, other
 sorts are needed. This page explains the need for additional sorts and
 describes all the sorts that are used by Agda.
 
+The theoretical foundation for Agda's sort system are *Pure Type Systems* (PTS).
+A PTS has, besides the set of supported sorts, two parameters:
+
+  1. A set of _axioms_ of the form ``s : s′``, stating that sort ``s`` itself has sort ``s′``.
+  2. A set of _rules_ of the form ``(s₁, s₂, s₃)`` stating that if ``A : s₁`` and ``B(x) : s₂`` then ``(x : A) → B(x) : s₃``.
+
+Agda is a *functional* PTS in the sense that ``s₃`` is uniquely determined by ``s₁`` and ``s₂``.
+Axioms are implemented internally by the ``univSort`` function, see :ref:`univSort`.
+Rules are implemented by the ``funSort`` and ``piSort`` functions, see :ref:`funSort`.
 
 ..
   ::
@@ -147,9 +156,32 @@ The implementation of Agda’s sort system is closely based on the
 theory of pure type systems.  The full sort system of Agda consists of
 the following sorts:
 
-- ``Setᵢ`` and its universe-polymorphic variant ``Set ℓ``
-- ``Propᵢ`` and its universe-polymorphic variant ``Prop ℓ``
-- ``Setωᵢ``
+1. Standard small sorts (universe-polymorphic).
+
+   - ``Setᵢ`` and its universe-polymorphic variant ``Set ℓ``
+   - ``Propᵢ`` and its universe-polymorphic variant ``Prop ℓ`` (with :option:`--prop`)
+   - ``SSetᵢ`` and its universe-polymorphic variant ``SSet ℓ`` (with :option:`--two-level`)
+
+2. Standard large sorts (non polymorphic).
+
+   - ``Setωᵢ``
+   - ``Propωᵢ`` (with :option:`--prop`)
+   - ``SSetωᵢ`` (with :option:`--two-level`)
+
+3. Special sorts.
+
+   - ``SizeUniv``                             (with :option:`--sized-types`)
+   - ``IUniv``, short for *interval universe* (with :option:`--cubical`)
+   - ``primLockUniv``                         (with :option:`--guarded`)
+   - ``LevelUniv``                            (with :option:`--level-universe`)
+
+Only the small standard sort hierarchies ``Set`` and ``Prop`` are in scope by default (see :option:`--import-sorts`).
+They and most other sorts are defined in the system module ``Agda.Primitive``.
+Sorts, even though they might enjoy the priviledge of numeric suffixes,
+are brought into scope just as any Agda definition, by ``open Agda.Primitive``.
+Note that sorts can also be renamed, e.g., you might want to ``open Agda.Primitive renaming (Set to Type)``.
+
+Some special sorts are defined in other system modules, see :ref:`special-sorts`.
 
 
 Sorts ``Setᵢ`` and ``Set ℓ``
@@ -175,6 +207,12 @@ In addition to the hierarchy ``Setᵢ``, Agda also supports a second
 hierarchy ``Propᵢ : Setᵢ₊₁`` (or ``Propi``) of :ref:`proof-irrelevant
 propositions <prop>`. Like ``Set``, ``Prop`` also has a
 universe-polymorphic version ``Prop ℓ`` where ``ℓ : Level``.
+
+Sorts ``SSetᵢ`` and ``SSet ℓ``
+------------------------------
+
+These experimental universes ``SSet₀ : SSet₁ : SSet₂ : ...``
+of *strict sets* or non-fibrant sets are described in :ref:`two-level`.
 
 
 .. _set-omega-plus-n:
@@ -215,6 +253,38 @@ defining :ref:`reflection-based macros <macros>`.
   Agda inconsistent).
 
 
+Sorts ``Propωᵢ``
+----------------
+
+This transfinite extension of the ``Prop`` hierarchy works analogous to ``Setωᵢ``.
+However, it is not motivated by typing ``(ℓ : Level) → Prop ℓ``, because that lives in ``Setω``.
+Instead, it may be used to host large inductive propositions,
+where constructors can have fields that live at any finite level ``ℓ``.
+
+The sorting rules for finite levels extend to the transfinite hierarchy, so we have ``Propωᵢ : Setωᵢ₊₁``.
+
+Sorts ``SSetωᵢ``
+----------------
+
+This is a transfinite extension of the ``SSet`` hierarchy.
+
+.. _special-sorts:
+
+Special sorts
+-------------
+
+Special sorts host special types that are not placed in a standard universe for technical reasons,
+typically because they require special laws for function type formation (see :ref:`funSort`).
+
+With :option:`--sized-types` and ``open import Agda.Builtin.Size`` we have ``SizeUniv`` which hosts the special type ``Size`` and the special family ``Size<``.
+
+With :option:`--cubical` and ``open import Agda.Primitive.Cubical`` we get ``IUniv`` which hosts the interval ``I``.
+
+With :option:`--guarded` we can define ``primitive primLockUniv : Set₁`` in which we can postulate the ``Tick`` type.
+
+With :option:`--level-universe` the type ``Level`` no longer lives in ``Set`` but in its own sort ``LevelUniv``.
+It is still defined in ``Agda.Primitive``.
+
 
 Sort metavariables and unknown sorts
 ====================================
@@ -230,16 +300,55 @@ regular term metavariables.
 However, the presence of sort metavariables also means that sorts of
 other types can sometimes not be computed directly. For this reason,
 Agda's internal representation of sorts includes three additional
-constructors ``funSort``, ``univSort``, and ``piSort``. These
+constructors ``univSort``, ``funSort``, and ``piSort``. These
 constructors compute to the proper sort once enough metavariables in
 their arguments have been solved.
 
 .. note::
-   ``funSort``, ``univSort`` and ``piSort`` are *internal* constructors
+   ``univSort``, ``funSort`` and ``piSort`` are *internal* constructors
    that may be printed when evaluating a term. The user can not enter
-   them, nor introduce them in agda code. All these constructors do
+   them, nor introduce them in Agda code. All these constructors do
    not represent new sorts but instead, they compute to the right sort
    once their arguments are known.
+
+
+.. _univSort:
+
+univSort
+--------
+
+``univSort`` returns the successor sort of a given sort.
+In PTS terminology, it implements the *axioms* ``s : univSort s``.
+
+.. list-table:: ``univSort``
+   :align: center
+   :widths: 50 50
+   :header-rows: 1
+
+   * - sort
+     - successor sort
+   * - ``Prop a``
+     - ``Prop (lsuc a)``
+   * - ``Set a``
+     - ``Set (lsuc a)``
+   * - ``SSet a``
+     - ``SSet (lsuc a)``
+   * - ``Propωᵢ``
+     - ``Propωᵢ₊₁``
+   * - ``Setωᵢ``
+     - ``Setωᵢ₊₁``
+   * - ``SSetωᵢ``
+     - ``SSetωᵢ₊₁``
+   * - ``SizeUniv``
+     - ``Setω``
+   * - ``IUniv``
+     - ``SSet₁``
+   * - ``LockUniv``
+     - ``Set₁``
+   * - ``LevelUniv``
+     - ``Set₁``
+   * - ``_1``
+     - ``univSort _1``
 
 
 .. _funSort:
@@ -264,9 +373,77 @@ Under these conditions, we can build the function type
 ``A → B`` has a (possibly unknown) but well-defined sort ``funSort sA sB``,
 specified in terms of the sorts of its domain and codomain.
 
+Example: the sort of the function type ``∀ {A} → A → A`` with normal form
+``{A : _5} → A → A`` evaluates to ``funSort (univSort _5) (funSort _5 _5)``
+where:
+
+* ``_5`` is a metavariable that represents the sort of ``A``.
+* ``funSort _5 _5`` is the sort of ``A → A``.
+
 If ``sA`` and ``sB`` happen to be known, then ``funSort sA sB`` can be computed
-to a sort value. We list below all the possible computations that ``funSort``
-can perform:
+to a sort value.
+
+To specify how ``funSort`` computes, let ``U`` range over ``Prop``, ``Set``, ``SSet``
+and let ``U ↝ U'`` be ``SSet`` if one of ``U``, ``U'`` is ``SSet``, and ``U'`` otherwise.
+E.g. ``SSet ↝ Prop`` is ``SSet`` and ``Set ↝ Prop`` is ``Prop``.
+Also, let ``L`` range over levels ``a`` and transfinite numbers ``ωᵢ`` (which is ``ω + i``)
+and let us generalize ``⊔`` to ``L ⊔ L'``, e.g. ``a ⊔ ωᵢ = ωᵢ`` and ``ωᵢ ⊔ ωⱼ = ωₖ`` where ``k = max i j``.
+We write standard universes as pairs ``U L``, e.g. ``Propωᵢ`` as pair ``Prop ωᵢ``.
+Let ``S`` range over special universes ``SizeUniv``, ``IUniv``, ``LockUniv``, ``LevelUniv``.
+
+In the following table we specify how ``funSort s₁ s₂`` computes on known sorts ``s₁`` and ``s₂``,
+excluding interactions between different special sorts.
+In PTS terminology, these are the *rules* ``(s₁, s₂, funSort s₁ s₂)``.
+
+.. list-table:: ``funSort``
+   :align: center
+   :widths: 30 30 40
+   :header-rows: 1
+
+   * - ``s₁``
+     - ``s₂``
+     - ``funSort s₁ s₂``
+
+   * - ``U L``
+     - ``U' L'``
+     - ``(U ↝ U') (L ⊔ L')``
+
+   * - ``U L``
+     - ``IUniv``
+     - ``SSet L``
+
+   * - ``U ωᵢ``
+     - ``S`` ≠ ``IUniv``
+     - ``Set ωᵢ``
+
+   * - ``U a``
+     - ``SizeUniv``
+     - ``SizeUniv``
+
+   * - ``S``
+     - ``U ωᵢ``
+     - ``U ωᵢ``
+   * - ``S`` ≠ ``LevelUniv``
+     - ``U a``
+     - ``U a``
+
+   * - ``LevelUniv``
+     - ``U a``
+     - ``U ω₀``
+   * - ``LevelUniv``
+     - ``LevelUniv``
+     - ``LevelUniv``
+
+   * - ``SizeUniv``
+     - ``SizeUniv``
+     - ``SizeUniv``
+
+   * - ``IUniv``
+     - ``IUniv``
+     - ``SSet₀``
+
+
+Here are some examples for the standard universes ``U L``:
 
 .. code-block:: agda
 
@@ -280,39 +457,11 @@ can perform:
   funSort (Set a)  (Prop b) = Prop (a ⊔ b)
   funSort (Prop a) (Prop b) = Prop (a ⊔ b)
 
-Example: the sort of the function type ``∀ {A} → A → A`` with normal form
-``{A : _5} → A → A`` evaluates to ``funSort (univSort _5) (funSort _5 _5)``
-where:
-
-* ``_5`` is a metavariable that represents the sort of ``A``.
-* ``funSort _5 _5`` is the sort of ``A → A``.
-
 
 .. note:: ``funSort`` can admit just two arguments, so it will be
   iterated when the function type has multiple arguments. E.g. the
   function type ``∀ {A} → A → A → A`` evaluates to ``funSort (univSort
   _5) (funSort _5 (funSort _5 _5))``
-
-.. _univSort: agda
-
-univSort
---------
-
-``univSort`` returns the successor sort of a given sort.
-
-Example: the sort of the function type ``∀ {A} → A`` with normal form
-``{A : _5} → A`` evaluates to ``funSort (univSort _5) _5`` where:
-
-* ``univSort _5`` is the sort where the sort of ``A`` lives, ie. the
-  successor level of ``_5``.
-
-We list below all the possible computations that ``univSort`` can perform:
-
-.. code-block:: agda
-
-  univSort (Set a)  = Set (lsuc a)
-  univSort (Prop a) = Set (lsuc a)
-  univSort Setωᵢ    = Setωᵢ₊₁
 
 .. _piSort:
 
@@ -337,7 +486,7 @@ dependent function type ``(x : A) → B`` has a (possibly unknown) but
 well-defined sort ``piSort sA sB``, specified in terms of the element
 ``x : A`` and the sorts of its domain and codomain.
 
-We list below all the possible computations that ``piSort`` can perform:
+Here are some examples how ``piSort`` computes:
 
 .. code-block:: agda
 
