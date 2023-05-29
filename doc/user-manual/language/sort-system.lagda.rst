@@ -388,7 +388,7 @@ and let ``U ↝ U'`` be ``SSet`` if one of ``U``, ``U'`` is ``SSet``, and ``U'``
 E.g. ``SSet ↝ Prop`` is ``SSet`` and ``Set ↝ Prop`` is ``Prop``.
 Also, let ``L`` range over levels ``a`` and transfinite numbers ``ωᵢ`` (which is ``ω + i``)
 and let us generalize ``⊔`` to ``L ⊔ L'``, e.g. ``a ⊔ ωᵢ = ωᵢ`` and ``ωᵢ ⊔ ωⱼ = ωₖ`` where ``k = max i j``.
-We write standard universes as pairs ``(U,L)``, e.g. ``Propωᵢ`` as pair ``(Prop,ωᵢ)``.
+We write standard universes as pairs ``U L``, e.g. ``Propωᵢ`` as pair ``Prop ωᵢ``.
 Let ``S`` range over special universes ``SizeUniv``, ``IUniv``, ``LockUniv``, ``LevelUniv``.
 
 In the following table we specify how ``funSort s₁ s₂`` computes on known sorts ``s₁`` and ``s₂``,
@@ -404,32 +404,32 @@ In PTS terminology, these are the *rules* ``(s₁, s₂, funSort s₁ s₂)``.
      - ``s₂``
      - ``funSort s₁ s₂``
 
-   * - ``(U,L)``
-     - ``(U',L')``
-     - ``(U → U', L ⊔ L')``
+   * - ``U L``
+     - ``U' L'``
+     - ``(U ↝ U') (L ⊔ L')``
 
-   * - ``(U,L)``
+   * - ``U L``
      - ``IUniv``
-     - ``(SSet,L)``
+     - ``SSet L``
 
-   * - ``(U,ωᵢ)``
+   * - ``U ωᵢ``
      - ``S`` ≠ ``IUniv``
-     - ``(Set,ωᵢ)``
+     - ``Set ωᵢ``
 
-   * - ``(U,a)``
+   * - ``U a``
      - ``SizeUniv``
      - ``SizeUniv``
 
    * - ``S``
-     - ``(U,ωᵢ)``
-     - ``(U,ωᵢ)``
+     - ``U ωᵢ``
+     - ``U ωᵢ``
    * - ``S`` ≠ ``LevelUniv``
-     - ``(U,a)``
-     - ``(U,a)``
+     - ``U a``
+     - ``U a``
 
    * - ``LevelUniv``
-     - ``(U,a)``
-     - ``(U,ω₀)``
+     - ``U a``
+     - ``U ω₀``
    * - ``LevelUniv``
      - ``LevelUniv``
      - ``LevelUniv``
@@ -443,7 +443,7 @@ In PTS terminology, these are the *rules* ``(s₁, s₂, funSort s₁ s₂)``.
      - ``SSet₀``
 
 
-Here are some examples for the standard universes ``(U,L)``:
+Here are some examples for the standard universes ``U L``:
 
 .. code-block:: agda
 
