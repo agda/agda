@@ -148,11 +148,11 @@
 \DeclareUnicodeCharacter{2190}{\ensuremath{\leftarrow}}       % Symbol ←
 \DeclareUnicodeCharacter{2192}{\ensuremath{\rightarrow}}      % Symbol →
 \DeclareUnicodeCharacter{2194}{\ensuremath{\leftrightarrow}}  % Symbol ↔
+\DeclareUnicodeCharacter{219D}{\ensuremath{\leadsto}}         % Symbol ↝
 
 % The command `\twoheadrightarrow` requires `\usepackage{amssymb}`.
 \DeclareUnicodeCharacter{21A0}{\ensuremath{\twoheadrightarrow}}  % Symbol ↠
 
-\DeclareUnicodeCharacter{21A6}{\ensuremath{\mapsto}}  % Symbol ↦
 \DeclareUnicodeCharacter{21A6}{\ensuremath{\mapsto}}  % Symbol ↦
 
 % The command `\restriction` requires `\usepackage{amssymb}`.
