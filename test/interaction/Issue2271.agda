@@ -15,3 +15,6 @@ module R (E : Set) where
 
    test₂ : K → K
    test₂ k = {! id' (id k) !} -- C-c C-h
+
+   test₃ : {A : Set} → A → A
+   test₃ k = {! id'' ? !} -- C-c C-h

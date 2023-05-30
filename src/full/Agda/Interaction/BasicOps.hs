@@ -995,7 +995,7 @@ metaHelperType norm ii rng s = case words s of
       TelV atel _ <- telView a
       let arity = size atel
           (delta1, delta2, _, a', vtys') = splitTelForWith tel a vtys
-      a <- localTC (\e -> e { envPrintDomainFreePi = True }) $ escapeAbstractedContext $ do
+      a <- localTC (\e -> e { envPrintDomainFreePi = True, envPrintMetasBare = True }) $ escapeAbstractedContext $ do
         reify =<< cleanupType arity args =<< normalForm norm =<< fst <$> withFunctionType delta1 vtys' delta2 a' []
       reportSDoc "interaction.helper" 10 $ TP.vcat $
         let extractOtherType = \case { OtherType a -> a; _ -> __IMPOSSIBLE__ } in
