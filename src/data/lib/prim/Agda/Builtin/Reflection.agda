@@ -468,4 +468,3 @@ blockOnMeta m = blockTC (blockerMeta m)
 
 {-# WARNING_ON_USAGE onlyReduceDefs "DEPRECATED: Use `withReduceDefs` instead of `onlyReduceDefs`" #-}
 {-# WARNING_ON_USAGE dontReduceDefs "DEPRECATED: Use `withReduceDefs` instead of `dontReduceDefs`" #-}
-{-# WARNING_ON_USAGE blockOnMeta    "DEPRECATED: Use `blockTC` instead of `blockOnMeta`" #-}

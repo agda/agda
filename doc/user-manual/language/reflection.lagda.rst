@@ -359,6 +359,26 @@ implement pretty printing for reflected terms.
   {-# BUILTIN AGDAERRORPARTTERM   termErr   #-}
   {-# BUILTIN AGDAERRORPARTNAME   nameErr   #-}
 
+Blockers
+~~~~~~~~
+
+A blocker represents a set of metavariables that impedes the progress of
+a reflective computation. Using a blocker containing all the metas in
+(for example) a term traversed by a macro is a lot more efficient than
+blocking on individual metas as they are encountered.
+
+::
+
+  data Blocker : Set where
+    blockerAny  : List Blocker → Blocker
+    blockerAll  : List Blocker → Blocker
+    blockerMeta : Meta → Blocker
+
+  {-# BUILTIN AGDABLOCKER     Blocker #-}
+  {-# BUILTIN AGDABLOCKERANY  blockerAny #-}
+  {-# BUILTIN AGDABLOCKERALL  blockerAll #-}
+  {-# BUILTIN AGDABLOCKERMETA blockerMeta #-}
+
 .. _reflection-tc-monad:
 
 Type checking computations
@@ -387,10 +407,10 @@ following primitive operations::
     -- Throw a type error. Can be caught by catchTC.
     typeError : ∀ {a} {A : Set a} → List ErrorPart → TC A
 
-    -- Block a type checking computation on a metavariable. This will abort
+    -- Block a type checking computation on a blocker. This will abort
     -- the computation and restart it (from the beginning) when the
-    -- metavariable is solved.
-    blockOnMeta : ∀ {a} {A : Set a} → Meta → TC A
+    -- blocker has been solved.
+    blockTC : ∀ {a} {A : Set a} → Blocker → TC A
 
     -- Prevent current solutions of metavariables from being rolled back in
     -- case 'blockOnMeta' is called.
@@ -527,7 +547,7 @@ following primitive operations::
 
   {-# BUILTIN AGDATCMUNIFY                      unify                      #-}
   {-# BUILTIN AGDATCMTYPEERROR                  typeError                  #-}
-  {-# BUILTIN AGDATCMBLOCKONMETA                blockOnMeta                #-}
+  {-# BUILTIN AGDATCMBLOCK                      blockTC                    #-}
   {-# BUILTIN AGDATCMCATCHERROR                 catchTC                    #-}
   {-# BUILTIN AGDATCMINFERTYPE                  inferType                  #-}
   {-# BUILTIN AGDATCMCHECKTYPE                  checkType                  #-}

@@ -48,6 +48,24 @@ Reflection
 * Two primitives `onlyReduceDefs` and `dontReduceDefs` are removed but re-implemented
   using the new family of primitives `with*` and `ask*` for backward compatibility.
 
+* Blocking the type-checking monad can now be done with more precision
+  by using the `Blocker` type, and the `blockTC` primitive:
+
+  ```agda
+  data Blocker : Set where
+    blockerAny  : List Blocker → Blocker
+    blockerAll  : List Blocker → Blocker
+    blockerMeta : Meta → Blocker
+  ```
+
+  When blocking on a value of this type, the TCM computation will only
+  be retried when any (resp. all) of the mentioned metavariables have
+  been solved. This can avoid getting into loops where a macro blocks on
+  a meta, gets unblocked, traverses some term again, and then blocks on
+  a meta that was already present.
+
+  The `blockOnMeta` builtin has been deprecated, and an implementation
+  in terms of `blockTC` is given for backwards compatibility.
 
 Erasure
 -------
