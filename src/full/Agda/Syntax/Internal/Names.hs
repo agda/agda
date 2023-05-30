@@ -271,7 +271,7 @@ instance NamesIn a => NamesIn (Builtin a) where
 -- | Note that the 'primFunImplementation' is skipped.
 instance NamesIn PrimFun where
   namesAndMetasIn' sg = \case
-    PrimFun x _ _ -> namesAndMetasIn' sg x
+    PrimFun x _ _ _ -> namesAndMetasIn' sg x
 
 instance NamesIn Section where
   namesAndMetasIn' sg = \case

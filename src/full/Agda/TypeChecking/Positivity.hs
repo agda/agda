@@ -536,16 +536,21 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
             -- Andreas, 2020-02-15, issue #4447:
             -- Allow UnconfimedReductions here to make sure we get the constructor type
             -- in same way as it was obtained when the data types was checked.
-            TelV tel t <- putAllowedReductions allReductions $
-              telViewPath . defType =<< getConstInfo c
+            (TelV tel t, bnd) <- putAllowedReductions allReductions $
+              telViewUpToPathBoundary' (-1) . defType =<< getConstInfo c
             let (tel0,tel1) = splitTelescopeAt np tel
             -- Do not collect occurrences in the data parameters.
             -- Normalization needed e.g. for test/succeed/Bush.agda.
             -- (Actually, for Bush.agda, reducing the parameters should be sufficient.)
             tel1' <- addContext tel0 $ normalise $ tel1
-            let vars = map (Just . AnArg) . downFrom
+            let vars    = map (Just . AnArg) . downFrom
+                varsTel = vars (size tel)
             -- Occurrences in the types of the constructor arguments.
-            mappend (OccursAs (ConArgType c) <$> getOccurrences (vars np) tel1') $ do
+            mappend (mappend
+                       (OccursAs (ConArgType c) <$>
+                        getOccurrences (vars np) tel1')
+                       (OccursAs (ConEndpoint c) <$>
+                        getOccurrences varsTel bnd)) $ do
               -- Occurrences in the indices of the data type the constructor targets.
               -- Andreas, 2020-02-15, issue #4447:
               -- WAS: @t@ is not necessarily a data type, but it could be something
@@ -554,13 +559,12 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
               -- In any case, if @t@ is not showing itself as the data type, we need to
               -- do something conservative.  We will just collect *all* occurrences
               -- and flip their sign (variance) using 'LeftOfArrow'.
-              let fallback = OccursAs LeftOfArrow <$> getOccurrences (vars $ size tel) t -- NB::Defined but not used
               case unEl t of
                 Def q' vs
                   | q == q' -> do
                       let indices = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ drop np vs
-                      OccursAs (IndArgType c) . OnlyVarsUpTo np <$> getOccurrences (vars $ size tel) indices
-                  | otherwise -> __IMPOSSIBLE__  -- fallback -- this ought to be impossible now (but wasn't, see #4447)
+                      OccursAs (IndArgType c) . OnlyVarsUpTo np <$> getOccurrences varsTel indices
+                  | otherwise -> __IMPOSSIBLE__  -- this ought to be impossible now (but hasn't been before, see #4447)
                 Pi{}       -> __IMPOSSIBLE__  -- eliminated  by telView
                 MetaV{}    -> __IMPOSSIBLE__  -- not a constructor target; should have been solved by now
                 Var{}      -> __IMPOSSIBLE__  -- not a constructor target
@@ -755,6 +759,7 @@ computeEdges muts q ob =
     UnderInf       -> addPol GuardPos -- Andreas, 2012-06-09: ∞ is guarding
     ConArgType _   -> keepGoing
     IndArgType _   -> mixed
+    ConEndpoint _  -> keepGoing
     InClause _     -> keepGoing
     Matched        -> mixed -- consider arguments matched against as used
     IsIndex        -> mixed -- And similarly for indices.
@@ -843,6 +848,9 @@ instance PrettyTCM (Seq OccursWhere) where
         MetaArg      -> pwords "in an argument of a metavariable"
         ConArgType c -> pwords "in the type of the constructor" ++ [prettyTCM c]
         IndArgType c -> pwords "in an index of the target type of the constructor" ++ [prettyTCM c]
+        ConEndpoint c
+                     -> pwords "in an endpoint of the target of the" ++
+                        pwords "higher constructor" ++ [prettyTCM c]
         InClause i   -> pwords "in the" ++ nth i ++ pwords "clause"
         Matched      -> pwords "as matched against"
         IsIndex      -> pwords "as an index"

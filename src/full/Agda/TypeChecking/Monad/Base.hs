@@ -3119,12 +3119,14 @@ data PrimitiveImpl = PrimImpl Type PrimFun
 data PrimFun = PrimFun
   { primFunName           :: QName
   , primFunArity          :: Arity
+  , primFunArgOccurrences :: [Occurrence]
+    -- ^ See 'defArgOccurrences'.
   , primFunImplementation :: [Arg Term] -> Int -> ReduceM (Reduced MaybeReducedArgs Term)
   }
   deriving Generic
 
 primFun :: QName -> Arity -> ([Arg Term] -> ReduceM (Reduced MaybeReducedArgs Term)) -> PrimFun
-primFun q ar imp = PrimFun q ar (\ args _ -> imp args)
+primFun q ar imp = PrimFun q ar [] (\args _ -> imp args)
 
 defClauses :: Definition -> [Clause]
 defClauses Defn{theDef = Function{funClauses = cs}}        = cs

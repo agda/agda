@@ -162,7 +162,7 @@ xForPrim table builtinThings defs = catMaybes
   elemDefs = hasElem $ map defName defs
   getName = \case
     Builtin t                 -> Just $ getPrimName t
-    Prim (PrimFun q _ _)      -> Just q
+    Prim (PrimFun q _ _ _)    -> Just q
     BuiltinRewriteRelations _ -> Nothing
 
 

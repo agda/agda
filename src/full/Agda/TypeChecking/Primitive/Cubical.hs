@@ -33,6 +33,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Names
+import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Primitive.Base
 import Agda.TypeChecking.Monad
 
@@ -154,7 +155,7 @@ primTrans' = do
           nPi' "A" (nPi' "i" primIntervalType $ \ i -> (sort . tmSort <$> (a <@> i))) $ \ bA ->
           nPi' "φ" primIntervalType $ \ phi ->
           (el' (a <@> cl primIZero) (bA <@> cl primIZero) --> el' (a <@> cl primIOne) (bA <@> cl primIOne))
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 4 $ \ ts nelims -> do
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 4 [] $ \ts nelims -> do
     primTransHComp DoTransp ts nelims
 
 primHComp' :: TCM PrimitiveImpl
@@ -166,7 +167,8 @@ primHComp' = do
           hPi' "φ" primIntervalType $ \ phi ->
           nPi' "i" primIntervalType (\ i -> pPi' "o" phi $ \ _ -> el' a bA) -->
           (el' a bA --> el' a bA)
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts nelims -> do
+  let occs = [Mixed, StrictPos, Mixed, StrictPos, StrictPos]
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 occs $ \ts nelims -> do
     primTransHComp DoHComp ts nelims
 
 -- | Construct a helper for CCHM composition, with a string indicating
@@ -735,7 +737,7 @@ primComp = do
           (el' (a <@> cl primIZero) (bA <@> cl primIZero) --> el' (a <@> cl primIOne) (bA <@> cl primIOne))
   one <- primItIsOne
   io  <- primIOne
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts nelims -> do
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 [] $ \ts nelims -> do
     case ts of
       [l,c,phi,u,a0] -> do
         sphi <- reduceB' phi
