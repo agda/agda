@@ -159,6 +159,7 @@ errorString err = case err of
   IllformedProjectionPatternAbstract{}     -> "IllformedProjectionPatternAbstract"
   IllformedProjectionPatternConcrete{}     -> "IllformedProjectionPatternConcrete"
   CannotEliminateWithPattern{}             -> "CannotEliminateWithPattern"
+  IllegalDeclarationInDataDefinition{}     -> "IllegalDeclarationInDataDefinition"
   IllegalLetInTelescope{}                  -> "IllegalLetInTelescope"
   IllegalPatternInTelescope{}              -> "IllegalPatternInTelescope"
 -- UNUSED:  IncompletePatternMatching{}              -> "IncompletePatternMatching"
@@ -723,6 +724,11 @@ instance PrettyTCM TypeError where
     BuiltinInParameterisedModule x -> fwords $
       "The BUILTIN pragma cannot appear inside a bound context " ++
       "(for instance, in a parameterised module or as a local declaration)"
+
+    IllegalDeclarationInDataDefinition ds -> vcat
+      [ "Illegal declaration in data type definition"
+      , nest 2 $ vcat $ map pretty ds
+      ]
 
     IllegalLetInTelescope tb -> fsep $
       -- pwords "The binding" ++

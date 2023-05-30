@@ -2443,9 +2443,8 @@ instance ToAbstract DataConstrDecl where
       _ -> errorNotConstrDecl d
 
 errorNotConstrDecl :: C.NiceDeclaration -> ScopeM a
-errorNotConstrDecl d = typeError . GenericDocError $
-        "Illegal declaration in data type definition " P.$$
-        P.nest 2 (P.vcat $ map pretty (notSoNiceDeclarations d))
+errorNotConstrDecl d = setCurrentRange d $
+  typeError $ IllegalDeclarationInDataDefinition $ notSoNiceDeclarations d
 
 instance ToAbstract C.Pragma where
   type AbsOfCon C.Pragma = [A.Pragma]
