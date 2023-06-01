@@ -4533,6 +4533,8 @@ data TypeError
         | WrongArgInfoForPrimitive PrimitiveId ArgInfo ArgInfo
         | ShadowedModule C.Name [A.ModuleName]
         | BuiltinInParameterisedModule BuiltinId
+        | IllegalDeclarationInDataDefinition [C.Declaration]
+            -- ^ The declaration list comes from a single 'C.NiceDeclaration'.
         | IllegalLetInTelescope C.TypedBinding
         | IllegalPatternInTelescope C.Binder
         | NoRHSRequiresAbsurdPattern [NamedArg A.Pattern]

@@ -1867,7 +1867,7 @@ instance ToAbstract NiceDeclaration where
           return [ A.DataDef (mkDefInfo x f PublicAccess a r) x' uc (DataDefParams gvars pars) cons ]
       where
         conName (C.Axiom _ _ _ _ _ c _) = return c
-        conName d = __IMPOSSIBLE__
+        conName d = errorNotConstrDecl d
 
   -- Record definitions (mucho interesting)
     C.NiceRecDef r o a _ uc x (RecordDirectives ind eta pat cm) pars fields -> do
@@ -2440,7 +2440,11 @@ instance ToAbstract DataConstrDecl where
         printScope "con" 15 "bound constructor"
         return $ A.Axiom ConName (mkDefInfoInstance x f p a i NotMacroDef r)
                          info Nothing y t'
-      _ -> __IMPOSSIBLE__
+      _ -> errorNotConstrDecl d
+
+errorNotConstrDecl :: C.NiceDeclaration -> ScopeM a
+errorNotConstrDecl d = setCurrentRange d $
+  typeError $ IllegalDeclarationInDataDefinition $ notSoNiceDeclarations d
 
 instance ToAbstract C.Pragma where
   type AbsOfCon C.Pragma = [A.Pragma]
