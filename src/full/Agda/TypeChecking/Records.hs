@@ -17,6 +17,8 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
 
+import Agda.Interaction.Options (optEtaSingleton)
+
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Concrete (FieldAssignment'(..))
@@ -525,9 +527,12 @@ updateEtaForRecord :: QName -> TCM ()
 updateEtaForRecord q = whenM etaEnabled $ do
 
   -- Do we need to switch on eta for record q?
+  etaSingletonAllowed <- optEtaSingleton <$> pragmaOptions
   switchEta <- getConstInfo q <&> theDef <&> \case
-    Record{ recInduction = ind, recEtaEquality' = eta }
-      | Inferred NoEta{} <- eta, ind /= Just CoInductive -> True
+    Record{ recInduction = ind, recEtaEquality' = eta, recFields = fs }
+      | Inferred NoEta{} <- eta
+      , ind /= Just CoInductive
+      , (etaSingletonAllowed || any usableModality fs) -> True
       | otherwise -> False
     _ -> __IMPOSSIBLE__
 
@@ -840,6 +845,7 @@ isSingletonRecord'
                      --   otherwise we would construct an infinite inhabitant (in an infinite time...).
   -> m (Maybe Term)  -- ^ The unique inhabitant, if any.  May contain dummy terms in irrelevant positions.
 isSingletonRecord' regardIrrelevance r ps rs = do
+  ifM (optEtaSingleton <$> pragmaOptions) (return Nothing) $ do
   reportSDoc "tc.meta.eta" 30 $ vcat
     [ "Is" <+> prettyTCM (Def r $ map Apply ps) <+> "a singleton record type?"
     , "  already visited:" <+> hsep (map prettyTCM $ Set.toList rs)
@@ -899,6 +905,7 @@ isSingletonType'
                      --   otherwise we would construct an infinite inhabitant (in an infinite time...).
   -> m (Maybe Term)  -- ^ The unique inhabitant, if any.  May contain dummy terms in irrelevant positions.
 isSingletonType' regardIrrelevance t rs = do
+    ifNotM (optEtaSingleton <$> pragmaOptions) (return Nothing) $ do
     TelV tel t <- telView t
     t <- abortIfBlocked t
     addContext tel $ do

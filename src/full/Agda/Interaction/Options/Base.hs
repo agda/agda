@@ -129,6 +129,7 @@ module Agda.Interaction.Options.Base
     , optPatternMatching
     , optHiddenArgumentPuns
     , optEta
+    , optEtaSingleton
     , optForcing
     , optProjectionLike
     , optErasure
@@ -344,6 +345,7 @@ data PragmaOptions = PragmaOptions
   , _optHiddenArgumentPuns        :: WithDefault 'False
       -- ^ Should patterns of the form @{x}@ or @⦃ x ⦄@ be interpreted as puns?
   , _optEta                       :: WithDefault 'True
+  , _optEtaSingleton              :: WithDefault 'True
   , _optForcing                   :: WithDefault 'True
       -- ^ Perform the forcing analysis on data constructors?
   , _optProjectionLike            :: WithDefault 'True
@@ -474,6 +476,7 @@ optCopatterns                :: PragmaOptions -> Bool
 optPatternMatching           :: PragmaOptions -> Bool
 optHiddenArgumentPuns        :: PragmaOptions -> Bool
 optEta                       :: PragmaOptions -> Bool
+optEtaSingleton              :: PragmaOptions -> Bool
 optForcing                   :: PragmaOptions -> Bool
 optProjectionLike            :: PragmaOptions -> Bool
 -- | 'optErasure' is implied by 'optEraseRecordParameters'.
@@ -535,6 +538,7 @@ optCopatterns                = collapseDefault . _optCopatterns
 optPatternMatching           = collapseDefault . _optPatternMatching
 optHiddenArgumentPuns        = collapseDefault . _optHiddenArgumentPuns
 optEta                       = collapseDefault . _optEta
+optEtaSingleton              = collapseDefault . _optEtaSingleton
 optForcing                   = collapseDefault . _optForcing
 optProjectionLike            = collapseDefault . _optProjectionLike
 -- --erase-record-parameters implies --erasure
@@ -690,6 +694,9 @@ lensOptHiddenArgumentPuns f o = f (_optHiddenArgumentPuns o) <&> \ i -> o{ _optH
 
 lensOptEta :: Lens' PragmaOptions _
 lensOptEta f o = f (_optEta o) <&> \ i -> o{ _optEta = i }
+
+lensOptEtaSingleton :: Lens' PragmaOptions _
+lensOptEtaSingleton f o = f (_optEta o) <&> \ i -> o{ _optEtaSingleton = i }
 
 lensOptForcing :: Lens' PragmaOptions _
 lensOptForcing f o = f (_optForcing o) <&> \ i -> o{ _optForcing = i }
@@ -875,6 +882,7 @@ defaultPragmaOptions = PragmaOptions
   , _optExactSplit                = Default
   , _optHiddenArgumentPuns        = Default
   , _optEta                       = Default
+  , _optEtaSingleton              = Default
   , _optForcing                   = Default
   , _optProjectionLike            = Default
   , _optErasure                   = Default
@@ -1168,6 +1176,7 @@ infectiveCoinfectiveOptions =
                                               "--no-universe-polymorphism"
   , coinfectiveOption (not . optCumulativity) "--no-cumulativity"
   , coinfectiveOption optLevelUniverse        "--level-universe"
+  , coinfectiveOption (not . optEtaSingleton) "--no-eta-singleton"
   , infectiveOption (isJust . optCubical)     "--cubical/--erased-cubical"
   , infectiveOption optGuarded                "--guarded"
   , infectiveOption optProp                   "--prop"
@@ -1676,6 +1685,9 @@ pragmaOptions = concat
   , pragmaFlag      "eta-equality" lensOptEta
                     "default records to eta-equality" ""
                     $ Just "default records to no-eta-equality"
+  , pragmaFlag      "eta-singleton" lensOptEtaSingleton
+                    "enable eta equality for record types with no fields, or only irrelevant/erased fields" ""
+                    $ Just "disable eta equality for record types with only irrelevant/erased fields"
   , pragmaFlag      "forcing" lensOptForcing
                     "enable the forcing analysis for data constructors" "(optimisation)"
                     $ Just "disable the forcing analysis"

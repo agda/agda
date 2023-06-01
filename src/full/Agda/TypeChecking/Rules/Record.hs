@@ -199,14 +199,23 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
             | CoInductive <- conInduction = Relevant
             | otherwise                   = minimum $ Irrelevant : map getRelevance (telToList ftel)
 
-      -- Andreas, 2017-01-26, issue #2436
-      -- Disallow coinductive records with eta-equality
-      when (conInduction == CoInductive && theEtaEquality haveEta == YesEta) $ do
-        typeError . GenericDocError =<< do
-          sep [ "Agda doesn't like coinductive records with eta-equality."
-              , "If you must, use pragma"
-              , "{-# ETA" <+> prettyTCM name <+> "#-}"
-              ]
+      when (theEtaEquality haveEta == YesEta) $ do
+        -- Andreas, 2017-01-26, issue #2436
+        -- Disallow coinductive records with eta-equality
+        when (conInduction == CoInductive) $ do
+          typeError . GenericDocError =<< do
+            sep [ "Agda doesn't like coinductive records with eta-equality."
+                , "If you must, use pragma"
+                , "{-# ETA" <+> prettyTCM name <+> "#-}"
+                ]
+
+        -- Jesper, 2023-06-01, issue #6636
+        -- Disallow record types without usable fields unless --eta-singleton is enabled
+        etaSingletonAllowed <- optEtaSingleton <$> pragmaOptions
+        unless (etaSingletonAllowed || any usableModality fs) $ do
+          typeError . GenericDocError =<< do
+            sep [ "Cannot define singleton record type with eta-equality because --eta-singleton flag is disabled. " ]
+
       reportSDoc "tc.rec" 30 $ "record constructor is " <+> prettyTCM con
 
       -- Jesper, 2021-05-26: Warn when declaring coinductive record
