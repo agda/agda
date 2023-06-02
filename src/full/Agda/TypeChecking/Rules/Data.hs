@@ -50,6 +50,7 @@ import Agda.TypeChecking.Telescope
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( isType_ )
 
 import Agda.Utils.Either
+import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
@@ -133,9 +134,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
             -- non-indexed data types, and if --with-K is active this
             -- applies also to indexed data types.
             let tel  = abstract gtel ptel
-                tel' = (if erasure && (withK || nofIxs == 0)
-                        then applyQuantity zeroQuantity
-                        else id) .
+                tel' = applyWhen (erasure && (withK || nofIxs == 0)) (applyQuantity zeroQuantity) .
                        hideAndRelParams <$>
                        tel
 

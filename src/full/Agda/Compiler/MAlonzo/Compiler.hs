@@ -692,7 +692,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       -- conid.
       Primitive{} | is ghcEnvConId -> do
         strict <- optGhcStrictData <$> askGhcOpts
-        let var = (if strict then HS.PBangPat else id) . HS.PVar
+        let var = applyWhen strict HS.PBangPat . HS.PVar
         retDecls $
           [ HS.FunBind
               [HS.Match (dname q)

@@ -50,6 +50,7 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.State (getScope)
 
+import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Either
 import Agda.Utils.Pretty
 import Agda.Utils.List
@@ -408,7 +409,7 @@ buildParsers kind exprNames = do
         mkP key parseSections p0 ops higher includeHigher =
             memoise (NodeK key) $
               Fold.asum $
-                (if includeHigher then (higher :) else id) $
+                applyWhen includeHigher (higher :) $
                 catMaybes [nonAssoc, preRights, postLefts]
             where
             choice :: forall k.

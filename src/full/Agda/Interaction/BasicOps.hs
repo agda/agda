@@ -77,6 +77,7 @@ import Agda.TypeChecking.Warnings
 
 import Agda.Termination.TermCheck (termMutual)
 
+import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -1218,7 +1219,7 @@ introTactic pmLambda ii = do
             allHidden   = not (any okHiding0 hs)
             okHiding    = if allHidden then const True else okHiding0
         vars <- -- setShowImplicitArguments (imp || allHidden) $
-                (if allHidden then withShowAllArguments else id) $
+                applyWhen allHidden withShowAllArguments $
                   mapM showTCM [ setHiding h $ defaultArg $ var i :: Arg Term
                                | (h, i) <- zip hs $ downFrom n
                                , okHiding h

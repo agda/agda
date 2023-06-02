@@ -22,6 +22,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Telescope
 
+import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
@@ -138,9 +139,7 @@ newMetaArg
 newMetaArg info x cmp a = do
   prp <- runBlocked $ isPropM a
   let irrelevantIfProp =
-        if prp == Right True
-        then applyRelevanceToContext Irrelevant
-        else id
+        applyWhen (prp == Right True) $ applyRelevanceToContext Irrelevant
   applyModalityToContext info $ irrelevantIfProp $
     newMeta (getHiding info) (argNameToString x) a
   where

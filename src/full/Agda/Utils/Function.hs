@@ -109,18 +109,26 @@ iterate' n f x | n > 0     = iterate' (n - 1) f $! f x
 -- * Iteration over Booleans.
 
 -- | @applyWhen b f a@ applies @f@ to @a@ when @b@.
+{-# SPECIALIZE applyWhen :: Bool -> (a -> a) -> (a -> a) #-}
+{-# INLINE applyWhen #-}
 applyWhen :: IsBool b => b -> (a -> a) -> a -> a
 applyWhen b f = if b then f else id
   -- Note: RebindableSyntax translates this if-then-else to ifThenElse of IsBool.
 
 -- | @applyUnless b f a@ applies @f@ to @a@ unless @b@.
+{-# SPECIALIZE applyUnless :: Bool -> (a -> a) -> (a -> a) #-}
+{-# INLINE applyUnless #-}
 applyUnless :: IsBool b => b -> (a -> a) -> a -> a
 applyUnless b f = if b then id else f
 
 -- | Monadic version of @applyWhen@
+{-# SPECIALIZE applyWhenM :: Monad m => m Bool -> (m a -> m a) -> m a -> m a #-}
+{-# INLINE applyWhenM #-}
 applyWhenM :: (IsBool b, Monad m) => m b -> (m a -> m a) -> m a -> m a
 applyWhenM mb f x = mb >>= \ b -> applyWhen b f x
 
 -- | Monadic version of @applyUnless@
+{-# SPECIALIZE applyUnlessM :: Monad m => m Bool -> (m a -> m a) -> m a -> m a #-}
+{-# INLINE applyUnlessM #-}
 applyUnlessM :: (IsBool b, Monad m) => m b -> (m a -> m a) -> m a -> m a
 applyUnlessM mb f x = mb >>= \ b -> applyUnless b f x

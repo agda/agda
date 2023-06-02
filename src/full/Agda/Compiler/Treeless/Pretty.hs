@@ -11,8 +11,9 @@ import qualified Data.Map as Map
 
 import Agda.Syntax.Treeless
 import Agda.Compiler.Treeless.Subst
-import Agda.Utils.Pretty
+import Agda.Utils.Function (applyWhen)
 import Agda.Utils.List
+import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 
@@ -53,7 +54,7 @@ bindNames xs p = foldr bindName p xs
 paren :: Int -> P Doc -> P Doc
 paren p doc = do
   n <- asks pPrec
-  (if p < n then parens else id) <$> doc
+  applyWhen (p < n) parens <$> doc
 
 prec :: Int -> P a -> P a
 prec p = local $ \ e -> e { pPrec = p }

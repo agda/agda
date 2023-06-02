@@ -40,6 +40,7 @@ import Agda.TypeChecking.Rules.Term ( isType_ )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
 import Agda.Utils.Boolean
+import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.List (headWithDefault)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -252,10 +253,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
         addConstant' conName defaultArgInfo conName
              -- If --erasure is used, then the parameters are erased
              -- in the constructor's type.
-            ((if erasure
-              then fmap (applyQuantity zeroQuantity)
-              else id)
-               telh
+            (applyWhen erasure (fmap $ applyQuantity zeroQuantity) telh
              `abstract` contype) $
             Constructor
               { conPars   = npars
@@ -359,10 +357,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
         -- If --erasure is used, then the parameters are erased in the
         -- types of the projections.
         erasure <- optErasure <$> pragmaOptions
-        params  <- (if erasure
-                    then fmap (applyQuantity zeroQuantity)
-                    else id)
-                     <$> getContext
+        params  <- applyWhen erasure (fmap $ applyQuantity zeroQuantity) <$> getContext
 
         -- Check the types of the fields and the other record declarations.
         addRecordVar $ withCurrentModule m $ do
