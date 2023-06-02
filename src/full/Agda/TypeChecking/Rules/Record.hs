@@ -252,10 +252,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
         addConstant' conName defaultArgInfo conName
              -- If --erasure is used, then the parameters are erased
              -- in the constructor's type.
-            ((if erasure
-              then fmap (applyQuantity zeroQuantity)
-              else id)
-               telh
+            (applyWhen erasure (fmap $ applyQuantity zeroQuantity) telh
              `abstract` contype) $
             Constructor
               { conPars   = npars
