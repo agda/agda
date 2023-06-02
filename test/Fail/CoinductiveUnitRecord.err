@@ -1,12 +1,15 @@
-CoinductiveUnitRecord.agda:16,1-17,16
+CoinductiveUnitRecord.agda:19,1-20,16
 Termination checking failed for the following functions:
   bad
 Problematic calls:
   bad
-    (at CoinductiveUnitRecord.agda:17,13-16)
-CoinductiveUnitRecord.agda:20,1-21,18
+    (at CoinductiveUnitRecord.agda:20,13-16)
+CoinductiveUnitRecord.agda:23,1-24,18
 Termination checking failed for the following functions:
   bad'
 Problematic calls:
   bad'
-    (at CoinductiveUnitRecord.agda:21,14-18)
+    (at CoinductiveUnitRecord.agda:24,14-18)
+CoinductiveUnitRecord.agda:28,8-12
+bad != bad' of type Unit
+when checking that the expression refl has type bad ≡ bad'
