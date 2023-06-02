@@ -70,7 +70,7 @@ jobs:
         cabal-ver:
         - '3.10'
         ghc-ver:
-        - 9.6.1
+        - 9.6.2
         os:
         - ubuntu-22.04
 name: Haddock
