@@ -39,10 +39,11 @@ import Agda.TypeChecking.Telescope
 import Agda.Interaction.Options
 
 import Agda.Utils.Either
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Monad
 import Agda.Utils.Permutation hiding (dropFrom)
-import Agda.Utils.Pretty (Pretty(..))
+import Agda.Utils.Pretty (Pretty(..), prettyShow)
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 import Agda.Utils.Tuple
@@ -273,9 +274,12 @@ coinductiveRecordRHSsToCopatterns = do
 
   where
     inlineConstructor :: QName -> m Bool
-    inlineConstructor c = getConstInfo c <&> theDef <&> \case
-      Constructor { conInline } -> conInline
-      _ -> False
+    inlineConstructor c = getConstInfo c <&> theDef >>= \case
+      Constructor { conInline } -> do
+        reportSLn "tc.inline.con" 80 $
+          ("can" ++) $ applyUnless conInline ("not" ++) $ " inline constructor " ++ prettyShow c
+        return conInline
+      _ -> return False
 
 -- | Transform definitions returning record expressions to use copatterns
 --   instead. This prevents terms from blowing up when reduced.
