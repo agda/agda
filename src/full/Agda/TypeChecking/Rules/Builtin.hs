@@ -1021,6 +1021,7 @@ bindBuiltinNoDef b q = inTopContext $ do
               , conForced = []
               , conErased = Nothing
               , conErasure = erasure
+              , conInline  = False
               }
       addConstant' q defaultArgInfo q t def
       addDataCons d [q]

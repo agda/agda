@@ -104,6 +104,7 @@ bindBuiltinSharp x =
                     , conForced = []
                     , conErased = Nothing
                     , conErasure = erasure
+                    , conInline  = True  -- This might make the sharp-translation superfluous.
                     }
                 }
     return $ Def sharp []
