@@ -19,6 +19,13 @@ import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 
+instance Pretty Compiled where
+  pretty Compiled {cTreeless, cArgUsage} =
+    "Compiled {" <?> vcat
+      [ "cTreeless   =" <?> pretty cTreeless
+      , "funCompiled =" <?> pshow cArgUsage
+      ] <?> "}"
+
 data PEnv = PEnv { pPrec :: Int
                  , pFresh :: [String]
                  , pBound :: [String] }
