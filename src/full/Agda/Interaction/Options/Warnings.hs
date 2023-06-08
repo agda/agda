@@ -172,7 +172,7 @@ usualWarnings = allWarnings Set.\\ Set.fromList
               , ShadowingInTelescope_
               ]
 
--- | The @WarningName@ data enumeration is meant to have a one-to-one correspondance
+-- | The @WarningName@ data enumeration is meant to have a one-to-one correspondence
 -- to existing warnings in the codebase.
 
 data WarningName

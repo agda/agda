@@ -168,7 +168,7 @@ data ParseWarning
   | UnsupportedAttribute
     { warnRange    :: Range
                       -- ^ The range of the unsupported attribute.
-    , warnExplain  :: !(Maybe String)
+    , warnExplain  :: !(Maybe Doc)
                       -- ^ Class of the unsupported attributed for the error message.
     }
     -- ^ Unsupported attribute.
@@ -176,7 +176,7 @@ data ParseWarning
   | MultipleAttributes
     { warnRange    :: Range
                       -- ^ The range encompassing all attributes.
-    , warnExplain  :: !(Maybe String)
+    , warnExplain  :: !(Maybe Doc)
                       -- ^ Attribute class for the error message.
     }
     -- ^ Multiple attributes when at most a single attribute is expected.
@@ -260,15 +260,14 @@ instance Pretty ParseWarning where
       ]
   pretty (UnsupportedAttribute r s) = vcat
     [ (pretty r <> colon) <+>
-      (case s of
-         Nothing -> "Attributes"
-         Just s  -> text s <+> "attributes") <+>
+      maybe "Attributes" (<+> "attributes") s <+>
       "are not supported here."
     ]
   pretty (MultipleAttributes r s) = vcat
     [ (pretty r <> colon) <+>
       "Multiple" <+>
-      maybe id (\s -> (text s <+>)) s "attributes (ignored)."
+      maybe id (<+>) s "attributes (ignored)."
+    ]
     ]
 
 instance HasRange ParseWarning where
