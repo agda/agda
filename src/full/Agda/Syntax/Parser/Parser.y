@@ -673,12 +673,12 @@ LetBody : 'in' Expr   { Just $2 }
 
 ExtendedOrAbsurdLam :: { Expr }
 ExtendedOrAbsurdLam
-    : '\\'             '{' LamClauses '}'                  {% extLam (getRange ($1, $2, $4))     []                $3 }
-    | '\\' Attributes1 '{' LamClauses '}'                  {% extLam (getRange ($1, $3, $5))     (List1.toList $2) $4 }
-    | '\\'             'where' vopen LamWhereClauses close {% extLam (getRange ($1, $2, $3, $5)) []                $4 }
-    | '\\' Attributes1 'where' vopen LamWhereClauses close {% extLam (getRange ($1, $3, $4, $6)) (List1.toList $2) $5 }
-    | '\\'             AbsurdLamBindings                   {% extOrAbsLam (getRange $1) []                $2 }
-    | '\\' Attributes1 AbsurdLamBindings                   {% extOrAbsLam (getRange $1) (List1.toList $2) $3 }
+    : '\\'             '{' LamClauses '}'                  {% extendedLambda (getRange ($1, $2, $4))     []                $3 }
+    | '\\' Attributes1 '{' LamClauses '}'                  {% extendedLambda (getRange ($1, $3, $5))     (List1.toList $2) $4 }
+    | '\\'             'where' vopen LamWhereClauses close {% extendedLambda (getRange ($1, $2, $3, $5)) []                $4 }
+    | '\\' Attributes1 'where' vopen LamWhereClauses close {% extendedLambda (getRange ($1, $3, $4, $6)) (List1.toList $2) $5 }
+    | '\\'             AbsurdLamBindings                   {% extendedOrAbsurdLambda (getRange $1) []                $2 }
+    | '\\' Attributes1 AbsurdLamBindings                   {% extendedOrAbsurdLambda (getRange $1) (List1.toList $2) $3 }
 
 Application3 :: { List1 Expr }
 Application3
@@ -2107,25 +2107,25 @@ onlyErased as = do
 
 -- | Constructs extended lambdas.
 
-extLam
+extendedLambda
   :: Range            -- ^ The range of the lambda symbol and @where@ or
                       --   the braces.
   -> [Attr]           -- ^ The attributes in reverse order.
   -> List1 LamClause  -- ^ The clauses in reverse order.
   -> Parser Expr
-extLam symbolRange attrs cs = do
+extendedLambda symbolRange attrs cs = do
   e <- onlyErased attrs
   let cs' = List1.reverse cs
   return $ ExtendedLam (getRange (symbolRange, e, cs')) e cs'
 
 -- | Constructs extended or absurd lambdas.
 
-extOrAbsLam
+extendedOrAbsurdLambda
   :: Range   -- ^ The range of the lambda symbol.
   -> [Attr]  -- ^ The attributes, in reverse order.
   -> Either ([LamBinding], Hiding) (List1 Expr)
   -> Parser Expr
-extOrAbsLam lambdaRange attrs cs = case cs of
+extendedOrAbsurdLambda lambdaRange attrs = \case
   Right es -> do
     -- It is of the form @\ { p1 ... () }@.
     e  <- onlyErased attrs
