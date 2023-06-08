@@ -160,15 +160,26 @@ data ParseError
 
 -- | Warnings for parsing.
 data ParseWarning
-  -- | Parse errors that concern a range in a file.
   = OverlappingTokensWarning
-    { warnRange    :: !(Range' SrcFile)
-                      -- ^ The range of the bigger overlapping token
+    { warnRange    :: Range
+                      -- ^ The range of the bigger overlapping token.
     }
-  | UnsupportedAttribute Range !(Maybe String)
+    -- ^ E.g. a block comment spanning over several code blocks.
+  | UnsupportedAttribute
+    { warnRange    :: Range
+                      -- ^ The range of the unsupported attribute.
+    , warnExplain  :: !(Maybe String)
+                      -- ^ Class of the unsupported attributed for the error message.
+    }
     -- ^ Unsupported attribute.
-  | MultipleAttributes Range !(Maybe String)
-    -- ^ Multiple attributes.
+    --   E.g. declarations support only the @erased@ attribute.
+  | MultipleAttributes
+    { warnRange    :: Range
+                      -- ^ The range encompassing all attributes.
+    , warnExplain  :: !(Maybe String)
+                      -- ^ Attribute class for the error message.
+    }
+    -- ^ Multiple attributes when at most a single attribute is expected.
   deriving Show
 
 instance NFData ParseWarning where
