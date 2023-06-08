@@ -132,7 +132,7 @@ data ParseFlags = ParseFlags
 -- | Parse errors: what you get if parsing fails.
 data ParseError
 
-  -- | Errors that arise at a specific position in the file
+  -- Errors that arise at a specific position in the file
   = ParseError
     { errSrcFile   :: !SrcFile
                       -- ^ The file in which the error occurred.
@@ -146,13 +146,7 @@ data ParseError
                       -- ^ Hopefully an explanation of what happened.
     }
 
-  -- | Parse errors that concern a range in a file.
-  | OverlappingTokensError
-    { errRange     :: !(Range' SrcFile)
-                      -- ^ The range of the bigger overlapping token
-    }
-
-  -- | Parse errors that concern a whole file.
+  -- Parse errors that concern a whole file.
   | InvalidExtensionError
     { errPath      :: !RangeFile
                       -- ^ The file which the error concerns.
@@ -229,10 +223,6 @@ instance Pretty ParseError where
       , text $ errPrevToken ++ "<ERROR>"
       , text $ take 30 errInput ++ "..."
       ]
-  pretty OverlappingTokensError{errRange} = vcat
-      [ (pretty errRange <> colon) <+>
-        "Multi-line comment spans one or more literate text blocks."
-      ]
   pretty InvalidExtensionError{errPath,errValidExts} = vcat
       [ (pretty errPath <> colon) <+>
         "Unsupported extension."
@@ -246,7 +236,6 @@ instance Pretty ParseError where
 instance HasRange ParseError where
   getRange err = case err of
       ParseError{ errSrcFile, errPos = p } -> posToRange' errSrcFile p p
-      OverlappingTokensError{ errRange }   -> errRange
       InvalidExtensionError{}              -> errPathRange
       ReadFileError{}                      -> errPathRange
     where
