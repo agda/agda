@@ -789,7 +789,7 @@ checkPragma r p =
             Function{} -> markInline b x
             d@Constructor{} | conInductive (conSrcCon d) == CoInductive
               -> modifyGlobalDefinition x $ set lensTheDef d{ conInline = b }
-            _ -> typeError $ GenericError $ applyWhen b ("NO" ++) "INLINE directive only works on functions or coinductive constructors"
+            _ -> typeError $ GenericError $ applyWhen (not b) ("NO" ++) "INLINE directive only works on functions or coinductive constructors"
         A.OptionsPragma{} -> typeError $ GenericError $ "OPTIONS pragma only allowed at beginning of file, before top module declaration"
         A.DisplayPragma f ps e -> checkDisplayPragma f ps e
         A.EtaPragma r -> do
