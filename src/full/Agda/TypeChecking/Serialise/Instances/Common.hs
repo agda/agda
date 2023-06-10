@@ -39,6 +39,7 @@ import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Position as P
 import Agda.Syntax.Literal
+import Agda.Syntax.Parser.Tokens (Keyword)
 import Agda.Syntax.TopLevelModuleName
 import Agda.Interaction.FindFile
 import Agda.Interaction.Library
@@ -209,6 +210,8 @@ instance (EmbPrj a, Typeable b) => EmbPrj (WithDefault' a b) where
     []  -> valuN Default
     [a] -> valuN Value a
     _ -> malformed
+
+instance EmbPrj Keyword
 
 instance EmbPrj TopLevelModuleName where
   icod_ (TopLevelModuleName a b c) = icodeN' TopLevelModuleName a b c

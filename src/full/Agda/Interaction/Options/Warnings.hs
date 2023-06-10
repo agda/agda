@@ -138,6 +138,7 @@ errorWarnings = Set.fromList
   , NotAllowedInMutual_
   , NotStrictlyPositive_
   , OverlappingTokensWarning_
+  , AmbiguousLayoutColumn_
   , PragmaCompiled_
   , SafeFlagPostulate_
   , SafeFlagPragma_
@@ -182,6 +183,7 @@ data WarningName
   | OverlappingTokensWarning_
   | UnsupportedAttribute_
   | MultipleAttributes_
+  | AmbiguousLayoutColumn_
   -- Library Warnings
   | LibUnknownField_
   -- Nicifer Warnings
@@ -355,6 +357,7 @@ warningNameDescription = \case
   OverlappingTokensWarning_        -> "Multi-line comments spanning one or more literate text blocks."
   UnsupportedAttribute_            -> "Unsupported attributes."
   MultipleAttributes_              -> "Multiple attributes."
+  AmbiguousLayoutColumn_           -> "Ambiguous layout columns."
   -- Library Warnings
   LibUnknownField_                 -> "Unknown field in library file."
   -- Nicifer Warnings

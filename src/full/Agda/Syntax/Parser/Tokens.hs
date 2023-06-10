@@ -8,6 +8,8 @@ module Agda.Syntax.Parser.Tokens
 import Agda.Syntax.Literal (RLiteral)
 import Agda.Syntax.Position
 
+import Agda.Utils.Pretty
+
 data Keyword
         = KwLet | KwIn | KwWhere | KwData | KwCoData | KwDo
         | KwPostulate | KwAbstract | KwPrivate | KwInstance
@@ -37,7 +39,82 @@ data Keyword
         | KwVariable
         | KwNO_POSITIVITY_CHECK | KwPOLARITY
         | KwNO_UNIVERSE_CHECK
-    deriving (Eq, Show)
+    deriving (Eq, Show, Enum, Bounded)
+
+instance Pretty Keyword where
+  pretty = text . \case
+    KwLet                  -> "let"
+    KwIn                   -> "in"
+    KwWhere                -> "where"
+    KwData                 -> "data"
+    KwCoData               -> "codata"
+    KwDo                   -> "do"
+    KwPostulate            -> "postulate"
+    KwAbstract             -> "abstract"
+    KwPrivate              -> "private"
+    KwInstance             -> "instance"
+    KwInterleaved          -> "interleaved"
+    KwMutual               -> "mutual"
+    KwOverlap              -> "overlap"
+    KwOpen                 -> "open"
+    KwImport               -> "import"
+    KwModule               -> "module"
+    KwPrimitive            -> "primitive"
+    KwMacro                -> "macro"
+    KwInfix                -> "infix"
+    KwInfixL               -> "infixl"
+    KwInfixR               -> "infixr"
+    KwWith                 -> "with"
+    KwRewrite              -> "rewrite"
+    KwForall               -> "forall"
+    KwRecord               -> "record"
+    KwConstructor          -> "constructor"
+    KwField                -> "field"
+    KwInductive            -> "inductive"
+    KwCoInductive          -> "coinductive"
+    KwEta                  -> "eta-equality"
+    KwNoEta                -> "no-eta-equality"
+    KwHiding               -> "hiding"
+    KwUsing                -> "using"
+    KwRenaming             -> "renaming"
+    KwTo                   -> "to"
+    KwPublic               -> "public"
+    KwOpaque               -> "opaque"
+    KwUnfolding            -> "unfolding"
+    KwOPTIONS              -> "OPTIONS"
+    KwBUILTIN              -> "BUILTIN"
+    KwLINE                 -> "LINE"
+    KwFOREIGN              -> "FOREIGN"
+    KwCOMPILE              -> "COMPILE"
+    KwIMPOSSIBLE           -> "IMPOSSIBLE"
+    KwSTATIC               -> "STATIC"
+    KwINJECTIVE            -> "INJECTIVE"
+    KwINLINE               -> "INLINE"
+    KwNOINLINE             -> "NOINLINE"
+    KwETA                  -> "ETA"
+    KwNO_TERMINATION_CHECK -> "NO_TERMINATION_CHECK"
+    KwTERMINATING          -> "TERMINATING"
+    KwNON_TERMINATING      -> "NON_TERMINATING"
+    KwNOT_PROJECTION_LIKE  -> "NOT_PROJECTION_LIKE"
+    KwNON_COVERING         -> "NON_COVERING"
+    KwWARNING_ON_USAGE     -> "WARNING_ON_USAGE"
+    KwWARNING_ON_IMPORT    -> "WARNING_ON_IMPORT"
+    KwMEASURE              -> "MEASURE"
+    KwDISPLAY              -> "DISPLAY"
+    KwREWRITE              -> "REWRITE"
+    KwQuote                -> "quote"
+    KwQuoteTerm            -> "quoteTerm"
+    KwUnquote              -> "unquote"
+    KwUnquoteDecl          -> "unquoteDecl"
+    KwUnquoteDef           -> "unquoteDef"
+    KwSyntax               -> "syntax"
+    KwPatternSyn           -> "pattern"
+    KwTactic               -> "tactic"
+    KwCATCHALL             -> "CATCHALL"
+    KwVariable             -> "variable"
+    KwNO_POSITIVITY_CHECK  -> "NO_POSITIVITY_CHECK"
+    KwPOLARITY             -> "POLARITY"
+    KwNO_UNIVERSE_CHECK    -> "NO_UNIVERSE_CHECK"
 
 -- | Unconditional layout keywords.
 --

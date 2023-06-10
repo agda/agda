@@ -155,11 +155,13 @@ instance EmbPrj ParseWarning where
     OverlappingTokensWarning a -> icodeN 0 OverlappingTokensWarning a
     UnsupportedAttribute a b   -> icodeN 1 UnsupportedAttribute a b
     MultipleAttributes a b     -> icodeN 2 MultipleAttributes a b
+    AmbiguousLayoutColumn a b  -> icodeN 3 AmbiguousLayoutColumn a b
 
   value = vcase $ \case
     [0, a]    -> valuN OverlappingTokensWarning a
     [1, a, b] -> valuN UnsupportedAttribute a b
     [2, a, b] -> valuN MultipleAttributes a b
+    [3, a, b] -> valuN AmbiguousLayoutColumn a b
     _ -> malformed
 
 instance EmbPrj RecordFieldWarning where
@@ -429,6 +431,7 @@ instance EmbPrj WarningName where
     NotAffectedByOpaque_                         -> 98
     UnfoldTransparentName_                       -> 99
     UselessOpaque_                               -> 100
+    AmbiguousLayoutColumn_                       -> 101
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -532,6 +535,7 @@ instance EmbPrj WarningName where
     98  -> return NotAffectedByOpaque_
     99  -> return UnfoldTransparentName_
     100 -> return UselessOpaque_
+    101 -> return AmbiguousLayoutColumn_
     _   -> malformed
 
 

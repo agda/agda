@@ -110,6 +110,8 @@ module Agda.Syntax.Parser.Layout
 import Control.Monad        ( when )
 import Control.Monad.State  ( gets, modify )
 
+import Debug.Trace          ( trace )
+
 import Agda.Syntax.Parser.Lexer
 import Agda.Syntax.Parser.Alex
 import Agda.Syntax.Parser.Monad
@@ -118,6 +120,8 @@ import Agda.Syntax.Parser.LexActions
 import Agda.Syntax.Position
 
 import Agda.Utils.Functor ((<&>))
+import Agda.Utils.Lens    ((%==))
+import Agda.Utils.Pretty  (prettyShow)
 
 import Agda.Utils.Impossible
 
@@ -198,7 +202,7 @@ newLayoutBlock = LexAction $ \ inp _ _ -> do
         then pushLexState empty_layout
         else do
             when (status == Confirmed) $
-              modifyContext $ confirmTentativeBlocks $ Just offset
+              lensContext %== confirmTentativeBlocks (Just offset)
             pushBlock $ Layout kw status offset
     return $ TokSymbol SymOpenVirtualBrace i
   where
@@ -241,7 +245,7 @@ confirmLayout = getLexState >>= \ case
   -- Encountering a newline outside of a 'layout' state we confirm top
   -- tentative layout columns.
   confirmLayoutAtNewLine :: Parser ()
-  confirmLayoutAtNewLine = modifyContext $ confirmTentativeBlocks Nothing
+  confirmLayoutAtNewLine = lensContext %== confirmTentativeBlocks Nothing
 
 -- | Confirm all top 'Tentative' layout columns.
 -- If a column is given, only those below the given column.
@@ -249,8 +253,23 @@ confirmLayout = getLexState >>= \ case
 -- The code ensures that the newly created 'Definitive' columns
 -- are strictly decreasing.
 --
-confirmTentativeBlocks :: Maybe Column -> LayoutContext -> LayoutContext
-confirmTentativeBlocks mcol = \case
-    Layout kw Tentative col : cxt | maybe True (col <) mcol
-            -> Layout kw Confirmed col : confirmTentativeBlocks (Just col) cxt
-    cxt  -> cxt
+confirmTentativeBlocks :: Maybe Column -> LayoutContext -> Parser LayoutContext
+confirmTentativeBlocks mcol cxt = trace enter $
+  case cxt of
+    cxt@(Layout kw Tentative col : _) | maybe False (col ==) mcol -> trace hit do
+      pos <- getParsePosAsRange
+      let w = AmbiguousLayoutColumn pos kw
+      trace (prettyShow w) $ parseWarning w
+      return cxt
+
+    Layout kw Tentative col : cxt | maybe True (col <) mcol -> do
+      (Layout kw Confirmed col :) <$> confirmTentativeBlocks (Just col) cxt
+
+    cxt -> return cxt
+  where
+    enter = unlines
+      [ "confirmTentativeBlocks"
+      , "  mcol = " ++ show mcol
+      , "  cxt  = " ++ show cxt
+      ]
+    hit = "parseWarning AmbiguousLayoutColumn"

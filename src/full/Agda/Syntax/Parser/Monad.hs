@@ -16,13 +16,13 @@ module Agda.Syntax.Parser.Monad
     , parsePosString
     , parseFromSrc
       -- * Manipulating the state
-    , setParsePos, setLastPos, getParseInterval
+    , setParsePos, setLastPos, getParseInterval, getParsePosAsRange
     , setPrevToken
     , getParseFlags
     , getLexState, pushLexState, popLexState
       -- ** Layout
     , topBlock, popBlock, pushBlock
-    , getContext, setContext, modifyContext
+    , lensContext, getContext, setContext, modifyContext
     , resetLayoutStatus
       -- ** Errors
     , parseWarning, parseWarningName
@@ -46,6 +46,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Parser.Tokens ( Keyword( KwMutual ) )
 
 import Agda.Utils.FileName
+import Agda.Utils.Lens
 import Agda.Utils.List ( tailWithDefault )
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Pretty
@@ -58,7 +59,11 @@ import Agda.Utils.Impossible
 
 -- | The parse monad.
 newtype Parser a = P { _runP :: StateT ParseState (Either ParseError) a }
-  deriving (Functor, Applicative, Monad, MonadState ParseState, MonadError ParseError)
+  deriving (Functor, Applicative, Monad, MonadState ParseState) -- , MonadError ParseError)
+
+instance MonadError ParseError Parser where
+  throwError e = __IMPOSSIBLE__
+  catchError m k = m
 
 -- | The parser state. Contains everything the parser and the lexer could ever
 --   need.
@@ -180,18 +185,25 @@ data ParseWarning
                       -- ^ Attribute class for the error message.
     }
     -- ^ Multiple attributes when at most a single attribute is expected.
+  | AmbiguousLayoutColumn
+    { warnRange    :: Range
+    , warnLayoutKw :: !Keyword
+    }
+    -- ^ A layout column coinciding with the layout column of a shadowed layout keyword.
   deriving Show
 
 instance NFData ParseWarning where
   rnf (OverlappingTokensWarning _) = ()
   rnf (UnsupportedAttribute _ s)   = rnf s
   rnf (MultipleAttributes _ s)     = rnf s
+  rnf (AmbiguousLayoutColumn _ _)  = ()
 
 parseWarningName :: ParseWarning -> WarningName
 parseWarningName = \case
   OverlappingTokensWarning{} -> OverlappingTokensWarning_
   UnsupportedAttribute{}     -> UnsupportedAttribute_
   MultipleAttributes{}       -> MultipleAttributes_
+  AmbiguousLayoutColumn{}    -> AmbiguousLayoutColumn_
 
 -- | The result of parsing something.
 data ParseResult a
@@ -268,12 +280,17 @@ instance Pretty ParseWarning where
       "Multiple" <+>
       maybe id (<+>) s "attributes (ignored)."
     ]
+  pretty (AmbiguousLayoutColumn r kw) = vcat
+    [ (pretty r <> colon) <+>
+      "Resolved visually ambiguous layout: appears to be affiliated to shadowed layout keyword" <+>
+      (pretty kw <> ",") <+> "but is affiliated to the last layout keyword."
     ]
 
 instance HasRange ParseWarning where
   getRange OverlappingTokensWarning{warnRange} = warnRange
   getRange (UnsupportedAttribute r _)          = r
   getRange (MultipleAttributes r _)            = r
+  getRange (AmbiguousLayoutColumn r _)         = r
 
 {--------------------------------------------------------------------------
     Running the parser
@@ -351,6 +368,11 @@ getParseInterval = do
   s <- get
   return $ posToInterval (parseSrcFile s) (parseLastPos s) (parsePos s)
 
+getParsePosAsRange :: Parser Range
+getParsePosAsRange = do
+  s <- get
+  return $ posToRange' (parseSrcFile s) (parsePos s) (parsePos s)
+
 getLexState :: Parser [LexState]
 getLexState = gets parseLexState
 
@@ -401,6 +423,9 @@ lexError msg =
 {--------------------------------------------------------------------------
     Layout
  --------------------------------------------------------------------------}
+
+lensContext :: Lens' ParseState LayoutContext
+lensContext f s = f (parseLayout s) <&> \ cxt -> s { parseLayout = cxt }
 
 getContext :: MonadState ParseState m => m LayoutContext
 getContext = gets parseLayout
