@@ -240,10 +240,13 @@ coverageCheck f t cs = do
     let ranges    = map clauseFullRange unreached
     setCurrentRange ranges $ warning $ UnreachableClauses f ranges
 
-  -- report a warning if there are clauses that are not preserved as
+  -- Report a warning if there are clauses that are not preserved as
   -- definitional equalities and --exact-split is enabled
-  unless (null noex) $ do
-      let noexclauses = map (indexWithDefault __IMPOSSIBLE__ cs1) noex
+  -- and they are not labelled as CATCHALL.
+  let noexclauses = forMaybe noex $ \ i -> do
+        let cl = indexWithDefault __IMPOSSIBLE__ cs1 i
+        if clauseCatchall cl then Nothing else Just cl
+  unless (null noexclauses) $ do
       setCurrentRange (map clauseLHSRange noexclauses) $
         warning $ CoverageNoExactSplit f $ noexclauses
   return splitTree
@@ -269,9 +272,10 @@ isCovered f cs sc = do
  -- to the user.  Rather, assume the clause is not already covered.
  `catchError` \ _ -> return False
 
--- | @cover f cs (SClause _ _ ps _) = return (splitTree, used, pss)@.
+-- | @cover f cs (SClause _ _ ps _) = return (CoverResult splitTree used missing covering noex)@.
 --   checks that the list of clauses @cs@ covers the given split clause.
---   Returns the @splitTree@, the @used@ clauses, and missing cases @pss@.
+--   Returns the @splitTree@, the @used@ clauses, @missing@ cases, the @covering@ clauses,
+--   and the non-exact clauses @noex@.
 --
 --   Effect: adds missing instance clauses for @f@ to signature.
 --
@@ -304,7 +308,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
         , coverUsedClauses    = singleton i
         , coverMissingClauses = []
         , coverPatterns       = [cl]
-        , coverNoExactClauses = IntSet.fromList [ i | not $ exact || clauseCatchall cl0 ]
+        , coverNoExactClauses = if exact then empty else singleton i
         }
 
     No        ->  do
