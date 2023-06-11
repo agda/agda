@@ -6,6 +6,8 @@ record Fun : Set₁ where
 id : ∀{A : Set} → A → A
 id x = x
 
+variable
+  F : Set
 
 module R (E : Set) where
   module Param (fun : Fun) (open Fun fun) where
@@ -18,3 +20,6 @@ module R (E : Set) where
 
    test₃ : {A : Set} → A → A
    test₃ k = {! id'' ? !} -- C-c C-h
+
+   test₄ : F → K → F
+   test₄ = {! id''' !} -- C-c C-h
