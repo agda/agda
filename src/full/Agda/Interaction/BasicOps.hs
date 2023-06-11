@@ -964,10 +964,14 @@ metaHelperType norm ii rng s = case words s of
     A.Application h args <- A.appView . getBody . deepUnscope <$> parseExprIn ii rng ("let " ++ f ++ " = _ in " ++ s)
     inCxt   <- hasElem <$> getContextNames
     cxtArgs <- getContextArgs
+    enclosingFunctionName <- ipcQName . envClause <$> getEnv
+    genArgs <- getConstInfo enclosingFunctionName <&> defArgGeneralizable <&> \case
+      NoGeneralizableArgs -> 0
+      SomeGeneralizableArgs i -> i
     a0      <- (`piApply` cxtArgs) <$> (getMetaType =<< lookupInteractionId ii)
 
     -- Konstantin, 2022-10-23: We don't want to print section parameters in helper type.
-    freeVars <- getCurrentModuleFreeVars
+    freeVars <- (+ genArgs) <$> getCurrentModuleFreeVars
     contextForAbstracting <- drop freeVars . reverse <$> getContext
     let escapeAbstractedContext = escapeContext impossible (length contextForAbstracting)
 
