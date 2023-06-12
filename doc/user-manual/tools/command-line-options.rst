@@ -126,7 +126,7 @@ See :ref:`compilers` for backend-specific options.
 .. option:: --with-compiler={PATH}
 
      Set ``PATH`` as the executable to call to compile the backend's
-     output (default: ghc for the GHC backend).
+     output (default: ``ghc`` for the GHC backend).
 
 Generating highlighted source code
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -138,15 +138,14 @@ Generating highlighted source code
      Count extended grapheme clusters when generating LaTeX code (see
      :ref:`grapheme-clusters`).
      Available only when Agda was built with Cabal flag :option:`enable-cluster-counting`.
-     Then default (since 2.6.4).
 
      Pragma option since 2.5.4.
 
 .. option:: --no-count-clusters
 
-     .. versionadded:: 2.6.4.
+     .. versionadded:: 2.6.4
 
-     Opposite of :option:`--count-clusters`.
+     Opposite of :option:`--count-clusters`. Default.
 
 .. option:: --css={URL}
 
@@ -170,10 +169,10 @@ Generating highlighted source code
      line might not be included.)
 
      A module ``M`` is considered to be in the library ``L`` if ``L``
-     is the ``name`` of a ``.agda-lib`` file ``A``
+     is the ``name`` of an ``.agda-lib`` file
      :ref:`associated<The_agda-lib_files_associated_to_a_given_Agda_file>`
-     to ``M`` (even if ``M``'s file can not be found via the
-     ``include`` paths in ``A``).
+     to ``M`` (even if ``M``'s file cannot be found via the
+     ``include`` paths given in the ``.agda-lib`` file).
 
 .. option:: --html
 
@@ -185,14 +184,14 @@ Generating highlighted source code
 .. option:: --html-dir={DIR}
 
      Set directory in which HTML files are placed to ``DIR`` (default:
-     html).
+     ``html``).
 
 .. option:: --html-highlight=[code,all,auto]
 
      .. versionadded:: 2.6.0
 
      Whether to highlight non-Agda code as comments in generated HTML
-     files (default: all; see :ref:`generating-html`).
+     files (default: ``all``; see :ref:`generating-html`).
 
 .. option:: --latex
 
@@ -206,7 +205,7 @@ Generating highlighted source code
      .. versionadded:: 2.5.2
 
      Set directory in which LaTeX files are placed to ``DIR``
-     (default: latex).
+     (default: ``latex``).
 
 .. option:: --vim
 
@@ -232,6 +231,7 @@ Imports and libraries
 .. option:: --include-path={DIR}, -i={DIR}
 
      Look for imports in ``DIR``.
+     This option can be given multiple times.
 
 .. option:: --library={DIR}, -l={LIB}
 
@@ -270,7 +270,7 @@ Imports and libraries
 Command-line and pragma options
 -------------------------------
 
-The following options can also be given in ``.agda`` files using the
+The following options can also be given in Agda files using the
 :ref:`OPTIONS<options-pragma>` pragma.
 
 Performance
@@ -288,7 +288,7 @@ Performance
 
      Disable automatic compile-time inlining (default). Only definitions marked
      ``INLINE`` will be inlined.
-     On by default.
+     Default since 2.6.2.
 
 .. option:: --caching, --no-caching
 
@@ -550,7 +550,7 @@ Experimental features
      definitionally proof-irrelevant propositions
      (see :ref:`proof-irrelevant propositions <prop>`).
 
-     Default: `--no-prop`.
+     Default: ``--no-prop``.
      In this case, ``Prop`` is since 2.6.4 not in scope
      by default (:option:`--import-sorts`).
 
@@ -1008,7 +1008,7 @@ Other features
 
      .. versionadded:: 2.6.4
 
-     Allow use of the annotations `@0` and `@erased`; allow use of
+     Allow use of the annotations ``@0`` and ``@erased``; allow use of
      names defined in Cubical Agda in Erased Cubical Agda; and mark
      parameters as erased in the type signatures of constructors and
      record fields (if :option:`--with-K` is not active this is not
@@ -1054,14 +1054,14 @@ or enable different warnings. The flag ``-W error`` (or
 ``--warning=error``) can be used to turn all warnings into errors,
 while ``-W noerror`` turns this off again.
 
-A group of warnings can be enabled by ``-W {group}``, where ``group``
+A group of warnings can be enabled by ``-W {GROUP}``, where ``GROUP``
 is one of the following:
 
 .. option:: all
 
      All of the existing warnings.
 
-.. option:: warn.
+.. option:: warn
 
      Default warning level.
 
@@ -1072,8 +1072,8 @@ is one of the following:
 The command ``agda --help=warning`` provides information about which
 warnings are turned on by default.
 
-Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
-{noName}`` respectively. The flags available are:
+Individual warnings can be turned on and off by ``-W {NAME}`` and ``-W no{NAME}`` respectively.
+The list containing any warning ``NAME`` can be produced by ``agda --help=warning``:
 
 .. option:: AbsurdPatternRequiresNoRHS
 
@@ -1081,7 +1081,7 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
 
 .. option:: CantGeneralizeOverSorts
 
-     Attempt to generalize over sort metas in 'variable' declaration.
+     Attempt to generalize over sort metas in ``variable`` declaration.
 
 .. option:: CoInfectiveImport
 
