@@ -247,9 +247,9 @@ Arch Linux
 
 The following prebuilt packages are available:
 
-* `Agda <https://www.archlinux.org/packages/community/x86_64/agda/>`_
+* `Agda <https://www.archlinux.org/packages/extra/x86_64/agda/>`_
 
-* `Agda standard library <https://www.archlinux.org/packages/community/x86_64/agda-stdlib/>`_
+* `Agda standard library <https://www.archlinux.org/packages/extra/x86_64/agda-stdlib/>`_
 
 However, due to significant packaging bugs such as `this <https://bugs.archlinux.org/task/61904?project=5&string=agda>`_, you might want to use alternative installation methods.
 

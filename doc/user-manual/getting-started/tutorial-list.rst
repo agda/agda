@@ -87,7 +87,7 @@ Courses using Agda
   research level course at the University of Edinburgh by Conor McBride.
 - `Agda <https://people.inf.elte.hu/divip/AgdaTutorial/Index.html>`__,
   introductory course for master students at ELTE Eötvös Collegium in Budapest by Péter Diviánszky and Ambrus Kaposi.
-- `Types for Programs and Proofs <http://www.cse.chalmers.se/edu/course/DAT140/>`__,
+- `Types for Programs and Proofs <https://www.cse.chalmers.se/edu/year/2017/course/DAT140/>`__,
   course at Chalmers University of Technology.
 - `Dependently typed metaprogramming (in Agda) <https://danel.ahman.ee/agda-course-13/>`__,
   Summer (2013) course at the University of Cambridge by Conor McBride.

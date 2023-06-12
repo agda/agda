@@ -95,7 +95,7 @@ The following sections describe these stages in more detail:
 Lexer
 -----
 
-.. _Alex: http://www.haskell.org/alex
+.. _Alex: https://haskell-alex.readthedocs.io/
 
 Lexical analysis (aka tokenization) is the process of converting a sequence of
 characters (the raw ``*.agda`` file) into a sequence of tokens (strings with a
@@ -108,7 +108,7 @@ The main lexing function ``lexer`` is called by the
 Parser
 ------
 
-.. _Happy: http://www.haskell.org/happy
+.. _Happy: https://haskell-happy.readthedocs.io/
 
 The parser is the component that takes the output of the lexer and builds a
 data structure that we will call Concrete Syntax, while checking for correct
