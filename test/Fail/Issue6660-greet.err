@@ -1,6 +1,0 @@
-Issue6660-greet.agda:29,1-33,10
-Termination checking failed for the following functions:
-  greet
-Problematic calls:
-  greet
-    (at Issue6660-greet.agda:33,5-10)
