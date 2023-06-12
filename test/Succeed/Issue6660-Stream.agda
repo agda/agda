@@ -1,9 +1,12 @@
+-- Andreas, Lawrence, 2023-06-12 issue #6660:
+-- inline constructors to pass guardedness check
+
 {-# OPTIONS --guardedness #-}
 
 open import Agda.Builtin.Nat
 
 record Stream (A : Set) : Set where
-  coinductive; constructor _∷_
+  coinductive; pattern; constructor _∷_  -- Gives a warning for 'pattern' and then discards it.
   field head : A
         tail : Stream A
 open Stream

@@ -1877,11 +1877,13 @@ instance ToAbstract NiceDeclaration where
       checkNoTerminationPragma InRecordDef fields
       -- Andreas, 2020-04-19, issue #4560
       -- 'pattern' declaration is incompatible with 'coinductive' or 'eta-equality'.
-      whenJust pat $ \ r -> do
-        let warn = setCurrentRange r . warning . UselessPatternDeclarationForRecord
-        if | Just (Ranged _ CoInductive) <- ind -> warn "coinductive"
-           | Just YesEta                 <- eta -> warn "eta"
-           | otherwise -> return ()
+      pat <- case pat of
+        Just r
+          | Just (Ranged _ CoInductive) <- ind -> Nothing <$ warn "coinductive"
+          | Just YesEta                 <- eta -> Nothing <$ warn "eta"
+          | otherwise -> return pat
+          where warn = setCurrentRange r . warning . UselessPatternDeclarationForRecord
+        Nothing -> return pat
 
       (p, ax) <- resolveName (C.QName x) >>= \case
         DefinedName p ax NoSuffix -> do
