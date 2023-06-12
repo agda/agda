@@ -21,8 +21,8 @@ describes all the sorts that are used by Agda.
 The theoretical foundation for Agda's sort system are *Pure Type Systems* (PTS).
 A PTS has, besides the set of supported sorts, two parameters:
 
-  1. A set of _axioms_ of the form ``s : s′``, stating that sort ``s`` itself has sort ``s′``.
-  2. A set of _rules_ of the form ``(s₁, s₂, s₃)`` stating that if ``A : s₁`` and ``B(x) : s₂`` then ``(x : A) → B(x) : s₃``.
+  1. A set of *axioms* of the form ``s : s′``, stating that sort ``s`` itself has sort ``s′``.
+  2. A set of *rules* of the form ``(s₁, s₂, s₃)`` stating that if ``A : s₁`` and ``B(x) : s₂`` then ``(x : A) → B(x) : s₃``.
 
 Agda is a *functional* PTS in the sense that ``s₃`` is uniquely determined by ``s₁`` and ``s₂``.
 Axioms are implemented internally by the ``univSort`` function, see :ref:`univSort`.
@@ -49,7 +49,7 @@ example, we have
 .. code-block:: agda
 
     Bool : Set
-    Nat : Set
+    Nat  : Set
 
 but not ``Set : Set``. However, it is often convenient for ``Set`` to
 have a type of its own, and so in Agda, it is given the type ``Set₁``:
@@ -85,7 +85,7 @@ Universe example
 ----------------
 
 So why are universes useful? Because sometimes it is necessary to
-define, and prove theorems about, functions that operate not just on
+define and prove theorems about functions that operate not just on
 sets but on large sets. In fact, most Agda users sooner or later
 experience an error message where Agda complains that ``Set₁ !=
 Set``. These errors usually mean that a small set was used where a
@@ -108,7 +108,7 @@ and cartesian products:
     infixr 2 _×_
 
 Now suppose you would like to define an operator ``Prod`` that inputs
-a list of ``n`` sets and takes their cartesian product, like this:
+a list of ``n`` sets and outputs their cartesian product, like this:
 
 .. code-block:: agda
 
@@ -152,7 +152,7 @@ Level``. For more information, see the page on :ref:`universe levels
 Agda's sort system
 ==================
 
-The implementation of Agda’s sort system is closely based on the
+The implementation of Agda’s sort system is based on the
 theory of pure type systems.  The full sort system of Agda consists of
 the following sorts:
 
@@ -230,22 +230,18 @@ also refer to these sorts with the alternative syntax ``Setωi``.  That
 means that you can also write ``Setω0``, ``Setω1``, ``Setω2``, etc.,
 instead of ``Setω₀``, ``Setω₁``, ``Setω₂``.
 
-Now it is allowed, for instance, to declare a datatype in ``Setω``.
-This means that ``Setω`` before the implementation of this hierarchy,
-``Setω`` used to be a term, and there was no bigger sort than it in
-Agda.  Now a type can be assigned to it, in this case, ``Setω₁``.
-
-However, unlike the standard hierarchy of universes ``Setᵢ``, this
-second hierarchy ``Setωᵢ`` does not support universe
+However, unlike the standard hierarchy of universes ``Setᵢ``,
+the second hierarchy ``Setωᵢ`` does not support universe
 polymorphism. This means that it is not possible to quantify over
 *all* Setωᵢ at once. For example, the expression ``∀ {i} (A : Setω i)
 → A → A`` would not be a well-formed agda term. See the section
 on ``Setω`` on the page on :ref:`universe levels <set-omega>` for more
 information.
 
-Concerning other applications, It should not be necessary to refer to
+Concerning other applications, it should not be necessary to refer to
 these sorts during normal usage of Agda, but they might be useful for
 defining :ref:`reflection-based macros <macros>`.
+And it is allowed to define data types in ``Setωᵢ``.
 
 
 .. note:: When :option:`--omega-in-omega` is enabled, ``Setωᵢ`` is
@@ -306,7 +302,7 @@ their arguments have been solved.
 
 .. note::
    ``univSort``, ``funSort`` and ``piSort`` are *internal* constructors
-   that may be printed when evaluating a term. The user can not enter
+   that may be printed when evaluating a term. The user cannot enter
    them, nor introduce them in Agda code. All these constructors do
    not represent new sorts but instead, they compute to the right sort
    once their arguments are known.
@@ -318,7 +314,7 @@ univSort
 --------
 
 ``univSort`` returns the successor sort of a given sort.
-In PTS terminology, it implements the *axioms* ``s : univSort s``.
+In PTS terminology, it implements the *axioms* ``s : univSort s``.
 
 .. list-table:: ``univSort``
    :align: center
@@ -369,8 +365,8 @@ scenario:
   sort ``sB``.
 
 Under these conditions, we can build the function type
-``A → B : funSort sA sB``. This type signature means that the function type
-``A → B`` has a (possibly unknown) but well-defined sort ``funSort sA sB``,
+``A → B : funSort sA sB``. This type signature means that the function type
+``A → B`` has a (possibly unknown) but well-defined sort ``funSort sA sB``,
 specified in terms of the sorts of its domain and codomain.
 
 Example: the sort of the function type ``∀ {A} → A → A`` with normal form
@@ -388,12 +384,12 @@ and let ``U ↝ U'`` be ``SSet`` if one of ``U``, ``U'`` is ``SSet``, and ``U'``
 E.g. ``SSet ↝ Prop`` is ``SSet`` and ``Set ↝ Prop`` is ``Prop``.
 Also, let ``L`` range over levels ``a`` and transfinite numbers ``ωᵢ`` (which is ``ω + i``)
 and let us generalize ``⊔`` to ``L ⊔ L'``, e.g. ``a ⊔ ωᵢ = ωᵢ`` and ``ωᵢ ⊔ ωⱼ = ωₖ`` where ``k = max i j``.
-We write standard universes as pairs ``U L``, e.g. ``Propωᵢ`` as pair ``Prop ωᵢ``.
+We write standard universes as pairs ``U L``, e.g. ``Propωᵢ`` as pair ``Prop ωᵢ``.
 Let ``S`` range over special universes ``SizeUniv``, ``IUniv``, ``LockUniv``, ``LevelUniv``.
 
 In the following table we specify how ``funSort s₁ s₂`` computes on known sorts ``s₁`` and ``s₂``,
 excluding interactions between different special sorts.
-In PTS terminology, these are the *rules* ``(s₁, s₂, funSort s₁ s₂)``.
+In PTS terminology, these are the *rules* ``(s₁, s₂, funSort s₁ s₂)``.
 
 .. list-table:: ``funSort``
    :align: center
@@ -468,7 +464,7 @@ Here are some examples for the standard universes ``U L``:
 piSort
 ------
 
-Similarly, ``piSort s1 s2`` is a constructor that computes the sort of
+Similarly, ``piSort s1 s2`` is a constructor that computes the sort of
 a Π-type given the sort ``s1`` of its domain and the sort ``s2`` of its
 codomain as arguments.
 
@@ -481,19 +477,19 @@ To understand how ``piSort`` works in general, we set the following scenario:
   has sort ``sB``.
 
 Under these conditions, we can build the dependent function type
-``(x : A) → B : piSort sA (λ x → sB)``. This type signature means that the
-dependent function type ``(x : A) → B`` has a (possibly unknown) but
-well-defined sort ``piSort sA sB``, specified in terms of the element
+``(x : A) → B : piSort sA (λ x → sB)``. This type signature means that the
+dependent function type ``(x : A) → B`` has a (possibly unknown) but
+well-defined sort ``piSort sA sB``, specified in terms of the element
 ``x : A`` and the sorts of its domain and codomain.
 
 Here are some examples how ``piSort`` computes:
 
 .. code-block:: agda
 
-  piSort s1       (λ x → s2) = funSort s1 s2          (if x does not occur freely in s2)
-  piSort (Set ℓ)  (λ x → s2) = Setω                   (if x occurs rigidly in s2)
-  piSort (Prop ℓ) (λ x → s2) = Setω                   (if x occurs rigidly in s2)
-  piSort Setωᵢ    (λ x → s2) = Setωᵢ                  (if x occurs rigidly in s2)
+  piSort s1       (λ x → s2)    = funSort s1 s2          (if x does not occur freely in s2)
+  piSort (Set ℓ)  (λ x → Set ℓ') = Setω                  (if x occurs rigidly in ℓ')
+  piSort (Prop ℓ) (λ x → Set ℓ') = Setω                  (if x occurs rigidly in ℓ')
+  piSort Setωᵢ    (λ x → Set ℓ') = Setωᵢ                 (if x occurs rigidly in ℓ')
 
 With these rules, we can compute the sort of the function type ``∀ {A}
 → ∀ {B} → B → A → B`` (or more explicitly, ``{A : _9} {B : _7} → B → A
@@ -504,5 +500,4 @@ More examples:
 
 * ``piSort Level (λ l → Set l)`` evaluates to ``Setω``
 * ``piSort (Set l) (λ _ → Set l')`` evaluates to ``Set (l ⊔ l')``
-* ``univSort (Set l)`` evaluates to ``Set (lsuc l)``
-* ``piSort s (λ x -> Setωi)`` evaluates to ``funSort s Setωi``
+* ``piSort s (λ _ → Setωi)`` evaluates to ``funSort s Setωi``
