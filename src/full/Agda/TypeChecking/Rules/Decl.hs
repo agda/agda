@@ -63,7 +63,7 @@ import Agda.TypeChecking.Rules.Display ( checkDisplayPragma )
 
 import Agda.Termination.TermCheck
 
-import Agda.Utils.Function ( applyWhen )
+import Agda.Utils.Function ( applyUnless )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
@@ -787,9 +787,9 @@ checkPragma r p =
           def <- getConstInfo x
           case theDef def of
             Function{} -> markInline b x
-            d@Constructor{} | conInductive (conSrcCon d) == CoInductive
+            d@Constructor{ conSrcCon } | copatternMatchingAllowed conSrcCon
               -> modifyGlobalDefinition x $ set lensTheDef d{ conInline = b }
-            _ -> typeError $ GenericError $ applyWhen (not b) ("NO" ++) "INLINE directive only works on functions or coinductive constructors"
+            _ -> typeError $ GenericError $ applyUnless b ("NO" ++) "INLINE directive only works on functions or constructors of records that allow copattern matching"
         A.OptionsPragma{} -> typeError $ GenericError $ "OPTIONS pragma only allowed at beginning of file, before top module declaration"
         A.DisplayPragma f ps e -> checkDisplayPragma f ps e
         A.EtaPragma r -> do

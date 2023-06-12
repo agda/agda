@@ -232,8 +232,9 @@ coinductiveRecordRHSsToCopatterns ::
      forall m. (HasConstInfo m, PureTCM m)
   => [Clause]
   -> m [Clause]
-coinductiveRecordRHSsToCopatterns = do
-  concatMapM $ \case
+coinductiveRecordRHSsToCopatterns cls = do
+  reportSLn "tc.inline.con" 40 $ "enter coinductiveRecordRHSsToCopatterns with " ++ show (length cls) ++ " clauses"
+  flip concatMapM cls $ \case
 
     -- RHS must be fully applied coinductive constructor/record expression.
     cl@Clause{ namedClausePats = ps
