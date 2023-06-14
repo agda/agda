@@ -703,15 +703,6 @@ instance EmbPrj IsOpaque where
     valu []  = valuN TransparentDef
     valu _   = malformed
 
-instance EmbPrj Delayed where
-  icod_ Delayed    = icodeN 0 Delayed
-  icod_ NotDelayed = icodeN' NotDelayed
-
-  value = vcase valu where
-    valu [0] = valuN Delayed
-    valu []  = valuN NotDelayed
-    valu _   = malformed
-
 instance EmbPrj SrcLoc where
   icod_ (SrcLoc p m f sl sc el ec) = icodeN' SrcLoc p m f sl sc el ec
   value = valueN SrcLoc

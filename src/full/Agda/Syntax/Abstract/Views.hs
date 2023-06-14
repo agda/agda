@@ -441,7 +441,7 @@ instance ExprLike Declaration where
       Import{}                  -> pure d
       Pragma i p                -> Pragma i <$> rec p
       Open{}                    -> pure d
-      FunDef i f d cs           -> FunDef i f d <$> rec cs
+      FunDef i f cs             -> FunDef i f <$> rec cs
       DataSig i er d tel e      -> DataSig i er d <$> rec tel <*> rec e
       DataDef i d uc bs cs      -> DataDef i d uc <$> rec bs <*> rec cs
       RecSig i er r tel e       -> RecSig i er r <$> rec tel <*> rec e
@@ -514,7 +514,7 @@ instance DeclaredNames Declaration where
       UnquoteDecl _ _ qs _         -> fromList $ map (WithKind OtherDefName) qs  -- could be Fun or Axiom
       UnquoteDef _ qs _            -> fromList $ map (WithKind FunName) qs       -- cannot be Axiom
       UnquoteData _ d _ _ cs _     -> singleton (WithKind DataName d) <> (fromList $ map (WithKind ConName) cs) -- singleton _ <> map (WithKind ConName) cs
-      FunDef _ q _ cls             -> singleton (WithKind FunName q) <> declaredNames cls
+      FunDef _ q cls               -> singleton (WithKind FunName q) <> declaredNames cls
       ScopedDecl _ decls           -> declaredNames decls
       Section _ _ _ _ decls        -> declaredNames decls
       Pragma _ pragma              -> declaredNames pragma

@@ -1214,7 +1214,7 @@ instance ToConcrete A.Declaration where
       return [C.Primitive (getRange i) [C.TypeSig (argInfo t') Nothing x' (unArg t')]]
         -- Primitives are always relevant.
 
-  toConcrete (A.FunDef i _ _ cs) =
+  toConcrete (A.FunDef i _ cs) =
     withAbstractPrivate i $ concat <$> toConcrete cs
 
   toConcrete (A.DataSig i erased x bs t) =

@@ -1048,7 +1048,7 @@ evalTCM v = do
       let accessDontCare = __IMPOSSIBLE__  -- or ConcreteDef, value not looked at
       ac <- asksTC (^. lensIsAbstract)     -- Issue #4012, respect AbstractMode
       let i = mkDefInfo (nameConcrete $ qnameName x) noFixity' accessDontCare ac noRange
-      locallyReduceAllDefs $ checkFunDef NotDelayed i x cs
+      locallyReduceAllDefs $ checkFunDef i x cs
       primUnitUnit
 
     tcPragmaForeign :: Text -> Text -> TCM Term

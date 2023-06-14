@@ -47,19 +47,6 @@ type Nat    = Int
 type Arity  = Nat
 
 ---------------------------------------------------------------------------
--- * Delayed
----------------------------------------------------------------------------
-
--- | Used to specify whether something should be delayed.
-data Delayed = Delayed | NotDelayed
-  deriving (Show, Eq, Ord, Generic)
-
-instance KillRange Delayed where
-  killRange = id
-
-instance NFData Delayed
-
----------------------------------------------------------------------------
 -- * File
 ---------------------------------------------------------------------------
 

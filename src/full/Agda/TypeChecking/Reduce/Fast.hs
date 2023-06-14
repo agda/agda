@@ -93,8 +93,7 @@ import Debug.Trace
 -- information needed for fast reduction from the definition.
 
 data CompactDef =
-  CompactDef { cdefDelayed        :: Bool
-             , cdefNonterminating :: Bool
+  CompactDef { cdefNonterminating :: Bool
              , cdefUnconfirmed    :: Bool
              , cdefDef            :: CompactDefn
              , cdefRewriteRules   :: RewriteRules
@@ -145,7 +144,6 @@ compactDef bEnv def rewr = do
           ]
         , not (defNonterminating def) || SmallSet.member NonTerminatingReductions allowed
         , not (defTerminationUnconfirmed def) || SmallSet.member UnconfirmedReductions allowed
-        , not (defDelayed def == Delayed)
         , not isPrp
         , not (isIrrelevant def)
         ]
@@ -329,8 +327,7 @@ compactDef bEnv def rewr = do
           charRel _ _ = __IMPOSSIBLE__
 
   return $
-    CompactDef { cdefDelayed        = defDelayed def == Delayed
-               , cdefNonterminating = defNonterminating def
+    CompactDef { cdefNonterminating = defNonterminating def
                , cdefUnconfirmed    = defTerminationUnconfirmed def
                , cdefDef            = cdefn
                , cdefRewriteRules   = if allowReduce then rewr else []
@@ -901,15 +898,11 @@ reduceTm rEnv bEnv !constInfo normalisation =
         -- slow reduce for unsupported definitions.
         Def f [] ->
           evalIApplyAM spine ctrl $
-          let CompactDef{ cdefDelayed        = delayed
-                        , cdefNonterminating = nonterm
+          let CompactDef{ cdefNonterminating = nonterm
                         , cdefUnconfirmed    = unconf
                         , cdefDef            = def } = constInfo f
-              dontUnfold = delayed && not (unfoldDelayed ctrl)
           in case def of
-            CFun{ cfunCompiled = cc }
-              | dontUnfold -> rewriteAM done
-              | otherwise  -> runAM (Match f cc spine ([] :> cl) ctrl)
+            CFun{ cfunCompiled = cc } -> runAM (Match f cc spine ([] :> cl) ctrl)
             CAxiom         -> rewriteAM done
             CTyCon         -> rewriteAM done
             CCon{}         -> runAM done   -- Only happens for builtinSharp (which is a Def when you bind it)
@@ -1378,19 +1371,6 @@ reduceTm rEnv bEnv !constInfo normalisation =
     updateThunkCtrl :: STPointer s -> ControlStack s -> ControlStack s
     updateThunkCtrl p (UpdateThunk ps : ctrl) = UpdateThunk (p : ps) : ctrl
     updateThunkCtrl p                   ctrl  = UpdateThunk [p] : ctrl
-
-    -- Only unfold delayed (corecursive) definitions if the result is being cased on.
-    unfoldDelayed :: ControlStack s -> Bool
-    unfoldDelayed []                     = False
-    unfoldDelayed (CaseK{}       : _)    = True
-    unfoldDelayed (PrimOpK{}     : _)    = False
-    unfoldDelayed (NatSucK{}     : _)    = False
-    unfoldDelayed (NormaliseK{}  : _)    = False
-    unfoldDelayed (ArgK{}        : _)    = False
-    unfoldDelayed (UpdateThunk{} : ctrl) = unfoldDelayed ctrl
-    unfoldDelayed (ApplyK{}      : ctrl) = unfoldDelayed ctrl
-    unfoldDelayed (ForceK{}      : ctrl) = unfoldDelayed ctrl
-    unfoldDelayed (EraseK{}      : ctrl) = unfoldDelayed ctrl
 
     -- When matching is stuck we return the closure from the 'MatchStack' with the appropriate
     -- 'IsValue' set.

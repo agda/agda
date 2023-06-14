@@ -844,7 +844,7 @@ scopeCheckExtendedLam r e cs = do
 
   -- Create the abstract syntax for the extended lambda.
   case scdef of
-    A.ScopedDecl si [A.FunDef di qname' NotDelayed cs] -> do
+    A.ScopedDecl si [A.FunDef di qname' cs] -> do
       setScope si  -- This turns into an A.ScopedExpr si $ A.ExtendedLam...
       return $
         A.ExtendedLam (ExprRange r) di e qname' $
@@ -1818,13 +1818,11 @@ instance ToAbstract NiceDeclaration where
         -- Andreas, 2017-12-04 the name must reside in the current module
         unlessM ((A.qnameModule x' ==) <$> getCurrentModule) $
           __IMPOSSIBLE__
-        let delayed = NotDelayed
-        -- (delayed, cs) <- translateCopatternClauses cs -- TODO
         f <- getConcreteFixity x
 
         unfoldFunction x'
         di <- updateDefInfoOpacity (mkDefInfoInstance x f PublicAccess a i NotMacroDef r)
-        return [ A.FunDef di x' delayed cs ]
+        return [ A.FunDef di x' cs ]
 
   -- Uncategorized function clauses
     C.NiceFunClause _ _ _ _ _ _ (C.FunClause lhs _ _ _) ->

@@ -1174,7 +1174,7 @@ data Constraint
   | FindInstance MetaId (Maybe [Candidate])
     -- ^ the first argument is the instance argument and the second one is the list of candidates
     --   (or Nothing if we haven’t determined the list of candidates yet)
-  | CheckFunDef Delayed A.DefInfo QName [A.Clause] TCErr
+  | CheckFunDef A.DefInfo QName [A.Clause] TCErr
     -- ^ Last argument is the error causing us to postpone.
   | UnquoteTactic Term Term Type   -- ^ First argument is computation and the others are hole and goal type
   | CheckLockedVars Term Type (Arg Term) Type     -- ^ @CheckLockedVars t ty lk lk_ty@ with @t : ty@, @lk : lk_ty@ and @t lk@ well-typed.
@@ -2335,8 +2335,6 @@ data FunctionData = FunctionData
       --   Empty list if not recursive.
       --   @Nothing@ if not yet computed (by positivity checker).
   , _funAbstr          :: IsAbstract
-  , _funDelayed        :: Delayed
-      -- ^ Are the clauses of this definition delayed?
   , _funProjection     :: Either ProjectionLikenessMissing Projection
       -- ^ Is it a record projection?
       --   If yes, then return the name of the record type and index of
@@ -2374,7 +2372,6 @@ pattern Function
   -> FunctionInverse
   -> Maybe [QName]
   -> IsAbstract
-  -> Delayed
   -> Either ProjectionLikenessMissing Projection
   -> Bool
   -> Set FunctionFlag
@@ -2393,7 +2390,6 @@ pattern Function
   , funInv
   , funMutual
   , funAbstr
-  , funDelayed
   , funProjection
   , funErasure
   , funFlags
@@ -2411,7 +2407,6 @@ pattern Function
     funInv
     funMutual
     funAbstr
-    funDelayed
     funProjection
     funErasure
     funFlags
@@ -2763,7 +2758,6 @@ instance Pretty FunctionData where
       funInv
       funMutual
       funAbstr
-      funDelayed
       funProjection
       funErasure
       funFlags
@@ -2781,7 +2775,6 @@ instance Pretty FunctionData where
       , "funInv          =" <?> pretty funInv
       , "funMutual       =" <?> pshow funMutual
       , "funAbstr        =" <?> pshow funAbstr
-      , "funDelayed      =" <?> pshow funDelayed
       , "funProjection   =" <?> pretty funProjection
       , "funErasure      =" <?> pretty funErasure
       , "funFlags        =" <?> pshow funFlags
@@ -2930,7 +2923,6 @@ emptyFunctionData = do
     , _funInv         = NotInjective
     , _funMutual      = Nothing
     , _funAbstr       = ConcreteDef
-    , _funDelayed     = NotDelayed
     , _funProjection  = Left MaybeProjection
     , _funErasure     = erasure
     , _funFlags       = Set.empty
@@ -3153,11 +3145,6 @@ defInverse _                                         = NotInjective
 defCompilerPragmas :: BackendName -> Definition -> [CompilerPragma]
 defCompilerPragmas b = reverse . fromMaybe [] . Map.lookup b . defCompiledRep
   -- reversed because we add new pragmas to the front of the list
-
--- | Are the clauses of this definition delayed?
-defDelayed :: Definition -> Delayed
-defDelayed Defn{theDef = Function{funDelayed = d}} = d
-defDelayed _                                       = NotDelayed
 
 -- | Has the definition failed the termination checker?
 defNonterminating :: Definition -> Bool
@@ -5503,8 +5490,8 @@ instance KillRange Defn where
       DataOrRecSig n -> DataOrRecSig n
       GeneralizableVar -> GeneralizableVar
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
-      Function a b c d e f g h i j k l m n o p q ->
-        killRangeN Function a b c d e f g h i j k l m n o p q
+      Function a b c d e f g h i j k l m n o p ->
+        killRangeN Function a b c d e f g h i j k l m n o p
       Datatype a b c d e f g h i j   -> killRangeN Datatype a b c d e f g h i j
       Record a b c d e f g h i j k l m -> killRangeN Record a b c d e f g h i j k l m
       Constructor a b c d e f g h i j -> killRangeN Constructor a b c d e f g h i j

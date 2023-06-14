@@ -818,7 +818,6 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                , funInv          = NotInjective
                , funMutual       = Just []
                , funAbstr        = ConcreteDef
-               , funDelayed      = NotDelayed
                , funProjection   = Right proj
                , funErasure      = erasure
                , funFlags        = Set.empty

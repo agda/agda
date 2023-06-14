@@ -484,7 +484,7 @@ instance Reify Constraint where
             (,,) <$> reify tm <*> reify tm <*> reify ty)
     reify (IsEmpty r a) = IsEmptyType <$> reify a
     reify (CheckSizeLtSat a) = SizeLtSat  <$> reify a
-    reify (CheckFunDef d i q cs err) = do
+    reify (CheckFunDef i q cs err) = do
       a <- reify =<< defType <$> getConstInfo q
       return $ PostponedCheckFunDef q a err
     reify (HasBiggerSort a) = OfType <$> reify a <*> reify (UnivSort a)
