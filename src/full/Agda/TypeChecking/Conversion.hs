@@ -66,6 +66,7 @@ import Agda.Utils.BoolSet (BoolSet)
 import qualified Agda.Utils.BoolSet as BoolSet
 import Agda.Utils.Size
 import Agda.Utils.Tuple
+import Agda.Utils.Unsafe ( unsafeComparePointers )
 import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
@@ -117,6 +118,15 @@ intersectVars = zipWithM areVars where
     areVars (Apply (Arg _ (Var n []))) (Apply (Arg _ (Var m []))) = Just $ n /= m -- prune different vars
     areVars _ _                                   = Nothing
 
+-- | @guardPointerEquality x y s m@ behaves as @m@ if @x@ and @y@ are equal as pointers,
+-- or does nothing otherwise.
+-- Use with care, see the documentation for 'unsafeComparePointers'
+guardPointerEquality :: MonadConversion m => a -> a -> String -> m () -> m ()
+guardPointerEquality u v profileSection action =
+  if unsafeComparePointers u v
+  then whenProfile Profile.Conversion $ tick profileSection
+  else action
+
 equalTerm :: MonadConversion m => Type -> Term -> Term -> m ()
 equalTerm = compareTerm CmpEq
 
@@ -164,7 +174,7 @@ compareAs cmp a u v = do
   -- let equal = u == v
 
   -- Check syntactic equality. This actually saves us quite a bit of work.
-  SynEq.checkSyntacticEquality u v
+  guardPointerEquality u v "pointer equality: terms" $ SynEq.checkSyntacticEquality u v
     (\_ _ -> whenProfile Profile.Conversion $ tick "compare equal") $
     \u v -> do
       reportSDoc "tc.conv.term" 15 $ sep $
@@ -1665,7 +1675,8 @@ equalSort s1 s2 = do
     ]
   whenProfile Profile.Conversion $ tick "compare sorts"
 
-  SynEq.checkSyntacticEquality s1 s2 (\_ _ -> return ()) $ \s1 s2 -> do
+  guardPointerEquality s1 s2 "pointer equality: sorts" $
+    SynEq.checkSyntacticEquality s1 s2 (\_ _ -> return ()) $ \s1 s2 -> do
 
     s1b <- reduceB s1
     s2b <- reduceB s2

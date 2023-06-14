@@ -33,6 +33,7 @@ import Agda.TypeChecking.Substitute
 
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad (ifM, and2M)
+import Agda.Utils.Unsafe (unsafeComparePointers)
 
 -- | Syntactic equality check for terms. If syntactic equality
 -- checking has fuel left, then 'checkSyntacticEquality' behaves as if
@@ -149,7 +150,7 @@ instance SynEq Bool where
 
 -- | Syntactic term equality ignores 'DontCare' stuff.
 instance SynEq Term where
-  synEq v v' = do
+  synEq v v' = if unsafeComparePointers v v' then return (v, v') else do
     (v, v') <- lift $ instantiate' (v, v')
     case (v, v') of
       (Var   i vs, Var   i' vs') | i == i' -> Var i   <$$> synEq vs vs'
@@ -181,7 +182,7 @@ instance SynEq PlusLevel where
     | otherwise = inequal (l, l')
 
 instance SynEq Sort where
-  synEq s s' = do
+  synEq s s' = if unsafeComparePointers s s' then return (s, s') else do
     (s, s') <- lift $ instantiate' (s, s')
     case (s, s') of
       (Univ u l, Univ u' l') | u == u' -> Univ u <$$> synEq l l'
