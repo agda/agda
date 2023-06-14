@@ -1818,7 +1818,6 @@ instance ToAbstract NiceDeclaration where
         -- Andreas, 2017-12-04 the name must reside in the current module
         unlessM ((A.qnameModule x' ==) <$> getCurrentModule) $
           __IMPOSSIBLE__
-        -- (delayed, cs) <- translateCopatternClauses cs -- TODO
         f <- getConcreteFixity x
 
         unfoldFunction x'
