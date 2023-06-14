@@ -152,7 +152,7 @@ instance NamesIn Defn where
     PrimitiveSort _ s  -> namesAndMetasIn' sg s
     AbstractDefn{}     -> __IMPOSSIBLE__
     -- Andreas 2017-07-27, Q: which names can be in @cc@ which are not already in @cl@?
-    Function cl cc _ _ _ _ _ _ _ _ _ _ _ el _ _ _
+    Function cl cc _ _ _ _ _ _ _ _ _ _ el _ _ _
       -> namesAndMetasIn' sg (cl, cc, el)
     Datatype _ _ cl cs s _ _ _ trX trD
       -> namesAndMetasIn' sg (cl, cs, s, trX, trD)

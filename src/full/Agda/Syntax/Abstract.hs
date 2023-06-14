@@ -175,7 +175,7 @@ data Declaration
     -- ^ The @ImportDirective@ is for highlighting purposes.
   | Pragma     Range      Pragma
   | Open       ModuleInfo ModuleName ImportDirective
-  | FunDef     DefInfo QName Delayed [Clause] -- ^ sequence of function clauses
+  | FunDef     DefInfo QName [Clause] -- ^ sequence of function clauses
   | DataSig    DefInfo Erased QName GeneralizeTelescope Type -- ^ lone data signature
   | DataDef    DefInfo QName UniverseCheck DataDefParams [Constructor]
   | RecSig     DefInfo Erased QName GeneralizeTelescope Type -- ^ lone record signature
@@ -602,7 +602,7 @@ instance Eq Declaration where
   Import a1 b1 c1                == Import a2 b2 c2                = (a1, b1, c1) == (a2, b2, c2)
   Pragma a1 b1                   == Pragma a2 b2                   = (a1, b1) == (a2, b2)
   Open a1 b1 c1                  == Open a2 b2 c2                  = (a1, b1, c1) == (a2, b2, c2)
-  FunDef a1 b1 c1 d1             == FunDef a2 b2 c2 d2             = (a1, b1, c1, d1) == (a2, b2, c2, d2)
+  FunDef a1 b1 c1                == FunDef a2 b2 c2                = (a1, b1, c1) == (a2, b2, c2)
   DataSig a1 b1 c1 d1 e1         == DataSig a2 b2 c2 d2 e2         = (a1, b1, c1, d1, e1) == (a2, b2, c2, d2, e2)
   DataDef a1 b1 c1 d1 e1         == DataDef a2 b2 c2 d2 e2         = (a1, b1, c1, d1, e1) == (a2, b2, c2, d2, e2)
   RecSig a1 b1 c1 d1 e1          == RecSig a2 b2 c2 d2 e2          = (a1, b1, c1, d1, e1) == (a2, b2, c2, d2, e2)
@@ -680,7 +680,7 @@ instance HasRange Declaration where
     getRange (Pragma     i _        )  = getRange i
     getRange (Open       i _ _      )  = getRange i
     getRange (ScopedDecl _ d        )  = getRange d
-    getRange (FunDef     i _ _ _    )  = getRange i
+    getRange (FunDef     i _ _      )  = getRange i
     getRange (DataSig    i _ _ _ _  )  = getRange i
     getRange (DataDef    i _ _ _ _  )  = getRange i
     getRange (RecSig     i _ _ _ _  )  = getRange i
@@ -817,7 +817,7 @@ instance KillRange Declaration where
   killRange (Pragma     i a           ) = Pragma (killRange i) a
   killRange (Open       i x dir       ) = killRangeN Open       i x dir
   killRange (ScopedDecl a d           ) = killRangeN (ScopedDecl a) d
-  killRange (FunDef  i a b c          ) = killRangeN FunDef  i a b c
+  killRange (FunDef  i a b            ) = killRangeN FunDef  i a b
   killRange (DataSig i a b c d        ) = killRangeN DataSig i a b c d
   killRange (DataDef i a b c d        ) = killRangeN DataDef i a b c d
   killRange (RecSig  i a b c d        ) = killRangeN RecSig  i a b c d
@@ -935,7 +935,7 @@ instance AnyAbstract Declaration where
   anyAbstract (Mutual     _ ds)      = anyAbstract ds
   anyAbstract (ScopedDecl _ ds)      = anyAbstract ds
   anyAbstract (Section _ _ _ _ ds)   = anyAbstract ds
-  anyAbstract (FunDef i _ _ _)       = defAbstract i == AbstractDef
+  anyAbstract (FunDef i _ _)         = defAbstract i == AbstractDef
   anyAbstract (DataDef i _ _ _ _)    = defAbstract i == AbstractDef
   anyAbstract (RecDef i _ _ _ _ _ _) = defAbstract i == AbstractDef
   anyAbstract (DataSig i _ _ _ _)    = defAbstract i == AbstractDef
@@ -1174,7 +1174,7 @@ declarationSpine = \case
   Import _ _ _            -> ImportS
   Pragma _ _              -> PragmaS
   Open _ _ _              -> OpenS
-  FunDef _ _ _ cs         -> FunDefS (map clauseSpine cs)
+  FunDef _ _ cs           -> FunDefS (map clauseSpine cs)
   DataSig _ _ _ _ _       -> DataSigS
   DataDef _ _ _ _ _       -> DataDefS
   RecSig _ _ _ _ _        -> RecSigS

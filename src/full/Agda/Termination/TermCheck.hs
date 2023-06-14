@@ -134,7 +134,7 @@ termDecl' = \case
     -- The mutual names mentioned in the abstract syntax
     -- for symbols that need to be termination-checked.
     getNames = concatMap getName
-    getName (A.FunDef i x delayed cs)   = [x]
+    getName (A.FunDef i x cs)   = [x]
     getName (A.RecDef _ x _ _ _ _ ds)   = x : getNames ds
     getName (A.Mutual _ ds)             = getNames ds
     getName (A.Section _ _ _ _ ds)      = getNames ds
@@ -509,12 +509,11 @@ termDef name = terSetCurrent name $ inConcreteOrAbstractMode name $ \ def -> do
     applyWhenM terGetMaskResult terUnguarded $ do
 
       case theDef def of
-        Function{ funClauses = cls, funDelayed = delayed } ->
-          terSetDelayed delayed $ forM' cls $ \ cl -> do
-            if hasDefP (namedClausePats cl) -- generated hcomp clause, should be safe.
-                                            -- TODO find proper strategy.
-              then return empty
-              else termClause cl
+        Function{ funClauses = cls  } -> forM' cls $ \ cl -> do
+          if hasDefP (namedClausePats cl) -- generated hcomp clause, should be safe.
+                                          -- TODO find proper strategy.
+            then return empty
+            else termClause cl
 
         -- @record R pars : Set where field tel@
         -- is treated like function @R pars = tel@.
@@ -697,12 +696,9 @@ termClause clause = do
     reportBody :: Term -> TerM ()
     reportBody v = verboseS "term.check.clause" 6 $ do
       f       <- terGetCurrent
-      delayed <- terGetDelayed
       pats    <- terGetPatterns
       liftTCM $ reportSDoc "term.check.clause" 6 $ do
-        sep [ text ("termination checking " ++
-                    (if delayed == Delayed then "delayed " else "") ++
-                    "clause of")
+        sep [ text ("termination checking clause of")
                 <+> prettyTCM f
             , nest 2 $ "lhs:" <+> sep (map prettyTCM pats)
             , nest 2 $ "rhs:" <+> prettyTCM v
@@ -838,7 +834,6 @@ function g es0 = do
          cutoff <- terGetCutOff
          let ?cutoff = cutoff
 
-         delayed <- terGetDelayed
          -- Andreas, 2017-02-14, issue #2458:
          -- If we have inlined with-functions, we could be illtyped,
          -- hence, do not reduce anything.
@@ -889,7 +884,7 @@ function g es0 = do
                     -- guarding when we call a record and not termination checking a record
            Nothing
              -- only a delayed definition can be guarded
-             | Order.decreasing guarded && delayed == NotDelayed
+             | Order.decreasing guarded
                -> return Order.le
              | otherwise
                -> return guarded

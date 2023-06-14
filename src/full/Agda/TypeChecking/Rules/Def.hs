@@ -79,8 +79,8 @@ import Agda.Utils.WithDefault
 -- * Definitions by pattern matching
 ---------------------------------------------------------------------------
 
-checkFunDef :: Delayed -> A.DefInfo -> QName -> [A.Clause] -> TCM ()
-checkFunDef delayed i name cs = do
+checkFunDef :: A.DefInfo -> QName -> [A.Clause] -> TCM ()
+checkFunDef i name cs = do
         -- Reset blocking tag (in case a previous attempt was blocked)
         modifySignature $ updateDefinition name $ updateDefBlocked $ const $
           NotBlocked (MissingClauses name) ()
@@ -105,7 +105,7 @@ checkFunDef delayed i name cs = do
                 whenM (isFrozen x) $ do
                   xs <- allMetasList . jMetaType . mvJudgement <$> lookupLocalMeta x
                   mapM_ unfreezeMeta (x : xs)
-                checkAlias t info delayed i name e mc
+                checkAlias t info i name e mc
             | otherwise -> do -- Warn about abstract alias (will never work!)
               -- Ulf, 2021-11-18, #5620: Don't warn if the meta is solved. A more intuitive solution
               -- would be to not treat definitions with solved meta types as aliases, but in mutual
@@ -121,8 +121,8 @@ checkFunDef delayed i name cs = do
                   "Missing type signature for" <+> text what <+> "definition" <+> (prettyTCM name <> ".") $$
                   fsep (pwords ("Types of " ++ what ++ " definitions are never inferred since this would leak") ++
                         pwords ("information that should be " ++ what ++ "."))
-              checkFunDef' t info delayed Nothing Nothing i name cs
-          _ -> checkFunDef' t info delayed Nothing Nothing i name cs
+              checkFunDef' t info Nothing Nothing i name cs
+          _ -> checkFunDef' t info Nothing Nothing i name cs
 
         -- If it's a macro check that it ends in Term → TC ⊤
         let ismacro = isMacro . theDef $ def
@@ -131,7 +131,7 @@ checkFunDef delayed i name cs = do
         reportSDoc "tc.def" 20 $ vcat $
           [ "checking function definition got stuck on: " <+> pretty blocker ]
         modifySignature $ updateDefinition name $ updateDefBlocked $ const $ Blocked blocker ()
-        addConstraint blocker $ CheckFunDef delayed i name cs err
+        addConstraint blocker $ CheckFunDef i name cs err
 
 checkMacroType :: Type -> TCM ()
 checkMacroType t = do
@@ -161,8 +161,8 @@ isAlias cs t =
     trivialClause _ = Nothing
 
 -- | Check a trivial definition of the form @f = e@
-checkAlias :: Type -> ArgInfo -> Delayed -> A.DefInfo -> QName -> A.Expr -> Maybe C.Expr -> TCM ()
-checkAlias t ai delayed i name e mc =
+checkAlias :: Type -> ArgInfo -> A.DefInfo -> QName -> A.Expr -> Maybe C.Expr -> TCM ()
+checkAlias t ai i name e mc =
   let clause = A.Clause { clauseLHS          = A.SpineLHS (LHSInfo (getRange i) NoEllipsis) name []
                         , clauseStrippedPats = []
                         , clauseRHS          = A.RHS e mc
@@ -213,7 +213,6 @@ checkAlias t ai delayed i name e mc =
               } ]
           , _funCompiled  = Just $ Done [] $ bodyMod v
           , _funSplitTree = Just $ SplittingDone 0
-          , _funDelayed   = delayed
           , _funAbstr     = Info.defAbstract i
           , _funOpaque    = Info.defOpaque i
           }
@@ -232,7 +231,6 @@ checkAlias t ai delayed i name e mc =
 -- | Type check a definition by pattern matching.
 checkFunDef' :: Type             -- ^ the type we expect the function to have
              -> ArgInfo          -- ^ is it irrelevant (for instance)
-             -> Delayed          -- ^ are the clauses delayed (not unfolded willy-nilly)
              -> Maybe ExtLamInfo -- ^ does the definition come from an extended lambda
                                  --   (if so, we need to know some stuff about lambda-lifted args)
              -> Maybe QName      -- ^ is it a with function (if so, what's the name of the parent function)
@@ -240,13 +238,12 @@ checkFunDef' :: Type             -- ^ the type we expect the function to have
              -> QName            -- ^ the name of the function
              -> [A.Clause]       -- ^ the clauses to check
              -> TCM ()
-checkFunDef' t ai delayed extlam with i name cs =
-  checkFunDefS t ai delayed extlam with i name Nothing cs
+checkFunDef' t ai extlam with i name cs =
+  checkFunDefS t ai extlam with i name Nothing cs
 
 -- | Type check a definition by pattern matching.
 checkFunDefS :: Type             -- ^ the type we expect the function to have
              -> ArgInfo          -- ^ is it irrelevant (for instance)
-             -> Delayed          -- ^ are the clauses delayed (not unfolded willy-nilly)
              -> Maybe ExtLamInfo -- ^ does the definition come from an extended lambda
                                  --   (if so, we need to know some stuff about lambda-lifted args)
              -> Maybe QName      -- ^ is it a with function (if so, what's the name of the parent function)
@@ -255,7 +252,7 @@ checkFunDefS :: Type             -- ^ the type we expect the function to have
              -> Maybe Substitution -- ^ substitution (from with abstraction) that needs to be applied to module parameters
              -> [A.Clause]       -- ^ the clauses to check
              -> TCM ()
-checkFunDefS t ai delayed extlam with i name withSub cs = do
+checkFunDefS t ai extlam with i name withSub cs = do
 
     traceCall (CheckFunDefCall (getRange i) name cs True) $ do
         reportSDoc "tc.def.fun" 10 $
@@ -434,7 +431,6 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
              { _funClauses        = cs
              , _funCompiled       = Just cc
              , _funSplitTree      = mst
-             , _funDelayed        = delayed
              , _funInv            = inv
              , _funAbstr          = Info.defAbstract i
              , _funOpaque         = Info.defOpaque i
@@ -1218,7 +1214,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
   -- Check the with function
   let info = Info.mkDefInfo (nameConcrete $ qnameName aux) noFixity' PublicAccess abstr (getRange cs)
   ai <- defArgInfo <$> getConstInfo f
-  checkFunDefS withFunType ai NotDelayed Nothing (Just f) info aux (Just withSub) cs
+  checkFunDefS withFunType ai Nothing (Just f) info aux (Just withSub) cs
   return $ Just $ call_in_parent
 
 -- | Type check a where clause.

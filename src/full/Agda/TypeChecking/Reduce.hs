@@ -559,13 +559,13 @@ slowReduceTerm v = do
 --    and seems to save 2% sec on the standard library
 --      MetaV x args -> notBlocked . MetaV x <$> reduce' args
       MetaV x es -> iapp es
-      Def f es   -> flip reduceIApply es $ unfoldDefinitionE False reduceB' (Def f []) f es
+      Def f es   -> flip reduceIApply es $ unfoldDefinitionE reduceB' (Def f []) f es
       Con c ci es -> do
           -- Constructors can reduce' when they come from an
           -- instantiated module.
           -- also reduce when they are path constructors
           v <- flip reduceIApply es
-                 $ unfoldDefinitionE False reduceB' (Con c ci []) (conName c) es
+                 $ unfoldDefinitionE reduceB' (Con c ci []) (conName c) es
           traverse reduceNat v
       Sort s   -> done
       Level l  -> ifM (SmallSet.member LevelReductions <$> asksTC envAllowedReductions)
@@ -609,37 +609,37 @@ unfoldCorecursion :: Term -> ReduceM (Blocked Term)
 unfoldCorecursion v = do
   v <- instantiate' v
   case v of
-    Def f es -> unfoldDefinitionE True unfoldCorecursion (Def f []) f es
+    Def f es -> unfoldDefinitionE unfoldCorecursion (Def f []) f es
     _ -> slowReduceTerm v
 
 -- | If the first argument is 'True', then a single delayed clause may
 -- be unfolded.
 unfoldDefinition ::
-  Bool -> (Term -> ReduceM (Blocked Term)) ->
+  (Term -> ReduceM (Blocked Term)) ->
   Term -> QName -> Args -> ReduceM (Blocked Term)
-unfoldDefinition unfoldDelayed keepGoing v f args =
-  unfoldDefinitionE unfoldDelayed keepGoing v f (map Apply args)
+unfoldDefinition keepGoing v f args =
+  unfoldDefinitionE keepGoing v f (map Apply args)
 
 unfoldDefinitionE ::
-  Bool -> (Term -> ReduceM (Blocked Term)) ->
+  (Term -> ReduceM (Blocked Term)) ->
   Term -> QName -> Elims -> ReduceM (Blocked Term)
-unfoldDefinitionE unfoldDelayed keepGoing v f es = do
-  r <- unfoldDefinitionStep unfoldDelayed v f es
+unfoldDefinitionE keepGoing v f es = do
+  r <- unfoldDefinitionStep v f es
   case r of
     NoReduction v    -> return v
     YesReduction _ v -> keepGoing v
 
 unfoldDefinition' ::
-  Bool -> (Simplification -> Term -> ReduceM (Simplification, Blocked Term)) ->
+  (Simplification -> Term -> ReduceM (Simplification, Blocked Term)) ->
   Term -> QName -> Elims -> ReduceM (Simplification, Blocked Term)
-unfoldDefinition' unfoldDelayed keepGoing v0 f es = do
-  r <- unfoldDefinitionStep unfoldDelayed v0 f es
+unfoldDefinition' keepGoing v0 f es = do
+  r <- unfoldDefinitionStep v0 f es
   case r of
     NoReduction v       -> return (NoSimplification, v)
     YesReduction simp v -> keepGoing simp v
 
-unfoldDefinitionStep :: Bool -> Term -> QName -> Elims -> ReduceM (Reduced (Blocked Term) Term)
-unfoldDefinitionStep unfoldDelayed v0 f es =
+unfoldDefinitionStep :: Term -> QName -> Elims -> ReduceM (Reduced (Blocked Term) Term)
+unfoldDefinitionStep v0 f es =
   {-# SCC "reduceDef" #-} do
   traceSDoc "tc.reduce" 90 ("unfoldDefinitionStep v0" <+> pretty v0) $ do
   info <- getConstInfo f
@@ -656,7 +656,6 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
       dontUnfold = or
         [ defNonterminating info && SmallSet.notMember NonTerminatingReductions allowed
         , defTerminationUnconfirmed info && SmallSet.notMember UnconfirmedReductions allowed
-        , defDelayed info == Delayed && not unfoldDelayed
         , prp == Right True
         , isIrrelevant info
         , not defOk
@@ -780,7 +779,7 @@ reduceDefCopy f es = do
                 xs  = etaArgs ps es
                 n   = length xs
                 newes = raise n es ++ [ Apply $ var i <$ x | (i, x) <- zip (downFrom n) xs ]
-        if (defDelayed info == Delayed) || (defNonterminating info)
+        if defNonterminating info
          then return $ NoReduction ()
          else do
             ev <- liftReduce $ appDefE_ f v0 [cl] Nothing mempty $ map notReduced es'
@@ -809,7 +808,7 @@ reduceHead v = do -- ignoreAbstractMode $ do
         " is treated " ++ if isAbstract then "abstractly" else "concretely"
         ) $ do
       let v0  = Def f []
-          red = liftReduce $ unfoldDefinitionE False reduceHead v0 f es
+          red = liftReduce $ unfoldDefinitionE reduceHead v0 f es
       def <- theDef <$> getConstInfo f
       case def of
         -- Andreas, 2012-11-06 unfold aliases (single clause terminating functions)
@@ -817,7 +816,7 @@ reduceHead v = do -- ignoreAbstractMode $ do
         -- We restrict this to terminating functions to not make the
         -- type checker loop here on non-terminating functions.
         -- see test/fail/TerminationInfiniteRecord
-        Function{ funClauses = [ _ ], funDelayed = NotDelayed, funTerminates = Just True } -> do
+        Function{ funClauses = [ _ ], funTerminates = Just True } -> do
           traceSLn "tc.inj.reduce" 50 ("reduceHead: head " ++ prettyShow f ++ " is Function") $ do
           red
         Datatype{ dataClause = Just _ } -> red
@@ -836,9 +835,9 @@ unfoldInlined v = do
       let def = theDef info
           irr = isIrrelevant $ defArgInfo info
       case def of   -- Only for simple definitions with no pattern matching (TODO: maybe copatterns?)
-        Function{ funCompiled = Just Done{}, funDelayed = NotDelayed }
+        Function{ funCompiled = Just Done{} }
           | def ^. funInline , not irr -> liftReduce $
-          ignoreBlocking <$> unfoldDefinitionE False (return . notBlocked) (Def f []) f es
+          ignoreBlocking <$> unfoldDefinitionE (return . notBlocked) (Def f []) f es
         _ -> return v
     _ -> return v
 
@@ -1024,7 +1023,7 @@ instance Simplify Term where
     case v of
       Def f vs   -> iapp vs $ do
         let keepGoing simp v = return (simp, notBlocked v)
-        (simpl, v) <- unfoldDefinition' False keepGoing (Def f []) f vs
+        (simpl, v) <- unfoldDefinition' keepGoing (Def f []) f vs
         when (simpl == YesSimplification) $
           reportSDoc "tc.simplify'" 90 $
             pretty f <+> text ("simplify': unfolding definition returns " ++ show simpl) <+> pretty (ignoreBlocking v)

@@ -788,7 +788,7 @@ checkExtendedLambda cmp i di erased qname cs e t = do
          useTerPragma $
            (defaultDefn info qname t lang fun)
              { defMutual = j }
-       checkFunDef' t info NotDelayed (Just $ ExtLamInfo lamMod False empty) Nothing di qname $
+       checkFunDef' t info (Just $ ExtLamInfo lamMod False empty) Nothing di qname $
          List1.toList cs
        whenNothingM (asksTC envMutualBlock) $
          -- Andrea 10-03-2018: Should other checks be performed here too? e.g. termination/positivity/..

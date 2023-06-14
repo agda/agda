@@ -1559,7 +1559,7 @@ checkSharpApplication e t c args = do
         (defaultDefn ai c' forcedType lang fun)
         { defMutual = i }
 
-    checkFunDef NotDelayed info c' [clause]
+    checkFunDef info c' [clause]
 
     reportSDoc "tc.term.expr.coind" 15 $ do
       def <- theDef <$> getConstInfo c'
@@ -1568,8 +1568,6 @@ checkSharpApplication e t c args = do
         , nest 2 $ prettyTCM mod <> (prettyTCM c' <+> ":")
         , nest 4 $ prettyTCM t
         , nest 2 $ prettyA clause
-        , ("The definition is" <+> text (show $ funDelayed def)) <>
-          "."
         ]
     return c'
 

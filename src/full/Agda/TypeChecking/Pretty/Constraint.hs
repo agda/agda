@@ -137,7 +137,7 @@ instance PrettyTCM Constraint where
             "Is empty:" <?> prettyTCMCtx TopCtx t
         CheckSizeLtSat t ->
             "Is not empty type of sizes:" <?> prettyTCMCtx TopCtx t
-        CheckFunDef d i q cs err -> do
+        CheckFunDef i q cs err -> do
             t <- defType <$> getConstInfo q
             vcat [ "Check definition of" <+> prettyTCM q <+> ":" <+> prettyTCM t
                  , nest 2 $ "stuck because" <?> prettyTCM err ]
