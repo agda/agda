@@ -329,7 +329,9 @@ Emacs mode
 ----------
 
 * Helper function (`C-c C-h`) does not abstract over module parameters anymore
-  (see [#2271](https://github.com/agda/agda/issues/2271)).
+  (see [#2271](https://github.com/agda/agda/issues/2271))
+  and neither over generalized `variable`s
+  (see [#6689](https://github.com/agda/agda/pull/6689)).
 
 * New Agda input mode prefix `box` for APL boxed operators, e.g. `\box=` for ⌸;
   see PR [#6510](https://github.com/agda/agda/pull/6510/files) for full list of bindings.
