@@ -311,6 +311,9 @@ Pragmas and options
 
 * Option `--count-clusters` is now on by default when Agda was built with ICU support (Cabal flag `enable-cluster-counting`).
 
+* Pragma `INLINE` may now be applied to constructors of types supporting co-pattern matching.
+  It enables translation of right-hand-side constructor applications to left-hand-side co-pattern splits (see [PR #6682](https://github.com/agda/agda/pull/6682)).
+
 Library management
 ------------------
 
