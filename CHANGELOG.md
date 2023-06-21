@@ -314,7 +314,6 @@ Pragmas and options
 * Pragma `INLINE` may now be applied to constructors of types supporting co-pattern matching.
   It enables translation of right-hand-side constructor applications to left-hand-side co-pattern splits (see [PR #6682](https://github.com/agda/agda/pull/6682)).
   For example, this translation allows the `nats` function to pass termination checking:
-
   ```agda
     record Stream (A : Set) : Set where
       coinductive; constructor _∷_
@@ -326,6 +325,13 @@ Pragmas and options
     nats : Nat → Stream Nat
     nats n = n ∷ nats (1 + n)
   ```
+  Inlining transforms the definition of `nats` to the following definition by copattern matching:
+  ```agda
+    nats n .head = n
+    nats n .tail = nats (1 + n)
+  ```
+  This form is accepted by the termination checker;
+  unlike the form before inlining, it does not admit any infinite reduction sequences.
 
 Library management
 ------------------
