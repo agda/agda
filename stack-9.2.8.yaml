@@ -1,11 +1,8 @@
-resolver: lts-20.23
-compiler: ghc-9.2.7
+resolver: lts-20.26
+compiler: ghc-9.2.8
 compiler-check: match-exact
 
 # Local packages specified by relative directory name.
 packages:
 - '.'
 - 'src/size-solver'
-
-extra-deps:
-- vector-hashtables-0.1.1.1

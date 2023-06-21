@@ -50,7 +50,7 @@ env:
 
   # Andreas, 2022-11-24, set the stack version here so that it is easily
   # shared between the jobs.
-  STACK_VER: "2.9.3"
+  STACK_VER: "2.11.1"
   # Andreas, 2022-03-26, 2022-11-28:
   # GHC_VER should be given as x.y.z (as opposed to x.y only)
   # because it is used verbatim when referring to stack-x.y.z.yaml.
