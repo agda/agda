@@ -216,7 +216,7 @@ prettyWarning = \case
       pwords "Cannot postulate" ++ [pretty e] ++ pwords "with safe flag"
 
     SafeFlagPragma xs -> fsep $ concat
-      [ [ fwords $ singPlural xs id (++ "s") "Cannot set OPTIONS pragma" ]
+      [ [ fwords $ singPlural (words =<< xs) id (++ "s") "Cannot set OPTIONS pragma" ]
       , map text xs
       , [ fwords "with safe flag." ]
       ]
