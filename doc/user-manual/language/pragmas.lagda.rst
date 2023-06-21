@@ -170,7 +170,7 @@ Constructors can also be marked ``INLINE`` (for types supporting co-pattern matc
   open Stream
   {-# INLINE _∷_ #-}
 
-Functions definitions using these constructors will be traslated to use co-pattern matching instead, e.g.::
+Functions definitions using these constructors will be translated to use co-pattern matching instead, e.g.::
 
   nats : Nat → Stream Nat
   nats n = n ∷ nats (1 + n)
@@ -183,7 +183,7 @@ is translated to::
 
 which passes termination-checking.
 
-This translation only works for fully-applied constructors at the root of a function defintion's right-hand side.
+This translation only works for fully-applied constructors at the root of a function definition's right-hand side.
 
 .. _non_covering-pragma:
 
