@@ -465,6 +465,9 @@ However, if η is inferred but not declared explicitly, Agda will just
 ignore a redundant ``pattern`` directive; this is because the default
 can be changed globally by option :option:`--no-eta-equality`.
 
+Constructors of records supporting co-pattern matching may be marked
+with an ``{-# INLINE #-}`` :ref:`pragma <inline-pragma>` to assist the termination checker.
+
 .. _instance-fields:
 
 Instance fields

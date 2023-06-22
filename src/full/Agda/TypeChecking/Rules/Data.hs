@@ -364,6 +364,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               , conForced = forcedArgs
               , conErased = Nothing  -- computed during compilation to treeless
               , conErasure = erasure
+              , conInline  = False
               }
 
         -- Add the constructor to the instance table, if needed

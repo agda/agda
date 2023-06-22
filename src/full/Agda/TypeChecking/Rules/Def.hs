@@ -52,6 +52,7 @@ import Agda.TypeChecking.Rewriting.Confluence
 import Agda.TypeChecking.CompiledClause (CompiledClauses'(..), hasProjectionPatterns)
 import Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Primitive hiding (Nat)
+import Agda.TypeChecking.RecordPatterns ( coinductiveRecordRHSsToCopatterns )
 import Agda.TypeChecking.Sort
 
 import Agda.TypeChecking.Rules.Term
@@ -353,7 +354,7 @@ checkFunDefS t ai extlam with i name withSub cs = do
                  return (cs ++ [c], pure sys)
 
         -- Annotate the clauses with which arguments are actually used.
-        cs <- instantiateFull {- =<< mapM rebindClause -} cs
+        cs <- coinductiveRecordRHSsToCopatterns =<< instantiateFull {- =<< mapM rebindClause -} cs
         -- Andreas, 2010-11-12
         -- rebindClause is the identity, and instantiateFull eta-contracts
         -- removing this eta-contraction fixes issue 361

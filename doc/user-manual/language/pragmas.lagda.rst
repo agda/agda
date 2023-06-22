@@ -1,5 +1,6 @@
 ..
   ::
+  {-# OPTIONS --guardedness #-}
   module language.pragmas where
 
 .. _pragmas:
@@ -133,11 +134,11 @@ definitions as being injective (for example postulates).
 The ``INLINE`` and ``NOINLINE`` pragmas
 _______________________________________
 
-A definition marked with an ``INLINE`` pragma is inlined during compilation. If it is a simple
-definition that does no pattern matching, it is also inlined in function bodies at type-checking
+A function definition marked with an ``INLINE`` pragma is inlined during compilation. If it is a simple
+function definition that does no pattern matching, it is also inlined in function bodies at type-checking
 time.
 
-When the :option:`--auto-inline` :ref:`command-line option <command-line-options>` is enabled, definitions
+When the :option:`--auto-inline` :ref:`command-line option <command-line-options>` is enabled, function definitions
 are automatically marked ``INLINE`` if they satisfy the following criteria:
 
 * No pattern matching.
@@ -159,6 +160,30 @@ Example::
   (F o G) X = F (G X)
 
   {-# INLINE _o_ #-} -- force inlining
+
+Constructors can also be marked ``INLINE`` (for types supporting co-pattern matching)::
+
+  record Stream (A : Set) : Set where
+    coinductive; constructor _∷_
+    field head : A
+          tail : Stream A
+  open Stream
+  {-# INLINE _∷_ #-}
+
+Functions definitions using these constructors will be translated to use co-pattern matching instead, e.g.::
+
+  nats : Nat → Stream Nat
+  nats n = n ∷ nats (1 + n)
+
+is translated to::
+
+  nats' : Nat → Stream Nat
+  nats' n .head = n
+  nats' n .tail = nats (n + 1)
+
+which passes termination-checking.
+
+This translation only works for fully-applied constructors at the root of a function definition's right-hand side.
 
 .. _non_covering-pragma:
 

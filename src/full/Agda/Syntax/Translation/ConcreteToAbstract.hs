@@ -89,6 +89,7 @@ import Agda.Utils.CallStack ( HasCallStack, withCurrentCallStack )
 import Agda.Utils.Char
 import Agda.Utils.Either
 import Agda.Utils.FileName
+import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -1876,11 +1877,13 @@ instance ToAbstract NiceDeclaration where
       checkNoTerminationPragma InRecordDef fields
       -- Andreas, 2020-04-19, issue #4560
       -- 'pattern' declaration is incompatible with 'coinductive' or 'eta-equality'.
-      whenJust pat $ \ r -> do
-        let warn = setCurrentRange r . warning . UselessPatternDeclarationForRecord
-        if | Just (Ranged _ CoInductive) <- ind -> warn "coinductive"
-           | Just YesEta                 <- eta -> warn "eta"
-           | otherwise -> return ()
+      pat <- case pat of
+        Just r
+          | Just (Ranged _ CoInductive) <- ind -> Nothing <$ warn "coinductive"
+          | Just YesEta                 <- eta -> Nothing <$ warn "eta"
+          | otherwise -> return pat
+          where warn = setCurrentRange r . warning . UselessPatternDeclarationForRecord
+        Nothing -> return pat
 
       (p, ax) <- resolveName (C.QName x) >>= \case
         DefinedName p ax NoSuffix -> do
@@ -2503,13 +2506,14 @@ instance ToAbstract C.Pragma where
   toAbstract (C.InlinePragma _ b x) = do
       e <- toAbstract $ OldQName x Nothing
       let sINLINE = if b then "INLINE" else "NOINLINE"
-      y <- case e of
-          A.Def  x -> return x
-          A.Proj _ p | Just x <- getUnambiguous p -> return x
+      let ret y = return [ A.InlinePragma b y ]
+      case e of
+          A.Con (AmbQ xs) -> concatMapM ret $ List1.toList xs
+          A.Def  x -> ret x
+          A.Proj _ p | Just x <- getUnambiguous p -> ret x
           A.Proj _ x -> genericError $
             sINLINE ++ " used on ambiguous name " ++ prettyShow x
-          _        -> genericError $ "Target of " ++ sINLINE ++ " pragma should be a function"
-      return [ A.InlinePragma b y ]
+          _ -> genericError $ ("Target of " ++) $ applyWhen b ("NO" ++) "INLINE pragma should be a function or constructor"
   toAbstract (C.NotProjectionLikePragma _ x) = do
       e <- toAbstract $ OldQName x Nothing
       y <- case e of

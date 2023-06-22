@@ -266,6 +266,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
               , conForced = []
               , conErased = Nothing
               , conErasure = erasure
+              , conInline  = False
               }
 
       -- Declare the constructor as eligible for instance search

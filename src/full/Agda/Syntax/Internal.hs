@@ -160,6 +160,11 @@ data DataOrRecord
   | IsRecord PatternOrCopattern
   deriving (Show, Eq, Generic)
 
+instance CopatternMatchingAllowed DataOrRecord where
+  copatternMatchingAllowed = \case
+    IsData -> False
+    IsRecord patCopat -> copatternMatchingAllowed patCopat
+
 -- | Store the names of the record fields in the constructor.
 --   This allows reduction of projection redexes outside of TCM.
 --   For instance, during substitution and application.
@@ -186,6 +191,9 @@ instance HasRange ConHead where
 
 instance SetRange ConHead where
   setRange r = mapConName (setRange r)
+
+instance CopatternMatchingAllowed ConHead where
+  copatternMatchingAllowed = copatternMatchingAllowed . conDataRecord
 
 class LensConName a where
   getConName :: a -> QName
