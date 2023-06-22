@@ -89,6 +89,7 @@ import Agda.Utils.CallStack ( HasCallStack, withCurrentCallStack )
 import Agda.Utils.Char
 import Agda.Utils.Either
 import Agda.Utils.FileName
+import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -2503,13 +2504,14 @@ instance ToAbstract C.Pragma where
   toAbstract (C.InlinePragma _ b x) = do
       e <- toAbstract $ OldQName x Nothing
       let sINLINE = if b then "INLINE" else "NOINLINE"
-      y <- case e of
-          A.Def  x -> return x
-          A.Proj _ p | Just x <- getUnambiguous p -> return x
+      let ret y = return [ A.InlinePragma b y ]
+      case e of
+          A.Con (AmbQ xs) -> concatMapM ret $ List1.toList xs
+          A.Def  x -> ret x
+          A.Proj _ p | Just x <- getUnambiguous p -> ret x
           A.Proj _ x -> genericError $
             sINLINE ++ " used on ambiguous name " ++ prettyShow x
-          _        -> genericError $ "Target of " ++ sINLINE ++ " pragma should be a function"
-      return [ A.InlinePragma b y ]
+          _ -> genericError $ ("Target of " ++) $ applyWhen b ("NO" ++) "INLINE pragma should be a function or constructor"
   toAbstract (C.NotProjectionLikePragma _ x) = do
       e <- toAbstract $ OldQName x Nothing
       y <- case e of

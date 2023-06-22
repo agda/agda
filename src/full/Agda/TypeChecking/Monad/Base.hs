@@ -2590,8 +2590,11 @@ data ConstructorData = ConstructorData
       --   'Nothing' if no erasure analysis has been performed yet.
       --   The length of the list is @conArity@.
   , _conErasure :: !Bool
-    -- ^ Was @--erasure@ in effect when the constructor was defined?
-    -- (This can affect the constructor's type.)
+      -- ^ Was @--erasure@ in effect when the constructor was defined?
+      --   (This can affect the constructor's type.)
+  , _conInline :: !Bool
+      -- ^ Shall we translate the constructor on the root of the rhs into copattern matching on the lhs?
+      --   Activated by INLINE pragma.
   } deriving (Show, Generic)
 
 pattern Constructor
@@ -2605,6 +2608,7 @@ pattern Constructor
   -> [IsForced]
   -> Maybe [Bool]
   -> Bool
+  -> Bool
   -> Defn
 pattern Constructor
   { conPars
@@ -2617,6 +2621,7 @@ pattern Constructor
   , conForced
   , conErased
   , conErasure
+  , conInline
   } = ConstructorDefn (ConstructorData
     conPars
     conArity
@@ -2628,6 +2633,7 @@ pattern Constructor
     conForced
     conErased
     conErasure
+    conInline
   )
 
 data PrimitiveData = PrimitiveData
@@ -2849,6 +2855,7 @@ instance Pretty ConstructorData where
       _conForced
       conErased
       conErasure
+      conInline
     ) =
     "Constructor {" <?> vcat
       [ "conPars    =" <?> pshow conPars
@@ -2858,6 +2865,7 @@ instance Pretty ConstructorData where
       , "conAbstr   =" <?> pshow conAbstr
       , "conErased  =" <?> pshow conErased
       , "conErasure =" <?> pshow conErasure
+      , "conInline  =" <?> pshow conInline
       ] <?> "}"
 
 instance Pretty PrimitiveData where
@@ -5495,7 +5503,7 @@ instance KillRange Defn where
         killRangeN Function a b c d e f g h i j k l m n o p
       Datatype a b c d e f g h i j   -> killRangeN Datatype a b c d e f g h i j
       Record a b c d e f g h i j k l m -> killRangeN Record a b c d e f g h i j k l m
-      Constructor a b c d e f g h i j -> killRangeN Constructor a b c d e f g h i j
+      Constructor a b c d e f g h i j k -> killRangeN Constructor a b c d e f g h i j k
       Primitive a b c d e f          -> killRangeN Primitive a b c d e f
       PrimitiveSort a b              -> killRangeN PrimitiveSort a b
 

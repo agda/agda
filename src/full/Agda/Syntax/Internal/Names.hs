@@ -158,7 +158,7 @@ instance NamesIn Defn where
       -> namesAndMetasIn' sg (cl, cs, s, trX, trD)
     Record _ cl c _ fs recTel _ _ _ _ _ _ comp
       -> namesAndMetasIn' sg (cl, c, fs, recTel, comp)
-    Constructor _ _ c d _ kit fs _ _ _
+    Constructor _ _ c d _ kit fs _ _ _ _
       -> namesAndMetasIn' sg (c, d, kit, fs)
     Primitive _ _ cl _ cc _
       -> namesAndMetasIn' sg (cl, cc)

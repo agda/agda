@@ -236,14 +236,16 @@ coinductiveRecordRHSsToCopatterns = do
 
     -- RHS must be fully applied coinductive constructor/record expression.
     cl@Clause{ namedClausePats = ps
-             , clauseBody      = Just v0@(Con con@(ConHead _ _ CoInductive fs) ci es)
+             , clauseBody      = Just v0@(Con con@(ConHead c _ _ind fs) _ci es)
              , clauseType      = mt
              }
       | not (null fs)           -- at least one field
       , length fs == length es  -- fully applied
       , Just vs <- allApplyElims es
-      , ci /= ConORec           -- give the user a way to opt out of this translation, by writing a record expression rhs
-        -> do
+
+          -- Only expand constructors labelled @{-# INLINE c #-}@.
+        -> ifNotM (inlineConstructor c) (return [cl]) {-else-} do
+
           -- Iterate the translation for nested constructor rhss.
           coinductiveRecordRHSsToCopatterns =<< do
 
@@ -268,6 +270,12 @@ coinductiveRecordRHSsToCopatterns = do
 
     -- Otherwise: no change.
     cl -> return [cl]
+
+  where
+    inlineConstructor :: QName -> m Bool
+    inlineConstructor c = getConstInfo c <&> theDef <&> \case
+      Constructor { conInline } -> conInline
+      _ -> False
 
 -- | Transform definitions returning record expressions to use copatterns
 --   instead. This prevents terms from blowing up when reduced.
