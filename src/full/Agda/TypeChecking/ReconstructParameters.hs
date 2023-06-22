@@ -147,7 +147,7 @@ extractParameters q ty = reduce (unEl ty) >>= \case
     reportSDoc "tc.reconstruct" 50 $ "Traversed parameters:" <+> pretty postPs
     info <- getConstInfo q
     let mkParam erasure =
-            (if erasure then applyQuantity zeroQuantity else id)
+            applyWhen erasure (applyQuantity zeroQuantity)
           . hideAndRelParams
           . isApplyElim' __IMPOSSIBLE__
     if -- Case: data or record constructor

@@ -63,6 +63,7 @@ import {-# SOURCE #-} Agda.Compiler.Builtin
 
 import Agda.Utils.CallStack.Base
 import Agda.Utils.Either
+import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -86,12 +87,10 @@ setHardCompileTimeModeIfErased
   -> TCM a
      -- ^ Continuation.
   -> TCM a
-setHardCompileTimeModeIfErased erased c = do
-  localTC ((if isErased erased
-            then set eHardCompileTimeMode True
-            else id) .
-           over eQuantity (`composeQuantity` asQuantity erased))
-    c
+setHardCompileTimeModeIfErased erased =
+  localTC
+    $ applyWhen (isErased erased) (set eHardCompileTimeMode True)
+    . over eQuantity (`composeQuantity` asQuantity erased)
 
 -- | If the quantity is \"erased\", then hard compile-time mode is
 -- enabled when the continuation is run.
@@ -105,11 +104,9 @@ setHardCompileTimeModeIfErased'
   -> TCM a
      -- ^ Continuation.
   -> TCM a
-setHardCompileTimeModeIfErased' x c = do
-  erased <- case erasedFromQuantity (getQuantity x) of
-    Nothing     -> __IMPOSSIBLE__
-    Just erased -> return erased
-  setHardCompileTimeModeIfErased erased c
+setHardCompileTimeModeIfErased' =
+  setHardCompileTimeModeIfErased .
+    fromMaybe __IMPOSSIBLE__ . erasedFromQuantity . getQuantity
 
 -- | Use run-time mode in the continuation unless the current mode is
 -- the hard compile-time mode.

@@ -54,9 +54,7 @@ workOnTypes cont = do
 --   as argument.
 workOnTypes' :: (MonadTCEnv m) => Bool -> m a -> m a
 workOnTypes' experimental
-  = (if experimental
-     then modifyContextInfo (mapRelevance irrToNonStrict)
-     else id)
+  = applyWhen experimental (modifyContextInfo $ mapRelevance irrToNonStrict)
   . applyQuantityToJudgement zeroQuantity
   . typeLevelReductions
   . localTC (\ e -> e { envWorkingOnTypes = True })
