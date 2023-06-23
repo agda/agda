@@ -50,7 +50,7 @@ type Arity  = Nat
 -- * File
 ---------------------------------------------------------------------------
 
-data FileType = AgdaFileType | MdFileType | RstFileType | TexFileType | OrgFileType
+data FileType = AgdaFileType | MdFileType | RstFileType | TexFileType | OrgFileType | TypstFileType
   deriving (Eq, Ord, Show, Generic)
 
 instance Pretty FileType where
@@ -60,6 +60,7 @@ instance Pretty FileType where
     RstFileType  -> "ReStructedText"
     TexFileType  -> "LaTeX"
     OrgFileType  -> "org-mode"
+    TypstFileType -> "Typst"
 
 instance NFData FileType
 

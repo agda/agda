@@ -103,6 +103,9 @@ literateProcessors =
     , (".tex", (literateTeX, TexFileType))
     , (".md",  (literateMd,  MdFileType ))
     , (".org", (literateOrg, OrgFileType))
+    -- For now, treat typst as markdown because they use the same
+    -- syntax for code blocks.
+    , (".typ", (literateMd,  TypstFileType))
     ]
 
 -- | Returns @True@ if the role corresponds to Agda code.

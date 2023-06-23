@@ -161,11 +161,12 @@ instance EmbPrj Bool where
   value _ = malformed
 
 instance EmbPrj FileType where
-  icod_ AgdaFileType = pure 0
-  icod_ MdFileType   = pure 1
-  icod_ RstFileType  = pure 2
-  icod_ TexFileType  = pure 3
-  icod_ OrgFileType  = pure 4
+  icod_ AgdaFileType  = pure 0
+  icod_ MdFileType    = pure 1
+  icod_ RstFileType   = pure 2
+  icod_ TexFileType   = pure 3
+  icod_ OrgFileType   = pure 4
+  icon_ TypstFileType = pure 5
 
   value = \case
     0 -> pure AgdaFileType
@@ -173,6 +174,7 @@ instance EmbPrj FileType where
     2 -> pure RstFileType
     3 -> pure TexFileType
     4 -> pure OrgFileType
+    5 -> pure TypstFileType
     _ -> malformed
 
 instance EmbPrj Cubical where
