@@ -166,7 +166,7 @@ instance EmbPrj FileType where
   icod_ RstFileType   = pure 2
   icod_ TexFileType   = pure 3
   icod_ OrgFileType   = pure 4
-  icon_ TypstFileType = pure 5
+  icod_ TypstFileType = pure 5
 
   value = \case
     0 -> pure AgdaFileType

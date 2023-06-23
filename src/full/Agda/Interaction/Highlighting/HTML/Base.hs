@@ -107,11 +107,12 @@ instance NFData HtmlHighlight
 highlightOnlyCode :: HtmlHighlight -> FileType -> Bool
 highlightOnlyCode HighlightAll  _ = False
 highlightOnlyCode HighlightCode _ = True
-highlightOnlyCode HighlightAuto AgdaFileType = False
-highlightOnlyCode HighlightAuto MdFileType   = True
-highlightOnlyCode HighlightAuto RstFileType  = True
-highlightOnlyCode HighlightAuto OrgFileType  = True
-highlightOnlyCode HighlightAuto TexFileType  = False
+highlightOnlyCode HighlightAuto AgdaFileType  = False
+highlightOnlyCode HighlightAuto MdFileType    = True
+highlightOnlyCode HighlightAuto RstFileType   = True
+highlightOnlyCode HighlightAuto OrgFileType   = True
+highlightOnlyCode HighlightAuto TypstFileType = True
+highlightOnlyCode HighlightAuto TexFileType   = False
 
 -- | Determine the generated file extension
 
@@ -119,11 +120,12 @@ highlightedFileExt :: HtmlHighlight -> FileType -> String
 highlightedFileExt hh ft
   | not $ highlightOnlyCode hh ft = "html"
   | otherwise = case ft of
-      AgdaFileType -> "html"
-      MdFileType   -> "md"
-      RstFileType  -> "rst"
-      TexFileType  -> "tex"
-      OrgFileType  -> "org"
+      AgdaFileType  -> "html"
+      MdFileType    -> "md"
+      RstFileType   -> "rst"
+      TexFileType   -> "tex"
+      OrgFileType   -> "org"
+      TypstFileType -> "typ"
 
 -- | Options for HTML generation
 

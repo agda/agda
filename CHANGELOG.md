@@ -347,6 +347,9 @@ Library management
 
   Previously such `.agda-lib` files were ignored.
 
+* Now supports reading files with extension `.lagda.typ`, and use the parser for
+  markdown files to parse them.
+
 Emacs mode
 ----------
 
