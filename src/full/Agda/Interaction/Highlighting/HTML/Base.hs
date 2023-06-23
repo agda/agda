@@ -303,12 +303,13 @@ code onlyCode fileType = mconcat . if onlyCode
          -- Explicitly written all cases, so people
          -- get compile error when adding new file types
          -- when they forget to modify the code here
-         RstFileType  -> map mkRst . splitByMarkup
-         MdFileType   -> map mkMd . chunksOf 2 . splitByMarkup
-         AgdaFileType -> map mkHtml
-         -- Any points for using this option?
-         TexFileType  -> map mkMd . chunksOf 2 . splitByMarkup
-         OrgFileType  -> map mkOrg . splitByMarkup
+         RstFileType   -> map mkRst . splitByMarkup
+         MdFileType    -> map mkMd . chunksOf 2 . splitByMarkup
+         AgdaFileType  -> map mkHtml
+         OrgFileType   -> map mkOrg . splitByMarkup
+         -- Two useless cases, probably will never used by anyone
+         TexFileType   -> map mkMd . chunksOf 2 . splitByMarkup
+         TypstFileType -> map mkMd . chunksOf 2 . splitByMarkup
   else map mkHtml
   where
   trd (_, _, a) = a
