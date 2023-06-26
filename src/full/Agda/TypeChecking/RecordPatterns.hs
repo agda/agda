@@ -293,12 +293,11 @@ recordExpressionsToCopatterns = \case
     cc@Fail{} -> return cc
     cc@(Done xs (Con c ConORec es)) -> do  -- don't translate if using the record /constructor/
       let vs = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-      irrProj <- optIrrelevantProjections <$> pragmaOptions
       getConstructorInfo (conName c) >>= \ case
         RecordCon CopatternMatching YesEta ar fs
           | ar > 0                                     -- only for eta-records with at least one field
           , length vs == ar                            -- where the constructor application is saturated
-          , irrProj || not (any isIrrelevant fs) -> do -- and irrelevant projections (if any) are allowed
+          -> do
               tellDirty
               Case (defaultArg $ length xs) <$> do
                 -- translate new cases recursively (there might be nested record expressions)
