@@ -54,7 +54,7 @@ env:
   # Andreas, 2022-03-26, 2022-11-28:
   # GHC_VER should be given as x.y.z (as opposed to x.y only)
   # because it is used verbatim when referring to stack-x.y.z.yaml.
-  GHC_VER: "9.4.5"
+  GHC_VER: "9.6.2"
 
   # Part 2: Variables that should not have to be changed
   ###########################################################################

@@ -46,7 +46,7 @@ jobs:
         os: [ubuntu-latest]
         stack-ver: ['latest']
         # Only LTS versions here:
-        ghc-ver: [9.2.8, 9.0.2, 8.10.7, 8.8.4, 8.6.5]
+        ghc-ver: [9.4.5, 9.2.8, 9.0.2, 8.10.7, 8.8.4, 8.6.5]
           # Andreas, 2022-03-26:
           # Note: ghc-ver needs to be spelled out with minor version, i.e., x.y.z
           # rather than x.y (which haskell-setup would resolve to a suitable .z)
