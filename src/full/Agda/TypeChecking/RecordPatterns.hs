@@ -293,7 +293,6 @@ recordExpressionsToCopatterns = \case
     cc@Fail{} -> return cc
     cc@(Done xs (Con c ConORec es)) -> do  -- don't translate if using the record /constructor/
       let vs = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-      Constructor{ conArity = ar } <- theDef <$> getConstInfo (conName c)
       irrProj <- optIrrelevantProjections <$> pragmaOptions
       getConstructorInfo (conName c) >>= \ case
         RecordCon CopatternMatching YesEta fs
