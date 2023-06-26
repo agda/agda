@@ -21,7 +21,7 @@ import Agda.Syntax.Abstract.Pretty (prettyATop)
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete as C
 
-import Agda.TypeChecking.Errors ( explainWhyInScope, getAllWarningsOfTCErr, prettyError )
+import Agda.TypeChecking.Errors ( explainWhyInScope, getAllWarningsOfTCErr, prettyError, verbalize )
 import qualified Agda.TypeChecking.Pretty as TCP
 import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
@@ -345,11 +345,13 @@ prettyResponseContext ii rev ctx = withInteractionId ii $ do
         extras :: [Doc]
         extras = concat $
           [ [ "not in scope" | isInScope nis == C.NotInScope ]
-            -- Print erased if hypothesis is erased by goal is non-erased.
+            -- Print "erased" if hypothesis is erased but goal is non-erased.
           , [ "erased"       | not $ getQuantity  ai `moreQuantity` getQuantity  mod ]
-            -- Print irrelevant if hypothesis is strictly less relevant than goal.
-          , [ "irrelevant"   | not $ getRelevance ai `moreRelevant` getRelevance mod ]
-            -- Print instance if variable is considered by instance search
+            -- Print relevance of hypothesis relative to relevance of the goal. (Issue #6706.)
+          , [ text $ verbalize r
+                             | let r = getRelevance mod `inverseComposeRelevance` getRelevance ai
+                             , r /= Relevant ]
+            -- Print "instance" if variable is considered by instance search.
           , [ "instance"     | isInstance ai ]
           ]
       ty <- prettyATop expr
