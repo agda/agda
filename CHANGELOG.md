@@ -349,6 +349,15 @@ Library management
 
 * Now supports reading files with extension `.lagda.typ`, and use the parser for
   markdown files to parse them.
+  To edit such files in Emacs with Agda support, one needs to add the line
+  ```elisp
+  (add-to-list 'auto-mode-alist '("\\.lagda.typ\\'" . agda2-mode))
+  ```
+  to `.emacs`.
+
+  Generation for highlighted code like HTML is unsupported for Typst.
+  One may generate HTML with typst input, but that makes little sense,
+  and markdown is recommended instead when HTML export is desired.
 
 Emacs mode
 ----------
