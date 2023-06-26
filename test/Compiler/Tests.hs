@@ -1,70 +1,108 @@
-{-# LANGUAGE DoAndIfThenElse      #-}
-{-# LANGUAGE LambdaCase           #-}
-{-# LANGUAGE PatternGuards        #-}
+{-# LANGUAGE DoAndIfThenElse #-}
+{-# LANGUAGE LambdaCase      #-}
+{-# LANGUAGE PatternGuards   #-}
+{-# LANGUAGE ViewPatterns    #-}
 
 module Compiler.Tests where
 
-import Utils
-import Test.Tasty
-import Test.Tasty.Silver.Advanced (readFileMaybe)
-import Test.Tasty.Silver
-import Test.Tasty.Silver.Filter
 import Data.Bits (finiteBitSize)
+import Data.List (isPrefixOf)
+import Data.Monoid
 import qualified Data.Text as T
 import Data.Text.Encoding
-import Data.Monoid
-import Data.List (isPrefixOf)
 import System.Directory
-import System.IO.Temp
-import System.FilePath
 import System.Environment
 import System.Exit
+import System.FilePath
+import System.IO.Temp
 import qualified System.Process as P
 import System.Process.Text as PT
+import Test.Tasty
+import Test.Tasty.Silver
+import Test.Tasty.Silver.Advanced (readFileMaybe)
+import Test.Tasty.Silver.Filter
+import Utils
 
 import Control.Monad (forM)
 import Data.Maybe
 import Text.Read
 
 import Agda.Utils.List
-import Agda.Utils.List1 (wordsBy, toList)
+import Agda.Utils.List1 (nonEmpty, toList)
+
+import Agda.Utils.Impossible (__IMPOSSIBLE__)
+import Agda.Utils.List1 (NonEmpty, String1, wordsBy)
+import Control.Monad (liftM3)
+import Data.Bool (bool)
+import Data.Function ((&))
+import Data.Functor (($>), (<&>))
+import qualified Text.Read as T
+import Text.Regex.TDFA (Regex, blankCompOpt, blankExecOpt, caseSensitive,
+                       getAllTextSubmatches, makeRegexOpts, match, matchM,
+                       newSyntax)
 
 type GHCArgs = [String]
 
 data ExecResult
   = CompileFailed
-    { result :: ProgramResult }
+    { result :: ProgramResult
+    }
   | CompileSucceeded
-    { result :: ProgramResult }
+    { result :: ProgramResult
+    }
   | ExecutedProg
-    { result :: ProgramResult }
-  deriving (Show, Read, Eq)
+    { result :: ProgramResult
+    }
+  deriving (Eq, Read, Show)
 
-data CodeOptimization = NonOptimized | Optimized | MinifiedOptimized
-  deriving (Show, Read, Eq)
+data JSModuleFormat = CJS | ESM deriving (Eq, Read, Show)
 
-data Strict = Strict | StrictData | Lazy
-  deriving (Show, Read, Eq)
+data CodeOptimization = NonOptimized | Optimized | MinifiedOptimized deriving
+  ( Eq
+  , Read
+  , Show
+  )
 
-data Compiler = MAlonzo Strict | JS CodeOptimization
-  deriving (Show, Read, Eq)
+data Strict = Strict | StrictData | Lazy deriving (Eq, Read, Show)
+
+data Compiler
+  = MAlonzo Strict
+  | JS JSModuleFormat CodeOptimization
+  deriving (Eq, Read, Show)
 
 data CompilerOptions
   = CompilerOptions
     { extraAgdaArgs :: AgdaArgs
-    } deriving (Show, Read)
+    }
+  deriving (Read, Show)
 
 data TestOptions
   = TestOptions
     { forCompilers   :: [(Compiler, CompilerOptions)]
     , runtimeOptions :: [String]
     , executeProg    :: Bool
-    } deriving (Show, Read)
+    }
+  deriving (Read, Show)
+
+data Semver
+  = Semver
+    { major      :: Integer
+    , minor      :: Integer
+    , patch      :: Integer
+    , prerelease :: Maybe String1
+    , build      :: Maybe String1
+    }
+
+instance Show Semver where
+  show (Semver{major, minor, patch, prerelease, build}) =
+    (show major) ++ "." ++ (show minor) ++ "." ++ (show patch)
+    ++ (maybe "" (\v -> "-" ++ show v) prerelease)
+    ++ (maybe "" (\v -> "+" ++ show v) build)
 
 allCompilers :: [Compiler]
 allCompilers =
   map MAlonzo [Lazy, StrictData, Strict] ++
-  map JS [NonOptimized, Optimized, MinifiedOptimized]
+  (JS <$> [CJS, ESM] <*> [NonOptimized, Optimized, MinifiedOptimized])
 
 defaultOptions :: TestOptions
 defaultOptions = TestOptions
@@ -88,11 +126,6 @@ disabledTests =
     -- The test case for #2918 stopped working when inlining of
     -- recursive pattern-matching lambdas was disabled.
   , disable "Compiler/MAlonzo_.*/simple/Issue2918$"
-    -----------------------------------------------------------------------------
-    -- The following test cases fail (at least at the time of writing)
-    -- for the JS backend.
-  , disable "Compiler/JS_Optimized/simple/ModuleReexport"
-  , disable "Compiler/JS_MinifiedOptimized/simple/ModuleReexport"
     -----------------------------------------------------------------------------
     -- The following test cases use primitives that are not implemented in the
     -- JS backend.
@@ -121,35 +154,54 @@ stdlibTestFilter =
 
 tests :: IO TestTree
 tests = do
-  nodeBin    <- findExecutable "node"
   ghcVersion <- findGHCVersion
+  nodeBinVersion <- findExecutable "node"
+    >>= traverse (\nodeBin ->
+      findNodeVersion nodeBin <&> (nodeBin,)
+    )
+  case nodeBinVersion of
+    Nothing -> putStrLn "No JS node binary found, skipping JS tests."
+    Just (nodeBin, version) -> do
+      putStrLn $ "Found JS node binary at " ++ nodeBin
+      case version of
+        Nothing      -> putStrLn "But could not determine its version"
+        Just version -> do
+          putStrLn $ "Node binary version is " ++ (show version)
+          putStrLn
+            $ bool
+              "Only CJS-based tests will run."
+              "Both CJS-based and ESM-based tests will run."
+            $ nodeVersionSupportsESM version
   let ghcVersionAtLeast9 = case ghcVersion of
         Just (n : _) | n >= 9 -> True
         _                     -> False
-      enabledCompilers =
-        [ MAlonzo s
+      ghcCompilers = [ MAlonzo s
         | s <- [Lazy, StrictData] ++
                if ghcVersionAtLeast9 then [Strict] else []
-        ] ++
-        [ JS opt
-        | isJust nodeBin
-        , opt <- [NonOptimized, Optimized, MinifiedOptimized]
         ]
-  _ <- case nodeBin of
-    Nothing -> putStrLn "No JS node binary found, skipping JS tests."
-    Just n -> putStrLn $ "Using JS node binary at " ++ n
-
+      jsCompilers = case nodeBinVersion of
+        Nothing     -> []
+        Just (_, v) ->
+          [ JS format opt
+          | format <- [CJS] ++
+                      case fmap nodeVersionSupportsESM v of
+                        Just True -> [ESM]
+                        _         -> []
+          , opt <- [NonOptimized, Optimized, MinifiedOptimized]
+          ]
+      enabledCompilers = ghcCompilers ++ jsCompilers
   ts <- mapM forComp enabledCompilers
   return $ testGroup "Compiler" ts
   where
     forComp comp = testGroup (map spaceToUnderscore $ show comp) . catMaybes
         <$> sequence
+            -- TODO: update each of these 3 functions to support ESM
             [ Just <$> simpleTests comp
             , Just <$> stdlibTests comp
             , specialTests comp]
 
     spaceToUnderscore ' ' = '_'
-    spaceToUnderscore c = c
+    spaceToUnderscore c   = c
 
 simpleTests :: Compiler -> IO TestTree
 simpleTests comp = do
@@ -286,7 +338,7 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
 
           absDir <- canonicalizePath dir
           removePaths [absDir, compDir] <$> case ret of
-            ExitSuccess -> cont compDir out err
+            ExitSuccess   -> cont compDir out err
             ExitFailure _ -> return $ CompileFailed $ toProgramResult res
           )
 
@@ -295,7 +347,7 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
           Lazy       -> []
           StrictData -> ["--ghc-strict-data"]
           Strict     -> ["--ghc-strict"]
-        argsForComp (JS o)  = [ "--js", "--js-verify" ] ++ case o of
+        argsForComp (JS _ o)  = [ "--js", "--js-verify" ] ++ case o of
           NonOptimized      -> []
           Optimized         -> [ "--js-optimize" ]
           MinifiedOptimized -> [ "--js-optimize", "--js-minify" ]
@@ -349,3 +401,66 @@ findGHCVersion = do
       map (map (readMaybe . toList) . wordsBy (== '.')) $
       take 1 $
       lines version
+
+findNodeVersion :: FilePath -> IO (Maybe Semver)
+findNodeVersion binPath =
+  P.readProcessWithExitCode binPath ["--version"] ""
+  <&> (\(code, version, _) ->
+        case code of
+          ExitFailure _ -> Nothing
+          ExitSuccess   -> parseSemver version
+      )
+
+parseSemver :: String -> Maybe Semver
+parseSemver version = case semver_reg `matchM` version of
+  Just (getAllTextSubmatches -> values) ->
+    forM [1, 2, 3, 5, 10] (values !!!)
+    >>= (\[major, minor, patch, prerelease, build] ->
+      liftM3
+        (\major minor patch ->
+          (major, minor, patch, nonEmpty prerelease, nonEmpty build)
+        )
+        (readMaybe major :: Maybe Integer)
+        (readMaybe minor :: Maybe Integer)
+        (readMaybe patch :: Maybe Integer)
+    )
+    <&> (\(major, minor, patch, prerelease, build) ->
+      Semver { major, minor, patch, prerelease, build }
+    )
+  _ -> Nothing
+  where
+  -- based on
+  -- https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
+  -- changed:
+  --   - added optional `v` prefix matcher
+  --   - switched to POSIX compatible regex
+  --   - split into capture groups
+  semver_reg = mkRegex . T.pack $ (
+      "^v?" ++
+      "(0|[1-9][0-9]*)\\." ++    -- 1st capture - `<major>`
+      "(0|[1-9][0-9]*)\\." ++    -- 2nd capture - `<minor>`
+      "(0|[1-9][0-9]*)" ++       -- 3rd capture - `<patch>`
+      "(-" ++
+        "(" ++                   -- 5th capture - `<pre-release>`
+          "(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)" ++
+          "(\\." ++
+            "(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)" ++
+          ")*" ++
+        ")" ++
+      ")?" ++
+      "(\\+" ++
+        "(" ++                   -- 10th capture - `<build>`
+          "[0-9a-zA-Z-]+" ++
+          "(\\.[0-9a-zA-Z-]+)*" ++
+        ")"++
+      ")?" ++
+      "$"
+    )
+
+-- version matching `>= 12.22.0 < 13.0.0 || >= 14.17.0 < 15.0.0 || >= 15.3.0`
+nodeVersionSupportsESM :: Semver -> Bool
+nodeVersionSupportsESM (Semver {major, minor}) =
+  major >= 16 ||
+  (major == 15 && minor >= 3) ||
+  (major == 14 && minor >= 17) ||
+  (major == 12 && minor >= 22)

@@ -580,7 +580,7 @@ ghc-compiler-test :
 .PHONY : js-compiler-test ##
 js-compiler-test :
 	@$(call decorate, "JS Compiler tests", \
-		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Compiler/JS_MinifiedOptimized --regex-exclude AllStdLib)
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Compiler/JS_CJS_MinifiedOptimized --regex-exclude AllStdLib)
 
 .PHONY : std-lib-compiler-test ##
 std-lib-compiler-test :
