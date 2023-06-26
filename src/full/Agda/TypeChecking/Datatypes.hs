@@ -205,16 +205,17 @@ getConType ch t = do
       (\_ -> return Nothing)
 
 data ConstructorInfo
-  = DataCon Nat
-      -- ^ Arity.
-  | RecordCon PatternOrCopattern HasEta [Dom QName]
-      -- ^ List of field names.
+  = DataCon Arity
+      -- ^ Arity of the data constructor.
+  | RecordCon PatternOrCopattern HasEta
+      Arity
+      -- ^ Arity of the record constructor.
+      [Dom QName]
+      -- ^ List of field names. Has length 'Arity'.
 
--- | Return the number of non-parameter arguments to a data constructor,
---   or the field names of a record constructor.
+-- | Return the number of non-parameter arguments to a constructor (arity).
+--   In case of record constructors, also return the field names (plus other info).
 --
---   For getting just the arity of constructor @c@,
---   use @either id size <$> getConstructorArity c@.
 getConstructorInfo :: HasConstInfo m => QName -> m ConstructorInfo
 getConstructorInfo c = fromMaybe __IMPOSSIBLE__ <$> getConstructorInfo' c
 
@@ -224,7 +225,7 @@ getConstructorInfo' c = do
     Constructor{ conData = d, conArity = n } -> Just <$> do
       (theDef <$> getConstInfo d) >>= \case
         r@Record{ recFields = fs } ->
-           return $ RecordCon (recPatternMatching r) (recEtaEquality r) fs
+           return $ RecordCon (recPatternMatching r) (recEtaEquality r) n fs
         Datatype{} ->
            return $ DataCon n
         _ -> __IMPOSSIBLE__
