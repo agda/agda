@@ -271,6 +271,8 @@ instance Pretty Comment where
 instance Pretty Exp where
   pretty (_, _, JSESM) (Self) = __IMPOSSIBLE__
   pretty n@(_, _, JSESM) (Lookup Self l) = prettyTopLevelMemberId False n l
+  pretty n@(_, _, JSESM) (Lookup (Global m) l) =
+    pretty n m <> "." <> (prettyTopLevelMemberId False n l)
   pretty n (Self)            = "exports"
   pretty n (Local x)         = pretty n x
   pretty n (Global m)        = pretty n m
@@ -452,6 +454,14 @@ isReservedJSKeyword :: String -> Bool
 isReservedJSKeyword s = List.elem s reserved
   where
   reserved = [
+    -- ESM files with exported `then` function are treated like promises or
+    -- like files containing top-level-await and when loaded (e.g. via
+    -- `--js-verify`) cause node to exit with code 13
+    -- (https://nodejs.org/api/process.html#exit-codes). This causes issues
+    -- so it is easier to treat `then` as a reserved keyword.
+    "then"
+    ]
+    ++ [
     -- https://mathiasbynens.be/notes/reserved-keywords#ecmascript-6
     "do", "if", "in", "for", "let", "new", "try", "var", "case", "else",
     "enum", "eval", "null", "this", "true", "void", "with", "await", "break",
