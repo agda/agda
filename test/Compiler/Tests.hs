@@ -32,6 +32,7 @@ import Agda.Utils.List1 (nonEmpty, toList)
 
 import Agda.Utils.Impossible (__IMPOSSIBLE__)
 import Agda.Utils.List1 (NonEmpty, String1, wordsBy)
+import Agda.Utils.Monad
 import Control.Monad (liftM3)
 import Data.Bool (bool)
 import Data.Function ((&))
@@ -295,8 +296,8 @@ agdaRunProgGoldenTest dir comp extraArgs inp opts =
           -- now run the new program
           let exec = getExecForComp comp compDir inpFile
           case comp of
-            JS{} -> do
-              setEnv "NODE_PATH" compDir
+            (JS format _) -> do
+              when (format == CJS) $ setEnv "NODE_PATH" compDir
               (ret, out', err') <- PT.readProcessWithExitCode "node" [exec] inp'
               return $ ExecutedProg $ ProgramResult ret (out <> out') (err <> err')
             _ -> do
@@ -347,10 +348,15 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
           Lazy       -> []
           StrictData -> ["--ghc-strict-data"]
           Strict     -> ["--ghc-strict"]
-        argsForComp (JS _ o)  = [ "--js", "--js-verify" ] ++ case o of
-          NonOptimized      -> []
-          Optimized         -> [ "--js-optimize" ]
-          MinifiedOptimized -> [ "--js-optimize", "--js-minify" ]
+        argsForComp (JS f o)  =
+          [ "--js", "--js-verify" ]
+          ++ case f of
+            CJS -> ["--js-cjs"]
+            ESM -> ["--js-esm"]
+          ++ case o of
+            NonOptimized      -> []
+            Optimized         -> [ "--js-optimize" ]
+            MinifiedOptimized -> [ "--js-optimize", "--js-minify" ]
 
         removePaths ps = \case
           CompileFailed    r -> CompileFailed    (removePaths' r)
