@@ -295,14 +295,13 @@ agdaRunProgGoldenTest dir comp extraArgs inp opts =
           inp' <- maybe T.empty decodeUtf8 <$> readFileMaybe inpFile
           -- now run the new program
           let exec = getExecForComp comp compDir inpFile
-          case comp of
+          (ret, out', err') <- case comp of
             (JS format _) -> do
               when (format == CJS) $ setEnv "NODE_PATH" compDir
-              (ret, out', err') <- PT.readProcessWithExitCode "node" [exec] inp'
-              return $ ExecutedProg $ ProgramResult ret (out <> out') (err <> err')
+              PT.readProcessWithExitCode "node" [exec] inp'
             _ -> do
-              (ret, out', err') <- PT.readProcessWithExitCode exec (runtimeOptions opts) inp'
-              return $ ExecutedProg $ ProgramResult ret (out <> out') (err <> err')
+              PT.readProcessWithExitCode exec (runtimeOptions opts) inp'
+          return $ ExecutedProg $ ProgramResult ret (out <> out') (err <> err')
         else
           return $ CompileSucceeded (ProgramResult ExitSuccess out err)
   where inpFile = dropAgdaExtension inp <.> ".inp"
