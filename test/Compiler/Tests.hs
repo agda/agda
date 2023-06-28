@@ -298,7 +298,7 @@ agdaRunProgGoldenTest dir comp extraArgs inp opts =
           (ret, out', err') <- case comp of
             (JS format _) -> do
               when (format == CJS) $ setEnv "NODE_PATH" compDir
-              PT.readProcessWithExitCode "node" [exec] inp'
+              PT.readProcessWithExitCode "node" ([exec] ++ runtimeOptions opts) inp'
             _ -> do
               PT.readProcessWithExitCode exec (runtimeOptions opts) inp'
           return $ ExecutedProg $ ProgramResult ret (out <> out') (err <> err')
