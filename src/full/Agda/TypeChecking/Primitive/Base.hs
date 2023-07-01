@@ -235,4 +235,4 @@ getSigmaKit = do
             , sigmaFst  = unDom fst
             , sigmaSnd  = unDom snd
             }
-        _ -> __IMPOSSIBLE__
+        _ -> __IMPOSSIBLE__  -- This invariant is ensured in bindBuiltinSigma

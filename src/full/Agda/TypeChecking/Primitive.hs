@@ -43,6 +43,7 @@ import Agda.Utils.Char
 import Agda.Utils.Float
 import Agda.Utils.List
 import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Utils.Maybe (fromMaybeM)
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
@@ -93,7 +94,7 @@ instance (PrimType a, PrimType b) => PrimTerm (a -> b) where
 instance (PrimType a, PrimType b) => PrimType (a, b)
 instance (PrimType a, PrimType b) => PrimTerm (a, b) where
   primTerm _ = do
-    sigKit <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
+    sigKit <- fromMaybeM (typeError $ NoBindingForBuiltin BuiltinSigma) getSigmaKit
     let sig = Def (sigmaName sigKit) []
     a'       <- primType (undefined :: a)
     b'       <- primType (undefined :: b)
