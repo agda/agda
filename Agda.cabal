@@ -369,7 +369,7 @@ library
 
   -- For libraries that come with GHC, we take the shipped version as default lower bound.
   build-depends:
-    , aeson                >= 1.1.2.0   && < 2.2
+    , aeson                >= 1.1.2.0   && < 2.3
     , array                >= 0.5.2.0   && < 0.6
     , async                >= 2.2       && < 2.3
     , base                 >= 4.12.0.0  && < 4.19
