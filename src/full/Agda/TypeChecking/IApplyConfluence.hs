@@ -72,6 +72,10 @@ checkIApplyConfluence :: QName -> Clause -> TCM ()
 checkIApplyConfluence f cl = case cl of
       Clause {clauseBody = Nothing} -> return ()
       Clause {clauseType = Nothing} -> __IMPOSSIBLE__
+      -- Inserted clause, will respect boundaries whenever the
+      -- user-written clauses do. Saves work, and the inserted clauses
+      -- are sometimes loopy in IApplyConfluence (#6715)
+      Clause {namedClausePats = ps} | hasDefP ps -> pure ()
       cl@Clause { clauseTel = clTel
                 , namedClausePats = ps
                 , clauseType = Just t
@@ -89,9 +93,9 @@ checkIApplyConfluence f cl = case cl of
             let es = patternsToElims ps
             let lhs = Def f es
 
-            reportSDoc "tc.iapply" 40 $ text "clause:" <+> pretty ps <+> "->" <+> pretty body
-            reportSDoc "tc.iapply" 20 $ "body =" <+> prettyTCM body
-            inTopContext $ reportSDoc "tc.iapply" 20 $ "Γ =" <+> prettyTCM clTel
+            reportSDoc "tc.cover.iapply" 40 $ text "clause:" <+> pretty ps <+> "->" <+> pretty body
+            reportSDoc "tc.cover.iapply" 20 $ "body =" <+> prettyTCM body
+            inTopContext $ reportSDoc "tc.cover.iapply" 20 $ "Γ =" <+> prettyTCM clTel
 
             let
               k :: Substitution -> Comparison -> Type -> Term -> Term -> TCM ()
