@@ -732,11 +732,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
         -- Since these are always automatically derived, printing them
         -- is noise, and shows up even in non-cubical modules, as long
         -- as an imported extended lambda is defined cubical-compatibly.
-        let
-          isDefP I.DefP{} = True
-          isDefP _ = False
-
-          insClause = any (isDefP . namedArg) . namedClausePats
+        let insClause = hasDefP . namedClausePats
         case extLam of
           Just (pars, sys) | df, x `notElem` alreadyPrinting ->
             locallyTC ePrintingPatternLambdas (x :) $

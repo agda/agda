@@ -72,6 +72,9 @@ checkIApplyConfluence :: QName -> Clause -> TCM ()
 checkIApplyConfluence f cl = case cl of
       Clause {clauseBody = Nothing} -> return ()
       Clause {clauseType = Nothing} -> __IMPOSSIBLE__
+      -- Inserted clause, will respect boundaries whenever the
+      -- user-written clauses do. Saves a ton of work!
+      Clause {namedClausePats = ps} | hasDefP ps -> pure ()
       cl@Clause { clauseTel = clTel
                 , namedClausePats = ps
                 , clauseType = Just t
@@ -89,12 +92,15 @@ checkIApplyConfluence f cl = case cl of
             let es = patternsToElims ps
             let lhs = Def f es
 
-            reportSDoc "tc.iapply" 40 $ text "clause:" <+> pretty ps <+> "->" <+> pretty body
-            reportSDoc "tc.iapply" 20 $ "body =" <+> prettyTCM body
-            inTopContext $ reportSDoc "tc.iapply" 20 $ "Γ =" <+> prettyTCM clTel
+            reportSDoc "tc.cover.iapply" 40 $ text "clause:" <+> pretty ps <+> "->" <+> pretty body
+            reportSDoc "tc.cover.iapply" 20 $ "body =" <+> prettyTCM body
+            inTopContext $ reportSDoc "tc.cover.iapply" 20 $ "Γ =" <+> prettyTCM clTel
 
             let
               k :: Substitution -> Comparison -> Type -> Term -> Term -> TCM ()
+              -- TODO (Amy, 2023-07-08): Simplifying the LHS of a
+              -- generated clause in its context is loopy, see #6722
+              k phi cmp ty u v | hasDefP ps = compareTerm cmp ty u v
               k phi cmp ty u v = do
                 u_e <- simplify u
                 ty_e <- simplify ty
