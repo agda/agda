@@ -73,8 +73,7 @@ checkIApplyConfluence f cl = case cl of
       Clause {clauseBody = Nothing} -> return ()
       Clause {clauseType = Nothing} -> __IMPOSSIBLE__
       -- Inserted clause, will respect boundaries whenever the
-      -- user-written clauses do. Saves work, and the inserted clauses
-      -- are sometimes loopy in IApplyConfluence (#6715)
+      -- user-written clauses do. Saves a ton of work!
       Clause {namedClausePats = ps} | hasDefP ps -> pure ()
       cl@Clause { clauseTel = clTel
                 , namedClausePats = ps
@@ -99,6 +98,9 @@ checkIApplyConfluence f cl = case cl of
 
             let
               k :: Substitution -> Comparison -> Type -> Term -> Term -> TCM ()
+              -- TODO (Amy, 2023-07-08): Simplifying the LHS of a
+              -- generated clause in its context is loopy, see #6722
+              k phi cmp ty u v | hasDefP ps = compareTerm cmp ty u v
               k phi cmp ty u v = do
                 u_e <- simplify u
                 ty_e <- simplify ty
