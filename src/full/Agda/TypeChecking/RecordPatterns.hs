@@ -247,6 +247,7 @@ coinductiveRecordRHSsToCopatterns cls = do
 
           -- Only expand constructors labelled @{-# INLINE c #-}@.
         -> ifNotM (inlineConstructor c) (return [cl]) {-else-} do
+          mt <- traverse reduce mt
 
           -- Iterate the translation for nested constructor rhss.
           coinductiveRecordRHSsToCopatterns =<< do
