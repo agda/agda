@@ -55,6 +55,7 @@ import Agda.TypeChecking.Telescope
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
 import Agda.Utils.Monad
+import Agda.Utils.Either
 
 -- | Infer the sort of another sort. If we can compute the bigger sort
 --   straight away, return that. Otherwise, return @UnivSort s@ and add a
@@ -230,29 +231,40 @@ sortOf t = do
     sortOfE :: Type -> (Elims -> Term) -> Elims -> m Sort
     sortOfE a hd []     = ifIsSort a return __IMPOSSIBLE__
     sortOfE a hd (e:es) = do
-     reportSDoc "tc.sort" 50 $ vcat
-       [ "sortOfE"
-       , "  a  = " <+> prettyTCM a
-       , "  hd = " <+> prettyTCM (hd [])
-       , "  e  = " <+> prettyTCM e
-       ]
-     case e of
-      Apply (Arg ai v) -> do
-        ba <- reduceB a
-        case unEl (ignoreBlocking ba) of
+      reportSDoc "tc.sort" 50 $ vcat
+        [ "sortOfE"
+        , "  a  = " <+> prettyTCM a
+        , "  hd = " <+> prettyTCM (hd [])
+        , "  e  = " <+> prettyTCM e
+        ]
+
+      ba <- reduceB a
+
+      let
+        a' = ignoreBlocking ba
+        fallback = case ba of
+          Blocked m _ -> patternViolation m
+
+          -- Not IMPOSSIBLE because of possible non-confluent rewriting (see #5531)
+          _ -> ifM (optRewriting <$> pragmaOptions)
+            {-then-} (patternViolation neverUnblock)
+            {-else-} __IMPOSSIBLE__
+
+      case e of
+        Apply (Arg ai v) -> case unEl a' of
           Pi b c -> sortOfE (c `absApp` v) (hd . (e:)) es
-          _ | Blocked m _ <- ba -> patternViolation m
-            | otherwise         -> ifM (optRewriting <$> pragmaOptions)
-                {-then-} (patternViolation neverUnblock)  -- Not IMPOSSIBLE because of possible non-confluent rewriting (see #5531)
-                {-else-} __IMPOSSIBLE__
-      Proj o f -> do
-        a <- reduce a
-        ~(El _ (Pi b c)) <- fromMaybe __IMPOSSIBLE__ <$> getDefType f a
-        hd' <- applyE <$> applyDef o f (argFromDom b $> hd [])
-        sortOfE (c `absApp` (hd [])) hd' es
-      IApply x y r -> do
-        (b , c) <- fromMaybe __IMPOSSIBLE__ <$> isPath a
-        sortOfE (c `absApp` r) (hd . (e:)) es
+          _ -> fallback
+
+        Proj o f -> case unEl a' of
+          Def{} -> do
+            ~(El _ (Pi b c)) <- fromMaybe __IMPOSSIBLE__ <$> getDefType f a'
+            hd' <- applyE <$> applyDef o f (argFromDom b $> hd [])
+            sortOfE (c `absApp` (hd [])) hd' es
+          _ -> fallback
+
+        IApply x y r -> do
+          (b , c) <- fromMaybe __IMPOSSIBLE__ <$> isPath a'
+          sortOfE (c `absApp` r) (hd . (e:)) es
 
 -- | Reconstruct the minimal sort of a type (ignoring the sort annotation).
 sortOfType
