@@ -234,7 +234,6 @@ postulate
   defineFun     : Name → List Clause → TC ⊤
   getType       : Name → TC Type
   getDefinition : Name → TC Definition
-  blockOnMeta   : ∀ {a} {A : Set a} → Meta → TC A
   commitTC      : TC ⊤
 
 {-# BUILTIN AGDATCM              TC            #-}
@@ -256,7 +255,6 @@ postulate
 {-# BUILTIN AGDATCMDEFINEFUN     defineFun     #-}
 {-# BUILTIN AGDATCMGETTYPE       getType       #-}
 {-# BUILTIN AGDATCMGETDEFINITION getDefinition #-}
-{-# BUILTIN AGDATCMBLOCKONMETA   blockOnMeta   #-}
 {-# BUILTIN AGDATCMCOMMIT        commitTC      #-}
 
 -- The code below used to be rejected, but it was accepted if the code

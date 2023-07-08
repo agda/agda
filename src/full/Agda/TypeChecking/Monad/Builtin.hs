@@ -262,6 +262,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaPatLit, primAgdaPatProj,
     primAgdaPatAbsurd,
     primAgdaMeta,
+    primAgdaBlocker, primAgdaBlockerAny, primAgdaBlockerAll, primAgdaBlockerMeta,
     primAgdaTCM, primAgdaTCMReturn, primAgdaTCMBind, primAgdaTCMUnify,
     primAgdaTCMTypeError, primAgdaTCMInferType, primAgdaTCMCheckType,
     primAgdaTCMNormalise, primAgdaTCMReduce,
@@ -269,7 +270,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDeclarePostulate, primAgdaTCMDeclareData, primAgdaTCMDefineData, primAgdaTCMDefineFun,
     primAgdaTCMGetType, primAgdaTCMGetDefinition,
     primAgdaTCMQuoteTerm, primAgdaTCMUnquoteTerm, primAgdaTCMQuoteOmegaTerm,
-    primAgdaTCMBlockOnMeta, primAgdaTCMCommit, primAgdaTCMIsMacro,
+    primAgdaTCMCommit, primAgdaTCMIsMacro, primAgdaTCMBlock,
     primAgdaTCMFormatErrorParts, primAgdaTCMDebugPrint,
     primAgdaTCMWithNormalisation, primAgdaTCMWithReconstructed,
     primAgdaTCMWithExpandLast, primAgdaTCMWithReduceDefs,
@@ -400,6 +401,10 @@ primPrecRelated                       = getBuiltin builtinPrecRelated
 primPrecUnrelated                     = getBuiltin builtinPrecUnrelated
 primFixity                            = getBuiltin builtinFixity
 primFixityFixity                      = getBuiltin builtinFixityFixity
+primAgdaBlocker                       = getBuiltin builtinAgdaBlocker
+primAgdaBlockerAny                    = getBuiltin builtinAgdaBlockerAny
+primAgdaBlockerAll                    = getBuiltin builtinAgdaBlockerAll
+primAgdaBlockerMeta                   = getBuiltin builtinAgdaBlockerMeta
 primArgInfo                           = getBuiltin builtinArgInfo
 primArgArgInfo                        = getBuiltin builtinArgArgInfo
 primAgdaSortSet                       = getBuiltin builtinAgdaSortSet
@@ -474,7 +479,7 @@ primAgdaTCMGetDefinition              = getBuiltin builtinAgdaTCMGetDefinition
 primAgdaTCMQuoteTerm                  = getBuiltin builtinAgdaTCMQuoteTerm
 primAgdaTCMQuoteOmegaTerm             = getBuiltin builtinAgdaTCMQuoteOmegaTerm
 primAgdaTCMUnquoteTerm                = getBuiltin builtinAgdaTCMUnquoteTerm
-primAgdaTCMBlockOnMeta                = getBuiltin builtinAgdaTCMBlockOnMeta
+primAgdaTCMBlock                      = getBuiltin builtinAgdaTCMBlock
 primAgdaTCMCommit                     = getBuiltin builtinAgdaTCMCommit
 primAgdaTCMIsMacro                    = getBuiltin builtinAgdaTCMIsMacro
 primAgdaTCMWithNormalisation          = getBuiltin builtinAgdaTCMWithNormalisation
