@@ -5,7 +5,9 @@ compiler-check: match-exact
 # Local packages specified by relative directory name.
 packages:
 - '.'
-- 'src/size-solver'
+## 2023-07-17: Disable size-solver as dependency shelltestrunner isn't up to GHC 9.6 yet
+## https://github.com/simonmichael/shelltestrunner/pull/34
+# - 'src/size-solver'
 
 # flags:
 #   mintty:
