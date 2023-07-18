@@ -58,6 +58,8 @@ primitive
   primFloatACosh             : Float → Float
   primFloatATanh             : Float → Float
 
+{-# COMPILE JS _,_ as SigmaConstructor #-}
+
 {-# COMPILE JS
     primFloatRound = function(x) {
         x = agdaRTS._primFloatRound(x);
@@ -94,7 +96,7 @@ primitive
 {-# COMPILE JS
     primFloatToRatio = function(x) {
         x = agdaRTS._primFloatToRatio(x);
-        return z_jAgda_Agda_Builtin_Sigma["_,_"](x.numerator)(x.denominator);
+        return SigmaConstructor(x.numerator)(x.denominator);
     };
 #-}
 {-# COMPILE JS
@@ -105,7 +107,7 @@ primitive
         }
         else {
             return z_jAgda_Agda_Builtin_Maybe["Maybe"]["just"](
-                z_jAgda_Agda_Builtin_Sigma["_,_"](x.mantissa)(x.exponent));
+                SigmaConstructor(x.mantissa)(x.exponent));
         }
     };
 #-}

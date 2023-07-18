@@ -2,84 +2,83 @@
 
 module Agda.Compiler.JS.Compiler where
 
-import Prelude hiding ( null, readFile, writeFile )
+import Prelude hiding (null, readFile, writeFile)
 
 import Control.DeepSeq
 import Control.Monad.Trans
 
-import Data.Char     ( isSpace )
-import Data.Foldable ( forM_ )
-import Data.List     ( dropWhileEnd, elemIndex, intercalate, partition )
-import Data.Set      ( Set )
+import Data.Char (isSpace)
+import Data.Foldable (forM_)
+import Data.List (dropWhileEnd, elemIndex, intercalate, partition)
+import Data.Set (Set)
 
-import qualified Data.Set as Set
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as T
 
 import GHC.Generics (Generic)
 
-import System.Directory   ( createDirectoryIfMissing )
-import System.Environment ( setEnv )
-import System.FilePath    ( splitFileName, (</>) )
-import System.Process     ( callCommand )
+import System.Directory (createDirectoryIfMissing)
+import System.Environment (setEnv)
+import System.FilePath (splitFileName, (</>))
+import System.Process (callCommand)
 
 import Paths_Agda
 
 import Agda.Interaction.Options
 
+import Agda.Syntax.Abstract.Name (QName, mnameToList, nameId, qnameModule,
+                                 qnameName)
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete.Name ( isNoName )
-import Agda.Syntax.Abstract.Name
-  ( QName,
-    mnameToList, qnameName, qnameModule, nameId )
-import Agda.Syntax.Internal
-  ( Name, Type
-  , nameFixity, unDom, telToList )
-import Agda.Syntax.Literal       ( Literal(..) )
-import Agda.Syntax.TopLevelModuleName (TopLevelModuleName(..))
-import Agda.Syntax.Treeless      ( ArgUsage(..), filterUsed )
+import Agda.Syntax.Concrete.Name (isNoName)
+import Agda.Syntax.Internal (Name, Type, nameFixity, telToList, unDom)
+import Agda.Syntax.Literal (Literal (..))
+import Agda.Syntax.TopLevelModuleName (TopLevelModuleName (..))
+import Agda.Syntax.Treeless (ArgUsage (..), filterUsed)
 import qualified Agda.Syntax.Treeless as T
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Reduce ( instantiateFull )
-import Agda.TypeChecking.Substitute as TC ( TelV(..), raise, subst )
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Telescope ( telViewPath )
+import Agda.TypeChecking.Reduce (instantiateFull)
+import Agda.TypeChecking.Substitute as TC (TelV (..), raise, subst)
+import Agda.TypeChecking.Telescope (telViewPath)
 
-import Agda.Utils.FileName ( isNewerThan )
-import Agda.Utils.Function ( iterate' )
-import Agda.Utils.List ( downFrom, headWithDefault )
-import Agda.Utils.List1 ( List1, pattern (:|) )
+import Agda.Utils.FileName (isNewerThan)
+import Agda.Utils.Function (iterate')
+import Agda.Utils.IO.Directory
+import Agda.Utils.IO.UTF8 (readFile, writeFile, writeFileIfChanged)
+import Agda.Utils.List (downFrom, headWithDefault)
+import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
-import Agda.Utils.Maybe ( boolToMaybe, catMaybes, caseMaybeM, fromMaybe, whenNothing )
-import Agda.Utils.Monad ( ifM, when )
-import Agda.Utils.Null  ( null )
+import Agda.Utils.Maybe (boolToMaybe, caseMaybeM, catMaybes, fromMaybe,
+                        whenNothing)
+import Agda.Utils.Monad (ifM, when)
+import Agda.Utils.Null (null)
 import Agda.Utils.Pretty (prettyShow, render)
 import qualified Agda.Utils.Pretty as P
-import Agda.Utils.IO.Directory
-import Agda.Utils.IO.UTF8 ( readFile, writeFile, writeFileIfChanged )
-import Agda.Utils.Singleton ( singleton )
+import Agda.Utils.Singleton (singleton)
 import Agda.Utils.Size (size)
 
+import Agda.Compiler.Backend (Backend (..), Backend' (..), Recompile (..))
 import Agda.Compiler.Common as CC
 import Agda.Compiler.ToTreeless
 import Agda.Compiler.Treeless.EliminateDefaults
 import Agda.Compiler.Treeless.EliminateLiteralPatterns
+import Agda.Compiler.Treeless.Erase (computeErasedConstructorArgs)
 import Agda.Compiler.Treeless.GuardsToPrims
-import Agda.Compiler.Treeless.Erase ( computeErasedConstructorArgs )
 import Agda.Compiler.Treeless.Subst ()
-import Agda.Compiler.Backend (Backend(..), Backend'(..), Recompile(..))
 
-import Agda.Compiler.JS.Syntax
-  ( Exp(Self,Local,Global,Undefined,Null,String,Char,Integer,Double,Lambda,Object,Array,Apply,Lookup,If,BinOp,PlainJS),
-    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId,MemberIndex), Export(Export), Module(Module, modName, callMain), Comment(Comment),
-    modName, expName, uses
-  , JSQName
-  )
-import Agda.Compiler.JS.Substitution
-  ( curriedLambda, curriedApply, emp, apply )
+import Agda.Compiler.JS.Pretty (JSModuleStyle (..))
 import qualified Agda.Compiler.JS.Pretty as JSPretty
-import Agda.Compiler.JS.Pretty (JSModuleStyle(..))
+import Agda.Compiler.JS.Substitution (apply, curriedApply, curriedLambda, emp)
+import Agda.Compiler.JS.Syntax (Comment (Comment),
+                               Exp (Apply, Array, BinOp, Char, Double, Global, If, Integer, Lambda, Local, Lookup, Null, Object, PlainJS, Self, String, Undefined),
+                               Export (Export), GlobalId (GlobalId), JSQName,
+                               LocalId (LocalId),
+                               MemberId (MemberId, MemberIndex),
+                               Module (Module, callMain, modName), expName,
+                               modName, uses)
+import Agda.Compiler.JS.Pragmas (getJavaScriptPragma, JavaScriptPragma (JavaScriptPragma), JsDefnPragma (JsDefn), JsExportPragma (JsExport))
 
 import Agda.Utils.Impossible (__IMPOSSIBLE__)
 
@@ -418,30 +417,12 @@ definition kit (q,d) = do
 
   definition' kit q d (defType d) ls
 
--- | Ensure that there is at most one pragma for a name.
-checkCompilerPragmas :: QName -> TCM ()
-checkCompilerPragmas q =
-  caseMaybeM (getUniqueCompilerPragma jsBackendName q) (return ()) $ \ (CompilerPragma r s) ->
-  setCurrentRange r $ case words s of
-    "=" : _ -> return ()
-    _       -> genericDocError $ P.sep [ "Badly formed COMPILE JS pragma. Expected",
-                                         "{-# COMPILE JS <name> = <js> #-}" ]
-
-defJSDef :: Definition -> Maybe String
-defJSDef def =
-  case defCompilerPragmas jsBackendName def of
-    [CompilerPragma _ s] -> Just (dropEquals s)
-    []                   -> Nothing
-    _:_:_                -> __IMPOSSIBLE__
-  where
-    dropEquals = dropWhile $ \ c -> isSpace c || c == '='
-
 definition' :: EnvWithOpts -> QName -> Definition -> Type -> JSQName -> TCM (Maybe Export)
 definition' kit q d t ls =
   if not (jsCompile (snd kit)) || not (usableModality d)
   then return Nothing
   else do
-  checkCompilerPragmas q
+  JavaScriptPragma export defn <- liftTCM $ getJavaScriptPragma q
   case theDef d of
     -- coinduction
     Constructor{}
@@ -453,12 +434,12 @@ definition' kit q d t ls =
 
     DataOrRecSig{} -> __IMPOSSIBLE__
 
-    Axiom{} | Just e <- defJSDef d -> plainJS e
+    Axiom{} | Just (JsDefn _ e) <- defn -> plainJsWithName export e
     Axiom{} | otherwise -> ret Undefined
 
     GeneralizableVar{} -> return Nothing
 
-    Function{} | Just e <- defJSDef d -> plainJS e
+    Function{} | Just (JsDefn _ e) <- defn -> plainJS e
     Function{} | otherwise -> do
 
       reportSDoc "compile.js" 5 $ "compiling fun:" <+> prettyTCM q
@@ -500,7 +481,7 @@ definition' kit q d t ls =
         plainJS "agdaRTS.prim_unglueU"
       | p `Set.member` primitives ->
         plainJS $ "agdaRTS." ++ getBuiltinId p
-      | Just e <- defJSDef d ->
+      | Just (JsDefn _ e) <- defn ->
         plainJS e
       | otherwise ->
         ret Undefined
@@ -513,7 +494,7 @@ definition' kit q d t ls =
         computeErasedConstructorArgs q
         return Nothing
 
-    Constructor{} | Just e <- defJSDef d -> plainJS e
+    Constructor{} | Just (JsDefn _ e) <- defn -> plainJS e
     Constructor{conData = p, conPars = nc} -> do
       TelV tel _ <- telViewPath t
       let np = length (telToList tel) - nc
@@ -548,6 +529,11 @@ definition' kit q d t ls =
   where
     ret = return . Just . Export ls
     plainJS = return . Just . Export ls . PlainJS
+
+    exportName :: Maybe JsExportPragma -> JSQName
+    exportName = maybe ls \(JsExport _ n) -> List1.snoc (List1.init ls) (MemberId n)
+
+    plainJsWithName export = return . Just . Export (exportName export) . PlainJS
 
 compileTerm :: EnvWithOpts -> T.TTerm -> TCM Exp
 compileTerm kit t = go t
@@ -603,13 +589,14 @@ compileTerm kit t = go t
         d <- getConstInfo q
         qname q
       T.TCase sc ct def alts | T.CTData dt <- T.caseType ct -> do
+        JavaScriptPragma _ defn <- getJavaScriptPragma dt
         dt <- getConstInfo dt
         alts' <- traverse (compileAlt kit) alts
         let cs  = defConstructors $ theDef dt
             obj = Object $ Map.fromListWith __IMPOSSIBLE__ [(snd x, y) | (x, y) <- alts']
             arr = mkArray [headWithDefault (mempty, Null) [(Comment s, y) | ((c', MemberId s), y) <- alts', c' == c] | c <- cs]
-        case (theDef dt, defJSDef dt) of
-          (_, Just e) -> do
+        case (theDef dt, defn) of
+          (_, Just (JsDefn _ e)) -> do
             return $ apply (PlainJS e) [Local (LocalId sc), obj]
           (Record{}, _) | optJSOptimize (fst kit) -> do
             return $ apply (Local $ LocalId sc) [snd $ headWithDefault __IMPOSSIBLE__ alts']
@@ -771,7 +758,7 @@ outFile_ = do
 -- | Primitives implemented in the JS Agda RTS.
 --
 -- TODO: Primitives that are not part of this set, and for which
--- 'defJSDef' does not return anything, are silently compiled to
+-- 'defn' pragma does not return anything, are silently compiled to
 -- 'Undefined'. A better approach might be to list exactly those
 -- primitives which should be compiled to 'Undefined'.
 primitives :: Set PrimitiveId
