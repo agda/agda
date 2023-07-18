@@ -531,7 +531,11 @@ niceDeclarations fixs ds = do
           -- The body of an 'opaque' definition can have mutual
           -- recursion by interleaving type signatures and definitions,
           -- just like the body of a module.
-          body <- inferMutualBlocks =<< nice body
+          decls0 <- nice body
+          ps <- use loneSigs
+          checkLoneSigs ps
+          let decls = replaceSigs ps decls0
+          body <- inferMutualBlocks decls
           pure ([NiceOpaque r (concat unfoldings) body], ds)
 
         Unfolding r _ -> declarationException $ UnfoldingOutsideOpaque r
