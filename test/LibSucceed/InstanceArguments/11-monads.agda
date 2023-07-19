@@ -14,7 +14,7 @@ open import Effect.Monad.Indexed using (RawIMonad; module RawIMonad)
 -- identityMonad often makes monadic code ambiguous.
 --open import Effect.Monad.Identity using (IdentityMonad)
 open import Effect.Monad.Partiality using (_⊥; now; isNow; never; run_for_steps) renaming (monad to partialityMonad)
-open import Effect.Monad.State using (StateMonad)
+open import Effect.Monad.State using (RawMonadState)
 open import Effect.Applicative.Indexed using (IFun)
 open import Function using (_$_)
 open import Function.Reasoning
@@ -34,7 +34,8 @@ module RawMonadExt {li f} {I : Set li} {M : IFun I f} (m : RawIMonad M) where
 instance i⊥ = partialityMonad
          iList = listMonad
 
-stateMonad = StateMonad ℕ
+stateMonad : (Set → Set) → Set₁
+stateMonad = RawMonadState ℕ
 
 nToList : ℕ → List ℕ
 nToList 0 = [ 0 ]
@@ -42,29 +43,29 @@ nToList (suc n) = n ∷ nToList n
 
 test′ : ℕ → (List ℕ) ⊥
 test′ k = let open RawMonad partialityMonad
-          in do x ← return (k ∷ k + 1 ∷ [])
-                return x
+          in do x ← pure (k ∷ k + 1 ∷ [])
+                pure x
 
 test2′ : ℕ → (List ℕ) ⊥
 test2′ k =  let open RawMonad partialityMonad
                 open RawMonad listMonad using () renaming (_>>=_ to _l>>=_)
-            in do x ← return [ k ]
-                  if ⌊ k ≟ 4 ⌋ then return (x l>>= nToList) else never
+            in do x ← pure [ k ]
+                  if ⌊ k ≟ 4 ⌋ then pure (x l>>= nToList) else never
 
 open RawMonad {{...}}
 open RawMonadExt {{...}}
 
 test1 : ℕ → ℕ ⊥
-test1 k =  do x ← return k
-              if ⌊ x ≟ 4 ⌋ then return 10 else never
+test1 k =  do x ← pure k
+              if ⌊ x ≟ 4 ⌋ then pure 10 else never
 
 test2 : ℕ → (List ℕ) ⊥
-test2 k =  do x ← return [ k ]
-              if ⌊ k ≟ 4 ⌋ then return ((x ∶ List ℕ) >>= nToList) else never
+test2 k =  do x ← pure [ k ]
+              if ⌊ k ≟ 4 ⌋ then pure ((x ∶ List ℕ) >>= nToList) else never
 test' : ℕ → (List ℕ) ⊥
-test' k = do x ← return (k ∷ k + 1 ∷ [])
-             if null x then never else return (x >>= nToList)
+test' k = do x ← pure (k ∷ k + 1 ∷ [])
+             if null x then never else pure (x >>= nToList)
 
 test3 : List ℕ
 test3 = do x ← 1 ∷ 2 ∷ 3 ∷ []
-           return $ x + 1
+           pure $ x + 1

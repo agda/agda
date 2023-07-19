@@ -264,5 +264,5 @@ printPoint : point → IO {0ℓ} ⊤
 printPoint p = putStrLn ((Nat.show (val (x p))) +s+ ";" +s+ Nat.show (val (y p)))
 
 main : IO.Primitive.IO ⊤
-main = run (Colist.mapM printPoint (Codata.Musical.Colist.fromList trace) >> return _)
+main = run (Colist.mapM printPoint (Codata.Musical.Colist.fromList trace) >> pure _)
   where trace = V.toList $ throw 15 ⟨ 1 ∶ s ⟩ base

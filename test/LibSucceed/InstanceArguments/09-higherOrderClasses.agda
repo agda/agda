@@ -12,7 +12,7 @@ lift : ∀ {a b c} {A : Set a} {C : Set c} {B : A → Set b} →
 lift m f {{x}} = m {{f x}}
 
 monadToApplicative : ∀ {l} {M : Set l → Set l} → RawMonad M → RawApplicative M
-monadToApplicative = RawIMonad.rawIApplicative
+monadToApplicative = RawMonad.rawApplicative
 
 liftAToM : ∀ {l} {V : Set l} {M : Set l → Set l} → ({{appM : RawApplicative M}} → M V) →
            {{monadM : RawMonad M}} → M V
