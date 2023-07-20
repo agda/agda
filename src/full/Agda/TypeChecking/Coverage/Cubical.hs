@@ -8,10 +8,6 @@ import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Trans ( lift )
 
-import Data.Foldable (for_)
-import qualified Data.List as List
-import Data.Map (Map)
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
@@ -20,48 +16,28 @@ import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Internal hiding (DataOrRecord(..))
 import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Translation.InternalToAbstract (NamedClause(..))
 
-import Agda.TypeChecking.Names
-import Agda.TypeChecking.Primitive hiding (Nat)
-import Agda.TypeChecking.Monad
-
-import Agda.TypeChecking.Rules.LHS (DataOrRecord(..), checkSortOfSplitVar)
-import Agda.TypeChecking.Rules.LHS.Problem (allFlexVars)
-import Agda.TypeChecking.Rules.LHS.Unify
-import Agda.TypeChecking.Rules.Term (unquoteTactic)
-
+import Agda.TypeChecking.Constraints () -- instance MonadConstraint TCM
 import Agda.TypeChecking.Coverage.Match
-import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Coverage.SplitClause
-
-
-import Agda.TypeChecking.Conversion (tryConversion, equalType)
-import Agda.TypeChecking.Datatypes (getConForm, getDatatypeArgs)
-import {-# SOURCE #-} Agda.TypeChecking.Empty ( checkEmptyTel, isEmptyTel, isEmptyType )
+import Agda.TypeChecking.Coverage.SplitTree
+import Agda.TypeChecking.Datatypes (getDatatypeArgs)
 import Agda.TypeChecking.Irrelevance
+import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Names
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Records
+import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Telescope.Path
-import Agda.TypeChecking.MetaVars
-import Agda.TypeChecking.Warnings
 
-import Agda.Interaction.Options
-
-import Agda.Utils.Either
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Permutation
-import Agda.Utils.Pretty (prettyShow)
-import Agda.Utils.Singleton
 import Agda.Utils.Size
-import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
 
