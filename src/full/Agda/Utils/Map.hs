@@ -5,9 +5,8 @@ module Agda.Utils.Map where
 import Data.Functor.Compose
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Maybe (mapMaybe)
+-- import Data.Maybe (mapMaybe) -- UNUSED
 
-import Agda.Utils.Functor
 import Agda.Utils.Impossible
 
 -- * Monadic map operations

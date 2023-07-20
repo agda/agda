@@ -34,8 +34,6 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
 import Agda.Utils.Size
 
-import Agda.Utils.Impossible
-
 -- * Pretty class
 
 -- | While 'Show' is for rendering data in Haskell syntax,

@@ -13,8 +13,6 @@ import Data.IORef
 
 import System.IO.Unsafe
 
-import Agda.Utils.Impossible
-
 data Ptr a = Ptr { ptrTag :: !Integer
                  , ptrRef :: !(IORef a) }
 

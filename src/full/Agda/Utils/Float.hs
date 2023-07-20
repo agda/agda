@@ -47,7 +47,7 @@ module Agda.Utils.Float
   , toStringWithoutDotZero
   ) where
 
-import Data.Bifunctor   ( bimap, second )
+import Data.Bifunctor   ( second )
 import Data.Function    ( on )
 import Data.Maybe       ( fromMaybe )
 import Data.Ratio       ( (%), numerator, denominator )
