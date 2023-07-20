@@ -1,0 +1,43 @@
+Issue6725.agda:49,5-9
+Incomplete pattern matching for .extendedlambda0. Missing cases:
+  ze .extendedlambda0
+  on .extendedlambda0
+  se .extendedlambda0
+when checking the definition of .extendedlambda0
+Issue6725.agda:51,5-9
+Incomplete pattern matching for .extendedlambda1. Missing cases:
+  ze .extendedlambda1
+  on .extendedlambda1
+  se .extendedlambda1
+when checking the definition of .extendedlambda1
+Issue6725.agda:54,5-56,8
+Incomplete pattern matching for .extendedlambda2. Missing cases:
+  se (.extendedlambda2 i)
+when checking the definition of .extendedlambda2
+warning: -W[no]InteractionMetaBoundaries
+Interaction meta(s) at the following location(s) have unsolved
+boundary constraints:
+  Issue6725.agda:55,11-12
+  Issue6725.agda:56,11-12
+Issue6725.agda:53,3-12
+se (λ { .Φ _ → Set }) i !=
+se
+(λ { .Φ _ → Set
+   ; .ze → ?2 (i = Agda.Primitive.Cubical.i0)
+   ; .on → ?3 (i = Agda.Primitive.Cubical.i0)
+   })
+i
+of type Set
+when checking that a clause of alg has the correct boundary.
+
+Specifically, the terms
+  case (λ { .Φ _ → Set }) x
+and
+  case
+  (λ { .Φ _ → Set
+     ; .ze → ?2 (i = Agda.Primitive.Cubical.i0)
+     ; .on → ?3 (i = Agda.Primitive.Cubical.i0)
+     })
+  x
+must be equal, since alg .se Agda.Primitive.Cubical.i0 x could
+reduce to either.
