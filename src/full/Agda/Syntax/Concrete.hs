@@ -181,8 +181,9 @@ data Expr
     -- ^ An identifier coming from abstract syntax, for which we know a
     -- precise syntactic highlighting class (used in printing).
   | KnownOpApp NameKind Range QName (Set A.Name) OpAppArgs
-    -- ^ An identifier coming from abstract syntax, for which we know a
-    -- precise syntactic highlighting class (used in printing).
+    -- ^ An operator application coming from abstract syntax, for which
+    -- we know a precise syntactic highlighting class (used in
+    -- printing).
   | Generalized Expr
   deriving Eq
 
