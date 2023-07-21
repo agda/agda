@@ -320,7 +320,7 @@ checkPiDomain = checkDomain PiNotLam
 -- | Check a typed binding and extends the context with the bound variables.
 --   The telescope passed to the continuation is valid in the original context.
 --
---   Parametrized by a flag wether we check a typed lambda or a Pi. This flag
+--   Parametrized by a flag whether we check a typed lambda or a Pi. This flag
 --   is needed for irrelevance.
 
 checkTypedBindings :: LamOrPi -> A.TypedBinding -> (Telescope -> TCM a) -> TCM a
