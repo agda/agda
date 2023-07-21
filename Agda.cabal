@@ -420,7 +420,7 @@ library
     , vector               >= 0.12      && < 0.14
     , vector-hashtables    == 0.1.*
     , zlib                 == 0.6.*
-    , ansi-terminal        >= 0.9       && < 0.12
+    , ansi-terminal        >= 0.9       && < 1.1
 
   -- We don't write upper bounds for Alex nor Happy because the
   -- `build-tool-depends` field can not be modified in Hackage.
