@@ -6,9 +6,9 @@ import Data.Char ( isAsciiLower, isAsciiUpper, isDigit )
 import Data.List ( intercalate )
 import Data.String ( IsString (fromString) )
 import Data.Semigroup ( Semigroup, (<>) )
-import Data.Set ( Set, toList, singleton, insert, member )
+import Data.Set ( Set, toList, insert, member )
 import qualified Data.Set as Set
-import Data.Map ( Map, toAscList, empty, null )
+import Data.Map ( Map, toAscList )
 import qualified Data.Text as T
 
 import Agda.Syntax.Common ( Nat )

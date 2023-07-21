@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {- | Modality.
 
 Agda has support for several modalities, namely:

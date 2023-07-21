@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Agda.Compiler.Treeless.Pretty () where
@@ -17,6 +19,13 @@ import Agda.Compiler.Treeless.Subst
 import Agda.Utils.Impossible
 import Agda.Utils.Function
 import Agda.Utils.List
+
+instance Pretty Compiled where
+  pretty Compiled {cTreeless, cArgUsage} =
+    "Compiled {" <?> vcat
+      [ "cTreeless   =" <?> pretty cTreeless
+      , "funCompiled =" <?> pshow cArgUsage
+      ] <?> "}"
 
 data PEnv = PEnv { pPrec :: Int
                  , pFresh :: [String]

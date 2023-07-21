@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE NondecreasingIndentation #-}
 
 {- |  Non-linear matching of the lhs of a rewrite rule against a
@@ -34,15 +36,12 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
-import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.MetaVars
 
 import Agda.TypeChecking.Conversion.Pure
 import Agda.TypeChecking.Datatypes
-import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Irrelevance (isPropM)
 import Agda.TypeChecking.Level

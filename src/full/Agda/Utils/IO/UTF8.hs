@@ -16,7 +16,6 @@ import qualified Data.Text.Lazy.Encoding as T
 import qualified Data.Text.Lazy.IO as T
 import qualified Data.ByteString.Lazy as BS
 import qualified System.IO as IO
-import qualified System.IO.Error as E
 
 -- | Converts many character sequences which may be interpreted as
 -- line or paragraph separators into '\n'.

@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Translates the Agda builtin nat datatype to arbitrary-precision integers.
 --
 -- Philipp, 20150921:
@@ -17,7 +19,6 @@
 module Agda.Compiler.Treeless.Builtin (translateBuiltins) where
 
 import qualified Agda.Syntax.Internal as I
-import Agda.Syntax.Position
 import Agda.Syntax.Treeless
 import Agda.Syntax.Literal
 

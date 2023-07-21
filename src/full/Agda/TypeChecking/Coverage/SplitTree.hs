@@ -1,4 +1,6 @@
 
+{-# OPTIONS_GHC -Wall #-}
+
 {-| Split tree for transforming pattern clauses into case trees.
 
 The coverage checker generates a split tree from the clauses.

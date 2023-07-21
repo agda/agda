@@ -24,7 +24,6 @@ import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Builtin
 import Agda.Syntax.Internal as I
-import Agda.Interaction.Options.Base (PragmaOptions(..))
 import Agda.TypeChecking.Monad.Base
 -- import Agda.TypeChecking.Functions  -- LEADS TO IMPORT CYCLE
 import Agda.TypeChecking.Substitute

@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE ImplicitParams    #-}
 
 -- | An Abstract domain of relative sizes, i.e., differences

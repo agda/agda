@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Directed graphs (can of course simulate undirected graphs).
 --
 --   Represented as adjacency maps in direction from source to target.

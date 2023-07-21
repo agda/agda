@@ -6,7 +6,6 @@ import GHC.Generics (Generic)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Concrete
-import Agda.Syntax.Concrete.Name
 import Agda.Syntax.Concrete.Definitions.Types
 
 import Agda.Interaction.Options.Warnings

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- To avoid warning on derived Integral instance for CPUTime.
 {-# OPTIONS_GHC -fno-warn-identities #-}

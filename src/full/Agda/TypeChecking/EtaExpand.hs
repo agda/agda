@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Compute eta long normal forms.
 module Agda.TypeChecking.EtaExpand where

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Functions which give precise syntax highlighting info to Emacs.
 

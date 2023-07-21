@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE ImplicitParams #-}
 
 -- | Termination checker, based on

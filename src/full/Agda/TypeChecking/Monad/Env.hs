@@ -1,14 +1,13 @@
-module Agda.TypeChecking.Monad.Env where
+{-# OPTIONS_GHC -Wunused-imports #-}
 
+module Agda.TypeChecking.Monad.Env where
 
 import qualified Data.List as List
 
 import Data.Maybe (fromMaybe)
 
-
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
-import Agda.Syntax.TopLevelModuleName
 
 import Agda.TypeChecking.Monad.Base
 
@@ -143,4 +142,3 @@ callByName = localTC $ \ e -> e { envCallByNeed = False }
 --   the let bindings that should not be folded.
 dontFoldLetBindings :: MonadTCEnv m => m a -> m a
 dontFoldLetBindings = localTC $ \ e -> e { envFoldLetBindings = False }
-

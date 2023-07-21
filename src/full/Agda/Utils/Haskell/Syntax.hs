@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | ASTs for subset of GHC Haskell syntax.
 
 module Agda.Utils.Haskell.Syntax where

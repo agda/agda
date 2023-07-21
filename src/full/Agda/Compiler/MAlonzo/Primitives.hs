@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 module Agda.Compiler.MAlonzo.Primitives where
 
@@ -7,16 +8,13 @@ import Control.Monad.Trans.Maybe ( MaybeT(MaybeT, runMaybeT) )
 import qualified Data.List as List
 import           Data.Map (Map)
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
 import Data.Maybe
-import qualified Data.Text as T
 
 import Agda.Compiler.Common
-import Agda.Compiler.ToTreeless
 import Agda.Compiler.MAlonzo.Misc
-import Agda.Compiler.MAlonzo.Pretty
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Internal
 import Agda.Syntax.Treeless
 import Agda.TypeChecking.Monad
@@ -27,8 +25,6 @@ import Agda.TypeChecking.Pretty
 import Agda.Utils.Either
 import Agda.Utils.Lens
 import Agda.Utils.List   (hasElem)
-import Agda.Utils.Maybe
-import Agda.Syntax.Common.Pretty (prettyShow)
 import qualified Agda.Utils.Haskell.Syntax as HS
 
 import Agda.Utils.Impossible

@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | A strict version of the 'Maybe' type.
 --
 --   Import qualified, as in

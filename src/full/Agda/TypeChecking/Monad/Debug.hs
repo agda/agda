@@ -222,7 +222,16 @@ reportSLn :: MonadDebug m => VerboseKey -> VerboseLevel -> String -> m ()
 reportSLn k n s = verboseS k n $ displayDebugMessage k n $ s ++ "\n"
 
 __IMPOSSIBLE_VERBOSE__ :: (HasCallStack, MonadDebug m) => String -> m a
-__IMPOSSIBLE_VERBOSE__ s = do { reportSLn "impossible" 10 s ; throwImpossible err }
+__IMPOSSIBLE_VERBOSE__ s = do
+  -- Andreas, 2023-07-19, issue #6728 is fixed by manually inlining reportSLn here.
+  -- reportSLn "impossible" 10 s
+  -- It seems like GHC 9.6 optimization does otherwise something that throws
+  -- away the debug message.
+  let k = "impossible"
+  let n = 10
+  verboseS k n $ displayDebugMessage k n $ s ++ "\n"
+
+  throwImpossible err
   where
     -- Create the "Impossible" error using *our* caller as the call site.
     err = withCallerCallStack Impossible

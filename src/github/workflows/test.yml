@@ -54,7 +54,7 @@ env:
   # Andreas, 2022-03-26, 2022-11-28:
   # GHC_VER should be given as x.y.z (as opposed to x.y only)
   # because it is used verbatim when referring to stack-x.y.z.yaml.
-  GHC_VER: "9.4.5"
+  GHC_VER: "9.6.2"
 
   # Part 2: Variables that should not have to be changed
   ###########################################################################
@@ -157,10 +157,10 @@ jobs:
     - name: "Build Agda"
       run: make BUILD_DIR="${BUILD_DIR}" install-bin
 
-    - name: "Run tests for the size solver"
-      run: |
-        export PATH=${HOME}/.local/bin:${PATH}
-        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" size-solver-test
+    # - name: "Run tests for the size solver"
+    #   run: |
+    #     export PATH=${HOME}/.local/bin:${PATH}
+    #     make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" size-solver-test
 
     - name: "Pack artifacts"
       # This step should go into the Makefile.

@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 ------------------------------------------------------------------------
 -- | Parser combinators with support for left recursion, following
 -- Johnson\'s \"Memoization in Top-Down Parsing\".
@@ -44,7 +46,6 @@ import Data.IntMap.Strict (IntMap)
 import qualified Data.List as List
 import Data.Maybe
 
-import qualified Agda.Syntax.Common.Pretty as PP
 import qualified Agda.Utils.Null as Null
 import Agda.Syntax.Common.Pretty hiding (annotate)
 

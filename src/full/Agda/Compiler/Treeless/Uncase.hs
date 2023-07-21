@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.Compiler.Treeless.Uncase (caseToSeq) where
 
 import Agda.Syntax.Treeless

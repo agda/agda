@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.Interaction.SearchAbout (findMentions) where
 
 import Control.Monad

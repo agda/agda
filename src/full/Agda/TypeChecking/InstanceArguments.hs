@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.InstanceArguments
@@ -12,17 +14,13 @@ import Control.Monad        ( forM )
 import Control.Monad.Except ( MonadError(..) )
 import Control.Monad.Trans  ( lift )
 
-import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
-import qualified Data.Map.Strict as MapS
 import qualified Data.Set as Set
 import qualified Data.List as List
-import Data.Bifunctor
-import Data.Foldable (toList)
 import Data.Function (on)
 import Data.Monoid hiding ((<>))
 
-import Agda.Interaction.Options (optOverlappingInstances, optQualifiedInstances)
+import Agda.Interaction.Options (optQualifiedInstances)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name (isQualified)
@@ -47,7 +45,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import qualified Agda.Benchmarking as Benchmark
 import Agda.TypeChecking.Monad.Benchmark (billTo)
 
-import Agda.Utils.Either
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad

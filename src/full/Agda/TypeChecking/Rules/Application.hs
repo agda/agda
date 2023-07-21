@@ -26,7 +26,6 @@ import qualified Data.IntSet   as IntSet
 
 import Agda.Interaction.Highlighting.Generate
   ( storeDisambiguatedConstructor, storeDisambiguatedProjection )
-import Agda.Interaction.Options
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views as A
@@ -40,7 +39,6 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.Free.Lazy (VarMap, lookupVarMap)
 import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.InstanceArguments (postponeInstanceConstraints)

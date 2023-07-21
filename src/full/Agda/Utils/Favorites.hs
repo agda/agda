@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE CPP                        #-}
 
 -- | Maintaining a list of favorites of some partially ordered type.

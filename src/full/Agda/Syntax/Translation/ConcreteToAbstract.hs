@@ -1,7 +1,9 @@
 
-{-| Translation from "Agda.Syntax.Concrete" to "Agda.Syntax.Abstract". Involves scope analysis,
+{-| Translation from "Agda.Syntax.Concrete" to "Agda.Syntax.Abstract".
+    Involves scope analysis,
     figuring out infix operator precedences and tidying up definitions.
 -}
+
 module Agda.Syntax.Translation.ConcreteToAbstract
     ( ToAbstract(..), localToAbstract
     , concreteToAbstract_
@@ -34,7 +36,6 @@ import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Data.HashSet as HashSet
 import Data.Maybe
-import Data.Monoid (First(..))
 import Data.Void
 
 import Agda.Syntax.Concrete as C
@@ -95,7 +96,6 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import Agda.Utils.List2 ( List2, pattern List2 )
-import qualified Agda.Utils.Maybe.Strict as Strict
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.Map as Map
 import Agda.Utils.Maybe

@@ -22,7 +22,6 @@ module Agda.TypeChecking.Substitute
 
 import Control.Arrow (first, second)
 import Control.Monad (guard)
-import Control.Monad.Except (throwError)
 
 import Data.Coerce
 import Data.Function (on)
@@ -34,8 +33,6 @@ import Data.HashMap.Strict (HashMap)
 
 import Debug.Trace (trace)
 
-import Agda.Interaction.Options
-
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Internal
@@ -43,7 +40,6 @@ import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Options (typeInType)
 import Agda.TypeChecking.Free as Free
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Positivity.Occurrence as Occ

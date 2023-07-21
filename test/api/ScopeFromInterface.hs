@@ -11,6 +11,8 @@ module Main where
 -- Haskell imports
 
 import qualified Control.Exception as E
+import Control.Monad               ( forM_ )
+import Control.Monad.IO.Class      ( liftIO )
 import Control.Monad.Except
 
 import qualified Data.ByteString.Lazy as BS

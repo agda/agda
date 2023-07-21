@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | An empty type with some useful instances.
 module Agda.Utils.Empty where
 

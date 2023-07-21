@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 {-| This module defines the lex action to lex nested comments. As is well-known
     this cannot be done by regular expressions (which, incidently, is probably

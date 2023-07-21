@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Semirings.
 
 module Agda.Termination.Semiring

@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.Syntax.TopLevelModuleName where
 
 import Control.DeepSeq

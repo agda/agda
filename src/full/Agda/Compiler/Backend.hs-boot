@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 module Agda.Compiler.Backend
   ( module Agda.Syntax.Treeless

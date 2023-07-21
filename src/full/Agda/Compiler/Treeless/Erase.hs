@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE PatternSynonyms #-}
 
 module Agda.Compiler.Treeless.Erase
@@ -11,11 +13,9 @@ import Control.Monad
 import Control.Monad.State
 import Data.Map (Map)
 import qualified Data.Map as Map
-import qualified Data.List as List
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
-import Agda.Syntax.Position
 import Agda.Syntax.Treeless
 import Agda.Syntax.Literal
 

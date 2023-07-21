@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Flattened scopes.
 module Agda.Syntax.Scope.Flat
   ( FlatScope

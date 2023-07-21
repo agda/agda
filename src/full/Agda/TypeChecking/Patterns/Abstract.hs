@@ -11,7 +11,6 @@ import Data.Void
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pattern
-import Agda.Syntax.Abstract.Views
 import Agda.Syntax.Concrete (FieldAssignment')
 import Agda.Syntax.Common
 import Agda.Syntax.Info as A

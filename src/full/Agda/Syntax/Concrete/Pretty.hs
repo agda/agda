@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-
 {-| Pretty printer for the concrete syntax.
 -}
 module Agda.Syntax.Concrete.Pretty
@@ -18,7 +17,6 @@ import qualified Data.Text as T
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete
-import Agda.Syntax.Position
 import Agda.Syntax.Concrete.Glyph
 
 import Agda.Utils.Float (toStringWithoutDotZero)

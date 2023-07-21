@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Eliminates case defaults by adding an alternative for all possible
 -- constructors. Literal cases are preserved as-is.
 module Agda.Compiler.Treeless.EliminateDefaults where

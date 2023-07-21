@@ -18,15 +18,13 @@ import Data.Function (on)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
-import Data.Sequence (Seq, (<|), (><))
-import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import Data.Set (Set)
 import Data.Void
 
 import GHC.Generics (Generic)
 
-import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)--, HoleContent'(..))
+import Agda.Syntax.Concrete (FieldAssignment'(..))
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract.Name
 import qualified Agda.Syntax.Internal as I
@@ -38,7 +36,6 @@ import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Positivity.Occurrence
 
-import Agda.Utils.Lens
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null

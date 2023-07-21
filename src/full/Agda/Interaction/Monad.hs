@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# OPTIONS_GHC -fwarn-orphans #-}
 {-# LANGUAGE CPP               #-}
 

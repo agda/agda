@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.TypeChecking.Primitive.Cubical.Base where
 
 import Agda.TypeChecking.Monad.Pure

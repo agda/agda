@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Measure CPU time for individual phases of the Agda pipeline.
 
 module Agda.TypeChecking.Monad.Benchmark

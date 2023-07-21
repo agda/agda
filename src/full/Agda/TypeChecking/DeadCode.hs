@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.TypeChecking.DeadCode (eliminateDeadCode) where
 
 import qualified Control.Exception as E
@@ -16,7 +18,6 @@ import qualified Agda.Syntax.Abstract as A
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Internal.Names
 import Agda.Syntax.Scope.Base
 
@@ -28,7 +29,6 @@ import Agda.TypeChecking.Reduce
 
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
-import Agda.Utils.WithDefault
 
 -- | Run before serialisation to remove any definitions and
 -- meta-variables that are not reachable from the module's public

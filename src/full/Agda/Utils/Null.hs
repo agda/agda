@@ -1,5 +1,6 @@
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wunused-imports #-}
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | Overloaded @null@ and @empty@ for collections and sequences.
 

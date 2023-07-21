@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Representation of @'Set' 'Bool'@ as a 4-element enum type.
 --
 -- All operations in constant time and space.

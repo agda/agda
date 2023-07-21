@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.TypeChecking.Opacity where
 
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Signature (HasConstInfo)

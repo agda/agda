@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.TypeChecking.Eliminators where
 
 import Agda.Syntax.Common (Nat)

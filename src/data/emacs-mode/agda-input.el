@@ -53,11 +53,11 @@ removing all space and newline characters."
 ;; Functions used to tweak translation pairs
 
 (defun agda-input-compose (f g)
-  "\x -> concatMap F (G x)"
+  "λ x -> concatMap F (G x)"
     (lambda (x) (agda-input-concat-map f (funcall g x))))
 
 (defun agda-input-or (f g)
-  "\x -> F x ++ G x"
+  "λ x -> F x ++ G x"
     (lambda (x) (append (funcall f x) (funcall g x))))
 
 (defun agda-input-nonempty ()

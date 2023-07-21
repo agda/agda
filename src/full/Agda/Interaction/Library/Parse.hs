@@ -29,7 +29,6 @@ module Agda.Interaction.Library.Parse
   , runP
   ) where
 
-import qualified Control.Exception as E
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Writer

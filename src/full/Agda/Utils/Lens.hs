@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | A cut-down implementation of lenses, with names taken from
 --   Edward Kmett's lens package.
 

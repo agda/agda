@@ -78,12 +78,11 @@ import Agda.Syntax.Position
 import Agda.Syntax.Notation
 import Agda.Syntax.Concrete.Pretty () --instance only
 import Agda.Syntax.Concrete.Fixity
+import Agda.Syntax.Common.Pretty
 
 import Agda.Syntax.Concrete.Definitions.Errors
 import Agda.Syntax.Concrete.Definitions.Monad
 import Agda.Syntax.Concrete.Definitions.Types
-
-import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.AffineHole
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
@@ -94,7 +93,6 @@ import Agda.Utils.List1 (List1, pattern (:|), (<|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
-import Agda.Syntax.Common.Pretty
 import Agda.Utils.Singleton
 import Agda.Utils.Three
 import Agda.Utils.Tuple
@@ -531,7 +529,11 @@ niceDeclarations fixs ds = do
           -- The body of an 'opaque' definition can have mutual
           -- recursion by interleaving type signatures and definitions,
           -- just like the body of a module.
-          body <- inferMutualBlocks =<< nice body
+          decls0 <- nice body
+          ps <- use loneSigs
+          checkLoneSigs ps
+          let decls = replaceSigs ps decls0
+          body <- inferMutualBlocks decls
           pure ([NiceOpaque r (concat unfoldings) body], ds)
 
         Unfolding r _ -> declarationException $ UnfoldingOutsideOpaque r

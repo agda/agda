@@ -37,10 +37,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad hiding (getConstInfo, typeOfConst)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Errors
-import Agda.TypeChecking.Level
 import Agda.TypeChecking.Pretty ()  -- instances only
-import Agda.TypeChecking.Free
 
 import Agda.Utils.Fail (Fail, runFail_)
 import Agda.Utils.Impossible

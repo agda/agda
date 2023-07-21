@@ -1,11 +1,10 @@
-
 module Agda.TypeChecking.Unquote where
 
 import Control.Arrow          ( first, second, (&&&) )
-import Control.Monad          ( (<=<), liftM2 )
+import Control.Monad          ( (<=<) )
 import Control.Monad.Except   ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class ( MonadIO(..) )
-import Control.Monad.Reader   ( ReaderT(..), runReaderT, ask )
+import Control.Monad.Reader   ( ReaderT(..), runReaderT )
 import Control.Monad.State    ( gets, modify, StateT(..), runStateT )
 import Control.Monad.Writer   ( MonadWriter(..), WriterT(..), runWriterT )
 import Control.Monad.Trans    ( lift )
@@ -13,7 +12,6 @@ import Control.Monad.Trans    ( lift )
 import Data.Char
 import Data.Map (Map)
 import qualified Data.Map as Map
-import qualified Data.HashMap.Strict as HashMap
 import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import qualified Data.Set as Set

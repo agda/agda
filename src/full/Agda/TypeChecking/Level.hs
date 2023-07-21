@@ -5,8 +5,6 @@ import Data.Maybe
 import qualified Data.List as List
 import Data.Traversable (Traversable)
 
-import Agda.Interaction.Options
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 

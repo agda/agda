@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.Decl where
@@ -51,7 +53,6 @@ import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
-import Agda.TypeChecking.Opacity
 
 import Agda.TypeChecking.Rules.Application
 import Agda.TypeChecking.Rules.Term

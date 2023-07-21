@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Free variable check that reduces the subject to make certain variables not
 --   free. Used when pruning metavariables in Agda.TypeChecking.MetaVars.Occurs.

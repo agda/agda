@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Ensures that all occurences of an abstract name share
 -- the same concrete name.
 --

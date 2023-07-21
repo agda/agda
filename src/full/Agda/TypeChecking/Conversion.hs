@@ -37,7 +37,6 @@ import qualified Agda.TypeChecking.SyntacticEquality as SynEq
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion.Pure (pureCompareAs, runPureConversion)
-import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (infer)
 import Agda.TypeChecking.Forcing (isForced, nextIsForced)
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Datatypes (getConType, getFullyAppliedConType)
@@ -67,7 +66,6 @@ import qualified Agda.Utils.BoolSet as BoolSet
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Unsafe ( unsafeComparePointers )
-import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
 

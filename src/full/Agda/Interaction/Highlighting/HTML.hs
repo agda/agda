@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Backend for generating highlighted, hyperlinked HTML from Agda sources.
 

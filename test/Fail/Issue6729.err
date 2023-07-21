@@ -1,0 +1,10 @@
+Issue6729.agda:1,1-2,13
+warning: -W[no]UselessOpaque
+This 'opaque' block has no effect.
+when scope checking the declaration
+  opaque
+    unfolding {}
+    test : Set
+Issue6729.agda:2,3-7
+The following names are declared but not accompanied by a
+definition: test

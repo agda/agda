@@ -1,4 +1,4 @@
-
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 {-| As a concrete name, a notation is a non-empty list of alternating 'IdPart's and holes.
     In contrast to concrete names, holes can be binders.

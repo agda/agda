@@ -40,7 +40,6 @@ import Control.Monad.IO.Class
   )
 
 import System.Directory
-import System.Exit
 import System.FilePath
 import System.Process
 

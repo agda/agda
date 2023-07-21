@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE CPP #-}
 
 module Agda.Compiler.Common where
@@ -20,8 +22,6 @@ import Control.Monad
 import Control.Monad.State
 
 import Agda.Syntax.Common
-import Agda.Syntax.Common.Pretty
-import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal as I
 import Agda.Syntax.TopLevelModuleName
 
@@ -37,7 +37,6 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1          ( pattern (:|) )
 import Agda.Utils.Maybe
-import Agda.Utils.Monad          ( ifNotM )
 import Agda.Utils.WithDefault    ( lensCollapseDefault )
 
 import Agda.Utils.Impossible

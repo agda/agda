@@ -14,7 +14,7 @@ import Prelude hiding ( null )
 import Data.Function (on)
 import Data.Maybe
 
-import Control.Arrow (left, second)
+import Control.Arrow (left)
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Reader
@@ -73,7 +73,6 @@ import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.ProblemRest
 import Agda.TypeChecking.Rules.LHS.Unify
 import Agda.TypeChecking.Rules.LHS.Implicit
-import Agda.TypeChecking.Rules.Data
 
 import Agda.Utils.CallStack ( HasCallStack, withCallerCallStack )
 import Agda.Utils.Function
@@ -81,7 +80,6 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
-import qualified Agda.Utils.List  as List
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -92,7 +90,6 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
-import Agda.Utils.WithDefault
 import Agda.TypeChecking.Free (freeIn)
 
 --UNUSED Liang-Ting Chen 2019-07-16

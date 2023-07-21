@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Auxiliary functions for the IO monad.
 
 module Agda.Utils.IO where

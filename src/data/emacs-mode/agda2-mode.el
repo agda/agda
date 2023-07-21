@@ -261,8 +261,8 @@ constituents.")
   "Table of commands, used to build keymaps and menus.
 Each element has the form (CMD &optional KEYS WHERE DESC) where
 CMD is a command; KEYS is its key binding (if any); WHERE is a
-list which should contain 'local if the command should exist in
-the goal menu and 'global if the command should exist in the main
+list which should contain \\='local if the command should exist in
+the goal menu and \\='global if the command should exist in the main
 menu; and DESC is the description of the command used in the
 menus.")
 

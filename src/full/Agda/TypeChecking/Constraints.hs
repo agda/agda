@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Constraints where
@@ -21,7 +23,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.LevelConstraints
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Sort
-import Agda.TypeChecking.MetaVars.Mention
 import Agda.TypeChecking.Warnings
 
 import Agda.TypeChecking.Irrelevance
@@ -36,7 +37,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Lock
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal ( checkType )
 
 import Agda.Utils.CallStack ( withCurrentCallStack )
-import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null

@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+
 module Agda.TypeChecking.IApplyConfluence where
 
 import Prelude hiding (null, (!!))  -- do not use partial functions like !!
@@ -16,7 +17,6 @@ import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
-import Agda.Syntax.Internal.Generic
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
@@ -32,7 +32,6 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
 
-import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Maybe
@@ -40,7 +39,6 @@ import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Impossible
 import Agda.Utils.Functor
-import Control.Monad.Reader
 
 
 checkIApplyConfluence_ :: QName -> TCM ()
@@ -102,8 +100,14 @@ checkIApplyConfluence f cl = case cl of
               -- generated clause in its context is loopy, see #6722
               k phi cmp ty u v | hasDefP ps = compareTerm cmp ty u v
               k phi cmp ty u v = do
-                u_e <- simplify u
-                ty_e <- simplify ty
+                u_e   <- simplify u
+                -- Issue #6725: Print these terms in their own TC state.
+                -- If printing the values before entering the conversion
+                -- checker is too expensive then we could save the TC
+                -- state and print them when erroring instead, but that
+                -- might cause space leaks.
+                (u_p, v_p) <- (,) <$> prettyTCM u_e <*> (prettyTCM =<< simplify v)
+
                 let
                   -- Make note of the context (literally): we're
                   -- checking that this specific clause in f is
@@ -116,18 +120,19 @@ checkIApplyConfluence f cl = case cl of
 
                   -- But if the conversion checking failed really early, we drop the extra
                   -- information. In that case, it's just noise.
-                  maybeDropCall e@(TypeError x y err)
-                    | UnequalTerms _ u' v' _ <- clValue err = do
-                      u <- prettyTCM u_e
-                      v <- prettyTCM =<< simplify v
-                      enterClosure err $ \e' -> do
+                  maybeDropCall e@(TypeError loc s err)
+                    | UnequalTerms _ u' v' _ <- clValue err =
+                      -- Issue #6725: restore the TC state from the
+                      -- error before dealing with the stored terms.
+                      withTCState (const s) $ enterClosure err $ \e' -> do
                         u' <- prettyTCM =<< simplify u'
                         v' <- prettyTCM =<< simplify v'
+
                         -- Specifically, we compare how the things are pretty-printed, to avoid
                         -- double-printing, rather than a more refined heuristic, since the
                         -- “failure case” here is *at worst* accidentally reminding the user of how
                         -- IApplyConfluence works.
-                        if (u == u' && v == v')
+                        if (u_p == u' && v_p == v')
                           then localTC (\e -> e { envCall = oldCall }) $ typeError e'
                           else throwError e
                   maybeDropCall x = throwError x

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 module Agda.Utils.CallStack.Base (
   -- * Simple type aliases

@@ -2,6 +2,8 @@
 -- Properties related to Any
 ------------------------------------------------------------------------
 
+{-# OPTIONS --allow-unsolved-metas #-}
+
 -- The other modules under Data.List.Any also contain properties
 -- related to Any.
 
@@ -367,37 +369,37 @@ private
     }
   }
 
--- return.
+-- pure.
 
 private
 
-  return⁺ : ∀ {a p} {A : Set a} {P : A → Set p} {x} →
-            P x → Any P (return x)
-  return⁺ = here
+  pure⁺ : ∀ {a p} {A : Set a} {P : A → Set p} {x} →
+            P x → Any P (pure x)
+  pure⁺ = here
 
-  return⁻ : ∀ {a p} {A : Set a} {P : A → Set p} {x} →
-            Any P (return x) → P x
-  return⁻ (here p)   = p
-  return⁻ (there ())
+  pure⁻ : ∀ {a p} {A : Set a} {P : A → Set p} {x} →
+            Any P (pure x) → P x
+  pure⁻ (here p)   = p
+  pure⁻ (there ())
 
-  return⁺∘return⁻ : ∀ {a p} {A : Set a} {P : A → Set p} {x}
-                    (p : Any P (return x)) →
-                    return⁺ (return⁻ p) ≡ p
-  return⁺∘return⁻ (here p)   = refl
-  return⁺∘return⁻ (there ())
+  pure⁺∘pure⁻ : ∀ {a p} {A : Set a} {P : A → Set p} {x}
+                    (p : Any P (pure x)) →
+                    pure⁺ (pure⁻ p) ≡ p
+  pure⁺∘pure⁻ (here p)   = refl
+  pure⁺∘pure⁻ (there ())
 
-  return⁻∘return⁺ : ∀ {a p} {A : Set a} (P : A → Set p) {x} (p : P x) →
-                    return⁻ {P = P} (return⁺ p) ≡ p
-  return⁻∘return⁺ P p = refl
+  pure⁻∘pure⁺ : ∀ {a p} {A : Set a} (P : A → Set p) {x} (p : P x) →
+                    pure⁻ {P = P} (pure⁺ p) ≡ p
+  pure⁻∘pure⁺ P p = refl
 
-return↔ : ∀ {a p} {A : Set a} {P : A → Set p} {x} →
-          P x ↔ Any P (return x)
-return↔ {P = P} = record
-  { to         = P.→-to-⟶ $ return⁺ {P = P}
-  ; from       = P.→-to-⟶ $ return⁻ {P = P}
+pure↔ : ∀ {a p} {A : Set a} {P : A → Set p} {x} →
+          P x ↔ Any P (pure x)
+pure↔ {P = P} = record
+  { to         = P.→-to-⟶ $ pure⁺ {P = P}
+  ; from       = P.→-to-⟶ $ pure⁻ {P = P}
   ; inverse-of = record
-    { left-inverse-of  = return⁻∘return⁺ P
-    ; right-inverse-of = return⁺∘return⁻
+    { left-inverse-of  = pure⁻∘pure⁺ P
+    ; right-inverse-of = pure⁺∘pure⁻
     }
   }
 
@@ -406,7 +408,7 @@ return↔ {P = P} = record
 ∷↔ : ∀ {a p} {A : Set a} (P : A → Set p) {x xs} →
      (P x ⊎ Any P xs) ↔ Any P (x ∷ xs)
 ∷↔ P {x} {xs} =
-  (P x         ⊎ Any P xs)  ↔⟨ return↔ {P = P} ⊎-cong (Any P xs ∎) ⟩
+  (P x         ⊎ Any P xs)  ↔⟨ pure↔ {P = P} ⊎-cong (Any P xs ∎) ⟩
   (Any P [ x ] ⊎ Any P xs)  ↔⟨ ++↔ {P = P} {xs = [ x ]} ⟩
   Any P (x ∷ xs)            ∎
 
@@ -482,10 +484,13 @@ concat↔ {P = P} {xss = xss} = record
        {fs : List (A → B)} {xs : List A} →
      Any (λ f → Any (P ∘ f) xs) fs ↔ Any P (fs ⊛ xs)
 ⊛↔ {ℓ} {P = P} {fs} {xs} =
-  Any (λ f → Any (P ∘ f) xs) fs               ↔⟨ Any-cong (λ _ → Any-cong (λ _ → return↔ {a = ℓ} {p = ℓ}) (_ ∎)) (_ ∎) ⟩
-  Any (λ f → Any (Any P ∘ return ∘ f) xs) fs  ↔⟨ Any-cong (λ _ → >>=↔ {ℓ = ℓ} {p = ℓ}) (_ ∎) ⟩
-  Any (λ f → Any P (xs >>= return ∘ f)) fs    ↔⟨ >>=↔ {ℓ = ℓ} {p = ℓ} ⟩
-  Any P (fs ⊛ xs)                             ∎
+  Any (λ f → Any (P ∘ f) xs) fs             ↔⟨ Any-cong (λ _ → Any-cong (λ _ → pure↔ {a = ℓ} {p = ℓ}) (_ ∎)) (_ ∎) ⟩
+  Any (λ f → Any (Any P ∘ pure ∘ f) xs) fs  ↔⟨ Any-cong (λ _ → >>=↔ {ℓ = ℓ} {p = ℓ}) (_ ∎) ⟩
+  Any (λ f → Any P (xs >>= pure ∘ f)) fs    ↔⟨ Any-cong (λ f → Any-cong (λ x → {!!}) {!!})  (_ ∎) ⟩  -- need right monad unit here
+  Any (λ f → Any P (f <$> xs)) fs           ↔⟨⟩
+  Any (Any P ∘ (_<$> xs)) fs                ↔⟨ >>=↔ {ℓ = ℓ} {p = ℓ} ⟩
+  Any P (fs >>= (_<$> xs))                  ↔⟨⟩
+  Any P (fs ⊛ xs)                           ∎
 
 -- An alternative introduction rule for _⊛_.
 
@@ -502,9 +507,10 @@ concat↔ {P = P} {xss = xss} = record
        {xs : List A} {ys : List B} →
      Any (λ x → Any (λ y → P (x , y)) ys) xs ↔ Any P (xs ⊗ ys)
 ⊗↔ {ℓ} {P = P} {xs} {ys} =
-  Any (λ x → Any (λ y → P (x , y)) ys) xs                             ↔⟨ return↔ {a = ℓ} {p = ℓ} ⟩
-  Any (λ _,_ → Any (λ x → Any (λ y → P (x , y)) ys) xs) (return _,_)  ↔⟨ ⊛↔ ⟩
-  Any (λ x, → Any (P ∘ x,) ys) (_,_ <$> xs)                           ↔⟨ ⊛↔ ⟩
+  Any (λ x → Any (λ y → P (x , y)) ys) xs                             ↔⟨ pure↔ {a = ℓ} {p = ℓ} ⟩
+  Any (λ _,_ → Any (λ x → Any (λ y → P (x , y)) ys) xs) (pure _,_)    ↔⟨ ⊛↔ ⟩
+  {!!}                                                                ↔⟨ {!!} ⟩
+  Any (λ x, → Any (P ∘ x,) ys) (_,_ <$> xs)                           ↔⟨  ⊛↔  ⟩
   Any P (xs ⊗ ys)                                                     ∎
 
 ⊗↔′ : {A B : Set} {P : A → Set} {Q : B → Set}

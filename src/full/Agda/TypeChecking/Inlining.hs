@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Logic for deciding which functions should be automatically inlined.
 module Agda.TypeChecking.Inlining (autoInline) where
 

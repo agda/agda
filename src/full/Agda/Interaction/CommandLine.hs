@@ -21,6 +21,7 @@ import Agda.Interaction.Monad
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Internal (telToList, alwaysUnblock)
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Parser
@@ -39,7 +40,6 @@ import Agda.TypeChecking.Warnings (runPM)
 
 import Agda.Utils.FileName (absolute, AbsolutePath)
 import Agda.Utils.Maybe (caseMaybeM)
-import Agda.Syntax.Common.Pretty
 
 import Agda.Utils.Impossible
 

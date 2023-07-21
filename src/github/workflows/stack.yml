@@ -11,7 +11,7 @@ on:
     - '.github/workflows/stack.yml'
     - 'Agda.cabal'
     - 'Setup.hs'
-    - 'stack-9.4.5.yaml'
+    - 'stack-9.6.2.yaml'
       # !!! MATCH THIS WITH ghc_ver IN THE matrix BELOW !!!
       #
     - 'src/size-solver/size-solver.cabal'
@@ -53,7 +53,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04,macos-12]
-        ghc-ver: [9.4.5]
+        ghc-ver: [9.6.2]
           # !!! MAKE SURE THIS GHC VERSION IS IN SYNC WITH trigger_path_list !!!
           #
           # The LTS snapshots are covered in workflow stack-dry-run.yml.
@@ -66,7 +66,7 @@ jobs:
           # adding the respective stack-x.y.z.yaml file.
         include:
         - os: windows-2022
-          ghc-ver: 9.4.5
+          ghc-ver: 9.6.2
           # !!! MAKE SURE THIS GHC VERSION IS IN SYNC WITH trigger_path_list !!!
 
     # # Try "allowed-failure" for Windows with GHC 9.2

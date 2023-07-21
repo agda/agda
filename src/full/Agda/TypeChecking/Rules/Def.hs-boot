@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.TypeChecking.Rules.Def where
 
 import Agda.Syntax.Abstract as A

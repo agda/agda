@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Small sets represented as a bitmask for fast membership checking.
 --
 -- With the exception of converting to/from lists, all operations are O(1).

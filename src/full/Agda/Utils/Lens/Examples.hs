@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Examples how to use "Agda.Utils.Lens".
 
 module Agda.Utils.Lens.Examples where

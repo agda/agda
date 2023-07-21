@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-| This module defines the things required by Alex and some other
     Alex related things.
 -}
