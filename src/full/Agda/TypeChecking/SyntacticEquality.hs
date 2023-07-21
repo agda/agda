@@ -1,3 +1,6 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
+
 -- | A syntactic equality check that takes meta instantiations into account,
 --   but does not reduce.  It replaces
 --   @
@@ -20,19 +23,15 @@ import Control.Monad            ( zipWithM )
 import Control.Monad.State      ( MonadState(..), StateT, runStateT )
 import Control.Monad.Trans      ( lift )
 
-import Agda.Interaction.Options ( optSyntacticEquality )
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Monad
-  (ReduceM, MonadReduce(..), TCEnv(..), MonadTCEnv(..), pragmaOptions,
-   isInstantiatedMeta)
+import Agda.TypeChecking.Monad  ( ReduceM, MonadReduce(..), TCEnv(..), MonadTCEnv(..) )
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
 import qualified Agda.Utils.Maybe.Strict as Strict
-import Agda.Utils.Monad (ifM, and2M)
+import Agda.Utils.Monad (ifM)
 import Agda.Utils.Unsafe (unsafeComparePointers)
 
 -- | Syntactic equality check for terms. If syntactic equality

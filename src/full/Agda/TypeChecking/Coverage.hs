@@ -36,7 +36,6 @@ import Agda.Syntax.Internal hiding (DataOrRecord(..))
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Translation.InternalToAbstract (NamedClause(..))
 
-import Agda.TypeChecking.Names
 import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Monad
 
@@ -60,7 +59,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Telescope.Path
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Warnings
 
@@ -78,7 +76,6 @@ import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
-import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
 import Data.IntMap (IntMap)

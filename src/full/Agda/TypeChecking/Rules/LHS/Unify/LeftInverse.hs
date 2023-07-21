@@ -1,69 +1,37 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE NondecreasingIndentation #-}
+
 module Agda.TypeChecking.Rules.LHS.Unify.LeftInverse where
 
 import Prelude hiding ((!!), null)
 
 import Control.Monad
 import Control.Monad.State
-import Control.Monad.Writer (WriterT(..), MonadWriter(..))
 import Control.Monad.Except
 
-import Data.Semigroup hiding (Arg)
-import qualified Data.List as List
-import qualified Data.IntSet as IntSet
-import qualified Data.IntMap as IntMap
-import Data.IntMap (IntMap)
 
-import qualified Agda.Benchmarking as Bench
-
-import Agda.Interaction.Options (optInjectiveTypeConstructors, optCubical, optWithoutK)
-
+import Agda.Interaction.Options (optCubical)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Monad
-import qualified Agda.TypeChecking.Monad.Benchmark as Bench
-import Agda.TypeChecking.Monad.Builtin -- (constructorForm, getTerm, builtinPathP)
 import Agda.TypeChecking.Primitive hiding (Nat)
-import Agda.TypeChecking.Primitive.Cubical
 import Agda.TypeChecking.Names
-import Agda.TypeChecking.Conversion -- equalTerm
-import Agda.TypeChecking.Conversion.Pure
-import Agda.TypeChecking.Constraints
-import Agda.TypeChecking.Datatypes
-import Agda.TypeChecking.Irrelevance
-import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Reduce
-import qualified Agda.TypeChecking.Patterns.Match as Match
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Free
-import Agda.TypeChecking.Free.Precompute
-import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Records
 
 import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.Unify.Types
 
-import Agda.Utils.Empty
-import Agda.Utils.Benchmark
-import Agda.Utils.Either
-import Agda.Utils.Function
-import Agda.Utils.Functor
-import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.ListT
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.PartialOrd
-import Agda.Utils.Permutation
-import Agda.Utils.Singleton
 import Agda.Utils.Size
-import Agda.Utils.WithDefault
-import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 

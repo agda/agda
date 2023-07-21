@@ -68,7 +68,7 @@ import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Pretty.Warning
+import Agda.TypeChecking.Pretty.Warning    ()
 import Agda.TypeChecking.Pretty.Constraint
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
@@ -80,7 +80,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
 
-import Agda.Utils.Applicative
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.Lens

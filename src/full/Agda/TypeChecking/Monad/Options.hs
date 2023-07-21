@@ -3,7 +3,6 @@ module Agda.TypeChecking.Monad.Options where
 
 import Prelude hiding (null)
 
-import Control.Arrow          ( (&&&) )
 import Control.Monad          ( unless, when )
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Except
@@ -13,7 +12,6 @@ import Control.Monad.Writer
 
 import qualified Data.Graph as Graph
 import Data.List (sort)
-import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
 
@@ -21,8 +19,6 @@ import System.Directory
 import System.FilePath
 
 import Agda.Syntax.Common
-import qualified Agda.Syntax.Concrete as C
-import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.TopLevelModuleName
 
 import Agda.TypeChecking.Monad.Debug (reportSDoc)
@@ -40,15 +36,12 @@ import Agda.Interaction.Library
 import Agda.Interaction.Library.Base (libAbove, libFile)
 
 import Agda.Utils.FileName
-import Agda.Utils.Functor
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as G
 import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.Size
-import Agda.Utils.Tuple
 import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible

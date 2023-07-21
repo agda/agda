@@ -1,7 +1,7 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 module Agda.TypeChecking.Quote where
 
-import Control.Arrow ((&&&))
 import Control.Monad
 
 import Data.Maybe (fromMaybe)
@@ -10,13 +10,11 @@ import qualified Data.Text as T
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
-import Agda.Syntax.Internal.Pattern ( hasDefP, dbPatPerm )
+import Agda.Syntax.Internal.Pattern ( hasDefP )
 import Agda.Syntax.Literal
-import Agda.Syntax.Position
 import Agda.Syntax.TopLevelModuleName
 
 import Agda.TypeChecking.CompiledClause
-import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -25,7 +23,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Impossible
-import Agda.Utils.FileName
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Pretty (prettyShow)

@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE NondecreasingIndentation #-}
 {-# LANGUAGE GADTs #-}
 
@@ -26,7 +28,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
 import Agda.Syntax.Internal.MetaVars
-import Agda.Syntax.Position (getRange, killRange)
+import Agda.Syntax.Position (getRange)
 
 import Agda.TypeChecking.Monad
 -- import Agda.TypeChecking.Monad.Builtin
@@ -66,7 +68,6 @@ import Agda.Utils.Singleton
 import qualified Agda.Utils.Graph.TopSort as Graph
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
-import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
 

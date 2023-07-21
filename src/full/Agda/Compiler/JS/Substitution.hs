@@ -11,7 +11,6 @@ import Agda.Compiler.JS.Syntax
   ( Exp(Self,Undefined,Local,Lambda,Object,Array,Apply,Lookup,If,BinOp,PreOp),
     MemberId, LocalId(LocalId) )
 import Agda.Utils.Function ( iterate' )
-import Agda.Utils.List ( indexWithDefault )
 
 -- Map for expressions
 

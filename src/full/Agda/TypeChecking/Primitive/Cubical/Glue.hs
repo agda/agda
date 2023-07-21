@@ -1,4 +1,7 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE NondecreasingIndentation #-}
+
 module Agda.TypeChecking.Primitive.Cubical.Glue
   ( mkGComp
   , doGlueKanOp
@@ -9,40 +12,38 @@ module Agda.TypeChecking.Primitive.Cubical.Glue
   )
   where
 
-import Control.Monad.Except
-
-import Agda.Utils.Functor
-import Agda.Utils.Monad
-import Agda.Utils.Maybe
-
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Pure
-import Agda.TypeChecking.Monad.Env
-import Agda.TypeChecking.Substitute (absBody, apply, sort, subst, applyE)
-import Agda.TypeChecking.Reduce (reduceB', reduce')
-import Agda.TypeChecking.Names (NamesT, runNamesT, runNames, cl, lam, open, ilam)
 
-import Agda.Interaction.Options.Base (optCubical)
+import Agda.TypeChecking.Names
+  ( NamesT, runNamesT, runNames, cl, lam, open, ilam )
+import Agda.TypeChecking.Primitive.Cubical.Base
+import Agda.TypeChecking.Reduce
+  ( reduceB' )
+import Agda.TypeChecking.Substitute
+  ( absBody, apply, sort, subst, applyE )
 
 import Agda.Syntax.Common
   ( Hiding(..), Cubical(..), Arg(..)
   , ConOrigin(..), ProjOrigin(..)
   , Relevance(..)
   , setRelevance
-  , defaultArgInfo, hasQuantity0, defaultArg, setHiding
+  , setHiding
   )
+import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Primitive.Base
-  ( (-->), nPi', pPi', hPi', el, el', el's, (<@>), (<@@>), (<#>), argN, argH, (<..>)
+  ( (-->), nPi', pPi', hPi', el, el', (<@>), (<@@>), (<#>), argN, argH, (<..>)
   , SigmaKit(..), getSigmaKit
   )
 
-import Agda.Syntax.Internal
-import Agda.Utils.Impossible (__IMPOSSIBLE__)
-import Agda.TypeChecking.Monad.Debug (__IMPOSSIBLE_VERBOSE__)
+import Agda.Utils.Functor
+import Agda.Utils.Maybe
+import Agda.Utils.Monad
 
-import Agda.TypeChecking.Primitive.Cubical.Base
+import Agda.Utils.Impossible
+  ( __IMPOSSIBLE__ )
 
 -- | Define a "ghcomp" version of gcomp. Normal comp looks like:
 --

@@ -15,9 +15,6 @@ import Control.Monad.Writer         ( WriterT, execWriterT, tell )
 import Control.Monad.Fail (MonadFail)
 
 import qualified Data.HashMap.Strict as HMap
-import qualified Data.IntMap as IntMap
-import Data.IntSet (IntSet)
-import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import qualified Data.Map.Strict as MapS
 import Data.Set (Set)
@@ -54,7 +51,6 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
-import Agda.Utils.Tuple
 import qualified Agda.Utils.Maybe.Strict as Strict
 
 import Agda.Utils.Impossible

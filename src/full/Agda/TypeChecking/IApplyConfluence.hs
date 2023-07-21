@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+
 module Agda.TypeChecking.IApplyConfluence where
 
 import Prelude hiding (null, (!!))  -- do not use partial functions like !!
@@ -16,7 +17,6 @@ import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
-import Agda.Syntax.Internal.Generic
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
@@ -32,7 +32,6 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
 
-import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Maybe
@@ -40,7 +39,6 @@ import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Impossible
 import Agda.Utils.Functor
-import Control.Monad.Reader
 
 
 checkIApplyConfluence_ :: QName -> TCM ()

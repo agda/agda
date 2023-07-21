@@ -13,7 +13,7 @@ module Agda.Interaction.EmacsCommand
   , displayRunningInfo
   ) where
 
-import qualified Data.List as List
+-- import qualified Data.List as List
 
 import Agda.Utils.Pretty
 import Agda.Utils.String

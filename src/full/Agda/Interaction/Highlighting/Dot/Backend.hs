@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 module Agda.Interaction.Highlighting.Dot.Backend
   ( dotBackend
@@ -40,7 +41,7 @@ import Agda.Interaction.Options
 import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 
 import Agda.TypeChecking.Monad
-  ( Interface(iImportedModules, iModuleName)
+  ( Interface(iImportedModules)
   , MonadTCError
   , ReadTCState
   , MonadTCM(..)

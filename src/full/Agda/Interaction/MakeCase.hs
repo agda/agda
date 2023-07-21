@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.Interaction.MakeCase where
@@ -31,13 +33,11 @@ import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Coverage.Match ( SplitPatVar(..) , SplitPattern , applySplitPSubst , fromSplitPatterns )
 import Agda.TypeChecking.Empty ( isEmptyTel )
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rules.Def (checkClauseLHS)
 import Agda.TypeChecking.Rules.LHS (LHSResult(..))
 import Agda.TypeChecking.Rules.LHS.Problem (AsBinding(..))
 
 import Agda.Interaction.Options
-import Agda.Interaction.BasicOps
 
 import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Function
@@ -46,9 +46,7 @@ import Agda.Utils.Lens   (set)
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.Pretty as P
-import Agda.Utils.Size
 import Agda.Utils.WithDefault (lensKeepDefault)
 
 import Agda.Utils.Impossible

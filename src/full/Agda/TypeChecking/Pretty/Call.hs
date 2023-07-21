@@ -1,3 +1,6 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
+
 
 module Agda.TypeChecking.Pretty.Call where
 
@@ -18,7 +21,6 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Monad.Context
-import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Pretty
 

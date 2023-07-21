@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.SizedTypes where
@@ -9,7 +11,6 @@ import Control.Monad.Writer ( MonadWriter(..), WriterT(..), runWriterT )
 
 import qualified Data.Foldable as Fold
 import qualified Data.List as List
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Set (Set)
 
@@ -19,14 +20,13 @@ import Agda.Syntax.Internal.MetaVars
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Pretty.Constraint
+import Agda.TypeChecking.Pretty.Constraint () -- instance PrettyTCM Constraint
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (MonadCheckInternal, infer)
+import {-# SOURCE #-} Agda.TypeChecking.Constraints () -- instance MonadConstraint TCM
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
-import {-# SOURCE #-} Agda.TypeChecking.Constraints
 
 import Agda.Utils.Functor
 import Agda.Utils.List as List
@@ -34,14 +34,13 @@ import Agda.Utils.List1 (pattern (:|))
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty (Pretty, prettyShow)
+import Agda.Utils.Pretty (Pretty)
 import qualified Agda.Utils.ProfileOptions as Profile
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
 import qualified Agda.Utils.Pretty as P
-import qualified Agda.Utils.Warshall as W
 
 import Agda.Utils.Impossible
 

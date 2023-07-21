@@ -29,42 +29,30 @@ module Agda.Interaction.Highlighting.Precise
 
 import Prelude hiding (null)
 
-import Control.Arrow (second)
 import Control.DeepSeq
-import Control.Monad
 
 import Data.Function (on)
-import qualified Data.List as List
-import Data.Maybe
 import Data.Semigroup
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-
-import Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
-
 import Data.Set (Set)
 import qualified Data.Set as Set
 
 import GHC.Generics (Generic)
 
-import qualified Agda.Syntax.Position as P
 import qualified Agda.Syntax.Common   as Common
 import Agda.Syntax.TopLevelModuleName
 import Agda.Syntax.Scope.Base                   ( KindOfName(..) )
 
 import Agda.Interaction.Highlighting.Range
 
-import Agda.Utils.List
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.RangeMap (RangeMap, IsBasicRangeMap(..))
 import qualified Agda.Utils.RangeMap as RangeMap
 import Agda.Utils.String
-
-import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
 -- Highlighting information

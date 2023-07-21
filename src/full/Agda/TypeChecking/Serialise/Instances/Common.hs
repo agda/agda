@@ -47,14 +47,10 @@ import Agda.TypeChecking.Serialise.Base
 
 import Agda.Utils.BiMap (BiMap)
 import qualified Agda.Utils.BiMap as BiMap
-import qualified Agda.Utils.Empty as Empty
-import Agda.Utils.FileName
-import qualified Agda.Utils.HashTable as H
 import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.List2 (List2(List2))
 import qualified Agda.Utils.List2 as List2
-import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Trie (Trie(..))
 import Agda.Utils.WithDefault

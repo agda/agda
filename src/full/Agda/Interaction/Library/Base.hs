@@ -13,8 +13,6 @@ import Control.Monad.Writer        ( WriterT, MonadWriter, tell )
 import Control.Monad.IO.Class      ( MonadIO(..) )
 
 import Data.Bifunctor              ( first , second )
-import Data.Char                   ( isDigit )
-import qualified Data.List         as List
 import Data.Map                    ( Map )
 import qualified Data.Map          as Map
 import Data.Semigroup              ( Semigroup(..) )
@@ -23,13 +21,11 @@ import Data.Text                   ( Text, unpack )
 import GHC.Generics                ( Generic )
 
 import System.Directory
-import System.FilePath
 
 import Agda.Interaction.Options.Warnings
 
 import Agda.Syntax.Position
 
-import Agda.Utils.FileName
 import Agda.Utils.Lens
 import Agda.Utils.List1            ( List1, toList )
 import Agda.Utils.List2            ( List2, toList )

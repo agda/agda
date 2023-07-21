@@ -1,5 +1,6 @@
 -- | Implementations of the basic primitives of Cubical Agda: The
 -- interval and its operations.
+
 module Agda.TypeChecking.Primitive.Cubical.Base
   ( requireCubical
   , primIntervalType
@@ -39,7 +40,6 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Pure
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Env
 
 import Agda.TypeChecking.Substitute.Class (absBody, raise, apply)
 
@@ -52,7 +52,7 @@ import Agda.Syntax.Common
   (Cubical(..), Arg(..), Relevance(..), setRelevance, defaultArgInfo, hasQuantity0)
 
 import Agda.TypeChecking.Primitive.Base
-  (SigmaKit(..), (-->), el', nPi', pPi', (<@>), (<#>), (<..>), argN, getSigmaKit)
+  (SigmaKit(..), (-->), nPi', pPi', (<@>), (<#>), (<..>), argN, getSigmaKit)
 
 import Agda.Syntax.Internal
 

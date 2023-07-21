@@ -11,8 +11,8 @@ import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (TerminationCheck())
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Concrete
-import Agda.Syntax.Concrete.Name
-import Agda.Syntax.Concrete.Pretty
+import Agda.Syntax.Concrete.Name   ()
+import Agda.Syntax.Concrete.Pretty ()
 
 import Agda.Utils.Pretty
 import Agda.Utils.Impossible

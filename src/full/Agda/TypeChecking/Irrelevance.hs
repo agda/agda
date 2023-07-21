@@ -1,3 +1,6 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
+
 {-# LANGUAGE NondecreasingIndentation #-}
 
 {-| Compile-time irrelevance.

@@ -46,12 +46,11 @@ import qualified Data.HashMap.Strict as HMap
 import qualified Data.HashSet as HSet
 import Data.Set (Set)
 import qualified Data.Set as Set
-import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import qualified Data.Text.Lazy as TL
 
 import System.Directory (doesFileExist, removeFile)
-import System.FilePath ((</>), takeDirectory)
+import System.FilePath  ( (</>) )
 
 import Agda.Benchmarking
 
@@ -103,7 +102,6 @@ import Agda.Utils.Pretty hiding (Mode)
 import qualified Agda.Utils.ProfileOptions as Profile
 import Agda.Utils.Hash
 import qualified Agda.Utils.Trie as Trie
-import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
 

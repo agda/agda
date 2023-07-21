@@ -3,8 +3,6 @@
 -}
 module Agda.Syntax.Concrete.Name where
 
-import Prelude hiding ((!!))
-
 import Control.DeepSeq
 
 import Data.ByteString.Char8 (ByteString)
@@ -14,11 +12,10 @@ import qualified Data.Foldable as Fold
 import GHC.Generics (Generic)
 
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete.Glyph
 import Agda.Syntax.Position
 
 import Agda.Utils.Lens
-import Agda.Utils.List  ((!!), last1)
+import Agda.Utils.List  (last1)
 import Agda.Utils.List1 (List1, pattern (:|), (<|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Pretty

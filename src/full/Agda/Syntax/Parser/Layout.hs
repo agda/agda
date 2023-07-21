@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 {-| This module contains the lex actions that handle the layout rules. The way
     it works is that the 'Parser' monad keeps track of a stack of
@@ -118,8 +119,6 @@ import Agda.Syntax.Parser.LexActions
 import Agda.Syntax.Position
 
 import Agda.Utils.Functor ((<&>))
-
-import Agda.Utils.Impossible
 
 {-| Executed for the first token in each line (see 'Agda.Syntax.Parser.Lexer.bol'),
     except when the last token was a layout keyword.

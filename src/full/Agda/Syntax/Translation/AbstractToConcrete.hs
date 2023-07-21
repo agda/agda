@@ -26,7 +26,6 @@ module Agda.Syntax.Translation.AbstractToConcrete
 
 import Prelude hiding (null)
 
-import Control.Arrow        ( (&&&), first )
 import Control.Monad        ( (<=<), forM, forM_, guard, liftM2 )
 import Control.Monad.Except ( runExceptT )
 import Control.Monad.Reader ( MonadReader(..), asks, runReaderT )
@@ -34,6 +33,7 @@ import Control.Monad.State  ( StateT(..), runStateT )
 
 import qualified Control.Monad.Fail as Fail
 
+import Data.Bifunctor       ( first )
 import qualified Data.Map as Map
 import Data.Maybe
 import Data.Monoid hiding ((<>))

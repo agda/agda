@@ -45,7 +45,6 @@ import Agda.Syntax.Concrete.Attribute
 import Agda.Syntax.Position
 import Agda.Syntax.Parser.Tokens ( Keyword( KwMutual ) )
 
-import Agda.Utils.FileName
 import Agda.Utils.List ( tailWithDefault )
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Pretty

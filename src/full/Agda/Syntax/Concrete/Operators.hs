@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE PatternSynonyms #-}
 
@@ -27,8 +29,6 @@ import Data.Function (on)
 import qualified Data.Function
 import qualified Data.List as List
 import Data.Maybe
-import Data.Map (Map)
-import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Traversable as Trav
@@ -38,7 +38,6 @@ import Agda.Syntax.Concrete hiding (appView)
 import Agda.Syntax.Concrete.Operators.Parser
 import Agda.Syntax.Concrete.Operators.Parser.Monad hiding (parse)
 import Agda.Syntax.Concrete.Pattern
-import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Position
 import Agda.Syntax.Notation
 import Agda.Syntax.Scope.Base

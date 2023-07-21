@@ -1,4 +1,7 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE NondecreasingIndentation #-}
+
 module Agda.TypeChecking.Lock
   ( isTimeless
   , checkLockedVars
@@ -12,13 +15,12 @@ import qualified Data.IntMap as IMap
 import qualified Data.IntSet as ISet
 import qualified Data.Set as Set
 
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Constraints
+import Agda.TypeChecking.Constraints () -- instance MonadConstraint TCM
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute.Class
 import Agda.TypeChecking.Free
@@ -29,8 +31,6 @@ import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
-
-import Agda.Utils.Impossible
 
 checkLockedVars
   :: Term

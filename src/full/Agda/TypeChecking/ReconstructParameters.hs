@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Reconstruct dropped parameters from constructors.  Used by
 --   with-abstraction to avoid ill-typed abstractions (#745). Note that the
@@ -7,7 +8,6 @@
 module Agda.TypeChecking.ReconstructParameters where
 
 import Data.Functor ( ($>) )
-import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal

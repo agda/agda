@@ -56,9 +56,8 @@ import Data.IORef
 import Data.STRef
 import Data.Char
 
-import Agda.Syntax.Internal
 import Agda.Syntax.Common
-import Agda.Syntax.Position
+import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.CompiledClause

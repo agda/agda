@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.Syntax.Parser.Layout where
 
 import Agda.Syntax.Parser.Alex   (LexAction)

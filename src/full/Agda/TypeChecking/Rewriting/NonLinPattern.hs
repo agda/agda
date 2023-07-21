@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE NondecreasingIndentation #-}
 
 {- | Various utility functions dealing with the non-linear, higher-order
@@ -32,11 +34,9 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Primitive.Cubical.Base
 
-import Agda.Utils.Either
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.List
-import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Singleton

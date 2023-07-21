@@ -16,7 +16,6 @@ import Agda.Syntax.Concrete (Expr(..))
 import Agda.Syntax.Concrete.Pretty () --instance only
 import Agda.Syntax.Position
 
-import Agda.Utils.List1 (List1, pattern (:|))
 import Agda.Utils.Pretty (prettyShow)
 
 import Agda.Utils.Impossible

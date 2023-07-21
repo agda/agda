@@ -15,7 +15,6 @@ import Control.Monad.Fail (MonadFail)
 
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.List (nub)
 
 import Agda.Interaction.Options.Base
 
@@ -24,7 +23,6 @@ import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Abstract.Views (deepUnscope)
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Internal.MetaVars (unblockOnAnyMetaIn)
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as Info
@@ -53,14 +51,11 @@ import Agda.Utils.Either
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor
 import Agda.Utils.List
-import Agda.Utils.List1 (List1, pattern (:|))
-import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
-import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
 

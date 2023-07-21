@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 module Agda.TypeChecking.Generalize
   ( generalizeType
@@ -55,7 +56,6 @@ import Agda.Utils.Null
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow, singPlural)
-import Agda.Utils.Tuple
 
 -- | Generalize a telescope over a set of generalizable variables.
 generalizeTelescope :: Map QName Name -> (forall a. (Telescope -> TCM a) -> TCM a) -> ([Maybe Name] -> Telescope -> TCM a) -> TCM a

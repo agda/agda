@@ -13,7 +13,6 @@ import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
 import {-# SOURCE #-} Agda.Syntax.TopLevelModuleName
   (TopLevelModuleName)
-import Agda.Utils.FileName
 import Agda.Utils.Float ( doubleDenotEq, doubleDenotOrd )
 import Agda.Utils.Pretty
 

@@ -46,7 +46,7 @@ import qualified Control.Exception as E
 import Control.Monad          ( filterM, forM )
 import Control.Monad.Except
 import Control.Monad.State
-import Control.Monad.Writer   ( Writer, runWriter, WriterT(WriterT), runWriterT, tell )
+import Control.Monad.Writer   ( Writer, runWriterT, tell )
 import Control.Monad.IO.Class ( MonadIO(..) )
 
 import Data.Char
@@ -54,18 +54,15 @@ import Data.Either
 import Data.Function (on)
 import Data.Map ( Map )
 import qualified Data.Map as Map
-import Data.Maybe ( catMaybes, fromMaybe )
 import qualified Data.List as List
 import qualified Data.Text as T
 
 import System.Directory
 import System.FilePath
 import System.Environment
-import Text.Printf
 
 import Agda.Interaction.Library.Base
 import Agda.Interaction.Library.Parse
-import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.Environment
 import Agda.Utils.FileName

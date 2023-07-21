@@ -32,7 +32,6 @@ import Data.List ( intercalate )
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
-import qualified Data.IntMap as IntMap
 import Data.Foldable
 import Data.Traversable
 import Data.HashMap.Strict (HashMap)
@@ -48,7 +47,6 @@ import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
 
 import {-# SOURCE #-} Agda.TypeChecking.Irrelevance (isPropM)
-import {-# SOURCE #-} Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Monad hiding ( enterClosure, constructorForm )
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.CompiledClause
@@ -66,7 +64,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Opacity
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)

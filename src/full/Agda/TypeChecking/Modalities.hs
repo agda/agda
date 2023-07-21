@@ -1,22 +1,18 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.TypeChecking.Modalities
   ( checkModality'
   , checkModality
   , checkModalityArgs
   ) where
 
-import Control.Monad
-import Control.Monad.Except
 import Control.Applicative ((<|>))
-
-import Agda.Utils.Maybe
-import Agda.Utils.Monad
-import Agda.Utils.Lens
+import Control.Monad
 
 import Agda.Interaction.Options
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Abstract.Name
 
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Errors
@@ -25,6 +21,9 @@ import Agda.TypeChecking.Free.Lazy
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
+
+import Agda.Utils.Maybe
+import Agda.Utils.Monad
 
 -- | The second argument is the definition of the first.
 --   Returns 'Nothing' if ok, otherwise the error message.

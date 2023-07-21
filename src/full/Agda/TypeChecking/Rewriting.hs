@@ -60,7 +60,6 @@ import Agda.Interaction.Options
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
-import Agda.Syntax.Internal.MetaVars
 
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Monad

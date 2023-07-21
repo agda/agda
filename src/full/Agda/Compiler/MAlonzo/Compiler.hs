@@ -45,11 +45,9 @@ import Agda.Compiler.Treeless.Unused
 import Agda.Compiler.Treeless.Erase
 import Agda.Compiler.Backend
 
-import Agda.Interaction.Imports
 import Agda.Interaction.Options
 
 import Agda.Syntax.Common
-import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Names (namesIn)
 import qualified Agda.Syntax.Treeless as T
@@ -58,7 +56,6 @@ import Agda.Syntax.TopLevelModuleName
 
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Primitive (getBuiltinName)
-import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty hiding ((<>))
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -74,10 +71,9 @@ import Agda.Utils.List
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Pretty (prettyShow, render)
+import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import qualified Agda.Utils.IO.UTF8 as UTF8
-import Agda.Utils.String
 
 import Paths_Agda
 

@@ -23,7 +23,6 @@ module Agda.Interaction.Highlighting.Generate
 import Prelude hiding (null)
 
 import Control.Monad
-import Control.Arrow (second)
 
 import qualified Data.Foldable as Fold
 import qualified Data.Map as Map
@@ -71,7 +70,7 @@ import Agda.Syntax.Scope.Base     ( WithKind(..) )
 import Agda.Syntax.Abstract.Views ( KName, declaredNames )
 
 import Agda.Utils.FileName
-import Agda.Utils.List            ( caseList, initWithDefault, last1 )
+import Agda.Utils.List            ( caseList, last1 )
 import Agda.Utils.List2           ( List2 )
 import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe

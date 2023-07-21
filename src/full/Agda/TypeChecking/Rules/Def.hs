@@ -74,7 +74,6 @@ import Agda.Utils.Size
 import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
-import Agda.Utils.WithDefault
 
 ---------------------------------------------------------------------------
 -- * Definitions by pattern matching

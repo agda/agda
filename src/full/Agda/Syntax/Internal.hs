@@ -18,10 +18,6 @@ import Data.Function (on)
 import qualified Data.List as List
 import Data.Maybe
 import Data.Semigroup ( Semigroup, (<>), Sum(..) )
-import qualified Data.Set as Set
-import Data.Set (Set)
-
-import Data.Traversable
 
 import GHC.Generics (Generic)
 
@@ -42,15 +38,12 @@ import Agda.Utils.CallStack
     , withCallerCallStack
     )
 
-import Agda.Utils.Empty
-
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Null
 import Agda.Utils.Size
 import Agda.Utils.Pretty
-import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 

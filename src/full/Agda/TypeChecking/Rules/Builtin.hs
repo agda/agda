@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.Builtin
@@ -31,10 +33,8 @@ import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.CompiledClause as CC
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints ( noConstraints )
-import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Names
-import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Positivity.Occurrence

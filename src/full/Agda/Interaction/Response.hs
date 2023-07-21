@@ -33,7 +33,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common         (InteractionId(..), Arg)
 import Agda.Syntax.Concrete       (Expr)
 import Agda.Syntax.Concrete.Name  (Name, QName, NameInScope)
-import Agda.Syntax.Scope.Base     (AbstractModule, AbstractName, LocalVar, WhyInScopeData)
+import Agda.Syntax.Scope.Base     (WhyInScopeData)
 import qualified Agda.Syntax.Internal as I
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
   (TCM, TCErr, TCWarning, HighlightingMethod, ModuleToSource, NamedMeta, TCWarning, IPFace')

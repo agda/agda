@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.Interaction.EmacsTop
     ( mimicGHCi
     , namedMetaOf
@@ -15,10 +17,7 @@ import Control.Monad.Trans    ( lift )
 import qualified Data.List as List
 
 import Agda.Syntax.Common
-import Agda.Syntax.Position
-import Agda.Syntax.Scope.Base
 import Agda.Syntax.Abstract.Pretty (prettyATop)
-import Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete as C
 
 import Agda.TypeChecking.Errors ( explainWhyInScope, getAllWarningsOfTCErr, prettyError, verbalize )

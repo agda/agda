@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 module Agda.TypeChecking.Monad.Imports
   ( addImport
@@ -23,13 +24,11 @@ import Control.Monad   ( when )
 import qualified Data.HashSet as HSet
 import qualified Data.Map as Map
 
-import Agda.Syntax.Abstract.Name
 import Agda.Syntax.TopLevelModuleName
 import Agda.TypeChecking.Monad.Base
 
 import Agda.Utils.List ( caseListM )
 import Agda.Utils.Pretty
-
 
 import Agda.Utils.Impossible
 

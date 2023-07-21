@@ -29,11 +29,10 @@ import Agda.TypeChecking.Monad.State ( getScope )
 import Agda.TypeChecking.Monad ( localTCState, enterClosure )
 import Agda.TypeChecking.Positivity () --instance only
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Pretty.Call
+import Agda.TypeChecking.Pretty.Call () -- instance PrettyTCM CallInfo
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Constraint (prettyInterestingConstraints, interestingConstraint)
 import Agda.TypeChecking.Warnings (MonadWarning, isUnsolvedWarning, onlyShowIfUnsolved, classifyWarning, WhichWarnings(..), warning_)
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
-import Agda.TypeChecking.Monad.Constraints (getAllConstraints)
 
 import Agda.Syntax.Common ( ImportedName'(..), fromImportedName, partitionImportedNames )
 import Agda.Syntax.Position
@@ -45,7 +44,6 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 
-import Agda.Utils.Monad
 import Agda.Utils.Lens
 import Agda.Utils.List ( editDistance )
 import qualified Agda.Utils.List1 as List1
