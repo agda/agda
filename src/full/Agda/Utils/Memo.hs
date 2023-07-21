@@ -13,7 +13,7 @@ import Agda.Utils.Lens
 -- Simple memoisation in a state monad
 
 -- | Simple, non-reentrant memoisation.
-memo :: MonadState s m => Lens' (Maybe a) s -> m a -> m a
+memo :: MonadState s m => Lens' s (Maybe a) -> m a -> m a
 memo tbl compute = do
   mv <- use tbl
   case mv of
@@ -24,7 +24,7 @@ memo tbl compute = do
 
 -- | Recursive memoisation, second argument is the value you get
 --   on recursive calls.
-memoRec :: MonadState s m => Lens' (Maybe a) s -> a -> m a -> m a
+memoRec :: MonadState s m => Lens' s (Maybe a) -> a -> m a -> m a
 memoRec tbl ih compute = do
   mv <- use tbl
   case mv of
@@ -63,4 +63,3 @@ memoUnsafeH f = unsafePerformIO $ do
           let y = f x
           writeIORef tbl (HMap.insert x y m)
           return y
-

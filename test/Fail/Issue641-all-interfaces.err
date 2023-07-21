@@ -59,7 +59,7 @@ Wrote interface file.
 Finished writing to interface file.
 Accumulated statistics.
 Finished Agda.Primitive.Cubical.
-  imports: [(Agda.Primitive, 14779601633403896248)]
+  imports: [(Agda.Primitive, 450520314077838934)]
   Already visited Agda.Primitive
   New module. Let's check it out.
 Merging interface

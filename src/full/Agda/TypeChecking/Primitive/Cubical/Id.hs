@@ -122,7 +122,7 @@ primConId' = do
         -- cases: If the cofibration is definitely true, then we return
         -- reflId.  TODO: Handle this in the conversion checker instead?
         IOne -> do
-          reflId <- getTerm builtinConId builtinReflId
+          reflId <- getTerm (getBuiltinId builtinConId) builtinReflId
           redReturn $ reflId
         _ -> return $ NoReduction $ map notReduced [l,bA,x,y] ++ [reduced sphi, notReduced p]
     _ -> __IMPOSSIBLE_VERBOSE__ "implementation of primConId called with wrong arity"
@@ -202,7 +202,8 @@ doIdKanOp
     -- ^ Domain, left and right endpoints of the identity type
   -> ReduceM (Maybe (Reduced t Term))
 doIdKanOp kanOp l bA_x_y = do
-  let getTermLocal = getTerm $ kanOpName kanOp ++ " for " ++ builtinId
+  let getTermLocal :: IsBuiltin a => a -> ReduceM Term
+      getTermLocal = getTerm $ kanOpName kanOp ++ " for " ++ getBuiltinId builtinId
 
   unview <- intervalUnview'
   mConId <- getName' builtinConId
@@ -225,9 +226,9 @@ doIdKanOp kanOp l bA_x_y = do
     Just conid | isConId (unArg . ignoreBlocking $ sa0), b -> (Just <$>) . (redReturn =<<) $ do
       tHComp    <- getTermLocal builtinHComp
       tTrans    <- getTermLocal builtinTrans
-      tIMin     <- getTermLocal "primDepIMin"
-      idFace    <- getTermLocal "primIdFace"
-      idPath    <- getTermLocal "primIdPath"
+      tIMin     <- getTermLocal builtinDepIMin
+      idFace    <- getTermLocal builtinIdFace
+      idPath    <- getTermLocal builtinIdPath
       tPathType <- getTermLocal builtinPath
       tConId    <- getTermLocal builtinConId
 

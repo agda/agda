@@ -62,7 +62,6 @@ import Agda.TypeChecking.With
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Coverage.Match ( SplitPattern )
 import Agda.TypeChecking.Records
-import Agda.TypeChecking.Irrelevance (wakeIrrelevantVars)
 import Agda.TypeChecking.Pretty ( PrettyTCM, prettyTCM )
 import Agda.TypeChecking.Pretty.Constraint (prettyRangeConstraint)
 import Agda.TypeChecking.IApplyConfluence
@@ -78,6 +77,7 @@ import Agda.TypeChecking.Warnings
 
 import Agda.Termination.TermCheck (termMutual)
 
+import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -484,7 +484,7 @@ instance Reify Constraint where
             (,,) <$> reify tm <*> reify tm <*> reify ty)
     reify (IsEmpty r a) = IsEmptyType <$> reify a
     reify (CheckSizeLtSat a) = SizeLtSat  <$> reify a
-    reify (CheckFunDef d i q cs err) = do
+    reify (CheckFunDef i q cs err) = do
       a <- reify =<< defType <$> getConstInfo q
       return $ PostponedCheckFunDef q a err
     reify (HasBiggerSort a) = OfType <$> reify a <*> reify (UnivSort a)
@@ -964,10 +964,14 @@ metaHelperType norm ii rng s = case words s of
     A.Application h args <- A.appView . getBody . deepUnscope <$> parseExprIn ii rng ("let " ++ f ++ " = _ in " ++ s)
     inCxt   <- hasElem <$> getContextNames
     cxtArgs <- getContextArgs
+    enclosingFunctionName <- ipcQName . envClause <$> getEnv
+    genArgs <- getConstInfo enclosingFunctionName <&> defArgGeneralizable <&> \case
+      NoGeneralizableArgs -> 0
+      SomeGeneralizableArgs i -> i
     a0      <- (`piApply` cxtArgs) <$> (getMetaType =<< lookupInteractionId ii)
 
     -- Konstantin, 2022-10-23: We don't want to print section parameters in helper type.
-    freeVars <- getCurrentModuleFreeVars
+    freeVars <- (+ genArgs) <$> getCurrentModuleFreeVars
     contextForAbstracting <- drop freeVars . reverse <$> getContext
     let escapeAbstractedContext = escapeContext impossible (length contextForAbstracting)
 
@@ -996,7 +1000,7 @@ metaHelperType norm ii rng s = case words s of
       TelV atel _ <- telView a
       let arity = size atel
           (delta1, delta2, _, a', vtys') = splitTelForWith tel a vtys
-      a <- localTC (\e -> e { envPrintDomainFreePi = True }) $ escapeAbstractedContext $ do
+      a <- localTC (\e -> e { envPrintDomainFreePi = True, envPrintMetasBare = True }) $ escapeAbstractedContext $ do
         reify =<< cleanupType arity args =<< normalForm norm =<< fst <$> withFunctionType delta1 vtys' delta2 a' []
       reportSDoc "interaction.helper" 10 $ TP.vcat $
         let extractOtherType = \case { OtherType a -> a; _ -> __IMPOSSIBLE__ } in
@@ -1219,7 +1223,7 @@ introTactic pmLambda ii = do
             allHidden   = not (any okHiding0 hs)
             okHiding    = if allHidden then const True else okHiding0
         vars <- -- setShowImplicitArguments (imp || allHidden) $
-                (if allHidden then withShowAllArguments else id) $
+                applyWhen allHidden withShowAllArguments $
                   mapM showTCM [ setHiding h $ defaultArg $ var i :: Arg Term
                                | (h, i) <- zip hs $ downFrom n
                                , okHiding h

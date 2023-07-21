@@ -13,6 +13,7 @@ import qualified Data.Text as T
 
 import Agda.Syntax.Common ( Nat )
 
+import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.Hash
 import Agda.Utils.List ( indexWithDefault )
 import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
@@ -56,7 +57,7 @@ render :: Bool -> Doc -> String
 render minify = intercalate "\n" . joinLines . map (uncurry mkIndent) . go 0
   where
     joinLines :: [String] -> [String]
-    joinLines = if minify then chunks 0 [] else id
+    joinLines = applyWhen minify $ chunks 0 []
       where
         chunks len acc [] = [concat (reverse acc)]
         chunks len acc (s: ss)

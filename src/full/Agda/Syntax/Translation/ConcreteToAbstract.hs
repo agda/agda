@@ -32,6 +32,7 @@ import Data.Functor (void)
 import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Map as Map
+import qualified Data.HashSet as HashSet
 import Data.Maybe
 import Data.Monoid (First(..))
 import Data.Void
@@ -48,7 +49,7 @@ import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Common
-import Agda.Syntax.Info
+import Agda.Syntax.Info as Info
 import Agda.Syntax.Concrete.Definitions as C
 import Agda.Syntax.Fixity
 import Agda.Syntax.Concrete.Fixity (DoWarn(..))
@@ -73,6 +74,7 @@ import Agda.TypeChecking.Rules.Builtin (isUntypedBuiltin, bindUntypedBuiltin, bu
 import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
 import Agda.TypeChecking.Pretty hiding (pretty, prettyA)
 import Agda.TypeChecking.Quote (quotedName)
+import Agda.TypeChecking.Opacity
 import Agda.TypeChecking.Warnings
 
 import Agda.Interaction.FindFile (checkModuleName, rootNameModule, SourceFile(SourceFile))
@@ -87,11 +89,13 @@ import Agda.Utils.CallStack ( HasCallStack, withCurrentCallStack )
 import Agda.Utils.Char
 import Agda.Utils.Either
 import Agda.Utils.FileName
+import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import Agda.Utils.List2 ( List2, pattern List2 )
+import qualified Agda.Utils.Maybe.Strict as Strict
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.Map as Map
 import Agda.Utils.Maybe
@@ -233,6 +237,7 @@ recordConstructorType decls =
         C.NiceUnquoteDecl{}   -> failure
         C.NiceUnquoteDef{}    -> failure
         C.NiceUnquoteData{}   -> failure
+        C.NiceOpaque{}        -> failure
 
 checkModuleApplication
   :: C.ModuleApplication
@@ -581,9 +586,7 @@ instance ToAbstract MaybeOldQName where
                           -- (Issue 3354).
                 Just s -> stGeneralizedVars `setTCLens` Just (s `Set.union` Set.singleton (anameName d))
                 Nothing -> typeError $ GeneralizeNotSupportedHere $ anameName d
-          DisallowedGeneralizeName -> do
-            typeError . GenericDocError =<<
-              text "Cannot use generalized variable from let-opened module:" <+> prettyTCM (anameName d)
+          DisallowedGeneralizeName -> typeError $ GeneralizedVarInLetOpenedModule $ anameName d
           _ -> return ()
         -- and then we return the name
         return $ withSuffix suffix $ nameToExpr d
@@ -842,21 +845,12 @@ scopeCheckExtendedLam r e cs = do
 
   -- Create the abstract syntax for the extended lambda.
   case scdef of
-    A.ScopedDecl si [A.FunDef di qname' NotDelayed cs] -> do
+    A.ScopedDecl si [A.FunDef di qname' cs] -> do
       setScope si  -- This turns into an A.ScopedExpr si $ A.ExtendedLam...
       return $
         A.ExtendedLam (ExprRange r) di e qname' $
         List1.fromListSafe __IMPOSSIBLE__ cs
     _ -> __IMPOSSIBLE__
-
--- | Raise an error if argument is a C.Dot with Hiding info.
-
-rejectPostfixProjectionWithHiding :: NamedArg C.Expr -> ScopeM ()
-rejectPostfixProjectionWithHiding arg =
-  case namedArg arg of
-    C.Dot{} | notVisible arg -> setCurrentRange arg $ genericDocError $
-      "Illegal hiding in postfix projection " P.<+> P.pretty arg
-    _ -> return ()
 
 -- | Scope check an expression.
 
@@ -929,7 +923,11 @@ instance ToAbstract C.Expr where
   -- Application
       C.App r e1 e2 -> do
         -- Andreas, 2021-02-10, issue #3289: reject @e {.p}@ and @e ⦃ .p ⦄@.
-        rejectPostfixProjectionWithHiding e2
+
+        -- Raise an error if argument is a C.Dot with Hiding info.
+        case namedArg e2 of
+          C.Dot{} | notVisible e2 -> setCurrentRange e2 $ typeError $ IllegalHidingInPostfixProjection e2
+          _ -> return ()
 
         let parenPref = inferParenPreference (namedArg e2)
             info = (defaultAppInfo r) { appOrigin = UserWritten, appParens = parenPref }
@@ -1373,6 +1371,13 @@ instance ToAbstract (TopLevel [C.Declaration]) where
           -- let scope = over scopeModules (fmap $ restrictLocalPrivate am) insideScope
           let scope = insideScope
           setScope scope
+
+          -- While scope-checking the top-level module we might have
+          -- encountered several (possibly nested) opaque blocks. We
+          -- must now ensure that these have transitively-closed
+          -- unfolding sets.
+          saturateOpaqueBlocks (outsideDecls ++ [ insideDecl ])
+
           return $ TopLevelInfo (primitiveImport ++ outsideDecls ++ [ insideDecl ]) scope
 
         -- We already inserted the missing top-level module, see
@@ -1380,20 +1385,23 @@ instance ToAbstract (TopLevel [C.Declaration]) where
         -- thus, this case is impossible:
         _ -> __IMPOSSIBLE__
 
--- | Declaration @open import Agda.Primitive using (Set; Prop)@ when 'optImportSorts'.
+-- | Declaration @open import Agda.Primitive using (Set)@ when 'optImportSorts'.
+--   @Prop@ is added when 'optProp', and @SSet@ when 'optTwoLevel'.
 importPrimitives :: ScopeM [A.Declaration]
 importPrimitives = do
-    noImportSorts <- not . optImportSorts <$> pragmaOptions
-    -- Add implicit `open import Agda.Primitive using (Set; Prop)`
+  ifNotM (optImportSorts <$> pragmaOptions) (return []) {- else -} do
+    prop     <- optProp     <$> pragmaOptions
+    twoLevel <- optTwoLevel <$> pragmaOptions
+    -- Add implicit `open import Agda.Primitive using (Prop; Set; SSet)`
     let agdaPrimitiveName   = Qual (C.simpleName "Agda") $ C.QName $ C.simpleName "Primitive"
-        agdaSetName         = C.simpleName "Set"
-        agdaPropName        = C.simpleName "Prop"
-        usingDirective      = Using [ImportedName agdaSetName, ImportedName agdaPropName]
-        directives          = ImportDirective noRange usingDirective [] [] Nothing
+        usingDirective      = map (ImportedName . C.simpleName) $ concat
+          [ [ "Prop" | prop     ]
+          , [ "Set"  | True     ]
+          , [ "SSet" | twoLevel ]
+          ]
+        directives          = ImportDirective noRange (Using usingDirective) [] [] Nothing
         importAgdaPrimitive = [C.Import noRange agdaPrimitiveName Nothing C.DoOpen directives]
-    if noImportSorts
-      then return []
-      else toAbstract (Declarations importAgdaPrimitive)
+    toAbstract (Declarations importAgdaPrimitive)
 
 -- | runs Syntax.Concrete.Definitions.niceDeclarations on main module
 niceDecls :: DoWarn -> [C.Declaration] -> ([NiceDeclaration] -> ScopeM a) -> ScopeM a
@@ -1752,7 +1760,9 @@ instance ToAbstract NiceDeclaration where
       f  <- getConcreteFixity x
       y  <- freshAbstractQName f x
       bindName p PrimName x y
-      return [ A.Primitive (mkDefInfo x f p a r) y t' ]
+      unfoldFunction y
+      di <- updateDefInfoOpacity (mkDefInfo x f p a r)
+      return [ A.Primitive di y t' ]
 
   -- Definitions (possibly mutual)
     NiceMutual r tc cc pc ds -> do
@@ -1812,10 +1822,11 @@ instance ToAbstract NiceDeclaration where
         -- Andreas, 2017-12-04 the name must reside in the current module
         unlessM ((A.qnameModule x' ==) <$> getCurrentModule) $
           __IMPOSSIBLE__
-        let delayed = NotDelayed
-        -- (delayed, cs) <- translateCopatternClauses cs -- TODO
         f <- getConcreteFixity x
-        return [ A.FunDef (mkDefInfoInstance x f PublicAccess a i NotMacroDef r) x' delayed cs ]
+
+        unfoldFunction x'
+        di <- updateDefInfoOpacity (mkDefInfoInstance x f PublicAccess a i NotMacroDef r)
+        return [ A.FunDef di x' cs ]
 
   -- Uncategorized function clauses
     C.NiceFunClause _ _ _ _ _ _ (C.FunClause lhs _ _ _) ->
@@ -1825,6 +1836,8 @@ instance ToAbstract NiceDeclaration where
 
   -- Data definitions
     C.NiceDataDef r o a _ uc x pars cons -> do
+        notAffectedByOpaque
+
         reportSLn "scope.data.def" 20 ("checking " ++ show o ++ " DataDef for " ++ prettyShow x)
         (p, ax) <- resolveName (C.QName x) >>= \case
           DefinedName p ax NoSuffix -> do
@@ -1860,16 +1873,20 @@ instance ToAbstract NiceDeclaration where
 
   -- Record definitions (mucho interesting)
     C.NiceRecDef r o a _ uc x (RecordDirectives ind eta pat cm) pars fields -> do
+      notAffectedByOpaque
+
       reportSLn "scope.rec.def" 20 ("checking " ++ show o ++ " RecDef for " ++ prettyShow x)
       -- #3008: Termination pragmas are ignored in records
       checkNoTerminationPragma InRecordDef fields
       -- Andreas, 2020-04-19, issue #4560
       -- 'pattern' declaration is incompatible with 'coinductive' or 'eta-equality'.
-      whenJust pat $ \ r -> do
-        let warn = setCurrentRange r . warning . UselessPatternDeclarationForRecord
-        if | Just (Ranged _ CoInductive) <- ind -> warn "coinductive"
-           | Just YesEta                 <- eta -> warn "eta"
-           | otherwise -> return ()
+      pat <- case pat of
+        Just r
+          | Just (Ranged _ CoInductive) <- ind -> Nothing <$ warn "coinductive"
+          | Just YesEta                 <- eta -> Nothing <$ warn "eta"
+          | otherwise -> return pat
+          where warn = setCurrentRange r . warning . UselessPatternDeclarationForRecord
+        Nothing -> return pat
 
       (p, ax) <- resolveName (C.QName x) >>= \case
         DefinedName p ax NoSuffix -> do
@@ -1923,6 +1940,8 @@ instance ToAbstract NiceDeclaration where
         return [ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' uc dir' params contel afields ]
 
     NiceModule r p a e x@(C.QName name) tel ds -> do
+      notAffectedByOpaque
+
       reportSDoc "scope.decl" 70 $ vcat $
         [ text $ "scope checking NiceModule " ++ prettyShow x
         ]
@@ -2073,7 +2092,13 @@ instance ToAbstract NiceDeclaration where
       e <- toAbstract e
       zipWithM_ (rebindName p OtherDefName) xs ys
       let mi = MutualInfo tc cc YesPositivityCheck r
-      return [ A.Mutual mi [A.UnquoteDecl mi [ mkDefInfoInstance x fx p a i NotMacroDef r | (fx, x) <- zip fxs xs ] ys e] ]
+      mapM_ unfoldFunction ys
+      opaque <- contextIsOpaque
+      return [ A.Mutual mi
+        [ A.UnquoteDecl mi
+            [ (mkDefInfoInstance x fx p a i NotMacroDef r) { Info.defOpaque = opaque } | (fx, x) <- zip fxs xs ]
+          ys e
+        ] ]
 
     NiceUnquoteDef r p a _ _ xs e -> do
       fxs <- mapM getConcreteFixity xs
@@ -2081,9 +2106,13 @@ instance ToAbstract NiceDeclaration where
       zipWithM_ (rebindName p QuotableName) xs ys
       e <- toAbstract e
       zipWithM_ (rebindName p OtherDefName) xs ys
-      return [ A.UnquoteDef [ mkDefInfo x fx PublicAccess a r | (fx, x) <- zip fxs xs ] ys e ]
+      mapM_ unfoldFunction ys
+      opaque <- contextIsOpaque
+      return [ A.UnquoteDef [ (mkDefInfo x fx PublicAccess a r) { Info.defOpaque = opaque } | (fx, x) <- zip fxs xs ] ys e ]
 
     NiceUnquoteData r p a pc uc x cs e -> do
+      notAffectedByOpaque
+
       fx <- getConcreteFixity x
       x' <- freshAbstractQName fx x
       bindName p QuotableName x x'
@@ -2128,9 +2157,7 @@ instance ToAbstract NiceDeclaration where
          p <- noDotorEqPattern err p
          as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
          unlessNull (patternVars p List.\\ map unArg as) $ \ xs -> do
-           typeError . GenericDocError =<< do
-             "Unbound variables in pattern synonym: " <+>
-               sep (map prettyA xs)
+           typeError $ UnboundVariablesInPatternSynonym xs
          return (as, p)
       y <- freshAbstractQName' n
       bindName a PatternSynName n y
@@ -2146,6 +2173,40 @@ instance ToAbstract NiceDeclaration where
       warning $ NicifierIssue (DeclarationWarning stk (InvalidConstructorBlock (getRange d)))
       pure []
 
+    NiceOpaque r names decls -> do
+      -- The names in an 'unfolding' clause must be unambiguous names of
+      -- definitions:
+      let
+        findName c = resolveName c >>= \case
+          A.DefinedName _ an _           -> pure (anameName an)
+          A.FieldName (an :| [])         -> pure (anameName an)
+          A.ConstructorName _ (an :| []) -> pure (anameName an)
+
+          A.UnknownName -> notInScopeError c
+          _ -> typeError . GenericDocError =<<
+            "Name in unfolding clause should be unambiguous defined name:" <+> prettyTCM c
+
+      -- Resolve all the names, and use them as an initial unfolding
+      -- set:
+      names  <- traverse findName names
+      -- Generate the identifier for this block:
+      oid    <- fresh
+      -- Record the parent unfolding block, if any:
+      parent <- asksTC envCurrentOpaqueId
+
+      stOpaqueBlocks `modifyTCLens` Map.insert oid OpaqueBlock
+        { opaqueId        = oid
+        , opaqueUnfolding = HashSet.fromList names
+        , opaqueDecls     = mempty
+        , opaqueParent    = parent
+        , opaqueRange     = r
+        }
+
+      -- Keep going!
+      localTC (\e -> e { envCurrentOpaqueId = Just oid }) $ do
+        out <- traverse toAbstract decls
+        unless (any interestingOpaqueDecl out) $ warning UselessOpaque
+        pure $ UnfoldingDecl r names:out
     where
       -- checking postulate or type sig. without checking safe flag
       toAbstractNiceAxiom :: KindOfName -> C.NiceDeclaration -> ScopeM A.Declaration
@@ -2159,6 +2220,42 @@ instance ToAbstract NiceDeclaration where
         bindName p kind x y
         return $ A.Axiom kind (mkDefInfoInstance x f p a i isMacro r) info mp y t'
       toAbstractNiceAxiom _ _ = __IMPOSSIBLE__
+
+      interestingOpaqueDecl :: A.Declaration -> Bool
+      interestingOpaqueDecl (A.Mutual _ ds)     = any interestingOpaqueDecl ds
+      interestingOpaqueDecl (A.ScopedDecl _ ds) = any interestingOpaqueDecl ds
+
+      interestingOpaqueDecl A.FunDef{} = True
+      interestingOpaqueDecl A.UnquoteDecl{} = True
+      interestingOpaqueDecl A.UnquoteDef{} = True
+      interestingOpaqueDecl A.Primitive{} = True
+
+      interestingOpaqueDecl _ = False
+
+-- | Add a 'QName' to the set of declarations /contained in/ the current
+-- opaque block.
+unfoldFunction :: A.QName -> ScopeM ()
+unfoldFunction qn = asksTC envCurrentOpaqueId >>= \case
+  Just id -> do
+    let go Nothing   = __IMPOSSIBLE__
+        go (Just ob) = Just ob{ opaqueDecls = qn `HashSet.insert` opaqueDecls ob }
+    stOpaqueBlocks `modifyTCLens` Map.alter go id
+  Nothing -> pure ()
+
+-- | Look up the current opaque identifier as a value in 'IsOpaque'.
+contextIsOpaque :: ScopeM IsOpaque
+contextIsOpaque =  maybe TransparentDef OpaqueDef <$> asksTC envCurrentOpaqueId
+
+updateDefInfoOpacity :: DefInfo -> ScopeM DefInfo
+updateDefInfoOpacity di = (\a -> di { Info.defOpaque = a }) <$> contextIsOpaque
+
+-- | Raise a warning indicating that the current Declaration is not
+-- affected by opacity, but only if we are actually in an Opaque block.
+notAffectedByOpaque :: ScopeM ()
+notAffectedByOpaque = do
+  t <- asksTC envCheckingWhere
+  unless t $
+    maybe (pure ()) (const (warning NotAffectedByOpaque)) =<< asksTC envCurrentOpaqueId
 
 unGeneralized :: A.Expr -> (Set.Set I.QName, A.Expr)
 unGeneralized (A.Generalized s t) = (s, t)
@@ -2350,9 +2447,8 @@ instance ToAbstract DataConstrDecl where
       _ -> errorNotConstrDecl d
 
 errorNotConstrDecl :: C.NiceDeclaration -> ScopeM a
-errorNotConstrDecl d = typeError . GenericDocError $
-        "Illegal declaration in data type definition " P.$$
-        P.nest 2 (P.vcat $ map pretty (notSoNiceDeclarations d))
+errorNotConstrDecl d = setCurrentRange d $
+  typeError $ IllegalDeclarationInDataDefinition $ notSoNiceDeclarations d
 
 instance ToAbstract C.Pragma where
   type AbsOfCon C.Pragma = [A.Pragma]
@@ -2413,13 +2509,14 @@ instance ToAbstract C.Pragma where
   toAbstract (C.InlinePragma _ b x) = do
       e <- toAbstract $ OldQName x Nothing
       let sINLINE = if b then "INLINE" else "NOINLINE"
-      y <- case e of
-          A.Def  x -> return x
-          A.Proj _ p | Just x <- getUnambiguous p -> return x
+      let ret y = return [ A.InlinePragma b y ]
+      case e of
+          A.Con (AmbQ xs) -> concatMapM ret $ List1.toList xs
+          A.Def  x -> ret x
+          A.Proj _ p | Just x <- getUnambiguous p -> ret x
           A.Proj _ x -> genericError $
             sINLINE ++ " used on ambiguous name " ++ prettyShow x
-          _        -> genericError $ "Target of " ++ sINLINE ++ " pragma should be a function"
-      return [ A.InlinePragma b y ]
+          _ -> genericError $ ("Target of " ++) $ applyWhen b ("NO" ++) "INLINE pragma should be a function or constructor"
   toAbstract (C.NotProjectionLikePragma _ x) = do
       e <- toAbstract $ OldQName x Nothing
       y <- case e of
@@ -2430,37 +2527,37 @@ instance ToAbstract C.Pragma where
           _        -> genericError $ "Target of NOT_PROJECTION_LIKE pragma should be a function"
       return [ A.NotProjectionLikePragma y ]
   toAbstract (C.BuiltinPragma _ rb qx)
-    | isUntypedBuiltin b = do
+    | Just b' <- b, isUntypedBuiltin b' = do
         q <- toAbstract $ ResolveQName qx
-        bindUntypedBuiltin b q
+        bindUntypedBuiltin b' q
         return [ A.BuiltinPragma rb q ]
         -- Andreas, 2015-02-14
         -- Some builtins cannot be given a valid Agda type,
         -- thus, they do not come with accompanying postulate or definition.
-    | isBuiltinNoDef b = do
+    | Just b' <- b, isBuiltinNoDef b' = do
           case qx of
             C.QName x -> do
               -- The name shouldn't exist yet. If it does, we raise a warning
               -- and drop the existing definition.
               unlessM ((UnknownName ==) <$> resolveName qx) $ do
                 genericWarning $ P.text $
-                   "BUILTIN " ++ b ++ " declares an identifier " ++
+                   "BUILTIN " ++ getBuiltinId b' ++ " declares an identifier " ++
                    "(no longer expects an already defined identifier)"
                 modifyCurrentScope $ removeNameFromScope PublicNS x
               -- We then happily bind the name
               y <- freshAbstractQName' x
-              let kind = fromMaybe __IMPOSSIBLE__ $ builtinKindOfName b
+              let kind = fromMaybe __IMPOSSIBLE__ $ builtinKindOfName b'
               bindName PublicAccess kind x y
               return [ A.BuiltinNoDefPragma rb kind y ]
             _ -> genericError $
-              "Pragma BUILTIN " ++ b ++ ": expected unqualified identifier, " ++
+              "Pragma BUILTIN " ++ getBuiltinId b' ++ ": expected unqualified identifier, " ++
               "but found " ++ prettyShow qx
     | otherwise = do
           q0 <- toAbstract $ ResolveQName qx
 
           -- Andreas, 2020-04-12, pr #4574.  For highlighting purposes:
           -- Rebind 'BuiltinPrim' as 'PrimName' and similar.
-          q <- case (q0, builtinKindOfName b, qx) of
+          q <- case (q0, b >>= builtinKindOfName, qx) of
             (DefinedName acc y suffix, Just kind, C.QName x)
               | anameKind y /= kind
               , kind `elem` [ PrimName, AxiomName ] -> do
@@ -2469,7 +2566,7 @@ instance ToAbstract C.Pragma where
             _ -> return q0
 
           return [ A.BuiltinPragma rb q ]
-    where b = rangedThing rb
+    where b = builtinById (rangedThing rb)
 
   toAbstract (C.EtaPragma _ x) = do
     e <- toAbstract $ OldQName x Nothing
@@ -2583,17 +2680,18 @@ whereToAbstract r wh inner = do
   case wh of
     NoWhere       -> ret
     AnyWhere _ [] -> warnEmptyWhere
-    AnyWhere _ ds -> do
+    AnyWhere _ ds -> enter $ do
       -- Andreas, 2016-07-17 issues #2081 and #2101
       -- where-declarations are automatically private.
       -- This allows their type signature to be checked InAbstractMode.
       whereToAbstract1 r defaultErased Nothing
         (singleton $ C.Private noRange Inserted ds) inner
-    SomeWhere _ e m a ds0 ->
+    SomeWhere _ e m a ds0 -> enter $
       List1.ifNull ds0 warnEmptyWhere {-else-} $ \ds -> do
       -- Named where-modules do not default to private.
       whereToAbstract1 r e (Just (m, a)) ds inner
   where
+  enter = localTC $ \env -> env { envCheckingWhere = True }
   ret = (,A.noWhereDecls) <$> inner
   warnEmptyWhere = do
     setCurrentRange r $ warning EmptyWhere
@@ -2902,9 +3000,7 @@ instance ToAbstract C.LHSCore where
           toAbstract (OldName x)
         A.LHSHead x <$> do mergeEqualPs =<< toAbstract ps
     toAbstract (C.LHSProj d ps1 l ps2) = do
-        unless (null ps1) $ typeError $ GenericDocError $
-          "Ill-formed projection pattern" P.<+>
-          P.pretty (foldl C.AppP (C.IdentP True d) ps1)
+        unless (null ps1) $ typeError $ IllformedProjectionPatternConcrete (foldl C.AppP (C.IdentP True d) ps1)
         qx <- resolveName d
         ds <- case qx of
                 FieldName ds -> return $ fmap anameName ds
@@ -3231,29 +3327,20 @@ checkAttributes ((attr, r, s) : attrs) =
     LockAttribute IsNotLock -> cont
     LockAttribute IsLock{}  -> do
       unlessM (optGuarded <$> pragmaOptions) $
-        err "Lock" "--guarded"
+        setCurrentRange r $ typeError $ AttributeKindNotEnabled "Lock" "--guarded" s
       cont
     QuantityAttribute Quantityω{} -> cont
     QuantityAttribute Quantity1{} -> __IMPOSSIBLE__
     QuantityAttribute Quantity0{} -> do
       unlessM (optErasure <$> pragmaOptions) $
-        err "Erasure" "--erasure"
+        setCurrentRange r $ typeError $ AttributeKindNotEnabled "Erasure" "--erasure" s
       cont
     CohesionAttribute{} -> do
       unlessM (optCohesion <$> pragmaOptions) $
-        err "Cohesion" "--cohesion"
+        setCurrentRange r $ typeError $ AttributeKindNotEnabled "Cohesion" "--cohesion" s
       cont
   where
   cont = checkAttributes attrs
-
-  err kind opt =
-    setCurrentRange r $
-    typeError $ GenericDocError $ P.fsep $
-    [P.text kind] ++
-    P.pwords "attributes have not been enabled (use" ++
-    [P.text opt] ++
-    P.pwords "to enable them):" ++
-    [P.text s]
 
 {--------------------------------------------------------------------------
     Things we parse but are not part of the Agda file syntax

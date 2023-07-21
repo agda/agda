@@ -90,11 +90,14 @@ HTML or LaTeX using Sphinx_.
   the file as a whole must be a valid Agda file if all the literate
   text is replaced by white space.
 
-Literate Markdown
------------------
+Literate Markdown and Typst
+---------------------------
 
 Files ending in :file:`.lagda.md` are interpreted as literate
-Markdown_ files. Code blocks start with ``````` or `````agda`` on
+Markdown_ files, while files ending in :file:`.lagda.typ` are
+interpreted as literate Typst_ files. They use the same syntax
+for code blocks, and they are parsed the same way by Agda.
+Code blocks start with ``````` or `````agda`` on
 its own line, and end with ```````, also on its own line:
 
 .. code-block:: md
@@ -113,6 +116,8 @@ its own line, and end with ```````, also on its own line:
     zero : ℕ
     suc  : ℕ → ℕ
    ```
+
+For Typst, Agda does not yet support highlighting the code blocks.
 
 Markdown source files can be turned into many other formats such as
 HTML or LaTeX using PanDoc_.
@@ -133,7 +138,7 @@ Literate Org
 
 Files ending in :file:`.lagda.org` are interpreted as literate
 Org_ files. Code blocks are surrounded by two lines including only
-```#+begin_src agda2``` and ```#+end_src``` (case insensitive).
+```#+begin_src agda2``` and ```#+end_src``` (case-insensitive).
 
 .. code-block:: text
 
@@ -155,6 +160,7 @@ Org_ files. Code blocks are surrounded by two lines including only
 .. _reStructuredText: http://docutils.sourceforge.io/rst.html
 .. _Markdown: https://daringfireball.net/projects/markdown/
 .. _Org: https://orgmode.org
+.. _Typst: https://typst.app
 
 .. _lhs2TeX: https://www.andres-loeh.de/lhs2tex/
 .. _Sphinx: http://www.sphinx-doc.org/en/stable/

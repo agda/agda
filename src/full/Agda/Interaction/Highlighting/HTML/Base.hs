@@ -107,11 +107,12 @@ instance NFData HtmlHighlight
 highlightOnlyCode :: HtmlHighlight -> FileType -> Bool
 highlightOnlyCode HighlightAll  _ = False
 highlightOnlyCode HighlightCode _ = True
-highlightOnlyCode HighlightAuto AgdaFileType = False
-highlightOnlyCode HighlightAuto MdFileType   = True
-highlightOnlyCode HighlightAuto RstFileType  = True
-highlightOnlyCode HighlightAuto OrgFileType  = True
-highlightOnlyCode HighlightAuto TexFileType  = False
+highlightOnlyCode HighlightAuto AgdaFileType  = False
+highlightOnlyCode HighlightAuto MdFileType    = True
+highlightOnlyCode HighlightAuto RstFileType   = True
+highlightOnlyCode HighlightAuto OrgFileType   = True
+highlightOnlyCode HighlightAuto TypstFileType = True
+highlightOnlyCode HighlightAuto TexFileType   = False
 
 -- | Determine the generated file extension
 
@@ -119,11 +120,12 @@ highlightedFileExt :: HtmlHighlight -> FileType -> String
 highlightedFileExt hh ft
   | not $ highlightOnlyCode hh ft = "html"
   | otherwise = case ft of
-      AgdaFileType -> "html"
-      MdFileType   -> "md"
-      RstFileType  -> "rst"
-      TexFileType  -> "tex"
-      OrgFileType  -> "org"
+      AgdaFileType  -> "html"
+      MdFileType    -> "md"
+      RstFileType   -> "rst"
+      TexFileType   -> "tex"
+      OrgFileType   -> "org"
+      TypstFileType -> "typ"
 
 -- | Options for HTML generation
 
@@ -301,12 +303,13 @@ code onlyCode fileType = mconcat . if onlyCode
          -- Explicitly written all cases, so people
          -- get compile error when adding new file types
          -- when they forget to modify the code here
-         RstFileType  -> map mkRst . splitByMarkup
-         MdFileType   -> map mkMd . chunksOf 2 . splitByMarkup
-         AgdaFileType -> map mkHtml
-         -- Any points for using this option?
-         TexFileType  -> map mkMd . chunksOf 2 . splitByMarkup
-         OrgFileType  -> map mkOrg . splitByMarkup
+         RstFileType   -> map mkRst . splitByMarkup
+         MdFileType    -> map mkMd . chunksOf 2 . splitByMarkup
+         AgdaFileType  -> map mkHtml
+         OrgFileType   -> map mkOrg . splitByMarkup
+         -- Two useless cases, probably will never used by anyone
+         TexFileType   -> map mkMd . chunksOf 2 . splitByMarkup
+         TypstFileType -> map mkMd . chunksOf 2 . splitByMarkup
   else map mkHtml
   where
   trd (_, _, a) = a

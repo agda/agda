@@ -1,7 +1,10 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE ViewPatterns        #-}
 {-# LANGUAGE TypeApplications    #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
+{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -ddump-to-file #-}
 
 -- | This module contains the definition of hereditary substitution
 -- and application operating on internal syntax which is in β-normal
@@ -357,7 +360,10 @@ instance Apply Defn where
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Apply PrimFun where
-  apply (PrimFun x ar def) args = PrimFun x (ar - size args) $ \ vs -> def (args ++ vs)
+  apply (PrimFun x ar occs def) args =
+    PrimFun x (ar - n) (drop n occs) $ \ vs -> def (args ++ vs)
+    where
+    n = size args
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Apply Clause where
@@ -713,7 +719,9 @@ instance Abstract Defn where
     PrimitiveSort{} -> d
 
 instance Abstract PrimFun where
-    abstract tel (PrimFun x ar def) = PrimFun x (ar + n) $ \ts -> def $ drop n ts
+    abstract tel (PrimFun x ar occs def) =
+      PrimFun x (ar + n) (replicate n Mixed ++ occs) $ \ts ->
+        def $ drop n ts
         where n = size tel
 
 instance Abstract Clause where
@@ -862,10 +870,8 @@ instance (Coercible a Term, Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst 
 instance (Coercible a Term, Subst a) => Subst (Sort' a) where
   type SubstArg (Sort' a) = SubstArg a
   applySubst rho = \case
-    Type n     -> Type $ sub n
-    Prop n     -> Prop $ sub n
-    Inf f n    -> Inf f n
-    SSet n     -> SSet $ sub n
+    Univ u n   -> Univ u $ sub n
+    Inf u n    -> Inf u n
     SizeUniv   -> SizeUniv
     LockUniv   -> LockUniv
     LevelUniv  -> LevelUniv
@@ -973,9 +979,7 @@ instance Subst NLPType where
 instance Subst NLPSort where
   type SubstArg NLPSort = NLPat
   applySubst rho = \case
-    PType l   -> PType $ applySubst rho l
-    PProp l   -> PProp $ applySubst rho l
-    PSSet l   -> PSSet $ applySubst rho l
+    PUniv u l -> PUniv u $ applySubst rho l
     PInf f n  -> PInf f n
     PSizeUniv -> PSizeUniv
     PLockUniv -> PLockUniv
@@ -1545,12 +1549,10 @@ instance (Subst a, Ord a) => Ord (Elim' a) where
 --
 --   Precondition: @s@ is reduced
 univSort' :: Sort -> Either Blocker Sort
-univSort' (Type l)     = Right $ Type $ levelSuc l
-univSort' (Prop l)     = Right $ Type $ levelSuc l
-univSort' (Inf f n)    = Right $ Inf f $ 1 + n
-univSort' (SSet l)     = Right $ SSet $ levelSuc l
-univSort' SizeUniv     = Right $ Inf IsFibrant 0
-univSort' LockUniv     = Right $ Inf IsFibrant 0 -- lock polymorphism is not actually supported
+univSort' (Univ u l)   = Right $ Univ (univUniv u) $ levelSuc l
+univSort' (Inf u n)    = Right $ Inf (univUniv u) $ 1 + n
+univSort' SizeUniv     = Right $ Inf UType 0
+univSort' LockUniv     = Right $ Type $ ClosedLevel 1
 univSort' LevelUniv    = Right $ Type $ ClosedLevel 1
 univSort' IntervalUniv = Right $ SSet $ ClosedLevel 1
 univSort' (MetaS m _)  = Left neverUnblock
@@ -1571,69 +1573,73 @@ ssort l = sort (SSet l)
 
 -- | A sort can either be small (Set l, Prop l, Size, ...)  or large
 --   (Setω n).
-data SizeOfSort
-  = SmallSort IsFibrant
-  | LargeSort IsFibrant Integer
+data SizeOfSort = SizeOfSort
+  { szSortUniv :: Univ
+  , szSortSize :: Integer
+  }
+
+pattern SmallSort :: Univ -> SizeOfSort
+pattern SmallSort u = SizeOfSort u (-1)
+
+pattern LargeSort :: Univ -> Integer -> SizeOfSort
+-- What I want to write here is:
+-- @
+--   pattern LargeSort u n = SizeOfSort u n | n >= 0
+-- @
+-- But I have to write:
+pattern LargeSort u n <- ((\ x@(SizeOfSort u n) -> guard (n >= 0) $> x) -> Just (SizeOfSort u n))
+-- DON'T WORK:
+-- pattern LargeSort u n <- (n >= 0 -> True)
+-- pattern LargeSort u n <- (n >= 0 -> SizeOfSort u n)
+-- pattern LargeSort u n <- ((>= 0) . szSortSize -> SizeOfSort u n)
+  where LargeSort u n = SizeOfSort u n
+
+{-# COMPLETE SmallSort, LargeSort #-}
 
 -- | Returns @Left blocker@ for unknown (blocked) sorts, and otherwise
 --   returns @Right s@ where @s@ indicates the size and fibrancy.
 sizeOfSort :: Sort -> Either Blocker SizeOfSort
-sizeOfSort Type{}       = Right $ SmallSort IsFibrant
-sizeOfSort Prop{}       = Right $ SmallSort IsFibrant
-sizeOfSort SizeUniv     = Right $ SmallSort IsFibrant
-sizeOfSort LockUniv     = Right $ SmallSort IsFibrant
-sizeOfSort LevelUniv    = Right $ SmallSort IsFibrant
-sizeOfSort IntervalUniv = Right $ SmallSort IsStrict
-sizeOfSort (Inf f n)    = Right $ LargeSort f n
-sizeOfSort SSet{}       = Right $ SmallSort IsStrict
-sizeOfSort (MetaS m _)  = Left $ unblockOnMeta m
-sizeOfSort FunSort{}    = Left neverUnblock
-sizeOfSort PiSort{}     = Left neverUnblock
-sizeOfSort UnivSort{}   = Left neverUnblock
-sizeOfSort DefS{}       = Left neverUnblock
-sizeOfSort DummyS{}     = Left neverUnblock
+sizeOfSort = \case
+  Univ u _     -> Right $ SmallSort u
+  SizeUniv     -> Right $ SmallSort UType
+  LockUniv     -> Right $ SmallSort UType
+  LevelUniv    -> Right $ SmallSort UType
+  IntervalUniv -> Right $ SmallSort USSet
+  Inf u n      -> Right $ LargeSort u n
+  MetaS m _    -> Left $ unblockOnMeta m
+  FunSort{}    -> Left neverUnblock
+  PiSort{}     -> Left neverUnblock
+  UnivSort{}   -> Left neverUnblock
+  DefS{}       -> Left neverUnblock
+  DummyS{}     -> Left neverUnblock
 
 isSmallSort :: Sort -> Bool
 isSmallSort s = case sizeOfSort s of
   Right SmallSort{} -> True
   _                 -> False
 
-fibrantLub :: IsFibrant -> IsFibrant -> IsFibrant
-fibrantLub IsStrict a = IsStrict
-fibrantLub a IsStrict = IsStrict
-fibrantLub a b = a
-
--- | Compute the sort of a function type from the sorts of its
---   domain and codomain.
--- This function should only be called on reduced sorts, since the @LevelUniv@ rules should only apply when the sort doesn't reduce to @Set@
+-- | Compute the sort of a function type from the sorts of its domain and codomain.
+--
+--   This function should only be called on reduced sorts,
+--   since the @LevelUniv@ rules should only apply when the sort does not reduce to @Set@.
 funSort' :: Sort -> Sort -> Either Blocker Sort
-funSort' a b = case (a, b) of
-  (Type a        , Type b       ) -> Right $ Type $ levelLub a b
-  (Prop a        , Type b       ) -> Right $ Type $ levelLub a b
-  (Type a        , Prop b       ) -> Right $ Prop $ levelLub a b
-  (Prop a        , Prop b       ) -> Right $ Prop $ levelLub a b
-  (SSet a        , SSet b       ) -> Right $ SSet $ levelLub a b
-  (Type a        , SSet b       ) -> Right $ SSet $ levelLub a b
-  (SSet a        , Type b       ) -> Right $ SSet $ levelLub a b
-  (SSet a        , Prop b       ) -> Right $ SSet $ levelLub a b
-  (Prop a        , SSet b       ) -> Right $ SSet $ levelLub a b
-  (Inf af m      , b            ) -> sizeOfSort b >>= \case
-    SmallSort bf   -> Right $ Inf (fibrantLub af bf) m
-    LargeSort bf n -> Right $ Inf (fibrantLub af bf) $ max m n
-  (a             , Inf bf n     ) -> sizeOfSort a >>= \case
-    SmallSort af   -> Right $ Inf (fibrantLub af bf) n
-    LargeSort af m -> Right $ Inf (fibrantLub af bf) $ max m n
+-- Andreas, 2023-05-12, AIM XXXVI, pri #6623:
+-- On GHC 8.6 and 8.8 this pattern matching triggers warning
+-- "Pattern match checker exceeded (2000000) iterations in a case alternative."
+-- No clue how to turn off this warning, so we have to turn off -Werror for GHC < 8.10.
+funSort' = curry \case
+  (Univ u a      , Univ u' b    ) -> Right $ Univ (funUniv u u') $ levelLub a b
+  (Inf ua m      , b            ) -> sizeOfSort b <&> \ (SizeOfSort ub n) -> Inf (funUniv ua ub) (max m n)
+  (a             , Inf ub n     ) -> sizeOfSort a <&> \ (SizeOfSort ua m) -> Inf (funUniv ua ub) (max m n)
   (LockUniv      , LevelUniv    ) -> Left neverUnblock
   (LockUniv      , b            ) -> Right b
   -- No functions into lock types
   (a             , LockUniv     ) -> Left neverUnblock
   -- @IntervalUniv@ behaves like @SSet@, but functions into @Type@ land in @Type@
   (IntervalUniv  , IntervalUniv ) -> Right $ SSet $ ClosedLevel 0
-  (IntervalUniv  , SSet b       ) -> Right $ SSet $ b
-  (IntervalUniv  , Type b       ) -> Right $ Type $ b
+  (IntervalUniv  , Univ u b     ) -> Right $ Univ u b
   (IntervalUniv  , _            ) -> Left neverUnblock
-  (Type a        , IntervalUniv ) -> Right $ SSet $ a
-  (SSet a        , IntervalUniv ) -> Right $ SSet $ a
+  (Univ u a      , IntervalUniv ) -> Right $ SSet $ a
   (_             , IntervalUniv ) -> Left neverUnblock
   (SizeUniv      , b            ) -> Right b
   (a             , SizeUniv     ) -> sizeOfSort a >>= \case
@@ -1644,9 +1650,9 @@ funSort' a b = case (a, b) of
   -- It would be safer to take it into account here, but would imply passing the option along as an argument.
   (LevelUniv     , LevelUniv    ) -> Right LevelUniv
   (_             , LevelUniv    ) -> Left neverUnblock
-  (LevelUniv     , b            ) -> sizeOfSort b >>= \case
-    SmallSort bf -> Right $ Inf bf 0
-    LargeSort{} -> Right b
+  (LevelUniv     , b            ) -> sizeOfSort b <&> \case
+    SmallSort ub -> Inf ub 0
+    LargeSort{}  -> b
   (MetaS m _     , _            ) -> Left $ unblockOnMeta m
   (_             , MetaS m _    ) -> Left $ unblockOnMeta m
   (FunSort{}     , _            ) -> Left neverUnblock
@@ -1671,13 +1677,22 @@ piSort' a s1       (NoAbs _ s2) = Right $ FunSort s1 s2
 piSort' a s1 s2Abs@(Abs   _ s2) = case flexRigOccurrenceIn 0 s2 of
   Nothing -> Right $ FunSort s1 $ noabsApp __IMPOSSIBLE__ s2Abs
   Just o  -> case (sizeOfSort s1 , sizeOfSort s2) of
-    (Right (SmallSort f1) , Right (SmallSort f2)) -> case o of
-      StronglyRigid -> Right $ Inf (fibrantLub f1 f2) 0
-      Unguarded     -> Right $ Inf (fibrantLub f1 f2) 0
-      WeaklyRigid   -> Right $ Inf (fibrantLub f1 f2) 0
+    (Right (SmallSort u1) , Right (SmallSort u2)) -> case o of
+      StronglyRigid -> Right $ Inf (funUniv u1 u2) 0
+      Unguarded     -> Right $ Inf (funUniv u1 u2) 0
+      WeaklyRigid   -> Right $ Inf (funUniv u1 u2) 0
       Flexible ms   -> Left $ metaSetToBlocker ms
-    (Right (LargeSort f1 n) , Right (SmallSort f2)) -> Right $ Inf (fibrantLub f1 f2) n
-    (_                     , Right LargeSort{}    ) -> __IMPOSSIBLE__ -- large sorts cannot depend on variables
+    (Right (LargeSort u1 n) , Right (SmallSort u2)) -> Right $ Inf (funUniv u1 u2) n
+    (_                     , Right LargeSort{}    ) ->
+       -- large sorts cannot depend on variables
+       __IMPOSSIBLE__
+       -- (`trace` __IMPOSSIBLE__) $ unlines
+       --   [ "piSort': unexpected dependency in large codomain s2"
+       --   , "- a  = " ++ prettyShow a
+       --   , "- s1 = " ++ prettyShow s1
+       --   , "- s2 = " ++ prettyShow s2
+       --   , "- s2 (raw) = " ++ show s2
+       --   ]
     (Left blocker          , Right _              ) -> Left blocker
     (Right _               , Left blocker         ) -> Left blocker
     (Left blocker1         , Left blocker2        ) -> Left $ unblockOnBoth blocker1 blocker2

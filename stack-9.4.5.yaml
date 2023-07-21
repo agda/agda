@@ -1,5 +1,5 @@
-resolver: nightly-2023-01-29
-compiler: ghc-9.4.4
+resolver: lts-21.0
+compiler: ghc-9.4.5
 compiler-check: match-exact
 
 # Local packages specified by relative directory name.
@@ -10,6 +10,5 @@ packages:
 flags:
   mintty:
     win32-2-13-1: false
-
-extra-deps:
-- vector-hashtables-0.1.1.1
+  ansi-terminal:
+    win32-2-13-1: false

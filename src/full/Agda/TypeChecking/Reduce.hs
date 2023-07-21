@@ -17,7 +17,7 @@ module Agda.TypeChecking.Reduce
  , unfoldDefinitionE, unfoldDefinitionStep
  , unfoldInlined
  , appDef', appDefE'
- , abortIfBlocked, ifBlocked, isBlocked, fromBlocked
+ , abortIfBlocked, ifBlocked, isBlocked, fromBlocked, blockOnError
  -- Simplification
  , Simplify, simplify, simplifyBlocked'
  -- Normalization
@@ -26,7 +26,9 @@ module Agda.TypeChecking.Reduce
  ) where
 
 import Control.Monad ( (>=>), void )
+import Control.Monad.Except
 
+import Data.List ( intercalate )
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -45,7 +47,7 @@ import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
 
-import {-# SOURCE #-} Agda.TypeChecking.Irrelevance (workOnTypes, isPropM)
+import {-# SOURCE #-} Agda.TypeChecking.Irrelevance (isPropM)
 import {-# SOURCE #-} Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Monad hiding ( enterClosure, constructorForm )
 import Agda.TypeChecking.Substitute
@@ -59,6 +61,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Patterns.Match
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import {-# SOURCE #-} Agda.TypeChecking.Rewriting
 import {-# SOURCE #-} Agda.TypeChecking.Reduce.Fast
+import {-# SOURCE #-} Agda.TypeChecking.Opacity
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens
@@ -139,6 +142,16 @@ blockAny bs = blockedOn block $ fmap ignoreBlocking bs
                   bs -> unblockOnAny $ Set.fromList bs
         blocker NotBlocked{}  = []
         blocker (Blocked b _) = [b]
+
+-- | Run the given computation but turn any errors into blocked computations with the given blocker
+blockOnError :: MonadError TCErr m => Blocker -> m a -> m a
+blockOnError blocker f
+  | blocker == neverUnblock = f
+  | otherwise               = f `catchError` \case
+    TypeError{}         -> throwError $ PatternErr blocker
+    PatternErr blocker' -> throwError $ PatternErr $ unblockOnEither blocker blocker'
+    err@Exception{}     -> throwError err
+    err@IOException{}   -> throwError err
 
 -- | Instantiate something.
 --   Results in an open meta variable or a non meta.
@@ -425,10 +438,8 @@ instance Reduce Sort where
           NotBlocked _ s1' -> case univSort' s1' of
             Left b -> return $ Blocked b $ UnivSort s1'
             Right s -> reduceB' s
-        Prop l     -> notBlocked . Prop <$> reduce l
-        Type l     -> notBlocked . Type <$> reduce l
-        Inf f n    -> done
-        SSet l     -> notBlocked . SSet <$> reduce l
+        Univ u l   -> notBlocked . Univ u <$> reduce l
+        Inf _ _    -> done
         SizeUniv   -> done
         LockUniv   -> done
         LevelUniv  -> do
@@ -520,11 +531,7 @@ instance Reduce Term where
   reduceB' = {-# SCC "reduce'<Term>" #-} maybeFastReduceTerm
 
 shouldTryFastReduce :: ReduceM Bool
-shouldTryFastReduce = (optFastReduce <$> pragmaOptions) `and2M` do
-  allowed <- asksTC envAllowedReductions
-  let optionalReductions = SmallSet.fromList [NonTerminatingReductions, UnconfirmedReductions]
-      requiredReductions = allReductions SmallSet.\\ optionalReductions
-  return $ (allowed SmallSet.\\ optionalReductions) == requiredReductions
+shouldTryFastReduce = optFastReduce <$> pragmaOptions
 
 maybeFastReduceTerm :: Term -> ReduceM (Blocked Term)
 maybeFastReduceTerm v = do
@@ -553,13 +560,13 @@ slowReduceTerm v = do
 --    and seems to save 2% sec on the standard library
 --      MetaV x args -> notBlocked . MetaV x <$> reduce' args
       MetaV x es -> iapp es
-      Def f es   -> flip reduceIApply es $ unfoldDefinitionE False reduceB' (Def f []) f es
+      Def f es   -> flip reduceIApply es $ unfoldDefinitionE reduceB' (Def f []) f es
       Con c ci es -> do
           -- Constructors can reduce' when they come from an
           -- instantiated module.
           -- also reduce when they are path constructors
           v <- flip reduceIApply es
-                 $ unfoldDefinitionE False reduceB' (Con c ci []) (conName c) es
+                 $ unfoldDefinitionE reduceB' (Con c ci []) (conName c) es
           traverse reduceNat v
       Sort s   -> done
       Level l  -> ifM (SmallSet.member LevelReductions <$> asksTC envAllowedReductions)
@@ -603,37 +610,37 @@ unfoldCorecursion :: Term -> ReduceM (Blocked Term)
 unfoldCorecursion v = do
   v <- instantiate' v
   case v of
-    Def f es -> unfoldDefinitionE True unfoldCorecursion (Def f []) f es
+    Def f es -> unfoldDefinitionE unfoldCorecursion (Def f []) f es
     _ -> slowReduceTerm v
 
 -- | If the first argument is 'True', then a single delayed clause may
 -- be unfolded.
 unfoldDefinition ::
-  Bool -> (Term -> ReduceM (Blocked Term)) ->
+  (Term -> ReduceM (Blocked Term)) ->
   Term -> QName -> Args -> ReduceM (Blocked Term)
-unfoldDefinition unfoldDelayed keepGoing v f args =
-  unfoldDefinitionE unfoldDelayed keepGoing v f (map Apply args)
+unfoldDefinition keepGoing v f args =
+  unfoldDefinitionE keepGoing v f (map Apply args)
 
 unfoldDefinitionE ::
-  Bool -> (Term -> ReduceM (Blocked Term)) ->
+  (Term -> ReduceM (Blocked Term)) ->
   Term -> QName -> Elims -> ReduceM (Blocked Term)
-unfoldDefinitionE unfoldDelayed keepGoing v f es = do
-  r <- unfoldDefinitionStep unfoldDelayed v f es
+unfoldDefinitionE keepGoing v f es = do
+  r <- unfoldDefinitionStep v f es
   case r of
     NoReduction v    -> return v
     YesReduction _ v -> keepGoing v
 
 unfoldDefinition' ::
-  Bool -> (Simplification -> Term -> ReduceM (Simplification, Blocked Term)) ->
+  (Simplification -> Term -> ReduceM (Simplification, Blocked Term)) ->
   Term -> QName -> Elims -> ReduceM (Simplification, Blocked Term)
-unfoldDefinition' unfoldDelayed keepGoing v0 f es = do
-  r <- unfoldDefinitionStep unfoldDelayed v0 f es
+unfoldDefinition' keepGoing v0 f es = do
+  r <- unfoldDefinitionStep v0 f es
   case r of
     NoReduction v       -> return (NoSimplification, v)
     YesReduction simp v -> keepGoing simp v
 
-unfoldDefinitionStep :: Bool -> Term -> QName -> Elims -> ReduceM (Reduced (Blocked Term) Term)
-unfoldDefinitionStep unfoldDelayed v0 f es =
+unfoldDefinitionStep :: Term -> QName -> Elims -> ReduceM (Reduced (Blocked Term) Term)
+unfoldDefinitionStep v0 f es =
   {-# SCC "reduceDef" #-} do
   traceSDoc "tc.reduce" 90 ("unfoldDefinitionStep v0" <+> pretty v0) $ do
   info <- getConstInfo f
@@ -650,7 +657,6 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
       dontUnfold = or
         [ defNonterminating info && SmallSet.notMember NonTerminatingReductions allowed
         , defTerminationUnconfirmed info && SmallSet.notMember UnconfirmedReductions allowed
-        , defDelayed info == Delayed && not unfoldDelayed
         , prp == Right True
         , isIrrelevant info
         , not defOk
@@ -774,7 +780,7 @@ reduceDefCopy f es = do
                 xs  = etaArgs ps es
                 n   = length xs
                 newes = raise n es ++ [ Apply $ var i <$ x | (i, x) <- zip (downFrom n) xs ]
-        if (defDelayed info == Delayed) || (defNonterminating info)
+        if defNonterminating info
          then return $ NoReduction ()
          else do
             ev <- liftReduce $ appDefE_ f v0 [cl] Nothing mempty $ map notReduced es'
@@ -797,13 +803,13 @@ reduceHead v = do -- ignoreAbstractMode $ do
     Def f es -> do
 
       abstractMode <- envAbstractMode <$> askTC
-      isAbstract <- treatAbstractly f
+      isAbstract <- not <$> hasAccessibleDef f
       traceSLn "tc.inj.reduce" 50 (
         "reduceHead: we are in " ++ show abstractMode++ "; " ++ prettyShow f ++
         " is treated " ++ if isAbstract then "abstractly" else "concretely"
         ) $ do
       let v0  = Def f []
-          red = liftReduce $ unfoldDefinitionE False reduceHead v0 f es
+          red = liftReduce $ unfoldDefinitionE reduceHead v0 f es
       def <- theDef <$> getConstInfo f
       case def of
         -- Andreas, 2012-11-06 unfold aliases (single clause terminating functions)
@@ -811,7 +817,7 @@ reduceHead v = do -- ignoreAbstractMode $ do
         -- We restrict this to terminating functions to not make the
         -- type checker loop here on non-terminating functions.
         -- see test/fail/TerminationInfiniteRecord
-        Function{ funClauses = [ _ ], funDelayed = NotDelayed, funTerminates = Just True } -> do
+        Function{ funClauses = [ _ ], funTerminates = Just True } -> do
           traceSLn "tc.inj.reduce" 50 ("reduceHead: head " ++ prettyShow f ++ " is Function") $ do
           red
         Datatype{ dataClause = Just _ } -> red
@@ -829,10 +835,22 @@ unfoldInlined v = do
       info <- getConstInfo f
       let def = theDef info
           irr = isIrrelevant $ defArgInfo info
+      case def of
+        Function{} ->
+          reportSLn "tc.inline" 90 $
+            intercalate "\n"
+            [ "considering to inline " ++ prettyShow f
+            , "irr         = " ++ prettyShow irr
+            , "funInline   = " ++ prettyShow (def ^. funInline)
+            , "funCompiled = " ++ prettyShow (funCompiled def)
+            ]
+        _ -> pure ()
       case def of   -- Only for simple definitions with no pattern matching (TODO: maybe copatterns?)
-        Function{ funCompiled = Just Done{}, funDelayed = NotDelayed }
-          | def ^. funInline , not irr -> liftReduce $
-          ignoreBlocking <$> unfoldDefinitionE False (return . notBlocked) (Def f []) f es
+        Function{ funCompiled = Just Done{} }
+          | def ^. funInline , not irr -> do
+              reportSLn "tc.inline" 70 $ "asking to inline " ++ prettyShow f
+              liftReduce $
+                ignoreBlocking <$> unfoldDefinitionE (return . notBlocked) (Def f []) f es
         _ -> return v
     _ -> return v
 
@@ -1018,7 +1036,7 @@ instance Simplify Term where
     case v of
       Def f vs   -> iapp vs $ do
         let keepGoing simp v = return (simp, notBlocked v)
-        (simpl, v) <- unfoldDefinition' False keepGoing (Def f []) f vs
+        (simpl, v) <- unfoldDefinition' keepGoing (Def f []) f vs
         when (simpl == YesSimplification) $
           reportSDoc "tc.simplify'" 90 $
             pretty f <+> text ("simplify': unfolding definition returns " ++ show simpl) <+> pretty (ignoreBlocking v)
@@ -1049,10 +1067,8 @@ instance Simplify Sort where
         PiSort a s1 s2 -> piSort <$> simplify' a <*> simplify' s1 <*> simplify' s2
         FunSort s1 s2 -> funSort <$> simplify' s1 <*> simplify' s2
         UnivSort s -> univSort <$> simplify' s
-        Type s     -> Type <$> simplify' s
-        Prop s     -> Prop <$> simplify' s
+        Univ u s   -> Univ u <$> simplify' s
         Inf _ _    -> return s
-        SSet s     -> SSet <$> simplify' s
         SizeUniv   -> return s
         LockUniv   -> return s
         LevelUniv  -> return s
@@ -1201,10 +1217,8 @@ instance Normalise Sort where
         PiSort a s1 s2 -> piSort <$> normalise' a <*> normalise' s1 <*> normalise' s2
         FunSort s1 s2 -> funSort <$> normalise' s1 <*> normalise' s2
         UnivSort s -> univSort <$> normalise' s
-        Prop s     -> Prop <$> normalise' s
-        Type s     -> Type <$> normalise' s
+        Univ u s   -> Univ u <$> normalise' s
         Inf _ _    -> return s
-        SSet s     -> SSet <$> normalise' s
         SizeUniv   -> return SizeUniv
         LockUniv   -> return LockUniv
         LevelUniv  -> return LevelUniv
@@ -1402,15 +1416,16 @@ instance InstantiateFull ConHead where
 instance InstantiateFull DBPatVar where
     instantiateFull' = return
 
+instance InstantiateFull PrimitiveId where
+  instantiateFull' = return
+
 -- Rest:
 
 instance InstantiateFull Sort where
     instantiateFull' s = do
         s <- instantiate' s
         case s of
-            Type n     -> Type <$> instantiateFull' n
-            Prop n     -> Prop <$> instantiateFull' n
-            SSet n     -> SSet <$> instantiateFull' n
+            Univ u n   -> Univ u <$> instantiateFull' n
             PiSort a s1 s2 -> piSort <$> instantiateFull' a <*> instantiateFull' s1 <*> instantiateFull' s2
             FunSort s1 s2 -> funSort <$> instantiateFull' s1 <*> instantiateFull' s2
             UnivSort s -> univSort <$> instantiateFull' s
@@ -1569,9 +1584,7 @@ instance InstantiateFull NLPType where
     <*> instantiateFull' a
 
 instance InstantiateFull NLPSort where
-  instantiateFull' (PType x) = PType <$> instantiateFull' x
-  instantiateFull' (PProp x) = PProp <$> instantiateFull' x
-  instantiateFull' (PSSet x) = PSSet <$> instantiateFull' x
+  instantiateFull' (PUniv u x) = PUniv u <$> instantiateFull' x
   instantiateFull' (PInf f n) = return $ PInf f n
   instantiateFull' PSizeUniv = return PSizeUniv
   instantiateFull' PLockUniv = return PLockUniv
@@ -1690,7 +1703,7 @@ instantiateFullExceptForDefinitions' :: Interface -> ReduceM Interface
 instantiateFullExceptForDefinitions'
   (Interface h s ft ms mod tlmod scope inside sig metas display userwarn
      importwarn b foreignCode highlighting libPragmas filePragmas
-     usedOpts patsyns warnings partialdefs) =
+     usedOpts patsyns warnings partialdefs oblocks onames) =
   Interface h s ft ms mod tlmod scope inside
     <$> ((\s r -> Sig { _sigSections     = s
                       , _sigDefinitions  = sig ^. sigDefinitions
@@ -1711,6 +1724,8 @@ instantiateFullExceptForDefinitions'
     <*> return patsyns
     <*> return warnings
     <*> return partialdefs
+    <*> return oblocks
+    <*> return onames
 
 -- | Instantiates everything except for definitions in the signature.
 

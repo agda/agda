@@ -3,11 +3,11 @@ Ambiguous name Set₁. It could refer to any one of
   Set₁ bound at
     AmbiguousSet1b.agda:6,3-7
   Set bound at
-    agda-default-include-path/Agda/Primitive.agda:13,18-21
+    agda-default-include-path/Agda/Primitive.agda:14,28-31
 Set₁ is in scope as
   * a postulate AmbiguousSet1b.Set₁ brought into scope by
     - its definition at AmbiguousSet1b.agda:6,3-7
   * a primitive function Agda.Primitive.Set brought into scope by
     - the opening of Agda.Primitive at AmbiguousSet1b.agda:8,13-27
-    - its definition at agda-default-include-path/Agda/Primitive.agda:13,18-21
+    - its definition at agda-default-include-path/Agda/Primitive.agda:14,28-31
 when scope checking Set₁

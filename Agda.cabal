@@ -35,8 +35,9 @@ description:
     packages.
 
 tested-with:
-    GHC == 9.4.4
-    GHC == 9.2.7
+    GHC == 9.6.2
+    GHC == 9.4.5
+    GHC == 9.2.8
     GHC == 9.0.2
     GHC == 8.10.7
     GHC == 8.8.4
@@ -85,8 +86,8 @@ extra-doc-files:
     doc/release-notes/2.2.0.md
 
 extra-source-files:
-    stack-9.4.4.yaml
-    stack-9.2.7.yaml
+    stack-9.4.5.yaml
+    stack-9.2.8.yaml
     stack-9.0.2.yaml
     stack-8.10.7.yaml
     stack-8.8.4.yaml
@@ -154,11 +155,6 @@ source-repository this
 
 -- Build flags
 ---------------------------------------------------------------------------
-
-flag cpphs
-  default:     False
-  manual:      True
-  description: Use cpphs instead of cpp.
 
 flag debug
   default: False
@@ -244,6 +240,11 @@ common language
   if impl(ghc < 8.10)
     ghc-options:
       -Werror=implicit-kind-vars
+      -- #6623: Turn off this (nameless) warning:
+      -- "Pattern match checker exceeded (2000000) iterations in a case alternative."
+      -- See: https://gitlab.haskell.org/ghc/ghc/-/issues/13464
+      -Wno-incomplete-patterns
+      -Wno-overlapping-patterns
 
   if impl(ghc >= 8.8)
     ghc-options:
@@ -263,6 +264,7 @@ common language
       -- #6137: coverage checker works only sufficiently well from GHC 9.0
       -Werror=incomplete-patterns
       -Werror=incomplete-record-updates
+      -Werror=overlapping-patterns
 
   -- ASR (2022-04-27). This warning was added in GHC 9.0.2, removed
   -- from 9.2.1 and added back in 9.2.2.
@@ -286,6 +288,7 @@ common language
   --         .hlint.yaml
   default-extensions:
       BangPatterns
+      BlockArguments
       ConstraintKinds
       --L-T Chen (2019-07-15):
       -- Enabling DataKinds only locally makes the compile time
@@ -296,6 +299,7 @@ common language
       DeriveFunctor
       DeriveGeneric
       DeriveTraversable
+      DerivingStrategies
       ExistentialQuantification
       FlexibleContexts
       FlexibleInstances
@@ -317,6 +321,12 @@ common language
       TypeOperators
       TypeSynonymInstances
 
+  other-extensions:
+      CPP
+      DeriveAnyClass
+      PartialTypeSignatures
+
+
 -- Agda library
 ---------------------------------------------------------------------------
 
@@ -336,13 +346,6 @@ library
   --
   -- An exceptions are packages that are only needed for certain configurations,
   -- like for flags, Windows, etc.
-
-  if flag(cpphs)
-    -- We don't write an upper bound for cpphs because the
-    -- `build-tool-depends` field can not be modified in Hackage.
-
-    build-tool-depends: cpphs:cpphs >= 1.20.9
-    ghc-options:        -pgmP cpphs -optP --cpp
 
   if flag(debug)
     cpp-options:    -DDEBUG
@@ -366,7 +369,7 @@ library
 
   -- For libraries that come with GHC, we take the shipped version as default lower bound.
   build-depends:
-    , aeson                >= 1.1.2.0   && < 2.2
+    , aeson                >= 1.1.2.0   && < 2.3
     , array                >= 0.5.2.0   && < 0.6
     , async                >= 2.2       && < 2.3
     , base                 >= 4.12.0.0  && < 4.19
@@ -544,6 +547,7 @@ library
       Agda.Syntax.Internal.Names
       Agda.Syntax.Internal.Pattern
       Agda.Syntax.Internal.SanityCheck
+      Agda.Syntax.Internal.Univ
       Agda.Syntax.Literal
       Agda.Syntax.Notation
       Agda.Syntax.Parser.Alex
@@ -621,6 +625,7 @@ library
       Agda.TypeChecking.MetaVars
       Agda.TypeChecking.MetaVars.Mention
       Agda.TypeChecking.MetaVars.Occurs
+      Agda.TypeChecking.Modalities
       Agda.TypeChecking.Monad.Base
       Agda.TypeChecking.Monad.Benchmark
       Agda.TypeChecking.Monad.Builtin
@@ -632,6 +637,7 @@ library
       Agda.TypeChecking.Monad.Env
       Agda.TypeChecking.Monad.Imports
       Agda.TypeChecking.Monad.MetaVars
+      Agda.TypeChecking.Monad.Modality
       Agda.TypeChecking.Monad.Mutual
       Agda.TypeChecking.Monad.Open
       Agda.TypeChecking.Monad.Options
@@ -643,6 +649,7 @@ library
       Agda.TypeChecking.Monad.Trace
       Agda.TypeChecking.Monad
       Agda.TypeChecking.Names
+      Agda.TypeChecking.Opacity
       Agda.TypeChecking.Patterns.Abstract
       Agda.TypeChecking.Patterns.Internal
       Agda.TypeChecking.Patterns.Match
@@ -719,6 +726,7 @@ library
       Agda.Utils.Bag
       Agda.Utils.Benchmark
       Agda.Utils.BiMap
+      Agda.Utils.Boolean
       Agda.Utils.BoolSet
       Agda.Utils.CallStack
       Agda.Utils.Char
@@ -802,6 +810,7 @@ library
       Agda.Interaction.Options.HasOptions
       Agda.Utils.CallStack.Base
       Agda.Utils.CallStack.Pretty
+      Agda.Utils.Unsafe
 
 -- Agda binary
 ---------------------------------------------------------------------------
@@ -875,6 +884,7 @@ test-suite agda-tests
       Internal.Syntax.Common
       Internal.Syntax.Concrete.Name
       Internal.Syntax.Internal
+      Internal.Syntax.Internal.Univ
       Internal.Syntax.Parser.Parser
       Internal.Syntax.Position
       Internal.Termination.CallGraph

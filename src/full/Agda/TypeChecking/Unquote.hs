@@ -43,7 +43,6 @@ import Agda.Interaction.Options ( optTrustedExecutables, optAllowExec )
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.Irrelevance ( workOnTypes )
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -416,6 +415,19 @@ instance Unquote a => Unquote (R.Abs a) where
     where hint x | not (null x) = x
                  | otherwise    = "_"
 
+instance Unquote Blocker where
+  unquote t = do
+    t <- reduceQuotedTerm t
+    case t of
+      Con c _ es | Just [x] <- allApplyElims es ->
+        choice
+          [ (c `isCon` primAgdaBlockerAny, UnblockOnAny . Set.fromList <$> unquoteN x)
+          , (c `isCon` primAgdaBlockerAll, UnblockOnAll . Set.fromList <$> unquoteN x)
+          , (c `isCon` primAgdaBlockerMeta, UnblockOnMeta <$> unquoteN x)]
+          __IMPOSSIBLE__
+      Con c _ _ -> __IMPOSSIBLE__
+      _ -> throwError $ NonCanonical "blocker" t
+
 instance Unquote MetaId where
   unquote t = do
     t <- reduceQuotedTerm t
@@ -592,7 +604,7 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMDeclarePostulate, uqFun2 tcDeclarePostulate u v)
              , (f `isDef` primAgdaTCMDefineData, uqFun2 tcDefineData u v)
              , (f `isDef` primAgdaTCMDefineFun,  uqFun2 tcDefineFun  u v)
-             , (f `isDef` primAgdaTCMQuoteOmegaTerm, tcQuoteTerm (sort $ Inf IsFibrant 0) (unElim v))
+             , (f `isDef` primAgdaTCMQuoteOmegaTerm, tcQuoteTerm (sort $ Inf UType 0) (unElim v))
              , (f `isDef` primAgdaTCMPragmaForeign, tcFun2 tcPragmaForeign u v)
              ]
              failEval
@@ -601,7 +613,7 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMTypeError,          tcFun1 tcTypeError   u)
              , (f `isDef` primAgdaTCMQuoteTerm,          tcQuoteTerm (mkT (unElim l) (unElim a)) (unElim u))
              , (f `isDef` primAgdaTCMUnquoteTerm,        tcFun1 (tcUnquoteTerm (mkT (unElim l) (unElim a))) u)
-             , (f `isDef` primAgdaTCMBlockOnMeta,        uqFun1 tcBlockOnMeta u)
+             , (f `isDef` primAgdaTCMBlock,              uqFun1 tcBlock u)
              , (f `isDef` primAgdaTCMDebugPrint,         tcFun3 tcDebugPrint l a u)
              , (f `isDef` primAgdaTCMNoConstraints,      tcNoConstraints (unElim u))
              , (f `isDef` primAgdaTCMDeclareData, uqFun3 tcDeclareData l a u)
@@ -645,10 +657,10 @@ evalTCM v = do
     tcCatchError m h =
       liftU2 (\ m1 m2 -> m1 `catchError` \ _ -> m2) (evalTCM m) (evalTCM h)
 
-    tcAskLens :: ToTerm a => Lens' a TCEnv -> UnquoteM Term
+    tcAskLens :: ToTerm a => Lens' TCEnv a -> UnquoteM Term
     tcAskLens l = liftTCM (toTerm <*> asksTC (\ e -> e ^. l))
 
-    tcWithLens :: Unquote a => Lens' a TCEnv -> Term -> Term -> UnquoteM Term
+    tcWithLens :: Unquote a => Lens' TCEnv a -> Term -> Term -> UnquoteM Term
     tcWithLens l b m = do
       v <- unquote b
       liftU1 (locallyTC l $ const v) (evalTCM m)
@@ -706,10 +718,11 @@ evalTCM v = do
       equalTerm a u v
       primUnitUnit
 
-    tcBlockOnMeta :: MetaId -> UnquoteM Term
-    tcBlockOnMeta x = do
+    tcBlock :: Blocker -> UnquoteM Term
+    tcBlock x = do
       s <- gets snd
-      throwError (BlockedOnMeta s $ unblockOnMeta x)
+      liftTCM $ reportSDoc "tc.unquote.block" 10 $ pretty (show x)
+      throwError (BlockedOnMeta s x)
 
     tcCommit :: UnquoteM Term
     tcCommit = do
@@ -1049,7 +1062,7 @@ evalTCM v = do
       let accessDontCare = __IMPOSSIBLE__  -- or ConcreteDef, value not looked at
       ac <- asksTC (^. lensIsAbstract)     -- Issue #4012, respect AbstractMode
       let i = mkDefInfo (nameConcrete $ qnameName x) noFixity' accessDontCare ac noRange
-      locallyReduceAllDefs $ checkFunDef NotDelayed i x cs
+      locallyReduceAllDefs $ checkFunDef i x cs
       primUnitUnit
 
     tcPragmaForeign :: Text -> Text -> TCM Term

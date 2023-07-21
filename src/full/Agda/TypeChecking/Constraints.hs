@@ -285,10 +285,10 @@ solveConstraint_ (UnBlock m)                =   -- alwaysUnblock since these hav
       Open -> __IMPOSSIBLE__
       OpenInstance -> __IMPOSSIBLE__
 solveConstraint_ (FindInstance m cands) = findInstance m cands
-solveConstraint_ (CheckFunDef d i q cs _err) = withoutCache $
+solveConstraint_ (CheckFunDef i q cs _err) = withoutCache $
   -- re #3498: checking a fundef would normally be cached, but here it's
   -- happening out of order so it would only corrupt the caching log.
-  checkFunDef d i q cs
+  checkFunDef i q cs
 solveConstraint_ (CheckLockedVars a b c d)   = checkLockedVars a b c d
 solveConstraint_ (HasBiggerSort a)      = hasBiggerSort a
 solveConstraint_ (HasPTSRule a b)       = hasPTSRule a b

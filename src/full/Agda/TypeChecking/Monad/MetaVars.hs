@@ -169,7 +169,7 @@ metasCreatedBy m = do
   ss        <- created stSolvedMetaStore nextMeta
   return (a, LocalMetaStores { openMetas = os, solvedMetas = ss })
   where
-  created :: Lens' LocalMetaStore TCState -> MetaId -> m LocalMetaStore
+  created :: Lens' TCState LocalMetaStore -> MetaId -> m LocalMetaStore
   created store next = do
     ms <- useTC store
     return $ case MapS.splitLookup next ms of

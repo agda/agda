@@ -27,6 +27,8 @@ import qualified Data.Strict.Maybe as Strict
 import Data.Word
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
+import Data.HashSet (HashSet)
+import qualified Data.HashSet as HashSet
 
 import GHC.Generics (Generic)
 
@@ -50,23 +52,10 @@ type Nat    = Int
 type Arity  = Nat
 
 ---------------------------------------------------------------------------
--- * Delayed
----------------------------------------------------------------------------
-
--- | Used to specify whether something should be delayed.
-data Delayed = Delayed | NotDelayed
-  deriving (Show, Eq, Ord, Generic)
-
-instance KillRange Delayed where
-  killRange = id
-
-instance NFData Delayed
-
----------------------------------------------------------------------------
 -- * File
 ---------------------------------------------------------------------------
 
-data FileType = AgdaFileType | MdFileType | RstFileType | TexFileType | OrgFileType
+data FileType = AgdaFileType | MdFileType | RstFileType | TexFileType | OrgFileType | TypstFileType
   deriving (Eq, Ord, Show, Generic)
 
 instance Pretty FileType where
@@ -76,6 +65,7 @@ instance Pretty FileType where
     RstFileType  -> "ReStructedText"
     TexFileType  -> "LaTeX"
     OrgFileType  -> "org-mode"
+    TypstFileType -> "Typst"
 
 instance NFData FileType
 
@@ -123,7 +113,7 @@ instance HasRange a => HasRange (RecordDirectives' a) where
   getRange (RecordDirectives a b c d) = getRange (a,b,c,d)
 
 instance KillRange a => KillRange (RecordDirectives' a) where
-  killRange (RecordDirectives a b c d) = killRange4 RecordDirectives a b c d
+  killRange (RecordDirectives a b c d) = killRangeN RecordDirectives a b c d
 
 instance NFData a => NFData (RecordDirectives' a) where
   rnf (RecordDirectives a b c d) = c `seq` rnf (a, b, d)
@@ -453,7 +443,7 @@ moreUsableModality :: Modality -> Modality -> Bool
 moreUsableModality m m' = related m POLE m'
 
 usableModality :: LensModality a => a -> Bool
-usableModality a = usableRelevance m && usableQuantity m
+usableModality a = usableRelevance m && usableQuantity m && usableCohesion m
   where m = getModality a
 
 -- | Multiplicative monoid (standard monoid).
@@ -524,19 +514,19 @@ instance HasRange Modality where
   getRange (Modality r q c) = getRange (r, q, c)
 
 instance KillRange Modality where
-  killRange (Modality r q c) = killRange3 Modality r q c
+  killRange (Modality r q c) = killRangeN Modality r q c
 
 instance NFData Modality where
 
 -- Lens stuff
 
-lModRelevance :: Lens' Relevance Modality
+lModRelevance :: Lens' Modality Relevance
 lModRelevance f m = f (modRelevance m) <&> \ r -> m { modRelevance = r }
 
-lModQuantity :: Lens' Quantity Modality
+lModQuantity :: Lens' Modality Quantity
 lModQuantity f m = f (modQuantity m) <&> \ q -> m { modQuantity = q }
 
-lModCohesion :: Lens' Cohesion Modality
+lModCohesion :: Lens' Modality Cohesion
 lModCohesion f m = f (modCohesion m) <&> \ q -> m { modCohesion = q }
 
 class LensModality a where
@@ -576,35 +566,35 @@ instance LensCohesion Modality where
 
 -- default accessors for Relevance
 
-getRelevanceMod :: LensModality a => LensGet Relevance a
+getRelevanceMod :: LensModality a => LensGet a Relevance
 getRelevanceMod = getRelevance . getModality
 
-setRelevanceMod :: LensModality a => LensSet Relevance a
+setRelevanceMod :: LensModality a => LensSet a Relevance
 setRelevanceMod = mapModality . setRelevance
 
-mapRelevanceMod :: LensModality a => LensMap Relevance a
+mapRelevanceMod :: LensModality a => LensMap a Relevance
 mapRelevanceMod = mapModality . mapRelevance
 
 -- default accessors for Quantity
 
-getQuantityMod :: LensModality a => LensGet Quantity a
+getQuantityMod :: LensModality a => LensGet a Quantity
 getQuantityMod = getQuantity . getModality
 
-setQuantityMod :: LensModality a => LensSet Quantity a
+setQuantityMod :: LensModality a => LensSet a Quantity
 setQuantityMod = mapModality . setQuantity
 
-mapQuantityMod :: LensModality a => LensMap Quantity a
+mapQuantityMod :: LensModality a => LensMap a Quantity
 mapQuantityMod = mapModality . mapQuantity
 
 -- default accessors for Cohesion
 
-getCohesionMod :: LensModality a => LensGet Cohesion a
+getCohesionMod :: LensModality a => LensGet a Cohesion
 getCohesionMod = getCohesion . getModality
 
-setCohesionMod :: LensModality a => LensSet Cohesion a
+setCohesionMod :: LensModality a => LensSet a Cohesion
 setCohesionMod = mapModality . setCohesion
 
-mapCohesionMod :: LensModality a => LensMap Cohesion a
+mapCohesionMod :: LensModality a => LensMap a Cohesion
 mapCohesionMod = mapModality . mapCohesion
 
 ---------------------------------------------------------------------------
@@ -1064,6 +1054,16 @@ data Relevance
   | NonStrict   -- ^ The argument may never flow into evaluation position.
                 --   Therefore, it is irrelevant at run-time.
                 --   It is treated relevantly during equality checking.
+                --
+                --   The above comment is probably obsolete, as we currently have
+                --   erasure (/at/0, @Quantity0@) for that. What's described here is probably
+                --   shape-irrelevance (..). If you enable @--experimental-irrelevance@,
+                --   then the type of an irrelevant function is forced to be shape-irrelevant.
+                --   See:
+                --   - <https://doi.org/10.2168/LMCS-8(1:29)2012> example 2.8
+                --     (Not enforcing shape-irrelevant codomains can break subject reduction!)
+                --   - <https://dl.acm.org/doi/10.1145/3110277>
+                --   - <https://doi.org/10.1145/3209108.3209119>
   | Irrelevant  -- ^ The argument is irrelevant at compile- and runtime.
     deriving (Show, Eq, Enum, Bounded, Generic)
 
@@ -1453,7 +1453,7 @@ inverseComposeCohesion r x =
   case (r, x) of
     (Continuous  , x) -> x          -- going to continous arg.: nothing changes
                                     -- because Continuous is comp.-neutral
-    (Squash, x)       -> Squash     -- artificial case, should not be needed.
+    (Squash, x)       -> Flat       -- in squash position everything is usable
     (Flat , Flat)     -> Flat       -- otherwise: Flat things remain Flat
     (Flat , _)        -> Squash     -- but everything else becomes unusable.
 
@@ -1674,7 +1674,7 @@ instance HasRange ArgInfo where
   getRange (ArgInfo h m o _fv a) = getRange (h, m, o, a)
 
 instance KillRange ArgInfo where
-  killRange (ArgInfo h m o fv a) = killRange5 ArgInfo h m o fv a
+  killRange (ArgInfo h m o fv a) = killRangeN ArgInfo h m o fv a
 
 class LensArgInfo a where
   getArgInfo :: a -> ArgInfo
@@ -1746,46 +1746,46 @@ defaultArgInfo =  ArgInfo
 
 -- default accessors for Hiding
 
-getHidingArgInfo :: LensArgInfo a => LensGet Hiding a
+getHidingArgInfo :: LensArgInfo a => LensGet a Hiding
 getHidingArgInfo = getHiding . getArgInfo
 
-setHidingArgInfo :: LensArgInfo a => LensSet Hiding a
+setHidingArgInfo :: LensArgInfo a => LensSet a Hiding
 setHidingArgInfo = mapArgInfo . setHiding
 
-mapHidingArgInfo :: LensArgInfo a => LensMap Hiding a
+mapHidingArgInfo :: LensArgInfo a => LensMap a Hiding
 mapHidingArgInfo = mapArgInfo . mapHiding
 
 -- default accessors for Modality
 
-getModalityArgInfo :: LensArgInfo a => LensGet Modality a
+getModalityArgInfo :: LensArgInfo a => LensGet a Modality
 getModalityArgInfo = getModality . getArgInfo
 
-setModalityArgInfo :: LensArgInfo a => LensSet Modality a
+setModalityArgInfo :: LensArgInfo a => LensSet a Modality
 setModalityArgInfo = mapArgInfo . setModality
 
-mapModalityArgInfo :: LensArgInfo a => LensMap Modality a
+mapModalityArgInfo :: LensArgInfo a => LensMap a Modality
 mapModalityArgInfo = mapArgInfo . mapModality
 
 -- default accessors for Origin
 
-getOriginArgInfo :: LensArgInfo a => LensGet Origin a
+getOriginArgInfo :: LensArgInfo a => LensGet a Origin
 getOriginArgInfo = getOrigin . getArgInfo
 
-setOriginArgInfo :: LensArgInfo a => LensSet Origin a
+setOriginArgInfo :: LensArgInfo a => LensSet a Origin
 setOriginArgInfo = mapArgInfo . setOrigin
 
-mapOriginArgInfo :: LensArgInfo a => LensMap Origin a
+mapOriginArgInfo :: LensArgInfo a => LensMap a Origin
 mapOriginArgInfo = mapArgInfo . mapOrigin
 
 -- default accessors for FreeVariables
 
-getFreeVariablesArgInfo :: LensArgInfo a => LensGet FreeVariables a
+getFreeVariablesArgInfo :: LensArgInfo a => LensGet a FreeVariables
 getFreeVariablesArgInfo = getFreeVariables . getArgInfo
 
-setFreeVariablesArgInfo :: LensArgInfo a => LensSet FreeVariables a
+setFreeVariablesArgInfo :: LensArgInfo a => LensSet a FreeVariables
 setFreeVariablesArgInfo = mapArgInfo . setFreeVariables
 
-mapFreeVariablesArgInfo :: LensArgInfo a => LensMap FreeVariables a
+mapFreeVariablesArgInfo :: LensArgInfo a => LensMap a FreeVariables
 mapFreeVariablesArgInfo = mapArgInfo . mapFreeVariables
 
 -- inserted hidden arguments
@@ -1812,7 +1812,7 @@ instance SetRange a => SetRange (Arg a) where
   setRange r = fmap $ setRange r
 
 instance KillRange a => KillRange (Arg a) where
-  killRange (Arg info a) = killRange2 Arg info a
+  killRange (Arg info a) = killRangeN Arg info a
 
 -- Andreas, 2019-07-05, issue #3889
 -- A dedicated equality for with-abstraction now exists,
@@ -2000,10 +2000,10 @@ userNamed = Named . Just . WithOrigin UserWritten
 class LensNamed a where
   -- | The type of the name
   type NameOf a
-  lensNamed :: Lens' (Maybe (NameOf a)) a
+  lensNamed :: Lens' a (Maybe (NameOf a))
 
   -- Lenses lift through decorations:
-  default lensNamed :: (Decoration f, LensNamed b, NameOf b ~ NameOf a, f b ~ a) => Lens' (Maybe (NameOf a)) a
+  default lensNamed :: (Decoration f, LensNamed b, NameOf b ~ NameOf a, f b ~ a) => Lens' a (Maybe (NameOf a))
   lensNamed = traverseF . lensNamed
 
 instance LensNamed a => LensNamed (Arg a) where
@@ -2276,7 +2276,7 @@ instance KillRange IsAbstract where
 instance NFData IsAbstract
 
 class LensIsAbstract a where
-  lensIsAbstract :: Lens' IsAbstract a
+  lensIsAbstract :: Lens' a IsAbstract
 
 instance LensIsAbstract IsAbstract where
   lensIsAbstract = id
@@ -2326,6 +2326,67 @@ instance KillRange IsMacro where killRange = id
 instance HasRange  IsMacro where getRange _ = noRange
 
 instance NFData IsMacro
+
+-- ** opaque blocks
+
+-- | Opaque or transparent.
+data IsOpaque
+  = OpaqueDef {-# UNPACK #-} !OpaqueId
+    -- ^ This definition is opaque, and it is guarded by the given
+    -- opaque block.
+  | TransparentDef
+  deriving (Show, Eq, Ord, Generic)
+
+instance KillRange IsOpaque where
+  killRange = id
+
+instance NFData IsOpaque
+
+class LensIsOpaque a where
+  lensIsOpaque :: Lens' a IsOpaque
+
+instance LensIsOpaque IsOpaque where
+  lensIsOpaque = id
+
+-- | Monoid representing the combined opaque blocks of a 'Foldable'
+-- containing possibly-opaque declarations.
+data JointOpacity
+  = UniqueOpaque    {-# UNPACK #-} !OpaqueId
+  -- ^ Every definition agrees on what opaque block they belong to.
+  | DifferentOpaque !(HashSet OpaqueId)
+  -- ^ More than one opaque block was found.
+  | NoOpaque
+  -- ^ Nothing here is opaque.
+
+instance Semigroup JointOpacity where
+  UniqueOpaque i <> UniqueOpaque j
+    | i == j    = UniqueOpaque i
+    | otherwise = DifferentOpaque (HashSet.fromList [i, j])
+
+  DifferentOpaque is <> UniqueOpaque j     = DifferentOpaque (HashSet.insert j is)
+  UniqueOpaque i     <> DifferentOpaque js = DifferentOpaque (HashSet.insert i js)
+  DifferentOpaque is <> DifferentOpaque js = DifferentOpaque (HashSet.union is js)
+
+  NoOpaque <> x = x
+  x <> NoOpaque = x
+
+instance Monoid JointOpacity where
+  mappend = (<>)
+  mempty = NoOpaque
+
+class AllAreOpaque a where
+  jointOpacity :: a -> JointOpacity
+
+  default jointOpacity :: (Foldable t, AllAreOpaque b, t b ~ a) => a -> JointOpacity
+  jointOpacity = Fold.foldMap jointOpacity
+
+instance AllAreOpaque IsOpaque where
+  jointOpacity = \case
+    TransparentDef -> NoOpaque
+    OpaqueDef i    -> UniqueOpaque i
+
+instance AllAreOpaque a => AllAreOpaque [a] where
+instance AllAreOpaque a => AllAreOpaque (Maybe a) where
 
 ---------------------------------------------------------------------------
 -- * NameId
@@ -2429,6 +2490,30 @@ newtype ProblemId = ProblemId Nat
 instance Show   ProblemId where show   (ProblemId n) = show n
 instance Pretty ProblemId where pretty (ProblemId n) = pretty n
 
+-- | The unique identifier of an opaque block. Second argument is the
+-- top-level module identifier.
+data OpaqueId = OpaqueId {-# UNPACK #-} !Word64 {-# UNPACK #-} !ModuleNameHash
+    deriving (Eq, Ord, Generic, Show)
+
+instance KillRange OpaqueId where
+  killRange = id
+
+instance Pretty OpaqueId where
+  pretty (OpaqueId n m) = text $ show n ++ "@" ++ show m
+
+instance Enum OpaqueId where
+  succ (OpaqueId n m)     = OpaqueId (n + 1) m
+  pred (OpaqueId n m)     = OpaqueId (n - 1) m
+  toEnum n                = __IMPOSSIBLE__  -- should not be used
+  fromEnum (OpaqueId n _) = fromIntegral n
+
+instance NFData OpaqueId where
+  rnf (OpaqueId _ _) = ()
+
+instance Hashable OpaqueId where
+  {-# INLINE hashWithSalt #-}
+  hashWithSalt salt (OpaqueId n (ModuleNameHash m)) = hashWithSalt salt (n, m)
+
 ------------------------------------------------------------------------
 -- * Placeholders (used to parse sections)
 ------------------------------------------------------------------------
@@ -2467,7 +2552,7 @@ instance HasRange a => HasRange (MaybePlaceholder a) where
 
 instance KillRange a => KillRange (MaybePlaceholder a) where
   killRange p@Placeholder{}     = p
-  killRange (NoPlaceholder p e) = killRange1 (NoPlaceholder p) e
+  killRange (NoPlaceholder p e) = killRangeN (NoPlaceholder p) e
 
 instance NFData a => NFData (MaybePlaceholder a) where
   rnf (Placeholder _)     = ()
@@ -2586,20 +2671,20 @@ instance NFData Fixity' where
   rnf (Fixity' _ a _) = rnf a
 
 instance KillRange Fixity' where
-  killRange (Fixity' f n r) = killRange3 Fixity' f n r
+  killRange (Fixity' f n r) = killRangeN Fixity' f n r
 
 -- lenses
 
-_fixityAssoc :: Lens' Associativity Fixity
+_fixityAssoc :: Lens' Fixity Associativity
 _fixityAssoc f r = f (fixityAssoc r) <&> \x -> r { fixityAssoc = x }
 
-_fixityLevel :: Lens' FixityLevel Fixity
+_fixityLevel :: Lens' Fixity FixityLevel
 _fixityLevel f r = f (fixityLevel r) <&> \x -> r { fixityLevel = x }
 
 -- Lens focusing on Fixity
 
 class LensFixity a where
-  lensFixity :: Lens' Fixity a
+  lensFixity :: Lens' a Fixity
 
 instance LensFixity Fixity where
   lensFixity = id
@@ -2610,7 +2695,7 @@ instance LensFixity Fixity' where
 -- Lens focusing on Fixity'
 
 class LensFixity' a where
-  lensFixity' :: Lens' Fixity' a
+  lensFixity' :: Lens' a Fixity'
 
 instance LensFixity' Fixity' where
   lensFixity' = id
@@ -2748,18 +2833,18 @@ instance (HasRange a, HasRange b) => HasRange (ImportedName' a b) where
 
 instance (KillRange a, KillRange b) => KillRange (ImportDirective' a b) where
   killRange (ImportDirective _ u h r p) =
-    killRange3 (\u h r -> ImportDirective noRange u h r p) u h r
+    killRangeN (\u h r -> ImportDirective noRange u h r p) u h r
 
 instance (KillRange a, KillRange b) => KillRange (Using' a b) where
-  killRange (Using  i) = killRange1 Using  i
+  killRange (Using  i) = killRangeN Using  i
   killRange UseEverything = UseEverything
 
 instance (KillRange a, KillRange b) => KillRange (Renaming' a b) where
-  killRange (Renaming i n mf _to) = killRange3 (\ i n mf -> Renaming i n mf noRange) i n mf
+  killRange (Renaming i n mf _to) = killRangeN (\ i n mf -> Renaming i n mf noRange) i n mf
 
 instance (KillRange a, KillRange b) => KillRange (ImportedName' a b) where
-  killRange (ImportedModule n) = killRange1 ImportedModule n
-  killRange (ImportedName   n) = killRange1 ImportedName   n
+  killRange (ImportedModule n) = killRangeN ImportedModule n
+  killRange (ImportedName   n) = killRangeN ImportedName   n
 
 -- ** NFData instances
 
@@ -2908,8 +2993,8 @@ instance (HasRange qn, HasRange nm, HasRange p, HasRange e) => HasRange (Rewrite
 
 instance (KillRange qn, KillRange nm, KillRange e, KillRange p) => KillRange (RewriteEqn' qn nm p e) where
   killRange = \case
-    Rewrite es    -> killRange1 Rewrite es
-    Invert qn pes -> killRange2 Invert qn pes
+    Rewrite es    -> killRangeN Rewrite es
+    Invert qn pes -> killRangeN Invert qn pes
 
 -----------------------------------------------------------------------------
 -- * Information on expanded ellipsis (@...@)

@@ -1,0 +1,4 @@
+Issue6651-UnivSort-LockUniv.agda:17,5-6
+univSort _10 != primLockUniv
+when checking that the solution _10 of metavariable _8 has the
+expected type primLockUniv

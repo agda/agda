@@ -29,6 +29,16 @@ UIPₛ {e₁ = refl} {e₂ = refl} = refl
 
 {-# BUILTIN REWRITE _≡ₛₛ_ #-}
 
+data _≡ω_ {A : SSetω} (x : A) : A → SSetω where
+  instance
+    refl : x ≡ω x
+
+-- AIM XXXVI, 2023-05-12, Andreas, issue #6621
+-- UIP also for SSetω (just as for SSet)
+
+UIPω : {A : SSetω} {x y : A} (e₁ e₂ : x ≡ω y) → e₁ ≡ω e₂
+UIPω refl refl = refl
+
 sym : x ≡ₛ y → y ≡ₛ x
 sym refl = refl
 
@@ -77,7 +87,7 @@ postulate
   funextₛ : {A : Set ℓ} {B : A → Set ℓ′} {f g : (x : A) → B x}
           → (∀ x → f x ≡ₛ g x) → f ≡ₛ g
 
-data sNat : SSet lzero where
+data sNat : SSet where
   zero : sNat
   suc  : sNat → sNat
 

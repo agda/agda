@@ -22,7 +22,7 @@ Language Reference
    function-definitions
    function-types
    generalization-of-declared-variables
-   guarded-cubical
+   guarded
    implicit-arguments
    instance-arguments
    irrelevance
@@ -34,6 +34,7 @@ Language Reference
    mixfix-operators
    module-system
    mutual-recursion
+   opaque-definitions
    pattern-synonyms
    positivity-checking
    postulates

@@ -16,8 +16,9 @@ definition. It is possible to declare:
 * :ref:`record types <record-types>` (including
   :ref:`coinductive records <copatterns-coinductive-records>`)
 * :ref:`function definitions <function-definitions>`
-  (including :ref:`mixfix operators <mixfix-operators>` and
-  :ref:`abstract definitions <abstract-definitions>`)
+  (including :ref:`mixfix operators <mixfix-operators>`,
+  :ref:`abstract definitions <abstract-definitions>`, and
+  :ref:`opaque definitions <opaque-definitions>`)
 * :ref:`modules <module-basics>`
 * local definitions :ref:`let <let-expressions>` and
   :ref:`where <where-blocks>`
@@ -94,7 +95,7 @@ The following sections describe these stages in more detail:
 Lexer
 -----
 
-.. _Alex: http://www.haskell.org/alex
+.. _Alex: https://haskell-alex.readthedocs.io/
 
 Lexical analysis (aka tokenization) is the process of converting a sequence of
 characters (the raw ``*.agda`` file) into a sequence of tokens (strings with a
@@ -107,7 +108,7 @@ The main lexing function ``lexer`` is called by the
 Parser
 ------
 
-.. _Happy: http://www.haskell.org/happy
+.. _Happy: https://haskell-happy.readthedocs.io/
 
 The parser is the component that takes the output of the lexer and builds a
 data structure that we will call Concrete Syntax, while checking for correct

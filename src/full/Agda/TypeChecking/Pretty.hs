@@ -434,10 +434,9 @@ instance PrettyTCM NLPType where
 
 instance PrettyTCM NLPSort where
   prettyTCM = \case
-    PType l   -> parens $ "Set" <+> prettyTCM l
-    PProp l   -> parens $ "Prop" <+> prettyTCM l
-    PSSet l   -> parens $ "SSet" <+> prettyTCM l
-    PInf f n  -> prettyTCM (Inf f n :: Sort)
+    PUniv u l -> parens $ text (showUniv u) <+> prettyTCM l
+      -- Andreas, 2023-05-11, preserving Jesper's printing hack for now...
+    PInf u n  -> prettyTCM (Inf u n :: Sort)
     PSizeUniv -> prettyTCM (SizeUniv :: Sort)
     PLockUniv -> prettyTCM (LockUniv :: Sort)
     PLevelUniv -> prettyTCM (LevelUniv :: Sort)

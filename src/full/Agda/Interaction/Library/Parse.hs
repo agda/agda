@@ -80,12 +80,12 @@ data Field = forall a. Field
                  -- ^ Content parser for this field.
                  --
                  -- The range points to the start of the file.
-  , fSet      :: LensSet a AgdaLibFile
+  , fSet      :: LensSet AgdaLibFile a
     -- ^ Sets parsed content in 'AgdaLibFile' structure.
   }
 
 optionalField ::
-  String -> (Range -> [String] -> P a) -> Lens' a AgdaLibFile -> Field
+  String -> (Range -> [String] -> P a) -> Lens' AgdaLibFile a -> Field
 optionalField str p l = Field str True p (set l)
 
 -- | @.agda-lib@ file format with parsers and setters.

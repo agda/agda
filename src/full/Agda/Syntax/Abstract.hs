@@ -175,12 +175,12 @@ data Declaration
     -- ^ The @ImportDirective@ is for highlighting purposes.
   | Pragma     Range      Pragma
   | Open       ModuleInfo ModuleName ImportDirective
-  | FunDef     DefInfo QName Delayed [Clause] -- ^ sequence of function clauses
+  | FunDef     DefInfo QName [Clause] -- ^ sequence of function clauses
   | DataSig    DefInfo Erased QName GeneralizeTelescope Type -- ^ lone data signature
   | DataDef    DefInfo QName UniverseCheck DataDefParams [Constructor]
   | RecSig     DefInfo Erased QName GeneralizeTelescope Type -- ^ lone record signature
   | RecDef     DefInfo QName UniverseCheck RecordDirectives DataDefParams Type [Declaration]
-      -- ^ The 'Type' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
+      -- ^ The 'Type' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Dummy@,
       --   and the optional name is the constructor's name.
       --   The optional 'Range' is for the @pattern@ attribute.
   | PatternSynDef QName [Arg BindName] (Pattern' Void)
@@ -189,6 +189,8 @@ data Declaration
   | UnquoteDef  [DefInfo] [QName] Expr
   | UnquoteData [DefInfo] QName UniverseCheck [DefInfo] [QName] Expr
   | ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
+  | UnfoldingDecl Range [QName]
+    -- ^ Only for highlighting the unfolded names
   deriving (Show, Generic)
 
 type DefInfo = DefInfo' Expr
@@ -600,7 +602,7 @@ instance Eq Declaration where
   Import a1 b1 c1                == Import a2 b2 c2                = (a1, b1, c1) == (a2, b2, c2)
   Pragma a1 b1                   == Pragma a2 b2                   = (a1, b1) == (a2, b2)
   Open a1 b1 c1                  == Open a2 b2 c2                  = (a1, b1, c1) == (a2, b2, c2)
-  FunDef a1 b1 c1 d1             == FunDef a2 b2 c2 d2             = (a1, b1, c1, d1) == (a2, b2, c2, d2)
+  FunDef a1 b1 c1                == FunDef a2 b2 c2                = (a1, b1, c1) == (a2, b2, c2)
   DataSig a1 b1 c1 d1 e1         == DataSig a2 b2 c2 d2 e2         = (a1, b1, c1, d1, e1) == (a2, b2, c2, d2, e2)
   DataDef a1 b1 c1 d1 e1         == DataDef a2 b2 c2 d2 e2         = (a1, b1, c1, d1, e1) == (a2, b2, c2, d2, e2)
   RecSig a1 b1 c1 d1 e1          == RecSig a2 b2 c2 d2 e2          = (a1, b1, c1, d1, e1) == (a2, b2, c2, d2, e2)
@@ -667,29 +669,30 @@ instance HasRange Expr where
     getRange (Macro x)               = getRange x
 
 instance HasRange Declaration where
-    getRange (Axiom    _ i _ _ _ _  ) = getRange i
-    getRange (Generalize _ i _ _ _)   = getRange i
-    getRange (Field      i _ _      ) = getRange i
-    getRange (Mutual     i _        ) = getRange i
-    getRange (Section    i _ _ _ _  ) = getRange i
-    getRange (Apply      i _ _ _ _ _) = getRange i
-    getRange (Import     i _ _      ) = getRange i
-    getRange (Primitive  i _ _      ) = getRange i
-    getRange (Pragma     i _        ) = getRange i
-    getRange (Open       i _ _      ) = getRange i
-    getRange (ScopedDecl _ d        ) = getRange d
-    getRange (FunDef     i _ _ _    ) = getRange i
-    getRange (DataSig    i _ _ _ _  ) = getRange i
-    getRange (DataDef    i _ _ _ _  ) = getRange i
-    getRange (RecSig     i _ _ _ _  ) = getRange i
-    getRange (RecDef i _ _ _ _ _ _)   = getRange i
-    getRange (PatternSynDef x _ _   ) = getRange x
-    getRange (UnquoteDecl _ i _ _)    = getRange i
-    getRange (UnquoteDef i _ _)       = getRange i
+    getRange (Axiom    _ i _ _ _ _  )  = getRange i
+    getRange (Generalize _ i _ _ _)    = getRange i
+    getRange (Field      i _ _      )  = getRange i
+    getRange (Mutual     i _        )  = getRange i
+    getRange (Section    i _ _ _ _  )  = getRange i
+    getRange (Apply      i _ _ _ _ _)  = getRange i
+    getRange (Import     i _ _      )  = getRange i
+    getRange (Primitive  i _ _      )  = getRange i
+    getRange (Pragma     i _        )  = getRange i
+    getRange (Open       i _ _      )  = getRange i
+    getRange (ScopedDecl _ d        )  = getRange d
+    getRange (FunDef     i _ _      )  = getRange i
+    getRange (DataSig    i _ _ _ _  )  = getRange i
+    getRange (DataDef    i _ _ _ _  )  = getRange i
+    getRange (RecSig     i _ _ _ _  )  = getRange i
+    getRange (RecDef i _ _ _ _ _ _)    = getRange i
+    getRange (PatternSynDef x _ _   )  = getRange x
+    getRange (UnquoteDecl _ i _ _)     = getRange i
+    getRange (UnquoteDef i _ _)        = getRange i
     getRange (UnquoteData i _ _ j _ _) = getRange (i, j)
+    getRange (UnfoldingDecl r _)       = r
 
 instance HasRange (Pattern' e) where
-    getRange (VarP x)           = getRange x
+    getRange (VarP x)            = getRange x
     getRange (ConP i _ _)        = getRange i
     getRange (ProjP i _ _)       = getRange i
     getRange (DefP i _ _)        = getRange i
@@ -752,11 +755,11 @@ instance SetRange (Pattern' a) where
     setRange r (AnnP i a p)         = AnnP (setRange r i) a p
 
 instance KillRange a => KillRange (Binder' a) where
-  killRange (Binder a b) = killRange2 Binder a b
+  killRange (Binder a b) = killRangeN Binder a b
 
 instance KillRange LamBinding where
-  killRange (DomainFree t x) = killRange2 DomainFree t x
-  killRange (DomainFull b)   = killRange1 DomainFull b
+  killRange (DomainFree t x) = killRangeN DomainFree t x
+  killRange (DomainFull b)   = killRangeN DomainFull b
 
 instance KillRange GeneralizeTelescope where
   killRange (GeneralizeTel s tel) = GeneralizeTel s (killRange tel)
@@ -765,120 +768,121 @@ instance KillRange DataDefParams where
   killRange (DataDefParams s tel) = DataDefParams s (killRange tel)
 
 instance KillRange TypedBindingInfo where
-  killRange (TypedBindingInfo a b) = killRange2 TypedBindingInfo a b
+  killRange (TypedBindingInfo a b) = killRangeN TypedBindingInfo a b
 
 instance KillRange TypedBinding where
-  killRange (TBind r t xs e) = killRange4 TBind r t xs e
-  killRange (TLet r lbs)     = killRange2 TLet r lbs
+  killRange (TBind r t xs e) = killRangeN TBind r t xs e
+  killRange (TLet r lbs)     = killRangeN TLet r lbs
 
 instance KillRange Expr where
-  killRange (Var x)                  = killRange1 Var x
-  killRange (Def' x v)               = killRange2 Def' x v
-  killRange (Proj o x)               = killRange1 (Proj o) x
-  killRange (Con x)                  = killRange1 Con x
-  killRange (Lit i l)                = killRange2 Lit i l
-  killRange (QuestionMark i ii)      = killRange2 QuestionMark i ii
-  killRange (Underscore  i)          = killRange1 Underscore i
-  killRange (Dot i e)                = killRange2 Dot i e
-  killRange (App i e1 e2)            = killRange3 App i e1 e2
-  killRange (WithApp i e es)         = killRange3 WithApp i e es
-  killRange (Lam i b e)              = killRange3 Lam i b e
-  killRange (AbsurdLam i h)          = killRange2 AbsurdLam i h
-  killRange (ExtendedLam i n e d ps) = killRange5 ExtendedLam i n e d ps
-  killRange (Pi i a b)               = killRange3 Pi i a b
-  killRange (Generalized s x)        = killRange1 (Generalized s) x
-  killRange (Fun i a b)              = killRange3 Fun i a b
-  killRange (Let i ds e)             = killRange3 Let i ds e
-  killRange (Rec i fs)               = killRange2 Rec i fs
-  killRange (RecUpdate i e fs)       = killRange3 RecUpdate i e fs
-  killRange (ScopedExpr s e)         = killRange1 (ScopedExpr s) e
-  killRange (Quote i)                = killRange1 Quote i
-  killRange (QuoteTerm i)            = killRange1 QuoteTerm i
-  killRange (Unquote i)              = killRange1 Unquote i
-  killRange (DontCare e)             = killRange1 DontCare e
-  killRange (PatternSyn x)           = killRange1 PatternSyn x
-  killRange (Macro x)                = killRange1 Macro x
+  killRange (Var x)                  = killRangeN Var x
+  killRange (Def' x v)               = killRangeN Def' x v
+  killRange (Proj o x)               = killRangeN (Proj o) x
+  killRange (Con x)                  = killRangeN Con x
+  killRange (Lit i l)                = killRangeN Lit i l
+  killRange (QuestionMark i ii)      = killRangeN QuestionMark i ii
+  killRange (Underscore  i)          = killRangeN Underscore i
+  killRange (Dot i e)                = killRangeN Dot i e
+  killRange (App i e1 e2)            = killRangeN App i e1 e2
+  killRange (WithApp i e es)         = killRangeN WithApp i e es
+  killRange (Lam i b e)              = killRangeN Lam i b e
+  killRange (AbsurdLam i h)          = killRangeN AbsurdLam i h
+  killRange (ExtendedLam i n e d ps) = killRangeN ExtendedLam i n e d ps
+  killRange (Pi i a b)               = killRangeN Pi i a b
+  killRange (Generalized s x)        = killRangeN (Generalized s) x
+  killRange (Fun i a b)              = killRangeN Fun i a b
+  killRange (Let i ds e)             = killRangeN Let i ds e
+  killRange (Rec i fs)               = killRangeN Rec i fs
+  killRange (RecUpdate i e fs)       = killRangeN RecUpdate i e fs
+  killRange (ScopedExpr s e)         = killRangeN (ScopedExpr s) e
+  killRange (Quote i)                = killRangeN Quote i
+  killRange (QuoteTerm i)            = killRangeN QuoteTerm i
+  killRange (Unquote i)              = killRangeN Unquote i
+  killRange (DontCare e)             = killRangeN DontCare e
+  killRange (PatternSyn x)           = killRangeN PatternSyn x
+  killRange (Macro x)                = killRangeN Macro x
 
 instance KillRange Suffix where
   killRange = id
 
 instance KillRange Declaration where
-  killRange (Axiom    p i a b c d     ) = killRange4 (\i a c d -> Axiom p i a b c d) i a c d
-  killRange (Generalize s i j x e     ) = killRange4 (Generalize s) i j x e
-  killRange (Field      i a b         ) = killRange3 Field      i a b
-  killRange (Mutual     i a           ) = killRange2 Mutual     i a
-  killRange (Section    i a b c d     ) = killRange5 Section    i a b c d
-  killRange (Apply      i a b c d e   ) = killRange6 Apply      i a b c d e
-  killRange (Import     i a b         ) = killRange3 Import     i a b
-  killRange (Primitive  i a b         ) = killRange3 Primitive  i a b
+  killRange (Axiom    p i a b c d     ) = killRangeN (\i a c d -> Axiom p i a b c d) i a c d
+  killRange (Generalize s i j x e     ) = killRangeN (Generalize s) i j x e
+  killRange (Field      i a b         ) = killRangeN Field      i a b
+  killRange (Mutual     i a           ) = killRangeN Mutual     i a
+  killRange (Section    i a b c d     ) = killRangeN Section    i a b c d
+  killRange (Apply      i a b c d e   ) = killRangeN Apply      i a b c d e
+  killRange (Import     i a b         ) = killRangeN Import     i a b
+  killRange (Primitive  i a b         ) = killRangeN Primitive  i a b
   killRange (Pragma     i a           ) = Pragma (killRange i) a
-  killRange (Open       i x dir       ) = killRange3 Open       i x dir
-  killRange (ScopedDecl a d           ) = killRange1 (ScopedDecl a) d
-  killRange (FunDef  i a b c          ) = killRange4 FunDef  i a b c
-  killRange (DataSig i a b c d        ) = killRange5 DataSig i a b c d
-  killRange (DataDef i a b c d        ) = killRange5 DataDef i a b c d
-  killRange (RecSig  i a b c d        ) = killRange5 RecSig  i a b c d
-  killRange (RecDef  i a b c d e f    ) = killRange7 RecDef  i a b c d e f
-  killRange (PatternSynDef x xs p     ) = killRange3 PatternSynDef x xs p
-  killRange (UnquoteDecl mi i x e     ) = killRange4 UnquoteDecl mi i x e
-  killRange (UnquoteDef i x e         ) = killRange3 UnquoteDef i x e
-  killRange (UnquoteData i xs uc j cs e) = killRange6 UnquoteData i xs uc j cs e
+  killRange (Open       i x dir       ) = killRangeN Open       i x dir
+  killRange (ScopedDecl a d           ) = killRangeN (ScopedDecl a) d
+  killRange (FunDef  i a b            ) = killRangeN FunDef  i a b
+  killRange (DataSig i a b c d        ) = killRangeN DataSig i a b c d
+  killRange (DataDef i a b c d        ) = killRangeN DataDef i a b c d
+  killRange (RecSig  i a b c d        ) = killRangeN RecSig  i a b c d
+  killRange (RecDef  i a b c d e f    ) = killRangeN RecDef  i a b c d e f
+  killRange (PatternSynDef x xs p     ) = killRangeN PatternSynDef x xs p
+  killRange (UnquoteDecl mi i x e     ) = killRangeN UnquoteDecl mi i x e
+  killRange (UnquoteDef i x e         ) = killRangeN UnquoteDef i x e
+  killRange (UnquoteData i xs uc j cs e) = killRangeN UnquoteData i xs uc j cs e
+  killRange (UnfoldingDecl r xs)         = killRangeN UnfoldingDecl r xs
 
 instance KillRange ModuleApplication where
-  killRange (SectionApp a b c  ) = killRange3 SectionApp a b c
-  killRange (RecordModuleInstance a) = killRange1 RecordModuleInstance a
+  killRange (SectionApp a b c  ) = killRangeN SectionApp a b c
+  killRange (RecordModuleInstance a) = killRangeN RecordModuleInstance a
 
 instance KillRange ScopeCopyInfo where
-  killRange (ScopeCopyInfo a b) = killRange2 ScopeCopyInfo a b
+  killRange (ScopeCopyInfo a b) = killRangeN ScopeCopyInfo a b
 
 instance KillRange e => KillRange (Pattern' e) where
-  killRange (VarP x)           = killRange1 VarP x
-  killRange (ConP i a b)        = killRange3 ConP i a b
-  killRange (ProjP i o a)       = killRange3 ProjP i o a
-  killRange (DefP i a b)        = killRange3 DefP i a b
-  killRange (WildP i)           = killRange1 WildP i
-  killRange (AsP i a b)         = killRange3 AsP i a b
-  killRange (DotP i a)          = killRange2 DotP i a
-  killRange (AbsurdP i)         = killRange1 AbsurdP i
-  killRange (LitP i l)          = killRange2 LitP i l
-  killRange (PatternSynP i a p) = killRange3 PatternSynP i a p
-  killRange (RecP i as)         = killRange2 RecP i as
-  killRange (EqualP i es)       = killRange2 EqualP i es
-  killRange (WithP i p)         = killRange2 WithP i p
-  killRange (AnnP i a p)        = killRange3 AnnP i a p
+  killRange (VarP x)           = killRangeN VarP x
+  killRange (ConP i a b)        = killRangeN ConP i a b
+  killRange (ProjP i o a)       = killRangeN ProjP i o a
+  killRange (DefP i a b)        = killRangeN DefP i a b
+  killRange (WildP i)           = killRangeN WildP i
+  killRange (AsP i a b)         = killRangeN AsP i a b
+  killRange (DotP i a)          = killRangeN DotP i a
+  killRange (AbsurdP i)         = killRangeN AbsurdP i
+  killRange (LitP i l)          = killRangeN LitP i l
+  killRange (PatternSynP i a p) = killRangeN PatternSynP i a p
+  killRange (RecP i as)         = killRangeN RecP i as
+  killRange (EqualP i es)       = killRangeN EqualP i es
+  killRange (WithP i p)         = killRangeN WithP i p
+  killRange (AnnP i a p)        = killRangeN AnnP i a p
 
 instance KillRange SpineLHS where
-  killRange (SpineLHS i a b)  = killRange3 SpineLHS i a b
+  killRange (SpineLHS i a b)  = killRangeN SpineLHS i a b
 
 instance KillRange LHS where
-  killRange (LHS i a)   = killRange2 LHS i a
+  killRange (LHS i a)   = killRangeN LHS i a
 
 instance KillRange e => KillRange (LHSCore' e) where
-  killRange (LHSHead a b)   = killRange2 LHSHead a b
-  killRange (LHSProj a b c) = killRange3 LHSProj a b c
-  killRange (LHSWith a b c) = killRange3 LHSWith a b c
+  killRange (LHSHead a b)   = killRangeN LHSHead a b
+  killRange (LHSProj a b c) = killRangeN LHSProj a b c
+  killRange (LHSWith a b c) = killRangeN LHSWith a b c
 
 instance KillRange a => KillRange (Clause' a) where
-  killRange (Clause lhs spats rhs ds catchall) = killRange5 Clause lhs spats rhs ds catchall
+  killRange (Clause lhs spats rhs ds catchall) = killRangeN Clause lhs spats rhs ds catchall
 
 instance KillRange ProblemEq where
-  killRange (ProblemEq p v a) = killRange3 ProblemEq p v a
+  killRange (ProblemEq p v a) = killRangeN ProblemEq p v a
 
 instance KillRange RHS where
   killRange AbsurdRHS                = AbsurdRHS
-  killRange (RHS e c)                = killRange2 RHS e c
-  killRange (WithRHS q e cs)         = killRange3 WithRHS q e cs
-  killRange (RewriteRHS xes spats rhs wh) = killRange4 RewriteRHS xes spats rhs wh
+  killRange (RHS e c)                = killRangeN RHS e c
+  killRange (WithRHS q e cs)         = killRangeN WithRHS q e cs
+  killRange (RewriteRHS xes spats rhs wh) = killRangeN RewriteRHS xes spats rhs wh
 
 instance KillRange WhereDeclarations where
-  killRange (WhereDecls a b c) = killRange3 WhereDecls a b c
+  killRange (WhereDecls a b c) = killRangeN WhereDecls a b c
 
 instance KillRange LetBinding where
-  killRange (LetBind   i info a b c) = killRange5 LetBind i info a b c
-  killRange (LetPatBind i a b       ) = killRange3 LetPatBind i a b
-  killRange (LetApply   i a b c d e ) = killRange6 LetApply i a b c d e
-  killRange (LetOpen    i x dir     ) = killRange3 LetOpen  i x dir
-  killRange (LetDeclaredVariable x)  = killRange1 LetDeclaredVariable x
+  killRange (LetBind   i info a b c) = killRangeN LetBind i info a b c
+  killRange (LetPatBind i a b       ) = killRangeN LetPatBind i a b
+  killRange (LetApply   i a b c d e ) = killRangeN LetApply i a b c d e
+  killRange (LetOpen    i x dir     ) = killRangeN LetOpen  i x dir
+  killRange (LetDeclaredVariable x)  = killRangeN LetDeclaredVariable x
 
 instance NFData Expr
 instance NFData ScopeCopyInfo
@@ -931,7 +935,7 @@ instance AnyAbstract Declaration where
   anyAbstract (Mutual     _ ds)      = anyAbstract ds
   anyAbstract (ScopedDecl _ ds)      = anyAbstract ds
   anyAbstract (Section _ _ _ _ ds)   = anyAbstract ds
-  anyAbstract (FunDef i _ _ _)       = defAbstract i == AbstractDef
+  anyAbstract (FunDef i _ _)         = defAbstract i == AbstractDef
   anyAbstract (DataDef i _ _ _ _)    = defAbstract i == AbstractDef
   anyAbstract (RecDef i _ _ _ _ _ _) = defAbstract i == AbstractDef
   anyAbstract (DataSig i _ _ _ _)    = defAbstract i == AbstractDef
@@ -1134,6 +1138,7 @@ data DeclarationSpine
   | UnquoteDefS
   | UnquoteDataS
   | ScopedDeclS [DeclarationSpine]
+  | UnfoldingDeclS
   deriving Show
 
 -- | Clause spines.
@@ -1169,7 +1174,7 @@ declarationSpine = \case
   Import _ _ _            -> ImportS
   Pragma _ _              -> PragmaS
   Open _ _ _              -> OpenS
-  FunDef _ _ _ cs         -> FunDefS (map clauseSpine cs)
+  FunDef _ _ cs           -> FunDefS (map clauseSpine cs)
   DataSig _ _ _ _ _       -> DataSigS
   DataDef _ _ _ _ _       -> DataDefS
   RecSig _ _ _ _ _        -> RecSigS
@@ -1179,6 +1184,7 @@ declarationSpine = \case
   UnquoteDef _ _ _        -> UnquoteDefS
   UnquoteData _ _ _ _ _ _ -> UnquoteDataS
   ScopedDecl _ ds         -> ScopedDeclS (map declarationSpine ds)
+  UnfoldingDecl _ _       -> UnquoteDeclS
 
 -- | The clause spine corresponding to a clause.
 

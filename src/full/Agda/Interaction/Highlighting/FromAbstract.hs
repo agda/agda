@@ -208,7 +208,7 @@ instance Hilite A.Declaration where
                                                 hl a <> hl dir
       A.Import mi x dir                      -> hl mi <> hl x <> hl dir
       A.Open mi x dir                        -> hl mi <> hl x <> hl dir
-      A.FunDef _di x _delayed cs             -> hl x <> hl cs
+      A.FunDef _di x cs                      -> hl x <> hl cs
       A.DataSig _di er x tel e               -> hl er <> hl x <> hl tel <> hl e
       A.DataDef _di x _uc pars cs            -> hl x <> hl pars <> hl cs
       A.RecSig _di er x tel e                -> hl er <> hl x <> hl tel <> hl e
@@ -219,6 +219,7 @@ instance Hilite A.Declaration where
       A.UnquoteData _i xs _uc _j cs e        -> hl xs <> hl cs <> hl e
       A.ScopedDecl s ds                      -> hl ds
       A.Pragma _r pragma                     -> hl pragma
+      A.UnfoldingDecl _r names               -> hl names
     where
     hl      a = hilite a
     hlField x = hiliteField (concreteQualifier x) (concreteBase x) (Just $ bindingSite x)

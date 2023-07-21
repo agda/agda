@@ -1,8 +1,5 @@
-Issue3932-2.agda:4,1-2
-The following names are declared but not accompanied by a
-definition: f
-Issue3932-2.agda:7,3-4
-Multiple definitions of f. Previous definition at
-Issue3932-2.agda:4,1-2
-when scope checking the declaration
-  f : _
+Issue3932-2.agda:6,1-7,9
+The following name is declared, but not accompanied by a
+definition: f.
+Since 'mutual' blocks can not participate in mutual recursion, its
+definition must be given before this point.

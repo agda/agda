@@ -49,11 +49,6 @@ Tutorials and lecture notes
 - Ana Bove and Peter Dybjer (2008). `Dependent Types at Work
   <http://www.cse.chalmers.se/~peterd/papers/DependentTypesAtWork.pdf>`__.
   A gentle introduction including logic and proofs of programs.
-- Anton Setzer (2008). `Lecture notes on Interactive Theorem Proving
-  <http://www.cs.swan.ac.uk/~csetzer/lectures/intertheo/07/interactiveTheoremProvingForAgdaUsers.html>`__. Swansea
-  University. These lecture notes are based on Agda and contain an
-  introduction of Agda for students with a very basic background in
-  logic and functional programming.
 
 Videos on Agda
 ==============
@@ -92,18 +87,14 @@ Courses using Agda
   research level course at the University of Edinburgh by Conor McBride.
 - `Agda <https://people.inf.elte.hu/divip/AgdaTutorial/Index.html>`__,
   introductory course for master students at ELTE Eötvös Collegium in Budapest by Péter Diviánszky and Ambrus Kaposi.
-- `Types for Programs and Proofs <http://www.cse.chalmers.se/edu/course/DAT140/>`__,
+- `Types for Programs and Proofs <https://www.cse.chalmers.se/edu/year/2017/course/DAT140/>`__,
   course at Chalmers University of Technology.
-- `Advanced Functional Programming <https://www.tcs.ifi.lmu.de/lehre/ss-2012/fun>`__
-  (in German), course at Ludwig-Maximilians-University Munich.
 - `Dependently typed metaprogramming (in Agda) <https://danel.ahman.ee/agda-course-13/>`__,
   Summer (2013) course at the University of Cambridge by Conor McBride.
 - `Computer-Checked Programs and Proofs <http://dlicata.web.wesleyan.edu/teaching/ccpp-f13/>`__
   (COMP 360-1), Dan Licata, Wesleyan, Fall 2013.
 - `Advanced Functional Programming Fall 2013 <https://github.com/pigworker/CS410-13>`__
   (CS410), Conor McBride, Strathclyde, `notes from 2015 <https://github.com/pigworker/CS410-15/blob/master/CS410-notes.pdf>`__, `videos from 2017 <https://github.com/pigworker/CS410-17/>`__.
-- `Interactive Theorem proving <http://www.cs.swan.ac.uk/~csetzer/lectures/intertheo/07/>`__
-  (CS__336), Anton Setzer, Swansea University, Lent 2008.
 - `Inductive and inductive-recursive definitions in Intuitionistic Type Theory <https://www.cs.uoregon.edu/research/summerschool/summer15/curriculum.html>`__,
   lectures by Peter Dybjer at the Oregon Programming Languages Summer School 2015.
 - `Introduction to Univalent Foundations of Mathematics with Agda <https://www.cs.bham.ac.uk/~mhe/HoTT-UF-in-Agda-Lecture-Notes/index.html>`__ ,

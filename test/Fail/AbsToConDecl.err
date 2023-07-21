@@ -3,6 +3,7 @@ The right-hand side can only be omitted if there is an absurd
 pattern, () or {}, in the left-hand side.
 when checking that the clause
 x where
-    data D (A : Set) : Set where
-      c : D A
+    mutual
+      data D (A : Set) : Set where
+        c : D A
 has type _1

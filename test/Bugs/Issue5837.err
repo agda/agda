@@ -1,0 +1,9 @@
+AGDA_FAILURE
+
+ret > ExitFailure 42
+out > Issue5837.agda:18,13-17
+out > Cannot instantiate the metavariable _5 to solution G (F Y)
+out > since it contains the variable Y
+out > which is not in scope of the metavariable
+out > when checking that the expression refl has type X ≡ G (F Y)
+out >

@@ -99,12 +99,12 @@ bindBuiltinSharp x =
                     , conSrcCon = ConHead sharp (IsRecord CopatternMatching) CoInductive [] -- flat is added as field later
                     , conData   = defName infDefn
                     , conAbstr  = ConcreteDef
-                    , conInd    = CoInductive
                     , conComp   = emptyCompKit
                     , conProj   = Nothing
                     , conForced = []
                     , conErased = Nothing
                     , conErasure = erasure
+                    , conInline  = True  -- This might make the sharp-translation superfluous.
                     }
                 }
     return $ Def sharp []

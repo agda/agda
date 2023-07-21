@@ -8,5 +8,5 @@ Reason: It splits on a @♭ argument
 
 when checking the definition of CommFlatId
 Issue6238-safe.agda:1,1-46
-Cannot set OPTIONS pragma --without-K and --flat-split
+Cannot set OPTIONS pragmas --without-K and --flat-split
 with safe flag.

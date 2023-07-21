@@ -210,57 +210,57 @@ notShadowedLocals :: LocalVars -> AssocList C.Name A.Name
 notShadowedLocals = mapMaybe $ \ (c,x) -> (c,) <$> notShadowedLocal x
 
 -- | Lenses for ScopeInfo components
-scopeCurrent :: Lens' A.ModuleName ScopeInfo
+scopeCurrent :: Lens' ScopeInfo A.ModuleName
 scopeCurrent f s =
   f (_scopeCurrent s) <&>
   \x -> s { _scopeCurrent = x }
 
-scopeModules :: Lens' (Map A.ModuleName Scope) ScopeInfo
+scopeModules :: Lens' ScopeInfo (Map A.ModuleName Scope)
 scopeModules f s =
   f (_scopeModules s) <&>
   \x -> s { _scopeModules = x }
 
-scopeVarsToBind :: Lens' LocalVars ScopeInfo
+scopeVarsToBind :: Lens' ScopeInfo LocalVars
 scopeVarsToBind f s =
   f (_scopeVarsToBind s) <&>
   \x -> s { _scopeVarsToBind = x }
 
-scopeLocals :: Lens' LocalVars ScopeInfo
+scopeLocals :: Lens' ScopeInfo LocalVars
 scopeLocals f s =
   f (_scopeLocals s) <&>
   \x -> s { _scopeLocals = x }
 
-scopePrecedence :: Lens' PrecedenceStack ScopeInfo
+scopePrecedence :: Lens' ScopeInfo PrecedenceStack
 scopePrecedence f s =
   f (_scopePrecedence s) <&>
   \x -> s { _scopePrecedence = x }
 
-scopeInverseName :: Lens' NameMap ScopeInfo
+scopeInverseName :: Lens' ScopeInfo NameMap
 scopeInverseName f s =
   f (_scopeInverseName s) <&>
   \x -> s { _scopeInverseName = x }
 
-scopeInverseModule :: Lens' ModuleMap ScopeInfo
+scopeInverseModule :: Lens' ScopeInfo ModuleMap
 scopeInverseModule f s =
   f (_scopeInverseModule s) <&>
   \x -> s { _scopeInverseModule = x }
 
-scopeInScope :: Lens' InScopeSet ScopeInfo
+scopeInScope :: Lens' ScopeInfo InScopeSet
 scopeInScope f s =
   f (_scopeInScope s) <&>
   \x -> s { _scopeInScope = x }
 
-scopeFixities :: Lens' C.Fixities ScopeInfo
+scopeFixities :: Lens' ScopeInfo C.Fixities
 scopeFixities f s =
   f (_scopeFixities s) <&>
   \x -> s { _scopeFixities = x }
 
-scopePolarities :: Lens' C.Polarities ScopeInfo
+scopePolarities :: Lens' ScopeInfo C.Polarities
 scopePolarities f s =
   f (_scopePolarities s) <&>
   \x -> s { _scopePolarities = x }
 
-scopeFixitiesAndPolarities :: Lens' (C.Fixities, C.Polarities) ScopeInfo
+scopeFixitiesAndPolarities :: Lens' ScopeInfo (C.Fixities, C.Polarities)
 scopeFixitiesAndPolarities f s =
   f' (_scopeFixities s) (_scopePolarities s) <&>
   \ (fixs, pols) -> s { _scopeFixities = fixs, _scopePolarities = pols }
@@ -489,7 +489,7 @@ instance LensFixity AbstractName where
   lensFixity = lensAnameName . lensFixity
 
 -- | Van Laarhoven lens on 'anameName'.
-lensAnameName :: Lens' A.QName AbstractName
+lensAnameName :: Lens' AbstractName A.QName
 lensAnameName f am = f (anameName am) <&> \ m -> am { anameName = m }
 
 instance Eq AbstractModule where
@@ -499,7 +499,7 @@ instance Ord AbstractModule where
   compare = compare `on` amodName
 
 -- | Van Laarhoven lens on 'amodName'.
-lensAmodName :: Lens' A.ModuleName AbstractModule
+lensAmodName :: Lens' AbstractModule A.ModuleName
 lensAmodName f am = f (amodName am) <&> \ m -> am { amodName = m }
 
 

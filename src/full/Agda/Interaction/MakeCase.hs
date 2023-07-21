@@ -42,12 +42,14 @@ import Agda.Interaction.BasicOps
 import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Function
 import Agda.Utils.Functor
+import Agda.Utils.Lens   (set)
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty (prettyShow)
 import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Size
+import Agda.Utils.WithDefault (lensKeepDefault)
 
 import Agda.Utils.Impossible
 
@@ -324,7 +326,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
     -- When we introduce projection patterns in an extended lambda,
     -- we need to print them postfix.
     let postProjInExtLam = applyWhen (isJust casectxt) $
-          withPragmaOptions $ \ opt -> opt { optPostfixProjections = True }
+          withPragmaOptions $ set (lensOptPostfixProjections . lensKeepDefault) True
     (piTel, sc) <- insertTrailingArgs False $ clauseToSplitClause clause
     -- Andreas, 2015-05-05 If we introduced new function arguments
     -- do not split on result.  This might be more what the user wants.

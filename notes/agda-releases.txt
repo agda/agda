@@ -173,6 +173,11 @@ When releasing the following procedure can be followed:
 
   ** In a different commit: Create a new CHANGELOG file.
 
+* Deploy workflow
+
+  Update in src/github/workflows/deploy.yml the tag version to
+  v$MAJOR_VERSION.
+
 * Update Agda Manual on Readthedocs.org (see Issues #2844 and #3035)
 
   ** You need Admin permissions on the Agda readthedocs.org project

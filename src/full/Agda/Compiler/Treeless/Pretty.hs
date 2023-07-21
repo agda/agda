@@ -10,11 +10,13 @@ import Data.Maybe
 import qualified Data.Map as Map
 
 import Agda.Syntax.Treeless
-import Agda.Compiler.Treeless.Subst
 import Agda.Syntax.Common.Pretty
-import Agda.Utils.List
+
+import Agda.Compiler.Treeless.Subst
 
 import Agda.Utils.Impossible
+import Agda.Utils.Function
+import Agda.Utils.List
 
 data PEnv = PEnv { pPrec :: Int
                  , pFresh :: [String]
@@ -53,7 +55,7 @@ bindNames xs p = foldr bindName p xs
 paren :: Int -> P Doc -> P Doc
 paren p doc = do
   n <- asks pPrec
-  (if p < n then parens else id) <$> doc
+  applyWhen (p < n) parens <$> doc
 
 prec :: Int -> P a -> P a
 prec p = local $ \ e -> e { pPrec = p }

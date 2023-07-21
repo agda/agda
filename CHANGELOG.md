@@ -1,6 +1,11 @@
 Release notes for Agda version 2.6.4
 ====================================
 
+Installation
+------------
+
+* Removed the cabal flag `cpphs` that enabled building Agda with `cpphs` instead of the default C preprocessor.
+
 Reflection
 ----------
 
@@ -43,6 +48,24 @@ Reflection
 * Two primitives `onlyReduceDefs` and `dontReduceDefs` are removed but re-implemented
   using the new family of primitives `with*` and `ask*` for backward compatibility.
 
+* Blocking the type-checking monad can now be done with more precision
+  by using the `Blocker` type, and the `blockTC` primitive:
+
+  ```agda
+  data Blocker : Set where
+    blockerAny  : List Blocker → Blocker
+    blockerAll  : List Blocker → Blocker
+    blockerMeta : Meta → Blocker
+  ```
+
+  When blocking on a value of this type, the TCM computation will only
+  be retried when any (resp. all) of the mentioned metavariables have
+  been solved. This can avoid getting into loops where a macro blocks on
+  a meta, gets unblocked, traverses some term again, and then blocks on
+  a meta that was already present.
+
+  The `blockOnMeta` builtin has been deprecated, and an implementation
+  in terms of `blockTC` is given for backwards compatibility.
 
 Erasure
 -------
@@ -51,11 +74,11 @@ Erasure
   ([#6349](https://github.com/agda/agda/issues/6349)).
 
   This flag is infective.
+  It is implied by `--erase-record-parameters` and `--erased-matches`.
 
   Unless this flag is active the following things are prohibited:
   * Use of the annotations `@0` and `@erased`.
   * Use of names defined in Cubical Agda in Erased Cubical Agda.
-  * Use of the flag `--erase-record-parameters`.
 
   When `--erasure` is used the parameter arguments of constructors and
   projections are marked as erased
@@ -84,6 +107,7 @@ Erasure
   ([#6349](https://github.com/agda/agda/issues/6349)).
 
   This flag is infective and implied by `--with-K`.
+  If it is given explicitly, it implies `--erasure`.
 
 * [**Breaking**] Added a hard compile-time mode (see
   [#4743](https://github.com/agda/agda/issues/4743)).
@@ -198,6 +222,10 @@ Erasure
 Syntax
 ------
 
+* Agda now skips the UTF8 byte order mark (BOM) at beginning of files
+  (see [#6524](https://github.com/agda/agda/issues/6524)).
+  Previously, the BOM caused a parse error.
+
 * If the new option `--hidden-argument-puns` is used, then the pattern
   `{x}` is interpreted as `{x = x}`, and the pattern `⦃ x ⦄` is
   interpreted as `⦃ x = x ⦄` (see
@@ -253,6 +281,76 @@ Pragmas and options
 
   Note: While compatible with the `--cubical` option, this option is currently not compatible with cubical builtin files, and an error will be raised when trying to import them in a file using `--level-universe`.
 
+  Opposite: `--no-level-universe`.
+
+* Most boolean options now have their opposite, e.g., `--allow-unsolved-metas` is complemented by `--no-allow-unsolved-metas`.
+  With the opposite one can override a previously given option.
+  Options given on the command line are overwritten by options given in the `.agda-lib` file,
+  which in turn get overwritten by options given in the individual `.agda` file.
+
+  New options (all on by default):
+  - `--no-allow-exec`
+  - `--no-allow-incomplete-matches`
+  - `--no-allow-unsolved-metas`
+  - `--no-call-by-name`
+  - `--no-cohesion`
+  - `--no-count-clusters`
+  - `--no-erased-matches`
+  - `--no-erasure`
+  - `--no-experimental-irrelevance`
+  - `--no-flat-split`
+  - `--no-guarded`
+  - `--no-injective-type-constructors`
+  - `--no-keep-covering-clauses`
+  - `--no-keep-pattern-variables`
+  - `--no-omega-in-omega`
+  - `--no-postfix-projections`
+  - `--no-rewriting`
+  - `--no-show-identity-substitutions`
+  - `--no-show-implicit`
+  - `--no-show-irrelevant`
+  - `--no-two-level`
+  - `--no-type-in-type`
+  - `--eta-equality`
+  - `--fast-reduce`
+  - `--forcing`
+  - `--import-sorts`
+  - `--load-primitives`
+  - `--main`
+  - `--pattern-matching`
+  - `--positivity-check`
+  - `--print-pattern-synonyms`
+  - `--projection-like`
+  - `--termination-check`
+  - `--unicode`
+
+* Option `--flat-split` again implies `--cohesion`.
+  Reverts change introduced in Agda 2.6.3 where `--cohesion` was a prerequisite for `--flat-split`.
+
+* Option `--count-clusters` is now on by default when Agda was built with ICU support (Cabal flag `enable-cluster-counting`).
+
+* Pragma `INLINE` may now be applied to constructors of types supporting co-pattern matching.
+  It enables translation of right-hand-side constructor applications to left-hand-side co-pattern splits (see [PR #6682](https://github.com/agda/agda/pull/6682)).
+  For example, this translation allows the `nats` function to pass termination checking:
+  ```agda
+    record Stream (A : Set) : Set where
+      coinductive; constructor _∷_
+      field head : A
+            tail : Stream A
+    open Stream
+    {-# INLINE _∷_ #-}
+
+    nats : Nat → Stream Nat
+    nats n = n ∷ nats (1 + n)
+  ```
+  Inlining transforms the definition of `nats` to the following definition by copattern matching:
+  ```agda
+    nats n .head = n
+    nats n .tail = nats (1 + n)
+  ```
+  This form is accepted by the termination checker;
+  unlike the form before inlining, it does not admit any infinite reduction sequences.
+
 Library management
 ------------------
 
@@ -267,11 +365,25 @@ Library management
 
   Previously such `.agda-lib` files were ignored.
 
+* Now supports reading files with extension `.lagda.typ`, and use the parser for
+  markdown files to parse them.
+  To edit such files in Emacs with Agda support, one needs to add the line
+  ```elisp
+  (add-to-list 'auto-mode-alist '("\\.lagda.typ\\'" . agda2-mode))
+  ```
+  to `.emacs`.
+
+  Generation for highlighted code like HTML is unsupported for Typst.
+  One may generate HTML with typst input, but that makes little sense,
+  and markdown is recommended instead when HTML export is desired.
+
 Emacs mode
 ----------
 
 * Helper function (`C-c C-h`) does not abstract over module parameters anymore
-  (see [#2271](https://github.com/agda/agda/issues/2271)).
+  (see [#2271](https://github.com/agda/agda/issues/2271))
+  and neither over generalized `variable`s
+  (see [#6689](https://github.com/agda/agda/pull/6689)).
 
 * New Agda input mode prefix `box` for APL boxed operators, e.g. `\box=` for ⌸;
   see PR [#6510](https://github.com/agda/agda/pull/6510/files) for full list of bindings.
@@ -290,3 +402,58 @@ Cubical Agda
 
   See also [PR #6529](https://github.com/agda/agda/pull/6529) for a
   deeper explanation and a demo video.
+
+Language
+--------
+
+* Added [`opaque` definitions](https://agda.readthedocs.io/en/v2.6.4/language/opaque-definitions.html),
+  a mechanism for finer-grained control of unfolding. Unlike `abstract`
+  definitions, which can never be unfolded outside of (a child module
+  of) the defining module, opacity can be toggled at use-sites:
+
+  ```agda
+  opaque
+    foo : Set
+    foo = Nat
+
+  opaque
+    unfolding foo
+
+    _ : foo
+    _ = 123
+  ```
+
+* Unless `--no-import-sorts` is given, `Set` is in scope as before,
+  but `Prop` is only in scope when `--prop` is active.
+  Additionally `SSet` is now in scope when `--two-level` is active
+  (see [#6634](https://github.com/agda/agda/pull/6634)).
+
+* New sorts `Propω`, `Propω₁`, etc., in analogy to `Setω`, `Setω₁` etc.
+  Requires option `--prop`.
+
+  Example:
+  ```agda
+  {-# OPTIONS --prop #-}
+
+  open Agda.Primitive
+
+  variable
+    ℓ : Level
+    A : Set ℓ
+
+  -- Lists of elements of types at any finite level.
+
+  data HList : Setω where
+    []  : HList
+    _∷_ : A → HList → HList
+
+  variable
+    x  : A
+    xs : HList
+
+  -- Predicate stating that all elements satisfy a given property.
+
+  data All (P : {A : Set ℓ} → A → Prop ℓ) : HList → Propω where
+    []  : All P []
+    _∷_ : P x → All P xs → All P (x ∷ xs)
+  ```

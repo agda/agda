@@ -50,6 +50,7 @@ import Agda.TypeChecking.Telescope
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( isType_ )
 
 import Agda.Utils.Either
+import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
@@ -125,7 +126,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   else throwError err
               reduce s
 
-            withK   <- not . collapseDefault . optWithoutK <$>
+            withK   <- not . optWithoutK <$>
                        pragmaOptions
             erasure <- optErasure <$> pragmaOptions
             -- Parameters are always hidden in constructors. If
@@ -133,9 +134,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
             -- non-indexed data types, and if --with-K is active this
             -- applies also to indexed data types.
             let tel  = abstract gtel ptel
-                tel' = (if erasure && (withK || nofIxs == 0)
-                        then applyQuantity zeroQuantity
-                        else id) .
+                tel' = applyWhen (erasure && (withK || nofIxs == 0)) (applyQuantity zeroQuantity) .
                        hideAndRelParams <$>
                        tel
 
@@ -198,7 +197,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
         let cons   = map A.axiomName cs  -- get constructor names
 
         (mtranspix, transpFun) <-
-          ifM (collapseDefault . optCubicalCompatible <$> pragmaOptions)
+          ifM (optCubicalCompatible <$> pragmaOptions)
             (do mtranspix <- inTopContext $ defineTranspIx name
                 transpFun <- inTopContext $
                                defineTranspFun name mtranspix cons
@@ -232,10 +231,8 @@ checkDataSort name s = setCurrentRange name $ do
                    ]
     case s of
       -- Sorts that admit data definitions.
-      Type _       -> yes
-      Prop _       -> yes
+      Univ _ _     -> yes
       Inf _ _      -> yes
-      SSet _       -> yes
       DefS _ _     -> yes
       -- Sorts that do not admit data definitions.
       SizeUniv     -> no
@@ -362,12 +359,12 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               , conSrcCon = con
               , conData   = d
               , conAbstr  = Info.defAbstract i
-              , conInd    = Inductive
               , conComp   = comp
               , conProj   = projNames
               , conForced = forcedArgs
               , conErased = Nothing  -- computed during compilation to treeless
               , conErasure = erasure
+              , conInline  = False
               }
 
         -- Add the constructor to the instance table, if needed
@@ -436,14 +433,14 @@ defineCompData :: QName      -- datatype name
                -> TCM CompKit
 defineCompData d con params names fsT t boundary = do
   required <- mapM getTerm'
-    [ builtinInterval
-    , builtinIZero
-    , builtinIOne
-    , builtinIMin
-    , builtinIMax
-    , builtinINeg
-    , builtinPOr
-    , builtinItIsOne
+    [ someBuiltin builtinInterval
+    , someBuiltin builtinIZero
+    , someBuiltin builtinIOne
+    , someBuiltin builtinIMin
+    , someBuiltin builtinIMax
+    , someBuiltin builtinINeg
+    , someBuiltin builtinPOr
+    , someBuiltin builtinItIsOne
     ]
   if not (all isJust required) then return $ emptyCompKit else do
     hcomp  <- whenDefined (null boundary) [builtinHComp,builtinTrans]
@@ -752,11 +749,11 @@ defineTranspIx d = do
       let deltaI = expTelescope interval ixs
       iz <- primIZero
       io@(Con c _ _) <- primIOne
-      imin <- getPrimitiveTerm "primIMin"
-      imax <- getPrimitiveTerm "primIMax"
-      ineg <- getPrimitiveTerm "primINeg"
+      imin <- getPrimitiveTerm builtinIMin
+      imax <- getPrimitiveTerm builtinIMax
+      ineg <- getPrimitiveTerm builtinINeg
       transp <- getPrimitiveTerm builtinTrans
-      por <- getPrimitiveTerm "primPOr"
+      por <- getPrimitiveTerm builtinPOr
       one <- primItIsOne
       -- reportSDoc "trans.rec" 20 $ text $ show params
       -- reportSDoc "trans.rec" 20 $ text $ show deltaI
@@ -1357,9 +1354,9 @@ defineTranspForFields pathCons applyProj name params fsT fns rect = do
   let deltaI = expTelescope interval params
   iz <- primIZero
   io <- primIOne
-  imin <- getPrimitiveTerm "primIMin"
-  imax <- getPrimitiveTerm "primIMax"
-  ineg <- getPrimitiveTerm "primINeg"
+  imin <- getPrimitiveTerm builtinIMin
+  imax <- getPrimitiveTerm builtinIMax
+  ineg <- getPrimitiveTerm builtinINeg
   transp <- getPrimitiveTerm builtinTrans
   -- por <- getPrimitiveTerm "primPOr"
   -- one <- primItIsOne
@@ -1515,13 +1512,13 @@ defineHCompForFields applyProj name params fsT fns rect = do
   let delta = params
   iz <- primIZero
   io <- primIOne
-  imin <- getPrimitiveTerm "primIMin"
-  imax <- getPrimitiveTerm "primIMax"
-  tIMax <- getPrimitiveTerm "primIMax"
-  ineg <- getPrimitiveTerm "primINeg"
+  imin <- getPrimitiveTerm builtinIMin
+  imax <- getPrimitiveTerm builtinIMax
+  tIMax <- getPrimitiveTerm builtinIMax
+  ineg <- getPrimitiveTerm builtinINeg
   hcomp <- getPrimitiveTerm builtinHComp
   transp <- getPrimitiveTerm builtinTrans
-  por <- getPrimitiveTerm "primPOr"
+  por <- getPrimitiveTerm builtinPOr
   one <- primItIsOne
   reportSDoc "comp.rec" 20 $ text $ show params
   reportSDoc "comp.rec" 20 $ text $ show delta
@@ -1759,7 +1756,7 @@ fitsIn uc forceds t s = do
   withoutK <- withoutKOption
   when withoutK $ do
     q <- viewTC eQuantity
-    usableAtModality' (Just s) ConstructorType (setQuantity q defaultModality) (unEl t)
+    usableAtModality' (Just s) ConstructorType (setQuantity q unitModality) (unEl t)
 
   fitsIn' withoutK forceds t s
   where

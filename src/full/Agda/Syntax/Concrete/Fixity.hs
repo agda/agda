@@ -18,7 +18,7 @@ import qualified Data.Set as Set
 import Data.Semigroup
 #endif
 
-import Agda.Syntax.Builtin (isBuiltinNoDef)
+import Agda.Syntax.Builtin (builtinById, isBuiltinNoDef)
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete
 import Agda.Syntax.Position
@@ -157,6 +157,7 @@ fixitiesAndPolarities' = foldMap $ \case
   Private _ _ ds' -> fixitiesAndPolarities' ds'
   InstanceB _ ds' -> fixitiesAndPolarities' ds'
   Macro     _ ds' -> fixitiesAndPolarities' ds'
+  Opaque    _ ds' -> fixitiesAndPolarities' ds'
   -- All other declarations are ignored.
   -- We expand these boring cases to trigger a revisit
   -- in case the @Declaration@ type is extended in the future.
@@ -184,6 +185,7 @@ fixitiesAndPolarities' = foldMap $ \case
   UnquoteDef      {}  -> mempty
   UnquoteData     {}  -> mempty
   Pragma          {}  -> mempty
+  Unfolding       {}  -> mempty
 
 data DeclaredNames = DeclaredNames { _allNames, _postulates, _privateNames :: Set Name }
 
@@ -238,7 +240,9 @@ declaredNames = \case
   Postulate _ ds        -> allPostulates $ foldMap declaredNames ds
   Primitive _ ds        -> foldMap declaredNames ds
   Generalize _ ds       -> foldMap declaredNames ds
+  Opaque _ ds           -> foldMap declaredNames ds
   Open{}                -> mempty
+  Unfolding{}           -> mempty
   Import{}              -> mempty
   ModuleMacro{}         -> mempty
   Module{}              -> mempty
@@ -248,5 +252,5 @@ declaredNames = \case
   -- BUILTIN pragmas which do not require an accompanying definition declare
   -- the (unqualified) name they mention.
   Pragma (BuiltinPragma _ b (QName x))
-    | isBuiltinNoDef $ rangedThing b -> declaresName x
+    | any isBuiltinNoDef . builtinById $ rangedThing b -> declaresName x
   Pragma{}             -> mempty

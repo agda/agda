@@ -56,8 +56,7 @@ import Agda.TypeChecking.Warnings ( raiseWarningsOnUsage, runPM )
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete.Definitions as W ( DeclarationWarning(..), DeclarationWarning'(..) )
-import Agda.Syntax.Common (pattern Ranged)
-import qualified Agda.Syntax.Common as Common
+import Agda.Syntax.Common (Induction(..), pattern Ranged)
 import qualified Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Literal as L
@@ -290,13 +289,13 @@ nameKinds hlLevel decl = do
                             | otherwise            = Function
   defnToKind   TCM.Datatype{}                        = Datatype
   defnToKind   TCM.Record{}                          = Record
-  defnToKind   TCM.Constructor{ TCM.conInd = i }       = Constructor i
+  defnToKind   TCM.Constructor{ TCM.conSrcCon = c }  = Constructor $ I.conInductive c
   defnToKind   TCM.Primitive{}                       = Primitive
   defnToKind   TCM.PrimitiveSort{}                   = Primitive
   defnToKind   TCM.AbstractDefn{}                    = __IMPOSSIBLE__
 
   con :: NameKind
-  con = Constructor Common.Inductive
+  con = Constructor Inductive
 
 -- | The 'TCM.Axiom' constructor is used to represent various things
 -- which are not really axioms, so when maps are merged 'Postulate's
@@ -485,6 +484,9 @@ warningHighlighting' b w = case tcWarning w of
     Pa.UnsupportedAttribute{}     -> deadcodeHighlighting w
     Pa.MultipleAttributes{}       -> deadcodeHighlighting w
     Pa.OverlappingTokensWarning{} -> mempty
+  NotAffectedByOpaque{}           -> deadcodeHighlighting w
+  UselessOpaque{}                 -> deadcodeHighlighting w
+  UnfoldTransparentName r         -> deadcodeHighlighting r
   NicifierIssue (DeclarationWarning _ w) -> case w of
     -- we intentionally override the binding of `w` here so that our pattern of
     -- using `getRange w` still yields the most precise range information we
@@ -677,7 +679,7 @@ storeDisambiguatedField = storeDisambiguatedName Field
 storeDisambiguatedProjection :: A.QName -> TCM ()
 storeDisambiguatedProjection = storeDisambiguatedField
 
-storeDisambiguatedConstructor :: Common.Induction -> A.QName -> TCM ()
+storeDisambiguatedConstructor :: Induction -> A.QName -> TCM ()
 storeDisambiguatedConstructor i = storeDisambiguatedName $ Constructor i
 
 -- TODO: move the following function to a new module TypeChecking.Overloading

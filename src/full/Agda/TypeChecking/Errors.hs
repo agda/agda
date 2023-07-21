@@ -135,6 +135,7 @@ errorString err = case err of
   BadArgumentsToPatternSynonym{}           -> "BadArgumentsToPatternSynonym"
   TooFewArgumentsToPatternSynonym{}        -> "TooFewArgumentsToPatternSynonym"
   CannotResolveAmbiguousPatternSynonym{}   -> "CannotResolveAmbiguousPatternSynonym"
+  UnboundVariablesInPatternSynonym{}       -> "UnboundVariablesInPatternSynonym"
   BothWithAndRHS                           -> "BothWithAndRHS"
   BuiltinInParameterisedModule{}           -> "BuiltinInParameterisedModule"
   BuiltinMustBeConstructor{}               -> "BuiltinMustBeConstructor"
@@ -159,8 +160,10 @@ errorString err = case err of
   GenericError{}                           -> "GenericError"
   GenericDocError{}                        -> "GenericDocError"
   InstanceNoCandidate{}                    -> "InstanceNoCandidate"
-  IllformedProjectionPattern{}             -> "IllformedProjectionPattern"
+  IllformedProjectionPatternAbstract{}     -> "IllformedProjectionPatternAbstract"
+  IllformedProjectionPatternConcrete{}     -> "IllformedProjectionPatternConcrete"
   CannotEliminateWithPattern{}             -> "CannotEliminateWithPattern"
+  IllegalDeclarationInDataDefinition{}     -> "IllegalDeclarationInDataDefinition"
   IllegalLetInTelescope{}                  -> "IllegalLetInTelescope"
   IllegalPatternInTelescope{}              -> "IllegalPatternInTelescope"
 -- UNUSED:  IncompletePatternMatching{}              -> "IncompletePatternMatching"
@@ -182,6 +185,7 @@ errorString err = case err of
   GeneralizeNotSupportedHere{}             -> "GeneralizeNotSupportedHere"
   GeneralizeCyclicDependency{}             -> "GeneralizeCyclicDependency"
   GeneralizeUnsolvedMeta{}                 -> "GeneralizeUnsolvedMeta"
+  GeneralizedVarInLetOpenedModule{}        -> "GeneralizedVarInLetOpenedModule"
   MultipleFixityDecls{}                    -> "MultipleFixityDecls"
   MultiplePolarityPragmas{}                -> "MultiplePolarityPragmas"
   NoBindingForBuiltin{}                    -> "NoBindingForBuiltin"
@@ -193,7 +197,7 @@ errorString err = case err of
   NoSuchModule{}                           -> "NoSuchModule"
   DuplicatePrimitiveBinding{}              -> "DuplicatePrimitiveBinding"
   NoSuchPrimitiveFunction{}                -> "NoSuchPrimitiveFunction"
-  WrongModalityForPrimitive{}              -> "WrongModalityForPrimitive"
+  WrongArgInfoForPrimitive{}               -> "WrongArgInfoForPrimitive"
   NotAModuleExpr{}                         -> "NotAModuleExpr"
   NotAProperTerm                           -> "NotAProperTerm"
   InvalidType{}                            -> "InvalidType"
@@ -262,6 +266,7 @@ errorString err = case err of
   WrongHidingInApplication{}               -> "WrongHidingInApplication"
   WrongHidingInLHS{}                       -> "WrongHidingInLHS"
   WrongHidingInLambda{}                    -> "WrongHidingInLambda"
+  IllegalHidingInPostfixProjection{}       -> "IllegalHidingInPostfixProjection"
   WrongIrrelevanceInLambda{}               -> "WrongIrrelevanceInLambda"
   WrongQuantityInLambda{}                  -> "WrongQuantityInLambda"
   WrongCohesionInLambda{}                  -> "WrongCohesionInLambda"
@@ -277,6 +282,7 @@ errorString err = case err of
   ReferencesFutureVariables{}              -> "ReferencesFutureVariables"
   DoesNotMentionTicks{}                    -> "DoesNotMentionTicks"
   MismatchedProjectionsError{}             -> "MismatchedProjectionsError"
+  AttributeKindNotEnabled{}                -> "AttributeKindNotEnabled"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -362,6 +368,10 @@ instance PrettyTCM TypeError where
     WrongHidingInLambda t ->
       fwords "Found an implicit lambda where an explicit lambda was expected"
 
+    IllegalHidingInPostfixProjection arg -> fsep $
+      pwords "Illegal hiding in postfix projection " ++
+      [pretty arg]
+
     WrongIrrelevanceInLambda ->
       fwords "Found a non-strict lambda where a irrelevant lambda was expected"
 
@@ -400,8 +410,11 @@ instance PrettyTCM TypeError where
       pwords "Failed to infer that constructor pattern "
       ++ [prettyA p] ++ pwords " is forced"
 
-    IllformedProjectionPattern p -> fsep $
+    IllformedProjectionPatternAbstract p -> fsep $
       pwords "Ill-formed projection pattern " ++ [prettyA p]
+
+    IllformedProjectionPatternConcrete p -> fsep $
+      pwords "Ill-formed projection pattern" ++ [pretty p]
 
     CannotEliminateWithPattern b p a -> do
       let isProj = isJust (isProjP p)
@@ -678,45 +691,48 @@ instance PrettyTCM TypeError where
       pwords "solution was created in an erased context."
 
     BuiltinMustBeConstructor s e -> fsep $
-      [prettyA e] ++ pwords "must be a constructor in the binding to builtin" ++ [text s]
+      [prettyA e] ++ pwords "must be a constructor in the binding to builtin" ++ [pretty s]
 
     NoSuchBuiltinName s -> fsep $
-      pwords "There is no built-in thing called" ++ [text s]
+      pwords "There is no built-in thing called" ++ [pretty s]
 
     DuplicateBuiltinBinding b x y -> fsep $
-      pwords "Duplicate binding for built-in thing" ++ [text b <> comma] ++
+      pwords "Duplicate binding for built-in thing" ++ [pretty b <> comma] ++
       pwords "previous binding to" ++ [prettyTCM x]
 
     NoBindingForBuiltin x
       | x `elem` [builtinZero, builtinSuc] -> fsep $
-        pwords "No binding for builtin " ++ [text x <> comma] ++
-        pwords ("use {-# BUILTIN " ++ builtinNat ++ " name #-} to bind builtin natural " ++
+        pwords "No binding for builtin " ++ [pretty x <> comma] ++
+        pwords ("use {-# BUILTIN " ++ getBuiltinId builtinNat ++ " name #-} to bind builtin natural " ++
                 "numbers to the type 'name'")
       | otherwise -> fsep $
-        pwords "No binding for builtin thing" ++ [text x <> comma] ++
-        pwords ("use {-# BUILTIN " ++ x ++ " name #-} to bind it to 'name'")
+        pwords "No binding for builtin thing" ++ [pretty x <> comma] ++
+        pwords ("use {-# BUILTIN " ++ getBuiltinId x ++ " name #-} to bind it to 'name'")
 
     DuplicatePrimitiveBinding b x y -> fsep $
-      pwords "Duplicate binding for primitive thing" ++ [text b <> comma] ++
+      pwords "Duplicate binding for primitive thing" ++ [pretty b <> comma] ++
       pwords "previous binding to" ++ [prettyTCM x]
 
     NoSuchPrimitiveFunction x -> fsep $
       pwords "There is no primitive function called" ++ [text x]
 
-    WrongModalityForPrimitive x got expect ->
-      vcat [ fsep $ pwords "Wrong modality for primitive" ++ [text x]
+    WrongArgInfoForPrimitive x got expect ->
+      vcat [ fsep $ pwords "Wrong definition properties for primitive" ++ [pretty x]
            , nest 2 $ text $ "Got:      " ++ intercalate ", " gs
            , nest 2 $ text $ "Expected: " ++ intercalate ", " es ]
       where
         (gs, es) = unzip [ p | p@(g, e) <- zip (things got) (things expect), g /= e ]
         things i = [verbalize $ getHiding i,
-                    verbalize $ getRelevance i,
-                    verbalize $ getQuantity i,
-                    verbalize $ getCohesion i]
+                    "at modality " ++ verbalize (getModality i)]
 
     BuiltinInParameterisedModule x -> fwords $
       "The BUILTIN pragma cannot appear inside a bound context " ++
       "(for instance, in a parameterised module or as a local declaration)"
+
+    IllegalDeclarationInDataDefinition ds -> vcat
+      [ "Illegal declaration in data type definition"
+      , nest 2 $ vcat $ map pretty ds
+      ]
 
     IllegalLetInTelescope tb -> fsep $
       -- pwords "The binding" ++
@@ -975,6 +991,10 @@ instance PrettyTCM TypeError where
     UnusedVariableInPatternSynonym -> fsep $
       pwords "Unused variable in pattern synonym."
 
+    UnboundVariablesInPatternSynonym xs -> fsep $
+      pwords "Unbound variables in pattern synonym: " ++
+      [sep (map prettyA xs)]
+
     NoParseForLHS lhsOrPatSyn errs p -> vcat
       [ fsep $ pwords "Could not parse the" ++ prettyLhsOrPatSyn ++ [pretty p]
       , prettyErrs
@@ -1204,6 +1224,10 @@ instance PrettyTCM TypeError where
     GeneralizeUnsolvedMeta -> fsep $
       pwords "Unsolved meta not generalized"
 
+    GeneralizedVarInLetOpenedModule x -> fsep $
+      pwords "Cannot use generalized variable from let-opened module: " ++
+      [prettyTCM x]
+
     MultipleFixityDecls xs ->
       sep [ fsep $ pwords "Multiple fixity or syntax declarations for"
           , vcat $ map f xs
@@ -1282,6 +1306,13 @@ instance PrettyTCM TypeError where
       pwords "and" ++ [prettyTCM right] ++
       pwords "do not match"
 
+    AttributeKindNotEnabled kind opt s -> fsep $
+      [text kind] ++
+      pwords "attributes have not been enabled (use" ++
+      [text opt] ++
+      pwords "to enable them):" ++
+      [text s]
+
     where
     mpar n args
       | n > 0 && not (null args) = parens
@@ -1330,6 +1361,8 @@ prettyInEqual t1 t2 = do
         (I.Def{}, I.Var{}) -> varDef
         (I.Var{}, I.Con{}) -> varCon
         (I.Con{}, I.Var{}) -> varCon
+        (I.Def x _, I.Def y _)
+          | isExtendedLambdaName x, isExtendedLambdaName y -> extLamExtLam x y
         _                  -> empty
   where
     varDef, varCon, generic :: MonadPretty m => m Doc
@@ -1341,6 +1374,15 @@ prettyInEqual t1 t2 = do
     varVar i j = parens $ fwords $
                    "because one has de Bruijn index " ++ show i
                    ++ " and the other " ++ show j
+
+    extLamExtLam :: MonadPretty m => QName -> QName -> m Doc
+    extLamExtLam a b = vcat
+      [ fwords "Because they are distinct extended lambdas: one is defined at"
+      , "  " <+> pretty (nameBindingSite (qnameName a))
+      , fwords "and the other at"
+      , "  " <+> (pretty (nameBindingSite (qnameName b)) <> ",")
+      , fwords "so they have different internal representations."
+      ]
 
 class PrettyUnequal a where
   prettyUnequal :: MonadPretty m => a -> m Doc -> a -> m Doc
@@ -1586,7 +1628,7 @@ instance Verbalize Cohesion where
 
 instance Verbalize Modality where
   verbalize mod | mod == defaultModality = "default"
-  verbalize (Modality rel qnt coh) = intercalate "," $
+  verbalize (Modality rel qnt coh) = intercalate ", " $
     [ verbalize rel | rel /= defaultRelevance ] ++
     [ verbalize qnt | qnt /= defaultQuantity ] ++
     [ verbalize coh | coh /= defaultCohesion ]

@@ -243,6 +243,7 @@ instance ExprLike Declaration where
      Postulate r ds            -> Postulate r                          $ mapE ds
      Primitive r ds            -> Primitive r                          $ mapE ds
      Generalize r ds           -> Generalize r                         $ mapE ds
+     Opaque  r ds              -> Opaque r                             $ mapE ds
      e@Open{}                  -> e
      e@Import{}                -> e
      ModuleMacro r e n es op dir
@@ -252,6 +253,7 @@ instance ExprLike Declaration where
      UnquoteDef r x e          -> UnquoteDef r x (mapE e)
      UnquoteData r x xs e      -> UnquoteData r x xs (mapE e)
      e@Pragma{}                -> e
+     e@Unfolding{}             -> e
    where
      mapE :: ExprLike e => e -> e
      mapE = mapExpr f

@@ -180,7 +180,7 @@ addConstraint' = addConstraintTo stSleepingConstraints
 addAwakeConstraint' :: Blocker -> Constraint -> TCM ()
 addAwakeConstraint' = addConstraintTo stAwakeConstraints
 
-addConstraintTo :: Lens' Constraints TCState -> Blocker -> Constraint -> TCM ()
+addConstraintTo :: Lens' TCState Constraints -> Blocker -> Constraint -> TCM ()
 addConstraintTo bucket unblock c = do
     pc <- build
     stDirty `setTCLens` True

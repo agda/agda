@@ -152,6 +152,8 @@ import Agda.Utils.Impossible
     'where'                   { TokKeyword KwWhere $$ }
     'do'                      { TokKeyword KwDo $$ }
     'with'                    { TokKeyword KwWith $$ }
+    'opaque'                  { TokKeyword KwOpaque $$ }
+    'unfolding'               { TokKeyword KwUnfolding $$ }
 
     'BUILTIN'                 { TokKeyword KwBUILTIN $$ }
     'CATCHALL'                { TokKeyword KwCATCHALL $$ }
@@ -258,6 +260,7 @@ Token
     | 'interleaved'             { TokKeyword KwInterleaved $1 }
     | 'mutual'                  { TokKeyword KwMutual $1 }
     | 'no-eta-equality'         { TokKeyword KwNoEta $1 }
+    | 'opaque'                  { TokKeyword KwOpaque $1 }
     | 'open'                    { TokKeyword KwOpen $1 }
     | 'overlap'                 { TokKeyword KwOverlap $1 }
     | 'pattern'                 { TokKeyword KwPatternSyn $1 }
@@ -273,6 +276,7 @@ Token
     | 'syntax'                  { TokKeyword KwSyntax $1 }
     | 'tactic'                  { TokKeyword KwTactic $1 }
     | 'to'                      { TokKeyword KwTo $1 }
+    | 'unfolding'               { TokKeyword KwUnfolding $1 }
     | 'unquote'                 { TokKeyword KwUnquote $1 }
     | 'unquoteDecl'             { TokKeyword KwUnquoteDecl $1 }
     | 'unquoteDef'              { TokKeyword KwUnquoteDef $1 }
@@ -1156,6 +1160,8 @@ Declaration
     | PatternSyn      { singleton $1 }
     | UnquoteDecl     { singleton $1 }
     | Constructor     { singleton $1 }
+    | Opaque          { singleton $1 }
+    | Unfolding       { singleton $1 }
 
 {--------------------------------------------------------------------------
     Individual declarations
@@ -1804,6 +1810,17 @@ RecordInduction :: { Ranged Induction }
 RecordInduction
     : 'inductive'   { Ranged (getRange $1) Inductive   }
     | 'coinductive' { Ranged (getRange $1) CoInductive }
+
+Opaque :: { Declaration }
+  : 'opaque' Declarations0     { Opaque (getRange ($1, $2)) $2 }
+
+Unfolding :: { Declaration }
+  : 'unfolding' UnfoldingNames { Unfolding (getRange ($1, $2)) $2 }
+
+UnfoldingNames :: { [QName] }
+UnfoldingNames
+    : QId UnfoldingNames { $1:$2 }
+    | {- empty -}        { [] }
 
 -- Arbitrary declarations
 Declarations :: { List1 Declaration }

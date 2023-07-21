@@ -2,21 +2,21 @@
   ::
 
   {-# OPTIONS --cubical #-}
-  module language.guarded-cubical where
+  module language.guarded where
 
-.. _guarded-cubical:
+.. _guarded:
 
 ********************
-Guarded Cubical
+Guarded Type Theory
 ********************
 
 .. note::
    This is a stub.
 
-Option :option:`--guarded` extends Cubical Agda with
+Option :option:`--guarded` extends Agda with
 Nakano's later modality and guarded recursion
-based on Ticked Cubical Type Theory :ref:`[2] <cubical-refs>`.
-For its usage, see :ref:`[1] <cubical-refs>` or the
+based on Ticked (Cubical) Type Theory :ref:`[2] <cubical-refs>`.
+For its usage in combination with :option:`--cubical`, see :ref:`[1] <cubical-refs>` or the
 `example <https://github.com/agda/agda/blob/172366db528b28fb2eda03c5fc9804f2cdb1be18/test/Succeed/LaterPrims.agda>`_.
 
 The implementation currently allows for something more general than in the above reference, in

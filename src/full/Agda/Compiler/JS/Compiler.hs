@@ -469,7 +469,7 @@ definition' kit q d t ls =
         -- The string prim^unglueU is not a valid JS name.
         plainJS "agdaRTS.prim_unglueU"
       | p `Set.member` primitives ->
-        plainJS $ "agdaRTS." ++ p
+        plainJS $ "agdaRTS." ++ getBuiltinId p
       | Just e <- defJSDef d ->
         plainJS e
       | otherwise ->
@@ -744,124 +744,120 @@ outFile_ = do
 -- 'defJSDef' does not return anything, are silently compiled to
 -- 'Undefined'. A better approach might be to list exactly those
 -- primitives which should be compiled to 'Undefined'.
-primitives :: Set String
+primitives :: Set PrimitiveId
 primitives = Set.fromList
-  [  "primShowInteger"
+  [ PrimShowInteger
 
   -- Natural number functions
-  -- , "primNatPlus"                 -- missing
-  , "primNatMinus"
-  -- , "primNatTimes"                -- missing
-  -- , "primNatDivSucAux"            -- missing
-  -- , "primNatModSucAux"            -- missing
-  -- , "primNatEquality"             -- missing
-  -- , "primNatLess"                 -- missing
-  -- , "primShowNat"                 -- missing
+  -- , PrimNatPlus                 -- missing
+  , PrimNatMinus
+  -- , PrimNatTimes                -- missing
+  -- , PrimNatDivSucAux            -- missing
+  -- , PrimNatModSucAux            -- missing
+  -- , PrimNatEquality             -- missing
+  -- , PrimNatLess                 -- missing
+  -- , PrimShowNat                 -- missing
 
   -- Machine words
-  , "primWord64ToNat"
-  , "primWord64FromNat"
-  -- , "primWord64ToNatInjective"    -- missing
+  , PrimWord64ToNat
+  , PrimWord64FromNat
+  -- , PrimWord64ToNatInjective    -- missing
 
   -- Level functions
-  -- , "primLevelZero"               -- missing
-  -- , "primLevelSuc"                -- missing
-  -- , "primLevelMax"                -- missing
-
-  -- Sorts
-  -- , "primSetOmega"                -- missing
-  -- , "primStrictSetOmega"          -- missing
+  -- , PrimLevelZero               -- missing
+  -- , PrimLevelSuc                -- missing
+  -- , PrimLevelMax                -- missing
 
   -- Floating point functions
-  , "primFloatEquality"
-  , "primFloatInequality"
-  , "primFloatLess"
-  , "primFloatIsInfinite"
-  , "primFloatIsNaN"
-  , "primFloatIsNegativeZero"
-  , "primFloatIsSafeInteger"
-  , "primFloatToWord64"
-  -- , "primFloatToWord64Injective"  -- missing
-  , "primNatToFloat"
-  , "primIntToFloat"
-  -- , "primFloatRound"              -- in Agda.Builtin.Float
-  -- , "primFloatFloor"              -- in Agda.Builtin.Float
-  -- , "primFloatCeiling"            -- in Agda.Builtin.Float
-  -- , "primFloatToRatio"            -- in Agda.Builtin.Float
-  , "primRatioToFloat"
-  -- , "primFloatDecode"             -- in Agda.Builtin.Float
-  -- , "primFloatEncode"             -- in Agda.Builtin.Float
-  , "primShowFloat"
-  , "primFloatPlus"
-  , "primFloatMinus"
-  , "primFloatTimes"
-  , "primFloatNegate"
-  , "primFloatDiv"
-  , "primFloatSqrt"
-  , "primFloatExp"
-  , "primFloatLog"
-  , "primFloatSin"
-  , "primFloatCos"
-  , "primFloatTan"
-  , "primFloatASin"
-  , "primFloatACos"
-  , "primFloatATan"
-  , "primFloatATan2"
-  , "primFloatSinh"
-  , "primFloatCosh"
-  , "primFloatTanh"
-  , "primFloatASinh"
-  , "primFloatACosh"
-  , "primFloatATanh"
-  , "primFloatPow"
+  , PrimFloatEquality
+  , PrimFloatInequality
+  , PrimFloatLess
+  , PrimFloatIsInfinite
+  , PrimFloatIsNaN
+  , PrimFloatIsNegativeZero
+  , PrimFloatIsSafeInteger
+  , PrimFloatToWord64
+  -- , PrimFloatToWord64Injective  -- missing
+  , PrimNatToFloat
+  , PrimIntToFloat
+  -- , PrimFloatRound              -- in Agda.Builtin.Float
+  -- , PrimFloatFloor              -- in Agda.Builtin.Float
+  -- , PrimFloatCeiling            -- in Agda.Builtin.Float
+  -- , PrimFloatToRatio            -- in Agda.Builtin.Float
+  , PrimRatioToFloat
+  -- , PrimFloatDecode             -- in Agda.Builtin.Float
+  -- , PrimFloatEncode             -- in Agda.Builtin.Float
+  , PrimShowFloat
+  , PrimFloatPlus
+  , PrimFloatMinus
+  , PrimFloatTimes
+  , PrimFloatNegate
+  , PrimFloatDiv
+  , PrimFloatSqrt
+  , PrimFloatExp
+  , PrimFloatLog
+  , PrimFloatSin
+  , PrimFloatCos
+  , PrimFloatTan
+  , PrimFloatASin
+  , PrimFloatACos
+  , PrimFloatATan
+  , PrimFloatATan2
+  , PrimFloatSinh
+  , PrimFloatCosh
+  , PrimFloatTanh
+  , PrimFloatASinh
+  , PrimFloatACosh
+  , PrimFloatATanh
+  , PrimFloatPow
 
   -- Character functions
-  -- , "primCharEquality"            -- missing
-  -- , "primIsLower"                 -- missing
-  -- , "primIsDigit"                 -- missing
-  -- , "primIsAlpha"                 -- missing
-  -- , "primIsSpace"                 -- missing
-  -- , "primIsAscii"                 -- missing
-  -- , "primIsLatin1"                -- missing
-  -- , "primIsPrint"                 -- missing
-  -- , "primIsHexDigit"              -- missing
-  -- , "primToUpper"                 -- missing
-  -- , "primToLower"                 -- missing
-  -- , "primCharToNat"               -- missing
-  -- , "primCharToNatInjective"      -- missing
-  -- , "primNatToChar"               -- missing
-  -- , "primShowChar"                -- in Agda.Builtin.String
+  -- , PrimCharEquality            -- missing
+  -- , PrimIsLower                 -- missing
+  -- , PrimIsDigit                 -- missing
+  -- , PrimIsAlpha                 -- missing
+  -- , PrimIsSpace                 -- missing
+  -- , PrimIsAscii                 -- missing
+  -- , PrimIsLatin1                -- missing
+  -- , PrimIsPrint                 -- missing
+  -- , PrimIsHexDigit              -- missing
+  -- , PrimToUpper                 -- missing
+  -- , PrimToLower                 -- missing
+  -- , PrimCharToNat               -- missing
+  -- , PrimCharToNatInjective      -- missing
+  -- , PrimNatToChar               -- missing
+  -- , PrimShowChar                -- in Agda.Builtin.String
 
   -- String functions
-  -- , "primStringToList"            -- in Agda.Builtin.String
-  -- , "primStringToListInjective"   -- missing
-  -- , "primStringFromList"          -- in Agda.Builtin.String
-  -- , "primStringFromListInjective" -- missing
-  -- , "primStringAppend"            -- in Agda.Builtin.String
-  -- , "primStringEquality"          -- in Agda.Builtin.String
-  -- , "primShowString"              -- in Agda.Builtin.String
-  -- , "primStringUncons"            -- in Agda.Builtin.String
+  -- , PrimStringToList            -- in Agda.Builtin.String
+  -- , PrimStringToListInjective   -- missing
+  -- , PrimStringFromList          -- in Agda.Builtin.String
+  -- , PrimStringFromListInjective -- missing
+  -- , PrimStringAppend            -- in Agda.Builtin.String
+  -- , PrimStringEquality          -- in Agda.Builtin.String
+  -- , PrimShowString              -- in Agda.Builtin.String
+  -- , PrimStringUncons            -- in Agda.Builtin.String
 
   -- Other stuff
-  -- , "primEraseEquality"           -- missing
-  -- , "primForce"                   -- missing
-  -- , "primForceLemma"              -- missing
-  , "primQNameEquality"
-  , "primQNameLess"
-  , "primShowQName"
-  , "primQNameFixity"
-  -- , "primQNameToWord64s"          -- missing
-  -- , "primQNameToWord64sInjective" -- missing
-  , "primMetaEquality"
-  , "primMetaLess"
-  , "primShowMeta"
-  , "primMetaToNat"
-  -- , "primMetaToNatInjective"      -- missing
+  -- , PrimEraseEquality           -- missing
+  -- , PrimForce                   -- missing
+  -- , PrimForceLemma              -- missing
+  , PrimQNameEquality
+  , PrimQNameLess
+  , PrimShowQName
+  , PrimQNameFixity
+  -- , PrimQNameToWord64s          -- missing
+  -- , PrimQNameToWord64sInjective -- missing
+  , PrimMetaEquality
+  , PrimMetaLess
+  , PrimShowMeta
+  , PrimMetaToNat
+  -- , PrimMetaToNatInjective      -- missing
   , builtinIMin
   , builtinIMax
   , builtinINeg
-  , "primPartial"
-  , "primPartialP"
+  , PrimPartial
+  , PrimPartialP
   , builtinPOr
   , builtinComp
   , builtinTrans
@@ -870,9 +866,9 @@ primitives = Set.fromList
   , builtin_glueU
   , builtin_unglueU
   , builtinFaceForall
-  , "primDepIMin"
-  , "primIdFace"
-  , "primIdPath"
+  , PrimDepIMin
+  , PrimIdFace
+  , PrimIdPath
   , builtinIdElim
   , builtinConId
   -- , builtinGlue                   -- missing

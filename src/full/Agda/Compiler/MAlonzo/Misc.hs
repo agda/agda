@@ -264,7 +264,7 @@ conhqn :: QName -> HsCompileM HS.QName
 conhqn q = xhqn ConK =<< canonicalName q
 
 -- qualify name s by the module of builtin b
-bltQual :: String -> String -> HsCompileM HS.QName
+bltQual :: BuiltinId -> String -> HsCompileM HS.QName
 bltQual b s = do
   Def q _ <- getBuiltin b
   xqual q (HS.Ident s)

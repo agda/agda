@@ -70,7 +70,7 @@ isSizeTypeTest =
         testType _                                    = Nothing
     return testType
 
-getBuiltinDefName :: (HasBuiltins m) => String -> m (Maybe QName)
+getBuiltinDefName :: (HasBuiltins m) => BuiltinId -> m (Maybe QName)
 getBuiltinDefName s = fromDef <$> getBuiltin' s
   where
     fromDef (Just (Def d [])) = Just d
@@ -107,7 +107,7 @@ haveSizeLt :: TCM Bool
 haveSizeLt = isJust <$> getBuiltinDefName builtinSizeLt
 
 -- | Add polarity info to a SIZE builtin.
-builtinSizeHook :: String -> QName -> Type -> TCM ()
+builtinSizeHook :: BuiltinId -> QName -> Type -> TCM ()
 builtinSizeHook s q t = do
   when (s `elem` [builtinSizeLt, builtinSizeSuc]) $ do
     modifySignature $ updateDefinition q

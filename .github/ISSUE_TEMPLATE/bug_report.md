@@ -23,3 +23,5 @@ For opening a new issue, please make sure you can check the following boxes:
 * [ ] I have supplied all information so the bug can be easily reproduced (in particular, the reproducer is a complete Agda file).
 
 Note: The best reproducers are those only using the `Agda.Builtin` and `Agda.Primitive` modules shipped with Agda.
+
+Once you have ticked the boxes, you can delete this text (no need to include the checklist in the issue report).

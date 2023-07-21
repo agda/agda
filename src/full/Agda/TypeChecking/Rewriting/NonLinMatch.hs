@@ -44,7 +44,7 @@ import Agda.TypeChecking.Conversion.Pure
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Reduce
-import Agda.TypeChecking.Irrelevance (workOnTypes, isPropM)
+import Agda.TypeChecking.Irrelevance (isPropM)
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad hiding (constructorForm)
 import Agda.TypeChecking.Pretty
@@ -93,10 +93,10 @@ instance Null NLMState where
   empty  = NLMState { _nlmSub = empty , _nlmEqs = empty }
   null s = null (s^.nlmSub) && null (s^.nlmEqs)
 
-nlmSub :: Lens' Sub NLMState
+nlmSub :: Lens' NLMState Sub
 nlmSub f s = f (_nlmSub s) <&> \x -> s {_nlmSub = x}
 
-nlmEqs :: Lens' PostponedEquations NLMState
+nlmEqs :: Lens' NLMState PostponedEquations
 nlmEqs f s = f (_nlmEqs s) <&> \x -> s {_nlmEqs = x}
 
 runNLM :: (MonadReduce m) => NLM () -> m (Either Blocked_ NLMState)
@@ -226,15 +226,12 @@ instance Match NLPSort Sort where
       [ "matching pattern " <+> addContext (gamma `abstract` k) (prettyTCM p)
       , "  with sort      " <+> addContext k (prettyTCM s) ]) $ do
     case (p , s) of
-      (PType lp  , Type l  ) -> match r gamma k () lp l
-      (PProp lp  , Prop l  ) -> match r gamma k () lp l
-      (PSSet lp  , SSet l  ) -> match r gamma k () lp l
-      (PInf fp np , Inf f n)
-        | fp == f, np == n   -> yes
-      (PSizeUniv , SizeUniv) -> yes
-      (PLockUniv , LockUniv) -> yes
-      (PLevelUniv, LevelUniv) -> yes
-      (PIntervalUniv , IntervalUniv) -> yes
+      (PUniv u lp    , Univ u' l) | u == u'          -> match r gamma k () lp l
+      (PInf up np    , Inf u n)   | up == u, np == n -> yes
+      (PSizeUniv     , SizeUniv)                     -> yes
+      (PLockUniv     , LockUniv)                     -> yes
+      (PLevelUniv    , LevelUniv)                    -> yes
+      (PIntervalUniv , IntervalUniv)                 -> yes
 
       -- blocked cases
       (_ , UnivSort{}) -> matchingBlocked b

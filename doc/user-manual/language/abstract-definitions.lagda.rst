@@ -79,11 +79,19 @@ natural numbers::
       _+ℤ_ : (x y : ℤ) → ℤ
       (p , n) +ℤ (p' , n') = (p + p') , (n + n')
 
+      _*ℤ_ : (x y : ℤ) → ℤ
+      (a , b) *ℤ (c , d) = ((a * c) + (b * d)) , ((a * d) + (b * c))
+
+      infixl 20 _+ℤ_
+      infixl 30 _*ℤ_
+
       -ℤ_ : ℤ → ℤ
       -ℤ (p , n) = (n , p)
 
       _≡ℤ_ : (x y : ℤ) → Set
       (p , n) ≡ℤ (p' , n') = (p + n') ≡ (p' + n)
+
+      infix 10 _≡ℤ_
 
       private
         postulate

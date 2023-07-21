@@ -20,6 +20,7 @@ import Control.Monad
 import Control.Monad.State
 
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal as I
 import Agda.Syntax.TopLevelModuleName
@@ -37,7 +38,7 @@ import Agda.Utils.List
 import Agda.Utils.List1          ( pattern (:|) )
 import Agda.Utils.Maybe
 import Agda.Utils.Monad          ( ifNotM )
-import Agda.Syntax.Common.Pretty
+import Agda.Utils.WithDefault    ( lensCollapseDefault )
 
 import Agda.Utils.Impossible
 
@@ -171,15 +172,15 @@ inCompilerEnv checkResult cont = do
     -- We match on whether @["--no-main"]@ is one of the stored options.
     let iFilePragmaStrings = map pragmaStrings . iFilePragmaOptions
     when (["--no-main"] `elem` iFilePragmaStrings mainI) $
-      stPragmaOptions `modifyTCLens` \ o -> o { optCompileNoMain = True }
+      setTCLens (stPragmaOptions . lensOptCompileMain . lensCollapseDefault) False
 
     -- Perhaps all pragma options from the top-level module should be
     -- made available to the compiler in a suitable way. Here are more
     -- hacks:
     when (any ("--cubical" `elem`) $ iFilePragmaStrings mainI) $
-      stPragmaOptions `modifyTCLens` \ o -> o { optCubical = Just CFull }
+      setTCLens (stPragmaOptions . lensOptCubical) $ Just CFull
     when (any ("--erased-cubical" `elem`) $ iFilePragmaStrings mainI) $
-      stPragmaOptions `modifyTCLens` \ o -> o { optCubical = Just CErased }
+      setTCLens (stPragmaOptions . lensOptCubical) $ Just CErased
 
     setScope (iInsideScope mainI) -- so that compiler errors don't use overly qualified names
     ignoreAbstractMode cont

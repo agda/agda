@@ -52,9 +52,9 @@ builtinKit =
              <*> isB def builtinNatTimes
              <*> isB def builtinNatLess
              <*> isB def builtinNatEquals
-             <*> isP pf  "primForce"
-             <*> isP pf  "primWord64FromNat"
-             <*> isP pf  "primWord64ToNat"
+             <*> isP pf  PrimForce
+             <*> isP pf  PrimWord64FromNat
+             <*> isP pf  PrimWord64ToNat
   where
     con (I.Con c _ _) = pure $ I.conName c
     con _           = Nothing

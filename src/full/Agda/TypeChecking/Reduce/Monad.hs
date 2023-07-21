@@ -39,7 +39,7 @@ constructorForm v = do
   ms <- getBuiltin' builtinSuc
   return $ fromMaybe v $ constructorForm' mz ms v
 
-enterClosure :: LensClosure a c => c -> (a -> ReduceM b) -> ReduceM b
+enterClosure :: LensClosure c a => c -> (a -> ReduceM b) -> ReduceM b
 enterClosure c | Closure _sig env scope cps x <- c ^. lensClosure = \case
   -- The \case is a hack to correctly associate the where block to the rhs
   -- rather than to the expression in the pattern guard.

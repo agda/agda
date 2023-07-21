@@ -196,9 +196,9 @@ instance KillRange c => KillRange (Case c) where
     b lazy
 
 instance KillRange CompiledClauses where
-  killRange (Case i br) = killRange2 Case i br
-  killRange (Done xs v) = killRange2 Done xs v
-  killRange (Fail xs)   = killRange1 Fail xs
+  killRange (Case i br) = killRangeN Case i br
+  killRange (Done xs v) = killRangeN Done xs v
+  killRange (Fail xs)   = killRangeN Fail xs
 
 -- * TermLike instances
 

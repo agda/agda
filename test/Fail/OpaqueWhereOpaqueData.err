@@ -1,0 +1,9 @@
+OpaqueWhereOpaqueData.agda:11,5-12,27
+warning: -W[no]UselessOpaque
+This 'opaque' block has no effect.
+when scope checking the declaration
+  opaque
+    unfolding {}
+    mutual
+      data Foo : Set
+      data Foo where

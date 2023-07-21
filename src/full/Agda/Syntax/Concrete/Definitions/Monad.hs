@@ -61,6 +61,7 @@ data LoneSig = LoneSig
       --   than the key of 'LoneSigs' pointing to it.
   , loneSigKind  :: DataRecOrFun
   }
+  deriving Show
 
 type LoneSigs     = Map Name LoneSig
      -- ^ We retain the 'Name' also in the codomain since
@@ -91,7 +92,7 @@ initNiceEnv = NiceEnv
   , _nameId   = NameId 1 noModuleNameHash
   }
 
-lensNameId :: Lens' NameId NiceEnv
+lensNameId :: Lens' NiceEnv NameId
 lensNameId f e = f (_nameId e) <&> \ i -> e { _nameId = i }
 
 nextNameId :: Nice NameId
@@ -104,7 +105,7 @@ nextNameId = do
 
 -- | Lens for field '_loneSigs'.
 
-loneSigs :: Lens' LoneSigs NiceEnv
+loneSigs :: Lens' NiceEnv LoneSigs
 loneSigs f e = f (_loneSigs e) <&> \ s -> e { _loneSigs = s }
 
 -- | Adding a lone signature to the state.
@@ -139,15 +140,23 @@ getSig x = fmap loneSigKind . Map.lookup x <$> use loneSigs
 noLoneSigs :: Nice Bool
 noLoneSigs = null <$> use loneSigs
 
--- | Ensure that all forward declarations have been given a definition.
-
 forgetLoneSigs :: Nice ()
 forgetLoneSigs = loneSigs .= Map.empty
 
+-- | Ensure that all forward declarations have been given a definition.
 checkLoneSigs :: LoneSigs -> Nice ()
 checkLoneSigs xs = do
   forgetLoneSigs
   unless (Map.null xs) $ declarationWarning $ MissingDefinitions $
+    map (\s -> (loneSigName s , loneSigRange s)) $ Map.elems xs
+
+-- | Ensure that all forward declarations have been given a definition,
+-- raising an error indicating *why* they would have had to have been
+-- defined.
+breakImplicitMutualBlock :: Range -> String -> Nice ()
+breakImplicitMutualBlock r why = do
+  xs <- use loneSigs
+  unless (Map.null xs) $ declarationException $ DisallowedInterleavedMutual r why $
     map (\s -> (loneSigName s , loneSigRange s)) $ Map.elems xs
 
 -- | Get names of lone function signatures, plus their unique names.
@@ -162,7 +171,7 @@ loneSigsFromLoneNames = Map.fromListWith __IMPOSSIBLE__ . map (\(r,x,k) -> (x, L
 
 -- | Lens for field '_termChk'.
 
-terminationCheckPragma :: Lens' TerminationCheck NiceEnv
+terminationCheckPragma :: Lens' NiceEnv TerminationCheck
 terminationCheckPragma f e = f (_termChk e) <&> \ s -> e { _termChk = s }
 
 withTerminationCheckPragma :: TerminationCheck -> Nice a -> Nice a
@@ -173,7 +182,7 @@ withTerminationCheckPragma tc f = do
   terminationCheckPragma .= tc_old
   return result
 
-coverageCheckPragma :: Lens' CoverageCheck NiceEnv
+coverageCheckPragma :: Lens' NiceEnv CoverageCheck
 coverageCheckPragma f e = f (_covChk e) <&> \ s -> e { _covChk = s }
 
 withCoverageCheckPragma :: CoverageCheck -> Nice a -> Nice a
@@ -186,7 +195,7 @@ withCoverageCheckPragma tc f = do
 
 -- | Lens for field '_posChk'.
 
-positivityCheckPragma :: Lens' PositivityCheck NiceEnv
+positivityCheckPragma :: Lens' NiceEnv PositivityCheck
 positivityCheckPragma f e = f (_posChk e) <&> \ s -> e { _posChk = s }
 
 withPositivityCheckPragma :: PositivityCheck -> Nice a -> Nice a
@@ -199,7 +208,7 @@ withPositivityCheckPragma pc f = do
 
 -- | Lens for field '_uniChk'.
 
-universeCheckPragma :: Lens' UniverseCheck NiceEnv
+universeCheckPragma :: Lens' NiceEnv UniverseCheck
 universeCheckPragma f e = f (_uniChk e) <&> \ s -> e { _uniChk = s }
 
 withUniverseCheckPragma :: UniverseCheck -> Nice a -> Nice a
@@ -218,7 +227,7 @@ getUniverseCheckFromSig x = maybe YesUniverseCheck universeCheck <$> getSig x
 
 -- | Lens for field '_catchall'.
 
-catchallPragma :: Lens' Catchall NiceEnv
+catchallPragma :: Lens' NiceEnv Catchall
 catchallPragma f e = f (_catchall e) <&> \ s -> e { _catchall = s }
 
 -- | Get current catchall pragma, and reset it for the next clause.

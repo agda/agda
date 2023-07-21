@@ -92,7 +92,7 @@ instance KillRange Literal where
   killRange (LitFloat  x) = LitFloat  x
   killRange (LitString x) = LitString x
   killRange (LitChar   x) = LitChar   x
-  killRange (LitQName  x) = killRange1 LitQName x
+  killRange (LitQName  x) = killRangeN LitQName x
   killRange (LitMeta m x) = LitMeta (killRange m) x
 
 -- | Ranges are not forced.

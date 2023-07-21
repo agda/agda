@@ -274,7 +274,7 @@ ghcPreCompile flags = do
       , builtinAgdaTCMDefineFun
       , builtinAgdaTCMGetType
       , builtinAgdaTCMGetDefinition
-      , builtinAgdaTCMBlockOnMeta
+      , builtinAgdaTCMBlock
       , builtinAgdaTCMCommit
       , builtinAgdaTCMIsMacro
       , builtinAgdaTCMWithNormalisation
@@ -293,6 +293,10 @@ ghcPreCompile flags = do
       , builtinAgdaTCMGetInstances
       , builtinAgdaTCMPragmaForeign
       , builtinAgdaTCMPragmaCompile
+      , builtinAgdaBlocker
+      , builtinAgdaBlockerAll
+      , builtinAgdaBlockerAny
+      , builtinAgdaBlockerMeta
       ]
     return $
       flip HashSet.member $
@@ -692,7 +696,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       -- conid.
       Primitive{} | is ghcEnvConId -> do
         strict <- optGhcStrictData <$> askGhcOpts
-        let var = (if strict then HS.PBangPat else id) . HS.PVar
+        let var = applyWhen strict HS.PBangPat . HS.PVar
         retDecls $
           [ HS.FunBind
               [HS.Match (dname q)
@@ -866,10 +870,10 @@ data CCEnv = CCEnv
 type NameSupply = [HS.Name]
 type CCContext  = [HS.Name]
 
-ccNameSupply :: Lens' NameSupply CCEnv
+ccNameSupply :: Lens' CCEnv NameSupply
 ccNameSupply f e =  (\ ns' -> e { _ccNameSupply = ns' }) <$> f (_ccNameSupply e)
 
-ccContext :: Lens' CCContext CCEnv
+ccContext :: Lens' CCEnv CCContext
 ccContext f e = (\ cxt -> e { _ccContext = cxt }) <$> f (_ccContext e)
 
 -- | Initial environment for expression generation.
@@ -1170,9 +1174,9 @@ condecl :: QName -> Induction -> HsCompileM HS.ConDecl
 condecl q _ind = do
   opts <- askGhcOpts
   def <- getConstInfo q
-  let Constructor{ conPars = np, conErased = erased } = theDef def
+  let Constructor{ conPars = np, conSrcCon, conErased = erased } = theDef def
   (argTypes0, _) <- hsTelApproximation (defType def)
-  let strict     = if conInd (theDef def) == Inductive &&
+  let strict     = if conInductive conSrcCon == Inductive &&
                       optGhcStrictData opts
                    then HS.Strict
                    else HS.Lazy

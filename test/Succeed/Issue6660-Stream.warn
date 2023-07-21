@@ -1,0 +1,25 @@
+Issue6660-Stream.agda:9,16-23
+warning: -W[no]UselessPatternDeclarationForRecord
+'pattern' attribute ignored for coinductive record
+when scope checking the declaration
+  record Stream A where
+    coinductive
+    pattern
+    constructor _∷_
+    field
+      head : A
+      tail : Stream A
+
+———— All done; warnings encountered ————————————————————————
+
+Issue6660-Stream.agda:9,16-23
+warning: -W[no]UselessPatternDeclarationForRecord
+'pattern' attribute ignored for coinductive record
+when scope checking the declaration
+  record Stream A where
+    coinductive
+    pattern
+    constructor _∷_
+    field
+      head : A
+      tail : Stream A

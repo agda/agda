@@ -34,7 +34,6 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.InstanceArguments (postponeInstanceConstraints)
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Pretty
@@ -757,7 +756,7 @@ createGenValue x = setCurrentRange x $ do
   -- instantiated, and set the quantity of the meta to the declared
   -- quantity of the generalisable variable.
   updateMetaVar m $ \ mv ->
-    setQuantity (getQuantity (defArgInfo def)) $
+    setModality (getModality (defArgInfo def)) $
     mv { mvFrozen = Frozen }
 
   -- Set up names of arg metas
@@ -819,7 +818,6 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                , funInv          = NotInjective
                , funMutual       = Just []
                , funAbstr        = ConcreteDef
-               , funDelayed      = NotDelayed
                , funProjection   = Right proj
                , funErasure      = erasure
                , funFlags        = Set.empty
@@ -828,6 +826,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                , funWith         = Nothing
                , funCovering     = []
                , funIsKanOp      = Nothing
+               , funOpaque       = TransparentDef
                }
   addConstant' (conName genRecCon) defaultArgInfo (conName genRecCon) __DUMMY_TYPE__ $ -- Filled in later
     Constructor { conPars   = 0
@@ -835,12 +834,12 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                 , conSrcCon = genRecCon
                 , conData   = genRecName
                 , conAbstr  = ConcreteDef
-                , conInd    = Inductive
                 , conComp   = emptyCompKit
                 , conProj   = Nothing
                 , conForced = []
                 , conErased = Nothing
                 , conErasure = erasure
+                , conInline  = False
                 }
   let dummyTel 0 = EmptyTel
       dummyTel n = ExtendTel (defaultDom __DUMMY_TYPE__) $ Abs "_" $ dummyTel (n - 1)

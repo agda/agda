@@ -6,7 +6,6 @@ ScopeInfo
     scope
       private
         names
-          Prop --> [Agda.Primitive.Prop]
           Set --> [Agda.Primitive.Set]
       imports
         [Agda.Primitive]
@@ -17,6 +16,7 @@ ScopeInfo
           Level --> [Agda.Primitive.Level]
           LevelUniv --> [Agda.Primitive.LevelUniv]
           Prop --> [Agda.Primitive.Prop]
+          Propω --> [Agda.Primitive.Propω]
           SSet --> [Agda.Primitive.SSet]
           SSetω --> [Agda.Primitive.SSetω]
           Set --> [Agda.Primitive.Set]
@@ -49,7 +49,6 @@ ScopeInfo
     scope
       private
         names
-          Prop --> [Agda.Primitive.Prop]
           Set --> [Agda.Primitive.Set]
       imports
         [Agda.Primitive]
@@ -60,6 +59,7 @@ ScopeInfo
           Level --> [Agda.Primitive.Level]
           LevelUniv --> [Agda.Primitive.LevelUniv]
           Prop --> [Agda.Primitive.Prop]
+          Propω --> [Agda.Primitive.Propω]
           SSet --> [Agda.Primitive.SSet]
           SSetω --> [Agda.Primitive.SSetω]
           Set --> [Agda.Primitive.Set]

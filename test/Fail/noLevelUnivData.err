@@ -1,4 +1,4 @@
-noLevelUnivData.agda:4,6-9
-The universe LevelUniv of foo
+noLevelUnivData.agda:5,6-7
+The universe LevelUniv of D
 does not admit data or record declarations
-when checking the definition of foo
+when checking the definition of D

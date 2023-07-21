@@ -106,21 +106,21 @@ data UnifyState = UState
   } deriving (Show)
 -- Issues #3578 and #4125: avoid unnecessary reduction in unifier.
 
-lensVarTel   :: Lens' Telescope UnifyState
+lensVarTel   :: Lens' UnifyState Telescope
 lensVarTel   f s = f (varTel s) <&> \ tel -> s { varTel = tel }
 --UNUSED Liang-Ting Chen 2019-07-16
---lensFlexVars :: Lens' FlexibleVars UnifyState
+--lensFlexVars :: Lens' UnifyState FlexibleVars
 --lensFlexVars f s = f (flexVars s) <&> \ flex -> s { flexVars = flex }
 
-lensEqTel    :: Lens' Telescope UnifyState
+lensEqTel    :: Lens' UnifyState Telescope
 lensEqTel    f s = f (eqTel s) <&> \ x -> s { eqTel = x }
 
 --UNUSED Liang-Ting Chen 2019-07-16
---lensEqLHS    :: Lens' Args UnifyState
+--lensEqLHS    :: Lens' UnifyState Args
 --lensEqLHS    f s = f (eqLHS s) <&> \ x -> s { eqLHS = x }
 
 --UNUSED Liang-Ting Chen 2019-07-16
---lensEqRHS    :: Lens' Args UnifyState
+--lensEqRHS    :: Lens' UnifyState Args
 --lensEqRHS    f s = f (eqRHS s) <&> \ x -> s { eqRHS = x }
 
 -- UNUSED Andreas, 2019-10-14

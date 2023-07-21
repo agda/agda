@@ -3,10 +3,12 @@
 
 {-# OPTIONS --no-load-primitives #-}
 
-{-# BUILTIN TYPE Type #-}
 {-# BUILTIN PROP Prop #-}
-{-# BUILTIN SETOMEGA Typeω #-}
+{-# BUILTIN TYPE Type #-}
 {-# BUILTIN STRICTSET SSet #-}
+
+{-# BUILTIN PROPOMEGA Propω #-}
+{-# BUILTIN SETOMEGA Typeω #-}
 {-# BUILTIN STRICTSETOMEGA SSetω #-}
 
 record ⊤ : Type where

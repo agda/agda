@@ -11,18 +11,20 @@ What is Agda?
   :width: 400
   :alt: The official Agda logo
 
-Agda is a dependently typed programming language. It is an extension
-of `Martin-Löf's type theory
-<https://ncatlab.org/nlab/show/Martin-L%C3%B6f+dependent+type+theory>`_
+Agda is a dependently typed programming language.
+It is an extension of
+`Martin-Löf's type theory <https://ncatlab.org/nlab/show/Martin-L%C3%B6f+dependent+type+theory>`_
 and is the latest in the tradition of languages developed in the
-programming logic group at Chalmers. Other languages in this tradition are `Alf
-<http://www.cse.chalmers.se/~bengt/papers/alfengine.pdf>`_, `Alfa
-<http://www.cse.chalmers.se/~hallgren/Alfa/>`_, `Agda 1
-<https://sourceforge.net/projects/agda/>`_, `Cayenne
-<https://en.wikipedia.org/wiki/Cayenne_(programming_language)>`_.  Some
-other loosely related languages are `Coq <https://coq.inria.fr/>`_,
-`Epigram <http://www.e-pig.org/>`_, and `Idris
-<https://idris-lang.org/>`_.
+programming logic group at Chalmers. Other languages in this tradition are
+`Alf <https://doi.org/10.1007/3-540-58085-9_78>`_,
+`Alfa <http://www.cse.chalmers.se/~hallgren/Alfa/>`_,
+`Agda 1 <https://sourceforge.net/projects/agda/>`_,
+`Cayenne <https://en.wikipedia.org/wiki/Cayenne_(programming_language)>`_.
+Some other loosely related languages are
+`Coq <https://coq.inria.fr/>`_,
+`Epigram <http://www.e-pig.org/>`_,
+`Idris <https://idris-lang.org/>`_, and
+`Lean <https://leanprover.github.io/>`_.
 
 Because of strong typing and dependent types, Agda can be used as a
 proof assistant, allowing one to prove mathematical theorems (in a

@@ -478,7 +478,7 @@ isEtaOrCoinductiveRecordConstructor c =
       -- If in doubt about coinductivity, then yes.
 
 -- | Check if a name refers to a record which is not coinductive.  (Projections are then size-preserving)
-isInductiveRecord :: QName -> TCM Bool
+isInductiveRecord :: HasConstInfo m => QName -> m Bool
 isInductiveRecord r = maybe False ((Just CoInductive /=) . recInduction) <$> isRecord r
 
 -- | Check if a type is an eta expandable record and return the record identifier and the parameters.

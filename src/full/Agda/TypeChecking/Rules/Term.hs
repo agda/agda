@@ -69,6 +69,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Def (checkFunDef', useTerPragma)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Application
 
+import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -115,7 +116,7 @@ isType_ e = traceCall (IsType_ e) $ do
     A.Fun i (Arg info t) b -> do
       a <- setArgInfo info . defaultDom <$> checkPiDomain (info :| []) t
       b <- isType_ b
-      s <- inferFunSort (getSort a) (getSort b)
+      s <- inferFunSort a (getSort b)
       let t' = El s $ Pi a $ NoAbs underscore b
       checkTelePiSort t'
       --noFunctionsIntoSize t'
@@ -134,70 +135,28 @@ isType_ e = traceCall (IsType_ e) $ do
       --noFunctionsIntoSize t'
       return t'
 
-    -- Setᵢ
-    A.Def' x suffix | x == nameOfSet -> case suffix of
-      NoSuffix -> return $ sort (mkType 0)
-      Suffix i -> return $ sort (mkType i)
+    -- Prop/(S)Set(ω)ᵢ
+    A.Def' x suffix
+      | Just (sz, u) <- isNameOfUniv x
+      , let n = suffixToLevel suffix
+      -> do
+        univChecks u
+        return . sort $ case sz of
+          USmall -> Univ u $ ClosedLevel n
+          ULarge -> Inf u n
 
-    -- Propᵢ
-    A.Def' x suffix | x == nameOfProp -> do
-      unlessM isPropEnabled $ typeError NeedOptionProp
-      case suffix of
-        NoSuffix -> return $ sort (mkProp 0)
-        Suffix i -> return $ sort (mkProp i)
-
-    -- Setᵢ
-    A.Def' x suffix | x == nameOfSSet -> do
-      unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
-      case suffix of
-        NoSuffix -> return $ sort (mkSSet 0)
-        Suffix i -> return $ sort (mkSSet i)
-
-    -- Setωᵢ
-    A.Def' x suffix | x == nameOfSetOmega IsFibrant -> case suffix of
-      NoSuffix -> return $ sort (Inf IsFibrant 0)
-      Suffix i -> return $ sort (Inf IsFibrant i)
-
-    -- SSetωᵢ
-    A.Def' x suffix | x == nameOfSetOmega IsStrict -> do
-      unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
-      case suffix of
-        NoSuffix -> return $ sort (Inf IsStrict 0)
-        Suffix i -> return $ sort (Inf IsStrict i)
-
-    -- Set ℓ
+    -- Prop/(S)et ℓ
     A.App i s arg
       | visible arg,
         A.Def x <- unScope s,
-        x == nameOfSet -> do
-      unlessM hasUniversePolymorphism $ genericError
-        "Use --universe-polymorphism to enable level arguments to Set"
+        Just (USmall, u) <- isNameOfUniv x -> do
+      univChecks u
+      unlessM hasUniversePolymorphism $ genericError $
+        "Use --universe-polymorphism to enable level arguments to " ++ showUniv u
       -- allow NonStrict variables when checking level
       --   Set : (NonStrict) Level -> Set\omega
       applyRelevanceToContext NonStrict $
-        sort . Type <$> checkLevel arg
-
-    -- Prop ℓ
-    A.App i s arg
-      | visible arg,
-        A.Def x <- unScope s,
-        x == nameOfProp -> do
-      unlessM isPropEnabled $ typeError NeedOptionProp
-      unlessM hasUniversePolymorphism $ genericError
-        "Use --universe-polymorphism to enable level arguments to Prop"
-      applyRelevanceToContext NonStrict $
-        sort . Prop <$> checkLevel arg
-
-    -- SSet ℓ
-    A.App i s arg
-      | visible arg,
-        A.Def x <- unScope s,
-        x == nameOfSSet -> do
-      unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
-      unlessM hasUniversePolymorphism $ genericError
-        "Use --universe-polymorphism to enable level arguments to SSet"
-      applyRelevanceToContext NonStrict $
-        sort . SSet <$> checkLevel arg
+        sort . Univ u <$> checkLevel arg
 
     -- Issue #707: Check an existing interaction point
     A.QuestionMark minfo ii -> caseMaybeM (lookupInteractionMeta ii) fallback $ \ x -> do
@@ -318,6 +277,8 @@ checkTelescope' lamOrPi (b : tel) ret =
 --   Used in @checkTypedBindings@ and to typecheck @A.Fun@ cases.
 checkDomain :: (LensLock a, LensModality a) => LamOrPi -> List1 a -> A.Expr -> TCM Type
 checkDomain lamOrPi xs e = do
+    -- Get cohesion and quantity of arguments, which should all be equal because
+    -- they come from the same annotated Π-type.
     let (c :| cs) = fmap (getCohesion . getModality) xs
     unless (all (c ==) cs) $ __IMPOSSIBLE__
 
@@ -390,7 +351,7 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
         -- modify the new context entries
         modEnv LamNotPi = workOnTypes
         modEnv _        = id
-        modMod PiNotLam xp = (if xp then mapRelevance irrToNonStrict else id)
+        modMod PiNotLam xp = applyWhen xp $ mapRelevance irrToNonStrict
         modMod _        _  = id
 
 checkTypedBindings lamOrPi (A.TLet _ lbs) ret = do
@@ -827,7 +788,7 @@ checkExtendedLambda cmp i di erased qname cs e t = do
          useTerPragma $
            (defaultDefn info qname t lang fun)
              { defMutual = j }
-       checkFunDef' t info NotDelayed (Just $ ExtLamInfo lamMod False empty) Nothing di qname $
+       checkFunDef' t info (Just $ ExtLamInfo lamMod False empty) Nothing di qname $
          List1.toList cs
        whenNothingM (asksTC envMutualBlock) $
          -- Andrea 10-03-2018: Should other checks be performed here too? e.g. termination/positivity/..
@@ -1186,7 +1147,7 @@ checkExpr' cmp e t =
 
     irrelevantIfProp <- (runBlocked $ isPropM t) >>= \case
       Right True  -> do
-        let mod = defaultModality { modRelevance = Irrelevant }
+        let mod = unitModality { modRelevance = Irrelevant }
         return $ fmap dontCare . applyModalityToContext mod
       _ -> return id
 

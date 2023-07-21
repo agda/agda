@@ -45,7 +45,7 @@ import Agda.TypeChecking.Primitive.Cubical.Base
 
 -- | Perform the Kan operations for an @hcomp {A = Type} {φ} u u0@ type.
 doHCompUKanOp
-  :: PureTCM m
+  :: forall m. PureTCM m
   => KanOperation
   -> FamilyOrNot (Arg Term, Arg Term, Arg Term, Arg Term)
   -> TermPosition
@@ -55,7 +55,8 @@ doHCompUKanOp
 -- doGlueKanOp, but specialised for using transport as the equivalence.
 -- Can we deduplicate them?
 doHCompUKanOp (HCompOp psi u u0) (IsNot (la, phi, bT, bA)) tpos = do
-  let getTermLocal = getTerm $ (builtinHComp ++ " for " ++ builtinHComp ++ " of Set")
+  let getTermLocal :: IsBuiltin a => a -> m Term
+      getTermLocal = getTerm $ getBuiltinId builtinHComp ++ " for " ++ getBuiltinId builtinHComp ++ " of Set"
   io       <- getTermLocal builtinIOne
   iz       <- getTermLocal builtinIZero
   tHComp   <- getTermLocal builtinHComp
@@ -95,9 +96,10 @@ doHCompUKanOp (HCompOp psi u u0) (IsNot (la, phi, bT, bA)) tpos = do
 
 doHCompUKanOp (TranspOp psi u0) (IsFam (la, phi, bT, bA)) tpos = do
   let
-    localUse = builtinTrans ++ " for " ++ builtinHComp ++ " of Set"
+    localUse = getBuiltinId builtinTrans ++ " for " ++ getBuiltinId builtinHComp ++ " of Set"
+    getTermLocal :: IsBuiltin a => a -> m Term
     getTermLocal = getTerm localUse
-  tPOr <- getTermLocal "primPOr"
+  tPOr <- getTermLocal builtinPOr
   tIMax <- getTermLocal builtinIMax
   tIMin <- getTermLocal builtinIMin
   tINeg <- getTermLocal builtinINeg
@@ -257,9 +259,9 @@ prim_unglueU' = do
         -- Case where the hcomp has reduced away: Transport backwards
         -- along the partial element we've glued.
         IOne -> do
-          tTransp <- getTerm builtin_unglueU builtinTrans
-          iNeg    <- getTerm builtin_unglueU builtinINeg
-          iZ      <- getTerm builtin_unglueU builtinIZero
+          tTransp <- getTerm (getBuiltinId builtin_unglueU) builtinTrans
+          iNeg    <- getTerm (getBuiltinId builtin_unglueU) builtinINeg
+          iZ      <- getTerm (getBuiltinId builtin_unglueU) builtinIZero
           redReturn <=< runNamesT [] $ do
             [la,bT,b] <- mapM (open . unArg) [la,bT,b]
             pure tTransp <#> lam "i" (\ _ -> la) <@> lam "i" (\ i -> bT <@> ineg i <..> pure one)

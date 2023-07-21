@@ -18,35 +18,47 @@ import System.Environment ( getArgs, getEnv, getProgName )
 import System.Exit        ( die )
 import System.IO          ( hPutStrLn, stderr )
 
-import GitHub.Auth ( Auth( OAuth ) )
-
+import GitHub.Auth
+  ( Auth( OAuth )
+  )
 import GitHub.Data.Definitions
   ( IssueLabel ( labelName )
   , unIssueNumber
   )
-
 import GitHub.Data.Issues
   ( Issue( Issue
          , issueLabels
          , issueMilestone
          , issueNumber
          , issuePullRequest
+         , issueStateReason
          , issueTitle
          )
   )
-
-import GitHub.Data.Name ( Name( N ), untagName )
-import GitHub.Data.Milestone ( Milestone( milestoneNumber, milestoneTitle ) )
+import GitHub.Data.Name
+  ( Name( N )
+  , untagName
+  )
+import GitHub.Data.Milestone
+  ( Milestone( milestoneNumber, milestoneTitle )
+  )
 import GitHub.Data.Options
   ( optionsMilestone
   , stateClosed
+  , IssueStateReason( StateReasonNotPlanned )
   )
-import GitHub.Data.Request ( FetchCount(FetchAll) )
-
-import GitHub.Endpoints.Issues.Milestones ( milestonesR )
-import GitHub.Endpoints.Issues ( issuesForRepoR )
-
-import GitHub.Request ( github )
+import GitHub.Data.Request
+  ( FetchCount(FetchAll)
+  )
+import GitHub.Endpoints.Issues.Milestones
+  ( milestonesR
+  )
+import GitHub.Endpoints.Issues
+  ( issuesForRepoR
+  )
+import GitHub.Request
+  ( github
+  )
 
 envGHToken :: String
 envGHToken = "GITHUB_TOKEN"
@@ -143,19 +155,24 @@ run mileStoneTitle = do
   -- request an issue. For this reason we get a list of both issues
   -- and pull requests when using the function 'issuesForRepo''.
   issueVector <- crashOr $ github auth $ issuesForRepoR (N owner) (N repo) issueFilter FetchAll
-    -- Symbols not exported.
-    -- IssueRepoMod $ \ o ->
-    --   o { issueRepoOptionsMilestone = FilterBy mileStoneId
-    --     , issueRepoOptionsState     = Just StateClosed
-    --     }
 
-  -- Filter by issues, milestone and labels.
+  -- Filter by issues, milestone, reason for closure, and labels.
   let issues :: [Issue]
       issues = reverse
         [ i
-        | i <- filter (isNothing . issuePullRequest) $ toList issueVector
+        | i <- toList issueVector
+
+        -- Filter out PRs
+        , isNothing $ issuePullRequest i
+
+        -- Filter out "Closed as not planned"
+        , maybe True (StateReasonNotPlanned /=) $ issueStateReason i
+
+        -- Filter out wrong milestones
         , m <- maybeToList $ issueMilestone i
         , milestoneNumber m == mileStoneId
+
+        -- Filter out "not in changelog" issues
         , not $ any (`elem` issueLabelsNames i) labelsNotInChangelog
         ]
 

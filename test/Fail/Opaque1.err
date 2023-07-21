@@ -1,0 +1,3 @@
+Opaque1.agda:11,9-12
+Set !=< foo
+when checking that the expression Nat has type foo

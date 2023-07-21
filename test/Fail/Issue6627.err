@@ -1,0 +1,4 @@
+Issue6627.agda:9,1-11
+No instance of type Foo was found in scope.
+when checking that b is a valid argument to a function accepting
+arguments of type ⦃ _ = z : Foo ⦄ .(r : Bar)

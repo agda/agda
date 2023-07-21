@@ -405,6 +405,11 @@ mapAbstraction
   => Dom Type -> (a -> m b) -> Abs a -> m (Abs b)
 mapAbstraction dom f x = (x $>) <$> underAbstraction dom x f
 
+mapAbstraction_
+  :: (Subst a, Subst b, MonadAddContext m)
+  => (a -> m b) -> Abs a -> m (Abs b)
+mapAbstraction_ = mapAbstraction __DUMMY_DOM__
+
 getLetBindings :: MonadTCEnv tcm => tcm [(Name, LetBinding)]
 getLetBindings = do
   bs <- asksTC envLetBindings

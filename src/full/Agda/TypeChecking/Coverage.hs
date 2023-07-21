@@ -67,6 +67,7 @@ import Agda.TypeChecking.Warnings
 import Agda.Interaction.Options
 
 import Agda.Utils.Either
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -239,10 +240,13 @@ coverageCheck f t cs = do
     let ranges    = map clauseFullRange unreached
     setCurrentRange ranges $ warning $ UnreachableClauses f ranges
 
-  -- report a warning if there are clauses that are not preserved as
+  -- Report a warning if there are clauses that are not preserved as
   -- definitional equalities and --exact-split is enabled
-  unless (null noex) $ do
-      let noexclauses = map (indexWithDefault __IMPOSSIBLE__ cs1) noex
+  -- and they are not labelled as CATCHALL.
+  let noexclauses = forMaybe noex $ \ i -> do
+        let cl = indexWithDefault __IMPOSSIBLE__ cs1 i
+        if clauseCatchall cl then Nothing else Just cl
+  unless (null noexclauses) $ do
       setCurrentRange (map clauseLHSRange noexclauses) $
         warning $ CoverageNoExactSplit f $ noexclauses
   return splitTree
@@ -268,9 +272,10 @@ isCovered f cs sc = do
  -- to the user.  Rather, assume the clause is not already covered.
  `catchError` \ _ -> return False
 
--- | @cover f cs (SClause _ _ ps _) = return (splitTree, used, pss)@.
+-- | @cover f cs (SClause _ _ ps _) = return (CoverResult splitTree used missing covering noex)@.
 --   checks that the list of clauses @cs@ covers the given split clause.
---   Returns the @splitTree@, the @used@ clauses, and missing cases @pss@.
+--   Returns the @splitTree@, the @used@ clauses, @missing@ cases, the @covering@ clauses,
+--   and the non-exact clauses @noex@.
 --
 --   Effect: adds missing instance clauses for @f@ to signature.
 --
@@ -303,7 +308,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
         , coverUsedClauses    = singleton i
         , coverMissingClauses = []
         , coverPatterns       = [cl]
-        , coverNoExactClauses = IntSet.fromList [ i | not $ exact || clauseCatchall cl0 ]
+        , coverNoExactClauses = if exact then empty else singleton i
         }
 
     No        ->  do
@@ -857,7 +862,7 @@ computeHCompSplit  :: Telescope   -- ^ Telescope before split point.
   -- -> QName                        -- ^ Constructor to fit into hole.
   -> CoverM (Maybe (SplitTag,SplitClause))   -- ^ New split clause if successful.
 computeHCompSplit delta1 n delta2 d pars ixs hix tel ps cps = do
-  withK   <- not . collapseDefault . optCubicalCompatible <$> pragmaOptions
+  withK   <- not . optCubicalCompatible <$> pragmaOptions
   if withK then return Nothing else do
     -- Get the type of the datatype
   -- Δ1 ⊢ dtype
@@ -983,9 +988,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
          return $ abstract (mapCohesion updCoh <$> dtel) dt
   dsort <- addContext delta1 $ reduce (getSort dtype)
 
-  withKIfStrict <- case dsort of
-    SSet{} -> return $ locallyTC eSplitOnStrict $ const True
-    _      -> return id
+  let withKIfStrict = applyWhen (isStrictDataSort dsort) $ locallyTC eSplitOnStrict $ const True
 
   -- Should we attempt to compute a left inverse for this clause? When
   -- --cubical-compatible --flat-split is given, we don't generate a
@@ -1031,8 +1034,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
         Right{} -> return ()
         Left SplitOnStrict -> return ()
         Left x -> do
-          whenM (collapseDefault . optCubicalCompatible <$>
-                 pragmaOptions) $ do
+          whenM (optCubicalCompatible <$> pragmaOptions) $ do
             -- re #3733: TODO better error msg.
             lift $ warning . UnsupportedIndexedMatch =<< prettyTCM x
 
@@ -1317,8 +1319,8 @@ split' checkEmpty ind allowPartialCover inserttrailing
 
   mHCompName <- getPrimitiveName' builtinHComp
   opts       <- pragmaOptions
-  let withoutK        = collapseDefault (optWithoutK opts)
-      erasedMatches   = collapseDefault (optErasedMatches opts)
+  let withoutK        = optWithoutK opts
+      erasedMatches   = optErasedMatches opts
       isRecordWithEta = case dr of
         IsData       -> False
         IsRecord{..} ->

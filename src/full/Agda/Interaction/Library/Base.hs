@@ -138,22 +138,22 @@ emptyLibFile = AgdaLibFile
 
 -- | Lenses for AgdaLibFile
 
-libName :: Lens' LibName AgdaLibFile
+libName :: Lens' AgdaLibFile LibName
 libName f a = f (_libName a) <&> \ x -> a { _libName = x }
 
-libFile :: Lens' FilePath AgdaLibFile
+libFile :: Lens' AgdaLibFile FilePath
 libFile f a = f (_libFile a) <&> \ x -> a { _libFile = x }
 
-libAbove :: Lens' Int AgdaLibFile
+libAbove :: Lens' AgdaLibFile Int
 libAbove f a = f (_libAbove a) <&> \ x -> a { _libAbove = x }
 
-libIncludes :: Lens' [FilePath] AgdaLibFile
+libIncludes :: Lens' AgdaLibFile [FilePath]
 libIncludes f a = f (_libIncludes a) <&> \ x -> a { _libIncludes = x }
 
-libDepends :: Lens' [LibName] AgdaLibFile
+libDepends :: Lens' AgdaLibFile [LibName]
 libDepends f a = f (_libDepends a) <&> \ x -> a { _libDepends = x }
 
-libPragmas :: Lens' OptionsPragma AgdaLibFile
+libPragmas :: Lens' AgdaLibFile OptionsPragma
 libPragmas f a = f (_libPragmas a) <&> \ x -> a { _libPragmas = x }
 
 

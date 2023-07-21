@@ -196,7 +196,7 @@ updateProblemEqs eqs = do
 
     update :: ProblemEq -> TCM [ProblemEq]
     update eq@(ProblemEq A.WildP{} _ _) = return []
-    update eq@(ProblemEq p@A.ProjP{} _ _) = typeError $ IllformedProjectionPattern p
+    update eq@(ProblemEq p@A.ProjP{} _ _) = typeError $ IllformedProjectionPatternAbstract p
     update eq@(ProblemEq p@(A.AsP info x p') v a) =
       (ProblemEq (A.VarP x) v a :) <$> update (ProblemEq p' v a)
 
@@ -1359,9 +1359,8 @@ checkLHS mf = updateModality checkLHS_ where
 
       -- Jesper, 2019-09-13: if the data type we split on is a strict
       -- set, we locally enable --with-K during unification.
-      withKIfStrict <- reduce (getSort a) >>= \case
-        SSet{} -> return $ locallyTC eSplitOnStrict $ const True
-        _      -> return id
+      withKIfStrict <- reduce (getSort a) <&> \ dsort ->
+        applyWhen (isStrictDataSort dsort) $ locallyTC eSplitOnStrict $ const True
 
       -- The constructor should construct an element of this datatype
       (c :: ConHead, b :: Type) <- liftTCM $ addContext delta1 $ case ambC of
@@ -1559,8 +1558,8 @@ checkLHS mf = updateModality checkLHS_ where
                      Quantityω{} -> q
 
           liftTCM $ addContext delta' $ do
-            withoutK <- collapseDefault . optWithoutK <$> pragmaOptions
-            cubical <- collapseDefault . optCubicalCompatible <$> pragmaOptions
+            withoutK <- optWithoutK <$> pragmaOptions
+            cubical <- optCubicalCompatible <$> pragmaOptions
             mod <- currentModality
             when ((withoutK || cubical) && not (null ixs)) $
               conSplitModalityCheck mod rho (length delta2) tel (unArg target)
@@ -2078,11 +2077,10 @@ checkSortOfSplitVar :: (MonadTCM m, PureTCM m, MonadError TCErr m,
                     => DataOrRecord -> a -> Telescope -> Maybe ty -> m ()
 checkSortOfSplitVar dr a tel mtarget = do
   liftTCM (reduce $ getSort a) >>= \case
-    sa@Type{} -> whenM isTwoLevelEnabled checkFibrantSplit
+    Type{} -> whenM isTwoLevelEnabled checkFibrantSplit
     Prop{} -> checkPropSplit
-    Inf IsFibrant _ -> whenM isTwoLevelEnabled checkFibrantSplit
-    Inf IsStrict _ -> return ()
     SSet{} -> return ()
+    Inf u _ -> when (univFibrancy u == IsFibrant) $ whenM isTwoLevelEnabled checkFibrantSplit
     sa      -> softTypeError =<< do
       liftTCM $ SortOfSplitVarError <$> isBlocked sa <*> sep
         [ "Cannot split on datatype in sort" , prettyTCM (getSort a) ]

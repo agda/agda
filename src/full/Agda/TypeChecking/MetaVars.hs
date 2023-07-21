@@ -42,7 +42,6 @@ import Agda.TypeChecking.Lock
 import Agda.TypeChecking.Level (levelType)
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.SizedTypes (boundedSizeMetaHook, isSizeProblem)
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal
@@ -841,7 +840,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
     -- Case 1 (comparing term to meta as types)
     (AsTypes{}   , HasType _ cmp0 t) -> do
         let cmp   = if cumulativity then cmp0 else CmpEq
-            abort = patternViolation $ unblockOnAnyMetaIn t -- TODO: make piApplyM' compute unblocker
+            abort = patternViolation =<< updateBlocker (unblockOnAnyMetaIn t) -- TODO: make piApplyM' compute unblocker
         t' <- piApplyM' abort t args
         s <- shouldBeSort t'
         checkSolutionSort cmp s v
@@ -849,7 +848,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
     -- Case 2 (comparing term to type-level meta as terms, with --cumulativity)
     (AsTermsOf{} , HasType _ cmp t)
       | cumulativity -> do
-          let abort = patternViolation $ unblockOnAnyMetaIn t
+          let abort = patternViolation =<< updateBlocker (unblockOnAnyMetaIn t)
           t' <- piApplyM' abort t args
           TelV tel t'' <- telView t'
           addContext tel $ ifNotSort t'' (return ()) $ \s -> do
@@ -982,7 +981,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
       -- since when abstracting irrelevant lhs vars, they may only occur
       -- irrelevantly on rhs.
       -- v <- liftTCM $ occursCheck x (relVL, nonstrictVL, irrVL) v
-      v <- liftTCM $ occursCheck x vars v target
+      v <- liftTCM $ occursCheck x vars v
 
       reportSLn "tc.meta.assign" 15 "passed occursCheck"
       reportSDoc "tc.meta.assign" 25 $ "v = " <+> prettyTCM v
@@ -1027,7 +1026,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
           Left ProjVar{}   -> Just <$> attemptPruning x args fvs
 
       case mids of  -- vv Ulf 2014-07-13: actually not needed after all: attemptInertRHSImprovement x args v
-        Nothing  -> patternViolation (unblockOnAnyMetaIn v)  -- TODO: more precise
+        Nothing  -> patternViolation =<< updateBlocker (unblockOnAnyMetaIn v)  -- TODO: more precise
         Just ids -> do
           -- Check linearity
           ids <- do
@@ -1039,7 +1038,9 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
               -- If pruning fails we need to unblock on any meta in the rhs, since they might get
               -- rid of the dependency on the non-linear variable. TODO: be more precise (all metas
               -- using non-linear variables need to be solved).
-              Left ()   -> addOrUnblocker (unblockOnAnyMetaIn v) $ attemptPruning x args fvs
+              Left ()   -> do
+                block <- updateBlocker $ unblockOnAnyMetaIn v
+                addOrUnblocker block $ attemptPruning x args fvs
 
           -- Check ids is time respecting.
           () <- do
@@ -1384,7 +1385,7 @@ checkSubtypeIsEqual a b = do
         Dummy{} -> return () -- TODO: this shouldn't happen but
                              -- currently does because of generalized
                              -- metas being created in a dummy context
-        a -> patternViolation (unblockOnAnyMetaIn a) -- TODO: can this happen?
+        a -> patternViolation =<< updateBlocker (unblockOnAnyMetaIn a) -- TODO: can this happen?
       Pi b1 b2 -> abortIfBlocked (unEl a) >>= \case
         Pi a1 a2
           | getRelevance a1 /= getRelevance b1 -> patternViolation neverUnblock -- Can we recover from this?
@@ -1396,7 +1397,7 @@ checkSubtypeIsEqual a b = do
         Dummy{} -> return () -- TODO: this shouldn't happen but
                              -- currently does because of generalized
                              -- metas being created in a dummy context
-        a -> patternViolation (unblockOnAnyMetaIn a)
+        a -> patternViolation =<< updateBlocker (unblockOnAnyMetaIn a)
       -- TODO: check subtyping for Size< types
       _ -> return ()
 
@@ -1638,6 +1639,7 @@ inverseSubst' skip args = map (mapFst unArg) <$> loop (zip args terms)
     let irr | isIrrelevant info = True
             | DontCare{} <- v   = True
             | otherwise         = False
+    ineg <- getPrimitiveName' builtinINeg
     case stripDontCare v of
       -- i := x
       Var i [] -> return $ (Arg info i, t) `cons` vars
@@ -1686,6 +1688,12 @@ inverseSubst' skip args = map (mapFst unArg) <$> loop (zip args terms)
       -- Distinguish args that can be eliminated (Con,Lit,Lam,unsure) ==> failure
       -- from those that can only put somewhere as a whole ==> neutralArg
       Var{}      -> neutralArg
+
+      -- primINeg i := x becomes i := primINeg x
+      -- (primINeg is a definitional involution)
+      Def qn es | Just [Arg _ (Var i [])] <- allApplyElims es, Just qn == ineg ->
+        pure $ (Arg info i, Def qn [Apply (defaultArg t)]) `cons` vars
+
       Def{}      -> neutralArg  -- Note that this Def{} is in normal form and might be prunable.
       t@Lam{}    -> failure t
       t@Lit{}    -> failure t
@@ -1891,7 +1899,7 @@ openMetasToPostulates = do
     -- codomains by Setω.
     dummyTypeToOmega t =
       case telView' t of
-        TelV tel (El _ Dummy{}) -> abstract tel (sort $ Inf IsFibrant 0)
+        TelV tel (El _ Dummy{}) -> abstract tel (sort $ Inf UType 0)
         _ -> t
 
 -- | Sort metas in dependency order.

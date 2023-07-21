@@ -1,0 +1,6 @@
+Issue6687.agda:20,1-23,32
+Termination checking failed for the following functions:
+  bad
+Problematic calls:
+  bad n (vclos (suc n₁) (cons n₁ x x₁))
+    (at Issue6687.agda:21,34-37)

@@ -50,10 +50,8 @@ instance MentionsMeta Type where
 
 instance MentionsMeta Sort where
   mentionsMetas xs = \case
-    Type l     -> mentionsMetas xs l
-    Prop l     -> mentionsMetas xs l
+    Univ _ l   -> mentionsMetas xs l
     Inf _ _    -> False
-    SSet l     -> mentionsMetas xs l
     SizeUniv   -> False
     LockUniv   -> False
     LevelUniv  -> False

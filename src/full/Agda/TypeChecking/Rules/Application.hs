@@ -6,6 +6,8 @@ module Agda.TypeChecking.Rules.Application
   , checkApplication
   , inferApplication
   , checkProjAppToKnownPrincipalArg
+  , univChecks
+  , suffixToLevel
   ) where
 
 import Prelude hiding ( null )
@@ -41,10 +43,10 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Lazy (VarMap, lookupVarMap)
 import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.Injectivity
-import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.InstanceArguments (postponeInstanceConstraints)
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
+import Agda.TypeChecking.Modalities
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive hiding (Nat)
@@ -243,11 +245,7 @@ inferApplication exh hd args e = postponeInstanceConstraints $ do
   SortKit{..} <- sortKit
   case unScope hd of
     A.Proj o p | isAmbiguous p -> inferProjApp e o (unAmbQ p) args
-    A.Def' x s | x == nameOfSet      -> inferSet e x s args
-    A.Def' x s | x == nameOfProp     -> inferProp e x s args
-    A.Def' x s | x == nameOfSSet     -> inferSSet e x s args
-    A.Def' x s | x == nameOfSetOmega IsFibrant -> inferSetOmega e x IsFibrant s args
-    A.Def' x s | x == nameOfSetOmega IsStrict  -> inferSetOmega e x IsStrict s args
+    A.Def' x s | Just (sz, u) <- isNameOfUniv x -> inferUniv sz u e x s args
     _ -> do
       (f, t0) <- inferHead hd
       let r = getRange hd
@@ -369,10 +367,10 @@ inferDef mkTerm x =
             v = mkTerm vs -- applies x to vs, dropping parameters
 
         -- Andrea 2019-07-16, Check that the supplied arguments
-        -- respect the cohesion modalities of the current context.
-        -- Cohesion is purely based on left-division, so it does not
-        -- rely on "position" like Relevance/Quantity.
-        checkCohesionArgs vs
+        -- respect the pure modalities of the current context.
+        -- Pure modalities are based on left-division, so it does not
+        -- rely on "position" like positional modalities.
+        checkModalityArgs d0 vs
 
         debug vs t v
         return (v, t)
@@ -385,81 +383,6 @@ inferDef mkTerm x =
         [ "inferred def " <+> prettyTCM x <+> hsep (map prettyTCM vs)
         , nest 2 $ ":" <+> prettyTCM t
         , nest 2 $ "-->" <+> prettyTCM v ]
-
-checkCohesionArgs :: Args -> TCM ()
-checkCohesionArgs vs = do
-  let
-    vmap :: VarMap
-    vmap = freeVars vs
-
-  -- we iterate over all vars in the context and their ArgInfo,
-  -- checking for each that "vs" uses them as allowed.
-  as <- getContextArgs
-  forM_ as $ \ (Arg avail t) -> do
-    let m = do
-          v <- deBruijnView t
-          varModality <$> lookupVarMap v vmap
-    whenJust m $ \ used -> do
-        unless (getCohesion avail `moreCohesion` getCohesion used) $
-           (genericDocError =<<) $ fsep $
-                ["Variable" , prettyTCM t]
-             ++ pwords "is used as" ++ [text $ show $ getCohesion used]
-             ++ pwords "but only available as" ++ [text $ show $ getCohesion avail]
-
--- | The second argument is the definition of the first.
---   Returns 'Nothing' if ok, otherwise the error message.
-checkRelevance' :: QName -> Definition -> TCM (Maybe TypeError)
-checkRelevance' x def = do
-  case getRelevance def of
-    Relevant -> return Nothing -- relevance functions can be used in any context.
-    drel -> do
-      -- Andreas,, 2018-06-09, issue #2170
-      -- irrelevant projections are only allowed if --irrelevant-projections
-      ifM (return (isJust $ isProjection_ $ theDef def) `and2M`
-           (not .optIrrelevantProjections <$> pragmaOptions)) {-then-} needIrrProj {-else-} $ do
-        rel <- viewTC eRelevance
-        reportSDoc "tc.irr" 50 $ vcat
-          [ "declaration relevance =" <+> text (show drel)
-          , "context     relevance =" <+> text (show rel)
-          ]
-        return $ if (drel `moreRelevant` rel) then Nothing else Just $ DefinitionIsIrrelevant x
-  where
-  needIrrProj = Just . GenericDocError <$> do
-    sep [ "Projection " , prettyTCM x, " is irrelevant."
-        , " Turn on option --irrelevant-projections to use it (unsafe)."
-        ]
-
--- | The second argument is the definition of the first.
---   Returns 'Nothing' if ok, otherwise the error message.
-checkQuantity' :: QName -> Definition -> TCM (Maybe TypeError)
-checkQuantity' x def = do
-  case getQuantity def of
-    dq@Quantityω{} -> do
-      reportSDoc "tc.irr" 50 $ vcat
-        [ "declaration quantity =" <+> text (show dq)
-        -- , "context     quantity =" <+> text (show q)
-        ]
-      return Nothing -- Abundant definitions can be used in any context.
-    dq -> do
-      q <- viewTC eQuantity
-      reportSDoc "tc.irr" 50 $ vcat
-        [ "declaration quantity =" <+> text (show dq)
-        , "context     quantity =" <+> text (show q)
-        ]
-      return $ if (dq `moreQuantity` q) then Nothing else Just $ DefinitionIsErased x
-
--- | The second argument is the definition of the first.
-checkModality' :: QName -> Definition -> TCM (Maybe TypeError)
-checkModality' x def = do
-  checkRelevance' x def >>= \case
-    Nothing    -> checkQuantity' x def
-    err@Just{} -> return err
-
--- | The second argument is the definition of the first.
-checkModality :: QName -> Definition -> TCM ()
-checkModality x def = justToError $ checkModality' x def
-  where
-  justToError m = maybe (return ()) typeError =<< m
 
 -- | @checkHeadApplication e t hd args@ checks that @e@ has type @t@,
 -- assuming that @e@ has the form @hd args@. The corresponding
@@ -484,11 +407,7 @@ checkHeadApplication cmp e t hd args = do
   mglue  <- getNameOfConstrained builtin_glue
   mglueU  <- getNameOfConstrained builtin_glueU
   case hd of
-    A.Def' c s | c == nameOfSet      -> checkSet cmp e t c s args
-    A.Def' c s | c == nameOfProp     -> checkProp cmp e t c s args
-    A.Def' c s | c == nameOfSSet     -> checkSSet cmp e t c s args
-    A.Def' c s | c == nameOfSetOmega IsFibrant -> checkSetOmega cmp e t c IsFibrant s args
-    A.Def' c s | c == nameOfSetOmega IsStrict  -> checkSetOmega cmp e t c IsStrict s args
+    A.Def' c s | Just (sz, u) <- isNameOfUniv c -> checkUniv sz u cmp e t c s args
 
     -- Type checking #. The # that the user can write will be a Def, but the
     -- sharp we generate in the body of the wrapper is a Con.
@@ -1519,89 +1438,61 @@ refuseProjNotRecordType ds pValue pType = do
 -- * Sorts
 -----------------------------------------------------------------------------
 
-checkSet
-  :: Comparison -> A.Expr -> Type
+checkUniv
+  :: UnivSize -> Univ -> Comparison -> A.Expr -> Type
   -> QName -> Suffix -> [NamedArg A.Expr] -> TCM Term
-checkSet = checkSetOrProp Type
-
-checkProp
-  :: Comparison -> A.Expr -> Type
-  -> QName -> Suffix -> [NamedArg A.Expr] -> TCM Term
-checkProp cmp e t q s args = do
-  unlessM isPropEnabled $ typeError NeedOptionProp
-  checkSetOrProp Prop cmp e t q s args
-
-checkSSet
-  :: Comparison -> A.Expr -> Type
-  -> QName -> Suffix -> [NamedArg A.Expr] -> TCM Term
-checkSSet cmp e t q s args = do
-  unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
-  checkLeveledSort SSet SSet cmp e t q s args
-
-checkSetOrProp
-  :: (Level -> Sort) -> Comparison -> A.Expr -> Type
-  -> QName -> Suffix -> [NamedArg A.Expr] -> TCM Term
-checkSetOrProp mkSort cmp e t q suffix args = do
-  checkLeveledSort mkSort Type cmp e t q suffix args
-
-checkLeveledSort
-  :: (Level -> Sort) -> (Level -> Sort) -> Comparison -> A.Expr -> Type
-  -> QName -> Suffix -> [NamedArg A.Expr] -> TCM Term
-checkLeveledSort mkSort mkSortOfSort cmp e t q suffix args = do
-  (v, t0) <- inferLeveledSort mkSort mkSortOfSort e q suffix args
+checkUniv sz u cmp e t q suffix args = do
+  (v, t0) <- inferUniv sz u e q suffix args
   coerce cmp v t0 t
 
-inferSet :: A.Expr -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
-inferSet = inferSetOrProp Type
+inferUniv :: UnivSize -> Univ -> A.Expr -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
+inferUniv sz u e q s args = do
+  univChecks u
+  case sz of
+    USmall -> inferLeveledSort u q s args
+    ULarge -> inferUnivOmega u q s args
 
-inferProp :: A.Expr -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
-inferProp e q s args = do
-  unlessM isPropEnabled $ typeError NeedOptionProp
-  inferSetOrProp Prop e q s args
+univChecks :: Univ -> TCM ()
+univChecks = \case
+  UProp -> unlessM isPropEnabled $ typeError NeedOptionProp
+  UType -> pure ()
+  USSet -> unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
 
-inferSSet :: A.Expr -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
-inferSSet e q s args = do
-  unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
-  inferLeveledSort SSet SSet e q s args
+suffixToLevel :: Suffix -> Integer
+suffixToLevel = \case
+  NoSuffix -> 0
+  Suffix n -> n
 
-inferSetOrProp
-  :: (Level -> Sort) -> A.Expr
-  -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
-inferSetOrProp mkSort e q suffix args = inferLeveledSort mkSort Type e q suffix args
-
-inferLeveledSort
-  :: (Level -> Sort) -> (Level -> Sort) -> A.Expr
-  -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
-inferLeveledSort mkSort mkSortOfSort e q suffix args = case args of
+inferLeveledSort ::
+     Univ                -- ^ The universe type.
+  -> QName               -- ^ Name of the universe, for error reporting.
+  -> Suffix              -- ^ Level of the universe given via suffix (optional).
+  -> [NamedArg A.Expr]   -- ^ Level of the universe given via argument (absent if suffix).
+  -> TCM (Term, Type)    -- ^ Universe and its sort.
+inferLeveledSort u q suffix = \case
   [] -> do
-    let n = case suffix of
-              NoSuffix -> 0
-              Suffix n -> n
-    return (Sort (mkSort $ ClosedLevel n) , sort (mkSortOfSort $ ClosedLevel $ n + 1))
+    let n = suffixToLevel suffix
+    return (Sort (Univ u $ ClosedLevel n) , sort (Univ (univUniv u) $ ClosedLevel $ n + 1))
   [arg] -> do
-    unless (visible arg) $ typeError $ WrongHidingInApplication $ sort $ mkSort $ ClosedLevel 0
+    unless (visible arg) $ typeError $ WrongHidingInApplication $ sort $ Univ u $ ClosedLevel 0
     unlessM hasUniversePolymorphism $ genericError
       "Use --universe-polymorphism to enable level arguments to Set"
     l <- applyRelevanceToContext NonStrict $ checkLevel arg
-    return (Sort $ mkSort l , sort (mkSortOfSort $ levelSuc l))
+    return (Sort $ Univ u l , sort (Univ (univUniv u) $ levelSuc l))
   arg : _ -> typeError . GenericDocError =<< fsep
     [ prettyTCM q , "cannot be applied to more than one argument" ]
 
-checkSetOmega :: Comparison -> A.Expr -> Type -> QName -> IsFibrant -> Suffix -> [NamedArg A.Expr] -> TCM Term
-checkSetOmega cmp e t q f s args = do
-  (v, t0) <- inferSetOmega e q f s args
-  coerce cmp v t0 t
-
-inferSetOmega :: A.Expr -> QName -> IsFibrant -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
-inferSetOmega e q f suffix args = do
-  when (f == IsStrict) $
-    unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
-  let n = case suffix of
-            NoSuffix -> 0
-            Suffix n -> n
-  case args of
-    [] -> return (Sort (Inf f n) , sort (Inf f $ 1 + n))
-    arg : _ -> typeError . GenericDocError =<< fsep
+inferUnivOmega ::
+     Univ                -- ^ The universe type.
+  -> QName               -- ^ Name of the universe, for error reporting.
+  -> Suffix              -- ^ Level of the universe given via suffix (optional).
+  -> [NamedArg A.Expr]   -- ^ Level of the universe given via argument (should be absent).
+  -> TCM (Term, Type)    -- ^ Universe and its sort.
+inferUnivOmega u q suffix = \case
+  [] -> do
+    let n = suffixToLevel suffix
+    return (Sort (Inf u n) , sort (Inf (univUniv u) $ 1 + n))
+  arg : _ -> typeError . GenericDocError =<< fsep
         [ prettyTCM q , "cannot be applied to an argument" ]
 
 -----------------------------------------------------------------------------
@@ -1668,7 +1559,7 @@ checkSharpApplication e t c args = do
         (defaultDefn ai c' forcedType lang fun)
         { defMutual = i }
 
-    checkFunDef NotDelayed info c' [clause]
+    checkFunDef info c' [clause]
 
     reportSDoc "tc.term.expr.coind" 15 $ do
       def <- theDef <$> getConstInfo c'
@@ -1677,8 +1568,6 @@ checkSharpApplication e t c args = do
         , nest 2 $ prettyTCM mod <> (prettyTCM c' <+> ":")
         , nest 4 $ prettyTCM t
         , nest 2 $ prettyA clause
-        , ("The definition is" <+> text (show $ funDelayed def)) <>
-          "."
         ]
     return c'
 
@@ -1815,9 +1704,6 @@ checkPOr c rs vs _ = do
    l : phi1 : phi2 : a : u : v : rest -> do
       phi <- intervalUnview (IMin phi1 phi2)
       reportSDoc "tc.term.por" 10 $ text (show phi)
-      -- phi <- reduce phi
-      -- alphas <- toFaceMaps phi
-      -- reportSDoc "tc.term.por" 10 $ text (show alphas)
       t1 <- runNamesT [] $ do
              [l,a] <- mapM (open . unArg) [l,a]
              psi <- open =<< intervalUnview (IMax phi1 phi2)

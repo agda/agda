@@ -1,0 +1,10 @@
+AGDA_FAILURE
+
+ret > ExitFailure 42
+out > Issue6660-greet-nosig.agda:29,1-33,10
+out > Termination checking failed for the following functions:
+out >   greet
+out > Problematic calls:
+out >   greet
+out >     (at Issue6660-greet-nosig.agda:33,5-10)
+out >

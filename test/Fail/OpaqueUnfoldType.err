@@ -1,0 +1,3 @@
+OpaqueUnfoldType.agda:52,50-51
+n != (zero + n) of type Nat
+when checking that the expression x has type Vec A (zero + n)

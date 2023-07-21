@@ -100,7 +100,7 @@ data Env = Env { takenVarNames :: Set A.Name
                , takenDefNames :: Set C.NameParts
                   -- ^ Concrete names of all definitions in scope
                , currentScope :: ScopeInfo
-               , builtins     :: Map String A.QName
+               , builtins     :: Map BuiltinId A.QName
                   -- ^ Certain builtins (like `fromNat`) have special printing
                , preserveIIds :: Bool
                   -- ^ Preserve interaction point ids
@@ -186,7 +186,7 @@ addBinding y x e =
     }
 
 -- | Get a function to check if a name refers to a particular builtin function.
-isBuiltinFun :: AbsToCon (A.QName -> String -> Bool)
+isBuiltinFun :: AbsToCon (A.QName -> BuiltinId -> Bool)
 isBuiltinFun = asks $ is . builtins
   where is m q b = Just q == Map.lookup b m
 
@@ -910,7 +910,9 @@ instance ToConcrete A.Expr where
         bracket piBrackets
         $ do a' <- toConcreteCtx ctx a
              b' <- toConcreteTop b
-             let dom = setQuantity (getQuantity a') $ defaultArg $ addRel a' $ mkArg a'
+             -- NOTE We set relevance to Relevant in arginfo because we wrap
+             -- with C.Dot or C.DoubleDot using addRel instead.
+             let dom = setRelevance Relevant $ setModality (getModality a') $ defaultArg $ addRel a' $ mkArg a'
              return $ C.Fun (getRange i) dom b'
              -- Andreas, 2018-06-14, issue #2513
              -- TODO: print attributes
@@ -1213,7 +1215,7 @@ instance ToConcrete A.Declaration where
       return [C.Primitive (getRange i) [C.TypeSig (argInfo t') Nothing x' (unArg t')]]
         -- Primitives are always relevant.
 
-  toConcrete (A.FunDef i _ _ cs) =
+  toConcrete (A.FunDef i _ cs) =
     withAbstractPrivate i $ concat <$> toConcrete cs
 
   toConcrete (A.DataSig i erased x bs t) =
@@ -1244,7 +1246,7 @@ instance ToConcrete A.Declaration where
       (x',cs') <- first unsafeQNameToName <$> toConcrete (x, map Constr cs)
       return [ C.RecordDef (getRange i) x' (dir { recConstructor = Nothing }) (catMaybes tel') cs' ]
 
-  toConcrete (A.Mutual i ds) = declsToConcrete ds
+  toConcrete (A.Mutual i ds) = pure . C.Mutual noRange <$> declsToConcrete ds
 
   toConcrete (A.Section i erased x (A.GeneralizeTel _ tel) ds) = do
     x <- toConcrete x
@@ -1293,7 +1295,7 @@ instance ToConcrete A.Declaration where
     (:[]) . C.UnquoteDef (getRange i) xs <$> toConcrete e
 
   toConcrete (A.UnquoteData i xs uc j cs e) = __IMPOSSIBLE__
-
+  toConcrete (A.UnfoldingDecl r ns) = pure []
 
 data RangeAndPragma = RangeAndPragma Range A.Pragma
 
@@ -1578,7 +1580,7 @@ tryToRecoverNatural e def = do
   is <- isBuiltinFun
   caseMaybe (recoverNatural is e) def $ return . C.Lit noRange . LitNat
 
-recoverNatural :: (A.QName -> String -> Bool) -> A.Expr -> Maybe Integer
+recoverNatural :: (A.QName -> BuiltinId -> Bool) -> A.Expr -> Maybe Integer
 recoverNatural is e = explore (`is` builtinZero) (`is` builtinSuc) 0 e
   where
     explore :: (A.QName -> Bool) -> (A.QName -> Bool) -> Integer -> A.Expr -> Maybe Integer

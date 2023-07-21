@@ -111,6 +111,7 @@ termDecl' = \case
     A.Pragma {}           -> return mempty
     A.Open {}             -> return mempty
     A.PatternSynDef {}    -> return mempty
+    A.UnfoldingDecl{}     -> return mempty
     A.Generalize {}       -> return mempty
         -- open, pattern synonym and generalize defs are just artifacts from the concrete syntax
     A.ScopedDecl scope ds -> {- withScope_ scope $ -} termDecls ds
@@ -133,7 +134,7 @@ termDecl' = \case
     -- The mutual names mentioned in the abstract syntax
     -- for symbols that need to be termination-checked.
     getNames = concatMap getName
-    getName (A.FunDef i x delayed cs)   = [x]
+    getName (A.FunDef i x cs)   = [x]
     getName (A.RecDef _ x _ _ _ _ ds)   = x : getNames ds
     getName (A.Mutual _ ds)             = getNames ds
     getName (A.Section _ _ _ _ ds)      = getNames ds
@@ -508,12 +509,11 @@ termDef name = terSetCurrent name $ inConcreteOrAbstractMode name $ \ def -> do
     applyWhenM terGetMaskResult terUnguarded $ do
 
       case theDef def of
-        Function{ funClauses = cls, funDelayed = delayed } ->
-          terSetDelayed delayed $ forM' cls $ \ cl -> do
-            if hasDefP (namedClausePats cl) -- generated hcomp clause, should be safe.
-                                            -- TODO find proper strategy.
-              then return empty
-              else termClause cl
+        Function{ funClauses = cls  } -> forM' cls $ \ cl -> do
+          if hasDefP (namedClausePats cl) -- generated hcomp clause, should be safe.
+                                          -- TODO find proper strategy.
+            then return empty
+            else termClause cl
 
         -- @record R pars : Set where field tel@
         -- is treated like function @R pars = tel@.
@@ -690,22 +690,15 @@ termClause clause = do
     parseDotP = \case
       DotP o t -> termToDBP t
       p        -> return p
-    stripCoCon p = case p of
-      ConP (ConHead c _ _ _) _ _ -> do
-        ifM ((Just c ==) <$> terGetSizeSuc) (return p) $ {- else -} do
-        whatInduction c >>= \case
-          Inductive   -> return p
-          CoInductive -> return unusedVar
-      _ -> return p
+    stripCoCon = \case
+      ConP (ConHead c _ CoInductive _) _ _ -> return unusedVar
+      p -> return p
     reportBody :: Term -> TerM ()
     reportBody v = verboseS "term.check.clause" 6 $ do
       f       <- terGetCurrent
-      delayed <- terGetDelayed
       pats    <- terGetPatterns
       liftTCM $ reportSDoc "term.check.clause" 6 $ do
-        sep [ text ("termination checking " ++
-                    (if delayed == Delayed then "delayed " else "") ++
-                    "clause of")
+        sep [ text ("termination checking clause of")
                 <+> prettyTCM f
             , nest 2 $ "lhs:" <+> sep (map prettyTCM pats)
             , nest 2 $ "rhs:" <+> prettyTCM v
@@ -753,14 +746,12 @@ instance ExtractCalls Sort where
       reportSDoc "term.sort" 50 $
         text ("s = " ++ show s)
     case s of
-      Inf f n    -> return empty
+      Inf _ _    -> return empty
       SizeUniv   -> return empty
       LockUniv   -> return empty
       LevelUniv  -> return empty
       IntervalUniv -> return empty
-      Type t     -> terUnguarded $ extract t  -- no guarded levels
-      Prop t     -> terUnguarded $ extract t
-      SSet t     -> terUnguarded $ extract t
+      Univ _ t       -> terUnguarded $ extract t  -- no guarded levels
       PiSort a s1 s2 -> extract (a, s1, s2)
       FunSort s1 s2 -> extract (s1, s2)
       UnivSort s -> extract s
@@ -843,7 +834,6 @@ function g es0 = do
          cutoff <- terGetCutOff
          let ?cutoff = cutoff
 
-         delayed <- terGetDelayed
          -- Andreas, 2017-02-14, issue #2458:
          -- If we have inlined with-functions, we could be illtyped,
          -- hence, do not reduce anything.
@@ -894,7 +884,7 @@ function g es0 = do
                     -- guarding when we call a record and not termination checking a record
            Nothing
              -- only a delayed definition can be guarded
-             | Order.decreasing guarded && delayed == NotDelayed
+             | Order.decreasing guarded
                -> return Order.le
              | otherwise
                -> return guarded
@@ -1314,7 +1304,7 @@ instance StripAllProjections Term where
         -- c <- fromRightM (\ err -> return c) $ getConForm (conName c)
         Con c ci <$> stripAllProjections ts
       Def d es   -> Def d <$> stripAllProjections es
-      DontCare t -> stripAllProjections t
+      DontCare t -> DontCare <$> stripAllProjections t
       _ -> return t
 
 -- | Normalize outermost constructor name in a pattern.
@@ -1341,8 +1331,7 @@ compareTerm' v mp@(Masked m p) = do
     (Var i es, _) | Just{} <- allApplyElims es ->
       compareVar i mp
 
-    (DontCare t, _) ->
-      compareTerm' t mp
+    (DontCare t, _) -> pure Order.unknown
 
     -- Andreas, 2014-09-22, issue 1281:
     -- For metas, termination checking should be optimistic.

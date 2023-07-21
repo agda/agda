@@ -28,6 +28,7 @@ on:
     - '!.mailmap'
     - '!.gitignore'
     - '!.hlint.yaml'
+    - '!.readthedocs.yaml'
     - '!.travis.yml'
     - '!CHANGELOG.md'
     - '!HACKING.md'
@@ -49,11 +50,11 @@ env:
 
   # Andreas, 2022-11-24, set the stack version here so that it is easily
   # shared between the jobs.
-  STACK_VER: "2.9.3"
+  STACK_VER: "2.11.1"
   # Andreas, 2022-03-26, 2022-11-28:
   # GHC_VER should be given as x.y.z (as opposed to x.y only)
   # because it is used verbatim when referring to stack-x.y.z.yaml.
-  GHC_VER: "9.4.4"
+  GHC_VER: "9.4.5"
 
   # Part 2: Variables that should not have to be changed
   ###########################################################################
@@ -84,6 +85,15 @@ jobs:
 
     runs-on: &runs_on ubuntu-22.04
     steps:
+    - name: Info about the context
+      run: |
+        echo "github.base_ref   = ${{ github.base_ref   }}"
+        echo "github.head_ref   = ${{ github.head_ref   }}"
+        echo "github.event_name = ${{ github.event_name }}"
+        echo "github.ref        = ${{ github.ref        }}"
+        echo "github.ref_name   = ${{ github.ref_name   }}"
+        echo "github.ref_type   = ${{ github.ref_type   }}"
+
     - uses: styfle/cancel-workflow-action@0.11.0
       # Andreas, 2022-12-05, issue #6388: do not cancel on `master`!
       if: github.ref != 'refs/heads/master'

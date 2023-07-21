@@ -1,0 +1,4 @@
+OpaqueMutual.agda:4,3-6,12
+Opaque blocks can not participate in mutual recursion. If the
+opaque definitions are to be mutually recursive, move the 'mutual'
+block inside the 'opaque' block.

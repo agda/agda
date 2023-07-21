@@ -136,7 +136,7 @@ Known pitfalls and issues
       \setmainfont{Latin Modern Roman}
 
     Note that you might not want to turn off all kinds of ligatures in
-    the entire document. See the `examples <Examples>`_ below for
+    the entire document. See the :ref:`examples` below for
     information on how to set up special font families without TeX
     ligatures that are only used for Agda code.
 
@@ -738,6 +738,7 @@ a library of code.
 
      \ExecuteMetaData[latex/Code.tex]{plus}
 
+.. _examples:
 
 Examples
 --------

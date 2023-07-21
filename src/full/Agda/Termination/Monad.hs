@@ -106,8 +106,6 @@ data TerEnv = TerEnv
   , terTarget  :: Target
     -- ^ Target type of the function we are currently termination checking.
     --   Only the constructors of 'Target' are considered guarding.
-  , terDelayed :: Delayed
-    -- ^ Are we checking a delayed definition?
   , terMaskArgs :: [Bool]
     -- ^ Only consider the 'notMasked' 'False' arguments for establishing termination.
     --   See issue #1023.
@@ -157,7 +155,6 @@ defaultTerEnv = TerEnv
   , terCurrent                  = __IMPOSSIBLE__ -- needs to be set!
   , terHaveInlinedWith          = False
   , terTarget                   = TargetOther
-  , terDelayed                  = NotDelayed
   , terMaskArgs                 = repeat False   -- use all arguments (mask none)
   , terMaskResult               = False          -- use result (do not mask)
   , _terSizeDepth               = __IMPOSSIBLE__ -- needs to be set!
@@ -297,12 +294,6 @@ terGetHaveInlinedWith = terAsks terHaveInlinedWith
 terSetHaveInlinedWith :: TerM a -> TerM a
 terSetHaveInlinedWith = terLocal $ \ e -> e { terHaveInlinedWith = True }
 
-terGetDelayed :: TerM Delayed
-terGetDelayed = terAsks terDelayed
-
-terSetDelayed :: Delayed -> TerM a -> TerM a
-terSetDelayed b = terLocal $ \ e -> e { terDelayed = b }
-
 terGetMaskArgs :: TerM [Bool]
 terGetMaskArgs = terAsks terMaskArgs
 
@@ -341,7 +332,7 @@ terUnguarded = terSetGuarded unknown
 
 -- | Lens for '_terSizeDepth'.
 
-terSizeDepth :: Lens' Int TerEnv
+terSizeDepth :: Lens' TerEnv Int
 terSizeDepth f e = f (_terSizeDepth e) <&> \ i -> e { _terSizeDepth = i }
 
 -- | Lens for 'terUsableVars'.
