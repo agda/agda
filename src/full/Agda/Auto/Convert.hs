@@ -53,7 +53,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Monad       ( forMaybeMM )
 import Agda.Utils.Permutation ( Permutation(Perm), permute, takeP, compactP )
-import Agda.Utils.Pretty      ( prettyShow )
+import Agda.Syntax.Common.Pretty      ( prettyShow )
 
 import Agda.Utils.Impossible
 

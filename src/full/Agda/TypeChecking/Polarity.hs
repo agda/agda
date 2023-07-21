@@ -33,7 +33,7 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.Utils.List
 import Agda.Utils.Maybe ( whenNothingM )
 import Agda.Utils.Monad
-import Agda.Utils.Pretty ( prettyShow )
+import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 

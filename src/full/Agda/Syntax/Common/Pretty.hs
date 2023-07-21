@@ -1,9 +1,9 @@
 
 {-| Pretty printing functions.
 -}
-module Agda.Utils.Pretty
-    ( module Agda.Utils.Pretty
-    , module Text.PrettyPrint
+module Agda.Syntax.Common.Pretty
+    ( module Agda.Syntax.Common.Pretty
+    , module Text.PrettyPrint.Annotated
     -- This re-export can be removed once <GHC-8.4 is dropped.
     , module Data.Semigroup
     ) where
@@ -11,21 +11,29 @@ module Agda.Utils.Pretty
 import Prelude hiding (null)
 
 import qualified Data.Foldable as Fold
-import Data.Int (Int32)
-import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
-import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Set (Set)
-import qualified Data.Set as Set
-import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Map as Map
+import qualified Data.Set as Set
+import Data.IntSet (IntSet)
+import Data.IntMap (IntMap)
 import Data.Word (Word64)
+import Data.Text (Text)
+import Data.Int (Int32)
+import Data.Map (Map)
+import Data.Set (Set)
 
-import qualified Text.PrettyPrint as P
-import Text.PrettyPrint hiding (TextDetails(Str), empty, (<>), sep, fsep, hsep, hcat, vcat, punctuate)
+import qualified Text.PrettyPrint.Annotated as P
+import Text.PrettyPrint.Annotated hiding
+  ( Doc, TextDetails(Str), empty, (<>), sep, fsep, hsep, hcat, vcat, punctuate
+
+  , parens, brackets, braces, quotes, doubleQuotes
+
+  , semi, comma, colon, space, equals, lparen, rparen, lbrack, rbrack
+  , lbrace, rbrace
+  )
+
 import Data.Semigroup ((<>))
 
 import Agda.Utils.Float
@@ -34,7 +42,15 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
 import Agda.Utils.Size
 
+import Agda.Syntax.Common.Aspect
+import Agda.Utils.Impossible
+
 -- * Pretty class
+
+-- | The type of documents. We use documents annotated by 'Aspects' to
+-- record syntactic highlighting information that is generated during
+-- pretty-printing.
+type Doc = P.Doc Aspects
 
 -- | While 'Show' is for rendering data in Haskell syntax,
 --   'Pretty' is for displaying data to the world, i.e., the
@@ -71,7 +87,11 @@ instance Pretty Char where
   pretty c = text [c]
   prettyList = text
 
-instance Pretty Doc where
+
+-- The equational constraint forces GHC to pick this instance and unify
+-- the type variable, instead of deferring selection to when the type of
+-- annotations is solved.
+instance a ~ Aspects => Pretty (P.Doc a) where
   pretty = id
 
 instance Pretty () where
@@ -141,7 +161,7 @@ prettyMap = braces . fsep . punctuate comma . map prettyAssign
 
 -- | Pretty print a single association.
 prettyAssign :: (Pretty k, Pretty v) => (k,v) -> Doc
-prettyAssign (k, v) = sep [ prettyPrec 1 k <+> "->", nest 2 $ pretty v ]
+prettyAssign (k, v) = sep [ prettyPrec 1 k <+> hlSymbol "->", nest 2 $ pretty v ]
 
 -- ASR (2016-12-13): In pretty >= 1.1.2.0 the below function 'mparens'
 -- is called 'maybeParens'. I didn't use that name due to the issue
@@ -189,4 +209,58 @@ singPlural xs singular plural = if natSize xs == 1 then singular else plural
 prefixedThings :: Doc -> [Doc] -> Doc
 prefixedThings kw = \case
   []           -> P.empty
-  (doc : docs) -> fsep $ (kw <+> doc) : map ("|" <+>) docs
+  (doc : docs) -> fsep $ (kw <+> doc) : map (hlSymbol "|" <+>) docs
+
+-- | Attach a simple 'Aspect', rather than a full set of 'Aspects', to a
+-- document.
+annotateAspect :: Aspect -> Doc -> Doc
+annotateAspect a = annotate a' where
+  a' = Aspects
+    { aspect         = Just a
+    , otherAspects   = mempty
+    , note           = ""
+    , definitionSite = Nothing
+    , tokenBased     = TokenBased
+    }
+
+-- * Syntax highlighting helpers
+
+hlComment, hlSymbol, hlKeyword, hlString, hlNumber, hlHole, hlPrimitiveType, hlPragma
+  :: Doc -> Doc
+
+hlComment       = annotateAspect Comment
+hlSymbol        = annotateAspect Symbol
+hlKeyword       = annotateAspect Keyword
+hlString        = annotateAspect String
+hlNumber        = annotateAspect Number
+hlHole          = annotateAspect Hole
+hlPrimitiveType = annotateAspect PrimitiveType
+hlPragma        = annotateAspect Pragma
+
+-- * Delimiter wrappers
+--
+-- These use the 'Symbol' highlight for the punctuation characters.
+
+parens       :: Doc -> Doc -- ^ Wrap document in @(...)@
+brackets     :: Doc -> Doc -- ^ Wrap document in @[...]@
+braces       :: Doc -> Doc -- ^ Wrap document in @{...}@
+quotes       :: Doc -> Doc -- ^ Wrap document in @\'...\'@
+doubleQuotes :: Doc -> Doc -- ^ Wrap document in @\"...\"@
+quotes p       = hlSymbol (char '\'') <> p <> hlSymbol (char '\'')
+doubleQuotes p = hlSymbol (char '"') <> p <> hlSymbol (char '"')
+parens p       = lparen <> p <> rparen
+brackets p     = lbrack <> p <> rbrack
+braces p       = lbrace <> p <> rbrace
+
+semi, comma, colon, space, equals, lparen, rparen, lbrack, rbrack, lbrace, rbrace :: Doc
+semi   = hlSymbol $ char ';'
+comma  = hlSymbol $ char ','
+colon  = hlSymbol $ char ':'
+space  = hlSymbol $ char ' '
+equals = hlSymbol $ char '='
+lparen = hlSymbol $ char '('
+rparen = hlSymbol $ char ')'
+lbrack = hlSymbol $ char '['
+rbrack = hlSymbol $ char ']'
+lbrace = hlSymbol $ char '{'
+rbrace = hlSymbol $ char '}'

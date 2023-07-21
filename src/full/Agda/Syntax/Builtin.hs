@@ -12,10 +12,10 @@ import Control.DeepSeq (NFData)
 import qualified Data.Map as M
 import Data.Hashable
 
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Position
 
 import Agda.Utils.List
-import Agda.Utils.Pretty
 
 -- | Either a 'BuiltinId' or 'PrimitiveId', used for some lookups.
 data SomeBuiltin

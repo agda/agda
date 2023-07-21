@@ -11,7 +11,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad
 
 import Agda.Utils.List ( dropEnd, initWithDefault )
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Impossible
 

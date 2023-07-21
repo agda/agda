@@ -26,7 +26,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Null
-import qualified Agda.Utils.Pretty as P
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Impossible
 
 prettyConstraint :: MonadPretty m => ProblemConstraint -> m Doc

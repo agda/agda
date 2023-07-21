@@ -22,6 +22,7 @@ import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Concrete.Pattern as C
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Abstract.Pattern as A
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Scope.Base  ( ResolvedName(..), BindingSource(..), KindOfName(..), exceptKindsOfNames )
@@ -46,7 +47,6 @@ import Agda.Utils.Lens   (set)
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import qualified Agda.Utils.Pretty as P
 import Agda.Utils.WithDefault (lensKeepDefault)
 
 import Agda.Utils.Impossible

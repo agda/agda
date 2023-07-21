@@ -25,7 +25,7 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.Impossible
 import Agda.Utils.Functor
 import Agda.Utils.List
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Size
 
 -- | Parse @quote@.

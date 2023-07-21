@@ -9,7 +9,7 @@ import Agda.Syntax.Concrete.Pretty () -- Pretty Arg instance
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract.Name
 
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Empty
 import Agda.Utils.Maybe
 import Agda.Utils.Tuple

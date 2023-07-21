@@ -51,7 +51,7 @@ import Agda.TypeChecking.Monad.State (getScope)
 
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Either
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
 import Agda.Utils.List2 (List2, pattern List2)

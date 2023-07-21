@@ -46,7 +46,7 @@ import {-# SOURCE #-} Agda.Interaction.Highlighting.Generate (highlightWarning)
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.Function  ( applyUnless )
 import Agda.Utils.Lens
-import qualified Agda.Utils.Pretty as P
+import qualified Agda.Syntax.Common.Pretty as P
 
 import Agda.Utils.Impossible
 

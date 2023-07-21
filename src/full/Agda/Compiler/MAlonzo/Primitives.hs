@@ -14,6 +14,7 @@ import Data.Maybe
 import Agda.Compiler.Common
 import Agda.Compiler.MAlonzo.Misc
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Internal
 import Agda.Syntax.Treeless
 import Agda.TypeChecking.Monad
@@ -24,7 +25,6 @@ import Agda.TypeChecking.Pretty
 import Agda.Utils.Either
 import Agda.Utils.Lens
 import Agda.Utils.List   (hasElem)
-import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.Haskell.Syntax as HS
 
 import Agda.Utils.Impossible

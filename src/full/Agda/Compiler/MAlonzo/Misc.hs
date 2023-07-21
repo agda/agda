@@ -33,7 +33,7 @@ import Agda.Syntax.TopLevelModuleName
 
 import Agda.TypeChecking.Monad
 
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 
 import Agda.Utils.Impossible
 

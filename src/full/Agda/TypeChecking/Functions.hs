@@ -21,7 +21,7 @@ import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Impossible
 import Agda.Utils.Functor ( ($>) )
-import Agda.Utils.Pretty ( prettyShow )
+import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Utils.Monad
 import Agda.Utils.Size
 

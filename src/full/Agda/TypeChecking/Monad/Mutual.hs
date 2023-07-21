@@ -16,7 +16,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.State
 
 import Agda.Utils.Null
-import Agda.Utils.Pretty ( prettyShow )
+import Agda.Syntax.Common.Pretty ( prettyShow )
 
 noMutualBlock :: TCM a -> TCM a
 noMutualBlock = localTC $ \e -> e { envMutualBlock = Nothing }

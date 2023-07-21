@@ -22,6 +22,8 @@ import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Map as Map
 
+import qualified Agda.Syntax.Common.Pretty as P
+import Agda.Syntax.Common.Pretty (Pretty(..), prettyShow)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
@@ -43,8 +45,6 @@ import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Monad
 import Agda.Utils.Permutation hiding (dropFrom)
-import Agda.Utils.Pretty (Pretty(..), prettyShow)
-import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Update (MonadChange, tellDirty)

@@ -17,6 +17,8 @@ import Data.Set (Set)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.MetaVars
+import Agda.Syntax.Common.Pretty (Pretty)
+import qualified Agda.Syntax.Common.Pretty as P
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -34,13 +36,10 @@ import Agda.Utils.List1 (pattern (:|))
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty (Pretty)
 import qualified Agda.Utils.ProfileOptions as Profile
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
-
-import qualified Agda.Utils.Pretty as P
 
 import Agda.Utils.Impossible
 

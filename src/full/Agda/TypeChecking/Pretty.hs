@@ -52,8 +52,8 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Permutation ( Permutation )
-import Agda.Utils.Pretty      ( Pretty, prettyShow )
-import qualified Agda.Utils.Pretty as P
+import Agda.Syntax.Common.Pretty      ( Pretty, prettyShow )
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Size        ( natSize )
 
 import Agda.Utils.Impossible

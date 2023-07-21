@@ -46,8 +46,8 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.POMonoid
-import Agda.Utils.Pretty (render)
-import qualified Agda.Utils.Pretty as P
+import Agda.Syntax.Common.Pretty (render)
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible

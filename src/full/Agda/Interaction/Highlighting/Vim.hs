@@ -19,7 +19,7 @@ import Agda.TypeChecking.Monad
 
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Tuple
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 
 vimFile :: FilePath -> FilePath
 vimFile file =

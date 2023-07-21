@@ -27,6 +27,7 @@ import Data.Foldable hiding (null)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
+import qualified Agda.Syntax.Common.Pretty as P
 
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Positivity.Occurrence
@@ -48,7 +49,8 @@ import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Tuple
 import Agda.Utils.Size
-import qualified Agda.Utils.Pretty as P
+import Agda.Utils.BoolSet (BoolSet)
+import qualified Agda.Utils.BoolSet as BoolSet
 
 import Agda.TypeChecking.Primitive.Cubical.HCompU
 import Agda.TypeChecking.Primitive.Cubical.Glue

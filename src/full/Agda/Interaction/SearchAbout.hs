@@ -23,7 +23,7 @@ import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Internal as I
 
 import Agda.Utils.List   ( initLast1  )
-import Agda.Utils.Pretty ( prettyShow )
+import Agda.Syntax.Common.Pretty ( prettyShow )
 
 findMentions :: Rewrite -> Range -> String -> ScopeM [(C.Name, I.Type)]
 findMentions norm rg nm = do

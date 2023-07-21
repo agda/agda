@@ -18,7 +18,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List  (last1)
 import Agda.Utils.List1 (List1, pattern (:|), (<|))
 import qualified Agda.Utils.List1 as List1
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Singleton
 import Agda.Utils.Suffix
 

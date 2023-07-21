@@ -21,7 +21,7 @@ import Agda.Utils.SemiRing
 import Agda.Utils.Singleton (Singleton)
 import qualified Agda.Utils.Singleton as Singleton
 import Agda.Utils.Impossible
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 
 import Control.Monad
 

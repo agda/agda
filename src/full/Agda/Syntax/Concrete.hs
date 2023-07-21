@@ -93,6 +93,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List1       ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.List2       ( List2, pattern List2 )
+import Agda.Syntax.Common.Aspect (NameKind)
 import Agda.Utils.Null
 
 import Agda.Utils.Impossible
@@ -176,6 +177,13 @@ data Expr
   | DontCare Expr                              -- ^ to print irrelevant things
   | Equal Range Expr Expr                      -- ^ ex: @a = b@, used internally in the parser
   | Ellipsis Range                             -- ^ @...@, used internally to parse patterns.
+  | KnownIdent NameKind QName
+    -- ^ An identifier coming from abstract syntax, for which we know a
+    -- precise syntactic highlighting class (used in printing).
+  | KnownOpApp NameKind Range QName (Set A.Name) OpAppArgs
+    -- ^ An operator application coming from abstract syntax, for which
+    -- we know a precise syntactic highlighting class (used in
+    -- printing).
   | Generalized Expr
   deriving Eq
 
@@ -844,6 +852,8 @@ instance HasRange Expr where
       Equal r _ _        -> r
       Ellipsis r         -> r
       Generalized e      -> getRange e
+      KnownIdent _ q     -> getRange q
+      KnownOpApp _ r _ _ _ -> r
 
 -- instance HasRange Telescope where
 --     getRange (TeleBind bs) = getRange bs
@@ -1077,39 +1087,41 @@ instance KillRange Declaration where
   killRange (Unfolding r xs)        = killRangeN Unfolding r xs
 
 instance KillRange Expr where
-  killRange (Ident q)             = killRangeN Ident q
-  killRange (Lit _ l)             = killRangeN (Lit noRange) l
-  killRange (QuestionMark _ n)    = QuestionMark noRange n
-  killRange (Underscore _ n)      = Underscore noRange n
-  killRange (RawApp _ e)          = killRangeN (RawApp noRange) e
-  killRange (App _ e a)           = killRangeN (App noRange) e a
-  killRange (OpApp _ n ns o)      = killRangeN (OpApp noRange) n ns o
-  killRange (WithApp _ e es)      = killRangeN (WithApp noRange) e es
-  killRange (HiddenArg _ n)       = killRangeN (HiddenArg noRange) n
-  killRange (InstanceArg _ n)     = killRangeN (InstanceArg noRange) n
-  killRange (Lam _ l e)           = killRangeN (Lam noRange) l e
-  killRange (AbsurdLam _ h)       = killRangeN (AbsurdLam noRange) h
-  killRange (ExtendedLam _ e lrw) = killRangeN (ExtendedLam noRange) e lrw
-  killRange (Fun _ e1 e2)         = killRangeN (Fun noRange) e1 e2
-  killRange (Pi t e)              = killRangeN Pi t e
-  killRange (Rec _ ne)            = killRangeN (Rec noRange) ne
-  killRange (RecUpdate _ e ne)    = killRangeN (RecUpdate noRange) e ne
-  killRange (Let _ d e)           = killRangeN (Let noRange) d e
-  killRange (Paren _ e)           = killRangeN (Paren noRange) e
-  killRange (IdiomBrackets _ es)  = killRangeN (IdiomBrackets noRange) es
-  killRange (DoBlock _ ss)        = killRangeN (DoBlock noRange) ss
-  killRange (Absurd _)            = Absurd noRange
-  killRange (As _ n e)            = killRangeN (As noRange) n e
-  killRange (Dot _ e)             = killRangeN (Dot noRange) e
-  killRange (DoubleDot _ e)       = killRangeN (DoubleDot noRange) e
-  killRange (Quote _)             = Quote noRange
-  killRange (QuoteTerm _)         = QuoteTerm noRange
-  killRange (Unquote _)           = Unquote noRange
-  killRange (Tactic _ t)          = killRangeN (Tactic noRange) t
-  killRange (DontCare e)          = killRangeN DontCare e
-  killRange (Equal _ x y)         = Equal noRange x y
-  killRange (Ellipsis _)          = Ellipsis noRange
-  killRange (Generalized e)       = killRangeN Generalized e
+  killRange (Ident q)              = killRangeN Ident q
+  killRange (Lit _ l)              = killRangeN (Lit noRange) l
+  killRange (QuestionMark _ n)     = QuestionMark noRange n
+  killRange (Underscore _ n)       = Underscore noRange n
+  killRange (RawApp _ e)           = killRangeN (RawApp noRange) e
+  killRange (App _ e a)            = killRangeN (App noRange) e a
+  killRange (OpApp _ n ns o)       = killRangeN (OpApp noRange) n ns o
+  killRange (WithApp _ e es)       = killRangeN (WithApp noRange) e es
+  killRange (HiddenArg _ n)        = killRangeN (HiddenArg noRange) n
+  killRange (InstanceArg _ n)      = killRangeN (InstanceArg noRange) n
+  killRange (Lam _ l e)            = killRangeN (Lam noRange) l e
+  killRange (AbsurdLam _ h)        = killRangeN (AbsurdLam noRange) h
+  killRange (ExtendedLam _ e lrw)  = killRangeN (ExtendedLam noRange) e lrw
+  killRange (Fun _ e1 e2)          = killRangeN (Fun noRange) e1 e2
+  killRange (Pi t e)               = killRangeN Pi t e
+  killRange (Rec _ ne)             = killRangeN (Rec noRange) ne
+  killRange (RecUpdate _ e ne)     = killRangeN (RecUpdate noRange) e ne
+  killRange (Let _ d e)            = killRangeN (Let noRange) d e
+  killRange (Paren _ e)            = killRangeN (Paren noRange) e
+  killRange (IdiomBrackets _ es)   = killRangeN (IdiomBrackets noRange) es
+  killRange (DoBlock _ ss)         = killRangeN (DoBlock noRange) ss
+  killRange (Absurd _)             = Absurd noRange
+  killRange (As _ n e)             = killRangeN (As noRange) n e
+  killRange (Dot _ e)              = killRangeN (Dot noRange) e
+  killRange (DoubleDot _ e)        = killRangeN (DoubleDot noRange) e
+  killRange (Quote _)              = Quote noRange
+  killRange (QuoteTerm _)          = QuoteTerm noRange
+  killRange (Unquote _)            = Unquote noRange
+  killRange (Tactic _ t)           = killRangeN (Tactic noRange) t
+  killRange (DontCare e)           = killRangeN DontCare e
+  killRange (Equal _ x y)          = Equal noRange x y
+  killRange (Ellipsis _)           = Ellipsis noRange
+  killRange (Generalized e)        = killRangeN Generalized e
+  killRange (KnownIdent a b)       = killRangeN (KnownIdent a) b
+  killRange (KnownOpApp a b c d e) = killRangeN (KnownOpApp a) b c d e
 
 instance KillRange LamBinding where
   killRange (DomainFree b) = killRangeN DomainFree b
@@ -1228,6 +1240,8 @@ instance NFData Expr where
   rnf (Equal _ a b)       = rnf a `seq` rnf b
   rnf (Ellipsis _)        = ()
   rnf (Generalized e)     = rnf e
+  rnf (KnownIdent a b)    = rnf b
+  rnf (KnownOpApp a b c d e) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf c
 
 -- | Ranges are not forced.
 

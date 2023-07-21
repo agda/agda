@@ -25,7 +25,7 @@ import Agda.Compiler.Treeless.Pretty () -- instance only
 
 import Agda.Utils.Function ( iterateUntilM )
 import Agda.Utils.List     ( downFrom )
-import Agda.Utils.Pretty   ( prettyShow )
+import Agda.Syntax.Common.Pretty   ( prettyShow )
 
 usedArguments :: QName -> TTerm -> TCM [ArgUsage]
 usedArguments q t = computeUnused q b (replicate n ArgUnused)

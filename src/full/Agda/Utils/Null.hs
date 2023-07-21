@@ -40,7 +40,7 @@ import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as Text
 
-import Text.PrettyPrint (Doc, isEmpty)
+import Text.PrettyPrint.Annotated (Doc, isEmpty)
 
 import Agda.Utils.Bag (Bag)
 import qualified Agda.Utils.Bag as Bag
@@ -129,7 +129,7 @@ instance Null Bool where
   empty = False
   null  = not
 
-instance Null Doc where
+instance Null (Doc a) where
   empty = mempty
   null  = isEmpty
 

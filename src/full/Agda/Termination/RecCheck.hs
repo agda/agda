@@ -33,10 +33,9 @@ import qualified Data.Set as Set
 
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Defs
+import Agda.Syntax.Common.Pretty  (prettyShow)
 
 import Agda.TypeChecking.Monad
-
-import Agda.Utils.Pretty  (prettyShow)
 
 import Agda.Utils.Impossible
 

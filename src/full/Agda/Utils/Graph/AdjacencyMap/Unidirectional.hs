@@ -100,7 +100,7 @@ import Agda.Utils.Function
 
 import Agda.Utils.Null (Null(null))
 import qualified Agda.Utils.Null as Null
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.SemiRing
 import Agda.Utils.Tuple
 

@@ -15,7 +15,7 @@ module Agda.Interaction.EmacsCommand
 
 -- import qualified Data.List as List
 
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.String
 
 -- | Simple Emacs Lisp expressions.

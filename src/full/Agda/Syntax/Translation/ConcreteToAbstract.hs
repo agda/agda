@@ -101,8 +101,8 @@ import qualified Agda.Utils.Map as Map
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import qualified Agda.Utils.Pretty as P
-import Agda.Utils.Pretty (render, Pretty, pretty, prettyShow)
+import qualified Agda.Syntax.Common.Pretty as P
+import Agda.Syntax.Common.Pretty (render, Pretty, pretty, prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Tuple
 
@@ -862,6 +862,8 @@ instance ToAbstract C.Expr where
 
   -- Names
       Ident x -> toAbstract (OldQName x Nothing)
+      KnownIdent _ x -> toAbstract (OldQName x Nothing)
+      -- Just discard the syntax highlighting information.
 
   -- Literals
       C.Lit r l -> do
@@ -935,6 +937,7 @@ instance ToAbstract C.Expr where
 
   -- Operator application
       C.OpApp r op ns es -> toAbstractOpApp op ns es
+      C.KnownOpApp _ r op ns es -> toAbstractOpApp op ns es
 
   -- With application
       C.WithApp r e es -> do

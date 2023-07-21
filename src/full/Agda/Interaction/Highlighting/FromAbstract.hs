@@ -46,7 +46,7 @@ import           Agda.Utils.List1                    ( List1 )
 import qualified Agda.Utils.List1          as List1
 import           Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict   as Strict
-import           Agda.Utils.Pretty
+import           Agda.Syntax.Common.Pretty
 import           Agda.Utils.Singleton
 import           Agda.Utils.Size
 

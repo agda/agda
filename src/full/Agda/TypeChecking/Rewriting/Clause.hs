@@ -14,7 +14,7 @@ import Agda.TypeChecking.Monad
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.Monad
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 
 ------------------------------------------------------------------------
 -- * Converting clauses to rewrite rules

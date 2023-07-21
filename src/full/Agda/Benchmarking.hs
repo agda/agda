@@ -21,7 +21,7 @@ import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 import Agda.Utils.Benchmark (MonadBench(..))
 import qualified Agda.Utils.Benchmark as B
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 
 -- | Phases to allocate CPU time to.
 data Phase

@@ -37,7 +37,7 @@ import Agda.TypeChecking.Monad
 
 import Agda.Utils.List1  ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
-import Agda.Utils.Pretty ( prettyShow )
+import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible

@@ -26,7 +26,7 @@ import Agda.TypeChecking.Telescope
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty (prettyA)
 import qualified Agda.Syntax.Concrete.Name as C
-import qualified Text.PrettyPrint as PP
+import qualified Text.PrettyPrint.Annotated as PP
 import qualified Agda.TypeChecking.Pretty as TCM
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Internal as I
@@ -57,7 +57,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Null
-import Agda.Utils.Pretty ( prettyShow )
+import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 

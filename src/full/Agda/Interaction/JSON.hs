@@ -29,7 +29,7 @@ import GHC.Int (Int32)
 -- import qualified Agda.Syntax.Concrete as C
 -- import qualified Agda.Syntax.Internal as I
 import Agda.TypeChecking.Monad
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import qualified Agda.Utils.FileName as File
 import qualified Agda.Utils.Maybe.Strict as Strict
 

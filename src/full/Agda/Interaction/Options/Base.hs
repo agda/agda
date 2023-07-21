@@ -15,6 +15,7 @@ module Agda.Interaction.Options.Base
     , ConfluenceCheck(..)
     , PrintAgdaVersion(..)
     , UnicodeOrAscii(..)
+    , DiagnosticsColours(..)
     , checkOpts
     , parsePragmaOptions
     , parsePluginOptions
@@ -208,6 +209,7 @@ import Agda.Interaction.Options.Help
 import Agda.Interaction.Options.Warnings
 import Agda.Syntax.Concrete.Glyph ( unsafeSetUnicodeOrAscii, UnicodeOrAscii(..) )
 import Agda.Syntax.Common (Cubical(..))
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 
 import Agda.Utils.Boolean
@@ -221,7 +223,6 @@ import qualified Agda.Utils.List1        as List1
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad         ( tell1 )
 import Agda.Utils.Null
-import Agda.Utils.Pretty
 import Agda.Utils.ProfileOptions
 import Agda.Utils.String        ( unwords1 )
 import Agda.Utils.Trie          ( Trie )
@@ -246,6 +247,14 @@ type Verbosity = Strict.Maybe (Trie VerboseKeyItem VerboseLevel)
 
 parseVerboseKey :: VerboseKey -> [VerboseKeyItem]
 parseVerboseKey = List1.wordsBy (`elem` ['.', ':'])
+
+data DiagnosticsColours
+  = AlwaysColour
+  | NeverColour
+  | AutoColour
+  deriving (Show, Generic)
+
+instance NFData DiagnosticsColours
 
 -- Don't forget to update
 --   doc/user-manual/tools/command-line-options.rst
@@ -288,6 +297,8 @@ data CommandLineOptions = Options
       -- ^ Should the top-level module only be scope-checked, and not type-checked?
   , optTransliterate         :: Bool
       -- ^ Should code points that are not supported by the locale be transliterated?
+  , optDiagnosticsColour     :: DiagnosticsColours
+      -- ^ Configure colour output.
   }
   deriving (Show, Generic)
 
@@ -814,6 +825,7 @@ defaultOptions = Options
   , optPragmaOptions         = defaultPragmaOptions
   , optOnlyScopeChecking     = False
   , optTransliterate         = False
+  , optDiagnosticsColour     = AutoColour
   }
 
 defaultPragmaOptions :: PragmaOptions
@@ -1223,6 +1235,14 @@ traceImportsFlag arg o = do
                           _ -> throwError $ "unknown printing option " ++ str ++ ". Please specify a number."
   return $ o { optTraceImports = mode }
 
+diagnosticsColour :: Maybe String -> Flag CommandLineOptions
+diagnosticsColour arg o = case arg of
+  Just "auto"   -> pure o { optDiagnosticsColour = AutoColour }
+  Just "always" -> pure o { optDiagnosticsColour = AlwaysColour }
+  Just "never"  -> pure o { optDiagnosticsColour = NeverColour }
+  Just str -> throwError $ "unknown colour option " ++ str ++ ". Please specify one of auto, always, or never."
+  Nothing -> pure o { optDiagnosticsColour = AutoColour }
+
 -- | Side effect for setting '_optUseUnicode'.
 --
 unicodeOrAsciiEffect :: UnicodeOrAscii -> Flag PragmaOptions
@@ -1374,7 +1394,6 @@ integerArgument flag s = maybe usage return $ readMaybe s
   where
   usage = throwError $ "option '" ++ flag ++ "' requires an integer argument"
 
-
 standardOptions :: [OptDescr (Flag CommandLineOptions)]
 standardOptions =
     [ Option ['V']  ["version"] (NoArg versionFlag)
@@ -1429,6 +1448,8 @@ standardOptions =
                     "only scope-check the top-level module, do not type-check it"
     , Option []     ["transliterate"] (NoArg transliterateFlag)
                     "transliterate unsupported code points when printing to stdout/stderr"
+    , Option []     ["colour", "color"] (OptArg diagnosticsColour "always|auto|never")
+                    ("whether or not to colour diagnostics output. The default is auto.")
     ] ++ map (fmap lensPragmaOptions) pragmaOptions
 
 -- | Defined locally here since module ''Agda.Interaction.Options.Lenses''

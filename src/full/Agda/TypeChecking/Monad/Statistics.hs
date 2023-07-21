@@ -23,7 +23,7 @@ import Agda.TypeChecking.Monad.Debug
 
 import Agda.Utils.Maybe
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.String
 
 class ReadTCState m => MonadStatistics m where

@@ -64,7 +64,7 @@ import qualified Agda.TypeChecking.Monad as TCM
 
 import Agda.Utils.Function
 import qualified Agda.Utils.IO.UTF8 as UTF8
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 
 import Agda.Utils.Impossible
 

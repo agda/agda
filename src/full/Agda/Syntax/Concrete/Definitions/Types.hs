@@ -14,7 +14,7 @@ import Agda.Syntax.Concrete
 import Agda.Syntax.Concrete.Name   ()
 import Agda.Syntax.Concrete.Pretty ()
 
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Impossible
 import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1

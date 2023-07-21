@@ -107,39 +107,41 @@ instance (ExprLike a, ExprLike b, ExprLike c, ExprLike d) => ExprLike (a, b, c, 
 
 instance ExprLike Expr where
   mapExpr f e0 = case e0 of
-     Ident{}            -> f $ e0
-     Lit{}              -> f $ e0
-     QuestionMark{}     -> f $ e0
-     Underscore{}       -> f $ e0
-     RawApp r es        -> f $ RawApp r               $ mapE es
-     App r e es         -> f $ App r       (mapE e)   $ mapE es
-     OpApp r q ns es    -> f $ OpApp r q ns           $ mapE es
-     WithApp r e es     -> f $ WithApp r   (mapE e)   $ mapE es
-     HiddenArg r e      -> f $ HiddenArg r            $ mapE e
-     InstanceArg r e    -> f $ InstanceArg r          $ mapE e
-     Lam r bs e         -> f $ Lam r       (mapE bs)  $ mapE e
-     AbsurdLam{}        -> f $ e0
-     ExtendedLam r e cs -> f $ ExtendedLam r e        $ mapE cs
-     Fun r a b          -> f $ Fun r     (mapE <$> a) $ mapE b
-     Pi tel e           -> f $ Pi          (mapE tel) $ mapE e
-     Rec r es           -> f $ Rec r                  $ mapE es
-     RecUpdate r e es   -> f $ RecUpdate r (mapE e)   $ mapE es
-     Let r ds e         -> f $ Let r       (mapE ds)  $ mapE e
-     Paren r e          -> f $ Paren r                $ mapE e
-     IdiomBrackets r es -> f $ IdiomBrackets r        $ mapE es
-     DoBlock r ss       -> f $ DoBlock r              $ mapE ss
-     Absurd{}           -> f $ e0
-     As r x e           -> f $ As r x                 $ mapE e
-     Dot r e            -> f $ Dot r                  $ mapE e
-     DoubleDot r e      -> f $ DoubleDot r            $ mapE e
-     Tactic r e         -> f $ Tactic r     (mapE e)
-     Quote{}            -> f $ e0
-     QuoteTerm{}        -> f $ e0
-     Unquote{}          -> f $ e0
-     DontCare e         -> f $ DontCare               $ mapE e
-     Equal{}            -> f $ e0
-     Ellipsis{}         -> f $ e0
-     Generalized e      -> f $ Generalized            $ mapE e
+     Ident{}                 -> f $ e0
+     Lit{}                   -> f $ e0
+     QuestionMark{}          -> f $ e0
+     Underscore{}            -> f $ e0
+     RawApp r es             -> f $ RawApp r               $ mapE es
+     App r e es              -> f $ App r       (mapE e)   $ mapE es
+     OpApp r q ns es         -> f $ OpApp r q ns           $ mapE es
+     WithApp r e es          -> f $ WithApp r   (mapE e)   $ mapE es
+     HiddenArg r e           -> f $ HiddenArg r            $ mapE e
+     InstanceArg r e         -> f $ InstanceArg r          $ mapE e
+     Lam r bs e              -> f $ Lam r       (mapE bs)  $ mapE e
+     AbsurdLam{}             -> f $ e0
+     ExtendedLam r e cs      -> f $ ExtendedLam r e        $ mapE cs
+     Fun r a b               -> f $ Fun r     (mapE <$> a) $ mapE b
+     Pi tel e                -> f $ Pi          (mapE tel) $ mapE e
+     Rec r es                -> f $ Rec r                  $ mapE es
+     RecUpdate r e es        -> f $ RecUpdate r (mapE e)   $ mapE es
+     Let r ds e              -> f $ Let r       (mapE ds)  $ mapE e
+     Paren r e               -> f $ Paren r                $ mapE e
+     IdiomBrackets r es      -> f $ IdiomBrackets r        $ mapE es
+     DoBlock r ss            -> f $ DoBlock r              $ mapE ss
+     Absurd{}                -> f $ e0
+     As r x e                -> f $ As r x                 $ mapE e
+     Dot r e                 -> f $ Dot r                  $ mapE e
+     DoubleDot r e           -> f $ DoubleDot r            $ mapE e
+     Tactic r e              -> f $ Tactic r     (mapE e)
+     Quote{}                 -> f $ e0
+     QuoteTerm{}             -> f $ e0
+     Unquote{}               -> f $ e0
+     DontCare e              -> f $ DontCare               $ mapE e
+     Equal{}                 -> f $ e0
+     Ellipsis{}              -> f $ e0
+     Generalized e           -> f $ Generalized            $ mapE e
+     KnownIdent{}            -> f $ e0
+     KnownOpApp nk r q ns es -> f $ KnownOpApp nk r q ns   $ mapE es
    where
      mapE :: ExprLike e => e -> e
      mapE = mapExpr f

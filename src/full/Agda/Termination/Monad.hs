@@ -51,8 +51,8 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Monoid
 import Agda.Utils.Null
-import Agda.Utils.Pretty (Pretty, prettyShow)
-import qualified Agda.Utils.Pretty as P
+import Agda.Syntax.Common.Pretty (Pretty, prettyShow)
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 

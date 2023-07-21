@@ -25,7 +25,7 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Pretty () --instance only
+import Agda.Syntax.Common.Pretty () --instance only
 
 
 instance HasBuiltins ReduceM where

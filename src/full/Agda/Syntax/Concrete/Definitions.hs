@@ -78,6 +78,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Notation
 import Agda.Syntax.Concrete.Pretty () --instance only
 import Agda.Syntax.Concrete.Fixity
+import Agda.Syntax.Common.Pretty
 
 import Agda.Syntax.Concrete.Definitions.Errors
 import Agda.Syntax.Concrete.Definitions.Monad

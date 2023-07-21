@@ -23,7 +23,7 @@ import GHC.Generics (Generic)
 import Agda.Utils.Boolean
 import Agda.Utils.List
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 
 -- | We want to know whether we are allowed to insert unicode characters or not.
 data UnicodeOrAscii
@@ -71,24 +71,24 @@ data SpecialCharacters = SpecialCharacters
 
 specialCharactersUnicode :: SpecialCharacters
 specialCharactersUnicode = SpecialCharacters
-  { _dbraces = (("\x2983 " <>) . (<> " \x2984"))
-  , _lambda  = "\x03bb"
-  , _arrow   = "\x2192"
-  , _forallQ = "\x2200"
-  , _leftIdiomBrkt  = "\x2987"
-  , _rightIdiomBrkt = "\x2988"
-  , _emptyIdiomBrkt = "\x2987\x2988"
+  { _dbraces        = ((hlSymbol "\x2983 " <>) . (<> hlSymbol " \x2984"))
+  , _lambda         = hlSymbol "\x03bb"
+  , _arrow          = hlSymbol "\x2192"
+  , _forallQ        = hlSymbol "\x2200"
+  , _leftIdiomBrkt  = hlSymbol "\x2987"
+  , _rightIdiomBrkt = hlSymbol "\x2988"
+  , _emptyIdiomBrkt = hlSymbol "\x2987\x2988"
   }
 
 specialCharactersAscii :: SpecialCharacters
 specialCharactersAscii = SpecialCharacters
-  { _dbraces = braces . braces'
-  , _lambda  = "\\"
-  , _arrow   = "->"
-  , _forallQ = "forall"
-  , _leftIdiomBrkt  = "(|"
-  , _rightIdiomBrkt = "|)"
-  , _emptyIdiomBrkt = "(|)"
+  { _dbraces        = braces . braces'
+  , _lambda         = hlSymbol "\\"
+  , _arrow          = hlSymbol "->"
+  , _forallQ        = hlSymbol "forall"
+  , _leftIdiomBrkt  = hlSymbol "(|"
+  , _rightIdiomBrkt = hlSymbol "|)"
+  , _emptyIdiomBrkt = hlSymbol "(|)"
   }
 
 -- | Return the glyph set based on a given (unicode or ascii) glyph mode
@@ -116,7 +116,7 @@ dbraces = _dbraces specialCharacters
 
 -- forall quantifier
 forallQ :: Doc
-forallQ = _forallQ specialCharacters
+forallQ = hlSymbol $ _forallQ specialCharacters
 
 -- left, right, and empty idiom bracket
 leftIdiomBrkt, rightIdiomBrkt, emptyIdiomBrkt :: Doc

@@ -29,6 +29,7 @@ import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal.Blockers
 import Agda.Syntax.Internal.Elim
 import Agda.Syntax.Internal.Univ
+import Agda.Syntax.Common.Pretty
 
 import Agda.Utils.CallStack
     ( CallStack
@@ -43,7 +44,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Null
 import Agda.Utils.Size
-import Agda.Utils.Pretty
+import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 

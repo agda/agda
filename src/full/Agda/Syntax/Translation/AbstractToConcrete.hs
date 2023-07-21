@@ -84,7 +84,8 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty hiding ((<>))
+import qualified Agda.Syntax.Common.Aspect as Asp
+import Agda.Syntax.Common.Pretty hiding ((<>))
 import Agda.Utils.Singleton
 import Agda.Utils.Suffix
 
@@ -758,12 +759,12 @@ addSuffixConcrete' glyphMode i = set (C.lensQNameName . nameSuffix) suffix
 instance ToConcrete A.Expr where
     type ConOfAbs A.Expr = C.Expr
 
-    toConcrete (Var x)             = Ident . C.QName <$> toConcrete x
-    toConcrete (Def' x suffix)     = Ident <$> addSuffixConcrete suffix (toConcrete x)
-    toConcrete (Proj ProjPrefix p) = Ident <$> toConcrete (headAmbQ p)
-    toConcrete (Proj _          p) = C.Dot noRange . Ident <$> toConcrete (headAmbQ p)
-    toConcrete (A.Macro x)         = Ident <$> toConcrete x
-    toConcrete e@(Con c)           = tryToRecoverPatternSyn e $ Ident <$> toConcrete (headAmbQ c)
+    toConcrete (Var x)             = KnownIdent Asp.Bound . C.QName <$> toConcrete x
+    toConcrete (Def' x suffix)     = KnownIdent Asp.Function <$> addSuffixConcrete suffix (toConcrete x)
+    toConcrete (Proj ProjPrefix p) = KnownIdent Asp.Field <$> toConcrete (headAmbQ p)
+    toConcrete (Proj _          p) = C.Dot noRange . KnownIdent Asp.Field <$> toConcrete (headAmbQ p)
+    toConcrete (A.Macro x)         = KnownIdent Asp.Macro <$> toConcrete x
+    toConcrete e@(Con c)           = tryToRecoverPatternSyn e $ KnownIdent (Asp.Constructor Inductive) <$> toConcrete (headAmbQ c)
         -- for names we have to use the name from the info, since the abstract
         -- name has been resolved to a fully qualified name (except for
         -- variables)
@@ -1616,9 +1617,9 @@ getHead (Con c)          = Just (HdCon $ headAmbQ c)
 getHead (A.PatternSyn n) = Just (HdSyn $ headAmbQ n)
 getHead _                = Nothing
 
-cOpApp :: Range -> C.QName -> A.Name -> List1 (MaybeSection C.Expr) -> C.Expr
-cOpApp r x n es =
-  C.OpApp r x (Set.singleton n) $
+cOpApp :: Asp.NameKind -> Range -> C.QName -> A.Name -> List1 (MaybeSection C.Expr) -> C.Expr
+cOpApp nk r x n es =
+  C.KnownOpApp nk r x (Set.singleton n) $
   fmap (defaultNamedArg . placeholder) $
   List1.toList eps
   where
@@ -1671,7 +1672,7 @@ tryToRecoverOpApp e def = fromMaybeM def $
 
 tryToRecoverOpAppP :: A.Pattern -> AbsToCon (Maybe C.Pattern)
 tryToRecoverOpAppP p = do
-  res <- recoverOpApp bracketP_ (const False) opApp view p
+  res <- recoverOpApp bracketP_ (const False) (const opApp) view p
   reportS "print.op" 90
     [ "tryToRecoverOpApp"
     , "in:  " ++ show p
@@ -1697,7 +1698,7 @@ tryToRecoverOpAppP p = do
 recoverOpApp :: forall a c . (ToConcrete a, c ~ ConOfAbs a, HasRange c)
   => ((PrecedenceStack -> Bool) -> AbsToCon c -> AbsToCon c)
   -> (a -> Bool)  -- ^ Check for lambdas
-  -> (Range -> C.QName -> A.Name -> List1 (MaybeSection c) -> c)  -- ^ @opApp@
+  -> (Asp.NameKind -> Range -> C.QName -> A.Name -> List1 (MaybeSection c) -> c)  -- ^ @opApp@
   -> (a -> Maybe (Hd, [NamedArg (MaybeSection (AppInfo, a))]))
   -> a
   -> AbsToCon (Maybe c)
@@ -1732,24 +1733,24 @@ recoverOpApp bracket isLam opApp view e = case view e of
     let n' = either id A.qnameName n
     -- #1346: The fixity of the abstract name is not necessarily correct, it depends on which
     -- concrete name we choose! Make sure to resolve ambiguities with n'.
-    fx <- resolveName_ x [n'] <&> \ case
-            VarName y _                -> y ^. lensFixity
-            DefinedName _ q _          -> q ^. lensFixity
-            FieldName (q :| _)         -> q ^. lensFixity
-            ConstructorName _ (q :| _) -> q ^. lensFixity
-            PatternSynResName (q :| _) -> q ^. lensFixity
-            UnknownName                -> noFixity
+    (fx, nk) <- resolveName_ x [n'] <&> \ case
+      VarName y _                -> (y ^. lensFixity, Asp.Bound)
+      DefinedName _ q _          -> (q ^. lensFixity, Asp.Function)
+      FieldName (q :| _)         -> (q ^. lensFixity, Asp.Field)
+      ConstructorName _ (q :| _) -> (q ^. lensFixity, Asp.Constructor Asp.Inductive)
+      PatternSynResName (q :| _) -> (q ^. lensFixity, Asp.Constructor Asp.Inductive)
+      UnknownName                -> (noFixity, Asp.Bound)
     List1.ifNull args {-then-} mDefault {-else-} $ \ as ->
-      doQName fx x n' as (C.nameParts $ C.unqualify x)
+      doQName nk fx x n' as (C.nameParts $ C.unqualify x)
 
-  doQName :: Fixity -> C.QName -> A.Name -> List1 (MaybeSection (AppInfo, a)) -> NameParts -> AbsToCon (Maybe c)
+  doQName :: Asp.NameKind -> Fixity -> C.QName -> A.Name -> List1 (MaybeSection (AppInfo, a)) -> NameParts -> AbsToCon (Maybe c)
 
   -- fall-back (wrong number of arguments or no holes)
-  doQName _ x _ as xs
+  doQName nk _ x _ as xs
     | length as /= numHoles x = mDefault
 
   -- binary case
-  doQName fixity x n (a1 :| as) xs
+  doQName nk fixity x n (a1 :| as) xs
     | Hole <- List1.head xs
     , Hole <- List1.last xs = do
         let (as', an) = List1.ifNull as {-then-} __IMPOSSIBLE__ {-else-} List1.initLast
@@ -1758,20 +1759,20 @@ recoverOpApp bracket isLam opApp view e = case view e of
             e1 <- traverse (toConcreteCtx (LeftOperandCtx fixity) . snd) a1
             es <- (mapM . traverse) (toConcreteCtx InsideOperandCtx . snd) as'
             en <- traverse (uncurry $ toConcreteCtx . RightOperandCtx fixity . appParens) an
-            return $ opApp (getRange (e1, en)) x n (e1 :| es ++ [en])
+            return $ opApp nk (getRange (e1, en)) x n (e1 :| es ++ [en])
 
   -- prefix
-  doQName fixity x n as xs
+  doQName nk fixity x n as xs
     | Hole <- List1.last xs = do
         let (as', an) = List1.initLast as
         Just <$> do
           bracket (opBrackets' (skipParens an) fixity) $ do
             es <- (mapM . traverse) (toConcreteCtx InsideOperandCtx . snd) as'
             en <- traverse (\ (i, e) -> toConcreteCtx (RightOperandCtx fixity $ appParens i) e) an
-            return $ opApp (getRange (n, en)) x n (List1.snoc es en)
+            return $ opApp nk (getRange (n, en)) x n (List1.snoc es en)
 
   -- postfix
-  doQName fixity x n as xs
+  doQName nk fixity x n as xs
     | Hole <- List1.head xs = do
         let a1  = List1.head as
             as' = List1.tail as
@@ -1779,14 +1780,14 @@ recoverOpApp bracket isLam opApp view e = case view e of
         es <- (mapM . traverse) (toConcreteCtx InsideOperandCtx . snd) as'
         Just <$> do
           bracket (opBrackets fixity) $
-            return $ opApp (getRange (e1, n)) x n (e1 :| es)
+            return $ opApp nk (getRange (e1, n)) x n (e1 :| es)
 
   -- roundfix
-  doQName _ x n as _ = do
+  doQName nk _ x n as _ = do
     es <- (mapM . traverse) (toConcreteCtx InsideOperandCtx . snd) as
     Just <$> do
       bracket roundFixBrackets $
-        return $ opApp (getRange x) x n es
+        return $ opApp nk (getRange x) x n es
 
 -- Recovering pattern synonyms --------------------------------------------
 

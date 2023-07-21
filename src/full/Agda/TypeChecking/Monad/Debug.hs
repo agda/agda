@@ -35,7 +35,7 @@ import Agda.Utils.ListT
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.ProfileOptions
 import Agda.Utils.Update
 import qualified Agda.Utils.Trie as Trie
@@ -157,7 +157,7 @@ instance MonadDebug TCM where
 
   formatDebugMessage k n d = catchAndPrintImpossible k n $ do
     render <$> d `catchError` \ err -> do
-      prettyError err <&> \ s -> vcat
+      renderError err <&> \ s -> vcat
         [ sep $ map text
           [ "Printing debug message"
           , k  ++ ":" ++ show n

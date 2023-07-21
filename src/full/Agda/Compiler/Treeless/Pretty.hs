@@ -12,12 +12,13 @@ import Data.Maybe
 import qualified Data.Map as Map
 
 import Agda.Syntax.Treeless
+import Agda.Syntax.Common.Pretty
+
 import Agda.Compiler.Treeless.Subst
-import Agda.Utils.Function (applyWhen)
-import Agda.Utils.List
-import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
+import Agda.Utils.Function
+import Agda.Utils.List
 
 instance Pretty Compiled where
   pretty Compiled {cTreeless, cArgUsage} =

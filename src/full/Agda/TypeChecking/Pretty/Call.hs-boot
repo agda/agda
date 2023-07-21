@@ -8,6 +8,6 @@ import Agda.TypeChecking.Monad.Base
 
 import {-# SOURCE #-} Agda.TypeChecking.Pretty (MonadPretty)
 
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 
 sayWhen :: MonadPretty m => Range -> Maybe (Closure Call) -> m Doc -> m Doc

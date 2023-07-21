@@ -27,7 +27,7 @@ import Agda.TypeChecking.Reduce
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.List
-import qualified Agda.Utils.Pretty as P
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Size
 import Agda.Utils.Update
 

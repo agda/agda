@@ -68,6 +68,34 @@ General options
          - | Use the effect of ``2``, but also print `Loading ...`
            | when a compiled module (interface) is accessed during the type-checking.
 
+.. option:: --colour[=(auto|always|never)]
+
+    .. versionadded:: 2.6.4
+
+      Configure whether or not Agda's standard output diagnostics should
+      use ANSI terminal colours for syntax highlighting (e.g. error
+      messages, warnings).
+
+    .. list-table::
+
+        * - ``always``
+          - Always print diagnostic in colour.
+        * - ``auto``
+          - | Automatically determine whether or not it is safe for
+            | standard output to include colours. Colours will be used
+            | when writing directly to a terminal device on Linux and
+            | macOS.
+            |
+            | This is the default value.
+        * - ``never``
+          - Never print output in colour.
+
+    The American spelling, ``--color``, is also accepted.
+
+    **Note:** Currently, the colour scheme for terminal output can not
+    be configured. If the colours are not legible on your terminal,
+    please use ``--colour=never`` for now.
+
 .. option:: --only-scope-checking
 
      .. versionadded:: 2.5.3

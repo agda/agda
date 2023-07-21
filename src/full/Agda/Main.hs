@@ -31,6 +31,7 @@ import Agda.Interaction.FindFile ( SourceFile(SourceFile) )
 import qualified Agda.Interaction.Imports as Imp
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Errors
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Warnings
@@ -41,11 +42,13 @@ import Agda.Compiler.Builtin
 
 import Agda.VersionCommit
 
+import qualified Agda.Utils.Benchmark as UtilsBench
+import qualified Agda.Syntax.Common.Pretty.ANSI as ANSI
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.FileName (absolute, filePath, AbsolutePath)
+import Agda.Utils.String
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.String
-import qualified Agda.Utils.Benchmark as UtilsBench
 
 import Agda.Utils.Impossible
 
@@ -314,9 +317,9 @@ runTCMPrettyErrors tcm = do
           `catchError` \err -> do
             s2s <- prettyTCWarnings' =<< getAllWarningsOfTCErr err
             s1  <- prettyError err
-            let ss = filter (not . null) $ s2s ++ [s1]
-            unless (null s1) (liftIO $ putStr $ unlines ss)
-            liftIO $ helpForLocaleError err
+            ANSI.putDoc (P.vcat s2s P.$+$ s1)
+            liftIO $ do
+              helpForLocaleError err
             return (Just TCMError)
       ) `catchImpossible` \e -> do
           liftIO $ putStr $ E.displayException e

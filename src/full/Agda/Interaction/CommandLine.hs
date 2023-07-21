@@ -21,6 +21,7 @@ import Agda.Interaction.Monad
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Internal (telToList, alwaysUnblock)
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Parser
@@ -38,7 +39,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Warnings (runPM)
 
 import Agda.Utils.FileName (absolute, AbsolutePath)
-import Agda.Utils.Pretty
+import Agda.Utils.Maybe (caseMaybeM)
 
 import Agda.Utils.Impossible
 
@@ -106,7 +107,7 @@ interaction prompt cmds eval = loop
                     Just _ ->
                         do  go =<< liftTCM (eval $ fromJust ms)
             `catchError` \e ->
-                do  s <- prettyError e
+                do  s <- renderError e
                     liftIO $ putStrLn s
                     loop
 
@@ -141,7 +142,7 @@ interactionLoop = do
               -- @open import Agda.Primitive using (Set; Prop)@
               void $ liftTCM importPrimitives
           `catchError` \e -> do
-            s <- prettyError e
+            s <- renderError e
             liftIO $ putStrLn s
             liftIO $ putStrLn "Failed."
 

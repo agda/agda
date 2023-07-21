@@ -8,7 +8,7 @@ import Agda.Utils.CallStack.Base
   , SrcLoc(..)
   , getCallStack
   )
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
   ( (<+>), ($+$), (<>)
   , pshow, text
   , colon, comma

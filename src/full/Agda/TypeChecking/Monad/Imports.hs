@@ -28,7 +28,7 @@ import Agda.Syntax.TopLevelModuleName
 import Agda.TypeChecking.Monad.Base
 
 import Agda.Utils.List ( caseListM )
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 
 import Agda.Utils.Impossible
 

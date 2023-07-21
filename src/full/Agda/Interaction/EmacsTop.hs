@@ -17,13 +17,14 @@ import Control.Monad.Trans    ( lift )
 import qualified Data.List as List
 
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Abstract.Pretty (prettyATop)
 import Agda.Syntax.Concrete as C
 
-import Agda.TypeChecking.Errors ( explainWhyInScope, getAllWarningsOfTCErr, prettyError, verbalize )
+import Agda.TypeChecking.Errors ( explainWhyInScope, getAllWarningsOfTCErr, renderError, verbalize )
 import qualified Agda.TypeChecking.Pretty as TCP
 import Agda.TypeChecking.Pretty (prettyTCM)
-import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
+import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, renderTCWarnings')
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors(..))
 import Agda.Interaction.AgdaTop
@@ -37,7 +38,6 @@ import Agda.Interaction.InteractionTop (localStateCommandM)
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Null (empty)
 import Agda.Utils.Maybe
-import Agda.Utils.Pretty
 import Agda.Utils.String
 import Agda.Utils.Time (CPUTime)
 import Agda.VersionCommit
@@ -293,8 +293,8 @@ formatWarningsAndErrors g w e = (body, title)
 -- | Serializing Info_Error
 showInfoError :: Info_Error -> TCM String
 showInfoError (Info_GenericError err) = do
-  e <- prettyError err
-  w <- prettyTCWarnings' =<< getAllWarningsOfTCErr err
+  e <- renderError err
+  w <- renderTCWarnings' =<< getAllWarningsOfTCErr err
 
   let errorMsg  = if null w
                       then e

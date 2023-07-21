@@ -420,6 +420,7 @@ library
     , vector               >= 0.12      && < 0.14
     , vector-hashtables    == 0.1.*
     , zlib                 == 0.6.*
+    , ansi-terminal        >= 0.9       && < 1.1
 
   -- We don't write upper bounds for Alex nor Happy because the
   -- `build-tool-depends` field can not be modified in Hackage.
@@ -516,6 +517,9 @@ library
       Agda.Syntax.Abstract
       Agda.Syntax.Builtin
       Agda.Syntax.Common
+      Agda.Syntax.Common.Pretty
+      Agda.Syntax.Common.Aspect
+      Agda.Syntax.Common.Pretty.ANSI
       Agda.Syntax.Concrete.Attribute
       Agda.Syntax.Concrete.Definitions
       Agda.Syntax.Concrete.Definitions.Errors
@@ -769,7 +773,6 @@ library
       Agda.Utils.Permutation
       Agda.Utils.Pointer
       Agda.Utils.POMonoid
-      Agda.Utils.Pretty
       Agda.Utils.ProfileOptions
       Agda.Utils.RangeMap
       Agda.Utils.SemiRing

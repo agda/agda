@@ -24,7 +24,7 @@ import qualified Data.Map as Map
 
 import Agda.Utils.SemiRing
 import Agda.Utils.List ((!!), nubOn)
-import Agda.Utils.Pretty as P
+import Agda.Syntax.Common.Pretty as P
 
 import Agda.Utils.Impossible
 

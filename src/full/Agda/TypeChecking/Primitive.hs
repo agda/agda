@@ -43,7 +43,7 @@ import Agda.Utils.Float
 import Agda.Utils.List
 import Agda.Utils.Maybe (fromMaybeM)
 import Agda.Utils.Monad
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 

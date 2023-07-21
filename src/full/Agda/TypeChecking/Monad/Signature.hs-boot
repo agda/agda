@@ -15,7 +15,7 @@ import Agda.TypeChecking.Monad.Base
   )
 import Agda.TypeChecking.Monad.Debug (MonadDebug)
 
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Syntax.Common.Pretty (prettyShow)
 
 data SigError = SigUnknown String | SigAbstract | SigCubicalNotErasure
 

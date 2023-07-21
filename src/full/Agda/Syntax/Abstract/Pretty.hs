@@ -4,7 +4,7 @@ module Agda.Syntax.Abstract.Pretty where
 
 import Agda.Syntax.Fixity
 import Agda.Syntax.Translation.AbstractToConcrete
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 
 showA :: (ToConcrete a, Show (ConOfAbs a), MonadAbsToCon m) => a -> m String
 showA x = show <$> abstractToConcrete_ x

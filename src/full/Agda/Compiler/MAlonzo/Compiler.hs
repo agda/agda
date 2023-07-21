@@ -48,6 +48,7 @@ import Agda.Compiler.Backend
 import Agda.Interaction.Options
 
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty (prettyShow, render)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Names (namesIn)
 import qualified Agda.Syntax.Treeless as T
@@ -71,7 +72,6 @@ import Agda.Utils.List
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import qualified Agda.Utils.IO.UTF8 as UTF8
 

@@ -41,7 +41,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Null
-import Agda.Utils.Pretty ( Pretty(..), text, (<+>), cat , prettyList_ )
+import Agda.Syntax.Common.Pretty ( Pretty(..), text, (<+>), cat , prettyList_ )
 import Agda.Utils.Monad
 import Agda.Utils.Singleton
 

@@ -19,6 +19,7 @@ import Control.Monad
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Common.Pretty (prettyShow)
 
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Datatypes -- (getConType, getFullyAppliedConType)
@@ -34,7 +35,6 @@ import Agda.TypeChecking.Telescope
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor (($>))
 import Agda.Utils.Maybe
-import Agda.Utils.Pretty  (prettyShow)
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible

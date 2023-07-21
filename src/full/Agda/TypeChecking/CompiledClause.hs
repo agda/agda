@@ -25,7 +25,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 
 import Agda.Utils.Impossible
 

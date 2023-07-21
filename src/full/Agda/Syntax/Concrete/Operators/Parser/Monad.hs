@@ -20,9 +20,10 @@ module Agda.Syntax.Concrete.Operators.Parser.Monad
 
 import Data.Hashable
 import GHC.Generics (Generic)
-import Text.PrettyPrint.HughesPJ
 
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty
+
 import qualified Agda.Utils.Parser.MemoisedCPS as Parser
 
 -- | Memoisation keys.

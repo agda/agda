@@ -2,7 +2,11 @@
 
 {-| Some common syntactic entities are defined in this module.
 -}
-module Agda.Syntax.Common where
+module Agda.Syntax.Common
+  ( module Agda.Syntax.Common
+  , Induction(..)
+  )
+  where
 
 import Prelude hiding (null)
 
@@ -39,7 +43,8 @@ import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
 import Agda.Utils.POMonoid
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Aspect (Induction(..))
+import Agda.Syntax.Common.Pretty
 
 import Agda.Utils.Impossible
 
@@ -189,10 +194,6 @@ instance CopatternMatchingAllowed HasEta where
 -- * Induction
 ---------------------------------------------------------------------------
 
--- | @Inductive < Coinductive@
-data Induction = Inductive | CoInductive  -- Keep in this order!
-  deriving (Eq, Ord, Show)
-
 instance Pretty Induction where
   pretty Inductive   = "inductive"
   pretty CoInductive = "coinductive"
@@ -202,10 +203,6 @@ instance HasRange Induction where
 
 instance KillRange Induction where
   killRange = id
-
-instance NFData Induction where
-  rnf Inductive   = ()
-  rnf CoInductive = ()
 
 instance PatternMatchingAllowed Induction where
   patternMatchingAllowed = (== Inductive)

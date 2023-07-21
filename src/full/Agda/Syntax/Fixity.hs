@@ -11,7 +11,7 @@ import GHC.Generics (Generic)
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 
 import Agda.Utils.Impossible
 

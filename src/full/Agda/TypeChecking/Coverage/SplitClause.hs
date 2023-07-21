@@ -12,12 +12,35 @@ import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Internal hiding (DataOrRecord(..))
 
 import Agda.TypeChecking.Coverage.Match
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Records
+import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Telescope.Path
+import Agda.TypeChecking.MetaVars
+import Agda.TypeChecking.Warnings
+
+import Agda.Interaction.Options
+
+import Agda.Utils.Either
+import Agda.Utils.Functor
+import Agda.Utils.List
+import Agda.Utils.Maybe
+import Agda.Utils.Monad
+import Agda.Utils.Null
+import Agda.Utils.Permutation
+import Agda.Utils.Singleton
+import Agda.Utils.Size
+import Agda.Utils.WithDefault
+
+import Agda.Utils.Impossible
+
 
 data SplitClause = SClause
   { scTel    :: Telescope

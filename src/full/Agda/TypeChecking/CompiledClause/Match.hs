@@ -17,7 +17,7 @@ import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Syntax.Common.Pretty (prettyShow)
 
 import Agda.Utils.Impossible
 
