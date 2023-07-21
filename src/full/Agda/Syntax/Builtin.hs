@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | This module defines the names of all builtin and primitives used in Agda.
 --
 -- See "Agda.TypeChecking.Monad.Builtin"

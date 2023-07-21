@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 module Agda.TypeChecking.LevelConstraints ( simplifyLevelConstraint ) where
 

@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Strict tries (based on "Data.Map.Strict" and "Agda.Utils.Maybe.Strict").
 
 module Agda.Utils.Trie

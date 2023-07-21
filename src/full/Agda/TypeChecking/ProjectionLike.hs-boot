@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.TypeChecking.ProjectionLike where
 
 import Agda.Syntax.Abstract.Name (QName)

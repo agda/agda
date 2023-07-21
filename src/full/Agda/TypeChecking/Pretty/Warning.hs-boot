@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.TypeChecking.Pretty.Warning where
 
 import Agda.Interaction.Options.Warnings (WarningName)

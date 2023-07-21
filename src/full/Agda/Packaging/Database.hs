@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.Packaging.Database where
 -- FIXME: proper exports
 {-

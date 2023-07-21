@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Expand environment variables in strings
 module Agda.Utils.Environment ( expandEnvironmentVariables ) where

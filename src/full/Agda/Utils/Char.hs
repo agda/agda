@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- |
 -- Agda strings uses Data.Text [1], which can only represent unicode scalar values [2], excluding

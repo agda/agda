@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Lenses for 'CommandLineOptions' and 'PragmaOptions'.
 --
 --   Add as needed.

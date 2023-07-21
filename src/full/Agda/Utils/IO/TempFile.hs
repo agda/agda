@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Common syntax highlighting functions for Emacs and JSON
 
 module Agda.Utils.IO.TempFile

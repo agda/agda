@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.Compiler.Treeless.Simplify (simplifyTTerm) where
 
 import Control.Arrow        ( (***), second )

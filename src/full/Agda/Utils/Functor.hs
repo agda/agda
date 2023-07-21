@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Utilities for functors.
 
 module Agda.Utils.Functor

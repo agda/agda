@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Extract all names and meta-variables from things.
 
 module Agda.Syntax.Internal.Names where

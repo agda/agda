@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE NondecreasingIndentation #-}
 module Agda.TypeChecking.Lock where
 

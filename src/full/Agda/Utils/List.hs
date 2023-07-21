@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Utility functions for lists.
 
 module Agda.Utils.List where

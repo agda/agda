@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Stuff for sized types that does not require modules
 --   "Agda.TypeChecking.Reduce" or "Agda.TypeChecking.Constraints"

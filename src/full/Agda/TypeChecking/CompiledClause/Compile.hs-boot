@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.TypeChecking.CompiledClause.Compile where
 
 import Agda.Syntax.Internal

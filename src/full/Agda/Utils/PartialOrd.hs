@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE CPP #-}
 module Agda.Utils.PartialOrd where
 

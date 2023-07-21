@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 ------------------------------------------------------------------------
 -- | Parser combinators with support for left recursion, following
 -- Johnson\'s \"Memoization in Top-Down Parsing\".

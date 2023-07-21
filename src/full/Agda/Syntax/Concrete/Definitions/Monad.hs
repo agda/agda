@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.Syntax.Concrete.Definitions.Monad where
 
 import Control.Monad        ( unless )

@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Case trees.
 --
 --   After coverage checking, pattern matching is translated

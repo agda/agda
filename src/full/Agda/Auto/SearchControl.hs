@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Agda.Auto.SearchControl where

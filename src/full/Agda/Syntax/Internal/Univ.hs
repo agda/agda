@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE DeriveAnyClass             #-}
 
 -- | Kinds of standard universes: @Prop@, @Type@, @SSet@.

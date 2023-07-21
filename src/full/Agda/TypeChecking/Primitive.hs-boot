@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.TypeChecking.Primitive where
 
 import Data.Map (Map)

@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-
 {-| Pretty printer for the concrete syntax.
 -}
 module Agda.Syntax.Concrete.Pretty

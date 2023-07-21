@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-| Choice of Unicode or ASCII glyphs.
 -}
 module Agda.Syntax.Concrete.Glyph

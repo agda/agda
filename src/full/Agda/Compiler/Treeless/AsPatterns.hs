@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.Compiler.Treeless.AsPatterns (recoverAsPatterns) where
 
 import Control.Monad.Reader

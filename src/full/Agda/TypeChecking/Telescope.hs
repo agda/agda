@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE ViewPatterns #-}
 
 module Agda.TypeChecking.Telescope where

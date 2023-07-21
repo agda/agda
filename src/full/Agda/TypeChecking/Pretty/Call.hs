@@ -1,7 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-
-
 module Agda.TypeChecking.Pretty.Call where
 
 import Prelude hiding ( null )

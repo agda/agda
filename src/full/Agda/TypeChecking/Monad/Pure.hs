@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | A typeclass collecting all 'pure' typechecking operations
 -- | (i.e. ones that do not modify the typechecking state, throw or
 -- | catch errors, or do IO other than debug printing).

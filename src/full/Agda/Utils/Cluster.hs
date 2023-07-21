@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE CPP #-}
 
 -- | Create clusters of non-overlapping things.

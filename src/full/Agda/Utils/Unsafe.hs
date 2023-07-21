@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE MagicHash #-}
 module Agda.Utils.Unsafe (unsafeComparePointers) where
 

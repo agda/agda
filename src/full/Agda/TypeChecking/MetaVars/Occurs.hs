@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-
 {-# LANGUAGE NondecreasingIndentation  #-}
 
 {- | The occurs check for unification.  Does pruning on the fly.

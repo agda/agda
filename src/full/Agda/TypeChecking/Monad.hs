@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.TypeChecking.Monad
     ( module Agda.TypeChecking.Monad.Base
     , module Agda.TypeChecking.Monad.Builtin
