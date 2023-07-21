@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 {-| Definitions for fixity, precedence levels, and declared syntax.
 -}

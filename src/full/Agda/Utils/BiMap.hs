@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Partly invertible finite maps.
 --
 -- Time complexities are given under the assumption that all relevant

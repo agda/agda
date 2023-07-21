@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- | This module contains the rules for Agda's sort system viewed as a pure

@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE PatternSynonyms #-}
 
 -- | The treeless syntax is intended to be used as input for the compiler backends.

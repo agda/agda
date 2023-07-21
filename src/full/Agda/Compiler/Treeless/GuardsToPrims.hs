@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Translates guard alternatives to if-then-else cascades.
 --
 -- The builtin translation must be run before this transformation.

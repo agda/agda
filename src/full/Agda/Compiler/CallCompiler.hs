@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 ------------------------------------------------------------------------
 -- | A command which calls a compiler

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Function for generating highlighted, hyperlinked HTML from Agda
 -- sources.

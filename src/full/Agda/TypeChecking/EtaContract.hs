@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Compute eta short normal forms.
 module Agda.TypeChecking.EtaContract where

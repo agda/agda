@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Extend 'Data.Maybe' by common operations for the 'Maybe' type.
 --
 --   Note: since this module is usually imported unqualified,

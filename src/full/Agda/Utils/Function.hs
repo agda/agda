@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE RebindableSyntax #-}
 
 module Agda.Utils.Function where

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 ------------------------------------------------------------------------
 -- Pretty-printing of Haskell modules

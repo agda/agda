@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-
 {-# LANGUAGE NondecreasingIndentation #-}
 
 {-| Compile-time irrelevance.
@@ -76,11 +75,7 @@ variable rule:
 
 module Agda.TypeChecking.Irrelevance where
 
-import Control.Arrow (second)
-
 import Control.Monad.Except
-
-import qualified Data.Map as Map
 
 import Agda.Interaction.Options
 

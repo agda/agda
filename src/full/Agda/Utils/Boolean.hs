@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Boolean algebras and types isomorphic to 'Bool'.
 --
 -- There are already solutions for 'Boolean' algebras in the Haskell ecosystem,

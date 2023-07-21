@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-| This module contains the building blocks used to construct the lexer.
 -}
 module Agda.Syntax.Parser.LexActions

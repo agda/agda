@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- RETIRED
 
 -- | Termination checker, based on

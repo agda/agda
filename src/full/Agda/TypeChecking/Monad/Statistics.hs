@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Collect statistics.
 
 module Agda.TypeChecking.Monad.Statistics

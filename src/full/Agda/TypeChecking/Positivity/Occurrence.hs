@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Occurrences.
 
 module Agda.TypeChecking.Positivity.Occurrence

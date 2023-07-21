@@ -9,7 +9,6 @@ import Prelude hiding (null)
 import Control.Arrow          ( first )
 import Control.Monad          ( (<=<), (>=>), forM, filterM, guard )
 import Control.Monad.Except
-import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Identity
 import Control.Monad.Trans.Maybe
@@ -48,7 +47,6 @@ import Agda.Syntax.Fixity(Precedence(..), argumentCtx_)
 import Agda.Syntax.Parser
 
 import Agda.TheTypeChecker
-import Agda.TypeChecking.ReconstructParameters
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Errors ( getAllWarnings, stringTCErr, Verbalize(..) )
@@ -66,6 +64,7 @@ import Agda.TypeChecking.Pretty ( PrettyTCM, prettyTCM )
 import Agda.TypeChecking.Pretty.Constraint (prettyRangeConstraint)
 import Agda.TypeChecking.IApplyConfluence
 import Agda.TypeChecking.Primitive
+import Agda.TypeChecking.ProjectionLike (reduceProjectionLike)
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.CheckInternal
@@ -84,7 +83,6 @@ import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
-import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty as P
@@ -93,8 +91,6 @@ import Agda.Utils.Size
 import Agda.Utils.String
 
 import Agda.Utils.Impossible
-import qualified Agda.Utils.SmallSet as SmallSet
-import Agda.TypeChecking.ProjectionLike (reduceProjectionLike)
 
 -- | Parses an expression.
 

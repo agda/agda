@@ -1,10 +1,10 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 module Agda.TypeChecking.Irrelevance where
 
 import Agda.Syntax.Internal (LensSort)
 
-import Agda.TypeChecking.Monad.Base (MonadTCEnv, HasOptions, MonadBlock)
-import Agda.TypeChecking.Monad.Debug (MonadDebug)
+import Agda.TypeChecking.Monad.Base (MonadBlock)
 import {-# SOURCE #-} Agda.TypeChecking.Pretty (PrettyTCM)
 import Agda.TypeChecking.Monad.Pure (PureTCM)
 
