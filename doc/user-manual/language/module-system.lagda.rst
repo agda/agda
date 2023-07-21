@@ -299,3 +299,13 @@ to make the type checker able to figure out that you wanted the natural number s
 
 Also record declarations define a corresponding module, see
 :ref:`record-modules`.
+
+References
+----------
+
+The initial design of Agda 2 module system is covered
+in `Ulf Norell thesis <https://www.cse.chalmers.se/~ulfn/papers/thesis.pdf>`_.
+
+Survey on the module system implementation and its current
+semantics and performance problems was done recently (2023)
+by `Ivar de Bruin <https://repository.tudelft.nl/islandora/object/uuid:98b8fbf5-33f0-4470-88b0-39a9d526b115?collection=education>`_.
