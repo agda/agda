@@ -1,3 +1,6 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
+
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- | This module contains the rules for Agda's sort system viewed as a pure
@@ -31,14 +34,12 @@ import Agda.Interaction.Options (optCumulativity, optRewriting)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.MetaVars
 
 import {-# SOURCE #-} Agda.TypeChecking.Constraints () -- instance only
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars () -- instance only
 
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Builtin (HasBuiltins)
 import Agda.TypeChecking.Monad.Constraints (addConstraint, MonadConstraint)
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
@@ -52,10 +53,9 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
-import Agda.Utils.Impossible
-import Agda.Utils.Lens
 import Agda.Utils.Monad
-import Agda.Utils.Either
+
+import Agda.Utils.Impossible
 
 -- | Infer the sort of another sort. If we can compute the bigger sort
 --   straight away, return that. Otherwise, return @UnivSort s@ and add a

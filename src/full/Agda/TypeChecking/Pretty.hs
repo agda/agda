@@ -10,14 +10,12 @@ import Prelude hiding ( null )
 import Control.Applicative  (liftA2)
 import Control.Monad
 import Control.Monad.Except
-import Control.Monad.Reader (ReaderT)
-import Control.Monad.State  (StateT)
 
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe
-import Data.String
+import Data.String    ()
 import Data.Semigroup (Semigroup((<>)))
 import qualified Data.Foldable as Fold
 

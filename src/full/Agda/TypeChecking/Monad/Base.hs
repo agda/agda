@@ -51,7 +51,6 @@ import Data.HashSet (HashSet)
 import Data.Semigroup ( Semigroup, (<>)) --, Any(..) )
 import Data.String
 import Data.Text (Text)
-import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 
 import Data.IORef
@@ -64,7 +63,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Builtin (SomeBuiltin, BuiltinId, PrimitiveId)
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Definitions
-  (NiceDeclaration, DeclarationWarning, dwWarning, declarationWarningName)
+  (NiceDeclaration, DeclarationWarning, declarationWarningName)
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.MetaVars

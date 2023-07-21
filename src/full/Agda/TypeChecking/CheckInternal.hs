@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- Initially authored by Andreas, 2013-10-22.
 
@@ -14,7 +15,6 @@ module Agda.TypeChecking.CheckInternal
   , Action(..), defaultAction, eraseUnusedAction
   ) where
 
-import Control.Arrow (first, second)
 import Control.Monad
 
 import Agda.Syntax.Common
@@ -22,23 +22,18 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Datatypes -- (getConType, getFullyAppliedConType)
-import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Level
-import Agda.TypeChecking.Modalities (checkModalityArgs)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.ProjectionLike (elimView, ProjEliminator(..))
 import Agda.TypeChecking.Records (shouldBeProjectible)
-import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Sort
 import Agda.TypeChecking.Telescope
 
-
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor (($>))
 import Agda.Utils.Maybe
-import Agda.Utils.Monad (unlessM)
 import Agda.Utils.Pretty  (prettyShow)
 import Agda.Utils.Size
 

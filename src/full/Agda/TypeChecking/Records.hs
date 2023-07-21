@@ -35,10 +35,8 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
 import {-# SOURCE #-} Agda.TypeChecking.Primitive.Cubical.Base (isCubicalSubtype)
-
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike (eligibleForProjectionLike)
 
-import Agda.Utils.Either
 import Agda.Utils.Empty
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor (for, ($>), (<&>))
@@ -52,7 +50,6 @@ import Agda.Utils.Singleton
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
-import qualified Data.Type.Bool as Bool
 
 mkCon :: ConHead -> ConInfo -> Args -> Term
 mkCon h info args = Con h info (map Apply args)

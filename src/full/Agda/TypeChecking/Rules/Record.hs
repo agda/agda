@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE NondecreasingIndentation   #-}
 
 module Agda.TypeChecking.Rules.Record where
@@ -14,13 +16,11 @@ import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as Info
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Primitive
-import Agda.TypeChecking.Rewriting.Confluence
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Reduce
@@ -45,12 +45,10 @@ import Agda.Utils.List (headWithDefault)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Permutation
 import Agda.Utils.POMonoid
 import Agda.Utils.Pretty (render)
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
-import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
 

@@ -1,8 +1,4 @@
-
 module Agda.TypeChecking.Pretty where
-
-import Control.Monad.Reader (ReaderT)
-import Control.Monad.State  (StateT)
 
 import Data.String (IsString)
 import Data.Semigroup (Semigroup)
@@ -11,12 +7,8 @@ import Agda.Syntax.Common (NameId)
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad.Base
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Builtin
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Context (MonadAddContext)
-import Agda.TypeChecking.Monad.Debug (MonadDebug)
 import {-# SOURCE #-} Agda.TypeChecking.Monad.MetaVars (MonadInteractionPoints)
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Pure (PureTCM)
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Signature (HasConstInfo)
 
 import Agda.Utils.Null (Null)
 import Agda.Utils.Pretty (Doc)

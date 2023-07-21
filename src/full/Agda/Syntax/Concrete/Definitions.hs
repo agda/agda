@@ -83,8 +83,6 @@ import Agda.Syntax.Concrete.Definitions.Errors
 import Agda.Syntax.Concrete.Definitions.Monad
 import Agda.Syntax.Concrete.Definitions.Types
 
-import Agda.Interaction.Options.Warnings
-
 import Agda.Utils.AffineHole
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.Functor
@@ -94,7 +92,6 @@ import Agda.Utils.List1 (List1, pattern (:|), (<|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
-import Agda.Utils.Pretty
 import Agda.Utils.Singleton
 import Agda.Utils.Three
 import Agda.Utils.Tuple

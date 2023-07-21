@@ -52,7 +52,6 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.SizedTypes ( sizeType )
 import Agda.TypeChecking.Monad.State
@@ -60,7 +59,6 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Call
 import Agda.TypeChecking.Pretty.Warning
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Telescope ( ifPiType )
 import Agda.TypeChecking.Reduce (instantiate)
 
 import Agda.Utils.FileName

@@ -25,7 +25,7 @@ import Agda.Syntax.Parser.Alex
 import Agda.Syntax.Parser.Monad
 
 import Agda.Utils.Null (ifNull)
-import Agda.Utils.Maybe (caseMaybeM, fromMaybeM)
+import Agda.Utils.Maybe (fromMaybeM)
 
 {--------------------------------------------------------------------------
     The look-ahead monad

@@ -1,6 +1,8 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 {-| Primitive functions, such as addition on builtin integers.
 -}
+
 module Agda.TypeChecking.Primitive
        ( module Agda.TypeChecking.Primitive.Base
        , module Agda.TypeChecking.Primitive.Cubical
@@ -8,7 +10,6 @@ module Agda.TypeChecking.Primitive
        ) where
 
 import Data.Char
-import Data.Function (on)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -19,7 +20,6 @@ import Data.Word
 
 import qualified Agda.Interaction.Options.Lenses as Lens
 
-import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Nat)
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic (TermLike(..))
@@ -36,13 +36,11 @@ import Agda.TypeChecking.Level
 import Agda.TypeChecking.Quote (quoteTermWithKit, quoteTypeWithKit, quoteDomWithKit, quotingKit)
 import Agda.TypeChecking.Primitive.Base
 import Agda.TypeChecking.Primitive.Cubical
-import Agda.TypeChecking.Primitive.Cubical.Base
 import Agda.TypeChecking.Warnings
 
 import Agda.Utils.Char
 import Agda.Utils.Float
 import Agda.Utils.List
-import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Maybe (fromMaybeM)
 import Agda.Utils.Monad
 import Agda.Utils.Pretty

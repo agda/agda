@@ -17,16 +17,12 @@ import Control.Monad.Except
 import Control.Monad.Trans ( lift )
 import Control.Exception
 
-import Data.String
+import Data.String ()
 
-import Data.Bifunctor ( second )
-import Data.Either ( partitionEithers )
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import qualified Data.List as List
 import Data.Foldable hiding (null)
-
-import Agda.Interaction.Options ( optCubical )
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -49,13 +45,10 @@ import Agda.Utils.Functor
 
 import Agda.Utils.Impossible
 import Agda.Utils.Maybe
-import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Tuple
 import Agda.Utils.Size
-import Agda.Utils.BoolSet (BoolSet)
 import qualified Agda.Utils.Pretty as P
-import qualified Agda.Utils.BoolSet as BoolSet
 
 import Agda.TypeChecking.Primitive.Cubical.HCompU
 import Agda.TypeChecking.Primitive.Cubical.Glue

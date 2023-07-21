@@ -4,7 +4,6 @@ module Agda.Syntax.Abstract.Views where
 import Prelude hiding (null)
 
 import Control.Applicative ( Const(Const), getConst )
-import Control.Arrow (first)
 import Control.Monad.Identity
 
 import Data.Foldable (foldMap)

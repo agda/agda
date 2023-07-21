@@ -13,7 +13,6 @@ module Agda.Interaction.Highlighting.FromAbstract
 import Prelude hiding (null)
 
 import Control.Applicative
-import Control.Monad         ( (<=<) )
 import Control.Monad.Reader  ( MonadReader(..), asks, Reader, runReader )
 
 import qualified Data.Map      as Map
@@ -40,7 +39,6 @@ import           Agda.Syntax.TopLevelModuleName
 import Agda.TypeChecking.Monad
   hiding (ModuleInfo, MetaInfo, Primitive, Constructor, Record, Function, Datatype)
 
-import           Agda.Utils.FileName
 import           Agda.Utils.Function
 import           Agda.Utils.Functor
 import           Agda.Utils.List                     ( initLast1 )

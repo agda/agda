@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-|
     Desugaring for do-notation. Uses whatever `_>>=_` and `_>>_` happen to be
     in scope.
@@ -25,8 +27,6 @@
  -}
 module Agda.Syntax.DoNotation (desugarDoNotation) where
 
-import Data.Maybe
-
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Concrete
@@ -35,7 +35,6 @@ import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 import Agda.TypeChecking.Monad
 
-import Agda.Utils.List   ( initMaybe )
 import Agda.Utils.List1  ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Pretty ( prettyShow )

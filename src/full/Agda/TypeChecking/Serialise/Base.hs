@@ -5,9 +5,6 @@
 
 module Agda.TypeChecking.Serialise.Base where
 
-import Control.Exception (evaluate)
-
-import Control.Monad.Catch (catchAll)
 import Control.Monad.Except
 import Control.Monad.IO.Class     ( MonadIO(..) )
 import Control.Monad.Reader

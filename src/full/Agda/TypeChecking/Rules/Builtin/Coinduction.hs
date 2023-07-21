@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 ------------------------------------------------------------------------
 -- | Handling of the INFINITY, SHARP and FLAT builtins.
@@ -18,7 +19,6 @@ import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Primitive
-import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rules.Builtin

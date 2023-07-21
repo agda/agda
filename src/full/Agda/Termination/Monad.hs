@@ -30,7 +30,6 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Literal
-import Agda.Syntax.Position (noRange)
 
 import Agda.Termination.CutOff
 import Agda.Termination.Order (Order,le,unknown)

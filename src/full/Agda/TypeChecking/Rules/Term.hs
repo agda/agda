@@ -6,7 +6,6 @@ import Prelude hiding ( null )
 
 import Control.Monad         ( (<=<), forM )
 import Control.Monad.Except
-import Control.Monad.Reader
 
 import Data.Maybe
 import Data.Either (partitionEithers, lefts)
@@ -72,7 +71,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Application
 import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List
 import Agda.Utils.List1  ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe

@@ -1,5 +1,7 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Functions for abstracting terms over other terms.
+
 module Agda.TypeChecking.Abstract where
 
 import Control.Monad
@@ -13,7 +15,6 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin ( equalityUnview, primEqualityName )
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.Conversion

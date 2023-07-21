@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.With where
@@ -7,7 +9,6 @@ import Prelude hiding ((!!))
 import Control.Monad
 import Control.Monad.Writer (WriterT, runWriterT, tell)
 
-import Data.Either
 import qualified Data.List as List
 import Data.Maybe
 import Data.Foldable ( foldrM )

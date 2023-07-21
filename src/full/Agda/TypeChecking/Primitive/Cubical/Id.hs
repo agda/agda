@@ -1,4 +1,7 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Implementation of the primitives relating to Cubical identity types.
+
 module Agda.TypeChecking.Primitive.Cubical.Id
   ( -- * General elimination form
     primIdElim'
@@ -12,34 +15,29 @@ module Agda.TypeChecking.Primitive.Cubical.Id
   )
   where
 
-import Control.Monad.Except
-
-import Agda.Utils.Impossible (__IMPOSSIBLE__)
-import Agda.Utils.Monad
-
 import qualified Data.IntMap as IntMap
 import Data.Traversable
 import Data.Maybe
 
+import Agda.Syntax.Common
+  ( Cubical(..), Arg(..), defaultArgInfo, defaultArg )
+import Agda.Syntax.Internal
+
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Env
-import Agda.TypeChecking.Substitute (apply, sort, listS, applySubst)
-import Agda.TypeChecking.Reduce (reduceB', reduce')
-import Agda.TypeChecking.Names
-  (runNamesT, runNames, cl, lam, ilam, open)
-
-import Agda.Interaction.Options.Base (optCubical)
-
-import Agda.Syntax.Common (Cubical(..), Arg(..), defaultArgInfo, hasQuantity0, defaultArg)
-
-import Agda.TypeChecking.Primitive.Base
-  ((-->), nPi', pPi', hPi', el, el', el's, (<@>), (<#>), (<..>), argN)
-
-import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Debug (__IMPOSSIBLE_VERBOSE__)
 
+import Agda.TypeChecking.Names
+  ( runNamesT, runNames, cl, lam, ilam, open )
+import Agda.TypeChecking.Primitive.Base
+  ( (-->), nPi', hPi', el, el', el's, (<@>), (<#>), (<..>), argN )
 import Agda.TypeChecking.Primitive.Cubical.Base
+import Agda.TypeChecking.Reduce
+  ( reduceB' )
+import Agda.TypeChecking.Substitute
+  ( apply, sort, listS, applySubst )
+
+import Agda.Utils.Impossible (__IMPOSSIBLE__)
 
 -- | Primitive elimination rule for the cubical identity types. Unlike
 -- J, @idElim@ makes explicit the structure of Swan's identity types as

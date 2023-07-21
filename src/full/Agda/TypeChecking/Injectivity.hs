@@ -65,8 +65,6 @@ import Agda.TypeChecking.Irrelevance (isIrrelevantOrPropM)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope.Path
-import Agda.TypeChecking.Primitive.Base
-import Agda.TypeChecking.Primitive.Cubical
 import Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Conversion

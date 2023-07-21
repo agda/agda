@@ -2,7 +2,6 @@
 
 module Agda.TypeChecking.Monad.State where
 
-
 import qualified Control.Exception as E
 
 import Control.Monad       (void, when)
@@ -39,7 +38,6 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.CompiledClause
 
 import qualified Agda.Utils.BiMap as BiMap
-import Agda.Utils.Hash
 import Agda.Utils.Lens
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad (bracket_)

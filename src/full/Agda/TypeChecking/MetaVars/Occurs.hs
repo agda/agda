@@ -1,3 +1,6 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
+
 {-# LANGUAGE NondecreasingIndentation  #-}
 
 {- | The occurs check for unification.  Does pruning on the fly.
@@ -40,13 +43,11 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Lazy
 import Agda.TypeChecking.Free.Reduce
-import Agda.TypeChecking.Level
 import Agda.TypeChecking.ProjectionLike
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
-import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Either
 import Agda.Utils.Function
