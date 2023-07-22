@@ -299,6 +299,10 @@ ghcPreCompile flags = do
       HashSet.fromList $
       catMaybes builtins
 
+  let defArity q = arity . defType <$> getConstInfo q
+  listArity <- traverse defArity mlist
+  maybeArity <- traverse defArity mmaybe
+
   return $ GHCEnv
     { ghcEnvOpts        = ghcOpts
     , ghcEnvBool        = mbool
@@ -330,6 +334,8 @@ ghcPreCompile flags = do
     , ghcEnvId          = mid
     , ghcEnvConId       = mconid
     , ghcEnvIsTCBuiltin = istcbuiltin
+    , ghcEnvListArity   = listArity
+    , ghcEnvMaybeArity  = maybeArity
     }
 
 ghcPostCompile ::
