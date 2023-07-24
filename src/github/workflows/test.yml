@@ -241,44 +241,54 @@ jobs:
 
     - name: "Suite of successful tests: mini-library Common"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" common
+      if: always() # run test even if a previous test failed
       #     8s (2022-06-17)
 
     - name: "Suite of successful tests"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" succeed
+      if: always() # run test even if a previous test failed
       # 4m 14s (2022-06-17)
 
     - name: "Suite of failing tests"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" fail
+      if: always() # run test even if a previous test failed
       # 2m  0s (2022-06-17)
 
     - name: "User manual (test)"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" user-manual-test
+      if: always() # run test even if a previous test failed
       #    13s (2022-06-17)
 
     - name: "Suite of examples"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" examples
+      if: always() # run test even if a previous test failed
       #    41s (2022-06-17)
 
     - name: "Suite of interactive tests"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" interactive
+      if: always() # run test even if a previous test failed
       #     0s (2022-06-17)
 
     - name: "Successful tests using Agda as a Haskell library"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" api-test
+      if: always() # run test even if a previous test failed
       #    21s (2022-06-17)
 
     - name: "Internal test suite"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" internal-tests
+      if: always() # run test even if a previous test failed
       #    11s (2022-06-17)
 
     - name: "Benchmark"
       run: |
         make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" benchmark-without-logs
         make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" benchmark-summary
+      if: always() # run test even if a previous test failed
       # 6m  3s (2022-06-17)
 
     - name: "Compiler tests"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" compiler-test
+      if: always() # run test even if a previous test failed
       # 9m 34s (2022-06-17)
 
 
@@ -340,9 +350,11 @@ jobs:
 
     - name: "Testing the Emacs mode"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" testing-emacs-mode
+      if: always() # run test even if a previous test failed
 
     - name: "Suite of interaction tests"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" interaction
+      if: always() # run test even if a previous test failed
       # 2m 39s (2022-06-17)
       # This test has erratic outages (#5619), so we place it late in the queue.
 
