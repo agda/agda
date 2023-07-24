@@ -7,7 +7,7 @@ module Agda.TypeChecking.RecordPatterns
   , translateCompiledClauses
   , translateSplitTree
   , recordPatternToProjections
-  , coinductiveRecordRHSsToCopatterns
+  , recordRHSToCopatterns
   ) where
 
 import Control.Arrow          ( first, second )
@@ -211,8 +211,8 @@ mergeCatchAll cc ca = maybe cc (mappend cc) ca
 -}
 
 
--- | Transform definitions returning coinductive record values to use copatterns instead.
---   This allows termination-checking constructor-style coinduction.
+-- | Transform definitions returning record values to use copatterns instead.
+--   This allows e.g. termination-checking constructor-style coinduction.
 --
 --   For example:
 --
@@ -228,13 +228,24 @@ mergeCatchAll cc ca = maybe cc (mappend cc) ca
 --     nats n .tail = nats (1 + n)
 --   @
 --
-coinductiveRecordRHSsToCopatterns ::
-     forall m. (HasConstInfo m, PureTCM m)
+--   A change is signalled if definitional equalities might not hold after the
+--   translation, e.g. if a non-eta constructor was turned to copattern matching.
+recordRHSsToCopatterns ::
+     forall m. (MonadChange m, PureTCM m)
   => [Clause]
   -> m [Clause]
-coinductiveRecordRHSsToCopatterns cls = do
-  reportSLn "tc.inline.con" 40 $ "enter coinductiveRecordRHSsToCopatterns with " ++ show (length cls) ++ " clauses"
-  flip concatMapM cls $ \case
+recordRHSsToCopatterns cls = do
+  reportSLn "tc.inline.con" 40 $ "enter recordRHSsToCopatterns with " ++ show (length cls) ++ " clauses"
+  concatMapM recordRHSToCopatterns cls
+
+recordRHSToCopatterns ::
+     forall m. (MonadChange m, PureTCM m)
+  => Clause
+  -> m [Clause]
+recordRHSToCopatterns cl = do
+  reportSLn "tc.inline.con" 40 $ "enter recordRHSToCopatterns"
+
+  case cl of
 
     -- RHS must be fully applied coinductive constructor/record expression.
     cl@Clause{ namedClausePats = ps
@@ -246,11 +257,18 @@ coinductiveRecordRHSsToCopatterns cls = do
       , Just vs <- allApplyElims es
 
           -- Only expand constructors labelled @{-# INLINE c #-}@.
-        -> ifNotM (inlineConstructor c) (return [cl]) {-else-} do
+      -> inlineConstructor c >>= \case
+        Nothing  -> return [cl]
+        Just eta -> do
+
           mt <- traverse reduce mt
 
+          -- If it may change definitional equality,
+          -- announce that the translation actually fired.
+          unless eta tellDirty
+
           -- Iterate the translation for nested constructor rhss.
-          coinductiveRecordRHSsToCopatterns =<< do
+          recordRHSsToCopatterns =<< do
 
             -- Create one clause per projection.
             forM (zip fs vs) $ \ (f, v) -> do
@@ -275,13 +293,14 @@ coinductiveRecordRHSsToCopatterns cls = do
     cl -> return [cl]
 
   where
-    inlineConstructor :: QName -> m Bool
+    -- @Nothing@ means do not inline, @Just eta@ means inline.
+    inlineConstructor :: QName -> m (Maybe Bool)
     inlineConstructor c = getConstInfo c <&> theDef >>= \case
-      Constructor { conInline } -> do
+      Constructor { conData, conInline } -> do
         reportSLn "tc.inline.con" 80 $
           ("can" ++) $ applyUnless conInline ("not" ++) $ " inline constructor " ++ prettyShow c
-        return conInline
-      _ -> return False
+        if not conInline then return Nothing else Just <$> isEtaRecord conData
+      _ -> return Nothing
 
 -- | Transform definitions returning record expressions to use copatterns
 --   instead. This prevents terms from blowing up when reduced.

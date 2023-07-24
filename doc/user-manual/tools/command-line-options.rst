@@ -1169,6 +1169,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
      Importing a file using e.g. :option:`--cubical` into one which
      doesn't.
 
+.. option:: InlineNoExactSplit
+
+     Failed exact split after inlining a constructor, see :ref:`inline-pragma`.
+
 .. option:: InstanceNoOutputTypeName
 
      Instance arguments whose type does not end in a named or variable

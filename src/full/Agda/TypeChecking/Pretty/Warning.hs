@@ -118,6 +118,13 @@ prettyWarning = \case
            ) :
       map (nest 2 . prettyTCM . NamedClause f True) cs
 
+    InlineNoExactSplit f c -> vcat $
+      [ fsep $
+          pwords "Exact splitting is enabled, but the following clause" ++
+          pwords "is no longer a definitional equality because it was translated to a copattern match:"
+      , nest 2 . prettyTCM . NamedClause f True $ c
+      ]
+
     NotStrictlyPositive d ocs -> fsep $
       [prettyTCM d] ++ pwords "is not strictly positive, because it occurs"
       ++ [prettyTCM ocs]

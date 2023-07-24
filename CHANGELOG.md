@@ -351,6 +351,9 @@ Pragmas and options
   This form is accepted by the termination checker;
   unlike the form before inlining, it does not admit any infinite reduction sequences.
 
+  If option `--exact-split` is on, the inlining will trigger a `InlineNoExactSplit` warning for `nats`.
+  This warning can be disabled as usual, with `-WnoInlineNoExactSplit`.
+
 Library management
 ------------------
 

@@ -3,6 +3,8 @@
 -- to facilitate inlining of auxiliary function _>>_.
 
 {-# OPTIONS --guardedness #-}
+{-# OPTIONS --exact-split #-}
+{-# OPTIONS -WnoInlineNoExactSplit #-}
 
 open import Agda.Builtin.String
 open import Agda.Builtin.Unit

@@ -161,6 +161,11 @@ Example::
 
   {-# INLINE _o_ #-} -- force inlining
 
+Inlining constructor right-hand sides
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. versionadded:: 2.6.4
+
 Constructors can also be marked ``INLINE`` (for types supporting co-pattern matching)::
 
   record Stream (A : Set) : Set where
@@ -184,6 +189,8 @@ is translated to::
 which passes termination-checking.
 
 This translation only works for fully-applied constructors at the root of a function definition's right-hand side.
+
+If :option:`--exact-split` is on, the inlining will trigger a :option:`InlineNoExactSplit` warning for ``nats``.
 
 .. _non_covering-pragma:
 

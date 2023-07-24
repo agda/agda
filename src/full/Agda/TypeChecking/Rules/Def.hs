@@ -52,7 +52,7 @@ import Agda.TypeChecking.Rewriting.Confluence
 import Agda.TypeChecking.CompiledClause (CompiledClauses'(..), hasProjectionPatterns)
 import Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Primitive hiding (Nat)
-import Agda.TypeChecking.RecordPatterns ( coinductiveRecordRHSsToCopatterns )
+import Agda.TypeChecking.RecordPatterns ( recordRHSToCopatterns )
 import Agda.TypeChecking.Sort
 
 import Agda.TypeChecking.Rules.Term
@@ -72,6 +72,7 @@ import Agda.Syntax.Common.Pretty ( prettyShow )
 import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Size
 import qualified Agda.Utils.SmallSet as SmallSet
+import Agda.Utils.Update
 
 import Agda.Utils.Impossible
 
@@ -353,12 +354,22 @@ checkFunDefS t ai extlam with i name withSub cs = do
                  return (cs ++ [c], pure sys)
 
         -- Annotate the clauses with which arguments are actually used.
-        cs <- coinductiveRecordRHSsToCopatterns =<< instantiateFull {- =<< mapM rebindClause -} cs
+        cs <- instantiateFull {- =<< mapM rebindClause -} cs
         -- Andreas, 2010-11-12
         -- rebindClause is the identity, and instantiateFull eta-contracts
         -- removing this eta-contraction fixes issue 361
         -- however, Data.Star.Decoration.gmapAll no longer type-checks
         -- possibly due to missing eta-contraction!?
+
+        -- Inline copattern record constructors on demand.
+        cs <- concat <$> do
+          forM cs $ \ cl -> do
+            (cls, nonExactSplit) <- runChangeT $ recordRHSToCopatterns cl
+            when nonExactSplit do
+              -- If we inlined a non-eta constructor,
+              -- issue a warning that the clause does not hold as definitional equality.
+              warning $ InlineNoExactSplit name cl
+            return cls
 
         -- Check if the function is injective.
         -- Andreas, 2015-07-01 we do it here in order to resolve metas

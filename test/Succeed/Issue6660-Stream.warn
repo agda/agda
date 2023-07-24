@@ -1,4 +1,4 @@
-Issue6660-Stream.agda:9,16-23
+Issue6660-Stream.agda:10,16-23
 warning: -W[no]UselessPatternDeclarationForRecord
 'pattern' attribute ignored for coinductive record
 when scope checking the declaration
@@ -9,10 +9,24 @@ when scope checking the declaration
     field
       head : A
       tail : Stream A
+Issue6660-Stream.agda:18,1-26
+warning: -W[no]InlineNoExactSplit
+Exact splitting is enabled, but the following clause is no longer a
+definitional equality because it was translated to a copattern
+match:
+  nats n = n ∷ nats (1 + n)
+when checking the definition of nats
+Issue6660-Stream.agda:21,1-38
+warning: -W[no]InlineNoExactSplit
+Exact splitting is enabled, but the following clause is no longer a
+definitional equality because it was translated to a copattern
+match:
+  map f s = f (head s) ∷ map f (tail s)
+when checking the definition of map
 
 ———— All done; warnings encountered ————————————————————————
 
-Issue6660-Stream.agda:9,16-23
+Issue6660-Stream.agda:10,16-23
 warning: -W[no]UselessPatternDeclarationForRecord
 'pattern' attribute ignored for coinductive record
 when scope checking the declaration
@@ -23,3 +37,19 @@ when scope checking the declaration
     field
       head : A
       tail : Stream A
+
+Issue6660-Stream.agda:18,1-26
+warning: -W[no]InlineNoExactSplit
+Exact splitting is enabled, but the following clause is no longer a
+definitional equality because it was translated to a copattern
+match:
+  nats n = n ∷ nats (1 + n)
+when checking the definition of nats
+
+Issue6660-Stream.agda:21,1-38
+warning: -W[no]InlineNoExactSplit
+Exact splitting is enabled, but the following clause is no longer a
+definitional equality because it was translated to a copattern
+match:
+  map f s = f (head s) ∷ map f (tail s)
+when checking the definition of map

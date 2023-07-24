@@ -338,6 +338,7 @@ data PragmaOptions = PragmaOptions
       -- ^ Allow definitions by copattern matching?
   , _optPatternMatching           :: WithDefault 'True
       -- ^ Is pattern matching allowed in the current file?
+  , _optExactSplit                :: WithDefault 'False
   , _optHiddenArgumentPuns        :: WithDefault 'False
       -- ^ Should patterns of the form @{x}@ or @⦃ x ⦄@ be interpreted as puns?
   , _optEta                       :: WithDefault 'True
@@ -670,6 +671,9 @@ lensOptCopatterns f o = f (_optCopatterns o) <&> \ i -> o{ _optCopatterns = i }
 lensOptPatternMatching :: Lens' PragmaOptions _
 lensOptPatternMatching f o = f (_optPatternMatching o) <&> \ i -> o{ _optPatternMatching = i }
 
+lensOptExactSplit :: Lens' PragmaOptions _
+lensOptExactSplit f o = f (_optExactSplit o) <&> \ i -> o{ _optExactSplit = i }
+
 lensOptHiddenArgumentPuns :: Lens' PragmaOptions _
 lensOptHiddenArgumentPuns f o = f (_optHiddenArgumentPuns o) <&> \ i -> o{ _optHiddenArgumentPuns = i }
 
@@ -784,11 +788,6 @@ lensOptShowIdentitySubstitutions f o = f (_optShowIdentitySubstitutions o) <&> \
 lensOptKeepCoveringClauses :: Lens' PragmaOptions _
 lensOptKeepCoveringClauses f o = f (_optKeepCoveringClauses o) <&> \ i -> o{ _optKeepCoveringClauses = i }
 
--- Lenses for particular warnings
-
-lensOptExactSplit :: Lens' PragmaOptions Bool
-lensOptExactSplit = lensOptWarningMode . lensSingleWarning CoverageNoExactSplit_
-
 
 -- | Map a function over the long options. Also removes the short options.
 --   Will be used to add the plugin name to the plugin options.
@@ -856,6 +855,7 @@ defaultPragmaOptions = PragmaOptions
   , _optCubicalCompatible         = Default
   , _optCopatterns                = Default
   , _optPatternMatching           = Default
+  , _optExactSplit                = Default
   , _optHiddenArgumentPuns        = Default
   , _optEta                       = Default
   , _optForcing                   = Default
@@ -1389,6 +1389,12 @@ confluenceCheckFlag f o = return $ o { _optConfluenceCheck = Just f }
 noConfluenceCheckFlag :: Flag PragmaOptions
 noConfluenceCheckFlag o = return $ o { _optConfluenceCheck = Nothing }
 
+exactSplitFlag :: Bool -> Flag PragmaOptions
+exactSplitFlag b o = do
+  return $ conformWarningsToOption exactSplitWarnings (const b)
+         $ o { _optExactSplit  = Value b }
+
+
 integerArgument :: String -> String -> OptM Int
 integerArgument flag s = maybe usage return $ readMaybe s
   where
@@ -1637,11 +1643,11 @@ pragmaOptions = concat
   , pragmaFlag      "pattern-matching" lensOptPatternMatching
                     "enable pattern matching" ""
                     $ Just "disable pattern matching completely"
-
-  -- -WCoverageNoExactSplit iff --exact-split
-  , pragmaFlagBool  "exact-split" lensOptExactSplit
-                    ("synonym of -W" ++ warningName2String CoverageNoExactSplit_ ++ ": warn if not all clauses in a definition hold as definitional equalities") "(unless marked CATCHALL)"
-                    (Just $ "synonym of -Wno" ++ warningName2String CoverageNoExactSplit_ ++ ": allow clauses that are not definitional equalities without warning")
+  , [ Option []     ["exact-split"] (NoArg $ exactSplitFlag True)
+                    "require all clauses in a definition to hold as definitional equalities (unless marked CATCHALL)"
+    , Option []     ["no-exact-split"] (NoArg $ exactSplitFlag False)
+                    "do not require all clauses in a definition to hold as definitional equalities (default)"
+    ]
   , pragmaFlag      "hidden-argument-puns" lensOptHiddenArgumentPuns
                     "interpret the patterns {x} and {{x}} as puns" ""
                     Nothing
