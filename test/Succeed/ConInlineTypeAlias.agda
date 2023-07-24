@@ -1,4 +1,5 @@
 {-# OPTIONS --cubical #-}
+
 module ConInlineTypeAlias where
 
 open import Agda.Builtin.Cubical.Path

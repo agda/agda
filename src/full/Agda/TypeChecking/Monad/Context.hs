@@ -43,6 +43,7 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Size
+import Agda.Utils.Update
 
 import Agda.Utils.Impossible
 
@@ -200,6 +201,7 @@ defaultAddCtx x a ret =
 withFreshName_ :: (MonadAddContext m) => ArgName -> (Name -> m a) -> m a
 withFreshName_ = withFreshName noRange
 
+instance MonadAddContext m => MonadAddContext (ChangeT m)
 instance MonadAddContext m => MonadAddContext (ExceptT e m)
 instance MonadAddContext m => MonadAddContext (IdentityT m)
 instance MonadAddContext m => MonadAddContext (MaybeT m)

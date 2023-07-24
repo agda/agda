@@ -92,6 +92,7 @@ instance EmbPrj Warning where
     NotAffectedByOpaque                   -> icodeN 43 NotAffectedByOpaque
     UnfoldTransparentName nm              -> icodeN 44 UnfoldTransparentName nm
     UselessOpaque                         -> icodeN 45 UselessOpaque
+    InlineNoExactSplit a b                -> icodeN 46 InlineNoExactSplit a b
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -140,6 +141,7 @@ instance EmbPrj Warning where
     [43]                 -> valuN NotAffectedByOpaque
     [44, a]              -> valuN UnfoldTransparentName a
     [45]                 -> valuN UselessOpaque
+    [46, a, b]           -> valuN InlineNoExactSplit a b
     _ -> malformed
 
 instance EmbPrj OptionWarning where
@@ -299,8 +301,8 @@ instance EmbPrj InfectiveCoinfective where
     valu _   = malformed
 
 instance EmbPrj PragmaOptions where
-  icod_    (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll) =
-    icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll
+  icod_    (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm) =
+    icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm
 
   value = valueN PragmaOptions
 
@@ -429,6 +431,7 @@ instance EmbPrj WarningName where
     NotAffectedByOpaque_                         -> 98
     UnfoldTransparentName_                       -> 99
     UselessOpaque_                               -> 100
+    InlineNoExactSplit_                          -> 101
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -532,6 +535,7 @@ instance EmbPrj WarningName where
     98  -> return NotAffectedByOpaque_
     99  -> return UnfoldTransparentName_
     100 -> return UselessOpaque_
+    101 -> return InlineNoExactSplit_
     _   -> malformed
 
 

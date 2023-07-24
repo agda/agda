@@ -416,6 +416,7 @@ warningHighlighting' b w = case tcWarning w of
   UnreachableClauses _ rs    -> foldMap deadcodeHighlighting rs
   CoverageIssue{}            -> coverageErrorHighlighting $ getRange w
   CoverageNoExactSplit{}     -> catchallHighlighting $ getRange w
+  InlineNoExactSplit{}       -> catchallHighlighting $ getRange w
   UnsolvedConstraints cs     -> if b then constraintsHighlighting [] cs else mempty
   UnsolvedMetaVariables rs   -> if b then metasHighlighting rs          else mempty
   AbsurdPatternRequiresNoRHS{} -> deadcodeHighlighting w

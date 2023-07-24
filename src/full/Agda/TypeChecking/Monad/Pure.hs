@@ -21,6 +21,7 @@ import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Signature
 
 import Agda.Utils.ListT
+import Agda.Utils.Update
 
 class
   ( HasBuiltins m
@@ -34,6 +35,7 @@ class
 
 instance PureTCM TCM where
 instance PureTCM m => PureTCM (BlockT m)
+instance PureTCM m => PureTCM (ChangeT m)
 instance PureTCM m => PureTCM (ExceptT e m)
 instance PureTCM m => PureTCM (IdentityT m)
 instance PureTCM m => PureTCM (ListT m)

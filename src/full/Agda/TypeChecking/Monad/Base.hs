@@ -4084,6 +4084,9 @@ data Warning
   | CoverageIssue            QName [(Telescope, [NamedArg DeBruijnPattern])]
   -- ^ `CoverageIssue f pss` means that `pss` are not covered in `f`
   | CoverageNoExactSplit     QName [Clause]
+  | InlineNoExactSplit       QName Clause
+    -- ^ 'Clause' was turned into copattern matching clause(s) by an @{-# INLINE constructor #-}@
+    --   and thus is not a definitional equality any more.
   | NotStrictlyPositive      QName (Seq OccursWhere)
 
   | UnsolvedMetaVariables    [Range]  -- ^ Do not use directly with 'warning'
@@ -4235,6 +4238,7 @@ warningName = \case
   CantGeneralizeOverSorts{}    -> CantGeneralizeOverSorts_
   CoverageIssue{}              -> CoverageIssue_
   CoverageNoExactSplit{}       -> CoverageNoExactSplit_
+  InlineNoExactSplit{}         -> InlineNoExactSplit_
   DeprecationWarning{}         -> DeprecationWarning_
   EmptyRewritePragma           -> EmptyRewritePragma_
   EmptyWhere                   -> EmptyWhere_

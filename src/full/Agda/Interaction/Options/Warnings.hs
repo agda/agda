@@ -12,6 +12,7 @@ module Agda.Interaction.Options.Warnings
        , unsolvedWarnings
        , incompleteMatchWarnings
        , errorWarnings
+       , exactSplitWarnings
        , defaultWarningMode
        , WarningModeError(..)
        , prettyWarningModeError
@@ -165,11 +166,19 @@ allWarnings :: Set WarningName
 allWarnings = Set.fromList [minBound..maxBound]
 
 usualWarnings :: Set WarningName
-usualWarnings = allWarnings Set.\\ Set.fromList
-              [ UnknownFixityInMixfixDecl_
-              , CoverageNoExactSplit_
-              , ShadowingInTelescope_
-              ]
+usualWarnings =
+  allWarnings Set.\\ exactSplitWarnings Set.\\ Set.fromList
+    [ UnknownFixityInMixfixDecl_
+    , ShadowingInTelescope_
+    ]
+
+-- | Warnings enabled by @--exact-split@.
+--
+exactSplitWarnings :: Set WarningName
+exactSplitWarnings = Set.fromList
+  [ CoverageNoExactSplit_
+  , InlineNoExactSplit_
+  ]
 
 -- | The @WarningName@ data enumeration is meant to have a one-to-one correspondance
 -- to existing warnings in the codebase.
@@ -227,6 +236,7 @@ data WarningName
   | ClashesViaRenaming_                -- issue #4154
   | CoverageIssue_
   | CoverageNoExactSplit_
+  | InlineNoExactSplit_
   | DeprecationWarning_
   | DuplicateUsing_
   | FixityInRenamingModule_
@@ -404,6 +414,7 @@ warningNameDescription = \case
   ClashesViaRenaming_              -> "Clashes introduced by `renaming'."  -- issue #4154
   CoverageIssue_                   -> "Failed coverage checks."
   CoverageNoExactSplit_            -> "Failed exact split checks."
+  InlineNoExactSplit_              -> "Failed exact split checks after inlining record constructor."
   DeprecationWarning_              -> "Feature deprecation."
   GenericNonFatalError_            -> ""
   GenericUseless_                  -> "Useless code."
