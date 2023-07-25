@@ -68,9 +68,9 @@ mkSucceedTest extraOpts dir agdaFile =
   where
   testName = asTestName dir agdaFile
   baseName = dropAgdaExtension agdaFile
-  varFile  = baseName <.> ".vars"
-  flagFile = baseName <.> ".flags"
-  warnFile = baseName <.> ".warn"
+  varFile  = baseName <.> "vars"
+  flagFile = baseName <.> "flags"
+  warnFile = baseName <.> "warn"
 
   -- Unless we have a .warn file, we don't really have a golden
   -- file. Just use a dummy update function.

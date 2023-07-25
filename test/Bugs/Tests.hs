@@ -43,9 +43,9 @@ mkTest agdaFile =
     resUpdate
   where
   testName   = asTestName testDir agdaFile
-  flagFile   = dropAgdaExtension agdaFile <.> ".flags"
-  errFile    = dropAgdaExtension agdaFile <.> ".err"
-  warnFile   = dropAgdaExtension agdaFile <.> ".warn"
+  flagFile   = dropAgdaExtension agdaFile <.> "flags"
+  errFile    = dropAgdaExtension agdaFile <.> "err"
+  warnFile   = dropAgdaExtension agdaFile <.> "warn"
 
   readGolden = Just <$> do
     hasWarn <- doesFileExist warnFile

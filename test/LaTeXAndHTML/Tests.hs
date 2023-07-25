@@ -167,7 +167,7 @@ mkLaTeXOrHTMLTest k copy agdaBin testDir inp =
   -- For removing a LaTeX compiler when testing @Foo.lagda@, you can
   -- create a file @Foo.compile@ with the list of the LaTeX compilers
   -- that you want to use (e.g. ["xelatex", "lualatex"]).
-  compFile    = baseName <.> ".compile"
+  compFile    = baseName <.> "compile"
   outFileName = case k of
     LaTeX      -> golden
     HTML       -> Network.URI.Encode.encode golden

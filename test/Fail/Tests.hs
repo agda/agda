@@ -64,8 +64,8 @@ mkFailTest agdaFile =
     (Just updGolden)
   where
   testName   = asTestName testDir agdaFile
-  goldenFile = dropAgdaExtension agdaFile <.> ".err"
-  flagFile   = dropAgdaExtension agdaFile <.> ".flags"
+  goldenFile = dropAgdaExtension agdaFile <.> "err"
+  flagFile   = dropAgdaExtension agdaFile <.> "flags"
 
   readGolden = readTextFileMaybe goldenFile
   updGolden  = writeTextFile goldenFile
