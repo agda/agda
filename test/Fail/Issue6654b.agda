@@ -1,7 +1,7 @@
-{-# OPTIONS --with-K --safe #-}
+{-# OPTIONS --with-K --large-indices --no-forced-argument-recursion --safe #-}
 module Issue6654b where
 
--- Fails: the default is no forced argument recursion, so the
+-- Fails: we asked for large indices and no forced argument recursion, so the
 -- termination checker complains about no-bad
 
 data ⊥ : Set where

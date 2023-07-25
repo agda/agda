@@ -1,4 +1,4 @@
-Issue1406.agda:33,24-28
+Issue1406.agda:34,24-28
 I'm not sure if there should be a case for the constructor refl,
 because I get stuck when trying to solve the following unification
 problems (inferred index ≟ expected index):

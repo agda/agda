@@ -1,4 +1,4 @@
-{-# OPTIONS --allow-unsolved-metas #-}
+{-# OPTIONS --allow-unsolved-metas --large-indices #-}
 module _ where
 
 open import Agda.Builtin.Nat

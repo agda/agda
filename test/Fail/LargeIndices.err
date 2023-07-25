@@ -1,4 +1,4 @@
 LargeIndices.agda:5,3-6
 Set a is not less or equal than Set
-when checking that the type (x : A) → Img f (f x) of the
-constructor inv fits in the sort Set of the datatype.
+when checking that the type A of an argument to the constructor inv
+fits in the sort Set of the datatype.

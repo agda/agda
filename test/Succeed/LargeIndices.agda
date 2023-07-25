@@ -1,4 +1,4 @@
-
+{-# OPTIONS --large-indices #-}
 -- Forced constructor arguments don't count towards the size of the datatype
 -- (only if not --withoutK).
 

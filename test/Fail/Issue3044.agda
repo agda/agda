@@ -1,4 +1,4 @@
-
+{-# OPTIONS --large-indices #-}
 -- The error on Agda 2.5.3 was:
 -- An internal error has occurred. Please report this as a bug.
 -- Location of the error: src/full/Agda/TypeChecking/Substitute/Class.hs:209

@@ -1,4 +1,4 @@
-
+{-# OPTIONS --large-indices #-}
 -- Generalized variables in datatype (and record) parameters
 
 module _ where

@@ -139,11 +139,20 @@ instance PrettyTCM Call where
 
     CheckConstructor{} -> __IMPOSSIBLE__
 
-    CheckConstructorFitsIn c t s -> fsep $
-      pwords "when checking that the type" ++ [prettyTCM t] ++
-      pwords "of the constructor" ++ [prettyTCM c] ++
-      pwords "fits in the sort" ++ [prettyTCM s] ++
-      pwords "of the datatype."
+    CheckConArgFitsIn c f t s -> do
+      woK <- withoutKOption
+      let
+        hint = fsep (pwords "Note: this argument is forced by the indices of" ++ [prettyTCM c <> comma] ++ pwords "so this definition would be allowed under --large-indices.")
+        -- Only add hint about large-indices when --with-K
+        addh d
+          | f && not woK = d $$ empty $$ hint
+          | otherwise    = d
+
+      addh $ fsep $
+        pwords "when checking that the type" ++ [prettyTCM t] ++
+        pwords "of an argument to the constructor" ++ [prettyTCM c] ++
+        pwords "fits in the sort" ++ [prettyTCM s] ++
+        pwords "of the datatype."
 
     CheckFunDefCall _ f _ _ ->
       fsep $ pwords "when checking the definition of" ++ [prettyTCM f]
