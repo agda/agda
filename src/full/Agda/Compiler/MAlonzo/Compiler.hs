@@ -1,5 +1,9 @@
 
-module Agda.Compiler.MAlonzo.Compiler where
+module Agda.Compiler.MAlonzo.Compiler
+  ( ghcBackend
+  , ghcInvocationStrings
+  )
+  where
 
 import Control.Arrow (second)
 import Control.DeepSeq
@@ -127,10 +131,18 @@ defaultGHCFlags = GHCFlags
   , flagGhcStrict     = False
   }
 
+-- | The option to activate the GHC backend.
+--
+ghcInvocationFlag :: OptDescr (Flag GHCFlags)
+ghcInvocationFlag =
+      Option ['c']  ["compile", "ghc"] (NoArg enable)
+                    "compile program using the GHC backend"
+  where
+    enable      o = pure o{ flagGhcCompile    = True }
+
 ghcCommandLineFlags :: [OptDescr (Flag GHCFlags)]
 ghcCommandLineFlags =
-    [ Option ['c']  ["compile", "ghc"] (NoArg enable)
-                    "compile program using the GHC backend"
+    [ ghcInvocationFlag
     , Option []     ["ghc-dont-call-ghc"] (NoArg dontCallGHC)
                     "don't call GHC, just write the GHC Haskell files."
     , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
@@ -143,7 +155,6 @@ ghcCommandLineFlags =
                     "make functions strict"
     ]
   where
-    enable      o = pure o{ flagGhcCompile    = True }
     dontCallGHC o = pure o{ flagGhcCallGhc    = False }
     ghcFlag f   o = pure o{ flagGhcFlags      = flagGhcFlags o ++ [f] }
     strictData  o = pure o{ flagGhcStrictData = True }
@@ -155,6 +166,16 @@ withCompilerFlag :: FilePath -> Flag GHCFlags
 withCompilerFlag fp o = case flagGhcBin o of
  Nothing -> pure o { flagGhcBin = Just fp }
  Just{}  -> throwError "only one compiler path allowed"
+
+-- | Option strings to activate the GHC backend.
+--
+ghcInvocationStrings :: [String]
+ghcInvocationStrings = optionStrings ghcInvocationFlag
+
+-- | Get all flags that activate the given option.
+--
+optionStrings :: OptDescr a -> [String]
+optionStrings (Option short long _ _) = map (\ c -> '-' : c : []) short ++ long
 
 --- Context types ---
 

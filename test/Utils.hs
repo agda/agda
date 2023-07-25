@@ -12,6 +12,7 @@ import Data.Bifunctor
 import qualified Data.ByteString as BS
 import Data.Char
 import Data.List (intercalate, sortBy)
+import qualified Data.List as List
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -39,7 +40,8 @@ import Test.Tasty.Silver.Advanced ( GDiff(..), pattern ShowText, goldenTest1, re
 import qualified Text.Regex.TDFA as R
 import qualified Text.Regex.TDFA.Text as RT ( compile )
 
-import Agda.Interaction.ExitCode (AgdaError(..), agdaErrorFromInt)
+import Agda.Compiler.MAlonzo.Compiler ( ghcInvocationStrings )
+import Agda.Interaction.ExitCode      ( AgdaError(..), agdaErrorFromInt )
 import Agda.Utils.Maybe
 import Agda.Utils.Environment
 import Agda.Utils.Functor
@@ -102,7 +104,7 @@ runAgdaWithOptions testName opts mflag mvars = do
   let runAgda  = \ extraArgs -> let args = agdaArgs ++ extraArgs in
                                 readAgdaProcessWithExitCode args T.empty
   (ret, stdOut, stdErr) <- do
-    if "--compile" `elem` agdaArgs
+    if not $ null $ List.intersect agdaArgs ghcInvocationStrings
       -- Andreas, 2017-04-14, issue #2317
       -- Create temporary files in system temp directory.
       -- This has the advantage that upon Ctrl-C no junk is left behind
