@@ -356,17 +356,13 @@ Pragmas and options
 
 * New option `--large-indices`, controlling whether constructors of
   indexed data types are allowed to refer to data that would be "too
-  large" to fit in their declared sort. Large indices are allowed by
-  default when the K rule is on, but disallowed when `--without-K` is
-  enabled (this would be inconsistent).
+  large" to fit in their declared sort. Large indices are disallowed by
+  default; see the [language changes](#language) for details.
 
-  Negation: `--no-large-indices`.
-
-* New option `--forced-argument-recursion`, off by default, controlling
+* New option `--forced-argument-recursion`, on by default, controlling
   whether forced constructor arguments are usable for termination
-  checking. See the [language changes](#language) for the details.
-
-  Negation: `--no-forced-argument-recursion`.
+  checking. This flag may be necessary for Agda to accept nontrivial
+  uses of induction-induction.
 
 Library management
 ------------------
@@ -423,20 +419,22 @@ Cubical Agda
 Language
 --------
 
-* [**Breaking**] Forced constructor arguments are no longer usable as
-  termination measures when the K rule is enabled (this is the default).
+* [**Breaking**] Constructor arguments are no longer allowed to store
+  values of a type larger than their own sort, even when these values
+  are forced by the indices of a constructor.
+
   This fixes a particular instance of the incompatibility between
   structural recursion and impredicativity, which could previously be
   exploited through the use of large data-type indices.
   (see [#6654](https://github.com/agda/agda/issues/6654)).
 
-  Forced argument recursion is controlled by the
-  `--forced-argument-recursion` flag (or its negation). When the K rule
-  is enabled, forced argument recursion is off by default, but it is
-  *on* by default when `--without-K` is given.
-
-  Using forced argument recursion and large indices in the same module
-  is incompatible with `--safe`.
+  This behaviour can be controlled with the flag `--large-indices`. Note
+  that, when `--large-indices` is enabled, forced constructor arguments
+  should not be used for termination checking. The flag
+  `--[no-]forced-argument-recursion` makes the termination checker skip
+  these arguments entirely. When `--safe` is given, `--large-indices` is
+  incompatible with `--without-K` _and_ incompatible with
+  `--forced-argument-recursion`.
 
 * Added [`opaque` definitions](https://agda.readthedocs.io/en/v2.6.4/language/opaque-definitions.html),
   a mechanism for finer-grained control of unfolding. Unlike `abstract`

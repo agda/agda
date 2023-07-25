@@ -422,10 +422,10 @@ data PragmaOptions = PragmaOptions
   , _optKeepCoveringClauses       :: WithDefault 'False
       -- ^ Do not discard clauses constructed by the coverage checker
       --   (needed for some external backends).
-  , _optLargeIndices              :: WithDefault 'True
+  , _optLargeIndices              :: WithDefault 'False
       -- ^ Allow large indices, and large forced arguments in
       -- constructors.
-  , _optForcedArgumentRecursion   :: WithDefault 'False
+  , _optForcedArgumentRecursion   :: WithDefault 'True
       -- ^ Allow recursion on forced constructor arguments.
   }
   deriving (Show, Eq, Generic)
@@ -1304,8 +1304,6 @@ withoutKFlag o = return $ o
   { _optWithoutK                = Value True
   , _optFlatSplit               = setDefault False $ _optFlatSplit o
   , _optErasedMatches           = setDefault False $ _optErasedMatches o
-  , _optLargeIndices            = setDefault False $ _optLargeIndices o
-  , _optForcedArgumentRecursion = setDefault True  $ _optForcedArgumentRecursion o
   }
 
 firstOrderFlag :: Flag PragmaOptions
@@ -1318,8 +1316,6 @@ cubicalCompatibleFlag o =
   , _optWithoutK                = setDefault True  $ _optWithoutK o
   , _optFlatSplit               = setDefault False $ _optFlatSplit o
   , _optErasedMatches           = setDefault False $ _optErasedMatches o
-  , _optLargeIndices            = setDefault False $ _optLargeIndices o
-  , _optForcedArgumentRecursion = setDefault True  $ _optForcedArgumentRecursion o
   }
 
 cubicalFlag
@@ -1333,8 +1329,6 @@ cubicalFlag variant o =
   , _optTwoLevel                = setDefault True  $ _optTwoLevel o
   , _optFlatSplit               = setDefault False $ _optFlatSplit o
   , _optErasedMatches           = setDefault False $ _optErasedMatches o
-  , _optLargeIndices            = setDefault False $ _optLargeIndices o
-  , _optForcedArgumentRecursion = setDefault True  $ _optForcedArgumentRecursion o
   }
 
 instanceDepthFlag :: String -> Flag PragmaOptions

@@ -789,20 +789,27 @@ Pattern matching and equality
 
      .. versionadded:: 2.6.4
 
-     Allow the use of forced constructor arguments as termination metrics. This is inconsistent when combined with :option:`--large-indices`.
-     Since forced arguments are fixed by the constructor's type, when the K rule is enabled, they are "not really there". Thus, they do not provide enough justification to assert a recursive call is size-decreasing.
+     Allow the use of forced constructor arguments as termination
+     metrics. This flag may be necessary for Agda to accept nontrivial
+     uses of induction-induction.
 
-     Forced argument recursion is disabled by the default when the K rule is enabled, and are enabled by default if :option:`--without-K` is given.
+     Default: ``--forced-argument-recursion``.
 
 .. option:: --large-indices, --no-large-indices
 
      .. versionadded:: 2.6.4
 
-     Allow constructors to store values of types whose sort is larger than that being defined, when these arguments are forced by the constructor's type.
-     This is a form of propositional resizing for equality, so it is only consistent if the K rule is enabled.
-     When :option`:`--no-forcing` is given, this option is redundant.
+     Allow constructors to store values of types whose sort is larger
+     than that being defined, when these arguments are forced by the
+     constructor's type.
 
-     Large indices are enabled by the default when the K rule is enabled, and are disabled if :option:`--without-K` is given.
+     When :option:`--safe` is given, this flag can not be combined with
+     :option:`--without-K` or :option:`--forced-argument-recursion`,
+     since both of these combinations are known to be inconsistent.
+
+     When :option:`--no-forcing` is given, this option is redundant.
+
+     Default: ``--no-large-indices``.
 
 Search depth and instances
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
