@@ -1,1 +1,1 @@
---compile --ghc-flag=+RTS --ghc-flag=-H10M --ghc-flag=-RTS
+--ghc --ghc-flag=+RTS --ghc-flag=-H10M --ghc-flag=-RTS

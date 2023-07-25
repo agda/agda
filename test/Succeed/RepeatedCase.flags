@@ -1,1 +1,1 @@
--c --no-main --ghc-dont-call-ghc
+--ghc --no-main --ghc-dont-call-ghc

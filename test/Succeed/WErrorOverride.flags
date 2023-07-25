@@ -1,2 +1,2 @@
---compile
+--ghc
 --ghc-flag=-Wwarn
