@@ -1,5 +1,3 @@
-{-# LANGUAGE CPP             #-}
-
 -- | Some functions, generators and instances suitable for writing
 -- QuickCheck properties.
 

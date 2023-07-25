@@ -1,10 +1,4 @@
-{-# LANGUAGE TemplateHaskell            #-}
-{-# LANGUAGE CPP                        #-}
-
-#if  __GLASGOW_HASKELL__ > 800
-{-# OPTIONS_GHC -Wno-error=missing-signatures #-}
-#endif
-{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 -- | Properties for graph library.
 
