@@ -88,6 +88,8 @@ mkSucceedTest extraOpts dir agdaFile =
                    , "-vimpossible:10" -- BEWARE: no spaces allowed here
                    , "-vwarning:1"
                    , "--double-check"
+                   -- , "--ghc-flag=-outputdir=ghc-" ++ testName
+                   -- , "-vcompile.cmd:1"
                    ] ++
                    [ if testName == "Issue481"
                      then "--no-default-libraries"

@@ -27,6 +27,7 @@ import System.Exit
 import System.FilePath
 import qualified System.FilePath.Find as Find
 import System.FilePath.GlobPattern
+-- import System.IO                     ( hPutStrLn, stderr )
 import System.IO.Temp
 import System.PosixCompat.Time       ( epochTime )
 import System.PosixCompat.Files      ( modificationTime, touchFile )
@@ -70,6 +71,7 @@ readAgdaProcessWithExitCode :: AgdaArgs -> Text
 readAgdaProcessWithExitCode args inp = do
   agdaBin <- getAgdaBin
   envArgs <- getEnvAgdaArgs
+  -- hPutStrLn stderr $ unwords $ agdaBin : envArgs ++ args
   let agdaProc = (proc agdaBin (envArgs ++ args)) { create_group = True }
   PT.readCreateProcessWithExitCode agdaProc inp
 
