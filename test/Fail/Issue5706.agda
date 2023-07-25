@@ -1,3 +1,4 @@
+{-# OPTIONS --large-indices #-}
 -- Andreas, 2021-12-22, issue #5706 reported by Trebor-Huang
 -- In Agda <= 2.6.2.1, Int overflow can be exploited.
 

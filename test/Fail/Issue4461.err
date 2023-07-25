@@ -1,4 +1,4 @@
 Issue4461.agda:3,3-4
 Agda.Primitive.lzero != Agda.Primitive.lsuc _7
-when checking that the type (I : _4) → (I → M) → M of the
-constructor m fits in the sort Set of the datatype.
+when checking that the type _4 of an argument to the constructor m
+fits in the sort Set of the datatype.

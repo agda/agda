@@ -1,4 +1,4 @@
 Issue689.agda:8,3-4
 Set₂ is not less or equal than Set₁
-when checking that the type Set₁ → Bad of the constructor c fits in
-the sort Set₁ of the datatype.
+when checking that the type Set₁ of an argument to the constructor
+c fits in the sort Set₁ of the datatype.

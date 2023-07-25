@@ -3276,7 +3276,7 @@ data Call
   | CheckDataDef Range QName [A.LamBinding] [A.Constructor]
   | CheckRecDef Range QName [A.LamBinding] [A.Constructor]
   | CheckConstructor QName Telescope Sort A.Constructor
-  | CheckConstructorFitsIn QName Type Sort
+  | CheckConArgFitsIn QName Bool Type Sort
   | CheckFunDefCall Range QName [A.Clause] Bool
     -- ^ Highlight (interactively) if and only if the boolean is 'True'.
   | CheckPragma Range A.Pragma
@@ -3324,7 +3324,7 @@ instance Pretty Call where
     pretty CheckDataDef{}            = "CheckDataDef"
     pretty CheckRecDef{}             = "CheckRecDef"
     pretty CheckConstructor{}        = "CheckConstructor"
-    pretty CheckConstructorFitsIn{}  = "CheckConstructorFitsIn"
+    pretty CheckConArgFitsIn{}       = "CheckConArgFitsIn"
     pretty CheckFunDefCall{}         = "CheckFunDefCall"
     pretty CheckPragma{}             = "CheckPragma"
     pretty CheckPrimitive{}          = "CheckPrimitive"
@@ -3362,7 +3362,7 @@ instance HasRange Call where
     getRange (CheckDataDef i _ _ _)              = getRange i
     getRange (CheckRecDef i _ _ _)               = getRange i
     getRange (CheckConstructor _ _ _ c)          = getRange c
-    getRange (CheckConstructorFitsIn c _ _)      = getRange c
+    getRange (CheckConArgFitsIn c _ _ _)         = getRange c
     getRange (CheckFunDefCall i _ _ _)           = getRange i
     getRange (CheckPragma r _)                   = r
     getRange (CheckPrimitive i _ _)              = getRange i

@@ -51,6 +51,7 @@ import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Forcing
 import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
 import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull, appDefE')
 import Agda.TypeChecking.SizedTypes
@@ -663,6 +664,18 @@ maskNonDataArgs ps = zipWith mask ps <$> terGetMaskArgs
     mask p@ProjP{} _ = Masked False p
     mask p         d = Masked d     p
 
+-- | Drop elements of the list which correspond to arguments forced by
+-- the constructor with the given QName.
+mapForcedArguments :: QName -> [a] -> (IsForced -> a -> Maybe b) -> TerM [b]
+mapForcedArguments c xs k = do
+  forcedArgs <- getForcedArgs c
+  let go xs (p:ps) = do
+        let (f, xs') = nextIsForced xs
+        case k f p of
+          Just b  -> b:go xs' ps
+          Nothing -> go xs' ps
+      go _ [] = []
+  pure $ go forcedArgs xs
 
 -- | Extract recursive calls from one clause.
 termClause :: Clause -> TerM Calls
@@ -1462,7 +1475,13 @@ compareVar i (Masked m p) = do
     ConP s _ [p] | Just (conName s) == suc ->
       setUsability True . decrease 1 <$> compareVar i (notMasked $ namedArg p)
 
-    ConP c _ ps -> if m then no else setUsability True <$> do
+    ConP c pi ps -> if m then no else setUsability True <$> do
+      let
+        dropit Forced _ = Nothing
+        dropit NotForced x = Just x
+      ps <- ifM (optForcedArgumentRecursion <$> pragmaOptions)
+        {- then -} (pure ps)
+        {- else -} (mapForcedArguments (conName c) ps dropit)
       decrease <$> offsetFromConstructor (conName c)
                <*> (Order.supremum <$> mapM (compareVar i . notMasked . namedArg) ps)
     DefP _ c ps -> if m then no else setUsability True <$> do

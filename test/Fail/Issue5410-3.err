@@ -1,4 +1,3 @@
-Issue5410-3.agda:7,3-4
+Issue5410-3.agda:7,3-12
 {@0 A : Set} → A → D is not usable at the required modality @ω
-when checking that the type {@0 A : Set} → A → D of the constructor
-c fits in the sort Set₁ of the datatype.
+when checking the constructor c in the declaration of D

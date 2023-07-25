@@ -1,5 +1,5 @@
 -- Andreas, 2017-01-12, issue #2386
-
+{-# OPTIONS --large-indices #-}
 open import Agda.Primitive
 
 data _≡_ {a b} {A : Set (a ⊔ b)} : (x y : A) → Set where

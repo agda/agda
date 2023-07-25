@@ -785,6 +785,32 @@ Pattern matching and equality
 
      Default: ``--infer-absurd-clauses``.
 
+.. option:: --forced-argument-recursion, --no-forced-argument-recursion
+
+     .. versionadded:: 2.6.4
+
+     Allow the use of forced constructor arguments as termination
+     metrics. This flag may be necessary for Agda to accept nontrivial
+     uses of induction-induction.
+
+     Default: ``--forced-argument-recursion``.
+
+.. option:: --large-indices, --no-large-indices
+
+     .. versionadded:: 2.6.4
+
+     Allow constructors to store values of types whose sort is larger
+     than that being defined, when these arguments are forced by the
+     constructor's type.
+
+     When :option:`--safe` is given, this flag can not be combined with
+     :option:`--without-K` or :option:`--forced-argument-recursion`,
+     since both of these combinations are known to be inconsistent.
+
+     When :option:`--no-forcing` is given, this option is redundant.
+
+     Default: ``--no-large-indices``.
+
 Search depth and instances
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 

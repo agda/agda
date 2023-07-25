@@ -307,9 +307,8 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         let s' = case s of
               Prop l -> Type l
               _      -> s
-        arity <- traceCall (CheckConstructorFitsIn c t s') $
-                 applyQuantityToJudgement ai $
-                 fitsIn uc forcedArgs t s'
+        arity <- applyQuantityToJudgement ai $
+          fitsIn c uc forcedArgs t s'
         -- this may have instantiated some metas in s, so we reduce
         s <- reduce s
         debugAdd c t
@@ -1736,11 +1735,11 @@ bindParameter npars ps x a b ret =
 --
 --   As a side effect, return the arity of the constructor.
 
-fitsIn :: UniverseCheck -> [IsForced] -> Type -> Sort -> TCM Int
-fitsIn uc forceds t s = do
+fitsIn :: QName -> UniverseCheck -> [IsForced] -> Type -> Sort -> TCM Int
+fitsIn con uc forceds conT s = do
   reportSDoc "tc.data.fits" 10 $
-    sep [ "does" <+> prettyTCM t
-        , "of sort" <+> prettyTCM (getSort t)
+    sep [ "does" <+> prettyTCM conT
+        , "of sort" <+> prettyTCM (getSort conT)
         , "fit in" <+> prettyTCM s <+> "?"
         ]
   -- The code below would be simpler, but doesn't allow datatypes
@@ -1751,11 +1750,12 @@ fitsIn uc forceds t s = do
   withoutK <- withoutKOption
   when withoutK $ do
     q <- viewTC eQuantity
-    usableAtModality' (Just s) ConstructorType (setQuantity q unitModality) (unEl t)
+    usableAtModality' (Just s) ConstructorType (setQuantity q unitModality) (unEl conT)
 
-  fitsIn' withoutK forceds t s
+  li <- optLargeIndices <$> pragmaOptions
+  fitsIn' li forceds conT s
   where
-  fitsIn' withoutK forceds t s = do
+  fitsIn' li forceds t s = do
     vt <- do
       t <- pathViewAsPi t
       return $ case t of
@@ -1765,13 +1765,18 @@ fitsIn uc forceds t s = do
                     _              -> Nothing
     case vt of
       Just (isPath, dom, b) -> do
-        let (forced,forceds') = nextIsForced forceds
-        unless (isForced forced && not withoutK) $ do
+        let
+          (forced, forceds') = nextIsForced forceds
+          isf = isForced forced
+
+        unless (isf && li) $ do
           sa <- reduce $ getSort dom
           unless (isPath || uc == NoUniverseCheck || sa == SizeUniv) $
+            traceCall (CheckConArgFitsIn con isf (unDom dom) s) $
             sa `leqSort` s
+
         addContext (absName b, dom) $ do
-          succ <$> fitsIn' withoutK forceds' (absBody b) (raise 1 s)
+          succ <$> fitsIn' li forceds' (absBody b) (raise 1 s)
       _ -> do
         getSort t `leqSort` s
         return 0

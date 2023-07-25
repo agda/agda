@@ -1,0 +1,6 @@
+Issue6654b.agda:15,1-16,32
+Termination checking failed for the following functions:
+  no-bad
+Problematic calls:
+  no-bad (x (Bad (λ P p → p)) bad)
+    (at Issue6654b.agda:16,16-22)

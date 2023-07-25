@@ -1,3 +1,4 @@
+{-# OPTIONS --large-indices #-}
 -- Andreas, 2020-02-15
 -- Test case by Jesper to prevent regressions when fixing #3541.
 

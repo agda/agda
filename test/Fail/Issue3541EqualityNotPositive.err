@@ -1,19 +1,19 @@
-Issue3541EqualityNotPositive.agda:15,3-16,18
+Issue3541EqualityNotPositive.agda:16,3-17,18
 D is not strictly positive, because it occurs
 in the first argument of _≡_
 in the type of the constructor c
 in the definition of D.
-Issue3541EqualityNotPositive.agda:18,3-19,18
+Issue3541EqualityNotPositive.agda:19,3-20,18
 E is not strictly positive, because it occurs
 in the second argument of _≡_
 in the type of the constructor c
 in the definition of E.
-Issue3541EqualityNotPositive.agda:26,3-27,18
+Issue3541EqualityNotPositive.agda:27,3-28,18
 D is not strictly positive, because it occurs
 in the first argument of _≡_
 in the type of the constructor c
 in the definition of D.
-Issue3541EqualityNotPositive.agda:29,3-30,18
+Issue3541EqualityNotPositive.agda:30,3-31,18
 E is not strictly positive, because it occurs
 in the second argument of _≡_
 in the type of the constructor c
