@@ -43,6 +43,9 @@ checkLockedVars
      -- ^ type of the lock
   -> TCM ()
 checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) $ do
+  -- Have to instantiate the lock, otherwise we might block on it even
+  -- after it's been solved (e.g.: it's an interaction point, see #6528)
+  lk <- instantiate lk
   reportSDoc "tc.term.lock" 40 $ "Checking locked vars.."
   reportSDoc "tc.term.lock" 50 $ nest 2 $ vcat
      [ text "t     = " <+> pretty t
