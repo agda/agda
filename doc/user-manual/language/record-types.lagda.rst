@@ -69,6 +69,11 @@ Elements of record types can be defined using a record expression
    p23 : Pair Nat Nat
    p23 = record { fst = 2; snd = 3 }
 
+   p23' : Pair Nat Nat
+   p23' = record where
+     fst = 2
+     snd = 3
+
 or using :ref:`copatterns <copatterns>`. Copatterns may be used
 prefix
 
@@ -95,6 +100,17 @@ or using an :ref:`anonymous copattern-matching lambda <pattern-lambda>`
    p78 = λ where
      .Pair.fst → 7
      .Pair.snd → 8
+
+Bindings in the ``record where`` style of record expression have the semantics
+of let-bindings: for example, they may refer to each other, but they may not be
+recursive. Statements that open a module and are also legal in let expressions are
+used to define the values of fields as well, with two notable changes from their usual
+semantics:
+
+ - a ``using`` clause is mandatory (it may be empty, if all relevant names come
+   from a ``renaming`` clause)
+ - names imported inside the ``record where`` fully shadow names outside the
+   ``record where``, instead of being ambiguous
 
 If you use the ``constructor`` keyword, you can also use the named
 constructor to define elements of the record type:

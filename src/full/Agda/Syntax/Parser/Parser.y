@@ -716,6 +716,7 @@ Expr3NoCurly
     | '.' Expr3                         { Dot (fuseRange $1 $2) $2 }
     | '..' Expr3                        { DoubleDot (fuseRange $1 $2) $2 }
     | 'record' '{' RecordAssignments '}' { Rec (getRange ($1,$2,$3,$4)) $3 }
+    | 'record' 'where' Declarations0    { RecWhere (getRange ($1,$2,$3)) $3 }
     | 'record' Expr3NoCurly '{' FieldAssignments '}' { RecUpdate (getRange ($1,$2,$3,$4,$5)) $2 $4 }
     | '...'                             { Ellipsis (getRange $1) }
     | ExprOrAttr                       { $1 }
