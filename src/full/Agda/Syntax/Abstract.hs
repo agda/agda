@@ -416,7 +416,7 @@ data RHS
       --   'Nothing' for internally generated rhss.
     }
   | AbsurdRHS
-  | WithRHS QName [WithExpr] [Clause]
+  | WithRHS QName [WithExpr] (List1 Clause)
       -- ^ The 'QName' is the name of the with function.
   | RewriteRHS
     { rewriteExprs      :: [RewriteEqn]
@@ -1148,7 +1148,7 @@ data ClauseSpine = ClauseS RHSSpine WhereDeclarationsSpine
 data RHSSpine
   = RHSS
   | AbsurdRHSS
-  | WithRHSS [ClauseSpine]
+  | WithRHSS (List1 ClauseSpine)
   | RewriteRHSS RHSSpine WhereDeclarationsSpine
   deriving Show
 
@@ -1195,7 +1195,7 @@ rhsSpine :: RHS -> RHSSpine
 rhsSpine = \case
   RHS _ _               -> RHSS
   AbsurdRHS             -> AbsurdRHSS
-  WithRHS _ _ cs        -> WithRHSS (map clauseSpine cs)
+  WithRHS _ _ cs        -> WithRHSS $ fmap clauseSpine cs
   RewriteRHS _ _ rhs ws ->
     RewriteRHSS (rhsSpine rhs) (whereDeclarationsSpine ws)
 

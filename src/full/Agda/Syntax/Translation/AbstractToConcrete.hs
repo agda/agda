@@ -43,7 +43,7 @@ import Data.Map (Map)
 import qualified Data.Foldable as Fold
 import Data.Void
 import Data.List (sortBy)
-import Data.Semigroup (Semigroup, (<>))
+import Data.Semigroup ( Semigroup, (<>), sconcat )
 import Data.String
 
 import Agda.Syntax.Common
@@ -78,6 +78,7 @@ import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|), (<|) )
 import Agda.Utils.List2 (List2, pattern List2)
 import qualified Agda.Utils.List1 as List1
@@ -856,7 +857,7 @@ instance ToConcrete A.Expr where
           lamView e = ([], e)
     toConcrete (A.ExtendedLam i di erased qname cs) =
         bracket lamBrackets $ do
-          decls <- concat <$> toConcrete cs
+          decls <- sconcat <$> toConcrete cs
           puns  <- optHiddenArgumentPuns <$> pragmaOptions
           let -- If --hidden-argument-puns is active, then {x} is
               -- replaced by {(x)} and ⦃ x ⦄ by ⦃ (x) ⦄.
@@ -890,9 +891,8 @@ instance ToConcrete A.Expr where
                 reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda patterns ps = " ++ prettyShow ps
                 return $ LamClause ps rhs ca
               decl2clause _ = __IMPOSSIBLE__
-          C.ExtendedLam (getRange i) erased . List1.fromListSafe __IMPOSSIBLE__ <$>
+          C.ExtendedLam (getRange i) erased <$>
             mapM decl2clause decls
-            -- TODO List1: can we demonstrate non-emptiness?
 
     toConcrete (A.Pi _ tel1 e0) = do
       let (tel, e) = piTel1 tel1 e0
@@ -1110,8 +1110,8 @@ instance ToConcrete A.RHS where
                forM es $ \ (Named n e) -> do
                  n <- traverse toConcrete n
                  pure $ Named (C.boundName <$> n) e
-      cs <- noTakenNames $ concat <$> toConcrete cs
-      return (C.AbsurdRHS, [], es, cs)
+      cs <- noTakenNames $ sconcat <$> toConcrete cs
+      return (C.AbsurdRHS, [], es, List1.toList cs)
     toConcrete (A.RewriteRHS xeqs _spats rhs wh) = do
       wh <- maybe (return []) toConcrete $ A.whereDecls wh
       (rhs, eqs', es, whs) <- toConcrete rhs
@@ -1148,17 +1148,17 @@ instance ToConcrete (Constr A.Constructor) where
     t' <- toConcreteTop t
     return $ C.TypeSig info Nothing x' t'
   toConcrete (Constr (A.Axiom _ _ _ (Just _) _ _)) = __IMPOSSIBLE__
-  toConcrete (Constr d) = head <$> toConcrete d
+  toConcrete (Constr d) = headWithDefault __IMPOSSIBLE__ <$> toConcrete d
 
 instance (ToConcrete a, ConOfAbs a ~ C.LHS) => ToConcrete (A.Clause' a) where
-  type ConOfAbs (A.Clause' a) = [C.Declaration]
+  type ConOfAbs (A.Clause' a) = List1 C.Declaration
 
   toConcrete (A.Clause lhs _ rhs wh catchall) =
       bindToConcrete lhs $ \case
           C.LHS p _ _ -> do
             bindToConcrete wh $ \ wh' -> do
                 (rhs', eqs, with, wcs) <- toConcreteTop rhs
-                return $ FunClause (C.LHS p eqs with) rhs' wh' catchall : wcs
+                return $ FunClause (C.LHS p eqs with) rhs' wh' catchall :| wcs
 
 instance ToConcrete A.ModuleApplication where
   type ConOfAbs A.ModuleApplication = C.ModuleApplication
@@ -1216,7 +1216,7 @@ instance ToConcrete A.Declaration where
         -- Primitives are always relevant.
 
   toConcrete (A.FunDef i _ cs) =
-    withAbstractPrivate i $ concat <$> toConcrete cs
+    withAbstractPrivate i $ List1.concat <$> toConcrete cs
 
   toConcrete (A.DataSig i erased x bs t) =
     withAbstractPrivate i $

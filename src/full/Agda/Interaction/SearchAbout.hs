@@ -23,6 +23,7 @@ import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Internal as I
 
 import Agda.Utils.List   ( initLast1  )
+import qualified Agda.Utils.List1 as List1
 import Agda.Syntax.Common.Pretty ( prettyShow )
 
 findMentions :: Rewrite -> Range -> String -> ScopeM [(C.Name, I.Type)]
@@ -47,7 +48,7 @@ findMentions norm rg nm = do
   -- don't have a type. Looking it up makes Agda panic!
   snms <- fmap (nsNames . allThingsInScope) $ getNamedScope =<< currentModule
   let namesInScope = filter ((PatternSynName /=) . anameKind . snd)
-                   $ concatMap (uncurry $ map . (,)) $ Map.toList snms
+                   $ List1.concat $ map (\ (c, as) -> fmap (c,) as) $ Map.toList snms
 
   -- Once we have the user-provided names and the names of all the
   -- thing in scope we can start the search: for each name in scope,

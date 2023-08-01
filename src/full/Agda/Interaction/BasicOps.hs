@@ -1407,7 +1407,7 @@ getModuleContents norm mm = do
       modules = exportedNamesInScope modScope
       names :: ThingsInScope AbstractName
       names = exportedNamesInScope modScope
-      xns = [ (x,n) | (x, ns) <- Map.toList names, n <- ns ]
+      xns = [ (x,n) | (x, ns) <- Map.toList names, n <- List1.toList ns ]
   types <- forMaybeM xns $ \(x, n) -> do
     getConstInfo' (anameName n) >>= \case
       Right d -> do

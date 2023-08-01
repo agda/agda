@@ -1093,7 +1093,7 @@ checkLHS mf = updateModality checkLHS_ where
                        Arg ai $ Named Nothing (ProjP orig projName)
           ip'      = ip ++ [projP]
           -- drop the projection pattern (already splitted)
-          problem' = over problemRestPats tail problem
+          problem' = over problemRestPats (drop 1) problem
       liftTCM $ updateLHSState (LHSState tel ip' problem' target' psplit ixsplit)
 
 

@@ -245,11 +245,11 @@ buildParsers kind exprNames = do
                        (someKindsOfNames [ConName, CoConName, FldName, PatternSynName]) flat
         conNames   = Set.fromList $
                        filter (flip Set.member namesInExpr) $
-                       map (notaName . head) cons
+                       map (notaName . List1.head) cons
         conParts   = Set.fromList $
                        concatMap notationNames $
                        filter (or . partsPresent) $
-                       concat cons
+                       List1.concat cons
 
         allNames   = Set.fromList $
                        filter (flip Set.member namesInExpr) names
@@ -611,7 +611,7 @@ parseLHS' lhsOrPatSyn top p = do
                        map (fullParen . fst) rs
     where
         getNames kinds flat =
-          map (notaName . head) $ getDefinedNames kinds flat
+          map (notaName . List1.head) $ getDefinedNames kinds flat
 
         -- The pattern is retained for error reporting in case of ambiguous parses.
         validPattern :: PatternCheckConfig -> Pattern -> PM (Pattern, ParseLHS)

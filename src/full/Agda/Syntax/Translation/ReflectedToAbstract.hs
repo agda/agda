@@ -69,7 +69,7 @@ withVar s t f = do
   let freshNameMode = case glyphMode of
         UnicodeOk -> A.UnicodeSubscript
         AsciiOnly -> A.AsciiCounter
-  let name' = head $ filter (notTaken ctx) $ iterate (nextName freshNameMode) name
+  let name' = headWithDefault __IMPOSSIBLE__ $ filter (notTaken ctx) $ iterate (nextName freshNameMode) name
   local ((name,t):) $ f name'
   where
     notTaken xs x = isNoName x || nameConcrete x `notElem` xs

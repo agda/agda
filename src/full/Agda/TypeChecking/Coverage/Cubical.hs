@@ -35,6 +35,8 @@ import Agda.TypeChecking.Telescope.Path
 
 import Agda.Utils.Functor
 import Agda.Utils.List
+import Agda.Utils.List1 ( pattern (:|) )
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -61,14 +63,14 @@ createMissingIndexedClauses f n x old_sc scs cs = do
       caseMaybe mc (return ([],cs)) $ \ ((sp,tree),cl) -> do
       let res = CoverResult tree (IntSet.singleton (length cs)) [] [cl] IntSet.empty
       return ([(sp,res)],snoc cs cl)
-    xs | not $ null infos -> do
+    xs | info:_ <- infos -> do
          reportSDoc "tc.cover.indexed" 20 $ text "size (xs,infos):" <+> pretty (size xs,size infos)
          reportSDoc "tc.cover.indexed" 20 $ text "xs :" <+> pretty (map fst xs)
 
          unless (size xs == 1 + size infos) $
             reportSDoc "tc.cover.indexed" 20 $ text "missing some infos"
             -- Andrea: what to do when we only managed to build a unification proof for some of the constructors?
-         Constructor{conData} <- theDef <$> getConstInfo (fst (head infos))
+         Constructor{conData} <- theDef <$> getConstInfo (fst info)
          Datatype{dataPars = pars, dataIxs = nixs, dataTranspIx} <- theDef <$> getConstInfo conData
          hcomp <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinHComp
          trX <- fromMaybe __IMPOSSIBLE__ <$> pure dataTranspIx
@@ -98,7 +100,6 @@ createMissingIndexedClauses f n x old_sc scs cs = do
            "tree:" <+> pretty tree
          addClauses f clauses
          return $ ([(SplitCon trX,res)],cs++clauses)
---         return $ ([],[])
     xs | otherwise -> return ([],cs)
 
 covFillTele :: QName -> Abs Telescope -> Term -> Args -> Term -> TCM [Term]
@@ -522,11 +523,11 @@ createMissingTrXHCompClause q_trX f n x old_sc = do
             fmap patternToTerm <$> hcompD' g1 v
   let pat' =
             bindN (map unArg gamma1ArgNames) $ \ g1 -> do
-            bindN (map unArg $ ([defaultArg "phi"] ++ xTelIArgNames)) $ \ phi_p -> do
+            bindN1 (fmap unArg (defaultArg "phi" :| xTelIArgNames)) $ \ phi_p -> do
             bindN ["psi","u","u0"] $ \ x0 -> do
             let trX = trX' `applyN` g1
-            let p0 = for (tail phi_p) $ \ p -> p <@> pure iz
-            trX `applyN` phi_p `applyN` [hcompD' g1 p0 `applyN` x0]
+            let p0 = for (List1.tail phi_p) $ \ p -> p <@> pure iz
+            trX `applyN` (List1.toList phi_p) `applyN` [hcompD' g1 p0 `applyN` x0]
       pat = (fmap . fmap . fmap) patternToTerm <$> pat'
   let deltaPat g1 phi p x0 =
         delta `applyN` (g1 ++ [pat `applyN` g1 `applyN` (phi:p) `applyN` x0])

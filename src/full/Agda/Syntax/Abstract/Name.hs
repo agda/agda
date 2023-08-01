@@ -205,11 +205,10 @@ mnameToQName :: ModuleName -> QName
 mnameToQName = qnameFromList . mnameToList1
 
 showQNameId :: QName -> String
-showQNameId q = show ns ++ "@" ++ show m
+showQNameId q = show ns ++ "@" ++ show (List1.head ms)
   where
-    is = map nameId $ mnameToList (qnameModule q) ++ [qnameName q]
-    ns = [ n | NameId n _ <- is ]
-    m  = head [ m | NameId _ m <- is ]
+    (ns, ms) = List1.unzip $ fmap (unNameId . nameId) $ List1.snoc (mnameToList $ qnameModule q) (qnameName q)
+    unNameId (NameId n m) = (n, m)
 
 -- | Turn a qualified name into a concrete name. This should only be used as a
 --   fallback when looking up the right concrete name in the scope fails.

@@ -2366,7 +2366,7 @@ clashIfModuleAlreadyDefinedInCurrentModule x ax = do
 
 lookupModuleInCurrentModule :: C.Name -> ScopeM [AbstractModule]
 lookupModuleInCurrentModule x =
-  fromMaybe [] . Map.lookup x . nsModules . thingsInScope [PublicNS, PrivateNS] <$> getCurrentScope
+  List1.toList' . Map.lookup x . nsModules . thingsInScope [PublicNS, PrivateNS] <$> getCurrentScope
 
 data DataConstrDecl = DataConstrDecl A.ModuleName IsAbstract Access C.NiceDeclaration
 
@@ -2776,7 +2776,7 @@ data RightHandSide = RightHandSide
 
 data AbstractRHS
   = AbsurdRHS'
-  | WithRHS' [A.WithExpr] [ScopeM C.Clause]
+  | WithRHS' [A.WithExpr] (List1 (ScopeM C.Clause))
     -- ^ The with clauses haven't been translated yet
   | RHS' A.Expr C.Expr
   | RewriteRHS' [RewriteEqn' () A.BindName A.Pattern A.Expr] AbstractRHS A.WhereDeclarations
@@ -2852,19 +2852,20 @@ instance ToAbstract RightHandSide where
   toAbstract (RightHandSide [] []    (_  , _:_) _          _)  = __IMPOSSIBLE__
   toAbstract (RightHandSide [] (_:_) _         (C.RHS _)   _)  = typeError $ BothWithAndRHS
   toAbstract (RightHandSide [] []    (_  , []) rhs         NoWhere) = toAbstract rhs
-  toAbstract (RightHandSide [] nes   (lv , cs) C.AbsurdRHS NoWhere) = do
+  toAbstract (RightHandSide [] nes   (lv , c:cs) C.AbsurdRHS NoWhere) = do
     let (ns , es) = unzipWith (\ (Named nm e) -> (NewName WithBound . C.mkBoundName_ <$> nm, e)) nes
     es <- toAbstractCtx TopCtx es
     lvars0 <- getLocalVars
     ns <- toAbstract ns
     lvars1 <- getLocalVars
     let lv' = dropEnd (length lvars0) lvars1 ++ lv
-    let cs' = for cs $ \ c -> setLocalVars lv' $> c
+    let cs' = for (c:|cs) $ \ c -> setLocalVars lv' $> c
     let nes = zipWith Named ns es
     return $ WithRHS' nes cs'
   -- TODO: some of these might be possible
   toAbstract (RightHandSide [] (_ : _) _ C.AbsurdRHS  AnyWhere{}) = __IMPOSSIBLE__
   toAbstract (RightHandSide [] (_ : _) _ C.AbsurdRHS SomeWhere{}) = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] (_ : _) _ C.AbsurdRHS   NoWhere{}) = __IMPOSSIBLE__
   toAbstract (RightHandSide [] []     (_, []) C.AbsurdRHS  AnyWhere{}) = __IMPOSSIBLE__
   toAbstract (RightHandSide [] []     (_, []) C.AbsurdRHS SomeWhere{}) = __IMPOSSIBLE__
   toAbstract (RightHandSide [] []     (_, []) C.RHS{}      AnyWhere{}) = __IMPOSSIBLE__

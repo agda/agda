@@ -292,10 +292,7 @@ consecutiveAndSeparated is =
     &&
   allEqual (map (srcFile . iStart) is)
     &&
-  (null is
-     ||
-   and (zipWith (<) (map iEnd   (init is))
-                    (map iStart (tail is))))
+  allConsecutive (\ i j -> iEnd i < iStart j) is
 
 -- | Range invariant.
 rangeInvariant :: Ord a => Range' a -> Bool

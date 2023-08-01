@@ -32,9 +32,9 @@ import Control.Monad (filterM)
 import qualified Control.Monad as List (zipWithM, zipWithM_)
 
 import qualified Data.Either as Either
+import Data.Function ( on )
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
-import qualified Data.Semigroup as Semigroup
 
 import Data.List.NonEmpty as List1 hiding (fromList, toList)
 import qualified Data.List.NonEmpty as List1 (toList)
@@ -47,6 +47,11 @@ import qualified Agda.Utils.List as List
 
 type List1 = NonEmpty
 type String1 = List1 Char
+
+-- | Lossless 'toList', opposite of 'nonEmpty'.
+--
+toList' :: Maybe (List1 a) -> [a]
+toList' = maybe [] toList
 
 -- | Safe version of 'Data.List.NonEmpty.fromList'.
 
@@ -62,6 +67,12 @@ fromListSafe _ (x:xs) = x :| xs
 initLast :: List1 a -> ([a], a)
 initLast = List1.init &&& List1.last
   -- traverses twice, but does not create intermediate pairs
+
+-- | Last two elements (safe).
+--   O(n).
+last2 :: List1 a -> Maybe (a, a)
+last2 (x :| y : xs) = Just $ List.last2' x y xs
+last2 _ = Nothing
 
 -- | Build a list with one element.
 
@@ -86,6 +97,14 @@ prependList as bs = Prelude.foldr (<|) bs as
 
 snoc :: [a] -> a -> List1 a
 snoc as a = prependList as $ a :| []
+
+-- | @'groupOn' f = 'groupBy' (('==') \`on\` f) '.' 'List.sortBy' ('compare' \`on\` f)@.
+-- O(n log n).
+groupOn :: Ord b => (a -> b) -> [a] -> [List1 a]
+groupOn f = List1.groupBy ((==) `on` f) . List.sortBy (compare `on` f)
+
+groupOn1 :: Ord b => (a -> b) -> List1 a -> List1 (List1 a)
+groupOn1 f = List1.groupBy1 ((==) `on` f) . List1.sortBy (compare `on` f)
 
 -- | More precise type for 'Agda.Utils.List.groupBy''.
 --
@@ -130,6 +149,9 @@ breakAfter p (x :| xs) = List.breakAfter1 p x xs
 
 concat :: [List1 a] -> [a]
 concat = concatMap toList
+
+concatMap1 :: (a -> List1 b) -> List1 a -> List1 b
+concatMap1 = (=<<)
 
 -- | Like 'Data.List.union'.  Duplicates in the first list are not removed.
 -- O(nm).

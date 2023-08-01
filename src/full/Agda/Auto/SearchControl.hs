@@ -1,6 +1,12 @@
-{-# OPTIONS_GHC -Wunused-imports #-}
+{-# LANGUAGE CPP #-}
 
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wunused-imports #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
+#if __GLASGOW_HASKELL__ > 907
+{-# OPTIONS_GHC -Wno-x-partial #-}
+#endif
+
+
 
 module Agda.Auto.SearchControl where
 

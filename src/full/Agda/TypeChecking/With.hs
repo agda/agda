@@ -41,6 +41,7 @@ import Agda.TypeChecking.Rules.LHS.Problem (ProblemEq(..))
 
 import Agda.Utils.Functor
 import Agda.Utils.List
+import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -203,8 +204,8 @@ buildWithFunction
   -> Permutation          -- ^ Final permutation.
   -> Nat                  -- ^ Number of needed vars.
   -> Nat                  -- ^ Number of with expressions.
-  -> [A.SpineClause]      -- ^ With-clauses.
-  -> TCM [A.SpineClause]  -- ^ With-clauses flattened wrt. parent patterns.
+  -> List1 A.SpineClause  -- ^ With-clauses.
+  -> TCM (List1 A.SpineClause) -- ^ With-clauses flattened wrt. parent patterns.
 buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM buildWithClause cs
   where
     -- Nested with-functions will iterate this function once for each parent clause.

@@ -489,7 +489,7 @@ imports builtinThings usedModules defs = hsImps ++ imps where
   mnames = Set.elems usedModules
 
   uniq :: [HS.ModuleName] -> [HS.ModuleName]
-  uniq = List.map head . List.group . List.sort
+  uniq = List.map List1.head . List1.group . List.sort
 
 -- Should we import MAlonzo.RTE.Float
 newtype UsesFloat = UsesFloat Bool deriving (Eq, Show)

@@ -46,6 +46,7 @@ import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
 import Agda.Utils.Function (applyUnless)
 import Agda.Utils.Functor
 import Agda.Utils.List
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -805,7 +806,7 @@ instance PrettyTCM (Seq OccursWhere) where
 
       -- Removes consecutive duplicates.
       uniq :: [OccursWhere] -> [OccursWhere]
-      uniq = map head . List.groupBy ((==) `on` snd')
+      uniq = map List1.head . List1.groupBy ((==) `on` snd')
         where
         snd' (OccursWhere _ _ ws) = ws
 

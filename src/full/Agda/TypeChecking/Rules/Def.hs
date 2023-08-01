@@ -70,6 +70,7 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Syntax.Common.Pretty ( prettyShow )
 import qualified Agda.Syntax.Common.Pretty as P
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import qualified Agda.Utils.SmallSet as SmallSet
 import Agda.Utils.Update
@@ -552,7 +553,7 @@ data WithFunctionProblem
     , wfPermSplit  :: Permutation                       -- ^ Permutation resulting from splitting the telescope into needed and unneeded vars.
     , wfPermParent :: Permutation                       -- ^ Permutation reordering the variables in the parent pattern.
     , wfPermFinal  :: Permutation                       -- ^ Final permutation (including permutation for the parent clause).
-    , wfClauses    :: [A.Clause]                        -- ^ The given clauses for the with function
+    , wfClauses    :: List1 A.Clause                    -- ^ The given clauses for the with function
     , wfCallSubst :: Substitution                       -- ^ Subtsitution to generate call for the parent.
     }
 
@@ -722,7 +723,7 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
         let rhs = updateRHS rhs0
             updateRHS rhs@A.RHS{}               = rhs
             updateRHS rhs@A.AbsurdRHS{}         = rhs
-            updateRHS (A.WithRHS q es cs)       = A.WithRHS q es (map updateClause cs)
+            updateRHS (A.WithRHS q es cs)       = A.WithRHS q es $ fmap updateClause cs
             updateRHS (A.RewriteRHS qes spats rhs wh) =
               A.RewriteRHS qes (applySubst patSubst spats) (updateRHS rhs) wh
 
@@ -852,10 +853,11 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
   -- With case: @f xs with {a} in eqa | b in eqb | {{c}} | ...; ... | ps1 = rhs1; ... | ps2 = rhs2; ...@
   -- We need to modify the patterns `ps1, ps2, ...` in the user-provided clauses
   -- to insert the {eqb} names so that the equality proofs are available on the various RHS.
-  withRHS :: QName         -- name of the with-function
-          -> [A.WithExpr]  -- @[{a} in eqa, b in eqb, {{c}}, ...]@
-          -> [A.Clause]    -- @[(ps1 = rhs1), (ps2 = rhs), ...]@
-          -> TCM (Maybe Term, WithFunctionProblem)
+  withRHS ::
+       QName             -- name of the with-function
+    -> [A.WithExpr]      -- @[{a} in eqa, b in eqb, {{c}}, ...]@
+    -> List1 A.Clause    -- @[(ps1 = rhs1), (ps2 = rhs), ...]@
+    -> TCM (Maybe Term, WithFunctionProblem)
   withRHS aux es cs = do
 
     reportSDoc "tc.with.top" 15 $ vcat
@@ -947,7 +949,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
         [ text "invert"
         , "  rhs' = " <> (text . show) rhs'
         ]
-      checkWithRHS x qname t lhsResult vtys [cl]
+      checkWithRHS x qname t lhsResult vtys $ singleton cl
 
     -- @rewrite@ clauses
     rewriteEqnRHS
@@ -1025,7 +1027,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
         [ text "rewrite"
         , "  rhs' = " <> (text . show) rhs'
         ]
-      checkWithRHS x qname t lhsResult [defaultArg (withExpr, withType)] [cl]
+      checkWithRHS x qname t lhsResult [defaultArg (withExpr, withType)] $ singleton cl
 
 checkWithRHS
   :: QName                             -- ^ Name of function.
@@ -1033,7 +1035,7 @@ checkWithRHS
   -> Type                              -- ^ Type of function.
   -> LHSResult                         -- ^ Result of type-checking patterns
   -> [Arg (Term, EqualityView)]        -- ^ Expressions and types of with-expressions.
-  -> [A.Clause]                        -- ^ With-clauses to check.
+  -> List1 A.Clause                    -- ^ With-clauses to check.
   -> TCM (Maybe Term, WithFunctionProblem)
                                 -- Note: as-bindings already bound (in checkClause)
 checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _ _) vtys0 cs =
@@ -1216,9 +1218,9 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
 
 
   -- Construct the body for the with function
-  cs <- return $ map (A.lhsToSpine) cs
+  cs <- return $ fmap (A.lhsToSpine) cs
   cs <- buildWithFunction cxtNames f aux t delta qs npars withSub finalPerm (size delta1) n cs
-  cs <- return $ map (A.spineToLhs) cs
+  cs <- return $ fmap (A.spineToLhs) cs
 
   -- #4833: inherit abstract mode from parent
   abstr <- defAbstract <$> ignoreAbstractMode (getConstInfo f)
@@ -1226,7 +1228,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
   -- Check the with function
   let info = Info.mkDefInfo (nameConcrete $ qnameName aux) noFixity' PublicAccess abstr (getRange cs)
   ai <- defArgInfo <$> getConstInfo f
-  checkFunDefS withFunType ai Nothing (Just f) info aux (Just withSub) cs
+  checkFunDefS withFunType ai Nothing (Just f) info aux (Just withSub) $ List1.toList cs
   return $ Just $ call_in_parent
 
 -- | Type check a where clause.

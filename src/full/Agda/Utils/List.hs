@@ -26,6 +26,7 @@ import Agda.Utils.Functor  ((<.>))
 import Agda.Utils.Tuple
 
 import {-# SOURCE #-} Agda.Utils.List1 (List1)
+import {-# SOURCE #-} qualified Agda.Utils.List1 as List1 (groupOn)
 
 import Agda.Utils.Impossible
 
@@ -98,12 +99,18 @@ last1 a = \case
 
 -- | Last two elements (safe).
 --   O(n).
+--
 last2 :: [a] -> Maybe (a, a)
-last2 (x : y : xs) = Just $ loop x y xs
-  where
-  loop x y []     = (x, y)
-  loop x y (z:xs) = loop y z xs
+last2 (x : y : xs) = Just $ last2' x y xs
 last2 _ = Nothing
+
+-- | @last2' x y zs@ computes the last two elements of @x:y:zs@.
+--   O(n).
+--
+last2' :: a -> a -> [a] -> (a, a)
+last2' x y = \case
+  []  -> (x, y)
+  z:zs -> last2' y z zs
 
 -- | Opposite of cons @(:)@, safe.
 --   O(1).
@@ -492,7 +499,7 @@ findOverlap xs ys =
 -- | @'groupOn' f = 'groupBy' (('==') \`on\` f) '.' 'List.sortBy' ('compare' \`on\` f)@.
 -- O(n log n).
 groupOn :: Ord b => (a -> b) -> [a] -> [[a]]
-groupOn f = List.groupBy ((==) `on` f) . List.sortBy (compare `on` f)
+groupOn f = map List1.toList . List1.groupOn f
 
 -- | A variant of 'List.groupBy' which applies the predicate to consecutive
 -- pairs.
@@ -553,8 +560,13 @@ hasElem xs = (`Set.member` Set.fromList xs)
 -- Assumes that the 'Ord' instance implements a partial order.
 
 sorted :: Ord a => [a] -> Bool
-sorted [] = True
-sorted xs = and $ zipWith (<=) xs (tail xs)
+sorted = allConsecutive (<=)
+
+-- | Check whether all consecutive elements of a list satisfy the given relation.
+-- O(n).
+--
+allConsecutive :: (a -> a -> Bool) -> [a] -> Bool
+allConsecutive cmp xs = and $ zipWith cmp xs $ drop 1 xs
 
 -- | Check whether all elements in a list are distinct from each other.
 --   Assumes that the 'Eq' instance stands for an equivalence relation.
