@@ -12,7 +12,6 @@ extra-deps:
 - STMonadTrans-0.4.3
 - data-hash-0.2.0.1
 - equivalence-0.3.4
-- geniplate-mirror-0.7.6
 - primitive-0.7.4.0
 - random-1.2.0
 - regex-base-0.94.0.0
