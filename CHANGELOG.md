@@ -1,10 +1,29 @@
 Release notes for Agda version 2.6.4
 ====================================
 
+Highlights
+----------
+
+* Cubical Agda now displays boundary conditions in interactive mode
+  (PR [#6529](https://github.com/agda/agda/pull/6529)).
+
+* An inconsistency in the treatment of large indices has been fixed
+  (Issue [#6654](https://github.com/agda/agda/issues/6654)).
+
+* Unfolding of definitions can now be fine-controlled via `opaque` definitions.
+
+* Additions to the sort system: `LevelUniv` and `Propω`.
+
+* New flag `--erasure` with several improvements to erasure (declared run-time irrelevance).
+
+* New reflection primitives for meta-programming.
+
 Installation
 ------------
 
 * Removed the cabal flag `cpphs` that enabled building Agda with `cpphs` instead of the default C preprocessor.
+
+* Agda supports GHC versions 8.6.5 to 9.6.2.
 
 Pragmas and options
 -------------------
