@@ -327,8 +327,6 @@ Pragmas and options
 * Option `--flat-split` again implies `--cohesion`.
   Reverts change introduced in Agda 2.6.3 where `--cohesion` was a prerequisite for `--flat-split`.
 
-* Option `--count-clusters` is now on by default when Agda was built with ICU support (Cabal flag `enable-cluster-counting`).
-
 * Pragma `INLINE` may now be applied to constructors of types supporting co-pattern matching.
   It enables translation of right-hand-side constructor applications to left-hand-side co-pattern splits (see [PR #6682](https://github.com/agda/agda/pull/6682)).
   For example, this translation allows the `nats` function to pass termination checking:
@@ -378,7 +376,10 @@ Library management
 
   Previously such `.agda-lib` files were ignored.
 
-* Now supports reading files with extension `.lagda.typ`, and use the parser for
+Interaction and emacs mode
+--------------------------
+
+* Agda now supports reading files with extension `.lagda.typ`, and use the parser for
   markdown files to parse them.
   To edit such files in Emacs with Agda support, one needs to add the line
   ```elisp
@@ -390,9 +391,6 @@ Library management
   One may generate HTML with typst input, but that makes little sense,
   and markdown is recommended instead when HTML export is desired.
 
-Emacs mode
-----------
-
 * Helper function (`C-c C-h`) does not abstract over module parameters anymore
   (see [#2271](https://github.com/agda/agda/issues/2271))
   and neither over generalized `variable`s
@@ -400,9 +398,6 @@ Emacs mode
 
 * New Agda input mode prefix `box` for APL boxed operators, e.g. `\box=` for ⌸;
   see PR [#6510](https://github.com/agda/agda/pull/6510/files) for full list of bindings.
-
-Cubical Agda
-------------
 
 * Cubical Agda will now report boundary information for interaction
   points which are not at the top-level of their respective clauses.
