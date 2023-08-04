@@ -46,7 +46,6 @@ extra-deps:
 - comonad-5.0.8
 - containers-0.6.6
 - contravariant-1.5.5
-- cpphs-1.20.9.1
 - data-default-0.7.1.1
 - data-default-class-0.1.2.0
 - data-default-instances-containers-0.0.1
