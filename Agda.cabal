@@ -5,9 +5,9 @@ build-type:      Custom
 license:         LicenseRef-OtherLicense
 license-file:    LICENSE
 copyright:       (c) 2005-2023 The Agda Team.
-author:          Ulf Norell and The Agda Team, see https://agda.readthedocs.io/en/latest/team.html
+author:          The Agda Team, see https://agda.readthedocs.io/en/latest/team.html
 maintainer:      The Agda Team
-homepage:        http://wiki.portal.chalmers.se/agda/
+homepage:        https://wiki.portal.chalmers.se/agda/
 bug-reports:     https://github.com/agda/agda/issues
 category:        Dependent types
 synopsis:        A dependently typed functional programming language and proof assistant

@@ -6,6 +6,7 @@ The Agda Team and License
 Agda 2 was originally written by Ulf Norell,
 partially based on code from Agda 1 by Catarina Coquand and Makoto Takeyama,
 and from Agdalight by Ulf Norell and Andreas Abel.
+Cubical Agda was originally contributed by Andrea Vezzosi.
 
 Agda 2 is currently actively developed mainly by (in alphabetical order):
 
@@ -18,13 +19,13 @@ Agda 2 is currently actively developed mainly by (in alphabetical order):
 * Amélia Liao
 * Ulf Norell
 * Andrés Sicard-Ramírez
-* Andrea Vezzosi
 
 Agda 2 has received major contributions by the following developers, amongst others.
 Some contributors have pioneered a feature which shall be mentioned here.
 But many have worked on these features for improvements and maintenance.
 
 * Andreas Abel: *termination checker, sized types, irrelevance, copatterns, erasure, github workflows, stackage*
+* Arthur Adjedj: ``LevelUniv``
 * Guillaume Allais: *warnings, pattern guards, interleaved mutual blocks, standard library 1.0 and above*
 * Stevan Andjelkovic: *LaTeX backend*
 * Miëtek Bak: *Agda logo*
@@ -35,8 +36,9 @@ But many have worked on these features for improvements and maintenance.
 * Liang-Ting Chen: *github workflows*
 * Jesper Cockx: *rewriting, unification* :option:`--without-K`, *recursive instance search*, *reflection*, ``Prop``, *cumulativity*
 * Catarina Coquand: *Agda 1*
+* Jonathan Coates: *performance*
 * Matthew Daggitt: *standard library 1.0 and above*
-* Nils Anders Danielsson: *efficient positivity checker, HTML backend, highlighting, standard library*, :option:`--erased-cubical`, *performance improvements*
+* Nils Anders Danielsson: *efficient positivity checker, HTML backend, highlighting, standard library*, :option:`--erased-cubical`, *erasure*, *performance improvements*
 * Dominique Devriese: ``instance`` *arguments*
 * Péter Diviánszky: *web frontent,* ``variable`` *declarations*
 * Robert Estelle: *refactoring of backends, main driver*
@@ -48,6 +50,7 @@ But many have worked on these features for improvements and maintenance.
 * Kuen-Bang Hou "favonia"
 * Patrik Jansson
 * Alan Jeffrey: *JavaScript compiler backend*
+* Phil de Joux: some *hlinting*
 * Wolfram Kahl
 * Wen Kokke
 * John Leo
@@ -59,7 +62,9 @@ But many have worked on these features for improvements and maintenance.
 * Stefan Monnier
 * Guilhem Moulin: *highlighting*
 * Fredrik Nordvall Forsberg: *pattern lambdas, warnings*
+* Konstantin Nisht
 * Ulf Norell: *Agda 2*
+* Josselin Poiret: some refactoring of *modalities*
 * Nicolas Pouillard: *module record expressions*
 * Jonathan Prieto: *Agda package manager*
 * Christian Sattler
