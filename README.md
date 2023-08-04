@@ -19,7 +19,7 @@ Documentation
 
 * [User manual](http://agda.readthedocs.io)
   (per-commit pdf can be downloaded from the
-  [github actions](https://github.com/agda/agda/actions?query=workflow%3A%22User+Manual%22) page)
+  [github actions](https://github.com/agda/agda/actions/workflows/user_manual.yml) page)
 * [CHANGELOG](https://github.com/agda/agda/blob/master/CHANGELOG.md)
 
 Getting Started
