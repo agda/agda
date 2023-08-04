@@ -487,3 +487,69 @@ Language
     []  : All P []
     _∷_ : P x → All P xs → All P (x ∷ xs)
   ```
+
+
+Other issues closed
+-------------------
+
+For 2.6.4, the following issues were also
+[closed](https://github.com/agda/agda/issues?q=is%3Aissue+milestone%3A2.6.4+is%3Aclosed)
+(see [bug tracker](https://github.com/agda/agda/issues)):
+
+- [#1181](https://github.com/agda/agda/issues/1181): Display of let-bound variables in goals and error messages
+- [#3437](https://github.com/agda/agda/issues/3437): Add Propω
+- [#3605](https://github.com/agda/agda/issues/3605): Improve constraint reporting for cubical
+- [#3690](https://github.com/agda/agda/issues/3690): Cubical interaction: Display inferred type with interval variables instantiated
+- [#5900](https://github.com/agda/agda/issues/5900): De Bruijn fail in Cubical (Was: Garbled boundary contexts & naming eta expansion.)
+- [#6124](https://github.com/agda/agda/issues/6124): Reflection: cannot reduce type because variable is erased
+- [#6140](https://github.com/agda/agda/issues/6140): Unapplied `List` and `Maybe` are sometimes translated to `[AgdaAny]` and `Maybe AgdaAny` by GHC backend
+- [#6229](https://github.com/agda/agda/issues/6229): Print warning name along with warning text
+- [#6271](https://github.com/agda/agda/issues/6271): Cubical: should generated code corresponding to erased constructors be erased?
+- [#6272](https://github.com/agda/agda/issues/6272): Put Level type in a different sort
+- [#6309](https://github.com/agda/agda/issues/6309): Drop support for GHC 8.0, 8.2, and 8.4
+- [#6325](https://github.com/agda/agda/issues/6325): Hidden argument puns
+- [#6333](https://github.com/agda/agda/issues/6333): Misleading file path in "Unrecognised option" error
+- [#6336](https://github.com/agda/agda/issues/6336): Paradoxical self-reference in endpoints for path constructors
+- [#6364](https://github.com/agda/agda/issues/6364): Instance candidates filtered out by type errors
+- [#6371](https://github.com/agda/agda/issues/6371): Preserve metavariable name suggestion when eta-expanding
+- [#6374](https://github.com/agda/agda/issues/6374): Refine does not work for overloaded record constructors
+- [#6380](https://github.com/agda/agda/issues/6380): Confusing warning about turning instances into instances
+- [#6395](https://github.com/agda/agda/issues/6395): `dataXXX` identifiers mis-parsed by {-# COMPILE GHC #-}
+- [#6407](https://github.com/agda/agda/issues/6407): Agsy produces clauses with out of scope variables
+- [#6413](https://github.com/agda/agda/issues/6413): Miscompilation of nested patterns in erased fields
+- [#6415](https://github.com/agda/agda/issues/6415): Apparent infinite loop in cubical with --lossy-unification
+- [#6418](https://github.com/agda/agda/issues/6418): Bug in rewriting with cubical primitives
+- [#6434](https://github.com/agda/agda/issues/6434): Option to increase performance: do not filter out absurd clauses automatically
+- [#6448](https://github.com/agda/agda/issues/6448): Don't define dependencies for elisp files included in the agda2-mode package
+- [#6506](https://github.com/agda/agda/issues/6506): Cubical: `with` abstraction failing to type check
+- [#6521](https://github.com/agda/agda/issues/6521): Support GHC 9.6 with cabal
+- [#6523](https://github.com/agda/agda/issues/6523): Soundness bug: Tick constraints not properly propogated in Guarded Cubical
+- [#6524](https://github.com/agda/agda/issues/6524): Ignore Unicode byte order mark
+- [#6525](https://github.com/agda/agda/issues/6525): Recent Emacs's escape character handling improvement leads to an error when loading agda-mode
+- [#6528](https://github.com/agda/agda/issues/6528): Guarded can block on solved metas
+- [#6530](https://github.com/agda/agda/issues/6530): Miscompilation of case split RHS lambdas
+- [#6541](https://github.com/agda/agda/issues/6541): Internal error in Agda.TypeChecking.Reduce.Fast
+- [#6551](https://github.com/agda/agda/issues/6551): Doc: the keywords `hiding`,`public`, `renaming`, and `using` are always reserved
+- [#6573](https://github.com/agda/agda/issues/6573): Check on presence of `--erasure` in `--erase-record-parameters` comes too early
+- [#6581](https://github.com/agda/agda/issues/6581): Cubical: no canonicity for record types without η-equality
+- [#6605](https://github.com/agda/agda/issues/6605): Doc: comments in "libraries" file
+- [#6621](https://github.com/agda/agda/issues/6621): Enable K also for SSetω (like for SSet)
+- [#6622](https://github.com/agda/agda/issues/6622): Bad error for `mutual` in implicit mutual block
+- [#6624](https://github.com/agda/agda/issues/6624): Suffix not working for SSet
+- [#6627](https://github.com/agda/agda/issues/6627): CheckArguments call exposes dummy checkArguments return type
+- [#6632](https://github.com/agda/agda/issues/6632): hcompU eta rule in conversion checker loses solution
+- [#6633](https://github.com/agda/agda/issues/6633): Bad interaction of Type:Type and SSet
+- [#6648](https://github.com/agda/agda/issues/6648): `--level-universe` not respected when solving funSort `_->_ : ? -> Set -> SetOmega`
+- [#6651](https://github.com/agda/agda/issues/6651): Agda fails on `univSort ? = SetOmega` even when `SizeUniv` is a solution
+- [#6654](https://github.com/agda/agda/issues/6654): Forcing analysis is inconsistent for large indices
+- [#6660](https://github.com/agda/agda/issues/6660): `{-# INLINE #-}` for copattern constructors
+- [#6662](https://github.com/agda/agda/issues/6662): Error message for unsafe option combinations has wrong pluralization
+- [#6677](https://github.com/agda/agda/issues/6677): Helper function type includes generalized parameters
+- [#6687](https://github.com/agda/agda/issues/6687): Termination checker bug with CATCHALL
+- [#6702](https://github.com/agda/agda/issues/6702): Inlining constructors to copattern should give warning with `--exact-split`
+- [#6706](https://github.com/agda/agda/issues/6706): Shape-irrelevant variables marked as irrelevant in human-readable context
+- [#6711](https://github.com/agda/agda/issues/6711): IMPOSSIBLE internal error on primStringUncons when no builtin Sigma provided
+- [#6714](https://github.com/agda/agda/issues/6714): Compiling Agda HEAD with Emacs 29+ reports docstring error
+- [#6715](https://github.com/agda/agda/issues/6715): Type checking loops on certain pattern match in cubical
+- [#6720](https://github.com/agda/agda/issues/6720): Cubical: IMPOSSIBLE in Sort.hs during checking with cubical
+- [#6725](https://github.com/agda/agda/issues/6725): Cubical: IMPOSSIBLE in Reduce.hs
