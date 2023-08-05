@@ -115,9 +115,8 @@ followed:
 
 5) Remove unnecessary dependencies from stack-XYZ.yaml files:
 
-  + Remove QuickCheck dependency
-  + Remove tasty-* dependencies
   + Remove the `packages` section.
+  + Remove dependencies QuickCheck, random, splitmix
 
 * Build source distributions:
 
