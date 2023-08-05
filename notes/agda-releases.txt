@@ -63,20 +63,6 @@ When releasing the following procedure can be followed:
 * Update in the bug tracker the milestone field of open issues to the
   next Agda version.
 
-* We are using odd-only version numbers for final releases and
-  even-only version numbers for release-candidates (see Issue
-  #6445). For example,
-
-    ** 2.6.4 is a dev version
-
-    ** 2.6.4.date could be release candidates for next major version 2.6.5
-
-    ** 2.6.5.0.date could be release candidates for 2.6.5.1
-
-    ** subsequent minor releases would be 2.6.5.1, 2.6.5.3 etc
-
-    ** next dev version would be 2.6.6 etc.
-
 * Get a clean Agda repository.
 
     export MAJOR_VERSION=<current-development-version-eg-2.4.2>

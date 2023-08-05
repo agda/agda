@@ -1,4 +1,4 @@
-Tested with `GHC 9.4.4` and `cabal-install 3.8.1.0`.
+Tested with `GHC 9.6.2` and `cabal-install 3.10.1.0`.
 
 When releasing a release candidate (RC) the following procedure can be
 followed:
@@ -54,19 +54,16 @@ followed:
   - /doc/user-manual/conf.py
   - LICENSE
 
-* We are using odd-only version numbers for final releases and
-  even-only version numbers for release-candidates (see Issue
-  #6445). For example,
+* For releasing version V, release candidates are named `(V-1).YYYYMMDD`.
+  Examples:
 
-    ** 2.6.4 is a dev version
+    ** RC for 2.6.4 is e.g. 2.6.3.20230804.
 
-    ** 2.6.4.date could be release candidates for next major version 2.6.5
+    ** RC for 2.6.4.1 is 2.6.4.0.YYYYMMDD.
 
-    ** 2.6.5.0.date could be release candidates for 2.6.5.1
+    ** RC for 2.6.4.2 is 2.6.4.1.YYYYMMDD.
 
-    ** subsequent minor releases would be 2.6.5.1, 2.6.5.3 etc
-
-    ** next dev version would be 2.6.6 etc.
+    ** RC for 2.7 is 2.6.YYYYMMDD.
 
 * Get a clean Agda repository.
 
