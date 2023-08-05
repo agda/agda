@@ -24,6 +24,7 @@ files+='test/Fail/MagicWith.err '
 files+='test/interaction/Debug.out '
 files+='test/interaction/Issue1244a.out '
 files+='test/interaction/Issue1244b.out '
+files+='test/interaction/Issue6261.out '
 
 for i in $files; do
     sed -i "s/$old_version/$new_version/g" $i
