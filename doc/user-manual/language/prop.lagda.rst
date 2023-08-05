@@ -113,7 +113,7 @@ For example::
   True : ∀ {ℓ} → Prop (lsuc ℓ)
   True {ℓ} = ∀ (P : Prop ℓ) → P → P
 
-Note that ``∀ {ℓ} → Prop (lsuc ℓ)`` (and likewise any ``∀ {ℓ} → Prop (t ℓ)``
+Note that ``∀ {ℓ} → Prop (lsuc ℓ)`` (and likewise any ``∀ {ℓ} → Prop (t ℓ)``)
 lives in ``Setω``, not ``Propω``.
 
 

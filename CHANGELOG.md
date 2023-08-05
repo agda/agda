@@ -256,7 +256,7 @@ Language
 
   Example:
   ```agda
-  {-# OPTIONS --prop #-}
+  {-# OPTIONS --prop --large-indices #-}
 
   open Agda.Primitive
 
@@ -276,7 +276,7 @@ Language
 
   -- Predicate stating that all elements satisfy a given property.
 
-  data All (P : {A : Set ℓ} → A → Prop ℓ) : HList → Propω where
+  data All (P : ∀{ℓ} {A : Set ℓ} → A → Prop ℓ) : HList → Propω where
     []  : All P []
     _∷_ : P x → All P xs → All P (x ∷ xs)
   ```
