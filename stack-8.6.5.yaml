@@ -19,5 +19,8 @@ extra-deps:
 - splitmix-0.1.0.3
 - strict-0.4.0.1
 - these-1.1.1.1
+# uuid-types-1.0.3 is part of lts-14.27, but we need to add it here
+# because we want to build it against random-1.2, while lts-14.27 has random-1.1
+- uuid-types-1.0.3
 - text-icu-0.8.0.2
 - vector-hashtables-0.1.1.1
