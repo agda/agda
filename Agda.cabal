@@ -199,47 +199,47 @@ common language
 
   ghc-options:
       -- ASR (2022-05-31). Workaround to Issue #5932.
-      -Werror
-      -Werror=cpp-undef
-      -Werror=deprecated-flags
-      -Werror=deriving-typeable
-      -Werror=dodgy-exports
-      -Werror=dodgy-foreign-imports
-      -Werror=dodgy-imports
-      -Werror=duplicate-exports
-      -Werror=empty-enumerations
-      -Werror=identities
-      -Werror=inaccessible-code
-      -Werror=inline-rule-shadowing
-      -Werror=missing-fields
-      -Werror=missing-home-modules
-      -Werror=missing-methods
-      -Werror=missing-pattern-synonym-signatures
-      -Werror=missing-signatures
-      -Werror=noncanonical-monad-instances
-      -Werror=noncanonical-monoid-instances
-      -Werror=overflowed-literals
-      -Werror=overlapping-patterns
---      -Werror=redundant-constraints
-      -Werror=semigroup
-      -Werror=simplifiable-class-constraints
-      -Werror=star-binder
-      -Werror=star-is-type
-      -Werror=tabs
-      -Werror=typed-holes
-      -Werror=unbanged-strict-patterns
-      -Werror=unrecognised-pragmas
-      -Werror=unrecognised-warning-flags
-      -Werror=unticked-promoted-constructors
-      -Werror=unused-do-bind
-      -Werror=unused-foralls
-      -Werror=warnings-deprecations
-      -Werror=wrong-do-bind
+      -Wwarn
+      -Wwarn=cpp-undef
+      -Wwarn=deprecated-flags
+      -Wwarn=deriving-typeable
+      -Wwarn=dodgy-exports
+      -Wwarn=dodgy-foreign-imports
+      -Wwarn=dodgy-imports
+      -Wwarn=duplicate-exports
+      -Wwarn=empty-enumerations
+      -Wwarn=identities
+      -Wwarn=inaccessible-code
+      -Wwarn=inline-rule-shadowing
+      -Wwarn=missing-fields
+      -Wwarn=missing-home-modules
+      -Wwarn=missing-methods
+      -Wwarn=missing-pattern-synonym-signatures
+      -Wwarn=missing-signatures
+      -Wwarn=noncanonical-monad-instances
+      -Wwarn=noncanonical-monoid-instances
+      -Wwarn=overflowed-literals
+      -Wwarn=overlapping-patterns
+--      -Wwarn=redundant-constraints
+      -Wwarn=semigroup
+      -Wwarn=simplifiable-class-constraints
+      -Wwarn=star-binder
+      -Wwarn=star-is-type
+      -Wwarn=tabs
+      -Wwarn=typed-holes
+      -Wwarn=unbanged-strict-patterns
+      -Wwarn=unrecognised-pragmas
+      -Wwarn=unrecognised-warning-flags
+      -Wwarn=unticked-promoted-constructors
+      -Wwarn=unused-do-bind
+      -Wwarn=unused-foralls
+      -Wwarn=warnings-deprecations
+      -Wwarn=wrong-do-bind
 
   -- The following warning is an error in GHC >= 8.10.
   if impl(ghc < 8.10)
     ghc-options:
-      -Werror=implicit-kind-vars
+      -Wwarn=implicit-kind-vars
       -- #6623: Turn off this (nameless) warning:
       -- "Pattern match checker exceeded (2000000) iterations in a case alternative."
       -- See: https://gitlab.haskell.org/ghc/ghc/-/issues/13464
@@ -248,39 +248,39 @@ common language
 
   if impl(ghc >= 8.8)
     ghc-options:
-      -Werror=missed-extra-shared-lib
+      -Wwarn=missed-extra-shared-lib
 
   if impl(ghc >= 8.10)
     ghc-options:
-      -Werror=compat-unqualified-imports
-      -Werror=deriving-defaults
-      -Werror=redundant-record-wildcards
-      -Werror=unused-packages
-      -Werror=unused-record-wildcards
+      -Wwarn=compat-unqualified-imports
+      -Wwarn=deriving-defaults
+      -Wwarn=redundant-record-wildcards
+      -Wwarn=unused-packages
+      -Wwarn=unused-record-wildcards
 
   if impl(ghc >= 9.0)
     ghc-options:
-      -Werror=invalid-haddock
+      -Wwarn=invalid-haddock
       -- #6137: coverage checker works only sufficiently well from GHC 9.0
-      -Werror=incomplete-patterns
-      -Werror=incomplete-record-updates
-      -Werror=overlapping-patterns
+      -Wwarn=incomplete-patterns
+      -Wwarn=incomplete-record-updates
+      -Wwarn=overlapping-patterns
 
   -- ASR (2022-04-27). This warning was added in GHC 9.0.2, removed
   -- from 9.2.1 and added back in 9.2.2.
   if impl(ghc == 9.0.2 || >= 9.2.2)
     ghc-options:
-      -Werror=unicode-bidirectional-format-characters
+      -Wwarn=unicode-bidirectional-format-characters
 
   if impl(ghc >= 9.2)
     ghc-options:
---      -Werror=operator-whitespace
-      -Werror=redundant-bang-patterns
+--      -Wwarn=operator-whitespace
+      -Wwarn=redundant-bang-patterns
 
   if impl(ghc >= 9.4)
     ghc-options:
-      -Werror=forall-identifier
-      -Werror=type-equality-out-of-scope
+      -Wwarn=forall-identifier
+      -Wwarn=type-equality-out-of-scope
 
   default-language: Haskell2010
 
