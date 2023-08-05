@@ -19,6 +19,5 @@ extra-deps:
 - splitmix-0.1.0.3
 - strict-0.4.0.1
 - these-1.1.1.1
-- uuid-types-1.0.3
 - text-icu-0.8.0.2
 - vector-hashtables-0.1.1.1
