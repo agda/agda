@@ -176,7 +176,10 @@ data PreScopeState = PreScopeState
   , stPreImports            :: !Signature  -- XX populated by scope checker
     -- ^ Imported declared identifiers.
     --   Those most not be serialized!
-  , stPreImportedModules    :: !(HashSet TopLevelModuleName)
+  , stPreImportedModules    :: !(Set TopLevelModuleName)
+      -- Andreas, 2023-08-05, issue #6750, don't make this a 'HashSet'
+      -- because then the order of its @toList@ is undefined,
+      -- leading to undefined deserialization order.
     -- ^ The top-level modules imported by the current module.
   , stPreModuleToSource     :: !ModuleToSource   -- imports
   , stPreVisitedModules     :: !VisitedModules   -- imports
@@ -479,7 +482,7 @@ stImports f s =
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreImports = x}}
 
 stImportedModules ::
-  Lens' TCState (HashSet TopLevelModuleName)
+  Lens' TCState (Set TopLevelModuleName)
 stImportedModules f s =
   f (stPreImportedModules (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedModules = x}}

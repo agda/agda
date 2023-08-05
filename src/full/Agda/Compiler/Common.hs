@@ -11,7 +11,6 @@ import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
-import qualified Data.HashSet as HSet
 import Data.Char
 import Data.Function (on)
 #if __GLASGOW_HASKELL__ < 804
@@ -101,7 +100,7 @@ setInterface i = do
   -- that it doesn't suffice to replace setTCLens' with setTCLens,
   -- because the stPreImportedModules field is strict.
   stImportedModules `setTCLens'`
-    HSet.fromList (map fst (iImportedModules i))
+    Set.fromList (map fst (iImportedModules i))
   stCurrentModule `setTCLens'`
     Just (iModuleName i, iTopLevelModuleName i)
 

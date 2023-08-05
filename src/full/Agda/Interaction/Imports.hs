@@ -43,7 +43,6 @@ import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.HashMap.Strict as HMap
-import qualified Data.HashSet as HSet
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text (Text)
@@ -1233,7 +1232,7 @@ buildInterface src topLevel = do
     -- standard library).
     builtin     <- useTC stLocalBuiltins
     mhs         <- mapM (\top -> (top,) <$> moduleHash top) .
-                   HSet.toList =<<
+                   Set.toAscList =<<
                    useR stImportedModules
     foreignCode <- useTC stForeignCode
     -- Ulf, 2016-04-12:
