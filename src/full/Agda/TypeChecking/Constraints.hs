@@ -65,7 +65,7 @@ addConstraintTCM unblock c = do
         ]
       -- Jesper, 2022-10-22: We should never block on a meta that is
       -- already solved.
-      forM_ (Set.toList $ allBlockingMetas unblock) $ \m ->
+      forM_ (allBlockingMetas unblock) $ \ m ->
         whenM (isInstantiatedMeta m) $ do
           reportSDoc "tc.constr.add" 5 $ "Attempted to block on solved meta" <+> prettyTCM m
           __IMPOSSIBLE__

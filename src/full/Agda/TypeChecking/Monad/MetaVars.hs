@@ -799,7 +799,7 @@ withFrozenMetas act = do
   openMetas <- useR stOpenMetaStore
   frozenMetas <- freezeMetas openMetas
   result <- act
-  forM_ (Set.toList frozenMetas) $ \m ->
+  forM_ frozenMetas $ \m ->
     updateMetaVar m $ \ mv -> mv { mvFrozen = Instantiable }
   return result
 

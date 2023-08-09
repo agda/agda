@@ -646,7 +646,7 @@ etaExpandMetaTCM kinds m = whenM ((not <$> isFrozen m) `and2M` asksTC envAssignM
             "postponing eta-expansion of meta variable" <+>
               prettyTCM m <+>
               "which is blocked by" <+> prettyTCM b
-          mapM_ (listenToMeta (EtaExpand m)) $ Set.toList $ allBlockingMetas b
+          mapM_ (listenToMeta (EtaExpand m)) $ allBlockingMetas b
         dontExpand = do
           reportSDoc "tc.meta.eta" 20 $ do
             "we do not expand meta variable" <+> prettyTCM m <+>
@@ -731,7 +731,7 @@ etaExpandBlocked t@NotBlocked{} = return t
 etaExpandBlocked t@(Blocked _ v) | Just{} <- isMeta v = return t
 etaExpandBlocked (Blocked b t)  = do
   reportSDoc "tc.meta.eta" 30 $ "Eta expanding blockers" <+> pretty b
-  mapM_ (etaExpandMeta [Records]) $ Set.toList $ allBlockingMetas b
+  mapM_ (etaExpandMeta [Records]) $ allBlockingMetas b
   t <- reduceB t
   case t of
     Blocked b' _ | b /= b' -> etaExpandBlocked t
