@@ -1744,6 +1744,8 @@ isFaceConstraint
 isFaceConstraint mid args = runMaybeT $ do
   iv   <- intervalView'
   mvar <- lookupLocalMeta mid  -- information associated with meta x
+  -- Make sure that this is actually an interaction point:
+  (_, _, _) <- MaybeT $ isInteractionMetaB mid args
 
   let
     t = jMetaType $ mvJudgement mvar
