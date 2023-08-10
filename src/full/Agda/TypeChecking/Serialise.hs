@@ -129,7 +129,7 @@ encode a = do
       statistics "A.Name"      nameC
     when collectStats $ do
       stats <- Map.fromListWith __IMPOSSIBLE__ . map (second toInteger) <$> do
-        liftIO $ H.toList stats
+        liftIO $ List.sort <$> H.toList stats
       modifyStatistics $ Map.unionWith (+) stats
     -- Encode hashmaps and root, and compress.
     bits1 <- Bench.billTo [ Bench.Serialization, Bench.BinaryEncode ] $

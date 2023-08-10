@@ -3999,9 +3999,12 @@ instance Pretty OpaqueBlock where
     $ [ "opaque (extends " <> pretty p <> ") {"
       , nest 2 "unfolds"
       ]
-    ++ [ nest 4 (pretty n <> ",") | n <- HashSet.toList uf ]
+    ++ [ nest 4 (pretty n <> ",") | n <- List.sort $ HashSet.toList uf ]
+         -- Andreas, 2023-08-10, https://github.com/agda/agda/pull/6628#discussion_r1285078454
+         -- The HashSet.toList is non-deterministic, order may depend on version of @hashable@.
+         -- Thus, we sort the list, so that the output isn't dependent on the specific build.
     ++ [ nest 2 "declares" ]
-    ++ [ nest 4 (pretty n <+> ": _") | n <- HashSet.toList ds ]
+    ++ [ nest 4 (pretty n <+> ": _") | n <- List.sort $ HashSet.toList ds ]
     ++ [ "}" ]
 
 instance Eq OpaqueBlock where
