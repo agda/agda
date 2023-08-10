@@ -3,8 +3,9 @@
 
 module Agda.TypeChecking.Serialise.Instances.Internal where
 
-import qualified Data.HashSet as HashSet
 import Control.Monad.IO.Class
+import qualified Data.HashSet as HashSet
+import qualified Data.List    as List
 
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position as P
@@ -466,12 +467,11 @@ instance EmbPrj a => EmbPrj (Case a) where
 -- compute the transitive closure during scope checking, never
 -- afterwards.
 instance EmbPrj OpaqueBlock where
-  icod_ (OpaqueBlock id uf _ _ r) =
-    icodeN' (\id uf ->
-      OpaqueBlock id (HashSet.fromList uf) mempty Nothing)
-    id (HashSet.toList uf) r
+  icod_ (OpaqueBlock oid uf _ _ r) =
+    icodeN' (\ oid uf -> OpaqueBlock oid (HashSet.fromList uf) mempty Nothing)
+      oid (List.sort $ HashSet.toList uf) r
 
-  value = valueN (\id uf -> OpaqueBlock id (HashSet.fromList uf) mempty Nothing)
+  value = valueN (\ oid uf -> OpaqueBlock oid (HashSet.fromList uf) mempty Nothing)
 
 instance EmbPrj CompiledClauses where
   icod_ (Fail a)   = icodeN' Fail a

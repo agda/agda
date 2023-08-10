@@ -15,6 +15,7 @@ import qualified Data.Foldable as Fold
 import Data.Hashable
 import Data.Int (Int32)
 
+import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -465,8 +466,12 @@ instance EmbPrj OpaqueId where
 
   value = valueN OpaqueId
 
-instance (Eq k, Hashable k, EmbPrj k, EmbPrj v) => EmbPrj (HashMap k v) where
-  icod_ m = mapPairsIcode (HMap.toList m)
+instance (Eq k, Ord k, Hashable k, EmbPrj k, EmbPrj v) => EmbPrj (HashMap k v) where
+  icod_ m = mapPairsIcode $ List.sortOn fst $ HMap.toList m
+    -- Andreas, 2023-08-10, issue #6761.
+    -- Need to sort to get deterministic result.
+    -- Otherwise our interface file format depends on the non-PVP versioned
+    -- hashing algorithm of the @hashable@ package.
   value = vcase (fmap HMap.fromList . mapPairsValue)
 
 instance EmbPrj a => EmbPrj (WithHiding a) where
