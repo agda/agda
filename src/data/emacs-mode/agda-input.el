@@ -341,6 +341,7 @@ order for the change to take effect."
   ("b-"  . ("⊟"))
   ("bx"  . ("⊠"))
   ("b."  . ("⊡"))
+
   ("b/"  . ("⧄"))
   ("b\\" . ("⧅"))
   ("b*"  . ("⧆"))
@@ -851,10 +852,7 @@ order for the change to take effect."
 
   ("note"    . ,(agda-input-to-string-list "♩♪♫♬"))
   ("b"       . ("♭"))
-  ("flat"    . ("♭"))
   ("#"       . ("♯"))
-  ("sharp"   . ("♯"))
-  ("natural" . ("♮"))
   ("bb"      . ("𝄫"))
   ("##"      . ("𝄪"))
 
