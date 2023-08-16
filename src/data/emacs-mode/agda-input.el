@@ -347,7 +347,7 @@ order for the change to take effect."
   ("bo"  . ("⧇"))
   ("bsq" . ("⧈"))
 
-  ;; APL boxed operators
+  ;; APL boxed operators.
 
   ("box="       . ("⌸"))
   ("box?"       . ("⍰"))
@@ -698,7 +698,7 @@ order for the change to take effect."
   ("B8"   . ("𝟖"))
   ("B9"   . ("𝟗"))
 
-  ;; Fullwidth letters
+  ;; Fullwidth letters.
 
   ("FA"   . ("Ａ"))
   ("FB"   . ("Ｂ"))
@@ -753,7 +753,7 @@ order for the change to take effect."
   ("Fy"   . ("ｙ"))
   ("Fz"   . ("ｚ"))
 
-  ;; Fullwidth digits
+  ;; Fullwidth digits.
 
   ("F0"   . ("０"))
   ("F1"   . ("１"))
@@ -766,7 +766,7 @@ order for the change to take effect."
   ("F8"   . ("８"))
   ("F9"   . ("９"))
 
-  ;; Fullwidth symbols
+  ;; Fullwidth symbols.
 
   ("F!"   . ("！"))
   ("F\""  . ("＂"))
@@ -933,7 +933,7 @@ order for the change to take effect."
   ("Gp"  . ("ψ"))  ("GP"  . ("Ψ"))
   ("Go"  . ("ω"))  ("GO"  . ("Ω"))
 
-  ;; Mathematical characters
+  ;; Mathematical characters.
 
   ("MiA" . ("𝐴"))
   ("MiB" . ("𝐵"))
@@ -1196,7 +1196,7 @@ order for the change to take effect."
   ("Mfy" . ("𝔶"))
   ("Mfz" . ("𝔷"))
 
-  ;; (Sub / Super) scripts
+  ;; (Sub / Super) scripts.
   ;;
   ;; Unicode 12.1 omits several latin characters from sub/superscript.
   ;; https://www.quora.com/Why-is-there-no-character-for-superscript-q-in-Unicode
