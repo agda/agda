@@ -313,10 +313,10 @@ order for the change to take effect."
   ("surd4"     . ("∜"))
   ("increment" . ("∆"))
   ("inf"       . ("∞"))
-  ("&"         . ("⅋﹠＆"))
+  ("&"         . ,(agda-input-to-string-list "⅋﹠＆"))
   ("z;"        . ,(agda-input-to-string-list "⨟⨾"))
   ("z:"        . ("⦂"))
-  ("at"        . ("@﹫＠"))
+  ("at"        . ,(agda-input-to-string-list "@﹫＠"))
 
   ;; Circled operators.
 
