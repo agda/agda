@@ -308,13 +308,15 @@ order for the change to take effect."
   ("+ "        . ("⊹"))
   ("+"         . ("＋"))
   ("sqrt"      . ("√"))
+  ("surd"      . ("√"))
   ("surd3"     . ("∛"))
   ("surd4"     . ("∜"))
   ("increment" . ("∆"))
   ("inf"       . ("∞"))
-  ("&"         . ("⅋"))
+  ("&"         . ("⅋﹠＆"))
   ("z;"        . ,(agda-input-to-string-list "⨟⨾"))
   ("z:"        . ("⦂"))
+  ("at"        . ("@﹫＠"))
 
   ;; Circled operators.
 
@@ -335,10 +337,15 @@ order for the change to take effect."
 
   ;; Boxed operators.
 
-  ("b+" . ("⊞"))
-  ("b-" . ("⊟"))
-  ("bx" . ("⊠"))
-  ("b." . ("⊡"))
+  ("b+"  . ("⊞"))
+  ("b-"  . ("⊟"))
+  ("bx"  . ("⊠"))
+  ("b."  . ("⊡"))
+  ("b/"  . ("⧄"))
+  ("b\\" . ("⧅"))
+  ("b*"  . ("⧆"))
+  ("bo"  . ("⧇"))
+  ("bsq" . ("⧈"))
 
   ;; APL boxed operators
 
@@ -376,6 +383,7 @@ order for the change to take effect."
   ("integral" . ,(agda-input-to-string-list "∫∬∭∮∯∰∱∲∳"))
   ("angle"    . ,(agda-input-to-string-list "∟∡∢⊾⊿"))
   ("join"     . ,(agda-input-to-string-list "⋈⋉⋊⋋⋌⨝⟕⟖⟗"))
+  ("esh"      . ("ʃ"))
 
   ;; Arrows.
 
@@ -758,6 +766,42 @@ order for the change to take effect."
   ("F8"   . ("８"))
   ("F9"   . ("９"))
 
+  ;; Fullwidth symbols
+
+  ("F!"   . ("！"))
+  ("F\""  . ("＂"))
+  ("F#"   . ("＃"))
+  ("F$"   . ("＄"))
+  ("F%"   . ("％"))
+  ("F&"   . ("＆"))
+  ("F'"   . ("＇"))
+  ("F("   . ("（"))
+  ("F)"   . ("）"))
+  ("F*"   . ("＊"))
+  ("F+"   . ("＋"))
+  ("F,"   . ("，"))
+  ("F-"   . ("－"))
+  ("F."   . ("．"))
+  ("F/"   . ("／"))
+  ("F:"   . ("："))
+  ("F;"   . ("；"))
+  ("F<"   . ("＜"))
+  ("F="   . ("＝"))
+  ("F>"   . ("＞"))
+  ("F?"   . ("？"))
+  ("F@"   . ("＠"))
+  ("F["   . ("［"))
+  ("F\\"  . ("＼"))
+  ("F]"   . ("］"))
+  ("F_"   . ("＿"))
+  ("F{"   . ("｛"))
+  ("F|"   . ("｜"))
+  ("F}"   . ("｝"))
+  ("F~"   . ("～"))
+  ("F(("  . ("｟"))
+  ("F))"  . ("｠"))
+  ("Fneg" . ("￢"))
+
   ;; Parentheses.
 
   ("(" . ,(agda-input-to-string-list "([{⁅⁽₍〈⎴⟅⟦⟨⟪⦃〈《「『【〔〖〚︵︷︹︻︽︿﹁﹃﹙﹛﹝（［｛｢❪❬❰❲❴⟮⦅⦗⧼⸨❮⦇⦉"))
@@ -805,13 +849,14 @@ order for the change to take effect."
 
   ;; Musical symbols.
 
-  ("note" . ,(agda-input-to-string-list "♩♪♫♬"))
-  ("b"    . ("♭"))
-  ("#"    . ("♯"))
+  ("note"    . ,(agda-input-to-string-list "♩♪♫♬"))
+  ("b"       . ("♭"))
+  ("#"       . ("♯"))
+  ("natural" . ("♮"))
 
   ;; Other punctuation and symbols.
 
-  ("\\"         . ("\\"))
+  ("\\"         . ("＼"))
   ("en"         . ("–"))
   ("em"         . ("—"))
   ("!"          . ("！"))
