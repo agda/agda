@@ -4564,6 +4564,7 @@ data TypeError
           -- does not mention any @lock variables.
         | MismatchedProjectionsError QName QName
         | AttributeKindNotEnabled String String String
+        | CannotRewriteByNonEquation Type
     -- Coverage errors
 -- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | SplitError SplitError

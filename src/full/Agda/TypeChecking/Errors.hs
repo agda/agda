@@ -281,6 +281,7 @@ errorString err = case err of
   DoesNotMentionTicks{}                    -> "DoesNotMentionTicks"
   MismatchedProjectionsError{}             -> "MismatchedProjectionsError"
   AttributeKindNotEnabled{}                -> "AttributeKindNotEnabled"
+  CannotRewriteByNonEquation{}             -> "CannotRewriteByNonEquation"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1310,6 +1311,9 @@ instance PrettyTCM TypeError where
       [text opt] ++
       pwords "to enable them):" ++
       [text s]
+
+    CannotRewriteByNonEquation t ->
+      "Cannot rewrite by equation of type" <+> prettyTCM t
 
     where
     mpar n args
