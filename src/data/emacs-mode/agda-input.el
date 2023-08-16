@@ -851,8 +851,12 @@ order for the change to take effect."
 
   ("note"    . ,(agda-input-to-string-list "♩♪♫♬"))
   ("b"       . ("♭"))
+  ("flat"    . ("♭"))
   ("#"       . ("♯"))
+  ("sharp"   . ("♯"))
   ("natural" . ("♮"))
+  ("bb"      . ("𝄫"))
+  ("##"      . ("𝄪"))
 
   ;; Other punctuation and symbols.
 
