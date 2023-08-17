@@ -283,6 +283,7 @@ errorString err = case err of
   AttributeKindNotEnabled{}                -> "AttributeKindNotEnabled"
   CannotRewriteByNonEquation{}             -> "CannotRewriteByNonEquation"
   MacroResultTypeMismatch{}                -> "MacroResultTypeMismatch"
+  NamedWhereModuleInRefinedContext{}       -> "NamedWhereModuleInRefinedContext"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1318,6 +1319,16 @@ instance PrettyTCM TypeError where
 
     MacroResultTypeMismatch expectedType ->
       sep [ "Result type of a macro must be", nest 2 $ prettyTCM expectedType ]
+
+    NamedWhereModuleInRefinedContext args names -> do
+      let pr x v = text (x ++ " =") <+> prettyTCM v
+      vcat
+        [ fsep (pwords $ "Named where-modules are not allowed when module parameters have been refined by pattern matching. " ++
+                          "See https://github.com/agda/agda/issues/2897.")
+        , text $ "In this case the module parameter" ++
+                  (if not (null args) then "s have" else " has") ++
+                  " been refined to"
+        , nest 2 $ vcat (zipWith pr names args) ]
 
     where
     mpar n args
