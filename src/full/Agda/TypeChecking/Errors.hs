@@ -282,6 +282,7 @@ errorString err = case err of
   MismatchedProjectionsError{}             -> "MismatchedProjectionsError"
   AttributeKindNotEnabled{}                -> "AttributeKindNotEnabled"
   CannotRewriteByNonEquation{}             -> "CannotRewriteByNonEquation"
+  MacroResultTypeMismatch{}                -> "MacroResultTypeMismatch"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1314,6 +1315,9 @@ instance PrettyTCM TypeError where
 
     CannotRewriteByNonEquation t ->
       "Cannot rewrite by equation of type" <+> prettyTCM t
+
+    MacroResultTypeMismatch expectedType ->
+      sep [ "Result type of a macro must be", nest 2 $ prettyTCM expectedType ]
 
     where
     mpar n args

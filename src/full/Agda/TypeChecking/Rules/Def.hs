@@ -143,8 +143,7 @@ checkMacroType t = do
       resType = abstract (telFromList (drop (length telList - 1) telList)) tr
   expectedType <- el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit)
   equalType resType expectedType
-    `catchError` \ _ -> typeError . GenericDocError =<< sep [ "Result type of a macro must be"
-                                                            , nest 2 $ prettyTCM expectedType ]
+    `catchError` \ _ -> typeError $ MacroResultTypeMismatch expectedType
 
 -- | A single clause without arguments and without type signature is an alias.
 isAlias :: [A.Clause] -> Type -> Maybe (A.Expr, Maybe C.Expr, MetaId)

@@ -4565,6 +4565,7 @@ data TypeError
         | MismatchedProjectionsError QName QName
         | AttributeKindNotEnabled String String String
         | CannotRewriteByNonEquation Type
+        | MacroResultTypeMismatch Type
     -- Coverage errors
 -- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | SplitError SplitError
