@@ -1250,18 +1250,10 @@ checkWhere wh@(A.WhereDecls whmod whNamed ds) ret = do
     ensureNoNamedWhereInRefinedContext Nothing = return ()
     ensureNoNamedWhereInRefinedContext (Just m) = traceCall (CheckNamedWhere m) $ do
       args <- map unArg <$> (moduleParamsToApply =<< currentModule)
-      unless (isWeakening args) $ -- weakened contexts are fine
-        genericDocError =<< do
-          names <- map (argNameToString . fst . unDom) . telToList <$>
-                    (lookupSection =<< currentModule)
-          let pr x v = text (x ++ " =") <+> prettyTCM v
-          vcat
-            [ fsep (pwords $ "Named where-modules are not allowed when module parameters have been refined by pattern matching. " ++
-                             "See https://github.com/agda/agda/issues/2897.")
-            , text $ "In this case the module parameter" ++
-                     (if not (null args) then "s have" else " has") ++
-                     " been refined to"
-            , nest 2 $ vcat (zipWith pr names args) ]
+      unless (isWeakening args) $ do -- weakened contexts are fine
+        names <- map (argNameToString . fst . unDom) . telToList <$>
+                (lookupSection =<< currentModule)
+        typeError $ NamedWhereModuleInRefinedContext args names
       where
         isWeakening [] = True
         isWeakening (Var i [] : args) = isWk (i - 1) args

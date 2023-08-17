@@ -4566,6 +4566,7 @@ data TypeError
         | AttributeKindNotEnabled String String String
         | CannotRewriteByNonEquation Type
         | MacroResultTypeMismatch Type
+        | NamedWhereModuleInRefinedContext [Term] [String]
     -- Coverage errors
 -- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | SplitError SplitError
