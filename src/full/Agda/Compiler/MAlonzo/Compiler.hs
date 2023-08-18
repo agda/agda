@@ -1039,7 +1039,7 @@ noApplication = \case
   T.TLet t1 t2 -> do
     t1' <- term t1
     intros 1 $ \[x] -> do
-      hsLet x t1' <$> term t2
+      hsLet x t1' . hsCoerce <$> term t2
 
   T.TCase sc ct def alts -> do
     sc'   <- term $ T.TVar sc
