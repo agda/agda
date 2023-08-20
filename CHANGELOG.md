@@ -563,3 +563,4 @@ For 2.6.4, the following issues were also
 - [#6715](https://github.com/agda/agda/issues/6715): Type checking loops on certain pattern match in cubical
 - [#6720](https://github.com/agda/agda/issues/6720): Cubical: IMPOSSIBLE in Sort.hs during checking with cubical
 - [#6725](https://github.com/agda/agda/issues/6725): Cubical: IMPOSSIBLE in Reduce.hs
+- [#6767](https://github.com/agda/agda/issues/6767): Spurious internal error in forcing translation involving literals

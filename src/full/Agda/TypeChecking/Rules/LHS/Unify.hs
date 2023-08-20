@@ -989,4 +989,9 @@ patternBindingForcedVars forced v = do
         Level{}     -> return $ dotP v
         DontCare{}  -> return $ dotP v
         Dummy{}     -> return $ dotP v
-        Lit{}       -> __IMPOSSIBLE__
+        Lit{}       -> return $ dotP v
+          -- Andreas, 2023-08-20, issue #6767
+          -- The last case is not __IMPOSSIBLE__ (regresssion in 2.6.2).
+          -- It would be if we had reduced to `constructorForm`,
+          -- however, turning a `LitNat` into constructors would only result in churn,
+          -- since literals have no variables that could be bound.
