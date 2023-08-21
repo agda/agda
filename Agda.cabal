@@ -36,7 +36,7 @@ description:
 
 tested-with:
     GHC == 9.6.2
-    GHC == 9.4.5
+    GHC == 9.4.6
     GHC == 9.2.8
     GHC == 9.0.2
     GHC == 8.10.7
@@ -87,7 +87,7 @@ extra-doc-files:
 
 extra-source-files:
     stack-9.6.2.yaml
-    stack-9.4.5.yaml
+    stack-9.4.6.yaml
     stack-9.2.8.yaml
     stack-9.0.2.yaml
     stack-8.10.7.yaml
