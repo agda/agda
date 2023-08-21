@@ -281,6 +281,7 @@ errorString err = case err of
   DoesNotMentionTicks{}                    -> "DoesNotMentionTicks"
   MismatchedProjectionsError{}             -> "MismatchedProjectionsError"
   AttributeKindNotEnabled{}                -> "AttributeKindNotEnabled"
+  InvalidProjectionParameter{}             -> "InvalidProjectionParameter"
   CannotRewriteByNonEquation{}             -> "CannotRewriteByNonEquation"
   MacroResultTypeMismatch{}                -> "MacroResultTypeMismatch"
   NamedWhereModuleInRefinedContext{}       -> "NamedWhereModuleInRefinedContext"
@@ -1313,6 +1314,10 @@ instance PrettyTCM TypeError where
       [text opt] ++
       pwords "to enable them):" ++
       [text s]
+
+    InvalidProjectionParameter arg -> fsep $
+      pwords "Invalid projection parameter " ++
+      [prettyA arg]
 
     CannotRewriteByNonEquation t ->
       "Cannot rewrite by equation of type" <+> prettyTCM t

@@ -4560,6 +4560,7 @@ data TypeError
           -- does not mention any @lock variables.
         | MismatchedProjectionsError QName QName
         | AttributeKindNotEnabled String String String
+        | InvalidProjectionParameter (NamedArg A.Expr)
         | CannotRewriteByNonEquation Type
         | MacroResultTypeMismatch Type
         | NamedWhereModuleInRefinedContext [Term] [String]
