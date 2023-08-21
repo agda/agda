@@ -79,12 +79,14 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Singleton
-import Agda.Utils.String ( trim )
+import Agda.Utils.String ( trim, ltrim )
 
 import Agda.Version
 
 -- Paths_Agda.hs is in $(BUILD_DIR)/build/autogen/.
 import Paths_Agda ( getDataFileName )
+
+import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
 -- * Types and Monads
@@ -392,8 +394,7 @@ getTrustedExecutables = mkLibM [] $ do
     if not (efExists file) then return Map.empty else do
       es    <- liftIO $ stripCommentLines <$> UTF8.readFile (efPath file)
       files <- liftIO $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- es ]
-      tmp   <- parseExecutablesFile file $ nubOn snd files
-      return tmp
+      parseExecutablesFile file $ nubOn snd files
   `catchIO` \ e -> do
     raiseErrors' [ ReadError e "Failed to read trusted executables." ]
     return Map.empty
@@ -402,16 +403,14 @@ getTrustedExecutables = mkLibM [] $ do
 --
 parseExecutablesFile
   :: ExecutablesFile
-  -> [(LineNumber, FilePath)]
+  -> [(LineNumber, String)]
   -> LibErrorIO (Map ExeName FilePath)
 parseExecutablesFile ef files = do
-  executables <- forM files $ \(ln, fp) -> do
+  executables <- forM files $ \(ln, line) -> do
     -- Compute canonical executable name and absolute filepath.
-    let strExeName  = takeFileName fp
-    let strExeName' = fromMaybe strExeName $ stripExtension exeExtension strExeName
-    let txtExeName  = T.pack strExeName'
+    let (exeName, fp) = parseExecutablesLine $ trim line
     exePath <- liftIO $ makeAbsolute fp
-    return (txtExeName, exePath)
+    return (T.pack exeName, exePath)
 
   -- Create a map from executable names to their location(s).
   let exeMap1 :: Map ExeName (List1 FilePath)
@@ -426,6 +425,35 @@ parseExecutablesFile ef files = do
 
   -- Return non-ambiguous mappings.
   return exeMap
+
+-- |
+-- Accept either @name = filepath@ (whitespace around @=@)
+-- or just a @filepath@ analysed as @path/name[.exe]@.
+-- In both cases, the mapping @(name, filepath)@ is returned.
+--
+-- Precondition: the argument is trimmed.
+--
+-- >>> parseExecutablesLine "name = filepath"
+-- ("name","filepath")
+--
+-- >>> parseExecutablesLine "name = file path"
+-- ("name", "file path")
+--
+-- >>> parseExecutablesLine "name=file path"
+-- ("name=file path", "name=file path")
+--
+-- >>> parseExecutablesLine "path/name"
+-- ("name","path/name")
+--
+parseExecutablesLine :: String -> (String, FilePath)
+parseExecutablesLine fp =
+  case words fp of
+    name : "=" : _ ->
+      case break (== '=') fp of
+        (_, '=':rest) -> (name, ltrim rest)
+        _ -> __IMPOSSIBLE__
+    _ -> (fromMaybe strExeName $ stripExtension exeExtension strExeName, fp)
+      where strExeName  = takeFileName fp
 
 ------------------------------------------------------------------------
 -- * Resolving library names to include pathes

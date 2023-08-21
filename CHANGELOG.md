@@ -498,6 +498,8 @@ Reflection
   The `blockOnMeta` builtin has been deprecated, and an implementation
   in terms of `blockTC` is given for backwards compatibility.
 
+* The `executables` file now allows entries of the form `name = path`
+  (whitespace around `=` needed) so that `execTC "name"` will invoke `path`.
 
 Other issues closed
 -------------------
