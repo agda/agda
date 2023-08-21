@@ -870,3 +870,14 @@ For instance, to run the example above, you must add ``/bin/echo`` to this file:
 
 The executable can then be called by passing its basename to ``execTC``,
 subtracting the ``.exe`` on Windows.
+
+Since 2.6.4, lines of the form ``name = path`` are also allowed in the ``executables`` file.
+The equals sign must be surrounded by whitespace.
+The new form allows an executable to be available under a different name, for example:
+
+.. code-block:: text
+
+  # contents of ~/.agda/executables
+  agda = $HOME/.cabal/bin/agda-2.6.4
+
+Given this configuration, ``execTC "agda"`` will invoke ``agda-2.6.4`` located in ``$HOME/.cabal/bin``.
