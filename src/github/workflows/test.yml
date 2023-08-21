@@ -157,10 +157,10 @@ jobs:
     - name: "Build Agda"
       run: make BUILD_DIR="${BUILD_DIR}" install-bin
 
-    # - name: "Run tests for the size solver"
-    #   run: |
-    #     export PATH=${HOME}/.local/bin:${PATH}
-    #     make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" size-solver-test
+    - name: "Run tests for the size solver"
+      run: |
+        export PATH=${HOME}/.local/bin:${PATH}
+        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" size-solver-test
 
     - name: "Pack artifacts"
       # This step should go into the Makefile.
