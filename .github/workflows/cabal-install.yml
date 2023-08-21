@@ -30,12 +30,13 @@ jobs:
     - id: setup-haskell
       uses: haskell/actions/setup@v2
       with:
+        cabal-update: false
         cabal-version: ${{ matrix.cabal-ver }}
         ghc-version: ${{ matrix.ghc-ver }}
     - name: Environment settings based on the Haskell setup
       run: |
-        export GHC_VER=$(ghc --numeric-version)
-        export CABAL_VER=$(cabal --numeric-version)
+        GHC_VER=$(ghc --numeric-version)
+        CABAL_VER=$(cabal --numeric-version)
         echo "GHC_VER   = ${GHC_VER}"
         echo "CABAL_VER = ${CABAL_VER}"
         echo "GHC_VER=${GHC_VER}"       >> ${GITHUB_ENV}
@@ -45,15 +46,16 @@ jobs:
         cabal update
         cabal configure ${FLAGS}
         cabal build --dry-run
-    - id: cache
-      name: Cache dependencies
-      uses: actions/cache@v3
-      with:
+    - env:
         key: cabal-install.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
-          }}-${{ hashFiles('**/plan.json') }}
+          }}-
+      id: cache
+      name: Restore cached dependencies
+      uses: actions/cache/restore@v3
+      with:
+        key: ${{ env.key }}-${{ hashFiles('**/plan.json') }}
         path: ~/.cabal/store
-        restore-keys: cabal-install.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{
-          env.CABAL_VER }}-
+        restore-keys: ${{ env.key }}
     - if: ${{ !steps.cache.outputs.cache-hit }}
       name: Install dependencies
       run: |
@@ -61,6 +63,12 @@ jobs:
     - name: Install Agda
       run: |
         cabal install ${FLAGS}
+    - if: always() && !steps.cache.outputs.cache-hit
+      name: Save cache
+      uses: actions/cache/save@v3
+      with:
+        key: ${{ steps.cache.outputs.cache-primary-key }}
+        path: ~/.cabal/store
     strategy:
       fail-fast: false
       matrix:

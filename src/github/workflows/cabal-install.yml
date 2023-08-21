@@ -58,21 +58,28 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    ## Disable the setup action: Use preinstalled GHC and Cabal.
-    ##
-    ## In case the ubuntu-22.04 environment moves GHC beyond
-    ## what Agda supports, bring back the setup action.
+    # ## Disable the setup action: Use preinstalled GHC and Cabal.
+    # ##
+    # ## In case the ubuntu-22.04 environment moves GHC beyond
+    # ## what Agda supports, bring back the setup action.
+    #
+    # 2023-08-21: skipping setup does no work out of the box
+    # since then cabal uses the XDG directory structure.
+    # In particular, the ~/.cabal/store is somewhere else.
+    # We also need to reset the cache then so cabal does not get
+    # confused if there is both the restored .cabal/store and the XDG store.
     #
     - uses: haskell/actions/setup@v2
       id: setup-haskell
       with:
         ghc-version: ${{ matrix.ghc-ver }}
         cabal-version: ${{ matrix.cabal-ver }}
+        cabal-update: false
 
     - name: Environment settings based on the Haskell setup
       run: |
-        export GHC_VER=$(ghc --numeric-version)
-        export CABAL_VER=$(cabal --numeric-version)
+        GHC_VER=$(ghc --numeric-version)
+        CABAL_VER=$(cabal --numeric-version)
         echo "GHC_VER   = ${GHC_VER}"
         echo "CABAL_VER = ${CABAL_VER}"
         echo "GHC_VER=${GHC_VER}"       >> ${GITHUB_ENV}
@@ -87,15 +94,17 @@ jobs:
       # Keep a watch on this `cabal-3.9 build --dry-run` bug:
       # https://github.com/haskell/cabal/issues/8706
 
-    - name: Cache dependencies
-      uses: actions/cache@v3
+    - name: Restore cached dependencies
+      uses: actions/cache/restore@v3
       id: cache
+      env:
+        key: cabal-install.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-
       with:
-        path: ~/.cabal/store
+        path: &cache_path ~/.cabal/store
         # ${{ steps.setup-haskell.outputs.cabal-store }}
         # The file `plan.json` contains the build information.
-        key:          cabal-install.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-${{ hashFiles('**/plan.json') }}
-        restore-keys: cabal-install.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-
+        key:          ${{ env.key }}-${{ hashFiles('**/plan.json') }}
+        restore-keys: ${{ env.key }}
 
     - name: Install dependencies
       if: ${{ !steps.cache.outputs.cache-hit }}
@@ -105,3 +114,11 @@ jobs:
     - name: Install Agda
       run: |
         cabal install ${FLAGS}
+
+    - name: Save cache
+      uses: actions/cache/save@v3
+      if:   always() && !steps.cache.outputs.cache-hit
+            # save cache even when build fails
+      with:
+        key:  ${{ steps.cache.outputs.cache-primary-key }}
+        path: *cache_path
