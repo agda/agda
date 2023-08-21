@@ -1448,8 +1448,7 @@ checkKnownArgument
   -> Args               -- ^ Inferred arguments (including hidden ones).
   -> Type               -- ^ Type of the head (must be Pi-type with enough domains).
   -> TCM (Args, Type)   -- ^ Remaining inferred arguments, remaining type.
-checkKnownArgument arg [] _ = genericDocError =<< do
-  "Invalid projection parameter " <+> prettyA arg
+checkKnownArgument arg [] _ = typeError $ InvalidProjectionParameter arg
 -- Andreas, 2019-07-22, while #3353: we should use domName, not absName !!
 -- WAS:
 -- checkKnownArgument arg@(Arg info e) (Arg _infov v : vs) t = do
