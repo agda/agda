@@ -94,6 +94,10 @@ jobs:
     - name: Build Agda
       run: |
         cabal build
+    - if: ${{ matrix.doctest }}
+      name: Run doctest
+      run: |
+        make doc-test
     strategy:
       fail-fast: false
       matrix:
@@ -103,6 +107,8 @@ jobs:
         - '3.10'
         description:
         - Linux
+        doctest:
+        - false
         ghc-ver:
         - 9.6.2
         - 9.4.6
@@ -113,7 +119,8 @@ jobs:
         - 8.6.5
         include:
         - cabal-flags: --disable-tests
-          description: Linux w/o tests
+          description: Linux doctest
+          doctest: true
           ghc-ver: 9.6.2
           os: ubuntu-22.04
         - cabal-flags: --enable-tests -f debug

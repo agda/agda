@@ -14,8 +14,6 @@
 --
 --   @
 
-
-
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
   -- because of https://gitlab.haskell.org/ghc/ghc/issues/10339
 
@@ -44,6 +42,10 @@ import GHC.Exts as IsList ( IsList(..) )
 import Agda.Utils.Functor ((<.>))
 import Agda.Utils.Null (Null(..))
 import qualified Agda.Utils.List as List
+
+-- Set up doctest.
+-- $setup
+-- >>> :seti -XOverloadedLists
 
 type List1 = NonEmpty
 type String1 = List1 Char
@@ -140,7 +142,7 @@ wordsBy p = loop
 --   found.
 --
 --   >>> breakAfter even [1,3,5,2,4,7,8]
---   ([1,3,5,2],[4,7,8])
+--   (1 :| [3,5,2],[4,7,8])
 
 breakAfter :: (a -> Bool) -> List1 a -> (List1 a, [a])
 breakAfter p (x :| xs) = List.breakAfter1 p x xs

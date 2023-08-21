@@ -54,15 +54,17 @@ jobs:
         # Need to mention "cabal-ver" at least once in the matrix, otherwise matrix.cabal-ver is an actionlint error.
         cabal-ver: ['3.10']
         cabal-flags: ['--enable-tests -f enable-cluster-counting']
+        doctest: [false]
         include:
           ## Latest GHC, special builds
 
-          # Linux, w/o tests
+          # Linux, without tests but with doctest
           - os: ubuntu-22.04
-            description: Linux w/o tests
+            description: Linux doctest
             ghc-ver: '9.6.2'
             # Can't leave cabal-flags empty here lest it becomes the default value.
             cabal-flags: '--disable-tests'
+            doctest: true
 
           # Linux, without -f enable-cluster-counting but with -f debug
           - os: ubuntu-22.04
@@ -192,6 +194,11 @@ jobs:
     - name: Build Agda
       run: |
         cabal build
+
+    - name: Run doctest
+      if: ${{ matrix.doctest }}
+      run: |
+        make doc-test
 
     # - name: Clear old cache
     #   if:   ${{ steps.cache.outputs.cache-hit }}

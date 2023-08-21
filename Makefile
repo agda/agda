@@ -437,6 +437,7 @@ test : check-whitespace \
        std-lib-succeed \
        std-lib-interaction \
        user-manual-test \
+       doc-test \
        size-solver-test
 
 .PHONY : test-using-std-lib ## Run all tests which use the standard library.
@@ -619,6 +620,19 @@ user-manual-test :
 testing-emacs-mode:
 	@$(call decorate, "Testing the Emacs mode", \
 	  $(AGDA_MODE) compile)
+
+.PHONY : doc-test ## Install and run doctest for the Agda library.
+doc-test: install-doctest run-doctest
+
+.PHONY : install-doctest ## Install doctest for the current ghc.
+install-doctest:
+	@$(call decorate, "Installing doctest", \
+	  $(CABAL) install doctest --ignore-project)
+
+.PHONY : run-doctest ## Run the doctests for the Agda library.
+run-doctest:
+	@$(call decorate, "Running doctest", \
+	  $(CABAL) repl Agda -w doctest --repl-options=-w)
 
 ##############################################################################
 ## Size solver

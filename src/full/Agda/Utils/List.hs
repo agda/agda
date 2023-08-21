@@ -289,7 +289,7 @@ spanEnd p = snd . foldr f (True, ([], []))
 --   found.
 --
 --   >>> breakAfter1 even 1 [3,5,2,4,7,8]
---   ([1,3,5,2],[4,7,8])
+--   (1 :| [3,5,2],[4,7,8])
 
 breakAfter1 :: (a -> Bool) -> a -> [a] -> (List1 a, [a])
 breakAfter1 p = loop

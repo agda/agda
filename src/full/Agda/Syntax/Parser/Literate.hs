@@ -81,9 +81,9 @@ atomizeLayers = (fmap <$> ((,) . fst) <*> snd) <=< unMkLayers
 --
 --   > f : Processor
 --
---   prop> f pos s /= []
+--   proposition> f pos s /= []
 --
---   prop> f pos s >>= layerContent == s
+--   proposition> f pos s >>= layerContent == s
 
 type Processor = Position -> String -> [Layer]
 
