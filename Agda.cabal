@@ -163,6 +163,13 @@ flag debug
   description:
     Enable debugging features that may slow Agda down.
 
+-- Automatic flag to turn off the DocTests suite if its dependencies are not available.
+flag doctests
+  default: True
+  manual:  False
+  description:
+    Enable the agda-doc-tests test-suite.
+
 flag enable-cluster-counting
   default: False
   description:
@@ -972,3 +979,22 @@ test-suite agda-tests
   -- Andreas (2021-10-11): tasty-silver < 3.3 does not work interactively under Windows
   if os(windows)
     build-depends: tasty-silver >= 3.3
+
+test-suite agda-doc-tests
+  import:           language
+
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   test/
+  main-is:          DocTestMain.hs
+  build-depends:
+    , Agda
+    , base
+    , doctest-parallel ^>= 0.3.0
+        -- doctest-parallel-0.2.2 is the first to filter out autogen-modules
+
+  if !flag(doctests)
+    buildable: False
+
+  if impl(ghc >= 8.10)
+    ghc-options:
+      -Wno-unused-packages
