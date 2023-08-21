@@ -306,14 +306,16 @@ mkRegex :: Text -> R.Regex
 mkRegex r = either (error "Invalid regex") id $
   RT.compile R.defaultCompOpt R.defaultExecOpt r
 
-cleanOutput'
-  :: FilePath  -- ^ @pwd@, with slashes rather than backslashes.
+cleanOutput' ::
+     Text      -- ^ Name of Agda binary, e.g. @agda@, @agda-2.6.4@ or @agda-quicker@.
+  -> FilePath  -- ^ @pwd@, with slashes rather than backslashes.
   -> Text      -- ^ Output to sanitize.
   -> Text      -- ^ Sanitized output.
-cleanOutput' pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
+cleanOutput' agda pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
   where
-    rgxs = map (first mkRegex)
-      [ ("[^ (]*test.Fail.", "")
+  rgxs = map (first mkRegex) $ concat
+    [ [ (agda, "agda") | agda /= "agda" ]
+    , [ ("[^ (]*test.Fail.", "")
       , ("[^ (]*test.Succeed.", "")
       , ("[^ (]*test.Common.", "")
       , ("[^ (]*test.Bugs.", "")
@@ -340,11 +342,13 @@ cleanOutput' pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
       , ("[^ (]*lib.prim", "agda-default-include-path")
       , ("\xe2\x80\x9b|\xe2\x80\x99|\xe2\x80\x98|`", "'")
       ]
+    ]
 
 cleanOutput :: Text -> IO Text
 cleanOutput inp = do
+  agda <- takeFileName <$> getAgdaBin
   pwd <- getCurrentDirectory
-  return $ cleanOutput' (map slashify pwd) inp
+  return $ cleanOutput' (T.pack agda) (map slashify pwd) inp
   where
     slashify = \case
       '\\' -> '/'
