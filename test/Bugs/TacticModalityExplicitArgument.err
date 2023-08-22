@@ -1,0 +1,10 @@
+AGDA_FAILURE
+
+ret > ExitFailure 42
+out > Failed to solve the following constraints:
+out >   _x_16 = 102 : Nat (blocked on _x_16)
+out > Unsolved metas at the following locations:
+out >   TacticModalityExplicitArgument.agda:27,14-15
+out >   TacticModalityExplicitArgument.agda:27,16-17
+out >   TacticModalityExplicitArgument.agda:30,9-13
+out >
