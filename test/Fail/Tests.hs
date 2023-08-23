@@ -64,8 +64,10 @@ mkFailTest agdaFile =
     (Just updGolden)
   where
   testName   = asTestName testDir agdaFile
-  goldenFile = dropAgdaExtension agdaFile <.> "err"
-  flagFile   = dropAgdaExtension agdaFile <.> "flags"
+  baseName   = dropAgdaExtension agdaFile
+  varFile    = baseName <.> "vars"
+  flagFile   = baseName <.> "flags"
+  goldenFile = baseName <.> "err"
 
   readGolden = readTextFileMaybe goldenFile
   updGolden  = writeTextFile goldenFile
@@ -75,7 +77,7 @@ mkFailTest agdaFile =
                    , "--ignore-interfaces", "--no-libraries"
                    , "--double-check"
                    ]
-    runAgdaWithOptions testName agdaArgs (Just flagFile) Nothing
+    runAgdaWithOptions testName agdaArgs (Just flagFile) (Just varFile)
       <&> expectFail
 
 -- | A test for case-insensitivity of the file system.
