@@ -492,6 +492,11 @@ fail :
 	@$(call decorate, "Suite of failing tests", \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Fail)
 
+.PHONY : fast-fail ##
+fast-fail :
+	@$(call decorate, "Suite of failing tests (using agda-fast)", \
+		AGDA_BIN=$(AGDA_FAST_BIN) $(AGDA_FAST_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Fail)
+
 .PHONY : interaction ##
 interaction :
 	@$(call decorate, "Suite of interaction tests", \
