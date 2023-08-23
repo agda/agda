@@ -1144,9 +1144,18 @@ instance ToAbstract C.LamBinding where
   type AbsOfCon C.LamBinding = Maybe A.LamBinding
 
   toAbstract (C.DomainFree x)  = do
-    tac <- traverse toAbstract $ bnameTactic $ C.binderName $ namedArg x
+    tac <- scopeCheckTactic x
     Just . A.DomainFree tac <$> toAbstract (updateNamedArg (fmap $ NewName LambdaBound) x)
   toAbstract (C.DomainFull tb) = fmap A.DomainFull <$> toAbstract tb
+
+-- | Scope check tactic attribute, make sure they are only used in hidden arguments.
+scopeCheckTactic :: NamedArg C.Binder -> ScopeM A.TacticAttribute
+scopeCheckTactic x = do
+  let ctac = bnameTactic $ C.binderName $ namedArg x
+  let r = getRange ctac
+  setCurrentRange r $ do
+    tac <- traverse toAbstract ctac
+    if null tac || hidden x then return tac else empty <$ warning UselessTactic
 
 makeDomainFull :: C.LamBinding -> C.TypedBinding
 makeDomainFull (C.DomainFull b) = b
@@ -1158,13 +1167,10 @@ instance ToAbstract C.TypedBinding where
 
   toAbstract (C.TBind r xs t) = do
     t' <- toAbstractCtx TopCtx t
-    tac <- C.TacticAttribute <$> do
-     traverse toAbstract $
-      -- Invariant: all tactics are the same
-      -- (distributed in the parser, TODO: don't)
-      case List1.mapMaybe (theTacticAttribute . bnameTactic . C.binderName . namedArg) xs of
-        []      -> Nothing
-        tac : _ -> Just tac
+    -- Invariant: all tactics are the same
+    -- (distributed in the parser, TODO: don't)
+    let tacArg = List1.find (not . null . bnameTactic . C.binderName . namedArg) xs
+    tac <- maybe (pure empty) scopeCheckTactic tacArg
 
     let fin = all (bnameIsFinite . C.binderName . namedArg) xs
     xs' <- toAbstract $ fmap (updateNamedArg (fmap $ NewName LambdaBound)) xs

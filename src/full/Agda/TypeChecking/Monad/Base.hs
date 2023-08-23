@@ -4541,6 +4541,8 @@ data Warning
     -- ^ Names in `hiding` directive that don't hide anything
     --   imported by a `using` directive.
   | UselessInline            QName
+  | UselessTactic
+    -- ^ A tactic attribute applied to a non-hidden (visible or instance) argument.
   | WrongInstanceDeclaration
   | InstanceWithExplicitArg  QName
   -- ^ An instance was declared with an implicit argument, which means it
@@ -4749,6 +4751,7 @@ warningName = \case
   UselessInline{}              -> UselessInline_
   UselessPublic{}              -> UselessPublic_
   UselessPatternDeclarationForRecord{} -> UselessPatternDeclarationForRecord_
+  UselessTactic{}              -> UselessTactic_
   ClashesViaRenaming{}         -> ClashesViaRenaming_
   UserWarning{}                -> UserWarning_
   InfectiveImport{}            -> InfectiveImport_

@@ -30,4 +30,4 @@ check : number ≡ 102
 check = refl
 
 -- This produces unsolved constraints, in contrast to the variant with hidden tactic arguments.
--- I think hiding or not should not make such a difference here.
+-- Tactics only kick in for hidden and actually omitted arguments.

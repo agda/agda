@@ -1725,6 +1725,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      ``public`` directives where they have no effect.
 
+.. option:: UselessTactic
+
+     ``@tactic`` attributes in non-hidden and instance arguments.
+
 .. option:: UserWarning
 
      User-defined warnings added using one of the ``WARNING_ON_*`` pragmas.

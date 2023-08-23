@@ -346,6 +346,7 @@ data WarningName
   | UselessInline_
   | UselessPatternDeclarationForRecord_
   | UselessPublic_
+  | UselessTactic_
   | UserWarning_
   | InvalidDisplayForm_
   | UnusedVariablesInDisplayForm_
@@ -494,6 +495,7 @@ warningNameDescription = \case
   UselessPrivate_                  -> "`private' blocks where they have no effect."
   UselessPublic_                   -> "`public' directives that have no effect."
   UselessPatternDeclarationForRecord_ -> "`pattern' attributes where they have no effect."
+  UselessTactic_                   -> "`@tactic` attributes where they have no effect."
   -- Scope and Type Checking Warnings
   AbsurdPatternRequiresAbsentRHS_  -> "Clauses with an absurd pattern that have a right hand side."
   AsPatternShadowsConstructorOrPatternSynonym_ -> "@-patterns that shadow constructors or pattern synonyms."

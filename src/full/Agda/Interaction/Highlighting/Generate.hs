@@ -450,6 +450,7 @@ warningHighlighting' b w = case tcWarning w of
   UselessHiding xs           -> foldMap deadcodeHighlighting xs
   UselessInline{}            -> mempty
   UselessPatternDeclarationForRecord{} -> deadcodeHighlighting w
+  UselessTactic{}            -> deadcodeHighlighting w
   ClashesViaRenaming _ xs    -> foldMap deadcodeHighlighting xs
     -- #4154, TODO: clashing renamings are not dead code, but introduce problems.
     -- Should we have a different color?

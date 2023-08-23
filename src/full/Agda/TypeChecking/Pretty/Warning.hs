@@ -261,6 +261,8 @@ prettyWarning = \case
       pwords "It is pointless for INLINE'd function" ++ [prettyTCM q] ++
       pwords "to have a separate Haskell definition"
 
+    UselessTactic -> fwords $ "Ignoring `tactic' attribute for non-hidden (explicit or instance) binder"
+
     WrongInstanceDeclaration -> fwords $
       "Instances should be of type {Γ} → C, where C evaluates to a postulated name or the name of " ++
       "a data or record type, so `instance' is ignored here."

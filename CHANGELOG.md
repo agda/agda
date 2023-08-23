@@ -95,6 +95,9 @@ Warnings
 * New warning `EmptyPolarityPragma` for POLARITY pragma without polarities.
   E.g. triggered by `{-# POLARITY F #-}`.
 
+* New warning `UselessTactic` when a `@tactic` attribute has no effect,
+  typically when it is attached to a non-hidden or instance argument.
+
 * New warning `WithClauseProjectionFixityMismatch` instead of hard error
   when in a with-clause a projection is used in a different fixity
   (prefix vs. postfix) than in its parent clause.

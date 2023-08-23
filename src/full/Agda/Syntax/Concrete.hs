@@ -957,6 +957,9 @@ instance HasRange Expr where
 instance HasRange Binder where
   getRange (Binder a _ b) = fuseRange a b
 
+instance HasRange (TacticAttribute' a) where
+  getRange = maybe noRange getRange . theTacticAttribute
+
 instance HasRange TypedBinding where
   getRange (TBind r _ _) = r
   getRange (TLet r _)    = r

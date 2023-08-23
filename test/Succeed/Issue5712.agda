@@ -1,4 +1,5 @@
 -- Andreas, 2021-12-31, issue #5712, reported by Trebor-Huang
+-- Andreas, 2023-08-23: require tactic fields to be hidden.
 
 -- {-# OPTIONS -v tc.cover.cover:10 #-}
 
@@ -11,7 +12,7 @@ nothing hole = returnTC _
 record Foo : Set1 where
   field
     A : Set
-    @(tactic nothing) foo : A → A
+    @(tactic nothing) {foo} : A → A
 open Foo
 
 F : Foo
@@ -23,3 +24,6 @@ F .foo n = _
 -- not expand the last clause due to the presence of a tactic (#5358).
 -- However, in this case, there is a user argument that forces the
 -- expansion.  This is now recognized by the coverage checker.
+
+r : Foo
+r = record{ A = ⊤; foo = _ }
