@@ -247,7 +247,7 @@ type TypeSignature  = Declaration
 type Constructor    = TypeSignature
 type Field          = TypeSignature
 
-type TacticAttr = Maybe Expr
+type TacticAttr = Maybe (Ranged Expr)
 
 -- A Binder @x\@p@, the pattern is optional
 data Binder' a = Binder

@@ -101,6 +101,7 @@ class Hilite a where
 instance Hilite a => Hilite [a]
 instance Hilite a => Hilite (List1 a)
 instance Hilite a => Hilite (Maybe a)
+instance Hilite a => Hilite (Ranged a)
 instance Hilite a => Hilite (WithHiding a)
 
 instance Hilite Void where

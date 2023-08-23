@@ -472,7 +472,7 @@ ModalArgIds : Attributes ArgIds  {% ($1,) `fmap` mapM (applyAttrs $1) $2 }
 -- Attributes are parsed as '@' followed by an atomic expression.
 
 Attribute :: { Attr }
-Attribute : '@' ExprOrAttr  {% setRange (getRange ($1,$2)) `fmap` toAttribute $2 }
+Attribute : '@' ExprOrAttr  {% toAttribute (getRange ($1,$2)) $2 }
 
 -- Parse a reverse list of modalities
 
@@ -2458,22 +2458,20 @@ instance SetRange Attr where
   setRange r (Attr _ x a) = Attr r x a
 
 -- | Parse an attribute.
-toAttribute :: Expr -> Parser Attr
-toAttribute x = do
-  attr <- maybe failure (return . Attr r y) $ exprToAttribute x
-  modify' (\s -> s { parseAttributes =
-                       (theAttr attr, r, y) : parseAttributes s })
+toAttribute :: Range -> Expr -> Parser Attr
+toAttribute r e = do
+  attr <- maybe failure (return . Attr r s) $ exprToAttribute e
+  modify' (\ st -> st{ parseAttributes = (theAttr attr, r, s) : parseAttributes st })
   return attr
   where
-  r = getRange x
-  y = prettyShow x
-  failure = parseErrorRange x $ "Unknown attribute: " ++ y
+  s = prettyShow e
+  failure = parseErrorRange e $ "Unknown attribute: " ++ s
 
 -- | Apply an attribute to thing (usually `Arg`).
 --   This will fail if one of the attributes is already set
 --   in the thing to something else than the default value.
 applyAttr :: (LensAttribute a) => Attr -> a -> Parser a
-applyAttr attr@(Attr r x a) = maybe failure return . setPristineAttribute a
+applyAttr attr@(Attr _ _ a) = maybe failure return . setPristineAttribute a
   where
   failure = errorConflictingAttribute attr
 

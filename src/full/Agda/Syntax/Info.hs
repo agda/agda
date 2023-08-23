@@ -154,7 +154,7 @@ data DefInfo' t = DefInfo
   , defInstance :: IsInstance
   , defMacro    :: IsMacro
   , defInfo     :: DeclInfo
-  , defTactic   :: Maybe t
+  , defTactic   :: Maybe (Ranged t)
   }
   deriving (Show, Eq, Generic)
 

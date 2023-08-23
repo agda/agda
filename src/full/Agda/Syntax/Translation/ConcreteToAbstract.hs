@@ -3035,7 +3035,11 @@ instance ToAbstract c => ToAbstract (Arg c) where
 
 instance ToAbstract c => ToAbstract (Named name c) where
     type AbsOfCon (Named name c) = Named name (AbsOfCon c)
-    toAbstract (Named n e) = Named n <$> toAbstract e
+    toAbstract = traverse toAbstract
+
+instance ToAbstract c => ToAbstract (Ranged c) where
+    type AbsOfCon (Ranged c) = Ranged (AbsOfCon c)
+    toAbstract = traverse toAbstract
 
 {- DOES NOT WORK ANYMORE with pattern synonyms
 instance ToAbstract c a => ToAbstract (A.LHSCore' c) (A.LHSCore' a) where

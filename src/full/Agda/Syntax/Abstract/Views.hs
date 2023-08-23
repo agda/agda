@@ -254,6 +254,7 @@ instance ExprLike Expr where
 instance ExprLike a => ExprLike (Arg a)
 instance ExprLike a => ExprLike (Maybe a)
 instance ExprLike a => ExprLike (Named x a)
+instance ExprLike a => ExprLike (Ranged a)
 instance ExprLike a => ExprLike [a]
 instance ExprLike a => ExprLike (List1 a)
 

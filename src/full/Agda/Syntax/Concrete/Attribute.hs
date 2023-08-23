@@ -12,7 +12,7 @@ import qualified Data.Map as Map
 import Data.Maybe
 
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete (Expr(..))
+import Agda.Syntax.Concrete (Expr(..), TacticAttribute)
 import Agda.Syntax.Concrete.Pretty () --instance only
 import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Position
@@ -26,7 +26,7 @@ import Agda.Utils.Impossible
 data Attribute
   = RelevanceAttribute Relevance
   | QuantityAttribute  Quantity
-  | TacticAttribute Expr
+  | TacticAttribute (Ranged Expr)
   | CohesionAttribute Cohesion
   | LockAttribute      Lock
   deriving (Show)
@@ -132,8 +132,9 @@ stringToAttribute = (`Map.lookup` attributesMap)
 -- | Parsing an expression into an attribute.
 
 exprToAttribute :: Expr -> Maybe Attribute
-exprToAttribute (Paren _ (Tactic _ t)) = Just $ TacticAttribute t
-exprToAttribute e = setRange (getRange e) $ stringToAttribute $ prettyShow e
+exprToAttribute = \case
+  e@(Paren _ (Tactic _ t)) -> Just $ TacticAttribute $ Ranged (getRange e) t
+  e -> setRange (getRange e) $ stringToAttribute $ prettyShow e
 
 -- | Setting an attribute (in e.g. an 'Arg').  Overwrites previous value.
 
@@ -214,7 +215,7 @@ isQuantityAttribute = \case
   QuantityAttribute q -> Just q
   _ -> Nothing
 
-isTacticAttribute :: Attribute -> Maybe Expr
+isTacticAttribute :: Attribute -> TacticAttribute
 isTacticAttribute (TacticAttribute t) = Just t
 isTacticAttribute _                   = Nothing
 

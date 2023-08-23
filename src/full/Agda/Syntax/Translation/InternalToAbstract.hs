@@ -568,7 +568,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
             {- else -} (reify a)
       where
         mkPi b (Arg info a') = do
-          tac <- traverse reify $ domTactic a
+          tac <- traverse (Ranged noRange <.> reify) $ domTactic a
           (x, b) <- reify b
           let xs = singleton $ Arg info $ Named (domName a) $ mkBinder_ x
           return $ A.Pi noExprInfo
@@ -1493,7 +1493,7 @@ instance Reify I.Telescope where
     (x, bs)  <- reify tel
     let r    = getRange e
         name = domName arg
-    tac <- traverse reify $ domTactic arg
+    tac <- traverse (Ranged noRange <.> reify) $ domTactic arg
     let xs = singleton $ Arg info $ Named name $ A.mkBinder_ x
     return $ TBind r (TypedBindingInfo tac (domIsFinite arg)) xs e : bs
 

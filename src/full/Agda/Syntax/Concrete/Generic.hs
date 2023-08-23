@@ -76,6 +76,7 @@ instance ExprLike a => ExprLike (Maybe a)
 
 instance ExprLike a => ExprLike (Arg a)
 instance ExprLike a => ExprLike (Named name a)
+instance ExprLike a => ExprLike (Ranged a)
 instance ExprLike a => ExprLike (WithHiding a)
 
 instance ExprLike a => ExprLike (MaybePlaceholder a)

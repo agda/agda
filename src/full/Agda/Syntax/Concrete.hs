@@ -272,7 +272,7 @@ data BoundName = BName
   }
   deriving Eq
 
-type TacticAttribute = Maybe Expr
+type TacticAttribute = Maybe (Ranged Expr)
 
 mkBoundName_ :: Name -> BoundName
 mkBoundName_ x = mkBoundName x noFixity'

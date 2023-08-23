@@ -699,9 +699,13 @@ instance ToConcrete a => ToConcrete (WithHiding a) where
 
 instance ToConcrete a => ToConcrete (Named name a)  where
     type ConOfAbs (Named name a) = Named name (ConOfAbs a)
-
-    toConcrete (Named n x) = Named n <$> toConcrete x
+    toConcrete = traverse toConcrete
     bindToConcrete (Named n x) ret = bindToConcrete x $ ret . Named n
+
+instance ToConcrete a => ToConcrete (Ranged a)  where
+    type ConOfAbs (Ranged a) = Ranged (ConOfAbs a)
+    toConcrete = traverse toConcrete
+    bindToConcrete (Ranged r x) ret = bindToConcrete x $ ret . Ranged r
 
 -- Names ------------------------------------------------------------------
 
