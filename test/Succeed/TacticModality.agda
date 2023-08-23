@@ -24,10 +24,3 @@ number = foo
 
 check : number ≡ 102
 check = refl
-
--- Andreas, 2023-08-22, a simplified example using λ
-
-bar = λ (@(tactic super-tac) n : Nat) → n
-
-_ : bar _ ≡ 101
-_ = refl
