@@ -213,7 +213,7 @@ data LibError'
         -- ^ Name of the @executables@ file.
       Text
         -- ^ Name of the executable that is defined twice.
-      (List2 FilePath)
+      (List2 (LineNumber, FilePath))
         -- ^ The resolutions of the executable.
   -- deriving (Show)
 
@@ -406,7 +406,7 @@ instance Pretty LibError' where
 
     DuplicateExecutable exeFile exe paths -> vcat $
       hcat [ "Duplicate entries for executable '", (text . unpack) exe, "' in ", text exeFile, ":" ] :
-      map (nest 2 . ("-" <+>) . text) (toList paths)
+      map (\ (ln, fp) -> nest 2 $ (pretty ln <> colon) <+> text fp) (toList paths)
 
 -- | Print library file parse error without position info.
 --

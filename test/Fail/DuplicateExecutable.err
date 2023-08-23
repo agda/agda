@@ -1,0 +1,3 @@
+Duplicate entries for executable 'echo' in DuplicateExecutable/executables:
+  2: /bin/echo
+  3: /bin/echo
