@@ -187,10 +187,15 @@ allEqual (x :| xs) = all (== x) xs
 catMaybes :: List1 (Maybe a) -> [a]
 catMaybes =  Maybe.catMaybes . List1.toList
 
--- | Like 'List1.filter'.
+-- | Like 'Maybe.mapMaybe'.
 
 mapMaybe :: (a -> Maybe b) -> List1 a -> [b]
 mapMaybe f = Maybe.mapMaybe f . List1.toList
+
+-- | Like 'List.find'.
+
+find :: (a -> Bool) -> List1 a -> Maybe a
+find f = List.find f . List1.toList
 
 -- | Like 'Data.Either.partitionEithers'.
 
