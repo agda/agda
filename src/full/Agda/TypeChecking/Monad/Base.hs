@@ -3288,6 +3288,7 @@ data Call
   | CheckConfluence QName QName
   | CheckWithFunctionType Type
   | CheckSectionApplication Range Erased ModuleName A.ModuleApplication
+  | CheckModule ModuleName
   | CheckNamedWhere ModuleName
   -- | Checking a clause for confluence with endpoint reductions. Always
   -- @φ ⊢ f vs = rhs@ for now, but we store the simplifications of
@@ -3332,6 +3333,7 @@ instance Pretty Call where
     pretty CheckPragma{}             = "CheckPragma"
     pretty CheckPrimitive{}          = "CheckPrimitive"
     pretty CheckWithFunctionType{}   = "CheckWithFunctionType"
+    pretty CheckModule{}             = "CheckModule"
     pretty CheckNamedWhere{}         = "CheckNamedWhere"
     pretty ScopeCheckExpr{}          = "ScopeCheckExpr"
     pretty ScopeCheckDeclaration{}   = "ScopeCheckDeclaration"
@@ -3370,6 +3372,7 @@ instance HasRange Call where
     getRange (CheckPragma r _)                   = r
     getRange (CheckPrimitive i _ _)              = getRange i
     getRange CheckWithFunctionType{}             = noRange
+    getRange (CheckModule m)                     = getRange m
     getRange (CheckNamedWhere m)                 = getRange m
     getRange (ScopeCheckExpr e)                  = getRange e
     getRange (ScopeCheckDeclaration d)           = getRange d

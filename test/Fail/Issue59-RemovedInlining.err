@@ -7,3 +7,4 @@ Problematic calls:
     (at Issue59-RemovedInlining.agda:15,46-51)
   merge (x₁ ∷ xs) (y ∷ ys)
     (at Issue59-RemovedInlining.agda:17,46-51)
+when checking module Order

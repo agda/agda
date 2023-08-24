@@ -71,6 +71,7 @@ interestingCall = \case
     CheckConfluence{}         -> True
     CheckWithFunctionType{}   -> True
     CheckSectionApplication{} -> True
+    CheckModule{}             -> True
     CheckNamedWhere{}         -> True
     ScopeCheckExpr{}          -> True
     ScopeCheckDeclaration{}   -> True
@@ -195,6 +196,7 @@ instance MonadTrace TCM where
       CheckIApplyConfluence{}   -> False
       CheckWithFunctionType{}   -> True
       CheckSectionApplication{} -> True
+      CheckModule{}             -> False
       CheckNamedWhere{}         -> False
       ScopeCheckExpr{}          -> False
       ScopeCheckDeclaration{}   -> False

@@ -302,6 +302,10 @@ instance Hashable QName where
 instance IsNoName Name where
   isNoName = isNoName . nameConcrete
 
+-- | A module name is empty if all of its components are empty names.
+instance IsNoName ModuleName where
+  isNoName = isAnonymousModuleName
+
 instance NumHoles Name where
   numHoles = numHoles . nameConcrete
 

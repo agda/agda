@@ -6,6 +6,7 @@ Problematic calls:
     (at Issue1014.agda:23,28-29)
   bar A (proj₁ (h n An)) h (proj₂ (proj₂ (h n An)))
     (at Issue1014.agda:23,31-34)
+when checking module NoWith
 Issue1014.agda:30,3-34,82
 Termination checking failed for the following functions:
   CorrectlyRejected.bar'
@@ -15,6 +16,7 @@ Problematic calls:
     (at Issue1014.agda:34,61-62)
   bar' A h n' An'
     (at Issue1014.agda:34,64-68)
+when checking module CorrectlyRejected
 Issue1014.agda:41,3-43,63
 Termination checking failed for the following functions:
   CorrectlyRejected.bar
@@ -24,6 +26,7 @@ Problematic calls:
     (at Issue1014.agda:43,47-48)
   bar n' An'
     (at Issue1014.agda:43,50-53)
+when checking module CorrectlyRejected
 Issue1014.agda:48,3-52,81
 Termination checking failed for the following functions:
   WasAccepted1.bar
@@ -33,6 +36,7 @@ Problematic calls:
     (at Issue1014.agda:52,61-62)
   bar A n' h An'
     (at Issue1014.agda:52,64-67)
+when checking module WasAccepted1
 Issue1014.agda:63,1-65,63
 Termination checking failed for the following functions:
   bar

@@ -59,6 +59,7 @@ import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide, LHSResult(..), bindAsPatterns )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
 
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -1268,13 +1269,14 @@ checkWhere wh@(A.WhereDecls whmod whNamed ds) ret = do
 
 newSection ::
   Erased -> ModuleName -> A.GeneralizeTelescope -> TCM a -> TCM a
-newSection e m gtel@(A.GeneralizeTel _ tel) cont = do
+newSection e m gtel@(A.GeneralizeTel _ tel) cont = traceCallUnlessNull m $ do
   -- If the section is erased, then hard compile-time mode is entered.
   warnForPlentyInHardCompileTimeMode e
   setHardCompileTimeModeIfErased e $ do
   reportSDoc "tc.section" 10 $
     "checking section" <+> (C.prettyErased e <$> prettyTCM m) <+>
     fsep (map prettyA tel)
+  reportSLn "tc.section.trace" 90 $ unwords [ "m =", show m ]
 
   checkGeneralizeTelescope gtel $ \ _ tel' -> do
     reportSDoc "tc.section" 10 $
@@ -1286,6 +1288,16 @@ newSection e m gtel@(A.GeneralizeTel _ tel) cont = do
       nest 4 $ "actual tele:" <+> do prettyTCM =<< lookupSection m
 
     withCurrentModule m cont
+  where
+    traceCallUnlessNull m cont
+      | isNoName m = cont
+      | otherwise  = do
+          -- Do not emit a trace entry when we are checking the top-level module.
+          top <- currentTopLevelModule
+          -- Kind of hacky:
+          -- if the name of module we are checking is not longer than the one of the toplevel module,
+          -- we infer that we are checking the toplevel module.
+          applyWhen (size m > maybe 0 size top) (traceCall $ CheckModule m) cont
 
 -- | Set the current clause number.
 

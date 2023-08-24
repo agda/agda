@@ -174,6 +174,9 @@ instance PrettyTCM Call where
       pwords "when checking that the given dot pattern" ++ [prettyA e] ++
       pwords "matches the inferred value" ++ [prettyTCM v]
 
+    CheckModule m -> fsep $
+      pwords "when checking module" ++ [prettyA m]
+
     CheckNamedWhere m -> fsep $
       pwords "when checking the named where block" ++ [prettyA m]
 
