@@ -25,7 +25,6 @@ import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.State
 
 import Agda.Utils.Function
-
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -69,6 +68,7 @@ interestingCall = \case
     CheckPrimitive{}          -> True
     CheckIsEmpty{}            -> True
     CheckConfluence{}         -> True
+    CheckModuleParameters{}   -> True
     CheckWithFunctionType{}   -> True
     CheckSectionApplication{} -> True
     CheckNamedWhere{}         -> True
@@ -98,7 +98,19 @@ class (MonadTCEnv m, ReadTCState m) => MonadTrace m where
   traceCallCPS call k ret = do
     mcall <- asksTC envCall
     traceCall call $ k $ \ a -> do
-      maybe id traceClosureCall mcall $ ret a
+      -- Andreas, 2023-08-24
+      -- Unfortunately I didn't document in c4509685bf24b8ce2be380c18408ec2c071c321c
+      -- when I created traceCallCPS why I didn't pursue the following simple reset
+      -- of envCall:
+      --
+      --   localTC (\ e -> e { envCall = mcall }) $ ret a
+      --
+      -- However, it seems that this naive reset misses updating envRange etc.
+      --
+      -- Experimentally, using the simple reset, ranges for with-clause errors
+      -- get worse, not including the with-clause in question, but only the parent clause.
+      -- Thus, I stick to the original approach.
+      maybe (localTC \ e -> e{ envCall = Nothing }) traceClosureCall mcall $ ret a
 
   traceClosureCall :: Closure Call -> m a -> m a
 
@@ -193,6 +205,7 @@ instance MonadTrace TCM where
       CheckIsEmpty{}            -> True
       CheckConfluence{}         -> False
       CheckIApplyConfluence{}   -> False
+      CheckModuleParameters{}   -> False
       CheckWithFunctionType{}   -> True
       CheckSectionApplication{} -> True
       CheckNamedWhere{}         -> False
