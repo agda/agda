@@ -12,18 +12,18 @@ mutual
 
   {-# TERMINATING #-}
   g : ⊥
-  g = f
+  g = g
 
 abstract
 
   {-# TERMINATING #-}
   h : ⊥
-  h = f
+  h = h
 
 record I : Set where
   {-# TERMINATING #-}
   i : ⊥
-  i = f
+  i = i
 
 instance
 
