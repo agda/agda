@@ -288,8 +288,8 @@ data WarningName
   | CoInfectiveImport_
   | InfectiveImport_
   -- Record field warnings
-  | DuplicateFieldsWarning_
-  | TooManyFieldsWarning_
+  | DuplicateFields_
+  | TooManyFields_
   -- Opaque/unfolding
   | NotAffectedByOpaque_
   | UnfoldTransparentName_
@@ -462,8 +462,8 @@ warningNameDescription = \case
   CoInfectiveImport_               -> "Importing a file not using e.g. `--safe'  from one which does."
   InfectiveImport_                 -> "Importing a file using e.g. `--cubical' into one which doesn't."
   -- Record field warnings
-  DuplicateFieldsWarning_          -> "Record expression with duplicate field names."
-  TooManyFieldsWarning_            -> "Record expression with invalid field names."
+  DuplicateFields_                 -> "Record expression with duplicate field names."
+  TooManyFields_                   -> "Record expression with invalid field names."
   -- Opaque/unfolding warnings
   NotAffectedByOpaque_             -> "Enclosing `opaque` block has no effect on this declaration."
   UnfoldTransparentName_           -> "Name mentioned in an `unfolding` clause is not `opaque`."

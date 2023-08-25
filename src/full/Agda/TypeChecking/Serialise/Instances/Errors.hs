@@ -11,6 +11,7 @@ import Agda.TypeChecking.Serialise.Instances.Abstract () --instance only
 import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..), DeclarationWarning'(..))
 import Agda.Syntax.Parser.Monad
 import Agda.TypeChecking.Monad.Base
+import qualified Agda.TypeChecking.Monad.Base.Warning as W
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 import Agda.Interaction.Library.Base
@@ -166,12 +167,12 @@ instance EmbPrj ParseWarning where
 
 instance EmbPrj RecordFieldWarning where
   icod_ = \case
-    DuplicateFieldsWarning a   -> icodeN 0 DuplicateFieldsWarning a
-    TooManyFieldsWarning a b c -> icodeN 1 TooManyFieldsWarning a b c
+    W.DuplicateFields a   -> icodeN 0 W.DuplicateFields a
+    W.TooManyFields a b c -> icodeN 1 W.TooManyFields a b c
 
   value = vcase $ \case
-    [0, a]       -> valuN DuplicateFieldsWarning a
-    [1, a, b, c] -> valuN TooManyFieldsWarning a b c
+    [0, a]       -> valuN W.DuplicateFields a
+    [1, a, b, c] -> valuN W.TooManyFields a b c
     _ -> malformed
 
 instance EmbPrj DeclarationWarning where
@@ -423,8 +424,8 @@ instance EmbPrj WarningName where
     WrongInstanceDeclaration_                    -> 90
     CoInfectiveImport_                           -> 91
     InfectiveImport_                             -> 92
-    DuplicateFieldsWarning_                      -> 93
-    TooManyFieldsWarning_                        -> 94
+    DuplicateFields_                             -> 93
+    TooManyFields_                               -> 94
     OptionRenamed_                               -> 95
     PlentyInHardCompileTimeMode_                 -> 96
     InteractionMetaBoundaries_                   -> 97
@@ -527,8 +528,8 @@ instance EmbPrj WarningName where
     90  -> return WrongInstanceDeclaration_
     91  -> return CoInfectiveImport_
     92  -> return InfectiveImport_
-    93  -> return DuplicateFieldsWarning_
-    94  -> return TooManyFieldsWarning_
+    93  -> return DuplicateFields_
+    94  -> return TooManyFields_
     95  -> return OptionRenamed_
     96  -> return PlentyInHardCompileTimeMode_
     97  -> return InteractionMetaBoundaries_

@@ -627,6 +627,7 @@ library
       Agda.TypeChecking.MetaVars.Occurs
       Agda.TypeChecking.Modalities
       Agda.TypeChecking.Monad.Base
+      Agda.TypeChecking.Monad.Base.Warning
       Agda.TypeChecking.Monad.Benchmark
       Agda.TypeChecking.Monad.Builtin
       Agda.TypeChecking.Monad.Caching

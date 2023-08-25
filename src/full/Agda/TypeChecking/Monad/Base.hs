@@ -5,6 +5,7 @@
 module Agda.TypeChecking.Monad.Base
   ( module Agda.TypeChecking.Monad.Base
   , HasOptions (..)
+  , RecordFieldWarning
   ) where
 
 import Prelude hiding (null)
@@ -78,6 +79,9 @@ import Agda.Syntax.Notation
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 import qualified Agda.Syntax.Info as Info
+
+import qualified Agda.TypeChecking.Monad.Base.Warning as W
+import           Agda.TypeChecking.Monad.Base.Warning (RecordFieldWarning)
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
@@ -4218,18 +4222,10 @@ data Warning
   | UselessOpaque
   deriving (Show, Generic)
 
-data RecordFieldWarning
-  = DuplicateFieldsWarning [(C.Name, Range)]
-      -- ^ Each redundant field comes with a range of associated dead code.
-  | TooManyFieldsWarning QName [C.Name] [(C.Name, Range)]
-      -- ^ Record type, fields not supplied by user, non-fields but supplied.
-      --   The redundant fields come with a range of associated dead code.
-  deriving (Show, Generic)
-
 recordFieldWarningToError :: RecordFieldWarning -> TypeError
 recordFieldWarningToError = \case
-  DuplicateFieldsWarning    xrs -> DuplicateFields    $ map fst xrs
-  TooManyFieldsWarning q ys xrs -> TooManyFields q ys $ map fst xrs
+  W.DuplicateFields    xrs -> DuplicateFields    $ map fst xrs
+  W.TooManyFields q ys xrs -> TooManyFields q ys $ map fst xrs
 
 warningName :: Warning -> WarningName
 warningName = \case
@@ -4300,8 +4296,8 @@ warningName = \case
                                -> PlentyInHardCompileTimeMode_
   -- record field warnings
   RecordFieldWarning w -> case w of
-    DuplicateFieldsWarning{}   -> DuplicateFieldsWarning_
-    TooManyFieldsWarning{}     -> TooManyFieldsWarning_
+    W.DuplicateFields{}   -> DuplicateFields_
+    W.TooManyFields{}     -> TooManyFields_
 
   NotAffectedByOpaque{}   -> NotAffectedByOpaque_
   UselessOpaque{}         -> UselessOpaque_

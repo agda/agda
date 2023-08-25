@@ -49,6 +49,7 @@ import Agda.TypeChecking.MetaVars (isBlockedTerm, hasTwinMeta)
 import Agda.TypeChecking.Monad
   hiding (ModuleInfo, MetaInfo, Primitive, Constructor, Record, Function, Datatype)
 import qualified Agda.TypeChecking.Monad  as TCM
+import qualified Agda.TypeChecking.Monad.Base.Warning as W
 import qualified Agda.TypeChecking.Pretty as TCM
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Warnings ( raiseWarningsOnUsage, runPM )
@@ -537,8 +538,8 @@ warningHighlighting' b w = case tcWarning w of
 recordFieldWarningHighlighting ::
   RecordFieldWarning -> HighlightingInfoBuilder
 recordFieldWarningHighlighting = \case
-  DuplicateFieldsWarning xrs      -> dead xrs
-  TooManyFieldsWarning _q _ys xrs -> dead xrs
+  W.DuplicateFields xrs      -> dead xrs
+  W.TooManyFields _q _ys xrs -> dead xrs
   where
   dead :: [(C.Name, Range)] -> HighlightingInfoBuilder
   dead = mconcat . map deadcodeHighlighting

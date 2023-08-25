@@ -28,6 +28,7 @@ import Agda.Syntax.Scope.Base (isNameInScope)
 
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Monad
+import qualified Agda.TypeChecking.Monad.Base.Warning as W
 import Agda.TypeChecking.Pretty as TCM
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad () --instance only
@@ -68,8 +69,8 @@ orderFields r fill axs fs = do
   --   , "  official fields: " <+> sep (map pretty xs)
   --   , "  provided fields: " <+> sep (map pretty ys)
   --   ]
-  unlessNull alien     $ warn $ TooManyFieldsWarning r missing
-  unlessNull duplicate $ warn $ DuplicateFieldsWarning
+  unlessNull alien     $ warn $ W.TooManyFields r missing
+  unlessNull duplicate $ warn $ W.DuplicateFields
   return $ for axs $ \ ax -> fromMaybe (fill ax) $ lookup (unArg ax) uniq
   where
     (uniq, duplicate) = nubAndDuplicatesOn fst fs   -- separating duplicate fields

@@ -19,6 +19,7 @@ import qualified Data.List as List
 import qualified Data.Text as T
 
 import Agda.TypeChecking.Monad.Base
+import qualified Agda.TypeChecking.Monad.Base.Warning as W
 import Agda.TypeChecking.Monad.Builtin
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.MetaVars
@@ -377,8 +378,8 @@ prettyWarning = \case
 
 prettyRecordFieldWarning :: MonadPretty m => RecordFieldWarning -> m Doc
 prettyRecordFieldWarning = \case
-  DuplicateFieldsWarning xrs    -> prettyDuplicateFields $ map fst xrs
-  TooManyFieldsWarning q ys xrs -> prettyTooManyFields q ys $ map fst xrs
+  W.DuplicateFields xrs    -> prettyDuplicateFields $ map fst xrs
+  W.TooManyFields q ys xrs -> prettyTooManyFields q ys $ map fst xrs
 
 prettyDuplicateFields :: MonadPretty m => [C.Name] -> m Doc
 prettyDuplicateFields xs = fsep $ concat

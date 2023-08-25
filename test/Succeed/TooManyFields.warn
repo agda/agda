@@ -1,5 +1,5 @@
 TooManyFields.agda:12,7-28
-warning: -W[no]TooManyFieldsWarning
+warning: -W[no]TooManyFields
 The record type D does not have the field y
 when checking that the expression record { x = x ; y = x } has type
 D
@@ -7,7 +7,7 @@ D
 ———— All done; warnings encountered ————————————————————————
 
 TooManyFields.agda:12,7-28
-warning: -W[no]TooManyFieldsWarning
+warning: -W[no]TooManyFields
 The record type D does not have the field y
 when checking that the expression record { x = x ; y = x } has type
 D

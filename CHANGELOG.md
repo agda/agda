@@ -136,6 +136,8 @@ Pragmas and options
   checking. This flag may be necessary for Agda to accept nontrivial
   uses of induction-induction.
 
+* The suffix `Warning` has been dropped from the warning names `DuplicateFieldsWarning` and `TooManyFieldsWarning`.
+
 Library management
 ------------------
 
