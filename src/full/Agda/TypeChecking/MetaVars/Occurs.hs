@@ -47,6 +47,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
+import Agda.Interaction.Options (optFirstOrder)
 
 import Agda.Utils.Either
 import Agda.Utils.Function
@@ -242,6 +243,7 @@ metaCheck m = do
       , text . show $ getQuantity mmod
       ]
     allowAssign <- asksTC envAssignMetas
+    firstOrder <- optFirstOrder <$> pragmaOptions
     -- Jesper, 2020-11-10: if we encounter a metavariable that is
     -- unusable because of its modality (e.g. irrelevant or erased) we
     -- try to *promote* the meta to the required modality, by creating
@@ -263,7 +265,7 @@ metaCheck m = do
     when (mvFrozen mv == Frozen)             $ fail "meta is frozen"
     unless (isOpenMeta $ mvInstantiation mv) $ fail "meta is already solved"
     unless allowAssign                       $ fail "assigning metas is not allowed here"
-    when (isFlexible cxt)                    $ fail "occurrence is flexible"
+    when (isFlexible cxt && not firstOrder)  $ fail "occurrence is flexible"
     when (isUnguarded cxt)                   $ fail "occurrence is unguarded"
 
     reportSDoc "tc.meta.occurs" 20 $ "Promoting meta" <+> prettyTCM m <+> "to modality" <+> prettyTCM mmod'
