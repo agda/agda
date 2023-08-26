@@ -65,12 +65,10 @@ addConstraintTCM unblock c = do
         ]
       -- Jesper, 2022-10-22: We should never block on a meta that is
       -- already solved.
-      -- Andreas, 2023-08-10: TODO: investigate the following IMPOSSIBLE (issue #6758)
-      -- and reenable it.
       forM_ (allBlockingMetas unblock) $ \ m ->
         whenM (isInstantiatedMeta m) $ do
           reportSDoc "tc.constr.add" 5 $ "Attempted to block on solved meta" <+> prettyTCM m
-          -- __IMPOSSIBLE__  -- Issue #6758: not impossible
+          __IMPOSSIBLE__
       -- Need to reduce to reveal possibly blocking metas
       c <- reduce =<< instantiateFull c
       caseMaybeM (simpl c) {-no-} (addConstraint' unblock c) $ {-yes-} \ cs -> do
