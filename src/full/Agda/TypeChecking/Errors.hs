@@ -282,6 +282,7 @@ errorString err = case err of
   MismatchedProjectionsError{}             -> "MismatchedProjectionsError"
   AttributeKindNotEnabled{}                -> "AttributeKindNotEnabled"
   InvalidProjectionParameter{}             -> "InvalidProjectionParameter"
+  TacticAttributeNotAllowed{}              -> "TacticAttributeNotAllowed"
   CannotRewriteByNonEquation{}             -> "CannotRewriteByNonEquation"
   MacroResultTypeMismatch{}                -> "MacroResultTypeMismatch"
   NamedWhereModuleInRefinedContext{}       -> "NamedWhereModuleInRefinedContext"
@@ -1318,6 +1319,9 @@ instance PrettyTCM TypeError where
     InvalidProjectionParameter arg -> fsep $
       pwords "Invalid projection parameter " ++
       [prettyA arg]
+
+    TacticAttributeNotAllowed -> fsep $
+      pwords "The @tactic attribute is not allowed here"
 
     CannotRewriteByNonEquation t ->
       "Cannot rewrite by equation of type" <+> prettyTCM t

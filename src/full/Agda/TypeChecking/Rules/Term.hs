@@ -369,7 +369,7 @@ addTypedPatterns xps ret = do
 -- | Check a tactic attribute. Should have type Term → TC ⊤.
 checkTacticAttribute :: LamOrPi -> Ranged A.Expr -> TCM Term
 checkTacticAttribute LamNotPi (Ranged r e) = setCurrentRange r $
-  genericDocError =<< "The @tactic attribute is not allowed here"
+  typeError $ TacticAttributeNotAllowed
 checkTacticAttribute PiNotLam (Ranged r e) = do
   expectedType <- el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit)
   checkExpr e expectedType
