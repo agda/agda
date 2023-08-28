@@ -4561,6 +4561,7 @@ data TypeError
         | MismatchedProjectionsError QName QName
         | AttributeKindNotEnabled String String String
         | InvalidProjectionParameter (NamedArg A.Expr)
+        | TacticAttributeNotAllowed
         | CannotRewriteByNonEquation Type
         | MacroResultTypeMismatch Type
         | NamedWhereModuleInRefinedContext [Term] [String]
