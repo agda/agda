@@ -22,7 +22,7 @@ module Agda.Syntax.Translation.ConcreteToAbstract
 
 import Prelude hiding ( null )
 
-import Control.Monad        ( (<=<), foldM, forM, forM_, zipWithM, zipWithM_ )
+import Control.Monad        ( (>=>), (<=<), foldM, forM, forM_, zipWithM, zipWithM_ )
 import Control.Applicative  ( liftA2, liftA3 )
 import Control.Monad.Except ( MonadError(..) )
 
@@ -2736,11 +2736,14 @@ data TerminationOrPositivity = Termination | Positivity
 
 data WhereOrRecord = InWhereBlock | InRecordDef
 
-checkNoTerminationPragma :: Foldable f => WhereOrRecord -> f C.Declaration -> ScopeM ()
+checkNoTerminationPragma :: FoldDecl a => WhereOrRecord -> a -> ScopeM ()
 checkNoTerminationPragma b ds =
-  mapM_ (\ (p, r) -> warning $ GenericUseless r $ P.vcat [ P.text $ show p ++ " pragmas are ignored in " ++ what b
-                                                         , P.text $ "(see " ++ issue b ++ ")" ])
-        (foldMap terminationPragmas ds)
+  -- foldDecl traverses into all sub-declarations.
+  forM_ (foldDecl (isPragma >=> isTerminationPragma) ds) \ (p, r) ->
+    setCurrentRange r $ warning $ GenericUseless r $ P.vcat
+      [ P.text $ show p ++ " pragmas are ignored in " ++ what b
+      , P.text $ "(see " ++ issue b ++ ")"
+      ]
   where
     what InWhereBlock = "where clauses"
     what InRecordDef  = "record definitions"
@@ -2748,19 +2751,28 @@ checkNoTerminationPragma b ds =
     issue InWhereBlock = github 3355
     issue InRecordDef  = github 3008
 
-terminationPragmas :: C.Declaration -> [(TerminationOrPositivity, Range)]
-terminationPragmas (C.Private  _ _      ds) = concatMap terminationPragmas ds
-terminationPragmas (C.Abstract _        ds) = concatMap terminationPragmas ds
-terminationPragmas (C.InstanceB _       ds) = concatMap terminationPragmas ds
-terminationPragmas (C.Mutual _          ds) = concatMap terminationPragmas ds
-terminationPragmas (C.Module _ _ _ _    ds) = concatMap terminationPragmas ds
-terminationPragmas (C.Macro _           ds) = concatMap terminationPragmas ds
-terminationPragmas (C.Record _ _ _ _ _ _
-                                        ds) = concatMap terminationPragmas ds
-terminationPragmas (C.RecordDef _ _ _ _ ds) = concatMap terminationPragmas ds
-terminationPragmas (C.Pragma (TerminationCheckPragma r _)) = [(Termination, r)]
-terminationPragmas (C.Pragma (NoPositivityCheckPragma r))  = [(Positivity, r)]
-terminationPragmas _                                       = []
+    isTerminationPragma :: C.Pragma -> [(TerminationOrPositivity, Range)]
+    isTerminationPragma = \case
+      C.TerminationCheckPragma r _  -> [(Termination, r)]
+      C.NoPositivityCheckPragma r   -> [(Positivity, r)]
+      C.OptionsPragma _ _           -> []
+      C.BuiltinPragma _ _ _         -> []
+      C.RewritePragma _ _ _         -> []
+      C.ForeignPragma _ _ _         -> []
+      C.CompilePragma _ _ _ _       -> []
+      C.StaticPragma _ _            -> []
+      C.InlinePragma _ _ _          -> []
+      C.ImpossiblePragma _ _        -> []
+      C.EtaPragma _ _               -> []
+      C.WarningOnUsage _ _ _        -> []
+      C.WarningOnImport _ _         -> []
+      C.InjectivePragma _ _         -> []
+      C.DisplayPragma _ _ _         -> []
+      C.CatchallPragma _            -> []
+      C.NoCoverageCheckPragma _     -> []
+      C.PolarityPragma _ _ _        -> []
+      C.NoUniverseCheckPragma _     -> []
+      C.NotProjectionLikePragma _ _ -> []
 
 data RightHandSide = RightHandSide
   { _rhsRewriteEqn :: [RewriteEqn' () A.BindName A.Pattern A.Expr]

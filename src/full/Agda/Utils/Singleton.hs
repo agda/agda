@@ -4,6 +4,7 @@
 module Agda.Utils.Singleton where
 
 import Data.Semigroup (Semigroup(..))
+import Data.Maybe
 import Data.Monoid (Endo(..))
 
 import Data.DList (DList)
@@ -26,6 +27,8 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as Set
+
+import Agda.Utils.Null     (Null, empty)
 import Agda.Utils.SmallSet (SmallSet, SmallSetElement)
 import qualified Agda.Utils.SmallSet as SmallSet
 
@@ -58,6 +61,15 @@ instance (Eq k, Hashable k) =>
          Collection (k, a)  (HashMap k a) where fromList = HashMap.fromList
 
 instance SmallSetElement a => Collection a (SmallSet a) where fromList = SmallSet.fromList
+
+-- | Create-only collection with at most one element.
+
+class (Null coll, Singleton el coll) => CMaybe el coll | coll -> el where
+  cMaybe :: Maybe el -> coll
+  cMaybe = maybe empty singleton
+
+instance CMaybe a (Maybe a) where cMaybe = id
+instance CMaybe a [a]       where cMaybe = maybeToList
 
 -- | Overloaded @singleton@ constructor for collections.
 
