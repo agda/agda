@@ -1,4 +1,14 @@
-Issue3983.agda:23,1-26,8
+Issue3983.agda:8,3-22
+warning: -W[no]GenericUseless
+Termination pragmas are ignored in where clauses
+(see https://github.com/agda/agda/issues/3355)
+when scope checking the declaration
+  E = Set
+    where
+      {-# TERMINATING #-}
+      e : ⊥
+      e = e
+Issue3983.agda:31,3-22
 warning: -W[no]GenericUseless
 Termination pragmas are ignored in record definitions
 (see https://github.com/agda/agda/issues/3008)
@@ -7,25 +17,103 @@ when scope checking the declaration
     {-# TERMINATING #-}
     i : ⊥
     i = i
-Issue3983.agda:7,3-22
+Issue3983.agda:55,5-24
+warning: -W[no]GenericUseless
+Termination pragmas are ignored in record definitions
+(see https://github.com/agda/agda/issues/3008)
+when scope checking the declaration
+  record M where
+    interleaved mutual
+      {-# TERMINATING #-}
+      m : ⊥
+      m = m
+Issue3983.agda:61,5-24
+warning: -W[no]GenericUseless
+Termination pragmas are ignored in record definitions
+(see https://github.com/agda/agda/issues/3008)
+when scope checking the declaration
+  record N where
+    opaque
+      {-# TERMINATING #-}
+      n : ⊥
+      n = n
+Issue3983.agda:68,5-24
+warning: -W[no]GenericUseless
+Termination pragmas are ignored in where clauses
+(see https://github.com/agda/agda/issues/3355)
+when scope checking the declaration
+  O = Set
+    where
+      interleaved mutual
+        {-# TERMINATING #-}
+        o : ⊥
+        o = o
+      opaque
+        {-# TERMINATING #-}
+        o' : ⊥
+        o' = o'
+Issue3983.agda:73,5-24
+warning: -W[no]GenericUseless
+Termination pragmas are ignored in where clauses
+(see https://github.com/agda/agda/issues/3355)
+when scope checking the declaration
+  O = Set
+    where
+      interleaved mutual
+        {-# TERMINATING #-}
+        o : ⊥
+        o = o
+      opaque
+        {-# TERMINATING #-}
+        o' : ⊥
+        o' = o'
+Issue3983.agda:14,3-22
 Cannot use TERMINATING pragma with safe flag.
-Issue3983.agda:13,3-22
+Issue3983.agda:20,3-22
 Cannot use TERMINATING pragma with safe flag.
-Issue3983.agda:19,3-22
+Issue3983.agda:26,3-22
 Cannot use TERMINATING pragma with safe flag.
-Issue3983.agda:24,3-22
+Issue3983.agda:31,3-22
 Cannot use TERMINATING pragma with safe flag.
-Issue3983.agda:30,3-22
+Issue3983.agda:37,3-22
 Cannot use TERMINATING pragma with safe flag.
-Issue3983.agda:24,3-22
+Issue3983.agda:8,3-22
+Cannot use TERMINATING pragma with safe flag.
+when scope checking the declaration
+  E = Set
+    where
+      {-# TERMINATING #-}
+      e : ⊥
+      e = e
+Issue3983.agda:31,3-22
 Cannot use TERMINATING pragma with safe flag.
 when scope checking the declaration
   record I where
     {-# TERMINATING #-}
     i : ⊥
     i = i
-Issue3983.agda:23,1-26,8
+Issue3983.agda:5,1-10,8
+Termination checking failed for the following functions:
+Problematic calls:
+  e (at Issue3983.agda:10,7-8)
+Issue3983.agda:30,1-33,8
 Termination checking failed for the following functions:
   I.i
 Problematic calls:
-  i (at Issue3983.agda:26,7-8)
+  i (at Issue3983.agda:33,7-8)
+Issue3983.agda:53,1-57,10
+Termination checking failed for the following functions:
+  M.m
+Problematic calls:
+  m (at Issue3983.agda:57,9-10)
+Issue3983.agda:59,1-63,10
+Termination checking failed for the following functions:
+  N.n
+Problematic calls:
+  n (at Issue3983.agda:63,9-10)
+Issue3983.agda:65,1-75,12
+Termination checking failed for the following functions:
+Problematic calls:
+  o (at Issue3983.agda:70,9-10)
+  o'
+    (at Issue3983.agda:75,10-12)

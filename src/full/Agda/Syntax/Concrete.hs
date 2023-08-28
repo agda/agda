@@ -16,6 +16,9 @@ module Agda.Syntax.Concrete
   , rawApp, rawAppP
   , isSingleIdentifierP, removeParenP
   , isPattern, isAbsurdP, isBinderP
+  , observeHiding
+  , observeRelevance
+  , observeModifiers
   , exprToPatternWithHoles
   , returnExpr
     -- * Bindings
@@ -39,10 +42,11 @@ module Agda.Syntax.Concrete
   , makePi
   , mkLam, mkLet, mkTLet
     -- * Declarations
-  , RecordDirective(..)
-  , isRecordDirective
-  , RecordDirectives
   , Declaration(..)
+  , isPragma
+  , isRecordDirective
+  , RecordDirective(..)
+  , RecordDirectives
   , ModuleApplication(..)
   , TypeSignature
   , TypeSignatureOrInstanceBlock
@@ -51,9 +55,6 @@ module Agda.Syntax.Concrete
   , AsName'(..), AsName
   , OpenShortHand(..), RewriteEqn, WithExpr
   , LHS(..), Pattern(..), LHSCore(..)
-  , observeHiding
-  , observeRelevance
-  , observeModifiers
   , LamClause(..)
   , RHS, RHS'(..), WhereClause, WhereClause'(..), ExprWhere(..)
   , DoStmt(..)
@@ -95,6 +96,7 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.List2       ( List2, pattern List2 )
 import Agda.Syntax.Common.Aspect (NameKind)
 import Agda.Utils.Null
+import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
 
@@ -515,6 +517,46 @@ isRecordDirective :: Declaration -> Maybe RecordDirective
 isRecordDirective (RecordDirective r) = Just r
 isRecordDirective (InstanceB r [RecordDirective (Constructor n p)]) = Just (Constructor n (InstanceDef r))
 isRecordDirective _ = Nothing
+
+-- | Return 'Pragma' if 'Declaration' is 'Pragma'.
+{-# SPECIALIZE isPragma :: Declaration -> Maybe Pragma #-}
+{-# SPECIALIZE isPragma :: Declaration -> [Pragma] #-}
+isPragma :: CMaybe Pragma m => Declaration -> m
+isPragma = \case
+    Pragma p                -> singleton p
+    Private  _ _ _          -> empty
+    Abstract _ _            -> empty
+    InstanceB _ _           -> empty
+    Mutual _ _              -> empty
+    Module _ _ _ _ _        -> empty
+    Macro _ _               -> empty
+    Record _ _ _ _ _ _ _    -> empty
+    RecordDef _ _ _ _ _     -> empty
+    TypeSig _ _ _ _         -> empty
+    FieldSig _ _ _ _        -> empty
+    Generalize _ _          -> empty
+    Field _ _               -> empty
+    FunClause _ _ _ _       -> empty
+    DataSig _ _ _ _ _       -> empty
+    Data _ _ _ _ _ _        -> empty
+    DataDef _ _ _ _         -> empty
+    RecordSig _ _ _ _ _     -> empty
+    RecordDirective _       -> empty
+    Infix _ _               -> empty
+    Syntax _ _              -> empty
+    PatternSyn _ _ _ _      -> empty
+    InterleavedMutual _ _   -> empty
+    LoneConstructor _ _     -> empty
+    Postulate _ _           -> empty
+    Primitive _ _           -> empty
+    Open _ _ _              -> empty
+    Import _ _ _ _ _        -> empty
+    ModuleMacro _ _ _ _ _ _ -> empty
+    UnquoteDecl _ _ _       -> empty
+    UnquoteDef _ _ _        -> empty
+    UnquoteData _ _ _ _     -> empty
+    Opaque _ _              -> empty
+    Unfolding _ _           -> empty
 
 data ModuleApplication
   = SectionApp Range Telescope Expr
