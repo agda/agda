@@ -4596,6 +4596,7 @@ data TypeError
         | NoSuchModule C.QName
         | AmbiguousName C.QName AmbiguousNameReason
         | AmbiguousModule C.QName (List1 A.ModuleName)
+        | AmbiguousField C.Name [A.ModuleName]
         | ClashingDefinition C.QName A.QName (Maybe NiceDeclaration)
         | ClashingModule A.ModuleName A.ModuleName
         | ClashingImport C.Name A.QName

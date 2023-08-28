@@ -125,6 +125,7 @@ errorString :: TypeError -> String
 errorString err = case err of
   AmbiguousModule{}                        -> "AmbiguousModule"
   AmbiguousName{}                          -> "AmbiguousName"
+  AmbiguousField{}                         -> "AmbiguousField"
   AmbiguousParseForApplication{}           -> "AmbiguousParseForApplication"
   AmbiguousParseForLHS{}                   -> "AmbiguousParseForLHS"
   AmbiguousProjectionError{}               -> "AmbiguousProjectionError"
@@ -874,6 +875,10 @@ instance PrettyTCM TypeError where
             IsDataModule   -> return $ "(datatype module)"
             IsRecordModule -> return $ "(record module)"
           sep [prettyTCM m, anno ]
+
+    AmbiguousField field modules -> vcat $
+      "Ambiguity: the field" <+> prettyTCM field
+        <+> "appears in the following modules: " : map prettyTCM modules
 
     ClashingDefinition x y suggestion -> fsep $
       pwords "Multiple definitions of" ++ [pretty x <> "."] ++
