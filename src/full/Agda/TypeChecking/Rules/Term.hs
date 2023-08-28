@@ -290,7 +290,7 @@ checkDomain lamOrPi xs e = do
     when (any (\x -> case getLock x of { IsLock{} -> True ; _ -> False }) xs) $ do
          -- Solves issue #5033
         unlessM (isJust <$> getName' builtinLockUniv) $ do
-          genericDocError $ "Missing binding for primLockUniv primitive."
+          typeError $ NoBindingForPrimitive builtinLockUniv
 
         equalSort (getSort t) LockUniv
 
