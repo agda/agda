@@ -1612,7 +1612,7 @@ checkPrimComp c rs vs _ = do
           (Lam defaultArgInfo $ NoAbs "_" $ unArg a0)
           (apply (unArg u) [iz])
       return $ l : a : phi : u : a0 : rest
-    _ -> typeError . GenericDocError =<< prettyTCM c <+> "must be fully applied"
+    _ -> typeError $ CubicalPrimitiveNotFullyApplied c
 
 -- | @primHComp : ∀ {ℓ} {A : Set ℓ} {φ : I} (u : ∀ i → Partial φ A) (a : A) → A@
 --
@@ -1634,7 +1634,7 @@ checkPrimHComp c rs vs _ = do
             (Lam defaultArgInfo $ NoAbs "_" $ unArg a0)
             (apply (unArg u) [iz])
       return $ l : a : phi : u : a0 : rest
-    _ -> typeError . GenericDocError =<< prettyTCM c <+> "must be fully applied"
+    _ -> typeError $ CubicalPrimitiveNotFullyApplied c
 
 -- | @transp : ∀{ℓ} (A : (i : I) → Set (ℓ i)) (φ : I) (a0 : A i0) → A i1@
 --
@@ -1658,7 +1658,7 @@ checkPrimTrans c rs vs _ = do
           (unArg a)
           (Lam defaultArgInfo $ NoAbs "_" $ apply (unArg a) [iz])
       return $ l : a : phi : rest
-    _ -> typeError . GenericDocError =<< prettyTCM c <+> "must be fully applied"
+    _ -> typeError $ CubicalPrimitiveNotFullyApplied c
 
 blockArg :: HasRange r => Type -> r -> Arg Term -> TCM () -> TCM (Arg Term)
 blockArg t r a m =
@@ -1684,7 +1684,7 @@ checkConId c rs vs t1 = do
       --   equalTerm (El s (unArg a)) (unArg x) (unArg y) -- precondition for cx being well-typed at ty
       --   cx <- pathAbs iv (NoAbs (stringToArgName "_") (applySubst alpha (unArg x)))
       --   equalTerm ty (applySubst alpha (unArg p)) cx   -- G, phi |- p = \ i . x
-   _ -> typeError . GenericDocError =<< prettyTCM c <+> "must be fully applied"
+   _ -> typeError $ CubicalPrimitiveNotFullyApplied c
 
 
 -- The following comment contains silly ' escapes to calm CPP about ∨ (\vee).
@@ -1713,7 +1713,7 @@ checkPOr c rs vs _ = do
         -- ' φ₁ ∧ φ₂  ⊢ u , v : PartialP (φ₁ ∨ φ₂) \ o → a o
         equalTermOnFace phi t1 (unArg u) (unArg v)
       return $ l : phi1 : phi2 : a : u : v : rest
-   _ -> typeError . GenericDocError =<< prettyTCM c <+> "must be fully applied"
+   _ -> typeError $ CubicalPrimitiveNotFullyApplied c
 
 -- | @prim^glue : ∀ {ℓ ℓ'} {A : Set ℓ} {φ : I}
 --              → {T : Partial φ (Set ℓ')} → {e : PartialP φ (λ o → T o ≃ A)}
@@ -1737,7 +1737,7 @@ check_glue c rs vs _ = do
       ta <- el' (pure $ unArg la) (pure $ unArg bA)
       a <- blockArg ta (rs !!! 7) a $ equalTerm ty a' v
       return $ la : lb : bA : phi : bT : e : t : a : rest
-   _ -> typeError . GenericDocError =<< prettyTCM c <+> "must be fully applied"
+   _ -> typeError $ CubicalPrimitiveNotFullyApplied c
 
 
 -- | @prim^glueU : ∀ {ℓ} {φ : I}
@@ -1765,4 +1765,4 @@ check_glueU c rs vs _ = do
             el' la (cl primSubOut <#> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> phi <#> (bT <@> cl primIZero) <@> bA)
       a <- blockArg ta (rs !!! 5) a $ equalTerm ty a' v
       return $ la : phi : bT : bA : t : a : rest
-   _ -> typeError . GenericDocError =<< prettyTCM c <+> "must be fully applied"
+   _ -> typeError $ CubicalPrimitiveNotFullyApplied c

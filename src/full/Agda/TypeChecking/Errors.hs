@@ -288,6 +288,7 @@ errorString err = case err of
   CannotRewriteByNonEquation{}             -> "CannotRewriteByNonEquation"
   MacroResultTypeMismatch{}                -> "MacroResultTypeMismatch"
   NamedWhereModuleInRefinedContext{}       -> "NamedWhereModuleInRefinedContext"
+  CubicalPrimitiveNotFullyApplied{}        -> "CubicalPrimitiveNotFullyApplied"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1349,6 +1350,9 @@ instance PrettyTCM TypeError where
                   (if not (null args) then "s have" else " has") ++
                   " been refined to"
         , nest 2 $ vcat (zipWith pr names args) ]
+
+    CubicalPrimitiveNotFullyApplied c ->
+      prettyTCM c <+> "must be fully applied"
 
     where
     mpar n args
