@@ -1489,8 +1489,7 @@ inferUnivOmega u q suffix = \case
   [] -> do
     let n = suffixToLevel suffix
     return (Sort (Inf u n) , sort (Inf (univUniv u) $ 1 + n))
-  arg : _ -> typeError . GenericDocError =<< fsep
-        [ prettyTCM q , "cannot be applied to an argument" ]
+  arg : _ -> typeError $ TooManyArgumentsToUnivOmega q
 
 -----------------------------------------------------------------------------
 -- * Coinduction

@@ -290,6 +290,7 @@ errorString err = case err of
   NamedWhereModuleInRefinedContext{}       -> "NamedWhereModuleInRefinedContext"
   CubicalPrimitiveNotFullyApplied{}        -> "CubicalPrimitiveNotFullyApplied"
   TooManyArgumentsToLeveledSort{}          -> "TooManyArgumentsToLeveledSort"
+  TooManyArgumentsToUnivOmega{}            -> "TooManyArgumentsToUnivOmega"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1357,6 +1358,9 @@ instance PrettyTCM TypeError where
 
     TooManyArgumentsToLeveledSort q -> fsep $
       [ prettyTCM q , "cannot be applied to more than one argument" ]
+
+    TooManyArgumentsToUnivOmega q -> fsep $
+      [ prettyTCM q , "cannot be applied to an argument" ]
 
     where
     mpar n args
