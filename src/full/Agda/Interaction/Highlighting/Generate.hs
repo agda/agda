@@ -453,15 +453,7 @@ warningHighlighting' b w = case tcWarning w of
   GenericNonFatalError{}                -> errorWarningHighlighting w
   SafeFlagPostulate{}                   -> errorWarningHighlighting w
   SafeFlagPragma{}                      -> errorWarningHighlighting w
-  SafeFlagNonTerminating                -> errorWarningHighlighting w
-  SafeFlagTerminating                   -> errorWarningHighlighting w
   SafeFlagWithoutKFlagPrimEraseEquality -> errorWarningHighlighting w
-  SafeFlagEta                           -> errorWarningHighlighting w
-  SafeFlagInjective                     -> errorWarningHighlighting w
-  SafeFlagNoCoverageCheck               -> errorWarningHighlighting w
-  SafeFlagNoPositivityCheck             -> errorWarningHighlighting w
-  SafeFlagPolarity                      -> errorWarningHighlighting w
-  SafeFlagNoUniverseCheck               -> errorWarningHighlighting w
   InfectiveImport{}                     -> errorWarningHighlighting w
   CoInfectiveImport{}                   -> errorWarningHighlighting w
   WithoutKFlagPrimEraseEquality -> mempty
@@ -521,6 +513,14 @@ warningHighlighting' b w = case tcWarning w of
     InvalidRecordDirective{}         -> deadcodeHighlighting w
     OpenPublicAbstract{}             -> deadcodeHighlighting w
     OpenPublicPrivate{}              -> deadcodeHighlighting w
+    SafeFlagEta                   {} -> errorWarningHighlighting w
+    SafeFlagInjective             {} -> errorWarningHighlighting w
+    SafeFlagNoCoverageCheck       {} -> errorWarningHighlighting w
+    SafeFlagNoPositivityCheck     {} -> errorWarningHighlighting w
+    SafeFlagNoUniverseCheck       {} -> errorWarningHighlighting w
+    SafeFlagNonTerminating        {} -> errorWarningHighlighting w
+    SafeFlagPolarity              {} -> errorWarningHighlighting w
+    SafeFlagTerminating           {} -> errorWarningHighlighting w
     W.ShadowingInTelescope nrs       -> foldMap
                                           (shadowingTelHighlighting . snd)
                                           nrs

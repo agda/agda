@@ -43,7 +43,7 @@ module Agda.Syntax.Concrete.Definitions
     , Clause(..)
     , DeclarationException(..)
     , DeclarationWarning(..), DeclarationWarning'(..), unsafeDeclarationWarning
-    , Nice, runNice
+    , Nice, NiceEnv(..), runNice
     , niceDeclarations
     , notSoNiceDeclarations
     , niceHasAbstract
@@ -56,6 +56,7 @@ import Prelude hiding (null)
 
 import Control.Monad         ( forM, guard, unless, void, when )
 import Control.Monad.Except  ( )
+import Control.Monad.Reader  ( asks )
 import Control.Monad.State   ( MonadState(..), gets, StateT, runStateT )
 import Control.Monad.Trans   ( lift )
 
@@ -92,6 +93,7 @@ import Agda.Utils.List (isSublistOf, spanJust)
 import Agda.Utils.List1 (List1, pattern (:|), (<|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
+import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Singleton
 import Agda.Utils.Three
@@ -218,7 +220,7 @@ niceDeclarations fixs ds = do
 
   -- Run the nicifier in an initial environment. But keep the warnings.
   st <- get
-  put $ initNiceEnv { niceWarn = niceWarn st }
+  put $ initNiceState { niceWarn = niceWarn st }
   nds <- nice ds
 
   -- Check that every signature got its definition.
@@ -514,7 +516,12 @@ niceDeclarations fixs ds = do
           uc <- use universeCheckPragma
           return ([NiceUnquoteData r PublicAccess ConcreteDef pc uc xs cs e], ds)
 
-        Pragma p -> nicePragma p ds
+        Pragma p -> do
+          -- Warn about unsafe pragmas unless we are in a builtin module.
+          whenM (asks safeButNotBuiltin) $
+            whenJust (unsafePragma p) $ \ w ->
+              declarationWarning w
+          nicePragma p ds
 
         Opaque r ds' -> do
           breakImplicitMutualBlock r "`opaque` blocks"
@@ -589,7 +596,6 @@ niceDeclarations fixs ds = do
         nice1 ds
 
     nicePragma p@CompilePragma{} ds = do
-      declarationWarning $ PragmaCompiled (getRange p)
       return ([NicePragma (getRange p) p], ds)
 
     nicePragma (PolarityPragma{}) ds = return ([], ds)
