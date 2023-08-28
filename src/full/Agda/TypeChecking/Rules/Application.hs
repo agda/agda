@@ -1477,8 +1477,7 @@ inferLeveledSort u q suffix = \case
       "Use --universe-polymorphism to enable level arguments to Set"
     l <- applyRelevanceToContext NonStrict $ checkLevel arg
     return (Sort $ Univ u l , sort (Univ (univUniv u) $ levelSuc l))
-  arg : _ -> typeError . GenericDocError =<< fsep
-    [ prettyTCM q , "cannot be applied to more than one argument" ]
+  arg : _ -> typeError $ TooManyArgumentsToLeveledSort q
 
 inferUnivOmega ::
      Univ                -- ^ The universe type.
