@@ -1406,15 +1406,20 @@ importPrimitives = do
 -- | runs Syntax.Concrete.Definitions.niceDeclarations on main module
 niceDecls :: DoWarn -> [C.Declaration] -> ([NiceDeclaration] -> ScopeM a) -> ScopeM a
 niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn ds $ do
-  fixs <- useScope scopeFixities  -- We need to pass the fixities to the nicifier for clause grouping
-  let (result, warns') = runNice $ niceDeclarations fixs ds
 
-  -- COMPILED pragmas are not allowed in safe mode unless we are in a builtin module.
-  -- So we start by filtering out all the PragmaCompiled warnings if one of these two
-  -- conditions is not met.
-  isSafe    <- Lens.getSafeMode <$> pragmaOptions
-  isBuiltin <- Lens.isBuiltinModule . filePath =<< getCurrentPath
-  let warns = if isSafe && not isBuiltin then warns' else filter notOnlyInSafeMode warns'
+  -- Some pragmas are not allowed in safe mode unless we are in a builtin module.
+  -- So we need to tell the nicifier whether it should yell about unsafe pragmas.
+  isSafe <- Lens.getSafeMode <$> pragmaOptions
+  safeButNotBuiltin <- and2M
+    -- NB: BlockArguments allow bullet-point style argument lists using @do@, hehe!
+    do pure isSafe
+    do not <$> do Lens.isBuiltinModuleWithSafePostulates . filePath =<< getCurrentPath
+
+  -- We need to pass the fixities to the nicifier for clause grouping.
+  fixs <- useScope scopeFixities
+
+  -- Run nicifier.
+  let (result, warns) = runNice (NiceEnv safeButNotBuiltin) $ niceDeclarations fixs ds
 
   -- Respect the @DoWarn@ directive. For this to be sound, we need to know for
   -- sure that each @Declaration@ is checked at least once with @DoWarn@.
@@ -1436,84 +1441,13 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
       throwError $ Exception (getRange e) $ pretty e
     Right ds -> ret ds
 
-  where notOnlyInSafeMode = (PragmaCompiled_ /=) . declarationWarningName
-
 -- | Wrapper to avoid instance conflict with generic list instance.
 newtype Declarations = Declarations [C.Declaration]
 
 instance ToAbstract Declarations where
   type AbsOfCon Declarations = [A.Declaration]
 
-  toAbstract (Declarations ds) = do
-    -- When --safe is active the termination checker (Issue 586),
-    -- positivity checker (Issue 1614) and the coverage checker
-    -- may not be switched off, and polarities may not be assigned.
-    ds <- ifM (Lens.getSafeMode <$> pragmaOptions)
-               {- then -} (mapM noUnsafePragma ds)
-               {- else -} (return ds)
-
-    niceDecls DoWarn ds toAbstract
-   where
-
-     -- We need to dig deep into a declaration, otherwise it is possible
-     -- to hide an illegal pragma in a block. Cf. Issue #3983
-     noUnsafePragma :: C.Declaration -> TCM C.Declaration
-     noUnsafePragma = \case
-       C.Pragma pr                 -> warnUnsafePragma pr
-       C.RecordDef r n dir lams ds -> C.RecordDef r n dir lams <$> mapM noUnsafePragma ds
-       C.Record r er n dir lams e ds
-                                   -> C.Record r er n dir lams e <$>
-                                      mapM noUnsafePragma ds
-       C.Mutual r ds               -> C.Mutual r <$> mapM noUnsafePragma ds
-       C.Abstract r ds             -> C.Abstract r <$> mapM noUnsafePragma ds
-       C.Private r o ds            -> C.Private r o <$> mapM noUnsafePragma ds
-       C.InstanceB r ds            -> C.InstanceB r <$> mapM noUnsafePragma ds
-       C.Macro r ds                -> C.Macro r <$> mapM noUnsafePragma ds
-       d -> pure d
-
-     warnUnsafePragma :: C.Pragma -> TCM C.Declaration
-     warnUnsafePragma pr = C.Pragma pr <$ do
-       ifM (Lens.isBuiltinModuleWithSafePostulates . filePath =<< getCurrentPath)
-         {- then -} (pure ())
-         {- else -} $ case unsafePragma pr of
-         Nothing -> pure ()
-         Just w  -> setCurrentRange pr $ warning w
-
-     unsafePragma :: C.Pragma -> Maybe Warning
-     unsafePragma = \case
-       C.NoCoverageCheckPragma{}    -> Just SafeFlagNoCoverageCheck
-       C.NoPositivityCheckPragma{}  -> Just SafeFlagNoPositivityCheck
-       C.PolarityPragma{}           -> Just SafeFlagPolarity
-       C.NoUniverseCheckPragma{}    -> Just SafeFlagNoUniverseCheck
-       C.InjectivePragma{}          -> Just SafeFlagInjective
-       C.TerminationCheckPragma _ m -> case m of
-         NonTerminating       -> Just SafeFlagNonTerminating
-         Terminating          -> Just SafeFlagTerminating
-         TerminationCheck     -> Nothing
-         TerminationMeasure{} -> Nothing
-         -- ASR (31 December 2015). We don't pattern-match on
-         -- @NoTerminationCheck@ because the @NO_TERMINATION_CHECK@ pragma
-         -- was removed. See Issue #1763.
-         NoTerminationCheck -> Nothing
-       -- exhaustive match to get told by ghc we should have a look at this
-       -- when we add new pragmas.
-       C.OptionsPragma{}    -> Nothing
-       C.BuiltinPragma{}    -> Nothing
-       C.ForeignPragma{}    -> Nothing
-       C.StaticPragma{}     -> Nothing
-       C.InlinePragma{}     -> Nothing
-       C.ImpossiblePragma{} -> Nothing
-       C.EtaPragma{}        -> Just SafeFlagEta
-       C.WarningOnUsage{}   -> Nothing
-       C.WarningOnImport{}  -> Nothing
-       C.DisplayPragma{}    -> Nothing
-       C.CatchallPragma{}   -> Nothing
-       -- @RewritePragma@ already requires --rewriting which is incompatible with --safe
-       C.RewritePragma{}    -> Nothing
-       -- @CompilePragma@ already handled in the nicifier
-       C.CompilePragma{}    -> Nothing
-       C.NotProjectionLikePragma{} -> Nothing
-
+  toAbstract (Declarations ds) = niceDecls DoWarn ds toAbstract
 
 newtype LetDefs = LetDefs (List1 C.Declaration)
 newtype LetDef = LetDef NiceDeclaration

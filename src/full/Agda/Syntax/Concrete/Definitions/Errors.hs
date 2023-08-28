@@ -5,16 +5,19 @@ import Control.DeepSeq
 import GHC.Generics (Generic)
 
 import Agda.Syntax.Position
+import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Concrete
 import Agda.Syntax.Concrete.Definitions.Types
 
 import Agda.Interaction.Options.Warnings
 
+import Agda.Utils.Null ( empty )
 import Agda.Utils.CallStack ( CallStack )
 import Agda.Utils.List1 (List1, pattern (:|))
 import Agda.Utils.List2 (List2, pattern List2)
 import qualified Agda.Utils.List1 as List1
-import Agda.Syntax.Common.Pretty
+import Agda.Utils.Singleton
 
 ------------------------------------------------------------------------
 -- Errors
@@ -112,10 +115,18 @@ data DeclarationWarning'
       -- ^ @abstract@ has no effect on @open public@.  (But the user might think so.)
   | PolarityPragmasButNotPostulates [Name]
   | PragmaNoTerminationCheck Range
-  -- ^ Pragma @{-\# NO_TERMINATION_CHECK \#-}@ has been replaced
-  --   by @{-\# TERMINATING \#-}@ and @{-\# NON_TERMINATING \#-}@.
+      -- ^ Pragma @{-\# NO_TERMINATION_CHECK \#-}@ has been replaced
+      --   by @{-\# TERMINATING \#-}@ and @{-\# NON_TERMINATING \#-}@.
   | PragmaCompiled Range
-  -- ^ @COMPILE@ pragmas are not allowed in safe mode
+      -- ^ @COMPILE@ pragmas are not allowed in safe mode.
+  | SafeFlagEta               Range -- ^ @ETA@                 pragma is unsafe.
+  | SafeFlagInjective         Range -- ^ @INJECTIVE@           pragma is unsafe.
+  | SafeFlagNoCoverageCheck   Range -- ^ @NON_COVERING@        pragma is unsafe.
+  | SafeFlagNoPositivityCheck Range -- ^ @NO_POSITIVITY_CHECK@ pragma is unsafe.
+  | SafeFlagNoUniverseCheck   Range -- ^ @NO_UNIVERSE_CHECK@   pragma is unsafe.
+  | SafeFlagNonTerminating    Range -- ^ @NON_TERMINATING@     pragma is unsafe.
+  | SafeFlagPolarity          Range -- ^ @POLARITY@            pragma is unsafe.
+  | SafeFlagTerminating       Range -- ^ @TERMINATING@         pragma is unsafe.
   | ShadowingInTelescope (List1 (Name, List2 Range))
   | UnknownFixityInMixfixDecl [Name]
   | UnknownNamesInFixityDecl [Name]
@@ -161,6 +172,14 @@ declarationWarningName' = \case
   PolarityPragmasButNotPostulates{} -> PolarityPragmasButNotPostulates_
   PragmaNoTerminationCheck{}        -> PragmaNoTerminationCheck_
   PragmaCompiled{}                  -> PragmaCompiled_
+  SafeFlagEta                    {} -> SafeFlagEta_
+  SafeFlagInjective              {} -> SafeFlagInjective_
+  SafeFlagNoCoverageCheck        {} -> SafeFlagNoCoverageCheck_
+  SafeFlagNoPositivityCheck      {} -> SafeFlagNoPositivityCheck_
+  SafeFlagNoUniverseCheck        {} -> SafeFlagNoUniverseCheck_
+  SafeFlagNonTerminating         {} -> SafeFlagNonTerminating_
+  SafeFlagPolarity               {} -> SafeFlagPolarity_
+  SafeFlagTerminating            {} -> SafeFlagTerminating_
   ShadowingInTelescope{}            -> ShadowingInTelescope_
   UnknownFixityInMixfixDecl{}       -> UnknownFixityInMixfixDecl_
   UnknownNamesInFixityDecl{}        -> UnknownNamesInFixityDecl_
@@ -203,6 +222,14 @@ unsafeDeclarationWarning' = \case
   PolarityPragmasButNotPostulates{} -> False
   PragmaNoTerminationCheck{}        -> True  -- not safe
   PragmaCompiled{}                  -> True  -- not safe
+  SafeFlagEta                    {} -> True
+  SafeFlagInjective              {} -> True
+  SafeFlagNoCoverageCheck        {} -> True
+  SafeFlagNoPositivityCheck      {} -> True
+  SafeFlagNoUniverseCheck        {} -> True
+  SafeFlagNonTerminating         {} -> True
+  SafeFlagPolarity               {} -> True
+  SafeFlagTerminating            {} -> True
   ShadowingInTelescope{}            -> False
   UnknownFixityInMixfixDecl{}       -> False
   UnknownNamesInFixityDecl{}        -> False
@@ -210,6 +237,44 @@ unsafeDeclarationWarning' = \case
   UselessAbstract{}                 -> False
   UselessInstance{}                 -> False
   UselessPrivate{}                  -> False
+
+-- | Pragmas not allowed in @--safe@ mode produce an 'unsafeDeclarationWarning'.
+--
+unsafePragma :: CMaybe DeclarationWarning' m => Pragma -> m
+unsafePragma p =
+  case p of
+    BuiltinPragma{}            -> empty
+    CatchallPragma{}           -> empty
+    CompilePragma{}            -> singleton $ PragmaCompiled r
+    DisplayPragma{}            -> empty
+    EtaPragma{}                -> singleton $ SafeFlagEta r
+    ForeignPragma{}            -> empty
+    ImpossiblePragma{}         -> empty
+    InjectivePragma{}          -> singleton $ SafeFlagInjective r
+    InlinePragma{}             -> empty
+    NoCoverageCheckPragma{}    -> singleton $ SafeFlagNoCoverageCheck r
+    NoPositivityCheckPragma{}  -> singleton $ SafeFlagNoPositivityCheck r
+    NoUniverseCheckPragma{}    -> singleton $ SafeFlagNoUniverseCheck r
+    NotProjectionLikePragma{}  -> empty
+    OptionsPragma{}            -> empty
+    PolarityPragma{}           -> singleton $ SafeFlagPolarity r
+    RewritePragma{}            -> empty
+      -- @RewritePragma@ already requires --rewriting which is incompatible with --safe
+    StaticPragma{}             -> empty
+    TerminationCheckPragma _ m ->
+      case m of
+        NonTerminating         -> singleton $ SafeFlagNonTerminating r
+        Terminating            -> singleton $ SafeFlagTerminating r
+        TerminationCheck       -> empty
+        TerminationMeasure{}   -> empty
+        -- @NO_TERMINATION_CHECK@ pragma was removed, but still parses. See Issue #1763.
+        -- There is the unsafe @'PragmaNoTerminationCheck'@ warning thrown already,
+        -- so we need not throw anything here.
+        NoTerminationCheck     -> empty
+    WarningOnImport{}          -> empty
+    WarningOnUsage{}           -> empty
+  where
+    r = getRange p
 
 ------------------------------------------------------------------------
 -- Instances
@@ -239,40 +304,49 @@ instance HasRange DeclarationWarning where
   getRange (DeclarationWarning _ w) = getRange w
 
 instance HasRange DeclarationWarning' where
-  getRange (UnknownNamesInFixityDecl xs)        = getRange xs
-  getRange (UnknownFixityInMixfixDecl xs)       = getRange xs
-  getRange (UnknownNamesInPolarityPragmas xs)   = getRange xs
-  getRange (PolarityPragmasButNotPostulates xs) = getRange xs
-  getRange (MissingDeclarations xs)             = getRange xs
-  getRange (MissingDefinitions xs)              = getRange xs
-  getRange (UselessPrivate r)                   = r
-  getRange (NotAllowedInMutual r x)             = r
-  getRange (UselessAbstract r)                  = r
-  getRange (UselessInstance r)                  = r
-  getRange (EmptyConstructor r)                 = r
-  getRange (EmptyMutual r)                      = r
-  getRange (EmptyAbstract r)                    = r
-  getRange (EmptyPrivate r)                     = r
-  getRange (EmptyInstance r)                    = r
-  getRange (EmptyMacro r)                       = r
-  getRange (EmptyPostulate r)                   = r
-  getRange (EmptyGeneralize r)                  = r
-  getRange (EmptyPrimitive r)                   = r
-  getRange (EmptyField r)                       = r
-  getRange (HiddenGeneralize r)                 = r
-  getRange (InvalidTerminationCheckPragma r)    = r
-  getRange (InvalidCoverageCheckPragma r)       = r
-  getRange (InvalidNoPositivityCheckPragma r)   = r
-  getRange (InvalidCatchallPragma r)            = r
-  getRange (InvalidConstructor r)               = r
-  getRange (InvalidConstructorBlock r)          = r
-  getRange (InvalidNoUniverseCheckPragma r)     = r
-  getRange (InvalidRecordDirective r)           = r
-  getRange (PragmaNoTerminationCheck r)         = r
-  getRange (PragmaCompiled r)                   = r
-  getRange (OpenPublicAbstract r)               = r
-  getRange (OpenPublicPrivate r)                = r
-  getRange (ShadowingInTelescope ns)            = getRange ns
+  getRange = \case
+    EmptyAbstract r                    -> r
+    EmptyConstructor r                 -> r
+    EmptyField r                       -> r
+    EmptyGeneralize r                  -> r
+    EmptyInstance r                    -> r
+    EmptyMacro r                       -> r
+    EmptyMutual r                      -> r
+    EmptyPostulate r                   -> r
+    EmptyPrimitive r                   -> r
+    EmptyPrivate r                     -> r
+    HiddenGeneralize r                 -> r
+    InvalidCatchallPragma r            -> r
+    InvalidConstructor r               -> r
+    InvalidConstructorBlock r          -> r
+    InvalidCoverageCheckPragma r       -> r
+    InvalidNoPositivityCheckPragma r   -> r
+    InvalidNoUniverseCheckPragma r     -> r
+    InvalidRecordDirective r           -> r
+    InvalidTerminationCheckPragma r    -> r
+    MissingDeclarations xs             -> getRange xs
+    MissingDefinitions xs              -> getRange xs
+    NotAllowedInMutual r x             -> r
+    OpenPublicAbstract r               -> r
+    OpenPublicPrivate r                -> r
+    PolarityPragmasButNotPostulates xs -> getRange xs
+    PragmaCompiled r                   -> r
+    PragmaNoTerminationCheck r         -> r
+    SafeFlagEta r                      -> r
+    SafeFlagInjective r                -> r
+    SafeFlagNoCoverageCheck r          -> r
+    SafeFlagNoPositivityCheck r        -> r
+    SafeFlagNoUniverseCheck r          -> r
+    SafeFlagNonTerminating r           -> r
+    SafeFlagPolarity r                 -> r
+    SafeFlagTerminating r              -> r
+    ShadowingInTelescope ns            -> getRange ns
+    UnknownFixityInMixfixDecl xs       -> getRange xs
+    UnknownNamesInFixityDecl xs        -> getRange xs
+    UnknownNamesInPolarityPragmas xs   -> getRange xs
+    UselessAbstract r                  -> r
+    UselessInstance r                  -> r
+    UselessPrivate r                   -> r
 
 -- These error messages can (should) be terminated by a dot ".",
 -- there is no error context printed after them.
@@ -335,70 +409,117 @@ instance Pretty DeclarationWarning where
   pretty (DeclarationWarning _ w) = pretty w
 
 instance Pretty DeclarationWarning' where
-  pretty (UnknownNamesInFixityDecl xs) = fsep $
-    pwords "The following names are not declared in the same scope as their syntax or fixity declaration (i.e., either not in scope at all, imported from another module, or declared in a super module):"
-    ++ punctuate comma (map pretty xs)
-  pretty (UnknownFixityInMixfixDecl xs) = fsep $
-    pwords "The following mixfix names do not have an associated fixity declaration:"
-    ++ punctuate comma (map pretty xs)
-  pretty (UnknownNamesInPolarityPragmas xs) = fsep $
-    pwords "The following names are not declared in the same scope as their polarity pragmas (they could for instance be out of scope, imported from another module, or declared in a super module):"
-    ++ punctuate comma  (map pretty xs)
-  pretty (MissingDeclarations xs) = fsep $
-   pwords "The following names are defined but not accompanied by a declaration:"
-   ++ punctuate comma (map (pretty . fst) xs)
-  pretty (MissingDefinitions xs) = fsep $
-   pwords "The following names are declared but not accompanied by a definition:"
-   ++ punctuate comma (map (pretty . fst) xs)
-  pretty (NotAllowedInMutual r nd) = fsep $
-    text nd : pwords "in mutual blocks are not supported.  Suggestion: get rid of the mutual block by manually ordering declarations"
-  pretty (PolarityPragmasButNotPostulates xs) = fsep $
-    pwords "Polarity pragmas have been given for the following identifiers which are not postulates:"
-    ++ punctuate comma (map pretty xs)
-  pretty (UselessPrivate _)      = fsep $
-    pwords "Using private here has no effect. Private applies only to declarations that introduce new identifiers into the module, like type signatures and data, record, and module declarations."
-  pretty (UselessAbstract _)      = fsep $
-    pwords "Using abstract here has no effect. Abstract applies to only definitions like data definitions, record type definitions and function clauses."
-  pretty (UselessInstance _)      = fsep $
-    pwords "Using instance here has no effect. Instance applies only to declarations that introduce new identifiers into the module, like type signatures and axioms."
-  pretty (EmptyMutual    _)  = fsep $ pwords "Empty mutual block."
-  pretty EmptyConstructor{}  = fsep $ pwords "Empty constructor block."
-  pretty (EmptyAbstract  _)  = fsep $ pwords "Empty abstract block."
-  pretty (EmptyPrivate   _)  = fsep $ pwords "Empty private block."
-  pretty (EmptyInstance  _)  = fsep $ pwords "Empty instance block."
-  pretty (EmptyMacro     _)  = fsep $ pwords "Empty macro block."
-  pretty (EmptyPostulate _)  = fsep $ pwords "Empty postulate block."
-  pretty (EmptyGeneralize _) = fsep $ pwords "Empty variable block."
-  pretty (EmptyPrimitive _)  = fsep $ pwords "Empty primitive block."
-  pretty (EmptyField _)      = fsep $ pwords "Empty field block."
-  pretty (HiddenGeneralize _) = fsep $ pwords "Declaring a variable as hidden has no effect in a variable block. Generalization never introduces visible arguments."
-  pretty InvalidRecordDirective{} = fsep $
-    pwords "Record directives can only be used inside record definitions and before field declarations."
-  pretty (InvalidTerminationCheckPragma _) = fsep $
-    pwords "Termination checking pragmas can only precede a function definition or a mutual block (that contains a function definition)."
-  pretty InvalidConstructor{} = fsep $
-    pwords "`constructor' blocks may only contain type signatures for constructors."
-  pretty InvalidConstructorBlock{} = fsep $
-    pwords "No `constructor' blocks outside of `interleaved mutual' blocks."
-  pretty (InvalidCoverageCheckPragma _)    = fsep $
-    pwords "Coverage checking pragmas can only precede a function definition or a mutual block (that contains a function definition)."
-  pretty (InvalidNoPositivityCheckPragma _) = fsep $
-    pwords "NO_POSITIVITY_CHECKING pragmas can only precede a data/record definition or a mutual block (that contains a data/record definition)."
-  pretty (InvalidCatchallPragma _) = fsep $
-    pwords "The CATCHALL pragma can only precede a function clause."
-  pretty (InvalidNoUniverseCheckPragma _) = fsep $
-    pwords "NO_UNIVERSE_CHECKING pragmas can only precede a data/record definition."
-  pretty (PragmaNoTerminationCheck _) = fsep $
-    pwords "Pragma {-# NO_TERMINATION_CHECK #-} has been removed.  To skip the termination check, label your definitions either as {-# TERMINATING #-} or {-# NON_TERMINATING #-}."
-  pretty (PragmaCompiled _) = fsep $
-    pwords "COMPILE pragma not allowed in safe mode."
-  pretty (OpenPublicAbstract _) = fsep $
-    pwords "public does not have any effect in an abstract block."
-  pretty (OpenPublicPrivate _) = fsep $
-    pwords "public does not have any effect in a private block."
-  pretty (ShadowingInTelescope nrs) = fsep $
-    pwords "Shadowing in telescope, repeated variable names:"
-    ++ punctuate comma (fmap (pretty . fst) nrs)
+  pretty = \case
+
+    UnknownNamesInFixityDecl xs -> fsep $
+      pwords "The following names are not declared in the same scope as their syntax or fixity declaration (i.e., either not in scope at all, imported from another module, or declared in a super module):"
+      ++ punctuate comma (map pretty xs)
+
+    UnknownFixityInMixfixDecl xs -> fsep $
+      pwords "The following mixfix names do not have an associated fixity declaration:"
+      ++ punctuate comma (map pretty xs)
+
+    UnknownNamesInPolarityPragmas xs -> fsep $
+      pwords "The following names are not declared in the same scope as their polarity pragmas (they could for instance be out of scope, imported from another module, or declared in a super module):"
+      ++ punctuate comma  (map pretty xs)
+
+    MissingDeclarations xs -> fsep $
+     pwords "The following names are defined but not accompanied by a declaration:"
+     ++ punctuate comma (map (pretty . fst) xs)
+
+    MissingDefinitions xs -> fsep $
+     pwords "The following names are declared but not accompanied by a definition:"
+     ++ punctuate comma (map (pretty . fst) xs)
+
+    NotAllowedInMutual r nd -> fsep $
+      text nd : pwords "in mutual blocks are not supported.  Suggestion: get rid of the mutual block by manually ordering declarations"
+
+    PolarityPragmasButNotPostulates xs -> fsep $
+      pwords "Polarity pragmas have been given for the following identifiers which are not postulates:"
+      ++ punctuate comma (map pretty xs)
+
+    UselessPrivate _ -> fsep $
+      pwords "Using private here has no effect. Private applies only to declarations that introduce new identifiers into the module, like type signatures and data, record, and module declarations."
+
+    UselessAbstract _ -> fsep $
+      pwords "Using abstract here has no effect. Abstract applies to only definitions like data definitions, record type definitions and function clauses."
+
+    UselessInstance _ -> fsep $
+      pwords "Using instance here has no effect. Instance applies only to declarations that introduce new identifiers into the module, like type signatures and axioms."
+
+    EmptyMutual    _ -> fsep $ pwords "Empty mutual block."
+
+    EmptyConstructor{}  -> fsep $ pwords "Empty constructor block."
+
+    EmptyAbstract  _ -> fsep $ pwords "Empty abstract block."
+
+    EmptyPrivate   _ -> fsep $ pwords "Empty private block."
+
+    EmptyInstance  _ -> fsep $ pwords "Empty instance block."
+
+    EmptyMacro     _ -> fsep $ pwords "Empty macro block."
+
+    EmptyPostulate _ -> fsep $ pwords "Empty postulate block."
+
+    EmptyGeneralize _ -> fsep $ pwords "Empty variable block."
+
+    EmptyPrimitive _ -> fsep $ pwords "Empty primitive block."
+
+    EmptyField _ -> fsep $ pwords "Empty field block."
+
+    HiddenGeneralize _ -> fsep $ pwords "Declaring a variable as hidden has no effect in a variable block. Generalization never introduces visible arguments."
+
+    InvalidRecordDirective{} -> fsep $
+      pwords "Record directives can only be used inside record definitions and before field declarations."
+
+    InvalidTerminationCheckPragma _ -> fsep $
+      pwords "Termination checking pragmas can only precede a function definition or a mutual block (that contains a function definition)."
+
+    InvalidConstructor{} -> fsep $
+      pwords "`constructor' blocks may only contain type signatures for constructors."
+
+    InvalidConstructorBlock{} -> fsep $
+      pwords "No `constructor' blocks outside of `interleaved mutual' blocks."
+
+    InvalidCoverageCheckPragma _ -> fsep $
+      pwords "Coverage checking pragmas can only precede a function definition or a mutual block (that contains a function definition)."
+
+    InvalidNoPositivityCheckPragma _ -> fsep $
+      pwords "NO_POSITIVITY_CHECKING pragmas can only precede a data/record definition or a mutual block (that contains a data/record definition)."
+
+    InvalidCatchallPragma _ -> fsep $
+      pwords "The CATCHALL pragma can only precede a function clause."
+
+    InvalidNoUniverseCheckPragma _ -> fsep $
+      pwords "NO_UNIVERSE_CHECKING pragmas can only precede a data/record definition."
+
+    PragmaNoTerminationCheck _ -> fsep $
+      pwords "Pragma {-# NO_TERMINATION_CHECK #-} has been removed.  To skip the termination check, label your definitions either as {-# TERMINATING #-} or {-# NON_TERMINATING #-}."
+
+    PragmaCompiled _ -> fsep $
+      pwords "COMPILE pragma not allowed in safe mode."
+
+    OpenPublicAbstract _ -> fsep $
+      pwords "public does not have any effect in an abstract block."
+
+    OpenPublicPrivate _ -> fsep $
+      pwords "public does not have any effect in a private block."
+
+    ShadowingInTelescope nrs -> fsep $
+      pwords "Shadowing in telescope, repeated variable names:"
+      ++ punctuate comma (fmap (pretty . fst) nrs)
+
+    SafeFlagEta               _ -> unsafePragma "ETA"
+    SafeFlagInjective         _ -> unsafePragma "INJECTIVE"
+    SafeFlagNoCoverageCheck   _ -> unsafePragma "NON_COVERING"
+    SafeFlagNoPositivityCheck _ -> unsafePragma "NO_POSITIVITY_CHECK"
+    SafeFlagNoUniverseCheck   _ -> unsafePragma "NO_UNIVERSE_CHECK"
+    SafeFlagNonTerminating    _ -> unsafePragma "NON_TERMINATING"
+    SafeFlagPolarity          _ -> unsafePragma "POLARITY"
+    SafeFlagTerminating       _ -> unsafePragma "TERMINATING"
+
+    where
+      unsafePragma s = fsep $ ["Cannot", "use", s] ++ pwords "pragma with safe flag."
 
 instance NFData DeclarationWarning
 instance NFData DeclarationWarning'

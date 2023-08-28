@@ -1,6 +1,2 @@
 Polarity-pragma-in-safe-mode.agda:5,1-22
 Cannot use POLARITY pragma with safe flag.
-Polarity-pragma-in-safe-mode.agda:3,11-24
-Cannot postulate F with safe flag
-when scope checking the declaration
-  F : Set → Set

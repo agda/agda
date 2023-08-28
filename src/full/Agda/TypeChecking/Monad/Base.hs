@@ -4161,16 +4161,8 @@ data Warning
   -- Safe flag errors
   | SafeFlagPostulate C.Name
   | SafeFlagPragma [String]                -- ^ Unsafe OPTIONS.
-  | SafeFlagNonTerminating
-  | SafeFlagTerminating
   | SafeFlagWithoutKFlagPrimEraseEquality
   | WithoutKFlagPrimEraseEquality
-  | SafeFlagNoPositivityCheck
-  | SafeFlagPolarity
-  | SafeFlagNoUniverseCheck
-  | SafeFlagNoCoverageCheck
-  | SafeFlagInjective
-  | SafeFlagEta                            -- ^ ETA pragma is unsafe.
   | OptionWarning            OptionWarning
   | ParseWarning             ParseWarning
   | LibraryWarning           LibWarning
@@ -4262,18 +4254,10 @@ warningName = \case
   NotStrictlyPositive{}        -> NotStrictlyPositive_
   UnsupportedIndexedMatch{}    -> UnsupportedIndexedMatch_
   OldBuiltin{}                 -> OldBuiltin_
-  SafeFlagNoPositivityCheck    -> SafeFlagNoPositivityCheck_
-  SafeFlagNonTerminating       -> SafeFlagNonTerminating_
-  SafeFlagNoUniverseCheck      -> SafeFlagNoUniverseCheck_
-  SafeFlagPolarity             -> SafeFlagPolarity_
   SafeFlagPostulate{}          -> SafeFlagPostulate_
   SafeFlagPragma{}             -> SafeFlagPragma_
-  SafeFlagEta                  -> SafeFlagEta_
-  SafeFlagInjective            -> SafeFlagInjective_
-  SafeFlagNoCoverageCheck      -> SafeFlagNoCoverageCheck_
   SafeFlagWithoutKFlagPrimEraseEquality -> SafeFlagWithoutKFlagPrimEraseEquality_
   WithoutKFlagPrimEraseEquality -> WithoutKFlagPrimEraseEquality_
-  SafeFlagTerminating          -> SafeFlagTerminating_
   TerminationIssue{}           -> TerminationIssue_
   UnreachableClauses{}         -> UnreachableClauses_
   UnsolvedInteractionMetas{}   -> UnsolvedInteractionMetas_

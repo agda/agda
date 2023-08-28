@@ -4,6 +4,7 @@ module Agda.Syntax.Concrete.Definitions.Monad where
 
 import Control.Monad        ( unless )
 import Control.Monad.Except ( MonadError(..), ExceptT, runExceptT )
+import Control.Monad.Reader ( MonadReader, ReaderT, runReaderT )
 import Control.Monad.State  ( MonadState(..), modify, State, runState )
 
 import Data.Bifunctor (second)
@@ -24,20 +25,27 @@ import Agda.Utils.Impossible
 -- | Nicifier monad.
 --   Preserve the state when throwing an exception.
 
-newtype Nice a = Nice { unNice :: ExceptT DeclarationException (State NiceEnv) a }
+newtype Nice a = Nice { unNice :: ReaderT NiceEnv (ExceptT DeclarationException (State NiceState)) a }
   deriving ( Functor, Applicative, Monad
-           , MonadState NiceEnv, MonadError DeclarationException
+           , MonadReader NiceEnv, MonadState NiceState, MonadError DeclarationException
            )
 
 -- | Run a Nicifier computation, return result and warnings
 --   (in chronological order).
-runNice :: Nice a -> (Either DeclarationException a, NiceWarnings)
-runNice m = second (reverse . niceWarn) $
-  runExceptT (unNice m) `runState` initNiceEnv
+runNice :: NiceEnv -> Nice a -> (Either DeclarationException a, NiceWarnings)
+runNice env m = second (reverse . niceWarn) $
+  runExceptT (unNice m `runReaderT` env) `runState` initNiceState
+
+-- | Nicifier parameters.
+
+data NiceEnv = NiceEnv
+  { safeButNotBuiltin :: Bool
+       -- ^ We are in a module declared @--safe@ which is not a builtin module.
+  }
 
 -- | Nicifier state.
 
-data NiceEnv = NiceEnv
+data NiceState = NiceState
   { _loneSigs :: LoneSigs
     -- ^ Lone type signatures that wait for their definition.
   , _termChk  :: TerminationCheck
@@ -82,8 +90,8 @@ type NiceWarnings = [DeclarationWarning]
 
 -- | Initial nicifier state.
 
-initNiceEnv :: NiceEnv
-initNiceEnv = NiceEnv
+initNiceState :: NiceState
+initNiceState = NiceState
   { _loneSigs = Map.empty
   , _termChk  = TerminationCheck
   , _posChk   = YesPositivityCheck
@@ -94,7 +102,7 @@ initNiceEnv = NiceEnv
   , _nameId   = NameId 1 noModuleNameHash
   }
 
-lensNameId :: Lens' NiceEnv NameId
+lensNameId :: Lens' NiceState NameId
 lensNameId f e = f (_nameId e) <&> \ i -> e { _nameId = i }
 
 nextNameId :: Nice NameId
@@ -107,7 +115,7 @@ nextNameId = do
 
 -- | Lens for field '_loneSigs'.
 
-loneSigs :: Lens' NiceEnv LoneSigs
+loneSigs :: Lens' NiceState LoneSigs
 loneSigs f e = f (_loneSigs e) <&> \ s -> e { _loneSigs = s }
 
 -- | Adding a lone signature to the state.
@@ -173,7 +181,7 @@ loneSigsFromLoneNames = Map.fromListWith __IMPOSSIBLE__ . map (\(r,x,k) -> (x, L
 
 -- | Lens for field '_termChk'.
 
-terminationCheckPragma :: Lens' NiceEnv TerminationCheck
+terminationCheckPragma :: Lens' NiceState TerminationCheck
 terminationCheckPragma f e = f (_termChk e) <&> \ s -> e { _termChk = s }
 
 withTerminationCheckPragma :: TerminationCheck -> Nice a -> Nice a
@@ -184,7 +192,7 @@ withTerminationCheckPragma tc f = do
   terminationCheckPragma .= tc_old
   return result
 
-coverageCheckPragma :: Lens' NiceEnv CoverageCheck
+coverageCheckPragma :: Lens' NiceState CoverageCheck
 coverageCheckPragma f e = f (_covChk e) <&> \ s -> e { _covChk = s }
 
 withCoverageCheckPragma :: CoverageCheck -> Nice a -> Nice a
@@ -197,7 +205,7 @@ withCoverageCheckPragma tc f = do
 
 -- | Lens for field '_posChk'.
 
-positivityCheckPragma :: Lens' NiceEnv PositivityCheck
+positivityCheckPragma :: Lens' NiceState PositivityCheck
 positivityCheckPragma f e = f (_posChk e) <&> \ s -> e { _posChk = s }
 
 withPositivityCheckPragma :: PositivityCheck -> Nice a -> Nice a
@@ -210,7 +218,7 @@ withPositivityCheckPragma pc f = do
 
 -- | Lens for field '_uniChk'.
 
-universeCheckPragma :: Lens' NiceEnv UniverseCheck
+universeCheckPragma :: Lens' NiceState UniverseCheck
 universeCheckPragma f e = f (_uniChk e) <&> \ s -> e { _uniChk = s }
 
 withUniverseCheckPragma :: UniverseCheck -> Nice a -> Nice a
@@ -229,7 +237,7 @@ getUniverseCheckFromSig x = maybe YesUniverseCheck universeCheck <$> getSig x
 
 -- | Lens for field '_catchall'.
 
-catchallPragma :: Lens' NiceEnv Catchall
+catchallPragma :: Lens' NiceState Catchall
 catchallPragma f e = f (_catchall e) <&> \ s -> e { _catchall = s }
 
 -- | Get current catchall pragma, and reset it for the next clause.

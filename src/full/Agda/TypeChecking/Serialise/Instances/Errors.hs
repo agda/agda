@@ -44,15 +44,7 @@ instance EmbPrj Warning where
     GenericNonFatalError a                -> __IMPOSSIBLE__
     SafeFlagPostulate a                   -> __IMPOSSIBLE__
     SafeFlagPragma a                      -> __IMPOSSIBLE__
-    SafeFlagNonTerminating                -> __IMPOSSIBLE__
-    SafeFlagTerminating                   -> __IMPOSSIBLE__
     SafeFlagWithoutKFlagPrimEraseEquality -> __IMPOSSIBLE__
-    SafeFlagNoPositivityCheck             -> __IMPOSSIBLE__
-    SafeFlagPolarity                      -> __IMPOSSIBLE__
-    SafeFlagNoUniverseCheck               -> __IMPOSSIBLE__
-    SafeFlagNoCoverageCheck               -> __IMPOSSIBLE__
-    SafeFlagInjective                     -> __IMPOSSIBLE__
-    SafeFlagEta                           -> __IMPOSSIBLE__
     DeprecationWarning a b c              -> icodeN 6 DeprecationWarning a b c
     NicifierIssue a                       -> icodeN 7 NicifierIssue a
     InversionDepthReached a               -> icodeN 8 InversionDepthReached a
@@ -217,6 +209,14 @@ instance EmbPrj DeclarationWarning' where
     InvalidConstructorBlock a         -> icodeN 31 InvalidConstructorBlock a
     MissingDeclarations a             -> icodeN 32 MissingDeclarations a
     HiddenGeneralize r                -> icodeN 33 HiddenGeneralize r
+    SafeFlagEta                    {} -> __IMPOSSIBLE__
+    SafeFlagInjective              {} -> __IMPOSSIBLE__
+    SafeFlagNoCoverageCheck        {} -> __IMPOSSIBLE__
+    SafeFlagNoPositivityCheck      {} -> __IMPOSSIBLE__
+    SafeFlagNoUniverseCheck        {} -> __IMPOSSIBLE__
+    SafeFlagNonTerminating         {} -> __IMPOSSIBLE__
+    SafeFlagPolarity               {} -> __IMPOSSIBLE__
+    SafeFlagTerminating            {} -> __IMPOSSIBLE__
 
   value = vcase $ \case
     [0, a]   -> valuN UnknownNamesInFixityDecl a
