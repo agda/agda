@@ -672,8 +672,7 @@ insertHiddenLambdas h target postpone ret = do
             Lam (setOrigin Inserted $ domInfo dom) . Abs x <$> do
               addContext (x, dom) $ insertHiddenLambdas h (absBody b) postpone ret
 
-      _ -> typeError . GenericDocError =<< do
-        "Expected " <+> prettyTCM target <+> " to be a function type"
+      _ -> typeError $ ShouldBePi target
 
 -- | @checkAbsurdLambda i h e t@ checks absurd lambda against type @t@.
 --   Precondition: @e = AbsurdLam i h@
