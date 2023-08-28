@@ -188,6 +188,7 @@ errorString err = case err of
   MultipleFixityDecls{}                    -> "MultipleFixityDecls"
   MultiplePolarityPragmas{}                -> "MultiplePolarityPragmas"
   NoBindingForBuiltin{}                    -> "NoBindingForBuiltin"
+  NoBindingForPrimitive{}                  -> "NoBindingForPrimitive"
   NoParseForApplication{}                  -> "NoParseForApplication"
   NoParseForLHS{}                          -> "NoParseForLHS"
 --  NoParseForPatternSynonym{}               -> "NoParseForPatternSynonym"
@@ -712,6 +713,11 @@ instance PrettyTCM TypeError where
       | otherwise -> fsep $
         pwords "No binding for builtin thing" ++ [pretty x <> comma] ++
         pwords ("use {-# BUILTIN " ++ getBuiltinId x ++ " name #-} to bind it to 'name'")
+
+    NoBindingForPrimitive x -> fsep $
+      pwords "Missing binding for" ++
+      [pretty x] ++
+      pwords "primitive."
 
     DuplicatePrimitiveBinding b x y -> fsep $
       pwords "Duplicate binding for primitive thing" ++ [pretty b <> comma] ++

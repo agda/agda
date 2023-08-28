@@ -4530,6 +4530,7 @@ data TypeError
         | NoSuchBuiltinName String
         | DuplicateBuiltinBinding BuiltinId Term Term
         | NoBindingForBuiltin BuiltinId
+        | NoBindingForPrimitive PrimitiveId
         | NoSuchPrimitiveFunction String
         | DuplicatePrimitiveBinding PrimitiveId QName QName
         | WrongArgInfoForPrimitive PrimitiveId ArgInfo ArgInfo
