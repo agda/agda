@@ -4566,6 +4566,7 @@ data TypeError
         | CannotRewriteByNonEquation Type
         | MacroResultTypeMismatch Type
         | NamedWhereModuleInRefinedContext [Term] [String]
+        | CubicalPrimitiveNotFullyApplied QName
     -- Coverage errors
 -- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | SplitError SplitError
