@@ -432,6 +432,7 @@ warningHighlighting' b w = case tcWarning w of
   EmptyRewritePragma{}       -> deadcodeHighlighting w
   EmptyWhere{}               -> deadcodeHighlighting w
   IllformedAsClause{}        -> deadcodeHighlighting w
+  UselessPragma r _          -> deadcodeHighlighting r
   UselessPublic{}            -> deadcodeHighlighting w
   UselessHiding xs           -> foldMap deadcodeHighlighting xs
   UselessInline{}            -> mempty
@@ -446,7 +447,6 @@ warningHighlighting' b w = case tcWarning w of
   InversionDepthReached{}    -> mempty
   NoGuardednessFlag{}        -> mempty
   GenericWarning{}           -> mempty
-  GenericUseless r _         -> deadcodeHighlighting r
   -- Andreas, 2020-03-21, issue #4456:
   -- Error warnings that do not have dedicated highlighting
   -- are highlighted as errors.
@@ -480,6 +480,9 @@ warningHighlighting' b w = case tcWarning w of
   NotAffectedByOpaque{}           -> deadcodeHighlighting w
   UselessOpaque{}                 -> deadcodeHighlighting w
   UnfoldTransparentName r         -> deadcodeHighlighting r
+  FaceConstraintCannotBeHidden{}  -> deadcodeHighlighting w
+  FaceConstraintCannotBeNamed{}   -> deadcodeHighlighting w
+
   NicifierIssue (DeclarationWarning _ w) -> case w of
     -- we intentionally override the binding of `w` here so that our pattern of
     -- using `getRange w` still yields the most precise range information we

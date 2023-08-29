@@ -35,7 +35,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Pretty.Constraint (prettyInterestingCons
 import Agda.TypeChecking.Warnings (MonadWarning, isUnsolvedWarning, onlyShowIfUnsolved, classifyWarning, WhichWarnings(..), warning_)
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 
-import Agda.Syntax.Common ( ImportedName'(..), fromImportedName, partitionImportedNames )
+import Agda.Syntax.Common ( getHiding, ImportedName'(..), fromImportedName, partitionImportedNames )
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Scope.Base ( concreteNamesInScope, NameOrModule(..) )
@@ -216,7 +216,7 @@ prettyWarning = \case
 
     GenericNonFatalError d -> return d
 
-    GenericUseless _r d -> return d
+    UselessPragma _r d -> return d
 
     SafeFlagPostulate e -> fsep $
       pwords "Cannot postulate" ++ [pretty e] ++ pwords "with safe flag"
@@ -351,6 +351,12 @@ prettyWarning = \case
       pwords "The name" ++ [prettyTCM qn <> ","] ++ pwords "mentioned by an unfolding clause, does not belong to an opaque block. This has no effect."
 
     UselessOpaque -> "This `opaque` block has no effect."
+
+    FaceConstraintCannotBeHidden ai -> fsep $
+      pwords "Face constraint patterns cannot be" ++ [ pretty (getHiding ai), "arguments"]
+
+    FaceConstraintCannotBeNamed x -> fsep $
+      pwords "Ignoring name" ++ ["`" <> pretty x <> "`"] ++ pwords "given to face constraint pattern"
 
 prettyRecordFieldWarning :: MonadPretty m => RecordFieldWarning -> m Doc
 prettyRecordFieldWarning = \case

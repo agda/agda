@@ -136,7 +136,11 @@ Pragmas and options
   checking. This flag may be necessary for Agda to accept nontrivial
   uses of induction-induction.
 
-* The suffix `Warning` has been dropped from the warning names `DuplicateFieldsWarning` and `TooManyFieldsWarning`.
+* The suffix `Warning` has been dropped from the warning names
+  `DuplicateFieldsWarning` and `TooManyFieldsWarning`.
+
+* The warning `GenericUseless` has been split into the three warnings
+  `UselessPragma`, `FaceConstraintCannotBeHidden` and `FaceConstraintCannotBeNamed`.
 
 Library management
 ------------------

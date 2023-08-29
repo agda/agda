@@ -2674,7 +2674,7 @@ checkNoTerminationPragma :: FoldDecl a => WhereOrRecord -> a -> ScopeM ()
 checkNoTerminationPragma b ds =
   -- foldDecl traverses into all sub-declarations.
   forM_ (foldDecl (isPragma >=> isTerminationPragma) ds) \ (p, r) ->
-    setCurrentRange r $ warning $ GenericUseless r $ P.vcat
+    setCurrentRange r $ warning $ UselessPragma r $ P.vcat
       [ P.text $ show p ++ " pragmas are ignored in " ++ what b
       , P.text $ "(see " ++ issue b ++ ")"
       ]
@@ -2923,19 +2923,17 @@ hasExpandedEllipsis core = case core of
 mergeEqualPs :: [NamedArg (Pattern' e)] -> ScopeM [NamedArg (Pattern' e)]
 mergeEqualPs = go (empty, [])
   where
-    go acc (p@(Arg i (Named mn (A.EqualP r es))) : ps) = setCurrentRange p $ do
+    go acc (p@(Arg ai (Named mn (A.EqualP r es))) : ps) = setCurrentRange p $ do
       -- Face constraint patterns must be defaultNamedArg; check this:
-      unless (getModality i == defaultModality) __IMPOSSIBLE__
-      when (hidden     i) $ warn i $ "Face constraint patterns cannot be hidden arguments"
-      when (isInstance i) $ warn i $ "Face constraint patterns cannot be instance arguments"
-      whenJust mn $ \ x -> setCurrentRange x $ warn x $ P.hcat
-          [ "Ignoring name `", P.pretty x, "` given to face constraint pattern" ]
+      unless (getModality ai == defaultModality) __IMPOSSIBLE__
+      when (notVisible ai) $
+        warning $ FaceConstraintCannotBeHidden ai
+      whenJust mn $ \ x -> setCurrentRange x $
+        warning $ FaceConstraintCannotBeNamed x
       go (acc `mappend` (r, es)) ps
     go (r, es@(_:_)) ps = (defaultNamedArg (A.EqualP r es) :) <$> mergeEqualPs ps
     go (_, []) []       = return []
     go (_, []) (p : ps) = (p :) <$> mergeEqualPs ps
-
-    warn r d = warning $ GenericUseless (getRange r) d
 
 -- does not check pattern linearity
 instance ToAbstract C.LHSCore where
