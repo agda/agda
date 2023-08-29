@@ -218,10 +218,13 @@ data Hiding  = Hidden | Instance Overlappable | NotHidden
   deriving (Show, Eq, Ord)
 
 instance Pretty Hiding where
-  pretty = \case
-    Hidden     -> "hidden"
-    NotHidden  -> "visible"
-    Instance{} -> "instance"
+  pretty = text . hidingToString
+
+hidingToString :: Hiding -> String
+hidingToString = \case
+  Hidden     -> "hidden"
+  NotHidden  -> "visible"
+  Instance{} -> "instance"
 
 -- | Just for the 'Hiding' instance. Should never combine different
 --   overlapping.
@@ -390,11 +393,11 @@ instance Applicative UnderComposition where
   (<*>) (UnderComposition f) (UnderComposition a) = pure (f a)
 
 -- | We have a tuple of modalities, which might not be fully orthogonal.
---   For instance, irrelevant stuff is also run-time irrelevant.
+--   For example, irrelevant stuff is also run-time irrelevant.
 data Modality = Modality
   { modRelevance :: Relevance
       -- ^ Legacy irrelevance.
-      --   See Pfenning, LiCS 2001; Abel/Vezzosi/Winterhalter, ICFP 2017.
+      --   See Pfenning, LiCS 2001; Abel, Vezzosi and Winterhalter, ICFP 2017.
   , modQuantity  :: Quantity
       -- ^ Cardinality / runtime erasure.
       --   See Conor McBride, I got plenty o' nutting, Wadlerfest 2016.

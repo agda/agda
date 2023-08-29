@@ -1649,11 +1649,7 @@ class Verbalize a where
   verbalize :: a -> String
 
 instance Verbalize Hiding where
-  verbalize h =
-    case h of
-      Hidden     -> "hidden"
-      NotHidden  -> "visible"
-      Instance{} -> "instance"
+  verbalize = hidingToString
 
 instance Verbalize Relevance where
   verbalize r =

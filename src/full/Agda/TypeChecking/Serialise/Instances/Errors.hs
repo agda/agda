@@ -74,7 +74,7 @@ instance EmbPrj Warning where
     AsPatternShadowsConstructorOrPatternSynonym a -> icodeN 32 AsPatternShadowsConstructorOrPatternSynonym a
     DuplicateUsing a                      -> icodeN 33 DuplicateUsing a
     UselessHiding a                       -> icodeN 34 UselessHiding a
-    GenericUseless a b                    -> icodeN 35 GenericUseless a b
+    UselessPragma a b                     -> icodeN 35 UselessPragma a b
     RewriteAmbiguousRules a b c           -> icodeN 36 RewriteAmbiguousRules a b c
     RewriteMissingRule a b c              -> icodeN 37 RewriteMissingRule a b c
     ParseWarning a                        -> icodeN 38 ParseWarning a
@@ -86,6 +86,8 @@ instance EmbPrj Warning where
     UnfoldTransparentName nm              -> icodeN 44 UnfoldTransparentName nm
     UselessOpaque                         -> icodeN 45 UselessOpaque
     InlineNoExactSplit a b                -> icodeN 46 InlineNoExactSplit a b
+    FaceConstraintCannotBeHidden a        -> icodeN 47 FaceConstraintCannotBeHidden a
+    FaceConstraintCannotBeNamed a         -> icodeN 48 FaceConstraintCannotBeNamed a
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -123,7 +125,7 @@ instance EmbPrj Warning where
     [32, a]              -> valuN AsPatternShadowsConstructorOrPatternSynonym a
     [33, a]              -> valuN DuplicateUsing a
     [34, a]              -> valuN UselessHiding a
-    [35, a, b]           -> valuN GenericUseless a b
+    [35, a, b]           -> valuN UselessPragma a b
     [36, a, b, c]        -> valuN RewriteAmbiguousRules a b c
     [37, a, b, c]        -> valuN RewriteMissingRule a b c
     [38, a]              -> valuN ParseWarning a
@@ -135,6 +137,8 @@ instance EmbPrj Warning where
     [44, a]              -> valuN UnfoldTransparentName a
     [45]                 -> valuN UselessOpaque
     [46, a, b]           -> valuN InlineNoExactSplit a b
+    [47, a]              -> valuN FaceConstraintCannotBeHidden a
+    [48, a]              -> valuN FaceConstraintCannotBeNamed a
     _ -> malformed
 
 instance EmbPrj OptionWarning where
@@ -381,7 +385,7 @@ instance EmbPrj WarningName where
     DuplicateUsing_                              -> 47
     FixityInRenamingModule_                      -> 48
     GenericNonFatalError_                        -> 49
-    GenericUseless_                              -> 50
+    UselessPragma_                               -> 50
     GenericWarning_                              -> 51
     IllformedAsClause_                           -> 52
     InstanceArgWithExplicitArg_                  -> 53
@@ -433,6 +437,8 @@ instance EmbPrj WarningName where
     UnfoldTransparentName_                       -> 99
     UselessOpaque_                               -> 100
     InlineNoExactSplit_                          -> 101
+    FaceConstraintCannotBeHidden_                -> 102
+    FaceConstraintCannotBeNamed_                 -> 103
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -485,7 +491,7 @@ instance EmbPrj WarningName where
     47  -> return DuplicateUsing_
     48  -> return FixityInRenamingModule_
     49  -> return GenericNonFatalError_
-    50  -> return GenericUseless_
+    50  -> return UselessPragma_
     51  -> return GenericWarning_
     52  -> return IllformedAsClause_
     53  -> return InstanceArgWithExplicitArg_
@@ -537,6 +543,8 @@ instance EmbPrj WarningName where
     99  -> return UnfoldTransparentName_
     100 -> return UselessOpaque_
     101 -> return InlineNoExactSplit_
+    102 -> return FaceConstraintCannotBeHidden_
+    103 -> return FaceConstraintCannotBeNamed_
     _   -> malformed
 
 

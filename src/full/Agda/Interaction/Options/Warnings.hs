@@ -241,7 +241,7 @@ data WarningName
   | DuplicateUsing_
   | FixityInRenamingModule_
   | GenericNonFatalError_
-  | GenericUseless_
+  | UselessPragma_
   | GenericWarning_
   | IllformedAsClause_
   | InstanceArgWithExplicitArg_
@@ -294,6 +294,9 @@ data WarningName
   | NotAffectedByOpaque_
   | UnfoldTransparentName_
   | UselessOpaque_
+  -- Cubical
+  | FaceConstraintCannotBeHidden_
+  | FaceConstraintCannotBeNamed_
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Generic)
 
 instance NFData WarningName
@@ -417,7 +420,7 @@ warningNameDescription = \case
   InlineNoExactSplit_              -> "Failed exact split checks after inlining record constructor."
   DeprecationWarning_              -> "Feature deprecation."
   GenericNonFatalError_            -> ""
-  GenericUseless_                  -> "Useless code."
+  UselessPragma_                   -> "Pragma that gets ignored."
   GenericWarning_                  -> ""
   IllformedAsClause_               -> "Illformed `as'-clauses in `import' statements."
   InstanceNoOutputTypeName_        -> "instance arguments whose type does not end in a named or variable type are never considered by instance search."
@@ -468,3 +471,6 @@ warningNameDescription = \case
   NotAffectedByOpaque_             -> "Enclosing `opaque` block has no effect on this declaration."
   UnfoldTransparentName_           -> "Name mentioned in an `unfolding` clause is not `opaque`."
   UselessOpaque_                   -> "This `opaque` block has no effect."
+  -- Cubical
+  FaceConstraintCannotBeHidden_    -> "Face constraint patterns that are given as implicit arguments."
+  FaceConstraintCannotBeNamed_     -> "Face constraint patterns that are given as named arguments."

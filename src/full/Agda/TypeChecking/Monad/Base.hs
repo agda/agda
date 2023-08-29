@@ -4126,6 +4126,9 @@ data Warning
     -- ^ The 'pattern' declaration is useless in the presence
     --   of either @coinductive@ or @eta-equality@.
     --   Content of 'String' is "coinductive" or "eta", resp.
+  | UselessPragma Range Doc
+    -- ^ Warning when pragma is useless and thus ignored.
+    --   'Range' is for dead code highlighting.
   | UselessPublic
     -- ^ If the user opens a module public before the module header.
     --   (See issue #2377.)
@@ -4154,9 +4157,6 @@ data Warning
     -- ^ Harmless generic warning (not an error)
   | GenericNonFatalError     Doc
     -- ^ Generic error which doesn't abort proceedings (not a warning)
-  | GenericUseless  Range    Doc
-    -- ^ Generic warning when code is useless and thus ignored.
-    --   'Range' is for dead code highlighting.
 
   -- Safe flag errors
   | SafeFlagPostulate C.Name
@@ -4212,6 +4212,12 @@ data Warning
   | NotAffectedByOpaque
   | UnfoldTransparentName QName
   | UselessOpaque
+
+  -- Cubical
+  | FaceConstraintCannotBeHidden ArgInfo
+    -- ^ Face constraint patterns @(i = 0)@ must be visible arguments.
+  | FaceConstraintCannotBeNamed NamedName
+    -- ^ Face constraint patterns @(i = 0)@ must be unnamed arguments.
   deriving (Show, Generic)
 
 recordFieldWarningToError :: RecordFieldWarning -> TypeError
@@ -4244,7 +4250,7 @@ warningName = \case
   DuplicateUsing{}             -> DuplicateUsing_
   FixityInRenamingModule{}     -> FixityInRenamingModule_
   GenericNonFatalError{}       -> GenericNonFatalError_
-  GenericUseless{}             -> GenericUseless_
+  UselessPragma{}              -> UselessPragma_
   GenericWarning{}             -> GenericWarning_
   InversionDepthReached{}      -> InversionDepthReached_
   InteractionMetaBoundaries{}  -> InteractionMetaBoundaries_{}
@@ -4286,6 +4292,10 @@ warningName = \case
   NotAffectedByOpaque{}   -> NotAffectedByOpaque_
   UselessOpaque{}         -> UselessOpaque_
   UnfoldTransparentName{} -> UnfoldTransparentName_
+
+  -- Cubical
+  FaceConstraintCannotBeHidden{} -> FaceConstraintCannotBeHidden_
+  FaceConstraintCannotBeNamed{}  -> FaceConstraintCannotBeNamed_
 
 data TCWarning
   = TCWarning
