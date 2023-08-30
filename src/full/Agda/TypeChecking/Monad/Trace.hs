@@ -89,28 +89,21 @@ class (MonadTCEnv m, ReadTCState m) => MonadTrace m where
   traceCallM :: m Call -> m a -> m a
   traceCallM call m = flip traceCall m =<< call
 
-  -- | Reset 'envCall' to previous value in the continuation.
+  -- | Like 'traceCall', but resets 'envCall' and the current ranges to the
+  --   previous values in the continuation.
   --
-  -- Caveat: if the last 'traceCall' did not set an 'interestingCall',
-  -- for example, only set the 'Range' with 'SetRange',
-  -- we will revert to the last interesting call.
   traceCallCPS :: Call -> ((a -> m b) -> m b) -> ((a -> m b) -> m b)
   traceCallCPS call k ret = do
-    mcall <- asksTC envCall
+
+    -- Save current call and ranges.
+    TCEnv{ envCall = mcall, envRange = r, envHighlightingRange = hr } <- askTC
+
+    -- Run given computation under given call.
     traceCall call $ k $ \ a -> do
-      -- Andreas, 2023-08-24
-      -- Unfortunately I didn't document in c4509685bf24b8ce2be380c18408ec2c071c321c
-      -- when I created traceCallCPS why I didn't pursue the following simple reset
-      -- of envCall:
-      --
-      --   localTC (\ e -> e { envCall = mcall }) $ ret a
-      --
-      -- However, it seems that this naive reset misses updating envRange etc.
-      --
-      -- Experimentally, using the simple reset, ranges for with-clause errors
-      -- get worse, not including the with-clause in question, but only the parent clause.
-      -- Thus, I stick to the original approach.
-      maybe (localTC \ e -> e{ envCall = Nothing }) traceClosureCall mcall $ ret a
+
+      -- Restore previous call and ranges for the continuation.
+      localTC (\ e -> e{ envCall = mcall, envRange = r, envHighlightingRange = hr }) $
+        ret a
 
   traceClosureCall :: Closure Call -> m a -> m a
 
