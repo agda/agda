@@ -5,18 +5,18 @@
 // To this end, we create a map from identifier to all of its occurrences in the beginning.
 
 // A dictionary from hrefs to 'a'-elements that have this href.
-var dict = new Map();
+const dict = new Map();
 
 window.onload = function () {
 
   // Get all 'a' tags with an 'href' attribute.
   // We call those "objects".
-  const objs  = [...document.getElementsByTagName('a')].filter((obj) => obj.hasAttribute('href'));
+  const objs  = document.getSelectorAll('a[href]');
 
   // Build a dictionary mapping a href to a set of objects that have this href.
   for (const obj of objs) {
     const key = obj.href;
-    var set = dict.get(key); if (set === undefined) { set = new Set(); }
+    const set = dict.get(key) ?? new Set();
     set.add(obj);
     dict.set(key, set);
   }
