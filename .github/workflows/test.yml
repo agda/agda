@@ -167,6 +167,12 @@ jobs:
       name: Testing the Emacs mode
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" testing-emacs-mode
     - if: always()
+      name: User manual (test)
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" user-manual-test
+    - if: always()
+      name: User manual covers all warnings
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" user-manual-covers-warnings
+    - if: always()
       name: Suite of interaction tests
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" interaction
   stdlib-test:
@@ -256,9 +262,6 @@ jobs:
     - if: always()
       name: Suite of failing tests
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" fail
-    - if: always()
-      name: User manual (test)
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" user-manual-test
     - if: always()
       name: Suite of examples
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" examples

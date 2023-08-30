@@ -621,6 +621,11 @@ user-manual-test :
 		find doc/user-manual -type f -name '*.agdai' -delete; \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/UserManual)
 
+.PHONY : user-manual-covers-warnings
+user-manual-covers-warnings :
+	@$(call decorate, "User manual should mention all warnings", \
+          AGDA_BIN=$(AGDA_BIN) test/doc/user-manual-covers-warnings.sh)
+
 .PHONY : testing-emacs-mode ##
 testing-emacs-mode:
 	@$(call decorate, "Testing the Emacs mode", \
