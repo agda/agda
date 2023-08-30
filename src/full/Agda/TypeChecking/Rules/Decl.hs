@@ -615,7 +615,7 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
   (genParams, npars, t) <- workOnTypes $ case gentel of
         Nothing     -> ([], 0,) <$> isType_ e
         Just gentel ->
-          checkGeneralizeTelescope gentel $ \ genParams ptel -> do
+          checkGeneralizeTelescope Nothing gentel $ \ genParams ptel -> do
             t <- workOnTypes $ isType_ e
             return (genParams, size ptel, abstract ptel t)
 

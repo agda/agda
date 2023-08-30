@@ -68,7 +68,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Def (checkFunDef', useTerPragma)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Application
 
-import Agda.Utils.Function ( applyWhen )
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List1  ( List1, pattern (:|) )
@@ -237,9 +237,19 @@ leqType_ t t' = workOnTypes $ leqType t t'
 -- * Telescopes
 ---------------------------------------------------------------------------
 
-checkGeneralizeTelescope :: A.GeneralizeTelescope -> ([Maybe Name] -> Telescope -> TCM a) -> TCM a
-checkGeneralizeTelescope (A.GeneralizeTel vars tel) k =
-  generalizeTelescope vars (checkTelescope tel) k
+checkGeneralizeTelescope ::
+     Maybe ModuleName
+       -- ^ The module the telescope belongs to (if any).
+  -> A.GeneralizeTelescope
+       -- ^ Telescope to check and add to the context for the continuation.
+  -> ([Maybe Name] -> Telescope -> TCM a)
+       -- ^ Continuation living in the extended context.
+  -> TCM a
+checkGeneralizeTelescope mm (A.GeneralizeTel vars tel) =
+    tr (generalizeTelescope vars (checkTelescope tel) . curry) . uncurry
+  where
+    tr = applyUnless (null tel) $ applyWhenJust mm $ \ m ->
+      traceCallCPS $ CheckModuleParameters m tel
 
 -- | Type check a (module) telescope.
 --   Binds the variables defined by the telescope.

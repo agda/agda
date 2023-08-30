@@ -134,3 +134,13 @@ applyWhenM mb f x = mb >>= \ b -> applyWhen b f x
 {-# INLINE applyUnlessM #-}
 applyUnlessM :: (IsBool b, Monad m) => m b -> (m a -> m a) -> m a -> m a
 applyUnlessM mb f x = mb >>= \ b -> applyUnless b f x
+
+-- | 'Maybe' version of 'applyWhen'.
+{-# INLINE applyWhenJust #-}
+applyWhenJust :: Maybe b -> (b -> a -> a) -> a -> a
+applyWhenJust m f = maybe id f m
+
+-- | 'Maybe' version of 'applyUnless'.
+{-# INLINE applyWhenNothing #-}
+applyWhenNothing :: Maybe b -> (a -> a) -> a -> a
+applyWhenNothing m f = maybe f (const id) m

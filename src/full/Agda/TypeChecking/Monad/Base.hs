@@ -3290,6 +3290,7 @@ data Call
   | CheckPrimitive Range QName A.Expr
   | CheckIsEmpty Range Type
   | CheckConfluence QName QName
+  | CheckModuleParameters ModuleName A.Telescope
   | CheckWithFunctionType Type
   | CheckSectionApplication Range Erased ModuleName A.ModuleApplication
   | CheckNamedWhere ModuleName
@@ -3335,6 +3336,7 @@ instance Pretty Call where
     pretty CheckFunDefCall{}         = "CheckFunDefCall"
     pretty CheckPragma{}             = "CheckPragma"
     pretty CheckPrimitive{}          = "CheckPrimitive"
+    pretty CheckModuleParameters{}   = "CheckModuleParameters"
     pretty CheckWithFunctionType{}   = "CheckWithFunctionType"
     pretty CheckNamedWhere{}         = "CheckNamedWhere"
     pretty ScopeCheckExpr{}          = "ScopeCheckExpr"
@@ -3373,6 +3375,7 @@ instance HasRange Call where
     getRange (CheckFunDefCall i _ _ _)           = getRange i
     getRange (CheckPragma r _)                   = r
     getRange (CheckPrimitive i _ _)              = getRange i
+    getRange (CheckModuleParameters _ tel)       = getRange tel
     getRange CheckWithFunctionType{}             = noRange
     getRange (CheckNamedWhere m)                 = getRange m
     getRange (ScopeCheckExpr e)                  = getRange e

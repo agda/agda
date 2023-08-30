@@ -165,6 +165,9 @@ instance PrettyTCM Call where
       pwords "when checking that the type of the primitive function" ++
       [prettyTCM x] ++ pwords "is" ++ [prettyA e]
 
+    CheckModuleParameters m _tel -> fsep $
+      pwords "when checking the parameters of module" ++ [prettyA m]
+
     CheckWithFunctionType a -> fsep $
       pwords "when checking that the type" ++
       [prettyTCM a] ++ pwords "of the generated with function is well-formed" ++
