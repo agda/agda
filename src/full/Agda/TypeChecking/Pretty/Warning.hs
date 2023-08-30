@@ -214,7 +214,9 @@ prettyWarning = \case
 
     GenericWarning d -> return d
 
-    GenericNonFatalError d -> return d
+    InvalidCharacterLiteral c -> fsep $
+      pwords "Invalid character literal" ++ [text $ show c] ++
+      pwords "(surrogate code points are not supported)"
 
     UselessPragma _r d -> return d
 

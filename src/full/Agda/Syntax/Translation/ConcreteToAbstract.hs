@@ -436,10 +436,14 @@ checkOpen r mam x dir = do
 
 -- | Check a literal, issuing an error warning for bad literals.
 checkLiteral :: Literal -> ScopeM ()
-checkLiteral (LitChar c)
-  | isSurrogateCodePoint c = genericNonFatalError $ P.text $ "Invalid character literal " ++ show c ++
-                                                             " (surrogate code points are not supported)"
-checkLiteral _ = return ()
+checkLiteral = \case
+  LitChar   c   -> when (isSurrogateCodePoint c) $ warning $ InvalidCharacterLiteral c
+  LitNat    _   -> return ()
+  LitWord64 _   -> return ()
+  LitFloat  _   -> return ()
+  LitString _   -> return ()
+  LitQName  _   -> return ()
+  LitMeta   _ _ -> return ()
 
 {--------------------------------------------------------------------------
     Translation

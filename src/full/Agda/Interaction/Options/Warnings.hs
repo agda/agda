@@ -132,7 +132,7 @@ incompleteMatchWarnings = Set.fromList [ CoverageIssue_ ]
 errorWarnings :: Set WarningName
 errorWarnings = Set.fromList
   [ CoverageIssue_
-  , GenericNonFatalError_
+  , InvalidCharacterLiteral_
   , MissingDefinitions_
   , MissingDeclarations_
   , NotAllowedInMutual_
@@ -240,7 +240,7 @@ data WarningName
   | DeprecationWarning_
   | DuplicateUsing_
   | FixityInRenamingModule_
-  | GenericNonFatalError_
+  | InvalidCharacterLiteral_
   | UselessPragma_
   | GenericWarning_
   | IllformedAsClause_
@@ -419,7 +419,7 @@ warningNameDescription = \case
   CoverageNoExactSplit_            -> "Failed exact split checks."
   InlineNoExactSplit_              -> "Failed exact split checks after inlining record constructor."
   DeprecationWarning_              -> "Feature deprecation."
-  GenericNonFatalError_            -> ""
+  InvalidCharacterLiteral_         -> "Illegal character literals."
   UselessPragma_                   -> "Pragma that gets ignored."
   GenericWarning_                  -> ""
   IllformedAsClause_               -> "Illformed `as'-clauses in `import' statements."

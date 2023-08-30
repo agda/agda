@@ -4118,6 +4118,8 @@ data Warning
     -- ^ If the user wrote something other than an unqualified name
     --   in the @as@ clause of an @import@ statement.
     --   The 'String' gives optionally extra explanation.
+  | InvalidCharacterLiteral Char
+    -- ^ A character literal Agda does not support, e.g. surrogate code points.
   | ClashesViaRenaming NameOrModule [C.Name]
     -- ^ If a `renaming' import directive introduces a name or module name clash
     --   in the exported names of a module.
@@ -4155,8 +4157,6 @@ data Warning
   -- Generic warnings for one-off things
   | GenericWarning           Doc
     -- ^ Harmless generic warning (not an error)
-  | GenericNonFatalError     Doc
-    -- ^ Generic error which doesn't abort proceedings (not a warning)
 
   -- Safe flag errors
   | SafeFlagPostulate C.Name
@@ -4249,7 +4249,7 @@ warningName = \case
   InstanceArgWithExplicitArg{} -> InstanceArgWithExplicitArg_
   DuplicateUsing{}             -> DuplicateUsing_
   FixityInRenamingModule{}     -> FixityInRenamingModule_
-  GenericNonFatalError{}       -> GenericNonFatalError_
+  InvalidCharacterLiteral{}    -> InvalidCharacterLiteral_
   UselessPragma{}              -> UselessPragma_
   GenericWarning{}             -> GenericWarning_
   InversionDepthReached{}      -> InversionDepthReached_

@@ -450,7 +450,7 @@ warningHighlighting' b w = case tcWarning w of
   -- Andreas, 2020-03-21, issue #4456:
   -- Error warnings that do not have dedicated highlighting
   -- are highlighted as errors.
-  GenericNonFatalError{}                -> errorWarningHighlighting w
+  InvalidCharacterLiteral{}             -> errorWarningHighlighting w
   SafeFlagPostulate{}                   -> errorWarningHighlighting w
   SafeFlagPragma{}                      -> errorWarningHighlighting w
   SafeFlagWithoutKFlagPrimEraseEquality -> errorWarningHighlighting w

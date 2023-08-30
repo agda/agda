@@ -41,7 +41,7 @@ instance EmbPrj Warning where
     UselessPublic                         -> icodeN 3 UselessPublic
     UselessInline a                       -> icodeN 4 UselessInline a
     GenericWarning a                      -> icodeN 5 GenericWarning a
-    GenericNonFatalError a                -> __IMPOSSIBLE__
+    InvalidCharacterLiteral a             -> __IMPOSSIBLE__
     SafeFlagPostulate a                   -> __IMPOSSIBLE__
     SafeFlagPragma a                      -> __IMPOSSIBLE__
     SafeFlagWithoutKFlagPrimEraseEquality -> __IMPOSSIBLE__
@@ -384,7 +384,7 @@ instance EmbPrj WarningName where
     DeprecationWarning_                          -> 46
     DuplicateUsing_                              -> 47
     FixityInRenamingModule_                      -> 48
-    GenericNonFatalError_                        -> 49
+    InvalidCharacterLiteral_                     -> 49
     UselessPragma_                               -> 50
     GenericWarning_                              -> 51
     IllformedAsClause_                           -> 52
@@ -490,7 +490,7 @@ instance EmbPrj WarningName where
     46  -> return DeprecationWarning_
     47  -> return DuplicateUsing_
     48  -> return FixityInRenamingModule_
-    49  -> return GenericNonFatalError_
+    49  -> return InvalidCharacterLiteral_
     50  -> return UselessPragma_
     51  -> return GenericWarning_
     52  -> return IllformedAsClause_
