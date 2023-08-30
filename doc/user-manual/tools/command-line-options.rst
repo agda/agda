@@ -1101,7 +1101,7 @@ Other features
 .. _warnings:
 
 Warnings
-~~~~~~~~
+--------
 
 The :option:`-W` or :option:`--warning` option can be used to disable
 or enable different warnings. The flag ``-W error`` (or
@@ -1126,25 +1126,27 @@ is one of the following:
 The command ``agda --help=warning`` provides information about which
 warnings are turned on by default.
 
-Individual warnings can be turned on and off by ``-W {NAME}`` and ``-W no{NAME}`` respectively.
+Benign warnings
+~~~~~~~~~~~~~~~
+
+Individual non-fatal warnings can be turned on and off by ``-W {NAME}`` and ``-W no{NAME}`` respectively.
 The list containing any warning ``NAME`` can be produced by ``agda --help=warning``:
 
 .. option:: AbsurdPatternRequiresNoRHS
 
      RHS given despite an absurd pattern in the LHS.
 
+.. option:: AsPatternShadowsConstructorOrPatternSynonym
+
+     ``@``-patterns that shadow constructors or pattern synonyms.
+
 .. option:: CantGeneralizeOverSorts
 
-     Attempt to generalize over sort metas in ``variable`` declaration.
+     Attempts to generalize over sort metas in ``variable`` declaration.
 
-.. option:: CoInfectiveImport
+.. option:: ClashesViaRenaming
 
-     Importing a file not using e.g. :option:`--safe` from one which
-     does.
-
-.. option:: CoverageIssue
-
-     Failed coverage checks.
+     Clashes introduced by ``renaming``.
 
 .. option:: CoverageNoExactSplit
 
@@ -1152,11 +1154,31 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: DeprecationWarning
 
-     Feature deprecation.
+     Deprecated features.
+
+.. option:: DuplicateFields
+
+     ``record`` expression with duplicate field names.
+
+.. option:: DuplicateUsing
+
+     Repeated names in ``using`` directive.
 
 .. option:: EmptyAbstract
 
      Empty ``abstract`` blocks.
+
+.. option:: EmptyConstructor
+
+     Empty ``constructor`` blocks.
+
+.. option:: EmptyField
+
+     Empty ``field`` blocks.
+
+.. option:: EmptyGeneralize
+
+     Empty ``variable`` blocks.
 
 .. option:: EmptyInstance
 
@@ -1186,89 +1208,142 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Empty ``REWRITE`` pragmas.
 
+.. option:: EmptyWhere
+
+     Empty ``where`` blocks.
+
+.. option:: FaceConstraintCannotBeHidden
+
+     Face constraint patterns that are given as implicit arguments.
+
+.. option:: FaceConstraintCannotBeNamed
+
+     Face constraint patterns that are given as named arguments.
+
+.. option:: FixityInRenamingModule
+
+     Fixity annotations in ``renaming`` directives for a ``module``.
+
+.. option:: HiddenGeneralize
+
+     Hidden identifiers in ``variable`` blocks.
+
 .. option:: IllformedAsClause
 
      Illformed ``as``-clauses in ``import`` statements.
 
-.. option:: InfectiveImport
-
-     Importing a file using e.g. :option:`--cubical` into one which
-     doesn't.
-
 .. option:: InlineNoExactSplit
 
-     Failed exact split after inlining a constructor, see :ref:`inline-pragma`.
+     Failed exact splits after inlining a constructor, see :ref:`inline-pragma`.
 
 .. option:: InstanceNoOutputTypeName
 
-     Instance arguments whose type does not end in a named or variable
-     type are never considered by instance search.
+     Instance arguments whose type does not end in a named or variable type;
+     such are never considered by instance search.
 
 .. option:: InstanceArgWithExplicitArg
 
-   Instance arguments with explicit arguments are never considered by
-   instance search.
+     Instance arguments with explicit arguments;
+     such are never considered by instance search.
 
 .. option:: InstanceWithExplicitArg
 
-     Instance declarations with explicit arguments are never
-     considered by instance search.
+     Instance declarations with explicit arguments;
+     such are never considered by instance search.
+
+.. option:: InteractionMetaBoundaries
+
+     Interaction meta variables that have unsolved boundary constraints.
 
 .. option:: InvalidCatchallPragma
 
      :ref:`CATCHALL<catchall-pragma>` pragmas before a non-function clause.
 
+.. option:: InvalidCharacterLiteral
+
+     Illegal character literals such as surrogate code points.
+
+.. option:: InvalidConstructor
+
+     ``constructor`` blocks that contain declarations other type signatures for constructors.
+
+.. option:: InvalidConstructorBlock
+
+     ``constructor`` blocks outside of ``interleaved mutual`` blocks.
+
+.. option:: InvalidCoverageCheckPragma
+
+     :ref:`NON_COVERING <non_covering-pragma>` pragmas before non-function or ``mutual`` blocks.
+
 .. option:: InvalidNoPositivityCheckPragma
 
-     No positivity checking pragmas before non-``data``, ``record`` or
-     ``mutual`` blocks.
+     :ref:`NO_POSITIVITY_CHECK <no_positivity_check-pragma>` pragmas before something
+     that is neither a ``data`` nor ``record`` declaration nor a ``mutual`` block.
+
+.. option:: InvalidNoUniverseCheckPragma
+
+     :ref:`NO_UNIVERSE_CHECK <no_universe_check-pragma>` pragmas before declarations other than ``data`` or ``record`` declarations.
+
+.. option:: InvalidRecordDirective
+
+     Record directives outside of record definition or below field declarations.
 
 .. option:: InvalidTerminationCheckPragma
 
-     Termination checking pragmas before non-function or ``mutual``
-     blocks.
+     :ref:`Termination checking pragmas <terminating-pragma>` before non-function or ``mutual`` blocks.
 
 .. option:: InversionDepthReached
 
-     Inversions of pattern-matching failed due to exhausted inversion
-     depth.
+     Inversions of pattern-matching failed due to exhausted inversion depth.
 
 .. option:: LibUnknownField
 
-     Unknown field in library file.
-
-.. option:: MissingDefinitions
-
-     Names declared without an accompanying definition.
+     Unknown fields in library files.
 
 .. option:: ModuleDoesntExport
 
      Names mentioned in an import statement which are not exported by
      the module in question.
 
-.. option:: NotAllowedInMutual
+.. option:: MultipleAttributes
 
-     Declarations not allowed in a mutual block.
+     Multiple attributes given where only erasure is accepted.
 
-.. option:: NotStrictlyPositive
+.. option:: NoGuardednessFlag
 
-     Failed strict positivity checks.
+     Coinductive record but no :option:`--guardedness` flag.
+
+.. option:: NotAffectedByOpaque
+
+     Declarations that should not be inside ``opaque`` blocks.
+
+.. option:: NotInScope
+
+     Out of scope names.
 
 .. option:: OldBuiltin
 
      Deprecated :ref:`BUILTIN<built-ins>` pragmas.
 
-.. option:: OverlappingTokensWarning
+.. option:: OpenPublicAbstract
 
-     Multi-line comments spanning one or more literate text blocks.
+     ``open public`` directives in ``abstract`` blocks.
+
+.. option:: OpenPublicPrivate
+
+     ``open public`` directives in ``private`` blocks.
+
+.. option:: OptionRenamed
+
+     Renamed options.
+
+.. option:: PlentyInHardCompileTimeMode
+
+     Use of attributes ``@ω`` or ``@plenty`` in hard compile-time mode.
 
 .. option:: PolarityPragmasButNotPostulates
 
      Polarity pragmas for non-postulates.
-
-.. option:: PragmaCompiled
-
-     :ref:`COMPILE<foreign-function-interface>` pragmas not allowed in safe mode.
 
 .. option:: PragmaCompileErased
 
@@ -1276,55 +1351,19 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: PragmaNoTerminationCheck
 
-     :ref:`NO_TERMINATION_CHECK<terminating-pragma>` pragmas are deprecated.
-
-.. option:: RewriteMaybeNonConfluent
-
-     Failed confluence checks while computing overlap.
-
-.. option:: RewriteNonConfluent
-
-     Failed confluence checks while joining critical pairs.
-
-.. option:: SafeFlagNonTerminating
-
-     :ref:`NON_TERMINATING<non_terminating-pragma>` pragmas with the safe flag.
-
-.. option:: SafeFlagNoPositivityCheck
-
-     :ref:`NO_POSITIVITY_CHECK<no_positivity_check-pragma>` pragmas with the safe flag.
-
-.. option:: SafeFlagNoUniverseCheck
-
-     :ref:`NO_UNIVERSE_CHECK<no_universe_check-pragma>` pragmas with the safe flag.
-
-.. option:: SafeFlagPolarity
-
-     :ref:`POLARITY<polarity-pragma>` pragmas with the safe flag.
-
-.. option:: SafeFlagPostulate
-
-     ``postulate`` blocks with the safe flag
-
-.. option:: SafeFlagPragma
-
-     Unsafe :ref:`OPTIONS<options-pragma>` pragmas with the safe flag.
-
-.. option:: SafeFlagTerminating
-
-     :ref:`TERMINATING<terminating-pragma>` pragmas with the safe flag.
-
-.. option:: SafeFlagWithoutKFlagPrimEraseEquality
-
-     ``primEraseEquality`` used with the safe and without-K flags.
+     :ref:`NO_TERMINATION_CHECK<terminating-pragma>` pragmas; such are deprecated.
 
 .. option:: ShadowingInTelescope
 
      Repeated variable name in telescope.
 
-.. option:: TerminationIssue
+.. option:: TooManyFields
 
-     Failed termination checks.
+     Record expression with invalid field names.
+
+.. option:: UnfoldTransparentName
+
+     Non-``opaque`` names mentioned in an ``unfolding`` clause.
 
 .. option:: UnknownFixityInMixfixDecl
 
@@ -1343,6 +1382,168 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Unreachable function clauses.
 
+.. option:: UnsupportedAttribute
+
+     Unsupported attributes.
+
+.. option:: UnsupportedIndexedMatch
+
+     Failures to compute full equivalence when splitting on indexed family.
+
+.. option:: UselessAbstract
+
+     ``abstract`` blocks where they have no effect.
+
+.. option:: UselessHiding
+
+     Names in ``hiding`` directive that are anyway not imported.
+
+.. option:: UselessInline
+
+     :ref:`INLINE<inline-pragma>` pragmas where they have no effect.
+
+.. option:: UselessInstance
+
+     ``instance`` blocks where they have no effect.
+
+.. option:: UselessOpaque
+
+     ``opaque`` blocks that have no effect.
+
+.. option:: UselessPatternDeclarationForRecord
+
+     ``pattern`` directives where they have no effect.
+
+.. option:: UselessPragma
+
+     Pragmas that get ignored.
+
+.. option:: UselessPrivate
+
+     ``private`` blocks where they have no effect.
+
+.. option:: UselessPublic
+
+     ``public`` blocks where they have no effect.
+
+.. option:: UserWarning
+
+     User-defined warnings added using one of the ``WARNING_ON_*`` pragmas.
+
+.. option:: WithoutKFlagPrimEraseEquality
+
+     ``primEraseEquality`` used with the without-K flags.
+
+.. option:: WrongInstanceDeclaration
+
+     Terms marked as eligible for instance search whose type does not end with a name.
+
+Error warnings
+~~~~~~~~~~~~~~
+
+Some warnings are fatal; those are errors Agda first ignores but eventually raises.
+Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
+
+.. option:: CoInfectiveImport
+
+     Importing a file not using e.g. :option:`--safe` from one which does.
+
+.. option:: CoverageIssue
+
+     Failed coverage checks.
+
+.. option:: InfectiveImport
+
+     Importing a file using e.g. :option:`--cubical` into one which does not.
+
+.. option:: MissingDeclarations
+
+     Definitions not associated to a declaration.
+
+.. option:: MissingDefinitions
+
+     Names declared without an accompanying definition.
+
+.. option:: NotAllowedInMutual
+
+     Declarations that are not allowed in a mutual block.
+
+.. option:: NotStrictlyPositive
+
+     Failed strict positivity checks.
+
+.. option:: OverlappingTokensWarning
+
+     Multi-line comments spanning one or more literate text blocks.
+
+.. option:: PragmaCompiled
+
+     :ref:`COMPILE<foreign-function-interface>` pragmas not allowed in safe mode.
+
+.. option:: RewriteAmbiguousRules
+
+     Failed global confluence checks because of overlapping rules.
+
+.. option:: RewriteMaybeNonConfluent
+
+     Failed confluence checks while computing overlap.
+
+.. option:: RewriteMissingRule
+
+     Failed global confluence checks because of missing rules.
+
+.. option:: RewriteNonConfluent
+
+     Failed confluence checks while joining critical pairs.
+
+.. option:: SafeFlagEta
+
+     :ref:`ETA <eta-pragma>` pragmas with the :option:`--safe` flag.
+
+.. option:: SafeFlagInjective
+
+     :ref:`INJECTIVE <injective-pragma>` pragmas with the :option:`--safe` flag.
+
+.. option:: SafeFlagNoCoverageCheck
+
+     :ref:`NON_COVERING <non_covering-pragma>` pragmas with the :option:`--safe` flag.
+
+.. option:: SafeFlagNonTerminating
+
+     :ref:`NON_TERMINATING <non_terminating-pragma>` pragmas with the :option:`--safe` flag.
+
+.. option:: SafeFlagNoPositivityCheck
+
+     :ref:`NO_POSITIVITY_CHECK <no_positivity_check-pragma>` pragmas with the :option:`--safe` flag.
+
+.. option:: SafeFlagNoUniverseCheck
+
+     :ref:`NO_UNIVERSE_CHECK <no_universe_check-pragma>` pragmas with the :option:`--safe` flag.
+
+.. option:: SafeFlagPolarity
+
+     :ref:`POLARITY <polarity-pragma>` pragmas with the :option:`--safe` flag.
+
+.. option:: SafeFlagPostulate
+
+     ``postulate`` blocks with the :option:`--safe` flag.
+
+.. option:: SafeFlagPragma
+
+     Unsafe :ref:`OPTIONS <options-pragma>` pragmas with the :option:`--safe` flag.
+
+.. option:: SafeFlagTerminating
+
+     :ref:`TERMINATING <terminating-pragma>` pragmas with the :option:`--safe` flag.
+
+.. option:: SafeFlagWithoutKFlagPrimEraseEquality
+
+     ``primEraseEquality`` used with the :option:`--safe` and :option:`--without-K` flags.
+
+.. option:: TerminationIssue
+
+     Failed termination checks.
+
 .. option:: UnsolvedConstraints
 
      Unsolved constraints.
@@ -1355,40 +1556,11 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Unsolved meta variables.
 
-.. option:: UselessAbstract
 
-     ``abstract`` blocks where they have no effect.
+Command-line examples
+---------------------
 
-.. option:: UselessInline
-
-     :ref:`INLINE<inline-pragma>` pragmas where they have no effect.
-
-.. option:: UselessInstance
-
-     ``instance`` blocks where they have no effect.
-
-.. option:: UselessPrivate
-
-     ``private`` blocks where they have no effect.
-
-.. option:: UselessPublic
-
-     ``public`` blocks where they have no effect.
-
-.. option:: WithoutKFlagPrimEraseEquality
-
-     ``primEraseEquality`` used with the without-K flags.
-
-.. option:: WrongInstanceDeclaration
-
-     Terms marked as eligible for instance search should end with a
-     name.
-
-Examples
---------
-
-Run Agda with all warnings
-enabled, except for warnings about empty ``abstract`` blocks:
+Run Agda with all warnings enabled, except for warnings about empty ``abstract`` blocks:
 
 .. code-block:: console
 
@@ -1404,10 +1576,11 @@ as described in :ref:`package-system`.
 
 (Or if you have added ``standard-library`` to your ``defaults`` file, simply ``agda file.agda``.)
 
+
 .. _consistency-checking-options:
 
-Consistency checking of options used
-------------------------------------
+Checking options for consistency
+--------------------------------
 
 Agda checks that options used in imported modules are consistent with
 each other.
