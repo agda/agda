@@ -2,7 +2,7 @@
 
 {-# OPTIONS --guardedness #-}
 
-open import Common.Equality
+open import Agda.Builtin.Equality
 
 mutual
   data Colist (A : Set) : Set where

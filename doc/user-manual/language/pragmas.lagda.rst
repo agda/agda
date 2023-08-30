@@ -9,8 +9,9 @@
 Pragmas
 *******
 
-Pragmas are comments that are not ignored by Agda but have some
-special meaning. The general format is:
+Pragmas are special declarations that pass extra information to Agda about how regular declarations are to be interpreted.
+They are written similar to block comments so that users may easily skip them in a first reading of an Agda document.
+The general format is:
 
 .. code-block:: agda
 
@@ -26,6 +27,8 @@ Index of pragmas
 * :ref:`COMPILE <foreign-function-interface>`
 
 * :ref:`DISPLAY <display-pragma>`
+
+* :ref:`ETA <eta-pragma>`
 
 * :ref:`FOREIGN <foreign-function-interface>`
 
@@ -101,6 +104,7 @@ Limitations:
   - An ill-typed display form can make Agda crash with an internal error
     when Agda tries to use it
     (issue `#6476 <https://github.com/agda/agda/issues/6476>`).
+
 
 .. _injective-pragma:
 
