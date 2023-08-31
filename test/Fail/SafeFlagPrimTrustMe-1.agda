@@ -1,3 +1,5 @@
+{-# OPTIONS --safe #-}
+
 module SafeFlagPrimTrustMe-1 where
 
 open import Agda.Builtin.Equality
