@@ -369,18 +369,20 @@ library
 
   -- For libraries that come with GHC, we take the shipped version as default lower bound.
   build-depends:
+    -- Please keep in alphabetical order!
     , aeson                >= 1.1.2.0   && < 2.3
+    , ansi-terminal        >= 0.9       && < 1.1
     , array                >= 0.5.2.0   && < 0.6
     , async                >= 2.2       && < 2.3
     , base                 >= 4.12.0.0  && < 4.20
     , binary               >= 0.8.6.0   && < 0.9
     , blaze-html           >= 0.8       && < 0.10
     , boxes                >= 0.1.3     && < 0.2
-    , bytestring           >= 0.10.8.2  && < 0.12
+    , bytestring           >= 0.10.8.2  && < 0.13
     , case-insensitive     >= 1.2.0.4   && < 1.3
-    , containers           >= 0.6.0.1  && < 0.7
+    , containers           >= 0.6.0.1   && < 0.7
     , data-hash            >= 0.2.0.0   && < 0.3
-    , deepseq              >= 1.4.4.0   && < 1.5
+    , deepseq              >= 1.4.4.0   && < 1.6
     , directory            >= 1.3.3.0   && < 1.4
     , dlist                >= 0.8       && < 1.1
     , edit-distance        >= 0.2.1.2   && < 0.3
@@ -389,7 +391,7 @@ library
     , exceptions           >= 0.8       && < 0.11
     , filepath             >= 1.4.2.1   && < 1.5
     , ghc-compact          == 0.1.*
-    , gitrev               >= 1.3.1     && < 2.0
+    , gitrev               >= 1.3.1     && < 2
     -- hashable 1.2.0.10 makes library-test 10x
     -- slower. The issue was fixed in hashable 1.2.1.0.
     -- https://github.com/tibbe/hashable/issues/57.
@@ -408,7 +410,7 @@ library
     , stm                  >= 2.4.4     && < 2.6
     , STMonadTrans         >= 0.4.3     && < 0.5
     , strict               >= 0.4.0.1   && < 0.6
-    , text                 >= 1.2.3.1   && < 2.1
+    , text                 >= 1.2.3.1   && < 2.2
     , time                 >= 1.8.0.2   && < 1.13
     , time-compat          >= 1.9.2     && < 1.10
         -- time-compat adds needed functionality missing in time < 1.9
@@ -419,7 +421,6 @@ library
     , vector               >= 0.12      && < 0.14
     , vector-hashtables    == 0.1.*
     , zlib                 == 0.6.*
-    , ansi-terminal        >= 0.9       && < 1.1
 
   -- We don't write upper bounds for Alex nor Happy because the
   -- `build-tool-depends` field can not be modified in Hackage.
