@@ -1,4 +1,4 @@
-Issue1075.agda:283,1-444,54
+Issue1075.agda:283,1-435,54
 Termination checking failed for the following functions:
   cut⁺, cut⁻, rsubst+, lsubst
 Problematic calls:
@@ -6,20 +6,20 @@ Problematic calls:
   rsubst+ Γ' pfΓ pf [] LA- LT [] (focL pf₁ x Sp)
   | fromctxGen Γ' (map Pers LA-) x
   cut⁺ (conssusp pfΓ) pf LA (wken-all-rfoc Values) N
-    (at Issue1075.agda:338,40-44)
+    (at Issue1075.agda:329,40-44)
   rsubst+ [] pfΓ pf LA (A ∷ []) (N ∷ []) Values N'
-    (at Issue1075.agda:340,3-10)
+    (at Issue1075.agda:331,3-10)
   cut⁺ pfΓ pf (A ∷ []) (V₁ ∷ []) N
-    (at Issue1075.agda:345,96-100)
+    (at Issue1075.agda:336,96-100)
   lsubst pfΓ pf N₁ N₂
-    (at Issue1075.agda:360,60-66)
+    (at Issue1075.agda:351,60-66)
   cut⁻ pfΓ pf (x₁ ∷ LA) refl
   (cut⁺ pfΓ unit (x ∷ []) (V ∷ []) N₁ ∷ LExp) (Sp ∷ LExp')
-    (at Issue1075.agda:363,3-7)
+    (at Issue1075.agda:354,3-7)
   cut⁻ pfΓ (pf₁ , pf) (A ∷ []) refl
   (?0 (Γ' = Γ') (LA- = LA-) (x = x) (x₁ = x₁) (pfΓ = pfΓ) (pf = pf)
    (LT = LT) (pf₁ = pf₁) (Sp = Sp))
   (rsubst-v Γ' pfΓ pf LA- LT Sp ∷ [])
-    (at Issue1075.agda:382,3-7)
+    (at Issue1075.agda:373,3-7)
   cut⁺ pfΓ (proj₂ pf) (A ∷ []) (V ∷ []) N
-    (at Issue1075.agda:431,32-36)
+    (at Issue1075.agda:422,32-36)
