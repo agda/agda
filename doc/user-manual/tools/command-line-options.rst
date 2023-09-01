@@ -813,16 +813,6 @@ Pattern matching and equality
 
      Default: ``--infer-absurd-clauses``.
 
-.. option:: --forced-argument-recursion, --no-forced-argument-recursion
-
-     .. versionadded:: 2.6.4
-
-     Allow the use of forced constructor arguments as termination
-     metrics. This flag may be necessary for Agda to accept nontrivial
-     uses of induction-induction.
-
-     Default: ``--forced-argument-recursion``.
-
 .. option:: --large-indices, --no-large-indices
 
      .. versionadded:: 2.6.4
@@ -838,6 +828,52 @@ Pattern matching and equality
      When :option:`--no-forcing` is given, this option is redundant.
 
      Default: ``--no-large-indices``.
+
+Recursion
+~~~~~~~~~
+
+.. option:: --forced-argument-recursion, --no-forced-argument-recursion
+
+     .. versionadded:: 2.6.4
+
+     Allow the use of forced constructor arguments as termination
+     metrics. This flag may be necessary for Agda to accept nontrivial
+     uses of induction-induction.
+
+     Default: ``--forced-argument-recursion``.
+
+.. option:: --guardedness, --no-guardedness
+
+     .. versionadded:: 2.6.0
+
+     Enable [disable] constructor-based guarded corecursion (see
+     :ref:`coinduction`).
+
+     The option ``--guardedness`` is inconsistent with sized types,
+     thus, it cannot be used with both :option:`--safe` and
+     :option:`--sized-types`.
+
+     Default: ``--no-guardedness`` (since 2.6.2).
+
+.. option:: --sized-types, --no-sized-types
+
+     .. versionadded:: 2.2.0
+
+     Enable [disable] sized types (see :ref:`sized-types`).
+
+     The option ``--sized-types`` is inconsistent with
+     constructor-based guarded corecursion,
+     thus, it cannot be used with both :option:`--safe`
+     and :option:`--guardedness`.
+
+     Default: ``--no-sized-types`` (since 2.6.2).
+
+.. option:: --termination-depth={N}
+
+     .. versionadded:: 2.2.8
+
+     Allow termination checker to count decrease/increase upto ``N``
+     (default: 1; see :ref:`termination-checking`).
 
 Sorts and universes
 ~~~~~~~~~~~~~~~~~~~
@@ -915,13 +951,6 @@ Search depth and instances
      Set maximum depth for pattern match inversion to ``N`` (default:
      50). Should only be needed in pathological cases.
 
-.. option:: --termination-depth={N}
-
-     .. versionadded:: 2.2.8
-
-     Allow termination checker to count decrease/increase upto ``N``
-     (default: 1; see :ref:`termination-checking`).
-
 .. option:: --overlapping-instances, --no-overlapping-instances
 
      .. versionadded:: 2.6.0
@@ -955,19 +984,6 @@ Other features
      .. versionadded:: 2.6.2
 
      Opposite of :option:`--double-check`.  On by default.
-
-.. option:: --guardedness, --no-guardedness
-
-     .. versionadded:: 2.6.0
-
-     Enable [disable] constructor-based guarded corecursion (see
-     :ref:`coinduction`).
-
-     The option ``--guardedness`` is inconsistent with sized types,
-     thus, it cannot be used with both :option:`--safe` and
-     :option:`--sized-types`.
-
-     Default: ``--no-guardedness`` (since 2.6.2).
 
 .. option:: --no-print-pattern-synonyms
 
@@ -1016,19 +1032,6 @@ Other features
      and ``primTrustMe``. Prevents to have both :option:`--sized-types` and
      :option:`--guardedness` on.
      Further reading: :ref:`safe-agda`.
-
-.. option:: --sized-types, --no-sized-types
-
-     .. versionadded:: 2.2.0
-
-     Enable [disable] sized types (see :ref:`sized-types`).
-
-     The option ``--sized-types`` is inconsistent with
-     constructor-based guarded corecursion,
-     thus, it cannot be used with both :option:`--safe`
-     and :option:`--guardedness`.
-
-     Default: ``--no-sized-types`` (since 2.6.2).
 
 .. option:: --no-import-sorts
 
