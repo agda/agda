@@ -1079,6 +1079,9 @@ Other features
      This option can affect performance. The default is to not save
      the meta-variables.
 
+Erasure
+~~~~~~~
+
 .. option:: --erasure, --no-erasure
 
      .. versionadded:: 2.6.4
