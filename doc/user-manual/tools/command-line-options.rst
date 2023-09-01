@@ -822,6 +822,65 @@ Pattern matching and equality
 
      Default: ``--no-large-indices``.
 
+Sorts and universes
+~~~~~~~~~~~~~~~~~~~
+
+.. option:: --type-in-type
+
+     Ignore universe levels (this makes Agda inconsistent; see
+     :ref:`type-in-type <type-in-type>`).
+
+.. option:: --no-type-in-type
+
+     .. versionadded:: 2.6.4
+
+     Default, opposite of :option:`--type-in-type`.
+
+.. option:: --omega-in-omega
+
+     .. versionadded:: 2.6.0
+
+     Enable typing rule ``Setω : Setω`` (this makes Agda inconsistent;
+     see :ref:`omega-in-omega <omega-in-omega>`).
+
+.. option:: --no-omega-in-omega
+
+     .. versionadded:: 2.6.4
+
+     Default, opposite of :option:`--omega-in-omega`.
+
+.. option:: --level-universe, --no-level-universe
+
+     .. versionadded:: 2.6.4
+
+     Makes ``Level`` live in its own universe ``LevelUniv`` and
+     disallows having levels depend on terms that are not levels themselves.
+     When this option is turned off, ``LevelUniv`` still exists,
+     but reduces to ``Set`` (see :ref:`level-universe <level-universe>`).
+
+     Note: While compatible with the :option:`--cubical` option, this option is
+     currently not compatible with cubical builtin files.
+
+     Default: :option:`--no-level-universe`.
+
+.. option:: --universe-polymorphism, --no-universe-polymorphism
+
+     .. versionadded:: 2.3.0
+
+     Enable [disable] universe polymorphism (see
+     :ref:`universe-levels`).
+
+     Default: ``--universe-polymorphism``.
+
+.. option:: --cumulativity, --no-cumulativity
+
+     .. versionadded:: 2.6.1
+
+     Enable [disable] cumulative subtyping of universes, i.e.,
+     if ``A : Set i`` then also ``A : Set j`` for all ``j >= i``.
+
+     Default: ``--no-cumulativity``.
+
 Search depth and instances
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -963,62 +1022,6 @@ Other features
      and :option:`--guardedness`.
 
      Default: ``--no-sized-types`` (since 2.6.2).
-
-.. option:: --type-in-type
-
-     Ignore universe levels (this makes Agda inconsistent; see
-     :ref:`type-in-type <type-in-type>`).
-
-.. option:: --no-type-in-type
-
-     .. versionadded:: 2.6.4
-
-     Default, opposite of :option:`--type-in-type`.
-
-.. option:: --omega-in-omega
-
-     .. versionadded:: 2.6.0
-
-     Enable typing rule ``Setω : Setω`` (this makes Agda inconsistent;
-     see :ref:`omega-in-omega <omega-in-omega>`).
-
-.. option:: --no-omega-in-omega
-
-     .. versionadded:: 2.6.4
-
-     Default, opposite of :option:`--omega-in-omega`.
-
-.. option:: --level-universe, --no-level-universe
-
-     .. versionadded:: 2.6.4
-
-     Makes ``Level`` live in its own universe ``LevelUniv`` and
-     disallows having levels depend on terms that are not levels themselves.
-     When this option is turned off, ``LevelUniv`` still exists,
-     but reduces to ``Set`` (see :ref:`level-universe <level-universe>`).
-
-     Note: While compatible with the :option:`--cubical` option, this option is
-     currently not compatible with cubical builtin files.
-
-     Default: :option:`--no-level-universe`.
-
-.. option:: --universe-polymorphism, --no-universe-polymorphism
-
-     .. versionadded:: 2.3.0
-
-     Enable [disable] universe polymorphism (see
-     :ref:`universe-levels`).
-
-     Default: ``--universe-polymorphism``.
-
-.. option:: --cumulativity, --no-cumulativity
-
-     .. versionadded:: 2.6.1
-
-     Enable [disable] cumulative subtyping of universes, i.e.,
-     if ``A : Set i`` then also ``A : Set j`` for all ``j >= i``.
-
-     Default: ``--no-cumulativity``.
 
 .. option:: --no-import-sorts
 
