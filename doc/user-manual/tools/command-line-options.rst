@@ -202,6 +202,17 @@ Generating highlighted source code
      to ``M`` (even if ``M``'s file cannot be found via the
      ``include`` paths given in the ``.agda-lib`` file).
 
+.. option:: --highlight-occurrences
+
+     .. versionadded:: 2.6.2
+
+     When :ref:`generating HTML <generating-html>`,
+     place the :file:`highlight-hover.js` script
+     in the output directory (see :option:`--html-dir`).
+     In the presence of the script,
+     hovering over an identifier in the rendering of the HTML
+     will highlight all occurrences of the same identifier on the page.
+
 .. option:: --html
 
      .. versionadded:: 2.2.0
