@@ -591,6 +591,13 @@ Experimental features
 
      Default (since version 2.6.1): ``--no-irrelevant-projections``.
 
+.. option:: --lossy-unification, --no-lossy-unification
+
+     .. versionadded:: 2.6.2
+
+     Enable a constraint-solving heuristic akin to first-order unification, see :ref:`lossy-unification`.
+     Off by default.
+
 .. option:: --prop, --no-prop
 
      .. versionadded:: 2.6.0
