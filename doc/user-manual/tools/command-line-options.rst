@@ -581,6 +581,16 @@ Experimental features
 
      Default, opposite of :option:`--injective-type-constructors`.
 
+.. option:: --irrelevant-projections, --no-irrelevant-projections
+
+     .. versionadded:: 2.5.4
+
+     Enable [disable] projection of irrelevant record fields (see
+     :ref:`irrelevance`). The option ``--irrelevant-projections``
+     makes Agda inconsistent.
+
+     Default (since version 2.6.1): ``--no-irrelevant-projections``.
+
 .. option:: --prop, --no-prop
 
      .. versionadded:: 2.6.0
@@ -951,16 +961,6 @@ Other features
      :option:`--sized-types`.
 
      Default: ``--no-guardedness`` (since 2.6.2).
-
-.. option:: --irrelevant-projections, --no-irrelevant-projections
-
-     .. versionadded:: 2.5.4
-
-     Enable [disable] projection of irrelevant record fields (see
-     :ref:`irrelevance`). The option ``--irrelevant-projections``
-     makes Agda inconsistent.
-
-     Default (since version 2.6.1): ``--no-irrelevant-projections``.
 
 .. option:: --no-print-pattern-synonyms
 
