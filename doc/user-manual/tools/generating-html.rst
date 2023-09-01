@@ -55,14 +55,14 @@ files, use ``--html-highlight=auto``, which means auto-detection.
 Options
 -------
 
-:samp:`--html-dir={directory}`
+:option:`--html-dir={DIR}`
   Changes the directory where the output is placed to
-  :samp:`{directory}`. Default: ``html``.
+  :samp:`{DIR}`. Default: ``html``.
 
-:samp:`--css={URL}`
+:option:`--css={URL}`
   The CSS_ file used by the HTML files (:samp:`{URL}` can be relative).
 
-:samp:`--html-highlight=[code,all,auto]`
+:option:`--html-highlight=[code,all,auto]`
   Highlight Agda code only or everything in the generated HTML files.
   Default: ``all``.
 
