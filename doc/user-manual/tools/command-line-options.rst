@@ -68,7 +68,7 @@ General options
          - | Use the effect of ``2``, but also print `Loading ...`
            | when a compiled module (interface) is accessed during the type-checking.
 
-.. option:: --colour[=(auto|always|never)]
+.. option:: --colour[=(auto|always|never)], --color[=(auto|always|never)]
 
     .. versionadded:: 2.6.4
 
@@ -105,7 +105,11 @@ General options
 
 .. option:: --version, -V
 
-     Show version number.
+     Show version number and cabal flags used in this build of Agda.
+
+.. option:: --numeric-version
+
+     Show just the version number.
 
 .. option:: --print-agda-dir
 
@@ -521,12 +525,14 @@ Experimental features
 
      Default, opposite of :option:`--allow-exec`.
 
-.. option:: --confluence-check, --local-confluence-check
+.. option:: --confluence-check, --local-confluence-check, --no-confluence-check
 
      .. versionadded:: 2.6.1
 
      Enable optional (global or local) confluence checking of REWRITE
      rules (see :ref:`confluence-check`).
+
+     Default is :option:`--no-confluence-check`.
 
 .. option:: --cubical
 
