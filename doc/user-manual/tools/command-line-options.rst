@@ -991,6 +991,19 @@ Other features
 
      Opposite of :option:`--double-check`.  On by default.
 
+.. option:: --keep-covering-clauses
+
+     .. versionadded:: 2.6.3
+
+     Save function clauses computed by the coverage checker to the interface file.
+     Required by some external backends.
+
+.. option:: --no-keep-covering-clauses
+
+     .. versionadded:: 2.6.4
+
+     Opposite of :option:`--keep-covering-clauses`, default.
+
 .. option:: --no-print-pattern-synonyms
 
      .. versionadded:: 2.5.4
@@ -1687,9 +1700,9 @@ again, the source file is re-typechecked instead:
 * :option:`--instance-search-depth`
 * :option:`--inversion-max-depth`
 * :option:`--irrelevant-projections`
-* ``--keep-covering-clauses``
+* :option:`--keep-covering-clauses`
 * :option:`--local-confluence-check`
-* ``--lossy-unification``
+* :option:`--lossy-unification`
 * :option:`--no-auto-inline`
 * :option:`--no-eta-equality`
 * :option:`--no-fast-reduce`
