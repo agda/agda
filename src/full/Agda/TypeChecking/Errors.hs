@@ -237,6 +237,7 @@ errorString err = case err of
   -- UNUSED: -- SplitOnErased{}                          -> "SplitOnErased"
   SplitOnNonVariable{}                     -> "SplitOnNonVariable"
   SplitOnNonEtaRecord{}                    -> "SplitOnNonEtaRecord"
+  SplitOnAbstract{}                        -> "SplitOnAbstract"
   DefinitionIsIrrelevant{}                 -> "DefinitionIsIrrelevant"
   DefinitionIsErased{}                     -> "DefinitionIsErased"
   VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
@@ -567,6 +568,9 @@ instance PrettyTCM TypeError where
       , [ parens "to activate, add declaration `pattern` to record definition" ]
       ]
       where r = nameBindingSite $ qnameName q
+
+    SplitOnAbstract d ->
+      "Cannot split on abstract data type" <+> prettyTCM d
 
     DefinitionIsIrrelevant x -> fsep $
       "Identifier" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
