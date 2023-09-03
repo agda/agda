@@ -171,6 +171,9 @@ instance Instantiate t => Instantiate (Elim' t)
 instance Instantiate t => Instantiate (Tele t)
 instance Instantiate t => Instantiate (IPBoundary' t)
 
+instance Instantiate () where
+    instantiate' () = pure ()
+
 instance (Instantiate a, Instantiate b) => Instantiate (a,b) where
     instantiate' (x,y) = (,) <$> instantiate' x <*> instantiate' y
 
@@ -724,7 +727,7 @@ unfoldDefinitionStep v0 f es =
                           defaultResult -- non-terminating or delayed
         ([],[])        -> traceSLn "tc.reduce" 90 "reduceNormalE: no clauses or rewrite rules" $ do
           -- no definition for head
-          blk <- defBlocked <$> getConstInfo f
+          blk <- instantiate =<< do defBlocked <$> getConstInfo f
           noReduction $ blk $> vfull
         (cls,rewr)     -> do
           ev <- appDefE_ f v0 cls mcc rewr es
