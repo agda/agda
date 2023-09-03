@@ -317,12 +317,7 @@ debugConstraints = verboseS "tc.constr" 50 $ do
 
 -- Update the blocker after some instantiation or pruning might have happened.
 updateBlocker :: (PureTCM m) => Blocker -> m Blocker
-updateBlocker b = case b of
-  UnblockOnAll xs -> unblockOnAll . Set.fromList <$> traverse updateBlocker (Set.toList xs)
-  UnblockOnAny xs -> unblockOnAny . Set.fromList <$> traverse updateBlocker (Set.toList xs)
-  UnblockOnMeta x -> ifM (isInstantiatedMeta x) (return alwaysUnblock) (return b)
-  UnblockOnProblem pi -> ifM (isProblemSolved pi) (return alwaysUnblock) (return $ UnblockOnProblem pi)
-  UnblockOnDef qn -> return (unblockOnDef qn)
+updateBlocker = instantiate
 
 addAndUnblocker :: (PureTCM m, MonadBlock m) => Blocker -> m a -> m a
 addAndUnblocker u
