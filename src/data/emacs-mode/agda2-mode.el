@@ -368,9 +368,9 @@ Note that this variable is not buffer-local.")
 ;;;; agda2-mode
 
 ;;;###autoload
-(add-to-list 'auto-mode-alist '("\\.l?agda\\'" . agda2-mode))
+(add-to-list 'auto-mode-alist '("\\.\\(l?agda\\|lagda\\.\\(tex\\|md\\|rst\\|org\\|typ\\)\\)\\'" . agda2-mode))
 ;;;###autoload
-(modify-coding-system-alist 'file "\\.l?agda\\'" 'utf-8)
+(modify-coding-system-alist 'file "\\.\\(l?agda\\|lagda\\.\\(tex\\|md\\|rst\\|org\\|typ\\)\\)\\'" 'utf-8)
 ;;;###autoload
 (define-derived-mode agda2-mode prog-mode "Agda"
   "Major mode for Agda files.
