@@ -1781,11 +1781,6 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
             prettyTCM d
         ]
 
-    wrongHiding :: (MonadTCM m, MonadError TCErr m, ReadTCState m) => QName -> m a
-    wrongHiding d = softTypeError =<< do
-      liftTCM $ GenericDocError <$> sep
-        [ "Wrong hiding used for projection " , prettyTCM d ]
-
     tryProj
       :: Bool                 -- Are we allowed to create new constraints?
       -> [Dom QName]          -- Fields of record type under consideration.
@@ -1832,7 +1827,8 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
         -- Andreas, 2016-12-31, issue #2374:
         -- We can also disambiguate by hiding info.
         -- Andreas, 2018-10-18, issue #3289: postfix projections have no hiding info.
-        unless (caseMaybe h True $ sameHiding $ projArgInfo proj) $ wrongHiding d
+        unless (caseMaybe h True $ sameHiding $ projArgInfo proj) $
+          softTypeError $ WrongHidingInProjection d
 
         -- Andreas, 2016-12-31, issue #1976: Check parameters.
         let chk = checkParameters qr r vs
