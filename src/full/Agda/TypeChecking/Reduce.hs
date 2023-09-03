@@ -259,7 +259,8 @@ instance Instantiate Blocker where
   instantiate' (UnblockOnAny bs) = unblockOnAny . Set.fromList <$> mapM instantiate' (Set.toList bs)
   instantiate' b@(UnblockOnMeta x) =
     ifM (isInstantiatedMeta x) (return alwaysUnblock) (return b)
-  instantiate' b@UnblockOnProblem{} = return b
+  instantiate' (UnblockOnProblem pi) =
+    ifM (isProblemSolved pi) (return alwaysUnblock) (return $ UnblockOnProblem pi)
   instantiate' b@UnblockOnDef{} = return b
 
 instance Instantiate Sort where
