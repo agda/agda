@@ -243,7 +243,6 @@ metaCheck m = do
       , text . show $ getQuantity mmod
       ]
     allowAssign <- asksTC envAssignMetas
-    firstOrder <- optFirstOrder <$> pragmaOptions
     -- Jesper, 2020-11-10: if we encounter a metavariable that is
     -- unusable because of its modality (e.g. irrelevant or erased) we
     -- try to *promote* the meta to the required modality, by creating
@@ -264,8 +263,14 @@ metaCheck m = do
           patternViolation $ unblockOnMeta m
     when (mvFrozen mv == Frozen)             $ fail "meta is frozen"
     unless (isOpenMeta $ mvInstantiation mv) $ fail "meta is already solved"
-    unless allowAssign                       $ fail "assigning metas is not allowed here"
-    when (isFlexible cxt && not firstOrder)  $ fail "occurrence is flexible"
+    unlessM (asksTC envAssignMetas)          $ fail "assigning metas is not allowed here"
+    -- Jesper, 2023-09-03, issue #6759: When --lossy-unification is enabled,
+    -- we already lose the guarantee that we only throw an error when a
+    -- problem is really unsolvable in favor of taking the "obvious" solution.
+    -- In this case the "obvious" solution is to promote the meta even if
+    -- it is in a flexible position, so that is what we do.
+    whenM (pure (isFlexible cxt) `and2M` (not . optFirstOrder <$> pragmaOptions))
+                                             $ fail "occurrence is flexible"
     when (isUnguarded cxt)                   $ fail "occurrence is unguarded"
 
     reportSDoc "tc.meta.occurs" 20 $ "Promoting meta" <+> prettyTCM m <+> "to modality" <+> prettyTCM mmod'
