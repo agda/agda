@@ -23,6 +23,7 @@ import Prelude hiding (null)
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Trans
+import Data.Functor ( (<&>) )
 import Data.Maybe (catMaybes)
 import qualified Data.Map as Map
 import qualified Data.Text as T
@@ -161,13 +162,12 @@ findFile'' dirs m modFile =
     Just f  -> return (Right (SourceFile f), modFile)
     Nothing -> do
       files          <- fileList acceptableFileExts
-      filesShortList <- fileList parseFileExtsShortList
       existingFiles  <-
         liftIO $ filterM (doesFileExistCaseSensitive . filePath . srcFilePath) files
-      return $ case nubOn id existingFiles of
-        []     -> (Left (NotFound filesShortList), modFile)
-        [file] -> (Right file, Map.insert m (srcFilePath file) modFile)
-        files  -> (Left (Ambiguous existingFiles), modFile)
+      case nubOn id existingFiles of
+        []     -> fileList parseFileExtsShortList <&> \ fs -> (Left (NotFound fs), modFile)
+        [file] -> return (Right file, Map.insert m (srcFilePath file) modFile)
+        files  -> return (Left (Ambiguous existingFiles), modFile)
   where
     fileList exts = mapM (fmap SourceFile . absolute)
                     [ filePath dir </> file
