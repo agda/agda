@@ -1644,8 +1644,7 @@ isDataOrRecordType a0 = ifBlocked a0 blocked $ \case
         return (IsRecord recInduction recEtaEquality', d, pars, [])
 
       -- Issue #2253: the data type could be abstract.
-      AbstractDefn{} -> hardTypeError . GenericDocError =<< do
-        liftTCM $ "Cannot split on abstract data type" <+> prettyTCM d
+      AbstractDefn{} -> hardTypeError $ SplitOnAbstract d
 
       -- the type could be an axiom
       Axiom{} -> hardTypeError =<< notData

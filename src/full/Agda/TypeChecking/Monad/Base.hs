@@ -4495,6 +4495,7 @@ data TypeError
         -- UNUSED: -- | SplitOnErased (Dom Type)
         | SplitOnNonVariable Term Type
         | SplitOnNonEtaRecord QName
+        | SplitOnAbstract QName
         | DefinitionIsIrrelevant QName
         | DefinitionIsErased QName
         | VariableIsIrrelevant Name
