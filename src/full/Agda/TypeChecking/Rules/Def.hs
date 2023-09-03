@@ -739,14 +739,13 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
 
         body <- return $ body `mplus` wbody
 
-        whenM (optDoubleCheck <$> pragmaOptions) $ case body of
-          Just v  -> do
+        whenM (optDoubleCheck <$> pragmaOptions) $
+          whenJust body $ \ v -> do
             reportSDoc "tc.lhs.top" 30 $ vcat
               [ "double checking rhs"
               , nest 2 (prettyTCM v <+> " : " <+> prettyTCM (unArg trhs))
               ]
             noConstraints $ withFrozenMetas $ checkInternal v CmpLeq $ unArg trhs
-          Nothing -> return ()
 
         reportSDoc "tc.lhs.top" 10 $ vcat
           [ "Clause before translation:"
