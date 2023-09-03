@@ -1,8 +1,6 @@
 -- Jesper, 2019-07-27. Cut down this example from a latent bug in
 -- @antiUnify@, which was using @unAbs@ instead of @absBody@.
 
-{-# OPTIONS --double-check #-}
-
 open import Agda.Primitive
 
 postulate

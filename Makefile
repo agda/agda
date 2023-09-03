@@ -419,6 +419,7 @@ workflows :
 .PHONY : test ## Run all test suites.
 test : check-whitespace \
        check-encoding \
+       check-testsuite \
        common \
        succeed \
        fail \
@@ -621,10 +622,15 @@ user-manual-test :
 		find doc/user-manual -type f -name '*.agdai' -delete; \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/UserManual)
 
-.PHONY : user-manual-covers-warnings
+.PHONY : user-manual-covers-warnings ## Check that the user manual documents all Agda warnings.
 user-manual-covers-warnings :
 	@$(call decorate, "User manual should mention all warnings", \
           AGDA_BIN=$(AGDA_BIN) test/doc/user-manual-covers-warnings.sh)
+
+.PHONY : check-testsuite ## Check various invariants of the testsuite.
+check-testsuite :
+	@$(call decorate, "Successful and failing tests do not touch --double-check", \
+	  test/no-option-double-check.sh)
 
 .PHONY : testing-emacs-mode ##
 testing-emacs-mode:
