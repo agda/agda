@@ -4497,6 +4497,7 @@ data TypeError
         | SplitOnNonVariable Term Type
         | SplitOnNonEtaRecord QName
         | SplitOnAbstract QName
+        | SplitOnUnchecked QName
         | DefinitionIsIrrelevant QName
         | DefinitionIsErased QName
         | VariableIsIrrelevant Name

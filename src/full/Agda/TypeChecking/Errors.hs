@@ -238,6 +238,7 @@ errorString err = case err of
   SplitOnNonVariable{}                     -> "SplitOnNonVariable"
   SplitOnNonEtaRecord{}                    -> "SplitOnNonEtaRecord"
   SplitOnAbstract{}                        -> "SplitOnAbstract"
+  SplitOnUnchecked{}                       -> "SplitOnUnchecked"
   DefinitionIsIrrelevant{}                 -> "DefinitionIsIrrelevant"
   DefinitionIsErased{}                     -> "DefinitionIsErased"
   VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
@@ -576,6 +577,9 @@ instance PrettyTCM TypeError where
 
     SplitOnAbstract d ->
       "Cannot split on abstract data type" <+> prettyTCM d
+
+    SplitOnUnchecked d ->
+      "Cannot split on data type" <+> prettyTCM d <+> "whose definition has not yet been checked"
 
     DefinitionIsIrrelevant x -> fsep $
       "Identifier" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"

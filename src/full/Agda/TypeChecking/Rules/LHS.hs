@@ -1650,8 +1650,7 @@ isDataOrRecordType a0 = ifBlocked a0 blocked $ \case
       Axiom{} -> hardTypeError =<< notData
 
       -- Can't match before we have the definition
-      DataOrRecSig{} -> hardTypeError . GenericDocError =<< do
-        liftTCM $ "Cannot split on data type" <+> prettyTCM d <+> "whose definition has not yet been checked"
+      DataOrRecSig{} -> hardTypeError $ SplitOnUnchecked d
 
       -- Issue #2997: the type could be a Def that does not reduce for some reason
       -- (abstract, failed termination checking, NON_TERMINATING, ...)
