@@ -219,7 +219,7 @@ import Agda.Utils.FileName      ( AbsolutePath )
 import Agda.Utils.Function      ( applyWhen, applyUnless )
 import Agda.Utils.Functor       ( (<&>) )
 import Agda.Utils.Lens          ( Lens', (^.), over, set )
-import Agda.Utils.List          ( groupOn, initLast1 )
+import Agda.Utils.List          ( groupOn, headWithDefault, initLast1 )
 import Agda.Utils.List1         ( String1, toList )
 import qualified Agda.Utils.List1        as List1
 import qualified Agda.Utils.Maybe.Strict as Strict
@@ -1306,9 +1306,6 @@ withoutKFlag o = return $ o
   , _optErasedMatches           = setDefault False $ _optErasedMatches o
   }
 
-firstOrderFlag :: Flag PragmaOptions
-firstOrderFlag o = return $ o { _optFirstOrder = Value True }
-
 cubicalCompatibleFlag :: Flag PragmaOptions
 cubicalCompatibleFlag o =
   return $ o
@@ -1708,7 +1705,7 @@ pragmaOptions = concat
   , pragmaFlag      "guarded" lensOptGuarded
                     "enable @lock/@tick attributes" ""
                     $ Just "disable @lock/@tick attributes"
-  , [ lossyUnificationOption ]
+  , lossyUnificationOption
   , pragmaFlag      "postfix-projections" lensOptPostfixProjections
                     "prefer postfix projection notation" ""
                     $ Just "prefer prefix projection notation"
@@ -1798,10 +1795,12 @@ pragmaOptionDefault :: KnownBool b => (PragmaOptions -> WithDefault b) -> Bool -
 pragmaOptionDefault f b =
   if b == collapseDefault (f defaultPragmaOptions) then " (default)" else ""
 
-lossyUnificationOption :: OptDescr (Flag PragmaOptions)
+lossyUnificationOption :: [OptDescr (Flag PragmaOptions)]
 lossyUnificationOption =
-      Option []     ["lossy-unification"] (NoArg firstOrderFlag)
-                    "enable heuristically unifying `f es = f es'` by unifying `es = es'`, even when it could lose solutions"
+  pragmaFlag "lossy-unification" lensOptFirstOrder
+    "enable heuristically unifying `f es = f es'` by unifying `es = es'`"
+    "even when it could lose solutions"
+    Nothing
 
 -- | Pragma options of previous versions of Agda.
 --   Should not be listed in the usage info, put parsed by GetOpt for good error messaging.
@@ -1822,7 +1821,7 @@ deadPragmaOptions = concat
     ]
   , map (uncurry renamedNoArgOption)
     [ ( "experimental-lossy-unification"
-      , lossyUnificationOption
+      , headWithDefault __IMPOSSIBLE__ lossyUnificationOption
       )
     ]
   ]

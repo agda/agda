@@ -76,6 +76,7 @@ Pragmas and options
   - `--no-guarded`
   - `--no-injective-type-constructors`
   - `--no-keep-covering-clauses`
+  - `--no-lossy-unification`
   - `--no-keep-pattern-variables`
   - `--no-omega-in-omega`
   - `--no-postfix-projections`

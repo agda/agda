@@ -602,7 +602,12 @@ Experimental features
      .. versionadded:: 2.6.2
 
      Enable a constraint-solving heuristic akin to first-order unification, see :ref:`lossy-unification`.
-     Off by default.
+
+.. option:: --no-lossy-unification
+
+     .. versionadded:: 2.6.4
+
+     Default, opposite of :option:`--lossy-unification`.
 
 .. option:: --prop, --no-prop
 
