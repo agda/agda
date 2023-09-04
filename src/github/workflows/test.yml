@@ -352,6 +352,10 @@ jobs:
       if: always() # run test even if a previous test failed
       #    13s (2022-06-17)
 
+    - name: "User manual covers all options"
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" user-manual-covers-options
+      if: always() # run test even if a previous test failed
+
     - name: "User manual covers all warnings"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" user-manual-covers-warnings
       if: always() # run test even if a previous test failed
