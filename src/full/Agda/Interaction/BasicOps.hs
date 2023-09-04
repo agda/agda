@@ -89,6 +89,7 @@ import Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.String
+import Agda.Utils.WithDefault ( WithDefault'(Value) )
 
 import Agda.Utils.Impossible
 
@@ -1238,7 +1239,13 @@ introTactic pmLambda ii = do
     introData amb t = do
       let tel  = telFromList [defaultDom ("_", t)]
           pat  = [defaultArg $ unnamed $ debruijnNamedVar "c" 0]
-      r <- splitLast CoInductive tel pat
+      -- Gallais, 2023-08-24: #6787 we need to locally ignore the
+      -- --without-K or --cubical-compatible options to figure out
+      -- that refl is a valid constructor for refl ≡ refl.
+      cubical <- isJust . optCubical <$> pragmaOptions
+      r <- (if cubical then id else
+            locallyTCState (stPragmaOptions . lensOptWithoutK) (const (Value False)))
+           $ splitLast CoInductive tel pat
       case r of
         Left err -> return []
         Right cov ->
