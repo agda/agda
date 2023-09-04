@@ -1490,6 +1490,9 @@ deadStandardOptions =
     , removedOption "no-sharing" msgSharing
     , Option []     ["ignore-all-interfaces"] (NoArg ignoreAllInterfacesFlag) -- not deprecated! Just hidden
                     "ignore all interface files (re-type check everything, including builtin files)"
+      -- https://github.com/agda/agda/issues/3522#issuecomment-461010898
+      -- The option is "developer only", so it is hidden.
+      -- However, it is documented in the user manual.
     ] ++ map (fmap lensPragmaOptions) deadPragmaOptions
   where
     msgSharing = "(in favor of the Agda abstract machine)"
