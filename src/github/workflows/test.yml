@@ -17,6 +17,9 @@ on:
     - '.github/workflows/test.yml'
     - '!src/github/**'
     - 'src/github/workflows/test.yml'
+    # Ignore components of the documentation which have no Agda code.
+    - '!doc/**'
+    - 'doc/user-manual/**/*.lagda.rst'
     # Ignore other components not contributing to this test.
     - '!src/agda-bisect/**'
     - '!src/fix-whitespace/**'

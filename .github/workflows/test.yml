@@ -294,6 +294,8 @@ name: Build, Test, and Benchmark
     - .github/workflows/test.yml
     - '!src/github/**'
     - src/github/workflows/test.yml
+    - '!doc/**'
+    - doc/user-manual/**/*.lagda.rst
     - '!src/agda-bisect/**'
     - '!src/fix-whitespace/**'
     - '!src/hs-tags/**'
@@ -325,6 +327,8 @@ name: Build, Test, and Benchmark
     - .github/workflows/test.yml
     - '!src/github/**'
     - src/github/workflows/test.yml
+    - '!doc/**'
+    - doc/user-manual/**/*.lagda.rst
     - '!src/agda-bisect/**'
     - '!src/fix-whitespace/**'
     - '!src/hs-tags/**'
