@@ -67,6 +67,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Trace (traceCall, setCurrentRange)
 import Agda.TypeChecking.Monad.State hiding (topLevelModuleName)
 import qualified Agda.TypeChecking.Monad.State as S
+import Agda.TypeChecking.Monad.Signature (notUnderOpaque)
 import Agda.TypeChecking.Monad.MetaVars (registerInteractionPoint)
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Env (insideDotPattern, isInsideDotPattern, getCurrentPath)
@@ -1773,9 +1774,7 @@ instance ToAbstract NiceDeclaration where
     C.NiceFunClause{} -> __IMPOSSIBLE__
 
   -- Data definitions
-    C.NiceDataDef r o a _ uc x pars cons -> do
-        notAffectedByOpaque
-
+    C.NiceDataDef r o a _ uc x pars cons -> notAffectedByOpaque $ do
         reportSLn "scope.data.def" 20 ("checking " ++ show o ++ " DataDef for " ++ prettyShow x)
         (p, ax) <- resolveName (C.QName x) >>= \case
           DefinedName p ax NoSuffix -> do
@@ -1810,9 +1809,7 @@ instance ToAbstract NiceDeclaration where
         conName d = errorNotConstrDecl d
 
   -- Record definitions (mucho interesting)
-    C.NiceRecDef r o a _ uc x (RecordDirectives ind eta pat cm) pars fields -> do
-      notAffectedByOpaque
-
+    C.NiceRecDef r o a _ uc x (RecordDirectives ind eta pat cm) pars fields -> notAffectedByOpaque $ do
       reportSLn "scope.rec.def" 20 ("checking " ++ show o ++ " RecDef for " ++ prettyShow x)
       -- #3008: Termination pragmas are ignored in records
       checkNoTerminationPragma InRecordDef fields
@@ -1877,9 +1874,7 @@ instance ToAbstract NiceDeclaration where
         let dir' = RecordDirectives ind eta pat cm'
         return [ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' uc dir' params contel afields ]
 
-    NiceModule r p a e x@(C.QName name) tel ds -> do
-      notAffectedByOpaque
-
+    NiceModule r p a e x@(C.QName name) tel ds -> notAffectedByOpaque $ do
       reportSDoc "scope.decl" 70 $ vcat $
         [ text $ "scope checking NiceModule " ++ prettyShow x
         ]
@@ -2048,9 +2043,7 @@ instance ToAbstract NiceDeclaration where
       opaque <- contextIsOpaque
       return [ A.UnquoteDef [ (mkDefInfo x fx PublicAccess a r) { Info.defOpaque = opaque } | (fx, x) <- zip fxs xs ] ys e ]
 
-    NiceUnquoteData r p a pc uc x cs e -> do
-      notAffectedByOpaque
-
+    NiceUnquoteData r p a pc uc x cs e -> notAffectedByOpaque $ do
       fx <- getConcreteFixity x
       x' <- freshAbstractQName fx x
       bindName p QuotableName x x'
@@ -2189,11 +2182,12 @@ updateDefInfoOpacity di = (\a -> di { Info.defOpaque = a }) <$> contextIsOpaque
 
 -- | Raise a warning indicating that the current Declaration is not
 -- affected by opacity, but only if we are actually in an Opaque block.
-notAffectedByOpaque :: ScopeM ()
-notAffectedByOpaque = do
+notAffectedByOpaque :: ScopeM a -> ScopeM a
+notAffectedByOpaque k = do
   t <- asksTC envCheckingWhere
   unless t $
     maybe (pure ()) (const (warning NotAffectedByOpaque)) =<< asksTC envCurrentOpaqueId
+  notUnderOpaque k
 
 unGeneralized :: A.Expr -> (Set.Set I.QName, A.Expr)
 unGeneralized (A.Generalized s t) = (s, t)
