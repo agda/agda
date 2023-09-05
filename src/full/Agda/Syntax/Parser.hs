@@ -9,7 +9,7 @@ module Agda.Syntax.Parser
       -- * Parsers
     , moduleParser
     , moduleNameParser
-    , acceptableFileExts
+    , agdaFileExtensions
     , exprParser
     , exprWhereParser
     , holeContentParser
@@ -171,10 +171,14 @@ parsePosString ::
   Parser a -> Position -> String -> PM (a, Attributes)
 parsePosString p pos = wrapM . return . M.parsePosString pos (parseFlags p) normalLexState (parser p)
 
--- | Extensions supported by `parseFile`.
+-- | List of valid extensions of Agda source files.
+--
+--   These extensions are supported by 'parseFile'.
+--
+--   Towards single source of truth: this list is also used by the test suite.
 
-acceptableFileExts :: [String]
-acceptableFileExts = ".agda" : (fst <$> literateProcessors)
+agdaFileExtensions :: [String]
+agdaFileExtensions = ".agda" : (fst <$> literateProcessors)
 
 parseFile
   :: Show a
@@ -195,7 +199,7 @@ parseFile p file input =
 
     go [] = throwError InvalidExtensionError
                    { errPath = file
-                   , errValidExts = acceptableFileExts
+                   , errValidExts = agdaFileExtensions
                    }
     go ((ext, (po, ft)) : pos)
       | ext `List.isSuffixOf` path =

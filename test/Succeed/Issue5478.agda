@@ -1,7 +1,6 @@
 -- Andreas, 2021-07-25, issue #5478 reported by mrohman
 
 {-# OPTIONS --allow-unsolved-metas #-}
-{-# OPTIONS --double-check #-}
 
 -- {-# OPTIONS -v impossible:70 #-}
 -- {-# OPTIONS -v tc:20 #-}

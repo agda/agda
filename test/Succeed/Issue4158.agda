@@ -1,4 +1,4 @@
-{-# OPTIONS --rewriting --confluence-check --double-check #-}
+{-# OPTIONS --rewriting --confluence-check #-}
 
 data _==_ {A : Set} : (x y : A) → Set where
   refl : {a : A} → a == a

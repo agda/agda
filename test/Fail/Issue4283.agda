@@ -1,5 +1,7 @@
---{-# OPTIONS -vtc:50 #-}
-{-# OPTIONS --double-check #-}
+-- Hot fix (Jesper, 2019-12-14)of de Bruijn issue in
+-- https://github.com/agda/agda/commit/a30c7be25a3085246154f41cbb472119e229b580
+-- "Replace one use of inTopContext with unsafeInTopContext"
+-- "TODO: find the fundamental cause and switch back to inTopContext"
 
 open import Agda.Primitive
 
@@ -39,3 +41,8 @@ module _ (l : Level) (BADNESS : Set) (A : Set l) (r : R l A) where
   -- ^ works if definition of lemma is removed
 
   test = λ _ → unbox _ _ boxed
+
+-- Expected error:
+--
+-- Failed to solve the following constraints:
+--   _43 (p = refl) = refl : Id l A (w/e l A) (w/e l A) (blocked on _43)

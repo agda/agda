@@ -1,6 +1,9 @@
 
-module Utils (module Utils,
-              AgdaError(..)) where
+module Utils
+  ( module Utils
+  , AgdaError(..)
+  , agdaFileExtensions
+  ) where
 
 import Control.Applicative
 import Control.Arrow ((&&&))
@@ -41,6 +44,8 @@ import Test.Tasty.Silver.Advanced ( GDiff(..), pattern ShowText, goldenTest1, re
 import qualified Text.Regex.TDFA as R
 import qualified Text.Regex.TDFA.Text as RT ( compile )
 
+import Agda.Main                      ( warningsBanner )
+import Agda.Syntax.Parser             ( agdaFileExtensions )
 import Agda.Compiler.MAlonzo.Compiler ( ghcInvocationStrings )
 import Agda.Interaction.ExitCode      ( AgdaError(..), agdaErrorFromInt )
 import Agda.Utils.Maybe
@@ -103,8 +108,7 @@ runAgdaWithOptions testName opts mflag mvars = do
       pure backup
 
   let agdaArgs = opts ++ words flags
-  let runAgda  = \ extraArgs -> let args = agdaArgs ++ extraArgs in
-                                readAgdaProcessWithExitCode args T.empty
+  let runAgda extraArgs = readAgdaProcessWithExitCode (agdaArgs ++ extraArgs) T.empty
   (ret, stdOut, stdErr) <- do
     if not $ null $ List.intersect agdaArgs ghcInvocationStrings
       -- Andreas, 2017-04-14, issue #2317
@@ -131,11 +135,11 @@ runAgdaWithOptions testName opts mflag mvars = do
         -- Andreas, 2020-09-22: according to the documentation of getEnvironment,
         -- a missing '=' might mean to set the variable to the empty string.
 
-hasWarning :: Text -> Bool
-hasWarning t =
- "———— All done; warnings encountered ————————————————————————"
- `T.isInfixOf` t
 
+-- | Check whether Agda output contains warnings.
+--
+hasWarning :: Text -> Bool
+hasWarning = T.isInfixOf $ T.pack warningsBanner
 
 getEnvAgdaArgs :: IO AgdaArgs
 getEnvAgdaArgs = maybe [] words <$> getEnvVar "AGDA_ARGS"
@@ -154,17 +158,6 @@ getEnvVar :: String -> IO (Maybe String)
 getEnvVar v =
   lookup v <$> getEnvironment
 
--- | List of possible extensions of agda files.
-agdaExtensions :: [String]
-agdaExtensions =
-  [ ".agda"
-  , ".lagda"
-  , ".lagda.tex"
-  , ".lagda.rst"
-  , ".lagda.md"
-  , ".lagda.org"
-  ]
-
 -- | List of files paired with agda files by the test suites.
 -- E.g. files recording the accepted output or error message.
 helperExtensions :: [String]
@@ -180,7 +173,7 @@ stripAnyOfExtensions :: [String] -> FilePath -> Maybe FilePath
 stripAnyOfExtensions exts p = listToMaybe $ catMaybes $ map (`stripExtension` p) exts
 
 stripAgdaExtension :: FilePath -> Maybe FilePath
-stripAgdaExtension = stripAnyOfExtensions agdaExtensions
+stripAgdaExtension = stripAnyOfExtensions agdaFileExtensions
 
 stripHelperExtension :: FilePath -> Maybe FilePath
 stripHelperExtension = stripAnyOfExtensions helperExtensions
