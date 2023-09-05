@@ -1,4 +1,3 @@
-{-# OPTIONS -WnoNotAffectedByOpaque -WnoUselessOpaque #-}
 module Issue6802a where
 
 open import Agda.Builtin.Nat

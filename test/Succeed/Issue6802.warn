@@ -1,0 +1,38 @@
+Issue6802.agda:9,3-11,15
+warning: -W[no]NotAffectedByOpaque
+Only functions and primitives can be marked opaque. This
+declaration will be treated as transparent.
+when scope checking the declaration
+  module _ where
+    foo : Nat
+    foo = zero
+Issue6802.agda:8,1-11,15
+warning: -W[no]UselessOpaque
+This 'opaque' block has no effect.
+when scope checking the declaration
+  opaque
+    unfolding {}
+    module _ where
+      foo : Nat
+      foo = zero
+
+———— All done; warnings encountered ————————————————————————
+
+Issue6802.agda:9,3-11,15
+warning: -W[no]NotAffectedByOpaque
+Only functions and primitives can be marked opaque. This
+declaration will be treated as transparent.
+when scope checking the declaration
+  module _ where
+    foo : Nat
+    foo = zero
+
+Issue6802.agda:8,1-11,15
+warning: -W[no]UselessOpaque
+This 'opaque' block has no effect.
+when scope checking the declaration
+  opaque
+    unfolding {}
+    module _ where
+      foo : Nat
+      foo = zero
