@@ -1,5 +1,6 @@
 Issue3932.agda:31,5-32,14
-The following name is declared, but not accompanied by a
-definition: A.
-Since 'mutual' blocks can not participate in mutual recursion, its
-definition must be given before this point.
+The following names are declared, but not accompanied by a
+definition:
+- A (at Issue3932.agda:29,5-6)
+Since 'mutual' blocks can not participate in mutual recursion,
+their definition must be given before this point.

@@ -1,5 +1,6 @@
 ImplicitMutualMutual.agda:6,1-8,13
-The following name is declared, but not accompanied by a
-definition: test.
-Since 'mutual' blocks can not participate in mutual recursion, its
-definition must be given before this point.
+The following names are declared, but not accompanied by a
+definition:
+- test (at ImplicitMutualMutual.agda:5,1-5)
+Since 'mutual' blocks can not participate in mutual recursion,
+their definition must be given before this point.

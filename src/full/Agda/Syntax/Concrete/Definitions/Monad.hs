@@ -2,6 +2,8 @@
 
 module Agda.Syntax.Concrete.Definitions.Monad where
 
+import Prelude hiding ( null )
+
 import Control.Monad        ( unless )
 import Control.Monad.Except ( MonadError(..), ExceptT, runExceptT )
 import Control.Monad.Reader ( MonadReader, ReaderT, runReaderT )
@@ -19,6 +21,8 @@ import Agda.Syntax.Concrete.Definitions.Errors
 
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.Lens
+import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Null (Null(..))
 
 import Agda.Utils.Impossible
 
@@ -35,6 +39,10 @@ newtype Nice a = Nice { unNice :: ReaderT NiceEnv (ExceptT DeclarationException 
 runNice :: NiceEnv -> Nice a -> (Either DeclarationException a, NiceWarnings)
 runNice env m = second (reverse . niceWarn) $
   runExceptT (unNice m `runReaderT` env) `runState` initNiceState
+
+instance Null a => Null (Nice a) where
+  empty = pure empty
+  null _ = __IMPOSSIBLE__
 
 -- | Nicifier parameters.
 
@@ -165,9 +173,11 @@ checkLoneSigs xs = do
 -- defined.
 breakImplicitMutualBlock :: Range -> String -> Nice ()
 breakImplicitMutualBlock r why = do
-  xs <- use loneSigs
-  unless (Map.null xs) $ declarationException $ DisallowedInterleavedMutual r why $
-    map (\s -> (loneSigName s , loneSigRange s)) $ Map.elems xs
+  m <- use loneSigs
+  List1.unlessNull (Map.elems m) $ \ xs ->
+    declarationException $ DisallowedInterleavedMutual r why $
+      -- Andreas, 2023-09-07: We discard the 'loneSigRange's because the 'Name' already has a range.
+      fmap loneSigName xs
 
 -- | Get names of lone function signatures, plus their unique names.
 
