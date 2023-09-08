@@ -154,6 +154,11 @@ data DataOrRecord
   | IsRecord PatternOrCopattern
   deriving (Show, Eq, Generic)
 
+instance PatternMatchingAllowed DataOrRecord where
+  patternMatchingAllowed = \case
+    IsData -> True
+    IsRecord patCopat -> patternMatchingAllowed patCopat
+
 instance CopatternMatchingAllowed DataOrRecord where
   copatternMatchingAllowed = \case
     IsData -> False

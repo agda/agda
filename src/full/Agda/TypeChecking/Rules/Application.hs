@@ -1051,7 +1051,7 @@ disambiguateConstructor cs0 args t = do
          "target type: " <+> prettyTCM t1
        -- If we don't have a target type yet, try to look at the argument types.
        ifBlocked t1 (\ b _ -> disambiguateByArgs dcs $ return $ Left b) $ \ _ t' ->
-         caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ d -> do
+         caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ (d, _) -> do
            let dcs' = filter ((d ==) . fst3) dcs
            case map thd3 dcs' of
              [c] -> decideOn c

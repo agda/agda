@@ -254,9 +254,9 @@ isDataOrRecordType d = do
     _          -> return $ Nothing
 
 -- | Precodition: 'Term' is 'reduce'd.
-isDataOrRecord :: Term -> TCM (Maybe QName)
+isDataOrRecord :: Term -> TCM (Maybe (QName, DataOrRecord))
 isDataOrRecord = \case
-    Def d _ -> fmap (const d) <$> isDataOrRecordType d
+    Def d _ -> fmap (d,) <$> isDataOrRecordType d
     _       -> return Nothing
 
 getNumberOfParameters :: HasConstInfo m => QName -> m (Maybe Nat)

@@ -349,46 +349,43 @@ noShadowingOfConstructors problem@(ProblemEq p _ (Dom{domInfo = info, unDom = El
       , nest 2 $ "position of variable =" <+> (text . show) (getRange x)
       ]
     reportSDoc "tc.lhs.shadow" 70 $ nest 2 $ "a =" <+> pretty a
-    a <- reduce a
-    case a of
-      Def t _ -> do
-        d <- theDef <$> getConstInfo t
-        case d of
-          Datatype { dataCons = cs } -> do
-            case filter ((A.nameConcrete x ==) . A.nameConcrete . A.qnameName) cs of
-              []      -> return ()
-              (c : _) -> setCurrentRange x $
-                typeError $ PatternShadowsConstructor (nameConcrete x) c
-          AbstractDefn{} -> return ()
+
+    -- Get a conflicting data or record constructor, if any.
+    mc <- runMaybeT do
+
+      -- Is the type of the pattern variable a data or pattern record type?
+      a  <- lift $ reduce a
+      (d, dr) <- MaybeT $ isDataOrRecord a
+      guard $ patternMatchingAllowed dr
+
+      -- Look for a constructor with the same name as the pattern variable.
+      cs <- lift $ getConstructors d
+      MaybeT $ pure $ List.find ((A.nameConcrete x ==) . A.nameConcrete . A.qnameName) cs
+
+    -- Alert if there is a constructor of the same name.
+    whenJust mc \ c -> setCurrentRange x $
+      typeError $ PatternShadowsConstructor (nameConcrete x) c
+    --
+    -- Andreas, 2023-09-08, issue #6829:
+    -- I rewrote the code originally dating from 2009, commit:
+    -- https://github.com/agda/agda/commit/5d5095ba080b04f16867d4ed5af4ba7091f1a773
+    -- The code survived for almost 15 years, but it slept through the advent
+    -- of matchable record constructors in 2010 (Agda 2.2.8):
+    -- https://github.com/agda/agda/blob/283730b392d7c21c54b53b0f486802ec143e4af7/doc/release-notes/2.2.8.md#L7-L9
+    -- Here are comments on the last version of the code I'd like to preserve,
+    -- as they reflect some considerations and design decisions:
+    --
             -- Abstract constructors cannot be brought into scope,
             -- even by a bigger import list.
             -- Thus, they cannot be confused with variables.
             -- Alternatively, we could do getConstInfo in ignoreAbstractMode,
             -- then Agda would complain if a variable shadowed an abstract constructor.
-          Axiom       {} -> return ()
-          DataOrRecSig{} -> return ()
-          Function    {} -> return ()
-          Record      {} -> return ()
-          Constructor {} -> __IMPOSSIBLE__
-          GeneralizableVar{} -> __IMPOSSIBLE__
           -- TODO: in the future some stuck primitives might allow constructors
-          Primitive   {} -> return ()
-          PrimitiveSort{} -> return ()
-      Var   {} -> return ()
-      Pi    {} -> return ()
-      Sort  {} -> return ()
-      MetaV {} -> return ()
       -- TODO: If the type is a meta-variable, should the test be
       -- postponed? If there is a problem, then it will be caught when
       -- the completed module is type checked, so it is safe to skip
       -- the test here. However, users may be annoyed if they get an
       -- error in code which has already passed the type checker.
-      Lam   {} -> __IMPOSSIBLE__
-      Lit   {} -> __IMPOSSIBLE__
-      Level {} -> __IMPOSSIBLE__
-      Con   {} -> __IMPOSSIBLE__
-      DontCare{} -> __IMPOSSIBLE__
-      Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
 -- | Check that a dot pattern matches it's instantiation.
 checkDotPattern :: DotPattern -> TCM ()
