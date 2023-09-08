@@ -1,0 +1,11 @@
+Issue6805.agda:4,3-10
+warning: -W[no]GenericWarning
+Missing type signature for opaque definition A.
+Types of opaque definitions are never inferred since this would
+leak information that should be opaque.
+Failed to solve the following constraints:
+  Set₂ = _0 (blocked on _0)
+  Set₁ =< _1 (blocked on _1)
+Unsolved metas at the following locations:
+  Issue6805.agda:4,3-4
+  Issue6805.agda:4,7-10
