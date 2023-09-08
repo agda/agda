@@ -2149,7 +2149,8 @@ instance ToAbstract NiceDeclaration where
         let isMacro | kind == MacroName = MacroDef
                     | otherwise         = NotMacroDef
         bindName p kind x y
-        return $ A.Axiom kind (mkDefInfoInstance x f p a i isMacro r) info mp y t'
+        definfo <- updateDefInfoOpacity $ mkDefInfoInstance x f p a i isMacro r
+        return $ A.Axiom kind definfo info mp y t'
       toAbstractNiceAxiom _ _ = __IMPOSSIBLE__
 
       interestingOpaqueDecl :: A.Declaration -> Bool

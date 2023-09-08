@@ -232,7 +232,7 @@ instance Pretty NiceDeclaration where
     NiceField _ _ _ _ _ x _        -> text "field" <+> pretty x
     PrimitiveFunction _ _ _ x _    -> text "primitive" <+> pretty x
     NiceMutual{}                   -> text "mutual"
-    NiceOpaque{}                   -> text "opaque"
+    NiceOpaque _ _ ds              -> text "opaque" <+> nest 2 (vcat (map pretty ds))
     NiceModule _ _ _ _ x _ _       -> text "module" <+> pretty x <+> text "where"
     NiceModuleMacro _ _ _ x _ _ _  -> text "module" <+> pretty x <+> text "= ..."
     NiceOpen _ x _                 -> text "open" <+> pretty x
