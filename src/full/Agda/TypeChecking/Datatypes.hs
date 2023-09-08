@@ -249,7 +249,13 @@ isDatatype d = do
 isDataOrRecordType :: QName -> TCM (Maybe DataOrRecord)
 isDataOrRecordType d = do
   (theDef <$> getConstInfo d) >>= \case
-    Record{ recPatternMatching } -> return $ Just $ IsRecord recPatternMatching
+    Record{ recEtaEquality', recPatternMatching } -> return $ Just $ IsRecord $
+      case recPatternMatching of
+        -- If the user explicitly asked for @pattern@, pattern matching is allowed.
+        p@PatternMatching -> p
+        -- Otherwise, 'recEtaEquality' might allow pattern matching.
+        CopatternMatching ->
+          if patternMatchingAllowed recEtaEquality' then PatternMatching else CopatternMatching
     Datatype{} -> return $ Just IsData
     _          -> return $ Nothing
 
