@@ -1518,7 +1518,8 @@ instance ToAbstract LetDef where
             case definedName p0 of
               Nothing -> throwError err
               Just x  -> toAbstract $ LetDef $ NiceMutual r tc cc YesPositivityCheck
-                [ C.FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef (setOrigin Inserted defaultArgInfo) tc cc x (C.Underscore (getRange x) Nothing)
+                [ C.FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef
+                    (setOrigin Inserted defaultArgInfo) tc cc x (C.Underscore (getRange x) Nothing)
                 , C.FunDef r __IMPOSSIBLE__ ConcreteDef NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ __IMPOSSIBLE__
                   [C.Clause x (ca || catchall) lhs (C.RHS rhs) NoWhere []]
                 ]

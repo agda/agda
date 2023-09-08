@@ -1577,8 +1577,7 @@ inferExprForWith (Arg info e) = verboseBracket "tc.with.infer" 20 "inferExprForW
       TelV tel t0 <- telViewUpTo' (-1) (not . visible) t
       case unEl t0 of
         Def d vs -> do
-          res <- isDataOrRecordType d
-          case res of
+          isDataOrRecordType d >>= \case
             Nothing -> return (v, t)
             Just{}  -> do
               (args, t1) <- implicitArgs (-1) notVisible t

@@ -17,6 +17,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Either
+import Agda.Utils.Functor        ( (<.>) )
 import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Utils.Size
 
@@ -293,9 +294,7 @@ getDatatypeArgs t = do
 
 getNotErasedConstructors :: QName -> TCM [QName]
 getNotErasedConstructors d = do
-  cs <- getConstructors d
-  flip filterM cs $ \ c -> do
-    usableModality <$> getConstInfo c
+  filterM (usableModality <.> getConstInfo) =<< getConstructors d
 
 -- | Precondition: Name is a data or record type.
 getConstructors :: QName -> TCM [QName]
