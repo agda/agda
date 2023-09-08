@@ -67,6 +67,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Telescope.Path
 import Agda.TypeChecking.Primitive hiding (Nat)
+import Agda.TypeChecking.Warnings (warning)
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr, isType_)
 import Agda.TypeChecking.Rules.LHS.Problem
@@ -364,7 +365,7 @@ noShadowingOfConstructors problem@(ProblemEq p _ (Dom{domInfo = info, unDom = El
 
     -- Alert if there is a constructor of the same name.
     whenJust mc \ c -> setCurrentRange x $
-      typeError $ PatternShadowsConstructor (nameConcrete x) c
+      warning $ PatternShadowsConstructor (nameConcrete x) c
     --
     -- Andreas, 2023-09-08, issue #6829:
     -- I rewrote the code originally dating from 2009, commit:

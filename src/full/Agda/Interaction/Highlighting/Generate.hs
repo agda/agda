@@ -469,6 +469,7 @@ warningHighlighting' b w = case tcWarning w of
   UnsupportedIndexedMatch{}  -> mempty
   AsPatternShadowsConstructorOrPatternSynonym{}
                              -> deadcodeHighlighting w
+  PatternShadowsConstructor{}-> errorWarningHighlighting w  -- or mempty ?
   PlentyInHardCompileTimeMode o
                              -> deadcodeHighlighting o
   RecordFieldWarning w       -> recordFieldWarningHighlighting w

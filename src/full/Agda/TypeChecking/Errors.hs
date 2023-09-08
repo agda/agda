@@ -215,7 +215,6 @@ errorString err = case err of
   NothingAppliedToInstanceArg{}            -> "NothingAppliedToInstanceArg"
   OverlappingProjects {}                   -> "OverlappingProjects"
   OperatorInformation {}                   -> "OperatorInformation"
-  PatternShadowsConstructor {}             -> "PatternShadowsConstructor"
   PropMustBeSingleton                      -> "PropMustBeSingleton"
   RepeatedVariablesInPattern{}             -> "RepeatedVariablesInPattern"
   ShadowedModule{}                         -> "ShadowedModule"
@@ -909,10 +908,6 @@ instance PrettyTCM TypeError where
 
     ClashingModuleImport x y -> fsep $
       pwords "Module import clash between" ++ [pretty x, "and", prettyTCM y]
-
-    PatternShadowsConstructor x c -> fsep $
-      pwords "The pattern variable" ++ [prettyTCM x] ++
-      pwords "has the same name as the constructor" ++ [prettyTCM c]
 
     DuplicateImports m xs -> fsep $
       pwords "Ambiguous imports from module" ++ [pretty m] ++ pwords "for" ++

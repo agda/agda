@@ -143,6 +143,8 @@ Pragmas and options
 * The warning `GenericUseless` has been split into the three warnings
   `UselessPragma`, `FaceConstraintCannotBeHidden` and `FaceConstraintCannotBeNamed`.
 
+* New warning `PatternShadowsConstructor` which used to be an error.
+
 Library management
 ------------------
 

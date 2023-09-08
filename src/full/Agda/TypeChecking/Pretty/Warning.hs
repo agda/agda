@@ -341,6 +341,10 @@ prettyWarning = \case
       , if patsyn then pwords "pattern synonym" else [ "constructor" ]
       ]
 
+    PatternShadowsConstructor x c -> fsep $
+      pwords "The pattern variable" ++ [prettyTCM x] ++
+      pwords "has the same name as the constructor" ++ [prettyTCM c]
+
     PlentyInHardCompileTimeMode o -> fsep $
       pwords "Ignored use of" ++ [pretty o] ++
       pwords "in hard compile-time mode"

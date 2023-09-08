@@ -1,4 +1,0 @@
-PatternShadowsConstructor4.agda:24,10-11
-The pattern variable x has the same name as the constructor A.x
-when checking the clause left hand side
-fst r (c x)
