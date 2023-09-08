@@ -4209,6 +4209,9 @@ data Warning
     -- ^ The as-name in an as-pattern may not shadow a constructor (@False@)
     --   or pattern synonym name (@True@),
     --   because this can be confusing to read.
+  | PatternShadowsConstructor C.Name A.QName
+    -- ^ A pattern variable has the name of a constructor
+    --   (data constructor or matchable record constructor).
   | PlentyInHardCompileTimeMode QωOrigin
     -- ^ Explicit use of @@ω@ or @@plenty@ in hard compile-time mode.
   | RecordFieldWarning RecordFieldWarning
@@ -4235,8 +4238,9 @@ warningName = \case
   OptionWarning ow             -> optionWarningName ow
   ParseWarning pw              -> parseWarningName pw
   LibraryWarning lw            -> libraryWarningName lw
-  AsPatternShadowsConstructorOrPatternSynonym{} -> AsPatternShadowsConstructorOrPatternSynonym_
   -- scope- and type-checking errors
+  AsPatternShadowsConstructorOrPatternSynonym{} -> AsPatternShadowsConstructorOrPatternSynonym_
+  PatternShadowsConstructor{}  -> PatternShadowsConstructor_
   AbsurdPatternRequiresNoRHS{} -> AbsurdPatternRequiresNoRHS_
   CantGeneralizeOverSorts{}    -> CantGeneralizeOverSorts_
   CoverageIssue{}              -> CoverageIssue_
@@ -4602,7 +4606,6 @@ data TypeError
         | ClashingModule A.ModuleName A.ModuleName
         | ClashingImport C.Name A.QName
         | ClashingModuleImport C.Name A.ModuleName
-        | PatternShadowsConstructor C.Name A.QName
         | DuplicateImports C.QName [C.ImportedName]
         | InvalidPattern C.Pattern
         | RepeatedVariablesInPattern [C.Name]

@@ -232,6 +232,7 @@ data WarningName
   -- Scope and Type Checking Warnings
   | AbsurdPatternRequiresNoRHS_
   | AsPatternShadowsConstructorOrPatternSynonym_
+  | PatternShadowsConstructor_
   | CantGeneralizeOverSorts_
   | ClashesViaRenaming_                -- issue #4154
   | CoverageIssue_
@@ -416,6 +417,7 @@ warningNameDescription = \case
   -- Scope and Type Checking Warnings
   AbsurdPatternRequiresNoRHS_      -> "Clauses with an absurd pattern that have a right hand side."
   AsPatternShadowsConstructorOrPatternSynonym_ -> "@-patterns that shadow constructors or pattern synonyms."
+  PatternShadowsConstructor_       -> "Pattern variables that shadow constructors."
   CantGeneralizeOverSorts_         -> "Attempts to generalize over sort metas in 'variable' declaration."
   ClashesViaRenaming_              -> "Clashes introduced by `renaming'."  -- issue #4154
   CoverageIssue_                   -> "Failed coverage checks."

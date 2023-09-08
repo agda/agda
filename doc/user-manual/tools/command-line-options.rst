@@ -1388,6 +1388,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Renamed options.
 
+.. option:: PatternShadowsConstructor
+
+     Pattern variables that shadow constructors.
+
 .. option:: PlentyInHardCompileTimeMode
 
      Use of attributes ``@ω`` or ``@plenty`` in hard compile-time mode.

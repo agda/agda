@@ -1,0 +1,79 @@
+PatternShadowsConstructor.agda:46,8-9
+warning: -W[no]PatternShadowsConstructor
+The pattern variable x has the same name as the constructor A.x
+when checking the clause left hand side
+f (c x)
+PatternShadowsConstructor.agda:66,8-9
+warning: -W[no]PatternShadowsConstructor
+The pattern variable x has the same name as the constructor A.x
+when checking the clause left hand side
+f (c x)
+PatternShadowsConstructor.agda:88,8-9
+warning: -W[no]PatternShadowsConstructor
+The pattern variable x has the same name as the constructor A.x
+when checking the clause left hand side
+f (c x)
+PatternShadowsConstructor.agda:105,11-12
+warning: -W[no]PatternShadowsConstructor
+The pattern variable x has the same name as the constructor A.x
+when checking the clause left hand side
+f (c y) x
+PatternShadowsConstructor.agda:132,13-14
+warning: -W[no]PatternShadowsConstructor
+The pattern variable x has the same name as the constructor A.x
+when checking the clause left hand side
+f true (c x)
+PatternShadowsConstructor.agda:158,12-13
+warning: -W[no]PatternShadowsConstructor
+The pattern variable x has the same name as the constructor A.x
+when checking the clause left hand side
+fst r (c x)
+PatternShadowsConstructor.agda:188,17-18
+warning: -W[no]PatternShadowsConstructor
+The pattern variable c has the same name as the constructor c
+when checking the clause left hand side
+should-warn c
+
+———— All done; warnings encountered ————————————————————————
+
+PatternShadowsConstructor.agda:46,8-9
+warning: -W[no]PatternShadowsConstructor
+The pattern variable x has the same name as the constructor A.x
+when checking the clause left hand side
+f (c x)
+
+PatternShadowsConstructor.agda:66,8-9
+warning: -W[no]PatternShadowsConstructor
+The pattern variable x has the same name as the constructor A.x
+when checking the clause left hand side
+f (c x)
+
+PatternShadowsConstructor.agda:88,8-9
+warning: -W[no]PatternShadowsConstructor
+The pattern variable x has the same name as the constructor A.x
+when checking the clause left hand side
+f (c x)
+
+PatternShadowsConstructor.agda:105,11-12
+warning: -W[no]PatternShadowsConstructor
+The pattern variable x has the same name as the constructor A.x
+when checking the clause left hand side
+f (c y) x
+
+PatternShadowsConstructor.agda:132,13-14
+warning: -W[no]PatternShadowsConstructor
+The pattern variable x has the same name as the constructor A.x
+when checking the clause left hand side
+f true (c x)
+
+PatternShadowsConstructor.agda:158,12-13
+warning: -W[no]PatternShadowsConstructor
+The pattern variable x has the same name as the constructor A.x
+when checking the clause left hand side
+fst r (c x)
+
+PatternShadowsConstructor.agda:188,17-18
+warning: -W[no]PatternShadowsConstructor
+The pattern variable c has the same name as the constructor c
+when checking the clause left hand side
+should-warn c

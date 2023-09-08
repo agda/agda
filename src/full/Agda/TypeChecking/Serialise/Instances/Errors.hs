@@ -88,6 +88,7 @@ instance EmbPrj Warning where
     InlineNoExactSplit a b                -> icodeN 46 InlineNoExactSplit a b
     FaceConstraintCannotBeHidden a        -> icodeN 47 FaceConstraintCannotBeHidden a
     FaceConstraintCannotBeNamed a         -> icodeN 48 FaceConstraintCannotBeNamed a
+    PatternShadowsConstructor a b         -> icodeN 49 PatternShadowsConstructor a b
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -139,6 +140,7 @@ instance EmbPrj Warning where
     [46, a, b]           -> valuN InlineNoExactSplit a b
     [47, a]              -> valuN FaceConstraintCannotBeHidden a
     [48, a]              -> valuN FaceConstraintCannotBeNamed a
+    [49, a, b]           -> valuN PatternShadowsConstructor a b
     _ -> malformed
 
 instance EmbPrj OptionWarning where
@@ -439,6 +441,7 @@ instance EmbPrj WarningName where
     InlineNoExactSplit_                          -> 101
     FaceConstraintCannotBeHidden_                -> 102
     FaceConstraintCannotBeNamed_                 -> 103
+    PatternShadowsConstructor_                   -> 104
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -545,6 +548,7 @@ instance EmbPrj WarningName where
     101 -> return InlineNoExactSplit_
     102 -> return FaceConstraintCannotBeHidden_
     103 -> return FaceConstraintCannotBeNamed_
+    104 -> return PatternShadowsConstructor_
     _   -> malformed
 
 
