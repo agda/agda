@@ -774,8 +774,7 @@ computeEdges muts q ob =
     addPol pol' = return (Nothing, otimes pol pol')
 
   isGuarding d = do
-    isDR <- isDataOrRecordType d
-    return $ case isDR of
+    isDataOrRecordType d <&> \case
       Just IsData -> GuardPos  -- a datatype is guarding
       _           -> StrictPos
 
