@@ -76,7 +76,7 @@ jobs:
         echo filename     = ${{ steps.vars.outputs.filename     }}
         echo nightly      = ${{ steps.vars.outputs.nightly      }}
     - id: setup-haskell
-      uses: haskell/actions/setup@v2
+      uses: haskell-actions/setup@v2
       with:
         cabal-version: latest
         ghc-version: ${{ matrix.ghc-ver }}

@@ -35,7 +35,7 @@ jobs:
         echo "PKG_CONFIG_PATH=${ICU4C}/lib/pkgconfig" >> "${GITHUB_ENV}"
     - uses: actions/checkout@v3
     - id: haskell-setup
-      uses: haskell/actions/setup@v2
+      uses: haskell-actions/setup@v2
       with:
         cabal-update: false
         enable-stack: true

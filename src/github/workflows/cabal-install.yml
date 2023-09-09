@@ -69,7 +69,7 @@ jobs:
     # We also need to reset the cache then so cabal does not get
     # confused if there is both the restored .cabal/store and the XDG store.
     #
-    - uses: haskell/actions/setup@v2
+    - uses: haskell-actions/setup@v2
       id: setup-haskell
       with:
         ghc-version: ${{ matrix.ghc-ver }}

@@ -34,7 +34,7 @@ jobs:
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - uses: actions/checkout@v3
     - id: haskell-setup
-      uses: haskell/actions/setup@v2
+      uses: haskell-actions/setup@v2
       with:
         enable-stack: true
         ghc-version: ${{ matrix.ghc-ver }}

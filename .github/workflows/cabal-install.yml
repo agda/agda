@@ -28,7 +28,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - id: setup-haskell
-      uses: haskell/actions/setup@v2
+      uses: haskell-actions/setup@v2
       with:
         cabal-update: false
         cabal-version: ${{ matrix.cabal-ver }}

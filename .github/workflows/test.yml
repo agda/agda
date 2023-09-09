@@ -37,7 +37,7 @@ jobs:
     - uses: actions/checkout@v3
       with:
         submodules: recursive
-    - uses: haskell/actions/setup@v2
+    - uses: haskell-actions/setup@v2
       with:
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
@@ -95,7 +95,7 @@ jobs:
     - uses: actions/checkout@v3
       with:
         submodules: recursive
-    - uses: haskell/actions/setup@v2
+    - uses: haskell-actions/setup@v2
       with:
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
@@ -131,7 +131,7 @@ jobs:
     - uses: actions/checkout@v3
       with:
         submodules: recursive
-    - uses: haskell/actions/setup@v2
+    - uses: haskell-actions/setup@v2
       with:
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
@@ -185,7 +185,7 @@ jobs:
     - uses: actions/checkout@v3
       with:
         submodules: recursive
-    - uses: haskell/actions/setup@v2
+    - uses: haskell-actions/setup@v2
       with:
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
@@ -229,7 +229,7 @@ jobs:
     - uses: actions/checkout@v3
       with:
         submodules: recursive
-    - uses: haskell/actions/setup@v2
+    - uses: haskell-actions/setup@v2
       with:
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}

@@ -109,7 +109,7 @@ jobs:
         submodules: recursive
 
     - &haskell_setup
-      uses: haskell/actions/setup@v2
+      uses: haskell-actions/setup@v2
       with:
         ghc-version: ${{ env.GHC_VER }}
         stack-version: ${{ env.STACK_VER }}
