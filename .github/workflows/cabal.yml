@@ -30,7 +30,7 @@ jobs:
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - if: ${{ runner.os == 'Linux' }}
       name: Switch off XDG directories for cabal (Linux)
       run: |

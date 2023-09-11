@@ -30,7 +30,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Check out the master branch
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - id: vars
       name: Set up platform-dependent variables
       run: |

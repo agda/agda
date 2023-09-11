@@ -32,7 +32,7 @@ jobs:
         ICU_VER=$(pkg-config --modversion icu-i18n)
         echo "ICU_VER=${ICU_VER}"
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - id: haskell-setup
       uses: haskell-actions/setup@v2
       with:

@@ -33,7 +33,7 @@ jobs:
       run: |
         ICU4C=$(brew --prefix)/opt/icu4c
         echo "PKG_CONFIG_PATH=${ICU4C}/lib/pkgconfig" >> "${GITHUB_ENV}"
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - id: haskell-setup
       uses: haskell-actions/setup@v2
       with:
