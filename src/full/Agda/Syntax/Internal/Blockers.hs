@@ -61,6 +61,14 @@ instance Monoid (NotBlocked' t) where
 
 instance NFData t => NFData (NotBlocked' t)
 
+instance Pretty t => Pretty (NotBlocked' t) where
+  pretty = \case
+    StuckOn e        -> "elimination" <+> pretty e
+    Underapplied     -> "missing elimination (underapplied)"
+    AbsurdMatch      -> "absurd match"
+    MissingClauses x -> "missing clause for" <+> pretty x
+    ReallyNotBlocked -> "(not stuck)"
+
 -- | What is causing the blocking? Or in other words which metas or problems need to be solved to
 --   unblock the blocked computation/constraint.
 data Blocker = UnblockOnAll (Set Blocker)

@@ -337,9 +337,10 @@ refine force ii mr e = do
 evalInCurrent :: ComputeMode -> Expr -> TCM Expr
 evalInCurrent cmode e = do
   (v, _t) <- inferExpr e
-  reify =<< compute v
-  where compute | cmode == HeadCompute = reduce
-                | otherwise            = normalise
+  vb <- reduceB v
+  reportSDoc "interaction.eval" 30 $ "evaluated to" TP.<+> TP.pretty vb
+  v  <- pure $ ignoreBlocking vb
+  reify =<< if cmode == HeadCompute then pure v else normalise v
 
 
 evalInMeta :: InteractionId -> ComputeMode -> Expr -> TCM Expr
