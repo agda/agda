@@ -607,6 +607,7 @@ instance Eq Declaration where
   PatternSynDef a1 b1 c1         == PatternSynDef a2 b2 c2         = (a1, b1, c1) == (a2, b2, c2)
   UnquoteDecl a1 b1 c1 d1        == UnquoteDecl a2 b2 c2 d2        = (a1, b1, c1, d1) == (a2, b2, c2, d2)
   UnquoteDef a1 b1 c1            == UnquoteDef a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
+  UnfoldingDecl a1 b1            == UnfoldingDecl a2 b2            = (a1,b1) == (a2,b2)
 
   _                              == _                              = False
 
