@@ -66,13 +66,14 @@ printProgramResult = printProcResult . fromProgramResult
 type AgdaArgs = [String]
 
 
-readAgdaProcessWithExitCode :: AgdaArgs -> Text
+readAgdaProcessWithExitCode :: Maybe [(String, String)]
+                            -> AgdaArgs -> Text
                             -> IO (ExitCode, Text, Text)
-readAgdaProcessWithExitCode args inp = do
+readAgdaProcessWithExitCode env args inp = do
   agdaBin <- getAgdaBin
   envArgs <- getEnvAgdaArgs
   -- hPutStrLn stderr $ unwords $ agdaBin : envArgs ++ args
-  let agdaProc = (proc agdaBin (envArgs ++ args)) { create_group = True }
+  let agdaProc = (proc agdaBin (envArgs ++ args)) { create_group = True , env = env }
   PT.readCreateProcessWithExitCode agdaProc inp
 
 data AgdaResult
@@ -90,21 +91,17 @@ runAgdaWithOptions testName opts mflag mvars = do
     Nothing       -> pure []
     Just flagFile -> maybe [] T.unpack <$> readTextFileMaybe flagFile
 
-  -- setting the additional environment variables, saving a backup
-  backup <- case mvars of
-    Nothing      -> pure []
-    Just varFile -> do
-      addEnv <- maybe [] (map parseEntry . lines . T.unpack) <$> readTextFileMaybe varFile
-      backup <- if null addEnv then pure [] else do
-        env <- getEnvironment
-        pure $ map (\ (var, _) -> (var, fromMaybe "" $ lookup var env)) addEnv
-      forM_ addEnv $ \ (var, val) -> do
-        setEnv var =<< expandEnvironmentVariables val
-      pure backup
+  -- build extended environment for sub process (or Nothing if no change)
+  origEnv <- getEnvironment
+  extEnv <- case mvars of
+    Nothing      -> pure Nothing
+    Just varFile ->
+      fmap ((origEnv ++) . map parseEntry . lines . T.unpack)
+      <$> readTextFileMaybe varFile
 
   let agdaArgs = opts ++ words flags
   let runAgda  = \ extraArgs -> let args = agdaArgs ++ extraArgs in
-                                readAgdaProcessWithExitCode args T.empty
+                                readAgdaProcessWithExitCode extEnv args T.empty
   (ret, stdOut, stdErr) <- do
     if not $ null $ List.intersect agdaArgs ghcInvocationStrings
       -- Andreas, 2017-04-14, issue #2317
@@ -114,9 +111,6 @@ runAgdaWithOptions testName opts mflag mvars = do
     then withSystemTempDirectory ("MAZ_compile_" ++ testName)
            (\ compDir -> runAgda ["--compile-dir=" ++ compDir])
     else runAgda []
-
-  -- reinstating the old environment
-   `finally` mapM_ (uncurry setEnv) backup
 
   cleanedStdOut <- cleanOutput stdOut
   cleanedStdErr <- cleanOutput stdErr
