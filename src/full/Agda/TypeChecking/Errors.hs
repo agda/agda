@@ -290,6 +290,14 @@ instance PrettyTCM TypeError where
     ShouldBeRecordPattern -> fsep $
       pwords "Expected record pattern"
 
+    ShouldBeEtaRecordPattern why p -> fsep $
+      let
+        reason = case why of
+          NotEtaRecord -> pwords "record types with eta-equality, but this constructor belongs to a record type without eta-equality"
+          DataNotRecord -> pwords "record types, but this constructor belongs to a data type"
+      in pwords "Pattern matching in binders is only allowed for"
+          <> reason
+
     WrongHidingInLHS -> fwords "Unexpected implicit argument"
 
     WrongHidingInLambda t ->

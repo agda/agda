@@ -1,0 +1,6 @@
+LetPatternEta.agda:10.9-22: error: [ShouldBeEtaRecordPattern]
+Pattern matching in binders is only allowed for record types with
+eta-equality, but this constructor belongs to a record type without
+eta-equality
+when checking that the expression λ (wrap a) → a has type
+Wrap A → Set

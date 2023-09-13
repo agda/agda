@@ -5675,6 +5675,7 @@ data TypeError
         | ShouldBePath Type
         | ShouldBeRecordType Type
         | ShouldBeRecordPattern
+        | ShouldBeEtaRecordPattern NotEtaRecord DeBruijnPattern
         | CannotApply A.Expr Type
             -- ^ The given expression is used as a function
             --   but its type is not a function type.
@@ -6131,6 +6132,13 @@ data CannotQuote
       -- ^ @quote@ is applied to a pattern that is not an unambiguous defined name.
     deriving (Show, Generic)
 
+-- | Distinguish between a failure of irrefutable record-pattern
+-- translation because the type is not a record, or because the type has
+-- no eta equality.
+data NotEtaRecord
+  = DataNotRecord  -- ^ Data type.
+  | NotEtaRecord   -- ^ Record type without eta-equality.
+  deriving (Eq, Show, Generic)
 -- | Distinguish error message when parsing lhs or pattern synonym, resp.
 data LHSOrPatSyn = IsLHS | IsPatSyn
   deriving (Eq, Show, Generic, Bounded, Enum)
@@ -7389,6 +7397,7 @@ instance NFData TypeError
 instance NFData WhyInvalidInstanceType
 instance NFData ClashingName
 instance NFData InvalidFileNameReason
+instance NFData NotEtaRecord
 instance NFData LHSOrPatSyn
 instance NFData InductionAndEta
 instance NFData RewriteSource

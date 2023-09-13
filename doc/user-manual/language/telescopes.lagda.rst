@@ -142,6 +142,10 @@ called eta-equality:
     eta : (p@(a , b) : Σ A B) → p ≡ (a , b)
     eta p = refl
 
+Since Agda 2.9.0, irrefutable patterns require that the deconstructed record has eta-equality.
+This is the case for ``Σ``,
+but e.g. not for ``coinductive`` records or records declared with ``no-eta-equality``.
+
 
 Let Bindings in Telescopes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
