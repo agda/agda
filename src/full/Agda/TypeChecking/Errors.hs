@@ -225,7 +225,7 @@ errorString err = case err of
   ShouldBePi{}                             -> "ShouldBePi"
   ShouldBePath{}                           -> "ShouldBePath"
   ShouldBeRecordType{}                     -> "ShouldBeRecordType"
-  ShouldBeEtaRecordPattern{}               -> "ShouldBeRecordEtaPattern"
+  ShouldBeEtaRecordPattern{}               -> "ShouldBeEtaRecordPattern"
   NotAProjectionPattern{}                  -> "NotAProjectionPattern"
   ShouldEndInApplicationOfTheDatatype{}    -> "ShouldEndInApplicationOfTheDatatype"
   SplitError{}                             -> "SplitError"
