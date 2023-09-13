@@ -1,3 +1,4 @@
 LetPair.agda:17,7-18
-Expected record pattern
+Pattern matching in binders is only allowed for record types, but
+this constructor belongs to a data type.
 when checking the let binding a , b = p
