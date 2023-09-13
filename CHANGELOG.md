@@ -516,6 +516,7 @@ For 2.6.4, the following issues were also
 (see [bug tracker](https://github.com/agda/agda/issues)):
 
 - [#1181](https://github.com/agda/agda/issues/1181): Display of let-bound variables in goals and error messages
+- [#2271](https://github.com/agda/agda/issues/2271): Helper function abstracts over module parameters, with sometimes disastrous consequences for printing
 - [#3437](https://github.com/agda/agda/issues/3437): Add Propω
 - [#3605](https://github.com/agda/agda/issues/3605): Improve constraint reporting for cubical
 - [#3690](https://github.com/agda/agda/issues/3690): Cubical interaction: Display inferred type with interval variables instantiated
@@ -523,6 +524,7 @@ For 2.6.4, the following issues were also
 - [#6124](https://github.com/agda/agda/issues/6124): Reflection: cannot reduce type because variable is erased
 - [#6140](https://github.com/agda/agda/issues/6140): Unapplied `List` and `Maybe` are sometimes translated to `[AgdaAny]` and `Maybe AgdaAny` by GHC backend
 - [#6229](https://github.com/agda/agda/issues/6229): Print warning name along with warning text
+- [#6269](https://github.com/agda/agda/issues/6269): Documentation is missing for `--keep-covering-clauses` and `--lossy-unification`
 - [#6271](https://github.com/agda/agda/issues/6271): Cubical: should generated code corresponding to erased constructors be erased?
 - [#6272](https://github.com/agda/agda/issues/6272): Put Level type in a different sort
 - [#6309](https://github.com/agda/agda/issues/6309): Drop support for GHC 8.0, 8.2, and 8.4
@@ -564,12 +566,19 @@ For 2.6.4, the following issues were also
 - [#6660](https://github.com/agda/agda/issues/6660): `{-# INLINE #-}` for copattern constructors
 - [#6662](https://github.com/agda/agda/issues/6662): Error message for unsafe option combinations has wrong pluralization
 - [#6677](https://github.com/agda/agda/issues/6677): Helper function type includes generalized parameters
-- [#6687](https://github.com/agda/agda/issues/6687): Termination checker bug with CATCHALL
+- [#6687](https://github.com/agda/agda/issues/6687): Termination checker bug with `CATCHALL`
 - [#6702](https://github.com/agda/agda/issues/6702): Inlining constructors to copattern should give warning with `--exact-split`
 - [#6706](https://github.com/agda/agda/issues/6706): Shape-irrelevant variables marked as irrelevant in human-readable context
-- [#6711](https://github.com/agda/agda/issues/6711): IMPOSSIBLE internal error on primStringUncons when no builtin Sigma provided
-- [#6714](https://github.com/agda/agda/issues/6714): Compiling Agda HEAD with Emacs 29+ reports docstring error
-- [#6715](https://github.com/agda/agda/issues/6715): Type checking loops on certain pattern match in cubical
-- [#6720](https://github.com/agda/agda/issues/6720): Cubical: IMPOSSIBLE in Sort.hs during checking with cubical
-- [#6725](https://github.com/agda/agda/issues/6725): Cubical: IMPOSSIBLE in Reduce.hs
-- [#6767](https://github.com/agda/agda/issues/6767): Spurious internal error in forcing translation involving literals
+- [#6711](https://github.com/agda/agda/issues/6711): Internal error on `primStringUncons` when no builtin Sigma provided
+- [#6714](https://github.com/agda/agda/issues/6714): Docstring error with Emacs 29+ due to changed escape rules for single quote
+- [#6715](https://github.com/agda/agda/issues/6715): Type checking loops on certain pattern match in cubical (regression in 2.6.3)
+- [#6720](https://github.com/agda/agda/issues/6720): Cubical: internal error in `Sort.hs`
+- [#6725](https://github.com/agda/agda/issues/6725): Cubical: internal error in `Reduce.hs` (regression in 2.6.3)
+- [#6750](https://github.com/agda/agda/issues/6750): Order of deserialization depends on build of Agda (version of `hashable`)
+- [#6757](https://github.com/agda/agda/issues/6757): Incorrect `InteractionMetaBoundaries` warning
+- [#6767](https://github.com/agda/agda/issues/6767): Internal error related to forcing on literals
+- [#6786](https://github.com/agda/agda/issues/6786): Missing "when checking parameters of module M" in error message
+- [#6787](https://github.com/agda/agda/issues/6787): Refine doesn't find proof of refl=refl without K
+- [#6794](https://github.com/agda/agda/issues/6794): Safe Agda accepts `{-# TERMINATING #-}` pragma in `interleaved mutual` block
+- [#6795](https://github.com/agda/agda/issues/6795): Missing warning about discarded `{-# TERMINATING #-}` pragma in `where` block inside `interleaved mutual` block
+- [#6823](https://github.com/agda/agda/issues/6823): Suboptimal error location for missing definition before `mutual` block
