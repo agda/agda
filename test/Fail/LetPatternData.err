@@ -1,4 +1,4 @@
-Issue4775.agda:16,11-24
+LetPatternData.agda:10,15-25
 Pattern matching in binders is only allowed for record types, but
 this constructor belongs to a data type.
-when checking the let binding y1 , isSuc y2 = .patternInTele0
+when checking the let binding wrap a = w
