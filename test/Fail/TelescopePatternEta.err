@@ -1,0 +1,5 @@
+TelescopePatternEta.agda:10,15-24
+Pattern matching in binders is only allowed for record types with
+eta-equality, but this constructor belongs to a record type without
+eta-equality.
+when checking the let binding wrap a = w

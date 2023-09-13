@@ -83,8 +83,7 @@ recordPatternToProjections p =
       reportSLn "tc.rec" 70 $ "  type raw: " ++ show t
       case unEl t of
         Def r _ -> fmap theDef (getConstInfo r) >>= \case
-          rt@Record { recFields = fields } | YesEta == recEtaEquality rt -> do
-            fields <- getRecordTypeFields t
+          rt@Record { recFields = fields } | YesEta == recEtaEquality rt ->
             concat <$> zipWithM comb (map proj fields) (map namedArg ps)
           _ -> typeError (ShouldBeEtaRecordPattern NotEtaRecord p)
         _ -> __IMPOSSIBLE_VERBOSE__ "recordPatternToProjections: ConP can only belong to a record or data type."
