@@ -4481,7 +4481,7 @@ data TypeError
             -- ^ The given type should have been a pi.
         | ShouldBePath Type
         | ShouldBeRecordType Type
-        | ShouldBeRecordPattern DeBruijnPattern
+        | ShouldBeEtaRecordPattern NotEtaRecord DeBruijnPattern
         | NotAProjectionPattern (NamedArg A.Pattern)
         | NotAProperTerm
         | InvalidTypeSort Sort
@@ -4659,6 +4659,14 @@ data TypeError
         | InstanceSearchDepthExhausted Term Type Int
         | TriedToCopyConstrainedPrim QName
           deriving (Show, Generic)
+
+-- | Distinguish between a failure of irrefutable record-pattern
+-- translation because the type is not a record, or because the type has
+-- no eta equality
+data NotEtaRecord
+  = DataNotRecord
+  | NotEtaRecord
+  deriving (Eq, Show, Generic)
 
 -- | Distinguish error message when parsing lhs or pattern synonym, resp.
 data LHSOrPatSyn = IsLHS | IsPatSyn
@@ -5690,4 +5698,5 @@ instance NFData NegativeUnification
 instance NFData UnificationFailure
 instance NFData UnquoteError
 instance NFData TypeError
+instance NFData NotEtaRecord
 instance NFData LHSOrPatSyn
