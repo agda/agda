@@ -100,7 +100,7 @@ jobs:
       FLAGS:     ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting' }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Switch off XDG directories for cabal (Linux)
       if: ${{ runner.os == 'Linux' }}

@@ -13,7 +13,7 @@ jobs:
 
     steps:
     - name: Checkout agda sources
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Check for whitespace violations
       uses: andreasabel/fix-whitespace-action@v1
