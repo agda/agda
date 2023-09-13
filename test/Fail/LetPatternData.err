@@ -1,4 +1,0 @@
-LetPatternData.agda:10,15-25
-Pattern matching in binders is only allowed for record types, but
-this constructor belongs to a data type.
-when checking the let binding wrap a = w

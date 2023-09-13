@@ -1,4 +1,3 @@
 Issue4775.agda:16,11-24
-Pattern matching in binders is only allowed for record types, but
-this constructor belongs to a data type.
+Expected record pattern
 when checking the let binding y1 , isSuc y2 = .patternInTele0

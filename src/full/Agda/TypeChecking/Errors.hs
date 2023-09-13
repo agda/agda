@@ -225,7 +225,7 @@ errorString err = case err of
   ShouldBePi{}                             -> "ShouldBePi"
   ShouldBePath{}                           -> "ShouldBePath"
   ShouldBeRecordType{}                     -> "ShouldBeRecordType"
-  ShouldBeEtaRecordPattern{}               -> "ShouldBeEtaRecordPattern"
+  ShouldBeRecordPattern{}                  -> "ShouldBeRecordPattern"
   NotAProjectionPattern{}                  -> "NotAProjectionPattern"
   ShouldEndInApplicationOfTheDatatype{}    -> "ShouldEndInApplicationOfTheDatatype"
   SplitError{}                             -> "SplitError"
@@ -364,13 +364,8 @@ instance PrettyTCM TypeError where
     ShouldBeRecordType t -> fsep $
       pwords "Expected non-abstract record type, found " ++ [prettyTCM t]
 
-    ShouldBeEtaRecordPattern why p -> fsep $
-      let
-        reason = case why of
-          NotEtaRecord -> pwords "record types with eta-equality, but this constructor belongs to a record type without eta-equality."
-          DataNotRecord -> pwords "record types, but this constructor belongs to a data type."
-      in pwords "Pattern matching in binders is only allowed for"
-          <> reason
+    ShouldBeRecordPattern p -> fsep $
+      pwords "Expected record pattern" -- ", found " ++ [prettyTCM p]
 
     NotAProjectionPattern p -> fsep $
       pwords "Not a valid projection for a copattern: " ++ [ prettyA p ]
