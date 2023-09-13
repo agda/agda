@@ -9,44 +9,39 @@
 
 module Any where
 
-open import Algebra
+open import Algebra                                          using (CommutativeSemiring)
 import Algebra.Definitions as FP
-open import Effect.Monad
-open import Data.Bool
-open import Data.Bool.Properties
-open import Data.Empty
-open import Data.List as List
-open import Data.List.Relation.Unary.Any as Any using (Any; here; there)
+open import Effect.Monad                                     using (RawMonad)
+open import Data.Bool.Base                                   using (Bool; true; false; T)
+open import Data.Bool.Properties                             using (T-∨; T-≡)
+open import Data.Empty                                       using (⊥)
+open import Data.List.Base as List                           using (List; []; _∷_; [_]; _++_; any; concat)
+open import Data.List.Relation.Unary.Any as Any              using (Any; here; there)
 import Data.List.Effectful
-open import Data.Product as Prod hiding (swap)
-open import Data.Product.Function.NonDependent.Propositional
-  using (_×-cong_)
-open import Data.Product.Relation.Binary.Pointwise.NonDependent
+open import Data.Product.Base as Prod                        using (∃; ∃₂; _×_; _,_; proj₁; proj₂; uncurry′)
+open import Data.Product.Function.NonDependent.Propositional using (_×-cong_)
 import Data.Product.Function.Dependent.Propositional as Σ
-open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
-open import Data.Sum.Relation.Binary.Pointwise
-open import Data.Sum.Function.Propositional using (_⊎-cong_)
-open import Function using (_$_; _$′_; _∘_; id; flip; const)
-open import Function.Equality using (_⟨$⟩_)
-open import Function.Equivalence as Eq using (_⇔_; module Equivalence)
-open import Function.Inverse as Inv using (_↔_; module Inverse)
-open import Function.Related as Related using (Related; SK-sym)
+open import Data.Sum.Base as Sum                             using (_⊎_; inj₁; inj₂; [_,_]′)
+open import Data.Sum.Function.Propositional                  using (_⊎-cong_)
+open import Function.Base                                    using (_$_; _$′_; _∘_; id; flip; const)
+open import Function.Equality                                using (_⟨$⟩_)
+open import Function.Equivalence as Eq                       using (_⇔_; module Equivalence)
+open import Function.Inverse as Inv                          using (_↔_; module Inverse)
+open import Function.Related as Related                      using (Related; SK-sym)
 open import Function.Related.TypeIsomorphisms
-open import Level
-open import Relation.Binary hiding (_⇔_)
 import Relation.Binary.HeterogeneousEquality as H
-open import Relation.Binary.PropositionalEquality as P
-  using (_≡_; refl; inspect) renaming ([_] to P[_])
-open import Relation.Unary using (_⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _⋐_)
+open import Relation.Binary.PropositionalEquality as P       using (_≡_; refl; inspect) renaming ([_] to P[_])
+open import Relation.Unary                                   using (_⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _⋐_)
 
-open import Data.List.Membership.Propositional
-open import Data.List.Relation.Binary.BagAndSetEquality
+open import Data.List.Membership.Propositional               using (_∈_; find; lose; mapWith∈)
+open import Data.List.Relation.Binary.BagAndSetEquality      using (_∼[_]_)
 open Related.EquationalReasoning
 
 private
   module ×⊎ {k ℓ} = CommutativeSemiring (×-⊎-commutativeSemiring k ℓ)
   open module ListMonad {ℓ} =
     RawMonad (Data.List.Effectful.monad {ℓ = ℓ})
+    using (_<$>_; _⊗_; _⊛_; _>>=_; pure)
 
 ------------------------------------------------------------------------
 -- Some lemmas related to map, find and lose
