@@ -277,13 +277,6 @@ jobs:
       if: always() # run test even if a previous test failed
       #    11s (2022-06-17)
 
-    - name: "Benchmark"
-      run: |
-        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" benchmark-without-logs
-        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" benchmark-summary
-      if: always() # run test even if a previous test failed
-      # 6m  3s (2022-06-17)
-
     - name: "Compiler tests"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" compiler-test
       if: always() # run test even if a previous test failed
@@ -311,6 +304,15 @@ jobs:
         # We should also use `stack` in this test.
         cabal update
         make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" std-lib-test
+
+    # Andreas, 2023-09-13: Benchmark `any` uses the standard library,
+    # so benchmarks should be run here (or split out the std-lib benchmarks).
+    - name: "Benchmark"
+      run: |
+        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" benchmark-without-logs
+        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" benchmark-summary
+      if: always() # run test even if a previous test failed
+      # 6m  3s (2022-06-17)
 
     - name: "Standard library compiler tests"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" std-lib-compiler-test
