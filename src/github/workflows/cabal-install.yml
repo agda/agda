@@ -56,7 +56,7 @@ jobs:
       FLAGS: "-O0 -f enable-cluster-counting"
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     # ## Disable the setup action: Use preinstalled GHC and Cabal.
     # ##
