@@ -92,11 +92,12 @@ runAgdaWithOptions testName opts mflag mvars = do
     Just flagFile -> maybe [] T.unpack <$> readTextFileMaybe flagFile
 
   -- build extended environment for sub process (or Nothing if no change)
+  home <- getHomeDirectory
   origEnv <- getEnvironment
   extEnv <- case mvars of
     Nothing      -> pure Nothing
     Just varFile ->
-      fmap ((origEnv ++) . map parseEntry . lines . T.unpack)
+      fmap (expandEnvVarTelescope home . (origEnv ++) . map parseEntry . lines . T.unpack)
       <$> readTextFileMaybe varFile
 
   let agdaArgs = opts ++ words flags
