@@ -2,7 +2,8 @@
 
 -- | Expand environment variables in strings
 module Agda.Utils.Environment
-  ( expandEnvironmentVariables
+  ( EnvVars
+  , expandEnvironmentVariables
   , expandEnvVarTelescope
   ) where
 
@@ -19,7 +20,7 @@ expandEnvironmentVariables s = do
 
 expandVars
   :: String              -- ^ Home directory.
-  -> [(String, String)]  -- ^ Environment variable substitution map.
+  -> EnvVars             -- ^ Environment variable substitution map.
   -> String              -- ^ Input.
   -> String              -- ^ Output with variables and @~@ (home) substituted.
 expandVars home env s = concatMap repl $ tokens s
@@ -28,9 +29,12 @@ expandVars home env s = concatMap repl $ tokens s
     repl (Var x) = fromMaybe "" $ lookup x env
     repl (Str s) = s
 
+-- | List of environment variable bindings
+type EnvVars = [(String, String)]
+
 -- | Expand a telescope of environment variables
 --   (each value may refer to variables earlier in the list)
-expandEnvVarTelescope :: String -> [(String, String)] -> [(String, String)]
+expandEnvVarTelescope :: String -> EnvVars -> EnvVars
 expandEnvVarTelescope home vs0 = reverse $ foldr  -- compensate for reverse below
   (\(var,val) acc -> (var, expandVars home acc val):acc)
   [] (reverse vs0)  -- reverse because earlier vals must be processed first

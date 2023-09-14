@@ -66,7 +66,7 @@ printProgramResult = printProcResult . fromProgramResult
 type AgdaArgs = [String]
 
 
-readAgdaProcessWithExitCode :: Maybe [(String, String)]
+readAgdaProcessWithExitCode :: Maybe EnvVars
                             -> AgdaArgs -> Text
                             -> IO (ExitCode, Text, Text)
 readAgdaProcessWithExitCode env args inp = do
