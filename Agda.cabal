@@ -604,7 +604,6 @@ library
       Agda.TypeChecking.DropArgs
       Agda.TypeChecking.Empty
       Agda.TypeChecking.EtaContract
-      Agda.TypeChecking.EtaExpand
       Agda.TypeChecking.Errors
       Agda.TypeChecking.Free
       Agda.TypeChecking.Free.Lazy
