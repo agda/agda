@@ -57,6 +57,7 @@
 /test/Compiler/with-stdlib/AllStdLib
 /test/Compiler/with-stdlib/agda-rts.js
 /test/Compiler/with-stdlib/highlight-hover.js
+/test/interaction/Issue6261?.out
 /test/Succeed/Issue296
 /test/Succeed/Issue867
 /test/Succeed/Options-in-right-order
