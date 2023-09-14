@@ -177,8 +177,8 @@ Testing and documentation
     * When adding test cases under `test/Fail`, remember to record the error messages
       (`.err` files) after running make test.
     * Same for `.warn` files in `test/Succeed` and `.out` files in `test/interaction`.
-    * You can also add `.flags` files to set `agda` options
-    * You can also add `.vars` files to set environment variables (which may reference other environment variables)
+    * You can also add `.flags` files to set Agda options.
+    * You can also add `.vars` files to set environment variables (which may reference other environment variables, even those in the file appearing before them).
 
 
 * Run the test-suite, using `make test`.
