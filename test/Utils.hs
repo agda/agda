@@ -70,7 +70,7 @@ readAgdaProcessWithExitCode :: Maybe EnvVars
                             -> AgdaArgs -> Text
                             -> IO (ExitCode, Text, Text)
 readAgdaProcessWithExitCode env args inp = do
-  agdaBin <- getAgdaBin
+  let agdaBin = getAgdaBin . fromMaybe [] $ env
   let envArgs = maybe [] words $ lookup "AGDA_ARGS" =<< env
   -- hPutStrLn stderr $ unwords $ agdaBin : envArgs ++ args
   let agdaProc = (proc agdaBin (envArgs ++ args)) { create_group = True , env = env }
@@ -131,19 +131,15 @@ hasWarning t =
  "———— All done; warnings encountered ————————————————————————"
  `T.isInfixOf` t
 
-getAgdaBin :: IO FilePath
+getAgdaBin :: EnvVars -> FilePath
 getAgdaBin = getProg "agda"
 
 -- | Gets the program executable. If an environment variable
 -- YYY_BIN is defined (with yyy converted to upper case),
 -- the value of it is returned. Otherwise, the input value
 -- is returned unchanged.
-getProg :: String -> IO FilePath
-getProg prog = fromMaybe prog <$> getEnvVar (map toUpper prog ++ "_BIN")
-
-getEnvVar :: String -> IO (Maybe String)
-getEnvVar v =
-  lookup v <$> getEnvironment
+getProg :: String -> EnvVars -> FilePath
+getProg prog = fromMaybe prog . lookup (map toUpper prog ++ "_BIN")
 
 -- | List of possible extensions of agda files.
 agdaExtensions :: [String]
@@ -263,7 +259,7 @@ asTestName testDir path = intercalate "-" parts
   where parts = splitDirectories $ dropAgdaExtension $ makeRelative testDir path
 
 doesEnvContain :: String -> IO Bool
-doesEnvContain v = isJust <$> getEnvVar v
+doesEnvContain v = isJust <$> lookupEnv v
 
 readTextFile :: FilePath -> IO Text
 readTextFile f = decodeUtf8 <$> BS.readFile f
@@ -337,7 +333,7 @@ cleanOutput' agda pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
 
 cleanOutput :: Text -> IO Text
 cleanOutput inp = do
-  agda <- takeFileName <$> getAgdaBin
+  agda <- takeFileName <$> getAgdaBin <$> getEnvironment
   pwd <- getCurrentDirectory
   return $ cleanOutput' (T.pack agda) (map slashify pwd) inp
   where
