@@ -179,7 +179,7 @@ Testing and documentation
     * Same for `.warn` files in `test/Succeed` and `.out` files in `test/interaction`.
     * You can also add `.flags` files to set `agda` options
     * You can also add `.vars` files to set environment variables (which may reference other environment variables)
-     
+
 
 * Run the test-suite, using `make test`.
   Maybe you want to build Agda first, using `make` or `make install-bin`.
