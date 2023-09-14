@@ -66,14 +66,16 @@ printProgramResult = printProcResult . fromProgramResult
 type AgdaArgs = [String]
 
 
-readAgdaProcessWithExitCode :: Maybe EnvVars
+readAgdaProcessWithExitCode :: Maybe EnvVars  --- extra env vars, unexpanded
                             -> AgdaArgs -> Text
                             -> IO (ExitCode, Text, Text)
-readAgdaProcessWithExitCode env args inp = do
-  let agdaBin = getAgdaBin . fromMaybe [] $ env
-  let envArgs = maybe [] words $ lookup "AGDA_ARGS" =<< env
+readAgdaProcessWithExitCode extraEnv args inp = do
+  origEnv <- getEnvironment
+  home <- getHomeDirectory
+  let env = expandEnvVarTelescope home $ maybe origEnv (origEnv ++) extraEnv
+  let envArgs = maybe [] words $ lookup "AGDA_ARGS" env
   -- hPutStrLn stderr $ unwords $ agdaBin : envArgs ++ args
-  let agdaProc = (proc agdaBin (envArgs ++ args)) { create_group = True , env = env }
+  let agdaProc = (proc (getAgdaBin env) (envArgs ++ args)) { create_group = True , env = Just env }
   PT.readCreateProcessWithExitCode agdaProc inp
 
 data AgdaResult
@@ -91,18 +93,16 @@ runAgdaWithOptions testName opts mflag mvars = do
     Nothing       -> pure []
     Just flagFile -> maybe [] T.unpack <$> readTextFileMaybe flagFile
 
-  -- build extended environment for sub process (or Nothing if no change)
-  home <- getHomeDirectory
-  origEnv <- getEnvironment
-  extEnv <- case mvars of
+  -- get extra environment vars for sub process (or Nothing if no change)
+  extraEnv <- case mvars of
     Nothing      -> pure Nothing
     Just varFile ->
-      fmap (expandEnvVarTelescope home . (origEnv ++) . map parseEntry . lines . T.unpack)
+      fmap (map parseEntry . lines . T.unpack)
       <$> readTextFileMaybe varFile
 
   let agdaArgs = opts ++ words flags
   let runAgda  = \ extraArgs -> let args = agdaArgs ++ extraArgs in
-                                readAgdaProcessWithExitCode extEnv args T.empty
+                                readAgdaProcessWithExitCode extraEnv args T.empty
   (ret, stdOut, stdErr) <- do
     if not $ null $ List.intersect agdaArgs ghcInvocationStrings
       -- Andreas, 2017-04-14, issue #2317
