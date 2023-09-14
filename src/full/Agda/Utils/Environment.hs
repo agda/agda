@@ -35,7 +35,7 @@ type EnvVars = [(String, String)]
 -- | Expand a telescope of environment variables
 --   (each value may refer to variables earlier in the list)
 expandEnvVarTelescope :: String -> EnvVars -> EnvVars
-expandEnvVarTelescope home = reverse . foldl  -- compensate for reverse below
+expandEnvVarTelescope home = reverse . foldl  -- foldl reverses, so re-reverse afterwards
   (\acc (var,val) -> (var, expandVars home acc val):acc) []
 
 -- | Tokenization for environment variable substitution.
