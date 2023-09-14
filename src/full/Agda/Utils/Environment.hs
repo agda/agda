@@ -31,8 +31,8 @@ expandVars home env s = concatMap repl $ tokens s
 -- | Expand a telescope of environment variables
 --   (each value may refer to variables earlier in the list)
 expandEnvVarTelescope :: String -> [(String, String)] -> [(String, String)]
-expandEnvVarTelescope home vs0 = foldl' -- foldl to compensate for reverse
-  (\acc (var,val) -> (var, expandVars home acc val):acc)
+expandEnvVarTelescope home vs0 = reverse $ foldr  -- compensate for reverse below
+  (\(var,val) acc -> (var, expandVars home acc val):acc)
   [] (reverse vs0)  -- reverse because earlier vals must be processed first
 
 -- | Tokenization for environment variable substitution.
