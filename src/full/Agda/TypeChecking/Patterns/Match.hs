@@ -240,11 +240,11 @@ matchPattern p u = case (p, u) of
     where
     isEtaRecordCon :: HasConstInfo m => QName -> m (Maybe [Arg QName])
     isEtaRecordCon c = do
-      (theDef <$> getConstInfo c) >>= \case
+      getConstInfo c <&> theDef >>= \case
         Constructor{ conData = d } -> do
-          (theDef <$> getConstInfo d) >>= \case
-            r@Record{ recFields = fs } | YesEta <- recEtaEquality r -> return $ Just $ map argFromDom fs
-            _ -> return Nothing
+          getConstInfo d <&> theDef <&> \case
+            RecordDefn (r@RecordData{ _recFields = fs }) | YesEta <- recEtaEquality r -> Just $ map argFromDom fs
+            _ -> Nothing
         _ -> __IMPOSSIBLE__
   (DefP o q ps, v) -> do
     let f (Def q' vs) | q == q' = Just (Def q, vs)

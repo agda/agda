@@ -794,15 +794,17 @@ checkPragma r p =
         A.OptionsPragma{} -> typeError $ GenericError $ "OPTIONS pragma only allowed at beginning of file, before top module declaration"
         A.DisplayPragma f ps e -> checkDisplayPragma f ps e
         A.EtaPragma r -> do
-          let noRecord = typeError $ GenericError $
-                "ETA pragma is only applicable to coinductive records"
-          caseMaybeM (isRecord r) noRecord $ \case
-            Record{ recInduction = ind, recEtaEquality' = eta } -> do
-              unless (ind == Just CoInductive) $ noRecord
+
+          -- Check that the ETA pragma is applicable or error out
+          isRecord r >>= \case
+            Just RecordData{ _recInduction = Just CoInductive, _recEtaEquality' = eta } -> do
               if | Specified NoEta{} <- eta -> typeError $ GenericError $
                      "ETA pragma conflicts with no-eta-equality declaration"
-                 | otherwise -> return ()
-            _ -> __IMPOSSIBLE__
+                 | otherwise -> pure ()
+            _ -> typeError $ GenericError $
+                "ETA pragma is only applicable to coinductive records"
+
+          -- Turn on eta for given record.
           modifySignature $ updateDefinition r $ updateTheDef $ \case
             def@Record{} -> def { recEtaEquality' = Specified YesEta }
             _ -> __IMPOSSIBLE__

@@ -2919,12 +2919,11 @@ instance Pretty ProjLams where
   pretty (ProjLams args) = pretty args
 
 -- | Is the record type recursive?
-recRecursive :: Defn -> Bool
-recRecursive (Record { recMutual = Just qs }) = not $ null qs
-recRecursive _ = __IMPOSSIBLE__
+recRecursive :: RecordData -> Bool
+recRecursive = maybe __IMPOSSIBLE__ (not . null) . _recMutual
 
-recEtaEquality :: Defn -> HasEta
-recEtaEquality = theEtaEquality . recEtaEquality'
+recEtaEquality :: RecordData -> HasEta
+recEtaEquality = theEtaEquality . _recEtaEquality'
 
 -- | A template for creating 'Function' definitions, with sensible
 -- defaults.

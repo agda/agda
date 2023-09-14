@@ -21,7 +21,7 @@ etaExpandOnce a v = reduce a >>= \case
 
   a -> isEtaRecordType a >>= \case
     Just (r, pars) -> do
-      def <- theDef <$> getConstInfo r
+      RecordDefn def <- theDef <$> getConstInfo r
       (_, con, ci, args) <- etaExpandRecord_ r pars def v
       return $ mkCon con ci args
     Nothing -> return v

@@ -28,7 +28,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
 import Agda.Syntax.Internal.MetaVars
-import Agda.Syntax.Position (getRange)
+import Agda.Syntax.Position (getRange, killRange)
 
 import Agda.TypeChecking.Monad
 -- import Agda.TypeChecking.Monad.Builtin
@@ -373,10 +373,12 @@ newRecordMetaCtx
   -> Args    -- ^ Parameters of record type.
   -> Telescope -> Permutation -> Args -> TCM Term
 newRecordMetaCtx pref frozen r pars tel perm ctx = do
-  ftel   <- flip apply pars <$> getRecordFieldTypes r
+  rdef   <- getRecordDef r
+  let con = killRange $ _recConHead rdef
+  -- Get the record field types as telescope.
+  let ftel = apply (_recTel rdef) pars
   fields <- newArgsMetaCtx'' pref frozen trueCondition
               (telePi_ ftel __DUMMY_TYPE__) tel perm ctx
-  con    <- getRecordConstructor r
   return $ Con con ConOSystem (map Apply fields)
 
 newQuestionMark :: InteractionId -> Comparison -> Type -> TCM (MetaId, Term)
@@ -1658,7 +1660,7 @@ inverseSubst' skip args = map (mapFst unArg) <$> loop (zip args terms)
              | otherwise         = failure tm
         irrProj <- optIrrelevantProjections <$> pragmaOptions
         lift (isRecordConstructor $ conName c) >>= \case
-          Just (_, r@Record{ recFields = fs })
+          Just (_, r@RecordData{ _recFields = fs })
             | YesEta <- recEtaEquality r  -- Andreas, 2019-11-10, issue #4185: only for eta-records
             , length fs == length es
             , hasQuantity0 info || all usableQuantity fs     -- Andreas, 2019-11-12/17, issue #4168b

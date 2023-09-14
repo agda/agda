@@ -85,6 +85,7 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
@@ -1384,7 +1385,8 @@ checkLHS mf = updateModality checkLHS_ where
           ps <- insertImplicitPatterns ExpandLast ps gamma
           return $ useNamesFromPattern ps gamma
         A.RecP _ fs -> do
-          axs <- map argFromDom . recordFieldNames . theDef <$> getConstInfo d
+          RecordDefn rdef <- theDef <$> getConstInfo d
+          let axs = map argFromDom $ recordFieldNames rdef
           ps <- insertMissingFieldsFail d (const $ A.WildP patNoRange) fs axs
           ps <- insertImplicitPatterns ExpandLast ps gamma
           return $ useNamesFromPattern ps gamma
@@ -1727,14 +1729,14 @@ disambiguateProjection
 disambiguateProjection h ambD@(AmbQ ds) b = do
   -- If the target is not a record type, that's an error.
   -- It could be a meta, but since we cannot postpone lhs checking, we crash here.
-  caseMaybeM (liftTCM $ isRecordType $ unArg b) notRecord $ \(r, vs, def) -> case def of
-    Record{ recFields = fs, recInduction, recEtaEquality' = eta } -> do
+  caseMaybeM (liftTCM $ isRecordType $ unArg b) notRecord $
+    \(r, vs, RecordData{ _recFields = fs, _recInduction = ind, _recEtaEquality' = eta }) -> do
       reportSDoc "tc.lhs.split" 20 $ sep
-        [ text $ "we are of record type r  = " ++ prettyShow r
-        , text   "applied to parameters vs = " <+> prettyTCM vs
-        , text $ "and have fields       fs = " ++ prettyShow (map argFromDom fs)
+        [ "we are of record type r  = " <> pure (P.pretty r)
+        , "applied to parameters vs = " <> prettyTCM vs
+        , "and have fields       fs = " <> pure (P.pretty $ map argFromDom fs)
         ]
-      let comatching = recInduction == Just CoInductive
+      let comatching = ind == Just CoInductive
                     || copatternMatchingAllowed eta
       -- Try the projection candidates.
       -- First, we try to find a disambiguation that doesn't produce
@@ -1750,8 +1752,6 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
               , "It could refer to any of"
               , nest 2 $ vcat $ map (prettyDisambProj . fst) disambs
               ]
-    _ -> __IMPOSSIBLE__
-
   where
     tryDisambiguate constraintsOk fs r vs comatching failure = do
       -- Note that tryProj wraps TCM in an ExceptT, collecting errors
