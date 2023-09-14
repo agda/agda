@@ -71,7 +71,7 @@ readAgdaProcessWithExitCode :: Maybe [(String, String)]
                             -> IO (ExitCode, Text, Text)
 readAgdaProcessWithExitCode env args inp = do
   agdaBin <- getAgdaBin
-  envArgs <- getEnvAgdaArgs
+  let envArgs = maybe [] words $ lookup "AGDA_ARGS" =<< env
   -- hPutStrLn stderr $ unwords $ agdaBin : envArgs ++ args
   let agdaProc = (proc agdaBin (envArgs ++ args)) { create_group = True , env = env }
   PT.readCreateProcessWithExitCode agdaProc inp
@@ -130,10 +130,6 @@ hasWarning :: Text -> Bool
 hasWarning t =
  "———— All done; warnings encountered ————————————————————————"
  `T.isInfixOf` t
-
-
-getEnvAgdaArgs :: IO AgdaArgs
-getEnvAgdaArgs = maybe [] words <$> getEnvVar "AGDA_ARGS"
 
 getAgdaBin :: IO FilePath
 getAgdaBin = getProg "agda"
