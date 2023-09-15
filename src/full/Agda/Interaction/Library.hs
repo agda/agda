@@ -20,6 +20,7 @@
 --
 module Agda.Interaction.Library
   ( findProjectRoot
+  , getAgdaAppDir
   , getDefaultLibraries
   , getInstalledLibraries
   , getTrustedExecutables
@@ -126,7 +127,10 @@ mkLibM libs m = do
 getAgdaAppDir :: IO FilePath
 getAgdaAppDir = do
   -- System-specific command to build the path to ~/.agda (Unix) or %APPDATA%\agda (Win)
-  let agdaDir = getAppUserDataDirectory "agda"
+  let agdaDir = getAppUserDataDirectory "agda" >>= \legacyAgdaDir ->
+        ifM (doesDirectoryExist legacyAgdaDir)
+            (pure legacyAgdaDir)
+            (getXdgDirectory XdgConfig "agda")
   -- The default can be overwritten by setting the AGDA_DIR environment variable
   caseMaybeM (lookupEnv "AGDA_DIR") agdaDir $ \ dir ->
       ifM (doesDirectoryExist dir) (canonicalizePath dir) $ do

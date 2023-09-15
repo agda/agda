@@ -51,6 +51,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 
 import Agda.Utils.Impossible
+import Agda.Interaction.Library (getAgdaAppDir)
 
 -- | The main function
 runAgda :: [Backend] -> IO ()
@@ -90,10 +91,11 @@ runAgda' backends = runTCMPrettyErrors $ do
           IO.hSetEncoding IO.stderr enc
 
       case mode of
-        MainModePrintHelp hp   -> liftIO $ printUsage bs hp
-        MainModePrintVersion o -> liftIO $ printVersion bs o
-        MainModePrintAgdaDir   -> liftIO $ printAgdaDir
-        MainModeRun interactor -> do
+        MainModePrintHelp hp     -> liftIO $ printUsage bs hp
+        MainModePrintVersion o   -> liftIO $ printVersion bs o
+        MainModePrintAgdaDataDir -> liftIO $ printAgdaDataDir
+        MainModePrintAgdaAppDir  -> liftIO $ printAgdaAppDir
+        MainModeRun interactor   -> do
           setTCLens stBackends bs
           runAgdaWithOptions interactor progName opts
 
@@ -102,7 +104,8 @@ data MainMode
   = MainModeRun (Interactor ())
   | MainModePrintHelp Help
   | MainModePrintVersion PrintAgdaVersion
-  | MainModePrintAgdaDir
+  | MainModePrintAgdaDataDir
+  | MainModePrintAgdaAppDir
 
 -- | Determine the main execution mode to run, based on the configured backends and command line options.
 -- | This is pure.
@@ -110,7 +113,8 @@ getMainMode :: MonadError String m => [Backend] -> Maybe AbsolutePath -> Command
 getMainMode configuredBackends maybeInputFile opts
   | Just hp <- optPrintHelp opts    = return $ MainModePrintHelp hp
   | Just o  <- optPrintVersion opts = return $ MainModePrintVersion o
-  | optPrintAgdaDir opts            = return $ MainModePrintAgdaDir
+  | optPrintAgdaDataDir opts        = return $ MainModePrintAgdaDataDir
+  | optPrintAgdaAppDir opts         = return $ MainModePrintAgdaAppDir
   | otherwise = do
       mi <- getInteractor configuredBackends maybeInputFile opts
       -- If there was no selection whatsoever (e.g. just invoked "agda"), we just show help and exit.
@@ -285,8 +289,11 @@ printVersion backends PrintAgdaVersion = do
 #endif
     []
 
-printAgdaDir :: IO ()
-printAgdaDir = putStrLn =<< getDataDir
+printAgdaDataDir :: IO ()
+printAgdaDataDir = putStrLn =<< getDataDir
+
+printAgdaAppDir :: IO ()
+printAgdaAppDir = putStrLn =<< getAgdaAppDir
 
 -- | What to do for bad options.
 optionError :: String -> IO ()
