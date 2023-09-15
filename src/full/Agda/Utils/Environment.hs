@@ -29,14 +29,14 @@ expandVars home env s = concatMap repl $ tokens s
     repl (Var x) = fromMaybe "" $ lookup x env
     repl (Str s) = s
 
--- | List of environment variable bindings
+-- | List of environment variable bindings.
 type EnvVars = [(String, String)]
 
 -- | Expand a telescope of environment variables
---   (each value may refer to variables earlier in the list)
+--   (each value may refer to variables earlier in the list).
 expandEnvVarTelescope :: String -> EnvVars -> EnvVars
 expandEnvVarTelescope home = reverse . foldl  -- foldl reverses, so re-reverse afterwards
-  (\acc (var,val) -> (var, expandVars home acc val):acc) []
+  (\ acc (var, val) -> (var, expandVars home acc val) : acc) []
 
 -- | Tokenization for environment variable substitution.
 data Token
