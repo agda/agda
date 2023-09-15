@@ -5,7 +5,7 @@ include $(TOP)/mk/paths.mk
 AGDA = $(AGDA_BIN) -v0 --no-libraries
 
 .PHONY: all
-all : Issue1168.api PrettyInterface.api PrintImports.run ScopeFromInterface.api
+all : StdLibImportGraph.run Issue1168.api PrettyInterface.api PrintImports.run ScopeFromInterface.api
 
 %.agdai : %.agda $(AGDA_BIN)
 	$(AGDA) $<
@@ -17,8 +17,8 @@ all : Issue1168.api PrettyInterface.api PrintImports.run ScopeFromInterface.api
 .PHONY: %.run
 %.run : %.hs
 	$(eval tmpdir = $(shell mktemp -d /tmp/api-test.XXXX))
-	$(GHC) -Wall -Werror -package Agda-$(VERSION) -o $(tmpdir)/$* $*.hs
-	$(tmpdir)/$*
+	$(GHC) -threaded -Wall -Werror -package Agda-$(VERSION) -o $(tmpdir)/$* $*.hs
+	$(tmpdir)/$* +RTS -N2 -RTS
 	rm -r $(tmpdir)
 
 .PHONY: clean
