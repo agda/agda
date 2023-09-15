@@ -173,10 +173,13 @@ Testing and documentation
   `doc/user-manual/` and `CHANGELOG.md`.
 
 * In both cases, you need to add regression tests under `test/Succeed`
-  and `test/Fail`, and maybe also `test/interaction`. When adding test
-  cases under `test/Fail`, remember to record the error messages
-  (`.err` files) after running make test.
-  Same for `.warn` files in `test/Succeed` and `.out` files in `test/interaction`.
+  and `test/Fail`, and maybe also `test/interaction`.
+    * When adding test cases under `test/Fail`, remember to record the error messages
+      (`.err` files) after running make test.
+    * Same for `.warn` files in `test/Succeed` and `.out` files in `test/interaction`.
+    * You can also add `.flags` files to set Agda options.
+    * You can also add `.vars` files to set environment variables (which may reference other environment variables, even those in the file appearing before them).
+
 
 * Run the test-suite, using `make test`.
   Maybe you want to build Agda first, using `make` or `make install-bin`.

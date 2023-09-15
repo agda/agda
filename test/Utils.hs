@@ -66,13 +66,16 @@ printProgramResult = printProcResult . fromProgramResult
 type AgdaArgs = [String]
 
 
-readAgdaProcessWithExitCode :: AgdaArgs -> Text
+readAgdaProcessWithExitCode :: Maybe EnvVars  -- ^ Extra environment variables, unexpanded.
+                            -> AgdaArgs -> Text
                             -> IO (ExitCode, Text, Text)
-readAgdaProcessWithExitCode args inp = do
-  agdaBin <- getAgdaBin
-  envArgs <- getEnvAgdaArgs
+readAgdaProcessWithExitCode extraEnv args inp = do
+  origEnv <- getEnvironment
+  home <- getHomeDirectory
+  let env = expandEnvVarTelescope home $ maybe origEnv (origEnv ++) extraEnv
+  let envArgs = maybe [] words $ lookup "AGDA_ARGS" env
   -- hPutStrLn stderr $ unwords $ agdaBin : envArgs ++ args
-  let agdaProc = (proc agdaBin (envArgs ++ args)) { create_group = True }
+  let agdaProc = (proc (getAgdaBin env) (envArgs ++ args)) { create_group = True , env = Just env }
   PT.readCreateProcessWithExitCode agdaProc inp
 
 data AgdaResult
@@ -90,21 +93,16 @@ runAgdaWithOptions testName opts mflag mvars = do
     Nothing       -> pure []
     Just flagFile -> maybe [] T.unpack <$> readTextFileMaybe flagFile
 
-  -- setting the additional environment variables, saving a backup
-  backup <- case mvars of
-    Nothing      -> pure []
-    Just varFile -> do
-      addEnv <- maybe [] (map parseEntry . lines . T.unpack) <$> readTextFileMaybe varFile
-      backup <- if null addEnv then pure [] else do
-        env <- getEnvironment
-        pure $ map (\ (var, _) -> (var, fromMaybe "" $ lookup var env)) addEnv
-      forM_ addEnv $ \ (var, val) -> do
-        setEnv var =<< expandEnvironmentVariables val
-      pure backup
+  -- get extra environment vars for sub process (or Nothing if no change)
+  extraEnv <- case mvars of
+    Nothing      -> pure Nothing
+    Just varFile ->
+      fmap (map parseEntry . lines . T.unpack)
+      <$> readTextFileMaybe varFile
 
   let agdaArgs = opts ++ words flags
   let runAgda  = \ extraArgs -> let args = agdaArgs ++ extraArgs in
-                                readAgdaProcessWithExitCode args T.empty
+                                readAgdaProcessWithExitCode extraEnv args T.empty
   (ret, stdOut, stdErr) <- do
     if not $ null $ List.intersect agdaArgs ghcInvocationStrings
       -- Andreas, 2017-04-14, issue #2317
@@ -114,9 +112,6 @@ runAgdaWithOptions testName opts mflag mvars = do
     then withSystemTempDirectory ("MAZ_compile_" ++ testName)
            (\ compDir -> runAgda ["--compile-dir=" ++ compDir])
     else runAgda []
-
-  -- reinstating the old environment
-   `finally` mapM_ (uncurry setEnv) backup
 
   cleanedStdOut <- cleanOutput stdOut
   cleanedStdErr <- cleanOutput stdErr
@@ -136,23 +131,15 @@ hasWarning t =
  "———— All done; warnings encountered ————————————————————————"
  `T.isInfixOf` t
 
-
-getEnvAgdaArgs :: IO AgdaArgs
-getEnvAgdaArgs = maybe [] words <$> getEnvVar "AGDA_ARGS"
-
-getAgdaBin :: IO FilePath
+getAgdaBin :: EnvVars -> FilePath
 getAgdaBin = getProg "agda"
 
 -- | Gets the program executable. If an environment variable
 -- YYY_BIN is defined (with yyy converted to upper case),
 -- the value of it is returned. Otherwise, the input value
 -- is returned unchanged.
-getProg :: String -> IO FilePath
-getProg prog = fromMaybe prog <$> getEnvVar (map toUpper prog ++ "_BIN")
-
-getEnvVar :: String -> IO (Maybe String)
-getEnvVar v =
-  lookup v <$> getEnvironment
+getProg :: String -> EnvVars -> FilePath
+getProg prog = fromMaybe prog . lookup (map toUpper prog ++ "_BIN")
 
 -- | List of possible extensions of agda files.
 agdaExtensions :: [String]
@@ -272,7 +259,7 @@ asTestName testDir path = intercalate "-" parts
   where parts = splitDirectories $ dropAgdaExtension $ makeRelative testDir path
 
 doesEnvContain :: String -> IO Bool
-doesEnvContain v = isJust <$> getEnvVar v
+doesEnvContain v = isJust <$> lookupEnv v
 
 readTextFile :: FilePath -> IO Text
 readTextFile f = decodeUtf8 <$> BS.readFile f
@@ -346,7 +333,7 @@ cleanOutput' agda pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
 
 cleanOutput :: Text -> IO Text
 cleanOutput inp = do
-  agda <- takeFileName <$> getAgdaBin
+  agda <- takeFileName <$> getAgdaBin <$> getEnvironment
   pwd <- getCurrentDirectory
   return $ cleanOutput' (T.pack agda) (map slashify pwd) inp
   where

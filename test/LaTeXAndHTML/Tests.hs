@@ -12,6 +12,7 @@ import qualified Data.Text as T
 
 import qualified Network.URI.Encode
 import System.Directory
+import System.Environment (getEnvironment)
 import System.Exit
 import System.FilePath
 import System.IO.Temp
@@ -73,7 +74,7 @@ latexTests = [ disable "LaTeXAndHTML/.*LaTeX/.*" ]
 --
 tests :: IO TestTree
 tests = do
-  agdaBin  <- getAgdaBin
+  agdaBin  <- getAgdaBin <$> getEnvironment
   suiteTests <- concat <$> mapM (taggedListOfAllTests agdaBin) testDirs
   let allTests = suiteTests ++ userManualTests agdaBin
   let (html, latex, quicklatex) = (\ f -> partition3 (f . fst) allTests) $ \case

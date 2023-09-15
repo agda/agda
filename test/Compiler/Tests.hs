@@ -282,7 +282,7 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
                         ["--no-libraries"] ++
                         ["--compile-dir", compDir, "-v0", "-vwarning:1"] ++ extraArgs' ++ cArgs ++ [inp]
           let args = argsForComp comp ++ defArgs
-          res@(ret, out, err) <- readAgdaProcessWithExitCode args T.empty
+          res@(ret, out, err) <- readAgdaProcessWithExitCode Nothing args T.empty
 
           absDir <- canonicalizePath dir
           removePaths [absDir, compDir] <$> case ret of

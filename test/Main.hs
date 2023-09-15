@@ -15,6 +15,7 @@ import Test.Tasty as T
 import Test.Tasty.Silver.Interactive as TM
 import Test.Tasty.Silver.Filter (RegexFilter)
 
+import System.Environment (getEnvironment)
 import System.Exit
 
 import Utils
@@ -32,7 +33,7 @@ main = do
         , "@ The preferred way of running the tests is via the Makefile ('make test'). @"
         , "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
         ]
-      agdaBin <- getAgdaBin
+      agdaBin <- getAgdaBin <$> getEnvironment
       doesCommandExist agdaBin >>= \case
         True ->
           TM.defaultMain1 cabalDisabledTests =<< tests
