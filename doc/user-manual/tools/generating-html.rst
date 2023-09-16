@@ -18,10 +18,10 @@ your own CSS file instead of the :download:`default, included one
 .. note::
 
   The :file:`Agda.css` shipped with Agda is located at
-  :file:`{${AGDA_DIR}}/html/Agda.css`.  Since version 2.6.2, the
-  :envvar:`AGDA_DIR` is printed by option :option:`--print-agda-dir`.
-  Thus, you can get hold of the CSS file via
-  :samp:`cat $(agda --print-agda-dir)/html/Agda.css`.
+  :file:`{${AGDA_DATA_DIR}}/html/Agda.css`.  Since version 2.6.2, the
+  Agda data directory is printed by option
+  :option:`--print-agda-data-dir`. Thus, you can get hold of the CSS
+  file via :samp:`cat $(agda --print-agda-data-dir)/html/Agda.css`.
 
 You can also get highlighting for all occurrences of the symbol the mouse pointer is
 hovering over in the HTML by adding the :option:`--highlight-occurrences` option.

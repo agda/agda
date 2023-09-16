@@ -32,10 +32,10 @@ from :file:`agda.sty`.
 .. note::
 
   The :file:`agda.sty` shipped with Agda is located at
-  :file:`{${AGDA_DIR}}/latex/agda.sty`.  Since version 2.6.2, the
-  :envvar:`AGDA_DIR` is printed by option :option:`--print-agda-dir`.
-  Thus, you can get hold of the CSS file via
-  :samp:`cat $(agda --print-agda-dir)/latex/agda.sty`.
+  :file:`{${AGDA_DIR}}/latex/agda.  Since version 2.6.2, the
+  Agda data directory is printed by option
+  :option:`--print-agda-data-dir`. Thus, you can get hold of the class
+  file via :samp:`cat $(agda --print-agda-data-dir)/latex/agda.sty`.
 
 .. _unicode-latex:
 
@@ -544,7 +544,7 @@ issuing the command
 
 .. code-block:: console
 
-   $ cp $(agda --print-agda-dir)/latex/postprocess-latex.pl .
+   $ cp $(agda --print-agda-data-dir)/latex/postprocess-latex.pl .
 
 In order to generate a PDF, you can then do the following:
 
