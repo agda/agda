@@ -1,12 +1,11 @@
-{-# OPTIONS_GHC -Wunused-imports #-}
-
 -- | An empty type with some useful instances.
 module Agda.Utils.Empty where
 
-import Control.DeepSeq
+import Control.DeepSeq ( NFData(..) )
 import Control.Exception (evaluate)
 
 import Agda.Utils.Impossible
+    ( CatchImpossible(catchImpossible), Impossible, __IMPOSSIBLE__ )
 
 
 data Empty
@@ -15,15 +14,19 @@ data Empty
 -- a constructor argument in 'Agda.Syntax.Internal.Substitution''.
 
 instance NFData Empty where
+  rnf :: Empty -> ()
   rnf _ = ()
 
 instance Eq Empty where
+  (==) :: Empty -> Empty -> Bool
   _ == _ = True
 
 instance Ord Empty where
+  compare :: Empty -> Empty -> Ordering
   compare _ _ = EQ
 
 instance Show Empty where
+  showsPrec :: Int -> Empty -> ShowS
   showsPrec p _ = showParen (p > 9) $ showString "error \"Agda.Utils.Empty.Empty\""
 
 absurd :: Empty -> a
