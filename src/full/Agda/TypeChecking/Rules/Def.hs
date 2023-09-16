@@ -450,10 +450,10 @@ checkFunDefS t ai extlam with i name withSub cs = do
              , _funCovering       = covering
              }
           lang <- getLanguage
-          genArgs <- defArgGeneralizable <$> getConstInfo name
+          numOfGenParams <- defNumOfGeneralizedParams <$> getConstInfo name
           useTerPragma $
             updateDefCopatternLHS (const $ hasProjectionPatterns cc) $
-            (defaultDefn ai name fullType lang defn) { defArgGeneralizable = genArgs }
+            (defaultDefn ai name fullType lang defn) { defNumOfGeneralizedParams = numOfGenParams }
 
         reportSDoc "tc.def.fun" 10 $ do
           sep [ "added " <+> prettyTCM name <+> ":"

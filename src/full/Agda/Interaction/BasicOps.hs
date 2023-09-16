@@ -963,9 +963,7 @@ metaHelperType norm ii rng s = case words s of
     inCxt   <- hasElem <$> getContextNames
     cxtArgs <- getContextArgs
     enclosingFunctionName <- ipcQName . envClause <$> getEnv
-    genArgs <- getConstInfo enclosingFunctionName <&> defArgGeneralizable <&> \case
-      NoGeneralizableArgs -> 0
-      SomeGeneralizableArgs i -> i
+    genArgs <- getConstInfo enclosingFunctionName <&> defNumOfGeneralizedParams
     a0      <- (`piApply` cxtArgs) <$> (getMetaType =<< lookupInteractionId ii)
 
     -- Konstantin, 2022-10-23: We don't want to print section parameters in helper type.

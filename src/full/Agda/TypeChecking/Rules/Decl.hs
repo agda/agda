@@ -665,11 +665,13 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
 
   lang <- getLanguage
   funD <- emptyFunctionData
-  let genArgs = case kind of
+
+  let numOfGenParams = case kind of
                   FunName -> case unScope e of
-                    A.Generalized s _ -> SomeGeneralizableArgs (Set.size s)
-                    _ -> NoGeneralizableArgs
-                  _ -> NoGeneralizableArgs
+                    A.Generalized s _ -> Set.size s
+                    _ -> 0
+                  _ -> 0
+
   let defn = defaultDefn info x t lang $
         case kind of   -- #4833: set abstract already here so it can be inherited by with functions
           FunName   -> fun
@@ -685,7 +687,7 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
         { defArgOccurrences    = occs
         , defPolarity          = pols
         , defGeneralizedParams = genParams
-        , defArgGeneralizable  = genArgs
+        , defNumOfGeneralizedParams = numOfGenParams
         , defBlocked           = blk
         }
 

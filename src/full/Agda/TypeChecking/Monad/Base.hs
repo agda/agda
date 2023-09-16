@@ -2032,7 +2032,10 @@ data Definition = Defn
 
   , defArgGeneralizable :: NumGeneralizableArgs
     -- ^ For a generalized variable, shows how many arguments should be generalised.
-    -- For a function definition, shows how many parameters come from generalization.
+  , defNumOfGeneralizedParams :: Int
+    -- ^ Number of generalized parameters that participate in the type signature of this definition.
+    -- This field is a lightweight version of `defGeneralizedParams`,
+    -- and there is a belief that the actual generalized parameters can be retrieved from the type signature with the help of this field.
   , defGeneralizedParams :: [Maybe Name]
     -- ^ Gives the name of the (bound variable) parameter for named generalized
     --   parameters. This is needed to bring it into scope when type checking
@@ -2092,6 +2095,7 @@ defaultDefn info x t lang def = Defn
   , defPolarity       = []
   , defArgOccurrences = []
   , defArgGeneralizable = NoGeneralizableArgs
+  , defNumOfGeneralizedParams = 0
   , defGeneralizedParams = []
   , defDisplay        = defaultDisplayForm x
   , defMutual         = 0
@@ -2731,6 +2735,7 @@ instance Pretty Definition where
       , "defType           =" <?> pretty defType
       , "defPolarity       =" <?> pshow defPolarity
       , "defArgOccurrences =" <?> pshow defArgOccurrences
+      , "defNumOfGeneralizedParams = " <?> pshow defNumOfGeneralizedParams
       , "defGeneralizedParams =" <?> pshow defGeneralizedParams
       , "defDisplay        =" <?> pretty defDisplay
       , "defMutual         =" <?> pshow defMutual
@@ -5452,8 +5457,8 @@ instance KillRange Section where
   killRange (Section tel) = killRangeN Section tel
 
 instance KillRange Definition where
-  killRange (Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk lang def) =
-    killRangeN Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk lang def
+  killRange (Defn ai name t pols occs gens gnum gpars displ mut compiled inst copy ma nc inj copat blk lang def) =
+    killRangeN Defn ai name t pols occs gens gnum gpars displ mut compiled inst copy ma nc inj copat blk lang def
     -- TODO clarify: Keep the range in the defName field?
 
 instance KillRange NumGeneralizableArgs where

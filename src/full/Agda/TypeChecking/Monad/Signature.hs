@@ -577,6 +577,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                     , defPolarity       = pol
                     , defArgOccurrences = occ
                     , defArgGeneralizable = gen
+                    , defNumOfGeneralizedParams = defNumOfGeneralizedParams d
                     , defGeneralizedParams = [] -- This is only needed for type checking data/record defs so no need to copy it.
                     , defDisplay        = []
                     , defMutual         = -1   -- TODO: mutual block?
