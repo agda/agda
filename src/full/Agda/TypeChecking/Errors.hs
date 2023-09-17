@@ -296,6 +296,7 @@ errorString err = case err of
   TooManyArgumentsToUnivOmega{}            -> "TooManyArgumentsToUnivOmega"
   IllTypedPatternAfterWithAbstraction{}    -> "IllTypedPatternAfterWithAbstraction"
   ComatchingDisabledForRecord{}            -> "ComatchingDisabledForRecord"
+  BuiltinMustBeIsOne{}                     -> "BuiltinMustBeIsOne"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1383,6 +1384,9 @@ instance PrettyTCM TypeError where
 
     ComatchingDisabledForRecord recName ->
       "Copattern matching is disabled for record" <+> prettyTCM recName
+
+    BuiltinMustBeIsOne builtin ->
+      prettyTCM builtin <+> " is not IsOne."
 
     where
     mpar n args
