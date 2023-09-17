@@ -1149,8 +1149,7 @@ checkLHS mf = updateModality checkLHS_ where
     splitPartial delta1 dom adelta2 ts = do
 
       unless (domIsFinite dom) $ liftTCM $ addContext delta1 $
-        softTypeError . GenericDocError =<<
-        vcat [ "Splitting on partial elements is only allowed at the type Partial, but the domain here is" , nest 2 $ prettyTCM $ unDom dom ]
+        softTypeError $ SplitOnPartial dom
 
       tInterval <- liftTCM $ primIntervalType
 
