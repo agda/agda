@@ -294,6 +294,7 @@ errorString err = case err of
   TooManyArgumentsToLeveledSort{}          -> "TooManyArgumentsToLeveledSort"
   TooManyArgumentsToUnivOmega{}            -> "TooManyArgumentsToUnivOmega"
   IllTypedPatternAfterWithAbstraction{}    -> "IllTypedPatternAfterWithAbstraction"
+  ComatchingDisabledForRecord{}            -> "ComatchingDisabledForRecord"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1375,6 +1376,9 @@ instance PrettyTCM TypeError where
       [ "Ill-typed pattern after with abstraction: " <+> prettyA p
       , "(perhaps you can replace it by `_`?)"
       ]
+
+    ComatchingDisabledForRecord recName ->
+      "Copattern matching is disabled for record" <+> prettyTCM recName
 
     where
     mpar n args
