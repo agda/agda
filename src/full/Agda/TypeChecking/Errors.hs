@@ -239,6 +239,7 @@ errorString err = case err of
   SplitOnNonEtaRecord{}                    -> "SplitOnNonEtaRecord"
   SplitOnAbstract{}                        -> "SplitOnAbstract"
   SplitOnUnchecked{}                       -> "SplitOnUnchecked"
+  SplitOnPartial{}                         -> "SplitOnPartial"
   DefinitionIsIrrelevant{}                 -> "DefinitionIsIrrelevant"
   DefinitionIsErased{}                     -> "DefinitionIsErased"
   VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
@@ -582,6 +583,9 @@ instance PrettyTCM TypeError where
 
     SplitOnUnchecked d ->
       "Cannot split on data type" <+> prettyTCM d <+> "whose definition has not yet been checked"
+
+    SplitOnPartial dom -> vcat
+      [ "Splitting on partial elements is only allowed at the type Partial, but the domain here is", nest 2 $ prettyTCM $ unDom dom ]
 
     DefinitionIsIrrelevant x -> fsep $
       "Identifier" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"

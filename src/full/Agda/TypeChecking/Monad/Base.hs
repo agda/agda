@@ -4498,6 +4498,7 @@ data TypeError
         | SplitOnNonEtaRecord QName
         | SplitOnAbstract QName
         | SplitOnUnchecked QName
+        | SplitOnPartial (Dom Type)
         | DefinitionIsIrrelevant QName
         | DefinitionIsErased QName
         | VariableIsIrrelevant Name
