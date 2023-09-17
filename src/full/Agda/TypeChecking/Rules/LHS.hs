@@ -1204,8 +1204,7 @@ checkLHS mf = updateModality checkLHS_ where
                        getBuiltinName' builtinIsOne
                      case a of
                        Def q [Apply phi] | q == isone -> return (unArg phi)
-                       _           -> typeError . GenericDocError =<< do
-                         prettyTCM a <+> " is not IsOne."
+                       _           -> typeError $ BuiltinMustBeIsOne a
 
                    _  -> foldl (\ x y -> primIMin <@> x <@> y) primIOne (map pure ts)
          reportSDoc "tc.lhs.split.partial" 10 $ text "phi           =" <+> prettyTCM phi

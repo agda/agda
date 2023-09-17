@@ -4575,6 +4575,7 @@ data TypeError
         | TooManyArgumentsToLeveledSort QName
         | TooManyArgumentsToUnivOmega QName
         | ComatchingDisabledForRecord QName
+        | BuiltinMustBeIsOne Term
     -- Coverage errors
 -- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | SplitError SplitError
