@@ -128,7 +128,7 @@ errorString err = case err of
   AmbiguousField{}                         -> "AmbiguousField"
   AmbiguousParseForApplication{}           -> "AmbiguousParseForApplication"
   AmbiguousParseForLHS{}                   -> "AmbiguousParseForLHS"
-  AmbiguousProjectionError{}               -> "AmbiguousProjectionError"
+  AmbiguousOverloadedProjection{}          -> "AmbiguousOverloadedProjection"
 --  AmbiguousParseForPatternSynonym{}        -> "AmbiguousParseForPatternSynonym"
   AmbiguousTopLevelModuleName {}           -> "AmbiguousTopLevelModuleName"
   BadArgumentsToPatternSynonym{}           -> "BadArgumentsToPatternSynonym"
@@ -820,7 +820,7 @@ instance PrettyTCM TypeError where
              pwords "could refer to any of the following files:"
            ) $$ nest 2 (vcat $ map (text . filePath) files)
 
-    AmbiguousProjectionError ds reason -> do
+    AmbiguousOverloadedProjection ds reason -> do
       let nameRaw = pretty $ A.nameConcrete $ A.qnameName $ List1.head ds
       vcat
         [ fsep

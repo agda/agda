@@ -1417,9 +1417,9 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta mpatm = do
 
               return (v, tc, NotCheckedTarget)
 
--- | Throw 'AmbiguousProjectionError' with additional explanation.
+-- | Throw 'AmbiguousOverloadedProjection' with additional explanation.
 refuseProj :: List1 QName -> TCM Doc -> TCM a
-refuseProj ds reason = typeError . AmbiguousProjectionError ds =<< reason
+refuseProj ds reason = typeError . AmbiguousOverloadedProjection ds =<< reason
 
 refuseProjNotApplied, refuseProjNoMatching :: List1 QName -> TCM a
 refuseProjNotApplied    ds = refuseProj ds $ fwords "it is not applied to a visible argument"
