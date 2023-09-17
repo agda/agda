@@ -1073,8 +1073,7 @@ checkLHS mf = updateModality checkLHS_ where
         addContext tel $ disambiguateProjection h ambProjName target
 
       unless comatchingAllowed $ do
-        hardTypeError . GenericDocError =<< do
-          liftTCM $ "Copattern matching is disabled for record" <+> prettyTCM recName
+        hardTypeError $ ComatchingDisabledForRecord recName
 
       -- Compute the new rest type by applying the projection type to 'self'.
       -- Note: we cannot be in a let binding.
