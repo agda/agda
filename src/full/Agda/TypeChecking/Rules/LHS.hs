@@ -596,10 +596,7 @@ bindAsPatterns (AsB x v a m : asb) ret = do
 --   recheck the stripped with patterns when checking a with function.
 recheckStrippedWithPattern :: ProblemEq -> TCM ()
 recheckStrippedWithPattern (ProblemEq p v a) = checkInternal v CmpLeq (unDom a)
-  `catchError` \_ -> typeError . GenericDocError =<< vcat
-    [ "Ill-typed pattern after with abstraction: " <+> prettyA p
-    , "(perhaps you can replace it by `_`?)"
-    ]
+  `catchError` \_ -> typeError $ IllTypedPatternAfterWithAbstraction p
 
 -- | Result of checking the LHS of a clause.
 data LHSResult = LHSResult
