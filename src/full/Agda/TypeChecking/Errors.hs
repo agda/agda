@@ -293,6 +293,7 @@ errorString err = case err of
   CubicalPrimitiveNotFullyApplied{}        -> "CubicalPrimitiveNotFullyApplied"
   TooManyArgumentsToLeveledSort{}          -> "TooManyArgumentsToLeveledSort"
   TooManyArgumentsToUnivOmega{}            -> "TooManyArgumentsToUnivOmega"
+  IllTypedPatternAfterWithAbstraction{}    -> "IllTypedPatternAfterWithAbstraction"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1369,6 +1370,11 @@ instance PrettyTCM TypeError where
 
     TooManyArgumentsToUnivOmega q -> fsep $
       [ prettyTCM q , "cannot be applied to an argument" ]
+
+    IllTypedPatternAfterWithAbstraction p -> vcat
+      [ "Ill-typed pattern after with abstraction: " <+> prettyA p
+      , "(perhaps you can replace it by `_`?)"
+      ]
 
     where
     mpar n args
