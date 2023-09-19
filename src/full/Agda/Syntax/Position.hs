@@ -69,7 +69,7 @@ import Prelude hiding ( null )
 
 import Control.DeepSeq
 import Control.Monad
-import Control.Monad.Writer (runWriter, tell)
+import Control.Monad.Writer.Strict (runWriter, tell)
 
 import qualified Data.Foldable as Fold
 import Data.Function (on)
@@ -339,6 +339,7 @@ class HasRange a where
 
   default getRange :: (Foldable t, HasRange b, t b ~ a) => a -> Range
   getRange = Fold.foldr fuseRange noRange
+  {-# INLINABLE getRange #-}
 
 instance HasRange Interval where
     getRange i =
@@ -701,6 +702,7 @@ fuseRanges (Range f is1) (Range _ is2) = Range f (fuse is1 is2)
     where
     r1' = Seq.dropWhileL (\s -> iEnd s <= iEnd s2) r1
 
+{-# INLINE fuseRange #-}
 -- | Precondition: The ranges must point to the same file (or be
 -- empty).
 fuseRange :: (HasRange u, HasRange t) => u -> t -> Range
@@ -735,7 +737,7 @@ x `withRangeOf` y = setRange (getRange y) x
 --   ending position is placed first. If both tie, the element from the
 --   first list is placed first.
 interleaveRanges :: (HasRange a) => [a] -> [a] -> ([a], [(a,a)])
-interleaveRanges as bs = runWriter$ go as bs
+interleaveRanges as bs = runWriter $ go as bs
   where
     go []         as = return as
     go as         [] = return as

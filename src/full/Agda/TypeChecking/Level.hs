@@ -43,11 +43,13 @@ levelType =
   -- Otherwise, we might run into an __IMPOSSIBLE__ later,
   -- e.g. if only BUILTIN LEVEL was defined by reallyUnLevelView requires all builtins.
 
+{-# SPECIALIZE levelType' :: TCM Type #-}
 -- | Get the 'primLevel' as a 'Type'.  Unsafe, crashes if the BUILTIN LEVEL is undefined.
 levelType' :: (HasBuiltins m) => m Type
 levelType' =
   El LevelUniv . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
 
+{-# SPECIALIZE isLevelType :: Type -> TCM Bool #-}
 isLevelType :: PureTCM m => Type -> m Bool
 isLevelType a = reduce (unEl a) >>= \case
   Def f [] -> do
@@ -140,6 +142,7 @@ maybePrimDef prim = tryMaybe $ do
     Def f [] <- prim
     return f
 
+{-# SPECIALIZE levelView :: Term -> TCM Level #-}
 levelView :: PureTCM m => Term -> m Level
 levelView a = do
   reportSLn "tc.level.view" 50 $ "{ levelView " ++ show a
@@ -147,6 +150,7 @@ levelView a = do
   reportSLn "tc.level.view" 50 $ "  view: " ++ show v ++ "}"
   return v
 
+{-# SPECIALIZE levelView' :: Term -> TCM Level #-}
 levelView' :: PureTCM m => Term -> m Level
 levelView' a = do
   Def lzero [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelZero

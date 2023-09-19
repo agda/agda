@@ -117,12 +117,16 @@ wkS n rho        = Wk n rho
 raiseS :: Int -> Substitution' a
 raiseS n = wkS n idS
 
+{-# INLINABLE consS #-}
 consS :: DeBruijn a => a -> Substitution' a -> Substitution' a
 consS t (Wk m rho)
   | Just n <- deBruijnView t,
     n + 1 == m = wkS (m - 1) (liftS 1 rho)
 consS u rho = seq u (u :# rho)
+{-# SPECIALIZE consS :: Term  -> Substitution' Term  -> Substitution' Term #-}
+{-# SPECIALIZE consS :: Level -> Substitution' Level -> Substitution' Level #-}
 
+{-# INLINABLE singletonS #-}
 -- | To replace index @n@ by term @u@, do @applySubst (singletonS n u)@.
 --   @
 --               Γ, Δ ⊢ u : A
@@ -132,6 +136,8 @@ consS u rho = seq u (u :# rho)
 singletonS :: DeBruijn a => Int -> a -> Substitution' a
 singletonS n u = map deBruijnVar [0..n-1] ++# consS u (raiseS n)
   -- ALT: foldl (\ s i -> deBruijnVar i `consS` s) (consS u $ raiseS n) $ downFrom n
+{-# SPECIALIZE singletonS :: Int -> Term -> Substitution' Term #-}
+{-# SPECIALIZE singletonS :: Int -> Level -> Substitution' Level #-}
 
 -- | Single substitution without disturbing any deBruijn indices.
 --   @
@@ -169,6 +175,7 @@ dropS n (Strengthen err m rho)
   | n < m     = Strengthen err (m - n) rho
   | otherwise = dropS (n - m) rho
 
+{-# INLINABLE composeS #-}
 -- | @applySubst (ρ `composeS` σ) v == applySubst ρ (applySubst σ v)@
 composeS :: EndoSubst a => Substitution' a -> Substitution' a -> Substitution' a
 composeS rho IdS = rho
@@ -180,6 +187,7 @@ composeS rho (Strengthen err n sgm) = Strengthen err n (composeS rho sgm)
 composeS rho (Lift 0 sgm) = __IMPOSSIBLE__
 composeS (u :# rho) (Lift n sgm) = u :# composeS rho (liftS (n - 1) sgm)
 composeS rho (Lift n sgm) = lookupS rho 0 :# composeS rho (wkS 1 (liftS (n - 1) sgm))
+
 
 -- If Γ ⊢ ρ : Δ, Θ then splitS |Θ| ρ = (σ, δ), with
 --   Γ ⊢ σ : Δ
@@ -255,6 +263,7 @@ strengthenS' err m rho = case compare m 0 of
     Strengthen _ n rho -> Strengthen err (m + n) rho
     _                  -> Strengthen err m       rho
 
+{-# INLINABLE lookupS #-}
 lookupS :: EndoSubst a => Substitution' a -> Nat -> a
 lookupS rho i = case rho of
   IdS                    -> deBruijnVar i
@@ -274,6 +283,7 @@ lookupS rho i = case rho of
 
 
 -- | lookupS (listS [(x0,t0)..(xn,tn)]) xi = ti, assuming x0 < .. < xn.
+
 
 listS :: EndoSubst a => [(Int,a)] -> Substitution' a
 listS ((i,t):ts) = singletonS i t `composeS` listS ts

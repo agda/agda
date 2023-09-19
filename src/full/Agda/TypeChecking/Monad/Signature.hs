@@ -10,7 +10,7 @@ import Control.Arrow                 ( first, second )
 import Control.Monad.Except          ( ExceptT )
 import Control.Monad.State           ( StateT  )
 import Control.Monad.Reader          ( ReaderT )
-import Control.Monad.Writer          ( WriterT )
+import qualified Control.Monad.Writer as Leaky ( WriterT )
 import Control.Monad.Trans.Maybe     ( MaybeT  )
 import Control.Monad.Trans.Identity  ( IdentityT )
 import Control.Monad.Trans           ( MonadTrans, lift )
@@ -76,6 +76,7 @@ import Agda.Syntax.Common.Pretty (Doc, prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Update
+import Agda.Utils.Writer
 
 import Agda.Utils.Impossible
 
@@ -867,14 +868,14 @@ class ( Functor m
     :: (HasConstInfo n, MonadTrans t, m ~ t n)
     => QName -> m RewriteRules
   getRewriteRulesFor = lift . getRewriteRulesFor
-
 {-# SPECIALIZE getConstInfo :: QName -> TCM Definition #-}
 
+
+{-# SPECIALIZE getOriginalConstInfo :: QName -> TCM Definition #-}
 -- | The computation 'getConstInfo' sometimes tweaks the returned
 -- 'Definition', depending on the current 'Language' and the
 -- 'Language' of the 'Definition'. This variant of 'getConstInfo' does
 -- not perform any tweaks.
-
 getOriginalConstInfo ::
   (ReadTCState m, HasConstInfo m) => QName -> m Definition
 getOriginalConstInfo q = do
@@ -895,6 +896,7 @@ defaultGetRewriteRulesFor q = ifNotM (shouldReduceDef q) (return []) $ do
       imp = st^.stImports
       look s = HMap.lookup q $ s ^. sigRewriteRules
   return $ mconcat $ catMaybes [look sig, look imp]
+
 
 -- | Get the original name of the projection
 --   (the current one could be from a module application).
@@ -975,6 +977,7 @@ instance HasConstInfo m => HasConstInfo (ListT m)
 instance HasConstInfo m => HasConstInfo (MaybeT m)
 instance HasConstInfo m => HasConstInfo (ReaderT r m)
 instance HasConstInfo m => HasConstInfo (StateT s m)
+instance (Monoid w, HasConstInfo m) => HasConstInfo (Leaky.WriterT w m)
 instance (Monoid w, HasConstInfo m) => HasConstInfo (WriterT w m)
 instance HasConstInfo m => HasConstInfo (BlockT m)
 

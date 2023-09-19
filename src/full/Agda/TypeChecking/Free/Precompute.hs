@@ -5,14 +5,12 @@ module Agda.TypeChecking.Free.Precompute
   ( PrecomputeFreeVars, precomputeFreeVars
   , precomputedFreeVars, precomputeFreeVars_ ) where
 
-import Control.Monad.Writer
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-
-
+import Agda.Utils.Writer
 
 type FV = Writer IntSet
 

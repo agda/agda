@@ -48,7 +48,7 @@ type FlexibleVars   = [FlexibleVar Nat]
 --   The alternatives are ordered such that we will assign the higher one first,
 --   i.e., first we try to assign a @DotFlex@, then...
 data FlexibleVarKind
-  = RecordFlex [FlexibleVarKind]
+  = RecordFlex ![FlexibleVarKind]
       -- ^ From a record pattern ('ConP').
       --   Saves the 'FlexibleVarKind' of its subpatterns.
   | ImplicitFlex -- ^ From a hidden formal argument or underscore ('WildP').
@@ -59,10 +59,10 @@ data FlexibleVarKind
 -- | Flexible variables are equipped with information where they come from,
 --   in order to make a choice which one to assign when two flexibles are unified.
 data FlexibleVar a = FlexibleVar
-  { flexArgInfo :: ArgInfo
-  , flexForced  :: IsForced
-  , flexKind    :: FlexibleVarKind
-  , flexPos     :: Maybe Int
+  { flexArgInfo :: !ArgInfo
+  , flexForced  :: !IsForced
+  , flexKind    :: !FlexibleVarKind
+  , flexPos     :: !(Maybe Int)
   , flexVar     :: a
   } deriving (Eq, Show, Functor, Foldable, Traversable)
 
@@ -177,10 +177,10 @@ firstChoice (x            : _ ) = x
 
 -- | The user patterns we still have to split on.
 data Problem a = Problem
-  { _problemEqs      :: [ProblemEq]
+  { _problemEqs      :: ![ProblemEq]
     -- ^ User patterns which are typed
     --   (including the ones generated from implicit arguments).
-  , _problemRestPats :: [NamedArg A.Pattern]
+  , _problemRestPats :: ![NamedArg A.Pattern]
     -- ^ List of user patterns which could not yet be typed.
     --   Example:
     --   @
@@ -196,40 +196,43 @@ data Problem a = Problem
     --   @
     --   As we instantiate @b@ to @false@, the 'targetType' reduces to
     --   @Nat -> Nat@ and we can move pattern @zero@ over to @problemEqs@.
-  , _problemCont     :: LHSState a -> TCM a
+  , _problemCont     :: !(LHSState a -> TCM a)
     -- ^ The code that checks the RHS.
   }
   deriving Show
 
 problemEqs :: Lens' (Problem a) [ProblemEq]
 problemEqs f p = f (_problemEqs p) <&> \x -> p {_problemEqs = x}
+{-# INLINE problemEqs #-}
 
 problemRestPats :: Lens' (Problem a) [NamedArg A.Pattern]
 problemRestPats f p = f (_problemRestPats p) <&> \x -> p {_problemRestPats = x}
+{-# INLINE problemRestPats #-}
 
 problemCont :: Lens' (Problem a) (LHSState a -> TCM a)
 problemCont f p = f (_problemCont p) <&> \x -> p {_problemCont = x}
+{-# INLINE problemCont #-}
 
 problemInPats :: Problem a -> [A.Pattern]
 problemInPats = map problemInPat . (^. problemEqs)
 
-data AsBinding = AsB Name Term Type Modality
-data DotPattern = Dot A.Expr Term (Dom Type)
-data AbsurdPattern = Absurd Range Type
-data AnnotationPattern = Ann A.Expr Type
+data AsBinding = AsB !Name !Term !Type !Modality
+data DotPattern = Dot !A.Expr !Term !(Dom Type)
+data AbsurdPattern = Absurd !Range !Type
+data AnnotationPattern = Ann !A.Expr !Type
 
 -- | State worked on during the main loop of checking a lhs.
 --   [Ulf Norell's PhD, page. 35]
 data LHSState a = LHSState
-  { _lhsTel     :: Telescope
+  { _lhsTel     :: !Telescope
     -- ^ The types of the pattern variables.
-  , _lhsOutPat  :: [NamedArg DeBruijnPattern]
+  , _lhsOutPat  :: ![NamedArg DeBruijnPattern]
     -- ^ Patterns after splitting.
     --   The de Bruijn indices refer to positions in the list of abstract syntax
     --   patterns in the problem, counted from the back (right-to-left).
-  , _lhsProblem :: Problem a
+  , _lhsProblem :: !(Problem a)
     -- ^ User patterns of supposed type @delta@.
-  , _lhsTarget  :: Arg Type
+  , _lhsTarget  :: !(Arg Type)
     -- ^ Type eliminated by 'problemRestPats' in the problem.
     --   Can be 'Irrelevant' to indicate that we came by
     --   an irrelevant projection and, hence, the rhs must
@@ -242,26 +245,30 @@ data LHSState a = LHSState
 
 lhsTel :: Lens' (LHSState a) Telescope
 lhsTel f p = f (_lhsTel p) <&> \x -> p {_lhsTel = x}
+{-# INLINE lhsTel #-}
 
 lhsOutPat :: Lens' (LHSState a) [NamedArg DeBruijnPattern]
 lhsOutPat f p = f (_lhsOutPat p) <&> \x -> p {_lhsOutPat = x}
+{-# INLINE lhsOutPat #-}
 
 lhsProblem :: Lens' (LHSState a) (Problem a)
 lhsProblem f p = f (_lhsProblem p) <&> \x -> p {_lhsProblem = x}
+{-# INLINE lhsProblem #-}
 
 lhsTarget :: Lens' (LHSState a) (Arg Type)
 lhsTarget f p = f (_lhsTarget p) <&> \x -> p {_lhsTarget = x}
+{-# inline lhsTarget #-}
 
 data PatVarPosition = PVLocal | PVParam
   deriving (Show, Eq)
 
 data LeftoverPatterns = LeftoverPatterns
-  { patternVariables :: IntMap [(A.Name,PatVarPosition)]
-  , asPatterns       :: [AsBinding]
-  , dotPatterns      :: [DotPattern]
-  , absurdPatterns   :: [AbsurdPattern]
-  , typeAnnotations  :: [AnnotationPattern]
-  , otherPatterns    :: [A.Pattern]
+  { patternVariables :: !(IntMap [(A.Name,PatVarPosition)])
+  , asPatterns       :: ![AsBinding]
+  , dotPatterns      :: ![DotPattern]
+  , absurdPatterns   :: ![AbsurdPattern]
+  , typeAnnotations  :: ![AnnotationPattern]
+  , otherPatterns    :: ![A.Pattern]
   }
 
 instance Semigroup LeftoverPatterns where

@@ -5,12 +5,12 @@
 module Agda.Syntax.Internal.Defs where
 
 import Control.Monad.Reader
-import Control.Monad.Writer
 
 import qualified Data.Foldable as Fold
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Utils.Writer
 
 -- | @getDefs' lookup emb a@ extracts all used definitions
 --   (functions, data/record types) from @a@, embedded into a monoid via @emb@.

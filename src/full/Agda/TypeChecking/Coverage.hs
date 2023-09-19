@@ -41,7 +41,7 @@ import Agda.TypeChecking.Monad
 
 import Agda.TypeChecking.Rules.LHS (DataOrRecord(..), checkSortOfSplitVar)
 import Agda.TypeChecking.Rules.LHS.Problem (allFlexVars)
-import Agda.TypeChecking.Rules.LHS.Unify
+import Agda.TypeChecking.Rules.LHS.Unify (unifyIndices', UnificationResult'(..), NoLeftInv(..))
 import Agda.TypeChecking.Rules.Term (unquoteTactic)
 
 import Agda.TypeChecking.Coverage.Match
@@ -446,7 +446,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
         -- When we add the extra patterns we also update the type
         -- and the body of the clause.
 
-        mtv <- (traverse . traverse) (telViewUpToPath n_extra) $ clauseType cl
+        mtv <- (traverse . traverse) (liftTCM . telViewUpToPath n_extra) $ clauseType cl
         let ty = (fmap . fmap) ((parallelS (reverse $ map namedArg extra) `composeS` liftS n_extra s `applyPatSubst`) . theCore) mtv
 
         reportSDoc "tc.cover.applyCl" 40 $ "new ty =" <+> pretty ty
@@ -996,7 +996,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
   -- context.
   let flatSplit = boolToMaybe (getCohesion info == Flat) SplitOnFlat
 
-  r <- withKIfStrict $ lift $ unifyIndices' flatSplit
+  r <- withKIfStrict $ lift $ liftTCM $ unifyIndices' flatSplit
          delta1Gamma
          flex
          (raise (size gamma) dtype)
@@ -1237,7 +1237,7 @@ split' :: CheckEmpty
        -> TCM (Either SplitError (Either SplitClause Covering))
 split' checkEmpty ind allowPartialCover inserttrailing
        sc@(SClause tel ps _ cps target) (BlockingVar x pcons' plits overlap lazy) =
- liftTCM $ runExceptT $ do
+ runExceptT $ do
   debugInit tel x ps cps
 
   -- Split the telescope at the variable

@@ -72,8 +72,8 @@ data Backend where
   Backend :: NFData opts => Backend' opts env menv mod def -> Backend
 
 data Backend' opts env menv mod def = Backend'
-  { backendName      :: String
-  , backendVersion   :: Maybe String
+  { backendName      :: !String
+  , backendVersion   :: !(Maybe String)
       -- ^ Optional version information to be printed with @--version@.
   , options          :: opts
       -- ^ Default options
@@ -100,7 +100,7 @@ data Backend' opts env menv mod def = Backend'
       -- ^ Called after all definitions of a module have been compiled.
   , compileDef       :: env -> menv -> IsMain -> Definition -> TCM def
       -- ^ Compile a single definition.
-  , scopeCheckingSuffices :: Bool
+  , scopeCheckingSuffices :: !Bool
       -- ^ True if the backend works if @--only-scope-checking@ is used.
   , mayEraseType     :: QName -> TCM Bool
       -- ^ The treeless compiler may ask the Backend if elements

@@ -13,7 +13,7 @@ import Control.Monad.Except   ( ExceptT )
 import Control.Monad.Identity ( Identity(..) )
 import Control.Monad.Reader   ( ReaderT )
 import Control.Monad.State    ( StateT  )
-import Control.Monad.Writer   ( WriterT )
+import qualified Control.Monad.Writer as Leaky ( WriterT )
 import Control.Monad.Trans    ( lift    )
 
 import Data.Maybe             ( isNothing )
@@ -44,6 +44,8 @@ import Text.PrettyPrint.Annotated (Doc, isEmpty)
 
 import Agda.Utils.Bag (Bag)
 import qualified Agda.Utils.Bag as Bag
+
+import Agda.Utils.Writer
 
 import Agda.Utils.Impossible
 
@@ -150,6 +152,10 @@ instance (Null (m a), Monad m) => Null (ReaderT r m a) where
   null  = __IMPOSSIBLE__
 
 instance (Null (m a), Monad m) => Null (StateT s m a) where
+  empty = lift empty
+  null  = __IMPOSSIBLE__
+
+instance (Null (m a), Monad m, Monoid w) => Null (Leaky.WriterT w m a) where
   empty = lift empty
   null  = __IMPOSSIBLE__
 

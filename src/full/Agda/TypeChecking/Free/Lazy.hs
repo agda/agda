@@ -573,6 +573,7 @@ instance Free t => Free (Named nm t)
 
 instance (Free t, Free u) => Free (t, u) where
   freeVars' (t, u) = freeVars' t `mappend` freeVars' u
+  {-# INLINE freeVars' #-}
 
 instance (Free t, Free u, Free v) => Free (t, u, v) where
   freeVars' (t, u, v) = freeVars' t `mappend` freeVars' u `mappend` freeVars' v

@@ -17,8 +17,8 @@ import Data.Maybe
 import Control.Arrow (left)
 import Control.Monad
 import Control.Monad.Except
+import Control.Monad.Morph
 import Control.Monad.Reader
-import Control.Monad.Writer       ( MonadWriter(..), runWriterT )
 import Control.Monad.Trans.Maybe
 
 import Data.IntSet (IntSet)
@@ -89,6 +89,7 @@ import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
+import Agda.Utils.Writer (WriterT, MonadWriter(..), runWriterT)
 
 import Agda.Utils.Impossible
 import Agda.TypeChecking.Free (freeIn)
@@ -831,7 +832,7 @@ checkLeftHandSide call f ps a withSub' strippedPats =
   let st = over (lhsProblem . problemEqs) (++ withEqs) st0
 
   -- doing the splits:
-  (result, block) <- unsafeInTopContext $ runWriterT $ (`runReaderT` (size cxt)) $ checkLHS f st
+  (!result, !block) <- unsafeInTopContext $ runWriterT $ (`runReaderT` (size cxt)) $ checkLHS f st
   return result
 
 -- | Check that this split will generate a modality-correct internal
@@ -959,13 +960,14 @@ splitStrategy = filter shouldSplit
       A.PatternSynP{} -> __IMPOSSIBLE__
       A.WithP{}       -> __IMPOSSIBLE__
 
+type CheckLHSM = ReaderT Nat (WriterT Blocked_ TCM)
 
 -- | The loop (tail-recursive): split at a variable in the problem until problem is solved
-checkLHS
-  :: forall tcm a. (MonadTCM tcm, PureTCM tcm, MonadWriter Blocked_ tcm, MonadError TCErr tcm, MonadTrace tcm, MonadReader Nat tcm)
-  => Maybe QName      -- ^ The name of the definition we are checking.
+checkLHS ::
+     forall a.
+     Maybe QName      -- ^ The name of the definition we are checking.
   -> LHSState a       -- ^ The current state.
-  -> tcm a
+  -> CheckLHSM a
 checkLHS mf = updateModality checkLHS_ where
     -- If the target type is irrelevant or in Prop,
     -- we need to check the lhs in irr. cxt. (see Issue 939).
@@ -990,7 +992,7 @@ checkLHS mf = updateModality checkLHS_ where
 
     unlessM (optPatternMatching <$> getsTC getPragmaOptions) $
       unless (problemAllVariables problem) $
-        typeError $ GenericError $ "Pattern matching is disabled"
+        liftTCM $ typeError $ GenericError $ "Pattern matching is disabled"
 
     let splitsToTry = splitStrategy $ problem ^. problemEqs
 
@@ -999,25 +1001,25 @@ checkLHS mf = updateModality checkLHS_ where
       -- If no split works, give error from first split.
       -- This is conservative, but might not be the best behavior.
       -- It might be better to print all the errors instead.
-      Left (err:_) -> throwError err
+      Left (err:_) -> liftTCM $ throwError err
       Left []      -> __IMPOSSIBLE__
 
   where
 
     trySplit :: ProblemEq
-             -> tcm (Either [TCErr] (LHSState a))
-             -> tcm (Either [TCErr] (LHSState a))
+             -> CheckLHSM (Either [TCErr] (LHSState a))
+             -> CheckLHSM (Either [TCErr] (LHSState a))
     trySplit eq tryNextSplit = runExceptT (splitArg eq) >>= \case
       Right st' -> return $ Right st'
       Left err  -> left (err:) <$> tryNextSplit
 
     -- If there are any remaining user patterns, try to split on them
-    trySplitRest :: tcm (Either [TCErr] (LHSState a))
+    trySplitRest :: CheckLHSM (Either [TCErr] (LHSState a))
     trySplitRest = case problem ^. problemRestPats of
       []    -> return $ Left []
       (p:_) -> left singleton <$> runExceptT (splitRest p)
 
-    splitArg :: ProblemEq -> ExceptT TCErr tcm (LHSState a)
+    splitArg :: ProblemEq -> ExceptT TCErr CheckLHSM (LHSState a)
     -- Split on constructor/literal pattern
     splitArg (ProblemEq p v Dom{unDom = a}) = traceCall (CheckPattern p tel a) $ do
 
@@ -1053,7 +1055,7 @@ checkLHS mf = updateModality checkLHS_ where
       splitOnPat p
 
 
-    splitRest :: NamedArg A.Pattern -> ExceptT TCErr tcm (LHSState a)
+    splitRest :: NamedArg A.Pattern -> ExceptT TCErr CheckLHSM (LHSState a)
     splitRest p = setCurrentRange p $ do
       reportSDoc "tc.lhs.split" 20 $ sep
         [ "splitting problem rest"
@@ -1149,7 +1151,7 @@ checkLHS mf = updateModality checkLHS_ where
                  -> Dom Type      -- The type of the argument we split on
                  -> Abs Telescope -- The types of arguments after the one we split on
                  -> [(A.Expr, A.Expr)] -- [(φ₁ = b1),..,(φn = bn)]
-                 -> ExceptT TCErr tcm (LHSState a)
+                 -> ExceptT TCErr CheckLHSM (LHSState a)
     splitPartial delta1 dom adelta2 ts = do
 
       unless (domIsFinite dom) $ liftTCM $ addContext delta1 $
@@ -1259,7 +1261,7 @@ checkLHS mf = updateModality checkLHS_ where
              -> Dom Type       -- The type of the literal we split on
              -> Abs Telescope  -- The types of arguments after the one we split on
              -> Literal        -- The literal written by the user
-             -> ExceptT TCErr tcm (LHSState a)
+             -> ExceptT TCErr CheckLHSM (LHSState a)
     splitLit delta1 dom@Dom{domInfo = info, unDom = a} adelta2 lit = do
       let delta2 = absApp adelta2 (Lit lit)
           delta' = abstract delta1 delta2
@@ -1300,7 +1302,7 @@ checkLHS mf = updateModality checkLHS_ where
              -> A.Pattern      -- The pattern written by the user
              -> Maybe AmbiguousQName  -- @Just c@ for a (possibly ambiguous) constructor @c@, or
                                       -- @Nothing@ for a record pattern
-             -> ExceptT TCErr tcm (LHSState a)
+             -> ExceptT TCErr CheckLHSM (LHSState a)
     splitCon delta1 dom@Dom{domInfo = info, unDom = a} adelta2 focusPat ambC = do
       let delta2 = absBody adelta2
 
@@ -1344,13 +1346,13 @@ checkLHS mf = updateModality checkLHS_ where
       let genTrx = boolToMaybe ((getCohesion info == Flat)) SplitOnFlat
 
       -- We should be at a data/record type
-      (dr, d, pars, ixs) <- addContext delta1 $ isDataOrRecordType a
+      (dr, d, pars, ixs) <- hoist (lift . lift) (addContext delta1 (isDataOrRecordType a))
       let isRec = case dr of
             IsData{}   -> False
             IsRecord{} -> True
 
       checkMatchingAllowed d dr  -- No splitting on coinductive constructors.
-      addContext delta1 $ checkSortOfSplitVar dr a delta2 (Just target)
+      lift $ lift $ lift $ addContext delta1 $ checkSortOfSplitVar dr a delta2 (Just target)
 
       -- Jesper, 2019-09-13: if the data type we split on is a strict
       -- set, we locally enable --with-K during unification.
@@ -1620,12 +1622,9 @@ data DataOrRecord
 --   definition, parameters, and indices. Fails softly if the type could become
 --   a data/record type by instantiating a variable/metavariable, or fail hard
 --   otherwise.
-isDataOrRecordType
-  :: (MonadTCM m, PureTCM m)
-  => Type
-  -> ExceptT TCErr m (DataOrRecord, QName, Args, Args)
-       -- ^ The 'Args' are parameters and indices.
-
+isDataOrRecordType ::
+     Type
+  -> ExceptT TCErr TCM (DataOrRecord, QName, Args, Args) -- ^ The 'Args' are parameters and indices.
 isDataOrRecordType a0 = ifBlocked a0 blocked $ \case
   ReallyNotBlocked -> \ a -> case unEl a of
 
@@ -2036,19 +2035,18 @@ prettyDisambCons = prettyDisamb $ Just . nameBindingSite . qnameName
 -- | @checkConstructorParameters c d pars@ checks that the data/record type
 --   behind @c@ is has initial parameters (coming e.g. from a module instantiation)
 --   that coincide with an prefix of @pars@.
-checkConstructorParameters :: MonadTCM tcm => QName -> QName -> Args -> tcm ()
+checkConstructorParameters :: QName -> QName -> Args -> TCM ()
 checkConstructorParameters c d pars = do
   dc <- liftTCM $ getConstructorData c
   checkParameters dc d pars
 
 -- | Check that given parameters match the parameters of the inferred
 --   constructor/projection.
-checkParameters
-  :: MonadTCM tcm
-  => QName  -- ^ The record/data type name of the chosen constructor/projection.
+checkParameters ::
+     QName  -- ^ The record/data type name of the chosen constructor/projection.
   -> QName  -- ^ The record/data type name as supplied by the type signature.
   -> Args   -- ^ The parameters.
-  -> tcm ()
+  -> TCM ()
 checkParameters dc d pars = liftTCM $ do
   a  <- reduce (Def dc [])
   case a of
@@ -2067,9 +2065,8 @@ checkParameters dc d pars = liftTCM $ do
       compareArgs [] [] t (Def d []) vs (take (length vs) pars)
     _ -> __IMPOSSIBLE__
 
-checkSortOfSplitVar :: (MonadTCM m, PureTCM m, MonadError TCErr m,
-                        LensSort a, PrettyTCM a, LensSort ty, PrettyTCM ty)
-                    => DataOrRecord -> a -> Telescope -> Maybe ty -> m ()
+checkSortOfSplitVar :: (LensSort a, PrettyTCM a, LensSort ty, PrettyTCM ty)
+                    => DataOrRecord -> a -> Telescope -> Maybe ty -> TCM ()
 checkSortOfSplitVar dr a tel mtarget = do
   liftTCM (reduce $ getSort a) >>= \case
     Type{} -> whenM isTwoLevelEnabled checkFibrantSplit

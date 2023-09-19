@@ -176,8 +176,8 @@ instance Pretty Blocker where
 -- | Something where a meta variable may block reduction. Notably a top-level meta is considered
 --   blocking. This did not use to be the case (pre Aug 2020).
 data Blocked' t a
-  = Blocked    { theBlocker      :: Blocker,       ignoreBlocking :: a }
-  | NotBlocked { blockingStatus  :: NotBlocked' t, ignoreBlocking :: a }
+  = Blocked    { theBlocker      :: !Blocker,         ignoreBlocking :: a }
+  | NotBlocked { blockingStatus  :: !(NotBlocked' t), ignoreBlocking :: a }
   deriving (Show, Functor, Foldable, Traversable, Generic)
 
 instance Decoration (Blocked' t) where

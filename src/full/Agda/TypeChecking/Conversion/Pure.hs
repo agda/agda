@@ -33,12 +33,14 @@ newtype PureConversionT m a = PureConversionT
   { unPureConversionT :: ExceptT TCErr (StateT FreshThings m) a }
   deriving (Functor, Applicative, Monad, MonadError TCErr, MonadState FreshThings, PureTCM)
 
+{-# SPECIALIZE pureEqualTerm :: Type -> Term -> Term -> TCM Bool #-}
 pureEqualTerm
   :: (PureTCM m, MonadBlock m)
   => Type -> Term -> Term -> m Bool
 pureEqualTerm a u v =
   isJust <$> runPureConversion (equalTerm a u v)
 
+{-# SPECIALIZE pureEqualType :: Type -> Type -> TCM Bool #-}
 pureEqualType
   :: (PureTCM m, MonadBlock m)
   => Type -> Type -> m Bool

@@ -67,6 +67,7 @@ hPi', nPi' :: (MonadFail m, MonadAddContext m, MonadDebug m)
 hPi' s a b = hPi s a (bind' s (\ x -> b x))
 nPi' s a b = nPi s a (bind' s (\ x -> b x))
 
+{-# INLINABLE pPi' #-}
 pPi' :: (MonadAddContext m, HasBuiltins m, MonadDebug m)
      => String -> NamesT m Term -> (NamesT m Term -> NamesT m Type) -> NamesT m Type
 pPi' n phi b = toFinitePi <$> nPi' n (elSSet $ cl isOne <@> phi) b

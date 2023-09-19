@@ -290,6 +290,7 @@ headStop tpos phi
     return $ not $ isIOne phi
   | otherwise = return False
 
+
 -- | Build a partial element. The type of the resulting partial element
 -- can depend on the computed extent, which we denote by @φ@ here. Note
 -- that @φ@ is the n-ary disjunction of all the @ψ@s.
@@ -303,6 +304,7 @@ combineSys
   -- injection can not matter here.
   -> NamesT m Term
 combineSys l ty xs = snd <$> combineSys' l ty xs
+
 
 -- | Build a partial element, and compute its extent. See 'combineSys'
 -- for the details.
@@ -372,6 +374,7 @@ hfill la bA phi u u0 i = do
         ])
     <@> u0
 
+{-# SPECIALIZE decomposeInterval :: Term -> TCM [(IntMap Bool, [Term])] #-}
 -- | Decompose an interval expression @i : I@ as in
 -- 'decomposeInterval'', but discard any inconsistent mappings.
 decomposeInterval :: HasBuiltins m => Term -> m [(IntMap Bool, [Term])]
@@ -379,6 +382,7 @@ decomposeInterval t = do
   decomposeInterval' t <&> \xs ->
     [ (bm, ts) | (bsm, ts) <- xs, bm <- maybeToList $ traverse BoolSet.toSingleton bsm ]
 
+{-# SPECIALIZE decomposeInterval' :: Term -> TCM [(IntMap BoolSet, [Term])] #-}
 -- | Decompose an interval expression @φ : I@ into a set of possible
 -- assignments for the variables mentioned in @φ@, together any leftover
 -- neutral terms that could not be put into 'IntervalView' form.

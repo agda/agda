@@ -48,7 +48,6 @@ instance DeBruijn DBPatVar where
   debruijnNamedVar = DBPatVar
   deBruijnView = Just . dbPatVarIndex
 
-
 instance DeBruijn a => DeBruijn (Named_ a) where
   debruijnNamedVar nm i = unnamed $ debruijnNamedVar nm i
   deBruijnView = deBruijnView . namedThing

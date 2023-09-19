@@ -10,7 +10,7 @@ import Control.DeepSeq
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
-import Control.Monad.Writer
+import qualified Control.Monad.Writer as Leaky
 import Control.Monad.Trans.Maybe
 
 import qualified Data.Map as Map
@@ -25,6 +25,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.String
+import Agda.Utils.Writer
 
 class ReadTCState m => MonadStatistics m where
   modifyCounter :: String -> (Integer -> Integer) -> m ()
@@ -38,6 +39,7 @@ instance MonadStatistics m => MonadStatistics (ExceptT e m)
 instance MonadStatistics m => MonadStatistics (MaybeT m)
 instance MonadStatistics m => MonadStatistics (ReaderT r m)
 instance MonadStatistics m => MonadStatistics (StateT  s m)
+instance (MonadStatistics m, Monoid w) => MonadStatistics (Leaky.WriterT w m)
 instance (MonadStatistics m, Monoid w) => MonadStatistics (WriterT w m)
 
 instance MonadStatistics TCM where

@@ -13,7 +13,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Identity (IdentityT)
 import Control.Monad.Trans.Maybe
-import Control.Monad.Writer
+import qualified Control.Monad.Writer as Leaky
 
 import Data.Function ( on )
 import qualified Data.Map as Map
@@ -36,6 +36,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Singleton
 import Agda.Utils.Tuple
 import Agda.Utils.Update
+import Agda.Utils.Writer
 
 import Agda.Utils.Impossible
 
@@ -55,6 +56,7 @@ instance HasBuiltins m => HasBuiltins (ListT m)
 instance HasBuiltins m => HasBuiltins (MaybeT m)
 instance HasBuiltins m => HasBuiltins (ReaderT e m)
 instance HasBuiltins m => HasBuiltins (StateT s m)
+instance (HasBuiltins m, Monoid w) => HasBuiltins (Leaky.WriterT w m)
 instance (HasBuiltins m, Monoid w) => HasBuiltins (WriterT w m)
 
 deriving instance HasBuiltins m => HasBuiltins (BlockT m)
@@ -64,6 +66,7 @@ instance MonadIO m => HasBuiltins (TCMT m) where
     liftM2 (unionMaybeWith unionBuiltin)
       (Map.lookup b <$> useTC stLocalBuiltins)
       (Map.lookup b <$> useTC stImportedBuiltins)
+{-# SPECIALIZE getBuiltinThing :: SomeBuiltin -> TCM (Maybe (Builtin PrimFun)) #-}
 
 
 -- | The trivial implementation of 'HasBuiltins', using a constant 'TCState'.
@@ -87,10 +90,10 @@ runBuiltinAccess :: TCState -> BuiltinAccess a -> a
 runBuiltinAccess s m = unBuiltinAccess m s
 
 
+{-# SPECIALIZE litType :: Literal -> TCM Type #-}
 -- If Agda is changed so that the type of a literal can belong to an
 -- inductive family (with at least one index), then the implementation
 -- of split' in Agda.TypeChecking.Coverage should be changed.
-
 litType
   :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
   => Literal -> m Type
@@ -146,17 +149,20 @@ getBuiltinRewriteRelations = fmap rels <$> getBuiltinThing (BuiltinName builtinR
     Prim{}    -> __IMPOSSIBLE__
     Builtin{} -> __IMPOSSIBLE__
 
+{-# INLINABLE getBuiltin #-}
 getBuiltin :: (HasBuiltins m, MonadTCError m)
            => BuiltinId -> m Term
 getBuiltin x =
   fromMaybeM (typeError $ NoBindingForBuiltin x) $ getBuiltin' x
 
+{-# INLINABLE getBuiltin' #-}
 getBuiltin' :: HasBuiltins m => BuiltinId -> m (Maybe Term)
 getBuiltin' x = (getBuiltin =<<) <$> getBuiltinThing (BuiltinName x) where
   getBuiltin BuiltinRewriteRelations{} = __IMPOSSIBLE__
   getBuiltin (Builtin t)               = Just $ killRange t
   getBuiltin _                         = Nothing
 
+{-# INLINABLE getPrimitive' #-}
 getPrimitive' :: HasBuiltins m => PrimitiveId -> m (Maybe PrimFun)
 getPrimitive' x = (getPrim =<<) <$> getBuiltinThing (PrimitiveName x)
   where
@@ -164,6 +170,7 @@ getPrimitive' x = (getPrim =<<) <$> getBuiltinThing (PrimitiveName x)
     getPrim BuiltinRewriteRelations{} = __IMPOSSIBLE__
     getPrim _         = Nothing
 
+{-# INLINABLE getPrimitive #-}
 getPrimitive :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
              => PrimitiveId -> m PrimFun
 getPrimitive x =
@@ -172,6 +179,7 @@ getPrimitive x =
 getPrimitiveTerm :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
                  => PrimitiveId -> m Term
 getPrimitiveTerm x = (`Def` []) . primFunName <$> getPrimitive x
+
 
 getPrimitiveTerm' :: HasBuiltins m => PrimitiveId -> m (Maybe Term)
 getPrimitiveTerm' x = fmap (`Def` []) <$> getPrimitiveName' x
@@ -194,7 +202,8 @@ getTerm :: (HasBuiltins m, IsBuiltin a) => String -> a -> m Term
 getTerm use name = flip fromMaybeM (getTerm' name) $
   return $! throwImpossible (ImpMissingDefinitions [getBuiltinId name] use)
 
-
+{-# INLINABLE constructorForm #-}
+{-# SPECIALIZE constructorForm :: Term -> TCM Term #-}
 -- | Rewrite a literal to constructor form if possible.
 constructorForm :: HasBuiltins m => Term -> m Term
 constructorForm v = do
@@ -202,6 +211,8 @@ constructorForm v = do
       pSuc  = fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc
   constructorForm' pZero pSuc v
 
+{-# INLINABLE constructorForm' #-}
+{-# SPECIALIZE constructorForm' :: TCM Term -> TCM Term -> Term -> TCM Term #-}
 constructorForm' :: Applicative m => m Term -> m Term -> Term -> m Term
 constructorForm' pZero pSuc v =
   case v of
@@ -606,6 +617,8 @@ isPrimitive n q = (Just q ==) <$> getPrimitiveName' n
 intervalSort :: Sort
 intervalSort = IntervalUniv
 
+{-# SPECIALIZE intervalView' :: TCM (Term -> IntervalView) #-}
+{-# INLINABLE intervalView' #-}
 intervalView' :: HasBuiltins m => m (Term -> IntervalView)
 intervalView' = do
   iz <- getBuiltinName' builtinIZero
@@ -625,6 +638,7 @@ intervalView' = do
                  | Just (conName q) == io -> IOne
       _ -> OTerm t
 
+{-# INLINE intervalView #-}
 intervalView :: HasBuiltins m => Term -> m IntervalView
 intervalView t = do
   f <- intervalView'
@@ -635,6 +649,7 @@ intervalUnview t = do
   f <- intervalUnview'
   return (f t)
 
+{-# SPECIALIZE intervalUnview' :: TCM (IntervalView -> Term) #-}
 intervalUnview' :: HasBuiltins m => m (IntervalView -> Term)
 intervalUnview' = do
   iz <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIZero -- should it be a type error instead?
@@ -659,11 +674,13 @@ intervalUnview' = do
 --
 --   Precondition: type is reduced.
 
+{-# INLINE pathView #-}
 pathView :: HasBuiltins m => Type -> m PathView
 pathView t0 = do
   view <- pathView'
   return $ view t0
 
+{-# SPECIALIZE pathView' :: TCM (Type -> PathView)  #-}
 pathView' :: HasBuiltins m => m (Type -> PathView)
 pathView' = do
  mpath  <- getBuiltinName' builtinPath
@@ -677,6 +694,7 @@ pathView' = do
       | Just path' == mpathp, Just path <- mpathp -> PathType s path level typ lhs rhs
     _ -> OType t0
 
+{-# SPECIALIZE idViewAsPath :: Type -> TCM PathView  #-}
 -- | Non dependent Path
 idViewAsPath :: HasBuiltins m => Type -> m PathView
 idViewAsPath t0@(El s t) = do
@@ -709,6 +727,7 @@ pathUnview (PathType s path l t lhs rhs) =
 -- * Swan's Id Equality
 ------------------------------------------------------------------------
 
+{-# INLINABLE conidView' #-}
 -- f x (< phi , p > : Id A x _) = Just (phi,p)
 conidView' :: HasBuiltins m => m (Term -> Term -> Maybe (Arg Term,Arg Term))
 conidView' = do

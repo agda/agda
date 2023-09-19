@@ -10,11 +10,12 @@ import Control.Monad.State (StateT)
 import Control.Monad.Trans ( MonadTrans, lift )
 import Control.Monad.Trans.Identity (IdentityT)
 import Control.Monad.Trans.Maybe (MaybeT)
-import Control.Monad.Writer (WriterT)
+import qualified Control.Monad.Writer as Leaky (WriterT)
 
 import Agda.Interaction.Options.Base (PragmaOptions, CommandLineOptions)
 import Agda.Utils.Update (ChangeT)
 import Agda.Utils.ListT (ListT)
+import Agda.Utils.Writer (WriterT)
 
 class (Functor m, Applicative m, Monad m) => HasOptions m where
   -- | Returns the pragma options which are currently in effect.
@@ -39,3 +40,4 @@ instance HasOptions m => HasOptions (MaybeT m)
 instance HasOptions m => HasOptions (ReaderT r m)
 instance HasOptions m => HasOptions (StateT s m)
 instance (HasOptions m, Monoid w) => HasOptions (WriterT w m)
+instance (HasOptions m, Monoid w) => HasOptions (Leaky.WriterT w m)

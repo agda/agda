@@ -98,7 +98,9 @@ GHC_RTS_OPTS := -M4G
 endif
 #
 endif
-GHC_OPTS = "+RTS -A128M $(GHC_RTS_OPTS) -RTS"
+# GHC_OPTS = "+RTS -A128M $(GHC_RTS_OPTS) -RTS"
+# GHC_OPTS = "+RTS -A128M $(GHC_RTS_OPTS) -RTS -ddump-timings -ddump-to-file"
+GHC_OPTS = "+RTS -A128M $(GHC_RTS_OPTS) -RTS -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -ddump-timings -ddump-to-file"
 
 # The following options are used in several invocations of cabal
 # install/configure below. They are always the last options given to

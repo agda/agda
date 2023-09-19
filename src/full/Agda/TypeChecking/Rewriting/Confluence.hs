@@ -451,7 +451,7 @@ sortRulesOfSymbol f = do
     rules <- sortRules =<< getRewriteRulesFor f
     modifySignature $ over sigRewriteRules $ HMap.insert f rules
   where
-    sortRules :: PureTCM m => [RewriteRule] -> m [RewriteRule]
+    sortRules :: [RewriteRule] -> TCM [RewriteRule]
     sortRules rs = do
       ordPairs <- deleteLoops . Set.fromList . map (rewName *** rewName) <$>
         filterM (uncurry $ flip moreGeneralLHS) [(r1,r2) | r1 <- rs, r2 <- rs]
@@ -461,7 +461,7 @@ sortRulesOfSymbol f = do
         prettyList_ (map (prettyTCM . rewName) $ permute perm rs)
       return $ permute perm rs
 
-    moreGeneralLHS :: PureTCM m => RewriteRule -> RewriteRule -> m Bool
+    moreGeneralLHS :: RewriteRule -> RewriteRule -> TCM Bool
     moreGeneralLHS r1 r2
       | sameRuleName r1 r2       = return False
       | rewHead r1 /= rewHead r2 = return False
@@ -478,7 +478,7 @@ sortRulesOfSymbol f = do
     deleteLoops :: Ord a => Set (a,a) -> Set (a,a)
     deleteLoops xs = Set.filter (\(x,y) -> not $ (y,x) `Set.member` xs) xs
 
-makeHead :: PureTCM m => Definition -> Type -> m (Type , Elims -> Term)
+makeHead :: Definition -> Type -> TCM (Type , Elims -> Term)
 makeHead def a = case theDef def of
   Constructor{ conSrcCon = ch } -> do
     ca <- snd . fromMaybe __IMPOSSIBLE__ <$> getFullyAppliedConType ch a

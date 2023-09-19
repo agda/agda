@@ -398,6 +398,7 @@ library
     , hashable             >= 1.2.1.0   && < 1.5
     , haskeline            >= 0.7.4.3   && < 0.9
     -- monad-control-1.0.1.0 is the first to contain liftThrough
+    , mmorph               >= 1.0.5     && < 1.3
     , monad-control        >= 1.0.1.0   && < 1.1
     , mtl                  >= 2.2.2     && < 2.4
     , murmur-hash          >= 0.1       && < 0.2
@@ -792,6 +793,7 @@ library
       Agda.Utils.VarSet
       Agda.Utils.Warshall
       Agda.Utils.WithDefault
+      Agda.Utils.Writer
       Agda.Utils.Zipper
       Agda.Version
       Agda.VersionCommit

@@ -174,6 +174,7 @@ newSortMetaBelowInf = do
   hasBiggerSort x
   return x
 
+{-# SPECIALIZE newSortMeta :: TCM Sort #-}
 -- | Create a sort meta that may be instantiated with 'Inf' (Setω).
 newSortMeta :: MonadMetaSolver m => m Sort
 newSortMeta =
@@ -210,6 +211,7 @@ newTypeMeta_  = newTypeMeta' CmpEq =<< (workOnTypes $ newSortMeta)
 -- that it has a sort.  The sort comes from the solution.
 -- newTypeMeta_  = newTypeMeta Inf
 
+{-# SPECIALIZE newLevelMeta :: TCM Level #-}
 newLevelMeta :: MonadMetaSolver m => m Level
 newLevelMeta = do
   (x, v) <- newValueMeta RunMetaOccursCheck CmpEq =<< levelType
@@ -217,6 +219,7 @@ newLevelMeta = do
     Level l    -> l
     _          -> atomicLevel v
 
+{-# SPECIALIZE newInstanceMeta :: MetaNameSuggestion -> Type -> TCM (MetaId, Term) #-}
 -- | @newInstanceMeta s t cands@ creates a new instance metavariable
 --   of type the output type of @t@ with name suggestion @s@.
 newInstanceMeta
@@ -263,6 +266,7 @@ newNamedValueMeta' b s cmp t = do
   setMetaNameSuggestion x s
   return (x, v)
 
+{-# SPECIALIZE newValueMeta :: RunMetaOccursCheck -> Comparison -> Type -> TCM (MetaId, Term) #-}
 -- | Create a new metavariable, possibly η-expanding in the process.
 newValueMeta :: MonadMetaSolver m => RunMetaOccursCheck -> Comparison -> Type -> m (MetaId, Term)
 newValueMeta b cmp t = do
@@ -276,6 +280,7 @@ newValueMetaCtx
 newValueMetaCtx frozen b cmp t tel perm ctx =
   mapSndM instantiateFull =<< newValueMetaCtx' frozen b cmp t tel perm ctx
 
+{-# SPECIALIZE newValueMeta' :: RunMetaOccursCheck -> Comparison -> Type -> TCM (MetaId, Term) #-}
 -- | Create a new value meta without η-expanding.
 newValueMeta'
   :: MonadMetaSolver m
@@ -312,9 +317,11 @@ type Condition = Dom Type -> Abs Type -> Bool
 trueCondition :: Condition
 trueCondition _ _ = True
 
+{-# SPECIALIZE newArgsMeta :: Type -> TCM Args #-}
 newArgsMeta :: MonadMetaSolver m => Type -> m Args
 newArgsMeta = newArgsMeta' trueCondition
 
+{-# SPECIALIZE newArgsMeta' :: Condition -> Type -> TCM Args #-}
 newArgsMeta' :: MonadMetaSolver m => Condition -> Type -> m Args
 newArgsMeta' condition t = do
   args <- getContextArgs
@@ -512,6 +519,7 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
       [ "meta reuse arguments:" <+> prettyTCM vs ]
     return (x, MetaV x $ map Apply vs)
 
+{-# SPECIALIZE blockTerm :: Type -> TCM Term -> TCM Term #-}
 -- | Construct a blocked constant if there are constraints.
 blockTerm
   :: (MonadMetaSolver m, MonadConstraint m, MonadFresh Nat m, MonadFresh ProblemId m)
@@ -520,6 +528,7 @@ blockTerm t blocker = do
   (pid, v) <- newProblem blocker
   blockTermOnProblem t v pid
 
+{-# SPECIALIZE blockTermOnProblem :: Type -> Term -> ProblemId -> TCM Term #-}
 blockTermOnProblem
   :: (MonadMetaSolver m, MonadFresh Nat m)
   => Type -> Term -> ProblemId -> m Term
@@ -568,6 +577,7 @@ blockTermOnProblem t v pid = do
         listenToMeta (CheckConstraint i cmp) x
         return v
 
+{-# SPECIALIZE blockTypeOnProblem :: Type -> ProblemId -> TCM Type #-}
 blockTypeOnProblem
   :: (MonadMetaSolver m, MonadFresh Nat m)
   => Type -> ProblemId -> m Type
@@ -737,6 +747,7 @@ etaExpandBlocked (Blocked b t)  = do
     Blocked b' _ | b /= b' -> etaExpandBlocked t
     _                      -> return t
 
+{-# SPECIALIZE assignWrapper :: CompareDirection -> MetaId -> Elims -> Term -> TCM () -> TCM () #-}
 assignWrapper :: (MonadMetaSolver m, MonadConstraint m, MonadError TCErr m, MonadDebug m, HasOptions m)
               => CompareDirection -> MetaId -> Elims -> Term -> m () -> m ()
 assignWrapper dir x es v doAssign = do

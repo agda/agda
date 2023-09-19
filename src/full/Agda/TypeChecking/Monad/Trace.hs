@@ -8,7 +8,7 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Identity
-import Control.Monad.Writer
+import qualified Control.Monad.Writer as Leaky
 
 import qualified Data.Set as Set
 
@@ -28,7 +28,9 @@ import Agda.Utils.Function
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.Writer
 import Agda.Syntax.Common.Pretty (prettyShow)
+
 
 ---------------------------------------------------------------------------
 -- * Trace
@@ -124,8 +126,11 @@ instance MonadTrace m => MonadTrace (ReaderT r m) where
 instance MonadTrace m => MonadTrace (StateT s m) where
   traceClosureCall c f = StateT (traceClosureCall c . runStateT f)
 
+instance (MonadTrace m, Monoid w) => MonadTrace (Leaky.WriterT w m) where
+  traceClosureCall c f = Leaky.WriterT $ traceClosureCall c $ Leaky.runWriterT f
+
 instance (MonadTrace m, Monoid w) => MonadTrace (WriterT w m) where
-  traceClosureCall c f = WriterT $ traceClosureCall c $ runWriterT f
+  traceClosureCall c f = writerT $ traceClosureCall c $ runWriterT f
 
 instance MonadTrace m => MonadTrace (ExceptT e m) where
   traceClosureCall c f = ExceptT $ traceClosureCall c $ runExceptT f

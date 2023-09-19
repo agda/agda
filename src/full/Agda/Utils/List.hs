@@ -576,11 +576,12 @@ distinct :: Eq a => [a] -> Bool
 distinct []     = True
 distinct (x:xs) = x `notElem` xs && distinct xs
 
+
+{-# SPECIALIZE fastDistinct :: [Int] -> Bool #-}
 -- | An optimised version of 'distinct'.
 --   O(n log n).
 --
 --   Precondition: The list's length must fit in an 'Int'.
-
 fastDistinct :: Ord a => [a] -> Bool
 fastDistinct xs = Set.size (Set.fromList xs) == length xs
 

@@ -7,7 +7,6 @@ module Agda.Utils.IO.Directory
 where
 
 import Control.Monad
-import Control.Monad.Writer ( WriterT, execWriterT, tell )
 import Control.Monad.Trans  ( lift )
 
 import Data.Monoid          ( Endo(Endo, appEndo) )
@@ -16,8 +15,7 @@ import System.Directory
 import System.FilePath
 import Data.ByteString as BS
 
-
-
+import Agda.Utils.Writer ( WriterT, execWriterT, tell )
 
 
 -- | @copyDirContent src dest@ recursively copies directory @src@ onto @dest@.

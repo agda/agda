@@ -6,7 +6,8 @@ module Agda.Utils.IO where
 
 import Control.Exception
 import Control.Monad.State
-import Control.Monad.Writer
+import qualified Control.Monad.Writer as Leaky
+import Agda.Utils.Writer
 
 -- | Catch 'IOException's.
 --
@@ -20,8 +21,13 @@ instance CatchIO IO where
 
 -- | Upon exception, the written output is lost.
 --
-instance CatchIO m => CatchIO (WriterT w m) where
-  catchIO m h = WriterT $ runWriterT m `catchIO` \ e -> runWriterT (h e)
+instance CatchIO m => CatchIO (Leaky.WriterT w m) where
+  catchIO m h = Leaky.WriterT $ Leaky.runWriterT m `catchIO` \ e -> Leaky.runWriterT (h e)
+
+-- | Upon exception, the written output is lost.
+--
+instance (Functor m, Monoid w, CatchIO m) => CatchIO (WriterT w m) where
+  catchIO m h = writerT $ runWriterT m `catchIO` \ e -> runWriterT (h e)
 
 -- | Upon exception, the state is reset.
 --

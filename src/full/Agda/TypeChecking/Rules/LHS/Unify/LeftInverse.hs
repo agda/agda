@@ -1,5 +1,4 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
-
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.LHS.Unify.LeftInverse where
@@ -43,10 +42,11 @@ instance PrettyTCM NoLeftInv where
   prettyTCM WithKEnabled       = fwords "The K rule is enabled"
   prettyTCM SplitOnStrict      = fwords "It splits on a type in SSet"
   prettyTCM SplitOnFlat        = fwords "It splits on a @♭ argument"
+  {-# SPECIALIZE prettyTCM :: NoLeftInv -> TCM Doc #-}
 
 data NoLeftInv
-  = UnsupportedYet {badStep :: UnifyStep}
-  | Illegal        {badStep :: UnifyStep}
+  = UnsupportedYet {badStep :: !UnifyStep}
+  | Illegal        {badStep :: !UnifyStep}
   | NoCubical
   | WithKEnabled
   | SplitOnStrict  -- ^ splitting on a Strict Set.
@@ -54,7 +54,7 @@ data NoLeftInv
   | UnsupportedCxt
   deriving Show
 
-buildLeftInverse :: (PureTCM tcm, MonadError TCErr tcm) => UnifyState -> UnifyLog -> tcm (Either NoLeftInv (Substitution, Substitution))
+buildLeftInverse :: UnifyState -> UnifyLog -> TCM (Either NoLeftInv (Substitution, Substitution))
 buildLeftInverse s0 log = do
   reportSDoc "tc.lhs.unify.inv.badstep" 20 $ do
     cubical <- optCubical <$> pragmaOptions
@@ -125,7 +125,7 @@ type Retract = (Telescope, Substitution, Substitution, Substitution)
 termsS ::  DeBruijn a => Impossible -> [a] -> Substitution' a
 termsS e xs = reverse xs ++# EmptyS e
 
-composeRetract :: (PureTCM tcm, MonadError TCErr tcm, MonadDebug tcm,HasBuiltins tcm, MonadAddContext tcm) => Retract -> Term -> Retract -> tcm Retract
+composeRetract :: Retract -> Term -> Retract -> TCM Retract
 composeRetract (prob0,rho0,tau0,leftInv0) phi0 (prob1,rho1,tau1,leftInv1) = do
   reportSDoc "tc.lhs.unify.inv" 20 $ "=== composing"
   reportSDoc "tc.lhs.unify.inv" 20 $ "Γ0   :" <+> prettyTCM prob0
@@ -221,10 +221,11 @@ composeRetract (prob0,rho0,tau0,leftInv0) phi0 (prob1,rho1,tau1,leftInv1) = do
     reportSDoc "tc.lhs.unify.inv" 40 $ "leftInvSub  :" <+> pretty (termsS __IMPOSSIBLE__ $ absBody $ leftInv)
   return (prob, rho, tau , termsS __IMPOSSIBLE__ $ absBody $ leftInv)
 
-buildEquiv :: forall tcm. (PureTCM tcm, MonadError TCErr tcm) => UnifyLogEntry -> UnifyState -> tcm (Either NoLeftInv (Retract,Term))
+
+buildEquiv :: UnifyLogEntry -> UnifyState -> TCM (Either NoLeftInv (Retract,Term))
 buildEquiv (UnificationStep st step@(Solution k ty fx tm side) output) next = runExceptT $ do
         let
-          errorToUnsupported :: ExceptT a tcm b -> ExceptT NoLeftInv tcm b
+          errorToUnsupported :: ExceptT a TCM b -> ExceptT NoLeftInv TCM b
           errorToUnsupported m = withExceptT (\ _ -> UnsupportedYet step) m
         reportSDoc "tc.lhs.unify.inv" 20 $ "step unifyState:" <+> prettyTCM st
         reportSDoc "tc.lhs.unify.inv" 20 $ "step step:" <+> addContext (varTel st) (prettyTCM step)
@@ -429,6 +430,7 @@ buildEquiv (UnificationStep st step output) _ = do
     Cycle{}       -> __IMPOSSIBLE__
     _ -> unsupported
 
+{-# SPECIALIZE explainStep :: UnifyStep -> TCM Doc #-}
 explainStep :: MonadPretty m => UnifyStep -> m Doc
 explainStep Injectivity{injectConstructor = ch} =
   "injectivity of the data constructor" <+> prettyTCM (conName ch)

@@ -10,10 +10,8 @@ import Control.DeepSeq
 import qualified Control.Exception as E (evaluate)
 import Control.Monad.Except
 import Control.Monad.Reader
-import Control.Monad.Writer
 import Control.Monad.State
 import Control.Monad.IO.Class ( MonadIO(..) )
-
 
 import Data.Function (on)
 import qualified Data.List as List
@@ -32,6 +30,7 @@ import Agda.Syntax.Common.Pretty
 import Agda.Utils.Time
 import Agda.Utils.Trie (Trie)
 import qualified Agda.Utils.Trie as Trie
+import Agda.Utils.Writer
 
 
 -- * Benchmark trie
@@ -160,7 +159,7 @@ instance (MonadBench m, Monoid w) => MonadBench (WriterT w m) where
   getBenchmark    = lift $ getBenchmark
   putBenchmark    = lift . putBenchmark
   modifyBenchmark = lift . modifyBenchmark
-  finally m f = WriterT $ finally (runWriterT m) (runWriterT f)
+  finally m f = writerT $ finally (runWriterT m) (runWriterT f)
 
 instance MonadBench m => MonadBench (StateT r m) where
   type BenchPhase (StateT r m) = BenchPhase m
@@ -216,9 +215,9 @@ reset = modifyBenchmark $
   mapCurrentAccount (const Strict.Nothing) .
   mapTimings (const Trie.empty)
 
+{-# INLINABLE billTo #-}
 -- | Bill a computation to a specific account.
 --   Works even if the computation is aborted by an exception.
-
 billTo :: MonadBench m => Account (BenchPhase m) -> m c -> m c
 billTo account m = ifNotM (isBenchmarkOn account <$> getsBenchmark benchmarkOn) m $ do
   -- Switch to new account.

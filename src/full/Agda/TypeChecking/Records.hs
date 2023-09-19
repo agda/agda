@@ -459,6 +459,7 @@ isEtaRecord r = do
         currentQ     <- viewTC eQuantity
         return $ constructorQ `moreQuantity` currentQ
 
+{-# SPECIALIZE isEtaCon :: QName -> TCM Bool #-}
 isEtaCon :: HasConstInfo m => QName -> m Bool
 isEtaCon c = getConstInfo' c >>= \case
   Left (SigUnknown err)     -> __IMPOSSIBLE__
@@ -815,6 +816,7 @@ etaContractRecord r c ci args = if all (not . usableModality) args then fallBack
         , unDom ax == f -> Just $ Just $ h es
       _                 -> Nothing
 
+{-# SPECIALIZE isSingletonRecord :: QName -> Args -> TCM Bool #-}
 -- | Is the type a hereditarily singleton record type? May return a
 -- blocking metavariable.
 --
@@ -933,6 +935,7 @@ isSingletonType' regardIrrelevance t rs = do
 
       (<|>) <$> record <*> subtype
 
+{-# SPECIALIZE isEtaVar :: Term -> Type -> TCM (Maybe Int) #-}
 -- | Checks whether the given term (of the given type) is beta-eta-equivalent
 --   to a variable. Returns just the de Bruijn-index of the variable if it is,
 --   or nothing otherwise.

@@ -7,7 +7,6 @@ module Agda.TypeChecking.SizedTypes where
 import Prelude hiding (null)
 
 import Control.Monad.Except ( MonadError(..) )
-import Control.Monad.Writer ( MonadWriter(..), WriterT(..), runWriterT )
 
 import qualified Data.Foldable as Fold
 import qualified Data.List as List
@@ -40,6 +39,7 @@ import qualified Agda.Utils.ProfileOptions as Profile
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
+import Agda.Utils.Writer
 
 import Agda.Utils.Impossible
 
@@ -298,6 +298,7 @@ sizeMaxView v = do
 -- * Size comparison that might add constraints.
 ------------------------------------------------------------------------
 
+{-# SPECIALIZE compareSizes :: Comparison -> Term -> Term -> TCM () #-}
 -- | Compare two sizes.
 compareSizes :: (MonadConversion m) => Comparison -> Term -> Term -> m ()
 compareSizes cmp u v = verboseBracket "tc.conv.size" 10 "compareSizes" $ do
