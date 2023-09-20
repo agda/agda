@@ -27,7 +27,8 @@ ChoicesQuestion() {
     done
 }
 YesNoQuestion() {
-    local r=$(ChoicesQuestion "$1" "${2:-y}" y n)
+    local r
+    r=$(ChoicesQuestion "$1" "${2:-y}" y n)
     [ "$r" = y ]
 }
 
