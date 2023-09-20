@@ -61,7 +61,7 @@ Nested generalization
 
 ..
   ::
-  module _ where
+  module Nested where
 
 When generalizing a variable, any generalizable variables in its type are also generalized
 over. For instance, you can declare ``A`` to be a type at some level ``ℓ`` as
@@ -132,23 +132,23 @@ metavariable created for ``ℓ`` is solved to level 0 and is thus not generalize
 A typical case where this happens is when you have dependencies between different nested
 variables. For instance::
 
-  postulate
-    Con : Set
+    postulate
+      Con : Set
 
-  variable
-    Γ Δ Θ : Con
+    variable
+      Γ Δ Θ : Con
 
-  postulate
-    Sub : Con → Con → Set
+    postulate
+      Sub : Con → Con → Set
 
-    idS : Sub Γ Γ
-    _∘_ : Sub Γ Δ → Sub Δ Θ → Sub Γ Θ
+      idS : Sub Γ Γ
+      _∘_ : Sub Γ Δ → Sub Δ Θ → Sub Γ Θ
 
-  variable
-    δ σ γ : Sub Γ Δ
+    variable
+      δ σ γ : Sub Γ Δ
 
-  postulate
-    assoc : δ ∘ (σ ∘ γ) ≡ (δ ∘ σ) ∘ γ
+    postulate
+      assoc : δ ∘ (σ ∘ γ) ≡ (δ ∘ σ) ∘ γ
 
 In the type of ``assoc`` each substitution gets two nested variable metas for their contexts,
 but the type of ``_∘_`` requires the contexts of its arguments to match up, so some of
@@ -156,8 +156,8 @@ these metavariables are solved. The resulting type is
 
 .. code-block:: agda
 
-  assoc : {δ.Γ δ.Δ : Con} {δ : Sub δ.Γ δ.Δ} {σ.Δ : Con} {σ : Sub δ.Δ σ.Δ}
-          {γ.Δ : Con} {γ : Sub σ.Δ γ.Δ} → (δ ∘ (σ ∘ γ)) ≡ ((δ ∘ σ) ∘ γ)
+    assoc : {δ.Γ δ.Δ : Con} {δ : Sub δ.Γ δ.Δ} {σ.Δ : Con} {σ : Sub δ.Δ σ.Δ}
+            {γ.Δ : Con} {γ : Sub σ.Δ γ.Δ} → (δ ∘ (σ ∘ γ)) ≡ ((δ ∘ σ) ∘ γ)
 
 where we can see from the names that ``σ.Γ`` was unified with ``δ.Δ`` and ``γ.Γ`` with
 ``σ.Δ``. In general, when unifying two metavariables the "youngest" one is eliminated which
@@ -168,24 +168,24 @@ metas are generalized over. For instance,
 
 ..
   ::
-  sum : Vec Nat n → Nat
-  sum [] = 0
-  sum (x ∷ xs) = x + sum xs
+    sum : Vec Nat n → Nat
+    sum [] = 0
+    sum (x ∷ xs) = x + sum xs
 
 ::
 
-  variable
-    xs : Vec A n
+    variable
+      xs : Vec A n
 
-  head : Vec A (suc n) → A
-  head (x ∷ _) = x
+    head : Vec A (suc n) → A
+    head (x ∷ _) = x
 
-  -- lemma : {xs.n.1 : Nat} {xs : Vec Nat (suc xs.n.1)} → head xs ≡ 1 → (0 < sum xs) ≡ true
-  lemma : head xs ≡ 1 → (0 < sum xs) ≡ true
+    -- lemma : {xs.n.1 : Nat} {xs : Vec Nat (suc xs.n.1)} → head xs ≡ 1 → (0 < sum xs) ≡ true
+    lemma : head xs ≡ 1 → (0 < sum xs) ≡ true
 
 ..
   ::
-  lemma {xs = x ∷ _} refl = refl
+    lemma {xs = x ∷ _} refl = refl
 
 In the type of ``lemma`` a metavariable is created for the length of ``xs``, which
 the application ``head xs`` refines to ``suc _n``, for some new metavariable ``_n``.
@@ -219,7 +219,7 @@ The general naming scheme for nested generalized variables is
 
 .. code-block:: agda
 
-  id : {A.ℓ : Level} {A : Set ℓ} → A → A
+    id : {A.ℓ : Level} {A : Set ℓ} → A → A
 
 the name of the level variable is ``A.ℓ`` since the name of the nested variable is
 ``ℓ`` and its parent is the named variable ``A``. For multiple levels of nesting the
@@ -227,7 +227,7 @@ parent can be another nested variable as in the ``refl′`` case above
 
 .. code-block:: agda
 
-  refl′ : {x.A.ℓ : Level} {x.A : Set x.A.ℓ} {x : x.A} → x ≡ x
+    refl′ : {x.A.ℓ : Level} {x.A : Set x.A.ℓ} {x : x.A} → x ≡ x
 
 If a nested generalizable variable is solved with a term containing
 further metas, these are generalized over as explained in the ``lemma`` example
@@ -247,15 +247,15 @@ in. For example,
 
 ::
 
-  postulate
-    V : (A : Set) → Nat → Set
-    P : V A n → Set
+    postulate
+      V : (A : Set) → Nat → Set
+      P : V A n → Set
 
-  variable
-    v : V _ _
+    variable
+      v : V _ _
 
-  postulate
-    thm : P v
+    postulate
+      thm : P v
 
 Here there are two unnamed variables in the type of ``v``, namely the two arguments to ``V``.
 The first argument has the label ``A`` in the definition of ``V``, so this variable gets the name
@@ -293,14 +293,19 @@ The following rules are used to place generalized variables:
 Indexed datatypes
 -----------------
 
-When generalizing datatype parameters and indicies a variable is turned into
+When generalizing datatype parameters and indices a variable is turned into
 an index if it is only mentioned in indices and into a parameter otherwise.
 For instance,
 
 ..
   ::
 
-  module Vectors where
+  module Indexed where
+
+    variable
+      @0 A : Set
+      x : A
+      xs : Vec A n
 
 ::
 
@@ -320,7 +325,14 @@ Instance and irrelevant variables
 
 Generalized variables are introduced as implicit arguments by default, but this can be
 changed to :ref:`instance arguments <instance-arguments>`  or
-:ref:`irrelevant arguments <irrelevance>` by annotating the declaration of the variable::
+:ref:`irrelevant arguments <irrelevance>` by annotating the declaration of the variable
+
+..
+  ::
+
+  open Nested
+
+::
 
   record Eq (A : Set) : Set where
     field eq : A → A → Bool
