@@ -5,6 +5,7 @@
 module Agda.TypeChecking.InstanceArguments
   ( findInstance
   , isInstanceConstraint
+  , solveAwakeInstanceConstraints
   , shouldPostponeInstanceSearch
   , postponeInstanceConstraints
   , getInstanceCandidates
@@ -536,7 +537,11 @@ wakeupInstanceConstraints :: TCM ()
 wakeupInstanceConstraints =
   unlessM shouldPostponeInstanceSearch $ do
     wakeConstraints (wakeUpWhen_ isInstanceProblemConstraint)
-    solveSomeAwakeConstraints isInstanceProblemConstraint False
+    solveAwakeInstanceConstraints
+
+solveAwakeInstanceConstraints :: TCM ()
+solveAwakeInstanceConstraints =
+  solveSomeAwakeConstraints isInstanceProblemConstraint False
 
 postponeInstanceConstraints :: TCM a -> TCM a
 postponeInstanceConstraints m =
