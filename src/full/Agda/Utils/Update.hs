@@ -22,9 +22,6 @@ import Control.Monad.Fail (MonadFail)
 import Control.Monad.Identity
 import Control.Monad.Trans
 import Control.Monad.Trans.Control
--- NB: Control.Monad.Trans.Identity is already exported by Control.Monad.Identity
--- since version mtl 2.2.2, but this needs at least ghc 8.2.2
-import Control.Monad.Trans.Identity
 import Control.Monad.Writer.Strict ( MonadWriter(..), Writer, WriterT, mapWriterT, runWriterT )
 
 import Data.Monoid ( Any(..) )

@@ -46,7 +46,7 @@ import qualified Control.Exception as E
 import Control.Monad          ( filterM, forM )
 import Control.Monad.Except
 import Control.Monad.State
-import Control.Monad.Writer   ( Writer, runWriter, WriterT(WriterT), runWriterT, tell )
+import Control.Monad.Writer   ( Writer, runWriterT, tell )
 import Control.Monad.IO.Class ( MonadIO(..) )
 
 import Data.Char
@@ -54,18 +54,15 @@ import Data.Either
 import Data.Function (on)
 import Data.Map ( Map )
 import qualified Data.Map as Map
-import Data.Maybe ( catMaybes, fromMaybe )
 import qualified Data.List as List
 import qualified Data.Text as T
 
 import System.Directory
 import System.FilePath
 import System.Environment
-import Text.Printf
 
 import Agda.Interaction.Library.Base
 import Agda.Interaction.Library.Parse
-import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.Environment
 import Agda.Utils.FileName
@@ -80,9 +77,10 @@ import qualified Agda.Utils.List1   as List1
 import qualified Agda.Utils.List2   as List2
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Singleton
 import Agda.Utils.String ( trim )
+import Agda.Utils.Tuple ( mapSndM )
 
 import Agda.Version
 
@@ -394,9 +392,8 @@ getTrustedExecutables = mkLibM [] $ do
     file <- liftIO getExecutablesFile
     if not (efExists file) then return Map.empty else do
       es    <- liftIO $ stripCommentLines <$> UTF8.readFile (efPath file)
-      files <- liftIO $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- es ]
-      tmp   <- parseExecutablesFile file $ nubOn snd files
-      return tmp
+      lines <- liftIO $ mapM (mapSndM expandEnvironmentVariables) es
+      parseExecutablesFile file lines
   `catchIO` \ e -> do
     raiseErrors' [ ReadError e "Failed to read trusted executables." ]
     return Map.empty
@@ -414,21 +411,21 @@ parseExecutablesFile ef files = do
     let strExeName' = fromMaybe strExeName $ stripExtension exeExtension strExeName
     let txtExeName  = T.pack strExeName'
     exePath <- liftIO $ makeAbsolute fp
-    return (txtExeName, exePath)
+    return (txtExeName, (ln, exePath))
 
   -- Create a map from executable names to their location(s).
-  let exeMap1 :: Map ExeName (List1 FilePath)
-      exeMap1 = Map.fromListWith (<>) $ map (second singleton) executables
+  let exeMap1 :: Map ExeName (List1 (LineNumber, FilePath))
+      exeMap1 = Map.fromListWith (<>) $ map (second singleton) $ reverse executables
 
   -- Separate non-ambiguous from ambiguous mappings.
   let (exeMap, duplicates) = Map.mapEither List2.fromList1Either exeMap1
 
-  -- Report ambiguous mappings.
+  -- Report ambiguous mappings with line numbers.
   List1.unlessNull (Map.toList duplicates) $ \ duplicates1 ->
     raiseErrors' $ fmap (uncurry $ DuplicateExecutable $ efPath ef) duplicates1
 
-  -- Return non-ambiguous mappings.
-  return exeMap
+  -- Return non-ambiguous mappings without line numbers.
+  return $ fmap snd exeMap
 
 ------------------------------------------------------------------------
 -- * Resolving library names to include pathes

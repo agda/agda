@@ -1,4 +1,3 @@
-Issue5434-2.agda:6,3-4
+Issue5434-2.agda:6,3-27
 (@0 x y : D) → x ≡ y is not usable at the required modality @ω
-when checking that the type (@0 x y : D) → x ≡ y of the constructor
-c fits in the sort Set of the datatype.
+when checking the constructor c in the declaration of D

@@ -1,4 +1,8 @@
 PatternShadowsConstructor.agda:14,6-7
+warning: -W[no]PatternShadowsConstructor
 The pattern variable x has the same name as the constructor A.x
 when checking the clause left hand side
 f (c x)
+PatternShadowsConstructor.agda:14,11-12
+A.B !=< C
+when checking that the expression x has type C

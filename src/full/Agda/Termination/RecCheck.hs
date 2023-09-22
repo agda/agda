@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 {- | Checking for recursion:
 
@@ -19,7 +20,7 @@ module Agda.Termination.RecCheck
     )
  where
 
-import Control.Monad (forM, forM_)
+import Control.Monad (forM)
 import Data.Foldable
 import Data.Graph
 import Data.IntMap (IntMap)
@@ -32,11 +33,9 @@ import qualified Data.Set as Set
 
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Defs
+import Agda.Syntax.Common.Pretty  (prettyShow)
 
 import Agda.TypeChecking.Monad
-
-import Agda.Utils.List    (hasElem)
-import Agda.Utils.Pretty  (prettyShow)
 
 import Agda.Utils.Impossible
 

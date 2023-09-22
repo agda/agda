@@ -15,7 +15,6 @@ import Control.Monad.Fail (MonadFail)
 
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.List (nub)
 
 import Agda.Interaction.Options.Base
 
@@ -24,7 +23,6 @@ import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Abstract.Views (deepUnscope)
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Internal.MetaVars (unblockOnAnyMetaIn)
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as Info
@@ -50,16 +48,14 @@ import Agda.TypeChecking.Telescope
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( isType_ )
 
 import Agda.Utils.Either
+import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor
 import Agda.Utils.List
-import Agda.Utils.List1 (List1, pattern (:|))
-import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import qualified Agda.Utils.Pretty as P
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Size
-import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
 
@@ -125,7 +121,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   else throwError err
               reduce s
 
-            withK   <- not . collapseDefault . optWithoutK <$>
+            withK   <- not . optWithoutK <$>
                        pragmaOptions
             erasure <- optErasure <$> pragmaOptions
             -- Parameters are always hidden in constructors. If
@@ -133,9 +129,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
             -- non-indexed data types, and if --with-K is active this
             -- applies also to indexed data types.
             let tel  = abstract gtel ptel
-                tel' = (if erasure && (withK || nofIxs == 0)
-                        then applyQuantity zeroQuantity
-                        else id) .
+                tel' = applyWhen (erasure && (withK || nofIxs == 0)) (applyQuantity zeroQuantity) .
                        hideAndRelParams <$>
                        tel
 
@@ -198,7 +192,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
         let cons   = map A.axiomName cs  -- get constructor names
 
         (mtranspix, transpFun) <-
-          ifM (collapseDefault . optCubicalCompatible <$> pragmaOptions)
+          ifM (optCubicalCompatible <$> pragmaOptions)
             (do mtranspix <- inTopContext $ defineTranspIx name
                 transpFun <- inTopContext $
                                defineTranspFun name mtranspix cons
@@ -232,10 +226,8 @@ checkDataSort name s = setCurrentRange name $ do
                    ]
     case s of
       -- Sorts that admit data definitions.
-      Type _       -> yes
-      Prop _       -> yes
+      Univ _ _     -> yes
       Inf _ _      -> yes
-      SSet _       -> yes
       DefS _ _     -> yes
       -- Sorts that do not admit data definitions.
       SizeUniv     -> no
@@ -315,9 +307,8 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         let s' = case s of
               Prop l -> Type l
               _      -> s
-        arity <- traceCall (CheckConstructorFitsIn c t s') $
-                 applyQuantityToJudgement ai $
-                 fitsIn uc forcedArgs t s'
+        arity <- applyQuantityToJudgement ai $
+          fitsIn c uc forcedArgs t s'
         -- this may have instantiated some metas in s, so we reduce
         s <- reduce s
         debugAdd c t
@@ -362,12 +353,12 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               , conSrcCon = con
               , conData   = d
               , conAbstr  = Info.defAbstract i
-              , conInd    = Inductive
               , conComp   = comp
               , conProj   = projNames
               , conForced = forcedArgs
               , conErased = Nothing  -- computed during compilation to treeless
               , conErasure = erasure
+              , conInline  = False
               }
 
         -- Add the constructor to the instance table, if needed
@@ -436,14 +427,14 @@ defineCompData :: QName      -- datatype name
                -> TCM CompKit
 defineCompData d con params names fsT t boundary = do
   required <- mapM getTerm'
-    [ builtinInterval
-    , builtinIZero
-    , builtinIOne
-    , builtinIMin
-    , builtinIMax
-    , builtinINeg
-    , builtinPOr
-    , builtinItIsOne
+    [ someBuiltin builtinInterval
+    , someBuiltin builtinIZero
+    , someBuiltin builtinIOne
+    , someBuiltin builtinIMin
+    , someBuiltin builtinIMax
+    , someBuiltin builtinINeg
+    , someBuiltin builtinPOr
+    , someBuiltin builtinItIsOne
     ]
   if not (all isJust required) then return $ emptyCompKit else do
     hcomp  <- whenDefined (null boundary) [builtinHComp,builtinTrans]
@@ -752,11 +743,11 @@ defineTranspIx d = do
       let deltaI = expTelescope interval ixs
       iz <- primIZero
       io@(Con c _ _) <- primIOne
-      imin <- getPrimitiveTerm "primIMin"
-      imax <- getPrimitiveTerm "primIMax"
-      ineg <- getPrimitiveTerm "primINeg"
+      imin <- getPrimitiveTerm builtinIMin
+      imax <- getPrimitiveTerm builtinIMax
+      ineg <- getPrimitiveTerm builtinINeg
       transp <- getPrimitiveTerm builtinTrans
-      por <- getPrimitiveTerm "primPOr"
+      por <- getPrimitiveTerm builtinPOr
       one <- primItIsOne
       -- reportSDoc "trans.rec" 20 $ text $ show params
       -- reportSDoc "trans.rec" 20 $ text $ show deltaI
@@ -1357,9 +1348,9 @@ defineTranspForFields pathCons applyProj name params fsT fns rect = do
   let deltaI = expTelescope interval params
   iz <- primIZero
   io <- primIOne
-  imin <- getPrimitiveTerm "primIMin"
-  imax <- getPrimitiveTerm "primIMax"
-  ineg <- getPrimitiveTerm "primINeg"
+  imin <- getPrimitiveTerm builtinIMin
+  imax <- getPrimitiveTerm builtinIMax
+  ineg <- getPrimitiveTerm builtinINeg
   transp <- getPrimitiveTerm builtinTrans
   -- por <- getPrimitiveTerm "primPOr"
   -- one <- primItIsOne
@@ -1515,13 +1506,13 @@ defineHCompForFields applyProj name params fsT fns rect = do
   let delta = params
   iz <- primIZero
   io <- primIOne
-  imin <- getPrimitiveTerm "primIMin"
-  imax <- getPrimitiveTerm "primIMax"
-  tIMax <- getPrimitiveTerm "primIMax"
-  ineg <- getPrimitiveTerm "primINeg"
+  imin <- getPrimitiveTerm builtinIMin
+  imax <- getPrimitiveTerm builtinIMax
+  tIMax <- getPrimitiveTerm builtinIMax
+  ineg <- getPrimitiveTerm builtinINeg
   hcomp <- getPrimitiveTerm builtinHComp
   transp <- getPrimitiveTerm builtinTrans
-  por <- getPrimitiveTerm "primPOr"
+  por <- getPrimitiveTerm builtinPOr
   one <- primItIsOne
   reportSDoc "comp.rec" 20 $ text $ show params
   reportSDoc "comp.rec" 20 $ text $ show delta
@@ -1744,11 +1735,11 @@ bindParameter npars ps x a b ret =
 --
 --   As a side effect, return the arity of the constructor.
 
-fitsIn :: UniverseCheck -> [IsForced] -> Type -> Sort -> TCM Int
-fitsIn uc forceds t s = do
+fitsIn :: QName -> UniverseCheck -> [IsForced] -> Type -> Sort -> TCM Int
+fitsIn con uc forceds conT s = do
   reportSDoc "tc.data.fits" 10 $
-    sep [ "does" <+> prettyTCM t
-        , "of sort" <+> prettyTCM (getSort t)
+    sep [ "does" <+> prettyTCM conT
+        , "of sort" <+> prettyTCM (getSort conT)
         , "fit in" <+> prettyTCM s <+> "?"
         ]
   -- The code below would be simpler, but doesn't allow datatypes
@@ -1759,11 +1750,12 @@ fitsIn uc forceds t s = do
   withoutK <- withoutKOption
   when withoutK $ do
     q <- viewTC eQuantity
-    usableAtModality' (Just s) ConstructorType (setQuantity q defaultModality) (unEl t)
+    usableAtModality' (Just s) ConstructorType (setQuantity q unitModality) (unEl conT)
 
-  fitsIn' withoutK forceds t s
+  li <- optLargeIndices <$> pragmaOptions
+  fitsIn' li forceds conT s
   where
-  fitsIn' withoutK forceds t s = do
+  fitsIn' li forceds t s = do
     vt <- do
       t <- pathViewAsPi t
       return $ case t of
@@ -1773,13 +1765,18 @@ fitsIn uc forceds t s = do
                     _              -> Nothing
     case vt of
       Just (isPath, dom, b) -> do
-        let (forced,forceds') = nextIsForced forceds
-        unless (isForced forced && not withoutK) $ do
+        let
+          (forced, forceds') = nextIsForced forceds
+          isf = isForced forced
+
+        unless (isf && li) $ do
           sa <- reduce $ getSort dom
           unless (isPath || uc == NoUniverseCheck || sa == SizeUniv) $
+            traceCall (CheckConArgFitsIn con isf (unDom dom) s) $
             sa `leqSort` s
+
         addContext (absName b, dom) $ do
-          succ <$> fitsIn' withoutK forceds' (absBody b) (raise 1 s)
+          succ <$> fitsIn' li forceds' (absBody b) (raise 1 s)
       _ -> do
         getSort t `leqSort` s
         return 0

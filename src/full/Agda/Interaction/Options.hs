@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.Interaction.Options
     ( module Opts.Base
     , module Opts.HasOptions

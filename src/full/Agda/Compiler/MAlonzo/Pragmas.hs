@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.Compiler.MAlonzo.Pragmas where
 
 import Control.Monad
@@ -12,11 +14,10 @@ import Agda.Syntax.Abstract.Name
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Primitive
 
-import Agda.Utils.Pretty hiding (char)
+import Agda.Syntax.Common.Pretty hiding (char)
 import Agda.Utils.String ( ltrim )
 import Agda.Utils.Three
 
-import Agda.Compiler.Common
 import Agda.Compiler.MAlonzo.Misc
 
 import Agda.Utils.Impossible

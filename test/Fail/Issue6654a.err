@@ -1,0 +1,6 @@
+Issue6654a.agda:10,3-4
+Set₁ is not less or equal than Set
+when checking that the type (P : Set) → P → P of an argument to the
+constructor b fits in the sort Set of the datatype.
+Note: this argument is forced by the indices of b, so this
+definition would be allowed under --large-indices.

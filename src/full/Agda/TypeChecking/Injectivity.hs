@@ -65,8 +65,6 @@ import Agda.TypeChecking.Irrelevance (isIrrelevantOrPropM)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope.Path
-import Agda.TypeChecking.Primitive.Base
-import Agda.TypeChecking.Primitive.Cubical
 import Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
@@ -82,7 +80,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
-import Agda.Utils.Pretty ( prettyShow )
+import Agda.Syntax.Common.Pretty ( prettyShow )
 import qualified Agda.Utils.ProfileOptions as Profile
 
 import Agda.Utils.Impossible
@@ -451,7 +449,7 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
           compareElims pol fs fTy (Def f []) margs blkArgs'
 
           -- Check that we made progress.
-          r <- liftReduce $ unfoldDefinitionStep False (Def f []) f blkArgs
+          r <- liftReduce $ unfoldDefinitionStep (Def f []) f blkArgs
           case r of
             YesReduction _ blk' -> do
               reportSDoc "tc.inj.invert.success" 20 $ hsep ["Successful inversion of", prettyTCM f, "at", pretty hd]

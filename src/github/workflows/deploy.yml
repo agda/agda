@@ -62,7 +62,7 @@ jobs:
     steps:
 
     - name: Check out the master branch
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Set up platform-dependent variables
       id: vars
@@ -110,7 +110,7 @@ jobs:
         echo filename     = ${{ steps.vars.outputs.filename     }}
         echo nightly      = ${{ steps.vars.outputs.nightly      }}
 
-    - uses: haskell/actions/setup@v2
+    - uses: haskell-actions/setup@v2
       id: setup-haskell
       with:
         ghc-version: ${{ matrix.ghc-ver }}
@@ -294,4 +294,4 @@ jobs:
       run: |
         gh release delete 'nightly' --repo agda/agda --cleanup-tag --yes || true
         ls -R artifacts
-        gh release create 'nightly' artifacts/**/* --repo agda/agda --generate-notes --title "Nightly Build (${{ needs.build.outputs.sha }}@master)"
+        gh release create 'nightly' artifacts/**/* --repo agda/agda --generate-notes --notes-start-tag v2.6.3 --title "Nightly Build (${{ needs.build.outputs.sha }}@master)"

@@ -34,6 +34,7 @@ instance Arbitrary Where where
     , return MetaArg
     , ConArgType <$> arbitrary
     , IndArgType <$> arbitrary
+    , ConEndpoint <$> arbitrary
     , InClause <$> arbitrary
     , return Matched
     , InDefOf <$> arbitrary
@@ -50,6 +51,8 @@ instance CoArbitrary Where where
   coarbitrary MetaArg        = variant 4
   coarbitrary (ConArgType a) = variant 5 . coarbitrary a
   coarbitrary (IndArgType a) = variant 6 . coarbitrary a
+  coarbitrary (ConEndpoint a)
+                             = variant 11 . coarbitrary a
   coarbitrary (InClause a)   = variant 7 . coarbitrary a
   coarbitrary Matched        = variant 8
   coarbitrary IsIndex        = variant 9

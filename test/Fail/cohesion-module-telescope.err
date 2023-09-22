@@ -1,0 +1,4 @@
+cohesion-module-telescope.agda:16,19-25
+(@⊤ continuous : Unit) → Unit !=< Unit → Unit because one is a
+non-flat function type and the other is a flat function type
+when checking that the expression N.flat has type Unit → Unit

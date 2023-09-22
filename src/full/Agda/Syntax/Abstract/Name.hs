@@ -28,7 +28,7 @@ import Agda.Utils.Lens
 import qualified Agda.Utils.List as L
 import Agda.Utils.List1 (List1, pattern (:|), (<|))
 import qualified Agda.Utils.List1 as List1
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -205,11 +205,10 @@ mnameToQName :: ModuleName -> QName
 mnameToQName = qnameFromList . mnameToList1
 
 showQNameId :: QName -> String
-showQNameId q = show ns ++ "@" ++ show m
+showQNameId q = show ns ++ "@" ++ show (List1.head ms)
   where
-    is = map nameId $ mnameToList (qnameModule q) ++ [qnameName q]
-    ns = [ n | NameId n _ <- is ]
-    m  = head [ m | NameId _ m <- is ]
+    (ns, ms) = List1.unzip $ fmap (unNameId . nameId) $ List1.snoc (mnameToList $ qnameModule q) (qnameName q)
+    unNameId (NameId n m) = (n, m)
 
 -- | Turn a qualified name into a concrete name. This should only be used as a
 --   fallback when looking up the right concrete name in the scope fails.
@@ -317,7 +316,7 @@ instance NumHoles AmbiguousQName where
 -- * name lenses
 ------------------------------------------------------------------------
 
-lensQNameName :: Lens' Name QName
+lensQNameName :: Lens' QName Name
 lensQNameName f (QName m n) = QName m <$> f n
 
 ------------------------------------------------------------------------
@@ -436,7 +435,7 @@ instance SetRange ModuleName where
 
 instance KillRange Name where
   killRange (Name a b c d e f) =
-    (killRange6 Name a b c d e f) { nameBindingSite = d }
+    (killRangeN Name a b c d e f) { nameBindingSite = d }
     -- Andreas, 2017-07-25, issue #2649
     -- Preserve the nameBindingSite for error message.
     --
@@ -454,7 +453,7 @@ instance KillRange ModuleName where
   killRange (MName xs) = MName $ killRange xs
 
 instance KillRange QName where
-  killRange (QName a b) = killRange2 QName a b
+  killRange (QName a b) = killRangeN QName a b
   -- killRange q = q { qnameModule = killRange $ qnameModule q
   --                 , qnameName   = killRange $ qnameName   q
   --                 }

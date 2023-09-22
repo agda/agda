@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 module Agda.Compiler.ToTreeless
   ( toTreeless
@@ -6,7 +7,6 @@ module Agda.Compiler.ToTreeless
 
 import Prelude hiding ((!!))
 
-import Control.Arrow        ( first )
 import Control.Monad        ( filterM, foldM, forM, zipWithM )
 import Control.Monad.Reader ( MonadReader(..), asks, ReaderT, runReaderT )
 import Control.Monad.Trans  ( lift )
@@ -46,8 +46,8 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Pretty (prettyShow)
-import qualified Agda.Utils.Pretty as P
+import Agda.Syntax.Common.Pretty (prettyShow)
+import qualified Agda.Syntax.Common.Pretty as P
 import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible

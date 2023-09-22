@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-| This module defines the things required by Alex and some other
     Alex related things.
 -}
@@ -35,7 +37,7 @@ data AlexInput = AlexInput
   }
 
 -- | A lens for 'lexInput'.
-lensLexInput :: Lens' String AlexInput
+lensLexInput :: Lens' AlexInput String
 lensLexInput f r = f (lexInput r) <&> \ s -> r { lexInput = s }
 
 -- | Get the previously lexed character. Same as 'lexPrevChar'. Alex needs this

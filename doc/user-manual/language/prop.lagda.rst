@@ -77,8 +77,8 @@ the arguments of type ``Nat``:
     ≤-ind (suc x) (suc y) pf = pss x y (≤-ind x y pf)
     ≤-ind (suc _) zero    ()
 
-Note that while it is also possible to define _≤_ as a
-datatype in Prop, it is hard to use that version because
+Note that while it is also possible to define ``_≤_`` as a
+datatype in ``Prop``, it is hard to use that version because
 of the limitations to matching.
 
 When defining a record type in ``Set``, the types of the fields can be
@@ -101,15 +101,21 @@ The predicative hierarchy of ``Prop``
 -------------------------------------
 
 Just as for ``Set``, Agda has a predicative hierarchy of sorts
-``Prop₀`` (= ``Prop``), ``Prop₁``, ``Prop₂``, ... where ``Prop₀ :
-Set₁``, ``Prop₁ : Set₂``, ``Prop₂ : Set₃``, etc. Like ``Set``,
-``Prop`` also supports universe polymorphism (see :ref:`universe
-levels <universe-levels>`), so for each ``ℓ : Level`` we have the sort
-``Prop ℓ``. For example:
-::
+``Prop₀`` (= ``Prop``), ``Prop₁``, ``Prop₂``, ...,
+``Propω₀`` (= ``Propω``), ``Propω₁``, ``Propω₂``, ...,
+where ``Prop₀ : Set₁``, ``Prop₁ : Set₂``, ``Prop₂ : Set₃``, ...,
+``Propω₀ : Setω₁``, ``Propω₁ : Setω₂``, ``Propω₂ : Setω₃``, etc.
+Like ``Set``, ``Prop`` also supports universe polymorphism
+(see :ref:`universe levels <universe-levels>`),
+so for each ``ℓ : Level`` we have the sort ``Prop ℓ``.
+For example::
 
   True : ∀ {ℓ} → Prop (lsuc ℓ)
   True {ℓ} = ∀ (P : Prop ℓ) → P → P
+
+Note that ``∀ {ℓ} → Prop (lsuc ℓ)`` (and likewise any ``∀ {ℓ} → Prop (t ℓ)``)
+lives in ``Setω``, not ``Propω``.
+
 
 The propositional squash type
 -----------------------------
@@ -127,7 +133,7 @@ and its eliminator:
   squash-elim A P f (squash x) = f x
 
 This type allows us to simulate Agda's existing irrelevant arguments
-(see :ref:`irrelevance <irrelevance>`) by replacing .A with Squash A.
+(see :ref:`irrelevance <irrelevance>`) by replacing ``.A`` with ``Squash A``.
 
 Limitations
 -----------

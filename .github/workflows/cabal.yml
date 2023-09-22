@@ -25,18 +25,18 @@ jobs:
       CABAL_VER: ${{ matrix.cabal-ver || '3.10' }}
       FLAGS: ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting'
         }}
-      GHC_VER: ${{ matrix.ghc-ver || '9.6.1' }}
+      GHC_VER: ${{ matrix.ghc-ver || '9.6.2' }}
     name: Cabal ${{ matrix.description }}, ${{ matrix.ghc-ver }}
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - if: ${{ runner.os == 'Linux' }}
       name: Switch off XDG directories for cabal (Linux)
       run: |
         mkdir -p ~/.cabal
     - id: setup-haskell
-      uses: haskell/actions/setup@v2
+      uses: haskell-actions/setup@v2
       with:
         cabal-version: ${{ env.CABAL-VER }}
         ghc-version: ${{ env.GHC_VER }}
@@ -94,6 +94,10 @@ jobs:
     - name: Build Agda
       run: |
         cabal build
+    - if: ${{ matrix.doctest }}
+      name: Run doctest
+      run: |
+        make doc-test
     strategy:
       fail-fast: false
       matrix:
@@ -103,32 +107,31 @@ jobs:
         - '3.10'
         description:
         - Linux
+        doctest:
+        - false
         ghc-ver:
-        - 9.6.1
-        - 9.4.4
-        - 9.2.7
+        - 9.6.2
+        - 9.4.7
+        - 9.2.8
         - 9.0.2
         - 8.10.7
         - 8.8.4
         - 8.6.5
         include:
         - cabal-flags: --disable-tests
-          description: Linux w/o tests
-          ghc-ver: 9.6.1
-          os: ubuntu-22.04
-        - cabal-flags: --enable-tests -f cpphs
-          description: Linux cpphs
-          ghc-ver: 9.6.1
+          description: Linux doctest
+          doctest: true
+          ghc-ver: 9.6.2
           os: ubuntu-22.04
         - cabal-flags: --enable-tests -f debug
           description: Linux debug
-          ghc-ver: 9.6.1
+          ghc-ver: 9.6.2
           os: ubuntu-22.04
         - description: macOS
-          ghc-ver: 9.6.1
+          ghc-ver: 9.6.2
           os: macos-12
         - description: Windows
-          ghc-ver: 9.6.1
+          ghc-ver: 9.6.2
           os: windows-2022
         os:
         - ubuntu-22.04

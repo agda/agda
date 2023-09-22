@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE KindSignatures #-}
 
 module Agda.TypeChecking.CheckInternal where

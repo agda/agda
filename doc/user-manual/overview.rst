@@ -12,10 +12,9 @@ Overview
 
 This is the manual for the Agda programming language, its type checking,
 compilation and editing system and related resources/tools.
-The latest PDF version of this manual can be downloaded from `GitHub Actions
-<https://github.com/agda/agda/actions?query=workflow%3A%22User+Manual%22+is%3Asuccess>`_
-page (instruction on `how to find them
-<https://github.com/actions/upload-artifact#where-does-the-upload-go>`_).
+The latest PDF version of this manual can be downloaded from
+`GitHub Actions <https://github.com/agda/agda/actions/workflows/user_manual.yml?query=workflow%3A%22User+Manual%22+is%3Asuccess+branch%3Amaster>`_
+page (instruction on `how to find them <https://github.com/actions/upload-artifact#where-does-the-upload-go>`_).
 
 You can find a lot of useful resources on `Agda Wiki
 <https://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.HomePage>`_

@@ -3,6 +3,7 @@
 
 module Agda.TypeChecking.Serialise.Instances.Internal where
 
+import qualified Data.HashSet as HashSet
 import Control.Monad.IO.Class
 
 import Agda.Syntax.Internal as I
@@ -141,32 +142,31 @@ instance EmbPrj IsFibrant where
   value 1 = return IsStrict
   value _ = malformed
 
+instance EmbPrj Univ where
+
 instance EmbPrj I.Sort where
-  icod_ (Type  a  ) = icodeN 0 Type a
-  icod_ (Prop  a  ) = icodeN 1 Prop a
-  icod_ SizeUniv    = icodeN 2 SizeUniv
-  icod_ (Inf f a)   = icodeN 3 Inf f a
-  icod_ (PiSort a b c) = icodeN 4 PiSort a b c
-  icod_ (FunSort a b) = icodeN 5 FunSort a b
-  icod_ (UnivSort a) = icodeN 6 UnivSort a
-  icod_ (DefS a b)   = icodeN 7 DefS a b
-  icod_ (SSet  a  ) = icodeN 8 SSet a
-  icod_ LockUniv    = icodeN 9 LockUniv
-  icod_ IntervalUniv = icodeN 10 IntervalUniv
-  icod_ (MetaS a b)  = icodeN 11 MetaS a b
-  icod_ (DummyS s)   = icodeN 12 DummyS s
-  icod_ LevelUniv    = icodeN 13 LevelUniv
+  icod_ = \case
+    Univ a b     -> icodeN 0  Univ a b
+    SizeUniv     -> icodeN 2  SizeUniv
+    Inf a b      -> icodeN 3  Inf a b
+    PiSort a b c -> icodeN 4  PiSort a b c
+    FunSort a b  -> icodeN 5  FunSort a b
+    UnivSort a   -> icodeN 6  UnivSort a
+    DefS a b     -> icodeN 7  DefS a b
+    LockUniv     -> icodeN 9  LockUniv
+    IntervalUniv -> icodeN 10 IntervalUniv
+    MetaS a b    -> icodeN 11 MetaS a b
+    DummyS s     -> icodeN 12 DummyS s
+    LevelUniv    -> icodeN 13 LevelUniv
 
   value = vcase valu where
-    valu [0, a]    = valuN Type  a
-    valu [1, a]    = valuN Prop  a
+    valu [0, a, b] = valuN Univ a b
     valu [2]       = valuN SizeUniv
-    valu [3, f, a] = valuN Inf f a
+    valu [3, a, b] = valuN Inf a b
     valu [4, a, b, c] = valuN PiSort a b c
     valu [5, a, b] = valuN FunSort a b
     valu [6, a]    = valuN UnivSort a
     valu [7, a, b] = valuN DefS a b
-    valu [8, a]    = valuN SSet a
     valu [9]       = valuN LockUniv
     valu [10]      = valuN IntervalUniv
     valu [11, a, b] = valuN MetaS a b
@@ -373,13 +373,27 @@ instance EmbPrj EtaEquality where
 
 instance EmbPrj ProjectionLikenessMissing
 
+instance EmbPrj BuiltinSort where
+  icod_ = \case
+    SortUniv  a      -> icodeN 0 SortUniv  a
+    SortOmega a      -> icodeN 1 SortOmega a
+    SortIntervalUniv -> icodeN 2 SortIntervalUniv
+    SortLevelUniv    -> icodeN 3 SortLevelUniv
+
+  value = vcase \case
+    [0, a] -> valuN SortUniv  a
+    [1, a] -> valuN SortOmega a
+    [2]    -> valuN SortIntervalUniv
+    [3]    -> valuN SortLevelUniv
+    _ -> malformed
+
 instance EmbPrj Defn where
   icod_ (Axiom       a)                                 = icodeN 0 Axiom a
   icod_ (Function    a b s t u c d e f g h i j k l m)   = icodeN 1 (\ a b s -> Function a b s t) a b s u c d e f g h i j k l m
   icod_ (Datatype    a b c d e f g h i j)               = icodeN 2 Datatype a b c d e f g h i j
   icod_ (Record      a b c d e f g h i j k l m)         = icodeN 3 Record a b c d e f g h i j k l m
   icod_ (Constructor a b c d e f g h i j k)             = icodeN 4 Constructor a b c d e f g h i j k
-  icod_ (Primitive   a b c d e)                         = icodeN 5 Primitive a b c d e
+  icod_ (Primitive   a b c d e f)                       = icodeN 5 Primitive a b c d e f
   icod_ (PrimitiveSort a b)                             = icodeN 6 PrimitiveSort a b
   icod_ AbstractDefn{}                                  = __IMPOSSIBLE__
   icod_ GeneralizableVar                                = icodeN 7 GeneralizableVar
@@ -392,7 +406,7 @@ instance EmbPrj Defn where
     valu [2, a, b, c, d, e, f, g, h, i, j]             = valuN Datatype a b c d e f g h i j
     valu [3, a, b, c, d, e, f, g, h, i, j, k, l, m]    = valuN Record   a b c d e f g h i j k l m
     valu [4, a, b, c, d, e, f, g, h, i, j, k]          = valuN Constructor a b c d e f g h i j k
-    valu [5, a, b, c, d, e]                            = valuN Primitive   a b c d e
+    valu [5, a, b, c, d, e, f]                         = valuN Primitive   a b c d e f
     valu [6, a, b]                                     = valuN PrimitiveSort a b
     valu [7]                                           = valuN GeneralizableVar
     valu _                                             = malformed
@@ -427,15 +441,15 @@ instance EmbPrj a => EmbPrj (SplitTree' a) where
     valu _            = malformed
 
 instance EmbPrj FunctionFlag where
-  icod_ FunStatic       = icodeN 0 FunStatic
-  icod_ FunInline       = icodeN 1 FunInline
-  icod_ FunMacro        = icodeN 2 FunMacro
+  icod_ FunStatic       = pure 0
+  icod_ FunInline       = pure 1
+  icod_ FunMacro        = pure 2
 
-  value = vcase valu where
-    valu [0] = valuN FunStatic
-    valu [1] = valuN FunInline
-    valu [2] = valuN FunMacro
-    valu _   = malformed
+  value = \case
+    0 -> pure FunStatic
+    1 -> pure FunInline
+    2 -> pure FunMacro
+    _ -> malformed
 
 instance EmbPrj a => EmbPrj (WithArity a) where
   icod_ (WithArity a b) = icodeN' WithArity a b
@@ -446,6 +460,18 @@ instance EmbPrj a => EmbPrj (Case a) where
   icod_ (Branches a b c d e f g) = icodeN' Branches a b c d e f g
 
   value = valueN Branches
+
+-- Opaque blocks are serialised in an abbreviated manner: We only need
+-- the enclosed definitions (3rd argument) and parent (4th argument) to
+-- compute the transitive closure during scope checking, never
+-- afterwards.
+instance EmbPrj OpaqueBlock where
+  icod_ (OpaqueBlock id uf _ _ r) =
+    icodeN' (\id uf ->
+      OpaqueBlock id (HashSet.fromList uf) mempty Nothing)
+    id (HashSet.toList uf) r
+
+  value = valueN (\id uf -> OpaqueBlock id (HashSet.fromList uf) mempty Nothing)
 
 instance EmbPrj CompiledClauses where
   icod_ (Fail a)   = icodeN' Fail a

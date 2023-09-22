@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.Interaction.EmacsTop
     ( mimicGHCi
     , namedMetaOf
@@ -15,16 +17,14 @@ import Control.Monad.Trans    ( lift )
 import qualified Data.List as List
 
 import Agda.Syntax.Common
-import Agda.Syntax.Position
-import Agda.Syntax.Scope.Base
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Abstract.Pretty (prettyATop)
-import Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete as C
 
-import Agda.TypeChecking.Errors ( explainWhyInScope, getAllWarningsOfTCErr, prettyError )
+import Agda.TypeChecking.Errors ( explainWhyInScope, getAllWarningsOfTCErr, renderError, verbalize )
 import qualified Agda.TypeChecking.Pretty as TCP
 import Agda.TypeChecking.Pretty (prettyTCM)
-import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
+import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, renderTCWarnings')
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors(..))
 import Agda.Interaction.AgdaTop
@@ -38,7 +38,6 @@ import Agda.Interaction.InteractionTop (localStateCommandM)
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Null (empty)
 import Agda.Utils.Maybe
-import Agda.Utils.Pretty
 import Agda.Utils.String
 import Agda.Utils.Time (CPUTime)
 import Agda.VersionCommit
@@ -294,8 +293,8 @@ formatWarningsAndErrors g w e = (body, title)
 -- | Serializing Info_Error
 showInfoError :: Info_Error -> TCM String
 showInfoError (Info_GenericError err) = do
-  e <- prettyError err
-  w <- prettyTCWarnings' =<< getAllWarningsOfTCErr err
+  e <- renderError err
+  w <- renderTCWarnings' =<< getAllWarningsOfTCErr err
 
   let errorMsg  = if null w
                       then e
@@ -345,11 +344,13 @@ prettyResponseContext ii rev ctx = withInteractionId ii $ do
         extras :: [Doc]
         extras = concat $
           [ [ "not in scope" | isInScope nis == C.NotInScope ]
-            -- Print erased if hypothesis is erased by goal is non-erased.
+            -- Print "erased" if hypothesis is erased but goal is non-erased.
           , [ "erased"       | not $ getQuantity  ai `moreQuantity` getQuantity  mod ]
-            -- Print irrelevant if hypothesis is strictly less relevant than goal.
-          , [ "irrelevant"   | not $ getRelevance ai `moreRelevant` getRelevance mod ]
-            -- Print instance if variable is considered by instance search
+            -- Print relevance of hypothesis relative to relevance of the goal. (Issue #6706.)
+          , [ text $ verbalize r
+                             | let r = getRelevance mod `inverseComposeRelevance` getRelevance ai
+                             , r /= Relevant ]
+            -- Print "instance" if variable is considered by instance search.
           , [ "instance"     | isInstance ai ]
           ]
       ty <- prettyATop expr

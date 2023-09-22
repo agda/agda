@@ -9,5 +9,5 @@ Reason: It relies on the K rule, which is incompatible with
 
 when checking the definition of uip
 Issue2790-b.agda:1,1-42
-Cannot set OPTIONS pragma --cubical-compatible and --with-K
+Cannot set OPTIONS pragmas --cubical-compatible and --with-K
 with safe flag.

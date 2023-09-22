@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE ViewPatterns #-}
 
 -- | Preprocessors for literate code formats.
@@ -79,9 +81,9 @@ atomizeLayers = (fmap <$> ((,) . fst) <*> snd) <=< unMkLayers
 --
 --   > f : Processor
 --
---   prop> f pos s /= []
+--   proposition> f pos s /= []
 --
---   prop> f pos s >>= layerContent == s
+--   proposition> f pos s >>= layerContent == s
 
 type Processor = Position -> String -> [Layer]
 
@@ -103,6 +105,9 @@ literateProcessors =
     , (".tex", (literateTeX, TexFileType))
     , (".md",  (literateMd,  MdFileType ))
     , (".org", (literateOrg, OrgFileType))
+    -- For now, treat typst as markdown because they use the same
+    -- syntax for code blocks.
+    , (".typ", (literateMd,  TypstFileType))
     ]
 
 -- | Returns @True@ if the role corresponds to Agda code.

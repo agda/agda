@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Defines 'CutOff' type which is used in "Agda.Interaction.Options".
 --   This module's purpose is to eliminate the dependency of

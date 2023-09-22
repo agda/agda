@@ -1,2 +1,4 @@
-Issue2250-2.agda:14,3-22
+Issue2250-2.agda:24,5-24
 Cannot use INJECTIVE pragma with safe flag.
+when scope checking the declaration
+  module Abstract where

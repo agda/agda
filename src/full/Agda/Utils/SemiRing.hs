@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.Utils.SemiRing where
 
 -- | Semirings (<https://en.wikipedia.org/wiki/Semiring>).

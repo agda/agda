@@ -1,4 +1,3 @@
-Issue4638-2.agda:4,3-5
+Issue4638-2.agda:4,3-18
 A → E A is not usable at the required modality @ω
-when checking that the type A → E A of the constructor c₁ fits in
-the sort Set of the datatype.
+when checking the constructor c₁ in the declaration of E

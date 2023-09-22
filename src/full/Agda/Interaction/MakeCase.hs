@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.Interaction.MakeCase where
@@ -20,6 +22,7 @@ import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Concrete.Pattern as C
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Abstract.Pattern as A
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Scope.Base  ( ResolvedName(..), BindingSource(..), KindOfName(..), exceptKindsOfNames )
@@ -31,23 +34,20 @@ import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Coverage.Match ( SplitPatVar(..) , SplitPattern , applySplitPSubst , fromSplitPatterns )
 import Agda.TypeChecking.Empty ( isEmptyTel )
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rules.Def (checkClauseLHS)
 import Agda.TypeChecking.Rules.LHS (LHSResult(..))
 import Agda.TypeChecking.Rules.LHS.Problem (AsBinding(..))
 
 import Agda.Interaction.Options
-import Agda.Interaction.BasicOps
 
 import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Function
 import Agda.Utils.Functor
+import Agda.Utils.Lens   (set)
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty (prettyShow)
-import qualified Agda.Utils.Pretty as P
-import Agda.Utils.Size
+import Agda.Utils.WithDefault (lensKeepDefault)
 
 import Agda.Utils.Impossible
 
@@ -324,7 +324,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
     -- When we introduce projection patterns in an extended lambda,
     -- we need to print them postfix.
     let postProjInExtLam = applyWhen (isJust casectxt) $
-          withPragmaOptions $ \ opt -> opt { optPostfixProjections = True }
+          withPragmaOptions $ set (lensOptPostfixProjections . lensKeepDefault) True
     (piTel, sc) <- insertTrailingArgs False $ clauseToSplitClause clause
     -- Andreas, 2015-05-05 If we introduced new function arguments
     -- do not split on result.  This might be more what the user wants.

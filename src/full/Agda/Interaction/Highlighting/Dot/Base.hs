@@ -9,7 +9,6 @@ module Agda.Interaction.Highlighting.Dot.Base
 
 import Control.Monad.IO.Class
 
-import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 
 import qualified Data.Text.Lazy as L

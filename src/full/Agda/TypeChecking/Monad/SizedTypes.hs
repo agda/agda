@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Stuff for sized types that does not require modules
 --   "Agda.TypeChecking.Reduce" or "Agda.TypeChecking.Constraints"
@@ -24,7 +25,7 @@ import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
@@ -70,7 +71,7 @@ isSizeTypeTest =
         testType _                                    = Nothing
     return testType
 
-getBuiltinDefName :: (HasBuiltins m) => String -> m (Maybe QName)
+getBuiltinDefName :: (HasBuiltins m) => BuiltinId -> m (Maybe QName)
 getBuiltinDefName s = fromDef <$> getBuiltin' s
   where
     fromDef (Just (Def d [])) = Just d
@@ -107,7 +108,7 @@ haveSizeLt :: TCM Bool
 haveSizeLt = isJust <$> getBuiltinDefName builtinSizeLt
 
 -- | Add polarity info to a SIZE builtin.
-builtinSizeHook :: String -> QName -> Type -> TCM ()
+builtinSizeHook :: BuiltinId -> QName -> Type -> TCM ()
 builtinSizeHook s q t = do
   when (s `elem` [builtinSizeLt, builtinSizeSuc]) $ do
     modifySignature $ updateDefinition q

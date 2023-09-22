@@ -11,7 +11,7 @@ on:
     - '.github/workflows/stack.yml'
     - 'Agda.cabal'
     - 'Setup.hs'
-    - 'stack-9.4.4.yaml'
+    - 'stack-9.6.2.yaml'
       # !!! MATCH THIS WITH ghc_ver IN THE matrix BELOW !!!
       #
     - 'src/size-solver/size-solver.cabal'
@@ -52,9 +52,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04,macos-12,windows-2022]
-        stack-ver: ['2.9.3']
-        ghc-ver: [9.4.4]
+        os: [ubuntu-22.04,macos-12]
+        ghc-ver: [9.6.2]
           # !!! MAKE SURE THIS GHC VERSION IS IN SYNC WITH trigger_path_list !!!
           #
           # The LTS snapshots are covered in workflow stack-dry-run.yml.
@@ -65,6 +64,10 @@ jobs:
           # because ghc-ver is to pick the stack-$(ghc-ver).yaml file.
           # If switching to a new GHC minor version needs manual action, i.e.,
           # adding the respective stack-x.y.z.yaml file.
+        include:
+        - os: windows-2022
+          ghc-ver: 9.6.2
+          # !!! MAKE SURE THIS GHC VERSION IS IN SYNC WITH trigger_path_list !!!
 
     # # Try "allowed-failure" for Windows with GHC 9.2
     # continue-on-error: ${{ startsWith(matrix.os, 'windows') && startsWith(matrix.ghc-ver,'9.2') }}
@@ -72,7 +75,7 @@ jobs:
       ## ARGS is set later, depending on the actually picked GHC version
       # ARGS: "--stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal"
       EXTRA_ARGS: "--fast"
-      NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
+      NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:debug"
 
       # Liang-Ting Chen (2021-08-18):
       # Let pacman choose the file name for ICU4C.
@@ -112,14 +115,15 @@ jobs:
 
     # Checkout is needed before the first call to stack exec ${ARGS}
     # because it provides the stack-*.yaml file.
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
-    - uses: haskell/actions/setup@v2
+    - uses: haskell-actions/setup@v2
       id: haskell-setup
       with:
         ghc-version: ${{ matrix.ghc-ver }}
-        stack-version: ${{ matrix.stack-ver }}
+        stack-version: latest
         enable-stack: true
+        cabal-update: false
 
     - name: Environment settings based on the Haskell setup
       run: |
@@ -134,11 +138,11 @@ jobs:
         echo "stack-exe         = ${{ steps.haskell-setup.outputs.stack-exe   }}"
         echo "stack-root        = ${{ steps.haskell-setup.outputs.stack-root  }}"
         echo "STACK_ROOT (orig) = ${{ env.STACK_ROOT                          }}"
-        echo "STACK_ROOT=${{ steps.haskell-setup.outputs.stack-root }}" >> ${GITHUB_ENV}
-        echo "STACK_VER=$(stack --numeric-version)"                     >> ${GITHUB_ENV}
-        export GHC_VER=$(ghc --numeric-version)
-        echo "GHC_VER=${GHC_VER}"                                       >> ${GITHUB_ENV}
-        echo "ARGS=--stack-yaml=stack-${GHC_VER}.yaml --system-ghc --no-terminal"    >> ${GITHUB_ENV}
+        echo "STACK_ROOT=${{ steps.haskell-setup.outputs.stack-root }}" >> "${GITHUB_ENV}"
+        echo "STACK_VER=$(stack --numeric-version)"                     >> "${GITHUB_ENV}"
+        GHC_VER=$(ghc --numeric-version)
+        echo "GHC_VER=${GHC_VER}"                                       >> "${GITHUB_ENV}"
+        echo "ARGS=--stack-yaml=stack-${GHC_VER}.yaml --system-ghc --no-terminal"    >> "${GITHUB_ENV}"
     # From now on, use env.GHC_VER rather than matrix.ghc-ver
 
     # Note that msys2 libraries have to be installed via
@@ -175,16 +179,13 @@ jobs:
         echo "ICU_VER           = ${ICU_VER}"
 
     - name: Restore cache from approximate key
-      # uses: actions/cache/restore@v3
-      # Andreas, 2023-02-02 revert to default cache saving logic.
-      # "Save always" is bad because it may duplicate caches from the base branch on the feature branch.
-      uses: actions/cache@v3
+      uses: actions/cache/restore@v3
       id:   cache
       with:
-        # Note that matrix.stack-ver might be simply 'latest', so we use STACK_VER.
         # We include stack-${GHC_VER}.yaml in the primary cache key so that the cache gets rewritten
         # everytime the resolver updates or extra-deps are added.
-        key:  &cache_key stack.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}
+        # 2023-03-28: We also include Agda.cabal so that the cache gets rewritten if a new dependency is added.
+        key:  &cache_key stack.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-plan-${{ hashFiles('Agda.cabal', format('stack-{0}.yaml', env.GHC_VER)) }}
         restore-keys:    stack.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-
         path: &cache_pathes |
           ${{ env.STACK_ROOT }}
@@ -198,7 +199,9 @@ jobs:
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
 
     - name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests` (i.e. the test suite).
-      run: stack build ${ARGS} ${EXTRA_ARGS} --work-dir=.stack-work-fast --test --no-run-tests
+      run: stack build ${ARGS} ${EXTRA_ARGS} --test --no-run-tests
+        ## Since we do not cache .stack-work and .stack-work-fast, we can fuse them.
+      # run: stack build ${ARGS} ${EXTRA_ARGS} --work-dir=.stack-work-fast --test --no-run-tests
 
     - name: Build Agda with the non-default flags Agda.cabal.
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}
@@ -214,9 +217,10 @@ jobs:
     #   # Don't fail if cache cannot be deleted
     #   continue-on-error: true
 
-    # - name: Save cache
-    #   uses: actions/cache/save@v3
-    #   if:   always()  # save cache even when build fails
-    #   with:
-    #     key:  *cache_key
-    #     path: *cache_pathes
+    - name: Save cache
+      uses: actions/cache/save@v3
+      if:   always() && steps.cache.outputs.cache-matched-key != steps.cache.outputs.cache-primary-key
+            # save cache even when build fails
+      with:
+        key:  ${{ steps.cache.outputs.cache-primary-key }}
+        path: *cache_pathes

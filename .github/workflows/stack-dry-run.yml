@@ -23,8 +23,7 @@ jobs:
         shell: bash
     env:
       EXTRA_ARGS: --dry-run
-      NON_DEFAULT_FLAGS: --flag Agda:enable-cluster-counting --flag Agda:cpphs --flag
-        Agda:debug
+      NON_DEFAULT_FLAGS: --flag Agda:enable-cluster-counting --flag Agda:debug
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
@@ -33,9 +32,9 @@ jobs:
         ICU_VER=$(pkg-config --modversion icu-i18n)
         echo "ICU_VER=${ICU_VER}"
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - id: haskell-setup
-      uses: haskell/actions/setup@v2
+      uses: haskell-actions/setup@v2
       with:
         enable-stack: true
         ghc-version: ${{ matrix.ghc-ver }}
@@ -72,7 +71,8 @@ jobs:
       fail-fast: false
       matrix:
         ghc-ver:
-        - 9.2.7
+        - 9.4.6
+        - 9.2.8
         - 9.0.2
         - 8.10.7
         - 8.8.4

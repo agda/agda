@@ -1,7 +1,12 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.Syntax.Concrete.Definitions.Monad where
+
+import Prelude hiding ( null )
 
 import Control.Monad        ( unless )
 import Control.Monad.Except ( MonadError(..), ExceptT, runExceptT )
+import Control.Monad.Reader ( MonadReader, ReaderT, runReaderT )
 import Control.Monad.State  ( MonadState(..), modify, State, runState )
 
 import Data.Bifunctor (second)
@@ -16,26 +21,39 @@ import Agda.Syntax.Concrete.Definitions.Errors
 
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.Lens
+import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Null (Null(..))
 
 import Agda.Utils.Impossible
 
 -- | Nicifier monad.
 --   Preserve the state when throwing an exception.
 
-newtype Nice a = Nice { unNice :: ExceptT DeclarationException (State NiceEnv) a }
+newtype Nice a = Nice { unNice :: ReaderT NiceEnv (ExceptT DeclarationException (State NiceState)) a }
   deriving ( Functor, Applicative, Monad
-           , MonadState NiceEnv, MonadError DeclarationException
+           , MonadReader NiceEnv, MonadState NiceState, MonadError DeclarationException
            )
 
 -- | Run a Nicifier computation, return result and warnings
 --   (in chronological order).
-runNice :: Nice a -> (Either DeclarationException a, NiceWarnings)
-runNice m = second (reverse . niceWarn) $
-  runExceptT (unNice m) `runState` initNiceEnv
+runNice :: NiceEnv -> Nice a -> (Either DeclarationException a, NiceWarnings)
+runNice env m = second (reverse . niceWarn) $
+  runExceptT (unNice m `runReaderT` env) `runState` initNiceState
+
+instance Null a => Null (Nice a) where
+  empty = pure empty
+  null _ = __IMPOSSIBLE__
+
+-- | Nicifier parameters.
+
+data NiceEnv = NiceEnv
+  { safeButNotBuiltin :: Bool
+       -- ^ We are in a module declared @--safe@ which is not a builtin module.
+  }
 
 -- | Nicifier state.
 
-data NiceEnv = NiceEnv
+data NiceState = NiceState
   { _loneSigs :: LoneSigs
     -- ^ Lone type signatures that wait for their definition.
   , _termChk  :: TerminationCheck
@@ -61,6 +79,7 @@ data LoneSig = LoneSig
       --   than the key of 'LoneSigs' pointing to it.
   , loneSigKind  :: DataRecOrFun
   }
+  deriving Show
 
 type LoneSigs     = Map Name LoneSig
      -- ^ We retain the 'Name' also in the codomain since
@@ -79,8 +98,8 @@ type NiceWarnings = [DeclarationWarning]
 
 -- | Initial nicifier state.
 
-initNiceEnv :: NiceEnv
-initNiceEnv = NiceEnv
+initNiceState :: NiceState
+initNiceState = NiceState
   { _loneSigs = Map.empty
   , _termChk  = TerminationCheck
   , _posChk   = YesPositivityCheck
@@ -91,7 +110,7 @@ initNiceEnv = NiceEnv
   , _nameId   = NameId 1 noModuleNameHash
   }
 
-lensNameId :: Lens' NameId NiceEnv
+lensNameId :: Lens' NiceState NameId
 lensNameId f e = f (_nameId e) <&> \ i -> e { _nameId = i }
 
 nextNameId :: Nice NameId
@@ -104,7 +123,7 @@ nextNameId = do
 
 -- | Lens for field '_loneSigs'.
 
-loneSigs :: Lens' LoneSigs NiceEnv
+loneSigs :: Lens' NiceState LoneSigs
 loneSigs f e = f (_loneSigs e) <&> \ s -> e { _loneSigs = s }
 
 -- | Adding a lone signature to the state.
@@ -139,16 +158,26 @@ getSig x = fmap loneSigKind . Map.lookup x <$> use loneSigs
 noLoneSigs :: Nice Bool
 noLoneSigs = null <$> use loneSigs
 
--- | Ensure that all forward declarations have been given a definition.
-
 forgetLoneSigs :: Nice ()
 forgetLoneSigs = loneSigs .= Map.empty
 
+-- | Ensure that all forward declarations have been given a definition.
 checkLoneSigs :: LoneSigs -> Nice ()
 checkLoneSigs xs = do
   forgetLoneSigs
   unless (Map.null xs) $ declarationWarning $ MissingDefinitions $
     map (\s -> (loneSigName s , loneSigRange s)) $ Map.elems xs
+
+-- | Ensure that all forward declarations have been given a definition,
+-- raising an error indicating *why* they would have had to have been
+-- defined.
+breakImplicitMutualBlock :: Range -> String -> Nice ()
+breakImplicitMutualBlock r why = do
+  m <- use loneSigs
+  List1.unlessNull (Map.elems m) $ \ xs ->
+    declarationException $ DisallowedInterleavedMutual r why $
+      -- Andreas, 2023-09-07: We discard the 'loneSigRange's because the 'Name' already has a range.
+      fmap loneSigName xs
 
 -- | Get names of lone function signatures, plus their unique names.
 
@@ -162,7 +191,7 @@ loneSigsFromLoneNames = Map.fromListWith __IMPOSSIBLE__ . map (\(r,x,k) -> (x, L
 
 -- | Lens for field '_termChk'.
 
-terminationCheckPragma :: Lens' TerminationCheck NiceEnv
+terminationCheckPragma :: Lens' NiceState TerminationCheck
 terminationCheckPragma f e = f (_termChk e) <&> \ s -> e { _termChk = s }
 
 withTerminationCheckPragma :: TerminationCheck -> Nice a -> Nice a
@@ -173,7 +202,7 @@ withTerminationCheckPragma tc f = do
   terminationCheckPragma .= tc_old
   return result
 
-coverageCheckPragma :: Lens' CoverageCheck NiceEnv
+coverageCheckPragma :: Lens' NiceState CoverageCheck
 coverageCheckPragma f e = f (_covChk e) <&> \ s -> e { _covChk = s }
 
 withCoverageCheckPragma :: CoverageCheck -> Nice a -> Nice a
@@ -186,7 +215,7 @@ withCoverageCheckPragma tc f = do
 
 -- | Lens for field '_posChk'.
 
-positivityCheckPragma :: Lens' PositivityCheck NiceEnv
+positivityCheckPragma :: Lens' NiceState PositivityCheck
 positivityCheckPragma f e = f (_posChk e) <&> \ s -> e { _posChk = s }
 
 withPositivityCheckPragma :: PositivityCheck -> Nice a -> Nice a
@@ -199,7 +228,7 @@ withPositivityCheckPragma pc f = do
 
 -- | Lens for field '_uniChk'.
 
-universeCheckPragma :: Lens' UniverseCheck NiceEnv
+universeCheckPragma :: Lens' NiceState UniverseCheck
 universeCheckPragma f e = f (_uniChk e) <&> \ s -> e { _uniChk = s }
 
 withUniverseCheckPragma :: UniverseCheck -> Nice a -> Nice a
@@ -218,7 +247,7 @@ getUniverseCheckFromSig x = maybe YesUniverseCheck universeCheck <$> getSig x
 
 -- | Lens for field '_catchall'.
 
-catchallPragma :: Lens' Catchall NiceEnv
+catchallPragma :: Lens' NiceState Catchall
 catchallPragma f e = f (_catchall e) <&> \ s -> e { _catchall = s }
 
 -- | Get current catchall pragma, and reset it for the next clause.

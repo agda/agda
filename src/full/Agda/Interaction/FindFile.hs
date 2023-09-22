@@ -54,7 +54,7 @@ import Agda.Utils.List  ( stripSuffix, nubOn )
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad ( ifM, unlessM )
-import Agda.Utils.Pretty ( Pretty(..), prettyShow )
+import Agda.Syntax.Common.Pretty ( Pretty(..), prettyShow )
 import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible

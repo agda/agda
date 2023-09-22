@@ -27,7 +27,6 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 
-import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Substitute
@@ -42,8 +41,9 @@ import Agda.Utils.ListT
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Size
+import Agda.Utils.Update
 
 import Agda.Utils.Impossible
 
@@ -201,6 +201,7 @@ defaultAddCtx x a ret =
 withFreshName_ :: (MonadAddContext m) => ArgName -> (Name -> m a) -> m a
 withFreshName_ = withFreshName noRange
 
+instance MonadAddContext m => MonadAddContext (ChangeT m)
 instance MonadAddContext m => MonadAddContext (ExceptT e m)
 instance MonadAddContext m => MonadAddContext (IdentityT m)
 instance MonadAddContext m => MonadAddContext (MaybeT m)
@@ -404,6 +405,11 @@ mapAbstraction
   :: (Subst a, Subst b, MonadAddContext m)
   => Dom Type -> (a -> m b) -> Abs a -> m (Abs b)
 mapAbstraction dom f x = (x $>) <$> underAbstraction dom x f
+
+mapAbstraction_
+  :: (Subst a, Subst b, MonadAddContext m)
+  => (a -> m b) -> Abs a -> m (Abs b)
+mapAbstraction_ = mapAbstraction __DUMMY_DOM__
 
 getLetBindings :: MonadTCEnv tcm => tcm [(Name, LetBinding)]
 getLetBindings = do

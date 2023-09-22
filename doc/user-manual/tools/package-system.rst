@@ -140,7 +140,7 @@ where ``VERSION`` is the Agda version (for instance ``2.5.1``). The
 overridden by setting the ``AGDA_DIR`` environment variable.
 
 Each line of the libraries file shall be the absolute file system path to
-the root of a library.
+the root of a library, or a comment line starting with ``--`` followed by a space character.
 
 Environment variables in the paths (of the form ``$VAR`` or ``${VAR}``) are
 expanded. The location of the ``libraries`` file used can be overridden using

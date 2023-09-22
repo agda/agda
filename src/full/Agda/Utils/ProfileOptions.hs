@@ -21,6 +21,9 @@ import qualified Data.Map as Map
 import GHC.Generics (Generic)
 import Text.EditDistance (restrictedDamerauLevenshteinDistance, defaultEditCosts)
 
+import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Null (Null, empty)
+
 -- | Various things that can be measured when checking an Agda development. Turned on with
 --   the `--profile` flag, for instance `--profile=sharing` to turn on the 'Sharing' option.
 --   'Internal', 'Modules', and 'Definitions' are mutually exclusive.
@@ -42,11 +45,11 @@ instance NFData ProfileOption
 
 -- | A set of 'ProfileOption's
 newtype ProfileOptions = ProfileOpts { unProfileOpts :: Set ProfileOption }
-  deriving (Show, Eq, NFData)
+  deriving (Show, Eq, NFData, Null)
 
 -- | The empty set of profiling options.
 noProfileOptions :: ProfileOptions
-noProfileOptions = ProfileOpts Set.empty
+noProfileOptions = empty
 
 addAllProfileOptions :: ProfileOptions -> ProfileOptions
 addAllProfileOptions (ProfileOpts opts) = ProfileOpts $ foldl ins opts [minBound..maxBound]
@@ -90,9 +93,11 @@ addProfileOption :: String -> ProfileOptions -> Either String ProfileOptions
 addProfileOption "all" opts = pure $ addAllProfileOptions opts
 addProfileOption s (ProfileOpts opts) = do
   o <- parseOpt s
-  let conflicts = filter (incompatible o) (Set.toList opts)
-  unless (null conflicts) $ Left $ concat ["Cannot use profiling option '", s, "' with '", optName $ head $ conflicts, "'"]
-  return $ ProfileOpts $ Set.insert o opts
+  List1.ifNull (filter (incompatible o) $ Set.toList opts)
+    {-then-}
+    (return $ ProfileOpts $ Set.insert o opts)
+    {-else-} $ \ conflicts ->
+    Left $ concat ["Cannot use profiling option '", s, "' with '", optName $ List1.head $ conflicts, "'"]
 
 -- | Check if a given profiling option is present in a set of profiling options.
 containsProfileOption :: ProfileOption -> ProfileOptions -> Bool

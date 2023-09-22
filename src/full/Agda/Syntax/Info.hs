@@ -150,10 +150,11 @@ data DefInfo' t = DefInfo
   { defFixity   :: Fixity'
   , defAccess   :: Access
   , defAbstract :: IsAbstract
+  , defOpaque   :: IsOpaque
   , defInstance :: IsInstance
   , defMacro    :: IsMacro
   , defInfo     :: DeclInfo
-  , defTactic   :: Maybe t
+  , defTactic   :: Maybe (Ranged t)
   }
   deriving (Show, Eq, Generic)
 
@@ -162,7 +163,7 @@ mkDefInfo x f a ab r = mkDefInfoInstance x f a ab NotInstanceDef NotMacroDef r
 
 -- | Same as @mkDefInfo@ but where we can also give the @IsInstance@
 mkDefInfoInstance :: Name -> Fixity' -> Access -> IsAbstract -> IsInstance -> IsMacro -> Range -> DefInfo' t
-mkDefInfoInstance x f a ab i m r = DefInfo f a ab i m (DeclInfo x r) Nothing
+mkDefInfoInstance x f a ab i m r = DefInfo f a ab TransparentDef i m (DeclInfo x r) Nothing
 
 instance HasRange (DefInfo' t) where
   getRange = getRange . defInfo
@@ -177,8 +178,14 @@ instance KillRange t => KillRange (DefInfo' t) where
 instance LensIsAbstract (DefInfo' t) where
   lensIsAbstract f i = (f $! defAbstract i) <&> \ a -> i { defAbstract = a }
 
+instance LensIsOpaque (DefInfo' t) where
+  lensIsOpaque f i = (f $! defOpaque i) <&> \ a -> i { defOpaque = a }
+
 instance AnyIsAbstract (DefInfo' t) where
   anyIsAbstract = defAbstract
+
+instance AllAreOpaque (DefInfo' t) where
+  jointOpacity = jointOpacity . defOpaque
 
 instance NFData t => NFData (DefInfo' t)
 

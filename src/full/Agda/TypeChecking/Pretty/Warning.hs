@@ -19,6 +19,7 @@ import qualified Data.List as List
 import qualified Data.Text as T
 
 import Agda.TypeChecking.Monad.Base
+import qualified Agda.TypeChecking.Monad.Base.Warning as W
 import Agda.TypeChecking.Monad.Builtin
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.MetaVars
@@ -29,13 +30,12 @@ import Agda.TypeChecking.Monad.State ( getScope )
 import Agda.TypeChecking.Monad ( localTCState, enterClosure )
 import Agda.TypeChecking.Positivity () --instance only
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Pretty.Call
+import Agda.TypeChecking.Pretty.Call () -- instance PrettyTCM CallInfo
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Constraint (prettyInterestingConstraints, interestingConstraint)
 import Agda.TypeChecking.Warnings (MonadWarning, isUnsolvedWarning, onlyShowIfUnsolved, classifyWarning, WhichWarnings(..), warning_)
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
-import Agda.TypeChecking.Monad.Constraints (getAllConstraints)
 
-import Agda.Syntax.Common ( ImportedName'(..), fromImportedName, partitionImportedNames )
+import Agda.Syntax.Common ( getHiding, ImportedName'(..), fromImportedName, partitionImportedNames )
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Scope.Base ( concreteNamesInScope, NameOrModule(..) )
@@ -45,13 +45,12 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 
-import Agda.Utils.Monad
 import Agda.Utils.Lens
 import Agda.Utils.List ( editDistance )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
-import Agda.Utils.Pretty ( Pretty, prettyShow, singPlural )
-import qualified Agda.Utils.Pretty as P
+import Agda.Syntax.Common.Pretty ( Pretty, prettyShow, singPlural )
+import qualified Agda.Syntax.Common.Pretty as P
 
 instance PrettyTCM TCWarning where
   prettyTCM w@(TCWarning loc _ _ _ _) = do
@@ -120,6 +119,13 @@ prettyWarning = \case
            ) :
       map (nest 2 . prettyTCM . NamedClause f True) cs
 
+    InlineNoExactSplit f c -> vcat $
+      [ fsep $
+          pwords "Exact splitting is enabled, but the following clause" ++
+          pwords "is no longer a definitional equality because it was translated to a copattern match:"
+      , nest 2 . prettyTCM . NamedClause f True $ c
+      ]
+
     NotStrictlyPositive d ocs -> fsep $
       [prettyTCM d] ++ pwords "is not strictly positive, because it occurs"
       ++ [prettyTCM ocs]
@@ -144,8 +150,8 @@ prettyWarning = \case
       "is an absurd pattern, () or {}, in the left-hand side."
 
     OldBuiltin old new -> fwords $
-      "Builtin " ++ old ++ " no longer exists. " ++
-      "It is now bound by BUILTIN " ++ new
+      "Builtin " ++ getBuiltinId old ++ " no longer exists. " ++
+      "It is now bound by BUILTIN " ++ getBuiltinId new
 
     EmptyRewritePragma -> fsep . pwords $ "Empty REWRITE pragma"
 
@@ -208,46 +214,24 @@ prettyWarning = \case
 
     GenericWarning d -> return d
 
-    GenericNonFatalError d -> return d
+    InvalidCharacterLiteral c -> fsep $
+      pwords "Invalid character literal" ++ [text $ show c] ++
+      pwords "(surrogate code points are not supported)"
 
-    GenericUseless _r d -> return d
+    UselessPragma _r d -> return d
 
     SafeFlagPostulate e -> fsep $
       pwords "Cannot postulate" ++ [pretty e] ++ pwords "with safe flag"
 
     SafeFlagPragma xs -> fsep $ concat
-      [ [ fwords $ singPlural xs id (++ "s") "Cannot set OPTIONS pragma" ]
+      [ [ fwords $ singPlural (words =<< xs) id (++ "s") "Cannot set OPTIONS pragma" ]
       , map text xs
       , [ fwords "with safe flag." ]
       ]
 
-    SafeFlagNonTerminating -> fsep $
-      pwords "Cannot use NON_TERMINATING pragma with safe flag."
-
-    SafeFlagTerminating -> fsep $
-      pwords "Cannot use TERMINATING pragma with safe flag."
-
     SafeFlagWithoutKFlagPrimEraseEquality -> fsep (pwords "Cannot use primEraseEquality with safe and without-K flags.")
 
     WithoutKFlagPrimEraseEquality -> fsep (pwords "Using primEraseEquality with the without-K flag is inconsistent.")
-
-    SafeFlagNoPositivityCheck -> fsep $
-      pwords "Cannot use NO_POSITIVITY_CHECK pragma with safe flag."
-
-    SafeFlagPolarity -> fsep $
-      pwords "Cannot use POLARITY pragma with safe flag."
-
-    SafeFlagNoUniverseCheck -> fsep $
-      pwords "Cannot use NO_UNIVERSE_CHECK pragma with safe flag."
-
-    SafeFlagEta -> fsep $
-      pwords "Cannot use ETA pragma with safe flag."
-
-    SafeFlagInjective -> fsep $
-      pwords "Cannot use INJECTIVE pragma with safe flag."
-
-    SafeFlagNoCoverageCheck -> fsep $
-      pwords "Cannot use NON_COVERING pragma with safe flag."
 
     OptionWarning ow -> pretty ow
 
@@ -357,16 +341,33 @@ prettyWarning = \case
       , if patsyn then pwords "pattern synonym" else [ "constructor" ]
       ]
 
+    PatternShadowsConstructor x c -> fsep $
+      pwords "The pattern variable" ++ [prettyTCM x] ++
+      pwords "has the same name as the constructor" ++ [prettyTCM c]
+
     PlentyInHardCompileTimeMode o -> fsep $
       pwords "Ignored use of" ++ [pretty o] ++
       pwords "in hard compile-time mode"
 
     RecordFieldWarning w -> prettyRecordFieldWarning w
 
+    NotAffectedByOpaque -> fwords "Only functions and primitives can be marked opaque. This declaration will be treated as transparent."
+
+    UnfoldTransparentName qn -> fsep $
+      pwords "The name" ++ [prettyTCM qn <> ","] ++ pwords "mentioned by an unfolding clause, does not belong to an opaque block. This has no effect."
+
+    UselessOpaque -> "This `opaque` block has no effect."
+
+    FaceConstraintCannotBeHidden ai -> fsep $
+      pwords "Face constraint patterns cannot be" ++ [ pretty (getHiding ai), "arguments"]
+
+    FaceConstraintCannotBeNamed x -> fsep $
+      pwords "Ignoring name" ++ ["`" <> pretty x <> "`"] ++ pwords "given to face constraint pattern"
+
 prettyRecordFieldWarning :: MonadPretty m => RecordFieldWarning -> m Doc
 prettyRecordFieldWarning = \case
-  DuplicateFieldsWarning xrs    -> prettyDuplicateFields $ map fst xrs
-  TooManyFieldsWarning q ys xrs -> prettyTooManyFields q ys $ map fst xrs
+  W.DuplicateFields xrs    -> prettyDuplicateFields $ map fst xrs
+  W.TooManyFields q ys xrs -> prettyTooManyFields q ys $ map fst xrs
 
 prettyDuplicateFields :: MonadPretty m => [C.Name] -> m Doc
 prettyDuplicateFields xs = fsep $ concat
@@ -434,10 +435,13 @@ didYouMean inscope canon x
 
 
 prettyTCWarnings :: [TCWarning] -> TCM String
-prettyTCWarnings = fmap (unlines . List.intersperse "") . prettyTCWarnings'
+prettyTCWarnings = fmap (unlines . List.intersperse "" . map P.render) . prettyTCWarnings'
 
-prettyTCWarnings' :: [TCWarning] -> TCM [String]
-prettyTCWarnings' = mapM (fmap P.render . prettyTCM) . filterTCWarnings
+renderTCWarnings' :: [TCWarning] -> TCM [String]
+renderTCWarnings' = fmap (map P.render) . prettyTCWarnings'
+
+prettyTCWarnings' :: [TCWarning] -> TCM [Doc]
+prettyTCWarnings' = traverse prettyTCM . filterTCWarnings
 
 -- | If there are several warnings, remove the unsolved-constraints warning
 -- in case there are no interesting constraints to list.

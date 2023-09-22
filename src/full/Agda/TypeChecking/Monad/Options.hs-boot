@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.TypeChecking.Monad.Options where
 
 import Agda.Interaction.Library.Base

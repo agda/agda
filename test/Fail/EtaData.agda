@@ -7,7 +7,12 @@ data Prod (A B : Set) : Set where
 
 {-# ETA Prod #-}
 
--- The ETA pragma does not exist anymore.
+-- WAS: The ETA pragma does not exist anymore.
+
+-- NOW as of 2023-08-30:
+--
+-- ETA pragma is only applicable to coinductive records
+-- when checking the pragma ETA Prod
 
 fst : {A B : Set} → Prod A B → A
 fst (pair a b) = a

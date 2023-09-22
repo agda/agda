@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE PatternSynonyms #-}
 
 module Agda.Compiler.Treeless.Erase
@@ -11,11 +13,9 @@ import Control.Monad
 import Control.Monad.State
 import Data.Map (Map)
 import qualified Data.Map as Map
-import qualified Data.List as List
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
-import Agda.Syntax.Position
 import Agda.Syntax.Treeless
 import Agda.Syntax.Literal
 
@@ -35,7 +35,7 @@ import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Memo
 import Agda.Utils.Monad
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.IntSet.Infinite (IntSet)
 import qualified Agda.Utils.IntSet.Infinite as IntSet
 
@@ -49,10 +49,10 @@ data ESt = ESt
       -- ^ Memoize computed `TypeInfo` for data/record types `QName`.
   }
 
-funMap :: Lens' (Map QName FunInfo) ESt
+funMap :: Lens' ESt (Map QName FunInfo)
 funMap f r = f (_funMap r) <&> \ a -> r { _funMap = a }
 
-typeMap :: Lens' (Map QName TypeInfo) ESt
+typeMap :: Lens' ESt (Map QName TypeInfo)
 typeMap f r = f (_typeMap r) <&> \ a -> r { _typeMap = a }
 
 -- | Eraser monad.

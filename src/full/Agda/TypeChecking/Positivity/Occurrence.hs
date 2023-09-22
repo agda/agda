@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Occurrences.
 
 module Agda.TypeChecking.Positivity.Occurrence
@@ -26,7 +28,7 @@ import Agda.Syntax.Position
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Graph)
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.SemiRing
 import Agda.Utils.Size
 
@@ -57,6 +59,8 @@ data Where
   | MetaArg          -- ^ as an argument of a metavariable
   | ConArgType QName -- ^ in the type of a constructor
   | IndArgType QName -- ^ in a datatype index of a constructor
+  | ConEndpoint QName
+                     -- ^ in an endpoint of a higher constructor
   | InClause Nat     -- ^ in the nth clause of a defined function
   | Matched          -- ^ matched against in a clause of a defined function
   | IsIndex          -- ^ is an index of an inductive family
@@ -98,6 +102,8 @@ instance Pretty Where where
     MetaArg      -> "MetaArg"
     ConArgType q -> "ConArgType" <+> pretty q
     IndArgType q -> "IndArgType" <+> pretty q
+    ConEndpoint q
+                 -> "ConEndpoint" <+> pretty q
     InClause i   -> "InClause"   <+> pretty i
     Matched      -> "Matched"
     IsIndex      -> "IsIndex"

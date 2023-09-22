@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Dropping initial arguments (``parameters'') from a function which can be
 --   easily reconstructed from its principal argument.
@@ -84,7 +85,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
-import Agda.Utils.Pretty ( prettyShow )
+import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -267,7 +268,7 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
     def@Function{funProjection = Left MaybeProjection, funClauses = cls,
                  funSplitTree = st0, funCompiled = cc0, funInv = NotInjective,
                  funMutual = Just [], -- Andreas, 2012-09-28: only consider non-mutual funs
-                 funAbstr = ConcreteDef} -> do
+                 funAbstr = ConcreteDef, funOpaque = TransparentDef} -> do
       ps0 <- filterM validProj $ candidateArgs [] t
       reportSLn "tc.proj.like" 30 $ if null ps0 then "  no candidates found"
                                                 else "  candidates: " ++ prettyShow ps0
@@ -324,6 +325,8 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
       reportSLn "tc.proj.like" 30 $ "  injective functions can't be projections"
     Function{funAbstr = AbstractDef} ->
       reportSLn "tc.proj.like" 30 $ "  abstract functions can't be projections"
+    Function{funOpaque = OpaqueDef _} ->
+      reportSLn "tc.proj.like" 30 $ "  opaque functions can't be projections"
     Function{funProjection = Right{}} ->
       reportSLn "tc.proj.like" 30 $ "  already projection like"
     Function{funProjection = Left NeverProjection} ->

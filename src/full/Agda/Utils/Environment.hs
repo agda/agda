@@ -1,6 +1,11 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Expand environment variables in strings
-module Agda.Utils.Environment ( expandEnvironmentVariables ) where
+module Agda.Utils.Environment
+  ( EnvVars
+  , expandEnvironmentVariables
+  , expandEnvVarTelescope
+  ) where
 
 import Data.Char
 import Data.Maybe
@@ -15,7 +20,7 @@ expandEnvironmentVariables s = do
 
 expandVars
   :: String              -- ^ Home directory.
-  -> [(String, String)]  -- ^ Environment variable substitution map.
+  -> EnvVars             -- ^ Environment variable substitution map.
   -> String              -- ^ Input.
   -> String              -- ^ Output with variables and @~@ (home) substituted.
 expandVars home env s = concatMap repl $ tokens s
@@ -23,6 +28,15 @@ expandVars home env s = concatMap repl $ tokens s
     repl Home    = home ++ "/"
     repl (Var x) = fromMaybe "" $ lookup x env
     repl (Str s) = s
+
+-- | List of environment variable bindings.
+type EnvVars = [(String, String)]
+
+-- | Expand a telescope of environment variables
+--   (each value may refer to variables earlier in the list).
+expandEnvVarTelescope :: String -> EnvVars -> EnvVars
+expandEnvVarTelescope home = reverse . foldl  -- foldl reverses, so re-reverse afterwards
+  (\ acc (var, val) -> (var, expandVars home acc val) : acc) []
 
 -- | Tokenization for environment variable substitution.
 data Token

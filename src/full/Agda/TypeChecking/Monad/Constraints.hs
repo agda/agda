@@ -16,9 +16,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Debug
-import {-# SOURCE #-} Agda.TypeChecking.Monad.MetaVars
 
-import Agda.Utils.Maybe
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 
@@ -180,7 +178,7 @@ addConstraint' = addConstraintTo stSleepingConstraints
 addAwakeConstraint' :: Blocker -> Constraint -> TCM ()
 addAwakeConstraint' = addConstraintTo stAwakeConstraints
 
-addConstraintTo :: Lens' Constraints TCState -> Blocker -> Constraint -> TCM ()
+addConstraintTo :: Lens' TCState Constraints -> Blocker -> Constraint -> TCM ()
 addConstraintTo bucket unblock c = do
     pc <- build
     stDirty `setTCLens` True

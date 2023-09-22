@@ -17,6 +17,9 @@ on:
     - '.github/workflows/test.yml'
     - '!src/github/**'
     - 'src/github/workflows/test.yml'
+    # Ignore components of the documentation which have no Agda code.
+    - '!doc/**'
+    - 'doc/user-manual/**/*.lagda.rst'
     # Ignore other components not contributing to this test.
     - '!src/agda-bisect/**'
     - '!src/fix-whitespace/**'
@@ -28,6 +31,7 @@ on:
     - '!.mailmap'
     - '!.gitignore'
     - '!.hlint.yaml'
+    - '!.readthedocs.yaml'
     - '!.travis.yml'
     - '!CHANGELOG.md'
     - '!HACKING.md'
@@ -49,11 +53,11 @@ env:
 
   # Andreas, 2022-11-24, set the stack version here so that it is easily
   # shared between the jobs.
-  STACK_VER: "2.9.3"
+  STACK_VER: "2.11.1"
   # Andreas, 2022-03-26, 2022-11-28:
   # GHC_VER should be given as x.y.z (as opposed to x.y only)
   # because it is used verbatim when referring to stack-x.y.z.yaml.
-  GHC_VER: "9.4.4"
+  GHC_VER: "9.6.2"
 
   # Part 2: Variables that should not have to be changed
   ###########################################################################
@@ -84,6 +88,15 @@ jobs:
 
     runs-on: &runs_on ubuntu-22.04
     steps:
+    - name: Info about the context
+      run: |
+        echo "github.base_ref   = ${{ github.base_ref   }}"
+        echo "github.head_ref   = ${{ github.head_ref   }}"
+        echo "github.event_name = ${{ github.event_name }}"
+        echo "github.ref        = ${{ github.ref        }}"
+        echo "github.ref_name   = ${{ github.ref_name   }}"
+        echo "github.ref_type   = ${{ github.ref_type   }}"
+
     - uses: styfle/cancel-workflow-action@0.11.0
       # Andreas, 2022-12-05, issue #6388: do not cancel on `master`!
       if: github.ref != 'refs/heads/master'
@@ -91,12 +104,12 @@ jobs:
         access_token: ${{ github.token }}
 
     - &checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         submodules: recursive
 
     - &haskell_setup
-      uses: haskell/actions/setup@v2
+      uses: haskell-actions/setup@v2
       with:
         ghc-version: ${{ env.GHC_VER }}
         stack-version: ${{ env.STACK_VER }}
@@ -129,7 +142,12 @@ jobs:
 
         # We include stack-${GHC_VER}.yaml in the primary cache key so that the cache gets rewritten
         # everytime the resolver updates or extra-deps are added.
-        key: &cache_key test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-${{ hashFiles('stack.yaml') }}
+        # Andreas, 2023-03-28:
+        # We need to make sure that the cache is written if a new dependency was added to Agda.cabal.
+        # Thus, we include Agda.cabal in the hash.
+        # Note that a 'stack.yaml.lock' file would not be sufficient (I think),
+        # because it does not list all the dependencies.
+        key: &cache_key test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
         restore-keys:   test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-
 
     - name: "Install dependencies for Agda and its test suites"
@@ -226,44 +244,42 @@ jobs:
 
     - name: "Suite of successful tests: mini-library Common"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" common
+      if: always() # run test even if a previous test failed
       #     8s (2022-06-17)
 
     - name: "Suite of successful tests"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" succeed
+      if: always() # run test even if a previous test failed
       # 4m 14s (2022-06-17)
 
     - name: "Suite of failing tests"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" fail
+      if: always() # run test even if a previous test failed
       # 2m  0s (2022-06-17)
-
-    - name: "User manual (test)"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" user-manual-test
-      #    13s (2022-06-17)
 
     - name: "Suite of examples"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" examples
+      if: always() # run test even if a previous test failed
       #    41s (2022-06-17)
 
     - name: "Suite of interactive tests"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" interactive
+      if: always() # run test even if a previous test failed
       #     0s (2022-06-17)
 
     - name: "Successful tests using Agda as a Haskell library"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" api-test
+      if: always() # run test even if a previous test failed
       #    21s (2022-06-17)
 
     - name: "Internal test suite"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" internal-tests
+      if: always() # run test even if a previous test failed
       #    11s (2022-06-17)
-
-    - name: "Benchmark"
-      run: |
-        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" benchmark-without-logs
-        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" benchmark-summary
-      # 6m  3s (2022-06-17)
 
     - name: "Compiler tests"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" compiler-test
+      if: always() # run test even if a previous test failed
       # 9m 34s (2022-06-17)
 
 
@@ -288,6 +304,15 @@ jobs:
         # We should also use `stack` in this test.
         cabal update
         make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" std-lib-test
+
+    # Andreas, 2023-09-13: Benchmark `any` uses the standard library,
+    # so benchmarks should be run here (or split out the std-lib benchmarks).
+    - name: "Benchmark"
+      run: |
+        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" benchmark-without-logs
+        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" benchmark-summary
+      if: always() # run test even if a previous test failed
+      # 6m  3s (2022-06-17)
 
     - name: "Standard library compiler tests"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" std-lib-compiler-test
@@ -325,9 +350,24 @@ jobs:
 
     - name: "Testing the Emacs mode"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" testing-emacs-mode
+      if: always() # run test even if a previous test failed
+
+    - name: "User manual (test)"
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" user-manual-test
+      if: always() # run test even if a previous test failed
+      #    13s (2022-06-17)
+
+    - name: "User manual covers all options"
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" user-manual-covers-options
+      if: always() # run test even if a previous test failed
+
+    - name: "User manual covers all warnings"
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" user-manual-covers-warnings
+      if: always() # run test even if a previous test failed
 
     - name: "Suite of interaction tests"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" interaction
+      if: always() # run test even if a previous test failed
       # 2m 39s (2022-06-17)
       # This test has erratic outages (#5619), so we place it late in the queue.
 

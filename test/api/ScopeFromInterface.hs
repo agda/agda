@@ -11,6 +11,8 @@ module Main where
 -- Haskell imports
 
 import qualified Control.Exception as E
+import Control.Monad               ( forM_ )
+import Control.Monad.IO.Class      ( liftIO )
 import Control.Monad.Except
 
 import qualified Data.ByteString.Lazy as BS
@@ -37,7 +39,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Hash           ( Hash )
 import Agda.Utils.IO.Binary      ( readBinaryFile' )
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Impossible
 
 

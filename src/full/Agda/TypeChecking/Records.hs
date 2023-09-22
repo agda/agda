@@ -28,6 +28,7 @@ import Agda.Syntax.Scope.Base (isNameInScope)
 
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Monad
+import qualified Agda.TypeChecking.Monad.Base.Warning as W
 import Agda.TypeChecking.Pretty as TCM
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad () --instance only
@@ -35,10 +36,8 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
 import {-# SOURCE #-} Agda.TypeChecking.Primitive.Cubical.Base (isCubicalSubtype)
-
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike (eligibleForProjectionLike)
 
-import Agda.Utils.Either
 import Agda.Utils.Empty
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor (for, ($>), (<&>))
@@ -47,12 +46,11 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
-import qualified Data.Type.Bool as Bool
 
 mkCon :: ConHead -> ConInfo -> Args -> Term
 mkCon h info args = Con h info (map Apply args)
@@ -71,8 +69,8 @@ orderFields r fill axs fs = do
   --   , "  official fields: " <+> sep (map pretty xs)
   --   , "  provided fields: " <+> sep (map pretty ys)
   --   ]
-  unlessNull alien     $ warn $ TooManyFieldsWarning r missing
-  unlessNull duplicate $ warn $ DuplicateFieldsWarning
+  unlessNull alien     $ warn $ W.TooManyFields r missing
+  unlessNull duplicate $ warn $ W.DuplicateFields
   return $ for axs $ \ ax -> fromMaybe (fill ax) $ lookup (unArg ax) uniq
   where
     (uniq, duplicate) = nubAndDuplicatesOn fst fs   -- separating duplicate fields
@@ -478,7 +476,7 @@ isEtaOrCoinductiveRecordConstructor c =
       -- If in doubt about coinductivity, then yes.
 
 -- | Check if a name refers to a record which is not coinductive.  (Projections are then size-preserving)
-isInductiveRecord :: QName -> TCM Bool
+isInductiveRecord :: HasConstInfo m => QName -> m Bool
 isInductiveRecord r = maybe False ((Just CoInductive /=) . recInduction) <$> isRecord r
 
 -- | Check if a type is an eta expandable record and return the record identifier and the parameters.

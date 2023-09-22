@@ -1,4 +1,7 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE NondecreasingIndentation #-}
+
 module Agda.TypeChecking.Primitive.Cubical.Glue
   ( mkGComp
   , doGlueKanOp
@@ -9,40 +12,38 @@ module Agda.TypeChecking.Primitive.Cubical.Glue
   )
   where
 
-import Control.Monad.Except
-
-import Agda.Utils.Functor
-import Agda.Utils.Monad
-import Agda.Utils.Maybe
-
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Pure
-import Agda.TypeChecking.Monad.Env
-import Agda.TypeChecking.Substitute (absBody, apply, sort, subst, applyE)
-import Agda.TypeChecking.Reduce (reduceB', reduce')
-import Agda.TypeChecking.Names (NamesT, runNamesT, runNames, cl, lam, open, ilam)
 
-import Agda.Interaction.Options.Base (optCubical)
+import Agda.TypeChecking.Names
+  ( NamesT, runNamesT, runNames, cl, lam, open, ilam )
+import Agda.TypeChecking.Primitive.Cubical.Base
+import Agda.TypeChecking.Reduce
+  ( reduceB' )
+import Agda.TypeChecking.Substitute
+  ( absBody, apply, sort, subst, applyE )
 
 import Agda.Syntax.Common
   ( Hiding(..), Cubical(..), Arg(..)
   , ConOrigin(..), ProjOrigin(..)
   , Relevance(..)
   , setRelevance
-  , defaultArgInfo, hasQuantity0, defaultArg, setHiding
+  , setHiding
   )
+import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Primitive.Base
-  ( (-->), nPi', pPi', hPi', el, el', el's, (<@>), (<@@>), (<#>), argN, argH, (<..>)
+  ( (-->), nPi', pPi', hPi', el, el', (<@>), (<@@>), (<#>), argN, argH, (<..>)
   , SigmaKit(..), getSigmaKit
   )
 
-import Agda.Syntax.Internal
-import Agda.Utils.Impossible (__IMPOSSIBLE__)
-import Agda.TypeChecking.Monad.Debug (__IMPOSSIBLE_VERBOSE__)
+import Agda.Utils.Functor
+import Agda.Utils.Maybe
+import Agda.Utils.Monad
 
-import Agda.TypeChecking.Primitive.Cubical.Base
+import Agda.Utils.Impossible
+  ( __IMPOSSIBLE__ )
 
 -- | Define a "ghcomp" version of gcomp. Normal comp looks like:
 --
@@ -54,10 +55,13 @@ import Agda.TypeChecking.Primitive.Cubical.Base
 --
 -- The point of this is that gcomp does not produce any empty
 -- systems (if phi = 0 it will reduce to "forward A 0 u".
-mkGComp :: HasBuiltins m => String -> NamesT m (NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term)
+mkGComp :: forall m. HasBuiltins m
+        => String
+        -> NamesT m (NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term)
 mkGComp s = do
-  let getTermLocal = getTerm s
-  tPOr <- getTermLocal "primPOr"
+  let getTermLocal :: IsBuiltin a => a -> NamesT m Term
+      getTermLocal = getTerm s
+  tPOr <- getTermLocal builtinPOr
   tIMax <- getTermLocal builtinIMax
   tIMin <- getTermLocal builtinIMin
   tINeg <- getTermLocal builtinINeg
@@ -81,7 +85,7 @@ mkGComp s = do
 
 -- | Perform the Kan operations for a @Glue φ A (T , e)@ type.
 doGlueKanOp
-  :: PureTCM m
+  :: forall m. PureTCM m
   => KanOperation -- ^ Are we composing or transporting?
   -> FamilyOrNot (Arg Term, Arg Term, Arg Term, Arg Term, Arg Term, Arg Term)
   -- ^ The data of the Glue operation: The levels of @A@ and @T@, @A@
@@ -98,7 +102,8 @@ doGlueKanOp (HCompOp psi u u0) (IsNot (la, lb, bA, phi, bT, e)) tpos = do
 -- ... |- bA : Type la
 -- ... |- bT : Partial φ (Type lB)
 -- ... |- e : PartialP φ λ o → bT o ≃ bA
-  let getTermLocal = getTerm $ builtinHComp ++ " for " ++ builtinGlue
+  let getTermLocal :: IsBuiltin a => a -> m Term
+      getTermLocal = getTerm $ getBuiltinId builtinHComp ++ " for " ++ getBuiltinId builtinGlue
   tHComp   <- getTermLocal builtinHComp
   tEFun    <- getTermLocal builtinEquivFun
   tglue    <- getTermLocal builtin_glue
@@ -134,7 +139,8 @@ doGlueKanOp (HCompOp psi u u0) (IsNot (la, lb, bA, phi, bT, e)) tpos = do
 doGlueKanOp (TranspOp psi u0) (IsFam (la, lb, bA, phi, bT, e)) tpos = do
 -- transp (λ i → Glue {la} {lb} bA {φ} (bT , e)) ψ u0
   let
-    localUse = builtinTrans ++ " for " ++ builtinGlue
+    localUse = getBuiltinId builtinTrans ++ " for " ++ getBuiltinId builtinGlue
+    getTermLocal :: IsBuiltin a => a -> m Term
     getTermLocal = getTerm localUse
   tHComp <- getTermLocal builtinHComp
   tTrans <- getTermLocal builtinTrans
@@ -352,7 +358,7 @@ prim_unglue' = do
         -- just @e b@!
         IOne -> do
           let argOne = setRelevance Irrelevant $ argN one
-          tEFun <- getTerm builtin_unglue builtinEquivFun
+          tEFun <- getTerm (getBuiltinId builtin_unglue) builtinEquivFun
           redReturn $ tEFun `apply` [lb,la,argH $ unArg bT `apply` [argOne],bA, argN $ unArg e `apply` [argOne],b]
 
         -- Otherwise we're dealing with a proper glued thing.

@@ -1,4 +1,4 @@
-
+{-# OPTIONS --large-indices #-}
 module _ where
 
 open import Common.Prelude hiding (_>>=_)

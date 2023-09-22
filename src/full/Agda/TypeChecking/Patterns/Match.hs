@@ -287,10 +287,7 @@ matchPattern p u = case (p, u) of
         w <- reduceB v
         -- Unfold delayed (corecursive) definitions one step. This is
         -- only necessary if c is a coinductive constructor, but
-        -- 1) it does not hurt to do it all the time, and
-        -- 2) whatInduction c sometimes crashes because c may point to
-        --    an axiom at this stage (if we are checking the
-        --    projection functions for a record type).
+        -- it does not hurt to do it all the time.
 {-
         w <- case w of
                NotBlocked r (Def f es) ->   -- Andreas, 2014-06-12 TODO: r == ReallyNotBlocked sufficient?
@@ -312,20 +309,18 @@ matchPattern p u = case (p, u) of
           b | Just t <- isMatchable b ->
             case mtc t of
               Just (bld, vs) -> do
-                (m, vs1) <- yesSimplification <$> matchPatterns ps (fromMaybe __IMPOSSIBLE__ $ allApplyElims vs)
-                return (m, Arg info $ bld (mergeElims vs vs1))
+                (m, vs1) <- matchPatterns ps (fromMaybe __IMPOSSIBLE__ $ allApplyElims vs)
+                return (yesSimplification m, Arg info $ bld (mergeElims vs vs1))
               Nothing
                                     -> return (No                          , arg)
           Blocked b _               -> return (DontKnow $ Blocked b ()     , arg)
           NotBlocked r _            -> return (DontKnow $ NotBlocked r' () , arg)
             where r' = stuckOn (Apply arg) r
 
--- ASR (08 November 2014). The type of the function could be
---
--- @(Match Term, [Arg Term]) -> (Match Term, [Arg Term])@.
-yesSimplification :: (Match a, b) -> (Match a, b)
-yesSimplification (Yes _ vs, us) = (Yes YesSimplification vs, us)
-yesSimplification r              = r
+yesSimplification :: Match a -> Match a
+yesSimplification = \case
+  Yes _ vs -> Yes YesSimplification vs
+  m -> m
 
 -- Matching patterns against patterns -------------------------------------
 

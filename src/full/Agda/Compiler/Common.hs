@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE CPP #-}
 
 module Agda.Compiler.Common where
@@ -9,7 +11,6 @@ import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
-import qualified Data.HashSet as HSet
 import Data.Char
 import Data.Function (on)
 #if __GLASGOW_HASKELL__ < 804
@@ -20,7 +21,6 @@ import Control.Monad
 import Control.Monad.State
 
 import Agda.Syntax.Common
-import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal as I
 import Agda.Syntax.TopLevelModuleName
 
@@ -36,8 +36,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1          ( pattern (:|) )
 import Agda.Utils.Maybe
-import Agda.Utils.Monad          ( ifNotM )
-import Agda.Utils.Pretty
+import Agda.Utils.WithDefault    ( lensCollapseDefault )
 
 import Agda.Utils.Impossible
 
@@ -101,7 +100,7 @@ setInterface i = do
   -- that it doesn't suffice to replace setTCLens' with setTCLens,
   -- because the stPreImportedModules field is strict.
   stImportedModules `setTCLens'`
-    HSet.fromList (map fst (iImportedModules i))
+    Set.fromList (map fst (iImportedModules i))
   stCurrentModule `setTCLens'`
     Just (iModuleName i, iTopLevelModuleName i)
 
@@ -171,15 +170,15 @@ inCompilerEnv checkResult cont = do
     -- We match on whether @["--no-main"]@ is one of the stored options.
     let iFilePragmaStrings = map pragmaStrings . iFilePragmaOptions
     when (["--no-main"] `elem` iFilePragmaStrings mainI) $
-      stPragmaOptions `modifyTCLens` \ o -> o { optCompileNoMain = True }
+      setTCLens (stPragmaOptions . lensOptCompileMain . lensCollapseDefault) False
 
     -- Perhaps all pragma options from the top-level module should be
     -- made available to the compiler in a suitable way. Here are more
     -- hacks:
     when (any ("--cubical" `elem`) $ iFilePragmaStrings mainI) $
-      stPragmaOptions `modifyTCLens` \ o -> o { optCubical = Just CFull }
+      setTCLens (stPragmaOptions . lensOptCubical) $ Just CFull
     when (any ("--erased-cubical" `elem`) $ iFilePragmaStrings mainI) $
-      stPragmaOptions `modifyTCLens` \ o -> o { optCubical = Just CErased }
+      setTCLens (stPragmaOptions . lensOptCubical) $ Just CErased
 
     setScope (iInsideScope mainI) -- so that compiler errors don't use overly qualified names
     ignoreAbstractMode cont

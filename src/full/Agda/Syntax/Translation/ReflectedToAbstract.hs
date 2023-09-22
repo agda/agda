@@ -37,7 +37,7 @@ import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Functor
 import Agda.Utils.Singleton
 import Agda.Utils.Size
@@ -69,7 +69,7 @@ withVar s t f = do
   let freshNameMode = case glyphMode of
         UnicodeOk -> A.UnicodeSubscript
         AsciiOnly -> A.AsciiCounter
-  let name' = head $ filter (notTaken ctx) $ iterate (nextName freshNameMode) name
+  let name' = headWithDefault __IMPOSSIBLE__ $ filter (notTaken ctx) $ iterate (nextName freshNameMode) name
   local ((name,t):) $ f name'
   where
     notTaken xs x = isNoName x || nameConcrete x `notElem` xs

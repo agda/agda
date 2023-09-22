@@ -48,8 +48,8 @@ import Agda.TypeChecking.Pretty.Warning
 import Agda.TypeChecking.Warnings
          ( WarningsAndNonFatalErrors(..) )
 
-import qualified Agda.Utils.Pretty as P
-import Agda.Utils.Pretty
+import qualified Agda.Syntax.Common.Pretty as P
+import Agda.Syntax.Common.Pretty
          ( Pretty(..), prettyShow )
 import Agda.Utils.Time
          ( CPUTime(..) )

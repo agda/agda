@@ -1,4 +1,4 @@
-
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 {-| As a concrete name, a notation is a non-empty list of alternating 'IdPart's and holes.
     In contrast to concrete names, holes can be binders.
@@ -15,12 +15,12 @@ module Agda.Syntax.Notation where
 
 import Prelude hiding (null)
 
+import Control.Arrow ( (&&&) )
 import Control.DeepSeq
 import Control.Monad
 import Control.Monad.Except
 
 import qualified Data.List as List
-import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -28,16 +28,17 @@ import GHC.Generics (Generic)
 
 import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Concrete.Name
 import Agda.Syntax.Concrete.Pretty()
 import Agda.Syntax.Position
 
 import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.List1 (List1)
+import Agda.Utils.List1           ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
 
@@ -319,32 +320,31 @@ syntaxOf y
 -- Every 'NewNotation' must have the same 'notaName'.
 --
 -- Postcondition: No 'A.Name' occurs in more than one list element.
-mergeNotations :: [NewNotation] -> [NewNotation]
+mergeNotations :: List1 NewNotation -> List1 NewNotation
 mergeNotations =
-  map merge .
-  concatMap groupIfLevelsMatch .
-  groupOn (\n -> ( notation n
-                 , notaIsOperator n
-                 ))
+  fmap merge
+  . List1.concatMap1 groupIfLevelsMatch
+  . List1.groupOn1 (notation &&& notaIsOperator)
   where
-  groupIfLevelsMatch :: [NewNotation] -> [[NewNotation]]
-  groupIfLevelsMatch []         = __IMPOSSIBLE__
-  groupIfLevelsMatch ns@(n : _) =
+  groupIfLevelsMatch :: List1 NewNotation -> List1 (List1 NewNotation)
+  groupIfLevelsMatch ns =
     if allEqual (map fixityLevel related)
-    then [sameAssoc (sameLevel ns)]
-    else map (: []) ns
+    then singleton $ sameAssoc $ sameLevel ns
+    else fmap singleton ns
     where
     -- Fixities of operators whose precedence level is not Unrelated.
-    related = mapMaybe ((\f -> case fixityLevel f of
-                                Unrelated  -> Nothing
-                                Related {} -> Just f)
-                              . notaFixity) ns
+    related = List1.mapMaybe (maybeRelated . notaFixity) ns
+      where
+        maybeRelated f =
+          case fixityLevel f of
+            Unrelated  -> Nothing
+            Related {} -> Just f
 
     -- Precondition: All related operators have the same precedence
     -- level.
     --
     -- Gives all unrelated operators the same level.
-    sameLevel = map (set (_notaFixity . _fixityLevel) level)
+    sameLevel = fmap (set (_notaFixity . _fixityLevel) level)
       where
       level = case related of
         f : _ -> fixityLevel f
@@ -353,15 +353,14 @@ mergeNotations =
     -- If all related operators have the same associativity, then the
     -- unrelated operators get the same associativity, and otherwise
     -- all operators get the associativity NonAssoc.
-    sameAssoc = map (set (_notaFixity . _fixityAssoc) assoc)
+    sameAssoc = fmap (set (_notaFixity . _fixityAssoc) assoc)
       where
       assoc = case related of
         f : _ | allEqual (map fixityAssoc related) -> fixityAssoc f
         _                                          -> NonAssoc
 
-  merge :: [NewNotation] -> NewNotation
-  merge []         = __IMPOSSIBLE__
-  merge ns@(n : _) = n { notaNames = Set.unions $ map notaNames ns }
+  merge :: List1 NewNotation -> NewNotation
+  merge (n :| ns) = n { notaNames = Set.unions $ map notaNames $ n:ns }
 
 -- | Check if a notation contains any lambdas (in which case it cannot be used in a pattern).
 isLambdaNotation :: NewNotation -> Bool
@@ -374,7 +373,7 @@ isLambdaNotation n = any isBinder (notation n)
 
 -- | Lens for 'Fixity' in 'NewNotation'.
 
-_notaFixity :: Lens' Fixity NewNotation
+_notaFixity :: Lens' NewNotation Fixity
 _notaFixity f r = f (notaFixity r) <&> \x -> r { notaFixity = x }
 
 -- * Sections

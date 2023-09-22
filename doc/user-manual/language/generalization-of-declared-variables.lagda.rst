@@ -1,6 +1,6 @@
 ..
   ::
-  {-# OPTIONS --allow-unsolved-metas --erasure #-}
+  {-# OPTIONS --allow-unsolved-metas --erasure --large-indices #-}
   module language.generalization-of-declared-variables where
 
   open import Agda.Primitive

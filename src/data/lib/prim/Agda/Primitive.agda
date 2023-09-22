@@ -10,12 +10,15 @@ module Agda.Primitive where
 
 infixl 6 _⊔_
 
-{-# BUILTIN TYPE Set #-}
-{-# BUILTIN PROP Prop #-}
-{-# BUILTIN SETOMEGA Setω #-}
-{-# BUILTIN STRICTSET      SSet  #-}
-{-# BUILTIN STRICTSETOMEGA SSetω #-}
-{-# BUILTIN LEVELUNIV LevelUniv #-}
+{-# BUILTIN PROP           Prop      #-}
+{-# BUILTIN TYPE           Set       #-}
+{-# BUILTIN STRICTSET      SSet      #-}
+
+{-# BUILTIN PROPOMEGA      Propω     #-}
+{-# BUILTIN SETOMEGA       Setω      #-}
+{-# BUILTIN STRICTSETOMEGA SSetω     #-}
+
+{-# BUILTIN LEVELUNIV      LevelUniv #-}
 
 -- Level is the first thing we need to define.
 -- The other postulates can only be checked if built-in Level is known.

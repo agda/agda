@@ -2,6 +2,13 @@
 
 data ⊥ : Set where
 
+E : Set₁
+E = Set where
+
+  {-# TERMINATING #-}
+  e : ⊥
+  e = e
+
 private
 
   {-# TERMINATING #-}
@@ -12,21 +19,57 @@ mutual
 
   {-# TERMINATING #-}
   g : ⊥
-  g = f
+  g = g
 
 abstract
 
   {-# TERMINATING #-}
   h : ⊥
-  h = f
+  h = h
 
 record I : Set where
   {-# TERMINATING #-}
   i : ⊥
-  i = f
+  i = i
 
 instance
 
   {-# TERMINATING #-}
   j : I
   j = j
+
+interleaved mutual
+
+  {-# TERMINATING #-}
+  k : ⊥
+  k = k
+
+opaque
+
+  {-# TERMINATING #-}
+  l : ⊥
+  l = l
+
+record M : Set where
+  interleaved mutual
+    {-# TERMINATING #-}
+    m : ⊥
+    m = m
+
+record N : Set where
+  opaque
+    {-# TERMINATING #-}
+    n : ⊥
+    n = n
+
+O : Set₁
+O = Set where
+  interleaved mutual
+    {-# TERMINATING #-}
+    o : ⊥
+    o = o
+
+  opaque
+    {-# TERMINATING #-}
+    o' : ⊥
+    o' = o'

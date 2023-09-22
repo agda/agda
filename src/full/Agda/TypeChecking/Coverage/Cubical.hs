@@ -8,10 +8,6 @@ import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Trans ( lift )
 
-import Data.Foldable (for_)
-import qualified Data.List as List
-import Data.Map (Map)
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
@@ -20,48 +16,33 @@ import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Internal hiding (DataOrRecord(..))
 import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Translation.InternalToAbstract (NamedClause(..))
+import Agda.Syntax.Common.Pretty (prettyShow)
 
-import Agda.TypeChecking.Names
-import Agda.TypeChecking.Primitive hiding (Nat)
-import Agda.TypeChecking.Monad
-
-import Agda.TypeChecking.Rules.LHS (DataOrRecord(..), checkSortOfSplitVar)
-import Agda.TypeChecking.Rules.LHS.Problem (allFlexVars)
-import Agda.TypeChecking.Rules.LHS.Unify
-import Agda.TypeChecking.Rules.Term (unquoteTactic)
-
+import Agda.TypeChecking.Constraints () -- instance MonadConstraint TCM
 import Agda.TypeChecking.Coverage.Match
-import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Coverage.SplitClause
-
-
-import Agda.TypeChecking.Conversion (tryConversion, equalType)
-import Agda.TypeChecking.Datatypes (getConForm, getDatatypeArgs)
-import {-# SOURCE #-} Agda.TypeChecking.Empty ( checkEmptyTel, isEmptyTel, isEmptyType )
+import Agda.TypeChecking.Coverage.SplitTree
+import Agda.TypeChecking.Datatypes (getDatatypeArgs)
 import Agda.TypeChecking.Irrelevance
+import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Names
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Records
+import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Telescope.Path
-import Agda.TypeChecking.MetaVars
-import Agda.TypeChecking.Warnings
 
-import Agda.Interaction.Options
-
-import Agda.Utils.Either
 import Agda.Utils.Functor
 import Agda.Utils.List
+import Agda.Utils.List1 ( pattern (:|) )
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
-import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
-import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
 
@@ -82,14 +63,14 @@ createMissingIndexedClauses f n x old_sc scs cs = do
       caseMaybe mc (return ([],cs)) $ \ ((sp,tree),cl) -> do
       let res = CoverResult tree (IntSet.singleton (length cs)) [] [cl] IntSet.empty
       return ([(sp,res)],snoc cs cl)
-    xs | not $ null infos -> do
+    xs | info:_ <- infos -> do
          reportSDoc "tc.cover.indexed" 20 $ text "size (xs,infos):" <+> pretty (size xs,size infos)
          reportSDoc "tc.cover.indexed" 20 $ text "xs :" <+> pretty (map fst xs)
 
          unless (size xs == 1 + size infos) $
             reportSDoc "tc.cover.indexed" 20 $ text "missing some infos"
             -- Andrea: what to do when we only managed to build a unification proof for some of the constructors?
-         Constructor{conData} <- theDef <$> getConstInfo (fst (head infos))
+         Constructor{conData} <- theDef <$> getConstInfo (fst info)
          Datatype{dataPars = pars, dataIxs = nixs, dataTranspIx} <- theDef <$> getConstInfo conData
          hcomp <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinHComp
          trX <- fromMaybe __IMPOSSIBLE__ <$> pure dataTranspIx
@@ -119,7 +100,6 @@ createMissingIndexedClauses f n x old_sc scs cs = do
            "tree:" <+> pretty tree
          addClauses f clauses
          return $ ([(SplitCon trX,res)],cs++clauses)
---         return $ ([],[])
     xs | otherwise -> return ([],cs)
 
 covFillTele :: QName -> Abs Telescope -> Term -> Args -> Term -> TCM [Term]
@@ -543,11 +523,11 @@ createMissingTrXHCompClause q_trX f n x old_sc = do
             fmap patternToTerm <$> hcompD' g1 v
   let pat' =
             bindN (map unArg gamma1ArgNames) $ \ g1 -> do
-            bindN (map unArg $ ([defaultArg "phi"] ++ xTelIArgNames)) $ \ phi_p -> do
+            bindN1 (fmap unArg (defaultArg "phi" :| xTelIArgNames)) $ \ phi_p -> do
             bindN ["psi","u","u0"] $ \ x0 -> do
             let trX = trX' `applyN` g1
-            let p0 = for (tail phi_p) $ \ p -> p <@> pure iz
-            trX `applyN` phi_p `applyN` [hcompD' g1 p0 `applyN` x0]
+            let p0 = for (List1.tail phi_p) $ \ p -> p <@> pure iz
+            trX `applyN` (List1.toList phi_p) `applyN` [hcompD' g1 p0 `applyN` x0]
       pat = (fmap . fmap . fmap) patternToTerm <$> pat'
   let deltaPat g1 phi p x0 =
         delta `applyN` (g1 ++ [pat `applyN` g1 `applyN` (phi:p) `applyN` x0])

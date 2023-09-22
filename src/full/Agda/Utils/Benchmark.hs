@@ -28,7 +28,7 @@ import Agda.Utils.ListT
 import Agda.Utils.Null
 import Agda.Utils.Monad hiding (finally)
 import qualified Agda.Utils.Maybe.Strict as Strict
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Time
 import Agda.Utils.Trie (Trie)
 import qualified Agda.Utils.Trie as Trie

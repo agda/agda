@@ -1,7 +1,8 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DataKinds      #-}
 {-# LANGUAGE GADTs          #-}
-
 
 -- | Type level literals, inspired by GHC.TypeLits.
 

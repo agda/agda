@@ -16,7 +16,7 @@ import Agda.TypeChecking.Serialise
 import Agda.Utils.FileName
 import Agda.Utils.Hash
 import Agda.Utils.Lens
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 
 -- Find out how often the given module ID occurs in names in the given module.
 countModID :: String -> ModuleNameHash -> IO (Either TCErr Int)

@@ -57,6 +57,9 @@ updateVersion() {
     sed -ri "s/(\(\s*defvar\s+agda2-version\s+)\"[0-9.]+\"/\1\"$version\"/" \
         src/data/emacs-mode/agda2-mode.el
 
+    # Update the tag in the deployment workflow
+    sed -ri "s/--notes-start-tag v[0-9.]+/--notes-start-tag v$version/" deploy.yml
+
     sed -ri "s/^(VERSION\s+=\s+).*/\1$version/" mk/paths.mk
 
     sed -ri "s/\"Agda version [0-9.]+\"/\"Agda version $version\"/" \

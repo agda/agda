@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Reconstruct dropped parameters from constructors.  Used by
 --   with-abstraction to avoid ill-typed abstractions (#745). Note that the
@@ -7,7 +8,6 @@
 module Agda.TypeChecking.ReconstructParameters where
 
 import Data.Functor ( ($>) )
-import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -15,7 +15,6 @@ import Agda.Syntax.Internal.Generic
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.CheckInternal
-import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.ProjectionLike
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
@@ -148,7 +147,7 @@ extractParameters q ty = reduce (unEl ty) >>= \case
     reportSDoc "tc.reconstruct" 50 $ "Traversed parameters:" <+> pretty postPs
     info <- getConstInfo q
     let mkParam erasure =
-            (if erasure then applyQuantity zeroQuantity else id)
+            applyWhen erasure (applyQuantity zeroQuantity)
           . hideAndRelParams
           . isApplyElim' __IMPOSSIBLE__
     if -- Case: data or record constructor

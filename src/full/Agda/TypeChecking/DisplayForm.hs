@@ -26,7 +26,7 @@ import Agda.TypeChecking.Reduce (instantiate)
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 
 import Agda.Utils.Impossible
 

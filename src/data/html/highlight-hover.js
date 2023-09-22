@@ -1,32 +1,35 @@
-// Copyright 2002-2010, Simon Marlow.  All rights reserved.
-// https://github.com/haskell/haddock/blob/ghc-8.8/LICENSE
-// Slightly modified by Tesla Ice Zhang
+// Copyright 2023, Andreas Abel.
+// Falls under the Agda license at https://github.com/agda/agda/blob/master/LICENSE
 
-var highlight = function (on) {
-  return function () {
-    var links = document.getElementsByTagName('a');
-    for (var i = 0; i < links.length; i++) {
-      var that = links[i];
+// When we hover over an Agda identifier, we highlight all occurrences of this identifier on the page.
+// To this end, we create a map from identifier to all of its occurrences in the beginning.
 
-      if (this.href != that.href) {
-        continue;
-      }
-
-      if (on) {
-        that.classList.add("hover-highlight");
-      } else {
-        that.classList.remove("hover-highlight");
-      }
-    }
-  }
-};
+// A dictionary from hrefs to 'a'-elements that have this href.
+const dict = new Map();
 
 window.onload = function () {
-  var links = document.getElementsByTagName('a');
-  for (var i = 0; i < links.length; i++) {
-    var link = links[i];
-    if (!link.hasAttribute("href")) continue;
-    link.onmouseover = highlight(true);
-    link.onmouseout = highlight(false);
+
+  // Get all 'a' tags with an 'href' attribute.
+  // We call those "objects".
+  const objs  = document.getSelectorAll('a[href]');
+
+  // Build a dictionary mapping a href to a set of objects that have this href.
+  for (const obj of objs) {
+    const key = obj.href;
+    const set = dict.get(key) ?? new Set();
+    set.add(obj);
+    dict.set(key, set);
+  }
+
+  // Install 'onmouseover' and 'onmouseout' event handlers for all objects.
+  for (const obj of objs) {
+    // 'onmouseover' for an object adds attribute 'hover-highlight' to all objects with the same href.
+    obj.onmouseover = function () {
+      for (const o of dict.get(this.href)) { o.classList.add('hover-highlight'); }
+    }
+    // 'onmouseover' removes the added 'hover-highlight' attributes again.
+    obj.onmouseout = function () {
+      for (const o of dict.get(this.href)) { o.classList.remove('hover-highlight'); }
+    }
   }
 };

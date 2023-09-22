@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Translates the Agda builtin nat datatype to arbitrary-precision integers.
 --
 -- Philipp, 20150921:
@@ -17,7 +19,6 @@
 module Agda.Compiler.Treeless.Builtin (translateBuiltins) where
 
 import qualified Agda.Syntax.Internal as I
-import Agda.Syntax.Position
 import Agda.Syntax.Treeless
 import Agda.Syntax.Literal
 
@@ -52,9 +53,9 @@ builtinKit =
              <*> isB def builtinNatTimes
              <*> isB def builtinNatLess
              <*> isB def builtinNatEquals
-             <*> isP pf  "primForce"
-             <*> isP pf  "primWord64FromNat"
-             <*> isP pf  "primWord64ToNat"
+             <*> isP pf  PrimForce
+             <*> isP pf  PrimWord64FromNat
+             <*> isP pf  PrimWord64ToNat
   where
     con (I.Con c _ _) = pure $ I.conName c
     con _           = Nothing

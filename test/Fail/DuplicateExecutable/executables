@@ -1,0 +1,3 @@
+-- Duplicate definitions of an executable (here: "echo") should raise an error.
+/bin/echo
+/bin/echo

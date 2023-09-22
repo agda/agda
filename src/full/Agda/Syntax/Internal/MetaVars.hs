@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 module Agda.Syntax.Internal.MetaVars where
 
@@ -56,9 +57,7 @@ allMetas' singl = foldTerm metas
   metas (Sort s)    = sortMetas s
   metas _           = mempty
 
-  sortMetas Type{}        = mempty
-  sortMetas Prop{}        = mempty
-  sortMetas SSet{}        = mempty
+  sortMetas Univ{}        = mempty
   sortMetas Inf{}         = mempty
   sortMetas SizeUniv{}    = mempty
   sortMetas LockUniv{}    = mempty

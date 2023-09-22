@@ -1,3 +1,4 @@
-Issue3327.agda:18,8-12
+Issue3327.agda:19,15-18
 Set₁ is not less or equal than Set
-when checking the definition of Type
+when checking that the type Set of an argument to the constructor
+inn fits in the sort Set of the datatype.

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- To avoid warning on derived Integral instance for CPUTime.
 {-# OPTIONS_GHC -fno-warn-identities #-}
@@ -20,7 +21,7 @@ import qualified System.CPUTime as CPU
 
 import qualified Data.Time
 
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.String
 
 -- | Timestamps.

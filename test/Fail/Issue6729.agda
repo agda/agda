@@ -1,0 +1,2 @@
+opaque
+  test : Set

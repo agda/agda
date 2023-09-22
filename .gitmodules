@@ -1,7 +1,7 @@
 [submodule "std-lib"]
 	path = std-lib
 	url = https://github.com/agda/agda-stdlib
-	branch = release-v1.7.2
+	branch = master
 [submodule "cubical"]
 	path = cubical
 	url = https://github.com/agda/cubical

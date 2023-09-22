@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.Decl where
@@ -18,7 +20,7 @@ import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Options
 
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Abstract.Views (deepUnscopeDecl, deepUnscopeDecls)
+import Agda.Syntax.Abstract.Views (deepUnscopeDecl, deepUnscopeDecls, unScope)
 import Agda.Syntax.Internal
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
@@ -35,7 +37,6 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.IApplyConfluence
 import Agda.TypeChecking.Generalize
 import Agda.TypeChecking.Injectivity
-import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Level.Solve
 import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Positivity.Occurrence
@@ -63,12 +64,13 @@ import Agda.TypeChecking.Rules.Display ( checkDisplayPragma )
 
 import Agda.Termination.TermCheck
 
+import Agda.Utils.Function ( applyUnless )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Size
 import Agda.Utils.Update
 import qualified Agda.Utils.SmallSet as SmallSet
@@ -155,7 +157,7 @@ checkDecl d = setCurrentRange d $ do
       A.Import _ _ dir         -> none $ checkImportDirective dir
       A.Pragma i p             -> none $ checkPragma i p
       A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ checkDeclCached ds
-      A.FunDef i x delayed cs  -> impossible $ check x i $ checkFunDef delayed i x cs
+      A.FunDef i x cs          -> impossible $ check x i $ checkFunDef i x cs
       A.DataDef i x uc ps cs   -> impossible $ check x i $ checkDataDef i x uc ps cs
       A.RecDef i x uc dir ps tel cs -> impossible $ check x i $ do
                                     checkRecDef i x uc dir ps tel cs
@@ -184,6 +186,7 @@ checkDecl d = setCurrentRange d $ do
                                   -- they should be (unless we're in a mutual
                                   -- block).
       A.Open _ _ dir           -> none $ checkImportDirective dir
+      A.UnfoldingDecl{}        -> none $ return ()
       A.PatternSynDef{}        -> none $ return ()
                                   -- Open and PatternSynDef are just artifacts
                                   -- from the concrete syntax, retained for
@@ -229,7 +232,9 @@ checkDecl d = setCurrentRange d $ do
     check :: forall m i a
           . ( MonadTCEnv m, MonadPretty m, MonadDebug m
             , MonadBench m, Bench.BenchPhase m ~ Phase
-            , AnyIsAbstract i )
+            , AnyIsAbstract i
+            , AllAreOpaque i
+            )
           => QName -> i -> m a -> m a
     check x i m = Bench.billTo [Bench.Definition x] $ do
       reportSDoc "tc.decl" 5 $ ("Checking" <+> prettyTCM x) <> "."
@@ -239,9 +244,16 @@ checkDecl d = setCurrentRange d $ do
       return r
 
     -- Switch to AbstractMode if any of the i is AbstractDef.
-    checkMaybeAbstractly :: forall m i a . ( MonadTCEnv m , AnyIsAbstract i )
+    checkMaybeAbstractly :: forall m i a . ( MonadTCEnv m, AnyIsAbstract i, AllAreOpaque i )
                          => i -> m a -> m a
-    checkMaybeAbstractly = localTC . set lensIsAbstract . anyIsAbstract
+    checkMaybeAbstractly abs cont = do
+      let
+        k1 = localTC (set lensIsAbstract (anyIsAbstract abs))
+      k2 <- case jointOpacity abs of
+        UniqueOpaque i     -> pure $ localTC $ \env -> env { envCurrentOpaqueId = Just i }
+        NoOpaque           -> pure id
+        DifferentOpaque hs -> __IMPOSSIBLE__
+      k1 (k2 cont)
 
 -- Some checks that should be run at the end of a mutual block. The
 -- set names contains the names defined in the mutual block.
@@ -404,10 +416,11 @@ highlight_ hlmod d = do
     A.DataSig{}              -> highlight d
     A.Open{}                 -> highlight d
     A.PatternSynDef{}        -> highlight d
+    A.UnfoldingDecl{}        -> highlight d
     A.Generalize{}           -> highlight d
     A.UnquoteDecl{}          -> highlight d
     A.UnquoteDef{}           -> highlight d
-    A.UnquoteData{}           -> highlight d
+    A.UnquoteData{}          -> highlight d
     A.Section i er x tel ds  -> do
       highlight (A.Section i er x tel [])
       when (hlmod == DoHighlightModuleContents) $ mapM_ (highlight_ hlmod) (deepUnscopeDecls ds)
@@ -526,8 +539,8 @@ checkProjectionLikeness_ names = Bench.billTo [Bench.ProjectionLikeness] $ do
 
 -- | Freeze metas created by given computation if in abstract mode.
 whenAbstractFreezeMetasAfter :: A.DefInfo -> TCM a -> TCM a
-whenAbstractFreezeMetasAfter Info.DefInfo{ defAccess, defAbstract} m = do
-  if defAbstract /= AbstractDef then m else do
+whenAbstractFreezeMetasAfter Info.DefInfo{defAccess, defAbstract, defOpaque} m = do
+  if (defAbstract == ConcreteDef && defOpaque == TransparentDef) then m else do
     (a, ms) <- metasCreatedBy m
     reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
     wakeupConstraints_   -- solve emptiness and instance constraints
@@ -602,7 +615,7 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
   (genParams, npars, t) <- workOnTypes $ case gentel of
         Nothing     -> ([], 0,) <$> isType_ e
         Just gentel ->
-          checkGeneralizeTelescope gentel $ \ genParams ptel -> do
+          checkGeneralizeTelescope Nothing gentel $ \ genParams ptel -> do
             t <- workOnTypes $ isType_ e
             return (genParams, size ptel, abstract ptel t)
 
@@ -652,6 +665,11 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
 
   lang <- getLanguage
   funD <- emptyFunctionData
+  let genArgs = case kind of
+                  FunName -> case unScope e of
+                    A.Generalized s _ -> SomeGeneralizableArgs (Set.size s)
+                    _ -> NoGeneralizableArgs
+                  _ -> NoGeneralizableArgs
   let defn = defaultDefn info x t lang $
         case kind of   -- #4833: set abstract already here so it can be inherited by with functions
           FunName   -> fun
@@ -660,13 +678,14 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
           RecName   -> DataOrRecSig npars
           AxiomName -> defaultAxiom     -- Old comment: NB: used also for data and record type sigs
           _         -> __IMPOSSIBLE__
-        where fun = FunctionDefn funD{ _funAbstr = Info.defAbstract i }
+        where fun = FunctionDefn funD{ _funAbstr = Info.defAbstract i, _funOpaque = Info.defOpaque i }
 
   addConstant x =<< do
     useTerPragma $ defn
         { defArgOccurrences    = occs
         , defPolarity          = pols
         , defGeneralizedParams = genParams
+        , defArgGeneralizable  = genArgs
         , defBlocked           = blk
         }
 
@@ -691,52 +710,60 @@ checkPrimitive i x (Arg info e) =
     -- Certain "primitive" functions are BUILTIN rather than
     -- primitive.
     let builtinPrimitives =
-          [ "primNatPlus"
-          , "primNatMinus"
-          , "primNatTimes"
-          , "primNatDivSucAux"
-          , "primNatModSucAux"
-          , "primNatEquality"
-          , "primNatLess"
-          , "primLevelZero"
-          , "primLevelSuc"
-          , "primLevelMax"
-          , "primSetOmega"
-          , "primStrictSet"
-          , "primStrictSetOmega"
+          [ PrimNatPlus
+          , PrimNatMinus
+          , PrimNatTimes
+          , PrimNatDivSucAux
+          , PrimNatModSucAux
+          , PrimNatEquality
+          , PrimNatLess
+          , PrimLevelZero
+          , PrimLevelSuc
+          , PrimLevelMax
           ]
     when (name `elem` builtinPrimitives) $ do
-      reportSDoc "tc.prim" 20 $ text name <+> "is a BUILTIN, not a primitive!"
-      typeError $ NoSuchPrimitiveFunction name
+      reportSDoc "tc.prim" 20 $ pretty name <+> "is a BUILTIN, not a primitive!"
+      typeError $ NoSuchPrimitiveFunction (getBuiltinId name)
     t <- isType_ e
     noConstraints $ equalType t t'
     let s  = prettyShow $ qnameName x
-    -- Checking the modality. Currently all primitives require default
-    -- modalities, and likely very few will have different modalities in the
-    -- future. Thus, rather than, the arguably nicer solution of adding a
-    -- modality to PrimImpl we simply check the few special primitives here.
+    -- Checking the ArgInfo. Currently all primitive definitions require default
+    -- ArgInfos, and likely very few will have different ArgInfos in the
+    -- future. Thus, rather than, the arguably nicer solution of adding an
+    -- ArgInfo to PrimImpl we simply check the few special primitives here.
     let expectedInfo =
           case name of
             -- Currently no special primitives
             _ -> defaultArgInfo
-    unless (info == expectedInfo) $ typeError $ WrongModalityForPrimitive name info expectedInfo
-    bindPrimitive s pf
-    addConstant' x info x t $
-        Primitive { primAbstr    = Info.defAbstract i
-                  , primName     = s
-                  , primClauses  = []
-                  , primInv      = NotInjective
-                  , primCompiled = Nothing }
+    unless (info == expectedInfo) $
+      typeError $ WrongArgInfoForPrimitive name info expectedInfo
+    bindPrimitive name pf
+    lang <- getLanguage
+    addConstant x
+      (defaultDefn info x t lang Primitive
+        { primAbstr    = Info.defAbstract i
+        , primOpaque   = TransparentDef
+        , primName     = name
+        , primClauses  = []
+        , primInv      = NotInjective
+        , primCompiled = Nothing })
+      { defArgOccurrences = primFunArgOccurrences pf }
 
 -- | Check a pragma.
 checkPragma :: Range -> A.Pragma -> TCM ()
 checkPragma r p =
     traceCall (CheckPragma r p) $ case p of
         A.BuiltinPragma rb x
-          | isUntypedBuiltin b -> return ()
-          | otherwise          -> bindBuiltin b x
+          | any isUntypedBuiltin b -> return ()
+          | Just b' <- b -> bindBuiltin b' x
+          | otherwise -> typeError $ NoSuchBuiltinName ident
+          where
+            ident = rangedThing rb
+            b = builtinById ident
+        A.BuiltinNoDefPragma rb _kind x
+          | Just b' <- builtinById b -> bindBuiltinNoDef b' x
+          | otherwise -> typeError $ NoSuchBuiltinName b
           where b = rangedThing rb
-        A.BuiltinNoDefPragma b _kind x -> bindBuiltinNoDef (rangedThing b) x
         A.RewritePragma _ qs -> addRewriteRules qs
         A.CompilePragma b x s -> do
           -- Check that x resides in the same module (or a child) as the pragma.
@@ -761,8 +788,9 @@ checkPragma r p =
           def <- getConstInfo x
           case theDef def of
             Function{} -> markInline b x
-            _          -> typeError $ GenericError $ sINLINE ++ " directive only works on functions"
-              where sINLINE = if b then "INLINE" else "NOINLINE"
+            d@Constructor{ conSrcCon } | copatternMatchingAllowed conSrcCon
+              -> modifyGlobalDefinition x $ set lensTheDef d{ conInline = b }
+            _ -> typeError $ GenericError $ applyUnless b ("NO" ++) "INLINE directive only works on functions or constructors of records that allow copattern matching"
         A.OptionsPragma{} -> typeError $ GenericError $ "OPTIONS pragma only allowed at beginning of file, before top module declaration"
         A.DisplayPragma f ps e -> checkDisplayPragma f ps e
         A.EtaPragma r -> do
@@ -1074,7 +1102,8 @@ instance ShowHead A.Declaration where
       A.UnquoteDecl  {} -> "UnquoteDecl"
       A.ScopedDecl   {} -> "ScopedDecl"
       A.UnquoteDef   {} -> "UnquoteDef"
-      A.UnquoteData   {} -> "UnquoteDecl data"
+      A.UnquoteData  {} -> "UnquoteDecl data"
+      A.UnfoldingDecl{} -> "UnfoldingDecl"
 
 debugPrintDecl :: A.Declaration -> TCM ()
 debugPrintDecl d = do

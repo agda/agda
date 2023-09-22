@@ -3,8 +3,6 @@
 -}
 module Agda.Syntax.Concrete.Name where
 
-import Prelude hiding ((!!))
-
 import Control.DeepSeq
 
 import Data.ByteString.Char8 (ByteString)
@@ -14,14 +12,13 @@ import qualified Data.Foldable as Fold
 import GHC.Generics (Generic)
 
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete.Glyph
 import Agda.Syntax.Position
 
 import Agda.Utils.Lens
-import Agda.Utils.List  ((!!), last1)
+import Agda.Utils.List  (last1)
 import Agda.Utils.List1 (List1, pattern (:|), (<|))
 import qualified Agda.Utils.List1 as List1
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Singleton
 import Agda.Utils.Suffix
 
@@ -138,7 +135,7 @@ simpleHole = Name noRange InScope $ singleton Hole
 ------------------------------------------------------------------------
 
 -- | Don't use on 'NoName{}'.
-lensNameParts :: Lens' NameParts Name
+lensNameParts :: Lens' Name NameParts
 lensNameParts f = \case
   n@Name{} -> f (nameNameParts n) <&> \ ps -> n { nameNameParts = ps }
   NoName{} -> __IMPOSSIBLE__
@@ -207,7 +204,7 @@ data NameInScope = InScope | NotInScope
   deriving (Eq, Show)
 
 class LensInScope a where
-  lensInScope :: Lens' NameInScope a
+  lensInScope :: Lens' a NameInScope
 
   isInScope :: a -> NameInScope
   isInScope x = x ^. lensInScope
@@ -269,7 +266,7 @@ nextName freshNameMode x@Name{} = setNotInScope $ over (lensNameParts . lastIdPa
 nextName             _ NoName{} = __IMPOSSIBLE__
 
 -- | Zoom on the last non-hole in a name.
-lastIdPart :: Lens' RawName NameParts
+lastIdPart :: Lens' NameParts RawName
 lastIdPart f = loop
   where
   loop = \case
@@ -289,7 +286,7 @@ firstNonTakenName freshNameMode taken x =
 -- | Lens for accessing and modifying the suffix of a name.
 --   The suffix of a @NoName@ is always @Nothing@, and should not be
 --   changed.
-nameSuffix :: Lens' (Maybe Suffix) Name
+nameSuffix :: Lens' Name (Maybe Suffix)
 nameSuffix (f :: Maybe Suffix -> f (Maybe Suffix)) = \case
 
   n@NoName{} -> f Nothing <&> \case
@@ -324,7 +321,7 @@ sameRoot = (==) `on` nameRoot
 ------------------------------------------------------------------------
 
 -- | Lens for the unqualified part of a QName
-lensQNameName :: Lens' Name QName
+lensQNameName :: Lens' QName Name
 lensQNameName f (QName n)  = QName <$> f n
 lensQNameName f (Qual m n) = Qual m <$> lensQNameName f n
 

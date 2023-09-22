@@ -1,5 +1,4 @@
-Issue5706.agda:31,3-6
+Issue5706.agda:32,3-6
 Set₁₈₄₄₆₇₄₄₀₇₃₇₀₉₅₅₁₆₁₆ is not less or equal than Set
-when checking that the type
-(X : Set₁₈₄₄₆₇₄₄₀₇₃₇₀₉₅₅₁₆₁₅) → (X → SET) → SET of the constructor
-set fits in the sort Set of the datatype.
+when checking that the type Set₁₈₄₄₆₇₄₄₀₇₃₇₀₉₅₅₁₆₁₅ of an argument
+to the constructor set fits in the sort Set of the datatype.

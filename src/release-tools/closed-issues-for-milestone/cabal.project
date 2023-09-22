@@ -8,3 +8,10 @@ constraints: github +openssl
 -- Obsoleted by https://github.com/haskell-hvr/deepseq-generics/pull/12
 -- allow-newer: deepseq-generics-0.2.0.0:base
 -- allow-newer: deepseq-generics-0.2.0.0:ghc-prim
+
+-- -- Temporary addition to use unreleased github-0.29
+-- constraints: github >= 0.29
+-- source-repository-package
+--   type: git
+--   location: https://github.com/haskell-github/github
+--   tag: 723884baa49627fe24424c493ba4c6436df53492

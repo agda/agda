@@ -4,6 +4,6 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals, Errors*" "?0 : Foo → Set ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: ?0 (baz tt) =< ⊥ (blocked on _B_35) Unit =< ?0 (bar tt) (blocked on _B_35) " nil)
 ((last . 1) . (agda2-goals-action '(0)))
-(agda2-info-action "*Error*" "1,36-37 ((λ { (bar _) → Unit ; (baz _) → ⊥ ; _ → ⊥ ; (primHComp {.Agda.Primitive.lzero} {.Foo} {φ = φ} u a) → primComp (λ i .o → .extendedlambda0 p₁ (u i _)) (.extendedlambda0 p₁ a) }) x) != ⊥ of type Set when checking the definition of .extendedlambda0" nil)
+(agda2-info-action "*Error*" "1,36-37 ((λ { (bar _) → Unit ; (baz _) → ⊥ ; _ → ⊥ }) x) != ⊥ of type Set when checking the definition of .extendedlambda0" nil)
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")

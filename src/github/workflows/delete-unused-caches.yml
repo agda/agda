@@ -17,7 +17,7 @@ jobs:
 
       # Without a '.git' repo, the 'gh' tool will not work.
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Cleanup
         # Andreas, 2023-02-02:

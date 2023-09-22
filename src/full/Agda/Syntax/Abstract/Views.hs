@@ -4,7 +4,6 @@ module Agda.Syntax.Abstract.Views where
 import Prelude hiding (null)
 
 import Control.Applicative ( Const(Const), getConst )
-import Control.Arrow (first)
 import Control.Monad.Identity
 
 import Data.Foldable (foldMap)
@@ -255,6 +254,7 @@ instance ExprLike Expr where
 instance ExprLike a => ExprLike (Arg a)
 instance ExprLike a => ExprLike (Maybe a)
 instance ExprLike a => ExprLike (Named x a)
+instance ExprLike a => ExprLike (Ranged a)
 instance ExprLike a => ExprLike [a]
 instance ExprLike a => ExprLike (List1 a)
 
@@ -441,7 +441,7 @@ instance ExprLike Declaration where
       Import{}                  -> pure d
       Pragma i p                -> Pragma i <$> rec p
       Open{}                    -> pure d
-      FunDef i f d cs           -> FunDef i f d <$> rec cs
+      FunDef i f cs             -> FunDef i f <$> rec cs
       DataSig i er d tel e      -> DataSig i er d <$> rec tel <*> rec e
       DataDef i d uc bs cs      -> DataDef i d uc <$> rec bs <*> rec cs
       RecSig i er r tel e       -> RecSig i er r <$> rec tel <*> rec e
@@ -451,6 +451,7 @@ instance ExprLike Declaration where
       UnquoteDef i xs e         -> UnquoteDef i xs <$> rec e
       UnquoteData i xs uc j cs e -> UnquoteData i xs uc j cs <$> rec e
       ScopedDecl s ds           -> ScopedDecl s <$> rec ds
+      UnfoldingDecl r ds        -> UnfoldingDecl r <$> rec ds
     where
       rec :: RecurseExprRecFn m
       rec e = recurseExpr f e
@@ -513,13 +514,14 @@ instance DeclaredNames Declaration where
       UnquoteDecl _ _ qs _         -> fromList $ map (WithKind OtherDefName) qs  -- could be Fun or Axiom
       UnquoteDef _ qs _            -> fromList $ map (WithKind FunName) qs       -- cannot be Axiom
       UnquoteData _ d _ _ cs _     -> singleton (WithKind DataName d) <> (fromList $ map (WithKind ConName) cs) -- singleton _ <> map (WithKind ConName) cs
-      FunDef _ q _ cls             -> singleton (WithKind FunName q) <> declaredNames cls
+      FunDef _ q cls               -> singleton (WithKind FunName q) <> declaredNames cls
       ScopedDecl _ decls           -> declaredNames decls
       Section _ _ _ _ decls        -> declaredNames decls
       Pragma _ pragma              -> declaredNames pragma
       Apply{}                      -> mempty
       Import{}                     -> mempty
       Open{}                       -> mempty
+      UnfoldingDecl{}              -> mempty
     where
     con = \case
       Axiom _ _ _ _ q _ -> singleton $ WithKind ConName q

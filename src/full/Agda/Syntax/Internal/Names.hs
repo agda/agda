@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Extract all names and meta-variables from things.
 
 module Agda.Syntax.Internal.Names where
@@ -152,15 +154,15 @@ instance NamesIn Defn where
     PrimitiveSort _ s  -> namesAndMetasIn' sg s
     AbstractDefn{}     -> __IMPOSSIBLE__
     -- Andreas 2017-07-27, Q: which names can be in @cc@ which are not already in @cl@?
-    Function cl cc _ _ _ _ _ _ _ _ _ _ _ el _ _
+    Function cl cc _ _ _ _ _ _ _ _ _ _ el _ _ _
       -> namesAndMetasIn' sg (cl, cc, el)
     Datatype _ _ cl cs s _ _ _ trX trD
       -> namesAndMetasIn' sg (cl, cs, s, trX, trD)
     Record _ cl c _ fs recTel _ _ _ _ _ _ comp
       -> namesAndMetasIn' sg (cl, c, fs, recTel, comp)
-    Constructor _ _ c d _ _ kit fs _ _ _
+    Constructor _ _ c d _ kit fs _ _ _ _
       -> namesAndMetasIn' sg (c, d, kit, fs)
-    Primitive _ _ cl _ cc
+    Primitive _ _ cl _ cc _
       -> namesAndMetasIn' sg (cl, cc)
 
 instance NamesIn Clause where
@@ -193,10 +195,8 @@ instance NamesIn a => NamesIn (Type' a) where
 
 instance NamesIn Sort where
   namesAndMetasIn' sg = \case
-    Type l      -> namesAndMetasIn' sg l
-    Prop l      -> namesAndMetasIn' sg l
+    Univ _ l    -> namesAndMetasIn' sg l
     Inf _ _     -> mempty
-    SSet l      -> namesAndMetasIn' sg l
     SizeUniv    -> mempty
     LockUniv    -> mempty
     LevelUniv   -> mempty
@@ -273,7 +273,7 @@ instance NamesIn a => NamesIn (Builtin a) where
 -- | Note that the 'primFunImplementation' is skipped.
 instance NamesIn PrimFun where
   namesAndMetasIn' sg = \case
-    PrimFun x _ _ -> namesAndMetasIn' sg x
+    PrimFun x _ _ _ -> namesAndMetasIn' sg x
 
 instance NamesIn Section where
   namesAndMetasIn' sg = \case
@@ -295,9 +295,7 @@ instance NamesIn NLPType where
 
 instance NamesIn NLPSort where
   namesAndMetasIn' sg = \case
-    PType a       -> namesAndMetasIn' sg a
-    PProp a       -> namesAndMetasIn' sg a
-    PSSet a       -> namesAndMetasIn' sg a
+    PUniv _ a     -> namesAndMetasIn' sg a
     PInf _ _      -> mempty
     PSizeUniv     -> mempty
     PLockUniv     -> mempty

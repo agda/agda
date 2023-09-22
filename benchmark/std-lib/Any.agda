@@ -2,49 +2,46 @@
 -- Properties related to Any
 ------------------------------------------------------------------------
 
+{-# OPTIONS --allow-unsolved-metas #-}
+
 -- The other modules under Data.List.Any also contain properties
 -- related to Any.
 
 module Any where
 
-open import Algebra
+open import Algebra                                          using (CommutativeSemiring)
 import Algebra.Definitions as FP
-open import Effect.Monad
-open import Data.Bool
-open import Data.Bool.Properties
-open import Data.Empty
-open import Data.List as List
-open import Data.List.Relation.Unary.Any as Any using (Any; here; there)
+open import Effect.Monad                                     using (RawMonad)
+open import Data.Bool.Base                                   using (Bool; true; false; T)
+open import Data.Bool.Properties                             using (T-∨; T-≡)
+open import Data.Empty                                       using (⊥)
+open import Data.List.Base as List                           using (List; []; _∷_; [_]; _++_; any; concat)
+open import Data.List.Relation.Unary.Any as Any              using (Any; here; there)
 import Data.List.Effectful
-open import Data.Product as Prod hiding (swap)
-open import Data.Product.Function.NonDependent.Propositional
-  using (_×-cong_)
-open import Data.Product.Relation.Binary.Pointwise.NonDependent
+open import Data.Product.Base as Prod                        using (∃; ∃₂; _×_; _,_; proj₁; proj₂; uncurry′)
+open import Data.Product.Function.NonDependent.Propositional using (_×-cong_)
 import Data.Product.Function.Dependent.Propositional as Σ
-open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
-open import Data.Sum.Relation.Binary.Pointwise
-open import Data.Sum.Function.Propositional using (_⊎-cong_)
-open import Function using (_$_; _$′_; _∘_; id; flip; const)
-open import Function.Equality using (_⟨$⟩_)
-open import Function.Equivalence as Eq using (_⇔_; module Equivalence)
-open import Function.Inverse as Inv using (_↔_; module Inverse)
-open import Function.Related as Related using (Related; SK-sym)
+open import Data.Sum.Base as Sum                             using (_⊎_; inj₁; inj₂; [_,_]′)
+open import Data.Sum.Function.Propositional                  using (_⊎-cong_)
+open import Function.Base                                    using (_$_; _$′_; _∘_; id; flip; const)
+open import Function.Equality                                using (_⟨$⟩_)
+open import Function.Equivalence as Eq                       using (_⇔_; module Equivalence)
+open import Function.Inverse as Inv                          using (_↔_; module Inverse)
+open import Function.Related as Related                      using (Related; SK-sym)
 open import Function.Related.TypeIsomorphisms
-open import Level
-open import Relation.Binary hiding (_⇔_)
 import Relation.Binary.HeterogeneousEquality as H
-open import Relation.Binary.PropositionalEquality as P
-  using (_≡_; refl; inspect) renaming ([_] to P[_])
-open import Relation.Unary using (_⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _⋐_)
+open import Relation.Binary.PropositionalEquality as P       using (_≡_; refl; inspect) renaming ([_] to P[_])
+open import Relation.Unary                                   using (_⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _⋐_)
 
-open import Data.List.Membership.Propositional
-open import Data.List.Relation.Binary.BagAndSetEquality
+open import Data.List.Membership.Propositional               using (_∈_; find; lose; mapWith∈)
+open import Data.List.Relation.Binary.BagAndSetEquality      using (_∼[_]_)
 open Related.EquationalReasoning
 
 private
   module ×⊎ {k ℓ} = CommutativeSemiring (×-⊎-commutativeSemiring k ℓ)
   open module ListMonad {ℓ} =
     RawMonad (Data.List.Effectful.monad {ℓ = ℓ})
+    using (_<$>_; _⊗_; _⊛_; _>>=_; pure)
 
 ------------------------------------------------------------------------
 -- Some lemmas related to map, find and lose
@@ -367,37 +364,37 @@ private
     }
   }
 
--- return.
+-- pure.
 
 private
 
-  return⁺ : ∀ {a p} {A : Set a} {P : A → Set p} {x} →
-            P x → Any P (return x)
-  return⁺ = here
+  pure⁺ : ∀ {a p} {A : Set a} {P : A → Set p} {x} →
+            P x → Any P (pure x)
+  pure⁺ = here
 
-  return⁻ : ∀ {a p} {A : Set a} {P : A → Set p} {x} →
-            Any P (return x) → P x
-  return⁻ (here p)   = p
-  return⁻ (there ())
+  pure⁻ : ∀ {a p} {A : Set a} {P : A → Set p} {x} →
+            Any P (pure x) → P x
+  pure⁻ (here p)   = p
+  pure⁻ (there ())
 
-  return⁺∘return⁻ : ∀ {a p} {A : Set a} {P : A → Set p} {x}
-                    (p : Any P (return x)) →
-                    return⁺ (return⁻ p) ≡ p
-  return⁺∘return⁻ (here p)   = refl
-  return⁺∘return⁻ (there ())
+  pure⁺∘pure⁻ : ∀ {a p} {A : Set a} {P : A → Set p} {x}
+                    (p : Any P (pure x)) →
+                    pure⁺ (pure⁻ p) ≡ p
+  pure⁺∘pure⁻ (here p)   = refl
+  pure⁺∘pure⁻ (there ())
 
-  return⁻∘return⁺ : ∀ {a p} {A : Set a} (P : A → Set p) {x} (p : P x) →
-                    return⁻ {P = P} (return⁺ p) ≡ p
-  return⁻∘return⁺ P p = refl
+  pure⁻∘pure⁺ : ∀ {a p} {A : Set a} (P : A → Set p) {x} (p : P x) →
+                    pure⁻ {P = P} (pure⁺ p) ≡ p
+  pure⁻∘pure⁺ P p = refl
 
-return↔ : ∀ {a p} {A : Set a} {P : A → Set p} {x} →
-          P x ↔ Any P (return x)
-return↔ {P = P} = record
-  { to         = P.→-to-⟶ $ return⁺ {P = P}
-  ; from       = P.→-to-⟶ $ return⁻ {P = P}
+pure↔ : ∀ {a p} {A : Set a} {P : A → Set p} {x} →
+          P x ↔ Any P (pure x)
+pure↔ {P = P} = record
+  { to         = P.→-to-⟶ $ pure⁺ {P = P}
+  ; from       = P.→-to-⟶ $ pure⁻ {P = P}
   ; inverse-of = record
-    { left-inverse-of  = return⁻∘return⁺ P
-    ; right-inverse-of = return⁺∘return⁻
+    { left-inverse-of  = pure⁻∘pure⁺ P
+    ; right-inverse-of = pure⁺∘pure⁻
     }
   }
 
@@ -406,7 +403,7 @@ return↔ {P = P} = record
 ∷↔ : ∀ {a p} {A : Set a} (P : A → Set p) {x xs} →
      (P x ⊎ Any P xs) ↔ Any P (x ∷ xs)
 ∷↔ P {x} {xs} =
-  (P x         ⊎ Any P xs)  ↔⟨ return↔ {P = P} ⊎-cong (Any P xs ∎) ⟩
+  (P x         ⊎ Any P xs)  ↔⟨ pure↔ {P = P} ⊎-cong (Any P xs ∎) ⟩
   (Any P [ x ] ⊎ Any P xs)  ↔⟨ ++↔ {P = P} {xs = [ x ]} ⟩
   Any P (x ∷ xs)            ∎
 
@@ -482,10 +479,13 @@ concat↔ {P = P} {xss = xss} = record
        {fs : List (A → B)} {xs : List A} →
      Any (λ f → Any (P ∘ f) xs) fs ↔ Any P (fs ⊛ xs)
 ⊛↔ {ℓ} {P = P} {fs} {xs} =
-  Any (λ f → Any (P ∘ f) xs) fs               ↔⟨ Any-cong (λ _ → Any-cong (λ _ → return↔ {a = ℓ} {p = ℓ}) (_ ∎)) (_ ∎) ⟩
-  Any (λ f → Any (Any P ∘ return ∘ f) xs) fs  ↔⟨ Any-cong (λ _ → >>=↔ {ℓ = ℓ} {p = ℓ}) (_ ∎) ⟩
-  Any (λ f → Any P (xs >>= return ∘ f)) fs    ↔⟨ >>=↔ {ℓ = ℓ} {p = ℓ} ⟩
-  Any P (fs ⊛ xs)                             ∎
+  Any (λ f → Any (P ∘ f) xs) fs             ↔⟨ Any-cong (λ _ → Any-cong (λ _ → pure↔ {a = ℓ} {p = ℓ}) (_ ∎)) (_ ∎) ⟩
+  Any (λ f → Any (Any P ∘ pure ∘ f) xs) fs  ↔⟨ Any-cong (λ _ → >>=↔ {ℓ = ℓ} {p = ℓ}) (_ ∎) ⟩
+  Any (λ f → Any P (xs >>= pure ∘ f)) fs    ↔⟨ Any-cong (λ f → Any-cong (λ x → {!!}) {!!})  (_ ∎) ⟩  -- need right monad unit here
+  Any (λ f → Any P (f <$> xs)) fs           ↔⟨⟩
+  Any (Any P ∘ (_<$> xs)) fs                ↔⟨ >>=↔ {ℓ = ℓ} {p = ℓ} ⟩
+  Any P (fs >>= (_<$> xs))                  ↔⟨⟩
+  Any P (fs ⊛ xs)                           ∎
 
 -- An alternative introduction rule for _⊛_.
 
@@ -502,9 +502,10 @@ concat↔ {P = P} {xss = xss} = record
        {xs : List A} {ys : List B} →
      Any (λ x → Any (λ y → P (x , y)) ys) xs ↔ Any P (xs ⊗ ys)
 ⊗↔ {ℓ} {P = P} {xs} {ys} =
-  Any (λ x → Any (λ y → P (x , y)) ys) xs                             ↔⟨ return↔ {a = ℓ} {p = ℓ} ⟩
-  Any (λ _,_ → Any (λ x → Any (λ y → P (x , y)) ys) xs) (return _,_)  ↔⟨ ⊛↔ ⟩
-  Any (λ x, → Any (P ∘ x,) ys) (_,_ <$> xs)                           ↔⟨ ⊛↔ ⟩
+  Any (λ x → Any (λ y → P (x , y)) ys) xs                             ↔⟨ pure↔ {a = ℓ} {p = ℓ} ⟩
+  Any (λ _,_ → Any (λ x → Any (λ y → P (x , y)) ys) xs) (pure _,_)    ↔⟨ ⊛↔ ⟩
+  {!!}                                                                ↔⟨ {!!} ⟩
+  Any (λ x, → Any (P ∘ x,) ys) (_,_ <$> xs)                           ↔⟨  ⊛↔  ⟩
   Any P (xs ⊗ ys)                                                     ∎
 
 ⊗↔′ : {A B : Set} {P : A → Set} {Q : B → Set}

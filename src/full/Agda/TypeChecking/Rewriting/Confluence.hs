@@ -63,12 +63,12 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Conversion.Pure
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.Irrelevance ( workOnTypes , isIrrelevantOrPropM )
+import Agda.TypeChecking.Irrelevance ( isIrrelevantOrPropM )
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Pretty.Warning
+import Agda.TypeChecking.Pretty.Warning    ()
 import Agda.TypeChecking.Pretty.Constraint
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
@@ -80,7 +80,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
 
-import Agda.Utils.Applicative
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
@@ -833,10 +832,8 @@ instance AllHoles Term where
 
 instance AllHoles Sort where
   allHoles _ = \case
-    Type l       -> fmap Type <$> allHoles_ l
-    Prop l       -> fmap Prop <$> allHoles_ l
-    Inf f n      -> empty
-    SSet l       -> fmap SSet <$> allHoles_ l
+    Univ u l     -> fmap (Univ u) <$> allHoles_ l
+    Inf _ _      -> empty
     SizeUniv     -> empty
     LockUniv     -> empty
     LevelUniv    -> empty
@@ -908,10 +905,8 @@ instance MetasToVars Type where
 
 instance MetasToVars Sort where
   metasToVars = \case
-    Type l     -> Type     <$> metasToVars l
-    Prop l     -> Prop     <$> metasToVars l
-    Inf f n    -> pure $ Inf f n
-    SSet l     -> SSet     <$> metasToVars l
+    Univ u l   -> Univ u <$> metasToVars l
+    Inf u n    -> pure $ Inf u n
     SizeUniv   -> pure SizeUniv
     LockUniv   -> pure LockUniv
     LevelUniv  -> pure LevelUniv

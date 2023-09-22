@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 ------------------------------------------------------------------------
 -- Top-level module names
 ------------------------------------------------------------------------
@@ -28,7 +30,7 @@ import Agda.Utils.Impossible
 import Agda.Utils.Lens
 import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 
@@ -180,7 +182,7 @@ instance NFData TopLevelModuleName where
 -- | A lens focusing on the 'moduleNameParts'.
 
 lensTopLevelModuleNameParts ::
-  Lens' TopLevelModuleNameParts TopLevelModuleName
+  Lens' TopLevelModuleName TopLevelModuleNameParts
 lensTopLevelModuleNameParts f m =
   f (moduleNameParts m) <&> \ xs -> m{ moduleNameParts = xs }
 

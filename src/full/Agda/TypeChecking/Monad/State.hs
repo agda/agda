@@ -2,7 +2,6 @@
 
 module Agda.TypeChecking.Monad.State where
 
-
 import qualified Control.Exception as E
 
 import Control.Monad       (void, when)
@@ -39,11 +38,10 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.CompiledClause
 
 import qualified Agda.Utils.BiMap as BiMap
-import Agda.Utils.Hash
 import Agda.Utils.Lens
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad (bracket_)
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
@@ -140,7 +138,7 @@ freshTCM m = do
 -- * Lens for persistent states and its fields
 ---------------------------------------------------------------------------
 
-lensPersistentState :: Lens' PersistentTCState TCState
+lensPersistentState :: Lens' TCState PersistentTCState
 lensPersistentState f s =
   f (stPersistentState s) <&> \ p -> s { stPersistentState = p }
 
@@ -153,11 +151,11 @@ modifyPersistentState = modifyTC . updatePersistentState
 
 -- | Lens for 'stAccumStatistics'.
 
-lensAccumStatisticsP :: Lens' Statistics PersistentTCState
+lensAccumStatisticsP :: Lens' PersistentTCState Statistics
 lensAccumStatisticsP f s = f (stAccumStatistics s) <&> \ a ->
   s { stAccumStatistics = a }
 
-lensAccumStatistics :: Lens' Statistics TCState
+lensAccumStatistics :: Lens' TCState Statistics
 lensAccumStatistics =  lensPersistentState . lensAccumStatisticsP
 
 ---------------------------------------------------------------------------
@@ -181,11 +179,11 @@ modifyScope :: MonadTCState m => (ScopeInfo -> ScopeInfo) -> m ()
 modifyScope f = modifyScope_ (recomputeInverseScopeMaps . f)
 
 -- | Get a part of the current scope.
-useScope :: ReadTCState m => Lens' a ScopeInfo -> m a
+useScope :: ReadTCState m => Lens' ScopeInfo a -> m a
 useScope l = useR $ stScope . l
 
 -- | Run a computation in a modified scope.
-locallyScope :: ReadTCState m => Lens' a ScopeInfo -> (a -> a) -> m b -> m b
+locallyScope :: ReadTCState m => Lens' ScopeInfo a -> (a -> a) -> m b -> m b
 locallyScope l = locallyTCState $ stScope . l
 
 -- | Run a computation in a local scope.
@@ -361,6 +359,7 @@ setTopLevelModule :: TopLevelModuleName -> TCM ()
 setTopLevelModule top = do
   let hash = moduleNameId top
   stFreshNameId `setTCLens'` NameId 0 hash
+  stFreshOpaqueId `setTCLens'` OpaqueId 0 hash
   stFreshMetaId `setTCLens'`
     MetaId { metaId     = 0
            , metaModule = hash
@@ -389,10 +388,12 @@ withTopLevelModule :: TopLevelModuleName -> TCM a -> TCM a
 withTopLevelModule x m = do
   nextN <- useTC stFreshNameId
   nextM <- useTC stFreshMetaId
+  nextO <- useTC stFreshOpaqueId
   setTopLevelModule x
   y <- m
   stFreshMetaId `setTCLens` nextM
   stFreshNameId `setTCLens` nextN
+  stFreshOpaqueId `setTCLens` nextO
   return y
 
 currentModuleNameHash :: ReadTCState m => m ModuleNameHash

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -30,35 +31,35 @@ instance EmbPrj Scope where
   value = valueN Scope
 
 instance EmbPrj DataOrRecordModule where
-  icod_ IsDataModule   = icodeN' IsDataModule
-  icod_ IsRecordModule = icodeN 0 IsRecordModule
+  icod_ IsDataModule   = pure 0
+  icod_ IsRecordModule = pure 1
 
-  value = vcase $ \case
-    []  -> valuN IsDataModule
-    [0] -> valuN IsRecordModule
-    _   -> malformed
+  value = \case
+    0 -> pure IsDataModule
+    1 -> pure IsRecordModule
+    _ -> malformed
 
 instance EmbPrj NameSpaceId where
-  icod_ PublicNS        = icodeN' PublicNS
-  icod_ PrivateNS       = icodeN 1 PrivateNS
-  icod_ ImportedNS      = icodeN 2 ImportedNS
+  icod_ PublicNS        = pure 0
+  icod_ PrivateNS       = pure 1
+  icod_ ImportedNS      = pure 2
 
-  value = vcase valu where
-    valu []  = valuN PublicNS
-    valu [1] = valuN PrivateNS
-    valu [2] = valuN ImportedNS
-    valu _   = malformed
+  value = \case
+    0 -> pure PublicNS
+    1 -> pure PrivateNS
+    2 -> pure ImportedNS
+    _ -> malformed
 
 instance EmbPrj Access where
-  icod_ (PrivateAccess UserWritten) = icodeN 0 ()
-  icod_ PrivateAccess{}             = icodeN 1 ()
-  icod_ PublicAccess                = icodeN' PublicAccess
+  icod_ (PrivateAccess UserWritten) = pure 0
+  icod_ PrivateAccess{}             = pure 1
+  icod_ PublicAccess                = pure 2
 
-  value = vcase valu where
-    valu [0] = valuN $ PrivateAccess UserWritten
-    valu [1] = valuN $ PrivateAccess Inserted
-    valu []  = valuN PublicAccess
-    valu _   = malformed
+  value = \case
+    0 -> pure $ PrivateAccess UserWritten
+    1 -> pure $ PrivateAccess Inserted
+    2 -> pure PublicAccess
+    _ -> malformed
 
 instance EmbPrj NameSpace where
   icod_ (NameSpace a b c) = icodeN' NameSpace a b c
@@ -143,17 +144,17 @@ instance EmbPrj KindOfName where
   --   valu _   = malformed
 
 instance EmbPrj BindingSource where
-  icod_ LambdaBound   = icodeN' LambdaBound
-  icod_ PatternBound  = icodeN 1 PatternBound
-  icod_ LetBound      = icodeN 2 LetBound
-  icod_ WithBound     = icodeN 3 WithBound
+  icod_ LambdaBound   = pure 0
+  icod_ PatternBound  = pure 1
+  icod_ LetBound      = pure 2
+  icod_ WithBound     = pure 3
 
-  value = vcase valu where
-    valu []  = valuN LambdaBound
-    valu [1] = valuN PatternBound
-    valu [2] = valuN LetBound
-    valu [3] = valuN WithBound
-    valu _   = malformed
+  value = \case
+    0 -> pure LambdaBound
+    1 -> pure PatternBound
+    2 -> pure LetBound
+    3 -> pure WithBound
+    _ -> malformed
 
 instance EmbPrj LocalVar where
   icod_ (LocalVar a b c)  = icodeN' LocalVar a b c

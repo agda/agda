@@ -2,12 +2,12 @@ cabal-version:   2.4
 name:            Agda
 version:         2.6.4
 build-type:      Custom
-license:         LicenseRef-OtherLicense
+license:         MIT
 license-file:    LICENSE
 copyright:       (c) 2005-2023 The Agda Team.
-author:          Ulf Norell and The Agda Team, see https://agda.readthedocs.io/en/latest/team.html
+author:          The Agda Team, see https://agda.readthedocs.io/en/latest/team.html
 maintainer:      The Agda Team
-homepage:        http://wiki.portal.chalmers.se/agda/
+homepage:        https://wiki.portal.chalmers.se/agda/
 bug-reports:     https://github.com/agda/agda/issues
 category:        Dependent types
 synopsis:        A dependently typed functional programming language and proof assistant
@@ -35,8 +35,9 @@ description:
     packages.
 
 tested-with:
-    GHC == 9.4.4
-    GHC == 9.2.7
+    GHC == 9.6.2
+    GHC == 9.4.6
+    GHC == 9.2.8
     GHC == 9.0.2
     GHC == 8.10.7
     GHC == 8.8.4
@@ -85,8 +86,9 @@ extra-doc-files:
     doc/release-notes/2.2.0.md
 
 extra-source-files:
-    stack-9.4.4.yaml
-    stack-9.2.7.yaml
+    stack-9.6.2.yaml
+    stack-9.4.6.yaml
+    stack-9.2.8.yaml
     stack-9.0.2.yaml
     stack-8.10.7.yaml
     stack-8.8.4.yaml
@@ -155,11 +157,6 @@ source-repository this
 -- Build flags
 ---------------------------------------------------------------------------
 
-flag cpphs
-  default:     False
-  manual:      True
-  description: Use cpphs instead of cpp.
-
 flag debug
   default: False
   manual: True
@@ -182,7 +179,7 @@ flag optimise-heavily
 
 custom-setup
   setup-depends:
-    , base      >= 4.12.0.0 && < 4.19
+    , base      >= 4.12.0.0 && < 4.20
     , Cabal     >= 2.4.0.1  && < 3.11
     , directory >= 1.3.3.0  && < 1.4
     , filepath  >= 1.4.2.1  && < 1.5
@@ -194,12 +191,13 @@ custom-setup
 common language
 
   if flag(optimise-heavily)
+    cpp-options:
+      -DOPTIMISE_HEAVILY
     ghc-options:
       -fexpose-all-unfoldings
       -fspecialise-aggressively
 
   ghc-options:
-      -fprint-potential-instances
       -- ASR (2022-05-31). Workaround to Issue #5932.
       -Werror
       -Werror=cpp-undef
@@ -242,6 +240,11 @@ common language
   if impl(ghc < 8.10)
     ghc-options:
       -Werror=implicit-kind-vars
+      -- #6623: Turn off this (nameless) warning:
+      -- "Pattern match checker exceeded (2000000) iterations in a case alternative."
+      -- See: https://gitlab.haskell.org/ghc/ghc/-/issues/13464
+      -Wno-incomplete-patterns
+      -Wno-overlapping-patterns
 
   if impl(ghc >= 8.8)
     ghc-options:
@@ -261,6 +264,7 @@ common language
       -- #6137: coverage checker works only sufficiently well from GHC 9.0
       -Werror=incomplete-patterns
       -Werror=incomplete-record-updates
+      -Werror=overlapping-patterns
 
   -- ASR (2022-04-27). This warning was added in GHC 9.0.2, removed
   -- from 9.2.1 and added back in 9.2.2.
@@ -284,6 +288,7 @@ common language
   --         .hlint.yaml
   default-extensions:
       BangPatterns
+      BlockArguments
       ConstraintKinds
       --L-T Chen (2019-07-15):
       -- Enabling DataKinds only locally makes the compile time
@@ -294,6 +299,7 @@ common language
       DeriveFunctor
       DeriveGeneric
       DeriveTraversable
+      DerivingStrategies
       ExistentialQuantification
       FlexibleContexts
       FlexibleInstances
@@ -315,6 +321,12 @@ common language
       TypeOperators
       TypeSynonymInstances
 
+  other-extensions:
+      CPP
+      DeriveAnyClass
+      PartialTypeSignatures
+
+
 -- Agda library
 ---------------------------------------------------------------------------
 
@@ -334,13 +346,6 @@ library
   --
   -- An exceptions are packages that are only needed for certain configurations,
   -- like for flags, Windows, etc.
-
-  if flag(cpphs)
-    -- We don't write an upper bound for cpphs because the
-    -- `build-tool-depends` field can not be modified in Hackage.
-
-    build-tool-depends: cpphs:cpphs >= 1.20.9
-    ghc-options:        -pgmP cpphs -optP --cpp
 
   if flag(debug)
     cpp-options:    -DDEBUG
@@ -364,18 +369,20 @@ library
 
   -- For libraries that come with GHC, we take the shipped version as default lower bound.
   build-depends:
-    , aeson                >= 1.1.2.0   && < 2.2
+    -- Please keep in alphabetical order!
+    , aeson                >= 1.1.2.0   && < 2.3
+    , ansi-terminal        >= 0.9       && < 1.1
     , array                >= 0.5.2.0   && < 0.6
     , async                >= 2.2       && < 2.3
-    , base                 >= 4.12.0.0  && < 4.19
+    , base                 >= 4.12.0.0  && < 4.20
     , binary               >= 0.8.6.0   && < 0.9
     , blaze-html           >= 0.8       && < 0.10
     , boxes                >= 0.1.3     && < 0.2
-    , bytestring           >= 0.10.8.2  && < 0.12
+    , bytestring           >= 0.10.8.2  && < 0.13
     , case-insensitive     >= 1.2.0.4   && < 1.3
-    , containers           >= 0.6.0.1  && < 0.7
+    , containers           >= 0.6.0.1   && < 0.7
     , data-hash            >= 0.2.0.0   && < 0.3
-    , deepseq              >= 1.4.4.0   && < 1.5
+    , deepseq              >= 1.4.4.0   && < 1.6
     , directory            >= 1.3.3.0   && < 1.4
     , dlist                >= 0.8       && < 1.1
     , edit-distance        >= 0.2.1.2   && < 0.3
@@ -384,7 +391,7 @@ library
     , exceptions           >= 0.8       && < 0.11
     , filepath             >= 1.4.2.1   && < 1.5
     , ghc-compact          == 0.1.*
-    , gitrev               >= 1.3.1     && < 2.0
+    , gitrev               >= 1.3.1     && < 2
     -- hashable 1.2.0.10 makes library-test 10x
     -- slower. The issue was fixed in hashable 1.2.1.0.
     -- https://github.com/tibbe/hashable/issues/57.
@@ -403,7 +410,7 @@ library
     , stm                  >= 2.4.4     && < 2.6
     , STMonadTrans         >= 0.4.3     && < 0.5
     , strict               >= 0.4.0.1   && < 0.6
-    , text                 >= 1.2.3.1   && < 2.1
+    , text                 >= 1.2.3.1   && < 2.2
     , time                 >= 1.8.0.2   && < 1.13
     , time-compat          >= 1.9.2     && < 1.10
         -- time-compat adds needed functionality missing in time < 1.9
@@ -510,6 +517,9 @@ library
       Agda.Syntax.Abstract
       Agda.Syntax.Builtin
       Agda.Syntax.Common
+      Agda.Syntax.Common.Pretty
+      Agda.Syntax.Common.Aspect
+      Agda.Syntax.Common.Pretty.ANSI
       Agda.Syntax.Concrete.Attribute
       Agda.Syntax.Concrete.Definitions
       Agda.Syntax.Concrete.Definitions.Errors
@@ -538,6 +548,7 @@ library
       Agda.Syntax.Internal.Names
       Agda.Syntax.Internal.Pattern
       Agda.Syntax.Internal.SanityCheck
+      Agda.Syntax.Internal.Univ
       Agda.Syntax.Literal
       Agda.Syntax.Notation
       Agda.Syntax.Parser.Alex
@@ -593,7 +604,6 @@ library
       Agda.TypeChecking.DropArgs
       Agda.TypeChecking.Empty
       Agda.TypeChecking.EtaContract
-      Agda.TypeChecking.EtaExpand
       Agda.TypeChecking.Errors
       Agda.TypeChecking.Free
       Agda.TypeChecking.Free.Lazy
@@ -615,7 +625,9 @@ library
       Agda.TypeChecking.MetaVars
       Agda.TypeChecking.MetaVars.Mention
       Agda.TypeChecking.MetaVars.Occurs
+      Agda.TypeChecking.Modalities
       Agda.TypeChecking.Monad.Base
+      Agda.TypeChecking.Monad.Base.Warning
       Agda.TypeChecking.Monad.Benchmark
       Agda.TypeChecking.Monad.Builtin
       Agda.TypeChecking.Monad.Caching
@@ -626,6 +638,7 @@ library
       Agda.TypeChecking.Monad.Env
       Agda.TypeChecking.Monad.Imports
       Agda.TypeChecking.Monad.MetaVars
+      Agda.TypeChecking.Monad.Modality
       Agda.TypeChecking.Monad.Mutual
       Agda.TypeChecking.Monad.Open
       Agda.TypeChecking.Monad.Options
@@ -637,6 +650,7 @@ library
       Agda.TypeChecking.Monad.Trace
       Agda.TypeChecking.Monad
       Agda.TypeChecking.Names
+      Agda.TypeChecking.Opacity
       Agda.TypeChecking.Patterns.Abstract
       Agda.TypeChecking.Patterns.Internal
       Agda.TypeChecking.Patterns.Match
@@ -713,6 +727,7 @@ library
       Agda.Utils.Bag
       Agda.Utils.Benchmark
       Agda.Utils.BiMap
+      Agda.Utils.Boolean
       Agda.Utils.BoolSet
       Agda.Utils.CallStack
       Agda.Utils.Char
@@ -758,7 +773,6 @@ library
       Agda.Utils.Permutation
       Agda.Utils.Pointer
       Agda.Utils.POMonoid
-      Agda.Utils.Pretty
       Agda.Utils.ProfileOptions
       Agda.Utils.RangeMap
       Agda.Utils.SemiRing
@@ -797,6 +811,7 @@ library
       Agda.Interaction.Options.HasOptions
       Agda.Utils.CallStack.Base
       Agda.Utils.CallStack.Pretty
+      Agda.Utils.Unsafe
 
 -- Agda binary
 ---------------------------------------------------------------------------
@@ -831,7 +846,7 @@ executable agda-mode
   main-is:          Main.hs
   other-modules:    Paths_Agda
   build-depends:
-    , base      >= 4.12.0.0 && < 4.19
+    , base      >= 4.12.0.0 && < 4.20
     , directory >= 1.3.3.0  && < 1.4
     , filepath  >= 1.4.2.1  && < 1.5
     , process   >= 1.6.3.0  && < 1.7
@@ -870,6 +885,7 @@ test-suite agda-tests
       Internal.Syntax.Common
       Internal.Syntax.Concrete.Name
       Internal.Syntax.Internal
+      Internal.Syntax.Internal.Univ
       Internal.Syntax.Parser.Parser
       Internal.Syntax.Position
       Internal.Termination.CallGraph
@@ -941,7 +957,7 @@ test-suite agda-tests
     , regex-tdfa
     , split
     , strict
-    , tasty            >= 1.1.0.4 && < 1.5
+    , tasty            >= 1.1.0.4 && < 1.6
     , tasty-hunit      >= 0.9.2   && < 0.11
     , tasty-quickcheck >= 0.9.2   && < 0.11
     -- tasty-silver 3.1.13 has option --ansi-tricks=false

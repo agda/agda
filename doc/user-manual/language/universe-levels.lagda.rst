@@ -197,6 +197,31 @@ Pragmas and options
   Setω`` (thus making Agda inconsistent) but otherwise leaves universe
   checks intact.
 
+.. _level-universe:
+
+* The option :option:`--level-universe` makes ``Level`` live in its own
+  universe ``LevelUniv`` and disallows having levels depend on terms
+  that are not levels themselves. When this option is turned off,
+  ``LevelUniv`` still exists, but reduces to ``Set``.
+
+  Note: While compatible with the :option:`--cubical` option, this option is currently
+  not compatible with cubical builtin files, and an error will be raised when
+  trying to import them in a file using :option:`--level-universe`.
+
+  .. code-block:: agda
+
+    {-# OPTIONS --level-universe #-}
+    open import Agda.Primitive
+    open import Agda.Builtin.Nat
+
+    toLevel : Nat → Level
+    toLevel _ = lzero
+
+  .. code-block:: text
+
+    funSort Set LevelUniv is not a valid sort
+    when checking that the expression Nat → Level is a type
+
 .. _no_universe_check-pragma:
 
 * The pragma ``{-# NO_UNIVERSE_CHECK #-}`` can be put in front of a

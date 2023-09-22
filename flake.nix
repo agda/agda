@@ -14,13 +14,18 @@
 
     defaultPackage = self.packages.${system}.Agda;
 
-    devShell = pkgs.mkShell {
-      inputsFrom = [ self.defaultPackage.${system} ];
-      packages = with pkgs; [
-        pkg-config
-        zlib
-        icu
+    devShell = pkgs.haskellPackages.shellFor {
+      packages = ps: with ps; [ Agda ];
+      nativeBuildInputs = with pkgs; [
+        cabal-install
+        haskell-language-server
         haskellPackages.fix-whitespace
+
+        # documentation
+        (python3.withPackages (ps: with ps; [
+          sphinx
+          sphinx_rtd_theme
+        ]))
       ];
     };
   })) // {

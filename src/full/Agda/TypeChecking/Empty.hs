@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 module Agda.TypeChecking.Empty
   ( isEmptyType
@@ -10,7 +11,6 @@ import Control.Monad        ( void )
 import Control.Monad.Except ( MonadError(..) )
 
 import Data.Semigroup
-import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal

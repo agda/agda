@@ -22,8 +22,6 @@ module Agda.TypeChecking.Coverage.Match
   , ApplyOrIApply(..)
   ) where
 
-import Control.Monad.State
-
 import Prelude hiding ( null )
 
 import Data.DList (DList)
@@ -35,7 +33,6 @@ import Data.Semigroup ( Semigroup, (<>))
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
-import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty ( PrettyTCM(..) )
@@ -44,7 +41,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Null
-import Agda.Utils.Pretty ( Pretty(..), text, (<+>), cat , prettyList_ )
+import Agda.Syntax.Common.Pretty ( Pretty(..), text, (<+>), cat , prettyList_ )
 import Agda.Utils.Monad
 import Agda.Utils.Singleton
 

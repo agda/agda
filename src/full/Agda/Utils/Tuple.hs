@@ -1,4 +1,4 @@
-
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 module Agda.Utils.Tuple
   ( (-*-)
@@ -67,11 +67,11 @@ mapPairM :: (Applicative m) => (a -> m c) -> (b -> m d) -> (a,b) -> m (c,d)
 mapPairM f g ~(a,b) = (,) <$> f a <*> g b
 
 -- | Monadic 'mapFst'.
-mapFstM :: (Applicative m) => (a -> m c) -> (a,b) -> m (c,b)
+mapFstM :: Functor m => (a -> m c) -> (a,b) -> m (c,b)
 mapFstM f ~(a,b) = (,b) <$> f a
 
 -- | Monadic 'mapSnd'.
-mapSndM :: (Applicative m) => (b -> m d) -> (a,b) -> m (a,d)
+mapSndM :: Functor m => (b -> m d) -> (a,b) -> m (a,d)
 mapSndM f ~(a,b) = (a,) <$> f b
 
 data Pair a = Pair a a

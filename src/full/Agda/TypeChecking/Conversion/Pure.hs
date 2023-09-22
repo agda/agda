@@ -11,7 +11,6 @@ import Data.String
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.MetaVars (unblockOnAnyMetaIn)
 
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Monad
@@ -19,7 +18,6 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce (isBlocked)
 import Agda.TypeChecking.Warnings
 
-import Agda.Utils.Either
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 

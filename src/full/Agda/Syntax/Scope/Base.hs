@@ -44,8 +44,8 @@ import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe (filterMaybe)
 import Agda.Utils.Null
-import Agda.Utils.Pretty hiding ((<>))
-import qualified Agda.Utils.Pretty as P
+import Agda.Syntax.Common.Pretty hiding ((<>))
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Map as Map
 
@@ -189,9 +189,8 @@ instance Pretty LocalVar where
   pretty (LocalVar x _ xs) = "." P.<> pretty x
 
 -- | Shadow a local name by a non-empty list of imports.
-shadowLocal :: [AbstractName] -> LocalVar -> LocalVar
-shadowLocal [] _ = __IMPOSSIBLE__
-shadowLocal ys (LocalVar x b zs) = LocalVar x b (ys ++ zs)
+shadowLocal :: List1 AbstractName -> LocalVar -> LocalVar
+shadowLocal ys (LocalVar x b zs) = LocalVar x b (List1.toList ys ++ zs)
 
 -- | Treat patternBound variable as a module parameter
 patternToModuleBound :: LocalVar -> LocalVar
@@ -210,57 +209,57 @@ notShadowedLocals :: LocalVars -> AssocList C.Name A.Name
 notShadowedLocals = mapMaybe $ \ (c,x) -> (c,) <$> notShadowedLocal x
 
 -- | Lenses for ScopeInfo components
-scopeCurrent :: Lens' A.ModuleName ScopeInfo
+scopeCurrent :: Lens' ScopeInfo A.ModuleName
 scopeCurrent f s =
   f (_scopeCurrent s) <&>
   \x -> s { _scopeCurrent = x }
 
-scopeModules :: Lens' (Map A.ModuleName Scope) ScopeInfo
+scopeModules :: Lens' ScopeInfo (Map A.ModuleName Scope)
 scopeModules f s =
   f (_scopeModules s) <&>
   \x -> s { _scopeModules = x }
 
-scopeVarsToBind :: Lens' LocalVars ScopeInfo
+scopeVarsToBind :: Lens' ScopeInfo LocalVars
 scopeVarsToBind f s =
   f (_scopeVarsToBind s) <&>
   \x -> s { _scopeVarsToBind = x }
 
-scopeLocals :: Lens' LocalVars ScopeInfo
+scopeLocals :: Lens' ScopeInfo LocalVars
 scopeLocals f s =
   f (_scopeLocals s) <&>
   \x -> s { _scopeLocals = x }
 
-scopePrecedence :: Lens' PrecedenceStack ScopeInfo
+scopePrecedence :: Lens' ScopeInfo PrecedenceStack
 scopePrecedence f s =
   f (_scopePrecedence s) <&>
   \x -> s { _scopePrecedence = x }
 
-scopeInverseName :: Lens' NameMap ScopeInfo
+scopeInverseName :: Lens' ScopeInfo NameMap
 scopeInverseName f s =
   f (_scopeInverseName s) <&>
   \x -> s { _scopeInverseName = x }
 
-scopeInverseModule :: Lens' ModuleMap ScopeInfo
+scopeInverseModule :: Lens' ScopeInfo ModuleMap
 scopeInverseModule f s =
   f (_scopeInverseModule s) <&>
   \x -> s { _scopeInverseModule = x }
 
-scopeInScope :: Lens' InScopeSet ScopeInfo
+scopeInScope :: Lens' ScopeInfo InScopeSet
 scopeInScope f s =
   f (_scopeInScope s) <&>
   \x -> s { _scopeInScope = x }
 
-scopeFixities :: Lens' C.Fixities ScopeInfo
+scopeFixities :: Lens' ScopeInfo C.Fixities
 scopeFixities f s =
   f (_scopeFixities s) <&>
   \x -> s { _scopeFixities = x }
 
-scopePolarities :: Lens' C.Polarities ScopeInfo
+scopePolarities :: Lens' ScopeInfo C.Polarities
 scopePolarities f s =
   f (_scopePolarities s) <&>
   \x -> s { _scopePolarities = x }
 
-scopeFixitiesAndPolarities :: Lens' (C.Fixities, C.Polarities) ScopeInfo
+scopeFixitiesAndPolarities :: Lens' ScopeInfo (C.Fixities, C.Polarities)
 scopeFixitiesAndPolarities f s =
   f' (_scopeFixities s) (_scopePolarities s) <&>
   \ (fixs, pols) -> s { _scopeFixities = fixs, _scopePolarities = pols }
@@ -312,7 +311,7 @@ data NameSpace = NameSpace
       }
   deriving (Eq, Show, Generic)
 
-type ThingsInScope a = Map C.Name [a]
+type ThingsInScope a = Map C.Name (List1 a)
 type NamesInScope    = ThingsInScope AbstractName
 type ModulesInScope  = ThingsInScope AbstractModule
 type InScopeSet      = Set A.QName
@@ -489,7 +488,7 @@ instance LensFixity AbstractName where
   lensFixity = lensAnameName . lensFixity
 
 -- | Van Laarhoven lens on 'anameName'.
-lensAnameName :: Lens' A.QName AbstractName
+lensAnameName :: Lens' AbstractName A.QName
 lensAnameName f am = f (anameName am) <&> \ m -> am { anameName = m }
 
 instance Eq AbstractModule where
@@ -499,7 +498,7 @@ instance Ord AbstractModule where
   compare = compare `on` amodName
 
 -- | Van Laarhoven lens on 'amodName'.
-lensAmodName :: Lens' A.ModuleName AbstractModule
+lensAmodName :: Lens' AbstractModule A.ModuleName
 lensAmodName f am = f (amodName am) <&> \ m -> am { amodName = m }
 
 
@@ -576,10 +575,10 @@ whyInScopeDataFromAmbiguousNameReason q = \case
 -- * Operations on name and module maps.
 
 mergeNames :: Eq a => ThingsInScope a -> ThingsInScope a -> ThingsInScope a
-mergeNames = Map.unionWith List.union
+mergeNames = Map.unionWith List1.union
 
 mergeNamesMany :: Eq a => [ThingsInScope a] -> ThingsInScope a
-mergeNamesMany = Map.unionsWith List.union
+mergeNamesMany = Map.unionsWith List1.union
 
 ------------------------------------------------------------------------
 -- * Operations on name spaces
@@ -741,7 +740,7 @@ recomputeInScopeSets = updateScopeNameSpaces (map $ second recomputeInScope)
   where
     recomputeInScope ns = ns { nsInScope = allANames $ nsNames ns }
     allANames :: NamesInScope -> InScopeSet
-    allANames = Set.fromList . map anameName . concat . Map.elems
+    allANames = Set.fromList . map anameName . List1.concat . Map.elems
 
 -- | Filter a scope keeping only concrete names matching the predicates.
 --   The first predicate is applied to the names and the second to the modules.
@@ -756,7 +755,7 @@ allNamesInScope = mergeNamesMany . map (inNameSpace . snd) . scopeNameSpaces
 
 allNamesInScope' :: InScope a => Scope -> ThingsInScope (a, Access)
 allNamesInScope' s =
-  mergeNamesMany [ map (, nameSpaceAccess nsId) <$> inNameSpace ns
+  mergeNamesMany [ fmap (, nameSpaceAccess nsId) <$> inNameSpace ns
                  | (nsId, ns) <- scopeNameSpaces s ]
 
 -- | Look up a single name in the current scope.
@@ -767,7 +766,8 @@ findNameInScope :: InScope a => C.Name -> Scope -> [(a, Access)]
 findNameInScope n s =
   [ (name, nameSpaceAccess nsId)
   | (nsId, ns) <- scopeNameSpaces s
-  , name <- Map.findWithDefault [] n $ inNameSpace ns ]
+  , name <- List1.toList' $ Map.lookup n $ inNameSpace ns
+  ]
 
 -- | Returns the scope's non-private names.
 exportedNamesInScope :: InScope a => Scope -> ThingsInScope a
@@ -831,7 +831,7 @@ modifyNameSpace nsid f = updateScopeNameSpaces $ AssocList.updateAt nsid f
 addNameToScope :: NameSpaceId -> C.Name -> AbstractName -> Scope -> Scope
 addNameToScope nsid x y =
   mapScopeNS nsid
-    (Map.insertWith (flip List.union) x [y])  -- bind name x ↦ y
+    (Map.insertWith (flip List1.union) x $ singleton y)  -- bind name x ↦ y
     id                                        -- no change to modules
     (Set.insert $ anameName y)                -- y is in scope now
 
@@ -844,7 +844,7 @@ removeNameFromScope nsid x = mapScopeNS nsid (Map.delete x) id id
 -- | Add a module to a scope.
 addModuleToScope :: NameSpaceId -> C.Name -> AbstractModule -> Scope -> Scope
 addModuleToScope nsid x m = mapScopeNS nsid id addM id
-  where addM = Map.insertWith (flip List.union) x [m]
+  where addM = Map.insertWith (flip List1.union) x (singleton m)
 
 -- | When we get here we cannot have both @using@ and @hiding@.
 data UsingOrHiding
@@ -963,7 +963,7 @@ applyImportDirective_ dir@(ImportDirective{ impRenaming }) s
         updateFxs m = foldl upd m fixities
           where
           -- Update fixity of all abstract names targeted by concrete name y.
-          upd m (y, fx) = Map.adjust (map $ set lensFixity fx) y m
+          upd m (y, fx) = Map.adjust (fmap $ set lensFixity fx) y m
 
         updateThingsInScope
           :: forall a. SetBindingSite a
@@ -971,7 +971,7 @@ applyImportDirective_ dir@(ImportDirective{ impRenaming }) s
           -> ThingsInScope a -> ThingsInScope a
         updateThingsInScope f = Map.fromListWith __IMPOSSIBLE__ . mapMaybe upd . Map.toAscList
           where
-          upd :: (C.Name, [a]) -> Maybe (C.Name, [a])
+          upd :: (C.Name, List1 a) -> Maybe (C.Name, List1 a)
           upd (x, ys) = f x <&> \ x' -> (x', setBindingSite (getRange x') ys)
 
 -- | Rename the abstract names in a scope.
@@ -982,8 +982,8 @@ renameCanonicalNames renD renM = mapScope_ renameD renameM (Set.map newName)
     newName x = Map.findWithDefault x x renD
     newMod  x = Map.findWithDefault x x renM
 
-    renameD = Map.map $ map $ over lensAnameName newName
-    renameM = Map.map $ map $ over lensAmodName  newMod
+    renameD = Map.map $ fmap $ over lensAnameName newName
+    renameM = Map.map $ fmap $ over lensAmodName  newMod
 
 -- | Remove private name space of a scope.
 --
@@ -1001,8 +1001,8 @@ restrictLocalPrivate m =
     (Map.mapMaybe rMod)
     (Set.filter (not . (`isInModule` m)))
   where
-    rName as = filterMaybe (not . null) $ filter (not . (`isInModule`        m) . anameName) as
-    rMod  as = filterMaybe (not . null) $ filter (not . (`isLtChildModuleOf` m) . amodName)  as
+    rName as = List1.nonEmpty $ List1.filter (not . (`isInModule`        m) . anameName) as
+    rMod  as = List1.nonEmpty $ List1.filter (not . (`isLtChildModuleOf` m) . amodName)  as
 
 -- | Filter privates out of a `ScopeInfo`
 withoutPrivates :: ScopeInfo -> ScopeInfo
@@ -1012,7 +1012,7 @@ withoutPrivates scope = over scopeModules (fmap $ restrictLocalPrivate m) scope
 
 -- | Disallow using generalized variables from the scope
 disallowGeneralizedVars :: Scope -> Scope
-disallowGeneralizedVars = mapScope_ ((fmap . map) disallow) id id
+disallowGeneralizedVars = mapScope_ ((fmap . fmap) disallow) id id
   where
     disallow a = a { anameKind = disallowGen (anameKind a) }
     disallowGen GeneralizeName = DisallowedGeneralizeName
@@ -1022,8 +1022,8 @@ disallowGeneralizedVars = mapScope_ ((fmap . map) disallow) id id
 inScopeBecause :: (WhyInScope -> WhyInScope) -> Scope -> Scope
 inScopeBecause f = mapScope_ mapName mapMod id
   where
-    mapName = fmap . map $ \a -> a { anameLineage = f $ anameLineage a }
-    mapMod  = fmap . map $ \a -> a { amodLineage  = f $ amodLineage a  }
+    mapName = fmap . fmap $ \a -> a { anameLineage = f $ anameLineage a }
+    mapMod  = fmap . fmap $ \a -> a { amodLineage  = f $ amodLineage a  }
 
 -- | Get the public parts of the public modules of a scope
 publicModules :: ScopeInfo -> Map A.ModuleName Scope
@@ -1033,7 +1033,7 @@ publicModules scope = Map.filterWithKey (\ m _ -> reachable m) allMods
     allMods   = Map.map restrictPrivate $ scope ^. scopeModules
     root      = scope ^. scopeCurrent
 
-    modules s = map amodName $ concat $ Map.elems $ allNamesInScope s
+    modules s = map amodName $ List1.concat $ Map.elems $ allNamesInScope s
 
     chase m = m : concatMap chase ms
       where ms = maybe __IMPOSSIBLE__ modules $ Map.lookup m allMods
@@ -1042,7 +1042,7 @@ publicModules scope = Map.filterWithKey (\ m _ -> reachable m) allMods
 
 publicNames :: ScopeInfo -> Set AbstractName
 publicNames scope =
-  Set.fromList $ concat $ Map.elems $
+  Set.fromList $ List1.concat $ Map.elems $
   exportedNamesInScope $ mergeScopes $ Map.elems $ publicModules scope
 
 everythingInScope :: ScopeInfo -> NameSpace
@@ -1073,7 +1073,7 @@ everythingInScopeQualified scope =
         inscope x _ = isInScope x == InScope
         name    = scopeName s
         imports = map lookP $ Map.elems $ scopeImports s
-        submods = map (lookP . amodName) $ concat $ Map.elems $ Map.filterWithKey inscope $ allNamesInScope s
+        submods = map (lookP . amodName) $ List1.concat $ Map.elems $ Map.filterWithKey inscope $ allNamesInScope s
 
 -- | Get all concrete names in scope. Includes bound variables.
 concreteNamesInScope :: ScopeInfo -> Set C.QName
@@ -1102,7 +1102,8 @@ concreteNamesInScope scope =
               build exportedNamesInScope $ moduleScope m
           | (x, mods) <- Map.toList (getNames s)
           , prettyShow x /= "_"
-          , AbsModule m _ <- mods ]
+          , AbsModule m _ <- List1.toList mods
+          ]
 
     moduleScope :: A.ModuleName -> Scope
     moduleScope m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scope ^. scopeModules
@@ -1311,14 +1312,14 @@ recomputeInverseScopeMaps scope = billToPure [ Scoping , InverseScopeLookup ] $
     moduleMap = Map.fromListWith (++) $ do
       (m, s)  <- scopes
       (x, ms) <- Map.toList (allNamesInScope s)
-      q       <- amodName <$> ms
+      q       <- amodName <$> List1.toList ms
       return (q, singleton (m, x))
 
     nameMap :: NameMap
     nameMap = Map.fromListWith (<>) $ do
       (m, s)  <- scopes
       (x, ms) <- Map.toList (allNamesInScope s)
-      (q, k)  <- (anameName &&& anameKind) <$> ms
+      (q, k)  <- (anameName &&& anameKind) <$> List1.toList ms
       let ret z = return (q, NameMapEntry k $ singleton z)
       if m `elem` current
         then ret $ C.QName x
@@ -1342,6 +1343,7 @@ class SetBindingSite a where
   setBindingSite = fmap . setBindingSite
 
 instance SetBindingSite a => SetBindingSite [a]
+instance SetBindingSite a => SetBindingSite (List1 a)
 
 instance SetBindingSite A.Name where
   setBindingSite r x = x { nameBindingSite = r }

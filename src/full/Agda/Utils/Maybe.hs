@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Extend 'Data.Maybe' by common operations for the 'Maybe' type.
 --
 --   Note: since this module is usually imported unqualified,
@@ -117,3 +119,11 @@ allJustM = runMaybeT . mapM MaybeT
 liftMaybe :: Alternative f => Maybe a -> f a
 liftMaybe = maybe empty pure
 
+-- | Like 'span', takes the prefix of a list satisfying a predicate.
+-- Returns the run of 'Just's until the first 'Nothing', and the tail of
+-- the list.
+spanMaybe :: (a -> Maybe b) -> [a] -> ([b],[a])
+spanMaybe _ [] = ([], [])
+spanMaybe p xs@(x:xs') = case p x of
+    Just y  -> let (ys, zs) = spanMaybe p xs' in (y : ys, zs)
+    Nothing -> ([], xs)

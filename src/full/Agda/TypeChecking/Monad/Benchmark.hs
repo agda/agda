@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Measure CPU time for individual phases of the Agda pipeline.
 
 module Agda.TypeChecking.Monad.Benchmark
@@ -21,7 +23,7 @@ import Agda.TypeChecking.Monad.Debug
 import qualified Agda.Utils.Benchmark as B
 
 import Agda.Utils.Monad
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Syntax.Common.Pretty (prettyShow)
 import qualified Agda.Utils.ProfileOptions as Profile
 
 -- | When profile options are set or changed, we need to turn benchmarking on or off.

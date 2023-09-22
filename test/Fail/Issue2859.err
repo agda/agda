@@ -1,4 +1,0 @@
-Issue2859.agda:25,15-16
-The pattern variable c has the same name as the constructor c
-when checking the clause left hand side
-should-fail c

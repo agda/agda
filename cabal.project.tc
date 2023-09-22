@@ -10,5 +10,3 @@ packages: .
 
 package Agda
   ghc-options: -fno-code -fwrite-interface
-
-constraints:  mtl >= 2.3.1

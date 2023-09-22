@@ -82,12 +82,13 @@ import Agda.Utils.Lens
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty hiding (Mode)
+import Agda.Syntax.Common.Pretty hiding (Mode)
 import qualified Agda.Utils.ProfileOptions as Profile
 import Agda.Utils.Singleton
 import Agda.Utils.String
 import Agda.Utils.Time
 import Agda.Utils.Tuple
+import Agda.Utils.WithDefault (lensCollapseDefault, lensKeepDefault)
 
 import Agda.Utils.Impossible
 
@@ -262,7 +263,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
                      -- Errors take precedence over unsolved things.
 
         -- TODO: make a better predicate for this
-        noError <- lift $ null <$> prettyError e
+        noError <- lift $ null <$> renderError e
 
         showImpl <- lift $ optShowImplicit <$> useTC stPragmaOptions
         showIrr <- lift $ optShowIrrelevant <$> useTC stPragmaOptions
@@ -584,28 +585,22 @@ interpret (Cmd_compute_toplevel cmode s) = do
 interpret (ShowImplicitArgs showImpl) = do
   opts <- lift commandLineOptions
   setCommandLineOpts $
-    opts { optPragmaOptions =
-             (optPragmaOptions opts) { optShowImplicit = showImpl } }
+    set (lensPragmaOptions . lensOptShowImplicit . lensKeepDefault) showImpl opts
 
 interpret ToggleImplicitArgs = do
   opts <- lift commandLineOptions
-  let ps = optPragmaOptions opts
   setCommandLineOpts $
-    opts { optPragmaOptions =
-             ps { optShowImplicit = not $ optShowImplicit ps } }
+    over (lensPragmaOptions . lensOptShowImplicit . lensCollapseDefault) not opts
 
 interpret (ShowIrrelevantArgs showIrr) = do
   opts <- lift commandLineOptions
   setCommandLineOpts $
-    opts { optPragmaOptions =
-             (optPragmaOptions opts) { optShowIrrelevant = showIrr } }
+    set (lensPragmaOptions . lensOptShowIrrelevant . lensKeepDefault) showIrr opts
 
 interpret ToggleIrrelevantArgs = do
   opts <- lift commandLineOptions
-  let ps = optPragmaOptions opts
   setCommandLineOpts $
-    opts { optPragmaOptions =
-             ps { optShowIrrelevant = not $ optShowIrrelevant ps } }
+    over (lensPragmaOptions . lensOptShowIrrelevant . lensCollapseDefault) not opts
 
 interpret (Cmd_load_highlighting_info source) = do
   l <- asksTC envHighlightingLevel
@@ -776,8 +771,7 @@ interpret (Cmd_goal_type_context_infer norm ii rng s) = do
             else do
               liftLocalState $ withInteractionId ii $ do
                 parsed <- B.parseExprIn ii rng s
-                typ <- B.typeInMeta ii norm parsed
-                faces <- B.facesInMeta ii norm parsed
+                (typ, faces) <- B.typeAndFacesInMeta ii norm parsed
                 return (GoalAndHave typ faces)
   cmd_goal_type_context_and aux norm ii rng s
 
@@ -933,8 +927,8 @@ cmd_load' file argv unsolvedOK mode cmd = do
       Left err -> lift $ typeError $ GenericError err
       Right (_, opts) -> do
         opts <- lift $ addTrustedExecutables opts
-        let update o = o { optAllowUnsolved = unsolvedOK && optAllowUnsolved o}
-            root     = projectRoot fp $ Imp.srcModuleName src
+        let update = over (lensOptAllowUnsolved . lensKeepDefault) (unsolvedOK &&)
+            root   = projectRoot fp $ Imp.srcModuleName src
         lift $ TCM.setCommandLineOptions' root $ mapPragmaOptions update opts
 
     -- Restore the warnings that were saved above.

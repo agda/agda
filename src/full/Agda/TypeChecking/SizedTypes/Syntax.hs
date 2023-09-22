@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Syntax of size expressions and constraints.
 
@@ -17,7 +18,7 @@ import Agda.TypeChecking.SizedTypes.Utils
 
 import Agda.Utils.Functor
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 
 import Agda.Utils.Impossible
 

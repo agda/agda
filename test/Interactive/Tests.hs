@@ -30,7 +30,7 @@ tests = testGroup "Interactive"
     runAgda :: [String] -> FilePath -> IO ()
     runAgda extraArgs testName = do
       inp <- TIO.readFile (testDir </> testName <.> "in")
-      ret@(c, stdout, stderr) <- readAgdaProcessWithExitCode (agdaArgs ++ extraArgs) inp
+      ret@(c, stdout, stderr) <- readAgdaProcessWithExitCode Nothing (agdaArgs ++ extraArgs) inp
       assertBool ("Agda returned error code: " ++ show ret) (c == ExitSuccess)
       let stdoutFp = testDir </> testName <.> "stdout" <.> "expected"
           stderrFp = testDir </> testName <.> "stderr" <.> "expected"

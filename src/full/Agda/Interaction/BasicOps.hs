@@ -9,7 +9,6 @@ import Prelude hiding (null)
 import Control.Arrow          ( first )
 import Control.Monad          ( (<=<), (>=>), forM, filterM, guard )
 import Control.Monad.Except
-import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Identity
 import Control.Monad.Trans.Maybe
@@ -48,7 +47,6 @@ import Agda.Syntax.Fixity(Precedence(..), argumentCtx_)
 import Agda.Syntax.Parser
 
 import Agda.TheTypeChecker
-import Agda.TypeChecking.ReconstructParameters
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Errors ( getAllWarnings, stringTCErr, Verbalize(..) )
@@ -62,11 +60,11 @@ import Agda.TypeChecking.With
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Coverage.Match ( SplitPattern )
 import Agda.TypeChecking.Records
-import Agda.TypeChecking.Irrelevance (wakeIrrelevantVars)
 import Agda.TypeChecking.Pretty ( PrettyTCM, prettyTCM )
 import Agda.TypeChecking.Pretty.Constraint (prettyRangeConstraint)
 import Agda.TypeChecking.IApplyConfluence
 import Agda.TypeChecking.Primitive
+import Agda.TypeChecking.ProjectionLike (reduceProjectionLike)
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.CheckInternal
@@ -78,23 +76,22 @@ import Agda.TypeChecking.Warnings
 
 import Agda.Termination.TermCheck (termMutual)
 
+import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
-import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty as P
+import Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.String
+import Agda.Utils.WithDefault ( WithDefault'(Value) )
 
 import Agda.Utils.Impossible
-import qualified Agda.Utils.SmallSet as SmallSet
-import Agda.TypeChecking.ProjectionLike (reduceProjectionLike)
 
 -- | Parses an expression.
 
@@ -340,9 +337,10 @@ refine force ii mr e = do
 evalInCurrent :: ComputeMode -> Expr -> TCM Expr
 evalInCurrent cmode e = do
   (v, _t) <- inferExpr e
-  reify =<< compute v
-  where compute | cmode == HeadCompute = reduce
-                | otherwise            = normalise
+  vb <- reduceB v
+  reportSDoc "interaction.eval" 30 $ "evaluated to" TP.<+> TP.pretty vb
+  v  <- pure $ ignoreBlocking vb
+  reify =<< if cmode == HeadCompute then pure v else normalise v
 
 
 evalInMeta :: InteractionId -> ComputeMode -> Expr -> TCM Expr
@@ -484,7 +482,7 @@ instance Reify Constraint where
             (,,) <$> reify tm <*> reify tm <*> reify ty)
     reify (IsEmpty r a) = IsEmptyType <$> reify a
     reify (CheckSizeLtSat a) = SizeLtSat  <$> reify a
-    reify (CheckFunDef d i q cs err) = do
+    reify (CheckFunDef i q cs err) = do
       a <- reify =<< defType <$> getConstInfo q
       return $ PostponedCheckFunDef q a err
     reify (HasBiggerSort a) = OfType <$> reify a <*> reify (UnivSort a)
@@ -795,9 +793,10 @@ getIPBoundary norm ii = withInteractionId ii $ do
       traverse go $ MapS.toList (getBoundary (ipBoundary ip))
     Nothing -> pure []
 
-facesInMeta :: InteractionId -> Rewrite -> A.Expr -> TCM [IPFace' C.Expr]
-facesInMeta ii norm expr = withInteractionId ii $ do
-  (ex, _) <- inferExpr expr
+typeAndFacesInMeta :: InteractionId -> Rewrite -> Expr -> TCM (Expr, [IPFace' C.Expr])
+typeAndFacesInMeta ii norm expr = withInteractionId ii $ do
+  (ex, ty) <- inferExpr expr
+  ty <- normalForm norm ty
   ip <- lookupInteractionPoint ii
 
   io <- primIOne
@@ -814,7 +813,9 @@ facesInMeta ii norm expr = withInteractionId ii $ do
         (,) a <$> c (if b then io else iz)
       fmap (IPFace' eqns) . c =<< simplify (applySubst sub ex)
 
-  traverse go $ MapS.keys (getBoundary (ipBoundary ip))
+  faces <- traverse go $ MapS.keys (getBoundary (ipBoundary ip))
+  ty <- reifyUnblocked ty
+  pure (ty, faces)
 
 -- | Goals and Warnings
 
@@ -961,10 +962,14 @@ metaHelperType norm ii rng s = case words s of
     A.Application h args <- A.appView . getBody . deepUnscope <$> parseExprIn ii rng ("let " ++ f ++ " = _ in " ++ s)
     inCxt   <- hasElem <$> getContextNames
     cxtArgs <- getContextArgs
+    enclosingFunctionName <- ipcQName . envClause <$> getEnv
+    genArgs <- getConstInfo enclosingFunctionName <&> defArgGeneralizable <&> \case
+      NoGeneralizableArgs -> 0
+      SomeGeneralizableArgs i -> i
     a0      <- (`piApply` cxtArgs) <$> (getMetaType =<< lookupInteractionId ii)
 
     -- Konstantin, 2022-10-23: We don't want to print section parameters in helper type.
-    freeVars <- getCurrentModuleFreeVars
+    freeVars <- (+ genArgs) <$> getCurrentModuleFreeVars
     contextForAbstracting <- drop freeVars . reverse <$> getContext
     let escapeAbstractedContext = escapeContext impossible (length contextForAbstracting)
 
@@ -993,7 +998,7 @@ metaHelperType norm ii rng s = case words s of
       TelV atel _ <- telView a
       let arity = size atel
           (delta1, delta2, _, a', vtys') = splitTelForWith tel a vtys
-      a <- localTC (\e -> e { envPrintDomainFreePi = True }) $ escapeAbstractedContext $ do
+      a <- localTC (\e -> e { envPrintDomainFreePi = True, envPrintMetasBare = True }) $ escapeAbstractedContext $ do
         reify =<< cleanupType arity args =<< normalForm norm =<< fst <$> withFunctionType delta1 vtys' delta2 a' []
       reportSDoc "interaction.helper" 10 $ TP.vcat $
         let extractOtherType = \case { OtherType a -> a; _ -> __IMPOSSIBLE__ } in
@@ -1216,7 +1221,7 @@ introTactic pmLambda ii = do
             allHidden   = not (any okHiding0 hs)
             okHiding    = if allHidden then const True else okHiding0
         vars <- -- setShowImplicitArguments (imp || allHidden) $
-                (if allHidden then withShowAllArguments else id) $
+                applyWhen allHidden withShowAllArguments $
                   mapM showTCM [ setHiding h $ defaultArg $ var i :: Arg Term
                                | (h, i) <- zip hs $ downFrom n
                                , okHiding h
@@ -1235,7 +1240,13 @@ introTactic pmLambda ii = do
     introData amb t = do
       let tel  = telFromList [defaultDom ("_", t)]
           pat  = [defaultArg $ unnamed $ debruijnNamedVar "c" 0]
-      r <- splitLast CoInductive tel pat
+      -- Gallais, 2023-08-24: #6787 we need to locally ignore the
+      -- --without-K or --cubical-compatible options to figure out
+      -- that refl is a valid constructor for refl ≡ refl.
+      cubical <- isJust . optCubical <$> pragmaOptions
+      r <- (if cubical then id else
+            locallyTCState (stPragmaOptions . lensOptWithoutK) (const (Value False)))
+           $ splitLast CoInductive tel pat
       case r of
         Left err -> return []
         Right cov ->
@@ -1404,7 +1415,7 @@ getModuleContents norm mm = do
       modules = exportedNamesInScope modScope
       names :: ThingsInScope AbstractName
       names = exportedNamesInScope modScope
-      xns = [ (x,n) | (x, ns) <- Map.toList names, n <- ns ]
+      xns = [ (x,n) | (x, ns) <- Map.toList names, n <- List1.toList ns ]
   types <- forMaybeM xns $ \(x, n) -> do
     getConstInfo' (anameName n) >>= \case
       Right d -> do

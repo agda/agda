@@ -56,9 +56,8 @@ import Data.IORef
 import Data.STRef
 import Data.Char
 
-import Agda.Syntax.Internal
 import Agda.Syntax.Common
-import Agda.Syntax.Position
+import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.CompiledClause
@@ -78,7 +77,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null (empty)
 import Agda.Utils.Functor
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Zipper
 import qualified Agda.Utils.SmallSet as SmallSet
@@ -93,8 +92,7 @@ import Debug.Trace
 -- information needed for fast reduction from the definition.
 
 data CompactDef =
-  CompactDef { cdefDelayed        :: Bool
-             , cdefNonterminating :: Bool
+  CompactDef { cdefNonterminating :: Bool
              , cdefUnconfirmed    :: Bool
              , cdefDef            :: CompactDefn
              , cdefRewriteRules   :: RewriteRules
@@ -124,13 +122,34 @@ compactDef bEnv def rewr = do
   let isPrp = case getSort (defType def) of
         Prop{} -> True
         _      -> False
-  let irr = isPrp || isIrrelevant (defArgInfo def)
 
-  dontReduce <- not <$> shouldReduceDef (defName def)
+  shouldReduce <- shouldReduceDef (defName def)
+  allowed <- asksTC envAllowedReductions
+
+  let isConOrProj = case theDef def of
+        Constructor{} -> True
+        Function { funProjection = Right{} } -> True
+        _ -> False
+  let allowReduce = and
+        [ shouldReduce
+        , or
+          [ RecursiveReductions `SmallSet.member` allowed
+          , isConOrProj && ProjectionReductions `SmallSet.member` allowed
+          , isInlineFun (theDef def) && InlineReductions `SmallSet.member` allowed
+          , definitelyNonRecursive_ (theDef def) && or
+            [ defCopatternLHS def && CopatternReductions `SmallSet.member` allowed
+            , FunctionReductions `SmallSet.member` allowed
+            ]
+          ]
+        , not (defNonterminating def) || SmallSet.member NonTerminatingReductions allowed
+        , not (defTerminationUnconfirmed def) || SmallSet.member UnconfirmedReductions allowed
+        , not isPrp
+        , not (isIrrelevant def)
+        ]
 
   cdefn <-
     case theDef def of
-      _ | irr || dontReduce -> pure CAxiom
+      _ | not allowReduce -> pure CAxiom
       _ | Just (defName def) == bPrimForce bEnv   -> pure CForce
       _ | Just (defName def) == bPrimErase bEnv ->
           case telView' (defType def) of
@@ -153,22 +172,25 @@ compactDef bEnv def rewr = do
       AbstractDefn{}                 -> pure CAxiom
       GeneralizableVar{}             -> __IMPOSSIBLE__
       PrimitiveSort{}                -> pure COther -- TODO
+      Primitive{}
+        | not (FunctionReductions `SmallSet.member` allowed)
+        -> pure CAxiom
       Primitive{ primName = name, primCompiled = cc } ->
         case name of
           -- "primShowInteger"            -- integers are not literals
 
           -- Natural numbers
-          "primNatPlus"                -> mkPrim 2 $ natOp (+)
-          "primNatMinus"               -> mkPrim 2 $ natOp (\ x y -> max 0 (x - y))
-          "primNatTimes"               -> mkPrim 2 $ natOp (*)
-          "primNatDivSucAux"           -> mkPrim 4 $ natOp4 divAux
-          "primNatModSucAux"           -> mkPrim 4 $ natOp4 modAux
-          "primNatLess"                -> mkPrim 2 $ natRel (<)
-          "primNatEquality"            -> mkPrim 2 $ natRel (==)
+          PrimNatPlus                  -> mkPrim 2 $ natOp (+)
+          PrimNatMinus                 -> mkPrim 2 $ natOp (\ x y -> max 0 (x - y))
+          PrimNatTimes                 -> mkPrim 2 $ natOp (*)
+          PrimNatDivSucAux             -> mkPrim 4 $ natOp4 divAux
+          PrimNatModSucAux             -> mkPrim 4 $ natOp4 modAux
+          PrimNatLess                  -> mkPrim 2 $ natRel (<)
+          PrimNatEquality              -> mkPrim 2 $ natRel (==)
 
           -- Word64
-          "primWord64ToNat"            -> mkPrim 1 $ \ [LitWord64 a] -> nat (fromIntegral a)
-          "primWord64FromNat"          -> mkPrim 1 $ \ [LitNat a]    -> word (fromIntegral a)
+          PrimWord64ToNat              -> mkPrim 1 $ \ [LitWord64 a] -> nat (fromIntegral a)
+          PrimWord64FromNat            -> mkPrim 1 $ \ [LitNat a]    -> word (fromIntegral a)
 
           -- Levels
           -- "primLevelZero"              -- levels are not literals
@@ -176,17 +198,16 @@ compactDef bEnv def rewr = do
           -- "primLevelMax"               -- levels are not literals
 
           -- Floats
-          "primFloatInequality"        -> mkPrim 2 $ floatRel (<=)
-          "primFloatEquality"          -> mkPrim 2 $ floatRel (==)
-          "primFloatLess"              -> mkPrim 2 $ floatRel (<)
-          "primFloatIsInfinite"        -> mkPrim 1 $ floatPred isInfinite
-          "primFloatIsNaN"             -> mkPrim 1 $ floatPred isNaN
-          "primFloatIsDenormalized"    -> mkPrim 1 $ floatPred isDenormalized
-          "primFloatIsNegativeZero"    -> mkPrim 1 $ floatPred isNegativeZero
-          "primFloatIsSafeInteger"     -> mkPrim 1 $ floatPred isSafeInteger
+          PrimFloatInequality          -> mkPrim 2 $ floatRel (<=)
+          PrimFloatEquality            -> mkPrim 2 $ floatRel (==)
+          PrimFloatLess                -> mkPrim 2 $ floatRel (<)
+          PrimFloatIsInfinite          -> mkPrim 1 $ floatPred isInfinite
+          PrimFloatIsNaN               -> mkPrim 1 $ floatPred isNaN
+          PrimFloatIsNegativeZero      -> mkPrim 1 $ floatPred isNegativeZero
+          PrimFloatIsSafeInteger       -> mkPrim 1 $ floatPred isSafeInteger
           -- "primFloatToWord64"          -- returns a maybe
           -- "primFloatToWord64Injective" -- identities are not literals
-          "primNatToFloat"             -> mkPrim 1 $ \ [LitNat a] -> float (fromIntegral a)
+          PrimNatToFloat               -> mkPrim 1 $ \ [LitNat a] -> float (fromIntegral a)
           -- "primIntToFloat"             -- integers are not literals
           -- "primFloatRound"             -- integers and maybe are not literals
           -- "primFloatFloor"             -- integers and maybe are not literals
@@ -195,63 +216,63 @@ compactDef bEnv def rewr = do
           -- "primRatioToFloat"           -- integers are not literals
           -- "primFloatDecode"            -- integers and sigma are not literals
           -- "primFloatEncode"            -- integers are not literals
-          "primFloatPlus"              -> mkPrim 2 $ floatOp (+)
-          "primFloatMinus"             -> mkPrim 2 $ floatOp (-)
-          "primFloatTimes"             -> mkPrim 2 $ floatOp (*)
-          "primFloatNegate"            -> mkPrim 1 $ floatFun negate
-          "primFloatDiv"               -> mkPrim 2 $ floatOp (/)
-          "primFloatSqrt"              -> mkPrim 1 $ floatFun sqrt
-          "primFloatExp"               -> mkPrim 1 $ floatFun exp
-          "primFloatLog"               -> mkPrim 1 $ floatFun log
-          "primFloatSin"               -> mkPrim 1 $ floatFun sin
-          "primFloatCos"               -> mkPrim 1 $ floatFun cos
-          "primFloatTan"               -> mkPrim 1 $ floatFun tan
-          "primFloatASin"              -> mkPrim 1 $ floatFun asin
-          "primFloatACos"              -> mkPrim 1 $ floatFun acos
-          "primFloatATan"              -> mkPrim 1 $ floatFun atan
-          "primFloatATan2"             -> mkPrim 2 $ floatOp atan2
-          "primFloatSinh"              -> mkPrim 1 $ floatFun sinh
-          "primFloatCosh"              -> mkPrim 1 $ floatFun cosh
-          "primFloatTanh"              -> mkPrim 1 $ floatFun tanh
-          "primFloatASinh"             -> mkPrim 1 $ floatFun asinh
-          "primFloatACosh"             -> mkPrim 1 $ floatFun acosh
-          "primFloatATanh"             -> mkPrim 1 $ floatFun atanh
-          "primFloatPow"               -> mkPrim 2 $ floatOp (**)
-          "primShowFloat"              -> mkPrim 1 $ \ [LitFloat a] -> string (show a)
+          PrimFloatPlus                -> mkPrim 2 $ floatOp (+)
+          PrimFloatMinus               -> mkPrim 2 $ floatOp (-)
+          PrimFloatTimes               -> mkPrim 2 $ floatOp (*)
+          PrimFloatNegate              -> mkPrim 1 $ floatFun negate
+          PrimFloatDiv                 -> mkPrim 2 $ floatOp (/)
+          PrimFloatSqrt                -> mkPrim 1 $ floatFun sqrt
+          PrimFloatExp                 -> mkPrim 1 $ floatFun exp
+          PrimFloatLog                 -> mkPrim 1 $ floatFun log
+          PrimFloatSin                 -> mkPrim 1 $ floatFun sin
+          PrimFloatCos                 -> mkPrim 1 $ floatFun cos
+          PrimFloatTan                 -> mkPrim 1 $ floatFun tan
+          PrimFloatASin                -> mkPrim 1 $ floatFun asin
+          PrimFloatACos                -> mkPrim 1 $ floatFun acos
+          PrimFloatATan                -> mkPrim 1 $ floatFun atan
+          PrimFloatATan2               -> mkPrim 2 $ floatOp atan2
+          PrimFloatSinh                -> mkPrim 1 $ floatFun sinh
+          PrimFloatCosh                -> mkPrim 1 $ floatFun cosh
+          PrimFloatTanh                -> mkPrim 1 $ floatFun tanh
+          PrimFloatASinh               -> mkPrim 1 $ floatFun asinh
+          PrimFloatACosh               -> mkPrim 1 $ floatFun acosh
+          PrimFloatATanh               -> mkPrim 1 $ floatFun atanh
+          PrimFloatPow                 -> mkPrim 2 $ floatOp (**)
+          PrimShowFloat                -> mkPrim 1 $ \ [LitFloat a] -> string (show a)
 
           -- Characters
-          "primCharEquality"           -> mkPrim 2 $ charRel (==)
-          "primIsLower"                -> mkPrim 1 $ charPred isLower
-          "primIsDigit"                -> mkPrim 1 $ charPred isDigit
-          "primIsAlpha"                -> mkPrim 1 $ charPred isAlpha
-          "primIsSpace"                -> mkPrim 1 $ charPred isSpace
-          "primIsAscii"                -> mkPrim 1 $ charPred isAscii
-          "primIsLatin1"               -> mkPrim 1 $ charPred isLatin1
-          "primIsPrint"                -> mkPrim 1 $ charPred isPrint
-          "primIsHexDigit"             -> mkPrim 1 $ charPred isHexDigit
-          "primToUpper"                -> mkPrim 1 $ charFun toUpper
-          "primToLower"                -> mkPrim 1 $ charFun toLower
-          "primCharToNat"              -> mkPrim 1 $ \ [LitChar a] -> nat (fromIntegral (fromEnum a))
-          "primNatToChar"              -> mkPrim 1 $ \ [LitNat a] -> char (integerToChar a)
-          "primShowChar"               -> mkPrim 1 $ \ [a] -> string (prettyShow a)
+          PrimCharEquality             -> mkPrim 2 $ charRel (==)
+          PrimIsLower                  -> mkPrim 1 $ charPred isLower
+          PrimIsDigit                  -> mkPrim 1 $ charPred isDigit
+          PrimIsAlpha                  -> mkPrim 1 $ charPred isAlpha
+          PrimIsSpace                  -> mkPrim 1 $ charPred isSpace
+          PrimIsAscii                  -> mkPrim 1 $ charPred isAscii
+          PrimIsLatin1                 -> mkPrim 1 $ charPred isLatin1
+          PrimIsPrint                  -> mkPrim 1 $ charPred isPrint
+          PrimIsHexDigit               -> mkPrim 1 $ charPred isHexDigit
+          PrimToUpper                  -> mkPrim 1 $ charFun toUpper
+          PrimToLower                  -> mkPrim 1 $ charFun toLower
+          PrimCharToNat                -> mkPrim 1 $ \ [LitChar a] -> nat (fromIntegral (fromEnum a))
+          PrimNatToChar                -> mkPrim 1 $ \ [LitNat a] -> char (integerToChar a)
+          PrimShowChar                 -> mkPrim 1 $ \ [a] -> string (prettyShow a)
 
           -- Strings
           -- "primStringToList"           -- lists are not literals (TODO)
           -- "primStringFromList"         -- lists are not literals (TODO)
-          "primStringAppend"           -> mkPrim 2 $ \ [LitString a, LitString b] -> text (b <> a)
-          "primStringEquality"         -> mkPrim 2 $ \ [LitString a, LitString b] -> bool (b == a)
-          "primShowString"             -> mkPrim 1 $ \ [a] -> string (prettyShow a)
+          PrimStringAppend             -> mkPrim 2 $ \ [LitString a, LitString b] -> text (b <> a)
+          PrimStringEquality           -> mkPrim 2 $ \ [LitString a, LitString b] -> bool (b == a)
+          PrimShowString               -> mkPrim 1 $ \ [a] -> string (prettyShow a)
 
           -- "primErase"
           -- "primForce"
           -- "primForceLemma"
-          "primQNameEquality"          -> mkPrim 2 $ \ [LitQName a, LitQName b] -> bool (b == a)
-          "primQNameLess"              -> mkPrim 2 $ \ [LitQName a, LitQName b] -> bool (b < a)
-          "primShowQName"              -> mkPrim 1 $ \ [LitQName a] -> string (prettyShow a)
+          PrimQNameEquality            -> mkPrim 2 $ \ [LitQName a, LitQName b] -> bool (b == a)
+          PrimQNameLess                -> mkPrim 2 $ \ [LitQName a, LitQName b] -> bool (b < a)
+          PrimShowQName                -> mkPrim 1 $ \ [LitQName a] -> string (prettyShow a)
           -- "primQNameFixity"            -- fixities are not literals (TODO)
-          "primMetaEquality"           -> mkPrim 2 $ \ [LitMeta _ a, LitMeta _ b] -> bool (b == a)
-          "primMetaLess"               -> mkPrim 2 $ \ [LitMeta _ a, LitMeta _ b] -> bool (b < a)
-          "primShowMeta"               -> mkPrim 1 $ \ [LitMeta _ a] -> string (prettyShow a)
+          PrimMetaEquality             -> mkPrim 2 $ \ [LitMeta _ a, LitMeta _ b] -> bool (b == a)
+          PrimMetaLess                 -> mkPrim 2 $ \ [LitMeta _ a, LitMeta _ b] -> bool (b < a)
+          PrimShowMeta                 -> mkPrim 1 $ \ [LitMeta _ a] -> string (prettyShow a)
 
           _                            -> pure COther
         where
@@ -305,11 +326,10 @@ compactDef bEnv def rewr = do
           charRel _ _ = __IMPOSSIBLE__
 
   return $
-    CompactDef { cdefDelayed        = defDelayed def == Delayed
-               , cdefNonterminating = defNonterminating def
+    CompactDef { cdefNonterminating = defNonterminating def
                , cdefUnconfirmed    = defTerminationUnconfirmed def
                , cdefDef            = cdefn
-               , cdefRewriteRules   = rewr
+               , cdefRewriteRules   = if allowReduce then rewr else []
                }
 
 -- Faster case trees ------------------------------------------------------
@@ -408,11 +428,6 @@ memoQName f = unsafePerformIO $ do
 data Normalisation = WHNF | NF
   deriving (Eq)
 
-data ReductionFlags = ReductionFlags
-  { allowNonTerminating :: Bool
-  , allowUnconfirmed    :: Bool
-  , hasRewriting        :: Bool }
-
 -- | The entry point to the reduction machine.
 fastReduce :: Term -> ReduceM (Blocked Term)
 fastReduce = fastReduce' WHNF
@@ -422,16 +437,26 @@ fastNormalise v = ignoreBlocking <$> fastReduce' NF v
 
 fastReduce' :: Normalisation -> Term -> ReduceM (Blocked Term)
 fastReduce' norm v = do
+  tcState <- getTCState
   let name (Con c _ _) = c
       name _         = __IMPOSSIBLE__
-  zero  <- fmap name <$> getBuiltin' builtinZero
-  suc   <- fmap name <$> getBuiltin' builtinSuc
-  true  <- fmap name <$> getBuiltin' builtinTrue
-  false <- fmap name <$> getBuiltin' builtinFalse
-  refl  <- fmap name <$> getBuiltin' builtinRefl
-  force <- fmap primFunName <$> getPrimitive' "primForce"
-  erase <- fmap primFunName <$> getPrimitive' "primErase"
-  let bEnv = BuiltinEnv { bZero = zero, bSuc = suc, bTrue = true, bFalse = false, bRefl = refl,
+
+      -- Gather builtins using 'BuiltinAccess' rather than with the default
+      -- 'HasBuiltins ReduceM' instance. This increases laziness, allowing us to
+      -- avoid costly builtin lookups unless needed.
+      builtinName   = fmap name . runBuiltinAccess tcState . getBuiltin'
+      primitiveName = fmap primFunName . runBuiltinAccess tcState . getPrimitive'
+
+      zero  = builtinName builtinZero
+      suc   = builtinName builtinSuc
+      true  = builtinName builtinTrue
+      false = builtinName builtinFalse
+      refl  = builtinName builtinRefl
+
+      force = primitiveName PrimForce
+      erase = primitiveName PrimErase
+
+      bEnv = BuiltinEnv { bZero = zero, bSuc = suc, bTrue = true, bFalse = false, bRefl = refl,
                           bPrimForce = force, bPrimErase = erase }
   allowedReductions <- asksTC envAllowedReductions
   rwr <- optRewriting <$> pragmaOptions
@@ -440,10 +465,7 @@ fastReduce' norm v = do
     rewr <- if rwr then instantiateRewriteRules =<< getRewriteRulesFor f
                    else return []
     compactDef bEnv info rewr
-  let flags = ReductionFlags{ allowNonTerminating = NonTerminatingReductions `SmallSet.member` allowedReductions
-                            , allowUnconfirmed    = UnconfirmedReductions `SmallSet.member` allowedReductions
-                            , hasRewriting        = rwr }
-  ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) norm flags v
+  ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) norm v
 
 unKleisli :: (a -> ReduceM b) -> ReduceM (a -> b)
 unKleisli f = ReduceM $ \ env x -> unReduceM (f x) env
@@ -802,8 +824,8 @@ unusedPointer = Pure (Closure (Value $ notBlocked ())
 --   'getConstInfo' function, a couple of flags (allow non-terminating function unfolding, and
 --   whether rewriting is enabled), and a term to reduce. The result is the weak-head normal form of
 --   the term with an attached blocking tag.
-reduceTm :: ReduceEnv -> BuiltinEnv -> (QName -> CompactDef) -> Normalisation -> ReductionFlags -> Term -> Blocked Term
-reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
+reduceTm :: ReduceEnv -> BuiltinEnv -> (QName -> CompactDef) -> Normalisation -> Term -> Blocked Term
+reduceTm rEnv bEnv !constInfo normalisation =
     compileAndRun . traceDoc "-- fast reduce --"
   where
     -- Helpers to get information from the ReduceEnv.
@@ -875,17 +897,11 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
         -- slow reduce for unsupported definitions.
         Def f [] ->
           evalIApplyAM spine ctrl $
-          let CompactDef{ cdefDelayed        = delayed
-                        , cdefNonterminating = nonterm
+          let CompactDef{ cdefNonterminating = nonterm
                         , cdefUnconfirmed    = unconf
                         , cdefDef            = def } = constInfo f
-              dontUnfold = (nonterm && not allowNonTerminating) ||
-                           (unconf  && not allowUnconfirmed)    ||
-                           (delayed && not (unfoldDelayed ctrl))
           in case def of
-            CFun{ cfunCompiled = cc }
-              | dontUnfold -> rewriteAM done
-              | otherwise  -> runAM (Match f cc spine ([] :> cl) ctrl)
+            CFun{ cfunCompiled = cc } -> runAM (Match f cc spine ([] :> cl) ctrl)
             CAxiom         -> rewriteAM done
             CTyCon         -> rewriteAM done
             CCon{}         -> runAM done   -- Only happens for builtinSharp (which is a Def when you bind it)
@@ -1326,17 +1342,11 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
               _                        -> (slowReduceTerm, ctrl)
     fallbackAM _ = __IMPOSSIBLE__
 
-    -- If rewriting is enabled, try to apply rewrite rules to the current focus before considering
-    -- it a value. The current state must be 'Eval' and the focus a value closure. Take care to only
-    -- test the 'hasRewriting' flag once.
-    rewriteAM :: AM s -> ST s (Blocked Term)
-    rewriteAM = if hasRewriting then rewriteAM' else runAM
-
     -- Applying rewrite rules to the current focus. This needs to decode the current focus, call
     -- rewriting and pack the result back up in a closure. In case some rewrite rules actually fired
     -- the next state is an unevaluated closure, otherwise it's a value closure.
-    rewriteAM' :: AM s -> ST s (Blocked Term)
-    rewriteAM' s@(Eval (Closure (Value blk) t env spine) ctrl)
+    rewriteAM :: AM s -> ST s (Blocked Term)
+    rewriteAM s@(Eval (Closure (Value blk) t env spine) ctrl)
       | null rewr = runAM s
       | otherwise = traceDoc ("R" <+> pretty s) $ do
         v0 <- decodeClosure_ (Closure Unevaled t env [])
@@ -1348,7 +1358,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
                      Def f []   -> rewriteRules f
                      Con c _ [] -> rewriteRules (conName c)
                      _          -> __IMPOSSIBLE__
-    rewriteAM' _ =
+    rewriteAM _ =
       __IMPOSSIBLE__
 
     -- Add a NatSucK frame to the control stack. Pack consecutive suc's into a single frame.
@@ -1360,19 +1370,6 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
     updateThunkCtrl :: STPointer s -> ControlStack s -> ControlStack s
     updateThunkCtrl p (UpdateThunk ps : ctrl) = UpdateThunk (p : ps) : ctrl
     updateThunkCtrl p                   ctrl  = UpdateThunk [p] : ctrl
-
-    -- Only unfold delayed (corecursive) definitions if the result is being cased on.
-    unfoldDelayed :: ControlStack s -> Bool
-    unfoldDelayed []                     = False
-    unfoldDelayed (CaseK{}       : _)    = True
-    unfoldDelayed (PrimOpK{}     : _)    = False
-    unfoldDelayed (NatSucK{}     : _)    = False
-    unfoldDelayed (NormaliseK{}  : _)    = False
-    unfoldDelayed (ArgK{}        : _)    = False
-    unfoldDelayed (UpdateThunk{} : ctrl) = unfoldDelayed ctrl
-    unfoldDelayed (ApplyK{}      : ctrl) = unfoldDelayed ctrl
-    unfoldDelayed (ForceK{}      : ctrl) = unfoldDelayed ctrl
-    unfoldDelayed (EraseK{}      : ctrl) = unfoldDelayed ctrl
 
     -- When matching is stuck we return the closure from the 'MatchStack' with the appropriate
     -- 'IsValue' set.
@@ -1388,10 +1385,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
         -- Bad work-around for #3870: don't fail hard during instance search.
       | speculative          = rewriteAM (Eval (mkValue (NotBlocked (MissingClauses f) ()) cl) ctrl)
       | f `elem` partialDefs = rewriteAM (Eval (mkValue (NotBlocked (MissingClauses f) ()) cl) ctrl)
-      | hasRewriting         = rewriteAM (Eval (mkValue (NotBlocked ReallyNotBlocked ()) cl) ctrl)  -- See #5396
-      | otherwise            = runReduce $
-          traceSLn "impossible" 10 ("Incomplete pattern matching when applying " ++ prettyShow f)
-                   __IMPOSSIBLE__
+      | otherwise            = rewriteAM (Eval (mkValue (NotBlocked ReallyNotBlocked ()) cl) ctrl)  -- See #5396
 
     -- Some helper functions to build machine states and closures.
     evalClosure t env spine = Eval (Closure Unevaled t env spine)

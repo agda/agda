@@ -26,7 +26,7 @@ import Agda.TypeChecking.Telescope
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty (prettyA)
 import qualified Agda.Syntax.Concrete.Name as C
-import qualified Text.PrettyPrint as PP
+import qualified Text.PrettyPrint.Annotated as PP
 import qualified Agda.TypeChecking.Pretty as TCM
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Internal as I
@@ -55,9 +55,10 @@ import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
 import Agda.Utils.List
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
-import Agda.Utils.Pretty ( prettyShow )
+import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
@@ -436,7 +437,7 @@ auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
         let scopeinfo = clScope (getMetaInfo mv)
             namespace = Scope.everythingInScope scopeinfo
             names = Scope.nsNames namespace
-            qnames = map (\(x, y) -> (x, Scope.anameName $ head y)) $ Map.toList names
+            qnames = map (\(x, y) -> (x, Scope.anameName $ List1.head y)) $ Map.toList names
             modnames = case thisdefinfo of
                         Just (def, _, _) -> filter (\(_, n) -> n /= def) qnames
                         Nothing -> qnames
@@ -472,7 +473,7 @@ autohints :: AutoHintMode -> I.MetaId -> Maybe AN.QName -> TCM [Hint]
 autohints AHMModule mi (Just def) = do
   scope <- clScope . getMetaInfo <$> lookupLocalMetaAuto mi
   let names     = Scope.nsNames $ Scope.everythingInScope scope
-      qnames    = map (Scope.anameName . head) $ Map.elems names
+      qnames    = map (Scope.anameName . List1.head) $ Map.elems names
       modnames  = filter (\n -> AN.qnameModule n == AN.qnameModule def && n /= def) qnames
   map (Hint False) <$> do
     (`filterM` modnames) $ \ n -> getConstInfo' n >>= \case

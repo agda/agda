@@ -1,1 +1,1 @@
--c --no-main --ghc-dont-call-ghc -v treeless:20
+--ghc --no-main --ghc-dont-call-ghc -v treeless:20

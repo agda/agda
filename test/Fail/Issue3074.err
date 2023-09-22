@@ -1,3 +1,3 @@
 Issue3074.agda:11,13-14
-Expected an explicit argument instead of implicit argument {x}
+Unexpected implicit argument
 when checking that the pattern box {x} has type Box

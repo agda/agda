@@ -82,7 +82,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20230313 * 10 + 0
+currentInterfaceVersion = 20230908 * 10 + 0
 
 -- | The result of 'encode' and 'encodeInterface'.
 
@@ -129,7 +129,7 @@ encode a = do
       statistics "A.Name"      nameC
     when collectStats $ do
       stats <- Map.fromListWith __IMPOSSIBLE__ . map (second toInteger) <$> do
-        liftIO $ H.toList stats
+        liftIO $ List.sort <$> H.toList stats
       modifyStatistics $ Map.unionWith (+) stats
     -- Encode hashmaps and root, and compress.
     bits1 <- Bench.billTo [ Bench.Serialization, Bench.BinaryEncode ] $

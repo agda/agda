@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.TypeChecking.Rules.Builtin.Coinduction where
 
 import Agda.Syntax.Scope.Base

@@ -1,1 +1,1 @@
--c --no-main
+--ghc --no-main

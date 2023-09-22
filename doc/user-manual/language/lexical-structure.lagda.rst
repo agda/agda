@@ -10,10 +10,12 @@
 Lexical Structure
 *****************
 
-Agda code is written in UTF-8 encoded plain text files with the
-extension ``.agda``. Most unicode characters can be used in
-identifiers and whitespace is important, see :ref:`names` and
-:ref:`lexical-structure-layout` below.
+Agda code is written in UTF-8 encoded plain text files with the extension ``.agda``;
+more file extensions are supported for :ref:`literate-programming`.
+A UTF-8 byte order mark (BOM) is ignored at the beginning of a file.
+
+Most unicode characters can be used in identifiers, see section :ref:`names`.
+Whitespace is important, see section :ref:`lexical-structure-layout`.
 
 Tokens
 ------
@@ -44,6 +46,7 @@ keywords
   ``eta-equality``
   ``field``
   :ref:`forall <notational-conventions>`
+  ``hiding``
   ``import``
   ``in``
   ``inductive``
@@ -63,9 +66,11 @@ keywords
   ``postulate``
   ``primitive``
   ``private``
+  ``public``
   :ref:`quote <reflection>`
   :ref:`quoteTerm <macros>`
   ``record``
+  ``renaming``
   ``rewrite``
   ``Set``
   ``syntax``
@@ -73,6 +78,7 @@ keywords
   :ref:`unquote <macros>`
   :ref:`unquoteDecl <unquoting-declarations>`
   :ref:`unquoteDef <unquoting-declarations>`
+  ``using``
   :ref:`variable <generalization-of-declared-variables>`
   ``where``
   ``with``
@@ -81,14 +87,9 @@ keywords
   subscripted (see :ref:`sort-system`). For instance ``Set42`` and
   ``Set₄₂`` are both keywords.
 
-keywords in import directives
-  The following words are only reserved in import directives
-  (in connection with ``import`` or ``open``):
+keywords in ``renaming`` directives
+  The following words are only reserved in ``renaming`` directives:
 
-  ``public``
-  ``using``
-  ``hiding``
-  ``renaming``
   ``to``
 
 .. _names:

@@ -12,6 +12,7 @@ import qualified Data.Text as T
 
 import qualified Network.URI.Encode
 import System.Directory
+import System.Environment (getEnvironment)
 import System.Exit
 import System.FilePath
 import System.IO.Temp
@@ -73,7 +74,7 @@ latexTests = [ disable "LaTeXAndHTML/.*LaTeX/.*" ]
 --
 tests :: IO TestTree
 tests = do
-  agdaBin  <- getAgdaBin
+  agdaBin  <- getAgdaBin <$> getEnvironment
   suiteTests <- concat <$> mapM (taggedListOfAllTests agdaBin) testDirs
   let allTests = suiteTests ++ userManualTests agdaBin
   let (html, latex, quicklatex) = (\ f -> partition3 (f . fst) allTests) $ \case
@@ -167,7 +168,7 @@ mkLaTeXOrHTMLTest k copy agdaBin testDir inp =
   -- For removing a LaTeX compiler when testing @Foo.lagda@, you can
   -- create a file @Foo.compile@ with the list of the LaTeX compilers
   -- that you want to use (e.g. ["xelatex", "lualatex"]).
-  compFile    = baseName <.> ".compile"
+  compFile    = baseName <.> "compile"
   outFileName = case k of
     LaTeX      -> golden
     HTML       -> Network.URI.Encode.encode golden

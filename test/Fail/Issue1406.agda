@@ -2,6 +2,7 @@
 -- Agda with K again is inconsistent with classical logic
 
 -- {-# OPTIONS --cubical-compatible #-}
+{-# OPTIONS --large-indices #-}
 
 open import Common.Level
 open import Common.Prelude

@@ -1,0 +1,9 @@
+ExtLamNotEqual.agda:11,5-9
+(λ { zero → zero ; (suc n) → suc n }) x !=
+(λ { zero → zero ; (suc n) → suc n }) x of type Nat
+Because they are distinct extended lambdas: one is defined at
+   ExtLamNotEqual.agda:7,5-40
+and the other at
+   ExtLamNotEqual.agda:8,5-40,
+so they have different internal representations.
+when checking that the expression refl has type f ≡ g

@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-| The code to lex string and character literals. Basically the same code
     as in GHC.
 -}

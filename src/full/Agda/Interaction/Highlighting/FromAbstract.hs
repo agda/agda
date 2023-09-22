@@ -13,7 +13,6 @@ module Agda.Interaction.Highlighting.FromAbstract
 import Prelude hiding (null)
 
 import Control.Applicative
-import Control.Monad         ( (<=<) )
 import Control.Monad.Reader  ( MonadReader(..), asks, Reader, runReader )
 
 import qualified Data.Map      as Map
@@ -40,7 +39,6 @@ import           Agda.Syntax.TopLevelModuleName
 import Agda.TypeChecking.Monad
   hiding (ModuleInfo, MetaInfo, Primitive, Constructor, Record, Function, Datatype)
 
-import           Agda.Utils.FileName
 import           Agda.Utils.Function
 import           Agda.Utils.Functor
 import           Agda.Utils.List                     ( initLast1 )
@@ -48,7 +46,7 @@ import           Agda.Utils.List1                    ( List1 )
 import qualified Agda.Utils.List1          as List1
 import           Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict   as Strict
-import           Agda.Utils.Pretty
+import           Agda.Syntax.Common.Pretty
 import           Agda.Utils.Singleton
 import           Agda.Utils.Size
 
@@ -103,6 +101,7 @@ class Hilite a where
 instance Hilite a => Hilite [a]
 instance Hilite a => Hilite (List1 a)
 instance Hilite a => Hilite (Maybe a)
+instance Hilite a => Hilite (Ranged a)
 instance Hilite a => Hilite (WithHiding a)
 
 instance Hilite Void where
@@ -208,7 +207,7 @@ instance Hilite A.Declaration where
                                                 hl a <> hl dir
       A.Import mi x dir                      -> hl mi <> hl x <> hl dir
       A.Open mi x dir                        -> hl mi <> hl x <> hl dir
-      A.FunDef _di x _delayed cs             -> hl x <> hl cs
+      A.FunDef _di x cs                      -> hl x <> hl cs
       A.DataSig _di er x tel e               -> hl er <> hl x <> hl tel <> hl e
       A.DataDef _di x _uc pars cs            -> hl x <> hl pars <> hl cs
       A.RecSig _di er x tel e                -> hl er <> hl x <> hl tel <> hl e
@@ -219,6 +218,7 @@ instance Hilite A.Declaration where
       A.UnquoteData _i xs _uc _j cs e        -> hl xs <> hl cs <> hl e
       A.ScopedDecl s ds                      -> hl ds
       A.Pragma _r pragma                     -> hl pragma
+      A.UnfoldingDecl _r names               -> hl names
     where
     hl      a = hilite a
     hlField x = hiliteField (concreteQualifier x) (concreteBase x) (Just $ bindingSite x)

@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Sanity checking for internal syntax. Mostly checking variable scoping.
 module Agda.Syntax.Internal.SanityCheck where
 
@@ -9,7 +11,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad
 
 import Agda.Utils.List ( dropEnd, initWithDefault )
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Impossible
 

@@ -1,11 +1,10 @@
-
 module Agda.TypeChecking.Unquote where
 
 import Control.Arrow          ( first, second, (&&&) )
-import Control.Monad          ( (<=<), liftM2 )
+import Control.Monad          ( (<=<) )
 import Control.Monad.Except   ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class ( MonadIO(..) )
-import Control.Monad.Reader   ( ReaderT(..), runReaderT, ask )
+import Control.Monad.Reader   ( ReaderT(..), runReaderT )
 import Control.Monad.State    ( gets, modify, StateT(..), runStateT )
 import Control.Monad.Writer   ( MonadWriter(..), WriterT(..), runWriterT )
 import Control.Monad.Trans    ( lift )
@@ -13,7 +12,6 @@ import Control.Monad.Trans    ( lift )
 import Data.Char
 import Data.Map (Map)
 import qualified Data.Map as Map
-import qualified Data.HashMap.Strict as HashMap
 import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -43,7 +41,6 @@ import Agda.Interaction.Options ( optTrustedExecutables, optAllowExec )
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.Irrelevance ( workOnTypes )
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -66,7 +63,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Syntax.Common.Pretty (prettyShow)
 import qualified Agda.Interaction.Options.Lenses as Lens
 
 import Agda.Utils.Impossible
@@ -303,8 +300,8 @@ instance PrettyTCM ErrorPart where
 -- | We do a little bit of work here to make it possible to generate nice
 --   layout for multi-line error messages. Specifically we split the parts
 --   into lines (indicated by \n in a string part) and vcat all the lines.
-prettyErrorParts :: [ErrorPart] -> TCM Doc
-prettyErrorParts = vcat . map (hcat . map prettyTCM) . splitLines
+renderErrorParts :: [ErrorPart] -> TCM Doc
+renderErrorParts = vcat . map (hcat . map prettyTCM) . splitLines
   where
     splitLines [] = []
     splitLines (StrPart s : ss) =
@@ -415,6 +412,19 @@ instance Unquote a => Unquote (R.Abs a) where
 
     where hint x | not (null x) = x
                  | otherwise    = "_"
+
+instance Unquote Blocker where
+  unquote t = do
+    t <- reduceQuotedTerm t
+    case t of
+      Con c _ es | Just [x] <- allApplyElims es ->
+        choice
+          [ (c `isCon` primAgdaBlockerAny, UnblockOnAny . Set.fromList <$> unquoteN x)
+          , (c `isCon` primAgdaBlockerAll, UnblockOnAll . Set.fromList <$> unquoteN x)
+          , (c `isCon` primAgdaBlockerMeta, UnblockOnMeta <$> unquoteN x)]
+          __IMPOSSIBLE__
+      Con c _ _ -> __IMPOSSIBLE__
+      _ -> throwError $ NonCanonical "blocker" t
 
 instance Unquote MetaId where
   unquote t = do
@@ -592,7 +602,7 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMDeclarePostulate, uqFun2 tcDeclarePostulate u v)
              , (f `isDef` primAgdaTCMDefineData, uqFun2 tcDefineData u v)
              , (f `isDef` primAgdaTCMDefineFun,  uqFun2 tcDefineFun  u v)
-             , (f `isDef` primAgdaTCMQuoteOmegaTerm, tcQuoteTerm (sort $ Inf IsFibrant 0) (unElim v))
+             , (f `isDef` primAgdaTCMQuoteOmegaTerm, tcQuoteTerm (sort $ Inf UType 0) (unElim v))
              , (f `isDef` primAgdaTCMPragmaForeign, tcFun2 tcPragmaForeign u v)
              ]
              failEval
@@ -601,7 +611,7 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMTypeError,          tcFun1 tcTypeError   u)
              , (f `isDef` primAgdaTCMQuoteTerm,          tcQuoteTerm (mkT (unElim l) (unElim a)) (unElim u))
              , (f `isDef` primAgdaTCMUnquoteTerm,        tcFun1 (tcUnquoteTerm (mkT (unElim l) (unElim a))) u)
-             , (f `isDef` primAgdaTCMBlockOnMeta,        uqFun1 tcBlockOnMeta u)
+             , (f `isDef` primAgdaTCMBlock,              uqFun1 tcBlock u)
              , (f `isDef` primAgdaTCMDebugPrint,         tcFun3 tcDebugPrint l a u)
              , (f `isDef` primAgdaTCMNoConstraints,      tcNoConstraints (unElim u))
              , (f `isDef` primAgdaTCMDeclareData, uqFun3 tcDeclareData l a u)
@@ -645,10 +655,10 @@ evalTCM v = do
     tcCatchError m h =
       liftU2 (\ m1 m2 -> m1 `catchError` \ _ -> m2) (evalTCM m) (evalTCM h)
 
-    tcAskLens :: ToTerm a => Lens' a TCEnv -> UnquoteM Term
+    tcAskLens :: ToTerm a => Lens' TCEnv a -> UnquoteM Term
     tcAskLens l = liftTCM (toTerm <*> asksTC (\ e -> e ^. l))
 
-    tcWithLens :: Unquote a => Lens' a TCEnv -> Term -> Term -> UnquoteM Term
+    tcWithLens :: Unquote a => Lens' TCEnv a -> Term -> Term -> UnquoteM Term
     tcWithLens l b m = do
       v <- unquote b
       liftU1 (locallyTC l $ const v) (evalTCM m)
@@ -706,10 +716,11 @@ evalTCM v = do
       equalTerm a u v
       primUnitUnit
 
-    tcBlockOnMeta :: MetaId -> UnquoteM Term
-    tcBlockOnMeta x = do
+    tcBlock :: Blocker -> UnquoteM Term
+    tcBlock x = do
       s <- gets snd
-      throwError (BlockedOnMeta s $ unblockOnMeta x)
+      liftTCM $ reportSDoc "tc.unquote.block" 10 $ pretty (show x)
+      throwError (BlockedOnMeta s x)
 
     tcCommit :: UnquoteM Term
     tcCommit = do
@@ -721,14 +732,14 @@ evalTCM v = do
       liftTCM primUnitUnit
 
     tcFormatErrorParts :: [ErrorPart] -> TCM Term
-    tcFormatErrorParts msg = quoteString . prettyShow <$> prettyErrorParts msg
+    tcFormatErrorParts msg = quoteString . prettyShow <$> renderErrorParts msg
 
     tcTypeError :: [ErrorPart] -> TCM a
-    tcTypeError err = typeError . GenericDocError =<< prettyErrorParts err
+    tcTypeError err = typeError . GenericDocError =<< renderErrorParts err
 
     tcDebugPrint :: Text -> Integer -> [ErrorPart] -> TCM Term
     tcDebugPrint s n msg = do
-      reportSDoc (T.unpack s) (fromIntegral n) $ prettyErrorParts msg
+      reportSDoc (T.unpack s) (fromIntegral n) $ renderErrorParts msg
       primUnitUnit
 
     tcNoConstraints :: Term -> UnquoteM Term
@@ -1049,7 +1060,7 @@ evalTCM v = do
       let accessDontCare = __IMPOSSIBLE__  -- or ConcreteDef, value not looked at
       ac <- asksTC (^. lensIsAbstract)     -- Issue #4012, respect AbstractMode
       let i = mkDefInfo (nameConcrete $ qnameName x) noFixity' accessDontCare ac noRange
-      locallyReduceAllDefs $ checkFunDef NotDelayed i x cs
+      locallyReduceAllDefs $ checkFunDef i x cs
       primUnitUnit
 
     tcPragmaForeign :: Text -> Text -> TCM Term

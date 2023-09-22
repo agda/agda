@@ -128,6 +128,16 @@ data Arg {a} (A : Set a) : Set a where
 {-# BUILTIN ARG        Arg      #-}
 {-# BUILTIN ARGARG     arg      #-}
 
+data Blocker : Set where
+  blockerAny  : List Blocker → Blocker
+  blockerAll  : List Blocker → Blocker
+  blockerMeta : Meta → Blocker
+
+{-# BUILTIN AGDABLOCKER     Blocker #-}
+{-# BUILTIN AGDABLOCKERANY  blockerAny #-}
+{-# BUILTIN AGDABLOCKERALL  blockerAll #-}
+{-# BUILTIN AGDABLOCKERMETA blockerMeta #-}
+
 -- Name abstraction --
 
 data Abs {a} (A : Set a) : Set a where
@@ -290,7 +300,7 @@ postulate
   defineFun        : Name → List Clause → TC ⊤
   getType          : Name → TC Type
   getDefinition    : Name → TC Definition
-  blockOnMeta      : ∀ {a} {A : Set a} → Meta → TC A
+  blockTC          : ∀ {a} {A : Set a} → Blocker → TC A
   commitTC         : TC ⊤
   isMacro          : Name → TC Bool
   pragmaForeign    : String → String → TC ⊤
@@ -357,7 +367,7 @@ postulate
 {-# BUILTIN AGDATCMDEFINEFUN                  defineFun                  #-}
 {-# BUILTIN AGDATCMGETTYPE                    getType                    #-}
 {-# BUILTIN AGDATCMGETDEFINITION              getDefinition              #-}
-{-# BUILTIN AGDATCMBLOCKONMETA                blockOnMeta                #-}
+{-# BUILTIN AGDATCMBLOCK                      blockTC                    #-}
 {-# BUILTIN AGDATCMCOMMIT                     commitTC                   #-}
 {-# BUILTIN AGDATCMISMACRO                    isMacro                    #-}
 {-# BUILTIN AGDATCMPRAGMAFOREIGN              pragmaForeign              #-}
@@ -403,7 +413,7 @@ postulate
 {-# COMPILE JS defineFun         = _ => _ =>           undefined #-}
 {-# COMPILE JS getType           = _ =>                undefined #-}
 {-# COMPILE JS getDefinition     = _ =>                undefined #-}
-{-# COMPILE JS blockOnMeta       = _ => _ => _ =>      undefined #-}
+{-# COMPILE JS blockTC           = _ => _ =>           undefined #-}
 {-# COMPILE JS commitTC          =                     undefined #-}
 {-# COMPILE JS isMacro           = _ =>                undefined #-}
 {-# COMPILE JS pragmaForeign     = _ => _ =>           undefined #-}
@@ -452,6 +462,9 @@ private
 onlyReduceDefs dontReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
 onlyReduceDefs defs x = bindTC askReduceDefs (λ exDefs → withReduceDefs (combineReduceDefs (true  , defs) exDefs) x)
 dontReduceDefs defs x = bindTC askReduceDefs (λ exDefs → withReduceDefs (combineReduceDefs (false , defs) exDefs) x)
+
+blockOnMeta   : ∀ {a} {A : Set a} → Meta → TC A
+blockOnMeta m = blockTC (blockerMeta m)
 
 {-# WARNING_ON_USAGE onlyReduceDefs "DEPRECATED: Use `withReduceDefs` instead of `onlyReduceDefs`" #-}
 {-# WARNING_ON_USAGE dontReduceDefs "DEPRECATED: Use `withReduceDefs` instead of `dontReduceDefs`" #-}

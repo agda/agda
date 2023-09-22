@@ -14,7 +14,7 @@ import Prelude hiding ( null )
 import Data.Function (on)
 import Data.Maybe
 
-import Control.Arrow (left, second)
+import Control.Arrow (left)
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Reader
@@ -67,13 +67,13 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Telescope.Path
 import Agda.TypeChecking.Primitive hiding (Nat)
+import Agda.TypeChecking.Warnings (warning)
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr, isType_)
 import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.ProblemRest
 import Agda.TypeChecking.Rules.LHS.Unify
 import Agda.TypeChecking.Rules.LHS.Implicit
-import Agda.TypeChecking.Rules.Data
 
 import Agda.Utils.CallStack ( HasCallStack, withCallerCallStack )
 import Agda.Utils.Function
@@ -81,18 +81,16 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
-import qualified Agda.Utils.List  as List
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
-import Agda.Utils.WithDefault
 import Agda.TypeChecking.Free (freeIn)
 
 --UNUSED Liang-Ting Chen 2019-07-16
@@ -196,7 +194,7 @@ updateProblemEqs eqs = do
 
     update :: ProblemEq -> TCM [ProblemEq]
     update eq@(ProblemEq A.WildP{} _ _) = return []
-    update eq@(ProblemEq p@A.ProjP{} _ _) = typeError $ IllformedProjectionPattern p
+    update eq@(ProblemEq p@A.ProjP{} _ _) = typeError $ IllformedProjectionPatternAbstract p
     update eq@(ProblemEq p@(A.AsP info x p') v a) =
       (ProblemEq (A.VarP x) v a :) <$> update (ProblemEq p' v a)
 
@@ -236,25 +234,16 @@ updateProblemEqs eqs = do
               "insertImplicitPatternsT returned" <+> fsep (map prettyA ps)
 
             -- Check argument count and hiding (not just count: #3074)
-            let checkArgs [] [] = return ()
-                checkArgs (p : ps) (v : vs)
-                  | getHiding p == getHiding v = checkArgs ps vs
-                  | otherwise                  = setCurrentRange p $ genericDocError =<< do
-                      fsep $ pwords ("Expected an " ++ which (getHiding v) ++ " argument " ++
-                                     "instead of "  ++ which (getHiding p) ++ " argument") ++
-                             [ prettyA p ]
-                  where which NotHidden  = "explicit"
-                        which Hidden     = "implicit"
-                        which Instance{} = "instance"
-                checkArgs [] vs = genericDocError =<< do
-                    fsep $ pwords "Too few arguments to constructor" ++ [prettyTCM c <> ","] ++
-                           pwords ("expected " ++ show n ++ " more explicit "  ++ arguments)
-                  where n = length (filter visible vs)
-                        arguments | n == 1    = "argument"
-                                  | otherwise = "arguments"
-                checkArgs (p : _) [] = setCurrentRange p $ genericDocError =<< do
-                  fsep $ pwords "Too many arguments to constructor" ++ [prettyTCM c]
-            checkArgs ps vs
+            let checkArgs [] [] _ _ = return ()
+                checkArgs (p : ps) (v : vs) nExpected nActual
+                  | getHiding p == getHiding v = checkArgs ps vs (nExpected + 1) (nActual + 1)
+                  | otherwise                  = setCurrentRange p $ typeError WrongHidingInLHS
+                checkArgs [] vs nExpected nActual = typeError $
+                  WrongNumberOfConstructorArguments (conName c) (nExpected + length vs) nActual
+                checkArgs (p : ps) [] nExpected nActual = setCurrentRange p $ typeError $
+                  WrongNumberOfConstructorArguments (conName c) nExpected (nActual + 1 + (length ps))
+
+            checkArgs ps vs 0 0
 
             updates $ zipWith3 ProblemEq (map namedArg ps) (map unArg vs) bs
 
@@ -361,46 +350,43 @@ noShadowingOfConstructors problem@(ProblemEq p _ (Dom{domInfo = info, unDom = El
       , nest 2 $ "position of variable =" <+> (text . show) (getRange x)
       ]
     reportSDoc "tc.lhs.shadow" 70 $ nest 2 $ "a =" <+> pretty a
-    a <- reduce a
-    case a of
-      Def t _ -> do
-        d <- theDef <$> getConstInfo t
-        case d of
-          Datatype { dataCons = cs } -> do
-            case filter ((A.nameConcrete x ==) . A.nameConcrete . A.qnameName) cs of
-              []      -> return ()
-              (c : _) -> setCurrentRange x $
-                typeError $ PatternShadowsConstructor (nameConcrete x) c
-          AbstractDefn{} -> return ()
+
+    -- Get a conflicting data or record constructor, if any.
+    mc <- runMaybeT do
+
+      -- Is the type of the pattern variable a data or pattern record type?
+      a  <- lift $ reduce a
+      (d, dr) <- MaybeT $ isDataOrRecord a
+      guard $ patternMatchingAllowed dr
+
+      -- Look for a constructor with the same name as the pattern variable.
+      cs <- lift $ getConstructors d
+      MaybeT $ pure $ List.find ((A.nameConcrete x ==) . A.nameConcrete . A.qnameName) cs
+
+    -- Alert if there is a constructor of the same name.
+    whenJust mc \ c -> setCurrentRange x $
+      warning $ PatternShadowsConstructor (nameConcrete x) c
+    --
+    -- Andreas, 2023-09-08, issue #6829:
+    -- I rewrote the code originally dating from 2009, commit:
+    -- https://github.com/agda/agda/commit/5d5095ba080b04f16867d4ed5af4ba7091f1a773
+    -- The code survived for almost 15 years, but it slept through the advent
+    -- of matchable record constructors in 2010 (Agda 2.2.8):
+    -- https://github.com/agda/agda/blob/283730b392d7c21c54b53b0f486802ec143e4af7/doc/release-notes/2.2.8.md#L7-L9
+    -- Here are comments on the last version of the code I'd like to preserve,
+    -- as they reflect some considerations and design decisions:
+    --
             -- Abstract constructors cannot be brought into scope,
             -- even by a bigger import list.
             -- Thus, they cannot be confused with variables.
             -- Alternatively, we could do getConstInfo in ignoreAbstractMode,
             -- then Agda would complain if a variable shadowed an abstract constructor.
-          Axiom       {} -> return ()
-          DataOrRecSig{} -> return ()
-          Function    {} -> return ()
-          Record      {} -> return ()
-          Constructor {} -> __IMPOSSIBLE__
-          GeneralizableVar{} -> __IMPOSSIBLE__
           -- TODO: in the future some stuck primitives might allow constructors
-          Primitive   {} -> return ()
-          PrimitiveSort{} -> return ()
-      Var   {} -> return ()
-      Pi    {} -> return ()
-      Sort  {} -> return ()
-      MetaV {} -> return ()
       -- TODO: If the type is a meta-variable, should the test be
       -- postponed? If there is a problem, then it will be caught when
       -- the completed module is type checked, so it is safe to skip
       -- the test here. However, users may be annoyed if they get an
       -- error in code which has already passed the type checker.
-      Lam   {} -> __IMPOSSIBLE__
-      Lit   {} -> __IMPOSSIBLE__
-      Level {} -> __IMPOSSIBLE__
-      Con   {} -> __IMPOSSIBLE__
-      DontCare{} -> __IMPOSSIBLE__
-      Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
 -- | Check that a dot pattern matches it's instantiation.
 checkDotPattern :: DotPattern -> TCM ()
@@ -1105,7 +1091,7 @@ checkLHS mf = updateModality checkLHS_ where
                        Arg ai $ Named Nothing (ProjP orig projName)
           ip'      = ip ++ [projP]
           -- drop the projection pattern (already splitted)
-          problem' = over problemRestPats tail problem
+          problem' = over problemRestPats (drop 1) problem
       liftTCM $ updateLHSState (LHSState tel ip' problem' target' psplit ixsplit)
 
 
@@ -1368,9 +1354,8 @@ checkLHS mf = updateModality checkLHS_ where
 
       -- Jesper, 2019-09-13: if the data type we split on is a strict
       -- set, we locally enable --with-K during unification.
-      withKIfStrict <- reduce (getSort a) >>= \case
-        SSet{} -> return $ locallyTC eSplitOnStrict $ const True
-        _      -> return id
+      withKIfStrict <- reduce (getSort a) <&> \ dsort ->
+        applyWhen (isStrictDataSort dsort) $ locallyTC eSplitOnStrict $ const True
 
       -- The constructor should construct an element of this datatype
       (c :: ConHead, b :: Type) <- liftTCM $ addContext delta1 $ case ambC of
@@ -1568,8 +1553,8 @@ checkLHS mf = updateModality checkLHS_ where
                      Quantityω{} -> q
 
           liftTCM $ addContext delta' $ do
-            withoutK <- collapseDefault . optWithoutK <$> pragmaOptions
-            cubical <- collapseDefault . optCubicalCompatible <$> pragmaOptions
+            withoutK <- optWithoutK <$> pragmaOptions
+            cubical <- optCubicalCompatible <$> pragmaOptions
             mod <- currentModality
             when ((withoutK || cubical) && not (null ixs)) $
               conSplitModalityCheck mod rho (length delta2) tel (unArg target)
@@ -2087,11 +2072,10 @@ checkSortOfSplitVar :: (MonadTCM m, PureTCM m, MonadError TCErr m,
                     => DataOrRecord -> a -> Telescope -> Maybe ty -> m ()
 checkSortOfSplitVar dr a tel mtarget = do
   liftTCM (reduce $ getSort a) >>= \case
-    sa@Type{} -> whenM isTwoLevelEnabled checkFibrantSplit
+    Type{} -> whenM isTwoLevelEnabled checkFibrantSplit
     Prop{} -> checkPropSplit
-    Inf IsFibrant _ -> whenM isTwoLevelEnabled checkFibrantSplit
-    Inf IsStrict _ -> return ()
     SSet{} -> return ()
+    Inf u _ -> when (univFibrancy u == IsFibrant) $ whenM isTwoLevelEnabled checkFibrantSplit
     sa      -> softTypeError =<< do
       liftTCM $ SortOfSplitVarError <$> isBlocked sa <*> sep
         [ "Cannot split on datatype in sort" , prettyTCM (getSort a) ]

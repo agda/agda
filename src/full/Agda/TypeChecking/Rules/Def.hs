@@ -47,12 +47,12 @@ import Agda.TypeChecking.With
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Telescope.Path
 import Agda.TypeChecking.Injectivity
-import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.Rewriting.Confluence
 import Agda.TypeChecking.CompiledClause (CompiledClauses'(..), hasProjectionPatterns)
 import Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Primitive hiding (Nat)
+import Agda.TypeChecking.RecordPatterns ( recordRHSToCopatterns )
 import Agda.TypeChecking.Sort
 
 import Agda.TypeChecking.Rules.Term
@@ -68,20 +68,21 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
-import Agda.Utils.Pretty ( prettyShow )
-import qualified Agda.Utils.Pretty as P
+import Agda.Syntax.Common.Pretty ( prettyShow )
+import qualified Agda.Syntax.Common.Pretty as P
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import qualified Agda.Utils.SmallSet as SmallSet
+import Agda.Utils.Update
 
 import Agda.Utils.Impossible
-import Agda.Utils.WithDefault
 
 ---------------------------------------------------------------------------
 -- * Definitions by pattern matching
 ---------------------------------------------------------------------------
 
-checkFunDef :: Delayed -> A.DefInfo -> QName -> [A.Clause] -> TCM ()
-checkFunDef delayed i name cs = do
+checkFunDef :: A.DefInfo -> QName -> [A.Clause] -> TCM ()
+checkFunDef i name cs = do
         -- Reset blocking tag (in case a previous attempt was blocked)
         modifySignature $ updateDefinition name $ updateDefBlocked $ const $
           NotBlocked (MissingClauses name) ()
@@ -97,7 +98,7 @@ checkFunDef delayed i name cs = do
         case isAlias cs t of  -- #418: Don't use checkAlias for abstract definitions, since the type
                               -- of an abstract function must not be informed by its definition.
           Just (e, mc, x)
-            | Info.defAbstract i /= AbstractDef ->
+            | Info.defAbstract i == ConcreteDef, Info.defOpaque i == TransparentDef ->
               traceCall (CheckFunDefCall (getRange i) name cs True) $ do
                 -- Andreas, 2012-11-22: if the alias is in an abstract block
                 -- it has been frozen.  We unfreeze it to enable type inference.
@@ -106,20 +107,24 @@ checkFunDef delayed i name cs = do
                 whenM (isFrozen x) $ do
                   xs <- allMetasList . jMetaType . mvJudgement <$> lookupLocalMeta x
                   mapM_ unfreezeMeta (x : xs)
-                checkAlias t info delayed i name e mc
+                checkAlias t info i name e mc
             | otherwise -> do -- Warn about abstract alias (will never work!)
               -- Ulf, 2021-11-18, #5620: Don't warn if the meta is solved. A more intuitive solution
               -- would be to not treat definitions with solved meta types as aliases, but in mutual
               -- blocks you might actually have solved the type of an alias by the time you get to
               -- the definition. See test/Succeed/SizeInfinity.agda for an example where this
               -- happens.
+              let
+                what
+                  | Info.defOpaque i == TransparentDef = "abstract"
+                  | otherwise                          = "opaque"
               whenM (isOpenMeta <$> lookupMetaInstantiation x) $
                 setCurrentRange i $ genericWarning =<<
-                  "Missing type signature for abstract definition" <+> (prettyTCM name <> ".") $$
-                  fsep (pwords "Types of abstract definitions are never inferred since this would leak" ++
-                        pwords "information that should be abstract.")
-              checkFunDef' t info delayed Nothing Nothing i name cs
-          _ -> checkFunDef' t info delayed Nothing Nothing i name cs
+                  "Missing type signature for" <+> text what <+> "definition" <+> (prettyTCM name <> ".") $$
+                  fsep (pwords ("Types of " ++ what ++ " definitions are never inferred since this would leak") ++
+                        pwords ("information that should be " ++ what ++ "."))
+              checkFunDef' t info Nothing Nothing i name cs
+          _ -> checkFunDef' t info Nothing Nothing i name cs
 
         -- If it's a macro check that it ends in Term → TC ⊤
         let ismacro = isMacro . theDef $ def
@@ -128,7 +133,7 @@ checkFunDef delayed i name cs = do
         reportSDoc "tc.def" 20 $ vcat $
           [ "checking function definition got stuck on: " <+> pretty blocker ]
         modifySignature $ updateDefinition name $ updateDefBlocked $ const $ Blocked blocker ()
-        addConstraint blocker $ CheckFunDef delayed i name cs err
+        addConstraint blocker $ CheckFunDef i name cs err
 
 checkMacroType :: Type -> TCM ()
 checkMacroType t = do
@@ -138,8 +143,7 @@ checkMacroType t = do
       resType = abstract (telFromList (drop (length telList - 1) telList)) tr
   expectedType <- el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit)
   equalType resType expectedType
-    `catchError` \ _ -> typeError . GenericDocError =<< sep [ "Result type of a macro must be"
-                                                            , nest 2 $ prettyTCM expectedType ]
+    `catchError` \ _ -> typeError $ MacroResultTypeMismatch expectedType
 
 -- | A single clause without arguments and without type signature is an alias.
 isAlias :: [A.Clause] -> Type -> Maybe (A.Expr, Maybe C.Expr, MetaId)
@@ -158,8 +162,8 @@ isAlias cs t =
     trivialClause _ = Nothing
 
 -- | Check a trivial definition of the form @f = e@
-checkAlias :: Type -> ArgInfo -> Delayed -> A.DefInfo -> QName -> A.Expr -> Maybe C.Expr -> TCM ()
-checkAlias t ai delayed i name e mc =
+checkAlias :: Type -> ArgInfo -> A.DefInfo -> QName -> A.Expr -> Maybe C.Expr -> TCM ()
+checkAlias t ai i name e mc =
   let clause = A.Clause { clauseLHS          = A.SpineLHS (LHSInfo (getRange i) NoEllipsis) name []
                         , clauseStrippedPats = []
                         , clauseRHS          = A.RHS e mc
@@ -210,8 +214,8 @@ checkAlias t ai delayed i name e mc =
               } ]
           , _funCompiled  = Just $ Done [] $ bodyMod v
           , _funSplitTree = Just $ SplittingDone 0
-          , _funDelayed   = delayed
           , _funAbstr     = Info.defAbstract i
+          , _funOpaque    = Info.defOpaque i
           }
 
   -- Andreas, 2017-01-01, issue #2372:
@@ -228,7 +232,6 @@ checkAlias t ai delayed i name e mc =
 -- | Type check a definition by pattern matching.
 checkFunDef' :: Type             -- ^ the type we expect the function to have
              -> ArgInfo          -- ^ is it irrelevant (for instance)
-             -> Delayed          -- ^ are the clauses delayed (not unfolded willy-nilly)
              -> Maybe ExtLamInfo -- ^ does the definition come from an extended lambda
                                  --   (if so, we need to know some stuff about lambda-lifted args)
              -> Maybe QName      -- ^ is it a with function (if so, what's the name of the parent function)
@@ -236,13 +239,12 @@ checkFunDef' :: Type             -- ^ the type we expect the function to have
              -> QName            -- ^ the name of the function
              -> [A.Clause]       -- ^ the clauses to check
              -> TCM ()
-checkFunDef' t ai delayed extlam with i name cs =
-  checkFunDefS t ai delayed extlam with i name Nothing cs
+checkFunDef' t ai extlam with i name cs =
+  checkFunDefS t ai extlam with i name Nothing cs
 
 -- | Type check a definition by pattern matching.
 checkFunDefS :: Type             -- ^ the type we expect the function to have
              -> ArgInfo          -- ^ is it irrelevant (for instance)
-             -> Delayed          -- ^ are the clauses delayed (not unfolded willy-nilly)
              -> Maybe ExtLamInfo -- ^ does the definition come from an extended lambda
                                  --   (if so, we need to know some stuff about lambda-lifted args)
              -> Maybe QName      -- ^ is it a with function (if so, what's the name of the parent function)
@@ -251,7 +253,7 @@ checkFunDefS :: Type             -- ^ the type we expect the function to have
              -> Maybe Substitution -- ^ substitution (from with abstraction) that needs to be applied to module parameters
              -> [A.Clause]       -- ^ the clauses to check
              -> TCM ()
-checkFunDefS t ai delayed extlam with i name withSub cs = do
+checkFunDefS t ai extlam with i name withSub cs = do
 
     traceCall (CheckFunDefCall (getRange i) name cs True) $ do
         reportSDoc "tc.def.fun" 10 $
@@ -359,6 +361,16 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         -- however, Data.Star.Decoration.gmapAll no longer type-checks
         -- possibly due to missing eta-contraction!?
 
+        -- Inline copattern record constructors on demand.
+        cs <- concat <$> do
+          forM cs $ \ cl -> do
+            (cls, nonExactSplit) <- runChangeT $ recordRHSToCopatterns cl
+            when nonExactSplit do
+              -- If we inlined a non-eta constructor,
+              -- issue a warning that the clause does not hold as definitional equality.
+              warning $ InlineNoExactSplit name cl
+            return cls
+
         -- Check if the function is injective.
         -- Andreas, 2015-07-01 we do it here in order to resolve metas
         -- in mutual definitions, e.g. the U/El definition in succeed/Issue439.agda
@@ -430,17 +442,18 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
              { _funClauses        = cs
              , _funCompiled       = Just cc
              , _funSplitTree      = mst
-             , _funDelayed        = delayed
              , _funInv            = inv
              , _funAbstr          = Info.defAbstract i
+             , _funOpaque         = Info.defOpaque i
              , _funExtLam         = (\ e -> e { extLamSys = sys }) <$> extlam
              , _funWith           = with
              , _funCovering       = covering
              }
           lang <- getLanguage
+          genArgs <- defArgGeneralizable <$> getConstInfo name
           useTerPragma $
             updateDefCopatternLHS (const $ hasProjectionPatterns cc) $
-            defaultDefn ai name fullType lang defn
+            (defaultDefn ai name fullType lang defn) { defArgGeneralizable = genArgs }
 
         reportSDoc "tc.def.fun" 10 $ do
           sep [ "added " <+> prettyTCM name <+> ":"
@@ -539,7 +552,7 @@ data WithFunctionProblem
     , wfPermSplit  :: Permutation                       -- ^ Permutation resulting from splitting the telescope into needed and unneeded vars.
     , wfPermParent :: Permutation                       -- ^ Permutation reordering the variables in the parent pattern.
     , wfPermFinal  :: Permutation                       -- ^ Final permutation (including permutation for the parent clause).
-    , wfClauses    :: [A.Clause]                        -- ^ The given clauses for the with function
+    , wfClauses    :: List1 A.Clause                    -- ^ The given clauses for the with function
     , wfCallSubst :: Substitution                       -- ^ Subtsitution to generate call for the parent.
     }
 
@@ -709,7 +722,7 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
         let rhs = updateRHS rhs0
             updateRHS rhs@A.RHS{}               = rhs
             updateRHS rhs@A.AbsurdRHS{}         = rhs
-            updateRHS (A.WithRHS q es cs)       = A.WithRHS q es (map updateClause cs)
+            updateRHS (A.WithRHS q es cs)       = A.WithRHS q es $ fmap updateClause cs
             updateRHS (A.RewriteRHS qes spats rhs wh) =
               A.RewriteRHS qes (applySubst patSubst spats) (updateRHS rhs) wh
 
@@ -839,10 +852,11 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
   -- With case: @f xs with {a} in eqa | b in eqb | {{c}} | ...; ... | ps1 = rhs1; ... | ps2 = rhs2; ...@
   -- We need to modify the patterns `ps1, ps2, ...` in the user-provided clauses
   -- to insert the {eqb} names so that the equality proofs are available on the various RHS.
-  withRHS :: QName         -- name of the with-function
-          -> [A.WithExpr]  -- @[{a} in eqa, b in eqb, {{c}}, ...]@
-          -> [A.Clause]    -- @[(ps1 = rhs1), (ps2 = rhs), ...]@
-          -> TCM (Maybe Term, WithFunctionProblem)
+  withRHS ::
+       QName             -- name of the with-function
+    -> [A.WithExpr]      -- @[{a} in eqa, b in eqb, {{c}}, ...]@
+    -> List1 A.Clause    -- @[(ps1 = rhs1), (ps2 = rhs), ...]@
+    -> TCM (Maybe Term, WithFunctionProblem)
   withRHS aux es cs = do
 
     reportSDoc "tc.with.top" 15 $ vcat
@@ -934,7 +948,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
         [ text "invert"
         , "  rhs' = " <> (text . show) rhs'
         ]
-      checkWithRHS x qname t lhsResult vtys [cl]
+      checkWithRHS x qname t lhsResult vtys $ singleton cl
 
     -- @rewrite@ clauses
     rewriteEqnRHS
@@ -980,10 +994,8 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
           s <- sortOf dom
           return (eqt, El s dom, unArg a, unArg b)
           -- Note: the sort _s of the equality need not be the sort of the type @dom@!
-        OtherType{} -> typeError . GenericDocError =<< do
-          "Cannot rewrite by equation of type" <+> prettyTCM t'
-        IdiomType{} -> typeError . GenericDocError =<< do
-          "Cannot rewrite by equation of type" <+> prettyTCM t'
+        OtherType{} -> typeError $ CannotRewriteByNonEquation t'
+        IdiomType{} -> typeError $ CannotRewriteByNonEquation t'
 
       reflPat <- getReflPattern
 
@@ -1012,7 +1024,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
         [ text "rewrite"
         , "  rhs' = " <> (text . show) rhs'
         ]
-      checkWithRHS x qname t lhsResult [defaultArg (withExpr, withType)] [cl]
+      checkWithRHS x qname t lhsResult [defaultArg (withExpr, withType)] $ singleton cl
 
 checkWithRHS
   :: QName                             -- ^ Name of function.
@@ -1020,7 +1032,7 @@ checkWithRHS
   -> Type                              -- ^ Type of function.
   -> LHSResult                         -- ^ Result of type-checking patterns
   -> [Arg (Term, EqualityView)]        -- ^ Expressions and types of with-expressions.
-  -> [A.Clause]                        -- ^ With-clauses to check.
+  -> List1 A.Clause                    -- ^ With-clauses to check.
   -> TCM (Maybe Term, WithFunctionProblem)
                                 -- Note: as-bindings already bound (in checkClause)
 checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _ _) vtys0 cs =
@@ -1203,9 +1215,9 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
 
 
   -- Construct the body for the with function
-  cs <- return $ map (A.lhsToSpine) cs
+  cs <- return $ fmap (A.lhsToSpine) cs
   cs <- buildWithFunction cxtNames f aux t delta qs npars withSub finalPerm (size delta1) n cs
-  cs <- return $ map (A.spineToLhs) cs
+  cs <- return $ fmap (A.spineToLhs) cs
 
   -- #4833: inherit abstract mode from parent
   abstr <- defAbstract <$> ignoreAbstractMode (getConstInfo f)
@@ -1213,7 +1225,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
   -- Check the with function
   let info = Info.mkDefInfo (nameConcrete $ qnameName aux) noFixity' PublicAccess abstr (getRange cs)
   ai <- defArgInfo <$> getConstInfo f
-  checkFunDefS withFunType ai NotDelayed Nothing (Just f) info aux (Just withSub) cs
+  checkFunDefS withFunType ai Nothing (Just f) info aux (Just withSub) $ List1.toList cs
   return $ Just $ call_in_parent
 
 -- | Type check a where clause.
@@ -1238,18 +1250,10 @@ checkWhere wh@(A.WhereDecls whmod whNamed ds) ret = do
     ensureNoNamedWhereInRefinedContext Nothing = return ()
     ensureNoNamedWhereInRefinedContext (Just m) = traceCall (CheckNamedWhere m) $ do
       args <- map unArg <$> (moduleParamsToApply =<< currentModule)
-      unless (isWeakening args) $ -- weakened contexts are fine
-        genericDocError =<< do
-          names <- map (argNameToString . fst . unDom) . telToList <$>
-                    (lookupSection =<< currentModule)
-          let pr x v = text (x ++ " =") <+> prettyTCM v
-          vcat
-            [ fsep (pwords $ "Named where-modules are not allowed when module parameters have been refined by pattern matching. " ++
-                             "See https://github.com/agda/agda/issues/2897.")
-            , text $ "In this case the module parameter" ++
-                     (if not (null args) then "s have" else " has") ++
-                     " been refined to"
-            , nest 2 $ vcat (zipWith pr names args) ]
+      unless (isWeakening args) $ do -- weakened contexts are fine
+        names <- map (argNameToString . fst . unDom) . telToList <$>
+                (lookupSection =<< currentModule)
+        typeError $ NamedWhereModuleInRefinedContext args names
       where
         isWeakening [] = True
         isWeakening (Var i [] : args) = isWk (i - 1) args
@@ -1272,7 +1276,7 @@ newSection e m gtel@(A.GeneralizeTel _ tel) cont = do
     "checking section" <+> (C.prettyErased e <$> prettyTCM m) <+>
     fsep (map prettyA tel)
 
-  checkGeneralizeTelescope gtel $ \ _ tel' -> do
+  checkGeneralizeTelescope (Just m) gtel $ \ _ tel' -> do
     reportSDoc "tc.section" 10 $
       "adding section:" <+> prettyTCM m <+> text (show (size tel'))
 

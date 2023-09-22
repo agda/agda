@@ -19,7 +19,7 @@
 # 3) included-files is a white-list of files,
 # 4) excluded-files is a black-list of included-files.
 #
-# The extended glob pattern can be used to specify file/direcotory names.
+# The extended glob pattern can be used to specify file/directory names.
 # For details, see http://hackage.haskell.org/package/filemanip-0.3.6.3/docs/System-FilePath-GlobPattern.html
 #
 included-dirs:

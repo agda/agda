@@ -3,7 +3,6 @@ module Agda.TypeChecking.Monad.Options where
 
 import Prelude hiding (null)
 
-import Control.Arrow          ( (&&&) )
 import Control.Monad          ( unless, when )
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Except
@@ -13,7 +12,6 @@ import Control.Monad.Writer
 
 import qualified Data.Graph as Graph
 import Data.List (sort)
-import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
 
@@ -21,8 +19,6 @@ import System.Directory
 import System.FilePath
 
 import Agda.Syntax.Common
-import qualified Agda.Syntax.Concrete as C
-import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.TopLevelModuleName
 
 import Agda.TypeChecking.Monad.Debug (reportSDoc)
@@ -40,15 +36,12 @@ import Agda.Interaction.Library
 import Agda.Interaction.Library.Base (libAbove, libFile)
 
 import Agda.Utils.FileName
-import Agda.Utils.Functor
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as G
 import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.Maybe
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Size
-import Agda.Utils.Tuple
 import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
@@ -391,10 +384,10 @@ isPropEnabled :: HasOptions m => m Bool
 isPropEnabled = optProp <$> pragmaOptions
 
 isLevelUniverseEnabled :: HasOptions m => m Bool
-isLevelUniverseEnabled = optLevelUniv <$> pragmaOptions
+isLevelUniverseEnabled = optLevelUniverse <$> pragmaOptions
 
 isTwoLevelEnabled :: HasOptions m => m Bool
-isTwoLevelEnabled = collapseDefault . optTwoLevel <$> pragmaOptions
+isTwoLevelEnabled = optTwoLevel <$> pragmaOptions
 
 {-# SPECIALIZE hasUniversePolymorphism :: TCM Bool #-}
 hasUniversePolymorphism :: HasOptions m => m Bool
@@ -421,14 +414,14 @@ withShowAllArguments = withShowAllArguments' True
 
 withShowAllArguments' :: ReadTCState m => Bool -> m a -> m a
 withShowAllArguments' yes = withPragmaOptions $ \ opts ->
-  opts { optShowImplicit = yes, optShowIrrelevant = yes }
+  opts { _optShowImplicit = Value yes, _optShowIrrelevant = Value yes }
 
 -- | Change 'PragmaOptions' for a computation and restore afterwards.
 withPragmaOptions :: ReadTCState m => (PragmaOptions -> PragmaOptions) -> m a -> m a
 withPragmaOptions = locallyTCState stPragmaOptions
 
 positivityCheckEnabled :: HasOptions m => m Bool
-positivityCheckEnabled = not . optDisablePositivity <$> pragmaOptions
+positivityCheckEnabled = optPositivityCheck <$> pragmaOptions
 
 {-# SPECIALIZE typeInType :: TCM Bool #-}
 typeInType :: HasOptions m => m Bool
@@ -449,7 +442,7 @@ getLanguage :: HasOptions m => m Language
 getLanguage = do
   opts <- pragmaOptions
   return $
-    if not (collapseDefault (optWithoutK opts)) then WithK else
+    if not (optWithoutK opts) then WithK else
     case optCubical opts of
       Just variant -> Cubical variant
       Nothing      -> WithoutK

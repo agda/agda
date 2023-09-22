@@ -1,5 +1,6 @@
 ..
   ::
+  {-# OPTIONS --guardedness #-}
   module language.pragmas where
 
 .. _pragmas:
@@ -8,8 +9,9 @@
 Pragmas
 *******
 
-Pragmas are comments that are not ignored by Agda but have some
-special meaning. The general format is:
+Pragmas are special declarations that pass extra information to Agda about how regular declarations are to be interpreted.
+They are written similar to block comments so that users may easily skip them in a first reading of an Agda document.
+The general format is:
 
 .. code-block:: agda
 
@@ -25,6 +27,8 @@ Index of pragmas
 * :ref:`COMPILE <foreign-function-interface>`
 
 * :ref:`DISPLAY <display-pragma>`
+
+* :ref:`ETA <eta-pragma>`
 
 * :ref:`FOREIGN <foreign-function-interface>`
 
@@ -101,6 +105,7 @@ Limitations:
     when Agda tries to use it
     (issue `#6476 <https://github.com/agda/agda/issues/6476>`).
 
+
 .. _injective-pragma:
 
 The ``INJECTIVE`` pragma
@@ -128,16 +133,22 @@ Example::
 Aside from datatypes, this pragma can also be used to mark other
 definitions as being injective (for example postulates).
 
+At the moment it only gives you propositional injectivity,
+so you can pattern match on a proof of `Fin x ≡ Fin y` in example above,
+but does not give you definitional injectivity,
+so the constraint solver does not know how to solve the constraint `Fin x = Fin _`.
+Relevant issue: https://github.com/agda/agda/issues/4106#issuecomment-534904561
+
 .. _inline-pragma:
 
 The ``INLINE`` and ``NOINLINE`` pragmas
 _______________________________________
 
-A definition marked with an ``INLINE`` pragma is inlined during compilation. If it is a simple
-definition that does no pattern matching, it is also inlined in function bodies at type-checking
+A function definition marked with an ``INLINE`` pragma is inlined during compilation. If it is a simple
+function definition that does no pattern matching, it is also inlined in function bodies at type-checking
 time.
 
-When the :option:`--auto-inline` :ref:`command-line option <command-line-options>` is enabled, definitions
+When the :option:`--auto-inline` :ref:`command-line option <command-line-options>` is enabled, function definitions
 are automatically marked ``INLINE`` if they satisfy the following criteria:
 
 * No pattern matching.
@@ -159,6 +170,37 @@ Example::
   (F o G) X = F (G X)
 
   {-# INLINE _o_ #-} -- force inlining
+
+Inlining constructor right-hand sides
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. versionadded:: 2.6.4
+
+Constructors can also be marked ``INLINE`` (for types supporting co-pattern matching)::
+
+  record Stream (A : Set) : Set where
+    coinductive; constructor _∷_
+    field head : A
+          tail : Stream A
+  open Stream
+  {-# INLINE _∷_ #-}
+
+Functions definitions using these constructors will be translated to use co-pattern matching instead, e.g.::
+
+  nats : Nat → Stream Nat
+  nats n = n ∷ nats (1 + n)
+
+is translated to::
+
+  nats' : Nat → Stream Nat
+  nats' n .head = n
+  nats' n .tail = nats (n + 1)
+
+which passes termination-checking.
+
+This translation only works for fully-applied constructors at the root of a function definition's right-hand side.
+
+If :option:`--exact-split` is on, the inlining will trigger a :option:`InlineNoExactSplit` warning for ``nats``.
 
 .. _non_covering-pragma:
 

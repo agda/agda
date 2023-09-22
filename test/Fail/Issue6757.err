@@ -1,0 +1,5 @@
+Failed to solve the following constraints:
+  y = _x_9 (i = Agda.Primitive.Cubical.i1) : A (blocked on _x_9)
+  x = _x_9 (i = Agda.Primitive.Cubical.i0) : A (blocked on _x_9)
+Unsolved metas at the following locations:
+  Issue6757.agda:16,10-14

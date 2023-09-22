@@ -310,15 +310,6 @@ rsubst+  : ∀{Ω Γ Form} (Γ' : Ctx)
 postulate rsubst-v : ∀{Γ Form} (Γ' : Ctx)   → suspnormalΓ (Γ' ++ Γ)  → suspnormalF Form  → (LA- : List (Type ⁻))  → All (\x →  Term (Γ' ++ Γ) [] (Inv x)) LA-  → Exp (Γ' ++ (map (\x → Pers x) LA-) ++ Γ) Form  → Exp (Γ' ++ Γ) Form
 
 
-
--- {-# NO_TERMINATION_CHECK #-}
---rsubst : ∀{Γ Form A} (Γ' : Ctx)
---  → suspnormalΓ (Γ' ++ Γ)
---  → suspnormalF Form
---  → Term (Γ' ++ Γ) [] (Inv A)
---  → Exp (Γ' ++ (Pers A) ∷ Γ) Form
---  → Exp (Γ' ++ Γ) Form
-
 lsubst : ∀{Γ U L A}
   → suspnormalΓ Γ
   → suspstable U

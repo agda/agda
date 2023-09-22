@@ -1,14 +1,13 @@
-module Agda.TypeChecking.Monad.Env where
+{-# OPTIONS_GHC -Wunused-imports #-}
 
+module Agda.TypeChecking.Monad.Env where
 
 import qualified Data.List as List
 
 import Data.Maybe (fromMaybe)
 
-
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
-import Agda.Syntax.TopLevelModuleName
 
 import Agda.TypeChecking.Monad.Base
 
@@ -100,7 +99,8 @@ putAllowedReductions = modifyAllowedReductions . const
 
 -- | Reduce @Def f vs@ only if @f@ is a projection.
 onlyReduceProjections :: MonadTCEnv m => m a -> m a
-onlyReduceProjections = putAllowedReductions $ SmallSet.singleton ProjectionReductions
+onlyReduceProjections = modifyAllowedReductions $ SmallSet.intersection $
+  SmallSet.singleton ProjectionReductions
 
 -- | Allow all reductions except for non-terminating functions (default).
 allowAllReductions :: MonadTCEnv m => m a -> m a
@@ -113,7 +113,8 @@ allowNonTerminatingReductions = putAllowedReductions reallyAllReductions
 -- | Allow all reductions when reducing types. Otherwise only allow
 --   inlined functions to be unfolded.
 onlyReduceTypes :: MonadTCEnv m => m a -> m a
-onlyReduceTypes = putAllowedReductions $ SmallSet.fromList [TypeLevelReductions, InlineReductions]
+onlyReduceTypes = modifyAllowedReductions $ SmallSet.intersection $
+  SmallSet.fromList [TypeLevelReductions, InlineReductions]
 
 -- | Update allowed reductions when working on types
 typeLevelReductions :: MonadTCEnv m => m a -> m a
@@ -141,4 +142,3 @@ callByName = localTC $ \ e -> e { envCallByNeed = False }
 --   the let bindings that should not be folded.
 dontFoldLetBindings :: MonadTCEnv m => m a -> m a
 dontFoldLetBindings = localTC $ \ e -> e { envFoldLetBindings = False }
-

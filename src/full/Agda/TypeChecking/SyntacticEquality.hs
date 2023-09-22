@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | A syntactic equality check that takes meta instantiations into account,
 --   but does not reduce.  It replaces
 --   @
@@ -20,19 +22,16 @@ import Control.Monad            ( zipWithM )
 import Control.Monad.State      ( MonadState(..), StateT, runStateT )
 import Control.Monad.Trans      ( lift )
 
-import Agda.Interaction.Options ( optSyntacticEquality )
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Monad
-  (ReduceM, MonadReduce(..), TCEnv(..), MonadTCEnv(..), pragmaOptions,
-   isInstantiatedMeta)
+import Agda.TypeChecking.Monad  ( ReduceM, MonadReduce(..), TCEnv(..), MonadTCEnv(..) )
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
 import qualified Agda.Utils.Maybe.Strict as Strict
-import Agda.Utils.Monad (ifM, and2M)
+import Agda.Utils.Monad (ifM)
+import Agda.Utils.Unsafe (unsafeComparePointers)
 
 -- | Syntactic equality check for terms. If syntactic equality
 -- checking has fuel left, then 'checkSyntacticEquality' behaves as if
@@ -149,7 +148,7 @@ instance SynEq Bool where
 
 -- | Syntactic term equality ignores 'DontCare' stuff.
 instance SynEq Term where
-  synEq v v' = do
+  synEq v v' = if unsafeComparePointers v v' then return (v, v') else do
     (v, v') <- lift $ instantiate' (v, v')
     case (v, v') of
       (Var   i vs, Var   i' vs') | i == i' -> Var i   <$$> synEq vs vs'
@@ -181,10 +180,10 @@ instance SynEq PlusLevel where
     | otherwise = inequal (l, l')
 
 instance SynEq Sort where
-  synEq s s' = do
+  synEq s s' = if unsafeComparePointers s s' then return (s, s') else do
     (s, s') <- lift $ instantiate' (s, s')
     case (s, s') of
-      (Type l  , Type l'   ) -> Type <$$> synEq l l'
+      (Univ u l, Univ u' l') | u == u' -> Univ u <$$> synEq l l'
       (PiSort a b c, PiSort a' b' c') -> piSort <$$> synEq a a' <**> synEq' b b' <**> synEq' c c'
       (FunSort a b, FunSort a' b') -> funSort <$$> synEq a a' <**> synEq' b b'
       (UnivSort a, UnivSort a') -> UnivSort <$$> synEq a a'
@@ -192,9 +191,7 @@ instance SynEq Sort where
       (LockUniv, LockUniv  ) -> pure2 s
       (LevelUniv, LevelUniv  ) -> pure2 s
       (IntervalUniv, IntervalUniv) -> pure2 s
-      (Prop l  , Prop l'   ) -> Prop <$$> synEq l l'
-      (Inf f m , Inf f' n) | f == f', m == n -> pure2 s
-      (SSet l  , SSet l'   ) -> SSet <$$> synEq l l'
+      (Inf u m , Inf u' n) | u == u', m == n -> pure2 s
       (MetaS x es , MetaS x' es') | x == x' -> MetaS x <$$> synEq es es'
       (DefS  d es , DefS  d' es') | d == d' -> DefS d  <$$> synEq es es'
       (DummyS{}, DummyS{}) -> pure (s, s')

@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE CPP #-}
 -- |  Possibly infinite sets of integers (but with finitely many consecutive
 --    segments). Used for checking guard coverage in int/nat cases in the

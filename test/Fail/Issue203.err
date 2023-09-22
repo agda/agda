@@ -1,4 +1,4 @@
 Issue203.agda:8,3-6
 Set a is not less or equal than Set b
-when checking that the type (x : A) → Bad A of the constructor [_]
+when checking that the type A of an argument to the constructor [_]
 fits in the sort Set b of the datatype.

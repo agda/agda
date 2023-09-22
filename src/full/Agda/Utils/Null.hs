@@ -1,5 +1,6 @@
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wunused-imports #-}
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | Overloaded @null@ and @empty@ for collections and sequences.
 
@@ -7,13 +8,15 @@ module Agda.Utils.Null where
 
 import Prelude hiding (null)
 
-import Control.Monad
+import Control.Monad          ( when, unless )
 import Control.Monad.Except   ( ExceptT )
 import Control.Monad.Identity ( Identity(..) )
 import Control.Monad.Reader   ( ReaderT )
 import Control.Monad.State    ( StateT  )
 import Control.Monad.Writer   ( WriterT )
 import Control.Monad.Trans    ( lift    )
+
+import Data.Maybe             ( isNothing )
 
 import qualified Data.ByteString.Char8 as ByteStringChar8
 import qualified Data.ByteString.Lazy as ByteStringLazy
@@ -37,7 +40,7 @@ import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as Text
 
-import Text.PrettyPrint (Doc, isEmpty)
+import Text.PrettyPrint.Annotated (Doc, isEmpty)
 
 import Agda.Utils.Bag (Bag)
 import qualified Agda.Utils.Bag as Bag
@@ -119,10 +122,14 @@ instance Null (Set a) where
 -- | A 'Maybe' is 'null' when it corresponds to the empty list.
 instance Null (Maybe a) where
   empty = Nothing
-  null Nothing  = True
-  null (Just a) = False
+  null  = isNothing
 
-instance Null Doc where
+-- | Viewing 'Bool' as @'Maybe' ()@, a boolean is 'null' when it is false.
+instance Null Bool where
+  empty = False
+  null  = not
+
+instance Null (Doc a) where
   empty = mempty
   null  = isEmpty
 

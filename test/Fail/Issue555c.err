@@ -1,3 +1,4 @@
 Issue555c.agda:7,8-9
 Set a is not less or equal than Set
-when checking the definition of R
+when checking that the type A of an argument to the constructor
+Issue555c.R.constructor fits in the sort Set of the datatype.

@@ -1,8 +1,10 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE NondecreasingIndentation   #-}
 
 module Agda.TypeChecking.Rules.Record where
 
-import Prelude hiding (null)
+import Prelude hiding (null, not, (&&), (||))
 
 import Control.Monad
 import Data.Maybe
@@ -14,13 +16,11 @@ import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as Info
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Primitive
-import Agda.TypeChecking.Rewriting.Confluence
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Reduce
@@ -28,7 +28,6 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Warnings
-import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.CompiledClause (hasProjectionPatterns)
 import Agda.TypeChecking.CompiledClause.Compile
 
@@ -40,16 +39,16 @@ import Agda.TypeChecking.Rules.Data
 import Agda.TypeChecking.Rules.Term ( isType_ )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
+import Agda.Utils.Boolean
+import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.List (headWithDefault)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Permutation
 import Agda.Utils.POMonoid
-import Agda.Utils.Pretty (render)
-import qualified Agda.Utils.Pretty as P
+import Agda.Syntax.Common.Pretty (render)
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Size
-import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
 
@@ -213,9 +212,8 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
       -- Jesper, 2021-05-26: Warn when declaring coinductive record
       -- but neither --guardedness nor --sized-types is enabled.
       when (conInduction == CoInductive) $ do
-        guardedness <- collapseDefault . optGuardedness <$> pragmaOptions
-        sizedTypes  <- collapseDefault . optSizedTypes  <$> pragmaOptions
-        unless (guardedness || sizedTypes) $ warning $ NoGuardednessFlag name
+        unlessM ((optGuardedness || optSizedTypes) <$> pragmaOptions) $
+          warning $ NoGuardednessFlag name
 
       -- Add the record definition.
 
@@ -253,10 +251,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
         addConstant' conName defaultArgInfo conName
              -- If --erasure is used, then the parameters are erased
              -- in the constructor's type.
-            ((if erasure
-              then fmap (applyQuantity zeroQuantity)
-              else id)
-               telh
+            (applyWhen erasure (fmap $ applyQuantity zeroQuantity) telh
              `abstract` contype) $
             Constructor
               { conPars   = npars
@@ -264,12 +259,12 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
               , conSrcCon = con
               , conData   = name
               , conAbstr  = Info.defAbstract i
-              , conInd    = conInduction
               , conComp   = emptyCompKit  -- filled in later
               , conProj   = Nothing       -- filled in later
               , conForced = []
               , conErased = Nothing
               , conErasure = erasure
+              , conInline  = False
               }
 
       -- Declare the constructor as eligible for instance search
@@ -283,7 +278,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
         NotInstanceDef -> pure ()
 
       -- Check that the fields fit inside the sort
-      _ <- fitsIn uc [] contype s
+      _ <- fitsIn conName uc [] contype s
 
       -- Check that the sort admits record declarations.
       checkDataSort name s
@@ -361,10 +356,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
         -- If --erasure is used, then the parameters are erased in the
         -- types of the projections.
         erasure <- optErasure <$> pragmaOptions
-        params  <- (if erasure
-                    then fmap (applyQuantity zeroQuantity)
-                    else id)
-                     <$> getContext
+        params  <- applyWhen erasure (fmap $ applyQuantity zeroQuantity) <$> getContext
 
         -- Check the types of the fields and the other record declarations.
         addRecordVar $ withCurrentModule m $ do
@@ -383,7 +375,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
 
       -- we define composition here so that the projections are already in the signature.
       escapeContext impossible npars $ do
-        addCompositionForRecord name con tel (map argFromDom fs) ftel rect
+        addCompositionForRecord name haveEta con tel (map argFromDom fs) ftel rect
 
       -- The confluence checker needs to know what symbols match against
       -- the constructor.
@@ -401,13 +393,14 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
 
 addCompositionForRecord
   :: QName       -- ^ Datatype name.
+  -> EtaEquality
   -> ConHead
   -> Telescope   -- ^ @Γ@ parameters.
   -> [Arg QName] -- ^ Projection names.
   -> Telescope   -- ^ @Γ ⊢ Φ@ field types.
   -> Type        -- ^ @Γ ⊢ T@ target type.
   -> TCM ()
-addCompositionForRecord name con tel fs ftel rect = do
+addCompositionForRecord name eta con tel fs ftel rect = do
   cxt <- getContextTelescope
   inTopContext $ do
 
@@ -416,6 +409,15 @@ addCompositionForRecord name con tel fs ftel rect = do
       kit <- defineCompData name con (abstract cxt tel) [] ftel rect []
       modifySignature $ updateDefinition (conName con) $ updateTheDef $ \case
         r@Constructor{} -> r { conComp = kit, conProj = Just [] }  -- no projections
+        _ -> __IMPOSSIBLE__
+
+    -- No-eta record with pattern matching (i.e., withOUT copattern
+    -- matching): define composition as for a data type, attach it to
+    -- the record.
+    else if theEtaEquality eta == NoEta PatternMatching then do
+      kit <- defineCompData name con (abstract cxt tel) (unArg <$> fs) ftel rect []
+      modifySignature $ updateDefinition name $ updateTheDef $ \case
+        r@Record{} -> r { recComp = kit }
         _ -> __IMPOSSIBLE__
 
     -- Record has fields: attach composition data to record type
@@ -439,14 +441,14 @@ defineCompKitR ::
   -> TCM CompKit
 defineCompKitR name params fsT fns rect = do
   required <- mapM getTerm'
-        [ builtinInterval
-        , builtinIZero
-        , builtinIOne
-        , builtinIMin
-        , builtinIMax
-        , builtinINeg
-        , builtinPOr
-        , builtinItIsOne
+        [ someBuiltin builtinInterval
+        , someBuiltin builtinIZero
+        , someBuiltin builtinIOne
+        , someBuiltin builtinIMin
+        , someBuiltin builtinIMax
+        , someBuiltin builtinINeg
+        , someBuiltin builtinPOr
+        , someBuiltin builtinItIsOne
         ]
   reportSDoc "tc.rec.cxt" 30 $ prettyTCM params
   reportSDoc "tc.rec.cxt" 30 $ prettyTCM fsT

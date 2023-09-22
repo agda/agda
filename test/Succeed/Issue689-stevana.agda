@@ -1,5 +1,5 @@
 -- Andreas, 2017-10-04, issue #689, test case by stevana
-
+{-# OPTIONS --large-indices #-}
 -- {-# OPTIONS -v tc.data:50 #-}
 -- {-# OPTIONS -v tc.force:100 #-}
 -- {-# OPTIONS -v tc.constr:50 #-}

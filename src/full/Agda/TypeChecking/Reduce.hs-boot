@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.TypeChecking.Reduce where
 
 import Agda.Syntax.Internal (Term, Elims, QName)

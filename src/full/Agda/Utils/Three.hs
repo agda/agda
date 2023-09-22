@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Tools for 3-way partitioning.
 
 module Agda.Utils.Three where

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 {- | Sparse matrices.
 
@@ -65,7 +66,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 
 import Agda.Utils.PartialOrd
-import Agda.Utils.Pretty hiding (isEmpty)
+import Agda.Syntax.Common.Pretty hiding (isEmpty)
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible

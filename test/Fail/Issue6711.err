@@ -1,0 +1,5 @@
+Issue6711.agda:23,3-60
+No binding for builtin thing SIGMA, use {-# BUILTIN SIGMA name #-}
+to bind it to 'name'
+when checking that the type of the primitive function
+primStringUncons is String → Maybe (Σ Char (λ _ → String))

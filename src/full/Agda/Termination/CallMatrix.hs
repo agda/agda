@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE ImplicitParams             #-}
 {-# LANGUAGE CPP                        #-}
 
@@ -24,7 +26,7 @@ import qualified Agda.Utils.Favorites as Fav
 
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Singleton
 
 ------------------------------------------------------------------------

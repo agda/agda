@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.Syntax.Parser.Tokens
     ( Token(..)
     , Keyword(..)
@@ -19,6 +21,7 @@ data Keyword
         | KwInductive | KwCoInductive
         | KwEta | KwNoEta
         | KwHiding | KwUsing | KwRenaming | KwTo | KwPublic
+        | KwOpaque | KwUnfolding
         | KwOPTIONS | KwBUILTIN | KwLINE
         | KwFOREIGN | KwCOMPILE
         | KwIMPOSSIBLE | KwSTATIC | KwINJECTIVE | KwINLINE | KwNOINLINE
@@ -57,6 +60,7 @@ layoutKeywords =
     , KwPrivate
     , KwVariable
     , KwWhere
+    , KwOpaque
     ]
 
 data Symbol

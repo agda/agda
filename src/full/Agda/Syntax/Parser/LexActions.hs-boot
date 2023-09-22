@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.Syntax.Parser.LexActions where
 
 import Agda.Syntax.Literal

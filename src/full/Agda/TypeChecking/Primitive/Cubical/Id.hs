@@ -1,4 +1,7 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Implementation of the primitives relating to Cubical identity types.
+
 module Agda.TypeChecking.Primitive.Cubical.Id
   ( -- * General elimination form
     primIdElim'
@@ -12,34 +15,29 @@ module Agda.TypeChecking.Primitive.Cubical.Id
   )
   where
 
-import Control.Monad.Except
-
-import Agda.Utils.Impossible (__IMPOSSIBLE__)
-import Agda.Utils.Monad
-
 import qualified Data.IntMap as IntMap
 import Data.Traversable
 import Data.Maybe
 
+import Agda.Syntax.Common
+  ( Cubical(..), Arg(..), defaultArgInfo, defaultArg )
+import Agda.Syntax.Internal
+
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Env
-import Agda.TypeChecking.Substitute (apply, sort, listS, applySubst)
-import Agda.TypeChecking.Reduce (reduceB', reduce')
-import Agda.TypeChecking.Names
-  (runNamesT, runNames, cl, lam, ilam, open)
-
-import Agda.Interaction.Options.Base (optCubical)
-
-import Agda.Syntax.Common (Cubical(..), Arg(..), defaultArgInfo, hasQuantity0, defaultArg)
-
-import Agda.TypeChecking.Primitive.Base
-  ((-->), nPi', pPi', hPi', el, el', el's, (<@>), (<#>), (<..>), argN)
-
-import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Debug (__IMPOSSIBLE_VERBOSE__)
 
+import Agda.TypeChecking.Names
+  ( runNamesT, runNames, cl, lam, ilam, open )
+import Agda.TypeChecking.Primitive.Base
+  ( (-->), nPi', hPi', el, el', el's, (<@>), (<#>), (<..>), argN )
 import Agda.TypeChecking.Primitive.Cubical.Base
+import Agda.TypeChecking.Reduce
+  ( reduceB' )
+import Agda.TypeChecking.Substitute
+  ( apply, sort, listS, applySubst )
+
+import Agda.Utils.Impossible (__IMPOSSIBLE__)
 
 -- | Primitive elimination rule for the cubical identity types. Unlike
 -- J, @idElim@ makes explicit the structure of Swan's identity types as
@@ -122,7 +120,7 @@ primConId' = do
         -- cases: If the cofibration is definitely true, then we return
         -- reflId.  TODO: Handle this in the conversion checker instead?
         IOne -> do
-          reflId <- getTerm builtinConId builtinReflId
+          reflId <- getTerm (getBuiltinId builtinConId) builtinReflId
           redReturn $ reflId
         _ -> return $ NoReduction $ map notReduced [l,bA,x,y] ++ [reduced sphi, notReduced p]
     _ -> __IMPOSSIBLE_VERBOSE__ "implementation of primConId called with wrong arity"
@@ -202,7 +200,8 @@ doIdKanOp
     -- ^ Domain, left and right endpoints of the identity type
   -> ReduceM (Maybe (Reduced t Term))
 doIdKanOp kanOp l bA_x_y = do
-  let getTermLocal = getTerm $ kanOpName kanOp ++ " for " ++ builtinId
+  let getTermLocal :: IsBuiltin a => a -> ReduceM Term
+      getTermLocal = getTerm $ kanOpName kanOp ++ " for " ++ getBuiltinId builtinId
 
   unview <- intervalUnview'
   mConId <- getName' builtinConId
@@ -225,9 +224,9 @@ doIdKanOp kanOp l bA_x_y = do
     Just conid | isConId (unArg . ignoreBlocking $ sa0), b -> (Just <$>) . (redReturn =<<) $ do
       tHComp    <- getTermLocal builtinHComp
       tTrans    <- getTermLocal builtinTrans
-      tIMin     <- getTermLocal "primDepIMin"
-      idFace    <- getTermLocal "primIdFace"
-      idPath    <- getTermLocal "primIdPath"
+      tIMin     <- getTermLocal builtinDepIMin
+      idFace    <- getTermLocal builtinIdFace
+      idPath    <- getTermLocal builtinIdPath
       tPathType <- getTermLocal builtinPath
       tConId    <- getTermLocal builtinConId
 

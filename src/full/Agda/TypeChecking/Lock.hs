@@ -1,4 +1,7 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE NondecreasingIndentation #-}
+
 module Agda.TypeChecking.Lock
   ( isTimeless
   , checkLockedVars
@@ -12,15 +15,12 @@ import qualified Data.IntMap as IMap
 import qualified Data.IntSet as ISet
 import qualified Data.Set as Set
 
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.Interaction.Options ( optGuarded )
-
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Constraints
+import Agda.TypeChecking.Constraints () -- instance MonadConstraint TCM
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute.Class
 import Agda.TypeChecking.Free
@@ -31,8 +31,6 @@ import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
-
-import Agda.Utils.Impossible
 
 checkLockedVars
   :: Term
@@ -45,6 +43,9 @@ checkLockedVars
      -- ^ type of the lock
   -> TCM ()
 checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) $ do
+  -- Have to instantiate the lock, otherwise we might block on it even
+  -- after it's been solved (e.g.: it's an interaction point, see #6528)
+  lk <- instantiate lk
   reportSDoc "tc.term.lock" 40 $ "Checking locked vars.."
   reportSDoc "tc.term.lock" 50 $ nest 2 $ vcat
      [ text "t     = " <+> pretty t

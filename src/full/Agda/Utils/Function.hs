@@ -1,5 +1,13 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
+{-# LANGUAGE RebindableSyntax #-}
 
 module Agda.Utils.Function where
+
+import Prelude hiding ( not, (&&), (||) )
+import Data.String    ( fromString )       -- for RebindableSyntax, somehow not covered by Prelude
+
+import Agda.Utils.Boolean
 
 -- | Repeat a state transition @f :: a -> (b, a)@ with output @b@
 --   while condition @cond@ on the output is true.
@@ -103,17 +111,36 @@ iterate' n f x | n > 0     = iterate' (n - 1) f $! f x
 -- * Iteration over Booleans.
 
 -- | @applyWhen b f a@ applies @f@ to @a@ when @b@.
-applyWhen :: Bool -> (a -> a) -> a -> a
+{-# SPECIALIZE applyWhen :: Bool -> (a -> a) -> (a -> a) #-}
+{-# INLINE applyWhen #-}
+applyWhen :: IsBool b => b -> (a -> a) -> a -> a
 applyWhen b f = if b then f else id
+  -- Note: RebindableSyntax translates this if-then-else to ifThenElse of IsBool.
 
 -- | @applyUnless b f a@ applies @f@ to @a@ unless @b@.
-applyUnless :: Bool -> (a -> a) -> a -> a
+{-# SPECIALIZE applyUnless :: Bool -> (a -> a) -> (a -> a) #-}
+{-# INLINE applyUnless #-}
+applyUnless :: IsBool b => b -> (a -> a) -> a -> a
 applyUnless b f = if b then id else f
 
 -- | Monadic version of @applyWhen@
-applyWhenM :: (Monad m) => m Bool -> (m a -> m a) -> m a -> m a
+{-# SPECIALIZE applyWhenM :: Monad m => m Bool -> (m a -> m a) -> m a -> m a #-}
+{-# INLINE applyWhenM #-}
+applyWhenM :: (IsBool b, Monad m) => m b -> (m a -> m a) -> m a -> m a
 applyWhenM mb f x = mb >>= \ b -> applyWhen b f x
 
 -- | Monadic version of @applyUnless@
-applyUnlessM :: (Monad m) => m Bool -> (m a -> m a) -> m a -> m a
+{-# SPECIALIZE applyUnlessM :: Monad m => m Bool -> (m a -> m a) -> m a -> m a #-}
+{-# INLINE applyUnlessM #-}
+applyUnlessM :: (IsBool b, Monad m) => m b -> (m a -> m a) -> m a -> m a
 applyUnlessM mb f x = mb >>= \ b -> applyUnless b f x
+
+-- | 'Maybe' version of 'applyWhen'.
+{-# INLINE applyWhenJust #-}
+applyWhenJust :: Maybe b -> (b -> a -> a) -> a -> a
+applyWhenJust m f = maybe id f m
+
+-- | 'Maybe' version of 'applyUnless'.
+{-# INLINE applyWhenNothing #-}
+applyWhenNothing :: Maybe b -> (a -> a) -> a -> a
+applyWhenNothing m f = maybe f (const id) m

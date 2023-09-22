@@ -10,14 +10,12 @@ import Prelude hiding ( null )
 import Control.Applicative  (liftA2)
 import Control.Monad
 import Control.Monad.Except
-import Control.Monad.Reader (ReaderT)
-import Control.Monad.State  (StateT)
 
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe
-import Data.String
+import Data.String    ()
 import Data.Semigroup (Semigroup((<>)))
 import qualified Data.Foldable as Fold
 
@@ -54,8 +52,8 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Permutation ( Permutation )
-import Agda.Utils.Pretty      ( Pretty, prettyShow )
-import qualified Agda.Utils.Pretty as P
+import Agda.Syntax.Common.Pretty      ( Pretty, prettyShow )
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Size        ( natSize )
 
 import Agda.Utils.Impossible
@@ -434,10 +432,9 @@ instance PrettyTCM NLPType where
 
 instance PrettyTCM NLPSort where
   prettyTCM = \case
-    PType l   -> parens $ "Set" <+> prettyTCM l
-    PProp l   -> parens $ "Prop" <+> prettyTCM l
-    PSSet l   -> parens $ "SSet" <+> prettyTCM l
-    PInf f n  -> prettyTCM (Inf f n :: Sort)
+    PUniv u l -> parens $ text (showUniv u) <+> prettyTCM l
+      -- Andreas, 2023-05-11, preserving Jesper's printing hack for now...
+    PInf u n  -> prettyTCM (Inf u n :: Sort)
     PSizeUniv -> prettyTCM (SizeUniv :: Sort)
     PLockUniv -> prettyTCM (LockUniv :: Sort)
     PLevelUniv -> prettyTCM (LevelUniv :: Sort)

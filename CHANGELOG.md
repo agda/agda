@@ -1,48 +1,299 @@
 Release notes for Agda version 2.6.4
 ====================================
 
-Reflection
+Highlights
 ----------
 
-* `FOREIGN` and `COMPILE` pragmas can now be generated using two new reflection primitives:
+* Cubical Agda now displays boundary conditions in interactive mode
+  (PR [#6529](https://github.com/agda/agda/pull/6529)).
+
+* An inconsistency in the treatment of large indices has been fixed
+  (Issue [#6654](https://github.com/agda/agda/issues/6654)).
+
+* Unfolding of definitions can now be fine-controlled via `opaque` definitions.
+
+* Additions to the sort system: `LevelUniv` and `Propω`.
+
+* New flag `--erasure` with several improvements to erasure (declared run-time irrelevance).
+
+* New reflection primitives for meta-programming.
+
+Installation
+------------
+
+* Removed the cabal flag `cpphs` that enabled building Agda with `cpphs` instead of the default C preprocessor.
+
+* Agda supports GHC versions 8.6.5 to 9.6.2.
+
+Pragmas and options
+-------------------
+
+* New command-line option `--numeric-version` to just print the version number of Agda.
+
+* Option `--version` now also prints the cabal flags active in this build of Agda
+  (e.g. whether Agda was built with `-f enable-cluster-counting`).
+
+* New command-line option `--trace-imports` to switch on notification messages
+  on the end of compilation of an imported module
+  or on access to an interface file during the type-checking.
+
+  See [--trace-imports](https://agda.readthedocs.io/en/v2.6.4/tools/command-line-options.html#cmdoption-trace-imports)
+  in the documentation for more.
+
+* New option `--no-infer-absurd-clauses` to simplify coverage checking and case splitting:
+  Agda will then no longer attempt to automatically eliminate absurd clauses which can be a costly operation.
+  This means that these absurd clauses have to be written out in the Agda text.
+  Try this option if you experience type checking performance degradation with omitted absurd clauses.
+
+  Opposite: `--infer-absurd-clauses`.
+
+* Benign warnings are now printed together with their warning name, to give a hint how they can be disabled
+  (see [#6229](https://github.com/agda/agda/issues/6229)).
+
+* New option `--level-universe` to make `Level` inhabit its own universe `LevelUniv`:
+  When this option is turned on, `Level` can now only depend on terms of type `Level`.
+
+  Note: While compatible with the `--cubical` option, this option is currently not compatible with cubical builtin files, and an error will be raised when trying to import them in a file using `--level-universe`.
+
+  Opposite: `--no-level-universe`.
+
+* Most boolean options now have their opposite, e.g., `--allow-unsolved-metas` is complemented by `--no-allow-unsolved-metas`.
+  With the opposite one can override a previously given option.
+  Options given on the command line are overwritten by options given in the `.agda-lib` file,
+  which in turn get overwritten by options given in the individual `.agda` file.
+
+  New options (all on by default):
+  - `--no-allow-exec`
+  - `--no-allow-incomplete-matches`
+  - `--no-allow-unsolved-metas`
+  - `--no-call-by-name`
+  - `--no-cohesion`
+  - `--no-count-clusters`
+  - `--no-erased-matches`
+  - `--no-erasure`
+  - `--no-experimental-irrelevance`
+  - `--no-flat-split`
+  - `--no-guarded`
+  - `--no-injective-type-constructors`
+  - `--no-keep-covering-clauses`
+  - `--no-lossy-unification`
+  - `--no-keep-pattern-variables`
+  - `--no-omega-in-omega`
+  - `--no-postfix-projections`
+  - `--no-rewriting`
+  - `--no-show-identity-substitutions`
+  - `--no-show-implicit`
+  - `--no-show-irrelevant`
+  - `--no-two-level`
+  - `--no-type-in-type`
+  - `--eta-equality`
+  - `--fast-reduce`
+  - `--forcing`
+  - `--import-sorts`
+  - `--load-primitives`
+  - `--main`
+  - `--pattern-matching`
+  - `--positivity-check`
+  - `--print-pattern-synonyms`
+  - `--projection-like`
+  - `--termination-check`
+  - `--unicode`
+
+* Option `--flat-split` again implies `--cohesion`.
+  Reverts change introduced in Agda 2.6.3 where `--cohesion` was a prerequisite for `--flat-split`.
+
+* Pragma `INLINE` may now be applied to constructors of types supporting co-pattern matching.
+  It enables translation of right-hand-side constructor applications to left-hand-side co-pattern splits (see [PR #6682](https://github.com/agda/agda/pull/6682)).
+  For example, this translation allows the `nats` function to pass termination checking:
+  ```agda
+    record Stream (A : Set) : Set where
+      coinductive; constructor _∷_
+      field head : A
+            tail : Stream A
+    open Stream
+    {-# INLINE _∷_ #-}
+
+    nats : Nat → Stream Nat
+    nats n = n ∷ nats (1 + n)
+  ```
+  Inlining transforms the definition of `nats` to the following definition by copattern matching:
+  ```agda
+    nats n .head = n
+    nats n .tail = nats (1 + n)
+  ```
+  This form is accepted by the termination checker;
+  unlike the form before inlining, it does not admit any infinite reduction sequences.
+
+  If option `--exact-split` is on, the inlining will trigger a `InlineNoExactSplit` warning for `nats`.
+  This warning can be disabled as usual, with `-WnoInlineNoExactSplit`.
+
+* New option `--large-indices`, controlling whether constructors of
+  indexed data types are allowed to refer to data that would be "too
+  large" to fit in their declared sort. Large indices are disallowed by
+  default; see the [language changes](#language) for details.
+
+* New option `--forced-argument-recursion`, on by default, controlling
+  whether forced constructor arguments are usable for termination
+  checking. This flag may be necessary for Agda to accept nontrivial
+  uses of induction-induction.
+
+* The suffix `Warning` has been dropped from the warning names
+  `DuplicateFieldsWarning` and `TooManyFieldsWarning`.
+
+* The warning `GenericUseless` has been split into the three warnings
+  `UselessPragma`, `FaceConstraintCannotBeHidden` and `FaceConstraintCannotBeNamed`.
+
+* New warning `PatternShadowsConstructor` which used to be an error.
+
+Library management
+------------------
+
+* [**Breaking**] One can no longer have `.agda-lib` files that are
+  located below the "project root", on the path to the file that is
+  being type-checked (see
+  [#6465](https://github.com/agda/agda/issues/6465)).
+
+  For instance, if you have a module called `A.B.C` in the directory
+  `Root/A/B`, then an error is raised if there are `.agda-lib` files
+  in `Root/A` or `Root/A/B`.
+
+  Previously such `.agda-lib` files were ignored.
+
+Interaction and emacs mode
+--------------------------
+
+* Agda now supports reading files with extension `.lagda.typ`, and use the parser for
+  markdown files to parse them.
+  To edit such files in Emacs with Agda support, one needs to add the line
+  ```elisp
+  (add-to-list 'auto-mode-alist '("\\.lagda.typ\\'" . agda2-mode))
+  ```
+  to `.emacs`.
+
+  Generation for highlighted code like HTML is unsupported for Typst.
+  One may generate HTML with typst input, but that makes little sense,
+  and markdown is recommended instead when HTML export is desired.
+
+* Helper function (`C-c C-h`) does not abstract over module parameters anymore
+  (see [#2271](https://github.com/agda/agda/issues/2271))
+  and neither over generalized `variable`s
+  (see [#6689](https://github.com/agda/agda/pull/6689)).
+
+* New Agda input mode prefix `box` for APL boxed operators, e.g. `\box=` for ⌸;
+  see PR [#6510](https://github.com/agda/agda/pull/6510/files) for full list of bindings.
+
+* Cubical Agda will now report boundary information for interaction
+  points which are not at the top-level of their respective clauses.
+  This includes bodies of `Path`-typed values, the faces of a partial
+  element, arguments to functions returning paths, etc.
+
+  Since this information is available in a structured way _during
+  interaction_, the "goal type, context, and inferred type" command will
+  also display the value of the expression at each relevant face.
+
+  See also [PR #6529](https://github.com/agda/agda/pull/6529) for a
+  deeper explanation and a demo video.
+
+Syntax
+------
+
+* Agda now skips the UTF8 byte order mark (BOM) at beginning of files
+  (see [#6524](https://github.com/agda/agda/issues/6524)).
+  Previously, the BOM caused a parse error.
+
+* If the new option `--hidden-argument-puns` is used, then the pattern
+  `{x}` is interpreted as `{x = x}`, and the pattern `⦃ x ⦄` is
+  interpreted as `⦃ x = x ⦄` (see
+  [#6325](https://github.com/agda/agda/issues/6325)). Here `x` must be
+  an unqualified name that does not refer to a constructor that is in
+  scope: if `x` is qualified, then the pattern is not interpreted as a
+  pun, and if `x` is unqualified and refers to a constructor that is
+  in scope, then the code is rejected.
+
+  This feature can be turned off using `--no-hidden-argument-puns`.
+
+  Note that `{(x)}` and `⦃ (x) ⦄` are not interpreted as puns.
+
+  Note also that `{x}` is not interpreted as a pun in `λ {x} → …` or
+  `syntax f {x} = …`. However, `{x}` is interpreted as a pun in
+  `λ (c {x}) → …`.
+
+Language
+--------
+
+* [**Breaking**] Constructor arguments are no longer allowed to store
+  values of a type larger than their own sort, even when these values
+  are forced by the indices of a constructor.
+
+  This fixes a particular instance of the incompatibility between
+  structural recursion and impredicativity, which could previously be
+  exploited through the use of large data-type indices.
+  (see [#6654](https://github.com/agda/agda/issues/6654)).
+
+  This behaviour can be controlled with the flag `--large-indices`. Note
+  that, when `--large-indices` is enabled, forced constructor arguments
+  should not be used for termination checking. The flag
+  `--[no-]forced-argument-recursion` makes the termination checker skip
+  these arguments entirely. When `--safe` is given, `--large-indices` is
+  incompatible with `--without-K` _and_ incompatible with
+  `--forced-argument-recursion`.
+
+* Added [`opaque` definitions](https://agda.readthedocs.io/en/v2.6.4/language/opaque-definitions.html),
+  a mechanism for finer-grained control of unfolding. Unlike `abstract`
+  definitions, which can never be unfolded outside of (a child module
+  of) the defining module, opacity can be toggled at use-sites:
 
   ```agda
-  pragmaForeign : String → String → TC ⊤
-  pragmaCompile : String → Name → String → TC ⊤
+  opaque
+    foo : Set
+    foo = Nat
+
+  opaque
+    unfolding foo
+
+    _ : foo
+    _ = 123
   ```
 
+* Unless `--no-import-sorts` is given, `Set` is in scope as before,
+  but `Prop` is only in scope when `--prop` is active.
+  Additionally `SSet` is now in scope when `--two-level` is active
+  (see [#6634](https://github.com/agda/agda/pull/6634)).
 
-* Add 4 reflection primitives of the form `ask*` and `with*`:
+* New sorts `Propω`, `Propω₁`, etc., in analogy to `Setω`, `Setω₁` etc.
+  Requires option `--prop`.
 
+  Example:
   ```agda
-  withNormalisation : ∀ {a} {A : Set a} → Bool → TC A → TC A
-  askNormalisation  : TC Bool
+  {-# OPTIONS --prop --large-indices #-}
 
-  withExpandLast : ∀ {a} {A : Set a} → Bool → TC A → TC A
-  askExpandLast  : TC Bool
+  open Agda.Primitive
 
-  withReduceDefs : ∀ {a} {A : Set a} → (Σ Bool λ _ → List Name) → TC A → TC A
-  askReduceDefs  : TC (Σ Bool λ _ → List Name)
+  variable
+    ℓ : Level
+    A : Set ℓ
 
-  askReconstructed  : TC Bool
+  -- Lists of elements of types at any finite level.
+
+  data HList : Setω where
+    []  : HList
+    _∷_ : A → HList → HList
+
+  variable
+    x  : A
+    xs : HList
+
+  -- Predicate stating that all elements satisfy a given property.
+
+  data All (P : ∀{ℓ} {A : Set ℓ} → A → Prop ℓ) : HList → Propω where
+    []  : All P []
+    _∷_ : P x → All P xs → All P (x ∷ xs)
   ```
-  to change the behaviour of `inferType`, `checkType`, `quoteTC`, `getContext`.
 
-* [**Breaking**] The type of `withReconstructed` has been changed from
-
-  ```agda
-  withReconstructed : ∀ {a} {A : Set a} →        TC A → TC A
-
-  ```
-  to
-  ```agda
-  withReconstructed : ∀ {a} {A : Set a} → Bool → TC A → TC A
-  ```
-  to match the type of primitives of the form `with*`.
-
-* Two primitives `onlyReduceDefs` and `dontReduceDefs` are removed but re-implemented
-  using the new family of primitives `with*` and `ask*` for backward compatibility.
-
+* [**Breaking**] The algorithm for resolution of instance arguments
+  has been simplified. It will now only rely on the type of instances
+  to determine which candidate it should use, and no longer on their
+  values.
 
 Erasure
 -------
@@ -51,11 +302,11 @@ Erasure
   ([#6349](https://github.com/agda/agda/issues/6349)).
 
   This flag is infective.
+  It is implied by `--erase-record-parameters` and `--erased-matches`.
 
   Unless this flag is active the following things are prohibited:
   * Use of the annotations `@0` and `@erased`.
   * Use of names defined in Cubical Agda in Erased Cubical Agda.
-  * Use of the flag `--erase-record-parameters`.
 
   When `--erasure` is used the parameter arguments of constructors and
   projections are marked as erased
@@ -84,6 +335,7 @@ Erasure
   ([#6349](https://github.com/agda/agda/issues/6349)).
 
   This flag is infective and implied by `--with-K`.
+  If it is given explicitly, it implies `--erasure`.
 
 * [**Breaking**] Added a hard compile-time mode (see
   [#4743](https://github.com/agda/agda/issues/4743)).
@@ -195,87 +447,138 @@ Erasure
   `Agda.Builtin.Cubical.Glue` into its own module `Agda.Builtin.Cubical.Equiv`,
   the former reexports the latter.
 
-Syntax
-------
-
-* If the new option `--hidden-argument-puns` is used, then the pattern
-  `{x}` is interpreted as `{x = x}`, and the pattern `⦃ x ⦄` is
-  interpreted as `⦃ x = x ⦄` (see
-  [#6325](https://github.com/agda/agda/issues/6325)). Here `x` must be
-  an unqualified name that does not refer to a constructor that is in
-  scope: if `x` is qualified, then the pattern is not interpreted as a
-  pun, and if `x` is unqualified and refers to a constructor that is
-  in scope, then the code is rejected.
-
-  This feature can be turned off using `--no-hidden-argument-puns`.
-
-  Note that `{(x)}` and `⦃ (x) ⦄` are not interpreted as puns.
-
-  Note also that `{x}` is not interpreted as a pun in `λ {x} → …` or
-  `syntax f {x} = …`. However, `{x}` is interpreted as a pun in
-  `λ (c {x}) → …`.
-
-Instance arguments
-------------------
-
-* [**Breaking**] The algorithm for resolution of instance arguments
-  has been simplified. It will now only rely on the type of instances
-  to determine which candidate it should use, and no longer on their
-  values.
-
-Pragmas and options
--------------------
-
-* New command-line option `--numeric-version` to just print the version number of Agda.
-
-* New command-line option `--trace-imports` to switch on notification messages
-  on the end of compilation of an imported module
-  or on access to an interface file during the type-checking.
-
-  See [--trace-imports](https://agda.readthedocs.io/en/v2.6.4/tools/command-line-options.html#cmdoption-trace-imports)
-  in the documentation for more.
-
-* New option `--no-infer-absurd-clauses` to simplify coverage checking and case splitting:
-  Agda will then no longer attempt to automatically eliminate absurd clauses which can be a costly operation.
-  This means that these absurd clauses have to be written out in the Agda text.
-  Try this option if you experience type checking performance degradation with omitted absurd clauses.
-
-  Opposite: `--infer-absurd-clauses`.
-
-* Benign warnings are now printed together with their warning name, to give a hint how they can be disabled
-  (see [#6229](https://github.com/agda/agda/issues/6229)).
-
-Library management
-------------------
-
-* [**Breaking**] One can no longer have `.agda-lib` files that are
-  located below the "project root", on the path to the file that is
-  being type-checked (see
-  [#6465](https://github.com/agda/agda/issues/6465)).
-
-  For instance, if you have a module called `A.B.C` in the directory
-  `Root/A/B`, then an error is raised if there are `.agda-lib` files
-  in `Root/A` or `Root/A/B`.
-
-  Previously such `.agda-lib` files were ignored.
-
-Emacs mode
+Reflection
 ----------
 
-* Helper function (`C-c C-h`) does not abstract over module parameters anymore
-  (see [#2271](https://github.com/agda/agda/issues/2271)).
+* `FOREIGN` and `COMPILE` pragmas can now be generated using two new reflection primitives:
 
-Cubical Agda
-------------
+  ```agda
+  pragmaForeign : String → String → TC ⊤
+  pragmaCompile : String → Name → String → TC ⊤
+  ```
 
-* Cubical Agda will now report boundary information for interaction
-  points which are not at the top-level of their respective clauses.
-  This includes bodies of `Path`-typed values, the faces of a partial
-  element, arguments to functions returning paths, etc.
+* Add 4 reflection primitives of the form `ask*` and `with*`:
 
-  Since this information is available in a structured way _during
-  interaction_, the "goal type, context, and inferred type" command will
-  also display the value of the expression at each relevant face.
+  ```agda
+  withNormalisation : ∀ {a} {A : Set a} → Bool → TC A → TC A
+  askNormalisation  : TC Bool
 
-  See also [PR #6529](https://github.com/agda/agda/pull/6529) for a
-  deeper explanation and a demo video.
+  withExpandLast : ∀ {a} {A : Set a} → Bool → TC A → TC A
+  askExpandLast  : TC Bool
+
+  withReduceDefs : ∀ {a} {A : Set a} → (Σ Bool λ _ → List Name) → TC A → TC A
+  askReduceDefs  : TC (Σ Bool λ _ → List Name)
+
+  askReconstructed  : TC Bool
+  ```
+  to change the behaviour of `inferType`, `checkType`, `quoteTC`, `getContext`.
+
+* [**Breaking**] The type of `withReconstructed` has been changed from
+
+  ```agda
+  withReconstructed : ∀ {a} {A : Set a} →        TC A → TC A
+
+  ```
+  to
+  ```agda
+  withReconstructed : ∀ {a} {A : Set a} → Bool → TC A → TC A
+  ```
+  to match the type of primitives of the form `with*`.
+
+* Two primitives `onlyReduceDefs` and `dontReduceDefs` are removed but re-implemented
+  using the new family of primitives `with*` and `ask*` for backward compatibility.
+
+* Blocking the type-checking monad can now be done with more precision
+  by using the `Blocker` type, and the `blockTC` primitive:
+
+  ```agda
+  data Blocker : Set where
+    blockerAny  : List Blocker → Blocker
+    blockerAll  : List Blocker → Blocker
+    blockerMeta : Meta → Blocker
+  ```
+
+  When blocking on a value of this type, the TCM computation will only
+  be retried when any (resp. all) of the mentioned metavariables have
+  been solved. This can avoid getting into loops where a macro blocks on
+  a meta, gets unblocked, traverses some term again, and then blocks on
+  a meta that was already present.
+
+  The `blockOnMeta` builtin has been deprecated, and an implementation
+  in terms of `blockTC` is given for backwards compatibility.
+
+
+Other issues closed
+-------------------
+
+For 2.6.4, the following issues were also
+[closed](https://github.com/agda/agda/issues?q=is%3Aissue+milestone%3A2.6.4+is%3Aclosed)
+(see [bug tracker](https://github.com/agda/agda/issues)):
+
+- [#1181](https://github.com/agda/agda/issues/1181): Display of let-bound variables in goals and error messages
+- [#2271](https://github.com/agda/agda/issues/2271): Helper function abstracts over module parameters, with sometimes disastrous consequences for printing
+- [#3437](https://github.com/agda/agda/issues/3437): Add Propω
+- [#3605](https://github.com/agda/agda/issues/3605): Improve constraint reporting for cubical
+- [#3690](https://github.com/agda/agda/issues/3690): Cubical interaction: Display inferred type with interval variables instantiated
+- [#5900](https://github.com/agda/agda/issues/5900): De Bruijn fail in Cubical (Was: Garbled boundary contexts & naming eta expansion.)
+- [#6124](https://github.com/agda/agda/issues/6124): Reflection: cannot reduce type because variable is erased
+- [#6140](https://github.com/agda/agda/issues/6140): Unapplied `List` and `Maybe` are sometimes translated to `[AgdaAny]` and `Maybe AgdaAny` by GHC backend
+- [#6229](https://github.com/agda/agda/issues/6229): Print warning name along with warning text
+- [#6269](https://github.com/agda/agda/issues/6269): Documentation is missing for `--keep-covering-clauses` and `--lossy-unification`
+- [#6271](https://github.com/agda/agda/issues/6271): Cubical: should generated code corresponding to erased constructors be erased?
+- [#6272](https://github.com/agda/agda/issues/6272): Put Level type in a different sort
+- [#6309](https://github.com/agda/agda/issues/6309): Drop support for GHC 8.0, 8.2, and 8.4
+- [#6325](https://github.com/agda/agda/issues/6325): Hidden argument puns
+- [#6333](https://github.com/agda/agda/issues/6333): Misleading file path in "Unrecognised option" error
+- [#6336](https://github.com/agda/agda/issues/6336): Paradoxical self-reference in endpoints for path constructors
+- [#6364](https://github.com/agda/agda/issues/6364): Instance candidates filtered out by type errors
+- [#6371](https://github.com/agda/agda/issues/6371): Preserve metavariable name suggestion when eta-expanding
+- [#6374](https://github.com/agda/agda/issues/6374): Refine does not work for overloaded record constructors
+- [#6380](https://github.com/agda/agda/issues/6380): Confusing warning about turning instances into instances
+- [#6395](https://github.com/agda/agda/issues/6395): `dataXXX` identifiers mis-parsed by {-# COMPILE GHC #-}
+- [#6407](https://github.com/agda/agda/issues/6407): Agsy produces clauses with out of scope variables
+- [#6413](https://github.com/agda/agda/issues/6413): Miscompilation of nested patterns in erased fields
+- [#6415](https://github.com/agda/agda/issues/6415): Apparent infinite loop in cubical with --lossy-unification
+- [#6418](https://github.com/agda/agda/issues/6418): Bug in rewriting with cubical primitives
+- [#6434](https://github.com/agda/agda/issues/6434): Option to increase performance: do not filter out absurd clauses automatically
+- [#6448](https://github.com/agda/agda/issues/6448): Don't define dependencies for elisp files included in the agda2-mode package
+- [#6506](https://github.com/agda/agda/issues/6506): Cubical: `with` abstraction failing to type check
+- [#6521](https://github.com/agda/agda/issues/6521): Support GHC 9.6 with cabal
+- [#6523](https://github.com/agda/agda/issues/6523): Soundness bug: Tick constraints not properly propogated in Guarded Cubical
+- [#6524](https://github.com/agda/agda/issues/6524): Ignore Unicode byte order mark
+- [#6525](https://github.com/agda/agda/issues/6525): Recent Emacs's escape character handling improvement leads to an error when loading agda-mode
+- [#6528](https://github.com/agda/agda/issues/6528): Guarded can block on solved metas
+- [#6530](https://github.com/agda/agda/issues/6530): Miscompilation of case split RHS lambdas
+- [#6541](https://github.com/agda/agda/issues/6541): Internal error in Agda.TypeChecking.Reduce.Fast
+- [#6551](https://github.com/agda/agda/issues/6551): Doc: the keywords `hiding`,`public`, `renaming`, and `using` are always reserved
+- [#6573](https://github.com/agda/agda/issues/6573): Check on presence of `--erasure` in `--erase-record-parameters` comes too early
+- [#6581](https://github.com/agda/agda/issues/6581): Cubical: no canonicity for record types without η-equality
+- [#6605](https://github.com/agda/agda/issues/6605): Doc: comments in "libraries" file
+- [#6621](https://github.com/agda/agda/issues/6621): Enable K also for SSetω (like for SSet)
+- [#6622](https://github.com/agda/agda/issues/6622): Bad error for `mutual` in implicit mutual block
+- [#6624](https://github.com/agda/agda/issues/6624): Suffix not working for SSet
+- [#6627](https://github.com/agda/agda/issues/6627): CheckArguments call exposes dummy checkArguments return type
+- [#6632](https://github.com/agda/agda/issues/6632): hcompU eta rule in conversion checker loses solution
+- [#6633](https://github.com/agda/agda/issues/6633): Bad interaction of Type:Type and SSet
+- [#6648](https://github.com/agda/agda/issues/6648): `--level-universe` not respected when solving funSort `_->_ : ? -> Set -> SetOmega`
+- [#6651](https://github.com/agda/agda/issues/6651): Agda fails on `univSort ? = SetOmega` even when `SizeUniv` is a solution
+- [#6654](https://github.com/agda/agda/issues/6654): Forcing analysis is inconsistent for large indices
+- [#6660](https://github.com/agda/agda/issues/6660): `{-# INLINE #-}` for copattern constructors
+- [#6662](https://github.com/agda/agda/issues/6662): Error message for unsafe option combinations has wrong pluralization
+- [#6677](https://github.com/agda/agda/issues/6677): Helper function type includes generalized parameters
+- [#6687](https://github.com/agda/agda/issues/6687): Termination checker bug with `CATCHALL`
+- [#6702](https://github.com/agda/agda/issues/6702): Inlining constructors to copattern should give warning with `--exact-split`
+- [#6706](https://github.com/agda/agda/issues/6706): Shape-irrelevant variables marked as irrelevant in human-readable context
+- [#6711](https://github.com/agda/agda/issues/6711): Internal error on `primStringUncons` when no builtin Sigma provided
+- [#6714](https://github.com/agda/agda/issues/6714): Docstring error with Emacs 29+ due to changed escape rules for single quote
+- [#6715](https://github.com/agda/agda/issues/6715): Type checking loops on certain pattern match in cubical (regression in 2.6.3)
+- [#6720](https://github.com/agda/agda/issues/6720): Cubical: internal error in `Sort.hs`
+- [#6725](https://github.com/agda/agda/issues/6725): Cubical: internal error in `Reduce.hs` (regression in 2.6.3)
+- [#6750](https://github.com/agda/agda/issues/6750): Order of deserialization depends on build of Agda (version of `hashable`)
+- [#6757](https://github.com/agda/agda/issues/6757): Incorrect `InteractionMetaBoundaries` warning
+- [#6767](https://github.com/agda/agda/issues/6767): Internal error related to forcing on literals
+- [#6786](https://github.com/agda/agda/issues/6786): Missing "when checking parameters of module M" in error message
+- [#6787](https://github.com/agda/agda/issues/6787): Refine doesn't find proof of refl=refl without K
+- [#6794](https://github.com/agda/agda/issues/6794): Safe Agda accepts `{-# TERMINATING #-}` pragma in `interleaved mutual` block
+- [#6795](https://github.com/agda/agda/issues/6795): Missing warning about discarded `{-# TERMINATING #-}` pragma in `where` block inside `interleaved mutual` block
+- [#6823](https://github.com/agda/agda/issues/6823): Suboptimal error location for missing definition before `mutual` block

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | A simple overlay over Data.Map to manage unordered sets with duplicates.
 

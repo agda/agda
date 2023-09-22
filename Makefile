@@ -87,6 +87,8 @@ ifeq ($(GHC_RTS_OPTS),)
 #
 ifeq ("$(shell $(GHC) --info | grep 'target word size' | cut -d\" -f4)","4")
 GHC_RTS_OPTS := -M2.3G
+else ifeq ($(GHC_VERSION),9.6)
+GHC_RTS_OPTS := -M6G
 else ifeq ($(GHC_VERSION),9.0)
 GHC_RTS_OPTS := -M6G
 else ifeq ($(GHC_VERSION),8.10)
@@ -435,6 +437,7 @@ test : check-whitespace \
        std-lib-succeed \
        std-lib-interaction \
        user-manual-test \
+       doc-test \
        size-solver-test
 
 .PHONY : test-using-std-lib ## Run all tests which use the standard library.
@@ -488,6 +491,11 @@ succeed :
 fail :
 	@$(call decorate, "Suite of failing tests", \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Fail)
+
+.PHONY : fast-fail ##
+fast-fail :
+	@$(call decorate, "Suite of failing tests (using agda-fast)", \
+		AGDA_BIN=$(AGDA_FAST_BIN) $(AGDA_FAST_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Fail)
 
 .PHONY : interaction ##
 interaction :
@@ -613,10 +621,33 @@ user-manual-test :
 		find doc/user-manual -type f -name '*.agdai' -delete; \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/UserManual)
 
+.PHONY : user-manual-covers-options
+user-manual-covers-options :
+	@$(call decorate, "User manual should mention all options", \
+          AGDA_BIN=$(AGDA_BIN) test/doc/user-manual-covers-options.sh)
+
+.PHONY : user-manual-covers-warnings
+user-manual-covers-warnings :
+	@$(call decorate, "User manual should mention all warnings", \
+          AGDA_BIN=$(AGDA_BIN) test/doc/user-manual-covers-warnings.sh)
+
 .PHONY : testing-emacs-mode ##
 testing-emacs-mode:
 	@$(call decorate, "Testing the Emacs mode", \
 	  $(AGDA_MODE) compile)
+
+.PHONY : doc-test ## Install and run doctest for the Agda library.
+doc-test: install-doctest run-doctest
+
+.PHONY : install-doctest ## Install doctest for the current ghc.
+install-doctest:
+	@$(call decorate, "Installing doctest", \
+	  $(CABAL) install doctest --ignore-project)
+
+.PHONY : run-doctest ## Run the doctests for the Agda library.
+run-doctest:
+	@$(call decorate, "Running doctest", \
+	  $(CABAL) repl Agda -w doctest --repl-options=-w)
 
 ##############################################################################
 ## Size solver

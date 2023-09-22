@@ -23,7 +23,6 @@ module Agda.Interaction.Highlighting.Generate
 import Prelude hiding (null)
 
 import Control.Monad
-import Control.Arrow (second)
 
 import qualified Data.Foldable as Fold
 import qualified Data.Map as Map
@@ -50,14 +49,14 @@ import Agda.TypeChecking.MetaVars (isBlockedTerm, hasTwinMeta)
 import Agda.TypeChecking.Monad
   hiding (ModuleInfo, MetaInfo, Primitive, Constructor, Record, Function, Datatype)
 import qualified Agda.TypeChecking.Monad  as TCM
+import qualified Agda.TypeChecking.Monad.Base.Warning as W
 import qualified Agda.TypeChecking.Pretty as TCM
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Warnings ( raiseWarningsOnUsage, runPM )
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete.Definitions as W ( DeclarationWarning(..), DeclarationWarning'(..) )
-import Agda.Syntax.Common (pattern Ranged)
-import qualified Agda.Syntax.Common as Common
+import Agda.Syntax.Common (Induction(..), pattern Ranged)
 import qualified Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Literal as L
@@ -72,13 +71,13 @@ import Agda.Syntax.Scope.Base     ( WithKind(..) )
 import Agda.Syntax.Abstract.Views ( KName, declaredNames )
 
 import Agda.Utils.FileName
-import Agda.Utils.List            ( caseList, initWithDefault, last1 )
+import Agda.Utils.List            ( caseList, last1 )
 import Agda.Utils.List2           ( List2 )
 import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
@@ -290,13 +289,13 @@ nameKinds hlLevel decl = do
                             | otherwise            = Function
   defnToKind   TCM.Datatype{}                        = Datatype
   defnToKind   TCM.Record{}                          = Record
-  defnToKind   TCM.Constructor{ TCM.conInd = i }       = Constructor i
+  defnToKind   TCM.Constructor{ TCM.conSrcCon = c }  = Constructor $ I.conInductive c
   defnToKind   TCM.Primitive{}                       = Primitive
   defnToKind   TCM.PrimitiveSort{}                   = Primitive
   defnToKind   TCM.AbstractDefn{}                    = __IMPOSSIBLE__
 
   con :: NameKind
-  con = Constructor Common.Inductive
+  con = Constructor Inductive
 
 -- | The 'TCM.Axiom' constructor is used to represent various things
 -- which are not really axioms, so when maps are merged 'Postulate's
@@ -377,7 +376,7 @@ printErrorInfo e =
 -- | Generate highlighting for error.
 
 errorHighlighting :: TCErr -> TCM HighlightingInfoBuilder
-errorHighlighting e = errorHighlighting' (getRange e) <$> TCM.prettyError e
+errorHighlighting e = errorHighlighting' (getRange e) <$> TCM.renderError e
 
 errorHighlighting'
   :: Range     -- ^ Error range.
@@ -418,6 +417,7 @@ warningHighlighting' b w = case tcWarning w of
   UnreachableClauses _ rs    -> foldMap deadcodeHighlighting rs
   CoverageIssue{}            -> coverageErrorHighlighting $ getRange w
   CoverageNoExactSplit{}     -> catchallHighlighting $ getRange w
+  InlineNoExactSplit{}       -> catchallHighlighting $ getRange w
   UnsolvedConstraints cs     -> if b then constraintsHighlighting [] cs else mempty
   UnsolvedMetaVariables rs   -> if b then metasHighlighting rs          else mempty
   AbsurdPatternRequiresNoRHS{} -> deadcodeHighlighting w
@@ -432,6 +432,7 @@ warningHighlighting' b w = case tcWarning w of
   EmptyRewritePragma{}       -> deadcodeHighlighting w
   EmptyWhere{}               -> deadcodeHighlighting w
   IllformedAsClause{}        -> deadcodeHighlighting w
+  UselessPragma r _          -> deadcodeHighlighting r
   UselessPublic{}            -> deadcodeHighlighting w
   UselessHiding xs           -> foldMap deadcodeHighlighting xs
   UselessInline{}            -> mempty
@@ -446,22 +447,13 @@ warningHighlighting' b w = case tcWarning w of
   InversionDepthReached{}    -> mempty
   NoGuardednessFlag{}        -> mempty
   GenericWarning{}           -> mempty
-  GenericUseless r _         -> deadcodeHighlighting r
   -- Andreas, 2020-03-21, issue #4456:
   -- Error warnings that do not have dedicated highlighting
   -- are highlighted as errors.
-  GenericNonFatalError{}                -> errorWarningHighlighting w
+  InvalidCharacterLiteral{}             -> errorWarningHighlighting w
   SafeFlagPostulate{}                   -> errorWarningHighlighting w
   SafeFlagPragma{}                      -> errorWarningHighlighting w
-  SafeFlagNonTerminating                -> errorWarningHighlighting w
-  SafeFlagTerminating                   -> errorWarningHighlighting w
   SafeFlagWithoutKFlagPrimEraseEquality -> errorWarningHighlighting w
-  SafeFlagEta                           -> errorWarningHighlighting w
-  SafeFlagInjective                     -> errorWarningHighlighting w
-  SafeFlagNoCoverageCheck               -> errorWarningHighlighting w
-  SafeFlagNoPositivityCheck             -> errorWarningHighlighting w
-  SafeFlagPolarity                      -> errorWarningHighlighting w
-  SafeFlagNoUniverseCheck               -> errorWarningHighlighting w
   InfectiveImport{}                     -> errorWarningHighlighting w
   CoInfectiveImport{}                   -> errorWarningHighlighting w
   WithoutKFlagPrimEraseEquality -> mempty
@@ -477,6 +469,7 @@ warningHighlighting' b w = case tcWarning w of
   UnsupportedIndexedMatch{}  -> mempty
   AsPatternShadowsConstructorOrPatternSynonym{}
                              -> deadcodeHighlighting w
+  PatternShadowsConstructor{}-> errorWarningHighlighting w  -- or mempty ?
   PlentyInHardCompileTimeMode o
                              -> deadcodeHighlighting o
   RecordFieldWarning w       -> recordFieldWarningHighlighting w
@@ -485,6 +478,12 @@ warningHighlighting' b w = case tcWarning w of
     Pa.UnsupportedAttribute{}     -> deadcodeHighlighting w
     Pa.MultipleAttributes{}       -> deadcodeHighlighting w
     Pa.OverlappingTokensWarning{} -> mempty
+  NotAffectedByOpaque{}           -> deadcodeHighlighting w
+  UselessOpaque{}                 -> deadcodeHighlighting w
+  UnfoldTransparentName r         -> deadcodeHighlighting r
+  FaceConstraintCannotBeHidden{}  -> deadcodeHighlighting w
+  FaceConstraintCannotBeNamed{}   -> deadcodeHighlighting w
+
   NicifierIssue (DeclarationWarning _ w) -> case w of
     -- we intentionally override the binding of `w` here so that our pattern of
     -- using `getRange w` still yields the most precise range information we
@@ -518,6 +517,14 @@ warningHighlighting' b w = case tcWarning w of
     InvalidRecordDirective{}         -> deadcodeHighlighting w
     OpenPublicAbstract{}             -> deadcodeHighlighting w
     OpenPublicPrivate{}              -> deadcodeHighlighting w
+    SafeFlagEta                   {} -> errorWarningHighlighting w
+    SafeFlagInjective             {} -> errorWarningHighlighting w
+    SafeFlagNoCoverageCheck       {} -> errorWarningHighlighting w
+    SafeFlagNoPositivityCheck     {} -> errorWarningHighlighting w
+    SafeFlagNoUniverseCheck       {} -> errorWarningHighlighting w
+    SafeFlagNonTerminating        {} -> errorWarningHighlighting w
+    SafeFlagPolarity              {} -> errorWarningHighlighting w
+    SafeFlagTerminating           {} -> errorWarningHighlighting w
     W.ShadowingInTelescope nrs       -> foldMap
                                           (shadowingTelHighlighting . snd)
                                           nrs
@@ -535,8 +542,8 @@ warningHighlighting' b w = case tcWarning w of
 recordFieldWarningHighlighting ::
   RecordFieldWarning -> HighlightingInfoBuilder
 recordFieldWarningHighlighting = \case
-  DuplicateFieldsWarning xrs      -> dead xrs
-  TooManyFieldsWarning _q _ys xrs -> dead xrs
+  W.DuplicateFields xrs      -> dead xrs
+  W.TooManyFields _q _ys xrs -> dead xrs
   where
   dead :: [(C.Name, Range)] -> HighlightingInfoBuilder
   dead = mconcat . map deadcodeHighlighting
@@ -677,7 +684,7 @@ storeDisambiguatedField = storeDisambiguatedName Field
 storeDisambiguatedProjection :: A.QName -> TCM ()
 storeDisambiguatedProjection = storeDisambiguatedField
 
-storeDisambiguatedConstructor :: Common.Induction -> A.QName -> TCM ()
+storeDisambiguatedConstructor :: Induction -> A.QName -> TCM ()
 storeDisambiguatedConstructor i = storeDisambiguatedName $ Constructor i
 
 -- TODO: move the following function to a new module TypeChecking.Overloading

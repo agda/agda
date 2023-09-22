@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE GADTs #-}
 
 -- | Tools to manipulate patterns in internal syntax

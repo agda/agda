@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.Interaction.AgdaTop
     ( repl
     ) where
@@ -8,7 +10,7 @@ import Control.Monad.State          ( evalStateT, runStateT )
 import Control.Monad.Trans          ( lift )
 
 import Data.Char
-import Data.Maybe
+
 import System.IO
 
 import Agda.Interaction.Base
@@ -16,6 +18,7 @@ import Agda.Interaction.ExitCode
 import Agda.Interaction.Response as R
 import Agda.Interaction.InteractionTop
 import Agda.Interaction.Options
+
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 

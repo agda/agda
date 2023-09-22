@@ -1,0 +1,7 @@
+OpaqueData.agda:5,3-6,14
+warning: -W[no]NotAffectedByOpaque
+Only functions and primitives can be marked opaque. This
+declaration will be treated as transparent.
+when scope checking the declaration
+  data Foo where
+    foo : Foo

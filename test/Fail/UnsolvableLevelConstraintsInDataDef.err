@@ -1,4 +1,4 @@
 UnsolvableLevelConstraintsInDataDef.agda:7,3-6
 Set₂ is not less or equal than Set₁
-when checking that the type (E : Set₁) → D ≡ E → (E → D) → D of the
-constructor abs fits in the sort Set₁ of the datatype.
+when checking that the type Set₁ of an argument to the constructor
+abs fits in the sort Set₁ of the datatype.

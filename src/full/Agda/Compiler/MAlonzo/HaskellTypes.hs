@@ -34,7 +34,7 @@ import qualified Agda.Utils.Haskell.Syntax as HS
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Syntax.Common.Pretty (prettyShow)
 
 import Agda.Utils.Impossible
 
@@ -172,7 +172,8 @@ haskellType' t = runToHs (unEl t) (fromType t)
     fromType = fromTerm . unEl
     fromTerm v = do
       v   <- liftTCM $ unSpine <$> reduce v
-      reportSLn "compile.haskell.type" 50 $ "toHaskellType " ++ show v
+      reportSDoc "compile.haskell.type" 25 $ "toHaskellType " <+> prettyTCM v
+      reportSDoc "compile.haskell.type" 50 $ "toHaskellType " <+> pretty v
       kit <- liftTCM coinductionKit
       case v of
         Var x es -> do
@@ -253,6 +254,8 @@ hsTypeApproximation poly fv t = do
       rteCon = HS.TyCon . HS.Qual mazRTE . HS.Ident
       tyVar n i = HS.TyVar $ HS.Ident $ "a" ++ show (n - i)
   let go n t = do
+        reportSDoc "compile.haskell.type" 25 $ "hsTypeApproximation " <+> prettyTCM t
+        reportSDoc "compile.haskell.type" 50 $ "hsTypeApproximation " <+> pretty t
         t <- unSpine <$> reduce t
         case t of
           Var i _ | poly == PolyApprox -> return $ tyVar n i
@@ -260,10 +263,12 @@ hsTypeApproximation poly fv t = do
             where k = case b of Abs{} -> 1; NoAbs{} -> 0
           Def q els
             | q `is` ghcEnvList
-            , Apply t <- last1 (Proj ProjSystem __IMPOSSIBLE__) els ->
+            , Just k <- ghcEnvListArity env
+            , [Apply t] <- drop (k-1) els ->
               HS.TyApp (tyCon "[]") <$> go n (unArg t)
             | q `is` ghcEnvMaybe
-            , Apply t <- last1 (Proj ProjSystem __IMPOSSIBLE__) els ->
+            , Just k <- ghcEnvMaybeArity env
+            , [Apply t] <- drop (k-1) els ->
               HS.TyApp (tyCon "Maybe") <$> go n (unArg t)
             | q `is` ghcEnvBool    -> return $ tyCon "Bool"
             | q `is` ghcEnvInteger -> return $ tyCon "Integer"

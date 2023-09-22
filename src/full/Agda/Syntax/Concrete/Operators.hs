@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE PatternSynonyms #-}
 
@@ -27,8 +29,6 @@ import Data.Function (on)
 import qualified Data.Function
 import qualified Data.List as List
 import Data.Maybe
-import Data.Map (Map)
-import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Traversable as Trav
@@ -38,7 +38,6 @@ import Agda.Syntax.Concrete hiding (appView)
 import Agda.Syntax.Concrete.Operators.Parser
 import Agda.Syntax.Concrete.Operators.Parser.Monad hiding (parse)
 import Agda.Syntax.Concrete.Pattern
-import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Position
 import Agda.Syntax.Notation
 import Agda.Syntax.Scope.Base
@@ -50,8 +49,9 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.State (getScope)
 
+import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Either
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
 import Agda.Utils.List2 (List2, pattern List2)
@@ -245,11 +245,11 @@ buildParsers kind exprNames = do
                        (someKindsOfNames [ConName, CoConName, FldName, PatternSynName]) flat
         conNames   = Set.fromList $
                        filter (flip Set.member namesInExpr) $
-                       map (notaName . head) cons
+                       map (notaName . List1.head) cons
         conParts   = Set.fromList $
                        concatMap notationNames $
                        filter (or . partsPresent) $
-                       concat cons
+                       List1.concat cons
 
         allNames   = Set.fromList $
                        filter (flip Set.member namesInExpr) names
@@ -408,7 +408,7 @@ buildParsers kind exprNames = do
         mkP key parseSections p0 ops higher includeHigher =
             memoise (NodeK key) $
               Fold.asum $
-                (if includeHigher then (higher :) else id) $
+                applyWhen includeHigher (higher :) $
                 catMaybes [nonAssoc, preRights, postLefts]
             where
             choice :: forall k.
@@ -611,7 +611,7 @@ parseLHS' lhsOrPatSyn top p = do
                        map (fullParen . fst) rs
     where
         getNames kinds flat =
-          map (notaName . head) $ getDefinedNames kinds flat
+          map (notaName . List1.head) $ getDefinedNames kinds flat
 
         -- The pattern is retained for error reporting in case of ambiguous parses.
         validPattern :: PatternCheckConfig -> Pattern -> PM (Pattern, ParseLHS)

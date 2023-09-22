@@ -7,10 +7,11 @@ module Agda.TypeChecking.RecordPatterns
   , translateCompiledClauses
   , translateSplitTree
   , recordPatternToProjections
+  , recordRHSToCopatterns
   ) where
 
 import Control.Arrow          ( first, second )
-import Control.Monad          ( forM, unless, when, zipWithM )
+import Control.Monad          ( forM, join, unless, when, zipWithM )
 import Control.Monad.Fix      ( mfix )
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Reader   ( MonadReader(..), ReaderT(..), runReaderT )
@@ -21,6 +22,8 @@ import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Map as Map
 
+import qualified Agda.Syntax.Common.Pretty as P
+import Agda.Syntax.Common.Pretty (Pretty(..), prettyShow)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
@@ -38,11 +41,12 @@ import Agda.TypeChecking.Telescope
 import Agda.Interaction.Options
 
 import Agda.Utils.Either
+import Agda.Utils.Function
 import Agda.Utils.Functor
+import Agda.Utils.Monad
 import Agda.Utils.Permutation hiding (dropFrom)
-import Agda.Utils.Pretty (Pretty(..))
-import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
+import Agda.Utils.Tuple
 import Agda.Utils.Update (MonadChange, tellDirty)
 
 import Agda.Utils.Impossible
@@ -122,9 +126,9 @@ cutColumns i n rows = unzip (map (cutSublist i n) rows)
 
 getEtaAndArity :: SplitTag -> TCM (Bool, Nat)
 getEtaAndArity (SplitCon c) =
-  for (getConstructorInfo c) $ \case
-    DataCon n        -> (False, n)
-    RecordCon _ eta fs -> (eta == YesEta, size fs)
+  getConstructorInfo c <&> \case
+    DataCon n           -> (False, n)
+    RecordCon _ eta n _ -> (eta == YesEta, n)
 getEtaAndArity (SplitLit l) = return (False, 0)
 getEtaAndArity SplitCatchall = return (False, 1)
 
@@ -179,7 +183,7 @@ translateCompiledClauses cc = ignoreAbstractMode $ do
           _ | Just (ch, b) <- eta -> yesEtaCase b ch
           [(c, b)] | not comatch -> -- possible eta-match
             getConstructorInfo' c >>= \ case
-              Just (RecordCon pm YesEta fs) -> yesEtaCase b $
+              Just (RecordCon pm YesEta _ar fs) -> yesEtaCase b $
                 ConHead c (IsRecord pm) Inductive (map argFromDom fs)
               _ -> noEtaCase
           _ -> noEtaCase
@@ -206,6 +210,98 @@ mergeCatchAll cc ca = maybe cc (mappend cc) ca
 -}
 -}
 
+
+-- | Transform definitions returning record values to use copatterns instead.
+--   This allows e.g. termination-checking constructor-style coinduction.
+--
+--   For example:
+--
+--   @
+--     nats : Nat → Stream Nat
+--     nats n = n ∷ nats (1 + n)
+--   @
+--
+--   The clause is translated to:
+--
+--   @
+--     nats n .head = n
+--     nats n .tail = nats (1 + n)
+--   @
+--
+--   A change is signalled if definitional equalities might not hold after the
+--   translation, e.g. if a non-eta constructor was turned to copattern matching.
+recordRHSsToCopatterns ::
+     forall m. (MonadChange m, PureTCM m)
+  => [Clause]
+  -> m [Clause]
+recordRHSsToCopatterns cls = do
+  reportSLn "tc.inline.con" 40 $ "enter recordRHSsToCopatterns with " ++ show (length cls) ++ " clauses"
+  concatMapM recordRHSToCopatterns cls
+
+recordRHSToCopatterns ::
+     forall m. (MonadChange m, PureTCM m)
+  => Clause
+  -> m [Clause]
+recordRHSToCopatterns cl = do
+  reportSLn "tc.inline.con" 40 $ "enter recordRHSToCopatterns"
+
+  case cl of
+
+    -- RHS must be fully applied coinductive constructor/record expression.
+    cl@Clause{ namedClausePats = ps
+             , clauseBody      = Just v0@(Con con@(ConHead c _ _ind fs) _ci es)
+             , clauseType      = mt
+             }
+      | not (null fs)           -- at least one field
+      , length fs == length es  -- fully applied
+      , Just vs <- allApplyElims es
+
+          -- Only expand constructors labelled @{-# INLINE c #-}@.
+      -> inlineConstructor c >>= \case
+        Nothing  -> return [cl]
+        Just eta -> do
+
+          mt <- traverse reduce mt
+
+          -- If it may change definitional equality,
+          -- announce that the translation actually fired.
+          unless eta tellDirty
+
+          -- Iterate the translation for nested constructor rhss.
+          recordRHSsToCopatterns =<< do
+
+            -- Create one clause per projection.
+            forM (zip fs vs) $ \ (f, v) -> do
+
+              -- Get the type of the field.
+              let inst :: Type -> m (Maybe Type)
+                  inst t = fmap thd3 <$> projectTyped v0 t ProjSystem (unArg f)
+
+              let fuse :: Maybe (Arg (Maybe a)) -> Maybe (Arg a)
+                  fuse = join . fmap distributeF
+
+              mt' :: Maybe (Arg Type) <- fuse <$> traverse (traverse inst) mt
+
+              -- Make clause ... .f = v
+              return cl
+                { namedClausePats = ps ++ [ unnamed . ProjP ProjSystem <$> f ]
+                , clauseBody      = Just $ unArg v
+                , clauseType      = mt'
+                }
+
+    -- Otherwise: no change.
+    cl -> return [cl]
+
+  where
+    -- @Nothing@ means do not inline, @Just eta@ means inline.
+    inlineConstructor :: QName -> m (Maybe Bool)
+    inlineConstructor c = getConstInfo c <&> theDef >>= \case
+      Constructor { conData, conInline } -> do
+        reportSLn "tc.inline.con" 80 $
+          ("can" ++) $ applyUnless conInline ("not" ++) $ " inline constructor " ++ prettyShow c
+        if not conInline then return Nothing else Just <$> isEtaRecord conData
+      _ -> return Nothing
+
 -- | Transform definitions returning record expressions to use copatterns
 --   instead. This prevents terms from blowing up when reduced.
 recordExpressionsToCopatterns
@@ -217,13 +313,12 @@ recordExpressionsToCopatterns = \case
     cc@Fail{} -> return cc
     cc@(Done xs (Con c ConORec es)) -> do  -- don't translate if using the record /constructor/
       let vs = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-      Constructor{ conArity = ar } <- theDef <$> getConstInfo (conName c)
       irrProj <- optIrrelevantProjections <$> pragmaOptions
       getConstructorInfo (conName c) >>= \ case
-        RecordCon CopatternMatching YesEta fs
-          | ar <- length fs, ar > 0,                   -- only for eta-records with at least one field
-            length vs == ar,                           -- where the constructor application is saturated
-            irrProj || not (any isIrrelevant fs) -> do -- and irrelevant projections (if any) are allowed
+        RecordCon CopatternMatching YesEta ar fs
+          | ar > 0                                     -- only for eta-records with at least one field
+          , length vs == ar                            -- where the constructor application is saturated
+          , irrProj || not (any isIrrelevant fs) -> do -- and irrelevant projections (if any) are allowed
               tellDirty
               Case (defaultArg $ length xs) <$> do
                 -- translate new cases recursively (there might be nested record expressions)

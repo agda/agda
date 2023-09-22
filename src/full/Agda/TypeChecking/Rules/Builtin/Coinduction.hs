@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 ------------------------------------------------------------------------
 -- | Handling of the INFINITY, SHARP and FLAT builtins.
@@ -18,7 +19,6 @@ import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Primitive
-import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rules.Builtin
@@ -99,12 +99,12 @@ bindBuiltinSharp x =
                     , conSrcCon = ConHead sharp (IsRecord CopatternMatching) CoInductive [] -- flat is added as field later
                     , conData   = defName infDefn
                     , conAbstr  = ConcreteDef
-                    , conInd    = CoInductive
                     , conComp   = emptyCompKit
                     , conProj   = Nothing
                     , conForced = []
                     , conErased = Nothing
                     , conErasure = erasure
+                    , conInline  = True  -- This might make the sharp-translation superfluous.
                     }
                 }
     return $ Def sharp []

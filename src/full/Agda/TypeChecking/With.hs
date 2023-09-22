@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.With where
@@ -7,7 +9,6 @@ import Prelude hiding ((!!))
 import Control.Monad
 import Control.Monad.Writer (WriterT, runWriterT, tell)
 
-import Data.Either
 import qualified Data.List as List
 import Data.Maybe
 import Data.Foldable ( foldrM )
@@ -40,13 +41,14 @@ import Agda.TypeChecking.Rules.LHS.Problem (ProblemEq(..))
 
 import Agda.Utils.Functor
 import Agda.Utils.List
+import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null (empty)
 import Agda.Utils.Permutation
-import Agda.Utils.Pretty (prettyShow)
-import qualified Agda.Utils.Pretty as P
+import Agda.Syntax.Common.Pretty (prettyShow)
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -202,8 +204,8 @@ buildWithFunction
   -> Permutation          -- ^ Final permutation.
   -> Nat                  -- ^ Number of needed vars.
   -> Nat                  -- ^ Number of with expressions.
-  -> [A.SpineClause]      -- ^ With-clauses.
-  -> TCM [A.SpineClause]  -- ^ With-clauses flattened wrt. parent patterns.
+  -> List1 A.SpineClause  -- ^ With-clauses.
+  -> TCM (List1 A.SpineClause) -- ^ With-clauses flattened wrt. parent patterns.
 buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM buildWithClause cs
   where
     -- Nested with-functions will iterate this function once for each parent clause.

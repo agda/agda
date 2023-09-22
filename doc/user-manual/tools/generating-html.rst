@@ -23,11 +23,9 @@ your own CSS file instead of the :download:`default, included one
   Thus, you can get hold of the CSS file via
   :samp:`cat $(agda --print-agda-dir)/html/Agda.css`.
 
-You can also highlight all the occurrences of the symbol your mouse is
-hovering in the HTML by adding the ``--highlight-occurrences`` option.
-The default behaviour only highlight the single symbol your mouse is
-hovering. Note that this feature may cause browser performance problem,
-please enable it carefully (not recommended for huge files).
+You can also get highlighting for all occurrences of the symbol the mouse pointer is
+hovering over in the HTML by adding the :option:`--highlight-occurrences` option.
+The default behaviour is to only highlight the single symbol under the mouse pointer.
 
 If you're using Literate Agda with Markdown or reStructedText and you
 want to highlight your Agda codes with Agda's HTML backend and render
@@ -55,14 +53,14 @@ files, use ``--html-highlight=auto``, which means auto-detection.
 Options
 -------
 
-:samp:`--html-dir={directory}`
+:option:`--html-dir={DIR}`
   Changes the directory where the output is placed to
-  :samp:`{directory}`. Default: ``html``.
+  :samp:`{DIR}`. Default: ``html``.
 
-:samp:`--css={URL}`
+:option:`--css={URL}`
   The CSS_ file used by the HTML files (:samp:`{URL}` can be relative).
 
-:samp:`--html-highlight=[code,all,auto]`
+:option:`--html-highlight=[code,all,auto]`
   Highlight Agda code only or everything in the generated HTML files.
   Default: ``all``.
 

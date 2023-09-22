@@ -151,7 +151,7 @@ definition:
 
 removing the dots in ``foo`` changes the case tree so that it splits
 on the first argument first.  This results in the third equation not
-holding definitionally (and thus the definition being rejected under
+holding definitionally (and thus the definition being flagged under
 the option :ref:`--exact-split <catchall-pragma>`).
 
 .. _absurd-patterns:
@@ -247,12 +247,12 @@ Emacs.
 
 .. _catchall-pragma:
 
-The :option:`--exact-split` flag causes Agda to raise an error whenever a
+The :option:`--exact-split` flag causes Agda to raise a warning whenever a
 clause in a definition by pattern matching cannot be made to hold
 definitionally. Specific clauses can be excluded from this check by
 means of the ``{-# CATCHALL #-}`` pragma.
 
-For instance, the above definition of ``max`` will be rejected when
+For instance, the above definition of ``max`` will be flagged when
 using the :option:`--exact-split` flag because its second clause does not to
 hold definitionally.
 

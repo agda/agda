@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Constraints where
@@ -21,7 +23,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.LevelConstraints
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Sort
-import Agda.TypeChecking.MetaVars.Mention
 import Agda.TypeChecking.Warnings
 
 import Agda.TypeChecking.Irrelevance
@@ -36,11 +37,10 @@ import {-# SOURCE #-} Agda.TypeChecking.Lock
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal ( checkType )
 
 import Agda.Utils.CallStack ( withCurrentCallStack )
-import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Syntax.Common.Pretty (prettyShow)
 import qualified Agda.Utils.ProfileOptions as Profile
 
 import Agda.Utils.Impossible
@@ -65,7 +65,7 @@ addConstraintTCM unblock c = do
         ]
       -- Jesper, 2022-10-22: We should never block on a meta that is
       -- already solved.
-      forM_ (Set.toList $ allBlockingMetas unblock) $ \m ->
+      forM_ (allBlockingMetas unblock) $ \ m ->
         whenM (isInstantiatedMeta m) $ do
           reportSDoc "tc.constr.add" 5 $ "Attempted to block on solved meta" <+> prettyTCM m
           __IMPOSSIBLE__
@@ -285,10 +285,10 @@ solveConstraint_ (UnBlock m)                =   -- alwaysUnblock since these hav
       Open -> __IMPOSSIBLE__
       OpenInstance -> __IMPOSSIBLE__
 solveConstraint_ (FindInstance m cands) = findInstance m cands
-solveConstraint_ (CheckFunDef d i q cs _err) = withoutCache $
+solveConstraint_ (CheckFunDef i q cs _err) = withoutCache $
   -- re #3498: checking a fundef would normally be cached, but here it's
   -- happening out of order so it would only corrupt the caching log.
-  checkFunDef d i q cs
+  checkFunDef i q cs
 solveConstraint_ (CheckLockedVars a b c d)   = checkLockedVars a b c d
 solveConstraint_ (HasBiggerSort a)      = hasBiggerSort a
 solveConstraint_ (HasPTSRule a b)       = hasPTSRule a b
@@ -317,12 +317,7 @@ debugConstraints = verboseS "tc.constr" 50 $ do
 
 -- Update the blocker after some instantiation or pruning might have happened.
 updateBlocker :: (PureTCM m) => Blocker -> m Blocker
-updateBlocker b = case b of
-  UnblockOnAll xs -> unblockOnAll . Set.fromList <$> traverse updateBlocker (Set.toList xs)
-  UnblockOnAny xs -> unblockOnAny . Set.fromList <$> traverse updateBlocker (Set.toList xs)
-  UnblockOnMeta x -> ifM (isInstantiatedMeta x) (return alwaysUnblock) (return b)
-  UnblockOnProblem pi -> ifM (isProblemSolved pi) (return alwaysUnblock) (return $ UnblockOnProblem pi)
-  UnblockOnDef qn -> return (unblockOnDef qn)
+updateBlocker = instantiate
 
 addAndUnblocker :: (PureTCM m, MonadBlock m) => Blocker -> m a -> m a
 addAndUnblocker u

@@ -55,9 +55,7 @@ newtype Ranges = Ranges [Range]
 -- | The 'Ranges' invariant.
 
 rangesInvariant :: Ranges -> Bool
-rangesInvariant (Ranges []) = True
-rangesInvariant (Ranges rs) =
-  and (zipWith (<) (map to $ init rs) (map from $ tail rs))
+rangesInvariant (Ranges rs) = allConsecutive (\ r s -> to r < from s) rs
 
 ------------------------------------------------------------------------
 -- Queries

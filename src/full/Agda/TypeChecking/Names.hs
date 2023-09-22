@@ -37,12 +37,10 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad hiding (getConstInfo, typeOfConst)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Errors
-import Agda.TypeChecking.Level
 import Agda.TypeChecking.Pretty ()  -- instances only
-import Agda.TypeChecking.Free
 
 import Agda.Utils.Fail (Fail, runFail_)
+import Agda.Utils.List1 ( List1, pattern (:|) )
 import Agda.Utils.Impossible
 
 instance HasBuiltins m => HasBuiltins (NamesT m) where
@@ -182,6 +180,12 @@ bindNArg :: ( MonadFail m
 bindNArg [] f = AbsN [] <$> f []
 bindNArg (Arg i x:xs) f = toAbsN <$> bind x (\ x -> bindNArg xs (\ xs -> f ((Arg i <$> x):xs)))
 
+
+type Vars1 m = (forall b. (Subst b, DeBruijn b) => List1 (NamesT m b))
+
+bindN1 :: MonadFail m
+  => List1 ArgName -> (Vars1 m -> NamesT m a) -> NamesT m (AbsN a)
+bindN1 (x:|xs) f = toAbsN <$> bind x (\ x -> bindN xs (\ xs -> f (x:|xs)))
 
 glamN :: (Functor m, MonadFail m) =>
          [Arg ArgName] -> (NamesT m Args -> NamesT m Term) -> NamesT m Term

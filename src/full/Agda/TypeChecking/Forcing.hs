@@ -82,7 +82,7 @@ import Agda.TypeChecking.Telescope
 
 import Agda.Utils.List
 import Agda.Utils.Monad
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible

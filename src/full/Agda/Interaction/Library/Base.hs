@@ -13,8 +13,6 @@ import Control.Monad.Writer        ( WriterT, MonadWriter, tell )
 import Control.Monad.IO.Class      ( MonadIO(..) )
 
 import Data.Bifunctor              ( first , second )
-import Data.Char                   ( isDigit )
-import qualified Data.List         as List
 import Data.Map                    ( Map )
 import qualified Data.Map          as Map
 import Data.Semigroup              ( Semigroup(..) )
@@ -23,18 +21,16 @@ import Data.Text                   ( Text, unpack )
 import GHC.Generics                ( Generic )
 
 import System.Directory
-import System.FilePath
 
 import Agda.Interaction.Options.Warnings
 
 import Agda.Syntax.Position
 
-import Agda.Utils.FileName
 import Agda.Utils.Lens
 import Agda.Utils.List1            ( List1, toList )
 import Agda.Utils.List2            ( List2, toList )
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 
 -- | A symbolic library name.
 --
@@ -138,22 +134,22 @@ emptyLibFile = AgdaLibFile
 
 -- | Lenses for AgdaLibFile
 
-libName :: Lens' LibName AgdaLibFile
+libName :: Lens' AgdaLibFile LibName
 libName f a = f (_libName a) <&> \ x -> a { _libName = x }
 
-libFile :: Lens' FilePath AgdaLibFile
+libFile :: Lens' AgdaLibFile FilePath
 libFile f a = f (_libFile a) <&> \ x -> a { _libFile = x }
 
-libAbove :: Lens' Int AgdaLibFile
+libAbove :: Lens' AgdaLibFile Int
 libAbove f a = f (_libAbove a) <&> \ x -> a { _libAbove = x }
 
-libIncludes :: Lens' [FilePath] AgdaLibFile
+libIncludes :: Lens' AgdaLibFile [FilePath]
 libIncludes f a = f (_libIncludes a) <&> \ x -> a { _libIncludes = x }
 
-libDepends :: Lens' [LibName] AgdaLibFile
+libDepends :: Lens' AgdaLibFile [LibName]
 libDepends f a = f (_libDepends a) <&> \ x -> a { _libDepends = x }
 
-libPragmas :: Lens' OptionsPragma AgdaLibFile
+libPragmas :: Lens' AgdaLibFile OptionsPragma
 libPragmas f a = f (_libPragmas a) <&> \ x -> a { _libPragmas = x }
 
 
@@ -217,7 +213,7 @@ data LibError'
         -- ^ Name of the @executables@ file.
       Text
         -- ^ Name of the executable that is defined twice.
-      (List2 FilePath)
+      (List2 (LineNumber, FilePath))
         -- ^ The resolutions of the executable.
   -- deriving (Show)
 
@@ -410,7 +406,7 @@ instance Pretty LibError' where
 
     DuplicateExecutable exeFile exe paths -> vcat $
       hcat [ "Duplicate entries for executable '", (text . unpack) exe, "' in ", text exeFile, ":" ] :
-      map (nest 2 . ("-" <+>) . text) (toList paths)
+      map (\ (ln, fp) -> nest 2 $ (pretty ln <> colon) <+> text fp) (toList paths)
 
 -- | Print library file parse error without position info.
 --

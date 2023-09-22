@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Precompute free variables in a term (and store in 'ArgInfo').
 module Agda.TypeChecking.Free.Precompute
   ( PrecomputeFreeVars, precomputeFreeVars
@@ -74,10 +76,8 @@ instance PrecomputeFreeVars Term where
 instance PrecomputeFreeVars Sort where
   precomputeFreeVars s =
     case s of
-      Type a     -> Type <$> precomputeFreeVars a
-      Prop a     -> Prop <$> precomputeFreeVars a
+      Univ u a   -> Univ u <$> precomputeFreeVars a
       Inf _ _    -> pure s
-      SSet a     -> SSet <$> precomputeFreeVars a
       SizeUniv   -> pure s
       LockUniv   -> pure s
       LevelUniv  -> pure s

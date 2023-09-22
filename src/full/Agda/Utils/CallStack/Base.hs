@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 module Agda.Utils.CallStack.Base (
   -- * Simple type aliases
@@ -80,7 +81,7 @@ type CallSite = (SrcFun, SrcLoc)
 type CallSiteFilter = CallSite -> Bool
 
 -- * Simple String representations
--- Note that there are @Agda.Utils.Pretty@ instances defined in @Agda.Utils.CallStack.Pretty@
+-- Note that there are @Agda.Syntax.Common.Pretty@ instances defined in @Agda.Utils.CallStack.Pretty@
 
 -- | The same as the un-exported internal function in @GHC.Exceptions (prettyCallStackLines)@
 --  Prints like: @doFoo, called at foo.hs:190:24 in main:Main@

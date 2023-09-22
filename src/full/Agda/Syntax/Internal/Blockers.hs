@@ -13,7 +13,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Internal.Elim
 
-import Agda.Utils.Pretty hiding ((<>))
+import Agda.Syntax.Common.Pretty hiding ((<>))
 import Agda.Utils.Functor
 
 ---------------------------------------------------------------------------
@@ -60,6 +60,14 @@ instance Monoid (NotBlocked' t) where
   mappend = (<>)
 
 instance NFData t => NFData (NotBlocked' t)
+
+instance Pretty t => Pretty (NotBlocked' t) where
+  pretty = \case
+    StuckOn e        -> "elimination" <+> pretty e
+    Underapplied     -> "missing elimination (underapplied)"
+    AbsurdMatch      -> "absurd match"
+    MissingClauses x -> "missing clause for" <+> pretty x
+    ReallyNotBlocked -> "(not stuck)"
 
 -- | What is causing the blocking? Or in other words which metas or problems need to be solved to
 --   unblock the blocked computation/constraint.

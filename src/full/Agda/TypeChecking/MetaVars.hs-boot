@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 module Agda.TypeChecking.MetaVars where
 
 import Agda.Syntax.Common           ( Arg )

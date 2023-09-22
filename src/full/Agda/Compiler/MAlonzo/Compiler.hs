@@ -1,5 +1,9 @@
 
-module Agda.Compiler.MAlonzo.Compiler where
+module Agda.Compiler.MAlonzo.Compiler
+  ( ghcBackend
+  , ghcInvocationStrings
+  )
+  where
 
 import Control.Arrow (second)
 import Control.DeepSeq
@@ -45,11 +49,10 @@ import Agda.Compiler.Treeless.Unused
 import Agda.Compiler.Treeless.Erase
 import Agda.Compiler.Backend
 
-import Agda.Interaction.Imports
 import Agda.Interaction.Options
 
 import Agda.Syntax.Common
-import qualified Agda.Syntax.Abstract.Name as A
+import Agda.Syntax.Common.Pretty (prettyShow, render)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Names (namesIn)
 import qualified Agda.Syntax.Treeless as T
@@ -58,7 +61,6 @@ import Agda.Syntax.TopLevelModuleName
 
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Primitive (getBuiltinName)
-import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty hiding ((<>))
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -74,10 +76,8 @@ import Agda.Utils.List
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Pretty (prettyShow, render)
 import Agda.Utils.Singleton
 import qualified Agda.Utils.IO.UTF8 as UTF8
-import Agda.Utils.String
 
 import Paths_Agda
 
@@ -131,10 +131,18 @@ defaultGHCFlags = GHCFlags
   , flagGhcStrict     = False
   }
 
+-- | The option to activate the GHC backend.
+--
+ghcInvocationFlag :: OptDescr (Flag GHCFlags)
+ghcInvocationFlag =
+      Option ['c']  ["compile", "ghc"] (NoArg enable)
+                    "compile program using the GHC backend"
+  where
+    enable      o = pure o{ flagGhcCompile    = True }
+
 ghcCommandLineFlags :: [OptDescr (Flag GHCFlags)]
 ghcCommandLineFlags =
-    [ Option ['c']  ["compile", "ghc"] (NoArg enable)
-                    "compile program using the GHC backend"
+    [ ghcInvocationFlag
     , Option []     ["ghc-dont-call-ghc"] (NoArg dontCallGHC)
                     "don't call GHC, just write the GHC Haskell files."
     , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
@@ -147,7 +155,6 @@ ghcCommandLineFlags =
                     "make functions strict"
     ]
   where
-    enable      o = pure o{ flagGhcCompile    = True }
     dontCallGHC o = pure o{ flagGhcCallGhc    = False }
     ghcFlag f   o = pure o{ flagGhcFlags      = flagGhcFlags o ++ [f] }
     strictData  o = pure o{ flagGhcStrictData = True }
@@ -159,6 +166,16 @@ withCompilerFlag :: FilePath -> Flag GHCFlags
 withCompilerFlag fp o = case flagGhcBin o of
  Nothing -> pure o { flagGhcBin = Just fp }
  Just{}  -> throwError "only one compiler path allowed"
+
+-- | Option strings to activate the GHC backend.
+--
+ghcInvocationStrings :: [String]
+ghcInvocationStrings = optionStrings ghcInvocationFlag
+
+-- | Get all flags that activate the given option.
+--
+optionStrings :: OptDescr a -> [String]
+optionStrings (Option short long _ _) = map (\ c -> '-' : c : []) short ++ long
 
 --- Context types ---
 
@@ -274,7 +291,7 @@ ghcPreCompile flags = do
       , builtinAgdaTCMDefineFun
       , builtinAgdaTCMGetType
       , builtinAgdaTCMGetDefinition
-      , builtinAgdaTCMBlockOnMeta
+      , builtinAgdaTCMBlock
       , builtinAgdaTCMCommit
       , builtinAgdaTCMIsMacro
       , builtinAgdaTCMWithNormalisation
@@ -293,11 +310,19 @@ ghcPreCompile flags = do
       , builtinAgdaTCMGetInstances
       , builtinAgdaTCMPragmaForeign
       , builtinAgdaTCMPragmaCompile
+      , builtinAgdaBlocker
+      , builtinAgdaBlockerAll
+      , builtinAgdaBlockerAny
+      , builtinAgdaBlockerMeta
       ]
     return $
       flip HashSet.member $
       HashSet.fromList $
       catMaybes builtins
+
+  let defArity q = arity . defType <$> getConstInfo q
+  listArity <- traverse defArity mlist
+  maybeArity <- traverse defArity mmaybe
 
   return $ GHCEnv
     { ghcEnvOpts        = ghcOpts
@@ -330,6 +355,8 @@ ghcPreCompile flags = do
     , ghcEnvId          = mid
     , ghcEnvConId       = mconid
     , ghcEnvIsTCBuiltin = istcbuiltin
+    , ghcEnvListArity   = listArity
+    , ghcEnvMaybeArity  = maybeArity
     }
 
 ghcPostCompile ::
@@ -462,7 +489,7 @@ imports builtinThings usedModules defs = hsImps ++ imps where
   mnames = Set.elems usedModules
 
   uniq :: [HS.ModuleName] -> [HS.ModuleName]
-  uniq = List.map head . List.group . List.sort
+  uniq = List.map List1.head . List1.group . List.sort
 
 -- Should we import MAlonzo.RTE.Float
 newtype UsesFloat = UsesFloat Bool deriving (Eq, Show)
@@ -692,7 +719,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       -- conid.
       Primitive{} | is ghcEnvConId -> do
         strict <- optGhcStrictData <$> askGhcOpts
-        let var = (if strict then HS.PBangPat else id) . HS.PVar
+        let var = applyWhen strict HS.PBangPat . HS.PVar
         retDecls $
           [ HS.FunBind
               [HS.Match (dname q)
@@ -866,10 +893,10 @@ data CCEnv = CCEnv
 type NameSupply = [HS.Name]
 type CCContext  = [HS.Name]
 
-ccNameSupply :: Lens' NameSupply CCEnv
+ccNameSupply :: Lens' CCEnv NameSupply
 ccNameSupply f e =  (\ ns' -> e { _ccNameSupply = ns' }) <$> f (_ccNameSupply e)
 
-ccContext :: Lens' CCContext CCEnv
+ccContext :: Lens' CCEnv CCContext
 ccContext f e = (\ cxt -> e { _ccContext = cxt }) <$> f (_ccContext e)
 
 -- | Initial environment for expression generation.
@@ -1012,7 +1039,7 @@ noApplication = \case
   T.TLet t1 t2 -> do
     t1' <- term t1
     intros 1 $ \[x] -> do
-      hsLet x t1' <$> term t2
+      hsLet x t1' . hsCoerce <$> term t2
 
   T.TCase sc ct def alts -> do
     sc'   <- term $ T.TVar sc
@@ -1170,9 +1197,9 @@ condecl :: QName -> Induction -> HsCompileM HS.ConDecl
 condecl q _ind = do
   opts <- askGhcOpts
   def <- getConstInfo q
-  let Constructor{ conPars = np, conErased = erased } = theDef def
+  let Constructor{ conPars = np, conSrcCon, conErased = erased } = theDef def
   (argTypes0, _) <- hsTelApproximation (defType def)
-  let strict     = if conInd (theDef def) == Inductive &&
+  let strict     = if conInductive conSrcCon == Inductive &&
                       optGhcStrictData opts
                    then HS.Strict
                    else HS.Lazy

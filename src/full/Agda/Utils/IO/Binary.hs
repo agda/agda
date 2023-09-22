@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Binary IO.
 
 module Agda.Utils.IO.Binary

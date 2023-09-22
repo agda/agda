@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 module Agda.TypeChecking.Datatypes where
 
@@ -16,7 +17,8 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Either
-import Agda.Utils.Pretty ( prettyShow )
+import Agda.Utils.Functor        ( (<.>) )
+import Agda.Syntax.Common.Pretty ( prettyShow )
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -205,16 +207,17 @@ getConType ch t = do
       (\_ -> return Nothing)
 
 data ConstructorInfo
-  = DataCon Nat
-      -- ^ Arity.
-  | RecordCon PatternOrCopattern HasEta [Dom QName]
-      -- ^ List of field names.
+  = DataCon Arity
+      -- ^ Arity of the data constructor.
+  | RecordCon PatternOrCopattern HasEta
+      Arity
+      -- ^ Arity of the record constructor.
+      [Dom QName]
+      -- ^ List of field names. Has length 'Arity'.
 
--- | Return the number of non-parameter arguments to a data constructor,
---   or the field names of a record constructor.
+-- | Return the number of non-parameter arguments to a constructor (arity).
+--   In case of record constructors, also return the field names (plus other info).
 --
---   For getting just the arity of constructor @c@,
---   use @either id size <$> getConstructorArity c@.
 getConstructorInfo :: HasConstInfo m => QName -> m ConstructorInfo
 getConstructorInfo c = fromMaybe __IMPOSSIBLE__ <$> getConstructorInfo' c
 
@@ -224,7 +227,7 @@ getConstructorInfo' c = do
     Constructor{ conData = d, conArity = n } -> Just <$> do
       (theDef <$> getConstInfo d) >>= \case
         r@Record{ recFields = fs } ->
-           return $ RecordCon (recPatternMatching r) (recEtaEquality r) fs
+           return $ RecordCon (recPatternMatching r) (recEtaEquality r) n fs
         Datatype{} ->
            return $ DataCon n
         _ -> __IMPOSSIBLE__
@@ -247,14 +250,20 @@ isDatatype d = do
 isDataOrRecordType :: QName -> TCM (Maybe DataOrRecord)
 isDataOrRecordType d = do
   (theDef <$> getConstInfo d) >>= \case
-    Record{ recPatternMatching } -> return $ Just $ IsRecord recPatternMatching
+    Record{ recEtaEquality', recPatternMatching } -> return $ Just $ IsRecord $
+      case recPatternMatching of
+        -- If the user explicitly asked for @pattern@, pattern matching is allowed.
+        p@PatternMatching -> p
+        -- Otherwise, 'recEtaEquality' might allow pattern matching.
+        CopatternMatching ->
+          if patternMatchingAllowed recEtaEquality' then PatternMatching else CopatternMatching
     Datatype{} -> return $ Just IsData
     _          -> return $ Nothing
 
 -- | Precodition: 'Term' is 'reduce'd.
-isDataOrRecord :: Term -> TCM (Maybe QName)
+isDataOrRecord :: Term -> TCM (Maybe (QName, DataOrRecord))
 isDataOrRecord = \case
-    Def d _ -> fmap (const d) <$> isDataOrRecordType d
+    Def d _ -> fmap (d,) <$> isDataOrRecordType d
     _       -> return Nothing
 
 getNumberOfParameters :: HasConstInfo m => QName -> m (Maybe Nat)
@@ -285,9 +294,7 @@ getDatatypeArgs t = do
 
 getNotErasedConstructors :: QName -> TCM [QName]
 getNotErasedConstructors d = do
-  cs <- getConstructors d
-  flip filterM cs $ \ c -> do
-    usableModality <$> getConstInfo c
+  filterM (usableModality <.> getConstInfo) =<< getConstructors d
 
 -- | Precondition: Name is a data or record type.
 getConstructors :: QName -> TCM [QName]

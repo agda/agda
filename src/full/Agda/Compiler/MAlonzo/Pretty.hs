@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 ------------------------------------------------------------------------
 -- Pretty-printing of Haskell modules
@@ -6,10 +7,12 @@
 module Agda.Compiler.MAlonzo.Pretty where
 
 import qualified Agda.Utils.Haskell.Syntax as HS
-import Text.PrettyPrint (empty)
 
 import Agda.Compiler.MAlonzo.Encode
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
+
+import Agda.Utils.Null (empty)
+import Agda.Utils.Function (applyWhen)
 
 
 prettyPrint :: Pretty a => a -> String
@@ -163,8 +166,7 @@ instance Pretty HS.Literal where
     HS.String s -> text (show s)
     where
     parensIfNeg :: (Ord n, Num n) => n -> Doc -> Doc
-    parensIfNeg x =
-      if x < 0 then mparens (pr > 10) else id
+    parensIfNeg x = applyWhen (x < 0) $ mparens (pr > 10)
 
 instance Pretty HS.Exp where
   prettyPrec pr e =

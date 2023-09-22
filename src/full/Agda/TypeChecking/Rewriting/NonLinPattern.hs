@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 {-# LANGUAGE NondecreasingIndentation #-}
 
 {- | Various utility functions dealing with the non-linear, higher-order
@@ -22,7 +24,7 @@ import Agda.Syntax.Internal.MetaVars ( AllMetas, unblockOnAllMetasIn )
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Lazy
-import Agda.TypeChecking.Irrelevance (workOnTypes, isPropM)
+import Agda.TypeChecking.Irrelevance (isPropM)
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -32,11 +34,9 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Primitive.Cubical.Base
 
-import Agda.Utils.Either
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.List
-import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Singleton
@@ -94,10 +94,8 @@ instance PatternFrom Sort NLPSort where
   patternFrom r k _ s = do
     s <- abortIfBlocked s
     case s of
-      Type l   -> PType <$> patternFrom r k () l
-      Prop l   -> PProp <$> patternFrom r k () l
-      SSet l   -> PSSet <$> patternFrom r k () l
-      Inf f n  -> return $ PInf f n
+      Univ u l -> PUniv u <$> patternFrom r k () l
+      Inf u n  -> return $ PInf u n
       SizeUniv -> return PSizeUniv
       LockUniv -> return PLockUniv
       LevelUniv -> return PLevelUniv
@@ -236,10 +234,8 @@ instance NLPatToTerm NLPType Type where
   nlPatToTerm (NLPType s a) = El <$> nlPatToTerm s <*> nlPatToTerm a
 
 instance NLPatToTerm NLPSort Sort where
-  nlPatToTerm (PType l) = Type <$> nlPatToTerm l
-  nlPatToTerm (PProp l) = Prop <$> nlPatToTerm l
-  nlPatToTerm (PSSet l) = SSet <$> nlPatToTerm l
-  nlPatToTerm (PInf f n) = return $ Inf f n
+  nlPatToTerm (PUniv u l) = Univ u <$> nlPatToTerm l
+  nlPatToTerm (PInf u n) = return $ Inf u n
   nlPatToTerm PSizeUniv = return SizeUniv
   nlPatToTerm PLockUniv = return LockUniv
   nlPatToTerm PLevelUniv = return LevelUniv
@@ -260,9 +256,7 @@ instance NLPatVars NLPType where
 
 instance NLPatVars NLPSort where
   nlPatVarsUnder k = \case
-    PType l   -> nlPatVarsUnder k l
-    PProp l   -> nlPatVarsUnder k l
-    PSSet l   -> nlPatVarsUnder k l
+    PUniv _ l   -> nlPatVarsUnder k l
     PInf f n  -> empty
     PSizeUniv -> empty
     PLockUniv -> empty
@@ -319,9 +313,7 @@ instance GetMatchables NLPType where
 
 instance GetMatchables NLPSort where
   getMatchables = \case
-    PType l   -> getMatchables l
-    PProp l   -> getMatchables l
-    PSSet l   -> getMatchables l
+    PUniv _ l -> getMatchables l
     PInf f n  -> empty
     PSizeUniv -> empty
     PLockUniv -> empty
@@ -355,9 +347,7 @@ instance Free NLPType where
 
 instance Free NLPSort where
   freeVars' = \case
-    PType l   -> freeVars' l
-    PProp l   -> freeVars' l
-    PSSet l   -> freeVars' l
+    PUniv _ l -> freeVars' l
     PInf f n  -> mempty
     PSizeUniv -> mempty
     PLockUniv -> mempty

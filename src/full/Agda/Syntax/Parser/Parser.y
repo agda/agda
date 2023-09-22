@@ -62,7 +62,7 @@ import Agda.Utils.List ( spanJust, chopWhen )
 import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty hiding ((<>))
+import Agda.Syntax.Common.Pretty hiding ((<>))
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Maybe.Strict as Strict
 import qualified Agda.Utils.List1 as List1
@@ -152,6 +152,8 @@ import Agda.Utils.Impossible
     'where'                   { TokKeyword KwWhere $$ }
     'do'                      { TokKeyword KwDo $$ }
     'with'                    { TokKeyword KwWith $$ }
+    'opaque'                  { TokKeyword KwOpaque $$ }
+    'unfolding'               { TokKeyword KwUnfolding $$ }
 
     'BUILTIN'                 { TokKeyword KwBUILTIN $$ }
     'CATCHALL'                { TokKeyword KwCATCHALL $$ }
@@ -258,6 +260,7 @@ Token
     | 'interleaved'             { TokKeyword KwInterleaved $1 }
     | 'mutual'                  { TokKeyword KwMutual $1 }
     | 'no-eta-equality'         { TokKeyword KwNoEta $1 }
+    | 'opaque'                  { TokKeyword KwOpaque $1 }
     | 'open'                    { TokKeyword KwOpen $1 }
     | 'overlap'                 { TokKeyword KwOverlap $1 }
     | 'pattern'                 { TokKeyword KwPatternSyn $1 }
@@ -273,6 +276,7 @@ Token
     | 'syntax'                  { TokKeyword KwSyntax $1 }
     | 'tactic'                  { TokKeyword KwTactic $1 }
     | 'to'                      { TokKeyword KwTo $1 }
+    | 'unfolding'               { TokKeyword KwUnfolding $1 }
     | 'unquote'                 { TokKeyword KwUnquote $1 }
     | 'unquoteDecl'             { TokKeyword KwUnquoteDecl $1 }
     | 'unquoteDef'              { TokKeyword KwUnquoteDef $1 }
@@ -468,7 +472,7 @@ ModalArgIds : Attributes ArgIds  {% ($1,) `fmap` mapM (applyAttrs $1) $2 }
 -- Attributes are parsed as '@' followed by an atomic expression.
 
 Attribute :: { Attr }
-Attribute : '@' ExprOrAttr  {% setRange (getRange ($1,$2)) `fmap` toAttribute $2 }
+Attribute : '@' ExprOrAttr  {% toAttribute (getRange ($1,$2)) $2 }
 
 -- Parse a reverse list of modalities
 
@@ -1156,6 +1160,8 @@ Declaration
     | PatternSyn      { singleton $1 }
     | UnquoteDecl     { singleton $1 }
     | Constructor     { singleton $1 }
+    | Opaque          { singleton $1 }
+    | Unfolding       { singleton $1 }
 
 {--------------------------------------------------------------------------
     Individual declarations
@@ -1805,6 +1811,17 @@ RecordInduction
     : 'inductive'   { Ranged (getRange $1) Inductive   }
     | 'coinductive' { Ranged (getRange $1) CoInductive }
 
+Opaque :: { Declaration }
+  : 'opaque' Declarations0     { Opaque (getRange ($1, $2)) $2 }
+
+Unfolding :: { Declaration }
+  : 'unfolding' UnfoldingNames { Unfolding (getRange ($1, $2)) $2 }
+
+UnfoldingNames :: { [QName] }
+UnfoldingNames
+    : QId UnfoldingNames { $1:$2 }
+    | {- empty -}        { [] }
+
 -- Arbitrary declarations
 Declarations :: { List1 Declaration }
 Declarations
@@ -2441,22 +2458,20 @@ instance SetRange Attr where
   setRange r (Attr _ x a) = Attr r x a
 
 -- | Parse an attribute.
-toAttribute :: Expr -> Parser Attr
-toAttribute x = do
-  attr <- maybe failure (return . Attr r y) $ exprToAttribute x
-  modify' (\s -> s { parseAttributes =
-                       (theAttr attr, r, y) : parseAttributes s })
+toAttribute :: Range -> Expr -> Parser Attr
+toAttribute r e = do
+  attr <- maybe failure (return . Attr r s) $ exprToAttribute e
+  modify' (\ st -> st{ parseAttributes = (theAttr attr, r, s) : parseAttributes st })
   return attr
   where
-  r = getRange x
-  y = prettyShow x
-  failure = parseErrorRange x $ "Unknown attribute: " ++ y
+  s = prettyShow e
+  failure = parseErrorRange e $ "Unknown attribute: " ++ s
 
 -- | Apply an attribute to thing (usually `Arg`).
 --   This will fail if one of the attributes is already set
 --   in the thing to something else than the default value.
 applyAttr :: (LensAttribute a) => Attr -> a -> Parser a
-applyAttr attr@(Attr r x a) = maybe failure return . setPristineAttribute a
+applyAttr attr@(Attr _ _ a) = maybe failure return . setPristineAttribute a
   where
   failure = errorConflictingAttribute attr
 

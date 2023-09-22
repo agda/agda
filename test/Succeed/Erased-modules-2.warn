@@ -29,9 +29,10 @@ Ignored use of @ω in hard compile-time mode
 when checking that the clause
 C′ = C″
   where
-    syntax C″ ...
-    postulate C″ : _
-    C″ = C
+    mutual
+      syntax C″ ...
+      postulate C″ : _
+      C″ = C
 has type Set
 Erased-modules-2.agda:90,8-9
 warning: -W[no]PlentyInHardCompileTimeMode
@@ -39,12 +40,14 @@ Ignored use of @ω in hard compile-time mode
 when checking that the clause
 G = Set
   module @0 _ where
-    syntax H ...
-    postulate H : @0 Set → Set
-    H A = A
-    syntax I ...
-    postulate @ω I : @0 Set → Set
-    I A = A
+    mutual
+      syntax H ...
+      postulate H : @0 Set → Set
+      H A = A
+    mutual
+      syntax I ...
+      postulate @ω I : @0 Set → Set
+      I A = A
 has type Set₁
 
 ———— All done; warnings encountered ————————————————————————
@@ -87,9 +90,10 @@ Ignored use of @ω in hard compile-time mode
 when checking that the clause
 C′ = C″
   where
-    syntax C″ ...
-    postulate C″ : _
-    C″ = C
+    mutual
+      syntax C″ ...
+      postulate C″ : _
+      C″ = C
 has type Set
 
 Erased-modules-2.agda:90,8-9
@@ -98,10 +102,12 @@ Ignored use of @ω in hard compile-time mode
 when checking that the clause
 G = Set
   module @0 _ where
-    syntax H ...
-    postulate H : @0 Set → Set
-    H A = A
-    syntax I ...
-    postulate @ω I : @0 Set → Set
-    I A = A
+    mutual
+      syntax H ...
+      postulate H : @0 Set → Set
+      H A = A
+    mutual
+      syntax I ...
+      postulate @ω I : @0 Set → Set
+      I A = A
 has type Set₁

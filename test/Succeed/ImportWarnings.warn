@@ -34,15 +34,10 @@ Empty REWRITE pragma
 when scope checking the declaration
   {-# REWRITE #-}
 
-Unreachable.agda:21,1-23,19
-warning: -W[no]UnreachableClauses
-Unreachable clauses
-when checking the definition of unreachable
-
-Issue2243.agda:9,1-12
+Issue708quote.agda:9,1-29
 warning: -W[no]UnreachableClauses
 Unreachable clause
-when checking the definition of f
+when checking the definition of example
 
 RewritingEmptyPragma.agda:3,1-16
 warning: -W[no]EmptyRewritePragma
@@ -50,10 +45,15 @@ Empty REWRITE pragma
 when scope checking the declaration
   {-# REWRITE #-}
 
-Issue708quote.agda:9,1-29
+Issue2243.agda:9,1-12
 warning: -W[no]UnreachableClauses
 Unreachable clause
-when checking the definition of example
+when checking the definition of f
+
+Unreachable.agda:21,1-23,19
+warning: -W[no]UnreachableClauses
+Unreachable clauses
+when checking the definition of unreachable
 
 ImportWarnings.agda:6,1-16
 warning: -W[no]EmptyRewritePragma

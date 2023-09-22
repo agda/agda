@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 {-| Definitions for fixity, precedence levels, and declared syntax.
 -}
@@ -10,7 +11,7 @@ import GHC.Generics (Generic)
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 
 import Agda.Utils.Impossible
 

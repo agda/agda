@@ -1,0 +1,6 @@
+ImplicitMutualOpaque.agda:6,1-8,13
+The following names are declared, but not accompanied by a
+definition:
+- test (at ImplicitMutualOpaque.agda:5,1-5)
+Since 'opaque' blocks can not participate in mutual recursion,
+their definition must be given before this point.

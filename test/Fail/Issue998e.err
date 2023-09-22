@@ -1,4 +1,4 @@
 Issue998e.agda:7,3-4
 Set (lsuc ℓ₁) is not less or equal than Set (lsuc ℓ)
-when checking that the type (ℓ₁ : Level) → Set ℓ₁ → D of the
+when checking that the type Set ℓ₁ of an argument to the
 constructor c fits in the sort Set (lsuc ℓ) of the datatype.

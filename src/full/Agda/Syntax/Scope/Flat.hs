@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wunused-imports #-}
+
 -- | Flattened scopes.
 module Agda.Syntax.Scope.Flat
   ( FlatScope
@@ -23,12 +25,13 @@ import Agda.TypeChecking.Monad.Debug
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 
 -- | Flattened scopes.
-newtype FlatScope = Flat (Map QName [AbstractName])
+newtype FlatScope = Flat (Map QName (List1 AbstractName))
   deriving Pretty
 
 -- | Compute a flattened scope. Only include unqualified names or names
@@ -36,14 +39,14 @@ newtype FlatScope = Flat (Map QName [AbstractName])
 flattenScope :: [[Name]] -> ScopeInfo -> FlatScope
 flattenScope ms scope =
   Flat $
-  Map.unionWith (++)
+  Map.unionWith (<>)
     (build ms allNamesInScope root)
     imported
   where
     current = moduleScope $ scope ^. scopeCurrent
     root    = mergeScopes $ current : map moduleScope (scopeParents current)
 
-    imported = Map.unionsWith (++)
+    imported = Map.unionsWith (<>)
                [ qual c (build ms' exportedNamesInScope $ moduleScope a)
                | (c, a) <- Map.toList $ scopeImports root
                , let -- get the suffixes of c in ms
@@ -54,15 +57,16 @@ flattenScope ms scope =
         q (QName x)  = Qual x
         q (Qual m x) = Qual m . q x
 
-    build :: [[Name]] -> (forall a. InScope a => Scope -> ThingsInScope a) -> Scope -> Map QName [AbstractName]
-    build ms getNames s = Map.unionsWith (++) $
+    build :: [[Name]] -> (forall a. InScope a => Scope -> ThingsInScope a) -> Scope -> Map QName (List1 AbstractName)
+    build ms getNames s = Map.unionsWith (<>) $
         Map.mapKeysMonotonic QName (getNames s) :
           [ Map.mapKeysMonotonic (\ y -> Qual x y) $
               build ms' exportedNamesInScope $ moduleScope m
           | (x, mods) <- Map.toList (getNames s)
           , let ms' = [ tl | hd:tl <- ms, hd == x ]
           , not $ null ms'
-          , AbsModule m _ <- mods ]
+          , AbsModule m _ <- List1.toList mods
+          ]
 
     moduleScope :: A.ModuleName -> Scope
     moduleScope m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scope ^. scopeModules
@@ -70,12 +74,11 @@ flattenScope ms scope =
 -- | Compute all defined names in scope and their fixities/notations.
 -- Note that overloaded names (constructors) can have several
 -- fixities/notations. Then we 'mergeNotations'. (See issue 1194.)
-getDefinedNames :: KindsOfNames -> FlatScope -> [[NewNotation]]
+getDefinedNames :: KindsOfNames -> FlatScope -> [List1 NewNotation]
 getDefinedNames kinds (Flat names) =
-  [ mergeNotations $ map (namesToNotation x . A.qnameName . anameName) ds
+  [ mergeNotations $ fmap (namesToNotation x . A.qnameName . anameName) ds
   | (x, ds) <- Map.toList names
   , any ((`elemKindsOfNames` kinds) . anameKind) ds
-  , not (null ds)
   ]
   -- Andreas, 2013-03-21 see Issue 822
   -- Names can have different kinds, i.e., 'defined' and 'constructor'.
@@ -97,7 +100,7 @@ localNames flat = do
     ]
   let localNots  = map localOp locals
       notLocal   = not . hasElem (map notaName localNots) . notaName
-      otherNots  = concatMap (filter notLocal) defs
+      otherNots  = concatMap (List1.filter notLocal) defs
   return $ second (map useDefaultFixity) $ split $ localNots ++ otherNots
   where
     localOp (x, y) = namesToNotation (QName x) y

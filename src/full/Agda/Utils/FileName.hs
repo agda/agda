@@ -29,7 +29,7 @@ import Data.Text           ( Text )
 import qualified Data.Text as Text
 
 import Agda.Utils.Monad
-import Agda.Utils.Pretty
+import Agda.Syntax.Common.Pretty
 
 import Agda.Utils.Impossible
 
