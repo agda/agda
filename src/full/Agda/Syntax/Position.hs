@@ -86,8 +86,7 @@ import Data.Void
 
 import GHC.Generics (Generic)
 
-import {-# SOURCE #-} Agda.Syntax.TopLevelModuleName
-  (TopLevelModuleName)
+import Agda.Syntax.TopLevelModuleName.Boot (TopLevelModuleName')
 
 import Agda.Utils.FileName
 import Agda.Utils.List
@@ -147,7 +146,7 @@ type SrcFile = Strict.Maybe RangeFile
 data RangeFile = RangeFile
   { rangeFilePath :: !AbsolutePath
     -- ^ The file's path.
-  , rangeFileName :: !(Maybe TopLevelModuleName)
+  , rangeFileName :: !(Maybe (TopLevelModuleName' Range))
     -- ^ The file's top-level module name (if applicable).
     --
     -- This field is optional, but some things may break if the field
@@ -159,13 +158,13 @@ data RangeFile = RangeFile
     -- should be possible to instantiate it with something that is not
     -- yet defined (see 'Agda.Interaction.Imports.parseSource').
     --
-    -- This 'TopLevelModuleName' should not contain a range.
+    -- This '(TopLevelModuleName' Range)' should not contain a range.
   }
   deriving (Show, Generic)
 
 -- | A smart constructor for 'RangeFile'.
 
-mkRangeFile :: AbsolutePath -> Maybe TopLevelModuleName -> RangeFile
+mkRangeFile :: AbsolutePath -> Maybe (TopLevelModuleName' Range) -> RangeFile
 mkRangeFile f top = RangeFile
   { rangeFilePath = f
   , rangeFileName = killRange top
@@ -312,14 +311,14 @@ rangeFile (Range f _) = f
 --
 -- If there is no range, then 'Nothing' is returned. If there is a
 -- range without a module name, then @'Just' 'Nothing'@ is returned.
-rangeModule' :: Range -> Maybe (Maybe TopLevelModuleName)
+rangeModule' :: Range -> Maybe (Maybe (TopLevelModuleName' Range))
 rangeModule' NoRange     = Nothing
 rangeModule' (Range f _) = Just $ case f of
   Strict.Nothing -> Nothing
   Strict.Just f  -> rangeFileName f
 
 -- | The range's top-level module name, if any.
-rangeModule :: Range -> Maybe TopLevelModuleName
+rangeModule :: Range -> Maybe (TopLevelModuleName' Range)
 rangeModule = join . rangeModule'
 
 -- | Conflate a range to its right margin.

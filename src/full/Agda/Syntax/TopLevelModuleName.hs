@@ -4,7 +4,12 @@
 -- Top-level module names
 ------------------------------------------------------------------------
 
-module Agda.Syntax.TopLevelModuleName where
+module Agda.Syntax.TopLevelModuleName
+  ( module Agda.Syntax.TopLevelModuleName
+  , module Agda.Syntax.TopLevelModuleName.Boot
+  ) where
+
+import Agda.Syntax.TopLevelModuleName.Boot
 
 import Control.DeepSeq
 
@@ -36,10 +41,6 @@ import Agda.Utils.Size
 
 ------------------------------------------------------------------------
 -- Raw top-level module names
-
--- | A top-level module name has one or more name parts.
-
-type TopLevelModuleNameParts = List1 Text
 
 -- | Raw top-level module names (with linear-time comparisons).
 
@@ -138,12 +139,7 @@ rawTopLevelModuleNameForModule (C.Mod _ ds) =
 
 -- | Top-level module names (with constant-time comparisons).
 
-data TopLevelModuleName = TopLevelModuleName
-  { moduleNameRange :: Range
-  , moduleNameId    :: {-# UNPACK #-} !ModuleNameHash
-  , moduleNameParts :: TopLevelModuleNameParts
-  }
-  deriving (Show, Generic)
+data TopLevelModuleName = TopLevelModuleName' Range
 
 instance HasTag TopLevelModuleName where
   type Tag TopLevelModuleName = ModuleNameHash

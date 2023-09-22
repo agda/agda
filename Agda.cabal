@@ -569,6 +569,7 @@ library
       Agda.Syntax.Scope.Flat
       Agda.Syntax.Scope.Monad
       Agda.Syntax.TopLevelModuleName
+      Agda.Syntax.TopLevelModuleName.Boot
       Agda.Syntax.Translation.AbstractToConcrete
       Agda.Syntax.Translation.ConcreteToAbstract
       Agda.Syntax.Translation.InternalToAbstract
