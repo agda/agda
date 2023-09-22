@@ -139,7 +139,7 @@ rawTopLevelModuleNameForModule (C.Mod _ ds) =
 
 -- | Top-level module names (with constant-time comparisons).
 
-data TopLevelModuleName = TopLevelModuleName' Range
+type TopLevelModuleName = TopLevelModuleName' Range
 
 instance Sized TopLevelModuleName where
   size = size . rawTopLevelModuleName
