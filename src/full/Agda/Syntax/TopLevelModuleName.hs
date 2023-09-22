@@ -14,9 +14,7 @@ import Agda.Syntax.TopLevelModuleName.Boot
 import Control.DeepSeq
 
 import Data.Function (on)
-import Data.Hashable
 import qualified Data.List as List
-import Data.Text (Text)
 import qualified Data.Text as T
 
 import GHC.Generics (Generic)
@@ -24,16 +22,13 @@ import GHC.Generics (Generic)
 import System.FilePath
 
 import qualified Agda.Syntax.Abstract.Name as A
-import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Position
 
-import Agda.Utils.BiMap (HasTag(..))
 import Agda.Utils.FileName
 import Agda.Utils.Hash
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
-import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Singleton

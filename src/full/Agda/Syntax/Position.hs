@@ -95,7 +95,6 @@ import Agda.Utils.List2 (List2)
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
 import Agda.Utils.Permutation
-import Agda.Syntax.Common.Pretty
 
 import Agda.Utils.TypeLevel (IsBase, All, Domains)
 
@@ -496,50 +495,6 @@ instance (KillRange a, KillRange b, KillRange c, KillRange d) =>
 instance (KillRange a, KillRange b) => KillRange (Either a b) where
   killRange (Left  x) = Left  $ killRange x
   killRange (Right x) = Right $ killRange x
-
-------------------------------------------------------------------------
--- Printing
-------------------------------------------------------------------------
-
-instance Pretty RangeFile where
-  pretty = pretty . rangeFilePath
-
-instance Pretty a => Pretty (Position' (Strict.Maybe a)) where
-  pretty (Pn Strict.Nothing  _ l c) = pretty l <> "," <> pretty c
-  pretty (Pn (Strict.Just f) _ l c) =
-    pretty f <> ":" <> pretty l <> "," <> pretty c
-
-instance Pretty PositionWithoutFile where
-  pretty p = pretty (p { srcFile = Strict.Nothing } :: Position)
-
-instance Pretty IntervalWithoutFile where
-  pretty (Interval s e) = start <> "-" <> end
-    where
-      sl = posLine s
-      el = posLine e
-      sc = posCol s
-      ec = posCol e
-
-      start :: Doc
-      start = pretty sl <> comma <> pretty sc
-
-      end :: Doc
-        | sl == el  = pretty ec
-        | otherwise = pretty el <> comma <> pretty ec
-
-instance Pretty a => Pretty (Interval' (Strict.Maybe a)) where
-  pretty i@(Interval s _) = file <> pretty (setIntervalFile () i)
-    where
-      file :: Doc
-      file = case srcFile s of
-               Strict.Nothing -> empty
-               Strict.Just f  -> pretty f <> colon
-
-instance Pretty a => Pretty (Range' (Strict.Maybe a)) where
-  pretty r = maybe empty pretty (rangeToIntervalWithFile r)
-
-instance (Pretty a, HasRange a) => Pretty (PrintRange a) where
-  pretty (PrintRange a) = pretty a <+> parens ("at" <+> pretty (getRange a))
 
 {--------------------------------------------------------------------------
     Functions on positions and ranges

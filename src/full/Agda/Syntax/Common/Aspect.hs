@@ -1,6 +1,7 @@
 module Agda.Syntax.Common.Aspect where
 
-import {-# SOURCE #-} Agda.Syntax.TopLevelModuleName
+import Agda.Syntax.TopLevelModuleName.Boot (TopLevelModuleName')
+import Agda.Syntax.Position (Range)
 import Agda.Utils.Maybe
 import GHC.Generics
 
@@ -129,7 +130,7 @@ data Aspects = Aspects
   deriving (Show, Generic)
 
 data DefinitionSite = DefinitionSite
-  { defSiteModule :: TopLevelModuleName
+  { defSiteModule :: (TopLevelModuleName' Range)
       -- ^ The defining module.
   , defSitePos    :: Int
       -- ^ The file position in that module. File positions are
