@@ -141,39 +141,12 @@ rawTopLevelModuleNameForModule (C.Mod _ ds) =
 
 data TopLevelModuleName = TopLevelModuleName' Range
 
-instance HasTag TopLevelModuleName where
-  type Tag TopLevelModuleName = ModuleNameHash
-  tag = Just . moduleNameId
-
-instance Eq TopLevelModuleName where
-  (==) = (==) `on` moduleNameId
-
-instance Ord TopLevelModuleName where
-  compare = compare `on` moduleNameId
-
-instance Hashable TopLevelModuleName where
-  hashWithSalt salt = hashWithSalt salt . moduleNameId
-
 instance Sized TopLevelModuleName where
   size = size . rawTopLevelModuleName
   natSize = natSize . rawTopLevelModuleName
 
 instance Pretty TopLevelModuleName where
   pretty = pretty . rawTopLevelModuleName
-
-instance HasRange TopLevelModuleName where
-  getRange = moduleNameRange
-
-instance SetRange TopLevelModuleName where
-  setRange r (TopLevelModuleName _ h x) = TopLevelModuleName r h x
-
-instance KillRange TopLevelModuleName where
-  killRange (TopLevelModuleName _ h x) = TopLevelModuleName noRange h x
-
--- | The 'Range' is not forced.
-
-instance NFData TopLevelModuleName where
-  rnf (TopLevelModuleName _ x y) = rnf (x, y)
 
 -- | A lens focusing on the 'moduleNameParts'.
 

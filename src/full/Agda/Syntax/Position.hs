@@ -86,7 +86,7 @@ import Data.Void
 
 import GHC.Generics (Generic)
 
-import Agda.Syntax.TopLevelModuleName.Boot (TopLevelModuleName')
+import Agda.Syntax.TopLevelModuleName.Boot (TopLevelModuleName'(..))
 
 import Agda.Utils.FileName
 import Agda.Utils.List
@@ -352,6 +352,15 @@ instance HasRange () where
 
 instance HasRange Bool where
     getRange _ = noRange
+
+instance HasRange (TopLevelModuleName' Range) where
+  getRange = moduleNameRange
+
+instance SetRange (TopLevelModuleName' Range) where
+  setRange r (TopLevelModuleName _ h x) = TopLevelModuleName r h x
+
+instance KillRange (TopLevelModuleName' Range) where
+  killRange (TopLevelModuleName _ h x) = TopLevelModuleName noRange h x
 
 -- | Precondition: The ranges of the list elements must point to the
 -- same file (or be empty).
