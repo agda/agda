@@ -289,16 +289,17 @@ Please report any bugs to Debian, using:
   reportbug -B debian agda
   reportbug -B debian agda-stdlib
 
-Fedora
-------
+Fedora / EPEL (Centos)
+----------------------
 
-Agda is packaged in Fedora (since before Fedora 18).
+Agda is [packaged](https://src.fedoraproject.org/rpms/Agda) for Fedora Linux and EPEL.
+[Agda-stdlib](https://src.fedoraproject.org/rpms/Agda-stdlib/) is available for Fedora.
 
 .. code-block:: bash
 
-  yum install Agda
+  dnf install Agda Agda-stdlib
 
-will pull in emacs-agda-mode and ghc-Agda-devel.
+will install Agda with the emacs mode and also agda-stdlib.
 
 FreeBSD
 -------
