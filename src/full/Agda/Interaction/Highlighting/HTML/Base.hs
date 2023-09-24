@@ -25,7 +25,6 @@ import Data.Function ( on )
 import Data.Foldable (toList, concatMap)
 import Data.Maybe
 import qualified Data.IntMap as IntMap
-import qualified Data.List   as List
 import Data.List.Split (splitWhen, chunksOf)
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T
@@ -63,6 +62,8 @@ import qualified Agda.TypeChecking.Monad as TCM
   )
 
 import Agda.Utils.Function
+import Agda.Utils.List1 (String1, pattern (:|))
+import qualified Agda.Utils.List1   as List1
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Syntax.Common.Pretty
 
@@ -273,7 +274,7 @@ page css
 
 type TokenInfo =
   ( Int
-  , String
+  , String1
   , Aspects
   )
 
@@ -284,11 +285,9 @@ tokenStream
      -> HighlightingInfo -- ^ Highlighting information.
      -> [TokenInfo]
 tokenStream contents info =
-  map (\cs -> case cs of
-          (mi, (pos, _)) : _ ->
-            (pos, map (snd . snd) cs, fromMaybe mempty mi)
-          [] -> __IMPOSSIBLE__) $
-  List.groupBy ((==) `on` fst) $
+  map (\ ((mi, (pos, c)) :| xs) ->
+            (pos, c :| map (snd . snd) xs, fromMaybe mempty mi)) $
+  List1.groupBy ((==) `on` fst) $
   zipWith (\pos c -> (IntMap.lookup pos infoMap, (pos, c))) [1..] (T.unpack contents)
   where
   infoMap = toMap info
@@ -322,14 +321,14 @@ code onlyCode fileType = mconcat . if onlyCode
   mkHtml (pos, s, mi) =
     -- Andreas, 2017-06-16, issue #2605:
     -- Do not create anchors for whitespace.
-    applyUnless (mi == mempty) (annotate pos mi) $ toHtml s
+    applyUnless (mi == mempty) (annotate pos mi) $ toHtml $ List1.toList s
 
   -- Proposed in #3373, implemented in #3384
   mkRst :: [TokenInfo] -> Html
   mkRst = mconcat . (toHtml rstDelimiter :) . map go
     where
       go token@(_, s, mi) = if aspect mi == Just Background
-        then preEscapedToHtml s
+        then preEscapedToHtml $ List1.toList s
         else mkHtml token
 
   -- Proposed in #3137, implemented in #3313
@@ -338,7 +337,7 @@ code onlyCode fileType = mconcat . if onlyCode
   mkMd = mconcat . go
     where
       work token@(_, s, mi) = case aspect mi of
-        Just Background -> preEscapedToHtml s
+        Just Background -> preEscapedToHtml $ List1.toList s
         Just Markup     -> __IMPOSSIBLE__
         _               -> mkHtml token
       go [a, b] = [ mconcat $ work <$> a
@@ -359,7 +358,7 @@ code onlyCode fileType = mconcat . if onlyCode
       formatNonCode = map go tokens
 
       go token@(_, s, mi) = if aspect mi == Just Background
-        then preEscapedToHtml s
+        then preEscapedToHtml $ List1.toList s
         else mkHtml token
 
   -- Put anchors that enable referencing that token.
