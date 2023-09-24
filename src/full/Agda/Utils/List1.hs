@@ -124,6 +124,24 @@ groupBy' p xxs@(x : xs) = grp x $ List.zipWith (\ x y -> (p x y, y)) xxs xs
       []                 -> []
       ((_false, z) : zs) -> grp z zs
 
+-- | Group consecutive items that share the same first component.
+--
+groupByFst :: forall a b. Eq a => [(a,b)] -> [(a, List1 b)]
+groupByFst =
+    List.map (\ ((tag, b) :| xs) -> (tag, b :| List.map snd xs))
+      -- Float the grouping to the top level
+  . List1.groupBy ((==) `on` fst)
+      -- Group together characters in the same role.
+
+-- | Group consecutive items that share the same first component.
+--
+groupByFst1 :: forall a b. Eq a => List1 (a, b) -> List1 (a, List1 b)
+groupByFst1 =
+    fmap (\ ((tag, b) :| xs) -> (tag, b :| List.map snd xs))
+      -- Float the grouping to the top level
+  . List1.groupBy1 ((==) `on` fst)
+      -- Group together characters in the same role.
+
 -- | Split a list into sublists. Generalisation of the prelude function
 --   @words@.
 --   Same as 'Data.List.Split.wordsBy' and 'Data.List.Extra.wordsBy',
