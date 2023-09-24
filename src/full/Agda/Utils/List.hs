@@ -26,7 +26,6 @@ import Agda.Utils.Functor  ((<.>))
 import Agda.Utils.Tuple
 
 import {-# SOURCE #-} Agda.Utils.List1 (List1)
-import {-# SOURCE #-} qualified Agda.Utils.List1 as List1 (groupOn)
 
 import Agda.Utils.Impossible
 
@@ -493,27 +492,8 @@ findOverlap xs ys =
     | otherwise                = Nothing
 
 ---------------------------------------------------------------------------
--- * Groups and chunks
+-- * Chunks
 ---------------------------------------------------------------------------
-
--- | @'groupOn' f = 'groupBy' (('==') \`on\` f) '.' 'List.sortBy' ('compare' \`on\` f)@.
--- O(n log n).
-groupOn :: Ord b => (a -> b) -> [a] -> [[a]]
-groupOn f = map List1.toList . List1.groupOn f
-
--- | A variant of 'List.groupBy' which applies the predicate to consecutive
--- pairs.
--- O(n).
--- DEPRECATED in favor of 'Agda.Utils.List1.groupBy''.
-groupBy' :: (a -> a -> Bool) -> [a] -> [[a]]
-groupBy' _ []           = []
-groupBy' p xxs@(x : xs) = grp x $ zipWith (\x y -> (p x y, y)) xxs xs
-  where
-  grp x ys = (x : map snd xs) : tail
-    where (xs, rest) = span fst ys
-          tail = case rest of
-                   []            -> []
-                   ((_, z) : zs) -> grp z zs
 
 -- | Chop up a list in chunks of a given length.
 -- O(n).
