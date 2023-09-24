@@ -94,19 +94,6 @@ prop_allDuplicates xs = allDuplicates xs `sameList` sort (xs \\ nub xs)
   sameList xs ys = and $ zipWith same xs ys
   same (Decorate i a) (Decorate j b) = i == j && a == b
 
-prop_groupBy' :: (Bool -> Bool -> Bool) -> [Bool] -> Property
-prop_groupBy' p xs =
-  classify (length xs - length gs >= 3) "interesting" $
-    concat gs == xs
-    &&
-    and [not (null zs) | zs <- gs]
-    &&
-    and [and (pairInitTail zs zs) | zs <- gs]
-    &&
-    (null gs || not (or (pairInitTail (map last gs) (map head gs))))
-  where gs = groupBy' p xs
-        pairInitTail xs ys = zipWith p (init xs) (tail ys)
-
 prop_genericElemIndex :: Integer -> [Integer] -> Property
 prop_genericElemIndex x xs =
   classify (x `elem` xs) "members" $
