@@ -39,7 +39,7 @@ import qualified Data.List.NonEmpty as List1 (toList)
 
 import GHC.Exts as IsList ( IsList(..) )
 
-import Agda.Utils.Functor ((<.>))
+import Agda.Utils.Functor ((<.>), (<&>))
 import Agda.Utils.Null (Null(..))
 import qualified Agda.Utils.List as List
 
@@ -257,3 +257,29 @@ foldr f g (x :| xs) = loop x xs
   where
   loop x []       = g x
   loop x (y : ys) = f x $ loop y ys
+
+-- | Update the first element of a non-empty list.
+--   O(1).
+updateHead :: (a -> a) -> List1 a -> List1 a
+updateHead f (a :| as) = f a :| as
+
+-- | Update the last element of a non-empty list.
+--   O(n).
+updateLast :: (a -> a) -> List1 a -> List1 a
+updateLast f (a :| as) = loop a as
+  where
+  loop a []       = singleton $ f a
+  loop a (b : bs) = cons a $ loop b bs
+
+-- | Focus on the first element of a non-empty list.
+--   O(1).
+lensHead :: Functor f => (a -> f a) -> List1 a -> f (List1 a)
+lensHead f (a :| as) = f a <&> (:| as)
+
+-- | Focus on the last element of a non-empty list.
+--   O(n).
+lensLast :: Functor f => (a -> f a) -> List1 a -> f (List1 a)
+lensLast f (a :| as) = loop a as
+  where
+  loop a []       = singleton <$> f a
+  loop a (b : bs) = cons a <$> loop b bs
