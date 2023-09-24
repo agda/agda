@@ -44,7 +44,7 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
   (getIncludeDirs, libToTCM)
 import Agda.TypeChecking.Monad.State (topLevelModuleName)
-import Agda.TypeChecking.Warnings (runPM)
+import Agda.TypeChecking.Warnings (runPM, genericWarning)
 
 import Agda.Version ( version )
 
@@ -55,6 +55,7 @@ import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad ( ifM, unlessM )
 import Agda.Syntax.Common.Pretty ( Pretty(..), prettyShow )
+import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
@@ -87,15 +88,33 @@ mkInterfaceFile fp = do
 toIFile :: SourceFile -> TCM AbsolutePath
 toIFile (SourceFile src) = do
   let fp = filePath src
-  mroot <- ifM (optLocalInterfaces <$> commandLineOptions)
-               {- then -} (pure Nothing)
-               {- else -} (libToTCM $ findProjectRoot (takeDirectory fp))
-  pure $ replaceModuleExtension ".agdai" $ case mroot of
-    Nothing   -> src
+  let localIFile = replaceModuleExtension ".agdai" src
+  mroot <- libToTCM $ findProjectRoot (takeDirectory fp)
+  case mroot of
+    Nothing   -> pure localIFile
     Just root ->
       let buildDir = root </> "_build" </> version </> "agda"
-          fileName = makeRelative root fp
-      in mkAbsolute $ buildDir </> fileName
+          fileName = makeRelative root (filePath localIFile)
+          separatedIFile = mkAbsolute $ buildDir </> fileName
+          selectIFile = ifM (optLocalInterfaces <$> commandLineOptions)
+            (pure localIFile)
+            (pure separatedIFile)
+      in do
+        separatedIFileExists <- liftIO $ doesFileExistCaseSensitive $ filePath separatedIFile
+        localIFileExists <- liftIO $ doesFileExistCaseSensitive $ filePath localIFile
+        case (separatedIFileExists, localIFileExists) of
+          (False, False) -> selectIFile
+          (False, True) -> pure localIFile
+          (True, False) -> pure separatedIFile
+          (True, True) -> do
+            ifile <- selectIFile
+            genericWarning $ P.vcat
+                [ P.text "There are two interface files:"
+                , P.nest 4 $ P.text $ filePath separatedIFile
+                , P.nest 4 $ P.text $ filePath localIFile
+                , P.nest 2 $ P.text $ "Using " ++ filePath ifile ++ " for now but please remove at least one of them."
+                ]
+            pure ifile
 
 replaceModuleExtension :: String -> AbsolutePath -> AbsolutePath
 replaceModuleExtension ext@('.':_) = mkAbsolute . (++ ext) .  dropAgdaExtension . filePath
