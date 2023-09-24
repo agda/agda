@@ -230,6 +230,10 @@ lefts = Either.lefts  . List1.toList
 rights :: List1 (Either a b) -> [b]
 rights = Either.rights  . List1.toList
 
+-- | Like 'Data.List.unwords'.
+
+unwords :: List1 String -> String
+unwords = List.unwords . List1.toList
 
 -- | Non-efficient, monadic 'nub'.
 -- O(n²).
