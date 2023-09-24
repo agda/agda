@@ -25,7 +25,6 @@ import Control.Monad.Except (throwError)
 
 import Data.Either (partitionEithers)
 import qualified Data.Foldable as Fold
-import Data.Function (on)
 import qualified Data.Function
 import qualified Data.List as List
 import Data.Maybe
@@ -307,9 +306,8 @@ buildParsers kind exprNames = do
         -- level comes first.
         relatedOperators :: [(PrecedenceLevel, [NotationSection])]
         relatedOperators =
-          map (\((l, ns) : rest) -> (l, ns ++ concatMap snd rest)) .
-          List.groupBy ((==) `on` fst) .
-          List.sortBy (compare `on` fst) .
+          map (\((l, ns) :| rest) -> (l, ns ++ concatMap snd rest)) .
+          List1.groupOn fst .
           mapMaybe (\n -> case level n of
                             Unrelated     -> Nothing
                             r@(Related l) ->
