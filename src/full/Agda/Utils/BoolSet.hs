@@ -38,7 +38,7 @@ module Agda.Utils.BoolSet
 
 import Prelude hiding (null)
 
-import Agda.Utils.Impossible
+import Agda.Utils.Impossible ( __IMPOSSIBLE__ )
 
 -- | Isomorphic to @'Set' 'Bool'@.
 data BoolSet = SetEmpty | SetTrue | SetFalse | SetBoth

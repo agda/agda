@@ -9,7 +9,7 @@ module Agda.Utils.Cluster
   , cluster'
   ) where
 
-import Control.Monad
+import Control.Monad ( forM_, forM )
 
 -- An imperative union-find library:
 import Data.Equivalence.Monad (runEquivT, equateAll, classDesc)
@@ -20,9 +20,9 @@ import qualified Data.Map.Strict as MapS
 import Data.Semigroup
 #endif
 
-import Agda.Utils.Functor
-import Agda.Utils.Singleton
-import Agda.Utils.Fail
+import Agda.Utils.Functor ( (<&>) )
+import Agda.Utils.Singleton ( Singleton(singleton) )
+import Agda.Utils.Fail ( runFail_ )
 
 -- | Given a function @f :: a -> NonEmpty c@ which returns a non-empty list of
 --   characteristics of @a@, partition a list of @a@s into groups such

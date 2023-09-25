@@ -11,11 +11,11 @@ import Text.Show.Functions () -- instance only
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Semigroup
+import Data.Semigroup ( Sum(Sum, getSum) )
 
-import Agda.Utils.Functor
+import Agda.Utils.Functor ( (<.>) )
 
-import Agda.Utils.Impossible
+import Agda.Utils.Impossible ( __IMPOSSIBLE__ )
 
 -- | A set with duplicates.
 --   Faithfully stores elements which are equal with regard to (==).
@@ -143,17 +143,23 @@ traverse' f = (Bag . Map.fromListWith (++)) <.> traverse trav . Map.elems . bag
 ------------------------------------------------------------------------
 
 instance Show a => Show (Bag a) where
+  showsPrec :: Show a => Int -> Bag a -> ShowS
   showsPrec _ (Bag b) = ("Agda.Utils.Bag.Bag (" ++) . shows b . (')':)
 
 instance Ord a => Semigroup (Bag a) where
+  (<>) :: Ord a => Bag a -> Bag a -> Bag a
   (<>) = union
 
 instance Ord a => Monoid (Bag a) where
+  mempty :: Ord a => Bag a
   mempty  = empty
+  mappend :: Ord a => Bag a -> Bag a -> Bag a
   mappend = (<>)
+  mconcat :: Ord a => [Bag a] -> Bag a
   mconcat = unions
 
 instance Foldable Bag where
+  foldMap :: Monoid m => (a -> m) -> Bag a -> m
   foldMap f = foldMap f . toList
 
 -- not a Functor (only works for 'Ord'ered types)

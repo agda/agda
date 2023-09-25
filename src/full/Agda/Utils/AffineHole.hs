@@ -16,8 +16,10 @@ data AffineHole r a
   deriving (Functor)
 
 instance Applicative (AffineHole r) where
+  pure :: a -> AffineHole r a
   pure = ZeroHoles
 
+  (<*>) :: AffineHole r (a -> b) -> AffineHole r a -> AffineHole r b
   ZeroHoles f <*> ZeroHoles a = ZeroHoles $ f a
   ZeroHoles f <*> OneHole g y = OneHole (f . g) y
   OneHole h x <*> ZeroHoles a = OneHole (`h` a) x
