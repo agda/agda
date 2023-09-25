@@ -62,17 +62,19 @@ jobs:
           titlesec
           varwidth
           wrapfig
-          alltt
-          hypcap
-          longtable
-          makeidx
-          multicol
-          pifont
           fancyvrb
           upquote
           booktabs
           etoolbox
           bbm
+
+
+    #     alltt
+    #     hypcap
+    #     longtable
+    #     makeidx
+    #     multicol
+    #     pifont
 
     # - name: Build User Manual in HTML
     #   run: |
