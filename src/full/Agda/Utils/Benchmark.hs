@@ -6,35 +6,30 @@ module Agda.Utils.Benchmark where
 
 import Prelude hiding (null)
 
-import Control.DeepSeq ( NFData )
+import Control.DeepSeq
 import qualified Control.Exception as E (evaluate)
 import Control.Monad.Except
-    ( MonadIO(..), MonadTrans(lift), ExceptT(..), runExceptT )
 import Control.Monad.Reader
-    ( MonadIO(..), MonadTrans(lift), ReaderT(..) )
 import Control.Monad.Writer
-    ( Sum(Sum, getSum), MonadIO(..), MonadTrans(lift), WriterT(..) )
 import Control.Monad.State
-    ( MonadIO(..), MonadTrans(lift), StateT(..) )
 import Control.Monad.IO.Class ( MonadIO(..) )
 
 
 import Data.Function (on)
 import qualified Data.List as List
-import Data.Monoid ( Sum(Sum, getSum) )
-import Data.Maybe ( fromMaybe )
+import Data.Monoid
+import Data.Maybe
 
 import GHC.Generics (Generic)
 
 import qualified Text.PrettyPrint.Boxes as Boxes
 
-import Agda.Utils.ListT ( ListT(..) )
-import Agda.Utils.Null ( Null(..) )
-import Agda.Utils.Monad ( ifNotM )
+import Agda.Utils.ListT
+import Agda.Utils.Null
+import Agda.Utils.Monad hiding (finally)
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Syntax.Common.Pretty
-    ( text, prettyShow, Pretty(pretty) )
-import Agda.Utils.Time ( fromMilliseconds, getCPUTime, CPUTime )
+import Agda.Utils.Time
 import Agda.Utils.Trie (Trie)
 import qualified Agda.Utils.Trie as Trie
 
@@ -71,13 +66,11 @@ data Benchmark a = Benchmark
 
 -- | Initial benchmark structure (empty).
 instance Null (Benchmark a) where
-  empty :: Benchmark a
   empty = Benchmark
     { benchmarkOn = BenchmarkOff
     , currentAccount = Strict.Nothing
     , timings = empty
     }
-  null :: Benchmark a -> Bool
   null = null . timings
 
 -- | Semantic editor combinator.
@@ -156,7 +149,6 @@ getsBenchmark f = f <$> getBenchmark
 
 instance MonadBench m => MonadBench (ReaderT r m) where
   type BenchPhase (ReaderT r m) = BenchPhase m
-  getBenchmark :: MonadBench m => ReaderT r m (Benchmark (BenchPhase (ReaderT r m)))
   getBenchmark    = lift $ getBenchmark
   putBenchmark    = lift . putBenchmark
   modifyBenchmark = lift . modifyBenchmark
