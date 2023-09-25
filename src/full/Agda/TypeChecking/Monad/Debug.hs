@@ -72,10 +72,18 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
     => VerboseKey -> VerboseLevel -> String -> m a -> m a
   traceDebugMessage k n s = liftThrough $ traceDebugMessage k n s
 
+#ifdef DEBUG
   default verboseBracket
     :: (MonadTransControl t, MonadDebug n, m ~ t n)
     => VerboseKey -> VerboseLevel -> String -> m a -> m a
   verboseBracket k n s = liftThrough $ verboseBracket k n s
+#else
+  default verboseBracket
+    :: (MonadTransControl t, MonadDebug n, m ~ t n)
+    => VerboseKey -> VerboseLevel -> String -> m a -> m a
+  verboseBracket k n s ma = ma
+  {-# INLINE verboseBracket #-}
+#endif
 
   default getVerbosity
     :: (MonadTrans t, MonadDebug n, m ~ t n)
@@ -167,11 +175,16 @@ instance MonadDebug TCM where
         , nest 2 $ text s
         ]
 
+#ifdef DEBUG
   verboseBracket k n s = applyWhenVerboseS k n $ \ m -> do
     openVerboseBracket k n s
     (m <* closeVerboseBracket k n) `catchError` \ e -> do
       closeVerboseBracketException k n
       throwError e
+#else
+  verboseBracket k n s ma = ma
+  {-# INLINE verboseBracket #-}
+#endif
 
   getVerbosity      = defaultGetVerbosity
   getProfileOptions = defaultGetProfileOptions
