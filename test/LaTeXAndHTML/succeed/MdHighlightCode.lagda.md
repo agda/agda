@@ -25,6 +25,11 @@ open import Agda.Builtin.Nat
 
 This is an Agda code block ↑
 
+```agda
+```
+
+This is an empty Agda code block, which should not get rendered ↑
+
 ```
 number : Nat
 number = suc (suc zero)
