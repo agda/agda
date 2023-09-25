@@ -133,6 +133,12 @@ Example::
 Aside from datatypes, this pragma can also be used to mark other
 definitions as being injective (for example postulates).
 
+At the moment it only gives you propositional injectivity,
+so you can pattern match on a proof of `Fin x ≡ Fin y` in example above,
+but does not give you definitional injectivity,
+so the constraint solver does not know how to solve the constraint `Fin x = Fin _`.
+Relevant issue: https://github.com/agda/agda/issues/4106#issuecomment-534904561
+
 .. _inline-pragma:
 
 The ``INLINE`` and ``NOINLINE`` pragmas

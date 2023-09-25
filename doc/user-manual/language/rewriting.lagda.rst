@@ -9,6 +9,13 @@ Rewriting
 Rewrite rules allow you to extend Agda's evaluation relation with new
 computation rules.
 
+Rules are safe to use with ```Agda.Builtin.Equality``
+if :ref:`--confluence-check <confluence-check>` is enabled.
+Confluent but non-terminating rewrite rules can not break consistency,
+unlike to non-terminating functions.
+Those results were proven by `Cockx, Tabareau, and Winterhalter <https://hal.science/hal-02901011v2/document>`_,
+see section 3 for statements.
+
 .. note:: This page is about the :option:`--rewriting` option and the
   associated :ref:`REWRITE <builtin-rewrite>` builtin. You might be
   looking for the documentation on the :ref:`rewrite construct

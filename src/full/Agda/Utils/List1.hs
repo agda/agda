@@ -39,7 +39,7 @@ import qualified Data.List.NonEmpty as List1 (toList)
 
 import GHC.Exts as IsList ( IsList(..) )
 
-import Agda.Utils.Functor ((<.>))
+import Agda.Utils.Functor ((<.>), (<&>))
 import Agda.Utils.Null (Null(..))
 import qualified Agda.Utils.List as List
 
@@ -123,6 +123,24 @@ groupBy' p xxs@(x : xs) = grp x $ List.zipWith (\ x y -> (p x y, y)) xxs xs
     = (x :| List.map snd xs) : case rest of
       []                 -> []
       ((_false, z) : zs) -> grp z zs
+
+-- | Group consecutive items that share the same first component.
+--
+groupByFst :: forall a b. Eq a => [(a,b)] -> [(a, List1 b)]
+groupByFst =
+    List.map (\ ((tag, b) :| xs) -> (tag, b :| List.map snd xs))
+      -- Float the grouping to the top level
+  . List1.groupBy ((==) `on` fst)
+      -- Group together characters in the same role.
+
+-- | Group consecutive items that share the same first component.
+--
+groupByFst1 :: forall a b. Eq a => List1 (a, b) -> List1 (a, List1 b)
+groupByFst1 =
+    fmap (\ ((tag, b) :| xs) -> (tag, b :| List.map snd xs))
+      -- Float the grouping to the top level
+  . List1.groupBy1 ((==) `on` fst)
+      -- Group together characters in the same role.
 
 -- | Split a list into sublists. Generalisation of the prelude function
 --   @words@.
@@ -212,6 +230,10 @@ lefts = Either.lefts  . List1.toList
 rights :: List1 (Either a b) -> [b]
 rights = Either.rights  . List1.toList
 
+-- | Like 'Data.List.unwords'.
+
+unwords :: List1 String -> String
+unwords = List.unwords . List1.toList
 
 -- | Non-efficient, monadic 'nub'.
 -- O(n²).
@@ -235,3 +257,29 @@ foldr f g (x :| xs) = loop x xs
   where
   loop x []       = g x
   loop x (y : ys) = f x $ loop y ys
+
+-- | Update the first element of a non-empty list.
+--   O(1).
+updateHead :: (a -> a) -> List1 a -> List1 a
+updateHead f (a :| as) = f a :| as
+
+-- | Update the last element of a non-empty list.
+--   O(n).
+updateLast :: (a -> a) -> List1 a -> List1 a
+updateLast f (a :| as) = loop a as
+  where
+  loop a []       = singleton $ f a
+  loop a (b : bs) = cons a $ loop b bs
+
+-- | Focus on the first element of a non-empty list.
+--   O(1).
+lensHead :: Functor f => (a -> f a) -> List1 a -> f (List1 a)
+lensHead f (a :| as) = f a <&> (:| as)
+
+-- | Focus on the last element of a non-empty list.
+--   O(n).
+lensLast :: Functor f => (a -> f a) -> List1 a -> f (List1 a)
+lensLast f (a :| as) = loop a as
+  where
+  loop a []       = singleton <$> f a
+  loop a (b : bs) = cons a <$> loop b bs

@@ -772,15 +772,6 @@ latexOutRelativeFilePath m =
     (map T.unpack $ List1.toList $ moduleNameParts m) <.>
   "tex"
 
-groupByFst :: forall a b. Eq a => [(a,b)] -> [(a,[b])]
-groupByFst =
-    map (\xs -> case xs of                     -- Float the grouping to the top level
-          []           -> __IMPOSSIBLE__
-          (tag, _): _ -> (tag, map snd xs))
-
-  . List.groupBy ((==) `on` fst)  -- Group together characters in the same
-                                  -- role.
-
 -- | Transforms the source code into LaTeX.
 toLaTeX
   :: MonadLogLaTeX m
@@ -826,22 +817,25 @@ toLaTeX env path source hi =
                 ( -- Split tokens at newlines
                   concatMap stringLiteral
                 . concatMap multiLineComment
-                . map ( \(mi, cs) ->
-                              Token {text = T.pack cs, info = fromMaybe mempty mi}
+                . List1.toList
+                . fmap (\ (mi, cs) -> Token
+                        { text = T.pack $ List1.toList cs
+                        , info = fromMaybe mempty mi
+                        }
                       )
-                . groupByFst
+                . List1.groupByFst1
                 )
             )
       )
-    . groupByFst
+    . List1.groupByFst
 
-  -- Look up the meta info at each position in the highlighting info.
-  . zipWith (\pos (role, char) -> (role, (IntMap.lookup pos infoMap, char)))
-            [1..] . -- Add position in file to each character.
-              -- Map each character to its role
-              atomizeLayers . literateTeX (startPos path)
-
-  $ L.unpack source
+    -- Look up the meta info at each position in the highlighting info.
+    . zipWith (\pos (role, char) -> (role, (IntMap.lookup pos infoMap, char)))
+              [1..]
+    -- Map each character to its role
+    . atomizeLayers
+    . literateTeX (startPos path)
+    $ L.unpack source
   where
   infoMap = toMap hi
 

@@ -57,6 +57,8 @@ import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Function
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
@@ -1588,19 +1590,17 @@ type SubstCand = [(Int,Term)] -- ^ a possibly non-deterministic substitution
 -- | Turn non-det substitution into proper substitution, if possible.
 --   Otherwise, raise the error.
 checkLinearity :: SubstCand -> ExceptT () TCM SubstCand
-checkLinearity ids0 = do
-  let ids = List.sortBy (compare `on` fst) ids0  -- see issue 920
-  let grps = groupOn fst ids
-  concat <$> mapM makeLinear grps
+checkLinearity ids = do
+  -- see issue #920
+  List1.toList <$> mapM makeLinear (List1.groupOn fst ids)
   where
     -- Non-determinism can be healed if type is singleton. [Issue 593]
     -- (Same as for irrelevance.)
-    makeLinear :: SubstCand -> ExceptT () TCM SubstCand
-    makeLinear []            = __IMPOSSIBLE__
-    makeLinear grp@[_]       = return grp
-    makeLinear (p@(i,t) : _) =
+    makeLinear :: List1 (Int, Term) -> ExceptT () TCM (Int, Term)
+    makeLinear (p       :| []) = return p
+    makeLinear (p@(i,t) :| _ ) =
       ifM ((Right True ==) <$> do lift . runBlocked . isSingletonTypeModuloRelevance =<< typeOfBV i)
-        (return [p])
+        (return p)
         (throwError ())
 
 -- Intermediate result in the following function

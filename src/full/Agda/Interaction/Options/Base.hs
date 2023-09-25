@@ -219,8 +219,8 @@ import Agda.Utils.FileName      ( AbsolutePath )
 import Agda.Utils.Function      ( applyWhen, applyUnless )
 import Agda.Utils.Functor       ( (<&>) )
 import Agda.Utils.Lens          ( Lens', (^.), over, set )
-import Agda.Utils.List          ( groupOn, headWithDefault, initLast1 )
-import Agda.Utils.List1         ( String1, toList )
+import Agda.Utils.List          ( headWithDefault, initLast1 )
+import Agda.Utils.List1         ( List1, String1, pattern (:|), toList )
 import qualified Agda.Utils.List1        as List1
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad         ( tell1 )
@@ -1898,17 +1898,17 @@ getOptSimple argv opts fileArg = \ defaults ->
       closeopts :: String -> [(Int, String)]
       closeopts s = mapMaybe (close s) longopts
 
-      alts :: String -> [[String]]
-      alts s = map (map snd) $ groupOn fst $ closeopts s
+      alts :: String -> [List1 String]
+      alts s = map (fmap snd) $ List1.groupOn fst $ closeopts s
 
       suggest :: String -> String
       suggest s = case alts s of
         []     -> s
         as : _ -> s ++ " (did you mean " ++ sugs as ++ " ?)"
 
-      sugs :: [String] -> String
-      sugs [a] = a
-      sugs as  = "any of " ++ unwords as
+      sugs :: List1 String -> String
+      sugs (a :| []) = a
+      sugs as  = "any of " ++ List1.unwords as
 
 -- | Parse options from an options pragma.
 parsePragmaOptions
