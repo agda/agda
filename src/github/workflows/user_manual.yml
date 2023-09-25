@@ -71,8 +71,7 @@ jobs:
           mathtools
           stmaryrd
           psnfss
-          chancery
-
+          zapfchan
 
     #     alltt
     #     hypcap
