@@ -69,6 +69,7 @@ jobs:
           multicol
           pifont
           fancyvrb
+          upquote
 
     # - name: Build User Manual in HTML
     #   run: |
