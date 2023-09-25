@@ -67,6 +67,7 @@ jobs:
           booktabs
           etoolbox
           bbm
+          mathtools
 
 
     #     alltt
