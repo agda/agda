@@ -69,6 +69,7 @@ jobs:
           bbm
           bbm-macros
           mathtools
+          stmaryrd
 
 
     #     alltt

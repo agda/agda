@@ -28,7 +28,7 @@ jobs:
         packages: scheme-basic anyfontsize bbm capt-of cmap dvipng fncychap keystroke
           latexmk needspace tex-gyre float framed colortbl ellipse parskip pict2e
           tabulary titlesec varwidth wrapfig fancyvrb upquote booktabs etoolbox bbm
-          bbm-macros mathtools
+          bbm-macros mathtools stmaryrd
     - name: Build User Manual in PDF
       run: |
         export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
