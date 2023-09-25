@@ -71,7 +71,7 @@ jobs:
           mathtools
           stmaryrd
           psnfss
-          times
+          chancery
 
 
     #     alltt
