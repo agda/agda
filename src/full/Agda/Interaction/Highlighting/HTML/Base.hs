@@ -25,7 +25,7 @@ import Data.Function ( on )
 import Data.Foldable (toList, concatMap)
 import Data.Maybe
 import qualified Data.IntMap as IntMap
-import Data.List.Split (splitWhen, chunksOf)
+import Data.List.Split (splitWhen)
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T
 
@@ -304,12 +304,12 @@ code onlyCode fileType = mconcat . if onlyCode
          -- get compile error when adding new file types
          -- when they forget to modify the code here
          RstFileType   -> map mkRst . splitByMarkup
-         MdFileType    -> map mkMd . chunksOf 2 . splitByMarkup
+         MdFileType    -> map mkMd . splitByMarkup
          AgdaFileType  -> map mkHtml
          OrgFileType   -> map mkOrg . splitByMarkup
          -- Two useless cases, probably will never used by anyone
-         TexFileType   -> map mkMd . chunksOf 2 . splitByMarkup
-         TypstFileType -> map mkMd . chunksOf 2 . splitByMarkup
+         TexFileType   -> map mkMd . splitByMarkup
+         TypstFileType -> map mkMd . splitByMarkup
   else map mkHtml
   where
   trd (_, _, a) = a
@@ -323,28 +323,25 @@ code onlyCode fileType = mconcat . if onlyCode
     -- Do not create anchors for whitespace.
     applyUnless (mi == mempty) (annotate pos mi) $ toHtml $ List1.toList s
 
+  backgroundOrAgdaToHtml :: TokenInfo -> Html
+  backgroundOrAgdaToHtml token@(_, s, mi) = case aspect mi of
+    Just Background -> preEscapedToHtml $ List1.toList s
+    Just Markup     -> __IMPOSSIBLE__
+    _               -> mkHtml token
+
   -- Proposed in #3373, implemented in #3384
   mkRst :: [TokenInfo] -> Html
-  mkRst = mconcat . (toHtml rstDelimiter :) . map go
-    where
-      go token@(_, s, mi) = if aspect mi == Just Background
-        then preEscapedToHtml $ List1.toList s
-        else mkHtml token
+  mkRst = mconcat . (toHtml rstDelimiter :) . map backgroundOrAgdaToHtml
 
-  -- Proposed in #3137, implemented in #3313
-  -- Improvement proposed in #3366, implemented in #3367
-  mkMd :: [[TokenInfo]] -> Html
-  mkMd = mconcat . go
+  -- The assumption here and in mkOrg is that Background tokens and Agda tokens are always
+  -- separated by Markup tokens, so these runs only contain one kind.
+  mkMd :: [TokenInfo] -> Html
+  mkMd tokens = if containsCode then formatCode else formatNonCode
     where
-      work token@(_, s, mi) = case aspect mi of
-        Just Background -> preEscapedToHtml $ List1.toList s
-        Just Markup     -> __IMPOSSIBLE__
-        _               -> mkHtml token
-      go [a, b] = [ mconcat $ work <$> a
-                  , Html5.pre ! Attr.class_ "Agda" $ mconcat $ work <$> b
-                  ]
-      go [a]    = work <$> a
-      go _      = __IMPOSSIBLE__
+      containsCode = any ((/= Just Background) . aspect . trd) tokens
+
+      formatCode = Html5.pre ! Attr.class_ "Agda" $ mconcat $ backgroundOrAgdaToHtml <$> tokens
+      formatNonCode = mconcat $ backgroundOrAgdaToHtml <$> tokens
 
   mkOrg :: [TokenInfo] -> Html
   mkOrg tokens = mconcat $ if containsCode then formatCode else formatNonCode
@@ -354,12 +351,8 @@ code onlyCode fileType = mconcat . if onlyCode
       startDelimiter = preEscapedToHtml orgDelimiterStart
       endDelimiter = preEscapedToHtml orgDelimiterEnd
 
-      formatCode = startDelimiter : foldr (\x -> (go x :)) [endDelimiter] tokens
-      formatNonCode = map go tokens
-
-      go token@(_, s, mi) = if aspect mi == Just Background
-        then preEscapedToHtml $ List1.toList s
-        else mkHtml token
+      formatCode = startDelimiter : foldr (\x -> (backgroundOrAgdaToHtml x :)) [endDelimiter] tokens
+      formatNonCode = map backgroundOrAgdaToHtml tokens
 
   -- Put anchors that enable referencing that token.
   -- We put a fail safe numeric anchor (file position) for internal references
