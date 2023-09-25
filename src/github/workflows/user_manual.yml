@@ -70,6 +70,7 @@ jobs:
           pifont
           fancyvrb
           upquote
+          booktabs
 
     # - name: Build User Manual in HTML
     #   run: |
