@@ -37,14 +37,40 @@ jobs:
       run: |
         pip install -r doc/user-manual/requirements.txt
 
-    - name: Install Tex Live and LaTeX packages
-      run: |
-        export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
-        curl -Lo /tmp/texlive.tar.gz https://github.com/jimhester/ubuntu-bin/releases/download/latest/texlive.tar.gz
-        tar xzf /tmp/texlive.tar.gz -C ~
-        tlmgr option repository http://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2017/tlnet-final
-        tlmgr update --self
-        tlmgr install anyfontsize bbm capt-of cmap dvipng fncychap keystroke latexmk needspace tex-gyre
+    - name: Setup TeX Live
+      uses: teatimeguest/setup-texlive-action@v2
+      with:
+        packages: >-
+          scheme-basic
+          anyfontsize
+          bbm
+          bbm-macros
+          booktabs
+          capt-of
+          cmap
+          colortbl
+          dvipng
+          ellipse
+          etoolbox
+          fancyvrb
+          float
+          fncychap
+          framed
+          keystroke
+          latexmk
+          mathtools
+          needspace
+          parskip
+          pict2e
+          psnfss
+          stmaryrd
+          tabulary
+          tex-gyre
+          titlesec
+          upquote
+          varwidth
+          wrapfig
+          zapfchan
 
     - name: Build User Manual in HTML
       run: |
