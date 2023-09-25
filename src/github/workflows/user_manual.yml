@@ -71,6 +71,7 @@ jobs:
           fancyvrb
           upquote
           booktabs
+          etoolbox
 
     # - name: Build User Manual in HTML
     #   run: |
