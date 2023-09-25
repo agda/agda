@@ -26,9 +26,7 @@ jobs:
       uses: teatimeguest/setup-texlive-action@v2
       with:
         packages: scheme-basic anyfontsize bbm capt-of cmap dvipng fncychap keystroke
-          latexmk needspace tex-gyre alltt colortbl ellipse hypcap longtable makeidx
-          multicol parskip pict2e pifont tabulary tgheros tgtermes titlesec varwidth
-          wrapfig
+          latexmk needspace tex-gyre
     - name: Build User Manual in HTML
       run: |
         export PATH=$HOME/texlive/bin/x86_64-linux:$PATH

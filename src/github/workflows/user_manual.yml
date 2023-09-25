@@ -52,22 +52,15 @@ jobs:
         packages: >-
           scheme-basic
           anyfontsize bbm capt-of cmap dvipng fncychap keystroke latexmk needspace tex-gyre
-          alltt
-          colortbl
-          ellipse
-          hypcap
-          longtable
-          makeidx
-          multicol
-          parskip
-          pict2e
-          pifont
-          tabulary
-          tgheros
-          tgtermes
-          titlesec
-          varwidth
-          wrapfig
+
+        # colortbl
+        # ellipse
+        # parskip
+        # pict2e
+        # tabulary
+        # titlesec
+        # varwidth
+        # wrapfig
 
     - name: Build User Manual in HTML
       run: |
