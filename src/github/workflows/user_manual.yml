@@ -70,6 +70,7 @@ jobs:
           bbm-macros
           mathtools
           stmaryrd
+          psnfss
 
 
     #     alltt
