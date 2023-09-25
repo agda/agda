@@ -68,6 +68,7 @@ jobs:
           makeidx
           multicol
           pifont
+          fancyvrb
 
     # - name: Build User Manual in HTML
     #   run: |
