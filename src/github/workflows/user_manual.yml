@@ -72,6 +72,7 @@ jobs:
           upquote
           booktabs
           etoolbox
+          bbm
 
     # - name: Build User Manual in HTML
     #   run: |
