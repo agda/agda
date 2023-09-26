@@ -36,6 +36,11 @@ import qualified Network.URI.Encode
 import System.FilePath
 import System.Directory
 
+-- Andreas, 2023-09-26, import ToMarkup instances from blaze-markup.
+-- This import statement is to prevent the unused-packages complaint from GHC,
+-- see https://github.com/jaspervdj/blaze-html/issues/142.
+import Text.Blaze ()
+
 import Text.Blaze.Html5
     ( preEscapedToHtml
     , toHtml
@@ -321,14 +326,14 @@ code onlyCode fileType = mconcat . if onlyCode
   mkHtml (pos, s, mi) =
     -- Andreas, 2017-06-16, issue #2605:
     -- Do not create anchors for whitespace.
-    applyUnless (mi == mempty) (annotate pos mi) $ toHtml $ List1.toList s
+    applyUnless (mi == mempty) (annotate pos mi) $ toHtml s
 
   -- Proposed in #3373, implemented in #3384
   mkRst :: [TokenInfo] -> Html
   mkRst = mconcat . (toHtml rstDelimiter :) . map go
     where
       go token@(_, s, mi) = if aspect mi == Just Background
-        then preEscapedToHtml $ List1.toList s
+        then preEscapedToHtml s
         else mkHtml token
 
   -- Proposed in #3137, implemented in #3313
@@ -337,7 +342,7 @@ code onlyCode fileType = mconcat . if onlyCode
   mkMd = mconcat . go
     where
       work token@(_, s, mi) = case aspect mi of
-        Just Background -> preEscapedToHtml $ List1.toList s
+        Just Background -> preEscapedToHtml s
         Just Markup     -> __IMPOSSIBLE__
         _               -> mkHtml token
       go [a, b] = [ mconcat $ work <$> a
@@ -358,7 +363,7 @@ code onlyCode fileType = mconcat . if onlyCode
       formatNonCode = map go tokens
 
       go token@(_, s, mi) = if aspect mi == Just Background
-        then preEscapedToHtml $ List1.toList s
+        then preEscapedToHtml s
         else mkHtml token
 
   -- Put anchors that enable referencing that token.
