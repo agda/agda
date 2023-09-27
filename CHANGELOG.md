@@ -218,6 +218,9 @@ Syntax
   `syntax f {x} = …`. However, `{x}` is interpreted as a pun in
   `λ (c {x}) → …`.
 
+* `postulate` blocks may now contain `private` declarations
+  (see [#1702](https://github.com/agda/agda/issues/1702)).
+
 Language
 --------
 

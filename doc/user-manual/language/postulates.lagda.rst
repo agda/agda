@@ -19,7 +19,9 @@ The general form of a postulate declaration is as follows:
       ...
       cn1 ... cnj : <Type>
 
-Example: ::
+Postulate blocks can include ``instance`` and ``private`` declarations.
+
+Example for a basic postulate block::
 
   postulate
     A B    : Set
