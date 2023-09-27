@@ -1,0 +1,3 @@
+NoPrivateConstructorsInPublicData.agda:4,3-5,10
+A data definition can only contain type signatures, possibly under
+keyword instance

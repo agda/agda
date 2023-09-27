@@ -716,7 +716,7 @@ niceDeclarations fixs ds = do
         return [ NiceField (getRange d) PublicAccess ConcreteDef i tac x argt ]
       InstanceB r decls -> do
         instanceBlock r =<< niceAxioms InstanceBlock decls
-      Private r o decls -> do
+      Private r o decls | PostulateBlock <- b -> do
         privateBlock r o =<< niceAxioms b decls
       Pragma p@(RewritePragma r _ _) -> do
         return [ NicePragma r p ]
