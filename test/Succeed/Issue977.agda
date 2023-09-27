@@ -12,3 +12,10 @@ mutual
     odd : Nat → Bool
 
 -- Error WAS: Postulates are not allowed in mutual blocks
+
+-- Andreas, 2023-09-27, issue #1702
+-- Allow 'private' in postulates
+
+postulate
+  private
+    Foo : Set
