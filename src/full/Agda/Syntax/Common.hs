@@ -1519,12 +1519,13 @@ defaultCohesion = unitCohesion
 
 -- | Origin of arguments.
 data Origin
-  = UserWritten  -- ^ From the source file / user input.  (Preserve!)
-  | Inserted     -- ^ E.g. inserted hidden arguments.
-  | Reflected    -- ^ Produced by the reflection machinery.
-  | CaseSplit    -- ^ Produced by an interactive case split.
-  | Substitution -- ^ Named application produced to represent a substitution. E.g. "?0 (x = n)" instead of "?0 n"
-  | ExpandedPun  -- ^ An expanded hidden argument pun.
+  = UserWritten     -- ^ From the source file / user input.  (Preserve!)
+  | Inserted        -- ^ E.g. inserted hidden arguments.
+  | Reflected       -- ^ Produced by the reflection machinery.
+  | CaseSplit       -- ^ Produced by an interactive case split.
+  | Substitution    -- ^ Named application produced to represent a substitution. E.g. "?0 (x = n)" instead of "?0 n"
+  | ExpandedPun     -- ^ An expanded hidden argument pun.
+  | Generalization  -- ^ Inserted by the generalization process
   deriving (Show, Eq, Ord)
 
 instance HasRange Origin where
@@ -1540,6 +1541,7 @@ instance NFData Origin where
   rnf CaseSplit = ()
   rnf Substitution = ()
   rnf ExpandedPun = ()
+  rnf Generalization = ()
 
 -- | Decorating something with 'Origin' information.
 data WithOrigin a = WithOrigin
