@@ -727,8 +727,9 @@ unfoldDefinitionStep v0 f es =
                           defaultResult -- non-terminating or delayed
         ([],[])        -> traceSLn "tc.reduce" 90 "reduceNormalE: no clauses or rewrite rules" $ do
           -- no definition for head
-          blk <- instantiate =<< do defBlocked <$> getConstInfo f
-          noReduction $ blk $> vfull
+          (defBlocked <$> getConstInfo f) >>= \case
+            Blocked{}    -> noReduction $ Blocked (UnblockOnDef f) vfull
+            NotBlocked{} -> defaultResult
         (cls,rewr)     -> do
           ev <- appDefE_ f v0 cls mcc rewr es
           debugReduce ev
