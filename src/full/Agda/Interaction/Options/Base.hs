@@ -1439,11 +1439,15 @@ standardOptions =
                     , intercalate ", " $ map fst allHelpTopics
                     ]
 
-    , Option []     ["print-agda-data-dir"] (NoArg printAgdaDataDirFlag)
-                    ("print Agda data directory exit")
+    , Option []     ["print-agda-dir"] (NoArg printAgdaDataDirFlag)
+                    ("print the Agda data directory exit")
 
     , Option []     ["print-agda-app-dir"] (NoArg printAgdaAppDirFlag)
                     ("print $AGDA_DIR and exit")
+
+    , Option []     ["print-agda-data-dir"] (NoArg printAgdaDataDirFlag)
+                    ("print the Agda data directory exit")
+
 
     , Option ['I']  ["interactive"] (NoArg interactiveFlag)
                     "start in interactive mode"

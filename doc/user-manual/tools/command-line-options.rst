@@ -119,9 +119,15 @@ General options
      application configuration files, such as the ``defaults`` and
      ``libraries`` files, as described in :ref:`package-system`.
 
-.. option:: --print-agda-data-dir
+.. option:: --print-agda-dir
 
      .. versionadded:: 2.6.2
+
+     Alias of :option:`--print-agda-data-dir`.
+
+.. option:: --print-agda-data-dir
+
+     .. versionadded:: 2.6.4
 
      Outputs the root of the directory structure holding Agda's data
      files such as core libraries, style files for the backends etc.
