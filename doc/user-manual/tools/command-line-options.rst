@@ -130,7 +130,7 @@ General options
      .. versionadded:: 2.6.4
 
      Outputs the root of the directory structure holding Agda's data
-     files such as core libraries, style files for the backends etc.
+     files such as core libraries, style files for the backends, etc.
 
 .. option:: --transliterate
 
