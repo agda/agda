@@ -127,6 +127,11 @@ jobs:
           description: Linux debug
           ghc-ver: 9.6.2
           os: ubuntu-22.04
+        - cabal-flags: |
+            --enable-tests -f enable-cluster-counting -f debug -c containers>=0.7 --allow-newer=containers
+          description: Linux containers 0.7
+          ghc-ver: 9.6.2
+          os: ubuntu-22.04
         - description: macOS
           ghc-ver: 9.6.2
           os: macos-12
