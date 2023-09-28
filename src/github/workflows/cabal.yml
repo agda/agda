@@ -72,16 +72,15 @@ jobs:
             ghc-ver: '9.6.2'
             cabal-flags: '--enable-tests -f debug'
 
-          ## Andreas, 2023-03-15: Obsolete with GHC 9.6 which ships mtl-2.3
-          # # Linux, with mtl-2.3 and everything
-          # - os: ubuntu-22.04
-          #   description: Linux mtl 2.3
-          #   ghc-ver: '9.6.2'
-          #   ## Andreas, 2022-11-23: Test mtl-2.3.1 here which has breaking changes.
-          #   ## Note: -c 'mtl >= 2.3.1' with single quotes does not get communicated properly.
-          #   ## (The single quotes stay, and "-c 'mtl" is an option parse error for cabal.)
-          #   cabal-flags: |
-          #     --enable-tests -f enable-cluster-counting -f debug -c mtl>=2.3.1
+          # Linux, with containers-0.7 and everything
+          - os: ubuntu-22.04
+            description: Linux containers 0.7
+            ghc-ver: '9.6.2'
+            ## Andreas, 2023-09-28: Test containers-0.7 here which has breaking changes.
+            ## Note: -c 'containers >= 0.7' with single quotes does not get communicated properly.
+            ## (The single quotes stay, and "-c 'containers" is an option parse error for cabal.)
+            cabal-flags: |
+              --enable-tests -f enable-cluster-counting -f debug -c containers>=0.7 --allow-newer=containers
 
           # macOS with default flags
           - os: macos-12
