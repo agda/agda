@@ -214,13 +214,13 @@ instance EmbPrj TopLevelModuleName where
   value = valueN TopLevelModuleName
 
 instance {-# OVERLAPPABLE #-} EmbPrj a => EmbPrj [a] where
-  icod_ xs = icodeNode =<< mapM icode xs
-  value    = vcase (mapM value)
---   icode []       = icode0'
---   icode (x : xs) = icode2' x xs
---   value = vcase valu where valu []      = valu0 []
---                            valu [x, xs] = valu2 (:) x xs
---                            valu _       = malformed
+  icod_ xs = icodeNode =<< go xs where
+    go :: [a] -> S Node
+    go []     = pure Empty
+    go (a:as) = do {n <- icode a; ns <- go as; pure $! Cons n ns}
+
+  value = vcase (mapM value)
+
 
 instance EmbPrj a => EmbPrj (List1 a) where
   icod_ = icod_ . List1.toList
@@ -238,15 +238,15 @@ instance (EmbPrj k, EmbPrj v, EmbPrj (BiMap.Tag v)) =>
 
 -- | Encode a list of key-value pairs as a flat list.
 mapPairsIcode :: (EmbPrj k, EmbPrj v) => [(k, v)] -> S Int32
-mapPairsIcode xs = icodeNode =<< convert [] xs where
+mapPairsIcode xs = icodeNode =<< convert Empty xs where
   -- As we need to call `convert' in the tail position, the resulting list is
   -- written (and read) in reverse order, with the highest pair first in the
   -- resulting list.
-  convert ys [] = return ys
-  convert ys ((start, entry):xs) = do
+  convert !ys [] = return ys
+  convert  ys ((start, entry):xs) = do
     start <- icode start
     entry <- icode entry
-    convert (start:entry:ys) xs
+    convert (Cons start (Cons entry ys)) xs
 
 mapPairsValue :: (EmbPrj k, EmbPrj v) => [Int32] -> R [(k, v)]
 mapPairsValue = convert [] where
