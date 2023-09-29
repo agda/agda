@@ -60,7 +60,6 @@ farEmpty = FreshAndReuse 0
 #ifdef DEBUG
                            0
 #endif
-
 lensFresh :: Lens' FreshAndReuse Int32
 lensFresh f r = f (farFresh r) <&> \ i -> r { farFresh = i }
 
@@ -103,7 +102,7 @@ data Dict = Dict
   , nameC        :: !(IORef FreshAndReuse)
   , qnameC       :: !(IORef FreshAndReuse)
   , stats        :: !(HashTable String Int)
-  , collectStats :: Bool
+  , collectStats :: !Bool
     -- ^ If @True@ collect in @stats@ the quantities of
     --   calls to @icode@ for each @Typeable a@.
   }
@@ -154,7 +153,7 @@ data St = St
     --   Used to introduce sharing while deserializing objects.
   , modFile   :: !ModuleToSource
     -- ^ Maps module names to file names. Constructed by the decoder.
-  , includes  :: [AbsolutePath]
+  , includes  :: ![AbsolutePath]
     -- ^ The include directories.
   }
 
@@ -174,6 +173,7 @@ type R a = ExceptT TypeError (StateT St IO) a
 
 malformed :: R a
 malformed = throwError $ GenericError "Malformed input."
+{-# noinline malformed #-}
 
 class Typeable a => EmbPrj a where
   icode :: a -> S Int32  -- ^ Serialization (wrapper).
@@ -190,20 +190,25 @@ class Typeable a => EmbPrj a where
   value i =
     let i' = fromIntegral i in
     if i' >= fromEnum (minBound :: a) && i' <= fromEnum (maxBound :: a)
-    then pure (toEnum i')
+    then pure $! toEnum i'
     else malformed
 
   default icod_ :: (Enum a, Bounded a) => a -> S Int32
-  icod_ = return . fromIntegral . fromEnum
+  icod_ x = return $! fromIntegral $! fromEnum x
+
+goTickIcode :: forall a. Typeable a => Proxy a -> S ()
+goTickIcode p = do
+  let key = "icode " ++ show (typeRep p)
+  hmap <- asks stats
+  liftIO $ do
+    n <- fromMaybe 0 <$> H.lookup hmap key
+    H.insert hmap key $! n + 1
+{-# noinline goTickIcode #-}
 
 -- | Increase entry for @a@ in 'stats'.
 tickICode :: forall a. Typeable a => a -> S ()
-tickICode _ = whenM (asks collectStats) $ do
-    let key = "icode " ++ show (typeRep (Proxy :: Proxy a))
-    hmap <- asks stats
-    liftIO $ do
-      n <- fromMaybe 0 <$> H.lookup hmap key
-      H.insert hmap key $! n + 1
+tickICode _ = whenM (asks collectStats) $ goTickIcode (Proxy :: Proxy a)
+{-# inline tickICode #-}
 
 -- | Data.Binary.runGetState is deprecated in favour of runGetIncremental.
 --   Reimplementing it in terms of the new function. The new Decoder type contains
@@ -252,9 +257,9 @@ icodeX dict counter key = do
 #ifdef DEBUG
         modifyIORef' c $ over lensReuse (+1)
 #endif
-        return i
+        return $! i
       Nothing -> do
-        fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
+        !fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
         H.insert d key fresh
         return fresh
 
@@ -273,9 +278,9 @@ icodeInteger key = do
 #ifdef DEBUG
         modifyIORef' c $ over lensReuse (+1)
 #endif
-        return i
+        return $! i
       Nothing -> do
-        fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
+        !fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
         H.insert d key fresh
         return fresh
 
@@ -290,9 +295,9 @@ icodeDouble key = do
 #ifdef DEBUG
         modifyIORef' c $ over lensReuse (+1)
 #endif
-        return i
+        return $! i
       Nothing -> do
-        fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
+        !fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
         H.insert d key fresh
         return fresh
 
@@ -309,7 +314,7 @@ icodeString key = do
 #endif
         return i
       Nothing -> do
-        fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
+        !fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
         H.insert d key fresh
         return fresh
 
@@ -324,9 +329,9 @@ icodeNode key = do
 #ifdef DEBUG
         modifyIORef' c $ over lensReuse (+1)
 #endif
-        return i
+        return $! i
       Nothing -> do
-        fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
+        !fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
         H.insert d key fresh
         return fresh
 
@@ -350,10 +355,10 @@ icodeMemo getDict getCounter a icodeP = do
 #ifdef DEBUG
         modifyIORef' st $ over lensReuse (+ 1)
 #endif
-        return i
+        return $! i
       Nothing -> do
         liftIO $ modifyIORef' st $ over lensFresh (+1)
-        i <- icodeP
+        !i <- icodeP
         liftIO $ H.insert h a i
         return i
 
@@ -375,8 +380,8 @@ vcase valu = \ix -> do
       Just (U u) -> maybe malformed return (cast u)
       -- no, it's new, so generate it via valu and insert it into memo
       Nothing    -> do
-          v <- valu . (! ix) =<< gets nodeE
-          liftIO $ writeArray memo ix (Hm.insert aTyp (U v) slot)
+          !v <- valu . (! ix) =<< gets nodeE
+          liftIO $ writeArray memo ix $! Hm.insert aTyp (U v) slot
           return v
 
 -- | @icodeArgs proxy (a1, ..., an)@ maps @icode@ over @a1@, ..., @an@
@@ -384,13 +389,17 @@ vcase valu = \ix -> do
 
 class ICODE t b where
   icodeArgs :: IsBase t ~ b => All EmbPrj (Domains t) =>
-               Proxy t -> Products (Domains t) -> S [Int32]
+               Proxy t -> StrictProducts (Domains t) -> S [Int32]
 
 instance IsBase t ~ 'True => ICODE t 'True where
   icodeArgs _ _  = return []
+  {-# inline icodeArgs #-}
 
 instance ICODE t (IsBase t) => ICODE (a -> t) 'False where
-  icodeArgs _ (a , as) = icode a >>= \ hd -> (hd :) <$> icodeArgs (Proxy :: Proxy t) as
+  icodeArgs _ (Pair a as) = icode a >>= \ !hd -> do
+    !node <- icodeArgs (Proxy :: Proxy t) as
+    pure $! hd : node
+  {-# inline icodeArgs #-}
 
 -- | @icodeN tag t a1 ... an@ serialises the arguments @a1@, ..., @an@ of the
 --   constructor @t@ together with a tag @tag@ picked to disambiguate between
@@ -398,21 +407,23 @@ instance ICODE t (IsBase t) => ICODE (a -> t) 'False where
 --   It corresponds to @icodeNode . (tag :) =<< mapM icode [a1, ..., an]@
 
 {-# INLINE icodeN #-}
-icodeN :: forall t. ICODE t (IsBase t) => Currying (Domains t) (S Int32) =>
+icodeN :: forall t. ICODE t (IsBase t) => StrictCurrying (Domains t) (S Int32) =>
           All EmbPrj (Domains t) =>
           Int32 -> t -> Arrows (Domains t) (S Int32)
 icodeN tag _ =
-  currys (Proxy :: Proxy (Domains t)) (Proxy :: Proxy (S Int32)) $ \ args ->
-  icodeNode . (tag :) =<< icodeArgs (Proxy :: Proxy t) args
+  strictCurrys (Proxy :: Proxy (Domains t)) (Proxy :: Proxy (S Int32)) $ \ !args -> do
+    !node <- icodeArgs (Proxy :: Proxy t) args
+    icodeNode $! tag : node
 
 -- | @icodeN'@ is the same as @icodeN@ except that there is no tag
 {-# INLINE icodeN' #-}
-icodeN' :: forall t. ICODE t (IsBase t) => Currying (Domains t) (S Int32) =>
+icodeN' :: forall t. ICODE t (IsBase t) => StrictCurrying (Domains t) (S Int32) =>
            All EmbPrj (Domains t) =>
            t -> Arrows (Domains t) (S Int32)
 icodeN' _ =
-  currys (Proxy :: Proxy (Domains t)) (Proxy :: Proxy (S Int32)) $ \ args ->
-  icodeNode =<< icodeArgs (Proxy :: Proxy t) args
+  strictCurrys (Proxy :: Proxy (Domains t)) (Proxy :: Proxy (S Int32)) $ \ !args -> do
+    !node <- icodeArgs (Proxy :: Proxy t) args
+    icodeNode node
 
 -- Instead of having up to 25 versions of @valu N@, we define
 -- the class VALU which generates them by typeclass resolution.
@@ -422,11 +433,11 @@ class VALU t b where
 
   valuN' :: b ~ IsBase t =>
             All EmbPrj (Domains t) =>
-            t -> Products (Constant Int32 (Domains t)) -> R (CoDomain t)
+            t -> StrictProducts (Constant Int32 (Domains t)) -> R (CoDomain t)
 
   valueArgs :: b ~ IsBase t =>
                All EmbPrj (CoDomain t ': Domains t) =>
-               Proxy t -> Node -> Maybe (Products (Constant Int32 (Domains t)))
+               Proxy t -> Node -> Maybe (StrictProducts (Constant Int32 (Domains t)))
 
 instance VALU t 'True where
   {-# INLINE valuN' #-}
@@ -440,19 +451,19 @@ instance VALU t 'True where
 
 instance VALU t (IsBase t) => VALU (a -> t) 'False where
   {-# INLINE valuN' #-}
-  valuN' c (a, as) = value a >>= \ v -> valuN' (c v) as
+  valuN' c (Pair a as) = value a >>= \ !v -> valuN' (c v) as
 
   {-# INLINE valueArgs #-}
   valueArgs _ xs = case xs of
-    (x : xs') -> (x,) <$> valueArgs (Proxy :: Proxy t) xs'
+    (x : xs') -> do {!node <- valueArgs (Proxy :: Proxy t) xs'; pure (Pair x node)}
     _         -> Nothing
 
 {-# INLINE valuN #-}
 valuN :: forall t. VALU t (IsBase t) =>
-         Currying (Constant Int32 (Domains t)) (R (CoDomain t)) =>
+         StrictCurrying (Constant Int32 (Domains t)) (R (CoDomain t)) =>
          All EmbPrj (Domains t) =>
          t -> Arrows (Constant Int32 (Domains t)) (R (CoDomain t))
-valuN f = currys (Proxy :: Proxy (Constant Int32 (Domains t)))
+valuN f = strictCurrys (Proxy :: Proxy (Constant Int32 (Domains t)))
                  (Proxy :: Proxy (R (CoDomain t)))
                  (valuN' f)
 
