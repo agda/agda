@@ -7,6 +7,7 @@
 
 module Agda.TypeChecking.Serialise.Base where
 
+import qualified Control.Exception as E
 import Control.Monad.Except
 import Control.Monad.IO.Class     ( MonadIO(..) )
 import Control.Monad.Reader
@@ -209,13 +210,13 @@ type S a = ReaderT Dict IO a
 -- 'TCM' is not used because the associated overheads would make
 -- decoding slower.
 
-type R a = ExceptT TypeError (StateT St IO) a
+type R = StateT St IO
 
 -- | Throws an error which is suitable when the data stream is
 -- malformed.
 
 malformed :: R a
-malformed = throwError $ GenericError "Malformed input."
+malformed = liftIO $ E.throwIO $ E.ErrorCall "Malformed input."
 {-# noinline malformed #-}
 
 class Typeable a => EmbPrj a where

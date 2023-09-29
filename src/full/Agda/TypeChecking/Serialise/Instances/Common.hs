@@ -3,6 +3,7 @@
 
 module Agda.TypeChecking.Serialise.Instances.Common (SerialisedRange(..)) where
 
+import qualified Control.Exception as E
 import Control.Monad              ( (<=<), (<$!>) )
 import Control.Monad.IO.Class     ( MonadIO(..) )
 import Control.Monad.Except       ( MonadError(..) )
@@ -295,7 +296,7 @@ instance EmbPrj RangeFile where
     (r, mf) <- liftIO $ findFile'' incs m mf
     modify $ \s -> s { modFile = mf }
     case r of
-      Left err -> throwError $ findErrorToTypeError m err
+      Left err -> liftIO $ E.throwIO $ E.ErrorCall $ "file not found: " ++ show m
       Right f  -> let !sfp = srcFilePath f in return $ RangeFile sfp (Just m)
 
 -- | Ranges are always deserialised as 'noRange'.
