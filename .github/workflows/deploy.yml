@@ -92,7 +92,7 @@ jobs:
       name: Install the ICU library (Windows)
       run: |
         $env:PATH = "C:\msys64\usr\bin;$env:PATH"
-        pacman -v --noconfirm -Sy mingw-w64-x86_64-pkg-config mingw-w64-x86_64-icu
+        pacman -v --noconfirm -S mingw-w64-x86_64-pkgconf mingw-w64-x86_64-icu
         echo "C:\msys64\mingw64\bin" | Out-File -FilePath "$env:GITHUB_PATH" -Append
       shell: pwsh
     - if: ${{ runner.os == 'macOS' }}

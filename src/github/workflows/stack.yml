@@ -161,9 +161,9 @@ jobs:
       if: ${{ runner.os == 'Windows' }}
       run: |
         # stack exec ${ARGS} -- pacman --noconfirm -Syuu
-        stack exec ${ARGS} -- pacman --noconfirm -Sy msys2-keyring
+        # stack exec ${ARGS} -- pacman --noconfirm -S msys2-keyring
         stack exec ${ARGS} -- bash -c "curl -LO ${ICU_URL} && pacman --noconfirm -U *.pkg.tar.zst"
-        stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-pkg-config
+        stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-pkgconf
 
     - name: Determine the ICU version
       run: |
