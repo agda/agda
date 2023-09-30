@@ -26,9 +26,10 @@ import qualified Data.Binary as B
 import qualified Data.Binary.Get as B
 import qualified Data.Text      as T
 import qualified Data.Text.Lazy as TL
-import Data.Typeable ( cast, Typeable, TypeRep, typeRep )
-
-import GHC.Exts (Word(..), timesWord2#, xor#)
+import Data.Typeable ( cast, Typeable, TypeRep, typeRep, typeRepFingerprint )
+import GHC.Exts (Word(..), timesWord2#, xor#, Any)
+import GHC.Fingerprint.Type
+import Unsafe.Coerce
 
 import Agda.Syntax.Common (NameId)
 import Agda.Syntax.Internal (Term, QName(..), ModuleName(..), nameId)
@@ -85,6 +86,24 @@ instance B.Binary Node where
     go Empty = mempty
     go (Cons n ns) = B.put n <> go ns
 
+-- | Association lists mapping TypeRep fingerprints to values. In some cases
+--   values with different types have the same serialized representation. This
+--   structure disambiguates them.
+data MemoEntry = MEEmpty | MECons {-# unpack #-} !Fingerprint !Any !MemoEntry
+
+fingerprintNoinline :: TypeRep -> Fingerprint
+fingerprintNoinline rep = typeRepFingerprint rep
+{-# noinline fingerprintNoinline #-}
+
+lookupME :: forall a b. Proxy a -> Fingerprint -> MemoEntry -> (a -> b) -> b -> b
+lookupME proxy fprint me found notfound = go fprint me where
+  go :: Fingerprint -> MemoEntry -> b
+  go fp MEEmpty =
+    notfound
+  go fp (MECons fp' x me)
+    | fp == fp' = found (unsafeCoerce x)
+    | True      = go fp me
+{-# inline lookupME #-}
 
 -- | Structure providing fresh identifiers for hash map
 --   and counting hash map hits (i.e. when no fresh identifier required).
@@ -178,11 +197,8 @@ emptyDict collectStats = Dict
   <*> H.empty
   <*> pure collectStats
 
--- | Universal type, wraps everything.
-data U = forall a . Typeable a => U !a
-
 -- | Univeral memo structure, to introduce sharing during decoding
-type Memo = IOArray Int32 (Hm.HashMap TypeRep U) -- node index -> (type rep -> value)
+type Memo = IOArray Int32 MemoEntry
 
 -- | State of the decoder.
 data St = St
@@ -225,12 +241,12 @@ class Typeable a => EmbPrj a where
   value :: Int32 -> R a  -- ^ Deserialization.
 
   icode a = do
-    !n <- icod_ a
+    !r <- icod_ a
     tickICode a
-    pure n
+    pure r
+  {-# inline icode #-}
 
   -- Simple enumeration types can be (de)serialized using (from/to)Enum.
-
   default value :: (Enum a, Bounded a) => Int32 -> R a
   value i =
     let i' = fromIntegral i in
@@ -415,19 +431,17 @@ icodeMemo getDict getCounter a icodeP = do
 vcase :: forall a . EmbPrj a => ([Int32] -> R a) -> Int32 -> R a
 vcase valu = \ix -> do
     memo <- gets nodeMemo
-    -- compute run-time representation of type a
-    let aTyp = typeRep (Proxy :: Proxy a)
+    let fp = fingerprintNoinline (typeRep (Proxy :: Proxy a))
     -- to introduce sharing, see if we have seen a thing
     -- represented by ix before
     slot <- liftIO $ readArray memo ix
-    case Hm.lookup aTyp slot of
-      -- yes, we have seen it before, use the version from memo
-      Just (U u) -> maybe malformed return (cast u)
-      -- no, it's new, so generate it via valu and insert it into memo
-      Nothing    -> do
-          !v <- valu . (! ix) =<< gets nodeE
-          liftIO $ writeArray memo ix $! Hm.insert aTyp (U v) slot
-          return v
+    lookupME (Proxy :: Proxy a) fp slot
+      -- use the stored value
+      pure
+      -- read new value and save it
+      (do !v <- valu . (! ix) =<< gets nodeE
+          liftIO $ writeArray memo ix $! MECons fp (unsafeCoerce v) slot
+          return v)
 
 -- | @icodeArgs proxy (a1, ..., an)@ maps @icode@ over @a1@, ..., @an@
 --   and returns the corresponding list of @Int32@.

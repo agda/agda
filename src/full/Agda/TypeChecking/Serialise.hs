@@ -213,7 +213,7 @@ decode s = do
     when (not (null s)) $ E.throwIO $ E.ErrorCall "Garbage at end."
     let nL' = ar nL
     st <- St nL' (ar ltL) (ar stL) (ar bL) (ar iL) (ar dL)
-            <$> liftIO (newArray (bounds nL') mempty)
+            <$> liftIO (newArray (bounds nL') MEEmpty)
             <*> return mf <*> return incs
     (r, st) <- runStateT (value r) st
     let !mf = modFile st
