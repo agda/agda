@@ -106,6 +106,7 @@ module Agda.Interaction.Options.Base
     , lensOptKeepCoveringClauses
     -- * Boolean accessors to 'PragmaOptions' collapsing default
     , optShowImplicit
+    , optShowGeneralized
     , optShowIrrelevant
     , optProp
     , optLevelUniverse
@@ -310,6 +311,8 @@ instance NFData CommandLineOptions
 
 data PragmaOptions = PragmaOptions
   { _optShowImplicit              :: WithDefault 'False
+  , _optShowGeneralized           :: WithDefault 'True
+      -- ^ Show generalized parameters in Pi types
   , _optShowIrrelevant            :: WithDefault 'False
   , _optUseUnicode                :: WithDefault' UnicodeOrAscii 'True -- Would like to write UnicodeOk instead of True here
   , _optVerbose                   :: !Verbosity
@@ -451,6 +454,7 @@ instance NFData PrintAgdaVersion
 
 -- collapse defaults
 optShowImplicit              :: PragmaOptions -> Bool
+optShowGeneralized           :: PragmaOptions -> Bool
 optShowIrrelevant            :: PragmaOptions -> Bool
 optProp                      :: PragmaOptions -> Bool
 optLevelUniverse             :: PragmaOptions -> Bool
@@ -512,6 +516,7 @@ optLargeIndices              :: PragmaOptions -> Bool
 optForcedArgumentRecursion   :: PragmaOptions -> Bool
 
 optShowImplicit              = collapseDefault . _optShowImplicit
+optShowGeneralized           = collapseDefault . _optShowGeneralized
 optShowIrrelevant            = collapseDefault . _optShowIrrelevant
 optProp                      = collapseDefault . _optProp
 optLevelUniverse             = collapseDefault . _optLevelUniverse
@@ -847,6 +852,7 @@ defaultOptions = Options
 defaultPragmaOptions :: PragmaOptions
 defaultPragmaOptions = PragmaOptions
   { _optShowImplicit              = Default
+  , _optShowGeneralized           = Default
   , _optShowIrrelevant            = Default
   , _optUseUnicode                = Default -- UnicodeOk
   , _optVerbose                   = Strict.Nothing

@@ -2032,7 +2032,6 @@ data Definition = Defn
 
   , defArgGeneralizable :: NumGeneralizableArgs
     -- ^ For a generalized variable, shows how many arguments should be generalised.
-    -- For a function definition, shows how many parameters come from generalization.
   , defGeneralizedParams :: [Maybe Name]
     -- ^ Gives the name of the (bound variable) parameter for named generalized
     --   parameters. This is needed to bring it into scope when type checking

@@ -20,7 +20,7 @@ import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Options
 
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Abstract.Views (deepUnscopeDecl, deepUnscopeDecls, unScope)
+import Agda.Syntax.Abstract.Views (deepUnscopeDecl, deepUnscopeDecls)
 import Agda.Syntax.Internal
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
@@ -665,11 +665,7 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
 
   lang <- getLanguage
   funD <- emptyFunctionData
-  let genArgs = case kind of
-                  FunName -> case unScope e of
-                    A.Generalized s _ -> SomeGeneralizableArgs (Set.size s)
-                    _ -> NoGeneralizableArgs
-                  _ -> NoGeneralizableArgs
+
   let defn = defaultDefn info x t lang $
         case kind of   -- #4833: set abstract already here so it can be inherited by with functions
           FunName   -> fun
@@ -685,7 +681,6 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
         { defArgOccurrences    = occs
         , defPolarity          = pols
         , defGeneralizedParams = genParams
-        , defArgGeneralizable  = genArgs
         , defBlocked           = blk
         }
 

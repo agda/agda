@@ -567,7 +567,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
             {- then -} (pure $ Arg (domInfo a) underscore)
             {- else -} (reify a)
       where
-        mkPi b (Arg info a') = do
+        mkPi b (Arg info a') = ifM (skipGeneralizedParameter info) (snd <$> reify b) $ do
           tac <- traverse (Ranged noRange <.> reify) $ domTactic a
           (x, b) <- reify b
           let xs = singleton $ Arg info $ Named (domName a) $ mkBinder_ x
@@ -579,6 +579,9 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
         domainFree a b = do
           df <- asksTC envPrintDomainFreePi
           return $ df && freeIn 0 b && closed a
+
+        skipGeneralizedParameter :: MonadReify m => ArgInfo -> m Bool
+        skipGeneralizedParameter info = (not <$> showGeneralizedArguments) <&> (&& (argInfoOrigin info == Generalization))
 
     I.Sort s     -> reify s
     I.MetaV x es -> do
