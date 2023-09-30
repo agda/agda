@@ -585,3 +585,4 @@ For 2.6.4, the following issues were also
 - [#6794](https://github.com/agda/agda/issues/6794): Safe Agda accepts `{-# TERMINATING #-}` pragma in `interleaved mutual` block
 - [#6795](https://github.com/agda/agda/issues/6795): Missing warning about discarded `{-# TERMINATING #-}` pragma in `where` block inside `interleaved mutual` block
 - [#6823](https://github.com/agda/agda/issues/6823): Suboptimal error location for missing definition before `mutual` block
+- [#6868](https://github.com/agda/agda/issues/6868): With-abstraction fails for trailing instance argument
