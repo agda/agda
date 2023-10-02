@@ -5,9 +5,20 @@
 {-# LANGUAGE MagicHash            #-}
 {-# LANGUAGE UnboxedTuples        #-}
 
+{-
+András, 2023-10-2:
+
+All code in Agda/TypeChecking/Serialise should be strict, since serialization necessarily
+forces all data, eventually.
+  - (<$!>) should be used instead of lazy fmap.
+  - Any redex that's passed to `return`, a lazy constructor, or a function, should
+    be forced beforehand with strict `let`, strict binding or ($!).
+-}
+
 module Agda.TypeChecking.Serialise.Base where
 
 import qualified Control.Exception as E
+import Control.Monad ((<$!>))
 import Control.Monad.Except
 import Control.Monad.IO.Class     ( MonadIO(..) )
 import Control.Monad.Reader
@@ -48,6 +59,7 @@ import Agda.Utils.TypeLevel
 data Node = Empty | Cons !Int32 !Node deriving Eq
 
 instance Hashable Node where
+  -- Adapted from https://github.com/tkaitchuck/aHash/wiki/AHash-fallback-algorithm
   hashWithSalt h n = fromIntegral (go (fromIntegral h) n) where
     xor (W# x) (W# y) = W# (xor# x y)
 
@@ -65,14 +77,14 @@ instance Hashable Node where
 
 instance B.Binary Node where
 
-  get = do {n :: Int <- B.get; go n} where
+  get = go =<< B.get where
 
     go :: Int -> B.Get Node
     go n | n <= 0 =
       pure Empty
     go n = do
-      x    <- B.get
-      node <- go (n - 1)
+      !x    <- B.get
+      !node <- go (n - 1)
       pure $ Cons x node
 
   put n = B.put (len n) <> go n where
@@ -83,7 +95,7 @@ instance B.Binary Node where
       go acc (Cons _ n) = go (acc + 1) n
 
     go :: Node -> B.Put
-    go Empty = mempty
+    go Empty       = mempty
     go (Cons n ns) = B.put n <> go ns
 
 -- | Association lists mapping TypeRep fingerprints to values. In some cases
@@ -91,9 +103,13 @@ instance B.Binary Node where
 --   structure disambiguates them.
 data MemoEntry = MEEmpty | MECons {-# unpack #-} !Fingerprint !Any !MemoEntry
 
+-- 2023-10-2 András: `typeRepFingerprint` usually inlines a 4-way case, which
+-- yields significant code size increase as GHC often inlines the same code into
+-- the branches. This wouldn't matter in "normal" code but the serialization
+-- instances use very heavy inlining. The NOINLINE cuts down on the code size.
 fingerprintNoinline :: TypeRep -> Fingerprint
 fingerprintNoinline rep = typeRepFingerprint rep
-{-# noinline fingerprintNoinline #-}
+{-# NOINLINE fingerprintNoinline #-}
 
 lookupME :: forall a b. Proxy a -> Fingerprint -> MemoEntry -> (a -> b) -> b -> b
 lookupME proxy fprint me found notfound = go fprint me where
@@ -103,7 +119,7 @@ lookupME proxy fprint me found notfound = go fprint me where
   go fp (MECons fp' x me)
     | fp == fp' = found (unsafeCoerce x)
     | True      = go fp me
-{-# inline lookupME #-}
+{-# NOINLINE lookupME #-}
 
 -- | Structure providing fresh identifiers for hash map
 --   and counting hash map hits (i.e. when no fresh identifier required).
@@ -123,12 +139,15 @@ farEmpty = FreshAndReuse 0
 #ifdef DEBUG
                            0
 #endif
+
 lensFresh :: Lens' FreshAndReuse Int32
 lensFresh f r = f (farFresh r) <&> \ i -> r { farFresh = i }
+{-# INLINE lensFresh #-}
 
 #ifdef DEBUG
 lensReuse :: Lens' FreshAndReuse Int32
 lensReuse f r = f (farReuse r) <&> \ i -> r { farReuse = i }
+{-# INLINE lensReuse #-}
 #endif
 
 -- | Two 'QName's are equal if their @QNameId@ is equal.
@@ -233,7 +252,7 @@ type R = StateT St IO
 
 malformed :: R a
 malformed = liftIO $ E.throwIO $ E.ErrorCall "Malformed input."
-{-# noinline malformed #-}
+{-# NOINLINE malformed #-} -- 2023-10-2 András: cold code, so should be out-of-line.
 
 class Typeable a => EmbPrj a where
   icode :: a -> S Int32  -- ^ Serialization (wrapper).
@@ -244,7 +263,7 @@ class Typeable a => EmbPrj a where
     !r <- icod_ a
     tickICode a
     pure r
-  {-# inline icode #-}
+  {-# INLINE icode #-}
 
   -- Simple enumeration types can be (de)serialized using (from/to)Enum.
   default value :: (Enum a, Bounded a) => Int32 -> R a
@@ -257,6 +276,8 @@ class Typeable a => EmbPrj a where
   default icod_ :: (Enum a, Bounded a) => a -> S Int32
   icod_ x = return $! fromIntegral $! fromEnum x
 
+-- | The actual logic of `tickICode` is cold code, so it's out-of-line,
+--   to decrease code size and avoid cache pollution.
 goTickIcode :: forall a. Typeable a => Proxy a -> S ()
 goTickIcode p = do
   let key = "icode " ++ show (typeRep p)
@@ -264,12 +285,12 @@ goTickIcode p = do
   liftIO $ do
     n <- fromMaybe 0 <$> H.lookup hmap key
     H.insert hmap key $! n + 1
-{-# noinline goTickIcode #-}
+{-# NOINLINE goTickIcode #-}
 
 -- | Increase entry for @a@ in 'stats'.
 tickICode :: forall a. Typeable a => a -> S ()
 tickICode _ = whenM (asks collectStats) $ goTickIcode (Proxy :: Proxy a)
-{-# inline tickICode #-}
+{-# INLINE tickICode #-}
 
 -- | Data.Binary.runGetState is deprecated in favour of runGetIncremental.
 --   Reimplementing it in terms of the new function. The new Decoder type contains
@@ -439,9 +460,9 @@ vcase valu = \ix -> do
       -- use the stored value
       pure
       -- read new value and save it
-      (do !v <- valu . (! ix) =<< gets nodeE
-          liftIO $ writeArray memo ix $! MECons fp (unsafeCoerce v) slot
-          return v)
+      do !v <- valu . (! ix) =<< gets nodeE
+         liftIO $ writeArray memo ix $! MECons fp (unsafeCoerce v) slot
+         return v
 
 -- | @icodeArgs proxy (a1, ..., an)@ maps @icode@ over @a1@, ..., @an@
 --   and returns the corresponding list of @Int32@.
@@ -452,13 +473,14 @@ class ICODE t b where
 
 instance IsBase t ~ 'True => ICODE t 'True where
   icodeArgs _ _  = return Empty
-  {-# inline icodeArgs #-}
+  {-# INLINE icodeArgs #-}
 
 instance ICODE t (IsBase t) => ICODE (a -> t) 'False where
-  icodeArgs _ (Pair a as) = icode a >>= \ !hd -> do
+  icodeArgs _ (Pair a as) = do
+    !hd   <- icode a
     !node <- icodeArgs (Proxy :: Proxy t) as
-    pure $! Cons hd node
-  {-# inline icodeArgs #-}
+    pure $ Cons hd node
+  {-# INLINE icodeArgs #-}
 
 -- | @icodeN tag t a1 ... an@ serialises the arguments @a1@, ..., @an@ of the
 --   constructor @t@ together with a tag @tag@ picked to disambiguate between
@@ -472,7 +494,7 @@ icodeN :: forall t. ICODE t (IsBase t) => StrictCurrying (Domains t) (S Int32) =
 icodeN tag _ =
   strictCurrys (Proxy :: Proxy (Domains t)) (Proxy :: Proxy (S Int32)) $ \ !args -> do
     !node <- icodeArgs (Proxy :: Proxy t) args
-    icodeNode $! Cons tag node
+    icodeNode $ Cons tag node
 
 -- | @icodeN'@ is the same as @icodeN@ except that there is no tag
 {-# INLINE icodeN' #-}
@@ -510,11 +532,14 @@ instance VALU t 'True where
 
 instance VALU t (IsBase t) => VALU (a -> t) 'False where
   {-# INLINE valuN' #-}
-  valuN' c (Pair a as) = value a >>= \ !v -> valuN' (c v) as
+  valuN' c (Pair a as) = do
+    !v <- value a
+    let !cv = c v
+    valuN' cv as
 
   {-# INLINE valueArgs #-}
   valueArgs _ xs = case xs of
-    x : xs' -> do {!node <- valueArgs (Proxy :: Proxy t) xs'; pure (Pair x node)}
+    x : xs' -> Pair x <$!> valueArgs (Proxy :: Proxy t) xs'
     _       -> Nothing
 
 {-# INLINE valuN #-}

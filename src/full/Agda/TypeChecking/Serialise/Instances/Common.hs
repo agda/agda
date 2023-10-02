@@ -222,7 +222,6 @@ instance {-# OVERLAPPABLE #-} EmbPrj a => EmbPrj [a] where
 
   value = vcase (mapM value)
 
-
 instance EmbPrj a => EmbPrj (List1 a) where
   icod_ = icod_ . List1.toList
   value = maybe malformed return . List1.nonEmpty <=< value
@@ -253,14 +252,14 @@ mapPairsValue :: (EmbPrj k, EmbPrj v) => [Int32] -> R [(k, v)]
 mapPairsValue = convert [] where
   convert ys [] = return ys
   convert ys (start:entry:xs) = do
-    start <- value start
-    entry <- value entry
+    !start <- value start
+    !entry <- value entry
     convert ((start, entry):ys) xs
   convert _ _ = malformed
 
 instance (Ord a, EmbPrj a, EmbPrj b) => EmbPrj (Map a b) where
   icod_ m = mapPairsIcode (Map.toAscList m)
-  value = vcase ((<$!>) Map.fromDistinctAscList . mapPairsValue)
+  value = vcase ((Map.fromDistinctAscList <$!>) . mapPairsValue)
 
 instance (Ord a, EmbPrj a) => EmbPrj (Set a) where
   icod_ s = icode (Set.toAscList s)
@@ -468,7 +467,7 @@ instance EmbPrj OpaqueId where
 
 instance (Eq k, Hashable k, EmbPrj k, EmbPrj v) => EmbPrj (HashMap k v) where
   icod_ m = mapPairsIcode (HMap.toList m)
-  value = vcase ((<$!>) HMap.fromList . mapPairsValue)
+  value = vcase ((HMap.fromList <$!>) . mapPairsValue)
 
 instance EmbPrj a => EmbPrj (WithHiding a) where
   icod_ (WithHiding a b) = icodeN' WithHiding a b

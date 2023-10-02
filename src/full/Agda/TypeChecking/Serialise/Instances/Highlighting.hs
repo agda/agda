@@ -127,17 +127,17 @@ instance EmbPrj a => EmbPrj (RM.RangeMap a) where
   icod_ (RM.RangeMap f) = icodeNode =<< convert Empty (Map.toAscList f) where
     convert !ys [] = return ys
     convert  ys ((start, RM.PairInt (end :!: entry)):xs) = do
-      start <- icode start
-      end <- icode end
-      entry <- icode entry
+      !start <- icode start
+      !end <- icode end
+      !entry <- icode entry
       convert (Cons start (Cons end (Cons entry ys))) xs
 
   value = vcase (fmap (RM.RangeMap . Map.fromDistinctAscList) . convert []) where
     convert ys [] = return ys
     convert ys (start:end:entry:xs) = do
-      start <- value start
-      end <- value end
-      entry <- value entry
+      !start <- value start
+      !end <- value end
+      !entry <- value entry
       convert ((start, RM.PairInt (end :!: entry)):ys) xs
     convert _ _ = malformed
 
