@@ -36,7 +36,7 @@ import Agda.Syntax.Internal
   ( Name, Type
   , nameFixity, unDom, telToList )
 import Agda.Syntax.Literal       ( Literal(..) )
-import Agda.Syntax.TopLevelModuleName (TopLevelModuleName(..))
+import Agda.Syntax.TopLevelModuleName (TopLevelModuleName, TopLevelModuleName'(..))
 import Agda.Syntax.Treeless      ( ArgUsage(..), filterUsed )
 import qualified Agda.Syntax.Treeless as T
 

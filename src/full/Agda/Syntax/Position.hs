@@ -86,8 +86,7 @@ import Data.Void
 
 import GHC.Generics (Generic)
 
-import {-# SOURCE #-} Agda.Syntax.TopLevelModuleName
-  (TopLevelModuleName)
+import Agda.Syntax.TopLevelModuleName.Boot (TopLevelModuleName'(..))
 
 import Agda.Utils.FileName
 import Agda.Utils.List
@@ -96,7 +95,6 @@ import Agda.Utils.List2 (List2)
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
 import Agda.Utils.Permutation
-import Agda.Syntax.Common.Pretty
 
 import Agda.Utils.TypeLevel (IsBase, All, Domains)
 
@@ -147,7 +145,7 @@ type SrcFile = Strict.Maybe RangeFile
 data RangeFile = RangeFile
   { rangeFilePath :: !AbsolutePath
     -- ^ The file's path.
-  , rangeFileName :: !(Maybe TopLevelModuleName)
+  , rangeFileName :: !(Maybe (TopLevelModuleName' Range))
     -- ^ The file's top-level module name (if applicable).
     --
     -- This field is optional, but some things may break if the field
@@ -159,13 +157,13 @@ data RangeFile = RangeFile
     -- should be possible to instantiate it with something that is not
     -- yet defined (see 'Agda.Interaction.Imports.parseSource').
     --
-    -- This 'TopLevelModuleName' should not contain a range.
+    -- This '(TopLevelModuleName' Range)' should not contain a range.
   }
   deriving (Show, Generic)
 
 -- | A smart constructor for 'RangeFile'.
 
-mkRangeFile :: AbsolutePath -> Maybe TopLevelModuleName -> RangeFile
+mkRangeFile :: AbsolutePath -> Maybe (TopLevelModuleName' Range) -> RangeFile
 mkRangeFile f top = RangeFile
   { rangeFilePath = f
   , rangeFileName = killRange top
@@ -312,14 +310,14 @@ rangeFile (Range f _) = f
 --
 -- If there is no range, then 'Nothing' is returned. If there is a
 -- range without a module name, then @'Just' 'Nothing'@ is returned.
-rangeModule' :: Range -> Maybe (Maybe TopLevelModuleName)
+rangeModule' :: Range -> Maybe (Maybe (TopLevelModuleName' Range))
 rangeModule' NoRange     = Nothing
 rangeModule' (Range f _) = Just $ case f of
   Strict.Nothing -> Nothing
   Strict.Just f  -> rangeFileName f
 
 -- | The range's top-level module name, if any.
-rangeModule :: Range -> Maybe TopLevelModuleName
+rangeModule :: Range -> Maybe (TopLevelModuleName' Range)
 rangeModule = join . rangeModule'
 
 -- | Conflate a range to its right margin.
@@ -353,6 +351,15 @@ instance HasRange () where
 
 instance HasRange Bool where
     getRange _ = noRange
+
+instance HasRange (TopLevelModuleName' Range) where
+  getRange = moduleNameRange
+
+instance SetRange (TopLevelModuleName' Range) where
+  setRange r (TopLevelModuleName _ h x) = TopLevelModuleName r h x
+
+instance KillRange (TopLevelModuleName' Range) where
+  killRange (TopLevelModuleName _ h x) = TopLevelModuleName noRange h x
 
 -- | Precondition: The ranges of the list elements must point to the
 -- same file (or be empty).
@@ -488,50 +495,6 @@ instance (KillRange a, KillRange b, KillRange c, KillRange d) =>
 instance (KillRange a, KillRange b) => KillRange (Either a b) where
   killRange (Left  x) = Left  $ killRange x
   killRange (Right x) = Right $ killRange x
-
-------------------------------------------------------------------------
--- Printing
-------------------------------------------------------------------------
-
-instance Pretty RangeFile where
-  pretty = pretty . rangeFilePath
-
-instance Pretty a => Pretty (Position' (Strict.Maybe a)) where
-  pretty (Pn Strict.Nothing  _ l c) = pretty l <> "," <> pretty c
-  pretty (Pn (Strict.Just f) _ l c) =
-    pretty f <> ":" <> pretty l <> "," <> pretty c
-
-instance Pretty PositionWithoutFile where
-  pretty p = pretty (p { srcFile = Strict.Nothing } :: Position)
-
-instance Pretty IntervalWithoutFile where
-  pretty (Interval s e) = start <> "-" <> end
-    where
-      sl = posLine s
-      el = posLine e
-      sc = posCol s
-      ec = posCol e
-
-      start :: Doc
-      start = pretty sl <> comma <> pretty sc
-
-      end :: Doc
-        | sl == el  = pretty ec
-        | otherwise = pretty el <> comma <> pretty ec
-
-instance Pretty a => Pretty (Interval' (Strict.Maybe a)) where
-  pretty i@(Interval s _) = file <> pretty (setIntervalFile () i)
-    where
-      file :: Doc
-      file = case srcFile s of
-               Strict.Nothing -> empty
-               Strict.Just f  -> pretty f <> colon
-
-instance Pretty a => Pretty (Range' (Strict.Maybe a)) where
-  pretty r = maybe empty pretty (rangeToIntervalWithFile r)
-
-instance (Pretty a, HasRange a) => Pretty (PrintRange a) where
-  pretty (PrintRange a) = pretty a <+> parens ("at" <+> pretty (getRange a))
 
 {--------------------------------------------------------------------------
     Functions on positions and ranges

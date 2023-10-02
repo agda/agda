@@ -4,9 +4,12 @@
 -}
 module Agda.Syntax.Common
   ( module Agda.Syntax.Common
+  , module Agda.Syntax.TopLevelModuleName.Boot
   , Induction(..)
   )
   where
+
+import Agda.Syntax.TopLevelModuleName.Boot
 
 import Prelude hiding (null)
 
@@ -2397,22 +2400,6 @@ instance AllAreOpaque a => AllAreOpaque (Maybe a) where
 -- * NameId
 ---------------------------------------------------------------------------
 
-newtype ModuleNameHash = ModuleNameHash { moduleNameHash :: Word64 }
-  deriving (Eq, Ord, Hashable)
-
-instance HasTag ModuleNameHash where
-  type Tag ModuleNameHash = ModuleNameHash
-  tag = Just . id
-
-noModuleNameHash :: ModuleNameHash
-noModuleNameHash = ModuleNameHash 0
-
--- | The record selector is not included in the resulting strings.
-
-instance Show ModuleNameHash where
-  showsPrec p (ModuleNameHash h) = showParen (p > 0) $
-    showString "ModuleNameHash " . shows h
-
 -- | The unique identifier of a name. Second argument is the top-level module
 --   identifier.
 data NameId = NameId {-# UNPACK #-} !Word64 {-# UNPACK #-} !ModuleNameHash
@@ -2432,9 +2419,6 @@ instance Enum NameId where
 
 instance NFData NameId where
   rnf (NameId _ _) = ()
-
-instance NFData ModuleNameHash where
-  rnf _ = ()
 
 instance Hashable NameId where
   {-# INLINE hashWithSalt #-}
