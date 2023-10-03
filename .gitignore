@@ -83,3 +83,6 @@ stack.yaml
 stack*.yaml.lock
 trash.txt
 \#*\#
+deps.sqlite*
+scc*.dot
+scc*.svg

@@ -265,6 +265,8 @@ type-check-no-deps :
 	-$(CABAL) $(CABAL_BUILD_CMD) --builddir=$(BUILD_DIR)-no-code \
           --ghc-options=-fno-code \
           --ghc-options=-fwrite-interface \
+		  --ghc-options=-fwrite-ide-info \
+		  --ghc-options=-hiedir=dist-hiefiles \
           2>&1 \
           | $(SED) -e '/.*dist.*build.*: No such file or directory/d' \
                    -e '/.*Warning: the following files would be used as linker inputs, but linking is not being done:.*/d'
