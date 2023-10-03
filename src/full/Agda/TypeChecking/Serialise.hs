@@ -207,7 +207,7 @@ decode s = do
   -- The decoder is (intended to be) strict enough to ensure that all
   -- such errors can be caught by the handler here.
 
-  res <- liftIO $ E.handle (\(E.ErrorCall s) -> pure Nothing) $ do
+  res <- liftIO $ E.handle (\(E.ErrorCall s) -> pure $ Left s) $ do
     ((r, nL, ltL, stL, bL, iL, dL), s, _) <- return $ runGetState B.get s 0
     let ar = unListLike
     when (not (null s)) $ E.throwIO $ E.ErrorCall "Garbage at end."
@@ -217,19 +217,14 @@ decode s = do
             <*> return mf <*> return incs
     (r, st) <- runStateT (value r) st
     let !mf = modFile st
-    return $ Just (mf, r)
+    return $ Right (mf, r)
 
   case res of
-    Nothing -> do
-      reportSLn "import.iface" 5 $ "Error when decoding interface file"
-      -- Andreas, 2014-06-11 deactivated debug printing
-      -- in order to get rid of dependency of Serialize on TCM.Pretty
-      -- reportSDoc "import.iface" 5 $
-      --   "Error when decoding interface file:"
-      --   $+$ nest 2 (prettyTCM err)
+    Left s -> do
+      reportSLn "import.iface" 5 $ "Error when decoding interface file: " ++ s
       pure Nothing
 
-    Just (mf, x) -> do
+    Right (mf, x) -> do
       setTCLens stModuleToSource mf
 #if __GLASGOW_HASKELL__ >= 804
       -- "Compact" the interfaces (without breaking sharing) to

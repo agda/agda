@@ -77,11 +77,11 @@ type StrictProducts (as :: [Type]) = Foldr StrictPair () as
 
 strictCurry :: (StrictPair a b -> c) -> (a -> b -> c)
 strictCurry f = \ !a !b -> f (Pair a b)
-{-# inline strictCurry #-}
+{-# INLINE strictCurry #-}
 
 strictUncurry :: (a -> b -> c) -> (StrictPair a b -> c)
 strictUncurry f = \ !(Pair a b) -> f a b
-{-# inline strictUncurry #-}
+{-# INLINE strictUncurry #-}
 
 -- | @IsBase t@ is @'True@ whenever @t@ is *not* a function space.
 
@@ -130,14 +130,14 @@ class StrictCurrying as b where
   strictCurrys   :: Proxy as -> Proxy b -> (StrictProducts as -> b) -> Arrows as b
 
 instance StrictCurrying '[] b where
-  strictUncurrys _ _ f = \ () -> f; {-# inline strictUncurrys #-}
-  strictCurrys   _ _ f = f ();      {-# inline strictCurrys #-}
+  strictUncurrys _ _ f = \ () -> f; {-# INLINE strictUncurrys #-}
+  strictCurrys   _ _ f = f ();      {-# INLINE strictCurrys #-}
 
 instance StrictCurrying as b => StrictCurrying (a ': as) b where
   strictUncurrys _ p f = strictUncurry $ strictUncurrys (Proxy :: Proxy as) p . f
-  {-# inline strictUncurrys #-}
+  {-# INLINE strictUncurrys #-}
   strictCurrys   _ p f = strictCurrys (Proxy :: Proxy as) p . strictCurry f
-  {-# inline strictCurrys #-}
+  {-# INLINE strictCurrys #-}
 
 ------------------------------------------------------------------
 -- DEFUNCTIONALISATION

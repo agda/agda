@@ -295,7 +295,7 @@ instance EmbPrj RangeFile where
     (r, mf) <- liftIO $ findFile'' incs m mf
     modify $ \s -> s { modFile = mf }
     case r of
-      Left err -> liftIO $ E.throwIO $ E.ErrorCall $ "file not found: " ++ show m
+      Left err -> liftIO $ E.throwIO $ E.ErrorCall $ "file not found: " ++ show err
       Right f  -> let !sfp = srcFilePath f in return $ RangeFile sfp (Just m)
 
 -- | Ranges are always deserialised as 'noRange'.
