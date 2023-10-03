@@ -2,7 +2,7 @@ cabal-version: >= 1.8
 version: 0.2023.10.3
 name:       find-cycles
 synopsis:   Script to find cross-module declaration cycles
-author:     Lawrence Chonavel 
+author:     Lawrence Chonavel
 build-type: Simple
 
 executable find-cycles
