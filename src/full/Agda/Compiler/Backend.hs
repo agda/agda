@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE PolyKinds #-}
 
 -- | Interface for compiler backend writers.
 module Agda.Compiler.Backend
