@@ -27,7 +27,7 @@ import qualified Data.Text.Lazy as L
 
 import GHC.Generics (Generic)
 
-import Agda.Compiler.Backend (Backend(..), Backend'(..), Definition, Recompile(..))
+import Agda.Compiler.Backend (Backend,Backend_boot(..), Backend',Backend'_boot(..), Definition, Recompile(..))
 import Agda.Compiler.Common (curIF, IsMain)
 
 import Agda.Interaction.FindFile (findFile, srcFilePath)

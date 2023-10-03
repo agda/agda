@@ -68,7 +68,7 @@ import Agda.Compiler.Treeless.EliminateLiteralPatterns
 import Agda.Compiler.Treeless.GuardsToPrims
 import Agda.Compiler.Treeless.Erase ( computeErasedConstructorArgs )
 import Agda.Compiler.Treeless.Subst ()
-import Agda.Compiler.Backend (Backend(..), Backend'(..), Recompile(..))
+import Agda.Compiler.Backend (Backend,Backend_boot(..), Backend',Backend'_boot(..), Recompile(..))
 
 import Agda.Compiler.JS.Syntax
   ( Exp(Self,Local,Global,Undefined,Null,String,Char,Integer,Double,Lambda,Object,Array,Apply,Lookup,If,BinOp,PlainJS),
