@@ -1,6 +1,3 @@
-#!/usr/bin/env nix-shell
-#! nix-shell -i runghc -p "ghc.withPackages (ps: [ ps.hiedb ps.temporary ])" -I nixpkgs=https://github.com/NixOS/nixpkgs/archive/8cad3dbe48029cb9def5cdb2409a6c80d3acfe2e.tar.gz
-
 -- Script to analyse cross-module dependency cycles
 
 import HieDb
@@ -77,11 +74,10 @@ toDotNode mods v@(modul,_,ident,_,_,_,_) = let
 getOrCreateGraph :: HieDb -> IO (AdjacencyMap Vertex)
 getOrCreateGraph db = do
     g0 <- getGraph db
-    if g0 /= empty then return g0
-    else do
-        putStrLn $ "Graph empty, loading hiefiles from " ++ show hiedir
-        hiefiles <- getHieFilesIn hiedir
-        when (hiefiles == []) $ putStrLn "No hiefiles found, run `make type-check-no-deps`"
-        ncr <- newIORef =<< makeNc
-        runDbM ncr $ addRefsFrom db `mapM_` hiefiles
-        getGraph db
+    if g0 /= empty then return g0 else do
+    putStrLn $ "Graph empty, loading hiefiles from " ++ show hiedir
+    hiefiles <- getHieFilesIn hiedir
+    when (hiefiles == []) $ putStrLn "No hiefiles found, run `make type-check-no-deps`"
+    ncr <- newIORef =<< makeNc
+    runDbM ncr $ addRefsFrom db `mapM_` hiefiles
+    getGraph db
