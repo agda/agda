@@ -5,7 +5,8 @@
 
 -- | Interface for compiler backend writers.
 module Agda.Compiler.Backend
-  ( Backend(..), Backend'(..), Recompile(..), IsMain(..)
+  ( module Agda.Compiler.Backend.Boot
+  , Backend, Backend', Recompile(..), IsMain(..)
   , Flag
   , toTreeless
   , module Agda.Syntax.Treeless
@@ -22,6 +23,8 @@ module Agda.Compiler.Backend
   , activeBackend
   ) where
 
+import Agda.Compiler.Backend.Boot
+
 import Control.DeepSeq
 import Control.Monad              ( (<=<) )
 import Control.Monad.Trans        ( lift )
@@ -30,14 +33,10 @@ import Control.Monad.Trans.Maybe
 import qualified Data.List as List
 import Data.Maybe
 
-import Data.Map (Map)
 import qualified Data.Map as Map
-
-import GHC.Generics (Generic)
 
 import System.Console.GetOpt
 
-import Agda.Syntax.TopLevelModuleName
 import Agda.Syntax.Treeless
 import Agda.TypeChecking.Errors (getAllWarnings)
 -- Agda.TypeChecking.Monad.Base imports us, relying on the .hs-boot file to
@@ -68,49 +67,9 @@ import Agda.Utils.Impossible
 
 -- Public interface -------------------------------------------------------
 
-data Backend where
-  Backend :: NFData opts => Backend' opts env menv mod def -> Backend
+type Backend = Backend_boot TCM
 
-data Backend' opts env menv mod def = Backend'
-  { backendName      :: String
-  , backendVersion   :: Maybe String
-      -- ^ Optional version information to be printed with @--version@.
-  , options          :: opts
-      -- ^ Default options
-  , commandLineFlags :: [OptDescr (Flag opts)]
-      -- ^ Backend-specific command-line flags. Should at minimum contain a
-      --   flag to enable the backend.
-  , isEnabled        :: opts -> Bool
-      -- ^ Unless the backend has been enabled, @runAgda@ will fall back to
-      --   vanilla Agda behaviour.
-  , preCompile       :: opts -> TCM env
-      -- ^ Called after type checking completes, but before compilation starts.
-  , postCompile      :: env -> IsMain -> Map TopLevelModuleName mod ->
-                        TCM ()
-      -- ^ Called after module compilation has completed. The @IsMain@ argument
-      --   is @NotMain@ if the @--no-main@ flag is present.
-  , preModule        :: env -> IsMain -> TopLevelModuleName ->
-                        Maybe FilePath -> TCM (Recompile menv mod)
-      -- ^ Called before compilation of each module. Gets the path to the
-      --   @.agdai@ file to allow up-to-date checking of previously written
-      --   compilation results. Should return @Skip m@ if compilation is not
-      --   required. Will be @Nothing@ if only scope checking.
-  , postModule       :: env -> menv -> IsMain -> TopLevelModuleName ->
-                        [def] -> TCM mod
-      -- ^ Called after all definitions of a module have been compiled.
-  , compileDef       :: env -> menv -> IsMain -> Definition -> TCM def
-      -- ^ Compile a single definition.
-  , scopeCheckingSuffices :: Bool
-      -- ^ True if the backend works if @--only-scope-checking@ is used.
-  , mayEraseType     :: QName -> TCM Bool
-      -- ^ The treeless compiler may ask the Backend if elements
-      --   of the given type maybe possibly erased.
-      --   The answer should be 'False' if the compilation of the type
-      --   is used by a third party, e.g. in a FFI binding.
-  }
-  deriving Generic
-
-data Recompile menv mod = Recompile menv | Skip mod
+type Backend' opts env menv mod def = Backend'_boot TCM opts env menv mod def
 
 -- | Call the 'compilerMain' function of the given backend.
 
@@ -153,23 +112,6 @@ activeBackendMayEraseType :: QName -> TCM Bool
 activeBackendMayEraseType q = do
   Backend b <- fromMaybe __IMPOSSIBLE__ <$> activeBackend
   mayEraseType b q
-
-instance NFData Backend where
-  rnf (Backend b) = rnf b
-
-instance NFData opts => NFData (Backend' opts env menv mod def) where
-  rnf (Backend' a b c d e f g h i j k l) =
-    rnf a `seq` rnf b `seq` rnf c `seq` rnf' d `seq` rnf e `seq`
-    rnf f `seq` rnf g `seq` rnf h `seq` rnf i `seq` rnf j `seq`
-    rnf k `seq` rnf l
-    where
-    rnf' []                   = ()
-    rnf' (Option a b c d : e) =
-      rnf a `seq` rnf b `seq` rnf'' c `seq` rnf d `seq` rnf' e
-
-    rnf'' (NoArg a)    = rnf a
-    rnf'' (ReqArg a b) = rnf a `seq` rnf b
-    rnf'' (OptArg a b) = rnf a `seq` rnf b
 
 -- Internals --------------------------------------------------------------
 
