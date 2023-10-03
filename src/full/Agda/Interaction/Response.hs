@@ -25,6 +25,6 @@ type DisplayInfo = DisplayInfo_boot TCErr TCWarning WarningsAndNonFatalErrors
 
 type Info_Error = Info_Error_boot TCErr TCWarning
 
-type GoalDisplayInfo = GoalDisplayInfo_boot TCWarning
+type GoalDisplayInfo = GoalDisplayInfo_boot TCErr
 
 type Goals = Goals_boot TCErr
