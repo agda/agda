@@ -3,9 +3,9 @@
 
 module Agda.Compiler.Backend.Boot where
 
-import {-# SOURCE #-} Agda.Compiler.Common (IsMain)
 import Agda.Interaction.Options (ArgDescr(..), OptDescr(..), Flag)
 import Agda.Syntax.Abstract.Name (QName)
+import Agda.Syntax.Common (IsMain)
 import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base (Definition)
 

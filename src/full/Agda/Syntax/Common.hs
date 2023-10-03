@@ -55,6 +55,23 @@ type Nat    = Int
 type Arity  = Nat
 
 ---------------------------------------------------------------------------
+-- * IsMain
+---------------------------------------------------------------------------
+
+data IsMain = IsMain | NotMain
+  deriving (Eq, Show)
+
+-- | Conjunctive semigroup ('NotMain' is absorbing).
+instance Semigroup IsMain where
+  NotMain <> _ = NotMain
+  _       <> NotMain = NotMain
+  IsMain  <> IsMain = IsMain
+
+instance Monoid IsMain where
+  mempty = IsMain
+  mappend = (<>)
+
+---------------------------------------------------------------------------
 -- * File
 ---------------------------------------------------------------------------
 
