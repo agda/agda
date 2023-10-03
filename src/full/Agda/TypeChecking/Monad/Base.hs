@@ -92,8 +92,7 @@ import Agda.Compiler.Backend.Boot
 
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
-import {-# SOURCE #-} Agda.Interaction.Response
-  (InteractionOutputCallback, defaultInteractionOutputCallback)
+import Agda.Interaction.Response.Boot (Response_boot(..))
 import Agda.Interaction.Highlighting.Precise
   (HighlightingInfo, NameKind)
 import Agda.Interaction.Library
@@ -4695,6 +4694,12 @@ instance HasRange TCErr where
 
 instance E.Exception TCErr
 
+-- | Assorted warnings and errors to be displayed to the user
+data WarningsAndNonFatalErrors = WarningsAndNonFatalErrors
+  { tcWarnings     :: [TCWarning]
+  , nonFatalErrors :: [TCWarning]
+  }
+
 -----------------------------------------------------------------------------
 -- * Accessing options
 -----------------------------------------------------------------------------
@@ -5390,6 +5395,49 @@ forkTCM m = do
   s <- getTC
   e <- askTC
   liftIO $ void $ C.forkIO $ void $ runTCM e s m
+
+---------------------------------------------------------------------------
+-- * Interaction Callback
+---------------------------------------------------------------------------
+
+-- | Callback fuction to call when there is a response
+--   to give to the interactive frontend.
+--
+--   Note that the response is given in pieces and incrementally,
+--   so the user can have timely response even during long computations.
+--
+--   Typical 'InteractionOutputCallback' functions:
+--
+--    * Convert the response into a 'String' representation and
+--      print it on standard output
+--      (suitable for inter-process communication).
+--
+--    * Put the response into a mutable variable stored in the
+--      closure of the 'InteractionOutputCallback' function.
+--      (suitable for intra-process communication).
+
+type InteractionOutputCallback = Response_boot TCErr TCWarning WarningsAndNonFatalErrors -> TCM ()
+
+-- | The default 'InteractionOutputCallback' function prints certain
+-- things to stdout (other things generate internal errors).
+
+defaultInteractionOutputCallback :: InteractionOutputCallback
+defaultInteractionOutputCallback = \case
+  Resp_HighlightingInfo {}  -> __IMPOSSIBLE__
+  Resp_Status {}            -> __IMPOSSIBLE__
+  Resp_JumpToError {}       -> __IMPOSSIBLE__
+  Resp_InteractionPoints {} -> __IMPOSSIBLE__
+  Resp_GiveAction {}        -> __IMPOSSIBLE__
+  Resp_MakeCase {}          -> __IMPOSSIBLE__
+  Resp_SolveAll {}          -> __IMPOSSIBLE__
+  Resp_DisplayInfo {}       -> __IMPOSSIBLE__
+  Resp_RunningInfo _ s      -> liftIO $ do
+                                 putStr s
+                                 hFlush stdout
+  Resp_ClearRunningInfo {}  -> __IMPOSSIBLE__
+  Resp_ClearHighlighting {} -> __IMPOSSIBLE__
+  Resp_DoneAborting {}      -> __IMPOSSIBLE__
+  Resp_DoneExiting {}       -> __IMPOSSIBLE__
 
 ---------------------------------------------------------------------------
 -- * Names for generated definitions

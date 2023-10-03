@@ -190,12 +190,6 @@ classifyWarning w =
   then ErrorWarnings
   else AllWarnings
 
--- | Assorted warnings and errors to be displayed to the user
-data WarningsAndNonFatalErrors = WarningsAndNonFatalErrors
-  { tcWarnings     :: [TCWarning]
-  , nonFatalErrors :: [TCWarning]
-  }
-
 -- | The only way to construct a empty WarningsAndNonFatalErrors
 
 emptyWarningsAndNonFatalErrors :: WarningsAndNonFatalErrors
