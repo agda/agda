@@ -16,7 +16,7 @@ module Agda.Interaction.Response.Boot
   , GiveResult (..)
   ) where
 
-import Agda.Interaction.Base.Boot
+import Agda.Interaction.Base.Types
   ( CommandState
   , CompilerBackend
   , ComputeMode

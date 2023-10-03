@@ -476,7 +476,7 @@ library
       Agda.ImpossibleTest
       Agda.Interaction.AgdaTop
       Agda.Interaction.Base
-      Agda.Interaction.Base.Boot
+      Agda.Interaction.Base.Types
       Agda.Interaction.BasicOps
       Agda.Interaction.SearchAbout
       Agda.Interaction.CommandLine

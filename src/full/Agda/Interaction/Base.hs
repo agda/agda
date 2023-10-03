@@ -1,10 +1,10 @@
 
 module Agda.Interaction.Base
     ( module Agda.Interaction.Base
-    , module Agda.Interaction.Base.Boot
+    , module Agda.Interaction.Base.Types
     ) where
 
-import Agda.Interaction.Base.Boot
+import Agda.Interaction.Base.Types
 
 import Agda.TypeChecking.Monad.Base (TCM, TCErr)
 

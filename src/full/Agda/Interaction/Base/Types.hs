@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -fno-cse #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Agda.Interaction.Base.Boot where
+module Agda.Interaction.Base.Types where
 
 import           Control.Concurrent.STM.TChan
 import           Control.Concurrent.STM.TVar
