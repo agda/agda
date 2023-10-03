@@ -50,7 +50,11 @@ data Phase
   | Serialization
     -- ^ Writing interface files.
   | DeadCode
-    -- ^ Deac code elimination.
+    -- ^ Dead code elimination.
+  | DeadCodeInstantiateFull
+    -- ^ Unfolding all metas before serialization.
+  | DeadCodeReachable
+    -- ^ Dead code reachable definitions subphase.
   | Graph
     -- ^ Subphase for 'Termination'.
   | RecCheck
@@ -146,3 +150,4 @@ billToIO = B.billTo
 -- | Benchmark a pure computation and bill it to the given account.
 billToPure :: Account -> a -> a
 billToPure acc a = unsafePerformIO $ billToIO acc $ return a
+{-# NOINLINE billToPure #-}
