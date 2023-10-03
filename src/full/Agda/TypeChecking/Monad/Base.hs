@@ -58,6 +58,8 @@ import Data.IORef
 
 import GHC.Generics (Generic)
 
+import System.IO (hFlush, stdout)
+
 import Agda.Benchmarking (Benchmark, Phase)
 
 import {-# SOURCE #-} Agda.Compiler.Treeless.Pretty () -- Instances only
