@@ -742,7 +742,8 @@ getConstraints' g f = liftTCM $ do
       withMetaInfo mv $ do
         mi <- interactionIdToMetaId ii
         let m = QuestionMark emptyMetaInfo{ metaNumber = Just mi } ii
-        abstractToConcrete_ $ OutputForm noRange [] alwaysUnblock $ Assign m e
+        let oform = OutputForm noRange [] alwaysUnblock $ Assign m e :: OutputForm Expr Expr
+        abstractToConcrete_ oform
 
 -- | Reify the boundary of an interaction point as something that can be
 -- shown to the user.
