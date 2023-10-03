@@ -441,7 +441,7 @@ library
       Agda.Auto.Typecheck
       Agda.Benchmarking
       Agda.Compiler.Backend
-      Agda.Compiler.Backend.Boot
+      Agda.Compiler.Backend.Base
       Agda.Compiler.Builtin
       Agda.Compiler.CallCompiler
       Agda.Compiler.Common

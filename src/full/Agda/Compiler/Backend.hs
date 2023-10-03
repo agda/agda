@@ -4,7 +4,7 @@
 
 -- | Interface for compiler backend writers.
 module Agda.Compiler.Backend
-  ( module Agda.Compiler.Backend.Boot
+  ( module Agda.Compiler.Backend.Base
   , Backend, Backend', Recompile(..), IsMain(..)
   , Flag
   , toTreeless
@@ -22,7 +22,7 @@ module Agda.Compiler.Backend
   , activeBackend
   ) where
 
-import Agda.Compiler.Backend.Boot
+import Agda.Compiler.Backend.Base
 
 import Control.DeepSeq
 import Control.Monad              ( (<=<) )

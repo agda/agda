@@ -8,7 +8,7 @@ module Agda.Compiler.Backend
   )
   where
 
-import Agda.Compiler.Backend.Boot
+import Agda.Compiler.Backend.Base
 
 -- Explicitly adding the Agda.Syntax.Treeless import to the .hs-boot file
 -- so that the `Args` symbol can be hidden by the `SOURCE` import in

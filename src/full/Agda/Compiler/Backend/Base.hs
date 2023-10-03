@@ -1,7 +1,7 @@
 {-# LANGUAGE GADTs #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-module Agda.Compiler.Backend.Boot where
+module Agda.Compiler.Backend.Base where
 
 import Agda.Interaction.Options (ArgDescr(..), OptDescr(..), Flag)
 import Agda.Syntax.Abstract.Name (QName)

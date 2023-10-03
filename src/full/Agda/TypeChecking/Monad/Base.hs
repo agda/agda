@@ -90,7 +90,7 @@ import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Free.Lazy (Free(freeVars'), underBinder', underBinder)
 
-import Agda.Compiler.Backend.Boot
+import Agda.Compiler.Backend.Base
 
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
