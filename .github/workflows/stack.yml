@@ -106,9 +106,9 @@ jobs:
       fail-fast: false
       matrix:
         ghc-ver:
-        - 9.6.2
+        - 9.6.3
         include:
-        - ghc-ver: 9.6.2
+        - ghc-ver: 9.6.3
           os: windows-2022
         os:
         - ubuntu-22.04
@@ -121,7 +121,7 @@ name: Build (stack)
     - .github/workflows/stack.yml
     - Agda.cabal
     - Setup.hs
-    - stack-9.6.2.yaml
+    - stack-9.6.3.yaml
     - src/size-solver/size-solver.cabal
   push:
     branches:
@@ -132,6 +132,6 @@ name: Build (stack)
     - .github/workflows/stack.yml
     - Agda.cabal
     - Setup.hs
-    - stack-9.6.2.yaml
+    - stack-9.6.3.yaml
     - src/size-solver/size-solver.cabal
   workflow_dispatch: null

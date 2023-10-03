@@ -23,7 +23,7 @@ Installation
 
 * Removed the cabal flag `cpphs` that enabled building Agda with `cpphs` instead of the default C preprocessor.
 
-* Agda supports GHC versions 8.6.5 to 9.6.2.
+* Agda supports GHC versions 8.6.5 to 9.6.3.
 
 Pragmas and options
 -------------------

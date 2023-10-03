@@ -25,7 +25,7 @@ jobs:
         # not for the virtual environments, and also haskell/action/setup
         # is usually not up-to-date.
         os: [ubuntu-22.04]
-        ghc-ver: ['9.6.2']
+        ghc-ver: ['9.6.3']
         cabal-ver: ['3.10']
           # Use the versions the come with the virtual environment, if possible.
 

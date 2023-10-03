@@ -35,7 +35,7 @@ description:
     packages.
 
 tested-with:
-    GHC == 9.6.2
+    GHC == 9.6.3
     GHC == 9.4.7
     GHC == 9.2.8
     GHC == 9.0.2
@@ -86,7 +86,7 @@ extra-doc-files:
     doc/release-notes/2.2.0.md
 
 extra-source-files:
-    stack-9.6.2.yaml
+    stack-9.6.3.yaml
     stack-9.4.7.yaml
     stack-9.2.8.yaml
     stack-9.0.2.yaml
