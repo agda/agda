@@ -521,30 +521,28 @@ instance Occurs Term where
           Sort s      -> Sort <$> do underRelevance NonStrict $ occurs_ s
           MetaV m' es -> do
             m' <- metaCheck m'
-            -- The arguments of a meta are in a flexible position
-            (MetaV m' <$> do flexibly $ occurs es) `catchError` \ err -> do
-                ctx <- ask
-                reportSDoc "tc.meta.kill" 25 $ vcat
-                  [ text $ "error during flexible occurs check, we are " ++ show (ctx ^. lensFlexRig)
-                  , text $ show err
-                  ]
-                case err of
-                  -- On pattern violations try to remove offending
-                  -- flexible occurrences (if not already in a flexible context)
-                  PatternErr{} | not (isFlexible ctx) -> do
-                    reportSLn "tc.meta.kill" 20 $
-                      "oops, pattern violation for " ++ prettyShow m'
-                    -- Andreas, 2014-03-02, see issue 1070:
-                    -- Do not prune when meta is projected!
-                    caseMaybe (allApplyElims es) (throwError err) $ \ vs -> do
-                      killResult <- lift . prune m' vs =<< allowedVars
-                      if (killResult == PrunedEverything) then do
-                        -- after successful pruning, restart occurs check
-                        reportSDoc "tc.meta.prune" 40 $ "Pruned everything"
-                        v' <- instantiate (MetaV m' es)
-                        occurs v'
-                      else throwError err
-                  _ -> throwError err
+            ctx <- ask
+            let origm = return $ MetaV m' es
+            t <- caseMaybe (allApplyElims es) origm $ \ vs -> do
+               if not (isFlexible ctx) then do
+                 prepruneTC <- getTC
+                 killResult <- lift . prune m' vs =<< allowedVars
+                 if (killResult == PrunedEverything) then do
+                   reportSDoc "tc.meta.prune" 40 $ "Pruned everything"
+                   instantiate (MetaV m' es)
+                 else do
+                   reportSDoc "tc.meta.prune" 40 $ "Didn't manage to prune everything"
+                   putTC prepruneTC
+                   origm
+               else origm
+            case t of
+              (MetaV m' es') -> (MetaV m' <$> do flexibly $ occurs es') `catchError` \ err -> do
+                  reportSDoc "tc.meta.kill" 25 $ vcat
+                    [ text $ "error during flexible occurs check, we are " ++ show (ctx ^. lensFlexRig)
+                    , text $ show err
+                    ]
+                  throwError err
+              _ -> occurs t
           where
             -- a data or record type constructor propagates strong occurrences
             -- since e.g. x = List x is unsolvable
