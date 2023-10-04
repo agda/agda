@@ -75,9 +75,9 @@ getOrCreateGraph :: HieDb -> IO (AdjacencyMap Vertex)
 getOrCreateGraph db = do
     g0 <- getGraph db
     if g0 /= empty then return g0 else do
-    putStrLn $ "Graph empty, loading hiefiles from " ++ show hiedir
-    hiefiles <- getHieFilesIn hiedir
-    when (hiefiles == []) $ putStrLn "No hiefiles found, run `make type-check-no-deps`"
-    ncr <- newIORef =<< makeNc
-    runDbM ncr $ addRefsFrom db `mapM_` hiefiles
-    getGraph db
+        putStrLn $ "Graph empty, loading hiefiles from " ++ show hiedir
+        hiefiles <- getHieFilesIn hiedir
+        when (hiefiles == []) $ putStrLn "No hiefiles found, run `make type-check-no-deps`"
+        ncr <- newIORef =<< makeNc
+        runDbM ncr $ addRefsFrom db `mapM_` hiefiles
+        getGraph db

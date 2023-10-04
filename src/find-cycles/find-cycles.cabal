@@ -1,5 +1,5 @@
-cabal-version: >= 1.8
-version: 0.2023.10.3
+cabal-version: >= 1.10
+version: 0.0.20231004
 name:       find-cycles
 synopsis:   Script to find cross-module declaration cycles
 author:     Lawrence Chonavel
@@ -7,6 +7,7 @@ build-type: Simple
 
 executable find-cycles
   main-is:          FindCycles.hs
+  default-language: Haskell2010
   build-depends:
       algebraic-graphs    >= 0.6.1 && < 0.7
     , base                >= 4.16.4 && < 4.17
