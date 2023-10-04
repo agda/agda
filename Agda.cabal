@@ -476,7 +476,6 @@ library
       Agda.ImpossibleTest
       Agda.Interaction.AgdaTop
       Agda.Interaction.Base
-      Agda.Interaction.Base.Types
       Agda.Interaction.BasicOps
       Agda.Interaction.SearchAbout
       Agda.Interaction.CommandLine
@@ -499,6 +498,7 @@ library
       Agda.Interaction.Highlighting.LaTeX
       Agda.Interaction.Imports
       Agda.Interaction.InteractionTop
+      Agda.Interaction.Output
       Agda.Interaction.Response
       Agda.Interaction.Response.Boot
       Agda.Interaction.MakeCase

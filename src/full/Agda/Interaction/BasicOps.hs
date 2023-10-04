@@ -25,6 +25,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 
 import Agda.Interaction.Base
+import Agda.Interaction.Output
 import Agda.Interaction.Options
 import Agda.Interaction.Response (Goals, ResponseContextEntry(..))
 

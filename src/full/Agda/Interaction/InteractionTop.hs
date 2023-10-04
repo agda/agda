@@ -22,6 +22,7 @@ import Control.Monad.IO.Class       ( MonadIO(..) )
 import Control.Monad.Fail           ( MonadFail )
 import Control.Monad.State          ( MonadState(..), gets, modify, runStateT )
 import Control.Monad.STM
+import Control.Monad.State          ( StateT )
 import Control.Monad.Trans          ( lift )
 
 import qualified Data.Char as Char
@@ -94,6 +95,8 @@ import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
 -- The CommandM monad
+
+type CommandM = StateT CommandState TCM
 
 -- | Restore both 'TCState' and 'CommandState'.
 
