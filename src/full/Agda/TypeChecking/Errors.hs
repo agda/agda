@@ -164,6 +164,7 @@ errorString err = case err of
   IllformedProjectionPatternAbstract{}     -> "IllformedProjectionPatternAbstract"
   IllformedProjectionPatternConcrete{}     -> "IllformedProjectionPatternConcrete"
   CannotEliminateWithPattern{}             -> "CannotEliminateWithPattern"
+  CannotEliminateWithProjection{}          -> "CannotEliminateWithProjection"
   IllegalDeclarationInDataDefinition{}     -> "IllegalDeclarationInDataDefinition"
   IllegalLetInTelescope{}                  -> "IllegalLetInTelescope"
   IllegalPatternInTelescope{}              -> "IllegalPatternInTelescope"
@@ -477,6 +478,16 @@ instance PrettyTCM TypeError where
         A.AsP _ _ p -> kindOfPattern p
         A.PatternSynP{} -> __IMPOSSIBLE__
         A.AnnP _ _ p -> kindOfPattern p
+
+    CannotEliminateWithProjection ty isAmbiguous projection -> sep
+        [ "Cannot eliminate type "
+        , prettyTCM (unArg ty)
+        , " with projection "
+        , if isAmbiguous then
+            text $ prettyShow projection
+          else
+            prettyTCM projection
+        ]
 
     WrongNumberOfConstructorArguments c expect given -> fsep $
       pwords "The constructor" ++ [prettyTCM c] ++
