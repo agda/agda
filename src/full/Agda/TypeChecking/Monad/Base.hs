@@ -4608,6 +4608,7 @@ data TypeError
         | AmbiguousName C.QName AmbiguousNameReason
         | AmbiguousModule C.QName (List1 A.ModuleName)
         | AmbiguousField C.Name [A.ModuleName]
+        | AmbiguousConstructor QName [QName]
         | ClashingDefinition C.QName A.QName (Maybe NiceDeclaration)
         | ClashingModule A.ModuleName A.ModuleName
         | ClashingImport C.Name A.QName
@@ -4642,6 +4643,7 @@ data TypeError
             --   If it is non-empty, the first entry could be printed as error hint.
         | AmbiguousParseForLHS LHSOrPatSyn C.Pattern [C.Pattern]
             -- ^ Pattern and its possible interpretations.
+        | AmbiguousProjection QName [QName]
         | AmbiguousOverloadedProjection (List1 QName) Doc
         | OperatorInformation [NotationSection] TypeError
 {- UNUSED
