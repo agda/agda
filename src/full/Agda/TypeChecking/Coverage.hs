@@ -32,14 +32,14 @@ import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
-import Agda.Syntax.Internal hiding (DataOrRecord(..))
+import Agda.Syntax.Internal hiding (DataOrRecord)
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Translation.InternalToAbstract (NamedClause(..))
 
 import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Monad
 
-import Agda.TypeChecking.Rules.LHS (DataOrRecord(..), checkSortOfSplitVar)
+import Agda.TypeChecking.Rules.LHS (DataOrRecord, checkSortOfSplitVar)
 import Agda.TypeChecking.Rules.LHS.Problem (allFlexVars)
 import Agda.TypeChecking.Rules.LHS.Unify
 import Agda.TypeChecking.Rules.Term (unquoteTactic)
@@ -734,7 +734,7 @@ isDatatype ind at = do
           | i == Just CoInductive && ind /= CoInductive ->
               throw CoinductiveDatatype
           | otherwise ->
-              return (IsRecord i recEtaEquality', d, args, [], [conName con], False)
+              return (IsRecord InductionAndEta { recordInduction=i, recordEtaEquality=recEtaEquality' }, d, args, [], [conName con], False)
         _ -> throw NotADatatype
     _ -> throw NotADatatype
 
@@ -1320,8 +1320,8 @@ split' checkEmpty ind allowPartialCover inserttrailing
       erasedMatches   = optErasedMatches opts
       isRecordWithEta = case dr of
         IsData       -> False
-        IsRecord{..} ->
-          case theEtaEquality recordEtaEquality of
+        IsRecord r ->
+          case theEtaEquality (recordEtaEquality r) of
             YesEta{} -> True
             NoEta{}  -> False
 

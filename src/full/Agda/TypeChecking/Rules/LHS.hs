@@ -5,7 +5,7 @@ module Agda.TypeChecking.Rules.LHS
   , LHSResult(..)
   , bindAsPatterns
   , IsFlexiblePattern(..)
-  , DataOrRecord(..)
+  , DataOrRecord
   , checkSortOfSplitVar
   ) where
 
@@ -35,7 +35,7 @@ import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Lenses
 
-import Agda.Syntax.Internal as I hiding (DataOrRecord(..))
+import Agda.Syntax.Internal as I hiding (DataOrRecord)
 import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views (asView, deepUnscope)
@@ -1575,7 +1575,7 @@ checkMatchingAllowed :: (MonadTCError m)
   -> DataOrRecord  -- ^ Information about data or (co)inductive (no-)eta-equality record.
   -> m ()
 checkMatchingAllowed d = \case
-  IsRecord ind eta
+  IsRecord InductionAndEta { recordInduction=ind, recordEtaEquality=eta }
     | Just CoInductive <- ind -> typeError $
         GenericError "Pattern matching on coinductive types is not allowed"
     | not $ patternMatchingAllowed eta -> typeError $ SplitOnNonEtaRecord d
@@ -1602,13 +1602,7 @@ softTypeError err = withCallerCallStack $ \loc ->
 hardTypeError :: (HasCallStack, MonadTCM m) => TypeError -> m a
 hardTypeError = withCallerCallStack $ \loc -> liftTCM . typeError' loc
 
-data DataOrRecord
-  = IsData
-  | IsRecord
-    { recordInduction   :: Maybe Induction
-    , recordEtaEquality :: EtaEquality
-    }
-  deriving (Show)
+type DataOrRecord = DataOrRecord' InductionAndEta
 
 -- | Check if the type is a data or record type and return its name,
 --   definition, parameters, and indices. Fails softly if the type could become
@@ -1635,7 +1629,7 @@ isDataOrRecordType a0 = ifBlocked a0 blocked $ \case
 
       Record{ recInduction, recEtaEquality' } -> do
         let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-        return (IsRecord recInduction recEtaEquality', d, pars, [])
+        return (IsRecord InductionAndEta {recordInduction=recInduction, recordEtaEquality=recEtaEquality' }, d, pars, [])
 
       -- Issue #2253: the data type could be abstract.
       AbstractDefn{} -> hardTypeError $ SplitOnAbstract d
@@ -2050,7 +2044,7 @@ checkSortOfSplitVar dr a tel mtarget = do
 
   where
     checkPropSplit
-      | IsRecord Nothing _ <- dr = return ()
+      | IsRecord InductionAndEta { recordInduction=Nothing } <- dr = return ()
       | Just target <- mtarget = do
         reportSDoc "tc.sort.check" 20 $ "target prop:" <+> prettyTCM target
         checkIsProp target
@@ -2064,7 +2058,7 @@ checkSortOfSplitVar dr a tel mtarget = do
       Right True  -> return ()
 
     checkFibrantSplit
-      | IsRecord _ _ <- dr     = return ()
+      | IsRecord _ <- dr       = return ()
       | Just target <- mtarget = do
           reportSDoc "tc.sort.check" 20 $ "target:" <+> prettyTCM target
           checkIsFibrant target
@@ -2088,15 +2082,7 @@ checkSortOfSplitVar dr a tel mtarget = do
       Right False -> splitOnFibrantError Nothing
       Right True  -> return ()
 
-    splitOnPropError dr = softTypeError =<< do
-      liftTCM $ GenericDocError <$>
-        ("Cannot split on" <+> kindOfData dr <+> "in Prop unless target is in Prop")
-      where
-        kindOfData :: DataOrRecord -> TCM Doc
-        kindOfData IsData                          = "datatype"
-        kindOfData (IsRecord Nothing _)            = "record type"
-        kindOfData (IsRecord (Just Inductive) _)   = "inductive record type"
-        kindOfData (IsRecord (Just CoInductive) _) = "coinductive record type"
+    splitOnPropError dr = softTypeError $ SplitInProp dr
 
     splitOnFibrantError' t mb = softTypeError =<< do
       liftTCM $ SortOfSplitVarError mb <$> fsep

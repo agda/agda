@@ -14,7 +14,7 @@ import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
-import Agda.Syntax.Internal hiding (DataOrRecord(..))
+import Agda.Syntax.Internal hiding (DataOrRecord)
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Common.Pretty (prettyShow)
 

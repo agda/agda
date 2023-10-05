@@ -242,6 +242,7 @@ errorString err = case err of
   SplitOnAbstract{}                        -> "SplitOnAbstract"
   SplitOnUnchecked{}                       -> "SplitOnUnchecked"
   SplitOnPartial{}                         -> "SplitOnPartial"
+  SplitInProp{}                            -> "SplitInProp"
   DefinitionIsIrrelevant{}                 -> "DefinitionIsIrrelevant"
   DefinitionIsErased{}                     -> "DefinitionIsErased"
   VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
@@ -602,6 +603,19 @@ instance PrettyTCM TypeError where
 
     SplitOnPartial dom -> vcat
       [ "Splitting on partial elements is only allowed at the type Partial, but the domain here is", nest 2 $ prettyTCM $ unDom dom ]
+
+    SplitInProp dr -> fsep
+      [ text "Cannot split on"
+      , text $ kindOfData dr
+      , text "in Prop unless target is in Prop"
+      ]
+      where
+        kindOfData :: DataOrRecordE -> String
+        kindOfData IsData                                                          = "datatype"
+        kindOfData (IsRecord InductionAndEta {recordInduction=Nothing})            = "record type"
+        kindOfData (IsRecord InductionAndEta {recordInduction=(Just Inductive)})   =  "inductive record type"
+        kindOfData (IsRecord InductionAndEta {recordInduction=(Just CoInductive)}) = "coinductive record type"
+
 
     DefinitionIsIrrelevant x -> fsep $
       "Identifier" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
