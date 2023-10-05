@@ -4499,6 +4499,7 @@ data TypeError
         | SplitOnAbstract QName
         | SplitOnUnchecked QName
         | SplitOnPartial (Dom Type)
+        | SplitInProp DataOrRecordE
         | DefinitionIsIrrelevant QName
         | DefinitionIsErased QName
         | VariableIsIrrelevant Name
@@ -4667,6 +4668,13 @@ data TypeError
         | InstanceSearchDepthExhausted Term Type Int
         | TriedToCopyConstrainedPrim QName
           deriving (Show, Generic)
+
+type DataOrRecordE = DataOrRecord' InductionAndEta
+
+data InductionAndEta = InductionAndEta
+  { recordInduction   :: Maybe Induction
+  , recordEtaEquality :: EtaEquality
+  } deriving (Show, Generic)
 
 -- | Distinguish error message when parsing lhs or pattern synonym, resp.
 data LHSOrPatSyn = IsLHS | IsPatSyn
@@ -5699,3 +5707,5 @@ instance NFData UnificationFailure
 instance NFData UnquoteError
 instance NFData TypeError
 instance NFData LHSOrPatSyn
+instance NFData DataOrRecordE
+instance NFData InductionAndEta

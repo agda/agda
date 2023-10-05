@@ -149,10 +149,12 @@ defaultNamedArgDom info s x = (defaultArgDom info x) { domName = Just $ WithOrig
 type Args       = [Arg Term]
 type NamedArgs  = [NamedArg Term]
 
-data DataOrRecord
+data DataOrRecord' p
   = IsData
-  | IsRecord PatternOrCopattern
+  | IsRecord p
   deriving (Show, Eq, Generic)
+
+type DataOrRecord = DataOrRecord' PatternOrCopattern
 
 instance PatternMatchingAllowed DataOrRecord where
   patternMatchingAllowed = \case
