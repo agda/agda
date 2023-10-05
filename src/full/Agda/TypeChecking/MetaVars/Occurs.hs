@@ -522,27 +522,22 @@ instance Occurs Term where
           MetaV m' es -> do
             m' <- metaCheck m'
             ctx <- ask
-            let origm = return $ MetaV m' es
-            t <- caseMaybe (allApplyElims es) origm $ \ vs -> do
+            let fallback = return . Right $ MetaV m' es
+            t <- caseMaybe (allApplyElims es) (fallback) $ \ vs -> do
                if not (isFlexible ctx) then do
-                 prepruneTC <- getTC
                  killResult <- lift . prune m' vs =<< allowedVars
+                 v <- instantiate (MetaV m' es)
                  if (killResult == PrunedEverything) then do
                    reportSDoc "tc.meta.prune" 40 $ "Pruned everything"
-                   instantiate (MetaV m' es)
+                   return $ Left v
                  else do
                    reportSDoc "tc.meta.prune" 40 $ "Didn't manage to prune everything"
-                   putTC prepruneTC
-                   origm
-               else origm
+                   return $ Right v
+               else fallback
             case t of
-              (MetaV m' es') -> (MetaV m' <$> do flexibly $ occurs es') `catchError` \ err -> do
-                  reportSDoc "tc.meta.kill" 25 $ vcat
-                    [ text $ "error during flexible occurs check, we are " ++ show (ctx ^. lensFlexRig)
-                    , text $ show err
-                    ]
-                  throwError err
-              _ -> occurs t
+              (Right (MetaV m' es')) -> (MetaV m' <$> do flexibly $ occurs es')
+              (Right t) -> occurs t
+              (Left v) -> return v
           where
             -- a data or record type constructor propagates strong occurrences
             -- since e.g. x = List x is unsolvable
