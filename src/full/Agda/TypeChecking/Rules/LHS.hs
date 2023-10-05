@@ -1737,11 +1737,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
           tryDisambiguate True fs r vs comatching $ \case
             ([]   , []      ) -> __IMPOSSIBLE__
             (err:_, []      ) -> throwError err
-            (_    , disambs@((d,a):_)) -> typeError . GenericDocError =<< vcat
-              [ "Ambiguous projection " <> prettyTCM d <> "."
-              , "It could refer to any of"
-              , nest 2 $ vcat $ map (prettyDisambProj . fst) disambs
-              ]
+            (_    , disambs@((d,a):_)) -> typeError $ AmbiguousProjection d (map fst disambs)
     _ -> __IMPOSSIBLE__
 
   where
@@ -1862,11 +1858,8 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
         -- meaning that only the parameters may differ,
         -- then throw more specific error.
         (_    , [_]) -> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d cs
-        (_    , disambs@(((c,_,_):|_):_)) -> typeError . GenericDocError =<< vcat
-          [ "Ambiguous constructor " <> pretty (qnameName c) <> "."
-          , "It could refer to any of"
-          , nest 2 $ vcat $ map (prettyDisambCons . conName . snd3) $ List1.concat disambs
-          ]
+        (_    , disambs@(((c,_,_):|_):_)) -> typeError $
+          AmbiguousConstructor c (map (conName . snd3) $ List1.concat disambs)
 
   where
     tryDisambiguate
@@ -2007,19 +2000,6 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
           -- but this can always be worked around.
           (Just{},  Just{})  -> return False
       inState st m = localTCState $ do putTC st; m
-
-
-prettyDisamb :: (QName -> Maybe (Range' SrcFile)) -> QName -> TCM Doc
-prettyDisamb f x = do
-  let d  = pretty =<< dropTopLevelModule x
-  caseMaybe (f x) d $ \ r -> d <+> ("(introduced at " <> prettyTCM r <> ")")
-
--- | For Ambiguous Projection errors, print the last range in 'qnameModule'.
---   For Ambiguous Constructor errors, print the range in 'qnameName'. This fixes the bad
---   error message in #4130.
-prettyDisambProj, prettyDisambCons :: QName -> TCM Doc
-prettyDisambProj = prettyDisamb $ lastMaybe . filter (noRange /=) . map nameBindingSite . mnameToList . qnameModule
-prettyDisambCons = prettyDisamb $ Just . nameBindingSite . qnameName
 
 -- | @checkConstructorParameters c d pars@ checks that the data/record type
 --   behind @c@ is has initial parameters (coming e.g. from a module instantiation)

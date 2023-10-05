@@ -66,7 +66,7 @@ import Agda.Utils.FileName
 import Agda.Utils.Float  ( toStringWithoutDotZero )
 import Agda.Utils.Function
 import Agda.Utils.Functor( for )
-import Agda.Utils.List   ( initLast )
+import Agda.Utils.List   ( initLast, lastMaybe )
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
@@ -128,7 +128,9 @@ errorString err = case err of
   AmbiguousField{}                         -> "AmbiguousField"
   AmbiguousParseForApplication{}           -> "AmbiguousParseForApplication"
   AmbiguousParseForLHS{}                   -> "AmbiguousParseForLHS"
+  AmbiguousProjection{}                    -> "AmbiguousProjection"
   AmbiguousOverloadedProjection{}          -> "AmbiguousOverloadedProjection"
+  AmbiguousConstructor{}                   -> "AmbiguousConstructor"
 --  AmbiguousParseForPatternSynonym{}        -> "AmbiguousParseForPatternSynonym"
   AmbiguousTopLevelModuleName {}           -> "AmbiguousTopLevelModuleName"
   BadArgumentsToPatternSynonym{}           -> "BadArgumentsToPatternSynonym"
@@ -321,7 +323,7 @@ dropTopLevelModule' :: Int -> QName -> QName
 dropTopLevelModule' k (QName (MName ns) n) = QName (MName (drop k ns)) n
 
 -- | Drops the filename component of the qualified name.
-dropTopLevelModule :: QName -> TCM QName
+dropTopLevelModule :: MonadPretty m => QName -> m QName
 dropTopLevelModule q = ($ q) <$> topLevelModuleDropper
 
 -- | Produces a function which drops the filename component of the qualified name.
@@ -330,6 +332,19 @@ topLevelModuleDropper =
   caseMaybeM currentTopLevelModule
     (return id)
     (return . dropTopLevelModule' . size)
+
+prettyDisamb :: MonadPretty m => (QName -> Maybe (Range' SrcFile)) -> QName -> m Doc
+prettyDisamb f x = do
+  let d  = pretty =<< dropTopLevelModule x
+  caseMaybe (f x) d $ \ r -> d <+> ("(introduced at " <> prettyTCM r <> ")")
+
+-- | Print the last range in 'qnameModule'.
+prettyDisambProj :: MonadPretty m => QName -> m Doc
+prettyDisambProj = prettyDisamb $ lastMaybe . filter (noRange /=) . map nameBindingSite . mnameToList . qnameModule
+
+--   Print the range in 'qnameName'. This fixes the bad error message in #4130.
+prettyDisambCons :: MonadPretty m => QName -> m Doc
+prettyDisambCons = prettyDisamb $ Just . nameBindingSite . qnameName
 
 instance PrettyTCM TypeError where
   prettyTCM err = case err of
@@ -820,6 +835,12 @@ instance PrettyTCM TypeError where
              pwords "could refer to any of the following files:"
            ) $$ nest 2 (vcat $ map (text . filePath) files)
 
+    AmbiguousProjection d disambs -> vcat
+      [ "Ambiguous projection " <> prettyTCM d <> "."
+      , "It could refer to any of"
+      , nest 2 $ vcat $ (map prettyDisambProj disambs)
+      ]
+
     AmbiguousOverloadedProjection ds reason -> do
       let nameRaw = pretty $ A.nameConcrete $ A.qnameName $ List1.head ds
       vcat
@@ -834,6 +855,12 @@ instance PrettyTCM TypeError where
             t <- typeOfConst d
             text "-" <+> nest 2 (nameRaw <+> text ":" <+> prettyTCM t)
         ]
+
+    AmbiguousConstructor c disambs -> vcat
+      [ "Ambiguous constructor " <> pretty (qnameName c) <> "."
+      , "It could refer to any of"
+      , nest 2 $ vcat $ map prettyDisambCons disambs
+      ]
 
     ClashingFileNamesFor x files ->
       fsep ( pwords "Multiple possible sources for module"
