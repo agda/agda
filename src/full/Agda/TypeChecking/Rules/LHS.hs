@@ -1754,15 +1754,8 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
 
     wrongProj :: (MonadTCM m, MonadError TCErr m, ReadTCState m) => QName -> m a
     wrongProj d = softTypeError =<< do
-      liftTCM $ GenericDocError <$> sep
-        [ "Cannot eliminate type "
-        , prettyTCM (unArg b)
-        , " with projection "
-        , if isAmbiguous ambD then
-            text . prettyShow =<< dropTopLevelModule d
-          else
-            prettyTCM d
-        ]
+      liftTCM $ if isAmbiguous ambD then CannotEliminateWithProjection b True <$> dropTopLevelModule d
+                else pure $ CannotEliminateWithProjection b False d
 
     tryProj
       :: Bool                 -- Are we allowed to create new constraints?

@@ -4473,6 +4473,7 @@ data TypeError
         | IllformedProjectionPatternAbstract A.Pattern
         | IllformedProjectionPatternConcrete C.Pattern
         | CannotEliminateWithPattern (Maybe Blocker) (NamedArg A.Pattern) Type
+        | CannotEliminateWithProjection (Arg Type) Bool QName
         | WrongNumberOfConstructorArguments QName Nat Nat
         | ShouldBeEmpty Type [DeBruijnPattern]
         | ShouldBeASort Type
