@@ -2,9 +2,23 @@
 {-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE UndecidableInstances #-} -- Due to ICODE vararg typeclass
+{-# LANGUAGE MagicHash            #-}
+{-# LANGUAGE UnboxedTuples        #-}
+
+{-
+András, 2023-10-2:
+
+All code in Agda/TypeChecking/Serialise should be strict, since serialization necessarily
+forces all data, eventually.
+  - (<$!>) should be used instead of lazy fmap.
+  - Any redex that's passed to `return`, a lazy constructor, or a function, should
+    be forced beforehand with strict `let`, strict binding or ($!).
+-}
 
 module Agda.TypeChecking.Serialise.Base where
 
+import qualified Control.Exception as E
+import Control.Monad ((<$!>))
 import Control.Monad.Except
 import Control.Monad.IO.Class     ( MonadIO(..) )
 import Control.Monad.Reader
@@ -23,7 +37,10 @@ import qualified Data.Binary as B
 import qualified Data.Binary.Get as B
 import qualified Data.Text      as T
 import qualified Data.Text.Lazy as TL
-import Data.Typeable ( cast, Typeable, TypeRep, typeRep )
+import Data.Typeable ( cast, Typeable, TypeRep, typeRep, typeRepFingerprint )
+import GHC.Exts (Word(..), timesWord2#, xor#, Any)
+import GHC.Fingerprint.Type
+import Unsafe.Coerce
 
 import Agda.Syntax.Common (NameId)
 import Agda.Syntax.Internal (Term, QName(..), ModuleName(..), nameId)
@@ -39,8 +56,70 @@ import Agda.Utils.Pointer
 import Agda.Utils.TypeLevel
 
 -- | Constructor tag (maybe omitted) and argument indices.
+data Node = Empty | Cons !Int32 !Node deriving Eq
 
-type Node = [Int32]
+instance Hashable Node where
+  -- Adapted from https://github.com/tkaitchuck/aHash/wiki/AHash-fallback-algorithm
+  hashWithSalt h n = fromIntegral (go (fromIntegral h) n) where
+    xor (W# x) (W# y) = W# (xor# x y)
+
+    foldedMul :: Word -> Word -> Word
+    foldedMul (W# x) (W# y) = case timesWord2# x y of (# hi, lo #) -> W# (xor# hi lo)
+
+    combine :: Word -> Word -> Word
+    combine x y = foldedMul (xor x y) 11400714819323198549
+
+    go :: Word -> Node -> Word
+    go !h Empty       = h
+    go  h (Cons n ns) = go (combine h (fromIntegral n)) ns
+
+  hash = hashWithSalt 3032525626373534813
+
+instance B.Binary Node where
+
+  get = go =<< B.get where
+
+    go :: Int -> B.Get Node
+    go n | n <= 0 =
+      pure Empty
+    go n = do
+      !x    <- B.get
+      !node <- go (n - 1)
+      pure $ Cons x node
+
+  put n = B.put (len n) <> go n where
+
+    len :: Node -> Int
+    len = go 0 where
+      go !acc Empty     = acc
+      go acc (Cons _ n) = go (acc + 1) n
+
+    go :: Node -> B.Put
+    go Empty       = mempty
+    go (Cons n ns) = B.put n <> go ns
+
+-- | Association lists mapping TypeRep fingerprints to values. In some cases
+--   values with different types have the same serialized representation. This
+--   structure disambiguates them.
+data MemoEntry = MEEmpty | MECons {-# unpack #-} !Fingerprint !Any !MemoEntry
+
+-- 2023-10-2 András: `typeRepFingerprint` usually inlines a 4-way case, which
+-- yields significant code size increase as GHC often inlines the same code into
+-- the branches. This wouldn't matter in "normal" code but the serialization
+-- instances use very heavy inlining. The NOINLINE cuts down on the code size.
+fingerprintNoinline :: TypeRep -> Fingerprint
+fingerprintNoinline rep = typeRepFingerprint rep
+{-# NOINLINE fingerprintNoinline #-}
+
+lookupME :: forall a b. Proxy a -> Fingerprint -> MemoEntry -> (a -> b) -> b -> b
+lookupME proxy fprint me found notfound = go fprint me where
+  go :: Fingerprint -> MemoEntry -> b
+  go fp MEEmpty =
+    notfound
+  go fp (MECons fp' x me)
+    | fp == fp' = found (unsafeCoerce x)
+    | True      = go fp me
+{-# NOINLINE lookupME #-}
 
 -- | Structure providing fresh identifiers for hash map
 --   and counting hash map hits (i.e. when no fresh identifier required).
@@ -63,10 +142,12 @@ farEmpty = FreshAndReuse 0
 
 lensFresh :: Lens' FreshAndReuse Int32
 lensFresh f r = f (farFresh r) <&> \ i -> r { farFresh = i }
+{-# INLINE lensFresh #-}
 
 #ifdef DEBUG
 lensReuse :: Lens' FreshAndReuse Int32
 lensReuse f r = f (farReuse r) <&> \ i -> r { farReuse = i }
+{-# INLINE lensReuse #-}
 #endif
 
 -- | Two 'QName's are equal if their @QNameId@ is equal.
@@ -103,7 +184,7 @@ data Dict = Dict
   , nameC        :: !(IORef FreshAndReuse)
   , qnameC       :: !(IORef FreshAndReuse)
   , stats        :: !(HashTable String Int)
-  , collectStats :: Bool
+  , collectStats :: !Bool
     -- ^ If @True@ collect in @stats@ the quantities of
     --   calls to @icode@ for each @Typeable a@.
   }
@@ -135,15 +216,12 @@ emptyDict collectStats = Dict
   <*> H.empty
   <*> pure collectStats
 
--- | Universal type, wraps everything.
-data U = forall a . Typeable a => U !a
-
 -- | Univeral memo structure, to introduce sharing during decoding
-type Memo = IOArray Int32 (Hm.HashMap TypeRep U) -- node index -> (type rep -> value)
+type Memo = IOArray Int32 MemoEntry
 
 -- | State of the decoder.
 data St = St
-  { nodeE     :: !(Array Int32 Node)     -- ^ Obtained from interface file.
+  { nodeE     :: !(Array Int32 [Int32])  -- ^ Obtained from interface file.
   , stringE   :: !(Array Int32 String)   -- ^ Obtained from interface file.
   , lTextE    :: !(Array Int32 TL.Text)  -- ^ Obtained from interface file.
   , sTextE    :: !(Array Int32 T.Text)   -- ^ Obtained from interface file.
@@ -154,7 +232,7 @@ data St = St
     --   Used to introduce sharing while deserializing objects.
   , modFile   :: !ModuleToSource
     -- ^ Maps module names to file names. Constructed by the decoder.
-  , includes  :: [AbsolutePath]
+  , includes  :: ![AbsolutePath]
     -- ^ The include directories.
   }
 
@@ -167,13 +245,14 @@ type S a = ReaderT Dict IO a
 -- 'TCM' is not used because the associated overheads would make
 -- decoding slower.
 
-type R a = ExceptT TypeError (StateT St IO) a
+type R = StateT St IO
 
 -- | Throws an error which is suitable when the data stream is
 -- malformed.
 
 malformed :: R a
-malformed = throwError $ GenericError "Malformed input."
+malformed = liftIO $ E.throwIO $ E.ErrorCall "Malformed input."
+{-# NOINLINE malformed #-} -- 2023-10-2 András: cold code, so should be out-of-line.
 
 class Typeable a => EmbPrj a where
   icode :: a -> S Int32  -- ^ Serialization (wrapper).
@@ -181,29 +260,37 @@ class Typeable a => EmbPrj a where
   value :: Int32 -> R a  -- ^ Deserialization.
 
   icode a = do
+    !r <- icod_ a
     tickICode a
-    icod_ a
+    pure r
+  {-# INLINE icode #-}
 
   -- Simple enumeration types can be (de)serialized using (from/to)Enum.
-
   default value :: (Enum a, Bounded a) => Int32 -> R a
   value i =
     let i' = fromIntegral i in
     if i' >= fromEnum (minBound :: a) && i' <= fromEnum (maxBound :: a)
-    then pure (toEnum i')
+    then pure $! toEnum i'
     else malformed
 
   default icod_ :: (Enum a, Bounded a) => a -> S Int32
-  icod_ = return . fromIntegral . fromEnum
+  icod_ x = return $! fromIntegral $! fromEnum x
+
+-- | The actual logic of `tickICode` is cold code, so it's out-of-line,
+--   to decrease code size and avoid cache pollution.
+goTickIcode :: forall a. Typeable a => Proxy a -> S ()
+goTickIcode p = do
+  let key = "icode " ++ show (typeRep p)
+  hmap <- asks stats
+  liftIO $ do
+    n <- fromMaybe 0 <$> H.lookup hmap key
+    H.insert hmap key $! n + 1
+{-# NOINLINE goTickIcode #-}
 
 -- | Increase entry for @a@ in 'stats'.
 tickICode :: forall a. Typeable a => a -> S ()
-tickICode _ = whenM (asks collectStats) $ do
-    let key = "icode " ++ show (typeRep (Proxy :: Proxy a))
-    hmap <- asks stats
-    liftIO $ do
-      n <- fromMaybe 0 <$> H.lookup hmap key
-      H.insert hmap key $! n + 1
+tickICode _ = whenM (asks collectStats) $ goTickIcode (Proxy :: Proxy a)
+{-# INLINE tickICode #-}
 
 -- | Data.Binary.runGetState is deprecated in favour of runGetIncremental.
 --   Reimplementing it in terms of the new function. The new Decoder type contains
@@ -252,9 +339,9 @@ icodeX dict counter key = do
 #ifdef DEBUG
         modifyIORef' c $ over lensReuse (+1)
 #endif
-        return i
+        return $! i
       Nothing -> do
-        fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
+        !fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
         H.insert d key fresh
         return fresh
 
@@ -273,9 +360,9 @@ icodeInteger key = do
 #ifdef DEBUG
         modifyIORef' c $ over lensReuse (+1)
 #endif
-        return i
+        return $! i
       Nothing -> do
-        fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
+        !fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
         H.insert d key fresh
         return fresh
 
@@ -290,9 +377,9 @@ icodeDouble key = do
 #ifdef DEBUG
         modifyIORef' c $ over lensReuse (+1)
 #endif
-        return i
+        return $! i
       Nothing -> do
-        fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
+        !fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
         H.insert d key fresh
         return fresh
 
@@ -309,7 +396,7 @@ icodeString key = do
 #endif
         return i
       Nothing -> do
-        fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
+        !fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
         H.insert d key fresh
         return fresh
 
@@ -324,9 +411,9 @@ icodeNode key = do
 #ifdef DEBUG
         modifyIORef' c $ over lensReuse (+1)
 #endif
-        return i
+        return $! i
       Nothing -> do
-        fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
+        !fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
         H.insert d key fresh
         return fresh
 
@@ -350,10 +437,10 @@ icodeMemo getDict getCounter a icodeP = do
 #ifdef DEBUG
         modifyIORef' st $ over lensReuse (+ 1)
 #endif
-        return i
+        return $! i
       Nothing -> do
         liftIO $ modifyIORef' st $ over lensFresh (+1)
-        i <- icodeP
+        !i <- icodeP
         liftIO $ H.insert h a i
         return i
 
@@ -362,35 +449,38 @@ icodeMemo getDict getCounter a icodeP = do
 --   via the @valu@ function and stores it in 'nodeMemo'.
 --   If @ix@ is present in 'nodeMemo', @valu@ is not used, but
 --   the thing is read from 'nodeMemo' instead.
-vcase :: forall a . EmbPrj a => (Node -> R a) -> Int32 -> R a
+vcase :: forall a . EmbPrj a => ([Int32] -> R a) -> Int32 -> R a
 vcase valu = \ix -> do
     memo <- gets nodeMemo
-    -- compute run-time representation of type a
-    let aTyp = typeRep (Proxy :: Proxy a)
+    let fp = fingerprintNoinline (typeRep (Proxy :: Proxy a))
     -- to introduce sharing, see if we have seen a thing
     -- represented by ix before
     slot <- liftIO $ readArray memo ix
-    case Hm.lookup aTyp slot of
-      -- yes, we have seen it before, use the version from memo
-      Just (U u) -> maybe malformed return (cast u)
-      -- no, it's new, so generate it via valu and insert it into memo
-      Nothing    -> do
-          v <- valu . (! ix) =<< gets nodeE
-          liftIO $ writeArray memo ix (Hm.insert aTyp (U v) slot)
-          return v
+    lookupME (Proxy :: Proxy a) fp slot
+      -- use the stored value
+      pure
+      -- read new value and save it
+      do !v <- valu . (! ix) =<< gets nodeE
+         liftIO $ writeArray memo ix $! MECons fp (unsafeCoerce v) slot
+         return v
 
 -- | @icodeArgs proxy (a1, ..., an)@ maps @icode@ over @a1@, ..., @an@
 --   and returns the corresponding list of @Int32@.
 
 class ICODE t b where
   icodeArgs :: IsBase t ~ b => All EmbPrj (Domains t) =>
-               Proxy t -> Products (Domains t) -> S [Int32]
+               Proxy t -> StrictProducts (Domains t) -> S Node
 
 instance IsBase t ~ 'True => ICODE t 'True where
-  icodeArgs _ _  = return []
+  icodeArgs _ _  = return Empty
+  {-# INLINE icodeArgs #-}
 
 instance ICODE t (IsBase t) => ICODE (a -> t) 'False where
-  icodeArgs _ (a , as) = icode a >>= \ hd -> (hd :) <$> icodeArgs (Proxy :: Proxy t) as
+  icodeArgs _ (Pair a as) = do
+    !hd   <- icode a
+    !node <- icodeArgs (Proxy :: Proxy t) as
+    pure $ Cons hd node
+  {-# INLINE icodeArgs #-}
 
 -- | @icodeN tag t a1 ... an@ serialises the arguments @a1@, ..., @an@ of the
 --   constructor @t@ together with a tag @tag@ picked to disambiguate between
@@ -398,21 +488,23 @@ instance ICODE t (IsBase t) => ICODE (a -> t) 'False where
 --   It corresponds to @icodeNode . (tag :) =<< mapM icode [a1, ..., an]@
 
 {-# INLINE icodeN #-}
-icodeN :: forall t. ICODE t (IsBase t) => Currying (Domains t) (S Int32) =>
+icodeN :: forall t. ICODE t (IsBase t) => StrictCurrying (Domains t) (S Int32) =>
           All EmbPrj (Domains t) =>
           Int32 -> t -> Arrows (Domains t) (S Int32)
 icodeN tag _ =
-  currys (Proxy :: Proxy (Domains t)) (Proxy :: Proxy (S Int32)) $ \ args ->
-  icodeNode . (tag :) =<< icodeArgs (Proxy :: Proxy t) args
+  strictCurrys (Proxy :: Proxy (Domains t)) (Proxy :: Proxy (S Int32)) $ \ !args -> do
+    !node <- icodeArgs (Proxy :: Proxy t) args
+    icodeNode $ Cons tag node
 
 -- | @icodeN'@ is the same as @icodeN@ except that there is no tag
 {-# INLINE icodeN' #-}
-icodeN' :: forall t. ICODE t (IsBase t) => Currying (Domains t) (S Int32) =>
+icodeN' :: forall t. ICODE t (IsBase t) => StrictCurrying (Domains t) (S Int32) =>
            All EmbPrj (Domains t) =>
            t -> Arrows (Domains t) (S Int32)
 icodeN' _ =
-  currys (Proxy :: Proxy (Domains t)) (Proxy :: Proxy (S Int32)) $ \ args ->
-  icodeNode =<< icodeArgs (Proxy :: Proxy t) args
+  strictCurrys (Proxy :: Proxy (Domains t)) (Proxy :: Proxy (S Int32)) $ \ !args -> do
+    !node <- icodeArgs (Proxy :: Proxy t) args
+    icodeNode node
 
 -- Instead of having up to 25 versions of @valu N@, we define
 -- the class VALU which generates them by typeclass resolution.
@@ -422,11 +514,11 @@ class VALU t b where
 
   valuN' :: b ~ IsBase t =>
             All EmbPrj (Domains t) =>
-            t -> Products (Constant Int32 (Domains t)) -> R (CoDomain t)
+            t -> StrictProducts (Constant Int32 (Domains t)) -> R (CoDomain t)
 
   valueArgs :: b ~ IsBase t =>
                All EmbPrj (CoDomain t ': Domains t) =>
-               Proxy t -> Node -> Maybe (Products (Constant Int32 (Domains t)))
+               Proxy t -> [Int32] -> Maybe (StrictProducts (Constant Int32 (Domains t)))
 
 instance VALU t 'True where
   {-# INLINE valuN' #-}
@@ -440,19 +532,22 @@ instance VALU t 'True where
 
 instance VALU t (IsBase t) => VALU (a -> t) 'False where
   {-# INLINE valuN' #-}
-  valuN' c (a, as) = value a >>= \ v -> valuN' (c v) as
+  valuN' c (Pair a as) = do
+    !v <- value a
+    let !cv = c v
+    valuN' cv as
 
   {-# INLINE valueArgs #-}
   valueArgs _ xs = case xs of
-    (x : xs') -> (x,) <$> valueArgs (Proxy :: Proxy t) xs'
-    _         -> Nothing
+    x : xs' -> Pair x <$!> valueArgs (Proxy :: Proxy t) xs'
+    _       -> Nothing
 
 {-# INLINE valuN #-}
 valuN :: forall t. VALU t (IsBase t) =>
-         Currying (Constant Int32 (Domains t)) (R (CoDomain t)) =>
+         StrictCurrying (Constant Int32 (Domains t)) (R (CoDomain t)) =>
          All EmbPrj (Domains t) =>
          t -> Arrows (Constant Int32 (Domains t)) (R (CoDomain t))
-valuN f = currys (Proxy :: Proxy (Constant Int32 (Domains t)))
+valuN f = strictCurrys (Proxy :: Proxy (Constant Int32 (Domains t)))
                  (Proxy :: Proxy (R (CoDomain t)))
                  (valuN' f)
 

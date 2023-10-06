@@ -207,24 +207,25 @@ decode s = do
   -- The decoder is (intended to be) strict enough to ensure that all
   -- such errors can be caught by the handler here.
 
-  (mf, r) <- liftIO $ E.handle (\(E.ErrorCall s) -> noResult s) $ do
-
+  res <- liftIO $ E.handle (\(E.ErrorCall s) -> pure $ Left s) $ do
     ((r, nL, ltL, stL, bL, iL, dL), s, _) <- return $ runGetState B.get s 0
-    if not (null s)
-     then noResult "Garbage at end."
-     else do
+    let ar = unListLike
+    when (not (null s)) $ E.throwIO $ E.ErrorCall "Garbage at end."
+    let nL' = ar nL
+    st <- St nL' (ar ltL) (ar stL) (ar bL) (ar iL) (ar dL)
+            <$> liftIO (newArray (bounds nL') MEEmpty)
+            <*> return mf <*> return incs
+    (r, st) <- runStateT (value r) st
+    let !mf = modFile st
+    return $ Right (mf, r)
 
-      let nL' = ar nL
-      st <- St nL' (ar ltL) (ar stL) (ar bL) (ar iL) (ar dL)
-              <$> liftIO (newArray (bounds nL') mempty)
-              <*> return mf <*> return incs
-      (r, st) <- runStateT (runExceptT (value r)) st
-      return (Just $ modFile st, r)
+  case res of
+    Left s -> do
+      reportSLn "import.iface" 5 $ "Error when decoding interface file: " ++ s
+      pure Nothing
 
-  forM_ mf (setTCLens stModuleToSource)
-
-  case r of
-    Right x -> do
+    Right (mf, x) -> do
+      setTCLens stModuleToSource mf
 #if __GLASGOW_HASKELL__ >= 804
       -- "Compact" the interfaces (without breaking sharing) to
       -- reduce the amount of memory that is traversed by the
@@ -234,19 +235,7 @@ decode s = do
 #else
       return (Just x)
 #endif
-    Left err -> do
-      reportSLn "import.iface" 5 $ "Error when decoding interface file"
-      -- Andreas, 2014-06-11 deactivated debug printing
-      -- in order to get rid of dependency of Serialize on TCM.Pretty
-      -- reportSDoc "import.iface" 5 $
-      --   "Error when decoding interface file:"
-      --   $+$ nest 2 (prettyTCM err)
-      return Nothing
 
-  where
-  ar = unListLike
-
-  noResult s = return (Nothing, Left $ GenericError s)
 
 encodeInterface :: Interface -> TCM Encoded
 encodeInterface i = do
