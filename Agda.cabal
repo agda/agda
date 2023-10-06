@@ -1,6 +1,6 @@
 cabal-version:   2.4
 name:            Agda
-version:         2.6.4
+version:         2.6.5
 build-type:      Custom
 license:         MIT
 license-file:    LICENSE
@@ -153,7 +153,7 @@ source-repository head
 source-repository this
   type:     git
   location: https://github.com/agda/agda.git
-  tag:      v2.6.4
+  tag:      v2.6.5
 
 -- Build flags
 ---------------------------------------------------------------------------

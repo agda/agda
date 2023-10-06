@@ -6,4 +6,4 @@
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")
 (agda2-status-action "")
-(agda2-info-action "*Agda Version*" "Agda version 2.6.4" nil)
+(agda2-info-action "*Agda Version*" "Agda version 2.6.5" nil)
