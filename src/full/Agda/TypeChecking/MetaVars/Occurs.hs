@@ -523,7 +523,8 @@ instance Occurs Term where
             m' <- metaCheck m'
             ctx <- ask
             let fallback = return . Left $ MetaV m' es
-            -- if the meta is projected don't prune it, return fallback
+            -- Andreas, 2014-03-02, see issue 1070:
+            -- Do not prune when meta is projected!
             t <- caseMaybe (allApplyElims es) (fallback) $ \ vs -> do
               -- don't attempt pruning if we're in a flexible context
                if not (isFlexible ctx) then do
