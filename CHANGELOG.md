@@ -22,6 +22,23 @@ Language
 
 Changes of the type checker etc. that affect the Agda language.
 
+* [**Breaking**]
+  Can no longer match on record constructors in _binders_ (`λ`, `let`, parameter telescopes etc.)
+  if the respective record does not have eta.
+  For example, this is now rejected:
+  ```agda
+    record Wrap (A : Set) : Set where
+      constructor wrap; no-eta-equality; pattern
+      field unwrap : A
+
+    module _ {A} (w@(wrap a) : Wrap A) where
+  ```
+  Reason for this change:
+  Such a binding is interpreted here as `a = unwrap w`.
+  The user expectation that `w` is definitionally equal to `wrap a` is only met if `Wrap` admits `eta-equality`.
+
+  Pattern matching on left hand sides of function definitions is unaffected by this change.
+
 Reflection
 ----------
 
