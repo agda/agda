@@ -1,4 +1,4 @@
-LetPatternEta.agda:11,11-17
+LetPatternEta.agda:10,11-17
 Pattern matching in binders is only allowed for record types with
 eta-equality, but this constructor belongs to a record type without
 eta-equality.

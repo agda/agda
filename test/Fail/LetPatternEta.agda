@@ -1,11 +1,10 @@
-module LetPatternEta where
+-- Andreas, 2023-10-07, issue #6825, test case by Amy
 
-open import Agda.Builtin.Equality
+module LetPatternEta where
 
 record Wrap (A : Set) : Set where
   constructor wrap; no-eta-equality; pattern
   field unwrap : A
-open Wrap
 
 fails : ∀ {A} → Wrap A → Set
 fails = \(wrap a) → a
