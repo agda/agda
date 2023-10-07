@@ -55,6 +55,13 @@ type String1 = List1 Char
 toList' :: Maybe (List1 a) -> [a]
 toList' = maybe [] toList
 
+-- | Lift a function on non-empty lists to a function on lists.
+--
+-- This is in essence 'fmap' for 'Maybe', if we take @[a] = Maybe (List1 a)@.
+--
+liftList1 :: (List1 a -> List1 b) -> [a] -> [b]
+liftList1 f = toList' . fmap f . nonEmpty
+
 -- | Safe version of 'Data.List.NonEmpty.fromList'.
 
 fromListSafe
