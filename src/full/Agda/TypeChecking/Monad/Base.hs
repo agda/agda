@@ -1586,6 +1586,7 @@ type LocalMetaStore = Map MetaId MetaVariable
 
 {-# SPECIALIZE Map.insert :: MetaId -> v -> Map MetaId v -> Map MetaId v #-}
 {-# SPECIALIZE Map.lookup :: MetaId -> Map MetaId v -> Maybe v #-}
+
 -- | Used for meta-variables from other modules (and in 'Interface's).
 
 type RemoteMetaStore = HashMap MetaId RemoteMetaVariable
@@ -1778,6 +1779,7 @@ type DisplayForms = HashMap QName [LocalDisplayForm]
 
 {-# SPECIALIZE HMap.insert :: QName -> v -> HashMap QName v -> HashMap QName v #-}
 {-# SPECIALIZE HMap.lookup :: QName -> HashMap QName v -> Maybe v #-}
+
 newtype Section = Section { _secTelescope :: Telescope }
   deriving (Show, NFData)
 
@@ -3929,12 +3931,9 @@ eConflComputingOverlap f e = f (envConflComputingOverlap e) <&> \ x -> e { envCo
 eCurrentlyElaborating :: Lens' TCEnv Bool
 eCurrentlyElaborating f e = f (envCurrentlyElaborating e) <&> \ x -> e { envCurrentlyElaborating = x }
 
--- | The current modality.
---
--- Note that the returned cohesion component is always 'unitCohesion'.
-
 {-# SPECIALISE currentModality :: TCM Modality #-}
-
+-- | The current modality.
+--   Note that the returned cohesion component is always 'unitCohesion'.
 currentModality :: MonadTCEnv m => m Modality
 currentModality = do
   r <- viewTC eRelevance
@@ -4800,6 +4799,7 @@ reduceSt f s = f (redSt s) <&> \ e -> s { redSt = e }
 newtype ReduceM a = ReduceM { unReduceM :: ReduceEnv -> a }
 --  deriving (Functor, Applicative, Monad)
 
+
 onReduceEnv :: (ReduceEnv -> ReduceEnv) -> ReduceM a -> ReduceM a
 onReduceEnv f (ReduceM m) = ReduceM (m . f)
 {-# INLINE onReduceEnv #-}
@@ -4819,6 +4819,7 @@ apReduce (ReduceM f) (ReduceM x) = ReduceM $ \ e ->
   in  g `pseq` a `pseq` g a
 {-# INLINE apReduce #-}
 
+
 -- Andreas, 2021-05-12, issue #5379
 -- Since the MonadDebug instance of ReduceM is implemented via
 -- unsafePerformIO, we need to force results that later
@@ -4826,6 +4827,7 @@ apReduce (ReduceM f) (ReduceM x) = ReduceM $ \ e ->
 thenReduce :: ReduceM a -> ReduceM b -> ReduceM b
 thenReduce (ReduceM x) (ReduceM y) = ReduceM $ \ e -> x e `pseq` y e
 {-# INLINE thenReduce #-}
+
 
 -- Andreas, 2021-05-14:
 -- `seq` does not force evaluation order, the optimizier is allowed to replace
@@ -5024,7 +5026,6 @@ instance (Monoid w, MonadTCState m) => MonadTCState (WriterT w m)
 
 {-# INLINE getsTC #-}
 -- ** @TCState@ accessors (no lenses)
-
 getsTC :: ReadTCState m => (TCState -> a) -> m a
 getsTC f = f <$> getTCState
 

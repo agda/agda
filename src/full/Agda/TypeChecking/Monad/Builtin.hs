@@ -178,6 +178,7 @@ getPrimitiveTerm :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCStat
                  => PrimitiveId -> m Term
 getPrimitiveTerm x = (`Def` []) . primFunName <$> getPrimitive x
 
+
 getPrimitiveTerm' :: HasBuiltins m => PrimitiveId -> m (Maybe Term)
 getPrimitiveTerm' x = fmap (`Def` []) <$> getPrimitiveName' x
 

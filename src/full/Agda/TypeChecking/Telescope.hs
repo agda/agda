@@ -370,6 +370,7 @@ expandTelescopeVar gamma k delta c = (tel', rho)
 
     tel'        = gamma1 `abstract` (delta `abstract` gamma2')
 
+
 {-# INLINE telView #-}
 -- | Gather leading Πs of a type in a telescope.
 telView :: (MonadReduce m, MonadAddContext m) => Type -> m TelView
@@ -419,6 +420,7 @@ telViewUpToPath n t = if n == 0 then done t else do
 -- | [[ (i,(x,y)) ]] = [(i=0) -> x, (i=1) -> y]
 type Boundary = Boundary' (Term,Term)
 type Boundary' a = [(Term,a)]
+
 
 {-# SPECIALIZE telViewUpToPathBoundary' :: Int -> Type -> TCM (TelView, Boundary) #-}
 -- | Like @telViewUpToPath@ but also returns the @Boundary@ expected

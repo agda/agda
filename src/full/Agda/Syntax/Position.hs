@@ -700,7 +700,7 @@ x `withRangeOf` y = setRange (getRange y) x
 --   ending position is placed first. If both tie, the element from the
 --   first list is placed first.
 interleaveRanges :: (HasRange a) => [a] -> [a] -> ([a], [(a,a)])
-interleaveRanges as bs = runWriter$ go as bs
+interleaveRanges as bs = runWriter $ go as bs
   where
     go []         as = return as
     go as         [] = return as

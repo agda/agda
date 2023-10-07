@@ -348,6 +348,7 @@ class IsInstantiatedMeta a where
 
 {-# SPECIALIZE isInstantiatedMeta :: Term -> TCM Bool #-}
 {-# SPECIALIZE isInstantiatedMeta :: Type -> TCM Bool #-}
+
 instance IsInstantiatedMeta MetaId where
   isInstantiatedMeta m = isJust <$> isInstantiatedMeta' m
 
@@ -774,15 +775,13 @@ solveAwakeConstraints' = solveSomeAwakeConstraints (const True)
 {-# SPECIALIZE freezeMetas :: LocalMetaStore -> TCM (Set MetaId) #-}
 -- | Freeze the given meta-variables (but only if they are open) and
 -- return those that were not already frozen.
-freezeMetas :: MonadTCState m => LocalMetaStore -> m (Set MetaId)
+freezeMetas :: forall m. MonadTCState m => LocalMetaStore -> m (Set MetaId)
 freezeMetas ms =
   execWriterT $
   modifyTCLensM stOpenMetaStore $
   execStateT (mapM_ freeze $ MapS.keys ms)
   where
-  freeze ::
-    Monad m =>
-    MetaId -> StateT LocalMetaStore (WriterT (Set MetaId) m) ()
+  freeze :: MetaId -> StateT LocalMetaStore (WriterT (Set MetaId) m) ()
   freeze m = do
     store <- get
     case MapS.lookup m store of
@@ -807,8 +806,8 @@ isFrozen x = do
   mvar <- lookupLocalMeta x
   return $ mvFrozen mvar == Frozen
 
-withFrozenMetas
-  :: (MonadMetaSolver m, MonadTCState m)
+withFrozenMetas ::
+    (MonadMetaSolver m, MonadTCState m)
   => m a -> m a
 withFrozenMetas act = do
   openMetas <- useR stOpenMetaStore

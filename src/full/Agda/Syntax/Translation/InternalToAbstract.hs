@@ -236,8 +236,9 @@ reifyDisplayForm f es fallback =
 --   rewrite a lhs with a display form.
 --
 --   Note: we are not necessarily in the empty context upon entry!
-reifyDisplayFormP
-  :: MonadReify m
+reifyDisplayFormP ::
+     forall m.
+     MonadReify m
   => QName         -- ^ LHS head symbol
   -> A.Patterns    -- ^ Patterns to be taken into account to find display form.
   -> A.Patterns    -- ^ Remaining trailing patterns ("with patterns").
@@ -933,7 +934,6 @@ removeNameUnlessUserWritten a
   | (getOrigin <$> getNameOf a) == Just UserWritten = a
   | otherwise = setNameOf Nothing a
 
-
 {-# SPECIALIZE stripImplicits :: Set Name  -> A.Patterns -> A.Patterns -> TCM A.Patterns #-}
 -- | Removes implicit arguments that are not needed, that is, that don't bind
 --   any variables that are actually used and doesn't do pattern matching.
@@ -1205,7 +1205,6 @@ instance Binder a => Binder (Maybe a)
 instance (Binder a, Binder b) => Binder (a, b) where
   varsBoundIn (x, y) = varsBoundIn x `Set.union` varsBoundIn y
 
-
 {-# SPECIALIZE reifyPatterns :: [NamedArg I.DeBruijnPattern] -> TCM [NamedArg A.Pattern] #-}
 -- | Assumes that pattern variables have been added to the context already.
 --   Picks pattern variable names from context.
@@ -1304,7 +1303,6 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
 
     addAsBindings :: Functor m => [A.Name] -> m A.Pattern -> m A.Pattern
     addAsBindings xs p = foldr (fmap . AsP patNoRange . mkBindName) p xs
-
 
 {-# SPECIALIZE tryRecPFromConP :: A.Pattern -> TCM A.Pattern #-}
 -- | If the record constructor is generated or the user wrote a record pattern,
@@ -1441,6 +1439,7 @@ instance Reify Sort where
     type ReifiesTo Sort = Expr
 
     reifyWhen = reifyWhenE
+
     reify s = do
       s <- instantiateFull s
       SortKit{..} <- infallibleSortKit
