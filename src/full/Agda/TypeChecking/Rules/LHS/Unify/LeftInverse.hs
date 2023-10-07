@@ -429,6 +429,7 @@ buildEquiv (UnificationStep st step output) _ = do
     Cycle{}       -> __IMPOSSIBLE__
     _ -> unsupported
 
+{-# SPECIALIZE explainStep :: UnifyStep -> TCM Doc #-}
 explainStep :: MonadPretty m => UnifyStep -> m Doc
 explainStep Injectivity{injectConstructor = ch} =
   "injectivity of the data constructor" <+> prettyTCM (conName ch)

@@ -22,7 +22,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Common.Pretty (prettyShow)
 
 import Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Datatypes -- (getConType, getFullyAppliedConType)
+import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -45,6 +45,7 @@ import Agda.Interaction.Options
 
 type MonadCheckInternal m = MonadConversion m
 
+{-# SPECIALIZE checkType :: Type -> TCM () #-}
 -- | Entry point for e.g. checking WithFunctionType.
 checkType :: (MonadCheckInternal m) => Type -> m ()
 checkType t = catchConstraint (CheckType t) $ inferInternal t
@@ -102,6 +103,11 @@ class CheckInternal a where
   inferInternal :: (MonadCheckInternal m, TypeOf a ~ ()) => a -> m ()
   inferInternal v = checkInternal v CmpEq ()
 
+{-# SPECIALIZE checkInternal' :: Action TCM -> Term  -> Comparison -> TypeOf Term -> TCM Term #-}
+{-# SPECIALIZE checkInternal' :: Action TCM -> Type  -> Comparison -> TypeOf Type -> TCM Type #-}
+{-# SPECIALIZE checkInternal' :: Action TCM -> Elims -> Comparison -> TypeOf Type -> TCM Elims #-}
+{-# SPECIALIZE checkInternal  :: Term -> Comparison -> TypeOf Term -> TCM () #-}
+{-# SPECIALIZE checkInternal  :: Type -> Comparison -> TypeOf Type -> TCM () #-}
 instance CheckInternal Type where
   checkInternal' action (El s t) cmp _ = do
     t' <- checkInternal' action t cmp (sort s)
@@ -235,6 +241,7 @@ checkModality action mod mod' = do
     | otherwise -> __IMPOSSIBLE__ -- add more cases when adding new modalities
   return $ modalityAction action mod' mod  -- Argument order for actions: @type@ @term@
 
+{-# SPECIALIZE infer :: Term -> TCM Type #-}
 -- | Infer type of a neutral term.
 infer :: (MonadCheckInternal m) => Term -> m Type
 infer u = do
@@ -261,6 +268,7 @@ infer u = do
 instance CheckInternal Elims where
   checkInternal' action es cmp (t , hd) = snd <$> inferSpine action t hd es
 
+{-# SPECIALIZE inferSpine :: Action TCM -> Type -> (Elims -> Term) -> Elims -> TCM (Type, Elims) #-}
 -- | @inferSpine action t hd es@ checks that spine @es@ eliminates
 --   value @hd []@ of type @t@ and returns the remaining type
 --   (target of elimination) and the transformed eliminations.
@@ -298,6 +306,7 @@ inferSpine action t hd es = loop t hd id es
           t' <- shouldBeProjectible self t o f
           loop t' (hd . (e:)) (acc . (e:)) es
 
+{-# SPECIALIZE checkSpine :: Action TCM -> Type -> (Elims -> Term) -> Elims -> Comparison -> Type -> TCM Term #-}
 checkSpine
   :: (MonadCheckInternal m)
   => Action m

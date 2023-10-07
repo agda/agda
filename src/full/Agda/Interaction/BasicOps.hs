@@ -496,10 +496,12 @@ instance Reify Constraint where
       OfType <$> reify (MetaV m []) <*> reify t
     reify (CheckType t) = JustType <$> reify t
     reify (UsableAtModality _ _ mod t) = UsableAtMod mod <$> reify t
+    {-# SPECIALIZE reify :: Constraint -> TCM (ReifiesTo Constraint) #-}
 
 instance (Pretty a, Pretty b) => PrettyTCM (OutputForm a b) where
   prettyTCM (OutputForm r pids unblock c) =
     prettyRangeConstraint r pids unblock (pretty c)
+  {-# SPECIALIZE prettyTCM :: (Pretty a, Pretty b) => (OutputForm a b) -> TCM Doc #-}
 
 instance (Pretty a, Pretty b) => Pretty (OutputForm a b) where
   pretty (OutputForm r pids unblock c) =
@@ -718,6 +720,7 @@ stripConstraintPids cs = List.sortBy (compare `on` isBlocked) $ map stripPids cs
     interestingPids = Set.unions $ map (allBlockingProblems . constraintUnblocker) cs
     stripPids (PConstr pids unblock c) = PConstr (Set.intersection pids interestingPids) unblock c
 
+{-# SPECIALIZE interactionIdToMetaId :: InteractionId -> TCM MetaId #-}
 -- | Converts an 'InteractionId' to a 'MetaId'.
 
 interactionIdToMetaId :: ReadTCState m => InteractionId -> m MetaId

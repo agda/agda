@@ -91,9 +91,11 @@ instantiateWhen p =
   localR (\env -> env { redPred = Just p }) .
   instantiateFull'
 
+{-# INLINE reduce #-}
 reduce :: (Reduce a, MonadReduce m) => a -> m a
 reduce = liftReduce . reduce'
 
+{-# INLINE reduceB #-}
 reduceB :: (Reduce a, MonadReduce m) => a -> m (Blocked a)
 reduceB = liftReduce . reduceB'
 
@@ -104,6 +106,7 @@ reduceWithBlocker a = ifBlocked a
   (\b a' -> return (b, a'))
   (\_ a' -> return (neverUnblock, a'))
 
+{-# INLINE normalise #-}
 normalise :: (Normalise a, MonadReduce m) => a -> m a
 normalise = liftReduce . normalise'
 
@@ -113,6 +116,7 @@ normalise = liftReduce . normalise'
 -- normaliseB :: (MonadReduce m, Reduce t, Normalise t) => t -> m (Blocked t)
 -- normaliseB = normalise >=> reduceB
 
+{-# INLINE simplify #-}
 simplify :: (Simplify a, MonadReduce m) => a -> m a
 simplify = liftReduce . simplify'
 
@@ -124,6 +128,7 @@ isFullyInstantiatedMeta m = do
     InstV inst -> noMetas <$> instantiateFull (instBody inst)
     _ -> return False
 
+{-# INLINABLE blockAll #-}
 -- | Blocking on all blockers.
 blockAll :: (Functor f, Foldable f) => f (Blocked a) -> Blocked (f a)
 blockAll bs = blockedOn block $ fmap ignoreBlocking bs
@@ -131,6 +136,7 @@ blockAll bs = blockedOn block $ fmap ignoreBlocking bs
         blocker NotBlocked{}  = alwaysUnblock
         blocker (Blocked b _) = b
 
+{-# INLINABLE blockAny #-}
 -- | Blocking on any blockers.
 blockAny :: (Functor f, Foldable f) => f (Blocked a) -> Blocked (f a)
 blockAny bs = blockedOn block $ fmap ignoreBlocking bs
@@ -140,6 +146,7 @@ blockAny bs = blockedOn block $ fmap ignoreBlocking bs
         blocker NotBlocked{}  = []
         blocker (Blocked b _) = [b]
 
+{-# SPECIALIZE blockOnError :: Blocker -> TCM a -> TCM a #-}
 -- | Run the given computation but turn any errors into blocked computations with the given blocker
 blockOnError :: MonadError TCErr m => Blocker -> m a -> m a
 blockOnError blocker f
@@ -933,6 +940,7 @@ instance Reduce a => Reduce (Closure a) where
     reduce' cl = do
         x <- enterClosure cl reduce'
         return $ cl { clValue = x }
+{-# SPECIALIZE reduce' :: Closure Constraint -> ReduceM (Closure Constraint) #-}
 
 instance Reduce Telescope where
   reduce' EmptyTel          = return EmptyTel

@@ -870,6 +870,7 @@ class ( Functor m
 
 {-# SPECIALIZE getConstInfo :: QName -> TCM Definition #-}
 
+{-# SPECIALIZE getOriginalConstInfo :: QName -> TCM Definition #-}
 -- | The computation 'getConstInfo' sometimes tweaks the returned
 -- 'Definition', depending on the current 'Language' and the
 -- 'Language' of the 'Definition'. This variant of 'getConstInfo' does

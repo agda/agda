@@ -39,6 +39,7 @@ isProblemSolved pid =
   and2M (not . Set.member pid <$> asksTC envActiveProblems)
         (not . any (Set.member pid . constraintProblems) <$> getAllConstraints)
 
+{-# SPECIALIZE getConstraintsForProblem :: ProblemId -> TCM Constraints #-}
 getConstraintsForProblem :: ReadTCState m => ProblemId -> m Constraints
 getConstraintsForProblem pid = List.filter (Set.member pid . constraintProblems) <$> getAllConstraints
 

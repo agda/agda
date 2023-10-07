@@ -118,6 +118,7 @@ instance IApplyVars p => IApplyVars (NamedArg p) where
 instance IApplyVars p => IApplyVars [p] where
   iApplyVars = concatMap iApplyVars
 
+{-# SPECIALIZE isInterval :: Type -> TCM Bool #-}
 -- | Check whether a type is the built-in interval type.
 isInterval :: (MonadTCM m, MonadReduce m) => Type -> m Bool
 isInterval t = liftTCM $ do

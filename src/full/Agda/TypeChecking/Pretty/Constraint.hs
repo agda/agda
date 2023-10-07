@@ -37,6 +37,7 @@ prettyConstraint c = f (locallyTCState stInstantiateBlocking (const True) $ pret
     f d = if null $ P.pretty r
           then d
           else d $$ nest 4 ("[ at" <+> prettyTCM r <+> "]")
+{-# SPECIALIZE prettyConstraint :: ProblemConstraint -> TCM Doc #-}
 
 interestingConstraint :: ProblemConstraint -> Bool
 interestingConstraint pc = go $ clValue (theConstraint pc) where
@@ -51,6 +52,7 @@ prettyInterestingConstraints cs = mapM (prettyConstraint . stripPids) $ List.sor
     interestingPids = Set.unions $ map (allBlockingProblems . constraintUnblocker) cs'
     stripPids (PConstr pids unblock c) = PConstr (Set.intersection pids interestingPids) unblock c
 
+{-# SPECIALIZE prettyInterestingConstraints :: [ProblemConstraint] -> TCM [Doc] #-}
 
 prettyRangeConstraint ::
   (MonadPretty m, Foldable f, Null (f ProblemId)) =>

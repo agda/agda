@@ -132,6 +132,7 @@ projView v = do
 
     _ -> fallback
 
+{-# SPECIALIZE reduceProjectionLike :: Term -> TCM Term #-}
 -- | Reduce away top-level projection like functions.
 --   (Also reduces projections, but they should not be there,
 --   since Internal is in lambda- and projection-beta-normal form.)
@@ -149,6 +150,7 @@ reduceProjectionLike v = do
 data ProjEliminator = EvenLone | ButLone | NoPostfix
   deriving Eq
 
+{-# SPECIALIZE elimView :: ProjEliminator -> Term -> TCM Term #-}
 -- | Turn prefix projection-like function application into postfix ones.
 --   This does just one layer, such that the top spine contains
 --   the projection-like functions as projections.
@@ -179,6 +181,7 @@ elimView pe v = do
           | otherwise     -> return v
         ProjectionView f a es -> (`applyE` (Proj ProjPrefix f : es)) <$> elimView pe (unArg a)
 
+{-# SPECIALIZE eligibleForProjectionLike :: QName -> TCM Bool #-}
 -- | Which @Def@types are eligible for the principle argument
 --   of a projection-like function?
 eligibleForProjectionLike :: (HasConstInfo m) => QName -> m Bool
@@ -427,6 +430,7 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
         candidateRec NoAbs{}   = []
         candidateRec (Abs x t) = candidateArgs (var (size vs) : vs) t
 
+{-# SPECIALIZE inferNeutral :: Term -> TCM Type #-}
 -- | Infer type of a neutral term.
 --   See also @infer@ in @Agda.TypeChecking.CheckInternal@, which has a very similar
 --   logic but also type checks all arguments.
@@ -465,6 +469,7 @@ inferNeutral u = do
           ifJustM (projectTyped (hd []) t o f) (\(_,_,t') -> return t') __IMPOSSIBLE__
       loop t' (hd . (e:)) es
 
+{-# SPECIALIZE computeDefType :: QName -> Elims -> TCM Type #-}
 -- | Compute the head type of a Def application. For projection-like functions
 --   this requires inferring the type of the principal argument.
 computeDefType :: (PureTCM m, MonadBlock m) => QName -> Elims -> m Type
