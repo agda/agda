@@ -51,10 +51,11 @@ import Agda.Utils.Impossible
 
 -- | Modify a 'Context' in a computation.  Warning: does not update
 --   the checkpoints. Use @updateContext@ instead.
-{-# SPECIALIZE unsafeModifyContext :: (Context -> Context) -> TCM a -> TCM a #-}
+{-# INLINE unsafeModifyContext #-}
 unsafeModifyContext :: MonadTCEnv tcm => (Context -> Context) -> tcm a -> tcm a
 unsafeModifyContext f = localTC $ \e -> e { envContext = f $ envContext e }
 
+{-# INLINE modifyContextInfo #-}
 -- | Modify the 'Dom' part of context entries.
 modifyContextInfo :: MonadTCEnv tcm => (forall e. Dom e -> Dom e) -> tcm a -> tcm a
 modifyContextInfo f = unsafeModifyContext $ map f
@@ -87,6 +88,7 @@ unsafeInTopContext cont =
 unsafeEscapeContext :: MonadTCM tcm => Int -> tcm a -> tcm a
 unsafeEscapeContext n = unsafeModifyContext $ drop n
 
+{-# SPECIALIZE escapeContext :: Impossible -> Int -> TCM a -> TCM a #-}
 -- | Delete the last @n@ bindings from the context. Any occurrences of
 -- these variables are replaced with the given @err@.
 escapeContext :: MonadAddContext m => Impossible -> Int -> m a -> m a
@@ -94,6 +96,7 @@ escapeContext err n = updateContext (strengthenS err n) $ drop n
 
 -- * Manipulating checkpoints --
 
+{-# SPECIALIZE checkpoint :: Substitution -> TCM a -> TCM a #-}
 -- | Add a new checkpoint. Do not use directly!
 checkpoint
   :: (MonadDebug tcm, MonadTCM tcm, MonadFresh CheckpointId tcm, ReadTCState tcm)
@@ -151,7 +154,6 @@ getModuleParameterSub m = do
 
 -- * Adding to the context
 
-{-# SPECIALIZE addCtx :: Name -> Dom Type -> TCM a -> TCM a #-}
 class MonadTCEnv m => MonadAddContext m where
   -- | @addCtx x arg cont@ add a variable to the context.
   --
@@ -193,6 +195,7 @@ class MonadTCEnv m => MonadAddContext m where
       withFreshName r x $ run . cont
     restoreT $ return st
 
+{-# INLINE defaultAddCtx #-}
 -- | Default implementation of addCtx in terms of updateContext
 defaultAddCtx :: MonadAddContext m => Name -> Dom Type -> m a -> m a
 defaultAddCtx x a ret =
@@ -271,7 +274,6 @@ addRecordNameContext dom ret = do
   addCtx x dom ret
 
 -- | Various specializations of @addCtx@.
-{-# SPECIALIZE addContext :: b -> TCM a -> TCM a #-}
 class AddContext b where
   addContext :: (MonadAddContext m) => b -> m a -> m a
   contextSize :: b -> Nat
@@ -282,12 +284,13 @@ class AddContext b where
 newtype KeepNames a = KeepNames a
 
 instance {-# OVERLAPPABLE #-} AddContext a => AddContext [a] where
-  addContext = flip (foldr addContext)
+  addContext = flip (foldr addContext); {-# INLINABLE addContext #-}
   contextSize = sum . map contextSize
 
 instance AddContext (Name, Dom Type) where
-  addContext = uncurry addCtx
+  addContext = uncurry addCtx; {-# INLINE addContext #-}
   contextSize _ = 1
+{-# SPECIALIZE addContext :: (Name, Dom Type) -> TCM a -> TCM a #-}
 
 instance AddContext (Dom (Name, Type)) where
   addContext = addContext . distributeF
@@ -339,15 +342,18 @@ instance AddContext (String, Dom Type) where
   addContext (s, dom) ret =
     withFreshName noRange s $ \x -> addCtx (setNotInScope x) dom ret
   contextSize _ = 1
+{-# SPECIALIZE addContext :: (String, Dom Type) -> TCM a -> TCM a #-}
 
 instance AddContext (Text, Dom Type) where
   addContext (s, dom) ret = addContext (T.unpack s, dom) ret
   contextSize _ = 1
+{-# SPECIALIZE addContext :: (Text, Dom Type) -> TCM a -> TCM a #-}
 
 instance AddContext (KeepNames String, Dom Type) where
   addContext (KeepNames s, dom) ret =
     withFreshName noRange s $ \ x -> addCtx x dom ret
   contextSize _ = 1
+{-# SPECIALIZE addContext :: (KeepNames String, Dom Type) -> TCM a -> TCM a #-}
 
 instance AddContext (Dom Type) where
   addContext dom = addContext ("_" :: String, dom)
@@ -366,12 +372,14 @@ instance AddContext (KeepNames Telescope) where
     loop EmptyTel          = ret
     loop (ExtendTel t tel) = underAbstraction' KeepNames t tel loop
   contextSize (KeepNames tel) = size tel
+{-# SPECIALIZE addContext :: KeepNames Telescope -> TCM a -> TCM a #-}
 
 instance AddContext Telescope where
   addContext tel ret = loop tel where
     loop EmptyTel          = ret
     loop (ExtendTel t tel) = underAbstraction' id t tel loop
   contextSize = size
+{-# SPECIALIZE addContext :: Telescope -> TCM a -> TCM a #-}
 
 -- | Go under an abstraction.  Do not extend context in case of 'NoAbs'.
 {-# SPECIALIZE underAbstraction :: Subst a => Dom Type -> Abs a -> (a -> TCM b) -> TCM b #-}
@@ -411,6 +419,7 @@ mapAbstraction_
   => (a -> m b) -> Abs a -> m (Abs b)
 mapAbstraction_ = mapAbstraction __DUMMY_DOM__
 
+{-# SPECIALIZE getLetBindings :: TCM [(Name, LetBinding)] #-}
 getLetBindings :: MonadTCEnv tcm => tcm [(Name, LetBinding)]
 getLetBindings = do
   bs <- asksTC envLetBindings
@@ -429,10 +438,12 @@ addLetBinding :: MonadAddContext m => ArgInfo -> Origin -> Name -> Term -> Type 
 addLetBinding info o x v t0 ret = addLetBinding' o x v (defaultArgDom info t0) ret
 
 
+{-# SPECIALIZE removeLetBinding :: Name -> TCM a -> TCM a #-}
 -- | Remove a let bound variable.
 removeLetBinding :: MonadTCEnv m => Name -> m a -> m a
 removeLetBinding x = localTC $ \ e -> e { envLetBindings = Map.delete x (envLetBindings e) }
 
+{-# SPECIALIZE removeLetBindingsFrom :: Name -> TCM a -> TCM a #-}
 -- | Remove a let bound variable and all let bindings introduced after it. For instance before
 --   printing its body to avoid folding the binding itself, or using bindings defined later.
 --   Relies on the invariant that names introduced later are sorted after earlier names.

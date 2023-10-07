@@ -80,6 +80,7 @@ runNames n m = runFail_ (runNamesT n m)
 currentCxt :: Monad m => NamesT m Names
 currentCxt = NamesT ask
 
+{-# INLINABLE cxtSubst #-}
 -- | @cxtSubst Γ@ returns the substitution needed to go
 --   from Γ to the current context.
 --
@@ -91,6 +92,7 @@ cxtSubst ctx = do
      then return $ raiseS (length ctx' - length ctx)
      else fail $ "out of context (" ++ show ctx ++ " is not a sub context of " ++ show ctx' ++ ")"
 
+{-# INLINABLE inCxt #-}
 -- | @inCxt Γ t@ takes a @t@ in context @Γ@ and produce an action that
 --   will return @t@ weakened to the current context.
 --
@@ -107,6 +109,7 @@ cl' = pure
 cl :: Monad m => m a -> NamesT m a
 cl = lift
 
+{-# INLINABLE open #-}
 -- | Open terms in the current context.
 open :: (MonadFail m, Subst a) => a -> NamesT m (NamesT m a)
 open a = do
@@ -120,12 +123,14 @@ open a = do
 type Var m = forall b. (Subst b, DeBruijn b) => NamesT m b
 
 
+{-# INLINE bind #-}
 -- | @bind n f@ provides @f@ with a fresh variable, which can be used in any extended context.
 --
 --   Returns an @Abs@ which binds the extra variable.
 bind :: MonadFail m => ArgName -> ((forall b. (Subst b, DeBruijn b) => NamesT m b) -> NamesT m a) -> NamesT m (Abs a)
 bind n f = Abs n <$> bind' n f
 
+{-# INLINABLE bind' #-}
 -- | Like @bind@ but returns a bare term.
 bind' :: MonadFail m => ArgName -> ((forall b. (Subst b, DeBruijn b) => NamesT m b) -> NamesT m a) -> NamesT m a
 bind' n f = do
@@ -161,6 +166,7 @@ toAbsN :: Abs (AbsN a) -> AbsN a
 toAbsN (Abs n x') = AbsN (n : absNName x') (unAbsN x')
 toAbsN NoAbs{}    = __IMPOSSIBLE__
 
+{-# INLINABLE absAppN #-}
 absAppN :: Subst a => AbsN a -> [SubstArg a] -> a
 absAppN f xs = (parallelS $ reverse xs) `applySubst` unAbsN f
 
@@ -168,12 +174,14 @@ type ArgVars m = (forall b. (Subst b, DeBruijn b) => [NamesT m (Arg b)])
 
 type Vars m = (forall b. (Subst b, DeBruijn b) => [NamesT m b])
 
+{-# INLINABLE bindN #-}
 bindN :: ( MonadFail m
         ) =>
         [ArgName] -> (Vars m -> NamesT m a) -> NamesT m (AbsN a)
 bindN [] f = AbsN [] <$> f []
 bindN (x:xs) f = toAbsN <$> bind x (\ x -> bindN xs (\ xs -> f (x:xs)))
 
+{-# INLINABLE bindNArg #-}
 bindNArg :: ( MonadFail m
         ) =>
         [Arg ArgName] -> (ArgVars m -> NamesT m a) -> NamesT m (AbsN a)
@@ -203,6 +211,7 @@ applyN f xs = do
   unless (length xs == length (absNName f)) $ __IMPOSSIBLE__
   return $ absAppN f xs
 
+{-# INLINABLE applyN' #-}
 applyN' :: ( Monad m
         , Subst a
         ) =>
@@ -213,6 +222,7 @@ applyN' f xs = do
   unless (length xs == length (absNName f)) $ __IMPOSSIBLE__
   return $ absAppN f xs
 
+{-# INLINABLE abstractN #-}
 abstractN :: ( MonadFail m
              , Abstract a
              ) =>
@@ -222,6 +232,7 @@ abstractN tel f = do
   u <- bindN (teleNames tel) f
   return $ abstract tel $ unAbsN u
 
+{-# INLINABLE abstractT #-}
 abstractT :: ( MonadFail m
              , Abstract a
              ) =>

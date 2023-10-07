@@ -855,6 +855,9 @@ instance Subst Term where
   type SubstArg Term = Term
   applySubst = applySubstTerm
 
+-- András 2023-09-25: we can only put this here, because at the original definition site there's no Subst Term instance.
+{-# SPECIALIZE lookupS :: Substitution' Term -> Nat -> Term #-}
+
 instance Subst BraveTerm where
   type SubstArg BraveTerm = BraveTerm
   applySubst = applySubstTerm
@@ -1074,6 +1077,7 @@ instance (Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst (Dom' a b) where
   applySubst IdS dom = dom
   applySubst rho dom = setFreeVariables unknownFreeVariables $
     fmap (applySubst rho) dom{ domTactic = applySubst rho (domTactic dom) }
+  {-# INLINABLE applySubst #-}
 
 instance Subst LetBinding where
   type SubstArg LetBinding = Term

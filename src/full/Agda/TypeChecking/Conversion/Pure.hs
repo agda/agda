@@ -33,26 +33,30 @@ newtype PureConversionT m a = PureConversionT
   { unPureConversionT :: ExceptT TCErr (StateT FreshThings m) a }
   deriving (Functor, Applicative, Monad, MonadError TCErr, MonadState FreshThings, PureTCM)
 
+{-# SPECIALIZE pureEqualTerm :: Type -> Term -> Term -> TCM Bool #-}
 pureEqualTerm
   :: (PureTCM m, MonadBlock m)
   => Type -> Term -> Term -> m Bool
 pureEqualTerm a u v =
   isJust <$> runPureConversion (equalTerm a u v)
 
+{-# SPECIALIZE pureEqualType :: Type -> Type -> TCM Bool #-}
 pureEqualType
   :: (PureTCM m, MonadBlock m)
   => Type -> Type -> m Bool
 pureEqualType a b =
   isJust <$> runPureConversion (equalType a b)
 
+{-# SPECIALIZE pureCompareAs :: Comparison -> CompareAs -> Term -> Term -> TCM Bool #-}
 pureCompareAs
   :: (PureTCM m, MonadBlock m)
   => Comparison -> CompareAs -> Term -> Term -> m Bool
 pureCompareAs cmp a u v =
   isJust <$> runPureConversion (compareAs cmp a u v)
 
+{-# SPECIALIZE runPureConversion :: PureConversionT TCM a -> TCM (Maybe a) #-}
 runPureConversion
-  :: (MonadBlock m, PureTCM m, Show a)
+  :: (MonadBlock m, PureTCM m)
   => PureConversionT m a -> m (Maybe a)
 runPureConversion (PureConversionT m) = locallyTC eCompareBlocked (const True) $
   verboseBracket "tc.conv.pure" 40 "runPureConversion" $ do

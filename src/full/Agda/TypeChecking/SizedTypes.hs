@@ -298,6 +298,7 @@ sizeMaxView v = do
 -- * Size comparison that might add constraints.
 ------------------------------------------------------------------------
 
+{-# SPECIALIZE compareSizes :: Comparison -> Term -> Term -> TCM () #-}
 -- | Compare two sizes.
 compareSizes :: (MonadConversion m) => Comparison -> Term -> Term -> m ()
 compareSizes cmp u v = verboseBracket "tc.conv.size" 10 "compareSizes" $ do

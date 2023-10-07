@@ -125,12 +125,15 @@ guardPointerEquality u v profileSection action =
   then whenProfile Profile.Conversion $ tick profileSection
   else action
 
+{-# SPECIALIZE equalTerm :: Type -> Term -> Term -> TCM () #-}
 equalTerm :: MonadConversion m => Type -> Term -> Term -> m ()
 equalTerm = compareTerm CmpEq
 
+{-# SPECIALIZE equalAtom :: CompareAs -> Term -> Term -> TCM () #-}
 equalAtom :: MonadConversion m => CompareAs -> Term -> Term -> m ()
 equalAtom = compareAtom CmpEq
 
+{-# SPECIALIZE equalType :: Type -> Type -> TCM () #-}
 equalType :: MonadConversion m => Type -> Type -> m ()
 equalType = compareType CmpEq
 
@@ -154,6 +157,7 @@ convError err =
 compareTerm :: forall m. MonadConversion m => Comparison -> Type -> Term -> Term -> m ()
 compareTerm cmp a u v = compareAs cmp (AsTermsOf a) u v
 
+{-# SPECIALIZE compareAs :: Comparison -> CompareAs -> Term -> Term -> TCM ()  #-}
 -- | Type directed equality on terms or types.
 compareAs :: forall m. MonadConversion m => Comparison -> CompareAs -> Term -> Term -> m ()
   -- If one term is a meta, try to instantiate right away. This avoids unnecessary unfolding.
@@ -1098,6 +1102,7 @@ compareArgs pol for a v args1 args2 =
 -- * Types
 ---------------------------------------------------------------------------
 
+{-# SPECIALIZE compareType :: Comparison -> Type -> Type -> TCM () #-}
 -- | Equality on Types
 compareType :: MonadConversion m => Comparison -> Type -> Type -> m ()
 compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
@@ -1113,6 +1118,7 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
 leqType :: MonadConversion m => Type -> Type -> m ()
 leqType = compareType CmpLeq
 
+{-# SPECIALIZE coerce :: Comparison -> Term -> Type -> Type -> TCM Term #-}
 -- | @coerce v a b@ coerces @v : a@ to type @b@, returning a @v' : b@
 --   with maybe extra hidden applications or hidden abstractions.
 --
@@ -1156,6 +1162,7 @@ coerce cmp v t1 t2 = blockTerm t2 $ do
   where
     fallback = v <$ coerceSize (compareType cmp) v t1 t2
 
+{-# SPECIALIZE coerceSize :: (Type -> Type -> TCM ()) -> Term -> Type -> Type -> TCM () #-}
 -- | Account for situations like @k : (Size< j) <= (Size< k + 1)@
 --
 --   Actually, the semantics is
@@ -1486,6 +1493,7 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
         isMetaLevel (SinglePlus (Plus _ MetaV{})) = True
         isMetaLevel _                             = False
 
+{-# SPECIALIZE equalLevel :: Level -> Level -> TCM () #-}
 equalLevel :: forall m. MonadConversion m => Level -> Level -> m ()
 equalLevel a b = do
   reportSDoc "tc.conv.level" 50 $ sep [ "equalLevel", nest 2 $ parens $ pretty a, nest 2 $ parens $ pretty b ]
@@ -1656,6 +1664,7 @@ equalLevel a b = do
         _                     `strictlySubsumes` _                     = False
 
 
+{-# SPECIALIZE equalSort :: Sort -> Sort -> TCM () #-}
 -- | Check that the first sort equal to the second.
 equalSort :: forall m. MonadConversion m => Sort -> Sort -> m ()
 equalSort s1 s2 = do

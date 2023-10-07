@@ -56,6 +56,7 @@ import Agda.Utils.Monad
 
 import Agda.Utils.Impossible
 
+{-# SPECIALIZE inferUnivSort :: Sort -> TCM Sort #-}
 -- | Infer the sort of another sort. If we can compute the bigger sort
 --   straight away, return that. Otherwise, return @UnivSort s@ and add a
 --   constraint to ensure we can compute the sort eventually.
@@ -73,6 +74,7 @@ inferUnivSort s = do
       -- addConstraint $ HasBiggerSort s
       return $ UnivSort s
 
+{-# SPECIALIZE sortFitsIn :: Sort -> Sort -> TCM () #-}
 sortFitsIn :: MonadConversion m => Sort -> Sort -> m ()
 sortFitsIn a b = do
   b' <- inferUnivSort a
@@ -83,6 +85,7 @@ sortFitsIn a b = do
 hasBiggerSort :: Sort -> TCM ()
 hasBiggerSort = void . inferUnivSort
 
+{-# SPECIALIZE inferPiSort :: Dom Type -> Abs Sort -> TCM Sort #-}
 -- | Infer the sort of a Pi type.
 --   If we can compute the sort straight away, return that.
 --   Otherwise, return a 'PiSort' and add a constraint to ensure we can compute the sort eventually.
@@ -107,6 +110,7 @@ inferPiSort a s = do
       addConstraint (unblockOnEither b b') $ HasPTSRule a s2
       return $ PiSort (unEl <$> a) s1 s2
 
+{-# SPECIALIZE inferFunSort :: Dom Type -> Sort -> TCM Sort #-}
 -- | As @inferPiSort@, but for a nondependent function type.
 --
 inferFunSort :: (PureTCM m, MonadConstraint m)
@@ -183,15 +187,18 @@ ifIsSort t yes no = do
     _      | Blocked m _ <- bt -> patternViolation m
            | otherwise         -> no
 
+{-# SPECIALIZE ifNotSort :: Type -> TCM a -> (Sort -> TCM a) -> TCM a #-}
 ifNotSort :: (MonadReduce m, MonadBlock m) => Type -> m a -> (Sort -> m a) -> m a
 ifNotSort t = flip $ ifIsSort t
 
+{-# SPECIALIZE shouldBeSort :: Type -> TCM Sort #-}
 -- | Result is in reduced form.
 shouldBeSort
   :: (PureTCM m, MonadBlock m, MonadError TCErr m)
   => Type -> m Sort
 shouldBeSort t = ifIsSort t return (typeError $ ShouldBeASort t)
 
+{-# SPECIALIZE sortOf :: Term -> TCM Sort #-}
 -- | Reconstruct the sort of a term.
 --
 --   Precondition: given term is a well-sorted type.
@@ -265,6 +272,7 @@ sortOf t = do
           (b , c) <- fromMaybe __IMPOSSIBLE__ <$> isPath a'
           sortOfE (c `absApp` r) (hd . (e:)) es
 
+{-# INLINE sortOfType #-}
 -- | Reconstruct the minimal sort of a type (ignoring the sort annotation).
 sortOfType
   :: forall m. (PureTCM m, MonadBlock m,MonadConstraint m)

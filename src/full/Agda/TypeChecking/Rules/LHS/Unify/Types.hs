@@ -77,12 +77,14 @@ data UnifyState = UState
 
 lensVarTel   :: Lens' UnifyState Telescope
 lensVarTel   f s = f (varTel s) <&> \ tel -> s { varTel = tel }
+{-# INLINE lensVarTel #-}
 --UNUSED Liang-Ting Chen 2019-07-16
 --lensFlexVars :: Lens' UnifyState FlexibleVars
 --lensFlexVars f s = f (flexVars s) <&> \ flex -> s { flexVars = flex }
 
 lensEqTel    :: Lens' UnifyState Telescope
 lensEqTel    f s = f (eqTel s) <&> \ x -> s { eqTel = x }
+{-# INLINE lensEqTel #-}
 
 --UNUSED Liang-Ting Chen 2019-07-16
 --lensEqLHS    :: Lens' UnifyState Args

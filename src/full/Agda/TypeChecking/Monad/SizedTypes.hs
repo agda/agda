@@ -141,6 +141,7 @@ sizeUniv = sort $ sizeSort
 sizeType_ :: QName -> Type
 sizeType_ size = El sizeSort $ Def size []
 
+{-# SPECIALIZE sizeType :: TCM Type #-}
 -- | The built-in type @SIZE@.
 sizeType :: (HasBuiltins m, MonadTCEnv m, ReadTCState m) => m Type
 sizeType = El sizeSort . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSize
@@ -153,6 +154,7 @@ sizeSucName = do
       Just (Def x []) -> return $ Just x
       _               -> return Nothing
 
+{-# SPECIALIZE sizeSuc :: Nat -> Term -> TCM Term #-}
 sizeSuc :: HasBuiltins m => Nat -> Term -> m Term
 sizeSuc n v | n < 0     = __IMPOSSIBLE__
             | n == 0    = return v

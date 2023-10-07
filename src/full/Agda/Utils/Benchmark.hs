@@ -216,6 +216,7 @@ reset = modifyBenchmark $
   mapCurrentAccount (const Strict.Nothing) .
   mapTimings (const Trie.empty)
 
+{-# INLINABLE billTo #-}
 -- | Bill a computation to a specific account.
 --   Works even if the computation is aborted by an exception.
 

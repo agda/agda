@@ -57,6 +57,7 @@ instance PrettyTCM TCWarning where
     reportSLn "warning" 2 $ "Warning raised at " ++ prettyShow loc
     pure $ tcWarningPrintedWarning w
 
+{-# SPECIALIZE prettyWarningName :: WarningName -> TCM Doc #-}
 -- | Prefix for a warning text showing name of the warning.
 --   E.g. @warning: -W[no]<warning_name>@
 prettyWarningName :: MonadPretty m => WarningName -> m Doc
@@ -65,6 +66,7 @@ prettyWarningName w = hcat
   , text $ warningName2String w
   ]
 
+{-# SPECIALIZE prettyWarning :: Warning -> TCM Doc #-}
 prettyWarning :: MonadPretty m => Warning -> m Doc
 prettyWarning = \case
 
@@ -364,6 +366,7 @@ prettyWarning = \case
     FaceConstraintCannotBeNamed x -> fsep $
       pwords "Ignoring name" ++ ["`" <> pretty x <> "`"] ++ pwords "given to face constraint pattern"
 
+{-# SPECIALIZE prettyRecordFieldWarning :: RecordFieldWarning -> TCM Doc #-}
 prettyRecordFieldWarning :: MonadPretty m => RecordFieldWarning -> m Doc
 prettyRecordFieldWarning = \case
   W.DuplicateFields xrs    -> prettyDuplicateFields $ map fst xrs
@@ -379,6 +382,7 @@ prettyDuplicateFields xs = fsep $ concat
   where
   fields ys = P.singPlural ys [text "field"] [text "fields"]
 
+{-# SPECIALIZE prettyTooManyFields :: QName -> [C.Name] -> [C.Name] -> TCM Doc  #-}
 prettyTooManyFields :: MonadPretty m => QName -> [C.Name] -> [C.Name] -> m Doc
 prettyTooManyFields r missing xs = fsep $ concat
     [ pwords "The record type"
@@ -395,6 +399,7 @@ prettyTooManyFields r missing xs = fsep $ concat
   where
   fields ys = P.singPlural ys [text "field"] [text "fields"]
 
+{-# SPECIALIZE prettyNotInScopeNames :: (Pretty a, HasRange a) => Bool -> (a -> TCM Doc) -> [a] -> TCM Doc #-}
 -- | Report a number of names that are not in scope.
 prettyNotInScopeNames
   :: (MonadPretty m, Pretty a, HasRange a)
@@ -410,6 +415,7 @@ prettyNotInScopeNames printRange suggestion xs = nest 2 $ vcat $ map name xs
     , suggestion x
     ]
 
+{-# SPECIALIZE didYouMean :: (Pretty a, Pretty b) => [C.QName] -> (a -> b) -> a -> Maybe (TCM Doc) #-}
 -- | Suggest some corrections to a misspelled name.
 didYouMean
   :: (MonadPretty m, Pretty a, Pretty b)
@@ -506,6 +512,7 @@ isBoundaryConstraint
   :: (ReadTCState m, MonadTCM m)
   => ProblemConstraint
   -> m (Maybe Range)
+{-# SPECIALIZE isBoundaryConstraint :: ProblemConstraint -> TCM (Maybe Range) #-}
 isBoundaryConstraint c =
   enterClosure (theConstraint c) $ \case
     ValueCmp _ _ (MetaV mid xs) y | Just xs <- allApplyElims xs ->
@@ -516,6 +523,7 @@ isBoundaryConstraint c =
   where
     g (a, _, _, _) = getRange a
 
+{-# SPECIALIZE getAllUnsolvedWarnings :: TCM [TCWarning] #-}
 getAllUnsolvedWarnings :: (MonadFail m, ReadTCState m, MonadWarning m, MonadTCM m) => m [TCWarning]
 getAllUnsolvedWarnings = do
   unsolvedInteractions <- getUnsolvedInteractionMetas
@@ -537,12 +545,14 @@ getAllUnsolvedWarnings = do
 
 -- | Collect all warnings that have accumulated in the state.
 
+{-# SPECIALIZE getAllWarnings :: WhichWarnings -> TCM [TCWarning] #-}
 getAllWarnings :: (MonadFail m, ReadTCState m, MonadWarning m, MonadTCM m) => WhichWarnings -> m [TCWarning]
 getAllWarnings = getAllWarningsPreserving Set.empty
 
 getAllWarningsPreserving
   :: (MonadFail m, ReadTCState m, MonadWarning m, MonadTCM m)
   => Set WarningName -> WhichWarnings -> m [TCWarning]
+{-# SPECIALIZE getAllWarningsPreserving :: Set WarningName -> WhichWarnings -> TCM [TCWarning] #-}
 getAllWarningsPreserving keptWarnings ww = do
   unsolved            <- getAllUnsolvedWarnings
   collectedTCWarnings <- useTC stTCWarnings
