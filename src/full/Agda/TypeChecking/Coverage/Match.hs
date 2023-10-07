@@ -310,8 +310,6 @@ choice m m' = m >>= \case
     No         -> return $ Block r xs
   No    -> m'
 
--- | @matchClause qs i c@ checks whether clause @c@
---   covers a split clause with patterns @qs@.
 {-# SPECIALIZE matchClause :: [NamedArg SplitPattern] -> Clause -> TCM MatchResult #-}
 matchClause
   :: PureTCM m
@@ -323,7 +321,6 @@ matchClause
      -- ^ Result.
      --   If 'Yes' the instantiation @rs@ such that @(namedClausePats c)[rs] == qs@.
 matchClause qs c = matchPats (namedClausePats c) qs
-
 
 {-# SPECIALIZE matchPats :: DeBruijn a => [NamedArg (Pattern' a)] -> [NamedArg SplitPattern] -> TCM MatchResult #-}
 -- | @matchPats ps qs@ checks whether a function clause with patterns

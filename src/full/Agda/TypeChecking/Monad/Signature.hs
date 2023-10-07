@@ -875,7 +875,6 @@ class ( Functor m
 -- 'Definition', depending on the current 'Language' and the
 -- 'Language' of the 'Definition'. This variant of 'getConstInfo' does
 -- not perform any tweaks.
-
 getOriginalConstInfo ::
   (ReadTCState m, HasConstInfo m) => QName -> m Definition
 getOriginalConstInfo q = do

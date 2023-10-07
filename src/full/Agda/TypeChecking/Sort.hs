@@ -203,7 +203,7 @@ shouldBeSort t = ifIsSort t return (typeError $ ShouldBeASort t)
 --
 --   Precondition: given term is a well-sorted type.
 sortOf
-  :: forall m. (PureTCM m, MonadBlock m,MonadConstraint m)
+  :: forall m. (PureTCM m, MonadBlock m, MonadConstraint m)
   => Term -> m Sort
 sortOf t = do
   reportSDoc "tc.sort" 60 $ "sortOf" <+> prettyTCM t

@@ -51,12 +51,10 @@ prettyInterestingConstraints cs = mapM (prettyConstraint . stripPids) $ List.sor
     cs' = filter interestingConstraint cs
     interestingPids = Set.unions $ map (allBlockingProblems . constraintUnblocker) cs'
     stripPids (PConstr pids unblock c) = PConstr (Set.intersection pids interestingPids) unblock c
-
 {-# SPECIALIZE prettyInterestingConstraints :: [ProblemConstraint] -> TCM [Doc] #-}
 
 prettyRangeConstraint ::
-  (MonadPretty m, Foldable f, Null (f ProblemId)) =>
-  Range -> f ProblemId -> Blocker -> Doc -> m Doc
+  (MonadPretty m, Foldable f, Null (f ProblemId)) => Range -> f ProblemId -> Blocker -> Doc -> m Doc
 prettyRangeConstraint r pids unblock c =
   return c <?>
   sep [ prange r

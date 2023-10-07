@@ -508,11 +508,8 @@ applyFlagsToTCWarningsPreserving additionalKeptWarnings ws = do
 applyFlagsToTCWarnings :: HasOptions m => [TCWarning] -> m [TCWarning]
 applyFlagsToTCWarnings = applyFlagsToTCWarningsPreserving Set.empty
 
-isBoundaryConstraint
-  :: (ReadTCState m, MonadTCM m)
-  => ProblemConstraint
-  -> m (Maybe Range)
 {-# SPECIALIZE isBoundaryConstraint :: ProblemConstraint -> TCM (Maybe Range) #-}
+isBoundaryConstraint :: (ReadTCState m, MonadTCM m) => ProblemConstraint -> m (Maybe Range)
 isBoundaryConstraint c =
   enterClosure (theConstraint c) $ \case
     ValueCmp _ _ (MetaV mid xs) y | Just xs <- allApplyElims xs ->
@@ -549,10 +546,9 @@ getAllUnsolvedWarnings = do
 getAllWarnings :: (MonadFail m, ReadTCState m, MonadWarning m, MonadTCM m) => WhichWarnings -> m [TCWarning]
 getAllWarnings = getAllWarningsPreserving Set.empty
 
-getAllWarningsPreserving
-  :: (MonadFail m, ReadTCState m, MonadWarning m, MonadTCM m)
-  => Set WarningName -> WhichWarnings -> m [TCWarning]
 {-# SPECIALIZE getAllWarningsPreserving :: Set WarningName -> WhichWarnings -> TCM [TCWarning] #-}
+getAllWarningsPreserving ::
+  (MonadFail m, ReadTCState m, MonadWarning m, MonadTCM m) => Set WarningName -> WhichWarnings -> m [TCWarning]
 getAllWarningsPreserving keptWarnings ww = do
   unsolved            <- getAllUnsolvedWarnings
   collectedTCWarnings <- useTC stTCWarnings

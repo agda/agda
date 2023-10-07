@@ -283,6 +283,7 @@ lookupS rho i = case rho of
 
 -- | lookupS (listS [(x0,t0)..(xn,tn)]) xi = ti, assuming x0 < .. < xn.
 
+
 listS :: EndoSubst a => [(Int,a)] -> Substitution' a
 listS ((i,t):ts) = singletonS i t `composeS` listS ts
 listS []         = IdS

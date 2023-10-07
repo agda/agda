@@ -166,17 +166,16 @@ prettyTCMCtx :: (PrettyTCM a, MonadPretty m) => Precedence -> a -> m Doc
 prettyTCMCtx p = withContextPrecedence p . prettyTCM
 
 instance {-# OVERLAPPING #-} PrettyTCM String where prettyTCM = text
-instance PrettyTCM Bool        where prettyTCM = pretty
-instance PrettyTCM C.Name      where prettyTCM = pretty
-instance PrettyTCM C.QName     where prettyTCM = pretty
-instance PrettyTCM TopLevelModuleName
-                               where prettyTCM = pretty
-instance PrettyTCM Comparison  where prettyTCM = pretty
-instance PrettyTCM Literal     where prettyTCM = pretty
-instance PrettyTCM Nat         where prettyTCM = pretty
-instance PrettyTCM ProblemId   where prettyTCM = pretty
-instance PrettyTCM Range       where prettyTCM = pretty
-instance PrettyTCM CheckpointId where prettyTCM = pretty
+instance PrettyTCM Bool                       where prettyTCM = pretty
+instance PrettyTCM C.Name                     where prettyTCM = pretty
+instance PrettyTCM C.QName                    where prettyTCM = pretty
+instance PrettyTCM TopLevelModuleName         where prettyTCM = pretty
+instance PrettyTCM Comparison                 where prettyTCM = pretty
+instance PrettyTCM Literal                    where prettyTCM = pretty
+instance PrettyTCM Nat                        where prettyTCM = pretty
+instance PrettyTCM ProblemId                  where prettyTCM = pretty
+instance PrettyTCM Range                      where prettyTCM = pretty
+instance PrettyTCM CheckpointId               where prettyTCM = pretty
 -- instance PrettyTCM Interval where prettyTCM = pretty
 -- instance PrettyTCM Position where prettyTCM = pretty
 
@@ -191,6 +190,7 @@ instance PrettyTCM CheckpointId where prettyTCM = pretty
 {-# SPECIALIZE prettyTCM :: ProblemId          -> TCM Doc #-}
 {-# SPECIALIZE prettyTCM :: Range              -> TCM Doc #-}
 {-# SPECIALIZE prettyTCM :: CheckpointId       -> TCM Doc #-}
+
 instance PrettyTCM a => PrettyTCM (Closure a) where
   prettyTCM cl = enterClosure cl prettyTCM
 
@@ -198,19 +198,23 @@ instance {-# OVERLAPPABLE #-} PrettyTCM a => PrettyTCM [a] where
   prettyTCM = prettyList . map prettyTCM
 
 {-# SPECIALIZE prettyTCM :: PrettyTCM a => [a] -> TCM Doc #-}
+
 instance {-# OVERLAPPABLE #-} PrettyTCM a => PrettyTCM (Maybe a) where
   prettyTCM = maybe empty prettyTCM
 
 {-# SPECIALIZE prettyTCM :: PrettyTCM a => Maybe a -> TCM Doc #-}
+
 instance (PrettyTCM a, PrettyTCM b) => PrettyTCM (a,b) where
   prettyTCM (a, b) = parens $ prettyTCM a <> comma <> prettyTCM b
 
 {-# SPECIALIZE prettyTCM :: (PrettyTCM a, PrettyTCM b) => (a, b) -> TCM Doc #-}
+
 instance (PrettyTCM a, PrettyTCM b, PrettyTCM c) => PrettyTCM (a,b,c) where
   prettyTCM (a, b, c) = parens $
     prettyTCM a <> comma <> prettyTCM b <> comma <> prettyTCM c
 
 {-# SPECIALIZE prettyTCM :: (PrettyTCM a, PrettyTCM b, PrettyTCM c) => (a, b, c) -> TCM Doc #-}
+
 instance PrettyTCM Term               where prettyTCM = prettyA <=< reify
 instance PrettyTCM Type               where prettyTCM = prettyA <=< reify
 instance PrettyTCM Sort               where prettyTCM = prettyA <=< reify
@@ -227,10 +231,10 @@ instance PrettyTCM (NamedArg A.Expr)  where prettyTCM = prettyA <=< reify
 instance PrettyTCM (NamedArg Term)    where prettyTCM = prettyA <=< reify
 instance PrettyTCM (Dom Type)         where prettyTCM = prettyA <=< reify
 instance PrettyTCM ContextEntry       where prettyTCM = prettyA <=< reify
+instance PrettyTCM Permutation        where prettyTCM = text . show
+instance PrettyTCM Polarity           where prettyTCM = text . show
+instance PrettyTCM IsForced           where prettyTCM = text . show
 
-instance PrettyTCM Permutation where prettyTCM = text . show
-instance PrettyTCM Polarity    where prettyTCM = text . show
-instance PrettyTCM IsForced    where prettyTCM = text . show
 {-# SPECIALIZE prettyTCM :: Term              -> TCM Doc #-}
 {-# SPECIALIZE prettyTCM :: Type              -> TCM Doc #-}
 {-# SPECIALIZE prettyTCM :: Sort              -> TCM Doc #-}

@@ -108,6 +108,7 @@ class CheckInternal a where
 {-# SPECIALIZE checkInternal' :: Action TCM -> Elims -> Comparison -> TypeOf Type -> TCM Elims #-}
 {-# SPECIALIZE checkInternal  :: Term -> Comparison -> TypeOf Term -> TCM () #-}
 {-# SPECIALIZE checkInternal  :: Type -> Comparison -> TypeOf Type -> TCM () #-}
+
 instance CheckInternal Type where
   checkInternal' action (El s t) cmp _ = do
     t' <- checkInternal' action t cmp (sort s)
@@ -225,8 +226,8 @@ checkArgInfo action ai ai' = do
   mod <- checkModality action (getModality ai)  (getModality ai')
   return $ setModality mod ai
 
-checkHiding    :: (MonadCheckInternal m) => Hiding -> Hiding -> m ()
-checkHiding    h h' = unless (sameHiding h h') $ typeError $ HidingMismatch h h'
+checkHiding :: (MonadCheckInternal m) => Hiding -> Hiding -> m ()
+checkHiding h h' = unless (sameHiding h h') $ typeError $ HidingMismatch h h'
 
 -- | @checkRelevance action term type@.
 --
