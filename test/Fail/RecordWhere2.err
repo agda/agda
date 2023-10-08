@@ -1,0 +1,9 @@
+RecordWhere2.agda:5,7-7,12
+warning: -W[no]TooManyFields
+The record type Σ does not have the field distraction but it would
+have the field proj₂
+when checking that the expression
+record { distraction = distraction ; proj₁ = proj₃ } has type
+Nat × Nat
+Unsolved metas at the following locations:
+  RecordWhere2.agda:5,7-7,12

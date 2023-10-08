@@ -176,6 +176,8 @@ data Expr
   | RecUpdate KwRange Range Expr [FieldAssignment]
                                                -- ^ ex: @record e {x = a; y = b}@
                                                --   The 'KwRange' is for the @record@ keyword.
+  | RecWhere  KwRange Range [Declaration]
+    -- ^ ex: @record where { open M using (x; y) ; z arg = arg + x }@; the 'KwRange' is for the @record@ keyword.
   | Let Range (List1 Declaration) (Maybe Expr) -- ^ ex: @let Ds in e@, missing body when parsing do-notation let
   | Paren Range Expr                           -- ^ ex: @(e)@
   | IdiomBrackets Range [Expr]                 -- ^ ex: @(| e1 | e2 | .. | en |)@ or @(|)@
@@ -941,6 +943,7 @@ instance HasRange Expr where
       InstanceArg r _    -> r
       Rec _ r _          -> r
       RecUpdate _ r _ _  -> r
+      RecWhere _ r _     -> r
       Quote r            -> r
       QuoteTerm r        -> r
       Unquote r          -> r
@@ -1204,6 +1207,7 @@ instance KillRange Expr where
   killRange (Pi t e)               = killRangeN Pi t e
   killRange (Rec _ _ ne)           = killRangeN (Rec empty noRange) ne
   killRange (RecUpdate _ _ e ne)   = killRangeN (RecUpdate empty noRange) e ne
+  killRange (RecWhere _ _ ne)      = killRangeN (RecWhere empty noRange) ne
   killRange (Let _ d e)            = killRangeN (Let noRange) d e
   killRange (Paren _ e)            = killRangeN (Paren noRange) e
   killRange (IdiomBrackets _ es)   = killRangeN (IdiomBrackets noRange) es
@@ -1326,6 +1330,7 @@ instance NFData Expr where
   rnf (Pi a b)            = rnf a `seq` rnf b
   rnf (Rec _ _ a)         = rnf a
   rnf (RecUpdate _ _ a b) = rnf a `seq` rnf b
+  rnf (RecWhere _ _ a)    = rnf a
   rnf (Let _ a b)         = rnf a `seq` rnf b
   rnf (Paren _ a)         = rnf a
   rnf (IdiomBrackets _ a) = rnf a
