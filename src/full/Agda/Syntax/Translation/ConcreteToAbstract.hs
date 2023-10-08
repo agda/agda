@@ -978,6 +978,8 @@ instance ToAbstract C.Expr where
             i    = ExprRange r
         return $ A.mkLet i ds' (A.Rec i fs'')
 
+      C.RecWhere r ds0 -> error "TODO"
+
   -- Record update
       C.RecUpdate r e fs -> do
         A.RecUpdate (ExprRange r) <$> toAbstract e <*> toAbstractCtx TopCtx fs
