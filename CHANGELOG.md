@@ -17,18 +17,6 @@ Syntax
 
 Additions to the Agda syntax.
 
-* Records can now be created using module-like syntax in place of curly braces
-  and semicolons.
-
-  ```agda
-  p : Pair Nat Nat
-  p = record where
-    fst = 2
-    snd = 3
-  ```
-
-  See [#4275](https://github.com/agda/agda/issues/4275) for the proposal.
-
 Language
 --------
 
