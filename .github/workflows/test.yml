@@ -31,7 +31,7 @@ jobs:
         echo "github.ref_name   = ${{ github.ref_name   }}"
         echo "github.ref_type   = ${{ github.ref_type   }}"
     - if: github.ref != 'refs/heads/master'
-      uses: styfle/cancel-workflow-action@0.11.0
+      uses: styfle/cancel-workflow-action@0.12.0
       with:
         access_token: ${{ github.token }}
     - uses: actions/checkout@v4
