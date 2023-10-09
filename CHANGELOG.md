@@ -29,6 +29,30 @@ Syntax
 
 Additions to the Agda syntax.
 
+* Records can now be created using module-like syntax in place of curly braces
+  and semicolons.
+
+  ```agda
+  p : Pair Nat Nat
+  p = record where
+    fst = 2
+    snd = 3
+  ```
+
+  In a `record where` block, definitions have the semantics of let-bindings: they
+  can refer to earlier bindings and may include other definitions than the fields
+  of the record, including opening of modules. For instance,
+
+  ```agda
+  p₁ : Pair Nat Nat
+  p₁ = record where
+    open Pair p using (fst)
+    n   = fst * 2
+    snd = n * n
+  ```
+
+  See [#4275](https://github.com/agda/agda/issues/4275) for the proposal.
+
 Language
 --------
 
