@@ -158,7 +158,7 @@ jobs:
       ## but printing stuff might not hurt here.
 
     - name: "Build Agda"
-      run: make BUILD_DIR="${BUILD_DIR}" install-bin
+      run: make BUILD_DIR="${BUILD_DIR}" install-bin-debug
 
     - name: "Run tests for the size solver"
       run: |

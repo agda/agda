@@ -124,8 +124,13 @@ STACK_INSTALL_DEP_OPTS = --only-dependencies $(STACK_INSTALL_OPTS)
 # -j1 so that cabal will print built progress to stdout.
 CABAL_INSTALL_BIN_OPTS = -j1 --disable-library-profiling \
                          $(CABAL_INSTALL_OPTS)
+CABAL_INSTALL_BIN_OPTS_DEBUG = -j1 --disable-library-profiling -fdebug \
+                               $(CABAL_INSTALL_OPTS)
 STACK_INSTALL_BIN_OPTS = --no-library-profiling \
                          $(STACK_INSTALL_OPTS)
+STACK_INSTALL_BIN_OPTS_DEBUG = --no-library-profiling \
+                               --flag Agda:debug
+                               $(STACK_INSTALL_OPTS)
 
 CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
                        --disable-library-profiling \
@@ -175,6 +180,21 @@ else
 # cabal: --enable-tests was specified, but tests can't be enabled in a remote package
 	@echo "===================== Installing using Cabal with test suites ============"
 	time $(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --program-suffix=$(AGDA_BIN_SUFFIX)
+endif
+
+.PHONY: install-bin-debug ## Install Agda and test suites with debug printing enabled
+install-bin-debug: install-deps ensure-hash-is-correct
+ifdef HAS_STACK
+	@echo "===================== Installing using Stack with test suites ============"
+	time $(STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS_DEBUG)
+	mkdir -p $(BUILD_DIR)/build/
+	cp -r $(shell $(STACK) path --dist-dir)/build $(BUILD_DIR)
+	$(MAKE) copy-bins-with-suffix$(AGDA_BIN_SUFFIX)
+else
+# `cabal new-install --enable-tests` emits the error message (bug?):
+# cabal: --enable-tests was specified, but tests can't be enabled in a remote package
+	@echo "===================== Installing using Cabal with test suites ============"
+	time $(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS_DEBUG) --program-suffix=$(AGDA_BIN_SUFFIX)
 endif
 
 .PHONY: v1-install ## Developer install goal without -foptimize-aggressively nor dependencies.

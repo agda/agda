@@ -62,7 +62,7 @@ jobs:
     - name: Install dependencies for Agda and its test suites
       run: make install-deps
     - name: Build Agda
-      run: make BUILD_DIR="${BUILD_DIR}" install-bin
+      run: make BUILD_DIR="${BUILD_DIR}" install-bin-debug
     - name: Run tests for the size solver
       run: |
         export PATH=${HOME}/.local/bin:${PATH}
