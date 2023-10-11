@@ -43,7 +43,7 @@ instance Hashable MemoKey
 -- | The parser monad.
 
 type Parser tok a =
-#ifdef DEBUG
+#ifdef DEBUG_PARSING
   Parser.ParserWithGrammar
 #else
   Parser.Parser

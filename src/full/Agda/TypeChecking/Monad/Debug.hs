@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Monad.Debug
   ( module Agda.TypeChecking.Monad.Debug
@@ -216,10 +217,26 @@ instance ReportS [String]  where reportS k n = reportSLn  k n . unlines
 instance ReportS [Doc]     where reportS k n = reportSLn  k n . render . vcat
 instance ReportS Doc       where reportS k n = reportSLn  k n . render
 
+#ifdef DEBUG
+
 -- | Conditionally println debug string.
 {-# SPECIALIZE reportSLn :: VerboseKey -> VerboseLevel -> String -> TCM () #-}
 reportSLn :: MonadDebug m => VerboseKey -> VerboseLevel -> String -> m ()
 reportSLn k n s = verboseS k n $ displayDebugMessage k n $ s ++ "\n"
+
+#else
+
+{-# INLINE reportSLn #-}
+reportSLn :: MonadDebug m => VerboseKey -> VerboseLevel -> String -> m ()
+reportSLn _ _ _ = pure ()
+
+#endif
+
+-- | Conditionally println debug string. Works regardless of the debug flag.
+{-# SPECIALIZE reportSLn :: VerboseKey -> VerboseLevel -> String -> TCM () #-}
+alwaysReportSLn :: MonadDebug m => VerboseKey -> VerboseLevel -> String -> m ()
+alwaysReportSLn k n s = verboseS k n $ displayDebugMessage k n $ s ++ "\n"
+
 
 __IMPOSSIBLE_VERBOSE__ :: (HasCallStack, MonadDebug m) => String -> m a
 __IMPOSSIBLE_VERBOSE__ s = do
@@ -236,6 +253,8 @@ __IMPOSSIBLE_VERBOSE__ s = do
     -- Create the "Impossible" error using *our* caller as the call site.
     err = withCallerCallStack Impossible
 
+#ifdef DEBUG
+
 -- | Conditionally render debug 'Doc' and print it.
 {-# SPECIALIZE reportSDoc :: VerboseKey -> VerboseLevel -> TCM Doc -> TCM () #-}
 reportSDoc :: MonadDebug m => VerboseKey -> VerboseLevel -> TCM Doc -> m ()
@@ -247,6 +266,26 @@ reportResult :: MonadDebug m => VerboseKey -> VerboseLevel -> (a -> TCM Doc) -> 
 reportResult k n debug action = do
   x <- action
   x <$ reportSDoc k n (debug x)
+
+#else
+
+-- | Conditionally render debug 'Doc' and print it.
+{-# INLINE reportSDoc #-}
+reportSDoc :: MonadDebug m => VerboseKey -> VerboseLevel -> TCM Doc -> m ()
+reportSDoc _ _ _ = pure ()
+
+-- | Debug print the result of a computation.
+{-# INLINE reportResult #-}
+reportResult :: MonadDebug m => VerboseKey -> VerboseLevel -> (a -> TCM Doc) -> m a -> m a
+reportResult _ _ _ action = action
+
+#endif
+
+-- | Conditionally render debug 'Doc' and print it. Works regardless of the debug flag.
+{-# SPECIALIZE reportSDoc :: VerboseKey -> VerboseLevel -> TCM Doc -> TCM () #-}
+alwaysReportSDoc :: MonadDebug m => VerboseKey -> VerboseLevel -> TCM Doc -> m ()
+alwaysReportSDoc k n d = verboseS k n $ do
+  displayDebugMessage k n . (++ "\n") =<< formatDebugMessage k n (locallyTC eIsDebugPrinting (const True) d)
 
 unlessDebugPrinting :: MonadDebug m => m () -> m ()
 unlessDebugPrinting = unlessM isDebugPrinting
@@ -272,6 +311,9 @@ instance TraceS [String]  where traceS k n = traceSLn  k n . unlines
 instance TraceS [Doc]     where traceS k n = traceSLn  k n . render . vcat
 instance TraceS Doc       where traceS k n = traceSLn  k n . render
 
+
+#ifdef DEBUG
+
 traceSLn :: MonadDebug m => VerboseKey -> VerboseLevel -> String -> m a -> m a
 traceSLn k n s = applyWhenVerboseS k n $ traceDebugMessage k n $ s ++ "\n"
 
@@ -280,6 +322,20 @@ traceSDoc :: MonadDebug m => VerboseKey -> VerboseLevel -> TCM Doc -> m a -> m a
 traceSDoc k n d = applyWhenVerboseS k n $ \cont -> do
   s <- formatDebugMessage k n $ locallyTC eIsDebugPrinting (const True) d
   traceDebugMessage k n (s ++ "\n") cont
+
+#else
+
+{-# INLINE traceSLn #-}
+traceSLn :: MonadDebug m => VerboseKey -> VerboseLevel -> String -> m a -> m a
+traceSLn _ _ _ action = action
+
+-- | Conditionally render debug 'Doc', print it, and then continue.
+{-# INLINE traceSDoc #-}
+traceSDoc :: MonadDebug m => VerboseKey -> VerboseLevel -> TCM Doc -> m a -> m a
+traceSDoc _ _ _ action = action
+
+#endif
+
 
 openVerboseBracket :: MonadDebug m => VerboseKey -> VerboseLevel -> String -> m ()
 openVerboseBracket k n s = displayDebugMessage k n $ "{ " ++ s ++ "\n"

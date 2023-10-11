@@ -244,7 +244,7 @@ jsPreModule _opts _ m mifile = do
     yesComp compile = do
       m   <- prettyShow <$> curMName
       out <- outFile_
-      reportSLn "compile.js" 1 $ repl [m, ifileDesc, out] "Compiling <<0>> in <<1>> to <<2>>"
+      alwaysReportSLn "compile.js" 1 $ repl [m, ifileDesc, out] "Compiling <<0>> in <<1>> to <<2>>"
       kit <- coinductionKit
       return $ Recompile $ JSModuleEnv
         { jsCoinductionKit = kit

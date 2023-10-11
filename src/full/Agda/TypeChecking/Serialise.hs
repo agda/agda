@@ -148,12 +148,12 @@ encode a = do
     statistics :: String -> IORef FreshAndReuse -> TCM ()
     statistics kind ioref = do
       FreshAndReuse fresh
-#ifdef DEBUG
+#ifdef DEBUG_SERIALISATION
                           reused
 #endif
                                  <- liftIO $ readIORef ioref
       tickN (kind ++ "  (fresh)") $ fromIntegral fresh
-#ifdef DEBUG
+#ifdef DEBUG_SERIALISATION
       tickN (kind ++ " (reused)") $ fromIntegral reused
 #endif
 

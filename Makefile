@@ -37,8 +37,8 @@ STACK_OPT_NO_DOCS = --no-haddock
 CABAL_OPT_TESTS   = --enable-tests
 STACK_OPT_TESTS   = --test --no-run-tests
 
-CABAL_OPT_FAST    = --ghc-options=-O0
-STACK_OPT_FAST    = --fast
+CABAL_OPT_FAST    = --ghc-options=-O0 -fdebug
+STACK_OPT_FAST    = --fast --flag Agda:debug
 
 CABAL_FLAG_ICU    = -fenable-cluster-counting
 STACK_FLAG_ICU    = --flag Agda:enable-cluster-counting

@@ -407,7 +407,7 @@ ghcPreModule cenv isMain m mifile =
     yesComp = do
       m   <- prettyShow <$> curMName
       out <- curOutFile
-      reportSLn "compile.ghc" 1 $ repl [m, ifileDesc, out] "Compiling <<0>> in <<1>> to <<2>>"
+      alwaysReportSLn "compile.ghc" 1 $ repl [m, ifileDesc, out] "Compiling <<0>> in <<1>> to <<2>>"
       asks Recompile
 
 ghcPostModule

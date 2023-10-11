@@ -1597,7 +1597,7 @@ pragmaOptions = concat
                     "use unicode characters when printing terms" ""
                     Nothing
   , [ Option ['v']  ["verbose"] (ReqArg verboseFlag "N")
-                    "set verbosity level to N"
+                    "set verbosity level to N. Only has an effect if Agda was built with the \"debug\" flag."
     , Option []     ["profile"] (ReqArg profileFlag "TYPE")
                     ("turn on profiling for TYPE (where TYPE=" ++ intercalate "|" validProfileOptionStrings ++ ")")
     ]
