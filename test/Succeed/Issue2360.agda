@@ -1,5 +1,5 @@
 -- Andreas, 2016-12-28, issue #2360 reported by m0davis
--- Ambigous projection in with-clause triggered internal error
+-- Ambiguous projection in with-clause triggered internal error
 
 postulate
   A : Set
