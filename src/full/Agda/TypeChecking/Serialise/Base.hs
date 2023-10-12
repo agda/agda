@@ -1,3 +1,35 @@
+
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE GADTs                #-}
+{-# LANGUAGE MagicHash            #-}
+{-# LANGUAGE UnboxedTuples        #-}
+{-# LANGUAGE ScopedTypeVariables  #-}
+{-# LANGUAGE TypeApplications     #-}
+{-# LANGUAGE AllowAmbiguousTypes  #-}
+{-# LANGUAGE Strict               #-}
+
+module Agda.TypeChecking.Serialise.Base where
+
+import Control.Monad.IO.Class
+import Data.Bits
+import Data.Word
+import GHC.Exts
+import GHC.Float
+import GHC.IO hiding (liftIO)
+import GHC.Word
+
+import qualified Data.ByteString          as B
+import qualified Data.ByteString.Internal as B
+import qualified Data.ByteString.Unsafe   as B
+
+import qualified Agda.Utils.PrimData.Array.FM as AFM
+import qualified Agda.Utils.PrimData.Array.FI as AFI
+import qualified Agda.Utils.PrimData.Array.LM as ALM
+import Agda.Utils.PrimData.Flat
+
+class Serialize a where
+
+{-
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE DataKinds            #-}
@@ -559,3 +591,4 @@ valueN t = vcase valu where
   valu int32s = case valueArgs (Proxy :: Proxy t) int32s of
                   Nothing -> malformed
                   Just vs -> valuN' t vs
+-}

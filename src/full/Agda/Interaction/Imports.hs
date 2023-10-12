@@ -37,6 +37,7 @@ import qualified Control.Exception as E
 import Control.Monad.Fail (MonadFail)
 #endif
 
+import qualified Data.ByteString as BS
 import Data.Either
 import qualified Data.List as List
 import Data.Maybe
@@ -877,30 +878,15 @@ highlightFromInterface i file = do
 
 readInterface :: InterfaceFile -> TCM (Maybe Interface)
 readInterface file = do
-    let ifp = filePath $ intFilePath file
-    -- Decode the interface file
-    (s, close) <- liftIO $ readBinaryFile' ifp
-    do  mi <- liftIO . E.evaluate =<< decodeInterface s
+    let !ifp = filePath $ intFilePath file
+    !s  <- liftIO $ BS.readFile ifp
+    !mi <- decodeInterface s
+    pure $! constructIScope <$> mi
 
-        -- Close the file. Note
-        -- ⑴ that evaluate ensures that i is evaluated to WHNF (before
-        --   the next IO operation is executed), and
-        -- ⑵ that decode returns Nothing if an error is encountered,
-        -- so it is safe to close the file here.
-        liftIO close
-
-        return $ constructIScope <$> mi
-      -- Catch exceptions and close
-      `catchError` \e -> liftIO close >> handler e
-  -- Catch exceptions
-  `catchError` handler
-  where
-    handler = \case
+    `catchError` \case
       IOException _ _ e -> do
         reportSLn "" 0 $ "IO exception: " ++ show e
-        return Nothing   -- Work-around for file locking bug.
-                         -- TODO: What does this refer to? Please
-                         -- document.
+        return Nothing
       e -> throwError e
 
 -- | Writes the given interface to the given file.
@@ -1312,10 +1298,8 @@ buildInterface src topLevel = do
 getInterfaceFileHashes :: InterfaceFile -> IO (Maybe (Hash, Hash))
 getInterfaceFileHashes fp = do
   let ifile = filePath $ intFilePath fp
-  (s, close) <- readBinaryFile' ifile
-  let hs = decodeHashes s
-  maybe 0 (uncurry (+)) hs `seq` close
-  return hs
+  s <- BS.readFile ifile
+  return $! decodeHashes s
 
 moduleHash :: TopLevelModuleName -> TCM Hash
 moduleHash m = iFullHash <$> getNonMainInterface m Nothing

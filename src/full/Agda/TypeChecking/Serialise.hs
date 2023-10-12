@@ -1,10 +1,5 @@
 {-# LANGUAGE CPP #-}
-
--- Andreas, Makoto, Francesco 2014-10-15 AIM XX:
--- -O2 does not have any noticable effect on runtime
--- but sabotages cabal repl with -Werror
--- (due to a conflict with --interactive warning)
--- {-# OPTIONS_GHC -O2                      #-}
+{-# LANGUAGE Strict #-}
 
 -- | Structure-sharing serialisation of Agda interface files.
 
@@ -17,12 +12,48 @@
 -- -!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-
 
 module Agda.TypeChecking.Serialise
-  ( encode, encodeFile, encodeInterface
-  , decode, decodeFile, decodeInterface, decodeHashes
-  , EmbPrj
-  )
+  -- (
+  --   encode, encodeFile, encodeInterface
+  -- , decode, decodeFile, decodeInterface, decodeHashes
+  -- , EmbPrj
+  -- )
   where
 
+import Data.ByteString (ByteString)
+import qualified Data.ByteString as B
+
+import qualified Codec.Compression.GZip as G
+import qualified Codec.Compression.Zlib.Internal as Z
+#if __GLASGOW_HASKELL__ >= 804
+import GHC.Compact as C
+#endif
+
+import Agda.TypeChecking.Monad
+import qualified Agda.TypeChecking.Monad.Benchmark as Bench
+
+import Agda.TypeChecking.Serialise.Base
+import Agda.TypeChecking.Serialise.Instances () --instance only
+
+import Agda.Utils.Hash
+
+import Agda.Utils.Impossible
+
+
+decodeInterface :: ByteString -> TCM (Maybe Interface)
+decodeInterface = undefined
+
+encodeFile :: FilePath -> Interface -> TCM ByteString
+encodeFile = undefined
+
+decode :: Serialize a => ByteString -> TCM (Maybe a)
+decode = undefined
+
+decodeHashes :: ByteString -> Maybe (Hash, Hash)
+decodeHashes = undefined
+
+instance Serialize Interface where
+
+{-
 import Prelude hiding ( null )
 
 import System.Directory ( createDirectoryIfMissing )
@@ -148,12 +179,12 @@ encode a = do
     statistics :: String -> IORef FreshAndReuse -> TCM ()
     statistics kind ioref = do
       FreshAndReuse fresh
-#ifdef DEBUG
+#ifdef DEBUG_SERIALISATION
                           reused
 #endif
                                  <- liftIO $ readIORef ioref
       tickN (kind ++ "  (fresh)") $ fromIntegral fresh
-#ifdef DEBUG
+#ifdef DEBUG_SERIALISATION
       tickN (kind ++ " (reused)") $ fromIntegral reused
 #endif
 
@@ -303,3 +334,4 @@ decodeHashes s
 
 decodeFile :: FilePath -> TCM (Maybe Interface)
 decodeFile f = decodeInterface =<< liftIO (L.readFile f)
+-}

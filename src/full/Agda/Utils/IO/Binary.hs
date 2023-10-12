@@ -7,7 +7,7 @@ module Agda.Utils.IO.Binary
   ) where
 
 import System.IO
-import Data.ByteString.Lazy as BS
+import Data.ByteString as BS
 
 -- | Returns a close function for the file together with the contents.
 
