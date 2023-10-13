@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE ImplicitParams             #-}
 
 -- | Call graphs and related concepts, more or less as defined in
@@ -28,9 +27,6 @@ module Agda.Termination.CallGraph
 import Prelude hiding (null)
 
 import qualified Data.List as List
-#if __GLASGOW_HASKELL__ < 804
-import Data.Semigroup
-#endif
 import Data.Set (Set)
 
 import Agda.Termination.CallMatrix (CallMatrix, CallMatrixAug(..), CMSet(..), CallComb(..))

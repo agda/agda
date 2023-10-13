@@ -2294,12 +2294,9 @@ data Defn
   | PrimitiveSortDefn PrimitiveSortData
     deriving (Show, Generic)
 
--- The COMPLETE pragma is new in GHC 8.2
-#if __GLASGOW_HASKELL__ >= 802
 {-# COMPLETE
   Axiom, DataOrRecSig, GeneralizableVar, AbstractDefn,
   Function, Datatype, Record, Constructor, Primitive, PrimitiveSort #-}
-#endif
 
 data AxiomData = AxiomData
   { _axiomConstTransp :: Bool
@@ -4870,9 +4867,6 @@ instance Monad ReduceM where
   return = pure
   (>>=) = bindReduce
   (>>) = (*>)
-#if __GLASGOW_HASKELL__ < 806
-  fail = Fail.fail
-#endif
 
 instance Fail.MonadFail ReduceM where
   fail = error
@@ -5200,20 +5194,13 @@ instance MonadTrans TCMT where
     lift m = TCM $ \_ _ -> m; {-# INLINE lift #-}
 
 -- We want a special monad implementation of fail.
-#if __GLASGOW_HASKELL__ < 806
-instance MonadIO m => Monad (TCMT m) where
-#else
 -- Andreas, 2022-02-02, issue #5659:
 -- @transformers-0.6@ requires exactly a @Monad@ superclass constraint here
 -- if we want @instance MonadTrans TCMT@.
 instance Monad m => Monad (TCMT m) where
-#endif
     return = pure; {-# INLINE return #-}
     (>>=)  = bindTCMT; {-# INLINE (>>=) #-}
     (>>)   = (*>); {-# INLINE (>>) #-}
-#if __GLASGOW_HASKELL__ < 806
-    fail   = Fail.fail
-#endif
 
 instance MonadIO m => Fail.MonadFail (TCMT m) where
   fail = internalError
@@ -5229,9 +5216,6 @@ instance MonadIO m => MonadIO (TCMT m) where
         E.throwIO $ IOException s r err
 
 instance ( MonadFix m
-#if __GLASGOW_HASKELL__ < 806
-         , MonadIO m
-#endif
          ) => MonadFix (TCMT m) where
   mfix f = TCM $ \s env -> mdo
     x <- unTCM (f x) s env

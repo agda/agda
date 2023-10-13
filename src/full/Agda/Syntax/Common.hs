@@ -1,5 +1,3 @@
-{-# LANGUAGE CPP #-}
-
 {-| Some common syntactic entities are defined in this module.
 -}
 module Agda.Syntax.Common
@@ -17,9 +15,6 @@ import Control.DeepSeq
 import Control.Arrow ((&&&))
 import Control.Applicative ((<|>), liftA2)
 
-#if __GLASGOW_HASKELL__ < 804
-import Data.Semigroup hiding (Arg)
-#endif
 import Data.Bifunctor
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString

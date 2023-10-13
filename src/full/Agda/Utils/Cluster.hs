@@ -1,7 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-{-# LANGUAGE CPP #-}
-
 -- | Create clusters of non-overlapping things.
 
 module Agda.Utils.Cluster
@@ -21,9 +19,6 @@ import Data.List.NonEmpty     ( NonEmpty(..), nonEmpty, toList )
 import Data.Maybe             ( fromMaybe )
 
 import qualified Data.Map.Strict as MapS
-#if __GLASGOW_HASKELL__ < 804
-import Data.Semigroup
-#endif
 
 import Agda.Utils.Functor
 import Agda.Utils.Singleton

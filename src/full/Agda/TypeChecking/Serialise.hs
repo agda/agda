@@ -58,9 +58,7 @@ import Data.Semigroup((<>))
 import qualified Codec.Compression.GZip as G
 import qualified Codec.Compression.Zlib.Internal as Z
 
-#if __GLASGOW_HASKELL__ >= 804
 import GHC.Compact as C
-#endif
 
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
@@ -226,15 +224,11 @@ decode s = do
 
     Right (mf, x) -> do
       setTCLens stModuleToSource mf
-#if __GLASGOW_HASKELL__ >= 804
       -- "Compact" the interfaces (without breaking sharing) to
       -- reduce the amount of memory that is traversed by the
       -- garbage collector.
       Bench.billTo [Bench.Deserialization, Bench.Compaction] $
         liftIO (Just . C.getCompact <$> C.compactWithSharing x)
-#else
-      return (Just x)
-#endif
 
 
 encodeInterface :: Interface -> TCM Encoded

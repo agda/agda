@@ -1,8 +1,8 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-{-# LANGUAGE CPP                        #-}
 -- | Collecting fixity declarations (and polarity pragmas) for concrete
 --   declarations.
+
 module Agda.Syntax.Concrete.Fixity
   ( Fixities, Polarities, MonadFixityError(..)
   , DoWarn(..)
@@ -16,9 +16,6 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-#if __GLASGOW_HASKELL__ < 804
-import Data.Semigroup
-#endif
 
 import Agda.Syntax.Builtin (builtinById, isBuiltinNoDef)
 import Agda.Syntax.Common

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                        #-}
 
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal
@@ -767,10 +766,7 @@ pattern EqualityType
 pattern EqualityType{ eqtSort, eqtName, eqtParams, eqtType, eqtLhs, eqtRhs } =
   EqualityViewType (EqualityTypeData eqtSort eqtName eqtParams eqtType eqtLhs eqtRhs)
 
--- The COMPLETE pragma is new in GHC 8.2
-#if __GLASGOW_HASKELL__ >= 802
 {-# COMPLETE EqualityType, OtherType, IdiomType #-}
-#endif
 
 isEqualityType :: EqualityView -> Bool
 isEqualityType EqualityType{} = True
