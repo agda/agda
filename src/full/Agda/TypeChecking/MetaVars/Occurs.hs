@@ -536,7 +536,7 @@ instance Occurs Term where
                    return $ Right v
                  else do
                    reportSDoc "tc.meta.prune" 40 $ "Didn't manage to prune everything"
-                   -- some variables was pruned, but not all, still have to do occurs-check after
+                   -- some variables were pruned, but not all, still have to do occurs-check after
                    return $ Left v
                else fallback
             case t of
