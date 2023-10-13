@@ -11,17 +11,13 @@ module Agda.Utils.Functor
   -- From Data.Functor:
   , (<$>)
   , ($>)
-  -- Defined identically as in Data.Functor.
-  -- Should be simply re-exported (vs redefined) once
-  -- MIN_VERSION_base >= 4.11.0.0
-  -- At time of this writing, we support 4.9.0.0.
   , (<&>)
   )
   where
 
 import Control.Applicative ( Const(Const), getConst )
 
-import Data.Functor (($>))
+import Data.Functor (($>), (<&>))
 import Data.Functor.Identity
 import Data.Functor.Compose
 
@@ -37,13 +33,6 @@ infixr 9 <.>
 for :: Functor m => m a -> (a -> b) -> m b
 for a b = fmap b a
 {-# INLINE for #-}
-
-infixl 1 <&>
-
--- | Infix version of 'for'.
-(<&>) :: Functor m => m a -> (a -> b) -> m b
-(<&>) a b = fmap b a
-{-# INLINE (<&>) #-}
 
 -- | A decoration is a functor that is traversable into any functor.
 --

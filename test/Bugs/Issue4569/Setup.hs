@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 import Data.Maybe
@@ -8,9 +7,8 @@ import Distribution.Simple.LocalBuildInfo
 import Distribution.Simple.Setup
 import Distribution.Simple.BuildPaths (exeExtension)
 import Distribution.PackageDescription
-#if MIN_VERSION_Cabal(2,3,0)
 import Distribution.System ( buildPlatform )
-#endif
+
 import System.FilePath
 import System.Directory (makeAbsolute, removeFile)
 import System.Environment (getEnvironment)
@@ -51,8 +49,4 @@ buildHook' pd lbi hooks flags = do
     ExitFailure _ -> die $ "Error: failed to run hello from installer"
 
 helloExeExtension :: String
-#if MIN_VERSION_Cabal(2,3,0)
 helloExeExtension = exeExtension buildPlatform
-#else
-helloExeExtension = exeExtension
-#endif

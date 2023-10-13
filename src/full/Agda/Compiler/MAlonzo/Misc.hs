@@ -1,7 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-{-# LANGUAGE CPP #-}
-
 module Agda.Compiler.MAlonzo.Misc where
 
 import Control.Monad.Reader ( ask )
@@ -18,10 +16,6 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as T
-
-#if !(MIN_VERSION_base(4,11,0))
-import Data.Semigroup
-#endif
 
 import qualified Agda.Utils.Haskell.Syntax as HS
 

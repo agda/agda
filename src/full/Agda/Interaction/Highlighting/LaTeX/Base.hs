@@ -22,9 +22,6 @@ import Data.Char
 import Data.Maybe
 import Data.Function (on)
 import Data.Foldable (toList)
-#if !(MIN_VERSION_base(4,11,0))
-import Data.Semigroup (Semigroup(..))
-#endif
 
 import Control.Exception.Base (IOException, try)
 import Control.Monad (forM_, mapM_, unless, when)

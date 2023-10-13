@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 import Data.Maybe
@@ -8,9 +7,8 @@ import Distribution.Simple.LocalBuildInfo
 import Distribution.Simple.Setup
 import Distribution.Simple.BuildPaths (exeExtension)
 import Distribution.PackageDescription
-#if MIN_VERSION_Cabal(2,3,0)
 import Distribution.System ( buildPlatform )
-#endif
+
 import System.FilePath
 import System.Directory (makeAbsolute, removeFile)
 import System.Environment (getEnvironment)
@@ -140,8 +138,4 @@ generateInterfaces pd lbi = do
   return ()
 
 agdaExeExtension :: String
-#if MIN_VERSION_Cabal(2,3,0)
 agdaExeExtension = exeExtension buildPlatform
-#else
-agdaExeExtension = exeExtension
-#endif
