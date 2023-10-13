@@ -420,7 +420,7 @@ library
         -- unordered-containers < 0.2.9 need base < 4.11
     , uri-encode           >= 1.5.0.4   && < 1.6
     , vector               >= 0.12      && < 0.14
-    , vector-hashtables    == 0.1.*
+    , vector-hashtables    >= 0.1.1.1   && < 0.2
     , zlib                 == 0.6.*
 
   -- We don't write upper bounds for Alex nor Happy because the
