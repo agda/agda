@@ -20,7 +20,7 @@ Building interface...
 Finished serialization.
 Considering writing to interface file.
 Actually calling writeInterface.
-Writing interface file agda-default-include-path/Agda/Primitive.agdai.
+Writing interface file agda-default-include-path/_build/2.6.4.1/agda/Agda/Primitive.agdai.
 Wrote interface file.
 Finished writing to interface file.
 Accumulated statistics.
@@ -54,7 +54,7 @@ Building interface...
 Finished serialization.
 Considering writing to interface file.
 Actually calling writeInterface.
-Writing interface file agda-default-include-path/Agda/Primitive/Cubical.agdai.
+Writing interface file agda-default-include-path/_build/2.6.4.1/agda/Agda/Primitive/Cubical.agdai.
 Wrote interface file.
 Finished writing to interface file.
 Accumulated statistics.
