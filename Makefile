@@ -129,7 +129,7 @@ CABAL_INSTALL_BIN_OPTS_DEBUG = -j1 --disable-library-profiling -fdebug \
 STACK_INSTALL_BIN_OPTS = --no-library-profiling \
                          $(STACK_INSTALL_OPTS)
 STACK_INSTALL_BIN_OPTS_DEBUG = --no-library-profiling \
-                               --flag Agda:debug
+                               --flag Agda:debug \
                                $(STACK_INSTALL_OPTS)
 
 CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
@@ -202,13 +202,13 @@ endif
 v1-install:  ensure-hash-is-correct
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with test suites ============"
-	time $(STACK_INSTALL_HELPER) $(STACK_INSTALL_BIN_OPTS) $(STACK_OPT_TESTS)
+	time $(STACK_INSTALL_HELPER) $(STACK_INSTALL_BIN_OPTS_DEBUG) $(STACK_OPT_TESTS)
 	mkdir -p $(BUILD_DIR)/build/
 	cp -r $(shell $(STACK) path --dist-dir)/build $(BUILD_DIR)
 	$(MAKE) copy-bins-with-suffix$(AGDA_BIN_SUFFIX)
 else
 	@echo "===================== Installing using Cabal with test suites ============"
-	time $(CABAL_INSTALL_HELPER) $(CABAL_INSTALL_BIN_OPTS) $(CABAL_OPT_TESTS) --builddir=$(BUILD_DIR) --program-suffix=$(AGDA_BIN_SUFFIX)
+	time $(CABAL_INSTALL_HELPER) $(CABAL_INSTALL_BIN_OPTS_DEBUG) $(CABAL_OPT_TESTS) --builddir=$(BUILD_DIR) --program-suffix=$(AGDA_BIN_SUFFIX)
 endif
 
 .PHONY: fast-install-bin ## Install Agda compiled with -O0 with tests
@@ -786,26 +786,54 @@ help: ## Display this information.
 	  	NF == 2 { printf "  \033[36m%-26s\033[0m %s\n", $$1, $$2};'
 
 debug : ## Print debug information.
-	@echo "AGDA_BIN              = $(AGDA_BIN)"
-	@echo "AGDA_BIN_SUFFIX       = $(AGDA_BIN_SUFFIX)"
-	@echo "AGDA_TESTS_BIN        = $(AGDA_TESTS_BIN)"
-	@echo "AGDA_TESTS_OPTIONS    = $(AGDA_TESTS_OPTIONS)"
-	@echo "BUILD_DIR             = $(BUILD_DIR)"
-	@echo "CABAL_BUILD_CMD       = $(CABAL_BUILD_CMD)"
-	@echo "CABAL_CLEAN_CMD       = $(CABAL_CLEAN_CMD)"
-	@echo "CABAL                 = $(CABAL)"
-	@echo "CABAL_CONFIGURE_CMD   = $(CABAL_CONFIGURE_CMD)"
-	@echo "CABAL_CONFIGURE_OPTS  = $(CABAL_CONFIGURE_OPTS)"
-	@echo "CABAL_HADDOCK_CMD     = $(CABAL_HADDOCK_CMD)"
-	@echo "CABAL_INSTALL_CMD     = $(CABAL_INSTALL_CMD)"
-	@echo "CABAL_INSTALL_OPTS    = $(CABAL_INSTALL_OPTS)"
-	@echo "CABAL_OPTS            = $(CABAL_OPTS)"
-	@echo "GHC_VER               = $(GHC_VER)"
-	@echo "GHC_VERSION           = $(GHC_VERSION)"
-	@echo "PARALLEL_TESTS        = $(PARALLEL_TESTS)"
-	@echo "STACK                 = $(STACK)"
-	@echo "STACK_INSTALL_OPTS    = $(STACK_INSTALL_OPTS)"
-	@echo "STACK_OPTS            = $(STACK_OPTS)"
+	@echo "AGDA_BIN                     = $(AGDA_BIN)"
+	@echo "AGDA_BIN_SUFFIX              = $(AGDA_BIN_SUFFIX)"
+	@echo "AGDA_TESTS_BIN               = $(AGDA_TESTS_BIN)"
+	@echo "AGDA_TESTS_OPTIONS           = $(AGDA_TESTS_OPTIONS)"
+	@echo "BUILD_DIR                    = $(BUILD_DIR)"
+	@echo "CABAL                        = $(CABAL)"
+	@echo "CABAL_BUILD_CMD              = $(CABAL_BUILD_CMD)"
+	@echo "CABAL_CLEAN_CMD              = $(CABAL_CLEAN_CMD)"
+	@echo "CABAL_CONFIGURE_CMD          = $(CABAL_CONFIGURE_CMD)"
+	@echo "CABAL_CONFIGURE_OPTS         = $(CABAL_CONFIGURE_OPTS)"
+	@echo "CABAL_CONFIGURE_OPTS         = $(CABAL_CONFIGURE_OPTS)"
+	@echo "CABAL_FLAG_ICU               = $(CABAL_FLAG_ICU)"
+	@echo "CABAL_FLAG_OPTIM_HEAVY       = $(CABAL_FLAG_OPTIM_HEAVY)"
+	@echo "CABAL_HADDOCK_CMD            = $(CABAL_HADDOCK_CMD)"
+	@echo "CABAL_INSTALL                = $(CABAL_INSTALL)"
+	@echo "CABAL_INSTALL_BIN_OPTS       = $(CABAL_INSTALL_BIN_OPTS)"
+	@echo "CABAL_INSTALL_BIN_OPTS_DEBUG = $(CABAL_INSTALL_BIN_OPTS_DEBUG)"
+	@echo "CABAL_INSTALL_CMD            = $(CABAL_INSTALL_CMD)"
+	@echo "CABAL_INSTALL_DEP_OPTS       = $(CABAL_INSTALL_DEP_OPTS)"
+	@echo "CABAL_INSTALL_HELPER         = $(CABAL_INSTALL_HELPER)"
+	@echo "CABAL_INSTALL_OPTS           = $(CABAL_INSTALL_OPTS)"
+	@echo "CABAL_OPTS                   = $(CABAL_OPTS)"
+	@echo "CABAL_OPT_FAST               = $(CABAL_OPT_FAST)"
+	@echo "CABAL_OPT_NO_DOCS            = $(CABAL_OPT_NO_DOCS)"
+	@echo "FAST_CABAL_INSTALL           = $(FAST_CABAL_INSTALL)"
+	@echo "FAST_STACK_INSTALL           = $(FAST_STACK_INSTALL)"
+	@echo "GHC_OPTS                     = $(GHC_OPTS)"
+	@echo "GHC_RTS_OPTS                 = $(GHC_RTS_OPTS)"
+	@echo "GHC_VER                      = $(GHC_VER)"
+	@echo "GHC_VERSION                  = $(GHC_VERSION)"
+	@echo "PARALLEL_TESTS               = $(PARALLEL_TESTS)"
+	@echo "QUICK_CABAL_INSTALL          = $(QUICK_CABAL_INSTALL)"
+	@echo "QUICK_STACK_INSTALL          = $(QUICK_STACK_INSTALL)"
+	@echo "SLOW_CABAL_INSTALL_OPTS      = $(SLOW_CABAL_INSTALL_OPTS)"
+	@echo "SLOW_STACK_INSTALL_OPTS      = $(SLOW_STACK_INSTALL_OPTS)"
+	@echo "STACK                        = $(STACK)"
+	@echo "STACK_FLAG_ICU               = $(STACK_FLAG_ICU)"
+	@echo "STACK_FLAG_OPTIM_HEAVY       = $(STACK_FLAG_OPTIM_HEAVY)"
+	@echo "STACK_INSTALL                = $(STACK_INSTALL)"
+	@echo "STACK_INSTALL_BIN_OPTS       = $(STACK_INSTALL_BIN_OPTS)"
+	@echo "STACK_INSTALL_BIN_OPTS_DEBUG = $(STACK_INSTALL_BIN_OPTS_DEBUG)"
+	@echo "STACK_INSTALL_DEP_OPTS       = $(STACK_INSTALL_DEP_OPTS)"
+	@echo "STACK_INSTALL_HELPER         = $(STACK_INSTALL_HELPER)"
+	@echo "STACK_INSTALL_OPTS           = $(STACK_INSTALL_OPTS)"
+	@echo "STACK_OPTS                   = $(STACK_OPTS)"
+	@echo "STACK_OPT_FAST               = $(STACK_OPT_FAST)"
+	@echo "STACK_OPT_NO_DOCS            = $(STACK_OPT_NO_DOCS)"
+	@echo "PROFILEOPTS                  = $(PROFILEOPTS)"
 	@echo
 	@echo "Run \`make -pq\` to get a detailed report."
 	@echo
