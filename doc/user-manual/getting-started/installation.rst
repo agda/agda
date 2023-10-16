@@ -292,8 +292,8 @@ Please report any bugs to Debian, using:
 Fedora / EPEL (Centos)
 ----------------------
 
-Agda is [packaged](https://src.fedoraproject.org/rpms/Agda) for Fedora Linux and EPEL.
-[Agda-stdlib](https://src.fedoraproject.org/rpms/Agda-stdlib/) is available for Fedora.
+Agda is `packaged <https://src.fedoraproject.org/rpms/Agda>`_ for Fedora Linux and EPEL.
+Agda-stdlib is `available <https://src.fedoraproject.org/rpms/Agda-stdlib/>`_ for Fedora.
 
 .. code-block:: bash
 
