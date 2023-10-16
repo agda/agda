@@ -110,8 +110,9 @@ jobs:
     - uses: haskell-actions/setup@v2
       id: setup-haskell
       with:
-        ghc-version: ${{ env.GHC_VER }}
+        ghc-version:   ${{ env.GHC_VER }}
         cabal-version: ${{ env.CABAL-VER }}
+        cabal-update:  true
 
     - name: Environment settings based on the Haskell setup
       run: |
@@ -157,11 +158,10 @@ jobs:
 
     - name: Configure the build plan
       run: |
-        cabal update
         cabal configure -O0 ${FLAGS}
         cabal build --dry-run
       # cabal build --dry-run creates dist-newstyle/cache/plan.json
-      # Keep a watch on this `cabal-3.9 build --dry-run` bug:
+      # This does not download the dependencies, except with buggy `cabal-3.9`:
       # https://github.com/haskell/cabal/issues/8706
 
     - name: Restore cache from approximate key

@@ -30,7 +30,7 @@ jobs:
     - id: setup-haskell
       uses: haskell-actions/setup@v2
       with:
-        cabal-update: false
+        cabal-update: true
         cabal-version: ${{ matrix.cabal-ver }}
         ghc-version: ${{ matrix.ghc-ver }}
     - name: Environment settings based on the Haskell setup
@@ -43,7 +43,6 @@ jobs:
         echo "CABAL_VER=${CABAL_VER}"   >> ${GITHUB_ENV}
     - name: Configure the build plan
       run: |
-        cabal update
         cabal configure ${FLAGS}
         cabal build --dry-run
     - env:

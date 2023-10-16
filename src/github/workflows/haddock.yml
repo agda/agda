@@ -49,8 +49,9 @@ jobs:
     - uses: haskell-actions/setup@v2
       id: setup-haskell
       with:
-        ghc-version: ${{ matrix.ghc-ver }}
+        ghc-version:   ${{ matrix.ghc-ver }}
         cabal-version: ${{ matrix.cabal-ver }}
+        cabal-update:  true
 
     - name: Environment settings based on the Haskell setup
       run: |
@@ -64,7 +65,6 @@ jobs:
 
     - name: Configure the build plan
       run: |
-        cabal update
         cabal configure ${FLAGS}
         cabal build --dry-run
       # cabal build --dry-run creates dist-newstyle/cache/plan.json
