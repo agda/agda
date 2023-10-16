@@ -38,6 +38,7 @@ jobs:
     - id: setup-haskell
       uses: haskell-actions/setup@v2
       with:
+        cabal-update: true
         cabal-version: ${{ env.CABAL-VER }}
         ghc-version: ${{ env.GHC_VER }}
     - name: Environment settings based on the Haskell setup
@@ -74,7 +75,6 @@ jobs:
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - name: Configure the build plan
       run: |
-        cabal update
         cabal configure -O0 ${FLAGS}
         cabal build --dry-run
     - id: cache
