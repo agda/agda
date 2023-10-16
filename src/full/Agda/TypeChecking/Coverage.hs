@@ -30,6 +30,8 @@ import qualified Data.Set as Set
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 
+import qualified Agda.Benchmarking as Bench
+
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Internal hiding (DataOrRecord)
@@ -38,6 +40,7 @@ import Agda.Syntax.Translation.InternalToAbstract (NamedClause(..))
 
 import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Monad
+import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TypeChecking.Rules.LHS (DataOrRecord, checkSortOfSplitVar)
 import Agda.TypeChecking.Rules.LHS.Problem (allFlexVars)
@@ -996,12 +999,14 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
   -- context.
   let flatSplit = boolToMaybe (getCohesion info == Flat) SplitOnFlat
 
-  r <- withKIfStrict $ lift $ unifyIndices' flatSplit
-         delta1Gamma
-         flex
-         (raise (size gamma) dtype)
-         conIxs
-         givenIxs
+  r <- withKIfStrict $ lift $
+         Bench.billTo [Bench.Coverage, Bench.UnifyIndices] $
+           unifyIndices' flatSplit
+             delta1Gamma
+             flex
+             (raise (size gamma) dtype)
+             conIxs
+             givenIxs
 
   TelV eqTel _ <- telView $ (raise (size gamma) dtype)
 
