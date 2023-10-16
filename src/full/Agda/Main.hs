@@ -241,7 +241,7 @@ runAgdaWithOptions interactor progName opts = do
           -- Print accumulated warnings
           unlessNullM (tcWarnings . classifyWarnings <$> getAllWarnings AllWarnings) $ \ ws -> do
             let banner = text $ "\n" ++ delimiter "All done; warnings encountered"
-            reportSDoc "warning" 1 $
+            alwaysReportSDoc "warning" 1 $
               vcat $ punctuate "\n" $ banner : (prettyTCM <$> ws)
 
           return result

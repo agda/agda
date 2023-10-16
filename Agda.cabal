@@ -162,7 +162,19 @@ flag debug
   default: False
   manual: True
   description:
-    Enable debugging features that may slow Agda down.
+    Enable debug printing. This makes Agda slightly slower, and
+    building Agda slower as well. The --verbose=N option only
+    has an effect when Agda was built with this flag.
+
+flag debug-serialisation
+  default: False
+  description:
+    Enable debug mode in serialisation. This makes serialisation slower.
+
+flag debug-parsing
+  default: False
+  description:
+    Enable debug mode in parsing. This makes parsing slower.
 
 flag enable-cluster-counting
   default: False
@@ -350,6 +362,12 @@ library
 
   if flag(debug)
     cpp-options:    -DDEBUG
+
+  if flag(debug-serialisation)
+    cpp-options:    -DDEBUG_SERIALISATION
+
+  if flag(debug-parsing)
+    cpp-options:    -DDEBUG_PARSING
 
   if flag(enable-cluster-counting)
     cpp-options:    -DCOUNT_CLUSTERS

@@ -450,7 +450,8 @@ Printing and debugging
 
 .. option:: --verbose={N}, -v={N}
 
-     Set verbosity level to ``N``.
+     Set verbosity level to ``N``. This only has an effect if
+     Agda was installed with the :option:`debug` flag.
 
 .. option:: --profile={PROF}
 

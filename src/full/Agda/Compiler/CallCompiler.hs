@@ -47,7 +47,7 @@ callCompiler doCall cmd args cwd enc =
       Nothing     -> return ()
       Just errors -> typeError (CompilationError errors)
   else
-    reportSLn "compile.cmd" 1 $ "NOT calling: " ++ unwords (cmd : args)
+    alwaysReportSLn "compile.cmd" 1 $ "NOT calling: " ++ unwords (cmd : args)
 
 -- | Generalisation of @callCompiler@ where the raised exception is
 -- returned.
@@ -64,7 +64,7 @@ callCompiler'
      -- from the process (stdout and stderr).
   -> TCM (Maybe String)
 callCompiler' cmd args cwd enc = do
-  reportSLn "compile.cmd" 1 $ "Calling: " ++ unwords (cmd : args)
+  alwaysReportSLn "compile.cmd" 1 $ "Calling: " ++ unwords (cmd : args)
   (_, out, err, p) <-
     liftIO $ createProcess
                (proc cmd args) { std_err = CreatePipe
@@ -83,7 +83,7 @@ callCompiler' cmd args cwd enc = do
         Nothing  -> return ()
         Just enc -> liftIO $ hSetEncoding out enc
       progressInfo <- liftIO $ hGetContents out
-      mapM_ (reportSLn "compile.output" 1) $ lines progressInfo
+      mapM_ (alwaysReportSLn "compile.output" 1) $ lines progressInfo
 
   errors <- liftIO $ case err of
     Nothing  -> __IMPOSSIBLE__

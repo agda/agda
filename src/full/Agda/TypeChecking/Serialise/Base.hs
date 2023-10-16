@@ -123,7 +123,7 @@ lookupME proxy fprint me found notfound = go fprint me where
 
 -- | Structure providing fresh identifiers for hash map
 --   and counting hash map hits (i.e. when no fresh identifier required).
-#ifdef DEBUG
+#ifdef DEBUG_SERIALISATION
 data FreshAndReuse = FreshAndReuse
   { farFresh :: !Int32 -- ^ Number of hash map misses.
   , farReuse :: !Int32 -- ^ Number of hash map hits.
@@ -136,7 +136,7 @@ newtype FreshAndReuse = FreshAndReuse
 
 farEmpty :: FreshAndReuse
 farEmpty = FreshAndReuse 0
-#ifdef DEBUG
+#ifdef DEBUG_SERIALISATION
                            0
 #endif
 
@@ -144,7 +144,7 @@ lensFresh :: Lens' FreshAndReuse Int32
 lensFresh f r = f (farFresh r) <&> \ i -> r { farFresh = i }
 {-# INLINE lensFresh #-}
 
-#ifdef DEBUG
+#ifdef DEBUG_SERIALISATION
 lensReuse :: Lens' FreshAndReuse Int32
 lensReuse f r = f (farReuse r) <&> \ i -> r { farReuse = i }
 {-# INLINE lensReuse #-}
@@ -336,7 +336,7 @@ icodeX dict counter key = do
     mi <- H.lookup d key
     case mi of
       Just i  -> do
-#ifdef DEBUG
+#ifdef DEBUG_SERIALISATION
         modifyIORef' c $ over lensReuse (+1)
 #endif
         return $! i
@@ -357,7 +357,7 @@ icodeInteger key = do
     mi <- H.lookup d key
     case mi of
       Just i  -> do
-#ifdef DEBUG
+#ifdef DEBUG_SERIALISATION
         modifyIORef' c $ over lensReuse (+1)
 #endif
         return $! i
@@ -374,7 +374,7 @@ icodeDouble key = do
     mi <- H.lookup d key
     case mi of
       Just i  -> do
-#ifdef DEBUG
+#ifdef DEBUG_SERIALISATION
         modifyIORef' c $ over lensReuse (+1)
 #endif
         return $! i
@@ -391,7 +391,7 @@ icodeString key = do
     mi <- H.lookup d key
     case mi of
       Just i  -> do
-#ifdef DEBUG
+#ifdef DEBUG_SERIALISATION
         modifyIORef' c $ over lensReuse (+1)
 #endif
         return i
@@ -408,7 +408,7 @@ icodeNode key = do
     mi <- H.lookup d key
     case mi of
       Just i  -> do
-#ifdef DEBUG
+#ifdef DEBUG_SERIALISATION
         modifyIORef' c $ over lensReuse (+1)
 #endif
         return $! i
@@ -434,7 +434,7 @@ icodeMemo getDict getCounter a icodeP = do
     st <- asks getCounter
     case mi of
       Just i  -> liftIO $ do
-#ifdef DEBUG
+#ifdef DEBUG_SERIALISATION
         modifyIORef' st $ over lensReuse (+ 1)
 #endif
         return $! i
