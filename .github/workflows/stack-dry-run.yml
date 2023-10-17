@@ -72,6 +72,7 @@ jobs:
       fail-fast: false
       matrix:
         ghc-ver:
+        - 9.6.3
         - 9.4.7
         - 9.2.8
         - 9.0.2
@@ -91,6 +92,7 @@ name: Stack check snapshots
     - Agda.cabal
     - Setup.hs
     - stack-*.yaml
+    - '!stack-9.8.1.yaml'
     - src/size-solver/size-solver.cabal
   push:
     branches:
@@ -102,5 +104,6 @@ name: Stack check snapshots
     - Agda.cabal
     - Setup.hs
     - stack-*.yaml
+    - '!stack-9.8.1.yaml'
     - src/size-solver/size-solver.cabal
   workflow_dispatch: null
