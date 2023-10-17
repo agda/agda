@@ -53,11 +53,11 @@ env:
 
   # Andreas, 2022-11-24, set the stack version here so that it is easily
   # shared between the jobs.
-  STACK_VER: "2.11.1"
+  STACK_VER: "2.13.1"
   # Andreas, 2022-03-26, 2022-11-28:
   # GHC_VER should be given as x.y.z (as opposed to x.y only)
   # because it is used verbatim when referring to stack-x.y.z.yaml.
-  GHC_VER: "9.6.3"
+  GHC_VER: "9.8.1"
 
   # Part 2: Variables that should not have to be changed
   ###########################################################################
@@ -152,7 +152,7 @@ jobs:
 
     - name: "Install dependencies for Agda and its test suites"
       ## Always do this step, even if we got a cache hit.  Should be fast in case we got a hit.
-      # if: ${{ !steps.cache.outputs.cache-hit }}
+      # if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       run: make install-deps
       ## This used to be: make STACK_OPTS=--silent install-deps
       ## but printing stuff might not hurt here.
@@ -190,7 +190,7 @@ jobs:
           stack-work.tzst
 
     # - name: Clear old cache
-    #   if:   ${{ steps.cache.outputs.cache-hit }}
+    #   if:   ${{ steps.cache.outputs.cache-hit == 'true' }}
     #   env:
     #     KEY: ${{ steps.cache.outputs.cache-matched-key }}
     #     GH_TOKEN: ${{ github.token }}

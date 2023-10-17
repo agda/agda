@@ -25,7 +25,7 @@ jobs:
       CABAL_VER: ${{ matrix.cabal-ver || '3.10' }}
       FLAGS: ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting'
         }}
-      GHC_VER: ${{ matrix.ghc-ver || '9.6.3' }}
+      GHC_VER: ${{ matrix.ghc-ver || '9.8.1' }}
     name: Cabal ${{ matrix.description }}, ${{ matrix.ghc-ver }}
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
@@ -87,7 +87,7 @@ jobs:
           ${{ steps.setup-haskell.outputs.cabal-store }}
         restore-keys: cabal.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{
           env.CABAL_VER }}-
-    - if: ${{ !steps.cache.outputs.cache-hit }}
+    - if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       name: Install dependencies
       run: |
         cabal build --only-dependencies
@@ -110,6 +110,7 @@ jobs:
         doctest:
         - false
         ghc-ver:
+        - 9.8.1
         - 9.6.3
         - 9.4.7
         - 9.2.8
@@ -121,22 +122,22 @@ jobs:
         - cabal-flags: --disable-tests
           description: Linux doctest
           doctest: true
-          ghc-ver: 9.6.3
+          ghc-ver: 9.8.1
           os: ubuntu-22.04
         - cabal-flags: --enable-tests -f debug
           description: Linux debug
-          ghc-ver: 9.6.3
+          ghc-ver: 9.8.1
           os: ubuntu-22.04
         - cabal-flags: |
             --enable-tests -f enable-cluster-counting -f debug -c containers>=0.7 --allow-newer=containers
           description: Linux containers 0.7
-          ghc-ver: 9.6.3
+          ghc-ver: 9.8.1
           os: ubuntu-22.04
         - description: macOS
-          ghc-ver: 9.6.3
+          ghc-ver: 9.8.1
           os: macos-12
         - description: Windows
-          ghc-ver: 9.6.3
+          ghc-ver: 9.8.1
           os: windows-2022
         os:
         - ubuntu-22.04

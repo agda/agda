@@ -32,7 +32,7 @@ jobs:
         # "most canonical", since this is the deploy action.
         # As of today, this is [windows-2022, macOS-11, ubuntu-20.04].
         os: [windows-latest, macos-latest]
-        ghc-ver: ['9.6']
+        ghc-ver: ['9.8']
         # Use default (= latest) cabal version
         # cabal-ver: ['3.10']
 
@@ -189,7 +189,7 @@ jobs:
         restore-keys: deploy.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-
 
     - name: Build dependencies
-      if: ${{ !steps.cache.outputs.cache-hit }}
+      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       run: cabal build exe:agda exe:agda-mode --only-dependencies
 
     - name: Build Agda

@@ -8,10 +8,10 @@
 env:
   AGDA_TESTS_OPTIONS: -j${PARALLEL_TESTS} --hide-successes
   BUILD_DIR: dist
-  GHC_VER: 9.6.3
+  GHC_VER: 9.8.1
   PARALLEL_TESTS: 2
   STACK: stack --system-ghc
-  STACK_VER: 2.11.1
+  STACK_VER: 2.13.1
   TASTY_ANSI_TRICKS: 'false'
 jobs:
   build:

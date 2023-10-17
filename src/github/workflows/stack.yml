@@ -195,7 +195,7 @@ jobs:
           # .stack-work-fast
 
     - name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
-      # if: ${{ !steps.cache.outputs.cache-hit }}
+      # if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
 
     - name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests` (i.e. the test suite).
@@ -207,7 +207,7 @@ jobs:
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}
 
     # - name: Clear cache
-    #   if:   ${{ steps.cache.outputs.cache-hit }}
+    #   if:   ${{ steps.cache.outputs.cache-hit == 'true' }}
     #   env:
     #     KEY: ${{ steps.cache.outputs.cache-matched-key }}
     #     GH_TOKEN: ${{ github.token }}

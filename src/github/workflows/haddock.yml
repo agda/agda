@@ -25,7 +25,7 @@ jobs:
         # not for the virtual environments, and also haskell/action/setup
         # is usually not up-to-date.
         os: [ubuntu-22.04]
-        ghc-ver: ['9.6.3']
+        ghc-ver: ['9.8.1']
         cabal-ver: ['3.10']
           # Use the versions the come with the virtual environment, if possible.
 
@@ -83,7 +83,7 @@ jobs:
              haddock.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-
 
     - name: Install dependencies
-      if: ${{ !steps.cache.outputs.cache-hit }}
+      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       run: |
         cabal build --dependencies-only
       # cabal build --dependencies-only --force-reinstalls

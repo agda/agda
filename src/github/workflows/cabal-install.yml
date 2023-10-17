@@ -40,17 +40,18 @@ jobs:
 
     timeout-minutes: 60
 
+    runs-on: ubuntu-latest
     ## Use preinstalled GHC and Cabal
     #
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - ubuntu-latest
-        ghc-ver: ['9.6.3']
-        cabal-ver: ['3.10.1.0']
-        # Use the versions preinstalled in the virtual environment, if possible.
+    # runs-on: ${{ matrix.os }}
+    # strategy:
+    #   fail-fast: false
+    #   matrix:
+    #     os:
+    #       - ubuntu-latest
+    #     ghc-ver: ['9.8.1']
+    #     cabal-ver: ['3.10.1.0']
+    #     # Use the versions preinstalled in the virtual environment, if possible.
 
     env:
       FLAGS: "-O0 -f enable-cluster-counting"
@@ -58,23 +59,28 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    # ## Disable the setup action: Use preinstalled GHC and Cabal.
-    # ##
-    # ## In case the ubuntu-22.04 environment moves GHC beyond
-    # ## what Agda supports, bring back the setup action.
-    #
+    ## Disable the setup action: Use preinstalled GHC and Cabal.
+    ##
+    ## In case the ubuntu-22.04 environment moves GHC beyond
+    ## what Agda supports, bring back the setup action.
+    # - uses: haskell-actions/setup@v2
+    #   id: setup-haskell
+    #   with:
+    #     ghc-version:   ${{ matrix.ghc-ver }}
+    #     cabal-version: ${{ matrix.cabal-ver }}
+    #     cabal-update:  true
+
     # 2023-08-21: skipping setup does no work out of the box
     # since then cabal uses the XDG directory structure.
     # In particular, the ~/.cabal/store is somewhere else.
-    # We also need to reset the cache then so cabal does not get
+    # A workaround is to create the .cabal directory.
+    # In case we switch to XDG we need to reset the cache then so cabal does not get
     # confused if there is both the restored .cabal/store and the XDG store.
-    #
-    - uses: haskell-actions/setup@v2
-      id: setup-haskell
-      with:
-        ghc-version:   ${{ matrix.ghc-ver }}
-        cabal-version: ${{ matrix.cabal-ver }}
-        cabal-update:  true
+
+    - name: Set up cabal
+      run: |
+        mkdir -p ~/.cabal
+        cabal update
 
     - name: Environment settings based on the Haskell setup
       run: |
@@ -90,23 +96,21 @@ jobs:
         cabal configure ${FLAGS}
         cabal build --dry-run
       # cabal build --dry-run creates dist-newstyle/cache/plan.json
-      # Keep a watch on this `cabal-3.9 build --dry-run` bug:
-      # https://github.com/haskell/cabal/issues/8706
 
     - name: Restore cached dependencies
       uses: actions/cache/restore@v3
       id: cache
       env:
-        key: cabal-install.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-
+        key: cabal-install.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}
       with:
         path: &cache_path ~/.cabal/store
         # ${{ steps.setup-haskell.outputs.cabal-store }}
         # The file `plan.json` contains the build information.
         key:          ${{ env.key }}-${{ hashFiles('**/plan.json') }}
-        restore-keys: ${{ env.key }}
+        restore-keys: ${{ env.key }}-
 
     - name: Install dependencies
-      if: ${{ !steps.cache.outputs.cache-hit }}
+      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       run: |
         cabal build --only-dependencies
 
@@ -116,7 +120,7 @@ jobs:
 
     - name: Save cache
       uses: actions/cache/save@v3
-      if:   always() && !steps.cache.outputs.cache-hit
+      if:   ${{ always() && (steps.cache.outputs.cache-hit != 'true') }}
             # save cache even when build fails
       with:
         key:  ${{ steps.cache.outputs.cache-primary-key }}

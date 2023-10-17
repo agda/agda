@@ -45,7 +45,7 @@ jobs:
           ${{ steps.setup-haskell.outputs.cabal-store }}
         restore-keys: |
           haddock.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-
-    - if: ${{ !steps.cache.outputs.cache-hit }}
+    - if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       name: Install dependencies
       run: |
         cabal build --dependencies-only
@@ -70,7 +70,7 @@ jobs:
         cabal-ver:
         - '3.10'
         ghc-ver:
-        - 9.6.3
+        - 9.8.1
         os:
         - ubuntu-22.04
 name: Haddock

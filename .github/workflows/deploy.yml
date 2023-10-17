@@ -125,7 +125,7 @@ jobs:
         path: ${{ steps.setup-haskell.outputs.cabal-store }}
         restore-keys: deploy.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{
           env.CABAL_VER }}-
-    - if: ${{ !steps.cache.outputs.cache-hit }}
+    - if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       name: Build dependencies
       run: cabal build exe:agda exe:agda-mode --only-dependencies
     - name: Build Agda
@@ -192,7 +192,7 @@ jobs:
       fail-fast: false
       matrix:
         ghc-ver:
-        - '9.6'
+        - '9.8'
         include:
         - ghc-ver: '9.4'
           os: ubuntu-20.04

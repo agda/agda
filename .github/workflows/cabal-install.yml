@@ -24,15 +24,13 @@ jobs:
     env:
       FLAGS: -O0 -f enable-cluster-counting
     needs: auto-cancel
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - id: setup-haskell
-      uses: haskell-actions/setup@v2
-      with:
-        cabal-update: true
-        cabal-version: ${{ matrix.cabal-ver }}
-        ghc-version: ${{ matrix.ghc-ver }}
+    - name: Set up cabal
+      run: |
+        mkdir -p ~/.cabal
+        cabal update
     - name: Environment settings based on the Haskell setup
       run: |
         GHC_VER=$(ghc --numeric-version)
@@ -47,36 +45,27 @@ jobs:
         cabal build --dry-run
     - env:
         key: cabal-install.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
-          }}-
+          }}
       id: cache
       name: Restore cached dependencies
       uses: actions/cache/restore@v3
       with:
         key: ${{ env.key }}-${{ hashFiles('**/plan.json') }}
         path: ~/.cabal/store
-        restore-keys: ${{ env.key }}
-    - if: ${{ !steps.cache.outputs.cache-hit }}
+        restore-keys: ${{ env.key }}-
+    - if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       name: Install dependencies
       run: |
         cabal build --only-dependencies
     - name: Install Agda
       run: |
         cabal install ${FLAGS}
-    - if: always() && !steps.cache.outputs.cache-hit
+    - if: ${{ always() && (steps.cache.outputs.cache-hit != 'true') }}
       name: Save cache
       uses: actions/cache/save@v3
       with:
         key: ${{ steps.cache.outputs.cache-primary-key }}
         path: ~/.cabal/store
-    strategy:
-      fail-fast: false
-      matrix:
-        cabal-ver:
-        - 3.10.1.0
-        ghc-ver:
-        - 9.6.3
-        os:
-        - ubuntu-latest
     timeout-minutes: 60
 name: Install (v2-cabal)
 'on':
