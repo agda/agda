@@ -35,6 +35,7 @@ description:
     packages.
 
 tested-with:
+    GHC == 9.8.1
     GHC == 9.6.3
     GHC == 9.4.7
     GHC == 9.2.8

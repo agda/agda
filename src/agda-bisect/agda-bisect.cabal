@@ -5,28 +5,29 @@ cabal-version: >= 1.10
 author: Nils Anders Danielsson
 build-type: Simple
 tested-with:
-  GHC == 8.0.2
-  GHC == 8.2.2
-  GHC == 8.4.4
-  GHC == 8.6.5
-  GHC == 8.8.4
-  GHC == 8.10.7
+  GHC == 9.8.1
+  GHC == 9.6.3
+  GHC == 9.4.7
+  GHC == 9.2.8
   GHC == 9.0.2
-  GHC == 9.2.5
-  GHC == 9.4.4
+  GHC == 8.10.7
+  GHC == 8.8.4
+  GHC == 8.6.5
+  GHC == 8.4.4
+  GHC == 8.2.2
+  GHC == 8.0.2
 
 executable agda-bisect
   main-is:          Bisect.hs
   build-depends:
-      base                 >= 4.9.0.0 && < 4.18
-    , ansi-wl-pprint       >= 0.6.7.3 && < 0.7
+      base                 >= 4.9.0.0 && < 4.20
+    , ansi-wl-pprint       >= 0.6.7.3 && < 1.1
     , directory            >= 1.2.6.2 && < 1.4
     , filepath             >= 1.4.1.0 && < 1.5
-    , optparse-applicative >= 0.13    && < 0.18
+    , optparse-applicative >= 0.13    && < 0.19
     , process              >= 1.4.2.0 && < 1.7
     , time                 >= 1.6.0.1 && < 1.13
-    , unix                 >= 2.7.2.0 && < 2.8
-        -- TODO: unix < 2.9 (not yet supported by process as of 2022-08-19)
+    , unix                 >= 2.7.2.0 && < 2.9
   default-language: Haskell2010
   other-extensions: NamedFieldPuns
   ghc-options:      -threaded

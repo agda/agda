@@ -7,7 +7,7 @@ Highlights
 Installation
 ------------
 
-* Agda supports GHC versions 8.6.5 to 9.6.3.
+* Agda supports GHC versions 8.6.5 to 9.8.1.
 
 * Verbose output printing via `-v` or `--verbose` is now only active if Agda is built with the `debug` cabal flag.
   Without `debug`, no code is generated for verbose printing, which makes building Agda faster and Agda itself
