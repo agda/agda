@@ -9,8 +9,8 @@ Do not edit the YAML files here directly!
 - Tested with
   ```bash
   $ yaml2json --version
-  yaml2json version 0.11.8.0 https://github.com/snoyberg/yaml/
+  yaml2json version 0.11.11.2 https://github.com/snoyberg/yaml/
 
   $ json2yaml --version
-  json2yaml version 0.11.8.0 https://github.com/snoyberg/yaml/
+  json2yaml version 0.11.11.2 https://github.com/snoyberg/yaml/
   ```

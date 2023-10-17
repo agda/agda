@@ -87,6 +87,7 @@ extra-doc-files:
     doc/release-notes/2.2.0.md
 
 extra-source-files:
+    stack-9.8.1.yaml
     stack-9.6.3.yaml
     stack-9.4.7.yaml
     stack-9.2.8.yaml
