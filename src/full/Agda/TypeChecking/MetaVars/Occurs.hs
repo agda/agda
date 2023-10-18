@@ -529,22 +529,30 @@ instance Occurs Term where
               -- don't attempt pruning if we're in a flexible context
                if not (isFlexible ctx) then do
                  killResult <- lift . prune m' vs =<< allowedVars
-                 v <- instantiate (MetaV m' es)
-                 if (killResult == PrunedEverything) then do
-                   reportSDoc "tc.meta.prune" 40 $ "Pruned everything"
-                   -- we don't have to do occurs-check after everything was pruned
-                   return $ Right v
-                 else do
-                   reportSDoc "tc.meta.prune" 40 $ "Didn't manage to prune everything"
-                   -- some variables were pruned, but not all, still have to do occurs-check after
-                   return $ Left v
+                 case killResult of
+                   PrunedEverything -> do
+                     reportSDoc "tc.meta.prune" 40 $ "Pruned everything"
+                     -- we don't have to do occurs-check after everything was pruned
+                     v <- instantiate (MetaV m' es)
+                     return $ Right v
+                   PrunedSomething -> do
+                     reportSDoc "tc.meta.prune" 40 $ "Didn't manage to prune everything"
+                     -- some variables were pruned, but not all, still have to do occurs-check after
+                     v <- instantiate (MetaV m' es)
+                     return $ Left v
+                   PrunedNothing -> do
+                     -- couldn't prune anything, though we needed it
+                     return . Left $ (MetaV m' es)
+                   NothingToPrune -> do
+                     -- no pruning needed
+                     return . Right $ (MetaV m' es)
                else fallback
             case t of
               -- The arguments of a meta are in a flexible position
               (Left (MetaV m' es')) -> (MetaV m' <$> do flexibly $ occurs es')
               -- Sometimes instantiated meta is actually not a meta itself
               (Left t) -> occurs t
-              -- the PrunedEverything case
+              -- the PrunedEverything and NothingToPrune case
               (Right v) -> return v
           where
             -- a data or record type constructor propagates strong occurrences
