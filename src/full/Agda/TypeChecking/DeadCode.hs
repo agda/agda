@@ -17,6 +17,7 @@ import Agda.Interaction.Options
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Names
 import Agda.Syntax.Scope.Base
