@@ -95,6 +95,9 @@ eliminateDeadCode bs disp sig ms = Bench.billTo [Bench.DeadCode] $ do
     "Removed " ++ show (HMap.size defs - HMap.size defs') ++
     " unused definitions and " ++ show (MapS.size ms - HMap.size ms') ++
     " unused meta-variables."
+  reportSLn "tc.dead" 90 $ unlines $
+    "Removed the following definitions from the signature:" :
+    map (("- " ++) . prettyShow) (Set.toList dead)
   let !sig' = set sigDefinitions defs' sig
   return (disp', sig', ms')
 
