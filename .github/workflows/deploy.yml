@@ -143,7 +143,9 @@ jobs:
           find dist-newstyle/build \( -name 'agda.exe' -o -name 'agda-mode.exe' \) -type f -exec cp {} "${nightly}"/bin \;
           cp -a .github/*.bat "${nightly}"
           cp ${DLL} "${nightly}"/bin/
-          C:/ProgramData/Chocolatey/bin/strip.exe "${nightly}"/bin/*
+          ## Issue #6926: strip.exe not installed there.
+          ## Stripping step is optional, so we skip it.
+          # C:/ProgramData/Chocolatey/bin/strip.exe "${nightly}"/bin/*
 
         else
 
