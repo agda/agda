@@ -685,13 +685,6 @@ instance PiApplyM a => PiApplyM [a] where
   piApplyM' err t = foldl (\ mt v -> mt >>= \t -> (piApplyM' err t v)) (return t)
 
 
--- | Compute type arity
-
-typeArity :: Type -> TCM Nat
-typeArity t = do
-  TelV tel _ <- telView t
-  return (size tel)
-
 ---------------------------------------------------------------------------
 -- * Instance definitions
 ---------------------------------------------------------------------------

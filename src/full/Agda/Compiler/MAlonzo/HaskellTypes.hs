@@ -13,7 +13,7 @@ import Control.Monad.Except  ( ExceptT(ExceptT), runExceptT, mapExceptT, catchEr
 import Control.Monad.Trans   ( lift )
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, listToMaybe)
 import Data.List (intercalate)
 
 import Agda.Syntax.Position
@@ -165,12 +165,14 @@ getHsVar :: (MonadFail tcm, MonadTCM tcm) => Nat -> tcm HS.Name
 getHsVar i =
   HS.Ident . encodeString (VarK X) . prettyShow <$> nameOfBV i
 
-haskellType' :: Type -> HsCompileM HS.Type
-haskellType' t = runToHs (unEl t) (fromType t)
+haskellType' :: [Bool] -> Type -> HsCompileM HS.Type
+haskellType' es t = runToHs (unEl t) (fromType es t)
   where
-    fromArgs = mapM (fromTerm . unArg)
-    fromType = fromTerm . unEl
-    fromTerm v = do
+    fromArgs = mapM (fromTerm [] . unArg) . filter usableModality
+    fromType :: [Bool] -> Type -> ToHs HS.Type
+    fromType es t = fromTerm es (unEl t)
+    fromTerm :: [Bool] -> Term -> ToHs HS.Type
+    fromTerm es v = do
       v   <- liftTCM $ unSpine <$> reduce v
       reportSDoc "compile.haskell.type" 25 $ "toHaskellType " <+> prettyTCM v
       reportSDoc "compile.haskell.type" 50 $ "toHaskellType " <+> pretty v
@@ -182,13 +184,16 @@ haskellType' t = runToHs (unEl t) (fromType t)
         Def d es -> do
           let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           hsApp <$> getHsType d <*> fromArgs args
-        Pi a b ->
-          if isBinderUsed b  -- Andreas, 2012-04-03.  Q: could we rely on Abs/NoAbs instead of again checking freeness of variable?
-          then do
-            hsA <- fromType (unDom a)
+        Pi a b
+          | not (usableModality a) || Just True == listToMaybe es ->
+            fromType es (lazyAbsApp b $ DontCare __DUMMY_TERM__)
+          -- Andreas, 2012-04-03.  Q: could we rely on Abs/NoAbs instead of again checking freeness of variable?
+          | isBinderUsed b -> do
+            hsA <- fromType [] (unDom a)
             liftE1' (underAbstraction a b) $ \ b ->
-              hsForall <$> getHsVar 0 <*> (hsFun hsA <$> fromType b)
-          else hsFun <$> fromType (unDom a) <*> fromType (noabsApp __IMPOSSIBLE__ b)
+              hsForall <$> getHsVar 0 <*> (hsFun hsA <$> fromType es b)
+          | otherwise ->
+            hsFun <$> fromType [] (unDom a) <*> fromType (drop 1 es) (noabsApp __IMPOSSIBLE__ b)
         Con c ci es -> do
           let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           hsApp <$> getHsType (conName c) <*> fromArgs args
@@ -206,18 +211,16 @@ haskellType q = do
   let (np, erased) =
         case theDef def of
           Constructor{ conPars, conErased }
-            -> (conPars, fromMaybe [] conErased ++ repeat False)
-          _ -> (0, repeat False)
-      stripErased (True  : es) (HS.TyFun _ t)     = stripErased es t
-      stripErased (False : es) (HS.TyFun s t)     = HS.TyFun s $ stripErased es t
-      stripErased es           (HS.TyForall xs t) = HS.TyForall xs $ stripErased es t
-      stripErased _            t                  = t
-      underPars 0 a = stripErased erased <$> haskellType' a
+            -> (conPars, fromMaybe [] conErased)
+          _ -> (0, [])
+      underPars 0 a = haskellType' erased a
       underPars n a = do
         a <- reduce a
         case unEl a of
           Pi a (NoAbs _ b) -> underPars (n - 1) b
-          Pi a b  -> underAbstraction a b $ \b -> hsForall <$> getHsVar 0 <*> underPars (n - 1) b
+          Pi a b -> underAbstraction a b $ \b -> if
+           | not (usableModality a) -> underPars (n - 1) b
+           | otherwise -> hsForall <$> getHsVar 0 <*> underPars (n - 1) b
           _       -> __IMPOSSIBLE__
   ty <- underPars np $ defType def
   reportSDoc "tc.pragma.compile" 10 $ (("Haskell type for" <+> prettyTCM q) <> ":") <?> pretty ty
@@ -259,7 +262,9 @@ hsTypeApproximation poly fv t = do
         t <- unSpine <$> reduce t
         case t of
           Var i _ | poly == PolyApprox -> return $ tyVar n i
-          Pi a b -> hsFun <$> go n (unEl $ unDom a) <*> go (n + k) (unEl $ unAbs b)
+          Pi a b -> if
+            | usableModality a -> hsFun <$> go n (unEl $ unDom a) <*> go (n + k) (unEl $ unAbs b)
+            | otherwise        -> go (n + k) (unEl $ unAbs b)
             where k = case b of Abs{} -> 1; NoAbs{} -> 0
           Def q els
             | q `is` ghcEnvList
@@ -275,7 +280,7 @@ hsTypeApproximation poly fv t = do
             | q `is` ghcEnvNat     -> return $ tyCon "Integer"
             | q `is` ghcEnvWord64  -> return $ rteCon "Word64"
             | otherwise -> do
-                let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims els
+                let args = filter usableModality $ fromMaybe __IMPOSSIBLE__ $ allApplyElims els
                 foldl HS.TyApp <$> getHsType' q <*> mapM (go n . unArg) args
               `catchError` \ _ -> -- Not a Haskell type
                 ifM (and2M (isCompiled q) (isData q))
