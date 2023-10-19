@@ -7,6 +7,8 @@ import Control.Monad.Trans
 
 import Data.Maybe
 import Data.Monoid (All(..))
+import Data.Map (Map)
+import qualified Data.Map as Map
 import qualified Data.Map.Strict as MapS
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -41,10 +43,14 @@ import qualified Agda.Utils.HashTable as HT
 -- Things that are reachable only from warnings are removed.
 
 eliminateDeadCode ::
-  BuiltinThings PrimFun -> DisplayForms -> Signature ->
-  LocalMetaStore ->
-  TCM (DisplayForms, Signature, RemoteMetaStore)
-eliminateDeadCode bs disp sig ms = Bench.billTo [Bench.DeadCode] $ do
+     Map ModuleName a
+       -- ^ Exported modules whose telescopes should not be mutilated by the dead-code removal.
+  -> BuiltinThings PrimFun
+  -> DisplayForms
+  -> Signature
+  -> LocalMetaStore
+  -> TCM (DisplayForms, Signature, RemoteMetaStore)
+eliminateDeadCode publicModules bs disp sig ms = Bench.billTo [Bench.DeadCode] $ do
   !patsyn <- getPatternSyns
   !public <- Set.mapMonotonic anameName . publicNames <$> getScope
   !save   <- optSaveMetas <$> pragmaOptions
@@ -67,6 +73,7 @@ eliminateDeadCode bs disp sig ms = Bench.billTo [Bench.DeadCode] $ do
       extraRoots =
         Set.fromList $ mapMaybe extraRootsFilter $ HMap.toList defs
 
+      rootSections = Map.elems $ (sig ^. sigSections) `Map.intersection` publicModules
       rootNames = Set.union public extraRoots
       rootMetas =
         if not save then Set.empty else metasIn
@@ -77,7 +84,7 @@ eliminateDeadCode bs disp sig ms = Bench.billTo [Bench.DeadCode] $ do
           )
 
   (!rns, !rms) <- Bench.billTo [Bench.DeadCode, Bench.DeadCodeReachable] $ liftIO $
-                    reachableFrom (rootNames, rootMetas) patsyn disp defs ms
+                    reachableFrom rootSections rootNames rootMetas patsyn disp defs ms
 
   let !dead  = Set.fromList (HMap.keys defs) `Set.difference` rns
       !valid = getAll . namesIn' (All . (`Set.notMember` dead))  -- no used name is dead
@@ -102,11 +109,16 @@ eliminateDeadCode bs disp sig ms = Bench.billTo [Bench.DeadCode] $ do
   let !sig' = set sigDefinitions defs' sig
   return (disp', sig', ms')
 
-reachableFrom
-  :: (Set QName, Set MetaId)  -- ^ Roots.
-  -> A.PatternSynDefns -> DisplayForms -> Definitions -> LocalMetaStore
+reachableFrom ::
+     [Section]      -- ^ Root modules.
+  -> Set QName      -- ^ Root names.
+  -> Set MetaId     -- ^ Root metas.
+  -> A.PatternSynDefns
+  -> DisplayForms
+  -> Definitions
+  -> LocalMetaStore
   -> IO (Set QName, Set MetaId)
-reachableFrom (ids, ms) psyns disp defs insts = do
+reachableFrom sections ids ms psyns disp defs insts = do
 
   !seenNames <- HT.empty :: IO (HashTable QName ())
   !seenMetas <- HT.empty :: IO (HashTable MetaId ())
@@ -135,6 +147,7 @@ reachableFrom (ids, ms) psyns disp defs insts = do
       go = namesAndMetasIn' (either goName goMeta)
       {-# INLINE go #-}
 
+  go sections
   foldMap goName ids
   foldMap goMeta ms
   !ids' <- HT.keySet seenNames

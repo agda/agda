@@ -1236,8 +1236,13 @@ buildInterface src topLevel = do
     -- and should be dead-code eliminated (#1928).
     origDisplayForms <- HMap.filter (not . null) . HMap.map (filter isClosed) <$> useTC stImportsDisplayForms
     -- TODO: Kill some ranges?
+    let scope = topLevelScope topLevel
+    -- Andreas, Oskar, 2023-10-19, issue #6931:
+    -- To not delete module telescopes of empty public modules,
+    -- we need to pass the public modules to the dead-code elimination
+    -- (to be mined for additional roots for the reachability analysis).
     (display, sig, solvedMetas) <-
-      eliminateDeadCode builtin origDisplayForms ==<<
+      eliminateDeadCode (publicModules scope) builtin origDisplayForms ==<<
         (getSignature, useR stSolvedMetaStore)
     userwarns   <- useTC stLocalUserWarnings
     importwarn  <- useTC stWarningOnImport
@@ -1268,7 +1273,7 @@ buildInterface src topLevel = do
           , iModuleName      = mname
           , iTopLevelModuleName = srcModuleName src
           , iScope           = empty -- publicModules scope
-          , iInsideScope     = topLevelScope topLevel
+          , iInsideScope     = scope
           , iSignature       = sig
           , iMetaBindings    = solvedMetas
           , iDisplayForms    = display
