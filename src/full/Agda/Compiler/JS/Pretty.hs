@@ -87,7 +87,7 @@ render minify = intercalate "\n" . joinLines . map (uncurry mkIndent) . go 0
     go i (Doc s) = [(i, s)]
     go i (Beside d d') = joinBy (\(i, s) (_, s') -> [(i, s ++ s')]) (go i d) (go i d')
     go i (Above d d') = joinBy overlay (go i d) (go i d')
-    go i (Indent j d) = go (i+j) d
+    go i (Indent j d) = go (i + j) d
     go i (Enclose open close d) = go i $ Group $ Above open $ Above d close
     go i (Group d)
         | size ss < 40 = compact ss
@@ -143,7 +143,7 @@ group = Group
 
 indentBy :: Int -> Doc -> Doc
 indentBy i Empty = Empty
-indentBy i (Indent j d) = Indent (i+j) d
+indentBy i (Indent j d) = Indent (i + j) d
 indentBy i d = Indent i d
 
 enclose :: Doc -> Doc -> Doc -> Doc
@@ -261,8 +261,8 @@ instance Pretty Exp where
   pretty n (Integer x)       = "agdaRTS.primIntegerFromString(\"" <> text (show x) <> "\")"
   pretty n (Double x)        = text $ show x
   pretty (n, min, ms) (Lambda x e) =
-    mparens (x /= 1) (punctuate "," (pretties (n+x, min, ms) (map LocalId [x-1, x-2 .. 0])))
-    <+> "=>" <+> block (n+x, min, ms) e
+    mparens (x /= 1) (punctuate "," (pretties (n + x, min, ms) (map LocalId [x-1, x-2 .. 0])))
+    <+> "=>" <+> block (n + x, min, ms) e
   pretty n (Object o)        = braces $ punctuate "," $ pretties n o
   pretty n (Array es)        = brackets $ punctuate "," [pretty n c <> pretty n e | (c, e) <- es]
   pretty n (Apply f es)      = pretty n f <> parens (punctuate "," $ pretties n es)

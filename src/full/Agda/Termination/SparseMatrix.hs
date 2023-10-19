@@ -238,7 +238,7 @@ class Diagonal m e | m -> e where
 instance (Integral i, HasZero b) => Diagonal (Matrix i b) b where
   diagonal (Matrix (Size r c) m) =
     blowUpSparseVec zeroElement (min r c) $
-      mapMaybe (\ ((MIx i j), b) -> if i==j then Just (i,b) else Nothing) m
+      mapMaybe (\ (MIx i j, b) -> if i == j then Just (i, b) else Nothing) m
 
 -- | Transposable things.
 
@@ -400,7 +400,7 @@ instance (Ord i, PartialOrd a) => PartialOrd (Matrix i a) where
       both    = comparable
       -- The zero element of the result sparse matrix is the
       -- neutral element of the monoid.
-      trivial = (==mempty)
+      trivial = (== mempty)
 
 ------------------------------------------------------------------------
 -- Modifying matrices

@@ -177,7 +177,7 @@ elimView pe v = do
       case pv of
         NoProjection{}        -> return v
         LoneProjectionLike f ai
-          | pe==EvenLone  -> return $ Lam ai $ Abs "r" $ Var 0 [Proj ProjPrefix f]
+          | pe == EvenLone  -> return $ Lam ai $ Abs "r" $ Var 0 [Proj ProjPrefix f]
           | otherwise     -> return v
         ProjectionView f a es -> (`applyE` (Proj ProjPrefix f : es)) <$> elimView pe (unArg a)
 

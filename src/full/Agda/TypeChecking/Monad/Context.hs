@@ -524,7 +524,7 @@ getVarInfo :: (MonadFail m, MonadTCEnv m) => Name -> m (Term, Dom Type)
 getVarInfo x =
     do  ctx <- getContext
         def <- asksTC envLetBindings
-        case List.findIndex ((==x) . fst . unDom) ctx of
+        case List.findIndex ((== x) . fst . unDom) ctx of
             Just n -> do
                 t <- domOfBV n
                 return (var n, t)

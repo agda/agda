@@ -90,7 +90,7 @@ data NLMState = NLMState
 
 instance Null NLMState where
   empty  = NLMState { _nlmSub = empty , _nlmEqs = empty }
-  null s = null (s^.nlmSub) && null (s^.nlmEqs)
+  null s = null (s ^. nlmSub) && null (s ^. nlmEqs)
 
 nlmSub :: Lens' NLMState Sub
 nlmSub f s = f (_nlmSub s) <&> \x -> s {_nlmSub = x}
@@ -371,7 +371,7 @@ instance Match NLPat Term where
           match r gamma k (ti , Var i) ps es
         _ | Pi a b <- unEl t -> do
           let ai    = domInfo a
-              pbody = PBoundVar (1+i) $ raise 1 ps ++ [ Apply $ Arg ai $ PTerm $ var 0 ]
+              pbody = PBoundVar (1 + i) $ raise 1 ps ++ [ Apply $ Arg ai $ PTerm $ var 0 ]
               body  = raise 1 v `apply` [ Arg ai $ var 0 ]
               k'    = ExtendTel a (Abs (absName b) k)
           match r gamma k' (absBody b) pbody body
@@ -416,8 +416,8 @@ nonLinMatch gamma t p v = do
                    [ "matching failed during" <+> text msg
                    , "blocking: " <+> text (show b) ]) $ return (Left b)
   caseEitherM (runNLM $ match Relevant gamma EmptyTel t p v) (no "matching") $ \ s -> do
-    let msub = makeSubstitution gamma $ s^.nlmSub
-        eqs = s^.nlmEqs
+    let msub = makeSubstitution gamma $ s ^. nlmSub
+        eqs = s ^. nlmEqs
     traceSDoc "rewriting.match" 90 (text $ "msub = " ++ show msub) $ case msub of
       Nothing -> no "checking that all variables are bound" notBlocked_
       Just sub -> do

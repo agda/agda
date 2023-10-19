@@ -630,13 +630,13 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     addEtaSplits :: Int -> [NamedArg SplitPattern] -> SplitTree -> SplitTree
     addEtaSplits k []     t = t
     addEtaSplits k (p:ps) t = case namedArg p of
-      VarP  _ _     -> addEtaSplits (k+1) ps t
-      DotP  _ _     -> addEtaSplits (k+1) ps t
+      VarP  _ _     -> addEtaSplits (k + 1) ps t
+      DotP  _ _     -> addEtaSplits (k + 1) ps t
       ConP c cpi qs -> SplitAt (p $> k) LazySplit [(SplitCon (conName c) , addEtaSplits k (qs ++ ps) t)]
       LitP{}        -> __IMPOSSIBLE__
       ProjP{}       -> __IMPOSSIBLE__
       DefP{}        -> __IMPOSSIBLE__ -- Andrea: maybe?
-      IApplyP{}     -> addEtaSplits (k+1) ps t
+      IApplyP{}     -> addEtaSplits (k + 1) ps t
 
     etaRecordSplits :: Int -> [NamedArg SplitPattern] -> (SplitTag,SplitClause)
                     -> SplitTree -> (SplitTag,SplitTree)

@@ -45,7 +45,7 @@ instance LensPragmaOptions CommandLineOptions where
   lensPragmaOptions f st = f (optPragmaOptions st) <&> \ opts -> st { optPragmaOptions = opts }
 
 instance LensPragmaOptions TCState where
-  getPragmaOptions = (^.stPragmaOptions)
+  getPragmaOptions = (^. stPragmaOptions)
   setPragmaOptions = set stPragmaOptions
   lensPragmaOptions = stPragmaOptions
 

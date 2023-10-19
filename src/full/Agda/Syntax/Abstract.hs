@@ -622,10 +622,10 @@ instance LensHiding LamBinding where
   mapHiding f (DomainFull tb)  = DomainFull $ mapHiding f tb
 
 instance LensHiding TypedBinding where
-  getHiding (TBind _ _ (x :|_) _) = getHiding x   -- Slightly dubious
-  getHiding TLet{}                = mempty
-  mapHiding f (TBind r t xs e)    = TBind r t ((fmap . mapHiding) f xs) e
-  mapHiding f b@TLet{}            = b
+  getHiding (TBind _ _ (x :| _) _) = getHiding x   -- Slightly dubious
+  getHiding TLet{}                 = mempty
+  mapHiding f (TBind r t xs e)     = TBind r t ((fmap . mapHiding) f xs) e
+  mapHiding f b@TLet{}             = b
 
 instance HasRange a => HasRange (Binder' a) where
   getRange (Binder p n) = fuseRange p n

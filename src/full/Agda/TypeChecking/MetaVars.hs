@@ -1291,8 +1291,8 @@ assignMeta' m x t n ids v = do
   -- ALT 2: O(m)
   let assocToList i = \case
         _           | i >= m -> []
-        ((j,u) : l) | i == j -> Just u  : assocToList (i+1) l
-        l                    -> Nothing : assocToList (i+1) l
+        ((j,u) : l) | i == j -> Just u  : assocToList (i + 1) l
+        l                    -> Nothing : assocToList (i + 1) l
       ivs = assocToList 0 ids
       rho = prependS impossible ivs $ raiseS n
       v'  = applySubst rho v
@@ -1723,7 +1723,7 @@ inverseSubst' skip args = map (mapFst unArg) <$> loop (zip args terms)
   -- adding an irrelevant entry only if not present
   cons :: (Arg Nat, Term) -> Res -> Res
   cons a@(Arg ai i, t) vars
-    | isIrrelevant ai = applyUnless (any ((i==) . unArg . fst) vars) (a :) vars
+    | isIrrelevant ai = applyUnless (any ((i ==) . unArg . fst) vars) (a :) vars
     | otherwise       = a :  -- adding a relevant entry
         -- filter out duplicate irrelevants
         filter (not . (\ a@(Arg info j, t) -> isIrrelevant info && i == j)) vars
@@ -1784,8 +1784,8 @@ isFaceConstraint mid args = runMaybeT $ do
   let
     assocToList i = \case
       _           | i >= m -> []
-      ((j,u) : l) | i == j -> Just u  : assocToList (i+1) l
-      l                    -> Nothing : assocToList (i+1) l
+      ((j,u) : l) | i == j -> Just u  : assocToList (i + 1) l
+      l                    -> Nothing : assocToList (i + 1) l
     ivs = assocToList 0 ids
     rho = prependS impossible ivs $ raiseS n
 

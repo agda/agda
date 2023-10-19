@@ -305,7 +305,7 @@ renderErrorParts = vcat . map (hcat . map prettyTCM) . splitLines
   where
     splitLines [] = []
     splitLines (StrPart s : ss) =
-      case break (=='\n') s of
+      case break (== '\n') s of
         (s0, '\n' : s1) -> [StrPart s0] : splitLines (StrPart s1 : ss)
         (s0, "")        -> consLine (StrPart s0) (splitLines ss)
         _               -> __IMPOSSIBLE__

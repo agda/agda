@@ -799,7 +799,7 @@ stInstantiateBlocking f s =
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostInstantiateBlocking = x}}
 
 stBuiltinThings :: TCState -> BuiltinThings PrimFun
-stBuiltinThings s = Map.unionWith unionBuiltin (s^.stLocalBuiltins) (s^.stImportedBuiltins)
+stBuiltinThings s = Map.unionWith unionBuiltin (s ^. stLocalBuiltins) (s ^. stImportedBuiltins)
 
 -- | Union two 'Builtin's.  Only defined for 'BuiltinRewriteRelations'.
 unionBuiltin :: Builtin a -> Builtin a -> Builtin a
@@ -819,7 +819,7 @@ class Enum i => HasFresh i where
 {-# INLINE nextFresh #-}
 nextFresh :: HasFresh i => TCState -> (i, TCState)
 nextFresh s =
-  let !c = s^.freshLens
+  let !c = s ^. freshLens
       !next = set freshLens (nextFresh' c) s
   in (c, next)
 
@@ -4905,7 +4905,7 @@ instance MonadTCEnv ReduceM where
 -- This fixes (or contributes to the fix of) the space leak issue #1829 (caching).
 useR :: (ReadTCState m) => Lens' TCState a -> m a
 useR l = do
-  !x <- (^.l) <$> getTCState
+  !x <- getTCState <&> (^. l)
   return x
 {-# INLINE useR #-}
 

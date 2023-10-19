@@ -406,7 +406,7 @@ buildEquiv (UnificationStep st step@(EtaExpandVar fv _d _args) output) next = fm
         interval <- primIntervalType
          -- Γ, φs : I^phis
         let gamma_phis = abstract gamma $ telFromList $
-              map (defaultDom . (,interval) . ("phi"++) . show) [0 .. phis - 1]
+              map (defaultDom . (,interval) . ("phi" ++) . show) [0 .. phis - 1]
         working_tel <- abstract gamma_phis <$>
           pathTelescope (raise phis $ eqTel st) (raise phis $ eqLHS st) (raise phis $ eqRHS st)
         let raiseFrom tel x = (size working_tel - size tel) + x

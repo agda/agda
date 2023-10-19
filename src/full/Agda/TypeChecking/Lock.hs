@@ -66,7 +66,7 @@ checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) 
     rigid = rigidVars fv
     -- flexible = IMap.keysSet $ flexibleVars fv
     termVars = allVars fv -- ISet.union rigid flexible
-    earlierVars = ISet.fromList [i+1 .. size cxt - 1]
+    earlierVars = ISet.fromList [i + 1 .. size cxt - 1]
   if termVars `ISet.isSubsetOf` earlierVars then return () else do
 
   checked <- fmap catMaybes . forM toCheck $ \ (j,dom) -> do

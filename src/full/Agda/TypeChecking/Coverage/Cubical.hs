@@ -86,12 +86,12 @@ createMissingIndexedClauses f n x old_sc scs cs = do
              extraCl = [trX_cl, hcomp_cl]
                  --  = [trX_cl]
          let clauses = cls ++ extraCl
-         let tree = SplitAt ((+(pars+nixs+1)) <$> n) StrictSplit $
+         let tree = SplitAt (n <&> (+ (pars + nixs + 1))) StrictSplit $
                                            trees
                                         ++ extra
              res = CoverResult
                { coverSplitTree      = tree
-               , coverUsedClauses    = IntSet.fromList (map (length cs +) [0..length clauses-1])
+               , coverUsedClauses    = let l = length cs in IntSet.fromAscList [l .. l + length clauses - 1]
                , coverMissingClauses = []
                , coverPatterns       = clauses
                , coverNoExactClauses = IntSet.empty
@@ -99,8 +99,8 @@ createMissingIndexedClauses f n x old_sc scs cs = do
          reportSDoc "tc.cover.indexed" 20 $
            "tree:" <+> pretty tree
          addClauses f clauses
-         return $ ([(SplitCon trX,res)],cs++clauses)
-    xs | otherwise -> return ([],cs)
+         return ([(SplitCon trX, res)], cs ++ clauses)
+    xs | otherwise -> return ([], cs)
 
 covFillTele :: QName -> Abs Telescope -> Term -> Args -> Term -> TCM [Term]
 covFillTele func tel face d j = do
@@ -1262,7 +1262,7 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) cs 
                                       <@> u0
             return $ liftS (size delta) $ hc `consS` raiseS 3
           -- Γ,φ,u,u0,Δ(x = hcomp phi u u0) ⊢ raise 3+|Δ| hdom
-          hdom <- pure $ raise (3+size delta) hdom
+          hdom <- pure $ raise (3 + size delta) hdom
           htype <- open $ unEl . unDom $ hdom
           lvl <- open =<< (lift . getLevel $ unDom hdom)
 
@@ -1270,12 +1270,12 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) cs 
           [phi,u,u0] <- mapM (open . raise (size delta) . var) [2,1,0]
           -- Γ,x,Δ ⊢ f old_ps
           -- Γ ⊢ abstract hdelta (f old_ps)
-          g <- open $ raise (3+size delta) $ abstract hdelta (Def f old_ps)
-          old_t <- open $ raise (3+size delta) $ abstract hdelta (unDom old_t)
+          g <- open $ raise (3 + size delta) $ abstract hdelta (Def f old_ps)
+          old_t <- open $ raise (3 + size delta) $ abstract hdelta (unDom old_t)
           let bapp a x = lazyAbsApp <$> a <*> x
           (delta_fill :: NamesT TCM (Abs Args)) <- (open =<<) $ do
             -- Γ,φ,u,u0,Δ(x = hcomp phi u u0) ⊢ x.Δ
-            delta <- open $ raise (3+size delta) delta
+            delta <- open $ raise (3 + size delta) delta
             -- Γ,φ,u,u0,Δ(x = hcomp phi u u0) ⊢ i.Δ(x = hfill phi u u0 (~ i))
             deltaf <- open =<< bind "i" (\ i ->
                            (delta `bapp` hfill lvl htype phi u u0 (ineg i)))
@@ -1315,7 +1315,7 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) cs 
              sides <- forM alphab $ \ (psi,(side0,side1)) -> do
                 psi <- open $ hcompS `applySubst` psi
 
-                [side0,side1] <- mapM (open . raise (3+size delta) . abstract hdelta) [side0,side1]
+                [side0, side1] <- mapM (open . raise (3 + size delta) . abstract hdelta) [side0, side1]
                 return $ (ineg psi `imax` psi, \ i -> pOr_ty i (ineg psi) psi (ilam "o" $ \ _ -> apply_delta_fill i $ side0 <@> hfill lvl htype phi u u0 i)
                                                             (ilam "o" $ \ _ -> apply_delta_fill i $ side1 <@> hfill lvl htype phi u u0 i))
              let recurse []           i = __IMPOSSIBLE__
@@ -1367,5 +1367,5 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) cs 
           , coverNoExactClauses = IntSet.empty
           }
   hcompName <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinHComp
-  return ([(SplitCon hcompName,result)],cs++[cl])
+  return ([(SplitCon hcompName, result)], cs ++ [cl])
 createMissingHCompClause _ _ _ _ (SClause _ _ _ _ Nothing) _ = __IMPOSSIBLE__

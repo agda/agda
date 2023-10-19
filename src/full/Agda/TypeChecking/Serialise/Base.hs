@@ -337,11 +337,11 @@ icodeX dict counter key = do
     case mi of
       Just i  -> do
 #ifdef DEBUG_SERIALISATION
-        modifyIORef' c $ over lensReuse (+1)
+        modifyIORef' c $ over lensReuse (+ 1)
 #endif
         return $! i
       Nothing -> do
-        !fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
+        !fresh <- (^. lensFresh) <$> do readModifyIORef' c $ over lensFresh (+ 1)
         H.insert d key fresh
         return fresh
 
@@ -358,11 +358,11 @@ icodeInteger key = do
     case mi of
       Just i  -> do
 #ifdef DEBUG_SERIALISATION
-        modifyIORef' c $ over lensReuse (+1)
+        modifyIORef' c $ over lensReuse (+ 1)
 #endif
         return $! i
       Nothing -> do
-        !fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
+        !fresh <- (^. lensFresh) <$> do readModifyIORef' c $ over lensFresh (+ 1)
         H.insert d key fresh
         return fresh
 
@@ -375,11 +375,11 @@ icodeDouble key = do
     case mi of
       Just i  -> do
 #ifdef DEBUG_SERIALISATION
-        modifyIORef' c $ over lensReuse (+1)
+        modifyIORef' c $ over lensReuse (+ 1)
 #endif
         return $! i
       Nothing -> do
-        !fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
+        !fresh <- (^. lensFresh) <$> do readModifyIORef' c $ over lensFresh (+ 1)
         H.insert d key fresh
         return fresh
 
@@ -392,11 +392,11 @@ icodeString key = do
     case mi of
       Just i  -> do
 #ifdef DEBUG_SERIALISATION
-        modifyIORef' c $ over lensReuse (+1)
+        modifyIORef' c $ over lensReuse (+ 1)
 #endif
         return i
       Nothing -> do
-        !fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
+        !fresh <- (^. lensFresh) <$> do readModifyIORef' c $ over lensFresh (+ 1)
         H.insert d key fresh
         return fresh
 
@@ -409,11 +409,11 @@ icodeNode key = do
     case mi of
       Just i  -> do
 #ifdef DEBUG_SERIALISATION
-        modifyIORef' c $ over lensReuse (+1)
+        modifyIORef' c $ over lensReuse (+ 1)
 #endif
         return $! i
       Nothing -> do
-        !fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
+        !fresh <- (^. lensFresh) <$> do readModifyIORef' c $ over lensFresh (+ 1)
         H.insert d key fresh
         return fresh
 
@@ -439,7 +439,7 @@ icodeMemo getDict getCounter a icodeP = do
 #endif
         return $! i
       Nothing -> do
-        liftIO $ modifyIORef' st $ over lensFresh (+1)
+        liftIO $ modifyIORef' st $ over lensFresh (+ 1)
         !i <- icodeP
         liftIO $ H.insert h a i
         return i

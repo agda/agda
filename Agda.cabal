@@ -289,7 +289,7 @@ common language
 
   if impl(ghc >= 9.2)
     ghc-options:
---      -Werror=operator-whitespace
+      -Werror=operator-whitespace
       -Werror=redundant-bang-patterns
 
   if impl(ghc >= 9.4)

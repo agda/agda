@@ -193,7 +193,7 @@ type Vars1 m = (forall b. (Subst b, DeBruijn b) => List1 (NamesT m b))
 
 bindN1 :: MonadFail m
   => List1 ArgName -> (Vars1 m -> NamesT m a) -> NamesT m (AbsN a)
-bindN1 (x:|xs) f = toAbsN <$> bind x (\ x -> bindN xs (\ xs -> f (x:|xs)))
+bindN1 (x :| xs) f = toAbsN <$> bind x (\ x -> bindN xs (\ xs -> f (x :| xs)))
 
 glamN :: (Functor m, MonadFail m) =>
          [Arg ArgName] -> (NamesT m Args -> NamesT m Term) -> NamesT m Term

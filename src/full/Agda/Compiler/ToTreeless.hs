@@ -210,7 +210,7 @@ type CCContext = [Int]
 type CC = ReaderT CCEnv TCM
 
 shift :: Int -> CCContext -> CCContext
-shift n = map (+n)
+shift n = map (+ n)
 
 -- | Term variables are de Bruijn indices.
 lookupIndex :: Int -- ^ Case tree de bruijn index.
@@ -468,7 +468,7 @@ replaceVar x n cont = do
          (ys, _:zs) = splitAt i cxt
          -- compute the de-bruijn indexes of the newly inserted variables
          ixs = [0..(n - 1)]
-  local (\e -> e { ccCxt = upd (ccCxt e) , ccCatchAll = (+n) <$> ccCatchAll e }) $
+  local (\e -> e { ccCxt = upd (ccCxt e) , ccCatchAll = (+ n) <$> ccCatchAll e }) $
     cont
 
 

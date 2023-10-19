@@ -268,7 +268,7 @@ splitTelescopeExact is tel = guard ok $> SplitTel tel1 tel2 perm
         good i = All $ (i < n) `implies` (i `IntSet.member` soFar) where implies = (<=)
         ok = getAll $ runFree good IgnoreNot t
 
-    ok    = all (<n) is && checkDependencies IntSet.empty is
+    ok    = all (< n) is && checkDependencies IntSet.empty is
 
     isC   = downFrom n List.\\ is
 

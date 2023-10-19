@@ -90,7 +90,7 @@ readFilePM file =
 
 wrapIOM :: (MonadError e m, MonadIO m) => (IOError -> e) -> IO a -> m a
 wrapIOM f m = do
-  a <- liftIO$ (Right <$> m) `catch` (\err -> return$ Left (err :: IOError))
+  a <- liftIO $ (Right <$> m) `catch` (\ err -> return $ Left (err :: IOError))
   case a of
     Right x  -> return x
     Left err -> throwError (f err)

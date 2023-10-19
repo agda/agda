@@ -475,7 +475,7 @@ mkPrimInjective a b qn = do
 
 metaToNat :: MetaId -> Nat
 metaToNat m =
-  fromIntegral (moduleNameHash $ metaModule m) * 2^64 +
+  fromIntegral (moduleNameHash $ metaModule m) * 2 ^ 64 +
   fromIntegral (metaId m)
 
 primMetaToNatInjective :: TCM PrimitiveImpl

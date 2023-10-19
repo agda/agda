@@ -634,7 +634,7 @@ instance ToConcrete a => ToConcrete [a] where
 
     toConcrete     = mapM toConcrete
     bindToConcrete []     ret = ret []
-    bindToConcrete (a:as) ret = bindToConcrete (a:|as) $ \ (c:|cs) -> ret (c:cs)
+    bindToConcrete (a:as) ret = bindToConcrete (a :| as) $ \ (c :| cs) -> ret (c:cs)
 
 instance ToConcrete a => ToConcrete (List1 a) where
     type ConOfAbs (List1 a) = List1 (ConOfAbs a)

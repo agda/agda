@@ -71,9 +71,9 @@ matches cons icons defs idefs flds iflds =
 toVim :: NamesInScope -> String
 toVim ns = unlines $ matches mcons micons mdefs midefs mflds miflds
     where
-        cons = [ x | (x, con:|_) <- Map.toList ns, isJust $ isConName $ anameKind con ]
-        defs = [ x | (x, def:|_) <- Map.toList ns, isDefName (anameKind def) ]
-        flds = [ x | (x, fld:|_) <- Map.toList ns, anameKind fld == FldName  ]
+        cons = [ x | (x, con :| _) <- Map.toList ns, isJust $ isConName $ anameKind con ]
+        defs = [ x | (x, def :| _) <- Map.toList ns, isDefName (anameKind def) ]
+        flds = [ x | (x, fld :| _) <- Map.toList ns, anameKind fld == FldName  ]
 
         mcons = map prettyShow cons
         mdefs = map prettyShow defs

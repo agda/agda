@@ -1414,7 +1414,7 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
           | all neutralOrClosed bs , levelLowerBound a > levelLowerBound b -> notok
 
         -- ⊔ as ≤ single
-        (as@(_:|_:_), b :| []) ->
+        (as@(_ :| _ : _), b :| []) ->
           forM_ as $ \ a' -> leqLevel (unSingleLevel $ ignoreBlocking <$> a')
                                       (unSingleLevel $ ignoreBlocking <$> b)
 
@@ -1586,9 +1586,9 @@ equalLevel a b = do
         (_ , SingleClosed n :| []) | n < levelLowerBound a -> notok
 
         -- 0 == a ⊔ b
-        (SingleClosed 0 :| [] , bs@(_:|_:_)) ->
+        (SingleClosed 0 :| [] , bs@(_ :| _ : _)) ->
           forM_ bs $ \ b' ->  equalLevel (ClosedLevel 0) (unSingleLevel $ ignoreBlocking <$> b')
-        (as@(_:|_:_) , SingleClosed 0 :| []) ->
+        (as@(_ :| _ : _) , SingleClosed 0 :| []) ->
           forM_ as $ \ a' -> equalLevel (unSingleLevel $ ignoreBlocking <$> a') (ClosedLevel 0)
 
         -- meta == any

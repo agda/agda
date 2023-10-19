@@ -95,7 +95,7 @@ telePiPath_ tel t bndry = do
 arityPiPath :: Type -> TCM Int
 arityPiPath t = do
   piOrPath t >>= \case
-    Left (_, u) -> (+1) <$> arityPiPath (unAbs u)
+    Left (_, u) -> (+ 1) <$> arityPiPath (unAbs u)
     Right _     -> return 0
 
 -- | Collect the interval copattern variables as list of de Bruijn indices.

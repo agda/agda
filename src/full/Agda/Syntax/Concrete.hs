@@ -841,13 +841,13 @@ instance LensHiding LamBinding where
 
 instance LensHiding TypedBinding where
   getHiding (TBind _ (x :| _) _) = getHiding x   -- Slightly dubious
-  getHiding TLet{}              = mempty
+  getHiding TLet{}               = mempty
   mapHiding f (TBind r xs e) = TBind r (fmap (mapHiding f) xs) e
   mapHiding f b@TLet{}       = b
 
 instance LensRelevance TypedBinding where
-  getRelevance (TBind _ (x :|_) _) = getRelevance x   -- Slightly dubious
-  getRelevance TLet{}              = unitRelevance
+  getRelevance (TBind _ (x :| _) _) = getRelevance x   -- Slightly dubious
+  getRelevance TLet{}               = unitRelevance
   mapRelevance f (TBind r xs e) = TBind r (fmap (mapRelevance f) xs) e
   mapRelevance f b@TLet{}       = b
 

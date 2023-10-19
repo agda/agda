@@ -174,7 +174,7 @@ checkSizeVarNeverZero i = do
               -- Thus, we update the min value for @j@ with function @(max (n+1-m))@.
               DSizeVar (ProjectedVar j []) m -> do
                 reportSLn "tc.size" 60 $ "minSizeVal upper bound v = " ++ show v
-                let ns' = List.updateAt j (max $ n+1-m) ns
+                let ns' = List.updateAt j (max $ n + 1 - m) ns
                 reportSLn "tc.size" 60 $ "minSizeVal ns' = " ++ show (take (length ts + 1) ns')
                 minSizeValAux ts ns'
               DSizeMeta x _ _ -> perhaps (unblockOnMeta x)
@@ -324,10 +324,10 @@ compareSizes cmp u v = verboseBracket "tc.conv.size" 10 "compareSizes" $ do
 compareMaxViews :: (MonadConversion m) => Comparison -> SizeMaxView -> SizeMaxView -> m ()
 compareMaxViews cmp us vs = case (cmp, us, vs) of
   (CmpLeq, _, (DSizeInf :| _)) -> return ()
-  (cmp, u:|[], v:|[]) -> compareSizeViews cmp u v
-  (CmpLeq, us, v:|[]) -> Fold.forM_ us $ \ u -> compareSizeViews cmp u v
-  (CmpLeq, us, vs)    -> Fold.forM_ us $ \ u -> compareBelowMax u vs
-  (CmpEq,  us, vs)    -> do
+  (cmp,    u :| [], v :| []) -> compareSizeViews cmp u v
+  (CmpLeq, us,      v :| []) -> Fold.forM_ us $ \ u -> compareSizeViews cmp u v
+  (CmpLeq, us,      vs)      -> Fold.forM_ us $ \ u -> compareBelowMax u vs
+  (CmpEq,  us,      vs)      -> do
     compareMaxViews CmpLeq us vs
     compareMaxViews CmpLeq vs us
 
@@ -582,7 +582,7 @@ oldSizeExpr u = do
   s <- sizeView u
   case s of
     SizeInf     -> patternViolation neverUnblock
-    SizeSuc u   -> mapSnd (+1) <$> oldSizeExpr u
+    SizeSuc u   -> mapSnd (+ 1) <$> oldSizeExpr u
     OtherSize u -> case u of
       Var i []  -> return (Rigid i, 0)
       MetaV m es | Just xs <- mapM isVar es, fastDistinct xs

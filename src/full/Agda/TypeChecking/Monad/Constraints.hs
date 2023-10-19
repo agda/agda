@@ -108,7 +108,7 @@ takeAwakeConstraint' p = do
 getAllConstraints :: ReadTCState m => m Constraints
 getAllConstraints = do
   s <- getTCState
-  return $ s^.stAwakeConstraints ++ s^.stSleepingConstraints
+  return $ s ^. stAwakeConstraints ++ s ^. stSleepingConstraints
 
 withConstraint :: MonadConstraint m => (Constraint -> m a) -> ProblemConstraint -> m a
 withConstraint f (PConstr pids _ c) = do

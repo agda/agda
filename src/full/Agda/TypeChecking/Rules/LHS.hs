@@ -1027,7 +1027,7 @@ checkLHS mf = updateModality checkLHS_ where
       i <- liftTCM $ addContext tel $ ifJustM (isEtaVar v a) return $
              softTypeError $ SplitOnNonVariable v a
 
-      let pos = size tel - (i+1)
+      let pos = size tel - (i + 1)
           (delta1, tel'@(ExtendTel dom adelta2)) = splitTelescopeAt pos tel -- TODO:: tel' defined but not used
 
       p <- liftTCM $ expandLitPattern p
@@ -1845,7 +1845,7 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
         -- meaning that only the parameters may differ,
         -- then throw more specific error.
         (_    , [_]) -> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d cs
-        (_    , disambs@(((c,_,_):|_):_)) -> typeError $
+        (_    , disambs@(((c,_,_) :| _) : _)) -> typeError $
           AmbiguousConstructor c (map (conName . snd3) $ List1.concat disambs)
 
   where

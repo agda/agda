@@ -77,14 +77,14 @@ instance EmbPrj Integer where
 
 instance EmbPrj Word64 where
   icod_ i = icodeN' (undefined :: Int32 -> Int32 -> Int32) (int32 q) (int32 r)
-    where (q, r) = quotRem i (2^32)
+    where (q, r) = quotRem i (2 ^ 32)
           int32 :: Word64 -> Int32
           int32 = fromIntegral
 
   value = vcase valu where
     valu [a, b] = return $! n * mod (fromIntegral a) n + mod (fromIntegral b) n
     valu _      = malformed
-    n = 2^32
+    n = 2 ^ 32
 
 instance EmbPrj Int32 where
   icod_ i = return i

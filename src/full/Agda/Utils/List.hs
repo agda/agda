@@ -783,12 +783,12 @@ editDistance xs ys = editD 0 0
       -- Corner (EQ, EQ): both lists are empty
       _             -> 0
       -- GT cases are impossible.
-    where (i',j') = (i+1, j+1)
+    where (i', j') = (i + 1, j + 1)
   n   = length xs
   m   = length ys
   xsA, ysA :: Array Int a
-  xsA = listArray (0,n-1) xs
-  ysA = listArray (0,m-1) ys
+  xsA = listArray (0, n - 1) xs
+  ysA = listArray (0, m - 1) ys
 
 
 mergeStrictlyOrderedBy :: (a -> a -> Bool) -> [a] -> [a] -> Maybe [a]

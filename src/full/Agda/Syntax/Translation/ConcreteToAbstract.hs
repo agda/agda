@@ -2805,7 +2805,7 @@ instance ToAbstract RightHandSide where
     ns <- toAbstract ns
     lvars1 <- getLocalVars
     let lv' = dropEnd (length lvars0) lvars1 ++ lv
-    let cs' = for (c:|cs) $ \ c -> setLocalVars lv' $> c
+    let cs' = for (c :| cs) $ \ c -> setLocalVars lv' $> c
     let nes = zipWith Named ns es
     return $ WithRHS' nes cs'
   -- TODO: some of these might be possible

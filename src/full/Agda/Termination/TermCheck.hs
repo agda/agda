@@ -1217,7 +1217,7 @@ compareProj d d'
           case def of
             Record{ recFields = fs } -> do
               fs <- return $ map unDom fs
-              case (List.find (d==) fs, List.find (d'==) fs) of
+              case (List.find (d ==) fs, List.find (d' ==) fs) of
                 (Just i, Just i')
                   -- earlier field is smaller
                   | i < i'    -> return Order.lt

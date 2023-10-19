@@ -891,8 +891,8 @@ getOriginalConstInfo q = do
 defaultGetRewriteRulesFor :: (ReadTCState m, MonadTCEnv m) => QName -> m RewriteRules
 defaultGetRewriteRulesFor q = ifNotM (shouldReduceDef q) (return []) $ do
   st <- getTCState
-  let sig = st^.stSignature
-      imp = st^.stImports
+  let sig = st ^. stSignature
+      imp = st ^. stImports
       look s = HMap.lookup q $ s ^. sigRewriteRules
   return $ mconcat $ catMaybes [look sig, look imp]
 
@@ -918,8 +918,8 @@ defaultGetConstInfo
   :: (HasOptions m, MonadDebug m, MonadTCEnv m)
   => TCState -> TCEnv -> QName -> m (Either SigError Definition)
 defaultGetConstInfo st env q = do
-    let defs  = st^.(stSignature . sigDefinitions)
-        idefs = st^.(stImports . sigDefinitions)
+    let defs  = st ^. stSignature . sigDefinitions
+        idefs = st ^. stImports   . sigDefinitions
     case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
         []  -> return $ Left $ SigUnknown $ "Unbound name: " ++ prettyShow q ++ showQNameId q
         [d] -> checkErasureFixQuantity d >>= \case

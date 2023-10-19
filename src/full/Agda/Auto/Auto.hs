@@ -414,8 +414,8 @@ auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
 
       hits <- if "-a" `elem` hints then do
         st <- liftTCM $ join $ pureTCM $ \st _ -> return st
-        let defs = st^.stSignature.sigDefinitions
-            idefs = st^.stImports.sigDefinitions
+        let defs    = st ^. stSignature . sigDefinitions
+            idefs   = st ^. stImports   . sigDefinitions
             alldefs = HMap.keys defs ++ HMap.keys idefs
         catMaybes <$> mapM (\n ->
           case thisdefinfo of

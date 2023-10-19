@@ -24,7 +24,7 @@ traceM s = trace s $ pure ()
 class Eq a => Top a where
   top   :: a
   isTop :: a -> Bool
-  isTop = (==top)
+  isTop = (== top)
 
 class Plus a b c where
   plus :: a -> b -> c

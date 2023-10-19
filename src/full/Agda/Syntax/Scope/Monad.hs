@@ -250,7 +250,7 @@ addVarToBind x y = modifyScope_ $ updateVarsToBind $ AssocList.insert x y
 bindVarsToBind :: ScopeM ()
 bindVarsToBind = do
   vars <- getVarsToBind
-  modifyLocalVars (vars++)
+  modifyLocalVars (vars ++)
   printLocals 10 "bound variables:"
   modifyScope_ $ setVarsToBind []
 
@@ -311,7 +311,7 @@ freshConcreteName r i s = do
   let cname = C.Name r C.NotInScope $ singleton $ Id $ stringToRawName $ s ++ show i
   resolveName (C.QName cname) >>= \case
     UnknownName -> return cname
-    _           -> freshConcreteName r (i+1) s
+    _           -> freshConcreteName r (i + 1) s
 
 ---------------------------------------------------------------------------
 -- * Resolving names
@@ -1029,7 +1029,7 @@ openModule kind mam cm dir = do
               where ks = fmap anameKind qs
         -- We report the first clashing exported identifier.
         unlessNull (filter defClash defClashes) $
-          \ ((x, q:|_) : _) -> typeError $ ClashingDefinition (C.QName x) (anameName q) Nothing
+          \ ((x, q :| _) : _) -> typeError $ ClashingDefinition (C.QName x) (anameName q) Nothing
 
         unlessNull modClashes $ \ ((_, ms) : _) -> do
           caseMaybe (List1.last2 ms) __IMPOSSIBLE__ $ \ (m0, m1) -> do

@@ -670,7 +670,7 @@ curryAt t n = do
           gammai = map domInfo $ telToList gamma
           xs  = reverse $ zipWith (\ ai i -> Arg ai $ var i) gammai [m..]
           curry v = teleLam gamma $ teleLam tel $
-                      raise (n+m) v `apply` (xs ++ [Arg ai u])
+                      raise (n + m) v `apply` (xs ++ [Arg ai u])
           zs  = for fs $ fmap $ \ f -> Var 0 [Proj ProjSystem f]
           atel = sgTel $ (,) (absName b) <$> dom
           uncurry v = teleLam gamma $ teleLam atel $
@@ -970,13 +970,13 @@ isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
           case (mi, is) of
             (Just i, _)     -> return i
             (Nothing, [])   -> mzero
-            (Nothing, i:is) -> guard (all (==i) is) >> return i
+            (Nothing, i:is) -> guard (all (== i) is) >> return i
         (_, Pi dom cod) -> addContext dom $ do
           let u'  = raise 1 u `apply` [argFromDom dom $> var 0]
               a'  = absBody cod
-              mi' = fmap (+1) mi
-              es' = (fmap . fmap) (+1) es ++ [Apply $ argFromDom dom $> 0]
-          (-1+) <$> isEtaVarG u' a' mi' es'
+              mi' = fmap (+ 1) mi
+              es' = (fmap . fmap) (+ 1) es ++ [Apply $ argFromDom dom $> 0]
+          (-1 +) <$> isEtaVarG u' a' mi' es'
         _ -> mzero
 
     -- `areEtaVarElims u a es es'` checks whether the given elims es (as applied
