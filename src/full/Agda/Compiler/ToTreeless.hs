@@ -34,6 +34,7 @@ import Agda.TypeChecking.Substitute
 
 import Agda.Compiler.Treeless.AsPatterns
 import Agda.Compiler.Treeless.Builtin
+import Agda.Compiler.Treeless.DropArgs
 import Agda.Compiler.Treeless.Erase
 import Agda.Compiler.Treeless.Identity
 import Agda.Compiler.Treeless.Simplify
@@ -138,7 +139,8 @@ compilerPipeline v q =
     --              functions that have had the builtin translation applied, we need to apply it
     --              first.
     -- [ compilerPass "simpl"   (35 + v) "simplification"      $ const simplifyTTerm
-    [ compilerPass "builtin" (30 + v) "builtin translation" $ const translateBuiltins
+    [ compilerPass "drop"    (30 + v) "dropping arguments"  $ const dropArgs
+    , compilerPass "builtin" (30 + v) "builtin translation" $ const translateBuiltins
     , FixedPoint 5 $ Sequential
       [ compilerPass "simpl"  (30 + v) "simplification"     $ const simplifyTTerm
       , compilerPass "erase"  (30 + v) "erasure"            $ eraseTerms q
@@ -225,17 +227,17 @@ lookupLevel :: Int -- ^ case tree de bruijn level
 lookupLevel l xs = fromMaybe __IMPOSSIBLE__ $ xs !!! (length xs - 1 - l)
 
 -- | Compile a case tree into nested case and record expressions.
-casetreeTop :: EvaluationStrategy -> CC.CompiledClauses -> TCM C.TTerm
-casetreeTop eval cc = flip runReaderT (initCCEnv eval) $ do
+casetreeTop :: EvaluationStrategy -> CC.CompiledClauses -> [Maybe C.ErasedInfo] -> TCM C.TTerm
+casetreeTop eval cc es = flip runReaderT (initCCEnv eval) $ do
   let a = commonArity cc
   lift $ reportSLn "treeless.convert.arity" 40 $ "-- common arity: " ++ show a
-  lambdasUpTo a $ casetree cc
+  lambdasUpTo (take a es) $ casetree cc
 
 casetree :: CC.CompiledClauses -> CC C.TTerm
 casetree cc = do
   case cc of
-    CC.Fail xs -> withContextSize (length xs) $ return C.tUnreachable
-    CC.Done xs v -> withContextSize (length xs) $ do
+    CC.Fail xs -> withContextSize xs $ return C.tUnreachable
+    CC.Done xs v -> withContextSize xs $ do
       -- Issue 2469: Body context size (`length xs`) may be smaller than current context size
       -- if some arguments are not used in the body.
       v <- lift (putAllowedReductions (SmallSet.fromList [ProjectionReductions, CopatternReductions]) $ normalise v)
@@ -334,11 +336,12 @@ updateCatchAll (Just cc) cont = do
 -- | Shrinks or grows the context to the given size.
 -- Does not update the catchAll expression, the catchAll expression
 -- MUST NOT be used inside `cont`.
-withContextSize :: Int -> CC C.TTerm -> CC C.TTerm
-withContextSize n cont = do
-  diff <- asks (((n -) . length) . ccCxt)
-  if diff >= 1 then createLambdas diff cont else do
-    let diff' = -diff
+withContextSize :: LensModality a => [a] -> CC C.TTerm -> CC C.TTerm
+withContextSize xs cont = do
+  cxtSize <- asks (length . ccCxt)
+  let lams = drop cxtSize $ map (\x -> if usableModality x then Nothing else Just C.ErasedInferred) xs
+  if length lams >= 1 then createLambdas lams cont else do
+    let diff' = cxtSize - length lams
     cxt <- -- shift diff .
        -- Andreas, 2021-04-10, issue #5288
        -- The @shift diff@ is wrong, since we are returning to the original
@@ -392,8 +395,8 @@ withContextSize n cont = do
     local (\ e -> e { ccCxt = cxt }) $ do
       reportS "treeless.convert.lambdas" 40 $
         [ "-- withContextSize:"
-        , "--   n   =" <+> prettyPure n
-        , "--   diff=" <+> prettyPure diff
+        , "--   xs  =" <+> prettyPure xs
+        , "--   lams=" <+> prettyPure lams
         , "--   cxt =" <+> prettyPure cxt
         ]
       cont <&> (`C.mkTApp` map C.TVar (downFrom diff'))
@@ -401,10 +404,10 @@ withContextSize n cont = do
 -- | Prepend the given positive number of lambdas.
 -- Does not update the catchAll expression,
 -- the catchAll expression must be updated separately (or not be used).
-createLambdas :: Int -> CC C.TTerm -> CC C.TTerm
+createLambdas :: [Maybe C.ErasedInfo] -> CC C.TTerm -> CC C.TTerm
 createLambdas diff cont = do
-  unless (diff >= 1) __IMPOSSIBLE__
-  cxt <- ([0 .. diff-1] ++) . shift diff <$> asks ccCxt
+  unless (length diff >= 1) __IMPOSSIBLE__
+  cxt <- ([0 .. length diff-1] ++) . shift (length diff) <$> asks ccCxt
   local (\ e -> e { ccCxt = cxt }) $ do
     reportS "treeless.convert.lambdas" 40 $
       [ "-- createLambdas:"
@@ -412,17 +415,18 @@ createLambdas diff cont = do
       , "--   cxt  =" <+> prettyPure cxt
       ]
     -- Prepend diff lambdas
-    cont <&> \ t -> List.iterate C.TLam t !! diff
+    cont <&> \ t -> List.foldr C.TLam t diff
 
 -- | Adds lambdas until the context has at least the given size.
 -- Updates the catchAll expression to take the additional lambdas into account.
-lambdasUpTo :: Int -> CC C.TTerm -> CC C.TTerm
-lambdasUpTo n cont = do
+lambdasUpTo :: [Maybe C.ErasedInfo] -> CC C.TTerm -> CC C.TTerm
+lambdasUpTo es cont = do
+  let n = length es
   diff <- asks (((n -) . length) . ccCxt)
 
   if diff <= 0 then cont -- no new lambdas needed
   else do
-    createLambdas diff $ do
+    createLambdas es $ do
       asks ccCatchAll >>= \case
         Just catchAll -> do
           cxt <- asks ccCxt
@@ -508,8 +512,8 @@ substTerm term = normaliseStatic term >>= \ term ->
       ind' <- asks (lookupIndex ind . ccCxt)
       let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
       C.mkTApp (C.TVar ind') <$> substArgs args
-    I.Lam _ ab ->
-      C.TLam <$>
+    I.Lam i ab ->
+      C.TLam (if usableModality i then Nothing else Just C.ErasedAnnotated) <$>
         local (\e -> e { ccCxt = 0 : shift 1 (ccCxt e) })
           (substTerm $ I.unAbs ab)
     I.Lit l -> return $ C.TLit l
@@ -524,7 +528,7 @@ substTerm term = normaliseStatic term >>= \ term ->
     I.Pi _ _ -> return C.TUnit
     I.Sort _  -> return C.TSort
     I.MetaV x _ -> return $ C.TError $ C.TMeta $ prettyShow x
-    I.DontCare _ -> return C.TErased
+    I.DontCare _ -> return $ C.TErased C.ErasedInferred
     I.Dummy{} -> __IMPOSSIBLE__
 
 -- Andreas, 2019-07-10, issue #3792
@@ -594,7 +598,8 @@ maybeInlineDef q vs = do
         | otherwise -> do
         -- If ArgUsage hasn't been computed yet, we assume all arguments are used.
         used <- lift $ fromMaybe [] <$> getCompiledArgUse q
-        let substUsed _   ArgUnused = pure C.TErased
+        let substUsed arg _ | not (usableModality arg) = pure $ C.TErased C.ErasedAnnotated
+            substUsed _   ArgUnused = pure $ C.TErased C.ErasedInferred
             substUsed arg ArgUsed   = substArg arg
         C.mkTApp (C.TDef q) <$> zipWithM substUsed vs (used ++ repeat ArgUsed)
       _ -> C.mkTApp (C.TDef q) <$> substArgs vs
@@ -607,4 +612,4 @@ substArgs = traverse substArg
 
 substArg :: Arg I.Term -> CC C.TTerm
 substArg x | usableModality x = substTerm (unArg x)
-           | otherwise = return C.TErased
+           | otherwise = return $ C.TErased C.ErasedAnnotated

@@ -104,7 +104,7 @@ simplify FunctionKit{..} = simpl
         f  <- simpl f
         es <- traverse simpl es
         maybeMinusToPrim f es
-      TLam b    -> TLam <$> underLam (simpl b)
+      TLam i b  -> TLam i <$> underLam (simpl b)
       t@TLit{}  -> pure t
       t@TCon{}  -> pure t
       TLet e b  -> do
@@ -148,7 +148,7 @@ simplify FunctionKit{..} = simpl
 
       t@TUnit    -> pure t
       t@TSort    -> pure t
-      t@TErased  -> pure t
+      t@TErased{}-> pure t
       t@TError{} -> pure t
 
     conView (TCon c)    = Just (c, [])
@@ -415,8 +415,8 @@ simplify FunctionKit{..} = simpl
         TLam{} -> tApp v es   -- could blow up the code
         _      -> pure $ mkTApp (TVar x) es
     tApp f [] = pure f
-    tApp (TLam b) (TVar i : es) = tApp (subst 0 (TVar i) b) es
-    tApp (TLam b) (e : es) = tApp (TLet e b) es
+    tApp (TLam li b) (TVar i : es) = tApp (subst 0 (TVar i) b) es
+    tApp (TLam li b) (e : es) = tApp (TLet e b) es
     tApp f es = pure $ TApp f es
 
     tAppAlt (TACon c a b) es = TACon c a <$> underLams a (tApp b (raise a es))

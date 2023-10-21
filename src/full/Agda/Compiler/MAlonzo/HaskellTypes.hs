@@ -300,5 +300,5 @@ hsTelApproximation = hsTelApproximation' NoPolyApprox
 hsTelApproximation' :: PolyApprox -> Type -> HsCompileM ([HS.Type], HS.Type)
 hsTelApproximation' poly t = do
   TelV tel res <- telViewPath t
-  let args = map (snd . unDom) (telToList tel)
+  let args = map (snd . unDom) $ filter usableModality $ telToList tel
   (,) <$> zipWithM (hsTypeApproximation poly) [0..] args <*> hsTypeApproximation poly (length args) res

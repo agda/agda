@@ -63,7 +63,7 @@ computeUnused q t = iterateUntilM (==) $ \ used -> do
         Set.unions <$> sequence [ go t | (t, ArgUsed) <- zip ts $ used ++ repeat ArgUsed ]
 
       TApp f ts -> Set.unions <$> mapM go (f : ts)
-      TLam b    -> underBinder <$> go b
+      TLam i b  -> underBinder <$> go b
       TLet e b  -> do
         uses <- go b
         if | Set.member 0 uses -> Set.union (underBinder uses) <$> go e
@@ -99,6 +99,6 @@ stripUnusedArguments used t = mkTLam m $ applySubst rho b
     m      = length $ filter (== ArgUsed) used'
     used'  = reverse $ take n $ used ++ repeat ArgUsed
     rho = computeSubst used'
-    computeSubst (ArgUnused : bs) = TErased :# computeSubst bs
+    computeSubst (ArgUnused : bs) = TErased ErasedInferred :# computeSubst bs
     computeSubst (ArgUsed   : bs) = liftS 1 $ computeSubst bs
     computeSubst []               = idS

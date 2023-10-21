@@ -854,7 +854,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
             in [tydecl f ts' t, funbind f ps b]
 
       -- The definition of the non-stripped function
-      (ps0, _) <- lamView <$> closedTerm_ (foldr ($) T.TErased $ replicate (length used) T.TLam)
+      (ps0, _) <- lamView <$> closedTerm_ (foldr ($) (T.TErased T.ErasedInferred) $ replicate (length used) T.TLam)
       let b0 = foldl HS.App (hsVarUQ $ duname q) [ hsVarUQ x | (~(HS.PVar x), ArgUsed) <- zip ps0 used ]
           ps0' = zipWith (\p u -> case u of
                                     ArgUsed   -> p
@@ -1060,7 +1060,7 @@ noApplication = \case
   T.TPrim p   -> return $ compilePrim p
   T.TUnit     -> return $ HS.unit_con
   T.TSort     -> return $ HS.unit_con
-  T.TErased   -> return $ hsVarUQ $ HS.Ident mazErasedName
+  T.TErased{} -> return $ hsVarUQ $ HS.Ident mazErasedName
   T.TError e  -> return $ case e of
     T.TUnreachable -> rtmUnreachableError
     T.TMeta s      -> rtmHole s

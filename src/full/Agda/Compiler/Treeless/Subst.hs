@@ -32,7 +32,7 @@ instance Subst TTerm where
       t@TError{}  -> t
       TVar i         -> lookupS rho i
       TApp f ts      -> tApp (applySubst rho f) (applySubst rho ts)
-      TLam b         -> TLam (applySubst (liftS 1 rho) b)
+      TLam i b       -> TLam i (applySubst (liftS 1 rho) b)
       TLet e b       -> TLet (applySubst rho e) (applySubst (liftS 1 rho) b)
       TCase i t d bs ->
         case applySubst rho (TVar i) of
@@ -41,7 +41,7 @@ instance Subst TTerm where
             where rho' = wkS 1 rho
       TCoerce e -> TCoerce (applySubst rho e)
     where
-      tApp (TPrim PSeq) [TErased, b] = b
+      tApp (TPrim PSeq) [TErased _, b] = b
       tApp f ts = TApp f ts
 
 instance Subst TAlt where
@@ -122,7 +122,7 @@ instance HasFree TTerm where
     TVar i         -> freeVars i
     TApp (TPrim PSeq) [TVar x, b] -> freeVars (InSeq x, b)
     TApp f ts      -> freeVars (f, ts)
-    TLam b         -> underLambda <$> freeVars (Binder 1 b)
+    TLam i b       -> underLambda <$> freeVars (Binder 1 b)
     TLet e b       -> freeVars (e, Binder 1 b)
     TCase i _ d bs -> freeVars (i, (d, bs))
     TCoerce t      -> freeVars t

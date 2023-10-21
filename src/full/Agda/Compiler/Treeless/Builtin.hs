@@ -79,9 +79,9 @@ transform BuiltinKit{..} = tr
     tr = \case
 
       TCon c | isZero c   -> tInt 0
-             | isSuc c    -> TLam (tPlusK 1 (TVar 0))
-             | isPos c    -> TLam (TVar 0)
-             | isNegSuc c -> TLam $ tNegPlusK 1 (TVar 0)
+             | isSuc c    -> TLam Nothing (tPlusK 1 (TVar 0))
+             | isPos c    -> TLam Nothing (TVar 0)
+             | isNegSuc c -> TLam Nothing $ tNegPlusK 1 (TVar 0)
 
       TDef f | isPlus f   -> TPrim PAdd
              | isTimes f  -> TPrim PMul
@@ -171,7 +171,7 @@ transform BuiltinKit{..} = tr
 
       TCoerce a -> TCoerce (tr a)
 
-      TLam b                  -> TLam (tr b)
+      TLam i b                -> TLam i (tr b)
       TApp a bs               -> TApp (tr a) (map tr bs)
       TLet e b                -> TLet (tr e) (tr b)
 

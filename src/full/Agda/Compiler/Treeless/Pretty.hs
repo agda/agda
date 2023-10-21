@@ -192,6 +192,6 @@ pTerm = \case
 
   TUnit -> pure "()"
   TSort -> pure "Set"
-  TErased -> pure "_"
+  TErased _ -> pure "_"
   TError err -> paren 9 $ pure $ "error" <+> text (show (show err))
   TCoerce t -> paren 9 $ ("coe" <+>) <$> pTerm' 10 t

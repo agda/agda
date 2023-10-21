@@ -596,7 +596,7 @@ compileTerm kit t = go t
       T.TPrim p -> return $ compilePrim p
       T.TUnit -> unit
       T.TSort -> unit
-      T.TErased -> unit
+      T.TErased{} -> unit
       T.TError T.TUnreachable -> return Undefined
       T.TError T.TMeta{}      -> return Undefined
       T.TCoerce t -> go t
@@ -657,7 +657,7 @@ compileAlt kit = \case
 eraseLocalVars :: [Bool] -> T.TTerm -> T.TTerm
 eraseLocalVars [] x = x
 eraseLocalVars (False: es) x = eraseLocalVars es x
-eraseLocalVars (True: es) x = eraseLocalVars es (TC.subst (length es) T.TErased x)
+eraseLocalVars (True: es) x = eraseLocalVars es (TC.subst (length es) (T.TErased T.ErasedInferred) x)
 
 visitorName :: QName -> TCM MemberId
 visitorName q = do (m,ls) <- global q; return (List1.last ls)

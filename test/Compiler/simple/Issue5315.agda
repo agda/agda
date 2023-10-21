@@ -19,5 +19,10 @@ data Foo : Set where
 {-# FOREIGN GHC data Foo = Foo #-}
 {-# COMPILE GHC Foo = data Foo (Foo) #-}
 
+f : (@0 Bar → Foo) → Bar → Foo
+f g x = g x
+
+test = f foo bar
+
 main : IO ⊤
 main = return _

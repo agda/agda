@@ -18,7 +18,7 @@ equalTerms u v =
     (u, v) | u == v                  -> True
     (TApp f us, TApp g vs)           -> eqList equalTerms (f : us) (g : vs)
     (TCase x _ d as, TCase y _ e bs) -> x == y && equalTerms d e && eqList equalAlts as bs
-    (TLam u, TLam v)                 -> equalTerms u v
+    (TLam i u, TLam j v)             -> i == j && equalTerms u v
     _                                -> False
 
 equalAlts :: TAlt -> TAlt -> Bool

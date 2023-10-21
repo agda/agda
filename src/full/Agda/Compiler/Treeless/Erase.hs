@@ -15,6 +15,11 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Agda.Syntax.Common
+    ( isErased,
+      usableModality,
+      Erased(..),
+      LensModality(getModality),
+      Modality )
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Treeless
 import Agda.Syntax.Literal
@@ -73,8 +78,8 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
     eraseTop q t = do
       (_, h) <- getFunInfo q
       case h of
-        Erasable -> pure TErased
-        Empty    -> pure TErased
+        Erasable -> pure $ TErased ErasedInferred
+        Empty    -> pure $ TErased ErasedInferred
         _        -> erase t
 
     erase t = case tAppView t of
@@ -83,15 +88,15 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
         (rs, h) <- getFunInfo c
         when (length rs < length vs) __IMPOSSIBLE__
         case h of
-          Erasable -> pure TErased
-          Empty    -> pure TErased
+          Erasable -> pure $ TErased ErasedInferred
+          Empty    -> pure $ TErased ErasedInferred
           _        -> tApp (TCon c) <$> zipWithM eraseRel rs vs
 
       (TDef f, vs) -> do
         (rs, h) <- getFunInfo f
         case h of
-          Erasable -> pure TErased
-          Empty    -> pure TErased
+          Erasable -> pure $ TErased ErasedInferred
+          Empty    -> pure $ TErased ErasedInferred
           _        -> tApp (TDef f) <$> zipWithM eraseRel (rs ++ repeat NotErasable) vs
 
       _ -> case t of
@@ -101,13 +106,13 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
         TLit{}         -> pure t
         TCon{}         -> pure t
         TApp f es      -> tApp <$> erase f <*> mapM erase es
-        TLam b         -> tLam <$> erase b
+        TLam i b       -> tLam i <$> erase b
         TLet e b       -> do
           e <- erase e
           if isErased e
             then case b of
-                   TCase 0 _ _ _ -> tLet TErased <$> erase b
-                   _             -> erase $ subst 0 TErased b
+                   TCase 0 _ _ _ -> tLet (TErased ErasedInferred) <$> erase b
+                   _             -> erase $ subst 0 (TErased ErasedInferred) b
             else tLet e <$> erase b
         TCase x t d bs -> do
           (d, bs) <- pruneUnreachable x (caseErased t) (caseType t) d bs
@@ -117,31 +122,31 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
 
         TUnit          -> pure t
         TSort          -> pure t
-        TErased        -> pure t
+        TErased{}      -> pure t
         TError{}       -> pure t
         TCoerce e      -> TCoerce <$> erase e
 
     -- #3380: this is not safe for strict backends
-    tLam TErased | eval == LazyEvaluation = TErased
-    tLam t                                = TLam t
+    tLam li (TErased i) | eval == LazyEvaluation = TErased i
+    tLam li t                                    = TLam li t
 
     tLet e b
       | freeIn 0 b = TLet e b
       | otherwise  = strengthen impossible b
 
     tApp f []                  = f
-    tApp TErased _             = TErased
+    tApp (TErased i) _         = TErased i
     tApp f _ | isUnreachable f = tUnreachable
     tApp f es                  = mkTApp f es
 
     tCase x t d bs
-      | isErased d && all (isErased . aBody) bs = pure TErased
+      | isErased d && all (isErased . aBody) bs = pure $ TErased ErasedInferred
       | otherwise = case bs of
         [b@(TACon c _ _)] -> do
           h <- snd <$> getFunInfo c
           case h of
             NotErasable -> fallback
-            Empty       -> pure TErased
+            Empty       -> pure $ TErased ErasedInferred
             Erasable    -> erasedBody b
         _ -> fallback
       where
@@ -151,7 +156,7 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
           TACon _ arity body ->
             (if arity == 0 then pure else erase) $
                -- might enable more erasure
-            applySubst (replicate arity TErased ++# idS) body
+            applySubst (replicate arity (TErased ErasedInferred) ++# idS) body
           TALit _ body   -> pure body
           TAGuard _ body -> pure body
 
@@ -163,7 +168,7 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
           (Erased{}, [])  ->
             -- The case variable is erased, and there is no case: use
             -- the default.
-            pure $ if isErased d then TErased else d
+            pure $ if isErased d then TErased ErasedInferred else d
           (Erased{}, _ : _ : _) ->
             -- The case variable is erased, and there are at least two
             -- cases: crash.
@@ -172,16 +177,17 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
             -- The case variable is not erased: do not erase anything.
             noerase
 
-    isErased t = t == TErased || isUnreachable t
+    isErased TErased{} = True
+    isErased t         = isUnreachable t
 
-    eraseRel r t | erasable r = pure TErased
+    eraseRel r t | erasable r = pure $ TErased ErasedInferred
                  | otherwise  = erase t
 
     eraseAlt = \case
       TALit l b   -> TALit l   <$> erase b
       TACon c a b -> do
         rs <- map erasable . fst <$> getFunInfo c
-        let sub = foldr (\ e -> if e then (TErased :#) . wkS 1 else liftS 1) idS $ reverse rs
+        let sub = foldr (\ e -> if e then (TErased ErasedInferred :#) . wkS 1 else liftS 1) idS $ reverse rs
         TACon c a <$> erase (applySubst sub b)
       TAGuard g b -> TAGuard   <$> erase g <*> erase b
 
@@ -286,8 +292,11 @@ getFunInfo q = memo (funMap . key q) $ getInfo q
     getInfo q = do
       (rs, t) <- do
         (tel, t) <- lift $ typeWithoutParams q
+        -- Which arguments can we erase because of their types?
         is     <- mapM (getTypeInfo . snd . dget) tel
+        -- Which arguments can we erase because they are not used?
         used   <- lift $ (++ repeat ArgUsed) . fromMaybe [] <$> getCompiledArgUse q
+        -- Which arguments can we erase because they are forced?
         forced <- lift $ (++ repeat NotForced) <$> getForcedArgs q
         return (zipWith3 (uncurry . mkR . getModality) tel (zip forced used) is, t)
       h <- if isAbsurdLambdaName q then pure Erasable else getTypeInfo t

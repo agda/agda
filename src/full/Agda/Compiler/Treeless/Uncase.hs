@@ -20,7 +20,7 @@ uncase t = case t of
   TPrim{}   -> t
   TDef{}    -> t
   TApp f es -> tApp (uncase f) (map uncase es)
-  TLam b    -> TLam $ uncase b
+  TLam i b  -> TLam i $ uncase b
   TLit{}    -> t
   TCon{}    -> t
   TLet e b  -> tLet (uncase e) (uncase b)
@@ -55,7 +55,7 @@ uncase t = case t of
     equalTo x t (TACon c a b)
       | Just b' <- tryStrengthen a b = equalTerms (subst x v t) (subst x v b')
       | otherwise                    = False
-      where v = mkTApp (TCon c) (replicate a TErased)
+      where v = mkTApp (TCon c) (replicate a (TErased ErasedInferred))
     equalTo x t (TALit l b)   = equalTerms (subst x (TLit l) t) (subst x (TLit l) b)
     equalTo x t (TAGuard _ b) = equalTerms t b
 
