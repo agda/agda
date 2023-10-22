@@ -1317,7 +1317,7 @@ instance StripAllProjections Term where
         -- c <- fromRightM (\ err -> return c) $ getConForm (conName c)
         Con c ci <$> stripAllProjections ts
       Def d es   -> Def d <$> stripAllProjections es
-      DontCare t -> DontCare <$> stripAllProjections t
+      DontCare t -> stripAllProjections t
       _ -> return t
 
 -- | Normalize outermost constructor name in a pattern.
@@ -1344,7 +1344,8 @@ compareTerm' v mp@(Masked m p) = do
     (Var i es, _) | Just{} <- allApplyElims es ->
       compareVar i mp
 
-    (DontCare t, _) -> pure Order.unknown
+    (DontCare t, _) ->
+      compareTerm' t mp
 
     -- Andreas, 2014-09-22, issue 1281:
     -- For metas, termination checking should be optimistic.
