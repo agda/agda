@@ -1,0 +1,4 @@
+Issue6639.agda:16,3-4
+Set₁ is not less or equal than Set
+when checking that the type (P : Prop) → P → P of an argument to
+the constructor c fits in the sort Set of the datatype.
