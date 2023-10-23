@@ -45,7 +45,10 @@ checkLockedVars
 checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) $ do
   -- Have to instantiate the lock, otherwise we might block on it even
   -- after it's been solved (e.g.: it's an interaction point, see #6528)
-  lk <- instantiate lk
+  -- Update (Andreas, 2023-10-23, issue #6913): need even full instantiation.
+  -- Since @lk@ is typically just a variable, 'instantiateFull' is not expensive here.
+  -- In #6913 it was a postulate applied to a meta, thus, 'instantiate' was not enough.
+  lk <- instantiateFull lk
   reportSDoc "tc.term.lock" 40 $ "Checking locked vars.."
   reportSDoc "tc.term.lock" 50 $ nest 2 $ vcat
      [ text "t     = " <+> pretty t
@@ -91,6 +94,7 @@ checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) 
     -- List1.fromList is guarded by not (null illegalVars)
 
 
+-- | Precondition: 'Term' is fully instantiated.
 getLockVar :: Term -> TCMT IO (Maybe Int)
 getLockVar lk = do
   let
@@ -104,6 +108,9 @@ getLockVar lk = do
   unless (IMap.null flex) $ do
     let metas = Set.unions $ map (foldrMetaSet Set.insert Set.empty) $ IMap.elems flex
     patternViolation $ unblockOnAnyMeta metas
+      -- Andreas, 2023-10-23, issue #6913:
+      -- We should not block on solved metas, so we need @lk@ to be fully instantiated,
+      -- otherwise it may mention solved metas which end up here.
 
   is <- filterM isLock $ ISet.toList $ rigidVars fv
 
