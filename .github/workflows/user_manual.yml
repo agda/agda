@@ -23,7 +23,7 @@ jobs:
       run: |
         pip install -r doc/user-manual/requirements.txt
     - name: Setup TeX Live
-      uses: teatimeguest/setup-texlive-action@v2
+      uses: teatimeguest/setup-texlive-action@v3
       with:
         packages: scheme-basic anyfontsize bbm bbm-macros booktabs capt-of cmap colortbl
           dvipng ellipse etoolbox fancyvrb float fncychap framed keystroke latexmk
