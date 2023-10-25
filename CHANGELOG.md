@@ -26,7 +26,10 @@ Additions to the Agda syntax.
 Language
 --------
 
-Changes of the type checker etc. that affect the Agda language.
+* A [change](https://github.com/agda/agda/pull/6639) in 2.6.4 that prevented all recursion on proofs,
+  i.e., members of a type `A : Prop ℓ`, has been [reverted](https://github.com/agda/agda/pull/6936).
+  It is possible again to use proofs as termination arguments.
+  (See [issue #6930](https://github.com/agda/agda/issues/6930).)
 
 Reflection
 ----------
