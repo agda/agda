@@ -706,7 +706,7 @@ data OutputTypeName
 -- | Strips all hidden and instance Pi's and return the argument
 --   telescope and head definition name, if possible.
 getOutputTypeName :: Type -> TCM (Telescope, OutputTypeName)
-getOutputTypeName t = do
+getOutputTypeName t = ignoreAbstractMode $ do
   TelV tel t' <- telViewUpTo' (-1) notVisible t
   ifBlocked (unEl t') (\ b _ -> return (tel , OutputTypeNameNotYetKnown b)) $ \ _ v ->
     case v of
