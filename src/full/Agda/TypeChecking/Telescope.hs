@@ -706,7 +706,10 @@ data OutputTypeName
 -- | Strips all hidden and instance Pi's and return the argument
 --   telescope and head definition name, if possible.
 getOutputTypeName :: Type -> TCM (Telescope, OutputTypeName)
-getOutputTypeName t = do
+-- 2023-10-26, Jesper, issue #6941: To make instance search work correctly for
+-- abstract or opaque instances, we need to ignore abstract mode when computing
+-- the output type name.
+getOutputTypeName t = ignoreAbstractMode $ do
   TelV tel t' <- telViewUpTo' (-1) notVisible t
   ifBlocked (unEl t') (\ b _ -> return (tel , OutputTypeNameNotYetKnown b)) $ \ _ v ->
     case v of
