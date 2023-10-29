@@ -448,7 +448,7 @@ instance Pretty Declaration where
     DataSig _ erased x tel e ->
       sep [ hsep  [ "data"
                   , prettyErased erased (pretty x)
-                  , fcat (map pretty tel)
+                  , fsep (map pretty tel)
                   ]
           , nest 2 $ hsep
                   [ ":"
@@ -458,7 +458,7 @@ instance Pretty Declaration where
     Data _ erased x tel e cs ->
       sep [ hsep  [ "data"
                   , prettyErased erased (pretty x)
-                  , fcat (map pretty tel)
+                  , fsep (map pretty tel)
                   ]
           , nest 2 $ hsep
                   [ ":"
@@ -469,14 +469,14 @@ instance Pretty Declaration where
     DataDef _ x tel cs ->
       sep [ hsep  [ "data"
                   , pretty x
-                  , fcat (map pretty tel)
+                  , fsep (map pretty tel)
                   ]
           , nest 2 $ "where"
           ] $$ nest 2 (vcat $ map pretty cs)
     RecordSig _ erased x tel e ->
       sep [ hsep  [ "record"
                   , prettyErased erased (pretty x)
-                  , fcat (map pretty tel)
+                  , fsep (map pretty tel)
                   ]
           , nest 2 $ hsep
                   [ ":"
@@ -508,7 +508,7 @@ instance Pretty Declaration where
     Module _ erased x tel ds ->
       hsep [ "module"
            , prettyErased erased (pretty x)
-           , fcat (map pretty tel)
+           , fsep (map pretty tel)
            , "where"
            ] $$ nest 2 (vcat $ map pretty ds)
     ModuleMacro _ NotErased{} x (SectionApp _ [] e) DoOpen i
@@ -519,7 +519,7 @@ instance Pretty Declaration where
           ]
     ModuleMacro _ erased x (SectionApp _ tel e) open i ->
       sep [ pretty open <+> "module" <+>
-            prettyErased erased (pretty x) <+> fcat (map pretty tel)
+            prettyErased erased (pretty x) <+> fsep (map pretty tel)
           , nest 2 $ "=" <+> pretty e <+> pretty i
           ]
     ModuleMacro _ erased x (RecordModuleInstance _ rec) open i ->
@@ -572,7 +572,7 @@ pRecord erased x (RecordDirectives ind eta pat con) tel me ds = vcat
     [ sep
       [ hsep  [ "record"
               , prettyErased erased (pretty x)
-              , fcat (map pretty tel)
+              , fsep (map pretty tel)
               ]
       , nest 2 $ pType me
       ]

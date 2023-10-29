@@ -1,4 +1,4 @@
 TelescopingLetDataRecord.agda:4,8-34
 (let open Star) is not allowed in a telescope here.
 when scope checking the declaration
-  data D1 (let open Star)(A : ★) : ★
+  data D1 (let open Star) (A : ★) : ★
