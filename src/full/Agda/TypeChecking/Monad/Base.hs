@@ -1777,7 +1777,10 @@ type Definitions = HashMap QName Definition
 type RewriteRuleMap = HashMap QName RewriteRules
 type DisplayForms = HashMap QName [LocalDisplayForm]
 
+-- 2023-21-30, András: see issue 6927
+#if __GLASGOW_HASKELL__ >= 900
 {-# SPECIALIZE HMap.insert :: QName -> v -> HashMap QName v -> HashMap QName v #-}
+#endif
 {-# SPECIALIZE HMap.lookup :: QName -> HashMap QName v -> Maybe v #-}
 
 newtype Section = Section { _secTelescope :: Telescope }
