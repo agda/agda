@@ -11,7 +11,7 @@ window.onload = function () {
 
   // Get all 'a' tags with an 'href' attribute.
   // We call those "objects".
-  const objs  = document.getSelectorAll('a[href]');
+  const objs  = document.querySelectorAll('a[href]');
 
   // Build a dictionary mapping a href to a set of objects that have this href.
   for (const obj of objs) {
