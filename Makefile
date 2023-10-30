@@ -790,6 +790,7 @@ debug : ## Print debug information.
 	@echo "AGDA_BIN_SUFFIX              = $(AGDA_BIN_SUFFIX)"
 	@echo "AGDA_TESTS_BIN               = $(AGDA_TESTS_BIN)"
 	@echo "AGDA_TESTS_OPTIONS           = $(AGDA_TESTS_OPTIONS)"
+	@echo "AGDA_OPTS                    = $(AGDA_OPTS)"
 	@echo "BUILD_DIR                    = $(BUILD_DIR)"
 	@echo "CABAL                        = $(CABAL)"
 	@echo "CABAL_BUILD_CMD              = $(CABAL_BUILD_CMD)"
