@@ -55,7 +55,7 @@ recursiveIdentity q t =
 
         proj x args = indexWithDefault __IMPOSSIBLE__ (reverse args) x
 
-        match TErased              _  = True
+        match (TErased _)          _ = True
         match (TVar z)             y = z == y
         match (TApp (TDef f) args) y = f == q && length args == n && match (proj x args) y
         match _                    _ = False

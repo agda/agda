@@ -334,14 +334,14 @@ instance NamesIn TTerm where
     TPrim _        -> mempty
     TDef x         -> namesAndMetasIn' sg x
     TApp t xs      -> namesAndMetasIn' sg (t, xs)
-    TLam t         -> namesAndMetasIn' sg t
+    TLam _ t       -> namesAndMetasIn' sg t
     TLit l         -> namesAndMetasIn' sg l
     TCon x         -> namesAndMetasIn' sg x
     TLet t1 t2     -> namesAndMetasIn' sg (t1, t2)
     TCase _ c t ts -> namesAndMetasIn' sg (c, t, ts)
     TUnit          -> mempty
     TSort          -> mempty
-    TErased        -> mempty
+    TErased _      -> mempty
     TCoerce t      -> namesAndMetasIn' sg t
     TError _       -> mempty
 

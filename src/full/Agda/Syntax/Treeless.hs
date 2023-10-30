@@ -38,6 +38,14 @@ data ArgUsage
   | ArgUnused
   deriving (Show, Eq, Ord, Generic)
 
+-- | Information about erased terms. For a lazy target language, all arguments
+--   with @ErasedAnnotated@ can be removed completely. All arguments with
+--   @ErasedInferred@ must be compiled to a dummy (unit) value.
+data ErasedInfo
+  = ErasedAnnotated
+  | ErasedInferred
+  deriving (Show, Eq, Ord, Generic)
+
 -- | The treeless compiler can behave differently depending on the target
 --   language evaluation strategy. For instance, more aggressive erasure for
 --   lazy targets.
@@ -54,7 +62,7 @@ data TTerm = TVar Int
            | TPrim TPrim
            | TDef QName
            | TApp TTerm Args
-           | TLam TTerm
+           | TLam (Maybe ErasedInfo) TTerm
            | TLit Literal
            | TCon QName
            | TLet TTerm TTerm
@@ -69,7 +77,7 @@ data TTerm = TVar Int
            -- TACon alternatives must not overlap.
            | TUnit -- used for levels right now
            | TSort
-           | TErased
+           | TErased ErasedInfo
            | TCoerce TTerm  -- ^ Used by the GHC backend
            | TError TError
            -- ^ A runtime error, something bad has happened.
@@ -141,11 +149,11 @@ tLetView e          = ([], e)
 
 tLamView :: TTerm -> (Int, TTerm)
 tLamView = go 0
-  where go n (TLam b) = go (n + 1) b
-        go n t        = (n, t)
+  where go n (TLam i b) = go (n + 1) b
+        go n t          = (n, t)
 
 mkTLam :: Int -> TTerm -> TTerm
-mkTLam n b = foldr ($) b $ replicate n TLam
+mkTLam n b = foldr ($) b $ replicate n (TLam Nothing)
 
 -- | Introduces a new binding
 mkLet :: TTerm -> TTerm -> TTerm
@@ -286,6 +294,7 @@ filterUsed = curry $ \case
 
 instance NFData Compiled
 instance NFData ArgUsage
+instance NFData ErasedInfo
 instance NFData TTerm
 instance NFData TPrim
 instance NFData CaseType

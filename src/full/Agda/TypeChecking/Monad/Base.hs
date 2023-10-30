@@ -1777,7 +1777,7 @@ type Definitions = HashMap QName Definition
 type RewriteRuleMap = HashMap QName RewriteRules
 type DisplayForms = HashMap QName [LocalDisplayForm]
 
-{-# SPECIALIZE HMap.insert :: QName -> v -> HashMap QName v -> HashMap QName v #-}
+--{-# SPECIALIZE HMap.insert :: QName -> v -> HashMap QName v -> HashMap QName v #-}
 {-# SPECIALIZE HMap.lookup :: QName -> HashMap QName v -> Maybe v #-}
 
 newtype Section = Section { _secTelescope :: Telescope }
