@@ -1649,7 +1649,12 @@ text properties."
     (error "no process")))
 
 (defun agda2-intersperse (sep xs)
-  (let(ys)(while xs (push (pop xs) ys)(push sep ys))(pop ys)(nreverse ys)))
+  (let (ys)
+    (while xs
+      (push (string-trim (pop xs)) ys)
+      (push sep ys))
+    (pop ys)
+    (nreverse ys)))
 
 (defun agda2-goal-Range (o)
   "The Haskell Range of goal overlay O."
