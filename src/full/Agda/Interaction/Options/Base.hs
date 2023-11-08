@@ -280,7 +280,8 @@ data CommandLineOptions = Options
        -- ^ Configure notifications about imported modules.
   , optTrustedExecutables    :: Map ExeName FilePath
        -- ^ Map names of trusted executables to absolute paths.
-  , optPrintAgdaDir          :: Bool
+  , optPrintAgdaDataDir      :: Bool
+  , optPrintAgdaAppDir       :: Bool
   , optPrintVersion          :: Maybe PrintAgdaVersion
   , optPrintHelp             :: Maybe Help
   , optInteractive           :: Bool
@@ -831,7 +832,8 @@ defaultOptions = Options
   , optUseLibs               = True
   , optTraceImports          = 1
   , optTrustedExecutables    = Map.empty
-  , optPrintAgdaDir          = False
+  , optPrintAgdaDataDir      = False
+  , optPrintAgdaAppDir       = False
   , optPrintVersion          = Nothing
   , optPrintHelp             = Nothing
   , optInteractive           = False
@@ -1211,8 +1213,11 @@ inputFlag f o =
         Nothing  -> return $ o { optInputFile = Just f }
         Just _   -> throwError "only one input file allowed"
 
-printAgdaDirFlag :: Flag CommandLineOptions
-printAgdaDirFlag o = return $ o { optPrintAgdaDir = True }
+printAgdaDataDirFlag :: Flag CommandLineOptions
+printAgdaDataDirFlag o = return $ o { optPrintAgdaDataDir = True }
+
+printAgdaAppDirFlag :: Flag CommandLineOptions
+printAgdaAppDirFlag o = return $ o { optPrintAgdaAppDir = True }
 
 versionFlag :: Flag CommandLineOptions
 versionFlag o = return $ o { optPrintVersion = Just PrintAgdaVersion }
@@ -1440,8 +1445,15 @@ standardOptions =
                     , intercalate ", " $ map fst allHelpTopics
                     ]
 
-    , Option []     ["print-agda-dir"] (NoArg printAgdaDirFlag)
+    , Option []     ["print-agda-dir"] (NoArg printAgdaDataDirFlag)
+                    ("print the Agda data directory exit")
+
+    , Option []     ["print-agda-app-dir"] (NoArg printAgdaAppDirFlag)
                     ("print $AGDA_DIR and exit")
+
+    , Option []     ["print-agda-data-dir"] (NoArg printAgdaDataDirFlag)
+                    ("print the Agda data directory exit")
+
 
     , Option ['I']  ["interactive"] (NoArg interactiveFlag)
                     "start in interactive mode"
