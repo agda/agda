@@ -26,6 +26,12 @@ Language
   It is possible again to use proofs as termination arguments.
   (See [issue #6930](https://github.com/agda/agda/issues/6930).)
 
+* It is now always possible to refer to the name of a record type's
+  constructor, even if a name was not explicitly specified. This is done
+  using the new `(Record name).constructor` syntax; See [issue
+  #6964](https://github.com/agda/agda/issues/6964) for the motivation.
+
+
 Reflection
 ----------
 

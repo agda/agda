@@ -8,6 +8,7 @@
   open import Agda.Builtin.Nat hiding (_==_; _<_)
   open import Agda.Builtin.List
   open import Agda.Builtin.Equality
+  open import Agda.Builtin.Reflection
 
   _||_ : Bool → Bool → Bool
   true  || x = true
@@ -109,6 +110,21 @@ constructor to define elements of the record type:
 
   p45 : Pair Nat Nat
   p45 = 4 , 5
+
+Even if you did *not* use the ``constructor`` keyword, then it's still
+possible to refer to the record's internally-constructor as a name,
+using the syntax ``Record.constructor``; see
+:ref:`anonymous-constructors` below for the details of this syntax.
+
+::
+
+  record Anon (A B : Set) : Set where
+    field
+      fst : A
+      snd : B
+
+  a45 : Anon Nat Nat
+  a45 = Anon.constructor 4 5
 
 In this sense, record types behave much like single constructor
 datatypes (but see :ref:`eta-expansion` below).
@@ -216,6 +232,66 @@ example building on the example above:
 
    r2 : A → R
    r2 a = record { M hiding (y); M2 a renaming (w to y) }
+
+.. _anonymous-constructors:
+
+Records with anonymous constructors
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Even if a record was not defined with a named ``constructor`` directive,
+Agda will still internally generate a constructor for the record. This
+name is used internally to implement ``record{}`` syntax, but it can
+still be obtained through using :ref:`reflection`. Since Agda 2.6.5,
+it's possible to refer to this name from surface syntax as well:
+
+::
+
+  _ : Name
+  _ = quote Anon.constructor
+
+This syntax can be used wherever a name can be, and behaves exactly as
+though the constructor had been named.
+
+::
+
+  {-# INLINE Anon.constructor #-}
+
+However, keep in mind that the ``Record.constructor`` syntax is
+*syntax*, and there is no binding for ``constructor`` in the module
+``Anon``, nor is it possible to declare a function called
+``constructor`` in another module. Moreover, the ``constructor``
+pseudo-name is not affected by ``using``, ``hiding`` *or* ``renaming``
+declarations, and attempting to list it in these is a syntax error.
+
+The constructor of a record can be referred to whenever the record
+itself is in scope, though note that if the record is abstract (see
+:ref:`abstract-definitions`), it's still an error to refer to the
+constructor:
+
+.. code-block:: agda
+
+  module _ where private
+    record R : Set where
+
+  abstract record S : Set where
+
+  _ = R.constructor
+  -- Name not in scope: R.constructor
+
+  _ = S.constructor
+  -- Constructor S.constructor is abstract, thus, not in scope here
+
+If the record *does* have a named constructor, then using
+``Record.constructor`` syntax is disallowed entirely:
+
+.. code-block:: agda
+
+  record R : Set where
+    constructor r
+
+  _ = R.constructor
+  -- Can not refer to constructor of record type R using an anonymous reference,
+  -- since it has a declared name.
 
 Decomposing record values
 ~~~~~~~~~~~~~~~~~~~~~~~~~
