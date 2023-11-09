@@ -20,7 +20,7 @@ Preliminaries
 
 Before proceeding, make sure that you :ref:`installed Agda <installation>`
 and a compatible version of the `standard library
-<https://github.com/agda/agda-stdlib/blob/master/notes/installation-guide.md>`_.
+<https://github.com/agda/agda-stdlib/blob/master/doc/installation-guide.md>`_.
 
 Agda programs are typically developed *interactively*, which means
 that one can type check code which is not yet complete but contain
