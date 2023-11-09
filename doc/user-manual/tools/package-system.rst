@@ -135,13 +135,14 @@ To be found by Agda a library file has to be listed (with its full path) in a
 - ``AGDA_DIR/libraries``
 
 where ``VERSION`` is the Agda version (for instance ``2.5.1``). The
-``AGDA_DIR`` defaults to ``~/.config/agda`` on unix-like systems and
-``C:\Users\USERNAME\AppData\Roaming\agda`` or similar on Windows, and can be
-overridden by setting the :envvar:``AGDA_DIR`` environment variable.
+:envvar:`AGDA_DIR` defaults to ``~/.config/agda`` on unix-like systems
+and ``C:\Users\USERNAME\AppData\Roaming\agda`` or similar on Windows,
+and can be overridden by setting the :envvar:`AGDA_DIR` environment
+variable.
 
-The ``AGDA_DIR`` will fall-back to ``~/.agda``, if it exists, for
+The :envvar:`AGDA_DIR` will fall-back to ``~/.agda``, if it exists, for
 backward compatibility reasons. You can find the precise location of
-``AGDA_DIR``  by running ``agda --print-agda-app-dir``.
+:envvar:`AGDA_DIR`  by running ``agda --print-agda-app-dir``.
 
 Each line of the libraries file shall be the absolute file system path to
 the root of a library, or a comment line starting with ``--`` followed by a space character.

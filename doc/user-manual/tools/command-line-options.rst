@@ -113,7 +113,7 @@ General options
 
 .. option:: --print-agda-app-dir
 
-     .. versionadded:: 2.6.4
+     .. versionadded:: 2.6.4.1
 
      Outputs the (:envvar:`AGDA_DIR`) directory containing Agda's
      application configuration files, such as the ``defaults`` and
@@ -127,10 +127,14 @@ General options
 
 .. option:: --print-agda-data-dir
 
-     .. versionadded:: 2.6.4
+     .. versionadded:: 2.6.4.1
 
      Outputs the root of the directory structure holding Agda's data
      files such as core libraries, style files for the backends, etc.
+
+     While this location is usually determined at installation time, it
+     can be controlled at runtime using the environment variable
+     :envvar:`Agda_datadir`.
 
 .. option:: --transliterate
 
