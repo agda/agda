@@ -36,8 +36,28 @@ Reflection
 
 Changes to the meta-programming facilities.
 
+* The reflection primitive `getInstances` will now return instance
+  candidates ordered by _specificity_, rather than in unspecified order:
+  If a candidate `c1 : T` has a type which is a substitution instance of
+  that of another candidate `c2 : S`, `c1` will appear earlier in the
+  list.
+
+  As a concrete example, if you have instances `F (Nat → Nat)`, `F (Nat
+  → a)`, and `F (a → b)`, they will be returned in this order. See
+  [issue #6944](https://github.com/agda/agda/issues/6944) for further
+  motivation.
+
 Library management
 ------------------
+
+* Agda now follows the XDG base directory standard on Unix-like systems,
+  see [PR #6858](https://github.com/agda/agda/pull/6858).
+  This means, it will look for configuration files in `~/.config/agda` rather than `~/.agda`.
+
+  For backward compatibility, if you still have an `~/.agda` directory, it will look there first.
+
+  No change on Windows, it will continue to use `%APPDATA%` (e.g. `C:/Users/USERNAME/AppData/Roaming/agda`).
+
 
 Interaction and emacs mode
 --------------------------
