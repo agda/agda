@@ -58,7 +58,6 @@ saturateOpaqueBlocks moddecs = entry where
       canonise name = fromMaybe name (HashMap.lookup name canonical)
       ours = snd <$> filter isOurs (Map.toAscList known)
 
-    unless (null ours) $ do
     () <- liftIO $ evaluate (rnf (canonical, backcopies))
 
     reportSDoc "tc.opaque" 30 $ vcat $
