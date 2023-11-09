@@ -73,7 +73,7 @@ a let expression of the form
 
 .. code-block:: agda
 
-  let (c x  y z) = t
+  let (c x y z) = t
   in  u
 
 will be translated internally to as
@@ -85,7 +85,8 @@ will be translated internally to as
       z = h t
   in  u
 
-This is not allowed if ``R`` is declared ``coinductive``.
+This is not allowed if ``R`` is declared ``coinductive``
+or lacks eta-equality, e.g. by being declared with ``no-eta-equality``.
 
 .. _where-blocks:
 
