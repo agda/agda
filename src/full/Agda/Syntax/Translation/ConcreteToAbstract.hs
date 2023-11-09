@@ -1695,13 +1695,13 @@ instance ToAbstract NiceDeclaration where
       return [ A.Field info y t' ]
 
   -- Primitive function
-    PrimitiveFunction r p a x t -> do
+    PrimitiveFunction r p a x t -> notAffectedByOpaque $ do
       t' <- traverse (toAbstractCtx TopCtx) t
       f  <- getConcreteFixity x
       y  <- freshAbstractQName f x
       bindName p PrimName x y
       unfoldFunction y
-      di <- updateDefInfoOpacity (mkDefInfo x f p a r)
+      let di = mkDefInfo x f p a r
       return [ A.Primitive di y t' ]
 
   -- Definitions (possibly mutual)
@@ -2158,10 +2158,9 @@ instance ToAbstract NiceDeclaration where
       interestingOpaqueDecl (A.Mutual _ ds)     = any interestingOpaqueDecl ds
       interestingOpaqueDecl (A.ScopedDecl _ ds) = any interestingOpaqueDecl ds
 
-      interestingOpaqueDecl A.FunDef{} = True
+      interestingOpaqueDecl A.FunDef{}      = True
       interestingOpaqueDecl A.UnquoteDecl{} = True
-      interestingOpaqueDecl A.UnquoteDef{} = True
-      interestingOpaqueDecl A.Primitive{} = True
+      interestingOpaqueDecl A.UnquoteDef{}  = True
 
       interestingOpaqueDecl _ = False
 
