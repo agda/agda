@@ -1698,6 +1698,13 @@ instance LensIsAbstract (Closure a) where
 instance LensIsAbstract MetaInfo where
   lensIsAbstract = lensClosure . lensIsAbstract
 
+instance LensIsOpaque TCEnv where
+  lensIsOpaque f env =
+    (f $! case envCurrentOpaqueId env of { Just x -> OpaqueDef x ; Nothing -> TransparentDef })
+    <&> \case { OpaqueDef x    -> env { envCurrentOpaqueId = Just x }
+              ; TransparentDef -> env { envCurrentOpaqueId = Nothing }
+              }
+
 ---------------------------------------------------------------------------
 -- ** Interaction meta variables
 ---------------------------------------------------------------------------
