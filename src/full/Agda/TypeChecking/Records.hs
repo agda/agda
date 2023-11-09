@@ -489,8 +489,8 @@ isEtaRecordType a = case unEl a of
     ifM (isEtaRecord d) (return $ Just (d, vs)) (return Nothing)
   _        -> return Nothing
 
--- | Check if a name refers to a record constructor.
---   If yes, return record definition.
+-- | Check if a name refers to a record constructor. If yes, return
+-- record definition. Assumes that the name is in scope.
 isRecordConstructor :: HasConstInfo m => QName -> m (Maybe (QName, Defn))
 isRecordConstructor c = getConstInfo' c >>= \case
   Left (SigUnknown err)     -> __IMPOSSIBLE__

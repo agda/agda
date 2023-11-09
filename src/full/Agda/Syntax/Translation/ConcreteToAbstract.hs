@@ -603,7 +603,7 @@ instance ToAbstract MaybeOldQName where
       FieldName     ds     -> ambiguous (A.Proj ProjPrefix) ds
       ConstructorName _ ds -> ambiguous A.Con ds
       PatternSynResName ds -> ambiguous A.PatternSyn ds
-      UnknownName          -> pure Nothing
+      UnknownName              -> pure Nothing
     where
       ambiguous :: (AmbiguousQName -> A.Expr) -> List1 AbstractName -> ScopeM (Maybe A.Expr)
       ambiguous f ds = do
@@ -685,11 +685,11 @@ instance ToQName a => ToAbstract (OldName a) where
       DefinedName _ d NoSuffix -> return $ anameName d
       DefinedName _ d Suffix{} -> notInScopeError (toQName x)
       -- We can get the cases below for DISPLAY pragmas
-      ConstructorName _ ds -> return $ anameName (List1.head ds)   -- We'll throw out this one, so it doesn't matter which one we pick
-      FieldName ds         -> return $ anameName (List1.head ds)
-      PatternSynResName ds -> return $ anameName (List1.head ds)
-      VarName x _          -> genericError $ "Not a defined name: " ++ prettyShow x
-      UnknownName          -> notInScopeError (toQName x)
+      ConstructorName _ ds     -> return $ anameName (List1.head ds)   -- We'll throw out this one, so it doesn't matter which one we pick
+      FieldName ds             -> return $ anameName (List1.head ds)
+      PatternSynResName ds     -> return $ anameName (List1.head ds)
+      VarName x _              -> genericError $ "Not a defined name: " ++ prettyShow x
+      UnknownName              -> notInScopeError (toQName x)
 
 -- | Resolve a non-local name and return its possibly ambiguous abstract name.
 toAbstractExistingName :: ToQName a => a -> ScopeM (List1 AbstractName)
@@ -1866,8 +1866,23 @@ instance ToAbstract NiceDeclaration where
                typeError $ DuplicateFields dups
         bindModule p x m
         let kind = maybe ConName (conKindOfName . rangedThing) ind
-        -- Andreas, 2019-11-11, issue #4189, no longer add record constructor to record module.
-        cm' <- forM cm $ \ (c, _) -> bindRecordConstructorName c kind a p
+
+        cm' <- case cm of
+          -- Andreas, 2019-11-11, issue #4189, no longer add record constructor to record module.
+          Just (c, _) -> NamedRecCon <$> bindRecordConstructorName c kind a p
+
+          -- Amy, 2023-11-09: if the record does not have a named
+          -- constructor, then generate the QName here, and record it in
+          -- the TC state so that 'Record.constructor' can be resolved.
+          Nothing -> do
+            -- Technically it doesn't matter with what this name is
+            -- qualified since record constructor names have a special
+            -- printing rule in lookupQName.
+            constr <- withCurrentModule m $
+              freshAbstractQName noFixity' $ simpleName "constructor"
+            setRecordConstructor x' constr
+            pure $ FreshRecCon constr
+
         let inst = caseMaybe cm NotInstanceDef snd
         printScope "rec" 15 "record complete"
         f <- getConcreteFixity x

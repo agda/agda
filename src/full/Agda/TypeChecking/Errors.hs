@@ -301,6 +301,7 @@ errorString err = case err of
   IllTypedPatternAfterWithAbstraction{}    -> "IllTypedPatternAfterWithAbstraction"
   ComatchingDisabledForRecord{}            -> "ComatchingDisabledForRecord"
   BuiltinMustBeIsOne{}                     -> "BuiltinMustBeIsOne"
+  IllegalAnonymousConstrReference{}        -> "IllegalAnonymousConstrReference"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1439,6 +1440,11 @@ instance PrettyTCM TypeError where
 
     BuiltinMustBeIsOne builtin ->
       prettyTCM builtin <+> " is not IsOne."
+
+    IllegalAnonymousConstrReference recr -> fsep $
+      pwords "Can not refer to constructor of record type"
+        ++ [prettyTCM recr]
+        ++ pwords "using an anonymous reference, since it has a declared name."
 
     where
     mpar n args
