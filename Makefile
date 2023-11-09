@@ -557,7 +557,7 @@ std-lib-test :
 	@$(call decorate, "Standard library test", \
 		(cd std-lib && cabal run GenerateEverything && \
 						time $(AGDA_BIN) $(AGDA_OPTS) --ignore-interfaces --no-default-libraries $(PROFILEOPTS) \
-														 -i. -isrc README.agda \
+														 -i. -isrc Everything.agda \
 														 +RTS -s))
 
 .PHONY : cubical-test ##
@@ -576,7 +576,7 @@ continue-cubical-test :
 .PHONY : continue-std-lib-test ##
 continue-std-lib-test :
 	@(cd std-lib && \
-          time $(AGDA_BIN) $(PROFILEOPTS) --no-default-libraries -i. -isrc README.agda +RTS -s)
+          time $(AGDA_BIN) $(PROFILEOPTS) --no-default-libraries -i. -isrc Everything.agda +RTS -s)
 
 .PHONY : cubical-succeed ##
 cubical-succeed :
