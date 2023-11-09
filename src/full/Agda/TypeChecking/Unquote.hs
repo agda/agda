@@ -31,7 +31,7 @@ import Agda.Syntax.Abstract.Views
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
-import Agda.Syntax.Info
+import Agda.Syntax.Info as Info
 import Agda.Syntax.Translation.ReflectedToAbstract
 import Agda.Syntax.Scope.Base (KindOfName(ConName, DataName))
 
@@ -1062,7 +1062,7 @@ evalTCM v = do
       oc <- asksTC (^. lensIsOpaque)       -- Issue #6959, respect current opaque block
       let
         i' = mkDefInfo (nameConcrete $ qnameName x) noFixity' accessDontCare ac noRange
-        i = i' { defOpaque = oc }
+        i = i' { Info.defOpaque = oc }
       locallyReduceAllDefs $ checkFunDef i x cs
       primUnitUnit
 
