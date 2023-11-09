@@ -1,0 +1,4 @@
+AnonymousRecConstrParse1.agda:3,5-5
+AnonymousRecConstrParse1.agda:3,5: in the name constructor, the part constructor is not valid because it is a keyword
+<EOF><ERROR>
+...
