@@ -1,5 +1,5 @@
-Release notes for Agda version 2.6.5
-====================================
+Release notes for Agda version 2.6.4.1
+======================================
 
 Highlights
 ----------
@@ -65,8 +65,8 @@ Interaction and emacs mode
 Other issues closed
 -------------------
 
-For 2.6.5, the following issues were also
-[closed](https://github.com/agda/agda/issues?q=is%3Aissue+milestone%3A2.6.5+is%3Aclosed)
+For 2.6.4.1, the following issues were also
+[closed](https://github.com/agda/agda/issues?q=is%3Aissue+milestone%3A2.6.4.1+is%3Aclosed)
 (see [bug tracker](https://github.com/agda/agda/issues)):
 
-NOTE: This section will be filled by output produced with `closed-issues-for-milestone 2.6.5`.
+NOTE: This section will be filled by output produced with `closed-issues-for-milestone 2.6.4.1`.
