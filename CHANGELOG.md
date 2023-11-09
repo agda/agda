@@ -50,10 +50,14 @@ Changes to the meta-programming facilities.
 Library management
 ------------------
 
-* Agda will now look for configuration files following the XDG base
-  directory standard, see [PR #6858](https://github.com/agda/agda/pull/6858).
+* Agda now follows the XDG base directory standard on Unix-like systems,
+  see [PR #6858](https://github.com/agda/agda/pull/6858).
+  This means, it will look for configuration files in `~/.config/agda` rather than `~/.agda`.
 
-  If you still have an `~/.agda` directory, it will look there first.
+  For backward compatibility, if you still have an `~/.agda` directory, it will look there first.
+
+  No change on Windows, it will continue to use `%APPDATA%` (e.g. `C:/Users/USERNAME/AppData/Roaming/agda`).
+
 
 Interaction and emacs mode
 --------------------------
