@@ -702,6 +702,13 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
           i <- lift fresh
           return $ x { A.nameId = i }
 
+        copyRecordConstr :: A.QName -> A.QName -> WSM ()
+        copyRecordConstr from to = getRecordConstructor from >>= \case
+          Just con -> do
+            con' <- renName con
+            lift (setRecordConstructor to con')
+          Nothing  -> pure ()
+
         -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
         renName :: A.QName -> WSM A.QName
         renName x = do
@@ -738,6 +745,7 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
           lift $ reportSLn "scope.copy" 50 $ "  Copying " ++ prettyShow x ++ " to " ++ prettyShow y
           addName x y
           lift (copyName x y)
+          copyRecordConstr x y
           return y
 
         -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
