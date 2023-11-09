@@ -222,6 +222,14 @@ data PreScopeState = PreScopeState
     -- ^ Contents of .agda-lib files that have already been parsed.
   , stPreImportedMetaStore :: !RemoteMetaStore
     -- ^ Used for meta-variables from other modules.
+  , stPreCopiedNames       :: !(HashMap A.QName A.QName)
+    -- ^ Associates a copied name (the key) to its original name (the
+    -- value). Computed by the scope checker, used to compute opaque
+    -- blocks.
+  , stPreNameCopies        :: !(HashMap A.QName (HashSet A.QName))
+    -- ^ Associates an original name (the key) to all its copies (the
+    -- value). Computed by the scope checker, used to compute opaque
+    -- blocks.
   }
   deriving Generic
 
@@ -424,6 +432,8 @@ initPreScopeState = PreScopeState
   , stPreProjectConfigs       = Map.empty
   , stPreAgdaLibFiles         = Map.empty
   , stPreImportedMetaStore    = HMap.empty
+  , stPreCopiedNames          = HMap.empty
+  , stPreNameCopies           = HMap.empty
   }
 
 initPostScopeState :: PostScopeState
@@ -609,6 +619,16 @@ stImportedMetaStore :: Lens' TCState RemoteMetaStore
 stImportedMetaStore f s =
   f (stPreImportedMetaStore (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedMetaStore = x}}
+
+stCopiedNames :: Lens' TCState (HashMap QName QName)
+stCopiedNames f s =
+  f (stPreCopiedNames (stPreScopeState s)) <&>
+  \x -> s {stPreScopeState = (stPreScopeState s) {stPreCopiedNames = x}}
+
+stNameCopies :: Lens' TCState (HashMap QName (HashSet QName))
+stNameCopies f s =
+  f (stPreNameCopies (stPreScopeState s)) <&>
+  \x -> s {stPreScopeState = (stPreScopeState s) {stPreNameCopies = x}}
 
 stFreshNameId :: Lens' TCState NameId
 stFreshNameId f s =
@@ -1677,6 +1697,13 @@ instance LensIsAbstract (Closure a) where
 
 instance LensIsAbstract MetaInfo where
   lensIsAbstract = lensClosure . lensIsAbstract
+
+instance LensIsOpaque TCEnv where
+  lensIsOpaque f env =
+    (f $! case envCurrentOpaqueId env of { Just x -> OpaqueDef x ; Nothing -> TransparentDef })
+    <&> \case { OpaqueDef x    -> env { envCurrentOpaqueId = Just x }
+              ; TransparentDef -> env { envCurrentOpaqueId = Nothing }
+              }
 
 ---------------------------------------------------------------------------
 -- ** Interaction meta variables

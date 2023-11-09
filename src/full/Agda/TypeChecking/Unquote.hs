@@ -31,7 +31,7 @@ import Agda.Syntax.Abstract.Views
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
-import Agda.Syntax.Info
+import Agda.Syntax.Info as Info
 import Agda.Syntax.Translation.ReflectedToAbstract
 import Agda.Syntax.Scope.Base (KindOfName(ConName, DataName))
 
@@ -1059,7 +1059,10 @@ evalTCM v = do
       alwaysReportSDoc "tc.unquote.def" 10 $ vcat $ map prettyA cs
       let accessDontCare = __IMPOSSIBLE__  -- or ConcreteDef, value not looked at
       ac <- asksTC (^. lensIsAbstract)     -- Issue #4012, respect AbstractMode
-      let i = mkDefInfo (nameConcrete $ qnameName x) noFixity' accessDontCare ac noRange
+      oc <- asksTC (^. lensIsOpaque)       -- Issue #6959, respect current opaque block
+      let
+        i' = mkDefInfo (nameConcrete $ qnameName x) noFixity' accessDontCare ac noRange
+        i = i' { Info.defOpaque = oc }
       locallyReduceAllDefs $ checkFunDef i x cs
       primUnitUnit
 

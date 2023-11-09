@@ -1,8 +1,6 @@
-OpaqueRecord.agda:5,3-8,16
+OpaquePrimitive.agda:11,3-28
 warning: -W[no]NotAffectedByOpaque
 Only function definitions can be marked opaque. This definition
 will be treated as transparent.
 when scope checking the declaration
-  record Foo where
-    inductive
-    field foo : Foo
+  primitive primToUpper : Char → Char

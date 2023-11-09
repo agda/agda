@@ -1,7 +1,7 @@
 Issue6802.agda:9,3-11,15
 warning: -W[no]NotAffectedByOpaque
-Only functions and primitives can be marked opaque. This
-declaration will be treated as transparent.
+Only function definitions can be marked opaque. This definition
+will be treated as transparent.
 when scope checking the declaration
   module _ where
     foo : Nat
@@ -20,8 +20,8 @@ when scope checking the declaration
 
 Issue6802.agda:9,3-11,15
 warning: -W[no]NotAffectedByOpaque
-Only functions and primitives can be marked opaque. This
-declaration will be treated as transparent.
+Only function definitions can be marked opaque. This definition
+will be treated as transparent.
 when scope checking the declaration
   module _ where
     foo : Nat
