@@ -1,8 +1,13 @@
 Release notes for Agda version 2.6.4.1
 ======================================
 
-Highlights
-----------
+This is a minor release of Agda 2.6.4 featuring a few changes:
+
+- Make recursion on proofs legal again.
+- Improve performance, e.g. by removing debug printing unless built with cabal flag `debug`.
+- Switch to XDG directory convention.
+- Reflection: change to order of results returned by `getInstances`.
+- Fix some internal errors.
 
 Installation
 ------------
@@ -11,17 +16,7 @@ Installation
 
 * Verbose output printing via `-v` or `--verbose` is now only active if Agda is built with the `debug` cabal flag.
   Without `debug`, no code is generated for verbose printing, which makes building Agda faster and Agda itself
-  faster as well.
-
-* Removed the cabal flag `cpphs` that enabled building Agda with `cpphs` instead of the default C preprocessor.
-
-Pragmas and options
--------------------
-
-Syntax
-------
-
-Additions to the Agda syntax.
+  faster as well. (PR [#6863](https://github.com/agda/agda/pull/6863))
 
 Language
 --------
@@ -59,9 +54,6 @@ Library management
   No change on Windows, it will continue to use `%APPDATA%` (e.g. `C:/Users/USERNAME/AppData/Roaming/agda`).
 
 
-Interaction and emacs mode
---------------------------
-
 Other issues closed
 -------------------
 
@@ -69,4 +61,10 @@ For 2.6.4.1, the following issues were also
 [closed](https://github.com/agda/agda/issues?q=is%3Aissue+milestone%3A2.6.4.1+is%3Aclosed)
 (see [bug tracker](https://github.com/agda/agda/issues)):
 
-NOTE: This section will be filled by output produced with `closed-issues-for-milestone 2.6.4.1`.
+- [#6746](https://github.com/agda/agda/issues/6746): Support GHC 9.8
+- [#6852](https://github.com/agda/agda/issues/6852): Follow XDG Base Directory Specification
+- [#6913](https://github.com/agda/agda/issues/6913): Internal error on `primLockUniv`-sorted functions
+- [#6930](https://github.com/agda/agda/issues/6930): Termination checking with --prop: change in 2.6.4 compared with 2.6.3
+- [#6931](https://github.com/agda/agda/issues/6931): Internal error with an empty parametrized module from a different file
+- [#6941](https://github.com/agda/agda/issues/6941): Interaction between opaque and instance arguments
+- [#6944](https://github.com/agda/agda/issues/6944): Order instances by specificity for reflection
