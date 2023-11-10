@@ -1205,6 +1205,8 @@ data Constraint
   | FindInstance MetaId (Maybe [Candidate])
     -- ^ the first argument is the instance argument and the second one is the list of candidates
     --   (or Nothing if we haven’t determined the list of candidates yet)
+  | ResolveInstanceHead QName
+    -- ^ Resolve the head symbol of the type that the given instance targets
   | CheckFunDef A.DefInfo QName [A.Clause] TCErr
     -- ^ Last argument is the error causing us to postpone.
   | UnquoteTactic Term Term Type   -- ^ First argument is computation and the others are hole and goal type
@@ -1239,6 +1241,7 @@ instance Free Constraint where
       IsEmpty _ t           -> freeVars' t
       CheckSizeLtSat u      -> freeVars' u
       FindInstance _ cs     -> freeVars' cs
+      ResolveInstanceHead q -> mempty
       CheckFunDef{}         -> mempty
       HasBiggerSort s       -> freeVars' s
       HasPTSRule a s        -> freeVars' (a , s)
@@ -1262,6 +1265,7 @@ instance TermLike Constraint where
       UnBlock _              -> mempty
       CheckLockedVars a b c d -> foldTerm f (a, b, c, d)
       FindInstance _ _       -> mempty
+      ResolveInstanceHead q  -> mempty
       CheckFunDef{}          -> mempty
       HasBiggerSort s        -> foldTerm f s
       HasPTSRule a s         -> foldTerm f (a, Sort <$> s)

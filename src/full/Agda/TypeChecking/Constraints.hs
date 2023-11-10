@@ -23,6 +23,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.LevelConstraints
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Sort
+import Agda.TypeChecking.Telescope ( resolveInstanceHead )
 import Agda.TypeChecking.Warnings
 
 import Agda.TypeChecking.Irrelevance
@@ -289,6 +290,7 @@ solveConstraint_ (UnBlock m)                =   -- alwaysUnblock since these hav
       Open -> __IMPOSSIBLE__
       OpenInstance -> __IMPOSSIBLE__
 solveConstraint_ (FindInstance m cands) = findInstance m cands
+solveConstraint_ (ResolveInstanceHead q) = resolveInstanceHead q
 solveConstraint_ (CheckFunDef i q cs _err) = withoutCache $
   -- re #3498: checking a fundef would normally be cached, but here it's
   -- happening out of order so it would only corrupt the caching log.

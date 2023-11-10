@@ -532,9 +532,9 @@ getAllInstanceDefs = do
 getAnonInstanceDefs :: TCM (Set QName)
 getAnonInstanceDefs = snd <$> getAllInstanceDefs
 
--- | Remove all instances whose type is still unresolved.
-clearAnonInstanceDefs :: TCM ()
-clearAnonInstanceDefs = modifyInstanceDefs $ mapSnd $ const Set.empty
+-- | Remove an instance from the set of unresolved instances.
+clearUnknownInstance :: QName -> TCM ()
+clearUnknownInstance q = modifyInstanceDefs $ mapSnd $ Set.delete q
 
 -- | Add an instance whose type is still unresolved.
 addUnknownInstance :: QName -> TCM ()

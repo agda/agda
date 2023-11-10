@@ -1030,6 +1030,7 @@ instance Subst Constraint where
     IsEmpty r a              -> IsEmpty r (rf a)
     CheckSizeLtSat t         -> CheckSizeLtSat (rf t)
     FindInstance m cands     -> FindInstance m (rf cands)
+    ResolveInstanceHead q    -> ResolveInstanceHead (rf q)
     c@UnBlock{}              -> c
     c@CheckFunDef{}          -> c
     HasBiggerSort s          -> HasBiggerSort (rf s)

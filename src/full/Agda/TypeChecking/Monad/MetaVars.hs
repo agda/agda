@@ -418,6 +418,7 @@ constraintMetas = \case
         -- We keep instance constraints even if the meta is solved, to check that it could indeed
         -- be filled by instance search. If it's solved, look in the solution.
         caseMaybeM (isInstantiatedMeta' x) (return $ Set.singleton x) $ return . allMetas Set.singleton
+      ResolveInstanceHead{}    -> return mempty
       IsEmpty{}                -> return mempty
       CheckFunDef{}            -> return mempty
       CheckSizeLtSat{}         -> return mempty

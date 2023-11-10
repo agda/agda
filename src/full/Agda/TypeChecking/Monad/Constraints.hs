@@ -191,6 +191,7 @@ addConstraintTo bucket unblock c = do
       SortCmp{}        -> False
       LevelCmp{}       -> False
       FindInstance{}   -> False
+      ResolveInstanceHead{} -> False
       HasBiggerSort{}  -> False
       HasPTSRule{}     -> False
       CheckDataSort{}  -> False
