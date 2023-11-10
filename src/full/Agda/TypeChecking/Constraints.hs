@@ -23,7 +23,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.LevelConstraints
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Sort
-import Agda.TypeChecking.Telescope ( resolveInstanceHead )
 import Agda.TypeChecking.Warnings
 
 import Agda.TypeChecking.Irrelevance
