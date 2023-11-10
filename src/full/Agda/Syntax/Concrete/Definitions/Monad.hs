@@ -49,6 +49,8 @@ instance Null a => Null (Nice a) where
 data NiceEnv = NiceEnv
   { safeButNotBuiltin :: Bool
        -- ^ We are in a module declared @--safe@ which is not a builtin module.
+  , opaque :: Bool
+    -- ^ Should "everything" be marked as opaque?
   }
 
 -- | Nicifier state.

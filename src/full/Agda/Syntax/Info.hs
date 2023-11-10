@@ -150,7 +150,7 @@ data DefInfo' t = DefInfo
   { defFixity   :: Fixity'
   , defAccess   :: Access
   , defAbstract :: IsAbstract
-  , defOpaque   :: IsOpaque
+  , defOpaque   :: OpaqueOrTransparentDef
   , defInstance :: IsInstance
   , defMacro    :: IsMacro
   , defInfo     :: DeclInfo
@@ -177,9 +177,6 @@ instance KillRange t => KillRange (DefInfo' t) where
 
 instance LensIsAbstract (DefInfo' t) where
   lensIsAbstract f i = (f $! defAbstract i) <&> \ a -> i { defAbstract = a }
-
-instance LensIsOpaque (DefInfo' t) where
-  lensIsOpaque f i = (f $! defOpaque i) <&> \ a -> i { defOpaque = a }
 
 instance AnyIsAbstract (DefInfo' t) where
   anyIsAbstract = defAbstract

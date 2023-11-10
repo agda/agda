@@ -156,7 +156,7 @@ fixitiesAndPolarities' = foldMap $ \case
   Private _ _ ds' -> fixitiesAndPolarities' ds'
   InstanceB _ ds' -> fixitiesAndPolarities' ds'
   Macro     _ ds' -> fixitiesAndPolarities' ds'
-  Opaque    _ ds' -> fixitiesAndPolarities' ds'
+  Opaque  _ _ ds' -> fixitiesAndPolarities' ds'
   -- All other declarations are ignored.
   -- We expand these boring cases to trigger a revisit
   -- in case the @Declaration@ type is extended in the future.
@@ -239,7 +239,7 @@ declaredNames = \case
   Postulate _ ds        -> allPostulates $ foldMap declaredNames ds
   Primitive _ ds        -> foldMap declaredNames ds
   Generalize _ ds       -> foldMap declaredNames ds
-  Opaque _ ds           -> foldMap declaredNames ds
+  Opaque _ _ ds         -> foldMap declaredNames ds
   Open{}                -> mempty
   Unfolding{}           -> mempty
   Import{}              -> mempty

@@ -1,0 +1,3 @@
+Opaque-option-2.agda:13,7-11
+F Set != Set of type Set₁
+when checking that the expression refl has type F Set ≡ Set

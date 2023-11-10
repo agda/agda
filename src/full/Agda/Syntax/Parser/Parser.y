@@ -153,6 +153,7 @@ import Agda.Utils.Impossible
     'do'                      { TokKeyword KwDo $$ }
     'with'                    { TokKeyword KwWith $$ }
     'opaque'                  { TokKeyword KwOpaque $$ }
+    'transparent'             { TokKeyword KwTransparent $$ }
     'unfolding'               { TokKeyword KwUnfolding $$ }
 
     'BUILTIN'                 { TokKeyword KwBUILTIN $$ }
@@ -276,6 +277,7 @@ Token
     | 'syntax'                  { TokKeyword KwSyntax $1 }
     | 'tactic'                  { TokKeyword KwTactic $1 }
     | 'to'                      { TokKeyword KwTo $1 }
+    | 'transparent'             { TokKeyword KwTransparent $1 }
     | 'unfolding'               { TokKeyword KwUnfolding $1 }
     | 'unquote'                 { TokKeyword KwUnquote $1 }
     | 'unquoteDecl'             { TokKeyword KwUnquoteDecl $1 }
@@ -1161,6 +1163,7 @@ Declaration
     | UnquoteDecl     { singleton $1 }
     | Constructor     { singleton $1 }
     | Opaque          { singleton $1 }
+    | Transparent     { singleton $1 }
     | Unfolding       { singleton $1 }
 
 {--------------------------------------------------------------------------
@@ -1812,7 +1815,11 @@ RecordInduction
     | 'coinductive' { Ranged (getRange $1) CoInductive }
 
 Opaque :: { Declaration }
-  : 'opaque' Declarations0     { Opaque (getRange ($1, $2)) $2 }
+  : 'opaque' Declarations0 { Opaque (getRange ($1, $2)) IsOpaque $2 }
+
+Transparent :: { Declaration }
+  : 'transparent' Declarations0
+    { Opaque (getRange ($1, $2)) IsTransparent $2 }
 
 Unfolding :: { Declaration }
   : 'unfolding' UnfoldingNames { Unfolding (getRange ($1, $2)) $2 }

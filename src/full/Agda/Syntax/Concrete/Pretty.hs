@@ -503,7 +503,12 @@ instance Pretty Declaration where
     Postulate _ ds  -> namedBlock "postulate" ds
     Primitive _ ds  -> namedBlock "primitive" ds
     Generalize _ ds -> namedBlock "variable" ds
-    Opaque _ ds     -> namedBlock "opaque" ds
+    Opaque _ ot ds  ->
+      namedBlock
+        (case ot of
+           IsOpaque      -> "opaque"
+           IsTransparent -> "transparent")
+        ds
     Unfolding _ rs  -> "unfolding" <+> braces (fsep (punctuate semi (pretty <$> rs)))
     Module _ erased x tel ds ->
       hsep [ "module"

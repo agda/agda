@@ -36,6 +36,16 @@ Overview
 * Opaque definitions do not reduce in type signatures, even inside
   opaque blocks where they would otherwise be unfolded.
 
+* One can use the keyword ``transparent`` to override an outer
+  ``opaque``.
+
+* If ``--opaque`` is used, then every function definition, mutual
+  block, `unquoteDecl` or `unquoteDef` that is not explicitly marked
+  as opaque or transparent is put into a separate opaque block. Local
+  definitions in where clauses are put into the same opaque block as
+  their parent definitions, unless ``opaque`` or ``transparent`` are
+  used. (Definitions in let expressions or before a record type's last
+  field declaration are not made opaque.)
 
 Unfolding opaque definitions
 ----------------------------

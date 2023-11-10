@@ -1059,10 +1059,11 @@ evalTCM v = do
       alwaysReportSDoc "tc.unquote.def" 10 $ vcat $ map prettyA cs
       let accessDontCare = __IMPOSSIBLE__  -- or ConcreteDef, value not looked at
       ac <- asksTC (^. lensIsAbstract)     -- Issue #4012, respect AbstractMode
-      oc <- asksTC (^. lensIsOpaque)       -- Issue #6959, respect current opaque block
+      oc <- asksTC (^. lensOpaqueOrTransparentBlock)
+            -- Issue #6959, respect current opaque block
       let
         i' = mkDefInfo (nameConcrete $ qnameName x) noFixity' accessDontCare ac noRange
-        i = i' { Info.defOpaque = oc }
+        i = i' { Info.defOpaque = isOpaqueDef oc }
       locallyReduceAllDefs $ checkFunDef i x cs
       primUnitUnit
 

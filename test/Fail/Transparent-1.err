@@ -1,0 +1,3 @@
+Transparent-1.agda:3,13-16
+Unfolding declarations can only appear as the first declaration
+immediately contained in an opaque block.

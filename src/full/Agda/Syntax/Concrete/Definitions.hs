@@ -71,6 +71,8 @@ import qualified Data.List as List
 import qualified Data.Foldable as Fold
 import qualified Data.Traversable as Trav
 
+import Agda.Interaction.Options
+
 import Agda.Syntax.Concrete
 import Agda.Syntax.Concrete.Pattern
 import Agda.Syntax.Common hiding (TerminationCheck())
@@ -89,7 +91,7 @@ import Agda.Utils.AffineHole
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List (isSublistOf, spanJust)
+import Agda.Utils.List (isSublistOf, spanEnd, spanJust)
 import Agda.Utils.List1 (List1, pattern (:|), (<|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
@@ -232,6 +234,21 @@ niceDeclarations fixs ds = do
   -- Note that loneSigs is ensured to be empty.
   -- (Important, since inferMutualBlocks also uses loneSigs state).
   res <- inferMutualBlocks ds
+
+  -- If --opaque is used, then "everything" that is not explicitly
+  -- marked as opaque is marked as opaque.
+  res <-
+    ifM (asks opaque)
+      (return $
+       -- Nothing up to and including the last field, if any, is
+       -- made opaque, because definitions before the last field in a
+       -- record definition should not be made opaque.
+       let (fields, rest) = flip spanEnd res \case
+             NiceField{} -> False
+             _           -> True
+       in
+       fields ++ map mkOpaque rest)
+      (return res)
 
   -- Restore the old state, but keep the warnings.
   warns <- gets niceWarn
@@ -523,7 +540,7 @@ niceDeclarations fixs ds = do
               declarationWarning w
           nicePragma p ds
 
-        Opaque r ds' -> do
+        Opaque r ot ds' -> do
           breakImplicitMutualBlock r "`opaque` blocks"
 
           -- Split the enclosed declarations into an initial run of
@@ -533,15 +550,21 @@ niceDeclarations fixs ds = do
               Unfolding _ ns -> pure ns
               _ -> Nothing
 
-          -- The body of an 'opaque' definition can have mutual
-          -- recursion by interleaving type signatures and definitions,
-          -- just like the body of a module.
+          when (ot == IsTransparent && not (all null unfoldings)) $
+            declarationException $
+              UnfoldingOutsideOpaque (getRange unfoldings)
+
+          -- The body of an 'opaque' or 'transparent' definition can
+          -- have mutual recursion by interleaving type signatures and
+          -- definitions, just like the body of a module.
           decls0 <- nice body
           ps <- use loneSigs
           checkLoneSigs ps
           let decls = replaceSigs ps decls0
           body <- inferMutualBlocks decls
-          pure ([NiceOpaque r (concat unfoldings) body], ds)
+          pure ( [NiceOpaque r ot UserWritten (concat unfoldings) body]
+               , ds
+               )
 
         Unfolding r _ -> declarationException $ UnfoldingOutsideOpaque r
 
@@ -1283,7 +1306,7 @@ niceDeclarations fixs ds = do
         NiceLoneConstructor r ds       -> NiceLoneConstructor r <$> mapM (mkInstance r0) ds
         d@NiceFunClause{}              -> return d
         FunDef r ds a i tc cc x cs     -> (\ i -> FunDef r ds a i tc cc x cs) <$> setInstance r0 i
-        NiceOpaque r ns i              -> (\ i -> NiceOpaque r ns i) <$> traverse (mkInstance r0) i
+        NiceOpaque r ot o ns i         -> (\ i -> NiceOpaque r ot o ns i) <$> traverse (mkInstance r0) i
         d@NiceField{}                  -> return d  -- Field instance are handled by the parser
         d@PrimitiveFunction{}          -> return d
         d@NiceUnquoteDef{}             -> return d
@@ -1314,6 +1337,54 @@ niceDeclarations fixs ds = do
         FunSig r p a i _ rel tc cc x e -> return $ FunSig r p a i MacroDef rel tc cc x e
         d@FunDef{}                     -> return d
         d                              -> declarationException (BadMacroDef d)
+
+    -- Marks "everything" as opaque.
+    --
+    -- Precondition: Mutual blocks have already been inferred.
+
+    mkOpaque :: NiceDeclaration -> NiceDeclaration
+    mkOpaque d = case d of
+      -- The declaration is already marked as opaque or transparent,
+      -- and should not be changed.
+      NiceOpaque{} -> d
+
+      -- The declarations inside the given module should perhaps be
+      -- marked as opaque, but that is taken care of by another call
+      -- to this function.
+      NiceModule{} -> d
+
+      -- The following declarations are marked as opaque.
+      NiceMutual{}        -> opaqueD
+      NiceFunClause{}     -> opaqueD
+      NiceUnquoteDecl{}   -> opaqueD
+
+      -- The following declarations cannot be made opaque.
+      Axiom{}               -> d
+      NiceField{}           -> d
+      NiceGeneralize{}      -> d
+      NiceImport{}          -> d
+      NiceLoneConstructor{} -> d
+      NiceModuleMacro{}     -> d
+      NiceOpen{}            -> d
+      NicePatternSyn{}      -> d
+      NicePragma{}          -> d
+      PrimitiveFunction{}   -> d
+
+      -- The following declarations should not appear alone outside of
+      -- mutual blocks and are ignored.
+      FunSig{}      -> d
+      NiceDataSig{} -> d
+      NiceRecSig{}  -> d
+
+      -- The following declarations should not appear at all in the
+      -- input to this function.
+      FunDef{}          -> __IMPOSSIBLE__
+      NiceDataDef{}     -> __IMPOSSIBLE__
+      NiceRecDef{}      -> __IMPOSSIBLE__
+      NiceUnquoteData{} -> __IMPOSSIBLE__
+      NiceUnquoteDef{}  -> __IMPOSSIBLE__
+      where
+      opaqueD = NiceOpaque (getRange d) IsOpaque Inserted [] [d]
 
 -- | Make a declaration abstract.
 --
@@ -1372,7 +1443,8 @@ instance MakeAbstract NiceDeclaration where
       d@NiceImport{}                 -> return d
       d@NicePatternSyn{}             -> return d
       d@NiceGeneralize{}             -> return d
-      NiceOpaque r ns ds             -> NiceOpaque r ns <$> mkAbstract ds
+      NiceOpaque r ot o ns ds        ->
+        NiceOpaque r ot o ns <$> mkAbstract ds
 
 instance MakeAbstract Clause where
   mkAbstract (Clause x catchall lhs rhs wh with) = do
@@ -1429,7 +1501,7 @@ instance MakePrivate NiceDeclaration where
       NiceUnquoteDef r p a tc cc x e           -> (\ p -> NiceUnquoteDef r p a tc cc x e)       <$> mkPrivate o p
       NicePatternSyn r p x xs p'               -> (\ p -> NicePatternSyn r p x xs p')           <$> mkPrivate o p
       NiceGeneralize r p i tac x t             -> (\ p -> NiceGeneralize r p i tac x t)         <$> mkPrivate o p
-      NiceOpaque r ns ds                       -> (\ p -> NiceOpaque r ns p)                    <$> mkPrivate o ds
+      NiceOpaque r ot o ns ds                  -> (\ p -> NiceOpaque r ot o ns p)               <$> mkPrivate o ds
       d@NicePragma{}                           -> return d
       d@(NiceOpen _ _ directives)              -> do
         whenJust (publicOpen directives) $ lift . declarationWarning . OpenPublicPrivate
@@ -1489,7 +1561,9 @@ notSoNiceDeclarations = \case
     NiceUnquoteDecl r _ _ i _ _ x e -> inst i [UnquoteDecl r x e]
     NiceUnquoteDef r _ _ _ _ x e    -> [UnquoteDef r x e]
     NiceUnquoteData r _ _ _ _ x xs e  -> [UnquoteData r x xs e]
-    NiceOpaque r ns ds                -> [Opaque r (Unfolding r ns:concatMap notSoNiceDeclarations ds)]
+    NiceOpaque r ot _ ns ds           ->
+      [Opaque r ot
+         (Unfolding r ns : concatMap notSoNiceDeclarations ds)]
   where
     inst (InstanceDef r) ds = [InstanceB r ds]
     inst NotInstanceDef  ds = ds

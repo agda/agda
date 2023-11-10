@@ -694,14 +694,14 @@ instance EmbPrj IsAbstract where
     valu []  = valuN ConcreteDef
     valu _   = malformed
 
-instance EmbPrj IsOpaque where
-  icod_ (OpaqueDef a)  = icodeN' OpaqueDef a
-  icod_ TransparentDef = icodeN' TransparentDef
+instance EmbPrj OpaqueOrTransparentDef where
+  icod_ (OpaqueDef a b) = icodeN' OpaqueDef a b
+  icod_ TransparentDef  = icodeN' TransparentDef
 
   value = vcase valu where
-    valu [a] = valuN OpaqueDef a
-    valu []  = valuN TransparentDef
-    valu _   = malformed
+    valu [a, b] = valuN OpaqueDef a b
+    valu []     = valuN TransparentDef
+    valu _      = malformed
 
 instance EmbPrj SrcLoc where
   icod_ (SrcLoc p m f sl sc el ec) = icodeN' SrcLoc p m f sl sc el ec

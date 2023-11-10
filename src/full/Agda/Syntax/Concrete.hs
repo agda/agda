@@ -506,8 +506,8 @@ data Declaration
   | UnquoteData Range Name [Name] Expr
       -- ^ @unquoteDecl data d constructor xs = e@
   | Pragma      Pragma
-  | Opaque      Range [Declaration]
-    -- ^ @opaque ...@
+  | Opaque      Range !OpaqueOrTransparent [Declaration]
+    -- ^ Used for @opaque@ and @transparent@ blocks.
   | Unfolding   Range [QName]
     -- ^ @unfolding ...@
   deriving Eq
@@ -555,7 +555,7 @@ isPragma = \case
     UnquoteDecl _ _ _       -> empty
     UnquoteDef _ _ _        -> empty
     UnquoteData _ _ _ _     -> empty
-    Opaque _ _              -> empty
+    Opaque{}                -> empty
     Unfolding _ _           -> empty
 
 data ModuleApplication
@@ -970,7 +970,7 @@ instance HasRange Declaration where
   getRange (UnquoteDef r _ _)      = r
   getRange (UnquoteData r _ _ _)   = r
   getRange (Pragma p)              = getRange p
-  getRange (Opaque r _)            = r
+  getRange (Opaque r _ _)          = r
   getRange (Unfolding r _)         = r
 
 instance HasRange LHS where
@@ -1125,7 +1125,7 @@ instance KillRange Declaration where
   killRange (UnquoteDef _ x t)      = killRangeN (UnquoteDef noRange) x t
   killRange (UnquoteData _ xs cs t) = killRangeN (UnquoteData noRange) xs cs t
   killRange (Pragma p)              = killRangeN Pragma p
-  killRange (Opaque r xs)           = killRangeN Opaque r xs
+  killRange (Opaque _ ot xs)        = killRangeN (Opaque noRange ot) xs
   killRange (Unfolding r xs)        = killRangeN Unfolding r xs
 
 instance KillRange Expr where
@@ -1349,7 +1349,7 @@ instance NFData Declaration where
   rnf (UnquoteDef _ a b)      = rnf a `seq` rnf b
   rnf (UnquoteData _ a b c)   = rnf a `seq` rnf b `seq` rnf c
   rnf (Pragma a)              = rnf a
-  rnf (Opaque r xs)           = rnf r `seq` rnf xs
+  rnf (Opaque r _ xs)         = rnf r `seq` rnf xs
   rnf (Unfolding r xs)        = rnf r `seq` rnf xs
 
 instance NFData OpenShortHand

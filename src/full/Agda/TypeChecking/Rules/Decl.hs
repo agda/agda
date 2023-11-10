@@ -250,7 +250,9 @@ checkDecl d = setCurrentRange d $ do
       let
         k1 = localTC (set lensIsAbstract (anyIsAbstract abs))
       k2 <- case jointOpacity abs of
-        UniqueOpaque i     -> pure $ localTC $ \env -> env { envCurrentOpaqueId = Just i }
+        UniqueOpaque i o   -> pure $ localTC $ \env ->
+                                env { envCurrentOpaqueId =
+                                        AnOpaqueBlock i o }
         NoOpaque           -> pure id
         DifferentOpaque hs -> __IMPOSSIBLE__
       k1 (k2 cont)
