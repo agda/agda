@@ -476,6 +476,7 @@ data OutputConstraint a b
       | IsEmptyType a
       | SizeLtSat a
       | FindInstanceOF b a [(a,a,a)]
+      | ResolveInstanceOF QName
       | PTSInstance b b
       | PostponedCheckFunDef QName a TCErr
       | CheckLock b b

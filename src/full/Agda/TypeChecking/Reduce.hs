@@ -303,6 +303,7 @@ instance Instantiate Constraint where
   instantiate' (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> instantiate' (a,b)
   instantiate' (UnBlock m)          = return $ UnBlock m
   instantiate' (FindInstance m cs)  = FindInstance m <$> mapM instantiate' cs
+  instantiate' (ResolveInstanceHead q) = return $ ResolveInstanceHead q
   instantiate' (IsEmpty r t)        = IsEmpty r <$> instantiate' t
   instantiate' (CheckSizeLtSat t)   = CheckSizeLtSat <$> instantiate' t
   instantiate' c@CheckFunDef{}      = return c
@@ -959,6 +960,7 @@ instance Reduce Constraint where
   reduce' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> reduce' (a,b)
   reduce' (UnBlock m)           = return $ UnBlock m
   reduce' (FindInstance m cs)   = FindInstance m <$> mapM reduce' cs
+  reduce' (ResolveInstanceHead q) = return $ ResolveInstanceHead q
   reduce' (IsEmpty r t)         = IsEmpty r <$> reduce' t
   reduce' (CheckSizeLtSat t)    = CheckSizeLtSat <$> reduce' t
   reduce' c@CheckFunDef{}       = return c
@@ -1125,6 +1127,7 @@ instance Simplify Constraint where
   simplify' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> simplify' (a,b)
   simplify' (UnBlock m)           = return $ UnBlock m
   simplify' (FindInstance m cs)   = FindInstance m <$> mapM simplify' cs
+  simplify' (ResolveInstanceHead q) = return $ ResolveInstanceHead q
   simplify' (IsEmpty r t)         = IsEmpty r <$> simplify' t
   simplify' (CheckSizeLtSat t)    = CheckSizeLtSat <$> simplify' t
   simplify' c@CheckFunDef{}       = return c
@@ -1306,6 +1309,7 @@ instance Normalise Constraint where
   normalise' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> normalise' (a,b)
   normalise' (UnBlock m)           = return $ UnBlock m
   normalise' (FindInstance m cs)   = FindInstance m <$> mapM normalise' cs
+  normalise' (ResolveInstanceHead q) = return $ ResolveInstanceHead q
   normalise' (IsEmpty r t)         = IsEmpty r <$> normalise' t
   normalise' (CheckSizeLtSat t)    = CheckSizeLtSat <$> normalise' t
   normalise' c@CheckFunDef{}       = return c
@@ -1546,6 +1550,7 @@ instance InstantiateFull Constraint where
     SortCmp cmp a b     -> uncurry (SortCmp cmp) <$> instantiateFull' (a,b)
     UnBlock m           -> return $ UnBlock m
     FindInstance m cs   -> FindInstance m <$> mapM instantiateFull' cs
+    ResolveInstanceHead q -> return $ ResolveInstanceHead q
     IsEmpty r t         -> IsEmpty r <$> instantiateFull' t
     CheckSizeLtSat t    -> CheckSizeLtSat <$> instantiateFull' t
     c@CheckFunDef{}     -> return c

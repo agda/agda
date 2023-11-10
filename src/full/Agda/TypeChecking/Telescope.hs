@@ -731,14 +731,16 @@ getOutputTypeName t = ignoreAbstractMode $ do
 -- | Register the definition with the given type as an instance.
 --   Issue warnings if instance is unusable.
 addTypedInstance ::
-     QName  -- ^ Name of instance.
+     MonadConstraint TCM
+  => QName  -- ^ Name of instance.
   -> Type   -- ^ Type of instance.
   -> TCM ()
 addTypedInstance = addTypedInstance' True
 
 -- | Register the definition with the given type as an instance.
 addTypedInstance' ::
-     Bool   -- ^ Should we print warnings for unusable instance declarations?
+     MonadConstraint TCM
+  => Bool   -- ^ Should we print warnings for unusable instance declarations?
   -> QName  -- ^ Name of instance.
   -> Type   -- ^ Type of instance.
   -> TCM ()
@@ -746,25 +748,24 @@ addTypedInstance' w x t = do
   (tel , n) <- getOutputTypeName t
   case n of
     OutputTypeName n            -> addNamedInstance x n
-    OutputTypeNameNotYetKnown{} -> addUnknownInstance x
+    OutputTypeNameNotYetKnown b -> do
+      addUnknownInstance x
+      addConstraint b $ ResolveInstanceHead x
     NoOutputTypeName            -> when w $ warning $ WrongInstanceDeclaration
     OutputTypeVar               -> when w $ warning $ WrongInstanceDeclaration
     OutputTypeVisiblePi         -> when w $ warning $ InstanceWithExplicitArg x
 
-resolveUnknownInstanceDefs :: TCM ()
-resolveUnknownInstanceDefs = do
-  anonInstanceDefs <- getAnonInstanceDefs
-  clearAnonInstanceDefs
-  forM_ anonInstanceDefs $ \ n -> do
+resolveInstanceHead :: MonadConstraint TCM => QName -> TCM ()
+resolveInstanceHead q = do
+    clearUnknownInstance q
     -- Andreas, 2022-12-04, issue #6380:
     -- Do not warn about unusable instances here.
-    addTypedInstance' False n =<< typeOfConst n
+    addTypedInstance' False q =<< typeOfConst q
 
 -- | Try to solve the instance definitions whose type is not yet known, report
 --   an error if it doesn't work and return the instance table otherwise.
 getInstanceDefs :: TCM InstanceTable
 getInstanceDefs = do
-  resolveUnknownInstanceDefs
   insts <- getAllInstanceDefs
   unless (null $ snd insts) $
     typeError $ GenericError $ "There are instances whose type is still unsolved"

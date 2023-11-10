@@ -404,6 +404,7 @@ outputFormId (OutputForm _ _ _ o) = out o
       IsEmptyType _              -> __IMPOSSIBLE__   -- Should never be used on IsEmpty constraints
       SizeLtSat{}                -> __IMPOSSIBLE__
       FindInstanceOF _ _ _        -> __IMPOSSIBLE__
+      ResolveInstanceOF _        -> __IMPOSSIBLE__
       PTSInstance i _            -> i
       PostponedCheckFunDef{}     -> __IMPOSSIBLE__
       DataSort _ i               -> i
@@ -479,6 +480,7 @@ instance Reify Constraint where
     <*> (reify =<< getMetaType m)
     <*> forM (fromMaybe [] mcands) (\ (Candidate q tm ty _) -> do
           (,,) <$> reify tm <*> reify tm <*> reify ty)
+  reify (ResolveInstanceHead q) = return $ ResolveInstanceOF q
   reify (IsEmpty r a) = IsEmptyType <$> reify a
   reify (CheckSizeLtSat a) = SizeLtSat  <$> reify a
   reify (CheckFunDef i q cs err) = do
@@ -545,6 +547,8 @@ instance (Pretty a, Pretty b) => Pretty (OutputConstraint a b) where
         [ "Resolve instance argument" <?> (pretty s .: t)
         , nest 2 $ "Candidate:"
         , nest 4 $ vcat [ bin (pretty q) "=" (pretty v) .: t | (q, v, t) <- cs ] ]
+      ResolveInstanceOF q ->
+        "Resolve output type of instance" <?> pretty q
       PTSInstance a b      -> "PTS instance for" <+> pretty (a, b)
       PostponedCheckFunDef q a _err ->
         vcat [ "Check definition of" <+> pretty q <+> ":" <+> pretty a ]
@@ -590,6 +594,7 @@ instance (ToConcrete a, ToConcrete b) => ToConcrete (OutputConstraint a b) where
     toConcrete (FindInstanceOF s t cs) =
       FindInstanceOF <$> toConcrete s <*> toConcrete t
                      <*> mapM (\(q,tm,ty) -> (,,) <$> toConcrete q <*> toConcrete tm <*> toConcrete ty) cs
+    toConcrete (ResolveInstanceOF q) = return $ ResolveInstanceOF q
     toConcrete (PTSInstance a b) = PTSInstance <$> toConcrete a <*> toConcrete b
     toConcrete (DataSort a b)  = DataSort a <$> toConcrete b
     toConcrete (CheckLock a b) = CheckLock <$> toConcrete a <*> toConcrete b
@@ -662,6 +667,7 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
         SortCmp cmp a b            -> Nothing
         UnBlock{}                  -> Nothing
         FindInstance{}             -> Nothing
+        ResolveInstanceHead{}      -> Nothing
         IsEmpty r t                -> isMeta (unEl t)
         CheckSizeLtSat t           -> isMeta t
         CheckFunDef{}              -> Nothing

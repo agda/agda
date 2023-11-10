@@ -242,6 +242,9 @@ encodeOC f encPrettyTCM = \case
           [ "value"  #= encPrettyTCM v
           , "type"   #= encPrettyTCM t
           ]
+ ResolveInstanceOF q -> kind "ResolveInstanceOF"
+  [ "name"           @= encodePretty q
+  ]
  PTSInstance a b -> kind "PTSInstance"
   [ "constraintObjs" #= traverse f [a, b]
   ]
