@@ -9,6 +9,10 @@ module Agda.TypeChecking.InstanceArguments
   , shouldPostponeInstanceSearch
   , postponeInstanceConstraints
   , getInstanceCandidates
+  , OutputTypeName(..)
+  , getOutputTypeName
+  , addTypedInstance
+  , resolveInstanceHead
   ) where
 
 import Control.Monad        ( forM )
@@ -40,6 +44,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Warnings
 
 import {-# SOURCE #-} Agda.TypeChecking.Constraints
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
@@ -634,3 +639,80 @@ applyDroppingParameters t vs = do
             u : us -> (`apply` us) <$> applyDef ProjPrefix f u
         _ -> fallback
     _ -> fallback
+
+---------------------------------------------------------------------------
+-- * Instance definitions
+---------------------------------------------------------------------------
+
+data OutputTypeName
+  = OutputTypeName QName
+  | OutputTypeVar
+  | OutputTypeVisiblePi
+  | OutputTypeNameNotYetKnown Blocker
+  | NoOutputTypeName
+
+-- | Strips all hidden and instance Pi's and return the argument
+--   telescope and head definition name, if possible.
+getOutputTypeName :: Type -> TCM (Telescope, OutputTypeName)
+-- 2023-10-26, Jesper, issue #6941: To make instance search work correctly for
+-- abstract or opaque instances, we need to ignore abstract mode when computing
+-- the output type name.
+getOutputTypeName t = ignoreAbstractMode $ do
+  TelV tel t' <- telViewUpTo' (-1) notVisible t
+  ifBlocked (unEl t') (\ b _ -> return (tel , OutputTypeNameNotYetKnown b)) $ \ _ v ->
+    case v of
+      -- Possible base types:
+      Def n _  -> return (tel , OutputTypeName n)
+      Sort{}   -> return (tel , NoOutputTypeName)
+      Var n _  -> return (tel , OutputTypeVar)
+      Pi{}     -> return (tel , OutputTypeVisiblePi)
+      -- Not base types:
+      Con{}    -> __IMPOSSIBLE__
+      Lam{}    -> __IMPOSSIBLE__
+      Lit{}    -> __IMPOSSIBLE__
+      Level{}  -> __IMPOSSIBLE__
+      MetaV{}  -> __IMPOSSIBLE__
+      DontCare{} -> __IMPOSSIBLE__
+      Dummy s _ -> __IMPOSSIBLE_VERBOSE__ s
+
+
+-- | Register the definition with the given type as an instance.
+--   Issue warnings if instance is unusable.
+addTypedInstance ::
+     QName  -- ^ Name of instance.
+  -> Type   -- ^ Type of instance.
+  -> TCM ()
+addTypedInstance = addTypedInstance' True
+
+-- | Register the definition with the given type as an instance.
+addTypedInstance' ::
+     Bool   -- ^ Should we print warnings for unusable instance declarations?
+  -> QName  -- ^ Name of instance.
+  -> Type   -- ^ Type of instance.
+  -> TCM ()
+addTypedInstance' w x t = do
+  (tel , n) <- getOutputTypeName t
+  case n of
+    OutputTypeName n            -> addNamedInstance x n
+    OutputTypeNameNotYetKnown b -> do
+      addUnknownInstance x
+      addConstraint b $ ResolveInstanceHead x
+    NoOutputTypeName            -> when w $ warning $ WrongInstanceDeclaration
+    OutputTypeVar               -> when w $ warning $ WrongInstanceDeclaration
+    OutputTypeVisiblePi         -> when w $ warning $ InstanceWithExplicitArg x
+
+resolveInstanceHead :: QName -> TCM ()
+resolveInstanceHead q = do
+    clearUnknownInstance q
+    -- Andreas, 2022-12-04, issue #6380:
+    -- Do not warn about unusable instances here.
+    addTypedInstance' False q =<< typeOfConst q
+
+-- | Try to solve the instance definitions whose type is not yet known, report
+--   an error if it doesn't work and return the instance table otherwise.
+getInstanceDefs :: TCM InstanceTable
+getInstanceDefs = do
+  insts <- getAllInstanceDefs
+  unless (null $ snd insts) $
+    typeError $ GenericError $ "There are instances whose type is still unsolved"
+  return $ fst insts
