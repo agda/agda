@@ -260,15 +260,19 @@ While path types are great for reasoning about equality they don't let
 us transport along paths between types or even compose paths, which in
 particular means that we cannot yet prove the induction principle for
 paths. In order to remedy this we also have a built-in (generalized)
-transport operation `transp` and homogeneous composition operations `hcomp`. The
-transport operation is generalized in the sense that it lets us
-specify where it is the identity function.
+transport operation `transp` and homogeneous composition operations
+`hcomp`. The transport operation is generalized in the sense that it
+lets us specify where it is the identity function.
 
 .. code-block:: agda
 
   transp : ∀ {ℓ} (A : I → Set ℓ) (r : I) (a : A i0) → A i1
 
-There is an additional side condition to be satisfied for a usage of ``transp`` to type-check: ``A`` should be a constant function whenever the constraint ``r = i1`` is satisfied. By constant here we mean that ``A`` is definitionally equal to ``λ _ → A i0``, which in turn requires ``A i0`` and ``A i1`` to be definitionally equal as well.
+There is an additional side condition to be satisfied for a usage of
+``transp`` to type-check: ``A`` should be a constant function whenever
+the constraint ``r = i1`` is satisfied. By constant here we mean that
+``A`` is definitionally equal to ``λ _ → A i0``, which in turn
+requires ``A i0`` and ``A i1`` to be definitionally equal as well.
 
 When ``r`` is ``i1``, ``transp A r`` will compute as the identity function.
 
@@ -276,7 +280,8 @@ When ``r`` is ``i1``, ``transp A r`` will compute as the identity function.
 
    transp A i1 a = a
 
-This is only sound if in such a case ``A`` is a trivial path, as the side condition requires.
+This is only sound if in such a case ``A`` is a trivial path, as the
+side condition requires.
 
 It might seems strange that the side condition expects ``r`` and
 ``A`` to interact, but both of them can depend on any of the
@@ -285,8 +290,9 @@ can affect what ``A`` looks like.
 
 Some examples of the side condition for different values of ``r``:
 
-* If ``r`` is some in-scope variable ``i``, on which ``A`` may depend as well, then ``A`` only needs to be
-  a constant function when substituting ``i1`` for ``i``.
+* If ``r`` is some in-scope variable ``i``, on which ``A`` may depend
+  as well, then ``A`` only needs to be a constant function when
+  substituting ``i1`` for ``i``.
 
 * If ``r`` is ``i0`` then there is no restrition on ``A``, since the side
   condition is vacuously true.
@@ -369,7 +375,8 @@ when ``IsOne φ``.  There is also a dependent version of this called
 
   PartialP : ∀ {ℓ} → (φ : I) → Partial φ (Set ℓ) → SSet ℓ
 
-There is a new form of pattern matching that can be used to introduce partial elements:
+There is a new form of pattern matching that can be used to introduce
+partial elements:
 
 ::
 
@@ -377,9 +384,9 @@ There is a new form of pattern matching that can be used to introduce partial el
   partialBool i (i = i0) = true
   partialBool i (i = i1) = false
 
-The term ``partialBool i`` should be thought of a boolean with different
-values when ``(i = i0)`` and ``(i = i1)``. Terms of type ``Partial φ
-A`` can also be introduced using a :ref:`pattern-lambda`.
+The term ``partialBool i`` should be thought of a boolean with
+different values when ``(i = i0)`` and ``(i = i1)``. Terms of type
+``Partial φ A`` can also be introduced using a :ref:`pattern-lambda`.
 
 ::
 
@@ -437,9 +444,9 @@ They satisfy the following equalities:
   outS {φ = i1} {u} _ = u 1=1
 
 
-Note that given ``a : A [ φ ↦ u ]`` and ``α : IsOne φ``, it is not the case
-that ``outS a = u α``; however, underneath the pattern binding ``(φ = i1)``,
-one has ``outS a = u 1=1``.
+Note that given ``a : A [ φ ↦ u ]`` and ``α : IsOne φ``, it is not the
+case that ``outS a = u α``; however, underneath the pattern binding
+``(φ = i1)``, one has ``outS a = u 1=1``.
 
 With all of this cubical infrastructure we can now describe the
 ``hcomp`` operations.
@@ -981,7 +988,6 @@ References
 
   Thierry Coquand, Simon Huber, Anders Mörtberg; `"On Higher Inductive
   Types in Cubical Type Theory" <https://arxiv.org/abs/1802.01170>`_.
-
 
 .. _primitives-ref:
 
