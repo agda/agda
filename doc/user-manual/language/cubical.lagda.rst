@@ -67,7 +67,8 @@ Theory that Agda implements is a variation of the `CCHM`_ Cubical Type
 Theory where the Kan composition operations are decomposed into
 homogeneous composition and generalized transport. This is what makes
 the general schema for higher inductive types work, following the
-`CHM`_ paper.
+`CHM`_ paper. There is also a research paper specifically about
+Cubical Agda at https://www.doi.org/10.1017/S0956796821000034.
 
 To use the cubical mode Agda needs to be run with the
 :option:`--cubical` command-line-option or with ``{-#
@@ -86,17 +87,22 @@ The cubical mode adds the following features to Agda:
 6. Higher inductive types
 7. Cubical identity types
 
-There is a standard ``agda/cubical`` library for Cubical Agda
-available at https://github.com/agda/cubical. This documentation uses
-the naming conventions of this library, for a detailed list of all of
-the built-in Cubical Agda files and primitives see
-:ref:`primitives-ref`. The main design choices of the core part of the
-library are explained in
-https://homotopytypetheory.org/2018/12/06/cubical-agda/
-(lagda rendered version:
-https://ice1000.org/2018/12-06-CubicalAgda.html).
+There are two major libraries for Cubical Agda:
 
-The recommended way to get access to the Cubical primitives is to add
+- ``agda/cubical``: originally intended as a standard library for
+  Cubical Agda available at https://github.com/agda/cubical. This
+  documentation uses the naming conventions of this library, for a
+  detailed list of all of the built-in Cubical Agda files and
+  primitives see :ref:`primitives-ref`.
+
+- ``1lab``: A formalised and cross linked reference resource for
+  cubical methods in Homotopy Type Theory which can be found at
+  https://1lab.dev/. Much better documented than the ``agda/cubical``
+  library and hence more accessible to newcomers. The sources can be
+  found at https://github.com/plt-amy/1lab.
+
+In this documentation we will rely on the ``agda/cubical`` library and
+the recommended way to get access to the cubical primitives is to add
 the following to the top of a file (this assumes that the
 ``agda/cubical`` library is installed and visible to Agda).
 
@@ -107,8 +113,8 @@ the following to the top of a file (this assumes that the
   open import Cubical.Core.Everything
 
 For detailed install instructions for ``agda/cubical`` see:
-https://github.com/agda/cubical/blob/master/INSTALL.md. In order to
-make this library visible to Agda add
+https://github.com/agda/cubical/blob/4de6b6939245ce281f02e47af02f2deb1cbd853e/INSTALL.md. In
+order to make this library visible to Agda add
 ``/path/to/cubical/cubical.agda-lib`` to ``.agda/libraries`` and
 ``cubical`` to ``.agda/defaults`` (where ``path/to`` is the absolute
 path to where the ``agda/cubical`` library has been installed). For
@@ -119,10 +125,6 @@ the relevant import statements at the top of their file (for details
 see :ref:`primitives-ref`). However, for beginners it is
 recommended that one uses at least the core part of the
 ``agda/cubical`` library.
-
-There is also an older version of the library available at
-https://github.com/Saizan/cubical-demo/. However this is relying on
-deprecated features and is not recommended to use.
 
 The interval and path types
 ===========================
@@ -562,7 +564,7 @@ The simplest example of an equivalence is the identity function.
 
 An important special case of equivalent types are isomorphic types
 (i.e. types with maps going back and forth which are mutually
-inverse): https://github.com/agda/cubical/blob/master/Cubical/Foundations/Isomorphism.agda.
+inverse).
 
 As everything has to work up to higher dimensions the Glue types take
 a partial family of types that are equivalent to the base type ``A``:
@@ -631,12 +633,8 @@ We have the following equalities:
    glue {φ = i1} t a = t 1=1
 
 
-For more results about Glue types and univalence see
-https://github.com/agda/cubical/blob/master/Cubical/Core/Glue.agda and
-https://github.com/agda/cubical/blob/master/Cubical/Foundations/Univalence.agda. For
-some examples of what can be done with this for working with binary
-and unary numbers see
-https://github.com/agda/cubical/blob/master/Cubical/Data/BinNat/BinNat.agda.
+For more results about Glue types and univalence see the files of Glue
+types and univalence in the ``agda/cubical`` library or the ``1lab``.
 
 
 Higher inductive types
@@ -733,8 +731,8 @@ is defined as:
   recPropTrunc Pprop f (squash x y i) =
     Pprop (recPropTrunc Pprop f x) (recPropTrunc Pprop f y) i
 
-For many more examples of higher inductive types see:
-https://github.com/agda/cubical/tree/master/Cubical/HITs.
+For many more examples of higher inductive types see the
+``agda/cubical`` library or the ``1lab``.
 
 .. _indexed-inductive-types:
 
@@ -941,114 +939,6 @@ relevant position.
 
 Any argument which is used in the result type, or appears after a forced
 (dot) pattern, must have a modality-correct type.
-
-Cubical identity types and computational HoTT/UF
-================================================
-
-As mentioned above the computation rule for ``J`` does not hold
-definitionally for path types. Cubical Agda solves this by introducing
-a cubical identity type. The
-https://github.com/agda/cubical/blob/master/Cubical/Core/Id.agda file
-exports all of the primitives for this type, including the notation
-``_≡_`` and a ``J`` eliminator that computes definitionally on
-``refl``.
-
-The cubical identity types and path types are equivalent, so all of
-the results for one can be transported to the other one (using
-univalence). Using this we have implemented an `interface to HoTT/UF <https://github.com/agda/cubical/blob/5de11df25b79ee49d5c084fbbe6dfc66e4147a2e/Cubical/Experiments/HoTT-UF.agda>`_
-which provides the user with the key primitives of Homotopy Type
-Theory and Univalent Foundations implemented using cubical primitives
-under the hood. This hence gives an axiom free version of HoTT/UF
-which computes properly.
-
-.. code-block:: agda
-
-  module Cubical.Core.HoTT-UF where
-
-  open import Cubical.Core.Id public
-     using ( _≡_            -- The identity type.
-           ; refl           -- Its constructor.
-           ; J              -- Its eliminator (can be defined by pattern matching)
-
-           ; transport      -- As in the HoTT Book.
-           ; ap
-           ; _∙_
-           ; _⁻¹
-
-           ; _≡⟨_⟩_         -- Standard equational reasoning.
-           ; _∎
-
-           ; funExt         -- Function extensionality
-                            -- (can also be derived from univalence).
-
-           ; Σ              -- Sum type. Needed to define contractible types, equivalences
-           ; _,_            -- and univalence.
-           ; pr₁            -- The eta rule is available.
-           ; pr₂
-
-           ; isProp         -- The usual notions of proposition, contractible type, set.
-           ; isContr
-           ; isSet
-
-           ; isEquiv        -- A map with contractible fibers
-                            -- (Voevodsky's version of the notion).
-           ; _≃_            -- The type of equivalences between two given types.
-           ; EquivContr     -- A formulation of univalence.
-
-           ; ∥_∥             -- Propositional truncation.
-           ; ∣_∣             -- Map into the propositional truncation.
-           ; ∥∥-isProp       -- A truncated type is a proposition.
-           ; ∥∥-recursion    -- Non-dependent elimination.
-           ; ∥∥-induction    -- Dependent elimination.
-           )
-
-In order to get access to only the HoTT/UF primitives start a file as
-follows:
-
-.. code-block:: agda
-
-  {-# OPTIONS --cubical #-}
-
-  open import Cubical.Core.HoTT-UF
-
-However, even though this interface exists, we recommend that users of
-cubical mode use the path types rather than the cubical identity types.
-Primarily, this is because many operations for path types are
-implemented directly, rather than by induction (e.g. ``ap``, ``funExt``,
-``happly``, ``sym``, etc), and thus enjoy better computational
-behaviour. In addition to using ``J`` directly, it is possible to match
-on the reflexivity constructor, as if ``Id`` were an inductive type:
-
-::
-
-  symId : ∀ {ℓ} {A : Set ℓ} {x y : A} → Id x y → Id y x
-  symId reflId = reflId
-
-Cubical identity types are *not* inductively defined, and we may observe
-this using the primitives ``conid`` and ``primIdElim``. These primitives
-expose underlying representation: terms of the cubical identity type can
-be thought of pairs consisting of a path `p` and a cofibration `φ`, such
-that, under the cofibration `φ`, the path `p` is the reflexivty path.
-These primitives are very low-level, and their use is not recommended.
-
-::
-
-  apId : ∀ {ℓ ℓ′} {A : Set ℓ} {B : Set ℓ′} (f : A → B)
-       → {x y : A} → Id x y → Id (f x) (f y)
-  apId f {x = x} = primIdElim (λ y _ → Id (f x) (f y))
-    λ φ y w → conid φ λ i → f (outS w i)
-
-Even though it is possible to define the reflexivity path using
-``conid``, the name ``reflId`` is special, in that it is treated as a
-"matchable" constructor, whereas ``conid`` is not. Depending on your
-syntax highlighting scheme, this can be observed using agda-mode: they
-are different colours. However, for computation, they are treated as the
-same:
-
-::
-
-  _ : ∀ {ℓ} {A : Set ℓ} {x : A} → reflId ≡ conid i1 (λ _ → x)
-  _ = refl
 
 .. _erased-cubical:
 
