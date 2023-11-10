@@ -113,8 +113,7 @@ the following to the top of a file (this assumes that the
   open import Cubical.Core.Everything
 
 Follow the instructions at https://github.com/agda/cubical to install the library.
-https://github.com/agda/cubical/blob/4de6b6939245ce281f02e47af02f2deb1cbd853e/INSTALL.md. In
-order to make this library visible to Agda add
+In order to make this library visible to Agda add
 ``/path/to/cubical/cubical.agda-lib`` to ``.agda/libraries`` and
 ``cubical`` to ``.agda/defaults`` (where ``path/to`` is the absolute
 path to where the ``agda/cubical`` library has been installed). For
