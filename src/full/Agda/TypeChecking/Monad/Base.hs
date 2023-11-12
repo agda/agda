@@ -4619,6 +4619,7 @@ data TypeError
     -- Data errors
         | UnexpectedParameter A.LamBinding
         | NoParameterOfName ArgName
+        | UnexpectedModalityAnnotationInParameter A.LamBinding
     -- Coverage errors
 -- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | SplitError SplitError
