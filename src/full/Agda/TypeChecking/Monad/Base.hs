@@ -4615,6 +4615,7 @@ data TypeError
         | ComatchingDisabledForRecord QName
         | BuiltinMustBeIsOne Term
         | IllegalRewriteRule QName IllegalRewriteRuleReason
+        | IncorrectTypeForRewriteRelation Term IncorrectTypeForRewriteRelationReason
     -- Coverage errors
 -- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | SplitError SplitError
@@ -4730,6 +4731,12 @@ data IllegalRewriteRuleReason
   | EmptyReason
     deriving (Show, Generic)
 
+-- Reason, why type for rewrite rule is incorrect
+data IncorrectTypeForRewriteRelationReason
+  = ShouldAcceptAtLeastTwoArguments
+  | FinalTwoArgumentsNotVisible
+  | TypeDoesNotEndInSort Type Telescope
+    deriving (Show, Generic)
 
 -- | Distinguish error message when parsing lhs or pattern synonym, resp.
 data LHSOrPatSyn = IsLHS | IsPatSyn
@@ -5787,3 +5794,4 @@ instance NFData LHSOrPatSyn
 instance NFData DataOrRecordE
 instance NFData InductionAndEta
 instance NFData IllegalRewriteRuleReason
+instance NFData IncorrectTypeForRewriteRelationReason

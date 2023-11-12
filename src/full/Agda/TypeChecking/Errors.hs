@@ -306,6 +306,7 @@ errorString err = case err of
   ComatchingDisabledForRecord{}            -> "ComatchingDisabledForRecord"
   BuiltinMustBeIsOne{}                     -> "BuiltinMustBeIsOne"
   IllegalRewriteRule{}                     -> "IllegalRewriteRule"
+  IncorrectTypeForRewriteRelation{}        -> "IncorrectTypeForRewriteRelation"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1497,6 +1498,20 @@ instance PrettyTCM TypeError where
       EmptyReason -> hsep
         [ prettyTCM q , " is not a legal rewrite rule" ]
 
+    IncorrectTypeForRewriteRelation v reason -> case reason of
+      ShouldAcceptAtLeastTwoArguments -> sep
+        [ prettyTCM v <+> " does not have the right type for a rewriting relation"
+        , "because it should accept at least two arguments"
+        ]
+      FinalTwoArgumentsNotVisible -> sep
+        [ prettyTCM v <+> " does not have the right type for a rewriting relation"
+        , "because its two final arguments are not both visible."
+        ]
+      TypeDoesNotEndInSort core tel -> sep
+        [ prettyTCM v <+> " does not have the right type for a rewriting relation"
+        , "because its type does not end in a sort, but in "
+          <+> do inTopContext $ addContext tel $ prettyTCM core
+        ]
 
     where
     mpar n args
