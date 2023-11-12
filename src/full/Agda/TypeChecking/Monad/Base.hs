@@ -4620,6 +4620,7 @@ data TypeError
         | UnexpectedParameter A.LamBinding
         | NoParameterOfName ArgName
         | UnexpectedModalityAnnotationInParameter A.LamBinding
+        | SortDoesNotAdmitDataDefinitions QName Sort
     -- Coverage errors
 -- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | SplitError SplitError
