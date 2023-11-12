@@ -307,6 +307,7 @@ errorString err = case err of
   BuiltinMustBeIsOne{}                     -> "BuiltinMustBeIsOne"
   IllegalRewriteRule{}                     -> "IllegalRewriteRule"
   IncorrectTypeForRewriteRelation{}        -> "IncorrectTypeForRewriteRelation"
+  UnexpectedParameter{}                    -> "UnexpectedParameter"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1519,6 +1520,9 @@ instance PrettyTCM TypeError where
         , "because its type does not end in a sort, but in "
           <+> do inTopContext $ addContext tel $ prettyTCM core
         ]
+
+    UnexpectedParameter par -> do
+      text "Unexpected parameter" <+> prettyA par
 
     where
     mpar n args

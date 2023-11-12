@@ -1676,8 +1676,7 @@ bindParameters
 bindParameters 0 [] a ret = ret EmptyTel a
 
 bindParameters 0 (par : _) _ _ = setCurrentRange par $
-  typeError . GenericDocError =<< do
-    text "Unexpected parameter" <+> prettyA par
+  typeError $ UnexpectedParameter par
 
 bindParameters npars [] t ret =
   case unEl t of
@@ -1711,8 +1710,7 @@ bindParameters npars ps0@(par@(A.DomainFree _ arg) : ps) t ret = do
     NoInsertNeeded -> continue ps $ A.unBind $ A.binderName x
     ImpInsert _    -> continue ps0 =<< freshName_ (absName b)
     BadImplicits   -> setCurrentRange par $
-     typeError . GenericDocError =<< do
-       text "Unexpected parameter" <+> prettyA par
+      typeError $ UnexpectedParameter par
     NoSuchName x   -> setCurrentRange par $
       typeError . GenericDocError =<< do
         text ("No parameter of name " ++ x)

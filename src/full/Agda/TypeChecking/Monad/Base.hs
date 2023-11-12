@@ -4616,6 +4616,8 @@ data TypeError
         | BuiltinMustBeIsOne Term
         | IllegalRewriteRule QName IllegalRewriteRuleReason
         | IncorrectTypeForRewriteRelation Term IncorrectTypeForRewriteRelationReason
+    -- Data errors
+        | UnexpectedParameter A.LamBinding
     -- Coverage errors
 -- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | SplitError SplitError
