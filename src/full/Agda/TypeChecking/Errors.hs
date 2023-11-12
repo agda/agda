@@ -312,6 +312,7 @@ errorString err = case err of
   UnexpectedModalityAnnotationInParameter{} -> "UnexpectedModalityAnnotationInParameter"
   SortDoesNotAdmitDataDefinitions{}        -> "SortDoesNotAdmitDataDefinitions"
   SortCannotDependOnItsIndex{}             -> "SortCannotDependOnItsIndex"
+  ExpectedBindingForParameter{}            -> "ExpectedBindingForParameter"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1546,6 +1547,11 @@ instance PrettyTCM TypeError where
       [ "The sort of" <+> prettyTCM name
       , "cannot depend on its indices in the type"
       , prettyTCM t
+      ]
+
+    ExpectedBindingForParameter a b -> sep
+      [ "Expected binding for parameter"
+      , text (absName b) <+> text ":" <+> prettyTCM (unDom a)
       ]
 
     where

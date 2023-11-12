@@ -4620,6 +4620,7 @@ data TypeError
         | UnexpectedParameter A.LamBinding
         | NoParameterOfName ArgName
         | UnexpectedModalityAnnotationInParameter A.LamBinding
+        | ExpectedBindingForParameter (Dom Type) (Abs Type)
         | SortDoesNotAdmitDataDefinitions QName Sort
         | SortCannotDependOnItsIndex QName Type
     -- Coverage errors
