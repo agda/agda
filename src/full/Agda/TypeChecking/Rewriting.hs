@@ -203,8 +203,6 @@ checkRewriteRule q = do
     , prettyTCM gamma1
     , " |- " <+> do addContext gamma1 $ prettyTCM core
     ]
-  let failureWrongTarget :: TCM a
-      failureWrongTarget = typeError $ IllegalRewriteRule q DoesNotTargetRewriteRelation
   let failureBlocked :: Blocker -> TCM a
       failureBlocked b
         | not (null ms) = typeError $ IllegalRewriteRule q (ContainsUnsolvedMetaVariables ms)
@@ -215,8 +213,6 @@ checkRewriteRule q = do
           ms = allBlockingMetas b
           ps = allBlockingProblems b
           qs = allBlockingDefs b
-  let failureNotDefOrCon :: TCM a
-      failureNotDefOrCon = typeError $ IllegalRewriteRule q LHSNotDefOrConstr
   let failureFreeVars :: IntSet -> TCM a
       failureFreeVars xs = typeError $ IllegalRewriteRule q (VariablesNotBoundByLHS xs)
   let failureNonLinearPars :: IntSet -> TCM a
@@ -258,7 +254,7 @@ checkRewriteRule q = do
           ~(Just ((_ , _ , pars) , t)) <- getFullyAppliedConType c $ unDom b
           pars <- addContext gamma1 $ checkParametersAreGeneral c pars
           return (conName c , hd , t , pars , vs)
-        _        -> failureNotDefOrCon
+        _        -> typeError $ IllegalRewriteRule q LHSNotDefOrConstr
 
       ifNotAlreadyAdded f $ do
 
@@ -312,7 +308,7 @@ checkRewriteRule q = do
 
         return rew
 
-    _ -> failureWrongTarget
+    _ -> typeError $ IllegalRewriteRule q DoesNotTargetRewriteRelation
 
   where
     checkNoLhsReduction :: QName -> (Elims -> Term)  -> Elims -> TCM ()
