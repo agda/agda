@@ -37,6 +37,8 @@ import Data.Function (on)
 import Data.Int
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Maybe
 import Data.Map (Map)
@@ -50,6 +52,8 @@ import qualified Data.HashSet as HashSet
 import Data.Hashable
 import Data.HashSet (HashSet)
 import Data.Semigroup ( Semigroup, (<>)) --, Any(..) )
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.String
 import Data.Text (Text)
 import qualified Data.Text.Lazy as TL
@@ -4610,6 +4614,7 @@ data TypeError
         | TooManyArgumentsToUnivOmega QName
         | ComatchingDisabledForRecord QName
         | BuiltinMustBeIsOne Term
+        | IllegalRewriteRule QName IllegalRewriteRuleReason
     -- Coverage errors
 -- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | SplitError SplitError
@@ -4708,6 +4713,23 @@ data InductionAndEta = InductionAndEta
   { recordInduction   :: Maybe Induction
   , recordEtaEquality :: EtaEquality
   } deriving (Show, Generic)
+
+-- Reason, why rewrite rule is invalid
+data IllegalRewriteRuleReason
+  = LHSNotDefOrConstr
+  | VariablesNotBoundByLHS IntSet
+  | VariablesBoundMoreThanOnce IntSet
+  | LHSReducesTo Term Term
+  | HeadSymbolIsProjection QName
+  | HeadSymbolIsProjectionLikeFunction QName
+  | HeadSymbolNotPostulateFunctionConstructor QName
+  | ConstructorParamsNotGeneral ConHead Args
+  | ContainsUnsolvedMetaVariables (Set MetaId)
+  | BlockedOnProblems (Set ProblemId)
+  | RequiresDefinitions (Set QName)
+  | EmptyReason
+    deriving (Show, Generic)
+
 
 -- | Distinguish error message when parsing lhs or pattern synonym, resp.
 data LHSOrPatSyn = IsLHS | IsPatSyn
@@ -5764,3 +5786,4 @@ instance NFData TypeError
 instance NFData LHSOrPatSyn
 instance NFData DataOrRecordE
 instance NFData InductionAndEta
+instance NFData IllegalRewriteRuleReason

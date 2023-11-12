@@ -31,8 +31,12 @@ import Control.Monad.Except
 import qualified Data.CaseInsensitive as CaseInsens
 import Data.Foldable (foldl)
 import Data.Function (on)
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet
 import Data.List (sortBy, dropWhileEnd, intercalate)
+import qualified Data.List as List
 import Data.Maybe
+import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Text.PrettyPrint.Boxes as Boxes
 
@@ -301,6 +305,7 @@ errorString err = case err of
   IllTypedPatternAfterWithAbstraction{}    -> "IllTypedPatternAfterWithAbstraction"
   ComatchingDisabledForRecord{}            -> "ComatchingDisabledForRecord"
   BuiltinMustBeIsOne{}                     -> "BuiltinMustBeIsOne"
+  IllegalRewriteRule{}                     -> "IllegalRewriteRule"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1439,6 +1444,59 @@ instance PrettyTCM TypeError where
 
     BuiltinMustBeIsOne builtin ->
       prettyTCM builtin <+> " is not IsOne."
+
+    IllegalRewriteRule q reason -> case reason of
+      LHSNotDefOrConstr -> hsep
+        [ prettyTCM q , " is not a legal rewrite rule, since the left-hand side is neither a defined symbol nor a constructor" ]
+      VariablesNotBoundByLHS xs -> hsep
+        [ prettyTCM q
+        , " is not a legal rewrite rule, since the following variables are not bound by the left hand side: "
+        , prettyList_ (map (prettyTCM . var) $ IntSet.toList xs)
+        ]
+      VariablesBoundMoreThanOnce xs -> do
+        (prettyTCM q
+          <+> " is not a legal rewrite rule, since the following parameters are bound more than once on the left hand side: "
+          <+> hsep (List.intersperse "," $ map (prettyTCM . var) $ IntSet.toList xs))
+          <> ". Perhaps you can use a postulate instead of a constructor as the head symbol?"
+      LHSReducesTo v v' -> fsep
+        [ prettyTCM q <+> " is not a legal rewrite rule, since the left-hand side "
+        , prettyTCM v <+> " reduces to " <+> prettyTCM v' ]
+      HeadSymbolIsProjection f -> hsep
+        [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
+        , prettyTCM f , "is a projection"
+        ]
+      HeadSymbolIsProjectionLikeFunction f -> hsep
+        [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
+        , hd , "is a projection-like function."
+        , "You can turn off the projection-like optimization for", hd
+        , "with the pragma {-# NOT_PROJECTION_LIKE", hd, "#-}"
+        , "or globally with the flag --no-projection-like"
+        ]
+        where hd = prettyTCM f
+      HeadSymbolNotPostulateFunctionConstructor f -> hsep
+        [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
+        , prettyTCM f , "is not a postulate, a function, or a constructor"
+        ]
+      ConstructorParamsNotGeneral c vs -> vcat
+        [ prettyTCM q <+> text " is not a legal rewrite rule, since the constructor parameters are not fully general:"
+        , nest 2 $ text "Constructor: " <+> prettyTCM c
+        , nest 2 $ text "Parameters: " <+> prettyList (map prettyTCM vs)
+        ]
+      ContainsUnsolvedMetaVariables ms -> hsep
+        [ prettyTCM q , " is not a legal rewrite rule, since"
+        , "it contains the unsolved meta variable(s)", prettyList_ (map prettyTCM $ Set.toList ms)
+        ]
+      BlockedOnProblems ps -> hsep
+        [ prettyTCM q , " is not a legal rewrite rule, since"
+        , "it is blocked on problem(s)", prettyList_ (map prettyTCM $ Set.toList ps)
+        ]
+      RequiresDefinitions qs -> hsep
+        [ prettyTCM q , " is not a legal rewrite rule, since"
+        , "it requires the definition(s) of", prettyList_ (map prettyTCM $ Set.toList qs)
+        ]
+      EmptyReason -> hsep
+        [ prettyTCM q , " is not a legal rewrite rule" ]
+
 
     where
     mpar n args

@@ -217,31 +217,22 @@ checkRewriteRule q = do
         [ prettyTCM q , " does not target rewrite relation" ]
   let failureBlocked :: Blocker -> TCM a
       failureBlocked b
-        | not (null ms) = err $ "it contains the unsolved meta variable(s)" <+> prettyList_ (map prettyTCM $ Set.toList ms)
-        | not (null ps) = err $ "it is blocked on problem(s)" <+> prettyList_ (map prettyTCM $ Set.toList ps)
-        | not (null qs) = err $ "it requires the definition(s) of" <+> prettyList_ (map prettyTCM $ Set.toList qs)
+        | not (null ms) = typeError $ IllegalRewriteRule q (ContainsUnsolvedMetaVariables ms)
+        | not (null ps) = typeError $ IllegalRewriteRule q (BlockedOnProblems ps)
+        | not (null qs) = typeError $ IllegalRewriteRule q (RequiresDefinitions qs)
         | otherwise = __IMPOSSIBLE__
         where
-          err reason = typeError . GenericDocError =<< hsep
-            [ prettyTCM q , " is not a legal rewrite rule, since" , reason ]
           ms = allBlockingMetas b
           ps = allBlockingProblems b
           qs = allBlockingDefs b
   let failureNotDefOrCon :: TCM a
-      failureNotDefOrCon = typeError . GenericDocError =<< hsep
-        [ prettyTCM q , " is not a legal rewrite rule, since the left-hand side is neither a defined symbol nor a constructor" ]
+      failureNotDefOrCon = typeError $ IllegalRewriteRule q LHSNotDefOrConstr
   let failureFreeVars :: IntSet -> TCM a
-      failureFreeVars xs = typeError . GenericDocError =<< hsep
-        [ prettyTCM q , " is not a legal rewrite rule, since the following variables are not bound by the left hand side: " , prettyList_ (map (prettyTCM . var) $ IntSet.toList xs) ]
+      failureFreeVars xs = typeError $ IllegalRewriteRule q (VariablesNotBoundByLHS xs)
   let failureNonLinearPars :: IntSet -> TCM a
-      failureNonLinearPars xs = typeError . GenericDocError =<< do
-        (prettyTCM q
-          <+> " is not a legal rewrite rule, since the following parameters are bound more than once on the left hand side: "
-          <+> hsep (List.intersperse "," $ map (prettyTCM . var) $ IntSet.toList xs))
-          <> ". Perhaps you can use a postulate instead of a constructor as the head symbol?"
+      failureNonLinearPars xs = typeError $ IllegalRewriteRule q (VariablesBoundMoreThanOnce xs)
   let failureIllegalRule :: TCM a -- TODO:: Defined but not used
-      failureIllegalRule = typeError . GenericDocError =<< hsep
-        [ prettyTCM q , " is not a legal rewrite rule" ]
+      failureIllegalRule = typeError $ IllegalRewriteRule q EmptyReason
 
   -- Check that type of q targets rel.
   case unEl core of
@@ -345,9 +336,7 @@ checkRewriteRule q = do
           fail = do
             reportSDoc "rewriting" 20 $ "v  = " <+> text (show v)
             reportSDoc "rewriting" 20 $ "v' = " <+> text (show v')
-            typeError . GenericDocError =<< fsep
-              [ prettyTCM q <+> " is not a legal rewrite rule, since the left-hand side "
-              , prettyTCM v <+> " reduces to " <+> prettyTCM v' ]
+            typeError $ IllegalRewriteRule q (LHSReducesTo v v')
       es' <- case v' of
         Def f' es'   | f == f'         -> return es'
         Con c' _ es' | f == conName c' -> return es'
@@ -364,25 +353,12 @@ checkRewriteRule q = do
       Axiom{}        -> return ()
       def@Function{} -> whenJust (maybeRight (funProjection def)) $ \proj ->
         case projProper proj of
-          Just{} -> typeError . GenericDocError =<< hsep
-            [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
-            , prettyTCM f , "is a projection"
-            ]
-          Nothing -> typeError . GenericDocError =<< hsep
-            [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
-            , hd , "is a projection-like function."
-            , "You can turn off the projection-like optimization for", hd
-            , "with the pragma {-# NOT_PROJECTION_LIKE", hd, "#-}"
-            , "or globally with the flag --no-projection-like"
-            ]
-            where hd = prettyTCM f
+          Just{} -> typeError $ IllegalRewriteRule q (HeadSymbolIsProjection f)
+          Nothing -> typeError $ IllegalRewriteRule q (HeadSymbolIsProjectionLikeFunction f)
       Constructor{}  -> return ()
       AbstractDefn{} -> return ()
       Primitive{}    -> return () -- TODO: is this fine?
-      _              -> typeError . GenericDocError =<< hsep
-        [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
-        , prettyTCM f , "is not a postulate, a function, or a constructor"
-        ]
+      _              -> typeError $ IllegalRewriteRule q (HeadSymbolNotPostulateFunctionConstructor f)
 
     ifNotAlreadyAdded :: QName -> TCM RewriteRule -> TCM RewriteRule
     ifNotAlreadyAdded f cont = do
@@ -416,11 +392,7 @@ checkRewriteRule q = do
           _        -> errorNotGeneral
 
         errorNotGeneral :: TCM a
-        errorNotGeneral = typeError . GenericDocError =<< vcat
-            [ prettyTCM q <+> text " is not a legal rewrite rule, since the constructor parameters are not fully general:"
-            , nest 2 $ text "Constructor: " <+> prettyTCM c
-            , nest 2 $ text "Parameters: " <+> prettyList (map prettyTCM vs)
-            ]
+        errorNotGeneral = typeError $ IllegalRewriteRule q (ConstructorParamsNotGeneral c vs)
 
 -- | @rewriteWith t f es rew@ where @f : t@
 --   tries to rewrite @f es@ with @rew@, returning the reduct if successful.
