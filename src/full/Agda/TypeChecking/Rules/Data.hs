@@ -113,11 +113,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
               -- in case of a suspected dependency.
               s <- newSortMetaBelowInf
               catchError_ (addContext ixTel $ equalType s0 $ raise nofIxs $ sort s) $ \ err ->
-                  if any (`freeIn` s0) [0..nofIxs - 1] then typeError . GenericDocError =<<
-                     fsep [ "The sort of" <+> prettyTCM name
-                          , "cannot depend on its indices in the type"
-                          , prettyTCM t0
-                          ]
+                  if any (`freeIn` s0) [0..nofIxs - 1] then typeError $ SortCannotDependOnItsIndex name t0
                   else throwError err
               reduce s
 
