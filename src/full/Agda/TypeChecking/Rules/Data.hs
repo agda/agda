@@ -1679,10 +1679,7 @@ bindParameters npars [] t ret =
 
 bindParameters npars par@(A.DomainFull (A.TBind _ _ xs e) : bs) a ret =
   setCurrentRange par $
-  typeError . GenericDocError =<< do
-    let s | length xs > 1 = "s"
-          | otherwise     = ""
-    text ("Unexpected type signature for parameter" ++ s) <+> sep (fmap prettyA xs)
+  typeError $ UnexpectedTypeSignatureForParameter xs
 
 bindParameters _ (A.DomainFull A.TLet{} : _) _ _ = __IMPOSSIBLE__
 
