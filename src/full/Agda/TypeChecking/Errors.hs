@@ -311,6 +311,7 @@ errorString err = case err of
   NoParameterOfName{}                      -> "NoParameterOfName"
   UnexpectedModalityAnnotationInParameter{} -> "UnexpectedModalityAnnotationInParameter"
   SortDoesNotAdmitDataDefinitions{}        -> "SortDoesNotAdmitDataDefinitions"
+  SortCannotDependOnItsIndex{}             -> "SortCannotDependOnItsIndex"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1539,6 +1540,12 @@ instance PrettyTCM TypeError where
       , "of"
       , prettyTCM name
       , "does not admit data or record declarations"
+      ]
+
+    SortCannotDependOnItsIndex name t -> fsep
+      [ "The sort of" <+> prettyTCM name
+      , "cannot depend on its indices in the type"
+      , prettyTCM t
       ]
 
     where
