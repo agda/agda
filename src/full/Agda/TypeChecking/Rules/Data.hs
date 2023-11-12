@@ -217,13 +217,7 @@ checkDataSort name s = setCurrentRange name $ do
       yes :: TCM ()
       yes = return ()
       no  :: TCM ()
-      no  = typeError . GenericDocError =<<
-              fsep [ "The universe"
-                   , prettyTCM s
-                   , "of"
-                   , prettyTCM name
-                   , "does not admit data or record declarations"
-                   ]
+      no  = typeError $ SortDoesNotAdmitDataDefinitions name s
     case s of
       -- Sorts that admit data definitions.
       Univ _ _     -> yes

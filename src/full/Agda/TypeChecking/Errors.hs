@@ -310,6 +310,7 @@ errorString err = case err of
   UnexpectedParameter{}                    -> "UnexpectedParameter"
   NoParameterOfName{}                      -> "NoParameterOfName"
   UnexpectedModalityAnnotationInParameter{} -> "UnexpectedModalityAnnotationInParameter"
+  SortDoesNotAdmitDataDefinitions{}        -> "SortDoesNotAdmitDataDefinitions"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1531,6 +1532,14 @@ instance PrettyTCM TypeError where
 
     UnexpectedModalityAnnotationInParameter par -> do
       text "Unexpected modality/relevance annotation in" <+> prettyA par
+
+    SortDoesNotAdmitDataDefinitions name s ->fsep
+      [ "The universe"
+      , prettyTCM s
+      , "of"
+      , prettyTCM name
+      , "does not admit data or record declarations"
+      ]
 
     where
     mpar n args
