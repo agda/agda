@@ -313,6 +313,7 @@ errorString err = case err of
   SortDoesNotAdmitDataDefinitions{}        -> "SortDoesNotAdmitDataDefinitions"
   SortCannotDependOnItsIndex{}             -> "SortCannotDependOnItsIndex"
   ExpectedBindingForParameter{}            -> "ExpectedBindingForParameter"
+  UnexpectedTypeSignatureForParameter{}    -> "UnexpectedTypeSignatureForParameter"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1553,6 +1554,11 @@ instance PrettyTCM TypeError where
       [ "Expected binding for parameter"
       , text (absName b) <+> text ":" <+> prettyTCM (unDom a)
       ]
+
+    UnexpectedTypeSignatureForParameter xs -> do
+      let s | length xs > 1 = "s"
+            | otherwise     = ""
+      text ("Unexpected type signature for parameter" ++ s) <+> sep (fmap prettyA xs)
 
     where
     mpar n args

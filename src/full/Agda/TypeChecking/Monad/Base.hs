@@ -4621,6 +4621,7 @@ data TypeError
         | NoParameterOfName ArgName
         | UnexpectedModalityAnnotationInParameter A.LamBinding
         | ExpectedBindingForParameter (Dom Type) (Abs Type)
+        | UnexpectedTypeSignatureForParameter (List1 (NamedArg A.Binder))
         | SortDoesNotAdmitDataDefinitions QName Sort
         | SortCannotDependOnItsIndex QName Type
     -- Coverage errors
