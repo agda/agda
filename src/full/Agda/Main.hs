@@ -282,10 +282,16 @@ printVersion backends PrintAgdaVersion = do
     "enable-cluster-counting: unicode cluster counting in LaTeX backend using the ICU library" :
 #endif
 #ifdef OPTIMISE_HEAVILY
-    "optimise-heavily: extra optimizations" :
+    "optimise-heavily: extra optimisations" :
 #endif
 #ifdef DEBUG
-    "debug: extra debug info" :
+    "debug: enable debug printing ('-v' verbosity flags)" :
+#endif
+#ifdef DEBUG_PARSING
+    "debug-parsing: enable printing grammars for operator parsing via '-v scope.grammar:10'"
+#endif
+#ifdef DEBUG_SERIALISATION
+    "debug-serialisation: extra debug info during serialisation into '.agdai' files"
 #endif
     []
 
