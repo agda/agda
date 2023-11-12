@@ -1674,9 +1674,7 @@ bindParameters npars [] t ret =
               x <- freshName_ (absName b)
               bindParameter npars [] x a b ret
            | otherwise ->
-              typeError . GenericDocError =<<
-                sep [ "Expected binding for parameter"
-                    , text (absName b) <+> text ":" <+> prettyTCM (unDom a) ]
+              typeError $ ExpectedBindingForParameter a b
     _ -> __IMPOSSIBLE__
 
 bindParameters npars par@(A.DomainFull (A.TBind _ _ xs e) : bs) a ret =
