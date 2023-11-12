@@ -309,6 +309,7 @@ errorString err = case err of
   IncorrectTypeForRewriteRelation{}        -> "IncorrectTypeForRewriteRelation"
   UnexpectedParameter{}                    -> "UnexpectedParameter"
   NoParameterOfName{}                      -> "NoParameterOfName"
+  UnexpectedModalityAnnotationInParameter{} -> "UnexpectedModalityAnnotationInParameter"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1527,6 +1528,9 @@ instance PrettyTCM TypeError where
 
     NoParameterOfName x -> do
       text ("No parameter of name " ++ x)
+
+    UnexpectedModalityAnnotationInParameter par -> do
+      text "Unexpected modality/relevance annotation in" <+> prettyA par
 
     where
     mpar n args

@@ -1700,8 +1700,7 @@ bindParameters _ (A.DomainFull A.TLet{} : _) _ _ = __IMPOSSIBLE__
 
 bindParameters _ (par@(A.DomainFree _ arg) : ps) _ _
   | getModality arg /= defaultModality = setCurrentRange par $
-     typeError . GenericDocError =<< do
-       text "Unexpected modality/relevance annotation in" <+> prettyA par
+      typeError $ UnexpectedModalityAnnotationInParameter par
 
 bindParameters npars ps0@(par@(A.DomainFree _ arg) : ps) t ret = do
   let x          = namedArg arg
