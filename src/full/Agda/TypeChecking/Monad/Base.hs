@@ -4728,6 +4728,8 @@ data IllegalRewriteRuleReason
   | ContainsUnsolvedMetaVariables (Set MetaId)
   | BlockedOnProblems (Set ProblemId)
   | RequiresDefinitions (Set QName)
+  | DoesNotTargetRewriteRelation
+  | BeforeFunctionDefinition
   | EmptyReason
     deriving (Show, Generic)
 

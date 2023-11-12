@@ -195,11 +195,7 @@ checkRewriteRule q = do
   -- Issue 1651: Check that we are not adding a rewrite rule
   -- for a type signature whose body has not been type-checked yet.
   when (isEmptyFunction $ theDef def) $
-    typeError . GenericDocError =<< hsep
-      [ "Rewrite rule from function "
-      , prettyTCM q
-      , " cannot be added before the function definition"
-      ]
+    typeError $ IllegalRewriteRule q BeforeFunctionDefinition
   -- Get rewrite rule (type of q).
   TelV gamma1 core <- telView $ defType def
   reportSDoc "rewriting" 30 $ vcat
@@ -208,8 +204,7 @@ checkRewriteRule q = do
     , " |- " <+> do addContext gamma1 $ prettyTCM core
     ]
   let failureWrongTarget :: TCM a
-      failureWrongTarget = typeError . GenericDocError =<< hsep
-        [ prettyTCM q , " does not target rewrite relation" ]
+      failureWrongTarget = typeError $ IllegalRewriteRule q DoesNotTargetRewriteRelation
   let failureBlocked :: Blocker -> TCM a
       failureBlocked b
         | not (null ms) = typeError $ IllegalRewriteRule q (ContainsUnsolvedMetaVariables ms)
