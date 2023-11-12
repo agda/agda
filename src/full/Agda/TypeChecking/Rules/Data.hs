@@ -1712,8 +1712,7 @@ bindParameters npars ps0@(par@(A.DomainFree _ arg) : ps) t ret = do
     BadImplicits   -> setCurrentRange par $
       typeError $ UnexpectedParameter par
     NoSuchName x   -> setCurrentRange par $
-      typeError . GenericDocError =<< do
-        text ("No parameter of name " ++ x)
+      typeError $ NoParameterOfName x
   where
     Pi dom@(Dom{domInfo = info', unDom = a}) b = unEl t -- TODO:: Defined but not used: info', a
     continue ps x = bindParameter npars ps x dom b ret
