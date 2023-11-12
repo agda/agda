@@ -308,6 +308,7 @@ errorString err = case err of
   IllegalRewriteRule{}                     -> "IllegalRewriteRule"
   IncorrectTypeForRewriteRelation{}        -> "IncorrectTypeForRewriteRelation"
   UnexpectedParameter{}                    -> "UnexpectedParameter"
+  NoParameterOfName{}                      -> "NoParameterOfName"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1523,6 +1524,9 @@ instance PrettyTCM TypeError where
 
     UnexpectedParameter par -> do
       text "Unexpected parameter" <+> prettyA par
+
+    NoParameterOfName x -> do
+      text ("No parameter of name " ++ x)
 
     where
     mpar n args
