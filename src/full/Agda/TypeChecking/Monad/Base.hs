@@ -4654,6 +4654,7 @@ data TypeError
         | GeneralizedVarInLetOpenedModule A.QName
         | MultipleFixityDecls [(C.Name, [Fixity'])]
         | MultiplePolarityPragmas [C.Name]
+        | IllegalAnonymousConstrReference I.QName
     -- Concrete to Abstract errors
         | NotAModuleExpr C.Expr
             -- ^ The expr was used in the right hand side of an implicit module

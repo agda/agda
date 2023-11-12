@@ -1,0 +1,4 @@
+AnonymousRecConstrNamed.agda:14,5-20
+Can not refer to constructor of record type Foo using an anonymous
+reference, since it has a declared name.
+when scope checking Foo.constructor

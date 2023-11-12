@@ -63,13 +63,14 @@ import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad ( tryResolveName )
 
 import Agda.TypeChecking.Monad.State (getScope, getAllPatternSyns)
-import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Base as I
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.MetaVars
 import Agda.TypeChecking.Monad.Pure
 import Agda.TypeChecking.Monad.Signature
+import {-# SOURCE #-} Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.Interaction.Options
 
@@ -191,11 +192,13 @@ isBuiltinFun :: AbsToCon (A.QName -> BuiltinId -> Bool)
 isBuiltinFun = asks $ is . builtins
   where is m q b = Just q == Map.lookup b m
 
--- | Resolve a concrete name. If illegally ambiguous fail with the ambiguous names.
-resolveName :: KindsOfNames -> Maybe (Set A.Name) -> C.QName -> AbsToCon (Either AmbiguousNameReason ResolvedName)
+-- | Resolve a concrete name. If the concrete name is illegal in this
+-- situation (either illegal ambiguity or illegal Record.constructor
+-- syntax), return the reason for failure.
+resolveName :: KindsOfNames -> Maybe (Set A.Name) -> C.QName -> AbsToCon (Either NameResolutionError ResolvedName)
 resolveName kinds candidates q = runExceptT $ tryResolveName kinds candidates q
 
--- | Treat illegally ambiguous names as UnknownNames.
+-- | Treat illegal names as UnknownNames.
 resolveName_ :: C.QName -> [A.Name] -> AbsToCon ResolvedName
 resolveName_ q cands = fromRight (const UnknownName) <$> resolveName allKindsOfNames (Just $ Set.fromList cands) q
 
@@ -352,15 +355,36 @@ abstractToConcreteHiding i = runAbsToCon . toConcreteHiding i
 unsafeQNameToName :: C.QName -> C.Name
 unsafeQNameToName = C.unqualify
 
+-- | Like 'isRecordConstructor' but does not throw IMPOSSIBLE if the
+-- name is not in scope.
+isExistingRecordConstructor :: A.QName -> AbsToCon (Maybe (A.QName, Defn))
+isExistingRecordConstructor c = getConstInfo' c >>= \case
+  Left (SigUnknown err)     -> return Nothing
+  Left SigCubicalNotErasure -> return Nothing
+  Left SigAbstract          -> return Nothing
+  Right def                 -> case theDef $ def of
+    I.Constructor{ conData = r } -> fmap (r,) <$> isRecord r
+    _                            -> return Nothing
+
 lookupQName :: AllowAmbiguousNames -> A.QName -> AbsToCon C.QName
 lookupQName ambCon x | Just s <- getGeneralizedFieldName x =
   return (C.QName $ C.Name noRange C.InScope $ C.stringNameParts s)
-lookupQName ambCon x = do
-  ys <- asks (inverseScopeLookupName' ambCon x . currentScope)
-  reportSLn "scope.inverse" 100 $
-    "inverse looking up abstract name " ++ prettyShow x ++ " yields " ++ prettyShow ys
-  loop ys
+lookupQName ambCon x = ignoreAbstractMode (isExistingRecordConstructor x) >>= \case
 
+  -- If the QName is the internal name of a record with no named
+  -- constructor, we should first concretise the name *of the record*,
+  -- since that will *actually* be in scope through a concrete QName.
+  Just (r, def) | not (recNamedCon def) -> do
+    reportSLn "scope.inverse" 100 $
+      "inverse lookup of record constructor " ++ prettyShow x
+    recr <- lookupQName ambCon r
+    pure (recr `C.qualify` simpleName "constructor")
+
+  _ -> do
+    ys <- asks (inverseScopeLookupName' ambCon x . currentScope)
+    reportSLn "scope.inverse" 100 $
+      "inverse looking up abstract name " ++ prettyShow x ++ " yields " ++ prettyShow ys
+    loop ys
   where
     -- Found concrete name: check that it is not shadowed by a local
     loop (qy@Qual{}      : _ ) = return qy -- local names cannot be qualified

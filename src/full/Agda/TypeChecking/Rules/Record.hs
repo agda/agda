@@ -46,7 +46,6 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.POMonoid
-import Agda.Syntax.Common.Pretty (render)
 import qualified Agda.Syntax.Common.Pretty as P
 import Agda.Utils.Size
 
@@ -154,15 +153,16 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
 
       -- Obtain name of constructor (if present).
       (hasNamedCon, conName) <- case con of
-        Just c  -> return (True, c)
-        Nothing -> do
-          m <- killRange <$> currentModule
-          -- Andreas, 2020-06-01, AIM XXXII
-          -- Using prettyTCM here jinxes the printer, see PR #4699.
-          -- r <- prettyTCM name
-          let r = P.pretty $ qnameName name
-          c <- qualify m <$> freshName_ (render r ++ ".constructor")
-          return (False, c)
+        A.NamedRecCon c -> return (True, c)
+        A.FreshRecCon c -> return (False, c)
+        -- Nothing -> do
+        --   m <- killRange <$> currentModule
+        --   -- Andreas, 2020-06-01, AIM XXXII
+        --   -- Using prettyTCM here jinxes the printer, see PR #4699.
+        --   -- r <- prettyTCM name
+        --   let r = P.pretty $ qnameName name
+        --   c <- qualify m <$> freshName_ (render r ++ ".constructor")
+        --   return (False, c)
 
       -- Add record type to signature.
       reportSDoc "tc.rec" 15 $ "adding record type to signature"

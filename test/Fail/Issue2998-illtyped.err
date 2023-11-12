@@ -2,4 +2,4 @@ Issue2998-illtyped.agda:12,1-10
 Ill-typed pattern after with abstraction:  r
 (perhaps you can replace it by '_'?)
 when checking the clause left hand side
-Issue2998-illtyped.with-14 x _
+Issue2998-illtyped.with-16 x _

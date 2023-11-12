@@ -101,10 +101,10 @@ data RecordDirectives' a = RecordDirectives
   { recInductive   :: Maybe (Ranged Induction)
   , recHasEta      :: Maybe HasEta0
   , recPattern     :: Maybe Range
-  , recConstructor :: Maybe a
+  , recConstructor :: a
   } deriving (Functor, Show, Eq)
 
-emptyRecordDirectives :: RecordDirectives' a
+emptyRecordDirectives :: Null a => RecordDirectives' a
 emptyRecordDirectives = RecordDirectives empty empty empty empty
 
 instance HasRange a => HasRange (RecordDirectives' a) where

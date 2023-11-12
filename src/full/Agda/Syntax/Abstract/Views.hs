@@ -493,7 +493,9 @@ instance DeclaredNames KName where
 
 instance DeclaredNames RecordDirectives where
   declaredNames (RecordDirectives i _ _ c) = kc where
-    kc = maybe mempty (singleton . WithKind k) c
+    kc = case c of
+      NamedRecCon c -> singleton $ WithKind k c
+      FreshRecCon{} -> mempty
     k  = maybe ConName (conKindOfName . rangedThing) i
 
 instance DeclaredNames Declaration where

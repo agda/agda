@@ -454,7 +454,7 @@ data RecordDirective
        -- ^ If declaration @pattern@ is present, give its range.
    deriving (Eq, Show)
 
-type RecordDirectives = RecordDirectives' (Name, IsInstance)
+type RecordDirectives = RecordDirectives' (Maybe (Name, IsInstance))
 
 {-| The representation type of a declaration. The comments indicate
     which type in the intended family the constructor targets.

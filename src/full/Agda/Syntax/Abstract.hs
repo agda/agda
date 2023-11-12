@@ -151,7 +151,16 @@ instance Pretty ScopeCopyInfo where
           xs = [ (k, v) | (k, vs) <- Map.toList r, v <- List1.toList vs ]
       pr (x, y) = pretty x <+> "->" <+> pretty y
 
-type RecordDirectives = RecordDirectives' QName
+-- | How did we get our hands on the 'QName' for the constructor of this
+-- record?
+data RecordConName
+  = NamedRecCon !QName
+    -- ^ The user wrote it.
+  | FreshRecCon !QName
+    -- ^ We made it up.
+  deriving (Eq, Show, Generic)
+
+type RecordDirectives = RecordDirectives' RecordConName
 
 data Declaration
   = Axiom      KindOfName DefInfo ArgInfo (Maybe [Occurrence]) QName Type
@@ -803,6 +812,10 @@ instance KillRange Expr where
 instance KillRange Suffix where
   killRange = id
 
+instance KillRange RecordConName where
+  killRange (NamedRecCon x) = killRangeN NamedRecCon x
+  killRange (FreshRecCon x) = killRangeN FreshRecCon x
+
 instance KillRange Declaration where
   killRange (Axiom    p i a b c d     ) = killRangeN (\i a c d -> Axiom p i a b c d) i a c d
   killRange (Generalize s i j x e     ) = killRangeN (Generalize s) i j x e
@@ -884,6 +897,7 @@ instance KillRange LetBinding where
 
 instance NFData Expr
 instance NFData ScopeCopyInfo
+instance NFData RecordConName
 instance NFData Declaration
 instance NFData ModuleApplication
 instance NFData Pragma
@@ -981,7 +995,7 @@ instance NameToExpr ResolvedName where
     FieldName xs         -> Proj ProjSystem . AmbQ . fmap anameName $ xs
     ConstructorName _ xs -> Con . AmbQ . fmap anameName $ xs
     PatternSynResName xs -> PatternSyn . AmbQ . fmap anameName $ xs
-    UnknownName          -> __IMPOSSIBLE__
+    UnknownName{}            -> __IMPOSSIBLE__
     where
       withSuffix NoSuffix   e       = e
       withSuffix s@Suffix{} (Def x) = Def' x s
