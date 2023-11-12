@@ -208,9 +208,6 @@ jobs:
     #     command: cabal build exe:agda exe:agda-mode
 
     - name: Move artefacts to ${{ steps.vars.outputs.nightly }}
-      env:
-        DLL: "/c/msys64/mingw64/bin/libicu*.dll"
-          ## was /c/icu4c/icu*.dll
       run: |
         nightly="${{ steps.vars.outputs.nightly }}"
         mkdir -p "${nightly}"/bin
@@ -220,7 +217,7 @@ jobs:
 
           find dist-newstyle/build \( -name 'agda.exe' -o -name 'agda-mode.exe' \) -type f -exec cp {} "${nightly}"/bin \;
           cp -a .github/*.bat "${nightly}"
-          cp "${DLL}" "${nightly}"/bin/
+          cp /c/msys64/mingw64/bin/libicu*.dll "${nightly}"/bin/
           ## Issue #6926: strip.exe not installed there.
           ## Stripping step is optional, so we skip it.
           # C:/ProgramData/Chocolatey/bin/strip.exe "${nightly}"/bin/*
