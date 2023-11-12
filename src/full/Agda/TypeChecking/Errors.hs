@@ -1495,6 +1495,13 @@ instance PrettyTCM TypeError where
         [ prettyTCM q , " is not a legal rewrite rule, since"
         , "it requires the definition(s) of", prettyList_ (map prettyTCM $ Set.toList qs)
         ]
+      DoesNotTargetRewriteRelation -> hsep
+        [ prettyTCM q , " does not target rewrite relation" ]
+      BeforeFunctionDefinition -> hsep
+        [ "Rewrite rule from function "
+        , prettyTCM q
+        , " cannot be added before the function definition"
+        ]
       EmptyReason -> hsep
         [ prettyTCM q , " is not a legal rewrite rule" ]
 
