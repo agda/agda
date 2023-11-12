@@ -97,22 +97,17 @@ requireOptionRewriting =
 verifyBuiltinRewrite :: Term -> Type -> TCM ()
 verifyBuiltinRewrite v t = do
   requireOptionRewriting
-  let failure reason = typeError . GenericDocError =<< sep
-       [ prettyTCM v <+> " does not have the right type for a rewriting relation"
-       , reason
-       ]
   caseMaybeM (relView t)
-    (failure $ "because it should accept at least two arguments") $
+    (typeError $ IncorrectTypeForRewriteRelation v ShouldAcceptAtLeastTwoArguments) $
     \ (RelView tel delta a b core) -> do
-    unless (visible a && visible b) $ failure $ "because its two final arguments are not both visible."
+    unless (visible a && visible b) $ typeError $ IncorrectTypeForRewriteRelation v FinalTwoArgumentsNotVisible
     case unEl core of
       Sort{}   -> return ()
       Con{}    -> __IMPOSSIBLE__
       Level{}  -> __IMPOSSIBLE__
       Lam{}    -> __IMPOSSIBLE__
       Pi{}     -> __IMPOSSIBLE__
-      _ -> failure $ "because its type does not end in a sort, but in "
-             <+> do inTopContext $ addContext tel $ prettyTCM core
+      _ -> typeError $ IncorrectTypeForRewriteRelation v (TypeDoesNotEndInSort core tel)
 
 -- | Deconstructing a type into @Δ → t → t' → core@.
 data RelView = RelView
