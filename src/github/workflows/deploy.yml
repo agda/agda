@@ -42,8 +42,10 @@ jobs:
         # Andreas, 2023-03-16: GHC 9.6 does not seem to do static linking even on ubuntu-20.04.
         # Andreas, 2023-11-12: GHC 9.4.8 also fails to do static linking on ubuntu-20.04.
         include:
-          - os: ubuntu-20.04
-            ghc-ver: '9.4.7'
+          - os: ubuntu-22.04
+            ghc-ver: '9.8'
+        # - os: ubuntu-20.04
+        #   ghc-ver: '9.4.7'
 
     env:
       ARGS: "--disable-executable-profiling --disable-library-profiling"
@@ -172,6 +174,12 @@ jobs:
         echo "ICU_MAJOR_VER=${ICU_MAJOR_VER}"
         echo "ICU_MAJOR_VER=${ICU_MAJOR_VER}" >> "${GITHUB_ENV}"
       # The output of unconv --version looks like "uconv v2.1  ICU 72.1" from which we extract "72.1"
+
+    - name: Switch off dynamic linking (Linux)
+      if:  runner.os == 'Linux'
+      run: |
+        echo "executable-dynamic: False" >> cabal.project
+      # NB: Need | after run for '>>' to parse correctly
 
     - name: Configure the build plan
       run: |

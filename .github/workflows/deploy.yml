@@ -112,6 +112,10 @@ jobs:
         ICU_MAJOR_VER=$(cut -d '.' -f 1 <<< "${ICU_VER}")
         echo "ICU_MAJOR_VER=${ICU_MAJOR_VER}"
         echo "ICU_MAJOR_VER=${ICU_MAJOR_VER}" >> "${GITHUB_ENV}"
+    - if: runner.os == 'Linux'
+      name: Switch off dynamic linking (Linux)
+      run: |
+        echo "executable-dynamic: False" >> cabal.project
     - name: Configure the build plan
       run: |
         cabal configure ${{ steps.vars.outputs.args }}
@@ -194,8 +198,8 @@ jobs:
         ghc-ver:
         - '9.8'
         include:
-        - ghc-ver: 9.4.7
-          os: ubuntu-20.04
+        - ghc-ver: '9.8'
+          os: ubuntu-22.04
         os:
         - windows-latest
         - macos-latest
