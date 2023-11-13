@@ -828,7 +828,7 @@ its constructors ``c₁`` to ``cₙ`` using ``declareData`` and ``defineData``.
    ``-v tc.unquote.def:10`` (for definition bodies). This will cause the generated code
    to be printed on stdout when running from the command line or in the debug buffer
    when loading from an editor.
-   Unless other verbosity flags, these two are available even if Agda has been built without :option:`debug` facilities enabled.
+   Unlike other verbosity flags, these two are available even if Agda has been built without :option:`debug` facilities enabled.
 
 System Calls
 ~~~~~~~~~~~~
