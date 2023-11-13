@@ -115,7 +115,7 @@ jobs:
     - if: runner.os == 'Linux'
       name: Switch off dynamic linking (Linux)
       run: |
-        echo "executable-dynamic: False" >> cabal.project
+        echo "executable-dynamic: False" > cabal.project.local
     - name: Configure the build plan
       run: |
         cabal configure ${{ steps.vars.outputs.args }}
