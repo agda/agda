@@ -1702,7 +1702,7 @@ characters to the \\xNNNN notation used in Haskell strings."
   (let ((pp-escape-newlines t)
         (s2 (copy-sequence s)))
     (set-text-properties 0 (length s2) nil s2)
-    (mapconcat 'agda2-char-quote (pp-to-string s2) "")))
+    (mapconcat 'agda2-char-quote (string-trim (pp-to-string s2)) "")))
 
 (defun agda2-list-quote (strings)
   "Convert a list of STRINGS into a string representing it in Haskell syntax."
