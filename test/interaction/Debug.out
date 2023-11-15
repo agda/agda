@@ -3,7 +3,7 @@
 (agda2-highlight-clear)
 (agda2-verbose "Scope checking Agda.Primitive ")
 (agda2-verbose "Building interface... ")
-(agda2-verbose "Writing interface file _build/2.6.4.1/agda/Debug.agdai. ")
+(agda2-verbose "Writing interface file _build/2.6.5/agda/Debug.agdai. ")
 (agda2-verbose "Wrote interface file. ")
 (agda2-verbose "Accumulated statistics. ")
 (agda2-verbose "Finished Debug. ")
