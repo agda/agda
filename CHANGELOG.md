@@ -61,6 +61,7 @@ For 2.6.4.1, the following issues were also
 [closed](https://github.com/agda/agda/issues?q=is%3Aissue+milestone%3A2.6.4.1+is%3Aclosed)
 (see [bug tracker](https://github.com/agda/agda/issues)):
 
+- [#6745](https://github.com/agda/agda/issues/6745): Strange interaction between `opaque` and `let open`
 - [#6746](https://github.com/agda/agda/issues/6746): Support GHC 9.8
 - [#6852](https://github.com/agda/agda/issues/6852): Follow XDG Base Directory Specification
 - [#6913](https://github.com/agda/agda/issues/6913): Internal error on `primLockUniv`-sorted functions
@@ -68,3 +69,7 @@ For 2.6.4.1, the following issues were also
 - [#6931](https://github.com/agda/agda/issues/6931): Internal error with an empty parametrized module from a different file
 - [#6941](https://github.com/agda/agda/issues/6941): Interaction between opaque and instance arguments
 - [#6944](https://github.com/agda/agda/issues/6944): Order instances by specificity for reflection
+- [#6953](https://github.com/agda/agda/issues/6953): Emacs 30 breaks agda mode
+- [#6957](https://github.com/agda/agda/issues/6957): Agda stdlib installation instructions broken link
+- [#6959](https://github.com/agda/agda/issues/6959): Warn about opaque `unquoteDecl`/`unquoteDef`
+- [#6983](https://github.com/agda/agda/issues/6983): Refine command does not work on Emacs 30
