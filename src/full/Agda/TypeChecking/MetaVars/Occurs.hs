@@ -717,7 +717,8 @@ instance Occurs a => Occurs (Arg a) where
 
 instance Occurs a => Occurs (Dom a) where
   occurs :: Occurs a => Dom a -> OccursM (Dom a)
-  occurs v = traverse occurs v
+  occurs (Dom info n f t x) =
+    Dom info n f t <$> underQuantity info (occurs x)
 
 ---------------------------------------------------------------------------
 -- * Pruning: getting rid of flexible occurrences.
