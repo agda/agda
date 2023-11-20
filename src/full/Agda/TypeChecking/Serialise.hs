@@ -52,8 +52,8 @@ import qualified Data.Binary.Put as B
 import qualified Data.List as List
 import Data.Function (on)
 
-import qualified Codec.Compression.GZip as G
-import qualified Codec.Compression.Zlib.Internal as Z
+-- import qualified Codec.Compression.GZip as G
+-- import qualified Codec.Compression.Zlib.Internal as Z
 
 import GHC.Compact as C
 
@@ -129,12 +129,13 @@ encode a = do
     -- Encode hashmaps and root, and compress.
     bits1 <- Bench.billTo [ Bench.Serialization, Bench.BinaryEncode ] $
       return $!! B.encode (root, nL, ltL, stL, bL, iL, dL)
-    let compressParams = G.defaultCompressParams
-          { G.compressLevel    = G.bestSpeed
-          , G.compressStrategy = G.huffmanOnlyStrategy
-          }
-    cbits <- Bench.billTo [ Bench.Serialization, Bench.Compress ] $
-      return $!! G.compressWith compressParams bits1
+    -- let compressParams = G.defaultCompressParams
+    --       { G.compressLevel    = G.bestSpeed
+    --       , G.compressStrategy = G.huffmanOnlyStrategy
+    --       }
+    cbits <- pure bits1
+      -- Bench.billTo [ Bench.Serialization, Bench.Compress ] $
+      -- return $!! G.compressWith compressParams bits1
     let x = B.encode currentInterfaceVersion <> cbits
     return (Encoded { uncompressed = bits1, compressed = x })
   where
@@ -268,16 +269,16 @@ decodeInterface s = do
        let (ver, s', _) = runGetState B.get (L.drop 16 s) 0 in
        if ver /= currentInterfaceVersion
        then Left "Wrong interface version."
-       else Right $
-            toLazyByteString $
-            Z.foldDecompressStreamWithInput
-              (\s -> (byteString s <>))
-              (\s -> if null s
-                     then mempty
-                     else error "Garbage at end.")
-              (\err -> error (show err))
-              (Z.decompressST Z.gzipFormat Z.defaultDecompressParams)
-              s'
+       else Right s'
+            -- toLazyByteString $
+            -- Z.foldDecompressStreamWithInput
+            --   (\s -> (byteString s <>))
+            --   (\s -> if null s
+            --          then mempty
+            --          else error "Garbage at end.")
+            --   (\err -> error (show err))
+            --   (Z.decompressST Z.gzipFormat Z.defaultDecompressParams)
+            --   s'
 
   case s of
     Right s  -> decode s
