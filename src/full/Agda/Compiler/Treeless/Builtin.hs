@@ -94,7 +94,7 @@ transform BuiltinKit{..} = tr
         --       that it won't underflow.
 
       TApp (TDef q) (_ : _ : _ : _ : e : f : es)
-        | isForce q -> tr $ TLet e $ mkTApp (tOp PSeq (TVar 0) $ mkTApp (raise 1 f) [TVar 0]) es
+        | isForce q -> tr $ TLet e $ mkTApp (tOp PSeq (TVar 0) $ mkTApp (raise 1 f) [TVar 0]) $ raise 1 es
 
       TApp (TCon s) [e] | isSuc s ->
         case tr e of
