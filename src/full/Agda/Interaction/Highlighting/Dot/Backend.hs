@@ -128,6 +128,7 @@ dotBackend' = Backend'
   , postCompile           = postCompileDot
   , scopeCheckingSuffices = True
   , mayEraseType          = const $ return True
+  , backendInteract       = Nothing
   }
 
 -- | Convert a general "MonadError String m" into "MonadTCError m".

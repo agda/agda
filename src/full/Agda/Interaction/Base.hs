@@ -149,6 +149,9 @@ data Interaction' range
     -- the backend @b@, using @argv@ as the command-line options.
   | Cmd_compile         CompilerBackend FilePath [String]
 
+    -- | Custom commands for backends.
+  | Cmd_backend         CompilerBackend String
+
   | Cmd_constraints
 
     -- | Show unsolved metas. If there are no unsolved metas but unsolved constraints

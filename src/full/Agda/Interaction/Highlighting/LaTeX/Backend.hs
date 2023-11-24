@@ -112,6 +112,7 @@ latexBackend' = Backend'
   , postCompile           = postCompileLaTeX
   , scopeCheckingSuffices = True
   , mayEraseType          = const $ return False
+  , backendInteract       = Nothing
   }
 
 runLogLaTeXWithMonadDebug :: MonadDebug m => LogLaTeXT m a -> m a
