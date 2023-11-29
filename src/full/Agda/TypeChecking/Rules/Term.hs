@@ -1687,7 +1687,7 @@ checkLetBinding (A.LetApply i erased x modapp copyInfo dir) ret = do
     , "module  =" <+> (prettyTCM =<< currentModule)
     , "fv      =" <+> text (show fv)
     ]
-  checkSectionApplication i erased x modapp copyInfo
+  noMutualBlock $ checkSectionApplication i erased x modapp copyInfo
     -- Some other part of the code ensures that "open public" is
     -- ignored in let expressions. Thus there is no need for
     -- checkSectionApplication to throw an error if the import
