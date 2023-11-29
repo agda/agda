@@ -1,5 +1,116 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
+{-|
+
+This module implements the type checking part of generalisable variables. When we get here we have
+a type checking problem for a type (or telescope) containing a known set of generalisable variables
+and we need to produce a well typed type (or telescope) with the correct generalisations. For instance,
+given
+
+@
+variable
+  A  : Set
+  n  : Nat
+  xs : Vec A n
+
+foo : SomeType xs
+@
+
+generalisation should produce @{A : Set} {n : Nat} {xs : Vec A n} → SomeType xs@ for the type of
+@foo@.
+
+The functions `generalizeType` and `generalizeTelescope` don't have access to the abstract syntax to
+be type checked (@SomeType xs@ in the example). Instead they are provided a type checking action
+that delivers a `Type` or a `Telescope`. The challenge is setting up a context in which @SomeType
+xs@ can be type checked successfully by this action, without knowing what the telescope of
+generalised variables will be. Once we have computed this telescope the result needs to be
+transformed into a well typed type abstracted over it.
+
+__At no point are we allowed to cheat!__ Any transformation between well typed terms needs to be done
+by well typed substitutions.
+
+The key idea is to run the type checking action in the context of a single variable of an unknown
+type. Once we know what variables to generalise over this type is instantiated to a fresh record
+type with a field for each generalised variable. Turning the result of action into something valid
+in the context of the generalised variables is then a simple substitution unpacking the record
+variable.
+
+In more detail, generalisation proceeds as follows:
+
+- Add a variable @genTel@ of an unknown type to the context (`withGenRecVar`).
+
+@
+  (genTel : _GenTel)
+@
+
+- Create metavariables for the generalisable variables appearing in the problem and their
+  dependencies (`createGenValues`). In the example this would be
+
+@
+  (genTel : _GenTel) ⊢
+    _A  : Set
+    _n  : Nat
+    _xs : Vec _A _n
+@
+
+- Run the type checking action (`createMetasAndTypeCheck`), binding the mentioned generalisable
+  variables to the corresponding newly created metavariables. This binding is stored in
+  `eGeneralizedVars` and picked up in `Agda.TypeChecking.Rules.Application.inferDef`
+
+@
+  (genTel : _GenTel) ⊢ SomeType (_xs genTel)
+@
+
+- Compute the telescope of generalised variables (`computeGeneralization`). This is done by taking
+  the unconstrained metavariables created by `createGenValues` or created during the type checking
+  action and sorting them into a well formed telescope.
+
+@
+  {A : Set} {n : Nat} {xs : Vec A n}
+@
+
+- Create a record type @GeneralizeTel@ whose fields are the generalised variables and instantiate
+  the type of @genTel@ to it (`createGenRecordType`).
+
+@
+  record GeneralizeTel : Set₁ where
+    constructor mkGeneralizeTel
+    field
+      A  : Set
+      n  : Nat
+      xs : Vec A n
+@
+
+- Solve the metavariables with their corresponding projections from @genTel@.
+
+@
+  _A  := λ genTel → genTel .A
+  _n  := λ genTel → genTel .n
+  _xs := λ genTel → genTel .xs
+@
+
+- Build the unpacking substitution (`unpackSub`) that maps terms in @(genTel : GeneralizeTel)@ to
+  terms in the context of the generalised variables by substituting a record value for @genTel@.
+
+@
+  {A : Set} {n : Nat} {xs : Vec A n} ⊢ [mkGeneralizeTel A n xs / genTel] : (genTel : GeneralizeTel)
+@
+
+- Build the final result by applying the unpacking substitution to the result of the type checking
+  action and abstracting over the generalised telescope.
+
+@
+  {A : Set} {n : Nat} {xs : Vec A n} → SomeType (_xs (mkGeneralizeTel A n xs)) ==
+  {A : Set} {n : Nat} {xs : Vec A n} → SomeType xs
+@
+
+- In case of `generalizeType` return the resulting pi type.
+- In case of `generalizeTelescope` enter the resulting context, applying the unpacking substitution
+  to let bindings (TODO #6916: and also module applications!) created in the telescope, and call the
+  continuation.
+
+-}
+
 module Agda.TypeChecking.Generalize
   ( generalizeType
   , generalizeType'
@@ -99,6 +210,8 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
   -- And we shouldn't forget about the let-bindings (#3470)
   --   Γ (r : R) Θ ⊢ letbinds
   --   Γ Δ Θρ      ⊢ letbinds' = letbinds(lift |Θ| ρ)
+  -- And modules created in the telescope (#6916)
+  --   TODO
   letbinds' <- applySubst (liftS (size tel) sub) <$> instantiateFull letbinds
   let addLet (x, LetBinding o v dom) = addLetBinding' o x v dom
 
