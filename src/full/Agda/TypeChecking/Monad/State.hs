@@ -162,34 +162,42 @@ lensAccumStatistics =  lensPersistentState . lensAccumStatisticsP
 -- * Scope
 ---------------------------------------------------------------------------
 
+{-# INLINE getScope #-}
 -- | Get the current scope.
 getScope :: ReadTCState m => m ScopeInfo
 getScope = useR stScope
 
+{-# INLINE setScope #-}
 -- | Set the current scope.
 setScope :: ScopeInfo -> TCM ()
 setScope scope = modifyScope (const scope)
 
+{-# INLINE modifyScope_ #-}
 -- | Modify the current scope without updating the inverse maps.
 modifyScope_ :: MonadTCState m => (ScopeInfo -> ScopeInfo) -> m ()
 modifyScope_ f = stScope `modifyTCLens` f
 
+{-# INLINE modifyScope #-}
 -- | Modify the current scope.
 modifyScope :: MonadTCState m => (ScopeInfo -> ScopeInfo) -> m ()
 modifyScope f = modifyScope_ (recomputeInverseScopeMaps . f)
 
+{-# INLINE useScope #-}
 -- | Get a part of the current scope.
 useScope :: ReadTCState m => Lens' ScopeInfo a -> m a
 useScope l = useR $ stScope . l
 
+{-# INLINE locallyScope #-}
 -- | Run a computation in a modified scope.
 locallyScope :: ReadTCState m => Lens' ScopeInfo a -> (a -> a) -> m b -> m b
 locallyScope l = locallyTCState $ stScope . l
 
+{-# INLINE withScope #-}
 -- | Run a computation in a local scope.
 withScope :: ReadTCState m => ScopeInfo -> m a -> m (a, ScopeInfo)
 withScope s m = locallyTCState stScope (recomputeInverseScopeMaps . const s) $ (,) <$> m <*> getScope
 
+{-# INLINE withScope_ #-}
 -- | Same as 'withScope', but discard the scope from the computation.
 withScope_ :: ReadTCState m => ScopeInfo -> m a -> m a
 withScope_ s m = fst <$> withScope s m
@@ -225,15 +233,19 @@ printScope tag v s = verboseS ("scope." ++ tag) v $ do
 
 -- ** Lens for 'stSignature' and 'stImports'
 
+{-# INLINE modifySignature  #-}
 modifySignature :: MonadTCState m => (Signature -> Signature) -> m ()
 modifySignature f = stSignature `modifyTCLens` f
 
+{-# INLINE modifyImportedSignature #-}
 modifyImportedSignature :: MonadTCState m => (Signature -> Signature) -> m ()
 modifyImportedSignature f = stImports `modifyTCLens` f
 
+{-# INLINE getSignature #-}
 getSignature :: ReadTCState m => m Signature
 getSignature = useR stSignature
 
+{-# SPECIALIZE modifyGlobalDefinition :: QName -> (Definition -> Definition) -> TCM () #-}
 -- | Update a possibly imported definition. Warning: changes made to imported
 --   definitions (during type checking) will not persist outside the current
 --   module. This function is currently used to update the compiled
@@ -243,9 +255,11 @@ modifyGlobalDefinition q f = do
   modifySignature         $ updateDefinition q f
   modifyImportedSignature $ updateDefinition q f
 
+{-# INLINE setSignature #-}
 setSignature :: MonadTCState m => Signature -> m ()
 setSignature sig = modifySignature $ const sig
 
+{-# SPECIALIZE withSignature :: Signature -> TCM a -> TCM a #-}
 -- | Run some computation in a different signature, restore original signature.
 withSignature :: (ReadTCState m, MonadTCState m) => Signature -> m a -> m a
 withSignature sig m = do
@@ -396,6 +410,7 @@ withTopLevelModule x m = do
   stFreshOpaqueId `setTCLens` nextO
   return y
 
+{-# SPECIALIZE currentModuleNameHash :: TCM ModuleNameHash #-}
 currentModuleNameHash :: ReadTCState m => m ModuleNameHash
 currentModuleNameHash = do
   NameId _ h <- useTC stFreshNameId
@@ -474,6 +489,7 @@ lookupSinglePatternSyn x = do
 theBenchmark :: TCState -> Benchmark
 theBenchmark = stBenchmark . stPersistentState
 
+{-# INLINE updateBenchmark #-}
 -- | Lens map for 'Benchmark'.
 updateBenchmark :: (Benchmark -> Benchmark) -> TCState -> TCState
 updateBenchmark f = updatePersistentState $ \ s -> s { stBenchmark = f (stBenchmark s) }
@@ -482,6 +498,7 @@ updateBenchmark f = updatePersistentState $ \ s -> s { stBenchmark = f (stBenchm
 getBenchmark :: TCM Benchmark
 getBenchmark = getsTC $ theBenchmark
 
+{-# INLINE modifyBenchmark #-}
 -- | Lens modify for 'Benchmark'.
 modifyBenchmark :: (Benchmark -> Benchmark) -> TCM ()
 modifyBenchmark = modifyTC' . updateBenchmark

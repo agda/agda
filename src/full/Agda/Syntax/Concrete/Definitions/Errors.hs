@@ -380,7 +380,7 @@ instance Pretty DeclarationException' where
     ]
   pretty (WrongContentBlock b _)      = fsep . pwords $
     case b of
-      PostulateBlock -> "A postulate block can only contain type signatures, possibly under keyword instance"
+      PostulateBlock -> "A `postulate` block can only contain type signatures, possibly under keywords `instance` and `private`"
       DataBlock -> "A data definition can only contain type signatures, possibly under keyword instance"
       _ -> "Unexpected declaration"
   pretty (InvalidMeasureMutual _) = fsep $

@@ -11,7 +11,7 @@ on:
     - '.github/workflows/stack.yml'
     - 'Agda.cabal'
     - 'Setup.hs'
-    - 'stack-9.6.2.yaml'
+    - 'stack-9.8.1.yaml'
       # !!! MATCH THIS WITH ghc_ver IN THE matrix BELOW !!!
       #
     - 'src/size-solver/size-solver.cabal'
@@ -40,7 +40,7 @@ jobs:
     runs-on: Ubuntu-latest # Required, but it can be anything here.
 
     steps:
-    - uses: styfle/cancel-workflow-action@0.11.0
+    - uses: styfle/cancel-workflow-action@0.12.0
       with:
         access_token: ${{ github.token }}
   stack:
@@ -53,7 +53,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04,macos-12]
-        ghc-ver: [9.6.2]
+        ghc-ver: [9.8.1]
           # !!! MAKE SURE THIS GHC VERSION IS IN SYNC WITH trigger_path_list !!!
           #
           # The LTS snapshots are covered in workflow stack-dry-run.yml.
@@ -66,7 +66,7 @@ jobs:
           # adding the respective stack-x.y.z.yaml file.
         include:
         - os: windows-2022
-          ghc-ver: 9.6.2
+          ghc-ver: 9.8.1
           # !!! MAKE SURE THIS GHC VERSION IS IN SYNC WITH trigger_path_list !!!
 
     # # Try "allowed-failure" for Windows with GHC 9.2
@@ -161,9 +161,9 @@ jobs:
       if: ${{ runner.os == 'Windows' }}
       run: |
         # stack exec ${ARGS} -- pacman --noconfirm -Syuu
-        stack exec ${ARGS} -- pacman --noconfirm -Sy msys2-keyring
+        # stack exec ${ARGS} -- pacman --noconfirm -S msys2-keyring
         stack exec ${ARGS} -- bash -c "curl -LO ${ICU_URL} && pacman --noconfirm -U *.pkg.tar.zst"
-        stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-pkg-config
+        stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-pkgconf
 
     - name: Determine the ICU version
       run: |
@@ -195,7 +195,7 @@ jobs:
           # .stack-work-fast
 
     - name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
-      # if: ${{ !steps.cache.outputs.cache-hit }}
+      # if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
 
     - name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests` (i.e. the test suite).
@@ -207,7 +207,7 @@ jobs:
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}
 
     # - name: Clear cache
-    #   if:   ${{ steps.cache.outputs.cache-hit }}
+    #   if:   ${{ steps.cache.outputs.cache-hit == 'true' }}
     #   env:
     #     KEY: ${{ steps.cache.outputs.cache-matched-key }}
     #     GH_TOKEN: ${{ github.token }}

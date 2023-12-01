@@ -59,7 +59,7 @@ import Agda.TypeChecking.Telescope
 import Agda.Utils.Either
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List  ( (!!!), groupOn, initWithDefault )
+import Agda.Utils.List  ( (!!!), initWithDefault )
 import qualified Agda.Utils.List as List
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
@@ -1384,15 +1384,14 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta mpatm = do
             guard =<< do isNothing <$> do lift $ checkModality' d def
             return (orig, (d, (pars, (dom, u, tb))))
 
-      cands <- groupOn fst . List1.catMaybes <$> mapM (runMaybeT . try) ds
+      cands <- List1.groupOn fst . List1.catMaybes <$> mapM (runMaybeT . try) ds
       case cands of
         [] -> refuseProjNoMatching ds
-        [[]] -> refuseProjNoMatching ds
         (_:_:_) -> refuseProj ds $ fwords "several matching candidates can be applied."
         -- case: just one matching projection d
         -- the term u = d v
         -- the type tb is the type of this application
-        [ (_orig, (d, (pars, (_dom,u,tb)))) : _ ] -> do
+        [ (_orig, (d, (pars, (_dom,u,tb)))) :| _ ] -> do
           storeDisambiguatedProjection d
 
           -- Check parameters
@@ -1418,9 +1417,9 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta mpatm = do
 
               return (v, tc, NotCheckedTarget)
 
--- | Throw 'AmbiguousProjectionError' with additional explanation.
+-- | Throw 'AmbiguousOverloadedProjection' with additional explanation.
 refuseProj :: List1 QName -> TCM Doc -> TCM a
-refuseProj ds reason = typeError . AmbiguousProjectionError ds =<< reason
+refuseProj ds reason = typeError . AmbiguousOverloadedProjection ds =<< reason
 
 refuseProjNotApplied, refuseProjNoMatching :: List1 QName -> TCM a
 refuseProjNotApplied    ds = refuseProj ds $ fwords "it is not applied to a visible argument"

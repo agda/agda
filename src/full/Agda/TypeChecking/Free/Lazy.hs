@@ -470,6 +470,12 @@ underModality = local . mapModality . composeModality . getModality
 underRelevance :: (MonadReader r m, LensRelevance r, LensRelevance o) => o -> m z -> m z
 underRelevance = local . mapRelevance . composeRelevance . getRelevance
 
+-- | In the given computation the 'Quantity' is locally scaled using
+-- the 'Quantity' of the first argument.
+underQuantity ::
+  (MonadReader r m, LensQuantity r, LensQuantity o) => o -> m a -> m a
+underQuantity = local . mapQuantity . composeQuantity . getQuantity
+
 -- | Changing the 'FlexRig' context.
 underFlexRig :: (MonadReader r m, LensFlexRig r a, Semigroup a, LensFlexRig o a) => o -> m z -> m z
 underFlexRig = local . over lensFlexRig . composeFlexRig . view lensFlexRig

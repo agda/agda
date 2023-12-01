@@ -31,7 +31,7 @@ import Agda.Syntax.Abstract.Views
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
-import Agda.Syntax.Info
+import Agda.Syntax.Info as Info
 import Agda.Syntax.Translation.ReflectedToAbstract
 import Agda.Syntax.Scope.Base (KindOfName(ConName, DataName))
 
@@ -305,7 +305,7 @@ renderErrorParts = vcat . map (hcat . map prettyTCM) . splitLines
   where
     splitLines [] = []
     splitLines (StrPart s : ss) =
-      case break (=='\n') s of
+      case break (== '\n') s of
         (s0, '\n' : s1) -> [StrPart s0] : splitLines (StrPart s1 : ss)
         (s0, "")        -> consLine (StrPart s0) (splitLines ss)
         _               -> __IMPOSSIBLE__
@@ -739,7 +739,7 @@ evalTCM v = do
 
     tcDebugPrint :: Text -> Integer -> [ErrorPart] -> TCM Term
     tcDebugPrint s n msg = do
-      reportSDoc (T.unpack s) (fromIntegral n) $ renderErrorParts msg
+      alwaysReportSDoc (T.unpack s) (fromIntegral n) $ renderErrorParts msg
       primUnitUnit
 
     tcNoConstraints :: Term -> UnquoteM Term
@@ -938,7 +938,7 @@ evalTCM v = do
         "Cannot declare hidden function" <+> prettyTCM x
       tell [x]
       liftTCM $ do
-        reportSDoc "tc.unquote.decl" 10 $ sep
+        alwaysReportSDoc "tc.unquote.decl" 10 $ sep
           [ "declare" <+> prettyTCM x <+> ":"
           , nest 2 $ prettyR a
           ]
@@ -959,7 +959,7 @@ evalTCM v = do
         "Cannot declare hidden function" <+> prettyTCM x
       tell [x]
       liftTCM $ do
-        reportSDoc "tc.unquote.decl" 10 $ sep
+        alwaysReportSDoc "tc.unquote.decl" 10 $ sep
           [ "declare Postulate" <+> prettyTCM x <+> ":"
           , nest 2 $ prettyR a
           ]
@@ -977,7 +977,7 @@ evalTCM v = do
       setDirty
       tell [x]
       liftTCM $ do
-        reportSDoc "tc.unquote.decl" 10 $ sep
+        alwaysReportSDoc "tc.unquote.decl" 10 $ sep
           [ "declare Data" <+> prettyTCM x <+> ":"
           , nest 2 $ prettyR t
           ]
@@ -1005,7 +1005,7 @@ evalTCM v = do
         -- `addContext` before `toAbstract_` is different from substituting the type after
         -- `toAbstract_, so some dummy parameters are added and removed later.
         es <- mapM (toAbstract_ . addDummy npars . snd) cs
-        reportSDoc "tc.unquote.def" 10 $ vcat $
+        alwaysReportSDoc "tc.unquote.def" 10 $ vcat $
           [ "declaring constructors of" <+> prettyTCM x <+> ":" ] ++ map prettyA es
 
         -- Translate parameters from internal definitions back to abstract syntax.
@@ -1023,7 +1023,7 @@ evalTCM v = do
             as = zipWith toAxiom conNames es'
             lams = map (\case {A.TBind _ tac (b :| []) _ -> A.DomainFree (tbTacticAttr tac) b
                               ;_ -> __IMPOSSIBLE__ }) tel
-        reportSDoc "tc.unquote.def" 10 $ vcat $
+        alwaysReportSDoc "tc.unquote.def" 10 $ vcat $
           [ "checking datatype: " <+> prettyTCM x <+> " with constructors:"
           , nest 2 (vcat (map prettyTCM conNames))
           ]
@@ -1056,10 +1056,13 @@ evalTCM v = do
       whenM (isLeft <$> getConstInfo' x) $
         genericError $ "Missing declaration for " ++ prettyShow x
       cs <- mapM (toAbstract_ . QNamed x) cs
-      reportSDoc "tc.unquote.def" 10 $ vcat $ map prettyA cs
+      alwaysReportSDoc "tc.unquote.def" 10 $ vcat $ map prettyA cs
       let accessDontCare = __IMPOSSIBLE__  -- or ConcreteDef, value not looked at
       ac <- asksTC (^. lensIsAbstract)     -- Issue #4012, respect AbstractMode
-      let i = mkDefInfo (nameConcrete $ qnameName x) noFixity' accessDontCare ac noRange
+      oc <- asksTC (^. lensIsOpaque)       -- Issue #6959, respect current opaque block
+      let
+        i' = mkDefInfo (nameConcrete $ qnameName x) noFixity' accessDontCare ac noRange
+        i = i' { Info.defOpaque = oc }
       locallyReduceAllDefs $ checkFunDef i x cs
       primUnitUnit
 

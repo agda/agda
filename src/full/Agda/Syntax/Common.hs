@@ -1,12 +1,13 @@
-{-# LANGUAGE CPP #-}
-
 {-| Some common syntactic entities are defined in this module.
 -}
 module Agda.Syntax.Common
   ( module Agda.Syntax.Common
+  , module Agda.Syntax.TopLevelModuleName.Boot
   , Induction(..)
   )
   where
+
+import Agda.Syntax.TopLevelModuleName.Boot
 
 import Prelude hiding (null)
 
@@ -14,9 +15,6 @@ import Control.DeepSeq
 import Control.Arrow ((&&&))
 import Control.Applicative ((<|>), liftA2)
 
-#if __GLASGOW_HASKELL__ < 804
-import Data.Semigroup hiding (Arg)
-#endif
 import Data.Bifunctor
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
@@ -1519,12 +1517,13 @@ defaultCohesion = unitCohesion
 
 -- | Origin of arguments.
 data Origin
-  = UserWritten  -- ^ From the source file / user input.  (Preserve!)
-  | Inserted     -- ^ E.g. inserted hidden arguments.
-  | Reflected    -- ^ Produced by the reflection machinery.
-  | CaseSplit    -- ^ Produced by an interactive case split.
-  | Substitution -- ^ Named application produced to represent a substitution. E.g. "?0 (x = n)" instead of "?0 n"
-  | ExpandedPun  -- ^ An expanded hidden argument pun.
+  = UserWritten     -- ^ From the source file / user input.  (Preserve!)
+  | Inserted        -- ^ E.g. inserted hidden arguments.
+  | Reflected       -- ^ Produced by the reflection machinery.
+  | CaseSplit       -- ^ Produced by an interactive case split.
+  | Substitution    -- ^ Named application produced to represent a substitution. E.g. "?0 (x = n)" instead of "?0 n"
+  | ExpandedPun     -- ^ An expanded hidden argument pun.
+  | Generalization  -- ^ Inserted by the generalization process
   deriving (Show, Eq, Ord)
 
 instance HasRange Origin where
@@ -1540,6 +1539,7 @@ instance NFData Origin where
   rnf CaseSplit = ()
   rnf Substitution = ()
   rnf ExpandedPun = ()
+  rnf Generalization = ()
 
 -- | Decorating something with 'Origin' information.
 data WithOrigin a = WithOrigin
@@ -2395,22 +2395,6 @@ instance AllAreOpaque a => AllAreOpaque (Maybe a) where
 -- * NameId
 ---------------------------------------------------------------------------
 
-newtype ModuleNameHash = ModuleNameHash { moduleNameHash :: Word64 }
-  deriving (Eq, Ord, Hashable)
-
-instance HasTag ModuleNameHash where
-  type Tag ModuleNameHash = ModuleNameHash
-  tag = Just . id
-
-noModuleNameHash :: ModuleNameHash
-noModuleNameHash = ModuleNameHash 0
-
--- | The record selector is not included in the resulting strings.
-
-instance Show ModuleNameHash where
-  showsPrec p (ModuleNameHash h) = showParen (p > 0) $
-    showString "ModuleNameHash " . shows h
-
 -- | The unique identifier of a name. Second argument is the top-level module
 --   identifier.
 data NameId = NameId {-# UNPACK #-} !Word64 {-# UNPACK #-} !ModuleNameHash
@@ -2430,9 +2414,6 @@ instance Enum NameId where
 
 instance NFData NameId where
   rnf (NameId _ _) = ()
-
-instance NFData ModuleNameHash where
-  rnf _ = ()
 
 instance Hashable NameId where
   {-# INLINE hashWithSalt #-}

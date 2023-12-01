@@ -3,7 +3,7 @@
 module AllStdLib where
 
 -- Ensure that the entire standard library is compiled.
-import README
+import Everything
 
 open import Data.Unit.Polymorphic using (⊤)
 open import Data.String

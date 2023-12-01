@@ -181,6 +181,7 @@ matchCopattern _       elim@Proj{}    = return (No , elim)
 matchCopattern p       (Apply v) = mapSnd Apply <$> matchPattern p v
 matchCopattern p       e@(IApply x y r) = mapSnd (mergeElim e) <$> matchPattern p (defaultArg r)
 
+{-# SPECIALIZE matchPatterns :: [NamedArg DeBruijnPattern] -> [Arg Term] -> TCM (Match Term, [Arg Term]) #-}
 matchPatterns :: MonadMatch m
               => [NamedArg DeBruijnPattern]
               -> [Arg Term]

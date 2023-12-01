@@ -17,10 +17,13 @@ else
 	$(CABAL) $(CABAL_INSTALL_CMD) $(CABAL_INSTALL_OPTS)
 endif
 
-# Tested with shelltestrunner 1.9.
+# Tested with shelltestrunner 1.9 and 1.10
+# Andreas, 2023-09-25, added 'stack update' to prevent error
+# "Warning: No latest package revision found for shelltestrunner"
 .PHONY : test
 test :
 ifdef HAS_STACK
+	$(STACK) update
 	$(STACK) install shelltestrunner
 endif
 	shelltest --color --precise test/succeed.test

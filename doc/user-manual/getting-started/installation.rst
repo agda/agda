@@ -38,7 +38,7 @@ You need recent versions of the following programs to compile Agda:
 * GHC:           https://www.haskell.org/ghc/
 
   + Agda has been tested with GHC 8.6.5, 8.8.4,
-    8.10.7, 9.0.2, 9.2.8, 9.4.6 and 9.6.2.
+    8.10.7, 9.0.2, 9.2.8, 9.4.8, 9.6.3, and 9.8.1.
 
 * cabal-install: https://www.haskell.org/cabal/
 * Alex:          https://www.haskell.org/alex/
@@ -231,7 +231,7 @@ Step 4 : Installing the standard library
 ----------------------------------------
 
 Installing the standard library, should you choose to use it,
-is an additional step using `a separate repository <https://github.com/agda/agda-stdlib/blob/master/notes/installation-guide.md>`_.
+is an additional step using `a separate repository <https://github.com/agda/agda-stdlib/blob/master/doc/installation-guide.md>`_.
 
 
 .. _prebuilt-packages:
@@ -289,16 +289,17 @@ Please report any bugs to Debian, using:
   reportbug -B debian agda
   reportbug -B debian agda-stdlib
 
-Fedora
-------
+Fedora / EPEL (Centos)
+----------------------
 
-Agda is packaged in Fedora (since before Fedora 18).
+Agda is `packaged <https://src.fedoraproject.org/rpms/Agda>`_ for Fedora Linux and EPEL.
+Agda-stdlib is `available <https://src.fedoraproject.org/rpms/Agda-stdlib/>`_ for Fedora.
 
 .. code-block:: bash
 
-  yum install Agda
+  dnf install Agda Agda-stdlib
 
-will pull in emacs-agda-mode and ghc-Agda-devel.
+will install Agda with the emacs mode and also agda-stdlib.
 
 FreeBSD
 -------
@@ -474,7 +475,20 @@ When installing Agda the following flags can be used:
 
 .. option:: debug
 
-     Enable debugging features that may slow Agda down. Default: off.
+     Enable debug printing. This makes Agda slightly slower, and
+     building Agda slower as well. The :option:`--verbose={N}` option
+     only has an effect when Agda was installed with this flag.
+     Default: off.
+
+.. option:: debug-serialisation
+
+     Enable debug mode in serialisation. This makes serialisation slower.
+     Default: off.
+
+.. option:: debug-parsing
+
+     Enable debug mode in the parser. This makes parsing slower.
+     Default: off.
 
 .. option:: enable-cluster-counting
 

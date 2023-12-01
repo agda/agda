@@ -31,7 +31,7 @@ tcExp isdep ctx typ@(TrBr typtrs ityp@(Clos _ itypexp)) trm =
               Var v ->
                 case ctx !!! v of
                   Nothing     -> return Nothing
-                  Just (_, a) -> return $ Just (weak (v+1) a, id)
+                  Just (_, a) -> return $ Just (weak (v + 1) a, id)
               Const c -> do
                cdef <- readIORef c
                return $ Just (closify (cdtype cdef), mpret . And (Just [Term args]) (noiotastep_term c args))

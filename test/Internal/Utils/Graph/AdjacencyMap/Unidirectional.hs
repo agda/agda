@@ -9,7 +9,7 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.Utils.Function (iterateUntil)
 import Agda.Utils.Functor
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
-import Agda.Utils.List (distinct, nubOn)
+import Agda.Utils.List (distinct, headWithDefault, nubOn)
 import Agda.Utils.Null as Null
 import Agda.Utils.SemiRing
 import Agda.Utils.Singleton (Singleton)
@@ -512,10 +512,11 @@ prop_sccs' g =
     ]
     where
     component k =
-      head [ i
-           | (i, ns) <- zip [1..] (reverse components)
-           , k `elem` ns
-           ]
+      headWithDefault __IMPOSSIBLE__
+        [ i
+        | (i, ns) <- zip [1..] (reverse components)
+        , k `elem` ns
+        ]
 
 prop_oppositeDAG :: G -> Bool
 prop_oppositeDAG g =

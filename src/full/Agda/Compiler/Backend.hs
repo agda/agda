@@ -234,7 +234,7 @@ backendInteraction mainFile backends setup check = do
 
   -- print warnings that might have accumulated during compilation
   ws <- filter (not . isUnsolvedWarning . tcWarning) <$> getAllWarnings AllWarnings
-  unless (null ws) $ reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
+  unless (null ws) $ alwaysReportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
 
 
 compilerMain :: Backend' opts env menv mod def -> IsMain -> CheckResult -> TCM ()

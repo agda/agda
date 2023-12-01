@@ -29,7 +29,6 @@ import Data.Text           ( Text )
 import qualified Data.Text as Text
 
 import Agda.Utils.Monad
-import Agda.Syntax.Common.Pretty
 
 import Agda.Utils.Impossible
 
@@ -44,9 +43,6 @@ newtype AbsolutePath = AbsolutePath { textPath :: Text }
 -- | Extract the 'AbsolutePath' to be used as 'FilePath'.
 filePath :: AbsolutePath -> FilePath
 filePath = Text.unpack . textPath
-
-instance Pretty AbsolutePath where
-  pretty = text . filePath
 
 -- | Constructs 'AbsolutePath's.
 --

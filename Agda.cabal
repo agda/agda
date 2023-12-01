@@ -1,6 +1,6 @@
 cabal-version:   2.4
 name:            Agda
-version:         2.6.4
+version:         2.6.5
 build-type:      Custom
 license:         MIT
 license-file:    LICENSE
@@ -35,8 +35,9 @@ description:
     packages.
 
 tested-with:
-    GHC == 9.6.2
-    GHC == 9.4.6
+    GHC == 9.8.1
+    GHC == 9.6.3
+    GHC == 9.4.8
     GHC == 9.2.8
     GHC == 9.0.2
     GHC == 8.10.7
@@ -47,6 +48,7 @@ extra-doc-files:
     CHANGELOG.md
     README.md
     doc/user-manual/agda.svg
+    doc/release-notes/2.6.4.md
     doc/release-notes/2.6.3.md
     doc/release-notes/2.6.2.2.md
     doc/release-notes/2.6.2.1.md
@@ -86,8 +88,9 @@ extra-doc-files:
     doc/release-notes/2.2.0.md
 
 extra-source-files:
-    stack-9.6.2.yaml
-    stack-9.4.6.yaml
+    stack-9.8.1.yaml
+    stack-9.6.3.yaml
+    stack-9.4.8.yaml
     stack-9.2.8.yaml
     stack-9.0.2.yaml
     stack-8.10.7.yaml
@@ -152,7 +155,7 @@ source-repository head
 source-repository this
   type:     git
   location: https://github.com/agda/agda.git
-  tag:      v2.6.4
+  tag:      v2.6.5
 
 -- Build flags
 ---------------------------------------------------------------------------
@@ -161,7 +164,19 @@ flag debug
   default: False
   manual: True
   description:
-    Enable debugging features that may slow Agda down.
+    Enable debug printing. This makes Agda slightly slower, and
+    building Agda slower as well. The --verbose=N option only
+    has an effect when Agda was built with this flag.
+
+flag debug-serialisation
+  default: False
+  description:
+    Enable debug mode in serialisation. This makes serialisation slower.
+
+flag debug-parsing
+  default: False
+  description:
+    Enable debug mode in parsing. This makes parsing slower.
 
 flag enable-cluster-counting
   default: False
@@ -274,7 +289,7 @@ common language
 
   if impl(ghc >= 9.2)
     ghc-options:
---      -Werror=operator-whitespace
+      -Werror=operator-whitespace
       -Werror=redundant-bang-patterns
 
   if impl(ghc >= 9.4)
@@ -350,6 +365,12 @@ library
   if flag(debug)
     cpp-options:    -DDEBUG
 
+  if flag(debug-serialisation)
+    cpp-options:    -DDEBUG_SERIALISATION
+
+  if flag(debug-parsing)
+    cpp-options:    -DDEBUG_PARSING
+
   if flag(enable-cluster-counting)
     cpp-options:    -DCOUNT_CLUSTERS
     build-depends:  text-icu >= 0.7.1.0
@@ -380,7 +401,7 @@ library
     , boxes                >= 0.1.3     && < 0.2
     , bytestring           >= 0.10.8.2  && < 0.13
     , case-insensitive     >= 1.2.0.4   && < 1.3
-    , containers           >= 0.6.0.1   && < 0.7
+    , containers           >= 0.6.0.1   && < 0.8
     , data-hash            >= 0.2.0.0   && < 0.3
     , deepseq              >= 1.4.4.0   && < 1.6
     , directory            >= 1.3.3.0   && < 1.4
@@ -406,7 +427,7 @@ library
     , pretty               >= 1.1.3.3   && < 1.2
     , process              >= 1.6.3.0   && < 1.7
     , regex-tdfa           >= 1.3.1.0   && < 1.4
-    , split                >= 0.2.0.0   && < 0.2.4
+    , split                >= 0.2.0.0   && < 0.3
     , stm                  >= 2.4.4     && < 2.6
     , STMonadTrans         >= 0.4.3     && < 0.5
     , strict               >= 0.4.0.1   && < 0.6
@@ -419,7 +440,7 @@ library
         -- unordered-containers < 0.2.9 need base < 4.11
     , uri-encode           >= 1.5.0.4   && < 1.6
     , vector               >= 0.12      && < 0.14
-    , vector-hashtables    == 0.1.*
+    , vector-hashtables    >= 0.1.1.1   && < 0.2
     , zlib                 == 0.6.*
 
   -- We don't write upper bounds for Alex nor Happy because the
@@ -569,6 +590,7 @@ library
       Agda.Syntax.Scope.Flat
       Agda.Syntax.Scope.Monad
       Agda.Syntax.TopLevelModuleName
+      Agda.Syntax.TopLevelModuleName.Boot
       Agda.Syntax.Translation.AbstractToConcrete
       Agda.Syntax.Translation.ConcreteToAbstract
       Agda.Syntax.Translation.InternalToAbstract

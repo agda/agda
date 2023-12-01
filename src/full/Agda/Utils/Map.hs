@@ -1,5 +1,3 @@
-{-# LANGUAGE CPP #-}
-
 module Agda.Utils.Map where
 
 import Data.Functor.Compose
@@ -14,14 +12,9 @@ import Agda.Utils.Impossible
 
 -- | Update monadically the value at one position (must exist!).
 adjustM :: (Functor f, Ord k) => (v -> f v) -> k -> Map k v -> f (Map k v)
-#if MIN_VERSION_containers(0,5,8)
 adjustM f = Map.alterF $ \case
   Nothing -> __IMPOSSIBLE__
   Just v  -> Just <$> f v
-#else
-adjustM f k m =
-  f (Map.findWithDefault __IMPOSSIBLE__ k m) <&> \ v -> Map.insert k v m
-#endif
 
 -- | Wrapper for 'adjustM' for convenience.
 adjustM' :: (Functor f, Ord k) => (v -> f (a, v)) -> k -> Map k v -> f (a, Map k v)

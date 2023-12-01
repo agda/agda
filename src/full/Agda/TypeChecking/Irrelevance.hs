@@ -381,6 +381,7 @@ isPropM a = do
     Prop{} -> True
     _      -> False
 
+{-# SPECIALIZE isIrrelevantOrPropM :: Dom Type -> TCM Bool #-}
 isIrrelevantOrPropM
   :: (LensRelevance a, LensSort a, PrettyTCM a, PureTCM m, MonadBlock m)
   => a -> m Bool

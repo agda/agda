@@ -178,9 +178,9 @@ relocatable-interfaces : relocatable/originals/*.agda
 .PHONY : uptodate
 uptodate : uptodate/*.agda
 	@$(echo) "Testing that already imported modules are up-to-date" # despite having DOS line-endings
-	@$(agda) -v5 --ignore-interfaces -iuptodate --no-libraries uptodate/A.agda > uptodate/output
+	@$(agda) --ignore-interfaces -iuptodate --no-libraries uptodate/A.agda > uptodate/output
 	@cat uptodate/output
-	@[ `grep "C is up-to-date" uptodate/output | wc -l` = 1 ]
+	@[ `grep "^ *Checking C" uptodate/output | wc -l` = 1 ]
 	@rm -f uptodate/output
 
 .PHONY : malformed-interfaces

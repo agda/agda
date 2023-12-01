@@ -12,6 +12,7 @@ on:
     - 'Agda.cabal'
     - 'Setup.hs'
     - 'stack-*.yaml'
+    - '!stack-9.8.1.yaml'
     - 'src/size-solver/size-solver.cabal'
 
   pull_request:
@@ -31,7 +32,7 @@ jobs:
     runs-on: Ubuntu-latest # Required, but it can be anything here.
 
     steps:
-    - uses: styfle/cancel-workflow-action@0.11.0
+    - uses: styfle/cancel-workflow-action@0.12.0
       with:
         access_token: ${{ github.token }}
   stack:
@@ -45,8 +46,8 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         stack-ver: ['latest']
-        # Only LTS versions here:
-        ghc-ver: [9.4.6, 9.2.8, 9.0.2, 8.10.7, 8.8.4, 8.6.5]
+        # Note: when adding a version here, check that it is not excluded in the triggers above.
+        ghc-ver: [9.6.3, 9.4.8, 9.2.8, 9.0.2, 8.10.7, 8.8.4, 8.6.5]
           # Andreas, 2022-03-26:
           # Note: ghc-ver needs to be spelled out with minor version, i.e., x.y.z
           # rather than x.y (which haskell-setup would resolve to a suitable .z)
@@ -56,7 +57,7 @@ jobs:
     env:
       EXTRA_ARGS: "--dry-run"
         # stack build --only-configure also installs dependencies, so we need --dry-run
-      NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:debug"
+      NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:debug --flag Agda:debug-serialisation --flag Agda:debug-parsing"
 
     defaults:
       run:

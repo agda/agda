@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                        #-}
 
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal
@@ -149,10 +148,12 @@ defaultNamedArgDom info s x = (defaultArgDom info x) { domName = Just $ WithOrig
 type Args       = [Arg Term]
 type NamedArgs  = [NamedArg Term]
 
-data DataOrRecord
+data DataOrRecord' p
   = IsData
-  | IsRecord PatternOrCopattern
+  | IsRecord p
   deriving (Show, Eq, Generic)
+
+type DataOrRecord = DataOrRecord' PatternOrCopattern
 
 instance PatternMatchingAllowed DataOrRecord where
   patternMatchingAllowed = \case
@@ -765,10 +766,7 @@ pattern EqualityType
 pattern EqualityType{ eqtSort, eqtName, eqtParams, eqtType, eqtLhs, eqtRhs } =
   EqualityViewType (EqualityTypeData eqtSort eqtName eqtParams eqtType eqtLhs eqtRhs)
 
--- The COMPLETE pragma is new in GHC 8.2
-#if __GLASGOW_HASKELL__ >= 802
 {-# COMPLETE EqualityType, OtherType, IdiomType #-}
-#endif
 
 isEqualityType :: EqualityView -> Bool
 isEqualityType EqualityType{} = True

@@ -34,11 +34,14 @@ type Matrix a = Array (Int,Int) a
 warshall :: SemiRing a => Matrix a -> Matrix a
 warshall a0 = loop r a0 where
   b@((r,c),(r',c')) = bounds a0 -- assuming r == c and r' == c'
-  loop k a | k <= r' =
-    loop (k+1) (array b [ ((i,j),
-                           (a!(i,j)) `oplus` ((a!(i,k)) `otimes` (a!(k,j))))
-                        | i <- [r..r'], j <- [c..c'] ])
-           | otherwise = a
+  loop k a
+    | k <= r' =
+        loop (k + 1) $ array b $
+          [ ((i, j), (a ! (i, j)) `oplus` ((a ! (i, k)) `otimes` (a ! (k, j))))
+          | i <- [r .. r']
+          , j <- [c .. c']
+          ]
+    | otherwise = a
 
 type AdjList node edge = Map node [(node, edge)]
 
@@ -230,11 +233,11 @@ data LegendMatrix a b c = LegendMatrix
 instance (Pretty a, Pretty b, Pretty c) => Pretty (LegendMatrix a b c) where
   pretty (LegendMatrix m rd cd) =
     -- first show column description
-    let ((r,c),(r',c')) = bounds m
+    let ((r, c), (r', c')) = bounds m
     in foldr (\ j s -> "\t" P.<> pretty (cd j) P.<> s) "" [c .. c'] P.<>
     -- then output rows
        foldr (\ i s -> "\n" P.<> pretty (rd i) P.<>
-                foldr (\ j t -> "\t" P.<> pretty (m!(i,j)) P.<> t)
+                foldr (\ j t -> "\t" P.<> pretty (m ! (i, j)) P.<> t)
                       s
                       [c .. c'])
              "" [r .. r']
@@ -343,7 +346,7 @@ solve cs = -- trace (prettyShow cs) $
          -- d   = [ m!(i,i) | i <- [0 .. (n-1)] ]  -- diagonal
 -- a rigid variable might not be less than it self, so no -.. on the
 -- rigid part of the diagonal
-         solvable = all (\ x -> x >= Finite 0) [ m!(i,i) | i <- rInds ] && True
+         solvable = all (>= Finite 0) [ m ! (i, i) | i <- rInds ]
 
 {-  Andreas, 2012-09-19
     We now can have constraints between rigid variables, like i < j.
@@ -387,14 +390,15 @@ while flexible variables and rigid rows left
          loop1 flxs [] subst = loop2 flxs subst
          loop1 flxs (r:rgds) subst =
             let row = fromJust $ Map.lookup (Rigid r) (nodeMap gr)
-                (flxs',subst') =
-                  List.foldl' (\ (flx,sub) f ->
+                (flxs', subst') =
+                  List.foldl' (\ (flx, sub) f ->
                           let col = fromJust $ Map.lookup (Flex f) (nodeMap gr)
-                          in  case (inScope f r, m!(row,col)) of
+                          in  case (inScope f r, m ! (row, col)) of
 --                                Finite z | z <= 0 ->
                                 (True, Finite z) ->
-                                   let trunc z | z >= 0 = 0
-                                            | otherwise = -z
+                                   let trunc z
+                                         | z >= 0    = 0
+                                         | otherwise = -z
                                    in (flx, extendSolution sub f (sizeRigid r (trunc z)))
                                 _ -> (f : flx, sub)
                      ) ([], subst) flxs
@@ -417,10 +421,10 @@ while flexible variables j left
                  loop3 col subst =
                    case Map.lookup col (intMap gr) of
                      Just (Rigid r) | not (infinite r) ->
-                       case (inScope f r, m!(row,col)) of
+                       case (inScope f r, m ! (row,col)) of
                         (True, Finite z) | z >= 0 ->
                             loop2 flxs (extendSolution subst f (sizeRigid r z))
-                        (_, Infinite) -> loop3 (col+1) subst
+                        (_, Infinite) -> loop3 (col + 1) subst
                         _ -> -- trace ("unusable rigid: " ++ prettyShow r ++ " for flex " ++ prettyShow f)
                               Nothing  -- NOT: loop3 (col+1) subst
-                     _ -> loop3 (col+1) subst
+                     _ -> loop3 (col + 1) subst

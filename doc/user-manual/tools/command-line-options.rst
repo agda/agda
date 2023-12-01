@@ -111,13 +111,30 @@ General options
 
      Show just the version number.
 
+.. option:: --print-agda-app-dir
+
+     .. versionadded:: 2.6.4.1
+
+     Outputs the (:envvar:`AGDA_DIR`) directory containing Agda's
+     application configuration files, such as the ``defaults`` and
+     ``libraries`` files, as described in :ref:`package-system`.
+
 .. option:: --print-agda-dir
 
      .. versionadded:: 2.6.2
 
-     Outputs the root (:envvar:`AGDA_DIR`)
-     of the directory structure holding Agda's data files
-     such as core libraries, style files for the backends etc.
+     Alias of :option:`--print-agda-data-dir`.
+
+.. option:: --print-agda-data-dir
+
+     .. versionadded:: 2.6.4.1
+
+     Outputs the root of the directory structure holding Agda's data
+     files such as core libraries, style files for the backends, etc.
+
+     While this location is usually determined at installation time, it
+     can be controlled at runtime using the environment variable
+     :envvar:`Agda_datadir`.
 
 .. option:: --transliterate
 
@@ -450,7 +467,8 @@ Printing and debugging
 
 .. option:: --verbose={N}, -v={N}
 
-     Set verbosity level to ``N``.
+     Set verbosity level to ``N``. This only has an effect if
+     Agda was installed with the :option:`debug` flag.
 
 .. option:: --profile={PROF}
 

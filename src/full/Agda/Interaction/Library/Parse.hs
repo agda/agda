@@ -251,7 +251,7 @@ parseLine l s@(c:_)
   | isSpace c   = pure [Content l $ ltrim s]
     -- Non-indented lines are 'Header'.
   | otherwise   =
-    case break (==':') s of
+    case break (== ':') s of
       -- Headers are single words followed by a colon.
       -- Anything after the colon that is not whitespace is 'Content'.
       (h, ':' : r) ->

@@ -113,11 +113,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
               -- in case of a suspected dependency.
               s <- newSortMetaBelowInf
               catchError_ (addContext ixTel $ equalType s0 $ raise nofIxs $ sort s) $ \ err ->
-                  if any (`freeIn` s0) [0..nofIxs - 1] then typeError . GenericDocError =<<
-                     fsep [ "The sort of" <+> prettyTCM name
-                          , "cannot depend on its indices in the type"
-                          , prettyTCM t0
-                          ]
+                  if any (`freeIn` s0) [0..nofIxs - 1] then typeError $ SortCannotDependOnItsIndex name t0
                   else throwError err
               reduce s
 
@@ -217,13 +213,7 @@ checkDataSort name s = setCurrentRange name $ do
       yes :: TCM ()
       yes = return ()
       no  :: TCM ()
-      no  = typeError . GenericDocError =<<
-              fsep [ "The universe"
-                   , prettyTCM s
-                   , "of"
-                   , prettyTCM name
-                   , "does not admit data or record declarations"
-                   ]
+      no  = typeError $ SortDoesNotAdmitDataDefinitions name s
     case s of
       -- Sorts that admit data definitions.
       Univ _ _     -> yes
@@ -1676,8 +1666,7 @@ bindParameters
 bindParameters 0 [] a ret = ret EmptyTel a
 
 bindParameters 0 (par : _) _ _ = setCurrentRange par $
-  typeError . GenericDocError =<< do
-    text "Unexpected parameter" <+> prettyA par
+  typeError $ UnexpectedParameter par
 
 bindParameters npars [] t ret =
   case unEl t of
@@ -1685,24 +1674,18 @@ bindParameters npars [] t ret =
               x <- freshName_ (absName b)
               bindParameter npars [] x a b ret
            | otherwise ->
-              typeError . GenericDocError =<<
-                sep [ "Expected binding for parameter"
-                    , text (absName b) <+> text ":" <+> prettyTCM (unDom a) ]
+              typeError $ ExpectedBindingForParameter a b
     _ -> __IMPOSSIBLE__
 
 bindParameters npars par@(A.DomainFull (A.TBind _ _ xs e) : bs) a ret =
   setCurrentRange par $
-  typeError . GenericDocError =<< do
-    let s | length xs > 1 = "s"
-          | otherwise     = ""
-    text ("Unexpected type signature for parameter" ++ s) <+> sep (fmap prettyA xs)
+  typeError $ UnexpectedTypeSignatureForParameter xs
 
 bindParameters _ (A.DomainFull A.TLet{} : _) _ _ = __IMPOSSIBLE__
 
 bindParameters _ (par@(A.DomainFree _ arg) : ps) _ _
   | getModality arg /= defaultModality = setCurrentRange par $
-     typeError . GenericDocError =<< do
-       text "Unexpected modality/relevance annotation in" <+> prettyA par
+      typeError $ UnexpectedModalityAnnotationInParameter par
 
 bindParameters npars ps0@(par@(A.DomainFree _ arg) : ps) t ret = do
   let x          = namedArg arg
@@ -1711,11 +1694,9 @@ bindParameters npars ps0@(par@(A.DomainFree _ arg) : ps) t ret = do
     NoInsertNeeded -> continue ps $ A.unBind $ A.binderName x
     ImpInsert _    -> continue ps0 =<< freshName_ (absName b)
     BadImplicits   -> setCurrentRange par $
-     typeError . GenericDocError =<< do
-       text "Unexpected parameter" <+> prettyA par
+      typeError $ UnexpectedParameter par
     NoSuchName x   -> setCurrentRange par $
-      typeError . GenericDocError =<< do
-        text ("No parameter of name " ++ x)
+      typeError $ NoParameterOfName x
   where
     Pi dom@(Dom{domInfo = info', unDom = a}) b = unEl t -- TODO:: Defined but not used: info', a
     continue ps x = bindParameter npars ps x dom b ret

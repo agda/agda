@@ -396,6 +396,9 @@ hasUniversePolymorphism = optUniversePolymorphism <$> pragmaOptions
 showImplicitArguments :: HasOptions m => m Bool
 showImplicitArguments = optShowImplicit <$> pragmaOptions
 
+showGeneralizedArguments :: HasOptions m => m Bool
+showGeneralizedArguments = (\opt -> optShowGeneralized opt) <$> pragmaOptions
+
 showIrrelevantArguments :: HasOptions m => m Bool
 showIrrelevantArguments = optShowIrrelevant <$> pragmaOptions
 
@@ -415,6 +418,10 @@ withShowAllArguments = withShowAllArguments' True
 withShowAllArguments' :: ReadTCState m => Bool -> m a -> m a
 withShowAllArguments' yes = withPragmaOptions $ \ opts ->
   opts { _optShowImplicit = Value yes, _optShowIrrelevant = Value yes }
+
+withoutPrintingGeneralization :: ReadTCState m => m a -> m a
+withoutPrintingGeneralization = withPragmaOptions $ \ opts ->
+  opts { _optShowGeneralized = Value False }
 
 -- | Change 'PragmaOptions' for a computation and restore afterwards.
 withPragmaOptions :: ReadTCState m => (PragmaOptions -> PragmaOptions) -> m a -> m a

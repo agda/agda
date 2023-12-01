@@ -1,7 +1,7 @@
 # The Agda data directory
 
 After installation, this directory is replicated under the location
-given by `agda --print-agda-dir`.
+given by `agda --print-agda-data-dir`.
 
 It contains files needed by Agda, its backends, and the Emacs mode.
 

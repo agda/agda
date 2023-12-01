@@ -372,6 +372,7 @@ hfill la bA phi u u0 i = do
         ])
     <@> u0
 
+{-# SPECIALIZE decomposeInterval :: Term -> TCM [(IntMap Bool, [Term])] #-}
 -- | Decompose an interval expression @i : I@ as in
 -- 'decomposeInterval'', but discard any inconsistent mappings.
 decomposeInterval :: HasBuiltins m => Term -> m [(IntMap Bool, [Term])]
@@ -379,6 +380,7 @@ decomposeInterval t = do
   decomposeInterval' t <&> \xs ->
     [ (bm, ts) | (bsm, ts) <- xs, bm <- maybeToList $ traverse BoolSet.toSingleton bsm ]
 
+{-# SPECIALIZE decomposeInterval' :: Term -> TCM [(IntMap BoolSet, [Term])] #-}
 -- | Decompose an interval expression @φ : I@ into a set of possible
 -- assignments for the variables mentioned in @φ@, together any leftover
 -- neutral terms that could not be put into 'IntervalView' form.

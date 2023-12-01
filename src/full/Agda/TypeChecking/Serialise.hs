@@ -51,16 +51,11 @@ import qualified Data.Binary.Get as B
 import qualified Data.Binary.Put as B
 import qualified Data.List as List
 import Data.Function (on)
-#if !(MIN_VERSION_base(4,11,0))
-import Data.Semigroup((<>))
-#endif
 
 import qualified Codec.Compression.GZip as G
 import qualified Codec.Compression.Zlib.Internal as Z
 
-#if __GLASGOW_HASKELL__ >= 804
 import GHC.Compact as C
-#endif
 
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
@@ -82,7 +77,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20230908 * 10 + 0
+currentInterfaceVersion = 20231019 * 10 + 0
 
 -- | The result of 'encode' and 'encodeInterface'.
 
@@ -148,12 +143,12 @@ encode a = do
     statistics :: String -> IORef FreshAndReuse -> TCM ()
     statistics kind ioref = do
       FreshAndReuse fresh
-#ifdef DEBUG
+#ifdef DEBUG_SERIALISATION
                           reused
 #endif
                                  <- liftIO $ readIORef ioref
       tickN (kind ++ "  (fresh)") $ fromIntegral fresh
-#ifdef DEBUG
+#ifdef DEBUG_SERIALISATION
       tickN (kind ++ " (reused)") $ fromIntegral reused
 #endif
 
@@ -207,46 +202,31 @@ decode s = do
   -- The decoder is (intended to be) strict enough to ensure that all
   -- such errors can be caught by the handler here.
 
-  (mf, r) <- liftIO $ E.handle (\(E.ErrorCall s) -> noResult s) $ do
-
+  res <- liftIO $ E.handle (\(E.ErrorCall s) -> pure $ Left s) $ do
     ((r, nL, ltL, stL, bL, iL, dL), s, _) <- return $ runGetState B.get s 0
-    if not (null s)
-     then noResult "Garbage at end."
-     else do
+    let ar = unListLike
+    when (not (null s)) $ E.throwIO $ E.ErrorCall "Garbage at end."
+    let nL' = ar nL
+    st <- St nL' (ar ltL) (ar stL) (ar bL) (ar iL) (ar dL)
+            <$> liftIO (newArray (bounds nL') MEEmpty)
+            <*> return mf <*> return incs
+    (r, st) <- runStateT (value r) st
+    let !mf = modFile st
+    return $ Right (mf, r)
 
-      let nL' = ar nL
-      st <- St nL' (ar ltL) (ar stL) (ar bL) (ar iL) (ar dL)
-              <$> liftIO (newArray (bounds nL') mempty)
-              <*> return mf <*> return incs
-      (r, st) <- runStateT (runExceptT (value r)) st
-      return (Just $ modFile st, r)
+  case res of
+    Left s -> do
+      reportSLn "import.iface" 5 $ "Error when decoding interface file: " ++ s
+      pure Nothing
 
-  forM_ mf (setTCLens stModuleToSource)
-
-  case r of
-    Right x -> do
-#if __GLASGOW_HASKELL__ >= 804
+    Right (mf, x) -> do
+      setTCLens stModuleToSource mf
       -- "Compact" the interfaces (without breaking sharing) to
       -- reduce the amount of memory that is traversed by the
       -- garbage collector.
       Bench.billTo [Bench.Deserialization, Bench.Compaction] $
         liftIO (Just . C.getCompact <$> C.compactWithSharing x)
-#else
-      return (Just x)
-#endif
-    Left err -> do
-      reportSLn "import.iface" 5 $ "Error when decoding interface file"
-      -- Andreas, 2014-06-11 deactivated debug printing
-      -- in order to get rid of dependency of Serialize on TCM.Pretty
-      -- reportSDoc "import.iface" 5 $
-      --   "Error when decoding interface file:"
-      --   $+$ nest 2 (prettyTCM err)
-      return Nothing
 
-  where
-  ar = unListLike
-
-  noResult s = return (Nothing, Left $ GenericError s)
 
 encodeInterface :: Interface -> TCM Encoded
 encodeInterface i = do

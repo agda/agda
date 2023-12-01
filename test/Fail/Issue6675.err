@@ -2,6 +2,6 @@ Issue6675.agda:14,5-25
 Illegal declaration in data type definition
   {-# REWRITE refl #-}
 when scope checking the declaration
-  data Id Aa where
+  data Id A a where
     refl : Id A a a
     {-# REWRITE refl #-}

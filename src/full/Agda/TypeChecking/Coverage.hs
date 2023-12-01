@@ -30,16 +30,19 @@ import qualified Data.Set as Set
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 
+import qualified Agda.Benchmarking as Bench
+
 import Agda.Syntax.Common
 import Agda.Syntax.Position
-import Agda.Syntax.Internal hiding (DataOrRecord(..))
+import Agda.Syntax.Internal hiding (DataOrRecord)
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Translation.InternalToAbstract (NamedClause(..))
 
 import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Monad
+import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
-import Agda.TypeChecking.Rules.LHS (DataOrRecord(..), checkSortOfSplitVar)
+import Agda.TypeChecking.Rules.LHS (DataOrRecord, checkSortOfSplitVar)
 import Agda.TypeChecking.Rules.LHS.Problem (allFlexVars)
 import Agda.TypeChecking.Rules.LHS.Unify
 import Agda.TypeChecking.Rules.Term (unquoteTactic)
@@ -630,13 +633,13 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     addEtaSplits :: Int -> [NamedArg SplitPattern] -> SplitTree -> SplitTree
     addEtaSplits k []     t = t
     addEtaSplits k (p:ps) t = case namedArg p of
-      VarP  _ _     -> addEtaSplits (k+1) ps t
-      DotP  _ _     -> addEtaSplits (k+1) ps t
+      VarP  _ _     -> addEtaSplits (k + 1) ps t
+      DotP  _ _     -> addEtaSplits (k + 1) ps t
       ConP c cpi qs -> SplitAt (p $> k) LazySplit [(SplitCon (conName c) , addEtaSplits k (qs ++ ps) t)]
       LitP{}        -> __IMPOSSIBLE__
       ProjP{}       -> __IMPOSSIBLE__
       DefP{}        -> __IMPOSSIBLE__ -- Andrea: maybe?
-      IApplyP{}     -> addEtaSplits (k+1) ps t
+      IApplyP{}     -> addEtaSplits (k + 1) ps t
 
     etaRecordSplits :: Int -> [NamedArg SplitPattern] -> (SplitTag,SplitClause)
                     -> SplitTree -> (SplitTag,SplitTree)
@@ -734,7 +737,7 @@ isDatatype ind at = do
           | i == Just CoInductive && ind /= CoInductive ->
               throw CoinductiveDatatype
           | otherwise ->
-              return (IsRecord i recEtaEquality', d, args, [], [conName con], False)
+              return (IsRecord InductionAndEta { recordInduction=i, recordEtaEquality=recEtaEquality' }, d, args, [], [conName con], False)
         _ -> throw NotADatatype
     _ -> throw NotADatatype
 
@@ -996,12 +999,14 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
   -- context.
   let flatSplit = boolToMaybe (getCohesion info == Flat) SplitOnFlat
 
-  r <- withKIfStrict $ lift $ unifyIndices' flatSplit
-         delta1Gamma
-         flex
-         (raise (size gamma) dtype)
-         conIxs
-         givenIxs
+  r <- withKIfStrict $ lift $
+         Bench.billTo [Bench.Coverage, Bench.UnifyIndices] $
+           unifyIndices' flatSplit
+             delta1Gamma
+             flex
+             (raise (size gamma) dtype)
+             conIxs
+             givenIxs
 
   TelV eqTel _ <- telView $ (raise (size gamma) dtype)
 
@@ -1320,8 +1325,8 @@ split' checkEmpty ind allowPartialCover inserttrailing
       erasedMatches   = optErasedMatches opts
       isRecordWithEta = case dr of
         IsData       -> False
-        IsRecord{..} ->
-          case theEtaEquality recordEtaEquality of
+        IsRecord r ->
+          case theEtaEquality (recordEtaEquality r) of
             YesEta{} -> True
             NoEta{}  -> False
 

@@ -4,6 +4,7 @@
 module Agda.TypeChecking.Serialise.Instances.Internal where
 
 import qualified Data.HashSet as HashSet
+import Control.Monad
 import Control.Monad.IO.Class
 
 import Agda.Syntax.Internal as I
@@ -186,7 +187,7 @@ instance EmbPrj a => EmbPrj (Open a) where
 
 instance EmbPrj CheckpointId where
   icod_ (CheckpointId a) = icode a
-  value n                = CheckpointId `fmap` value n
+  value n                = CheckpointId <$!> value n
 
 instance EmbPrj DisplayTerm where
   icod_ (DTerm'   a b)   = icodeN' DTerm' a b
@@ -205,7 +206,7 @@ instance EmbPrj DisplayTerm where
 
 instance EmbPrj MutualId where
   icod_ (MutId a) = icode a
-  value n         = MutId `fmap` value n
+  value n         = MutId <$!> value n
 
 instance EmbPrj CompKit where
   icod_ (CompKit a b) = icodeN' CompKit a b
@@ -468,10 +469,12 @@ instance EmbPrj a => EmbPrj (Case a) where
 instance EmbPrj OpaqueBlock where
   icod_ (OpaqueBlock id uf _ _ r) =
     icodeN' (\id uf ->
-      OpaqueBlock id (HashSet.fromList uf) mempty Nothing)
+      let !unfolding = HashSet.fromList uf
+      in OpaqueBlock id unfolding mempty Nothing)
     id (HashSet.toList uf) r
 
-  value = valueN (\id uf -> OpaqueBlock id (HashSet.fromList uf) mempty Nothing)
+  value = valueN (\id uf -> let !unfolding = HashSet.fromList uf
+                            in OpaqueBlock id unfolding mempty Nothing)
 
 instance EmbPrj CompiledClauses where
   icod_ (Fail a)   = icodeN' Fail a

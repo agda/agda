@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP  #-}
 {-# LANGUAGE UndecidableInstances  #-} -- Due MonadReader/MonadState fundep
 
 -- | @ListT@ done right,
@@ -16,10 +15,6 @@ import Control.Monad.Fail as Fail
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.IO.Class ( MonadIO(..) )
-
-#if !(MIN_VERSION_base(4,11,0))
-import Data.Semigroup (Semigroup(..))
-#endif
 
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -123,10 +118,7 @@ instance Monad m => Semigroup (ListT m a) where
   l1 <> l2 = ListT $ foldListT (unmapListT . consListT) (runListT l2) l1
 
 instance Monad m => Monoid (ListT m a) where
-  mempty        = nilListT
-#if !(MIN_VERSION_base(4,11,0))
-  mappend = (<>)
-#endif
+  mempty = nilListT
 
 instance (Functor m, Applicative m, Monad m) => Alternative (ListT m) where
   empty = mempty

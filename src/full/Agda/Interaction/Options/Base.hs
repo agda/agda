@@ -106,6 +106,7 @@ module Agda.Interaction.Options.Base
     , lensOptKeepCoveringClauses
     -- * Boolean accessors to 'PragmaOptions' collapsing default
     , optShowImplicit
+    , optShowGeneralized
     , optShowIrrelevant
     , optProp
     , optLevelUniverse
@@ -219,8 +220,8 @@ import Agda.Utils.FileName      ( AbsolutePath )
 import Agda.Utils.Function      ( applyWhen, applyUnless )
 import Agda.Utils.Functor       ( (<&>) )
 import Agda.Utils.Lens          ( Lens', (^.), over, set )
-import Agda.Utils.List          ( groupOn, headWithDefault, initLast1 )
-import Agda.Utils.List1         ( String1, toList )
+import Agda.Utils.List          ( headWithDefault, initLast1 )
+import Agda.Utils.List1         ( List1, String1, pattern (:|), toList )
 import qualified Agda.Utils.List1        as List1
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad         ( tell1 )
@@ -279,7 +280,8 @@ data CommandLineOptions = Options
        -- ^ Configure notifications about imported modules.
   , optTrustedExecutables    :: Map ExeName FilePath
        -- ^ Map names of trusted executables to absolute paths.
-  , optPrintAgdaDir          :: Bool
+  , optPrintAgdaDataDir      :: Bool
+  , optPrintAgdaAppDir       :: Bool
   , optPrintVersion          :: Maybe PrintAgdaVersion
   , optPrintHelp             :: Maybe Help
   , optInteractive           :: Bool
@@ -310,6 +312,8 @@ instance NFData CommandLineOptions
 
 data PragmaOptions = PragmaOptions
   { _optShowImplicit              :: WithDefault 'False
+  , _optShowGeneralized           :: WithDefault 'True
+      -- ^ Show generalized parameters in Pi types
   , _optShowIrrelevant            :: WithDefault 'False
   , _optUseUnicode                :: WithDefault' UnicodeOrAscii 'True -- Would like to write UnicodeOk instead of True here
   , _optVerbose                   :: !Verbosity
@@ -451,6 +455,7 @@ instance NFData PrintAgdaVersion
 
 -- collapse defaults
 optShowImplicit              :: PragmaOptions -> Bool
+optShowGeneralized           :: PragmaOptions -> Bool
 optShowIrrelevant            :: PragmaOptions -> Bool
 optProp                      :: PragmaOptions -> Bool
 optLevelUniverse             :: PragmaOptions -> Bool
@@ -512,6 +517,7 @@ optLargeIndices              :: PragmaOptions -> Bool
 optForcedArgumentRecursion   :: PragmaOptions -> Bool
 
 optShowImplicit              = collapseDefault . _optShowImplicit
+optShowGeneralized           = collapseDefault . _optShowGeneralized
 optShowIrrelevant            = collapseDefault . _optShowIrrelevant
 optProp                      = collapseDefault . _optProp
 optLevelUniverse             = collapseDefault . _optLevelUniverse
@@ -826,7 +832,8 @@ defaultOptions = Options
   , optUseLibs               = True
   , optTraceImports          = 1
   , optTrustedExecutables    = Map.empty
-  , optPrintAgdaDir          = False
+  , optPrintAgdaDataDir      = False
+  , optPrintAgdaAppDir       = False
   , optPrintVersion          = Nothing
   , optPrintHelp             = Nothing
   , optInteractive           = False
@@ -847,6 +854,7 @@ defaultOptions = Options
 defaultPragmaOptions :: PragmaOptions
 defaultPragmaOptions = PragmaOptions
   { _optShowImplicit              = Default
+  , _optShowGeneralized           = Default
   , _optShowIrrelevant            = Default
   , _optUseUnicode                = Default -- UnicodeOk
   , _optVerbose                   = Strict.Nothing
@@ -1205,8 +1213,11 @@ inputFlag f o =
         Nothing  -> return $ o { optInputFile = Just f }
         Just _   -> throwError "only one input file allowed"
 
-printAgdaDirFlag :: Flag CommandLineOptions
-printAgdaDirFlag o = return $ o { optPrintAgdaDir = True }
+printAgdaDataDirFlag :: Flag CommandLineOptions
+printAgdaDataDirFlag o = return $ o { optPrintAgdaDataDir = True }
+
+printAgdaAppDirFlag :: Flag CommandLineOptions
+printAgdaAppDirFlag o = return $ o { optPrintAgdaAppDir = True }
 
 versionFlag :: Flag CommandLineOptions
 versionFlag o = return $ o { optPrintVersion = Just PrintAgdaVersion }
@@ -1434,8 +1445,15 @@ standardOptions =
                     , intercalate ", " $ map fst allHelpTopics
                     ]
 
-    , Option []     ["print-agda-dir"] (NoArg printAgdaDirFlag)
+    , Option []     ["print-agda-dir"] (NoArg printAgdaDataDirFlag)
+                    ("print the Agda data directory exit")
+
+    , Option []     ["print-agda-app-dir"] (NoArg printAgdaAppDirFlag)
                     ("print $AGDA_DIR and exit")
+
+    , Option []     ["print-agda-data-dir"] (NoArg printAgdaDataDirFlag)
+                    ("print the Agda data directory exit")
+
 
     , Option ['I']  ["interactive"] (NoArg interactiveFlag)
                     "start in interactive mode"
@@ -1591,7 +1609,7 @@ pragmaOptions = concat
                     "use unicode characters when printing terms" ""
                     Nothing
   , [ Option ['v']  ["verbose"] (ReqArg verboseFlag "N")
-                    "set verbosity level to N"
+                    "set verbosity level to N. Only has an effect if Agda was built with the \"debug\" flag."
     , Option []     ["profile"] (ReqArg profileFlag "TYPE")
                     ("turn on profiling for TYPE (where TYPE=" ++ intercalate "|" validProfileOptionStrings ++ ")")
     ]
@@ -1898,17 +1916,17 @@ getOptSimple argv opts fileArg = \ defaults ->
       closeopts :: String -> [(Int, String)]
       closeopts s = mapMaybe (close s) longopts
 
-      alts :: String -> [[String]]
-      alts s = map (map snd) $ groupOn fst $ closeopts s
+      alts :: String -> [List1 String]
+      alts s = map (fmap snd) $ List1.groupOn fst $ closeopts s
 
       suggest :: String -> String
       suggest s = case alts s of
         []     -> s
         as : _ -> s ++ " (did you mean " ++ sugs as ++ " ?)"
 
-      sugs :: [String] -> String
-      sugs [a] = a
-      sugs as  = "any of " ++ unwords as
+      sugs :: List1 String -> String
+      sugs (a :| []) = a
+      sugs as  = "any of " ++ List1.unwords as
 
 -- | Parse options from an options pragma.
 parsePragmaOptions

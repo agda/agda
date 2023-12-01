@@ -488,7 +488,7 @@ main = do
     Just (DryRunCommit commit) -> do
       setupSandbox opts
 
-      let checkout c = callProcess "git" ["checkout", c]
+      let checkout c = callProcess "git" ["switch", "--detach", c]
       bracket currentCommit checkout $ \_ -> do
         checkout commit
 

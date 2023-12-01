@@ -43,7 +43,7 @@ quotedName = \case
   unambiguous xs
     | Just x <- getUnambiguous xs = return x
     | otherwise =
-        genericError $ "quote: Ambigous name: " ++ prettyShow (unAmbQ xs)
+        genericError $ "quote: Ambiguous name: " ++ prettyShow (unAmbQ xs)
 
 
 data QuotingKit = QuotingKit

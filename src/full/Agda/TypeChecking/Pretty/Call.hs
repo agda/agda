@@ -45,6 +45,7 @@ instance PrettyTCM CallInfo where
     if null $ P.pretty r
       then call
       else call $$ nest 2 ("(at" <+> prettyTCM r) <> ")"
+  {-# SPECIALIZE prettyTCM :: CallInfo -> TCM Doc #-}
 
 instance PrettyTCM Call where
   prettyTCM = withContextPrecedence TopCtx . \case
@@ -238,3 +239,4 @@ instance PrettyTCM Call where
     hPretty a = do
       withContextPrecedence (ArgumentCtx PreferParen) $
         pretty =<< abstractToConcreteHiding a a
+  {-# SPECIALIZE prettyTCM :: Call -> TCM Doc #-}

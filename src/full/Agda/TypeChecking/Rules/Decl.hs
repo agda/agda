@@ -20,7 +20,7 @@ import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Options
 
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Abstract.Views (deepUnscopeDecl, deepUnscopeDecls, unScope)
+import Agda.Syntax.Abstract.Views (deepUnscopeDecl, deepUnscopeDecls)
 import Agda.Syntax.Internal
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
@@ -153,7 +153,7 @@ checkDecl d = setCurrentRange d $ do
       A.Primitive i x e        -> meta $ checkPrimitive i x e
       A.Mutual i ds            -> mutual i ds $ checkMutual i ds
       A.Section _r er x tel ds -> meta $ checkSection er x tel ds
-      A.Apply i e x mapp ci d  -> meta $ checkSectionApplication i e x mapp ci d
+      A.Apply i er x mapp ci d -> meta $ checkSectionApplication i er x mapp ci d
       A.Import _ _ dir         -> none $ checkImportDirective dir
       A.Pragma i p             -> none $ checkPragma i p
       A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ checkDeclCached ds
@@ -665,11 +665,7 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
 
   lang <- getLanguage
   funD <- emptyFunctionData
-  let genArgs = case kind of
-                  FunName -> case unScope e of
-                    A.Generalized s _ -> SomeGeneralizableArgs (Set.size s)
-                    _ -> NoGeneralizableArgs
-                  _ -> NoGeneralizableArgs
+
   let defn = defaultDefn info x t lang $
         case kind of   -- #4833: set abstract already here so it can be inherited by with functions
           FunName   -> fun
@@ -685,7 +681,6 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
         { defArgOccurrences    = occs
         , defPolarity          = pols
         , defGeneralizedParams = genParams
-        , defArgGeneralizable  = genArgs
         , defBlocked           = blk
         }
 
@@ -917,14 +912,14 @@ checkSectionApplication
   -> A.ScopeCopyInfo     -- ^ Imported names and modules
   -> A.ImportDirective
   -> TCM ()
-checkSectionApplication i e m1 modapp copyInfo dir =
-  traceCall (CheckSectionApplication (getRange i) e m1 modapp) $ do
+checkSectionApplication i er m1 modapp copyInfo dir =
+  traceCall (CheckSectionApplication (getRange i) er m1 modapp) $ do
   checkImportDirective dir
   -- A (non-erased) section application is type-checked in a
   -- non-erased context (#5410), except if hard compile-time mode is
   -- enabled (#4743).
   setRunTimeModeUnlessInHardCompileTimeMode $
-    checkSectionApplication' i e m1 modapp copyInfo
+    checkSectionApplication' i er m1 modapp copyInfo
 
 -- | Check an application of a section. (Do not invoke this procedure
 -- directly, use 'checkSectionApplication'.)
@@ -936,11 +931,11 @@ checkSectionApplication'
   -> A.ScopeCopyInfo     -- ^ Imported names and modules
   -> TCM ()
 checkSectionApplication'
-  i e m1 (A.SectionApp ptel m2 args) copyInfo = do
+  i er m1 (A.SectionApp ptel m2 args) copyInfo = do
   -- If the section application is erased, then hard compile-time mode
   -- is entered.
-  warnForPlentyInHardCompileTimeMode e
-  setHardCompileTimeModeIfErased e $ do
+  warnForPlentyInHardCompileTimeMode er
+  setHardCompileTimeModeIfErased er $ do
   -- Module applications can appear in lets, in which case we treat
   -- lambda-bound variables as additional parameters to the module.
   extraParams <- do
@@ -972,15 +967,21 @@ checkSectionApplication'
     etaTel <- checkModuleArity m2 tel' args
     -- Take the module parameters that will be instantiated by @args@.
     let tel'' = telFromList $ take (size tel' - size etaTel) $ telToList tel'
-    reportSDoc "tc.mod.apply" 15 $ vcat
-      [ "applying section" <+> prettyTCM m2
-      , nest 2 $ "args =" <+> sep (map prettyA args)
-      , nest 2 $ "ptel =" <+> escapeContext impossible (size ptel) (prettyTCM ptel)
-      , nest 2 $ "tel  =" <+> prettyTCM tel
-      , nest 2 $ "tel' =" <+> prettyTCM tel'
-      , nest 2 $ "tel''=" <+> prettyTCM tel''
-      , nest 2 $ "eta  =" <+> escapeContext impossible (size ptel) (addContext tel'' $ prettyTCM etaTel)
-      ]
+    reportSDoc "tc.mod.apply" 15 $
+        "applying section" <+> prettyTCM m2
+    reportSDoc "tc.mod.apply" 15 $
+        nest 2 $ "args =" <+> sep (map prettyA args)
+    reportSDoc "tc.mod.apply" 15 $
+        nest 2 $ "ptel =" <+> escapeContext impossible (size ptel) (prettyTCM ptel)
+    reportSDoc "tc.mod.apply" 15 $
+        nest 2 $ "tel  =" <+> prettyTCM tel
+    reportSDoc "tc.mod.apply" 15 $
+        nest 2 $ "tel' =" <+> prettyTCM tel'
+    reportSDoc "tc.mod.apply" 15 $
+        nest 2 $ "tel''=" <+> prettyTCM tel''
+    reportSDoc "tc.mod.apply" 15 $
+        nest 2 $ "eta  =" <+> escapeContext impossible (size ptel) (addContext tel'' $ prettyTCM etaTel)
+
     -- Now, type check arguments.
     ts <- noConstraints (checkArguments_ CmpEq DontExpandLast (getRange i) args tel') >>= \case
       (ts', etaTel') | (size etaTel == size etaTel')

@@ -1,0 +1,5 @@
+Issue1702.agda:17,10-16
+Not in scope:
+  M.Priv
+  at Issue1702.agda:17,10-16
+when scope checking M.Priv

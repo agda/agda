@@ -11,8 +11,8 @@ import qualified Data.Text as T
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
-import {-# SOURCE #-} Agda.Syntax.TopLevelModuleName
-  (TopLevelModuleName)
+import Agda.Syntax.TopLevelModuleName.Boot (TopLevelModuleName')
+import Agda.Syntax.Position (Range)
 import Agda.Utils.Float ( doubleDenotEq, doubleDenotOrd )
 import Agda.Syntax.Common.Pretty
 
@@ -24,7 +24,7 @@ data Literal
   | LitString !Text
   | LitChar   !Char
   | LitQName  !QName
-  | LitMeta   !TopLevelModuleName !MetaId
+  | LitMeta   !(TopLevelModuleName' Range) !MetaId
   deriving Show
 
 instance Pretty Literal where

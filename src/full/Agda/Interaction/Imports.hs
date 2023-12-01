@@ -691,7 +691,7 @@ getStoredInterface x file msrc = do
         let ws = filter ((Strict.Just (Just x) ==) .
                          fmap rangeFileName . tcWarningOrigin) $
                  iWarnings i
-        unless (null ws) $ reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
+        unless (null ws) $ alwaysReportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
 
         loadDecodedModule file $ ModuleInfo
           { miInterface = i
@@ -833,7 +833,7 @@ createInterfaceIsolated x file msrc = do
       -- NOTE: This attempts to type-check FOREVER if for some
       -- reason it continually fails to validate interface.
       let recheckOnError = \msg -> do
-            reportSLn "import.iface" 1 $ "Failed to validate just-loaded interface: " ++ msg
+            alwaysReportSLn "import.iface" 1 $ "Failed to validate just-loaded interface: " ++ msg
             createInterfaceIsolated x file msrc
 
       either recheckOnError pure validated
@@ -857,7 +857,7 @@ chaseMsg kind x file = do
            | List.isPrefixOf "Loading" kind
              && traceImports > 2 = 1
            | otherwise = 2
-  reportSLn "import.chase" vLvl $ concat
+  alwaysReportSLn "import.chase" vLvl $ concat
     [ indentation, kind, " ", prettyShow x, maybeFile ]
 
 -- | Print the highlighting information contained in the given interface.
@@ -897,7 +897,7 @@ readInterface file = do
   where
     handler = \case
       IOException _ _ e -> do
-        reportSLn "" 0 $ "IO exception: " ++ show e
+        alwaysReportSLn "" 0 $ "IO exception: " ++ show e
         return Nothing   -- Work-around for file locking bug.
                          -- TODO: What does this refer to? Please
                          -- document.
@@ -926,13 +926,9 @@ writeInterface file i = let fp = filePath file in do
       "Writing interface file with hash " ++ show (iFullHash filteredIface) ++ "."
     encodedIface <- encodeFile fp filteredIface
     reportSLn "import.iface.write" 5 "Wrote interface file."
-#if __GLASGOW_HASKELL__ >= 804
     fromMaybe __IMPOSSIBLE__ <$> (Bench.billTo [Bench.Deserialization] (decode encodedIface))
-#else
-    return filteredIface
-#endif
   `catchError` \e -> do
-    reportSLn "" 1 $
+    alwaysReportSLn "" 1 $
       "Failed to write interface " ++ fp ++ "."
     liftIO $
       whenM (doesFileExist fp) $ removeFile fp
@@ -965,7 +961,7 @@ createInterface mname file isMain msrc = do
                                      fmap rangeFileName . tcWarningOrigin) $
                              tcWarnings classified
                    unless (null wa') $
-                     reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> wa'
+                     alwaysReportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> wa'
                    when (null (nonFatalErrors classified)) $ chaseMsg "Finished" x Nothing)
 
   withMsgs $
@@ -1240,8 +1236,13 @@ buildInterface src topLevel = do
     -- and should be dead-code eliminated (#1928).
     origDisplayForms <- HMap.filter (not . null) . HMap.map (filter isClosed) <$> useTC stImportsDisplayForms
     -- TODO: Kill some ranges?
+    let scope = topLevelScope topLevel
+    -- Andreas, Oskar, 2023-10-19, issue #6931:
+    -- To not delete module telescopes of empty public modules,
+    -- we need to pass the public modules to the dead-code elimination
+    -- (to be mined for additional roots for the reachability analysis).
     (display, sig, solvedMetas) <-
-      eliminateDeadCode builtin origDisplayForms ==<<
+      eliminateDeadCode (publicModules scope) builtin origDisplayForms ==<<
         (getSignature, useR stSolvedMetaStore)
     userwarns   <- useTC stLocalUserWarnings
     importwarn  <- useTC stWarningOnImport
@@ -1272,7 +1273,7 @@ buildInterface src topLevel = do
           , iModuleName      = mname
           , iTopLevelModuleName = srcModuleName src
           , iScope           = empty -- publicModules scope
-          , iInsideScope     = topLevelScope topLevel
+          , iInsideScope     = scope
           , iSignature       = sig
           , iMetaBindings    = solvedMetas
           , iDisplayForms    = display

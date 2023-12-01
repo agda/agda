@@ -16,6 +16,8 @@ Books on Agda
   Languages Foundations in Agda <https://plfa.github.io/>`__
 - Aaron Stump (2016). `Verified Functional Programming in Agda
   <https://dl.acm.org/doi/book/10.1145/2841316>`__
+- Sandy Maguire (2023). `Certainty by Construction
+  <https://leanpub.com/certainty-by-construction>`__
 
 Tutorials and lecture notes
 ===========================

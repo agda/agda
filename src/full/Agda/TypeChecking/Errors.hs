@@ -31,8 +31,12 @@ import Control.Monad.Except
 import qualified Data.CaseInsensitive as CaseInsens
 import Data.Foldable (foldl)
 import Data.Function (on)
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet
 import Data.List (sortBy, dropWhileEnd, intercalate)
+import qualified Data.List as List
 import Data.Maybe
+import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Text.PrettyPrint.Boxes as Boxes
 
@@ -66,7 +70,7 @@ import Agda.Utils.FileName
 import Agda.Utils.Float  ( toStringWithoutDotZero )
 import Agda.Utils.Function
 import Agda.Utils.Functor( for )
-import Agda.Utils.List   ( initLast )
+import Agda.Utils.List   ( initLast, lastMaybe )
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
@@ -128,7 +132,9 @@ errorString err = case err of
   AmbiguousField{}                         -> "AmbiguousField"
   AmbiguousParseForApplication{}           -> "AmbiguousParseForApplication"
   AmbiguousParseForLHS{}                   -> "AmbiguousParseForLHS"
-  AmbiguousProjectionError{}               -> "AmbiguousProjectionError"
+  AmbiguousProjection{}                    -> "AmbiguousProjection"
+  AmbiguousOverloadedProjection{}          -> "AmbiguousOverloadedProjection"
+  AmbiguousConstructor{}                   -> "AmbiguousConstructor"
 --  AmbiguousParseForPatternSynonym{}        -> "AmbiguousParseForPatternSynonym"
   AmbiguousTopLevelModuleName {}           -> "AmbiguousTopLevelModuleName"
   BadArgumentsToPatternSynonym{}           -> "BadArgumentsToPatternSynonym"
@@ -162,6 +168,7 @@ errorString err = case err of
   IllformedProjectionPatternAbstract{}     -> "IllformedProjectionPatternAbstract"
   IllformedProjectionPatternConcrete{}     -> "IllformedProjectionPatternConcrete"
   CannotEliminateWithPattern{}             -> "CannotEliminateWithPattern"
+  CannotEliminateWithProjection{}          -> "CannotEliminateWithProjection"
   IllegalDeclarationInDataDefinition{}     -> "IllegalDeclarationInDataDefinition"
   IllegalLetInTelescope{}                  -> "IllegalLetInTelescope"
   IllegalPatternInTelescope{}              -> "IllegalPatternInTelescope"
@@ -237,6 +244,10 @@ errorString err = case err of
   -- UNUSED: -- SplitOnErased{}                          -> "SplitOnErased"
   SplitOnNonVariable{}                     -> "SplitOnNonVariable"
   SplitOnNonEtaRecord{}                    -> "SplitOnNonEtaRecord"
+  SplitOnAbstract{}                        -> "SplitOnAbstract"
+  SplitOnUnchecked{}                       -> "SplitOnUnchecked"
+  SplitOnPartial{}                         -> "SplitOnPartial"
+  SplitInProp{}                            -> "SplitInProp"
   DefinitionIsIrrelevant{}                 -> "DefinitionIsIrrelevant"
   DefinitionIsErased{}                     -> "DefinitionIsErased"
   VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
@@ -265,6 +276,7 @@ errorString err = case err of
   WrongHidingInApplication{}               -> "WrongHidingInApplication"
   WrongHidingInLHS{}                       -> "WrongHidingInLHS"
   WrongHidingInLambda{}                    -> "WrongHidingInLambda"
+  WrongHidingInProjection{}                -> "WrongHidingInProjection"
   IllegalHidingInPostfixProjection{}       -> "IllegalHidingInPostfixProjection"
   WrongIrrelevanceInLambda{}               -> "WrongIrrelevanceInLambda"
   WrongQuantityInLambda{}                  -> "WrongQuantityInLambda"
@@ -290,6 +302,18 @@ errorString err = case err of
   CubicalPrimitiveNotFullyApplied{}        -> "CubicalPrimitiveNotFullyApplied"
   TooManyArgumentsToLeveledSort{}          -> "TooManyArgumentsToLeveledSort"
   TooManyArgumentsToUnivOmega{}            -> "TooManyArgumentsToUnivOmega"
+  IllTypedPatternAfterWithAbstraction{}    -> "IllTypedPatternAfterWithAbstraction"
+  ComatchingDisabledForRecord{}            -> "ComatchingDisabledForRecord"
+  BuiltinMustBeIsOne{}                     -> "BuiltinMustBeIsOne"
+  IllegalRewriteRule{}                     -> "IllegalRewriteRule"
+  IncorrectTypeForRewriteRelation{}        -> "IncorrectTypeForRewriteRelation"
+  UnexpectedParameter{}                    -> "UnexpectedParameter"
+  NoParameterOfName{}                      -> "NoParameterOfName"
+  UnexpectedModalityAnnotationInParameter{} -> "UnexpectedModalityAnnotationInParameter"
+  SortDoesNotAdmitDataDefinitions{}        -> "SortDoesNotAdmitDataDefinitions"
+  SortCannotDependOnItsIndex{}             -> "SortCannotDependOnItsIndex"
+  ExpectedBindingForParameter{}            -> "ExpectedBindingForParameter"
+  UnexpectedTypeSignatureForParameter{}    -> "UnexpectedTypeSignatureForParameter"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -314,7 +338,7 @@ dropTopLevelModule' :: Int -> QName -> QName
 dropTopLevelModule' k (QName (MName ns) n) = QName (MName (drop k ns)) n
 
 -- | Drops the filename component of the qualified name.
-dropTopLevelModule :: QName -> TCM QName
+dropTopLevelModule :: MonadPretty m => QName -> m QName
 dropTopLevelModule q = ($ q) <$> topLevelModuleDropper
 
 -- | Produces a function which drops the filename component of the qualified name.
@@ -323,6 +347,19 @@ topLevelModuleDropper =
   caseMaybeM currentTopLevelModule
     (return id)
     (return . dropTopLevelModule' . size)
+
+prettyDisamb :: MonadPretty m => (QName -> Maybe (Range' SrcFile)) -> QName -> m Doc
+prettyDisamb f x = do
+  let d  = pretty =<< dropTopLevelModule x
+  caseMaybe (f x) d $ \ r -> d <+> ("(introduced at " <> prettyTCM r <> ")")
+
+-- | Print the last range in 'qnameModule'.
+prettyDisambProj :: MonadPretty m => QName -> m Doc
+prettyDisambProj = prettyDisamb $ lastMaybe . filter (noRange /=) . map nameBindingSite . mnameToList . qnameModule
+
+--   Print the range in 'qnameName'. This fixes the bad error message in #4130.
+prettyDisambCons :: MonadPretty m => QName -> m Doc
+prettyDisambCons = prettyDisamb $ Just . nameBindingSite . qnameName
 
 instance PrettyTCM TypeError where
   prettyTCM err = case err of
@@ -374,6 +411,10 @@ instance PrettyTCM TypeError where
 
     WrongHidingInLambda t ->
       fwords "Found an implicit lambda where an explicit lambda was expected"
+
+    WrongHidingInProjection d ->
+      sep [ "Wrong hiding used for projection " , prettyTCM d ]
+
 
     IllegalHidingInPostfixProjection arg -> fsep $
       pwords "Illegal hiding in postfix projection " ++
@@ -450,6 +491,16 @@ instance PrettyTCM TypeError where
         A.AsP _ _ p -> kindOfPattern p
         A.PatternSynP{} -> __IMPOSSIBLE__
         A.AnnP _ _ p -> kindOfPattern p
+
+    CannotEliminateWithProjection ty isAmbiguous projection -> sep
+        [ "Cannot eliminate type "
+        , prettyTCM (unArg ty)
+        , " with projection "
+        , if isAmbiguous then
+            text $ prettyShow projection
+          else
+            prettyTCM projection
+        ]
 
     WrongNumberOfConstructorArguments c expect given -> fsep $
       pwords "The constructor" ++ [prettyTCM c] ++
@@ -567,6 +618,28 @@ instance PrettyTCM TypeError where
       , [ parens "to activate, add declaration `pattern` to record definition" ]
       ]
       where r = nameBindingSite $ qnameName q
+
+    SplitOnAbstract d ->
+      "Cannot split on abstract data type" <+> prettyTCM d
+
+    SplitOnUnchecked d ->
+      "Cannot split on data type" <+> prettyTCM d <+> "whose definition has not yet been checked"
+
+    SplitOnPartial dom -> vcat
+      [ "Splitting on partial elements is only allowed at the type Partial, but the domain here is", nest 2 $ prettyTCM $ unDom dom ]
+
+    SplitInProp dr -> fsep
+      [ text "Cannot split on"
+      , text $ kindOfData dr
+      , text "in Prop unless target is in Prop"
+      ]
+      where
+        kindOfData :: DataOrRecordE -> String
+        kindOfData IsData                                                          = "datatype"
+        kindOfData (IsRecord InductionAndEta {recordInduction=Nothing})            = "record type"
+        kindOfData (IsRecord InductionAndEta {recordInduction=(Just Inductive)})   =  "inductive record type"
+        kindOfData (IsRecord InductionAndEta {recordInduction=(Just CoInductive)}) = "coinductive record type"
+
 
     DefinitionIsIrrelevant x -> fsep $
       "Identifier" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
@@ -800,7 +873,13 @@ instance PrettyTCM TypeError where
              pwords "could refer to any of the following files:"
            ) $$ nest 2 (vcat $ map (text . filePath) files)
 
-    AmbiguousProjectionError ds reason -> do
+    AmbiguousProjection d disambs -> vcat
+      [ "Ambiguous projection " <> prettyTCM d <> "."
+      , "It could refer to any of"
+      , nest 2 $ vcat $ (map prettyDisambProj disambs)
+      ]
+
+    AmbiguousOverloadedProjection ds reason -> do
       let nameRaw = pretty $ A.nameConcrete $ A.qnameName $ List1.head ds
       vcat
         [ fsep
@@ -814,6 +893,12 @@ instance PrettyTCM TypeError where
             t <- typeOfConst d
             text "-" <+> nest 2 (nameRaw <+> text ":" <+> prettyTCM t)
         ]
+
+    AmbiguousConstructor c disambs -> vcat
+      [ "Ambiguous constructor " <> pretty (qnameName c) <> "."
+      , "It could refer to any of"
+      , nest 2 $ vcat $ map prettyDisambCons disambs
+      ]
 
     ClashingFileNamesFor x files ->
       fsep ( pwords "Multiple possible sources for module"
@@ -1356,6 +1441,124 @@ instance PrettyTCM TypeError where
 
     TooManyArgumentsToUnivOmega q -> fsep $
       [ prettyTCM q , "cannot be applied to an argument" ]
+
+    IllTypedPatternAfterWithAbstraction p -> vcat
+      [ "Ill-typed pattern after with abstraction: " <+> prettyA p
+      , "(perhaps you can replace it by `_`?)"
+      ]
+
+    ComatchingDisabledForRecord recName ->
+      "Copattern matching is disabled for record" <+> prettyTCM recName
+
+    BuiltinMustBeIsOne builtin ->
+      prettyTCM builtin <+> " is not IsOne."
+
+    IllegalRewriteRule q reason -> case reason of
+      LHSNotDefOrConstr -> hsep
+        [ prettyTCM q , " is not a legal rewrite rule, since the left-hand side is neither a defined symbol nor a constructor" ]
+      VariablesNotBoundByLHS xs -> hsep
+        [ prettyTCM q
+        , " is not a legal rewrite rule, since the following variables are not bound by the left hand side: "
+        , prettyList_ (map (prettyTCM . var) $ IntSet.toList xs)
+        ]
+      VariablesBoundMoreThanOnce xs -> do
+        (prettyTCM q
+          <+> " is not a legal rewrite rule, since the following parameters are bound more than once on the left hand side: "
+          <+> hsep (List.intersperse "," $ map (prettyTCM . var) $ IntSet.toList xs))
+          <> ". Perhaps you can use a postulate instead of a constructor as the head symbol?"
+      LHSReducesTo v v' -> fsep
+        [ prettyTCM q <+> " is not a legal rewrite rule, since the left-hand side "
+        , prettyTCM v <+> " reduces to " <+> prettyTCM v' ]
+      HeadSymbolIsProjection f -> hsep
+        [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
+        , prettyTCM f , "is a projection"
+        ]
+      HeadSymbolIsProjectionLikeFunction f -> hsep
+        [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
+        , hd , "is a projection-like function."
+        , "You can turn off the projection-like optimization for", hd
+        , "with the pragma {-# NOT_PROJECTION_LIKE", hd, "#-}"
+        , "or globally with the flag --no-projection-like"
+        ]
+        where hd = prettyTCM f
+      HeadSymbolNotPostulateFunctionConstructor f -> hsep
+        [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
+        , prettyTCM f , "is not a postulate, a function, or a constructor"
+        ]
+      ConstructorParamsNotGeneral c vs -> vcat
+        [ prettyTCM q <+> text " is not a legal rewrite rule, since the constructor parameters are not fully general:"
+        , nest 2 $ text "Constructor: " <+> prettyTCM c
+        , nest 2 $ text "Parameters: " <+> prettyList (map prettyTCM vs)
+        ]
+      ContainsUnsolvedMetaVariables ms -> hsep
+        [ prettyTCM q , " is not a legal rewrite rule, since"
+        , "it contains the unsolved meta variable(s)", prettyList_ (map prettyTCM $ Set.toList ms)
+        ]
+      BlockedOnProblems ps -> hsep
+        [ prettyTCM q , " is not a legal rewrite rule, since"
+        , "it is blocked on problem(s)", prettyList_ (map prettyTCM $ Set.toList ps)
+        ]
+      RequiresDefinitions qs -> hsep
+        [ prettyTCM q , " is not a legal rewrite rule, since"
+        , "it requires the definition(s) of", prettyList_ (map prettyTCM $ Set.toList qs)
+        ]
+      DoesNotTargetRewriteRelation -> hsep
+        [ prettyTCM q , " does not target rewrite relation" ]
+      BeforeFunctionDefinition -> hsep
+        [ "Rewrite rule from function "
+        , prettyTCM q
+        , " cannot be added before the function definition"
+        ]
+      EmptyReason -> hsep
+        [ prettyTCM q , " is not a legal rewrite rule" ]
+
+    IncorrectTypeForRewriteRelation v reason -> case reason of
+      ShouldAcceptAtLeastTwoArguments -> sep
+        [ prettyTCM v <+> " does not have the right type for a rewriting relation"
+        , "because it should accept at least two arguments"
+        ]
+      FinalTwoArgumentsNotVisible -> sep
+        [ prettyTCM v <+> " does not have the right type for a rewriting relation"
+        , "because its two final arguments are not both visible."
+        ]
+      TypeDoesNotEndInSort core tel -> sep
+        [ prettyTCM v <+> " does not have the right type for a rewriting relation"
+        , "because its type does not end in a sort, but in "
+          <+> do inTopContext $ addContext tel $ prettyTCM core
+        ]
+
+    UnexpectedParameter par -> do
+      text "Unexpected parameter" <+> prettyA par
+
+    NoParameterOfName x -> do
+      text ("No parameter of name " ++ x)
+
+    UnexpectedModalityAnnotationInParameter par -> do
+      text "Unexpected modality/relevance annotation in" <+> prettyA par
+
+    SortDoesNotAdmitDataDefinitions name s ->fsep
+      [ "The universe"
+      , prettyTCM s
+      , "of"
+      , prettyTCM name
+      , "does not admit data or record declarations"
+      ]
+
+    SortCannotDependOnItsIndex name t -> fsep
+      [ "The sort of" <+> prettyTCM name
+      , "cannot depend on its indices in the type"
+      , prettyTCM t
+      ]
+
+    ExpectedBindingForParameter a b -> sep
+      [ "Expected binding for parameter"
+      , text (absName b) <+> text ":" <+> prettyTCM (unDom a)
+      ]
+
+    UnexpectedTypeSignatureForParameter xs -> do
+      let s | length xs > 1 = "s"
+            | otherwise     = ""
+      text ("Unexpected type signature for parameter" ++ s) <+> sep (fmap prettyA xs)
 
     where
     mpar n args

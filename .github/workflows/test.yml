@@ -8,10 +8,10 @@
 env:
   AGDA_TESTS_OPTIONS: -j${PARALLEL_TESTS} --hide-successes
   BUILD_DIR: dist
-  GHC_VER: 9.6.2
+  GHC_VER: 9.8.1
   PARALLEL_TESTS: 2
   STACK: stack --system-ghc
-  STACK_VER: 2.11.1
+  STACK_VER: 2.13.1
   TASTY_ANSI_TRICKS: 'false'
 jobs:
   build:
@@ -31,7 +31,7 @@ jobs:
         echo "github.ref_name   = ${{ github.ref_name   }}"
         echo "github.ref_type   = ${{ github.ref_type   }}"
     - if: github.ref != 'refs/heads/master'
-      uses: styfle/cancel-workflow-action@0.11.0
+      uses: styfle/cancel-workflow-action@0.12.0
       with:
         access_token: ${{ github.token }}
     - uses: actions/checkout@v4
@@ -62,11 +62,7 @@ jobs:
     - name: Install dependencies for Agda and its test suites
       run: make install-deps
     - name: Build Agda
-      run: make BUILD_DIR="${BUILD_DIR}" install-bin
-    - name: Run tests for the size solver
-      run: |
-        export PATH=${HOME}/.local/bin:${PATH}
-        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" size-solver-test
+      run: make BUILD_DIR="${BUILD_DIR}" install-bin-debug
     - name: Pack artifacts
       run: |
         strip ${BUILD_DIR}/build/agda-tests/agda-tests \

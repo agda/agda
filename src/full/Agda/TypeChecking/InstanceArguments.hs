@@ -12,7 +12,7 @@ module Agda.TypeChecking.InstanceArguments
   ) where
 
 import Control.Monad        ( forM )
-import Control.Monad.Except ( MonadError(..) )
+import Control.Monad.Except ( ExceptT(..), runExceptT, MonadError(..) )
 import Control.Monad.Trans  ( lift )
 
 import qualified Data.Map as Map
@@ -20,6 +20,7 @@ import qualified Data.Set as Set
 import qualified Data.List as List
 import Data.Function (on)
 import Data.Monoid hiding ((<>))
+import Data.Foldable (foldrM)
 
 import Agda.Interaction.Options (optQualifiedInstances)
 
@@ -230,16 +231,77 @@ findInstance m (Just cands) =                          -- Note: if no blocking m
 
 -- | Entry point for `tcGetInstances` primitive
 getInstanceCandidates :: MetaId -> TCM (Either Blocker [Candidate])
-getInstanceCandidates m = do
-  mv <- lookupLocalMeta m
-  setCurrentRange mv $ do
-    t <- instantiate =<< getMetaTypeInContext m
-    TelV tel t' <- telViewUpTo' (-1) notVisible t
-    addContext tel $ initialInstanceCandidates t' >>= \case
-      Left b -> return $ Left b
-      Right cands -> checkCandidates m t' cands >>= \case
-        Nothing -> return $ Right cands
-        Just (_ , cands') -> return $ Right $ map fst cands'
+getInstanceCandidates m = wrapper where
+  wrapper = do
+    mv <- lookupLocalMeta m
+    setCurrentRange mv $ do
+      t <- instantiate =<< getMetaTypeInContext m
+      TelV tel t' <- telViewUpTo' (-1) notVisible t
+      addContext tel $ runExceptT (worker t')
+
+  worker :: Type -> ExceptT Blocker TCM [Candidate]
+  worker t' = do
+    cands <- ExceptT (initialInstanceCandidates t')
+    cands <- lift (checkCandidates m t' cands) <&> \case
+      Nothing         -> cands
+      Just (_, cands) -> fst <$> cands
+    cands <- lift (foldrM insertCandidate [] cands)
+    reportSDoc "tc.instance.sort" 20 $ nest 2 $ vcat
+      [ "sorted candidates"
+      , vcat [ "-" <+> (if overlap then "overlap" else empty) <+> prettyTCM c <+> ":" <+> prettyTCM t
+             | c@(Candidate q v t overlap) <- cands ] ]
+    pure cands
+
+-- | @'doesCandidateSpecialise' c1 c2@ checks whether the instance candidate @c1@
+-- /specialises/ the instance candidate @c2@, i.e., whether the type of
+-- @c2@ is a substitution instance of @c1@'s type.
+-- Only the final return type of the instances is considered: the
+-- presence of unsolvable instance arguments in the types of @c1@ or
+-- @c2@ does not affect the results of 'doesCandidateSpecialise'.
+doesCandidateSpecialise :: Candidate -> Candidate -> TCM Bool
+doesCandidateSpecialise c1@Candidate{candidateType = t1} c2@Candidate{candidateType = t2} = do
+  -- We compare
+  --    c1 : ∀ {Γ} → T
+  -- against
+  --    c2 : ∀ {Δ} → S
+  -- by moving to the context Γ ⊢, so that any variables in T's type are
+  -- "rigid", but *instantiating* S[?/Δ], so its variables are
+  -- "flexible"; then calling the conversion checker.
+
+  let
+    handle _ = do
+      reportSDoc "tc.instance.sort" 30 $ nest 2 "=> NOT specialisation"
+      pure False
+
+    wrap = flip catchError handle
+          -- Turn failures into returning false
+         . localTCState
+         -- Discard any changes to the TC state (metas from
+         -- instantiating t2, recursive instance constraints, etc)
+         . postponeInstanceConstraints
+         -- Don't spend any time looking for instances in the contexts
+
+  TelV tel t1 <- telView t1
+  addContext tel $ wrap $ do
+    (args, t2) <- implicitArgs (-1) (\h -> notVisible h) t2
+
+    reportSDoc "tc.instance.sort" 30 $ "Does" <+> prettyTCM c1 <+> "specialise" <+> (prettyTCM c2 <> "?")
+    reportSDoc "tc.instance.sort" 60 $ vcat
+      [ "Comparing candidate"
+      , nest 2 (prettyTCM c1 <+> colon <+> prettyTCM t1)
+      , "vs"
+      , nest 2 (prettyTCM c2 <+> colon <+> prettyTCM t2)
+      ]
+
+    leqType t2 t1
+    reportSDoc "tc.instance.sort" 30 $ nest 2 "=> IS specialisation"
+    pure True
+
+insertCandidate :: Candidate -> [Candidate] -> TCM [Candidate]
+insertCandidate x []     = pure [x]
+insertCandidate x (y:xs) = doesCandidateSpecialise x y >>= \case
+  True  -> pure (x:y:xs)
+  False -> (y:) <$> insertCandidate x xs
 
 -- | Result says whether we need to add constraint, and if so, the set of
 --   remaining candidates and an eventual blocking metavariable.

@@ -91,9 +91,11 @@ instantiateWhen p =
   localR (\env -> env { redPred = Just p }) .
   instantiateFull'
 
+{-# INLINE reduce #-}
 reduce :: (Reduce a, MonadReduce m) => a -> m a
 reduce = liftReduce . reduce'
 
+{-# INLINE reduceB #-}
 reduceB :: (Reduce a, MonadReduce m) => a -> m (Blocked a)
 reduceB = liftReduce . reduceB'
 
@@ -104,6 +106,7 @@ reduceWithBlocker a = ifBlocked a
   (\b a' -> return (b, a'))
   (\_ a' -> return (neverUnblock, a'))
 
+{-# INLINE normalise #-}
 normalise :: (Normalise a, MonadReduce m) => a -> m a
 normalise = liftReduce . normalise'
 
@@ -113,6 +116,7 @@ normalise = liftReduce . normalise'
 -- normaliseB :: (MonadReduce m, Reduce t, Normalise t) => t -> m (Blocked t)
 -- normaliseB = normalise >=> reduceB
 
+{-# INLINE simplify #-}
 simplify :: (Simplify a, MonadReduce m) => a -> m a
 simplify = liftReduce . simplify'
 
@@ -124,6 +128,7 @@ isFullyInstantiatedMeta m = do
     InstV inst -> noMetas <$> instantiateFull (instBody inst)
     _ -> return False
 
+{-# INLINABLE blockAll #-}
 -- | Blocking on all blockers.
 blockAll :: (Functor f, Foldable f) => f (Blocked a) -> Blocked (f a)
 blockAll bs = blockedOn block $ fmap ignoreBlocking bs
@@ -131,6 +136,7 @@ blockAll bs = blockedOn block $ fmap ignoreBlocking bs
         blocker NotBlocked{}  = alwaysUnblock
         blocker (Blocked b _) = b
 
+{-# INLINABLE blockAny #-}
 -- | Blocking on any blockers.
 blockAny :: (Functor f, Foldable f) => f (Blocked a) -> Blocked (f a)
 blockAny bs = blockedOn block $ fmap ignoreBlocking bs
@@ -140,6 +146,7 @@ blockAny bs = blockedOn block $ fmap ignoreBlocking bs
         blocker NotBlocked{}  = []
         blocker (Blocked b _) = [b]
 
+{-# SPECIALIZE blockOnError :: Blocker -> TCM a -> TCM a #-}
 -- | Run the given computation but turn any errors into blocked computations with the given blocker
 blockOnError :: MonadError TCErr m => Blocker -> m a -> m a
 blockOnError blocker f
@@ -727,8 +734,9 @@ unfoldDefinitionStep v0 f es =
                           defaultResult -- non-terminating or delayed
         ([],[])        -> traceSLn "tc.reduce" 90 "reduceNormalE: no clauses or rewrite rules" $ do
           -- no definition for head
-          blk <- instantiate =<< do defBlocked <$> getConstInfo f
-          noReduction $ blk $> vfull
+          (defBlocked <$> getConstInfo f) >>= \case
+            Blocked{}    -> noReduction $ Blocked (UnblockOnDef f) vfull
+            NotBlocked{} -> defaultResult
         (cls,rewr)     -> do
           ev <- appDefE_ f v0 cls mcc rewr es
           debugReduce ev
@@ -806,7 +814,7 @@ reduceHead v = do -- ignoreAbstractMode $ do
       abstractMode <- envAbstractMode <$> askTC
       isAbstract <- not <$> hasAccessibleDef f
       traceSLn "tc.inj.reduce" 50 (
-        "reduceHead: we are in " ++ show abstractMode++ "; " ++ prettyShow f ++
+        "reduceHead: we are in " ++ show abstractMode ++ "; " ++ prettyShow f ++
         " is treated " ++ if isAbstract then "abstractly" else "concretely"
         ) $ do
       let v0  = Def f []
@@ -932,6 +940,7 @@ instance Reduce a => Reduce (Closure a) where
     reduce' cl = do
         x <- enterClosure cl reduce'
         return $ cl { clValue = x }
+{-# SPECIALIZE reduce' :: Closure Constraint -> ReduceM (Closure Constraint) #-}
 
 instance Reduce Telescope where
   reduce' EmptyTel          = return EmptyTel

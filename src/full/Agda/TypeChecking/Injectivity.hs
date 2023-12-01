@@ -424,7 +424,7 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
             [ "meta patterns" <+> prettyList (map prettyTCM ms)
             , "  perm =" <+> text (show perm)
             , "  tel  =" <+> prettyTCM tel
-            , "  ps   =" <+> prettyList (map (text . show) ps)
+            , "  ps   =" <+> prettyList (map (text . prettyShow) ps)
             ]
           -- and this is the order the variables occur in the patterns
           let msAux = permute (invertP __IMPOSSIBLE__ $ compactP perm) ms

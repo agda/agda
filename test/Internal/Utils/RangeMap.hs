@@ -8,11 +8,6 @@ module Internal.Utils.RangeMap
   )
   where
 
-import Agda.Interaction.Highlighting.Range
-import Agda.Utils.Null
-import Agda.Utils.RangeMap
-import Agda.Utils.Tuple
-
 import Prelude hiding (null, splitAt)
 
 import qualified Data.IntMap as IntMap
@@ -22,6 +17,12 @@ import qualified Data.Map.Strict as Map
 import Data.Maybe (isJust)
 import Data.Semigroup
 import Data.Strict.Tuple (Pair(..))
+
+import Agda.Interaction.Highlighting.Range
+import Agda.Utils.List (allConsecutive)
+import Agda.Utils.Null
+import Agda.Utils.RangeMap
+import Agda.Utils.Tuple
 
 import Internal.Helpers
 import Internal.Interaction.Highlighting.Range ()
@@ -84,10 +85,7 @@ toListProperty f =
   where
   rms = toList f
   rs  = map fst rms
-
-  increasing [] = True
-  increasing rs =
-    and $ zipWith (<=) (map to $ init rs) (map from $ tail rs)
+  increasing = allConsecutive \ r r' -> to r <= from r'
 
 -- | A property that should be satisfied by 'coveringRange'.
 

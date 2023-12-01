@@ -450,10 +450,9 @@ checkFunDefS t ai extlam with i name withSub cs = do
              , _funCovering       = covering
              }
           lang <- getLanguage
-          genArgs <- defArgGeneralizable <$> getConstInfo name
           useTerPragma $
             updateDefCopatternLHS (const $ hasProjectionPatterns cc) $
-            (defaultDefn ai name fullType lang defn) { defArgGeneralizable = genArgs }
+            (defaultDefn ai name fullType lang defn)
 
         reportSDoc "tc.def.fun" 10 $ do
           sep [ "added " <+> prettyTCM name <+> ":"
@@ -972,7 +971,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
            -- 1. rewriting with a reflexive equality to happen rarely,
            -- 2. especially with ?-holes in the rewrite expression
            -- 3. and a large overall number of ?s.
-           let sameIP = (==) `on` (^.stInteractionPoints)
+           let sameIP = (==) `on` (^. stInteractionPoints)
            when (sameIP st st') $ putTC st
            handleRHS $ A.RewriteRHS rs strippedPats rhs wh
 

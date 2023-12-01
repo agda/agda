@@ -48,13 +48,9 @@ large {d} {r} x r′ pf = irrefl pf (
       suc x * suc d + toℕ r′ -- clearer in two steps, and we'd need assoc anyway
     □)
   where
-    open ≤-Reasoning
+    open ≤-Reasoning using (step-≤)
       renaming (begin_ to start_; _∎ to _□)
     open Relation.Binary.StrictTotalOrder Data.Nat.Properties.<-strictTotalOrder
-
-    infixr 2 step-'
-    step-' = ≤-Reasoning.step-≡
-    syntax step-' x y≡z x≡y = x ≡⟨ x≡y ⟩' y≡z
 
 -- a raw statement of the uniqueness, in the arrangement of terms that's
 -- easiest to work with computationally
@@ -189,7 +185,7 @@ lem-sub-p .(7 + (q * 7)) (suc (suc p)) _ _ (s≤s (s≤s (≤4))) eq2 | result (
             toℕ (suc (zero {7}))  ≡⟨ refl ⟩'
             suc zero □
             where
-              open ≤-Reasoning
+              open ≤-Reasoning using (step-≤)
                 renaming (begin_ to start_; _∎ to _□)
 
               infixr 2 step-'
