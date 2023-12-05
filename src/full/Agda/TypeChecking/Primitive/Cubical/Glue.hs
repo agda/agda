@@ -22,14 +22,13 @@ import Agda.TypeChecking.Primitive.Cubical.Base
 import Agda.TypeChecking.Reduce
   ( reduceB' )
 import Agda.TypeChecking.Substitute
-  ( absBody, apply, sort, subst, applyE )
+  ( absBody, apply, sort, applyE )
 
 import Agda.Syntax.Common
-  ( Hiding(..), Cubical(..), Arg(..)
+  ( Cubical(..), Arg(..)
   , ConOrigin(..), ProjOrigin(..)
   , Relevance(..)
   , setRelevance
-  , setHiding
   )
 import Agda.Syntax.Internal
 
@@ -106,7 +105,6 @@ doGlueKanOp (HCompOp psi u u0) (IsNot (la, lb, bA, phi, bT, e)) tpos = do
       getTermLocal = getTerm $ getBuiltinId builtinHComp ++ " for " ++ getBuiltinId builtinGlue
   tHComp   <- getTermLocal builtinHComp
   tEFun    <- getTermLocal builtinEquivFun
-  tglue    <- getTermLocal builtin_glue
   tunglue  <- getTermLocal builtin_unglue
   io       <- getTermLocal builtinIOne
   tItIsOne <- getTermLocal builtinItIsOne
@@ -148,7 +146,6 @@ doGlueKanOp (TranspOp psi u0) (IsFam (la, lb, bA, phi, bT, e)) tpos = do
   tEFun   <- getTermLocal builtinEquivFun
   tEProof <- getTermLocal builtinEquivProof
   toutS   <- getTermLocal builtinSubOut
-  tglue   <- getTermLocal builtin_glue
   tunglue <- getTermLocal builtin_unglue
   io      <- getTermLocal builtinIOne
   iz      <- getTermLocal builtinIZero
@@ -168,12 +165,6 @@ doGlueKanOp (TranspOp psi u0) (IsFam (la, lb, bA, phi, bT, e)) tpos = do
                       <@> (imax phi (ineg i))
                       <@> u0
     [psi,u0] <- mapM (open . unArg) [ignoreBlocking psi,u0]
-
-    -- glue1 t a = glue la[i1/i] lb[i1/i] bA[i1/i] phi[i1/i] bT[i1/i] e[i1/i] t a
-    glue1 <- do
-      g <- open $ (tglue `apply`) . map ((setHiding Hidden) . (subst 0 io)) $ [la, lb, bA, phi, bT, e]
-      return $ \ t a -> g <@> t <@> a
-
     [la, lb, bA, phi, bT, e] <- mapM (\ a -> open . runNames [] $ lam "i" (const (pure $ unArg a))) [la, lb, bA, phi, bT, e]
 
     -- Andreas, 2022-03-24, fixing #5838

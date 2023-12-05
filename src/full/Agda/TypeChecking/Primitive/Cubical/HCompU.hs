@@ -32,7 +32,7 @@ import Agda.TypeChecking.Primitive.Cubical.Base
 import Agda.TypeChecking.Reduce
   ( reduceB', reduceB )
 import Agda.TypeChecking.Substitute
-  ( absBody, apply, sort, subst, applyE )
+  ( absBody, apply, sort, applyE )
 
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
@@ -58,7 +58,6 @@ doHCompUKanOp (HCompOp psi u u0) (IsNot (la, phi, bT, bA)) tpos = do
   iz       <- getTermLocal builtinIZero
   tHComp   <- getTermLocal builtinHComp
   tTransp  <- getTermLocal builtinTrans
-  tglue    <- getTermLocal builtin_glueU
   tunglue  <- getTermLocal builtin_unglueU
   tLSuc    <- getTermLocal builtinLevelSuc
   tSubIn   <- getTermLocal builtinSubIn
@@ -124,12 +123,6 @@ doHCompUKanOp (TranspOp psi u0) (IsFam (la, phi, bT, bA)) tpos = do
         <@> u0
 
     [psi, u0] <- mapM (open . unArg) [ignoreBlocking psi, u0]
-    glue1 <- do
-      tglue             <- cl $ getTermLocal builtin_glueU
-      [la, phi, bT, bA] <- mapM (open . unArg . subst 0 io) $ [la, phi, bT, bA]
-      let bAS = pure tSubIn <#> (pure tLSuc <@> la) <#> (Sort . tmSort <$> la) <#> phi <@> bA
-      g <- (open =<<) $ pure tglue <#> la <#> phi <#> bT <#> bAS
-      return $ \ t a -> g <@> t <@> a
 
     [la, phi, bT, bA] <- mapM (\a -> open . runNames [] $ lam "i" (const (pure $ unArg a))) [la, phi, bT, bA]
 
