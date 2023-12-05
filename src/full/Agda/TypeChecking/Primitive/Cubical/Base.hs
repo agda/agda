@@ -272,17 +272,20 @@ instance Reduce a => Reduce (FamilyOrNot a) where
 -- | For the Kan operations in @Glue@ and @hcomp {Type}@, we optimise
 -- evaluation a tiny bit by differentiating the term produced when
 -- evaluating a Kan operation by itself vs evaluating it under @unglue@.
+-- (See @headStop@ below.)
 data TermPosition
   = Head
   | Eliminated
   deriving (Eq,Show)
 
--- | If we're computing a Kan operation for one of the "unstable" type
--- formers (@Glue@, @hcomp {Type}@), this tells us whether the type will
--- reduce further, and whether we should care.
+-- | Kan operations for the "unstable" type formers (@Glue@, @hcomp {Type}@) are
+-- computed "negatively": they never actually produce a @glue φ t a@ term. Instead,
+-- we block the computation unless such a term would reduce further, which happens
+-- in two cases:
 --
--- When should we care? When we're in the 'Head' 'TermPosition'. When
--- will the type reduce further? When @φ@, its formula, is not i1.
+-- * when the formula @φ@ is i1, in which case we reduce to @t@;
+-- * when we're under an @unglue@, i.e. in 'Eliminated' 'TermPosition', in which case
+--   we reduce to @a@.
 headStop :: PureTCM m => TermPosition -> m Term -> m Bool
 headStop tpos phi
   | Head <- tpos = do
