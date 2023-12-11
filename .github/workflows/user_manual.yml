@@ -7,6 +7,8 @@
 ######################################################
 jobs:
   build:
+    env:
+      python-version: '3.11'
     if: |
       !contains(github.event.head_commit.message, '[skip ci]')
       && !contains(github.event.head_commit.message, '[ci skip]')
@@ -15,10 +17,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+    - name: Set up Python ${{ env.python-version }}
+      uses: actions/setup-python@v5
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: ${{ env.python-version }}
     - name: Install dependencies
       run: |
         pip install -r doc/user-manual/requirements.txt
@@ -41,10 +43,6 @@ jobs:
       with:
         name: user-manual-pdf
         path: doc/user-manual.pdf
-    strategy:
-      matrix:
-        python-version:
-        - '3.10'
 name: User Manual
 'on':
   pull_request:
