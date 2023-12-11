@@ -1,6 +1,9 @@
 ..
   ::
+  {-# OPTIONS --erasure #-}
   module tools.compilers where
+
+  open import Agda.Builtin.Nat
 
 .. _compilers:
 
@@ -191,6 +194,28 @@ and doesn't use builtin arithmetic likely becomes slower
 due to this optimization. If you find that this is the case,
 it is recommended to use a different, but
 isomorphic type to the builtin natural numbers.
+
+
+Irrelevant fields and constructor arguments
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Record fields and constructor arguments marked :ref:`irrelevant<irrelevance>`
+or :ref:`runtime irrelevant<runtime-irrelevance>` are completely erased from
+the compiled record or data type. For instance, ::
+
+  postulate Parity : Nat → Set
+
+  record PNat : Set where
+    field
+      n    : Nat
+      .p   : Parity n
+      @0 q : Parity (suc n)
+
+gets compiled by the GHC backend to (up to naming)
+
+.. code-block:: haskell
+
+  newtype PNat = PNat'constructor Integer
 
 
 Erasable types
