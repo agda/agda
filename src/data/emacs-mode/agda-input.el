@@ -989,6 +989,7 @@ order for the change to take effect."
   ("Mix" . ("𝑥"))
   ("Miy" . ("𝑦"))
   ("Miz" . ("𝑧"))
+
   ("MIA" . ("𝑨"))
   ("MIB" . ("𝑩"))
   ("MIC" . ("𝑪"))
@@ -1015,6 +1016,7 @@ order for the change to take effect."
   ("MIX" . ("𝑿"))
   ("MIY" . ("𝒀"))
   ("MIZ" . ("𝒁"))
+
   ("MIa" . ("𝒂"))
   ("MIb" . ("𝒃"))
   ("MIc" . ("𝒄"))
@@ -1041,6 +1043,7 @@ order for the change to take effect."
   ("MIx" . ("𝒙"))
   ("MIy" . ("𝒚"))
   ("MIz" . ("𝒛"))
+
   ("McA" . ("𝒜"))
   ("McB" . ("ℬ"))
   ("McC" . ("𝒞"))
@@ -1093,6 +1096,7 @@ order for the change to take effect."
   ("Mcx" . ("𝓍"))
   ("Mcy" . ("𝓎"))
   ("Mcz" . ("𝓏"))
+
   ("MCA" . ("𝓐"))
   ("MCB" . ("𝓑"))
   ("MCC" . ("𝓒"))
@@ -1145,6 +1149,7 @@ order for the change to take effect."
   ("MCx" . ("𝔁"))
   ("MCy" . ("𝔂"))
   ("MCz" . ("𝔃"))
+
   ("MfA" . ("𝔄"))
   ("MfB" . ("𝔅"))
   ("MfC" . ("ℭ"))
@@ -1294,13 +1299,17 @@ order for the change to take effect."
   ;; ("^Y" . ("Y"))
   ;; ("^Z" . ("Z"))
 
+  ("^Ga" . ("ᵅ"))
   ("^Gb" . ("ᵝ"))
   ("^Gg" . ("ᵞ"))
   ("^Gd" . ("ᵟ"))
   ("^Ge" . ("ᵋ"))
   ("^Gth" . ("ᶿ"))
+  ("^Gi" . ("ᶥ"))
   ("^Gf" . ("ᵠ"))
   ("^Gc" . ("ᵡ"))
+
+  ("^GF" . ("ᶲ"))
 
   ;; Some ISO8859-1 characters.
 
