@@ -17,6 +17,7 @@ module Agda.Compiler.Backend
   , parseBackendOptions
     -- For InteractionTop
   , callBackend
+  , callBackendInteract
     -- Tools
   , lookupBackend
   , activeBackend
@@ -107,6 +108,7 @@ data Backend' opts env menv mod def = Backend'
       --   of the given type maybe possibly erased.
       --   The answer should be 'False' if the compilation of the type
       --   is used by a third party, e.g. in a FFI binding.
+  , backendInteract  :: Maybe (String -> TCM ())
   }
   deriving Generic
 
@@ -126,6 +128,16 @@ callBackend name iMain checkResult = lookupBackend name >>= \case
         (List.sort $ otherBackends ++
                      [ backendName b | Backend b <- backends ]) ++
       ")"
+
+-- | Call the 'backendInteract' function of the given backend.
+
+callBackendInteract :: String -> String -> TCM ()
+callBackendInteract name cmd = lookupBackend name >>= \case
+  Just (Backend b) ->
+    case backendInteract b of
+      Just bi -> bi cmd
+      Nothing -> return ()
+  Nothing -> return ()
 
 -- | Backends that are not included in the state, but still available
 --   to the user.
@@ -158,10 +170,10 @@ instance NFData Backend where
   rnf (Backend b) = rnf b
 
 instance NFData opts => NFData (Backend' opts env menv mod def) where
-  rnf (Backend' a b c d e f g h i j k l) =
+  rnf (Backend' a b c d e f g h i j k l m) =
     rnf a `seq` rnf b `seq` rnf c `seq` rnf' d `seq` rnf e `seq`
     rnf f `seq` rnf g `seq` rnf h `seq` rnf i `seq` rnf j `seq`
-    rnf k `seq` rnf l
+    rnf k `seq` rnf l `seq` rnf m
     where
     rnf' []                   = ()
     rnf' (Option a b c d : e) =

@@ -218,6 +218,7 @@ constituents.")
     (agda2-load                              "\C-c\C-l"           (global)       "Load")
     (agda2-load                              "\C-c\C-x\C-l")
     (agda2-compile                           "\C-c\C-x\C-c"       (global)       "Compile")
+    (agda2-backendCmd                        "\C-c\C-i"           (global)       "Run backend interaction")
     (agda2-quit                              "\C-c\C-x\C-q"       (global)       "Quit")
     (agda2-restart                           "\C-c\C-x\C-r"       (global)       "Kill and restart Agda")
     (agda2-abort                             "\C-c\C-x\C-a"       (global)       "Abort a command")
@@ -820,6 +821,22 @@ The variable `agda2-backend' determines which backend is used."
               backend
               (agda2-string-quote (buffer-file-name))
               (agda2-list-quote agda2-program-args)
+              )))
+
+(defun agda2-backendCmd (cmdArg)
+  "Run the current backend's (from variable `agda2-backend`) interaction command."
+  (interactive)
+  (let ((backend (cond ((equal agda2-backend "MAlonzo")       "GHC")
+                       ((equal agda2-backend "MAlonzoNoMain") "GHCNoMain")
+                       ((equal agda2-backend "")
+                        (completing-read "Backend: " agda2-backends
+                                         nil nil nil nil nil
+                                         'inherit-input-method))
+                       (t agda2-backend))))
+    (when (equal backend "") (error "No backend chosen"))
+    (agda2-go 'save t 'busy t "Cmd_backend"
+              backend
+              (agda2-string-quote cmdArg)
               )))
 
 (defmacro agda2-maybe-forced (name comment cmd save want)

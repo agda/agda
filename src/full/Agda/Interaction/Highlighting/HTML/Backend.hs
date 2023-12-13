@@ -78,6 +78,7 @@ htmlBackend' = Backend'
   -- will not have their definition site populated.
   , scopeCheckingSuffices = True
   , mayEraseType          = const $ return False
+  , backendInteract       = Nothing
   }
 
 initialHtmlFlags :: HtmlFlags

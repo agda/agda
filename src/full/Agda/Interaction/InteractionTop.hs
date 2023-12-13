@@ -456,6 +456,7 @@ initialiseCommandQueue next = do
 independent :: Interaction -> Bool
 independent (Cmd_load {})                   = True
 independent (Cmd_compile {})                = True
+independent (Cmd_backend {})                = True
 independent (Cmd_load_highlighting_info {}) = True
 independent Cmd_tokenHighlighting {}        = True
 independent Cmd_show_version                = True
@@ -505,6 +506,7 @@ updateInteractionPointsAfter Cmd_why_in_scope_toplevel{}         = False
 updateInteractionPointsAfter Cmd_show_version{}                  = False
 updateInteractionPointsAfter Cmd_abort{}                         = False
 updateInteractionPointsAfter Cmd_exit{}                          = False
+updateInteractionPointsAfter Cmd_backend{}                       = False
 
 -- | Interpret an interaction
 
@@ -531,6 +533,10 @@ interpret (Cmd_compile backend file argv) =
   allowUnsolved = backend `elem` [LaTeX, QuickLaTeX]
   mode | QuickLaTeX <- backend = ScopeCheck
        | otherwise             = TypeCheck
+
+interpret (Cmd_backend backend cmd) =
+  lift $ callBackendInteract bname cmd
+  where bname = case backend of {OtherBackend b -> b; _ -> ""}
 
 interpret Cmd_constraints =
     display_info . Info_Constraints =<< lift B.getConstraints

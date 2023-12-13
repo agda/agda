@@ -36,6 +36,8 @@ Interaction and emacs mode
 Backends
 --------
 
+* New `backendInteract` field for providing backend-specific interaction commands (run with keyboard shortcut `C-c C-i`).
+
 Other issues closed
 -------------------
 

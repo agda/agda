@@ -115,6 +115,9 @@ Global commands
      ``main`` function using a given backend (the ``GHC`` backend is
      used by default).
 
+:kbd:`C-c C-i`
+     Call a given backend's interaction command.
+
 :kbd:`C-c C-x C-q`
      **Q**\ uit, kill the Agda process
 
