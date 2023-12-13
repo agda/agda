@@ -4736,6 +4736,7 @@ data IllegalRewriteRuleReason
   | HeadSymbolIsProjection QName
   | HeadSymbolIsProjectionLikeFunction QName
   | HeadSymbolNotPostulateFunctionConstructor QName
+  | HeadSymbolDefContainsMetas QName
   | ConstructorParamsNotGeneral ConHead Args
   | ContainsUnsolvedMetaVariables (Set MetaId)
   | BlockedOnProblems (Set ProblemId)

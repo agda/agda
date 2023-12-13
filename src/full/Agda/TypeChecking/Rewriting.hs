@@ -60,6 +60,8 @@ import Agda.Interaction.Options
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal.MetaVars
+import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Monad
@@ -337,10 +339,15 @@ checkRewriteRule q = do
     checkAxFunOrCon :: QName -> Definition -> TCM ()
     checkAxFunOrCon f def = case theDef def of
       Axiom{}        -> return ()
-      def@Function{} -> whenJust (maybeRight (funProjection def)) $ \proj ->
-        case projProper proj of
+      def@Function{} -> do
+        whenJust (maybeRight (funProjection def)) $ \proj -> case projProper proj of
           Just{} -> typeError $ IllegalRewriteRule q (HeadSymbolIsProjection f)
           Nothing -> typeError $ IllegalRewriteRule q (HeadSymbolIsProjectionLikeFunction f)
+        whenM (isJust . optConfluenceCheck <$> pragmaOptions) $ do
+          let simpleClause cl = (patternsToElims (namedClausePats cl) , clauseBody cl)
+          cls <- instantiateFull $ map simpleClause $ funClauses def
+          unless (noMetas cls) $ typeError $ IllegalRewriteRule q (HeadSymbolDefContainsMetas f)
+
       Constructor{}  -> return ()
       AbstractDefn{} -> return ()
       Primitive{}    -> return () -- TODO: is this fine?
