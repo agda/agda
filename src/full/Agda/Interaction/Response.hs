@@ -1,14 +1,14 @@
 
 module Agda.Interaction.Response
     (   module Agda.Interaction.Response
-    ,   module Agda.Interaction.Response.Boot
+    ,   module Agda.Interaction.Response.Base
     ,   WarningsAndNonFatalErrors
     ,   InteractionOutputCallback
     ,   defaultInteractionOutputCallback
     )
     where
 
-import Agda.Interaction.Response.Boot
+import Agda.Interaction.Response.Base
 
 import Agda.TypeChecking.Monad.Base (TCM, TCErr, TCWarning)
 import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors)

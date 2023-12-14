@@ -94,7 +94,7 @@ import Agda.Compiler.Backend.Base
 
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
-import Agda.Interaction.Response.Boot (Response_boot(..))
+import Agda.Interaction.Response.Base (Response_boot(..))
 import Agda.Interaction.Highlighting.Precise
   (HighlightingInfo, NameKind)
 import Agda.Interaction.Library

@@ -500,7 +500,7 @@ library
       Agda.Interaction.InteractionTop
       Agda.Interaction.Output
       Agda.Interaction.Response
-      Agda.Interaction.Response.Boot
+      Agda.Interaction.Response.Base
       Agda.Interaction.MakeCase
       Agda.Interaction.Monad
       Agda.Interaction.Library

@@ -2,7 +2,7 @@
 -- | Data type for all interactive responses
 ------------------------------------------------------------------------
 
-module Agda.Interaction.Response.Boot
+module Agda.Interaction.Response.Base
   ( Response_boot (..)
   , RemoveTokenBasedHighlighting (..)
   , MakeCaseVariant (..)
