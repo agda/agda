@@ -62,6 +62,8 @@ import Data.IORef
 
 import GHC.Generics (Generic)
 
+import System.IO (hFlush, stdout)
+
 import Agda.Benchmarking (Benchmark, Phase)
 
 import {-# SOURCE #-} Agda.Compiler.Treeless.Pretty () -- Instances only
@@ -92,17 +94,11 @@ import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Free.Lazy (Free(freeVars'), underBinder', underBinder)
 
--- Args, defined in Agda.Syntax.Treeless and exported from Agda.Compiler.Backend
--- conflicts with Args, defined in Agda.Syntax.Internal and also imported here.
--- This only matters when interpreted in ghci, which sees all of the module's
--- exported symbols, not just the ones defined in the `.hs-boot`. See the
--- comment in ../../Compiler/Backend.hs-boot
-import {-# SOURCE #-} Agda.Compiler.Backend hiding (Args)
+import Agda.Compiler.Backend.Base
 
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
-import {-# SOURCE #-} Agda.Interaction.Response
-  (InteractionOutputCallback, defaultInteractionOutputCallback)
+import Agda.Interaction.Response.Base (Response_boot(..))
 import Agda.Interaction.Highlighting.Precise
   (HighlightingInfo, NameKind)
 import Agda.Interaction.Library
@@ -350,7 +346,7 @@ data PersistentTCState = PersistentTCSt
   , stPersistLoadedFileCache :: !(Strict.Maybe LoadedFileCache)
     -- ^ Cached typechecking state from the last loaded file.
     --   Should be @Nothing@ when checking imports.
-  , stPersistBackends   :: [Backend]
+  , stPersistBackends   :: [Backend_boot TCM]
     -- ^ Current backends with their options
   }
   deriving Generic
@@ -597,7 +593,7 @@ stLoadedFileCache f s =
   f (Strict.toLazy $ stPersistLoadedFileCache (stPersistentState s)) <&>
   \x -> s {stPersistentState = (stPersistentState s) {stPersistLoadedFileCache = Strict.toStrict x}}
 
-stBackends :: Lens' TCState [Backend]
+stBackends :: Lens' TCState [Backend_boot TCM]
 stBackends f s =
   f (stPersistBackends (stPersistentState s)) <&>
   \x -> s {stPersistentState = (stPersistentState s) {stPersistBackends = x}}
@@ -4794,6 +4790,12 @@ instance HasRange TCErr where
 
 instance E.Exception TCErr
 
+-- | Assorted warnings and errors to be displayed to the user
+data WarningsAndNonFatalErrors = WarningsAndNonFatalErrors
+  { tcWarnings     :: [TCWarning]
+  , nonFatalErrors :: [TCWarning]
+  }
+
 -----------------------------------------------------------------------------
 -- * Accessing options
 -----------------------------------------------------------------------------
@@ -5511,6 +5513,49 @@ forkTCM m = do
   s <- getTC
   e <- askTC
   liftIO $ void $ C.forkIO $ void $ runTCM e s m
+
+---------------------------------------------------------------------------
+-- * Interaction Callback
+---------------------------------------------------------------------------
+
+-- | Callback fuction to call when there is a response
+--   to give to the interactive frontend.
+--
+--   Note that the response is given in pieces and incrementally,
+--   so the user can have timely response even during long computations.
+--
+--   Typical 'InteractionOutputCallback' functions:
+--
+--    * Convert the response into a 'String' representation and
+--      print it on standard output
+--      (suitable for inter-process communication).
+--
+--    * Put the response into a mutable variable stored in the
+--      closure of the 'InteractionOutputCallback' function.
+--      (suitable for intra-process communication).
+
+type InteractionOutputCallback = Response_boot TCErr TCWarning WarningsAndNonFatalErrors -> TCM ()
+
+-- | The default 'InteractionOutputCallback' function prints certain
+-- things to stdout (other things generate internal errors).
+
+defaultInteractionOutputCallback :: InteractionOutputCallback
+defaultInteractionOutputCallback = \case
+  Resp_HighlightingInfo {}  -> __IMPOSSIBLE__
+  Resp_Status {}            -> __IMPOSSIBLE__
+  Resp_JumpToError {}       -> __IMPOSSIBLE__
+  Resp_InteractionPoints {} -> __IMPOSSIBLE__
+  Resp_GiveAction {}        -> __IMPOSSIBLE__
+  Resp_MakeCase {}          -> __IMPOSSIBLE__
+  Resp_SolveAll {}          -> __IMPOSSIBLE__
+  Resp_DisplayInfo {}       -> __IMPOSSIBLE__
+  Resp_RunningInfo _ s      -> liftIO $ do
+                                 putStr s
+                                 hFlush stdout
+  Resp_ClearRunningInfo {}  -> __IMPOSSIBLE__
+  Resp_ClearHighlighting {} -> __IMPOSSIBLE__
+  Resp_DoneAborting {}      -> __IMPOSSIBLE__
+  Resp_DoneExiting {}       -> __IMPOSSIBLE__
 
 ---------------------------------------------------------------------------
 -- * Names for generated definitions

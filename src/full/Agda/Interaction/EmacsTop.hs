@@ -27,7 +27,6 @@ import qualified Agda.TypeChecking.Pretty as TCP
 import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, renderTCWarnings')
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors(..))
 import Agda.Interaction.AgdaTop
 import Agda.Interaction.Base
 import Agda.Interaction.BasicOps as B

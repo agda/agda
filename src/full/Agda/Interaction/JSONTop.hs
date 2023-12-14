@@ -14,7 +14,9 @@ import qualified Data.Set as Set
 
 import Agda.Interaction.AgdaTop
 import Agda.Interaction.Base
-         ( CommandState(..), CurrentFile(..), ComputeMode(..), Rewrite(..), OutputForm(..), OutputConstraint(..) )
+         ( CommandState(..), CurrentFile(..), ComputeMode(..), Rewrite(..)
+         , OutputConstraint_boot(..), OutputForm_boot(..))
+import Agda.Interaction.Output (OutputConstraint, OutputForm)
 import qualified Agda.Interaction.BasicOps as B
 import Agda.Interaction.EmacsTop
 import Agda.Interaction.JSON

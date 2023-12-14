@@ -17,7 +17,7 @@ import qualified Data.Map                     as Map
 import           Data.Maybe                   (listToMaybe)
 
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
-  (HighlightingLevel, HighlightingMethod, TCM, Comparison, Polarity, TCErr)
+  (HighlightingLevel, HighlightingMethod, Comparison, Polarity)
 
 import           Agda.Syntax.Abstract         (QName)
 import           Agda.Syntax.Common           (InteractionId (..), Modality)
@@ -75,12 +75,6 @@ initCommandState commandQueue =
     , oldInteractionScopes = Map.empty
     , commandQueue         = commandQueue
     }
-
--- | Monad for computing answers to interactive commands.
---
---   'CommandM' is 'TCM' extended with state 'CommandState'.
-
-type CommandM = StateT CommandState TCM
 
 -- | Information about the current main module.
 data CurrentFile = CurrentFile
@@ -462,10 +456,10 @@ data UseForce
   | WithoutForce  -- ^ Don't ignore any checks.
   deriving (Eq, Read, Show)
 
-data OutputForm a b = OutputForm Range [ProblemId] Blocker (OutputConstraint a b)
+data OutputForm_boot tcErr a b = OutputForm Range [ProblemId] Blocker (OutputConstraint_boot tcErr a b)
   deriving (Functor)
 
-data OutputConstraint a b
+data OutputConstraint_boot tcErr a b
       = OfType b a | CmpInType Comparison a b b
                    | CmpElim [Polarity] a [b] [b]
       | JustType b | CmpTypes Comparison b b
@@ -478,7 +472,7 @@ data OutputConstraint a b
       | FindInstanceOF b a [(a,a,a)]
       | ResolveInstanceOF QName
       | PTSInstance b b
-      | PostponedCheckFunDef QName a TCErr
+      | PostponedCheckFunDef QName a tcErr
       | CheckLock b b
       | DataSort QName b
       | UsableAtMod Modality b

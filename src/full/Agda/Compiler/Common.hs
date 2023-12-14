@@ -1,6 +1,10 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-module Agda.Compiler.Common where
+module Agda.Compiler.Common
+  ( module Agda.Compiler.Common
+  , IsMain(..)
+  )
+  where
 
 import Prelude hiding ((!!))
 
@@ -34,19 +38,6 @@ import Agda.Utils.Maybe
 import Agda.Utils.WithDefault    ( lensCollapseDefault )
 
 import Agda.Utils.Impossible
-
-data IsMain = IsMain | NotMain
-  deriving (Eq, Show)
-
--- | Conjunctive semigroup ('NotMain' is absorbing).
-instance Semigroup IsMain where
-  NotMain <> _ = NotMain
-  _       <> NotMain = NotMain
-  IsMain  <> IsMain = IsMain
-
-instance Monoid IsMain where
-  mempty = IsMain
-  mappend = (<>)
 
 doCompile :: Monoid r => (IsMain -> Interface -> TCM r) -> IsMain -> Interface -> TCM r
 doCompile f isMain i = do

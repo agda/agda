@@ -462,6 +462,7 @@ library
       Agda.Auto.Typecheck
       Agda.Benchmarking
       Agda.Compiler.Backend
+      Agda.Compiler.Backend.Base
       Agda.Compiler.Builtin
       Agda.Compiler.CallCompiler
       Agda.Compiler.Common
@@ -518,7 +519,9 @@ library
       Agda.Interaction.Highlighting.LaTeX
       Agda.Interaction.Imports
       Agda.Interaction.InteractionTop
+      Agda.Interaction.Output
       Agda.Interaction.Response
+      Agda.Interaction.Response.Base
       Agda.Interaction.MakeCase
       Agda.Interaction.Monad
       Agda.Interaction.Library
