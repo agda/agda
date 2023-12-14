@@ -83,3 +83,5 @@ stack.yaml
 stack*.yaml.lock
 trash.txt
 \#*\#
+.direnv
+
