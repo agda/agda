@@ -12,9 +12,9 @@
       # TODO agda2-mode
     };
 
-    defaultPackage = self.packages.${system}.Agda;
+    packages.default = self.packages.${system}.Agda;
 
-    devShell = pkgs.haskellPackages.shellFor {
+    devShells.default = pkgs.haskellPackages.shellFor {
       packages = ps: with ps; [ Agda ];
       nativeBuildInputs = with pkgs; [
         cabal-install
