@@ -20,6 +20,7 @@ import Agda.Syntax.Common.Pretty
 -- * Converting clauses to rewrite rules
 ------------------------------------------------------------------------
 
+{-# INLINABLE getClausesAsRewriteRules #-}
 -- | Get all the clauses of a definition and convert them to rewrite
 --   rules.
 getClausesAsRewriteRules :: (HasConstInfo m, MonadFresh NameId m) => QName -> m [RewriteRule]
@@ -29,12 +30,14 @@ getClausesAsRewriteRules f = do
     clname <- clauseQName f i
     return $ clauseToRewriteRule f clname cl
 
+{-# INLINABLE clauseQName #-}
 -- | Generate a sensible name for the given clause
 clauseQName :: (HasConstInfo m, MonadFresh NameId m) => QName -> Int -> m QName
 clauseQName f i = QName (qnameModule f) <$> clauseName (qnameName f) i
   where
     clauseName n i = freshName noRange (prettyShow n ++ "-clause" ++ show i)
 
+{-# INLINABLE clauseToRewriteRule #-}
 -- | @clauseToRewriteRule f q cl@ converts the clause @cl@ of the
 --   function @f@ to a rewrite rule with name @q@. Returns @Nothing@
 --   if @clauseBody cl@ is @Nothing@. Precondition: @clauseType cl@ is

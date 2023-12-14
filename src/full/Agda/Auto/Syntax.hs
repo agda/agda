@@ -373,7 +373,7 @@ instance Weakening (ICArgList o) where
     CALConcat a as -> CALConcat (weak' n a) (weak' n as)
 
 instance Weakening (Elr o) where
-  weak' n = rename (n+)
+  weak' n = rename (n +)
 
 -- | Substituting for a variable.
 doclos :: [CAction o] -> Nat -> Either Nat (ICExp o)

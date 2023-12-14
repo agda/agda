@@ -91,9 +91,11 @@ instantiateWhen p =
   localR (\env -> env { redPred = Just p }) .
   instantiateFull'
 
+{-# INLINE reduce #-}
 reduce :: (Reduce a, MonadReduce m) => a -> m a
 reduce = liftReduce . reduce'
 
+{-# INLINE reduceB #-}
 reduceB :: (Reduce a, MonadReduce m) => a -> m (Blocked a)
 reduceB = liftReduce . reduceB'
 
@@ -104,6 +106,7 @@ reduceWithBlocker a = ifBlocked a
   (\b a' -> return (b, a'))
   (\_ a' -> return (neverUnblock, a'))
 
+{-# INLINE normalise #-}
 normalise :: (Normalise a, MonadReduce m) => a -> m a
 normalise = liftReduce . normalise'
 
@@ -113,6 +116,7 @@ normalise = liftReduce . normalise'
 -- normaliseB :: (MonadReduce m, Reduce t, Normalise t) => t -> m (Blocked t)
 -- normaliseB = normalise >=> reduceB
 
+{-# INLINE simplify #-}
 simplify :: (Simplify a, MonadReduce m) => a -> m a
 simplify = liftReduce . simplify'
 
@@ -124,6 +128,7 @@ isFullyInstantiatedMeta m = do
     InstV inst -> noMetas <$> instantiateFull (instBody inst)
     _ -> return False
 
+{-# INLINABLE blockAll #-}
 -- | Blocking on all blockers.
 blockAll :: (Functor f, Foldable f) => f (Blocked a) -> Blocked (f a)
 blockAll bs = blockedOn block $ fmap ignoreBlocking bs
@@ -131,6 +136,7 @@ blockAll bs = blockedOn block $ fmap ignoreBlocking bs
         blocker NotBlocked{}  = alwaysUnblock
         blocker (Blocked b _) = b
 
+{-# INLINABLE blockAny #-}
 -- | Blocking on any blockers.
 blockAny :: (Functor f, Foldable f) => f (Blocked a) -> Blocked (f a)
 blockAny bs = blockedOn block $ fmap ignoreBlocking bs
@@ -140,6 +146,7 @@ blockAny bs = blockedOn block $ fmap ignoreBlocking bs
         blocker NotBlocked{}  = []
         blocker (Blocked b _) = [b]
 
+{-# SPECIALIZE blockOnError :: Blocker -> TCM a -> TCM a #-}
 -- | Run the given computation but turn any errors into blocked computations with the given blocker
 blockOnError :: MonadError TCErr m => Blocker -> m a -> m a
 blockOnError blocker f
@@ -296,6 +303,7 @@ instance Instantiate Constraint where
   instantiate' (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> instantiate' (a,b)
   instantiate' (UnBlock m)          = return $ UnBlock m
   instantiate' (FindInstance m cs)  = FindInstance m <$> mapM instantiate' cs
+  instantiate' (ResolveInstanceHead q) = return $ ResolveInstanceHead q
   instantiate' (IsEmpty r t)        = IsEmpty r <$> instantiate' t
   instantiate' (CheckSizeLtSat t)   = CheckSizeLtSat <$> instantiate' t
   instantiate' c@CheckFunDef{}      = return c
@@ -807,7 +815,7 @@ reduceHead v = do -- ignoreAbstractMode $ do
       abstractMode <- envAbstractMode <$> askTC
       isAbstract <- not <$> hasAccessibleDef f
       traceSLn "tc.inj.reduce" 50 (
-        "reduceHead: we are in " ++ show abstractMode++ "; " ++ prettyShow f ++
+        "reduceHead: we are in " ++ show abstractMode ++ "; " ++ prettyShow f ++
         " is treated " ++ if isAbstract then "abstractly" else "concretely"
         ) $ do
       let v0  = Def f []
@@ -933,6 +941,7 @@ instance Reduce a => Reduce (Closure a) where
     reduce' cl = do
         x <- enterClosure cl reduce'
         return $ cl { clValue = x }
+{-# SPECIALIZE reduce' :: Closure Constraint -> ReduceM (Closure Constraint) #-}
 
 instance Reduce Telescope where
   reduce' EmptyTel          = return EmptyTel
@@ -951,6 +960,7 @@ instance Reduce Constraint where
   reduce' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> reduce' (a,b)
   reduce' (UnBlock m)           = return $ UnBlock m
   reduce' (FindInstance m cs)   = FindInstance m <$> mapM reduce' cs
+  reduce' (ResolveInstanceHead q) = return $ ResolveInstanceHead q
   reduce' (IsEmpty r t)         = IsEmpty r <$> reduce' t
   reduce' (CheckSizeLtSat t)    = CheckSizeLtSat <$> reduce' t
   reduce' c@CheckFunDef{}       = return c
@@ -1117,6 +1127,7 @@ instance Simplify Constraint where
   simplify' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> simplify' (a,b)
   simplify' (UnBlock m)           = return $ UnBlock m
   simplify' (FindInstance m cs)   = FindInstance m <$> mapM simplify' cs
+  simplify' (ResolveInstanceHead q) = return $ ResolveInstanceHead q
   simplify' (IsEmpty r t)         = IsEmpty r <$> simplify' t
   simplify' (CheckSizeLtSat t)    = CheckSizeLtSat <$> simplify' t
   simplify' c@CheckFunDef{}       = return c
@@ -1298,6 +1309,7 @@ instance Normalise Constraint where
   normalise' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> normalise' (a,b)
   normalise' (UnBlock m)           = return $ UnBlock m
   normalise' (FindInstance m cs)   = FindInstance m <$> mapM normalise' cs
+  normalise' (ResolveInstanceHead q) = return $ ResolveInstanceHead q
   normalise' (IsEmpty r t)         = IsEmpty r <$> normalise' t
   normalise' (CheckSizeLtSat t)    = CheckSizeLtSat <$> normalise' t
   normalise' c@CheckFunDef{}       = return c
@@ -1538,6 +1550,7 @@ instance InstantiateFull Constraint where
     SortCmp cmp a b     -> uncurry (SortCmp cmp) <$> instantiateFull' (a,b)
     UnBlock m           -> return $ UnBlock m
     FindInstance m cs   -> FindInstance m <$> mapM instantiateFull' cs
+    ResolveInstanceHead q -> return $ ResolveInstanceHead q
     IsEmpty r t         -> IsEmpty r <$> instantiateFull' t
     CheckSizeLtSat t    -> CheckSizeLtSat <$> instantiateFull' t
     c@CheckFunDef{}     -> return c

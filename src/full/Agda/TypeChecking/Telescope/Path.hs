@@ -95,7 +95,7 @@ telePiPath_ tel t bndry = do
 arityPiPath :: Type -> TCM Int
 arityPiPath t = do
   piOrPath t >>= \case
-    Left (_, u) -> (+1) <$> arityPiPath (unAbs u)
+    Left (_, u) -> (+ 1) <$> arityPiPath (unAbs u)
     Right _     -> return 0
 
 -- | Collect the interval copattern variables as list of de Bruijn indices.
@@ -118,6 +118,7 @@ instance IApplyVars p => IApplyVars (NamedArg p) where
 instance IApplyVars p => IApplyVars [p] where
   iApplyVars = concatMap iApplyVars
 
+{-# SPECIALIZE isInterval :: Type -> TCM Bool #-}
 -- | Check whether a type is the built-in interval type.
 isInterval :: (MonadTCM m, MonadReduce m) => Type -> m Bool
 isInterval t = liftTCM $ do

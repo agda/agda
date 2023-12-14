@@ -1,7 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-{-# LANGUAGE CPP                        #-}
-
 -- | Maintaining a list of favorites of some partially ordered type.
 --   Only the best elements are kept.
 --
@@ -15,9 +13,6 @@ module Agda.Utils.Favorites where
 
 import Prelude hiding ( null )
 
-#if __GLASGOW_HASKELL__ < 804
-import Data.Semigroup
-#endif
 import qualified Data.List as List
 import qualified Data.Set as Set
 

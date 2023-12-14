@@ -20,6 +20,7 @@ jobs:
     - id: setup-haskell
       uses: haskell-actions/setup@v2
       with:
+        cabal-update: true
         cabal-version: ${{ matrix.cabal-ver }}
         ghc-version: ${{ matrix.ghc-ver }}
     - name: Environment settings based on the Haskell setup
@@ -32,7 +33,6 @@ jobs:
         echo "CABAL_VER=${CABAL_VER}"     >> "${GITHUB_ENV}"
     - name: Configure the build plan
       run: |
-        cabal update
         cabal configure ${FLAGS}
         cabal build --dry-run
     - id: cache
@@ -45,7 +45,7 @@ jobs:
           ${{ steps.setup-haskell.outputs.cabal-store }}
         restore-keys: |
           haddock.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-
-    - if: ${{ !steps.cache.outputs.cache-hit }}
+    - if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       name: Install dependencies
       run: |
         cabal build --dependencies-only
@@ -70,7 +70,7 @@ jobs:
         cabal-ver:
         - '3.10'
         ghc-ver:
-        - 9.6.2
+        - 9.8.1
         os:
         - ubuntu-22.04
 name: Haddock

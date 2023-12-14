@@ -126,7 +126,7 @@ isntTypeConf :: TermConfiguration -> TermConfiguration
 isntTypeConf conf = conf { tcIsType = False }
 
 extendConf :: TermConfiguration -> TermConfiguration
-extendConf conf = conf { tcFreeVariables = 0 : map (1+) (tcFreeVariables conf) }
+extendConf conf = conf { tcFreeVariables = 0 : map (1 +) (tcFreeVariables conf) }
 
 extendWithTelConf :: Telescope -> TermConfiguration -> TermConfiguration
 extendWithTelConf tel conf = foldr (const extendConf) conf (telToList tel)

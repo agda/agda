@@ -5,7 +5,6 @@
 module Agda.Syntax.Internal.Names where
 
 import Data.HashMap.Strict (HashMap)
-import qualified Data.HashMap.Strict as HMap
 import Data.Map (Map)
 import Data.Set (Set)
 
@@ -99,26 +98,34 @@ instance NamesIn a => NamesIn (Tele a)
 
 instance (NamesIn a, NamesIn b) => NamesIn (a, b) where
   namesAndMetasIn' sg (x, y) =
-    mappend (namesAndMetasIn' sg x) (namesAndMetasIn' sg y)
+    namesAndMetasIn' sg x <> namesAndMetasIn' sg y
+  {-# INLINE namesAndMetasIn' #-}
 
 instance (NamesIn a, NamesIn b, NamesIn c) => NamesIn (a, b, c) where
-  namesAndMetasIn' sg (x, y, z) = namesAndMetasIn' sg (x, (y, z))
+  namesAndMetasIn' sg (x, y, z) =
+    namesAndMetasIn' sg x <> namesAndMetasIn' sg y <> namesAndMetasIn' sg z
+  {-# INLINE namesAndMetasIn' #-}
 
 instance (NamesIn a, NamesIn b, NamesIn c, NamesIn d) => NamesIn (a, b, c, d) where
   namesAndMetasIn' sg (x, y, z, u) =
-    namesAndMetasIn' sg ((x, y), (z, u))
+    namesAndMetasIn' sg x <> namesAndMetasIn' sg y <> namesAndMetasIn' sg z <> namesAndMetasIn' sg u
+  {-# INLINE namesAndMetasIn' #-}
 
 instance
   (NamesIn a, NamesIn b, NamesIn c, NamesIn d, NamesIn e) =>
   NamesIn (a, b, c, d, e) where
   namesAndMetasIn' sg (x, y, z, u, v) =
-    namesAndMetasIn' sg ((x, y), (z, (u, v)))
+    namesAndMetasIn' sg x <> namesAndMetasIn' sg y <> namesAndMetasIn' sg z <> namesAndMetasIn' sg u
+    <> namesAndMetasIn' sg v
+  {-# INLINE namesAndMetasIn' #-}
 
 instance
   (NamesIn a, NamesIn b, NamesIn c, NamesIn d, NamesIn e, NamesIn f) =>
   NamesIn (a, b, c, d, e, f) where
   namesAndMetasIn' sg (x, y, z, u, v, w) =
-    namesAndMetasIn' sg ((x, (y, z)), (u, (v, w)))
+    namesAndMetasIn' sg x <> namesAndMetasIn' sg y <> namesAndMetasIn' sg z <> namesAndMetasIn' sg u
+    <> namesAndMetasIn' sg v <> namesAndMetasIn' sg w
+  {-# INLINE namesAndMetasIn' #-}
 
 instance NamesIn CompKit where
   namesAndMetasIn' sg (CompKit a b) = namesAndMetasIn' sg (a,b)
@@ -308,7 +315,7 @@ instance NamesIn RewriteRule where
       namesAndMetasIn' sg (a, b, c, d, e, f)
 
 instance (NamesIn a, NamesIn b) => NamesIn (HashMap a b) where
-  namesAndMetasIn' sg = namesAndMetasIn' sg . HMap.toList
+  namesAndMetasIn' sg map = foldMap (namesAndMetasIn' sg) map
 
 instance NamesIn System where
   namesAndMetasIn' sg (System tel cs) = namesAndMetasIn' sg (tel, cs)

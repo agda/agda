@@ -244,7 +244,7 @@ jsPreModule _opts _ m mifile = do
     yesComp compile = do
       m   <- prettyShow <$> curMName
       out <- outFile_
-      reportSLn "compile.js" 1 $ repl [m, ifileDesc, out] "Compiling <<0>> in <<1>> to <<2>>"
+      alwaysReportSLn "compile.js" 1 $ repl [m, ifileDesc, out] "Compiling <<0>> in <<1>> to <<2>>"
       kit <- coinductionKit
       return $ Recompile $ JSModuleEnv
         { jsCoinductionKit = kit
@@ -443,7 +443,7 @@ definition' kit q d t ls =
         let (body, given) = lamView funBody
               where
                 lamView :: T.TTerm -> (T.TTerm, Int)
-                lamView (T.TLam t) = (+1) <$> lamView t
+                lamView (T.TLam t) = (+ 1) <$> lamView t
                 lamView t = (t, 0)
 
             -- number of eta expanded args
@@ -609,7 +609,7 @@ compileTerm kit t = go t
     unit = return Null
 
     mkArray xs
-        | 2 * length (filter ((==Null) . snd) xs) <= length xs = Array xs
+        | 2 * length (filter ((== Null) . snd) xs) <= length xs = Array xs
         | otherwise = Object $ Map.fromListWith __IMPOSSIBLE__
             [ (MemberIndex i c, x) | (i, (c, x)) <- zip [0..] xs, x /= Null ]
 

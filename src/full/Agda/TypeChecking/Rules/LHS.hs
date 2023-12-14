@@ -5,7 +5,7 @@ module Agda.TypeChecking.Rules.LHS
   , LHSResult(..)
   , bindAsPatterns
   , IsFlexiblePattern(..)
-  , DataOrRecord(..)
+  , DataOrRecord
   , checkSortOfSplitVar
   ) where
 
@@ -35,7 +35,7 @@ import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Lenses
 
-import Agda.Syntax.Internal as I hiding (DataOrRecord(..))
+import Agda.Syntax.Internal as I hiding (DataOrRecord)
 import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views (asView, deepUnscope)
@@ -596,10 +596,7 @@ bindAsPatterns (AsB x v a m : asb) ret = do
 --   recheck the stripped with patterns when checking a with function.
 recheckStrippedWithPattern :: ProblemEq -> TCM ()
 recheckStrippedWithPattern (ProblemEq p v a) = checkInternal v CmpLeq (unDom a)
-  `catchError` \_ -> typeError . GenericDocError =<< vcat
-    [ "Ill-typed pattern after with abstraction: " <+> prettyA p
-    , "(perhaps you can replace it by `_`?)"
-    ]
+  `catchError` \_ -> typeError $ IllTypedPatternAfterWithAbstraction p
 
 -- | Result of checking the LHS of a clause.
 data LHSResult = LHSResult
@@ -1030,7 +1027,7 @@ checkLHS mf = updateModality checkLHS_ where
       i <- liftTCM $ addContext tel $ ifJustM (isEtaVar v a) return $
              softTypeError $ SplitOnNonVariable v a
 
-      let pos = size tel - (i+1)
+      let pos = size tel - (i + 1)
           (delta1, tel'@(ExtendTel dom adelta2)) = splitTelescopeAt pos tel -- TODO:: tel' defined but not used
 
       p <- liftTCM $ expandLitPattern p
@@ -1076,8 +1073,7 @@ checkLHS mf = updateModality checkLHS_ where
         addContext tel $ disambiguateProjection h ambProjName target
 
       unless comatchingAllowed $ do
-        hardTypeError . GenericDocError =<< do
-          liftTCM $ "Copattern matching is disabled for record" <+> prettyTCM recName
+        hardTypeError $ ComatchingDisabledForRecord recName
 
       -- Compute the new rest type by applying the projection type to 'self'.
       -- Note: we cannot be in a let binding.
@@ -1153,8 +1149,7 @@ checkLHS mf = updateModality checkLHS_ where
     splitPartial delta1 dom adelta2 ts = do
 
       unless (domIsFinite dom) $ liftTCM $ addContext delta1 $
-        softTypeError . GenericDocError =<<
-        vcat [ "Splitting on partial elements is only allowed at the type Partial, but the domain here is" , nest 2 $ prettyTCM $ unDom dom ]
+        softTypeError $ SplitOnPartial dom
 
       tInterval <- liftTCM $ primIntervalType
 
@@ -1209,8 +1204,7 @@ checkLHS mf = updateModality checkLHS_ where
                        getBuiltinName' builtinIsOne
                      case a of
                        Def q [Apply phi] | q == isone -> return (unArg phi)
-                       _           -> typeError . GenericDocError =<< do
-                         prettyTCM a <+> " is not IsOne."
+                       _           -> typeError $ BuiltinMustBeIsOne a
 
                    _  -> foldl (\ x y -> primIMin <@> x <@> y) primIOne (map pure ts)
          reportSDoc "tc.lhs.split.partial" 10 $ text "phi           =" <+> prettyTCM phi
@@ -1581,7 +1575,7 @@ checkMatchingAllowed :: (MonadTCError m)
   -> DataOrRecord  -- ^ Information about data or (co)inductive (no-)eta-equality record.
   -> m ()
 checkMatchingAllowed d = \case
-  IsRecord ind eta
+  IsRecord InductionAndEta { recordInduction=ind, recordEtaEquality=eta }
     | Just CoInductive <- ind -> typeError $
         GenericError "Pattern matching on coinductive types is not allowed"
     | not $ patternMatchingAllowed eta -> typeError $ SplitOnNonEtaRecord d
@@ -1608,13 +1602,7 @@ softTypeError err = withCallerCallStack $ \loc ->
 hardTypeError :: (HasCallStack, MonadTCM m) => TypeError -> m a
 hardTypeError = withCallerCallStack $ \loc -> liftTCM . typeError' loc
 
-data DataOrRecord
-  = IsData
-  | IsRecord
-    { recordInduction   :: Maybe Induction
-    , recordEtaEquality :: EtaEquality
-    }
-  deriving (Show)
+type DataOrRecord = DataOrRecord' InductionAndEta
 
 -- | Check if the type is a data or record type and return its name,
 --   definition, parameters, and indices. Fails softly if the type could become
@@ -1641,18 +1629,16 @@ isDataOrRecordType a0 = ifBlocked a0 blocked $ \case
 
       Record{ recInduction, recEtaEquality' } -> do
         let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-        return (IsRecord recInduction recEtaEquality', d, pars, [])
+        return (IsRecord InductionAndEta {recordInduction=recInduction, recordEtaEquality=recEtaEquality' }, d, pars, [])
 
       -- Issue #2253: the data type could be abstract.
-      AbstractDefn{} -> hardTypeError . GenericDocError =<< do
-        liftTCM $ "Cannot split on abstract data type" <+> prettyTCM d
+      AbstractDefn{} -> hardTypeError $ SplitOnAbstract d
 
       -- the type could be an axiom
       Axiom{} -> hardTypeError =<< notData
 
       -- Can't match before we have the definition
-      DataOrRecSig{} -> hardTypeError . GenericDocError =<< do
-        liftTCM $ "Cannot split on data type" <+> prettyTCM d <+> "whose definition has not yet been checked"
+      DataOrRecSig{} -> hardTypeError $ SplitOnUnchecked d
 
       -- Issue #2997: the type could be a Def that does not reduce for some reason
       -- (abstract, failed termination checking, NON_TERMINATING, ...)
@@ -1745,11 +1731,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
           tryDisambiguate True fs r vs comatching $ \case
             ([]   , []      ) -> __IMPOSSIBLE__
             (err:_, []      ) -> throwError err
-            (_    , disambs@((d,a):_)) -> typeError . GenericDocError =<< vcat
-              [ "Ambiguous projection " <> prettyTCM d <> "."
-              , "It could refer to any of"
-              , nest 2 $ vcat $ map (prettyDisambProj . fst) disambs
-              ]
+            (_    , disambs@((d,a):_)) -> typeError $ AmbiguousProjection d (map fst disambs)
     _ -> __IMPOSSIBLE__
 
   where
@@ -1772,20 +1754,8 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
 
     wrongProj :: (MonadTCM m, MonadError TCErr m, ReadTCState m) => QName -> m a
     wrongProj d = softTypeError =<< do
-      liftTCM $ GenericDocError <$> sep
-        [ "Cannot eliminate type "
-        , prettyTCM (unArg b)
-        , " with projection "
-        , if isAmbiguous ambD then
-            text . prettyShow =<< dropTopLevelModule d
-          else
-            prettyTCM d
-        ]
-
-    wrongHiding :: (MonadTCM m, MonadError TCErr m, ReadTCState m) => QName -> m a
-    wrongHiding d = softTypeError =<< do
-      liftTCM $ GenericDocError <$> sep
-        [ "Wrong hiding used for projection " , prettyTCM d ]
+      liftTCM $ if isAmbiguous ambD then CannotEliminateWithProjection b True <$> dropTopLevelModule d
+                else pure $ CannotEliminateWithProjection b False d
 
     tryProj
       :: Bool                 -- Are we allowed to create new constraints?
@@ -1833,7 +1803,8 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
         -- Andreas, 2016-12-31, issue #2374:
         -- We can also disambiguate by hiding info.
         -- Andreas, 2018-10-18, issue #3289: postfix projections have no hiding info.
-        unless (caseMaybe h True $ sameHiding $ projArgInfo proj) $ wrongHiding d
+        unless (caseMaybe h True $ sameHiding $ projArgInfo proj) $
+          softTypeError $ WrongHidingInProjection d
 
         -- Andreas, 2016-12-31, issue #1976: Check parameters.
         let chk = checkParameters qr r vs
@@ -1874,11 +1845,8 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
         -- meaning that only the parameters may differ,
         -- then throw more specific error.
         (_    , [_]) -> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d cs
-        (_    , disambs@(((c,_,_):|_):_)) -> typeError . GenericDocError =<< vcat
-          [ "Ambiguous constructor " <> pretty (qnameName c) <> "."
-          , "It could refer to any of"
-          , nest 2 $ vcat $ map (prettyDisambCons . conName . snd3) $ List1.concat disambs
-          ]
+        (_    , disambs@(((c,_,_) :| _) : _)) -> typeError $
+          AmbiguousConstructor c (map (conName . snd3) $ List1.concat disambs)
 
   where
     tryDisambiguate
@@ -2020,19 +1988,6 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
           (Just{},  Just{})  -> return False
       inState st m = localTCState $ do putTC st; m
 
-
-prettyDisamb :: (QName -> Maybe (Range' SrcFile)) -> QName -> TCM Doc
-prettyDisamb f x = do
-  let d  = pretty =<< dropTopLevelModule x
-  caseMaybe (f x) d $ \ r -> d <+> ("(introduced at " <> prettyTCM r <> ")")
-
--- | For Ambiguous Projection errors, print the last range in 'qnameModule'.
---   For Ambiguous Constructor errors, print the range in 'qnameName'. This fixes the bad
---   error message in #4130.
-prettyDisambProj, prettyDisambCons :: QName -> TCM Doc
-prettyDisambProj = prettyDisamb $ lastMaybe . filter (noRange /=) . map nameBindingSite . mnameToList . qnameModule
-prettyDisambCons = prettyDisamb $ Just . nameBindingSite . qnameName
-
 -- | @checkConstructorParameters c d pars@ checks that the data/record type
 --   behind @c@ is has initial parameters (coming e.g. from a module instantiation)
 --   that coincide with an prefix of @pars@.
@@ -2082,7 +2037,7 @@ checkSortOfSplitVar dr a tel mtarget = do
 
   where
     checkPropSplit
-      | IsRecord Nothing _ <- dr = return ()
+      | IsRecord InductionAndEta { recordInduction=Nothing } <- dr = return ()
       | Just target <- mtarget = do
         reportSDoc "tc.sort.check" 20 $ "target prop:" <+> prettyTCM target
         checkIsProp target
@@ -2096,7 +2051,7 @@ checkSortOfSplitVar dr a tel mtarget = do
       Right True  -> return ()
 
     checkFibrantSplit
-      | IsRecord _ _ <- dr     = return ()
+      | IsRecord _ <- dr       = return ()
       | Just target <- mtarget = do
           reportSDoc "tc.sort.check" 20 $ "target:" <+> prettyTCM target
           checkIsFibrant target
@@ -2120,15 +2075,7 @@ checkSortOfSplitVar dr a tel mtarget = do
       Right False -> splitOnFibrantError Nothing
       Right True  -> return ()
 
-    splitOnPropError dr = softTypeError =<< do
-      liftTCM $ GenericDocError <$>
-        ("Cannot split on" <+> kindOfData dr <+> "in Prop unless target is in Prop")
-      where
-        kindOfData :: DataOrRecord -> TCM Doc
-        kindOfData IsData                          = "datatype"
-        kindOfData (IsRecord Nothing _)            = "record type"
-        kindOfData (IsRecord (Just Inductive) _)   = "inductive record type"
-        kindOfData (IsRecord (Just CoInductive) _) = "coinductive record type"
+    splitOnPropError dr = softTypeError $ SplitInProp dr
 
     splitOnFibrantError' t mb = softTypeError =<< do
       liftTCM $ SortOfSplitVarError mb <$> fsep

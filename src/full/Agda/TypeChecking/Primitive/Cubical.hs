@@ -556,7 +556,7 @@ primTransHComp cmd ts nelims = do
               -- compData knows what to do for the general cases.
               Datatype{dataPars = pars, dataIxs = ixs, dataPathCons = pcons, dataTransp = mtrD}
                 | and [null pcons && ixs == 0 | DoHComp  <- [cmd]], Just as <- allApplyElims es ->
-                  compData mtrD ((not $ null $ pcons) || ixs > 0) (pars+ixs) cmd l (as <$ t) sbA sphi u u0
+                  compData mtrD ((not $ null $ pcons) || ixs > 0) (pars + ixs) cmd l (as <$ t) sbA sphi u u0
 
               -- Is this an axiom with constrant transport? Then. Well. Transport is constant.
               Axiom constTransp | constTransp, [] <- es, DoTransp <- cmd -> redReturn $ unArg u0

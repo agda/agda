@@ -16,6 +16,8 @@ import Data.Either ( partitionEithers )
 import Data.Foldable (all, traverse_)
 import qualified Data.List as List
 import Data.Map (Map)
+import qualified Data.HashMap.Strict as HMap
+import qualified Data.HashSet as HSet
 import qualified Data.Map as Map
 import Data.Maybe
 import Data.Set (Set)
@@ -250,7 +252,7 @@ addVarToBind x y = modifyScope_ $ updateVarsToBind $ AssocList.insert x y
 bindVarsToBind :: ScopeM ()
 bindVarsToBind = do
   vars <- getVarsToBind
-  modifyLocalVars (vars++)
+  modifyLocalVars (vars ++)
   printLocals 10 "bound variables:"
   modifyScope_ $ setVarsToBind []
 
@@ -311,7 +313,7 @@ freshConcreteName r i s = do
   let cname = C.Name r C.NotInScope $ singleton $ Id $ stringToRawName $ s ++ show i
   resolveName (C.QName cname) >>= \case
     UnknownName -> return cname
-    _           -> freshConcreteName r (i+1) s
+    _           -> freshConcreteName r (i + 1) s
 
 ---------------------------------------------------------------------------
 -- * Resolving names
@@ -583,6 +585,16 @@ memoToScopeInfo (ScopeMemo names mods) =
   ScopeCopyInfo { renNames   = names
                 , renModules = Map.map (pure . fst) mods }
 
+-- | Mark a name as being a copy in the TC state.
+copyName :: A.QName -> A.QName -> ScopeM ()
+copyName from to = do
+  from <- fromMaybe from . HMap.lookup from <$> useTC stCopiedNames
+  modifyTCLens stCopiedNames $ HMap.insert to from
+  let
+    k Nothing  = Just (HSet.singleton to)
+    k (Just s) = Just (HSet.insert to s)
+  modifyTCLens stNameCopies $ HMap.alter k from
+
 -- | Create a new scope with the given name from an old scope. Renames
 --   public names in the old scope to match the new name and returns the
 --   renamings.
@@ -667,6 +679,7 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
           y <- setRange rnew . A.qualify m <$> refresh (qnameName x)
           lift $ reportSLn "scope.copy" 50 $ "  Copying " ++ prettyShow x ++ " to " ++ prettyShow y
           addName x y
+          lift (copyName x y)
           return y
 
         -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
@@ -1029,7 +1042,7 @@ openModule kind mam cm dir = do
               where ks = fmap anameKind qs
         -- We report the first clashing exported identifier.
         unlessNull (filter defClash defClashes) $
-          \ ((x, q:|_) : _) -> typeError $ ClashingDefinition (C.QName x) (anameName q) Nothing
+          \ ((x, q :| _) : _) -> typeError $ ClashingDefinition (C.QName x) (anameName q) Nothing
 
         unlessNull modClashes $ \ ((_, ms) : _) -> do
           caseMaybe (List1.last2 ms) __IMPOSSIBLE__ $ \ (m0, m1) -> do

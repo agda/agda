@@ -94,7 +94,7 @@ _divMod_ m n {≢0} = <′-rec Pred dm m n {≢0}
                                         where r = suc (fromℕ m Fin.↑ˡ k)
   dm (suc m) rec (suc .m)           | equal .m     = result 1 zero (lem₂ m)
   dm (suc .(suc n + k)) rec (suc n) | greater .n k =
-    1+ rec (suc k) le (suc n)
+    1+ rec le _
     where le = s≤′s (s≤′s (n≤′m+n n k))
 
 -- Integer division.

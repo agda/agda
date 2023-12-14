@@ -10,6 +10,7 @@ module Agda.Utils.HashTable
   , insert
   , lookup
   , toList
+  , keySet
   ) where
 
 import Prelude hiding (lookup)
@@ -17,6 +18,9 @@ import Prelude hiding (lookup)
 import Data.Hashable
 import qualified Data.Vector.Hashtables as H
 import qualified Data.Vector.Mutable as VM
+import qualified Data.Vector as V
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 -- | Hash tables.
 
@@ -45,11 +49,13 @@ empty = HashTable <$> H.initialize 0
 
 insert :: (Eq k, Hashable k) => HashTable k v -> k -> v -> IO ()
 insert (HashTable h) = H.insert h
+{-# INLINABLE insert #-}
 
 -- | Tries to find a value corresponding to the key in the hash table.
 
 lookup :: (Eq k, Hashable k) => HashTable k v -> k -> IO (Maybe v)
 lookup (HashTable h) = H.lookup h
+{-# INLINABLE lookup #-}
 
 -- | Converts the hash table to a list.
 --
@@ -57,3 +63,10 @@ lookup (HashTable h) = H.lookup h
 
 toList :: (Eq k, Hashable k) => HashTable k v -> IO [(k, v)]
 toList (HashTable h) = H.toList h
+{-# INLINABLE toList #-}
+
+keySet :: forall k v. Ord k => HashTable k v -> IO (Set k)
+keySet (HashTable h) = do
+  (ks :: V.Vector k) <- H.keys h
+  pure $! V.foldl' (flip Set.insert) mempty ks
+{-# INLINABLE keySet #-}

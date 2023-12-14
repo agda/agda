@@ -9,10 +9,14 @@ module Agda.TypeChecking.InstanceArguments
   , shouldPostponeInstanceSearch
   , postponeInstanceConstraints
   , getInstanceCandidates
+  , OutputTypeName(..)
+  , getOutputTypeName
+  , addTypedInstance
+  , resolveInstanceHead
   ) where
 
 import Control.Monad        ( forM )
-import Control.Monad.Except ( MonadError(..) )
+import Control.Monad.Except ( ExceptT(..), runExceptT, MonadError(..) )
 import Control.Monad.Trans  ( lift )
 
 import qualified Data.Map as Map
@@ -20,6 +24,7 @@ import qualified Data.Set as Set
 import qualified Data.List as List
 import Data.Function (on)
 import Data.Monoid hiding ((<>))
+import Data.Foldable (foldrM)
 
 import Agda.Interaction.Options (optQualifiedInstances)
 
@@ -39,6 +44,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Warnings
 
 import {-# SOURCE #-} Agda.TypeChecking.Constraints
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
@@ -230,16 +236,77 @@ findInstance m (Just cands) =                          -- Note: if no blocking m
 
 -- | Entry point for `tcGetInstances` primitive
 getInstanceCandidates :: MetaId -> TCM (Either Blocker [Candidate])
-getInstanceCandidates m = do
-  mv <- lookupLocalMeta m
-  setCurrentRange mv $ do
-    t <- instantiate =<< getMetaTypeInContext m
-    TelV tel t' <- telViewUpTo' (-1) notVisible t
-    addContext tel $ initialInstanceCandidates t' >>= \case
-      Left b -> return $ Left b
-      Right cands -> checkCandidates m t' cands >>= \case
-        Nothing -> return $ Right cands
-        Just (_ , cands') -> return $ Right $ map fst cands'
+getInstanceCandidates m = wrapper where
+  wrapper = do
+    mv <- lookupLocalMeta m
+    setCurrentRange mv $ do
+      t <- instantiate =<< getMetaTypeInContext m
+      TelV tel t' <- telViewUpTo' (-1) notVisible t
+      addContext tel $ runExceptT (worker t')
+
+  worker :: Type -> ExceptT Blocker TCM [Candidate]
+  worker t' = do
+    cands <- ExceptT (initialInstanceCandidates t')
+    cands <- lift (checkCandidates m t' cands) <&> \case
+      Nothing         -> cands
+      Just (_, cands) -> fst <$> cands
+    cands <- lift (foldrM insertCandidate [] cands)
+    reportSDoc "tc.instance.sort" 20 $ nest 2 $ vcat
+      [ "sorted candidates"
+      , vcat [ "-" <+> (if overlap then "overlap" else empty) <+> prettyTCM c <+> ":" <+> prettyTCM t
+             | c@(Candidate q v t overlap) <- cands ] ]
+    pure cands
+
+-- | @'doesCandidateSpecialise' c1 c2@ checks whether the instance candidate @c1@
+-- /specialises/ the instance candidate @c2@, i.e., whether the type of
+-- @c2@ is a substitution instance of @c1@'s type.
+-- Only the final return type of the instances is considered: the
+-- presence of unsolvable instance arguments in the types of @c1@ or
+-- @c2@ does not affect the results of 'doesCandidateSpecialise'.
+doesCandidateSpecialise :: Candidate -> Candidate -> TCM Bool
+doesCandidateSpecialise c1@Candidate{candidateType = t1} c2@Candidate{candidateType = t2} = do
+  -- We compare
+  --    c1 : ∀ {Γ} → T
+  -- against
+  --    c2 : ∀ {Δ} → S
+  -- by moving to the context Γ ⊢, so that any variables in T's type are
+  -- "rigid", but *instantiating* S[?/Δ], so its variables are
+  -- "flexible"; then calling the conversion checker.
+
+  let
+    handle _ = do
+      reportSDoc "tc.instance.sort" 30 $ nest 2 "=> NOT specialisation"
+      pure False
+
+    wrap = flip catchError handle
+          -- Turn failures into returning false
+         . localTCState
+         -- Discard any changes to the TC state (metas from
+         -- instantiating t2, recursive instance constraints, etc)
+         . postponeInstanceConstraints
+         -- Don't spend any time looking for instances in the contexts
+
+  TelV tel t1 <- telView t1
+  addContext tel $ wrap $ do
+    (args, t2) <- implicitArgs (-1) (\h -> notVisible h) t2
+
+    reportSDoc "tc.instance.sort" 30 $ "Does" <+> prettyTCM c1 <+> "specialise" <+> (prettyTCM c2 <> "?")
+    reportSDoc "tc.instance.sort" 60 $ vcat
+      [ "Comparing candidate"
+      , nest 2 (prettyTCM c1 <+> colon <+> prettyTCM t1)
+      , "vs"
+      , nest 2 (prettyTCM c2 <+> colon <+> prettyTCM t2)
+      ]
+
+    leqType t2 t1
+    reportSDoc "tc.instance.sort" 30 $ nest 2 "=> IS specialisation"
+    pure True
+
+insertCandidate :: Candidate -> [Candidate] -> TCM [Candidate]
+insertCandidate x []     = pure [x]
+insertCandidate x (y:xs) = doesCandidateSpecialise x y >>= \case
+  True  -> pure (x:y:xs)
+  False -> (y:) <$> insertCandidate x xs
 
 -- | Result says whether we need to add constraint, and if so, the set of
 --   remaining candidates and an eventual blocking metavariable.
@@ -572,3 +639,80 @@ applyDroppingParameters t vs = do
             u : us -> (`apply` us) <$> applyDef ProjPrefix f u
         _ -> fallback
     _ -> fallback
+
+---------------------------------------------------------------------------
+-- * Instance definitions
+---------------------------------------------------------------------------
+
+data OutputTypeName
+  = OutputTypeName QName
+  | OutputTypeVar
+  | OutputTypeVisiblePi
+  | OutputTypeNameNotYetKnown Blocker
+  | NoOutputTypeName
+
+-- | Strips all hidden and instance Pi's and return the argument
+--   telescope and head definition name, if possible.
+getOutputTypeName :: Type -> TCM (Telescope, OutputTypeName)
+-- 2023-10-26, Jesper, issue #6941: To make instance search work correctly for
+-- abstract or opaque instances, we need to ignore abstract mode when computing
+-- the output type name.
+getOutputTypeName t = ignoreAbstractMode $ do
+  TelV tel t' <- telViewUpTo' (-1) notVisible t
+  ifBlocked (unEl t') (\ b _ -> return (tel , OutputTypeNameNotYetKnown b)) $ \ _ v ->
+    case v of
+      -- Possible base types:
+      Def n _  -> return (tel , OutputTypeName n)
+      Sort{}   -> return (tel , NoOutputTypeName)
+      Var n _  -> return (tel , OutputTypeVar)
+      Pi{}     -> return (tel , OutputTypeVisiblePi)
+      -- Not base types:
+      Con{}    -> __IMPOSSIBLE__
+      Lam{}    -> __IMPOSSIBLE__
+      Lit{}    -> __IMPOSSIBLE__
+      Level{}  -> __IMPOSSIBLE__
+      MetaV{}  -> __IMPOSSIBLE__
+      DontCare{} -> __IMPOSSIBLE__
+      Dummy s _ -> __IMPOSSIBLE_VERBOSE__ s
+
+
+-- | Register the definition with the given type as an instance.
+--   Issue warnings if instance is unusable.
+addTypedInstance ::
+     QName  -- ^ Name of instance.
+  -> Type   -- ^ Type of instance.
+  -> TCM ()
+addTypedInstance = addTypedInstance' True
+
+-- | Register the definition with the given type as an instance.
+addTypedInstance' ::
+     Bool   -- ^ Should we print warnings for unusable instance declarations?
+  -> QName  -- ^ Name of instance.
+  -> Type   -- ^ Type of instance.
+  -> TCM ()
+addTypedInstance' w x t = do
+  (tel , n) <- getOutputTypeName t
+  case n of
+    OutputTypeName n            -> addNamedInstance x n
+    OutputTypeNameNotYetKnown b -> do
+      addUnknownInstance x
+      addConstraint b $ ResolveInstanceHead x
+    NoOutputTypeName            -> when w $ warning $ WrongInstanceDeclaration
+    OutputTypeVar               -> when w $ warning $ WrongInstanceDeclaration
+    OutputTypeVisiblePi         -> when w $ warning $ InstanceWithExplicitArg x
+
+resolveInstanceHead :: QName -> TCM ()
+resolveInstanceHead q = do
+    clearUnknownInstance q
+    -- Andreas, 2022-12-04, issue #6380:
+    -- Do not warn about unusable instances here.
+    addTypedInstance' False q =<< typeOfConst q
+
+-- | Try to solve the instance definitions whose type is not yet known, report
+--   an error if it doesn't work and return the instance table otherwise.
+getInstanceDefs :: TCM InstanceTable
+getInstanceDefs = do
+  insts <- getAllInstanceDefs
+  unless (null $ snd insts) $
+    typeError $ GenericError $ "There are instances whose type is still unsolved"
+  return $ fst insts

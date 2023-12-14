@@ -67,8 +67,8 @@ restorePostScopeState :: (MonadDebug m, MonadTCState m) => PostScopeState -> m (
 restorePostScopeState pss = do
   reportSLn "cache" 10 $ "restorePostScopeState"
   modifyTC $ \s ->
-    let ipoints = s^.stInteractionPoints
-        ws = s^.stTCWarnings
+    let ipoints = s ^. stInteractionPoints
+        ws = s ^. stTCWarnings
         pss' = pss{stPostInteractionPoints = stPostInteractionPoints pss `mergeIPMap` ipoints
                   ,stPostTCWarnings = stPostTCWarnings pss `mergeWarnings` ws
                   ,stPostOpaqueBlocks = s ^. stOpaqueBlocks

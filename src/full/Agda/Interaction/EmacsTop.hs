@@ -6,6 +6,7 @@ module Agda.Interaction.EmacsTop
     , showGoals
     , showInfoError
     , explainWhyInScope
+    , prettyResponseContext
     , prettyTypeOfMeta
     ) where
 

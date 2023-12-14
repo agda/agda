@@ -205,7 +205,7 @@ mnameToQName :: ModuleName -> QName
 mnameToQName = qnameFromList . mnameToList1
 
 showQNameId :: QName -> String
-showQNameId q = show ns ++ "@" ++ show (List1.head ms)
+showQNameId q = show (List1.toList ns) ++ "@" ++ show (List1.head ms)
   where
     (ns, ms) = List1.unzip $ fmap (unNameId . nameId) $ List1.snoc (mnameToList $ qnameModule q) (qnameName q)
     unNameId (NameId n m) = (n, m)

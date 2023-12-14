@@ -134,11 +134,11 @@ instance PatternFrom Term NLPat where
     case (unEl t , stripDontCare v) of
       (Pi a b , _) -> do
         let body = raise 1 v `apply` [ Arg (domInfo a) $ var 0 ]
-        p <- addContext a (patternFrom r (k+1) (absBody b) body)
+        p <- addContext a (patternFrom r (k + 1) (absBody b) body)
         return $ PLam (domInfo a) $ Abs (absName b) p
       _ | Left ((a,b),(x,y)) <- pview t -> do
         let body = raise 1 v `applyE` [ IApply (raise 1 $ x) (raise 1 $ y) $ var 0 ]
-        p <- addContext a (patternFrom r (k+1) (absBody b) body)
+        p <- addContext a (patternFrom r (k + 1) (absBody b) body)
         return $ PLam (domInfo a) $ Abs (absName b) p
       (_ , Var i es)
        | i < k     -> do
@@ -187,7 +187,7 @@ instance PatternFrom Term NLPat where
       (_ , Pi a b) | isIrrelevant r -> done
       (_ , Pi a b) -> do
         pa <- patternFrom r k () a
-        pb <- addContext a (patternFrom r (k+1) () $ absBody b)
+        pb <- addContext a (patternFrom r (k + 1) () $ absBody b)
         return $ PPi pa (Abs (absName b) pb)
       (_ , Sort s)     -> PSort <$> patternFrom r k () s
       (_ , Level l)    -> __IMPOSSIBLE__
@@ -278,7 +278,7 @@ instance (NLPatVars a, NLPatVars b) => NLPatVars (a,b) where
 
 instance NLPatVars a => NLPatVars (Abs a) where
   nlPatVarsUnder k = \case
-    Abs   _ v -> nlPatVarsUnder (k+1) v
+    Abs   _ v -> nlPatVarsUnder (k + 1) v
     NoAbs _ v -> nlPatVarsUnder k v
 
 -- | Get all symbols that a non-linear pattern matches against

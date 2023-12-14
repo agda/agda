@@ -47,6 +47,7 @@ import Agda.TypeChecking.With
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Telescope.Path
 import Agda.TypeChecking.Injectivity
+import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.Rewriting.Confluence
 import Agda.TypeChecking.CompiledClause (CompiledClauses'(..), hasProjectionPatterns)
@@ -971,7 +972,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
            -- 1. rewriting with a reflexive equality to happen rarely,
            -- 2. especially with ?-holes in the rewrite expression
            -- 3. and a large overall number of ?s.
-           let sameIP = (==) `on` (^.stInteractionPoints)
+           let sameIP = (==) `on` (^. stInteractionPoints)
            when (sameIP st st') $ putTC st
            handleRHS $ A.RewriteRHS rs strippedPats rhs wh
 

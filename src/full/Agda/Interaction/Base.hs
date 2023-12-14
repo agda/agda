@@ -368,7 +368,7 @@ parseToReadsPrec p i s = case runIdentity . flip runStateT s . runExceptT $ pare
 -- | Demand an exact string.
 
 exact :: String -> Parse ()
-exact s = readsToParse (show s) $ fmap ((),) . List.stripPrefix s . dropWhile (==' ')
+exact s = readsToParse (show s) $ fmap ((),) . List.stripPrefix s . dropWhile (== ' ')
 
 readParse :: Read a => Parse a
 readParse = readsToParse "read failed" $ listToMaybe . reads
@@ -470,6 +470,7 @@ data OutputConstraint_boot tcErr a b
       | IsEmptyType a
       | SizeLtSat a
       | FindInstanceOF b a [(a,a,a)]
+      | ResolveInstanceOF QName
       | PTSInstance b b
       | PostponedCheckFunDef QName a tcErr
       | CheckLock b b

@@ -28,13 +28,12 @@
 
 ;;; Code:
 
-(defvar agda2-version "2.6.4"
+(defvar agda2-version "2.6.5"
   "The version of the Agda mode.
 Note that the same version of the Agda executable must be used.")
 
 (require 'cl-lib)
 (require 'compile)
-(require 'pp)
 (require 'time-date)
 (require 'eri)
 (require 'annotation)
@@ -1649,7 +1648,12 @@ text properties."
     (error "no process")))
 
 (defun agda2-intersperse (sep xs)
-  (let(ys)(while xs (push (pop xs) ys)(push sep ys))(pop ys)(nreverse ys)))
+  (let (ys)
+    (while xs
+      (push (pop xs) ys)
+      (push sep ys))
+    (pop ys)
+    (nreverse ys)))
 
 (defun agda2-goal-Range (o)
   "The Haskell Range of goal overlay O."
@@ -1694,10 +1698,10 @@ points < 128) are converted to singleton strings."
 Removes any text properties, escapes newlines, double quotes,
 etc., adds surrounding double quotes, and converts non-ASCII
 characters to the \\xNNNN notation used in Haskell strings."
-  (let ((pp-escape-newlines t)
+  (let ((print-escape-newlines t)
         (s2 (copy-sequence s)))
     (set-text-properties 0 (length s2) nil s2)
-    (mapconcat 'agda2-char-quote (pp-to-string s2) "")))
+    (mapconcat 'agda2-char-quote (prin1-to-string s2) "")))
 
 (defun agda2-list-quote (strings)
   "Convert a list of STRINGS into a string representing it in Haskell syntax."

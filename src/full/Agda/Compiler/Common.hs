@@ -1,7 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-{-# LANGUAGE CPP #-}
-
 module Agda.Compiler.Common
   ( module Agda.Compiler.Common
   , IsMain(..)
@@ -17,9 +15,6 @@ import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
 import Data.Char
 import Data.Function (on)
-#if __GLASGOW_HASKELL__ < 804
-import Data.Semigroup
-#endif
 
 import Control.Monad
 import Control.Monad.State

@@ -39,6 +39,7 @@ isProblemSolved pid =
   and2M (not . Set.member pid <$> asksTC envActiveProblems)
         (not . any (Set.member pid . constraintProblems) <$> getAllConstraints)
 
+{-# SPECIALIZE getConstraintsForProblem :: ProblemId -> TCM Constraints #-}
 getConstraintsForProblem :: ReadTCState m => ProblemId -> m Constraints
 getConstraintsForProblem pid = List.filter (Set.member pid . constraintProblems) <$> getAllConstraints
 
@@ -107,7 +108,7 @@ takeAwakeConstraint' p = do
 getAllConstraints :: ReadTCState m => m Constraints
 getAllConstraints = do
   s <- getTCState
-  return $ s^.stAwakeConstraints ++ s^.stSleepingConstraints
+  return $ s ^. stAwakeConstraints ++ s ^. stSleepingConstraints
 
 withConstraint :: MonadConstraint m => (Constraint -> m a) -> ProblemConstraint -> m a
 withConstraint f (PConstr pids _ c) = do
@@ -190,6 +191,7 @@ addConstraintTo bucket unblock c = do
       SortCmp{}        -> False
       LevelCmp{}       -> False
       FindInstance{}   -> False
+      ResolveInstanceHead{} -> False
       HasBiggerSort{}  -> False
       HasPTSRule{}     -> False
       CheckDataSort{}  -> False

@@ -17,7 +17,7 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: Ubuntu-latest
     steps:
-    - uses: styfle/cancel-workflow-action@0.11.0
+    - uses: styfle/cancel-workflow-action@0.12.0
       with:
         access_token: ${{ github.token }}
 
@@ -32,7 +32,7 @@ jobs:
         # "most canonical", since this is the deploy action.
         # As of today, this is [windows-2022, macOS-11, ubuntu-20.04].
         os: [windows-latest, macos-latest]
-        ghc-ver: ['9.6']
+        ghc-ver: ['9.8']
         # Use default (= latest) cabal version
         # cabal-ver: ['3.10']
 
@@ -40,9 +40,10 @@ jobs:
         # Atm, building static executables with GHC 9.4 is broken on ubuntu-22.04,
         # so, we downgrade to ubuntu-20.04.
         # Andreas, 2023-03-16: GHC 9.6 does not seem to do static linking even on ubuntu-20.04.
+        # Andreas, 2023-11-12: GHC 9.4.8 also fails to do static linking on ubuntu-20.04.
         include:
-          - os: ubuntu-20.04
-            ghc-ver: '9.4'
+        - os: ubuntu-20.04
+          ghc-ver: '9.4.7'
 
     env:
       ARGS: "--disable-executable-profiling --disable-library-profiling"
@@ -70,45 +71,45 @@ jobs:
         sha="$(git rev-parse --short=7 HEAD)"
         nightly=Agda-nightly
 
-        echo sha="${sha}"                                           >> ${GITHUB_OUTPUT}
-        echo nightly="${nightly}"                                   >> ${GITHUB_OUTPUT}
+        echo sha="${sha}"                                           >> "${GITHUB_OUTPUT}"
+        echo nightly="${nightly}"                                   >> "${GITHUB_OUTPUT}"
 
         if [[ "$OSTYPE" == "msys"* ]]; then
 
           filename="${nightly}-win64.zip"
-          echo args="${ARGS} ${WIN64_ARGS}"                         >> ${GITHUB_OUTPUT}
-          echo compress-cmd="7z a ${filename} ${nightly} -bb -mx=9" >> ${GITHUB_OUTPUT}
-          echo content-type="application/zip"                       >> ${GITHUB_OUTPUT}
-          echo exe="agda.exe"                                       >> ${GITHUB_OUTPUT}
-          echo filename="${filename}"                               >> ${GITHUB_OUTPUT}
+          echo args="${ARGS} ${WIN64_ARGS}"                         >> "${GITHUB_OUTPUT}"
+          echo compress-cmd="7z a ${filename} ${nightly} -bb -mx=9" >> "${GITHUB_OUTPUT}"
+          echo content-type="application/zip"                       >> "${GITHUB_OUTPUT}"
+          echo exe="agda.exe"                                       >> "${GITHUB_OUTPUT}"
+          echo filename="${filename}"                               >> "${GITHUB_OUTPUT}"
 
         elif [[ "$OSTYPE" == "darwin"* ]]; then
 
           filename="${nightly}-macOS.tar.xz"
-          echo args="${ARGS} ${MACOS_ARGS}"                         >> ${GITHUB_OUTPUT}
-          echo compress-cmd="tar -a -cvf ${filename} ${nightly}"    >> ${GITHUB_OUTPUT}
-          echo content-type="application/x-xz"                      >> ${GITHUB_OUTPUT}
-          echo exe="agda"                                           >> ${GITHUB_OUTPUT}
-          echo filename="${filename}"                               >> ${GITHUB_OUTPUT}
+          echo args="${ARGS} ${MACOS_ARGS}"                         >> "${GITHUB_OUTPUT}"
+          echo compress-cmd="tar -a -cvf ${filename} ${nightly}"    >> "${GITHUB_OUTPUT}"
+          echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
+          echo exe="agda"                                           >> "${GITHUB_OUTPUT}"
+          echo filename="${filename}"                               >> "${GITHUB_OUTPUT}"
 
         elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
 
           filename="${nightly}-linux.tar.xz"
-          echo args="${ARGS} ${LINUX_ARGS}"                         >> ${GITHUB_OUTPUT}
-          echo compress-cmd="tar -a -cvf ${filename} ${nightly}"    >> ${GITHUB_OUTPUT}
-          echo content-type="application/x-xz"                      >> ${GITHUB_OUTPUT}
-          echo exe="agda"                                           >> ${GITHUB_OUTPUT}
-          echo filename="${filename}"                               >> ${GITHUB_OUTPUT}
+          echo args="${ARGS} ${LINUX_ARGS}"                         >> "${GITHUB_OUTPUT}"
+          echo compress-cmd="tar -a -cvf ${filename} ${nightly}"    >> "${GITHUB_OUTPUT}"
+          echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
+          echo exe="agda"                                           >> "${GITHUB_OUTPUT}"
+          echo filename="${filename}"                               >> "${GITHUB_OUTPUT}"
 
         fi
 
     - name: Display build variables
       run: |
-        echo args         = ${{ steps.vars.outputs.args         }}
-        echo compress-cmd = ${{ steps.vars.outputs.compress-cmd }}
-        echo content-type = ${{ steps.vars.outputs.content-type }}
-        echo filename     = ${{ steps.vars.outputs.filename     }}
-        echo nightly      = ${{ steps.vars.outputs.nightly      }}
+        echo "args         = ${{ steps.vars.outputs.args         }}"
+        echo "compress-cmd = ${{ steps.vars.outputs.compress-cmd }}"
+        echo "content-type = ${{ steps.vars.outputs.content-type }}"
+        echo "filename     = ${{ steps.vars.outputs.filename     }}"
+        echo "nightly      = ${{ steps.vars.outputs.nightly      }}"
 
     - uses: haskell-actions/setup@v2
       id: setup-haskell
@@ -172,13 +173,18 @@ jobs:
         echo "ICU_MAJOR_VER=${ICU_MAJOR_VER}" >> "${GITHUB_ENV}"
       # The output of unconv --version looks like "uconv v2.1  ICU 72.1" from which we extract "72.1"
 
+    # Andreas, 2023-11-15: This did not fix the GHC 9.4.8 problem:
+    # (Suggested at https://gitlab.haskell.org/ghc/ghc/-/issues/24181#note_535333)
+    # - name: Switch off dynamic linking (Linux)
+    #   if:  runner.os == 'Linux'
+    #   run: |
+    #     echo "executable-dynamic: False" > cabal.project.local
+
     - name: Configure the build plan
       run: |
         cabal configure ${{ steps.vars.outputs.args }}
         cabal build --dry-run
       # cabal build --dry-run creates dist-newstyle/cache/plan.json
-      # Keep a watch on this `cabal-3.9 build --dry-run` bug:
-      # https://github.com/haskell/cabal/issues/8706
 
     - name: Cache dependencies
       uses: actions/cache@v3
@@ -189,7 +195,7 @@ jobs:
         restore-keys: deploy.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-
 
     - name: Build dependencies
-      if: ${{ !steps.cache.outputs.cache-hit }}
+      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       run: cabal build exe:agda exe:agda-mode --only-dependencies
 
     - name: Build Agda
@@ -209,9 +215,6 @@ jobs:
     #     command: cabal build exe:agda exe:agda-mode
 
     - name: Move artefacts to ${{ steps.vars.outputs.nightly }}
-      env:
-        DLL: "/c/msys64/mingw64/bin/libicu*.dll"
-          ## was /c/icu4c/icu*.dll
       run: |
         nightly="${{ steps.vars.outputs.nightly }}"
         mkdir -p "${nightly}"/bin
@@ -221,8 +224,10 @@ jobs:
 
           find dist-newstyle/build \( -name 'agda.exe' -o -name 'agda-mode.exe' \) -type f -exec cp {} "${nightly}"/bin \;
           cp -a .github/*.bat "${nightly}"
-          cp ${DLL} "${nightly}"/bin/
-          C:/ProgramData/Chocolatey/bin/strip.exe "${nightly}"/bin/*
+          cp /c/msys64/mingw64/bin/libicu*.dll "${nightly}"/bin/
+          ## Issue #6926: strip.exe not installed there.
+          ## Stripping step is optional, so we skip it.
+          # C:/ProgramData/Chocolatey/bin/strip.exe "${nightly}"/bin/*
 
         else
 
@@ -239,16 +244,16 @@ jobs:
           # 3. the default location of system-wide icu4c installed by homebrew, ie. /usr/local/opt/icu4c/lib
           #
           mkdir "${nightly}"/lib
-          cp ${ICU_DIR}/libicuuc.${ICU_MAJOR_VER}.dylib ${ICU_DIR}/libicui18n.${ICU_MAJOR_VER}.dylib ${ICU_DIR}/libicudata.${ICU_MAJOR_VER}.dylib "${nightly}"/lib
-          install_name_tool -change ${ICU_DIR}/libicuuc.${ICU_MAJOR_VER}.dylib @rpath/libicuuc.${ICU_MAJOR_VER}.dylib "${nightly}"/bin/agda
-          install_name_tool -change ${ICU_DIR}/libicui18n.${ICU_MAJOR_VER}.dylib @rpath/libicui18n.${ICU_MAJOR_VER}.dylib "${nightly}"/bin/agda
-          install_name_tool -add_rpath @executable_path -add_rpath @executable_path/../lib -add_rpath ${ICU_DIR} "${nightly}"/bin/agda
+          cp "${ICU_DIR}/libicuuc.${ICU_MAJOR_VER}.dylib" "${ICU_DIR}/libicui18n.${ICU_MAJOR_VER}.dylib" "${ICU_DIR}/libicudata.${ICU_MAJOR_VER}.dylib" "${nightly}"/lib
+          install_name_tool -change "${ICU_DIR}/libicuuc.${ICU_MAJOR_VER}.dylib" "@rpath/libicuuc.${ICU_MAJOR_VER}.dylib" "${nightly}"/bin/agda
+          install_name_tool -change "${ICU_DIR}/libicui18n.${ICU_MAJOR_VER}.dylib" "@rpath/libicui18n.${ICU_MAJOR_VER}.dylib" "${nightly}"/bin/agda
+          install_name_tool -add_rpath @executable_path -add_rpath @executable_path/../lib -add_rpath "${ICU_DIR}" "${nightly}"/bin/agda
           otool -L "${nightly}"/bin/agda
 
           fi
         fi
 
-        file ${{ steps.vars.outputs.nightly }}/bin/agda
+        file "${{ steps.vars.outputs.nightly }}/bin/agda"
 
     - name: Compress the Agda executable
       # UPX does not support macOS Big Sur.
@@ -258,7 +263,7 @@ jobs:
       if: ${{ runner.os != 'macOS' }}
       uses: svenstaro/upx-action@v2
       with:
-        file: ${{ steps.vars.outputs.nightly }}/bin/${{ steps.vars.outputs.exe }}
+        files: ${{ steps.vars.outputs.nightly }}/bin/${{ steps.vars.outputs.exe }}
         strip: false
 
     - name: Display the version information
@@ -294,4 +299,4 @@ jobs:
       run: |
         gh release delete 'nightly' --repo agda/agda --cleanup-tag --yes || true
         ls -R artifacts
-        gh release create 'nightly' artifacts/**/* --repo agda/agda --generate-notes --notes-start-tag v2.6.3 --title "Nightly Build (${{ needs.build.outputs.sha }}@master)"
+        gh release create 'nightly' artifacts/**/* --repo agda/agda --generate-notes --notes-start-tag v2.6.4 --title "Nightly Build (${{ needs.build.outputs.sha }}@master)"

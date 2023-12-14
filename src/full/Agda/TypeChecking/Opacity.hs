@@ -47,11 +47,15 @@ saturateOpaqueBlocks moddecs = entry where
     inverse <- useTC stOpaqueIds
     OpaqueId _ ourmod <- fresh
 
+    canonical <- useTC stCopiedNames
+    backcopies <- useTC stNameCopies
+
     reportSDoc "tc.opaque.copy" 45 $ "Canonical names of copied definitions:" $+$ pretty (HashMap.toList canonical)
     reportSDoc "tc.opaque.copy" 45 $ "Backcopies:" $+$ pretty (HashMap.toList (toList <$> backcopies))
 
     let
       isOurs (OpaqueId _ mod, _) = mod == ourmod
+      canonise name = fromMaybe name (HashMap.lookup name canonical)
       ours = snd <$> filter isOurs (Map.toAscList known)
 
     unless (null ours) $ do
@@ -63,7 +67,7 @@ saturateOpaqueBlocks moddecs = entry where
     -- Only compute transitive closure for opaque blocks declared in
     -- the current top-level module. Deserialised blocks are always
     -- closed, so this work would be redundant.
-    (blocks, names) <- computeClosure known inverse ours
+    (blocks, names) <- computeClosure canonise known inverse ours
 
     -- Associate copies with the opaque blocks of their originals. Since
     -- modules importing this one won't know how to canonicalise names
@@ -83,7 +87,8 @@ saturateOpaqueBlocks moddecs = entry where
 
   -- Actually compute the closure.
   computeClosure
-    :: Map OpaqueId OpaqueBlock
+    :: (QName -> QName)
+    -> Map OpaqueId OpaqueBlock
       -- Accumulates the satured opaque blocks; also contains the
       -- opaque blocks of imported modules.
     -> Map QName OpaqueId
@@ -94,8 +99,8 @@ saturateOpaqueBlocks moddecs = entry where
     -> m ( Map OpaqueId OpaqueBlock
          , Map QName OpaqueId
          )
-  computeClosure !blocks !names [] = pure (blocks, names)
-  computeClosure blocks names (block:xs) = setCurrentRange (opaqueRange block) $ do
+  computeClosure canonise !blocks !names [] = pure (blocks, names)
+  computeClosure canonise blocks names (block:xs) = setCurrentRange (opaqueRange block) $ do
     let
       yell nm accum = setCurrentRange (getRange nm) $ do
         warning (UnfoldTransparentName nm)
@@ -137,10 +142,7 @@ saturateOpaqueBlocks moddecs = entry where
       names' = HashSet.foldr (\name -> Map.insert name (opaqueId block)) names
         (opaqueDecls block)
 
-    computeClosure (Map.insert (opaqueId block) block' blocks) names' xs
-
-  (canonical, backcopies) = invertDefCopies moddecs
-  canonise name = fromMaybe name (HashMap.lookup name canonical)
+    computeClosure canonise (Map.insert (opaqueId block) block' blocks) names' xs
 
   addBackcopy :: (QName, HashSet QName) -> Map QName OpaqueId -> Map QName OpaqueId
   addBackcopy (from, prop) map
@@ -212,60 +214,3 @@ hasAccessibleDef qn = do
   ignoreAbstractMode $ do
     def <- getConstInfo qn
     pure $ isAccessibleDef env st def
-
-type Invert = State (HashMap QName QName, HashMap QName (HashSet QName))
-
--- | Compute maps inverting the module applications defined in the given
--- declarations. The first returned map associates copied names to their
--- (hereditary) originals, the second map associates original names to
--- their (transitive) copies.
-invertDefCopies
-  :: [A.Declaration]
-  -> ( HashMap QName QName
-     , HashMap QName (HashSet QName)
-     )
-invertDefCopies = flip execState mempty . traverse_ go where
-  canon :: QName -> Invert QName
-  canon n = gets (HashMap.lookup n . fst) >>= \case
-    Just n' -> do
-      c <- canon n'
-      modify' $ \(canon, backrefs) -> (HashMap.insert n c canon, backrefs)
-      pure c
-    Nothing -> pure n
-
-  copy :: QName -> QName -> Invert ()
-  copy from to = do
-    from <- canon from
-    modify' $ \(canon, backrefs) ->
-      ( HashMap.insert to from canon
-      , HashMap.alter (pure . HashSet.insert to . fold) from backrefs
-      )
-
-  go :: A.Declaration -> Invert ()
-  -- Interesting case:
-  go (A.Apply _mi _e _mn _app info _imp) =
-    forM_ (Map.toList (A.renNames info)) $ \(from, tos) -> traverse_ (copy from) tos
-
-  -- Traversal:
-  go (A.Mutual _ ds)                       = traverse_ go ds
-  go (A.Section _r _e _mn _gt ds)          = traverse_ go ds
-  go (A.ScopedDecl _si ds)                 = traverse_ go ds
-  go (A.RecDef _di _qn _uc _rd _ddp _t ds) = traverse_ go ds
-
-  -- Boring:
-  go A.Axiom{}         = pure ()
-  go A.Generalize{}    = pure ()
-  go A.Field{}         = pure ()
-  go A.Primitive{}     = pure ()
-  go A.Import{}        = pure ()
-  go A.Pragma{}        = pure ()
-  go A.Open{}          = pure ()
-  go A.FunDef{}        = pure ()
-  go A.DataSig{}       = pure ()
-  go A.DataDef{}       = pure ()
-  go A.RecSig{}        = pure ()
-  go A.PatternSynDef{} = pure ()
-  go A.UnquoteDecl{}   = pure ()
-  go A.UnquoteDef{}    = pure ()
-  go A.UnquoteData{}   = pure ()
-  go A.UnfoldingDecl{} = pure ()

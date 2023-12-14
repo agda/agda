@@ -878,7 +878,7 @@ niceDeclarations fixs ds = do
         addType n c mc = do
           (m, checks, i) <- get
           when (isJust $ Map.lookup n m) $ lift $ declarationException $ DuplicateDefinition n
-          put (Map.insert n (c i) m, mc <> checks, i+1)
+          put (Map.insert n (c i) m, mc <> checks, i + 1)
 
         addFunType d@(FunSig _ _ _ _ _ _ tc cc n _) = do
            let checks = MutualChecks [tc] [cc] []
@@ -905,7 +905,7 @@ niceDeclarations fixs ds = do
               lift $ removeLoneSig n
               -- add the constructors to the existing ones (if any)
               let (cs', i') = case cs of
-                    Nothing        -> ((i , ds :| [] ), i+1)
+                    Nothing        -> ((i , ds :| [] ), i + 1)
                     Just (i1, ds1) -> ((i1, ds <| ds1), i)
               put (Map.insert n (InterleavedData i0 sig (Just cs')) m, checks, i')
             _ -> lift $ declarationWarning $ MissingDeclarations $ case mr of
@@ -938,7 +938,7 @@ niceDeclarations fixs ds = do
           case Map.lookup n m of
             Just (InterleavedFun i0 sig cs0) -> do
               let (cs', i') = case cs0 of
-                    Nothing        -> ((i,  (ds, cs) :| [] ), i+1)
+                    Nothing        -> ((i,  (ds, cs) :| [] ), i + 1)
                     Just (i1, cs1) -> ((i1, (ds, cs) <| cs1), i)
               put (Map.insert n (InterleavedFun i0 sig (Just cs')) m, check <> checks, i')
             _ -> __IMPOSSIBLE__ -- A FunDef always come after an existing FunSig!
@@ -959,7 +959,7 @@ niceDeclarations fixs ds = do
             -- no candidate: keep the isolated fun clause, we'll complain about it later
             [] -> do
               let check = MutualChecks [tc] [cc] []
-              put (m, check <> checks, i+1)
+              put (m, check <> checks, i + 1)
               ((i,nd) :) <$> groupByBlocks r ds
             -- exactly one candidate: attach the funclause to the definition
             [(n, fits0, rest)] -> do
@@ -969,7 +969,7 @@ niceDeclarations fixs ds = do
               case Map.lookup n m of
                 Just (InterleavedFun i0 sig cs0) -> do
                   let (cs', i') = case cs0 of
-                        Nothing        -> ((i,  (fits,cs) :| [] ), i+1)
+                        Nothing        -> ((i,  (fits,cs) :| [] ), i + 1)
                         Just (i1, cs1) -> ((i1, (fits,cs) <| cs1), i)
                   let checks' = Fold.fold checkss
                   put (Map.insert n (InterleavedFun i0 sig (Just cs')) m, checks' <> checks, i')
@@ -1001,7 +1001,7 @@ niceDeclarations fixs ds = do
             -- of each for record definitions and leaving them in place should be enough!
             _ -> oneOff $ do
               (m, c, i) <- get -- TODO: grab checks from c?
-              put (m, c, i+1)
+              put (m, c, i + 1)
               pure [(i,d)]
 
     -- Extract the name of the return type (if any) of a potential constructor.

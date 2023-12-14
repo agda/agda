@@ -134,6 +134,7 @@ stealConstraintsTCM pid = do
   modifySleepingConstraints $ List.map rename
 
 
+{-# SPECIALIZE noConstraints :: TCM a -> TCM a #-}
 -- | Don't allow the argument to produce any blocking constraints.
 --
 -- WARNING: this does not mean that the given computation cannot
@@ -164,6 +165,7 @@ nonConstraining ::
   ) => m a -> m a
 nonConstraining = dontAssignMetas . noConstraints
 
+{-# SPECIALIZE newProblem :: TCM a -> TCM (ProblemId, a) #-}
 -- | Create a fresh problem for the given action.
 newProblem
   :: (MonadFresh ProblemId m, MonadConstraint m)
@@ -176,6 +178,7 @@ newProblem action = do
   solveAwakeConstraints
   return (pid, x)
 
+{-# SPECIALIZE newProblem_ :: TCM a -> TCM ProblemId #-}
 newProblem_
   :: (MonadFresh ProblemId m, MonadConstraint m)
   => m a -> m ProblemId
@@ -202,6 +205,7 @@ whenConstraints action handler =
     stealConstraints pid
     handler
 
+{-# SPECIALIZE wakeupConstraints :: MetaId -> TCM () #-}
 -- | Wake up the constraints depending on the given meta.
 wakeupConstraints :: MonadMetaSolver m => MetaId -> m ()
 wakeupConstraints x = do
@@ -285,6 +289,7 @@ solveConstraint_ (UnBlock m)                =   -- alwaysUnblock since these hav
       Open -> __IMPOSSIBLE__
       OpenInstance -> __IMPOSSIBLE__
 solveConstraint_ (FindInstance m cands) = findInstance m cands
+solveConstraint_ (ResolveInstanceHead q) = resolveInstanceHead q
 solveConstraint_ (CheckFunDef i q cs _err) = withoutCache $
   -- re #3498: checking a fundef would normally be cached, but here it's
   -- happening out of order so it would only corrupt the caching log.

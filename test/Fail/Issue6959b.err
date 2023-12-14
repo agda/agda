@@ -1,0 +1,3 @@
+Issue6959b.agda:18,5-9
+c != c″ of type D
+when checking that the expression refl has type c ≡ c″

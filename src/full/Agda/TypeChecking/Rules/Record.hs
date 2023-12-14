@@ -30,6 +30,7 @@ import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.CompiledClause (hasProjectionPatterns)
 import Agda.TypeChecking.CompiledClause.Compile
+import Agda.TypeChecking.InstanceArguments
 
 import Agda.TypeChecking.Rules.Data
   ( getGeneralizedParameters, bindGeneralizedParameters, bindParameters

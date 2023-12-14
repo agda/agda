@@ -1,5 +1,5 @@
+{-# LANGUAGE CPP #-}
 {-# OPTIONS_GHC -Wunused-imports #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Agda.TypeChecking.Reduce.Monad
@@ -24,7 +24,9 @@ import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
+#ifdef DEBUG
 import Agda.Utils.Monad
+#endif
 import Agda.Syntax.Common.Pretty () --instance only
 
 
@@ -86,8 +88,13 @@ instance MonadDebug ReduceM where
       (s , _) <- runTCM env st $ formatDebugMessage k n d
       return $ return s
 
+#ifdef DEBUG
   verboseBracket k n s = applyWhenVerboseS k n $
     bracket_ (openVerboseBracket k n s) (const $ closeVerboseBracket k n)
+#else
+  verboseBracket k n s ma = ma
+  {-# INLINE verboseBracket #-}
+#endif
 
   getVerbosity      = defaultGetVerbosity
   getProfileOptions = defaultGetProfileOptions

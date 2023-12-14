@@ -65,17 +65,26 @@ printProgramResult = printProcResult . fromProgramResult
 
 type AgdaArgs = [String]
 
-
-readAgdaProcessWithExitCode :: Maybe EnvVars  -- ^ Extra environment variables, unexpanded.
-                            -> AgdaArgs -> Text
-                            -> IO (ExitCode, Text, Text)
+-- | Call out to @AGDA_BIN@ with given arguments and standard input,
+--   recording exit code, standard output and standard error.
+readAgdaProcessWithExitCode ::
+     Maybe EnvVars  -- ^ Extra environment variables, unexpanded.
+  -> AgdaArgs       -- ^ Arguments to @agda@.
+  -> Text           -- ^ @stdin@.
+  -> IO (ExitCode, Text, Text)
 readAgdaProcessWithExitCode extraEnv args inp = do
   origEnv <- getEnvironment
   home <- getHomeDirectory
   let env = expandEnvVarTelescope home $ maybe origEnv (origEnv ++) extraEnv
   let envArgs = maybe [] words $ lookup "AGDA_ARGS" env
   -- hPutStrLn stderr $ unwords $ agdaBin : envArgs ++ args
-  let agdaProc = (proc (getAgdaBin env) (envArgs ++ args)) { create_group = True , env = Just env }
+  let agdaProc = (proc (getAgdaBin env) (envArgs ++ args))
+        { create_group = True
+        , env          = Just env
+        , cwd          = Just "."
+            -- Andreas, 2023-10-07, issue #6905:
+            -- Setting cwd='.' works around a bug in process-1.6.14..17 on macOS.
+        }
   PT.readCreateProcessWithExitCode agdaProc inp
 
 data AgdaResult

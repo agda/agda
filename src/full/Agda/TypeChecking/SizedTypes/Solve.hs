@@ -500,7 +500,7 @@ solveCluster flag ccs = do
     -- Solution does not contain metas
     u <- unSizeExpr $ fmap __IMPOSSIBLE__ a
     let SizeMeta _ xs = fromMaybe __IMPOSSIBLE__ $
-          List.find ((m==) . sizeMetaId) metas
+          List.find ((m ==) . sizeMetaId) metas
     -- Check that solution is well-scoped
     let ys = rigidIndex <$> Set.toList (rigids a)
         ok = all (`elem` xs) ys -- TODO: more efficient

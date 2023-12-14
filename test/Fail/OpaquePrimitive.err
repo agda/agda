@@ -1,0 +1,6 @@
+OpaquePrimitive.agda:11,3-28
+warning: -W[no]NotAffectedByOpaque
+Only function definitions can be marked opaque. This definition
+will be treated as transparent.
+when scope checking the declaration
+  primitive primToUpper : Char → Char

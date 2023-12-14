@@ -109,7 +109,7 @@ canProject f v =
     -- Andreas, 2022-06-10, issue #5922: also unfold data projections
     -- (not just record projections).
     (Con (ConHead _ _ _ fs) _ vs) -> do
-      (fld, i) <- findWithIndex ((f==) . unArg) fs
+      (fld, i) <- findWithIndex ((f ==) . unArg) fs
       -- Jesper, 2019-10-17: dont unfold irrelevant projections
       guard $ not $ isIrrelevant fld
       -- Andreas, 2018-06-12, issue #2170
@@ -136,7 +136,7 @@ conApp fallback ch@(ConHead c _ _ fs) ci args ees@(Proj o f : es) =
       app :: Term -> Elims -> Term
       app v es = coerce $ applyE (coerce v :: t) es
   in
-   case findWithIndex ((f==) . unArg) fs of
+   case findWithIndex ((f ==) . unArg) fs of
      Nothing -> failure $ stuck __IMPOSSIBLE__ `app` es
      Just (fld, i) -> let
       -- Andreas, 2018-06-12, issue #2170
@@ -855,6 +855,9 @@ instance Subst Term where
   type SubstArg Term = Term
   applySubst = applySubstTerm
 
+-- András 2023-09-25: we can only put this here, because at the original definition site there's no Subst Term instance.
+{-# SPECIALIZE lookupS :: Substitution' Term -> Nat -> Term #-}
+
 instance Subst BraveTerm where
   type SubstArg BraveTerm = BraveTerm
   applySubst = applySubstTerm
@@ -1027,6 +1030,7 @@ instance Subst Constraint where
     IsEmpty r a              -> IsEmpty r (rf a)
     CheckSizeLtSat t         -> CheckSizeLtSat (rf t)
     FindInstance m cands     -> FindInstance m (rf cands)
+    ResolveInstanceHead q    -> ResolveInstanceHead (rf q)
     c@UnBlock{}              -> c
     c@CheckFunDef{}          -> c
     HasBiggerSort s          -> HasBiggerSort (rf s)
@@ -1074,6 +1078,7 @@ instance (Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst (Dom' a b) where
   applySubst IdS dom = dom
   applySubst rho dom = setFreeVariables unknownFreeVariables $
     fmap (applySubst rho) dom{ domTactic = applySubst rho (domTactic dom) }
+  {-# INLINABLE applySubst #-}
 
 instance Subst LetBinding where
   type SubstArg LetBinding = Term

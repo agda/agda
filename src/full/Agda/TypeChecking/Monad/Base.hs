@@ -37,6 +37,8 @@ import Data.Function (on)
 import Data.Int
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Maybe
 import Data.Map (Map)
@@ -50,6 +52,8 @@ import qualified Data.HashSet as HashSet
 import Data.Hashable
 import Data.HashSet (HashSet)
 import Data.Semigroup ( Semigroup, (<>)) --, Any(..) )
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.String
 import Data.Text (Text)
 import qualified Data.Text.Lazy as TL
@@ -218,6 +222,14 @@ data PreScopeState = PreScopeState
     -- ^ Contents of .agda-lib files that have already been parsed.
   , stPreImportedMetaStore :: !RemoteMetaStore
     -- ^ Used for meta-variables from other modules.
+  , stPreCopiedNames       :: !(HashMap A.QName A.QName)
+    -- ^ Associates a copied name (the key) to its original name (the
+    -- value). Computed by the scope checker, used to compute opaque
+    -- blocks.
+  , stPreNameCopies        :: !(HashMap A.QName (HashSet A.QName))
+    -- ^ Associates an original name (the key) to all its copies (the
+    -- value). Computed by the scope checker, used to compute opaque
+    -- blocks.
   }
   deriving Generic
 
@@ -420,6 +432,8 @@ initPreScopeState = PreScopeState
   , stPreProjectConfigs       = Map.empty
   , stPreAgdaLibFiles         = Map.empty
   , stPreImportedMetaStore    = HMap.empty
+  , stPreCopiedNames          = HMap.empty
+  , stPreNameCopies           = HMap.empty
   }
 
 initPostScopeState :: PostScopeState
@@ -605,6 +619,16 @@ stImportedMetaStore :: Lens' TCState RemoteMetaStore
 stImportedMetaStore f s =
   f (stPreImportedMetaStore (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedMetaStore = x}}
+
+stCopiedNames :: Lens' TCState (HashMap QName QName)
+stCopiedNames f s =
+  f (stPreCopiedNames (stPreScopeState s)) <&>
+  \x -> s {stPreScopeState = (stPreScopeState s) {stPreCopiedNames = x}}
+
+stNameCopies :: Lens' TCState (HashMap QName (HashSet QName))
+stNameCopies f s =
+  f (stPreNameCopies (stPreScopeState s)) <&>
+  \x -> s {stPreScopeState = (stPreScopeState s) {stPreNameCopies = x}}
 
 stFreshNameId :: Lens' TCState NameId
 stFreshNameId f s =
@@ -795,7 +819,7 @@ stInstantiateBlocking f s =
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostInstantiateBlocking = x}}
 
 stBuiltinThings :: TCState -> BuiltinThings PrimFun
-stBuiltinThings s = Map.unionWith unionBuiltin (s^.stLocalBuiltins) (s^.stImportedBuiltins)
+stBuiltinThings s = Map.unionWith unionBuiltin (s ^. stLocalBuiltins) (s ^. stImportedBuiltins)
 
 -- | Union two 'Builtin's.  Only defined for 'BuiltinRewriteRelations'.
 unionBuiltin :: Builtin a -> Builtin a -> Builtin a
@@ -812,10 +836,12 @@ class Enum i => HasFresh i where
     nextFresh' :: i -> i
     nextFresh' = succ
 
+{-# INLINE nextFresh #-}
 nextFresh :: HasFresh i => TCState -> (i, TCState)
 nextFresh s =
-  let !c = s^.freshLens
-  in (c, set freshLens (nextFresh' c) s)
+  let !c = s ^. freshLens
+      !next = set freshLens (nextFresh' c) s
+  in (c, next)
 
 class Monad m => MonadFresh i m where
   fresh :: m i
@@ -834,6 +860,7 @@ instance HasFresh i => MonadFresh i TCM where
         let (!c , !s') = nextFresh s
         putTC s'
         return c
+  {-# INLINE fresh #-}
 
 instance HasFresh MetaId where
   freshLens = stFreshMetaId
@@ -1109,6 +1136,7 @@ instance LensClosure (Closure a) a where
 instance LensTCEnv (Closure a) where
   lensTCEnv f cl = (f $! clEnv cl) <&> \ env -> cl { clEnv = env }
 
+{-# SPECIALIZE buildClosure :: a -> TCM (Closure a)  #-}
 buildClosure :: (MonadTCEnv m, ReadTCState m) => a -> m (Closure a)
 buildClosure x = do
     env   <- askTC
@@ -1177,6 +1205,8 @@ data Constraint
   | FindInstance MetaId (Maybe [Candidate])
     -- ^ the first argument is the instance argument and the second one is the list of candidates
     --   (or Nothing if we haven’t determined the list of candidates yet)
+  | ResolveInstanceHead QName
+    -- ^ Resolve the head symbol of the type that the given instance targets
   | CheckFunDef A.DefInfo QName [A.Clause] TCErr
     -- ^ Last argument is the error causing us to postpone.
   | UnquoteTactic Term Term Type   -- ^ First argument is computation and the others are hole and goal type
@@ -1211,6 +1241,7 @@ instance Free Constraint where
       IsEmpty _ t           -> freeVars' t
       CheckSizeLtSat u      -> freeVars' u
       FindInstance _ cs     -> freeVars' cs
+      ResolveInstanceHead q -> mempty
       CheckFunDef{}         -> mempty
       HasBiggerSort s       -> freeVars' s
       HasPTSRule a s        -> freeVars' (a , s)
@@ -1234,6 +1265,7 @@ instance TermLike Constraint where
       UnBlock _              -> mempty
       CheckLockedVars a b c d -> foldTerm f (a, b, c, d)
       FindInstance _ _       -> mempty
+      ResolveInstanceHead q  -> mempty
       CheckFunDef{}          -> mempty
       HasBiggerSort s        -> foldTerm f s
       HasPTSRule a s         -> foldTerm f (a, Sort <$> s)
@@ -1576,6 +1608,9 @@ instance Pretty NamedMeta where
 
 type LocalMetaStore = Map MetaId MetaVariable
 
+{-# SPECIALIZE Map.insert :: MetaId -> v -> Map MetaId v -> Map MetaId v #-}
+{-# SPECIALIZE Map.lookup :: MetaId -> Map MetaId v -> Maybe v #-}
+
 -- | Used for meta-variables from other modules (and in 'Interface's).
 
 type RemoteMetaStore = HashMap MetaId RemoteMetaVariable
@@ -1666,6 +1701,13 @@ instance LensIsAbstract (Closure a) where
 
 instance LensIsAbstract MetaInfo where
   lensIsAbstract = lensClosure . lensIsAbstract
+
+instance LensIsOpaque TCEnv where
+  lensIsOpaque f env =
+    (f $! case envCurrentOpaqueId env of { Just x -> OpaqueDef x ; Nothing -> TransparentDef })
+    <&> \case { OpaqueDef x    -> env { envCurrentOpaqueId = Just x }
+              ; TransparentDef -> env { envCurrentOpaqueId = Nothing }
+              }
 
 ---------------------------------------------------------------------------
 -- ** Interaction meta variables
@@ -1765,6 +1807,12 @@ type Sections    = Map ModuleName Section
 type Definitions = HashMap QName Definition
 type RewriteRuleMap = HashMap QName RewriteRules
 type DisplayForms = HashMap QName [LocalDisplayForm]
+
+-- 2023-21-30, András: see issue 6927
+#if __GLASGOW_HASKELL__ >= 900
+{-# SPECIALIZE HMap.insert :: QName -> v -> HashMap QName v -> HashMap QName v #-}
+#endif
+{-# SPECIALIZE HMap.lookup :: QName -> HashMap QName v -> Maybe v #-}
 
 newtype Section = Section { _secTelescope :: Telescope }
   deriving (Show, NFData)
@@ -2280,12 +2328,9 @@ data Defn
   | PrimitiveSortDefn PrimitiveSortData
     deriving (Show, Generic)
 
--- The COMPLETE pragma is new in GHC 8.2
-#if __GLASGOW_HASKELL__ >= 802
 {-# COMPLETE
   Axiom, DataOrRecSig, GeneralizableVar, AbstractDefn,
   Function, Datatype, Record, Constructor, Primitive, PrimitiveSort #-}
-#endif
 
 data AxiomData = AxiomData
   { _axiomConstTransp :: Bool
@@ -3816,9 +3861,7 @@ eQuantity f e =
     | otherwise      = __IMPOSSIBLE__
 
 eHardCompileTimeMode :: Lens' TCEnv Bool
-eHardCompileTimeMode f e =
-  f (envHardCompileTimeMode e) <&>
-  \x -> e { envHardCompileTimeMode = x }
+eHardCompileTimeMode f e = f (envHardCompileTimeMode e) <&> \x -> e { envHardCompileTimeMode = x }
 
 eSplitOnStrict :: Lens' TCEnv Bool
 eSplitOnStrict f e = f (envSplitOnStrict e) <&> \ x -> e { envSplitOnStrict = x }
@@ -3919,12 +3962,9 @@ eConflComputingOverlap f e = f (envConflComputingOverlap e) <&> \ x -> e { envCo
 eCurrentlyElaborating :: Lens' TCEnv Bool
 eCurrentlyElaborating f e = f (envCurrentlyElaborating e) <&> \ x -> e { envCurrentlyElaborating = x }
 
--- | The current modality.
---
--- Note that the returned cohesion component is always 'unitCohesion'.
-
 {-# SPECIALISE currentModality :: TCM Modality #-}
-
+-- | The current modality.
+--   Note that the returned cohesion component is always 'unitCohesion'.
 currentModality :: MonadTCEnv m => m Modality
 currentModality = do
   r <- viewTC eRelevance
@@ -4447,6 +4487,7 @@ data TypeError
             -- ^ Expected a non-hidden function and found a hidden lambda.
         | WrongHidingInApplication Type
             -- ^ A function is applied to a hidden argument where a non-hidden was expected.
+        | WrongHidingInProjection QName
         | IllegalHidingInPostfixProjection (NamedArg C.Expr)
         | WrongNamedArgument (NamedArg A.Expr) [NamedName]
             -- ^ A function is applied to a hidden named argument it does not have.
@@ -4468,6 +4509,7 @@ data TypeError
         | IllformedProjectionPatternAbstract A.Pattern
         | IllformedProjectionPatternConcrete C.Pattern
         | CannotEliminateWithPattern (Maybe Blocker) (NamedArg A.Pattern) Type
+        | CannotEliminateWithProjection (Arg Type) Bool QName
         | WrongNumberOfConstructorArguments QName Nat Nat
         | ShouldBeEmpty Type [DeBruijnPattern]
         | ShouldBeASort Type
@@ -4491,6 +4533,10 @@ data TypeError
         -- UNUSED: -- | SplitOnErased (Dom Type)
         | SplitOnNonVariable Term Type
         | SplitOnNonEtaRecord QName
+        | SplitOnAbstract QName
+        | SplitOnUnchecked QName
+        | SplitOnPartial (Dom Type)
+        | SplitInProp DataOrRecordE
         | DefinitionIsIrrelevant QName
         | DefinitionIsErased QName
         | VariableIsIrrelevant Name
@@ -4544,6 +4590,7 @@ data TypeError
         | WithOnFreeVariable A.Expr Term
         | UnexpectedWithPatterns [A.Pattern]
         | WithClausePatternMismatch A.Pattern (NamedArg DeBruijnPattern)
+        | IllTypedPatternAfterWithAbstraction A.Pattern
         | FieldOutsideRecord
         | ModuleArityMismatch A.ModuleName Telescope [NamedArg A.Expr]
         | GeneralizeCyclicDependency
@@ -4565,6 +4612,18 @@ data TypeError
         | CubicalPrimitiveNotFullyApplied QName
         | TooManyArgumentsToLeveledSort QName
         | TooManyArgumentsToUnivOmega QName
+        | ComatchingDisabledForRecord QName
+        | BuiltinMustBeIsOne Term
+        | IllegalRewriteRule QName IllegalRewriteRuleReason
+        | IncorrectTypeForRewriteRelation Term IncorrectTypeForRewriteRelationReason
+    -- Data errors
+        | UnexpectedParameter A.LamBinding
+        | NoParameterOfName ArgName
+        | UnexpectedModalityAnnotationInParameter A.LamBinding
+        | ExpectedBindingForParameter (Dom Type) (Abs Type)
+        | UnexpectedTypeSignatureForParameter (List1 (NamedArg A.Binder))
+        | SortDoesNotAdmitDataDefinitions QName Sort
+        | SortCannotDependOnItsIndex QName Type
     -- Coverage errors
 -- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | SplitError SplitError
@@ -4597,6 +4656,7 @@ data TypeError
         | AmbiguousName C.QName AmbiguousNameReason
         | AmbiguousModule C.QName (List1 A.ModuleName)
         | AmbiguousField C.Name [A.ModuleName]
+        | AmbiguousConstructor QName [QName]
         | ClashingDefinition C.QName A.QName (Maybe NiceDeclaration)
         | ClashingModule A.ModuleName A.ModuleName
         | ClashingImport C.Name A.QName
@@ -4631,7 +4691,8 @@ data TypeError
             --   If it is non-empty, the first entry could be printed as error hint.
         | AmbiguousParseForLHS LHSOrPatSyn C.Pattern [C.Pattern]
             -- ^ Pattern and its possible interpretations.
-        | AmbiguousProjectionError (List1 QName) Doc
+        | AmbiguousProjection QName [QName]
+        | AmbiguousOverloadedProjection (List1 QName) Doc
         | OperatorInformation [NotationSection] TypeError
 {- UNUSED
         | NoParseForPatternSynonym C.Pattern
@@ -4654,6 +4715,38 @@ data TypeError
         | InstanceSearchDepthExhausted Term Type Int
         | TriedToCopyConstrainedPrim QName
           deriving (Show, Generic)
+
+type DataOrRecordE = DataOrRecord' InductionAndEta
+
+data InductionAndEta = InductionAndEta
+  { recordInduction   :: Maybe Induction
+  , recordEtaEquality :: EtaEquality
+  } deriving (Show, Generic)
+
+-- Reason, why rewrite rule is invalid
+data IllegalRewriteRuleReason
+  = LHSNotDefOrConstr
+  | VariablesNotBoundByLHS IntSet
+  | VariablesBoundMoreThanOnce IntSet
+  | LHSReducesTo Term Term
+  | HeadSymbolIsProjection QName
+  | HeadSymbolIsProjectionLikeFunction QName
+  | HeadSymbolNotPostulateFunctionConstructor QName
+  | ConstructorParamsNotGeneral ConHead Args
+  | ContainsUnsolvedMetaVariables (Set MetaId)
+  | BlockedOnProblems (Set ProblemId)
+  | RequiresDefinitions (Set QName)
+  | DoesNotTargetRewriteRelation
+  | BeforeFunctionDefinition
+  | EmptyReason
+    deriving (Show, Generic)
+
+-- Reason, why type for rewrite rule is incorrect
+data IncorrectTypeForRewriteRelationReason
+  = ShouldAcceptAtLeastTwoArguments
+  | FinalTwoArgumentsNotVisible
+  | TypeDoesNotEndInSort Type Telescope
+    deriving (Show, Generic)
 
 -- | Distinguish error message when parsing lhs or pattern synonym, resp.
 data LHSOrPatSyn = IsLHS | IsPatSyn
@@ -4708,29 +4801,36 @@ data WarningsAndNonFatalErrors = WarningsAndNonFatalErrors
 
 instance MonadIO m => HasOptions (TCMT m) where
   pragmaOptions = useTC stPragmaOptions
+  {-# INLINE pragmaOptions #-}
 
   commandLineOptions = do
     p  <- useTC stPragmaOptions
     cl <- stPersistentOptions . stPersistentState <$> getTC
     return $ cl { optPragmaOptions = p }
+  {-# SPECIALIZE commandLineOptions :: TCM CommandLineOptions #-}
 
 -- HasOptions lifts through monad transformers
 -- (see default signatures in the HasOptions class).
 
 sizedTypesOption :: HasOptions m => m Bool
 sizedTypesOption = optSizedTypes <$> pragmaOptions
+{-# INLINE sizedTypesOption #-}
 
 guardednessOption :: HasOptions m => m Bool
 guardednessOption = optGuardedness <$> pragmaOptions
+{-# INLINE guardednessOption #-}
 
 withoutKOption :: HasOptions m => m Bool
 withoutKOption = optWithoutK <$> pragmaOptions
+{-# INLINE withoutKOption #-}
 
 cubicalCompatibleOption :: HasOptions m => m Bool
 cubicalCompatibleOption = optCubicalCompatible <$> pragmaOptions
+{-# INLINE cubicalCompatibleOption #-}
 
 enableCaching :: HasOptions m => m Bool
 enableCaching = optCaching <$> pragmaOptions
+{-# INLINE enableCaching #-}
 
 -----------------------------------------------------------------------------
 -- * The reduce monad
@@ -4748,26 +4848,33 @@ data ReduceEnv = ReduceEnv
 
 mapRedEnv :: (TCEnv -> TCEnv) -> ReduceEnv -> ReduceEnv
 mapRedEnv f s = s { redEnv = f (redEnv s) }
+{-# INLINE mapRedEnv #-}
 
 mapRedSt :: (TCState -> TCState) -> ReduceEnv -> ReduceEnv
 mapRedSt f s = s { redSt = f (redSt s) }
+{-# INLINE mapRedSt #-}
 
 mapRedEnvSt :: (TCEnv -> TCEnv) -> (TCState -> TCState) -> ReduceEnv
             -> ReduceEnv
 mapRedEnvSt f g (ReduceEnv e s p) = ReduceEnv (f e) (g s) p
+{-# INLINE mapRedEnvSt #-}
 
 -- Lenses
 reduceEnv :: Lens' ReduceEnv TCEnv
 reduceEnv f s = f (redEnv s) <&> \ e -> s { redEnv = e }
+{-# INLINE reduceEnv #-}
 
 reduceSt :: Lens' ReduceEnv TCState
 reduceSt f s = f (redSt s) <&> \ e -> s { redSt = e }
+{-# INLINE reduceSt #-}
 
 newtype ReduceM a = ReduceM { unReduceM :: ReduceEnv -> a }
 --  deriving (Functor, Applicative, Monad)
 
+
 onReduceEnv :: (ReduceEnv -> ReduceEnv) -> ReduceM a -> ReduceM a
 onReduceEnv f (ReduceM m) = ReduceM (m . f)
+{-# INLINE onReduceEnv #-}
 
 fmapReduce :: (a -> b) -> ReduceM a -> ReduceM b
 fmapReduce f (ReduceM m) = ReduceM $ \ e -> f $! m e
@@ -4784,6 +4891,7 @@ apReduce (ReduceM f) (ReduceM x) = ReduceM $ \ e ->
   in  g `pseq` a `pseq` g a
 {-# INLINE apReduce #-}
 
+
 -- Andreas, 2021-05-12, issue #5379
 -- Since the MonadDebug instance of ReduceM is implemented via
 -- unsafePerformIO, we need to force results that later
@@ -4791,6 +4899,7 @@ apReduce (ReduceM f) (ReduceM x) = ReduceM $ \ e ->
 thenReduce :: ReduceM a -> ReduceM b -> ReduceM b
 thenReduce (ReduceM x) (ReduceM y) = ReduceM $ \ e -> x e `pseq` y e
 {-# INLINE thenReduce #-}
+
 
 -- Andreas, 2021-05-14:
 -- `seq` does not force evaluation order, the optimizier is allowed to replace
@@ -4833,9 +4942,6 @@ instance Monad ReduceM where
   return = pure
   (>>=) = bindReduce
   (>>) = (*>)
-#if __GLASGOW_HASKELL__ < 806
-  fail = Fail.fail
-#endif
 
 instance Fail.MonadFail ReduceM where
   fail = error
@@ -4874,14 +4980,17 @@ instance MonadTCEnv ReduceM where
 -- This fixes (or contributes to the fix of) the space leak issue #1829 (caching).
 useR :: (ReadTCState m) => Lens' TCState a -> m a
 useR l = do
-  !x <- (^.l) <$> getTCState
+  !x <- getTCState <&> (^. l)
   return x
+{-# INLINE useR #-}
 
 askR :: ReduceM ReduceEnv
 askR = ReduceM ask
+{-# INLINE askR #-}
 
 localR :: (ReduceEnv -> ReduceEnv) -> ReduceM a -> ReduceM a
 localR f = ReduceM . local f . unReduceM
+{-# INLINE localR #-}
 
 instance HasOptions ReduceM where
   pragmaOptions      = useR stPragmaOptions
@@ -4942,12 +5051,15 @@ instance (Monoid w, MonadTCEnv m) => MonadTCEnv (WriterT w m)
 instance MonadTCEnv m => MonadTCEnv (ListT m) where
   localTC = mapListT . localTC
 
+{-# INLINE asksTC #-}
 asksTC :: MonadTCEnv m => (TCEnv -> a) -> m a
 asksTC f = f <$> askTC
 
+{-# INLINE viewTC #-}
 viewTC :: MonadTCEnv m => Lens' TCEnv a -> m a
 viewTC l = asksTC (^. l)
 
+{-# INLINE locallyTC #-}
 -- | Modify the lens-indicated part of the @TCEnv@ in a subcomputation.
 locallyTC :: MonadTCEnv m => Lens' TCEnv a -> (a -> a) -> m b -> m b
 locallyTC l = localTC . over l
@@ -4981,11 +5093,12 @@ instance MonadTCState m => MonadTCState (ChangeT m)
 instance MonadTCState m => MonadTCState (IdentityT m)
 instance (Monoid w, MonadTCState m) => MonadTCState (WriterT w m)
 
+{-# INLINE getsTC #-}
 -- ** @TCState@ accessors (no lenses)
-
 getsTC :: ReadTCState m => (TCState -> a) -> m a
 getsTC f = f <$> getTCState
 
+{-# INLINE modifyTC' #-}
 -- | A variant of 'modifyTC' in which the computation is strict in the
 -- new state.
 modifyTC' :: MonadTCState m => (TCState -> TCState) -> m ()
@@ -5000,6 +5113,7 @@ modifyTC' f = do
 
 -- ** @TCState@ accessors via lenses
 
+{-# INLINE useTC #-}
 useTC :: ReadTCState m => Lens' TCState a -> m a
 useTC l = do
   !x <- getsTC (^. l)
@@ -5007,32 +5121,39 @@ useTC l = do
 
 infix 4 `setTCLens`
 
+{-# INLINE setTCLens #-}
 -- | Overwrite the part of the 'TCState' focused on by the lens.
 setTCLens :: MonadTCState m => Lens' TCState a -> a -> m ()
 setTCLens l = modifyTC . set l
 
+{-# INLINE setTCLens' #-}
 -- | Overwrite the part of the 'TCState' focused on by the lens
 -- (strictly).
 setTCLens' :: MonadTCState m => Lens' TCState a -> a -> m ()
 setTCLens' l = modifyTC' . set l
 
+{-# INLINE modifyTCLens #-}
 -- | Modify the part of the 'TCState' focused on by the lens.
 modifyTCLens :: MonadTCState m => Lens' TCState a -> (a -> a) -> m ()
 modifyTCLens l = modifyTC . over l
 
+{-# INLINE modifyTCLens' #-}
 -- | Modify the part of the 'TCState' focused on by the lens
 -- (strictly).
 modifyTCLens' :: MonadTCState m => Lens' TCState a -> (a -> a) -> m ()
 modifyTCLens' l = modifyTC' . over l
 
+{-# INLINE modifyTCLensM #-}
 -- | Modify a part of the state monadically.
 modifyTCLensM :: MonadTCState m => Lens' TCState a -> (a -> m a) -> m ()
 modifyTCLensM l f = putTC =<< l f =<< getTC
 
+{-# INLINE stateTCLens #-}
 -- | Modify the part of the 'TCState' focused on by the lens, and return some result.
 stateTCLens :: MonadTCState m => Lens' TCState a -> (a -> (r , a)) -> m r
 stateTCLens l f = stateTCLensM l $ return . f
 
+{-# INLINE stateTCLensM #-}
 -- | Modify a part of the state monadically, and return some result.
 stateTCLensM :: MonadTCState m => Lens' TCState a -> (a -> m (r , a)) -> m r
 stateTCLensM l f = do
@@ -5077,6 +5198,7 @@ instance Monad m => MonadBlock (ExceptT TCErr m) where
 
 runBlocked :: Monad m => BlockT m a -> m (Either Blocker a)
 runBlocked = runExceptT . unBlockT
+{-# INLINE runBlocked #-}
 
 instance MonadBlock m => MonadBlock (MaybeT m) where
   catchPatternErr h m = MaybeT $ catchPatternErr (runMaybeT . h) $ runMaybeT m
@@ -5104,6 +5226,7 @@ pureTCM :: MonadIO m => (TCState -> TCEnv -> a) -> TCMT m a
 pureTCM f = TCM $ \ r e -> do
   s <- liftIO $ readIORef r
   return (f s e)
+{-# INLINE pureTCM #-}
 
 -- One goal of the definitions and pragmas below is to inline the
 -- monad operations as much as possible. This doesn't seem to have a
@@ -5128,38 +5251,31 @@ thenTCMT = \(TCM m1) (TCM m2) -> TCM $ \r e -> m1 r e *> m2 r e
 {-# INLINE thenTCMT #-}
 
 instance Functor m => Functor (TCMT m) where
-  fmap = fmapTCMT
+  fmap = fmapTCMT; {-# INLINE fmap #-}
 
 fmapTCMT :: Functor m => (a -> b) -> TCMT m a -> TCMT m b
 fmapTCMT = \f (TCM m) -> TCM $ \r e -> fmap f (m r e)
 {-# INLINE fmapTCMT #-}
 
 instance Applicative m => Applicative (TCMT m) where
-  pure  = returnTCMT
-  (<*>) = apTCMT
+  pure  = returnTCMT; {-# INLINE pure #-}
+  (<*>) = apTCMT; {-# INLINE (<*>) #-}
 
 apTCMT :: Applicative m => TCMT m (a -> b) -> TCMT m a -> TCMT m b
 apTCMT = \(TCM mf) (TCM m) -> TCM $ \r e -> mf r e <*> m r e
 {-# INLINE apTCMT #-}
 
 instance MonadTrans TCMT where
-    lift m = TCM $ \_ _ -> m
+    lift m = TCM $ \_ _ -> m; {-# INLINE lift #-}
 
 -- We want a special monad implementation of fail.
-#if __GLASGOW_HASKELL__ < 806
-instance MonadIO m => Monad (TCMT m) where
-#else
 -- Andreas, 2022-02-02, issue #5659:
 -- @transformers-0.6@ requires exactly a @Monad@ superclass constraint here
 -- if we want @instance MonadTrans TCMT@.
 instance Monad m => Monad (TCMT m) where
-#endif
-    return = pure
-    (>>=)  = bindTCMT
-    (>>)   = (*>)
-#if __GLASGOW_HASKELL__ < 806
-    fail   = Fail.fail
-#endif
+    return = pure; {-# INLINE return #-}
+    (>>=)  = bindTCMT; {-# INLINE (>>=) #-}
+    (>>)   = (*>); {-# INLINE (>>) #-}
 
 instance MonadIO m => Fail.MonadFail (TCMT m) where
   fail = internalError
@@ -5175,26 +5291,23 @@ instance MonadIO m => MonadIO (TCMT m) where
         E.throwIO $ IOException s r err
 
 instance ( MonadFix m
-#if __GLASGOW_HASKELL__ < 806
-         , MonadIO m
-#endif
          ) => MonadFix (TCMT m) where
   mfix f = TCM $ \s env -> mdo
     x <- unTCM (f x) s env
     return x
 
 instance MonadIO m => MonadTCEnv (TCMT m) where
-  askTC             = TCM $ \ _ e -> return e
-  localTC f (TCM m) = TCM $ \ s e -> m s (f e)
+  askTC             = TCM $ \ _ e -> return e; {-# INLINE askTC #-}
+  localTC f (TCM m) = TCM $ \ s e -> m s (f e); {-# INLINE localTC #-}
 
 instance MonadIO m => MonadTCState (TCMT m) where
-  getTC   = TCM $ \ r _e -> liftIO (readIORef r)
-  putTC s = TCM $ \ r _e -> liftIO (writeIORef r s)
-  modifyTC f = putTC . f =<< getTC
+  getTC   = TCM $ \ r _e -> liftIO (readIORef r); {-# INLINE getTC #-}
+  putTC s = TCM $ \ r _e -> liftIO (writeIORef r s); {-# INLINE putTC #-}
+  modifyTC f = putTC . f =<< getTC; {-# INLINE modifyTC #-}
 
 instance MonadIO m => ReadTCState (TCMT m) where
-  getTCState = getTC
-  locallyTCState l f = bracket_ (useTC l <* modifyTCLens l f) (setTCLens l)
+  getTCState = getTC; {-# INLINE getTCState #-}
+  locallyTCState l f = bracket_ (useTC l <* modifyTCLens l f) (setTCLens l); {-# INLINE locallyTCState #-}
 
 instance MonadBlock TCM where
   patternViolation b = throwError (PatternErr b)
@@ -5238,7 +5351,7 @@ instance CatchImpossible TCM where
       unTCM (h err) r e
 
 instance MonadIO m => MonadReduce (TCMT m) where
-  liftReduce = liftTCM . runReduceM
+  liftReduce = liftTCM . runReduceM; {-# INLINE liftReduce #-}
 
 instance (IsString a, MonadIO m) => IsString (TCMT m a) where
   fromString s = return (fromString s)
@@ -5289,10 +5402,12 @@ class ( Applicative tcm, MonadIO tcm
 
     default liftTCM :: (MonadTCM m, MonadTrans t, tcm ~ t m) => TCM a -> tcm a
     liftTCM = lift . liftTCM
+    {-# INLINE liftTCM #-}
 
 {-# RULES "liftTCM/id" liftTCM = id #-}
 instance MonadIO m => MonadTCM (TCMT m) where
     liftTCM = mapTCMT liftIO
+    {-# INLINE liftTCM #-}
 
 instance MonadTCM tcm => MonadTCM (ChangeT tcm)
 instance MonadTCM tcm => MonadTCM (ExceptT err tcm)
@@ -5735,3 +5850,7 @@ instance NFData UnificationFailure
 instance NFData UnquoteError
 instance NFData TypeError
 instance NFData LHSOrPatSyn
+instance NFData DataOrRecordE
+instance NFData InductionAndEta
+instance NFData IllegalRewriteRuleReason
+instance NFData IncorrectTypeForRewriteRelationReason

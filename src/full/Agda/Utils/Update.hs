@@ -59,14 +59,17 @@ instance Monad m => MonadChange (ChangeT m) where
 -- | Run a 'ChangeT' computation, returning result plus change flag.
 runChangeT :: Functor m => ChangeT m a -> m (a, Bool)
 runChangeT = fmap (mapSnd getAny) . runWriterT . fromChangeT
+{-# INLINE runChangeT #-}
 
 -- | Run a 'ChangeT' computation, but ignore change flag.
 execChangeT :: Functor m => ChangeT m a -> m a -- A library function, so keep
 execChangeT = fmap fst . runChangeT
+{-# INLINE execChangeT #-}
 
 -- | Map a 'ChangeT' computation (monad transformer action).
 mapChangeT :: (m (a, Any) -> n (b, Any)) -> ChangeT m a -> ChangeT n b
 mapChangeT f (ChangeT m) = ChangeT (mapWriterT f m)
+{-# INLINE mapChangeT #-}
 
 -- Don't actually track changes with the identity monad:
 
@@ -110,6 +113,7 @@ dirty :: Monad m => UpdaterT m a
 dirty a = do
   tellDirty
   return a
+{-# INLINE dirty #-}
 
 {-# SPECIALIZE ifDirty :: Change a -> (a -> Change b) -> (a -> Change b) -> Change b #-}
 {-# SPECIALIZE ifDirty :: Identity a -> (a -> Identity b) -> (a -> Identity b) -> Identity b #-}
@@ -125,10 +129,12 @@ sharing :: Monad m => UpdaterT m a -> UpdaterT m a
 sharing f a = do
   (a', changed) <- listenDirty $ f a
   return $ if changed then a' else a
+{-# INLINE sharing #-}
 
 -- | Eval an updater (using 'sharing').
 evalUpdater :: Updater a -> EndoFun a
 evalUpdater f a = fst $ runChange $ sharing f a
+{-# INLINE evalUpdater #-}
 
 -- END REAL STUFF
 

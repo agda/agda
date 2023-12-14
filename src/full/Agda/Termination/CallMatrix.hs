@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
 {-# LANGUAGE ImplicitParams             #-}
-{-# LANGUAGE CPP                        #-}
 
 module Agda.Termination.CallMatrix where
 
@@ -12,9 +11,6 @@ module Agda.Termination.CallMatrix where
 --   , tests
 --   ) where
 
-#if __GLASGOW_HASKELL__ < 804
-import Data.Semigroup
-#endif
 
 import Agda.Termination.CutOff
 import Agda.Termination.Order as Order

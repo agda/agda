@@ -113,6 +113,7 @@ instance MentionsMeta Constraint where
                                   -- problem and we don't have a handle on
                                   -- what metas it depends on
     FindInstance{}      -> True   -- this needs to be woken up for any meta
+    ResolveInstanceHead q -> True -- TODO
     IsEmpty r t         -> mm t
     CheckSizeLtSat t    -> mm t
     CheckFunDef{}       -> True   -- not sure what metas this depends on

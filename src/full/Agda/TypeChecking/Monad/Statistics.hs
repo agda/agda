@@ -89,6 +89,6 @@ printStatistics mmname stats = do
         -- Second column (right aligned) is numbers.
         col2 = Boxes.vcat Boxes.right $ map (Boxes.text . showThousandSep . snd) stats
         table = Boxes.hsep 1 Boxes.left [col1, col2]
-    reportSLn "" 1 $ caseMaybe mmname "Accumulated statistics" $ \ mname ->
+    alwaysReportSLn "" 1 $ caseMaybe mmname "Accumulated statistics" $ \ mname ->
       "Statistics for " ++ prettyShow mname
-    reportSLn "" 1 $ Boxes.render table
+    alwaysReportSLn "" 1 $ Boxes.render table

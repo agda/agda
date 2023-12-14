@@ -14,7 +14,7 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: Ubuntu-latest
     steps:
-    - uses: styfle/cancel-workflow-action@0.11.0
+    - uses: styfle/cancel-workflow-action@0.12.0
       with:
         access_token: ${{ github.token }}
   stack:
@@ -23,7 +23,8 @@ jobs:
         shell: bash
     env:
       EXTRA_ARGS: --dry-run
-      NON_DEFAULT_FLAGS: --flag Agda:enable-cluster-counting --flag Agda:debug
+      NON_DEFAULT_FLAGS: --flag Agda:enable-cluster-counting --flag Agda:debug --flag
+        Agda:debug-serialisation --flag Agda:debug-parsing
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
@@ -71,7 +72,8 @@ jobs:
       fail-fast: false
       matrix:
         ghc-ver:
-        - 9.4.7
+        - 9.6.3
+        - 9.4.8
         - 9.2.8
         - 9.0.2
         - 8.10.7
@@ -90,6 +92,7 @@ name: Stack check snapshots
     - Agda.cabal
     - Setup.hs
     - stack-*.yaml
+    - '!stack-9.8.1.yaml'
     - src/size-solver/size-solver.cabal
   push:
     branches:
@@ -101,5 +104,6 @@ name: Stack check snapshots
     - Agda.cabal
     - Setup.hs
     - stack-*.yaml
+    - '!stack-9.8.1.yaml'
     - src/size-solver/size-solver.cabal
   workflow_dispatch: null

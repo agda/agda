@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Agda.Interaction.BasicOps where
@@ -406,6 +405,7 @@ outputFormId (OutputForm _ _ _ o) = out o
       IsEmptyType _              -> __IMPOSSIBLE__   -- Should never be used on IsEmpty constraints
       SizeLtSat{}                -> __IMPOSSIBLE__
       FindInstanceOF _ _ _        -> __IMPOSSIBLE__
+      ResolveInstanceOF _        -> __IMPOSSIBLE__
       PTSInstance i _            -> i
       PostponedCheckFunDef{}     -> __IMPOSSIBLE__
       DataSort _ i               -> i
@@ -427,80 +427,83 @@ reifyElimToExpr = \case
     appl s v = A.App defaultAppInfo_ (A.Lit empty (LitString s)) $ fmap unnamed v
 
 instance Reify Constraint where
-    type ReifiesTo Constraint = OutputConstraint Expr Expr
+  type ReifiesTo Constraint = OutputConstraint Expr Expr
 
-    reify (ValueCmp cmp (AsTermsOf t) u v) = CmpInType cmp <$> reify t <*> reify u <*> reify v
-    reify (ValueCmp cmp AsSizes u v) = CmpInType cmp <$> (reify =<< sizeType) <*> reify u <*> reify v
-    reify (ValueCmp cmp AsTypes u v) = CmpTypes cmp <$> reify u <*> reify v
-    reify (ValueCmpOnFace cmp p t u v) = CmpInType cmp <$> (reify =<< ty) <*> reify (lam_o u) <*> reify (lam_o v)
-      where
-        lam_o = I.Lam (setRelevance Irrelevant defaultArgInfo) . NoAbs "_"
-        ty = runNamesT [] $ do
-          p <- open p
-          t <- open t
-          pPi' "o" p (\ o -> t)
-    reify (ElimCmp cmp _ t v es1 es2) =
-      CmpElim cmp <$> reify t <*> mapM reifyElimToExpr es1
-                              <*> mapM reifyElimToExpr es2
-    reify (LevelCmp cmp t t')    = CmpLevels cmp <$> reify t <*> reify t'
-    reify (SortCmp cmp s s')     = CmpSorts cmp <$> reify s <*> reify s'
-    reify (UnquoteTactic tac _ goal) = do
-        tac <- A.App defaultAppInfo_ (A.Unquote exprNoRange) . defaultNamedArg <$> reify tac
-        OfType tac <$> reify goal
-    reify (UnBlock m) = do
-        mi <- lookupMetaInstantiation m
-        m' <- reify (MetaV m [])
-        case mi of
-          BlockedConst t -> do
-            e  <- reify t
-            return $ Assign m' e
-          PostponedTypeCheckingProblem cl -> enterClosure cl $ \case
-            CheckExpr cmp e a -> do
-                a  <- reify a
-                return $ TypedAssign m' e a
-            CheckLambda cmp (Arg ai (xs, mt)) body target -> do
-              domType <- maybe (return underscore) reify mt
-              target  <- reify target
-              let mkN (WithHiding h x) = setHiding h $ defaultNamedArg $ A.mkBinder_ x
-                  bs = mkTBind noRange (fmap mkN xs) domType
-                  e  = A.Lam Info.exprNoRange (DomainFull bs) body
-              return $ TypedAssign m' e target
-            CheckArgs _ _ _ args t0 t1 _ -> do
-              t0 <- reify t0
-              t1 <- reify t1
-              return $ PostponedCheckArgs m' (map (namedThing . unArg) args) t0 t1
-            CheckProjAppToKnownPrincipalArg cmp e _ _ _ t _ _ _ _ -> TypedAssign m' e <$> reify t
-            DoQuoteTerm cmp v t -> do
-              tm <- A.App defaultAppInfo_ (A.QuoteTerm exprNoRange) . defaultNamedArg <$> reify v
-              OfType tm <$> reify t
-          Open{}  -> __IMPOSSIBLE__
-          OpenInstance{}  -> __IMPOSSIBLE__
-          InstV{} -> __IMPOSSIBLE__
-    reify (FindInstance m mcands) = FindInstanceOF
-      <$> reify (MetaV m [])
-      <*> (reify =<< getMetaType m)
-      <*> forM (fromMaybe [] mcands) (\ (Candidate q tm ty _) -> do
-            (,,) <$> reify tm <*> reify tm <*> reify ty)
-    reify (IsEmpty r a) = IsEmptyType <$> reify a
-    reify (CheckSizeLtSat a) = SizeLtSat  <$> reify a
-    reify (CheckFunDef i q cs err) = do
-      a <- reify =<< defType <$> getConstInfo q
-      return $ PostponedCheckFunDef q a err
-    reify (HasBiggerSort a) = OfType <$> reify a <*> reify (UnivSort a)
-    reify (HasPTSRule a b) = do
-      (a,(x,b)) <- reify (unDom a,b)
-      return $ PTSInstance a b
-    reify (CheckDataSort q s) = DataSort q <$> reify s
-    reify (CheckLockedVars t _ lk _) = CheckLock <$> reify t <*> reify (unArg lk)
-    reify (CheckMetaInst m) = do
-      t <- jMetaType . mvJudgement <$> lookupLocalMeta m
-      OfType <$> reify (MetaV m []) <*> reify t
-    reify (CheckType t) = JustType <$> reify t
-    reify (UsableAtModality _ _ mod t) = UsableAtMod mod <$> reify t
+  reify (ValueCmp cmp (AsTermsOf t) u v) = CmpInType cmp <$> reify t <*> reify u <*> reify v
+  reify (ValueCmp cmp AsSizes u v) = CmpInType cmp <$> (reify =<< sizeType) <*> reify u <*> reify v
+  reify (ValueCmp cmp AsTypes u v) = CmpTypes cmp <$> reify u <*> reify v
+  reify (ValueCmpOnFace cmp p t u v) = CmpInType cmp <$> (reify =<< ty) <*> reify (lam_o u) <*> reify (lam_o v)
+    where
+      lam_o = I.Lam (setRelevance Irrelevant defaultArgInfo) . NoAbs "_"
+      ty = runNamesT [] $ do
+        p <- open p
+        t <- open t
+        pPi' "o" p (\ o -> t)
+  reify (ElimCmp cmp _ t v es1 es2) =
+    CmpElim cmp <$> reify t <*> mapM reifyElimToExpr es1
+                            <*> mapM reifyElimToExpr es2
+  reify (LevelCmp cmp t t')    = CmpLevels cmp <$> reify t <*> reify t'
+  reify (SortCmp cmp s s')     = CmpSorts cmp <$> reify s <*> reify s'
+  reify (UnquoteTactic tac _ goal) = do
+      tac <- A.App defaultAppInfo_ (A.Unquote exprNoRange) . defaultNamedArg <$> reify tac
+      OfType tac <$> reify goal
+  reify (UnBlock m) = do
+      mi <- lookupMetaInstantiation m
+      m' <- reify (MetaV m [])
+      case mi of
+        BlockedConst t -> do
+          e  <- reify t
+          return $ Assign m' e
+        PostponedTypeCheckingProblem cl -> enterClosure cl $ \case
+          CheckExpr cmp e a -> do
+              a  <- reify a
+              return $ TypedAssign m' e a
+          CheckLambda cmp (Arg ai (xs, mt)) body target -> do
+            domType <- maybe (return underscore) reify mt
+            target  <- reify target
+            let mkN (WithHiding h x) = setHiding h $ defaultNamedArg $ A.mkBinder_ x
+                bs = mkTBind noRange (fmap mkN xs) domType
+                e  = A.Lam Info.exprNoRange (DomainFull bs) body
+            return $ TypedAssign m' e target
+          CheckArgs _ _ _ args t0 t1 _ -> do
+            t0 <- reify t0
+            t1 <- reify t1
+            return $ PostponedCheckArgs m' (map (namedThing . unArg) args) t0 t1
+          CheckProjAppToKnownPrincipalArg cmp e _ _ _ t _ _ _ _ -> TypedAssign m' e <$> reify t
+          DoQuoteTerm cmp v t -> do
+            tm <- A.App defaultAppInfo_ (A.QuoteTerm exprNoRange) . defaultNamedArg <$> reify v
+            OfType tm <$> reify t
+        Open{}  -> __IMPOSSIBLE__
+        OpenInstance{}  -> __IMPOSSIBLE__
+        InstV{} -> __IMPOSSIBLE__
+  reify (FindInstance m mcands) = FindInstanceOF
+    <$> reify (MetaV m [])
+    <*> (reify =<< getMetaType m)
+    <*> forM (fromMaybe [] mcands) (\ (Candidate q tm ty _) -> do
+          (,,) <$> reify tm <*> reify tm <*> reify ty)
+  reify (ResolveInstanceHead q) = return $ ResolveInstanceOF q
+  reify (IsEmpty r a) = IsEmptyType <$> reify a
+  reify (CheckSizeLtSat a) = SizeLtSat  <$> reify a
+  reify (CheckFunDef i q cs err) = do
+    a <- reify =<< defType <$> getConstInfo q
+    return $ PostponedCheckFunDef q a err
+  reify (HasBiggerSort a) = OfType <$> reify a <*> reify (UnivSort a)
+  reify (HasPTSRule a b) = do
+    (a,(x,b)) <- reify (unDom a,b)
+    return $ PTSInstance a b
+  reify (CheckDataSort q s) = DataSort q <$> reify s
+  reify (CheckLockedVars t _ lk _) = CheckLock <$> reify t <*> reify (unArg lk)
+  reify (CheckMetaInst m) = do
+    t <- jMetaType . mvJudgement <$> lookupLocalMeta m
+    OfType <$> reify (MetaV m []) <*> reify t
+  reify (CheckType t) = JustType <$> reify t
+  reify (UsableAtModality _ _ mod t) = UsableAtMod mod <$> reify t
+  {-# SPECIALIZE reify :: Constraint -> TCM (ReifiesTo Constraint) #-}
 
 instance (Pretty a, Pretty b) => PrettyTCM (OutputForm a b) where
   prettyTCM (OutputForm r pids unblock c) =
     prettyRangeConstraint r pids unblock (pretty c)
+  {-# SPECIALIZE prettyTCM :: (Pretty a, Pretty b) => (OutputForm a b) -> TCM Doc #-}
 
 instance (Pretty a, Pretty b) => Pretty (OutputForm a b) where
   pretty (OutputForm r pids unblock c) =
@@ -545,6 +548,8 @@ instance (Pretty a, Pretty b) => Pretty (OutputConstraint a b) where
         [ "Resolve instance argument" <?> (pretty s .: t)
         , nest 2 $ "Candidate:"
         , nest 4 $ vcat [ bin (pretty q) "=" (pretty v) .: t | (q, v, t) <- cs ] ]
+      ResolveInstanceOF q ->
+        "Resolve output type of instance" <?> pretty q
       PTSInstance a b      -> "PTS instance for" <+> pretty (a, b)
       PostponedCheckFunDef q a _err ->
         vcat [ "Check definition of" <+> pretty q <+> ":" <+> pretty a ]
@@ -590,6 +595,7 @@ instance (ToConcrete a, ToConcrete b) => ToConcrete (OutputConstraint a b) where
     toConcrete (FindInstanceOF s t cs) =
       FindInstanceOF <$> toConcrete s <*> toConcrete t
                      <*> mapM (\(q,tm,ty) -> (,,) <$> toConcrete q <*> toConcrete tm <*> toConcrete ty) cs
+    toConcrete (ResolveInstanceOF q) = return $ ResolveInstanceOF q
     toConcrete (PTSInstance a b) = PTSInstance <$> toConcrete a <*> toConcrete b
     toConcrete (DataSort a b)  = DataSort a <$> toConcrete b
     toConcrete (CheckLock a b) = CheckLock <$> toConcrete a <*> toConcrete b
@@ -662,6 +668,7 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
         SortCmp cmp a b            -> Nothing
         UnBlock{}                  -> Nothing
         FindInstance{}             -> Nothing
+        ResolveInstanceHead{}      -> Nothing
         IsEmpty r t                -> isMeta (unEl t)
         CheckSizeLtSat t           -> isMeta t
         CheckFunDef{}              -> Nothing
@@ -719,8 +726,8 @@ stripConstraintPids cs = List.sortBy (compare `on` isBlocked) $ map stripPids cs
     interestingPids = Set.unions $ map (allBlockingProblems . constraintUnblocker) cs
     stripPids (PConstr pids unblock c) = PConstr (Set.intersection pids interestingPids) unblock c
 
+{-# SPECIALIZE interactionIdToMetaId :: InteractionId -> TCM MetaId #-}
 -- | Converts an 'InteractionId' to a 'MetaId'.
-
 interactionIdToMetaId :: ReadTCState m => InteractionId -> m MetaId
 interactionIdToMetaId i = do
   h <- currentModuleNameHash

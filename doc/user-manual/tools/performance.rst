@@ -13,6 +13,11 @@ describes some tools available to figure out why not.
 Measuring typechecking performance
 ----------------------------------
 
+The Agda Emacs mode has an interactive highlighting feature, which highlights the term that is
+currently being type checked. This can often reveal which pieces of a definition slow down type
+checking. To enable interactive highlighting, use ``M-x customize-group agda2-highlight`` and set
+``Agda2 Highlight Level`` to ``Interactive``.
+
 Agda can do some internal book-keeping of how time is spent, which can be turned on using the
 ``--profile`` flag:
 

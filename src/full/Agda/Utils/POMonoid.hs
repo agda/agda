@@ -1,13 +1,8 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-{-# LANGUAGE CPP #-}
 -- | Partially ordered monoids.
 
 module Agda.Utils.POMonoid where
-
-#if __GLASGOW_HASKELL__ < 804
-import Data.Semigroup
-#endif
 
 import Agda.Utils.PartialOrd
 
