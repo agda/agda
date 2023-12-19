@@ -57,6 +57,8 @@
       # TODO: also replace each haskell.packages.ghcXXX.agda
     };
     # Generate the overlays.default output from overlayAttrs above
+    # N.B. This overlay is EXPERIMENTAL and untested.
+    # Please report bugs to the Agda issue tracker.
     imports = [ inputs.flake-parts.flakeModules.easyOverlay ];
   };
 }
