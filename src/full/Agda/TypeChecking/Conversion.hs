@@ -1693,14 +1693,22 @@ equalSort s1 s2 = do
     let (s1,s2) = (ignoreBlocking s1b, ignoreBlocking s2b)
         blocker = unblockOnEither (getBlocker s1b) (getBlocker s2b)
 
-    let postponeIfBlocked = catchPatternErr $ \blocker ->
-          if | blocker == neverUnblock -> typeError $ UnequalSorts s1 s2
+    let postponeIfBlocked = catchPatternErr $ \ blocker -> do
+
+          if | blocker == neverUnblock  -> typeError $ UnequalSorts s1 s2
+-- --             | blocker == alwaysUnblock -> equalSort (ignoreBlocking s1b) (ignoreBlocking s2b)
              | otherwise -> do
                  reportSDoc "tc.conv.sort" 30 $ vcat
                    [ "Postponing constraint"
                    , nest 2 $ fsep [ prettyTCM s1 <+> "=="
                                    , prettyTCM s2 ]
                    ]
+
+                 -- Andreas, 2023-12-21, recomputing the blocker fixes issue #7034.
+                 s1b <- reduceB s1
+                 s2b <- reduceB s2
+                 let blocker = unblockOnEither (getBlocker s1b) (getBlocker s2b)
+
                  addConstraint blocker $ SortCmp CmpEq s1 s2
 
     propEnabled <- isPropEnabled
