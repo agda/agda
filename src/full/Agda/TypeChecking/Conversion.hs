@@ -1272,6 +1272,7 @@ leqSort s1 s2 = do
                    , nest 2 $ fsep [ pretty s1 <+> "=<"
                                    , pretty s2 ]
                    ]
+                 blocker <- updateBlocker blocker
                  addConstraint blocker $ SortCmp CmpLeq s1 s2
 
     propEnabled <- isPropEnabled
@@ -1693,7 +1694,7 @@ equalSort s1 s2 = do
     let (s1,s2) = (ignoreBlocking s1b, ignoreBlocking s2b)
         blocker = unblockOnEither (getBlocker s1b) (getBlocker s2b)
 
-    let postponeIfBlocked = catchPatternErr $ \blocker ->
+    let postponeIfBlocked = catchPatternErr $ \blocker -> do
           if | blocker == neverUnblock -> typeError $ UnequalSorts s1 s2
              | otherwise -> do
                  reportSDoc "tc.conv.sort" 30 $ vcat
@@ -1701,6 +1702,8 @@ equalSort s1 s2 = do
                    , nest 2 $ fsep [ prettyTCM s1 <+> "=="
                                    , prettyTCM s2 ]
                    ]
+                 -- Andreas, 2023-12-21, recomputing the blocker fixes issue #7034.
+                 blocker <- updateBlocker blocker
                  addConstraint blocker $ SortCmp CmpEq s1 s2
 
     propEnabled <- isPropEnabled
