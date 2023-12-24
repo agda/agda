@@ -2960,7 +2960,7 @@ instance Pretty ProjLams where
 
 -- | Is the record type recursive?
 recRecursive :: Defn -> Bool
-recRecursive (Record { recMutual = Just qs }) = not $ null qs
+recRecursive (Record { recMutual = mqs }) = any (not . null) mqs
 recRecursive _ = __IMPOSSIBLE__
 
 recEtaEquality :: Defn -> HasEta
