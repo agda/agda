@@ -676,8 +676,8 @@ This version of ``case_of_`` only works for non-dependent functions. For
 dependent functions the target type will in most cases not be inferrable, but
 you can use a variant with an explicit ``B`` for this case::
 
-  case_return_of_ : ∀ {a b} {A : Set a} (x : A) (B : A → Set b) → (∀ x → B x) → B x
-  case x return B of f = f x
+  case_returning_of_ : ∀ {a b} {A : Set a} (x : A) (B : A → Set b) → (∀ x → B x) → B x
+  case x returning B of f = f x
 
 The dependent version will let you generalise over the scrutinee, just like a
 with-abstraction, but you have to do it manually. Two things that it will not let you do is
