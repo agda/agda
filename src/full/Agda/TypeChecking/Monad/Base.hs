@@ -1702,12 +1702,10 @@ instance LensIsAbstract (Closure a) where
 instance LensIsAbstract MetaInfo where
   lensIsAbstract = lensClosure . lensIsAbstract
 
-instance LensIsOpaque TCEnv where
-  lensIsOpaque f env =
-    (f $! case envCurrentOpaqueId env of { Just x -> OpaqueDef x ; Nothing -> TransparentDef })
-    <&> \case { OpaqueDef x    -> env { envCurrentOpaqueId = Just x }
-              ; TransparentDef -> env { envCurrentOpaqueId = Nothing }
-              }
+instance LensOpaqueOrTransparentBlock TCEnv where
+  lensOpaqueOrTransparentBlock f env =
+    f (envCurrentOpaqueId env)
+    <&> \i -> env { envCurrentOpaqueId = i }
 
 ---------------------------------------------------------------------------
 -- ** Interaction meta variables
@@ -2405,7 +2403,7 @@ data FunctionData = FunctionData
   , _funIsKanOp        :: Maybe QName
       -- ^ Is this a helper for one of the Kan operations (transp,
       -- hcomp) on data types/records? If so, for which data type?
-  , _funOpaque         :: IsOpaque
+  , _funOpaque         :: OpaqueOrTransparentDef
       -- ^ Is this function opaque? If so, and we're not in an opaque
       -- block that includes this function('s name), it will be treated
       -- abstractly.
@@ -2427,7 +2425,7 @@ pattern Function
   -> Maybe ExtLamInfo
   -> Maybe QName
   -> Maybe QName
-  -> IsOpaque
+  -> OpaqueOrTransparentDef
   -> Defn
 pattern Function
   { funClauses
@@ -2693,7 +2691,7 @@ data PrimitiveData = PrimitiveData
   , _primCompiled :: Maybe CompiledClauses
       -- ^ 'Nothing' for primitive functions,
       --   @'Just' something@ for builtin functions.
-  , _primOpaque   :: IsOpaque
+  , _primOpaque   :: OpaqueOrTransparentDef
       -- ^ Primitives can also live in opaque blocks.
   } deriving (Show, Generic)
 
@@ -2703,7 +2701,7 @@ pattern Primitive
   -> [Clause]
   -> FunctionInverse
   -> Maybe CompiledClauses
-  -> IsOpaque
+  -> OpaqueOrTransparentDef
   -> Defn
 pattern Primitive
   { primAbstr
@@ -3226,7 +3224,7 @@ defAbstract d = case theDef d of
     Primitive{primAbstr = a}  -> a
     PrimitiveSort{}           -> ConcreteDef
 
-defOpaque :: Definition -> IsOpaque
+defOpaque :: Definition -> OpaqueOrTransparentDef
 defOpaque d = case theDef d of
     -- These two can be opaque:
     Function{funOpaque=o}     -> o
@@ -3699,10 +3697,10 @@ data TCEnv =
                 -- the counter is decreased in the failure
                 -- continuation of
                 -- 'Agda.TypeChecking.SyntacticEquality.checkSyntacticEquality'.
-          , envCurrentOpaqueId :: !(Maybe OpaqueId)
-                -- ^ Unique identifier of the opaque block we are
-                -- currently under, if any. Used by the scope checker
-                -- (to associate definitions to blocks), and by the type
+          , envCurrentOpaqueId :: !OpaqueOrTransparentBlock
+                -- ^ Information about the current opaque or
+                -- transparent block. Used by the scope checker (to
+                -- associate definitions to blocks), and by the type
                 -- checker (for unfolding control).
           }
     deriving (Generic)
@@ -3768,7 +3766,7 @@ initEnv = TCEnv { envContext             = []
                 , envConflComputingOverlap  = False
                 , envCurrentlyElaborating   = False
                 , envSyntacticEqualityFuel  = Strict.Nothing
-                , envCurrentOpaqueId        = Nothing
+                , envCurrentOpaqueId        = ATransparentBlock Inserted
                 }
 
 class LensTCEnv a where
@@ -4253,6 +4251,8 @@ data Warning
   | NotAffectedByOpaque
   | UnfoldTransparentName QName
   | UselessOpaque
+  | UselessTransparent
+    -- ^ A useless use of @transparent@.
 
   -- Cubical
   | FaceConstraintCannotBeHidden ArgInfo
@@ -4333,6 +4333,7 @@ warningName = \case
 
   NotAffectedByOpaque{}   -> NotAffectedByOpaque_
   UselessOpaque{}         -> UselessOpaque_
+  UselessTransparent{}    -> UselessTransparent_
   UnfoldTransparentName{} -> UnfoldTransparentName_
 
   -- Cubical

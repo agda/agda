@@ -295,6 +295,7 @@ data WarningName
   | NotAffectedByOpaque_
   | UnfoldTransparentName_
   | UselessOpaque_
+  | UselessTransparent_
   -- Cubical
   | FaceConstraintCannotBeHidden_
   | FaceConstraintCannotBeNamed_
@@ -476,6 +477,7 @@ warningNameDescription = \case
   NotAffectedByOpaque_             -> "Declarations unaffected by enclosing `opaque` blocks."
   UnfoldTransparentName_           -> "Non-`opaque` names mentioned in an `unfolding` clause."
   UselessOpaque_                   -> "`opaque` blocks that have no effect."
+  UselessTransparent_              -> "`transparent` blocks that have no effect."
   -- Cubical
   FaceConstraintCannotBeHidden_    -> "Face constraint patterns that are given as implicit arguments."
   FaceConstraintCannotBeNamed_     -> "Face constraint patterns that are given as named arguments."

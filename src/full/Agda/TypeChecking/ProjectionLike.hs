@@ -328,7 +328,7 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
       reportSLn "tc.proj.like" 30 $ "  injective functions can't be projections"
     Function{funAbstr = AbstractDef} ->
       reportSLn "tc.proj.like" 30 $ "  abstract functions can't be projections"
-    Function{funOpaque = OpaqueDef _} ->
+    Function{funOpaque = OpaqueDef{}} ->
       reportSLn "tc.proj.like" 30 $ "  opaque functions can't be projections"
     Function{funProjection = Right{}} ->
       reportSLn "tc.proj.like" 30 $ "  already projection like"

@@ -1292,16 +1292,17 @@ inConcreteMode = localTC $ \e -> e { envAbstractMode = ConcreteMode }
 ignoreAbstractMode :: MonadTCEnv m => m a -> m a
 ignoreAbstractMode = localTC $ \e -> e { envAbstractMode = IgnoreAbstractMode }
 
--- | Go under the given opaque block. The unfolding set will turn opaque
--- definitions transparent.
-{-# SPECIALIZE underOpaqueId :: OpaqueId -> TCM a -> TCM a #-}
-underOpaqueId :: MonadTCEnv m => OpaqueId -> m a -> m a
-underOpaqueId i = localTC $ \e -> e { envCurrentOpaqueId = Just i }
+-- | Go inside the given opaque or transparent block.
+{-# SPECIALIZE
+      underOpaqueId :: OpaqueOrTransparentBlock -> TCM a -> TCM a #-}
+underOpaqueId :: MonadTCEnv m => OpaqueOrTransparentBlock -> m a -> m a
+underOpaqueId i = localTC $ \e -> e { envCurrentOpaqueId = i }
 
 -- | Outside of any opaque blocks.
 {-# SPECIALIZE notUnderOpaque :: TCM a -> TCM a #-}
 notUnderOpaque :: MonadTCEnv m => m a -> m a
-notUnderOpaque = localTC $ \e -> e { envCurrentOpaqueId = Nothing }
+notUnderOpaque =
+  localTC $ \e -> e { envCurrentOpaqueId = ATransparentBlock Inserted }
 
 -- | Enter the reducibility environment associated with a definition:
 -- The environment will have the same concreteness as the name, and we
@@ -1318,7 +1319,7 @@ inConcreteOrAbstractMode q cont = do
       ConcreteDef -> inConcreteMode
 
     k2 = case defOpaque def of
-      OpaqueDef i    -> underOpaqueId i
+      OpaqueDef i o  -> underOpaqueId (AnOpaqueBlock i o)
       TransparentDef -> notUnderOpaque
   k2 (k1 (cont def))
 

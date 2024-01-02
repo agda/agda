@@ -1,0 +1,3 @@
+Opaque-option-3.agda:13,7-11
+A != B of type Set
+when checking that the expression refl has type A ≡ B

@@ -360,6 +360,8 @@ prettyWarning = \case
 
     UselessOpaque -> "This `opaque` block has no effect."
 
+    UselessTransparent -> "This `transparent` block has no effect."
+
     FaceConstraintCannotBeHidden ai -> fsep $
       pwords "Face constraint patterns cannot be" ++ [ pretty (getHiding ai), "arguments"]
 

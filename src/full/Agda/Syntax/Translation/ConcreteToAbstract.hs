@@ -4,6 +4,8 @@
     figuring out infix operator precedences and tidying up definitions.
 -}
 
+{-# LANGUAGE NondecreasingIndentation #-}
+
 module Agda.Syntax.Translation.ConcreteToAbstract
     ( ToAbstract(..), localToAbstract
     , concreteToAbstract_
@@ -171,7 +173,7 @@ recordConstructorType decls =
     -- the the last field. Use NoWarn to silence fixity warnings. We'll get
     -- them again when scope checking the declarations to build the record
     -- module.
-    niceDecls NoWarn decls $ buildType . takeFields
+    niceDecls False NoWarn decls $ buildType . takeFields
   where
     takeFields = List.dropWhileEnd notField
 
@@ -1409,8 +1411,12 @@ importPrimitives = do
     toAbstract (Declarations importAgdaPrimitive)
 
 -- | runs Syntax.Concrete.Definitions.niceDeclarations on main module
-niceDecls :: DoWarn -> [C.Declaration] -> ([NiceDeclaration] -> ScopeM a) -> ScopeM a
-niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn ds $ do
+niceDecls
+  :: Bool  -- ^ If @--opaque@ is active, should "everything" be made
+           --   opaque?
+  -> DoWarn -> [C.Declaration] -> ([NiceDeclaration] -> ScopeM a) -> ScopeM a
+niceDecls obeyOpaque warn ds ret =
+  setCurrentRange ds $ computeFixitiesAndPolarities warn ds $ do
 
   -- Some pragmas are not allowed in safe mode unless we are in a builtin module.
   -- So we need to tell the nicifier whether it should yell about unsafe pragmas.
@@ -1424,7 +1430,14 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
   fixs <- useScope scopeFixities
 
   -- Run nicifier.
-  let (result, warns) = runNice (NiceEnv safeButNotBuiltin) $ niceDeclarations fixs ds
+  opaque <- optOpaque <$> pragmaOptions
+  let (result, warns) =
+        runNice
+          (NiceEnv
+             { safeButNotBuiltin = safeButNotBuiltin
+             , opaque            = obeyOpaque && opaque
+             })
+          (niceDeclarations fixs ds)
 
   -- Respect the @DoWarn@ directive. For this to be sound, we need to know for
   -- sure that each @Declaration@ is checked at least once with @DoWarn@.
@@ -1452,7 +1465,7 @@ newtype Declarations = Declarations [C.Declaration]
 instance ToAbstract Declarations where
   type AbsOfCon Declarations = [A.Declaration]
 
-  toAbstract (Declarations ds) = niceDecls DoWarn ds toAbstract
+  toAbstract (Declarations ds) = niceDecls True DoWarn ds toAbstract
 
 newtype LetDefs = LetDefs (List1 C.Declaration)
 newtype LetDef = LetDef NiceDeclaration
@@ -1461,7 +1474,8 @@ instance ToAbstract LetDefs where
   type AbsOfCon LetDefs = [A.LetBinding]
 
   toAbstract (LetDefs ds) =
-    List1.concat <$> niceDecls DoWarn (List1.toList ds) (toAbstract . map LetDef)
+    List1.concat <$>
+      niceDecls False DoWarn (List1.toList ds) (toAbstract . map LetDef)
 
 instance ToAbstract LetDef where
   type AbsOfCon LetDef = List1 A.LetBinding
@@ -2105,7 +2119,34 @@ instance ToAbstract NiceDeclaration where
       warning $ NicifierIssue (DeclarationWarning stk (InvalidConstructorBlock (getRange d)))
       pure []
 
-    NiceOpaque r names decls -> do
+    NiceOpaque _ IsTransparent origin _ decls ->
+      localTC (\e -> e { envCurrentOpaqueId =
+                           ATransparentBlock UserWritten }) $ do
+      out <- traverse toAbstract decls
+      when (origin == UserWritten &&
+            not (any interestingOpaqueDecl out)) $
+        warning UselessTransparent
+      return out
+    NiceOpaque r IsOpaque origin names decls -> do
+      -- Record the parent unfolding block, if any:
+      (parent, ignore) <- asksTC $ \env ->
+        case envCurrentOpaqueId env of
+          AnOpaqueBlock i _   -> (Just i, True)
+          ATransparentBlock o -> (Nothing, o == UserWritten)
+
+      -- If the parent block is opaque, or transparent and
+      -- user-written, and the given declaration was not user-written,
+      -- then the declaration is ignored. This is because
+      -- niceDeclarations can insert too many NiceOpaque constructors:
+      -- if a function definition is made opaque through the use of
+      -- --opaque, then the definitions in its where clauses should
+      -- belong to the same opaque block as the function, unless
+      -- perhaps if opaque or transparent keywords are used
+      -- explicitly.
+      if ignore && origin /= UserWritten
+      then traverse toAbstract decls
+      else do
+
       -- The names in an 'unfolding' clause must be unambiguous names of
       -- definitions:
       let
@@ -2123,8 +2164,6 @@ instance ToAbstract NiceDeclaration where
       names  <- traverse findName names
       -- Generate the identifier for this block:
       oid    <- fresh
-      -- Record the parent unfolding block, if any:
-      parent <- asksTC envCurrentOpaqueId
 
       stOpaqueBlocks `modifyTCLens` Map.insert oid OpaqueBlock
         { opaqueId        = oid
@@ -2135,9 +2174,12 @@ instance ToAbstract NiceDeclaration where
         }
 
       -- Keep going!
-      localTC (\e -> e { envCurrentOpaqueId = Just oid }) $ do
+      localTC (\e -> e { envCurrentOpaqueId =
+                           AnOpaqueBlock oid origin }) $ do
         out <- traverse toAbstract decls
-        unless (any interestingOpaqueDecl out) $ warning UselessOpaque
+        when (origin == UserWritten &&
+              not (any interestingOpaqueDecl out)) $
+          warning UselessOpaque
         pure $ UnfoldingDecl r names:out
     where
       -- checking postulate or type sig. without checking safe flag
@@ -2168,26 +2210,30 @@ instance ToAbstract NiceDeclaration where
 -- opaque block.
 unfoldFunction :: A.QName -> ScopeM ()
 unfoldFunction qn = asksTC envCurrentOpaqueId >>= \case
-  Just id -> do
+  AnOpaqueBlock id _ -> do
     let go Nothing   = __IMPOSSIBLE__
         go (Just ob) = Just ob{ opaqueDecls = qn `HashSet.insert` opaqueDecls ob }
     stOpaqueBlocks `modifyTCLens` Map.alter go id
-  Nothing -> pure ()
+  ATransparentBlock{} -> pure ()
 
--- | Look up the current opaque identifier as a value in 'IsOpaque'.
-contextIsOpaque :: ScopeM IsOpaque
-contextIsOpaque =  maybe TransparentDef OpaqueDef <$> asksTC envCurrentOpaqueId
+-- | Look up the current opaque block identifier, if any.
+contextIsOpaque :: ScopeM OpaqueOrTransparentDef
+contextIsOpaque = asksTC $ \env -> case envCurrentOpaqueId env of
+  AnOpaqueBlock i o   -> OpaqueDef i o
+  ATransparentBlock _ -> TransparentDef
 
 updateDefInfoOpacity :: DefInfo -> ScopeM DefInfo
 updateDefInfoOpacity di = (\a -> di { Info.defOpaque = a }) <$> contextIsOpaque
 
--- | Raise a warning indicating that the current Declaration is not
--- affected by opacity, but only if we are actually in an Opaque block.
+-- | Raise a warning indicating that the current 'Declaration' is not
+-- affected by opacity, but only if we are in a user-written opaque
+-- block, and not in a where clause.
 notAffectedByOpaque :: ScopeM a -> ScopeM a
 notAffectedByOpaque k = do
   t <- asksTC envCheckingWhere
-  unless t $
-    maybe (pure ()) (const (warning NotAffectedByOpaque)) =<< asksTC envCurrentOpaqueId
+  unless t $ asksTC envCurrentOpaqueId >>= \case
+    AnOpaqueBlock _ UserWritten -> warning NotAffectedByOpaque
+    _                           -> pure ()
   notUnderOpaque k
 
 unGeneralized :: A.Expr -> (Set.Set I.QName, A.Expr)

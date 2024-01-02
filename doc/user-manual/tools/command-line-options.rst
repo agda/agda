@@ -415,6 +415,24 @@ Performance
 
      Default, opposite of :option:`--no-projection-like`.
 
+.. option:: --opaque
+
+     .. versionadded:: 2.6.5
+
+     Every function definition, mutual block, `unquoteDecl` or
+     `unquoteDef` that is not explicitly marked as opaque or
+     transparent is put into a separate opaque block. Local
+     definitions in where clauses are put into the same opaque block
+     as their parent definitions, unless ``opaque`` or ``transparent``
+     are used. (Definitions in let expressions or before a record
+     type's last field declaration are not made opaque.)
+
+.. option:: --no-opaque
+
+     .. versionadded:: 2.6.5
+
+     Everything is by default transparent. This is the default.
+
 Printing and debugging
 ~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1498,6 +1516,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 .. option:: UselessPublic
 
      ``public`` blocks where they have no effect.
+
+.. option:: UselessTransparent
+
+     ``transparent`` blocks where they have no effect.
 
 .. option:: UserWarning
 

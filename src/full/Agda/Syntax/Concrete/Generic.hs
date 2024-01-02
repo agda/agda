@@ -252,7 +252,7 @@ instance ExprLike Declaration where
      Postulate r ds            -> Postulate r                          $ mapE ds
      Primitive r ds            -> Primitive r                          $ mapE ds
      Generalize r ds           -> Generalize r                         $ mapE ds
-     Opaque  r ds              -> Opaque r                             $ mapE ds
+     Opaque  r ot ds           -> Opaque r ot                          $ mapE ds
      e@Open{}                  -> e
      e@Import{}                -> e
      ModuleMacro r e n es op dir
@@ -333,7 +333,7 @@ instance FoldDecl Declaration where
     UnquoteDef _ _ _        -> mempty
     UnquoteData _ _ _ _     -> mempty
     Pragma _                -> mempty
-    Opaque _ ds             -> foldDecl f ds
+    Opaque _ _ ds           -> foldDecl f ds
     Unfolding _ _           -> mempty
 
 class TraverseDecl a where
@@ -364,7 +364,7 @@ instance TraverseDecl Declaration where
       Mutual r            ds     -> Mutual r                <$> preTraverseDecl f ds
       Module r er n tel   ds     -> Module r er n tel       <$> preTraverseDecl f ds
       Macro r             ds     -> Macro r                 <$> preTraverseDecl f ds
-      Opaque r ds                -> Opaque r                <$> preTraverseDecl f ds
+      Opaque r ot ds             -> Opaque r ot             <$> preTraverseDecl f ds
       Record r er n dir tel t ds -> Record r er n dir tel t <$> preTraverseDecl f ds
       RecordDef r n dir tel   ds -> RecordDef r n dir tel   <$> preTraverseDecl f ds
       TypeSig _ _ _ _            -> return d

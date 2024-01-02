@@ -480,6 +480,7 @@ warningHighlighting' b w = case tcWarning w of
     Pa.OverlappingTokensWarning{} -> mempty
   NotAffectedByOpaque{}           -> deadcodeHighlighting w
   UselessOpaque{}                 -> deadcodeHighlighting w
+  UselessTransparent{}            -> deadcodeHighlighting w
   UnfoldTransparentName r         -> deadcodeHighlighting r
   FaceConstraintCannotBeHidden{}  -> deadcodeHighlighting w
   FaceConstraintCannotBeNamed{}   -> deadcodeHighlighting w

@@ -186,7 +186,7 @@ isAccessibleDef env state defn =
     -- Reducibility rule for opaque definitions: If we are operating
     -- under an unfolding block,
     clarify def = case envCurrentOpaqueId env of
-      Just oid ->
+      AnOpaqueBlock oid _ ->
         let
           block = fromMaybe __IMPOSSIBLE__ $ Map.lookup oid (view stOpaqueBlocks state)
 
@@ -194,7 +194,7 @@ isAccessibleDef env state defn =
           -- associated to that block will be unfolded.
           okay = defName defn `HashSet.member` opaqueUnfolding block
         in if okay then TransparentDef else def
-      Nothing -> def
+      ATransparentBlock{} -> def
 
     -- Short-circuit the map lookup for vanilla definitions
     plainDef = defAbstract defn == ConcreteDef

@@ -21,7 +21,7 @@ data Keyword
         | KwInductive | KwCoInductive
         | KwEta | KwNoEta
         | KwHiding | KwUsing | KwRenaming | KwTo | KwPublic
-        | KwOpaque | KwUnfolding
+        | KwOpaque | KwTransparent | KwUnfolding
         | KwOPTIONS | KwBUILTIN | KwLINE
         | KwFOREIGN | KwCOMPILE
         | KwIMPOSSIBLE | KwSTATIC | KwINJECTIVE | KwINLINE | KwNOINLINE
@@ -58,6 +58,7 @@ layoutKeywords =
     , KwPostulate
     , KwPrimitive
     , KwPrivate
+    , KwTransparent
     , KwVariable
     , KwWhere
     , KwOpaque

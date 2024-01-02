@@ -76,6 +76,7 @@ module Agda.Interaction.Options.Base
     , lensOptRewriting
     , lensOptCubical
     , lensOptGuarded
+    , lensOptOpaque
     , lensOptFirstOrder
     , lensOptPostfixProjections
     , lensOptKeepPatternVariables
@@ -137,6 +138,7 @@ module Agda.Interaction.Options.Base
     , optEraseRecordParameters
     , optRewriting
     , optGuarded
+    , optOpaque
     , optFirstOrder
     , optPostfixProjections
     , optKeepPatternVariables
@@ -363,6 +365,7 @@ data PragmaOptions = PragmaOptions
       -- ^ Can rewrite rules be added and used?
   , _optCubical                   :: Maybe Cubical
   , _optGuarded                   :: WithDefault 'False
+  , _optOpaque                    :: WithDefault 'False
   , _optFirstOrder                :: WithDefault 'False
       -- ^ Should we speculatively unify function applications as if they were injective?
   , _optPostfixProjections        :: WithDefault 'False
@@ -549,6 +552,7 @@ optErasedMatches             = collapseDefault . _optErasedMatches && optErasure
 optEraseRecordParameters     = collapseDefault . _optEraseRecordParameters
 optRewriting                 = collapseDefault . _optRewriting
 optGuarded                   = collapseDefault . _optGuarded
+optOpaque                    = collapseDefault . _optOpaque
 optFirstOrder                = collapseDefault . _optFirstOrder
 optPostfixProjections        = collapseDefault . _optPostfixProjections
 optKeepPatternVariables      = collapseDefault . _optKeepPatternVariables
@@ -721,6 +725,9 @@ lensOptCubical f o = f (_optCubical o) <&> \ i -> o{ _optCubical = i }
 lensOptGuarded :: Lens' PragmaOptions _
 lensOptGuarded f o = f (_optGuarded o) <&> \ i -> o{ _optGuarded = i }
 
+lensOptOpaque :: Lens' PragmaOptions _
+lensOptOpaque f o = f (_optOpaque o) <&> \ i -> o{ _optOpaque = i }
+
 lensOptFirstOrder :: Lens' PragmaOptions _
 lensOptFirstOrder f o = f (_optFirstOrder o) <&> \ i -> o{ _optFirstOrder = i }
 
@@ -891,6 +898,7 @@ defaultPragmaOptions = PragmaOptions
   , _optRewriting                 = Default
   , _optCubical                   = Nothing
   , _optGuarded                   = Default
+  , _optOpaque                    = Default
   , _optFirstOrder                = Default
   , _optPostfixProjections        = Default
   , _optKeepPatternVariables      = Default
@@ -1726,6 +1734,9 @@ pragmaOptions = concat
   , pragmaFlag      "guarded" lensOptGuarded
                     "enable @lock/@tick attributes" ""
                     $ Just "disable @lock/@tick attributes"
+  , pragmaFlag      "opaque" lensOptOpaque
+                    "definitions are by default opaque" ""
+                    $ Just "definitions are by default transparent"
   , lossyUnificationOption
   , pragmaFlag      "postfix-projections" lensOptPostfixProjections
                     "prefer postfix projection notation" ""

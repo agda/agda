@@ -2350,41 +2350,81 @@ instance NFData IsMacro
 -- ** opaque blocks
 
 -- | Opaque or transparent.
-data IsOpaque
-  = OpaqueDef {-# UNPACK #-} !OpaqueId
+
+data OpaqueOrTransparent
+  = IsOpaque
+  | IsTransparent
+  deriving (Show, Eq, Ord, Generic)
+
+instance KillRange OpaqueOrTransparent where
+  killRange = id
+
+instance NFData OpaqueOrTransparent
+
+-- | Opaque or transparent definitions.
+
+data OpaqueOrTransparentDef
+  = OpaqueDef {-# UNPACK #-} !OpaqueId !Origin
     -- ^ This definition is opaque, and it is guarded by the given
-    -- opaque block.
+    -- opaque block, with the given 'Origin'.
   | TransparentDef
   deriving (Show, Eq, Ord, Generic)
 
-instance KillRange IsOpaque where
+instance KillRange OpaqueOrTransparentDef where
   killRange = id
 
-instance NFData IsOpaque
+instance NFData OpaqueOrTransparentDef
 
-class LensIsOpaque a where
-  lensIsOpaque :: Lens' a IsOpaque
+-- | Information about an opaque or transparent block.
 
-instance LensIsOpaque IsOpaque where
-  lensIsOpaque = id
+data OpaqueOrTransparentBlock
+  = AnOpaqueBlock {-# UNPACK #-} !OpaqueId !Origin
+    -- ^ An opaque block with the given unique identifier. There is
+    -- also information about whether or not there was a user-written
+    -- @opaque@ keyword.
+  | ATransparentBlock !Origin
+    -- ^ A transparent block. There is also information about whether
+    -- or not there was a user-written @transparent@ keyword.
+  deriving (Show, Eq, Ord, Generic)
+
+instance KillRange OpaqueOrTransparentBlock where
+  killRange = id
+
+instance NFData OpaqueOrTransparentBlock
+
+class LensOpaqueOrTransparentBlock a where
+  lensOpaqueOrTransparentBlock :: Lens' a OpaqueOrTransparentBlock
+
+instance LensOpaqueOrTransparentBlock OpaqueOrTransparentBlock where
+  lensOpaqueOrTransparentBlock = id
+
+-- | Converts from 'OpaqueOrTransparentBlock' to
+-- 'OpaqueOrTransparentDef'.
+
+isOpaqueDef :: OpaqueOrTransparentBlock -> OpaqueOrTransparentDef
+isOpaqueDef = \case
+  AnOpaqueBlock i o   -> OpaqueDef i o
+  ATransparentBlock _ -> TransparentDef
 
 -- | Monoid representing the combined opaque blocks of a 'Foldable'
 -- containing possibly-opaque declarations.
 data JointOpacity
-  = UniqueOpaque    {-# UNPACK #-} !OpaqueId
+  = UniqueOpaque    {-# UNPACK #-} !OpaqueId !Origin
   -- ^ Every definition agrees on what opaque block they belong to.
+  -- The 'Origin' contains information about whether the block was
+  -- written by the user of inserted by Agda.
   | DifferentOpaque !(HashSet OpaqueId)
   -- ^ More than one opaque block was found.
   | NoOpaque
   -- ^ Nothing here is opaque.
 
 instance Semigroup JointOpacity where
-  UniqueOpaque i <> UniqueOpaque j
-    | i == j    = UniqueOpaque i
+  UniqueOpaque i o <> UniqueOpaque j _
+    | i == j    = UniqueOpaque i o
     | otherwise = DifferentOpaque (HashSet.fromList [i, j])
 
-  DifferentOpaque is <> UniqueOpaque j     = DifferentOpaque (HashSet.insert j is)
-  UniqueOpaque i     <> DifferentOpaque js = DifferentOpaque (HashSet.insert i js)
+  DifferentOpaque is <> UniqueOpaque j _   = DifferentOpaque (HashSet.insert j is)
+  UniqueOpaque i _   <> DifferentOpaque js = DifferentOpaque (HashSet.insert i js)
   DifferentOpaque is <> DifferentOpaque js = DifferentOpaque (HashSet.union is js)
 
   NoOpaque <> x = x
@@ -2400,10 +2440,10 @@ class AllAreOpaque a where
   default jointOpacity :: (Foldable t, AllAreOpaque b, t b ~ a) => a -> JointOpacity
   jointOpacity = Fold.foldMap jointOpacity
 
-instance AllAreOpaque IsOpaque where
+instance AllAreOpaque OpaqueOrTransparentDef where
   jointOpacity = \case
     TransparentDef -> NoOpaque
-    OpaqueDef i    -> UniqueOpaque i
+    OpaqueDef i o  -> UniqueOpaque i o
 
 instance AllAreOpaque a => AllAreOpaque [a] where
 instance AllAreOpaque a => AllAreOpaque (Maybe a) where

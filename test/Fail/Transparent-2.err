@@ -1,0 +1,17 @@
+AGDA_UNEXPECTED_SUCCESS
+
+ret > ExitSuccess
+out > Transparent-2.agda:1,1-12
+out > warning: -W[no]UselessTransparent
+out > This 'transparent' block has no effect.
+out > when scope checking the declaration
+out >   transparent unfolding {}
+out >
+out > ———— All done; warnings encountered ————————————————————————
+out >
+out > Transparent-2.agda:1,1-12
+out > warning: -W[no]UselessTransparent
+out > This 'transparent' block has no effect.
+out > when scope checking the declaration
+out >   transparent unfolding {}
+out >

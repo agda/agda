@@ -89,6 +89,7 @@ instance EmbPrj Warning where
     FaceConstraintCannotBeHidden a        -> icodeN 47 FaceConstraintCannotBeHidden a
     FaceConstraintCannotBeNamed a         -> icodeN 48 FaceConstraintCannotBeNamed a
     PatternShadowsConstructor a b         -> icodeN 49 PatternShadowsConstructor a b
+    UselessTransparent                    -> icodeN 50 UselessTransparent
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -141,6 +142,7 @@ instance EmbPrj Warning where
     [47, a]              -> valuN FaceConstraintCannotBeHidden a
     [48, a]              -> valuN FaceConstraintCannotBeNamed a
     [49, a, b]           -> valuN PatternShadowsConstructor a b
+    [50]                 -> valuN UselessTransparent
     _ -> malformed
 
 instance EmbPrj OptionWarning where
@@ -308,8 +310,8 @@ instance EmbPrj InfectiveCoinfective where
     valu _   = malformed
 
 instance EmbPrj PragmaOptions where
-  icod_    (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp) =
-    icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp
+  icod_    (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq) =
+    icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq
 
   value = valueN PragmaOptions
 
@@ -442,6 +444,7 @@ instance EmbPrj WarningName where
     FaceConstraintCannotBeHidden_                -> 102
     FaceConstraintCannotBeNamed_                 -> 103
     PatternShadowsConstructor_                   -> 104
+    UselessTransparent_                          -> 105
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -549,6 +552,7 @@ instance EmbPrj WarningName where
     102 -> return FaceConstraintCannotBeHidden_
     103 -> return FaceConstraintCannotBeNamed_
     104 -> return PatternShadowsConstructor_
+    105 -> return UselessTransparent_
     _   -> malformed
 
 
