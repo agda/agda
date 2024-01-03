@@ -18,6 +18,7 @@ import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Coverage.SplitTree
 
+import Agda.Utils.Functor
 import Agda.Utils.Permutation
 
 import Agda.Utils.Impossible
@@ -213,26 +214,17 @@ instance EmbPrj CompKit where
   value = valueN CompKit
 
 instance EmbPrj Definition where
-  icod_ (Defn a name c d e f g h i j k l m n o p blocked r s) =
-    icodeN' Defn a name (P.killRange c) d e f g h i j k l m n o p (ossify blocked) r s
+  icod_ (Defn a b c d e f g h i j k l m n o p blocked r s) =
+    icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o p (ossify blocked) r s
     where
       -- Andreas, 2024-01-02, issue #7044:
       -- After serialization, a definition can never be unblocked,
       -- since all metas are ossified.
-      -- Thus, we turn any blocker into 'unblockOnDef' pointing back to the blocked def itself,
-      -- with the exception on an already existing 'unblockOnDef' which can remain.
+      -- Thus, we turn any blocker into 'neverUnblock'.
       ossify :: Blocked_ -> Blocked_
       ossify = \case
         b@NotBlocked{} -> b
-        Blocked b () -> (`Blocked` ()) $
-          case b of
-            UnblockOnDef     _ -> b
-            UnblockOnAll     _ -> b'
-            UnblockOnAny     _ -> b'
-            UnblockOnMeta    _ -> b'
-            UnblockOnProblem _ -> b'
-          where
-            b' = unblockOnDef name
+        Blocked b () -> Blocked neverUnblock ()
   value = valueN Defn
 
 instance EmbPrj NotBlocked where
@@ -250,28 +242,22 @@ instance EmbPrj NotBlocked where
     valu [3, a] = valuN MissingClauses a
     valu _      = malformed
 
-instance EmbPrj Blocked_ where
-  icod_ = \case
-    NotBlocked a b -> icodeN' NotBlocked a b
-    Blocked a ()   -> icodeN 1 Blocked a ()
-
-  value = vcase $ \case
-    [a, b]    -> valuN NotBlocked a b
-    [1, a, b] -> valuN Blocked a b
-    _         -> malformed
-
 -- Andreas, 2024-01-02, issue #7044.
--- We only serialize 'defBlocked';
+-- We only serialize 'neverUnblock';
 -- other than that, there should not be any blockers left at serialization time.
-instance EmbPrj Blocker where
-  icod_ = \case
-    UnblockOnDef     a -> icodeN' UnblockOnDef a
-    UnblockOnAll     _ -> __IMPOSSIBLE__
-    UnblockOnAny     _ -> __IMPOSSIBLE__
-    UnblockOnMeta    _ -> __IMPOSSIBLE__
-    UnblockOnProblem _ -> __IMPOSSIBLE__
+blockedToMaybe :: Blocked_ -> Maybe NotBlocked
+blockedToMaybe = \case
+  NotBlocked a ()       -> Just a
+  Blocked a ()
+    | a == neverUnblock -> Nothing
+    | otherwise         -> __IMPOSSIBLE__
 
-  value = valueN UnblockOnDef
+blockedFromMaybe :: Maybe NotBlocked -> Blocked_
+blockedFromMaybe = maybe (Blocked neverUnblock ()) (`NotBlocked` ())
+
+instance EmbPrj Blocked_ where
+  icod_ = icod_ . blockedToMaybe
+  value = blockedFromMaybe <.> value
 
 instance EmbPrj NLPat where
   icod_ (PVar a b)      = icodeN 0 PVar a b
