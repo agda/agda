@@ -170,6 +170,10 @@ instance Reify Bool where
     type ReifiesTo Bool = Bool
     reify = return
 
+instance Reify Char where
+    type ReifiesTo Char = Char
+    reify = return
+
 instance Reify Name where
     type ReifiesTo Name = Name
     reify = return

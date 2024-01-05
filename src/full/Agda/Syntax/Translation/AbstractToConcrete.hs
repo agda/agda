@@ -629,6 +629,10 @@ instance ToConcrete Bool where
   type ConOfAbs Bool = Bool
   toConcrete = pure
 
+instance ToConcrete Char where
+  type ConOfAbs Char = Char
+  toConcrete = pure
+
 instance ToConcrete a => ToConcrete [a] where
     type ConOfAbs [a] = [ConOfAbs a]
 
