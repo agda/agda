@@ -297,7 +297,8 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   reportSDoc "tc.generalize" 10 $ "computing generalization for type" <+> prettyTCM genRecMeta
 
   -- Pair metas with their metaInfo
-  let mvs = MapS.assocs (openMetas allmetas) ++
+  let mvs :: [(MetaId, MetaVariable)]
+      mvs = MapS.assocs (openMetas allmetas) ++
             MapS.assocs (solvedMetas allmetas)
 
   -- Issue 4727: filter out metavariables that were created before the
@@ -305,9 +306,10 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- TODO: make metasCreatedBy smarter so it doesn't see pruned
   -- versions of old metas as new metas.
   cp <- viewTC eCurrentCheckpoint
-  let isFreshMeta :: MonadReduce m => (MetaId, MetaVariable) -> m Bool
-      isFreshMeta (x,mv) = enterClosure mv $ \ _ -> isJust <$> checkpointSubstitution' cp
-  mvs <- filterM isFreshMeta mvs
+  let isFreshMeta :: MonadReduce m => MetaVariable -> m Bool
+      isFreshMeta mv = enterClosure mv $ \ _ -> isJust <$> checkpointSubstitution' cp
+  mvs :: [(MetaId, MetaVariable)] <- filterM (isFreshMeta . snd) mvs
+
   cs <- (++) <$> useTC stAwakeConstraints
              <*> useTC stSleepingConstraints
 
@@ -485,7 +487,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
     case mv of
       Nothing         -> __IMPOSSIBLE__
       Just Left{}     -> return False
-      Just (Right mv) -> isFreshMeta (m, mv)
+      Just (Right mv) -> isFreshMeta mv
 
   return (genTel, telNames, sub)
 
