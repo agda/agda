@@ -226,6 +226,7 @@ instance PrettyTCM (Named_ Term)      where prettyTCM = prettyA <=< reify
 instance PrettyTCM (Arg Term)         where prettyTCM = prettyA <=< reify
 instance PrettyTCM (Arg Type)         where prettyTCM = prettyA <=< reify
 instance PrettyTCM (Arg Bool)         where prettyTCM = prettyA <=< reify
+instance PrettyTCM (Arg String)       where prettyTCM = prettyA <=< reify
 instance PrettyTCM (Arg A.Expr)       where prettyTCM = prettyA <=< reify
 instance PrettyTCM (NamedArg A.Expr)  where prettyTCM = prettyA <=< reify
 instance PrettyTCM (NamedArg Term)    where prettyTCM = prettyA <=< reify
