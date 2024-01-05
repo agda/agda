@@ -374,26 +374,25 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
               , text "permutation:" <+> text (show (m, xs))
               , text "subst:" <+> pretty msub ]
           return sameContext
-  inherited <- fmap Set.unions $ forM generalizableClosed $ \ (x, mv) ->
+
+  inherited :: Set MetaId <- Set.unions <$> forM generalizableClosed \ (x, mv) ->
     case mvInstantiation mv of
       InstV inst -> do
         parentName <- getMetaNameSuggestion x
         metas <- filterM canGeneralize . Set.toList .
                  allMetas Set.singleton =<<
                  instantiateFull (instBody inst)
-        let suggestNames i [] = return ()
-            suggestNames i (m : ms) = do
-              -- #4291: Override existing meta name suggestion. If we solved the parent with a new
-              --        meta use the parent name for that, otherwise suffix with a number.
-              let suf | null ms && i == 1,
-                        MetaV{} <- instBody inst = ""
-                      | otherwise                = "." ++ show i
-              setMetaNameSuggestion m (parentName ++ suf)
-              suggestNames (i + 1) ms
         unless (null metas) $
-          reportSDoc "tc.generalize" 40 $ hcat ["Inherited metas from ", prettyTCM x, ":"] <?> prettyList_ (map prettyTCM metas)
-                                    -- Don't suggest names for explicitly named generalizable metas
-        Set.fromList metas <$ suggestNames 1 (filter (`Map.notMember` nameMap) metas)
+          reportSDoc "tc.generalize" 40 $
+            hcat ["Inherited metas from ", prettyTCM x, ":"] <?> prettyList_ (map prettyTCM metas)
+        -- #4291: Override existing meta name suggestion.
+        -- Don't suggest names for explicitly named generalizable metas.
+        case filter (`Map.notMember` nameMap) metas of
+          -- If we solved the parent with a new meta use the parent name for that.
+          [m] | MetaV{} <- instBody inst -> setMetaNameSuggestion m parentName
+          -- Otherwise suffix with a number.
+          ms -> zipWithM_ (\ i m -> setMetaNameSuggestion m (parentName ++ "." ++ show i)) [1..] ms
+        return $ Set.fromList metas
       _ -> __IMPOSSIBLE__
 
   let (alsoGeneralize, reallyDontGeneralize) = partition (`Set.member` inherited) $ map fst nongeneralizableOpen
