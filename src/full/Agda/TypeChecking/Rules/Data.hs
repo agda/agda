@@ -328,10 +328,13 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
             let con = ConHead c IsData Inductive $ zipWith (<$) names $ map argFromDom $ telToList fields
 
             defineProjections d con params names fields dataT
+            -- Andreas, 2024-01-05 issue #7048:
+            -- Only define hcomp when --cubical-compatible.
+            cubicalCompatible <- optCubicalCompatible <$> pragmaOptions
             -- Cannot compose indexed inductive types yet.
-            comp <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef)
-                    then return emptyCompKit
-                    else inTopContext $ defineCompData d con params names fields dataT boundary
+            comp <- if cubicalCompatible && nofIxs == 0 && Info.defAbstract i == ConcreteDef
+                    then inTopContext $ defineCompData d con params names fields dataT boundary
+                    else return emptyCompKit
             return (con, comp, Just names)
 
         -- add parameters to constructor type and put into signature
