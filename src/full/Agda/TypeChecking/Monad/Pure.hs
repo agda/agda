@@ -23,6 +23,8 @@ import Agda.TypeChecking.Monad.Signature
 import Agda.Utils.ListT
 import Agda.Utils.Update
 
+import System.IO.Unsafe
+
 class
   ( HasBuiltins m
   , HasConstInfo m
@@ -43,3 +45,9 @@ instance PureTCM m => PureTCM (MaybeT m)
 instance PureTCM m => PureTCM (ReaderT r m)
 instance (PureTCM m, Monoid w) => PureTCM (WriterT w m)
 instance PureTCM m => PureTCM (StateT s m)
+
+unKleisliTCM :: forall m a b. PureTCM m => (forall n. PureTCM n => a -> n b) -> m (a -> b)
+unKleisliTCM k = do
+  state <- getTCState
+  env <- askTC
+  pure $ \a -> unsafePerformIO (fst <$> runTCM env state (k a))
