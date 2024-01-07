@@ -183,7 +183,7 @@ jobs:
         tar --use-compress-program zstd -cvf stack-work.tzst .stack-work stack.yaml stack.yaml.lock
 
     - name: "Upload artifacts"
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         if-no-files-found: error
         retention-days: 1
@@ -222,7 +222,7 @@ jobs:
     - *haskell_setup
 
     - &download_artifact
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
 
