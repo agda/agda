@@ -467,9 +467,6 @@ fastReduce' norm v = do
     compactDef bEnv info rewr
   ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) norm v
 
-unKleisli :: (a -> ReduceM b) -> ReduceM (a -> b)
-unKleisli f = ReduceM $ \ env x -> unReduceM (f x) env
-
 -- * Closures
 
 -- | The abstract machine represents terms as closures containing a 'Term', an environment, and a

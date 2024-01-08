@@ -488,7 +488,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
 
   -- Amy, 2024-01-07: postfix and system projections should still be
   -- turned into head symbols *if* they have display forms attached.
-  hasDisplay <- unKleisliTCM hasDisplayForms
+  hasDisplay <- liftReduce $ unKleisli hasDisplayForms
   let
     prefixize orig name
       | havePfp   = (orig == ProjPrefix)  || hasDisplay name
