@@ -1088,6 +1088,7 @@ recheckBecausePragmaOptionsChanged used current =
     , _optCountClusters             = empty
     , _optPrintPatternSynonyms      = empty
     , _optShowIdentitySubstitutions = empty
+    , _optKeepPatternVariables      = empty
     }
 
 -- | Infective or coinfective?
