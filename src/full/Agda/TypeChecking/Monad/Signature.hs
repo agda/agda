@@ -743,6 +743,9 @@ getDisplayForms q = do
   ifM (isLocal q) (return $ ds ++ ds1 ++ ds2)
                   (return $ ds1 ++ ds ++ ds2)
 
+hasDisplayForms :: (HasConstInfo m, ReadTCState m) => QName -> m Bool
+hasDisplayForms = fmap (not . null) . getDisplayForms
+
 -- | Find all names used (recursively) by display forms of a given name.
 chaseDisplayForms :: QName -> TCM (Set QName)
 chaseDisplayForms q = go Set.empty [q]

@@ -1,0 +1,3 @@
+PostfixProjDisplay.agda:25,8-12
+a + a != a of type A
+when checking that the expression refl has type (a + a) ≡ a

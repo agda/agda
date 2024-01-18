@@ -1049,12 +1049,12 @@ suggests (Suggestion x : xs) = fromMaybe (suggests xs) $ suggestName x
 
 -- | Convert top-level postfix projections into prefix projections.
 unSpine :: Term -> Term
-unSpine = unSpine' $ const True
+unSpine = unSpine' $ \_ _ -> True
 
 -- | Convert 'Proj' projection eliminations
 --   according to their 'ProjOrigin' into
 --   'Def' projection applications.
-unSpine' :: (ProjOrigin -> Bool) -> Term -> Term
+unSpine' :: (ProjOrigin -> QName -> Bool) -> Term -> Term
 unSpine' p v =
   case hasElims v of
     Just (h, es) -> loop h [] es
@@ -1063,9 +1063,9 @@ unSpine' p v =
     loop :: (Elims -> Term) -> Elims -> Elims -> Term
     loop h res es =
       case es of
-        []                   -> v
-        Proj o f : es' | p o -> loop (Def f) [Apply (defaultArg v)] es'
-        e        : es'       -> loop h (e : res) es'
+        []                     -> v
+        Proj o f : es' | p o f -> loop (Def f) [Apply (defaultArg v)] es'
+        e        : es'         -> loop h (e : res) es'
       where v = h $ reverse res
 
 -- | A view distinguishing the neutrals @Var@, @Def@, and @MetaV@ which

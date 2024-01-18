@@ -4872,6 +4872,8 @@ reduceSt f s = f (redSt s) <&> \ e -> s { redSt = e }
 newtype ReduceM a = ReduceM { unReduceM :: ReduceEnv -> a }
 --  deriving (Functor, Applicative, Monad)
 
+unKleisli :: (a -> ReduceM b) -> ReduceM (a -> b)
+unKleisli f = ReduceM $ \ env x -> unReduceM (f x) env
 
 onReduceEnv :: (ReduceEnv -> ReduceEnv) -> ReduceM a -> ReduceM a
 onReduceEnv f (ReduceM m) = ReduceM (m . f)
