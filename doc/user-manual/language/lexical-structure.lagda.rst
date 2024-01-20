@@ -88,7 +88,7 @@ keywords in ``renaming`` directives
   The word ``to`` is only reserved in ``renaming`` directives.
 
 keywords in ``import`` statements
-  The word `as` has a special meaning in ``import`` statements, although it is not reserved.
+  The word ``as`` has a special meaning in ``import`` statements, although it is not reserved.
 
 .. _names:
 
