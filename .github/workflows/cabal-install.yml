@@ -48,7 +48,7 @@ jobs:
           }}
       id: cache
       name: Restore cached dependencies
-      uses: actions/cache/restore@v3
+      uses: actions/cache/restore@v4
       with:
         key: ${{ env.key }}-${{ hashFiles('**/plan.json') }}
         path: ~/.cabal/store
@@ -62,7 +62,7 @@ jobs:
         cabal install ${FLAGS}
     - if: ${{ always() && (steps.cache.outputs.cache-hit != 'true') }}
       name: Save cache
-      uses: actions/cache/save@v3
+      uses: actions/cache/save@v4
       with:
         key: ${{ steps.cache.outputs.cache-primary-key }}
         path: ~/.cabal/store
