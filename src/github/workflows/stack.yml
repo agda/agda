@@ -179,7 +179,7 @@ jobs:
         echo "ICU_VER           = ${ICU_VER}"
 
     - name: Restore cache from approximate key
-      uses: actions/cache/restore@v3
+      uses: actions/cache/restore@v4
       id:   cache
       with:
         # We include stack-${GHC_VER}.yaml in the primary cache key so that the cache gets rewritten
@@ -218,7 +218,7 @@ jobs:
     #   continue-on-error: true
 
     - name: Save cache
-      uses: actions/cache/save@v3
+      uses: actions/cache/save@v4
       if:   always() && steps.cache.outputs.cache-matched-key != steps.cache.outputs.cache-primary-key
             # save cache even when build fails
       with:

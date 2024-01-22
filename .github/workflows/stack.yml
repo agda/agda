@@ -79,7 +79,7 @@ jobs:
         echo "ICU_VER           = ${ICU_VER}"
     - id: cache
       name: Restore cache from approximate key
-      uses: actions/cache/restore@v3
+      uses: actions/cache/restore@v4
       with:
         key: stack.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER
           }}-icu-${{ env.ICU_VER }}-plan-${{ hashFiles('Agda.cabal', format('stack-{0}.yaml',
@@ -97,7 +97,7 @@ jobs:
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}
     - if: always() && steps.cache.outputs.cache-matched-key != steps.cache.outputs.cache-primary-key
       name: Save cache
-      uses: actions/cache/save@v3
+      uses: actions/cache/save@v4
       with:
         key: ${{ steps.cache.outputs.cache-primary-key }}
         path: |

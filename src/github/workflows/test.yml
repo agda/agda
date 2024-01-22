@@ -128,10 +128,10 @@ jobs:
       # uconv --version
 
     - name: Restore cache from approximate key
-      # uses: actions/cache/restore@v3
+      # uses: actions/cache/restore@v4
       # Andreas, 2023-02-02 revert to default cache saving logic.
       # "Save always" is bad because it may duplicate caches from the base branch on the feature branch.
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cache
       with:
         # Andreas, 2023-01-24:
@@ -204,7 +204,7 @@ jobs:
     #   continue-on-error: true
 
     # - name: Save cache
-    #   uses: actions/cache/save@v3
+    #   uses: actions/cache/save@v4
     #   if:   always()  # save cache even when build fails
     #   with:
     #     key:  *cache_key
@@ -235,7 +235,7 @@ jobs:
     - *icu
     - &cache
       name: Restore cache from exact key
-      uses: actions/cache/restore@v3
+      uses: actions/cache/restore@v4
       id: cache
       with:
         path: *cache_path
