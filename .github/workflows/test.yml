@@ -51,7 +51,7 @@ jobs:
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
       name: Restore cache from approximate key
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
           }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
@@ -110,7 +110,7 @@ jobs:
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
       name: Restore cache from exact key
-      uses: actions/cache/restore@v3
+      uses: actions/cache/restore@v4
       with:
         key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
           }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
@@ -146,7 +146,7 @@ jobs:
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
       name: Restore cache from exact key
-      uses: actions/cache/restore@v3
+      uses: actions/cache/restore@v4
       with:
         key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
           }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
@@ -200,7 +200,7 @@ jobs:
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
       name: Restore cache from exact key
-      uses: actions/cache/restore@v3
+      uses: actions/cache/restore@v4
       with:
         key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
           }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
@@ -249,7 +249,7 @@ jobs:
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
       name: Restore cache from exact key
-      uses: actions/cache/restore@v3
+      uses: actions/cache/restore@v4
       with:
         key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
           }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}

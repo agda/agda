@@ -118,7 +118,7 @@ jobs:
         cabal build --dry-run
     - id: cache
       name: Cache dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         key: deploy.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
           }}-${{ hashFiles('**/plan.json') }}
