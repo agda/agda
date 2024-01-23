@@ -24,7 +24,6 @@
 .stack-work-*/
 .stack-work/
 .sw[a-p]
-.vscode/settings.json
 .\#*
 /benchmark/Create/hs-import-*
 /benchmark/Create/import-*

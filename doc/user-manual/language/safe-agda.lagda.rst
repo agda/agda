@@ -34,10 +34,8 @@ Here is a list of the features :option:`--safe` is incompatible with:
 * :option:`--injective-type-constructors`; together with excluded
   middle leads to an inconsistency via Chung-Kil Hur's construction.
 
-* :option:`--guardedness` together with :option:`--sized-types`;
-  currently can be used to define a type which is both inductive and
-  coinductive, which leads to an inconsistency. This might be fixed in
-  the future.
+* :option:`--sized-types`; lacks some checks that rule out improper,
+  inconsistent uses of sizes.
 
 * :option:`--experimental-irrelevance` and
   :option:`--irrelevant-projections`; enables potentially unsound
@@ -47,9 +45,11 @@ Here is a list of the features :option:`--safe` is incompatible with:
 * :option:`--rewriting`; turns any equation into one that holds
   definitionally.  It can at the very least break convergence.
 
-* :option:`--cubical` together with :option:`--with-K`; the univalence
-  axiom is provable using cubical constructions, which falsifies the K
-  axiom.
+* :option:`--cubical-compatible` together with :option:`--with-K`;
+  the univalence axiom is provable using cubical constructions,
+  which falsifies the K axiom.
+
+* :option:`--without-K` together with :option:`--flat-split`
 
 * The ``primEraseEquality`` primitive together with
   :option:`--without-K`; using ``primEraseEquality``, one can derive
@@ -59,6 +59,13 @@ Here is a list of the features :option:`--safe` is incompatible with:
 
 * :option:`--no-load-primitives`; allows the user to bind the sort
   and level primitives manually.
+
+* :option:`--cumulativity`; due to its poor heuristic for solving universe
+  levels.
+
+* :option:`--large-indices` together with :option:`--without-K` or
+  :option:`--forced-argument-recursion`; both of these combinations are known to
+  be inconsistent.
 
 The option :option:`--safe` is coinfective (see
 :ref:`consistency-checking-options`); if a module is declared safe,

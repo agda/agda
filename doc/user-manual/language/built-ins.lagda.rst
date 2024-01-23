@@ -674,8 +674,7 @@ With this definition ``eqString "foo" "foo"`` computes to ``just refl``.
 Sorts
 -----
 
-The primitive sorts used in Agda's type system (`Set`, `Prop`, and
-`Setω`) are declared using ``BUILTIN`` pragmas in the
+The primitive sorts used in Agda's type system are declared using ``BUILTIN`` pragmas in the
 ``Agda.Primitive`` module. These pragmas should not be used directly
 in other modules, but it is possible to rename these builtin sorts
 when importing ``Agda.Primitive``.
@@ -686,11 +685,17 @@ when importing ``Agda.Primitive``.
 
 .. code-block:: agda
 
-  {-# BUILTIN TYPE Set #-}
-  {-# BUILTIN PROP Prop #-}
-  {-# BUILTIN SETOMEGA Setω #-}
+{-# BUILTIN PROP           Prop      #-}
+{-# BUILTIN TYPE           Set       #-}
+{-# BUILTIN STRICTSET      SSet      #-}
 
-The primitive sorts `Set` and `Prop` are automatically imported at the
+{-# BUILTIN PROPOMEGA      Propω     #-}
+{-# BUILTIN SETOMEGA       Setω      #-}
+{-# BUILTIN STRICTSETOMEGA SSetω     #-}
+
+{-# BUILTIN LEVELUNIV      LevelUniv #-}
+
+The primitive sort `Set` is automatically imported at the
 top of every top-level Agda module, unless the
 :option:`--no-import-sorts` flag is enabled.
 
@@ -713,7 +718,7 @@ reference these are the bindings:
 .. code-block:: agda
 
   postulate
-    Level : Set
+    Level : LevelUniv
     lzero : Level
     lsuc  : Level → Level
     _⊔_   : Level → Level → Level
@@ -722,6 +727,9 @@ reference these are the bindings:
   {-# BUILTIN LEVELZERO lzero #-}
   {-# BUILTIN LEVELSUC  lsuc  #-}
   {-# BUILTIN LEVELMAX  _⊔_   #-}
+
+Note that if the flag :option:`--level-universe` is not set, then ``LevelUniv``
+will be ``Set``.
 
 .. _builtin_sized_types:
 

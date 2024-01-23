@@ -179,7 +179,7 @@ findFile'' dirs m modFile =
 -- | Finds the interface file corresponding to a given top-level
 -- module file. The returned paths are absolute.
 --
--- Raises 'Nothing' if the the interface file cannot be found.
+-- Raises 'Nothing' if the interface file cannot be found.
 
 findInterfaceFile'
   :: SourceFile                 -- ^ Path to the source file

@@ -1,0 +1,26 @@
+{
+  // Don't complain about unicode characters, but highlight invisible characters
+  "editor.unicodeHighlight.ambiguousCharacters": false,
+  "editor.unicodeHighlight.invisibleCharacters": true,
+
+  // Autoformatting rules
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "files.trimTrailingWhitespace": true,
+
+  "files.associations": {
+    "*.lock": "json" // Interpret `.lock`-files as json
+  },
+
+  "[json][jsonc]": {
+    "editor.tabSize": 2 // The indentation size in json files is two characters
+  },
+
+  "[lagda-rst]": {
+    "editor.rulers": [80] // Display a vertical ruler at the 80-character mark in literate agda reStructuredText files
+  },
+
+  "[restructuredtext]": {
+    "editor.rulers": [80] // Display a vertical ruler at the 80-character mark in reStructuredText files
+  }
+}
