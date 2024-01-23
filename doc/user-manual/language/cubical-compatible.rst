@@ -24,7 +24,7 @@ can not be imported from :option:`--cubical` modules.
 Compatibility with Cubical Agda consists of:
 
 - No reasoning principles incompatible with univalent type theory may
-  be used. This behaviour is controlled by the the :ref:`without-K`
+  be used. This behaviour is controlled by the :ref:`without-K`
   flag (:option:`--without-K`), which :option:`--cubical-compatible` implies.
 
 - Due to specifics of the Cubical Agda implementation, several kinds of
