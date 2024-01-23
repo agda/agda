@@ -209,9 +209,9 @@ shown again.
 File structure
 --------------
 
-Documentation literate files (``.lagda.*``) are type-checked as whole Agda
-files, as if all literate text was replaced by whitespace. Thus, **indentation**
-is interpreted globally.
+Documentation literate files (``.lagda.*``) are type-checked as whole Agda files,
+as if all literate text was replaced by whitespace. Thus, **indentation** is
+interpreted globally.
 
 
 Namespacing

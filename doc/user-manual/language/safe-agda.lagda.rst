@@ -34,7 +34,8 @@ Here is a list of the features :option:`--safe` is incompatible with:
 * :option:`--injective-type-constructors`; together with excluded
   middle leads to an inconsistency via Chung-Kil Hur's construction.
 
-* :option:`--sized-types`
+* :option:`--sized-types`; lacks some checks that rule out improper,
+  inconsistent uses of sizes.
 
 * :option:`--experimental-irrelevance` and
   :option:`--irrelevant-projections`; enables potentially unsound
