@@ -245,6 +245,9 @@ else
 	time $(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --program-suffix=-quicker
 endif
 
+.PHONY: quicker ##
+quicker: quicker-install-bin-no-deps
+
 .PHONY: v2-type-check ## Type check the Agda source only (-fno-code) with v2-cabal.
 # Takes max 40s; can be quicker than make quicker-install-bin (max 5min).
 #
