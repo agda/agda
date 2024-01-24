@@ -23,7 +23,7 @@ jobs:
       LINUX_ARGS: --enable-executable-static  --enable-split-sections
       MACOS_ARGS: --flags=enable-cluster-counting
       WIN64_ARGS: --flags=enable-cluster-counting  --enable-split-sections
-    if: ${{ always() }}
+    if: ${{ !cancelled() }}
     needs: auto-cancel
     outputs:
       sha: ${{ steps.vars.outputs.sha }}
@@ -35,34 +35,41 @@ jobs:
       name: Set up platform-dependent variables
       run: |
         sha="$(git rev-parse --short=7 HEAD)"
-        nightly=Agda-nightly
+
+        if [[ "$GITHUB_REF" == "refs/tags/"* ]]; then
+          suffix=${GITHUB_REF_NAME}
+        else
+          suffix=nightly-${sha}
+        fi
+
+        bindist=Agda-${suffix}
 
         echo sha="${sha}"                                           >> "${GITHUB_OUTPUT}"
-        echo nightly="${nightly}"                                   >> "${GITHUB_OUTPUT}"
+        echo bindist="${bindist}"                                   >> "${GITHUB_OUTPUT}"
 
         if [[ "$OSTYPE" == "msys"* ]]; then
 
-          filename="${nightly}-win64.zip"
+          filename="${bindist}-win64.zip"
           echo args="${ARGS} ${WIN64_ARGS}"                         >> "${GITHUB_OUTPUT}"
-          echo compress-cmd="7z a ${filename} ${nightly} -bb -mx=9" >> "${GITHUB_OUTPUT}"
+          echo compress-cmd="7z a ${filename} ${bindist} -bb -mx=9" >> "${GITHUB_OUTPUT}"
           echo content-type="application/zip"                       >> "${GITHUB_OUTPUT}"
           echo exe="agda.exe"                                       >> "${GITHUB_OUTPUT}"
           echo filename="${filename}"                               >> "${GITHUB_OUTPUT}"
 
         elif [[ "$OSTYPE" == "darwin"* ]]; then
 
-          filename="${nightly}-macOS.tar.xz"
+          filename="${bindist}-macOS.tar.xz"
           echo args="${ARGS} ${MACOS_ARGS}"                         >> "${GITHUB_OUTPUT}"
-          echo compress-cmd="tar -a -cvf ${filename} ${nightly}"    >> "${GITHUB_OUTPUT}"
+          echo compress-cmd="tar -a -cvf ${filename} ${bindist}"    >> "${GITHUB_OUTPUT}"
           echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
           echo exe="agda"                                           >> "${GITHUB_OUTPUT}"
           echo filename="${filename}"                               >> "${GITHUB_OUTPUT}"
 
         elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
 
-          filename="${nightly}-linux.tar.xz"
+          filename="${bindist}-linux.tar.xz"
           echo args="${ARGS} ${LINUX_ARGS}"                         >> "${GITHUB_OUTPUT}"
-          echo compress-cmd="tar -a -cvf ${filename} ${nightly}"    >> "${GITHUB_OUTPUT}"
+          echo compress-cmd="tar -a -cvf ${filename} ${bindist}"    >> "${GITHUB_OUTPUT}"
           echo content-type="application/x-xz"                      >> "${GITHUB_OUTPUT}"
           echo exe="agda"                                           >> "${GITHUB_OUTPUT}"
           echo filename="${filename}"                               >> "${GITHUB_OUTPUT}"
@@ -70,15 +77,25 @@ jobs:
         fi
     - name: Display build variables
       run: |
-        echo "args         = ${{ steps.vars.outputs.args         }}"
-        echo "compress-cmd = ${{ steps.vars.outputs.compress-cmd }}"
-        echo "content-type = ${{ steps.vars.outputs.content-type }}"
-        echo "filename     = ${{ steps.vars.outputs.filename     }}"
-        echo "nightly      = ${{ steps.vars.outputs.nightly      }}"
+        echo "GITHUB_REF      = ${GITHUB_REF}"
+        echo "GITHUB_REF_NAME = ${GITHUB_REF_NAME}"
+
+        echo "args            = ${{ steps.vars.outputs.args         }}"
+        echo "compress-cmd    = ${{ steps.vars.outputs.compress-cmd }}"
+        echo "content-type    = ${{ steps.vars.outputs.content-type }}"
+        echo "filename        = ${{ steps.vars.outputs.filename     }}"
+        echo "bindist         = ${{ steps.vars.outputs.bindist      }}"
+    - if: ${{ runner.os == 'Linux' }}
+      name: Set up Alpine Linux with GHC and the static library for ICU
+      uses: jirutka/setup-alpine@v1
+      with:
+        packages: |
+          cabal g++ gcc icu-static ncurses-dev ncurses-static musl-dev zlib-static zlib-dev
     - id: setup-haskell
+      if: ${{ runner.os != 'Linux' }}
       uses: haskell-actions/setup@v2
       with:
-        cabal-version: latest
+        cabal-version: ${{ matrix.cabal-ver }}
         ghc-version: ${{ matrix.ghc-ver }}
     - name: Environment settings based on the Haskell setup
       run: |
@@ -89,10 +106,10 @@ jobs:
         echo "GHC_VER=${GHC_VER}"       >> "${GITHUB_ENV}"
         echo "CABAL_VER=${CABAL_VER}"   >> "${GITHUB_ENV}"
     - if: ${{ runner.os == 'Windows' }}
-      name: Install the ICU library (Windows)
+      name: Install the required packages (Windows)
       run: |
         $env:PATH = "C:\msys64\usr\bin;$env:PATH"
-        pacman -v --noconfirm -S mingw-w64-x86_64-pkgconf mingw-w64-x86_64-icu
+        pacman -v --noconfirm -S mingw-w64-x86_64-pkgconf mingw-w64-x86_64-icu mingw-w64-x86_64-binutils
         echo "C:\msys64\mingw64\bin" | Out-File -FilePath "$env:GITHUB_PATH" -Append
       shell: pwsh
     - if: ${{ runner.os == 'macOS' }}
@@ -112,11 +129,13 @@ jobs:
         ICU_MAJOR_VER=$(cut -d '.' -f 1 <<< "${ICU_VER}")
         echo "ICU_MAJOR_VER=${ICU_MAJOR_VER}"
         echo "ICU_MAJOR_VER=${ICU_MAJOR_VER}" >> "${GITHUB_ENV}"
-    - name: Configure the build plan
+    - if: ${{ runner.os != 'Linux' }}
+      name: Configure the build plan
       run: |
         cabal configure ${{ steps.vars.outputs.args }}
         cabal build --dry-run
     - id: cache
+      if: ${{ runner.os != 'Linux' }}
       name: Cache dependencies
       uses: actions/cache@v4
       with:
@@ -125,31 +144,41 @@ jobs:
         path: ${{ steps.setup-haskell.outputs.cabal-store }}
         restore-keys: deploy.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{
           env.CABAL_VER }}-
-    - if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+    - if: ${{ runner.os == 'Linux' }}
+      name: Build dependencies (on Alpine Linux)
+      run: |
+        cabal update # Liang-Ting, 2024-01-26: Alpine Linux has its own GHC toolchain
+        cabal configure ${{ steps.vars.outputs.args }}
+        cabal build exe:agda exe:agda-mode --only-dependencies
+      shell: alpine.sh {0}
+    - if: ${{ steps.cache.outputs.cache-hit != 'true' && runner.os != 'Linux' }}
       name: Build dependencies
       run: cabal build exe:agda exe:agda-mode --only-dependencies
-    - name: Build Agda
+    - if: ${{ runner.os == 'Linux' }}
+      name: Build Agda (on Alpine Linux)
       run: cabal build exe:agda exe:agda-mode
-    - name: Move artefacts to ${{ steps.vars.outputs.nightly }}
+      shell: alpine.sh {0}
+    - if: ${{ runner.os != 'Linux' }}
+      name: Build Agda
+      run: cabal build exe:agda exe:agda-mode
+    - name: Move artefacts to ${{ steps.vars.outputs.bindist }}
       run: |
-        nightly="${{ steps.vars.outputs.nightly }}"
-        mkdir -p "${nightly}"/bin
-        cp -a src/data "${nightly}"
+        bindist="${{ steps.vars.outputs.bindist }}"
+        mkdir -p "${bindist}"/bin
+        cp -a src/data "${bindist}"
 
         if [[ "$OSTYPE" == "msys"* ]]; then
 
-          find dist-newstyle/build \( -name 'agda.exe' -o -name 'agda-mode.exe' \) -type f -exec cp {} "${nightly}"/bin \;
-          cp -a .github/*.bat "${nightly}"
-          cp /c/msys64/mingw64/bin/libicu*.dll "${nightly}"/bin/
-          ## Issue #6926: strip.exe not installed there.
-          ## Stripping step is optional, so we skip it.
-          # C:/ProgramData/Chocolatey/bin/strip.exe "${nightly}"/bin/*
+          find dist-newstyle/build \( -name 'agda.exe' -o -name 'agda-mode.exe' \) -type f -exec cp {} "${bindist}"/bin \;
+          cp -a .github/*.bat "${bindist}"
+          cp /c/msys64/mingw64/bin/libicu*.dll "${bindist}"/bin/
+          strip "${bindist}"/bin/*
 
         else
 
-          find dist-newstyle/build \( -name 'agda' -o -name 'agda-mode' \) -type f -exec cp {} "${nightly}"/bin \;
-          strip "${nightly}"/bin/*
-          cp -a .github/*.sh "${nightly}"
+          find dist-newstyle/build \( -name 'agda' -o -name 'agda-mode' \) -type f -exec cp {} "${bindist}"/bin \;
+          strip "${bindist}"/bin/*
+          cp -a .github/*.sh "${bindist}"
 
           if [[ "$OSTYPE" == "darwin"* ]]; then
 
@@ -159,26 +188,20 @@ jobs:
           # 2. @executable_path/../lib
           # 3. the default location of system-wide icu4c installed by homebrew, ie. /usr/local/opt/icu4c/lib
           #
-          mkdir "${nightly}"/lib
-          cp "${ICU_DIR}/libicuuc.${ICU_MAJOR_VER}.dylib" "${ICU_DIR}/libicui18n.${ICU_MAJOR_VER}.dylib" "${ICU_DIR}/libicudata.${ICU_MAJOR_VER}.dylib" "${nightly}"/lib
-          install_name_tool -change "${ICU_DIR}/libicuuc.${ICU_MAJOR_VER}.dylib" "@rpath/libicuuc.${ICU_MAJOR_VER}.dylib" "${nightly}"/bin/agda
-          install_name_tool -change "${ICU_DIR}/libicui18n.${ICU_MAJOR_VER}.dylib" "@rpath/libicui18n.${ICU_MAJOR_VER}.dylib" "${nightly}"/bin/agda
-          install_name_tool -add_rpath @executable_path -add_rpath @executable_path/../lib -add_rpath "${ICU_DIR}" "${nightly}"/bin/agda
-          otool -L "${nightly}"/bin/agda
+          mkdir "${bindist}"/lib
+          cp "${ICU_DIR}/libicuuc.${ICU_MAJOR_VER}.dylib" "${ICU_DIR}/libicui18n.${ICU_MAJOR_VER}.dylib" "${ICU_DIR}/libicudata.${ICU_MAJOR_VER}.dylib" "${bindist}"/lib
+          install_name_tool -change "${ICU_DIR}/libicuuc.${ICU_MAJOR_VER}.dylib" "@rpath/libicuuc.${ICU_MAJOR_VER}.dylib" "${bindist}"/bin/agda
+          install_name_tool -change "${ICU_DIR}/libicui18n.${ICU_MAJOR_VER}.dylib" "@rpath/libicui18n.${ICU_MAJOR_VER}.dylib" "${bindist}"/bin/agda
+          install_name_tool -add_rpath @executable_path -add_rpath @executable_path/../lib -add_rpath "${ICU_DIR}" "${bindist}"/bin/agda
+          otool -L "${bindist}"/bin/agda
 
           fi
         fi
 
-        file "${{ steps.vars.outputs.nightly }}/bin/agda"
-    - if: ${{ runner.os != 'macOS' }}
-      name: Compress the Agda executable
-      uses: svenstaro/upx-action@v2
-      with:
-        files: ${{ steps.vars.outputs.nightly }}/bin/${{ steps.vars.outputs.exe }}
-        strip: false
+        file "${{ steps.vars.outputs.bindist }}/bin/agda"
     - name: Display the version information
       run: |
-        ${{ steps.vars.outputs.nightly }}/bin/agda --version
+        ${{ steps.vars.outputs.bindist }}/bin/agda --version
     - name: Pack artefacts
       run: |
         ${{ steps.vars.outputs.compress-cmd }}
@@ -191,31 +214,50 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        cabal-ver:
+        - latest
         ghc-ver:
         - '9.8'
-        include:
-        - ghc-ver: 9.4.7
-          os: ubuntu-20.04
         os:
         - windows-latest
         - macos-latest
+        - ubuntu-latest
   deploy:
-    if: ${{ github.ref == 'refs/heads/master' }}
+    if: ${{ !cancelled() }}
     needs: build
     runs-on: ubuntu-latest
     steps:
     - uses: actions/download-artifact@v4
       with:
         path: artifacts
+    - uses: actions/checkout@v4
+      with:
+        sparse-checkout: .
     - env:
         GITHUB_TOKEN: ${{ github.token }}
+      if: ${{ github.ref == 'refs/heads/master' }}
       name: Create/replace the nightly release and upload artifacts as release assets
       run: |
-        gh release delete 'nightly' --repo agda/agda --cleanup-tag --yes || true
+        gh release delete 'nightly' --repo ${GITHUB_REPOSITORY} --cleanup-tag --yes || true
         ls -R artifacts
-        gh release create 'nightly' artifacts/**/* --repo agda/agda --generate-notes --notes-start-tag v2.6.4.3 --title "Nightly Build (${{ needs.build.outputs.sha }}@master)"
+        gh release create 'nightly' artifacts/**/* --repo ${GITHUB_REPOSITORY} --generate-notes --notes-start-tag v2.6.4.3 --prerelease --title "${{ needs.build.outputs.sha }}@master"
+    - env:
+        GITHUB_TOKEN: ${{ github.token }}
+      if: startsWith(github.ref, 'refs/tags/v')
+      name: Create a release with the bindist as release assets
+      run: |
+        echo "GITHUB_REF_NAME=${GITHUB_REF_NAME}"
+        echo "GITHUB_REPOSITORY=${GITHUB_REPOSITORY}"
+
+        gh release delete "${GITHUB_REF_NAME}" --repo ${GITHUB_REPOSITORY} --yes || true
+        gh release create "${GITHUB_REF_NAME}" -d --notes-file CHANGELOG.md --title "${GITHUB_REF_NAME}"
+        ls -R artifacts
+        gh release upload "${GITHUB_REF_NAME}" artifacts/**/* --repo ${GITHUB_REPOSITORY}
 name: Deploy
 'on':
+  push:
+    tags:
+    - v[2-9]+.*
   workflow_dispatch: null
   workflow_run:
     branches:
