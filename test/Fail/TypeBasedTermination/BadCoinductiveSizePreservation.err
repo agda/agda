@@ -1,0 +1,8 @@
+TypeBasedTermination/BadCoinductiveSizePreservation.agda:25,1-28,40
+Termination checking failed for the following functions:
+  fib
+Problematic calls:
+  fib
+    (at TypeBasedTermination/BadCoinductiveSizePreservation.agda:28,27-30)
+  fib .tl
+    (at TypeBasedTermination/BadCoinductiveSizePreservation.agda:28,32-35)

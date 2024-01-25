@@ -1,0 +1,6 @@
+TypeBasedTermination/BadCoinduction.agda:12,1-13,30
+Termination checking failed for the following functions:
+  repeat
+Problematic calls:
+  tl (repeat a)
+    (at TypeBasedTermination/BadCoinduction.agda:13,21-27)

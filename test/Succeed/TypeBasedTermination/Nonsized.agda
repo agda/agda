@@ -1,6 +1,6 @@
 -- The usage of sized type within a non-sized type should be fine
-{-# OPTIONS --type-based-termination --no-double-check #-}
-module SizedInference.nonsized where
+{-# OPTIONS --type-based-termination --no-syntax-based-termination #-}
+module TypeBasedTermination.Nonsized where
 
 data Nat : Set where
   zero : Nat

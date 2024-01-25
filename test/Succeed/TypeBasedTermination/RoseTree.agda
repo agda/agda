@@ -1,7 +1,7 @@
 -- test for map on rose trees
-{-# OPTIONS --no-double-check --type-based-termination #-}
+{-# OPTIONS --type-based-termination --no-syntax-based-termination #-}
 
-module SizedInference.RoseTree where
+module TypeBasedTermination.RoseTree where
 
 data List (A : Set) : Set where
   nil  : List A

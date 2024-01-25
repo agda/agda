@@ -1,6 +1,6 @@
 -- Testing generalized arguments
-{-# OPTIONS --type-based-termination --no-double-check #-}
-module SizedInference.generalized where
+{-# OPTIONS --type-based-termination --no-syntax-based-termination #-}
+module TypeBasedTermination.Generalized where
 
 data Nat : Set where
   zeroo : Nat

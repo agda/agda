@@ -1,7 +1,7 @@
 -- Test for size preservation
-{-# OPTIONS --no-double-check --type-based-termination #-}
+{-# OPTIONS --type-based-termination --no-syntax-based-termination #-}
 
-module SizedInference.preservation where
+module TypeBasedTermination.Preservation where
 
 data Nat : Set where
   zero : Nat
