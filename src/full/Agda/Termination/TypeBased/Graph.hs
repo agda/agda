@@ -59,6 +59,7 @@ simplifySizeGraph verbose rigidContext graph = do
   currentRoot <- currentCheckedName
   -- The arity corresponds to the number of clusters
   arity <- getArity currentRoot
+  undefinedVars <- getUndefinedSizes
   let baseSize = replicate arity (-1)
   bottomVars <- MSC $ gets scsBottomFlexVars
   contra <- getContravariantSizeVariables
@@ -67,6 +68,7 @@ simplifySizeGraph verbose rigidContext graph = do
     , "Rigid context:       " <+> text (show rigidContext)
     , "Bottom vars:         " <+> text (show bottomVars)
     , "Arity:               " <+> text (show arity)
+    , "undefined sizes:     " <+> text (show undefinedVars)
     , "Contravariant:       " <+> text (show contra)
     , "baseSize:            " <+> text (show baseSize)
     , "clusters:            " <+> (vcat $ (map (\i -> text $ (show (SDefined i)) ++ " has cluster: " ++ show (findCluster rigidContext graph i)) (map fst rigidContext)))

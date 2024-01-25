@@ -56,6 +56,7 @@ import Data.Either
 import Agda.Utils.Singleton
 import Agda.Termination.Order (Order)
 import qualified Agda.Termination.Order as Order
+import Data.List (unfoldr)
 
 
 -- | 'initSizeTypeEncoding names' computes size types for every definition in 'names'
@@ -195,7 +196,7 @@ processSizedDefinitionMSC s@(SizeSignature bounds contra sizeSig) clauses = do
 
 
 -- | Given a clause, builds an assignment for all size variables occurred in this clause
-processSizeClause :: [SizeBound] -> SizeTele -> Clause -> MonadSizeChecker (IntMap SizeExpression)
+processSizeClause :: [SizeBound] -> SizeType -> Clause -> MonadSizeChecker (IntMap SizeExpression)
 processSizeClause bounds newTele c = do
   initNewClause bounds
   if (hasDefP (namedClausePats c))
@@ -249,14 +250,14 @@ invokeSizeChecker rootName nms action = do
 
 -- | Populates a set of rigid variables and internal context according to the LHS of a clause.
 --   Returns the expected type of a clause, which may be different from semi-applied function type because of copatterns
-encodeFunctionClause :: SizeTele -> Clause -> MonadSizeChecker SizeTele
-encodeFunctionClause sizeTele c = do
+encodeFunctionClause :: SizeType -> Clause -> MonadSizeChecker SizeType
+encodeFunctionClause sizeType c = do
   let patterns = namedClausePats c
   reportSDoc "term.tbt" 20 $ vcat
     [ "starting encoding of clause: " <+> prettyTCM c
-    , "with domains: " <+> text (show sizeTele)
+    , "with domains: " <+> text (show sizeType)
     ]
-  (leafVariables, tele) <- matchPatterns sizeTele patterns
+  (leafVariables, tele) <- matchPatterns sizeType patterns
   setLeafSizeVariables leafVariables
   patternContext <- getCurrentCoreContext
   sizeContext <- getCurrentRigids
@@ -283,7 +284,7 @@ encodeDataType ctors fullSet generify isCoinductiveRecord tp = do
   pure $ SizeSignature
          (if isRecursiveData then [SizeUnbounded] else [])
          (if isCoinductiveRecord && isRecursiveData then [0] else [])
-         (encodeDatatypeDomain isRecursiveData 0 generify [] domains)
+         (encodeDatatypeDomain isRecursiveData generify [] domains)
 
 -- | 'checkRecursiveConstructor allNames qn' checks that a construtor with the name 'qn' refers to any of the 'allNames',
 -- thus giving us the information if this constructor is recursive.
@@ -321,19 +322,25 @@ checkRecursiveConstructor allNames qn = do
       _ -> pure False))
 
 -- | Converts the telescope of a datatype to a size type.
-encodeDatatypeDomain :: Bool -> Int -> Bool -> [SizeTele] -> Tele (Dom Type) -> SizeTele
-encodeDatatypeDomain isRecursive x _ params EmptyTel =
+encodeDatatypeDomain :: Bool -> Bool -> [Bool] -> Tele (Dom Type) -> SizeType
+encodeDatatypeDomain isRecursive _ params EmptyTel =
   let size = if isRecursive then SDefined 0 else SUndefined
-  in SizeTree size params
-encodeDatatypeDomain isRecursive ind generify params (ExtendTel dt rest) =
+      -- tail because scanl inserts the given starting element in the beginning
+      treeArgs = tail $
+        scanl (\(ind, t) isGeneric -> if isGeneric then (ind + 1, SizeGenericVar 0 ind) else (ind, UndefinedSizeType))
+              (0, UndefinedSizeType)
+              params
+      actualArgs = reverse (map snd treeArgs)
+  in SizeTree size actualArgs
+encodeDatatypeDomain isRecursive generify params (ExtendTel dt rest) =
   let d = unEl $ unDom dt
       genericArity = inferGenericArity d
-      (wrapper, ind', newParam) = if generify
+      (wrapper, newParam) = if generify
         then case genericArity of
-          Just arity -> (SizeGeneric arity ind, ind + 1, SizeGenericVar 0 ind)
-          Nothing -> (SizeArrow UndefinedSizeTele, ind, UndefinedSizeTele)
-        else (SizeArrow UndefinedSizeTele, ind, UndefinedSizeTele)
-      tails = encodeDatatypeDomain isRecursive ind' generify (params ++ [newParam]) (unAbs rest)
+          Just arity -> (SizeGeneric arity, True)
+          Nothing -> (SizeArrow UndefinedSizeType, False)
+        else (SizeArrow UndefinedSizeType, False)
+      tails = encodeDatatypeDomain isRecursive generify (newParam : params) (unAbs rest)
   in wrapper tails
   where
     inferGenericArity :: Term -> Maybe Int

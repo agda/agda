@@ -89,7 +89,7 @@ data PatternEnvironment = PatternEnvironment
 --   The motivation is that the least upper bound for `a` and `b` in this case is t₁. If the size variables were different, the least upper bound would be t₀.
 --
 --   Returns the variables at the lowest level of each cluster and expected size type of clause
-matchPatterns :: SizeTele -> NAPs -> MonadSizeChecker ([Int], SizeTele)
+matchPatterns :: SizeType -> NAPs -> MonadSizeChecker ([Int], SizeType)
 matchPatterns tele patterns = do
   (sizeTypeOfClause, modifiedState) <- runStateT (matchLHS tele patterns) (PatternEnvironment
     { peDepth = 0
@@ -107,14 +107,14 @@ matchPatterns tele patterns = do
   pure (leafVariables, sizeTypeOfClause)
 
 -- Matches LHS of a clause, processing patterns and copatterns
-matchLHS :: SizeTele -> NAPs -> PatternEncoder (SizeTele)
+matchLHS :: SizeType -> NAPs -> PatternEncoder (SizeType)
 matchLHS tele patterns = do
   -- First, we try to match all application patterns against the expected type
-  restPatterns <- foldDomainSizeTele
+  restPatterns <- foldDomainSizeType
     (\args i (Arg _ (Named _ pat)) -> case pat of
       VarP pi v -> do
-        reportSDoc "term.tbt" 20 $ "Assigning" <+> text (dbPatVarName v) <+> "to" <+> (text (show (StoredGeneric args i)))
-        lift $ appendCoreVariable (dbPatVarIndex v) (StoredGeneric args i)
+        reportSDoc "term.tbt" 20 $ "Assigning" <+> text (dbPatVarName v) <+> "to" <+> (text (show (FreeGeneric args i)))
+        lift $ appendCoreVariable (dbPatVarIndex v) (Left $ FreeGeneric args i)
       DotP _ term -> pure ()
       _ -> __IMPOSSIBLE__
       )
@@ -123,7 +123,7 @@ matchLHS tele patterns = do
       initializeLeafVars sizeType
       matchSizePattern pat sizeType)
       patterns tele
-  let fallback = applyDataType (replicate (length patterns) UndefinedSizeTele) tele
+  let fallback = applyDataType (replicate (length patterns) UndefinedSizeType) tele
   case restPatterns of
     [] ->
         -- No projection, we can exit pattern matching
@@ -149,7 +149,7 @@ matchLHS tele patterns = do
 
             freshenedSignature <- freshenCopatternProjection newCodepthVar bounds tele
             -- Additional argument is needed because we want to get rid of the principal argument in the signature
-            let appliedProjection = applyDataType (rest ++ [UndefinedSizeTele]) freshenedSignature
+            let appliedProjection = applyDataType (rest ++ [UndefinedSizeType]) freshenedSignature
             reportSDoc "term.tbt" 20 $ vcat
               [ "Entering copattern projection:" <+> prettyTCM qn
               , "Coinductive: " <+> text (show isForCoinduction)
@@ -170,7 +170,7 @@ matchLHS tele patterns = do
 
 -- | Input: a size type, that is located in domain
 -- Sets up root sizes for all first-order size variables in the domain
-initializeLeafVars :: SizeTele -> PatternEncoder ()
+initializeLeafVars :: SizeType -> PatternEncoder ()
 initializeLeafVars (SizeTree size ts) = do
   case size of
     SUndefined -> pure ()
@@ -181,7 +181,7 @@ initializeLeafVars (SizeTree size ts) = do
   traverse_ initializeLeafVars ts
 initializeLeafVars (SizeGenericVar _ _) = pure ()
 initializeLeafVars (SizeArrow _ r) = initializeLeafVars r
-initializeLeafVars (SizeGeneric _ _ r) = initializeLeafVars r
+initializeLeafVars (SizeGeneric _ r) = initializeLeafVars r
 
 -- | Sets up the data for coinductive copattern matching
 initializeCopatternProjection :: Size -> PatternEncoder ()
@@ -195,20 +195,20 @@ initializeCopatternProjection _ = pure () -- If there is no sized principal argu
 -- Matches the pattern, populating the set of core and rigid variables.
 -- We need to consider both cluster and depth when choosing the variable to split,
 -- otherwise we may accidentally introduce a size that belongs to a wrong cluster.
-matchSizePattern :: DeBruijnPattern -> SizeTele -> PatternEncoder ()
+matchSizePattern :: DeBruijnPattern -> SizeType -> PatternEncoder ()
 matchSizePattern (VarP pi v) expected = do
   reportSDoc "term.tbt" 20 $ "Assigning" <+> text (dbPatVarName v) <+> "to" <+> (text (show expected))
-  lift $ appendCoreVariable (dbPatVarIndex v) expected
+  lift $ appendCoreVariable (dbPatVarIndex v) (Right expected)
 matchSizePattern p@(ConP hd pi args) expected = do
   reportSDoc "term.tbt" 20 $ "Matching pattern " <+> prettyTCM p <+> "with expected type" <+> (text (show expected))
   let cn = conName hd
   ci <- getConstInfo cn
   let sizeSig = defSizedType ci
   -- We still need to populate core variables for the completeness of the checking
-  let defaultAction = traverse_ (\pat -> withDepth (-1) $ matchSizePattern (namedThing $ unArg pat) UndefinedSizeTele) args
+  let defaultAction = traverse_ (\pat -> withDepth (-1) $ matchSizePattern (namedThing $ unArg pat) UndefinedSizeType) args
   case (sizeSig, expected) of
     (Nothing, _) -> defaultAction
-    (_, UndefinedSizeTele) -> defaultAction
+    (_, UndefinedSizeType) -> defaultAction
     (Just sizeSig, SizeTree size ts) -> do
       rigids <- lift getCurrentRigids
       let cluster = case size of
@@ -233,8 +233,8 @@ matchSizePattern p@(ConP hd pi args) expected = do
       case codomain of
         SizeTree _ realArgs -> lift $ ensurePatternIntegrity realArgs ts
         _ -> pure ()
-      _ <- foldDomainSizeTele
-        (\args i pat -> withDepth (-1) $ matchSizePattern pat (StoredGeneric args i))
+      _ <- foldDomainSizeType
+        (\args i pat -> withDepth (-1) $ matchSizePattern pat UndefinedSizeType)
         (\size pat -> do
           argCluster <- lift $ getClusterByTele size
           depth <- gets peDepth
@@ -255,14 +255,17 @@ withDepth :: Int -> PatternEncoder a -> PatternEncoder a
 withDepth i = withStateT (\s -> s { peDepth = i })
 
 -- | Folding on size telescope zipped with a supplied list values
-foldDomainSizeTele :: Monad m => (Int -> Int -> b -> m a) -> (SizeTele -> b -> m a) -> [b] -> SizeTele -> m [b]
-foldDomainSizeTele f1 f2 (b : bs) (SizeArrow l r) = do
+foldDomainSizeType :: Monad m => (Int -> Int -> b -> m a) -> (SizeType -> b -> m a) -> [b] -> SizeType -> m [b]
+foldDomainSizeType = foldDomainSizeType' 0
+
+foldDomainSizeType' :: Monad m => Int -> (Int -> Int -> b -> m a) -> (SizeType -> b -> m a) -> [b] -> SizeType -> m [b]
+foldDomainSizeType' c f1 f2 (b : bs) (SizeArrow l r) = do
   ofDomain <- f2 l b
-  foldDomainSizeTele f1 f2 bs r
-foldDomainSizeTele f1 f2 (b : bs) (SizeGeneric args i r) = do
-  ofDomain <- f1 args i b
-  foldDomainSizeTele f1 f2 bs r
-foldDomainSizeTele _ _ rest _ = pure rest
+  foldDomainSizeType' c f1 f2 bs r
+foldDomainSizeType' c f1 f2 (b : bs) (SizeGeneric args r) = do
+  ofDomain <- f1 args c b
+  foldDomainSizeType' (c + 1) f1 f2 bs r
+foldDomainSizeType' _ _ _ rest _ = pure rest
 
 -- | 'getOrRequestDepthVar cluster level' returns a variable on depth 'level' corresponding to a cluster 'cluster'
 getOrRequestDepthVar :: Int -> Int -> PatternEncoder Int
@@ -301,7 +304,7 @@ getOrRequestCoDepthVar depth = do
 -- in accordance with the expected data type ('expectedCodomain') type.
 -- The decomposed constructor has 'codomainDataVar' as the size variable of its domain
 -- and 'domainDataVar' as the size variables of its recursive domains.
-freshenPatternConstructor :: QName -> Int -> PatternEncoder Int -> SizeTele -> SizeSignature -> PatternEncoder SizeTele
+freshenPatternConstructor :: QName -> Int -> PatternEncoder Int -> SizeType -> SizeSignature -> PatternEncoder SizeType
 freshenPatternConstructor conName codomainDataVar domainDataVar expectedCodomain (SizeSignature bounds contra constructorType) = do
   let (SizeTree topSize datatypeParameters) = expectedCodomain
   let shouldBeUnbounded b = b == SizeUnbounded || codomainDataVar == (-1)
@@ -318,40 +321,41 @@ freshenPatternConstructor conName codomainDataVar domainDataVar expectedCodomain
     , "size tele: " <+> text (show constructorType)
     ]
   reportSDoc "term.tbt" 20 $ "new vars: " <+> text (show newVars)
-  let instantiatedSig = instantiateSizeTele constructorType (newVars ++ [codomainDataVar])
-  freshSig <- lift $ freshenGenericArguments instantiatedSig
+  let instantiatedSig = instantiateSizeType constructorType (newVars ++ [codomainDataVar])
+  -- freshSig <- lift $ freshenGenericArguments instantiatedSig
   numberOfArguments <- liftTCM $ getDatatypeParametersByConstructor conName
-  let partialConstructorType = applyDataType (take numberOfArguments datatypeParameters) freshSig
+  let partialConstructorType = applyDataType (take numberOfArguments datatypeParameters) instantiatedSig
+  reportSDoc "term.tbt" 20 $ "params to apply: " <+> text (show (take numberOfArguments datatypeParameters))
   return partialConstructorType
 
-freshenCopatternProjection :: Int -> [SizeBound] -> SizeTele -> PatternEncoder SizeTele
+freshenCopatternProjection :: Int -> [SizeBound] -> SizeType -> PatternEncoder SizeType
 freshenCopatternProjection newCoDepthVar bounds tele = do
   let isNewPatternSizeVar b = b == SizeUnbounded || newCoDepthVar == (-1)
   newVarsRaw <- lift $ requestNewRigidVariables SUndefined (filter isNewPatternSizeVar bounds)
   let newVars = snd $ List.mapAccumL (\nv bound -> if isNewPatternSizeVar bound then (tail nv, head nv) else (nv, newCoDepthVar)) newVarsRaw bounds
   reportSDoc "term.tbt" 20 $ "Before instantiation in freshenCopatternConstructor: " <+> text (show tele) <+> "with new vars:" <+> text (show newVars)
-  let instantiatedSig = instantiateSizeTele tele newVars
-  lift $ freshenGenericArguments instantiatedSig
+  let instantiatedSig = instantiateSizeType tele newVars
+  pure instantiatedSig
 
 -- This is a protection against postulated univalence.
 -- Normally, there cannot be any relation between a size variable and a generic,
 -- but introducing univalence there can actually be a relation between them.
-ensurePatternIntegrity :: [SizeTele] -> [SizeTele] -> MonadSizeChecker ()
+ensurePatternIntegrity :: [SizeType] -> [SizeType] -> MonadSizeChecker ()
 ensurePatternIntegrity realTypes expectedTypes = do
   let integrityViolation = any (\(realType, expectedType) -> (isGenericVar expectedType) /= (isGenericVar realType)) (zip realTypes expectedTypes)
   when integrityViolation $ MSC $ modify (\s -> s { scsErrorMessages = scsErrorMessages s ++ ["Integrity violation in clause"] })
   where
-    isGenericVar :: SizeTele -> Bool
+    isGenericVar :: SizeType -> Bool
     isGenericVar (SizeGenericVar _ _) = True
     isGenericVar _ = False
 
 -- Extracts cluster of the top-level size expr
-getClusterByTele :: SizeTele -> MonadSizeChecker Int
+getClusterByTele :: SizeType -> MonadSizeChecker Int
 getClusterByTele (SizeTree (SDefined i) _) = do
   ctx <- getCurrentRigids
   pure $ getCluster ctx i
 getClusterByTele (SizeArrow _ r) = getClusterByTele r
-getClusterByTele (SizeGeneric _ _ r) = getClusterByTele r
+getClusterByTele (SizeGeneric _ r) = getClusterByTele r
 getClusterByTele _ = pure (-1)
 
 -- for a pattern size variable, gets its cluster index
