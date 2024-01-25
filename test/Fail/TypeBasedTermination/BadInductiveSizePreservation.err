@@ -1,0 +1,6 @@
+TypeBasedTermination/BadInductiveSizePreservation.agda:13,1-15,37
+Termination checking failed for the following functions:
+  foo
+Problematic calls:
+  foo (add n (suc zero))
+    (at TypeBasedTermination/BadInductiveSizePreservation.agda:15,15-18)

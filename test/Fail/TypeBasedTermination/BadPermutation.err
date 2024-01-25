@@ -1,0 +1,6 @@
+TypeBasedTermination/BadPermutation.agda:9,1-11,27
+Termination checking failed for the following functions:
+  foo
+Problematic calls:
+  foo zero m
+    (at TypeBasedTermination/BadPermutation.agda:11,17-20)

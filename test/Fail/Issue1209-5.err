@@ -1,8 +1,9 @@
 Issue1209-5.agda:3,8-14
 warning: -W[no]NoGuardednessFlag
-Stream is declared coinductive, but option --guardedness is not
-enabled. Coinductive functions on this type will likely be rejected
-by the termination checker unless this flag is enabled.
+Stream is declared coinductive, but option --guardedness,
+--sized-types, or --type-based-termination is not enabled.
+Coinductive functions on this type will likely be rejected by the
+termination checker unless one of these flags is enabled.
 when checking the definition of Stream
 Issue1209-5.agda:11,1-13,26
 Termination checking failed for the following functions:

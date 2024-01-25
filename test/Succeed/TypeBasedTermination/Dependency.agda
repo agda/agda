@@ -1,6 +1,6 @@
--- Testing heavy dependency between types
-{-# OPTIONS --type-based-termination --no-double-check #-}
-module SizedInference.dependency where
+-- Testing heavy dependency between types in indexes
+{-# OPTIONS --type-based-termination --no-syntax-based-termination #-}
+module TypeBasedTermination.Dependency where
 
 data Nat : Set where
   zero : Nat

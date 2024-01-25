@@ -1,7 +1,7 @@
 -- Basic functionality test
-{-# OPTIONS --no-double-check --type-based-termination #-}
+{-# OPTIONS --type-based-termination --no-syntax-based-termination #-}
 
-module SizedInference.basic where
+module TypeBasedTermination.Basic where
 
 data Nat : Set where
   zero : Nat

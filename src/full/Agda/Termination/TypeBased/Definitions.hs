@@ -127,7 +127,7 @@ collectTerminationData names = do
   -- Termination checking makes sense only for functions, since this is the definition that can call itself.
   functions <- mapMaybeM (\n -> inConcreteOrAbstractMode n $ \def -> do
     case theDef def of
-      FunctionDefn funData -> pure $ Just (funData, n)
+      FunctionDefn funData | not (defCopy def || isJust (isProjection_ (theDef def))) -> pure $ Just (funData, n)
       _ -> pure Nothing) (Set.toList names)
   result <- forM functions (uncurry $ processSizedDefinition names)
   let (errors, terminationResult) = partitionEithers result
@@ -230,9 +230,9 @@ invokeSizeChecker rootName nms action = do
     [ text "Raw graph:" ] ++
     map (nest 2 . text . show) graph ++
     [ "Final substitution: "] ++
-    map (nest 2 . text ) (map (\i -> (show (SDefined i)) ++ " ↦ " ++ show (subst IntMap.! i)) (IntMap.keys subst)) ++
-    [ "Calls: " ] ++
-    map (nest 2 . text . show) calls
+    map (nest 2 . text ) (map (\i -> (show (SDefined i)) ++ " ↦ " ++ show (subst IntMap.! i)) (IntMap.keys subst))
+    -- [ "Calls: " ] ++
+    -- map (\(q1, q2, s1, s2, place) ->  nest 2 $ prettyTCM q1 <+> ", " <+> prettyTCM q2 ) calls
   let indexing = zip (Set.toList nms) [0..]
 
   case scsErrorMessages res of
