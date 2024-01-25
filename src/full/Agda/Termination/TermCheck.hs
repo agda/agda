@@ -209,8 +209,7 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
 
       -- We still need to run type-based termination checker for non-recursive functions,
       -- because we need to compute possible size-preservation.
-      relevantNames <- (filterM (\a -> (getConstInfo a <&> \d -> not (defCopy d || isJust (isProjection_ (theDef d))))) (Set.toList allNames))
-      liftTCM $ whenM typeBasedTerminationOption $ collectTerminationData (Set.fromList relevantNames) >> pure ()
+      liftTCM $ whenM typeBasedTerminationOption $ collectTerminationData allNames >> pure ()
 
     -- Actual termination checking needed: go through SCCs.
     concat <$> do
@@ -976,7 +975,7 @@ function g es0 = do
          -- gPretty <-liftTCM $ billTo [Benchmark.Termination, Benchmark.Level] $
          --   render <$> prettyTCM g
 
-         doc <- buildRecCallLocation g es
+         doc <- buildRecCallLocation g es0
 
          let src  = fromMaybe __IMPOSSIBLE__ $ Set.lookupIndex f names
              tgt  = gInd

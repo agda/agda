@@ -1,0 +1,6 @@
+TypeBasedTermination/BadRefl.agda:10,1-11,20
+Termination checking failed for the following functions:
+  p
+Problematic calls:
+  p refl x
+    (at TypeBasedTermination/BadRefl.agda:11,12-13)
