@@ -30,8 +30,7 @@ import Agda.Utils.Impossible
 newtype MonadSizeChecker a = MSC (StateT SizeCheckerState TCM a)
   deriving (Functor, Applicative, Monad, MonadTCEnv, MonadTCState, HasOptions, MonadDebug, MonadFail, HasConstInfo, MonadAddContext, MonadIO, MonadTCM, ReadTCState, MonadStatistics)
 
-
-type SizeContextEntry = (Int, SizeTele)
+type SizeContextEntry = (Int, Either FreeGeneric SizeType)
 
 
 data ConstrType = SLte | SLeq deriving (Eq, Ord, Show)
@@ -67,17 +66,6 @@ data SizeCheckerState = SizeCheckerState
   --   Populated during the checking of pattern's LHS. The sizes of patterns that are the leaves of the rigid size tree
   , scsContravariantVariables :: IntSet
   -- ^ Size variables that belong to coinductive definitions.
-  , scsFreshGenericVarCounter :: Int
-  -- ^ A counter that represents a pool of new generic variables.
-  , scsGenericInstantiations  :: IntMap SizeTele
-  -- ^ Instantiations for generic variables.
-  --   Populated during the process of checking the type application.
-  , scsForbidUnification      :: IntSet
-  -- ^ A set of generic variables for which instantiation is temporarily forbidden.
-  --   This is needed to avoid the assignment of some instance to a generic variable with wrong number of applied arguments
-  , scsGenericArities         :: IntMap Int
-  -- ^ Arities of generics on the moment of creation.
-  --   Could be a random-access array, but we live in Haskell :(.
   , scsFallbackInstantiations :: IntMap Int
   -- ^ Instantiations for a flexible variables, that are used only if it is impossible to know the instantiation otherwise from the graph.
   --   This is the last resort, and a desperate attempt to guess at least something more useful than infinity.
@@ -121,15 +109,6 @@ addNewRigid x bound = MSC $ modify (\s -> let rigids = scsRigidSizeVars s in s {
 
 getCurrentCoreContext :: MonadSizeChecker [SizeContextEntry]
 getCurrentCoreContext = MSC $ head <$> gets scsCoreContext
-
-requestNewGeneric :: Int -> MonadSizeChecker Int
-requestNewGeneric arity = MSC $ do
-  x <- gets scsFreshGenericVarCounter
-  modify (\s -> s
-    { scsFreshGenericVarCounter = x + 1
-    , scsGenericArities = IntMap.insert x arity (scsGenericArities s)
-    })
-  return x
 
 -- | Initializes internal data strustures that will be filled by the processing of a clause
 initNewClause :: [SizeBound] -> MonadSizeChecker ()
@@ -177,15 +156,6 @@ currentMutualNames = MSC $ gets scsMutualNames
 addFallbackInstantiation :: Int -> Int -> MonadSizeChecker ()
 addFallbackInstantiation i j = MSC $ modify (\s -> s { scsFallbackInstantiations = IntMap.insert i j (scsFallbackInstantiations s) })
 
-getCurrentGenericCounter :: MonadSizeChecker Int
-getCurrentGenericCounter = MSC $ gets scsFreshGenericVarCounter
-
-recordInstantiation :: Int -> SizeTele -> MonadSizeChecker ()
-recordInstantiation i tele = MSC $ modify (\s -> s { scsGenericInstantiations = IntMap.insert i tele (scsGenericInstantiations s) })
-
-getGenericInstantiation :: Int -> MonadSizeChecker (Maybe SizeTele)
-getGenericInstantiation i = MSC $ IntMap.lookup i <$> gets scsGenericInstantiations
-
 -- | Size-preservation machinery needs to know about recursive calls.
 -- See the documentation for @scsRecCallsMatrix@
 reportDirectRecursion :: [Int] -> MonadSizeChecker ()
@@ -200,32 +170,18 @@ markUndefinedSize i = MSC $ modify (\s -> s { scsUndefinedVariables = IntSet.ins
 getUndefinedSizes :: MonadSizeChecker IntSet
 getUndefinedSizes = MSC $ gets scsUndefinedVariables
 
-abstractCoreContext :: Int -> SizeTele -> MonadSizeChecker a -> MonadSizeChecker a
+abstractCoreContext :: Int -> Either FreeGeneric SizeType -> MonadSizeChecker a -> MonadSizeChecker a
 abstractCoreContext i tele action = do
   contexts <- MSC $ gets scsCoreContext
-  MSC $ modify (\s -> s { scsCoreContext = ((i, tele) : (map (first (+ 1)) (head contexts))) : tail contexts })
+  MSC $ modify (\s -> s { scsCoreContext = ((i, tele) : (map (incrementDeBruijnEntry tele) (head contexts))) : tail contexts })
   res <- action
   MSC $ modify (\s -> s { scsCoreContext = contexts })
   pure res
 
-forbidGenericInstantiation :: Int -> MonadSizeChecker a -> MonadSizeChecker a
-forbidGenericInstantiation i action = do
-  currentUnification <- MSC $ gets scsForbidUnification
-  MSC $ modify (\s -> s { scsForbidUnification = IntSet.insert i (scsForbidUnification s) })
-  result <- action
-  MSC $ modify (\s -> s { scsForbidUnification = currentUnification })
-  pure result
-
-
-abstractSizeTele :: SizeTele -> SizeTele -> MonadSizeChecker SizeTele
-abstractSizeTele arg res = case res of
-  StoredGeneric args i -> do
-    arities <- MSC $ gets scsGenericArities
-    reportSDoc "term.tbt" 40 $ "Generic arities: " <+> (text (show arities))
-    arity <- MSC $ (IntMap.findWithDefault __IMPOSSIBLE__ i) <$> gets scsGenericArities
-    pure $ if arity - args > 0 then StoredGeneric (args + 1) i else SizeArrow UndefinedSizeTele (StoredGeneric args i)
-  _ -> pure $ SizeArrow UndefinedSizeTele res
-
+incrementDeBruijnEntry :: Either FreeGeneric SizeType -> (Int, Either FreeGeneric SizeType) -> (Int, Either FreeGeneric SizeType)
+incrementDeBruijnEntry (Left _) (x, Left fg) = (x + 1, Left $ fg { fgIndex = fgIndex fg + 1 })
+incrementDeBruijnEntry (Left _) (x, Right t) = (x + 1, Right t)
+incrementDeBruijnEntry (Right _) (x, e) = (x + 1, e)
 
 requestNewVariable :: MonadSizeChecker Int
 requestNewVariable = MSC $ do
@@ -238,41 +194,23 @@ instance Show SConstraint where
   show (SConstraint SLte i1 i2) = show i1 ++ " < " ++ show i2
 
 -- | Given the signature, returns it with with fresh variables
-freshenSignature :: SizeSignature -> MonadSizeChecker ([SConstraint], SizeTele)
+freshenSignature :: SizeSignature -> MonadSizeChecker ([SConstraint], SizeType)
 freshenSignature s@(SizeSignature domain contra tele) = do
   -- reportSDoc "term.tbt" 10 $ "Signature to freshen: " <+> text (show s)
   newVars <- replicateM (length domain) requestNewVariable
   let actualConstraints = mapMaybe (\(v, d) -> case d of
                             SizeUnbounded -> Nothing
                             SizeBounded i -> Just (SConstraint SLte v (newVars List.!! i))) (zip newVars domain)
-      sigWithfreshenedSizes = instantiateSizeTele tele newVars
+      sigWithfreshenedSizes = instantiateSizeType tele newVars
   forM_ actualConstraints (\s -> reportSDoc "term.tbt" 40 $ "Registering L:" <+> text (show (scFrom s)) <+> "<" <+> text (show (scTo s)))
-  freshSig <- freshenGenericArguments sigWithfreshenedSizes
+  -- freshSig <- freshenGenericArguments sigWithfreshenedSizes
   let newContravariantVariables = map (newVars List.!!) contra
   MSC $ modify ( \s -> s { scsContravariantVariables = foldr IntSet.insert (scsContravariantVariables s) newContravariantVariables  })
-  return $ (actualConstraints, freshSig)
-
+  return $ (actualConstraints, sigWithfreshenedSizes)
 
 -- | Instantiates first order size variables to the provided list of ints
-instantiateSizeTele :: SizeTele -> [Int] -> SizeTele
-instantiateSizeTele body args = update (\i -> args List.!! i) body
-
--- | Refreshes generic arguments in a size signature. Used after retrieving a cached size signature
-freshenGenericArguments :: SizeTele -> MonadSizeChecker SizeTele
-freshenGenericArguments tele = freshenTele id tele
-  where
-  freshenTele :: (Int -> Int) -> SizeTele -> MonadSizeChecker SizeTele
-  freshenTele f (SizeArrow l r) = do
-    l' <- freshenTele f l
-    r' <- freshenTele f r
-    return $ SizeArrow l' r'
-  freshenTele f (SizeTree x ts) = SizeTree <$> pure x <*> traverse (freshenTele f) ts
-  freshenTele f (StoredGeneric args i) = pure $ StoredGeneric args i
-  freshenTele f (SizeGenericVar args gen) = pure $ SizeGenericVar args (f gen)
-  freshenTele f (SizeGeneric args i r) = do
-    newGeneric <- requestNewGeneric args
-    let newFunc = \j -> if i == j then newGeneric else f j
-    SizeGeneric args newGeneric <$> freshenTele newFunc r
+instantiateSizeType :: SizeType -> [Int] -> SizeType
+instantiateSizeType body args = update (\i -> args List.!! i) body
 
 requestNewRigidVariables :: Size -> [SizeBound] -> MonadSizeChecker [Int]
 requestNewRigidVariables bound pack = do
@@ -290,7 +228,7 @@ requestNewRigidVariables bound pack = do
   modify (\s -> s { scsRigidSizeVars = ((zip newVarIdxs newBounds) ++ (head currentRigids)) : tail currentRigids })
   return $ newVarIdxs
 
-appendCoreVariable :: Int -> SizeTele -> MonadSizeChecker ()
+appendCoreVariable :: Int -> Either FreeGeneric SizeType -> MonadSizeChecker ()
 appendCoreVariable i tele = MSC $ modify (\s -> s { scsCoreContext = let cc = (scsCoreContext s) in ((i, tele) : head cc) : tail cc })
 
 runSizeChecker :: QName -> Set QName -> MonadSizeChecker a -> TCM (a, SizeCheckerState)
@@ -307,10 +245,6 @@ runSizeChecker rootName mutualNames (MSC action) = do
     , scsBottomFlexVars = IntSet.empty
     , scsLeafSizeVariables = []
     , scsContravariantVariables = IntSet.empty
-    , scsFreshGenericVarCounter = 0
-    , scsGenericInstantiations = IntMap.empty
-    , scsForbidUnification = IntSet.empty
-    , scsGenericArities = IntMap.empty
     , scsFallbackInstantiations = IntMap.empty
     , scsUndefinedVariables = IntSet.empty
     , scsRecCallsMatrix = []

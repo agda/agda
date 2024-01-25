@@ -48,7 +48,7 @@ import Agda.Termination.Monad (isCoinductiveProjection)
 -- | Bidirectional-style checking of internal terms.
 --   Though this function is checking, it also infers size types of terms,
 --   because of the structure of the internal syntax in Agda (namely, because there are no explicit applications).
-sizeCheckTerm :: SizeTele -> Term -> MonadSizeChecker SizeTele
+sizeCheckTerm :: SizeType -> Term -> MonadSizeChecker SizeType
 sizeCheckTerm tp term' = do
   -- Turn projection-like function into a sequence of projections
   unProjectedTerm <- MSC $ elimView EvenLone term'
@@ -58,7 +58,7 @@ sizeCheckTerm tp term' = do
 
 -- | The same as @sizeCheckTerm@, but acts on a sufficiently normalized terms.
 --   It is enough for the term to be free from Agda's internal sugar, such as projection-like functions or copied definitions.
-sizeCheckTerm' :: SizeTele -> Term -> MonadSizeChecker SizeTele
+sizeCheckTerm' :: SizeType -> Term -> MonadSizeChecker SizeType
 sizeCheckTerm' expected t@(Var i elims) = do
   context <- getCurrentCoreContext
   case lookup i context of
@@ -67,24 +67,27 @@ sizeCheckTerm' expected t@(Var i elims) = do
         [ "Unknown variable" <+> prettyTCM t
         , "Where the context is" <+> text (show context)
         ]
-      _ <- sizeCheckEliminations UndefinedSizeTele elims
+      _ <- sizeCheckEliminations UndefinedSizeType elims
       -- This branch is possible if the codomain of the processed function is large-eliminated.
       -- In this case, the pattern encoder can lose some variables.
-      pure $ UndefinedSizeTele
+      pure $ UndefinedSizeType
     Just sizeTypeOfVar -> do
       -- We need to freshen generic arguments, because each usage of a polymorphic variable implies new parameterization
-      freshenedSizeType <- freshenGenericArguments sizeTypeOfVar
+      -- freshenedSizeType <- freshenGenericArguments sizeTypeOfVar
       reportSDoc "term.tbt" 20 $ vcat
         [ "Inferring size type of var" <+> prettyTCM t
         , "Expected type             : " <+> text (show expected)
         , "Type of var (original)    : " <+> text (show sizeTypeOfVar)
-        , "Type of var (fresh gen)   : " <+> text (show freshenedSizeType)
         , "Eliminations              : " <+> prettyTCM elims
         ]
-      remainingCodomain <- sizeCheckEliminations sizeTypeOfVar elims
+      remainingCodomain <- case sizeTypeOfVar of
+        Left freeGeneric -> sizeCheckEliminations UndefinedSizeType elims
+        Right actualType -> sizeCheckEliminations actualType elims
       inferenceToChecking expected remainingCodomain
-      pure remainingCodomain
-sizeCheckTerm' expected t@(Def qn elims) = if isAbsurdLambdaName qn then pure UndefinedSizeTele else do
+      case sizeTypeOfVar of
+        Left freeGeneric -> pure $ SizeGenericVar (length elims) (fgIndex freeGeneric)
+        Right actualType -> pure $ remainingCodomain
+sizeCheckTerm' expected t@(Def qn elims) = if isAbsurdLambdaName qn then pure UndefinedSizeType else do
   -- New size variables in a freshened definitions are those that were populated during the freshening. Yes, a bit of an abstraction leak, TODO
   currentSizeLimit <- MSC $ gets scsFreshVarCounter
   constInfo <- getConstInfo qn
@@ -92,7 +95,7 @@ sizeCheckTerm' expected t@(Def qn elims) = if isAbsurdLambdaName qn then pure Un
   case sizeSigOfDef of
     Nothing -> do
       reportSDoc "term.tbt" 20 $ "No size type for definition" <+> prettyTCM qn
-      pure UndefinedSizeTele
+      pure $ UndefinedSizeType
     -- This definition is a function, which has no interesting size bounds, so we can safely ignore them
     Just (_, sizeTypeOfDef) -> do
       newSizeVariables <- MSC (gets scsFreshVarCounter) <&> \x -> [currentSizeLimit .. (x - 1)]
@@ -115,9 +118,9 @@ sizeCheckTerm' expected t@(Def qn elims) = if isAbsurdLambdaName qn then pure Un
       reportSDoc "term.tbt" 20 $ "Substituted codomain of" <+> prettyTCM qn  <+> ":" <+> text (show remainingCodomain)
       inferenceToChecking expected remainingCodomain
 
-      pure remainingCodomain
+      pure $ remainingCodomain
 sizeCheckTerm' expected t@(Con ch ci elims) = do
-  let (stDomainLength, stCodomain) = sizeCodomain expected
+  let (_, stCodomain) = sizeCodomain expected
   let constructorName = conName ch
   (constraints, tele) <- fromJust <$> resolveConstant constructorName
   forM_ constraints storeConstraint
@@ -143,7 +146,7 @@ sizeCheckTerm' expected t@(Con ch ci elims) = do
   -- We need to apply this telescope to refine possible generics in the constructor type before actual elimination of constructor type.
   dataParameters <- liftTCM $ getDatatypeParametersByConstructor constructorName
   let initialConstructorArguments = case stCodomain of
-        UndefinedSizeTele -> replicate dataParameters UndefinedSizeTele
+        UndefinedSizeType -> replicate dataParameters UndefinedSizeType
         _ -> take dataParameters (unwrapSizeTree stCodomain)
   let preparedConstructorType = applyDataType initialConstructorArguments tele
 
@@ -153,82 +156,35 @@ sizeCheckTerm' expected t@(Con ch ci elims) = do
     ]
   remainingCodomain <- sizeCheckEliminations preparedConstructorType elims
   inferenceToChecking expected remainingCodomain
-  pure remainingCodomain
-sizeCheckTerm' _ (Level _) = pure $ SizeTree SUndefined [] -- TODO
+  pure $ remainingCodomain
+sizeCheckTerm' _ (Level _) = pure $ UndefinedSizeType -- TODO
 sizeCheckTerm' expected t@(Lam info tm) = do
   reportSDoc "term.tbt" 20 $ vcat
     [ "Dispatching into lambda"
     , "Expected size type: " <+> text (show expected)
     ]
   let (argSizeType, rest) = case expected of
-        SizeArrow pt rest -> (pt, rest)
-        StoredGeneric args i | args > 0 -> (UndefinedSizeTele, StoredGeneric (args - 1) i)
-        SizeGeneric _ _ rest -> (SizeTree SUndefined [], rest)
-        UndefinedSizeTele -> (UndefinedSizeTele, UndefinedSizeTele)
+        SizeArrow pt rest -> (Right pt, rest)
+        SizeGeneric args rest -> (Left (FreeGeneric args 0), rest)
+        UndefinedSizeType -> (Right UndefinedSizeType, UndefinedSizeType)
         _ -> __IMPOSSIBLE__
-  let wrapWithGenericInst action = case expected of
-        StoredGeneric args i | args > 0 -> do
-          -- So we are processing a term of type `P : A -> B -> Set`
-          -- We should not announce that we have found the instance of P, since someone may use it and get a wrong type.
-          -- Forbidding instantiation here makes P instantiate to the outermost Pi-tower, which ensures that resulting generic has a correct arity.
-          reportSDoc "term.tbt" 20 "Forbidding unification"
-          result <- forbidGenericInstantiation i action
-          unify args i result
-          pure result
-        _ -> action
-
-  wrapWithGenericInst $ case tm of
+  case tm of
     Abs arg tm -> do
       -- We still need to maintain internal context to get pretty-printed termination errors
       checkedTerm <- abstractCoreContext 0 argSizeType $ addContext arg $ sizeCheckTerm rest tm
-      abstractSizeTele argSizeType checkedTerm
+      pure $ SizeArrow UndefinedSizeType checkedTerm
     NoAbs _ tm -> do
-      checkedTerm <- sizeCheckTerm rest tm
-      abstractSizeTele UndefinedSizeTele checkedTerm
-sizeCheckTerm' (SizeGeneric args i rest) t@(Pi _ _) = do
-  -- This branch is an application of some size type to a second-order size parameter.
-  reportSDoc "term.tbt" 20 $ "Encoding generic pi-type:" <+> prettyTCM t
-
-  encodedPi <- encodeTermMSC (El __UNREACHABLE__ t)
-
-  -- let sigWithfreshenedSizes = instantiateSizeTele encodedPi newVars
-  unify args i encodedPi
-  return $ SizeTree SUndefined []
-sizeCheckTerm' _ (Pi _ _) = pure UndefinedSizeTele
+      sizeCheckTerm rest tm
+sizeCheckTerm' _ (Pi _ _) = pure $ UndefinedSizeType
 sizeCheckTerm' expected t@(MetaV _ el) = do
   inst <- MSC $ instantiate t
   case inst of
-    MetaV _ _ -> pure $ SizeTree SUndefined []
+    MetaV _ _ -> pure $ UndefinedSizeType
     t -> sizeCheckTerm expected t
-sizeCheckTerm' _ (Lit _) = pure UndefinedSizeTele -- todo
-sizeCheckTerm' (StoredGeneric args i) (Sort _) = do
-  unify args i UndefinedSizeTele
-  pure UndefinedSizeTele
-sizeCheckTerm' _ (Sort _) = pure UndefinedSizeTele
-sizeCheckTerm' _ (DontCare _) = pure UndefinedSizeTele
-sizeCheckTerm' _ (Dummy _ _) = pure UndefinedSizeTele
-
--- | Allows to convert an internal type to a size type within the @MonadSiseChecker@ monad
-encodeTermMSC :: Type -> MonadSizeChecker SizeTele
-encodeTermMSC t = do
-  currentGenericCounter <- getCurrentGenericCounter
-  ctx <- getCurrentCoreContext
-  currentFlexCounter <- MSC $ gets scsFreshVarCounter
-  encodingResult <- MSC $ liftTCM $ typeToSizeTele currentFlexCounter currentGenericCounter
-    ([case lookup ind ctx of
-      Just (StoredGeneric args i) -> Just i
-      _ -> Nothing | ind <- [0..length ctx]]) (const False) t
-  let newRegVars = erNewFirstOrderVariables encodingResult
-  let newGenArities = erNewGenericArities encodingResult
-  let encodedPi = erEncodedType encodingResult
-  reportSDoc "term.tbt" 20 $ vcat
-    [ "regVars: " <+> text (show newRegVars)
-    , "genVarArities: " <+> text (show newGenArities)
-    , "currentFlexCounter: " <+> text (show currentFlexCounter)
-    , "currentGenericCounter: " <+> text (show currentGenericCounter)]
-  newVars <- replicateM (newRegVars - currentFlexCounter) requestNewVariable
-  newGens <- forM newGenArities requestNewGeneric
-  pure $ encodedPi
+sizeCheckTerm' _ (Lit _) = pure $ UndefinedSizeType -- todo
+sizeCheckTerm' _ (Sort _) = pure $ UndefinedSizeType
+sizeCheckTerm' _ (DontCare _) = pure $ UndefinedSizeType
+sizeCheckTerm' _ (Dummy _ _) = pure $ UndefinedSizeType
 
 maybeStoreRecursiveCall :: QName -> Elims  -> [Int] -> MonadSizeChecker ()
 maybeStoreRecursiveCall qn elims callSizes = do
@@ -243,17 +199,15 @@ maybeStoreRecursiveCall qn elims callSizes = do
 
 -- | Records the constraints obtained from comparing inferred and checked size types.
 -- This is more or less standard transition from checking to inference in bidirectional type checking.
-inferenceToChecking :: SizeTele -> SizeTele -> MonadSizeChecker ()
-inferenceToChecking expected inferred = case expected of
-  StoredGeneric args i -> unify args i inferred
-  t -> inferred `smallerOrEq` expected
+inferenceToChecking :: SizeType -> SizeType -> MonadSizeChecker ()
+inferenceToChecking expected inferred = unless (expected == UndefinedSizeType) $ inferred `smallerOrEq` expected
 
-datatypeArguments :: Int -> SizeTele -> Int
+datatypeArguments :: Int -> SizeType -> Int
 datatypeArguments fallback (SizeTree _ args) = length args
 datatypeArguments fallback _ = fallback
 
 -- | This size signature carries zero information. Effectively erases all information about the types.
-isDumbType :: SizeTele -> Bool
+isDumbType :: SizeType -> Bool
 isDumbType (SizeTree SUndefined []) = True
 isDumbType _ = False
 
@@ -262,12 +216,12 @@ isDumbType _ = False
 -- Example : `apply foo a b`, where `apply : (A -> B) -> A -> B` and `foo : C -> D -> E`. Here instantiation of `B` is `D -> E`, which unlocks the application of `b`.
 -- Returns the residual codomain in the end of the list.
 -- This is analogous to @checkSpine@ in the double checker.
-sizeCheckEliminations :: SizeTele -> Elims -> MonadSizeChecker SizeTele
+sizeCheckEliminations :: SizeType -> Elims -> MonadSizeChecker SizeType
 sizeCheckEliminations eliminated [] = pure eliminated
-sizeCheckEliminations eliminated@UndefinedSizeTele (elim : elims) = do
+sizeCheckEliminations eliminated@UndefinedSizeType (elim : elims) = do
   arg <- case elim of
-    Apply (Arg _ t) -> sizeCheckTerm UndefinedSizeTele t
-    _ -> pure UndefinedSizeTele
+    Apply (Arg _ t) -> sizeCheckTerm UndefinedSizeType t
+    _ -> pure $ UndefinedSizeType
   sizeCheckEliminations eliminated elims
 sizeCheckEliminations eliminated (elim : elims) = do
   reportSDoc "term.tbt" 80 $ "gradualElimsCheck" <+> vcat
@@ -278,14 +232,10 @@ sizeCheckEliminations eliminated (elim : elims) = do
     (Proj _ qname, eliminatedRecord@(SizeTree root args)) -> do
       (inferredRecordType, projectionCodomain) <- eliminateProjection qname eliminatedRecord args
       sizeCheckEliminations projectionCodomain elims
-    (Apply (Arg _ t), StoredGeneric args i) | args > 0 -> do
-      _ <- sizeCheckTerm UndefinedSizeTele t
-      -- We are starting to check arguments against a generic variable, where all new applications just increase the number of stored arguments for it.
-      sizeCheckEliminations (SizeGenericVar 1 i) elims
     (Apply (Arg _ t), SizeGenericVar args i) -> do
-      _ <- sizeCheckTerm UndefinedSizeTele t
+      _ <- sizeCheckTerm UndefinedSizeType t
       sizeCheckEliminations (SizeGenericVar (args + 1) i) elims
-    (Apply (Arg _ t), SizeGeneric arity i rest) -> do
+    (Apply (Arg _ t), SizeGeneric arity rest) -> do
       checkedDomain <- case t of
         -- Unfortunately, we have to apply counter-measures for Set-valued functions and do reductions, since we work in System F,
         -- and the internal syntax is written in dependent types.
@@ -303,10 +253,10 @@ sizeCheckEliminations eliminated (elim : elims) = do
               copy <- defCopy <$> getConstInfo qn
               reportSDoc "term.tbt" 20 $ "Is reduced definition copied:" <+> text (show copy)
             _ -> pure ()
-          sizeCheckTerm (StoredGeneric arity i) term
-        _ -> sizeCheckTerm (StoredGeneric arity i) t
-      rest <- sizeInstantiate rest
-      sizeCheckEliminations rest elims
+          sizeCheckTerm UndefinedSizeType term
+        _ -> sizeCheckTerm UndefinedSizeType t
+      let inst = sizeInstantiate checkedDomain rest
+      sizeCheckEliminations inst elims
     (Apply (Arg _ t), SizeArrow arg rest) -> do
       checkedDomain <- sizeCheckTerm arg t
       sizeCheckEliminations rest elims
@@ -321,7 +271,7 @@ sizeCheckEliminations eliminated (elim : elims) = do
     (IApply _ _ _, _) -> trace "elimination of cubical thing, bad" __IMPOSSIBLE__
 
 -- | Eliminates projection, returns inferred type of eliminated record and the residual inferred codomain of projection.
-eliminateProjection :: QName -> SizeTele -> [SizeTele] -> MonadSizeChecker (SizeTele, SizeTele)
+eliminateProjection :: QName -> SizeType -> [SizeType] -> MonadSizeChecker (SizeType, SizeType)
 eliminateProjection projName eliminatedRecord recordArgs = do
   (constraints, projectionType) <- fromJust <$> resolveConstant projName
   forM_ constraints storeConstraint
@@ -346,6 +296,7 @@ eliminateProjection projName eliminatedRecord recordArgs = do
     , "of type: " <+> (text (show projectionType))
     , "with record carrier: " <+> (text (show eliminatedRecord))
     , "and constraints: " <+> (text (show constraints))
+    , "record args: " <+> text (show recordArgs)
     ]
   let inferredProjectionType = applyDataType recordArgs projectionType
   reportSDoc "term.tbt" 40 $ "Applied projection type: " <+> text (show inferredProjectionType)
@@ -358,35 +309,14 @@ eliminateProjection projName eliminatedRecord recordArgs = do
       -- It means that the inferred first parameter of projection actually becomes the expected type of the record.
       eliminatedRecord `smallerOrEq` inferredRecordDef
       pure (inferredRecordDef, restDef)
-    UndefinedSizeTele -> pure (UndefinedSizeTele, UndefinedSizeTele)
-    _ -> trace "elimination of non-arrow size type" __IMPOSSIBLE__
-
--- | Instantiates all generic variables in `SizeTele`
-sizeInstantiate :: SizeTele -> MonadSizeChecker SizeTele
-sizeInstantiate (SizeArrow l r) = SizeArrow <$> sizeInstantiate l <*> sizeInstantiate r
-sizeInstantiate (SizeGeneric args i r) = SizeGeneric args i <$> sizeInstantiate r
-sizeInstantiate (SizeTree sd tree) = SizeTree <$> pure sd <*> traverse sizeInstantiate tree
-sizeInstantiate (SizeGenericVar args i) = do
-  inst <- getGenericInstantiation i
-  case inst of
-    Nothing -> pure $ SizeGenericVar args i
-    Just s@(StoredGeneric storedArgs i) -> trace ("Impossible stored generic instaniation in unification: " ++ show s) __IMPOSSIBLE__
-    Just t -> pure $ applyDataType (replicate args UndefinedSizeTele) t
-
--- | @unify mainArgs i st@ performs unification of a generic index @i := st@, while tracking the arity of @i@
-unify :: Int -> Int -> SizeTele -> MonadSizeChecker ()
-unify mainArgs i st = ifM (MSC $ (IntSet.member i) <$> gets scsForbidUnification) (reportSDoc "term.tbt" 40 "Aborting unification because forbidden") $ do
-  reportSDoc "term.tbt" 20 $ "Unification:" <+> (text (show $ StoredGeneric mainArgs i)) <+> " ==> " <+> text (show st)
-  let actualSt = case st of
-        StoredGeneric args i -> SizeGenericVar 0 i
-        _ -> st
-  recordInstantiation i actualSt
+    UndefinedSizeType -> pure (UndefinedSizeType, UndefinedSizeType)
+    _ -> trace ("elimination of non-arrow size type:" ++ show inferredProjectionType) __IMPOSSIBLE__
 
 
 -- | Compares two size types and stores the obtained constraints.
 --   The idea is that during the later computation of assignment for flexible types,
 --   all these constraints should be respected.
-smallerOrEq :: SizeTele -> SizeTele -> MonadSizeChecker ()
+smallerOrEq :: SizeType -> SizeType -> MonadSizeChecker ()
 smallerOrEq (SizeTree s1 tree1) (SizeTree s2 tree2) = do
   ifM (isContravariant s1 `or2M` isContravariant s2) {- then -} (smallerSize s2 s1) {- else -} (smallerSize s1 s2)
   zipWithM_ smallerOrEq tree1 tree2
@@ -395,10 +325,12 @@ smallerOrEq (SizeTree s1 tree1) (SizeTree s2 tree2) = do
     smallerSize (SDefined i1) (SDefined i2) = do
       reportSDoc "term.tbt" 20 $ "Registering:" <+> text (show i1) <+> "<=" <+> text (show i2)
       storeConstraint (SConstraint SLeq i1 i2)
-    smallerSize SUndefined (SDefined i) = markUndefinedSize i
+    smallerSize SUndefined (SDefined i) = do
+      reportSDoc "term.tbt" 20 $ "Registering undefined size: " <+> text (show i)
+      markUndefinedSize i
     smallerSize _ _ = pure ()
-smallerOrEq (UndefinedSizeTele) _ = pure ()
-smallerOrEq _ (UndefinedSizeTele) = pure ()
+smallerOrEq (UndefinedSizeType) _ = pure ()
+smallerOrEq _ (UndefinedSizeType) = pure ()
 smallerOrEq t1@(SizeGenericVar args1 i1) t2@(SizeGenericVar args2 i2) =
   when (i1 == i2 && args1 /= args2) $ do
     reportSDoc "term.tbt" 20 $ vcat
@@ -408,8 +340,9 @@ smallerOrEq t1@(SizeGenericVar args1 i1) t2@(SizeGenericVar args2 i2) =
       ]
     __IMPOSSIBLE__
 smallerOrEq (SizeArrow d1 c1) (SizeArrow d2 c2) = d2 `smallerOrEq` d1 >> c1 `smallerOrEq` c2 -- note the contravariance in domain
-smallerOrEq (SizeGeneric _ _ _) _ = pure ()
-smallerOrEq _ (SizeGeneric _ _ _) = pure ()
+smallerOrEq (SizeGeneric _ rest1) (SizeGeneric _ rest2) = smallerOrEq rest1 rest2
+smallerOrEq (SizeGeneric _ rest1) (SizeArrow UndefinedSizeType rest2) = smallerOrEq (sizeInstantiate UndefinedSizeType rest1) rest2
+smallerOrEq (SizeArrow UndefinedSizeType rest1) (SizeGeneric _ rest2) = smallerOrEq rest1 (sizeInstantiate UndefinedSizeType rest2)
 smallerOrEq (SizeTree _ _) (SizeArrow _ _) = pure () -- can occur, becase encoding of terms is intentionaly not complete
 smallerOrEq (SizeArrow _ _) (SizeTree _ _) = pure ()
 smallerOrEq (SizeArrow _ r) (SizeGenericVar args i) = r `smallerOrEq` (SizeGenericVar (args + 1) i) -- eta-conversion
@@ -427,7 +360,7 @@ smallerOrEq t1 t2 = do
 
 -- | Retrieves sized type for a constant
 -- May return Nothing for primitive definition
-resolveConstant :: QName -> MonadSizeChecker (Maybe ([SConstraint], SizeTele))
+resolveConstant :: QName -> MonadSizeChecker (Maybe ([SConstraint], SizeType))
 resolveConstant nm = do
   sizedSig <- defSizedType <$> getConstInfo nm
   case sizedSig of
@@ -452,7 +385,7 @@ storeCall q1 q2 sizesq1 sizesq2 elims = do
       forM_ (zip sizesq2 sizesq1) (uncurry addFallbackInstantiation)
       reportDirectRecursion sizesq2
 
-unwrapSizeTree :: SizeTele -> [SizeTele]
+unwrapSizeTree :: SizeType -> [SizeType]
 unwrapSizeTree (SizeTree _ ts) = ts
 unwrapSizeTree t = trace ("t: " ++ show t) __IMPOSSIBLE__
 

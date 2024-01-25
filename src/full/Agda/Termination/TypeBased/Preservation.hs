@@ -77,7 +77,7 @@ import Agda.Termination.Order (Order)
 import qualified Agda.Termination.Order as Order
 
 -- | Populates the sets of possibly size-preserving variables in a function.
-initSizePreservationStructure :: SizeTele -> MonadSizeChecker ()
+initSizePreservationStructure :: SizeType -> MonadSizeChecker ()
 initSizePreservationStructure tele = do
   let (_, codomain) = sizeCodomain tele
   let codomainVariables = gatherCodomainVariables codomain
@@ -94,12 +94,12 @@ initSizePreservationStructure tele = do
   MSC $ modify (\s -> s { scsPreservationCandidates = IntMap.fromList zipped })
   where
     -- Collects a set of variables that are used in the codomain of the function.
-    gatherCodomainVariables :: SizeTele -> [Int]
+    gatherCodomainVariables :: SizeType -> [Int]
     gatherCodomainVariables (SizeTree s rest) = (case s of
       SDefined i -> [i]
       SUndefined -> []) ++ concatMap gatherCodomainVariables rest
     gatherCodomainVariables (SizeArrow l r) = gatherCodomainVariables l ++ gatherCodomainVariables r
-    gatherCodomainVariables (SizeGeneric _ _ r) = gatherCodomainVariables r
+    gatherCodomainVariables (SizeGeneric _ r) = gatherCodomainVariables r
     gatherCodomainVariables (SizeGenericVar _ _) = []
 
 -- | This function is expected to be called after finishing the processing of clause,

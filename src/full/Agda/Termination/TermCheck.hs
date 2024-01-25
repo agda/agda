@@ -196,7 +196,7 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
       -- Encode available definition types for type-based termination later
       initSizeTypeEncoding allNames
 
-      reportSDoc "term.tbt" 20 $ "Mutual names" <+> text (show sccs)
+      reportSDoc "term.tbt" 20 $ "Mutual names" <+> prettyTCM (map Set.toList sccs)
       pure sccs
       -- -- Andreas, 2017-03-24, use positivity info to skip non-recursive functions
       -- skip = ignoreAbstractMode $ allM allNames $ \ x -> do
@@ -248,8 +248,6 @@ termMutual' = do
   allNames <- terGetMutual
 
   -- let's run type-based termination checking first
-
-  reportSDoc "term.tbt" 20 $ text (show allNames)
 
   cutoff <- terGetCutOff
 
