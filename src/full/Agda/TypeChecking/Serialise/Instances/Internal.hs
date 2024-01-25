@@ -18,7 +18,7 @@ import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Coverage.SplitTree
 
-import Agda.Termination.TypeBased.Syntax ( SizeSignature (..), SizeTele (..), Size (..), SizeBound (..) )
+import Agda.Termination.TypeBased.Syntax ( SizeSignature (..), SizeType (..), Size (..), SizeBound (..) )
 
 import Agda.Utils.Functor
 import Agda.Utils.Permutation
@@ -230,18 +230,18 @@ instance EmbPrj SizeBound where
     valu [0, a] = valuN SizeBounded a
     valu _      = malformed
 
-instance EmbPrj SizeTele where
-  icod_ (SizeTree a b)      = icodeN 0 SizeTree a b
-  icod_ (SizeArrow a b)     = icodeN 1 SizeArrow a b
-  icod_ (SizeGeneric a b c) = icodeN 2 SizeGeneric a b c
-  icod_ (SizeGenericVar a b)  = icodeN 3 SizeGenericVar a b
+instance EmbPrj SizeType where
+  icod_ (SizeTree a b)       = icodeN 0 SizeTree a b
+  icod_ (SizeArrow a b)      = icodeN 1 SizeArrow a b
+  icod_ (SizeGeneric a b)    = icodeN 2 SizeGeneric a b
+  icod_ (SizeGenericVar a b) = icodeN 3 SizeGenericVar a b
 
   value = vcase valu where
-    valu [0, a, b]    = valuN SizeTree a b
-    valu [1, a, b]    = valuN SizeArrow a b
-    valu [2, a, b, c] = valuN SizeGeneric a b c
-    valu [3, a, b]    = valuN SizeGenericVar a b
-    valu _            = malformed
+    valu [0, a, b] = valuN SizeTree a b
+    valu [1, a, b] = valuN SizeArrow a b
+    valu [2, a, b] = valuN SizeGeneric a b
+    valu [3, a, b] = valuN SizeGenericVar a b
+    valu _         = malformed
 
 instance EmbPrj Size where
   icod_ (SUndefined) = icodeN' SUndefined

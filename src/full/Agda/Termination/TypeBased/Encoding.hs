@@ -33,12 +33,16 @@ import Control.Monad ( when, foldM )
 import qualified Data.List as List
 import Data.Maybe ( fromJust )
 import Agda.Termination.TypeBased.Common ( applyDataType )
+
+import Agda.Utils.Impossible
 import Control.Monad.State.Class
+import Data.Either
+import Control.Arrow ( left )
 
 -- | Converts internal type of function to a sized type
 encodeFunctionType :: Type -> TCM SizeSignature
 encodeFunctionType t = do
-  EncodingResult { erNewFirstOrderVariables, erNewContravariantVariables, erEncodedType } <- typeToSizeTele 0 0 [] (const False) t
+  EncodingResult { erNewFirstOrderVariables, erNewContravariantVariables, erEncodedType } <- typeToSizeType 0 0 [] (const False) t
   -- Functions do not feature non-trivial size dependencies, hence we set all bounds to SizeUnbounded
   let newBounds = (replicate erNewFirstOrderVariables SizeUnbounded)
   return $ SizeSignature newBounds erNewContravariantVariables erEncodedType
@@ -49,7 +53,7 @@ encodeFunctionType t = do
 --   which is positioned as the principal parameter of the projection.
 encodeFieldType :: Set QName -> Type -> TCM SizeSignature
 encodeFieldType mutualNames t = do
-  EncodingResult { erEncodedType, erNewFirstOrderVariables, erNewContravariantVariables, erNewChosenVariables } <- ctorTypeToSizeTele t mutualNames
+  EncodingResult { erEncodedType, erNewFirstOrderVariables, erNewContravariantVariables, erNewChosenVariables } <- ctorTypeToSizeType t mutualNames
   -- Since it is a projection, we know that the principal argument is the first withing the domain telescope.
   -- It means that the encoder contains it in the end of 'erNewChosenVariables', so we should reverse the list to get it.
   -- There is a similar discussion in 'encodeConstructorType'.
@@ -68,18 +72,16 @@ encodeFieldType mutualNames t = do
 encodeBlackHole :: Type -> SizeSignature
 encodeBlackHole t =
   let TelV domains codom = telView' t
-  in SizeSignature [] [] $ foldr (\tp codom -> SizeArrow (SizeTree SUndefined []) codom) UndefinedSizeTele domains
+  in SizeSignature [] [] $ foldr (\tp codom -> SizeArrow (SizeTree SUndefined []) codom) UndefinedSizeType domains
 
-ctorTypeToSizeTele :: Type -> Set QName -> TCM EncodingResult
-ctorTypeToSizeTele t qns = typeToSizeTele 0 0 [] (`Set.member` qns) t
+ctorTypeToSizeType :: Type -> Set QName -> TCM EncodingResult
+ctorTypeToSizeType t qns = typeToSizeType 0 0 [] (`Set.member` qns) t
 
 data EncodingResult = EncodingResult
-  { erEncodedType :: SizeTele
+  { erEncodedType :: SizeType
   -- ^ The result of conversion of an internal type to a sized type.
   , erNewFirstOrderVariables :: Int
   -- ^ The number of new first-order variables introduced during the conversion.
-  , erNewGenericArities :: [Int]
-  -- ^ The arities of new generic variables introduced during the conversion. The number of new generic variables is implicitly the length of this list
   , erNewChosenVariables :: [Int]
   -- ^ The list of new variables satisfying the passed 'esPredicate'.
   , erNewContravariantVariables :: [Int]
@@ -89,13 +91,9 @@ data EncodingResult = EncodingResult
 data EncoderState = EncoderState
   { esVariableCounter        :: Int
   -- ^ Current pool of first-order variables
-  , esInitialGenericCounter  :: Int
-  -- ^ Initial offset of generic variables. New generics are created starting from this offset.
-  , esNewGenericArities      :: [Int]
-  -- ^ Current list of generic arities.
-  , esTypeRelatedContext     :: [Maybe Int]
+  , esTypeRelatedContext     :: [Maybe FreeGeneric]
   -- ^ Representation of the core context.
-  --   'Nothing' means that the variable is "first-order", (like 'l : List'), hence its encoding should be 'UndefinedSizeTele'.
+  --   'Nothing' means that the variable is "first-order", (like 'l : List'), hence its encoding should be 'UndefinedSizeType'.
   --   'Just x' means that the variable is "second-order", (like 'A : Set'), where 'x' is the index of corresponding generic.
   --   If the approach changes from System F to the dependent types, this field should be revised.
   , esTopLevel               :: Bool
@@ -111,13 +109,11 @@ data EncoderState = EncoderState
   -- ^ Contravariant size variables collected during the encoding.
   }
 
-typeToSizeTele :: Int -> Int -> [Maybe Int] -> (QName -> Bool) -> Type -> TCM EncodingResult
-typeToSizeTele regVars genVars ctx pred t = case typeToSizeTele' (unEl t) of
+typeToSizeType :: Int -> Int -> [Maybe FreeGeneric] -> (QName -> Bool) -> Type -> TCM EncodingResult
+typeToSizeType regVars genVars ctx pred t = case typeToSizeType' (unEl t) of
   ME action -> do
     (encodedType, finalEncoderState) <- runStateT action (EncoderState
       { esVariableCounter = regVars
-      , esInitialGenericCounter = genVars
-      , esNewGenericArities = []
       , esTypeRelatedContext = ctx
       , esTopLevel = True
       , esChosenVariables = []
@@ -125,9 +121,8 @@ typeToSizeTele regVars genVars ctx pred t = case typeToSizeTele' (unEl t) of
       , esContravariantVariables = []
       })
     pure EncodingResult
-      { erEncodedType = encodedType
+      { erEncodedType = either __IMPOSSIBLE__ id encodedType
       , erNewFirstOrderVariables = esVariableCounter finalEncoderState
-      , erNewGenericArities = esNewGenericArities finalEncoderState
       , erNewChosenVariables = esChosenVariables finalEncoderState
       , erNewContravariantVariables = esContravariantVariables finalEncoderState
       }
@@ -140,7 +135,7 @@ newtype MonadEncoder a = ME (StateT EncoderState TCM a)
 --   where 'mutuals' is a set of names in a mutual block of the data definition.
 encodeConstructorType :: Set QName -> Type -> TCM SizeSignature
 encodeConstructorType mutuals t = do
-  EncodingResult { erEncodedType, erNewFirstOrderVariables, erNewChosenVariables, erNewContravariantVariables } <- ctorTypeToSizeTele t mutuals
+  EncodingResult { erEncodedType, erNewFirstOrderVariables, erNewChosenVariables, erNewContravariantVariables } <- ctorTypeToSizeType t mutuals
 
   -- We are trying to select variables that are located in the domain of the encoded constructor.
   -- Since each constructor has its datatype in the codomain, we know that the size variable for the codomain is added _last_,
@@ -154,44 +149,40 @@ encodeConstructorType mutuals t = do
   let bounds = map (\i -> if i `elem` chosen then (SizeBounded principal) else SizeUnbounded) [0..erNewFirstOrderVariables - 1]
   return $ SizeSignature bounds erNewContravariantVariables erEncodedType
 
-typeToSizeTele' :: Term -> MonadEncoder SizeTele
-typeToSizeTele' (Sort _) = do
+typeToSizeType' :: Term -> MonadEncoder (Either FreeGeneric SizeType)
+typeToSizeType' (Sort _) = do
   tl <- gets esTopLevel
   if tl
-  then pure UndefinedSizeTele
-  else do
-    genericIndex <- initNewGenericInEncoder 0
-    return $ StoredGeneric 0 genericIndex
-typeToSizeTele' t@(Pi dom cod) = do
+  then pure $ Right UndefinedSizeType
+  else pure $ Left (FreeGeneric 0 0)
+typeToSizeType' t@(Pi dom cod) = do
 
-  domEncoding <- freezeContext $ typeToSizeTele' $ unEl $ unDom dom
+  domEncoding <- freezeContext $ typeToSizeType' $ unEl $ unDom dom
   enrichContext domEncoding cod
 
-  codomEncoding <- typeToSizeTele' $ unEl $ unAbs cod
+  codomEncoding <- typeToSizeType' $ unEl $ unAbs cod
   combinedType <- case (domEncoding, codomEncoding) of
-        (_, StoredGeneric args i) -> do
-          -- Here we are trying to build a generic with arity, its telescope should be collapsed to the arity integer.
-          initialIndex <- ME $ gets esInitialGenericCounter
-          modify (\s -> s { esNewGenericArities = listSet (i - initialIndex) (args + 1) (esNewGenericArities s)})
-          pure $ StoredGeneric (args + 1) i
-        (StoredGeneric args i, _) ->
+        (_, Left fg) -> do
+          -- Since we are trying to build a generic with arity, its arity increases with the introduction of domain.
+          pure $ Left (fg { fgArity = fgArity fg + 1})
+        (Left fg, Right tele) ->
           -- The domain initiates generic parameterization, hence we need to create a second-order parameterized type
-          pure $ SizeGeneric args i codomEncoding
-        (_, _) ->
+          pure $ Right $ SizeGeneric (fgArity fg) tele
+        (Right realDomain, Right realCodomain) ->
           -- If there is no requirement to handle generics, we can construct a plain arrow type.
-          pure $ SizeArrow domEncoding codomEncoding
+          pure $ Right $ SizeArrow realDomain realCodomain
   reportSDoc "term.tbt" 100 $ vcat
     [ "Converted term: " <+> prettyTCM t
     , "partial type: " <+> text (show combinedType)
     ]
   pure combinedType
-typeToSizeTele' t@(MetaV _ _) = do
+typeToSizeType' t@(MetaV _ _) = do
   reportSDoc "term.tbt" 20 $ "Preparing to instantiate meta"
   inst <- ME $ instantiate t
   case inst of
-    MetaV _ _ -> pure UndefinedSizeTele
-    t -> typeToSizeTele' t
-typeToSizeTele' t@(Lam _ abs) = do
+    MetaV _ _ -> pure $ Right $ UndefinedSizeType
+    t -> typeToSizeType' t
+typeToSizeType' t@(Lam _ abs) = do
   -- Here we "lift" lambda expressions to the type level, thus obtaining an arrow type.
   -- The purpose of this trick is to respect the arity of generic to which this lambda is applied.
   -- Example:
@@ -204,11 +195,13 @@ typeToSizeTele' t@(Lam _ abs) = do
         Abs _ _ -> True
         NoAbs _ _ -> False
   when isAbs $ modify (\s -> s { esTypeRelatedContext = Nothing : esTypeRelatedContext s })
-  sizeCod <- typeToSizeTele' (unAbs abs)
-  pure $ SizeArrow UndefinedSizeTele sizeCod
-typeToSizeTele' t@(Def qn _) = do
+  sizeCod <- typeToSizeType' (unAbs abs)
+  pure $ case sizeCod of
+    Left fg -> Left (fg { fgArity = fgArity fg + 1 })
+    Right tele -> Right $ SizeArrow UndefinedSizeType tele
+typeToSizeType' t@(Def qn _) = do
   constInfo <- ME $ getConstInfo qn
-  let dataHandler = termToSizeTele =<< ME (liftTCM (tryReduceCopy t))
+  let dataHandler = Right <$> (termToSizeType =<< ME (liftTCM (tryReduceCopy t)))
   case theDef constInfo of
     -- A function usage in the signature might be a type alias, which means that we have to unfold it
     -- to get the full signature to encode.
@@ -221,29 +214,33 @@ typeToSizeTele' t@(Def qn _) = do
         , "to: " <+> prettyTCM reduced
         ]
       case reduced of
-        Pi _ _ -> typeToSizeTele' reduced
-        Def qn' _ | qn' /= qn -> typeToSizeTele' reduced -- non-trivial unfolding occurred
-        _ -> pure UndefinedSizeTele
+        Pi _ _ -> typeToSizeType' reduced
+        Def qn' _ | qn' /= qn -> typeToSizeType' reduced -- non-trivial unfolding occurred
+        _ -> pure $ Right $ UndefinedSizeType
     Datatype{} -> dataHandler
     Record{} -> dataHandler
-    _ -> pure UndefinedSizeTele
-typeToSizeTele' r = termToSizeTele r
+    _ -> pure $ Right UndefinedSizeType
+typeToSizeType' r = Right <$> termToSizeType r
 
-enrichContext :: SizeTele -> Abs a -> MonadEncoder ()
-enrichContext (StoredGeneric _ i) (Abs _ _) = modify (\s -> s { esTypeRelatedContext = Just i : esTypeRelatedContext s })
+enrichContext :: Either FreeGeneric SizeType -> Abs a -> MonadEncoder ()
+enrichContext (Left fg) (Abs _ _) = modify (\s -> s { esTypeRelatedContext = Just fg : (map (fmap increaseIndexing) (esTypeRelatedContext s)) })
 enrichContext _ (Abs _ _) = modify (\s -> s { esTypeRelatedContext = Nothing : esTypeRelatedContext s })
+enrichContext (Left fg) (NoAbs _ _) = modify (\s -> s { esTypeRelatedContext = map (fmap increaseIndexing) (esTypeRelatedContext s) })
 enrichContext _ _ = pure ()
 
+increaseIndexing :: FreeGeneric -> FreeGeneric
+increaseIndexing fg = fg { fgIndex = fgIndex fg + 1 }
+
 -- | Converts a datatype to its size representation. The result is most likely size tree (i.e. t₃<∞, ∞, ∞>)
-termToSizeTele :: Term -> MonadEncoder SizeTele
-termToSizeTele t@(Def q elims) = do
+termToSizeType :: Term -> MonadEncoder SizeType
+termToSizeType t@(Def q elims) = do
   constInfo <- ME $ getConstInfo q
   let sig = defSizedType constInfo
   case sig of
     Just (SizeSignature _ _ tele) | defIsDataOrRecord (theDef constInfo) -> do
       reportSDoc "term.tbt" 20 $ "Raw term: " <+> prettyTCM t <+> ", elims: " <+> (prettyTCM elims)
       -- Datatypes have parameters, which also should be converted to size types.
-      dataArguments <- traverse (freezeContext . typeToSizeTele' . unArg . fromJust . isApplyElim) elims
+      dataArguments <- map (fromRight UndefinedSizeType) <$> traverse (freezeContext . typeToSizeType' . unArg . fromJust . isApplyElim) elims
 
       freshData <- refreshFirstOrder tele
       reportSDoc "term.tbt" 20 $ vcat
@@ -266,17 +263,17 @@ termToSizeTele t@(Def q elims) = do
       pure newTree
     _ -> do
       reportSDoc "term.tbt" 20 $ "Aborting conversion of " <+> prettyTCM q
-      return UndefinedSizeTele -- arbitraty function applications in signatures are not supported on the current stage
+      return UndefinedSizeType -- arbitraty function applications in signatures are not supported on the current stage
   where
     -- Freshens all first-order variables in an encoded type
-    refreshFirstOrder :: SizeTele -> MonadEncoder SizeTele
-    refreshFirstOrder s@(SizeGeneric args i r) = SizeGeneric args i <$> refreshFirstOrder r
+    refreshFirstOrder :: SizeType -> MonadEncoder SizeType
+    refreshFirstOrder s@(SizeGeneric args r) = SizeGeneric args <$> refreshFirstOrder r
     refreshFirstOrder s@(SizeArrow l r) = SizeArrow <$> (refreshFirstOrder l) <*> (refreshFirstOrder r)
     refreshFirstOrder s@(SizeGenericVar args i) = pure s
     refreshFirstOrder s@(SizeTree d ts) = SizeTree <$> (case d of
       SDefined i -> SDefined <$> initNewFirstOrderInEncoder
       SUndefined -> pure SUndefined) <*> traverse refreshFirstOrder ts
-termToSizeTele (Var varId elims) = do
+termToSizeType (Var varId elims) = do
     ctx <- gets esTypeRelatedContext
     reportSDoc "term.tbt" 40 $ vcat
       [ "Context before var" <+> text (show ctx)
@@ -284,18 +281,8 @@ termToSizeTele (Var varId elims) = do
       ]
     case ctx List.!! varId of
       Nothing -> pure $ SizeTree SUndefined []
-      Just i -> pure $ SizeGenericVar (length elims) i
-termToSizeTele _ = pure UndefinedSizeTele
-
--- | Returns new generic variable in the encoder monad
-initNewGenericInEncoder :: Int -> MonadEncoder Int
-initNewGenericInEncoder arity = do
-  offset <- ME $ gets esInitialGenericCounter
-  genericIndex <- ME $ (+ offset) . length <$> gets esNewGenericArities
-  ME $ modify (\s -> s
-    { esNewGenericArities = arity : esNewGenericArities s
-    })
-  pure genericIndex
+      Just fg -> pure $ SizeGenericVar (length elims) (fgIndex fg)
+termToSizeType _ = pure UndefinedSizeType
 
 -- | Returns new first-order size variable in the encoder monad
 initNewFirstOrderInEncoder :: MonadEncoder Int
@@ -315,9 +302,3 @@ freezeContext action = do
   res <- action
   ME $ modify (\s -> s {esTypeRelatedContext = ctx, esTopLevel = tl})
   return res
-
-
-listSet :: Int -> a -> [a] -> [a]
-listSet 0 x (_ : ls) = x : ls
-listSet n x (y : ys) = y : listSet (n - 1) x ys
-listSet _ _ _ = error "bad listSet"
