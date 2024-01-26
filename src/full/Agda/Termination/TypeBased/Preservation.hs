@@ -146,20 +146,21 @@ checkCandidateSatisfiability possiblyPreservingVar candidateVar graph bounds = d
     , "codomainCol:  " <+> text (show replaceableCol)
     , "domainCol:    " <+> text (show replacingCol)
     ]
+
   -- Now let's see if there are any problems if we try to solve graph with merged variables.
-  substitution <- simplifySizeGraph bounds mappedGraph
+  (substitution, clusterMapping) <- simplifySizeGraph bounds mappedGraph
   incoherences <- liftTCM $ collectIncoherentRigids substitution mappedGraph
-  let allIncoherences = IntSet.union incoherences $ collectClusteringIssues candidateVar mappedGraph mappedGraph bounds
+  let allIncoherences = IntSet.union incoherences $ collectClusteringIssues candidateVar clusterMapping mappedGraph bounds
   reportSDoc "term.tbt" 70 $ "Incoherences during an attempt:" <+> text (show incoherences)
   pure $ not $ IntSet.member candidateVar allIncoherences
 
 -- | Since any two clusters are unrelated, having a dependency between them indicates that something is wrong in the graph
-collectClusteringIssues :: Int -> [SConstraint] -> [SConstraint] -> [(Int, SizeBound)] -> IntSet
-collectClusteringIssues candidateVar totalGraph [] bounds = IntSet.empty
-collectClusteringIssues candidateVar totalGraph ((SConstraint _ f t) : rest) bounds | f == candidateVar || t == candidateVar =
+collectClusteringIssues :: Int -> (IntMap Int) -> [SConstraint] -> [(Int, SizeBound)] -> IntSet
+collectClusteringIssues candidateVar clusters [] bounds = IntSet.empty
+collectClusteringIssues candidateVar clusters ((SConstraint _ f t) : rest) bounds | f == candidateVar || t == candidateVar =
   case (List.lookup f bounds, List.lookup t bounds) of
-    (Just _, Just _) | findCluster bounds totalGraph f /= findCluster bounds totalGraph t -> IntSet.insert candidateVar IntSet.empty
-    _ -> collectClusteringIssues candidateVar totalGraph rest bounds
+    (Just _, Just _) | IntMap.lookup f clusters /= IntMap.lookup t clusters -> IntSet.insert candidateVar IntSet.empty
+    _ -> collectClusteringIssues candidateVar clusters rest bounds
 collectClusteringIssues candidateVar totalGraph (_ : rest) bounds = collectClusteringIssues candidateVar totalGraph rest bounds
 
 -- | Applies the size preservation analysis result to the function signature

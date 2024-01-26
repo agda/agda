@@ -85,7 +85,13 @@ sizeCheckTerm' expected t@(Var i elims) = do
         Right actualType -> sizeCheckEliminations actualType elims
       inferenceToChecking expected remainingCodomain
       case sizeTypeOfVar of
-        Left freeGeneric -> pure $ SizeGenericVar (length elims) (fgIndex freeGeneric)
+        Left freeGeneric ->
+          -- From the theoretical point of view, it is wrong to return SizeGenericVar here,
+          -- as there is no way to express the universe as the sized type. Hopefully, this will be fixed with the introduction of dependent types.
+          -- However, this function is sometimes called from 'sizeCheckEliminations', which then proceeds with instantiating some generic parameter with
+          -- the size type returned from this functions.
+          -- So this hack here helps us to obtain a meaningful instantiation for that generic parameter, which would be UndefinedSizeTele otherwise.
+          pure $ SizeGenericVar (length elims) (fgIndex freeGeneric)
         Right actualType -> pure $ remainingCodomain
 sizeCheckTerm' expected t@(Def qn elims) = if isAbsurdLambdaName qn then pure UndefinedSizeType else do
   -- New size variables in a freshened definitions are those that were populated during the freshening. Yes, a bit of an abstraction leak, TODO

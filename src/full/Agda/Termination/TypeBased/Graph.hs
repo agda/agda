@@ -36,6 +36,9 @@ import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Pretty
 import qualified Data.Graph as Graph
 import qualified Agda.Syntax.Common.Pretty as P
+import qualified Agda.Benchmarking as Benchmark
+import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as DGraph
+import Agda.TypeChecking.Monad.Benchmark (billTo)
 
 -- A size expression is represented as a minimum of a set of rigid size variables,
 -- where the length of the set is equal to the number of clusters.
@@ -49,14 +52,21 @@ instance P.Pretty SizeExpression where
 
 type GraphEnv a = StateT SizeCheckerState TCM a
 
--- | 'simplifySizeGraph _ context graph' assigns all variables occurring in the graph to the variables from the context
+-- | 'simplifySizeGraph context graph' assigns all variables occurring in the graph to the variables from the context
 -- The outline:
--- 1. Find all strongly connected components. If they behave bad (have edge <), then instantiate them all to infinity. TODO
+-- 1. Find all strongly connected components.
 -- 2. Sort the obtained acyclic graph topologically.
 -- 3. For each component in the order, assign the least upper bound of all known lower bounds. If there are no lower bounds, apply a heuristic.
-simplifySizeGraph :: [(Int, SizeBound)] -> [SConstraint] -> MonadSizeChecker (IntMap SizeExpression)
-simplifySizeGraph rigidContext graph = do
-  let sccs = computeSCCs rigidContext graph
+simplifySizeGraph :: [(Int, SizeBound)] -> [SConstraint] -> MonadSizeChecker (IntMap SizeExpression, IntMap Int)
+simplifySizeGraph rigidContext graph = billTo [Benchmark.TypeBasedTermination, Benchmark.SizeGraphSolving] $ do
+  let enrichedGraph = mapMaybe (\(i, b) -> case b of
+        SizeBounded j -> Just (SConstraint SLte i j)
+        SizeUnbounded -> Nothing) rigidContext ++ graph
+  -- NOTE: The graph is reversed, since it is more performant to access its edges this way
+  let adjacencyMap = DGraph.fromEdges (map (\(SConstraint rel from to) -> DGraph.Edge to from rel) enrichedGraph)
+
+  let sccs = DGraph.sccs adjacencyMap
+
   currentRoot <- currentCheckedName
   -- The arity corresponds to the number of clusters
   arity <- getArity currentRoot
@@ -65,38 +75,40 @@ simplifySizeGraph rigidContext graph = do
   bottomVars <- MSC $ gets scsBottomFlexVars
   contra <- getContravariantSizeVariables
 
+  -- Lazy map representing an approximate cluster of each variable
+  let rigidClusters = (mapMaybe (\(i, b) -> (i,) <$> findCluster rigidContext i) rigidContext)
+  let clusterMapping = gatherClusters rigidClusters adjacencyMap (IntMap.fromList rigidClusters)
+
   -- We are going to assign each rigid variable a size expression corresponding to itself.
   let initialSubst = IntMap.fromList (map (\(i, bound) ->
         (i, SEMeet $
-          let cluster = findCluster rigidContext graph i
+          let cluster = i `IntMap.lookup` clusterMapping
           in case cluster of
             Just c | c < arity -> assign c baseSize i
             _ -> baseSize)) rigidContext)
-  instantiateComponents arity rigidContext graph initialSubst sccs
+  substitution <- instantiateComponents arity rigidContext clusterMapping adjacencyMap initialSubst sccs
+  pure $ (substitution, clusterMapping)
 
--- | This function tries to guess cluster across entire graph, since some of the variables may contain a flexible variable as an upper bound
--- This is the case when a flexible variable is obtained through a projection.
-findCluster :: [(Int, SizeBound)] -> [SConstraint] -> Int -> Maybe Int
-findCluster rigids constraints = fst . findCluster' rigids constraints IntSet.empty
-  where
-    findCluster' :: [(Int, SizeBound)] -> [SConstraint] -> IntSet -> Int -> (Maybe Int, IntSet)
-    findCluster' rigids constraints visited vertex | vertex `List.elem` (map fst rigids) = case List.lookup vertex rigids of
-      Just (SizeBounded i) -> findCluster' rigids constraints (IntSet.insert vertex visited) i
-      Just (SizeUnbounded) -> (Just vertex, visited)
-      Nothing -> __IMPOSSIBLE__
-    findCluster' rigids constraints visited vertex | IntSet.member vertex visited = (Nothing, visited)
-    findCluster' rigids constraints visited vertex | otherwise =
-      let upperBounds = mapMaybe (\(SConstraint _ from to) -> if from == vertex then Just to else Nothing) constraints
-          lowerBounds = mapMaybe (\(SConstraint _ from to) -> if to == vertex then Just from else Nothing) constraints
-          foldVertices = foldr (\lb (res, visited') -> case res of
-            Just i -> (Just i, visited')
-            Nothing -> findCluster' rigids constraints visited' lb)
-      in foldVertices (foldVertices (Nothing, (IntSet.insert vertex visited)) lowerBounds) upperBounds
+gatherClusters :: [(Int, Int)] -> DGraph.Graph Int ConstrType -> IntMap Int -> IntMap Int
+gatherClusters [] _ res = res
+gatherClusters list graph res =
+  let (combinedMap, combinedNextLevel) = foldr (\(vertex, cluster) (mp, collected) ->
+        let surrounding = map DGraph.target (DGraph.edgesFrom graph [vertex]) ++ map DGraph.source (DGraph.edgesTo graph [vertex])
+        in foldr (\neighborVertex (newMp, newEdges) -> if IntMap.member neighborVertex newMp
+              then (newMp, newEdges)
+              else (IntMap.insert neighborVertex cluster newMp, (neighborVertex, cluster) : newEdges)) (mp, collected) surrounding) (res, []) list
+  in gatherClusters combinedNextLevel graph combinedMap
+
+findCluster :: [(Int, SizeBound)] -> Int -> Maybe Int
+findCluster rigids i = case List.lookup i rigids of
+  Nothing -> Nothing
+  Just SizeUnbounded -> Just i
+  Just (SizeBounded j) -> findCluster rigids j
 
 -- For each flexible size variable in the list (last argument), assignes a size expression
-instantiateComponents :: Int -> [(Int, SizeBound)] -> [SConstraint] -> IntMap SizeExpression -> [[Int]] -> MonadSizeChecker (IntMap SizeExpression)
-instantiateComponents arity rigids constraints subst [] = pure subst
-instantiateComponents arity rigids constraints subst (comp : is) = do
+instantiateComponents :: Int -> [(Int, SizeBound)] -> IntMap Int -> DGraph.Graph Int ConstrType -> IntMap SizeExpression -> [[Int]] -> MonadSizeChecker (IntMap SizeExpression)
+instantiateComponents arity rigids _ graph subst [] = pure subst
+instantiateComponents arity rigids clusterMapping graph subst (comp : is) = do
 
   bottomVars <- MSC $ gets scsBottomFlexVars
   globalMinimum <- MSC $ gets scsLeafSizeVariables
@@ -104,11 +116,10 @@ instantiateComponents arity rigids constraints subst (comp : is) = do
   fallback <- MSC $ gets scsFallbackInstantiations
 
   let baseSize = (SEMeet (replicate arity (-1)))
-  let lowerBounds = mapMaybe (\constr ->
-        if scTo constr `List.elem` comp &&
-          (not $ scFrom constr `List.elem` comp)
-        then Just (scType constr, scFrom constr)
-        else Nothing) constraints
+  let lowerBounds = mapMaybe (\(DGraph.Edge bigger lower constr) ->
+        if (not $ lower `List.elem` comp)
+        then Just (constr, lower)
+        else Nothing) (DGraph.edgesFrom graph comp)
   let lowerBoundSizes = map (\(a, x) -> (a, fromMaybe baseSize (subst IntMap.!? x))) lowerBounds
 
 
@@ -125,7 +136,8 @@ instantiateComponents arity rigids constraints subst (comp : is) = do
           SEMeet globalMinimum
         | null lowerBoundSizes =
           -- There are no lower bounds for the component, which means that we can try to do some witchcraft
-          case (IntMap.lookup (head comp) fallback, (findCluster rigids constraints (head comp))) of
+          -- It won't be worse than infinity, right?
+          case (IntMap.lookup (head comp) fallback, ((head comp) `IntMap.lookup` clusterMapping)) of
             (Just r, _) ->
               -- The component corresponds to a freshened variable of some recursive call, we can try to assign it to the original variable
               fromMaybe baseSize (subst IntMap.!? r)
@@ -142,11 +154,11 @@ instantiateComponents arity rigids constraints subst (comp : is) = do
   let newSubst = IntMap.union subst (IntMap.fromList (map (, assignedSize) comp))
   reportSDoc "term.tbt" 70 $ "Component:" <+> text (show comp) <+>
                              ", lower bound sizes:" <+> pure (P.pretty lowerBoundSizes) <+>
-                             ",lower bounds: " <+> pure (P.pretty lowerBounds) <+>
+                             ", lower bounds: " <+> pure (P.pretty lowerBounds) <+>
                              ", assignedSize: " <+> pure (P.pretty assignedSize) <+>
                              ", bottom vars: " <+> text (show bottomVars)
 
-  instantiateComponents arity rigids constraints newSubst is
+  instantiateComponents arity rigids clusterMapping graph newSubst is
   where
     -- Searches for a suitable size expression in a list of known size bounds
     findSuitableSize :: ConstrType -> SizeExpression -> SizeExpression
@@ -191,18 +203,21 @@ findLowestClusterVariable bounds target = fst $ go 0 target
                      maxLevelVars = filter (\(a, d) -> d == maxLevel) inner
                  in head maxLevelVars
 
+collectIncoherentRigids :: IntMap SizeExpression -> [SConstraint] -> TCM IntSet
+collectIncoherentRigids m g = billTo [Benchmark.TypeBasedTermination, Benchmark.SizeGraphSolving] $ collectIncoherentRigids' m g
+
 -- | A rigid variable is incoherent if it has lower bound of infinity.
 --   In particular it means that there is something wrong with the graph,
 --   and the incoherent rigids should not be used for termination checking.
-collectIncoherentRigids :: IntMap SizeExpression -> [SConstraint] -> TCM IntSet
-collectIncoherentRigids subst [] = pure IntSet.empty
-collectIncoherentRigids subst ((SConstraint sctype from to) : rest) = do
+collectIncoherentRigids' :: IntMap SizeExpression -> [SConstraint] -> TCM IntSet
+collectIncoherentRigids' subst [] = pure IntSet.empty
+collectIncoherentRigids' subst ((SConstraint sctype from to) : rest) = do
   let fromExpr = subst IntMap.!? from
       toExpr = subst IntMap.!? to
       incoherences = getIncoherences fromExpr toExpr
   unless (null incoherences) $ do
     reportSDoc "term.tbt" 70 $ "Incoherence detected: (" <> pretty from <> "," <> pretty to <> ") -> " <> pretty fromExpr <> "," <> pretty toExpr
-  IntSet.union (IntSet.fromList incoherences) <$> (collectIncoherentRigids subst rest)
+  IntSet.union (IntSet.fromList incoherences) <$> (collectIncoherentRigids' subst rest)
 
 getIncoherences :: Maybe SizeExpression -> Maybe SizeExpression -> [Int]
 getIncoherences  (Just (SEMeet l)) (Just (SEMeet r)) | (all (== (-1)) l) = mapMaybe (\(ls, rs) -> if ls == (-1) && rs /= (-1) then Just rs else Nothing) (zip l r)

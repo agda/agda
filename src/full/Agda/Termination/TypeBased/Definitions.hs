@@ -57,85 +57,89 @@ import Agda.Utils.Singleton
 import Agda.Termination.Order (Order)
 import qualified Agda.Termination.Order as Order
 import Data.List (unfoldr)
+import qualified Agda.Benchmarking as Benchmark
+import Agda.TypeChecking.Monad.Benchmark (billTo)
 
 
 -- | 'initSizeTypeEncoding names' computes size types for every definition in 'names'
 -- It is expected that 'names' form a mutual block.
 initSizeTypeEncoding :: Set QName -> TCM ()
-initSizeTypeEncoding mutuals = forM_ mutuals $ \nm -> inConcreteOrAbstractMode nm $ \def -> do
-  -- Unless there is an explicit command, we will not do non-trivial encoding
-  encodeComplex <- typeBasedTerminationOption
-  let dType = defType def
-  sizedSignature <- case theDef def of
-    Datatype { dataCons, dataMutual } -> do
-      reportSDoc "term.tbt" 10 $ vcat
-        [ "Starting encoding for data: " <+> prettyTCM nm
-        , "  with mutual block: " <+> prettyTCM (Set.toList mutuals)
-        , "  of internal type:" <+> prettyTCM dType
-        ]
-      sizedSignature <- encodeDataType dataCons mutuals encodeComplex False dType
-      reportSDoc "term.tbt" 5 $ vcat
-        [ "Encoded data " <> prettyTCM nm <> ", sized type: "
-        , nest 2 $ pretty sizedSignature
-        ]
-      pure $ Just sizedSignature
-    Record { recConHead, recInduction } -> do
-      reportSDoc "term.tbt" 10 $ vcat
-        [ "Starting encoding for record:" <+> prettyTCM nm
-        , "  with mutual block: " <+> prettyTCM (Set.toList mutuals)
-        , "  of internal type:" <+> prettyTCM dType
-        ]
-      sizedSignature <- encodeDataType [conName recConHead] mutuals encodeComplex (recInduction == Just CoInductive) dType
-      reportSDoc "term.tbt" 5 $ vcat
-        [ "Encoded record " <> prettyTCM nm <> ", sized type: "
-        , nest 2 $ pretty sizedSignature
-        ]
-      pure $ Just sizedSignature
-    Constructor{ conData } -> do
-      reportSDoc "term.tbt" 10 $ vcat
-        [ "Starting encoding for constructor:" <+> prettyTCM nm
-        , "  with mutual block: " <+> prettyTCM (Set.toList mutuals)
-        , "  of core type:" <+> prettyTCM dType
-        ]
-      sizedSignature <- lowerIndices <$> if encodeComplex then encodeConstructorType mutuals dType else pure $ encodeBlackHole dType
-      reportSDoc "term.tbt" 5 $ vcat
-        [ "Encoded constructor " <> prettyTCM nm <> ", sized type: "
-        , nest 2 $ pretty sizedSignature
-        ]
-      reportSDoc "term.tbt" 20 $ nest 2 $ "encoded complex: " <+> pretty encodeComplex
-      pure $ Just sizedSignature
-    Function { funProjection } -> do
-      reportSDoc "term.tbt" 10 $ vcat
-        [ "Starting encoding for function:" <+> prettyTCM nm
-        , "  of core type:"
-        , nest 2 $ prettyTCM dType
-        ]
-      sizedSignature <- lowerIndices <$> if encodeComplex
-        then case funProjection of
-          Left  _ -> encodeFunctionType dType
-          Right _ -> encodeFieldType mutuals dType
-        else pure $ encodeBlackHole dType
-      reportSDoc "term.tbt" 5 $ vcat
-        [ "Encoded function " <> prettyTCM nm <> ", sized type:"
-        , nest 2 $ pretty sizedSignature
-        ]
-      pure $ Just sizedSignature
-    Axiom {} -> do
-      reportSDoc "term.tbt" 10 $ vcat
-        [ "Starting encoding for axiom:" <+> prettyTCM nm
-        , "  of core type:"
-        , nest 2 $ prettyTCM dType
-        ]
-      sizedSignature <- if encodeComplex then encodeFunctionType dType else pure $ encodeBlackHole dType
-      reportSDoc "term.tbt" 5 $ vcat
-        [ "Encoded axiom" <> prettyTCM nm <> ", sized type:"
-        , nest 2 $ pretty sizedSignature
-        ]
-      pure $ Just sizedSignature
-    _ -> return Nothing
-  case sizedSignature of
-    Just x -> addConstant nm $ def { defSizedType = Just x }
-    Nothing -> return ()
+initSizeTypeEncoding mutuals =
+  billTo [Benchmark.TypeBasedTermination, Benchmark.SizeTypeEncoding] $ do
+    forM_ mutuals $ \nm -> inConcreteOrAbstractMode nm $ \def -> do
+      -- Unless there is an explicit command, we will not do non-trivial encoding
+      encodeComplex <- typeBasedTerminationOption
+      let dType = defType def
+      sizedSignature <- case theDef def of
+        Datatype { dataCons, dataMutual } -> do
+          reportSDoc "term.tbt" 10 $ vcat
+            [ "Starting encoding for data: " <+> prettyTCM nm
+            , "  with mutual block: " <+> prettyTCM (Set.toList mutuals)
+            , "  of internal type:" <+> prettyTCM dType
+            ]
+          sizedSignature <- encodeDataType dataCons mutuals encodeComplex False dType
+          reportSDoc "term.tbt" 5 $ vcat
+            [ "Encoded data " <> prettyTCM nm <> ", sized type: "
+            , nest 2 $ pretty sizedSignature
+            ]
+          pure $ Just sizedSignature
+        Record { recConHead, recInduction } -> do
+          reportSDoc "term.tbt" 10 $ vcat
+            [ "Starting encoding for record:" <+> prettyTCM nm
+            , "  with mutual block: " <+> prettyTCM (Set.toList mutuals)
+            , "  of internal type:" <+> prettyTCM dType
+            ]
+          sizedSignature <- encodeDataType [conName recConHead] mutuals encodeComplex (recInduction == Just CoInductive) dType
+          reportSDoc "term.tbt" 5 $ vcat
+            [ "Encoded record " <> prettyTCM nm <> ", sized type: "
+            , nest 2 $ pretty sizedSignature
+            ]
+          pure $ Just sizedSignature
+        Constructor{ conData } -> do
+          reportSDoc "term.tbt" 10 $ vcat
+            [ "Starting encoding for constructor:" <+> prettyTCM nm
+            , "  with mutual block: " <+> prettyTCM (Set.toList mutuals)
+            , "  of core type:" <+> prettyTCM dType
+            ]
+          sizedSignature <- lowerIndices <$> if encodeComplex then encodeConstructorType mutuals dType else pure $ encodeBlackHole dType
+          reportSDoc "term.tbt" 5 $ vcat
+            [ "Encoded constructor " <> prettyTCM nm <> ", sized type: "
+            , nest 2 $ pretty sizedSignature
+            ]
+          reportSDoc "term.tbt" 20 $ nest 2 $ "encoded complex: " <+> pretty encodeComplex
+          pure $ Just sizedSignature
+        Function { funProjection } -> do
+          reportSDoc "term.tbt" 10 $ vcat
+            [ "Starting encoding for function:" <+> prettyTCM nm
+            , "  of core type:"
+            , nest 2 $ prettyTCM dType
+            ]
+          sizedSignature <- lowerIndices <$> if encodeComplex
+            then case funProjection of
+              Left  _ -> encodeFunctionType dType
+              Right _ -> encodeFieldType mutuals dType
+            else pure $ encodeBlackHole dType
+          reportSDoc "term.tbt" 5 $ vcat
+            [ "Encoded function " <> prettyTCM nm <> ", sized type:"
+            , nest 2 $ pretty sizedSignature
+            ]
+          pure $ Just sizedSignature
+        Axiom {} -> do
+          reportSDoc "term.tbt" 10 $ vcat
+            [ "Starting encoding for axiom:" <+> prettyTCM nm
+            , "  of core type:"
+            , nest 2 $ prettyTCM dType
+            ]
+          sizedSignature <- if encodeComplex then encodeFunctionType dType else pure $ encodeBlackHole dType
+          reportSDoc "term.tbt" 5 $ vcat
+            [ "Encoded axiom" <> prettyTCM nm <> ", sized type:"
+            , nest 2 $ pretty sizedSignature
+            ]
+          pure $ Just sizedSignature
+        _ -> return Nothing
+      case sizedSignature of
+        Just x -> addConstant nm $ def { defSizedType = Just x }
+        Nothing -> return ()
 
 
 -- | An entry point for checking a mutual block for type-based termination.
@@ -195,7 +199,7 @@ processSizedDefinitionMSC s@(SizeSignature bounds contra sizeSig) clauses = do
 
   let (domains, _) = sizeCodomain sizeSig
 
-  fixedSignature <- if domains > 0 then applySizePreservation s else pure s
+  fixedSignature <- billTo [Benchmark.TypeBasedTermination, Benchmark.Preservation] $ if domains > 0 then applySizePreservation s else pure s
 
   pure $ (amendedSubst, fixedSignature)
 
@@ -220,12 +224,12 @@ processSizeClause bounds newTele c = do
   if (hasDefP (namedClausePats c))
   then pure IntMap.empty
   else do
-    expectedTele <- encodeFunctionClause newTele c
+    expectedTele <- billTo [Benchmark.TypeBasedTermination, Benchmark.PatternRigids] $ encodeFunctionClause newTele c
     reportSDoc "term.tbt" 10 $ "Starting checking the clause: " <+> prettyTCM c
 
     ifM (null <$> MSC (gets scsErrorMessages)) (
         case clauseBody c of
-        Just body -> do
+        Just body -> billTo [Benchmark.TypeBasedTermination, Benchmark.SizeTypeChecking] $ do
             addContext (clauseTel c) $ sizeCheckTerm expectedTele body >> pure ()
         _ -> do
             reportSDoc "term.tbt" 80 $ "Aborting processing of clause, because there is no body"
@@ -234,7 +238,9 @@ processSizeClause bounds newTele c = do
         reportSDoc "term.tbt" 80 $ "Aborting processing of clause, because error during encoding happened"
         return ())
     newConstraints <- getCurrentConstraints
-    refinePreservedVariables
+
+    billTo [Benchmark.TypeBasedTermination, Benchmark.Preservation] refinePreservedVariables
+
     reportSDoc "term.tbt" 10 $ vcat $ "Clause constraints:" : (map (nest 2 . text . show) newConstraints)
     rigids <- getCurrentRigids
     bottomVars <- MSC $ gets scsBottomFlexVars
@@ -244,13 +250,16 @@ processSizeClause bounds newTele c = do
       [ "Rigid context:       " <+> pretty rigids
       , "undefined sizes:     " <+> text (show undefinedVars)
       ]
+
     reportSDoc "term.tbt" 60 $ vcat $ map (nest 2)
       [ "Bottom vars:         " <+> text (show bottomVars)
       , "Arity:               " <+> text (show arity)
       , "Contravariant:       " <+> text (show contra)
-      , "clusters:            " <+> (vcat $ (map (\i -> pretty (SDefined i) <+> "has cluster:" <+> pretty (findCluster rigids newConstraints i)) (map fst rigids)))
       ]
-    subst <- simplifySizeGraph rigids newConstraints
+
+    (subst, clusterMapping) <- simplifySizeGraph rigids newConstraints
+
+    reportSDoc "term.tbt" 60 $ (nest 2) "clusters: " <+> (vcat $ (map (\i -> pretty (SDefined i) <+> "has cluster:" <+> pretty (IntMap.lookup i clusterMapping)) (map fst rigids)))
     reportSDoc "term.tbt" 10 $ vcat $
       "Substitution of local size variables:" :
       map (\(i, e) -> nest 2 $ pretty (SDefined i) <+> "↦" <+> pretty e) (IntMap.toList subst)
