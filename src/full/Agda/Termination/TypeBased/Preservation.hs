@@ -116,7 +116,7 @@ refinePreservedVariables = do
     refinedCandidates <- refineCandidates candidates graph rigids possiblyPreservingVar
     pure (possiblyPreservingVar, refinedCandidates))
   let refinedMap = IntMap.fromAscList newMap
-  reportSDoc "term.tbt" 20 $ "Refined candidates:" <+> text (show refinedMap)
+  reportSDoc "term.tbt" 70 $ "Refined candidates:" <+> text (show refinedMap)
   MSC $ modify (\s -> s { scsPreservationCandidates = IntMap.fromAscList newMap })
 
 -- | Eliminates the candidates that do not satisfy the provided graph of constraints.
@@ -125,14 +125,14 @@ refineCandidates candidates graph rigids possiblyPreservingVar = do
   result <- forM candidates $ \candidate -> do
     checkCandidateSatisfiability possiblyPreservingVar candidate graph rigids
   let suitableCandidate = mapMaybe (\(candidate, isFine) -> if isFine then Just candidate else Nothing) (zip candidates result)
-  reportSDoc "term.tbt" 20 $ "Suitable candidates for " <+> text (show possiblyPreservingVar) <+> "is" <+> text (show suitableCandidate)
+  reportSDoc "term.tbt" 70 $ "Suitable candidates for " <+> text (show possiblyPreservingVar) <+> "is" <+> text (show suitableCandidate)
   pure suitableCandidate
 
 -- 'checkCandidateSatisfiability possiblyPreservingVar candidateVar graph bounds' returns 'True' if
 -- 'possiblyPreservingVar' and 'candidateVarChecks' can be treates as the same within 'graph'.
 checkCandidateSatisfiability :: Int -> Int -> [SConstraint] -> [(Int, SizeBound)] -> MonadSizeChecker Bool
 checkCandidateSatisfiability possiblyPreservingVar candidateVar graph bounds = do
-  reportSDoc "term.tbt" 20 $ "Trying to replace " <+> text (show possiblyPreservingVar) <+> "with" <+> text (show candidateVar)
+  reportSDoc "term.tbt" 70 $ "Trying to replace " <+> text (show possiblyPreservingVar) <+> "with" <+> text (show candidateVar)
 
   matrix <- MSC $ gets scsRecCallsMatrix
   -- Now we are trying to replace all variables in 'replaceableCol' with variables in 'replacingCol'
@@ -141,16 +141,16 @@ checkCandidateSatisfiability possiblyPreservingVar candidateVar graph bounds = d
   -- For each recursive call, replaces recursive call's possibly-preserving variable with its candidate in the same call.
   let graphVertexSubstitution = (\i -> case List.elemIndex i replaceableCol of { Nothing -> i; Just j -> replacingCol List.!! j })
   let mappedGraph = map (\(SConstraint t l r) -> SConstraint t (graphVertexSubstitution l) (graphVertexSubstitution r)) graph
-  reportSDoc "term.tbt" 20 $ vcat
+  reportSDoc "term.tbt" 70 $ vcat
     [ "Mapped graph: " <+> text (show mappedGraph)
     , "codomainCol:  " <+> text (show replaceableCol)
     , "domainCol:    " <+> text (show replacingCol)
     ]
   -- Now let's see if there are any problems if we try to solve graph with merged variables.
-  substitution <- simplifySizeGraph False bounds mappedGraph
+  substitution <- simplifySizeGraph bounds mappedGraph
   incoherences <- liftTCM $ collectIncoherentRigids substitution mappedGraph
   let allIncoherences = IntSet.union incoherences $ collectClusteringIssues candidateVar mappedGraph mappedGraph bounds
-  reportSDoc "term.tbt" 20 $ "Incoherences during an attempt:" <+> text (show incoherences)
+  reportSDoc "term.tbt" 70 $ "Incoherences during an attempt:" <+> text (show incoherences)
   pure $ not $ IntSet.member candidateVar allIncoherences
 
 -- | Since any two clusters are unrelated, having a dependency between them indicates that something is wrong in the graph
@@ -168,19 +168,20 @@ applySizePreservation s@(SizeSignature _ _ tele) = do
   candidates <- MSC $ gets scsPreservationCandidates
   flatCandidates <- forM (IntMap.toAscList candidates) (\(replaceable, candidates) -> (replaceable,) <$> case candidates of
         [unique] -> do
-          reportSDoc "term.tbt" 20 $ "Assigning" <+> text (show replaceable) <+> "to" <+> text (show unique)
+          reportSDoc "term.tbt" 40 $ "Assigning" <+> text (show replaceable) <+> "to" <+> text (show unique)
           pure $ Just unique
         (_ : _) -> do
           -- Ambiguous situation, we would rather not assign anything here at all
-          reportSDoc "term.tbt" 20 $ "Multiple candidates for variable" <+> text (show replaceable)
+          reportSDoc "term.tbt" 60 $ "Multiple candidates for variable" <+> text (show replaceable)
           pure Nothing
         [] -> do
           -- No candidates means that the size of variable is much bigger than any of codomain
           -- This can happen in the function 'add : Nat -> Nat -> Nat' for example.
-          reportSDoc "term.tbt" 20 $ "No candidates for variable " <+> text (show replaceable)
+          reportSDoc "term.tbt" 60 $ "No candidates for variable " <+> text (show replaceable)
           pure Nothing)
   let newSignature = reifySignature flatCandidates s
-  reportSDoc "term.tbt" 20 $ "Reified signature: " <+> text (show newSignature)
+  currentName <- currentCheckedName
+  reportSDoc "term.tbt" 5 $ "Signature of" <+> prettyTCM currentName <+> "after size-preservation inference:" $$ nest 2 (pretty newSignature)
   pure newSignature
 
 -- | Actually applies size preservation assignment to a signature.

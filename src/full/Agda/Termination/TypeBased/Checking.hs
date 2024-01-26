@@ -35,7 +35,6 @@ import Agda.Utils.Impossible
 import Control.Monad
 import Agda.TypeChecking.Pretty
 import Agda.Termination.TypeBased.Common
-import Debug.Trace
 import Agda.Utils.Monad
 import Agda.Termination.Common
 import Data.Maybe
@@ -63,9 +62,9 @@ sizeCheckTerm' expected t@(Var i elims) = do
   context <- getCurrentCoreContext
   case lookup i context of
     Nothing -> do
-      reportSDoc "term.tbt" 20 $ vcat
+      reportSDoc "term.tbt" 80 $ vcat
         [ "Unknown variable" <+> prettyTCM t
-        , "Where the context is" <+> text (show context)
+        , "Where the context is" <+> pretty context
         ]
       _ <- sizeCheckEliminations UndefinedSizeType elims
       -- This branch is possible if the codomain of the processed function is large-eliminated.
@@ -75,11 +74,12 @@ sizeCheckTerm' expected t@(Var i elims) = do
       -- We need to freshen generic arguments, because each usage of a polymorphic variable implies new parameterization
       -- freshenedSizeType <- freshenGenericArguments sizeTypeOfVar
       reportSDoc "term.tbt" 20 $ vcat
-        [ "Inferring size type of var" <+> prettyTCM t
-        , "Expected type             : " <+> text (show expected)
-        , "Type of var (original)    : " <+> text (show sizeTypeOfVar)
-        , "Eliminations              : " <+> prettyTCM elims
+        [ "Retrieving var" <+> prettyTCM t
+        , "  Expected type             : " <+> pretty expected
+        , "  Type of var (original)    : " <+> pretty sizeTypeOfVar
         ]
+      reportSDoc "term.tbt" 60 $ vcat
+        ["  Eliminations              : " <+> prettyTCM elims ]
       remainingCodomain <- case sizeTypeOfVar of
         Left freeGeneric -> sizeCheckEliminations UndefinedSizeType elims
         Right actualType -> sizeCheckEliminations actualType elims
@@ -94,20 +94,21 @@ sizeCheckTerm' expected t@(Def qn elims) = if isAbsurdLambdaName qn then pure Un
   sizeSigOfDef <- resolveConstant qn
   case sizeSigOfDef of
     Nothing -> do
-      reportSDoc "term.tbt" 20 $ "No size type for definition" <+> prettyTCM qn
+      reportSDoc "term.tbt" 80 $ "No size type for definition" <+> prettyTCM qn
       pure $ UndefinedSizeType
     -- This definition is a function, which has no interesting size bounds, so we can safely ignore them
     Just (_, sizeTypeOfDef) -> do
       newSizeVariables <- MSC (gets scsFreshVarCounter) <&> \x -> [currentSizeLimit .. (x - 1)]
       let (_, scodomain) = sizeCodomain sizeTypeOfDef
-      coreType <- MSC $ typeOfConst qn
       reportSDoc "term.tbt" 20 $ vcat $
-        [ "Freshened definition" <+> prettyTCM qn <+> ":" ] ++ map (nest 2)
+        [ "Retrieving definition " <> prettyTCM qn <> ":" ] ++ map (nest 2)
         [ "Term: " <+> prettyTCM t
-        , "coreType: " <+> prettyTCM coreType
-        , "elims: " <+> prettyTCM elims
-        , "expected type: " <+> text (show expected)
-        , "Freshened inferred type:" <+> text (show sizeTypeOfDef)
+        , "coreType: " <+> (prettyTCM =<< (typeOfConst qn))
+        , "expected type: " <+> pretty expected
+        , "Inferred size type of def:" <+> pretty sizeTypeOfDef
+        ]
+      reportSDoc "term.tbt" 60 $ vcat
+        [ "elims: " <+> prettyTCM elims
         , "is copy: " <+> text (show (defCopy constInfo))
         ]
       remainingCodomain <- sizeCheckEliminations sizeTypeOfDef elims
@@ -115,7 +116,7 @@ sizeCheckTerm' expected t@(Def qn elims) = if isAbsurdLambdaName qn then pure Un
       -- We need to record the occurrence of a possible size matrix at this place.
       maybeStoreRecursiveCall qn elims newSizeVariables
 
-      reportSDoc "term.tbt" 20 $ "Substituted codomain of" <+> prettyTCM qn  <+> ":" <+> text (show remainingCodomain)
+      reportSDoc "term.tbt" 40 $ "Eliminated type of " <> prettyTCM qn <> ": " <> pretty remainingCodomain
       inferenceToChecking expected remainingCodomain
 
       pure $ remainingCodomain
@@ -132,14 +133,15 @@ sizeCheckTerm' expected t@(Con ch ci elims) = do
     SizeTree (SUndefined) _ -> pure ()
     -- Since we are processing a constructor of an encoded data/record, we can expect a size tree as a codomain
     _ -> __IMPOSSIBLE__
-  realType <- MSC $ typeOfConst constructorName
   reportSDoc "term.tbt" 20 $ vcat $
-    [ "freshened constructor" <+> prettyTCM constructorName <+> ":"] ++ map (nest 2)
+    [ "Retrieving constructor" <+> prettyTCM constructorName <+> ":"] ++ map (nest 2)
     [ "term: " <+> prettyTCM t
-    , "elims: " <+> prettyTCM elims
-    , "real type: " <+> prettyTCM realType
-    , "expected type: " <+> text (show expected)
-    , "substituted signature:" <+> text (show tele)
+    , "core type: " <+> (prettyTCM =<< typeOfConst constructorName)
+    , "expected type: " <+> pretty expected
+    , "Inferred size type of constructor:" <+> pretty tele
+    ]
+  reportSDoc "term.tbt" 60 $ vcat $
+    [ "elims: " <+> prettyTCM elims
     ]
 
   -- Constructor type has a prepended telescope of enclosing module parameters and parameters of its datatype
@@ -150,9 +152,8 @@ sizeCheckTerm' expected t@(Con ch ci elims) = do
         _ -> take dataParameters (unwrapSizeTree stCodomain)
   let preparedConstructorType = applyDataType initialConstructorArguments tele
 
-  reportSDoc "term.tbt" 20 $ vcat $ map (nest 2)
-    [ "constructor with applied data arguments:" <+> text (show preparedConstructorType)
-    , "data parameters:" <+> text (show dataParameters)
+  reportSDoc "term.tbt" 40 $ vcat $ map (nest 2)
+    [ "constructor with applied data arguments:" <+> pretty preparedConstructorType
     ]
   remainingCodomain <- sizeCheckEliminations preparedConstructorType elims
   inferenceToChecking expected remainingCodomain
@@ -160,8 +161,8 @@ sizeCheckTerm' expected t@(Con ch ci elims) = do
 sizeCheckTerm' _ (Level _) = pure $ UndefinedSizeType -- TODO
 sizeCheckTerm' expected t@(Lam info tm) = do
   reportSDoc "term.tbt" 20 $ vcat
-    [ "Dispatching into lambda"
-    , "Expected size type: " <+> text (show expected)
+    [ "Dispatching into lambda expression"
+    , "  Expected size type: " <+> pretty expected
     ]
   let (argSizeType, rest) = case expected of
         SizeArrow pt rest -> (Right pt, rest)
@@ -189,7 +190,7 @@ sizeCheckTerm' _ (Dummy _ _) = pure $ UndefinedSizeType
 maybeStoreRecursiveCall :: QName -> Elims  -> [Int] -> MonadSizeChecker ()
 maybeStoreRecursiveCall qn elims callSizes = do
   names <- currentMutualNames
-  tryReduceNonRecursiveClause qn elims names (\_ -> reportSDoc "term.tbt" 40 "Call is reduced away")
+  tryReduceNonRecursiveClause qn elims names (\_ -> reportSDoc "term.tbt" 80 "Call is reduced away")
     (do
       currentSymbol <- currentCheckedName
       rootArity <- getRootArity
@@ -224,9 +225,9 @@ sizeCheckEliminations eliminated@UndefinedSizeType (elim : elims) = do
     _ -> pure $ UndefinedSizeType
   sizeCheckEliminations eliminated elims
 sizeCheckEliminations eliminated (elim : elims) = do
-  reportSDoc "term.tbt" 80 $ "gradualElimsCheck" <+> vcat
-    [ "full sizeType to eliminate: " <+> text (show eliminated)
-    , "currently applied elimination: " <+> prettyTCM elim
+  reportSDoc "term.tbt" 80 $ "Eliminating a type" <+> vcat
+    [ "full sizeType to eliminate:   " <+> pretty eliminated
+    , "currently applied elimination:" <+> prettyTCM elim
     ]
   case (elim, eliminated) of
     (Proj _ qname, eliminatedRecord@(SizeTree root args)) -> do
@@ -242,7 +243,7 @@ sizeCheckEliminations eliminated (elim : elims) = do
         -- If we don't do it, then typealiases will be invisible for our termination checker.
         -- I conjecture that all these reductions happen on type-level (well, most of them), so they should not slow down the system significantly.
         (Def qn _) -> do
-          reportSDoc "term.tbt" 20 $ "Reduction in gradualElimsCheck of " <+> prettyTCM qn
+          reportSDoc "term.tbt" 80 $ "Attempting reduction during elimination of " <+> prettyTCM qn
           def <- getConstInfo qn
           TelV _ codomain <- MSC $ telView (defType def)
           term <- if (isJust . isSort . unEl $ codomain) && isTerminatingDefinition def
@@ -251,7 +252,7 @@ sizeCheckEliminations eliminated (elim : elims) = do
           case term of
             Def qn _ -> do
               copy <- defCopy <$> getConstInfo qn
-              reportSDoc "term.tbt" 20 $ "Is reduced definition copied:" <+> text (show copy)
+              reportSDoc "term.tbt" 80 $ "Is reduced definition copied:" <+> text (show copy)
             _ -> pure ()
           sizeCheckTerm UndefinedSizeType term
         _ -> sizeCheckTerm UndefinedSizeType t
@@ -260,15 +261,15 @@ sizeCheckEliminations eliminated (elim : elims) = do
     (Apply (Arg _ t), SizeArrow arg rest) -> do
       checkedDomain <- sizeCheckTerm arg t
       sizeCheckEliminations rest elims
-    (Proj _ t, tele) -> trace ("projection " ++ show t ++ " over unsupported size type: " ++ show tele) __IMPOSSIBLE__
+    (Proj _ t, tele) -> __IMPOSSIBLE__
     (Apply (Arg _ t), _) -> do
       reportSDoc "term.tbt" 20 $ vcat
         [ "Elimination of unsupported size type:"
         , "elim: " <+> prettyTCM elim
-        , "expected size type: " <+> text (show eliminated)
+        , "expected size type: " <+> pretty eliminated
         ]
       __IMPOSSIBLE__
-    (IApply _ _ _, _) -> trace "elimination of cubical thing, bad" __IMPOSSIBLE__
+    (IApply _ _ _, _) -> __IMPOSSIBLE__
 
 -- | Eliminates projection, returns inferred type of eliminated record and the residual inferred codomain of projection.
 eliminateProjection :: QName -> SizeType -> [SizeType] -> MonadSizeChecker (SizeType, SizeType)
@@ -291,15 +292,17 @@ eliminateProjection projName eliminatedRecord recordArgs = do
         reportSDoc "term.tbt" 40 $ "Adding new rigid:" <+> text (show x)
         addNewRigid (scFrom x) (SizeBounded (scTo x))
     _ -> pure ()
-  reportSDoc "term.tbt" 40 $ vcat $ map (nest 2) $
+  reportSDoc "term.tbt" 20 $ vcat $ map (nest 2) $
     [ "Eliminating projection:" <+> prettyTCM projName
-    , "of type: " <+> (text (show projectionType))
-    , "with record carrier: " <+> (text (show eliminatedRecord))
-    , "and constraints: " <+> (text (show constraints))
-    , "record args: " <+> text (show recordArgs)
+    , "of type: " <+> pretty projectionType
+    , "with record carrier: " <+> pretty eliminatedRecord
+    ]
+  reportSDoc "term.tbt" 60 $ vcat $ map (nest 2) $
+    [ "and constraints: " <+> (text (show constraints))
+    , "record args: " <+> pretty recordArgs
     ]
   let inferredProjectionType = applyDataType recordArgs projectionType
-  reportSDoc "term.tbt" 40 $ "Applied projection type: " <+> text (show inferredProjectionType)
+  reportSDoc "term.tbt" 40 $ "  Applied projection type: " <+> pretty inferredProjectionType
   case inferredProjectionType of
     SizeArrow inferredRecordDef restDef -> do
       -- The order here is a bit tricky.
@@ -310,7 +313,7 @@ eliminateProjection projName eliminatedRecord recordArgs = do
       eliminatedRecord `smallerOrEq` inferredRecordDef
       pure (inferredRecordDef, restDef)
     UndefinedSizeType -> pure (UndefinedSizeType, UndefinedSizeType)
-    _ -> trace ("elimination of non-arrow size type:" ++ show inferredProjectionType) __IMPOSSIBLE__
+    _ -> __IMPOSSIBLE__
 
 
 -- | Compares two size types and stores the obtained constraints.
@@ -323,10 +326,10 @@ smallerOrEq (SizeTree s1 tree1) (SizeTree s2 tree2) = do
   where
     smallerSize :: Size -> Size -> MonadSizeChecker ()
     smallerSize (SDefined i1) (SDefined i2) = do
-      reportSDoc "term.tbt" 20 $ "Registering:" <+> text (show i1) <+> "<=" <+> text (show i2)
+      reportSDoc "term.tbt" 40 $ "Registering:" <+> pretty (SDefined i1) <+> "<=" <+> pretty (SDefined i2)
       storeConstraint (SConstraint SLeq i1 i2)
     smallerSize SUndefined (SDefined i) = do
-      reportSDoc "term.tbt" 20 $ "Registering undefined size: " <+> text (show i)
+      reportSDoc "term.tbt" 40 $ "Marking size variable as undefined, because it has lower bound of infinity: " <+> pretty (SDefined i)
       markUndefinedSize i
     smallerSize _ _ = pure ()
 smallerOrEq (UndefinedSizeType) _ = pure ()
@@ -335,8 +338,8 @@ smallerOrEq t1@(SizeGenericVar args1 i1) t2@(SizeGenericVar args2 i2) =
   when (i1 == i2 && args1 /= args2) $ do
     reportSDoc "term.tbt" 20 $ vcat
       ["Attempt to compare incomparable generic variables:"
-      , "t1: " <+> text (show t1)
-      , "t2: " <+> text (show t2)
+      , "t1: " <+> pretty t1
+      , "t2: " <+> pretty t2
       ]
     __IMPOSSIBLE__
 smallerOrEq (SizeArrow d1 c1) (SizeArrow d2 c2) = d2 `smallerOrEq` d1 >> c1 `smallerOrEq` c2 -- note the contravariance in domain
@@ -352,8 +355,8 @@ smallerOrEq t1 t2 = do
   -- This is an internal error, because it means that there is a forgotten instantiation somewhere.
   reportSDoc "term.tbt" 20 $ vcat
     ["Attempt to compare incomparable terms:"
-    , "t1: " <+> text (show t1)
-    , "t2: " <+> text (show t2)
+    , "t1: " <+> pretty t1
+    , "t2: " <+> pretty t2
     ]
   __IMPOSSIBLE__
 
@@ -372,13 +375,12 @@ resolveConstant nm = do
 storeCall :: QName -> QName -> [Int] -> [Int] -> Elims -> MonadSizeChecker ()
 storeCall q1 q2 sizesq1 sizesq2 elims = do
   names <- currentMutualNames
-  reportSDoc "term.tbt" 40 $ vcat
-    [ "Left stored name: " <+> prettyTCM q1
-    , "Right stored name: " <+> prettyTCM q2
-    , "left vars:  " <+> text (show sizesq1)
-    , "right vars: " <+> text (show sizesq2)
-    ]
   when (q1 `Set.member` names && q2 `Set.member` names) do
+    reportSDoc "term.tbt" 10 $ vcat
+      [ "Detected mutual-recursive call"
+      , "  From '" <> prettyTCM q1 <> "' with size variables: " <> text (show sizesq1)
+      , "  To   '" <> prettyTCM q2 <> "' with size variables: " <> text (show sizesq2)
+      ]
     doc <- buildRecCallLocation q2 elims
     reportCall q1 q2 sizesq1 sizesq2 doc
     when (q1 == q2) $ do
@@ -387,7 +389,7 @@ storeCall q1 q2 sizesq1 sizesq2 elims = do
 
 unwrapSizeTree :: SizeType -> [SizeType]
 unwrapSizeTree (SizeTree _ ts) = ts
-unwrapSizeTree t = trace ("t: " ++ show t) __IMPOSSIBLE__
+unwrapSizeTree t = __IMPOSSIBLE__
 
 isTerminatingDefinition :: Definition -> Bool
 isTerminatingDefinition d = case theDef d of

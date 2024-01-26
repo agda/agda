@@ -27,13 +27,19 @@ import Data.Maybe
 import Data.Set (Set )
 import Agda.Utils.Impossible
 
+import qualified Agda.Syntax.Common.Pretty as P
+
 newtype MonadSizeChecker a = MSC (StateT SizeCheckerState TCM a)
   deriving (Functor, Applicative, Monad, MonadTCEnv, MonadTCState, HasOptions, MonadDebug, MonadFail, HasConstInfo, MonadAddContext, MonadIO, MonadTCM, ReadTCState, MonadStatistics)
 
 type SizeContextEntry = (Int, Either FreeGeneric SizeType)
 
 
-data ConstrType = SLte | SLeq deriving (Eq, Ord, Show)
+data ConstrType = SLte | SLeq deriving (Eq, Ord)
+
+instance P.Pretty ConstrType where
+  pretty SLte = "<"
+  pretty SLeq = "≤"
 
 data SConstraint = SConstraint { scType :: ConstrType, scFrom :: Int, scTo :: Int }
 
@@ -202,7 +208,7 @@ freshenSignature s@(SizeSignature domain contra tele) = do
                             SizeUnbounded -> Nothing
                             SizeBounded i -> Just (SConstraint SLte v (newVars List.!! i))) (zip newVars domain)
       sigWithfreshenedSizes = instantiateSizeType tele newVars
-  forM_ actualConstraints (\s -> reportSDoc "term.tbt" 40 $ "Registering L:" <+> text (show (scFrom s)) <+> "<" <+> text (show (scTo s)))
+  forM_ actualConstraints (\s -> reportSDoc "term.tbt" 40 $ "Registering :" <+> pretty (SDefined (scFrom s)) <+> "<" <+> pretty (SDefined (scTo s)))
   -- freshSig <- freshenGenericArguments sigWithfreshenedSizes
   let newContravariantVariables = map (newVars List.!!) contra
   MSC $ modify ( \s -> s { scsContravariantVariables = foldr IntSet.insert (scsContravariantVariables s) newContravariantVariables  })
