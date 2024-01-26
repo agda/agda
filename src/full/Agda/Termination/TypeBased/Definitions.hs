@@ -68,51 +68,69 @@ initSizeTypeEncoding mutuals = forM_ mutuals $ \nm -> inConcreteOrAbstractMode n
   let dType = defType def
   sizedSignature <- case theDef def of
     Datatype { dataCons, dataMutual } -> do
-      reportSDoc "term.tbt" 20 $ vcat
+      reportSDoc "term.tbt" 10 $ vcat
         [ "Starting encoding for data: " <+> prettyTCM nm
         , "  with mutual block: " <+> prettyTCM (Set.toList mutuals)
-        , "  of core type:" <+> prettyTCM dType
+        , "  of internal type:" <+> prettyTCM dType
         ]
       sizedSignature <- encodeDataType dataCons mutuals encodeComplex False dType
-      reportSDoc "term.tbt" 20 $ "Encoded data" <+> prettyTCM nm <+> ", sized type: " <+> text (show sizedSignature)
+      reportSDoc "term.tbt" 5 $ vcat
+        [ "Encoded data " <> prettyTCM nm <> ", sized type: "
+        , nest 2 $ pretty sizedSignature
+        ]
       pure $ Just sizedSignature
     Record { recConHead, recInduction } -> do
-      reportSDoc "term.tbt" 20 $ vcat
+      reportSDoc "term.tbt" 10 $ vcat
         [ "Starting encoding for record:" <+> prettyTCM nm
-        , "  of core type:" <+> prettyTCM dType
+        , "  with mutual block: " <+> prettyTCM (Set.toList mutuals)
+        , "  of internal type:" <+> prettyTCM dType
         ]
       sizedSignature <- encodeDataType [conName recConHead] mutuals encodeComplex (recInduction == Just CoInductive) dType
-      reportSDoc "term.tbt" 20 $ "Encoded record" <+> prettyTCM nm <+> ", sized type:" <+> text (show sizedSignature)
+      reportSDoc "term.tbt" 5 $ vcat
+        [ "Encoded record " <> prettyTCM nm <> ", sized type: "
+        , nest 2 $ pretty sizedSignature
+        ]
       pure $ Just sizedSignature
     Constructor{ conData } -> do
-      reportSDoc "term.tbt" 20 $ vcat
+      reportSDoc "term.tbt" 10 $ vcat
         [ "Starting encoding for constructor:" <+> prettyTCM nm
         , "  with mutual block: " <+> prettyTCM (Set.toList mutuals)
         , "  of core type:" <+> prettyTCM dType
-        , "  of data type:" <+> prettyTCM conData
         ]
       sizedSignature <- lowerIndices <$> if encodeComplex then encodeConstructorType mutuals dType else pure $ encodeBlackHole dType
-      reportSDoc "term.tbt" 20 $ "Encoded constructor" <+> prettyTCM nm <+> ", sized type:" <+> text (show sizedSignature) <+> "encoded complex: " <+> text (show encodeComplex)
+      reportSDoc "term.tbt" 5 $ vcat
+        [ "Encoded constructor " <> prettyTCM nm <> ", sized type: "
+        , nest 2 $ pretty sizedSignature
+        ]
+      reportSDoc "term.tbt" 20 $ nest 2 $ "encoded complex: " <+> pretty encodeComplex
       pure $ Just sizedSignature
     Function { funProjection } -> do
-      reportSDoc "term.tbt" 20 $ vcat
+      reportSDoc "term.tbt" 10 $ vcat
         [ "Starting encoding for function:" <+> prettyTCM nm
-        , "  of core type:" <+> prettyTCM dType
+        , "  of core type:"
+        , nest 2 $ prettyTCM dType
         ]
       sizedSignature <- lowerIndices <$> if encodeComplex
         then case funProjection of
           Left  _ -> encodeFunctionType dType
           Right _ -> encodeFieldType mutuals dType
         else pure $ encodeBlackHole dType
-      reportSDoc "term.tbt" 20 $ "Encoded function" <+> prettyTCM nm <+> ", sized type:" <+> text (show sizedSignature)
+      reportSDoc "term.tbt" 5 $ vcat
+        [ "Encoded function " <> prettyTCM nm <> ", sized type:"
+        , nest 2 $ pretty sizedSignature
+        ]
       pure $ Just sizedSignature
     Axiom {} -> do
-      reportSDoc "term.tbt" 20 $ vcat
+      reportSDoc "term.tbt" 10 $ vcat
         [ "Starting encoding for axiom:" <+> prettyTCM nm
-        , "  of core type:" <+> prettyTCM dType
+        , "  of core type:"
+        , nest 2 $ prettyTCM dType
         ]
       sizedSignature <- if encodeComplex then encodeFunctionType dType else pure $ encodeBlackHole dType
-      reportSDoc "term.tbt" 20 $ "Encoded axiom" <+> prettyTCM nm <+> ", sized type:" <+> text (show sizedSignature)
+      reportSDoc "term.tbt" 5 $ vcat
+        [ "Encoded axiom" <> prettyTCM nm <> ", sized type:"
+        , nest 2 $ pretty sizedSignature
+        ]
       pure $ Just sizedSignature
     _ -> return Nothing
   case sizedSignature of
@@ -150,16 +168,15 @@ processSizedDefinition :: Set QName -> FunctionData -> QName -> TCM (Either [Str
 processSizedDefinition names funData nm = inConcreteOrAbstractMode nm $ \d -> do
   def <- getConstInfo nm
   let clauses = _funClauses funData
-  reportSDoc "term.tbt" 20 $ "Hello function:" <+> prettyTCM nm <+> " (copy:" <+> text (show $ defCopy def) <+> ")"
-  reportSDoc "term.tbt" 20 $ "Function type: " <+> (prettyTCM =<< typeOfConst nm)
+  reportSDoc "term.tbt" 10 $ "Starting type-based termination checking of the function:" <+> prettyTCM nm
   -- Since we are processing this function, it was certainly encoded.
   let s = fromJust (defSizedType def)
   res <- invokeSizeChecker nm names (processSizedDefinitionMSC s clauses)
   case res of
     Left err -> pure $ Left err
     Right (callGraph, sig) -> do
-      reportSDoc "term.tbt" 20 $ vcat
-        [ "Call graph from inferred sizes: "
+      reportSDoc "term.tbt" 60 $ vcat
+        [ "Joint call graph from type-based termination: "
         , pretty callGraph
         ]
       return $ Right (nm, callGraph, sig)
@@ -175,6 +192,7 @@ processSizedDefinitionMSC s@(SizeSignature bounds contra sizeSig) clauses = do
   -- This is in fact a disjoint union, since all variables are different for each clause.
   let combinedSubst = IntMap.unions localSubstitutions
   amendedSubst <- considerIncoherences combinedSubst
+
   let (domains, _) = sizeCodomain sizeSig
 
   fixedSignature <- if domains > 0 then applySizePreservation s else pure s
@@ -190,7 +208,7 @@ processSizedDefinitionMSC s@(SizeSignature bounds contra sizeSig) clauses = do
       currentName <- currentCheckedName
       arity <- getArity currentName
       incoherences <- liftTCM $ collectIncoherentRigids combinedSubst (concat totalGraph)
-      reportSDoc "term.tbt" 40 $ "Incoherent sizes: " <+> text (show incoherences)
+      reportSDoc "term.tbt" 60 $ "Incoherent sizes: " <+> text (show incoherences)
       let baseSize = SEMeet (replicate arity (-1))
       pure $ IntMap.mapWithKey (\i expectedSize@(SEMeet list) -> if (any (`IntSet.member` incoherences) list) then baseSize else expectedSize) combinedSubst
 
@@ -203,23 +221,40 @@ processSizeClause bounds newTele c = do
   then pure IntMap.empty
   else do
     expectedTele <- encodeFunctionClause newTele c
-    reportSDoc "term.tbt" 20 $ "Clause to be processed: " <+> prettyTCM c
+    reportSDoc "term.tbt" 10 $ "Starting checking the clause: " <+> prettyTCM c
 
     ifM (null <$> MSC (gets scsErrorMessages)) (
         case clauseBody c of
         Just body -> do
             addContext (clauseTel c) $ sizeCheckTerm expectedTele body >> pure ()
         _ -> do
-            reportSDoc "term.tbt" 20 $ "Aborting processing of clause, because there is no body"
+            reportSDoc "term.tbt" 80 $ "Aborting processing of clause, because there is no body"
             return ()
         ) (do
-        reportSDoc "term.tbt" 20 $ "Aborting processing of clause, because error during encoding happened"
+        reportSDoc "term.tbt" 80 $ "Aborting processing of clause, because error during encoding happened"
         return ())
     newConstraints <- getCurrentConstraints
     refinePreservedVariables
-    reportSDoc "term.tbt" 20 $ vcat $ ("Clause size constraints:") : (map (nest 2 . text . show) newConstraints)
+    reportSDoc "term.tbt" 10 $ vcat $ "Clause constraints:" : (map (nest 2 . text . show) newConstraints)
     rigids <- getCurrentRigids
-    simplifySizeGraph True rigids newConstraints
+    bottomVars <- MSC $ gets scsBottomFlexVars
+    contra <- getContravariantSizeVariables
+    undefinedVars <- MSC $ gets scsUndefinedVariables
+    reportSDoc "term.tbt" 40 $ vcat $ map (nest 2)
+      [ "Rigid context:       " <+> pretty rigids
+      , "undefined sizes:     " <+> text (show undefinedVars)
+      ]
+    reportSDoc "term.tbt" 60 $ vcat $ map (nest 2)
+      [ "Bottom vars:         " <+> text (show bottomVars)
+      , "Arity:               " <+> text (show arity)
+      , "Contravariant:       " <+> text (show contra)
+      , "clusters:            " <+> (vcat $ (map (\i -> pretty (SDefined i) <+> "has cluster:" <+> pretty (findCluster rigids newConstraints i)) (map fst rigids)))
+      ]
+    subst <- simplifySizeGraph rigids newConstraints
+    reportSDoc "term.tbt" 10 $ vcat $
+      "Substitution of local size variables:" :
+      map (\(i, e) -> nest 2 $ pretty (SDefined i) <+> "↦" <+> pretty e) (IntMap.toList subst)
+    pure subst
 
 
 invokeSizeChecker :: QName -> Set QName -> MonadSizeChecker (IntMap SizeExpression, SizeSignature) -> TCM (Either [String] (CallGraph CallPath, SizeSignature))
@@ -227,13 +262,9 @@ invokeSizeChecker rootName nms action = do
   ((subst, sizePreservationInferenceResult), res) <- runSizeChecker rootName nms action
   let graph = scsConstraints res
   let calls = scsRecCalls res
-  reportSDoc "term.tbt" 20 $ vcat $
-    [ text "Raw graph:" ] ++
-    map (nest 2 . text . show) graph ++
-    [ "Final substitution: "] ++
-    map (nest 2 . text ) (map (\i -> (show (SDefined i)) ++ " ↦ " ++ show (subst IntMap.! i)) (IntMap.keys subst))
-    -- [ "Calls: " ] ++
-    -- map (\(q1, q2, s1, s2, place) ->  nest 2 $ prettyTCM q1 <+> ", " <+> prettyTCM q2 ) calls
+  reportSDoc "term.tbt" 60 $ vcat $
+    [ text "Total graph:" ] ++
+    map (nest 2 . text . show) graph
   let indexing = zip (Set.toList nms) [0..]
 
   case scsErrorMessages res of
@@ -243,7 +274,10 @@ invokeSizeChecker rootName nms action = do
             let matrix = makeCM (length sizes1) (length sizes2) (List.transpose $ composeMatrix subst sizes1 sizes2)
                 n = fromJust $ List.lookup q1 indexing
                 m = fromJust $ List.lookup q2 indexing
-            reportSDoc "term.tbt" 20 $ "Matrix between" <+> prettyTCM q1 <+> "and" <+> prettyTCM q2 <+> text ("(" ++ show sizes2 ++ ")") <+> "is" <+> pretty matrix
+            reportSDoc "term.tbt" 20 $ vcat
+              [ "Matrix between" <+> prettyTCM q1 <+> text ("(" ++ show sizes1 ++ ")") <+> "and" <+> prettyTCM q2 <+> text ("(" ++ show sizes2 ++ ")")
+              , pretty matrix
+              ]
             pure $ Edge n m $ singleton $ CallMatrixAug matrix $ CallPath $ fromList [CallInfo q2 place])
       pure $ Right (fromList edges, sizePreservationInferenceResult)
     l -> pure $ Left l
@@ -253,22 +287,24 @@ invokeSizeChecker rootName nms action = do
 encodeFunctionClause :: SizeType -> Clause -> MonadSizeChecker SizeType
 encodeFunctionClause sizeType c = do
   let patterns = namedClausePats c
-  reportSDoc "term.tbt" 20 $ vcat
-    [ "starting encoding of clause: " <+> prettyTCM c
-    , "with domains: " <+> text (show sizeType)
+  reportSDoc "term.tbt" 10 $ vcat
+    [ "Starting encoding of a clause: " <+> prettyTCM c
+    , "  Type of the function: " <+> pretty sizeType
     ]
   (leafVariables, tele) <- matchPatterns sizeType patterns
   setLeafSizeVariables leafVariables
   patternContext <- getCurrentCoreContext
   sizeContext <- getCurrentRigids
   contra <- getContravariantSizeVariables
-  reportSDoc "term.tbt" 20 $ vcat
-    [ "finished encoding of clause: " <+> prettyTCM c
-    , "var context :            " <+> text (show patternContext)
-    , "size context:            " <+> text (show sizeContext)
-    , "contravariant variables: " <+> text (show contra)
-    , "leaf variables:          " <+> text (show leafVariables)
-    , "expected type of clause: " <+> text (show tele)
+  reportSDoc "term.tbt" 10 $ vcat
+    [ "Finished encoding of clause: " <+> prettyTCM c
+    , "  Var context :              " <+> pretty patternContext
+    , "  Rigid variables:           " <+> pretty sizeContext
+    , "  Expected type of clause:   " <+> pretty tele
+    ]
+  reportSDoc "term.tbt" 60 $ vcat
+    [ "  Contravariant variables: " <+> text (show contra)
+    , "  Leaf variables:          " <+> text (show leafVariables)
     ]
   return tele
 

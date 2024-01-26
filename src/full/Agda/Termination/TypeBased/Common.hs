@@ -77,14 +77,14 @@ tryReduceCopy t@(Def qn elims) = do
   case reduced of
     NoReduction _ -> pure t
     YesReduction _ t -> do
-      reportSDoc "term.tbt" 20 $ "Successfully reduced definition" <+> prettyTCM qn
+      reportSDoc "term.tbt" 80 $ "Successfully reduced a copied definition" <+> prettyTCM qn
       tryReduceCopy t
 tryReduceCopy (Con ch ci elims) = do
   reduced <- reduceDefCopyTCM (conName ch) elims
   case reduced of
     NoReduction _ -> pure $ Con ch ci elims
     YesReduction _ t -> do
-      reportSDoc "term.tbt" 20 $ "Successfully reduced definition" <+> prettyTCM (conName ch)
+      reportSDoc "term.tbt" 80 $ "Successfully reduced a copied constructor" <+> prettyTCM (conName ch)
       tryReduceCopy t
 tryReduceCopy t = pure t
 

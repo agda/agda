@@ -113,7 +113,7 @@ matchLHS tele patterns = do
   restPatterns <- foldDomainSizeType
     (\args i (Arg _ (Named _ pat)) -> case pat of
       VarP pi v -> do
-        reportSDoc "term.tbt" 20 $ "Assigning" <+> text (dbPatVarName v) <+> "to" <+> (text (show (FreeGeneric args i)))
+        reportSDoc "term.tbt" 20 $ "Assigning" <+> text (dbPatVarName v) <+> "to" <+> (pretty (FreeGeneric args i))
         lift $ appendCoreVariable (dbPatVarIndex v) (Left $ FreeGeneric args i)
       DotP _ term -> pure ()
       _ -> __IMPOSSIBLE__
@@ -131,7 +131,7 @@ matchLHS tele patterns = do
     (p : ps) -> case p of
       (Arg _ (Named _ (ProjP _ qn))) -> do
         -- Since it is a projection, the matched type must be a record, i.e. a size tree.
-        let (_, (SizeTree principal rest)) = sizeCodomain tele
+        let (_, (SizeTree principal recordArgs)) = sizeCodomain tele
         constInfo <- getConstInfo qn
         let sizeType = defSizedType constInfo
 
@@ -149,17 +149,19 @@ matchLHS tele patterns = do
 
             freshenedSignature <- freshenCopatternProjection newCodepthVar bounds tele
             -- Additional argument is needed because we want to get rid of the principal argument in the signature
-            let appliedProjection = applyDataType (rest ++ [UndefinedSizeType]) freshenedSignature
-            reportSDoc "term.tbt" 20 $ vcat
-              [ "Entering copattern projection:" <+> prettyTCM qn
-              , "Coinductive: " <+> text (show isForCoinduction)
+            let appliedProjection = applyDataType (recordArgs ++ [UndefinedSizeType]) freshenedSignature
+            reportSDoc "term.tbt" 20 $ vcat $
+              [ "Matching copattern projection:" <+> prettyTCM qn] ++ map (nest 2)
+              [ "coinductive: " <+> text (show isForCoinduction)
               , "of core type: " <+> prettyTCM (defType constInfo)
-              , "of full sized type: " <+> text (show sizeType)
-              , "of bounds: " <+> text (show bounds)
-              , "rest: " <+> text (show rest)
-              , "Freshened signature: " <+> text (show freshenedSignature)
-              , "of applied size type: " <+> text (show appliedProjection)
-              , "new depth: " <+> text (show newCoDepth)
+              , "of type: " <+> pretty appliedProjection
+              ]
+            reportSDoc "term.tbt" 60 $ vcat $ map (nest 2)
+              [ "of full sized type: " <+> pretty sizeType
+              , "of bounds: " <+> pretty bounds
+              , "with record arguments: " <+> pretty recordArgs
+              , "of freshened signature: " <+> pretty freshenedSignature
+              , "new codepth: " <+> text (show newCoDepth)
               ]
             modify (\s -> s { peCoDepth = newCoDepth })
             -- Attempt regular pattern matching again, because decomposed projection may have own parameters
@@ -197,10 +199,10 @@ initializeCopatternProjection _ = pure () -- If there is no sized principal argu
 -- otherwise we may accidentally introduce a size that belongs to a wrong cluster.
 matchSizePattern :: DeBruijnPattern -> SizeType -> PatternEncoder ()
 matchSizePattern (VarP pi v) expected = do
-  reportSDoc "term.tbt" 20 $ "Assigning" <+> text (dbPatVarName v) <+> "to" <+> (text (show expected))
+  reportSDoc "term.tbt" 20 $ "Assigning" <+> text (dbPatVarName v) <+> "to" <+> pretty expected
   lift $ appendCoreVariable (dbPatVarIndex v) (Right expected)
 matchSizePattern p@(ConP hd pi args) expected = do
-  reportSDoc "term.tbt" 20 $ "Matching pattern " <+> prettyTCM p <+> "with expected type" <+> (text (show expected))
+  reportSDoc "term.tbt" 20 $ "Matching pattern " <+> prettyTCM p <+> "with expected type" <+> pretty expected
   let cn = conName hd
   ci <- getConstInfo cn
   let sizeSig = defSizedType ci
@@ -218,15 +220,16 @@ matchSizePattern p@(ConP hd pi args) expected = do
       currentCodomainVar <- getOrRequestDepthVar cluster depth
       -- We are going to request the depth var lazily
       let innerVar = getOrRequestDepthVar cluster (depth + 1)
-      reportSDoc "term.tbt" 20 $ "sig:" <+> text (show sizeSig)
       refreshedConstructor <- freshenPatternConstructor cn currentCodomainVar innerVar expected sizeSig
       reportSDoc "term.tbt" 20 $ vcat $ map (nest 2)
         [ "Pattern constructor name: " <+> (prettyTCM cn)
+        , "Refreshed constructor type: " <+> pretty refreshedConstructor
+        , "expected: " <+> pretty expected
+        ]
+      reportSDoc "term.tbt" 60 $ vcat $ map (nest 2)
+        [ "level variable of current datatype:" <+> text (show currentCodomainVar)
+        , "raw signature of constructor: " <+> pretty sizeSig
         , "depth: " <+> text (show depth)
-        , "level variable of current datatype:" <+> text (show currentCodomainVar)
-        , "expected: " <+> text (show expected)
-        , "sizeSig: " <+> text (show sizeSig)
-        , "Refreshed constructor type: " <+> text (show refreshedConstructor)
         ]
 
       let (_, codomain) = sizeCodomain refreshedConstructor
@@ -239,12 +242,12 @@ matchSizePattern p@(ConP hd pi args) expected = do
           argCluster <- lift $ getClusterByTele size
           depth <- gets peDepth
           let newDepth = if argCluster == cluster && argCluster /= -1 then (depth + 1) else 0
-          reportSDoc "term.tbt" 20 $ "About to match:" <+> "pat: " <+> prettyTCM pat <+> ", against" <+> text (show size)
+          reportSDoc "term.tbt" 40 $ "About to match:" <+> "pat: " <+> prettyTCM pat <+> ", against" <+> pretty size
           withDepth newDepth $ matchSizePattern pat size)
         (map (namedThing . unArg) args)
         refreshedConstructor
       pure ()
-    (_, _) -> trace ("sizeSig: " ++ show sizeSig ++ "expected: " ++ show expected)__IMPOSSIBLE__
+    (_, _) -> __IMPOSSIBLE__
 matchSizePattern (DotP pi _) _ = return ()
 matchSizePattern (LitP _ _) _ = pure ()
 matchSizePattern (DefP _ _ _) _ = __IMPOSSIBLE__ -- cubical agda is not supported
@@ -270,7 +273,7 @@ foldDomainSizeType' _ _ _ rest _ = pure rest
 -- | 'getOrRequestDepthVar cluster level' returns a variable on depth 'level' corresponding to a cluster 'cluster'
 getOrRequestDepthVar :: Int -> Int -> PatternEncoder Int
 getOrRequestDepthVar cluster level = do
-  reportSDoc "term.tbt" 20 $ "Requesting new var of level" <+> text (show level) <+> "for cluster" <+> text (show cluster)
+  reportSDoc "term.tbt" 70 $ "Requesting new var of level" <+> text (show level) <+> "for cluster" <+> text (show cluster)
   currentLeaves <- IntMap.lookup cluster <$> gets peDepthStack
   case currentLeaves of
     Nothing -> pure (-1)
@@ -294,7 +297,7 @@ getOrRequestCoDepthVar depth = do
     Nothing -> do
       let actualBound = if depth == 0 then SUndefined else SDefined (currentCodepthStack List.!! (depth - 1))
       [var] <- lift $ requestNewRigidVariables actualBound [SizeBounded (-1)]
-      reportSDoc "term.tbt" 20 $ "Requesting new var of codepth" <+> text (show depth) <+> "which is " <+> text (show var)
+      reportSDoc "term.tbt" 70 $ "Requesting new var of codepth" <+> text (show depth) <+> "which is " <+> text (show var)
       modify (\s -> s { peCoDepthStack = peCoDepthStack s ++ [var] })
       lift $ recordContravariantSizeVariable var
       pure var
@@ -315,17 +318,17 @@ freshenPatternConstructor conName codomainDataVar domainDataVar expectedCodomain
   -- because otherwise leaf variables would gain access to a cluster var with lower level than expected
   domainVar <- if length newVarsRaw + 1 == length bounds then pure (-1) else domainDataVar
   let newVars = snd $ List.mapAccumL (\nv bound -> if shouldBeUnbounded bound then (tail nv, head nv) else (nv, domainVar)) newVarsRaw (modifier bounds)
-  reportSDoc "term.tbt" 20 $ vcat
-    [ "new vars raw: " <+> text (show newVarsRaw)
-    , "bounds: " <+> text (show bounds)
-    , "size tele: " <+> text (show constructorType)
+  reportSDoc "term.tbt" 70 $ vcat
+    [ "New variables for instantiation: " <+> text (show newVars)
+    , "Raw variables: " <+> text (show newVarsRaw)
+    , "Bounds: " <+> pretty bounds
+    , "modified type: " <+> pretty constructorType
+    , "Datatype arguments:" <+> pretty datatypeParameters
     ]
-  reportSDoc "term.tbt" 20 $ "new vars: " <+> text (show newVars)
   let instantiatedSig = instantiateSizeType constructorType (newVars ++ [codomainDataVar])
-  -- freshSig <- lift $ freshenGenericArguments instantiatedSig
   numberOfArguments <- liftTCM $ getDatatypeParametersByConstructor conName
+  reportSDoc "term.tbt" 70 $ "Number of arguments: " <+> text (show numberOfArguments)
   let partialConstructorType = applyDataType (take numberOfArguments datatypeParameters) instantiatedSig
-  reportSDoc "term.tbt" 20 $ "params to apply: " <+> text (show (take numberOfArguments datatypeParameters))
   return partialConstructorType
 
 freshenCopatternProjection :: Int -> [SizeBound] -> SizeType -> PatternEncoder SizeType
@@ -333,7 +336,7 @@ freshenCopatternProjection newCoDepthVar bounds tele = do
   let isNewPatternSizeVar b = b == SizeUnbounded || newCoDepthVar == (-1)
   newVarsRaw <- lift $ requestNewRigidVariables SUndefined (filter isNewPatternSizeVar bounds)
   let newVars = snd $ List.mapAccumL (\nv bound -> if isNewPatternSizeVar bound then (tail nv, head nv) else (nv, newCoDepthVar)) newVarsRaw bounds
-  reportSDoc "term.tbt" 20 $ "Before instantiation in freshenCopatternConstructor: " <+> text (show tele) <+> "with new vars:" <+> text (show newVars)
+  reportSDoc "term.tbt" 70 $ "Raw size type of copattern projection: " <+> pretty tele <+> "With new variabless:" <+> text (show newVars)
   let instantiatedSig = instantiateSizeType tele newVars
   pure instantiatedSig
 

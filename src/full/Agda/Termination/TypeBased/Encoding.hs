@@ -1,10 +1,6 @@
 {- | Contains utilities for translation of terms written in internal syntax to their sized counterparts.
-     The translation is needed in two places:
-     1) The signatures of functions, constructors, projections and datatypes should be translated to sized types
-        so the size-checking algorithm will be able to work with them.
-     2) Since types are first-class citizens in Agda's theory, it is the case that there are type applications in the internal syntax.
-        To hangle type applications, we need to translate certain terms to sized types during the checking, and then do some sort of application.
-        This is covered under the terms of generics, unification and instantiation.
+     The translation is needed sincethe signatures of functions, constructors, projections and datatypes should be translated to sized types
+     so the size-checking algorithm will be able to work with them.
 
     The translation itself is syntax-directed, though there are some complications
     since we are targeting a weaker theory than dependent types (our case is System Fω).
@@ -59,7 +55,7 @@ encodeFieldType mutualNames t = do
   -- There is a similar discussion in 'encodeConstructorType'.
   bounds <- case reverse erNewChosenVariables of
     (principal : remaining) -> do
-      reportSDoc "term.tbt" 20 $ "Chosen: " <+> text (show erNewChosenVariables)
+      reportSDoc "term.tbt" 80 $ "Chosen: " <+> text (show erNewChosenVariables)
       let bounds = map (\i -> if i `List.elem` remaining then SizeBounded principal else SizeUnbounded) [0..erNewFirstOrderVariables - 1]
       pure bounds
     [] -> pure $ (replicate erNewFirstOrderVariables SizeUnbounded)
@@ -145,7 +141,7 @@ encodeConstructorType mutuals t = do
         -- Black holes do not contain chosen variables, so there may be none of them.
         [] -> []
   let (_, (SizeTree (SDefined principal) _)) = sizeCodomain erEncodedType
-  reportSDoc "term.tbt" 20 $ "Chosen: " <+> text (show esChosenVariables)
+  reportSDoc "term.tbt" 60 $ "Chosen variables: " <+> text (show erNewChosenVariables)
   let bounds = map (\i -> if i `elem` chosen then (SizeBounded principal) else SizeUnbounded) [0..erNewFirstOrderVariables - 1]
   return $ SizeSignature bounds erNewContravariantVariables erEncodedType
 
@@ -171,13 +167,13 @@ typeToSizeType' t@(Pi dom cod) = do
         (Right realDomain, Right realCodomain) ->
           -- If there is no requirement to handle generics, we can construct a plain arrow type.
           pure $ Right $ SizeArrow realDomain realCodomain
-  reportSDoc "term.tbt" 100 $ vcat
+  reportSDoc "term.tbt" 50 $ vcat
     [ "Converted term: " <+> prettyTCM t
-    , "partial type: " <+> text (show combinedType)
+    , "partial type: " <+> pretty combinedType
     ]
   pure combinedType
 typeToSizeType' t@(MetaV _ _) = do
-  reportSDoc "term.tbt" 20 $ "Preparing to instantiate meta"
+  reportSDoc "term.tbt" 80 $ "Preparing to instantiate meta"
   inst <- ME $ instantiate t
   case inst of
     MetaV _ _ -> pure $ Right $ UndefinedSizeType
@@ -190,7 +186,7 @@ typeToSizeType' t@(Lam _ abs) = do
   -- And we are processing an application 'foo (λ p → List Nat)'
   -- With the conversion of lambdas, we will obtain instantiation of "ε₁ => ∞ -> t₁<...>", where t₁ is the representation of List.
   -- Later, we will be able to track the termination of the argument of type ₁ε₁.
-  reportSDoc "term.tbt" 20 $ "Converting lambda" <+> prettyTCM t
+  reportSDoc "term.tbt" 60 $ "Converting lambda" <+> prettyTCM t
   let isAbs = case abs of
         Abs _ _ -> True
         NoAbs _ _ -> False
@@ -209,8 +205,8 @@ typeToSizeType' t@(Def qn _) = do
     -- so we are trying to unconditionally unfold every definition.
     Function{ funTerminates } | funTerminates == Just True -> do
       reduced <- ME $ reduce t
-      reportSDoc "term.tbt" 20 $ vcat
-        [ "Unfolding: " <+> prettyTCM t
+      reportSDoc "term.tbt" 60 $ vcat
+        [ "Unfolded: " <+> prettyTCM t
         , "to: " <+> prettyTCM reduced
         ]
       case reduced of
@@ -238,20 +234,20 @@ termToSizeType t@(Def q elims) = do
   let sig = defSizedType constInfo
   case sig of
     Just (SizeSignature _ _ tele) | defIsDataOrRecord (theDef constInfo) -> do
-      reportSDoc "term.tbt" 20 $ "Raw term: " <+> prettyTCM t <+> ", elims: " <+> (prettyTCM elims)
+      reportSDoc "term.tbt" 80 $ "Converting to size tree: " <+> prettyTCM t <+> ", elims: " <+> (prettyTCM elims)
       -- Datatypes have parameters, which also should be converted to size types.
       dataArguments <- map (fromRight UndefinedSizeType) <$> traverse (freezeContext . typeToSizeType' . unArg . fromJust . isApplyElim) elims
 
       freshData <- refreshFirstOrder tele
-      reportSDoc "term.tbt" 20 $ vcat
-        [ "Applying elims to: " <+> (text $ show freshData)
-        , "elims: " <+> (text $ show $ reverse $ dataArguments)
-        , "actual term: " <+> (prettyTCM t)
-        , "actual type: " <+> (prettyTCM (defType constInfo))
+      reportSDoc "term.tbt" 80 $ vcat
+        [ "Applying elims to: " <+> pretty freshData
+        , "elims: " <+> pretty dataArguments
+        , "actual term: " <+> prettyTCM t
+        , "actual type: " <+> prettyTCM (defType constInfo)
         , "copy: " <+> (text (show (defCopy constInfo)))
         ]
       let newTree = applyDataType dataArguments freshData
-      reportSDoc "term.tbt" 20 $ "Resulting tree: " <+> (text (show newTree)) <+> "for" <+> prettyTCM t
+      reportSDoc "term.tbt" 60 $ "Resulting tree: " <+> pretty newTree <+> "for" <+> prettyTCM t
       predicate <- gets esPredicate
       case newTree of
         SizeTree (SDefined i) _ -> do
@@ -262,7 +258,7 @@ termToSizeType t@(Def q elims) = do
         _ -> pure ()
       pure newTree
     _ -> do
-      reportSDoc "term.tbt" 20 $ "Aborting conversion of " <+> prettyTCM q
+      reportSDoc "term.tbt" 80 $ "Aborting conversion of " <+> prettyTCM q
       return UndefinedSizeType -- arbitraty function applications in signatures are not supported on the current stage
   where
     -- Freshens all first-order variables in an encoded type
@@ -275,8 +271,8 @@ termToSizeType t@(Def q elims) = do
       SUndefined -> pure SUndefined) <*> traverse refreshFirstOrder ts
 termToSizeType (Var varId elims) = do
     ctx <- gets esTypeRelatedContext
-    reportSDoc "term.tbt" 40 $ vcat
-      [ "Context before var" <+> text (show ctx)
+    reportSDoc "term.tbt" 60 $ vcat
+      [ "Context before var" <+> pretty ctx
       , "var: " <+> text (show varId)
       ]
     case ctx List.!! varId of
