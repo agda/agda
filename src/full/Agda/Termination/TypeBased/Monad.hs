@@ -27,10 +27,20 @@ import Data.Maybe
 import Data.Set (Set )
 import Agda.Utils.Impossible
 
+import qualified Agda.Utils.Benchmark as B
+import qualified Agda.Benchmarking as Benchmark
+
 import qualified Agda.Syntax.Common.Pretty as P
 
 newtype MonadSizeChecker a = MSC (StateT SizeCheckerState TCM a)
   deriving (Functor, Applicative, Monad, MonadTCEnv, MonadTCState, HasOptions, MonadDebug, MonadFail, HasConstInfo, MonadAddContext, MonadIO, MonadTCM, ReadTCState, MonadStatistics)
+
+instance B.MonadBench MonadSizeChecker where
+  type BenchPhase MonadSizeChecker = Benchmark.Phase
+  getBenchmark              = MSC $ B.getBenchmark
+  putBenchmark              = MSC . B.putBenchmark
+  modifyBenchmark           = MSC . B.modifyBenchmark
+  finally (MSC m) (MSC f) = MSC $ (B.finally m f)
 
 type SizeContextEntry = (Int, Either FreeGeneric SizeType)
 

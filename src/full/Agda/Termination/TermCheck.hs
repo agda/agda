@@ -303,7 +303,8 @@ runConditionalTerminationChecker :: HasOptions m => m Bool -> CallPath -> m (Eit
 runConditionalTerminationChecker opt fallback action = ifM opt action (pure $ Left fallback)
 
 runTypeBasedTerminationChecking :: MutualNames -> TerM (Either CallPath ())
-runTypeBasedTerminationChecking allNames = runConditionalTerminationChecker typeBasedTerminationOption mempty $ do
+runTypeBasedTerminationChecking allNames = runConditionalTerminationChecker typeBasedTerminationOption mempty $
+  billTo [Benchmark.TypeBasedTermination] $ do
   calls0 <- liftTCM $ collectTerminationData allNames
   cutoff <- terGetCutOff
   case calls0 of
@@ -331,7 +332,7 @@ runTypeBasedTerminationChecking allNames = runConditionalTerminationChecker type
       then do
         reportSDoc "term.tbt" 20 $ "!!!!!!!!!!!!!!!!!!!EXCEPTION:!!!!!!!!!!!!!!!!!!! " <+> prettyTCM (toList allNames)
         pure $ Right ()
-      else billToTerGraph $ Term.terminates calls0
+      else billPureTo [Benchmark.TypeBasedTermination, Benchmark.Matrix] $ Term.terminates calls0
     reportSDoc "term.tbt" 5 $ (case result of
       Left errs -> "Type-based termination failed"
       Right _ -> "Type-based termination succeded") <> " for definitions: " $$ nest 2 (prettyTCM (Set.toList allNames))
