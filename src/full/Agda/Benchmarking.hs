@@ -67,6 +67,22 @@ data Phase
     -- ^ Subphase for 'Termination'.
   | With
     -- ^ Subphase for 'Termination'.
+  | TypeBasedTermination
+    -- ^ Type-based termination checking.
+  | SizeTypeEncoding
+    -- ^ Subphase for 'TypeBasedTermination': converting internal terms to size expressions.
+  | PatternRigids
+    -- ^ Subphase for 'TypeBasedTermination': computing rigid variables from patterns.
+  | SizeTypeChecking
+    -- ^ Subphase for 'TypeBasedTermination': bidirectional checking of clause bodies.
+  | Preservation
+    -- ^ Subphase for 'TypeBasedTermination': size-preservation checking.
+  | SizeGraphSolving
+    -- ^ Subphase for 'TypeBasedTermination': solving the size constraints.
+  | Cluster
+    -- ^ Subphase for 'TypeBasedTermination': solving the size constraints.
+  | Matrix
+    -- ^ Subphase for 'TypeBasedTermination': processing size-change matrices.
   | ModuleName
     -- ^ Subphase for 'Import'.
   | Compaction
