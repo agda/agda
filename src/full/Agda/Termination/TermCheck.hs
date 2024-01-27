@@ -251,6 +251,8 @@ termMutual' = do
 
   cutoff <- terGetCutOff
 
+  tbt <- typeBasedTerminationOption
+  reportSDoc "term.tbt" 20 $ "tbt is " <+> text (show tbt)
   r <- runTypeBasedTerminationChecking allNames
 
   -- collect all recursive calls in the block
