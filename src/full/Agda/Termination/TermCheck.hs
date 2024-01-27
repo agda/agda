@@ -312,33 +312,13 @@ runTypeBasedTerminationChecking allNames = runConditionalTerminationChecker type
   case calls0 of
     Left msg -> pure $ Left mempty
     Right calls0 -> do
-    let ?cutoff = cutoff
-    reportCalls "tbt" calls0
-    let badFunctions =
-          [ "concat-++" -- congruence
-          , "fromView" -- congruence
-          , "defaultAnn" -- large elimination
-          , "traverse′" -- large elimination
-          , "map′" -- large elimination
-          , "annotate′" -- large elimination
-          , "freeVars" -- large elimination
-          ]
-    isException <- orM
-      [ liftTCM $ optSizedTypes <$> pragmaOptions
-      , anyM allNames (\x -> anyM badFunctions (\y -> List.isSubsequenceOf y . show <$> (liftTCM $ prettyTCM x)) )
-      , pure $ any (\x -> any ("Musical" `List.isSubsequenceOf`) (map nameToArgName (mnameToList (qnameModule x)))) allNames
-      , pure $ any (\x -> any ("IO" `List.isSubsequenceOf`) (map nameToArgName (mnameToList (qnameModule x)))) allNames
-      , pure $ any (\x -> any ("Partiality" `List.isSubsequenceOf`) (map nameToArgName (mnameToList (qnameModule x)))) allNames
-      ]
-    result <- if isException
-      then do
-        reportSDoc "term.tbt" 20 $ "!!!!!!!!!!!!!!!!!!!EXCEPTION:!!!!!!!!!!!!!!!!!!! " <+> prettyTCM (toList allNames)
-        pure $ Right ()
-      else billPureTo [Benchmark.TypeBasedTermination, Benchmark.Matrix] $ Term.terminates calls0
-    case result of
-      Left errs -> reportSDoc "term.tbt.failure" 5 $ ("Type-based termination failed for definitions " $$ nest 2 (prettyTCM (Set.toList allNames)))
-      Right _ -> reportSDoc "term.tbt" 5 $ ("Type-based termination succeded for definitions " $$ nest 2 (prettyTCM (Set.toList allNames)))
-    pure result
+      let ?cutoff = cutoff
+      reportCalls "tbt" calls0
+      result <- billPureTo [Benchmark.TypeBasedTermination, Benchmark.Matrix] $ Term.terminates calls0
+      case result of
+        Left errs -> reportSDoc "term.tbt.failure" 5 $ ("Type-based termination failed for definitions " $$ nest 2 (prettyTCM (Set.toList allNames)))
+        Right _ -> reportSDoc "term.tbt" 5 $ ("Type-based termination succeded for definitions " $$ nest 2 (prettyTCM (Set.toList allNames)))
+      pure result
 
 -- | Smart constructor for 'TerminationError'.
 --   Removes 'termErrFunctions' that are not mentioned in 'termErrCalls'.
