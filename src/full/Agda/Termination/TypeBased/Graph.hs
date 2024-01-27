@@ -13,6 +13,8 @@
      i.e. an assignment, such that for any other assignment all variables are assigned to a bigger or equal size expression.
      The semantical meaning here is that we are trying to find a witness of termination of a function,
      and the universal solution allows to get the most optimistic description of size dependencies for recursive calls.
+
+     The algorithm here relies on the notion of clusters, which is explained in 'Agda.Termination.TypeBased.Patterns'
 -}
 module Agda.Termination.TypeBased.Graph where
 
@@ -42,6 +44,7 @@ import Agda.TypeChecking.Monad.Benchmark (billTo)
 
 -- A size expression is represented as a minimum of a set of rigid size variables,
 -- where the length of the set is equal to the number of clusters.
+-- This datatype represents an element of the bounded meet-semilattice mentioned above.
 newtype SizeExpression = SEMeet [Int]
   deriving Eq
 
@@ -56,13 +59,13 @@ type GraphEnv a = StateT SizeCheckerState TCM a
 -- The outline:
 -- 1. Find all strongly connected components.
 -- 2. Sort the obtained acyclic graph topologically.
--- 3. For each component in the order, assign the least upper bound of all known lower bounds. If there are no lower bounds, apply a heuristic.
+-- 3. For each component in the order, assign the least upper bound of all its known lower bounds. If there are no lower bounds, apply a heuristic.
 simplifySizeGraph :: [(Int, SizeBound)] -> [SConstraint] -> MonadSizeChecker (IntMap SizeExpression, IntMap Int)
 simplifySizeGraph rigidContext graph = billTo [Benchmark.TypeBasedTermination, Benchmark.SizeGraphSolving] $ do
   let enrichedGraph = mapMaybe (\(i, b) -> case b of
         SizeBounded j -> Just (SConstraint SLte i j)
         SizeUnbounded -> Nothing) rigidContext ++ graph
-  -- NOTE: The graph is reversed, since it is more performant to access its edges this way
+  -- !! NOTE: The graph is reversed, since it is more performant to access its edges this way
   let adjacencyMap = DGraph.fromEdges (map (\(SConstraint rel from to) -> DGraph.Edge to from rel) enrichedGraph)
 
   let sccs = DGraph.sccs adjacencyMap
@@ -77,9 +80,9 @@ simplifySizeGraph rigidContext graph = billTo [Benchmark.TypeBasedTermination, B
 
   -- Lazy map representing an approximate cluster of each variable
   let rigidClusters = (mapMaybe (\(i, b) -> (i,) <$> findCluster rigidContext i) rigidContext)
-  let mapInserter = IntMap.insertWith (\n old -> head n : old)
-  let surrounding = foldr (\(SConstraint _ from to) mp -> mapInserter to [from] (mapInserter from [to] mp)) IntMap.empty enrichedGraph
-  let clusterMapping = gatherClusters rigidClusters surrounding (IntMap.fromList rigidClusters)
+  let rememberNeighbor v1 v2 = IntMap.insertWith (\n old -> head n : old) v1 [v2]
+  let neighbourMap = foldr (\(SConstraint _ from to) -> rememberNeighbor to from . rememberNeighbor from to) IntMap.empty enrichedGraph
+  let clusterMapping = gatherClusters rigidClusters neighbourMap (IntMap.fromList rigidClusters)
 
   -- We are going to assign each rigid variable a size expression corresponding to itself.
   let initialSubst = IntMap.fromList (map (\(i, bound) ->
@@ -88,9 +91,16 @@ simplifySizeGraph rigidContext graph = billTo [Benchmark.TypeBasedTermination, B
           in case cluster of
             Just c | c < arity -> assign c baseSize i
             _ -> baseSize)) rigidContext)
-  substitution <- instantiateComponents arity rigidContext clusterMapping adjacencyMap initialSubst sccs
+  substitution <- instantiateComponents (SEMeet baseSize) rigidContext clusterMapping adjacencyMap initialSubst sccs
   pure $ (substitution, clusterMapping)
 
+-- | 'gatherClusters layer neighbors result' collects a map from graph nodes (the keys in 'neighbors') to their approximate cluster.
+-- This algorithm is BFS, which sweeps over the graph layer by layer (the first argument 'layer', which is a pairing between a variable and its cluster).
+-- Initially, the processing starts from rigid variables, for which we know their clusters.
+-- 'result' is a storage of the collected clusters and the set of already visited graph nodes simultaneously.
+--
+-- There is no guarantee that a cluster for a flexible variable can be determined uniquely.
+-- However, this mapping is used in heuristics, for which it is allowed to have some approximation.
 gatherClusters :: [(Int, Int)] -> IntMap [Int] -> IntMap Int -> IntMap Int
 gatherClusters [] _ res = res
 gatherClusters list graph res =
@@ -107,17 +117,17 @@ findCluster rigids i = case List.lookup i rigids of
   Just SizeUnbounded -> Just i
   Just (SizeBounded j) -> findCluster rigids j
 
--- For each flexible size variable in the list (last argument), assignes a size expression
-instantiateComponents :: Int -> [(Int, SizeBound)] -> IntMap Int -> DGraph.Graph Int ConstrType -> IntMap SizeExpression -> [[Int]] -> MonadSizeChecker (IntMap SizeExpression)
-instantiateComponents arity rigids _ graph subst [] = pure subst
-instantiateComponents arity rigids clusterMapping graph subst (comp : is) = do
+-- 'instantiateComponents baseSize rigids clusters adjacencyMap subst sccs' assigns a size expression for each flexible variable occurring in 'sccs'.
+-- It is mandatory that 'sccs' is sorted in topological order according to 'adjacencyMap'.
+instantiateComponents :: SizeExpression -> [(Int, SizeBound)] -> IntMap Int -> DGraph.Graph Int ConstrType -> IntMap SizeExpression -> [[Int]] -> MonadSizeChecker (IntMap SizeExpression)
+instantiateComponents _ _ _ graph subst [] = pure subst
+instantiateComponents baseSize rigids clusterMapping graph subst (comp : is) = do
 
   bottomVars <- MSC $ gets scsBottomFlexVars
   globalMinimum <- MSC $ gets scsLeafSizeVariables
   undefinedVars <- getUndefinedSizes
   fallback <- MSC $ gets scsFallbackInstantiations
 
-  let baseSize = (SEMeet (replicate arity (-1)))
   let lowerBounds = mapMaybe (\(DGraph.Edge bigger lower constr) ->
         if (not $ lower `List.elem` comp)
         then Just (constr, lower)
@@ -160,7 +170,7 @@ instantiateComponents arity rigids clusterMapping graph subst (comp : is) = do
                              ", assignedSize: " <+> pure (P.pretty assignedSize) <+>
                              ", bottom vars: " <+> text (show bottomVars)
 
-  instantiateComponents arity rigids clusterMapping graph newSubst is
+  instantiateComponents baseSize rigids clusterMapping graph newSubst is
   where
     -- Searches for a suitable size expression in a list of known size bounds
     findSuitableSize :: ConstrType -> SizeExpression -> SizeExpression
@@ -180,14 +190,6 @@ assign :: Int -> [Int] -> Int -> [Int]
 assign 0 (x : xs) e = e : xs
 assign n (x : xs) e = x : (assign (n - 1) xs e)
 assign n xs i = __IMPOSSIBLE__
-
-computeSCCs :: [(Int, SizeBound)] -> [SConstraint] -> [[Int]]
-computeSCCs rigidContext graph =
-  let adj = foldr (\c graph -> IntMap.insertWith (\a b -> b) (scFrom c) []
-                              (IntMap.insert                 (scTo c)   (scFrom c : IntMap.findWithDefault [] (scTo c) graph) graph))
-                  IntMap.empty graph
-      assocList = map (\(a, b) -> (a, a, b)) (IntMap.toAscList adj)
-  in map Graph.flattenSCC $ Graph.stronglyConnComp (filter (\(a, _, _) -> not (a `List.elem` (map fst rigidContext))) assocList)
 
 -- Given a set of rigids, tries to find the deepest variable in the set of rigids for a given cluster
 findLowestClusterVariable :: [(Int, SizeBound)] -> Int -> Int

@@ -199,7 +199,9 @@ processSizedDefinitionMSC s@(SizeSignature bounds contra sizeSig) clauses = do
 
   let (domains, _) = sizeCodomain sizeSig
 
-  fixedSignature <- billTo [Benchmark.TypeBasedTermination, Benchmark.Preservation] $ if domains > 0 then applySizePreservation s else pure s
+  fixedSignature <- ifM (pure (domains > 0) `and2M` sizePreservationOption)
+    (billTo [Benchmark.TypeBasedTermination, Benchmark.Preservation] $ applySizePreservation s)
+    (pure s)
 
   pure $ (amendedSubst, fixedSignature)
 
@@ -239,7 +241,13 @@ processSizeClause bounds newTele c = do
         return ())
     newConstraints <- getCurrentConstraints
 
-    billTo [Benchmark.TypeBasedTermination, Benchmark.Preservation] refinePreservedVariables
+    -- Size preservation is a very expensive computation.
+    -- Graph processing on its own is not cheap, as there may be up to 100.000 size variables in a single function (thanks to beta-normalized internal terms, this is achievable even without tactics).
+    -- Luckily, we use a quasilinear algorithm for graphs of size variables.
+    -- But then, size preservation can make the algorithm run thousands of times, and in that case even quasi-linearity does not save us.
+    -- TODO: need better size-preservation analysis.
+    -- One idea of optimizing this is to look closely at the graphs and try to guess what variables can be collapsed.
+    whenM sizePreservationOption $ billTo [Benchmark.TypeBasedTermination, Benchmark.Preservation] refinePreservedVariables
 
     reportSDoc "term.tbt" 10 $ vcat $ "Clause constraints:" : (map (nest 2 . text . show) newConstraints)
     rigids <- getCurrentRigids
