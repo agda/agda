@@ -232,10 +232,10 @@ processSizeClause bounds newTele c = do
         Just body -> billTo [Benchmark.TypeBasedTermination, Benchmark.SizeTypeChecking] $ do
             addContext (clauseTel c) $ sizeCheckTerm expectedTele body >> pure ()
         _ -> do
-            reportSDoc "term.tbt" 80 $ "Aborting processing of clause, because there is no body"
+            reportSDoc "term.tbt" 70 $ "Aborting processing of clause, because there is no body"
             return ()
         ) (do
-        reportSDoc "term.tbt" 80 $ "Aborting processing of clause, because error during encoding happened"
+        reportSDoc "term.tbt" 70 $ "Aborting processing of clause, because error during encoding happened"
         return ())
     newConstraints <- getCurrentConstraints
 

@@ -104,7 +104,7 @@ instance Pretty Size where
   pretty (SDefined x) = "t" <> (small x)
 
 instance Pretty FreeGeneric where
-  pretty (FreeGeneric a i) = "〈" <+> small a <+> "ε" <+> small i <+> "〉"
+  pretty (FreeGeneric a i) = "〈" <> small a <> "ε" <> small i <> "〉"
 
 instance NFData SizeType where
   rnf (SizeTree size rest) = rnf size `seq` rnf rest

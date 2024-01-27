@@ -249,18 +249,24 @@ termToSizeType t@(Def q elims) = do
       let newTree = applyDataType dataArguments freshData
       reportSDoc "term.tbt" 60 $ "Resulting tree: " <+> pretty newTree <+> "for" <+> prettyTCM t
       predicate <- gets esPredicate
-      case newTree of
-        SizeTree (SDefined i) _ -> do
-          when (predicate q) $ modify (\s -> s { esChosenVariables = i : esChosenVariables s} )
-          case theDef constInfo of
-            Record { recInduction } -> when (recInduction == Just CoInductive) $ modify (\s -> s { esContravariantVariables = i : esContravariantVariables s })
-            _ -> pure ()
-        _ -> pure ()
+      collectChosenVariables newTree
       pure newTree
     _ -> do
       reportSDoc "term.tbt" 80 $ "Aborting conversion of " <+> prettyTCM q
       return UndefinedSizeType -- arbitraty function applications in signatures are not supported on the current stage
   where
+    collectChosenVariables :: SizeType -> MonadEncoder ()
+    collectChosenVariables (SizeTree (SDefined i) _) = do
+      predicate <- gets esPredicate
+      when (predicate q) $ modify (\s -> s { esChosenVariables = i : esChosenVariables s} )
+      constInfo <- ME $ getConstInfo q
+      case theDef constInfo of
+            Record { recInduction } -> when (recInduction == Just CoInductive) $ modify (\s -> s { esContravariantVariables = i : esContravariantVariables s })
+            _ -> pure ()
+    collectChosenVariables (SizeArrow _ r) = collectChosenVariables r
+    collectChosenVariables (SizeGeneric _ r) = collectChosenVariables r
+    collectChosenVariables _ = pure ()
+
     -- Freshens all first-order variables in an encoded type
     refreshFirstOrder :: SizeType -> MonadEncoder SizeType
     refreshFirstOrder s@(SizeGeneric args r) = SizeGeneric args <$> refreshFirstOrder r

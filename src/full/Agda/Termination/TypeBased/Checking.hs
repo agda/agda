@@ -298,9 +298,8 @@ eliminateProjection projName eliminatedRecord recordArgs = do
         reportSDoc "term.tbt" 40 $ "Adding new rigid:" <+> text (show x)
         addNewRigid (scFrom x) (SizeBounded (scTo x))
     _ -> pure ()
-  reportSDoc "term.tbt" 20 $ vcat $ map (nest 2) $
-    [ "Eliminating projection:" <+> prettyTCM projName
-    , "of type: " <+> pretty projectionType
+  reportSDoc "term.tbt" 20 $ vcat $ ["Eliminating projection:" <+> prettyTCM projName] ++ map (nest 2)
+    [ "of type: " <+> pretty projectionType
     , "with record carrier: " <+> pretty eliminatedRecord
     ]
   reportSDoc "term.tbt" 60 $ vcat $ map (nest 2) $
