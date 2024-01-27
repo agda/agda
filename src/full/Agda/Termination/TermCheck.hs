@@ -333,9 +333,9 @@ runTypeBasedTerminationChecking allNames = runConditionalTerminationChecker type
         reportSDoc "term.tbt" 20 $ "!!!!!!!!!!!!!!!!!!!EXCEPTION:!!!!!!!!!!!!!!!!!!! " <+> prettyTCM (toList allNames)
         pure $ Right ()
       else billPureTo [Benchmark.TypeBasedTermination, Benchmark.Matrix] $ Term.terminates calls0
-    reportSDoc "term.tbt" 5 $ (case result of
-      Left errs -> "Type-based termination failed"
-      Right _ -> "Type-based termination succeded") <> " for definitions: " $$ nest 2 (prettyTCM (Set.toList allNames))
+    case result of
+      Left errs -> reportSDoc "term.tbt.failure" 5 $ ("Type-based termination failed for definitions " $$ nest 2 (prettyTCM (Set.toList allNames)))
+      Right _ -> reportSDoc "term.tbt" 5 $ ("Type-based termination succeded for definitions " $$ nest 2 (prettyTCM (Set.toList allNames)))
     pure result
 
 -- | Smart constructor for 'TerminationError'.

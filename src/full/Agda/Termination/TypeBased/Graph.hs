@@ -77,7 +77,9 @@ simplifySizeGraph rigidContext graph = billTo [Benchmark.TypeBasedTermination, B
 
   -- Lazy map representing an approximate cluster of each variable
   let rigidClusters = (mapMaybe (\(i, b) -> (i,) <$> findCluster rigidContext i) rigidContext)
-  let clusterMapping = gatherClusters rigidClusters adjacencyMap (IntMap.fromList rigidClusters)
+  let mapInserter = IntMap.insertWith (\n old -> head n : old)
+  let surrounding = foldr (\(SConstraint _ from to) mp -> mapInserter to [from] (mapInserter from [to] mp)) IntMap.empty enrichedGraph
+  let clusterMapping = gatherClusters rigidClusters surrounding (IntMap.fromList rigidClusters)
 
   -- We are going to assign each rigid variable a size expression corresponding to itself.
   let initialSubst = IntMap.fromList (map (\(i, bound) ->
@@ -89,11 +91,11 @@ simplifySizeGraph rigidContext graph = billTo [Benchmark.TypeBasedTermination, B
   substitution <- instantiateComponents arity rigidContext clusterMapping adjacencyMap initialSubst sccs
   pure $ (substitution, clusterMapping)
 
-gatherClusters :: [(Int, Int)] -> DGraph.Graph Int ConstrType -> IntMap Int -> IntMap Int
+gatherClusters :: [(Int, Int)] -> IntMap [Int] -> IntMap Int -> IntMap Int
 gatherClusters [] _ res = res
 gatherClusters list graph res =
   let (combinedMap, combinedNextLevel) = foldr (\(vertex, cluster) (mp, collected) ->
-        let surrounding = map DGraph.target (DGraph.edgesFrom graph [vertex]) ++ map DGraph.source (DGraph.edgesTo graph [vertex])
+        let surrounding = fromMaybe [] (IntMap.lookup vertex graph)
         in foldr (\neighborVertex (newMp, newEdges) -> if IntMap.member neighborVertex newMp
               then (newMp, newEdges)
               else (IntMap.insert neighborVertex cluster newMp, (neighborVertex, cluster) : newEdges)) (mp, collected) surrounding) (res, []) list

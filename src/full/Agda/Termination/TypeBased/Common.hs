@@ -18,6 +18,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Pretty
 import Agda.Utils.Impossible
+import Agda.Syntax.Common.Pretty (prettyShow)
 
 -- | 'applyDataType params tele' reduces arrow/parameterized 'tele' by applying 'params'
 applyDataType :: [SizeType] -> SizeType  -> SizeType

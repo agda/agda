@@ -149,7 +149,11 @@ matchLHS tele patterns = do
 
             freshenedSignature <- freshenCopatternProjection newCodepthVar bounds tele
             -- Additional argument is needed because we want to get rid of the principal argument in the signature
+            -- This is application that is intended to get rid of the basic record arguments
             let appliedProjection = applyDataType (recordArgs ++ [UndefinedSizeType]) freshenedSignature
+            -- TODO: handle copying here,
+            -- since apparently there can be copies in copatterns (!)
+            lift $ MSC $ modify (\s -> s { scsErrorMessages = "Copy in a copattern projection" : scsErrorMessages s })
             reportSDoc "term.tbt" 20 $ vcat $
               [ "Matching copattern projection:" <+> prettyTCM qn] ++ map (nest 2)
               [ "coinductive: " <+> text (show isForCoinduction)
@@ -161,6 +165,7 @@ matchLHS tele patterns = do
               , "of bounds: " <+> pretty bounds
               , "with record arguments: " <+> pretty recordArgs
               , "of freshened signature: " <+> pretty freshenedSignature
+              , "copy: " <+> pretty (defCopy constInfo)
               , "new codepth: " <+> text (show newCoDepth)
               ]
             modify (\s -> s { peCoDepth = newCoDepth })
@@ -255,7 +260,12 @@ matchSizePattern _ _ = __IMPOSSIBLE__
 
 -- | Runs action with the specified inductive depth
 withDepth :: Int -> PatternEncoder a -> PatternEncoder a
-withDepth i = withStateT (\s -> s { peDepth = i })
+withDepth i action = do
+  oldState <- gets peDepth
+  modify (\s -> s { peDepth = i })
+  res <- action
+  modify (\s -> s { peDepth = oldState })
+  pure res
 
 -- | Folding on size telescope zipped with a supplied list values
 foldDomainSizeType :: Monad m => (Int -> Int -> b -> m a) -> (SizeType -> b -> m a) -> [b] -> SizeType -> m [b]
