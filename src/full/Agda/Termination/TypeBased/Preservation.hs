@@ -92,17 +92,7 @@ initSizePreservationStructure tele = do
                (map (, inductiveDomain) inductiveCodomain) -- instantiating inductive codomain to inductive domain
   let candidates = IntMap.fromList zipped
   reportSDoc "term.tbt" 40 $ "Size preservation candidates: " <> pretty candidates
-  let totals = sum (map length (IntMap.elems candidates))
-  -- Size preservation is a very expensive computation.
-  -- Graph processing on its own is not cheap, as there may be up to 100.000 size variables in a single function.
-  -- Luckily, we use quasilinear algorithm for this purpose.
-  -- But then, size preservation can make the algorithm run thousands of times, and in that case even quasi-linearity does not save us.
-  -- Here I make an assumption that mostly small helper functions can benefit from size preservation.
-  -- Therefore, we can try to avoid this heavy computation for a very complicated function.
-  -- TODO: Make this limit configurable.
-  -- TODO: Need better heuristic. Maybe allow running size preservation on certain size variables, like only top-level?
-  when (totals < 100) $
-    MSC $ modify (\s -> s { scsPreservationCandidates = IntMap.fromList zipped })
+  MSC $ modify (\s -> s { scsPreservationCandidates = IntMap.fromList zipped })
   where
     -- Collects a set of variables that are used in the codomain of the function.
     gatherCodomainVariables :: SizeType -> [Int]

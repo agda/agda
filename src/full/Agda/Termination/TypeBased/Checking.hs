@@ -23,6 +23,7 @@ import Data.Set ( Set )
 import qualified Data.List as List
 import Agda.Syntax.Abstract.Name
 import Control.Monad.IO.Class
+import Data.Foldable
 import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Monad.Context
@@ -164,7 +165,9 @@ sizeCheckTerm' expected t@(Con ch ci elims) = do
   remainingCodomain <- sizeCheckEliminations preparedConstructorType elims
   inferenceToChecking expected remainingCodomain
   pure $ remainingCodomain
-sizeCheckTerm' _ (Level _) = pure $ UndefinedSizeType -- TODO
+sizeCheckTerm' _ (Level (Max _ ls)) = do
+  traverse_ (sizeCheckTerm UndefinedSizeType . (\(Plus _ i) -> i)) ls
+  pure UndefinedSizeType
 sizeCheckTerm' expected t@(Lam info tm) = do
   reportSDoc "term.tbt" 20 $ vcat
     [ "Dispatching into lambda expression"
@@ -189,7 +192,21 @@ sizeCheckTerm' expected t@(MetaV _ el) = do
     MetaV _ _ -> pure $ UndefinedSizeType
     t -> sizeCheckTerm expected t
 sizeCheckTerm' _ (Lit _) = pure $ UndefinedSizeType -- todo
-sizeCheckTerm' _ (Sort _) = pure $ UndefinedSizeType
+sizeCheckTerm' _ (Sort s) = case s of
+  Univ _ l -> sizeCheckTerm UndefinedSizeType (Level l)
+  PiSort d i r -> do
+    _ <- sizeCheckTerm UndefinedSizeType (unDom d)
+    _ <- sizeCheckTerm UndefinedSizeType (Sort i)
+    _ <- sizeCheckTerm UndefinedSizeType (Sort (unAbs r))
+    pure UndefinedSizeType
+  FunSort f s -> do
+    _ <- sizeCheckTerm UndefinedSizeType (Sort f)
+    _ <- sizeCheckTerm UndefinedSizeType (Sort s)
+    pure UndefinedSizeType
+  UnivSort t -> do
+    _ <- sizeCheckTerm UndefinedSizeType (Sort t)
+    pure UndefinedSizeType
+  _ -> pure UndefinedSizeType
 sizeCheckTerm' _ (DontCare _) = pure $ UndefinedSizeType
 sizeCheckTerm' _ (Dummy _ _) = pure $ UndefinedSizeType
 

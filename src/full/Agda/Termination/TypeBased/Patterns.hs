@@ -1,5 +1,14 @@
 {- | Contains functions that are used to encode clause patterns
      Pattern encoding is very important step of the type-based termination, since it allows to populate the set of rigid variables.
+
+     Here and after, the implementation heavily refers to the notion of _cluster_.
+     Given a sized signature of a function, clusters are defined as indexes of all size variables in that signature.
+     Example:
+     If a function foo has type 't₀ → t₁<ε₁,t₂> → t₃', then the clusters are [0, 1, 2, 3].
+
+     Clusters represent all possible size parameters of a function (even codomain is used, it has its role in coinductive definitions).
+     Clusters are needed to represent the handling of non-recursive constructors, constructing size-change-termination matrices,
+     and applying certain heuristic during the graph processing phase.
 -}
 module Agda.Termination.TypeBased.Patterns where
 
@@ -72,8 +81,7 @@ data PatternEnvironment = PatternEnvironment
 
 
 -- | This function populates the set of rigid variables for a clause.
---   Each separate size variable of a function's signature induces a _cluster_,
---   which is an index of a top-level size variable in the function's parameter list.
+--
 --   During the processing of a parameter, we maintain a stack of depth size variables,
 --   which get assigned to core variables on the corresponding levels of decomposition.
 --   Consider the following example:
@@ -153,7 +161,7 @@ matchLHS tele patterns = do
             let appliedProjection = applyDataType (recordArgs ++ [UndefinedSizeType]) freshenedSignature
             -- TODO: handle copying here,
             -- since apparently there can be copies in copatterns (!)
-            lift $ MSC $ modify (\s -> s { scsErrorMessages = "Copy in a copattern projection" : scsErrorMessages s })
+            when (defCopy constInfo) $ lift $ MSC $ modify (\s -> s { scsErrorMessages = "Copy in a copattern projection" : scsErrorMessages s })
             reportSDoc "term.tbt" 20 $ vcat $
               [ "Matching copattern projection:" <+> prettyTCM qn] ++ map (nest 2)
               [ "coinductive: " <+> text (show isForCoinduction)
