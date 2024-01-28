@@ -567,7 +567,7 @@ quicklatex-test :
 std-lib-test :
 	@$(call decorate, "Standard library test", \
 		(cd std-lib && cabal run GenerateEverything && \
-						time $(AGDA_BIN) $(AGDA_OPTS) --ignore-interfaces --no-syntax-based-termination --type-based-termination -v term.tbt:11 --show-implicit --no-default-libraries $(PROFILEOPTS) \
+						time $(AGDA_BIN) $(AGDA_OPTS) --ignore-interfaces --no-default-libraries $(PROFILEOPTS) \
 														 -i. -isrc Everything.agda \
 														 +RTS -s))
 
