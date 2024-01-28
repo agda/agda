@@ -168,10 +168,11 @@ collectClusteringIssues candidateVar totalGraph (_ : rest) bounds = collectClust
 applySizePreservation :: SizeSignature -> MonadSizeChecker SizeSignature
 applySizePreservation s@(SizeSignature _ _ tele) = do
   candidates <- MSC $ gets scsPreservationCandidates
+  isPreservationEnabled <- sizePreservationOption
   flatCandidates <- forM (IntMap.toAscList candidates) (\(replaceable, candidates) -> (replaceable,) <$> case candidates of
         [unique] -> do
           reportSDoc "term.tbt" 40 $ "Assigning" <+> text (show replaceable) <+> "to" <+> text (show unique)
-          pure $ Just unique
+          pure $ if isPreservationEnabled then Just unique else Nothing
         (_ : _) -> do
           -- Ambiguous situation, we would rather not assign anything here at all
           reportSDoc "term.tbt" 60 $ "Multiple candidates for variable" <+> text (show replaceable)
@@ -188,22 +189,30 @@ applySizePreservation s@(SizeSignature _ _ tele) = do
 
 -- | Actually applies size preservation assignment to a signature.
 --
--- It is important to *not* assign the non-preserving variables to inifities.
--- If such a variable is assigned to infinity, it may result in incoherences later.
---
 -- The input list must be ascending in keys.
 reifySignature :: [(Int, Maybe Int)] -> SizeSignature -> SizeSignature
 reifySignature mapping (SizeSignature bounds contra tele) =
-  let filteringMapping = mapMaybe (\(i, j) -> (i, ) <$> j) mapping
-      newBounds = take (length bounds - length filteringMapping) bounds
-      offset x = length (filter (< x) (map fst filteringMapping))
+  let newBounds = take (length bounds - length mapping) bounds
+      offset x = length (filter (< x) (map fst mapping))
       actualOffsets = IntMap.fromAscList (zip [0..] (List.unfoldr (\(ind, list) ->
         case list of
-            [] -> if ind < length bounds then Just (ind - offset ind, (ind + 1, [])) else Nothing
+            [] -> if ind < length bounds then Just (Just (ind - offset ind), (ind + 1, [])) else Nothing
             ((i1, i2) : ps) ->
                  if i1 == ind
-                    then Just (i2 - offset i2, (ind + 1, ps))
-                    else Just (ind - offset ind, (ind + 1, list)))
-        (0, filteringMapping)))
-      newSig = (SizeSignature newBounds (List.nub (map (actualOffsets IntMap.!) contra)) (update (actualOffsets IntMap.!) tele))
-  in (lowerIndices newSig)
+                    then Just ((\i -> i - offset i) <$> i2 , (ind + 1, ps))
+                    else Just (Just (ind - offset ind), (ind + 1, list)))
+        (0, mapping)))
+      newSig = (SizeSignature newBounds (List.nub (mapMaybe (actualOffsets IntMap.!) contra)) (fixSizes (actualOffsets IntMap.!) tele))
+  in newSig
+  where
+    fixSizes :: (Int -> Maybe Int) -> SizeType -> SizeType
+    fixSizes subst (SizeTree size tree) = SizeTree (weakenSize size) (map (fixSizes subst) tree)
+      where
+        weakenSize :: Size -> Size
+        weakenSize SUndefined = SUndefined
+        weakenSize (SDefined i) = case subst i of
+          Nothing -> SUndefined
+          Just j -> SDefined j
+    fixSizes subst (SizeArrow l r) = SizeArrow (fixSizes subst l) (fixSizes subst r)
+    fixSizes subst (SizeGeneric args r) = SizeGeneric args (fixSizes subst r)
+    fixSizes subst (SizeGenericVar args i) = SizeGenericVar args i
