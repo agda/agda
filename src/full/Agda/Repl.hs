@@ -84,6 +84,9 @@ tests = map (second ("/Users/knisht/agda/inf/Tests/" ++) )
   , (NotOk, "Test33.agda")
   , (NotOk, "Test34.agda")
   , (NotOk, "Test35.agda")
+  , (Ok, "Test36.agda")
+  , (NotOk, "Test37.agda")
+  , (NotOk, "Test38.agda")
   ]
 
 execTests :: IO [()]

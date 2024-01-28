@@ -199,9 +199,7 @@ processSizedDefinitionMSC s@(SizeSignature bounds contra sizeSig) clauses = do
 
   let (domains, _) = sizeCodomain sizeSig
 
-  fixedSignature <- ifM (pure (domains > 0) `and2M` sizePreservationOption)
-    (billTo [Benchmark.TypeBasedTermination, Benchmark.Preservation] $ applySizePreservation s)
-    (pure s)
+  fixedSignature <- billTo [Benchmark.TypeBasedTermination, Benchmark.Preservation] $ applySizePreservation s
 
   pure $ (amendedSubst, fixedSignature)
 
