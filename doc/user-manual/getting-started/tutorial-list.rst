@@ -28,6 +28,7 @@ Tutorials and lecture notes
   programmers. It starts from basic knowledge of Haskell and builds up
   to using equational reasoning to formally prove correctness of
   functional programs.
+- effectfully (2020). `Inference in Agda <https://github.com/effectfully/inference-in-agda>`__.
 - Musa Al-hassy (2019). `A slow-paced introduction to reflection in Agda <https://github.com/alhassy/gentle-intro-to-reflection>`__.
 - Jesper Cockx (2019). `Formalize all the things (in Agda) <https://jesper.sikanda.be/posts/formalize-all-the-things.html>`__.
 - Jan Malakhovski (2013). `Brutal [Meta]Introduction to Dependent
