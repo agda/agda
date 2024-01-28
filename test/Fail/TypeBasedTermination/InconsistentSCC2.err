@@ -1,0 +1,6 @@
+TypeBasedTermination/InconsistentSCC2.agda:15,1-17,28
+Termination checking failed for the following functions:
+  bar
+Problematic calls:
+  bar (foo s n)
+    (at TypeBasedTermination/InconsistentSCC2.agda:17,15-18)

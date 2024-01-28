@@ -41,6 +41,7 @@ import qualified Agda.Syntax.Common.Pretty as P
 import qualified Agda.Benchmarking as Benchmark
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as DGraph
 import Agda.TypeChecking.Monad.Benchmark (billTo)
+import Data.Either
 
 -- A size expression is represented as a minimum of a set of rigid size variables,
 -- where the length of the set is equal to the number of clusters.
@@ -128,15 +129,19 @@ instantiateComponents baseSize rigids clusterMapping graph subst (comp : is) = d
   undefinedVars <- getUndefinedSizes
   fallback <- MSC $ gets scsFallbackInstantiations
 
-  let lowerBounds = mapMaybe (\(DGraph.Edge bigger lower constr) ->
-        if (not $ lower `List.elem` comp)
-        then Just (constr, lower)
-        else Nothing) (DGraph.edgesFrom graph comp)
+  let (lowerBounds, inComponentEdges) = partitionEithers $ map (\(DGraph.Edge bigger lower constr) ->
+        if (lower `List.elem` comp)
+        then Right constr
+        else Left (constr, lower)) (DGraph.edgesFrom graph comp)
   let lowerBoundSizes = map (\(a, x) -> (a, fromMaybe baseSize (subst IntMap.!? x))) lowerBounds
 
 
   -- Let's try to guess an instantiation of a component of flexible variables
   let assignedSize
+        | (any (== SLte) inComponentEdges) =
+          -- So there is a constraint of type '<' in a strongly connected component
+          -- Which implies that the component should be assigned to infinity, as we essentially have 'a < a'
+          baseSize
         | (any (`IntSet.member` undefinedVars) comp) =
            -- Some element in the component has is bigger or equal than infinity,
            -- which means that the component should be assigned to infinity
