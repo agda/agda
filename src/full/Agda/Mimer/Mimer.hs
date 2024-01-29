@@ -104,7 +104,7 @@ mimer ii rng argStr = liftTCM $ do
     sols <- runSearch opts ii rng
     putTC oldState
 
-    sol <- case drop (optSkip opts) $ zip [1..] sols of
+    sol <- case drop (optSkip opts) $ zip [0..] sols of
           [] -> do
             reportSLn "mimer.top" 10 "No solution found"
             return MimerNoResult
@@ -478,9 +478,10 @@ collectComponents opts costs ii mDefName whereNames metaId = do
       info <- getConstInfo qname
       typ <- typeOfConst qname
       cId <- fresh -- TODO: We generate this id even if it is not used
+      scope <- getScope
       case theDef info of
         Axiom{} | isToLevel typ -> return comps{hintLevel = mkComponentQ cId (costLevel costs) qname (Def qname []) typ : hintLevel comps}
-                | shouldKeep -> return comps{hintAxioms = mkComponentQ cId (costAxiom costs) qname (Def qname []) typ : hintAxioms comps}
+                | shouldKeep scope -> return comps{hintAxioms = mkComponentQ cId (costAxiom costs) qname (Def qname []) typ : hintAxioms comps}
                 | otherwise -> return comps
         -- TODO: Check if we want to use these
         DataOrRecSig{} -> return comps
@@ -493,7 +494,7 @@ collectComponents opts costs ii mDefName whereNames metaId = do
           | Just qname == mDefName -> return comps{hintThisFn = Just $ mkComponentQ cId (costRecCall costs) qname (Def qname []) typ}
           | isToLevel typ && isNotMutual qname f
             -> return comps{hintLevel = mkComponentQ cId (costLevel costs) qname (Def qname []) typ : hintLevel comps}
-          | isNotMutual qname f && shouldKeep
+          | isNotMutual qname f && shouldKeep scope
             -> return comps{hintFns = mkComponentQ cId (costFn costs) qname (Def qname []) typ : hintFns comps}
           | otherwise -> return comps
         Datatype{} -> return comps{hintDataTypes = mkComponentQ cId (costSet costs) qname (Def qname []) typ : hintDataTypes comps}
@@ -505,18 +506,20 @@ collectComponents opts costs ii mDefName whereNames metaId = do
         Constructor{} -> return comps
         -- TODO: special treatment for primitives?
         Primitive{} | isToLevel typ -> return comps{hintLevel = mkComponentQ cId (costLevel costs) qname (Def qname []) typ : hintLevel comps}
-                    | shouldKeep -> return comps{hintFns = mkComponentQ cId (costFn costs) qname (Def qname []) typ : hintFns comps}
+                    | shouldKeep scope -> return comps{hintFns = mkComponentQ cId (costFn costs) qname (Def qname []) typ : hintFns comps}
                     | otherwise -> return comps
         PrimitiveSort{} -> do
           return comps
       where
-        shouldKeep = qname `elem` explicitHints
-                  || qname `elem` whereNames
-                  || (case hintMode of
-                        Unqualified -> False -- TODO
-                        AllModules -> True
-                        Module -> Just (qnameModule qname) == mThisModule
-                        NoHints -> False)
+        shouldKeep scope = or
+          [ qname `elem` explicitHints
+          , qname `elem` whereNames
+          , case hintMode of
+              Unqualified -> Scope.isNameInScopeUnqualified qname scope
+              AllModules  -> True
+              Module      -> Just (qnameModule qname) == mThisModule
+              NoHints     -> False
+          ]
 
         -- TODO: There is probably a better way of finding the module name
         mThisModule = qnameModule <$> mDefName
@@ -708,9 +711,6 @@ runSearch options ii rng = withInteractionId ii $ do
   metaId <- lookupInteractionId ii
   metaVar <- lookupLocalMeta metaId
 
-  state <- getTC
-  env <- askTC
-
   metaIds <- case mvInstantiation metaVar of
     InstV inst -> do
 
@@ -761,6 +761,9 @@ runSearch options ii rng = withInteractionId ii $ do
                  {- else -} (return defaultCosts)
       reportDoc "mimer.cost.custom" 10 $ "Using costs:" $+$ nest 2 (pretty costs)
       components <- collectComponents options costs ii mTheFunctionQName whereNames metaId
+
+      state <- getTC
+      env <- askTC
 
       startGoals <- mapM mkGoal metaIds
       let startBranch = SearchBranch

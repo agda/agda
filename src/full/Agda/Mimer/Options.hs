@@ -38,7 +38,7 @@ parseOptions ii range argStr = do
   return Options
     { optTimeout = firstOr 1000 [fromIntegral $ parseTime t | T t <- tokens]
     -- TODO: Do arg properly
-    , optHintMode = firstOr NoHints ([Module | M <- tokens] ++ [Unqualified | R <- tokens])
+    , optHintMode = firstOr NoHints ([Module | M <- tokens] ++ [Unqualified | U <- tokens])
     , optExplicitHints = hints
     , optList = elem L tokens
     , optSkip = firstOr 0 [ n | S s <- tokens, n <- maybeToList $ readMaybe s ]
@@ -69,7 +69,7 @@ firstOr x [] = x
 firstOr _ (x:_) = x
 
 
-data Token = T String | M | R | C | L | S String | H String
+data Token = T String | M | U | C | L | S String | H String
   deriving (Eq, Show)
 
 readTokens :: [String] -> [Token]
@@ -79,7 +79,7 @@ readTokens ("-s" : n : ws) = S n : readTokens ws
 readTokens ("-l"     : ws) = L   : readTokens ws
 readTokens ("-m"     : ws) = M   : readTokens ws
 readTokens ("-c"     : ws) = C   : readTokens ws
-readTokens ("-r"     : ws) = R   : readTokens ws
+readTokens ("-u"     : ws) = U   : readTokens ws
 readTokens (h        : ws) = H h : readTokens ws
 
 instance Pretty HintMode where
