@@ -149,9 +149,9 @@ This function is encoded as a single size variable ``t₃``. Let's focus on the 
 
 Record projections, like data constructors, introduce rigid variables during copattern matching. Here, the rigid variables are ``t₃`` and ``t₄`` with ``t₄ < t₃``, where ``t₃ → t₄`` represents the adjusted size type of tail, initially ``t₁ → t₂``. We see that the role of codomain in the size signature is more critical here than in inductive functions.
 
-Considering the usage of ``tail``, the expected type of the body of the second clause is ``Stream`` or, as a size type, t₄. The body contains a single recursive call to repeat, which, as following the logic of the previous section, introduces a fresh size type ``t₅``. Notably, since ``Stream`` is a coinductive type, it monotonically decreases in its size, allowing "deeper" streams to be used wherever "shallower" streams are required. Therefore, the desired constraint is ``t₄ ≤ t₅`` — any stream with depth greater or equal to ``t₄`` suffices here.
+Considering the usage of ``tail``, the expected type of the body of the second clause is ``Stream`` or, as a size type, ``t₄``. The body contains a single recursive call to repeat, which, as following the logic of the previous section, introduces a fresh size type ``t₅``. Notably, since ``Stream`` is a coinductive type, it monotonically decreases in its size, allowing "deeper" streams to be used wherever "shallower" streams are required. Therefore, the desired constraint is ``t₄ ≤ t₅`` — any stream with depth greater or equal to ``t₄`` suffices here.
 
-In this environment, the only flexible variable is ``t₅``, which can be assigned to ``t₄``. Since ``t₄ < t₃``, the recursive call to repeat is used with a smaller depth than the enclosing repeat, indicating that the definition is productive—it does not consume more of itself than necessary for production.
+In this environment, the only flexible variable is ``t₅``, which can be assigned to ``t₄``. Since ``t₄ < t₃``, the recursive call to ``repeat`` is used with a smaller depth than the enclosing ``repeat``, indicating that the definition is productive—it does not consume more of itself than necessary for production.
 
 .. _type-based-termination-checking-size-preservation:
 
@@ -218,7 +218,7 @@ As a final note, we address performance considerations. Currently, size-preserva
 Limitations
 -----------
 
-The most significant limitation of the current implementation is rooted in the fact that the size type system relies on System Fω, while the target language of Agda is dependently-typed. In cases where a type signature of a function involves large elimination, it is likely that the type-based termination checker will encounter difficulties. This limitation arises because dependent types introduce additional complexity to the underlying theory, which was initially developed for a variant of System Fω. Further details on the semantical framework can be explored in :ref:`[1]<type-based-termination-checking-references>`.
+The most significant limitation of the current implementation is rooted in the fact that the size type system relies on System Fω, while the target language of Agda is dependently-typed. In cases where a type signature of a function involves large elimination, it is likely that the type-based termination checker will encounter difficulties. This limitation arises because dependent types introduce additional complexity to the underlying theory, which was initially developed for a variant of System Fω. Further details on the semantical framework can be explored in :ref:`[2]<type-based-termination-checking-references>`.
 
 The semantical framework used in the type-based termination checker is a variant of *sized types*. However, the sized types in Agda do not interact with the type-based termination checker. This stems partly from the complexity and unsoundness of sized types, whereas the type-based termination checker utilizes an intentionally restricted version of them. Presently, sized types serve as a means to manually address termination issues, although there are plans for the potential for interaction between type-based termination and sized types in the future.
 
@@ -235,4 +235,3 @@ References
 
 [2] Andreas Abel, Brigitte Pientka -- `Well-founded recursion with copatterns and sized types.
 <https://www.cambridge.org/core/journals/journal-of-functional-programming/article/wellfounded-recursion-with-copatterns-and-sized-types/39794AEA4D0F5003C8E9F88E564DA8DD>`_
-
