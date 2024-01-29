@@ -10,7 +10,7 @@ import Control.Monad.Except (catchError)
 import Control.Monad.Error.Class (MonadError)
 import Control.Monad.Fail (MonadFail)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Reader (ReaderT(..), runReaderT, asks, ask)
+import Control.Monad.Reader (ReaderT(..), runReaderT, asks, ask, lift)
 import Data.Function (on)
 import Data.Functor ((<&>))
 import Data.List (sortOn, intersect, transpose, (\\))
@@ -34,6 +34,7 @@ import qualified Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Abstract.Name (QName(..), Name(..))
 import Agda.Syntax.Common (InteractionId(..), MetaId(..), ArgInfo(..), defaultArgInfo, Origin(..), ConOrigin(..), Hiding(..), setOrigin, NameId, Nat, namedThing, Arg(..), setHiding, getHiding, ProjOrigin(..), rangedThing, woThing, nameOf, visible)
 import Agda.Syntax.Common.Pretty (Pretty, Doc, prettyShow, prettyList, render, pretty, braces, prettyList_, text, (<+>), nest, lbrace, rbrace, comma, ($$), vcat, ($+$), align, cat, parens)
+import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Info (exprNoRange)
 import Agda.Syntax.Internal -- (Type, Type''(..), Term(..), Dom'(..), Abs(..), arity , ConHead(..), Sort'(..), Level, argFromDom, Level'(..), absurdBody, Dom, namedClausePats, Pattern'(..), dbPatVarIndex)
 import Agda.Syntax.Internal.MetaVars (AllMetas(..))
@@ -41,6 +42,7 @@ import Agda.Syntax.Internal.Pattern (clausePerm)
 import Agda.Syntax.Position (Range, rangeFile, rangeFilePath)
 import qualified Agda.Syntax.Scope.Base as Scope
 import Agda.Syntax.Translation.InternalToAbstract (reify, NamedClause(..))
+import Agda.Syntax.Translation.AbstractToConcrete (abstractToConcrete_)
 import Agda.TypeChecking.Constraints (noConstraints)
 import Agda.TypeChecking.Conversion (equalType)
 import qualified Agda.TypeChecking.Empty as Empty -- (isEmptyType)
@@ -405,10 +407,7 @@ isTypeDatatype typ = do
 
 -- ^ NOTE: Collects components from the *current* context, not the context of
 -- the 'InteractionId'.
-collectComponents :: ( MonadTCM tcm, ReadTCState tcm, HasConstInfo tcm, MonadFresh NameId tcm
-                     , MonadInteractionPoints tcm, MonadStConcreteNames tcm, PureTCM tcm
-                     , MonadError TCErr tcm, MonadFresh CompId tcm)
-  => Options -> Costs -> InteractionId -> Maybe QName -> [QName] -> MetaId -> tcm BaseComponents
+collectComponents :: Options -> Costs -> InteractionId -> Maybe QName -> [QName] -> MetaId -> TCM BaseComponents
 collectComponents opts costs ii mDefName whereNames metaId = do
   lhsVars' <- collectLHSVars ii
   let recVars = map fst . filter snd <$> lhsVars'
@@ -902,7 +901,7 @@ genComponents :: SM [(Component, [Component])]
 genComponents = do
   opts <- ask
   let comps = searchBaseComponents opts
-  localVars <- getLocalVars (costLocal $ searchCosts opts)
+  localVars <- lift (getLocalVars (costLocal $ searchCosts opts))
     >>= genAddSource (searchGenProjectionsLocal opts)
   recCalls <- genRecCalls >>= genAddSource (searchGenProjectionsRec opts)
   letVars <- mapM getOpenComponent (hintLetVars comps)
@@ -1158,7 +1157,7 @@ genRecCalls = asks (hintThisFn . searchBaseComponents) >>= \case
     [] -> return []
     recCandTerms -> do
       Costs{..} <- asks searchCosts
-      localVars <- getLocalVars costLocal
+      localVars <- lift $ getLocalVars costLocal
       let recCands = filter (\t -> case compTerm t of v@Var{} -> v `elem` recCandTerms; _ -> False) localVars
 
       let newRecCall = do
@@ -1484,20 +1483,23 @@ bench k ma = billTo (mimerAccount : k) ma
 -- getContextArgs :: (Applicative m, MonadTCEnv m) => m Args
 -- getContextTelescope :: (Applicative m, MonadTCEnv m) => m Telescope
 -- getContextTerms :: (Applicative m, MonadTCEnv m) => m [Term]
-getLocalVars :: (MonadTCM tcm, MonadFresh CompId tcm)
-  => Cost -> tcm [Component]
+getLocalVars :: Cost -> TCM [Component]
 getLocalVars cost = do
   typedTerms <- getLocalVarTerms
   let varZeroDiscount (Var 0 []) = 1
       varZeroDiscount _          = 0
   mapM (\(term, domTyp) -> newComponent [] (cost - varZeroDiscount term) noName term (unDom domTyp)) typedTerms
 
-getLocalVarTerms :: (MonadTCM tcm, MonadFresh CompId tcm)
-  => tcm [(Term, Dom Type)]
+getLocalVarTerms :: TCM [(Term, Dom Type)]
 getLocalVarTerms = do
   contextTerms <- getContextTerms
   contextTypes <- flattenTel <$> getContextTelescope
-  return $ zip contextTerms contextTypes
+  let inScope Dom{ unDom = (name, _) } = do
+        x <- abstractToConcrete_ name
+        pure $ C.isInScope x == C.InScope
+  scope <- mapM inScope . reverse =<< getContext
+  return [ e | (True, e) <- zip scope $ zip contextTerms contextTypes ]
+
 
 
 prettyBranch :: SearchBranch -> SM String
