@@ -324,20 +324,34 @@ compareTerm' cmp a m n =
             then do
               whenProfile Profile.Conversion $ tick "compare at eta record"
               sig <- getSignature
-              let ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-              -- Andreas, 2010-10-11: allowing neutrals to be blocked things does not seem
-              -- to change Agda's behavior
-              --    isNeutral Blocked{}          = False
-                  isNeutral (NotBlocked _ Con{}) = return False
-              -- Andreas, 2013-09-18 / 2015-06-29: a Def by copatterns is
-              -- not neutral if it is blocked (there can be missing projections
-              -- to trigger a reduction.
-                  isNeutral (NotBlocked r (Def q _)) = do    -- Andreas, 2014-12-06 optimize this using r !!
-                    not <$> usesCopatterns q -- a def by copattern can reduce if projected
-                  isNeutral _                   = return True
-                  isMeta b = case ignoreBlocking b of
-                               MetaV{} -> True
-                               _       -> False
+
+              transp <- getPrimitiveName' builtinTrans
+              hcomp <- getPrimitiveName' builtinHComp
+
+              let
+                ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+                -- Andreas, 2010-10-11: allowing neutrals to be blocked things does not seem
+                -- to change Agda's behavior
+                --    isNeutral Blocked{}          = False
+                isNeutral (NotBlocked _ Con{}) = return False
+
+                -- Andreas, 2013-09-18 / 2015-06-29: a Def by copatterns is
+                -- not neutral if it is blocked (there can be missing projections
+                -- to trigger a reduction.
+                isNeutral (NotBlocked r (Def q _)) = do    -- Andreas, 2014-12-06 optimize this using r !!
+                  not <$> usesCopatterns q -- a def by copattern can reduce if projected
+                isNeutral _                   = return True
+
+                -- Amy, 2024-01-29: Is this blocked application headed by one of the
+                -- cubical primitives that behave as though they are copattern matching?
+                isCubicalPrimHead (NotBlocked r (Def q _)) -- Amy, 2024-01-29: optimise this using r !!
+                  | Just q == transp || Just q == hcomp
+                  = Just q
+                isCubicalPrimHead _ = Nothing
+
+                isMeta b = case ignoreBlocking b of
+                  MetaV{} -> True
+                  _       -> False
 
               reportSDoc "tc.conv.term" 30 $ prettyTCM a <+> "is eta record type"
               m <- reduceB m
@@ -353,9 +367,17 @@ compareTerm' cmp a m n =
                      -- if we are dealing with a singleton record,
                      -- we can succeed immediately
                      let profUnitEta = whenProfile Profile.Conversion $ tick "compare at eta-record: both neutral at unit"
-                     ifM (isSingletonRecordModuloRelevance r ps) (profUnitEta) $ do
+                     ifM (isSingletonRecordModuloRelevance r ps) profUnitEta $ do
                        -- do not eta-expand if comparing two neutrals
                        compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
+
+                 -- If the terms are both headed by *the same* cubical primitive we can
+                 -- skip doing the eta-expansion, which in some cases (e.g. GroupPath
+                 -- in the cubical library) causes awful awful slowdowns.
+                 | Just h1 <- isCubicalPrimHead m, Just h2 <- isCubicalPrimHead n, h1 == h2 -> do
+                    whenProfile Profile.Conversion $ tick "compare at eta-record: same cubical operation"
+                    compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
+
                  | otherwise -> do
                      whenProfile Profile.Conversion $ tick "compare at eta-record: eta-expanding"
                      (tel, m') <- etaExpandRecord r ps $ ignoreBlocking m
