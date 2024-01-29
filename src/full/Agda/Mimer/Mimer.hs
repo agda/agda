@@ -221,7 +221,6 @@ data SearchStepResult
 instance NFData SearchStepResult
 
 
--- NOTE: If you edit this, update the corr
 data SearchOptions = SearchOptions
   { searchBaseComponents :: BaseComponents
   , searchHintMode :: HintMode
@@ -412,7 +411,7 @@ collectComponents opts costs ii mDefName whereNames metaId = do
   lhsVars' <- collectLHSVars ii
   let recVars = map fst . filter snd <$> lhsVars'
   lhsVars <- getOpen $ map fst <$> lhsVars'
-  typedLocals <- getLocalVarTerms
+  typedLocals <- getLocalVarTerms 0
   reportSDoc "mimer.components" 40 $ do
     vars <- prettyTCM lhsVars
     return $ "All LHS variables:" <+> vars <+> parens ("or" <+> pretty lhsVars)
@@ -897,11 +896,18 @@ prepareComponents goal branch = withBranchAndGoal branch goal $ do
     updateStat incCompRegen
     (sourceComp,) <$> genComponentsFrom True sourceComp
 
+localVarCount :: SM Int
+localVarCount = do
+  top <- asks $ length . envContext . searchTopEnv
+  cur <- length <$> getContext
+  pure $ cur - top
+
 genComponents :: SM [(Component, [Component])]
 genComponents = do
   opts <- ask
   let comps = searchBaseComponents opts
-  localVars <- lift (getLocalVars (costLocal $ searchCosts opts))
+  n <- localVarCount
+  localVars <- lift (getLocalVars n (costLocal $ searchCosts opts))
     >>= genAddSource (searchGenProjectionsLocal opts)
   recCalls <- genRecCalls >>= genAddSource (searchGenProjectionsRec opts)
   letVars <- mapM getOpenComponent (hintLetVars comps)
@@ -1157,7 +1163,8 @@ genRecCalls = asks (hintThisFn . searchBaseComponents) >>= \case
     [] -> return []
     recCandTerms -> do
       Costs{..} <- asks searchCosts
-      localVars <- lift $ getLocalVars costLocal
+      n <- localVarCount
+      localVars <- lift $ getLocalVars n costLocal
       let recCands = filter (\t -> case compTerm t of v@Var{} -> v `elem` recCandTerms; _ -> False) localVars
 
       let newRecCall = do
@@ -1483,21 +1490,22 @@ bench k ma = billTo (mimerAccount : k) ma
 -- getContextArgs :: (Applicative m, MonadTCEnv m) => m Args
 -- getContextTelescope :: (Applicative m, MonadTCEnv m) => m Telescope
 -- getContextTerms :: (Applicative m, MonadTCEnv m) => m [Term]
-getLocalVars :: Cost -> TCM [Component]
-getLocalVars cost = do
-  typedTerms <- getLocalVarTerms
+getLocalVars :: Int -> Cost -> TCM [Component]
+getLocalVars localCxt cost = do
+  typedTerms <- getLocalVarTerms localCxt
   let varZeroDiscount (Var 0 []) = 1
       varZeroDiscount _          = 0
   mapM (\(term, domTyp) -> newComponent [] (cost - varZeroDiscount term) noName term (unDom domTyp)) typedTerms
 
-getLocalVarTerms :: TCM [(Term, Dom Type)]
-getLocalVarTerms = do
+getLocalVarTerms :: Int -> TCM [(Term, Dom Type)]
+getLocalVarTerms localCxt = do
   contextTerms <- getContextTerms
   contextTypes <- flattenTel <$> getContextTelescope
-  let inScope Dom{ unDom = (name, _) } = do
+  let inScope i _ | i < localCxt = pure True   -- Ignore scope for variables we inserted ourselves
+      inScope _ Dom{ unDom = (name, _) } = do
         x <- abstractToConcrete_ name
         pure $ C.isInScope x == C.InScope
-  scope <- mapM inScope . reverse =<< getContext
+  scope <- mapM (uncurry inScope) . reverse . zip [0..] =<< getContext
   return [ e | (True, e) <- zip scope $ zip contextTerms contextTypes ]
 
 
