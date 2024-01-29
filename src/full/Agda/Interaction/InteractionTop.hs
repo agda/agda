@@ -703,8 +703,12 @@ interpret (Cmd_autoOne ii rng str) = do
       insertOldInteractionScope ii iscope
       putResponse $ Resp_GiveAction ii $ Give_String str
       modifyTheInteractionPoints (List.delete ii)
+      maybe (return ()) (display_info . Info_Time) time
+    MimerList sols -> do
+      display_info $ Info_Auto $ unlines $
+        [ "Solutions:" ] ++
+        [ "  " ++ show i ++ ". " ++ s | (i, s) <- sols ]
     MimerClauses{} -> __IMPOSSIBLE__    -- Mimer can't do case splitting yet
-  maybe (return ()) (display_info . Info_Time) time
 
 interpret Cmd_autoAll = do
   iis <- getInteractionPoints
@@ -723,6 +727,7 @@ interpret Cmd_autoAll = do
           insertOldInteractionScope ii =<< getOldScope ii
           putResponse $ Resp_GiveAction ii $ Give_String str
           pure [ii]
+        MimerList{} -> pure []    -- Don't list solutions in autoAll
         MimerClauses{} -> __IMPOSSIBLE__  -- Mimer can't do case splitting yet
     modifyTheInteractionPoints (List.\\ solved)
 

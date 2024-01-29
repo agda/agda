@@ -1,6 +1,8 @@
 module Agda.Mimer.Options where
 
 import Data.Char
+import Data.Maybe
+import Text.Read
 
 import Agda.Interaction.BasicOps (parseExprIn)
 import Agda.Syntax.Common (Nat)
@@ -22,6 +24,8 @@ data HintMode = Unqualified | AllModules | Module | NoHints
 data Options = Options
   { optTimeout :: MilliSeconds
   , optHintMode :: HintMode
+  , optSkip :: Int  -- ^ Skip the first this many solutions
+  , optList :: Bool -- ^ List solutions instead of filling the hole
   , optExplicitHints :: [QName]
   } deriving Show
 
@@ -36,6 +40,8 @@ parseOptions ii range argStr = do
     -- TODO: Do arg properly
     , optHintMode = firstOr NoHints ([Module | M <- tokens] ++ [Unqualified | R <- tokens])
     , optExplicitHints = hints
+    , optList = elem L tokens
+    , optSkip = firstOr 0 [ n | S s <- tokens, n <- maybeToList $ readMaybe s ]
     }
 
 parseTime :: String -> Int
@@ -63,17 +69,18 @@ firstOr x [] = x
 firstOr _ (x:_) = x
 
 
-data Token = T String | M | R | C | L String | H String
+data Token = T String | M | R | C | L | S String | H String
   deriving (Eq, Show)
 
 readTokens :: [String] -> [Token]
 readTokens []              = []
-readTokens ("-t" : t : ws) = T t        : readTokens ws
-readTokens ("-l" : n : ws) = L n        : readTokens ws
-readTokens ("-m"     : ws) = M          : readTokens ws
-readTokens ("-c"     : ws) = C          : readTokens ws
-readTokens ("-r"     : ws) = R          : readTokens ws
-readTokens (h        : ws) = H h        : readTokens ws
+readTokens ("-t" : t : ws) = T t : readTokens ws
+readTokens ("-s" : n : ws) = S n : readTokens ws
+readTokens ("-l"     : ws) = L   : readTokens ws
+readTokens ("-m"     : ws) = M   : readTokens ws
+readTokens ("-c"     : ws) = C   : readTokens ws
+readTokens ("-r"     : ws) = R   : readTokens ws
+readTokens (h        : ws) = H h : readTokens ws
 
 instance Pretty HintMode where
   pretty = text . show

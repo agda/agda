@@ -80,6 +80,7 @@ import Agda.Utils.List (lastWithDefault)
 data MimerResult
   = MimerExpr String -- ^ Returns 'String' rather than 'Expr' because the give action expects a string.
   | MimerClauses QName [A.Clause]
+  | MimerList [(Int, String)]
   | MimerNoResult
   deriving (Generic)
 
@@ -100,14 +101,15 @@ mimer ii rng argStr = liftTCM $ do
 
     oldState <- getTC
 
-    sols <- runSearch opts True ii rng
+    sols <- runSearch opts ii rng
     putTC oldState
 
-    sol <- case sols of
+    sol <- case drop (optSkip opts) $ zip [1..] sols of
           [] -> do
             reportSLn "mimer.top" 10 "No solution found"
             return MimerNoResult
-          (sol:_) -> do
+          sols' | optList opts -> pure $ MimerList [ (i, s) | (i, MimerExpr s) <- sols' ]
+          (_, sol) : _ -> do
             reportSDoc "mimer.top" 10 $ do
               pSol <- prettyTCM sol
               return $ "Solution:" <+> pSol
@@ -690,9 +692,8 @@ updateStat f = verboseS "mimer.stats" 10 $ do
 -- * Core algorithm
 ------------------------------------------------------------------------------
 
--- TODO: Integrate stopAfterFirst with Options (maybe optStopAfter Nat?)
-runSearch :: Options -> Bool -> InteractionId -> Range -> TCM [MimerResult]
-runSearch options stopAfterFirst ii rng = withInteractionId ii $ do
+runSearch :: Options -> InteractionId -> Range -> TCM [MimerResult]
+runSearch options ii rng = withInteractionId ii $ do
   (mTheFunctionQName, whereNames) <- fmap ipClause (lookupInteractionPoint ii) <&> \case
     clause@IPClause{} -> ( Just $ ipcQName clause
                          , case A.whereDecls $ A.clauseWhereDecls $ ipcClause clause of
@@ -800,8 +801,9 @@ runSearch options stopAfterFirst ii rng = withInteractionId ii $ do
         -- TODO: Check what timing stuff is used in Agda.Utils.Time
         timeout <- fromMilliseconds <$> asks searchTimeout
         startTime <- liftIO getCPUTime
-        let go :: Int -> MinQueue SearchBranch -> SM ([MimerResult], Int)
-            go n branchQueue = case Q.minView branchQueue of
+        let go :: Int -> Int -> MinQueue SearchBranch -> SM ([MimerResult], Int)
+            go 0 n _ = pure ([], n)
+            go need n branchQueue = case Q.minView branchQueue of
               Nothing -> do
                 reportSLn "mimer.search" 30 $ "No remaining search branches."
                 return ([], n)
@@ -830,21 +832,14 @@ runSearch options stopAfterFirst ii rng = withInteractionId ii $ do
                      is <- mapM branchInstantiationDocCost newBranches
                      return $ "New branch instantiations:" <+> prettyList is
 
-                  if stopAfterFirst
-                  then case sols of
-                         [] -> do
-                           reportSLn "mimer.search" 40 $ "Continuing search"
-                           go (n + 1) branchQueue''
-                         _ -> do
-                           reportSLn "mimer.search" 40 $ "Search done (stopping after first solution)"
-                           return (sols, n)
-                  else do
-                    reportSLn "mimer.search" 40 $ "Continuing search"
-                    mapFst (sols ++) <$> go (n + 1) branchQueue''
+                  let sols' = take need sols
+                  mapFst (sols' ++) <$> go (need - length sols') (n + 1) branchQueue''
                 else do
                   reportSLn "mimer.search" 30 $ "Search time limit reached. Elapsed search time: " ++ show elapsed
                   return ([], n)
-        (sols, nrSteps) <- go 0 $ Q.singleton startBranch
+        let numSolutions | optList options = 10 + optSkip options
+                         | otherwise       = 1 + optSkip options
+        (sols, nrSteps) <- go numSolutions 0 $ Q.singleton startBranch
         reportSLn "mimer.search" 20 $ "Search ended after " ++ show (nrSteps + 1) ++ " cycles"
         -- results <- liftTCM $ mapM exprToStringAndVars sols
         reportSDoc "mimer.search" 15 $ do
@@ -1645,6 +1640,7 @@ instance PrettyTCM MimerResult where
     MimerExpr expr -> return $ "MimerExpr" <+> pretty expr
     MimerClauses f cl -> return $ "MimerClauses" <+> pretty f <+> "[..]" -- TODO: display the clauses
     MimerNoResult -> return "MimerNoResult"
+    MimerList sols -> return $ "MimerList" <+> pretty sols
 
 concatMapM :: Monad m => (a -> m [b]) -> [a] -> m [b]
 concatMapM f = fmap concat . mapM f
