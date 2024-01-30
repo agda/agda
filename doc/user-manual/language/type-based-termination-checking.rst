@@ -185,28 +185,28 @@ This behavior has useful consequences: consider a division of two natural number
 
 Another interesting application of size preservation can be found in combination with coinductive functions. For coinduction, size preservation seeks to determine whether it is possible to assign a fixed *codomain* size to some of the *domain* sizes. In other words, inductive definitions can be size-preserving in their output, while coinductive definitions can be size-preserving in their input.
 
-For example, consider a coinductive function ``zipWith`` (with polymorphic streams):
+For example, consider a coinductive function ``zipWith``:
 
 ::
 
-    zipWith : {A B C : Set} → (A → B → C) → Stream A → Stream B → Stream C
+    zipWith : (Nat → Nat → Nat) → Stream → Stream → Stream
     zipWith f s1 s2 .head = f (s1 .head) (s2 .head)
     zipWith f s1 s2 .tail = zipWith f (s1 .tail) (s2 .tail)
 
-Here, the depth of the returned ``Stream C`` is the same as the requested depth of incoming ``s1`` and ``s2``. The type-based termination checker recognizes this, concluding that all three ``s1``, ``s2``, and the returned stream share the same size variable. We can assume that ``zipWith`` has size signature ``t₀ → t₀ → t₀`` (we shall consistently avoid the explanation of how polymorphism is handled in size types).
+Here, the depth of the returned ``Stream`` is the same as the requested depth of incoming ``s1`` and ``s2``. The type-based termination checker recognizes this, concluding that all three ``s1``, ``s2``, and the returned stream share the same size variable. We can assume that ``zipWith`` has size signature ``(t₁ → t₂ → t₃) → t₀ → t₀ → t₀``.
 
 Given size-preserving ``zipWith``, we are able to define an infinite stream of Fibonacci numbers:
 
 ::
 
-   fib : Stream Nat
+   fib : Stream
    fib .head = zero
    fib .tail .head = suc zero
    fib .tail .tail = zipWith plus fib (fib .tail)
 
 This function passes termination checking. Let's figure out what is happening here by dissecting the third clause.
 
-Assume that ``fib`` is encoded as ``t₀``. The first copattern projection of tail brings a rigid size variable ``t₁``, and the second projection results in ``t₂``, which is also the expected type of the clause. Now, let a fresh size type of ``zipWith`` be ``t₃ → t₃ → t₃``; the size type of the first ``fib`` is ``t₄``, and the size type of the second ``fib`` (the projected one) is ``t₅``. Since the second ``fib`` is projected, we also have a fresh flexible size variable ``t₆`` with the requirement ``t₆ < t₅``. Given that all sizes represent coinductive definitions, we obtain a set of constraints ``t₂ ≤ t₃``, ``t₃ ≤ t₄``, ``t₃ ≤ t₆``, ``t₆ < t₅``. A suitable solution would be ``t₃ := t₂``, ``t₄ := t₂``, ``t₅ := t₁``, ``t₆ := t₂``. Both fibs are called with a size variable smaller than the top-level one (``t₂`` and ``t₁`` respectively), indicating that ``fib`` is productive. Note that size preservation is crucial here; otherwise, ``t₄`` and ``t₅`` would be disconnected from ``t₂``, implying that they have no suitable assignment among rigid variables.
+Assume that ``fib`` is encoded as ``t₀``. The first copattern projection of tail brings a rigid size variable ``t₁``, and the second projection results in ``t₂``, which is also the expected type of the clause. Now, let a fresh size type of ``zipWith`` be ``(_ → _ → _) → t₃ → t₃ → t₃`` (the sizes in function are irrelevant for this example; we shall ignore them); the size type of the first ``fib`` is ``t₄``, and the size type of the second ``fib`` (the projected one) is ``t₅``. Since the second ``fib`` is projected, we also have a fresh flexible size variable ``t₆`` with the requirement ``t₆ < t₅``. Given that all sizes represent coinductive definitions, we obtain a set of constraints ``t₂ ≤ t₃``, ``t₃ ≤ t₄``, ``t₃ ≤ t₆``, ``t₆ < t₅``. A suitable solution would be ``t₃ := t₂``, ``t₄ := t₂``, ``t₅ := t₁``, ``t₆ := t₂``. Both fibs are called with a size variable smaller than the top-level one (``t₂`` and ``t₁`` respectively), indicating that ``fib`` is productive. Note that size preservation is crucial here; otherwise, ``t₄`` and ``t₅`` would be disconnected from ``t₂``, implying that they have no suitable assignment among rigid variables.
 
 As a final note, we address performance considerations. Currently, size-preservation analysis is the slowest part of the type-based termination checker. If you suspect that it causes a slowdown, you can specify ``--no-size-preservation``, disabling the analysis while retaining the rest of the type-based termination checker. Nevertheless, there are plans to improve its performance.
 
