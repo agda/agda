@@ -164,27 +164,24 @@ This scenario is covered by another crucial aspect of the type-based termination
 
 While size checking a term, the checker can analyze dependencies between flexible and rigid size variables, concluding that some of them can be considered equal.
 
-For example, consider the following set of functions:
+For example, consider the following function:
 
 ::
 
-      g : Nat → Nat
-      g zero    = zero
-      g (suc n) = suc (g n)
+      minus : Nat → Nat → Nat
+      minus zero x = zero
+      minus x zero = x
+      minus (suc x) (suc y) = minus x y
 
-      h : Nat → Nat
-      h zero    = suc zero
-      h (suc n) = suc (h n)
+We see that in the first two branches, the result of the function is equal to the first argument. In particular, we see that the "size" of the first argument is preserved in the output. Assuming that this function returns a natural numbers of size not bigger than the first argument, we can also analyze the third branch and confirm this assumption. The type-based checker can comprehend this and adjusts the size types of ``minus``. If its original size type was ``t₁ → t₂ → t₃``, then the modified type would be ``t₁ → t₂ → t₁`` to reflect the size-preservation behavior. It's noteworthy that for inductive functions, size preservation attempts to check whether there is a size in the codomain of the signature that can be equal to some size in the domain.
 
-After the invocation of ``g``, the constructed natural number is built with the same number of constructors as the passed number. This allows us to conclude that ``g`` preserves the size of the input in its output. In contrast, ``h`` returns a larger number, indicating that ``h`` is not size-preserving. The type-based checker can comprehend this and adjusts the size types of ``g`` accordingly. If its original size type was ``t₁ → t₂``, then the modified type would be ``t₁ → t₁`` to reflect the size-preservation behavior. It's noteworthy that for inductive functions, size preservation attempts to check whether there is a size in the codomain of the signature that can be equal to some size in the domain.
-
-As a consequence, the following function can pass the termination check:
+This behavior has useful consequences: consider a division of two natural numbers. We can write a function of division in Agda with the meaning that number ``x`` is divided on ``y + 1``. With the help of size preservation, the following function passes termination check:
 
 ::
 
-      plus : Nat → Nat → Nat
-      plus zero    m = m
-      plus (suc n) m = suc (plus (g n) m) -- note 'g' here
+      div : Nat → Nat → Nat
+      div zero    y = zero
+      div (suc x) y = suc (div (minus x y) y)
 
 Another interesting application of size preservation can be found in combination with coinductive functions. For coinduction, size preservation seeks to determine whether it is possible to assign a fixed *codomain* size to some of the *domain* sizes. In other words, inductive definitions can be size-preserving in their output, while coinductive definitions can be size-preserving in their input.
 
