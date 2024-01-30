@@ -1477,7 +1477,7 @@ standardOptions =
     , Option []     ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
                     "ignore interface files (re-type check everything)"
     , Option []     ["local-interfaces"] (NoArg localInterfacesFlag)
-                    "put interface files next to the Agda files they correspond to"
+                    "put new interface files next to the Agda files they correspond to"
     , Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
                     "look for imports in DIR"
     , Option ['l']  ["library"] (ReqArg libraryFlag "LIB")

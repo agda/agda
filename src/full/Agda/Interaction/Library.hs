@@ -194,7 +194,10 @@ findProjectConfig' root = do
   getCachedProjectConfig root >>= \case
     Just conf -> return conf
     Nothing   -> do
-      libFiles <- liftIO $ filter ((== ".agda-lib") . takeExtension) <$> getDirectoryContents root
+      libFiles <- liftIO $ getDirectoryContents root >>=
+        filterM (\file -> and2M
+          (pure $ takeExtension file == ".agda-lib")
+          (doesFileExist (root </> file)))
       case libFiles of
         []     -> liftIO (upPath root) >>= \case
           Just up -> do
