@@ -2,8 +2,8 @@ Importing the primitive modules.
   Getting interface for Agda.Primitive
   Check for cycle
   Agda.Primitive is up-to-date.
-  no stored version, reading agda-default-include-path/Agda/Primitive.agdai
-Loading  Agda.Primitive (agda-default-include-path/Agda/Primitive.agdai).
+  no stored version, reading agda-default-include-path/_build/2.6.4.1/agda/Agda/Primitive.agdai
+Loading  Agda.Primitive (agda-default-include-path/_build/2.6.4.1/agda/Agda/Primitive.agdai).
   imports: []
   New module. Let's check it out.
 Merging interface
@@ -11,8 +11,8 @@ Merging interface
   Getting interface for Agda.Primitive.Cubical
   Check for cycle
   Agda.Primitive.Cubical is up-to-date.
-  no stored version, reading agda-default-include-path/Agda/Primitive/Cubical.agdai
-Loading  Agda.Primitive.Cubical (agda-default-include-path/Agda/Primitive/Cubical.agdai).
+  no stored version, reading agda-default-include-path/_build/2.6.4.1/agda/Agda/Primitive/Cubical.agdai
+Loading  Agda.Primitive.Cubical (agda-default-include-path/_build/2.6.4.1/agda/Agda/Primitive/Cubical.agdai).
   imports: [(Agda.Primitive, 450520314077838934)]
   Already visited Agda.Primitive
   New module. Let's check it out.

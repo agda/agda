@@ -108,6 +108,7 @@ data-files:
     JS/agda-rts.amd.js
     latex/agda.sty
     latex/postprocess-latex.pl
+    lib/prim/agda-builtins.agda-lib
     lib/prim/Agda/Builtin/Bool.agda
     lib/prim/Agda/Builtin/Char.agda
     lib/prim/Agda/Builtin/Char/Properties.agda
