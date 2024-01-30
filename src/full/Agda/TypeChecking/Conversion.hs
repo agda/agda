@@ -358,10 +358,46 @@ compareTerm' cmp a m n =
               mNeutral <- isNeutral m
               n <- reduceB n
               nNeutral <- isNeutral n
+
+              let
+                h1 = isCubicalPrimHead m
+                h2 = isCubicalPrimHead n
+
+                mCub = isJust (isCubicalPrimHead m)
+                nCub = isJust (isCubicalPrimHead n)
+
+              when (mCub || nCub) $
+                reportSDoc "tc.conv.term.cubical" 30 $ vcat
+                  [ ("m (" <> prettyTCM mNeutral <> ", " <> prettyTCM mCub <> ", " <> prettyTCM h1 <> "):")
+                  , nest 2 (prettyTCM m)
+                  , ("n (" <> prettyTCM nNeutral <> ", " <> prettyTCM nCub <> ", " <> prettyTCM h2 <> "):")
+                  , nest 2 (prettyTCM n)
+                  , "at type"
+                  , nest 2 (prettyTCM a')
+                  , "same head:" <+> prettyTCM (h1 == h2)
+                  ]
+
               if | isMeta m || isMeta n -> do
                      whenProfile Profile.Conversion $ tick "compare at eta-record: meta"
                      compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
-                 | mNeutral && nNeutral -> do
+
+                 -- Amy, 2024-01-29 (fixing issue pointed out by Tom Jack):
+                 --
+                 -- Cubical primitives reduce to something awful, so we would like to skip comparing them (causes
+                 -- "timeout" in GroupPath).
+                 --
+                 -- We would also like to skip comparing a cubical primitive against something that is *small* and
+                 -- actually neutral (causes "timeout" in KleinBottle cohomology groups, comparing a 93KiB(!) transport
+                 -- against an application of set-truncation recursion to a metavariable)
+                 --
+                 -- The condition for skipping eta expansion is thus:
+                 --   (a) both are neutrals (which in this case also includes a "suspended"/copattern transp/hcomp)
+                 --   (b) if both are headed by a cubical primitive, then they are the same primitive.
+                 --
+                 -- So we will skip expanding transp A φ u0 = transp A' φ' u0', since it's definitionally injective; We
+                 -- will skip expanding transp A φ u0 = f ?, since it's wasted work; but we will not skip
+                 -- transp A φ u0 = hcomp u u0', since those must both compute if they are to be equal.
+                 | mNeutral && nNeutral && (not (mCub && nCub) || h1 == h2) -> do
                      whenProfile Profile.Conversion $ tick "compare at eta-record: both neutral"
                      -- Andreas 2011-03-23: (fixing issue 396)
                      -- if we are dealing with a singleton record,
@@ -370,13 +406,6 @@ compareTerm' cmp a m n =
                      ifM (isSingletonRecordModuloRelevance r ps) profUnitEta $ do
                        -- do not eta-expand if comparing two neutrals
                        compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
-
-                 -- If the terms are both headed by *the same* cubical primitive we can
-                 -- skip doing the eta-expansion, which in some cases (e.g. GroupPath
-                 -- in the cubical library) causes awful awful slowdowns.
-                 | Just h1 <- isCubicalPrimHead m, Just h2 <- isCubicalPrimHead n, h1 == h2 -> do
-                    whenProfile Profile.Conversion $ tick "compare at eta-record: same cubical operation"
-                    compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
 
                  | otherwise -> do
                      whenProfile Profile.Conversion $ tick "compare at eta-record: eta-expanding"

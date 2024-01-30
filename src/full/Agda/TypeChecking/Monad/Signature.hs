@@ -1396,14 +1396,7 @@ projectionArgs = maybe 0 (max 0 . pred . projIndex) . isRelevantProjection_
 
 -- | Check whether a definition uses copatterns.
 usesCopatterns :: (HasConstInfo m, HasBuiltins m) => QName -> m Bool
-usesCopatterns q = orM
-  [ defCopatternLHS <$> getConstInfo q
-
-  -- transp and hcomp for record types behave as if defined by
-  -- copatterns.
-  , (Just q ==) <$> getPrimitiveName' builtinTrans
-  , (Just q ==) <$> getPrimitiveName' builtinHComp
-  ]
+usesCopatterns q = defCopatternLHS <$> getConstInfo q
 
 -- | Apply a function @f@ to its first argument, producing the proper
 --   postfix projection if @f@ is a projection which is not irrelevant.
