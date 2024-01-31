@@ -197,7 +197,8 @@ instance ExprLike LHS where
 instance (ExprLike qn, ExprLike e) => ExprLike (RewriteEqn' qn nm p e) where
   mapExpr f = \case
     Rewrite es    -> Rewrite (mapExpr f es)
-    Invert qn pes -> Invert qn (fmap (fmap $ fmap $ mapExpr f) pes)
+    Invert qn pes -> Invert qn $ (fmap . fmap . fmap . mapExpr) f pes
+    LeftLet pes   -> LeftLet $ (fmap . fmap . mapExpr) f pes
   foldExpr     = __IMPOSSIBLE__
   traverseExpr = __IMPOSSIBLE__
 

@@ -2745,6 +2745,7 @@ instance ToAbstract (RewriteEqn' () A.BindName A.Pattern A.Expr) where
     Invert _ pes -> do
       qn <- withFunctionName "-invert"
       pure $ Invert qn pes
+    LeftLet pes -> pure $ LeftLet pes
 
 instance ToAbstract C.RewriteEqn where
   type AbsOfCon C.RewriteEqn = RewriteEqn' () A.BindName A.Pattern A.Expr
@@ -2761,6 +2762,20 @@ instance ToAbstract C.RewriteEqn where
       -- constraints of the form @p ≡ e@.
       nps <- forM nps $ \ (n, p) -> do
         -- first the pattern
+        p <- toAbsPat p
+        -- and then the name
+        n <- toAbstract $ fmap (NewName WithBound . C.mkBoundName_) n
+        pure (n, p)
+      -- we finally reassemble the telescope
+      pure $ List1.zipWith (\ (n,p) e -> Named n (p, e)) nps es
+    LeftLet pes -> fmap LeftLet $ forM pes $ \ (p, e) -> do
+      -- first check the expression: the pattern may shadow
+      -- some of the variables mentioned in it!
+      e <- toAbstract e
+      p <- toAbsPat p
+      pure (p, e)
+    where
+      toAbsPat p = do
         -- Expand puns if optHiddenArgumentPuns is True.
         puns <- optHiddenArgumentPuns <$> pragmaOptions
         p <- return $ if puns then expandPuns p else p
@@ -2768,12 +2783,7 @@ instance ToAbstract C.RewriteEqn where
         p <- toAbstract p
         checkPatternLinearity p (typeError . RepeatedVariablesInPattern)
         bindVarsToBind
-        p <- toAbstract p
-        -- and then the name
-        n <- toAbstract $ fmap (NewName WithBound . C.mkBoundName_) n
-        pure (n, p)
-      -- we finally reassemble the telescope
-      pure $ List1.zipWith (\ (n,p) e -> Named n (p, e)) nps es
+        toAbstract p
 
 instance ToAbstract AbstractRHS where
   type AbsOfCon AbstractRHS = A.RHS

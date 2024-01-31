@@ -327,6 +327,7 @@ instance (HasRange n, Hilite p, Hilite e) => Hilite (RewriteEqn' x n p e) where
   hilite = \case
     Rewrite es    -> hilite $ fmap snd es
     Invert _x pes -> hilite pes
+    LeftLet pes   -> hilite pes
 
 instance Hilite a => Hilite (A.Clause' a) where
   hilite (A.Clause lhs strippedPats rhs wh _catchall) =

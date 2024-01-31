@@ -13,6 +13,7 @@ import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Maybe
+import Data.Map (Map)
 import Data.Semigroup (Semigroup((<>)))
 
 import Agda.Interaction.Options
@@ -251,10 +252,13 @@ checkFunDefS :: Type             -- ^ the type we expect the function to have
              -> Maybe QName      -- ^ is it a with function (if so, what's the name of the parent function)
              -> A.DefInfo        -- ^ range info
              -> QName            -- ^ the name of the function
-             -> Maybe Substitution -- ^ substitution (from with abstraction) that needs to be applied to module parameters
+             -> Maybe (Substitution, Map Name LetBinding)
+                                 -- ^ substitution (from with abstraction) that needs to be applied
+                                 --   to module parameters, and let-bindings inherited from parent
+                                 --   clause
              -> [A.Clause]       -- ^ the clauses to check
              -> TCM ()
-checkFunDefS t ai extlam with i name withSub cs = do
+checkFunDefS t ai extlam with i name withSubAndLets cs = do
 
     traceCall (CheckFunDefCall (getRange i) name cs True) $ do
         reportSDoc "tc.def.fun" 10 $
@@ -281,9 +285,9 @@ checkFunDefS t ai extlam with i name withSub cs = do
         -- Check the clauses
         cs <- traceCall NoHighlighting $ do -- To avoid flicker.
           forM (zip cs [0..]) $ \ (c, clauseNo) -> do
-            atClause name clauseNo t withSub c $ do
+            atClause name clauseNo t (fst <$> withSubAndLets) c $ do
               (c,b) <- applyModalityToContextFunBody ai $ do
-                checkClause t withSub c
+                checkClause t withSubAndLets c
               -- Andreas, 2013-11-23 do not solve size constraints here yet
               -- in case we are checking the body of an extended lambda.
               -- 2014-04-24: The size solver requires each clause to be
@@ -554,6 +558,7 @@ data WithFunctionProblem
     , wfPermFinal  :: Permutation                       -- ^ Final permutation (including permutation for the parent clause).
     , wfClauses    :: List1 A.Clause                    -- ^ The given clauses for the with function
     , wfCallSubst :: Substitution                       -- ^ Subtsitution to generate call for the parent.
+    , wfLetBindings :: Map Name LetBinding              -- ^ The let-bindings in scope of the parent (in the parent context)
     }
 
 checkSystemCoverage
@@ -694,13 +699,22 @@ checkClauseLHS t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 
 
 checkClause
   :: Type          -- ^ Type of function defined by this clause.
-  -> Maybe Substitution  -- ^ Module parameter substitution arising from with-abstraction.
+  -> Maybe (Substitution, Map Name LetBinding)  -- ^ Module parameter substitution arising from with-abstraction, and inherited let-bindings.
   -> A.SpineClause -- ^ Clause.
-  -> TCM (Clause,ClausesPostChecks)  -- ^ Type-checked clause
+  -> TCM (Clause, ClausesPostChecks)  -- ^ Type-checked clause
 
-checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) = do
+checkClause t withSubAndLets c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) = do
+  let withSub       = fst <$> withSubAndLets
   cxtNames <- reverse . map (fst . unDom) <$> getContext
   checkClauseLHS t withSub c $ \ lhsResult@(LHSResult npars delta ps absurdPat trhs patSubst asb psplit ixsplit) -> do
+
+    let installInheritedLets k
+          | Just (withSub, lets) <- withSubAndLets = do
+            lets' <- traverse makeOpen $ applySubst (patSubst `composeS` withSub) lets
+            locallyTC eLetBindings (const lets') k
+          | otherwise = k
+
+    installInheritedLets $ do
         -- Note that we might now be in irrelevant context,
         -- in case checkLeftHandSide walked over an irrelevant projection pattern.
 
@@ -910,8 +924,15 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
       rewriteEqnRHS qname eq $
         List1.ifNull qes {-then-} rs {-else-} $ \ qes -> Rewrite qes : rs
     Invert qname pes -> invertEqnRHS qname (List1.toList pes) rs
+    LeftLet pes -> usingEqnRHS (List1.toList pes) rs
 
     where
+
+    -- @using@ clauses
+    usingEqnRHS :: [(A.Pattern, A.Expr)] -> [A.RewriteEqn] -> TCM (Maybe Term, WithFunctionProblem)
+    usingEqnRHS pes rs = do
+      let letBindings = for (List1.toList pes) $ \(p, e) -> A.LetPatBind (LetRange $ getRange e) p e
+      checkLetBindings letBindings $ rewriteEqnsRHS rs strippedPats rhs wh
 
     -- @invert@ clauses
     invertEqnRHS :: QName -> [Named A.BindName (A.Pattern,A.Expr)] -> [A.RewriteEqn] -> TCM (Maybe Term, WithFunctionProblem)
@@ -1115,13 +1136,14 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _ _) vtys0
           , "            delta2" <+> do escapeContext impossible (size delta) $ addContext delta1 $ prettyTCM delta2
           ]
 
-        return (v, WithFunction x aux t delta delta1 delta2 vtys t' ps npars perm' perm finalPerm cs argsS)
+        lets <- traverse getOpen =<< viewTC eLetBindings
+
+        return (v, WithFunction x aux t delta delta1 delta2 vtys t' ps npars perm' perm finalPerm cs argsS lets)
 
 -- | Invoked in empty context.
 checkWithFunction :: [Name] -> WithFunctionProblem -> TCM (Maybe Term)
 checkWithFunction _ NoWithFunction = return Nothing
-checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs npars perm' perm finalPerm cs argsS) = do
-
+checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs npars perm' perm finalPerm cs argsS lets) = do
   let -- Δ₁ ws Δ₂ ⊢ withSub : Δ′    (where Δ′ is the context of the parent lhs)
       withSub :: Substitution
       withSub = let as = map (snd . unArg) vtys in
@@ -1225,7 +1247,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
   -- Check the with function
   let info = Info.mkDefInfo (nameConcrete $ qnameName aux) noFixity' PublicAccess abstr (getRange cs)
   ai <- defArgInfo <$> getConstInfo f
-  checkFunDefS withFunType ai Nothing (Just f) info aux (Just withSub) $ List1.toList cs
+  checkFunDefS withFunType ai Nothing (Just f) info aux (Just (withSub, lets)) $ List1.toList cs
   return $ Just $ call_in_parent
 
 -- | Type check a where clause.
