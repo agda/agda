@@ -59,6 +59,7 @@ import qualified Agda.Termination.Order as Order
 import Data.List (unfoldr)
 import qualified Agda.Benchmarking as Benchmark
 import Agda.TypeChecking.Monad.Benchmark (billTo)
+import qualified Agda.Utils.List1 as List1
 
 
 -- | 'initSizeTypeEncoding names' computes size types for every definition in 'names'
@@ -377,8 +378,8 @@ encodeDatatypeDomain :: Bool -> Bool -> [Bool] -> Tele (Dom Type) -> SizeType
 encodeDatatypeDomain isRecursive _ params EmptyTel =
   let size = if isRecursive then SDefined 0 else SUndefined
       -- tail because scanl inserts the given starting element in the beginning
-      treeArgs = tail $
-        scanl (\(ind, t) isGeneric -> if isGeneric then (ind + 1, SizeGenericVar 0 ind) else (ind, UndefinedSizeType))
+      treeArgs = List1.tail $ List1.scanl
+              (\(ind, t) isGeneric -> if isGeneric then (ind + 1, SizeGenericVar 0 ind) else (ind, UndefinedSizeType))
               (0, UndefinedSizeType)
               params
       actualArgs = reverse (map snd treeArgs)

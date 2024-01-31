@@ -42,6 +42,7 @@ import qualified Agda.Benchmarking as Benchmark
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as DGraph
 import Agda.TypeChecking.Monad.Benchmark (billTo)
 import Data.Either
+import Agda.Utils.List (headWithDefault)
 
 -- A size expression is represented as a minimum of a set of rigid size variables,
 -- where the length of the set is equal to the number of clusters.
@@ -81,7 +82,7 @@ simplifySizeGraph rigidContext graph = billTo [Benchmark.TypeBasedTermination, B
 
   -- Lazy map representing an approximate cluster of each variable
   let rigidClusters = (mapMaybe (\(i, b) -> (i,) <$> findCluster rigidContext i) rigidContext)
-  let rememberNeighbor v1 v2 = IntMap.insertWith (\n old -> head n : old) v1 [v2]
+  let rememberNeighbor v1 v2 = IntMap.insertWith (\n old -> headWithDefault __IMPOSSIBLE__ n : old) v1 [v2]
   let neighbourMap = foldr (\(SConstraint _ from to) -> rememberNeighbor to from . rememberNeighbor from to) IntMap.empty enrichedGraph
   let clusterMapping = gatherClusters rigidClusters neighbourMap (IntMap.fromList rigidClusters)
 
@@ -146,7 +147,7 @@ instantiateComponents baseSize rigids clusterMapping graph subst (comp : is) = d
            -- Some element in the component has is bigger or equal than infinity,
            -- which means that the component should be assigned to infinity
            baseSize
-        | head comp `IntSet.member` bottomVars =
+        | headWithDefault __IMPOSSIBLE__ comp `IntSet.member` bottomVars =
           -- The component corresponds to a non-recursive constructor,
           -- which means that it should be assigned to the least available size expression,
           -- which is a meet of certain rigids
@@ -154,7 +155,7 @@ instantiateComponents baseSize rigids clusterMapping graph subst (comp : is) = d
         | null lowerBoundSizes =
           -- There are no lower bounds for the component, which means that we can try to do some witchcraft
           -- It won't be worse than infinity, right?
-          case (IntMap.lookup (head comp) fallback, ((head comp) `IntMap.lookup` clusterMapping)) of
+          case (IntMap.lookup (headWithDefault __IMPOSSIBLE__ comp) fallback, ((headWithDefault __IMPOSSIBLE__ comp) `IntMap.lookup` clusterMapping)) of
             (Just r, _) ->
               -- The component corresponds to a freshened variable of some recursive call, we can try to assign it to the original variable
               fromMaybe baseSize (subst IntMap.!? r)
@@ -210,7 +211,7 @@ findLowestClusterVariable bounds target = fst $ go 0 target
             l -> let inner = map (go (depth + 1)) l
                      maxLevel = maximum (map snd inner)
                      maxLevelVars = filter (\(a, d) -> d == maxLevel) inner
-                 in head maxLevelVars
+                 in headWithDefault __IMPOSSIBLE__ maxLevelVars
 
 collectIncoherentRigids :: IntMap SizeExpression -> [SConstraint] -> TCM IntSet
 collectIncoherentRigids m g = billTo [Benchmark.TypeBasedTermination, Benchmark.SizeGraphSolving] $ collectIncoherentRigids' m g
