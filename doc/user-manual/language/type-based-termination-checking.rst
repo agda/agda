@@ -219,9 +219,6 @@ The most significant limitation of the current implementation is rooted in the f
 
 The semantical framework used in the type-based termination checker is a variant of *sized types*. However, the sized types in Agda do not interact with the type-based termination checker. This stems partly from the complexity and unsoundness of sized types, whereas the type-based termination checker utilizes an intentionally restricted version of them. Presently, sized types serve as a means to manually address termination issues, although there are plans for the potential for interaction between type-based termination and sized types in the future.
 
-It is known that the type-based termination checking is unsound when used in conjunction with univalence (and, more broadly, it is sensitive to the theory, meaning any postulate may compromise soundness). The reason lies in the fact that a function such as ``transport : A ≡ A → A → A`` can no longer be considered size-preserving. This is because the underlying isomorphism of ``Z ≡ Z`` (integer numbers) might increase the size of an argument of transport, while type-based termination would consider the size to remain unchanged.
-
-
 .. _type-based-termination-checking-references:
 
 References
