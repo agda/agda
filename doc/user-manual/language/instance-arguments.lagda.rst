@@ -486,11 +486,11 @@ notation:
 
 ::
 
-  record Membership {ℓ} (ℙA : Set ℓ) : Setω where
+  record Membership {ℓ} (PowA : Set ℓ) : Setω where
     field
       {ℓ-elem ℓ-fibre} : Level
       element : Set ℓ-elem
-      _∈_ : element → ℙA → Set ℓ-fibre
+      _∈_ : element → PowA → Set ℓ-fibre
 
   open Membership ⦃ ... ⦄ using (_∈_)
 
