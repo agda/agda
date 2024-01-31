@@ -25,6 +25,8 @@ import Control.Arrow ( first )
 import Control.Monad
 import Data.Maybe
 import Data.Set (Set )
+
+import Agda.Utils.List (headWithDefault)
 import Agda.Utils.Impossible
 
 import qualified Agda.Utils.Benchmark as B
@@ -113,18 +115,21 @@ getConstraints :: MonadSizeChecker [[SConstraint]]
 getConstraints = MSC $ gets scsConstraints
 
 getCurrentConstraints :: MonadSizeChecker [SConstraint]
-getCurrentConstraints = MSC $ head <$> gets scsConstraints
+getCurrentConstraints = MSC $ headWithDefault __IMPOSSIBLE__ <$> gets scsConstraints
 
 getCurrentRigids :: MonadSizeChecker [(Int, SizeBound)]
-getCurrentRigids = MSC $ head <$> gets scsRigidSizeVars
+getCurrentRigids = MSC $ headWithDefault __IMPOSSIBLE__ <$> gets scsRigidSizeVars
 
 -- | Adds a new rigid variable. This function is fragile, since bound might not be expressed in terms of current rigids.
 --   Unfortunately we have to live with it if we want to support record projections in arbitrary places.
 addNewRigid :: Int -> SizeBound -> MonadSizeChecker ()
-addNewRigid x bound = MSC $ modify (\s -> let rigids = scsRigidSizeVars s in s { scsRigidSizeVars = ((x, bound) : head rigids) : tail rigids })
+addNewRigid x bound = MSC $ modify \s ->
+  case scsRigidSizeVars s of
+    rs:rss -> s { scsRigidSizeVars = ((x, bound) : rs) : rss }
+    _ -> __IMPOSSIBLE__
 
 getCurrentCoreContext :: MonadSizeChecker [SizeContextEntry]
-getCurrentCoreContext = MSC $ head <$> gets scsCoreContext
+getCurrentCoreContext = MSC $ headWithDefault __IMPOSSIBLE__ <$> gets scsCoreContext
 
 -- | Initializes internal data strustures that will be filled by the processing of a clause
 initNewClause :: [SizeBound] -> MonadSizeChecker ()
@@ -150,7 +155,10 @@ getArity :: QName -> MonadSizeChecker Int
 getArity qn = sizeSigArity . fromJust . defSizedType <$> getConstInfo qn
 
 storeConstraint :: SConstraint -> MonadSizeChecker ()
-storeConstraint c = MSC $ modify (\s -> s { scsConstraints = let constraints = scsConstraints s in ((c : head constraints) : tail constraints) })
+storeConstraint c = MSC $ modify \ s ->
+  case scsConstraints s of
+    cs:css -> s { scsConstraints = (c:cs):css }
+    [] -> __IMPOSSIBLE__
 
 reportCall :: QName -> QName -> [Int] -> [Int] -> Closure Term -> MonadSizeChecker ()
 reportCall q1 q2 sizes1 sizes2 place = MSC $ modify (\s -> s { scsRecCalls = (q1, q2, sizes1, sizes2, place) : scsRecCalls s })
@@ -189,10 +197,13 @@ getUndefinedSizes = MSC $ gets scsUndefinedVariables
 abstractCoreContext :: Int -> Either FreeGeneric SizeType -> MonadSizeChecker a -> MonadSizeChecker a
 abstractCoreContext i tele action = do
   contexts <- MSC $ gets scsCoreContext
-  MSC $ modify (\s -> s { scsCoreContext = ((i, tele) : (map (incrementDeBruijnEntry tele) (head contexts))) : tail contexts })
-  res <- action
-  MSC $ modify (\s -> s { scsCoreContext = contexts })
-  pure res
+  case contexts of
+    cs:css -> do
+      MSC $ modify \s -> s { scsCoreContext = ((i, tele) : map (incrementDeBruijnEntry tele) cs) : css }
+      res <- action
+      MSC $ modify \s -> s { scsCoreContext = contexts }
+      pure res
+    [] -> __IMPOSSIBLE__
 
 incrementDeBruijnEntry :: Either FreeGeneric SizeType -> (Int, Either FreeGeneric SizeType) -> (Int, Either FreeGeneric SizeType)
 incrementDeBruijnEntry (Left _) (x, Left fg) = (x + 1, Left $ fg { fgIndex = fgIndex fg + 1 })
@@ -240,12 +251,17 @@ requestNewRigidVariables bound pack = do
         SizeBounded i -> newBound) pack
 
   currentRigids <- gets scsRigidSizeVars
-
-  modify (\s -> s { scsRigidSizeVars = ((zip newVarIdxs newBounds) ++ (head currentRigids)) : tail currentRigids })
-  return $ newVarIdxs
+  case currentRigids of
+    rs:rss -> do
+      modify \s -> s { scsRigidSizeVars = (zip newVarIdxs newBounds ++ rs) : rss }
+      return newVarIdxs
+    [] -> __IMPOSSIBLE__
 
 appendCoreVariable :: Int -> Either FreeGeneric SizeType -> MonadSizeChecker ()
-appendCoreVariable i tele = MSC $ modify (\s -> s { scsCoreContext = let cc = (scsCoreContext s) in ((i, tele) : head cc) : tail cc })
+appendCoreVariable i tele = MSC $ modify \s ->
+  case scsCoreContext s of
+    c:cc -> s { scsCoreContext = ((i, tele) : c) : cc }
+    [] -> __IMPOSSIBLE__
 
 runSizeChecker :: QName -> Set QName -> MonadSizeChecker a -> TCM (a, SizeCheckerState)
 runSizeChecker rootName mutualNames (MSC action) = do
