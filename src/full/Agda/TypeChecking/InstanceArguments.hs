@@ -26,13 +26,14 @@ import Data.Function (on)
 import Data.Monoid hiding ((<>))
 import Data.Foldable (foldrM)
 
-import Agda.Interaction.Options (optQualifiedInstances)
+import Agda.Interaction.Options (optQualifiedInstances, optLossyInstanceFields)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name (isQualified)
 import Agda.Syntax.Position
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.MetaVars
+import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Scope.Base (isNameInScope, inverseScopeLookupName', AllowAmbiguousNames(..))
 
 import Agda.TypeChecking.Conversion.Pure (pureEqualTerm)
@@ -55,9 +56,7 @@ import Agda.TypeChecking.Monad.Benchmark (billTo)
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Null (empty)
-
 import Agda.Utils.Impossible
 
 -- | Compute a list of instance candidates.
@@ -90,13 +89,17 @@ initialInstanceCandidates t = do
       reportSDoc "tc.instance.cands" 40 $ hang "Getting candidates from context" 2 (inTopContext $ prettyTCM $ PrettyContext ctx)
           -- Context variables with their types lifted to live in the full context
       let varsAndRaisedTypes = [ (var i, raise (i + 1) t) | (i, t) <- zip [0..] ctx ]
-          vars = [ Candidate LocalCandidate x t (isOverlappable info)
+          vars = [ Candidate (LocalCandidate (argInfoHiding info)) x t (isOverlappable info)
                  | (x, Dom{domInfo = info, unDom = (_, t)}) <- varsAndRaisedTypes
                  , isInstance info
                  ]
 
       -- {{}}-fields of variables are also candidates
-      let cxtAndTypes = [ (LocalCandidate, x, t) | (x, Dom{unDom = (_, t)}) <- varsAndRaisedTypes ]
+      let
+        cxtAndTypes =
+          [ (LocalCandidate (argInfoHiding info), x, t)
+          | (x, Dom{domInfo = info, unDom = (_, t)}) <- varsAndRaisedTypes
+          ]
       fields <- concat <$> mapM instanceFields (reverse cxtAndTypes)
       reportSDoc "tc.instance.fields" 30 $
         if null fields then "no instance field candidates" else
@@ -111,11 +114,12 @@ initialInstanceCandidates t = do
       -- get let bindings
       env <- asksTC envLetBindings
       env <- mapM (traverse getOpen) $ Map.toList env
-      let lets = [ Candidate LocalCandidate v t False
+      let lets = [ Candidate (LocalCandidate (argInfoHiding info)) v t False
                  | (_, LetBinding _ v Dom{domInfo = info, unDom = t}) <- env
                  , isInstance info
                  , usableModality info
                  ]
+
       return $ vars ++ fields ++ lets
 
     etaExpand :: (MonadTCM m, PureTCM m)
@@ -138,15 +142,33 @@ initialInstanceCandidates t = do
     instanceFields = instanceFields' True
 
     instanceFields' :: Bool -> (CandidateKind,Term,Type) -> BlockT TCM [Candidate]
-    instanceFields' etaOnce (q, v, t) =
-      ifBlocked t (\ m _ -> patternViolation m) $ \ _ t -> do
-      caseMaybeM (etaExpand etaOnce t) (return []) $ \ (r, pars) -> do
-        (tel, args) <- lift $ forceEtaExpandRecord r pars v
-        let types = map unDom $ applySubst (parallelS $ reverse $ map unArg args) (flattenTel tel)
-        fmap concat $ forM (zip args types) $ \ (arg, t) ->
-          ([ Candidate LocalCandidate (unArg arg) t (isOverlappable arg)
-           | isInstance arg ] ++) <$>
-          instanceFields' False (LocalCandidate, unArg arg, t)
+    instanceFields' etaOnce (q, v, t) = do
+      lossy <- optLossyInstanceFields <$> pragmaOptions
+      let
+        fallback m _ = case q of
+          LocalCandidate vis
+            | Instance{} <- vis -> patternViolation m
+            | lossy -> do
+              reportSDoc "tc.instance.fields" 30 $ vcat
+                [ "local variable" <+> prettyTCM v <+> "(visibility" <+> (pretty vis <> ") has blocked type:")
+                , nest 2 (prettyTCM (Blocked m t :: Blocked Type))
+                , "it will not be considered for instance fields"
+                ]
+              pure []
+          _ -> patternViolation m
+
+      ifBlocked t fallback \_ t -> etaExpand etaOnce t >>= \case
+        Nothing -> pure []
+        Just (r, pars) -> do
+          (tel, args) <- lift $ forceEtaExpandRecord r pars v
+
+          let
+            types = map unDom $ applySubst (parallelS $ reverse $ map unArg args) (flattenTel tel)
+            ckind = LocalCandidate (Instance NoOverlap)
+
+          fmap concat $ forM (zip args types) \(arg, t) ->
+            ([ Candidate ckind (unArg arg) t (isOverlappable arg) | isInstance arg ] ++) <$>
+            instanceFields' False (ckind, unArg arg, t)
 
     getScopeDefs :: QName -> TCM [Candidate]
     getScopeDefs n = do

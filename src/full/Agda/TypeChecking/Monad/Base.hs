@@ -4078,7 +4078,7 @@ toExpandLast True  = ExpandLast
 toExpandLast False = DontExpandLast
 
 data CandidateKind
-  = LocalCandidate
+  = LocalCandidate Hiding
   | GlobalCandidate QName
   deriving (Show, Generic)
 

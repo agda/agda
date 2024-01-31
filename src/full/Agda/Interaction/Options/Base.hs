@@ -104,6 +104,7 @@ module Agda.Interaction.Options.Base
     , lensOptSaveMetas
     , lensOptShowIdentitySubstitutions
     , lensOptKeepCoveringClauses
+    , lensOptLossyInstanceFields
     -- * Boolean accessors to 'PragmaOptions' collapsing default
     , optShowImplicit
     , optShowGeneralized
@@ -162,6 +163,7 @@ module Agda.Interaction.Options.Base
     , optKeepCoveringClauses
     , optLargeIndices
     , optForcedArgumentRecursion
+    , optLossyInstanceFields
     -- * Non-boolean accessors to 'PragmaOptions'
     , optConfluenceCheck
     , optCubical
@@ -431,6 +433,9 @@ data PragmaOptions = PragmaOptions
       -- constructors.
   , _optForcedArgumentRecursion   :: WithDefault 'True
       -- ^ Allow recursion on forced constructor arguments.
+  , _optLossyInstanceFields       :: WithDefault 'False
+      -- ^ Allow instance search to proceed even when the types of some
+      -- visible arguments in the context are still undetermined.
   }
   deriving (Show, Eq, Generic)
 
@@ -515,6 +520,7 @@ optShowIdentitySubstitutions :: PragmaOptions -> Bool
 optKeepCoveringClauses       :: PragmaOptions -> Bool
 optLargeIndices              :: PragmaOptions -> Bool
 optForcedArgumentRecursion   :: PragmaOptions -> Bool
+optLossyInstanceFields       :: PragmaOptions -> Bool
 
 optShowImplicit              = collapseDefault . _optShowImplicit
 optShowGeneralized           = collapseDefault . _optShowGeneralized
@@ -575,6 +581,7 @@ optSaveMetas                 = collapseDefault . _optSaveMetas
 optShowIdentitySubstitutions = collapseDefault . _optShowIdentitySubstitutions
 optKeepCoveringClauses       = collapseDefault . _optKeepCoveringClauses
 optLargeIndices              = collapseDefault . _optLargeIndices
+optLossyInstanceFields       = collapseDefault . _optLossyInstanceFields
 optForcedArgumentRecursion   = collapseDefault . _optForcedArgumentRecursion
 
 -- Collapse defaults (non-Bool)
@@ -805,6 +812,9 @@ lensOptShowIdentitySubstitutions f o = f (_optShowIdentitySubstitutions o) <&> \
 lensOptKeepCoveringClauses :: Lens' PragmaOptions _
 lensOptKeepCoveringClauses f o = f (_optKeepCoveringClauses o) <&> \ i -> o{ _optKeepCoveringClauses = i }
 
+lensOptLossyInstanceFields :: Lens' PragmaOptions _
+lensOptLossyInstanceFields f o = f (_optLossyInstanceFields o) <&> \ i -> o{ _optLossyInstanceFields = i }
+
 lensOptLargeIndices :: Lens' PragmaOptions _
 lensOptLargeIndices f o = f (_optLargeIndices o) <&> \ i -> o{ _optLargeIndices = i }
 
@@ -921,6 +931,7 @@ defaultPragmaOptions = PragmaOptions
   , _optKeepCoveringClauses       = Default
   , _optForcedArgumentRecursion   = Default
   , _optLargeIndices              = Default
+  , _optLossyInstanceFields       = Default
   }
 
 -- | The options parse monad 'OptM' collects warnings that are not discarded
@@ -1810,6 +1821,9 @@ pragmaOptions = concat
                     $ Just "always check that constructor arguments live in universes compatible with that of the datatype"
   , pragmaFlag      "forced-argument-recursion" lensOptForcedArgumentRecursion
                     "allow recursion on forced constructor arguments" ""
+                    Nothing
+  , pragmaFlag      "lossy-instance-fields" lensOptLossyInstanceFields
+                    "allow instance search even when local variables have unsolved types" ""
                     Nothing
   ]
 

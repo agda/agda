@@ -467,6 +467,59 @@ By default, this example is accepted by Agda, but if
 This flag can be especially useful if you want to import a module
 without necessarily using all of the instances that it exports.
 
+.. _lossy-instance-fields:
+
+Lossy instance fields
+~~~~~~~~~~~~~~~~~~~~~
+
+Generally, instance search will only choose an instance when Agda can be
+sure that it is the only possible choice, to uphold uniqueness of
+metavariable solutions. As a consequence, if a local variable in the
+context has a yet-undetermined type, instance search can not safely
+proceed: the variable's type *might* turn out to be a record having
+instance fields.
+
+However, there are certain cases where this can be undesirable, where
+the user would like instance search to inform the type of a local
+variable. One example would be using instances to implement membership
+notation:
+
+::
+
+  record Membership {ℓ} (ℙA : Set ℓ) : Setω where
+    field
+      {ℓ-elem ℓ-fibre} : Level
+      element : Set ℓ-elem
+      _∈_ : element → ℙA → Set ℓ-fibre
+
+  open Membership ⦃ ... ⦄ using (_∈_)
+
+  postulate
+    -- details do not matter:
+    list-membership      : ∀ {ℓ} {A : Set ℓ} → Membership (List A)
+    predicate-membership : ∀ {ℓ ℓ'} {A : Set ℓ} → Membership (A → Set ℓ')
+
+While this class can be used in contexts where every type is determined,
+it is impossible to write the following program:
+
+.. code-block:: agda
+
+  _⊆_ : ∀ {ℓ ℓ'} {A : Set ℓ} (S T : A → Set ℓ') → Set (ℓ ⊔ ℓ')
+  S ⊆ T = ∀ x → x ∈ S → x ∈ T
+
+Even though it is clear to the user that the type of ``x`` should be
+``A``, since there is an unambiguous instance to use for ``Membership (A
+→ Set ℓ')``, instance search will *not* pick this solution, since ---
+hypothetically --- the type of ``x`` could be solved to a record type
+containing an instance for ``Membership _`` as an instance field, even
+if it is a visible variable.
+
+The ``--lossy-instance-fields`` flag lifts this restriction: it will
+simply drop non-instance local variables from the list of possible
+candidates when their types are blocked. As the name implies, this flag
+could make Agda choose non-unique solutions to metavariables in
+circumstances like the above.
+
 .. _instance-arguments-examples:
 
 Examples
@@ -525,8 +578,6 @@ an ``Eq`` instance for ``B x``, for any ``x : A``. The argument ``x``
 must be implicit, indicating that it needs to be inferred by
 unification whenever the ``B`` instance is used. See
 :ref:`instance-resolution` below for more details.
-
-
 
 
 .. _instance-resolution:

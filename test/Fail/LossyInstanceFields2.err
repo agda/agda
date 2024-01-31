@@ -1,0 +1,29 @@
+Failed to solve the following constraints:
+  piSort (Type _76)
+  (λ x →
+     Type
+     (Membership.ℓ-fibre (_r_63 (S = S) (T = T) (x = x)) ⊔
+      Membership.ℓ-fibre (_r_69 (S = S) (T = T) (x = x))))
+    =< Type (_75 ⊔ _76)
+    (blocked on any(_r_63, _r_69))
+  Membership.ℓ-elem _r_63 = _76 (blocked on any(_r_63, _76))
+  Membership.ℓ-elem _r_69 = _76 (blocked on any(_r_69, _76))
+  Membership.ℓ-fibre (_r_63 (S = S) (T = T) (x = x)) ⊔
+  Membership.ℓ-fibre (_r_69 (S = S) (T = T) (x = x))
+    = _75
+    (blocked on _75)
+  Resolve instance argument _r_63 : Membership (A → Type ℓ')
+  No candidates yet
+    (blocked on _59)
+  Resolve instance argument _r_69 : Membership (A → Type ℓ')
+  No candidates yet
+    (blocked on _59)
+  _59 =< Membership.element _r_69 (blocked on any(_59, _r_69))
+  _59 =< Membership.element _r_63 (blocked on any(_59, _r_63))
+Unsolved metas at the following locations:
+  LossyInstanceFields2.agda:29,15-16
+  LossyInstanceFields2.agda:29,21-22
+  LossyInstanceFields2.agda:29,19-20
+  LossyInstanceFields2.agda:29,29-30
+  LossyInstanceFields2.agda:29,27-28
+  LossyInstanceFields2.agda:29,15-32

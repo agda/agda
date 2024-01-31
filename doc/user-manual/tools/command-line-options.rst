@@ -666,6 +666,12 @@ Experimental features
 
      Default, opposite of :option:`--two-level`.
 
+.. option:: --lossy-instance-fields, --no-lossy-instance-fields
+
+     .. versionadded:: 2.6.5
+
+     Allow instance search to happen even when local variables have
+     unsolved types, see :ref:`lossy-instance-fields`.
 
 
 Errors and warnings
