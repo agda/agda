@@ -14,6 +14,7 @@ import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Maybe
 import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Semigroup (Semigroup((<>)))
 
 import Agda.Interaction.Options
@@ -1136,7 +1137,9 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _ _) vtys0
           , "            delta2" <+> do escapeContext impossible (size delta) $ addContext delta1 $ prettyTCM delta2
           ]
 
-        lets <- traverse getOpen =<< viewTC eLetBindings
+        -- Only inherit user-written let bindings from parent clauses. Others, like @-patterns,
+        -- should not be carried over.
+        lets <- Map.filter ((== UserWritten) . letOrigin) <$> (traverse getOpen =<< viewTC eLetBindings)
 
         return (v, WithFunction x aux t delta delta1 delta2 vtys t' ps npars perm' perm finalPerm cs argsS lets)
 
