@@ -42,7 +42,8 @@ import qualified Agda.Benchmarking as Benchmark
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as DGraph
 import Agda.TypeChecking.Monad.Benchmark (billTo)
 import Data.Either
-import Agda.Utils.List (headWithDefault)
+import qualified Data.List.NonEmpty as NonEmpty
+import Data.List.NonEmpty (NonEmpty(..), (<|))
 
 -- A size expression is represented as a minimum of a set of rigid size variables,
 -- where the length of the set is equal to the number of clusters.
@@ -82,7 +83,7 @@ simplifySizeGraph rigidContext graph = billTo [Benchmark.TypeBasedTermination, B
 
   -- Lazy map representing an approximate cluster of each variable
   let rigidClusters = (mapMaybe (\(i, b) -> (i,) <$> findCluster rigidContext i) rigidContext)
-  let rememberNeighbor v1 v2 = IntMap.insertWith (\n old -> headWithDefault __IMPOSSIBLE__ n : old) v1 [v2]
+  let rememberNeighbor v1 v2 = IntMap.insertWith (\n old -> NonEmpty.head n NonEmpty.<| old) v1 (NonEmpty.singleton v2)
   let neighbourMap = foldr (\(SConstraint _ from to) -> rememberNeighbor to from . rememberNeighbor from to) IntMap.empty enrichedGraph
   let clusterMapping = gatherClusters rigidClusters neighbourMap (IntMap.fromList rigidClusters)
 
@@ -103,11 +104,11 @@ simplifySizeGraph rigidContext graph = billTo [Benchmark.TypeBasedTermination, B
 --
 -- There is no guarantee that a cluster for a flexible variable can be determined uniquely.
 -- However, this mapping is used in heuristics, for which it is allowed to have some approximation.
-gatherClusters :: [(Int, Int)] -> IntMap [Int] -> IntMap Int -> IntMap Int
+gatherClusters :: [(Int, Int)] -> IntMap (NonEmpty Int) -> IntMap Int -> IntMap Int
 gatherClusters [] _ res = res
 gatherClusters list graph res =
   let (combinedMap, combinedNextLevel) = foldr (\(vertex, cluster) (mp, collected) ->
-        let surrounding = fromMaybe [] (IntMap.lookup vertex graph)
+        let surrounding = maybe [] NonEmpty.toList (IntMap.lookup vertex graph)
         in foldr (\neighborVertex (newMp, newEdges) -> if IntMap.member neighborVertex newMp
               then (newMp, newEdges)
               else (IntMap.insert neighborVertex cluster newMp, (neighborVertex, cluster) : newEdges)) (mp, collected) surrounding) (res, []) list
@@ -121,9 +122,9 @@ findCluster rigids i = case List.lookup i rigids of
 
 -- 'instantiateComponents baseSize rigids clusters adjacencyMap subst sccs' assigns a size expression for each flexible variable occurring in 'sccs'.
 -- It is mandatory that 'sccs' is sorted in topological order according to 'adjacencyMap'.
-instantiateComponents :: SizeExpression -> [(Int, SizeBound)] -> IntMap Int -> DGraph.Graph Int ConstrType -> IntMap SizeExpression -> [[Int]] -> MonadSizeChecker (IntMap SizeExpression)
+instantiateComponents :: SizeExpression -> [(Int, SizeBound)] -> IntMap Int -> DGraph.Graph Int ConstrType -> IntMap SizeExpression -> [NonEmpty Int] -> MonadSizeChecker (IntMap SizeExpression)
 instantiateComponents _ _ _ graph subst [] = pure subst
-instantiateComponents baseSize rigids clusterMapping graph subst (comp : is) = do
+instantiateComponents baseSize rigids clusterMapping graph subst (comp@(hd :| tl) : is) = do
 
   bottomVars <- MSC $ gets scsBottomFlexVars
   globalMinimum <- MSC $ gets scsLeafSizeVariables
@@ -133,7 +134,7 @@ instantiateComponents baseSize rigids clusterMapping graph subst (comp : is) = d
   let (lowerBounds, inComponentEdges) = partitionEithers $ map (\(DGraph.Edge bigger lower constr) ->
         if (lower `List.elem` comp)
         then Right constr
-        else Left (constr, lower)) (DGraph.edgesFrom graph comp)
+        else Left (constr, lower)) (DGraph.edgesFrom graph (NonEmpty.toList comp))
   let lowerBoundSizes = map (\(a, x) -> (a, fromMaybe baseSize (subst IntMap.!? x))) lowerBounds
 
 
@@ -147,7 +148,7 @@ instantiateComponents baseSize rigids clusterMapping graph subst (comp : is) = d
            -- Some element in the component has is bigger or equal than infinity,
            -- which means that the component should be assigned to infinity
            baseSize
-        | headWithDefault __IMPOSSIBLE__ comp `IntSet.member` bottomVars =
+        | hd `IntSet.member` bottomVars =
           -- The component corresponds to a non-recursive constructor,
           -- which means that it should be assigned to the least available size expression,
           -- which is a meet of certain rigids
@@ -155,7 +156,7 @@ instantiateComponents baseSize rigids clusterMapping graph subst (comp : is) = d
         | null lowerBoundSizes =
           -- There are no lower bounds for the component, which means that we can try to do some witchcraft
           -- It won't be worse than infinity, right?
-          case (IntMap.lookup (headWithDefault __IMPOSSIBLE__ comp) fallback, ((headWithDefault __IMPOSSIBLE__ comp) `IntMap.lookup` clusterMapping)) of
+          case (IntMap.lookup hd fallback, (hd `IntMap.lookup` clusterMapping)) of
             (Just r, _) ->
               -- The component corresponds to a freshened variable of some recursive call, we can try to assign it to the original variable
               fromMaybe baseSize (subst IntMap.!? r)
@@ -169,7 +170,7 @@ instantiateComponents baseSize rigids clusterMapping graph subst (comp : is) = d
           -- So there are some lower bounds, let's assign the least upper bound of all lower bounds to this component
           foldr1 leastUpperBound (map (uncurry findSuitableSize) lowerBoundSizes)
 
-  let newSubst = IntMap.union subst (IntMap.fromList (map (, assignedSize) comp))
+  let newSubst = IntMap.union subst (IntMap.fromList (map (, assignedSize) (NonEmpty.toList comp)))
   reportSDoc "term.tbt" 70 $ "Component:" <+> text (show comp) <+>
                              ", lower bound sizes:" <+> pure (P.pretty lowerBoundSizes) <+>
                              ", lower bounds: " <+> pure (P.pretty lowerBounds) <+>
@@ -197,7 +198,7 @@ assign 0 (x : xs) e = e : xs
 assign n (x : xs) e = x : (assign (n - 1) xs e)
 assign n xs i = __IMPOSSIBLE__
 
--- Given a set of rigids, tries to find the deepest variable in the set of rigids for a given cluster
+-- Tries to find the deepest variable in the set of rigids for a given cluster
 findLowestClusterVariable :: [(Int, SizeBound)] -> Int -> Int
 findLowestClusterVariable bounds target = fst $ go 0 target
   where
@@ -206,12 +207,7 @@ findLowestClusterVariable bounds target = fst $ go 0 target
       let nextLevel = mapMaybe (\(i, bound) -> case bound of
             SizeBounded j | j == target -> Just i
             _ -> Nothing) (bounds)
-      in case nextLevel of
-            [] -> (target, depth)
-            l -> let inner = map (go (depth + 1)) l
-                     maxLevel = maximum (map snd inner)
-                     maxLevelVars = filter (\(a, d) -> d == maxLevel) inner
-                 in headWithDefault __IMPOSSIBLE__ maxLevelVars
+      in foldr (\(nt, nd) (ct, cd) -> if nd > cd then (nt, nd) else (ct, cd)) (target, depth) (map (go (depth + 1)) nextLevel)
 
 collectIncoherentRigids :: IntMap SizeExpression -> [SConstraint] -> TCM IntSet
 collectIncoherentRigids m g = billTo [Benchmark.TypeBasedTermination, Benchmark.SizeGraphSolving] $ collectIncoherentRigids' m g

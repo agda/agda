@@ -53,7 +53,7 @@ import Agda.Termination.CallGraph
 import Agda.Termination.Monad
 import Agda.Termination.TypeBased.Graph
 import Data.Foldable (traverse_)
-import Agda.Utils.List ((!!!), initWithDefault, headWithDefault, lastWithDefault, tailWithDefault)
+import Agda.Utils.List ((!!!))
 import Data.Functor ((<&>))
 import Agda.Termination.CallMatrix
 import qualified Agda.Termination.CallMatrix
@@ -64,13 +64,15 @@ import Agda.Termination.Order (Order)
 import qualified Agda.Termination.Order as Order
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
+import Data.List.NonEmpty (NonEmpty (..))
+import qualified Data.List.NonEmpty as NonEmpty
 
 type PatternEncoder a = StateT PatternEnvironment MonadSizeChecker a
 
 data PatternEnvironment = PatternEnvironment
   { peDepth         :: Int
   -- ^ Current depth of the pattern.
-  , peDepthStack    :: IntMap [Int]
+  , peDepthStack    :: IntMap (NonEmpty Int)
   -- ^ A map from cluster to a stack of depth variables
   , peCoDepth       :: Int
   -- ^ Current depth of the codomain. This is relevant in the case of copattern matching of a coinductive definition.
@@ -109,7 +111,7 @@ matchPatterns tele patterns = do
   currentRootArity <- getArity currentRoot
   let finalLeaves = peDepthStack modifiedState
   let leafVariables = map (\i -> case IntMap.lookup i finalLeaves of
-        Just l@(_ : _) -> lastWithDefault __IMPOSSIBLE__ l
+        Just l -> NonEmpty.last l
         _ -> -1
         ) [0..currentRootArity - 1]
   pure (leafVariables, sizeTypeOfClause)
@@ -190,7 +192,7 @@ initializeLeafVars (SizeTree size ts) = do
   case size of
     SUndefined -> pure ()
     SDefined i -> modify ( \s -> s
-      { peDepthStack = IntMap.insert i [i] (peDepthStack s)
+      { peDepthStack = IntMap.insert i (singleton i) (peDepthStack s)
       , peDepth = 0
       })
   traverse_ initializeLeafVars ts
@@ -299,12 +301,12 @@ getOrRequestDepthVar cluster level = do
       if (length currentLeaves /= level)
       then
         -- We are requesting a variable from the earlier levels
-        pure $ currentLeaves List.!! level
+        pure $ currentLeaves NonEmpty.!! level
       else do
         -- We need to populate a depth stack with a new level
-        let actualBound = if (headWithDefault __IMPOSSIBLE__ currentLeaves == -1) then SUndefined else SDefined (lastWithDefault __IMPOSSIBLE__ currentLeaves)
-        [var] <- lift $ requestNewRigidVariables actualBound [SizeBounded (-1)]
-        modify (\s -> s { peDepthStack = IntMap.insert cluster (currentLeaves ++ [var]) (peDepthStack s) })
+        let actualBound = if ((NonEmpty.head currentLeaves) == -1) then SizeUnbounded else SizeBounded (NonEmpty.last currentLeaves)
+        var <- lift $ requestNewRigidVariable actualBound
+        modify (\s -> s { peDepthStack = IntMap.insert cluster (NonEmpty.appendList currentLeaves [var]) (peDepthStack s) })
         pure var
 
 -- | Retrieves a new depth variable to reflect a descend in copattern projection
@@ -313,8 +315,8 @@ getOrRequestCoDepthVar depth = do
   currentCodepthStack <- gets peCoDepthStack
   case (currentCodepthStack !!! depth) of
     Nothing -> do
-      let actualBound = if depth == 0 then SUndefined else SDefined (currentCodepthStack List.!! (depth - 1))
-      [var] <- lift $ requestNewRigidVariables actualBound [SizeBounded (-1)]
+      let actualBound = if depth == 0 then SizeUnbounded else SizeBounded (currentCodepthStack List.!! (depth - 1))
+      var <- lift $ requestNewRigidVariable actualBound
       reportSDoc "term.tbt" 70 $ "Requesting new var of codepth" <+> text (show depth) <+> "which is " <+> text (show var)
       modify (\s -> s { peCoDepthStack = peCoDepthStack s ++ [var] })
       lift $ recordContravariantSizeVariable var
@@ -329,21 +331,19 @@ freshenPatternConstructor :: QName -> Int -> PatternEncoder Int -> SizeType -> S
 freshenPatternConstructor conName codomainDataVar domainDataVar expectedCodomain (SizeSignature bounds contra constructorType) = do
   let (SizeTree topSize datatypeParameters) = expectedCodomain
   let shouldBeUnbounded b = b == SizeUnbounded || codomainDataVar == (-1)
+  let unboundedVariables = length (filter shouldBeUnbounded bounds)
   -- We need to strip the codomain size from the constructor here.
-  let modifier = if codomainDataVar /= -1 then initWithDefault __IMPOSSIBLE__ else id
-  newVarsRaw <- lift $ requestNewRigidVariables topSize (modifier (filter shouldBeUnbounded bounds)) -- tail for stripping codomain TODO
   -- It is important to call `domainDataVar` lazily,
   -- because otherwise leaf variables would gain access to a cluster var with lower level than expected
-  domainVar <- if length newVarsRaw + 1 == length bounds then pure (-1) else domainDataVar
-  let newVars = snd $ List.mapAccumL (\nv bound -> if shouldBeUnbounded bound then (tailWithDefault __IMPOSSIBLE__ nv, headWithDefault __IMPOSSIBLE__ nv) else (nv, domainVar)) newVarsRaw (modifier bounds)
+  domainVar <- if all shouldBeUnbounded bounds then pure (-1) else domainDataVar
+  newVars <- forM bounds $ \bound -> if shouldBeUnbounded bound then lift $ requestNewRigidVariable SizeUnbounded else pure domainVar
   reportSDoc "term.tbt" 70 $ vcat
     [ "New variables for instantiation: " <+> text (show newVars)
-    , "Raw variables: " <+> text (show newVarsRaw)
     , "Bounds: " <+> pretty bounds
     , "modified type: " <+> pretty constructorType
     , "Datatype arguments:" <+> pretty datatypeParameters
     ]
-  let instantiatedSig = instantiateSizeType constructorType (newVars ++ [codomainDataVar])
+  let instantiatedSig = instantiateSizeType constructorType newVars
   numberOfArguments <- liftTCM $ getDatatypeParametersByConstructor conName
   reportSDoc "term.tbt" 70 $ "Number of arguments: " <+> text (show numberOfArguments)
   let partialConstructorType = applyDataType (take numberOfArguments datatypeParameters) instantiatedSig
@@ -352,8 +352,7 @@ freshenPatternConstructor conName codomainDataVar domainDataVar expectedCodomain
 freshenCopatternProjection :: Int -> [SizeBound] -> SizeType -> PatternEncoder SizeType
 freshenCopatternProjection newCoDepthVar bounds tele = do
   let isNewPatternSizeVar b = b == SizeUnbounded || newCoDepthVar == (-1)
-  newVarsRaw <- lift $ requestNewRigidVariables SUndefined (filter isNewPatternSizeVar bounds)
-  let newVars = snd $ List.mapAccumL (\nv bound -> if isNewPatternSizeVar bound then (tailWithDefault __IMPOSSIBLE__ nv, headWithDefault __IMPOSSIBLE__ nv) else (nv, newCoDepthVar)) newVarsRaw bounds
+  newVars <- forM bounds $ \bound -> if isNewPatternSizeVar bound then lift $ requestNewRigidVariable SizeUnbounded else pure newCoDepthVar
   reportSDoc "term.tbt" 70 $ "Raw size type of copattern projection: " <+> pretty tele <+> "With new variabless:" <+> text (show newVars)
   let instantiatedSig = instantiateSizeType tele newVars
   pure instantiatedSig

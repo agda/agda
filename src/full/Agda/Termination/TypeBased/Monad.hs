@@ -1,4 +1,3 @@
-{-# LANGUAGE NondecreasingIndentation #-}
 module Agda.Termination.TypeBased.Monad where
 
 import Control.Monad.Trans.State ( StateT, gets, modify, runStateT )
@@ -26,7 +25,6 @@ import Control.Monad
 import Data.Maybe
 import Data.Set (Set )
 
-import Agda.Utils.List (headWithDefault)
 import Agda.Utils.Impossible
 
 import qualified Agda.Utils.Benchmark as B
@@ -62,14 +60,19 @@ data SizeCheckerState = SizeCheckerState
   -- ^ The function that is checked at the moment
   , scsRecCalls               :: [(QName, QName, [Int], [Int], Closure Term)]
   -- ^ [(f, g, Psi_f, Psi_g, place)], where Psi is the representation of the size context (see Abel & Pientka 2016)
-  , scsConstraints            :: [[SConstraint]]
+  , scsConstraints            :: [SConstraint]
   -- ^ Lists of edges in the size dependency graph.
-  --   Each clause of a function is solved separately, that is why we keep this as a list of lists.
-  , scsRigidSizeVars          :: [[(Int, SizeBound)]]
+  --   This field is local to each clause.
+  , scsTotalConstraints       :: [SConstraint]
+  -- ^ The list of all constraints during function processing.
+  --   This list is global across the function
+  , scsRigidSizeVars          :: [(Int, SizeBound)]
   -- ^ Variables that are obtained during the process of pattern matching.
   --   All flexible variables should be expressed as infinity or a rigid variable in the end.
-  , scsCoreContext            :: [[SizeContextEntry]]
+  --   Local to a clause.
+  , scsCoreContext            :: [SizeContextEntry]
   -- ^ Size types of the variables from internal syntax.
+  --   Local to a clause.
   , scsFreshVarCounter        :: Int
   -- ^ A counter that represents a pool of new first-order size variables. Both rigid and flexible variables are taken from this pool.
   , scsBottomFlexVars         :: IntSet
@@ -111,32 +114,29 @@ data SizeCheckerState = SizeCheckerState
   --   e.g. a postulated univalence axiom may break the type-based termination checker with an internal error.
   }
 
-getConstraints :: MonadSizeChecker [[SConstraint]]
-getConstraints = MSC $ gets scsConstraints
-
 getCurrentConstraints :: MonadSizeChecker [SConstraint]
-getCurrentConstraints = MSC $ headWithDefault __IMPOSSIBLE__ <$> gets scsConstraints
+getCurrentConstraints = MSC $ gets scsConstraints
+
+getTotalConstraints :: MonadSizeChecker [SConstraint]
+getTotalConstraints = MSC $ gets scsTotalConstraints
 
 getCurrentRigids :: MonadSizeChecker [(Int, SizeBound)]
-getCurrentRigids = MSC $ headWithDefault __IMPOSSIBLE__ <$> gets scsRigidSizeVars
+getCurrentRigids = MSC $ gets scsRigidSizeVars
 
 -- | Adds a new rigid variable. This function is fragile, since bound might not be expressed in terms of current rigids.
 --   Unfortunately we have to live with it if we want to support record projections in arbitrary places.
 addNewRigid :: Int -> SizeBound -> MonadSizeChecker ()
-addNewRigid x bound = MSC $ modify \s ->
-  case scsRigidSizeVars s of
-    rs:rss -> s { scsRigidSizeVars = ((x, bound) : rs) : rss }
-    _ -> __IMPOSSIBLE__
+addNewRigid x bound = MSC $ modify \s -> s { scsRigidSizeVars = ((x, bound) : scsRigidSizeVars s) }
 
 getCurrentCoreContext :: MonadSizeChecker [SizeContextEntry]
-getCurrentCoreContext = MSC $ headWithDefault __IMPOSSIBLE__ <$> gets scsCoreContext
+getCurrentCoreContext = MSC $ gets scsCoreContext
 
 -- | Initializes internal data strustures that will be filled by the processing of a clause
 initNewClause :: [SizeBound] -> MonadSizeChecker ()
 initNewClause bounds = MSC $ modify (\s -> s
-  { scsRigidSizeVars = (zip [0..length bounds] (replicate (length bounds) SizeUnbounded)) : (scsRigidSizeVars s) -- each clause has its own set of rigid variables
-  , scsConstraints = [] : (scsConstraints s) -- a graph obtained by the processing of a clause corresponds to the clause's rigids
-  , scsCoreContext = [] : (scsCoreContext s) -- like in internal syntax, each clause lives in a separate context
+  { scsRigidSizeVars = (zip [0..length bounds] (replicate (length bounds) SizeUnbounded))
+  , scsConstraints = [] -- a graph obtained by the processing of a clause corresponds to the clause's rigids
+  , scsCoreContext = [] -- like in internal syntax, each clause lives in a separate context
   })
 
 isContravariant :: Size -> MonadSizeChecker Bool
@@ -155,10 +155,10 @@ getArity :: QName -> MonadSizeChecker Int
 getArity qn = sizeSigArity . fromJust . defSizedType <$> getConstInfo qn
 
 storeConstraint :: SConstraint -> MonadSizeChecker ()
-storeConstraint c = MSC $ modify \ s ->
-  case scsConstraints s of
-    cs:css -> s { scsConstraints = (c:cs):css }
-    [] -> __IMPOSSIBLE__
+storeConstraint c = MSC $ modify \ s -> s
+  { scsConstraints = c : (scsConstraints s)
+  , scsTotalConstraints = c : scsTotalConstraints s
+  }
 
 reportCall :: QName -> QName -> [Int] -> [Int] -> Closure Term -> MonadSizeChecker ()
 reportCall q1 q2 sizes1 sizes2 place = MSC $ modify (\s -> s { scsRecCalls = (q1, q2, sizes1, sizes2, place) : scsRecCalls s })
@@ -197,13 +197,10 @@ getUndefinedSizes = MSC $ gets scsUndefinedVariables
 abstractCoreContext :: Int -> Either FreeGeneric SizeType -> MonadSizeChecker a -> MonadSizeChecker a
 abstractCoreContext i tele action = do
   contexts <- MSC $ gets scsCoreContext
-  case contexts of
-    cs:css -> do
-      MSC $ modify \s -> s { scsCoreContext = ((i, tele) : map (incrementDeBruijnEntry tele) cs) : css }
-      res <- action
-      MSC $ modify \s -> s { scsCoreContext = contexts }
-      pure res
-    [] -> __IMPOSSIBLE__
+  MSC $ modify \s -> s { scsCoreContext = ((i, tele) : map (incrementDeBruijnEntry tele) contexts) }
+  res <- action
+  MSC $ modify \s -> s { scsCoreContext = contexts }
+  pure res
 
 incrementDeBruijnEntry :: Either FreeGeneric SizeType -> (Int, Either FreeGeneric SizeType) -> (Int, Either FreeGeneric SizeType)
 incrementDeBruijnEntry (Left _) (x, Left fg) = (x + 1, Left $ fg { fgIndex = fgIndex fg + 1 })
@@ -239,29 +236,16 @@ freshenSignature s@(SizeSignature domain contra tele) = do
 instantiateSizeType :: SizeType -> [Int] -> SizeType
 instantiateSizeType body args = update (\i -> args List.!! i) body
 
-requestNewRigidVariables :: Size -> [SizeBound] -> MonadSizeChecker [Int]
-requestNewRigidVariables bound pack = do
-  newVarIdxs <- replicateM (length pack) requestNewVariable
+requestNewRigidVariable :: SizeBound -> MonadSizeChecker Int
+requestNewRigidVariable bound = do
+  newVarIdx <- requestNewVariable
   MSC $ do
-  let newBound = case bound of
-        SUndefined -> SizeUnbounded
-        SDefined i -> SizeBounded i
-  let newBounds = map (\case
-        SizeUnbounded -> SizeUnbounded
-        SizeBounded i -> newBound) pack
-
-  currentRigids <- gets scsRigidSizeVars
-  case currentRigids of
-    rs:rss -> do
-      modify \s -> s { scsRigidSizeVars = (zip newVarIdxs newBounds ++ rs) : rss }
-      return newVarIdxs
-    [] -> __IMPOSSIBLE__
+    currentRigids <- gets scsRigidSizeVars
+    modify \s -> s { scsRigidSizeVars = ((newVarIdx, bound) : currentRigids) }
+    return newVarIdx
 
 appendCoreVariable :: Int -> Either FreeGeneric SizeType -> MonadSizeChecker ()
-appendCoreVariable i tele = MSC $ modify \s ->
-  case scsCoreContext s of
-    c:cc -> s { scsCoreContext = ((i, tele) : c) : cc }
-    [] -> __IMPOSSIBLE__
+appendCoreVariable i tele = MSC $ modify \s -> s { scsCoreContext = ((i, tele) : (scsCoreContext s)) }
 
 runSizeChecker :: QName -> Set QName -> MonadSizeChecker a -> TCM (a, SizeCheckerState)
 runSizeChecker rootName mutualNames (MSC action) = do
@@ -271,6 +255,7 @@ runSizeChecker rootName mutualNames (MSC action) = do
     , scsCurrentFunc = rootName
     , scsRecCalls = []
     , scsConstraints = []
+    , scsTotalConstraints = []
     , scsRigidSizeVars = []
     , scsFreshVarCounter = 0
     , scsCoreContext = []

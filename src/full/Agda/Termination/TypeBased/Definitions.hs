@@ -209,10 +209,10 @@ processSizedDefinitionMSC s@(SizeSignature bounds contra sizeSig) clauses = do
     -- Assigns all incoherent rigid variables to infinity, since they cannot be used for termination analysis adequately.
     considerIncoherences :: IntMap SizeExpression -> MonadSizeChecker (IntMap SizeExpression)
     considerIncoherences combinedSubst = do
-      totalGraph <- MSC $ gets scsConstraints
+      totalGraph <- getTotalConstraints
       currentName <- currentCheckedName
       arity <- getArity currentName
-      incoherences <- liftTCM $ collectIncoherentRigids combinedSubst (concat totalGraph)
+      incoherences <- liftTCM $ collectIncoherentRigids combinedSubst totalGraph
       reportSDoc "term.tbt" 60 $ "Incoherent sizes: " <+> text (show incoherences)
       let baseSize = SEMeet (replicate arity (-1))
       pure $ IntMap.mapWithKey (\i expectedSize@(SEMeet list) -> if (any (`IntSet.member` incoherences) list) then baseSize else expectedSize) combinedSubst
@@ -276,7 +276,7 @@ processSizeClause bounds newTele c = do
 invokeSizeChecker :: QName -> Set QName -> MonadSizeChecker (IntMap SizeExpression, SizeSignature) -> TCM (Either [String] (CallGraph CallPath, SizeSignature))
 invokeSizeChecker rootName nms action = do
   ((subst, sizePreservationInferenceResult), res) <- runSizeChecker rootName nms action
-  let graph = scsConstraints res
+  let graph = scsTotalConstraints res
   let calls = scsRecCalls res
   reportSDoc "term.tbt" 60 $ vcat $
     [ text "Total graph:" ] ++
