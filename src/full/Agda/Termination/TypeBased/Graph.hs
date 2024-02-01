@@ -81,6 +81,9 @@ simplifySizeGraph rigidContext graph = billTo [Benchmark.TypeBasedTermination, B
   bottomVars <- MSC $ gets scsBottomFlexVars
   contra <- getContravariantSizeVariables
 
+  fixedTopLevelVars <- IntMap.keysSet <$> MSC (gets scsPreservationCandidates)
+  let topLevelVars = foldr (\(SConstraint rel from to) -> if rel == SLeq && to `IntSet.member` fixedTopLevelVars then IntMap.insert from to else id) IntMap.empty graph
+
   -- Lazy map representing an approximate cluster of each variable
   let rigidClusters = (mapMaybe (\(i, b) -> (i,) <$> findCluster rigidContext i) rigidContext)
   let rememberNeighbor v1 v2 = IntMap.insertWith (\n old -> NonEmpty.head n NonEmpty.<| old) v1 (NonEmpty.singleton v2)
@@ -94,7 +97,7 @@ simplifySizeGraph rigidContext graph = billTo [Benchmark.TypeBasedTermination, B
           in case cluster of
             Just c | c < arity -> assign c baseSize i
             _ -> baseSize)) rigidContext)
-  substitution <- instantiateComponents (SEMeet baseSize) rigidContext clusterMapping adjacencyMap initialSubst sccs
+  substitution <- instantiateComponents (SEMeet baseSize) rigidContext topLevelVars adjacencyMap initialSubst sccs
   pure $ (substitution, clusterMapping)
 
 -- | 'gatherClusters layer neighbors result' collects a map from graph nodes (the keys in 'neighbors') to their approximate cluster.
@@ -124,7 +127,7 @@ findCluster rigids i = case List.lookup i rigids of
 -- It is mandatory that 'sccs' is sorted in topological order according to 'adjacencyMap'.
 instantiateComponents :: SizeExpression -> [(Int, SizeBound)] -> IntMap Int -> DGraph.Graph Int ConstrType -> IntMap SizeExpression -> [NonEmpty Int] -> MonadSizeChecker (IntMap SizeExpression)
 instantiateComponents _ _ _ graph subst [] = pure subst
-instantiateComponents baseSize rigids clusterMapping graph subst (comp@(hd :| tl) : is) = do
+instantiateComponents baseSize rigids topLevelVars graph subst (comp@(hd :| tl) : is) = do
 
   bottomVars <- MSC $ gets scsBottomFlexVars
   globalMinimum <- MSC $ gets scsLeafSizeVariables
@@ -145,7 +148,7 @@ instantiateComponents baseSize rigids clusterMapping graph subst (comp@(hd :| tl
           -- Which implies that the component should be assigned to infinity, as we essentially have 'a < a'
           baseSize
         | (any (`IntSet.member` undefinedVars) comp) =
-           -- Some element in the component has is bigger or equal than infinity,
+           -- Some element in the component is bigger or equal than infinity,
            -- which means that the component should be assigned to infinity
            baseSize
         | hd `IntSet.member` bottomVars =
@@ -156,14 +159,13 @@ instantiateComponents baseSize rigids clusterMapping graph subst (comp@(hd :| tl
         | null lowerBoundSizes =
           -- There are no lower bounds for the component, which means that we can try to do some witchcraft
           -- It won't be worse than infinity, right?
-          case (IntMap.lookup hd fallback, (hd `IntMap.lookup` clusterMapping)) of
+          case (IntMap.lookup hd fallback, (hd `IntMap.lookup` topLevelVars)) of
             (Just r, _) ->
               -- The component corresponds to a freshened variable of some recursive call, we can try to assign it to the original variable
               fromMaybe baseSize (subst IntMap.!? r)
-            (Nothing, Just cluster) -> do
-              -- We managed to find a cluster for a variable, which means that we can try to assign a variable to the lowest available rigid in a cluster
-                let lowestCluster = findLowestClusterVariable rigids cluster
-                fromMaybe baseSize (subst IntMap.!? lowestCluster)
+            (_, Just r) ->
+              -- Seems like this variable is lower than the top-level one, we can assign the bound rigid to it.
+              fromMaybe baseSize (subst IntMap.!? r)
               -- The witchcraft failed, we assign the component to infinity
             (Nothing, Nothing) -> baseSize
         | otherwise =
@@ -171,13 +173,13 @@ instantiateComponents baseSize rigids clusterMapping graph subst (comp@(hd :| tl
           foldr1 leastUpperBound (map (uncurry findSuitableSize) lowerBoundSizes)
 
   let newSubst = IntMap.union subst (IntMap.fromList (map (, assignedSize) (NonEmpty.toList comp)))
-  reportSDoc "term.tbt" 70 $ "Component:" <+> text (show comp) <+>
+  reportSDoc "term.tbt" 70 $ "Component:" <+> text (show (NonEmpty.toList comp)) <+>
                              ", lower bound sizes:" <+> pure (P.pretty lowerBoundSizes) <+>
                              ", lower bounds: " <+> pure (P.pretty lowerBounds) <+>
                              ", assignedSize: " <+> pure (P.pretty assignedSize) <+>
                              ", bottom vars: " <+> text (show bottomVars)
 
-  instantiateComponents baseSize rigids clusterMapping graph newSubst is
+  instantiateComponents baseSize rigids topLevelVars graph newSubst is
   where
     -- Searches for a suitable size expression in a list of known size bounds
     findSuitableSize :: ConstrType -> SizeExpression -> SizeExpression
