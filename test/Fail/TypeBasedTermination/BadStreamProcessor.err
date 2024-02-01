@@ -1,8 +1,0 @@
-TypeBasedTermination/BadStreamProcessor.agda:26,1-32,40
-Termination checking failed for the following functions:
-  runSPμ, runSPν
-Problematic calls:
-  runSPν spν s
-    (at TypeBasedTermination/BadStreamProcessor.agda:30,29-35)
-  runSPμ (SPν.force spn) s
-    (at TypeBasedTermination/BadStreamProcessor.agda:32,16-22)

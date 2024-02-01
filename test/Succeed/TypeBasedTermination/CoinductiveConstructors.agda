@@ -21,3 +21,6 @@ data Nat : Set where
 foo : Stream Nat
 foo .hd = zero
 foo .tl = zero , foo
+
+foo2 : Stream Nat
+foo2 = zero , foo2

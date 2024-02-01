@@ -213,6 +213,14 @@ requestNewVariable = MSC $ do
   modify (\s -> s { scsFreshVarCounter = (x + 1) })
   return x
 
+withAnotherPreservationCandidate :: Int -> MonadSizeChecker a -> MonadSizeChecker a
+withAnotherPreservationCandidate candidate action = do
+  oldState <- MSC $ gets scsPreservationCandidates
+  MSC $ modify (\s -> s { scsPreservationCandidates = IntMap.insert candidate [] oldState })
+  res <- action
+  MSC $ modify (\s -> s { scsPreservationCandidates = oldState })
+  pure res
+
 instance Show SConstraint where
   show (SConstraint SLeq i1 i2) = show i1 ++ " ≤ " ++ show i2
   show (SConstraint SLte i1 i2) = show i1 ++ " < " ++ show i2
