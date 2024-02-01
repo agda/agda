@@ -149,7 +149,7 @@ checkCandidateSatisfiability possiblyPreservingVar candidateVar graph bounds = d
     ]
 
   -- Now let's see if there are any problems if we try to solve graph with merged variables.
-  (substitution, clusterMapping) <- simplifySizeGraph bounds mappedGraph
+  (substitution, clusterMapping) <- withAnotherPreservationCandidate candidateVar $ simplifySizeGraph bounds mappedGraph
   incoherences <- liftTCM $ collectIncoherentRigids substitution mappedGraph
   let allIncoherences = IntSet.union incoherences $ collectClusteringIssues candidateVar clusterMapping mappedGraph bounds
   reportSDoc "term.tbt" 70 $ "Incoherences during an attempt:" <+> text (show incoherences)
