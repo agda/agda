@@ -712,7 +712,7 @@ checkClause t withSubAndLets c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats r
     let installInheritedLets k
           | Just (withSub, lets) <- withSubAndLets = do
             lets' <- traverse makeOpen $ applySubst (patSubst `composeS` withSub) lets
-            locallyTC eLetBindings (const lets') k
+            locallyTC eLetBindings (lets' <>) k
           | otherwise = k
 
     installInheritedLets $ do

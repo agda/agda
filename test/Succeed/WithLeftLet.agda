@@ -45,3 +45,13 @@ f₄ : (n : Nat) → (Nat → Vec Nat n) → Nat
 f₄ n v using 2n ← n + n with v 2n in eq
 ... | []                       = const 2n (2n ≡ 0 ∋ refl)
 ... | x ∷ xs using n′ ← len xs = const 2n (2n ≡ suc n′ + suc n′ ∋ refl)
+
+f₅ : Nat → Nat
+f₅ zero = 0
+f₅ n@(suc m) using 2n ← n + n = z
+  where
+    z : Nat
+    z with 2n + n
+    ... | 3n = n + 2n + 3n
+
+_ = f₅ 1 ≡ 6 ∋ refl
