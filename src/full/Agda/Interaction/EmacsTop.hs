@@ -108,6 +108,16 @@ lispifyResponse (Resp_SolveAll ps) = return
   ]
   where
     prn (ii,e)= [showNumIId ii, A $ quote $ prettyShow e]
+-- TODO: For now, I piggy-back on the Resp_SolveAll implementation
+lispifyResponse (Resp_Mimer ii msol) = return $ case msol of
+  Nothing ->
+    [ lastTag 1 $ -- TODO: What is this lastTag used for?
+        L [ A "agda2-info-action", A $ quote "*Mimer*", A $ quote "No solution found" ]
+    ]
+  Just str ->
+    [ lastTag 1 $ -- TODO: What is this lastTag used for?
+        L [ A "agda2-solve-action", showNumIId ii, A $ quote str ]
+    ]
 
 lispifyDisplayInfo :: DisplayInfo -> TCM [Lisp String]
 lispifyDisplayInfo info = case info of

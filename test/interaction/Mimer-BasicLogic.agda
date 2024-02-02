@@ -26,26 +26,26 @@ h3 = {!!}
 --h3 = λ A B C z →
 --         ∧-i (_∧_.fst (_∧_.fst z)) (∧-i (_∧_.snd (_∧_.fst z)) (_∧_.snd z))
 
-
 h4 : (A B C : Set) → A ∨ B → (A → C) → (B → C) → C
 h4 A B C x h₁ h₂ = {!-c!}
+-- No solution found (case splitting doesn't work yet)
 
 
 h5 : ∀ A B → A ∨ B → B ∨ A
 h5 A B x = {!-c!}
+-- No solution
 --h5 A B (∨-i₁ x) = ∨-i₂ x
 --h5 A B (∨-i₂ x) = ∨-i₁ x
 
 h6 : ∀ A B C → (A ∨ B) ∨ C → A ∨ (B ∨ C)
 h6 A B C x = {!-c!}
+-- No solution
 --h6 A B C (∨-i₁ (∨-i₁ x)) = ∨-i₁ x
 --h6 A B C (∨-i₁ (∨-i₂ x)) = ∨-i₂ (∨-i₁ x)
 --h6 A B C (∨-i₂ x) = ∨-i₂ (∨-i₂ x)
 
 h7 : (A : Set) → ⊥ → A
-h7 A x = {!-c!}
-
-
+h7 A = {!!}
 
 h8 : ∀ A → A → ¬ (¬ A)
 h8 = {!!}
@@ -58,13 +58,15 @@ h9 = {!!}
 h10 : (∀ A → ¬ (¬ A) → A) →
      (∀ A → A ∨ ¬ A)
 h10 = {!!}
---h10 = λ z A →
+-- No solution
+-- h10 = λ z A →
 --         z (A ∨ ((x : A) → ⊥)) (λ z₁ → z₁ (∨-i₂ (λ x → z₁ (∨-i₁ x))))
 
 h11 : (∀ A → A ∨ ¬ A) →
       (∀ A → ¬ (¬ A) → A)
 h11 = {!∨-e ⊥-e!}
---h11 = λ z A z₁ →
+-- No solution
+-- h11 = λ z A z₁ →
 --          ∨-e A ((x : A) → ⊥) A (z A) (λ z₂ → z₂) (λ z₂ → ⊥-e A (z₁ z₂))
 
 
@@ -79,11 +81,11 @@ h13 = {!!}
 
 
 n0 : {X : Set} {P Q : X → Set} → Σ X (λ x → P x ∨ Q x) → Σ X P ∨ Σ X Q
---n0 = {!∨-e!}  -- no solution found, not even for the two subproofs
+-- n0 = {!∨-e!}  -- no solution found
 n0 = λ h → ∨-e _ _ _ (Σ.prf h) (λ x → ∨-i₁ (Σ-i (Σ.wit h) x)) (λ x → ∨-i₂ (Σ-i (Σ.wit h) x))
 
 n1 : {X : Set} {P Q : X → Set} → Σ X P ∨ Σ X Q → Σ X (λ x → P x ∨ Q x)
---n1 = {!∨-e!}  -- no solution found, not even for the two subproofs
+--n1 = {!∨-e!}  -- no solution found
 n1 = λ h → ∨-e _ _ _ h (λ x → Σ-i (Σ.wit x) (∨-i₁ (Σ.prf x))) (λ x → Σ-i (Σ.wit x) (∨-i₂ (Σ.prf x)))
 
 h14 : {X : Set} → (x : X) → Σ X (λ x → ⊤)
@@ -104,8 +106,8 @@ module Drink where
 
  drink : (A : Set) → (a : A)
             → (Drink : A → Set) → Σ A (λ x → (Drink x) → Π A Drink)
- drink A a Drink = {!RAA!}  -- h17
-{-
+ -- drink A a Drink = {!RAA!}  -- h17
+ -- No solution
  drink A a Drink = RAA (Σ A (λ z → (x : Drink z) → Π A Drink))
                      (λ z →
                         z
@@ -116,4 +118,3 @@ module Drink where
                                RAA (Drink a₁)
                                (λ z₁ →
                                   z (Σ-i a₁ (λ x₁ → fun (λ a₂ → RAA (Drink a₂) (λ _ → z₁ x₁)))))))))  -- h17
--}

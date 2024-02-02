@@ -55,6 +55,13 @@ Library management
 Interaction and emacs mode
 --------------------------
 
+* The Auto command has been reimplemented from the ground up. This fixes
+  problems where Auto would fail in the presence of language features it didn't
+  know about, such as copatterns or anything cubical.
+
+  The reimplementation does not support case splitting (`-c`), disproving
+  (`-d`) or refining (`-r`).
+
 Backends
 --------
 

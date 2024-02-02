@@ -5,7 +5,6 @@ module Agda.Interaction.Base where
 
 import           Control.Concurrent.STM.TChan
 import           Control.Concurrent.STM.TVar
-
 import           Control.Monad                ( mplus, liftM2, liftM4 )
 import           Control.Monad.Except
 import           Control.Monad.Identity
@@ -169,7 +168,7 @@ data Interaction' range
   | Cmd_solveAll Rewrite
   | Cmd_solveOne Rewrite InteractionId range String
 
-    -- | Solve (all goals / the goal at point) by using Auto.
+    -- | Solve (all goals / the goal at point) by using Mimer proof search.
   | Cmd_autoOne            InteractionId range String
   | Cmd_autoAll
 

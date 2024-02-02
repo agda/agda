@@ -6,7 +6,7 @@ open import Auto.Prelude
 
 h0 : (x₁ x₂ : ⊥) → x₁ ≡ x₂
 h0 = {!!}
---h0 = λ x₁ → λ ()
+--h0 = λ ()
 
 
 -- using dependent pair to define non-dep pair
@@ -16,7 +16,5 @@ module DND where
  A × B = Σ A (λ _ → B)
 
  h1-2 : ∀ {A B} → A × B → B × A
--- h1-2 = {!!}  -- no solution found
- h1-2 = λ h → Σ-i {!!} {!!}
--- h1-2 = λ h → Σ-i (Σ.prf h) (Σ.wit h)
-
+ h1-2 = {!!}
+-- h1-2 = λ z → Σ-i (Σ.prf z) (Σ.wit z)

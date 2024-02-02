@@ -6,3 +6,6 @@ compiler-check: match-exact
 packages:
 - '.'
 - 'src/size-solver'
+
+extra-deps:
+- pqueue-1.5.0.0

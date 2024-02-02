@@ -614,7 +614,7 @@ lambdaCohesionCheck dom info
       return info
 
 -- Andreas, issue #630: take name from function type if lambda name is "_".
-lambdaAddContext :: Name -> ArgName -> Dom Type -> TCM a -> TCM a
+lambdaAddContext :: MonadAddContext m => Name -> ArgName -> Dom Type -> m a -> m a
 lambdaAddContext x y dom
   | isNoName x = addContext (y, dom)                 -- Note: String instance
   | otherwise  = addContext (x, dom)                 -- Name instance of addContext

@@ -15,7 +15,8 @@ double zero = zero
 double (succ n) = succ (succ (double n))
 
 h0 : ∀ {n} → Even (double n)
-h0 {n} = {!-c!}
+h0 {zero} = {!!}
+h0 {succ n} = {!!}
 --h0 {zero} = even-0
 --h0 {succ x} = even-s (odd-s h0)
 
@@ -25,7 +26,8 @@ h0 {n} = {!-c!}
 module VecMap where
 
  map : {X Y : Set} → {n : ℕ} → (X → Y) → Vec X n → Vec Y n
- map f xs = {!-c!}  -- h1
+ map f [] = {!!}
+ map f (x ∷ xs) = {!!}
 {-
  map f [] = []
  map f (x ∷ x₁) = f x ∷ map f x₁
@@ -33,23 +35,23 @@ module VecMap where
 
 -- ----------------------------
 
-data Type : Set₁ where
- <_> : Set → Type
+data Type : Set where
+ nat : Type
  _⇒_ : Type → Type → Type
 
 ∥_∥ : Type → Set
-∥ < X > ∥ = X
+∥ nat   ∥ = ℕ
 ∥ a ⇒ b ∥ = ∥ a ∥ → ∥ b ∥
 
-data Ctx : Set₁ where
+data Ctx : Set where
  [] : Ctx
  _,_ : Ctx → Type → Ctx
 
-data _∈_ (a : Type) : Ctx → Set₁ where
+data _∈_ (a : Type) : Ctx → Set where
  zero : ∀ {Γ} → a ∈ (Γ , a)
  succ : ∀ {b Γ} → a ∈ Γ → a ∈ (Γ , b)
 
-data Exp (Γ : Ctx) : Type → Set₁ where
+data Exp (Γ : Ctx) : Type → Set where
  app : ∀ {α β} → Exp Γ (α ⇒ β) → Exp Γ α → Exp Γ β
  var : ∀ {α} → α ∈ Γ → Exp Γ α
  lam : ∀ {a b} → Exp (Γ , a) b → Exp Γ (a ⇒ b)
@@ -59,22 +61,12 @@ data Env : Ctx → Set₁ where
  cons : ∀ {Γ a} → ∥ a ∥ → Env Γ → Env (Γ , a)
 
 lookup : ∀ {Γ a} → a ∈ Γ → Env Γ → ∥ a ∥
-lookup x σ = {!-c!}  -- h2
-{-
-lookup {._} {< x >} zero (cons x₁ x₂) = x₁
-lookup {._} {< x >} (succ x₁) (cons x₂ x₃) = lookup x₁ x₃
-lookup {._} {x ⇒ x₁} zero (cons x₂ x₃) = x₂
-lookup {._} {x ⇒ x₁} (succ x₂) (cons x₃ x₄) = lookup x₂ x₄
--}
-
-lookup' : ∀ {Γ a} → a ∈ Γ → Env Γ → ∥ a ∥
-lookup' zero (cons x σ) = x
-lookup' (succ v) (cons x σ) = lookup' v σ
+lookup zero (cons x σ) = {!!}
+lookup (succ n) (cons x σ) = {!!}
 
 eval : ∀ {Γ a} → Env Γ → Exp Γ a → ∥ a ∥
---eval σ e = {!-c lookup!}  -- no solution found
-eval σ (app e e₁) = {!!}  -- h3
-eval σ (var x) = {!lookup'!}  -- h4, -c also works, repeats the solution for lookup
+eval σ (app e e₁) = {!!} -- h3
+eval σ (var x) = {!!} -- h4
 eval σ (lam e) x = {!!}  -- h5
 {-
 eval σ (app e e₁) = eval σ e (eval σ e₁)
