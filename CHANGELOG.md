@@ -22,6 +22,28 @@ Language
 
 Changes to type checker and other components defining the Agda language.
 
+* Left-hand side let: `using x ← e`
+
+  This new construct can be using in left-hand sides together with `with` and
+  `rewrite` to give names to subexpressions. It is the left-hand side
+  counterpart of a `let`-binding and supports the same limited form of pattern
+  matching on eta-expandable record values.
+
+  It can be quite useful when you have a function doing a series of nested
+  `with`s that share some expressions. Something like
+
+  ```agda
+  fun : A → B
+  fun x using z ← e with foo z
+  ... | p with bar z
+  ...   | q = r
+  ```
+
+  Here the expression `e` doesn't have to be repeated in the two `with`-expressions.
+
+  As in a `with`, multiple bindings can be separated by a `|`, and variables to
+  the left are in scope in bindings to the right.
+
 Reflection
 ----------
 

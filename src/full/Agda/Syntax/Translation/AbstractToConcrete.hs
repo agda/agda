@@ -1136,6 +1136,7 @@ instance (ToConcrete p, ToConcrete a) => ToConcrete (RewriteEqn' qn A.BindName p
       pe <- toConcrete pe
       n  <- toConcrete n
       pure $ Named n pe
+    LeftLet pes -> LeftLet <$> mapM toConcrete pes
 
 instance ToConcrete (Maybe A.BindName) where
   type ConOfAbs (Maybe A.BindName) = Maybe C.Name

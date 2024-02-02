@@ -1093,19 +1093,11 @@ CommaImportNames1
 LHS :: { [RewriteEqn] -> [WithExpr] -> LHS }
 LHS : Expr1 {% exprToLHS $1 }
 
-WithClause :: { [Either RewriteEqn (List1 (Named Name Expr))] }
-WithClause
-  : 'with' WithExprs WithClause
-    {% fmap (++ $3) (buildWithStmt $2)  }
-  | 'rewrite' UnnamedWithExprs WithClause
-    { Left (Rewrite $ fmap ((),) $2) : $3 }
-  | {- empty -} { [] }
-
 -- Parsing either an expression @e@ or a @(rewrite | with p <-) e1 | ... | en@.
 HoleContent :: { HoleContent }
 HoleContent
   : Expr                   {  HoleContentExpr    $1 }
-  | WithClause
+  | WHS
     {% fmap HoleContentRewrite $ forM $1 $ \case
          Left r  -> pure r
          Right{} -> parseError "Cannot declare a 'with' abstraction from inside a hole."
@@ -1200,8 +1192,11 @@ FunClause
 WHS :: { [Either RewriteEqn (List1 (Named Name Expr))] }
 WHS
   : {- empty -}                           { [] }
-  | 'with'    WithExprs        WithClause {% fmap (++ $3) (buildWithStmt $2) }
-  | 'rewrite' UnnamedWithExprs WithClause { Left (Rewrite $ fmap ((),) $2) : $3 }
+  | 'with'    WithExprs        WHS {% fmap (++ $3) (buildWithStmt $2) }
+  | 'rewrite' UnnamedWithExprs WHS { Left (Rewrite $ fmap ((),) $2) : $3 }
+  | 'using'   UnnamedWithExprs WHS {% do
+      eqn <- buildUsingStmt $2
+      pure $ Left eqn : $3 }
 
 RHS :: { RHSOrTypeSigs }
 RHS
@@ -2232,6 +2227,13 @@ buildWithStmt nes = do
   ws <- mapM buildSingleWithStmt (List1.toList nes)
   let rws = groupByEither ws
   pure $ map (first (Invert ())) rws
+
+buildUsingStmt :: List1 Expr -> Parser RewriteEqn
+buildUsingStmt es = do
+  mpatexprs <- mapM exprToAssignment es
+  case mapM (fmap $ \(pat, _, expr) -> (pat, expr)) mpatexprs of
+    Nothing -> parseError' (rStart' $ getRange es) "Expected assignments"
+    Just assignments -> pure $ LeftLet assignments
 
 buildSingleWithStmt ::
   Named Name Expr ->
