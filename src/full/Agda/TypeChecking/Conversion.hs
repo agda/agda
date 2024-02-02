@@ -324,38 +324,89 @@ compareTerm' cmp a m n =
             then do
               whenProfile Profile.Conversion $ tick "compare at eta record"
               sig <- getSignature
-              let ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-              -- Andreas, 2010-10-11: allowing neutrals to be blocked things does not seem
-              -- to change Agda's behavior
-              --    isNeutral Blocked{}          = False
-                  isNeutral (NotBlocked _ Con{}) = return False
-              -- Andreas, 2013-09-18 / 2015-06-29: a Def by copatterns is
-              -- not neutral if it is blocked (there can be missing projections
-              -- to trigger a reduction.
-                  isNeutral (NotBlocked r (Def q _)) = do    -- Andreas, 2014-12-06 optimize this using r !!
-                    not <$> usesCopatterns q -- a def by copattern can reduce if projected
-                  isNeutral _                   = return True
-                  isMeta b = case ignoreBlocking b of
-                               MetaV{} -> True
-                               _       -> False
+
+              transp <- getPrimitiveName' builtinTrans
+              hcomp <- getPrimitiveName' builtinHComp
+
+              let
+                ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+                -- Andreas, 2010-10-11: allowing neutrals to be blocked things does not seem
+                -- to change Agda's behavior
+                --    isNeutral Blocked{}          = False
+                isNeutral (NotBlocked _ Con{}) = return False
+
+                -- Andreas, 2013-09-18 / 2015-06-29: a Def by copatterns is
+                -- not neutral if it is blocked (there can be missing projections
+                -- to trigger a reduction.
+                isNeutral (NotBlocked r (Def q _)) = do    -- Andreas, 2014-12-06 optimize this using r !!
+                  not <$> usesCopatterns q -- a def by copattern can reduce if projected
+                isNeutral _                   = return True
+
+                -- Amy, 2024-01-29: Is this blocked application headed by one of the
+                -- cubical primitives that behave as though they are copattern matching?
+                isCubicalPrimHead (NotBlocked r (Def q _)) -- Amy, 2024-01-29: optimise this using r !!
+                  | Just q == transp || Just q == hcomp
+                  = Just q
+                isCubicalPrimHead _ = Nothing
+
+                isMeta b = case ignoreBlocking b of
+                  MetaV{} -> True
+                  _       -> False
 
               reportSDoc "tc.conv.term" 30 $ prettyTCM a <+> "is eta record type"
               m <- reduceB m
               mNeutral <- isNeutral m
               n <- reduceB n
               nNeutral <- isNeutral n
+
+              let
+                h1 = isCubicalPrimHead m
+                h2 = isCubicalPrimHead n
+
+                mCub = isJust (isCubicalPrimHead m)
+                nCub = isJust (isCubicalPrimHead n)
+
+              when (mCub || nCub) $
+                reportSDoc "tc.conv.term.cubical" 30 $ vcat
+                  [ ("m (" <> prettyTCM mNeutral <> ", " <> prettyTCM mCub <> ", " <> prettyTCM h1 <> "):")
+                  , nest 2 (prettyTCM m)
+                  , ("n (" <> prettyTCM nNeutral <> ", " <> prettyTCM nCub <> ", " <> prettyTCM h2 <> "):")
+                  , nest 2 (prettyTCM n)
+                  , "at type"
+                  , nest 2 (prettyTCM a')
+                  , "same head:" <+> prettyTCM (h1 == h2)
+                  ]
+
               if | isMeta m || isMeta n -> do
                      whenProfile Profile.Conversion $ tick "compare at eta-record: meta"
                      compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
-                 | mNeutral && nNeutral -> do
+
+                 -- Amy, 2024-01-29 (fixing issue pointed out by Tom Jack):
+                 --
+                 -- Cubical primitives reduce to something awful, so we would like to skip comparing them (causes
+                 -- "timeout" in GroupPath).
+                 --
+                 -- We would also like to skip comparing a cubical primitive against something that is *small* and
+                 -- actually neutral (causes "timeout" in KleinBottle cohomology groups, comparing a 93KiB(!) transport
+                 -- against an application of set-truncation recursion to a metavariable)
+                 --
+                 -- The condition for skipping eta expansion is thus:
+                 --   (a) both are neutrals (which in this case also includes a "suspended"/copattern transp/hcomp)
+                 --   (b) if both are headed by a cubical primitive, then they are the same primitive.
+                 --
+                 -- So we will skip expanding transp A φ u0 = transp A' φ' u0', since it's definitionally injective; We
+                 -- will skip expanding transp A φ u0 = f ?, since it's wasted work; but we will not skip
+                 -- transp A φ u0 = hcomp u u0', since those must both compute if they are to be equal.
+                 | mNeutral && nNeutral && (not (mCub && nCub) || h1 == h2) -> do
                      whenProfile Profile.Conversion $ tick "compare at eta-record: both neutral"
                      -- Andreas 2011-03-23: (fixing issue 396)
                      -- if we are dealing with a singleton record,
                      -- we can succeed immediately
                      let profUnitEta = whenProfile Profile.Conversion $ tick "compare at eta-record: both neutral at unit"
-                     ifM (isSingletonRecordModuloRelevance r ps) (profUnitEta) $ do
+                     ifM (isSingletonRecordModuloRelevance r ps) profUnitEta $ do
                        -- do not eta-expand if comparing two neutrals
                        compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
+
                  | otherwise -> do
                      whenProfile Profile.Conversion $ tick "compare at eta-record: eta-expanding"
                      (tel, m') <- etaExpandRecord r ps $ ignoreBlocking m

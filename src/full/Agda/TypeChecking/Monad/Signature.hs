@@ -1395,7 +1395,7 @@ projectionArgs :: Definition -> Int
 projectionArgs = maybe 0 (max 0 . pred . projIndex) . isRelevantProjection_
 
 -- | Check whether a definition uses copatterns.
-usesCopatterns :: (HasConstInfo m) => QName -> m Bool
+usesCopatterns :: (HasConstInfo m, HasBuiltins m) => QName -> m Bool
 usesCopatterns q = defCopatternLHS <$> getConstInfo q
 
 -- | Apply a function @f@ to its first argument, producing the proper
