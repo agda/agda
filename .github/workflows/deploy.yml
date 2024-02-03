@@ -227,12 +227,12 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/download-artifact@v4
-      with:
-        path: artifacts
     - uses: actions/checkout@v4
       with:
         sparse-checkout: .
+    - uses: actions/download-artifact@v4
+      with:
+        path: artifacts
     - env:
         GITHUB_TOKEN: ${{ github.token }}
       if: ${{ github.ref == 'refs/heads/master' }}

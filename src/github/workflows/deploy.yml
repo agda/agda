@@ -292,13 +292,13 @@ jobs:
     if: ${{ !cancelled() }}
     steps:
 
-    - uses: actions/download-artifact@v4
-      with:
-        path: artifacts
-
     - uses: actions/checkout@v4
       with:
         sparse-checkout: .
+
+    - uses: actions/download-artifact@v4
+      with:
+        path: artifacts
 
     - name: Create/replace the nightly release and upload artifacts as release assets
       if: ${{ github.ref == 'refs/heads/master' }}
