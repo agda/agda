@@ -449,7 +449,7 @@ collectComponents opts costs ii mDefName whereNames metaId = do
         }
   metaVar <- lookupLocalMeta metaId
   hintNames <- getEverythingInScope metaVar
-  components' <- foldM go components hintNames
+  components' <- foldM go components $ explicitHints ++ (hintNames \\ explicitHints)
   return BaseComponents
     { hintFns = doSort $ hintFns components'
     , hintDataTypes = doSort $ hintDataTypes components'
