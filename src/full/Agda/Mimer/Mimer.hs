@@ -966,7 +966,7 @@ applyProj recordArgs comp' qname = do
   cost <- asks (costProj . searchCosts)
   let newTerm = applyE (compTerm comp') [Proj ProjSystem qname]
   reportDoc "mimer.temp" 10 $ "applyProj: newTerm =" <+> pretty newTerm
-  projType <- typeOfConst qname
+  projType <- defType <$> getConstInfo qname
   projTypeWithArgs <- piApplyM projType recordArgs
   newType <- piApplyM projTypeWithArgs (compTerm comp')
   reportSDoc "mimer.temp" 10 $ do
