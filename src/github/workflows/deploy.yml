@@ -35,7 +35,8 @@ jobs:
         # Andreas, 2022-10-18
         # We stick to '-latest' virtual environments here in the sense of
         # "most canonical", since this is the deploy action.
-        # As of today (2024-02-02), this is [windows-2022, macOS-11, ubuntu-22.04].
+        # As of today (2024-02-05), the actual version information can be found in
+        # https://github.com/actions/runner-images#available-images
         os: [windows-latest, macos-latest, ubuntu-latest]
         ghc-ver: ['9.8']
         cabal-ver: [latest]
