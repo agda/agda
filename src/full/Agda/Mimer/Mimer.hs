@@ -611,36 +611,36 @@ collectLHSVars :: (MonadFail tcm, ReadTCState tcm, MonadError TCErr tcm, MonadTC
   => InteractionId -> tcm (Open [(Term, Bool)])
 collectLHSVars ii = do
   ipc <- ipClause <$> lookupInteractionPoint ii
-  let fnName = ipcQName ipc
-      clauseNr = ipcClauseNo ipc
+  case ipc of
+    IPNoClause -> makeOpen []
+    IPClause{ipcQName = fnName, ipcClauseNo = clauseNr} -> do
+      info <- getConstInfo fnName
+      typ <- typeOfConst fnName
+      case theDef info of
+        fnDef@Function{} -> do
+          let clause = funClauses fnDef !! clauseNr
+              naps = namedClausePats clause
 
-  info <- getConstInfo fnName
-  typ <- typeOfConst fnName
-  case theDef info of
-    fnDef@Function{} -> do
-      let clause = funClauses fnDef !! clauseNr
-          naps = namedClausePats clause
+          -- Telescope at interaction point
+          iTel <- getContextTelescope
+          -- Telescope for the body of the clause
+          let cTel = clauseTel clause
+          -- HACK: To get the correct indices, we shift by the difference in telescope lengths
+          -- TODO: Difference between teleArgs and telToArgs?
+          let shift = length (telToArgs iTel) - length (telToArgs cTel)
 
-      -- Telescope at interaction point
-      iTel <- getContextTelescope
-      -- Telescope for the body of the clause
-      let cTel = clauseTel clause
-      -- HACK: To get the correct indices, we shift by the difference in telescope lengths
-      -- TODO: Difference between teleArgs and telToArgs?
-      let shift = length (telToArgs iTel) - length (telToArgs cTel)
+          reportSDoc "mimer" 60 $ do
+            pITel <- prettyTCM iTel
+            pCTel <- prettyTCM cTel
+            return ("Tel:" $+$ nest 2 (pretty iTel $+$ pITel) $+$ "CTel:" $+$ nest 2 (pretty cTel $+$ pCTel))
+          reportSDoc "mimer" 60 $ return $ "Shift:" <+> pretty shift
 
-      reportSDoc "mimer" 60 $ do
-        pITel <- prettyTCM iTel
-        pCTel <- prettyTCM cTel
-        return ("Tel:" $+$ nest 2 (pretty iTel $+$ pITel) $+$ "CTel:" $+$ nest 2 (pretty cTel $+$ pCTel))
-      reportSDoc "mimer" 60 $ return $ "Shift:" <+> pretty shift
-
-      -- TODO: Names (we don't use flex)
-      let flex = concatMap (go False . namedThing . unArg) naps
-          terms = map (\(n,i) -> (Var (n + shift) [], i)) flex
-      makeOpen terms
-    _ -> do
-      makeOpen []
+          -- TODO: Names (we don't use flex)
+          let flex = concatMap (go False . namedThing . unArg) naps
+              terms = map (\(n,i) -> (Var (n + shift) [], i)) flex
+          makeOpen terms
+        _ -> do
+          makeOpen []
   where
     go isUnderCon = \case
       VarP patInf x -> [(dbPatVarIndex x, isUnderCon)]
