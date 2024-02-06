@@ -110,6 +110,7 @@ Courses using Agda
   a course by Peter Selinger at Dalhousie University, Winter 2021.
 - `HoTTEST Summer School 2022 <https://www.uwo.ca/math/faculty/kapulkin/seminars/hottest_summer_school_2022.html>`__,
   online lectures by assorted instructors.
+- `Advanced Programming Paradigms <https://www.msengineering.ch/theory-modules/2024-2025-tsm-advprpa>`__, Postgraduate course jointly offered by the Universities of Applied Sciences in Switzerland, by Daniel Kröni and Farhad Mehta.
 
 Miscellaneous
 =============
