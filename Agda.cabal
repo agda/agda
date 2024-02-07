@@ -171,22 +171,26 @@ flag debug
 
 flag debug-serialisation
   default: False
+  manual: True
   description:
     Enable debug mode in serialisation. This makes serialisation slower.
 
 flag debug-parsing
   default: False
+  manual: True
   description:
     Enable debug mode in parsing. This makes parsing slower.
 
 flag enable-cluster-counting
   default: False
+  manual: True
   description:
     Enable the --count-clusters flag. (If enable-cluster-counting is
     False, then the --count-clusters flag triggers an error message.)
 
 flag optimise-heavily
   default: False
+  manual: True
   description:
     Enable some expensive optimisations when compiling Agda.
 
@@ -866,6 +870,7 @@ executable agda
 executable agda-mode
   hs-source-dirs:   src/agda-mode
   main-is:          Main.hs
+  autogen-modules:  Paths_Agda
   other-modules:    Paths_Agda
   build-depends:
     , base      >= 4.12.0.0 && < 4.20
