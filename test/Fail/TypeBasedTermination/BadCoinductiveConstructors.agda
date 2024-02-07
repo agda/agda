@@ -1,7 +1,8 @@
 -- Tests the usage of constructors in a coinductive definition
+-- Not allowed, because destroys strong normalization
 {-# OPTIONS --type-based-termination --no-syntax-based-termination #-}
 
-module TypeBasedTermination.CoinductiveConstructors where
+module TypeBasedTermination.BadCoinductiveConstructors where
 
 record Stream (A : Set) : Set where
   constructor _,_
@@ -16,6 +17,5 @@ data Nat : Set where
   zero : Nat
   suc  : Nat → Nat
 
-foo : Stream Nat
-foo .hd = zero
-foo .tl = zero , foo
+foo2 : Stream Nat
+foo2 = zero , foo2

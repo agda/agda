@@ -1,0 +1,6 @@
+TypeBasedTermination/BadCoinductiveConstructors2.agda:20,1-22,29
+Termination checking failed for the following functions:
+  foo2
+Problematic calls:
+  foo2 .tl
+    (at TypeBasedTermination/BadCoinductiveConstructors2.agda:22,20-24)

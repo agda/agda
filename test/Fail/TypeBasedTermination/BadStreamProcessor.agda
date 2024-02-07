@@ -1,6 +1,6 @@
 -- Tests stream processors functions
 {-# OPTIONS --type-based-termination --no-syntax-based-termination #-}
-module TypeBasedTermination.StreamProcessor where
+module TypeBasedTermination.BadStreamProcessor where
 
 record Stream (A : Set) : Set where
   constructor _,_
@@ -23,7 +23,6 @@ record SPν A B where
   field
     force : SPμ A B
 
--- This set of definitions is actually terminating, because runSPμ is productive in its output, and runSPν is size-preserting in the output
 runSPμ : {A B : Set} → SPμ A B → Stream A → Stream B
 runSPν : {A B : Set} → SPν A B → Stream A → Stream B
 

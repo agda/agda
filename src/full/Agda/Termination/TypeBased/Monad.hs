@@ -234,7 +234,6 @@ freshenSignature s@(SizeSignature domain contra tele) = do
                             SizeUnbounded -> Nothing
                             SizeBounded i -> Just (SConstraint SLte v (newVars List.!! i))) (zip newVars domain)
       sigWithfreshenedSizes = instantiateSizeType tele newVars
-  forM_ actualConstraints (\s -> reportSDoc "term.tbt" 40 $ "Registering :" <+> pretty (SDefined (scFrom s)) <+> "<" <+> pretty (SDefined (scTo s)))
   -- freshSig <- freshenGenericArguments sigWithfreshenedSizes
   let newContravariantVariables = map (newVars List.!!) contra
   MSC $ modify ( \s -> s { scsContravariantVariables = foldr IntSet.insert (scsContravariantVariables s) newContravariantVariables  })
