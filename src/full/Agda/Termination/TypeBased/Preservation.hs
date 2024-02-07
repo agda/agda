@@ -158,11 +158,12 @@ checkCandidateSatisfiability possiblyPreservingVar candidateVar graph bounds = d
 -- | Since any two clusters are unrelated, having a dependency between them indicates that something is wrong in the graph
 collectClusteringIssues :: Int -> (IntMap Int) -> [SConstraint] -> [(Int, SizeBound)] -> IntSet
 collectClusteringIssues candidateVar clusters [] bounds = IntSet.empty
-collectClusteringIssues candidateVar clusters ((SConstraint _ f t) : rest) bounds | f == candidateVar || t == candidateVar =
-  case (List.lookup f bounds, List.lookup t bounds) of
-    (Just _, Just _) | IntMap.lookup f clusters /= IntMap.lookup t clusters -> IntSet.insert candidateVar IntSet.empty
-    _ -> collectClusteringIssues candidateVar clusters rest bounds
-collectClusteringIssues candidateVar totalGraph (_ : rest) bounds = collectClusteringIssues candidateVar totalGraph rest bounds
+collectClusteringIssues candidateVar clusters ((SConstraint _ f t) : rest) bounds =
+  let c1 = IntMap.lookup f clusters
+      c2 = IntMap.lookup t clusters
+  in if (c1 == Just candidateVar || c2 == Just candidateVar) && c1 /= c2
+     then IntSet.insert candidateVar IntSet.empty
+     else collectClusteringIssues candidateVar clusters rest bounds
 
 -- | Applies the size preservation analysis result to the function signature
 applySizePreservation :: SizeSignature -> MonadSizeChecker SizeSignature
