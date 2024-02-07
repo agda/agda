@@ -1,0 +1,7 @@
+Issue7033a.agda:20,12-86
+hcomp (λ i → isOneEmpty) (transp (λ i → Set) i0 (onS¹ base)) !=< ⊥
+when checking that the expression
+transp
+(λ i₁ → onS¹ (hcomp {φ = ~ i₁} (λ { j (i₁ = i0) → base }) base)) i0
+tt
+has type ⊥
