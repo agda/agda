@@ -1,0 +1,6 @@
+TypeBasedTermination/BadSizePreservation.agda:29,1-32,41
+Termination checking failed for the following functions:
+  test
+Problematic calls:
+  test (shift inc n)
+    (at TypeBasedTermination/BadSizePreservation.agda:32,23-27)
