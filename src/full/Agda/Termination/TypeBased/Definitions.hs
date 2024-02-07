@@ -264,9 +264,8 @@ processSizeClause bounds newTele c = do
       , "Contravariant:       " <+> text (show contra)
       ]
 
-    (subst, clusterMapping) <- simplifySizeGraph rigids newConstraints
+    subst <- simplifySizeGraph rigids newConstraints
 
-    reportSDoc "term.tbt" 60 $ (nest 2) "clusters: " <+> (vcat $ (map (\i -> pretty (SDefined i) <+> "has cluster:" <+> pretty (IntMap.lookup i clusterMapping)) (map fst rigids)))
     reportSDoc "term.tbt" 10 $ vcat $
       "Substitution of local size variables:" :
       map (\(i, e) -> nest 2 $ pretty (SDefined i) <+> "↦" <+> pretty e) (IntMap.toList subst)
