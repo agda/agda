@@ -63,7 +63,7 @@ type GraphEnv a = StateT SizeCheckerState TCM a
 -- 1. Find all strongly connected components.
 -- 2. Sort the obtained acyclic graph topologically.
 -- 3. For each component in the order, assign the least upper bound of all its known lower bounds. If there are no lower bounds, apply a heuristic.
-simplifySizeGraph :: [(Int, SizeBound)] -> [SConstraint] -> MonadSizeChecker (IntMap SizeExpression, IntMap Int)
+simplifySizeGraph :: [(Int, SizeBound)] -> [SConstraint] -> MonadSizeChecker (IntMap SizeExpression)
 simplifySizeGraph rigidContext graph = billTo [Benchmark.TypeBasedTermination, Benchmark.SizeGraphSolving] $ do
   let enrichedGraph = mapMaybe (\(i, b) -> case b of
         SizeBounded j -> Just (SConstraint SLte i j)
@@ -84,43 +84,17 @@ simplifySizeGraph rigidContext graph = billTo [Benchmark.TypeBasedTermination, B
   fixedTopLevelVars <- IntMap.keysSet <$> MSC (gets scsPreservationCandidates)
   let topLevelVars = foldr (\(SConstraint rel from to) -> if rel == SLeq && to `IntSet.member` fixedTopLevelVars then IntMap.insert from to else id) IntMap.empty graph
 
-  -- Lazy map representing an approximate cluster of each variable
-  let rigidClusters = (mapMaybe (\(i, b) -> (i,) <$> findCluster rigidContext i) rigidContext)
-  let rememberNeighbor v1 v2 = IntMap.insertWith (\n old -> NonEmpty.head n NonEmpty.<| old) v1 (NonEmpty.singleton v2)
-  let neighbourMap = foldr (\(SConstraint _ from to) -> rememberNeighbor to from . rememberNeighbor from to) IntMap.empty enrichedGraph
-  let clusterMapping = gatherClusters rigidClusters neighbourMap (IntMap.fromList rigidClusters)
-
   -- We are going to assign each rigid variable a size expression corresponding to itself.
   let initialSubst = IntMap.fromList (map (\(i, bound) ->
         (i, SEMeet $
-          let cluster = i `IntMap.lookup` clusterMapping
-          in case cluster of
-            Just c | c < arity -> assign c baseSize i
-            _ -> baseSize)) rigidContext)
-  substitution <- instantiateComponents (SEMeet baseSize) rigidContext topLevelVars adjacencyMap initialSubst sccs
-  pure $ (substitution, clusterMapping)
+          let cluster = findCluster rigidContext i
+          in if cluster < arity then assign cluster baseSize i else baseSize)) rigidContext)
+  instantiateComponents (SEMeet baseSize) rigidContext topLevelVars adjacencyMap initialSubst sccs
 
--- | 'gatherClusters layer neighbors result' collects a map from graph nodes (the keys in 'neighbors') to their approximate cluster.
--- This algorithm is BFS, which sweeps over the graph layer by layer (the first argument 'layer', which is a pairing between a variable and its cluster).
--- Initially, the processing starts from rigid variables, for which we know their clusters.
--- 'result' is a storage of the collected clusters and the set of already visited graph nodes simultaneously.
---
--- There is no guarantee that a cluster for a flexible variable can be determined uniquely.
--- However, this mapping is used in heuristics, for which it is allowed to have some approximation.
-gatherClusters :: [(Int, Int)] -> IntMap (NonEmpty Int) -> IntMap Int -> IntMap Int
-gatherClusters [] _ res = res
-gatherClusters list graph res =
-  let (combinedMap, combinedNextLevel) = foldr (\(vertex, cluster) (mp, collected) ->
-        let surrounding = maybe [] NonEmpty.toList (IntMap.lookup vertex graph)
-        in foldr (\neighborVertex (newMp, newEdges) -> if IntMap.member neighborVertex newMp
-              then (newMp, newEdges)
-              else (IntMap.insert neighborVertex cluster newMp, (neighborVertex, cluster) : newEdges)) (mp, collected) surrounding) (res, []) list
-  in gatherClusters combinedNextLevel graph combinedMap
-
-findCluster :: [(Int, SizeBound)] -> Int -> Maybe Int
+findCluster :: [(Int, SizeBound)] -> Int -> Int
 findCluster rigids i = case List.lookup i rigids of
-  Nothing -> Nothing
-  Just SizeUnbounded -> Just i
+  Nothing -> __IMPOSSIBLE__
+  Just SizeUnbounded -> i
   Just (SizeBounded j) -> findCluster rigids j
 
 -- 'instantiateComponents baseSize rigids clusters adjacencyMap subst sccs' assigns a size expression for each flexible variable occurring in 'sccs'.

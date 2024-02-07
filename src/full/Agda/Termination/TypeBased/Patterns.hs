@@ -53,7 +53,7 @@ import Agda.Termination.CallGraph
 import Agda.Termination.Monad
 import Agda.Termination.TypeBased.Graph
 import Data.Foldable (traverse_)
-import Agda.Utils.List ((!!!))
+import Agda.Utils.List ((!!!), initWithDefault)
 import Data.Functor ((<&>))
 import Agda.Termination.CallMatrix
 import qualified Agda.Termination.CallMatrix
@@ -330,20 +330,20 @@ getOrRequestCoDepthVar depth = do
 freshenPatternConstructor :: QName -> Int -> PatternEncoder Int -> SizeType -> SizeSignature -> PatternEncoder SizeType
 freshenPatternConstructor conName codomainDataVar domainDataVar expectedCodomain (SizeSignature bounds contra constructorType) = do
   let (SizeTree topSize datatypeParameters) = expectedCodomain
+  let croppedBounds = initWithDefault [] bounds
   let shouldBeUnbounded b = b == SizeUnbounded || codomainDataVar == (-1)
-  let unboundedVariables = length (filter shouldBeUnbounded bounds)
-  -- We need to strip the codomain size from the constructor here.
+  -- We need to strip the codomain size from the constructor here to not introduce weird rigid in the context
   -- It is important to call `domainDataVar` lazily,
   -- because otherwise leaf variables would gain access to a cluster var with lower level than expected
   domainVar <- if all shouldBeUnbounded bounds then pure (-1) else domainDataVar
-  newVars <- forM bounds $ \bound -> if shouldBeUnbounded bound then lift $ requestNewRigidVariable SizeUnbounded else pure domainVar
+  newVars <- forM croppedBounds $ \bound -> if shouldBeUnbounded bound then lift $ requestNewRigidVariable SizeUnbounded else pure domainVar
   reportSDoc "term.tbt" 70 $ vcat
     [ "New variables for instantiation: " <+> text (show newVars)
     , "Bounds: " <+> pretty bounds
     , "modified type: " <+> pretty constructorType
     , "Datatype arguments:" <+> pretty datatypeParameters
     ]
-  let instantiatedSig = instantiateSizeType constructorType newVars
+  let instantiatedSig = instantiateSizeType constructorType (newVars ++ (if null bounds then [] else [-1]))
   numberOfArguments <- liftTCM $ getDatatypeParametersByConstructor conName
   reportSDoc "term.tbt" 70 $ "Number of arguments: " <+> text (show numberOfArguments)
   let partialConstructorType = applyDataType (take numberOfArguments datatypeParameters) instantiatedSig
