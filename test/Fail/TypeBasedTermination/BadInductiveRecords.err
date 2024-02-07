@@ -1,0 +1,6 @@
+TypeBasedTermination/BadInductiveRecords.agda:19,1-20,20
+Termination checking failed for the following functions:
+  foo
+Problematic calls:
+  foo (snd r)
+    (at TypeBasedTermination/BadInductiveRecords.agda:20,9-12)

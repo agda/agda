@@ -1,7 +1,7 @@
 -- Tests projections of inductive records
 {-# OPTIONS --type-based-termination --no-syntax-based-termination #-}
 
-module TypeBasedTermination.InductiveRecords where
+module TypeBasedTermination.BadInductiveRecords where
 
 record R (A : Set) : Set where
   inductive
