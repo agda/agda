@@ -79,8 +79,9 @@ jobs:
             ## Andreas, 2023-09-28: Test containers-0.7 here which has breaking changes.
             ## Note: -c 'containers >= 0.7' with single quotes does not get communicated properly.
             ## (The single quotes stay, and "-c 'containers" is an option parse error for cabal.)
-            cabal-flags: |
-              --enable-tests -f enable-cluster-counting -f debug -c containers>=0.7 --allow-newer=containers
+            cabal-flags: >-
+              --enable-tests -f enable-cluster-counting -f debug -f debug-serialisation -f debug-parsing
+              -c containers>=0.7 --allow-newer=containers
 
           # macOS with default flags
           - os: macos-12
