@@ -20,7 +20,7 @@
 # -- Project information -----------------------------------------------------
 
 project = 'Agda'
-copyright = u'''2005–2023 remains with the authors.'''
+copyright = u'''2005–2024 remains with the authors.'''
 author = u'The Agda Team'
 
 # The short X.Y version
