@@ -106,7 +106,6 @@ sizeCheckTerm' expected t@(Def qn elims) = if isAbsurdLambdaName qn then pure Un
     -- This definition is a function, which has no interesting size bounds, so we can safely ignore them
     Just (_, sizeTypeOfDef) -> do
       newSizeVariables <- MSC (gets scsFreshVarCounter) <&> \x -> [currentSizeLimit .. (x - 1)]
-      let (_, scodomain) = sizeCodomain sizeTypeOfDef
       reportSDoc "term.tbt" 20 $ vcat $
         [ "Retrieving definition " <> prettyTCM qn <> ":" ] ++ map (nest 2)
         [ "Term: " <+> prettyTCM t
@@ -120,8 +119,17 @@ sizeCheckTerm' expected t@(Def qn elims) = if isAbsurdLambdaName qn then pure Un
         ]
       remainingCodomain <- sizeCheckEliminations sizeTypeOfDef elims
 
+      currentName <- currentCheckedName
+      actualArgs <- if (currentName == qn)
+        then do reportDirectRecursion newSizeVariables
+                arity <- getRootArity
+                let newCallArgs =take arity newSizeVariables
+                forM_ (zip newCallArgs [0..arity - 1]) (uncurry addFallbackInstantiation)
+                pure newCallArgs
+        else pure newSizeVariables
+
       -- We need to record the occurrence of a possible size matrix at this place.
-      maybeStoreRecursiveCall qn elims newSizeVariables
+      maybeStoreRecursiveCall qn elims actualArgs
 
       reportSDoc "term.tbt" 40 $ "Eliminated type of " <> prettyTCM qn <> ": " <> pretty remainingCodomain
       inferenceToChecking expected remainingCodomain
@@ -134,7 +142,7 @@ sizeCheckTerm' expected t@(Con ch ci elims) = do
   coinductive <- liftTCM $ isCoinductiveConstructor constructorName
   let actualConstraints =
         if coinductive
-          -- Remark: coinductive constructors are dual in some sense to inductive record projections, which means that the following definition:
+          -- Coinductive constructors are dual in some sense to inductive record projections, which means that the following definition:
           --
           -- record Stream (A : Set) : Set where
           --   constructor _,_
@@ -146,7 +154,7 @@ sizeCheckTerm' expected t@(Con ch ci elims) = do
           -- foo : Stream Nat
           -- foo = 0 , foo
           --
-          -- ...is fine from semantical point of view, but it destroys strong normalization. Hence we do not allow coinductive constructors to be fine to use on their own.
+          -- ...is fine from semantical point of view, but it destroys strong normalization. Hence we do not allow coinductive constructors to be considered guarding.
         then (\(SConstraint _ l r) -> [SConstraint SLeq l r, SConstraint SLeq r l]) =<< constraints
         else constraints
   forM_ actualConstraints storeConstraint
@@ -430,7 +438,12 @@ smallerOrEq t1 t2 = do
 -- May return Nothing for primitive definition
 resolveConstant :: QName -> MonadSizeChecker (Maybe ([SConstraint], SizeType))
 resolveConstant nm = do
-  sizedSig <- defSizedType <$> getConstInfo nm
+  currentName <- currentCheckedName
+  sizedSig <- if currentName == nm
+    then do
+      currentType <- defType <$> getConstInfo nm
+      liftTCM $ Just <$> encodeFunctionType currentType
+    else defSizedType <$> getConstInfo nm
   case sizedSig of
     Nothing -> pure Nothing
     Just sig -> Just <$> freshenSignature sig
@@ -448,9 +461,6 @@ storeCall q1 q2 sizesq1 sizesq2 elims = do
       ]
     doc <- buildRecCallLocation q2 elims
     reportCall q1 q2 sizesq1 sizesq2 doc
-    when (q1 == q2) $ do
-      forM_ (zip sizesq2 sizesq1) (uncurry addFallbackInstantiation)
-      reportDirectRecursion sizesq2
 
 unwrapSizeTree :: SizeType -> [SizeType]
 unwrapSizeTree (SizeTree _ ts) = ts

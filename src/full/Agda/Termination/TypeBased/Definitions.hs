@@ -117,7 +117,16 @@ initSizeTypeEncoding mutuals =
             ]
           sizedSignature <- lowerIndices <$> if encodeComplex
             then case funProjection of
-              Left  _ -> encodeFunctionType dType
+              Left  _ -> do
+                sig@(SizeSignature _ contra tp) <- encodeFunctionType dType
+                -- All positive occurrences of size variables should be infinity by default,
+                -- as we do not know how the function behaves.
+                let preservationCandidates = computeDecomposition (IntSet.fromList contra) tp
+                reportSDoc "term.tbt" 50 $ vcat
+                  [ "Preservation candidates: " <+> text (show preservationCandidates)
+                  , "original sig:" <+> pretty sig
+                  ]
+                pure (reifySignature (List.sortOn fst (map (, ToInfinity) (sdPositive preservationCandidates))) sig)
               Right _ -> encodeFieldType mutuals dType
             else pure $ encodeBlackHole dType
           reportSDoc "term.tbt" 5 $ vcat
@@ -176,7 +185,7 @@ processSizedDefinition names funData nm = inConcreteOrAbstractMode nm $ \d -> do
   reportSDoc "term.tbt" 10 $ "Starting type-based termination checking of the function:" <+> prettyTCM nm
   -- Since we are processing this function, it was certainly encoded.
   let s = fromJust (defSizedType def)
-  res <- invokeSizeChecker nm names (processSizedDefinitionMSC s clauses)
+  res <- invokeSizeChecker nm names (processSizedDefinitionMSC clauses)
   case res of
     Left err -> pure $ Left err
     Right (callGraph, sig) -> do
@@ -187,10 +196,14 @@ processSizedDefinition names funData nm = inConcreteOrAbstractMode nm $ \d -> do
       return $ Right (nm, callGraph, sig)
 
 
-processSizedDefinitionMSC :: SizeSignature -> [Clause] -> MonadSizeChecker (IntMap SizeExpression, SizeSignature)
-processSizedDefinitionMSC s@(SizeSignature bounds contra sizeSig) clauses = do
-  (_, newTele) <- freshenSignature s
-  initSizePreservationStructure newTele
+processSizedDefinitionMSC :: [Clause] -> MonadSizeChecker (IntMap SizeExpression, SizeSignature)
+processSizedDefinitionMSC clauses = do
+  qn <- currentCheckedName
+  funType <- defType <$> getConstInfo qn
+  sig@(SizeSignature bounds contra sizeType) <- liftTCM $ encodeFunctionType funType
+  let decomposition = computeDecomposition (IntSet.fromList contra) sizeType
+  MSC $ modify (\s -> s { scsPreservationCandidates = IntMap.fromList $ map (, sdNegative decomposition) (sdPositive decomposition) })
+  (_, newTele) <- freshenSignature sig
 
   localSubstitutions <- forM clauses (processSizeClause bounds newTele)
 
@@ -198,9 +211,7 @@ processSizedDefinitionMSC s@(SizeSignature bounds contra sizeSig) clauses = do
   let combinedSubst = IntMap.unions localSubstitutions
   amendedSubst <- considerIncoherences combinedSubst
 
-  let (domains, _) = sizeCodomain sizeSig
-
-  fixedSignature <- billTo [Benchmark.TypeBasedTermination, Benchmark.Preservation] $ applySizePreservation s
+  fixedSignature <- billTo [Benchmark.TypeBasedTermination, Benchmark.Preservation] $ applySizePreservation sig
 
   pure $ (amendedSubst, fixedSignature)
 

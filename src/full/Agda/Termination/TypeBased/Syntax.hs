@@ -4,7 +4,7 @@ module Agda.Termination.TypeBased.Syntax
  ( Size ( SUndefined, SDefined )
  , SizeType ( SizeTree, SizeGenericVar, SizeArrow, SizeGeneric )
  , SizeBound ( SizeUnbounded, SizeBounded )
- , SizeSignature ( SizeSignature )
+ , SizeSignature ( SizeSignature, sigTele, sigBounds, sigContra)
  , FreeGeneric (..)
  , pattern UndefinedSizeType
  , sizeCodomain
@@ -140,7 +140,9 @@ instance NFData SizeSignature where
 
 instance Pretty SizeSignature where
   pretty :: SizeSignature -> Doc
-  pretty (SizeSignature abstracts contra tele) = "(" <> prettyList_ contra <> ")∀[" <> prettyList_ abstracts <> "]. " <> pretty tele
+  pretty (SizeSignature abstracts contra tele) =
+    let contraList = if null contra then "" else "(" <> prettyList_ contra <> ")"
+    in  contraList <> "∀[" <> prettyList_ abstracts <> "]. " <> pretty tele
 
 instance KillRange SizeSignature where
   killRange = id

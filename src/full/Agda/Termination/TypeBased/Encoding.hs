@@ -34,6 +34,7 @@ import Agda.Utils.Impossible
 import Control.Monad.State.Class
 import Data.Either
 import Control.Arrow ( left )
+import Agda.Termination.TypeBased.Preservation
 
 -- | Converts internal type of function to a sized type
 encodeFunctionType :: Type -> TCM SizeSignature
@@ -41,7 +42,8 @@ encodeFunctionType t = do
   EncodingResult { erNewFirstOrderVariables, erNewContravariantVariables, erEncodedType } <- typeToSizeType 0 0 [] (const False) t
   -- Functions do not feature non-trivial size dependencies, hence we set all bounds to SizeUnbounded
   let newBounds = (replicate erNewFirstOrderVariables SizeUnbounded)
-  return $ SizeSignature newBounds erNewContravariantVariables erEncodedType
+  let originalSignature = SizeSignature newBounds erNewContravariantVariables erEncodedType
+  return $ fixGaps originalSignature
 
 -- | 'encodeFieldType mutualNames t' converts internal type 't' of record projections to a sized type,
 --   where 'mutualNames' is a set of names in a mutual block of the projected record.
