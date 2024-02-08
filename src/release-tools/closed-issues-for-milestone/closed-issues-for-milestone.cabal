@@ -1,5 +1,5 @@
 name:                closed-issues-for-milestone
-version:             0.1.0.0
+version:             0.2
 synopsis:            Report the closed issues in GitHub for milestone.
 -- description:
 -- license:             LICENSE
@@ -26,6 +26,7 @@ executable closed-issues-for-milestone
 
   build-depends:  base       >= 4.13.0.0  && < 4.20
                 , bytestring >= 0.10.9.0  && < 0.13
+                , containers >= 0.6.0.1   && < 0.8
                 , github     >= 0.29      && < 0.30
                 , text       >= 1.2.3     && < 2.2
                 , vector     >= 0.12.0.3  && < 0.14
