@@ -54,16 +54,13 @@ import Agda.TypeChecking.Substitute
 import Agda.Termination.TypeBased.Monad
 import Agda.TypeChecking.ProjectionLike
 import Agda.Utils.Impossible
-import Agda.Termination.TypeBased.Checking
 import Control.Monad
 import Agda.TypeChecking.Pretty
 import Debug.Trace
 import Agda.Utils.Monad
 import Agda.Termination.Common
 import Data.Maybe
-import Agda.Termination.TypeBased.Encoding
 import Agda.Termination.CallGraph
-import Agda.Termination.Monad
 import Agda.Termination.TypeBased.Graph
 import Data.Foldable (traverse_)
 import Agda.Utils.List ((!!!))
@@ -75,33 +72,36 @@ import Data.Either
 import Agda.Utils.Singleton
 import Agda.Termination.Order (Order)
 import qualified Agda.Termination.Order as Order
+import qualified Control.Arrow as Arrow
 
--- | Populates the sets of possibly size-preserving variables in a function.
-initSizePreservationStructure :: SizeType -> MonadSizeChecker ()
-initSizePreservationStructure tele = do
-  let (_, codomain) = sizeCodomain tele
-  let codomainVariables = gatherCodomainVariables codomain
-  let minimalVar = case codomainVariables of
-        [] -> 0
-        _ -> minimum codomainVariables
-  coinductiveVars <- getContravariantSizeVariables
-  let (coinductiveDomain, inductiveDomain) = List.partition (`IntSet.member` coinductiveVars) [0..minimalVar - 1]
-  let (coinductiveCodomain, inductiveCodomain) = List.partition (`IntSet.member` coinductiveVars) codomainVariables
-  let zipped = (map (, coinductiveCodomain) coinductiveDomain) -- instantiating coinductive domain to coinductive codomain
-               ++
-               (map (, inductiveDomain) inductiveCodomain) -- instantiating inductive codomain to inductive domain
-  let candidates = IntMap.fromList zipped
-  reportSDoc "term.tbt" 40 $ "Size preservation candidates: " <> pretty candidates
-  MSC $ modify (\s -> s { scsPreservationCandidates = IntMap.fromList zipped })
-  where
-    -- Collects a set of variables that are used in the codomain of the function.
-    gatherCodomainVariables :: SizeType -> [Int]
-    gatherCodomainVariables (SizeTree s rest) = (case s of
-      SDefined i -> [i]
-      SUndefined -> []) ++ concatMap gatherCodomainVariables rest
-    gatherCodomainVariables (SizeArrow l r) = gatherCodomainVariables l ++ gatherCodomainVariables r
-    gatherCodomainVariables (SizeGeneric _ r) = gatherCodomainVariables r
-    gatherCodomainVariables (SizeGenericVar _ _) = []
+data SizeDecomposition = SizeDecomposition
+  { sdPositive :: [Int]
+  , sdNegative :: [Int]
+  } deriving (Show)
+
+-- TODO: the decomposition here is not bound by domain/codomain only.
+-- The decomposition should proceed alongside polarity, i.e. doubly negative occurences of inductive types are also subject of size preservation.
+computeDecomposition :: IntSet -> SizeType -> SizeDecomposition
+computeDecomposition coinductiveVars sizeType =
+  let (codomainVariables, domainVariables) = collectUsedSizes' True sizeType
+      (coinductiveDomain, inductiveDomain) = List.partition (`IntSet.member` coinductiveVars) domainVariables
+      (coinductiveCodomain, inductiveCodomain) = List.partition (`IntSet.member` coinductiveVars) codomainVariables
+  in SizeDecomposition { sdPositive = inductiveCodomain ++ coinductiveDomain, sdNegative = inductiveDomain ++ coinductiveCodomain }
+ where
+    collectUsedSizes' :: Bool -> SizeType -> ([Int], [Int])
+    collectUsedSizes' pos (SizeTree size ts) =
+      let selector = case size of
+            SUndefined -> id
+            SDefined i -> if pos then Arrow.first (i :) else Arrow.second (i :)
+          ind = map (collectUsedSizes' pos) ts
+      in selector (concatMap fst ind, concatMap snd ind)
+    collectUsedSizes' pos (SizeArrow l r) =
+      let (f1, f2) = collectUsedSizes' False l
+          (s1, s2) = collectUsedSizes' pos r
+      in (f1 ++ s1, f2 ++ s2) -- TODO POLARITIES
+    collectUsedSizes' pos (SizeGeneric _ r) = collectUsedSizes' pos r
+    collectUsedSizes' _ (SizeGenericVar _ i) = ([], [])
+
 
 -- | This function is expected to be called after finishing the processing of clause,
 -- or, more generally, after every step of collecting complete graph of dependencies between flexible sizes.
@@ -175,47 +175,67 @@ applySizePreservation s@(SizeSignature _ _ tele) = do
   flatCandidates <- forM (IntMap.toAscList candidates) (\(replaceable, candidates) -> (replaceable,) <$> case candidates of
         [unique] -> do
           reportSDoc "term.tbt" 40 $ "Assigning" <+> text (show replaceable) <+> "to" <+> text (show unique)
-          pure $ if isPreservationEnabled then Just unique else Nothing
+          pure $ if isPreservationEnabled then ToVariable unique else ToInfinity
         (_ : _) -> do
           -- Ambiguous situation, we would rather not assign anything here at all
           reportSDoc "term.tbt" 60 $ "Multiple candidates for variable" <+> text (show replaceable)
-          pure Nothing
+          pure ToInfinity
         [] -> do
           -- No candidates means that the size of variable is much bigger than any of codomain
           -- This can happen in the function 'add : Nat -> Nat -> Nat' for example.
           reportSDoc "term.tbt" 60 $ "No candidates for variable " <+> text (show replaceable)
-          pure Nothing)
+          pure ToInfinity)
   let newSignature = reifySignature flatCandidates s
   currentName <- currentCheckedName
   reportSDoc "term.tbt" 5 $ "Signature of" <+> prettyTCM currentName <+> "after size-preservation inference:" $$ nest 2 (pretty newSignature)
   pure newSignature
 
+data VariableInstantiation
+  = ToInfinity
+  | ToVariable Int
+  deriving Show
+
+updateInstantiation :: (Int -> Int) -> VariableInstantiation -> VariableInstantiation
+updateInstantiation _ ToInfinity = ToInfinity
+updateInstantiation f (ToVariable i) = ToVariable (f i)
+
+unfoldInstantiations :: [VariableInstantiation] -> [Int]
+unfoldInstantiations [] = []
+unfoldInstantiations (ToInfinity : rest) = unfoldInstantiations rest
+unfoldInstantiations (ToVariable i : rest) = i : unfoldInstantiations rest
+
+fixGaps :: SizeSignature -> SizeSignature
+fixGaps (SizeSignature _ contra tele) =
+  let decomp = computeDecomposition (IntSet.fromList contra) tele
+      subst = IntMap.fromList $ (zip (sdNegative decomp ++ sdPositive decomp) [0..])
+  in SizeSignature (replicate (length subst) SizeUnbounded) (mapMaybe (subst IntMap.!?) contra) (update (subst IntMap.!) tele)
+
 -- | Actually applies size preservation assignment to a signature.
 --
 -- The input list must be ascending in keys.
-reifySignature :: [(Int, Maybe Int)] -> SizeSignature -> SizeSignature
+reifySignature :: [(Int, VariableInstantiation)] -> SizeSignature -> SizeSignature
 reifySignature mapping (SizeSignature bounds contra tele) =
   let newBounds = take (length bounds - length mapping) bounds
       offset x = length (filter (< x) (map fst mapping))
       actualOffsets = IntMap.fromAscList (zip [0..] (List.unfoldr (\(ind, list) ->
         case list of
-            [] -> if ind < length bounds then Just (Just (ind - offset ind), (ind + 1, [])) else Nothing
+            [] -> if ind < length bounds then Just (ToVariable (ind - offset ind), (ind + 1, [])) else Nothing
             ((i1, i2) : ps) ->
                  if i1 == ind
-                    then Just ((\i -> i - offset i) <$> i2 , (ind + 1, ps))
-                    else Just (Just (ind - offset ind), (ind + 1, list)))
+                    then Just (updateInstantiation (\i -> i - offset i) i2 , (ind + 1, ps))
+                    else Just (ToVariable (ind - offset ind), (ind + 1, list)))
         (0, mapping)))
-      newSig = (SizeSignature newBounds (List.nub (mapMaybe (actualOffsets IntMap.!) contra)) (fixSizes (actualOffsets IntMap.!) tele))
+      newSig = (SizeSignature newBounds (List.nub (unfoldInstantiations $ map (actualOffsets IntMap.!) contra)) (fixSizes (actualOffsets IntMap.!) tele))
   in newSig
   where
-    fixSizes :: (Int -> Maybe Int) -> SizeType -> SizeType
+    fixSizes :: (Int -> VariableInstantiation) -> SizeType -> SizeType
     fixSizes subst (SizeTree size tree) = SizeTree (weakenSize size) (map (fixSizes subst) tree)
       where
         weakenSize :: Size -> Size
         weakenSize SUndefined = SUndefined
         weakenSize (SDefined i) = case subst i of
-          Nothing -> SUndefined
-          Just j -> SDefined j
+          ToInfinity -> SUndefined
+          ToVariable j -> SDefined j
     fixSizes subst (SizeArrow l r) = SizeArrow (fixSizes subst l) (fixSizes subst r)
     fixSizes subst (SizeGeneric args r) = SizeGeneric args (fixSizes subst r)
     fixSizes subst (SizeGenericVar args i) = SizeGenericVar args i

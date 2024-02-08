@@ -65,11 +65,8 @@ type GraphEnv a = StateT SizeCheckerState TCM a
 -- 3. For each component in the order, assign the least upper bound of all its known lower bounds. If there are no lower bounds, apply a heuristic.
 simplifySizeGraph :: [(Int, SizeBound)] -> [SConstraint] -> MonadSizeChecker (IntMap SizeExpression)
 simplifySizeGraph rigidContext graph = billTo [Benchmark.TypeBasedTermination, Benchmark.SizeGraphSolving] $ do
-  let enrichedGraph = mapMaybe (\(i, b) -> case b of
-        SizeBounded j -> Just (SConstraint SLte i j)
-        SizeUnbounded -> Nothing) rigidContext ++ graph
   -- !! NOTE: The graph is reversed, since it is more performant to access its edges this way
-  let adjacencyMap = DGraph.fromEdges (map (\(SConstraint rel from to) -> DGraph.Edge to from rel) enrichedGraph)
+  let adjacencyMap = DGraph.fromEdges (map (\(SConstraint rel from to) -> DGraph.Edge to from rel) graph)
 
   let sccs = DGraph.sccs adjacencyMap
 
@@ -89,6 +86,7 @@ simplifySizeGraph rigidContext graph = billTo [Benchmark.TypeBasedTermination, B
         (i, SEMeet $
           let cluster = findCluster rigidContext i
           in if cluster < arity then assign cluster baseSize i else baseSize)) rigidContext)
+  reportSDoc "term.tbt" 70 $ "Initial subst:" <+> pure (P.pretty initialSubst)
   instantiateComponents (SEMeet baseSize) rigidContext topLevelVars adjacencyMap initialSubst sccs
 
 findCluster :: [(Int, SizeBound)] -> Int -> Int
