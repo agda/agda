@@ -1,0 +1,5 @@
+Issue7033b.agda:19,12-68
+⊤ !=< ⊥
+when checking that the expression
+transp (λ i₁ → isC1 (transp (λ j → D tt) (~ i₁) c1)) i0 tt has type
+⊥
