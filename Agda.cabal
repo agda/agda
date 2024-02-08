@@ -4,7 +4,7 @@ version:         2.6.4.2
 build-type:      Custom
 license:         MIT
 license-file:    LICENSE
-copyright:       (c) 2005-2023 The Agda Team.
+copyright:       (c) 2005-2024 The Agda Team.
 author:          The Agda Team, see https://agda.readthedocs.io/en/latest/team.html
 maintainer:      The Agda Team
 homepage:        https://wiki.portal.chalmers.se/agda/
@@ -48,6 +48,7 @@ extra-doc-files:
     CHANGELOG.md
     README.md
     doc/user-manual/agda.svg
+    doc/release-notes/2.6.4.1.md
     doc/release-notes/2.6.4.md
     doc/release-notes/2.6.3.md
     doc/release-notes/2.6.2.2.md
