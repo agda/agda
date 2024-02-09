@@ -2,25 +2,14 @@ resolver: lts-14.27
 compiler: ghc-8.6.5
 compiler-check: match-exact
 
-# Local packages specified by relative directory name.
-packages:
-- '.'
-- 'src/size-solver'
-
 extra-deps:
-- QuickCheck-2.14.2
 - STMonadTrans-0.4.3
 - data-hash-0.2.0.1
 - equivalence-0.3.4
 - primitive-0.7.4.0
-- random-1.2.0
 - regex-base-0.94.0.0
 - regex-tdfa-1.3.1.0
-- splitmix-0.1.0.3
 - strict-0.4.0.1
 - these-1.1.1.1
-# uuid-types-1.0.3 is part of lts-14.27, but we need to add it here
-# because we want to build it against random-1.2, while lts-14.27 has random-1.1
-- uuid-types-1.0.3
 - text-icu-0.8.0.2
 - vector-hashtables-0.1.1.1
