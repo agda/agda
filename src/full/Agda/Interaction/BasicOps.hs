@@ -969,7 +969,12 @@ metaHelperType norm ii rng s = case words s of
     -- Konstantin, 2022-10-23: We don't want to print section parameters in helper type.
     freeVars <- getCurrentModuleFreeVars
     contextForAbstracting <- drop freeVars . reverse <$> getContext
-    let escapeAbstractedContext = escapeContext impossible (length contextForAbstracting)
+
+    -- Andreas, 2019-10-11: I actually prefer pi-types over ->.
+    let runInPrintingEnvironment = localTC (\e -> e { envPrintDomainFreePi = True, envPrintMetasBare = True })
+                                 . escapeContext impossible (length contextForAbstracting)
+                                 . withoutPrintingGeneralization
+                                 . dontFoldLetBindings
 
     case mapM (isVar . namedArg) args >>= \ xs -> xs <$ guard (all inCxt xs) of
 
@@ -981,9 +986,7 @@ metaHelperType norm ii rng s = case words s of
       let hideButXs dom = setHiding (if inXs $ fst $ unDom dom then NotHidden else Hidden) dom
       let tel = telFromList . map (fmap (first nameToArgName) . hideButXs) $ contextForAbstracting
       OfType' h <$> do
-        -- Andreas, 2019-10-11: I actually prefer pi-types over ->.
-        localTC (\e -> e { envPrintDomainFreePi = True }) $ escapeAbstractedContext $ withoutPrintingGeneralization $
-          reify $ telePiVisible tel a0
+        runInPrintingEnvironment $ reify $ telePiVisible tel a0
 
      -- If some arguments are not variables.
      Nothing -> do
@@ -996,7 +999,7 @@ metaHelperType norm ii rng s = case words s of
       TelV atel _ <- telView a
       let arity = size atel
           (delta1, delta2, _, a', vtys') = splitTelForWith tel a vtys
-      a <- localTC (\e -> e { envPrintDomainFreePi = True, envPrintMetasBare = True }) $ escapeAbstractedContext $ withoutPrintingGeneralization $ do
+      a <- runInPrintingEnvironment $ do
         reify =<< cleanupType arity args =<< normalForm norm =<< fst <$> withFunctionType delta1 vtys' delta2 a' []
       reportSDoc "interaction.helper" 10 $ TP.vcat $
         let extractOtherType = \case { OtherType a -> a; _ -> __IMPOSSIBLE__ } in
