@@ -1266,7 +1266,7 @@ buildInterface src topLevel = do
     -- when expanding a pattern synonym.
     patsyns <- killRange <$> getPatternSyns
     let builtin' = Map.mapWithKey (\ x b -> primName x <$> b) builtin
-    warnings <- getAllWarnings AllWarnings
+    warnings <- filter (isSourceCodeWarning . warningName . tcWarning) <$> getAllWarnings AllWarnings
     let i = Interface
           { iSourceHash      = hashText source
           , iSource          = source

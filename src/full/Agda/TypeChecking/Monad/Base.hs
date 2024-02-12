@@ -4259,6 +4259,10 @@ data Warning
     -- ^ Face constraint patterns @(i = 0)@ must be visible arguments.
   | FaceConstraintCannotBeNamed NamedName
     -- ^ Face constraint patterns @(i = 0)@ must be unnamed arguments.
+
+  -- Not source code related
+  | DuplicateInterfaceFiles AbsolutePath AbsolutePath
+    -- ^ `DuplicateInterfaceFiles selectedInterfaceFile ignoredInterfaceFile`
   deriving (Show, Generic)
 
 recordFieldWarningToError :: RecordFieldWarning -> TypeError
@@ -4338,6 +4342,15 @@ warningName = \case
   -- Cubical
   FaceConstraintCannotBeHidden{} -> FaceConstraintCannotBeHidden_
   FaceConstraintCannotBeNamed{}  -> FaceConstraintCannotBeNamed_
+
+  -- Not source code related
+  DuplicateInterfaceFiles{}      -> DuplicateInterfaceFiles_
+
+-- Indicates wether changes in the source code can silence or influence the
+-- warning.
+isSourceCodeWarning :: WarningName -> Bool
+isSourceCodeWarning DuplicateInterfaceFiles_{} = False
+isSourceCodeWarning _ = True
 
 data TCWarning
   = TCWarning
