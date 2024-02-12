@@ -298,6 +298,8 @@ data WarningName
   -- Cubical
   | FaceConstraintCannotBeHidden_
   | FaceConstraintCannotBeNamed_
+  -- Not source code related
+  | DuplicateInterfaceFiles_
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Generic)
 
 instance NFData WarningName
@@ -479,3 +481,5 @@ warningNameDescription = \case
   -- Cubical
   FaceConstraintCannotBeHidden_    -> "Face constraint patterns that are given as implicit arguments."
   FaceConstraintCannotBeNamed_     -> "Face constraint patterns that are given as named arguments."
+  -- Not source code related
+  DuplicateInterfaceFiles_         -> "Duplicate interface files."

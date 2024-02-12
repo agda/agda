@@ -539,6 +539,9 @@ warningHighlighting' b w = case tcWarning w of
     UnknownNamesInFixityDecl{}        -> mempty
     UnknownNamesInPolarityPragmas{}   -> mempty
 
+  -- Not source code related
+  DuplicateInterfaceFiles{} -> mempty
+
 recordFieldWarningHighlighting ::
   RecordFieldWarning -> HighlightingInfoBuilder
 recordFieldWarningHighlighting = \case
