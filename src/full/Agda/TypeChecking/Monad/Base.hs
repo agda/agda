@@ -94,6 +94,8 @@ import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Free.Lazy (Free(freeVars'), underBinder', underBinder)
 
+import Agda.TypeChecking.DiscrimTree.Types
+
 import Agda.Compiler.Backend.Base
 
 import Agda.Interaction.Options
@@ -275,6 +277,7 @@ data PostScopeState = PostScopeState
     -- ^ The current module is available after it has been type
     -- checked.
   , stPostInstanceDefs        :: !TempInstanceTable
+  , stPostInstanceTree        :: !(DiscrimTree QName)
   , stPostConcreteNames       :: !ConcreteNames
     -- ^ Map keeping track of concrete names assigned to each abstract name
     --   (can be more than one name in case the first one is shadowed)
@@ -473,6 +476,7 @@ initPostScopeState = PostScopeState
   , stPostLocalPartialDefs     = Set.empty
   , stPostOpaqueBlocks         = Map.empty
   , stPostOpaqueIds            = Map.empty
+  , stPostInstanceTree         = empty
   }
 
 initState :: TCState
@@ -736,6 +740,11 @@ stInstanceDefs :: Lens' TCState TempInstanceTable
 stInstanceDefs f s =
   f (stPostInstanceDefs (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostInstanceDefs = x}}
+
+stInstanceTree :: Lens' TCState (DiscrimTree QName)
+stInstanceTree f s =
+  f (stPostInstanceTree (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostInstanceTree = x}}
 
 stConcreteNames :: Lens' TCState ConcreteNames
 stConcreteNames f s =

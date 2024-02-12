@@ -42,6 +42,7 @@ import Agda.Syntax.TopLevelModuleName
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Positivity.Occurrence
+import Agda.TypeChecking.DiscrimTree.Types
 import Agda.TypeChecking.Substitute
 
 import qualified Agda.Utils.BiMap as BiMap
@@ -51,9 +52,11 @@ import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
+import Agda.Utils.Trie
 import Agda.Utils.Permutation ( Permutation )
 import Agda.Syntax.Common.Pretty      ( Pretty, prettyShow )
 import qualified Agda.Syntax.Common.Pretty as P
+import qualified Agda.Utils.Maybe.Strict as S
 import Agda.Utils.Size        ( natSize )
 
 import Agda.Utils.Impossible
@@ -572,3 +575,28 @@ instance PrettyTCM Candidate where
     (GlobalCandidate q) -> prettyTCM q
     LocalCandidate      -> prettyTCM $ candidateTerm c
 {-# SPECIALIZE prettyTCM :: Candidate -> TCM Doc #-}
+
+instance PrettyTCM Key where
+  prettyTCM = \case
+    RigidK q a -> prettyTCM q
+    LocalK i _ -> "@" <> pretty i
+    FunK       -> "Fun"
+    PiK        -> "Pi"
+    FlexK      -> "_"
+
+{-# SPECIALIZE prettyTCM :: Key -> TCM Doc #-}
+
+instance PrettyTCM a => PrettyTCM (Set.Set a) where
+  prettyTCM = braces . prettyList_ . map prettyTCM . Set.toList
+
+instance PrettyTCM a => PrettyTCM (DiscrimTree a) where
+  prettyTCM = vcat . go "  " where
+    go ind EmptyDT     = ["fail"]
+    go ind (DoneDT it) = ["done" <+> prettyTCM it]
+    go ind (CaseDT var branches fallthrough) =
+      ["case" <+> prettyTCM var <+> "of"]
+      ++ concatMap (\(k, v) -> abduct ind (prettyTCM k <> " →") v) (Map.toList branches)
+      ++ (guard (not (null fallthrough)) >> abduct ind ("* →") fallthrough)
+
+    abduct ind f v | (l:ls) <- go ind v = ((ind <> f) <+> l):map (ind <>) ls
+    abduct ind _ _ = __IMPOSSIBLE__

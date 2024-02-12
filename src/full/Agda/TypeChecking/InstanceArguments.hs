@@ -60,6 +60,8 @@ import Agda.Utils.Null (empty)
 
 import Agda.Utils.Impossible
 
+import Agda.TypeChecking.DiscrimTree
+
 -- | Compute a list of instance candidates.
 --   'Nothing' if target type or any context type is a meta, error if
 --   type is not eligible for instance search.
@@ -251,6 +253,16 @@ getInstanceCandidates m = wrapper where
       Nothing         -> cands
       Just (_, cands) -> fst <$> cands
     cands <- lift (foldrM insertCandidate [] cands)
+
+    -- XXX: Look up the instance in the discrimination tree.
+    tree <- lift (useTC stInstanceTree)
+    ka <- lift (lookupDT (unEl t') tree)
+    reportSDoc "tc.instance.discrim" 20 $ vcat
+      [ "looking for instance:" <+> prettyTCM t'
+      , prettyTCM ka
+      , prettyTCM tree
+      ]
+
     reportSDoc "tc.instance.sort" 20 $ nest 2 $ vcat
       [ "sorted candidates"
       , vcat [ "-" <+> (if overlap then "overlap" else empty) <+> prettyTCM c <+> ":" <+> prettyTCM t
@@ -684,6 +696,14 @@ addTypedInstance ::
   -> TCM ()
 addTypedInstance = addTypedInstance' True
 
+getInstanceHead :: Type -> (Int, Term)
+getInstanceHead = go . unEl where
+  go :: Term -> (Int, Term)
+  go (Pi a b) =
+    let (n, head) = go (unEl (unAbs b))
+     in (n + 1, head)
+  go tm = (0, tm)
+
 -- | Register the definition with the given type as an instance.
 addTypedInstance' ::
      Bool   -- ^ Should we print warnings for unusable instance declarations?
@@ -693,7 +713,14 @@ addTypedInstance' ::
 addTypedInstance' w x t = do
   (tel , n) <- getOutputTypeName t
   case n of
-    OutputTypeName n            -> addNamedInstance x n
+    OutputTypeName n -> do
+
+      -- XXX: Add local instances to the discrimination tree also.
+      let (k, hdt) = getInstanceHead t
+      tree <- insertDT k hdt x =<< getsTC (view stInstanceTree)
+      setTCLens stInstanceTree tree
+
+      addNamedInstance x n
     OutputTypeNameNotYetKnown b -> do
       addUnknownInstance x
       addConstraint b $ ResolveInstanceHead x
