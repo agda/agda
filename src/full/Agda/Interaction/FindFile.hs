@@ -44,7 +44,7 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
   (getIncludeDirs, libToTCM)
 import Agda.TypeChecking.Monad.State (topLevelModuleName)
-import Agda.TypeChecking.Warnings (runPM, genericWarning)
+import Agda.TypeChecking.Warnings (runPM, warning)
 
 import Agda.Version ( version )
 
@@ -96,25 +96,20 @@ toIFile (SourceFile src) = do
       let buildDir = root </> "_build" </> version </> "agda"
           fileName = makeRelative root (filePath localIFile)
           separatedIFile = mkAbsolute $ buildDir </> fileName
-          selectIFile = ifM (optLocalInterfaces <$> commandLineOptions)
-            (pure localIFile)
-            (pure separatedIFile)
+          ifilePreference = ifM (optLocalInterfaces <$> commandLineOptions)
+            (pure (localIFile, separatedIFile))
+            (pure (separatedIFile, localIFile))
       in do
         separatedIFileExists <- liftIO $ doesFileExistCaseSensitive $ filePath separatedIFile
         localIFileExists <- liftIO $ doesFileExistCaseSensitive $ filePath localIFile
         case (separatedIFileExists, localIFileExists) of
-          (False, False) -> selectIFile
+          (False, False) -> fst <$> ifilePreference
           (False, True) -> pure localIFile
           (True, False) -> pure separatedIFile
           (True, True) -> do
-            ifile <- selectIFile
-            genericWarning $ P.vcat
-                [ P.text "There are two interface files:"
-                , P.nest 4 $ P.text $ filePath separatedIFile
-                , P.nest 4 $ P.text $ filePath localIFile
-                , P.nest 2 $ P.text $ "Using " ++ filePath ifile ++ " for now but please remove at least one of them."
-                ]
-            pure ifile
+            ifiles <- ifilePreference
+            warning $ uncurry DuplicateInterfaceFiles ifiles
+            pure $ fst ifiles
 
 replaceModuleExtension :: String -> AbsolutePath -> AbsolutePath
 replaceModuleExtension ext@('.':_) = mkAbsolute . (++ ext) .  dropAgdaExtension . filePath

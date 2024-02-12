@@ -45,6 +45,7 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 
+import Agda.Utils.FileName (filePath)
 import Agda.Utils.Lens
 import Agda.Utils.List ( editDistance )
 import qualified Agda.Utils.List1 as List1
@@ -238,6 +239,13 @@ prettyWarning = \case
     OptionWarning ow -> pretty ow
 
     ParseWarning pw -> pretty pw
+
+    DuplicateInterfaceFiles selected ignored -> vcat
+      [ fwords "There are two interface files:"
+      , nest 4 $ text $ filePath selected
+      , nest 4 $ text $ filePath ignored
+      , nest 2 $ fsep $ pwords "Using" ++ [text $ filePath selected] ++ pwords "for now but please remove at least one of them."
+      ]
 
     DeprecationWarning old new version -> fsep $
       [text old] ++ pwords "has been deprecated. Use" ++ [text new] ++ pwords

@@ -1229,6 +1229,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      ``record`` expression with duplicate field names.
 
+.. option:: DuplicateInterfaceFiles
+
+     There exists both a local interface file and an interface file in ``_build``.
+
 .. option:: DuplicateUsing
 
      Repeated names in ``using`` directive.

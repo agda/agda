@@ -89,6 +89,8 @@ instance EmbPrj Warning where
     FaceConstraintCannotBeHidden a        -> icodeN 47 FaceConstraintCannotBeHidden a
     FaceConstraintCannotBeNamed a         -> icodeN 48 FaceConstraintCannotBeNamed a
     PatternShadowsConstructor a b         -> icodeN 49 PatternShadowsConstructor a b
+    -- Not source code related, therefore they should never be serialized
+    DuplicateInterfaceFiles a b           -> __IMPOSSIBLE__
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -442,6 +444,7 @@ instance EmbPrj WarningName where
     FaceConstraintCannotBeHidden_                -> 102
     FaceConstraintCannotBeNamed_                 -> 103
     PatternShadowsConstructor_                   -> 104
+    DuplicateInterfaceFiles_                     -> 105
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -549,6 +552,7 @@ instance EmbPrj WarningName where
     102 -> return FaceConstraintCannotBeHidden_
     103 -> return FaceConstraintCannotBeNamed_
     104 -> return PatternShadowsConstructor_
+    105 -> return DuplicateInterfaceFiles_
     _   -> malformed
 
 
