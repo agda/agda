@@ -199,6 +199,7 @@ type CompId = Int
 data Component = Component
   { compId :: CompId -- ^ Unique id for the component. Used for the cache.
   , compName :: Maybe Name -- ^ Used for keeping track of how many times a component has been used
+  , compPars :: Nat -- ^ How many arguments should be dropped (e.g. constructor parameters)
   , compTerm :: Term
   , compType :: Type
   , compMetas :: [MetaId]
@@ -315,6 +316,7 @@ getOpenComponent openComp = do
   return Component
     { compId = compId comp
     , compName = compName comp
+    , compPars = compPars comp
     , compTerm = term
     , compType = typ
     , compMetas = compMetas comp
@@ -336,21 +338,27 @@ mkGoalPreserveEnv goalLocalSource metaId = Goal
   , goalEnv = goalEnv goalLocalSource
   }
 
-mkComponent :: CompId -> [MetaId] -> Cost -> Maybe Name -> Term -> Type -> Component
-mkComponent cId metaIds cost mName term typ = Component
-  { compId = cId, compName = mName, compTerm = term, compType = typ, compMetas = metaIds, compCost = cost }
+mkComponent :: CompId -> [MetaId] -> Cost -> Maybe Name -> Nat -> Term -> Type -> Component
+mkComponent cId metaIds cost mName pars term typ = Component
+  { compId = cId
+  , compName = mName
+  , compPars = pars
+  , compTerm = term
+  , compType = typ
+  , compMetas = metaIds
+  , compCost = cost }
 
-mkComponentQ :: CompId -> Cost -> QName -> Term -> Type -> Component
+mkComponentQ :: CompId -> Cost -> QName -> Nat -> Term -> Type -> Component
 mkComponentQ cId cost qname = mkComponent cId [] cost (Just $ qnameName qname)
 
 noName :: Maybe Name
 noName = Nothing
 
-newComponent :: MonadFresh CompId m => [MetaId] -> Cost -> Maybe Name -> Term -> Type -> m Component
-newComponent metaIds cost mName term typ = fresh <&> \cId -> mkComponent cId metaIds cost mName term typ
+newComponent :: MonadFresh CompId m => [MetaId] -> Cost -> Maybe Name -> Nat -> Term -> Type -> m Component
+newComponent metaIds cost mName pars term typ = fresh <&> \cId -> mkComponent cId metaIds cost mName pars term typ
 
-newComponentQ :: MonadFresh CompId m => [MetaId] -> Cost -> QName -> Term -> Type -> m Component
-newComponentQ metaIds cost qname term typ = fresh <&> \cId -> mkComponent cId metaIds cost (Just $ qnameName qname) term typ
+newComponentQ :: MonadFresh CompId m => [MetaId] -> Cost -> QName -> Nat -> Term -> Type -> m Component
+newComponentQ metaIds cost qname pars term typ = fresh <&> \cId -> mkComponent cId metaIds cost (Just $ qnameName qname) pars term typ
 
 addCost :: Cost -> Component -> Component
 addCost cost comp = comp { compCost = cost + compCost comp }
@@ -478,8 +486,8 @@ collectComponents opts costs ii mDefName whereNames metaId = do
       cId <- fresh -- TODO: We generate this id even if it is not used
       scope <- getScope
       case theDef info of
-        Axiom{} | isToLevel typ -> return comps{hintLevel = mkComponentQ cId (costLevel costs) qname (Def qname []) typ : hintLevel comps}
-                | shouldKeep scope -> return comps{hintAxioms = mkComponentQ cId (costAxiom costs) qname (Def qname []) typ : hintAxioms comps}
+        Axiom{} | isToLevel typ -> return comps{hintLevel = mkComponentQ cId (costLevel costs) qname 0 (Def qname []) typ : hintLevel comps}
+                | shouldKeep scope -> return comps{hintAxioms = mkComponentQ cId (costAxiom costs) qname 0 (Def qname []) typ : hintAxioms comps}
                 | otherwise -> return comps
         -- TODO: Check if we want to use these
         DataOrRecSig{} -> return comps
@@ -489,22 +497,22 @@ collectComponents opts costs ii mDefName whereNames metaId = do
           return comps
         -- If the function is in the same mutual block, do not include it.
         f@Function{}
-          | Just qname == mDefName -> return comps{hintThisFn = Just $ mkComponentQ cId (costRecCall costs) qname (Def qname []) typ}
+          | Just qname == mDefName -> return comps{hintThisFn = Just $ mkComponentQ cId (costRecCall costs) qname 0 (Def qname []) typ}
           | isToLevel typ && isNotMutual qname f
-            -> return comps{hintLevel = mkComponentQ cId (costLevel costs) qname (Def qname []) typ : hintLevel comps}
+            -> return comps{hintLevel = mkComponentQ cId (costLevel costs) qname 0 (Def qname []) typ : hintLevel comps}
           | isNotMutual qname f && shouldKeep scope
-            -> return comps{hintFns = mkComponentQ cId (costFn costs) qname (Def qname []) typ : hintFns comps}
+            -> return comps{hintFns = mkComponentQ cId (costFn costs) qname 0 (Def qname []) typ : hintFns comps}
           | otherwise -> return comps
-        Datatype{} -> return comps{hintDataTypes = mkComponentQ cId (costSet costs) qname (Def qname []) typ : hintDataTypes comps}
+        Datatype{} -> return comps{hintDataTypes = mkComponentQ cId (costSet costs) qname 0 (Def qname []) typ : hintDataTypes comps}
         Record{} -> do
           projections <- mapM (qnameToComponent (costSpeculateProj costs)) =<< getRecordFields qname
-          return comps{ hintRecordTypes = mkComponentQ cId (costSet costs) qname (Def qname []) typ : hintRecordTypes comps
+          return comps{ hintRecordTypes = mkComponentQ cId (costSet costs) qname 0 (Def qname []) typ : hintRecordTypes comps
                       , hintProjections = projections ++ hintProjections comps}
         -- We look up constructors when we need them
         Constructor{} -> return comps
         -- TODO: special treatment for primitives?
-        Primitive{} | isToLevel typ -> return comps{hintLevel = mkComponentQ cId (costLevel costs) qname (Def qname []) typ : hintLevel comps}
-                    | shouldKeep scope -> return comps{hintFns = mkComponentQ cId (costFn costs) qname (Def qname []) typ : hintFns comps}
+        Primitive{} | isToLevel typ -> return comps{hintLevel = mkComponentQ cId (costLevel costs) qname 0 (Def qname []) typ : hintLevel comps}
+                    | shouldKeep scope -> return comps{hintFns = mkComponentQ cId (costFn costs) qname 0 (Def qname []) typ : hintFns comps}
                     | otherwise -> return comps
         PrimitiveSort{} -> do
           return comps
@@ -542,18 +550,19 @@ qnameToComponent :: (HasConstInfo tcm, ReadTCState tcm, MonadFresh CompId tcm, M
 qnameToComponent cost qname = do
   info <- getConstInfo qname
   typ <- typeOfConst qname
-  let term = case theDef info of
-        Axiom{} -> Def qname []
-        DataOrRecSig{} -> __IMPOSSIBLE__
-        GeneralizableVar -> Def qname []
-        AbstractDefn{} -> __IMPOSSIBLE__
-        Function{} -> Def qname []
-        Datatype{} -> Def qname []
-        Record{} -> Def qname []
-        c@Constructor{} -> Con (conSrcCon c) ConOCon []
-        Primitive{} -> Def qname []
-        PrimitiveSort{} -> Def qname []
-  newComponentQ [] cost qname term typ
+  let def = (Def qname [], 0)
+      (term, pars) = case theDef info of
+        c@Constructor{}  -> (Con (conSrcCon c) ConOCon [], conPars c)
+        Axiom{}          -> def
+        GeneralizableVar -> def
+        Function{}       -> def
+        Datatype{}       -> def
+        Record{}         -> def
+        Primitive{}      -> def
+        PrimitiveSort{}  -> def
+        DataOrRecSig{}   -> __IMPOSSIBLE__
+        AbstractDefn{}   -> __IMPOSSIBLE__
+  newComponentQ [] cost qname pars term typ
 
 getEverythingInScope :: MonadTCM tcm => MetaVariable -> tcm [QName]
 getEverythingInScope metaVar = do
@@ -590,7 +599,7 @@ getLetVars cost = do
     makeComp (name, opn) = do
       cId <- fresh
       return $ opn <&> \ (LetBinding _ term typ) ->
-                mkComponent cId [] cost (Just name) term (unDom typ)
+                mkComponent cId [] cost (Just name) 0 term (unDom typ)
 
 builtinLevelName :: String
 builtinLevelName = "Agda.Primitive.Level"
@@ -924,10 +933,10 @@ genComponentsFrom :: Bool -- ^ Apply record elimination
                   -> Component
                   -> SM [Component]
 genComponentsFrom False comp = do
-  comp' <- applyToMetasG 0 Nothing comp
+  comp' <- applyToMetasG Nothing comp
   return [comp']
 genComponentsFrom appRecElims origComp = do
-  comp <- applyToMetasG 0 Nothing origComp
+  comp <- applyToMetasG Nothing origComp
   if appRecElims
   then go' Set.empty comp
   else return [comp]
@@ -943,7 +952,7 @@ genComponentsFrom appRecElims origComp = do
               return []
           | otherwise -> do
               let seenRecords' = if isRecursive then Set.insert recordName seenRecords else seenRecords
-              comps <- mapM (applyProj args comp >=> applyToMetasG 0 Nothing) fields
+              comps <- mapM (applyProj args comp >=> applyToMetasG Nothing) fields
               concatMapM (go' seenRecords') comps
     return $ comp : projComps
 
@@ -973,16 +982,15 @@ applyProj recordArgs comp' qname = do
     ter <- instantiateFull newTerm >>= prettyTCM
     typ <- instantiateFull newType >>= prettyTCM
     return $ "After projection:" <+> ter <+> typ
-  newComponentQ (compMetas comp') (compCost comp' + cost) qname newTerm newType
+  newComponentQ (compMetas comp') (compCost comp' + cost) qname 0 newTerm newType
 
 
 -- TODO: currently reducing twice
 applyToMetasG
-  :: Nat -- ^ Arguments to skip applying term. Used for record parameters.
-  -> Maybe Nat -- ^ Max number of arguments to apply.
+  :: Maybe Nat -- ^ Max number of arguments to apply.
   -> Component -> SM Component
-applyToMetasG _ (Just m) comp | m <= 0 = return comp
-applyToMetasG skip maxArgs comp = do
+applyToMetasG (Just m) comp | m <= 0 = return comp
+applyToMetasG maxArgs comp = do
   ctx <- getContextTelescope
   compTyp <- reduce $ compType comp
   case unEl compTyp of
@@ -991,12 +999,15 @@ applyToMetasG skip maxArgs comp = do
       (metaId, metaTerm) <- createMeta domainType
       let arg = setOrigin Inserted $ metaTerm <$ argFromDom dom
       newType <- reduce =<< piApplyM (compType comp) metaTerm
-      -- For records, the parameters are not included in the term
-      let newTerm = if skip > 0 then compTerm comp else apply (compTerm comp) [arg]
+      -- Constructors the parameters are not included in the term
+      let skip = compPars comp
+          newTerm | skip > 0  = compTerm comp
+                  | otherwise = apply (compTerm comp) [arg]
       cost <- asks $ (if getHiding arg == Hidden then costNewHiddenMeta else costNewMeta) . searchCosts
-      applyToMetasG (predNat skip) (predNat <$> maxArgs)
+      applyToMetasG (predNat <$> maxArgs)
                     comp{ compTerm = newTerm
                         , compType = newType
+                        , compPars = predNat skip
                         , compMetas = metaId : compMetas comp
                         , compCost = cost + compCost comp
                         }
@@ -1171,7 +1182,7 @@ genRecCalls = asks (hintThisFn . searchBaseComponents) >>= \case
             -- Apply the recursive call to new metas
             (thisFnTerm, thisFnType, newMetas) <- applyToMetas 0 (compTerm thisFn) (compType thisFn)
             argGoals <- mapM mkGoal newMetas
-            comp <- newComponent newMetas (compCost thisFn) (compName thisFn) thisFnTerm thisFnType
+            comp <- newComponent newMetas (compCost thisFn) (compName thisFn) 0 thisFnTerm thisFnType
             return (comp, argGoals)
 
           -- go :: Component -- ^ Recursive call function applied to meta-variables
@@ -1279,9 +1290,9 @@ tryDataRecord goal goalType branch = withBranchAndGoal branch goal $ do
           cTerm = Con cHead ConOSystem []
       cType <- typeOfConst cName
       cost <- asks (costRecordCon . searchCosts) -- TODO: Use lenses for this?
-      comp <- newComponentQ [] cost cName cTerm cType
+      comp <- newComponentQ [] cost cName (recPars recordDefn) cTerm cType
       -- -- NOTE: at most 1
-      newBranches <- maybeToList <$> tryRefineAddMetasSkip (recPars recordDefn) goal goalType branch comp
+      newBranches <- maybeToList <$> tryRefineAddMetas goal goalType branch comp
       mapM checkSolved newBranches
 
     tryData :: Defn -> SM [SearchStepResult]
@@ -1306,12 +1317,12 @@ tryDataRecord goal goalType branch = withBranchAndGoal branch goal $ do
       setCandidates <- case reducedLevel of
         (Max i [])
           | i > 0 -> do
-              comp <- newComponent [] cost Nothing (Sort $ Type $ Max (i - 1) []) goalType
+              comp <- newComponent [] cost Nothing 0 (Sort $ Type $ Max (i - 1) []) goalType
               return [(branch, comp)]
           | otherwise -> return []
         (Max i ps) -> do
               (metaId, metaTerm) <- createMeta =<< levelType
-              comp <- newComponent [metaId] cost Nothing (Sort $ Type $ Max (max 0 (i - 1)) [Plus 0 metaTerm]) goalType
+              comp <- newComponent [metaId] cost Nothing 0 (Sort $ Type $ Max (max 0 (i - 1)) [Plus 0 metaTerm]) goalType
               branch' <- updateBranch [metaId] branch
               return [(branch', comp)]
       reportSDoc "mimer.refine.set" 40 $ do
@@ -1368,16 +1379,13 @@ tryRefineWith' goal goalType comp = do
     (False, _) -> return Nothing
 
 -- TODO: Make policy for when state should be put
-tryRefineAddMetasSkip :: Nat -> Goal -> Type -> SearchBranch -> Component -> SM (Maybe SearchBranch)
-tryRefineAddMetasSkip skip goal goalType branch comp = withBranchAndGoal branch goal $ do
+tryRefineAddMetas :: Goal -> Type -> SearchBranch -> Component -> SM (Maybe SearchBranch)
+tryRefineAddMetas goal goalType branch comp = withBranchAndGoal branch goal $ do
   -- Apply the hint to new metas (generating @c@, @c ?@, @c ? ?@, etc.)
   -- TODO: Where is the best place to reduce the hint type?
-  comp' <- applyToMetasG skip Nothing comp
+  comp' <- applyToMetasG Nothing comp
   branch' <- updateBranch [] branch
   tryRefineWith goal goalType branch' comp'
-
-tryRefineAddMetas :: Goal -> Type -> SearchBranch -> Component -> SM (Maybe SearchBranch)
-tryRefineAddMetas = tryRefineAddMetasSkip 0
 
 -- TODO: Make sure the type is reduced the first time this is called
 -- TODO: Rewrite with Component?
@@ -1495,7 +1503,7 @@ getLocalVars localCxt cost = do
   typedTerms <- getLocalVarTerms localCxt
   let varZeroDiscount (Var 0 []) = 1
       varZeroDiscount _          = 0
-  mapM (\(term, domTyp) -> newComponent [] (cost - varZeroDiscount term) noName term (unDom domTyp)) typedTerms
+  mapM (\(term, domTyp) -> newComponent [] (cost - varZeroDiscount term) noName 0 term (unDom domTyp)) typedTerms
 
 getLocalVarTerms :: Int -> TCM [(Term, Dom Type)]
 getLocalVarTerms localCxt = do
