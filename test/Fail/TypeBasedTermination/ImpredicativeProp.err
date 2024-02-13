@@ -1,0 +1,6 @@
+TypeBasedTermination/ImpredicativeProp.agda:13,1-14,34
+Termination checking failed for the following functions:
+  no-bad
+Problematic calls:
+  no-bad _
+    (at TypeBasedTermination/ImpredicativeProp.agda:14,16-22)

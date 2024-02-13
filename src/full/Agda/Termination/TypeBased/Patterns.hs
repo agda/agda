@@ -262,7 +262,7 @@ matchSizePattern p@(ConP hd pi args) expected = do
         (map (namedThing . unArg) args)
         refreshedConstructor
       pure ()
-    (_, _) -> __IMPOSSIBLE__
+    (_, _) -> lift $ MSC $ modify (\s -> s { scsErrorMessages = scsErrorMessages s ++ ["Unsupported pattern matching"] })
 matchSizePattern (DotP pi _) _ = return ()
 matchSizePattern (LitP _ _) _ = pure ()
 matchSizePattern (DefP _ _ _) _ = __IMPOSSIBLE__ -- cubical agda is not supported
