@@ -235,7 +235,7 @@ sizeCheckTerm' _ (Sort s) = case s of
     _ <- sizeCheckTerm UndefinedSizeType (Sort t)
     pure UndefinedSizeType
   _ -> pure UndefinedSizeType
-sizeCheckTerm' _ (DontCare _) = pure $ UndefinedSizeType
+sizeCheckTerm' expected (DontCare t) = sizeCheckTerm' expected t
 sizeCheckTerm' _ (Dummy _ _) = pure $ UndefinedSizeType
 
 maybeStoreRecursiveCall :: QName -> Elims  -> [Int] -> MonadSizeChecker ()

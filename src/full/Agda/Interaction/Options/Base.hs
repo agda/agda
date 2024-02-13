@@ -1089,8 +1089,6 @@ unsafePragmaOptions opts =
   [ "--without-K and --large-indices"   | optWithoutK opts, optLargeIndices opts            ] ++
   [ "--large-indices and --forced-argument-recursion"
   | optLargeIndices opts, optForcedArgumentRecursion opts ] ++
-  [ "--type-based-termination and --cubical"
-  | optTypeBasedTermination opts, isJust (optCubical opts) ] ++
   []
 
 -- | This function returns 'True' if the file should be rechecked.
