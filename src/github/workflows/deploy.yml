@@ -17,7 +17,7 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: Ubuntu-latest
     steps:
-    - uses: styfle/cancel-workflow-action@0.12.0
+    - uses: styfle/cancel-workflow-action@0.12.1
       with:
         access_token: ${{ github.token }}
 
@@ -187,7 +187,7 @@ jobs:
       # cabal build --dry-run creates dist-newstyle/cache/plan.json
 
     - name: Cache dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cache
       with:
         path: ${{ steps.setup-haskell.outputs.cabal-store }}
@@ -274,7 +274,7 @@ jobs:
       run: |
         ${{ steps.vars.outputs.compress-cmd }}
 
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         path: ${{ steps.vars.outputs.filename }}
         name: ${{ steps.vars.outputs.filename }}
@@ -289,7 +289,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-    - uses: actions/download-artifact@v3
+    - uses: actions/download-artifact@v4
       with:
         path: artifacts
 

@@ -18,6 +18,7 @@ import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Coverage.SplitTree
 
+import Agda.Utils.Functor
 import Agda.Utils.Permutation
 
 import Agda.Utils.Impossible
@@ -213,8 +214,17 @@ instance EmbPrj CompKit where
   value = valueN CompKit
 
 instance EmbPrj Definition where
-  icod_ (Defn a b c d e f g h i j k l m n o p q r s) = icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o p q r s
-
+  icod_ (Defn a b c d e f g h i j k l m n o p blocked r s) =
+    icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o p (ossify blocked) r s
+    where
+      -- Andreas, 2024-01-02, issue #7044:
+      -- After serialization, a definition can never be unblocked,
+      -- since all metas are ossified.
+      -- Thus, we turn any blocker into 'neverUnblock'.
+      ossify :: Blocked_ -> Blocked_
+      ossify = \case
+        b@NotBlocked{} -> b
+        Blocked b () -> Blocked neverUnblock ()
   value = valueN Defn
 
 instance EmbPrj NotBlocked where
@@ -232,11 +242,22 @@ instance EmbPrj NotBlocked where
     valu [3, a] = valuN MissingClauses a
     valu _      = malformed
 
-instance EmbPrj Blocked_ where
-  icod_ (NotBlocked a b) = icodeN' NotBlocked a b
-  icod_ Blocked{} = __IMPOSSIBLE__
+-- Andreas, 2024-01-02, issue #7044.
+-- We only serialize 'neverUnblock';
+-- other than that, there should not be any blockers left at serialization time.
+blockedToMaybe :: Blocked_ -> Maybe NotBlocked
+blockedToMaybe = \case
+  NotBlocked a ()       -> Just a
+  Blocked a ()
+    | a == neverUnblock -> Nothing
+    | otherwise         -> __IMPOSSIBLE__
 
-  value = valueN NotBlocked
+blockedFromMaybe :: Maybe NotBlocked -> Blocked_
+blockedFromMaybe = maybe (Blocked neverUnblock ()) (`NotBlocked` ())
+
+instance EmbPrj Blocked_ where
+  icod_ = icod_ . blockedToMaybe
+  value = blockedFromMaybe <.> value
 
 instance EmbPrj NLPat where
   icod_ (PVar a b)      = icodeN 0 PVar a b

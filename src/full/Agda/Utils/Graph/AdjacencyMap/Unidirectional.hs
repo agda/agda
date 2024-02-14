@@ -97,7 +97,8 @@ import Data.Set (Set)
 import qualified Data.Tree as Tree
 
 import Agda.Utils.Function
-
+import Agda.Utils.List1 (List1)
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null (Null(null))
 import qualified Agda.Utils.Null as Null
 import Agda.Syntax.Common.Pretty
@@ -659,8 +660,21 @@ sccs' g =
 -- the, at the time of writing undocumented, time complexity of
 -- 'Graph.stronglyConnComp').
 
-sccs :: Ord n => Graph n e -> [[n]]
-sccs = map Graph.flattenSCC . sccs'
+sccs :: Ord n => Graph n e -> [List1 n]
+sccs = map flattenSCC . sccs'
+
+-- | 'Data.Graph.flattenSCC' with a more precise type.
+
+flattenSCC :: Graph.SCC n -> List1 n
+flattenSCC = List1.fromList . Graph.flattenSCC
+-- Andreas, 2024-01-31
+-- Really, upstream should give flattenSCC a more precise type:
+-- See https://github.com/haskell/containers/issues/985
+-- The following more direct definition only works with containers >= 0.7,
+-- but the time is not yet ripe for this:
+--   \case
+--     Graph.AcyclicSCC n   -> List1.singleton n
+--     Graph.NECyclicSCC ns -> ns
 
 -- | SCC DAGs.
 --

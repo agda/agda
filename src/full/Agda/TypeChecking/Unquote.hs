@@ -51,7 +51,7 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.ReconstructParameters
 import Agda.TypeChecking.CheckInternal
-import Agda.TypeChecking.InstanceArguments ( getInstanceCandidates )
+import Agda.TypeChecking.InstanceArguments
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def

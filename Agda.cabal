@@ -4,7 +4,7 @@ version:         2.6.5
 build-type:      Custom
 license:         MIT
 license-file:    LICENSE
-copyright:       (c) 2005-2023 The Agda Team.
+copyright:       (c) 2005-2024 The Agda Team.
 author:          The Agda Team, see https://agda.readthedocs.io/en/latest/team.html
 maintainer:      The Agda Team
 homepage:        https://wiki.portal.chalmers.se/agda/
@@ -36,7 +36,7 @@ description:
 
 tested-with:
     GHC == 9.8.1
-    GHC == 9.6.3
+    GHC == 9.6.4
     GHC == 9.4.8
     GHC == 9.2.8
     GHC == 9.0.2
@@ -48,6 +48,7 @@ extra-doc-files:
     CHANGELOG.md
     README.md
     doc/user-manual/agda.svg
+    doc/release-notes/2.6.4.1.md
     doc/release-notes/2.6.4.md
     doc/release-notes/2.6.3.md
     doc/release-notes/2.6.2.2.md
@@ -89,7 +90,7 @@ extra-doc-files:
 
 extra-source-files:
     stack-9.8.1.yaml
-    stack-9.6.3.yaml
+    stack-9.6.4.yaml
     stack-9.4.8.yaml
     stack-9.2.8.yaml
     stack-9.0.2.yaml
@@ -108,6 +109,7 @@ data-files:
     JS/agda-rts.amd.js
     latex/agda.sty
     latex/postprocess-latex.pl
+    lib/prim/agda-builtins.agda-lib
     lib/prim/Agda/Builtin/Bool.agda
     lib/prim/Agda/Builtin/Char.agda
     lib/prim/Agda/Builtin/Char/Properties.agda
@@ -170,22 +172,26 @@ flag debug
 
 flag debug-serialisation
   default: False
+  manual: True
   description:
     Enable debug mode in serialisation. This makes serialisation slower.
 
 flag debug-parsing
   default: False
+  manual: True
   description:
     Enable debug mode in parsing. This makes parsing slower.
 
 flag enable-cluster-counting
   default: False
+  manual: True
   description:
     Enable the --count-clusters flag. (If enable-cluster-counting is
     False, then the --count-clusters flag triggers an error message.)
 
 flag optimise-heavily
   default: False
+  manual: True
   description:
     Enable some expensive optimisations when compiling Agda.
 
@@ -392,7 +398,7 @@ library
   build-depends:
     -- Please keep in alphabetical order!
     , aeson                >= 1.1.2.0   && < 2.3
-    , ansi-terminal        >= 0.9       && < 1.1
+    , ansi-terminal        >= 0.9       && < 1.2
     , array                >= 0.5.2.0   && < 0.6
     , async                >= 2.2       && < 2.3
     , base                 >= 4.12.0.0  && < 4.20
@@ -424,6 +430,7 @@ library
     , murmur-hash          >= 0.1       && < 0.2
     , parallel             >= 3.2.2.0   && < 3.3
     , peano                >= 0.1.0.1   && < 0.2
+    , pqueue               >= 1.4.1.2   && < 1.6
     , pretty               >= 1.1.3.3   && < 1.2
     , process              >= 1.6.3.0   && < 1.7
     , regex-tdfa           >= 1.3.1.0   && < 1.4
@@ -441,7 +448,7 @@ library
     , uri-encode           >= 1.5.0.4   && < 1.6
     , vector               >= 0.12      && < 0.14
     , vector-hashtables    >= 0.1.1.1   && < 0.2
-    , zlib                 == 0.6.*
+    , zlib                 >= 0.6       && < 0.8
 
   -- We don't write upper bounds for Alex nor Happy because the
   -- `build-tool-depends` field can not be modified in Hackage.
@@ -452,16 +459,9 @@ library
         -- happy-1.19.8 is packaged with Ubuntu 18.04
 
   exposed-modules:
-      Agda.Auto.Auto
-      Agda.Auto.Options
-      Agda.Auto.CaseSplit
-      Agda.Auto.Convert
-      Agda.Auto.NarrowingSearch
-      Agda.Auto.SearchControl
-      Agda.Auto.Syntax
-      Agda.Auto.Typecheck
       Agda.Benchmarking
       Agda.Compiler.Backend
+      Agda.Compiler.Backend.Base
       Agda.Compiler.Builtin
       Agda.Compiler.CallCompiler
       Agda.Compiler.Common
@@ -518,7 +518,9 @@ library
       Agda.Interaction.Highlighting.LaTeX
       Agda.Interaction.Imports
       Agda.Interaction.InteractionTop
+      Agda.Interaction.Output
       Agda.Interaction.Response
+      Agda.Interaction.Response.Base
       Agda.Interaction.MakeCase
       Agda.Interaction.Monad
       Agda.Interaction.Library
@@ -529,6 +531,8 @@ library
       Agda.Interaction.Options.Lenses
       Agda.Interaction.Options.Warnings
       Agda.Main
+      Agda.Mimer.Mimer
+      Agda.Mimer.Options
       Agda.Syntax.Abstract.Name
       Agda.Syntax.Abstract.Pattern
       Agda.Syntax.Abstract.PatternSynonyms
@@ -857,8 +861,9 @@ executable agda
   -- been idle for 0.3 s. This feature turned out to be annoying, so
   -- the idle GC is now by default turned off (-I0).
   ghc-options:
-    -threaded -rtsopts
-    "-with-rtsopts=-M3.5G -I0"
+    -threaded
+    -rtsopts
+    -with-rtsopts=-I0
 
 -- agda-mode executable
 ---------------------------------------------------------------------------
@@ -866,6 +871,7 @@ executable agda
 executable agda-mode
   hs-source-dirs:   src/agda-mode
   main-is:          Main.hs
+  autogen-modules:  Paths_Agda
   other-modules:    Paths_Agda
   build-depends:
     , base      >= 4.12.0.0 && < 4.20

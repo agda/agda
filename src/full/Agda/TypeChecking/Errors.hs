@@ -1485,6 +1485,10 @@ instance PrettyTCM TypeError where
         [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
         , prettyTCM f , "is not a postulate, a function, or a constructor"
         ]
+      HeadSymbolDefContainsMetas f -> hsep
+        [ prettyTCM q , "is not a legal rewrite rule, since the definition of the head symbol"
+        , prettyTCM f , "contains unsolved metavariables and confluence checking is enabled."
+        ]
       ConstructorParamsNotGeneral c vs -> vcat
         [ prettyTCM q <+> text " is not a legal rewrite rule, since the constructor parameters are not fully general:"
         , nest 2 $ text "Constructor: " <+> prettyTCM c

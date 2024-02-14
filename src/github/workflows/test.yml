@@ -97,7 +97,7 @@ jobs:
         echo "github.ref_name   = ${{ github.ref_name   }}"
         echo "github.ref_type   = ${{ github.ref_type   }}"
 
-    - uses: styfle/cancel-workflow-action@0.12.0
+    - uses: styfle/cancel-workflow-action@0.12.1
       # Andreas, 2022-12-05, issue #6388: do not cancel on `master`!
       if: github.ref != 'refs/heads/master'
       with:
@@ -128,10 +128,10 @@ jobs:
       # uconv --version
 
     - name: Restore cache from approximate key
-      # uses: actions/cache/restore@v3
+      # uses: actions/cache/restore@v4
       # Andreas, 2023-02-02 revert to default cache saving logic.
       # "Save always" is bad because it may duplicate caches from the base branch on the feature branch.
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cache
       with:
         # Andreas, 2023-01-24:
@@ -183,7 +183,7 @@ jobs:
         tar --use-compress-program zstd -cvf stack-work.tzst .stack-work stack.yaml stack.yaml.lock
 
     - name: "Upload artifacts"
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         if-no-files-found: error
         retention-days: 1
@@ -204,7 +204,7 @@ jobs:
     #   continue-on-error: true
 
     # - name: Save cache
-    #   uses: actions/cache/save@v3
+    #   uses: actions/cache/save@v4
     #   if:   always()  # save cache even when build fails
     #   with:
     #     key:  *cache_key
@@ -222,7 +222,7 @@ jobs:
     - *haskell_setup
 
     - &download_artifact
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
 
@@ -235,7 +235,7 @@ jobs:
     - *icu
     - &cache
       name: Restore cache from exact key
-      uses: actions/cache/restore@v3
+      uses: actions/cache/restore@v4
       id: cache
       with:
         path: *cache_path

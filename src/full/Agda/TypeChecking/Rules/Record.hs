@@ -30,6 +30,7 @@ import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.CompiledClause (hasProjectionPatterns)
 import Agda.TypeChecking.CompiledClause.Compile
+import Agda.TypeChecking.InstanceArguments
 
 import Agda.TypeChecking.Rules.Data
   ( getGeneralizedParameters, bindGeneralizedParameters, bindParameters
@@ -374,8 +375,9 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
 
 
       -- we define composition here so that the projections are already in the signature.
-      escapeContext impossible npars $ do
-        addCompositionForRecord name haveEta con tel (map argFromDom fs) ftel rect
+      whenM (optCubicalCompatible <$> pragmaOptions) do
+        escapeContext impossible npars do
+          addCompositionForRecord name haveEta con tel (map argFromDom fs) ftel rect
 
       -- The confluence checker needs to know what symbols match against
       -- the constructor.

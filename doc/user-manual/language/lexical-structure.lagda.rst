@@ -60,6 +60,7 @@ keywords
   ``module``
   ``mutual``
   ``no-eta-equality``
+  ``opaque``
   ``open``
   :ref:`overlap <instance-fields>`
   ``pattern``
@@ -72,9 +73,9 @@ keywords
   ``record``
   ``renaming``
   ``rewrite``
-  ``Set``
   ``syntax``
   ``tactic``
+  ``unfolding``
   :ref:`unquote <macros>`
   :ref:`unquoteDecl <unquoting-declarations>`
   :ref:`unquoteDef <unquoting-declarations>`
@@ -83,14 +84,11 @@ keywords
   ``where``
   ``with``
 
-  The ``Set`` keyword can appear with a natural number suffix, optionally
-  subscripted (see :ref:`sort-system`). For instance ``Set42`` and
-  ``Set₄₂`` are both keywords.
-
 keywords in ``renaming`` directives
-  The following words are only reserved in ``renaming`` directives:
+  The word ``to`` is only reserved in ``renaming`` directives.
 
-  ``to``
+keywords in ``import`` statements
+  The word ``as`` has a special meaning in ``import`` statements, although it is not reserved.
 
 .. _names:
 
@@ -261,6 +259,7 @@ layout keywords:
    let
    macro
    mutual
+   opaque
    postulate
    primitive
    private
@@ -312,8 +311,8 @@ tools like LaTeX, Markdown and reStructuredText. For instance, with LaTeX,
 everything in a file is a comment unless enclosed in ``\begin{code}``,
 ``\end{code}``. Literate Agda files have special file extensions, like
 ``.lagda`` and ``.lagda.tex`` for LaTeX, ``.lagda.md`` for Markdown,
-``.lagda.rst`` for reStructuredText instead of ``.agda``. The main use case
-for literate Agda is to generate LaTeX documents from Agda code. See
+``.lagda.rst`` for reStructuredText instead of ``.agda``. One use case
+for literate Agda files is to generate documents including Agda code. See
 :any:`generating-html` and :any:`generating-latex` for more information.
 
 .. code-block:: latex

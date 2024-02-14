@@ -1257,7 +1257,9 @@ buildInterface src topLevel = do
     let
       mh = moduleNameId (srcModuleName src)
       opaqueBlocks = Map.filterWithKey (\(OpaqueId _ mod) _ -> mod == mh) opaqueBlocks'
-      opaqueIds    = Map.filterWithKey (\_ (OpaqueId _ mod) -> mod == mh) opaqueIds'
+      isLocal qnm = case nameId (qnameName qnm) of
+        NameId _ mh' -> mh' == mh
+      opaqueIds = Map.filterWithKey (\qnm (OpaqueId _ mod) -> isLocal qnm || mod == mh) opaqueIds'
 
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files

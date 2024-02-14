@@ -31,7 +31,7 @@ jobs:
         echo "github.ref_name   = ${{ github.ref_name   }}"
         echo "github.ref_type   = ${{ github.ref_type   }}"
     - if: github.ref != 'refs/heads/master'
-      uses: styfle/cancel-workflow-action@0.12.0
+      uses: styfle/cancel-workflow-action@0.12.1
       with:
         access_token: ${{ github.token }}
     - uses: actions/checkout@v4
@@ -51,7 +51,7 @@ jobs:
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
       name: Restore cache from approximate key
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
           }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
@@ -76,7 +76,7 @@ jobs:
 
         tar --use-compress-program zstd -cvf stack-work.tzst .stack-work stack.yaml stack.yaml.lock
     - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         if-no-files-found: error
         name: agda-${{ runner.os }}-${{ github.sha }}
@@ -96,7 +96,7 @@ jobs:
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: ${{ env.STACK_VER }}
-    - uses: actions/download-artifact@v3
+    - uses: actions/download-artifact@v4
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
@@ -110,7 +110,7 @@ jobs:
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
       name: Restore cache from exact key
-      uses: actions/cache/restore@v3
+      uses: actions/cache/restore@v4
       with:
         key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
           }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
@@ -132,7 +132,7 @@ jobs:
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: ${{ env.STACK_VER }}
-    - uses: actions/download-artifact@v3
+    - uses: actions/download-artifact@v4
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
@@ -146,7 +146,7 @@ jobs:
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
       name: Restore cache from exact key
-      uses: actions/cache/restore@v3
+      uses: actions/cache/restore@v4
       with:
         key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
           }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
@@ -186,7 +186,7 @@ jobs:
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: ${{ env.STACK_VER }}
-    - uses: actions/download-artifact@v3
+    - uses: actions/download-artifact@v4
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
@@ -200,7 +200,7 @@ jobs:
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
       name: Restore cache from exact key
-      uses: actions/cache/restore@v3
+      uses: actions/cache/restore@v4
       with:
         key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
           }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
@@ -235,7 +235,7 @@ jobs:
         enable-stack: true
         ghc-version: ${{ env.GHC_VER }}
         stack-version: ${{ env.STACK_VER }}
-    - uses: actions/download-artifact@v3
+    - uses: actions/download-artifact@v4
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
     - name: Unpack artifacts
@@ -249,7 +249,7 @@ jobs:
         echo "ICU_VER=${ICU_VER}" >> "${GITHUB_ENV}"
     - id: cache
       name: Restore cache from exact key
-      uses: actions/cache/restore@v3
+      uses: actions/cache/restore@v4
       with:
         key: test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER
           }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}

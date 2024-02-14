@@ -1088,6 +1088,7 @@ recheckBecausePragmaOptionsChanged used current =
     , _optCountClusters             = empty
     , _optPrintPatternSynonyms      = empty
     , _optShowIdentitySubstitutions = empty
+    , _optKeepPatternVariables      = empty
     }
 
 -- | Infective or coinfective?
@@ -1187,6 +1188,12 @@ infectiveCoinfectiveOptions =
   , infectiveOption optCohesion               "--cohesion"
   , infectiveOption optErasure                "--erasure"
   , infectiveOption optErasedMatches          "--erased-matches"
+  , infectiveOption (not . optUniverseCheck)  "--type-in-type"
+  , infectiveOption optOmegaInOmega           "--omega-in-omega"
+  , infectiveOption optInjectiveTypeConstructors "--injective-type-constructors"
+  , infectiveOption optExperimentalIrrelevance "--experimental-irrelevance"
+  , infectiveOption optCumulativity           "--cumulativity"
+  , infectiveOption optAllowExec              "--allow-exec"
   ]
   where
   cubicalCompatible =
@@ -1476,7 +1483,7 @@ standardOptions =
     , Option []     ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
                     "ignore interface files (re-type check everything)"
     , Option []     ["local-interfaces"] (NoArg localInterfacesFlag)
-                    "put interface files next to the Agda files they correspond to"
+                    "put new interface files next to the Agda files they correspond to"
     , Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
                     "look for imports in DIR"
     , Option ['l']  ["library"] (ReqArg libraryFlag "LIB")

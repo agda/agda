@@ -1,0 +1,3 @@
+Issue7029.agda:13,1-20
+UIP is not a legal rewrite rule, since the definition of the head symbol myrefl contains unsolved metavariables and confluence checking is enabled.
+when checking the pragma REWRITE UIP

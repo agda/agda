@@ -200,7 +200,7 @@ unifyElims vs ts k = do
                          else Just c) .
     zipWith (\i c -> (i, dropS (i + 1) s `applySubst` c)) [0..]
 
--- | Like @unifyElims@ but @Γ@ is from the the meta's @MetaInfo@ and
+-- | Like @unifyElims@ but @Γ@ is from the meta's @MetaInfo@ and
 -- the context extension @Δ@ is taken from the @Closure@.
 unifyElimsMeta :: MetaId -> Args -> Closure Constraint -> ([(Term,Term)] -> Constraint -> TCM a) -> TCM a
 unifyElimsMeta m es_m cl k = ifM (isNothing . optCubical <$> pragmaOptions) (enterClosure cl $ k []) $ do

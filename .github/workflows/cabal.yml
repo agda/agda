@@ -17,7 +17,7 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: Ubuntu-latest
     steps:
-    - uses: styfle/cancel-workflow-action@0.12.0
+    - uses: styfle/cancel-workflow-action@0.12.1
       with:
         access_token: ${{ github.token }}
   cabal:
@@ -79,7 +79,7 @@ jobs:
         cabal build --dry-run
     - id: cache
       name: Restore cache from approximate key
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         key: cabal.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
           }}-${{ hashFiles('**/plan.json') }}
@@ -111,7 +111,7 @@ jobs:
         - false
         ghc-ver:
         - 9.8.1
-        - 9.6.3
+        - 9.6.4
         - 9.4.8
         - 9.2.8
         - 9.0.2
@@ -128,8 +128,8 @@ jobs:
           description: Linux debug
           ghc-ver: 9.8.1
           os: ubuntu-22.04
-        - cabal-flags: |
-            --enable-tests -f enable-cluster-counting -f debug -c containers>=0.7 --allow-newer=containers
+        - cabal-flags: --enable-tests -f enable-cluster-counting -f debug -f debug-serialisation
+            -f debug-parsing -c containers>=0.7 --allow-newer=containers
           description: Linux containers 0.7
           ghc-ver: 9.8.1
           os: ubuntu-22.04

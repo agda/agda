@@ -1,5 +1,6 @@
 {-# LANGUAGE NondecreasingIndentation #-}
 
+import Data.List
 import Data.Maybe
 
 import Distribution.Simple
@@ -32,7 +33,7 @@ userhooks = simpleUserHooks
 -- Install and copy hooks are default, but amended with .agdai files in data-files.
 instHook' :: PackageDescription -> LocalBuildInfo -> UserHooks -> InstallFlags -> IO ()
 instHook' pd lbi hooks flags = instHook simpleUserHooks pd' lbi hooks flags where
-  pd' = pd { dataFiles = concatMap expandAgdaExt $ dataFiles pd }
+  pd' = pd { dataFiles = concatMap (expandAgdaExt pd) $ dataFiles pd }
 
 -- Andreas, 2020-04-25, issue #4569: defer 'generateInterface' until after
 -- the library has been copied to a destination where it can be found.
@@ -48,7 +49,7 @@ copyHook' pd lbi hooks flags = do
     copyHook simpleUserHooks pd' lbi hooks flags
   where
   pd' = pd
-    { dataFiles = concatMap expandAgdaExt $ dataFiles pd
+    { dataFiles = concatMap (expandAgdaExt pd) $ dataFiles pd
       -- Andreas, 2020-04-25, issue #4569:
       -- I tried clearing some fields to avoid copying again.
       -- However, cabal does not like me messing with the PackageDescription.
@@ -66,12 +67,22 @@ copyHook' pd lbi hooks flags = do
     }
 
 -- Used to add .agdai files to data-files
-expandAgdaExt :: FilePath -> [FilePath]
-expandAgdaExt fp | takeExtension fp == ".agda" = [ fp, toIFile fp ]
-                 | otherwise                   = [ fp ]
+expandAgdaExt :: PackageDescription -> FilePath -> [FilePath]
+expandAgdaExt pd fp | takeExtension fp == ".agda" = [ fp, toIFile pd fp ]
+                    | otherwise                   = [ fp ]
 
-toIFile :: FilePath -> FilePath
-toIFile file = replaceExtension file ".agdai"
+version :: PackageDescription -> String
+version = intercalate "." . map show . versionNumbers . pkgVersion . package
+
+projectRoot :: PackageDescription -> FilePath
+projectRoot pd = takeDirectory agdaLibFile where
+  [agdaLibFile] = filter ((".agda-lib" ==) . takeExtension) $ dataFiles pd
+
+toIFile :: PackageDescription -> FilePath -> FilePath
+toIFile pd file = buildDir </> fileName where
+  root = projectRoot pd
+  buildDir = root </> "_build" </> version pd </> "agda"
+  fileName = makeRelative root $ replaceExtension file ".agdai"
 
 -- Andreas, 2019-10-21, issue #4151:
 -- skip the generation of interface files with program suffix "-quicker"
@@ -101,7 +112,7 @@ generateInterfaces pd lbi = do
 
   -- Remove all existing .agdai files.
   forM_ builtins $ \fp -> do
-    let fullpathi = toIFile (ddir </> fp)
+    let fullpathi = toIFile pd (ddir </> fp)
 
         handleExists e | isDoesNotExistError e = return ()
                        | otherwise             = throwIO e
@@ -124,8 +135,6 @@ generateInterfaces pd lbi = do
       (proc agda
           [ "--interaction"
           , "--interaction-exit-on-error"
-          , "--no-libraries"
-          , "--local-interfaces"
           , "-Werror"
           , "-v0"
           ])

@@ -118,7 +118,7 @@ module Agda.TypeChecking.Generalize
 
 import Prelude hiding (null)
 
-import Control.Arrow (first)
+import Control.Arrow ((&&&), first)
 import Control.Monad
 import Control.Monad.Except
 
@@ -178,6 +178,10 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
       cxt <- take (size tel) <$> getContext
       lbs <- getLetBindings -- This gives let-bindings valid in the current context
       return (map (fst . unDom) cxt, tel, lbs)
+
+  reportSDoc "tc.generalize.metas" 60 $ vcat
+    [ "open metas =" <+> (text . show . fmap ((miNameSuggestion &&& miGeneralizable) . mvInfo)) (openMetas $ allmetas)
+    ]
   -- Translate the QName to the corresponding bound variable
   (genTel, genTelNames, sub) <- computeGeneralization genRecMeta namedMetas allmetas
 
@@ -231,6 +235,11 @@ generalizeType' :: Set QName -> TCM (Type, a) -> TCM ([Maybe QName], Type, a)
 generalizeType' s typecheckAction = billTo [Typing, Generalize] $ withGenRecVar $ \ genRecMeta -> do
 
   ((t, userdata), namedMetas, allmetas) <- createMetasAndTypeCheck s typecheckAction
+
+  reportSDoc "tc.generalize.metas" 60 $ vcat
+    [ "open metas =" <+> (text . show . fmap ((miNameSuggestion &&& miGeneralizable) . mvInfo)) (openMetas $ allmetas)
+    ]
+
   (genTel, genTelNames, sub) <- computeGeneralization genRecMeta namedMetas allmetas
 
   t' <- abstract genTel . applySubst sub <$> instantiateFull t
@@ -288,7 +297,8 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   reportSDoc "tc.generalize" 10 $ "computing generalization for type" <+> prettyTCM genRecMeta
 
   -- Pair metas with their metaInfo
-  let mvs = MapS.assocs (openMetas allmetas) ++
+  let mvs :: [(MetaId, MetaVariable)]
+      mvs = MapS.assocs (openMetas allmetas) ++
             MapS.assocs (solvedMetas allmetas)
 
   -- Issue 4727: filter out metavariables that were created before the
@@ -296,9 +306,10 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- TODO: make metasCreatedBy smarter so it doesn't see pruned
   -- versions of old metas as new metas.
   cp <- viewTC eCurrentCheckpoint
-  let isFreshMeta :: MonadReduce m => (MetaId, MetaVariable) -> m Bool
-      isFreshMeta (x,mv) = enterClosure mv $ \ _ -> isJust <$> checkpointSubstitution' cp
-  mvs <- filterM isFreshMeta mvs
+  let isFreshMeta :: MonadReduce m => MetaVariable -> m Bool
+      isFreshMeta mv = enterClosure mv $ \ _ -> isJust <$> checkpointSubstitution' cp
+  mvs :: [(MetaId, MetaVariable)] <- filterM (isFreshMeta . snd) mvs
+
   cs <- (++) <$> useTC stAwakeConstraints
              <*> useTC stSleepingConstraints
 
@@ -365,26 +376,25 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
               , text "permutation:" <+> text (show (m, xs))
               , text "subst:" <+> pretty msub ]
           return sameContext
-  inherited <- fmap Set.unions $ forM generalizableClosed $ \ (x, mv) ->
+
+  inherited :: Set MetaId <- Set.unions <$> forM generalizableClosed \ (x, mv) ->
     case mvInstantiation mv of
       InstV inst -> do
         parentName <- getMetaNameSuggestion x
         metas <- filterM canGeneralize . Set.toList .
                  allMetas Set.singleton =<<
                  instantiateFull (instBody inst)
-        let suggestNames i [] = return ()
-            suggestNames i (m : ms) = do
-              -- #4291: Override existing meta name suggestion. If we solved the parent with a new
-              --        meta use the parent name for that, otherwise suffix with a number.
-              let suf | null ms && i == 1,
-                        MetaV{} <- instBody inst = ""
-                      | otherwise                = "." ++ show i
-              setMetaNameSuggestion m (parentName ++ suf)
-              suggestNames (i + 1) ms
         unless (null metas) $
-          reportSDoc "tc.generalize" 40 $ hcat ["Inherited metas from ", prettyTCM x, ":"] <?> prettyList_ (map prettyTCM metas)
-                                    -- Don't suggest names for explicitly named generalizable metas
-        Set.fromList metas <$ suggestNames 1 (filter (`Map.notMember` nameMap) metas)
+          reportSDoc "tc.generalize" 40 $
+            hcat ["Inherited metas from ", prettyTCM x, ":"] <?> prettyList_ (map prettyTCM metas)
+        -- #4291: Override existing meta name suggestion.
+        -- Don't suggest names for explicitly named generalizable metas.
+        case filter (`Map.notMember` nameMap) metas of
+          -- If we solved the parent with a new meta use the parent name for that.
+          [m] | MetaV{} <- instBody inst -> setMetaNameSuggestion m parentName
+          -- Otherwise suffix with a number.
+          ms -> zipWithM_ (\ i m -> setMetaNameSuggestion m (parentName ++ "." ++ show i)) [1..] ms
+        return $ Set.fromList metas
       _ -> __IMPOSSIBLE__
 
   let (alsoGeneralize, reallyDontGeneralize) = partition (`Set.member` inherited) $ map fst nongeneralizableOpen
@@ -437,7 +447,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- Build the telescope of generalized metas
   teleTypes <- do
     args <- getContextArgs
-    fmap concat $ forM sortedMetas $ \ m -> do
+    concat <$> forM sortedMetas \ m -> do
       mv <- lookupLocalMeta m
       let info =
             (hideOrKeepInstance $
@@ -449,7 +459,9 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   let genTel = buildGeneralizeTel genRecCon teleTypes
 
   reportSDoc "tc.generalize" 40 $ vcat
-    [ text "genTel =" <+> prettyTCM genTel ]
+    [ text "teleTypes =" <+> prettyTCM teleTypes
+    , text "genTel    =" <+> prettyTCM genTel
+    ]
 
   -- Now we need to prune the unsolved metas to make sure they respect the new
   -- dependencies (#3672). Also update interaction points to point to pruned metas.
@@ -475,7 +487,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
     case mv of
       Nothing         -> __IMPOSSIBLE__
       Just Left{}     -> return False
-      Just (Right mv) -> isFreshMeta (m, mv)
+      Just (Right mv) -> isFreshMeta mv
 
   return (genTel, telNames, sub)
 
@@ -823,7 +835,7 @@ unpackSub con infos i = recSub
 --    (x₂ : A₂ [ r := c x₁ _    .. _ ])
 --    (x₃ : A₃ [ r := c x₁ x₂ _ .. _ ])
 --    ...
-buildGeneralizeTel :: ConHead -> [(Arg String, Type)] -> Telescope
+buildGeneralizeTel :: ConHead -> [(Arg MetaNameSuggestion, Type)] -> Telescope
 buildGeneralizeTel con xs = go 0 xs
   where
     infos = map (argInfo . fst) xs

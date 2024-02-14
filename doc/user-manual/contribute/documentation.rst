@@ -120,7 +120,7 @@ of this form: both *visible* and *valid*.
 
 
 
-.. warning:: Remember to always leave a blank like after the ``::``.
+.. warning:: Remember to always leave a blank line after the ``::``.
          Otherwise, the code will be checked by Agda, but it will appear
          as regular paragraph text in the documentation.
 
@@ -209,7 +209,7 @@ shown again.
 File structure
 --------------
 
-Documentation literate files (`.lagda.*`) are type-checked as whole Agda files,
+Documentation literate files (``.lagda.*``) are type-checked as whole Agda files,
 as if all literate text was replaced by whitespace. Thus, **indentation** is
 interpreted globally.
 
@@ -217,10 +217,10 @@ interpreted globally.
 Namespacing
 -----------
 
-In the documentation, files are typechecked starting from the `doc/user-manual/`
-root. For example, the file `doc/user-manual/language/data-types.lagda.rst`
-should start with a hidden code block declaring the name of the module as
-`language.data-types`:
+In the documentation, files are typechecked starting from the
+``doc/user-manual/`` root. For example, the file
+``doc/user-manual/language/data-types.lagda.rst`` should start with a hidden
+code block declaring the name of the module as ``language.data-types``:
 
 .. code-block:: rst
 

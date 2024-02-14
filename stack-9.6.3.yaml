@@ -1,8 +1,0 @@
-resolver: nightly-2023-11-15
-compiler: ghc-9.6.3
-compiler-check: match-exact
-
-# Local packages specified by relative directory name.
-packages:
-- '.'
-- 'src/size-solver'

@@ -385,6 +385,7 @@ instance (ExprLike qn, ExprLike nm, ExprLike p, ExprLike e) => ExprLike (Rewrite
   recurseExpr f = \case
     Rewrite es    -> Rewrite <$> recurseExpr f es
     Invert qn pes -> Invert <$> recurseExpr f qn <*> recurseExpr f pes
+    LeftLet pes   -> LeftLet <$> recurseExpr f pes
 
 instance ExprLike WhereDeclarations where
   recurseExpr f (WhereDecls a b c) = WhereDecls a b <$> recurseExpr f c

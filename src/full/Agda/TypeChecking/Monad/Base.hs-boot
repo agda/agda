@@ -9,6 +9,7 @@ import Data.Map (Map)
 import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 import Agda.Utils.FileName (AbsolutePath)
 
+data Definition
 data Warning
 
 data TCErr

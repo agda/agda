@@ -24,6 +24,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 
 import Agda.Interaction.Base
+import Agda.Interaction.Output
 import Agda.Interaction.Options
 import Agda.Interaction.Response (Goals, ResponseContextEntry(..))
 
@@ -404,6 +405,7 @@ outputFormId (OutputForm _ _ _ o) = out o
       IsEmptyType _              -> __IMPOSSIBLE__   -- Should never be used on IsEmpty constraints
       SizeLtSat{}                -> __IMPOSSIBLE__
       FindInstanceOF _ _ _        -> __IMPOSSIBLE__
+      ResolveInstanceOF _        -> __IMPOSSIBLE__
       PTSInstance i _            -> i
       PostponedCheckFunDef{}     -> __IMPOSSIBLE__
       DataSort _ i               -> i
@@ -479,6 +481,7 @@ instance Reify Constraint where
     <*> (reify =<< getMetaType m)
     <*> forM (fromMaybe [] mcands) (\ (Candidate q tm ty _) -> do
           (,,) <$> reify tm <*> reify tm <*> reify ty)
+  reify (ResolveInstanceHead q) = return $ ResolveInstanceOF q
   reify (IsEmpty r a) = IsEmptyType <$> reify a
   reify (CheckSizeLtSat a) = SizeLtSat  <$> reify a
   reify (CheckFunDef i q cs err) = do
@@ -545,6 +548,8 @@ instance (Pretty a, Pretty b) => Pretty (OutputConstraint a b) where
         [ "Resolve instance argument" <?> (pretty s .: t)
         , nest 2 $ "Candidate:"
         , nest 4 $ vcat [ bin (pretty q) "=" (pretty v) .: t | (q, v, t) <- cs ] ]
+      ResolveInstanceOF q ->
+        "Resolve output type of instance" <?> pretty q
       PTSInstance a b      -> "PTS instance for" <+> pretty (a, b)
       PostponedCheckFunDef q a _err ->
         vcat [ "Check definition of" <+> pretty q <+> ":" <+> pretty a ]
@@ -590,6 +595,7 @@ instance (ToConcrete a, ToConcrete b) => ToConcrete (OutputConstraint a b) where
     toConcrete (FindInstanceOF s t cs) =
       FindInstanceOF <$> toConcrete s <*> toConcrete t
                      <*> mapM (\(q,tm,ty) -> (,,) <$> toConcrete q <*> toConcrete tm <*> toConcrete ty) cs
+    toConcrete (ResolveInstanceOF q) = return $ ResolveInstanceOF q
     toConcrete (PTSInstance a b) = PTSInstance <$> toConcrete a <*> toConcrete b
     toConcrete (DataSort a b)  = DataSort a <$> toConcrete b
     toConcrete (CheckLock a b) = CheckLock <$> toConcrete a <*> toConcrete b
@@ -662,6 +668,7 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
         SortCmp cmp a b            -> Nothing
         UnBlock{}                  -> Nothing
         FindInstance{}             -> Nothing
+        ResolveInstanceHead{}      -> Nothing
         IsEmpty r t                -> isMeta (unEl t)
         CheckSizeLtSat t           -> isMeta t
         CheckFunDef{}              -> Nothing
@@ -743,7 +750,8 @@ getConstraints' g f = liftTCM $ do
       withMetaInfo mv $ do
         mi <- interactionIdToMetaId ii
         let m = QuestionMark emptyMetaInfo{ metaNumber = Just mi } ii
-        abstractToConcrete_ $ OutputForm noRange [] alwaysUnblock $ Assign m e
+        let oform = OutputForm noRange [] alwaysUnblock $ Assign m e :: OutputForm Expr Expr
+        abstractToConcrete_ oform
 
 -- | Reify the boundary of an interaction point as something that can be
 -- shown to the user.
@@ -969,7 +977,12 @@ metaHelperType norm ii rng s = case words s of
     -- Konstantin, 2022-10-23: We don't want to print section parameters in helper type.
     freeVars <- getCurrentModuleFreeVars
     contextForAbstracting <- drop freeVars . reverse <$> getContext
-    let escapeAbstractedContext = escapeContext impossible (length contextForAbstracting)
+
+    -- Andreas, 2019-10-11: I actually prefer pi-types over ->.
+    let runInPrintingEnvironment = localTC (\e -> e { envPrintDomainFreePi = True, envPrintMetasBare = True })
+                                 . escapeContext impossible (length contextForAbstracting)
+                                 . withoutPrintingGeneralization
+                                 . dontFoldLetBindings
 
     case mapM (isVar . namedArg) args >>= \ xs -> xs <$ guard (all inCxt xs) of
 
@@ -981,9 +994,7 @@ metaHelperType norm ii rng s = case words s of
       let hideButXs dom = setHiding (if inXs $ fst $ unDom dom then NotHidden else Hidden) dom
       let tel = telFromList . map (fmap (first nameToArgName) . hideButXs) $ contextForAbstracting
       OfType' h <$> do
-        -- Andreas, 2019-10-11: I actually prefer pi-types over ->.
-        localTC (\e -> e { envPrintDomainFreePi = True }) $ escapeAbstractedContext $ withoutPrintingGeneralization $
-          reify $ telePiVisible tel a0
+        runInPrintingEnvironment $ reify $ telePiVisible tel a0
 
      -- If some arguments are not variables.
      Nothing -> do
@@ -996,7 +1007,7 @@ metaHelperType norm ii rng s = case words s of
       TelV atel _ <- telView a
       let arity = size atel
           (delta1, delta2, _, a', vtys') = splitTelForWith tel a vtys
-      a <- localTC (\e -> e { envPrintDomainFreePi = True, envPrintMetasBare = True }) $ escapeAbstractedContext $ withoutPrintingGeneralization $ do
+      a <- runInPrintingEnvironment $ do
         reify =<< cleanupType arity args =<< normalForm norm =<< fst <$> withFunctionType delta1 vtys' delta2 a' []
       reportSDoc "interaction.helper" 10 $ TP.vcat $
         let extractOtherType = \case { OtherType a -> a; _ -> __IMPOSSIBLE__ } in

@@ -743,6 +743,9 @@ getDisplayForms q = do
   ifM (isLocal q) (return $ ds ++ ds1 ++ ds2)
                   (return $ ds1 ++ ds ++ ds2)
 
+hasDisplayForms :: (HasConstInfo m, ReadTCState m) => QName -> m Bool
+hasDisplayForms = fmap (not . null) . getDisplayForms
+
 -- | Find all names used (recursively) by display forms of a given name.
 chaseDisplayForms :: QName -> TCM (Set QName)
 chaseDisplayForms q = go Set.empty [q]
@@ -1392,7 +1395,7 @@ projectionArgs :: Definition -> Int
 projectionArgs = maybe 0 (max 0 . pred . projIndex) . isRelevantProjection_
 
 -- | Check whether a definition uses copatterns.
-usesCopatterns :: (HasConstInfo m) => QName -> m Bool
+usesCopatterns :: (HasConstInfo m, HasBuiltins m) => QName -> m Bool
 usesCopatterns q = defCopatternLHS <$> getConstInfo q
 
 -- | Apply a function @f@ to its first argument, producing the proper

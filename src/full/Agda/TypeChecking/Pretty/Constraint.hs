@@ -133,6 +133,8 @@ instance PrettyTCM Constraint where
                             prettyTCM (candidateType c) | c <- cnds ]
               where overlap c | candidateOverlappable c = "overlap"
                               | otherwise               = empty
+        ResolveInstanceHead q ->
+            "Resolve target type of instance: " <?> prettyTCM q
         IsEmpty r t ->
             "Is empty:" <?> prettyTCMCtx TopCtx t
         CheckSizeLtSat t ->

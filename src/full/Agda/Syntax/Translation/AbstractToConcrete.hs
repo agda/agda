@@ -629,6 +629,10 @@ instance ToConcrete Bool where
   type ConOfAbs Bool = Bool
   toConcrete = pure
 
+instance ToConcrete Char where
+  type ConOfAbs Char = Char
+  toConcrete = pure
+
 instance ToConcrete a => ToConcrete [a] where
     type ConOfAbs [a] = [ConOfAbs a]
 
@@ -1132,6 +1136,7 @@ instance (ToConcrete p, ToConcrete a) => ToConcrete (RewriteEqn' qn A.BindName p
       pe <- toConcrete pe
       n  <- toConcrete n
       pure $ Named n pe
+    LeftLet pes -> LeftLet <$> mapM toConcrete pes
 
 instance ToConcrete (Maybe A.BindName) where
   type ConOfAbs (Maybe A.BindName) = Maybe C.Name

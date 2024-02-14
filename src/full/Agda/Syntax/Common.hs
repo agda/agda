@@ -50,6 +50,23 @@ type Nat    = Int
 type Arity  = Nat
 
 ---------------------------------------------------------------------------
+-- * IsMain
+---------------------------------------------------------------------------
+
+data IsMain = IsMain | NotMain
+  deriving (Eq, Show)
+
+-- | Conjunctive semigroup ('NotMain' is absorbing).
+instance Semigroup IsMain where
+  NotMain <> _ = NotMain
+  _       <> NotMain = NotMain
+  IsMain  <> IsMain = IsMain
+
+instance Monoid IsMain where
+  mempty = IsMain
+  mappend = (<>)
+
+---------------------------------------------------------------------------
 -- * File
 ---------------------------------------------------------------------------
 
@@ -2952,16 +2969,19 @@ instance NFData CoverageCheck
 data RewriteEqn' qn nm p e
   = Rewrite (List1 (qn, e))             -- ^ @rewrite e@
   | Invert qn (List1 (Named nm (p, e))) -- ^ @with p <- e in eq@
+  | LeftLet (List1 (p, e))              -- ^ @using p <- e@
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
 instance (NFData qn, NFData nm, NFData p, NFData e) => NFData (RewriteEqn' qn nm p e) where
   rnf = \case
     Rewrite es    -> rnf es
     Invert qn pes -> rnf (qn, pes)
+    LeftLet pes   -> rnf pes
 
 instance (Pretty nm, Pretty p, Pretty e) => Pretty (RewriteEqn' qn nm p e) where
   pretty = \case
     Rewrite es   -> prefixedThings (text "rewrite") $ List1.toList (pretty . snd <$> es)
+    LeftLet pes  -> prefixedThings (text "using") [pretty p <+> "<-" <+> pretty e | (p, e) <- List1.toList pes]
     Invert _ pes -> prefixedThings (text "invert") $ List1.toList (namedWith <$> pes) where
 
       namedWith (Named nm (p, e)) =
@@ -2974,11 +2994,13 @@ instance (HasRange qn, HasRange nm, HasRange p, HasRange e) => HasRange (Rewrite
   getRange = \case
     Rewrite es    -> getRange es
     Invert qn pes -> getRange (qn, pes)
+    LeftLet pes   -> getRange pes
 
 instance (KillRange qn, KillRange nm, KillRange e, KillRange p) => KillRange (RewriteEqn' qn nm p e) where
   killRange = \case
     Rewrite es    -> killRangeN Rewrite es
     Invert qn pes -> killRangeN Invert qn pes
+    LeftLet pes   -> killRangeN LeftLet pes
 
 -----------------------------------------------------------------------------
 -- * Information on expanded ellipsis (@...@)

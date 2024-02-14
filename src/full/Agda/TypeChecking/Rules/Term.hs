@@ -41,7 +41,7 @@ import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Generalize
 import Agda.TypeChecking.Implicit
-import Agda.TypeChecking.InstanceArguments (solveAwakeInstanceConstraints)
+import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.IApplyConfluence
 import Agda.TypeChecking.Level
@@ -614,7 +614,7 @@ lambdaCohesionCheck dom info
       return info
 
 -- Andreas, issue #630: take name from function type if lambda name is "_".
-lambdaAddContext :: Name -> ArgName -> Dom Type -> TCM a -> TCM a
+lambdaAddContext :: MonadAddContext m => Name -> ArgName -> Dom Type -> m a -> m a
 lambdaAddContext x y dom
   | isNoName x = addContext (y, dom)                 -- Note: String instance
   | otherwise  = addContext (x, dom)                 -- Name instance of addContext

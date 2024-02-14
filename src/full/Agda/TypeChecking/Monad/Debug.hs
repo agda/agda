@@ -27,7 +27,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.Base
 
 import Agda.Interaction.Options
-import {-# SOURCE #-} Agda.Interaction.Response (Response(..))
+import Agda.Interaction.Response.Base (Response_boot(..))
 
 import Agda.Utils.CallStack ( HasCallStack, withCallerCallStack )
 import Agda.Utils.Lens

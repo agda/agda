@@ -133,6 +133,7 @@ instance BoundAndUsed e => BoundAndUsed (LHSCore' e) where
 instance (BoundAndUsed x, BoundAndUsed p, BoundAndUsed e) => BoundAndUsed (RewriteEqn' q x p e) where
   boundAndUsed (Rewrite es)  = boundAndUsed $ snd <$> es
   boundAndUsed (Invert _ bs) = parBoundAndUsed (namedThing <$> bs) <> boundAndUsed (nameOf <$> bs)
+  boundAndUsed (LeftLet bs)  = boundAndUsed bs
 
 instance BoundAndUsed LetBinding where
   boundAndUsed = \ case   -- Note: binder last since it's not recursive

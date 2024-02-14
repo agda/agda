@@ -288,10 +288,10 @@ printVersion backends PrintAgdaVersion = do
     "debug: enable debug printing ('-v' verbosity flags)" :
 #endif
 #ifdef DEBUG_PARSING
-    "debug-parsing: enable printing grammars for operator parsing via '-v scope.grammar:10'"
+    "debug-parsing: enable printing grammars for operator parsing via '-v scope.grammar:10'" :
 #endif
 #ifdef DEBUG_SERIALISATION
-    "debug-serialisation: extra debug info during serialisation into '.agdai' files"
+    "debug-serialisation: extra debug info during serialisation into '.agdai' files" :
 #endif
     []
 

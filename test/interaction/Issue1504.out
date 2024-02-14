@@ -4,6 +4,5 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : P " nil)
 ((last . 1) . (agda2-goals-action '(0)))
-(agda2-status-action "")
-(agda2-info-action "*Auto*" "" nil)
-((last . 1) . (agda2-goals-action '(0)))
+(agda2-give-action 0 "x P f")
+((last . 1) . (agda2-goals-action '()))

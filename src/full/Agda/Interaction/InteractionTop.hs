@@ -13,7 +13,6 @@ import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Concurrent.STM.TChan
 import Control.Concurrent.STM.TVar
-
 import qualified Control.Exception  as E
 
 import Control.Monad
@@ -22,6 +21,7 @@ import Control.Monad.IO.Class       ( MonadIO(..) )
 import Control.Monad.Fail           ( MonadFail )
 import Control.Monad.State          ( MonadState(..), gets, modify, runStateT )
 import Control.Monad.STM
+import Control.Monad.State          ( StateT )
 import Control.Monad.Trans          ( lift )
 
 import qualified Data.Char as Char
@@ -72,7 +72,8 @@ import Agda.Interaction.Highlighting.Generate
 
 import Agda.Compiler.Backend
 
-import Agda.Auto.Auto as Auto
+import Agda.Mimer.Mimer as Mimer
+import qualified Control.DeepSeq as DeepSeq
 
 import Agda.Utils.Either
 import Agda.Utils.FileName
@@ -94,6 +95,8 @@ import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
 -- The CommandM monad
+
+type CommandM = StateT CommandState TCM
 
 -- | Restore both 'TCState' and 'CommandState'.
 
@@ -691,55 +694,42 @@ interpret (Cmd_refine_or_intro pmLambda ii r s) = interpret $
   let s' = trim s
   in (if null s' then Cmd_intro pmLambda else Cmd_refine) ii r s'
 
-interpret (Cmd_autoOne ii rng hint) = do
-  -- Andreas, 2014-07-05 Issue 1226:
-  -- Save the state to have access to even those interaction ids
-  -- that Auto solves (since Auto gives the solution right away).
-  st <- getTC
-  (time , res) <- maybeTimed $ Auto.auto ii rng hint
-  case autoProgress res of
-   Solutions sols -> do
-    lift $ reportSLn "auto" 10 $ "Auto produced the following solutions " ++ show sols
-    forM_ sols $ \(ii', sol) -> do
-      -- Andreas, 2014-07-05 Issue 1226:
-      -- For highlighting, Resp_GiveAction needs to access
-      -- the @oldInteractionScope@s of the interaction points solved by Auto.
-      -- We dig them out from the state before Auto was invoked.
-      insertOldInteractionScope ii' =<< liftLocalState (putTC st >> getInteractionScope ii')
-      -- Andreas, 2014-07-07: NOT TRUE:
-      -- -- Andreas, 2014-07-05: The following should be obsolete,
-      -- -- as Auto has removed the interaction points already:
-      -- modifyTheInteractionPoints $ filter (/= ii)
-      putResponse $ Resp_GiveAction ii' $ Give_String sol
-    -- Andreas, 2014-07-07: Remove the interaction points in one go.
-    modifyTheInteractionPoints (List.\\ (map fst sols))
-    case autoMessage res of
-     Nothing  -> interpret $ Cmd_metas AsIs
-     Just msg -> display_info $ Info_Auto msg
-   FunClauses cs -> do
-    case autoMessage res of
-     Nothing  -> return ()
-     Just msg -> display_info $ Info_Auto msg
-    putResponse $ Resp_MakeCase ii R.Function cs
-   Refinement s -> give_gen WithoutForce ii rng s Refine
-  maybe (return ()) (display_info . Info_Time) time
+interpret (Cmd_autoOne ii rng str) = do
+  iscope <- getInteractionScope ii
+  (time, result) <- maybeTimed $ Mimer.mimer ii rng str
+  case result of
+    MimerNoResult -> display_info $ Info_Auto "No solution found"
+    MimerExpr str -> do
+      insertOldInteractionScope ii iscope
+      putResponse $ Resp_GiveAction ii $ Give_String str
+      modifyTheInteractionPoints (List.delete ii)
+      maybe (return ()) (display_info . Info_Time) time
+    MimerList sols -> do
+      display_info $ Info_Auto $ unlines $
+        [ "Solutions:" ] ++
+        [ "  " ++ show i ++ ". " ++ s | (i, s) <- sols ]
+    MimerClauses{} -> __IMPOSSIBLE__    -- Mimer can't do case splitting yet
 
 interpret Cmd_autoAll = do
   iis <- getInteractionPoints
+  getOldScope <- do
+    st <- getTC
+    pure $ \ ii -> liftLocalState $ putTC st >> getInteractionScope ii
   unless (null iis) $ do
     let time = 1000 `div` length iis
     st <- getTC
-    solved <- forM iis $ \ ii -> do
+    solved <- fmap concat $ forM iis $ \ ii -> do
       rng <- getInteractionRange ii
-      res <- Auto.auto ii rng ("-t " ++ show time ++ "ms")
-      case autoProgress res of
-        Solutions sols -> forM sols $ \ (jj, s) -> do
-            oldInteractionScope <- liftLocalState (putTC st >> getInteractionScope jj)
-            insertOldInteractionScope jj oldInteractionScope
-            putResponse $ Resp_GiveAction ii $ Give_String s
-            return jj
-        _ -> return []
-    modifyTheInteractionPoints (List.\\ concat solved)
+      res <- Mimer.mimer ii rng ("-t " ++ show time ++ "ms")
+      case res of
+        MimerNoResult -> pure []
+        MimerExpr str -> do
+          insertOldInteractionScope ii =<< getOldScope ii
+          putResponse $ Resp_GiveAction ii $ Give_String str
+          pure [ii]
+        MimerList{} -> pure []    -- Don't list solutions in autoAll
+        MimerClauses{} -> __IMPOSSIBLE__  -- Mimer can't do case splitting yet
+    modifyTheInteractionPoints (List.\\ solved)
 
 interpret (Cmd_context norm ii _ _) =
   display_info . Info_Context ii =<< liftLocalState (B.getResponseContext norm ii)
@@ -816,25 +806,7 @@ interpret (Cmd_make_case ii rng s) = do
         ]
       ]
     putResponse $ Resp_MakeCase ii (makeCaseVariant casectxt) pcs'
-  where
-    decorate = renderStyle (style { mode = OneLineMode })
 
-    makeCaseVariant :: CaseContext -> MakeCaseVariant
-    makeCaseVariant Nothing = R.Function
-    makeCaseVariant Just{}  = R.ExtendedLambda
-
-    -- very dirty hack, string manipulation by dropping the function name
-    -- and replacing the last " = " with " -> ". It's important not to replace
-    -- the equal sign in named implicit with an arrow!
-    extlam_dropName :: UnicodeOrAscii -> CaseContext -> String -> String
-    extlam_dropName _ Nothing x = x
-    extlam_dropName glyphMode Just{}  x
-        = unwords $ reverse $ replEquals $ reverse $ drop 1 $ words x
-      where
-        arrow = render $ _arrow $ specialCharactersForGlyphs glyphMode
-        replEquals ("=" : ws) = arrow : ws
-        replEquals (w   : ws) = w : replEquals ws
-        replEquals []         = []
 
 interpret (Cmd_compute cmode ii rng s) = do
   expr <- liftLocalState $ do
@@ -846,6 +818,27 @@ interpret Cmd_show_version = display_info Info_Version
 
 interpret Cmd_abort = return ()
 interpret Cmd_exit  = return ()
+
+
+decorate :: Doc -> String
+decorate = renderStyle (style { mode = OneLineMode })
+
+makeCaseVariant :: CaseContext -> MakeCaseVariant
+makeCaseVariant Nothing = R.Function
+makeCaseVariant Just{}  = R.ExtendedLambda
+
+-- very dirty hack, string manipulation by dropping the function name
+-- and replacing the last " = " with " -> ". It's important not to replace
+-- the equal sign in named implicit with an arrow!
+extlam_dropName :: UnicodeOrAscii -> CaseContext -> String -> String
+extlam_dropName _ Nothing x = x
+extlam_dropName glyphMode Just{}  x
+    = unwords $ reverse $ replEquals $ reverse $ drop 1 $ words x
+  where
+    arrow = render $ _arrow $ specialCharactersForGlyphs glyphMode
+    replEquals ("=" : ws) = arrow : ws
+    replEquals (w   : ws) = w : replEquals ws
+    replEquals []         = []
 
 -- | Solved goals already instantiated internally
 -- The second argument potentially limits it to one specific goal.

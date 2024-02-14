@@ -180,7 +180,7 @@ constituents.")
 (defvar agda2-mode-map
   (let ((m (make-sparse-keymap)))
     (define-key m (kbd "C-c C-s") #'agda2-solve-maybe-all)
-    (define-key m (kbd "C-c C-a") #'agda2-auto-maybe-all)
+    (define-key m (kbd "C-c C-a") #'agda2-mimer-maybe-all)
     (define-key m (kbd "C-c C-d") #'agda2-infer-type-maybe-toplevel)
     (define-key m (kbd "C-c C-w") #'agda2-why-in-scope-maybe-toplevel)
     (define-key m (kbd "C-c C-z") #'agda2-search-about-toplevel)
@@ -810,16 +810,6 @@ of new goals."
       (agda2-goal-cmd "Cmd_refine_or_intro True" 'save 'goal)
     (agda2-goal-cmd "Cmd_refine_or_intro False" 'save 'goal)))
 
-(defun agda2-autoOne ()
-  "Simple proof search."
-  (interactive)
- (agda2-goal-cmd "Cmd_autoOne" 'save 'goal))
-
-(defun agda2-autoAll ()
-  "Solves all goals by simple proof search."
-  (interactive)
-  (agda2-go nil nil 'busy t "Cmd_autoAll"))
-
 (defun agda2-make-case ()
   "Refine the pattern variables given in the goal.
 Assumes that <clause> = {!<variables>!} is on one line."
@@ -1322,13 +1312,23 @@ Either only one if point is a goal, or all of them."
                           'agda2-solveOne
                           'agda2-solveAll)))
 
-(defun agda2-auto-maybe-all ()
-  "Run auto.
+(defun agda2-mimer-maybe-all ()
+  "Run proof search.
 Either only one if point is a goal, or all of them."
   (interactive)
   (call-interactively (if (agda2-goal-at (point))
-                          'agda2-autoOne
-                          'agda2-autoAll)))
+                          'agda2-mimer
+                          'agda2-mimerAll)))
+
+(defun agda2-mimer ()
+  "Run proof search on a goal."
+  (interactive)
+  (agda2-goal-cmd "Cmd_autoOne" 'save 'goal))
+
+(defun agda2-mimerAll ()
+  "Solves all goals by simple proof search."
+  (interactive)
+  (agda2-go nil nil 'busy t "Cmd_autoAll"))
 
 (agda2-maybe-normalised-toplevel-asis-noprompt
  agda2-show-goals

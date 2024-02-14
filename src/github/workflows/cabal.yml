@@ -31,7 +31,7 @@ jobs:
     runs-on: Ubuntu-latest # Required, but it can be anything here.
 
     steps:
-    - uses: styfle/cancel-workflow-action@0.12.0
+    - uses: styfle/cancel-workflow-action@0.12.1
       with:
         access_token: ${{ github.token }}
 
@@ -50,7 +50,7 @@ jobs:
       matrix:
         os: [ubuntu-22.04]
         description: [Linux]      ## This just for pretty-printing the job name.
-        ghc-ver: [9.8.1, 9.6.3, 9.4.8, 9.2.8, 9.0.2, 8.10.7, 8.8.4, 8.6.5]
+        ghc-ver: [9.8.1, 9.6.4, 9.4.8, 9.2.8, 9.0.2, 8.10.7, 8.8.4, 8.6.5]
         # Need to mention "cabal-ver" at least once in the matrix, otherwise matrix.cabal-ver is an actionlint error.
         cabal-ver: ['3.10']
         cabal-flags: ['--enable-tests -f enable-cluster-counting']
@@ -79,8 +79,9 @@ jobs:
             ## Andreas, 2023-09-28: Test containers-0.7 here which has breaking changes.
             ## Note: -c 'containers >= 0.7' with single quotes does not get communicated properly.
             ## (The single quotes stay, and "-c 'containers" is an option parse error for cabal.)
-            cabal-flags: |
-              --enable-tests -f enable-cluster-counting -f debug -c containers>=0.7 --allow-newer=containers
+            cabal-flags: >-
+              --enable-tests -f enable-cluster-counting -f debug -f debug-serialisation -f debug-parsing
+              -c containers>=0.7 --allow-newer=containers
 
           # macOS with default flags
           - os: macos-12
@@ -165,10 +166,10 @@ jobs:
       # https://github.com/haskell/cabal/issues/8706
 
     - name: Restore cache from approximate key
-      # uses: actions/cache/restore@v3
+      # uses: actions/cache/restore@v4
       # Andreas, 2023-02-02 revert to default cache saving logic.
       # "Save always" is bad because it may duplicate caches from the base branch on the feature branch.
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cache
       with:
         # We don't cache dist-newstyle because it is too fat (e.g. >400MB on GHC 9.4.4)
@@ -211,7 +212,7 @@ jobs:
     #   continue-on-error: true
 
     # - name: Save cache
-    #   uses: actions/cache/save@v3
+    #   uses: actions/cache/save@v4
     #   if:   always()  # save cache even when build fails
     #   with:
     #     key:  *cache_key

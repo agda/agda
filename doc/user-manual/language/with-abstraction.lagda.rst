@@ -483,7 +483,7 @@ of the vector argument using ``suc-+`` first.
     suc-+ (suc m) n rewrite suc-+ m n = refl
 
     infixr 1 _×_
-    _×_ : ∀ {a b} (A : Set a) (B : Set b) → Set ?
+    _×_ : ∀ {a b} (A : Set a) (B : Set b) → Set _
     A × B = Σ A (λ _ → B)
 
     splitAt : ∀ m {n} → Vec A (m + n) → Vec A m × Vec A n
@@ -500,6 +500,59 @@ of the vector argument using ``suc-+`` first.
 You can alternate arbitrarily many ``rewrite`` and pattern-matching
 ``with`` clauses and still perform a ``with`` abstraction afterwards
 if necessary.
+
+.. _with-using:
+
+..
+  ::
+  module with-using {a} {A : Set a} where
+    open import Agda.Builtin.Nat
+    open import Agda.Builtin.Sigma
+    open import Agda.Builtin.Equality
+    open import Agda.Builtin.Unit
+
+    open with-invert {A = A} hiding (splitAt)
+
+Left-hand side let-bindings
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+An alternative to an irrefutable ``with``, when you just need to bind
+a variable or do simple unpacking of record values, is to use a
+``using``-binding. This is the left-hand side counterpart of a
+:ref:`let-binding <let-expressions>` and supports the same limited
+form of pattern matching.
+
+For instance, the irrefutable ``with`` used in ``splitAt`` in the
+section above can be changed to ``using``:
+
+::
+
+    splitAt : ∀ m {n} → Vec A (m + n) → Vec A m × Vec A n
+    splitAt zero    xs       = ([] , xs)
+    splitAt (suc m) (x ∷ xs) using (ys , zs) ← splitAt m xs = (x ∷ ys , zs)
+
+Variables bound with ``using`` are in scope in following ``with``
+clauses, allowing you to reuse bindings across multiple nested ``with`` s:
+
+::
+
+    contrived : ∀ m {n} → Vec A (m + n) → (Vec A m → Bool) → (Vec A n → Bool) → Bool
+    contrived m xs p q using (ys , zs) ← splitAt m xs
+                       with p ys
+    ... | true = true
+    ... | false with q zs
+    ...   | true  = false
+    ...   | false = true
+
+For convenience, multiple bindings can be separated by ``|``, and this
+has the same meaning as repeating the ``using`` keyword: bindings to
+the left are in scope to the right.
+
+Contrary to ``with`` and ``rewrite``, ``using`` does not perform any
+abstraction over the bound terms, but simply introduces a local
+binding. This can make it much cheaper to use than an irrefutable
+``with`` in situations where the goal type and context are big and
+expensive to normalise, and the abstraction isn't required.
 
 ..
   ::
@@ -676,8 +729,8 @@ This version of ``case_of_`` only works for non-dependent functions. For
 dependent functions the target type will in most cases not be inferrable, but
 you can use a variant with an explicit ``B`` for this case::
 
-  case_return_of_ : ∀ {a b} {A : Set a} (x : A) (B : A → Set b) → (∀ x → B x) → B x
-  case x return B of f = f x
+  case_returning_of_ : ∀ {a b} {A : Set a} (x : A) (B : A → Set b) → (∀ x → B x) → B x
+  case x returning B of f = f x
 
 The dependent version will let you generalise over the scrutinee, just like a
 with-abstraction, but you have to do it manually. Two things that it will not let you do is
