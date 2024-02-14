@@ -159,7 +159,9 @@ endif
 
 .PHONY: install-deps ## Install Agda dependencies.
 install-deps:
-ifdef HAS_STACK
+ifdef IN_NIX_SHELL
+	@echo "===================== Dependencies provided by Nix, skipping install ====="
+else ifdef HAS_STACK
 	@echo "===================== Installing dependencies using Stack ================"
 	time $(STACK_INSTALL) $(STACK_INSTALL_DEP_OPTS)
 else
