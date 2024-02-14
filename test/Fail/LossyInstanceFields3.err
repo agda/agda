@@ -1,0 +1,11 @@
+Failed to solve the following constraints:
+  Resolve instance argument _r_28 : Membership ℙA _21 _ℓ''_42
+  No candidates yet
+    (blocked on _21)
+  Resolve instance argument _r_36 : Membership ℙA _21 _ℓ''_43
+  No candidates yet
+    (blocked on _21)
+Unsolved metas at the following locations:
+  LossyInstanceFields3.agda:12,15-16
+  LossyInstanceFields3.agda:12,21-22
+  LossyInstanceFields3.agda:12,29-30

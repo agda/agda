@@ -202,7 +202,11 @@ instance {-# OVERLAPPABLE #-} PrettyTCM a => PrettyTCM [a] where
 instance {-# OVERLAPPABLE #-} PrettyTCM a => PrettyTCM (Maybe a) where
   prettyTCM = maybe empty prettyTCM
 
-{-# SPECIALIZE prettyTCM :: PrettyTCM a => Maybe a -> TCM Doc #-}
+instance {-# OVERLAPPABLE #-} (PrettyTCM a, PrettyTCM b) => PrettyTCM (Either a b) where
+  prettyTCM (Left e)  = parens $ "left" <+> prettyTCM e
+  prettyTCM (Right e) = parens $ "right" <+> prettyTCM e
+
+{-# SPECIALIZE prettyTCM :: (PrettyTCM a, PrettyTCM) => Either a b -> TCM Doc #-}
 
 instance (PrettyTCM a, PrettyTCM b) => PrettyTCM (a,b) where
   prettyTCM (a, b) = parens $ prettyTCM a <> comma <> prettyTCM b
@@ -570,5 +574,5 @@ instance PrettyTCM SplitTag where
 instance PrettyTCM Candidate where
   prettyTCM c = case candidateKind c of
     (GlobalCandidate q) -> prettyTCM q
-    LocalCandidate      -> prettyTCM $ candidateTerm c
+    LocalCandidate _    -> prettyTCM $ candidateTerm c
 {-# SPECIALIZE prettyTCM :: Candidate -> TCM Doc #-}
