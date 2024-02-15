@@ -262,6 +262,8 @@ data WarningName
   | BuiltinDeclaresIdentifier_
   | PlentyInHardCompileTimeMode_
   | PragmaCompileErased_
+  | PragmaCompileList_
+  | PragmaCompileMaybe_
   | ConfluenceCheckingIncompleteBecauseOfMeta_
   | ConfluenceForCubicalNotSupported_
   | RewriteMaybeNonConfluent_
@@ -451,6 +453,8 @@ warningNameDescription = \case
   BuiltinDeclaresIdentifier_       -> "`BUILTIN' pragmas that declare a new identifier but have been given an existing one."
   PlentyInHardCompileTimeMode_     -> "Uses of @ω or @plenty in hard compile-time mode."
   PragmaCompileErased_             -> "`COMPILE' pragmas targeting an erased symbol."
+  PragmaCompileList_               -> "`COMPILE GHC' pragmas for lists."
+  PragmaCompileMaybe_              -> "`COMPILE GHC' pragmas for `MAYBE'."
   ConfluenceCheckingIncompleteBecauseOfMeta_ -> "Incomplete confluence checks because of unsolved metas."
   ConfluenceForCubicalNotSupported_ -> "Incomplete confluence checks because of `--cubical'."
   RewriteMaybeNonConfluent_        -> "Failed local confluence checks while computing overlap."

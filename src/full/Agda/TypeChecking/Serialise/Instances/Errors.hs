@@ -94,6 +94,9 @@ instance EmbPrj Warning where
     ConfluenceCheckingIncompleteBecauseOfMeta a -> icodeN 50 ConfluenceCheckingIncompleteBecauseOfMeta a
     BuiltinDeclaresIdentifier a                 -> icodeN 51 BuiltinDeclaresIdentifier a
     ConfluenceForCubicalNotSupported            -> icodeN 52 ConfluenceForCubicalNotSupported
+    -- We do not need to serialize compiler warnings:
+    PragmaCompileList                           -> __IMPOSSIBLE__
+    PragmaCompileMaybe                          -> __IMPOSSIBLE__
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -454,6 +457,8 @@ instance EmbPrj WarningName where
     ConfluenceCheckingIncompleteBecauseOfMeta_   -> 106
     BuiltinDeclaresIdentifier_                   -> 107
     ConfluenceForCubicalNotSupported_            -> 108
+    PragmaCompileList_                           -> 109
+    PragmaCompileMaybe_                          -> 110
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -565,6 +570,8 @@ instance EmbPrj WarningName where
     106 -> return ConfluenceCheckingIncompleteBecauseOfMeta_
     107 -> return BuiltinDeclaresIdentifier_
     108 -> return ConfluenceForCubicalNotSupported_
+    109 -> return PragmaCompileList_
+    110 -> return PragmaCompileMaybe_
     _   -> malformed
 
 

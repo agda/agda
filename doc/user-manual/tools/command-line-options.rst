@@ -1438,6 +1438,14 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      :ref:`COMPILE<foreign-function-interface>` pragma targeting an erased symbol.
 
+.. option:: PragmaCompileList
+
+     :ref:`COMPILE<foreign-function-interface>` pragma for GHC backend targeting lists.
+
+.. option:: PragmaCompileMaybe
+
+     :ref:`COMPILE<foreign-function-interface>` pragma for GHC backend targeting ``MAYBE``.
+
 .. option:: PragmaNoTerminationCheck
 
      :ref:`NO_TERMINATION_CHECK<terminating-pragma>` pragmas; such are deprecated.
