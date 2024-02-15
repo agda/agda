@@ -4226,6 +4226,8 @@ data Warning
   | ConfluenceCheckingIncompleteBecauseOfMeta QName
     -- ^ Confluence checking incomplete because the definition of the 'QName'
     --   contains unsolved metavariables.
+  | ConfluenceForCubicalNotSupported
+    -- ^ Confluence checking with @--cubical@ might be incomplete.
   | RewriteNonConfluent Term Term Term Doc
     -- ^ Confluence checker found critical pair and equality checking
     --   resulted in a type error
@@ -4330,6 +4332,7 @@ warningName = \case
   InfectiveImport{}            -> InfectiveImport_
   CoInfectiveImport{}          -> CoInfectiveImport_
   ConfluenceCheckingIncompleteBecauseOfMeta{} -> ConfluenceCheckingIncompleteBecauseOfMeta_
+  ConfluenceForCubicalNotSupported{}          -> ConfluenceForCubicalNotSupported_
   RewriteNonConfluent{}        -> RewriteNonConfluent_
   RewriteMaybeNonConfluent{}   -> RewriteMaybeNonConfluent_
   RewriteAmbiguousRules{}      -> RewriteAmbiguousRules_

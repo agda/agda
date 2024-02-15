@@ -1225,6 +1225,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Incomplete confluence checks because of unsolved metas.
 
+.. option:: ConfluenceForCubicalNotSupported
+
+     Attempts to check confluence with :option:`--cubical`.
+
 .. option:: CoverageNoExactSplit
 
      Failed exact split checks.

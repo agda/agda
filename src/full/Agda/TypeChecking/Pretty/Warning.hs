@@ -287,6 +287,9 @@ prettyWarning = \case
       , text "contains unsolved metavariables."
       ]
 
+    ConfluenceForCubicalNotSupported -> fsep $ pwords $
+      "Confluence checking for --cubical is not yet supported, confluence checking might be incomplete"
+
     RewriteNonConfluent lhs rhs1 rhs2 err -> fsep
       [ "Local confluence check failed:"
       , prettyTCM lhs , "reduces to both"
