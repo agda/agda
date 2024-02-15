@@ -1,5 +1,5 @@
 Issue6805.agda:4,3-10
-warning: -W[no]GenericWarning
+warning: -W[no]MissingTypeSignatureForOpaque
 Missing type signature for opaque definition A.
 Types of opaque definitions are never inferred since this would
 leak information that should be opaque.

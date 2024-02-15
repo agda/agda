@@ -485,6 +485,7 @@ warningHighlighting' b w = case tcWarning w of
     Pa.UnsupportedAttribute{}     -> deadcodeHighlighting w
     Pa.MultipleAttributes{}       -> deadcodeHighlighting w
     Pa.OverlappingTokensWarning{} -> mempty
+  MissingTypeSignatureForOpaque{} -> errorWarningHighlighting w
   NotAffectedByOpaque{}           -> deadcodeHighlighting w
   UselessOpaque{}                 -> deadcodeHighlighting w
   UnfoldTransparentName r         -> deadcodeHighlighting r

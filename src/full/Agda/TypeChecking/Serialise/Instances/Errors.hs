@@ -99,6 +99,7 @@ instance EmbPrj Warning where
     PragmaCompileMaybe                          -> __IMPOSSIBLE__
     NoMain _                                    -> __IMPOSSIBLE__
     DuplicateRewriteRule a                      -> icodeN 53 DuplicateRewriteRule a
+    MissingTypeSignatureForOpaque a b           -> icodeN 54 MissingTypeSignatureForOpaque a b
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -155,6 +156,7 @@ instance EmbPrj Warning where
     [51, a]              -> valuN BuiltinDeclaresIdentifier a
     [52]                 -> valuN ConfluenceForCubicalNotSupported
     [53, a]              -> valuN DuplicateRewriteRule a
+    [54, a, b]           -> valuN MissingTypeSignatureForOpaque a b
     _ -> malformed
 
 instance EmbPrj OptionWarning where
@@ -464,6 +466,7 @@ instance EmbPrj WarningName where
     PragmaCompileMaybe_                          -> 110
     NoMain_                                      -> 111
     DuplicateRewriteRule_                        -> 112
+    MissingTypeSignatureForOpaque_               -> 113
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -579,6 +582,7 @@ instance EmbPrj WarningName where
     110 -> return PragmaCompileMaybe_
     111 -> return NoMain_
     112 -> return DuplicateRewriteRule_
+    113 -> return MissingTypeSignatureForOpaque_
     _   -> malformed
 
 

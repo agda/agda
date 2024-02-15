@@ -117,15 +117,8 @@ checkFunDef i name cs = do
               -- blocks you might actually have solved the type of an alias by the time you get to
               -- the definition. See test/Succeed/SizeInfinity.agda for an example where this
               -- happens.
-              let
-                what
-                  | Info.defOpaque i == TransparentDef = "abstract"
-                  | otherwise                          = "opaque"
               whenM (isOpenMeta <$> lookupMetaInstantiation x) $
-                setCurrentRange i $ genericWarning =<<
-                  "Missing type signature for" <+> text what <+> "definition" <+> (prettyTCM name <> ".") $$
-                  fsep (pwords ("Types of " ++ what ++ " definitions are never inferred since this would leak") ++
-                        pwords ("information that should be " ++ what ++ "."))
+                setCurrentRange i $ warning $ MissingTypeSignatureForOpaque name (Info.defOpaque i)
               checkFunDef' t info Nothing Nothing i name cs
           _ -> checkFunDef' t info Nothing Nothing i name cs
 
