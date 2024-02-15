@@ -35,7 +35,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Pretty.Constraint (prettyInterestingCons
 import Agda.TypeChecking.Warnings (MonadWarning, isUnsolvedWarning, onlyShowIfUnsolved, classifyWarning, WhichWarnings(..), warning_)
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 
-import Agda.Syntax.Common ( getHiding, ImportedName'(..), fromImportedName, partitionImportedNames )
+import Agda.Syntax.Common ( IsOpaque(OpaqueDef, TransparentDef), getHiding, ImportedName'(..), fromImportedName, partitionImportedNames )
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Scope.Base ( concreteNamesInScope, NameOrModule(..) )
@@ -387,6 +387,18 @@ prettyWarning = \case
       pwords "in hard compile-time mode"
 
     RecordFieldWarning w -> prettyRecordFieldWarning w
+
+    MissingTypeSignatureForOpaque name isOpaque -> vcat
+        [ "Missing type signature for" <+> text what <+> "definition" <+> (prettyTCM name <> ".")
+        , fsep $ pwords $
+            "Types of " ++ what ++ " definitions are never inferred since this would leak " ++
+            "information that should be " ++ what ++ "."
+        ]
+      where
+        what = case isOpaque of
+          TransparentDef -> "abstract"
+          OpaqueDef _    -> "opaque"
+
 
     NotAffectedByOpaque -> fwords "Only function definitions can be marked opaque. This definition will be treated as transparent."
 

@@ -1389,6 +1389,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Unknown fields in library files.
 
+.. option:: MissingTypeSignatureForOpaque
+
+     ``abstract`` or ``opaque`` definitions that lack a type signature.
+
 .. option:: ModuleDoesntExport
 
      Names mentioned in an import statement which are not exported by

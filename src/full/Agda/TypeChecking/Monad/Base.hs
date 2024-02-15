@@ -4265,6 +4265,9 @@ data Warning
   | PlentyInHardCompileTimeMode QωOrigin
     -- ^ Explicit use of @@ω@ or @@plenty@ in hard compile-time mode.
   | RecordFieldWarning RecordFieldWarning
+
+  | MissingTypeSignatureForOpaque QName IsOpaque
+    -- ^ An @abstract@ or @opaque@ definition lacks a type signature.
   | NotAffectedByOpaque
   | UnfoldTransparentName QName
   | UselessOpaque
@@ -4357,6 +4360,7 @@ warningName = \case
     W.DuplicateFields{}   -> DuplicateFields_
     W.TooManyFields{}     -> TooManyFields_
 
+  MissingTypeSignatureForOpaque{} -> MissingTypeSignatureForOpaque_
   NotAffectedByOpaque{}   -> NotAffectedByOpaque_
   UselessOpaque{}         -> UselessOpaque_
   UnfoldTransparentName{} -> UnfoldTransparentName_
