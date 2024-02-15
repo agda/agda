@@ -4247,6 +4247,8 @@ data Warning
     -- ^ @COMPILE GHC@ pragma for lists; ignored.
   | PragmaCompileMaybe
     -- ^ @COMPILE GHC@ pragma for @MAYBE@; ignored.
+  | NoMain TopLevelModuleName
+    -- ^ Compiler run on module that does not have a @main@ function.
   | NotInScopeW [C.QName]
     -- ^ Out of scope error we can recover from.
   | UnsupportedIndexedMatch Doc
@@ -4344,6 +4346,7 @@ warningName = \case
   PragmaCompileErased{}        -> PragmaCompileErased_
   PragmaCompileList{}          -> PragmaCompileList_
   PragmaCompileMaybe{}         -> PragmaCompileMaybe_
+  NoMain{}                     -> NoMain_
   PlentyInHardCompileTimeMode{}
                                -> PlentyInHardCompileTimeMode_
   -- record field warnings

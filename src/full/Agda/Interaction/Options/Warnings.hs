@@ -264,6 +264,7 @@ data WarningName
   | PragmaCompileErased_
   | PragmaCompileList_
   | PragmaCompileMaybe_
+  | NoMain_
   | ConfluenceCheckingIncompleteBecauseOfMeta_
   | ConfluenceForCubicalNotSupported_
   | RewriteMaybeNonConfluent_
@@ -455,6 +456,7 @@ warningNameDescription = \case
   PragmaCompileErased_             -> "`COMPILE' pragmas targeting an erased symbol."
   PragmaCompileList_               -> "`COMPILE GHC' pragmas for lists."
   PragmaCompileMaybe_              -> "`COMPILE GHC' pragmas for `MAYBE'."
+  NoMain_                          -> "Compilation of modules that do not define `main'."
   ConfluenceCheckingIncompleteBecauseOfMeta_ -> "Incomplete confluence checks because of unsolved metas."
   ConfluenceForCubicalNotSupported_ -> "Incomplete confluence checks because of `--cubical'."
   RewriteMaybeNonConfluent_        -> "Failed local confluence checks while computing overlap."

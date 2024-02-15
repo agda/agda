@@ -97,6 +97,7 @@ instance EmbPrj Warning where
     -- We do not need to serialize compiler warnings:
     PragmaCompileList                           -> __IMPOSSIBLE__
     PragmaCompileMaybe                          -> __IMPOSSIBLE__
+    NoMain _                                    -> __IMPOSSIBLE__
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -459,6 +460,7 @@ instance EmbPrj WarningName where
     ConfluenceForCubicalNotSupported_            -> 108
     PragmaCompileList_                           -> 109
     PragmaCompileMaybe_                          -> 110
+    NoMain_                                      -> 111
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -572,6 +574,7 @@ instance EmbPrj WarningName where
     108 -> return ConfluenceForCubicalNotSupported_
     109 -> return PragmaCompileList_
     110 -> return PragmaCompileMaybe_
+    111 -> return NoMain_
     _   -> malformed
 
 

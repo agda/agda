@@ -347,6 +347,11 @@ prettyWarning = \case
     PragmaCompileMaybe -> fsep $ pwords
       "Ignoring GHC pragma for builtin MAYBE; it always compiles to Haskell Maybe."
 
+    NoMain topLevelModule -> vcat
+      [ fsep $ pwords "No main function defined in" ++ [prettyTCM topLevelModule <> "."]
+      , fsep $ pwords "Use option --no-main to suppress this warning."
+      ]
+
     NotInScopeW xs -> vcat
       [ fsep $ pwords "Not in scope:"
       , do

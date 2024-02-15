@@ -1398,6 +1398,11 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Coinductive record but no :option:`--guardedness` flag.
 
+.. option:: NoMain
+
+     Invoking the compiler on a module without a ``main`` function.
+     See also :option:`--no-main`.
+
 .. option:: NotAffectedByOpaque
 
      Declarations that should not be inside ``opaque`` blocks.
