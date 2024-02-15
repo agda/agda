@@ -1217,6 +1217,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Clashes introduced by ``renaming``.
 
+.. option:: ConfluenceCheckingIncompleteBecauseOfMeta
+
+     Incomplete confluence checks because of unsolved metas.
+
 .. option:: CoverageNoExactSplit
 
      Failed exact split checks.

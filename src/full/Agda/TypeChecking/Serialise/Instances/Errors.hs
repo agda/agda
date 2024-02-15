@@ -91,6 +91,7 @@ instance EmbPrj Warning where
     PatternShadowsConstructor a b         -> icodeN 49 PatternShadowsConstructor a b
     -- Not source code related, therefore they should never be serialized
     DuplicateInterfaceFiles a b           -> __IMPOSSIBLE__
+    ConfluenceCheckingIncompleteBecauseOfMeta a -> icodeN 50 ConfluenceCheckingIncompleteBecauseOfMeta a
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -143,6 +144,7 @@ instance EmbPrj Warning where
     [47, a]              -> valuN FaceConstraintCannotBeHidden a
     [48, a]              -> valuN FaceConstraintCannotBeNamed a
     [49, a, b]           -> valuN PatternShadowsConstructor a b
+    [50, a]              -> valuN ConfluenceCheckingIncompleteBecauseOfMeta a
     _ -> malformed
 
 instance EmbPrj OptionWarning where
@@ -445,6 +447,7 @@ instance EmbPrj WarningName where
     FaceConstraintCannotBeNamed_                 -> 103
     PatternShadowsConstructor_                   -> 104
     DuplicateInterfaceFiles_                     -> 105
+    ConfluenceCheckingIncompleteBecauseOfMeta_   -> 106
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -553,6 +556,7 @@ instance EmbPrj WarningName where
     103 -> return FaceConstraintCannotBeNamed_
     104 -> return PatternShadowsConstructor_
     105 -> return DuplicateInterfaceFiles_
+    106 -> return ConfluenceCheckingIncompleteBecauseOfMeta_
     _   -> malformed
 
 

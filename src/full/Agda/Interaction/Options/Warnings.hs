@@ -156,6 +156,9 @@ errorWarnings = Set.fromList
   , UnsolvedConstraints_
   , InfectiveImport_
   , CoInfectiveImport_
+  -- Andreas, 2024-02-15: the following warning used to be a GenericWarning (not an error warning).
+  -- Maybe revisit.
+  -- , ConfluenceCheckingIncompleteBecauseOfMeta_
   , RewriteNonConfluent_
   , RewriteMaybeNonConfluent_
   , RewriteAmbiguousRules_
@@ -258,6 +261,7 @@ data WarningName
   | OldBuiltin_
   | PlentyInHardCompileTimeMode_
   | PragmaCompileErased_
+  | ConfluenceCheckingIncompleteBecauseOfMeta_
   | RewriteMaybeNonConfluent_
   | RewriteNonConfluent_
   | RewriteAmbiguousRules_
@@ -444,6 +448,7 @@ warningNameDescription = \case
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
   PlentyInHardCompileTimeMode_     -> "Uses of @ω or @plenty in hard compile-time mode."
   PragmaCompileErased_             -> "`COMPILE' pragmas targeting an erased symbol."
+  ConfluenceCheckingIncompleteBecauseOfMeta_ -> "Incomplete confluence checks because of unsolved metas."
   RewriteMaybeNonConfluent_        -> "Failed local confluence checks while computing overlap."
   RewriteNonConfluent_             -> "Failed local confluence checks while joining critical pairs."
   RewriteAmbiguousRules_           -> "Failed global confluence checks because of overlapping rules."
