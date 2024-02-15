@@ -246,7 +246,6 @@ data WarningName
   | FixityInRenamingModule_
   | InvalidCharacterLiteral_
   | UselessPragma_
-  | GenericWarning_
   | IllformedAsClause_
   | InstanceArgWithExplicitArg_
   | InstanceWithExplicitArg_
@@ -439,7 +438,6 @@ warningNameDescription = \case
   DeprecationWarning_              -> "Deprecated features."
   InvalidCharacterLiteral_         -> "Illegal character literals."
   UselessPragma_                   -> "Pragmas that get ignored."
-  GenericWarning_                  -> ""
   IllformedAsClause_               -> "Illformed `as'-clauses in `import' statements."
   InstanceNoOutputTypeName_        -> "Instance arguments whose type does not end in a named or variable type; those are never considered by instance search."
   InstanceArgWithExplicitArg_      -> "Instance arguments with explicit arguments; those are never considered by instance search."

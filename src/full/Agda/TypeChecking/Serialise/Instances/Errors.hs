@@ -40,7 +40,6 @@ instance EmbPrj Warning where
     EmptyRewritePragma                    -> icodeN 2 EmptyRewritePragma
     UselessPublic                         -> icodeN 3 UselessPublic
     UselessInline a                       -> icodeN 4 UselessInline a
-    GenericWarning a                      -> icodeN 5 GenericWarning a
     InvalidCharacterLiteral a             -> __IMPOSSIBLE__
     SafeFlagPostulate a                   -> __IMPOSSIBLE__
     SafeFlagPragma a                      -> __IMPOSSIBLE__
@@ -107,7 +106,6 @@ instance EmbPrj Warning where
     [2]                  -> valuN EmptyRewritePragma
     [3]                  -> valuN UselessPublic
     [4, a]               -> valuN UselessInline a
-    [5, a]               -> valuN GenericWarning a
     [6, a, b, c]         -> valuN DeprecationWarning a b c
     [7, a]               -> valuN NicifierIssue a
     [8, a]               -> valuN InversionDepthReached a
@@ -404,7 +402,6 @@ instance EmbPrj WarningName where
     FixityInRenamingModule_                      -> 48
     InvalidCharacterLiteral_                     -> 49
     UselessPragma_                               -> 50
-    GenericWarning_                              -> 51
     IllformedAsClause_                           -> 52
     InstanceArgWithExplicitArg_                  -> 53
     InstanceWithExplicitArg_                     -> 54
@@ -520,7 +517,6 @@ instance EmbPrj WarningName where
     48  -> return FixityInRenamingModule_
     49  -> return InvalidCharacterLiteral_
     50  -> return UselessPragma_
-    51  -> return GenericWarning_
     52  -> return IllformedAsClause_
     53  -> return InstanceArgWithExplicitArg_
     54  -> return InstanceWithExplicitArg_

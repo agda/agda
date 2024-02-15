@@ -34,7 +34,7 @@ import Agda.Syntax.Info hiding (defAbstract)
 
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
-import Agda.TypeChecking.Warnings ( warning, genericWarning )
+import Agda.TypeChecking.Warnings ( warning )
 
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion

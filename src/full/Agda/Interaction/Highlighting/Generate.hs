@@ -447,7 +447,6 @@ warningHighlighting' b w = case tcWarning w of
   InstanceArgWithExplicitArg{} -> mempty
   InversionDepthReached{}    -> mempty
   NoGuardednessFlag{}        -> mempty
-  GenericWarning{}           -> mempty
   -- Andreas, 2020-03-21, issue #4456:
   -- Error warnings that do not have dedicated highlighting
   -- are highlighted as errors.
