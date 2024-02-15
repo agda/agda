@@ -271,6 +271,7 @@ data WarningName
   | RewriteNonConfluent_
   | RewriteAmbiguousRules_
   | RewriteMissingRule_
+  | DuplicateRewriteRule_
   | SafeFlagEta_
   | SafeFlagInjective_
   | SafeFlagNoCoverageCheck_
@@ -463,6 +464,7 @@ warningNameDescription = \case
   RewriteNonConfluent_             -> "Failed local confluence checks while joining critical pairs."
   RewriteAmbiguousRules_           -> "Failed global confluence checks because of overlapping rules."
   RewriteMissingRule_              -> "Failed global confluence checks because of missing rule."
+  DuplicateRewriteRule_            -> "Duplicate rewrite rules."
   SafeFlagEta_                     -> "`ETA' pragmas with the safe flag."
   SafeFlagInjective_               -> "`INJECTIVE' pragmas with the safe flag."
   SafeFlagNoCoverageCheck_         -> "`NON_COVERING` pragmas with the safe flag."

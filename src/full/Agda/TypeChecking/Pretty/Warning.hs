@@ -332,6 +332,9 @@ prettyWarning = \case
         ]
       ]
 
+    DuplicateRewriteRule q ->
+      "Rewrite rule " <+> prettyTCM q <+> " has already been added"
+
     PragmaCompileErased bn qn -> fsep $ concat
       [ pwords "The backend"
       , [ text bn

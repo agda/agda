@@ -98,6 +98,7 @@ instance EmbPrj Warning where
     PragmaCompileList                           -> __IMPOSSIBLE__
     PragmaCompileMaybe                          -> __IMPOSSIBLE__
     NoMain _                                    -> __IMPOSSIBLE__
+    DuplicateRewriteRule a                      -> icodeN 53 DuplicateRewriteRule a
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -153,6 +154,7 @@ instance EmbPrj Warning where
     [50, a]              -> valuN ConfluenceCheckingIncompleteBecauseOfMeta a
     [51, a]              -> valuN BuiltinDeclaresIdentifier a
     [52]                 -> valuN ConfluenceForCubicalNotSupported
+    [53, a]              -> valuN DuplicateRewriteRule a
     _ -> malformed
 
 instance EmbPrj OptionWarning where
@@ -461,6 +463,7 @@ instance EmbPrj WarningName where
     PragmaCompileList_                           -> 109
     PragmaCompileMaybe_                          -> 110
     NoMain_                                      -> 111
+    DuplicateRewriteRule_                        -> 112
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -575,6 +578,7 @@ instance EmbPrj WarningName where
     109 -> return PragmaCompileList_
     110 -> return PragmaCompileMaybe_
     111 -> return NoMain_
+    112 -> return DuplicateRewriteRule_
     _   -> malformed
 
 

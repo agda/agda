@@ -357,10 +357,7 @@ checkRewriteRule q = do
       rews <- getRewriteRulesFor f
       -- check if q is already an added rewrite rule
       case List.find ((q ==) . rewName) rews of
-        Just rew -> do
-          genericWarning =<< do
-            "Rewrite rule " <+> prettyTCM q <+> " has already been added"
-          return rew
+        Just rew -> rew <$ do warning $ DuplicateRewriteRule q
         Nothing -> cont
 
     usedArgs :: Definition -> IntSet
