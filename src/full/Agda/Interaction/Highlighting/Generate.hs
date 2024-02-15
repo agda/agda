@@ -468,6 +468,8 @@ warningHighlighting' b w = case tcWarning w of
   RewriteAmbiguousRules{}    -> confluenceErrorHighlighting w
   RewriteMissingRule{}       -> confluenceErrorHighlighting w
   PragmaCompileErased{}      -> deadcodeHighlighting w
+  PragmaCompileList{}        -> deadcodeHighlighting w
+  PragmaCompileMaybe{}       -> deadcodeHighlighting w
   NotInScopeW{}              -> deadcodeHighlighting w
   UnsupportedIndexedMatch{}  -> mempty
   AsPatternShadowsConstructorOrPatternSynonym{}

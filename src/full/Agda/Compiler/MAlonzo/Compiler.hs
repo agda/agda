@@ -567,8 +567,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       -- Compiling List
       Datatype{ dataPars = np } | is ghcEnvList -> do
         sequence_ [primNil, primCons] -- Just to get the proper error for missing NIL/CONS
-        caseMaybe pragma (return ()) $ \ p -> setCurrentRange p $ warning . GenericWarning =<< do
-          fsep $ pwords "Ignoring GHC pragma for builtin lists; they always compile to Haskell lists."
+        whenJust pragma $ \ p -> setCurrentRange p $ warning PragmaCompileList
         let d = dname q
             t = unqhname TypeK q
         Just nil  <- getBuiltinName builtinNil
@@ -582,8 +581,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       -- Compiling Maybe
       Datatype{ dataPars = np } | is ghcEnvMaybe -> do
         sequence_ [primNothing, primJust] -- Just to get the proper error for missing NOTHING/JUST
-        caseMaybe pragma (return ()) $ \ p -> setCurrentRange p $ warning . GenericWarning =<< do
-          fsep $ pwords "Ignoring GHC pragma for builtin maybe; they always compile to Haskell lists."
+        whenJust pragma $ \ p -> setCurrentRange p $ warning PragmaCompileMaybe
         let d = dname q
             t = unqhname TypeK q
         Just nothing <- getBuiltinName builtinNothing

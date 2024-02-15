@@ -341,6 +341,12 @@ prettyWarning = \case
       , pwords "so the COMPILE pragma will be ignored."
       ]
 
+    PragmaCompileList -> fsep $ pwords
+      "Ignoring GHC pragma for builtin lists; they always compile to Haskell lists."
+
+    PragmaCompileMaybe -> fsep $ pwords
+      "Ignoring GHC pragma for builtin MAYBE; it always compiles to Haskell Maybe."
+
     NotInScopeW xs -> vcat
       [ fsep $ pwords "Not in scope:"
       , do

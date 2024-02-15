@@ -4242,9 +4242,13 @@ data Warning
     -- ^ The global confluence checker found a term @u@ that reduces
     --   to @v@, but @v@ does not reduce to @rho(u)@.
   | PragmaCompileErased BackendName QName
-    -- ^ COMPILE directive for an erased symbol
+    -- ^ COMPILE directive for an erased symbol.
+  | PragmaCompileList
+    -- ^ @COMPILE GHC@ pragma for lists; ignored.
+  | PragmaCompileMaybe
+    -- ^ @COMPILE GHC@ pragma for @MAYBE@; ignored.
   | NotInScopeW [C.QName]
-    -- ^ Out of scope error we can recover from
+    -- ^ Out of scope error we can recover from.
   | UnsupportedIndexedMatch Doc
     -- ^ Was not able to compute a full equivalence when splitting.
   | AsPatternShadowsConstructorOrPatternSynonym Bool
@@ -4338,6 +4342,8 @@ warningName = \case
   RewriteAmbiguousRules{}      -> RewriteAmbiguousRules_
   RewriteMissingRule{}         -> RewriteMissingRule_
   PragmaCompileErased{}        -> PragmaCompileErased_
+  PragmaCompileList{}          -> PragmaCompileList_
+  PragmaCompileMaybe{}         -> PragmaCompileMaybe_
   PlentyInHardCompileTimeMode{}
                                -> PlentyInHardCompileTimeMode_
   -- record field warnings
