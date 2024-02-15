@@ -219,8 +219,6 @@ prettyWarning = \case
              pwords "this type will likely be rejected by the termination" ++
              pwords "checker unless this flag is enabled."
 
-    GenericWarning d -> return d
-
     InvalidCharacterLiteral c -> fsep $
       pwords "Invalid character literal" ++ [text $ show c] ++
       pwords "(surrogate code points are not supported)"

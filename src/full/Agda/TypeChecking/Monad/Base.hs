@@ -4194,10 +4194,6 @@ data Warning
   -- ^ A coinductive record was declared but neither --guardedness nor
   --   --sized-types is enabled.
 
-  -- Generic warnings for one-off things
-  | GenericWarning           Doc
-    -- ^ Harmless generic warning (not an error)
-
   -- Safe flag errors
   | SafeFlagPostulate C.Name
   | SafeFlagPragma [String]                -- ^ Unsafe OPTIONS.
@@ -4315,7 +4311,6 @@ warningName = \case
   FixityInRenamingModule{}     -> FixityInRenamingModule_
   InvalidCharacterLiteral{}    -> InvalidCharacterLiteral_
   UselessPragma{}              -> UselessPragma_
-  GenericWarning{}             -> GenericWarning_
   InversionDepthReached{}      -> InversionDepthReached_
   InteractionMetaBoundaries{}  -> InteractionMetaBoundaries_{}
   ModuleDoesntExport{}         -> ModuleDoesntExport_

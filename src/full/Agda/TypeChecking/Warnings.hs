@@ -1,7 +1,6 @@
 
 module Agda.TypeChecking.Warnings
   ( MonadWarning(..)
-  , genericWarning
   , warning'_, warning_, warning', warning, warnings
   , raiseWarningsOnUsage
   , isUnsolvedWarning
@@ -78,10 +77,6 @@ instance MonadWarning TCM where
 
 -- * Raising warnings
 ---------------------------------------------------------------------------
-
-{-# SPECIALIZE genericWarning :: P.Doc -> TCM () #-}
-genericWarning :: MonadWarning m => P.Doc -> m ()
-genericWarning = warning . GenericWarning
 
 {-# SPECIALIZE warning'_ :: CallStack -> Warning -> TCM TCWarning #-}
 warning'_ :: (MonadWarning m) => CallStack -> Warning -> m TCWarning
