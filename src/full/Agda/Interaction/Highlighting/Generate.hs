@@ -429,6 +429,7 @@ warningHighlighting' b w = case tcWarning w of
   UnsolvedInteractionMetas{} -> mempty
   InteractionMetaBoundaries{} -> mempty
   OldBuiltin{}               -> mempty
+  BuiltinDeclaresIdentifier{} -> mempty
   EmptyRewritePragma{}       -> deadcodeHighlighting w
   EmptyWhere{}               -> deadcodeHighlighting w
   IllformedAsClause{}        -> deadcodeHighlighting w

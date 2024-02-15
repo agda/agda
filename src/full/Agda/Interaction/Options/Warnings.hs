@@ -259,6 +259,7 @@ data WarningName
   | NotStrictlyPositive_
   | UnsupportedIndexedMatch_
   | OldBuiltin_
+  | BuiltinDeclaresIdentifier_
   | PlentyInHardCompileTimeMode_
   | PragmaCompileErased_
   | ConfluenceCheckingIncompleteBecauseOfMeta_
@@ -446,6 +447,7 @@ warningNameDescription = \case
   NotStrictlyPositive_             -> "Failed strict positivity checks."
   UnsupportedIndexedMatch_         -> "Failures to compute full equivalence when splitting on indexed family."
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
+  BuiltinDeclaresIdentifier_       -> "`BUILTIN' pragmas that declare a new identifier but have been given an existing one."
   PlentyInHardCompileTimeMode_     -> "Uses of @ω or @plenty in hard compile-time mode."
   PragmaCompileErased_             -> "`COMPILE' pragmas targeting an erased symbol."
   ConfluenceCheckingIncompleteBecauseOfMeta_ -> "Incomplete confluence checks because of unsolved metas."

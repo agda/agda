@@ -4147,7 +4147,9 @@ data Warning
   | CantGeneralizeOverSorts [MetaId]
   | AbsurdPatternRequiresNoRHS [NamedArg DeBruijnPattern]
   | OldBuiltin               BuiltinId BuiltinId
-    -- ^ In `OldBuiltin old new`, the BUILTIN old has been replaced by new
+    -- ^ In `OldBuiltin old new`, the BUILTIN old has been replaced by new.
+  | BuiltinDeclaresIdentifier BuiltinId
+    -- ^ The builtin declares a new identifier, so it should not be in scope.
   | EmptyRewritePragma
     -- ^ If the user wrote just @{-\# REWRITE \#-}@.
   | EmptyWhere
@@ -4309,6 +4311,7 @@ warningName = \case
   NotStrictlyPositive{}        -> NotStrictlyPositive_
   UnsupportedIndexedMatch{}    -> UnsupportedIndexedMatch_
   OldBuiltin{}                 -> OldBuiltin_
+  BuiltinDeclaresIdentifier{}  -> BuiltinDeclaresIdentifier_
   SafeFlagPostulate{}          -> SafeFlagPostulate_
   SafeFlagPragma{}             -> SafeFlagPragma_
   SafeFlagWithoutKFlagPrimEraseEquality -> SafeFlagWithoutKFlagPrimEraseEquality_

@@ -2473,9 +2473,7 @@ instance ToAbstract C.Pragma where
               -- The name shouldn't exist yet. If it does, we raise a warning
               -- and drop the existing definition.
               unlessM ((UnknownName ==) <$> resolveName qx) $ do
-                genericWarning $ P.text $
-                   "BUILTIN " ++ getBuiltinId b' ++ " declares an identifier " ++
-                   "(no longer expects an already defined identifier)"
+                warning $ BuiltinDeclaresIdentifier b'
                 modifyCurrentScope $ removeNameFromScope PublicNS x
               -- We then happily bind the name
               y <- freshAbstractQName' x

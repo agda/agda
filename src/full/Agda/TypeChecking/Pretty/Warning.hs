@@ -156,6 +156,10 @@ prettyWarning = \case
       "Builtin " ++ getBuiltinId old ++ " no longer exists. " ++
       "It is now bound by BUILTIN " ++ getBuiltinId new
 
+    BuiltinDeclaresIdentifier b -> fwords $
+      "BUILTIN " ++ getBuiltinId b ++ " declares an identifier " ++
+      "(no longer expects an already defined identifier)"
+
     EmptyRewritePragma -> fsep . pwords $ "Empty REWRITE pragma"
 
     EmptyWhere         -> fsep . pwords $ "Empty `where' block (ignored)"
