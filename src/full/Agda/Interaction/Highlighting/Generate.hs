@@ -462,6 +462,7 @@ warningHighlighting' b w = case tcWarning w of
   UserWarning{}              -> mempty
   LibraryWarning{}           -> mempty
   ConfluenceCheckingIncompleteBecauseOfMeta{} -> confluenceErrorHighlighting w
+  ConfluenceForCubicalNotSupported{} -> mempty
   RewriteNonConfluent{}      -> confluenceErrorHighlighting w
   RewriteMaybeNonConfluent{} -> confluenceErrorHighlighting w
   RewriteAmbiguousRules{}    -> confluenceErrorHighlighting w

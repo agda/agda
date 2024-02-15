@@ -263,6 +263,7 @@ data WarningName
   | PlentyInHardCompileTimeMode_
   | PragmaCompileErased_
   | ConfluenceCheckingIncompleteBecauseOfMeta_
+  | ConfluenceForCubicalNotSupported_
   | RewriteMaybeNonConfluent_
   | RewriteNonConfluent_
   | RewriteAmbiguousRules_
@@ -451,6 +452,7 @@ warningNameDescription = \case
   PlentyInHardCompileTimeMode_     -> "Uses of @ω or @plenty in hard compile-time mode."
   PragmaCompileErased_             -> "`COMPILE' pragmas targeting an erased symbol."
   ConfluenceCheckingIncompleteBecauseOfMeta_ -> "Incomplete confluence checks because of unsolved metas."
+  ConfluenceForCubicalNotSupported_ -> "Incomplete confluence checks because of `--cubical'."
   RewriteMaybeNonConfluent_        -> "Failed local confluence checks while computing overlap."
   RewriteNonConfluent_             -> "Failed local confluence checks while joining critical pairs."
   RewriteAmbiguousRules_           -> "Failed global confluence checks because of overlapping rules."

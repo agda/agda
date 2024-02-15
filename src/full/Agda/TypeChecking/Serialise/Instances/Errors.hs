@@ -93,6 +93,7 @@ instance EmbPrj Warning where
     DuplicateInterfaceFiles a b           -> __IMPOSSIBLE__
     ConfluenceCheckingIncompleteBecauseOfMeta a -> icodeN 50 ConfluenceCheckingIncompleteBecauseOfMeta a
     BuiltinDeclaresIdentifier a                 -> icodeN 51 BuiltinDeclaresIdentifier a
+    ConfluenceForCubicalNotSupported            -> icodeN 52 ConfluenceForCubicalNotSupported
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -147,6 +148,7 @@ instance EmbPrj Warning where
     [49, a, b]           -> valuN PatternShadowsConstructor a b
     [50, a]              -> valuN ConfluenceCheckingIncompleteBecauseOfMeta a
     [51, a]              -> valuN BuiltinDeclaresIdentifier a
+    [52]                 -> valuN ConfluenceForCubicalNotSupported
     _ -> malformed
 
 instance EmbPrj OptionWarning where
@@ -451,6 +453,7 @@ instance EmbPrj WarningName where
     DuplicateInterfaceFiles_                     -> 105
     ConfluenceCheckingIncompleteBecauseOfMeta_   -> 106
     BuiltinDeclaresIdentifier_                   -> 107
+    ConfluenceForCubicalNotSupported_            -> 108
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -561,6 +564,7 @@ instance EmbPrj WarningName where
     105 -> return DuplicateInterfaceFiles_
     106 -> return ConfluenceCheckingIncompleteBecauseOfMeta_
     107 -> return BuiltinDeclaresIdentifier_
+    108 -> return ConfluenceForCubicalNotSupported_
     _   -> malformed
 
 
