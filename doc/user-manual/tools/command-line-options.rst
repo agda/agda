@@ -1205,6 +1205,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      RHS given despite an absurd pattern in the LHS.
 
+.. option:: BuiltinDeclaresIdentifier
+
+     A ``BUILTIN`` pragma that declares an identifier, but has been given an existing one.
+
 .. option:: AsPatternShadowsConstructorOrPatternSynonym
 
      ``@``-patterns that shadow constructors or pattern synonyms.
