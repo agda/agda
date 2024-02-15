@@ -1339,9 +1339,7 @@ callGHC = do
   let isMain = modIsMain && modHasMainFunc  -- both need to be IsMain
 
   -- Warn if no main function and not --no-main
-  when (modIsMain /= isMain) $
-    genericWarning =<< fsep (pwords "No main function defined in" ++ [prettyTCM agdaMod <> "."] ++
-                             pwords "Use --no-main to suppress this warning.")
+  when (modIsMain /= isMain) $ warning $ NoMain agdaMod
 
   let overridableArgs =
         [ "-O"] ++
