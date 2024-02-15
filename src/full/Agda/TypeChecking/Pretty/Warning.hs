@@ -277,6 +277,12 @@ prettyWarning = \case
 
     CoInfectiveImport msg -> return msg
 
+    ConfluenceCheckingIncompleteBecauseOfMeta f -> fsep
+      [ "Confluence checking incomplete because the definition of"
+      , prettyTCM f
+      , text "contains unsolved metavariables."
+      ]
+
     RewriteNonConfluent lhs rhs1 rhs2 err -> fsep
       [ "Local confluence check failed:"
       , prettyTCM lhs , "reduces to both"

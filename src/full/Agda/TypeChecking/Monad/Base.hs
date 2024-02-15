@@ -4221,6 +4221,9 @@ data Warning
     -- ^ Importing a file using an infective option into one which doesn't
   | CoInfectiveImport Doc
     -- ^ Importing a file not using a coinfective option from one which does
+  | ConfluenceCheckingIncompleteBecauseOfMeta QName
+    -- ^ Confluence checking incomplete because the definition of the 'QName'
+    --   contains unsolved metavariables.
   | RewriteNonConfluent Term Term Term Doc
     -- ^ Confluence checker found critical pair and equality checking
     --   resulted in a type error
@@ -4323,6 +4326,7 @@ warningName = \case
   UserWarning{}                -> UserWarning_
   InfectiveImport{}            -> InfectiveImport_
   CoInfectiveImport{}          -> CoInfectiveImport_
+  ConfluenceCheckingIncompleteBecauseOfMeta{} -> ConfluenceCheckingIncompleteBecauseOfMeta_
   RewriteNonConfluent{}        -> RewriteNonConfluent_
   RewriteMaybeNonConfluent{}   -> RewriteMaybeNonConfluent_
   RewriteAmbiguousRules{}      -> RewriteAmbiguousRules_
