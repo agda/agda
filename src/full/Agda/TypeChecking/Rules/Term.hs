@@ -1575,16 +1575,17 @@ inferExprForWith (Arg info e) = verboseBracket "tc.with.infer" 20 "inferExprForW
         _        -> return ()
       -- Possibly insert hidden arguments.
       TelV tel t0 <- telViewUpTo' (-1) (not . visible) t
-      case unEl t0 of
+      (v, t) <- case unEl t0 of
         Def d vs -> do
           isDataOrRecordType d >>= \case
             Nothing -> return (v, t)
             Just{}  -> do
               (args, t1) <- implicitArgs (-1) notVisible t
-              -- #6868: trigger instance search if we inserted any instance arguments
-              when (any isInstance args) $ solveAwakeInstanceConstraints
               return (v `apply` args, t1)
         _ -> return (v, t)
+      -- #6868, #7113: trigger instance search to resolve instances in with-expression
+      solveAwakeConstraints
+      return (v, t)
 
 ---------------------------------------------------------------------------
 -- * Let bindings
