@@ -301,6 +301,28 @@ Agda-stdlib is `available <https://src.fedoraproject.org/rpms/Agda-stdlib/>`_ fo
 
 will install Agda with the emacs mode and also agda-stdlib.
 
+GNU Guix
+---------
+GNU Guix provides packages for both `agda <https://packages.guix.gnu.org/packages/agda/2.6.4/>`_ and `agda-stdlib <https://packages.guix.gnu.org/packages/agda-stdlib/1.7.3/>`_. You can install the latest versions by running:
+
+.. code-block:: bash
+
+  guix install agda agda-stdlib
+
+You can also install a specific version by running:
+
+.. code-block:: bash
+
+  guix install agda@x.x.x agda-stdlib@x.x.x
+
+where x is a specific version number.
+
+Packages Sources:
+  
+* `Agda <https://git.savannah.gnu.org/cgit/guix.git/tree/gnu/packages/agda.scm#n45>`_
+ 
+* `Agda-Stdlib <https://git.savannah.gnu.org/cgit/guix.git/tree/gnu/packages/agda.scm#n200>`_
+
 FreeBSD
 -------
 
