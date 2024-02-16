@@ -1558,9 +1558,8 @@ inferExprForWith (Arg info e) = verboseBracket "tc.with.infer" 20 "inferExprForW
     reportSDoc "tc.with.infer" 20 $ "inferExprforWith " <+> prettyTCM e
     reportSLn  "tc.with.infer" 80 $ "inferExprforWith " ++ show (deepUnscope e)
     traceCall (InferExpr e) $ do
-      -- With wants type and term fully instantiated!
-      (v, t) <- instantiateFull =<< inferExpr e
       v0 <- reduce v
+      (v, t) <- inferExpr e
       -- Andreas 2014-11-06, issue 1342.
       -- Check that we do not `with` on a module parameter!
       case v0 of
