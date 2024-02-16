@@ -8,6 +8,7 @@ Highlights
 ----------
 
 - Fix an inconsistency in Cubical Agda related to catch-all clauses: [Issue #7033](https://github.com/agda/agda/issues/7033)
+- Fix a regression in instance search introduced in 2.6.4.2: [Issue #7113](https://github.com/agda/agda/issues/7113)
 - Fix a bug related to `opaque`:  [Issue #6972](https://github.com/agda/agda/issues/6972)
 - Fix some internal errors:
   * [Issue #7029](https://github.com/agda/agda/issues/7029)
@@ -34,6 +35,9 @@ For 2.6.4.2, the following issues were
 - [Issue #7070](https://github.com/agda/agda/issues/7070): Don't set a default maximum heapsize for Agda runs
 - [Issue #7081](https://github.com/agda/agda/issues/7081): Missing `IsString` instance with debug flags enabled
 - [Issue #7095](https://github.com/agda/agda/issues/7095): Agda build flags appear as "automatic", but they are all "manual"
+- [Issue #7104](https://github.com/agda/agda/issues/7104): Warning "there are two interface files" should not be serialized
+- [Issue #7105](https://github.com/agda/agda/issues/7105): Internal error in generate-helper (C-c C-h)
+- [Issue #7113](https://github.com/agda/agda/issues/7113): Instance resolution runs too late, leads to `with`-abstraction failure
 
 These PRs not corresponding to issues were merged:
 
