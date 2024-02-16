@@ -303,7 +303,7 @@ will install Agda with the emacs mode and also agda-stdlib.
 
 GNU Guix
 ---------
-GNU Guix provides packages for both `agda <https://packages.guix.gnu.org/packages/agda/2.6.4/>`_ and `agda-stdlib <https://packages.guix.gnu.org/packages/agda-stdlib/1.7.3/>`_. You can install the latest versions by running:
+GNU Guix provides packages for both `agda <https://packages.guix.gnu.org/packages/agda/2.6.4/>`__ and `agda-stdlib <https://packages.guix.gnu.org/packages/agda-stdlib/1.7.3/>`__. You can install the latest versions by running:
 
 .. code-block:: bash
 
