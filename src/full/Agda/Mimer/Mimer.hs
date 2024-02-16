@@ -483,39 +483,39 @@ collectComponents opts costs ii mDefName whereNames metaId = do
     go comps qname = do
       info <- getConstInfo qname
       typ <- typeOfConst qname
-      cId <- fresh -- TODO: We generate this id even if it is not used
       scope <- getScope
+      let addLevel  = qnameToComponent (costLevel   costs) qname <&> \ comp -> comps{hintLevel     = comp : hintLevel  comps}
+          addAxiom  = qnameToComponent (costAxiom   costs) qname <&> \ comp -> comps{hintAxioms    = comp : hintAxioms comps}
+          addThisFn = qnameToComponent (costRecCall costs) qname <&> \ comp -> comps{hintThisFn    = Just comp}
+          addFn     = qnameToComponent (costFn      costs) qname <&> \ comp -> comps{hintFns       = comp : hintFns comps}
+          addData   = qnameToComponent (costSet     costs) qname <&> \ comp -> comps{hintDataTypes = comp : hintDataTypes comps}
       case theDef info of
-        Axiom{} | isToLevel typ -> return comps{hintLevel = mkComponentQ cId (costLevel costs) qname 0 (Def qname []) typ : hintLevel comps}
-                | shouldKeep scope -> return comps{hintAxioms = mkComponentQ cId (costAxiom costs) qname 0 (Def qname []) typ : hintAxioms comps}
-                | otherwise -> return comps
+        Axiom{} | isToLevel typ    -> addLevel
+                | shouldKeep scope -> addAxiom
+                | otherwise        -> return comps
         -- TODO: Check if we want to use these
-        DataOrRecSig{} -> return comps
-        GeneralizableVar -> do
-          return comps
-        AbstractDefn{} -> do
-          return comps
+        DataOrRecSig{}   -> return comps
+        GeneralizableVar -> return comps
+        AbstractDefn{}   -> return comps
         -- If the function is in the same mutual block, do not include it.
         f@Function{}
-          | Just qname == mDefName -> return comps{hintThisFn = Just $ mkComponentQ cId (costRecCall costs) qname 0 (Def qname []) typ}
-          | isToLevel typ && isNotMutual qname f
-            -> return comps{hintLevel = mkComponentQ cId (costLevel costs) qname 0 (Def qname []) typ : hintLevel comps}
-          | isNotMutual qname f && shouldKeep scope
-            -> return comps{hintFns = mkComponentQ cId (costFn costs) qname 0 (Def qname []) typ : hintFns comps}
-          | otherwise -> return comps
-        Datatype{} -> return comps{hintDataTypes = mkComponentQ cId (costSet costs) qname 0 (Def qname []) typ : hintDataTypes comps}
+          | Just qname == mDefName                  -> addThisFn
+          | isToLevel typ && isNotMutual qname f    -> addLevel
+          | isNotMutual qname f && shouldKeep scope -> addFn
+          | otherwise                               -> return comps
+        Datatype{} -> addData
         Record{} -> do
           projections <- mapM (qnameToComponent (costSpeculateProj costs)) =<< getRecordFields qname
-          return comps{ hintRecordTypes = mkComponentQ cId (costSet costs) qname 0 (Def qname []) typ : hintRecordTypes comps
-                      , hintProjections = projections ++ hintProjections comps}
+          comp <- qnameToComponent (costSet costs) qname
+          return comps{ hintRecordTypes = comp : hintRecordTypes comps
+                      , hintProjections = projections ++ hintProjections comps }
         -- We look up constructors when we need them
         Constructor{} -> return comps
         -- TODO: special treatment for primitives?
-        Primitive{} | isToLevel typ -> return comps{hintLevel = mkComponentQ cId (costLevel costs) qname 0 (Def qname []) typ : hintLevel comps}
-                    | shouldKeep scope -> return comps{hintFns = mkComponentQ cId (costFn costs) qname 0 (Def qname []) typ : hintFns comps}
-                    | otherwise -> return comps
-        PrimitiveSort{} -> do
-          return comps
+        Primitive{} | isToLevel typ    -> addLevel
+                    | shouldKeep scope -> addFn
+                    | otherwise        -> return comps
+        PrimitiveSort{} -> return comps
       where
         shouldKeep scope = or
           [ qname `elem` explicitHints
@@ -549,10 +549,12 @@ qnameToComponent :: (HasConstInfo tcm, ReadTCState tcm, MonadFresh CompId tcm, M
   => Cost -> QName -> tcm Component
 qnameToComponent cost qname = do
   info <- getConstInfo qname
-  typ <- typeOfConst qname
-  let def = (Def qname [], 0)
+  typ  <- typeOfConst qname
+  -- #7120: typeOfConst is the type inside the module, so we need to apply the module params here
+  mParams <- freeVarsToApply qname
+  let def = (Def qname [] `apply` mParams, 0)
       (term, pars) = case theDef info of
-        c@Constructor{}  -> (Con (conSrcCon c) ConOCon [], conPars c)
+        c@Constructor{}  -> (Con (conSrcCon c) ConOCon [], conPars c - length mParams)
         Axiom{}          -> def
         GeneralizableVar -> def
         Function{}       -> def
@@ -1285,13 +1287,9 @@ tryDataRecord goal goalType branch = withBranchAndGoal branch goal $ do
       -- TODO: There might be a neater way of applying the constructor to new metas
     tryRecord :: Defn -> SM [SearchStepResult]
     tryRecord recordDefn = do
-      let cHead = recConHead recordDefn
-          cName = conName cHead
-          cTerm = Con cHead ConOSystem []
-      cType <- typeOfConst cName
       cost <- asks (costRecordCon . searchCosts) -- TODO: Use lenses for this?
-      comp <- newComponentQ [] cost cName (recPars recordDefn) cTerm cType
-      -- -- NOTE: at most 1
+      comp <- qnameToComponent cost $ conName $ recConHead recordDefn
+      -- NOTE: at most 1
       newBranches <- maybeToList <$> tryRefineAddMetas goal goalType branch comp
       mapM checkSolved newBranches
 
