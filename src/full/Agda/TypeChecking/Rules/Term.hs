@@ -1558,12 +1558,11 @@ inferExprForWith (Arg info e) = verboseBracket "tc.with.infer" 20 "inferExprForW
     reportSDoc "tc.with.infer" 20 $ "inferExprforWith " <+> prettyTCM e
     reportSLn  "tc.with.infer" 80 $ "inferExprforWith " ++ show (deepUnscope e)
     traceCall (InferExpr e) $ do
-      -- With wants type and term fully instantiated!
-      (v, t) <- instantiateFull =<< inferExpr e
-      v0 <- reduce v
+      (v, t) <- inferExpr e
+      v <- reduce v
       -- Andreas 2014-11-06, issue 1342.
       -- Check that we do not `with` on a module parameter!
-      case v0 of
+      case v of
         Var i [] -> whenM (isModuleFreeVar i) $ do
           reportSDoc "tc.with.infer" 80 $ vcat
             [ text $ "with expression is variable " ++ show i
@@ -1572,20 +1571,21 @@ inferExprForWith (Arg info e) = verboseBracket "tc.with.infer" 20 "inferExprForW
             , "context size = " <+> do text . show =<< getContextSize
             , "current context = " <+> do prettyTCM =<< getContextTelescope
             ]
-          typeError $ WithOnFreeVariable e v0
+          typeError $ WithOnFreeVariable e v
         _        -> return ()
       -- Possibly insert hidden arguments.
       TelV tel t0 <- telViewUpTo' (-1) (not . visible) t
-      case unEl t0 of
+      (v, t) <- case unEl t0 of
         Def d vs -> do
           isDataOrRecordType d >>= \case
             Nothing -> return (v, t)
             Just{}  -> do
               (args, t1) <- implicitArgs (-1) notVisible t
-              -- #6868: trigger instance search if we inserted any instance arguments
-              when (any isInstance args) $ solveAwakeInstanceConstraints
               return (v `apply` args, t1)
         _ -> return (v, t)
+      -- #6868, #7113: trigger instance search to resolve instances in with-expression
+      solveAwakeConstraints
+      return (v, t)
 
 ---------------------------------------------------------------------------
 -- * Let bindings
