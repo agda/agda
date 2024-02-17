@@ -382,7 +382,7 @@ library
     build-depends:  text-icu >= 0.7.1.0
 
   if os(windows)
-    build-depends:  Win32 >= 2.6.1.0 && < 2.14
+    build-depends:  Win32 >= 2.6.1.0 && < 2.15
 
   -- Agda cannot be built with GHC 8.6.1 due to a compiler bug, see
   -- Agda Issue #3344.
