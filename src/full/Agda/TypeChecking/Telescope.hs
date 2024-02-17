@@ -710,3 +710,18 @@ typeArity :: Type -> TCM Nat
 typeArity t = do
   TelV tel _ <- telView t
   return (size tel)
+
+-- | Fold a telescope into a monadic computation, adding variables to the
+-- context at each step.
+
+foldrTelescopeM
+  :: MonadAddContext m
+  => (Dom (ArgName, Type) -> m b -> m b)
+  -> m b
+  -> Telescope
+  -> m b
+foldrTelescopeM f b = go
+  where
+    go EmptyTel = b
+    go (ExtendTel a tel) =
+      f ((absName tel,) <$> a) $ underAbstraction a tel go
