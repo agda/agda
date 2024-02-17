@@ -318,7 +318,7 @@ You can also install a specific version by running:
 where x is a specific version number.
 
 Packages Sources:
-  
+
 * `Agda <https://git.savannah.gnu.org/cgit/guix.git/tree/gnu/packages/agda.scm#n45>`__
  
 * `Agda-Stdlib <https://git.savannah.gnu.org/cgit/guix.git/tree/gnu/packages/agda.scm#n200>`__
