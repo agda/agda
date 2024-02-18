@@ -245,24 +245,16 @@ matchPattern p u = case (p, u) of
   (ConP c cpi ps, Arg info v) -> do
     let lazy = if conPLazy cpi then OnlyLazy else NonLazy
     if not (conPRecord cpi) then fallback c lazy ps (Arg info v) else do
-    isEtaRecordCon (conName c) >>= \case
+    isEtaRecordConstructor (conName c) >>= \case
       Nothing -> fallback c lazy ps (Arg info v)
-      Just fs -> do
+      Just (_r, def) -> do
         -- Case: Eta record constructor.
         -- This case is necessary if we want to use the clauses before
         -- record pattern translation (e.g., in type-checking definitions by copatterns).
+        let fs = map argFromDom $ recFields def
         unless (size fs == size ps) __IMPOSSIBLE__
         mapSnd (Arg info . Con c (fromConPatternInfo cpi) . map Apply) <$> do
           matchPatterns ps $ for fs $ \ (Arg ai f) -> Arg ai $ v `applyE` [Proj ProjSystem f]
-    where
-    isEtaRecordCon :: HasConstInfo m => QName -> m (Maybe [Arg QName])
-    isEtaRecordCon c = do
-      (theDef <$> getConstInfo c) >>= \case
-        Constructor{ conData = d } -> do
-          (theDef <$> getConstInfo d) >>= \case
-            r@Record{ recFields = fs } | YesEta <- recEtaEquality r -> return $ Just $ map argFromDom fs
-            _ -> return Nothing
-        _ -> __IMPOSSIBLE__
   (DefP o q ps, v) -> do
     let f (Def q' vs) | q == q' = Just (Def q, vs)
         f _                     = Nothing

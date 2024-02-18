@@ -451,29 +451,28 @@ isEtaRecord r = do
   isRec <- isRecord r
   case isRec of
     Nothing -> return False
-    Just r
-      | recEtaEquality r /= YesEta -> return False
-      | otherwise                  -> do
-        constructorQ <- getQuantity <$>
-                          getConstInfo (conName (recConHead r))
-        currentQ     <- viewTC eQuantity
-        return $ constructorQ `moreQuantity` currentQ
+    Just r -> isEtaRecordDef r
+
+isEtaRecordDef :: HasConstInfo m => Defn -> m Bool
+isEtaRecordDef r
+  | recEtaEquality r /= YesEta = return False
+  | otherwise = do
+          constructorQ <- getQuantity <$>
+                           getConstInfo (conName (recConHead r))
+          currentQ     <- viewTC eQuantity
+          return $ constructorQ `moreQuantity` currentQ
+
 
 {-# SPECIALIZE isEtaCon :: QName -> TCM Bool #-}
 isEtaCon :: HasConstInfo m => QName -> m Bool
-isEtaCon c = getConstInfo' c >>= \case
-  Left (SigUnknown err)     -> __IMPOSSIBLE__
-  Left SigCubicalNotErasure -> __IMPOSSIBLE__
-  Left SigAbstract          -> return False
-  Right def                 -> case theDef def of
-    Constructor {conData = r} -> isEtaRecord r
-    _ -> return False
+isEtaCon c = isJust <$> isEtaRecordConstructor c
 
 -- | Going under one of these does not count as a decrease in size for the termination checker.
 isEtaOrCoinductiveRecordConstructor :: HasConstInfo m => QName -> m Bool
 isEtaOrCoinductiveRecordConstructor c =
-  caseMaybeM (isRecordConstructor c) (return False) $ \ (_, def) -> return $
-    recEtaEquality def == YesEta || recInduction def /= Just Inductive
+  caseMaybeM (isRecordConstructor c) (return False) $ \ (_, def) ->
+    isEtaRecordDef def `or2M`
+      return (recInduction def /= Just Inductive)
       -- If in doubt about coinductivity, then yes.
 
 -- | Check if a name refers to a record which is not coinductive.  (Projections are then size-preserving)
@@ -499,6 +498,11 @@ isRecordConstructor c = getConstInfo' c >>= \case
   Right def                 -> case theDef $ def of
     Constructor{ conData = r } -> fmap (r,) <$> isRecord r
     _                          -> return Nothing
+
+isEtaRecordConstructor :: HasConstInfo m => QName -> m (Maybe (QName, Defn))
+isEtaRecordConstructor c = isRecordConstructor c >>= \case
+  Nothing -> return Nothing
+  Just (d, def) -> ifM (isEtaRecordDef def) (return $ Just (d, def)) (return Nothing)
 
 -- | Check if a constructor name is the internally generated record constructor.
 --
@@ -583,9 +587,9 @@ expandRecordVar i gamma0 = do
           " since its type " <+> prettyTCM a <+>
           " is not a record type"
         return Nothing
-  caseMaybeM (isRecordType a) failure $ \ (r, pars, def) -> case recEtaEquality def of
-    NoEta{} -> return Nothing
-    YesEta  -> Just <$> do
+  caseMaybeM (isRecordType a) failure $ \ (r, pars, def) -> isEtaRecordDef def >>= \case
+    False -> return Nothing
+    True  -> Just <$> do
       -- Get the record fields @Γ₁ ⊢ tel@ (@tel = Γ'@).
       -- TODO: compose argInfo ai with tel.
       let tel = recTel def `apply` pars
@@ -905,7 +909,7 @@ isSingletonType' regardIrrelevance t rs = do
         record :: m (Maybe Term)
         record = runMaybeT $ do
           (r, ps, def) <- MaybeT $ isRecordType t
-          guard (YesEta == recEtaEquality def)
+          guardM $ isEtaRecordDef def
           abstract tel <$> MaybeT (isSingletonRecord' regardIrrelevance r ps rs)
 
         -- Slightly harder case: η for Sub {level} tA phi elt.

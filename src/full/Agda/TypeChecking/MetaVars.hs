@@ -1677,10 +1677,9 @@ inverseSubst' skip args = map (mapFst unArg) <$> loop (zip args terms)
              | skip tm           = return vars
              | otherwise         = failure tm
         irrProj <- optIrrelevantProjections <$> pragmaOptions
-        lift (isRecordConstructor $ conName c) >>= \case
+        lift (isEtaRecordConstructor $ conName c) >>= \case
           Just (_, r@Record{ recFields = fs })
-            | YesEta <- recEtaEquality r  -- Andreas, 2019-11-10, issue #4185: only for eta-records
-            , length fs == length es
+            | length fs == length es
             , hasQuantity0 info || all usableQuantity fs     -- Andreas, 2019-11-12/17, issue #4168b
             , irrProj || all isRelevant fs -> do
               let aux (Arg _ v) Dom{domInfo = info', unDom = f} =
