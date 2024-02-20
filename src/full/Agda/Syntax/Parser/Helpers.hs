@@ -530,37 +530,41 @@ patternSynArgs = mapM \ x -> do
       | fin            -> __IMPOSSIBLE__
 
     -- Benign case:
-    Arg ai (Named Nothing (Binder Nothing (BName n _ Nothing _))) -> do
-      case ai of
+    Arg ai (Named mn (Binder Nothing (BName n _ Nothing _)))
+      -- allow {n = n} for backwards compat with Agda 2.6
+      | maybe True ((C.nameToRawName n ==) . rangedThing . woThing) mn ->
+        case ai of
 
-        -- Benign case:
-        ArgInfo h (Modality Relevant (Quantityω _) Continuous) UserWritten UnknownFVs (Annotation IsNotLock)
-          | h `elem` [Hidden, NotHidden] ->
-              return $ WithHiding h n
-          | otherwise ->
-              abort "Instance arguments not allowed to pattern synonyms"
+          -- Benign case:
+          ArgInfo h (Modality Relevant (Quantityω _) Continuous) UserWritten UnknownFVs (Annotation IsNotLock)
+            | h `elem` [Hidden, NotHidden] ->
+                return $ WithHiding h n
+            | otherwise ->
+                abort "Instance arguments not allowed to pattern synonyms"
 
-        -- Error cases:
-        ArgInfo _ _ _ _ (Annotation (IsLock _)) ->
-          abort $ noAnn "Lock"
+          -- Error cases:
+          ArgInfo _ _ _ _ (Annotation (IsLock _)) ->
+            abort $ noAnn "Lock"
 
-        ArgInfo h (Modality r q c) _ _ _
-          | not (isRelevant r) ->
-              abort "Arguments to pattern synonyms must be relevant"
-          | not (isQuantityω q) ->
-              abort $ noAnn "Quantity"
-          | c /= Continuous ->
-              abort $ noAnn "Cohesion"
+          ArgInfo h (Modality r q c) _ _ _
+            | not (isRelevant r) ->
+                abort "Arguments to pattern synonyms must be relevant"
+            | not (isQuantityω q) ->
+                abort $ noAnn "Quantity"
+            | c /= Continuous ->
+                abort $ noAnn "Cohesion"
 
-        -- Invariant: origin and fvs not used.
-        ArgInfo _ _ _ (KnownFVs _) _ -> __IMPOSSIBLE__
-        ArgInfo _ _ o _ _ | o /= UserWritten -> __IMPOSSIBLE__
+          -- Invariant: origin and fvs not used.
+          ArgInfo _ _ _ (KnownFVs _) _ -> __IMPOSSIBLE__
+          ArgInfo _ _ o _ _ | o /= UserWritten -> __IMPOSSIBLE__
 
-        ArgInfo _ _ _ _ _ -> __IMPOSSIBLE__
+          ArgInfo _ _ _ _ _ -> __IMPOSSIBLE__
+
+      -- Error case: other named args are unsupported (issue #7136)
+      | otherwise ->
+          abort "Arguments to pattern synonyms cannot be named"
 
     -- Error cases:
-    Arg _ (Named (Just _) _) ->
-      abort "Arguments to pattern synonyms cannot be named"
     Arg _ (Named _ (Binder (Just _) _)) ->
       abort "Arguments to pattern synonyms cannot be patterns themselves"
     Arg _ (Named _ (Binder _ (BName _ _ (Just _) _))) ->
