@@ -26,7 +26,8 @@
 ;; that with-temp-buffer is used below whenever buffer-local state is
 ;; modified.
 
-;;;; Utility functions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Utility functions
 
 (defun agda-input-concat-map (f xs)
   "Concat (map F XS)."
@@ -48,7 +49,8 @@ removing all space and newline characters."
       (setq seq (cons (+ from i) seq)))
     (concat (nreverse seq))))
 
-;;;; Functions used to tweak translation pairs
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Functions used to tweak translation pairs
 
 (defun agda-input-compose (f g)
   "λ x -> concatMap F (G x)"
@@ -109,7 +111,8 @@ This suffix is dropped."
      (agda-input-drop-end (length suffix))
      (agda-input-suffix suffix)))
 
-;;;; Customization
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Customization
 
 ;; The :set keyword is set to 'agda-input-incorporate-changed-setting
 ;; so that the input method gets updated immediately when users
@@ -1353,7 +1356,8 @@ methods."
   :type '(repeat (cons (string :tag "Key sequence")
                        (repeat :tag "Translations" string))))
 
-;;;; Inspecting and modifying translation maps
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Inspecting and modifying translation maps
 
 (defun agda-input-get-translations (qp)
   "Return a list containing all translations from the Quail
@@ -1398,7 +1402,8 @@ a list of such pairs."
      (if fun (agda-input-concat-map fun trans)
        trans))))
 
-;;;; Setting up the input method
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Setting up the input method
 
 (defun agda-input-setup ()
   "Set up the Agda input method based on the customisable
@@ -1432,6 +1437,9 @@ Suitable for use in the :set field of `defcustom'."
 ;; Set up the input method.
 
 (agda-input-setup)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Administrative details
 
 (provide 'agda-input)
 ;;; agda-input.el ends here

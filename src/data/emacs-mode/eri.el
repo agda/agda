@@ -18,7 +18,8 @@
 
 (defun eri-current-line-empty nil
   "Return non-nil if the current line is empty (not counting white space)."
-  (= (current-indentation) (eri-current-line-length)))
+  (equal (current-indentation)
+         (eri-current-line-length)))
 
 (defun eri-maximum (xs)
   "Calculate maximum element in XS.
@@ -85,7 +86,7 @@ then the empty list is returned."
             (forward-line -1)
             (not (or (bobp)
                      (not (eri-current-line-empty))))))
-      (if (or (= (point) start)
+      (if (or (equal (point) start)
               (eri-current-line-empty))
           nil
         (list (+ 2 (current-indentation)))))))
@@ -106,7 +107,7 @@ the returned list."
             (forward-line -1)
             ; Skip the line we started from and lines with nothing but
             ; white space.
-            (unless (or (= (point) start)
+            (unless (or (equal (point) start)
                         (eri-current-line-empty))
               (setq points
                     (append
@@ -116,7 +117,7 @@ the returned list."
             ;; Stop after hitting the beginning of the buffer or a
             ;; non-empty, non-indented line.
             (not (or (bobp)
-                     (and (= (current-indentation) 0)
+                     (and (equal (current-indentation) 0)
                           (> (eri-current-line-length) 0)))))))
     ;; Add new indentation points, but remove the current indentation.
     ;; Sort the indentations. Rearrange the points so that the next
