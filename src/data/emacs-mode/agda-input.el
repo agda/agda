@@ -277,6 +277,8 @@ order for the change to take effect."
   ("exn" . ("∄"))
   ("0"   . ("∅"))
   ("C"   . ("∁"))
+  ("uin"    . ("⟒"))
+  ("din"    . ("⫙"))
 
   ;; Corners, ceilings and floors.
 
