@@ -7,6 +7,7 @@ module Agda.TypeChecking.Patterns.Abstract where
 import Control.Monad.Except
 
 import qualified Data.List as List
+import Data.Functor
 import Data.Void
 
 import qualified Agda.Syntax.Abstract as A
@@ -19,6 +20,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Warnings (raiseWarningsOnUsage)
 
 import Agda.Utils.Impossible
@@ -88,6 +90,11 @@ expandPatternSynonyms' = postTraverseAPatternM $ \case
     -- synonyms could get into dot patterns (which is __IMPOSSIBLE__).
     p <- expandPatternSynonyms' (vacuous p :: A.Pattern' e)
 
+    reportSDoc "scope.patsyn" 80 $ vcat
+      [ "calling insertImplicitPatSynArgs"
+      , "- patsyn parameters: " <+> (text . show) (killRange ns)
+      , "- patsyn arguments:  " <+> (text . show) (fmap (fmap void) as)
+      ]
     case A.insertImplicitPatSynArgs (A.WildP . PatRange) (getRange x) ns as of
       Nothing       -> typeError $ BadArgumentsToPatternSynonym x
       Just (_, _:_) -> typeError $ TooFewArgumentsToPatternSynonym x
