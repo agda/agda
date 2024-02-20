@@ -1,7 +1,7 @@
 ;;; agda2-mode.el --- Major mode for Agda       -*- lexical-binding: t; -*-
 
 ;; Version: 2.6.3
-;; Package-Requires: ((emacs "25.1") (annotation "1.0") (eri "1.0"))
+;; Package-Requires: ((emacs "25.1") (xref "1.0.2"))
 ;; Keywords: languages
 ;; URL: https://github.com/agda/agda/tree/master/src/data/emacs-mode
 ;; SPDX-License-Identifier: MIT License
@@ -32,12 +32,12 @@ Note that the same version of the Agda executable must be used.")
 (require 'compile)
 (require 'time-date)
 (require 'eri)
-(require 'annotation)
 (require 'fontset)
 (require 'agda-input)
 (require 'agda2)
 (require 'agda2-highlight)
 (require 'agda2-abbrevs)
+(require 'xref)
 
 ;; Load filladapt, if it is installed.
 (require 'filladapt nil :noerror)
@@ -186,7 +186,6 @@ constituents.")
     (define-key m (kbd "C-c C-z") #'agda2-search-about-toplevel)
     (define-key m (kbd "C-c C-o") #'agda2-module-contents-maybe-toplevel)
     (define-key m (kbd "C-c C-n") #'agda2-compute-normalised-maybe-toplevel)
-    (define-key m (kbd "TAB")             #'eri-indent)
     (define-key m (kbd "S-<iso-lefttab>") #'eri-indent-reverse)
     (define-key m (kbd "S-<lefttab>")     #'eri-indent-reverse)
     (define-key m (kbd "S-<tab>")         #'eri-indent-reverse)
@@ -219,6 +218,29 @@ constituents.")
     (define-key m (kbd "C-c C-;")         #'agda2-goal-and-context-and-checked)
     m)
   "Bindings for `agda2-mode'.")
+
+(defvar agda2-repeat-map
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "C-f")   #'agda2-next-goal)
+    (define-key m (kbd "C-b")   #'agda2-previous-goal)
+    (define-key m (kbd "C-SPC") #'agda2-give)
+    (define-key m (kbd "C-r")   #'agda2-refine)
+    (define-key m (kbd "C-c")   #'agda2-make-case)
+    (define-key m (kbd "C-,")   #'agda2-goal-and-context)
+    (define-key m (kbd "C-.")   #'agda2-goal-and-context-and-inferred)
+    (define-key m (kbd "C-;")   #'agda2-goal-and-context-and-checked)
+    m)
+  "Agda bindings to repeat in conjunction with `repeat-mode'.")
+
+(dolist (command '(agda2-next-goal
+                   agda2-previous-goal
+                   agda2-give
+                   agda2-refine
+                   agda2-make-case
+                   agda2-goal-and-context
+                   agda2-goal-and-context-and-inferred
+                   agda2-goal-and-context-and-checked))
+  (put command 'repeat-map 'agda2-movement-repeat-map))
 
 (defvar agda2-common-menu-items
   '(["Solve constraints" agda2-solve-maybe-all]
@@ -339,17 +361,6 @@ Note that this variable is not buffer-local.")
 (define-derived-mode agda2-mode prog-mode "Agda"
   "Major mode for Agda files.
 
-The following paragraph does not apply to Emacs 23 or newer.
-
-  Note that when this mode is activated the default font of the
-  current frame is changed to the fontset `agda2-fontset-name'.
-  The reason is that Agda programs often use mathematical symbols
-  and other Unicode characters, so we try to provide a suitable
-  default font setting, which can display many of the characters
-  encountered.  If you prefer to use your own settings, set
-  `agda2-fontset-name' to nil.
-
-Special commands:
 \\{agda2-mode-map}"
 
  (if (boundp 'agda2-include-dirs)
@@ -394,7 +405,11 @@ agda2-include-dirs is not bound." :warning))
  ;; including "mode: latex" is loaded chances are that the Agda mode
  ;; is activated before the LaTeX mode, and the LaTeX mode does not
  ;; seem to remove the text properties set by the Agda mode.
- (add-hook 'change-major-mode-hook #'agda2-quit nil 'local))
+ (add-hook 'change-major-mode-hook #'agda2-quit nil 'local)
+ ;; Enable Xref
+ (add-hook 'xref-backend-functions #'agda2-xref-backend -90 t)
+ ;; Use ERI for indentation
+ (setq-local indent-line-function #'eri-indent))
 
 (defun agda2-restart ()
   "Try to start or restart the Agda process."
@@ -476,12 +491,11 @@ process."
     (agda2-restart)
     (unless (agda2-running-p)
       (agda2-raise-error)))
-  (let ((command (apply #'concat (agda2-intersperse " " args))))
-    (with-current-buffer agda2-process-buffer
-      (goto-char (point-max))
-      (insert command)
-      (insert "\n")
-      (process-send-string agda2-process (concat command "\n")))))
+  (with-current-buffer agda2-process-buffer
+    (goto-char (point-max))
+    (let ((point (point)))
+      (insert (mapconcat #'identity args " ") "\n")
+      (process-send-region agda2-process point (point-max)))))
 
 (defun agda2-go (save highlight how-busy do-abort &rest args)
   "Execute commands in the Agda2 interpreter.
@@ -516,7 +530,7 @@ is non-nil and the Agda process is `busy'."
 
   (when (and do-abort
              (eq agda2-in-progress 'busy))
-    (error "Agda is busy with something
+    (error "Agda is busy with something \
 \(you have the option to abort or restart Agda)"))
 
   (setq agda2-file-buffer (current-buffer))
@@ -553,14 +567,6 @@ May be more efficient than restarting Agda."
                       "None"
                       "Indirect"
                       "Cmd_abort"))
-
-(defun agda2-abort-done ()
-  "Reset certain variables.
-Intended to be used by the backend if an abort command was
-successful."
-  (agda2-info-action "*Aborted*" "Aborted." t)
-  (setq agda2-highlight-in-progress nil
-        agda2-last-responses        nil))
 
 (defun agda2-output-filter (_proc chunk)
   "Evaluate the Agda partial output CHUNK.
@@ -707,16 +713,42 @@ command is sent to Agda (if it is sent)."
              (if input-from-goal (agda2-goal-Range o) (agda2-mkRange nil))
              (agda2-string-quote txt) args))))
 
-;; Note that the following function is a security risk, since it
-;; evaluates code without first inspecting it. The code (supposedly)
-;; comes from the Agda backend, but there could be bugs in the backend
-;; which can be exploited by an attacker which manages to trick
-;; someone into type-checking compromised Agda code.
-
 (defun agda2-exec-response (response)
-  "Execute RESPONSE with `inhibit-read-only' enabled."
-  (let ((inhibit-read-only t))
-    (eval response)))
+  "Execute RESPONSE if recognised by `agda2-handler-alist'."
+  (cl-assert (symbolp (car-safe response)))
+  ;; We check the symbol property `agda2-safe-function' for the
+  ;; function being called, instead of just calling `eval'.  This is
+  ;; done to avoid the possible security risks of evaluating foreign
+  ;; code.  The arguments are likewise not evaluated, just unquoted
+  ;; and checked if they satisfy the expected types.
+  (let* ((inhibit-read-only t)
+         (func (car response))
+         (safe-p (plist-member (symbol-plist func) 'agda2-safe-function))
+         (safe-data (get func 'agda2-safe-function))
+         args)
+    (unless safe-p
+      (error "The function `%S' is not a valid Agda command" func))
+    ;; Check each argument
+    (dolist (arg (cdr response))
+      (when (null safe-data)
+        (error "More arguments than expected"))
+      (when (eq (car-safe arg) 'quote) ;unquote arguments
+        (setq arg(cadr arg)))
+      (let ((type (pop safe-data)))
+        (unless (cl-typep arg type)
+          (error "The function `%S' was invoked with %S which is not a %S"
+                 func arg type)))
+      (push arg args))
+    (apply func (nreverse args))))
+
+(defun agda2-abort-done ()
+  "Reset certain variables.
+Intended to be used by the backend if an abort command was
+successful."
+  (declare (agda2-command))
+  (agda2-info-action "*Aborted*" "Aborted." t)
+  (setq agda2-highlight-in-progress nil
+        agda2-last-responses        nil))
 
 ;;;; User commands and response processing
 
@@ -785,11 +817,15 @@ The action depends on the prefix argument:
 (defun agda2-give-action (old-g paren)
   "Update the goal OLD-G with the expression in it.
 See `agda2-update' for details on PAREN."
+  (declare (agda2-command integer (or (eql paren)
+                                  (eql no-paren)
+                                  string
+                                  null)))
   (let
-     ;; Don't run modification hooks: we don't want this to
+      ;; Don't run modification hooks: we don't want this to
       ;; trigger agda2-abort-highlighting.
       ((inhibit-modification-hooks t))
-  (agda2-update old-g paren)))
+    (agda2-update old-g paren)))
 
 (defun agda2-refine (pmlambda)
   "Refine the goal at point.
@@ -818,6 +854,7 @@ Assumes that <clause> = {!<variables>!} is on one line."
 
 (defun agda2-make-case-action (newcls)
   "Replace the line at point with new clauses NEWCLS and reload."
+  (declare (agda2-command list))
   (agda2-forget-all-goals);; we reload later anyway.
   (let* ((p0 (point))
          (p1 (goto-char (+ (current-indentation) (line-beginning-position))))
@@ -832,6 +869,7 @@ Assumes that <clause> = {!<variables>!} is on one line."
 
 (defun agda2-make-case-action-extendlam (newcls)
   "Replace definition of extended lambda with new clauses NEWCLS and reload."
+  (declare (agda2-command list))
   (agda2-forget-all-goals);; we reload later anyway.
   (let* ((p0 (point))
          (pmax (re-search-forward "!}"))
@@ -859,6 +897,7 @@ Assumes that <clause> = {!<variables>!} is on one line."
   "Display the string STATUS in the current buffer's mode line.
 \(precondition: the current buffer has to use the Agda mode as the
 major mode)."
+  (declare (agda2-command string))
   (setq agda2-buffer-external-status status)
   (force-mode-line-update))
 
@@ -909,6 +948,7 @@ buffer, and point placed after this text.
 
 If APPEND is nil, then any previous text is removed before TEXT
 is inserted, and point is placed before this text."
+  (declare (agda2-command string string boolean))
   (interactive)
   (let ((buf (agda2-info-buffer)))
     (with-current-buffer buf
@@ -981,6 +1021,7 @@ is inserted, and point is placed before this text."
 (defun agda2-info-action-and-copy (name text &optional append)
   "Add TEXT to kill ring before invoking `agda2-info-action'.
 For NAME, TEXT and APPEND see `agda2-info-action'."
+  (declare (agda2-command string string t))
   (kill-new text)
   (agda2-info-action name text append))
 
@@ -1350,6 +1391,7 @@ Either only one if point is a goal, or all of them."
   "Call `agda2-solve-action' on every pair of the the plist ISS.
 The key of the plist is a goal, and the value is a string that
 ought to be inserted."
+  (declare (agda2-command list))
   (while iss
     (let* ((g (pop iss)) (txt (pop iss))
            (cmd (cons #'agda2-solve-action (cons g (cons txt nil)))))
@@ -1443,6 +1485,7 @@ which they appear in the buffer.  Note that this function should
 be run /after/ syntax highlighting information has been loaded,
 because the two highlighting mechanisms interact in unfortunate
 ways."
+  (declare (agda2-command list))
   (agda2-forget-all-goals)
   (let ((literate (agda2-literate-p))
         ;; Don't run modification hooks: we don't want this function to
@@ -1721,6 +1764,7 @@ To do: dealing with semicolon separated decls."
   "Append the string MSG to the `agda2-debug-buffer-name' buffer.
 Note that this buffer's contents is not erased automatically when
 a file is loaded."
+  (declare (agda2-command string))
   (with-current-buffer (get-buffer-create agda2-debug-buffer-name)
     (save-excursion
       (goto-char (point-max))
@@ -1783,32 +1827,73 @@ command might save the buffer."
               (agda2-string-quote (buffer-file-name))
               "Keep")))
 
-;;;; Go to definition site
+;;;; Xref inregration
 
-(defun agda2-goto-definition-keyboard (&optional other-window)
-  "Go to the definition site of the name under point (if any).
-If this function is invoked with a prefix argument, or
-OTHER-WINDOW is non-nil, then another window is used to display
-the given position."
-  (interactive "P")
-  (annotation-goto-indirect (point) other-window))
+(defun agda2-xref-backend ()
+  "Return an Xref backend."
+  'agda2)
 
-(defun agda2-goto-definition-mouse (ev)
-  "Go to the definition site of the name clicked on, if any.
-Otherwise, yank (see `mouse-yank-primary').
-EV is the event object describing the click."
-  (interactive "e")
-  (unless (annotation-goto-indirect ev)
-    ;; FIXME: Shouldn't we use something like
-    ;; (call-interactively (key-binding ev))?  --Stef
-    (mouse-yank-primary ev)))
+(cl-defmethod xref-backend-identifier-at-point ((_ (eql 'agda2)))
+  "Return the symbol at point with text properties."
+  (and (get-text-property (point) 'agda2-xref-info)
+       (save-excursion
+         (let ((initial (point)) start end)
+           (goto-char (previous-single-property-change
+                       (point) 'agda2-xref-info))
+           (goto-char (setq start (next-single-property-change
+                                   (point) 'agda2-xref-info)))
+           (if (< initial start)
+               (setq start initial end (point)) ;swap
+             (goto-char (setq end (next-single-property-change
+                                   (point) 'agda2-xref-info))))
+           (and (<= start initial (1- end))
+                (buffer-substring start end))))))
 
-(defun agda2-go-back nil
-  "Return to the previous position before a jump.
-This `agda2-goto-definition-keyboard' or `agda2-goto-definition-mouse' was
-invoked."
-  (interactive)
-  (annotation-go-back))
+(defvar agda2-last-xref-ict (make-hash-table :test 'equal)
+  "Cached table of unambiguous identifiers and their locations.")
+
+(cl-defmethod xref-backend-identifier-completion-table ((_ (eql 'agda2)))
+  "Generate a list of possible candidates."
+  (save-excursion
+    (let ((idents (make-hash-table)) start end)
+      (goto-char (point-min))
+      (catch 'done
+        (while t
+          (setq start (next-single-property-change
+                       (point) 'agda2-xref-info))
+          (goto-char (or start (throw 'done t)))
+          (cl-assert (get-text-property (point) 'agda2-xref-info))
+          (setq end (next-single-property-change
+                     (point) 'agda2-xref-info))
+          (goto-char (or end (throw 'done t)))
+          (cl-assert (null (get-text-property (point) 'agda2-xref-info)))
+          (when (< start end)
+            (push (get-text-property (1- (point)) 'agda2-xref-info)
+                  (gethash (buffer-substring-no-properties start end)
+                           idents)))))
+      (clrhash agda2-last-xref-ict)
+      (maphash
+       (lambda (ident refs)
+         (when (and (car refs) (null (cadr refs))) ;(length= refs 1q)
+           (puthash ident (car refs) agda2-last-xref-ict)))
+       idents)
+      agda2-last-xref-ict)))
+
+(cl-defmethod xref-backend-definitions ((_ (eql 'agda2)) ident)
+  "Generate a list of definitions for identifier IDENT."
+  (let ((xref-info (or (get-text-property 0 'agda2-xref-info ident)
+                       (gethash ident agda2-last-xref-ict))))
+    (and xref-info
+         (let ((loc (xref-make-buffer-location
+                     (find-file-noselect (car xref-info))
+                     (cdr xref-info))))
+           (list (xref-make ident loc))))))
+
+;; (cl-defmethod xref-backend-references ((_ (eql 'agda2)) identifier)
+;;   "Generate a list of references for IDENTIFIER.")
+
+;; (cl-defmethod xref-backend-apropos ((_ (eql 'agda2)) pattern)
+;;   "Generate a list of definitions matching PATTERN.")
 
 (defun agda2-maybe-goto (filepos)
   "Might move point to the given error.
@@ -1821,23 +1906,14 @@ FILE (assuming that the FILE is readable).  Otherwise point is
 moved to the given position in the buffer visiting the file, if
 any, and in every window displaying the buffer, but the window
 configuration and the selected window are not changed."
+  (declare (agda2-command cons))
   (when (and agda2-highlight-in-progress
              (consp filepos)
              (stringp (car filepos))
              (integerp (cdr filepos)))
-    (if agda2-in-agda2-file-buffer
-        (annotation-goto-and-push (current-buffer) (point) filepos)
-      (save-excursion
-        (let ((buffer (find-buffer-visiting (car filepos))))
-          (when buffer
-            (let ((windows (get-buffer-window-list buffer
-                                                   'no-minibuffer t)))
-              (if windows
-                  (dolist (window windows)
-                    (with-selected-window window
-                      (goto-char (cdr filepos))))
-                (with-current-buffer buffer
-                  (goto-char (cdr filepos)))))))))))
+    (xref-push-marker-stack)
+    (set-buffer (find-file-noselect (car filepos)))
+    (goto-char (cdr filepos))))
 
 ;;;; Implicit arguments
 
@@ -1963,7 +2039,6 @@ An attempt is made to preserve the default value of
     (unload-feature 'agda2-mode      'force)
     (unload-feature 'agda2           'force)
     (unload-feature 'eri             'force)
-    (unload-feature 'annotation      'force)
     (unload-feature 'agda-input      'force)
     (unload-feature 'agda2-highlight 'force)
     (unload-feature 'agda2-abbrevs   'force)

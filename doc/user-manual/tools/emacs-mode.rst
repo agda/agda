@@ -270,11 +270,19 @@ Other commands
 :guilabel:`Middle mouse button`
      Go to definition of identifier clicked on
 
-:kbd:`M-*`
-     Go back (Emacs < 25.1)
+:kbd:`C-u M-.`
+     Go to definition of a prompted identifier
+
+:kbd:`M-?`
+     Query a list of references in loaded files
+
+:kbd:`C-M-.`
+     Query a list of identifiers that match a prompt.  The prompt may
+     consist of multiple words that can occur in any order or a
+     regular expression.
 
 :kbd:`M-,`
-     Go back (Emacs ≥ 25.1)
+     Go back to previous location
 
 .. _unicode-input:
 
