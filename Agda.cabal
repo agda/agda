@@ -578,6 +578,7 @@ library
       Agda.Syntax.Notation
       Agda.Syntax.Parser.Alex
       Agda.Syntax.Parser.Comments
+      Agda.Syntax.Parser.Helpers
       Agda.Syntax.Parser.Layout
       Agda.Syntax.Parser.LexActions
       Agda.Syntax.Parser.Lexer
@@ -914,7 +915,6 @@ test-suite agda-tests
       Internal.Syntax.Concrete.Name
       Internal.Syntax.Internal
       Internal.Syntax.Internal.Univ
-      Internal.Syntax.Parser.Parser
       Internal.Syntax.Position
       Internal.Termination.CallGraph
       Internal.Termination.CallMatrix
