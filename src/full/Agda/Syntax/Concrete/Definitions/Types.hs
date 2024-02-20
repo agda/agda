@@ -79,7 +79,7 @@ data NiceDeclaration
   | NiceLoneConstructor Range [NiceConstructor]
   | NiceRecDef Range Origin IsAbstract PositivityCheck UniverseCheck Name RecordDirectives [LamBinding] [Declaration]
       -- ^ @(Maybe Range)@ gives range of the 'pattern' declaration.
-  | NicePatternSyn Range Access Name [Arg Name] Pattern
+  | NicePatternSyn Range Access Name [WithHiding Name] Pattern
   | NiceGeneralize Range Access ArgInfo TacticAttribute Name Expr
   | NiceUnquoteDecl Range Access IsAbstract IsInstance TerminationCheck CoverageCheck [Name] Expr
   | NiceUnquoteDef Range Access IsAbstract TerminationCheck CoverageCheck [Name] Expr

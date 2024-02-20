@@ -1,0 +1,6 @@
+Issue7136c.agda:6,14-14
+Issue7136c.agda:6,14: Illegal pattern synonym argument  x
+(Arguments to pattern synonyms must be relevant.)
+=<ERROR>
+ suc x
+-- Should be rejected: ...

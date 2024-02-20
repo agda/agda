@@ -1366,7 +1366,7 @@ PatternSyn : 'pattern' Id PatternSynArgs '=' Expr {% do
   return (PatternSyn (getRange ($1,$2,$3,$4,$5)) $2 $3 p)
   }
 
-PatternSynArgs :: { [Arg Name] }
+PatternSynArgs :: { [WithHiding Name] }
 PatternSynArgs : DomainFreeBindings    {% patternSynArgs $1 }
 
 -- The list should be reversed.
@@ -2365,21 +2365,60 @@ maybeNamed e =
         -- Underscore{}    -> succeed $ "_"
         _ -> parseErrorRange e $ "Not a valid named argument: " ++ prettyShow e
 
-patternSynArgs :: [NamedArg Binder] -> Parser [Arg Name]
-patternSynArgs = mapM pSynArg
-  where
-    pSynArg x
-      | let h = getHiding x, h `notElem` [Hidden, NotHidden] =
-          abort $ prettyShow h ++ " arguments not allowed to pattern synonyms"
-      | not (isRelevant x) =
-          abort "Arguments to pattern synonyms must be relevant"
-      | Just p <- binderPattern (namedArg x) =
-          abort "Arguments to pattern synonyms cannot be patterns themselves"
-      | otherwise = return $ fmap (boundName . binderName . namedThing) x
-      where
-      abort s = parseError $
-        "Illegal pattern synonym argument  " ++ prettyShow x ++ "\n" ++
-        "(" ++ s ++ ".)"
+-- Andreas, 2024-02-20, issue #7136:
+-- The following function has been rewritten to a defensive pattern matching style
+-- to be robust against future parser changes.
+patternSynArgs :: [NamedArg Binder] -> Parser [WithHiding Name]
+patternSynArgs = mapM \ x -> do
+  let
+    abort s = parseError $
+      "Illegal pattern synonym argument  " ++ prettyShow x ++ "\n" ++
+      "(" ++ s ++ ".)"
+    noAnn s = s ++ " annotations not allowed in pattern synonym arguments"
+
+  case x of
+
+    -- Invariant: fixity is not used here, and neither finiteness
+    Arg ai (Named mn (Binder mp (BName n fix mtac fin)))
+      | not $ null fix -> __IMPOSSIBLE__
+      | fin            -> __IMPOSSIBLE__
+
+    -- Benign case:
+    Arg ai (Named Nothing (Binder Nothing (BName n _ Nothing _))) -> do
+      case ai of
+
+        -- Benign case:
+        ArgInfo h (Modality Relevant (Quantityω _) Continuous) UserWritten UnknownFVs (Annotation IsNotLock)
+          | h `elem` [Hidden, NotHidden] ->
+              return $ WithHiding h n
+          | otherwise ->
+              abort "Instance arguments not allowed to pattern synonyms"
+
+        -- Error cases:
+        ArgInfo _ _ _ _ (Annotation (IsLock _)) ->
+          abort $ noAnn "Lock"
+
+        ArgInfo h (Modality r q c) _ _ _
+          | not (isRelevant r) ->
+              abort "Arguments to pattern synonyms must be relevant"
+          | not (isQuantityω q) ->
+              abort $ noAnn "Quantity"
+          | c /= Continuous ->
+              abort $ noAnn "Cohesion"
+
+        -- Invariant: origin and fvs not used.
+        ArgInfo _ _ _ (KnownFVs _) _ -> __IMPOSSIBLE__
+        ArgInfo _ _ o _ _ | o /= UserWritten -> __IMPOSSIBLE__
+
+        ArgInfo _ _ _ _ _ -> __IMPOSSIBLE__
+
+    -- Error cases:
+    Arg _ (Named (Just _) _) ->
+      abort "Arguments to pattern synonyms cannot be named"
+    Arg _ (Named _ (Binder (Just _) _)) ->
+      abort "Arguments to pattern synonyms cannot be patterns themselves"
+    Arg _ (Named _ (Binder _ (BName _ _ (Just _) _))) ->
+      abort $ noAnn "Tactic"
 
 mkLamClause
   :: Bool   -- ^ Catch-all?

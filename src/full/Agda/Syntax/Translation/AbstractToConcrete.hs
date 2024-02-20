@@ -1824,11 +1824,13 @@ tryToRecoverPatternSynP :: A.Pattern -> AbsToCon C.Pattern -> AbsToCon C.Pattern
 tryToRecoverPatternSynP = recoverPatternSyn apply matchPatternSynP
   where apply c args = PatternSynP patNoRange (unambiguous c) args
 
--- | General pattern synonym recovery parameterised over expression type
-recoverPatternSyn :: ToConcrete a =>
-  (A.QName -> [NamedArg a] -> a)         -> -- applySyn
-  (PatternSynDefn -> a -> Maybe [Arg a]) -> -- match
-  a -> AbsToCon (ConOfAbs a) -> AbsToCon (ConOfAbs a)
+-- | General pattern synonym recovery parameterised over expression type.
+recoverPatternSyn :: forall a. ToConcrete a
+  => (A.QName -> [NamedArg a] -> a)                 -- applySyn
+  -> (PatternSynDefn -> a -> Maybe [WithHiding a])  -- match
+  -> a                                              -- expressions
+  -> AbsToCon (ConOfAbs a)                          -- fallback
+  -> AbsToCon (ConOfAbs a)
 recoverPatternSyn applySyn match e fallback = do
   doFold <- asks foldPatternSynonyms
   if not doFold then fallback else do
@@ -1855,8 +1857,9 @@ recoverPatternSyn applySyn match e fallback = do
       , prettyList_ $ map (\ (q,_,_) -> q) cands
       ]
     case sortBy cmp cands of
-      (q, args, _) : _ -> toConcrete $ applySyn q $ (map . fmap) unnamed args
-      []               -> fallback
+      (q, args, _) : _ -> toConcrete $ applySyn q $
+        for args $ \ (WithHiding h arg) -> setHiding h $ defaultNamedArg arg
+      [] -> fallback
   where
     -- Heuristic to pick the best pattern synonym: the one that folds the most
     -- constructors.
