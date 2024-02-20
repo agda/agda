@@ -180,7 +180,7 @@ data Declaration
       -- ^ The 'Type' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Dummy@,
       --   and the optional name is the constructor's name.
       --   The optional 'Range' is for the @pattern@ attribute.
-  | PatternSynDef QName [Arg BindName] (Pattern' Void)
+  | PatternSynDef QName [WithHiding BindName] (Pattern' Void)
       -- ^ Only for highlighting purposes
   | UnquoteDecl MutualInfo [DefInfo] [QName] Expr
   | UnquoteDef  [DefInfo] [QName] Expr
@@ -1011,7 +1011,7 @@ patternToExpr = \case
   WithP r p          -> __IMPOSSIBLE__
   AnnP _ _ p         -> patternToExpr p
 
-type PatternSynDefn = ([Arg Name], Pattern' Void)
+type PatternSynDefn = ([WithHiding Name], Pattern' Void)
 type PatternSynDefns = Map QName PatternSynDefn
 
 lambdaLiftExpr :: [Name] -> Expr -> Expr
@@ -1083,30 +1083,45 @@ instance SubstExpr Expr where
 
 -- TODO: more informative failure
 insertImplicitPatSynArgs
-  :: HasRange a
+  :: forall a. HasRange a
   => (Range -> a)
+       -- ^ Thing to insert (wildcard).
   -> Range
-  -> [Arg Name]
+       -- ^ Range of the whole pattern synonym expression/pattern.
+  -> [WithHiding Name]
+       -- ^ The parameters of the pattern synonym (from its definition).
   -> [NamedArg a]
-  -> Maybe ([(Name, a)], [Arg Name])
+       -- ^ The arguments it is used with.
+  -> Maybe ([(Name, a)], [WithHiding Name])
+       -- ^ Substitution and left-over parameters.
 insertImplicitPatSynArgs wild r ns as = matchArgs r ns as
   where
+    matchNextArg :: Range -> WithHiding Name -> [NamedArg a] -> Maybe (a, [NamedArg a])
     matchNextArg r n as@(~(a : as'))
-      | matchNext n as = return (namedArg a, as')
+      | not (null as)
+      , matchNext n a  = return (namedArg a, as')
       | visible n      = Nothing
       | otherwise      = return (wild r, as)
 
-    matchNext _ [] = False
-    matchNext n (a:as) = sameHiding n a && maybe True (x ==) (bareNameOf a)
+    matchNext ::
+         WithHiding Name  -- Pattern synonym parameter
+      -> NamedArg a       -- Argument given to pattern synonym
+      -> Bool
+    matchNext n a = sameHiding n a && maybe True (x ==) (bareNameOf a)
       where
-        x = C.nameToRawName $ nameConcrete $ unArg n
+        x = C.nameToRawName $ nameConcrete $ whThing n
 
+    matchArgs ::
+         Range
+      -> [WithHiding Name]
+      -> [NamedArg a]
+      -> Maybe ([(Name, a)], [WithHiding Name])
     matchArgs r [] []     = return ([], [])
     matchArgs r [] as     = Nothing
     matchArgs r (n:ns) [] | visible n = return ([], n : ns)    -- under-applied
     matchArgs r (n:ns) as = do
       (p, as) <- matchNextArg r n as
-      first ((unArg n, p) :) <$> matchArgs (getRange p) ns as
+      first ((whThing n, p) :) <$> matchArgs (getRange p) ns as
 
 ------------------------------------------------------------------------
 -- Declaration spines

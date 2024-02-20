@@ -2088,7 +2088,7 @@ instance ToAbstract NiceDeclaration where
          let err = "Dot or equality patterns are not allowed in pattern synonyms. Maybe use '_' instead."
          p <- noDotorEqPattern err p
          as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
-         unlessNull (patternVars p List.\\ map unArg as) $ \ xs -> do
+         unlessNull (patternVars p List.\\ map whThing as) $ \ xs -> do
            typeError $ UnboundVariablesInPatternSynonym xs
          return (as, p)
       y <- freshAbstractQName' n

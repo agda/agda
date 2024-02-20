@@ -152,7 +152,7 @@ checkApplication cmp hd args e t =
         Nothing      -> typeError $ BadArgumentsToPatternSynonym n
         Just (s, ns) -> do
           let p' = A.patternToExpr p
-              e' = A.lambdaLiftExpr (map unArg ns) (A.substExpr s p')
+              e' = A.lambdaLiftExpr (map whThing ns) (A.substExpr s p')
           checkExpr' cmp e' t
 
     -- Subcase: macro

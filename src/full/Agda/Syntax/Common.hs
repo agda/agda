@@ -993,6 +993,11 @@ instance NFData Quantity where
   rnf (Quantity1 o) = rnf o
   rnf (Quantityω o) = rnf o
 
+isQuantityω :: LensQuantity a => a -> Bool
+isQuantityω a = case getQuantity a of
+  Quantityω{} -> True
+  _ -> False
+
 -- ** Erased.
 
 -- | A special case of 'Quantity': erased or not.
@@ -1409,6 +1414,9 @@ instance LensCohesion Cohesion where
   getCohesion = id
   setCohesion = const
   mapCohesion = id
+
+isContinuous :: LensCohesion a => a -> Bool
+isContinuous = (Continuous ==) . getCohesion
 
 -- | Information ordering.
 -- @Flat  \`moreCohesion\`
@@ -2046,6 +2054,7 @@ setNameOf = set lensNamed
 
 mapNameOf :: LensNamed a => (Maybe (NameOf a) -> Maybe (NameOf a)) -> a -> a
 mapNameOf = over lensNamed
+
 bareNameOf :: (LensNamed a, NameOf a ~ NamedName) => a -> Maybe ArgName
 bareNameOf a = rangedThing . woThing <$> getNameOf a
 

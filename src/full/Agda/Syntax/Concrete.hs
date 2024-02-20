@@ -478,7 +478,7 @@ data Declaration
   | RecordDirective RecordDirective -- ^ Should not survive beyond the parser
   | Infix Fixity (List1 Name)
   | Syntax      Name Notation -- ^ notation declaration for a name
-  | PatternSyn  Range Name [Arg Name] Pattern
+  | PatternSyn  Range Name [WithHiding Name] Pattern
   | Mutual      Range [Declaration]  -- @Range@ of the whole @mutual@ block.
   | InterleavedMutual Range [Declaration]
   | Abstract    Range [Declaration]
