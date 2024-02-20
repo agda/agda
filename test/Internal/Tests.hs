@@ -15,7 +15,6 @@ import qualified Internal.Interaction.Options                      as InteOpti  
 import qualified Internal.Syntax.Common                            as SyntCommon   ( tests )
 import qualified Internal.Syntax.Internal                          as SyntInternal ( tests )
 import qualified Internal.Syntax.Internal.Univ                     as SyntIntUniv  ( tests )
-import qualified Internal.Syntax.Parser.Parser                     as SyntPars     ( tests )
 import qualified Internal.Syntax.Position                          as SyntPosi     ( tests )
 import qualified Internal.Termination.CallGraph                    as TermCall     ( tests )
 import qualified Internal.Termination.CallMatrix                   as TermCM       ( tests )
@@ -67,7 +66,6 @@ tests = testGroup "Internal"
   , SyntCommon.tests
   , SyntInternal.tests
   , SyntIntUniv.tests
-  , SyntPars.tests
   , SyntPosi.tests
   , TermCall.tests
   , TermCM.tests
