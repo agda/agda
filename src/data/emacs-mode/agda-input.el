@@ -1433,5 +1433,29 @@ Suitable for use in the :set field of `defcustom'."
 
 (agda-input-setup)
 
+;; Fix unintentional resizing of minibuffer:
+
+(defun agda-input--fix-quail-newline (arglist)
+  "Argument-filtering advice for `quail-minibuffer-message'.
+This function takes the argument list ARGLIST before it is
+applied to `quail-minibuffer-message', and makes sure the first
+and only argument has no newline.  This only has an effect if the
+Agda input method is active."
+  (if (equal current-input-method "Agda")
+      (list (replace-regexp-in-string "\n" " " (car arglist)))
+    arglist))
+
+(defcustom agda-input-single-line nil
+  "Avoid the Agda input method from resizing the minibuffer."
+  :set (lambda (var val)
+         (if val
+             (advice-add 'quail-minibuffer-message :filter-args
+                         #'agda-input--fix-quail-newline)
+           (advice-remove 'quail-minibuffer-message
+                          #'agda-input--fix-quail-newline))
+         (custom-set-default var val))
+  :initialize #'custom-initialize-set
+  :type 'boolean)
+
 (provide 'agda-input)
 ;;; agda-input.el ends here
