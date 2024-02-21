@@ -618,9 +618,9 @@ reloaded from `agda2-highlighting-file', unless
                   ;; . DIGIT) . COMMAND), where DIGIT indicates the
                   ;; priority in which COMMAND will be executed by
                   ;; `agda2-run-last-commands'.
-                  (if (eq 'last (car-safe (car cmd)))
-                      (push (cons (cdar cmd) (cdr cmd)) agda2-last-responses)
-                    (with-current-buffer agda2-file-buffer
+                  (with-current-buffer agda2-file-buffer
+                    (if (eq 'last (car-safe (car cmd)))
+                        (push (cons (cdar cmd) (cdr cmd)) agda2-last-responses)
                       (agda2-exec-response cmd)))
                   ;; Remove highlighting commands from the process
                   ;; buffer, the rest is kept for later inspection.
