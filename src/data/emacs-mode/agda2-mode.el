@@ -599,34 +599,40 @@ reloaded from `agda2-highlighting-file', unless
     (with-current-buffer agda2-process-buffer
       (goto-char (point-max))           ;append to the end
       (save-excursion (insert chunk))
+      (goto-char (line-beginning-position))
       (while (not (eobp))               ;continue until last line
         (unless (looking-at (concat "^" agda2-output-prompt))
-          (condition-case nil
-              ;; We attempt to read an s-expression in the current
-              ;; buffer at point, which might raise an error if the
-              ;; contents are malformed.  We catch that case using
-              ;; `condition-case' and skip any further parsing of the
-              ;; output.
-              (let* ((start (point)) (cmd (read (current-buffer))))
-                ;; We have to distinguish between commands that are
-                ;; to be evaluated immediately, and those tagged to
-                ;; be executed later.  These have the form ((last
-                ;; . DIGIT) . COMMAND), where DIGIT indicates the
-                ;; priority in which COMMAND will be executed by
-                ;; `agda2-run-last-commands'.
-                (if (eq 'last (car-safe (car cmd)))
-                    (push (cons (cdar cmd) (cdr cmd)) agda2-last-responses)
-                  (with-current-buffer agda2-file-buffer
-                    (agda2-exec-response cmd)))
-                ;; Remove highlighting commands from the process
-                ;; buffer, the rest is kept for later inspection.
-                (when (and cmd (symbolp (car cmd))
-                           (string-match-p
-                            "\\`agda2-highlight-"
-                            (symbol-name (car cmd))))
-                  (skip-chars-forward "\t\n\r\s")
-                  (delete-region start (point))))
-            (invalid-read-syntax nil)))
+          (let ((start (point)))
+            (condition-case nil
+                ;; We attempt to read an s-expression in the current
+                ;; buffer at point, which might raise an error if the
+                ;; contents are malformed.  We catch that case using
+                ;; `condition-case' and skip any further parsing of the
+                ;; output.
+                (let ((cmd (read (current-buffer))))
+                  (unless (consp cmd)
+                    (signal 'agda2-malformed-command nil))
+                  ;; We have to distinguish between commands that are
+                  ;; to be evaluated immediately, and those tagged to
+                  ;; be executed later.  These have the form ((last
+                  ;; . DIGIT) . COMMAND), where DIGIT indicates the
+                  ;; priority in which COMMAND will be executed by
+                  ;; `agda2-run-last-commands'.
+                  (if (eq 'last (car-safe (car cmd)))
+                      (push (cons (cdar cmd) (cdr cmd)) agda2-last-responses)
+                    (with-current-buffer agda2-file-buffer
+                      (agda2-exec-response cmd)))
+                  ;; Remove highlighting commands from the process
+                  ;; buffer, the rest is kept for later inspection.
+                  (when (and cmd (symbolp (car cmd))
+                             (string-match-p
+                              "\\`agda2-highlight-"
+                              (symbol-name (car cmd))))
+                    (skip-chars-forward "\t\n\r\s")
+                    (delete-region start (point))))
+              (invalid-read-syntax (goto-char start))
+              (end-of-file (goto-char start))
+              (agda2-malformed-command (goto-char start)))))
         (forward-line))
 
       (setq agda2-in-progress nil)      ;unset any "busy" flag
