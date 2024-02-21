@@ -152,7 +152,7 @@ checkCandidateSatisfiability possiblyPreservingVar candidateVar graph bounds = d
   substitution <- withAnotherPreservationCandidate candidateVar $ simplifySizeGraph bounds mappedGraph
   incoherences <- liftTCM $ collectIncoherentRigids substitution mappedGraph
   let allIncoherences = IntSet.union incoherences $ collectClusteringIssues candidateVar substitution mappedGraph bounds
-  reportSDoc "term.tbt" 70 $ "Incoherences during an attempt:" <+> text (show incoherences)
+  reportSDoc "term.tbt" 70 $ "Incoherences during an attempt:" <+> text (show allIncoherences)
   pure $ not $ IntSet.member candidateVar allIncoherences
 
 -- | Since any two clusters are unrelated, having a dependency between them indicates that something is wrong in the graph
@@ -163,7 +163,7 @@ collectClusteringIssues candidateVar subst ((SConstraint _ f t) : rest) bounds =
       (SEMeet s2) = subst IntMap.! t
       c1 = s1 List.!! candidateVar
       c2 = s2 List.!! candidateVar
-  in if (c1 /= -1 || c2 /= -1) && any (\(a, b) -> a == -1 && b /= -1 || a /= -1 && b == -1) (zip s1 s2)
+  in if (c1 /= -1 || c2 /= -1) && any (\(a, b) -> a == -1 && b /= -1) (zip s1 s2)
      then IntSet.insert candidateVar IntSet.empty
      else collectClusteringIssues candidateVar subst rest bounds
 
