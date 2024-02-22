@@ -371,8 +371,6 @@ recordExpressionsToCopatterns = \case
 --              -- go from level (i + n - 1) to index (subtract from |xs|-1)
 --              index             = length xs - (i + n)
 --          in  Done xs' $ applySubst (liftS (length xs2) $ us ++# raiseS 1) v
---          -- The body is NOT guarded by lambdas!
---          -- WRONG: underLambdas i (flip apply) (map defaultArg us) v
 --
 --        Fail -> Fail
 --
