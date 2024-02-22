@@ -711,6 +711,12 @@ instance ToConcrete a => ToConcrete (Ranged a)  where
     toConcrete = traverse toConcrete
     bindToConcrete (Ranged r x) ret = bindToConcrete x $ ret . Ranged r
 
+instance ToConcrete a => ToConcrete (Maybe a)  where
+    type ConOfAbs (Maybe a) = Maybe (ConOfAbs a)
+    toConcrete = traverse toConcrete
+    bindToConcrete (Just x) ret = bindToConcrete x $ ret . Just
+    bindToConcrete Nothing  ret = ret Nothing
+
 -- Names ------------------------------------------------------------------
 
 instance ToConcrete A.Name where
@@ -1134,18 +1140,9 @@ instance (ToConcrete p, ToConcrete a) => ToConcrete (RewriteEqn' qn A.BindName p
     Rewrite es    -> Rewrite <$> mapM (toConcrete . (\ (_, e) -> ((),e))) es
     Invert qn pes -> fmap (Invert ()) $ forM pes $ \ (Named n pe) -> do
       pe <- toConcrete pe
-      n  <- toConcrete n
+      n  <- fmap C.boundName <$> toConcrete n
       pure $ Named n pe
     LeftLet pes -> LeftLet <$> mapM toConcrete pes
-
-instance ToConcrete (Maybe A.BindName) where
-  type ConOfAbs (Maybe A.BindName) = Maybe C.Name
-  toConcrete = traverse (C.boundName <.> toConcrete)
-
-instance ToConcrete (Maybe A.QName) where
-  type ConOfAbs (Maybe A.QName) = Maybe C.Name
-
-  toConcrete = mapM (toConcrete . qnameName)
 
 instance ToConcrete (Constr A.Constructor) where
   type ConOfAbs (Constr A.Constructor) = C.Declaration
@@ -1576,11 +1573,6 @@ instance ToConcrete A.Pattern where
                Arg i (Named Nothing (C.ParenP noRange x))
              arg -> arg)
           (return arg)
-
-instance ToConcrete (Maybe A.Pattern) where
-  type ConOfAbs (Maybe A.Pattern) = Maybe C.Pattern
-
-  toConcrete = traverse toConcrete
 
 -- Helpers for recovering natural number literals
 
