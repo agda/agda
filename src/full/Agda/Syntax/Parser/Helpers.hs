@@ -214,12 +214,7 @@ ensureUnqual :: QName -> Parser Name
 ensureUnqual (QName x) = return x
 ensureUnqual q@Qual{}  = parseError' (rStart' $ getRange q) "Qualified name not allowed here"
 
--- | Match a particular name.
-isName :: String -> (Interval, String) -> Parser ()
-isName s (_,s')
-    | s == s'   = return ()
-    | otherwise = parseError $ "expected " ++ s ++ ", found " ++ s'
-
+------------------------------------------------------------------------
 -- Lambinds
 
 -- | Result of parsing @LamBinds@.
@@ -227,6 +222,7 @@ data LamBinds' a = LamBinds
   { lamBindings   :: a             -- ^ A number of domain-free or typed bindings or record patterns.
   , absurdBinding :: Maybe Hiding  -- ^ Followed by possibly a final absurd pattern.
   } deriving (Functor)
+
 type LamBinds = LamBinds' [LamBinding]
 
 mkAbsurdBinding :: Hiding -> LamBinds
@@ -312,12 +308,12 @@ extOrAbsLam lambdaRange attrs cs = case cs of
 
 -- | Interpret an expression as a list of names and (not parsed yet) as-patterns
 
-exprAsTele :: Expr -> List1 Expr
-exprAsTele (RawApp _ es) = List2.toList1 es
-exprAsTele e             = singleton e
-
 exprAsNamesAndPatterns :: Expr -> Maybe (List1 (Name, Maybe Expr))
 exprAsNamesAndPatterns = mapM exprAsNameAndPattern . exprAsTele
+  where
+    exprAsTele :: Expr -> List1 Expr
+    exprAsTele (RawApp _ es) = List2.toList1 es
+    exprAsTele e             = singleton e
 
 exprAsNameAndPattern :: Expr -> Maybe (Name, Maybe Expr)
 exprAsNameAndPattern (Ident (QName x)) = Just (x, Nothing)
@@ -419,11 +415,6 @@ buildSingleWithStmt e = do
     Just (pat, _, expr) -> Left ((pat, expr) <$ e)
     Nothing             -> Right e
 
-fromWithApp :: Expr -> List1 Expr
-fromWithApp = \case
-  WithApp _ e es -> e :| es
-  e              -> singleton e
-
 -- | Build a do-statement
 defaultBuildDoStmt :: Expr -> [LamClause] -> Parser DoStmt
 defaultBuildDoStmt e (_ : _) = parseError' (rStart' $ getRange e) "Only pattern matching do-statements can have where clauses."
@@ -438,13 +429,6 @@ buildDoStmt e@(RawApp r _)    cs = do
     Nothing -> defaultBuildDoStmt e cs
 buildDoStmt e cs = defaultBuildDoStmt e cs
 
-
--- | Extract record directives
-extractRecordDirectives :: [Declaration] -> Parser (RecordDirectives, [Declaration])
-extractRecordDirectives ds = do
-  let (dirs, rest) = spanJust isRecordDirective ds
-  dir <- verifyRecordDirectives dirs
-  pure (dir, rest)
 
 -- | Check for duplicate record directives.
 verifyRecordDirectives :: [RecordDirective] -> Parser RecordDirectives
@@ -481,35 +465,26 @@ exprToPattern e = case C.isPattern e of
   Nothing -> parseErrorRange e $ "Not a valid pattern: " ++ prettyShow e
   Just p  -> pure p
 
-opAppExprToPattern :: OpApp Expr -> Parser Pattern
-opAppExprToPattern (SyntaxBindingLambda _ _ _) = parseError "Syntax binding lambda cannot appear in a pattern"
-opAppExprToPattern (Ordinary e) = exprToPattern e
-
 -- | Turn an expression into a name. Fails if the expression is not a
 --   valid identifier.
 exprToName :: Expr -> Parser Name
 exprToName (Ident (QName x)) = return x
 exprToName e = parseErrorRange e $ "Not a valid identifier: " ++ prettyShow e
 
-isEqual :: Expr -> Maybe (Expr, Expr)
-isEqual = \case
-    Equal _ a b -> Just (a, b)
-    _           -> Nothing
-
 -- | When given expression is @e1 = e2@, turn it into a named expression.
 --   Call this inside an implicit argument @{e}@ or @{{e}}@, where
 --   an equality must be a named argument (rather than a cubical partial match).
 maybeNamed :: Expr -> Parser (Named_ Expr)
 maybeNamed e =
-  case isEqual e of
-    Nothing       -> return $ unnamed e
-    Just (e1, e2) -> do
+  case e of
+    Equal _ e1 e2 -> do
       let succeed x = return $ named (WithOrigin UserWritten $ Ranged (getRange e1) x) e2
       case e1 of
         Ident (QName x) -> succeed $ nameToRawName x
         -- We could have the following, but names of arguments cannot be _.
         -- Underscore{}    -> succeed $ "_"
         _ -> parseErrorRange e $ "Not a valid named argument: " ++ prettyShow e
+    _ -> return $ unnamed e
 
 -- Andreas, 2024-02-20, issue #7136:
 -- The following function has been rewritten to a defensive pattern matching style
@@ -581,9 +556,6 @@ mkLamClause catchAll es rhs = mapM exprToPattern es <&> \ ps ->
 mkAbsurdLamClause :: Bool -> List1 Expr -> Parser LamClause
 mkAbsurdLamClause catchAll es = mkLamClause catchAll (List1.toList es) AbsurdRHS
 
-parsePanic :: String -> Parser a
-parsePanic s = parseError $ "Internal parser error: " ++ s ++ ". Please report this as a bug."
-
 {- RHS or type signature -}
 
 data RHSOrTypeSigs
@@ -626,6 +598,7 @@ funClauseOrTypeSigs attrs lhs' with mrhs wh = do
 typeSig :: ArgInfo -> TacticAttribute -> Name -> Expr -> Declaration
 typeSig i tac n e = TypeSig i tac n (Generalized e)
 
+------------------------------------------------------------------------
 -- * Attributes
 
 -- | Parsed attribute.
