@@ -9,23 +9,88 @@ module Agda.TypeChecking.DiscrimTree
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import Data.Foldable
+import Data.Maybe
+
+import Control.Monad.Trans.Maybe
+import Control.Monad.Trans
+import Control.Monad
 
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
 
+import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Records
+import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Free
 
 import Agda.TypeChecking.DiscrimTree.Types
 
-import Agda.TypeChecking.Reduce
+import qualified Agda.Utils.ProfileOptions as Profile
 
-import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.Impossible
 import Agda.Utils.Trie (Trie(..))
 
-termKeyElims :: Elims -> Maybe [Term]
-termKeyElims = fmap (map unArg) . allApplyElims
+etaExpansionDummy :: Term
+etaExpansionDummy = Dummy "eta-record argument in instance head" []
+
+-- | Extract a list of arguments from the list of eliminations; If
+-- called while *adding* an instance, additionally replace any arguments
+-- that might belong to an eta-record by dummy terms.
+termKeyElims
+  :: Bool     -- ^ Are we adding or looking up an instance?
+  -> TCM Type -- ^ Continuation to compute the type of the arguments in the spine.
+  -> Elims    -- ^ The spine.
+  -> MaybeT TCM (Int, [Term])
+termKeyElims precise _ elims | not precise = do
+  es <- hoistMaybe (allApplyElims elims)
+  pure (length es, map unArg es)
+
+termKeyElims precise ty elims = do
+  args <- hoistMaybe (allApplyElims elims)
+
+  let
+    go ty (Arg _ a:as) = flip (ifPiTypeB ty) (const mzero) \dom ty' -> do
+
+      -- Is this argument an eta record type --- or a blocked value? In
+      -- either case, we replace this position by a dummy, to make sure
+      -- that eta-equality is respected.
+      maybeEta <- ifBlocked (unDom dom) (\_ _ -> pure True) \_ tm ->
+        isJust <$> isEtaRecordType tm
+
+      let
+        here
+          | maybeEta  = etaExpansionDummy
+          | otherwise = a
+
+      (k, there) <- addContext dom (go (unAbs ty') as)
+      pure (k + 1, here:there)
+
+    go _ [] = pure (0, [])
+
+  ty <- lift ty
+  go ty args
+
+tickExplore :: Term -> TCM ()
+tickExplore tm = whenProfile Profile.Instances do
+  tick "flex term blocking instance"
+
+  case tm of
+    Def{}      -> tick "explore: Def"
+    Var{}      -> tick "explore: Var"
+    Lam _ v
+      | NoAbs{} <- v -> tick "explore: constant function"
+      | otherwise    -> tick "explore: Lam"
+    Lit{}      -> tick "explore: Lit"
+    Sort{}     -> tick "explore: Sort"
+    Level{}    -> tick "explore: Level"
+    MetaV{}    -> tick "explore: Meta"
+    DontCare{} -> tick "explore: DontCare"
+    t@Dummy{}
+      | t == etaExpansionDummy -> tick "explore: from eta-expansion"
+    _ -> pure ()
 
 -- | Split a term into a 'Key' and some arguments. The 'Key' indicates
 -- whether or not the 'Term' is in head-normal form, and provides a
@@ -35,51 +100,66 @@ termKeyElims = fmap (map unArg) . allApplyElims
 -- considered a 'LocalK'.
 --
 -- Presently, non-head-normal terms end up with an empty argument list.
-splitTermKey :: Int -> Term -> TCM (Key, [Term])
-splitTermKey local tm = reduce tm >>= \case
+splitTermKey :: Bool -> Int -> Term -> TCM (Key, [Term])
+splitTermKey precise local tm = fmap (fromMaybe (FlexK, [])) . runMaybeT $ do
+  (b, tm') <- ifBlocked tm (\_ _ -> mzero) (curry pure)
 
-  Def q as | Just as <- termKeyElims as -> do
-    def <- theDef <$> getConstInfo q
-    let arity = length as
+  case tm' of
+    Def q as | ReallyNotBlocked <- b -> do
+      let ty = defType <$> getConstInfo q
+      (arity, as) <- termKeyElims precise ty as
+      pure (RigidK q arity, as)
 
-    -- TODO: Would probably be more accurate to check if there's a
-    -- blocker?
-    case def of
-      Axiom{}    -> pure (RigidK q arity, as)
-      Datatype{} -> pure (RigidK q arity, as)
-      Record{}   -> pure (RigidK q arity, as)
-      _          -> pure (FlexK, as)
+    -- When adding a quantified instance, we record how many 'Pi's we went
+    -- under, and only variables beyond those are considered LocalK. The
+    -- others are considered FlexK since they're "pattern variables" of
+    -- the instance.
+    Var i as | i >= local -> do
+      let ty = unDom <$> domOfBV i
+      (arity, as) <- termKeyElims precise ty as
+      pure (LocalK i arity, as)
 
-  -- When adding a quantified instance, we record how many 'Pi's we went
-  -- under, and only variables beyond those are considered LocalK. The
-  -- others are considered FlexK since they're "pattern variables" of
-  -- the instance.
-  Var i as    | Just as <- termKeyElims as, i >= local -> pure (LocalK i (length as), as)
+    Con ch _ as -> do
+      let
+        q  = conName ch
+        ty = defType <$> getConstInfo q
+      (arity, as) <- termKeyElims precise ty as
+      pure (RigidK q arity, as)
 
-  -- TODO: Could also try to handle eta equality here, I guess?
-  Con ch _ as | Just as <- termKeyElims as -> pure (RigidK (conName ch) (length as), as)
+    Pi dom ret
+      -- For slightly more accurate matching, we decompose non-dependent
+      -- 'Pi's into a distinguished key.
+      | NoAbs _ b <- ret -> do
+        whenProfile Profile.Conversion $ tick "funk: non-dependent function"
+        pure (FunK, [unEl (unDom dom), raise 1 (unEl b)])
 
-  Pi dom ret
-    -- For slightly more accurate matching, we decompose non-dependent
-    -- 'Pi's into a distinguished key.
-    | NoAbs _ b <- ret -> pure (FunK, [unEl (unDom dom), unEl b])
-    | otherwise        -> pure (PiK, [])
+      | otherwise -> do
+        whenProfile Profile.Conversion $ tick "funk: genuine pi"
+        pure (PiK, [])
 
-  _ -> pure (FlexK, [])
+    _ -> pure (FlexK, [])
 
 termPath :: Int -> [Key] -> [Term] -> TCM [Key]
 termPath local acc []        = pure $! reverse acc
 termPath local acc (tm:todo) = do
-  (k, as) <- splitTermKey local tm
+  (k, as) <- splitTermKey True local tm
+  reportSDoc "tc.instance.discrim.add" 666 $ vcat
+    [ "k:  " <+> prettyTCM k
+    , "as: " <+> prettyTCM as
+    ]
   termPath local (k:acc) (as <> todo)
 
 insertDT :: (Ord a, PrettyTCM a) => Int -> Term -> a -> DiscrimTree a -> TCM (DiscrimTree a)
-insertDT local key val tree = do
+insertDT local key val tree = ignoreAbstractMode do
   path <- termPath local [] [key]
   let it = singletonDT path val
   reportSDoc "tc.instance.discrim.add" 20 $ vcat
     [ "added value" <+> prettyTCM val <+> "to discrimination tree with case"
     , nest 2 (prettyTCM it)
+    , "its type:"
+    , nest 2 (prettyTCM key)
+    , "its path:"
+    , nest 2 (prettyTCM path)
     ]
   pure $ mergeDT it tree
 
@@ -94,7 +174,7 @@ keyArity = \case
 -- | Look up a 'Term' in the given discrimination tree. The returned set
 -- is guaranteed to contain everything that could overlap the given key.
 lookupDT :: forall a. (Ord a, PrettyTCM a) => Term -> DiscrimTree a -> TCM (Set.Set a)
-lookupDT term tree = match [term] tree where
+lookupDT term tree = ignoreAbstractMode (match [term] tree) where
 
   -- Match a spine against *all* clauses.
   explore :: [Term] -> [Term] -> [Term] -> [(Key, DiscrimTree a)] -> TCM (Set.Set a)
@@ -154,8 +234,16 @@ lookupDT term tree = match [term] tree where
     -- TODO (Amy, 2024-02-12): Could use reduceB in splitTermKey, and
     -- the blocker here, to suspend instances more precisely when there
     -- is an ambiguity.
-    splitTermKey 0 t >>= \case
+    splitTermKey False 0 t >>= \case
       (FlexK, args) -> do
+
+        reportSDoc "tc.instance.discrim.lookup" 99 $ vcat
+          [ "flexible term was forced"
+          , "t:" <+> (pretty =<< instantiate t)
+          , "will explore" <+> pretty (length branches + 1) <+> "branches"
+          ]
+        tickExplore t
+
         -- If we have a "flexible head" at this position then instance
         -- search *at this point* degenerates to looking for all
         -- possible matches.
@@ -172,10 +260,9 @@ lookupDT term tree = match [term] tree where
         -- Since ?0 is way too flabby to narrow which of T1 or T2 should
         -- be taken, we take both. But then we match A against A and B:
         -- this query will only return {xa}.
-        let sp' = sp0 ++ args ++ sp1
 
         branches <- explore sp0 sp1 args $ Map.toList branches
-        rest <- match sp' rest
+        rest <- match ts rest
 
         pure $! rest <> branches
 
@@ -207,7 +294,7 @@ lookupDT term tree = match [term] tree where
 
   match ts tree@(CaseDT i _ rest) = do
     reportSDoc "tc.instance.discrim.lookup" 99 $ vcat
-      [ "match" <+> prettyTCM ts
+      [ "IMPOSSIBLE match" <+> prettyTCM ts
       , prettyTCM tree
       ]
     __IMPOSSIBLE__
