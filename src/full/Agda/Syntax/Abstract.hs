@@ -613,7 +613,9 @@ instance Eq Declaration where
 
 instance Underscore Expr where
   underscore   = Underscore emptyMetaInfo
-  isUnderscore = __IMPOSSIBLE__
+  isUnderscore = \case
+    Underscore _ -> True
+    _ -> False
 
 instance LensHiding LamBinding where
   getHiding   (DomainFree _ x) = getHiding x

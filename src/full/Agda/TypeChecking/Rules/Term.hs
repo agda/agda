@@ -454,7 +454,6 @@ checkLambda' cmp r tac xps typ body target = do
     b = A.TBind r tac xps typ
     xs = fmap (updateNamedArg (A.unBind . A.binderName)) xps
     numbinds = length xps
-    isUnderscore = \case { A.Underscore{} -> True; _ -> False }
     possiblePath = numbinds == 1 && isUnderscore (unScope typ)
                    && isRelevant info && visible info
     info = getArgInfo $ List1.head xs
