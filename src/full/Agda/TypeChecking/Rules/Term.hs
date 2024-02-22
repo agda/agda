@@ -385,8 +385,8 @@ checkTacticAttribute PiNotLam (Ranged r e) = do
   expectedType <- el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit)
   checkExpr e expectedType
 
-checkPath :: A.TypedBinding -> A.Expr -> Type -> TCM Term
-checkPath b@(A.TBind _r _tac (xp :| []) typ) body ty = do
+checkPath :: NamedArg Binder -> A.Type -> A.Expr -> Type -> TCM Term
+checkPath xp typ body ty = do
  reportSDoc "tc.term.lambda" 30 $ hsep [ "checking path lambda", prettyA xp ]
  case (A.extractPattern $ namedArg xp) of
   Just{}  -> setCurrentRange xp $ genericError $ "Patterns are not allowed in Path-lambdas"
@@ -407,7 +407,6 @@ checkPath b@(A.TBind _r _tac (xp :| []) typ) body ty = do
       equalTerm (btyp iZero) lhs' (unArg lhs)
       equalTerm (btyp iOne) rhs' (unArg rhs)
       return t
-checkPath b body ty = __IMPOSSIBLE__
 
 ---------------------------------------------------------------------------
 -- * Lambda abstractions
@@ -425,17 +424,18 @@ checkLambda cmp b@(A.TBind r tac xps0 typ) body target = do
   -- Andreas, 2020-03-25, issue #4481: since we have named lambdas now,
   -- we need to insert skipped hidden arguments.
   xps <- insertImplicitBindersT1 xps0 target
-  checkLambda' cmp (A.TBind r tac xps typ) xps typ body target
+  checkLambda' cmp r tac xps typ body target
 
-checkLambda'
-  :: Comparison          -- ^ @cmp@
-  -> A.TypedBinding      -- ^ @TBind _ _ xps typ@
-  -> List1 (NamedArg Binder)   -- ^ @xps@
-  -> A.Expr              -- ^ @typ@
-  -> A.Expr              -- ^ @body@
-  -> Type                -- ^ @target@
+checkLambda' ::
+     Comparison                -- ^ @cmp@
+  -> Range                     -- ^ Range @r@ of the typed binding
+  -> A.TypedBindingInfo        -- ^ @tac@ tactic/finiteness attribute of the typed binding
+  -> List1 (NamedArg Binder)   -- ^ @xps@ variables/patterns of the typed binding
+  -> A.Type                    -- ^ @typ@ Type of the typed binding
+  -> A.Expr                    -- ^ @body@
+  -> Type                      -- ^ @target@
   -> TCM Term
-checkLambda' cmp b xps typ body target = do
+checkLambda' cmp r tac xps typ body target = do
   reportSDoc "tc.term.lambda" 30 $ vcat
     [ "checkLambda xs =" <+> prettyA xps
     , "possiblePath   =" <+> prettyTCM possiblePath
@@ -451,7 +451,7 @@ checkLambda' cmp b xps typ body target = do
   else dontUseTargetType
 
   where
-
+    b = A.TBind r tac xps typ
     xs = fmap (updateNamedArg (A.unBind . A.binderName)) xps
     numbinds = length xps
     isUnderscore = \case { A.Underscore{} -> True; _ -> False }
@@ -465,7 +465,7 @@ checkLambda' cmp b xps typ body target = do
       let postpone' = if cubical then postpone else \ _ _ -> dontUseTargetType
       ifBlocked target postpone' $ \ _ t -> do
         ifNotM (isPathType <$> pathView t) dontUseTargetType {-else-} $ if cubical
-          then checkPath b body t
+          then checkPath (List1.head xps) typ body t
           else genericError $ unwords
                  [ "Option --cubical/--erased-cubical needed to build"
                  , "a path with a lambda abstraction"
