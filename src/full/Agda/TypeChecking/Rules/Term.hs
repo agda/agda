@@ -441,10 +441,23 @@ checkLambda' cmp r tac xps typ body target = do
     , "possiblePath   =" <+> prettyTCM possiblePath
     , "numbinds       =" <+> prettyTCM numbinds
     , "typ            =" <+> prettyA   (unScope typ)
+    , "tactic         =" <+> prettyA (tbTacticAttr tac)
     ]
   reportSDoc "tc.term.lambda" 60 $ vcat
     [ "info           =" <+> (text . show) info
     ]
+
+  -- Consume @tac@:
+  case tac of
+    A.TypedBindingInfo Nothing False -> pure ()
+    A.TypedBindingInfo{ tbFinite = True } -> __IMPOSSIBLE__
+    A.TypedBindingInfo{ tbTacticAttr = Just tactic } -> do
+      -- Andreas, 2024-02-22, issue #6783
+      -- Error out if user supplied a tactic (rather than dropping it silently).
+      _tactic <- checkTacticAttribute LamNotPi tactic
+      -- We should not survive this check...
+      __IMPOSSIBLE__
+
   TelV tel btyp <- telViewUpTo numbinds target
   if numbinds == 1 && not (null tel) then useTargetType tel btyp
   else if possiblePath then trySeeingIfPath
