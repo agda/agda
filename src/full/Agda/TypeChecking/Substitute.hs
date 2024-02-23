@@ -1402,6 +1402,8 @@ deriving instance Eq NotBlocked
 deriving instance Eq t => Eq (Blocked t)
 deriving instance Eq CandidateKind
 deriving instance Eq Candidate
+deriving instance Ord CandidateKind
+deriving instance Ord Candidate
 
 deriving instance (Subst a, Eq a)  => Eq  (Tele a)
 deriving instance (Subst a, Ord a) => Ord (Tele a)

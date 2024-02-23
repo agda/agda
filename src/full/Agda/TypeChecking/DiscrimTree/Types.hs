@@ -11,8 +11,8 @@ import Data.Set (Set)
 import GHC.Generics (Generic)
 
 import Agda.Syntax.Internal
+import Agda.Syntax.Position
 
-import Agda.Utils.Trie
 import Agda.Utils.Impossible
 import Agda.Utils.Null
 
@@ -57,7 +57,7 @@ data DiscrimTree a
       {-# UNPACK #-} !Int       -- ^ The variable to case on.
       (Map Key (DiscrimTree a)) -- ^ The proper branches.
       (DiscrimTree a)           -- ^ A further tree, which should always be explored.
-  deriving (Generic, Eq)
+  deriving (Generic, Eq, Show)
 
 {-
 The extra continuation to CaseDT is used to represent instance tables
@@ -85,6 +85,12 @@ and the extra continuation would be empty.
 
 instance NFData a => NFData (DiscrimTree a)
 
+instance (KillRange a, Ord a) => KillRange (DiscrimTree a) where
+  killRange = \case
+    EmptyDT      -> EmptyDT
+    DoneDT s     -> killRangeN DoneDT s
+    CaseDT i k o -> killRangeN CaseDT i k o
+
 instance Null (DiscrimTree a) where
   empty = EmptyDT
   null = \case
@@ -107,6 +113,12 @@ mergeDT (CaseDT i bs els) x = case x of
     | i < j -> CaseDT i bs (mergeDT els (CaseDT j bs' els'))
     | j < i -> CaseDT j bs' (mergeDT els' (CaseDT i bs els))
     | otherwise -> __IMPOSSIBLE__
+
+instance Ord a => Semigroup (DiscrimTree a) where
+  (<>) = mergeDT
+
+instance Ord a => Monoid (DiscrimTree a) where
+  mempty = EmptyDT
 
 -- | Construct the case tree corresponding to only performing proper
 -- matches on the given key. In this context, a "proper match" is any

@@ -9,9 +9,12 @@ module Agda.TypeChecking.InstanceArguments
   , shouldPostponeInstanceSearch
   , postponeInstanceConstraints
   , getInstanceCandidates
+  , getInstanceDefs
   , OutputTypeName(..)
   , getOutputTypeName
   , addTypedInstance
+  , addTypedInstance'
+  , pruneTemporaryInstances
   , resolveInstanceHead
   ) where
 
@@ -19,12 +22,12 @@ import Control.Monad        ( forM )
 import Control.Monad.Except ( ExceptT(..), runExceptT, MonadError(..) )
 import Control.Monad.Trans  ( lift )
 
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.List as List
 import Data.Function (on)
 import Data.Monoid hiding ((<>))
-import Data.Foldable (foldrM)
+import Data.Foldable (toList, foldrM)
 
 import Agda.Interaction.Options (optQualifiedInstances)
 
@@ -35,6 +38,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Scope.Base (isNameInScope, inverseScopeLookupName', AllowAmbiguousNames(..))
 
+import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Conversion.Pure (pureEqualTerm)
 import Agda.TypeChecking.Errors () --instance only
 import Agda.TypeChecking.Implicit (implicitArgs)
@@ -59,6 +63,7 @@ import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Null (empty)
 
 import Agda.Utils.Impossible
+import qualified Agda.Utils.ProfileOptions as Profile
 
 import Agda.TypeChecking.DiscrimTree
 
@@ -66,8 +71,8 @@ import Agda.TypeChecking.DiscrimTree
 --   'Nothing' if target type or any context type is a meta, error if
 --   type is not eligible for instance search.
 initialInstanceCandidates :: Type -> TCM (Either Blocker [Candidate])
-initialInstanceCandidates t = do
-  (_ , otn) <- getOutputTypeName t
+initialInstanceCandidates instTy = do
+  (_, _, otn) <- getOutputTypeName instTy
   case otn of
     NoOutputTypeName -> typeError $ GenericError $
       "Instance search can only be used to find elements in a named type"
@@ -79,12 +84,31 @@ initialInstanceCandidates t = do
     OutputTypeVar    -> do
       reportSDoc "tc.instance.cands" 30 $ "Instance type is a variable. "
       runBlocked getContextVars
-    OutputTypeName n -> do
+    OutputTypeName n -> Bench.billTo [Bench.Typing, Bench.InstanceSearch, Bench.InitialCandidates] do
       reportSDoc "tc.instance.cands" 30 $ "Found instance type head: " <+> prettyTCM n
       runBlocked getContextVars >>= \case
         Left b -> return $ Left b
-        Right ctxVars -> Right . (ctxVars ++) <$> getScopeDefs n
+        Right local -> do
+          global <- getScopeDefs n
+          tickCandidates n $ length local + length global
+          pure $ Right $ local ++ global
   where
+    -- Ticky profiling for statistics about a class.
+    tickCandidates n size = whenProfile Profile.Instances do
+      n <- prettyTCM n
+      let pref = "class " <> show n
+
+      -- Number of instance constraints of this class that have gotten a
+      -- set of candidates
+      tick $ pref <> ": attempts"
+      -- Per-class info: number of constraints where there was only one
+      -- candidate (awesome) + the total number of candidates we've gone
+      -- through.
+      when (size == 1) $ tick $ pref <> ": only one candidate"
+      when (size >= 1) $ tickN
+        (pref <> ": total candidates visited")
+        (fromIntegral size)
+
     -- get a list of variables with their type, relative to current context
     getContextVars :: BlockT TCM [Candidate]
     getContextVars = do
@@ -152,10 +176,31 @@ initialInstanceCandidates t = do
 
     getScopeDefs :: QName -> TCM [Candidate]
     getScopeDefs n = do
-      instanceDefs <- getInstanceDefs
-      rel          <- viewTC eRelevance
-      let qs = maybe [] Set.toList $ Map.lookup n instanceDefs
-      catMaybes <$> mapM (candidate rel) qs
+      InstanceTable tree counts <- getInstanceDefs
+      qs <- lookupDT (unEl instTy) tree
+
+      reportSDoc "tc.instance.candidates.search" 20 $ vcat
+        [ "instance candidates from signature for goal:"
+        , nest 2 (prettyTCM =<< instantiateFull instTy)
+        , nest 2 (prettyTCM qs) <+> "length:" <+> prettyTCM (length qs)
+        ]
+      reportSDoc "tc.instance.discrim" 60 $ prettyTCM tree
+
+      -- Some more class-specific profiling.
+      whenProfile Profile.Instances case Map.lookup n counts of
+        Just tot -> do
+          n <- prettyTCM n
+          -- Record the overall total number of candidates that were
+          -- skipped by lookup in the discrimination tree, and record
+          -- this per-class, as well.
+          let diff = fromIntegral (tot - length qs)
+          tickN "instances discarded early" diff
+          tickN ("class " <> show n <> ": discarded early") diff
+        Nothing  -> pure ()
+
+      rel <- viewTC eRelevance
+
+      catMaybes <$> mapM (candidate rel) (toList qs)
 
     candidate :: Relevance -> QName -> TCM (Maybe Candidate)
     candidate rel q = ifNotM (isNameInScope q <$> getScope) (return Nothing) $ do
@@ -214,6 +259,17 @@ initialInstanceCandidates t = do
 --   its type again.
 findInstance :: MetaId -> Maybe [Candidate] -> TCM ()
 findInstance m Nothing = do
+  -- Since finding instance candidates can cause arbitrary localisation
+  -- of the instance head, it's probably a good idea to avoid doing it
+  -- as often as we can. Let's just avoid finding the candidates at all
+  -- if the instance constraint *might* get skipped.
+  let
+    recursive = do
+    reportSLn "tc.instance.defer" 20 "Postponing possibly recursive instance search."
+    whenProfile Profile.Instances $ tick "deferring (recursive)"
+    addConstraint neverUnblock $ FindInstance m Nothing
+
+  ifM shouldPostponeInstanceSearch recursive do
   -- Andreas, 2015-02-07: New metas should be created with range of the
   -- current instance meta, thus, we set the range.
   mv <- lookupLocalMeta m
@@ -252,21 +308,14 @@ getInstanceCandidates m = wrapper where
     cands <- lift (checkCandidates m t' cands) <&> \case
       Nothing         -> cands
       Just (_, cands) -> fst <$> cands
-    cands <- lift (foldrM insertCandidate [] cands)
-
-    -- XXX: Look up the instance in the discrimination tree.
-    tree <- lift (useTC stInstanceTree)
-    ka <- lift (lookupDT (unEl t') tree)
-    reportSDoc "tc.instance.discrim" 20 $ vcat
-      [ "looking for instance:" <+> prettyTCM t'
-      , prettyTCM ka
-      , prettyTCM tree
-      ]
+    cands <- Bench.billTo [Bench.Typing, Bench.InstanceSearch, Bench.OrderCandidates] $
+      lift (foldrM insertCandidate [] cands)
 
     reportSDoc "tc.instance.sort" 20 $ nest 2 $ vcat
       [ "sorted candidates"
       , vcat [ "-" <+> (if overlap then "overlap" else empty) <+> prettyTCM c <+> ":" <+> prettyTCM t
              | c@(Candidate q v t overlap) <- cands ] ]
+
     pure cands
 
 -- | @'doesCandidateSpecialise' c1 c2@ checks whether the instance candidate @c1@
@@ -277,6 +326,8 @@ getInstanceCandidates m = wrapper where
 -- @c2@ does not affect the results of 'doesCandidateSpecialise'.
 doesCandidateSpecialise :: Candidate -> Candidate -> TCM Bool
 doesCandidateSpecialise c1@Candidate{candidateType = t1} c2@Candidate{candidateType = t2} = do
+  whenProfile Profile.Instances $ tick "doesCandidateSpecialise"
+
   -- We compare
   --    c1 : ∀ {Γ} → T
   -- against
@@ -297,6 +348,8 @@ doesCandidateSpecialise c1@Candidate{candidateType = t1} c2@Candidate{candidateT
          -- instantiating t2, recursive instance constraints, etc)
          . postponeInstanceConstraints
          -- Don't spend any time looking for instances in the contexts
+         . nowConsideringInstance
+         -- Don't execute tactics either
 
   TelV tel t1 <- telView t1
   addContext tel $ wrap $ do
@@ -323,12 +376,22 @@ insertCandidate x (y:xs) = doesCandidateSpecialise x y >>= \case
 -- | Result says whether we need to add constraint, and if so, the set of
 --   remaining candidates and an eventual blocking metavariable.
 findInstance' :: MetaId -> [Candidate] -> TCM (Maybe ([Candidate], Blocker))
-findInstance' m cands = ifM (isFrozen m) (do
-    reportSLn "tc.instance" 20 "Refusing to solve frozen instance meta."
-    return (Just (cands, neverUnblock))) $ do
-  ifM shouldPostponeInstanceSearch (do
-    reportSLn "tc.instance" 20 "Postponing possibly recursive instance search."
-    return $ Just (cands, neverUnblock)) $ billTo [Benchmark.Typing, Benchmark.InstanceSearch] $ do
+findInstance' m cands = do
+  let
+    frozen = do
+      reportSLn "tc.instance.defer" 20 "Refusing to solve frozen instance meta."
+      whenProfile Profile.Instances $ tick "findInstance: frozen"
+      return (Just (cands, neverUnblock))
+
+    recursive = do
+      reportSLn "tc.instance.defer" 20 "Postponing possibly recursive instance search."
+      whenProfile Profile.Instances $ tick "findInstance: recursive"
+      return $ Just (cands, neverUnblock)
+
+  ifM (isFrozen m) frozen do
+  ifM shouldPostponeInstanceSearch recursive do
+  billTo [Benchmark.Typing, Benchmark.InstanceSearch] do
+
   -- Andreas, 2015-02-07: New metas should be created with range of the
   -- current instance meta, thus, we set the range.
   mv <- lookupLocalMeta m
@@ -342,8 +405,10 @@ findInstance' m cands = ifM (isFrozen m) (do
        nest 2 $ vcat
         [ sep [ (if overlap then "overlap" else empty) <+> prettyTCM c <+> ":"
               , nest 2 $ pretty t ] | c@(Candidate q v t overlap) <- cands ]
+
       t <- getMetaTypeInContext m
       reportSLn "tc.instance" 70 $ "findInstance 2: t: " ++ prettyShow t
+
       insidePi t $ \ t -> do
       reportSDoc "tc.instance" 15 $ "findInstance 3: t =" <+> prettyTCM t
       reportSLn "tc.instance" 70 $ "findInstance 3: t: " ++ prettyShow t
@@ -401,6 +466,7 @@ findInstance' m cands = ifM (isFrozen m) (do
           reportSDoc "tc.instance" 15 $
             text ("findInstance 5: refined candidates: ") <+>
             prettyTCM (List.map candidateTerm cs)
+          whenProfile Profile.Instances $ tick "findInstance: too many candidates"
           return (Just (cs, neverUnblock))
 
 insidePi :: Type -> (Type -> TCM a) -> TCM a
@@ -543,6 +609,9 @@ checkCandidates m t cands =
 
     checkCandidateForMeta :: MetaId -> Type -> Candidate -> TCM YesNo
     checkCandidateForMeta m t (Candidate q term t' _) = checkDepth term t' $ do
+      Bench.billTo [Bench.Typing, Bench.InstanceSearch, Bench.FilterCandidates] $ do
+      whenProfile Profile.Instances $ tick "checkCandidateForMeta"
+
       -- Andreas, 2015-02-07: New metas should be created with range of the
       -- current instance meta, thus, we set the range.
       mv <- lookupLocalMeta m
@@ -587,6 +656,8 @@ checkCandidates m t cands =
             reportSDoc "tc.instance" 15 $
               sep [ ("instance search: found solution for" <+> prettyTCM m) <> ":"
                   , nest 2 $ prettyTCM v ]
+
+            whenProfile Profile.Instances $ tick "checkCandidateForMeta: yes"
             return $ Yes v
       where
         runCandidateCheck = flip catchError handle . nowConsideringInstance
@@ -600,17 +671,26 @@ checkCandidates m t cands =
 
         handle :: TCErr -> TCM YesNo
         handle err
-          | hardFailure err = return $ HellNo err
+          | hardFailure err = do
+            whenProfile Profile.Instances $ tick "checkCandidateForMeta: no"
+            return $ HellNo err
           | otherwise       = do
-              reportSDoc "tc.instance" 50 $ "candidate failed type check:" <+> prettyTCM err
-              return No
+            reportSDoc "tc.instance" 50 $ "candidate failed type check:" <+> prettyTCM err
+            whenProfile Profile.Instances $ tick "checkCandidateForMeta: no"
+            return No
 
 
 nowConsideringInstance :: (ReadTCState m) => m a -> m a
 nowConsideringInstance = locallyTCState stConsideringInstance $ const True
 
+-- Rather than just the instance constraints, these are the constraints
+-- which could be suspended by being under 'nowConsideringInstances',
+-- which also includes unquote constraints.
 isInstanceProblemConstraint :: ProblemConstraint -> Bool
-isInstanceProblemConstraint = isInstanceConstraint . clValue . theConstraint
+isInstanceProblemConstraint c = case clValue (theConstraint c) of
+  FindInstance{}  -> True
+  UnquoteTactic{} -> True
+  _ -> False
 
 wakeupInstanceConstraints :: TCM ()
 wakeupInstanceConstraints =
@@ -664,20 +744,20 @@ data OutputTypeName
   | NoOutputTypeName
 
 -- | Strips all hidden and instance Pi's and return the argument
---   telescope and head definition name, if possible.
-getOutputTypeName :: Type -> TCM (Telescope, OutputTypeName)
+--   telescope, the head term, and its name, if possible.
+getOutputTypeName :: Type -> TCM (Telescope, Term, OutputTypeName)
 -- 2023-10-26, Jesper, issue #6941: To make instance search work correctly for
 -- abstract or opaque instances, we need to ignore abstract mode when computing
 -- the output type name.
 getOutputTypeName t = ignoreAbstractMode $ do
   TelV tel t' <- telViewUpTo' (-1) notVisible t
-  ifBlocked (unEl t') (\ b _ -> return (tel , OutputTypeNameNotYetKnown b)) $ \ _ v ->
+  ifBlocked (unEl t') (\b t -> return (tel , __DUMMY_TERM__, OutputTypeNameNotYetKnown b)) $ \ _ v ->
     case v of
       -- Possible base types:
-      Def n _  -> return (tel , OutputTypeName n)
-      Sort{}   -> return (tel , NoOutputTypeName)
-      Var n _  -> return (tel , OutputTypeVar)
-      Pi{}     -> return (tel , OutputTypeVisiblePi)
+      Def n _  -> return (tel, v, OutputTypeName n)
+      Sort{}   -> return (tel, v, NoOutputTypeName)
+      Var n _  -> return (tel, v, OutputTypeVar)
+      Pi{}     -> return (tel, v, OutputTypeVisiblePi)
       -- Not base types:
       Con{}    -> __IMPOSSIBLE__
       Lam{}    -> __IMPOSSIBLE__
@@ -696,14 +776,6 @@ addTypedInstance ::
   -> TCM ()
 addTypedInstance = addTypedInstance' True
 
-getInstanceHead :: Type -> (Int, Term)
-getInstanceHead = go . unEl where
-  go :: Term -> (Int, Term)
-  go (Pi a b) =
-    let (n, head) = go (unEl (unAbs b))
-     in (n + 1, head)
-  go tm = (0, tm)
-
 -- | Register the definition with the given type as an instance.
 addTypedInstance' ::
      Bool   -- ^ Should we print warnings for unusable instance declarations?
@@ -711,29 +783,50 @@ addTypedInstance' ::
   -> Type   -- ^ Type of instance.
   -> TCM ()
 addTypedInstance' w x t = do
-  (tel , n) <- getOutputTypeName t
-  case n of
-    OutputTypeName n -> do
+  reportSDoc "tc.instance.add" 30 $ vcat
+    [ "adding typed instance" <+> prettyTCM x <+> "with type"
+    , prettyTCM =<< flip abstract t <$> getContextTelescope
+    ]
 
-      -- XXX: Add local instances to the discrimination tree also.
-      let (k, hdt) = getInstanceHead t
-      tree <- insertDT k hdt x =<< getsTC (view stInstanceTree)
+  (tel, hdt, n) <- getOutputTypeName t
+  case n of
+    OutputTypeName n -> addContext tel $ do
+      tele <- getContextTelescope
+
+      -- Insert the instance into the instance table, putting it in the
+      -- discrimination tree *and* bumping the total number of instances
+      -- for this class.
+
+      tree <- insertDT (length tele) hdt x =<< getsTC (view stInstanceTree)
       setTCLens stInstanceTree tree
 
-      addNamedInstance x n
+      modifyTCLens' (stSignature . sigInstances . itableCounts) $
+        Map.insertWith (+) n 1
+
+      -- This is no longer used to build the instance table for imported
+      -- modules, but it is still used to know if an instance should be
+      -- copied when applying a section.
+      modifySignature $ updateDefinition x \ d -> d { defInstance = Just n }
+
+      -- If there's anything visible in the context, which will
+      -- eventually end up in the instance's type, let's make a note to
+      -- get rid of it before serialising the instance table.
+      when (any visible tele) $ modifyTCLens' stTemporaryInstances $ Set.insert x
+
     OutputTypeNameNotYetKnown b -> do
       addUnknownInstance x
       addConstraint b $ ResolveInstanceHead x
-    NoOutputTypeName            -> when w $ warning $ WrongInstanceDeclaration
-    OutputTypeVar               -> when w $ warning $ WrongInstanceDeclaration
-    OutputTypeVisiblePi         -> when w $ warning $ InstanceWithExplicitArg x
+
+    NoOutputTypeName    -> when w $ warning $ WrongInstanceDeclaration
+    OutputTypeVar       -> when w $ warning $ WrongInstanceDeclaration
+    OutputTypeVisiblePi -> when w $ warning $ InstanceWithExplicitArg x
 
 resolveInstanceHead :: QName -> TCM ()
 resolveInstanceHead q = do
-    clearUnknownInstance q
-    -- Andreas, 2022-12-04, issue #6380:
-    -- Do not warn about unusable instances here.
-    addTypedInstance' False q =<< typeOfConst q
+  clearUnknownInstance q
+  -- Andreas, 2022-12-04, issue #6380:
+  -- Do not warn about unusable instances here.
+  addTypedInstance' False q =<< typeOfConst q
 
 -- | Try to solve the instance definitions whose type is not yet known, report
 --   an error if it doesn't work and return the instance table otherwise.
@@ -743,3 +836,31 @@ getInstanceDefs = do
   unless (null $ snd insts) $
     typeError $ GenericError $ "There are instances whose type is still unsolved"
   return $ fst insts
+
+-- | Remove introduced in modules with visible arguments.
+--
+-- While in a section with visible arguments, we add any instances
+-- defined locally to the instance table: you have to be able to find
+-- them, after all! Conservatively, all of the local variables are
+-- turned into 'FlexK's, i.e., wildcards.
+--
+-- But when we leave such a section, these instances have no more value:
+-- even though they might technically be in scope, their types are
+-- malformed, since they have visible pis. This function deletes these
+-- instances from the instance tree to save on serialisation time *and*
+-- time spent checking for candidate validity.
+pruneTemporaryInstances :: TCM ()
+pruneTemporaryInstances = do
+  todo <- useTC stTemporaryInstances
+
+  reportSDoc "tc.instance.prune" 30 $ vcat
+    [ "leaving section"
+    , prettyTCM =<< getContextTelescope
+    , "todo:" <+> prettyTCM todo
+    ]
+
+  modifyTCLens' (stSignature . sigInstances . itableTree) $
+    flip deleteFromDT todo
+  reportSDoc "tc.instance.prune" 60 $ prettyTCM =<< useTC (stSignature . sigInstances . itableTree)
+
+  setTCLens' stTemporaryInstances mempty

@@ -204,7 +204,6 @@ data PreScopeState = PreScopeState
   , stPreImportedBuiltins   :: !(BuiltinThings PrimFun)
   , stPreImportedDisplayForms :: !DisplayForms
     -- ^ Display forms added by someone else to imported identifiers
-  , stPreImportedInstanceDefs :: !InstanceTable
   , stPreForeignCode        :: !(Map BackendName ForeignCodeStack)
     -- ^ @{-\# FOREIGN \#-}@ code that should be included in the compiled output.
     -- Does not include code for imported modules.
@@ -276,8 +275,11 @@ data PostScopeState = PostScopeState
       !(Maybe (ModuleName, TopLevelModuleName))
     -- ^ The current module is available after it has been type
     -- checked.
-  , stPostInstanceDefs        :: !TempInstanceTable
-  , stPostInstanceTree        :: !(DiscrimTree QName)
+
+  , stPostPendingInstances :: !(Set QName)
+
+  , stPostTemporaryInstances :: !(Set QName)
+
   , stPostConcreteNames       :: !ConcreteNames
     -- ^ Map keeping track of concrete names assigned to each abstract name
     --   (can be more than one name in case the first one is shadowed)
@@ -425,7 +427,6 @@ initPreScopeState = PreScopeState
   , stPrePragmaOptions        = defaultInteractionOptions
   , stPreImportedBuiltins     = Map.empty
   , stPreImportedDisplayForms = HMap.empty
-  , stPreImportedInstanceDefs = Map.empty
   , stPreForeignCode          = Map.empty
   , stPreFreshInteractionId   = 0
   , stPreImportedUserWarnings = Map.empty
@@ -454,7 +455,8 @@ initPostScopeState = PostScopeState
   , stPostModuleCheckpoints    = Map.empty
   , stPostImportsDisplayForms  = HMap.empty
   , stPostCurrentModule        = empty
-  , stPostInstanceDefs         = (Map.empty , Set.empty)
+  , stPostPendingInstances     = Set.empty
+  , stPostTemporaryInstances     = Set.empty
   , stPostConcreteNames        = Map.empty
   , stPostUsedNames            = Map.empty
   , stPostShadowingNames       = Map.empty
@@ -476,7 +478,6 @@ initPostScopeState = PostScopeState
   , stPostLocalPartialDefs     = Set.empty
   , stPostOpaqueBlocks         = Map.empty
   , stPostOpaqueIds            = Map.empty
-  , stPostInstanceTree         = empty
   }
 
 initState :: TCState
@@ -731,20 +732,21 @@ stCurrentModule f s =
                   Nothing         -> Nothing
                   Just (!m, !top) -> Just (m, top)}}
 
-stImportedInstanceDefs :: Lens' TCState InstanceTable
-stImportedInstanceDefs f s =
-  f (stPreImportedInstanceDefs (stPreScopeState s)) <&>
-  \x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedInstanceDefs = x}}
-
 stInstanceDefs :: Lens' TCState TempInstanceTable
 stInstanceDefs f s =
-  f (stPostInstanceDefs (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostInstanceDefs = x}}
+  f ( s ^. stSignature . sigInstances
+    , stPostPendingInstances (stPostScopeState s)
+    )
+  <&> \(t, x) ->
+    set (stSignature . sigInstances) t
+      (s { stPostScopeState = (stPostScopeState s) { stPostPendingInstances = x }})
+
+stTemporaryInstances :: Lens' TCState (Set QName)
+stTemporaryInstances f s = f (stPostTemporaryInstances (stPostScopeState s)) <&> \x -> s {
+  stPostScopeState = (stPostScopeState s) { stPostTemporaryInstances = x } }
 
 stInstanceTree :: Lens' TCState (DiscrimTree QName)
-stInstanceTree f s =
-  f (stPostInstanceTree (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostInstanceTree = x}}
+stInstanceTree = stSignature . sigInstances . itableTree
 
 stConcreteNames :: Lens' TCState ConcreteNames
 stConcreteNames f s =
@@ -1789,9 +1791,10 @@ instance Eq IPClause where
 ---------------------------------------------------------------------------
 
 data Signature = Sig
-      { _sigSections    :: Sections
-      , _sigDefinitions :: Definitions
-      , _sigRewriteRules:: RewriteRuleMap  -- ^ The rewrite rules defined in this file.
+      { _sigSections     :: Sections
+      , _sigDefinitions  :: Definitions
+      , _sigRewriteRules :: RewriteRuleMap  -- ^ The rewrite rules defined in this file.
+      , _sigInstances    :: InstanceTable
       }
   deriving (Show, Generic)
 
@@ -1804,6 +1807,9 @@ sigDefinitions :: Lens' Signature Definitions
 sigDefinitions f s =
   f (_sigDefinitions s) <&>
   \x -> s {_sigDefinitions = x}
+
+sigInstances :: Lens' Signature InstanceTable
+sigInstances f s = f (_sigInstances s) <&> \x -> s {_sigInstances = x}
 
 sigRewriteRules :: Lens' Signature RewriteRuleMap
 sigRewriteRules f s =
@@ -1833,7 +1839,7 @@ secTelescope f s =
   \x -> s {_secTelescope = x}
 
 emptySignature :: Signature
-emptySignature = Sig Map.empty HMap.empty HMap.empty
+emptySignature = Sig Map.empty HMap.empty HMap.empty mempty
 
 -- | A @DisplayForm@ is in essence a rewrite rule @q ts --> dt@ for a defined symbol (could be a
 --   constructor as well) @q@. The right hand side is a 'DisplayTerm' which is used to 'reify' to a
@@ -3441,9 +3447,34 @@ instance HasRange Call where
 -- ** Instance table
 ---------------------------------------------------------------------------
 
--- | The instance table is a @Map@ associating to every name of
---   record/data type/postulate its list of instances
-type InstanceTable = Map QName (Set QName)
+-- | Records information about the instances in the signature. Does not
+-- deal with local instances.
+data InstanceTable = InstanceTable
+  { _itableTree   :: DiscrimTree QName
+    -- ^ The actual discrimination tree for looking up instances with
+
+  , _itableCounts :: Map QName Int
+    -- ^ For profiling, we store the number of instances on a per-class
+    -- basis. This lets us compare the result from the discrimination
+    -- tree with all the instances in scope, thus informing us how many
+    -- validity checks were skipped.
+  }
+  deriving (Show, Generic)
+
+instance Semigroup InstanceTable where
+  InstanceTable t i <> InstanceTable t' i' = InstanceTable
+    { _itableTree   = t <> t'
+    , _itableCounts = Map.unionWith (+) i i'
+    }
+
+instance Monoid InstanceTable where
+  mempty = InstanceTable mempty mempty
+
+itableTree :: Lens' InstanceTable (DiscrimTree QName)
+itableTree f s = f (_itableTree s) <&> \x -> s { _itableTree = x }
+
+itableCounts :: Lens' InstanceTable (Map QName Int)
+itableCounts f s = f (_itableCounts s) <&> \x -> s { _itableCounts = x }
 
 -- | When typechecking something of the following form:
 --
@@ -4092,11 +4123,12 @@ data CandidateKind
 -- | A candidate solution for an instance meta is a term with its type.
 --   It may be the case that the candidate is not fully applied yet or
 --   of the wrong type, hence the need for the type.
-data Candidate  = Candidate { candidateKind :: CandidateKind
-                            , candidateTerm :: Term
-                            , candidateType :: Type
-                            , candidateOverlappable :: Bool
-                            }
+data Candidate  = Candidate
+  { candidateKind :: CandidateKind
+  , candidateTerm :: Term
+  , candidateType :: Type
+  , candidateOverlappable :: Bool
+  }
   deriving (Show, Generic)
 
 instance Free Candidate where
@@ -5652,7 +5684,10 @@ getGeneralizedFieldName q
 ---------------------------------------------------------------------------
 
 instance KillRange Signature where
-  killRange (Sig secs defs rews) = killRangeN Sig secs defs rews
+  killRange (Sig secs defs rews inst) = killRangeN Sig secs defs rews inst
+
+instance KillRange InstanceTable where
+  killRange (InstanceTable tree count) = killRangeN InstanceTable tree count
 
 instance KillRange Sections where
   killRange = fmap killRange
@@ -5828,6 +5863,7 @@ instance NFData ProblemConstraint
 instance NFData WhyCheckModality
 instance NFData Constraint
 instance NFData Signature
+instance NFData InstanceTable
 instance NFData Comparison
 instance NFData CompareAs
 instance NFData a => NFData (Open a)

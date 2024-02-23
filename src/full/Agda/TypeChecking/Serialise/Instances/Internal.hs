@@ -17,6 +17,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Coverage.SplitTree
+import Agda.TypeChecking.DiscrimTree.Types
 
 import Agda.Utils.Functor
 import Agda.Utils.Permutation
@@ -29,9 +30,14 @@ instance EmbPrj a => EmbPrj (Dom a) where
   value = valueN Dom
 
 instance EmbPrj Signature where
-  icod_ (Sig a b c) = icodeN' Sig a b c
+  icod_ (Sig a b c d) = icodeN' Sig a b c d
 
   value = valueN Sig
+
+instance EmbPrj InstanceTable where
+  icod_ (InstanceTable a b) = icodeN' InstanceTable a b
+
+  value = valueN InstanceTable
 
 instance EmbPrj Section where
   icod_ (Section a) = icodeN' Section a
@@ -649,3 +655,29 @@ instance EmbPrj a => EmbPrj (Judgement a) where
 instance EmbPrj RemoteMetaVariable where
   icod_ (RemoteMetaVariable a b c) = icodeN' RemoteMetaVariable a b c
   value = valueN RemoteMetaVariable
+
+instance EmbPrj Key where
+  icod_ (RigidK x y) = icodeN 0 RigidK x y
+  icod_ (LocalK x y) = icodeN 1 LocalK x y
+  icod_ FunK         = icodeN 2 FunK
+  icod_ PiK          = icodeN 3 PiK
+  icod_ FlexK        = icodeN 4 FlexK
+
+  value = vcase valu where
+    valu [0, x, y] = valuN RigidK x y
+    valu [1, x, y] = valuN LocalK x y
+    valu [2]       = valuN FunK
+    valu [3]       = valuN PiK
+    valu [4]       = valuN FlexK
+    valu _         = malformed
+
+instance (EmbPrj a, Ord a) => EmbPrj (DiscrimTree a) where
+  icod_ EmptyDT        = icodeN' EmptyDT
+  icod_ (DoneDT s)     = icodeN' DoneDT s
+  icod_ (CaseDT i k s) = icodeN' CaseDT i k s
+
+  value = vcase valu where
+    valu []        = valuN EmptyDT
+    valu [a]       = valuN DoneDT a
+    valu [i, k, s] = valuN CaseDT i k s
+    valu _         = malformed

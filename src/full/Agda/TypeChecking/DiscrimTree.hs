@@ -3,6 +3,7 @@
 module Agda.TypeChecking.DiscrimTree
   ( insertDT
   , lookupDT
+  , deleteFromDT
   )
   where
 
@@ -33,6 +34,8 @@ import qualified Agda.Utils.ProfileOptions as Profile
 import Agda.Utils.Impossible
 import Agda.Utils.Trie (Trie(..))
 
+-- | Dummy term to use as a stand-in for expanded eta-records while
+-- building instance trees.
 etaExpansionDummy :: Term
 etaExpansionDummy = Dummy "eta-record argument in instance head" []
 
@@ -44,12 +47,16 @@ termKeyElims
   -> TCM Type -- ^ Continuation to compute the type of the arguments in the spine.
   -> Elims    -- ^ The spine.
   -> MaybeT TCM (Int, [Term])
-termKeyElims precise _ elims | not precise = do
-  es <- hoistMaybe (allApplyElims elims)
+
+-- Since the case tree was generated with wildcards everywhere an eta
+-- record appeared, if we're *looking up* an instance, we don't have to
+-- do the censorship again.
+termKeyElims False _ elims = do
+  es <- MaybeT $ pure (allApplyElims elims)
   pure (length es, map unArg es)
 
 termKeyElims precise ty elims = do
-  args <- hoistMaybe (allApplyElims elims)
+  args <- MaybeT $ pure (allApplyElims elims)
 
   let
     go ty (Arg _ a:as) = flip (ifPiTypeB ty) (const mzero) \dom ty' -> do
@@ -73,6 +80,10 @@ termKeyElims precise ty elims = do
   ty <- lift ty
   go ty args
 
+-- | Ticky profiling for the reason behind "inexactness" in instance
+-- search. If at some point while narrowing the set of candidates we had
+-- to go through all the possibilities, one of these counters is
+-- incremented.
 tickExplore :: Term -> TCM ()
 tickExplore tm = whenProfile Profile.Instances do
   tick "flex term blocking instance"
@@ -81,7 +92,13 @@ tickExplore tm = whenProfile Profile.Instances do
     Def{}      -> tick "explore: Def"
     Var{}      -> tick "explore: Var"
     Lam _ v
+      -- These two are a hunch: just like FunK, it might be worth
+      -- optimising for the case where a lambda is constant (which is
+      -- easy to handle, by just pretending the term is something else).
+      -- These would come up in e.g. Dec (PathP (λ i → Nat) x y)
       | NoAbs{} <- v -> tick "explore: constant function"
+      | Abs _ b <- v, not (0 `freeIn` b) -> tick "explore: constant function"
+
       | otherwise    -> tick "explore: Lam"
     Lit{}      -> tick "explore: Lit"
     Sort{}     -> tick "explore: Sort"
@@ -117,7 +134,7 @@ splitTermKey precise local tm = fmap (fromMaybe (FlexK, [])) . runMaybeT $ do
     Var i as | i >= local -> do
       let ty = unDom <$> domOfBV i
       (arity, as) <- termKeyElims precise ty as
-      pure (LocalK i arity, as)
+      pure (LocalK (i - local) arity, as)
 
     Con ch _ as -> do
       let
@@ -130,11 +147,11 @@ splitTermKey precise local tm = fmap (fromMaybe (FlexK, [])) . runMaybeT $ do
       -- For slightly more accurate matching, we decompose non-dependent
       -- 'Pi's into a distinguished key.
       | NoAbs _ b <- ret -> do
-        whenProfile Profile.Conversion $ tick "funk: non-dependent function"
-        pure (FunK, [unEl (unDom dom), raise 1 (unEl b)])
+        whenProfile Profile.Instances $ tick "funk: non-dependent function"
+        pure (FunK, [unEl (unDom dom), unEl b])
 
       | otherwise -> do
-        whenProfile Profile.Conversion $ tick "funk: genuine pi"
+        whenProfile Profile.Instances $ tick "funk: genuine pi"
         pure (PiK, [])
 
     _ -> pure (FlexK, [])
@@ -149,7 +166,15 @@ termPath local acc (tm:todo) = do
     ]
   termPath local (k:acc) (as <> todo)
 
-insertDT :: (Ord a, PrettyTCM a) => Int -> Term -> a -> DiscrimTree a -> TCM (DiscrimTree a)
+-- | Insert a value into the discrimination tree, turning variables into
+-- rigid locals or wildcards depending on the given scope.
+insertDT
+  :: (Ord a, PrettyTCM a)
+  => Int   -- ^ Number of variables to consider wildcards, e.g. the number of leading invisible pis in an instance type.
+  -> Term  -- ^ The term to use as a key
+  -> a
+  -> DiscrimTree a
+  -> TCM (DiscrimTree a)
 insertDT local key val tree = ignoreAbstractMode do
   path <- termPath local [] [key]
   let it = singletonDT path val
@@ -270,10 +295,6 @@ lookupDT term tree = ignoreAbstractMode (match [term] tree) where
         let sp' = sp0 ++ args ++ sp1
 
         -- Actually take the branch corresponding to our rigid head.
-        --
-        -- TODO (Amy, 2024-02-12): Need to handle eta equality. I guess
-        -- singletonDT can be made type-directed and we can add an EtaDT
-        -- to to the discrimination tree type??
         branch <- visit k sp'
 
         -- Function values get unpacked to their components on the
@@ -297,6 +318,31 @@ lookupDT term tree = ignoreAbstractMode (match [term] tree) where
       [ "IMPOSSIBLE match" <+> prettyTCM ts
       , prettyTCM tree
       ]
+    -- This really is impossible: since each branch is annotated with
+    -- its arity, we only take branches corresponding to neutrals which
+    -- exploded into enough arguments.
     __IMPOSSIBLE__
-    -- TODO (Amy, 2024-02-12): Is it really? Padding the argument list
-    -- when exploring might not be enough.
+
+-- | Smart constructor for a leaf node.
+doneDT :: Set.Set a -> DiscrimTree a
+doneDT s | Set.null s = EmptyDT
+doneDT s = DoneDT s
+
+-- | Remove a set of values from the discrimination tree. The tree is
+-- rebuilt so that cases with no leaves are removed.
+deleteFromDT :: Ord a => DiscrimTree a -> Set.Set a -> DiscrimTree a
+deleteFromDT dt gone = case dt of
+  EmptyDT -> EmptyDT
+  DoneDT s ->
+    let s' = Set.difference s gone
+     in doneDT s'
+  CaseDT i s k ->
+    let
+      del x = case deleteFromDT x gone of
+        EmptyDT -> Nothing
+        dt'     -> Just dt'
+
+      s' = Map.mapMaybe del s
+      k' = deleteFromDT k gone
+    in if | Map.null s' -> k'
+          | otherwise   -> CaseDT i s' k'

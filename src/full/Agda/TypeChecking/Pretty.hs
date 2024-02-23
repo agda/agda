@@ -149,6 +149,13 @@ punctuate d ts
     ds = Fold.toList ts
     n  = length ds - 1
 
+superscript :: Applicative m => Int -> m Doc
+superscript = pretty . reverse . go where
+  digit = ("⁰¹²³⁴⁵⁶⁷⁸⁹" !!)
+  go k
+    | k <= 9    = [digit k]
+    | otherwise = digit (k `mod` 10):go (k `div` 10)
+
 ---------------------------------------------------------------------------
 -- * The PrettyTCM class
 ---------------------------------------------------------------------------
@@ -578,8 +585,8 @@ instance PrettyTCM Candidate where
 
 instance PrettyTCM Key where
   prettyTCM = \case
-    RigidK q a -> prettyTCM q
-    LocalK i _ -> "@" <> pretty i
+    RigidK q a -> prettyTCM q <> superscript a
+    LocalK i a -> "@" <> pretty i <> superscript a
     FunK       -> "Fun"
     PiK        -> "Pi"
     FlexK      -> "_"
