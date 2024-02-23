@@ -25,7 +25,6 @@
 - ignore: {name: "Fuse mapM/map"} # 2 hints
 - ignore: {name: "Fuse traverse/<$>"} # 2 hints
 - ignore: {name: "Hoist not"} # 18 hints
-- ignore: {name: "Move brackets to avoid $"} # 3 hints
 - ignore: {name: "Move guards forward"} # 2 hints
 - ignore: {name: "Redundant $"} # 638 hints
 - ignore: {name: "Redundant <$>"} # 51 hints

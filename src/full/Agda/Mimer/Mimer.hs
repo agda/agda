@@ -1474,7 +1474,7 @@ assignMeta metaId term metaType = bench [Bench.CheckRHS] $
 dumbUnifier :: Type -> Type -> SM Bool
 dumbUnifier t1 t2 = bench [Bench.UnifyIndices] $ do
   updateStat incTypeEqChecks
-  (noConstraints $ equalType t2 t1 >> return True) `catchError` \err -> do
+  noConstraints (equalType t2 t1 >> return True) `catchError` \err -> do
     reportSDoc "mimer.unify" 80 $ do
       str <- prettyTCM err
       return $ "Unification failed with error:" <+> str
