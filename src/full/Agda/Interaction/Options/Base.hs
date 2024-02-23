@@ -1311,10 +1311,10 @@ transliterateFlag o = return $ o { optTransliterate = True }
 withKFlag :: Flag PragmaOptions
 withKFlag =
   -- with-K is the opposite of --without-K, so collapse default when disabling --without-K
-  (lensOptWithoutK $ lensCollapseDefault $ const $ pure False)
+  lensOptWithoutK (lensCollapseDefault $ const $ pure False)
   >=>
   -- with-K only restores any unsetting of --erased-matches, so keep its default
-  (lensOptErasedMatches $ lensKeepDefault $ const $ pure True)
+  lensOptErasedMatches (lensKeepDefault $ const $ pure True)
 
 
 withoutKFlag :: Flag PragmaOptions
