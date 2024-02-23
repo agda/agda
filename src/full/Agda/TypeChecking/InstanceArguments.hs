@@ -259,17 +259,6 @@ initialInstanceCandidates instTy = do
 --   its type again.
 findInstance :: MetaId -> Maybe [Candidate] -> TCM ()
 findInstance m Nothing = do
-  -- Since finding instance candidates can cause arbitrary localisation
-  -- of the instance head, it's probably a good idea to avoid doing it
-  -- as often as we can. Let's just avoid finding the candidates at all
-  -- if the instance constraint *might* get skipped.
-  let
-    recursive = do
-    reportSLn "tc.instance.defer" 20 "Postponing possibly recursive instance search."
-    whenProfile Profile.Instances $ tick "deferring (recursive)"
-    addConstraint neverUnblock $ FindInstance m Nothing
-
-  ifM shouldPostponeInstanceSearch recursive do
   -- Andreas, 2015-02-07: New metas should be created with range of the
   -- current instance meta, thus, we set the range.
   mv <- lookupLocalMeta m
