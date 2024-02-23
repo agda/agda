@@ -9,7 +9,8 @@ Agda programs are commonly edited using `Emacs
 section.  Other editors with interactive support for Agda include Atom
 (`agda-mode on Atom <https://atom.io/packages/agda-mode>`_), Visual
 Studio Code (`agda-mode on VS Code
-<https://github.com/banacorn/agda-mode-vscode>`_), and Vim (`agda-vim
+<https://github.com/banacorn/agda-mode-vscode>`_), Neovim (`Cornelis
+<https://github.com/isovector/cornelis>`_), and Vim (`agda-vim
 <https://github.com/derekelkins/agda-vim>`_).
 
 To edit a module in Emacs (assuming you have :ref:`installed
