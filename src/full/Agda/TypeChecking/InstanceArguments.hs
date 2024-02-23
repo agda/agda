@@ -49,6 +49,7 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
+import Agda.TypeChecking.Datatypes
 
 import {-# SOURCE #-} Agda.TypeChecking.Constraints
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
@@ -800,7 +801,11 @@ addTypedInstance' w x t = do
       -- If there's anything visible in the context, which will
       -- eventually end up in the instance's type, let's make a note to
       -- get rid of it before serialising the instance table.
-      when (any visible tele) $ modifyTCLens' stTemporaryInstances $ Set.insert x
+      con <- isConstructor x
+      -- However, do note that data constructors can have "visible
+      -- arguments" in their global type which.. aren't actually
+      -- visible: the parameters.
+      when (any visible tele && not con) $ modifyTCLens' stTemporaryInstances $ Set.insert x
 
     OutputTypeNameNotYetKnown b -> do
       addUnknownInstance x

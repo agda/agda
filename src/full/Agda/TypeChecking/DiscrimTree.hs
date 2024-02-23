@@ -105,8 +105,8 @@ tickExplore tm = whenProfile Profile.Instances do
     Level{}    -> tick "explore: Level"
     MetaV{}    -> tick "explore: Meta"
     DontCare{} -> tick "explore: DontCare"
-    t@Dummy{}
-      | t == etaExpansionDummy -> tick "explore: from eta-expansion"
+    Dummy s _
+      | s == "eta-record argument in instance head" -> tick "explore: from eta-expansion"
     _ -> pure ()
 
 -- | Split a term into a 'Key' and some arguments. The 'Key' indicates
