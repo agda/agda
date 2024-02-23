@@ -791,9 +791,11 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
               }
           computePolarity [projname]
 
-        case Info.defInstance info of
-          -- fields do not have an @instance@ keyword!?
-          InstanceDef _r -> addTypedInstance projname t
+        inTopContext case Info.defInstance info of
+          -- Instance projections have to be added with their top-level
+          -- type (otherwise it's totally mangled) and the warning for
+          -- having a visible argument should be suppressed.
+          InstanceDef _r -> addTypedInstance' False projname . defType =<< getConstInfo projname
           NotInstanceDef -> pure ()
 
         recurse
