@@ -22,11 +22,18 @@ data Key
     -- postulates) identified by a QName.
   | LocalK {-# UNPACK #-} !Int {-# UNPACK #-} !Int
     -- ^ Local variables.
-  | FunK
-    -- ^ Non-dependent function types are represented accurately.
+
   | PiK
-    -- ^ Dependent function types get their own branch in the tree, but
-    -- their arguments are not considered.
+    -- ^ Dependent function types. The domain will be represented
+    -- accurately, for the case of a genuine dependent function type,
+    -- the codomain will be a dummy.
+
+  | ConstK
+    -- ^ Constant lambdas.
+
+  | SortK
+    -- ^ Universes.
+
   | FlexK
   -- ^ Anything else.
   deriving (Show, Eq, Ord, Generic)

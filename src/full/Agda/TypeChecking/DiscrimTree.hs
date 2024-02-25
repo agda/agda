@@ -105,9 +105,14 @@ tickExplore tm = whenProfile Profile.Instances do
     Level{}    -> tick "explore: Level"
     MetaV{}    -> tick "explore: Meta"
     DontCare{} -> tick "explore: DontCare"
-    Dummy s _
-      | s == "eta-record argument in instance head" -> tick "explore: from eta-expansion"
     _ -> pure ()
+
+-- | Checks whether the given abstraction could have been 'NoAbs'.
+isNoAbs :: Abs Term -> Maybe Term
+isNoAbs (NoAbs _ b) = Just b
+isNoAbs (Abs _ b)
+  | not (0 `freeIn` b) = Just (strengthen __IMPOSSIBLE__ b)
+  | otherwise          = Nothing
 
 -- | Split a term into a 'Key' and some arguments. The 'Key' indicates
 -- whether or not the 'Term' is in head-normal form, and provides a
@@ -119,7 +124,7 @@ tickExplore tm = whenProfile Profile.Instances do
 -- Presently, non-head-normal terms end up with an empty argument list.
 splitTermKey :: Bool -> Int -> Term -> TCM (Key, [Term])
 splitTermKey precise local tm = fmap (fromMaybe (FlexK, [])) . runMaybeT $ do
-  (b, tm') <- ifBlocked tm (\_ _ -> mzero) (curry pure)
+  (b, tm') <- ifBlocked tm (\_ _ -> mzero) (\b -> fmap (b,) . constructorForm)
 
   case tm' of
     Def q as | ReallyNotBlocked <- b -> do
@@ -143,18 +148,29 @@ splitTermKey precise local tm = fmap (fromMaybe (FlexK, [])) . runMaybeT $ do
       (arity, as) <- termKeyElims precise ty as
       pure (RigidK q arity, as)
 
-    Pi dom ret
-      -- For slightly more accurate matching, we decompose non-dependent
-      -- 'Pi's into a distinguished key.
-      | NoAbs _ b <- ret -> do
-        whenProfile Profile.Instances $ tick "funk: non-dependent function"
-        pure (FunK, [unEl (unDom dom), unEl b])
+    Pi dom ret ->
+      let
+        -- If we're looking at a non-dependent function type, then we
+        -- might as well represent the codomain accurately; Otherwise,
+        -- turn the codomain into a wildcard.
+        ret' = case isNoAbs (unEl <$> ret) of
+          Just b  -> b
+          Nothing -> __DUMMY_TERM__
+      in pure (PiK, [unEl (unDom dom), ret'])
 
-      | otherwise -> do
-        whenProfile Profile.Instances $ tick "funk: genuine pi"
-        pure (PiK, [])
+    Lam _ body
+      -- Constant lambdas come up quite a bit, particularly (in cubical
+      -- mode) as the domain of a PathP. Having this trick improves the
+      -- indexing of 'Dec' instances in the 1Lab significantly.
+      | Just b <- isNoAbs body -> pure (ConstK, [b])
 
-    _ -> pure (FlexK, [])
+    -- Probably not a good idea for accurate indexing if universes
+    -- overlap literally everything else.
+    Sort _ -> pure (SortK, [])
+
+    _ -> do
+      reportSDoc "tc.instance.split" 30 $ pretty tm
+      pure (FlexK, [])
 
 termPath :: Int -> [Key] -> [Term] -> TCM [Key]
 termPath local acc []        = pure $! reverse acc
@@ -188,12 +204,15 @@ insertDT local key val tree = ignoreAbstractMode do
     ]
   pure $ mergeDT it tree
 
+-- | If a term matches this key, how many arguments does it place on the
+-- spine?
 keyArity :: Key -> Int
 keyArity = \case
   RigidK _ a -> a
   LocalK _ a -> a
-  FunK       -> 2
-  PiK        -> 0
+  PiK        -> 2
+  ConstK     -> 1
+  SortK      -> 0
   FlexK      -> 0
 
 -- | Look up a 'Term' in the given discrimination tree. The returned set
@@ -297,21 +316,13 @@ lookupDT term tree = ignoreAbstractMode (match [term] tree) where
         -- Actually take the branch corresponding to our rigid head.
         branch <- visit k sp'
 
-        -- Function values get unpacked to their components on the
-        -- spine, but proper Π types don't. Since Π-type instances also
-        -- apply to function types, we have to explore that branch too,
-        -- if our rigid head is a function.
-        funIsPi <- case k of
-          FunK -> visit PiK (sp0 ++ sp1)
-          _    -> pure mempty
-
         -- When exploring the rest of the tree, the value we cased on
         -- has to be put back in the tree. mergeDT does not perform
         -- commuting conversions to ensure that variables aren't
         -- repeatedly cased on.
         rest <- match ts rest
 
-        pure $! rest <> branch <> funIsPi
+        pure $! rest <> branch
 
   match ts tree@(CaseDT i _ rest) = do
     reportSDoc "tc.instance.discrim.lookup" 99 $ vcat

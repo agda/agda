@@ -587,8 +587,9 @@ instance PrettyTCM Key where
   prettyTCM = \case
     RigidK q a -> prettyTCM q <> superscript a
     LocalK i a -> "@" <> pretty i <> superscript a
-    FunK       -> "Fun"
     PiK        -> "Pi"
+    ConstK     -> "Const"
+    SortK      -> "Sort"
     FlexK      -> "_"
 
 {-# SPECIALIZE prettyTCM :: Key -> TCM Doc #-}

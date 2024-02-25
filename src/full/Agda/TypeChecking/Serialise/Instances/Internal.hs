@@ -659,16 +659,18 @@ instance EmbPrj RemoteMetaVariable where
 instance EmbPrj Key where
   icod_ (RigidK x y) = icodeN 0 RigidK x y
   icod_ (LocalK x y) = icodeN 1 LocalK x y
-  icod_ FunK         = icodeN 2 FunK
-  icod_ PiK          = icodeN 3 PiK
-  icod_ FlexK        = icodeN 4 FlexK
+  icod_ PiK          = icodeN 2 PiK
+  icod_ FlexK        = icodeN 3 FlexK
+  icod_ ConstK       = icodeN 4 ConstK
+  icod_ SortK        = icodeN 5 SortK
 
   value = vcase valu where
     valu [0, x, y] = valuN RigidK x y
     valu [1, x, y] = valuN LocalK x y
-    valu [2]       = valuN FunK
-    valu [3]       = valuN PiK
-    valu [4]       = valuN FlexK
+    valu [2]       = valuN PiK
+    valu [3]       = valuN FlexK
+    valu [4]       = valuN ConstK
+    valu [5]       = valuN SortK
     valu _         = malformed
 
 instance (EmbPrj a, Ord a) => EmbPrj (DiscrimTree a) where
