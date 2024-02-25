@@ -791,11 +791,12 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
               }
           computePolarity [projname]
 
-        inTopContext case Info.defInstance info of
-          -- Instance projections have to be added with their top-level
-          -- type (otherwise it's totally mangled) and the warning for
-          -- having a visible argument should be suppressed.
-          InstanceDef _r -> addTypedInstance' False projname . defType =<< getConstInfo projname
+        addContext ftel1 case Info.defInstance info of
+          -- Instance projections have to be added with their types "qua
+          -- local variable" (i.e. the type you'd get were you to open
+          -- the record module), but this type has to be treated in the
+          -- context ftel1 otherwise it's nonsense
+          InstanceDef _r -> addTypedInstance projname t
           NotInstanceDef -> pure ()
 
         recurse
