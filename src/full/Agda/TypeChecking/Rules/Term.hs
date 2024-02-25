@@ -21,7 +21,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Concrete.Pretty () -- only Pretty instances
-import Agda.Syntax.Concrete (FieldAssignment'(..), nameFieldA)
+import Agda.Syntax.Concrete (FieldAssignment'(..), nameFieldA, TacticAttribute'(..))
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -326,7 +326,7 @@ checkPiDomain = checkDomain PiNotLam
 checkTypedBindings :: LamOrPi -> A.TypedBinding -> (Telescope -> TCM a) -> TCM a
 checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
     let xs = fmap (updateNamedArg $ A.unBind . A.binderName) xps
-    tac <- traverse (checkTacticAttribute lamOrPi) (tbTacticAttr tac)
+    tac <- traverse (checkTacticAttribute lamOrPi) $ theTacticAttribute $ tbTacticAttr tac
     whenJust tac $ \ t -> reportSDoc "tc.term.tactic" 30 $ "Checked tactic attribute:" <?> prettyTCM t
     -- Andreas, 2011-04-26 irrelevant function arguments may appear
     -- non-strictly in the codomain type
@@ -449,14 +449,14 @@ checkLambda' cmp r tac xps typ body target = do
 
   -- Consume @tac@:
   case tac of
-    A.TypedBindingInfo Nothing False -> pure ()
-    A.TypedBindingInfo{ tbFinite = True } -> __IMPOSSIBLE__
-    A.TypedBindingInfo{ tbTacticAttr = Just tactic } -> do
+    _ | null tac -> pure ()
+    A.TypedBindingInfo{ tbTacticAttr = TacticAttribute (Just tactic) } -> do
       -- Andreas, 2024-02-22, issue #6783
       -- Error out if user supplied a tactic (rather than dropping it silently).
       _tactic <- checkTacticAttribute LamNotPi tactic
       -- We should not survive this check...
       __IMPOSSIBLE__
+    _ -> __IMPOSSIBLE__
 
   TelV tel btyp <- telViewUpTo numbinds target
   if numbinds == 1 && not (null tel) then useTargetType tel btyp

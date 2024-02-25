@@ -1466,9 +1466,9 @@ instance MakePrivate WhereClause where
 -- 'Declaration's.
 notSoNiceDeclarations :: NiceDeclaration -> [Declaration]
 notSoNiceDeclarations = \case
-    Axiom _ _ _ i rel x e          -> inst i [TypeSig rel Nothing x e]
+    Axiom _ _ _ i rel x e          -> inst i [TypeSig rel empty x e]
     NiceField _ _ _ i tac x argt   -> [FieldSig i tac x argt]
-    PrimitiveFunction r _ _ x e    -> [Primitive r [TypeSig (argInfo e) Nothing x (unArg e)]]
+    PrimitiveFunction r _ _ x e    -> [Primitive r [TypeSig (argInfo e) empty x (unArg e)]]
     NiceMutual r _ _ _ ds          -> [Mutual r $ concatMap notSoNiceDeclarations ds]
     NiceLoneConstructor r ds       -> [LoneConstructor r $ concatMap notSoNiceDeclarations ds]
     NiceModule r _ _ e x tel ds    -> [Module r e x tel ds]
@@ -1480,7 +1480,7 @@ notSoNiceDeclarations = \case
     NiceRecSig r er _ _ _ _ x bs e -> [RecordSig r er x bs e]
     NiceDataSig r er _ _ _ _ x bs e -> [DataSig r er x bs e]
     NiceFunClause _ _ _ _ _ _ d    -> [d]
-    FunSig _ _ _ i _ rel _ _ x e   -> inst i [TypeSig rel Nothing x e]
+    FunSig _ _ _ i _ rel _ _ x e   -> inst i [TypeSig rel empty x e]
     FunDef _ ds _ _ _ _ _ _        -> ds
     NiceDataDef r _ _ _ _ x bs cs  -> [DataDef r x bs $ concatMap notSoNiceDeclarations cs]
     NiceRecDef r _ _ _ _ x dir bs ds -> [RecordDef r x dir bs ds]

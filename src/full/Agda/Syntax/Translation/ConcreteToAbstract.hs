@@ -39,7 +39,7 @@ import Data.Maybe
 import Data.Void
 
 import Agda.Syntax.Concrete as C
-import Agda.Syntax.Concrete.Attribute
+import Agda.Syntax.Concrete.Attribute as CA
 import Agda.Syntax.Concrete.Generic
 import Agda.Syntax.Concrete.Operators
 import Agda.Syntax.Concrete.Pattern
@@ -1110,10 +1110,11 @@ instance ToAbstract C.TypedBinding where
 
   toAbstract (C.TBind r xs t) = do
     t' <- toAbstractCtx TopCtx t
-    tac <- traverse toAbstract $
+    tac <- C.TacticAttribute <$> do
+     traverse toAbstract $
       -- Invariant: all tactics are the same
       -- (distributed in the parser, TODO: don't)
-      case List1.mapMaybe (bnameTactic . C.binderName . namedArg) xs of
+      case List1.mapMaybe (theTacticAttribute . bnameTactic . C.binderName . namedArg) xs of
         []      -> Nothing
         tac : _ -> Just tac
 
@@ -3279,7 +3280,7 @@ checkAttributes []                     = return ()
 checkAttributes ((attr, r, s) : attrs) =
   case attr of
     RelevanceAttribute{}    -> cont
-    TacticAttribute{}       -> cont
+    CA.TacticAttribute{}    -> cont
     LockAttribute IsNotLock -> cont
     LockAttribute IsLock{}  -> do
       unlessM (optGuarded <$> pragmaOptions) $

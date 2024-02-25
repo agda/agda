@@ -105,8 +105,11 @@ prettyFiniteness name
   | otherwise = id
 
 prettyTactic' :: TacticAttribute -> Doc -> Doc
-prettyTactic' Nothing  d = d
-prettyTactic' (Just t) d = "@" <> (parens ("tactic" <+> pretty t) <+> d)
+prettyTactic' t = (pretty t <+>)
+
+instance Pretty a => Pretty (TacticAttribute' a) where
+  pretty (TacticAttribute t) =
+    ifNull (pretty t) empty \ d -> "@" <> parens ("tactic" <+> d)
 
 instance (Pretty a, Pretty b) => Pretty (a, b) where
     pretty (a, b) = parens $ (pretty a <> comma) <+> pretty b
@@ -318,7 +321,7 @@ instance Pretty NamedBinding where
         | otherwise = id
     -- Parentheses are needed when an attribute @... is present
     mparens
-      | noUserQuantity x, Nothing <- bnameTactic bn = id
+      | noUserQuantity x, null (bnameTactic bn) = id
       | otherwise = parens
 
 instance Pretty LamBinding where

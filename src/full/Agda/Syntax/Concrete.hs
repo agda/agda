@@ -37,6 +37,7 @@ module Agda.Syntax.Concrete
   , ModuleAssignment(..)
   , BoundName(..), mkBoundName_, mkBoundName
   , TacticAttribute
+  , TacticAttribute'(..)
   , Telescope, Telescope1
   , lamBindingsToTelescope
   , makePi
@@ -72,6 +73,7 @@ import Control.DeepSeq
 
 import qualified Data.DList as DL
 import Data.Functor.Identity
+import Data.Maybe
 import Data.Set         ( Set  )
 import Data.Text        ( Text )
 -- import Data.Traversable ( forM )
@@ -274,13 +276,19 @@ data BoundName = BName
   }
   deriving Eq
 
-type TacticAttribute = Maybe (Ranged Expr)
+newtype TacticAttribute' a = TacticAttribute { theTacticAttribute :: Maybe (Ranged a) }
+  deriving (Eq, Show, NFData, Functor, Foldable, Traversable, KillRange)
+type TacticAttribute = TacticAttribute' Expr
+
+instance Null (TacticAttribute' a) where
+  null = isNothing . theTacticAttribute
+  empty = TacticAttribute Nothing
 
 mkBoundName_ :: Name -> BoundName
 mkBoundName_ x = mkBoundName x noFixity'
 
 mkBoundName :: Name -> Fixity' -> BoundName
-mkBoundName x f = BName x f Nothing False
+mkBoundName x f = BName x f empty False
 
 -- | A typed binding.
 

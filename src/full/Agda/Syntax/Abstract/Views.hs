@@ -13,7 +13,7 @@ import Data.Void
 
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract as A
-import Agda.Syntax.Concrete (FieldAssignment', exprFieldA)
+import Agda.Syntax.Concrete (FieldAssignment', exprFieldA, TacticAttribute')
 import Agda.Syntax.Info
 import Agda.Syntax.Scope.Base (KindOfName(..), conKindOfName, WithKind(..))
 
@@ -257,6 +257,7 @@ instance ExprLike a => ExprLike (Named x a)
 instance ExprLike a => ExprLike (Ranged a)
 instance ExprLike a => ExprLike [a]
 instance ExprLike a => ExprLike (List1 a)
+instance ExprLike a => ExprLike (TacticAttribute' a)
 
 instance (ExprLike a, ExprLike b) => ExprLike (a, b) where
   recurseExpr f (x, y) = (,) <$> recurseExpr f x <*> recurseExpr f y

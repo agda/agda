@@ -145,7 +145,7 @@ instance (ToAbstract r, AbsOfRef r ~ A.Expr) => ToAbstract (Dom r, Name) where
     -- TODO(Amy): Anyone know why this discards the tactic? It was like
     -- that when I got here!
     return $ A.TBind noRange
-      (A.TypedBindingInfo Nothing isfin)
+      (A.TypedBindingInfo empty isfin)
       (singleton $ unnamedArg i $ A.mkBinder_ name)
       dom
 

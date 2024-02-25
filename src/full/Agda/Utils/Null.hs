@@ -182,3 +182,6 @@ whenNullM ma k = ma >>= (`whenNull` k)
 
 unlessNullM :: (Monad m, Null a) => m a -> (a -> m ()) -> m ()
 unlessNullM ma k = ma >>= (`unlessNull` k)
+
+applyUnlessNull :: (Null a) => a -> (a -> b -> b) -> (b -> b)
+applyUnlessNull a f = if null a then id else f a

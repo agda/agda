@@ -619,7 +619,7 @@ bindToConcreteHiding h =
     Hidden     -> bindToConcreteTop
     Instance{} -> bindToConcreteTop
 
--- General instances ------------------------------------------------------
+-- Base type instances ------------------------------------------------------
 
 instance ToConcrete () where
   type ConOfAbs () = ()
@@ -632,6 +632,8 @@ instance ToConcrete Bool where
 instance ToConcrete Char where
   type ConOfAbs Char = Char
   toConcrete = pure
+
+-- Functors ---------------------------------------------------------------
 
 instance ToConcrete a => ToConcrete [a] where
     type ConOfAbs [a] = [ConOfAbs a]
@@ -654,6 +656,14 @@ instance ToConcrete a => ToConcrete (List1 a) where
         withPrecedence' p $ -- reset precedence
           bindToConcrete as $ \ cs ->
             ret (c :| cs)
+
+instance ToConcrete a => ToConcrete (Maybe a)  where
+    type ConOfAbs (Maybe a) = Maybe (ConOfAbs a)
+    toConcrete = traverse toConcrete
+    bindToConcrete (Just x) ret = bindToConcrete x $ ret . Just
+    bindToConcrete Nothing  ret = ret Nothing
+
+-- Bifunctors etc. --------------------------------------------------------
 
 instance (ToConcrete a1, ToConcrete a2) => ToConcrete (Either a1 a2) where
     type ConOfAbs (Either a1 a2) = Either (ConOfAbs a1) (ConOfAbs a2)
@@ -686,6 +696,8 @@ instance (ToConcrete a1, ToConcrete a2, ToConcrete a3) => ToConcrete (a1,a2,a3) 
         where
             reorder (x,(y,z)) = (x,y,z)
 
+-- Decorations ------------------------------------------------------------
+
 instance ToConcrete a => ToConcrete (Arg a) where
     type ConOfAbs (Arg a) = Arg (ConOfAbs a)
 
@@ -711,11 +723,27 @@ instance ToConcrete a => ToConcrete (Ranged a)  where
     toConcrete = traverse toConcrete
     bindToConcrete (Ranged r x) ret = bindToConcrete x $ ret . Ranged r
 
-instance ToConcrete a => ToConcrete (Maybe a)  where
-    type ConOfAbs (Maybe a) = Maybe (ConOfAbs a)
+-- Christian Sattler, 2017-08-05, fixing #2669
+-- Both methods of ToConcrete (FieldAssignment' a) need
+-- to be implemented, each in terms of the corresponding one of ToConcrete a.
+-- This mirrors the instance ToConcrete (Ranged a).
+-- The default implementations of ToConcrete are not valid semantically.
+instance ToConcrete a => ToConcrete (FieldAssignment' a) where
+    type ConOfAbs (FieldAssignment' a) = FieldAssignment' (ConOfAbs a)
     toConcrete = traverse toConcrete
-    bindToConcrete (Just x) ret = bindToConcrete x $ ret . Just
-    bindToConcrete Nothing  ret = ret Nothing
+
+    bindToConcrete (FieldAssignment name a) ret =
+      bindToConcrete a $ ret . FieldAssignment name
+
+-- Newtypes ---------------------------------------------------------------
+
+-- Deriving this requires UndecidableInstances,
+-- as TacticAttribute' is not larger than its expansion (Maybe . Ranged).
+-- (Also the derived instance produce a type error.)
+instance ToConcrete a => ToConcrete (TacticAttribute' a) where
+  type ConOfAbs (TacticAttribute' a) = TacticAttribute' (ConOfAbs a)
+  toConcrete = traverse toConcrete
+  bindToConcrete (TacticAttribute a) ret = bindToConcrete a $ ret . TacticAttribute
 
 -- Names ------------------------------------------------------------------
 
@@ -974,18 +1002,6 @@ makeDomainFree b@(A.DomainFull (A.TBind _ tac (x :| []) t)) =
     _ -> b
 makeDomainFree b = b
 
--- Christian Sattler, 2017-08-05, fixing #2669
--- Both methods of ToConcrete (FieldAssignment' a) (FieldAssignment' c) need
--- to be implemented, each in terms of the corresponding one of ToConcrete a c.
--- This mirrors the instance ToConcrete (Arg a) (Arg c).
--- The default implementations of ToConcrete are not valid semantically.
-instance ToConcrete a => ToConcrete (FieldAssignment' a) where
-    type ConOfAbs (FieldAssignment' a) = FieldAssignment' (ConOfAbs a)
-    toConcrete = traverse toConcrete
-
-    bindToConcrete (FieldAssignment name a) ret =
-      bindToConcrete a $ ret . FieldAssignment name
-
 
 -- Binder instances -------------------------------------------------------
 
@@ -1040,7 +1056,7 @@ instance ToConcrete A.LetBinding where
         bindToConcrete x $ \ x ->
         do (t, (e, [], [], [])) <- toConcrete (t, A.RHS e Nothing)
            ret $ addInstanceB (if isInstance info then Just noRange else Nothing) $
-               [ C.TypeSig info Nothing (C.boundName x) t
+               [ C.TypeSig info empty (C.boundName x) t
                , C.FunClause
                    (C.LHS (C.IdentP True $ C.QName $ C.boundName x) [] [])
                    e C.NoWhere False
@@ -1152,7 +1168,7 @@ instance ToConcrete (Constr A.Constructor) where
   toConcrete (Constr (A.Axiom _ i info Nothing x t)) = do
     x' <- unsafeQNameToName <$> toConcrete x
     t' <- toConcreteTop t
-    return $ C.TypeSig info Nothing x' t'
+    return $ C.TypeSig info empty x' t'
   toConcrete (Constr (A.Axiom _ _ _ (Just _) _ _)) = __IMPOSSIBLE__
   toConcrete (Constr d) = headWithDefault __IMPOSSIBLE__ <$> toConcrete d
 
@@ -1195,11 +1211,11 @@ instance ToConcrete A.Declaration where
         (case mp of
            Nothing   -> []
            Just occs -> [C.Pragma (PolarityPragma noRange x' occs)]) ++
-        [C.Postulate (getRange i) [C.TypeSig info Nothing x' t']]
+        [C.Postulate (getRange i) [C.TypeSig info empty x' t']]
 
   toConcrete (A.Generalize s i j x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
-    tac <- traverse toConcrete (defTactic i)
+    tac <- toConcrete (defTactic i)
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
       t' <- toConcreteTop t
@@ -1207,7 +1223,7 @@ instance ToConcrete A.Declaration where
 
   toConcrete (A.Field i x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
-    tac <- traverse toConcrete (defTactic i)
+    tac <- toConcrete (defTactic i)
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
       t' <- toConcreteTop t
@@ -1218,7 +1234,7 @@ instance ToConcrete A.Declaration where
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
       t' <- traverse toConcreteTop t
-      return [C.Primitive (getRange i) [C.TypeSig (argInfo t') Nothing x' (unArg t')]]
+      return [C.Primitive (getRange i) [C.TypeSig (argInfo t') empty x' (unArg t')]]
         -- Primitives are always relevant.
 
   toConcrete (A.FunDef i _ cs) =

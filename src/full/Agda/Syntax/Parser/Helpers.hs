@@ -22,7 +22,7 @@ import Agda.Syntax.Parser.Monad
 import Agda.Syntax.Parser.Lexer
 import Agda.Syntax.Parser.Tokens
 import Agda.Syntax.Concrete as C
-import Agda.Syntax.Concrete.Attribute
+import Agda.Syntax.Concrete.Attribute as CA
 import Agda.Syntax.Concrete.Pattern
 import Agda.Syntax.Common
 import Agda.Syntax.Notation
@@ -263,7 +263,7 @@ onlyErased as = do
     RelevanceAttribute{} -> unsup "Relevance"
     CohesionAttribute{}  -> unsup "Cohesion"
     LockAttribute{}      -> unsup "Lock"
-    TacticAttribute{}    -> unsup "Tactic"
+    CA.TacticAttribute{} -> unsup "Tactic"
     QuantityAttribute q  -> maybe (unsup "Linearity") (return . Just) $ erasedFromQuantity q
     where
     unsup s = do
@@ -504,8 +504,14 @@ patternSynArgs = mapM \ x -> do
       | not $ null fix -> __IMPOSSIBLE__
       | fin            -> __IMPOSSIBLE__
 
+    -- Error cases:
+    Arg _ (Named _ (Binder (Just _) _)) ->
+      abort "Arguments to pattern synonyms cannot be patterns themselves"
+    Arg _ (Named _ (Binder _ (BName _ _ tac _))) | not (null tac) ->
+      abort $ noAnn "Tactic"
+
     -- Benign case:
-    Arg ai (Named mn (Binder Nothing (BName n _ Nothing _)))
+    Arg ai (Named mn (Binder Nothing (BName n _ _ _)))
       -- allow {n = n} for backwards compat with Agda 2.6
       | maybe True ((C.nameToRawName n ==) . rangedThing . woThing) mn ->
         case ai of
@@ -538,12 +544,6 @@ patternSynArgs = mapM \ x -> do
       -- Error case: other named args are unsupported (issue #7136)
       | otherwise ->
           abort "Arguments to pattern synonyms cannot be named"
-
-    -- Error cases:
-    Arg _ (Named _ (Binder (Just _) _)) ->
-      abort "Arguments to pattern synonyms cannot be patterns themselves"
-    Arg _ (Named _ (Binder _ (BName _ _ (Just _) _))) ->
-      abort $ noAnn "Tactic"
 
 mkLamClause
   :: Bool   -- ^ Catch-all?
@@ -642,7 +642,7 @@ applyAttrs rattrs arg = do
   let attrs = reverse rattrs
   checkForUniqueAttribute (isJust . isQuantityAttribute ) attrs
   checkForUniqueAttribute (isJust . isRelevanceAttribute) attrs
-  checkForUniqueAttribute (isJust . isTacticAttribute)    attrs
+  checkForUniqueAttribute (not . null . isTacticAttribute) attrs
   foldM (flip applyAttr) arg attrs
 
 applyAttrs1 :: LensAttribute a => List1 Attr -> a -> Parser a
@@ -652,16 +652,16 @@ applyAttrs1 = applyAttrs . List1.toList
 setTacticAttr :: List1 Attr -> NamedArg Binder -> NamedArg Binder
 setTacticAttr as = updateNamedArg $ fmap $ \ b ->
   case getTacticAttr $ List1.toList as of
-    Just t  -> b { bnameTactic = Just t }
-    Nothing -> b
+    t | null t    -> b
+      | otherwise -> b { bnameTactic = t }
 
 -- | Get the tactic attribute if present.
 getTacticAttr :: [Attr] -> TacticAttribute
-getTacticAttr as =
+getTacticAttr as = C.TacticAttribute $
   case tacticAttributes [ a | Attr _ _ a <- as ] of
-    [TacticAttribute e] -> Just e
-    []                  -> Nothing
-    _                   -> __IMPOSSIBLE__
+    [CA.TacticAttribute e] -> Just e
+    [] -> Nothing
+    _  -> __IMPOSSIBLE__
 
 -- | Report a parse error if two attributes in the list are of the same kind,
 --   thus, present conflicting information.

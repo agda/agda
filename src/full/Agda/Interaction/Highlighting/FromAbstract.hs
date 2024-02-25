@@ -27,7 +27,7 @@ import           Agda.Interaction.Highlighting.Range   ( rToR )  -- Range is amb
 import           Agda.Syntax.Abstract                ( IsProjP(..) )
 import qualified Agda.Syntax.Abstract      as A
 import           Agda.Syntax.Common        as Common
-import           Agda.Syntax.Concrete                ( FieldAssignment'(..) )
+import           Agda.Syntax.Concrete                ( FieldAssignment'(..), TacticAttribute' )
 import qualified Agda.Syntax.Concrete.Name as C
 import           Agda.Syntax.Info                    ( ModuleInfo(..) )
 import           Agda.Syntax.Literal
@@ -102,6 +102,7 @@ instance Hilite a => Hilite [a]
 instance Hilite a => Hilite (List1 a)
 instance Hilite a => Hilite (Maybe a)
 instance Hilite a => Hilite (Ranged a)
+instance Hilite a => Hilite (TacticAttribute' a)
 instance Hilite a => Hilite (WithHiding a)
 
 instance Hilite Void where

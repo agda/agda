@@ -102,7 +102,7 @@ instance Pretty () where
   pretty _ = P.empty
 
 instance Pretty a => Pretty (Maybe a) where
-  prettyPrec p Nothing  = "(nothing)"
+  prettyPrec p Nothing  = P.empty
   prettyPrec p (Just x) = prettyPrec p x
 
 instance Pretty a => Pretty [a] where

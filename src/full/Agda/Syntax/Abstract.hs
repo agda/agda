@@ -24,7 +24,7 @@ import Data.Void
 
 import GHC.Generics (Generic)
 
-import Agda.Syntax.Concrete (FieldAssignment'(..))
+import Agda.Syntax.Concrete (FieldAssignment'(..), TacticAttribute'(..))
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract.Name
 import qualified Agda.Syntax.Internal as I
@@ -247,7 +247,7 @@ type TypeSignature  = Declaration
 type Constructor    = TypeSignature
 type Field          = TypeSignature
 
-type TacticAttr = Maybe (Ranged Expr)
+type TacticAttribute = TacticAttribute' Expr
 
 -- A Binder @x\@p@, the pattern is optional
 data Binder' a = Binder
@@ -268,21 +268,21 @@ extractPattern (Binder p a) = (,a) <$> p
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
-  = DomainFree TacticAttr (NamedArg Binder)
+  = DomainFree TacticAttribute (NamedArg Binder)
     -- ^ . @x@ or @{x}@ or @.x@ or @{x = y}@ or @x\@p@ or @(p)@
   | DomainFull TypedBinding
     -- ^ . @(xs:e)@ or @{xs:e}@ or @(let Ds)@
   deriving (Show, Eq, Generic)
 
 mkDomainFree :: NamedArg Binder -> LamBinding
-mkDomainFree = DomainFree Nothing
+mkDomainFree = DomainFree empty
 
 -- | Extra information that is attached to a typed binding, that plays a
 -- role during type checking but strictly speaking is not part of the
 -- @name : type@" relation which a makes up a binding.
 data TypedBindingInfo
   = TypedBindingInfo
-    { tbTacticAttr :: TacticAttr
+    { tbTacticAttr :: TacticAttribute
       -- ^ Does this binding have a tactic annotation?
     , tbFinite     :: Bool
       -- ^ Does this binding correspond to a Partial binder, rather than
@@ -291,11 +291,9 @@ data TypedBindingInfo
     }
   deriving (Show, Eq, Generic)
 
-defaultTbInfo :: TypedBindingInfo
-defaultTbInfo = TypedBindingInfo
-  { tbTacticAttr = Nothing
-  , tbFinite = False
-  }
+instance Null TypedBindingInfo where
+  null (TypedBindingInfo tac fin) = null tac && not fin
+  empty = TypedBindingInfo empty empty
 
 -- | A typed binding.  Appears in dependent function spaces, typed lambdas, and
 --   telescopes.  It might be tempting to simplify this to only bind a single
@@ -319,7 +317,7 @@ data TypedBinding
   deriving (Show, Eq, Generic)
 
 mkTBind :: Range -> List1 (NamedArg Binder) -> Type -> TypedBinding
-mkTBind r = TBind r defaultTbInfo
+mkTBind r = TBind r empty
 
 mkTLet :: Range -> [LetBinding] -> Maybe TypedBinding
 mkTLet _ []     = Nothing

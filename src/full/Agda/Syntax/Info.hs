@@ -154,7 +154,7 @@ data DefInfo' t = DefInfo
   , defInstance :: IsInstance
   , defMacro    :: IsMacro
   , defInfo     :: DeclInfo
-  , defTactic   :: Maybe (Ranged t)
+  , defTactic   :: TacticAttribute' t
   }
   deriving (Show, Eq, Generic)
 
@@ -163,7 +163,7 @@ mkDefInfo x f a ab r = mkDefInfoInstance x f a ab NotInstanceDef NotMacroDef r
 
 -- | Same as @mkDefInfo@ but where we can also give the @IsInstance@
 mkDefInfoInstance :: Name -> Fixity' -> Access -> IsAbstract -> IsInstance -> IsMacro -> Range -> DefInfo' t
-mkDefInfoInstance x f a ab i m r = DefInfo f a ab TransparentDef i m (DeclInfo x r) Nothing
+mkDefInfoInstance x f a ab i m r = DefInfo f a ab TransparentDef i m (DeclInfo x r) empty
 
 instance HasRange (DefInfo' t) where
   getRange = getRange . defInfo
