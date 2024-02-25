@@ -84,11 +84,14 @@ prettyRelevance a = (pretty (getRelevance a) <>)
 prettyQuantity :: LensQuantity a => a -> Doc -> Doc
 prettyQuantity a = (pretty (getQuantity a) <+>)
 
+instance Pretty Lock where
+  pretty = \case
+    IsLock LockOLock -> "@lock"
+    IsLock LockOTick -> "@tick"
+    IsNotLock -> empty
+
 prettyLock :: LensLock a => a -> Doc -> Doc
-prettyLock a doc = case getLock a of
-  IsLock LockOLock -> "@lock" <+> doc
-  IsLock LockOTick -> "@tick" <+> doc
-  IsNotLock -> doc
+prettyLock a = (pretty (getLock a) <+>)
 
 prettyErased :: Erased -> Doc -> Doc
 prettyErased = prettyQuantity . asQuantity
@@ -285,8 +288,10 @@ instance Pretty LamClause where
       pretty' (RHS e)   = arrow <+> pretty e
       pretty' AbsurdRHS = empty
 
+-- Andreas, 2024-02-25
+-- Q: Can we always ignore the tactic and the finiteness here?
 instance Pretty BoundName where
-  pretty BName{ boundName = x } = pretty x
+  pretty (BName x _fix _tac _fin) = pretty x
 
 data NamedBinding = NamedBinding
   { withHiding   :: Bool
@@ -300,29 +305,31 @@ isLabeled x
   | otherwise              = Nothing
 
 instance Pretty a => Pretty (Binder' a) where
-  pretty (Binder mpat n) = let d = pretty n in case mpat of
-    Nothing  -> d
-    Just pat -> d <+> "@" <+> parens (pretty pat)
+  pretty (Binder mpat n) =
+    applyWhenJust mpat (\ pat -> (<+> ("@" <+> parens (pretty pat)))) $ pretty n
 
 instance Pretty NamedBinding where
-  pretty (NamedBinding withH x) = prH $
-    if | Just l <- isLabeled x -> text l <+> "=" <+> pretty xb
-       | otherwise             -> pretty xb
-
+  pretty (NamedBinding withH
+           x@(Arg (ArgInfo h (Modality r q c) _o _fv (Annotation lock))
+               (Named _mn xb@(Binder _mp (BName _y _fix t _fin))))) =
+    applyWhen withH prH $
+    applyWhenJust (isLabeled x) (\ l -> (text l <+>) . ("=" <+>)) (pretty xb)
+      -- isLabeled looks at _mn and _y
+      -- pretty xb prints also the pattern _mp
     where
+    prH = (pretty r <>)
+        . prettyHiding h mparens
+        . (coh <+>)
+        . (qnt <+>)
+        . (lck <+>)
+        . (tac <+>)
+    coh = pretty c
+    qnt = pretty q
+    tac = pretty t
+    lck = pretty lock
+    -- Parentheses are needed when an attribute @... is printed
+    mparens = applyUnless (null coh && null qnt && null lck && null tac) parens
 
-    xb = namedArg x
-    bn = binderName xb
-    prH | withH     = prettyRelevance x
-                    . prettyHiding x mparens
-                    . prettyCohesion x
-                    . prettyQuantity x
-                    . prettyTactic bn
-        | otherwise = id
-    -- Parentheses are needed when an attribute @... is present
-    mparens
-      | noUserQuantity x, null (bnameTactic bn) = id
-      | otherwise = parens
 
 instance Pretty LamBinding where
     pretty (DomainFree x) = pretty (NamedBinding True x)

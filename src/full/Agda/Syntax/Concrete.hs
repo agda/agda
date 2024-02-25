@@ -271,8 +271,10 @@ dropTypeAndModality (DomainFree x) = [DomainFree $ setModality defaultModality x
 data BoundName = BName
   { boundName       :: Name
   , bnameFixity     :: Fixity'
-  , bnameTactic     :: TacticAttribute -- From @tactic attribute
+  , bnameTactic     :: TacticAttribute
+      -- ^ From @\@tactic@ attribute.
   , bnameIsFinite   :: Bool
+      -- ^ The @\@finite@ cannot be parsed, it comes from the builtin @Partial@ only.
   }
   deriving Eq
 
