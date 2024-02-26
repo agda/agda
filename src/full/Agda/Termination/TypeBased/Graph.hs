@@ -76,7 +76,6 @@ simplifySizeGraph rigidContext graph = billTo [Benchmark.TypeBasedTermination, B
   arity <- getRootArity
   let baseSize = replicate arity (-1)
   bottomVars <- getBottomVariables
-  contra <- getContravariantSizeVariables
 
   fixedTopLevelVars <- IntMap.keysSet <$> getPreservationCandidates
   let topLevelVars = foldr (\(SConstraint rel from to) -> if rel == SLeq && to `IntSet.member` fixedTopLevelVars then IntMap.insert from to else id) IntMap.empty graph

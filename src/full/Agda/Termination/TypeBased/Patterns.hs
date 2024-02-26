@@ -304,7 +304,7 @@ getOrRequestDepthVar cluster level = do
       else do
         -- We need to populate a depth stack with a new level
         let actualBound = if ((NonEmpty.head currentLeaves) == -1) then SizeUnbounded else SizeBounded (NonEmpty.last currentLeaves)
-        var <- lift $ requestNewRigidVariable actualBound
+        var <- lift $ requestNewRigidVariable Covariant actualBound
         modify (\s -> s { peDepthStack = IntMap.insert cluster (NonEmpty.appendList currentLeaves [var]) (peDepthStack s) })
         pure var
 
@@ -315,10 +315,9 @@ getOrRequestCoDepthVar depth = do
   case (currentCodepthStack !!! depth) of
     Nothing -> do
       let actualBound = if depth == 0 then SizeUnbounded else SizeBounded (currentCodepthStack List.!! (depth - 1))
-      var <- lift $ requestNewRigidVariable actualBound
+      var <- lift $ requestNewRigidVariable Contravariant actualBound
       reportSDoc "term.tbt" 70 $ "Requesting new var of codepth" <+> text (show depth) <+> "which is " <+> text (show var)
       modify (\s -> s { peCoDepthStack = peCoDepthStack s ++ [var] })
-      lift $ recordContravariantSizeVariable var
       pure var
     Just i -> pure i
 
@@ -335,7 +334,7 @@ freshenPatternConstructor conName codomainDataVar domainDataVar expectedCodomain
   -- It is important to call `domainDataVar` lazily,
   -- because otherwise leaf variables would gain access to a cluster var with lower level than expected
   domainVar <- if all shouldBeUnbounded bounds then pure (-1) else domainDataVar
-  newVars <- forM croppedBounds $ \bound -> if shouldBeUnbounded bound then lift $ requestNewRigidVariable SizeUnbounded else pure domainVar
+  newVars <- forM croppedBounds $ \bound -> if shouldBeUnbounded bound then lift $ requestNewRigidVariable Covariant SizeUnbounded else pure domainVar
   reportSDoc "term.tbt" 70 $ vcat
     [ "New variables for instantiation: " <+> text (show newVars)
     , "Bounds: " <+> pretty bounds
@@ -351,7 +350,7 @@ freshenPatternConstructor conName codomainDataVar domainDataVar expectedCodomain
 freshenCopatternProjection :: Int -> [SizeBound] -> SizeType -> PatternEncoder SizeType
 freshenCopatternProjection newCoDepthVar bounds tele = do
   let isNewPatternSizeVar b = b == SizeUnbounded || newCoDepthVar == (-1)
-  newVars <- forM bounds $ \bound -> if isNewPatternSizeVar bound then lift $ requestNewRigidVariable SizeUnbounded else pure newCoDepthVar
+  newVars <- forM bounds $ \bound -> if isNewPatternSizeVar bound then lift $ requestNewRigidVariable Contravariant SizeUnbounded else pure newCoDepthVar
   reportSDoc "term.tbt" 70 $ "Raw size type of copattern projection: " <+> pretty tele <+> "With new variabless:" <+> text (show newVars)
   let instantiatedSig = update (newVars List.!!) tele
   pure instantiatedSig
