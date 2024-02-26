@@ -44,6 +44,7 @@ import Data.Functor
 import qualified Data.List.NonEmpty as NonEmpty
 import Data.List.NonEmpty (NonEmpty(..), (<|))
 import Agda.Termination.Monad (isCoinductiveProjection)
+import Agda.TypeChecking.Polarity ((\/), composePol, neg)
 
 -- | Bidirectional-style checking of internal terms.
 --   Though this function is checking, it also infers size types of terms,
@@ -248,7 +249,7 @@ maybeStoreRecursiveCall qn elims callSizes = do
 -- | Records the constraints obtained from comparing inferred and checked size types.
 -- This is more or less standard transition from checking to inference in bidirectional type checking.
 inferenceToChecking :: SizeType -> SizeType -> TBTM ()
-inferenceToChecking expected inferred = unless (expected == UndefinedSizeType) $ inferred `smallerOrEq` expected
+inferenceToChecking expected inferred = unless (expected == UndefinedSizeType) $ smallerOrEq Covariant inferred expected
 
 datatypeArguments :: Int -> SizeType -> Int
 datatypeArguments fallback (SizeTree _ args) = length args
@@ -379,7 +380,7 @@ eliminateProjection projName eliminatedRecord recordArgs = do
       -- However, in this case we are not _eliminating a record (datatype) with a projection (function)_,
       -- we are _eliminating a projection (function) with a record (argument to a function)_.
       -- It means that the inferred first parameter of projection actually becomes the expected type of the record.
-      eliminatedRecord `smallerOrEq` inferredRecordDef
+      smallerOrEq Covariant eliminatedRecord inferredRecordDef
       pure (inferredRecordDef, restDef)
     UndefinedSizeType -> pure (UndefinedSizeType, UndefinedSizeType)
     _ -> __IMPOSSIBLE__
@@ -388,22 +389,37 @@ eliminateProjection projName eliminatedRecord recordArgs = do
 -- | Compares two size types and stores the obtained constraints.
 --   The idea is that during the later computation of assignment for flexible types,
 --   all these constraints should be respected.
-smallerOrEq :: SizeType -> SizeType -> TBTM ()
-smallerOrEq (SizeTree s1 tree1) (SizeTree s2 tree2) = do
-  ifM (isContravariant s1 `or2M` isContravariant s2) {- then -} (smallerSize s2 s1) {- else -} (smallerSize s1 s2)
-  zipWithM_ smallerOrEq tree1 tree2
+smallerOrEq :: Polarity -> SizeType -> SizeType -> TBTM ()
+smallerOrEq pol (SizeTree s1 tree1) (SizeTree s2 tree2) = do
+  p1 <- getSizePolarity s1
+  p2 <- getSizePolarity s2
+  reportSDoc "term.tbt" 40 $ vcat
+    [ "Comparing size trees:" <+> pretty (SizeTree s1 tree1) <+> "<=" <+> pretty (SizeTree s2 tree2)
+    , "with polarities: " <+> pretty p1 <+> " and " <+> pretty p2
+    ]
+  let argPol = p1 \/ p2
+  let prodPol = composePol pol argPol
+  smallerSize prodPol s1 s2
+  
+  -- TODO POLARITY IN DATA!
+  zipWithM_ (smallerOrEq pol) tree1 tree2
   where
-    smallerSize :: Size -> Size -> TBTM ()
-    smallerSize (SDefined i1) (SDefined i2) = do
+    smallerSize :: Polarity -> Size -> Size -> TBTM ()
+    smallerSize Contravariant t1 t2 = smallerSize Covariant t2 t1
+    smallerSize Invariant t1 t2 = smallerSize Covariant t1 t2 >> smallerSize Covariant t2 t1
+    smallerSize Nonvariant t1 t2 = pure ()
+    smallerSize Covariant (SDefined i1) (SDefined i2) = do
       reportSDoc "term.tbt" 40 $ "Registering:" <+> pretty (SDefined i1) <+> "<=" <+> pretty (SDefined i2)
       storeConstraint (SConstraint SLeq i1 i2)
-    smallerSize SUndefined (SDefined i) = do
+    smallerSize Covariant SUndefined (SDefined i) = do
       reportSDoc "term.tbt" 40 $ "Marking size variable as undefined, because it has lower bound of infinity: " <+> pretty (SDefined i)
       markInfiniteSize i
-    smallerSize _ _ = pure ()
-smallerOrEq (UndefinedSizeType) _ = pure ()
-smallerOrEq _ (UndefinedSizeType) = pure ()
-smallerOrEq t1@(SizeGenericVar args1 i1) t2@(SizeGenericVar args2 i2) =
+    smallerSize Covariant t SUndefined =
+      -- It is okay to have infinity as an upper bound
+      pure ()
+smallerOrEq _ UndefinedSizeType _ = pure ()
+smallerOrEq _ _ UndefinedSizeType = pure ()
+smallerOrEq pol t1@(SizeGenericVar args1 i1) t2@(SizeGenericVar args2 i2) =
   when (i1 == i2 && args1 /= args2) $ do
     reportSDoc "term.tbt" 20 $ vcat
       ["Attempt to compare incomparable generic variables:"
@@ -411,21 +427,22 @@ smallerOrEq t1@(SizeGenericVar args1 i1) t2@(SizeGenericVar args2 i2) =
       , "t2: " <+> pretty t2
       ]
     __IMPOSSIBLE__
-smallerOrEq (SizeArrow d1 c1) (SizeArrow d2 c2) = d2 `smallerOrEq` d1 >> c1 `smallerOrEq` c2 -- note the contravariance in domain
-smallerOrEq (SizeGeneric _ rest1) (SizeGeneric _ rest2) = smallerOrEq rest1 rest2
-smallerOrEq (SizeGeneric _ rest1) (SizeArrow UndefinedSizeType rest2) = smallerOrEq (sizeInstantiate UndefinedSizeType rest1) rest2
-smallerOrEq (SizeArrow UndefinedSizeType rest1) (SizeGeneric _ rest2) = smallerOrEq rest1 (sizeInstantiate UndefinedSizeType rest2)
-smallerOrEq (SizeTree _ _) (SizeArrow _ _) = pure () -- can occur, becase encoding of terms is intentionaly not complete
-smallerOrEq (SizeArrow _ _) (SizeTree _ _) = pure ()
-smallerOrEq (SizeArrow _ r) (SizeGenericVar args i) = r `smallerOrEq` (SizeGenericVar (args + 1) i) -- eta-conversion
-smallerOrEq (SizeGenericVar args i) (SizeArrow _ r) = (SizeGenericVar (args + 1) i) `smallerOrEq` r -- eta-conversion
-smallerOrEq t1 t2 = do
+smallerOrEq pol (SizeArrow d1 c1) (SizeArrow d2 c2) = smallerOrEq (neg pol) d1 d2 >> smallerOrEq pol c1 c2 -- note the contravariance in domain
+smallerOrEq pol (SizeGeneric _ rest1) (SizeGeneric _ rest2) = smallerOrEq pol rest1 rest2
+smallerOrEq pol (SizeGeneric _ rest1) (SizeArrow UndefinedSizeType rest2) = smallerOrEq pol (sizeInstantiate UndefinedSizeType rest1) rest2
+smallerOrEq pol (SizeArrow UndefinedSizeType rest1) (SizeGeneric _ rest2) = smallerOrEq pol rest1 (sizeInstantiate UndefinedSizeType rest2)
+smallerOrEq pol (SizeTree _ _) (SizeArrow _ _) = pure () -- can occur, becase encoding of terms is intentionaly not complete
+smallerOrEq pol (SizeArrow _ _) (SizeTree _ _) = pure ()
+smallerOrEq pol (SizeArrow _ r) (SizeGenericVar args i) = smallerOrEq pol r (SizeGenericVar (args + 1) i) -- eta-conversion
+smallerOrEq pol (SizeGenericVar args i) (SizeArrow _ r) = smallerOrEq pol (SizeGenericVar (args + 1) i) r -- eta-conversion
+smallerOrEq pol t1 t2 = do
   -- One example of a problem is an attempt to compare generic var and size variable.
   -- This is an internal error, because it means that there is a forgotten instantiation somewhere.
   reportSDoc "term.tbt" 20 $ vcat
     ["Attempt to compare incomparable terms:"
     , "t1: " <+> pretty t1
     , "t2: " <+> pretty t2
+    , "polarity: " <+> pretty pol
     ]
   __IMPOSSIBLE__
 
@@ -435,14 +452,18 @@ smallerOrEq t1 t2 = do
 resolveConstant :: QName -> TBTM (Maybe ([SConstraint], SizeType))
 resolveConstant nm = do
   currentName <- currentCheckedName
+  constInfo <- getConstInfo nm
   sizedSig <- if currentName == nm
     then do
-      currentType <- defType <$> getConstInfo nm
+      let currentType = defType constInfo
       liftTCM $ Just <$> encodeFunctionType currentType
-    else defSizedType <$> getConstInfo nm
+    else pure $ defSizedType constInfo
+  let startingPolarity = case theDef constInfo of
+        Function {} -> Covariant
+        _ -> Invariant
   case sizedSig of
     Nothing -> pure Nothing
-    Just sig -> Just <$> freshenSignature sig
+    Just sig -> Just <$> freshenSignature startingPolarity sig
 
 -- | Record information about a recursive call from current function to q2
 --   Only the calls withing the same mutual block matter.

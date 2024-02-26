@@ -20,9 +20,6 @@ module Agda.Termination.TypeBased.Monad
   , getCurrentRigids
   , requestNewRigidVariable
   , withVariableCounter
-  , isContravariant
-  , getContravariantSizeVariables
-  , recordContravariantSizeVariable
   , getBottomVariables
   , storeBottomVariable
   , getLeafSizeVariables
@@ -31,6 +28,7 @@ module Agda.Termination.TypeBased.Monad
   , markInfiniteSize
   , getFallbackInstantiations
   , addFallbackInstantiation
+  , getSizePolarity
   -- * Core variables manipulation
   , getCurrentCoreContext
   , appendCoreVariable
@@ -53,7 +51,7 @@ module Agda.Termination.TypeBased.Monad
   , recordError
   ) where
 
-import Control.Monad ( replicateM )
+import Control.Monad ( replicateM, forM )
 import Control.Monad.IO.Class ( MonadIO )
 import Control.Monad.Trans.State ( StateT, gets, modify, runStateT )
 import qualified Data.IntMap as IntMap
@@ -70,15 +68,16 @@ import qualified Agda.Benchmarking as Benchmark
 import qualified Agda.Syntax.Common.Pretty as P
 import qualified Agda.Utils.Benchmark as B
 
-import Agda.TypeChecking.Monad.Base( TCM, Definition(defSizedType), HasOptions, MonadTCM, MonadTCState, MonadTCEnv, Closure, ReadTCState )
+import Agda.Termination.TypeBased.Common ( update )
+import Agda.Termination.TypeBased.Syntax ( SizeSignature(SizeSignature), SizeBound(..), FreeGeneric(fgIndex), SizeType, Size(..), sizeSigArity )
+import Agda.TypeChecking.Monad.Base ( TCM, Definition(defSizedType), HasOptions, MonadTCM, MonadTCState, MonadTCEnv, Closure, ReadTCState, Polarity(..) )
 import Agda.TypeChecking.Monad.Context ( MonadAddContext )
 import Agda.TypeChecking.Monad.Debug ( MonadDebug, reportSDoc )
 import Agda.TypeChecking.Monad.Signature ( HasConstInfo(getConstInfo) )
 import Agda.TypeChecking.Monad.Statistics ( MonadStatistics )
-import Agda.Termination.TypeBased.Syntax( SizeSignature(SizeSignature), SizeBound(..), FreeGeneric(fgIndex), SizeType, Size(..), sizeSigArity )
+import Agda.TypeChecking.Polarity ( composePol )
 import Agda.Syntax.Abstract.Name ( QName )
 import Agda.Syntax.Internal ( QName, Term )
-import Agda.Termination.TypeBased.Common ( update )
 
 -- | This monad represents an environment for type checking internal terms against sie types.
 newtype TBTM a = TBTM (StateT SizeCheckerState TCM a)
@@ -146,7 +145,9 @@ data SizeCheckerState = SizeCheckerState
   -- ^ Size types of the variables from internal syntax.
   --   Local to a clause.
   , scsFreshVarCounter        :: Int
-  -- ^ A counter that represents a pool of new first-order size variables. Both rigid and flexible variables are taken from this pool.
+  -- ^ The pool for flexible and rigid variables.
+  , scsFreshVarPolarities     :: IntMap Polarity
+  -- ^ Association of flexible variables with their polarities. @length scsFreshVarPolarities == scsFreshVarCounter@
   , scsBottomFlexVars         :: IntSet
   -- ^ Flexible variabless that correspond to a non-recursive constructor
   --   The motivation here is that non-recursive constructors (i.e. `zero` of `Nat`) are not bigger than any other term of their type,
@@ -157,8 +158,6 @@ data SizeCheckerState = SizeCheckerState
   --   This field is used to assign meaningful sizes to non-recursive constructors,
   --   i.e. the minimum of `scsLeafSizeVariables` is the final expression for size variables variables in `scsBottomFlexVars`.
   --   Populated during the checking of pattern's LHS. The sizes of patterns that are the leaves of the rigid size tree
-  , scsContravariantVariables :: IntSet
-  -- ^ Size variables that belong to coinductive definitions.
   , scsFallbackInstantiations :: IntMap Int
   -- ^ Instantiations for a flexible variables, that are used only if it is impossible to know the instantiation otherwise from the graph.
   --   This is the last resort, and a desperate attempt to guess at least something more useful than infinity.
@@ -206,16 +205,9 @@ initNewClause bounds = TBTM $ modify (\s -> s
   , scsCoreContext = [] -- like in internal syntax, each clause lives in a separate context
   })
 
-isContravariant :: Size -> TBTM Bool
-isContravariant SUndefined = pure False
-isContravariant (SDefined i) = do
-  IntSet.member i <$> TBTM (gets scsContravariantVariables)
-
-getContravariantSizeVariables :: TBTM IntSet
-getContravariantSizeVariables = TBTM $ gets scsContravariantVariables
-
-recordContravariantSizeVariable :: Int -> TBTM ()
-recordContravariantSizeVariable i = TBTM $ modify (\s -> s { scsContravariantVariables = IntSet.insert i (scsContravariantVariables s) })
+getSizePolarity :: Size -> TBTM Polarity
+getSizePolarity SUndefined = pure Invariant
+getSizePolarity (SDefined i) = (IntMap.! i) <$> TBTM (gets scsFreshVarPolarities)
 
 storeConstraint :: SConstraint -> TBTM ()
 storeConstraint c = TBTM $ modify \ s -> s
@@ -302,10 +294,14 @@ withVariableCounter  action = do
   newCounter <- TBTM $ gets scsFreshVarCounter
   pure (res, [oldCounter .. newCounter - 1])
 
-requestNewVariable :: TBTM Int
-requestNewVariable = TBTM $ do
+requestNewVariable :: Polarity -> TBTM Int
+requestNewVariable pol = TBTM $ do
   x <- gets scsFreshVarCounter
-  modify (\s -> s { scsFreshVarCounter = (x + 1) })
+  polarities <- gets scsFreshVarPolarities
+  modify (\s -> s
+    { scsFreshVarCounter = x + 1
+    , scsFreshVarPolarities = IntMap.insert x pol polarities
+    })
   return x
 
 -- | 'initSizePreservation candidates replaceable' is used to initialize structures for size preservation.
@@ -334,21 +330,22 @@ instance Show SConstraint where
   show (SConstraint SLte i1 i2) = show i1 ++ " < " ++ show i2
 
 -- | Given the signature, returns it with with fresh variables
-freshenSignature :: SizeSignature -> TBTM ([SConstraint], SizeType)
-freshenSignature s@(SizeSignature domain contra tele) = do
-  newVars <- replicateM (length domain) requestNewVariable
+freshenSignature :: Polarity -> SizeSignature -> TBTM ([SConstraint], SizeType)
+freshenSignature mainPol s@(SizeSignature domain contra tele) = do
+  newVars <- forM ([0 .. length domain - 1]) (\i ->
+    let polarity = if List.elem i contra then Contravariant else Covariant
+    in requestNewVariable (composePol mainPol polarity))
   let actualConstraints = mapMaybe (\(v, d) -> case d of
                             SizeUnbounded -> Nothing
                             SizeBounded i -> Just (SConstraint SLte v (newVars List.!! i))) (zip newVars domain)
       sigWithfreshenedSizes = update (newVars List.!!) tele
   -- freshSig <- freshenGenericArguments sigWithfreshenedSizes
   let newContravariantVariables = map (newVars List.!!) contra
-  TBTM $ modify ( \s -> s { scsContravariantVariables = foldr IntSet.insert (scsContravariantVariables s) newContravariantVariables  })
   return $ (actualConstraints, sigWithfreshenedSizes)
 
-requestNewRigidVariable :: SizeBound -> TBTM Int
-requestNewRigidVariable bound = do
-  newVarIdx <- requestNewVariable
+requestNewRigidVariable :: Polarity -> SizeBound -> TBTM Int
+requestNewRigidVariable pol bound = do
+  newVarIdx <- requestNewVariable pol
   TBTM $ do
     currentRigids <- gets scsRigidSizeVars
     modify \s -> s { scsRigidSizeVars = ((newVarIdx, bound) : currentRigids) }
@@ -377,10 +374,10 @@ runSizeChecker rootName mutualNames (TBTM action) = do
     , scsTotalConstraints = []
     , scsRigidSizeVars = []
     , scsFreshVarCounter = 0
+    , scsFreshVarPolarities = IntMap.empty
     , scsCoreContext = []
     , scsBottomFlexVars = IntSet.empty
     , scsLeafSizeVariables = []
-    , scsContravariantVariables = IntSet.empty
     , scsFallbackInstantiations = IntMap.empty
     , scsInfiniteVariables = IntSet.empty
     , scsRecCallsMatrix = []

@@ -204,7 +204,7 @@ processSizedDefinitionTBTM clauses = do
   sig@(SizeSignature bounds contra sizeType) <- liftTCM $ encodeFunctionType funType
   let decomposition = computeDecomposition (IntSet.fromList contra) sizeType
   initSizePreservation (sdNegative decomposition) (sdPositive decomposition)
-  (_, newTele) <- freshenSignature sig
+  (_, newTele) <- freshenSignature Covariant sig
 
   localSubstitutions <- forM clauses $ processSizeClause bounds newTele
 
@@ -263,7 +263,6 @@ processSizeClause bounds newTele c = do
     reportSDoc "term.tbt" 10 $ vcat $ "Clause constraints:" : (map (nest 2 . text . show) newConstraints)
     rigids <- getCurrentRigids
     bottomVars <- getBottomVariables
-    contra <- getContravariantSizeVariables
     infiniteVars <- getInfiniteSizes
     reportSDoc "term.tbt" 40 $ vcat $ map (nest 2)
       [ "Rigid context:       " <+> pretty rigids
@@ -273,7 +272,6 @@ processSizeClause bounds newTele c = do
     reportSDoc "term.tbt" 60 $ vcat $ map (nest 2)
       [ "Bottom vars:         " <+> text (show bottomVars)
       , "Arity:               " <+> text (show arity)
-      , "Contravariant:       " <+> text (show contra)
       ]
 
     subst <- simplifySizeGraph rigids newConstraints
@@ -326,7 +324,6 @@ encodeFunctionClause sizeType c = do
   setLeafSizeVariables leafVariables
   patternContext <- getCurrentCoreContext
   sizeContext <- getCurrentRigids
-  contra <- getContravariantSizeVariables
   reportSDoc "term.tbt" 10 $ vcat
     [ "Finished encoding of clause: " <+> prettyTCM c
     , "  Var context :              " <+> pretty patternContext
@@ -334,8 +331,7 @@ encodeFunctionClause sizeType c = do
     , "  Expected type of clause:   " <+> pretty tele
     ]
   reportSDoc "term.tbt" 60 $ vcat
-    [ "  Contravariant variables: " <+> text (show contra)
-    , "  Leaf variables:          " <+> text (show leafVariables)
+    [ "  Leaf variables:          " <+> text (show leafVariables)
     ]
   return tele
 

@@ -9,6 +9,8 @@ module Agda.TypeChecking.Polarity
   , nextPolarity
   , purgeNonvariant
   , polFromOcc
+  , neg
+  , (\/)
   ) where
 
 import Control.Monad  ( forM_, zipWithM )
@@ -51,6 +53,15 @@ Nonvariant /\ b = b
 a /\ Nonvariant = a
 a /\ b | a == b    = a
        | otherwise = Invariant
+
+-- | Supremum on the information lattice.
+--   'Invariant' is bottom (neutral for sup),
+--   'Nonvariant' is top (dominant for sup).
+(\/) :: Polarity -> Polarity -> Polarity
+Invariant \/ b = b
+a \/ Invariant = a
+a \/ b | a == b    = a
+       | otherwise = Nonvariant
 
 -- | 'Polarity' negation, swapping monotone and antitone.
 neg :: Polarity -> Polarity
