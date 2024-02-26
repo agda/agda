@@ -103,16 +103,24 @@ checkStrictlyPositive mi qset = do
         ]
   reportSLn "tc.pos.graph.sccs" 15 $
     "  sccs = " ++ prettyShow [ scc | CyclicSCC scc <- sccs ]
-  forM_ sccs $ \case
-    -- If the mutuality information has never been set, we set it to []
-    AcyclicSCC (DefNode q) -> whenM (isNothing <$> getMutual q) $ do
-      reportSLn "tc.pos.mutual" 10 $ "setting " ++ prettyShow q ++ " to non-recursive"
-      -- Andreas, 2017-04-26, issue #2555
-      -- We should not have @DefNode@s pointing outside our formal mutual block.
-      unless (Set.member q qset) __IMPOSSIBLE__
-      setMutual q []
-    AcyclicSCC (ArgNode{}) -> return ()
-    CyclicSCC scc          -> setMut [ q | DefNode q <- scc ]
+
+  -- #7133: Note that the graph doesn't necessarily contain all of qs in the case where there are no
+  -- occurrences of a name, but we still need to setMutual for them.
+  let sccMap = Map.unions [ case scc of
+                              AcyclicSCC (DefNode q) -> Map.singleton q []
+                              AcyclicSCC ArgNode{}   -> mempty
+                              CyclicSCC scc          -> Map.fromList [ (q, qs) | q <- qs ]
+                                where qs = [ q | DefNode q <- scc ]
+                          | scc <- sccs ]
+  inAbstractMode $ forM_ qs $ \ q ->
+    whenM (isNothing <$> getMutual q) $ do
+      let qs = fromMaybe [] $ Map.lookup q sccMap
+      reportSLn "tc.pos.mutual" 10 $ "setting " ++ prettyShow q ++ " to " ++
+                                     if | null qs        -> "non-recursive"
+                                        | length qs == 1 -> "recursive"
+                                        | otherwise      -> "mutually recursive"
+      setMutual q qs
+
   mapM_ (checkPos g gstar) qs
   reportSDoc "tc.pos.tick" 100 $ "checked positivity"
 
@@ -120,9 +128,9 @@ checkStrictlyPositive mi qset = do
     checkPos :: Graph Node (Edge OccursWhere) ->
                 Graph Node Occurrence ->
                 QName -> TCM ()
-    checkPos g gstar q = inConcreteOrAbstractMode q $ \ _def -> do
+    checkPos g gstar q = inConcreteOrAbstractMode q $ \ def -> do
       -- we check positivity only for data or record definitions
-      whenJustM (isDatatype q) $ \ dr -> do
+      whenJust (isDatatype def) $ \ dr -> do
         reportSDoc "tc.pos.check" 10 $ "Checking positivity of" <+> prettyTCM q
 
         let loop :: Maybe Occurrence
@@ -199,25 +207,12 @@ checkStrictlyPositive mi qset = do
 
     occ (Edge o _) = o
 
-    isDatatype :: QName -> TCM (Maybe DataOrRecord)
-    isDatatype q = do
-      def <- theDef <$> getConstInfo q
-      return $ case def of
+    isDatatype :: Definition -> Maybe DataOrRecord
+    isDatatype def = do
+      case theDef def of
         Datatype{dataClause = Nothing} -> Just IsData
         Record  {recClause  = Nothing, recPatternMatching } -> Just $ IsRecord recPatternMatching
         _ -> Nothing
-
-    -- Set the mutually recursive identifiers for a SCC.
-    setMut :: [QName] -> TCM ()
-    setMut [] = return ()  -- nothing to do
-    setMut qs = forM_ qs $ \ q -> do
-      reportSLn "tc.pos.mutual" 10 $ "setting " ++ prettyShow q ++ " to (mutually) recursive"
-      setMutual q qs
-      -- TODO: The previous line produces data of quadratic size
-      -- (which has to be processed upon serialization).  Presumably qs is
-      -- usually short, but in some cases (for instance for generated
-      -- code) it may be long. Wouldn't it be better to assign a
-      -- unique identifier to each SCC, and avoid storing lists?
 
     -- Set the polarity of the arguments to a couple of definitions
     setArgOccs :: Set QName -> [QName] -> Graph Node Occurrence -> TCM ()
