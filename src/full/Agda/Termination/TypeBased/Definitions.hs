@@ -185,7 +185,7 @@ processSizedDefinition names funData nm = inConcreteOrAbstractMode nm $ \d -> do
   reportSDoc "term.tbt" 10 $ "Starting type-based termination checking of the function:" <+> prettyTCM nm
   -- Since we are processing this function, it was certainly encoded.
   let s = fromJust (defSizedType def)
-  res <- invokeSizeChecker nm names (processSizedDefinitionMSC clauses)
+  res <- invokeSizeChecker nm names (processSizedDefinitionTBTM clauses)
   case res of
     Left err -> pure $ Left err
     Right (callGraph, sig) -> do
@@ -195,17 +195,18 @@ processSizedDefinition names funData nm = inConcreteOrAbstractMode nm $ \d -> do
         ]
       return $ Right (nm, callGraph, sig)
 
-
-processSizedDefinitionMSC :: [Clause] -> MonadSizeChecker (IntMap SizeExpression, SizeSignature)
-processSizedDefinitionMSC clauses = do
+-- | Given a fully set environment (within @TBTM@), a definition is isomorphic to its set of clauses.
+-- This function processes all definition's clauses, gathering a size substitution and a size signature after size preservation process.
+processSizedDefinitionTBTM :: [Clause] -> TBTM (SizeSubstitution, SizeSignature)
+processSizedDefinitionTBTM clauses = do
   qn <- currentCheckedName
   funType <- defType <$> getConstInfo qn
   sig@(SizeSignature bounds contra sizeType) <- liftTCM $ encodeFunctionType funType
   let decomposition = computeDecomposition (IntSet.fromList contra) sizeType
-  MSC $ modify (\s -> s { scsPreservationCandidates = IntMap.fromList $ map (, sdNegative decomposition) (sdPositive decomposition) })
+  initSizePreservation (sdNegative decomposition) (sdPositive decomposition)
   (_, newTele) <- freshenSignature sig
 
-  localSubstitutions <- forM clauses (processSizeClause bounds newTele)
+  localSubstitutions <- forM clauses $ processSizeClause bounds newTele
 
   -- This is in fact a disjoint union, since all variables are different for each clause.
   let combinedSubst = IntMap.unions localSubstitutions
@@ -218,7 +219,7 @@ processSizedDefinitionMSC clauses = do
   where
 
     -- Assigns all incoherent rigid variables to infinity, since they cannot be used for termination analysis adequately.
-    considerIncoherences :: IntMap SizeExpression -> MonadSizeChecker (IntMap SizeExpression)
+    considerIncoherences :: IntMap SizeExpression -> TBTM (IntMap SizeExpression)
     considerIncoherences combinedSubst = do
       totalGraph <- getTotalConstraints
       currentName <- currentCheckedName
@@ -229,8 +230,8 @@ processSizedDefinitionMSC clauses = do
       pure $ IntMap.mapWithKey (\i expectedSize@(SEMeet list) -> if (any (`IntSet.member` incoherences) list) then baseSize else expectedSize) combinedSubst
 
 
--- | Given a clause, builds an assignment for all size variables occurred in this clause
-processSizeClause :: [SizeBound] -> SizeType -> Clause -> MonadSizeChecker (IntMap SizeExpression)
+-- | Given a clause, builds a substitution for all size variables occurred in this clause
+processSizeClause :: [SizeBound] -> SizeType -> Clause -> TBTM SizeSubstitution
 processSizeClause bounds newTele c = do
   initNewClause bounds
   if (hasDefP (namedClausePats c))
@@ -239,16 +240,16 @@ processSizeClause bounds newTele c = do
     expectedTele <- billTo [Benchmark.TypeBasedTermination, Benchmark.PatternRigids] $ encodeFunctionClause newTele c
     reportSDoc "term.tbt" 10 $ "Starting checking the clause: " <+> prettyTCM c
 
-    ifM (null <$> MSC (gets scsErrorMessages)) (
-        case clauseBody c of
+    ifM hasEncodingErrors
+     {- then -} (do
+        reportSDoc "term.tbt" 70 $ "Aborting processing of clause, because error during encoding happened"
+        return ())
+     {- else -} (case clauseBody c of
         Just body -> billTo [Benchmark.TypeBasedTermination, Benchmark.SizeTypeChecking] $ do
             addContext (clauseTel c) $ sizeCheckTerm expectedTele body >> pure ()
         _ -> do
             reportSDoc "term.tbt" 70 $ "Aborting processing of clause, because there is no body"
-            return ()
-        ) (do
-        reportSDoc "term.tbt" 70 $ "Aborting processing of clause, because error during encoding happened"
-        return ())
+            return ())
     newConstraints <- getCurrentConstraints
 
     -- Size preservation is a very expensive computation.
@@ -261,12 +262,12 @@ processSizeClause bounds newTele c = do
 
     reportSDoc "term.tbt" 10 $ vcat $ "Clause constraints:" : (map (nest 2 . text . show) newConstraints)
     rigids <- getCurrentRigids
-    bottomVars <- MSC $ gets scsBottomFlexVars
+    bottomVars <- getBottomVariables
     contra <- getContravariantSizeVariables
-    undefinedVars <- MSC $ gets scsUndefinedVariables
+    infiniteVars <- getInfiniteSizes
     reportSDoc "term.tbt" 40 $ vcat $ map (nest 2)
       [ "Rigid context:       " <+> pretty rigids
-      , "undefined sizes:     " <+> text (show undefinedVars)
+      , "undefined sizes:     " <+> text (show infiniteVars)
       ]
 
     reportSDoc "term.tbt" 60 $ vcat $ map (nest 2)
@@ -283,7 +284,7 @@ processSizeClause bounds newTele c = do
     pure subst
 
 
-invokeSizeChecker :: QName -> Set QName -> MonadSizeChecker (IntMap SizeExpression, SizeSignature) -> TCM (Either [String] (CallGraph CallPath, SizeSignature))
+invokeSizeChecker :: QName -> Set QName -> TBTM (IntMap SizeExpression, SizeSignature) -> TCM (Either [String] (CallGraph CallPath, SizeSignature))
 invokeSizeChecker rootName nms action = do
   ((subst, sizePreservationInferenceResult), res) <- runSizeChecker rootName nms action
   let graph = scsTotalConstraints res
@@ -310,7 +311,7 @@ invokeSizeChecker rootName nms action = do
 
 -- | Populates a set of rigid variables and internal context according to the LHS of a clause.
 --   Returns the expected type of a clause, which may be different from semi-applied function type because of copatterns
-encodeFunctionClause :: SizeType -> Clause -> MonadSizeChecker SizeType
+encodeFunctionClause :: SizeType -> Clause -> TBTM SizeType
 encodeFunctionClause sizeType c = do
   let patterns = namedClausePats c
   reportSDoc "term.tbt" 10 $ vcat

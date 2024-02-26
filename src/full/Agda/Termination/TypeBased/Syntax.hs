@@ -9,7 +9,6 @@ module Agda.Termination.TypeBased.Syntax
  , pattern UndefinedSizeType
  , sizeCodomain
  , sizeSigArity
- , small
  ) where
 
 import Control.DeepSeq ( NFData ( rnf ) )
@@ -21,9 +20,9 @@ import Agda.Syntax.Common.Pretty ( Pretty ( pretty, prettyPrec, prettyList ), Do
 -- | An atomic size expression.
 data Size
   = SUndefined
-  -- ^ Undefined size, roughly corresponds to an infinite ordinal
+  -- ^ Undefined size, roughly corresponds to an infinite ordinal.
   | SDefined Int
-  -- ^ Size variable
+  -- ^ Size variable.
   deriving (Eq, Show)
 
 -- | A representation of a sized type, which is assigned to elements of underlying theory.
@@ -147,5 +146,6 @@ instance Pretty SizeSignature where
 instance KillRange SizeSignature where
   killRange = id
 
+-- Prints a number as a subscript.
 small :: Int -> Doc
 small i = text $ map (\c -> chr (ord c + 0x2080 - ord '0')) (show i)

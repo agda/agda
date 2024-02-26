@@ -48,17 +48,17 @@ import Agda.Termination.Monad (isCoinductiveProjection)
 -- | Bidirectional-style checking of internal terms.
 --   Though this function is checking, it also infers size types of terms,
 --   because of the structure of the internal syntax in Agda (namely, because there are no explicit applications).
-sizeCheckTerm :: SizeType -> Term -> MonadSizeChecker SizeType
+sizeCheckTerm :: SizeType -> Term -> TBTM SizeType
 sizeCheckTerm tp term' = do
   -- Turn projection-like function into a sequence of projections
-  unProjectedTerm <- MSC $ elimView EvenLone term'
+  unProjectedTerm <- liftTCM $ elimView EvenLone term'
   term <- liftTCM $ tryReduceCopy unProjectedTerm
   -- now the term is ready for size processing
   sizeCheckTerm' tp term
 
 -- | The same as @sizeCheckTerm@, but acts on a sufficiently normalized terms.
 --   It is enough for the term to be free from Agda's internal sugar, such as projection-like functions or copied definitions.
-sizeCheckTerm' :: SizeType -> Term -> MonadSizeChecker SizeType
+sizeCheckTerm' :: SizeType -> Term -> TBTM SizeType
 sizeCheckTerm' expected t@(Var i elims) = do
   context <- getCurrentCoreContext
   case lookup i context of
@@ -96,7 +96,7 @@ sizeCheckTerm' expected t@(Var i elims) = do
         Right actualType -> pure $ remainingCodomain
 sizeCheckTerm' expected t@(Def qn elims) = if isAbsurdLambdaName qn then pure UndefinedSizeType else do
   -- New size variables in a freshened definitions are those that were populated during the freshening. Yes, a bit of an abstraction leak, TODO
-  currentSizeLimit <- MSC $ gets scsFreshVarCounter
+  currentSizeLimit <- TBTM $ gets scsFreshVarCounter
   constInfo <- getConstInfo qn
   sizeSigOfDef <- resolveConstant qn
   case sizeSigOfDef of
@@ -105,7 +105,7 @@ sizeCheckTerm' expected t@(Def qn elims) = if isAbsurdLambdaName qn then pure Un
       pure $ UndefinedSizeType
     -- This definition is a function, which has no interesting size bounds, so we can safely ignore them
     Just (_, sizeTypeOfDef) -> do
-      newSizeVariables <- MSC (gets scsFreshVarCounter) <&> \x -> [currentSizeLimit .. (x - 1)]
+      newSizeVariables <- TBTM (gets scsFreshVarCounter) <&> \x -> [currentSizeLimit .. (x - 1)]
       reportSDoc "term.tbt" 20 $ vcat $
         [ "Retrieving definition " <> prettyTCM qn <> ":" ] ++ map (nest 2)
         [ "Term: " <+> prettyTCM t
@@ -215,7 +215,7 @@ sizeCheckTerm' expected t@(Lam info tm) = do
       sizeCheckTerm rest tm
 sizeCheckTerm' _ (Pi _ _) = pure $ UndefinedSizeType
 sizeCheckTerm' expected t@(MetaV _ el) = do
-  inst <- MSC $ instantiate t
+  inst <- liftTCM $ instantiate t
   case inst of
     MetaV _ _ -> pure $ UndefinedSizeType
     t -> sizeCheckTerm expected t
@@ -238,7 +238,7 @@ sizeCheckTerm' _ (Sort s) = case s of
 sizeCheckTerm' expected (DontCare t) = sizeCheckTerm' expected t
 sizeCheckTerm' _ (Dummy _ _) = pure $ UndefinedSizeType
 
-maybeStoreRecursiveCall :: QName -> Elims  -> [Int] -> MonadSizeChecker ()
+maybeStoreRecursiveCall :: QName -> Elims  -> [Int] -> TBTM ()
 maybeStoreRecursiveCall qn elims callSizes = do
   names <- currentMutualNames
   tryReduceNonRecursiveClause qn elims names (\_ -> reportSDoc "term.tbt" 80 "Call is reduced away")
@@ -251,7 +251,7 @@ maybeStoreRecursiveCall qn elims callSizes = do
 
 -- | Records the constraints obtained from comparing inferred and checked size types.
 -- This is more or less standard transition from checking to inference in bidirectional type checking.
-inferenceToChecking :: SizeType -> SizeType -> MonadSizeChecker ()
+inferenceToChecking :: SizeType -> SizeType -> TBTM ()
 inferenceToChecking expected inferred = unless (expected == UndefinedSizeType) $ inferred `smallerOrEq` expected
 
 datatypeArguments :: Int -> SizeType -> Int
@@ -268,7 +268,7 @@ isDumbType _ = False
 -- Example : `apply foo a b`, where `apply : (A -> B) -> A -> B` and `foo : C -> D -> E`. Here instantiation of `B` is `D -> E`, which unlocks the application of `b`.
 -- Returns the residual codomain in the end of the list.
 -- This is analogous to @checkSpine@ in the double checker.
-sizeCheckEliminations :: SizeType -> Elims -> MonadSizeChecker SizeType
+sizeCheckEliminations :: SizeType -> Elims -> TBTM SizeType
 sizeCheckEliminations eliminated [] = pure eliminated
 sizeCheckEliminations eliminated@UndefinedSizeType (elim : elims) = do
   arg <- case elim of
@@ -296,9 +296,9 @@ sizeCheckEliminations eliminated (elim : elims) = do
         (Def qn _) -> do
           reportSDoc "term.tbt" 80 $ "Attempting reduction during elimination of " <+> prettyTCM qn
           def <- getConstInfo qn
-          TelV _ codomain <- MSC $ telView (defType def)
+          TelV _ codomain <- liftTCM $ telView (defType def)
           term <- if (isJust . isSort . unEl $ codomain) && isTerminatingDefinition def
-            then liftTCM . tryReduceCopy =<< MSC (reduce t)
+            then liftTCM $ tryReduceCopy =<< reduce t
             else pure t
           case term of
             Def qn _ -> do
@@ -323,7 +323,7 @@ sizeCheckEliminations eliminated (elim : elims) = do
     (IApply _ _ _, _) -> __IMPOSSIBLE__
 
 -- | Eliminates projection, returns inferred type of eliminated record and the residual inferred codomain of projection.
-eliminateProjection :: QName -> SizeType -> [SizeType] -> MonadSizeChecker (SizeType, SizeType)
+eliminateProjection :: QName -> SizeType -> [SizeType] -> TBTM (SizeType, SizeType)
 eliminateProjection projName eliminatedRecord recordArgs = do
   (constraints, projectionType) <- fromJust <$> resolveConstant projName
   isCoinductive <- isCoinductiveProjection True projName
@@ -392,18 +392,18 @@ eliminateProjection projName eliminatedRecord recordArgs = do
 -- | Compares two size types and stores the obtained constraints.
 --   The idea is that during the later computation of assignment for flexible types,
 --   all these constraints should be respected.
-smallerOrEq :: SizeType -> SizeType -> MonadSizeChecker ()
+smallerOrEq :: SizeType -> SizeType -> TBTM ()
 smallerOrEq (SizeTree s1 tree1) (SizeTree s2 tree2) = do
   ifM (isContravariant s1 `or2M` isContravariant s2) {- then -} (smallerSize s2 s1) {- else -} (smallerSize s1 s2)
   zipWithM_ smallerOrEq tree1 tree2
   where
-    smallerSize :: Size -> Size -> MonadSizeChecker ()
+    smallerSize :: Size -> Size -> TBTM ()
     smallerSize (SDefined i1) (SDefined i2) = do
       reportSDoc "term.tbt" 40 $ "Registering:" <+> pretty (SDefined i1) <+> "<=" <+> pretty (SDefined i2)
       storeConstraint (SConstraint SLeq i1 i2)
     smallerSize SUndefined (SDefined i) = do
       reportSDoc "term.tbt" 40 $ "Marking size variable as undefined, because it has lower bound of infinity: " <+> pretty (SDefined i)
-      markUndefinedSize i
+      markInfiniteSize i
     smallerSize _ _ = pure ()
 smallerOrEq (UndefinedSizeType) _ = pure ()
 smallerOrEq _ (UndefinedSizeType) = pure ()
@@ -436,7 +436,7 @@ smallerOrEq t1 t2 = do
 
 -- | Retrieves sized type for a constant
 -- May return Nothing for primitive definition
-resolveConstant :: QName -> MonadSizeChecker (Maybe ([SConstraint], SizeType))
+resolveConstant :: QName -> TBTM (Maybe ([SConstraint], SizeType))
 resolveConstant nm = do
   currentName <- currentCheckedName
   sizedSig <- if currentName == nm
@@ -450,7 +450,7 @@ resolveConstant nm = do
 
 -- | Record information about a recursive call from q1 to q2
 --   Only the calls withing the same mutual block matter.
-storeCall :: QName -> QName -> [Int] -> [Int] -> Elims -> MonadSizeChecker ()
+storeCall :: QName -> QName -> [Int] -> [Int] -> Elims -> TBTM ()
 storeCall q1 q2 sizesq1 sizesq2 elims = do
   names <- currentMutualNames
   when (q1 `Set.member` names && q2 `Set.member` names) do

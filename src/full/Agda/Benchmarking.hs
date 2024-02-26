@@ -79,8 +79,6 @@ data Phase
     -- ^ Subphase for 'TypeBasedTermination': size-preservation checking.
   | SizeGraphSolving
     -- ^ Subphase for 'TypeBasedTermination': solving the size constraints.
-  | Cluster
-    -- ^ Subphase for 'TypeBasedTermination': solving the size constraints.
   | Matrix
     -- ^ Subphase for 'TypeBasedTermination': processing size-change matrices.
   | ModuleName

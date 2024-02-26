@@ -32,15 +32,31 @@ import qualified Agda.Benchmarking as Benchmark
 
 import qualified Agda.Syntax.Common.Pretty as P
 
-newtype MonadSizeChecker a = MSC (StateT SizeCheckerState TCM a)
-  deriving (Functor, Applicative, Monad, MonadTCEnv, MonadTCState, HasOptions, MonadDebug, MonadFail, HasConstInfo, MonadAddContext, MonadIO, MonadTCM, ReadTCState, MonadStatistics)
+-- | This monad represents an environment for type checking internal terms against sie types.
+newtype TBTM a = TBTM (StateT SizeCheckerState TCM a)
+  deriving
+  ( Functor
+  , Applicative
+  , Monad
+  , MonadTCEnv
+  , MonadTCState
+  , HasOptions
+  , MonadDebug
+  , MonadFail
+  , HasConstInfo
+  , MonadAddContext
+  , MonadIO
+  , MonadTCM
+  , ReadTCState
+  , MonadStatistics
+  )
 
-instance B.MonadBench MonadSizeChecker where
-  type BenchPhase MonadSizeChecker = Benchmark.Phase
-  getBenchmark              = MSC $ B.getBenchmark
-  putBenchmark              = MSC . B.putBenchmark
-  modifyBenchmark           = MSC . B.modifyBenchmark
-  finally (MSC m) (MSC f) = MSC $ (B.finally m f)
+instance B.MonadBench TBTM where
+  type BenchPhase TBTM = Benchmark.Phase
+  getBenchmark              = TBTM $ B.getBenchmark
+  putBenchmark              = TBTM . B.putBenchmark
+  modifyBenchmark           = TBTM . B.modifyBenchmark
+  finally (TBTM m) (TBTM f) = TBTM $ (B.finally m f)
 
 type SizeContextEntry = (Int, Either FreeGeneric SizeType)
 
@@ -91,9 +107,9 @@ data SizeCheckerState = SizeCheckerState
   -- ^ Instantiations for a flexible variables, that are used only if it is impossible to know the instantiation otherwise from the graph.
   --   This is the last resort, and a desperate attempt to guess at least something more useful than infinity.
   --   Often this situation happens after projecting a record, where some size variables are simply gone for the later analysis.
-  , scsUndefinedVariables     :: IntSet
-  -- ^ A set of size variables that encountered an undefined size as their lower bound.
-  --   These sizes are inherently unknown, and we can shortcut them during the processing of the graph.
+  , scsInfiniteVariables     :: IntSet
+  -- ^ A set of size variables that have an infinite size as their lower bound.
+  --   These sizes are inherently unknown, and we can quickly assign infinity to them during the processing of the graph.
   , scsRecCallsMatrix         :: [[Int]]
   -- ^ When a function calls itself, it becomes a subject of analysis for possible size preservation.
   --   Since we freshen the signatures of all functions that are used in the body,
@@ -114,92 +130,103 @@ data SizeCheckerState = SizeCheckerState
   --   e.g. a postulated univalence axiom may break the type-based termination checker with an internal error.
   }
 
-getCurrentConstraints :: MonadSizeChecker [SConstraint]
-getCurrentConstraints = MSC $ gets scsConstraints
+getCurrentConstraints :: TBTM [SConstraint]
+getCurrentConstraints = TBTM $ gets scsConstraints
 
-getTotalConstraints :: MonadSizeChecker [SConstraint]
-getTotalConstraints = MSC $ gets scsTotalConstraints
+getTotalConstraints :: TBTM [SConstraint]
+getTotalConstraints = TBTM $ gets scsTotalConstraints
 
-getCurrentRigids :: MonadSizeChecker [(Int, SizeBound)]
-getCurrentRigids = MSC $ gets scsRigidSizeVars
+getCurrentRigids :: TBTM [(Int, SizeBound)]
+getCurrentRigids = TBTM $ gets scsRigidSizeVars
 
--- | Adds a new rigid variable. This function is fragile, since bound might not be expressed in terms of current rigids.
---   Unfortunately we have to live with it if we want to support record projections in arbitrary places.
-addNewRigid :: Int -> SizeBound -> MonadSizeChecker ()
-addNewRigid x bound = MSC $ modify \s -> s { scsRigidSizeVars = ((x, bound) : scsRigidSizeVars s) }
-
-getCurrentCoreContext :: MonadSizeChecker [SizeContextEntry]
-getCurrentCoreContext = MSC $ gets scsCoreContext
+getCurrentCoreContext :: TBTM [SizeContextEntry]
+getCurrentCoreContext = TBTM $ gets scsCoreContext
 
 -- | Initializes internal data strustures that will be filled by the processing of a clause
-initNewClause :: [SizeBound] -> MonadSizeChecker ()
-initNewClause bounds = MSC $ modify (\s -> s
+initNewClause :: [SizeBound] -> TBTM ()
+initNewClause bounds = TBTM $ modify (\s -> s
   { scsRigidSizeVars = (zip [0..length bounds] (replicate (length bounds) SizeUnbounded))
   , scsConstraints = [] -- a graph obtained by the processing of a clause corresponds to the clause's rigids
   , scsCoreContext = [] -- like in internal syntax, each clause lives in a separate context
   })
 
-isContravariant :: Size -> MonadSizeChecker Bool
+isContravariant :: Size -> TBTM Bool
 isContravariant SUndefined = pure False
 isContravariant (SDefined i) = do
-  IntSet.member i <$> MSC (gets scsContravariantVariables)
+  IntSet.member i <$> TBTM (gets scsContravariantVariables)
 
-getContravariantSizeVariables :: MonadSizeChecker IntSet
-getContravariantSizeVariables = MSC $ gets scsContravariantVariables
+getContravariantSizeVariables :: TBTM IntSet
+getContravariantSizeVariables = TBTM $ gets scsContravariantVariables
 
-recordContravariantSizeVariable :: Int -> MonadSizeChecker ()
-recordContravariantSizeVariable i = MSC $ modify (\s -> s { scsContravariantVariables = IntSet.insert i (scsContravariantVariables s) })
+recordContravariantSizeVariable :: Int -> TBTM ()
+recordContravariantSizeVariable i = TBTM $ modify (\s -> s { scsContravariantVariables = IntSet.insert i (scsContravariantVariables s) })
 
 -- | Retrieves the number of size variables in the sized signature of @qn@
-getArity :: QName -> MonadSizeChecker Int
+getArity :: QName -> TBTM Int
 getArity qn = sizeSigArity . fromJust . defSizedType <$> getConstInfo qn
 
-storeConstraint :: SConstraint -> MonadSizeChecker ()
-storeConstraint c = MSC $ modify \ s -> s
+storeConstraint :: SConstraint -> TBTM ()
+storeConstraint c = TBTM $ modify \ s -> s
   { scsConstraints = c : (scsConstraints s)
   , scsTotalConstraints = c : scsTotalConstraints s
   }
 
-reportCall :: QName -> QName -> [Int] -> [Int] -> Closure Term -> MonadSizeChecker ()
-reportCall q1 q2 sizes1 sizes2 place = MSC $ modify (\s -> s { scsRecCalls = (q1, q2, sizes1, sizes2, place) : scsRecCalls s })
+reportCall :: QName -> QName -> [Int] -> [Int] -> Closure Term -> TBTM ()
+reportCall q1 q2 sizes1 sizes2 place = TBTM $ modify (\s -> s { scsRecCalls = (q1, q2, sizes1, sizes2, place) : scsRecCalls s })
 
-setLeafSizeVariables :: [Int] -> MonadSizeChecker ()
-setLeafSizeVariables leaves = MSC $ modify (\s -> s { scsLeafSizeVariables = leaves })
+setLeafSizeVariables :: [Int] -> TBTM ()
+setLeafSizeVariables leaves = TBTM $ modify (\s -> s { scsLeafSizeVariables = leaves })
 
-currentCheckedName :: MonadSizeChecker QName
-currentCheckedName = MSC $ gets scsCurrentFunc
+getLeafSizeVariables :: TBTM [Int]
+getLeafSizeVariables = TBTM $ gets scsLeafSizeVariables
 
-getRootArity :: MonadSizeChecker Int
+currentCheckedName :: TBTM QName
+currentCheckedName = TBTM $ gets scsCurrentFunc
+
+getRootArity :: TBTM Int
 getRootArity = do
   rootName <- currentCheckedName
   getArity rootName
 
-currentMutualNames :: MonadSizeChecker (Set QName)
-currentMutualNames = MSC $ gets scsMutualNames
+currentMutualNames :: TBTM (Set QName)
+currentMutualNames = TBTM $ gets scsMutualNames
 
-addFallbackInstantiation :: Int -> Int -> MonadSizeChecker ()
-addFallbackInstantiation i j = MSC $ modify (\s -> s { scsFallbackInstantiations = IntMap.insert i j (scsFallbackInstantiations s) })
+addFallbackInstantiation :: Int -> Int -> TBTM ()
+addFallbackInstantiation i j = TBTM $ modify (\s -> s { scsFallbackInstantiations = IntMap.insert i j (scsFallbackInstantiations s) })
+
+getFallbackInstantiations :: TBTM (IntMap Int)
+getFallbackInstantiations = TBTM $ gets scsFallbackInstantiations
 
 -- | Size-preservation machinery needs to know about recursive calls.
 -- See the documentation for @scsRecCallsMatrix@
-reportDirectRecursion :: [Int] -> MonadSizeChecker ()
-reportDirectRecursion sizes = MSC $ modify (\s -> s { scsRecCallsMatrix = sizes : scsRecCallsMatrix s })
+reportDirectRecursion :: [Int] -> TBTM ()
+reportDirectRecursion sizes = TBTM $ modify (\s -> s { scsRecCallsMatrix = sizes : scsRecCallsMatrix s })
 
-storeBottomVariable :: Int -> MonadSizeChecker ()
-storeBottomVariable i = MSC $ modify (\s -> s { scsBottomFlexVars = IntSet.insert i (scsBottomFlexVars s)})
+getRecursionMatrix :: TBTM [[Int]]
+getRecursionMatrix = TBTM $ gets scsRecCallsMatrix
 
-markUndefinedSize :: Int -> MonadSizeChecker ()
-markUndefinedSize i = MSC $ modify (\s -> s { scsUndefinedVariables = IntSet.insert i (scsUndefinedVariables s)})
+-- | 'storeBottomVariable i' is used to leave a record that variable 'i' that is a part of a non-recursive constructor.
+storeBottomVariable :: Int -> TBTM ()
+storeBottomVariable i = TBTM $ modify (\s -> s { scsBottomFlexVars = IntSet.insert i (scsBottomFlexVars s)})
 
-getUndefinedSizes :: MonadSizeChecker IntSet
-getUndefinedSizes = MSC $ gets scsUndefinedVariables
+-- | 'getBottomVariables' returns the set of variables that are part of non-recursive constructors.
+getBottomVariables :: TBTM IntSet
+getBottomVariables = TBTM $ gets scsBottomFlexVars
 
-abstractCoreContext :: Int -> Either FreeGeneric SizeType -> MonadSizeChecker a -> MonadSizeChecker a
+-- | 'markInfiniteSize i' is used to mark a size variable as having an infinite lower bound.
+markInfiniteSize :: Int -> TBTM ()
+markInfiniteSize i = TBTM $ modify (\s -> s { scsInfiniteVariables = IntSet.insert i (scsInfiniteVariables s)})
+
+-- | 'getInfiniteSizes' returns the set of size variables that have an infinite lower bound.
+getInfiniteSizes :: TBTM IntSet
+getInfiniteSizes = TBTM $ gets scsInfiniteVariables
+
+abstractCoreContext :: Int -> Either FreeGeneric SizeType -> TBTM a -> TBTM a
 abstractCoreContext i tele action = do
-  contexts <- MSC $ gets scsCoreContext
-  MSC $ modify \s -> s { scsCoreContext = ((i, tele) : map (incrementDeBruijnEntry tele) contexts) }
+  contexts <- TBTM $ gets scsCoreContext
+  TBTM $ modify \s -> s { scsCoreContext = ((i, tele) : map (incrementDeBruijnEntry tele) contexts) }
   res <- action
-  MSC $ modify \s -> s { scsCoreContext = contexts }
+  TBTM $ modify \s -> s { scsCoreContext = contexts }
   pure res
 
 incrementDeBruijnEntry :: Either FreeGeneric SizeType -> (Int, Either FreeGeneric SizeType) -> (Int, Either FreeGeneric SizeType)
@@ -207,18 +234,31 @@ incrementDeBruijnEntry (Left _) (x, Left fg) = (x + 1, Left $ fg { fgIndex = fgI
 incrementDeBruijnEntry (Left _) (x, Right t) = (x + 1, Right t)
 incrementDeBruijnEntry (Right _) (x, e) = (x + 1, e)
 
-requestNewVariable :: MonadSizeChecker Int
-requestNewVariable = MSC $ do
+requestNewVariable :: TBTM Int
+requestNewVariable = TBTM $ do
   x <- gets scsFreshVarCounter
   modify (\s -> s { scsFreshVarCounter = (x + 1) })
   return x
 
-withAnotherPreservationCandidate :: Int -> MonadSizeChecker a -> MonadSizeChecker a
+-- | 'initSizePreservation candidates replaceable' is used to initialize structures for size preservation.
+-- The set of variables that can be size preserving is 'replaceable', and the set of independent variables is 'candidates'
+initSizePreservation :: [Int] -> [Int] -> TBTM ()
+initSizePreservation candidates replaceable = TBTM $ modify (\s -> s { scsPreservationCandidates = IntMap.fromList $ map (, candidates) (replaceable) })
+
+-- | 'getPreservationCandidates' returns the set of size variables that can be size preserving.
+getPreservationCandidates :: TBTM (IntMap [Int])
+getPreservationCandidates = TBTM $ gets scsPreservationCandidates
+
+replacePreservationCandidates :: IntMap [Int] -> TBTM ()
+replacePreservationCandidates m = TBTM $ modify (\s -> s { scsPreservationCandidates = m })
+
+-- | 'withAnotherPreservationCandidate candidate action' is used to temporarily replace the set of candidates for size preservation.
+withAnotherPreservationCandidate :: Int -> TBTM a -> TBTM a
 withAnotherPreservationCandidate candidate action = do
-  oldState <- MSC $ gets scsPreservationCandidates
-  MSC $ modify (\s -> s { scsPreservationCandidates = IntMap.insert candidate [] oldState })
+  oldState <- TBTM $ gets scsPreservationCandidates
+  TBTM $ modify (\s -> s { scsPreservationCandidates = IntMap.insert candidate [] oldState })
   res <- action
-  MSC $ modify (\s -> s { scsPreservationCandidates = oldState })
+  TBTM $ modify (\s -> s { scsPreservationCandidates = oldState })
   pure res
 
 instance Show SConstraint where
@@ -226,7 +266,7 @@ instance Show SConstraint where
   show (SConstraint SLte i1 i2) = show i1 ++ " < " ++ show i2
 
 -- | Given the signature, returns it with with fresh variables
-freshenSignature :: SizeSignature -> MonadSizeChecker ([SConstraint], SizeType)
+freshenSignature :: SizeSignature -> TBTM ([SConstraint], SizeType)
 freshenSignature s@(SizeSignature domain contra tele) = do
   -- reportSDoc "term.tbt" 10 $ "Signature to freshen: " <+> text (show s)
   newVars <- replicateM (length domain) requestNewVariable
@@ -236,26 +276,35 @@ freshenSignature s@(SizeSignature domain contra tele) = do
       sigWithfreshenedSizes = instantiateSizeType tele newVars
   -- freshSig <- freshenGenericArguments sigWithfreshenedSizes
   let newContravariantVariables = map (newVars List.!!) contra
-  MSC $ modify ( \s -> s { scsContravariantVariables = foldr IntSet.insert (scsContravariantVariables s) newContravariantVariables  })
+  TBTM $ modify ( \s -> s { scsContravariantVariables = foldr IntSet.insert (scsContravariantVariables s) newContravariantVariables  })
   return $ (actualConstraints, sigWithfreshenedSizes)
 
 -- | Instantiates first order size variables to the provided list of ints
 instantiateSizeType :: SizeType -> [Int] -> SizeType
 instantiateSizeType body args = update (\i -> args List.!! i) body
 
-requestNewRigidVariable :: SizeBound -> MonadSizeChecker Int
+requestNewRigidVariable :: SizeBound -> TBTM Int
 requestNewRigidVariable bound = do
   newVarIdx <- requestNewVariable
-  MSC $ do
+  TBTM $ do
     currentRigids <- gets scsRigidSizeVars
     modify \s -> s { scsRigidSizeVars = ((newVarIdx, bound) : currentRigids) }
     return newVarIdx
 
-appendCoreVariable :: Int -> Either FreeGeneric SizeType -> MonadSizeChecker ()
-appendCoreVariable i tele = MSC $ modify \s -> s { scsCoreContext = ((i, tele) : (scsCoreContext s)) }
+appendCoreVariable :: Int -> Either FreeGeneric SizeType -> TBTM ()
+appendCoreVariable i tele = TBTM $ modify \s -> s { scsCoreContext = ((i, tele) : (scsCoreContext s)) }
 
-runSizeChecker :: QName -> Set QName -> MonadSizeChecker a -> TCM (a, SizeCheckerState)
-runSizeChecker rootName mutualNames (MSC action) = do
+recordError :: String -> TBTM ()
+recordError msg = TBTM $ modify (\s -> s { scsErrorMessages = msg : scsErrorMessages s })
+
+-- | Due to limitations of the theory behind the type-based checker,
+--   certain syntactic constructions are not supported in the inference process.
+--   To prevent possible unsoundness, we purposefully fail the checker when such constructions are encountered.
+hasEncodingErrors :: TBTM Bool
+hasEncodingErrors = TBTM $ gets (not . null . scsErrorMessages)
+
+runSizeChecker :: QName -> Set QName -> TBTM a -> TCM (a, SizeCheckerState)
+runSizeChecker rootName mutualNames (TBTM action) = do
   runStateT action
     (SizeCheckerState
     { scsMutualNames = mutualNames
@@ -270,7 +319,7 @@ runSizeChecker rootName mutualNames (MSC action) = do
     , scsLeafSizeVariables = []
     , scsContravariantVariables = IntSet.empty
     , scsFallbackInstantiations = IntMap.empty
-    , scsUndefinedVariables = IntSet.empty
+    , scsInfiniteVariables = IntSet.empty
     , scsRecCallsMatrix = []
     , scsPreservationCandidates = IntMap.empty
     , scsErrorMessages = []
