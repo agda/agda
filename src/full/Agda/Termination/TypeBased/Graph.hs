@@ -45,25 +45,27 @@ import Data.Either
 import qualified Data.List.NonEmpty as NonEmpty
 import Data.List.NonEmpty (NonEmpty(..), (<|))
 
--- A size expression is represented as a minimum of a set of rigid size variables,
--- where the length of the set is equal to the number of clusters.
--- This datatype represents an element of the bounded meet-semilattice mentioned above.
+-- | A size expression is represented as a minimum of a set of rigid size variables,
+--   where the length of the set is equal to the number of clusters.
+--   This datatype represents an element of the bounded meet-semilattice mentioned above.
+--   Elements equal to -1 correspond to infinity. This is semantically justified, since meet with infinity is an identity operation.
 newtype SizeExpression = SEMeet [Int]
   deriving Eq
+
+-- | A type of substitutions from flexible variables to size expressions.
+type SizeSubstitution = IntMap SizeExpression
 
 instance P.Pretty SizeExpression where
   pretty (SEMeet list) = case filter (/= (-1)) list of
     [] -> "∞"
     nonempty -> P.hcat $ P.punctuate " ∧ " (map (\i -> P.pretty (SDefined i)) nonempty)
 
-type GraphEnv a = StateT SizeCheckerState TCM a
-
 -- | 'simplifySizeGraph context graph' assigns all variables occurring in the graph to the variables from the context
 -- The outline:
 -- 1. Find all strongly connected components.
 -- 2. Sort the obtained acyclic graph topologically.
 -- 3. For each component in the order, assign the least upper bound of all its known lower bounds. If there are no lower bounds, apply a heuristic.
-simplifySizeGraph :: [(Int, SizeBound)] -> [SConstraint] -> MonadSizeChecker (IntMap SizeExpression)
+simplifySizeGraph :: [(Int, SizeBound)] -> [SConstraint] -> TBTM SizeSubstitution
 simplifySizeGraph rigidContext graph = billTo [Benchmark.TypeBasedTermination, Benchmark.SizeGraphSolving] $ do
   -- !! NOTE: The graph is reversed, since it is more performant to access its edges this way
   let adjacencyMap = DGraph.fromEdges (map (\(SConstraint rel from to) -> DGraph.Edge to from rel) graph)
@@ -73,12 +75,11 @@ simplifySizeGraph rigidContext graph = billTo [Benchmark.TypeBasedTermination, B
   currentRoot <- currentCheckedName
   -- The arity corresponds to the number of clusters
   arity <- getArity currentRoot
-  undefinedVars <- getUndefinedSizes
   let baseSize = replicate arity (-1)
-  bottomVars <- MSC $ gets scsBottomFlexVars
+  bottomVars <- getBottomVariables
   contra <- getContravariantSizeVariables
 
-  fixedTopLevelVars <- IntMap.keysSet <$> MSC (gets scsPreservationCandidates)
+  fixedTopLevelVars <- IntMap.keysSet <$> getPreservationCandidates
   let topLevelVars = foldr (\(SConstraint rel from to) -> if rel == SLeq && to `IntSet.member` fixedTopLevelVars then IntMap.insert from to else id) IntMap.empty graph
 
   -- We are going to assign each rigid variable a size expression corresponding to itself.
@@ -97,14 +98,14 @@ findCluster rigids i = case List.lookup i rigids of
 
 -- 'instantiateComponents baseSize rigids clusters adjacencyMap subst sccs' assigns a size expression for each flexible variable occurring in 'sccs'.
 -- It is mandatory that 'sccs' is sorted in topological order according to 'adjacencyMap'.
-instantiateComponents :: SizeExpression -> [(Int, SizeBound)] -> IntMap Int -> DGraph.Graph Int ConstrType -> IntMap SizeExpression -> [NonEmpty Int] -> MonadSizeChecker (IntMap SizeExpression)
+instantiateComponents :: SizeExpression -> [(Int, SizeBound)] -> IntMap Int -> DGraph.Graph Int ConstrType -> SizeSubstitution -> [NonEmpty Int] -> TBTM SizeSubstitution
 instantiateComponents _ _ _ graph subst [] = pure subst
 instantiateComponents baseSize rigids topLevelVars graph subst (comp@(hd :| tl) : is) = do
 
-  bottomVars <- MSC $ gets scsBottomFlexVars
-  globalMinimum <- MSC $ gets scsLeafSizeVariables
-  undefinedVars <- getUndefinedSizes
-  fallback <- MSC $ gets scsFallbackInstantiations
+  bottomVars <- getBottomVariables
+  globalMinimum <- getLeafSizeVariables
+  undefinedVars <- getInfiniteSizes
+  fallback <- getFallbackInstantiations
 
   let (lowerBounds, inComponentEdges) = partitionEithers $ map (\(DGraph.Edge bigger lower constr) ->
         if (lower `List.elem` comp)
@@ -183,12 +184,12 @@ findLowestClusterVariable bounds target = fst $ go 0 target
             _ -> Nothing) (bounds)
       in foldr (\(nt, nd) (ct, cd) -> if nd > cd then (nt, nd) else (ct, cd)) (target, depth) (map (go (depth + 1)) nextLevel)
 
-collectIncoherentRigids :: IntMap SizeExpression -> [SConstraint] -> TCM IntSet
-collectIncoherentRigids m g = billTo [Benchmark.TypeBasedTermination, Benchmark.SizeGraphSolving] $ collectIncoherentRigids' m g
-
 -- | A rigid variable is incoherent if it has lower bound of infinity.
 --   In particular it means that there is something wrong with the graph,
 --   and the incoherent rigids should not be used for termination checking.
+collectIncoherentRigids :: SizeSubstitution -> [SConstraint] -> TCM IntSet
+collectIncoherentRigids m g = billTo [Benchmark.TypeBasedTermination, Benchmark.SizeGraphSolving] $ collectIncoherentRigids' m g
+
 collectIncoherentRigids' :: IntMap SizeExpression -> [SConstraint] -> TCM IntSet
 collectIncoherentRigids' subst [] = pure IntSet.empty
 collectIncoherentRigids' subst ((SConstraint sctype from to) : rest) = do

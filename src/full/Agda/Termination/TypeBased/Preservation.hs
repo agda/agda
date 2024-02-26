@@ -108,20 +108,20 @@ computeDecomposition coinductiveVars sizeType =
 -- It looks at each possibly size-preserving variable and filters its candidates
 -- such that after the filtering all remaining candidates satisfy the current graph.
 -- By induction, when the processing of a function ends, all remaining candidates satisfy all clause's graphs.
-refinePreservedVariables :: MonadSizeChecker ()
+refinePreservedVariables :: TBTM ()
 refinePreservedVariables = do
   rigids <- getCurrentRigids
   graph <- getCurrentConstraints
-  varsAndCandidates <- MSC $ IntMap.toAscList <$> gets scsPreservationCandidates
+  varsAndCandidates <- IntMap.toAscList <$> getPreservationCandidates
   newMap <- forM varsAndCandidates (\(possiblyPreservingVar, candidates) -> do
     refinedCandidates <- refineCandidates candidates graph rigids possiblyPreservingVar
     pure (possiblyPreservingVar, refinedCandidates))
   let refinedMap = IntMap.fromAscList newMap
   reportSDoc "term.tbt" 70 $ "Refined candidates:" <+> text (show refinedMap)
-  MSC $ modify (\s -> s { scsPreservationCandidates = IntMap.fromAscList newMap })
+  replacePreservationCandidates (IntMap.fromAscList newMap)
 
 -- | Eliminates the candidates that do not satisfy the provided graph of constraints.
-refineCandidates :: [Int] -> [SConstraint] -> [(Int, SizeBound)] -> Int -> MonadSizeChecker [Int]
+refineCandidates :: [Int] -> [SConstraint] -> [(Int, SizeBound)] -> Int -> TBTM [Int]
 refineCandidates candidates graph rigids possiblyPreservingVar = do
   result <- forM candidates $ \candidate -> do
     checkCandidateSatisfiability possiblyPreservingVar candidate graph rigids
@@ -131,11 +131,11 @@ refineCandidates candidates graph rigids possiblyPreservingVar = do
 
 -- 'checkCandidateSatisfiability possiblyPreservingVar candidateVar graph bounds' returns 'True' if
 -- 'possiblyPreservingVar' and 'candidateVarChecks' can be treates as the same within 'graph'.
-checkCandidateSatisfiability :: Int -> Int -> [SConstraint] -> [(Int, SizeBound)] -> MonadSizeChecker Bool
+checkCandidateSatisfiability :: Int -> Int -> [SConstraint] -> [(Int, SizeBound)] -> TBTM Bool
 checkCandidateSatisfiability possiblyPreservingVar candidateVar graph bounds = do
   reportSDoc "term.tbt" 70 $ "Trying to replace " <+> text (show possiblyPreservingVar) <+> "with" <+> text (show candidateVar)
 
-  matrix <- MSC $ gets scsRecCallsMatrix
+  matrix <- getRecursionMatrix
   -- Now we are trying to replace all variables in 'replaceableCol' with variables in 'replacingCol'
   let replaceableCol = possiblyPreservingVar : map (List.!! possiblyPreservingVar) matrix
   let replacingCol = candidateVar : map (List.!! candidateVar) matrix
@@ -168,9 +168,9 @@ collectClusteringIssues candidateVar subst ((SConstraint _ f t) : rest) bounds =
      else collectClusteringIssues candidateVar subst rest bounds
 
 -- | Applies the size preservation analysis result to the function signature
-applySizePreservation :: SizeSignature -> MonadSizeChecker SizeSignature
+applySizePreservation :: SizeSignature -> TBTM SizeSignature
 applySizePreservation s@(SizeSignature _ _ tele) = do
-  candidates <- MSC $ gets scsPreservationCandidates
+  candidates <- getPreservationCandidates
   isPreservationEnabled <- sizePreservationOption
   flatCandidates <- forM (IntMap.toAscList candidates) (\(replaceable, candidates) -> (replaceable,) <$> case candidates of
         [unique] -> do

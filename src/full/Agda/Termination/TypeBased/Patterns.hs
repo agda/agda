@@ -67,7 +67,7 @@ import Agda.Syntax.Internal.Pattern
 import Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.List.NonEmpty as NonEmpty
 
-type PatternEncoder a = StateT PatternEnvironment MonadSizeChecker a
+type PatternEncoder a = StateT PatternEnvironment TBTM a
 
 data PatternEnvironment = PatternEnvironment
   { peDepth         :: Int
@@ -99,7 +99,7 @@ data PatternEnvironment = PatternEnvironment
 --   The motivation is that the least upper bound for `a` and `b` in this case is t₁. If the size variables were different, the least upper bound would be t₀.
 --
 --   Returns the variables at the lowest level of each cluster and expected size type of clause
-matchPatterns :: SizeType -> NAPs -> MonadSizeChecker ([Int], SizeType)
+matchPatterns :: SizeType -> NAPs -> TBTM ([Int], SizeType)
 matchPatterns tele patterns = do
   (sizeTypeOfClause, modifiedState) <- runStateT (matchLHS tele patterns) (PatternEnvironment
     { peDepth = 0
@@ -163,7 +163,7 @@ matchLHS tele patterns = do
             let appliedProjection = applyDataType (recordArgs ++ [UndefinedSizeType]) freshenedSignature
             -- TODO: handle copying here,
             -- since apparently there can be copies in copatterns (!)
-            when (defCopy constInfo) $ lift $ MSC $ modify (\s -> s { scsErrorMessages = "Copy in a copattern projection" : scsErrorMessages s })
+            when (defCopy constInfo) $ lift $ recordError "Copy in a copattern projection"
             reportSDoc "term.tbt" 20 $ vcat $
               [ "Matching copattern projection:" <+> prettyTCM qn] ++ map (nest 2)
               [ "coinductive: " <+> text (show isForCoinduction)
@@ -262,7 +262,7 @@ matchSizePattern p@(ConP hd pi args) expected = do
         (map (namedThing . unArg) args)
         refreshedConstructor
       pure ()
-    (_, _) -> lift $ MSC $ modify (\s -> s { scsErrorMessages = scsErrorMessages s ++ ["Unsupported pattern matching"] })
+    (_, _) -> lift $ recordError "Unsupported pattern matching"
 matchSizePattern (DotP pi _) _ = return ()
 matchSizePattern (LitP _ _) _ = pure ()
 matchSizePattern (DefP _ _ _) _ = __IMPOSSIBLE__ -- cubical agda is not supported
@@ -360,17 +360,17 @@ freshenCopatternProjection newCoDepthVar bounds tele = do
 -- This is a protection against postulated univalence.
 -- Normally, there cannot be any relation between a size variable and a generic,
 -- but introducing univalence there can actually be a relation between them.
-ensurePatternIntegrity :: [SizeType] -> [SizeType] -> MonadSizeChecker ()
+ensurePatternIntegrity :: [SizeType] -> [SizeType] -> TBTM ()
 ensurePatternIntegrity realTypes expectedTypes = do
   let integrityViolation = any (\(realType, expectedType) -> (isGenericVar expectedType) /= (isGenericVar realType)) (zip realTypes expectedTypes)
-  when integrityViolation $ MSC $ modify (\s -> s { scsErrorMessages = scsErrorMessages s ++ ["Integrity violation in clause"] })
+  when integrityViolation $ recordError "Integrity violation in clause"
   where
     isGenericVar :: SizeType -> Bool
     isGenericVar (SizeGenericVar _ _) = True
     isGenericVar _ = False
 
 -- Extracts cluster of the top-level size expr
-getClusterByTele :: SizeType -> MonadSizeChecker Int
+getClusterByTele :: SizeType -> TBTM Int
 getClusterByTele (SizeTree (SDefined i) _) = do
   ctx <- getCurrentRigids
   pure $ getCluster ctx i
