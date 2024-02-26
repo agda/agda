@@ -95,17 +95,14 @@ sizeCheckTerm' expected t@(Var i elims) = do
           pure $ SizeGenericVar (length elims) (fgIndex freeGeneric)
         Right actualType -> pure $ remainingCodomain
 sizeCheckTerm' expected t@(Def qn elims) = if isAbsurdLambdaName qn then pure UndefinedSizeType else do
-  -- New size variables in a freshened definitions are those that were populated during the freshening. Yes, a bit of an abstraction leak, TODO
-  currentSizeLimit <- TBTM $ gets scsFreshVarCounter
   constInfo <- getConstInfo qn
-  sizeSigOfDef <- resolveConstant qn
+  (sizeSigOfDef, newSizeVariables) <- withVariableCounter $ resolveConstant qn
   case sizeSigOfDef of
     Nothing -> do
       reportSDoc "term.tbt" 80 $ "No size type for definition" <+> prettyTCM qn
       pure $ UndefinedSizeType
     -- This definition is a function, which has no interesting size bounds, so we can safely ignore them
     Just (_, sizeTypeOfDef) -> do
-      newSizeVariables <- TBTM (gets scsFreshVarCounter) <&> \x -> [currentSizeLimit .. (x - 1)]
       reportSDoc "term.tbt" 20 $ vcat $
         [ "Retrieving definition " <> prettyTCM qn <> ":" ] ++ map (nest 2)
         [ "Term: " <+> prettyTCM t
@@ -243,10 +240,9 @@ maybeStoreRecursiveCall qn elims callSizes = do
   names <- currentMutualNames
   tryReduceNonRecursiveClause qn elims names (\_ -> reportSDoc "term.tbt" 80 "Call is reduced away")
     (do
-      currentSymbol <- currentCheckedName
       rootArity <- getRootArity
       let rootFunctionSizes =  [0..(rootArity - 1)]
-      storeCall currentSymbol qn rootFunctionSizes callSizes elims
+      storeCall qn rootFunctionSizes callSizes elims
     )
 
 -- | Records the constraints obtained from comparing inferred and checked size types.
@@ -448,19 +444,20 @@ resolveConstant nm = do
     Nothing -> pure Nothing
     Just sig -> Just <$> freshenSignature sig
 
--- | Record information about a recursive call from q1 to q2
+-- | Record information about a recursive call from current function to q2
 --   Only the calls withing the same mutual block matter.
-storeCall :: QName -> QName -> [Int] -> [Int] -> Elims -> TBTM ()
-storeCall q1 q2 sizesq1 sizesq2 elims = do
+storeCall :: QName -> [Int] -> [Int] -> Elims -> TBTM ()
+storeCall q2 sizesq1 sizesq2 elims = do
   names <- currentMutualNames
-  when (q1 `Set.member` names && q2 `Set.member` names) do
+  when (q2 `Set.member` names) do
+    currentName <- currentCheckedName
     reportSDoc "term.tbt" 10 $ vcat
       [ "Detected mutual-recursive call"
-      , "  From '" <> prettyTCM q1 <> "' with size variables: " <> text (show sizesq1)
+      , "  From '" <> prettyTCM currentName <> "' with size variables: " <> text (show sizesq1)
       , "  To   '" <> prettyTCM q2 <> "' with size variables: " <> text (show sizesq2)
       ]
     doc <- buildRecCallLocation q2 elims
-    reportCall q1 q2 sizesq1 sizesq2 doc
+    reportCall q2 sizesq1 sizesq2 doc
 
 unwrapSizeTree :: SizeType -> [SizeType]
 unwrapSizeTree (SizeTree _ ts) = ts

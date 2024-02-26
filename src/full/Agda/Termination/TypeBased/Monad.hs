@@ -1,36 +1,84 @@
-module Agda.Termination.TypeBased.Monad where
+{-| This module contains the monad that is used to perform type-based termination checking.
+-}
 
+module Agda.Termination.TypeBased.Monad
+  ( TBTM
+  , runSizeChecker
+  , SConstraint (..)
+  , ConstrType (..)
+  , MutualRecursiveCall
+  , mrcNameFrom
+  , mrcNameTo
+  , mrcSizesFrom
+  , mrcSizesTo
+  , mrcPlace
+  -- * Graph manipulation
+  , getCurrentConstraints
+  , getTotalConstraints
+  , storeConstraint
+  -- * Size variables manipulation
+  , getCurrentRigids
+  , requestNewRigidVariable
+  , withVariableCounter
+  , isContravariant
+  , getContravariantSizeVariables
+  , recordContravariantSizeVariable
+  , getBottomVariables
+  , storeBottomVariable
+  , getLeafSizeVariables
+  , setLeafSizeVariables
+  , getInfiniteSizes
+  , markInfiniteSize
+  , getFallbackInstantiations
+  , addFallbackInstantiation
+  -- * Core variables manipulation
+  , getCurrentCoreContext
+  , appendCoreVariable
+  , abstractCoreContext
+  -- * Size preservation
+  , replacePreservationCandidates
+  , getRecursionMatrix
+  , getPreservationCandidates
+  , withAnotherPreservationCandidate
+  , reportDirectRecursion
+  -- * Definition manipulation
+  , currentCheckedName
+  , getRootArity
+  , currentMutualNames
+  , reportCall
+  , freshenSignature
+  , initNewClause
+  , initSizePreservation
+  , hasEncodingErrors
+  , recordError
+  ) where
+
+import Control.Monad ( replicateM )
+import Control.Monad.IO.Class ( MonadIO )
 import Control.Monad.Trans.State ( StateT, gets, modify, runStateT )
-import Agda.TypeChecking.Monad.Base ( TCM, pattern Function, funTerminates, FunctionData (..), pattern Datatype, pattern Record, recInduction, Reduced (..), liftTCM, theDef, defType, defSizedType, defCopy, defIsDataOrRecord, MonadTCEnv, MonadTCState, HasOptions, Closure, MonadTCM, ReadTCState )
-import Agda.TypeChecking.Monad.Debug ( MonadDebug, reportSDoc )
-import Agda.TypeChecking.Monad.Signature ( getConstInfo, HasConstInfo, usesCopatterns )
-import Agda.TypeChecking.Monad.Context ( MonadAddContext )
-import qualified Data.Map as Map
-import Data.Map ( Map)
 import qualified Data.IntMap as IntMap
 import Data.IntMap ( IntMap )
 import qualified Data.IntSet as IntSet
 import Data.IntSet ( IntSet )
-import Control.Monad.IO.Class ( MonadIO )
+import qualified Data.Map as Map
+import Data.Map ( Map)
 import qualified Data.List as List
-import Agda.Syntax.Abstract.Name ( QName )
-import Agda.Termination.TypeBased.Syntax
-import Agda.Syntax.Internal ( Term (..), unEl, unAbs, unDom, Dom, Abs(..), Sort, MetaId(..), isApplyElim )
-import Agda.TypeChecking.Monad.Statistics ( MonadStatistics )
-import Agda.Termination.TypeBased.Common
+import Data.Maybe ( fromJust, mapMaybe )
+import Data.Set ( Set )
 
-import Agda.TypeChecking.Pretty
-import Control.Arrow ( first )
-import Control.Monad
-import Data.Maybe
-import Data.Set (Set )
-
-import Agda.Utils.Impossible
-
-import qualified Agda.Utils.Benchmark as B
 import qualified Agda.Benchmarking as Benchmark
-
 import qualified Agda.Syntax.Common.Pretty as P
+import qualified Agda.Utils.Benchmark as B
+
+import Agda.TypeChecking.Monad.Base( TCM, Definition(defSizedType), HasOptions, MonadTCM, MonadTCState, MonadTCEnv, Closure, ReadTCState )
+import Agda.TypeChecking.Monad.Context ( MonadAddContext )
+import Agda.TypeChecking.Monad.Debug ( MonadDebug, reportSDoc )
+import Agda.TypeChecking.Monad.Signature ( HasConstInfo(getConstInfo) )
+import Agda.TypeChecking.Monad.Statistics ( MonadStatistics )
+import Agda.Termination.TypeBased.Syntax( SizeSignature(SizeSignature), SizeBound(..), FreeGeneric(fgIndex), SizeType, Size(..), sizeSigArity )
+import Agda.Syntax.Abstract.Name ( QName )
+import Agda.Syntax.Internal ( QName, Term )
+import Agda.Termination.TypeBased.Common ( update )
 
 -- | This monad represents an environment for type checking internal terms against sie types.
 newtype TBTM a = TBTM (StateT SizeCheckerState TCM a)
@@ -60,7 +108,6 @@ instance B.MonadBench TBTM where
 
 type SizeContextEntry = (Int, Either FreeGeneric SizeType)
 
-
 data ConstrType = SLte | SLeq deriving (Eq, Ord)
 
 instance P.Pretty ConstrType where
@@ -69,13 +116,22 @@ instance P.Pretty ConstrType where
 
 data SConstraint = SConstraint { scType :: ConstrType, scFrom :: Int, scTo :: Int }
 
+-- | Represents a call between two mutually-recursive functions.
+data MutualRecursiveCall = MutualRecursiveCall
+  { mrcNameFrom :: QName -- ^ The name of the enclosing function where the call is made
+  , mrcNameTo :: QName -- ^ The name of the function that is called
+  , mrcSizesFrom :: [Int] -- ^ The size context of the enclosing function. In theory it is denoted as Psi_f
+  , mrcSizesTo :: [Int] -- ^ The size context of the called function.
+  , mrcPlace :: Closure Term -- ^ The place where the call is made
+  }
+
 data SizeCheckerState = SizeCheckerState
   { scsMutualNames            :: Set QName
   -- ^ Definitions that are in the current mutual block
   , scsCurrentFunc            :: QName
   -- ^ The function that is checked at the moment
-  , scsRecCalls               :: [(QName, QName, [Int], [Int], Closure Term)]
-  -- ^ [(f, g, Psi_f, Psi_g, place)], where Psi is the representation of the size context (see Abel & Pientka 2016)
+  , scsRecCalls               :: [MutualRecursiveCall]
+  -- ^ A set of mutual-recursive calls that are encountered during the process of size checking.
   , scsConstraints            :: [SConstraint]
   -- ^ Lists of edges in the size dependency graph.
   --   This field is local to each clause.
@@ -161,18 +217,22 @@ getContravariantSizeVariables = TBTM $ gets scsContravariantVariables
 recordContravariantSizeVariable :: Int -> TBTM ()
 recordContravariantSizeVariable i = TBTM $ modify (\s -> s { scsContravariantVariables = IntSet.insert i (scsContravariantVariables s) })
 
--- | Retrieves the number of size variables in the sized signature of @qn@
-getArity :: QName -> TBTM Int
-getArity qn = sizeSigArity . fromJust . defSizedType <$> getConstInfo qn
-
 storeConstraint :: SConstraint -> TBTM ()
 storeConstraint c = TBTM $ modify \ s -> s
   { scsConstraints = c : (scsConstraints s)
   , scsTotalConstraints = c : scsTotalConstraints s
   }
 
-reportCall :: QName -> QName -> [Int] -> [Int] -> Closure Term -> TBTM ()
-reportCall q1 q2 sizes1 sizes2 place = TBTM $ modify (\s -> s { scsRecCalls = (q1, q2, sizes1, sizes2, place) : scsRecCalls s })
+-- | 'reportCall q2 sizes1 sizes2 place' is used to leave a record that there is a call to `q2` with sizes `sizes1` and `sizes2` at the place `place`.
+reportCall :: QName -> [Int] -> [Int] -> Closure Term -> TBTM ()
+reportCall q2 sizes1 sizes2 place = do
+  q1 <- currentCheckedName
+  TBTM $ modify (\s -> s
+    { scsRecCalls = MutualRecursiveCall
+      { mrcNameFrom = q1, mrcNameTo = q2, mrcSizesFrom = sizes1, mrcSizesTo = sizes2, mrcPlace = place
+      }
+      : scsRecCalls s
+    })
 
 setLeafSizeVariables :: [Int] -> TBTM ()
 setLeafSizeVariables leaves = TBTM $ modify (\s -> s { scsLeafSizeVariables = leaves })
@@ -186,7 +246,7 @@ currentCheckedName = TBTM $ gets scsCurrentFunc
 getRootArity :: TBTM Int
 getRootArity = do
   rootName <- currentCheckedName
-  getArity rootName
+  sizeSigArity . fromJust . defSizedType <$> getConstInfo rootName
 
 currentMutualNames :: TBTM (Set QName)
 currentMutualNames = TBTM $ gets scsMutualNames
@@ -234,6 +294,14 @@ incrementDeBruijnEntry (Left _) (x, Left fg) = (x + 1, Left $ fg { fgIndex = fgI
 incrementDeBruijnEntry (Left _) (x, Right t) = (x + 1, Right t)
 incrementDeBruijnEntry (Right _) (x, e) = (x + 1, e)
 
+-- | Performs an action, and returns the result of the action with a number of generated fresh variables.
+withVariableCounter :: TBTM a -> TBTM (a, [Int])
+withVariableCounter  action = do
+  oldCounter <- TBTM $ gets scsFreshVarCounter
+  res <- action
+  newCounter <- TBTM $ gets scsFreshVarCounter
+  pure (res, [oldCounter .. newCounter - 1])
+
 requestNewVariable :: TBTM Int
 requestNewVariable = TBTM $ do
   x <- gets scsFreshVarCounter
@@ -268,20 +336,15 @@ instance Show SConstraint where
 -- | Given the signature, returns it with with fresh variables
 freshenSignature :: SizeSignature -> TBTM ([SConstraint], SizeType)
 freshenSignature s@(SizeSignature domain contra tele) = do
-  -- reportSDoc "term.tbt" 10 $ "Signature to freshen: " <+> text (show s)
   newVars <- replicateM (length domain) requestNewVariable
   let actualConstraints = mapMaybe (\(v, d) -> case d of
                             SizeUnbounded -> Nothing
                             SizeBounded i -> Just (SConstraint SLte v (newVars List.!! i))) (zip newVars domain)
-      sigWithfreshenedSizes = instantiateSizeType tele newVars
+      sigWithfreshenedSizes = update (newVars List.!!) tele
   -- freshSig <- freshenGenericArguments sigWithfreshenedSizes
   let newContravariantVariables = map (newVars List.!!) contra
   TBTM $ modify ( \s -> s { scsContravariantVariables = foldr IntSet.insert (scsContravariantVariables s) newContravariantVariables  })
   return $ (actualConstraints, sigWithfreshenedSizes)
-
--- | Instantiates first order size variables to the provided list of ints
-instantiateSizeType :: SizeType -> [Int] -> SizeType
-instantiateSizeType body args = update (\i -> args List.!! i) body
 
 requestNewRigidVariable :: SizeBound -> TBTM Int
 requestNewRigidVariable bound = do
@@ -303,9 +366,9 @@ recordError msg = TBTM $ modify (\s -> s { scsErrorMessages = msg : scsErrorMess
 hasEncodingErrors :: TBTM Bool
 hasEncodingErrors = TBTM $ gets (not . null . scsErrorMessages)
 
-runSizeChecker :: QName -> Set QName -> TBTM a -> TCM (a, SizeCheckerState)
+runSizeChecker :: QName -> Set QName -> TBTM a -> TCM (a, [SConstraint], [String], [MutualRecursiveCall])
 runSizeChecker rootName mutualNames (TBTM action) = do
-  runStateT action
+  (res, finalState) <- runStateT action
     (SizeCheckerState
     { scsMutualNames = mutualNames
     , scsCurrentFunc = rootName
@@ -324,3 +387,4 @@ runSizeChecker rootName mutualNames (TBTM action) = do
     , scsPreservationCandidates = IntMap.empty
     , scsErrorMessages = []
     })
+  pure (res, scsConstraints finalState, scsErrorMessages finalState, scsRecCalls finalState)
