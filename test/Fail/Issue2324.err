@@ -1,4 +1,4 @@
-Issue2324.agda:8,14-23
+Issue2324.agda:10,14-23
 Cannot 'with' on expression Type-of a which reduces to variable A
 bound in a module telescope (or patterns of a parent clause)
 when inferring the type of Type-of a
