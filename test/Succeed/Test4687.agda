@@ -1,3 +1,4 @@
+{-# OPTIONS --overlapping-instances #-}
 
 open import Agda.Primitive
 open import Agda.Builtin.List
