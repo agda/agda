@@ -19,6 +19,8 @@ import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Pretty
 import Agda.Utils.Impossible
 import Agda.Syntax.Common.Pretty (prettyShow)
+import Agda.TypeChecking.Polarity.Base (Polarity)
+import Control.Arrow (second)
 
 -- | 'applyDataType params tele' reduces arrow/parameterized 'tele' by applying 'params'
 applyDataType :: [SizeType] -> SizeType  -> SizeType
@@ -36,7 +38,7 @@ sizeInstantiate = sizeInstantiate' 0
 
 sizeInstantiate' :: Int -> SizeType -> SizeType -> SizeType
 sizeInstantiate' targetIndex target (SizeArrow l r) = SizeArrow (sizeInstantiate' targetIndex target l) (sizeInstantiate' targetIndex target r)
-sizeInstantiate' targetIndex target (SizeTree sd tree) = SizeTree sd (map (sizeInstantiate' targetIndex target) tree)
+sizeInstantiate' targetIndex target (SizeTree sd tree) = SizeTree sd (map (second $ sizeInstantiate' targetIndex target) tree)
 sizeInstantiate' targetIndex target (SizeGenericVar args i)
   | i == targetIndex = applyDataType (replicate args UndefinedSizeType) target
   | i < targetIndex  = SizeGenericVar args i
@@ -46,7 +48,7 @@ sizeInstantiate' targetIndex target (SizeGeneric args r) = SizeGeneric args (siz
 
 incrementFreeGenerics :: Int -> SizeType -> SizeType
 incrementFreeGenerics threshold (SizeArrow l r) = SizeArrow (incrementFreeGenerics threshold l) (incrementFreeGenerics threshold r)
-incrementFreeGenerics threshold (SizeTree sd tree) = SizeTree sd (map (incrementFreeGenerics threshold) tree)
+incrementFreeGenerics threshold (SizeTree sd tree) = SizeTree sd (map (second $ incrementFreeGenerics threshold) tree)
 incrementFreeGenerics threshold (SizeGenericVar args i) = SizeGenericVar args (if i >= threshold then i + 1 else i)
 incrementFreeGenerics threshold (SizeGeneric args r) = SizeGeneric args (incrementFreeGenerics (threshold + 1) r)
 
@@ -54,7 +56,7 @@ incrementFreeGenerics threshold (SizeGeneric args r) = SizeGeneric args (increme
 instantiateGeneric :: Int -> (Int -> Int -> SizeType) -> SizeType -> SizeType
 instantiateGeneric thr f (SizeArrow l r)  = SizeArrow (instantiateGeneric thr f l) (instantiateGeneric thr f r)
 instantiateGeneric thr f (SizeGeneric args r) = SizeGeneric args (instantiateGeneric (thr + 1) (\a i -> incrementFreeGenerics 0 (f a i)) r)
-instantiateGeneric thr f (SizeTree size tree) = SizeTree size (map (instantiateGeneric thr f) tree)
+instantiateGeneric thr f (SizeTree size tree) = SizeTree size (map (second $ instantiateGeneric thr f) tree)
 instantiateGeneric thr f (SizeGenericVar args i) = if i < thr then SizeGenericVar args i else f args (i - thr)
 
 getDatatypeParametersByConstructor :: QName -> TCM Int
@@ -101,7 +103,7 @@ lowerIndices (SizeSignature bounds contra tele) =
 
 
 update :: (Int -> Int) -> SizeType -> SizeType
-update subst (SizeTree size tree) = SizeTree (weakenSize size) (map (update subst) tree)
+update subst (SizeTree size tree) = SizeTree (weakenSize size) (map (second $ update subst) tree)
   where
     weakenSize :: Size -> Size
     weakenSize SUndefined = SUndefined
@@ -114,7 +116,7 @@ minimalIndex :: SizeType -> Int
 minimalIndex (SizeArrow l r) = min (minimalIndex l) (minimalIndex r)
 minimalIndex (SizeGeneric _ r) = minimalIndex r
 minimalIndex (SizeGenericVar _ _) = maxBound
-minimalIndex (SizeTree s rest) = minimum ((extractFromSize s) : map minimalIndex rest)
+minimalIndex (SizeTree s rest) = minimum ((extractFromSize s) : map (minimalIndex . snd) rest)
   where
     extractFromSize :: Size -> Int
     extractFromSize (SDefined i) = i

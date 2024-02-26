@@ -73,35 +73,44 @@ import Agda.Utils.Singleton
 import Agda.Termination.Order (Order)
 import qualified Agda.Termination.Order as Order
 import qualified Control.Arrow as Arrow
+import Agda.TypeChecking.Polarity.Base
+import Agda.TypeChecking.Polarity
 
+-- | Represents decomposition of a set of size variables for some size signature based on polarities
 data SizeDecomposition = SizeDecomposition
-  { sdPositive :: [Int]
-  , sdNegative :: [Int]
-  } deriving (Show)
+  { sdPositive :: [Int] -- ^ Size variables occurring positively
+  , sdNegative :: [Int] -- ^ Size variables occurring negatively
+  , sdOther    :: [Int] -- ^ Remaining size variables, that have mixed and unused variance.
+  } deriving Show
 
 -- TODO: the decomposition here is not bound by domain/codomain only.
 -- The decomposition should proceed alongside polarity, i.e. doubly negative occurences of inductive types are also subject of size preservation.
 computeDecomposition :: IntSet -> SizeType -> SizeDecomposition
 computeDecomposition coinductiveVars sizeType =
-  let (codomainVariables, domainVariables) = collectUsedSizes' True sizeType
-      (coinductiveDomain, inductiveDomain) = List.partition (`IntSet.member` coinductiveVars) domainVariables
-      (coinductiveCodomain, inductiveCodomain) = List.partition (`IntSet.member` coinductiveVars) codomainVariables
-  in SizeDecomposition { sdPositive = inductiveCodomain ++ coinductiveDomain, sdNegative = inductiveDomain ++ coinductiveCodomain }
+  let (positiveVariables, negativeVariables, rest) = collectPolarizedSizes Covariant sizeType
+      (coinductivePositive, inductivePositive) = List.partition (`IntSet.member` coinductiveVars) positiveVariables
+      (coinductiveNegative, inductiveNegative) = List.partition (`IntSet.member` coinductiveVars) negativeVariables
+  in SizeDecomposition
+    { sdPositive = inductivePositive ++ coinductiveNegative
+    , sdNegative = inductiveNegative ++ coinductivePositive
+    , sdOther = rest }
  where
-    collectUsedSizes' :: Bool -> SizeType -> ([Int], [Int])
-    collectUsedSizes' pos (SizeTree size ts) =
+    collectPolarizedSizes :: Polarity -> SizeType -> ([Int], [Int], [Int])
+    collectPolarizedSizes pol (SizeTree size ts) =
       let selector = case size of
             SUndefined -> id
-            SDefined i -> if pos then Arrow.first (i :) else Arrow.second (i :)
-          ind = map (collectUsedSizes' pos) ts
-      in selector (concatMap fst ind, concatMap snd ind)
-    collectUsedSizes' pos (SizeArrow l r) =
-      let (f1, f2) = collectUsedSizes' False l
-          (s1, s2) = collectUsedSizes' pos r
-      in (f1 ++ s1, f2 ++ s2) -- TODO POLARITIES
-    collectUsedSizes' pos (SizeGeneric _ r) = collectUsedSizes' pos r
-    collectUsedSizes' _ (SizeGenericVar _ i) = ([], [])
-
+            SDefined i -> case pol of
+              Covariant -> (\(a, b, c) -> (i : a, b, c))
+              Contravariant -> (\(a, b, c) -> (a, (i : b), c))
+              _ -> (\(a, b, c) -> (a, b, i : c))
+          ind = map (\(p, t) -> collectPolarizedSizes (composePol p pol) t) ts
+      in selector (concatMap (\(a, _, _) -> a) ind, concatMap (\(_, b, _) -> b) ind, concatMap (\(_, _, c) -> c) ind)
+    collectPolarizedSizes pol (SizeArrow l r) =
+      let (f1, f2, f3) = collectPolarizedSizes (neg pol) l
+          (s1, s2, s3) = collectPolarizedSizes pol r
+      in (f1 ++ s1, f2 ++ s2, f3 ++ s3)
+    collectPolarizedSizes pol (SizeGeneric _ r) = collectPolarizedSizes pol r
+    collectPolarizedSizes _ (SizeGenericVar _ i) = ([], [], [])
 
 -- | This function is expected to be called after finishing the processing of clause,
 -- or, more generally, after every step of collecting complete graph of dependencies between flexible sizes.
@@ -207,7 +216,7 @@ unfoldInstantiations (ToVariable i : rest) = i : unfoldInstantiations rest
 fixGaps :: SizeSignature -> SizeSignature
 fixGaps (SizeSignature _ contra tele) =
   let decomp = computeDecomposition (IntSet.fromList contra) tele
-      subst = IntMap.fromList $ (zip (sdNegative decomp ++ sdPositive decomp) [0..])
+      subst = IntMap.fromList $ (zip (sdNegative decomp ++ sdPositive decomp ++ sdOther decomp) [0..])
   in SizeSignature (replicate (length subst) SizeUnbounded) (mapMaybe (subst IntMap.!?) contra) (update (subst IntMap.!) tele)
 
 -- | Actually applies size preservation assignment to a signature.
@@ -229,7 +238,7 @@ reifySignature mapping (SizeSignature bounds contra tele) =
   in newSig
   where
     fixSizes :: (Int -> VariableInstantiation) -> SizeType -> SizeType
-    fixSizes subst (SizeTree size tree) = SizeTree (weakenSize size) (map (fixSizes subst) tree)
+    fixSizes subst (SizeTree size tree) = SizeTree (weakenSize size) (map (Arrow.second $ fixSizes subst) tree)
       where
         weakenSize :: Size -> Size
         weakenSize SUndefined = SUndefined

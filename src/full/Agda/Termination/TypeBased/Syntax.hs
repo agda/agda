@@ -16,6 +16,7 @@ import Agda.Syntax.Position ( KillRange ( killRange ) )
 import qualified Data.List as List
 import Data.Char ( chr, ord )
 import Agda.Syntax.Common.Pretty ( Pretty ( pretty, prettyPrec, prettyList ), Doc, (<+>), text, prettyList_, (<>), parens )
+import Agda.TypeChecking.Polarity.Base ( Polarity)
 
 -- | An atomic size expression.
 data Size
@@ -28,10 +29,10 @@ data Size
 -- | A representation of a sized type, which is assigned to elements of underlying theory.
 -- In our case, the theory is (something like) System Fω, so we reflect the arrow types and type abstractions.
 data SizeType
-  = SizeTree Size [SizeType]
+  = SizeTree Size [(Polarity, SizeType)]
   -- ^ Endpoint size type that corresponds to a datatype.
-  --   Every datatype has an assigned size variable, which intuitively represents its depth, and a sequence of parameters.
-  --   For example, the datatype @List A@ has one parameter apart its size, so it can be encoded as 't₀<ε₀>'.
+  --   Every datatype has an assigned size variable, which intuitively represents its depth, and a sequence of polarized parameters.
+  --   For example, the datatype @List A@ has one parameter apart its size, so it can be encoded as 't₀<+ε₀>'.
   | SizeArrow SizeType SizeType
   -- ^ Reflects the first-order abstraction in System Fω.
   | SizeGeneric Int SizeType
@@ -112,7 +113,7 @@ instance NFData SizeType where
   rnf (SizeGeneric args rest) = rnf args `seq` rnf rest
 
 instance Pretty SizeType where
-  pretty (SizeTree size tree) = pretty size <> (if null tree then "" else "<" <> prettyList_ tree <> ">")
+  pretty (SizeTree size tree) = pretty size <> (if null tree then "" else "<" <> prettyList_ (map (\(p, t) -> pretty p <> pretty t) tree) <> ">")
   pretty (SizeGeneric args rest) =
     let argrep = if args == 0 then "" else small args
     in ("∀" <> argrep <> "E" <> ".") <+> pretty rest

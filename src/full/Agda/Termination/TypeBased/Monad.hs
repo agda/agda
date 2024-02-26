@@ -70,12 +70,13 @@ import qualified Agda.Utils.Benchmark as B
 
 import Agda.Termination.TypeBased.Common ( update )
 import Agda.Termination.TypeBased.Syntax ( SizeSignature(SizeSignature), SizeBound(..), FreeGeneric(fgIndex), SizeType, Size(..), sizeSigArity )
-import Agda.TypeChecking.Monad.Base ( TCM, Definition(defSizedType), HasOptions, MonadTCM, MonadTCState, MonadTCEnv, Closure, ReadTCState, Polarity(..) )
+import Agda.TypeChecking.Monad.Base ( TCM, Definition(defSizedType), HasOptions, MonadTCM, MonadTCState, MonadTCEnv, Closure, ReadTCState )
 import Agda.TypeChecking.Monad.Context ( MonadAddContext )
 import Agda.TypeChecking.Monad.Debug ( MonadDebug, reportSDoc )
 import Agda.TypeChecking.Monad.Signature ( HasConstInfo(getConstInfo) )
 import Agda.TypeChecking.Monad.Statistics ( MonadStatistics )
 import Agda.TypeChecking.Polarity ( composePol )
+import Agda.TypeChecking.Polarity.Base ( Polarity (Invariant, Contravariant, Covariant) )
 import Agda.Syntax.Abstract.Name ( QName )
 import Agda.Syntax.Internal ( QName, Term )
 

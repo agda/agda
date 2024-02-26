@@ -45,6 +45,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import Data.List.NonEmpty (NonEmpty(..), (<|))
 import Agda.Termination.Monad (isCoinductiveProjection)
 import Agda.TypeChecking.Polarity ((\/), composePol, neg)
+import Agda.TypeChecking.Polarity.Base (Polarity(..))
 
 -- | Bidirectional-style checking of internal terms.
 --   Though this function is checking, it also infers size types of terms,
@@ -279,7 +280,7 @@ sizeCheckEliminations eliminated (elim : elims) = do
     ]
   case (elim, eliminated) of
     (Proj _ qname, eliminatedRecord@(SizeTree root args)) -> do
-      (inferredRecordType, projectionCodomain) <- eliminateProjection qname eliminatedRecord args
+      (inferredRecordType, projectionCodomain) <- eliminateProjection qname eliminatedRecord (map snd args)
       sizeCheckEliminations projectionCodomain elims
     (Apply (Arg _ t), SizeGenericVar args i) -> do
       _ <- sizeCheckTerm UndefinedSizeType t
@@ -396,13 +397,13 @@ smallerOrEq pol (SizeTree s1 tree1) (SizeTree s2 tree2) = do
   reportSDoc "term.tbt" 40 $ vcat
     [ "Comparing size trees:" <+> pretty (SizeTree s1 tree1) <+> "<=" <+> pretty (SizeTree s2 tree2)
     , "with polarities: " <+> pretty p1 <+> " and " <+> pretty p2
+    , "and main polarity: " <+> pretty pol
     ]
   let argPol = p1 \/ p2
   let prodPol = composePol pol argPol
   smallerSize prodPol s1 s2
-  
-  -- TODO POLARITY IN DATA!
-  zipWithM_ (smallerOrEq pol) tree1 tree2
+
+  zipWithM_ (\(p1, t1) (p2, t2) -> smallerOrEq (composePol (p1 \/ p2) pol) t1 t2) tree1 tree2
   where
     smallerSize :: Polarity -> Size -> Size -> TBTM ()
     smallerSize Contravariant t1 t2 = smallerSize Covariant t2 t1
@@ -481,7 +482,7 @@ storeCall q2 sizesq1 sizesq2 elims = do
     reportCall q2 sizesq1 sizesq2 doc
 
 unwrapSizeTree :: SizeType -> [SizeType]
-unwrapSizeTree (SizeTree _ ts) = ts
+unwrapSizeTree (SizeTree _ ts) = map snd ts
 unwrapSizeTree t = __IMPOSSIBLE__
 
 isTerminatingDefinition :: Definition -> Bool

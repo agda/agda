@@ -42,6 +42,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Free as Free
 import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.Polarity.Base (Polarity(..))
 import Agda.TypeChecking.Positivity.Occurrence as Occ
 
 import Agda.TypeChecking.Substitute.Class

@@ -41,7 +41,7 @@ encodeFunctionType :: Type -> TCM SizeSignature
 encodeFunctionType t = do
   EncodingResult { erNewFirstOrderVariables, erNewContravariantVariables, erEncodedType } <- typeToSizeType 0 0 [] (const False) t
   -- Functions do not feature non-trivial size dependencies, hence we set all bounds to SizeUnbounded
-  let newBounds = (replicate erNewFirstOrderVariables SizeUnbounded)
+  let newBounds = replicate erNewFirstOrderVariables SizeUnbounded
   let originalSignature = SizeSignature newBounds erNewContravariantVariables erEncodedType
   return $ fixGaps originalSignature
 
@@ -276,7 +276,7 @@ termToSizeType t@(Def q elims) = do
     refreshFirstOrder s@(SizeGenericVar args i) = pure s
     refreshFirstOrder s@(SizeTree d ts) = SizeTree <$> (case d of
       SDefined i -> SDefined <$> initNewFirstOrderInEncoder
-      SUndefined -> pure SUndefined) <*> traverse refreshFirstOrder ts
+      SUndefined -> pure SUndefined) <*> traverse (\(p, t) -> (p,) <$> refreshFirstOrder t) ts
 termToSizeType (Var varId elims) = do
     ctx <- gets esTypeRelatedContext
     reportSDoc "term.tbt" 60 $ vcat
