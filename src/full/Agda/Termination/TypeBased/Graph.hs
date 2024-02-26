@@ -72,9 +72,8 @@ simplifySizeGraph rigidContext graph = billTo [Benchmark.TypeBasedTermination, B
 
   let sccs = DGraph.sccs adjacencyMap
 
-  currentRoot <- currentCheckedName
   -- The arity corresponds to the number of clusters
-  arity <- getArity currentRoot
+  arity <- getRootArity
   let baseSize = replicate arity (-1)
   bottomVars <- getBottomVariables
   contra <- getContravariantSizeVariables

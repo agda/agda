@@ -223,7 +223,7 @@ processSizedDefinitionTBTM clauses = do
     considerIncoherences combinedSubst = do
       totalGraph <- getTotalConstraints
       currentName <- currentCheckedName
-      arity <- getArity currentName
+      arity <- getRootArity
       incoherences <- liftTCM $ collectIncoherentRigids combinedSubst totalGraph
       reportSDoc "term.tbt" 60 $ "Incoherent sizes: " <+> text (show incoherences)
       let baseSize = SEMeet (replicate arity (-1))
@@ -286,19 +286,23 @@ processSizeClause bounds newTele c = do
 
 invokeSizeChecker :: QName -> Set QName -> TBTM (IntMap SizeExpression, SizeSignature) -> TCM (Either [String] (CallGraph CallPath, SizeSignature))
 invokeSizeChecker rootName nms action = do
-  ((subst, sizePreservationInferenceResult), res) <- runSizeChecker rootName nms action
-  let graph = scsTotalConstraints res
-  let calls = scsRecCalls res
+  ((subst, sizePreservationInferenceResult), totalGraph, errorMessages, calls) <- runSizeChecker rootName nms action
+
   reportSDoc "term.tbt" 60 $ vcat $
     [ text "Total graph:" ] ++
-    map (nest 2 . text . show) graph
+    map (nest 2 . text . show) totalGraph
   let indexing = zip (Set.toList nms) [0..]
 
-  case scsErrorMessages res of
+  case errorMessages of
     [] -> do
       -- No internal errors, let's proceed with building size-change matrices
-      edges <- forM calls (\(q1, q2, sizes1, sizes2, place) -> do
-            let matrix = makeCM (length sizes1) (length sizes2) (List.transpose $ composeMatrix subst sizes1 sizes2)
+      edges <- forM calls (\mrc -> do
+            let q1 = mrcNameFrom mrc
+                q2 = mrcNameTo mrc
+                sizes1 = mrcSizesFrom mrc
+                sizes2 = mrcSizesTo mrc
+                place = mrcPlace mrc
+                matrix = makeCM (length sizes1) (length sizes2) (List.transpose $ composeMatrix subst sizes1 sizes2)
                 n = fromJust $ List.lookup q1 indexing
                 m = fromJust $ List.lookup q2 indexing
             reportSDoc "term.tbt" 20 $ vcat

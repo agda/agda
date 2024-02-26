@@ -107,8 +107,7 @@ matchPatterns tele patterns = do
     , peCoDepth = 0
     , peCoDepthStack = []
     })
-  currentRoot <- currentCheckedName
-  currentRootArity <- getArity currentRoot
+  currentRootArity <- getRootArity
   let finalLeaves = peDepthStack modifiedState
   let leafVariables = map (\i -> case IntMap.lookup i finalLeaves of
         Just l -> NonEmpty.last l
@@ -343,7 +342,7 @@ freshenPatternConstructor conName codomainDataVar domainDataVar expectedCodomain
     , "modified type: " <+> pretty constructorType
     , "Datatype arguments:" <+> pretty datatypeParameters
     ]
-  let instantiatedSig = instantiateSizeType constructorType (newVars ++ (if null bounds then [] else [-1]))
+  let instantiatedSig = update (\i -> (newVars ++ (if null bounds then [] else [-1])) List.!! i) constructorType
   numberOfArguments <- liftTCM $ getDatatypeParametersByConstructor conName
   reportSDoc "term.tbt" 70 $ "Number of arguments: " <+> text (show numberOfArguments)
   let partialConstructorType = applyDataType (take numberOfArguments datatypeParameters) instantiatedSig
@@ -354,7 +353,7 @@ freshenCopatternProjection newCoDepthVar bounds tele = do
   let isNewPatternSizeVar b = b == SizeUnbounded || newCoDepthVar == (-1)
   newVars <- forM bounds $ \bound -> if isNewPatternSizeVar bound then lift $ requestNewRigidVariable SizeUnbounded else pure newCoDepthVar
   reportSDoc "term.tbt" 70 $ "Raw size type of copattern projection: " <+> pretty tele <+> "With new variabless:" <+> text (show newVars)
-  let instantiatedSig = instantiateSizeType tele newVars
+  let instantiatedSig = update (newVars List.!!) tele
   pure instantiatedSig
 
 -- This is a protection against postulated univalence.
