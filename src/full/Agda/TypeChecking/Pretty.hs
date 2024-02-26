@@ -41,6 +41,7 @@ import Agda.Syntax.TopLevelModuleName
 
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Polarity.Base (Polarity)
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.DiscrimTree.Types
 import Agda.TypeChecking.Substitute

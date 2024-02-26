@@ -30,6 +30,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Polarity.Base
 import Agda.TypeChecking.Positivity.Occurrence
 
 import Agda.Utils.List

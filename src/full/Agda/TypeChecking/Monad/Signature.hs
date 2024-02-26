@@ -47,6 +47,7 @@ import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Warnings
+import Agda.TypeChecking.Polarity.Base
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.CompiledClause

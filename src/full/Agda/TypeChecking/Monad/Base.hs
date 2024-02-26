@@ -94,6 +94,7 @@ import           Agda.TypeChecking.Monad.Base.Warning (RecordFieldWarning)
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Positivity.Occurrence
+import Agda.TypeChecking.Polarity.Base
 import Agda.TypeChecking.Free.Lazy (Free(freeVars'), underBinder', underBinder)
 
 import Agda.TypeChecking.DiscrimTree.Types
@@ -2179,21 +2180,6 @@ defaultDefn info x t lang def = Defn
   , defLanguage       = lang
   , theDef            = def
   }
-
--- | Polarity for equality and subtype checking.
-data Polarity
-  = Covariant      -- ^ monotone
-  | Contravariant  -- ^ antitone
-  | Invariant      -- ^ no information (mixed variance)
-  | Nonvariant     -- ^ constant
-  deriving (Show, Eq, Generic)
-
-instance Pretty Polarity where
-  pretty = text . \case
-    Covariant     -> "+"
-    Contravariant -> "-"
-    Invariant     -> "*"
-    Nonvariant    -> "_"
 
 -- | Information about whether an argument is forced by the type of a function.
 data IsForced
@@ -5863,9 +5849,6 @@ instance KillRange a => KillRange (Open a) where
 instance KillRange DisplayForm where
   killRange (Display n es dt) = killRangeN Display n es dt
 
-instance KillRange Polarity where
-  killRange = id
-
 instance KillRange IsForced where
   killRange = id
 
@@ -5957,7 +5940,6 @@ instance NFData NLPSort
 instance NFData RewriteRule
 instance NFData InstanceInfo
 instance NFData Definition
-instance NFData Polarity
 instance NFData IsForced
 instance NFData Projection
 instance NFData ProjLams

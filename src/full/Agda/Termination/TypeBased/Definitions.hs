@@ -60,7 +60,7 @@ import Data.List (unfoldr)
 import qualified Agda.Benchmarking as Benchmark
 import Agda.TypeChecking.Monad.Benchmark (billTo)
 import qualified Agda.Utils.List1 as List1
-
+import Agda.TypeChecking.Polarity.Base
 
 -- | 'initSizeTypeEncoding names' computes size types for every definition in 'names'
 -- It is expected that 'names' form a mutual block.
@@ -78,7 +78,7 @@ initSizeTypeEncoding mutuals =
             , "  with mutual block: " <+> prettyTCM (Set.toList mutuals)
             , "  of internal type:" <+> prettyTCM dType
             ]
-          sizedSignature <- encodeDataType dataCons mutuals encodeComplex False dType
+          sizedSignature <- encodeDataType dataCons mutuals encodeComplex False (defPolarity def) dType
           reportSDoc "term.tbt" 5 $ vcat
             [ "Encoded data " <> prettyTCM nm <> ", sized type: "
             , nest 2 $ pretty sizedSignature
@@ -90,7 +90,7 @@ initSizeTypeEncoding mutuals =
             , "  with mutual block: " <+> prettyTCM (Set.toList mutuals)
             , "  of internal type:" <+> prettyTCM dType
             ]
-          sizedSignature <- encodeDataType [conName recConHead] mutuals encodeComplex (recInduction == Just CoInductive) dType
+          sizedSignature <- encodeDataType [conName recConHead] mutuals encodeComplex (recInduction == Just CoInductive) (defPolarity def) dType
           reportSDoc "term.tbt" 5 $ vcat
             [ "Encoded record " <> prettyTCM nm <> ", sized type: "
             , nest 2 $ pretty sizedSignature
@@ -126,7 +126,7 @@ initSizeTypeEncoding mutuals =
                   [ "Preservation candidates: " <+> text (show preservationCandidates)
                   , "original sig:" <+> pretty sig
                   ]
-                pure (reifySignature (List.sortOn fst (map (, ToInfinity) (sdPositive preservationCandidates))) sig)
+                pure (reifySignature (List.sortOn fst (map (, ToInfinity) (sdPositive preservationCandidates ++ sdOther preservationCandidates))) sig)
               Right _ -> encodeFieldType mutuals dType
             else pure $ encodeBlackHole dType
           reportSDoc "term.tbt" 5 $ vcat
@@ -336,8 +336,8 @@ encodeFunctionClause sizeType c = do
   return tele
 
 
-encodeDataType :: [QName] -> Set QName -> Bool -> Bool -> Type -> TCM SizeSignature
-encodeDataType ctors fullSet generify isCoinductiveRecord tp = do
+encodeDataType :: [QName] -> Set QName -> Bool -> Bool -> [Polarity] -> Type -> TCM SizeSignature
+encodeDataType ctors fullSet generify isCoinductiveRecord polarities tp = do
   let TelV domains codomain = telView' tp
   -- We need to check if a datatype is actually recursive
   -- This helps a lot for performance, since it allows us to not introduce a lot of superfluous size variables,
@@ -347,15 +347,10 @@ encodeDataType ctors fullSet generify isCoinductiveRecord tp = do
   pure $ SizeSignature
          (if isRecursiveData then [SizeUnbounded] else [])
          (if isCoinductiveRecord && isRecursiveData then [0] else [])
-         (encodeDatatypeDomain isRecursiveData generify [] domains)
+         (encodeDatatypeDomain isRecursiveData generify polarities [] domains)
 
 -- | 'checkRecursiveConstructor allNames qn' checks that a construtor with the name 'qn' refers to any of the 'allNames',
 -- thus giving us the information if this constructor is recursive.
---
--- In fact, this is a job of the positivity checker.
--- We cannot use the actual positivity checker because it runs too late.
--- It makes sense: the positivity checker unfolds definitions, and for that it needs to know that the unfolding is safe, i.e. the definition is terminating.
--- However, we need to know recursivity of definitions _for_ termination checking, which means that we should design some ad-hoc solution.
 checkRecursiveConstructor :: Set QName -> QName -> TCM Bool
 checkRecursiveConstructor allNames qn = do
   conType <- defType <$> getConstInfo qn
@@ -385,17 +380,17 @@ checkRecursiveConstructor allNames qn = do
       _ -> pure False))
 
 -- | Converts the telescope of a datatype to a size type.
-encodeDatatypeDomain :: Bool -> Bool -> [Bool] -> Tele (Dom Type) -> SizeType
-encodeDatatypeDomain isRecursive _ params EmptyTel =
+encodeDatatypeDomain :: Bool -> Bool -> [Polarity] -> [Bool] -> Tele (Dom Type) -> SizeType
+encodeDatatypeDomain isRecursive _ polarities params EmptyTel =
   let size = if isRecursive then SDefined 0 else SUndefined
       -- tail because scanl inserts the given starting element in the beginning
       treeArgs = List1.tail $ List1.scanl
               (\(ind, t) isGeneric -> if isGeneric then (ind + 1, SizeGenericVar 0 ind) else (ind, UndefinedSizeType))
               (0, UndefinedSizeType)
               params
-      actualArgs = reverse (map snd treeArgs)
+      actualArgs = zip polarities (reverse (map snd treeArgs))
   in SizeTree size actualArgs
-encodeDatatypeDomain isRecursive generify params (ExtendTel dt rest) =
+encodeDatatypeDomain isRecursive generify polarities params (ExtendTel dt rest) =
   let d = unEl $ unDom dt
       genericArity = inferGenericArity d
       (wrapper, newParam) = if generify
@@ -403,7 +398,7 @@ encodeDatatypeDomain isRecursive generify params (ExtendTel dt rest) =
           Just arity -> (SizeGeneric arity, True)
           Nothing -> (SizeArrow UndefinedSizeType, False)
         else (SizeArrow UndefinedSizeType, False)
-      tails = encodeDatatypeDomain isRecursive generify (newParam : params) (unAbs rest)
+      tails = encodeDatatypeDomain isRecursive generify polarities (newParam : params) (unAbs rest)
   in wrapper tails
   where
     inferGenericArity :: Term -> Maybe Int

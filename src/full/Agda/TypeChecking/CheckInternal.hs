@@ -27,6 +27,7 @@ import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.ProjectionLike (elimView, ProjEliminator(..))
+import Agda.TypeChecking.Polarity.Base
 import Agda.TypeChecking.Records (shouldBeProjectible)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Sort

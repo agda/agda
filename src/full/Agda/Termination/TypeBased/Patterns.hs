@@ -66,6 +66,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.List.NonEmpty as NonEmpty
+import Agda.TypeChecking.Polarity.Base
 
 type PatternEncoder a = StateT PatternEnvironment TBTM a
 
@@ -159,7 +160,7 @@ matchLHS tele patterns = do
             freshenedSignature <- freshenCopatternProjection newCodepthVar bounds tele
             -- Additional argument is needed because we want to get rid of the principal argument in the signature
             -- This is application that is intended to get rid of the basic record arguments
-            let appliedProjection = applyDataType (recordArgs ++ [UndefinedSizeType]) freshenedSignature
+            let appliedProjection = applyDataType ((map snd recordArgs) ++ [UndefinedSizeType]) freshenedSignature
             -- TODO: handle copying here,
             -- since apparently there can be copies in copatterns (!)
             when (defCopy constInfo) $ lift $ recordError "Copy in a copattern projection"
@@ -194,7 +195,7 @@ initializeLeafVars (SizeTree size ts) = do
       { peDepthStack = IntMap.insert i (singleton i) (peDepthStack s)
       , peDepth = 0
       })
-  traverse_ initializeLeafVars ts
+  traverse_ (initializeLeafVars . snd) ts
 initializeLeafVars (SizeGenericVar _ _) = pure ()
 initializeLeafVars (SizeArrow _ r) = initializeLeafVars r
 initializeLeafVars (SizeGeneric _ r) = initializeLeafVars r
@@ -248,7 +249,7 @@ matchSizePattern p@(ConP hd pi args) expected = do
 
       let (_, codomain) = sizeCodomain refreshedConstructor
       case codomain of
-        SizeTree _ realArgs -> lift $ ensurePatternIntegrity realArgs ts
+        SizeTree _ realArgs -> lift $ ensurePatternIntegrity (map snd realArgs) (map snd ts)
         _ -> pure ()
       _ <- foldDomainSizeType
         (\args i pat -> withDepth (-1) $ matchSizePattern pat UndefinedSizeType)
@@ -328,7 +329,7 @@ getOrRequestCoDepthVar depth = do
 freshenPatternConstructor :: QName -> Int -> PatternEncoder Int -> SizeType -> SizeSignature -> PatternEncoder SizeType
 freshenPatternConstructor conName codomainDataVar domainDataVar expectedCodomain (SizeSignature bounds contra constructorType) = do
   let (SizeTree topSize datatypeParameters) = expectedCodomain
-  let croppedBounds = initWithDefault [] bounds
+  let croppedBounds = if codomainDataVar == -1 then bounds else initWithDefault [] bounds
   let shouldBeUnbounded b = b == SizeUnbounded || codomainDataVar == (-1)
   -- We need to strip the codomain size from the constructor here to not introduce weird rigid in the context
   -- It is important to call `domainDataVar` lazily,
@@ -341,10 +342,12 @@ freshenPatternConstructor conName codomainDataVar domainDataVar expectedCodomain
     , "modified type: " <+> pretty constructorType
     , "Datatype arguments:" <+> pretty datatypeParameters
     ]
-  let instantiatedSig = update (\i -> (newVars ++ (if null bounds then [] else [-1])) List.!! i) constructorType
+  let augmentedBounds = newVars ++ (if null bounds then [] else [-1])
+  let instantiatedSig = update (\i -> augmentedBounds List.!! i) constructorType
+  reportSDoc "term.tbt" 70 $ "Instantiated signature: " <+> pretty instantiatedSig
   numberOfArguments <- liftTCM $ getDatatypeParametersByConstructor conName
   reportSDoc "term.tbt" 70 $ "Number of arguments: " <+> text (show numberOfArguments)
-  let partialConstructorType = applyDataType (take numberOfArguments datatypeParameters) instantiatedSig
+  let partialConstructorType = applyDataType (take numberOfArguments $ map snd datatypeParameters) instantiatedSig
   return partialConstructorType
 
 freshenCopatternProjection :: Int -> [SizeBound] -> SizeType -> PatternEncoder SizeType

@@ -48,5 +48,4 @@ type ModuleToSource = Map TopLevelModuleName AbsolutePath
 type BackendName = String
 
 data Comparison
-data Polarity
 data IPFace' a

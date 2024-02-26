@@ -7,6 +7,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin                  (HasBuiltins)
 import Agda.TypeChecking.Monad.Context                  (MonadAddContext)
 import Agda.TypeChecking.Monad.Debug                    (MonadDebug)
+import Agda.TypeChecking.Polarity.Base                  (Polarity)
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Signature (HasConstInfo)
 import {-# SOURCE #-} Agda.TypeChecking.Pretty          (MonadPretty)
 
