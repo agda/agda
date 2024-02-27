@@ -39,6 +39,7 @@ import Agda.TypeChecking.Polarity.Base ( Polarity(Contravariant, Covariant) )
 import Agda.Utils.Impossible ( __IMPOSSIBLE__ )
 import Agda.Utils.List ((!!!), initWithDefault)
 import Agda.Utils.Singleton ( Singleton(singleton) )
+import Agda.Utils.List1 ( appendList )
 
 type PatternEncoder a = StateT PatternEnvironment TBTM a
 
@@ -274,7 +275,7 @@ getOrRequestDepthVar cluster level = do
         -- We need to populate a depth stack with a new level
         let actualBound = if ((NonEmpty.head currentLeaves) == -1) then SizeUnbounded else SizeBounded (NonEmpty.last currentLeaves)
         var <- lift $ requestNewRigidVariable Covariant actualBound
-        modify (\s -> s { peDepthStack = IntMap.insert cluster (NonEmpty.appendList currentLeaves [var]) (peDepthStack s) })
+        modify (\s -> s { peDepthStack = IntMap.insert cluster (appendList currentLeaves [var]) (peDepthStack s) })
         pure var
 
 -- | Retrieves a new depth variable to reflect a descend in copattern projection
