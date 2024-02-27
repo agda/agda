@@ -918,6 +918,32 @@ Recursion
      Allow termination checker to count decrease/increase upto ``N``
      (default: 1; see :ref:`termination-checking`).
 
+.. option:: --syntax-based-termination, --no-syntax-based-termination
+
+     .. versionadded:: 2.7.0
+
+     Enable [disable] syntax-based termination checking.
+
+     Default: ``--syntax-based-termination``.
+
+.. option:: --type-based-termination, --no-type-based-termination
+
+     .. versionadded:: 2.7.0
+
+     Enable [disable] type-based termination checking (see :ref:`type-based-termination-checking`).
+
+     Default: ``--no-type-based-termination``.
+
+.. option:: --size-preservation, --no-size-preservation
+
+     .. versionadded:: 2.7.0
+
+     Enable [disable] size preservation during type-based termination checking (see :ref:`type-based-termination-checking-size-preservation`).
+
+     This option only has effect if ``--type-based-termination`` is enabled.
+
+     Default: ``--size-preservation``.
+
 Sorts and universes
 ~~~~~~~~~~~~~~~~~~~
 
@@ -1819,6 +1845,7 @@ again, the source file is re-typechecked instead:
 * :option:`--no-positivity-check`
 * :option:`--no-projection-like`
 * :option:`--no-sized-types`
+* :option:`--no-size-preservation`
 * :option:`--no-termination-check`
 * :option:`--no-unicode`
 * :option:`--no-universe-polymorphism`
@@ -1831,6 +1858,7 @@ again, the source file is re-typechecked instead:
 * :option:`--save-metas`
 * :option:`--syntactic-equality`
 * :option:`--termination-depth`
+* :option:`--type-based-termination`
 * :option:`--two-level`
 * :option:`--type-in-type`
 * :option:`--warning`
