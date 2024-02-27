@@ -47,6 +47,7 @@ module Agda.Termination.TypeBased.Monad
   ) where
 
 import Control.Monad ( replicateM, forM )
+import qualified Control.Monad.Fail as Fail
 import Control.Monad.IO.Class ( MonadIO )
 import Control.Monad.Trans.State ( StateT, gets, modify, runStateT )
 import qualified Data.IntMap as IntMap
@@ -85,7 +86,7 @@ newtype TBTM a = TBTM (StateT SizeCheckerState TCM a)
   , MonadTCState
   , HasOptions
   , MonadDebug
-  , MonadFail
+  , Fail.MonadFail
   , HasConstInfo
   , MonadAddContext
   , MonadIO
