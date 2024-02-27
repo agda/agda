@@ -1086,6 +1086,11 @@ getMutual_ = \case
     _ -> Nothing
 
 -- | Set the mutually recursive identifiers.
+--
+--   TODO: This produces data of quadratic size (which has to be processed upon serialization).
+--   Presumably qs is usually short, but in some cases (for instance for generated code) it may be
+--   long. It would be better to assign a unique identifier to each SCC, and store the names
+--   separately.
 setMutual :: QName -> [QName] -> TCM ()
 setMutual d m = modifySignature $ updateDefinition d $ updateTheDef $ \ def ->
   case def of
