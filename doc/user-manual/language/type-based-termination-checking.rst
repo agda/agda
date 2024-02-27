@@ -55,7 +55,7 @@ To activate the type-based termination checker in Agda, you can use the option `
 
 Enabling this option is the only requirement to utilize the type-based termination checker.
 
-It's important to note that the type-based termination checker requires preprocessing of all datatypes involved in the checking process. For the provided definitions, the files containing ``Nat``, ``List``, and ``RoseTree`` should all be type-checked with the ``--type-based-termination`` option enabled.
+It is important to note that the type-based termination checker requires preprocessing of all datatypes involved in the checking process. For the provided definitions, the files containing ``Nat``, ``List``, and ``RoseTree`` should all be type-checked with the ``--type-based-termination`` option enabled.
 
 By default, type-based termination is disabled. You can also explicitly disable it by specifying ``--no-type-based-termination``.
 
@@ -72,14 +72,9 @@ For a deeper understanding of the internal behavior of the type-based terminatio
 Inductive definitions
 ---------------------
 
-The core principle of the type-based termination is that it checks the terms of Agda
-against its own type system, which is further referred to as *size types*. Size types closely resemble regular types in Agda, but they pivot around size variables.
-The process of type-checking against size types is further referred to as
-*size checking*.
+The core principle of the type-based termination checking is still the requirement to perform recursive calls on structurally smaller arguments. However, as we saw above, the calls may happen under some higher-order function.
 
-Let's illustrate this with an example.
-
-Consider the datatype of natural numbers:
+Given a datatype, Agda first pre-processes its signature and constructor to assert dependencies between terms. For example, consider a type of natural numbers.
 
 ::
 
@@ -87,36 +82,9 @@ Consider the datatype of natural numbers:
         zero : Nat
         suc  : Nat → Nat
 
-This datatype is *encoded* into a size type. We shall represent ``Nat`` as a single
-size variable, let's denote it as ``t₀``. Constructor ``zero`` has no
-parameters, we shall also represent it as a single size variable ``t₁``. The constructor ``suc``, on the other hand, has a parameter, leading to its encoding as ``t₂ → t₃``, with the additional constraint that ``t₂ < t₃``.
+Under type-based termination checking, Agda asserts that ``suc`` constructs "bigger" numbers from smaller ones.
 
-
-Now, let's examine how a function is processed. Consider the following function, which essentially returns its second argument:
-
-::
-
-      f : Nat → Nat → Nat
-      f zero    m = m
-      f (suc n) m = f n m
-
-In the case of a function, its type is also encoded, resulting in ``t₄ → t₅ → t₆``. The checker then begins processing the clauses.
-
-The clause ``f zero m = m`` indicates that we have terms ``zero : t₄`` and ``m : t₅``, and we need to size-check ``m`` (the body of the clause) against the size type ``t₆`` (the expected type of the clause). Since this branch lacks recursive calls, these constraints are not particularly useful.
-
-The clause ``f (suc n) m = f n m`` is more intricate. Due to pattern-matching, new size variables are introduced. Here, we work with ``n : t₇`` and ``m : t₅``. Crucially, we know that ``t₇ < t₄`` because of the inequality provided by the ``suc`` constructor. The variables obtained during pattern-matching (here, ``t₄``, ``t₅``, ``t₆``, and ``t₇``) are called *rigid*, and the goal of the type-based checker is to assign all other variables (termed *flexible*) to the rigid ones.
-
-After the pattern-matching, the checking of the body starts. Here we see that a
-recursive call is used. During the process of size checking, every usage of a function is *refreshed* with a set of new flexible variables, so
-in this particular place we have ``f : t₈ → t₉ → t₁₀``. Now, since we apply ``f`` to
-``n``, we learn that we need to respect a constraint ``t₇ ≤ t₈``, and similarly ``t₅ ≤ t₉`` for the call with ``m``. The return type also induces its constraint
-``t₁₀ ≤ t₆``. For this particular function, the constraint on return type is not that interesting.
-
-The subsequent step involves assigning flexible variables. For this clause, the flexible variables are ``t₈``, ``t₉``, and ``t₁₀``, and we need to find a rigid assignment for each that respects the earlier constraints. A valid assignment would be ``t₈ := t₇``, ``t₉ := t₅``, and ``t₁₀ := t₆``.
-
-Finally, this information is applied to determine if the function terminates. In this case, we observe a recursive call to ``f`` with sizes ``t₇``, ``t₅``, and ``t₆``, where ``t₇ < t₄``. This indicates that the function is called with a smaller argument, confirming its termination.
-
-The description above provides a simplified overview of the actual process within the type-based termination checker, covering the essential steps of the process.
+Pattern-matching is still required in recursive definitions. During the process of pattern-matching, Agda obtains "smaller" terms in the scope, and then it can check whether recursive calls are performed on small arguments.
 
 .. _type-based-termination-checking-coinduction:
 
@@ -125,7 +93,7 @@ Coinductive definitions
 
 The type-based termination checker in Agda extends its default guardedness checker to support coinductive definitions. The fundamental idea behind coinductive type-based termination is Agda's ability to track the *depth* of defined coinductive data, allowing only recursive calls with strictly smaller depth. This condition ensures that the function does not consume more data than it is required to produce.
 
-Let's delve into a classic example of a coinductive type, the ``Stream``:
+We shall illustrate this on a classic example of a coinductive type, the ``Stream``:
 
 ::
 
@@ -135,36 +103,40 @@ Let's delve into a classic example of a coinductive type, the ``Stream``:
         head : Nat
         tail : Stream
 
-Similar to the datatype of natural numbers, streams are represented as a single size variable ``t₀`` in our size type system. Here, our focus is on the recursive field, tail. In Agda, fields are treated as functions, specifically, we have ``tail : Stream → Stream``. The size encoding of fields is dual to constructors: ``tail`` is represented as ``t₁ → t₂``, where ``t₂ < t₁``. Notably, the *codomain* is smaller than the *domain*, which is the opposite of constructors. This makes sense since projections decrease the size of the applied record.
+    open Stream
+
+Here, our focus is on the recursive field, ``tail``. In Agda, fields are represented as functions, which in this case would be ``tail: Stream → Stream``. For fields, the *codomain* is smaller than the *domain*, which is the opposite of constructors. This makes sense since projections decrease the size of the applied record.
 
 Mirroring pattern-matching, coinductive functions are defined using *copattern matching*. Consider a simple function that generates an endless stream of zeros:
 
 ::
 
     repeat : Stream
-    repeat Stream.head = zero
-    repeat Stream.tail = repeat
+    repeat .head = zero
+    repeat .tail = repeat
 
-This function is encoded as a single size variable ``t₃``. Let's focus on the second branch repeat ``Stream.tail = repeat``, as it is the only branch relevant from a termination perspective.
+We shall again focus on the second branch ``Stream.tail = repeat``, as it is the only branch relevant from a termination perspective. Assume that ``repeat`` produces a stream of depth ``n``. According to the definition of ``tail``, this branch needs to construct a stream of depth ``m < n`` *for any* ``m``. A direct recursive call to ``repeat`` suffices here: it can be assumed that the inner ``repeat`` is used with the depth ``m``. Now, since the stream-returning function is defined in terms of "shallower" streams, Agda considers it terminating, as an arbitrary number of unfoldings for ``repeat`` will terminate.
 
-Record projections, like data constructors, introduce rigid variables during copattern matching. Here, the rigid variables are ``t₃`` and ``t₄`` with ``t₄ < t₃``, where ``t₃ → t₄`` represents the adjusted size type of tail, initially ``t₁ → t₂``. We see that the role of codomain in the size signature is more critical here than in inductive functions.
+Now consider the following function:
 
-Considering the usage of ``tail``, the expected type of the body of the second clause is ``Stream`` or, as a size type, ``t₄``. The body contains a single recursive call to repeat, which, as following the logic of the previous section, introduces a fresh size type ``t₅``. Notably, since ``Stream`` is a coinductive type, it monotonically decreases in its size, allowing "deeper" streams to be used wherever "shallower" streams are required. Therefore, the desired constraint is ``t₄ ≤ t₅`` — any stream with depth greater or equal to ``t₄`` suffices here.
+::
 
-In this environment, the only flexible variable is ``t₅``, which can be assigned to ``t₄``. Since ``t₄ < t₃``, the recursive call to ``repeat`` is used with a smaller depth than the enclosing ``repeat``, indicating that the definition is productive—it does not consume more of itself than necessary for production.
+    badRepeat : Stream
+    badRepeat .head = zero
+    badRepeat .tail = badRepeat .tail
+
+The difference here is that now inner ``badRepeat`` is projected. The logic from the previous paragraph does not apply here: if ``badRepeat .tail`` is of depth ``m``, then the inner ``badRepeat`` must have depth bigger than ``m``, say ``k``. There is no evidence that ``k < n``, so Agda rejects this definition as non-terminating. Indeed, it can be unfolded infinitely, which destroys strong normalization.
 
 .. _type-based-termination-checking-size-preservation:
 
 Size preservation
 -----------------
 
-We've previously observed that the polymorphic function ``id`` is understood by the type-based termination checker to return a term of the same size as the accepted one. This understanding is derived informally by examining the polymorphic type signature of ``id``. However, what if ``id`` had a non-polymorphic type ``Nat → Nat``? Can we make any judgement about its behavior?
+We've previously observed that the polymorphic function ``id`` is understood by the type-based termination checker to return a term of the same size as the accepted one. This understanding is derived informally by examining the polymorphic type signature of ``id``. However, what if ``id`` had a non-polymorphic type ``Nat → Nat``? Can we make any judgment about its behavior?
 
 This scenario is covered by another crucial aspect of the type-based termination checker, known as the ability to detect dependencies between sizes in signatures. This feature is referred to as *size preservation*.
 
-While size checking a term, the checker can analyze dependencies between flexible and rigid size variables, concluding that some of them can be considered equal.
-
-For example, consider the following function:
+As an example example, consider the following function:
 
 ::
 
@@ -173,9 +145,9 @@ For example, consider the following function:
       minus x zero = x
       minus (suc x) (suc y) = minus x y
 
-We see that in the first two branches, the result of the function is equal to the first argument. In particular, we see that the "size" of the first argument is preserved in the output. Assuming that this function returns a natural numbers of size not bigger than the first argument, we can also analyze the third branch and confirm this assumption. The type-based checker can comprehend this and adjusts the size types of ``minus``. If its original size type was ``t₁ → t₂ → t₃``, then the modified type would be ``t₁ → t₂ → t₁`` to reflect the size-preservation behavior. It's noteworthy that for inductive functions, size preservation attempts to check whether there is a size in the codomain of the signature that can be equal to some size in the domain.
+We see that in the first two branches, the result of the function is equal to the first argument. In particular, we see that the "size" of the first argument is preserved in the output. Assuming that this function returns natural numbers of size not bigger than the first argument, we can also analyze the third branch and confirm this assumption. The type-based checker can comprehend this and adjust the size types of ``minus``.
 
-This behavior has useful consequences: consider a division of two natural numbers. We can write a function of division in Agda with the meaning that number ``x`` is divided on ``y + 1``. With the help of size preservation, the following function passes termination check:
+This behavior has useful consequences. For example, consider a function of division for two natural numbers. We can write this function in Agda meaning that number ``x`` is divided on ``y + 1``. With the help of size preservation, the following function passes termination check:
 
 ::
 
@@ -193,9 +165,9 @@ For example, consider a coinductive function ``zipWith``:
     zipWith f s1 s2 .head = f (s1 .head) (s2 .head)
     zipWith f s1 s2 .tail = zipWith f (s1 .tail) (s2 .tail)
 
-Here, the depth of the returned ``Stream`` is the same as the requested depth of incoming ``s1`` and ``s2``. The type-based termination checker recognizes this, concluding that all three ``s1``, ``s2``, and the returned stream share the same size variable. We can assume that ``zipWith`` has size signature ``(t₁ → t₂ → t₃) → t₀ → t₀ → t₀``.
+Here, the depth of the returned ``Stream`` is the same as the requested depth of incoming ``s1`` and ``s2``. The type-based termination checker recognizes this, concluding that all three ``s1``, ``s2``, and the returned stream share the same size variable.
 
-Given size-preserving ``zipWith``, we are able to define an infinite stream of Fibonacci numbers:
+Given size-preserving ``zipWith``, Agda is able to define an infinite stream of Fibonacci numbers:
 
 ::
 
@@ -204,9 +176,26 @@ Given size-preserving ``zipWith``, we are able to define an infinite stream of F
    fib .tail .head = suc zero
    fib .tail .tail = zipWith plus fib (fib .tail)
 
-This function passes termination checking. Let's figure out what is happening here by dissecting the third clause.
+This function passes termination checking. We shall explain the logic of Agda for the third clause.
 
-Assume that ``fib`` is encoded as ``t₀``. The first copattern projection of tail brings a rigid size variable ``t₁``, and the second projection results in ``t₂``, which is also the expected type of the clause. Now, let a fresh size type of ``zipWith`` be ``(_ → _ → _) → t₃ → t₃ → t₃`` (the sizes in function are irrelevant for this example; we shall ignore them); the size type of the first ``fib`` is ``t₄``, and the size type of the second ``fib`` (the projected one) is ``t₅``. Since the second ``fib`` is projected, we also have a fresh flexible size variable ``t₆`` with the requirement ``t₆ < t₅``. Given that all sizes represent coinductive definitions, we obtain a set of constraints ``t₂ ≤ t₃``, ``t₃ ≤ t₄``, ``t₃ ≤ t₆``, ``t₆ < t₅``. A suitable solution would be ``t₃ := t₂``, ``t₄ := t₂``, ``t₅ := t₁``, ``t₆ := t₂``. Both fibs are called with a size variable smaller than the top-level one (``t₂`` and ``t₁`` respectively), indicating that ``fib`` is productive. Note that size preservation is crucial here; otherwise, ``t₄`` and ``t₅`` would be disconnected from ``t₂``, implying that they have no suitable assignment among rigid variables.
+Following our intuition with coinductive functions, the are three depth parameters ``k < m < n``, where the outer stream is of depth ``n``, and to pass checking the third clause should return the stream of depth at least ``k``. If the first inner ``fib`` is used with the depth ``k``, and the second ``fib`` is used with the depth ``m`` (note, that the smallest available depth for ``fib .tail`` is ``k``, hence ``fib`` must use something bigger, which is ``m``), then the size-preserving ``zipWith`` returns a stream of size ``k``, which is indeed what is required from it. Now we see that both recursive calls to ``fib`` are performed with depths ``k`` and ``m``, which are smaller than ``n``. Agda concludes that this function is terminating.
+
+Size preservation is tightly coupled with polarities. Given a function signature, all occurrences of *negative inductive* and *positive coinductive* variables are considered as input, and they serve as possible candidates for size preservation analysis. On the other hand, all *positive inductive* and *negative coinductive* variables are considered as output, and a function signature may be size-preserving precisely in them. For example, consider the following definition:
+
+::
+
+    foo : {A : Set} → (Nat → A) → Nat → A
+    foo f x = f x
+
+
+
+Here, the first ``Nat`` in ``foo`` is in a doubly-negative position, which means that the position is positive, and ``foo`` can be size-preserving in the first ``Nat``. From the definition we see that it is indeed the case. One application of this fact is that the following function passes termination check:
+
+::
+
+    bar : Nat → Nat
+    bar zero = zero
+    bar (suc n) = foo bar n
 
 As a final note, we address performance considerations. Currently, size-preservation analysis is the slowest part of the type-based termination checker. If you suspect that it causes a slowdown, you can specify ``--no-size-preservation``, disabling the analysis while retaining the rest of the type-based termination checker. Nevertheless, there are plans to improve its performance.
 
