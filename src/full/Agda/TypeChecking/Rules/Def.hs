@@ -979,6 +979,10 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
 
       (proof, eqt) <- inferExpr eq
 
+      -- Andreas, 2024-02-27, issue #7150
+      -- trigger instance search to resolve instances in rewrite-expression
+      solveAwakeConstraints
+
       -- Andreas, 2016-04-14, see also Issue #1796
       -- Run the size constraint solver to improve with-abstraction
       -- in case the with-expression contains size metas.

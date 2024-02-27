@@ -1555,8 +1555,8 @@ isModuleFreeVar i = do
 inferExprForWith :: Arg A.Expr -> TCM (Term, Type)
 inferExprForWith (Arg info e) = verboseBracket "tc.with.infer" 20 "inferExprForWith" $
   applyRelevanceToContext (getRelevance info) $ do
-    reportSDoc "tc.with.infer" 20 $ "inferExprforWith " <+> prettyTCM e
-    reportSLn  "tc.with.infer" 80 $ "inferExprforWith " ++ show (deepUnscope e)
+    reportSDoc "tc.with.infer" 20 $ "inferExprForWith " <+> prettyTCM e
+    reportSLn  "tc.with.infer" 80 $ "inferExprForWith " ++ show (deepUnscope e)
     traceCall (InferExpr e) $ do
       -- Andreas, 2024-02-26, issue #7148:
       -- The 'instantiateFull' here performs necessary eta-contraction,
