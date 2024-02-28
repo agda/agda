@@ -33,10 +33,11 @@ import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Abstract.Name (QName(..), Name(..))
 import Agda.Syntax.Common (InteractionId(..), MetaId(..), ArgInfo(..), defaultArgInfo, Origin(..), ConOrigin(..), Hiding(..), setOrigin, NameId, Nat, namedThing, Arg(..), setHiding, getHiding, ProjOrigin(..), rangedThing, woThing, nameOf, visible)
-import Agda.Syntax.Common.Pretty (Pretty, Doc, prettyShow, prettyList, render, pretty, braces, prettyList_, text, (<+>), nest, lbrace, rbrace, comma, ($$), vcat, ($+$), align, cat, parens)
+import Agda.Syntax.Common.Pretty (Pretty)
+import qualified Agda.Syntax.Common.Pretty as P
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Info (pattern UnificationMeta, exprNoRange)
-import Agda.Syntax.Internal -- (Type, Type''(..), Term(..), Dom'(..), Abs(..), arity , ConHead(..), Sort'(..), Level, argFromDom, Level'(..), absurdBody, Dom, namedClausePats, Pattern'(..), dbPatVarIndex)
+import Agda.Syntax.Internal
 import Agda.Syntax.Internal.MetaVars (AllMetas(..))
 import Agda.Syntax.Internal.Pattern (clausePerm)
 import Agda.Syntax.Position (Range, rangeFile, rangeFilePath)
@@ -50,7 +51,7 @@ import Agda.TypeChecking.Free (flexRigOccurrenceIn, freeVars)
 import Agda.TypeChecking.Level (levelType)
 import Agda.TypeChecking.MetaVars (newValueMeta)
 import Agda.TypeChecking.Monad -- (MonadTCM, lookupInteractionId, getConstInfo, liftTCM, clScope, getMetaInfo, lookupMeta, MetaVariable(..), metaType, typeOfConst, getMetaType, MetaInfo(..), getMetaTypeInContext)
-import Agda.TypeChecking.Pretty (MonadPretty, prettyTCM, PrettyTCM(..))
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records (isRecord, isRecursiveRecord)
 import Agda.TypeChecking.Reduce (reduce, instantiateFull, instantiate)
 import Agda.TypeChecking.Rules.LHS.Problem (AsBinding(..))
@@ -94,7 +95,7 @@ mimer :: MonadTCM tcm
   -> String
   -> tcm MimerResult
 mimer ii rng argStr = liftTCM $ do
-    reportDoc "mimer.top" 10 ("Running Mimer on interaction point" <+> pretty ii <+> "with argument string" <+> text (show argStr))
+    reportSDoc "mimer.top" 10 ("Running Mimer on interaction point" <+> pretty ii <+> "with argument string" <+> text (show argStr))
 
     start <- liftIO $ getCPUTime
 
@@ -112,16 +113,14 @@ mimer ii rng argStr = liftTCM $ do
             return MimerNoResult
           sols' | optList opts -> pure $ MimerList [ (i, s) | (i, MimerExpr s) <- sols' ]
           (_, sol) : _ -> do
-            reportSDoc "mimer.top" 10 $ do
-              pSol <- prettyTCM sol
-              return $ "Solution:" <+> pSol
+            reportSDoc "mimer.top" 10 $ "Solution:" <+> prettyTCM sol
             return sol
 
     putTC oldState
 
     stop <- liftIO $ getCPUTime
     let time = stop - start
-    reportDoc "mimer.top" 10 ("Total elapsed time:" <+> pretty time)
+    reportSDoc "mimer.top" 10 ("Total elapsed time:" <+> pretty time)
     verboseS "mimer.stats" 50 $ writeTime ii (if null sols then Nothing else Just time)
     return sol
 
@@ -420,23 +419,19 @@ collectComponents opts costs ii mDefName whereNames metaId = do
   let recVars = map fst . filter snd <$> lhsVars'
   lhsVars <- getOpen $ map fst <$> lhsVars'
   typedLocals <- getLocalVarTerms 0
-  reportSDoc "mimer.components" 40 $ do
-    vars <- prettyTCM lhsVars
-    return $ "All LHS variables:" <+> vars <+> parens ("or" <+> pretty lhsVars)
+  reportSDoc "mimer.components" 40 $ "All LHS variables:" <+> prettyTCM lhsVars <+> parens ("or" <+> pretty lhsVars)
   let typedLhsVars = filter (\(term,typ) -> term `elem` lhsVars) typedLocals
-  reportSDoc "mimer.components" 40 $ do
-    vars <- mapM prettyTCMTypedTerm typedLhsVars
-    return $ "LHS variables with types:" <+> pretty vars <+> parens ("or"
-      <+> pretty (map prettyTypedTerm typedLhsVars))
+  reportSDoc "mimer.components" 40 $
+    "LHS variables with types:" <+> prettyList (map prettyTCMTypedTerm typedLhsVars) <+> parens ("or"
+      <+> prettyList (map prettyTypedTerm typedLhsVars))
   -- TODO: For now, we *never* split on implicit arguments even if they are
   -- written explicitly on the LHS.
   splitVarsTyped <- filterM (\(term, typ) ->
                  ((argInfoHiding (domInfo typ) == NotHidden) &&) <$> isTypeDatatype (unDom typ))
                typedLhsVars
-  reportSDoc "mimer.components" 40 $ do
-    vars <- mapM prettyTCMTypedTerm splitVarsTyped
-    return $ "Splitable variables" <+> pretty vars <+> parens ("or"
-      <+> pretty (map prettyTypedTerm splitVarsTyped))
+  reportSDoc "mimer.components" 40 $
+    "Splittable variables" <+> prettyList (map prettyTCMTypedTerm splitVarsTyped) <+> parens ("or"
+      <+> prettyList (map prettyTypedTerm splitVarsTyped))
 
   splitVars <- makeOpen $ map fst splitVarsTyped
 
@@ -535,14 +530,11 @@ collectComponents opts costs ii mDefName whereNames metaId = do
     isToLevel :: Type -> Bool
     isToLevel typ = case unEl typ of
       Pi _ abs -> isToLevel (unAbs abs)
-      Def qname _ -> prettyShow qname == builtinLevelName
+      Def qname _ -> P.prettyShow qname == builtinLevelName
       _ -> False
 
-    prettyTCMTypedTerm (term, typ) = do
-      trm <- prettyTCM term
-      ty <- prettyTCM typ
-      return $ trm <+> ":" <+> ty
-
+    prettyTCMTypedTerm :: (PrettyTCM tm, PrettyTCM ty) => (tm, ty) -> TCM Doc
+    prettyTCMTypedTerm (term, typ) = prettyTCM term <+> ":" <+> prettyTCM typ
     prettyTypedTerm (term, typ) = pretty term <+> ":" <+> pretty typ
 
 qnameToComponent :: (HasConstInfo tcm, ReadTCState tcm, MonadFresh CompId tcm, MonadTCM tcm)
@@ -640,11 +632,13 @@ collectLHSVars ii = do
           -- TODO: Difference between teleArgs and telToArgs?
           let shift = length (telToArgs iTel) - length (telToArgs cTel)
 
-          reportSDoc "mimer" 60 $ do
-            pITel <- prettyTCM iTel
-            pCTel <- prettyTCM cTel
-            return ("Tel:" $+$ nest 2 (pretty iTel $+$ pITel) $+$ "CTel:" $+$ nest 2 (pretty cTel $+$ pCTel))
-          reportSDoc "mimer" 60 $ return $ "Shift:" <+> pretty shift
+          reportSDoc "mimer" 60 $ vcat
+            [ "Tel:"
+            , nest 2 $ pretty iTel $$ prettyTCM iTel
+            , "CTel:"
+            , nest 2 $ pretty cTel $$ prettyTCM cTel
+            ]
+          reportSDoc "mimer" 60 $ "Shift:" <+> pretty shift
 
           -- TODO: Names (we don't use flex)
           let flex = concatMap (go False . namedThing . unArg) naps
@@ -714,8 +708,8 @@ runSearch options ii rng = withInteractionId ii $ do
                          )
     IPNoClause -> (Nothing, [])
 
-  reportS "mimer.init" 15 (text "Interaction point in function:" <+> pretty mTheFunctionQName)
-  reportS "mimer.init" 25 (text "Names in where-block" <+> pretty whereNames)
+  reportSDoc "mimer.init" 15 $ "Interaction point in function:" <+> pretty mTheFunctionQName
+  reportSDoc "mimer.init" 25 $ "Names in where-block" <+> pretty whereNames
 
   metaId <- lookupInteractionId ii
   metaVar <- lookupLocalMeta metaId
@@ -726,7 +720,8 @@ runSearch options ii rng = withInteractionId ii $ do
       metaIds <- allOpenMetas (instBody inst)
 
       -- TODO: Make pretty instantiation for 'Instantiation'?
-      reportSLn "mimer.init" 20 $ "Interaction point already instantiated: " ++ prettyShow (instBody inst) ++ " with args " ++ prettyShow (instTel inst)
+      reportSDoc "mimer.init" 20 $ sep [ "Interaction point already instantiated:" <+> pretty (instBody inst)
+                                       , "with args" <+> pretty (instTel inst) ]
 
       -- ctx <- getContextTelescope
       return metaIds
@@ -735,21 +730,24 @@ runSearch options ii rng = withInteractionId ii $ do
       return [metaId]
     _ -> __IMPOSSIBLE__
   -- TODO: Print each meta-variable's full context telescope
-  reportSDoc "mimer.init" 20 $ ("Remaining meta-variables to solve:" <+>) <$> prettyTCM metaIds
-  reportSDoc "mimer.init" 20 $ ("Meta var args" <+>) <$> (prettyTCM =<< getMetaContextArgs metaVar)
+  reportSDoc "mimer.init" 20 $ "Remaining meta-variables to solve:" <+> prettyTCM metaIds
+  reportSDoc "mimer.init" 20 $ "Meta var args" <+> (prettyTCM =<< getMetaContextArgs metaVar)
 
 
   fnArgs1 <- withShowAllArguments' False $ getContextArgs >>= mapM prettyTCM
   fnArgs2 <- withShowAllArguments' True  $ getContextArgs >>= mapM prettyTCM
   let bringScope = map snd $ filter (uncurry (/=)) $ zip fnArgs1 fnArgs2
-      bringScopeNoBraces = map (filter (`notElem` ['{', '}']) . render) bringScope
-  reportDoc "mimer.temp" 20 $
-    "Things to bring into scope:" $+$ nest 2 (
-      "Context args (don't show):" <+> pretty fnArgs1 $+$
-      "Context args (show all):  " <+> pretty fnArgs2 $+$
-      "To bring into scope:      " <+> pretty bringScope $+$
-      "To bring into scope (str):" <+> pretty bringScopeNoBraces
-                                             )
+      bringScopeNoBraces = map (filter (`notElem` ['{', '}']) . P.render) bringScope
+  reportSDoc "mimer.temp" 20 $ vcat
+    [ "Things to bring into scope:"
+    , nest 2 $ vcat
+      [ "Context args (don't show):" <+> pretty fnArgs1
+      , "Context args (show all):  " <+> pretty fnArgs2
+      , "To bring into scope:      " <+> pretty bringScope
+      , "To bring into scope (str):" <+> pretty bringScopeNoBraces
+      ]
+    ]
+
   -- Check if there are any meta-variables to be solved
   case metaIds of
     -- No variables to solve, return the instantiation given
@@ -759,16 +757,16 @@ runSearch options ii rng = withInteractionId ii $ do
           expr <- withInteractionId ii $ do
             metaArgs <- getMetaContextArgs metaVar
             instantiateFull (apply (MetaV metaId []) metaArgs) >>= reify
-          str <- render <$> prettyTCM expr
+          str <- P.render <$> prettyTCM expr
           let sol = MimerExpr str
-          reportDoc "mimer.init" 10 $ "Goal already solved. Solution:" <+> text str
+          reportSDoc "mimer.init" 10 $ "Goal already solved. Solution:" <+> text str
           return [sol]
         _ -> __IMPOSSIBLE__
     _ -> do
       costs <- ifM (hasVerbosity "mimer.cost.custom" 10)
                  {- then -} customCosts
                  {- else -} (return defaultCosts)
-      reportDoc "mimer.cost.custom" 10 $ "Using costs:" $+$ nest 2 (pretty costs)
+      reportSDoc "mimer.cost.custom" 10 $ "Using costs:" $$ nest 2 (pretty costs)
       components <- collectComponents options costs ii mTheFunctionQName whereNames metaId
 
       state <- getTC
@@ -803,10 +801,8 @@ runSearch options ii rng = withInteractionId ii $ do
             , searchStats = statsRef
             }
 
-      reportSDoc "mimer.init" 20 $ do
-        opts <- prettyTCM searchOptions
-        return $ "Using search options:" $+$ nest 2 opts
-      reportDoc "mimer.init" 20 ("Initial search branch:" $+$ nest 2 (pretty startBranch))
+      reportSDoc "mimer.init" 20 $ "Using search options:" $$ nest 2 (prettyTCM searchOptions)
+      reportSDoc "mimer.init" 20 $ "Initial search branch:" $$ nest 2 (pretty startBranch)
 
       flip runReaderT searchOptions $ bench [] $ do
 
@@ -821,17 +817,16 @@ runSearch options ii rng = withInteractionId ii $ do
                 return ([], n)
               Just (branch, branchQueue') -> do
                 time <- liftIO getCPUTime
-
-                reportSMDoc "mimer.search" 40 $ do
-                  inst <- branchInstantiationDocCost branch
-                  metas <- prettyTCM $ map goalMeta $ sbGoals branch
-                  return $
-                    "Choosing branch with instantiation:" $+$ nest 2
-                    (inst $+$ "..and remaining metas:" <+> pretty metas)
-                reportDoc "mimer.search" 50 $ "Full branch:" <+> pretty branch
-                reportSMDoc "mimer.search" 45 $ do
-                  is <- mapM branchInstantiationDocCost $ Q.toAscList branchQueue'
-                  return $ "Instantiation of other branches:" <+> prettyList is
+                reportSMDoc "mimer.search" 40 $ vcat
+                    [ "Choosing branch with instantiation:"
+                    , nest 2 $ vcat
+                      [ branchInstantiationDocCost branch
+                      , "..and remaining metas:" <+> prettyTCM (map goalMeta $ sbGoals branch)
+                      ]
+                    ]
+                reportSDoc "mimer.search" 50 $ "Full branch:" <+> pretty branch
+                reportSMDoc "mimer.search" 45 $
+                  "Instantiation of other branches:" <+> prettyList (map branchInstantiationDocCost $ Q.toAscList branchQueue')
 
                 let elapsed = time - startTime
                 if elapsed < timeout
@@ -839,10 +834,9 @@ runSearch options ii rng = withInteractionId ii $ do
                   (newBranches, sols) <- refine branch >>= partitionStepResult
                   let branchQueue'' = foldr Q.insert branchQueue' newBranches
                   reportSLn "mimer.search" 40 $ show (length sols) ++ " solutions found during cycle " ++ show (n + 1)
-                  reportSMDoc "mimer.search" 45 $ ("Solutions:" <+>) <$> prettyTCM sols
-                  reportSMDoc "mimer.search" 45 $ do
-                     is <- mapM branchInstantiationDocCost newBranches
-                     return $ "New branch instantiations:" <+> prettyList is
+                  reportSMDoc "mimer.search" 45 $ "Solutions:" <+> prettyTCM sols
+                  reportSMDoc "mimer.search" 45 $
+                     "New branch instantiations:" <+> prettyList (map branchInstantiationDocCost newBranches)
 
                   let sols' = take need sols
                   mapFst (sols' ++) <$> go (need - length sols') (n + 1) branchQueue''
@@ -854,13 +848,11 @@ runSearch options ii rng = withInteractionId ii $ do
         (sols, nrSteps) <- go numSolutions 0 $ Q.singleton startBranch
         reportSLn "mimer.search" 20 $ "Search ended after " ++ show (nrSteps + 1) ++ " cycles"
         -- results <- liftTCM $ mapM exprToStringAndVars sols
-        reportSDoc "mimer.search" 15 $ do
-          solDocs <- mapM prettyTCM sols
-          return $ "Solutions found: " <+> pretty solDocs
+        reportSDoc "mimer.search" 15 $ "Solutions found: " <+> prettyList (map prettyTCM sols)
         reportSMDoc "mimer.stats" 10 $ do
           ref <- asks searchStats
           stats <- liftIO $ readIORef ref
-          return $ "Statistics:" <+> text (show stats)
+          "Statistics:" <+> text (show stats)
         return sols
 
 tryComponents :: Goal -> Type -> SearchBranch -> [(Component, [Component])] -> SM [SearchStepResult]
@@ -885,13 +877,12 @@ prepareComponents goal branch = withBranchAndGoal branch goal $ do
     -- No, generate components from scratch
     Nothing -> do
       updateStat incCompRegen
-      reportSDoc "mimer.components" 20 $ do
-        cxt <- getContextTelescope
-        return $ "No cache found checkpoint:" <+> pretty checkpoint
-          $+$ nest 2 ("with context:" <+> pretty cxt)
+      reportSDoc "mimer.components" 20 $ vcat
+        [ "No cache found checkpoint:" <+> pretty checkpoint
+        , nest 2 $ "with context:" <+> (inTopContext . prettyTCM =<< getContextTelescope) ]
       -- Generate components for this context
       comps <- genComponents
-      reportDoc "mimer.components" 20 $ "Generated" <+> pretty (sum $ map (length . snd) comps) <+> "components"
+      reportSDoc "mimer.components" 20 $ "Generated" <+> pretty (sum $ map (length . snd) comps) <+> "components"
       return comps
     -- Yes, just update the missing generated components
     Just cache -> mapM prepare (Map.toAscList cache)
@@ -949,7 +940,7 @@ genComponentsFrom appRecElims origComp = do
       Nothing -> return []
       Just (recordName, args, fields, isRecursive)
           | Set.member recordName seenRecords -> do
-              reportDoc "mimer.components" 60 $
+              reportSDoc "mimer.components" 60 $
                 "Skipping projection because recursive record already seen:" <+> pretty recordName
               return []
           | otherwise -> do
@@ -976,14 +967,9 @@ applyProj :: Args -> Component -> QName -> SM Component
 applyProj recordArgs comp' qname = do
   cost <- asks (costProj . searchCosts)
   let newTerm = applyE (compTerm comp') [Proj ProjSystem qname]
-  reportDoc "mimer.temp" 10 $ "applyProj: newTerm =" <+> pretty newTerm
   projType <- defType <$> getConstInfo qname
   projTypeWithArgs <- piApplyM projType recordArgs
   newType <- piApplyM projTypeWithArgs (compTerm comp')
-  reportSDoc "mimer.temp" 10 $ do
-    ter <- instantiateFull newTerm >>= prettyTCM
-    typ <- instantiateFull newType >>= prettyTCM
-    return $ "After projection:" <+> ter <+> typ
   newComponentQ (compMetas comp') (compCost comp' + cost) qname 0 newTerm newType
 
 
@@ -1022,8 +1008,7 @@ createMeta typ = do
   (metaId, metaTerm) <- newValueMeta DontRunMetaOccursCheck CmpLeq typ
   verboseS "mimer.stats" 20 $ updateStat incMetasCreated
   reportSDoc "mimer.components" 80 $ do
-    metaType <- getMetaTypeInContext metaId
-    return $ "Created meta-variable (type in context):" <+> pretty metaTerm <+> ":" <+> pretty metaType
+    "Created meta-variable (type in context):" <+> pretty metaTerm <+> ":" <+> (pretty =<< getMetaTypeInContext metaId)
   return (metaId, metaTerm)
 
 
@@ -1036,7 +1021,7 @@ partitionStepResult (x:xs) = do
     NoSolution -> rest
     OpenBranch br -> return (br:brs', sols)
     ResultExpr exp -> do
-      str <- render <$> prettyTCM exp
+      str <- P.render <$> prettyTCM exp
       return $ (brs', MimerExpr str : sols)
     ResultClauses cls -> do
       f <- fromMaybe __IMPOSSIBLE__ <$> asks searchFnName
@@ -1047,9 +1032,7 @@ topInstantiationDoc :: SM Doc
 topInstantiationDoc = asks searchTopMeta >>= getMetaInstantiation >>= maybe (return "(nothing)") prettyTCM
 
 branchInstantiationDocCost :: SearchBranch -> SM Doc
-branchInstantiationDocCost branch = do
-  inst <- branchInstantiationDoc branch
-  return $ inst <+> parens ("cost =" <+> pretty (sbCost branch))
+branchInstantiationDocCost branch = branchInstantiationDoc branch <+> parens ("cost =" <+> pretty (sbCost branch))
 
 -- | For debug
 branchInstantiationDoc :: SearchBranch -> SM Doc
@@ -1059,19 +1042,19 @@ refine :: SearchBranch -> SM [SearchStepResult]
 refine branch = withBranchState branch $ do
   (goal1, branch1) <- nextBranchMeta' branch
 
-  reportDoc "mimer.refine" 20 $ "Refining goal" <+> pretty goal1
+  reportSDoc "mimer.refine" 20 $ "Refining goal" <+> pretty goal1
 
   withBranchAndGoal branch1 goal1 $ do
     goalType1 <- bench [Bench.Reduce] $ reduce =<< getMetaTypeInContext (goalMeta goal1)
 
-    reportDoc "mimer.refine" 30 $ "Goal type:" <+> pretty goalType1
-    reportSDoc "mimer.refine" 30 $ ("Goal context:" <+>) . pretty <$> getContextTelescope
+    reportSDoc "mimer.refine" 30 $ "Goal type:" <+> pretty goalType1
+    reportSDoc "mimer.refine" 30 $ "Goal context:" <+> (pretty =<< getContextTelescope)
 
     -- Lambda-abstract as far as possible
     tryLamAbs goal1 goalType1 branch1 >>= \case
       -- Abstracted with absurd pattern: solution found.
       Left expr -> do
-        reportSDoc "mimer.refine" 30 $ ("Abstracted with absurd lambda. Result: " <+>) <$> prettyTCM expr
+        reportSDoc "mimer.refine" 30 $ "Abstracted with absurd lambda. Result:" <+> prettyTCM expr
         return [ResultExpr expr]
       -- Normal abstraction
       Right (goal2, goalType2, branch2) -> withBranchAndGoal branch2 goal2 $ do
@@ -1081,18 +1064,19 @@ refine branch = withBranchState branch $ do
         withBranchAndGoal branch3 goal3 $ do
           (branch4, components) <- prepareComponents goal3 branch3
           withBranchAndGoal branch4 goal3 $ do
-            reportSMDoc "mimer.temp" 10 $ do
-              subst <- checkpointSubstitution =<< asks searchTopCheckpoint
-              return $ "Substitution after abstraction:" <+> pretty subst
+            reportSMDoc "mimer.temp" 10 $
+              "Substitution after abstraction:" <+>
+                (pretty =<< checkpointSubstitution =<< asks searchTopCheckpoint)
 
-            reportSDoc "mimer.refine" 40 $ getContextTelescope >>= \tel -> return $
-              "After lambda abstract:" <+> nest 2 (vcat
-                                                  [ "Goal:" <+> pretty goal3
-                                                  , "Goal type:" <+> pretty goalType3
-                                                  , "Goal context:" <+> pretty tel])
-            reportSMDoc "mimer.components" 50 $ do
-              comps <- mapM prettyTCM $ concatMap snd components
-              return $ "Components:" $+$ nest 2 (vcat $ comps)
+            reportSDoc "mimer.refine" 40 $ vcat
+              [ "After lambda abstract:"
+              , nest 2 $ vcat
+                [ "Goal:" <+> pretty goal3
+                , "Goal type:" <+> pretty goalType3
+                , "Goal context:" <+> (pretty =<< getContextTelescope)
+                ]
+              ]
+            reportSMDoc "mimer.components" 50 $ "Components:" $$ nest 2 (vcat $ map prettyTCM $ concatMap snd components)
 
             results1 <- tryComponents goal3 goalType3 branch4 components
             results2 <- tryDataRecord goal3 goalType3 branch4
@@ -1100,7 +1084,7 @@ refine branch = withBranchState branch $ do
 
 tryFns :: Goal -> Type -> SearchBranch -> SM [SearchStepResult]
 tryFns goal goalType branch = withBranchAndGoal branch goal $ do
-  reportDoc "mimer.refine.fn" 50 $ "Trying functions"
+  reportSDoc "mimer.refine.fn" 50 $ "Trying functions"
   fns <- asks (hintFns . searchBaseComponents)
   newBranches <- catMaybes <$> mapM (tryRefineAddMetas goal goalType branch) fns
   mapM checkSolved newBranches
@@ -1194,11 +1178,11 @@ genRecCalls = asks (hintThisFn . searchBaseComponents) >>= \case
           go _thisFn [] _args = return []
           go thisFn (goal:goals) [] = go thisFn goals recCands
           go thisFn (goal:goals) (arg:args) = do
-            reportSMDoc "mimer.components" 80 $ do
-              term <- prettyTCM (compTerm thisFn)
-              argTerm <- prettyTCM (compTerm arg)
-              gm <- prettyTCM (goalMeta goal)
-              return $ "Trying to generate recursive call" <+> term <+> "with" <+> argTerm <+> "for" <+> gm
+            reportSMDoc "mimer.components" 80 $ hsep
+              [ "Trying to generate recursive call"
+              , prettyTCM (compTerm thisFn)
+              , "with" <+> prettyTCM (compTerm arg)
+              , "for" <+> prettyTCM (goalMeta goal) ]
             goalType <- getMetaTypeInContext (goalMeta goal)
             state <- getTC
             tryRefineWith' goal goalType arg >>= \case
@@ -1235,13 +1219,13 @@ ensureNoOccursCheck goal goalType branch = do
   metaVar <- lookupLocalMeta (goalMeta goal)
   if miMetaOccursCheck (mvInfo metaVar) == DontRunMetaOccursCheck
   then do
-    reportDoc "mimer.refine.rec" 60 $ "Meta-variable already has DontRunMetaOccursCheck"
+    reportSDoc "mimer.refine.rec" 60 $ "Meta-variable already has DontRunMetaOccursCheck"
     return (goal, branch)
   else do
     metaArgs <- getMetaContextArgs metaVar
     (newMetaId, newMetaTerm) <- newValueMeta DontRunMetaOccursCheck CmpLeq goalType
     assignV DirLeq (goalMeta goal) metaArgs newMetaTerm (AsTermsOf goalType)
-    reportDoc "mimer.refine.rec" 60 $ "Instantiating meta-variable (" <> pretty (goalMeta goal) <> ") with a new one with DontRunMetaOccursCheck (" <> pretty newMetaId <> ")"
+    reportSDoc "mimer.refine.rec" 60 $ "Instantiating meta-variable (" <> pretty (goalMeta goal) <> ") with a new one with DontRunMetaOccursCheck (" <> pretty newMetaId <> ")"
     branch' <- updateBranch [] branch
     return (goal{goalMeta = newMetaId}, branch')
 
@@ -1261,7 +1245,7 @@ tryDataRecord goal goalType branch = withBranchAndGoal branch goal $ do
         return []
       -- TODO: Better way of checking that type is Level
       d@Axiom{}
-        | prettyShow qname == "Agda.Primitive.Level" -> do
+        | P.prettyShow qname == "Agda.Primitive.Level" -> do
             tryLevel
         | otherwise -> do
         return []
@@ -1323,10 +1307,8 @@ tryDataRecord goal goalType branch = withBranchAndGoal branch goal $ do
               comp <- newComponent [metaId] cost Nothing 0 (Sort $ Type $ Max (max 0 (i - 1)) [Plus 0 metaTerm]) goalType
               branch' <- updateBranch [metaId] branch
               return [(branch', comp)]
-      reportSDoc "mimer.refine.set" 40 $ do
-        st <- prettyTCM (map snd setCandidates)
-        ty <- prettyTCM goalType
-        return $ "Trying" <+> st <+> "for" <+> ty
+      reportSDoc "mimer.refine.set" 40 $
+        "Trying" <+> prettyTCM (map snd setCandidates) <+> "for" <+> prettyTCM goalType
       newBranches <- catMaybes <$> mapM (\(br,c) -> tryRefineWith goal goalType br c) setCandidates
       components <- asks searchBaseComponents
       newBranches' <- catMaybes <$> mapM (tryRefineAddMetas goal goalType branch)
@@ -1341,13 +1323,11 @@ tryDataRecord goal goalType branch = withBranchAndGoal branch goal $ do
 -- TODO: Make sure the type is always reduced
 tryRefineWith :: Goal -> Type -> SearchBranch -> Component -> SM (Maybe SearchBranch)
 tryRefineWith goal goalType branch comp = withBranchAndGoal branch goal $ do
-  reportSMDoc "mimer.refine" 50 $ do
-    cxt <- getContextTelescope >>= prettyTCM
-    hi <- prettyTCM $ compTerm comp
-    ht <- prettyTCM $ compType comp
-    gm <- prettyTCM $ goalMeta goal
-    gt <- prettyTCM goalType
-    return $ "Trying refinement" <+> hi <+> ":" <+> ht $+$ nest 2 ("for" <+> gm <+> ":" <+> gt $+$ "in context" <+> cxt)
+  reportSMDoc "mimer.refine" 50 $ vcat
+    [ "Trying refinement" <+> prettyTCM (compTerm comp) <+> ":" <+> prettyTCM (compType comp)
+    , nest 2 $ "for" <+> prettyTCM (goalMeta goal) <+> ":" <+> prettyTCM goalType
+    , nest 2 $ "in context" <+> (inTopContext . prettyTCM =<< getContextTelescope)
+    ]
 
   metasCreatedBy (dumbUnifier (compType comp) goalType) >>= \case
     (True, newMetaStore) -> do
@@ -1355,9 +1335,8 @@ tryRefineWith goal goalType branch comp = withBranchAndGoal branch goal $ do
       -- TODO: Why is newMetaIds not used here?
       newMetaIds <- assignMeta (goalMeta goal) (compTerm comp) goalType
       let newMetaIds' = Map.keys (openMetas newMetaStore)
-      reportSDoc "mimer.refine" 60 $ do
-        ms <- prettyTCM newMetaIds
-        return $ "Refine: assignMeta created new metas:" <+> ms
+      reportSDoc "mimer.refine" 60 $
+        "Refine: assignMeta created new metas:" <+> prettyTCM newMetaIds
 
       reportSMDoc "mimer.refine" 50 $ "Refinement succeeded"
       -- Take the metas stored in the component and add them as sub-goals
@@ -1453,36 +1432,41 @@ updateBranchCost :: Component -> [MetaId] -> SearchBranch -> SM SearchBranch
 updateBranchCost comp = updateBranch' (Just comp)
 
 assignMeta :: MetaId -> Term -> Type -> SM [MetaId]
-assignMeta metaId term metaType = bench [Bench.CheckRHS] $
-  metasCreatedBy (do
+assignMeta metaId term metaType = bench [Bench.CheckRHS] $ do
+  ((), newMetaStore) <- metasCreatedBy $ do
     metaVar <- lookupLocalMeta metaId
     metaArgs <- getMetaContextArgs metaVar
 
-    reportSMDoc "mimer.assignMeta" 60 $ do
-      cxt <- getContextTelescope
-      return $ "Assigning" <+> pretty term $+$ nest 2 ("to" <+> pretty metaId <+> ":" <+> pretty metaType $+$ "in context" <+> pretty cxt)
+    reportSMDoc "mimer.assignMeta" 60 $ vcat
+      [ "Assigning" <+> pretty term
+      , nest 2 $ vcat [ "to" <+> pretty metaId <+> ":" <+> pretty metaType
+                      , "in context" <+> (pretty =<< getContextTelescope)
+                      ]
+      ]
 
-    (assignV DirLeq metaId metaArgs term (AsTermsOf metaType)) `catchError` \err -> do
-      reportSMDoc "mimer.assignMeta" 30 $ do
-        er <- prettyTCM err
-        cxt <- getContextTelescope
-        return $ "Got error from assignV:" <+> er $+$ nest 2 ("when trying to assign" <+> pretty term $+$ "to" <+> pretty metaId <+> ":" <+> pretty metaType $+$ "in context" <+> pretty cxt)) >>= \case
-        ((), newMetaStore) -> do
-          let newMetaIds = Map.keys (openMetas newMetaStore)
-          return newMetaIds
+    assignV DirLeq metaId metaArgs term (AsTermsOf metaType) `catchError` \err -> do
+      reportSMDoc "mimer.assignMeta" 30 $ vcat
+        [ "Got error from assignV:" <+> prettyTCM err
+        , nest 2 $ vcat
+          [ "when trying to assign" <+> prettyTCM term
+          , "to" <+> prettyTCM metaId <+> ":" <+> prettyTCM metaType
+          , "in context" <+> (inTopContext . prettyTCM =<< getContextTelescope)
+          ]
+        ]
+
+  let newMetaIds = Map.keys (openMetas newMetaStore)
+  return newMetaIds
 
 dumbUnifier :: Type -> Type -> SM Bool
 dumbUnifier t1 t2 = bench [Bench.UnifyIndices] $ do
   updateStat incTypeEqChecks
   noConstraints (equalType t2 t1 >> return True) `catchError` \err -> do
-    reportSDoc "mimer.unify" 80 $ do
-      str <- prettyTCM err
-      return $ "Unification failed with error:" <+> str
+    reportSDoc "mimer.unify" 80 $ sep [ "Unification failed with error:", nest 2 $ prettyTCM err ]
     return False
 
 -- Duplicate of a local definition in Agda.Interaction.BasicOps
 showTCM :: (MonadPretty tcm, PrettyTCM a) => a -> tcm String
-showTCM v = render <$> prettyTCM v
+showTCM v = P.render <$> prettyTCM v
 
 bench :: NFData a => [Bench.Phase] -> SM a -> SM a
 bench k ma = billTo (mimerAccount : k) ma
@@ -1518,26 +1502,28 @@ getLocalVarTerms localCxt = do
 
 prettyBranch :: SearchBranch -> SM String
 prettyBranch branch = withBranchState branch $ do
-    metas <- prettyTCM $ map goalMeta (sbGoals branch)
     metaId <- asks searchTopMeta
-    inst <- getMetaInstantiation metaId
-    instStr <- prettyTCM inst
-    let compUses = pretty $ Map.toList $ sbComponentsUsed branch
-    return $ render $ text "Branch{cost: " <> text (show $ sbCost branch) <> ", metas: " <> metas <> text " , instantiation: " <> pretty metaId <> text " = " <> instStr <> text ", used components: " <> compUses <> text "}"
+    P.render <$> "Branch" <> braces (sep $ punctuate ","
+      [ "cost:" <+> pretty (sbCost branch)
+      , "metas:" <+> prettyTCM (map goalMeta (sbGoals branch))
+      , sep [ "instantiation:"
+            , nest 2 $ pretty metaId <+> "=" <+> (prettyTCM =<< getMetaInstantiation metaId) ]
+      , "used components:" <+> pretty (Map.toList $ sbComponentsUsed branch)
+      ])
 
 
 instance Pretty Goal where
   pretty goal = keyValueList
-    [ ("goalMeta", pretty $ goalMeta goal)
+    [ ("goalMeta", P.pretty $ goalMeta goal)
     , ("goalEnv", "[...]")
     ]
 
 instance Pretty SearchBranch where
   pretty branch = keyValueList
     [ ("sbTCState", "[...]")
-    , ("sbGoals", pretty $ sbGoals branch)
-    , ("sbCost", pretty $ sbCost branch)
-    , ("sbComponentsUsed", pretty $ sbComponentsUsed branch)
+    , ("sbGoals", P.pretty $ sbGoals branch)
+    , ("sbCost", P.pretty $ sbCost branch)
+    , ("sbComponentsUsed", P.pretty $ sbComponentsUsed branch)
     ]
 
 
@@ -1546,37 +1532,32 @@ instance PrettyTCM BaseComponents where
     let thisFn = case hintThisFn comps of
           Nothing -> "(nothing)"
           Just comp -> prettyComp comp
-    recVars <- prettyTCM =<< getOpen (hintRecVars comps)
-    content <- sequence
-      [ f "hintFns" (hintFns comps)
-      , f "hintDataTypes" (hintDataTypes comps)
-      , f "hintRecordTypes" (hintRecordTypes comps)
-      , f "hintAxioms" (hintAxioms comps)
-      , f "hintLevel" (hintLevel comps)
-      , f "hintProjections" (hintProjections comps)
-      , return $ "hintThisFn:" <+> thisFn
-      , g (return . prettyOpenComp) "hintLetVars" (hintLetVars comps)
-      , return $ "hintRecVars: Open" <+> pretty (openThing $ hintRecVars comps)
-      , return $ "hintSplitVars: Open" <+> pretty (openThing $ hintSplitVars comps)
-      ]
-    return $ "Base components:" $+$ nest 2 (vcat content)
+    vcat [ "Base components:"
+         , nest 2 $ vcat
+           [ f "hintFns" (hintFns comps)
+           , f "hintDataTypes" (hintDataTypes comps)
+           , f "hintRecordTypes" (hintRecordTypes comps)
+           , f "hintAxioms" (hintAxioms comps)
+           , f "hintLevel" (hintLevel comps)
+           , f "hintProjections" (hintProjections comps)
+           , "hintThisFn:" <+> thisFn
+           , g prettyOpenComp "hintLetVars" (hintLetVars comps)
+           , "hintRecVars: Open" <+> pretty (openThing $ hintRecVars comps)
+           , "hintSplitVars: Open" <+> pretty (openThing $ hintSplitVars comps)
+           ]
+         ]
     where
       prettyComp comp = pretty (compTerm comp) <+> ":" <+> pretty (compType comp)
       prettyOpenComp openComp = "Open" <+> parens (prettyComp $ openThing openComp)
-      prettyTCMComp comp = do
-        term <- prettyTCM (compTerm comp)
-        typ <- prettyTCM (compType comp)
-        return $ term <+> ":" <+> typ
+      prettyTCMComp comp = prettyTCM (compTerm comp) <+> ":" <+> prettyTCM (compType comp)
       f = g prettyTCMComp
-      g p n [] = return $ n <> ": []"
-      g p n xs = do
-        cmps <- mapM p xs
-        return $ (n <> ":") $+$ nest 2 (vcat cmps)
+      g p n [] = n <> ": []"
+      g p n xs = (n <> ":") $+$ nest 2 (vcat $ map p xs)
 
 
 -- -- TODO: Is it possible to derive the pretty instances?
 instance Pretty BaseComponents where
-  pretty comps = cat
+  pretty comps = P.vcat
       [ f "hintFns" (hintFns comps)
       , f "hintDataTypes" (hintDataTypes comps)
       , f "hintRecordTypes" (hintRecordTypes comps)
@@ -1585,115 +1566,96 @@ instance Pretty BaseComponents where
       , f "hintProjections" (hintProjections comps)
       ]
     where
-      f n [] = n <> ": []"
-      f n xs = (n <> ":") $+$ nest 2 (pretty xs)
+      f n [] = n P.<> ": []"
+      f n xs = (n P.<> ":") P.$$ P.nest 2 (P.pretty xs)
 
 instance Pretty SearchOptions where
-  pretty opts =
-    "searchBaseComponents:" $+$ nest 2 (pretty $ searchBaseComponents opts) $+$
-    keyValueList
-      [ ("searchHintMode", pretty $ searchHintMode opts)
-      , ("searchTimeout", pretty $ searchTimeout opts)
-      , ("searchTopMeta", pretty $ searchTopMeta opts)
+  pretty opts = P.vcat
+    [ "searchBaseComponents:"
+    , P.nest 2 $ P.pretty $ searchBaseComponents opts
+    , keyValueList
+      [ ("searchHintMode", P.pretty $ searchHintMode opts)
+      , ("searchTimeout",  P.pretty $ searchTimeout opts)
+      , ("searchTopMeta",  P.pretty $ searchTopMeta opts)
       , ("searchTopEnv", "[...]")
-      ] $+$
-      "searchCosts:" $+$ nest 2 (pretty $ searchCosts opts)
+      ]
+    , "searchCosts:"
+    , P.nest 2 (P.pretty $ searchCosts opts)
+    ]
 
 instance PrettyTCM SearchOptions where
-  prettyTCM opts = do
-    comps <- prettyTCM $ searchBaseComponents opts
-    topMeta <- prettyTCM $ searchTopMeta opts
-    checkpoint <- prettyTCM $ searchTopCheckpoint opts
-    return $ "searchBaseComponents:" $+$ nest 2 comps $+$
-      vcat
-        [ "searchHintMode:" <+> pretty (searchHintMode opts)
-        , "searchTimeout:" <+> pretty (searchTimeout opts)
-        , "searchTopMeta:" <+> topMeta
-        , "searchTopEnv: [...]"
-        , "searchTopCheckpoint:" <+> checkpoint
-        , "searchInteractionId:" <+> pretty (searchInteractionId opts)
-        , "searchFnName:" <+> pretty (searchFnName opts)
-        , "searchStats: [...]"
-        ] $+$
-        "searchCosts:" $+$ nest 2 (pretty $ searchCosts opts)
+  prettyTCM opts = vcat
+    [ "searchBaseComponents:"
+    , nest 2 $ prettyTCM $ searchBaseComponents opts
+    , vcat
+      [ "searchHintMode:" <+> pretty (searchHintMode opts)
+      , "searchTimeout:" <+> pretty (searchTimeout opts)
+      , "searchTopMeta:" <+> prettyTCM (searchTopMeta opts)
+      , "searchTopEnv: [...]"
+      , "searchTopCheckpoint:" <+> prettyTCM (searchTopCheckpoint opts)
+      , "searchInteractionId:" <+> pretty (searchInteractionId opts)
+      , "searchFnName:" <+> pretty (searchFnName opts)
+      , "searchStats: [...]"
+      ]
+    , "searchCosts:"
+    , nest 2 $ pretty $ searchCosts opts
+    ]
 
 instance Pretty Component where
   pretty comp = haskellRecord "Component"
-    [ ("compId", pretty $ compId comp)
-    , ("compTerm", pretty $ compTerm comp)
-    , ("compType", pretty $ compType comp)
-    , ("compMetas", pretty $ compMetas comp)
-    , ("compCost", pretty $ compCost comp)
+    [ ("compId", P.pretty $ compId comp)
+    , ("compTerm", P.pretty $ compTerm comp)
+    , ("compType", P.pretty $ compType comp)
+    , ("compMetas", P.pretty $ compMetas comp)
+    , ("compCost", P.pretty $ compCost comp)
     ]
 
 instance Pretty Costs where
-  pretty costs = align 20 entries
+  pretty costs = P.align 20 entries
     where
       entries =
-        [ ("costLocal:"         , pretty $ costLocal costs)
-        , ("costFn:"            , pretty $ costFn costs)
-        , ("costDataCon:"       , pretty $ costDataCon costs)
-        , ("costRecordCon:"     , pretty $ costRecordCon costs)
-        , ("costSpeculateProj:" , pretty $ costSpeculateProj costs)
-        , ("costProj:"          , pretty $ costProj costs)
-        , ("costAxiom:"         , pretty $ costAxiom costs)
-        , ("costLet:"           , pretty $ costLet costs)
-        , ("costLevel:"         , pretty $ costLevel costs)
-        , ("costSet:"           , pretty $ costSet costs)
-        , ("costRecCall:"       , pretty $ costRecCall costs)
-        , ("costNewMeta:"       , pretty $ costNewMeta costs)
-        , ("costNewHiddenMeta:" , pretty $ costNewHiddenMeta costs)
-        , ("costCompReuse:"     , text "{function}")
+        [ ("costLocal:"         , P.pretty $ costLocal costs)
+        , ("costFn:"            , P.pretty $ costFn costs)
+        , ("costDataCon:"       , P.pretty $ costDataCon costs)
+        , ("costRecordCon:"     , P.pretty $ costRecordCon costs)
+        , ("costSpeculateProj:" , P.pretty $ costSpeculateProj costs)
+        , ("costProj:"          , P.pretty $ costProj costs)
+        , ("costAxiom:"         , P.pretty $ costAxiom costs)
+        , ("costLet:"           , P.pretty $ costLet costs)
+        , ("costLevel:"         , P.pretty $ costLevel costs)
+        , ("costSet:"           , P.pretty $ costSet costs)
+        , ("costRecCall:"       , P.pretty $ costRecCall costs)
+        , ("costNewMeta:"       , P.pretty $ costNewMeta costs)
+        , ("costNewHiddenMeta:" , P.pretty $ costNewHiddenMeta costs)
+        , ("costCompReuse:"     , "{function}")
         ]
 
 instance PrettyTCM Component where
-  prettyTCM comp = do
-    term <- prettyTCM $ compTerm comp
-    typ <- prettyTCM $ compType comp
-    metas <- prettyTCM $ compMetas comp
-    return $ pretty (compId comp) <+> "=" <+> term <+> ":" <+> typ <+> "with meta-variables" <+> metas <+> "and cost" <+> pretty (compCost comp)
+  prettyTCM comp =
+    prettyTCM (compId comp) <+> "=" <+> prettyTCM (compTerm comp)
+                            <+> ":" <+> prettyTCM (compType comp)
+                            <+> "with meta-variables" <+> prettyTCM (compMetas comp)
+                            <+> "and cost" <+> pretty (compCost comp)
 
 
 instance PrettyTCM MimerResult where
   prettyTCM = \case
-    MimerExpr expr -> return $ "MimerExpr" <+> pretty expr
-    MimerClauses f cl -> return $ "MimerClauses" <+> pretty f <+> "[..]" -- TODO: display the clauses
-    MimerNoResult -> return "MimerNoResult"
-    MimerList sols -> return $ "MimerList" <+> pretty sols
+    MimerExpr expr    -> "MimerExpr" <+> pretty expr
+    MimerClauses f cl -> "MimerClauses" <+> pretty f <+> "[..]" -- TODO: display the clauses
+    MimerNoResult     -> "MimerNoResult"
+    MimerList sols    -> "MimerList" <+> pretty sols
 
 concatMapM :: Monad m => (a -> m [b]) -> [a] -> m [b]
 concatMapM f = fmap concat . mapM f
 
--- TODO: Ask how they typically do it
-reportDoc :: MonadDebug m => VerboseKey -> VerboseLevel -> Doc -> m ()
-reportDoc vk vl d = reportSDoc vk vl (return d)
-
 reportSMDoc :: VerboseKey -> VerboseLevel -> SM Doc -> SM ()
-reportSMDoc vk vl md = md >>= reportDoc vk vl
-
-encloseSep
-    :: Doc   -- ^ left delimiter
-    -> Doc   -- ^ right delimiter
-    -> Doc   -- ^ separator
-    -> [Doc] -- ^ input documents
-    -> Doc
-encloseSep l r s ds = case ds of
-    []  -> l <> r
-    [d] -> l <> d <> r
-    _   -> cat (zipWith (<>) (l : repeat s) ds) <> r
-
-haskellList :: [Doc] -> Doc
-haskellList = encloseSep "[ " " ]" ", "
+reportSMDoc vk vl md = reportSDoc vk vl . runReaderT md =<< ask
 
 haskellRecord :: Doc -> [(Doc, Doc)] -> Doc
-haskellRecord name fields = name <+> sepList " = " fields
+haskellRecord name fields = P.sep [ name, P.nest 2 $ P.braces (P.sep $ P.punctuate "," [ P.hang (k P.<+> "=") 2 v | (k, v) <- fields ]) ]
 
 keyValueList :: [(Doc, Doc)] -> Doc
-keyValueList = sepList ": "
-
-sepList :: Doc -> [(Doc, Doc)] -> Doc
-sepList s values = encloseSep "{ " " }" ", " $ map (\(n, v) -> n <> s <> v) values
-
+keyValueList kvs = P.braces $ P.sep $ P.punctuate "," [ P.hang (k P.<> ":") 2 v | (k, v) <- kvs ]
 
 writeTime :: (MonadFail m, ReadTCState m, MonadError TCErr m, MonadTCM m, MonadDebug m) => InteractionId -> Maybe CPUTime -> m ()
 writeTime ii mTime = do
