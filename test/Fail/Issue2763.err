@@ -2,4 +2,4 @@ Issue2763.agda:15,1-19
 a != w of type A
 when checking that the type ⊤ → (w : A) → G w b of the generated
 with function is well-formed
-(https://agda.readthedocs.io/en/v2.6.4.2/language/with-abstraction.html#ill-typed-with-abstractions)
+(https://agda.readthedocs.io/en/v2.6.4.3/language/with-abstraction.html#ill-typed-with-abstractions)
