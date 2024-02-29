@@ -26,12 +26,12 @@ import Agda.Termination.CallMatrix ( CallMatrixAug(CallMatrixAug) )
 import Agda.Termination.Common ( makeCM )
 import Agda.Termination.Monad ( CallPath(..) )
 import Agda.Termination.TypeBased.Checking ( sizeCheckTerm )
-import Agda.Termination.TypeBased.Common ( fixGaps, computeDecomposition, SizeDecomposition(..) )
+import Agda.Termination.TypeBased.Common ( fixGaps, computeDecomposition, SizeDecomposition(..), VariableInstantiation(..), reifySignature)
 import Agda.Termination.TypeBased.Encoding ( encodeFunctionType, encodeFieldType, encodeBlackHole, encodeConstructorType )
 import Agda.Termination.TypeBased.Graph ( SizeExpression(..), simplifySizeGraph, collectIncoherentRigids, SizeSubstitution )
 import Agda.Termination.TypeBased.Monad ( getCurrentConstraints, getTotalConstraints, getCurrentRigids, getCurrentCoreContext, initNewClause, setLeafSizeVariables, currentCheckedName,
-      getRootArity, freshenSignature, runSizeChecker, TBTM, initSizePreservation, hasEncodingErrors, getBottomVariables, getInfiniteSizes, MutualRecursiveCall(..) )
-import Agda.Termination.TypeBased.Preservation ( VariableInstantiation(ToInfinity), refinePreservedVariables, applySizePreservation, reifySignature )
+      getRootArity, freshenSignature, runSizeChecker, TBTM, initSizePreservation, hasEncodingErrors, getBottomVariables, getInfiniteSizes, getAllPolarities, MutualRecursiveCall(..) )
+import Agda.Termination.TypeBased.Preservation ( refinePreservedVariables, applySizePreservation )
 import Agda.Termination.TypeBased.Patterns ( matchPatterns )
 import Agda.Termination.TypeBased.Syntax ( SizeSignature(SizeSignature), SizeBound(SizeUnbounded), SizeType(..), Size(SUndefined, SDefined), pattern UndefinedSizeType )
 import qualified Agda.Termination.Order as Order
@@ -312,8 +312,10 @@ encodeFunctionClause sizeType c = do
   setLeafSizeVariables leafVariables
   patternContext <- getCurrentCoreContext
   sizeContext <- getCurrentRigids
+  varPolarities <- getAllPolarities
   reportSDoc "term.tbt" 10 $ vcat
     [ "Finished encoding of clause: " <+> prettyTCM c
+    , "  Polarities:                " <+> pretty varPolarities
     , "  Var context :              " <+> pretty patternContext
     , "  Rigid variables:           " <+> pretty sizeContext
     , "  Expected type of clause:   " <+> pretty tele

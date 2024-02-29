@@ -29,7 +29,7 @@ import qualified Data.IntSet as IntSet
 import Agda.Syntax.Abstract.Name ( QName )
 import Agda.Syntax.Common ( Induction(CoInductive), Arg(unArg) )
 import Agda.Syntax.Internal ( isApplyElim, Type, Type''(unEl), Abs(NoAbs, Abs, unAbs), Term(Var, Sort, MetaV, Lam, Pi, Def), Dom'(unDom) )
-import Agda.Termination.TypeBased.Common ( applyDataType, tryReduceCopy, fixGaps, computeDecomposition )
+import Agda.Termination.TypeBased.Common ( applyDataType, tryReduceCopy, fixGaps, computeDecomposition, VariableInstantiation(..), reifySignature )
 import Agda.Termination.TypeBased.Syntax ( SizeSignature(SizeSignature), SizeBound(SizeUnbounded, SizeBounded), FreeGeneric(..), SizeType(..), Size(SUndefined, SDefined), pattern UndefinedSizeType, sizeCodomain )
 import Agda.TypeChecking.Monad.Base ( TCM, Definition(defCopy, defSizedType, theDef, defType), MonadTCM(liftTCM), pattern Record, recInduction, pattern Datatype, pattern Function, funTerminates, defIsDataOrRecord )
 import Agda.TypeChecking.Monad.Debug ( MonadDebug, reportSDoc )
@@ -42,7 +42,7 @@ import Agda.Utils.Impossible ( __IMPOSSIBLE__ )
 -- | Converts internal type of function to a sized type
 encodeFunctionType :: Type -> TCM SizeSignature
 encodeFunctionType t = do
-  EncodingResult { erNewFirstOrderVariables, erNewContravariantVariables, erEncodedType } <- typeToSizeType 0 0 [] (const False) t
+  EncodingResult { erNewFirstOrderVariables, erNewContravariantVariables, erEncodedType } <- typeToSizeType 0 0 [] Nothing t
   -- Functions do not feature non-trivial size dependencies, hence we set all bounds to SizeUnbounded
   let newBounds = replicate erNewFirstOrderVariables SizeUnbounded
   let originalSignature = SizeSignature newBounds erNewContravariantVariables erEncodedType
@@ -76,7 +76,7 @@ encodeBlackHole t =
   in SizeSignature [] [] $ foldr (\tp codom -> SizeArrow (SizeTree SUndefined []) codom) UndefinedSizeType domains
 
 ctorTypeToSizeType :: Type -> Set QName -> TCM EncodingResult
-ctorTypeToSizeType t qns = typeToSizeType 0 0 [] (`Set.member` qns) t
+ctorTypeToSizeType t qns = typeToSizeType 0 0 [] (Just (`Set.member` qns)) t
 
 data EncodingResult = EncodingResult
   { erEncodedType :: SizeType
@@ -102,7 +102,7 @@ data EncoderState = EncoderState
   --   Essentially, this field regulates the behavior of the encoder on 'Set'.
   --   Motivation: Encoding of a signature 'A -> Set' should yield '∞ -> ∞' (since dangling generic variables are not expected in my approach),
   --   where encoding of '(A -> Set) -> Set' should yield 'Λ₁ε₀. ∞'.
-  , esPredicate              :: QName -> Bool
+  , esPredicate              :: Maybe (QName -> Bool)
   -- ^ A passed predicate, which is used to store some user's interesting variables.
   , esChosenVariables        :: [Int]
   -- ^ List of variables that satisfy 'esPredicate'.
@@ -110,7 +110,7 @@ data EncoderState = EncoderState
   -- ^ Contravariant size variables collected during the encoding.
   }
 
-typeToSizeType :: Int -> Int -> [Maybe FreeGeneric] -> (QName -> Bool) -> Type -> TCM EncodingResult
+typeToSizeType :: Int -> Int -> [Maybe FreeGeneric] -> Maybe (QName -> Bool) -> Type -> TCM EncodingResult
 typeToSizeType regVars genVars ctx pred t = case typeToSizeType' (unEl t) of
   ME action -> do
     (encodedType, finalEncoderState) <- runStateT action (EncoderState
@@ -252,23 +252,28 @@ termToSizeType t@(Def q elims) = do
     let newTree = applyDataType dataArguments freshData
     reportSDoc "term.tbt" 60 $ "Resulting tree: " <+> pretty newTree <+> "for" <+> prettyTCM t
     predicate <- gets esPredicate
-    collectChosenVariables newTree
-    pure newTree
+    collectChosenVariables predicate newTree
   else do
     reportSDoc "term.tbt" 80 $ "Aborting conversion of " <+> prettyTCM q
     return UndefinedSizeType -- arbitraty function applications in signatures are not supported on the current stage
   where
-    collectChosenVariables :: SizeType -> MonadEncoder ()
-    collectChosenVariables (SizeTree (SDefined i) _) = do
-      predicate <- gets esPredicate
-      when (predicate q) $ modify (\s -> s { esChosenVariables = i : esChosenVariables s} )
-      constInfo <- ME $ getConstInfo q
-      case theDef constInfo of
-            Record { recInduction } -> when (recInduction == Just CoInductive) $ modify (\s -> s { esContravariantVariables = i : esContravariantVariables s })
+    collectChosenVariables :: Maybe (QName -> Bool) -> SizeType -> MonadEncoder SizeType
+    collectChosenVariables predicate t@(SizeTree (SDefined i) rest) = do
+      case predicate of 
+        Just p | not (p q) -> do
+          pure (SizeTree SUndefined rest)
+        _ -> do 
+          constInfo <- ME $ getConstInfo q
+          case theDef constInfo of
+            Record { recInduction } -> do 
+              when (recInduction == Just CoInductive) $ modify (\s -> s { esContravariantVariables = i : esContravariantVariables s })
             _ -> pure ()
-    collectChosenVariables (SizeArrow _ r) = collectChosenVariables r
-    collectChosenVariables (SizeGeneric _ r) = collectChosenVariables r
-    collectChosenVariables _ = pure ()
+          modify (\s -> s { esChosenVariables = i : esChosenVariables s} )
+          pure t
+    collectChosenVariables p t@(SizeTree _ rest) | otherwise = pure $ SizeTree SUndefined rest
+    collectChosenVariables p (SizeArrow l r) = SizeArrow l <$> collectChosenVariables p r
+    collectChosenVariables p (SizeGeneric e r) = SizeGeneric e <$> collectChosenVariables p r
+    collectChosenVariables _ t = pure t
 
     -- Freshens all first-order variables in an encoded type
     refreshFirstOrder :: SizeType -> MonadEncoder SizeType

@@ -26,8 +26,6 @@
 module Agda.Termination.TypeBased.Preservation
   ( refinePreservedVariables
   , applySizePreservation
-  , reifySignature
-  , VariableInstantiation(..)
   ) where
 
 import Control.Arrow (second)
@@ -41,6 +39,7 @@ import Data.IntSet ( IntSet )
 import qualified Data.List as List
 import Data.Maybe ( mapMaybe )
 
+import Agda.Termination.TypeBased.Common (VariableInstantiation(..), reifySignature)
 import Agda.Termination.TypeBased.Graph ( SizeExpression, simplifySizeGraph, collectIncoherentRigids, collectClusteringIssues )
 import Agda.Termination.TypeBased.Monad ( SConstraint(SConstraint), getCurrentConstraints, getCurrentRigids, currentCheckedName, withAnotherPreservationCandidate, TBTM, getPreservationCandidates, getRecursionMatrix, replacePreservationCandidates )
 import Agda.Termination.TypeBased.Syntax ( SizeSignature(SizeSignature), SizeBound, SizeType(..), Size(..) )
@@ -125,47 +124,3 @@ applySizePreservation s@(SizeSignature _ _ tele) = do
   currentName <- currentCheckedName
   reportSDoc "term.tbt" 5 $ "Signature of" <+> prettyTCM currentName <+> "after size-preservation inference:" $$ nest 2 (pretty newSignature)
   pure newSignature
-
-data VariableInstantiation
-  = ToInfinity
-  | ToVariable Int
-  deriving Show
-
-updateInstantiation :: (Int -> Int) -> VariableInstantiation -> VariableInstantiation
-updateInstantiation _ ToInfinity = ToInfinity
-updateInstantiation f (ToVariable i) = ToVariable (f i)
-
-unfoldInstantiations :: [VariableInstantiation] -> [Int]
-unfoldInstantiations [] = []
-unfoldInstantiations (ToInfinity : rest) = unfoldInstantiations rest
-unfoldInstantiations (ToVariable i : rest) = i : unfoldInstantiations rest
-
--- | Given a substitution, instantiates some size variables to infinity in a signature.
---
--- The input list must be ascending in keys.
-reifySignature :: [(Int, VariableInstantiation)] -> SizeSignature -> SizeSignature
-reifySignature mapping (SizeSignature bounds contra tele) =
-  let newBounds = take (length bounds - length mapping) bounds
-      offset x = length (filter (< x) (map fst mapping))
-      actualOffsets = IntMap.fromAscList (zip [0..] (List.unfoldr (\(ind, list) ->
-        case list of
-            [] -> if ind < length bounds then Just (ToVariable (ind - offset ind), (ind + 1, [])) else Nothing
-            ((i1, i2) : ps) ->
-                 if i1 == ind
-                    then Just (updateInstantiation (\i -> i - offset i) i2 , (ind + 1, ps))
-                    else Just (ToVariable (ind - offset ind), (ind + 1, list)))
-        (0, mapping)))
-      newSig = (SizeSignature newBounds (List.nub (unfoldInstantiations $ map (actualOffsets IntMap.!) contra)) (fixSizes (actualOffsets IntMap.!) tele))
-  in newSig
-  where
-    fixSizes :: (Int -> VariableInstantiation) -> SizeType -> SizeType
-    fixSizes subst (SizeTree size tree) = SizeTree (weakenSize size) (map (second $ fixSizes subst) tree)
-      where
-        weakenSize :: Size -> Size
-        weakenSize SUndefined = SUndefined
-        weakenSize (SDefined i) = case subst i of
-          ToInfinity -> SUndefined
-          ToVariable j -> SDefined j
-    fixSizes subst (SizeArrow l r) = SizeArrow (fixSizes subst l) (fixSizes subst r)
-    fixSizes subst (SizeGeneric args r) = SizeGeneric args (fixSizes subst r)
-    fixSizes subst (SizeGenericVar args i) = SizeGenericVar args i
