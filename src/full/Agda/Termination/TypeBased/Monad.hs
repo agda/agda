@@ -24,6 +24,7 @@ module Agda.Termination.TypeBased.Monad
   , getFallbackInstantiations
   , addFallbackInstantiation
   , getSizePolarity
+  , getAllPolarities
   -- * Core variables manipulation
   , getCurrentCoreContext
   , appendCoreVariable
@@ -205,6 +206,9 @@ initNewClause bounds = TBTM $ modify (\s -> s
 getSizePolarity :: Size -> TBTM Polarity
 getSizePolarity SUndefined = pure Invariant
 getSizePolarity (SDefined i) = (IntMap.! i) <$> TBTM (gets scsFreshVarPolarities)
+
+getAllPolarities :: TBTM (IntMap Polarity)
+getAllPolarities = TBTM $ gets scsFreshVarPolarities
 
 storeConstraint :: SConstraint -> TBTM ()
 storeConstraint c = TBTM $ modify \ s -> s
