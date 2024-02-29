@@ -104,8 +104,11 @@ instance Null (DiscrimTree a) where
     EmptyDT -> True
     _       -> False
 
--- | Merge a pair of discrimination trees. This function performs a few
--- optimisations.
+-- | Merge a pair of discrimination trees. This function tries to build
+-- the minimal discrimination tree that yields the union of the inputs'
+-- results, though it does so slightly naïvely, without considerable
+-- optimisations (e.g. it does not turn single-alternative 'CaseDT's
+-- into 'DoneDT's).
 mergeDT :: Ord a => DiscrimTree a -> DiscrimTree a -> DiscrimTree a
 mergeDT EmptyDT    x = x
 mergeDT (DoneDT s) x = case x of
@@ -115,11 +118,10 @@ mergeDT (DoneDT s) x = case x of
 mergeDT (CaseDT i bs els) x = case x of
   EmptyDT  -> CaseDT i bs els
   DoneDT s -> CaseDT i bs (mergeDT (DoneDT s) els)
-  CaseDT j bs' els'
-    | i == j -> CaseDT j (Map.unionWith mergeDT bs bs') (mergeDT els els')
-    | i < j -> CaseDT i bs (mergeDT els (CaseDT j bs' els'))
-    | j < i -> CaseDT j bs' (mergeDT els' (CaseDT i bs els))
-    | otherwise -> __IMPOSSIBLE__
+  CaseDT j bs' els' -> case compare i j of
+    EQ -> CaseDT j (Map.unionWith mergeDT bs bs') (mergeDT els els')
+    LT -> CaseDT i bs (mergeDT els (CaseDT j bs' els'))
+    GT -> CaseDT j bs' (mergeDT els' (CaseDT i bs els))
 
 instance Ord a => Semigroup (DiscrimTree a) where
   (<>) = mergeDT

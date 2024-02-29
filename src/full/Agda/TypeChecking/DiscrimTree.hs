@@ -107,13 +107,6 @@ tickExplore tm = whenProfile Profile.Instances do
     DontCare{} -> tick "explore: DontCare"
     _ -> pure ()
 
--- | Checks whether the given abstraction could have been 'NoAbs'.
-isNoAbs :: Abs Term -> Maybe Term
-isNoAbs (NoAbs _ b) = Just b
-isNoAbs (Abs _ b)
-  | not (0 `freeIn` b) = Just (strengthen __IMPOSSIBLE__ b)
-  | otherwise          = Nothing
-
 -- | Split a term into a 'Key' and some arguments. The 'Key' indicates
 -- whether or not the 'Term' is in head-normal form, and provides a
 -- quick way to match on the head.

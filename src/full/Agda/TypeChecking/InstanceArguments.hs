@@ -456,7 +456,7 @@ findInstance' m cands = do
           reportSDoc "tc.instance" 15 $
             text ("findInstance 5: refined candidates: ") <+>
             prettyTCM (List.map candidateTerm cs)
-          whenProfile Profile.Instances $ tick "findInstance: too many candidates"
+          whenProfile Profile.Instances $ tick "findInstance: multiple candidates"
           return (Just (cs, neverUnblock))
 
 insidePi :: Type -> (Type -> TCM a) -> TCM a
