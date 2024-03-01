@@ -3228,6 +3228,10 @@ toAbstractOpApp op ns es = do
       where pref = inferParenPref e
 
     -- The hole left to the first @IdPart@ is filled with an expression in @LeftOperandCtx@.
+    left :: Fixity
+         -> [NotationPart]
+         -> [NamedArg (Either A.Expr (OpApp C.Expr))]
+         -> ScopeM [(ParenPreference, NamedArg A.Expr)]
     left f (IdPart _ : xs) es = inside f xs es
     left f (_ : xs) (e : es) = do
         e  <- toAbsOpArg (LeftOperandCtx f) e
@@ -3236,17 +3240,26 @@ toAbstractOpApp op ns es = do
     left f (_  : _)  [] = __IMPOSSIBLE__
     left f []        _  = __IMPOSSIBLE__
 
-    -- The holes in between the @IdPart@s is filled with an expression in @InsideOperandCtx@.
-    inside f [x]          es    = right f x es
+    -- The holes in between the @IdPart@s are filled with an expression in @InsideOperandCtx@.
+    inside :: Fixity
+           -> [NotationPart]
+           -> [NamedArg (Either A.Expr (OpApp C.Expr))]
+           -> ScopeM [(ParenPreference, NamedArg A.Expr)]
+    inside f [x]             es = right f x es
     inside f (IdPart _ : xs) es = inside f xs es
     inside f (_  : xs) (e : es) = do
         e  <- toAbsOpArg InsideOperandCtx e
         es <- inside f xs es
         return (e : es)
+    inside _ []      [] = return []
     inside _ (_ : _) [] = __IMPOSSIBLE__
-    inside _ []         _  = __IMPOSSIBLE__
+    inside _ [] (_ : _) = __IMPOSSIBLE__
 
     -- The hole right of the last @IdPart@ is filled with an expression in @RightOperandCtx@.
+    right :: Fixity
+          -> NotationPart
+          -> [NamedArg (Either A.Expr (OpApp C.Expr))]
+          -> ScopeM [(ParenPreference, NamedArg A.Expr)]
     right _ (IdPart _)  [] = return []
     right f _          [e] = do
         let pref = inferParenPref e
