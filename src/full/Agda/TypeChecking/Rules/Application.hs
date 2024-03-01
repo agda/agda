@@ -679,6 +679,11 @@ checkArgumentsE'
                       then skip x
                       else skip 0
                 IsRigid -> do
+                  -- Andreas, 2024-03-01, issue #7158 reported by Amy.
+                  -- We need to check that the arity of the function type
+                  -- is sufficient before checking the target,
+                  -- otherwise the target is non-sensical.
+                  if visiblePis < sArgsLen then return s else do
 
                       -- Is any free variable in tgt less than
                       -- visiblePis?
