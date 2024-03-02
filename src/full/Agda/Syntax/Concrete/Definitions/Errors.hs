@@ -74,7 +74,7 @@ data DeclarationWarning'
   | EmptyConstructor Range -- ^ Empty @constructor@ block.
   | EmptyField Range       -- ^ Empty @field@     block.
   | EmptyGeneralize Range  -- ^ Empty @variable@  block.
-  | EmptyInstance Range    -- ^ Empty @instance@  block
+  | EmptyInstance KwRange  -- ^ Empty @instance@  block
   | EmptyMacro Range       -- ^ Empty @macro@     block.
   | EmptyMutual Range      -- ^ Empty @mutual@    block.
   | EmptyPostulate Range   -- ^ Empty @postulate@ block.
@@ -133,7 +133,7 @@ data DeclarationWarning'
   | UnknownNamesInPolarityPragmas [Name]
   | UselessAbstract Range
       -- ^ @abstract@ block with nothing that can (newly) be made abstract.
-  | UselessInstance Range
+  | UselessInstance KwRange
       -- ^ @instance@ block with nothing that can (newly) become an instance.
   | UselessPrivate Range
       -- ^ @private@ block with nothing that can (newly) be made private.
@@ -309,7 +309,7 @@ instance HasRange DeclarationWarning' where
     EmptyConstructor r                 -> r
     EmptyField r                       -> r
     EmptyGeneralize r                  -> r
-    EmptyInstance r                    -> r
+    EmptyInstance kwr                  -> getRange kwr
     EmptyMacro r                       -> r
     EmptyMutual r                      -> r
     EmptyPostulate r                   -> r
@@ -345,7 +345,7 @@ instance HasRange DeclarationWarning' where
     UnknownNamesInFixityDecl xs        -> getRange xs
     UnknownNamesInPolarityPragmas xs   -> getRange xs
     UselessAbstract r                  -> r
-    UselessInstance r                  -> r
+    UselessInstance kwr                -> getRange kwr
     UselessPrivate r                   -> r
 
 -- These error messages can (should) be terminated by a dot ".",

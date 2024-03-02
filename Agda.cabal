@@ -543,8 +543,9 @@ library
       Agda.Syntax.Abstract
       Agda.Syntax.Builtin
       Agda.Syntax.Common
-      Agda.Syntax.Common.Pretty
       Agda.Syntax.Common.Aspect
+      Agda.Syntax.Common.KeywordRange
+      Agda.Syntax.Common.Pretty
       Agda.Syntax.Common.Pretty.ANSI
       Agda.Syntax.Concrete.Attribute
       Agda.Syntax.Concrete.Definitions

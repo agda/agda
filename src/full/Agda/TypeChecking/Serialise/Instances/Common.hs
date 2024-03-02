@@ -53,6 +53,7 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.List2 (List2(List2))
 import qualified Agda.Utils.List2 as List2
 import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Utils.Null
 import Agda.Utils.Trie (Trie(..))
 import Agda.Utils.WithDefault
 
@@ -303,6 +304,10 @@ instance EmbPrj RangeFile where
 instance EmbPrj Range where
   icod_ _ = icodeN' ()
   value _ = return noRange
+
+instance EmbPrj KwRange where
+  icod_ _ = icodeN' ()
+  value _ = return empty
 
 -- | Ranges that should be serialised properly.
 

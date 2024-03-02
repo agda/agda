@@ -1271,7 +1271,7 @@ Constructor : 'data' '_' 'where' Declarations0
 -- Declaration of record constructor name.
 RecordConstructorName :: { (Name, IsInstance) }
 RecordConstructorName :                  'constructor' Id       { ($2, NotInstanceDef) }
-                      | 'instance' vopen 'constructor' Id close { ($4, InstanceDef (getRange $1)) }
+                      | 'instance' vopen 'constructor' Id close { ($4, InstanceDef (kwRange $1)) }
 
 
 -- Fixity declarations.
@@ -1285,17 +1285,10 @@ Fields :: { Declaration }
 Fields : 'field' ArgTypeSignaturesOrEmpty
             { let
                 inst i = case getHiding i of
-                           Instance _ -> InstanceDef noRange  -- no @instance@ keyword here
+                           Instance _ -> InstanceDef empty  -- no @instance@ keyword here
                            _          -> NotInstanceDef
                 toField (Arg info (TypeSig info' tac x t)) = FieldSig (inst info') tac x (Arg info t)
               in Field (fuseRange $1 $2) $ map toField $2 }
-  -- | 'field' ModalArgTypeSignatures
-  --           { let
-  --               inst i = case getHiding i of
-  --                          Instance _ -> InstanceDef
-  --                          _          -> NotInstanceDef
-  --               toField (Arg info (TypeSig info' x t)) = FieldSig (inst info') x (Arg info t)
-  --             in Field (fuseRange $1 $2) $ map toField $2 }
 
 -- Variable declarations for automatic generalization
 Generalize :: { Declaration }
@@ -1321,7 +1314,7 @@ Private : 'private' Declarations0        { Private (fuseRange $1 $2) UserWritten
 
 -- Instance declarations.
 Instance :: { Declaration }
-Instance : 'instance' Declarations0  { InstanceB (getRange $1) $2 }
+Instance : 'instance' Declarations0  { InstanceB (kwRange $1) $2 }
 
 
 -- Macro declarations.

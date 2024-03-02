@@ -570,7 +570,7 @@ withAbstractPrivate i m =
         abst AbstractDef ds = [ C.Abstract (getRange ds) ds ]
         abst ConcreteDef ds = ds
 
-addInstanceB :: Maybe Range -> [C.Declaration] -> [C.Declaration]
+addInstanceB :: Maybe KwRange -> [C.Declaration] -> [C.Declaration]
 addInstanceB (Just r) ds = [ C.InstanceB r ds ]
 addInstanceB Nothing  ds = ds
 
@@ -1055,7 +1055,7 @@ instance ToConcrete A.LetBinding where
     bindToConcrete (A.LetBind i info x t e) ret =
         bindToConcrete x $ \ x ->
         do (t, (e, [], [], [])) <- toConcrete (t, A.RHS e Nothing)
-           ret $ addInstanceB (if isInstance info then Just noRange else Nothing) $
+           ret $ addInstanceB (if isInstance info then Just empty else Nothing) $
                [ C.TypeSig info empty (C.boundName x) t
                , C.FunClause
                    (C.LHS (C.IdentP True $ C.QName $ C.boundName x) [] [])

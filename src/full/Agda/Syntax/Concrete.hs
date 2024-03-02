@@ -496,8 +496,8 @@ data Declaration
     -- ^ In "Agda.Syntax.Concrete.Definitions" we generate private blocks
     --   temporarily, which should be treated different that user-declared
     --   private blocks.  Thus the 'Origin'.
-  | InstanceB   Range [Declaration]
-    -- ^ The 'Range' here (exceptionally) only refers to the range of the
+  | InstanceB   KwRange [Declaration]
+    -- ^ The 'KwRange' here only refers to the range of the
     --   @instance@ keyword.  The range of the whole block @InstanceB r ds@
     --   is @fuseRange r ds@.
   | LoneConstructor Range [Declaration]
@@ -967,7 +967,7 @@ instance HasRange Declaration where
   getRange (ModuleMacro r _ _ _ _ _)
                                    = r
   getRange (Import r _ _ _ _)      = r
-  getRange (InstanceB r _)         = r
+  getRange (InstanceB kwr _)       = getRange kwr
   getRange (Macro r _)             = r
   getRange (Private r _ _)         = r
   getRange (Postulate r _)         = r
@@ -1120,7 +1120,7 @@ instance KillRange Declaration where
   killRange (LoneConstructor _ d)   = killRangeN (LoneConstructor noRange) d
   killRange (Abstract _ d)          = killRangeN (Abstract noRange) d
   killRange (Private _ o d)         = killRangeN (Private noRange) o d
-  killRange (InstanceB _ d)         = killRangeN (InstanceB noRange) d
+  killRange (InstanceB _ d)         = killRangeN (InstanceB empty) d
   killRange (Macro _ d)             = killRangeN (Macro noRange) d
   killRange (Postulate _ t)         = killRangeN (Postulate noRange) t
   killRange (Primitive _ t)         = killRangeN (Primitive noRange) t

@@ -2,6 +2,7 @@
 -}
 module Agda.Syntax.Common
   ( module Agda.Syntax.Common
+  , module Agda.Syntax.Common.KeywordRange
   , module Agda.Syntax.TopLevelModuleName.Boot
   , Induction(..)
   )
@@ -30,6 +31,9 @@ import qualified Data.HashSet as HashSet
 
 import GHC.Generics (Generic)
 
+import Agda.Syntax.Common.Aspect (Induction(..))
+import Agda.Syntax.Common.KeywordRange
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Position
 
 import Agda.Utils.BiMap (HasTag(..))
@@ -41,8 +45,6 @@ import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
 import Agda.Utils.POMonoid
-import Agda.Syntax.Common.Aspect (Induction(..))
-import Agda.Syntax.Common.Pretty
 
 import Agda.Utils.Impossible
 
@@ -2327,18 +2329,18 @@ instance AnyIsAbstract a => AnyIsAbstract (Maybe a) where
 
 -- | Is this definition eligible for instance search?
 data IsInstance
-  = InstanceDef Range  -- ^ Range of the @instance@ keyword.
+  = InstanceDef KwRange  -- ^ Range of the @instance@ keyword.
   | NotInstanceDef
     deriving (Show, Eq, Ord)
 
 instance KillRange IsInstance where
   killRange = \case
-    InstanceDef _    -> InstanceDef noRange
+    InstanceDef _    -> InstanceDef empty
     i@NotInstanceDef -> i
 
 instance HasRange IsInstance where
   getRange = \case
-    InstanceDef r  -> r
+    InstanceDef r  -> getRange r
     NotInstanceDef -> noRange
 
 instance NFData IsInstance where

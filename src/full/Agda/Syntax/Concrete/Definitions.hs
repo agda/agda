@@ -1259,7 +1259,7 @@ niceDeclarations fixs ds = do
         return ds -- no change!
 
     instanceBlock
-      :: Range  -- Range of @instance@ keyword.
+      :: KwRange  -- Range of @instance@ keyword.
       -> [NiceDeclaration]
       -> Nice [NiceDeclaration]
     instanceBlock r ds = do
@@ -1270,7 +1270,7 @@ niceDeclarations fixs ds = do
 
     -- Make a declaration eligible for instance search.
     mkInstance
-      :: Range  -- Range of @instance@ keyword.
+      :: KwRange  -- Range of @instance@ keyword.
       -> Updater NiceDeclaration
     mkInstance r0 = \case
         Axiom r p a i rel x e          -> (\ i -> Axiom r p a i rel x e) <$> setInstance r0 i
@@ -1298,7 +1298,7 @@ niceDeclarations fixs ds = do
         d@NiceUnquoteData{}            -> return d
 
     setInstance
-      :: Range  -- Range of @instance@ keyword.
+      :: KwRange  -- Range of @instance@ keyword.
       -> Updater IsInstance
     setInstance r0 = \case
       i@InstanceDef{} -> return i
