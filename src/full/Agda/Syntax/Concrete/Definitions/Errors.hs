@@ -473,10 +473,10 @@ instance Pretty DeclarationWarning' where
       pwords "Termination checking pragmas can only precede a function definition or a mutual block (that contains a function definition)."
 
     InvalidConstructor{} -> fsep $
-      pwords "`constructor' blocks may only contain type signatures for constructors."
+      pwords "`data _ where' blocks may only contain type signatures for constructors."
 
     InvalidConstructorBlock{} -> fsep $
-      pwords "No `constructor' blocks outside of `interleaved mutual' blocks."
+      pwords "No `data _ where' blocks outside of `interleaved mutual' blocks."
 
     InvalidCoverageCheckPragma _ -> fsep $
       pwords "Coverage checking pragmas can only precede a function definition or a mutual block (that contains a function definition)."

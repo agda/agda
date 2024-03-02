@@ -1244,7 +1244,6 @@ niceDeclarations fixs ds = do
         -- A mutual block cannot have a measure,
         -- but it can skip termination check.
 
-    abstractBlock _ [] = return []
     abstractBlock r ds = do
       (ds', anyChange) <- runChangeT $ mkAbstract ds
       let inherited = r == noRange
@@ -1253,7 +1252,6 @@ niceDeclarations fixs ds = do
         unless inherited $ declarationWarning $ UselessAbstract r
         return ds -- no change!
 
-    privateBlock _ _ [] = return []
     privateBlock r o ds = do
       (ds', anyChange) <- runChangeT $ mkPrivate o ds
       if anyChange then return ds' else do
@@ -1264,7 +1262,6 @@ niceDeclarations fixs ds = do
       :: Range  -- Range of @instance@ keyword.
       -> [NiceDeclaration]
       -> Nice [NiceDeclaration]
-    instanceBlock _ [] = return []
     instanceBlock r ds = do
       let (ds', anyChange) = runChange $ mapM (mkInstance r) ds
       if anyChange then return ds' else do
