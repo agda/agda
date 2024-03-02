@@ -39,7 +39,7 @@ warning: -W[no]UselessInstance
 Using instance here has no effect. Instance applies only to
 declarations that introduce new identifiers into the module, like
 type signatures and axioms.
-Issue2759.agda:47,10-26
+Issue2759.agda:47,10-17
 warning: -W[no]UselessPrivate
 Using private here has no effect. Private applies only to
 declarations that introduce new identifiers into the module, like
@@ -197,7 +197,7 @@ Using instance here has no effect. Instance applies only to
 declarations that introduce new identifiers into the module, like
 type signatures and axioms.
 
-Issue2759.agda:47,10-26
+Issue2759.agda:47,10-17
 warning: -W[no]UselessPrivate
 Using private here has no effect. Private applies only to
 declarations that introduce new identifiers into the module, like

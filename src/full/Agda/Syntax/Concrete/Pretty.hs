@@ -387,10 +387,14 @@ instance Pretty WhereClause where
                        = vcat [ "where", nest 2 (vcat $ map pretty ds) ]
   pretty (AnyWhere _ ds) = vcat [ "where", nest 2 (vcat $ map pretty ds) ]
   pretty (SomeWhere _ erased m a ds) =
-    vcat [ hsep $ applyWhen (a == PrivateAccess UserWritten) ("private" :)
+    vcat [ hsep $ privateWhenUserWritten a
              [ "module", prettyErased erased (pretty m), "where" ]
          , nest 2 (vcat $ map pretty ds)
          ]
+    where
+      privateWhenUserWritten = \case
+        PrivateAccess _ UserWritten -> ("private" :)
+        _ -> id
 
 instance Pretty LHS where
   pretty (LHS p eqs es) = sep

@@ -1252,8 +1252,13 @@ niceDeclarations fixs ds = do
         unless inherited $ declarationWarning $ UselessAbstract r
         return ds -- no change!
 
+    privateBlock
+      :: KwRange  -- Range of @private@ keyword.
+      -> Origin   -- Origin of the private block.
+      -> [NiceDeclaration]
+      -> Nice [NiceDeclaration]
     privateBlock r o ds = do
-      (ds', anyChange) <- runChangeT $ mkPrivate o ds
+      (ds', anyChange) <- runChangeT $ mkPrivate r o ds
       if anyChange then return ds' else do
         when (o == UserWritten) $ declarationWarning $ UselessPrivate r
         return ds -- no change!
@@ -1393,10 +1398,10 @@ instance MakeAbstract WhereClause where
 -- Then, nested @private@s would sometimes also be complained about.
 
 class MakePrivate a where
-  mkPrivate :: Origin -> UpdaterT Nice a
+  mkPrivate :: KwRange -> Origin -> UpdaterT Nice a
 
-  default mkPrivate :: (Traversable f, MakePrivate a', a ~ f a') => Origin -> UpdaterT Nice a
-  mkPrivate o = traverse $ mkPrivate o
+  default mkPrivate :: (Traversable f, MakePrivate a', a ~ f a') => KwRange -> Origin -> UpdaterT Nice a
+  mkPrivate kwr o = traverse $ mkPrivate kwr o
 
 instance MakePrivate a => MakePrivate [a]
 
@@ -1405,28 +1410,28 @@ instance MakePrivate a => MakePrivate [a]
 --   mkPrivate = traverse mkPrivate
 
 instance MakePrivate Access where
-  mkPrivate o = \case
+  mkPrivate kwr o = \case
     p@PrivateAccess{} -> return p  -- OR? return $ PrivateAccess o
-    _                 -> dirty $ PrivateAccess o
+    _                 -> dirty $ PrivateAccess kwr o
 
 instance MakePrivate NiceDeclaration where
-  mkPrivate o = \case
-      Axiom r p a i rel x e                    -> (\ p -> Axiom r p a i rel x e)                <$> mkPrivate o p
-      NiceField r p a i tac x e                -> (\ p -> NiceField r p a i tac x e)            <$> mkPrivate o p
-      PrimitiveFunction r p a x e              -> (\ p -> PrimitiveFunction r p a x e)          <$> mkPrivate o p
-      NiceMutual r tc cc pc ds                 -> (\ ds-> NiceMutual r tc cc pc ds)             <$> mkPrivate o ds
-      NiceLoneConstructor r ds                 -> NiceLoneConstructor r                         <$> mkPrivate o ds
-      NiceModule r p a e x tel ds              -> (\ p -> NiceModule r p a e x tel ds)          <$> mkPrivate o p
-      NiceModuleMacro r p e x ma op is         -> (\ p -> NiceModuleMacro r p e x ma op is)     <$> mkPrivate o p
-      FunSig r p a i m rel tc cc x e           -> (\ p -> FunSig r p a i m rel tc cc x e)       <$> mkPrivate o p
-      NiceRecSig r er p a pc uc x ls t         -> (\ p -> NiceRecSig r er p a pc uc x ls t)     <$> mkPrivate o p
-      NiceDataSig r er p a pc uc x ls t        -> (\ p -> NiceDataSig r er p a pc uc x ls t)    <$> mkPrivate o p
-      NiceFunClause r p a tc cc catchall d     -> (\ p -> NiceFunClause r p a tc cc catchall d) <$> mkPrivate o p
-      NiceUnquoteDecl r p a i tc cc x e        -> (\ p -> NiceUnquoteDecl r p a i tc cc x e)    <$> mkPrivate o p
-      NiceUnquoteDef r p a tc cc x e           -> (\ p -> NiceUnquoteDef r p a tc cc x e)       <$> mkPrivate o p
-      NicePatternSyn r p x xs p'               -> (\ p -> NicePatternSyn r p x xs p')           <$> mkPrivate o p
-      NiceGeneralize r p i tac x t             -> (\ p -> NiceGeneralize r p i tac x t)         <$> mkPrivate o p
-      NiceOpaque r ns ds                       -> (\ p -> NiceOpaque r ns p)                    <$> mkPrivate o ds
+  mkPrivate kwr o = \case
+      Axiom r p a i rel x e                    -> (\ p -> Axiom r p a i rel x e)                <$> mkPrivate kwr o p
+      NiceField r p a i tac x e                -> (\ p -> NiceField r p a i tac x e)            <$> mkPrivate kwr o p
+      PrimitiveFunction r p a x e              -> (\ p -> PrimitiveFunction r p a x e)          <$> mkPrivate kwr o p
+      NiceMutual r tc cc pc ds                 -> (\ ds-> NiceMutual r tc cc pc ds)             <$> mkPrivate kwr o ds
+      NiceLoneConstructor r ds                 -> NiceLoneConstructor r                         <$> mkPrivate kwr o ds
+      NiceModule r p a e x tel ds              -> (\ p -> NiceModule r p a e x tel ds)          <$> mkPrivate kwr o p
+      NiceModuleMacro r p e x ma op is         -> (\ p -> NiceModuleMacro r p e x ma op is)     <$> mkPrivate kwr o p
+      FunSig r p a i m rel tc cc x e           -> (\ p -> FunSig r p a i m rel tc cc x e)       <$> mkPrivate kwr o p
+      NiceRecSig r er p a pc uc x ls t         -> (\ p -> NiceRecSig r er p a pc uc x ls t)     <$> mkPrivate kwr o p
+      NiceDataSig r er p a pc uc x ls t        -> (\ p -> NiceDataSig r er p a pc uc x ls t)    <$> mkPrivate kwr o p
+      NiceFunClause r p a tc cc catchall d     -> (\ p -> NiceFunClause r p a tc cc catchall d) <$> mkPrivate kwr o p
+      NiceUnquoteDecl r p a i tc cc x e        -> (\ p -> NiceUnquoteDecl r p a i tc cc x e)    <$> mkPrivate kwr o p
+      NiceUnquoteDef r p a tc cc x e           -> (\ p -> NiceUnquoteDef r p a tc cc x e)       <$> mkPrivate kwr o p
+      NicePatternSyn r p x xs p'               -> (\ p -> NicePatternSyn r p x xs p')           <$> mkPrivate kwr o p
+      NiceGeneralize r p i tac x t             -> (\ p -> NiceGeneralize r p i tac x t)         <$> mkPrivate kwr o p
+      NiceOpaque r ns ds                       -> (\ p -> NiceOpaque r ns p)                    <$> mkPrivate kwr o ds
       d@NicePragma{}                           -> return d
       d@(NiceOpen _ _ directives)              -> do
         whenJust (publicOpen directives) $ lift . declarationWarning . OpenPublicPrivate
@@ -1434,17 +1439,17 @@ instance MakePrivate NiceDeclaration where
       d@NiceImport{}                           -> return d
       -- Andreas, 2016-07-08, issue #2089
       -- we need to propagate 'private' to the named where modules
-      FunDef r ds a i tc cc x cls              -> FunDef r ds a i tc cc x <$> mkPrivate o cls
+      FunDef r ds a i tc cc x cls              -> FunDef r ds a i tc cc x <$> mkPrivate kwr o cls
       d@NiceDataDef{}                          -> return d
       d@NiceRecDef{}                           -> return d
       d@NiceUnquoteData{}                      -> return d
 
 instance MakePrivate Clause where
-  mkPrivate o (Clause x catchall lhs rhs wh with) = do
-    Clause x catchall lhs rhs <$> mkPrivate o wh <*> mkPrivate o with
+  mkPrivate kwr o (Clause x catchall lhs rhs wh with) = do
+    Clause x catchall lhs rhs <$> mkPrivate kwr o wh <*> mkPrivate kwr o with
 
 instance MakePrivate WhereClause where
-  mkPrivate o = \case
+  mkPrivate kwr o = \case
     d@NoWhere    -> return d
     -- @where@-declarations are protected behind an anonymous module,
     -- thus, they are effectively private by default.
@@ -1454,7 +1459,7 @@ instance MakePrivate WhereClause where
     -- The contents of this module are not private, unless declared so!
     -- Thus, we do not recurse into the @ds@ (could not anyway).
     SomeWhere r e m a ds ->
-      mkPrivate o a <&> \a' -> SomeWhere r e m a' ds
+      mkPrivate kwr o a <&> \a' -> SomeWhere r e m a' ds
 
 -- The following function is (at the time of writing) only used three
 -- times: for building Lets, and for printing error messages.

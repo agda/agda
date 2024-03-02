@@ -835,7 +835,7 @@ scopeCheckExtendedLam r e cs = do
     forM_ cs $ \ c -> do
       reportSLn "scope.extendedLambda" 60 $ "extended lambda lhs: " ++ show (C.lamLHS c)
   qname <- qualifyName_ name
-  bindName (PrivateAccess Inserted) FunName cname qname
+  bindName privateAccessInserted FunName cname qname
 
   -- Andreas, 2019-08-20
   -- Keep the following __IMPOSSIBLE__, which is triggered by -v scope.decl.trace:80,
@@ -1160,7 +1160,7 @@ scopeCheckNiceModule r p e name tel checkDs
       (name, p', open) <- do
         if isNoName name then do
           (i :: NameId) <- fresh
-          return (C.NoName (getRange name) i, PrivateAccess Inserted, True)
+          return (C.NoName (getRange name) i, privateAccessInserted, True)
          else return (name, p, False)
 
       -- Check and bind the module, using the supplied check for its contents.
@@ -1174,7 +1174,7 @@ scopeCheckNiceModule r p e name tel checkDs
       when open $
        void $ -- We can discard the returned default A.ImportDirective.
         openModule TopOpenModule (Just aname) (C.QName name) $
-          defaultImportDir { publicOpen = boolToMaybe (p == PublicAccess) noRange }
+          defaultImportDir { publicOpen = boolToMaybe (p == PublicAccess) empty }
       return d
 
 -- | Check whether a telescope has open declarations or module macros.
@@ -1563,7 +1563,7 @@ instance ToAbstract LetDef where
         -- Andreas, 2014-10-09, Issue 1299: module macros in lets need
         -- to be private
         singleton <$> checkModuleMacro LetApply LetOpenModule r
-                        (PrivateAccess Inserted) erased x modapp open dir
+                        privateAccessInserted erased x modapp open dir
 
       _   -> notAValidLetBinding d
     where
@@ -1955,12 +1955,12 @@ instance ToAbstract NiceDeclaration where
       (name, theAsSymbol, theAsName) <- case as of
 
          Just a | let y = asName a, not (isNoName y) -> do
-           bindModule (PrivateAccess Inserted) y m
+           bindModule privateAccessInserted y m
            return (C.QName y, asRange a, Just y)
 
          _ -> do
            -- Don't bind if @import ... as _@ with "no name"
-           whenNothing as $ bindQModule (PrivateAccess Inserted) x m
+           whenNothing as $ bindQModule (privateAccessInserted) x m
            return (x, noRange, Nothing)
 
       -- Open if specified, otherwise apply import directives
@@ -2323,10 +2323,10 @@ bindConstructorName m x a p = do
     -- An abstract constructor is private (abstract constructor means
     -- abstract datatype, so the constructor should not be exported).
     p' = case a of
-           AbstractDef -> PrivateAccess Inserted
+           AbstractDef -> privateAccessInserted
            _           -> p
     p'' = case a of
-            AbstractDef -> PrivateAccess Inserted
+            AbstractDef -> privateAccessInserted
             _           -> PublicAccess
 
 -- | Record constructors do not live in the record module (as it is parameterized).
@@ -2340,7 +2340,7 @@ bindRecordConstructorName x kind a p = do
     -- An abstract constructor is private (abstract constructor means
     -- abstract datatype, so the constructor should not be exported).
     p' = case a of
-           AbstractDef -> PrivateAccess Inserted
+           AbstractDef -> privateAccessInserted
            _           -> p
 
 bindUnquoteConstructorName :: ModuleName -> Access -> C.Name -> TCM A.QName
@@ -2617,7 +2617,7 @@ whereToAbstract r wh inner = do
       -- where-declarations are automatically private.
       -- This allows their type signature to be checked InAbstractMode.
       whereToAbstract1 r defaultErased Nothing
-        (singleton $ C.Private noRange Inserted ds) inner
+        (singleton $ C.Private empty Inserted ds) inner
     SomeWhere _ e m a ds0 -> enter $
       List1.ifNull ds0 warnEmptyWhere {-else-} $ \ds -> do
       -- Named where-modules do not default to private.
@@ -2645,7 +2645,7 @@ whereToAbstract1 r e whname whds inner = do
   (m, acc) <- do
     case whname of
       Just (m, acc) | not (isNoName m) -> return (m, acc)
-      _ -> fresh <&> \ x -> (C.NoName (getRange whname) x, PrivateAccess Inserted)
+      _ -> fresh <&> \ x -> (C.NoName (getRange whname) x, privateAccessInserted)
            -- unnamed where's are private
   old <- getCurrentModule
   am  <- toAbstract (NewModuleName m)
@@ -2660,7 +2660,7 @@ whereToAbstract1 r e whname whds inner = do
   when anonymousSomeWhere $
    void $ -- We can ignore the returned default A.ImportDirective.
     openModule TopOpenModule (Just am) (C.QName m) $
-      defaultImportDir { publicOpen = Just noRange }
+      defaultImportDir { publicOpen = Just empty }
   return (x, A.WhereDecls (Just am) (isNothing whname) $ singleton d)
 
 data TerminationOrPositivity = Termination | Positivity

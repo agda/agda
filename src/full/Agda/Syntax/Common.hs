@@ -2265,16 +2265,17 @@ data IsInfix = InfixDef | PrefixDef
 
 -- | Access modifier.
 data Access
-  = PrivateAccess Origin
+  = PrivateAccess KwRange Origin
       -- ^ Store the 'Origin' of the private block that lead to this qualifier.
       --   This is needed for more faithful printing of declarations.
+      --   'KwRange' is the range of the @private@ keyword.
   | PublicAccess
     deriving (Show, Eq, Ord)
 
 instance Pretty Access where
   pretty = text . \case
-    PrivateAccess _ -> "private"
-    PublicAccess    -> "public"
+    PrivateAccess _ _ -> "private"
+    PublicAccess      -> "public"
 
 instance NFData Access where
   rnf _ = ()
@@ -2284,6 +2285,9 @@ instance HasRange Access where
 
 instance KillRange Access where
   killRange = id
+
+privateAccessInserted :: Access
+privateAccessInserted = PrivateAccess empty Inserted
 
 -- ** abstract blocks
 
@@ -2722,7 +2726,9 @@ data ImportDirective' n m = ImportDirective
   , using          :: Using' n m
   , hiding         :: HidingDirective' n m
   , impRenaming    :: RenamingDirective' n m
-  , publicOpen     :: Maybe Range -- ^ Only for @open@. Exports the opened names from the current module.
+  , publicOpen     :: Maybe KwRange
+      -- ^ Only for @open@. Exports the opened names from the current module.
+      --   Range of the @public@ keyword.
   }
   deriving Eq
 
@@ -2845,7 +2851,7 @@ instance (HasRange a, HasRange b) => HasRange (ImportedName' a b) where
 
 instance (KillRange a, KillRange b) => KillRange (ImportDirective' a b) where
   killRange (ImportDirective _ u h r p) =
-    killRangeN (\u h r -> ImportDirective noRange u h r p) u h r
+    killRangeN (\u h r -> ImportDirective noRange u h r (p $> empty)) u h r
 
 instance (KillRange a, KillRange b) => KillRange (Using' a b) where
   killRange (Using  i) = killRangeN Using  i

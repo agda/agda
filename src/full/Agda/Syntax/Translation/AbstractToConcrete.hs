@@ -564,8 +564,8 @@ withAbstractPrivate i m =
       . addInstanceB (case A.defInstance i of InstanceDef r -> Just r; NotInstanceDef -> Nothing)
       <$> m
     where
-        priv (PrivateAccess UserWritten)
-                         ds = [ C.Private  (getRange ds) UserWritten ds ]
+        priv (PrivateAccess kwr UserWritten)
+                         ds = [ C.Private kwr UserWritten ds ]
         priv _           ds = ds
         abst AbstractDef ds = [ C.Abstract (getRange ds) ds ]
         abst ConcreteDef ds = ds

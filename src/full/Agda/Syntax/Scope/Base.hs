@@ -86,7 +86,7 @@ localNameSpace PublicAccess    = PublicNS
 localNameSpace PrivateAccess{} = PrivateNS
 
 nameSpaceAccess :: NameSpaceId -> Access
-nameSpaceAccess PrivateNS = PrivateAccess Inserted
+nameSpaceAccess PrivateNS = privateAccessInserted
 nameSpaceAccess _         = PublicAccess
 
 -- | Get a 'NameSpace' from 'Scope'.

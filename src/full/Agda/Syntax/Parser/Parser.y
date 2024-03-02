@@ -1025,7 +1025,7 @@ ImportDirective
   | {- empty -}                      { mempty }
 
 ImportDirective1 :: { ImportDirective }
-  : 'public'      { defaultImportDir { importDirRange = getRange $1, publicOpen = Just (getRange $1) } }
+  : 'public'      { defaultImportDir { importDirRange = getRange $1, publicOpen = Just (kwRange $1) } }
   | Using         { defaultImportDir { importDirRange = snd $1, using    = fst $1 } }
   | Hiding        { defaultImportDir { importDirRange = snd $1, hiding   = fst $1 } }
   | RenamingDir   { defaultImportDir { importDirRange = snd $1, impRenaming = fst $1 } }
@@ -1309,7 +1309,7 @@ Abstract : 'abstract' Declarations0  { Abstract (fuseRange $1 $2) $2 }
 
 -- Private can only appear on the top-level (or rather the module level).
 Private :: { Declaration }
-Private : 'private' Declarations0        { Private (fuseRange $1 $2) UserWritten $2 }
+Private : 'private' Declarations0        { Private (kwRange $1) UserWritten $2 }
 
 
 -- Instance declarations.
@@ -1431,7 +1431,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
     ; fresh' = Name mr NotInScope $ singleton $ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show (unique + 1)
     ; impStm asR = Import noRange m (Just (AsName (Right fresh) asR)) DontOpen defaultImportDir
     ; appStm m' es =
-        Private r Inserted
+        Private empty Inserted
           [ ModuleMacro r defaultErased m'
              (SectionApp (getRange es) []
                (rawApp (Ident (QName fresh) :| es)))
@@ -1478,7 +1478,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
     } in singleton $
       case es of
       { []  -> Open r m dir
-      ; _   -> Private r Inserted
+      ; _   -> Private empty Inserted
                  [ ModuleMacro r defaultErased
                      (noName $ beginningOf $ getRange m)
                      (SectionApp (getRange (m , es)) []
@@ -1489,7 +1489,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
   }
   | 'open' ModuleName '{{' '...' DoubleCloseBrace ImportDirective {
     let r = getRange $2 in singleton $
-      Private r Inserted
+      Private empty Inserted
       [ ModuleMacro r defaultErased (noName $ beginningOf $ getRange $2)
           (RecordModuleInstance r $2) DoOpen $6
       ]

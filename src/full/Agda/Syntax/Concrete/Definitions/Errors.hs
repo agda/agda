@@ -78,7 +78,7 @@ data DeclarationWarning'
   | EmptyMacro Range       -- ^ Empty @macro@     block.
   | EmptyMutual Range      -- ^ Empty @mutual@    block.
   | EmptyPostulate Range   -- ^ Empty @postulate@ block.
-  | EmptyPrivate Range     -- ^ Empty @private@   block.
+  | EmptyPrivate KwRange   -- ^ Empty @private@   block.
   | EmptyPrimitive Range   -- ^ Empty @primitive@ block.
   | HiddenGeneralize Range
       -- ^ A 'Hidden' identifier in a @variable@ declaration.
@@ -109,10 +109,12 @@ data DeclarationWarning'
   | MissingDefinitions [(Name, Range)]
       -- ^ Declarations (e.g. type signatures) without a definition.
   | NotAllowedInMutual Range String
-  | OpenPublicPrivate Range
+  | OpenPublicPrivate KwRange
       -- ^ @private@ has no effect on @open public@.  (But the user might think so.)
-  | OpenPublicAbstract Range
+      --   'KwRange' is the range of the @public@ keyword.
+  | OpenPublicAbstract KwRange
       -- ^ @abstract@ has no effect on @open public@.  (But the user might think so.)
+      --   'KwRange' is the range of the @public@ keyword.
   | PolarityPragmasButNotPostulates [Name]
   | PragmaNoTerminationCheck Range
       -- ^ Pragma @{-\# NO_TERMINATION_CHECK \#-}@ has been replaced
@@ -135,7 +137,7 @@ data DeclarationWarning'
       -- ^ @abstract@ block with nothing that can (newly) be made abstract.
   | UselessInstance KwRange
       -- ^ @instance@ block with nothing that can (newly) become an instance.
-  | UselessPrivate Range
+  | UselessPrivate KwRange
       -- ^ @private@ block with nothing that can (newly) be made private.
   deriving (Show, Generic)
 
@@ -314,7 +316,7 @@ instance HasRange DeclarationWarning' where
     EmptyMutual r                      -> r
     EmptyPostulate r                   -> r
     EmptyPrimitive r                   -> r
-    EmptyPrivate r                     -> r
+    EmptyPrivate kwr                   -> getRange kwr
     HiddenGeneralize r                 -> r
     InvalidCatchallPragma r            -> r
     InvalidConstructor r               -> r
@@ -327,8 +329,8 @@ instance HasRange DeclarationWarning' where
     MissingDeclarations xs             -> getRange xs
     MissingDefinitions xs              -> getRange xs
     NotAllowedInMutual r x             -> r
-    OpenPublicAbstract r               -> r
-    OpenPublicPrivate r                -> r
+    OpenPublicAbstract kwr             -> getRange kwr
+    OpenPublicPrivate kwr              -> getRange kwr
     PolarityPragmasButNotPostulates xs -> getRange xs
     PragmaCompiled r                   -> r
     PragmaNoTerminationCheck r         -> r
@@ -346,7 +348,7 @@ instance HasRange DeclarationWarning' where
     UnknownNamesInPolarityPragmas xs   -> getRange xs
     UselessAbstract r                  -> r
     UselessInstance kwr                -> getRange kwr
-    UselessPrivate r                   -> r
+    UselessPrivate kwr                 -> getRange kwr
 
 -- These error messages can (should) be terminated by a dot ".",
 -- there is no error context printed after them.
