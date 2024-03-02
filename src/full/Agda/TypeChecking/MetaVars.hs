@@ -1405,6 +1405,7 @@ checkSubtypeIsEqual a b = do
           | getRelevance a1 /= getRelevance b1 -> patternViolation neverUnblock -- Can we recover from this?
           | getQuantity  a1 /= getQuantity  b1 -> patternViolation neverUnblock
           | getCohesion  a1 /= getCohesion  b1 -> patternViolation neverUnblock
+          | getModalPolarity a1 /= getModalPolarity b1 -> patternViolation neverUnblock
           | otherwise -> do
               checkSubtypeIsEqual (unDom b1) (unDom a1)
               underAbstractionAbs a1 a2 $ \a2' -> checkSubtypeIsEqual a2' (absBody b2)
@@ -1683,6 +1684,7 @@ inverseSubst' skip args = map (mapFst unArg) <$> loop (zip args terms)
                         { modRelevance  = max (getRelevance info) (getRelevance info')
                         , modQuantity   = max (getQuantity  info) (getQuantity  info')
                         , modCohesion   = max (getCohesion  info) (getCohesion  info')
+                        , modPolarity   = addPolarity (getModalPolarity info) (getModalPolarity info') -- XXX
                         }
                       , argInfoOrigin   = min (getOrigin info) (getOrigin info')
                       , argInfoFreeVariables = unknownFreeVariables

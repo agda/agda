@@ -194,6 +194,7 @@ errorString err = case err of
   GeneralizedVarInLetOpenedModule{}        -> "GeneralizedVarInLetOpenedModule"
   MultipleFixityDecls{}                    -> "MultipleFixityDecls"
   MultiplePolarityPragmas{}                -> "MultiplePolarityPragmas"
+  ExplicitPolarityVsPragma{}               -> "ExplicitPolarityVsPragma"
   NoBindingForBuiltin{}                    -> "NoBindingForBuiltin"
   NoBindingForPrimitive{}                  -> "NoBindingForPrimitive"
   NoParseForApplication{}                  -> "NoParseForApplication"
@@ -241,6 +242,7 @@ errorString err = case err of
   TooManyPolarities{}                      -> "TooManyPolarities"
   SplitOnIrrelevant{}                      -> "SplitOnIrrelevant"
   SplitOnUnusableCohesion{}                -> "SplitOnUnusableCohesion"
+  SplitOnUnusablePolarity{}                -> "SplitOnUnusablePolarity"
   -- UNUSED: -- SplitOnErased{}                          -> "SplitOnErased"
   SplitOnNonVariable{}                     -> "SplitOnNonVariable"
   SplitOnNonEtaRecord{}                    -> "SplitOnNonEtaRecord"
@@ -253,10 +255,12 @@ errorString err = case err of
   VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
   VariableIsErased{}                       -> "VariableIsErased"
   VariableIsOfUnusableCohesion{}           -> "VariableIsOfUnusableCohesion"
+  VariableIsOfUnusablePolarity{}           -> "VariableIsOfUnusablePolarity"
   UnequalBecauseOfUniverseConflict{}       -> "UnequalBecauseOfUniverseConflict"
   UnequalRelevance{}                       -> "UnequalRelevance"
   UnequalQuantity{}                        -> "UnequalQuantity"
   UnequalCohesion{}                        -> "UnequalCohesion"
+  UnequalPolarity{}                        -> "UnequalPolarity"
   UnequalFiniteness{}                      -> "UnequalFiniteness"
   UnequalHiding{}                          -> "UnequalHiding"
   UnequalLevel{}                           -> "UnequalLevel"
@@ -281,6 +285,7 @@ errorString err = case err of
   WrongIrrelevanceInLambda{}               -> "WrongIrrelevanceInLambda"
   WrongQuantityInLambda{}                  -> "WrongQuantityInLambda"
   WrongCohesionInLambda{}                  -> "WrongCohesionInLambda"
+  WrongPolarityInLambda{}                  -> "WrongPolarityInLambda"
   WrongNamedArgument{}                     -> "WrongNamedArgument"
   WrongNumberOfConstructorArguments{}      -> "WrongNumberOfConstructorArguments"
   QuantityMismatch{}                       -> "QuantityMismatch"
@@ -428,6 +433,9 @@ instance PrettyTCM TypeError where
 
     WrongCohesionInLambda ->
       fwords "Incorrect cohesion annotation in lambda"
+
+    WrongPolarityInLambda ->
+      fwords "Incorrect polarity annotation in lambda"
 
     WrongNamedArgument a xs0 -> fsep $
       pwords "Function does not accept argument "
@@ -602,6 +610,10 @@ instance PrettyTCM TypeError where
       pwords "Cannot pattern match against" ++ [text $ verbalize $ getCohesion t] ++
       pwords "argument of type" ++ [prettyTCM $ unDom t]
 
+    SplitOnUnusablePolarity t -> fsep $
+      pwords "Cannot pattern match against" ++ [text $ verbalize $ getModalPolarity t] ++
+      pwords "argument of type" ++ [prettyTCM $ unDom t]
+
     -- UNUSED:
     -- SplitOnErased t -> fsep $
     --   pwords "Cannot pattern match against" ++ [text $ verbalize $ getQuantity t] ++
@@ -656,6 +668,12 @@ instance PrettyTCM TypeError where
     VariableIsOfUnusableCohesion x c -> fsep
       ["Variable", prettyTCM (nameConcrete x), "is declared", text (show c), "so it cannot be used here"]
 
+    VariableIsOfUnusablePolarity x c -> fsep $
+      ["Variable", prettyTCM (nameConcrete x), "is bound with", text (verbalize p)] ++  pwords "polarity, so it cannot be used here at" ++
+      [text (verbalize (Indefinite l)), "position"]
+      where
+        PolarityModality _ p l = c
+
     UnequalBecauseOfUniverseConflict cmp s t -> fsep $
       [prettyTCM s, notCmp cmp, prettyTCM t, "because this would result in an invalid use of Setω" ]
 
@@ -700,6 +718,10 @@ instance PrettyTCM TypeError where
       [prettyTCM a, notCmp cmp, prettyTCM b] ++
       pwords "because one is a non-flat function type and the other is a flat function type"
       -- FUTURE Cohesion: update message if/when introducing sharp.
+
+    UnequalPolarity cmp a b -> fsep $
+      [prettyTCM a, notCmp cmp, prettyTCM b] ++
+      pwords "because they do not have the same polarity annotations"
 
     UnequalFiniteness cmp a b -> fsep $
       [prettyTCM a, notCmp cmp, prettyTCM b] ++
@@ -1335,6 +1357,9 @@ instance PrettyTCM TypeError where
     MultiplePolarityPragmas xs -> fsep $
       pwords "Multiple polarity pragmas for" ++ map pretty xs
 
+    ExplicitPolarityVsPragma p -> fsep $
+      pwords "Polarity pragma used for " ++ [ prettyTCM p ] ++ pwords " but its type is already annotated with polarities."
+
     NonFatalErrors ws -> foldr1 ($$) $ fmap prettyTCM ws
 
     InstanceSearchDepthExhausted c a d -> fsep $
@@ -1873,12 +1898,25 @@ instance Verbalize Cohesion where
       Continuous -> "continuous"
       Squash     -> "squashed"
 
+instance Verbalize ModalPolarity where
+  verbalize r =
+    case r of
+      UnusedPolarity -> "unused"
+      StrictlyPositive -> "strictly positive"
+      Positive -> "positive"
+      Negative -> "negative"
+      MixedPolarity -> "mixed"
+
+instance Verbalize PolarityModality where
+  verbalize (PolarityModality p o l) = verbalize p
+
 instance Verbalize Modality where
   verbalize mod | mod == defaultModality = "default"
-  verbalize (Modality rel qnt coh) = intercalate ", " $
+  verbalize (Modality rel qnt coh pol) = intercalate ", " $
     [ verbalize rel | rel /= defaultRelevance ] ++
     [ verbalize qnt | qnt /= defaultQuantity ] ++
-    [ verbalize coh | coh /= defaultCohesion ]
+    [ verbalize coh | coh /= defaultCohesion ] ++
+    [ verbalize pol | pol /= defaultPolarity ]
 
 -- | Indefinite article.
 data Indefinite a = Indefinite a

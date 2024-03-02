@@ -1,0 +1,4 @@
+PolarityAnnotations-AnnotatedDef.agda:7,7-8
+Variable A is bound with negative polarity, so it cannot be used
+here at a positive position
+when checking that the expression A has type _0

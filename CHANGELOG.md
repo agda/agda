@@ -12,6 +12,25 @@ Installation
 Pragmas and options
 -------------------
 
+Polarity
+--------
+
+* Support for polarity annotations can be enabled by the feature flag
+  `--polarity`.
+
+  This flag is infective.
+
+  Uses of variables bound with polarity annotations are checked through modal
+  typing rules, and the positivity checker has been expanded to take annotations
+  into account. This means that the following is now definable:
+
+  ```agda
+  {-# OPTIONS --polarity #-}
+
+  data Mu (F : @++ Set → Set) : Set where
+    fix : F (Mu F) → Mu F
+  ```
+
 Syntax
 ------
 

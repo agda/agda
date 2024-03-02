@@ -1,6 +1,6 @@
 Failed to solve the following constraints:
   Sort _2 of foo admits data/record definitions. (blocked on _2)
-  Is usable at default modality: foo (blocked on _2)
+  Is usable at strictly positive modality: foo (blocked on _2)
 Unsolved metas at the following locations:
   Issue5681.agda:3,8-11
 Unsolved interaction metas at the following locations:

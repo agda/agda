@@ -14,7 +14,7 @@ import Internal.Helpers
 
 instance CoArbitrary Modality
 instance Arbitrary Modality where
-  arbitrary = Modality <$> arbitrary <*> arbitrary <*> arbitrary
+  arbitrary = Modality <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
 
 instance Arbitrary a => Arbitrary (UnderAddition a) where
   arbitrary = UnderAddition <$> arbitrary
@@ -69,6 +69,11 @@ instance CoArbitrary Cohesion
 instance Arbitrary Cohesion where
   arbitrary = elements $ filter (/= Squash) allCohesions
   -- left division does not respect laws for Squash on the left.
+
+instance CoArbitrary ModalPolarity where
+instance CoArbitrary PolarityModality
+instance Arbitrary PolarityModality where
+  arbitrary = elements [ withStandardLock p | p <- allModalPolarities ]
 
 instance Arbitrary NameId where
   arbitrary = elements [ NameId x (ModuleNameHash y) | x <- [0, 1], y <- [0, 1] ]

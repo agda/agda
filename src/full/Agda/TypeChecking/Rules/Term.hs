@@ -296,6 +296,7 @@ checkDomain lamOrPi xs e = do
 
     t <- applyQuantityToJudgement q $
          applyCohesionToContext c $
+         applyPolarityToContext negativePolarity $
          modEnv lamOrPi $ isType_ e
     -- Andrea TODO: also make sure that LockUniv implies IsLock
     when (any (\x -> case getLock x of { IsLock{} -> True ; _ -> False }) xs) $ do
@@ -360,7 +361,7 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
         -- modify the new context entries
         modEnv LamNotPi = workOnTypes
         modEnv _        = id
-        modMod PiNotLam xp = applyWhen xp $ mapRelevance irrToNonStrict
+        modMod PiNotLam xp = inverseApplyPolarity (withStandardLock UnusedPolarity) . (applyWhen xp $ mapRelevance irrToNonStrict)
         modMod _        _  = id
 
 checkTypedBindings lamOrPi (A.TLet _ lbs) ret = do
@@ -563,7 +564,7 @@ checkLambda' cmp r tac xps typ body target = do
 --   coming from the function type.
 --   If lambda has no user-given modality, copy that of function type.
 lambdaModalityCheck :: (LensAnnotation dom, LensModality dom) => dom -> ArgInfo -> TCM ArgInfo
-lambdaModalityCheck dom = lambdaAnnotationCheck (getAnnotation dom) <=< lambdaCohesionCheck m <=< lambdaQuantityCheck m <=< lambdaIrrelevanceCheck m
+lambdaModalityCheck dom = lambdaAnnotationCheck (getAnnotation dom) <=< lambdaPolarityCheck m <=< lambdaCohesionCheck m <=< lambdaQuantityCheck m <=< lambdaIrrelevanceCheck m
   where m = getModality dom
 
 -- | Check that irrelevance info in lambda is compatible with irrelevance
@@ -623,6 +624,23 @@ lambdaCohesionCheck dom info
         -- if there is a cohesion annotation then
         -- it better match the domain.
         typeError WrongCohesionInLambda
+      return info
+
+-- | Check that polarity info in lambda is compatible with polarity
+--   coming from the function type.
+--   If lambda has no user-given polarity, copy that of function type.
+lambdaPolarityCheck :: LensModalPolarity dom => dom -> ArgInfo -> TCM ArgInfo
+lambdaPolarityCheck dom info
+    -- Case: no specific user annotation: use polarity of function type
+  | getModalPolarity info == defaultPolarity = return $ setModalPolarity (getModalPolarity dom) info
+    -- Case: explicit user annotation is taken seriously
+  | otherwise = do
+      let cPi  = getModalPolarity dom  -- polarity of function type
+      let cLam = getModalPolarity info -- polarity of lambda
+      unless (cPi `samePolarity` cLam) $ do
+        -- if there is a polarity annotation then
+        -- it better match the domain.
+        typeError WrongPolarityInLambda
       return info
 
 -- Andreas, issue #630: take name from function type if lambda name is "_".
