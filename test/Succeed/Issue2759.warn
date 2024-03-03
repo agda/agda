@@ -44,7 +44,7 @@ warning: -W[no]UselessPrivate
 Using private here has no effect. Private applies only to
 declarations that introduce new identifiers into the module, like
 type signatures and data, record, and module declarations.
-Issue2759.agda:47,1-26
+Issue2759.agda:47,1-9
 warning: -W[no]UselessAbstract
 Using abstract here has no effect. Abstract applies to only
 definitions like data definitions, record type definitions and
@@ -203,7 +203,7 @@ Using private here has no effect. Private applies only to
 declarations that introduce new identifiers into the module, like
 type signatures and data, record, and module declarations.
 
-Issue2759.agda:47,1-26
+Issue2759.agda:47,1-9
 warning: -W[no]UselessAbstract
 Using abstract here has no effect. Abstract applies to only
 definitions like data definitions, record type definitions and

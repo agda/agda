@@ -70,7 +70,7 @@ data DeclarationWarning = DeclarationWarning
 -- | Non-fatal errors encountered in the Nicifier.
 data DeclarationWarning'
   -- Please keep in alphabetical order.
-  = EmptyAbstract Range    -- ^ Empty @abstract@  block.
+  = EmptyAbstract KwRange  -- ^ Empty @abstract@  block.
   | EmptyConstructor Range -- ^ Empty @constructor@ block.
   | EmptyField Range       -- ^ Empty @field@     block.
   | EmptyGeneralize Range  -- ^ Empty @variable@  block.
@@ -133,7 +133,7 @@ data DeclarationWarning'
   | UnknownFixityInMixfixDecl [Name]
   | UnknownNamesInFixityDecl [Name]
   | UnknownNamesInPolarityPragmas [Name]
-  | UselessAbstract Range
+  | UselessAbstract KwRange
       -- ^ @abstract@ block with nothing that can (newly) be made abstract.
   | UselessInstance KwRange
       -- ^ @instance@ block with nothing that can (newly) become an instance.
@@ -307,7 +307,7 @@ instance HasRange DeclarationWarning where
 
 instance HasRange DeclarationWarning' where
   getRange = \case
-    EmptyAbstract r                    -> r
+    EmptyAbstract kwr                  -> getRange kwr
     EmptyConstructor r                 -> r
     EmptyField r                       -> r
     EmptyGeneralize r                  -> r
@@ -346,7 +346,7 @@ instance HasRange DeclarationWarning' where
     UnknownFixityInMixfixDecl xs       -> getRange xs
     UnknownNamesInFixityDecl xs        -> getRange xs
     UnknownNamesInPolarityPragmas xs   -> getRange xs
-    UselessAbstract r                  -> r
+    UselessAbstract kwr                -> getRange kwr
     UselessInstance kwr                -> getRange kwr
     UselessPrivate kwr                 -> getRange kwr
 

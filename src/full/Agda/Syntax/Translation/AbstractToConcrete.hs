@@ -567,7 +567,7 @@ withAbstractPrivate i m =
         priv (PrivateAccess kwr UserWritten)
                          ds = [ C.Private kwr UserWritten ds ]
         priv _           ds = ds
-        abst AbstractDef ds = [ C.Abstract (getRange ds) ds ]
+        abst AbstractDef ds = [ C.Abstract empty ds ]
         abst ConcreteDef ds = ds
 
 addInstanceB :: Maybe KwRange -> [C.Declaration] -> [C.Declaration]

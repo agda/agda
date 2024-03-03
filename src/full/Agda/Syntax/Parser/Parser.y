@@ -1304,7 +1304,7 @@ Mutual : 'mutual' Declarations0  { Mutual (fuseRange $1 $2) $2 }
 
 -- Abstract declarations.
 Abstract :: { Declaration }
-Abstract : 'abstract' Declarations0  { Abstract (fuseRange $1 $2) $2 }
+Abstract : 'abstract' Declarations0  { Abstract (kwRange $1) $2 }
 
 
 -- Private can only appear on the top-level (or rather the module level).

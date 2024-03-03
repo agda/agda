@@ -491,7 +491,7 @@ data Declaration
   | PatternSyn  Range Name [WithHiding Name] Pattern
   | Mutual      Range [Declaration]  -- @Range@ of the whole @mutual@ block.
   | InterleavedMutual Range [Declaration]
-  | Abstract    Range [Declaration]
+  | Abstract    KwRange [Declaration]
   | Private     KwRange Origin [Declaration]
     -- ^ In "Agda.Syntax.Concrete.Definitions" we generate private blocks
     --   temporarily, which should be treated different that user-declared
@@ -961,7 +961,7 @@ instance HasRange Declaration where
   getRange (Mutual r _)            = r
   getRange (InterleavedMutual r _) = r
   getRange (LoneConstructor r _)   = r
-  getRange (Abstract r _)          = r
+  getRange (Abstract kwr ds)       = fuseRange kwr ds
   getRange (Generalize r _)        = r
   getRange (Open r _ _)            = r
   getRange (ModuleMacro r _ _ _ _ _)
@@ -1118,7 +1118,7 @@ instance KillRange Declaration where
   killRange (Mutual _ d)            = killRangeN (Mutual noRange) d
   killRange (InterleavedMutual _ d) = killRangeN (InterleavedMutual noRange) d
   killRange (LoneConstructor _ d)   = killRangeN (LoneConstructor noRange) d
-  killRange (Abstract _ d)          = killRangeN (Abstract noRange) d
+  killRange (Abstract _ d)          = killRangeN (Abstract empty) d
   killRange (Private _ o d)         = killRangeN (Private empty) o d
   killRange (InstanceB _ d)         = killRangeN (InstanceB empty) d
   killRange (Macro _ d)             = killRangeN (Macro noRange) d

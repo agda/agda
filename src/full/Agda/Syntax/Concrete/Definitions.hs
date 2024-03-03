@@ -1244,9 +1244,13 @@ niceDeclarations fixs ds = do
         -- A mutual block cannot have a measure,
         -- but it can skip termination check.
 
+    abstractBlock
+      :: KwRange  -- Range of @abstract@ keyword.
+      -> [NiceDeclaration]
+      -> Nice [NiceDeclaration]
     abstractBlock r ds = do
       (ds', anyChange) <- runChangeT $ mkAbstract ds
-      let inherited = r == noRange
+      let inherited = null r
       if anyChange then return ds' else do
         -- hack to avoid failing on inherited abstract blocks in where clauses
         unless inherited $ declarationWarning $ UselessAbstract r
@@ -1381,12 +1385,15 @@ instance MakeAbstract Clause where
     Clause x catchall lhs rhs <$> mkAbstract wh <*> mkAbstract with
 
 -- | Contents of a @where@ clause are abstract if the parent is.
+--
+--   These are inherited 'Abstract' blocks, indicated by an empty range
+--   for the @abstract@ keyword.
 instance MakeAbstract WhereClause where
   mkAbstract  NoWhere               = return $ NoWhere
   mkAbstract (AnyWhere r ds)        = dirty $ AnyWhere r
-                                                [Abstract noRange ds]
+                                                [Abstract empty ds]
   mkAbstract (SomeWhere r e m a ds) = dirty $ SomeWhere r e m a
-                                                [Abstract noRange ds]
+                                                [Abstract empty ds]
 
 -- | Make a declaration private.
 --
