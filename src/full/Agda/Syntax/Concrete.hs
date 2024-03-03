@@ -502,7 +502,7 @@ data Declaration
     --   is @fuseRange r ds@.
   | LoneConstructor KwRange [Declaration]
   | Macro       KwRange [Declaration]
-  | Postulate   Range [TypeSignatureOrInstanceBlock]
+  | Postulate   KwRange [TypeSignatureOrInstanceBlock]
   | Primitive   KwRange [TypeSignature]
   | Open        Range QName ImportDirective
   | Import      Range QName (Maybe AsName) !OpenShortHand ImportDirective
@@ -970,7 +970,7 @@ instance HasRange Declaration where
   getRange (InstanceB kwr _)       = getRange kwr
   getRange (Macro kwr ds)          = fuseRange kwr ds
   getRange (Private kwr _ ds)      = fuseRange kwr ds
-  getRange (Postulate r _)         = r
+  getRange (Postulate kwr ds)      = fuseRange kwr ds
   getRange (Primitive kwr ds)      = fuseRange kwr ds
   getRange (Module r _ _ _ _)      = r
   getRange (Infix f _)             = getRange f
@@ -1122,7 +1122,7 @@ instance KillRange Declaration where
   killRange (Private _ o d)         = killRangeN (Private empty) o d
   killRange (InstanceB _ d)         = killRangeN (InstanceB empty) d
   killRange (Macro _ d)             = killRangeN (Macro empty) d
-  killRange (Postulate _ t)         = killRangeN (Postulate noRange) t
+  killRange (Postulate _ t)         = killRangeN (Postulate empty) t
   killRange (Primitive _ t)         = killRangeN (Primitive empty) t
   killRange (Open _ q i)            = killRangeN (Open noRange) q i
   killRange (Import _ q a o i)      = killRangeN (\q a -> Import noRange q a o) q a i

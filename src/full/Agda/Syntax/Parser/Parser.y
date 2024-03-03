@@ -1324,7 +1324,7 @@ Macro : 'macro' Declarations0 { Macro (kwRange $1) $2 }
 
 -- Postulates.
 Postulate :: { Declaration }
-Postulate : 'postulate' Declarations0 { Postulate (fuseRange $1 $2) $2 }
+Postulate : 'postulate' Declarations0 { Postulate (kwRange $1) $2 }
 
 -- Primitives. Can only contain type signatures.
 Primitive :: { Declaration }
