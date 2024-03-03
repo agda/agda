@@ -74,7 +74,7 @@ data DeclarationWarning'
   = EmptyAbstract KwRange  -- ^ Empty @abstract@  block.
   | EmptyConstructor KwRange -- ^ Empty @data _ where@ block.
   | EmptyField KwRange       -- ^ Empty @field@     block.
-  | EmptyGeneralize Range  -- ^ Empty @variable@  block.
+  | EmptyGeneralize KwRange  -- ^ Empty @variable@  block.
   | EmptyInstance KwRange  -- ^ Empty @instance@  block
   | EmptyMacro KwRange     -- ^ Empty @macro@     block.
   | EmptyMutual KwRange    -- ^ Empty @mutual@    block.
@@ -315,7 +315,7 @@ instance HasRange DeclarationWarning' where
     EmptyAbstract kwr                  -> getRange kwr
     EmptyConstructor kwr               -> getRange kwr
     EmptyField kwr                     -> getRange kwr
-    EmptyGeneralize r                  -> r
+    EmptyGeneralize kwr                -> getRange kwr
     EmptyInstance kwr                  -> getRange kwr
     EmptyMacro kwr                     -> getRange kwr
     EmptyMutual kwr                    -> getRange kwr

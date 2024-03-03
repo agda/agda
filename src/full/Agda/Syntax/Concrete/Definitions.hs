@@ -308,7 +308,7 @@ niceDeclarations fixs ds = do
         FieldSig{} -> __IMPOSSIBLE__
 
         Generalize r [] -> justWarning $ EmptyGeneralize r
-        Generalize r sigs -> do
+        Generalize _ sigs -> do
           gs <- forM sigs $ \case
             sig@(TypeSig info tac x t) -> do
               -- Andreas, 2022-03-25, issue #5850:
@@ -1511,7 +1511,7 @@ notSoNiceDeclarations = \case
     NiceDataDef r _ _ _ _ x bs cs  -> [DataDef r x bs $ concatMap notSoNiceDeclarations cs]
     NiceRecDef r _ _ _ _ x dir bs ds -> [RecordDef r x dir bs ds]
     NicePatternSyn r _ n as p      -> [PatternSyn r n as p]
-    NiceGeneralize r _ i tac n e   -> [Generalize r [TypeSig i tac n e]]
+    NiceGeneralize _ _ i tac n e   -> [Generalize empty [TypeSig i tac n e]]
     NiceUnquoteDecl r _ _ i _ _ x e -> inst i [UnquoteDecl r x e]
     NiceUnquoteDef r _ _ _ _ x e    -> [UnquoteDef r x e]
     NiceUnquoteData r _ _ _ _ x xs e  -> [UnquoteData r x xs e]

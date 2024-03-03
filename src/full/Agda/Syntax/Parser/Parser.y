@@ -1295,7 +1295,7 @@ Generalize :: { Declaration }
 Generalize : 'variable' ArgTypeSignaturesOrEmpty
             { let
                 toGeneralize (Arg info (TypeSig _ tac x t)) = TypeSig info tac x t
-              in Generalize (fuseRange $1 $2) (map toGeneralize $2) }
+              in Generalize (kwRange $1) (map toGeneralize $2) }
 
 -- Mutually recursive declarations.
 Mutual :: { Declaration }
