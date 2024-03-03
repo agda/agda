@@ -426,7 +426,7 @@ warningNameDescription = \case
   UselessInstance_                 -> "`instance' blocks where they have no effect."
   UselessMacro_                    -> "`macro' blocks where they have no effect."
   UselessPrivate_                  -> "`private' blocks where they have no effect."
-  UselessPublic_                   -> "`public' blocks where they have no effect."
+  UselessPublic_                   -> "`public' directives that have no effect."
   UselessPatternDeclarationForRecord_ -> "`pattern' attributes where they have no effect."
   -- Scope and Type Checking Warnings
   AbsurdPatternRequiresNoRHS_      -> "Clauses with an absurd pattern that have a right hand side."

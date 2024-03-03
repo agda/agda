@@ -1538,7 +1538,7 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: UselessPublic
 
-     ``public`` blocks where they have no effect.
+     ``public`` directives where they have no effect.
 
 .. option:: UserWarning
 
