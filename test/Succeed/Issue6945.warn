@@ -29,7 +29,7 @@ declarations that introduce new identifiers into the module, like
 type signatures and data, record, and module declarations.
 when scope checking the declaration
   module M where
-Issue6945.agda:50,1-51,12
+Issue6945.agda:50,1-7
 warning: -W[no]UselessOpaque
 This 'opaque' block has no effect.
 when scope checking the declaration
@@ -74,7 +74,7 @@ type signatures and data, record, and module declarations.
 when scope checking the declaration
   module M where
 
-Issue6945.agda:50,1-51,12
+Issue6945.agda:50,1-7
 warning: -W[no]UselessOpaque
 This 'opaque' block has no effect.
 when scope checking the declaration

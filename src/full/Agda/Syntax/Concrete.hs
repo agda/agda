@@ -489,8 +489,8 @@ data Declaration
   | Infix Fixity (List1 Name)
   | Syntax      Name Notation -- ^ notation declaration for a name
   | PatternSyn  Range Name [WithHiding Name] Pattern
-  | Mutual      Range [Declaration]  -- @Range@ of the whole @mutual@ block.
-  | InterleavedMutual Range [Declaration]
+  | Mutual      KwRange [Declaration]
+  | InterleavedMutual KwRange [Declaration]
   | Abstract    KwRange [Declaration]
   | Private     KwRange Origin [Declaration]
     -- ^ In "Agda.Syntax.Concrete.Definitions" we generate private blocks
@@ -516,9 +516,9 @@ data Declaration
   | UnquoteData Range Name [Name] Expr
       -- ^ @unquoteDecl data d constructor xs = e@
   | Pragma      Pragma
-  | Opaque      Range [Declaration]
+  | Opaque      KwRange [Declaration]
     -- ^ @opaque ...@
-  | Unfolding   Range [QName]
+  | Unfolding   KwRange [QName]
     -- ^ @unfolding ...@
   deriving Eq
 
@@ -958,8 +958,8 @@ instance HasRange Declaration where
   getRange (RecordDef r _ _ _ _)   = r
   getRange (Record r _ _ _ _ _ _)  = r
   getRange (RecordDirective r)     = getRange r
-  getRange (Mutual r _)            = r
-  getRange (InterleavedMutual r _) = r
+  getRange (Mutual kwr ds)         = fuseRange kwr ds
+  getRange (InterleavedMutual kwr ds) = fuseRange kwr ds
   getRange (LoneConstructor kwr ds)= fuseRange kwr ds
   getRange (Abstract kwr ds)       = fuseRange kwr ds
   getRange (Generalize r _)        = r
@@ -980,8 +980,8 @@ instance HasRange Declaration where
   getRange (UnquoteDef r _ _)      = r
   getRange (UnquoteData r _ _ _)   = r
   getRange (Pragma p)              = getRange p
-  getRange (Opaque r _)            = r
-  getRange (Unfolding r _)         = r
+  getRange (Opaque kwr ds)         = fuseRange kwr ds
+  getRange (Unfolding kwr ds)      = fuseRange kwr ds
 
 instance HasRange LHS where
   getRange (LHS p eqns ws) = p `fuseRange` eqns `fuseRange` ws
@@ -1115,8 +1115,8 @@ instance KillRange Declaration where
   killRange (Infix f n)             = killRangeN Infix f n
   killRange (Syntax n no)           = killRangeN (\n -> Syntax n no) n
   killRange (PatternSyn _ n ns p)   = killRangeN (PatternSyn noRange) n ns p
-  killRange (Mutual _ d)            = killRangeN (Mutual noRange) d
-  killRange (InterleavedMutual _ d) = killRangeN (InterleavedMutual noRange) d
+  killRange (Mutual _ d)            = killRangeN (Mutual empty) d
+  killRange (InterleavedMutual _ d) = killRangeN (InterleavedMutual empty) d
   killRange (LoneConstructor _ d)   = killRangeN (LoneConstructor empty) d
   killRange (Abstract _ d)          = killRangeN (Abstract empty) d
   killRange (Private _ o d)         = killRangeN (Private empty) o d
@@ -1135,8 +1135,8 @@ instance KillRange Declaration where
   killRange (UnquoteDef _ x t)      = killRangeN (UnquoteDef noRange) x t
   killRange (UnquoteData _ xs cs t) = killRangeN (UnquoteData noRange) xs cs t
   killRange (Pragma p)              = killRangeN Pragma p
-  killRange (Opaque r xs)           = killRangeN Opaque r xs
-  killRange (Unfolding r xs)        = killRangeN Unfolding r xs
+  killRange (Opaque r xs)           = killRangeN (Opaque empty) xs
+  killRange (Unfolding r xs)        = killRangeN (Unfolding empty) xs
 
 instance KillRange Expr where
   killRange (Ident q)              = killRangeN Ident q

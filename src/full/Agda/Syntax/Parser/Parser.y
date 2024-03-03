@@ -1299,8 +1299,8 @@ Generalize : 'variable' ArgTypeSignaturesOrEmpty
 
 -- Mutually recursive declarations.
 Mutual :: { Declaration }
-Mutual : 'mutual' Declarations0  { Mutual (fuseRange $1 $2) $2 }
-       | 'interleaved' 'mutual' Declarations0 { InterleavedMutual (getRange ($1,$2,$3)) $3 }
+Mutual : 'mutual' Declarations0  { Mutual (kwRange $1) $2 }
+       | 'interleaved' 'mutual' Declarations0 { InterleavedMutual (kwRange ($1,$2)) $3 }
 
 -- Abstract declarations.
 Abstract :: { Declaration }
@@ -1800,10 +1800,10 @@ RecordInduction
     | 'coinductive' { Ranged (getRange $1) CoInductive }
 
 Opaque :: { Declaration }
-  : 'opaque' Declarations0     { Opaque (getRange ($1, $2)) $2 }
+  : 'opaque' Declarations0     { Opaque (kwRange $1) $2 }
 
 Unfolding :: { Declaration }
-  : 'unfolding' UnfoldingNames { Unfolding (getRange ($1, $2)) $2 }
+  : 'unfolding' UnfoldingNames { Unfolding (kwRange $1) $2 }
 
 UnfoldingNames :: { [QName] }
 UnfoldingNames

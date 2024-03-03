@@ -54,7 +54,7 @@ warning: -W[no]UselessOpaque
 This 'opaque' block has no effect.
 when scope checking the declaration
   opaque unfolding {}
-Issue2759.agda:16,1-17
+Issue2759.agda:16,1-7
 warning: -W[no]UselessOpaque
 This 'opaque' block has no effect.
 when scope checking the declaration
@@ -215,7 +215,7 @@ This 'opaque' block has no effect.
 when scope checking the declaration
   opaque unfolding {}
 
-Issue2759.agda:16,1-17
+Issue2759.agda:16,1-7
 warning: -W[no]UselessOpaque
 This 'opaque' block has no effect.
 when scope checking the declaration

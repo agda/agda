@@ -1518,7 +1518,7 @@ instance ToAbstract LetDef where
           Left err ->
             case definedName p0 of
               Nothing -> throwError err
-              Just x  -> toAbstract $ LetDef $ NiceMutual r tc cc YesPositivityCheck
+              Just x  -> toAbstract $ LetDef $ NiceMutual empty tc cc YesPositivityCheck
                 [ C.FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef
                     (setOrigin Inserted defaultArgInfo) tc cc x (C.Underscore (getRange x) Nothing)
                 , C.FunDef r __IMPOSSIBLE__ ConcreteDef NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ __IMPOSSIBLE__
@@ -1706,12 +1706,12 @@ instance ToAbstract NiceDeclaration where
       return [ A.Primitive di y t' ]
 
   -- Definitions (possibly mutual)
-    NiceMutual r tc cc pc ds -> do
+    NiceMutual kwr tc cc pc ds -> do
       reportSLn "scope.mutual" 20 ("starting checking mutual definitions: " ++ prettyShow ds)
       ds' <- toAbstract ds
       reportSLn "scope.mutual" 20 ("finishing checking mutual definitions")
       -- We only termination check blocks that do not have a measure.
-      return [ A.Mutual (MutualInfo tc cc pc r) ds' ]
+      return [ A.Mutual (MutualInfo tc cc pc (fuseRange kwr ds)) ds' ]
 
     C.NiceRecSig r er p a _pc _uc x ls t -> do
       ensureNoLetStms ls
@@ -2106,10 +2106,11 @@ instance ToAbstract NiceDeclaration where
       warning $ NicifierIssue (DeclarationWarning stk (InvalidConstructorBlock (getRange d)))
       pure []
 
-    NiceOpaque r names decls -> do
+    NiceOpaque kwr names decls -> do
       -- The names in an 'unfolding' clause must be unambiguous names of
       -- definitions:
       let
+        r = getRange (kwr, names, decls)
         findName c = resolveName c >>= \case
           A.DefinedName _ an _           -> pure (anameName an)
           A.FieldName (an :| [])         -> pure (anameName an)
@@ -2138,8 +2139,8 @@ instance ToAbstract NiceDeclaration where
       -- Keep going!
       localTC (\e -> e { envCurrentOpaqueId = Just oid }) $ do
         out <- traverse toAbstract decls
-        unless (any interestingOpaqueDecl out) $ warning UselessOpaque
-        pure $ UnfoldingDecl r names:out
+        unless (any interestingOpaqueDecl out) $ setCurrentRange kwr $ warning UselessOpaque
+        pure $ UnfoldingDecl r names : out
     where
       -- checking postulate or type sig. without checking safe flag
       toAbstractNiceAxiom :: KindOfName -> C.NiceDeclaration -> ScopeM A.Declaration

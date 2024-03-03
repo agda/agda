@@ -6,7 +6,7 @@ when scope checking the declaration
   record Foo where
     foo : Nat
     foo = zero
-Issue6802a.agda:6,1-9,15
+Issue6802a.agda:6,1-7
 warning: -W[no]UselessOpaque
 This 'opaque' block has no effect.
 when scope checking the declaration
@@ -29,7 +29,7 @@ when scope checking the declaration
     foo : Nat
     foo = zero
 
-Issue6802a.agda:6,1-9,15
+Issue6802a.agda:6,1-7
 warning: -W[no]UselessOpaque
 This 'opaque' block has no effect.
 when scope checking the declaration

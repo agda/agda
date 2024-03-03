@@ -110,11 +110,11 @@ import Agda.Utils.Impossible
 --   equipped with MEASURE pragmas, or whether there is a
 --   NO_TERMINATION_CHECK pragma.
 combineTerminationChecks :: Range -> [TerminationCheck] -> Nice TerminationCheck
-combineTerminationChecks r tcs = loop tcs where
+combineTerminationChecks r = loop
+  where
   loop :: [TerminationCheck] -> Nice TerminationCheck
   loop []         = return TerminationCheck
   loop (tc : tcs) = do
-    let failure r = declarationException $ InvalidMeasureMutual r
     tc' <- loop tcs
     case (tc, tc') of
       (TerminationCheck      , tc'                   ) -> return tc'
@@ -135,6 +135,7 @@ combineTerminationChecks r tcs = loop tcs where
       (Terminating           , NonTerminating        ) -> failure r
       (NonTerminating        , NoTerminationCheck    ) -> failure r
       (NonTerminating        , Terminating           ) -> failure r
+  failure r = declarationException $ InvalidMeasureMutual r
 
 combineCoverageChecks :: [CoverageCheck] -> CoverageCheck
 combineCoverageChecks = Fold.fold
@@ -258,7 +259,7 @@ niceDeclarations fixs ds = do
           tc <- combineTerminationChecks (getRange d) (mutualTermination checks)
           let cc = combineCoverageChecks              (mutualCoverage checks)
           let pc = combinePositivityChecks            (mutualPositivity checks)
-          (NiceMutual (getRange ds0) tc cc pc ds0 :) <$> inferMutualBlocks ds1
+          (NiceMutual empty tc cc pc ds0 :) <$> inferMutualBlocks ds1
       where
         untilAllDefined :: MutualChecks -> [NiceDeclaration] -> Nice InferredMutual
         untilAllDefined checks ds = do
@@ -853,21 +854,22 @@ niceDeclarations fixs ds = do
     -- Turn a new style `interleaved mutual' block into a new style mutual block
     -- by grouping the declarations in blocks.
     mkInterleavedMutual
-      :: Range                 -- Range of the whole @mutual@ block.
+      :: KwRange               -- Range of the @interleaved mutual@ keywords.
       -> [NiceDeclaration]     -- Declarations inside the block.
       -> Nice NiceDeclaration  -- Returns a 'NiceMutual'.
-    mkInterleavedMutual r ds' = do
-      (other, (m, checks, _)) <- runStateT (groupByBlocks r ds') (empty, mempty, 0)
+    mkInterleavedMutual kwr ds' = do
+      (other, (m, checks, _)) <- runStateT (groupByBlocks kwr ds') (empty, mempty, 0)
       let idecls = other ++ concatMap (uncurry interleavedDecl) (Map.toList m)
       let decls0 = map snd $ List.sortBy (compare `on` fst) idecls
       ps <- use loneSigs
       checkLoneSigs ps
       let decls = replaceSigs ps decls0
       -- process the checks
+      let r = fuseRange kwr ds'
       tc <- combineTerminationChecks r (mutualTermination checks)
       let cc = combineCoverageChecks   (mutualCoverage checks)
       let pc = combinePositivityChecks (mutualPositivity checks)
-      pure $ NiceMutual r tc cc pc decls
+      pure $ NiceMutual kwr tc cc pc decls
 
       where
 
@@ -944,8 +946,10 @@ niceDeclarations fixs ds = do
             _ -> __IMPOSSIBLE__ -- A FunDef always come after an existing FunSig!
         addFunDef _ = __IMPOSSIBLE__
 
-        addFunClauses :: Range -> [NiceDeclaration]
-                      -> StateT (InterleavedMutual, MutualChecks, DeclNum) Nice [(DeclNum, NiceDeclaration)]
+        addFunClauses ::
+             KwRange
+          -> [NiceDeclaration]
+          -> StateT (InterleavedMutual, MutualChecks, DeclNum) Nice [(DeclNum, NiceDeclaration)]
         addFunClauses r (nd@(NiceFunClause _ _ _ tc cc _ d@(FunClause lhs _ _ _)) : ds) = do
           -- get the candidate functions that are in this interleaved mutual block
           (m, checks, i) <- get
@@ -981,12 +985,14 @@ niceDeclarations fixs ds = do
                            $ List1.reverse $ fmap (\ (a,_,_) -> a) $ xf :| xfs
         addFunClauses _ _ = __IMPOSSIBLE__
 
-        groupByBlocks :: Range -> [NiceDeclaration]
-                      -> StateT (InterleavedMutual, MutualChecks, DeclNum) Nice [(DeclNum, NiceDeclaration)]
-        groupByBlocks r []       = pure []
-        groupByBlocks r (d : ds) = do
+        groupByBlocks ::
+              KwRange
+          -> [NiceDeclaration]
+          -> StateT (InterleavedMutual, MutualChecks, DeclNum) Nice [(DeclNum, NiceDeclaration)]
+        groupByBlocks kwr []       = pure []
+        groupByBlocks kwr (d : ds) = do
           -- for most branches we deal with the one declaration and move on
-          let oneOff act = act >>= \ ns -> (ns ++) <$> groupByBlocks r ds
+          let oneOff act = act >>= \ ns -> (ns ++) <$> groupByBlocks kwr ds
           case d of
             NiceDataSig{}                -> oneOff $ [] <$ addDataType d
             NiceDataDef r _ _ _ _ n _ ds -> oneOff $ [] <$ addDataConstructors (Just r) (Just n) ds
@@ -996,7 +1002,7 @@ niceDeclarations fixs ds = do
                       | not (isNoName n) -> oneOff $ [] <$ addFunDef d
             -- It's a bit different for fun clauses because we may need to grab a lot
             -- of clauses to handle ellipses properly.
-            NiceFunClause{}              -> addFunClauses r (d:ds)
+            NiceFunClause{}              -> addFunClauses kwr (d:ds)
             -- We do not need to worry about RecSig vs. RecDef: we know there's exactly one
             -- of each for record definitions and leaving them in place should be enough!
             _ -> oneOff $ do
@@ -1025,10 +1031,10 @@ niceDeclarations fixs ds = do
     -- Turn an old-style mutual block into a new style mutual block
     -- by pushing the definitions to the end.
     mkOldMutual
-      :: Range                 -- Range of the whole @mutual@ block.
+      :: KwRange               -- Range of the @mutual@ keyword (if any).
       -> [NiceDeclaration]     -- Declarations inside the block.
       -> Nice NiceDeclaration  -- Returns a 'NiceMutual'.
-    mkOldMutual r ds' = do
+    mkOldMutual kwr ds' = do
         -- Postulate the missing definitions
         let ps = loneSigsFromLoneNames loneNames
         checkLoneSigs ps
@@ -1094,8 +1100,8 @@ niceDeclarations fixs ds = do
             -- Opaque blocks can not participate in old-style mutual
             -- recursion. If some of the definitions are opaque then
             -- they all need to be.
-            NiceOpaque{}        ->
-              In3 d <$ do declarationException $ OpaqueInMutual (getRange d)
+            NiceOpaque r _ _    ->
+              In3 d <$ do declarationException $ OpaqueInMutual r
             NicePragma r pragma -> case pragma of
 
               OptionsPragma{}           -> top     -- error thrown in the type checker
@@ -1149,6 +1155,7 @@ niceDeclarations fixs ds = do
         -- Compute termination checking flag for mutual block
         tc0 <- use terminationCheckPragma
         let tcs = map termCheck ds
+        let r   = fuseRange kwr ds'
         tc <- combineTerminationChecks r (tc0:tcs)
 
         -- Compute coverage checking flag for mutual block
@@ -1161,15 +1168,9 @@ niceDeclarations fixs ds = do
         let pcs = map positivityCheckOldMutual ds
         let pc = combinePositivityChecks (pc0:pcs)
 
-        return $ NiceMutual r tc cc pc $ top ++ bottom
-        -- return $ NiceMutual r tc pc $ other ++ defs
-        -- return $ NiceMutual r tc pc $ sigs ++ other
+        return $ NiceMutual kwr tc cc pc $ top ++ bottom
+
       where
-
-        -- isTypeSig Axiom{}                     = True
-        -- isTypeSig d | LoneSig{} <- declKind d = True
-        -- isTypeSig _                           = False
-
         sigNames  = [ (r, x, k) | LoneSigDecl r k x <- map declKind ds' ]
         defNames  = [ (x, k) | LoneDefs k xs <- map declKind ds', x <- xs ]
         -- compute the set difference with equality just on names

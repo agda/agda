@@ -44,16 +44,17 @@ data DeclarationException'
       -- ^ In an interleaved mutual block, a constructor could belong to any of the data signatures ('Name')
   | InvalidMeasureMutual Range
       -- ^ In a mutual block, all or none need a MEASURE pragma.
-      --   Range is of mutual block.
+      --   'Range' is the one of the offending pragma or the mutual block.
   | UnquoteDefRequiresSignature (List1 Name)
   | BadMacroDef NiceDeclaration
-  | UnfoldingOutsideOpaque Range
+  | UnfoldingOutsideOpaque KwRange
     -- ^ An unfolding declaration was not the first declaration
     -- contained in an opaque block.
-  | OpaqueInMutual Range
-      -- ^ @opaque@ block nested in a @mutual@ block. This can never
-      -- happen, even with reordering.
-  | DisallowedInterleavedMutual Range String (List1 Name)
+  | OpaqueInMutual KwRange
+      -- ^ @opaque@ block nested in a @mutual@ block.
+      -- This can never happen, even with reordering.
+      -- The 'KwRange' is the one of the @opaque@ keyword.
+  | DisallowedInterleavedMutual KwRange String (List1 Name)
       -- ^ A declaration that breaks an implicit mutual block (named by
       -- the String argument) was present while the given lone type
       -- signatures were still without their definitions.
@@ -76,7 +77,7 @@ data DeclarationWarning'
   | EmptyGeneralize Range  -- ^ Empty @variable@  block.
   | EmptyInstance KwRange  -- ^ Empty @instance@  block
   | EmptyMacro KwRange     -- ^ Empty @macro@     block.
-  | EmptyMutual Range      -- ^ Empty @mutual@    block.
+  | EmptyMutual KwRange    -- ^ Empty @mutual@    block.
   | EmptyPostulate Range   -- ^ Empty @postulate@ block.
   | EmptyPrivate KwRange   -- ^ Empty @private@   block.
   | EmptyPrimitive Range   -- ^ Empty @primitive@ block.
@@ -302,9 +303,9 @@ instance HasRange DeclarationException' where
   getRange (InvalidMeasureMutual r)             = r
   getRange (UnquoteDefRequiresSignature x)      = getRange x
   getRange (BadMacroDef d)                      = getRange d
-  getRange (UnfoldingOutsideOpaque r)           = r
-  getRange (OpaqueInMutual r)                   = r
-  getRange (DisallowedInterleavedMutual r _ _)  = r
+  getRange (UnfoldingOutsideOpaque kwr)         = getRange kwr
+  getRange (OpaqueInMutual kwr)                 = getRange kwr
+  getRange (DisallowedInterleavedMutual kwr _ _)= getRange kwr
 
 instance HasRange DeclarationWarning where
   getRange (DeclarationWarning _ w) = getRange w
@@ -317,7 +318,7 @@ instance HasRange DeclarationWarning' where
     EmptyGeneralize r                  -> r
     EmptyInstance kwr                  -> getRange kwr
     EmptyMacro kwr                     -> getRange kwr
-    EmptyMutual r                      -> r
+    EmptyMutual kwr                    -> getRange kwr
     EmptyPostulate r                   -> r
     EmptyPrimitive r                   -> r
     EmptyPrivate kwr                   -> getRange kwr
