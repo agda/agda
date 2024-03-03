@@ -80,7 +80,7 @@ data DeclarationWarning'
   | EmptyMutual KwRange    -- ^ Empty @mutual@    block.
   | EmptyPostulate Range   -- ^ Empty @postulate@ block.
   | EmptyPrivate KwRange   -- ^ Empty @private@   block.
-  | EmptyPrimitive Range   -- ^ Empty @primitive@ block.
+  | EmptyPrimitive KwRange   -- ^ Empty @primitive@ block.
   | HiddenGeneralize Range
       -- ^ A 'Hidden' identifier in a @variable@ declaration.
       --   Hiding has no effect there as generalized variables are always hidden
@@ -320,7 +320,7 @@ instance HasRange DeclarationWarning' where
     EmptyMacro kwr                     -> getRange kwr
     EmptyMutual kwr                    -> getRange kwr
     EmptyPostulate r                   -> r
-    EmptyPrimitive r                   -> r
+    EmptyPrimitive kwr                 -> getRange kwr
     EmptyPrivate kwr                   -> getRange kwr
     HiddenGeneralize r                 -> r
     InvalidCatchallPragma r            -> r

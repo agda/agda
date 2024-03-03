@@ -1494,7 +1494,7 @@ notSoNiceDeclarations :: NiceDeclaration -> [Declaration]
 notSoNiceDeclarations = \case
     Axiom _ _ _ i rel x e          -> inst i [TypeSig rel empty x e]
     NiceField _ _ _ i tac x argt   -> [FieldSig i tac x argt]
-    PrimitiveFunction r _ _ x e    -> [Primitive r [TypeSig (argInfo e) empty x (unArg e)]]
+    PrimitiveFunction _ _ _ x e    -> [Primitive empty [TypeSig (argInfo e) empty x (unArg e)]]
     NiceMutual r _ _ _ ds          -> [Mutual r $ concatMap notSoNiceDeclarations ds]
     NiceLoneConstructor r ds       -> [LoneConstructor r $ concatMap notSoNiceDeclarations ds]
     NiceModule r _ _ e x tel ds    -> [Module r e x tel ds]

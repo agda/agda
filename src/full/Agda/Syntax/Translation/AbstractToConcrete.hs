@@ -1234,7 +1234,7 @@ instance ToConcrete A.Declaration where
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
       t' <- traverse toConcreteTop t
-      return [C.Primitive (getRange i) [C.TypeSig (argInfo t') empty x' (unArg t')]]
+      return [C.Primitive empty [C.TypeSig (argInfo t') empty x' (unArg t')]]
         -- Primitives are always relevant.
 
   toConcrete (A.FunDef i _ cs) =
