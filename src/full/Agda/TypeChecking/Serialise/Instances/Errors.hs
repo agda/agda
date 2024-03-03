@@ -229,6 +229,7 @@ instance EmbPrj DeclarationWarning' where
     InvalidConstructorBlock a         -> icodeN 31 InvalidConstructorBlock a
     MissingDeclarations a             -> icodeN 32 MissingDeclarations a
     HiddenGeneralize r                -> icodeN 33 HiddenGeneralize r
+    UselessMacro r                    -> icodeN 34 UselessMacro r
     SafeFlagEta                    {} -> __IMPOSSIBLE__
     SafeFlagInjective              {} -> __IMPOSSIBLE__
     SafeFlagNoCoverageCheck        {} -> __IMPOSSIBLE__
@@ -273,6 +274,7 @@ instance EmbPrj DeclarationWarning' where
     [31,r]   -> valuN InvalidConstructorBlock r
     [32,r]   -> valuN MissingDeclarations r
     [33,r]   -> valuN HiddenGeneralize r
+    [34,r]   -> valuN UselessMacro r
     _ -> malformed
 
 instance EmbPrj LibWarning where
@@ -464,6 +466,7 @@ instance EmbPrj WarningName where
     NoMain_                                      -> 111
     DuplicateRewriteRule_                        -> 112
     MissingTypeSignatureForOpaque_               -> 113
+    UselessMacro_                                -> 114
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -579,6 +582,7 @@ instance EmbPrj WarningName where
     111 -> return NoMain_
     112 -> return DuplicateRewriteRule_
     113 -> return MissingTypeSignatureForOpaque_
+    114 -> return UselessMacro_
     _   -> malformed
 
 

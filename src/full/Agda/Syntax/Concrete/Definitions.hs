@@ -1313,13 +1313,29 @@ niceDeclarations fixs ds = do
       i@InstanceDef{} -> return i
       _               -> dirty $ InstanceDef r0
 
-    macroBlock r ds = mapM mkMacro ds
+    macroBlock
+      :: KwRange  -- Range of @macro@ keyword.
+      -> [NiceDeclaration]
+      -> Nice [NiceDeclaration]
+    macroBlock r ds = do
+      (ds', anyChange) <- runChangeT $ mkMacro ds
+      if anyChange then return ds' else do
+        declarationWarning $ UselessMacro r
+        return ds -- no change!
 
-    mkMacro :: NiceDeclaration -> Nice NiceDeclaration
-    mkMacro = \case
-        FunSig r p a i _ rel tc cc x e -> return $ FunSig r p a i MacroDef rel tc cc x e
-        d@FunDef{}                     -> return d
-        d                              -> declarationException (BadMacroDef d)
+class MakeMacro a where
+  mkMacro :: UpdaterT Nice a
+
+  default mkMacro :: (Traversable f, MakeMacro a', a ~ f a') => UpdaterT Nice a
+  mkMacro = traverse mkMacro
+
+instance MakeMacro a => MakeMacro [a]
+
+instance MakeMacro NiceDeclaration where
+  mkMacro = \case
+    FunSig r p a i _ rel tc cc x e -> dirty $ FunSig r p a i MacroDef rel tc cc x e
+    d@FunDef{}                     -> return d
+    d                              -> lift $ declarationException $ BadMacroDef d
 
 -- | Make a declaration abstract.
 --

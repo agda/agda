@@ -1516,6 +1516,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      ``instance`` blocks where they have no effect.
 
+.. option:: UselessMacro
+
+     ``macro`` blocks where they have no effect.
+
 .. option:: UselessOpaque
 
      ``opaque`` blocks that have no effect.

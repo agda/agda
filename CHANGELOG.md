@@ -12,6 +12,8 @@ Installation
 Pragmas and options
 -------------------
 
+* New warning `UselessMacro` when a `macro` block does not contain any function definitions.
+
 Syntax
 ------
 

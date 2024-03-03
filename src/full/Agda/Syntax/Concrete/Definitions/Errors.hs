@@ -137,6 +137,8 @@ data DeclarationWarning'
       -- ^ @abstract@ block with nothing that can (newly) be made abstract.
   | UselessInstance KwRange
       -- ^ @instance@ block with nothing that can (newly) become an instance.
+  | UselessMacro KwRange
+      -- ^ @macro@ block with nothing that can (newly) be made macro.
   | UselessPrivate KwRange
       -- ^ @private@ block with nothing that can (newly) be made private.
   deriving (Show, Generic)
@@ -188,6 +190,7 @@ declarationWarningName' = \case
   UnknownNamesInPolarityPragmas{}   -> UnknownNamesInPolarityPragmas_
   UselessAbstract{}                 -> UselessAbstract_
   UselessInstance{}                 -> UselessInstance_
+  UselessMacro{}                    -> UselessMacro_
   UselessPrivate{}                  -> UselessPrivate_
 
 -- | Nicifier warnings turned into errors in @--safe@ mode.
@@ -238,6 +241,7 @@ unsafeDeclarationWarning' = \case
   UnknownNamesInPolarityPragmas{}   -> False
   UselessAbstract{}                 -> False
   UselessInstance{}                 -> False
+  UselessMacro{}                    -> False
   UselessPrivate{}                  -> False
 
 -- | Pragmas not allowed in @--safe@ mode produce an 'unsafeDeclarationWarning'.
@@ -348,6 +352,7 @@ instance HasRange DeclarationWarning' where
     UnknownNamesInPolarityPragmas xs   -> getRange xs
     UselessAbstract kwr                -> getRange kwr
     UselessInstance kwr                -> getRange kwr
+    UselessMacro kwr                   -> getRange kwr
     UselessPrivate kwr                 -> getRange kwr
 
 -- These error messages can (should) be terminated by a dot ".",
@@ -445,6 +450,9 @@ instance Pretty DeclarationWarning' where
 
     UselessInstance _ -> fsep $
       pwords "Using instance here has no effect. Instance applies only to declarations that introduce new identifiers into the module, like type signatures and axioms."
+
+    UselessMacro _ -> fsep $
+      pwords "Using a macro block here has no effect. `macro' applies only to function definitions."
 
     EmptyMutual    _ -> fsep $ pwords "Empty mutual block."
 

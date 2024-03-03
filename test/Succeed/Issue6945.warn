@@ -18,6 +18,10 @@ warning: -W[no]UselessInstance
 Using instance here has no effect. Instance applies only to
 declarations that introduce new identifiers into the module, like
 type signatures and axioms.
+Issue6945.agda:46,1-6
+warning: -W[no]UselessMacro
+Using a macro block here has no effect. 'macro' applies only to
+function definitions.
 Issue6945.agda:13,3-10
 warning: -W[no]UselessPrivate
 Using private here has no effect. Private applies only to
@@ -56,6 +60,11 @@ warning: -W[no]UselessInstance
 Using instance here has no effect. Instance applies only to
 declarations that introduce new identifiers into the module, like
 type signatures and axioms.
+
+Issue6945.agda:46,1-6
+warning: -W[no]UselessMacro
+Using a macro block here has no effect. 'macro' applies only to
+function definitions.
 
 Issue6945.agda:13,3-10
 warning: -W[no]UselessPrivate

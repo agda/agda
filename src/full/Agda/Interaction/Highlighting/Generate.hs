@@ -514,6 +514,7 @@ warningHighlighting' b w = case tcWarning w of
       -- suggesting that it is not generalized over.
     UselessAbstract{}                -> deadcodeHighlighting w
     UselessInstance{}                -> deadcodeHighlighting w
+    UselessMacro{}                   -> deadcodeHighlighting w
     UselessPrivate{}                 -> deadcodeHighlighting w
     InvalidNoPositivityCheckPragma{} -> deadcodeHighlighting w
     InvalidNoUniverseCheckPragma{}   -> deadcodeHighlighting w

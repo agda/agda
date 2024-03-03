@@ -231,6 +231,7 @@ data WarningName
   | UnknownNamesInPolarityPragmas_
   | UselessAbstract_
   | UselessInstance_
+  | UselessMacro_
   | UselessPrivate_
   -- Scope and Type Checking Warnings
   | AbsurdPatternRequiresNoRHS_
@@ -423,6 +424,7 @@ warningNameDescription = \case
   UselessHiding_                   -> "Names in `hiding' directive that are anyway not imported."
   UselessInline_                   -> "`INLINE' pragmas where they have no effect."
   UselessInstance_                 -> "`instance' blocks where they have no effect."
+  UselessMacro_                    -> "`macro' blocks where they have no effect."
   UselessPrivate_                  -> "`private' blocks where they have no effect."
   UselessPublic_                   -> "`public' blocks where they have no effect."
   UselessPatternDeclarationForRecord_ -> "`pattern' attributes where they have no effect."
