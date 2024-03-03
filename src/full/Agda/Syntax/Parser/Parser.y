@@ -1319,7 +1319,7 @@ Instance : 'instance' Declarations0  { InstanceB (kwRange $1) $2 }
 
 -- Macro declarations.
 Macro :: { Declaration }
-Macro : 'macro' Declarations0 { Macro (fuseRange $1 $2) $2 }
+Macro : 'macro' Declarations0 { Macro (kwRange $1) $2 }
 
 
 -- Postulates.

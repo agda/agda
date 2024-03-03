@@ -75,7 +75,7 @@ data DeclarationWarning'
   | EmptyField Range       -- ^ Empty @field@     block.
   | EmptyGeneralize Range  -- ^ Empty @variable@  block.
   | EmptyInstance KwRange  -- ^ Empty @instance@  block
-  | EmptyMacro Range       -- ^ Empty @macro@     block.
+  | EmptyMacro KwRange     -- ^ Empty @macro@     block.
   | EmptyMutual Range      -- ^ Empty @mutual@    block.
   | EmptyPostulate Range   -- ^ Empty @postulate@ block.
   | EmptyPrivate KwRange   -- ^ Empty @private@   block.
@@ -312,7 +312,7 @@ instance HasRange DeclarationWarning' where
     EmptyField r                       -> r
     EmptyGeneralize r                  -> r
     EmptyInstance kwr                  -> getRange kwr
-    EmptyMacro r                       -> r
+    EmptyMacro kwr                     -> getRange kwr
     EmptyMutual r                      -> r
     EmptyPostulate r                   -> r
     EmptyPrimitive r                   -> r

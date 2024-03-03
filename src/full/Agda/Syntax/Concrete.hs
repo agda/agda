@@ -501,7 +501,7 @@ data Declaration
     --   @instance@ keyword.  The range of the whole block @InstanceB r ds@
     --   is @fuseRange r ds@.
   | LoneConstructor KwRange [Declaration]
-  | Macro       Range [Declaration]
+  | Macro       KwRange [Declaration]
   | Postulate   Range [TypeSignatureOrInstanceBlock]
   | Primitive   Range [TypeSignature]
   | Open        Range QName ImportDirective
@@ -968,7 +968,7 @@ instance HasRange Declaration where
                                    = r
   getRange (Import r _ _ _ _)      = r
   getRange (InstanceB kwr _)       = getRange kwr
-  getRange (Macro r _)             = r
+  getRange (Macro kwr ds)          = fuseRange kwr ds
   getRange (Private kwr _ ds)      = fuseRange kwr ds
   getRange (Postulate r _)         = r
   getRange (Primitive r _)         = r
@@ -1121,7 +1121,7 @@ instance KillRange Declaration where
   killRange (Abstract _ d)          = killRangeN (Abstract empty) d
   killRange (Private _ o d)         = killRangeN (Private empty) o d
   killRange (InstanceB _ d)         = killRangeN (InstanceB empty) d
-  killRange (Macro _ d)             = killRangeN (Macro noRange) d
+  killRange (Macro _ d)             = killRangeN (Macro empty) d
   killRange (Postulate _ t)         = killRangeN (Postulate noRange) t
   killRange (Primitive _ t)         = killRangeN (Primitive noRange) t
   killRange (Open _ q i)            = killRangeN (Open noRange) q i
