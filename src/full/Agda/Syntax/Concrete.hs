@@ -475,7 +475,7 @@ data Declaration
       -- ^ Axioms and functions can be irrelevant. (Hiding should be NotHidden)
   | FieldSig IsInstance TacticAttribute Name (Arg Expr)
   | Generalize Range [TypeSignature] -- ^ Variables to be generalized, can be hidden and/or irrelevant.
-  | Field Range [FieldSignature]
+  | Field KwRange [FieldSignature]
   | FunClause LHS RHS WhereClause Bool
   | DataSig     Range Erased Name [LamBinding] Expr -- ^ lone data signature in mutual block
   | Data        Range Erased Name [LamBinding] Expr
@@ -949,7 +949,7 @@ instance HasRange RecordDirective where
 instance HasRange Declaration where
   getRange (TypeSig _ _ x t)       = fuseRange x t
   getRange (FieldSig _ _ x t)      = fuseRange x t
-  getRange (Field r _)             = r
+  getRange (Field kwr ds)          = fuseRange kwr ds
   getRange (FunClause lhs rhs wh _) = fuseRange lhs rhs `fuseRange` wh
   getRange (DataSig r _ _ _ _)     = r
   getRange (Data r _ _ _ _ _)      = r
@@ -1102,7 +1102,7 @@ instance KillRange Declaration where
   killRange (TypeSig i t n e)       = killRangeN (TypeSig i) t n e
   killRange (FieldSig i t n e)      = killRangeN FieldSig i t n e
   killRange (Generalize r ds )      = killRangeN (Generalize noRange) ds
-  killRange (Field r fs)            = killRangeN (Field noRange) fs
+  killRange (Field r fs)            = killRangeN (Field empty) fs
   killRange (FunClause l r w ca)    = killRangeN FunClause l r w ca
   killRange (DataSig _ er n l e)    = killRangeN (DataSig noRange) er n l e
   killRange (Data _ er n l e c)     = killRangeN (Data noRange) er n l e c

@@ -73,7 +73,7 @@ data DeclarationWarning'
   -- Please keep in alphabetical order.
   = EmptyAbstract KwRange  -- ^ Empty @abstract@  block.
   | EmptyConstructor KwRange -- ^ Empty @data _ where@ block.
-  | EmptyField Range       -- ^ Empty @field@     block.
+  | EmptyField KwRange       -- ^ Empty @field@     block.
   | EmptyGeneralize Range  -- ^ Empty @variable@  block.
   | EmptyInstance KwRange  -- ^ Empty @instance@  block
   | EmptyMacro KwRange     -- ^ Empty @macro@     block.
@@ -314,7 +314,7 @@ instance HasRange DeclarationWarning' where
   getRange = \case
     EmptyAbstract kwr                  -> getRange kwr
     EmptyConstructor kwr               -> getRange kwr
-    EmptyField r                       -> r
+    EmptyField kwr                     -> getRange kwr
     EmptyGeneralize r                  -> r
     EmptyInstance kwr                  -> getRange kwr
     EmptyMacro kwr                     -> getRange kwr

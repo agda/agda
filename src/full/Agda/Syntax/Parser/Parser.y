@@ -1288,7 +1288,7 @@ Fields : 'field' ArgTypeSignaturesOrEmpty
                            Instance _ -> InstanceDef empty  -- no @instance@ keyword here
                            _          -> NotInstanceDef
                 toField (Arg info (TypeSig info' tac x t)) = FieldSig (inst info') tac x (Arg info t)
-              in Field (fuseRange $1 $2) $ map toField $2 }
+              in Field (kwRange $1) $ map toField $2 }
 
 -- Variable declarations for automatic generalization
 Generalize :: { Declaration }
