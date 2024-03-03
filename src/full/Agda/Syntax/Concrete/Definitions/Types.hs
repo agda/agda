@@ -76,7 +76,7 @@ data NiceDeclaration
       --   Andreas, 2017-01-01: Because of issue #2372, we add 'IsInstance' here.
       --   An alias should know that it is an instance.
   | NiceDataDef Range Origin IsAbstract PositivityCheck UniverseCheck Name [LamBinding] [NiceConstructor]
-  | NiceLoneConstructor Range [NiceConstructor]
+  | NiceLoneConstructor KwRange [NiceConstructor]
   | NiceRecDef Range Origin IsAbstract PositivityCheck UniverseCheck Name RecordDirectives [LamBinding] [Declaration]
       -- ^ @(Maybe Range)@ gives range of the 'pattern' declaration.
   | NicePatternSyn Range Access Name [WithHiding Name] Pattern
@@ -214,7 +214,7 @@ instance HasRange NiceDeclaration where
   getRange (FunSig r _ _ _ _ _ _ _ _ _)    = r
   getRange (FunDef r _ _ _ _ _ _ _)        = r
   getRange (NiceDataDef r _ _ _ _ _ _ _)   = r
-  getRange (NiceLoneConstructor r _)       = r
+  getRange (NiceLoneConstructor r ds)      = fuseRange r ds
   getRange (NiceRecDef r _ _ _ _ _ _ _ _)  = r
   getRange (NiceRecSig r _ _ _ _ _ _ _ _)  = r
   getRange (NiceDataSig r _ _ _ _ _ _ _ _) = r

@@ -500,7 +500,7 @@ data Declaration
     -- ^ The 'KwRange' here only refers to the range of the
     --   @instance@ keyword.  The range of the whole block @InstanceB r ds@
     --   is @fuseRange r ds@.
-  | LoneConstructor Range [Declaration]
+  | LoneConstructor KwRange [Declaration]
   | Macro       Range [Declaration]
   | Postulate   Range [TypeSignatureOrInstanceBlock]
   | Primitive   Range [TypeSignature]
@@ -960,7 +960,7 @@ instance HasRange Declaration where
   getRange (RecordDirective r)     = getRange r
   getRange (Mutual r _)            = r
   getRange (InterleavedMutual r _) = r
-  getRange (LoneConstructor r _)   = r
+  getRange (LoneConstructor kwr ds)= fuseRange kwr ds
   getRange (Abstract kwr ds)       = fuseRange kwr ds
   getRange (Generalize r _)        = r
   getRange (Open r _ _)            = r
@@ -1117,7 +1117,7 @@ instance KillRange Declaration where
   killRange (PatternSyn _ n ns p)   = killRangeN (PatternSyn noRange) n ns p
   killRange (Mutual _ d)            = killRangeN (Mutual noRange) d
   killRange (InterleavedMutual _ d) = killRangeN (InterleavedMutual noRange) d
-  killRange (LoneConstructor _ d)   = killRangeN (LoneConstructor noRange) d
+  killRange (LoneConstructor _ d)   = killRangeN (LoneConstructor empty) d
   killRange (Abstract _ d)          = killRangeN (Abstract empty) d
   killRange (Private _ o d)         = killRangeN (Private empty) o d
   killRange (InstanceB _ d)         = killRangeN (InstanceB empty) d

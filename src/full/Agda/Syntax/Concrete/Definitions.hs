@@ -990,7 +990,7 @@ niceDeclarations fixs ds = do
           case d of
             NiceDataSig{}                -> oneOff $ [] <$ addDataType d
             NiceDataDef r _ _ _ _ n _ ds -> oneOff $ [] <$ addDataConstructors (Just r) (Just n) ds
-            NiceLoneConstructor r ds     -> oneOff $ [] <$ addDataConstructors Nothing Nothing ds
+            NiceLoneConstructor _ ds     -> oneOff $ [] <$ addDataConstructors Nothing Nothing ds
             FunSig{}                     -> oneOff $ [] <$ addFunType d
             FunDef _ _ _  _ _ _ n cs
                       | not (isNoName n) -> oneOff $ [] <$ addFunDef d

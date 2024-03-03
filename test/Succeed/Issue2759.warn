@@ -1,7 +1,7 @@
 Issue2759.agda:9,1-9
 warning: -W[no]EmptyAbstract
 Empty abstract block.
-Issue2759.agda:10,1-5
+Issue2759.agda:10,1-13
 warning: -W[no]EmptyConstructor
 Empty constructor block.
 Issue2759.agda:11,1-9
@@ -67,11 +67,11 @@ Issue2759.agda:25,38-46
 warning: -W[no]EmptyAbstract
 Empty abstract block.
 when scope checking let abstract in Set
-Issue2759.agda:26,12-16
+Issue2759.agda:26,12-24
 warning: -W[no]EmptyConstructor
 Empty constructor block.
 when scope checking λ (let data _ where) → let data _ where in Set
-Issue2759.agda:26,38-42
+Issue2759.agda:26,38-50
 warning: -W[no]EmptyConstructor
 Empty constructor block.
 when scope checking let data _ where in Set
@@ -147,7 +147,7 @@ Issue2759.agda:9,1-9
 warning: -W[no]EmptyAbstract
 Empty abstract block.
 
-Issue2759.agda:10,1-5
+Issue2759.agda:10,1-13
 warning: -W[no]EmptyConstructor
 Empty constructor block.
 
@@ -231,12 +231,12 @@ warning: -W[no]EmptyAbstract
 Empty abstract block.
 when scope checking let abstract in Set
 
-Issue2759.agda:26,12-16
+Issue2759.agda:26,12-24
 warning: -W[no]EmptyConstructor
 Empty constructor block.
 when scope checking λ (let data _ where) → let data _ where in Set
 
-Issue2759.agda:26,38-42
+Issue2759.agda:26,38-50
 warning: -W[no]EmptyConstructor
 Empty constructor block.
 when scope checking let data _ where in Set

@@ -1266,7 +1266,7 @@ RecordSig
 
 Constructor :: { Declaration }
 Constructor : 'data' '_' 'where' Declarations0
-  { LoneConstructor (getRange ($1,$4)) $4 }
+  { LoneConstructor (kwRange ($1,$2,$3)) $4 }
 
 -- Declaration of record constructor name.
 RecordConstructorName :: { (Name, IsInstance) }
