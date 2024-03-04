@@ -74,6 +74,30 @@ Interaction and emacs mode
 Backends
 --------
 
+API
+---
+
+Highlighting some changes to Agda as a library.
+
+* New module `Agda.Syntax.Common.KeywordRange` providing type `KwRange` isomorphic to `Range`
+  to indicate source positions that just span keywords.
+  The motiviation for `KwRange` is to distinguish such ranges from ranges for whole subtrees,
+  e.g. in data type `Agda.Syntax.Concrete.Declaration`.
+
+  API:
+  ```haskell
+  module Agda.Syntax.Common.KeywordRange where
+
+  type KwRange
+
+  -- From Range to KwRange
+  kwRange :: HasRange a => a -> KwRange
+
+  -- From KwRange to Range
+  instance HasRange KwRange where
+    getRange :: KwRange -> Range
+  ```
+
 Other issues closed
 -------------------
 
