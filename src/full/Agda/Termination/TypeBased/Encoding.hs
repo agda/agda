@@ -259,13 +259,13 @@ termToSizeType t@(Def q elims) = do
   where
     collectChosenVariables :: Maybe (QName -> Bool) -> SizeType -> MonadEncoder SizeType
     collectChosenVariables predicate t@(SizeTree (SDefined i) rest) = do
-      case predicate of 
+      case predicate of
         Just p | not (p q) -> do
           pure (SizeTree SUndefined rest)
-        _ -> do 
+        _ -> do
           constInfo <- ME $ getConstInfo q
           case theDef constInfo of
-            Record { recInduction } -> do 
+            Record { recInduction } -> do
               when (recInduction == Just CoInductive) $ modify (\s -> s { esContravariantVariables = i : esContravariantVariables s })
             _ -> pure ()
           modify (\s -> s { esChosenVariables = i : esChosenVariables s} )
