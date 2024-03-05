@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 authors:
-- name: "The Agda Team"
+- name: "Agda Developers"
 title: "Agda"
 version: 2.6.5
 license-url: "https://agda.readthedocs.io/en/v2.6.5/team.html"
