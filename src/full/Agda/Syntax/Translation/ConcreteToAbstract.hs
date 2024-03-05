@@ -91,7 +91,7 @@ import Agda.Utils.CallStack ( HasCallStack, withCurrentCallStack )
 import Agda.Utils.Char
 import Agda.Utils.Either
 import Agda.Utils.FileName
-import Agda.Utils.Function ( applyWhen )
+import Agda.Utils.Function ( applyWhen, applyWhenM )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -2078,13 +2078,14 @@ instance ToAbstract NiceDeclaration where
       (as, p) <- withLocalVars $ do
          -- Expand puns if optHiddenArgumentPuns is True.
          puns <- optHiddenArgumentPuns <$> pragmaOptions
-         p <- return $ if puns then expandPuns p else p
-         p <- toAbstract =<< parsePatternSyn p
+         p <- parsePatternSyn $ applyWhen puns expandPuns p
+         p <- toAbstract p
          when (containsAsPattern p) $
            typeError $ GenericError $
              "@-patterns are not allowed in pattern synonyms"
          checkPatternLinearity p $ \ys ->
            typeError $ RepeatedVariablesInPattern ys
+         -- Bind the pattern variables accumulated by @ToAbstract Pattern@ applied to the rhs.
          bindVarsToBind
          let err = "Dot or equality patterns are not allowed in pattern synonyms. Maybe use '_' instead."
          p <- noDotorEqPattern err p
