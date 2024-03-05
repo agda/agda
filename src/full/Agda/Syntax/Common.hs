@@ -225,11 +225,30 @@ instance PatternMatchingAllowed Induction where
   patternMatchingAllowed = (== Inductive)
 
 ---------------------------------------------------------------------------
--- * Hiding
+-- * Overlapping instances
 ---------------------------------------------------------------------------
 
 data Overlappable = YesOverlap | NoOverlap
   deriving (Show, Eq, Ord)
+
+-- | Just for the 'Hiding' instance. Should never combine different
+--   overlapping.
+instance Semigroup Overlappable where
+  NoOverlap  <> NoOverlap  = NoOverlap
+  YesOverlap <> YesOverlap = YesOverlap
+  _          <> _          = __IMPOSSIBLE__
+
+instance Monoid Overlappable where
+  mempty  = NoOverlap
+  mappend = (<>)
+
+instance NFData Overlappable where
+  rnf NoOverlap  = ()
+  rnf YesOverlap = ()
+
+---------------------------------------------------------------------------
+-- * Hiding
+---------------------------------------------------------------------------
 
 data Hiding  = Hidden | Instance Overlappable | NotHidden
   deriving (Show, Eq, Ord)
@@ -243,12 +262,8 @@ hidingToString = \case
   NotHidden  -> "visible"
   Instance{} -> "instance"
 
--- | Just for the 'Hiding' instance. Should never combine different
---   overlapping.
-instance Semigroup Overlappable where
-  NoOverlap  <> NoOverlap  = NoOverlap
-  YesOverlap <> YesOverlap = YesOverlap
-  _          <> _          = __IMPOSSIBLE__
+instance Null Hiding where
+  empty = NotHidden
 
 -- | 'Hiding' is an idempotent partial monoid, with unit 'NotHidden'.
 --   'Instance' and 'NotHidden' are incompatible.
@@ -259,12 +274,8 @@ instance Semigroup Hiding where
   Instance o <> Instance o' = Instance (o <> o')
   _          <> _           = __IMPOSSIBLE__
 
-instance Monoid Overlappable where
-  mempty  = NoOverlap
-  mappend = (<>)
-
 instance Monoid Hiding where
-  mempty = NotHidden
+  mempty = empty
   mappend = (<>)
 
 instance HasRange Hiding where
@@ -272,10 +283,6 @@ instance HasRange Hiding where
 
 instance KillRange Hiding where
   killRange = id
-
-instance NFData Overlappable where
-  rnf NoOverlap  = ()
-  rnf YesOverlap = ()
 
 instance NFData Hiding where
   rnf Hidden       = ()
