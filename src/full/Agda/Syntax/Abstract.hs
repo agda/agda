@@ -1014,12 +1014,11 @@ patternToExpr = \case
 type PatternSynDefn = ([WithHiding Name], Pattern' Void)
 type PatternSynDefns = Map QName PatternSynDefn
 
-lambdaLiftExpr :: [Name] -> Expr -> Expr
-lambdaLiftExpr ns e
-  = foldr
-      (\ n -> Lam exprNoRange (mkDomainFree $ defaultNamedArg $ mkBinder_ n))
-      e
-      ns
+lambdaLiftExpr :: [WithHiding Name] -> Expr -> Expr
+lambdaLiftExpr ns e = foldr f e ns
+  where
+  f (WithHiding h n) = Lam exprNoRange $ setHiding h $ mkDomainFree $ defaultNamedArg $ mkBinder_ n
+
 
 -- NOTE: This is only used on expressions that come from right-hand sides of pattern synonyms, and
 -- thus does not have to handle all forms of expressions.
