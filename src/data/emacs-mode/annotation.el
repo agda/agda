@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t; -*-
 ;;; annotation.el --- Functions for annotating text with faces and help bubbles
 
 ;; Version: 1.0
