@@ -41,6 +41,7 @@ on:
     - '!hie*.yaml'
     - '!stack-*.yaml'
     - '!touchup.sh'
+    - '!CITATION.cff'
 
   pull_request:
     paths: *path_list

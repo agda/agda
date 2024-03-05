@@ -312,6 +312,7 @@ name: Build, Test, and Benchmark
     - '!hie*.yaml'
     - '!stack-*.yaml'
     - '!touchup.sh'
+    - '!CITATION.cff'
   push:
     branches:
     - master
@@ -345,4 +346,5 @@ name: Build, Test, and Benchmark
     - '!hie*.yaml'
     - '!stack-*.yaml'
     - '!touchup.sh'
+    - '!CITATION.cff'
   workflow_dispatch: null
