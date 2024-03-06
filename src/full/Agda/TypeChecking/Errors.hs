@@ -269,7 +269,7 @@ errorString err = case err of
   UninstantiatedDotPattern{}               -> "UninstantiatedDotPattern"
   ForcedConstructorNotInstantiated{}       -> "ForcedConstructorNotInstantiated"
   SolvedButOpenHoles{}                     -> "SolvedButOpenHoles"
-  UnusedVariableInPatternSynonym           -> "UnusedVariableInPatternSynonym"
+  UnusedVariableInPatternSynonym _         -> "UnusedVariableInPatternSynonym"
   UnquoteFailed{}                          -> "UnquoteFailed"
   DeBruijnIndexOutOfScope{}                -> "DeBruijnIndexOutOfScope"
   WithClausePatternMismatch{}              -> "WithClausePatternMismatch"
@@ -1085,8 +1085,8 @@ instance PrettyTCM TypeError where
         prDef (x, (xs, p)) = prettyA (A.PatternSynDef x (map (fmap BindName) xs) p) <?> ("at" <+> pretty r)
           where r = nameBindingSite $ qnameName x
 
-    UnusedVariableInPatternSynonym -> fsep $
-      pwords "Unused variable in pattern synonym."
+    UnusedVariableInPatternSynonym x -> fsep $
+      pwords "Unused variable in pattern synonym: " ++ [pretty x]
 
     UnboundVariablesInPatternSynonym xs -> fsep $
       pwords "Unbound variables in pattern synonym: " ++

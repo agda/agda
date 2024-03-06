@@ -4715,8 +4715,10 @@ data TypeError
         | BadArgumentsToPatternSynonym A.AmbiguousQName
         | TooFewArgumentsToPatternSynonym A.AmbiguousQName
         | CannotResolveAmbiguousPatternSynonym (List1 (A.QName, A.PatternSynDefn))
-        | UnusedVariableInPatternSynonym
+        | UnusedVariableInPatternSynonym C.Name
+            -- ^ This variable is only bound on the lhs of the pattern synonym, not on the rhs.
         | UnboundVariablesInPatternSynonym [A.Name]
+            -- ^ These variables are only bound on the rhs of the pattern synonym, not on the lhs.
     -- Operator errors
         | NoParseForApplication (List2 C.Expr)
         | AmbiguousParseForApplication (List2 C.Expr) (List1 C.Expr)

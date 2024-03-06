@@ -2089,7 +2089,7 @@ instance ToAbstract NiceDeclaration where
          bindVarsToBind
          let err = "Dot or equality patterns are not allowed in pattern synonyms. Maybe use '_' instead."
          p <- noDotorEqPattern err p
-         as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
+         as <- (traverse . mapM) (\ x -> unVarName x =<< resolveName (C.QName x)) as
          unlessNull (patternVars p List.\\ map whThing as) $ \ xs -> do
            typeError $ UnboundVariablesInPatternSynonym xs
          return (as, p)
@@ -2100,8 +2100,8 @@ instance ToAbstract NiceDeclaration where
       ep <- expandPatternSynonyms p
       modifyPatternSyns (Map.insert y (as, ep))
       return [A.PatternSynDef y (map (fmap BindName) as) p]   -- only for highlighting, so use unexpanded version
-      where unVarName (VarName a _) = return a
-            unVarName _ = typeError $ UnusedVariableInPatternSynonym
+      where unVarName _ (VarName a _) = return a
+            unVarName x _ = setCurrentRange x $ typeError $ UnusedVariableInPatternSynonym x
 
     d@NiceLoneConstructor{} -> withCurrentCallStack $ \ stk -> do
       warning $ NicifierIssue (DeclarationWarning stk (InvalidConstructorBlock (getRange d)))
