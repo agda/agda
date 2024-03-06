@@ -1,9 +1,16 @@
+-- Issue #6097, test case by Nils Anders.
+--
+-- 2024-03-06: modified by Andreas and Ulf.
+-- Checking a long application is slow in Agda >= 2.5.4 && < 2.6.5
+-- because the analysis whether to check the target first
+-- is repeated at every step.
+
 open import Agda.Builtin.Unit
 
-mutual
+module _ where
 
   postulate
-    F :
+    F : {A : Set₁} →
       Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ →
       Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ →
       Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ →
@@ -104,11 +111,7 @@ mutual
       Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ →
       Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ →
       Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ → Set₁ →
-      {_ : ⊤} → Set₁ → _
-
-  -- If {_ : ⊤} → is removed above, then Agda type-checks the code
-  -- much more slowly (at the time of writing), because the target
-  -- type check in checkArgumentsE' is run repeatedly.
+      Set₁ → A
 
   _ : Set
   _ = F
