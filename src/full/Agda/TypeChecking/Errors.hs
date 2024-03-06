@@ -1099,15 +1099,10 @@ instance PrettyTCM TypeError where
       where
       prettyLhsOrPatSyn = pwords $ case lhsOrPatSyn of
         IsLHS    -> "left-hand side"
-        IsPatSyn -> "pattern synonym"
+        IsPatSyn -> "pattern synonym right-hand side"
       prettyErrs = case errs of
         []     -> empty
         p0 : _ -> fsep $ pwords "Problematic expression:" ++ [pretty p0]
-
-{- UNUSED
-    NoParseForPatternSynonym p -> fsep $
-      pwords "Could not parse the pattern synonym" ++ [pretty p]
--}
 
     AmbiguousParseForLHS lhsOrPatSyn p ps -> do
       d <- pretty p
