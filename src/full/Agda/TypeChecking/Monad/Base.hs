@@ -4715,6 +4715,10 @@ data TypeError
         | BadArgumentsToPatternSynonym A.AmbiguousQName
         | TooFewArgumentsToPatternSynonym A.AmbiguousQName
         | CannotResolveAmbiguousPatternSynonym (List1 (A.QName, A.PatternSynDefn))
+        | PatternSynonymArgumentShadowsConstructorOrPatternSynonym LHSOrPatSyn C.Name (List1 AbstractName)
+            -- ^ A variable to be bound in the pattern synonym resolved on the rhs as name of
+            --   a constructor or a pattern synonym.
+            --   The resolvents are given in the list.
         | UnusedVariableInPatternSynonym C.Name
             -- ^ This variable is only bound on the lhs of the pattern synonym, not on the rhs.
         | UnboundVariablesInPatternSynonym [A.Name]

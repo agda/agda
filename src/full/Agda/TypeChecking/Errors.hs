@@ -140,6 +140,7 @@ errorString err = case err of
   BadArgumentsToPatternSynonym{}           -> "BadArgumentsToPatternSynonym"
   TooFewArgumentsToPatternSynonym{}        -> "TooFewArgumentsToPatternSynonym"
   CannotResolveAmbiguousPatternSynonym{}   -> "CannotResolveAmbiguousPatternSynonym"
+  PatternSynonymArgumentShadowsConstructorOrPatternSynonym{} -> "PatternSynonymArgumentShadowsConstructorOrPatternSynonym"
   UnboundVariablesInPatternSynonym{}       -> "UnboundVariablesInPatternSynonym"
   BothWithAndRHS                           -> "BothWithAndRHS"
   BuiltinInParameterisedModule{}           -> "BuiltinInParameterisedModule"
@@ -1084,6 +1085,20 @@ instance PrettyTCM TypeError where
         (x, _) = List1.head defs
         prDef (x, (xs, p)) = prettyA (A.PatternSynDef x (map (fmap BindName) xs) p) <?> ("at" <+> pretty r)
           where r = nameBindingSite $ qnameName x
+
+    PatternSynonymArgumentShadowsConstructorOrPatternSynonym kind x (y :| _ys) -> vcat
+      [ fsep $ concat
+        [ pwords "Pattern synonym variable"
+        , [ pretty x ]
+        , [ "shadows" ]
+        , case kind of
+            IsLHS -> [ "constructor" ]
+            IsPatSyn -> pwords "pattern synonym"
+        , pwords "defined at:"
+        ]
+      , pretty $ nameBindingSite $ qnameName $ anameName y
+      ]
+
 
     UnusedVariableInPatternSynonym x -> fsep $
       pwords "Unused variable in pattern synonym: " ++ [pretty x]

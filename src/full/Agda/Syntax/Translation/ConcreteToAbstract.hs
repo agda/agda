@@ -2100,8 +2100,16 @@ instance ToAbstract NiceDeclaration where
       ep <- expandPatternSynonyms p
       modifyPatternSyns (Map.insert y (as, ep))
       return [A.PatternSynDef y (map (fmap BindName) as) p]   -- only for highlighting, so use unexpanded version
-      where unVarName _ (VarName a _) = return a
-            unVarName x _ = setCurrentRange x $ typeError $ UnusedVariableInPatternSynonym x
+      where
+        unVarName x = \case
+          VarName a PatternBound -> return a
+          ConstructorName _ ys -> err $ PatternSynonymArgumentShadowsConstructorOrPatternSynonym IsLHS x ys
+          PatternSynResName ys -> err $ PatternSynonymArgumentShadowsConstructorOrPatternSynonym IsPatSyn x ys
+          UnknownName -> err $ UnusedVariableInPatternSynonym x
+          -- Other cases are impossible because parsing the pattern syn rhs would have failed.
+          _ -> __IMPOSSIBLE__
+          where
+            err = setCurrentRange x . typeError
 
     d@NiceLoneConstructor{} -> withCurrentCallStack $ \ stk -> do
       warning $ NicifierIssue (DeclarationWarning stk (InvalidConstructorBlock (getRange d)))
