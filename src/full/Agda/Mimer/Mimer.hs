@@ -323,9 +323,11 @@ getOpenComponent openComp = do
     }
 
 -- | Create a goal in the current environment
-mkGoal :: MonadTCEnv m => MetaId -> m Goal
+mkGoal :: (MonadTCEnv m, MonadMetaSolver m) => MetaId -> m Goal
 mkGoal metaId = do
   env <- askTC
+  -- Make sure we can do recursive calls without getting errors
+  setMetaOccursCheck metaId DontRunMetaOccursCheck
   return Goal
     { goalMeta = metaId
     , goalEnv = env
@@ -768,11 +770,11 @@ runSearch options ii rng = withInteractionId ii $ do
                  {- else -} (return defaultCosts)
       reportSDoc "mimer.cost.custom" 10 $ "Using costs:" $$ nest 2 (pretty costs)
       components <- collectComponents options costs ii mTheFunctionQName whereNames metaId
+      startGoals <- mapM mkGoal metaIds
 
       state <- getTC
       env <- askTC
 
-      startGoals <- mapM mkGoal metaIds
       let startBranch = SearchBranch
             { sbTCState = state
             , sbGoals = startGoals
@@ -1058,29 +1060,25 @@ refine branch = withBranchState branch $ do
         return [ResultExpr expr]
       -- Normal abstraction
       Right (goal2, goalType2, branch2) -> withBranchAndGoal branch2 goal2 $ do
-        -- Make sure we can do recursive calls without getting errors
-        (goal3, branch3) <- ensureNoOccursCheck goal2 goalType2 branch2
-        let goalType3 = goalType2
-        withBranchAndGoal branch3 goal3 $ do
-          (branch4, components) <- prepareComponents goal3 branch3
-          withBranchAndGoal branch4 goal3 $ do
-            reportSMDoc "mimer.temp" 10 $
-              "Substitution after abstraction:" <+>
-                (pretty =<< checkpointSubstitution =<< asks searchTopCheckpoint)
+        (branch3, components) <- prepareComponents goal2 branch2
+        withBranchAndGoal branch3 goal2 $ do
+          reportSMDoc "mimer.temp" 10 $
+            "Substitution after abstraction:" <+>
+              (pretty =<< checkpointSubstitution =<< asks searchTopCheckpoint)
 
-            reportSDoc "mimer.refine" 40 $ vcat
-              [ "After lambda abstract:"
-              , nest 2 $ vcat
-                [ "Goal:" <+> pretty goal3
-                , "Goal type:" <+> pretty goalType3
-                , "Goal context:" <+> (pretty =<< getContextTelescope)
-                ]
+          reportSDoc "mimer.refine" 40 $ vcat
+            [ "After lambda abstract:"
+            , nest 2 $ vcat
+              [ "Goal:" <+> pretty goal2
+              , "Goal type:" <+> pretty goalType2
+              , "Goal context:" <+> (pretty =<< getContextTelescope)
               ]
-            reportSMDoc "mimer.components" 50 $ "Components:" $$ nest 2 (vcat $ map prettyTCM $ concatMap snd components)
+            ]
+          reportSMDoc "mimer.components" 50 $ "Components:" $$ nest 2 (vcat $ map prettyTCM $ concatMap snd components)
 
-            results1 <- tryComponents goal3 goalType3 branch4 components
-            results2 <- tryDataRecord goal3 goalType3 branch4
-            return $ results1 ++ results2
+          results1 <- tryComponents goal2 goalType2 branch3 components
+          results2 <- tryDataRecord goal2 goalType2 branch3
+          return $ results1 ++ results2
 
 tryFns :: Goal -> Type -> SearchBranch -> SM [SearchStepResult]
 tryFns goal goalType branch = withBranchAndGoal branch goal $ do
@@ -1209,25 +1207,6 @@ genRecCalls = asks (hintThisFn . searchBaseComponents) >>= \case
           argCost Proj{}   = pure 0
           argCost IApply{} = pure 0
       mapM (\ c -> (`addCost` c) <$> callCost c) comps
-
--- HACK: If the meta-variable is set to run occurs check, assigning a
--- recursive call to it will cause an error. Therefore, we create a new
--- meta-variable with the check disabled and assign it to the previous
--- one.
-ensureNoOccursCheck :: Goal -> Type -> SearchBranch -> SM (Goal, SearchBranch)
-ensureNoOccursCheck goal goalType branch = do
-  metaVar <- lookupLocalMeta (goalMeta goal)
-  if miMetaOccursCheck (mvInfo metaVar) == DontRunMetaOccursCheck
-  then do
-    reportSDoc "mimer.refine.rec" 60 $ "Meta-variable already has DontRunMetaOccursCheck"
-    return (goal, branch)
-  else do
-    metaArgs <- getMetaContextArgs metaVar
-    (newMetaId, newMetaTerm) <- newValueMeta DontRunMetaOccursCheck CmpLeq goalType
-    assignV DirLeq (goalMeta goal) metaArgs newMetaTerm (AsTermsOf goalType)
-    reportSDoc "mimer.refine.rec" 60 $ "Instantiating meta-variable (" <> pretty (goalMeta goal) <> ") with a new one with DontRunMetaOccursCheck (" <> pretty newMetaId <> ")"
-    branch' <- updateBranch [] branch
-    return (goal{goalMeta = newMetaId}, branch')
 
 
 -- TODO: Factor out `checkSolved`
