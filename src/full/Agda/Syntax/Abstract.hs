@@ -1081,8 +1081,7 @@ instance SubstExpr Expr where
     Macro{}         -> __IMPOSSIBLE__
 
 -- TODO: more informative failure
-insertImplicitPatSynArgs
-  :: forall a. HasRange a
+insertImplicitPatSynArgs :: forall a. HasRange a
   => (Range -> a)
        -- ^ Thing to insert (wildcard).
   -> Range

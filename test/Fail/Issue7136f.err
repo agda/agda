@@ -1,6 +1,5 @@
-Issue7136f.agda:6,19-19
-Issue7136f.agda:6,19: Illegal pattern synonym argument  ⦃ x ⦄
-(Instance arguments not allowed to pattern synonyms.)
-=<ERROR>
- suc x
--- Should be rejected: ...
+Issue7136f.agda:6,14-15
+Variable is bound as instance in pattern synonym, but does not
+resolve as instance in pattern: x
+when scope checking the declaration
+  pattern p ⦃ x ⦄ = suc x

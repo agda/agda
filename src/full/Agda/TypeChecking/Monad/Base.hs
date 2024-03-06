@@ -4713,6 +4713,11 @@ data TypeError
         | BadArgumentsToPatternSynonym A.AmbiguousQName
         | TooFewArgumentsToPatternSynonym A.AmbiguousQName
         | CannotResolveAmbiguousPatternSynonym (List1 (A.QName, A.PatternSynDefn))
+        | IllegalInstanceVariableInPatternSynonym C.Name
+            -- ^ This variable is bound in the lhs of the pattern synonym in instance position,
+            --   but not on the rhs.
+            --   This is forbidden because expansion of pattern synonyms would not be faithful
+            --   to availability of instances in instance search.
         | PatternSynonymArgumentShadowsConstructorOrPatternSynonym LHSOrPatSyn C.Name (List1 AbstractName)
             -- ^ A variable to be bound in the pattern synonym resolved on the rhs as name of
             --   a constructor or a pattern synonym.

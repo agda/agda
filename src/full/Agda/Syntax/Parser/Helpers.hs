@@ -517,11 +517,8 @@ patternSynArgs = mapM \ x -> do
         case ai of
 
           -- Benign case:
-          ArgInfo h (Modality Relevant (Quantityω _) Continuous) UserWritten UnknownFVs (Annotation IsNotLock)
-            | h `elem` [Hidden, NotHidden] ->
-                return $ WithHiding h n
-            | otherwise ->
-                abort "Instance arguments not allowed to pattern synonyms"
+          ArgInfo h (Modality Relevant (Quantityω _) Continuous) UserWritten UnknownFVs (Annotation IsNotLock) ->
+            return $ WithHiding h n
 
           -- Error cases:
           ArgInfo _ _ _ _ (Annotation (IsLock _)) ->

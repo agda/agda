@@ -145,14 +145,15 @@ instance EmbPrj KindOfName where
   --   valu _   = malformed
 
 instance EmbPrj BindingSource where
-  icod_ LambdaBound   = pure 0
-  icod_ PatternBound  = pure 1
-  icod_ LetBound      = pure 2
-  icod_ WithBound     = pure 3
+  icod_ = \case
+    LambdaBound    -> pure 0
+    PatternBound _ -> pure 1
+    LetBound       -> pure 2
+    WithBound      -> pure 3
 
   value = \case
     0 -> pure LambdaBound
-    1 -> pure PatternBound
+    1 -> pure $ PatternBound empty
     2 -> pure LetBound
     3 -> pure WithBound
     _ -> malformed

@@ -150,16 +150,23 @@ type LocalVars = AssocList C.Name LocalVar
 -- | For each bound variable, we want to know whether it was bound by a
 --   λ, Π, module telescope, pattern, or @let@.
 data BindingSource
-  = LambdaBound  -- ^ @λ@ (currently also used for @Π@ and module parameters)
-  | PatternBound -- ^ @f ... =@
-  | LetBound     -- ^ @let ... in@
-  | WithBound    -- ^ @| ... in q@
+  = LambdaBound
+      -- ^ @λ@ (currently also used for @Π@ and module parameters)
+  | PatternBound Hiding
+      -- ^ @f ... =@.
+      --   Remember 'Hiding' for pattern variables @{x}@ and @{{x}}@.
+      --   This information is only used for checking pattern synonyms.
+      --   It is not serialized.
+  | LetBound
+      -- ^ @let ... in@
+  | WithBound
+      -- ^ @| ... in q@
   deriving (Show, Eq, Generic)
 
 instance Pretty BindingSource where
   pretty = \case
     LambdaBound  -> "local"
-    PatternBound -> "pattern"
+    PatternBound _ -> "pattern"
     LetBound     -> "let-bound"
     WithBound    -> "with-bound"
 
@@ -195,7 +202,7 @@ shadowLocal ys (LocalVar x b zs) = LocalVar x b (List1.toList ys ++ zs)
 -- | Treat patternBound variable as a module parameter
 patternToModuleBound :: LocalVar -> LocalVar
 patternToModuleBound x
- | localBindingSource x == PatternBound =
+ | PatternBound _ <- localBindingSource x =
    x { localBindingSource = LambdaBound }
  | otherwise                     = x
 

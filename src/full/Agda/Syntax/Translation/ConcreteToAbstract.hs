@@ -550,9 +550,10 @@ newtype OldName a = OldName a
 -- | Wrapper to resolve a name to a 'ResolvedName' (rather than an 'A.Expr').
 data ResolveQName = ResolveQName C.QName
 
-data PatName      = PatName C.QName (Maybe (Set A.Name))
+data PatName      = PatName C.QName (Maybe (Set A.Name)) Hiding
   -- ^ If a set is given, then the first name must correspond to one
   -- of the names in the set.
+  -- If pattern variable is hidden, its status is indicated in 'Hiding'.
 
 instance ToAbstract (NewName C.Name) where
   type AbsOfCon (NewName C.Name) = A.Name
@@ -631,7 +632,7 @@ data APatName = VarPatName A.Name
 
 instance ToAbstract PatName where
   type AbsOfCon PatName = APatName
-  toAbstract (PatName x ns) = do
+  toAbstract (PatName x ns h) = do
     reportSLn "scope.pat" 10 $ "checking pattern name: " ++ prettyShow x
     rx <- resolveName' (someKindsOfNames [ConName, CoConName, PatternSynName]) ns x
           -- Andreas, 2013-03-21 ignore conflicting names which cannot
@@ -648,7 +649,7 @@ instance ToAbstract PatName where
       (PatternSynResName d, _)                                 -> patSyn d
       _ -> genericError $ "Cannot pattern match on non-constructor " ++ prettyShow x
     where
-      bindPatVar = VarPatName <.> bindPatternVariable
+      bindPatVar = VarPatName <.> bindPatternVariable h
       patCon ds = do
         reportSLn "scope.pat" 10 $ "it was a con: " ++ prettyShow (fmap anameName ds)
         return $ ConPatName ds
@@ -658,8 +659,8 @@ instance ToAbstract PatName where
 
 -- | Translate and possibly bind a pattern variable
 --   (which could have been bound before due to non-linearity).
-bindPatternVariable :: C.Name -> ScopeM A.Name
-bindPatternVariable x = do
+bindPatternVariable :: Hiding -> C.Name -> ScopeM A.Name
+bindPatternVariable h x = do
   y <- (AssocList.lookup x <$> getVarsToBind) >>= \case
     Just (LocalVar y _ _) -> do
       reportSLn "scope.pat" 10 $ "it was a old var: " ++ prettyShow x
@@ -667,7 +668,7 @@ bindPatternVariable x = do
     Nothing -> do
       reportSLn "scope.pat" 10 $ "it was a new var: " ++ prettyShow x
       freshAbstractName_ x
-  addVarToBind x $ LocalVar y PatternBound []
+  addVarToBind x $ LocalVar y (PatternBound h) []
   return y
 
 class ToQName a where
@@ -2091,7 +2092,7 @@ instance ToAbstract NiceDeclaration where
          bindVarsToBind
          let err = "Dot or equality patterns are not allowed in pattern synonyms. Maybe use '_' instead."
          p <- noDotorEqPattern err p
-         as <- (traverse . mapM) (\ x -> unVarName x =<< resolveName (C.QName x)) as
+         as <- mapM checkPatSynParam as
          unlessNull (patternVars p List.\\ map whThing as) $ \ xs -> do
            typeError $ UnboundVariablesInPatternSynonym xs
          return (as, p)
@@ -2103,15 +2104,18 @@ instance ToAbstract NiceDeclaration where
       modifyPatternSyns (Map.insert y (as, ep))
       return [A.PatternSynDef y (map (fmap BindName) as) p]   -- only for highlighting, so use unexpanded version
       where
-        unVarName x = \case
-          VarName a PatternBound -> return a
-          ConstructorName _ ys -> err $ PatternSynonymArgumentShadowsConstructorOrPatternSynonym IsLHS x ys
-          PatternSynResName ys -> err $ PatternSynonymArgumentShadowsConstructorOrPatternSynonym IsPatSyn x ys
-          UnknownName -> err $ UnusedVariableInPatternSynonym x
-          -- Other cases are impossible because parsing the pattern syn rhs would have failed.
-          _ -> __IMPOSSIBLE__
-          where
-            err = setCurrentRange x . typeError
+        checkPatSynParam :: WithHiding C.Name -> ScopeM (WithHiding A.Name)
+        checkPatSynParam (WithHiding h x) = do
+          let err = setCurrentRange x . typeError
+          resolveName (C.QName x) >>= \case
+            VarName a (PatternBound h')
+              | isInstance h, not (isInstance h') -> err $ IllegalInstanceVariableInPatternSynonym x
+              | otherwise -> return $ WithHiding h a
+            ConstructorName _ ys -> err $ PatternSynonymArgumentShadowsConstructorOrPatternSynonym IsLHS x ys
+            PatternSynResName ys -> err $ PatternSynonymArgumentShadowsConstructorOrPatternSynonym IsPatSyn x ys
+            UnknownName -> err $ UnusedVariableInPatternSynonym x
+            -- Other cases are impossible because parsing the pattern syn rhs would have failed.
+            _ -> __IMPOSSIBLE__
 
     d@NiceLoneConstructor{} -> withCurrentCallStack $ \ stk -> do
       warning $ NicifierIssue (DeclarationWarning stk (InvalidConstructorBlock (getRange d)))
@@ -3024,13 +3028,19 @@ instance ToAbstract (A.Pattern' C.Expr) where
   type AbsOfCon (A.Pattern' C.Expr) = A.Pattern' A.Expr
   toAbstract = traverse $ insideDotPattern . toAbstractCtx DotPatternCtx  -- Issue #3033
 
-resolvePatternIdentifier
-  :: Bool -- ^ Is the identifier allowed to refer to a constructor (or
-          --   a pattern synonym)?
-  -> Range -> C.QName -> Maybe (Set A.Name) -> ScopeM (A.Pattern' C.Expr)
-resolvePatternIdentifier canBeConstructor r x ns = do
+resolvePatternIdentifier ::
+     Bool
+       -- ^ Is the identifier allowed to refer to a constructor (or a pattern synonym)?
+  -> Hiding
+       -- ^ Is the pattern variable hidden?
+  -> C.QName
+       -- ^ Identifier.
+  -> Maybe (Set A.Name)
+       -- ^ Possibly precomputed resolutions of the identifier (from the operator parser).
+  -> ScopeM (A.Pattern' C.Expr)
+resolvePatternIdentifier canBeConstructor h x ns = do
   reportSLn "scope.pat" 60 $ "resolvePatternIdentifier " ++ prettyShow x ++ " at source position " ++ prettyShow r
-  px <- toAbstract (PatName x ns)
+  px <- toAbstract (PatName x ns h)
   case px of
     VarPatName y         -> do
       reportSLn "scope.pat" 60 $ "  resolved to VarPatName " ++ prettyShow y ++ " with range " ++ prettyShow (getRange y)
@@ -3046,6 +3056,7 @@ resolvePatternIdentifier canBeConstructor r x ns = do
                                 (AmbQ $ fmap anameName ds) []
       else err "pattern synonym"
   where
+  r = getRange x
   err s =
     setCurrentRange r $
     typeError $ GenericError $
@@ -3088,11 +3099,26 @@ applyAPattern p0 p ps = do
   where
     failure = typeError $ InvalidPattern p0
 
+-- | Throw-away wrapper type for pattern translation.
+data WithHidingInfo a = WithHidingInfo Hiding a
+
+propagateHidingInfo :: NamedArg a -> NamedArg (WithHidingInfo a)
+propagateHidingInfo a = fmap (fmap $ WithHidingInfo $ getHiding a) a
+
+-- | Hiding info is only used for pattern variables.
+instance ToAbstract (WithHidingInfo C.Pattern) where
+    type AbsOfCon (WithHidingInfo C.Pattern) = A.Pattern' C.Expr
+
+    toAbstract (WithHidingInfo h (C.IdentP canBeConstructor x)) =
+      resolvePatternIdentifier canBeConstructor h x Nothing
+
+    toAbstract (WithHidingInfo _ p) = toAbstract p
+
 instance ToAbstract C.Pattern where
     type AbsOfCon C.Pattern = A.Pattern' C.Expr
 
     toAbstract (C.IdentP canBeConstructor x) =
-      resolvePatternIdentifier canBeConstructor (getRange x) x Nothing
+      resolvePatternIdentifier canBeConstructor empty x Nothing
 
     toAbstract (AppP (QuoteP _) p)
       | IdentP _ x <- namedArg p,
@@ -3107,7 +3133,9 @@ instance ToAbstract C.Pattern where
         reportSLn "scope.pat" 50 $ "distributeDots before = " ++ show p
         p <- distributeDots p
         reportSLn "scope.pat" 50 $ "distributeDots after  = " ++ show p
-        (p', q') <- toAbstract (p, q)
+        p' <- toAbstract p
+        -- Remember hiding info in argument to propagate to 'PatternBound'.
+        q' <- toAbstract $ propagateHidingInfo q
         applyAPattern p0 p' $ singleton q'
 
         where
@@ -3138,8 +3166,9 @@ instance ToAbstract C.Pattern where
 
     toAbstract p0@(OpAppP r op ns ps) = do
         reportSLn "scope.pat" 60 $ "ConcreteToAbstract.toAbstract OpAppP{}: " ++ show p0
-        p  <- resolvePatternIdentifier True (getRange op) op (Just ns)
-        ps <- toAbstract ps
+        p  <- resolvePatternIdentifier True empty op (Just ns)
+        -- Remember hiding info in arguments to propagate to 'PatternBound'.
+        ps <- toAbstract $ map propagateHidingInfo ps
         applyAPattern p0 p ps
 
     toAbstract (EllipsisP _ mp) = maybe __IMPOSSIBLE__ toAbstract mp
@@ -3160,7 +3189,7 @@ instance ToAbstract C.Pattern where
         -- x <- toAbstract (NewName PatternBound x)
         -- Andreas, 2020-05-01, issue #4631: as-variables should not shadow constructors.
         -- x <- bindPatternVariable x
-      toAbstract (PatName (C.QName x) Nothing) >>= \case
+      toAbstract (PatName (C.QName x) Nothing empty) >>= \case
         VarPatName x        -> A.AsP (PatRange r) (A.mkBindName x) <$> toAbstract p
         ConPatName{}        -> ignoreAsPat IsLHS
         PatternSynPatName{} -> ignoreAsPat IsPatSyn
