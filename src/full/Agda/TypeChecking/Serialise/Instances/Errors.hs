@@ -333,7 +333,9 @@ instance EmbPrj ProfileOptions where
   icod_ opts = icode (profileOptionsToList opts)
   value = fmap profileOptionsFromList . value
 
-instance EmbPrj ProfileOption where
+instance EmbPrj ProfileOption
+
+instance EmbPrj LHSOrPatSyn
 
 instance EmbPrj UnicodeOrAscii
 

@@ -4251,9 +4251,9 @@ data Warning
     -- ^ Out of scope error we can recover from.
   | UnsupportedIndexedMatch Doc
     -- ^ Was not able to compute a full equivalence when splitting.
-  | AsPatternShadowsConstructorOrPatternSynonym Bool
-    -- ^ The as-name in an as-pattern may not shadow a constructor (@False@)
-    --   or pattern synonym name (@True@),
+  | AsPatternShadowsConstructorOrPatternSynonym LHSOrPatSyn
+    -- ^ The as-name in an as-pattern may not shadow a constructor ('IsLHS')
+    --   or pattern synonym name ('IsPatSyn'),
     --   because this can be confusing to read.
   | PatternShadowsConstructor C.Name A.QName
     -- ^ A pattern variable has the name of a constructor
@@ -4787,7 +4787,7 @@ data IncorrectTypeForRewriteRelationReason
 
 -- | Distinguish error message when parsing lhs or pattern synonym, resp.
 data LHSOrPatSyn = IsLHS | IsPatSyn
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Show, Generic, Bounded, Enum)
 
 -- | Type-checking errors.
 
