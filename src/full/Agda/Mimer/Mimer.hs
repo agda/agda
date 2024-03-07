@@ -35,7 +35,7 @@ import Agda.Syntax.Abstract.Name (QName(..), Name(..))
 import Agda.Syntax.Common (InteractionId(..), MetaId(..), ArgInfo(..), defaultArgInfo, Origin(..), ConOrigin(..), Hiding(..), setOrigin, NameId, Nat, namedThing, Arg(..), setHiding, getHiding, ProjOrigin(..), rangedThing, woThing, nameOf, visible)
 import Agda.Syntax.Common.Pretty (Pretty, Doc, prettyShow, prettyList, render, pretty, braces, prettyList_, text, (<+>), nest, lbrace, rbrace, comma, ($$), vcat, ($+$), align, cat, parens)
 import qualified Agda.Syntax.Concrete.Name as C
-import Agda.Syntax.Info (exprNoRange)
+import Agda.Syntax.Info (pattern UnificationMeta, exprNoRange)
 import Agda.Syntax.Internal -- (Type, Type''(..), Term(..), Dom'(..), Abs(..), arity , ConHead(..), Sort'(..), Level, argFromDom, Level'(..), absurdBody, Dom, namedClausePats, Pattern'(..), dbPatVarIndex)
 import Agda.Syntax.Internal.MetaVars (AllMetas(..))
 import Agda.Syntax.Internal.Pattern (clausePerm)
@@ -730,7 +730,7 @@ runSearch options ii rng = withInteractionId ii $ do
 
       -- ctx <- getContextTelescope
       return metaIds
-    Open -> do
+    OpenMeta UnificationMeta -> do
       reportSLn "mimer.init" 20 "Interaction point not instantiated."
       return [metaId]
     _ -> __IMPOSSIBLE__

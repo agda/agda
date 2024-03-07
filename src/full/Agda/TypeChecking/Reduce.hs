@@ -213,9 +213,7 @@ instance Instantiate Term where
          _ | Just m' <- mvTwin mv, blocking ->
            instantiate' (MetaV m' es)
 
-         Open -> return t
-
-         OpenInstance -> return t
+         OpenMeta _ -> return t
 
          BlockedConst u
            | blocking  -> instantiate' . unBrave $

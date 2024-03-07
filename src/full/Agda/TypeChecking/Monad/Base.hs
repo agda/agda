@@ -84,7 +84,7 @@ import Agda.Syntax.Treeless (Compiled)
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
-import qualified Agda.Syntax.Info as Info
+import Agda.Syntax.Info ( MetaKind(InstanceMeta, UnificationMeta), MetaNameSuggestion, MutualInfo )
 
 import qualified Agda.TypeChecking.Monad.Base.Warning as W
 import           Agda.TypeChecking.Monad.Base.Warning (RecordFieldWarning)
@@ -317,7 +317,7 @@ data PostScopeState = PostScopeState
 
 -- | A mutual block of names in the signature.
 data MutualBlock = MutualBlock
-  { mutualInfo  :: Info.MutualInfo
+  { mutualInfo  :: MutualInfo
     -- ^ The original info of the mutual block.
   , mutualNames :: Set QName
   } deriving (Show, Eq, Generic)
@@ -1457,12 +1457,13 @@ data Frozen
   | Instantiable
     deriving (Eq, Show, Generic)
 
+-- | Solution status of meta.
 data MetaInstantiation
-        = InstV Instantiation -- ^ solved
-        | Open                -- ^ unsolved
-        | OpenInstance        -- ^ open, to be instantiated by instance search
-        | BlockedConst Term   -- ^ solution blocked by unsolved constraints
-        | PostponedTypeCheckingProblem (Closure TypeCheckingProblem)
+  = InstV Instantiation -- ^ Solved by 'Instantiation'.
+  | OpenMeta MetaKind   -- ^ Unsolved (open to solutions).
+  | BlockedConst Term   -- ^ Solved, but solution blocked by unsolved constraints.
+  | PostponedTypeCheckingProblem (Closure TypeCheckingProblem)
+      -- ^ Meta stands for value of the expression that is still to be type checked.
   deriving Generic
 
 -- | Meta-variable instantiations.
@@ -1538,8 +1539,8 @@ data TypeCheckingProblem
 
 instance Pretty MetaInstantiation where
   pretty = \case
-    Open                                     -> "Open"
-    OpenInstance                             -> "OpenInstance"
+    OpenMeta UnificationMeta                 -> "Open"
+    OpenMeta InstanceMeta                    -> "OpenInstance"
     PostponedTypeCheckingProblem{}           -> "PostponedTypeCheckingProblem (...)"
     BlockedConst t                           -> hsep [ "BlockedConst", parens (pretty t) ]
     InstV Instantiation{ instTel, instBody } -> hsep [ "InstV", pretty instTel, parens (pretty instBody) ]
@@ -1581,9 +1582,6 @@ instance LensQuantity MetaInfo where
 
 instance LensRelevance MetaInfo where
   mapRelevance f = mapModality (mapRelevance f)
-
--- | Name suggestion for meta variable.  Empty string means no suggestion.
-type MetaNameSuggestion = String
 
 -- | For printing, we couple a meta with its name suggestion.
 data NamedMeta = NamedMeta

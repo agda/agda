@@ -190,12 +190,14 @@ instance Reify MetaId where
     reifyWhen = reifyWhenE
     reify x = do
       b <- asksTC envPrintMetasBare
-      mi  <- mvInfo <$> lookupLocalMeta x
+      mvar <- lookupLocalMeta x
+      let mi  = mvInfo mvar
       let mi' = Info.MetaInfo
                  { metaRange          = getRange $ miClosRange mi
                  , metaScope          = clScope $ miClosRange mi
                  , metaNumber         = if b then Nothing else Just x
                  , metaNameSuggestion = if b then "" else miNameSuggestion mi
+                 , metaKind           =  metaInstantiationToMetaKind (mvInstantiation mvar)
                  }
           underscore = return $ A.Underscore mi'
       -- If we are printing a term that will be pasted into the user

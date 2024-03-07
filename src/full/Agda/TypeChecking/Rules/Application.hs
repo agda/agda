@@ -326,8 +326,8 @@ inferHead e = do
       -- So when applying the constructor throw away the parameters.
       return (applyE u . drop n, a)
     A.Con{} -> __IMPOSSIBLE__  -- inferHead will only be called on unambiguous constructors
-    A.QuestionMark i ii -> inferMeta (newQuestionMark ii) i
-    A.Underscore i   -> inferMeta (newValueMeta RunMetaOccursCheck) i
+    A.QuestionMark i ii -> inferMeta i (newQuestionMark ii)
+    A.Underscore i      -> inferMeta i (newValueMetaOfKind i RunMetaOccursCheck)
     e -> do
       (term, t) <- inferExpr e
       return (applyE term, t)

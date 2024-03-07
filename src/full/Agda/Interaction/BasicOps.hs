@@ -297,6 +297,7 @@ refine force ii mr e = do
                     -- should be something else.
                 , metaNumber = Nothing -- in order to print just as ?, not ?n
                 , metaNameSuggestion = ""
+                , metaKind           = Info.UnificationMeta
                 }
               metaVar = QuestionMark info ii
 
@@ -473,8 +474,7 @@ instance Reify Constraint where
           DoQuoteTerm cmp v t -> do
             tm <- A.App defaultAppInfo_ (A.QuoteTerm exprNoRange) . defaultNamedArg <$> reify v
             OfType tm <$> reify t
-        Open{}  -> __IMPOSSIBLE__
-        OpenInstance{}  -> __IMPOSSIBLE__
+        OpenMeta{}  -> __IMPOSSIBLE__
         InstV{} -> __IMPOSSIBLE__
   reify (FindInstance m mcands) = FindInstanceOF
     <$> reify (MetaV m [])
@@ -898,8 +898,7 @@ getSolvedInteractionPoints all norm = concat <$> do
             unsol = return []
         case mvInstantiation mv of
           InstV{}                        -> sol (MetaV m $ map Apply args)
-          Open{}                         -> unsol
-          OpenInstance{}                 -> unsol
+          OpenMeta{}                     -> unsol
           BlockedConst{}                 -> unsol
           PostponedTypeCheckingProblem{} -> unsol
 
@@ -957,8 +956,7 @@ typesOfHiddenMetas norm = liftTCM $ do
   implicit is x m =
     case mvInstantiation m of
       M.InstV{} -> __IMPOSSIBLE__
-      M.Open    -> x `notElem` is
-      M.OpenInstance -> x `notElem` is  -- OR: True !?
+      M.OpenMeta _ -> x `notElem` is  -- OR: True in case of InstanceMeta !?
       M.BlockedConst{} -> False
       M.PostponedTypeCheckingProblem{} -> False
 

@@ -162,8 +162,7 @@ reachableFrom sections ids ms psyns disp defs insts = do
 theInstantiation :: MetaVariable -> Instantiation
 theInstantiation mv = case mvInstantiation mv of
   InstV inst                     -> inst
-  Open{}                         -> __IMPOSSIBLE__
-  OpenInstance{}                 -> __IMPOSSIBLE__
+  OpenMeta{}                     -> __IMPOSSIBLE__
   BlockedConst{}                 -> __IMPOSSIBLE__
   PostponedTypeCheckingProblem{} -> __IMPOSSIBLE__
 

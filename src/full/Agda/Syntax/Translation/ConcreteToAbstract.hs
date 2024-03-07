@@ -909,6 +909,7 @@ instance ToAbstract C.Expr where
              , metaScope  = scope
              , metaNumber = Nothing
              , metaNameSuggestion = ""
+             , metaKind   = UnificationMeta
              }
         return $ A.QuestionMark info ii
       C.Underscore r n -> do
@@ -918,6 +919,7 @@ instance ToAbstract C.Expr where
                     , metaScope  = scope
                     , metaNumber = __IMPOSSIBLE__ =<< n
                     , metaNameSuggestion = fromMaybe "" n
+                    , metaKind   = UnificationMeta
                     }
 
   -- Raw application

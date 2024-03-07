@@ -100,8 +100,7 @@ instance PrettyTCM Constraint where
               BlockedConst t -> prettyCmp ":=" m t
               PostponedTypeCheckingProblem cl -> enterClosure cl $ \p ->
                 prettyCmp ":=" m p
-              Open{}  -> __IMPOSSIBLE__
-              OpenInstance{} -> __IMPOSSIBLE__
+              OpenMeta{}  -> __IMPOSSIBLE__
               InstV{} -> empty
               -- Andreas, 2017-01-11, issue #2637:
               -- The size solver instantiates some metas with infinity

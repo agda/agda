@@ -285,9 +285,7 @@ solveConstraint_ (UnBlock m)                =   -- alwaysUnblock since these hav
       -- Ulf, 2018-04-30: The size solver shouldn't touch blocked terms! They have
       -- a twin meta that it's safe to solve.
       InstV{} -> __IMPOSSIBLE__
-      -- Open (whatever that means)
-      Open -> __IMPOSSIBLE__
-      OpenInstance -> __IMPOSSIBLE__
+      OpenMeta{} -> __IMPOSSIBLE__
 solveConstraint_ (FindInstance m cands) = findInstance m cands
 solveConstraint_ (ResolveInstanceHead q) = resolveInstanceHead q
 solveConstraint_ (CheckFunDef i q cs _err) = withoutCache $

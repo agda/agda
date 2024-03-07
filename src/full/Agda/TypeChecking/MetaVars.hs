@@ -25,6 +25,8 @@ import Agda.Interaction.Options
 
 import Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
+import Agda.Syntax.Info ( MetaKind( InstanceMeta, UnificationMeta ), MetaNameSuggestion)
+import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
 import Agda.Syntax.Internal.MetaVars
@@ -112,18 +114,17 @@ isBlockedTerm x = do
             BlockedConst{}                 -> True
             PostponedTypeCheckingProblem{} -> True
             InstV{}                        -> False
-            Open{}                         -> False
-            OpenInstance{}                 -> False
+            OpenMeta{}                     -> False
     reportSLn "tc.meta.blocked" 12 $
       if r then "  yes, because " ++ prettyShow i else "  no"
     return r
 
-isEtaExpandable :: [MetaKind] -> MetaId -> TCM Bool
-isEtaExpandable kinds x = do
+isEtaExpandable :: [MetaClass] -> MetaId -> TCM Bool
+isEtaExpandable classes x = do
     i <- lookupMetaInstantiation x
     return $ case i of
-      Open{}                         -> True
-      OpenInstance{}                 -> Records `notElem` kinds
+      OpenMeta UnificationMeta       -> True
+      OpenMeta InstanceMeta          -> Records `notElem` classes
       InstV{}                        -> False
       BlockedConst{}                 -> False
       PostponedTypeCheckingProblem{} -> False
@@ -245,7 +246,7 @@ newInstanceMetaCtx s t vs = do
   let i = i0 { miNameSuggestion = s }
   TelV tel _ <- telView t
   let perm = idP (size tel)
-  x <- newMeta' OpenInstance Instantiable i normalMetaPriority perm (HasType () CmpLeq t)
+  x <- newMeta' (OpenMeta InstanceMeta) Instantiable i normalMetaPriority perm (HasType () CmpLeq t)
   reportSDoc "tc.meta.new" 50 $ fsep
     [ nest 2 $ pretty x <+> ":" <+> prettyTCM t
     ]
@@ -267,6 +268,17 @@ newNamedValueMeta' b s cmp t = do
   (x, v) <- newValueMeta' b cmp t
   setMetaNameSuggestion x s
   return (x, v)
+
+{-# SPECIALIZE newValueMetaOfKind :: A.MetaInfo -> RunMetaOccursCheck -> Comparison -> Type -> TCM (MetaId, Term) #-}
+newValueMetaOfKind :: MonadMetaSolver m
+  => A.MetaInfo
+  -> RunMetaOccursCheck  -- ^ Ignored for instance metas.
+  -> Comparison          -- ^ Ignored for instance metas.
+  -> Type
+  -> m (MetaId, Term)
+newValueMetaOfKind info = case A.metaKind info of
+  UnificationMeta -> newValueMeta
+  InstanceMeta -> \ _run _cmp -> newInstanceMeta (A.metaNameSuggestion info)
 
 {-# SPECIALIZE newValueMeta :: RunMetaOccursCheck -> Comparison -> Type -> TCM (MetaId, Term) #-}
 -- | Create a new metavariable, possibly η-expanding in the process.
@@ -650,7 +662,7 @@ problemType (DoQuoteTerm _ _ t)        = t
 
 -- | Eta-expand a local meta-variable, if it is of the specified kind.
 --   Don't do anything if the meta-variable is a blocked term.
-etaExpandMetaTCM :: [MetaKind] -> MetaId -> TCM ()
+etaExpandMetaTCM :: [MetaClass] -> MetaId -> TCM ()
 etaExpandMetaTCM kinds m = whenM ((not <$> isFrozen m) `and2M` asksTC envAssignMetas `and2M` isEtaExpandable kinds m) $ do
   verboseBracket "tc.meta.eta" 20 ("etaExpandMeta " ++ prettyShow m) $ do
     let waitFor b = do
@@ -1354,8 +1366,7 @@ checkMetaInst x = do
   case mvInstantiation m of
     BlockedConst{} -> postpone
     PostponedTypeCheckingProblem{} -> postpone
-    Open{} -> postpone
-    OpenInstance{} -> postpone
+    OpenMeta{} -> postpone
     InstV inst -> do
       let n = size (instTel inst)
           t = jMetaType $ mvJudgement m
