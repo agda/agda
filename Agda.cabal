@@ -342,6 +342,7 @@ common language
       TypeFamilies
       TypeOperators
       TypeSynonymInstances
+      ViewPatterns
 
   other-extensions:
       CPP

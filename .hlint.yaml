@@ -133,6 +133,7 @@
     - -XTypeFamilies
     - -XTypeOperators
     - -XTypeSynonymInstances
+    - -XViewPatterns
 
 # Add custom hints for this project
 - hint:
