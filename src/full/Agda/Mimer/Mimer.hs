@@ -164,7 +164,6 @@ type ComponentCache = Map Component (Maybe [Component])
 
 data Goal = Goal
   { goalMeta :: MetaId
-  , goalEnv :: TCEnv
   }
   deriving (Generic)
 instance NFData Goal
@@ -322,23 +321,6 @@ getOpenComponent openComp = do
     , compCost = compCost comp
     }
 
--- | Create a goal in the current environment
-mkGoal :: (MonadTCEnv m, MonadMetaSolver m) => MetaId -> m Goal
-mkGoal metaId = do
-  env <- askTC
-  -- Make sure we can do recursive calls without getting errors
-  setMetaOccursCheck metaId DontRunMetaOccursCheck
-  return Goal
-    { goalMeta = metaId
-    , goalEnv = env
-    }
-
-mkGoalPreserveEnv :: Goal -> MetaId -> Goal
-mkGoalPreserveEnv goalLocalSource metaId = Goal
-  { goalMeta = metaId
-  , goalEnv = goalEnv goalLocalSource
-  }
-
 mkComponent :: CompId -> [MetaId] -> Cost -> Maybe Name -> Nat -> Term -> Type -> Component
 mkComponent cId metaIds cost mName pars term typ = Component
   { compId = cId
@@ -373,10 +355,10 @@ withBranchState br ma = do
   ma
 
 withBranchAndGoal :: SearchBranch -> Goal -> SM a -> SM a
-withBranchAndGoal br goal ma = {- withEnv (goalEnv goal) $ -}  withMetaId (goalMeta goal) $ withBranchState br ma
+withBranchAndGoal br goal ma = inGoalEnv goal $ withBranchState br ma
 
-inGoalContext :: Goal -> SM a -> SM a
-inGoalContext br = withEnv (goalEnv br)
+inGoalEnv :: Goal -> SM a -> SM a
+inGoalEnv goal = withMetaId (goalMeta goal)
 
 nextBranchMeta' :: SearchBranch -> SM (Goal, SearchBranch)
 nextBranchMeta' = fmap (fromMaybe __IMPOSSIBLE__) . nextBranchMeta
@@ -719,6 +701,9 @@ runSearch options ii rng = withInteractionId ii $ do
   metaId <- lookupInteractionId ii
   metaVar <- lookupLocalMeta metaId
 
+  -- We want to be able to solve with recursive calls
+  setMetaOccursCheck metaId DontRunMetaOccursCheck
+
   metaIds <- case mvInstantiation metaVar of
     InstV inst -> do
 
@@ -773,7 +758,7 @@ runSearch options ii rng = withInteractionId ii $ do
                  {- else -} (return defaultCosts)
       reportSDoc "mimer.cost.custom" 10 $ "Using costs:" $$ nest 2 (pretty costs)
       components <- collectComponents options costs ii mTheFunctionQName whereNames metaId
-      startGoals <- mapM mkGoal metaIds
+      let startGoals = map Goal metaIds
 
       state <- getTC
       env <- askTC
@@ -1043,7 +1028,7 @@ topInstantiationDoc :: SM Doc
 topInstantiationDoc = asks searchTopMeta >>= getMetaInstantiation >>= maybe (return "(nothing)") prettyTCM
 
 prettyGoalInst :: Goal -> SM Doc
-prettyGoalInst goal = inGoalContext goal $ do
+prettyGoalInst goal = inGoalEnv goal $ do
   args <- map Apply <$> getContextArgs
   prettyTCM =<< instantiate (MetaV (goalMeta goal) args)
 
@@ -1159,8 +1144,7 @@ tryLamAbs goal goalType branch =
 
         withEnv env $ do
           branch' <- updateBranch newMetaIds branch
-          goal' <- mkGoal metaId'
-          tryLamAbs goal' bodyType branch'
+          tryLamAbs (Goal metaId') bodyType branch'
     _ -> do
       branch' <- updateBranch [] branch -- TODO: Is this necessary?
       return $ Right (goal, goalType, branch')
@@ -1183,7 +1167,7 @@ genRecCalls = asks (hintThisFn . searchBaseComponents) >>= \case
       let newRecCall = do
             -- Apply the recursive call to new metas
             (thisFnTerm, thisFnType, newMetas) <- applyToMetas 0 (compTerm thisFn) (compType thisFn)
-            argGoals <- mapM mkGoal newMetas
+            let argGoals = map Goal newMetas
             comp <- newComponent newMetas (compCost thisFn) (compName thisFn) 0 thisFnTerm thisFnType
             return (comp, argGoals)
 
@@ -1399,8 +1383,7 @@ checkSolved branch = do
     case allMetas (:[]) inst of
       [] -> ResultExpr <$> reify inst
       metaIds -> do
-        goals' <- mapM mkGoal metaIds
-        return $ OpenBranch $ branch{sbGoals = reverse goals'}
+        return $ OpenBranch $ branch{sbGoals = map Goal $ reverse metaIds}
 
 setAt :: Int -> a -> [a] -> [a]
 setAt i x xs = case splitAt i xs of
@@ -1421,9 +1404,8 @@ updateBranch' mComp newMetaIds branch = do
               Just uses -> do
                 reuseCost <- asks (costCompReuse . searchCosts)
                 return (compCost comp + reuseCost uses, Map.adjust succ name compsUsed)
-  newGoals <- mapM mkGoal newMetaIds
   return branch{ sbTCState = state
-               , sbGoals = newGoals ++ sbGoals branch
+               , sbGoals = map Goal newMetaIds ++ sbGoals branch
                , sbCost = sbCost branch + deltaCost
                , sbComponentsUsed = compsUsed'
                }
@@ -1519,10 +1501,7 @@ prettyBranch branch = withBranchState branch $ do
 
 
 instance Pretty Goal where
-  pretty goal = keyValueList
-    [ ("goalMeta", P.pretty $ goalMeta goal)
-    , ("goalEnv", "[...]")
-    ]
+  pretty goal = P.pretty $ goalMeta goal
 
 instance Pretty SearchBranch where
   pretty branch = keyValueList
