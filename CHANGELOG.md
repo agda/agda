@@ -56,6 +56,32 @@ Additions to the Agda syntax.
   As in a `with`, multiple bindings can be separated by a `|`, and variables to
   the left are in scope in bindings to the right.
 
+* Pattern synonyms can now expose existing instance arguments
+  ([PR 7173](https://github.com/agda/agda/pull/7173)).
+  Example:
+  ```agda
+  data D : Set where
+    c : {{D}} → D
+
+  pattern p {{d}} = c {{d}}
+  ```
+  This allows us to explicitly bind these argument in a pattern match
+  and supply them explicitly when using the pattern synonym in an expression.
+  ```agda
+  f : D → D
+  f (p {{d = x}}) = p {{d = x}}
+  ```
+
+  We cannot create new instance arguments this way, though.
+  The following is rejected:
+  ```agda
+  data D : Set where
+    c : D → D
+
+  pattern p {{d}} = c d
+  ```
+
+
 Language
 --------
 

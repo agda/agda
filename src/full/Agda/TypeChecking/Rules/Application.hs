@@ -147,7 +147,7 @@ checkApplication cmp hd args e t =
       -- Expand the pattern synonym by substituting for
       -- the arguments we have got and lambda-lifting
       -- over the ones we haven't.
-      let meta r = A.Underscore $ A.emptyMetaInfo{ A.metaRange = r }   -- TODO: name suggestion
+      let meta h r = A.Underscore $ A.emptyMetaInfo{ A.metaRange = r, A.metaKind = A.hidingToMetaKind h }   -- TODO: name suggestion
       case A.insertImplicitPatSynArgs meta (getRange n) ns args of
         Nothing      -> typeError $ BadArgumentsToPatternSynonym n
         Just (s, ns) -> do

@@ -17,3 +17,9 @@ module _ where
 
   h : D → D
   h p = c
+
+  i : D → D
+  i p = p  -- Should solve.
+
+  j : D → D
+  j (p {{d}}) = p {{d = d}}

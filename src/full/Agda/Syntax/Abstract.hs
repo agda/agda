@@ -1082,7 +1082,7 @@ instance SubstExpr Expr where
 
 -- TODO: more informative failure
 insertImplicitPatSynArgs :: forall a. HasRange a
-  => (Range -> a)
+  => (Hiding -> Range -> a)
        -- ^ Thing to insert (wildcard).
   -> Range
        -- ^ Range of the whole pattern synonym expression/pattern.
@@ -1099,7 +1099,7 @@ insertImplicitPatSynArgs wild r ns as = matchArgs r ns as
       | not (null as)
       , matchNext n a  = return (namedArg a, as')
       | visible n      = Nothing
-      | otherwise      = return (wild r, as)
+      | otherwise      = return (wild (getHiding n) r, as)
 
     matchNext ::
          WithHiding Name  -- Pattern synonym parameter
