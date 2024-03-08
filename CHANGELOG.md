@@ -12,6 +12,20 @@ Installation
 Pragmas and options
 -------------------
 
+* The following options are now considered infective:
+  ([Issue #5264](https://github.com/agda/agda/issues/5264))
+
+  * `--allow-exec`
+  * `--cumulativity`
+  * `--experimental-irrelevance`
+  * `--injective-type-constructors`
+  * `--omega-in-omega`
+  * `--rewriting`
+  * `--type-in-type`
+
+  This means that if a module has one of these flags enabled,
+  then all modules importing it must also have that flag enabled.
+
 * New warning `UselessMacro` when a `macro` block does not contain any function definitions.
 
 Syntax
@@ -19,14 +33,10 @@ Syntax
 
 Additions to the Agda syntax.
 
-Language
---------
-
-Changes to type checker and other components defining the Agda language.
-
 * Left-hand side let: `using x ← e`
+  ([PR #7078](https://github.com/agda/agda/pull/7078))
 
-  This new construct can be using in left-hand sides together with `with` and
+  This new construct can be use in left-hand sides together with `with` and
   `rewrite` to give names to subexpressions. It is the left-hand side
   counterpart of a `let`-binding and supports the same limited form of pattern
   matching on eta-expandable record values.
@@ -46,12 +56,10 @@ Changes to type checker and other components defining the Agda language.
   As in a `with`, multiple bindings can be separated by a `|`, and variables to
   the left are in scope in bindings to the right.
 
-* The following options are now considered infective:
-  `--rewriting`, `--type-in-type`, `--omega-in-omega`,
-  `--injective-type-constructors`, `--experimental-irrelevance`,
-  `--cumulativity`, and `--allow-exec`. This means that if a module
-  has one of these flags enabled, then all modules importing it must
-  also have that flag enabled.
+Language
+--------
+
+Changes to type checker and other components defining the Agda language.
 
 Reflection
 ----------
@@ -64,9 +72,10 @@ Library management
 Interaction and emacs mode
 --------------------------
 
-* The Auto command has been reimplemented from the ground up. This fixes
-  problems where Auto would fail in the presence of language features it didn't
-  know about, such as copatterns or anything cubical.
+* The Auto command has been reimplemented from the ground up
+  ([PR #6410](https://github.com/agda/agda/pull/6410)).
+  This fixes problems where Auto would fail in the presence of language features
+  it did not know about, such as copatterns or anything cubical.
 
   The reimplementation does not support case splitting (`-c`), disproving
   (`-d`) or refining (`-r`).
@@ -80,8 +89,8 @@ API
 Highlighting some changes to Agda as a library.
 
 * New module `Agda.Syntax.Common.KeywordRange` providing type `KwRange` isomorphic to `Range`
-  to indicate source positions that just span keywords.
-  The motiviation for `KwRange` is to distinguish such ranges from ranges for whole subtrees,
+  to indicate source positions that just span keywords ([PR #7162](https://github.com/agda/agda/pull/7162)).
+  The motivation for `KwRange` is to distinguish such ranges from ranges for whole subtrees,
   e.g. in data type `Agda.Syntax.Concrete.Declaration`.
 
   API:
