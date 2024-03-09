@@ -13,7 +13,7 @@ synopsis:        A solver for size constraints arising in sized types.
 description:
   See Felix Reihl, 2013, Bachelor thesis, Ludwig-Maximilians-University.
 tested-with:
-  GHC == 9.8.1
+  GHC == 9.8.2
   GHC == 9.6.4
   GHC == 9.4.8
   GHC == 9.2.8
