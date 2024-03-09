@@ -87,6 +87,16 @@ Language
 
 Changes to type checker and other components defining the Agda language.
 
+* Agda now uses *discrimination trees* to store and look up instance
+  definitions, rather than linearly searching through all instances for
+  a given "class" ([PR #7109](https://github.com/agda/agda/pull/7109)).
+
+  This is a purely internal change, and should not result in any change
+  to which programs are accepted or rejected. However, it significantly
+  improves the performance of instance search, especially for the case
+  of a "type class" indexed by a single type argument. The new lookup
+  procedure should never be slower than the previous implementation.
+
 Reflection
 ----------
 

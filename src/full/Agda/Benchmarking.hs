@@ -97,6 +97,14 @@ data Phase
     -- ^ Subphase for 'Typing': generalizing over `variable`s
   | InstanceSearch
     -- ^ Subphase for 'Typing': solving instance goals
+  | Reflection
+    -- ^ Subphase for 'Typing': evaluating elaborator reflection
+  | InitialCandidates
+    -- ^ Subphase for 'InstanceSearch': collecting initial candidates
+  | FilterCandidates
+    -- ^ Subphase for 'InstanceSearch': checking candidates for validity
+  | OrderCandidates
+    -- ^ Subphase for 'InstanceSearch': ordering candidates for specificity
   | UnifyIndices
     -- ^ Subphase for 'CheckLHS': unification of the indices
   | InverseScopeLookup

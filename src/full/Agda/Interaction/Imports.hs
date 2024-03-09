@@ -64,6 +64,7 @@ import Agda.Syntax.Scope.Base
 import Agda.Syntax.TopLevelModuleName
 import Agda.Syntax.Translation.ConcreteToAbstract as CToA
 
+import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Warnings hiding (warnings)
 import Agda.TypeChecking.Reduce
@@ -277,7 +278,6 @@ addImportedThings isig metas ibuiltin patsyns display userwarn
   stTCWarnings           `modifyTCLens` \ imp -> imp `List.union` warnings
   stOpaqueBlocks         `modifyTCLens` \ imp -> imp `Map.union` oblock
   stOpaqueIds            `modifyTCLens` \ imp -> imp `Map.union` oid
-  addImportedInstances isig
 
 -- | Scope checks the given module. A proper version of the module
 -- name (with correct definition sites) is returned.
@@ -1057,6 +1057,10 @@ createInterface mname file isMain msrc = do
     --   throwError e
 
     unfreezeMetas
+
+    -- Remove any instances that now have visible arguments from the
+    -- instance tree before serialising.
+    pruneTemporaryInstances
 
     -- Profiling: Count number of metas.
     whenProfile Profile.Metas $ do

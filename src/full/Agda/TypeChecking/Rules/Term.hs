@@ -338,7 +338,7 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
     -- Jesper, 2019-02-12, Issue #3534: warn if the type of an
     -- instance argument does not have the right shape
     List1.unlessNull (List1.filter isInstance xps) $ \ ixs -> do
-      (tel, target) <- getOutputTypeName t
+      (tel, _, target) <- getOutputTypeName t
       case target of
         OutputTypeName{} -> return ()
         OutputTypeVar{}  -> return ()
@@ -1342,6 +1342,7 @@ unquoteM tacA hole holeType = do
 --   given by the third argument. Runs the continuation if successful.
 unquoteTactic :: Term -> Term -> Type -> TCM ()
 unquoteTactic tac hole goal = do
+  ifM (useTC stConsideringInstance) (addConstraint neverUnblock (UnquoteTactic tac hole goal)) do
   reportSDoc "tc.term.tactic" 40 $ sep
     [ "Running tactic" <+> prettyTCM tac
     , nest 2 $ "on" <+> prettyTCM hole <+> ":" <+> prettyTCM goal ]

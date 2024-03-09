@@ -93,6 +93,16 @@ strengthen err = applySubst (strengthenS err 1)
 substUnder :: Subst a => Nat -> SubstArg a -> a -> a
 substUnder n u = applySubst (liftS n (singletonS 0 u))
 
+-- | Checks whether the variable bound by the abstraction is actually
+-- used, and, if /not/, returns the term within, 'strengthen'ed to live in
+-- the context /outside/ the abstraction.
+-- See also 'Agda.TypeChecking.Free.isBinderUsed'.
+isNoAbs :: (Free a, Subst a) => Abs a -> Maybe a
+isNoAbs (NoAbs _ b) = Just b
+isNoAbs (Abs _ b)
+  | not (0 `freeIn` b) = Just (strengthen __IMPOSSIBLE__ b)
+  | otherwise          = Nothing
+
 -- ** Identity instances
 
 instance Subst QName where

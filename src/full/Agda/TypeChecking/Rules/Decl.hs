@@ -216,14 +216,16 @@ checkDecl d = setCurrentRange d $ do
       whenJust finalChecks $ \ theMutualChecks -> do
         reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
         wakeupConstraints_   -- solve emptiness and instance constraints
+
         checkingWhere <- asksTC envCheckingWhere
         solveSizeConstraints $ if checkingWhere then DontDefaultToInfty else DefaultToInfty
         wakeupConstraints_   -- Size solver might have unblocked some constraints
+
         case d of
-            A.Generalize{} -> pure ()
-            _ -> do
-              reportSLn "tc.decl" 20 $ "Freezing all open metas."
-              void $ freezeMetas (openMetas metas)
+          A.Generalize{} -> pure ()
+          _ -> do
+            reportSLn "tc.decl" 20 $ "Freezing all open metas."
+            void $ freezeMetas (openMetas metas)
 
         theMutualChecks
 

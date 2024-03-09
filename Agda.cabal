@@ -631,6 +631,8 @@ library
       Agda.TypeChecking.DeadCode
       Agda.TypeChecking.DisplayForm
       Agda.TypeChecking.DropArgs
+      Agda.TypeChecking.DiscrimTree
+      Agda.TypeChecking.DiscrimTree.Types
       Agda.TypeChecking.Empty
       Agda.TypeChecking.EtaContract
       Agda.TypeChecking.Errors
