@@ -809,6 +809,13 @@ unfreezeMetas = stOpenMetaStore `modifyTCLens` MapS.map unfreeze
   unfreeze :: MetaVariable -> MetaVariable
   unfreeze mvar = mvar { mvFrozen = Instantiable }
 
+unfreezeSomeMetas :: Set MetaId -> TCM ()
+unfreezeSomeMetas thaw = stOpenMetaStore `modifyTCLens` MapS.mapWithKey unfreeze where
+  unfreeze :: MetaId -> MetaVariable -> MetaVariable
+  unfreeze id mvar
+    | id `Set.member` thaw = mvar { mvFrozen = Instantiable }
+    | otherwise            = mvar
+
 {-# SPECIALIZE isFrozen :: MetaId -> TCM Bool #-}
 isFrozen ::
   (HasCallStack, MonadDebug m, ReadTCState m) => MetaId -> m Bool

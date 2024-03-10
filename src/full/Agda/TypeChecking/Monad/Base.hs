@@ -307,6 +307,7 @@ data PostScopeState = PostScopeState
   , stPostAreWeCaching        :: !Bool
   , stPostPostponeInstanceSearch :: !Bool
   , stPostConsideringInstance :: !Bool
+  , stPostMutualChecks        :: Bool
   , stPostInstantiateBlocking :: !Bool
     -- ^ Should we instantiate away blocking metas?
     --   This can produce ill-typed terms but they are often more readable. See issue #3606.
@@ -474,6 +475,7 @@ initPostScopeState = PostScopeState
   , stPostAreWeCaching         = False
   , stPostPostponeInstanceSearch = False
   , stPostConsideringInstance  = False
+  , stPostMutualChecks         = False
   , stPostInstantiateBlocking  = False
   , stPostLocalPartialDefs     = Set.empty
   , stPostOpaqueBlocks         = Map.empty
@@ -823,6 +825,10 @@ stConsideringInstance :: Lens' TCState Bool
 stConsideringInstance f s =
   f (stPostConsideringInstance (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostConsideringInstance = x}}
+
+stMutualChecks :: Lens' TCState Bool
+stMutualChecks f s = f (stPostMutualChecks (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostMutualChecks = x}}
 
 stInstantiateBlocking :: Lens' TCState Bool
 stInstantiateBlocking f s =
@@ -3704,8 +3710,8 @@ data TCEnv =
                 --   lambdas and let-expressions.
           , envUnquoteFlags :: UnquoteFlags
           , envInstanceDepth :: !Int
-                -- ^ Until we get a termination checker for instance search (#1743) we
-                --   limit the search depth to ensure termination.
+              -- ^ Until we get a termination checker for instance search (#1743) we
+              --   limit the search depth to ensure termination.
           , envIsDebugPrinting :: Bool
           , envPrintingPatternLambdas :: [QName]
                 -- ^ #3004: pattern lambdas with copatterns may refer to themselves. We

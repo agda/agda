@@ -575,6 +575,7 @@ compareAtom cmp t m n =
       "compareAtom" <+> fsep [ prettyTCM mb <+> prettyTCM cmp
                              , prettyTCM nb
                              , prettyTCM t
+                             , prettyTCM blocker
                              ]
     reportSDoc "tc.conv.atom" 80 $
       "compareAtom" <+> fsep [ pretty mb <+> prettyTCM cmp

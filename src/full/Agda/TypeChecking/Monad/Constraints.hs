@@ -223,11 +223,13 @@ isInstanceConstraint :: Constraint -> Bool
 isInstanceConstraint FindInstance{} = True
 isInstanceConstraint _              = False
 
-shouldPostponeInstanceSearch :: (ReadTCState m, HasOptions m) => m Bool
-shouldPostponeInstanceSearch =
+canDropRecursiveInstance :: (ReadTCState m, HasOptions m) => m Bool
+canDropRecursiveInstance =
   and2M ((^. stConsideringInstance) <$> getTCState)
         (not . optOverlappingInstances <$> pragmaOptions)
-  `or2M` ((^. stPostponeInstanceSearch) <$> getTCState)
+
+shouldPostponeInstanceSearch :: (ReadTCState m, HasOptions m) => m Bool
+shouldPostponeInstanceSearch = canDropRecursiveInstance `or2M` ((^. stPostponeInstanceSearch) <$> getTCState)
 
 -- | Wake constraints matching the given predicate (and aren't instance
 --   constraints if 'shouldPostponeInstanceSearch').
