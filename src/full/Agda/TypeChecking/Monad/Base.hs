@@ -2037,6 +2037,13 @@ data RewriteRule = RewriteRule
   }
     deriving (Show, Generic)
 
+-- | Information about an @instance@ definition.
+data InstanceInfo = InstanceInfo
+  { instanceClass    :: QName             -- ^ Name of the "class" this is an instance for
+  , instancePriority :: Maybe OverlapMode -- ^ Does this instance have a specified overlap mode?
+  }
+    deriving (Show, Generic)
+
 data Definition = Defn
   { defArgInfo        :: ArgInfo -- ^ Hiding should not be used.
   , defName           :: QName   -- ^ The canonical name, used e.g. in compilation.
@@ -2097,8 +2104,8 @@ data Definition = Defn
   , defDisplay        :: [LocalDisplayForm]
   , defMutual         :: MutualId
   , defCompiledRep    :: CompiledRepresentation
-  , defInstance       :: Maybe QName
-    -- ^ @Just q@ when this definition is an instance of class q
+  , defInstance       :: Maybe InstanceInfo
+    -- ^ @Just q@ when this definition is an instance.
   , defCopy           :: Bool
     -- ^ Has this function been created by a module
                          -- instantiation?
@@ -4124,9 +4131,9 @@ data CandidateKind
 --   It may be the case that the candidate is not fully applied yet or
 --   of the wrong type, hence the need for the type.
 data Candidate  = Candidate
-  { candidateKind :: CandidateKind
-  , candidateTerm :: Term
-  , candidateType :: Type
+  { candidateKind         :: CandidateKind
+  , candidateTerm         :: Term
+  , candidateType         :: Type
   , candidateOverlappable :: Bool
   }
   deriving (Show, Generic)
@@ -5701,6 +5708,10 @@ instance KillRange RewriteRuleMap where
 instance KillRange Section where
   killRange (Section tel) = killRangeN Section tel
 
+instance KillRange InstanceInfo where
+  killRange :: KillRangeT InstanceInfo
+  killRange (InstanceInfo a b) = killRangeN InstanceInfo a b
+
 instance KillRange Definition where
   killRange (Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk lang def) =
     killRangeN Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk lang def
@@ -5891,6 +5902,7 @@ instance NFData NLPat
 instance NFData NLPType
 instance NFData NLPSort
 instance NFData RewriteRule
+instance NFData InstanceInfo
 instance NFData Definition
 instance NFData Polarity
 instance NFData IsForced

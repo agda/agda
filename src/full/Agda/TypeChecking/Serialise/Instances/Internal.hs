@@ -219,6 +219,10 @@ instance EmbPrj CompKit where
   icod_ (CompKit a b) = icodeN' CompKit a b
   value = valueN CompKit
 
+instance EmbPrj InstanceInfo where
+  icod_ (InstanceInfo a b) = icodeN' InstanceInfo a b
+  value = valueN InstanceInfo
+
 instance EmbPrj Definition where
   icod_ (Defn a b c d e f g h i j k l m n o p blocked r s) =
     icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o p (ossify blocked) r s

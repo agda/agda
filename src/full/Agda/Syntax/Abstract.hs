@@ -221,7 +221,9 @@ data Pragma
   | InjectivePragma QName
   | InlinePragma Bool QName -- INLINE or NOINLINE
   | NotProjectionLikePragma QName
-    -- Mark the definition as not being projection-like
+    -- ^ Mark the definition as not being projection-like
+  | OverlapPragma QName OverlapMode
+    -- ^ If the definition is an instance, set its overlap mode.
   | DisplayPragma QName [NamedArg Pattern] Expr
   deriving (Show, Eq, Generic)
 

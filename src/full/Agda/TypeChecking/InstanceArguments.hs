@@ -128,12 +128,7 @@ initialInstanceCandidates instTy = do
       reportSDoc "tc.instance.fields" 30 $
         if null fields then "no instance field candidates" else
           "instance field candidates" $$ do
-            nest 2 $ vcat
-              [ sep [ (if overlap then "overlap" else empty) <+> prettyTCM c <+> ":"
-                    , nest 2 $ prettyTCM t
-                    ]
-              | c@(Candidate q v t overlap) <- fields
-              ]
+            nest 2 $ vcat (map debugCandidate fields)
 
       -- get let bindings
       env <- asksTC envLetBindings
@@ -220,17 +215,21 @@ initialInstanceCandidates instTy = do
           -- if we anyway get the freeVarsToApply
           -- WAS: t <- defType <$> instantiateDef def
           args <- freeVarsToApply q
-          let t = defType def `piApply` args
-              rel = getRelevance $ defArgInfo def
-          let v = case theDef def of
-               -- drop parameters if it's a projection function...
-               Function{ funProjection = Right p } -> projDropParsApply p ProjSystem rel args
-               -- Andreas, 2014-08-19: constructors cannot be declared as
-               -- instances (at least as of now).
-               -- I do not understand why the Constructor case is not impossible.
-               -- Ulf, 2014-08-20: constructors are always instances.
-               Constructor{ conSrcCon = c }       -> Con c ConOSystem []
-               _                                  -> Def q $ map Apply args
+          let
+            t   = defType def `piApply` args
+            rel = getRelevance $ defArgInfo def
+
+            v = case theDef def of
+              -- drop parameters if it's a projection function...
+              Function{ funProjection = Right p } -> projDropParsApply p ProjSystem rel args
+
+              -- Andreas, 2014-08-19: constructors cannot be declared as
+              -- instances (at least as of now).
+              -- I do not understand why the Constructor case is not impossible.
+              -- Ulf, 2014-08-20: constructors are always instances.
+              Constructor{ conSrcCon = c }       -> Con c ConOSystem []
+              _                                  -> Def q $ map Apply args
+
           return $ Just $ Candidate (GlobalCandidate q) v t False
       where
         -- unbound constant throws an internal error
@@ -301,10 +300,8 @@ getInstanceCandidates m = wrapper where
     cands <- Bench.billTo [Bench.Typing, Bench.InstanceSearch, Bench.OrderCandidates] $
       lift (foldrM insertCandidate [] cands)
 
-    reportSDoc "tc.instance.sort" 20 $ nest 2 $ vcat
-      [ "sorted candidates"
-      , vcat [ "-" <+> (if overlap then "overlap" else empty) <+> prettyTCM c <+> ":" <+> prettyTCM t
-             | c@(Candidate q v t overlap) <- cands ] ]
+    reportSDoc "tc.instance.sort" 20 $ nest 2 $
+      "sorted candidates" $$ vcat (map debugCandidate cands)
 
     pure cands
 
@@ -388,13 +385,9 @@ findInstance' m cands = do
   setCurrentRange mv $ do
       reportSLn "tc.instance" 15 $
         "findInstance 2: constraint: " ++ prettyShow m ++ "; candidates left: " ++ show (length cands)
-      reportSDoc "tc.instance" 60 $ nest 2 $ vcat
-        [ sep [ (if overlap then "overlap" else empty) <+> prettyTCM c <+> ":"
-              , nest 2 $ prettyTCM t ] | c@(Candidate q v t overlap) <- cands ]
+      reportSDoc "tc.instance" 60 $ nest 2 $ vcat $ map debugCandidate cands
       reportSDoc "tc.instance" 70 $ "raw" $$ do
-       nest 2 $ vcat
-        [ sep [ (if overlap then "overlap" else empty) <+> prettyTCM c <+> ":"
-              , nest 2 $ pretty t ] | c@(Candidate q v t overlap) <- cands ]
+       nest 2 $ vcat $ map debugCandidateRaw cands
 
       t <- getMetaTypeInContext m
       reportSLn "tc.instance" 70 $ "findInstance 2: t: " ++ prettyShow t
@@ -559,6 +552,32 @@ fromYes :: YesNo -> Maybe Term
 fromYes (Yes t) = Just t
 fromYes _       = Nothing
 
+debugCandidate' :: MonadPretty m => Bool -> Bool -> Candidate -> m Doc
+debugCandidate' raw term c@(Candidate q v t overlap) =
+  let
+    overlapm
+      | overlap   = "overlap"
+      | otherwise = empty
+
+    cand
+      | term      = prettyTCM v
+      | otherwise = prettyTCM c
+
+    ty
+      | raw       = nest 2 (pretty t)
+      | otherwise = prettyTCM t
+
+  in sep [ "-", overlapm, cand, ":", ty ]
+
+debugCandidate :: MonadPretty m => Candidate -> m Doc
+debugCandidate = debugCandidate' False False
+
+debugCandidateRaw :: MonadPretty m => Candidate -> m Doc
+debugCandidateRaw = debugCandidate' True False
+
+debugCandidateTerm :: MonadPretty m => Candidate -> m Doc
+debugCandidateTerm = debugCandidate' False True
+
 -- | Given a meta @m@ of type @t@ and a list of candidates @cands@,
 -- @checkCandidates m t cands@ returns a refined list of valid candidates and
 -- candidates that failed some constraints.
@@ -568,18 +587,15 @@ checkCandidates m t cands =
   ifM (anyMetaTypes cands) (return Nothing) $ Just <$> do
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ "target:" <+> prettyTCM t
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
-      [ "candidates"
-      , vcat [ "-" <+> (if overlap then "overlap" else empty) <+> prettyTCM c <+> ":" <+> prettyTCM t
-             | c@(Candidate q v t overlap) <- cands ] ]
+      [ "candidates", vcat (map debugCandidate cands) ]
+
     cands' <- filterResetingState m cands (checkCandidateForMeta m t)
+
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
-      [ "valid candidates"
-      , vcat [ "-" <+> (if overlap then "overlap" else empty) <+> prettyTCM c <+> ":" <+> prettyTCM t
-             | c@(Candidate q v t overlap) <- map fst (snd cands') ] ]
+      [ "valid candidates", vcat (map (debugCandidate . fst) (snd cands')) ]
     reportSDoc "tc.instance.candidates" 60 $ nest 2 $ vcat
-      [ "valid candidates"
-      , vcat [ "-" <+> (if overlap then "overlap" else empty) <+> prettyTCM v <+> ":" <+> prettyTCM t
-             | c@(Candidate q v t overlap) <- map fst (snd cands') ] ]
+      [ "valid candidates", vcat (map (debugCandidateTerm . fst) (snd cands')) ]
+
     return cands'
   where
     anyMetaTypes :: [Candidate] -> TCM Bool
@@ -793,10 +809,16 @@ addTypedInstance' w x t = do
       modifyTCLens' (stSignature . sigInstances . itableCounts) $
         Map.insertWith (+) n 1
 
+      let
+        info = InstanceInfo
+          { instanceClass    = n
+          , instancePriority = Nothing
+          }
+
       -- This is no longer used to build the instance table for imported
       -- modules, but it is still used to know if an instance should be
       -- copied when applying a section.
-      modifySignature $ updateDefinition x \ d -> d { defInstance = Just n }
+      modifySignature $ updateDefinition x \ d -> d { defInstance = Just info }
 
       -- If there's anything visible in the context, which will
       -- eventually end up in the instance's type, let's make a note to

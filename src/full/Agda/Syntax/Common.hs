@@ -246,6 +246,21 @@ instance NFData Overlappable where
   rnf NoOverlap  = ()
   rnf YesOverlap = ()
 
+data OverlapMode
+  = Overlappable
+  | Overlapping
+  | Overlaps
+  deriving (Show, Eq, Ord, Enum, Bounded)
+
+instance KillRange OverlapMode where
+  killRange = id
+
+instance NFData OverlapMode where
+  rnf = \case
+    Overlappable -> ()
+    Overlapping -> ()
+    Overlaps -> ()
+
 ---------------------------------------------------------------------------
 -- * Hiding
 ---------------------------------------------------------------------------

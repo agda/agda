@@ -1123,6 +1123,8 @@ niceDeclarations fixs ds = do
               InlinePragma{}            -> bottom
               NotProjectionLikePragma{} -> bottom
 
+              OverlapPragma{}           -> top
+
               ImpossiblePragma{}        -> top     -- error thrown in scope checker
               EtaPragma{}               -> bottom  -- needs record definition
               WarningOnUsage{}          -> top

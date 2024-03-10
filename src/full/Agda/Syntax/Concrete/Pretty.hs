@@ -659,6 +659,9 @@ instance Pretty Pragma where
     pretty (PolarityPragma _ q occs) =
       hsep ("POLARITY" : pretty q : map pretty occs)
     pretty (NoUniverseCheckPragma _) = "NO_UNIVERSE_CHECK"
+    pretty (OverlapPragma _ x Overlappable) = hsep ["OVERLAPPABLE", pretty x]
+    pretty (OverlapPragma _ x Overlapping) = hsep ["OVERLAPPING", pretty x]
+    pretty (OverlapPragma _ x Overlaps) = hsep ["OVERLAPS", pretty x]
 
 instance Pretty Associativity where
   pretty = \case

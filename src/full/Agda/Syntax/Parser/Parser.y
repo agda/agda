@@ -174,6 +174,9 @@ import Agda.Utils.Impossible
     'NOT_PROJECTION_LIKE'     { TokKeyword KwNOT_PROJECTION_LIKE $$ }
     'OPTIONS'                 { TokKeyword KwOPTIONS $$ }
     'POLARITY'                { TokKeyword KwPOLARITY $$ }
+    'OVERLAPPABLE'            { TokKeyword KwOVERLAPPABLE $$ }
+    'OVERLAPPING'             { TokKeyword KwOVERLAPPING $$ }
+    'OVERLAPS'                { TokKeyword KwOVERLAPS $$ }
     'WARNING_ON_USAGE'        { TokKeyword KwWARNING_ON_USAGE $$ }
     'WARNING_ON_IMPORT'       { TokKeyword KwWARNING_ON_IMPORT $$ }
     'REWRITE'                 { TokKeyword KwREWRITE $$ }
@@ -304,6 +307,9 @@ Token
     | 'NON_COVERING'            { TokKeyword KwNON_COVERING $1 }
     | 'NOT_PROJECTION_LIKE'     { TokKeyword KwNOT_PROJECTION_LIKE $1 }
     | 'OPTIONS'                 { TokKeyword KwOPTIONS $1 }
+    | 'OVERLAPPABLE'            { TokKeyword KwOVERLAPPABLE $1 }
+    | 'OVERLAPPING'             { TokKeyword KwOVERLAPPING $1 }
+    | 'OVERLAPS'                { TokKeyword KwOVERLAPS $1 }
     | 'POLARITY'                { TokKeyword KwPOLARITY $1 }
     | 'REWRITE'                 { TokKeyword KwREWRITE $1 }
     | 'STATIC'                  { TokKeyword KwSTATIC $1 }
@@ -400,6 +406,9 @@ Float : literal {% forM $1 $ \case
                    }
                 }
 
+-- An integer. Used in instance priority pragmas.
+PragmaInteger :: { Ranged Integer }
+PragmaInteger : string {% pragmaInteger $1 }
 
 {--------------------------------------------------------------------------
     Names
@@ -1576,6 +1585,7 @@ DeclarationPragma
   | NoPositivityCheckPragma  { $1 }
   | NoUniverseCheckPragma    { $1 }
   | PolarityPragma           { $1 }
+  | OverlapPragma            { $1 }
   | OptionsPragma            { $1 }
     -- Andreas, 2014-03-06
     -- OPTIONS pragma not allowed everywhere, but don't give parse error.
@@ -1630,6 +1640,12 @@ NotProjectionLikePragma :: { Pragma }
 NotProjectionLikePragma
   : '{-#' 'NOT_PROJECTION_LIKE' PragmaQName '#-}'
     { NotProjectionLikePragma (getRange ($1,$2,$3,$4)) $3 }
+
+OverlapPragma :: { Pragma }
+OverlapPragma
+  : '{-#' 'OVERLAPPABLE' PragmaQName '#-}' { OverlapPragma (getRange ($1,$2,$3,$4)) $3 Overlappable }
+  | '{-#' 'OVERLAPPING'  PragmaQName '#-}' { OverlapPragma (getRange ($1,$2,$3,$4)) $3 Overlapping }
+  | '{-#' 'OVERLAPS'     PragmaQName '#-}' { OverlapPragma (getRange ($1,$2,$3,$4)) $3 Overlaps }
 
 InjectivePragma :: { Pragma }
 InjectivePragma
