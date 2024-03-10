@@ -569,7 +569,7 @@ compareAtom cmp t m n =
         dir = fromCmp cmp
         rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
 
-        assign dir x es v = assignE dir x es v t $ compareAtomDir dir t
+        assign dir x es v = assignE dir x es v t $ compareAsDir dir t
 
     reportSDoc "tc.conv.atom" 30 $
       "compareAtom" <+> fsep [ prettyTCM mb <+> prettyTCM cmp
