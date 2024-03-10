@@ -45,6 +45,7 @@ import Text.PrettyPrint.Annotated (Doc, isEmpty)
 import Agda.Utils.Bag (Bag)
 import qualified Agda.Utils.Bag as Bag
 
+import Agda.Utils.Unsafe (unsafeComparePointers)
 import Agda.Utils.Impossible
 
 class Null a where
@@ -52,8 +53,10 @@ class Null a where
   null  :: a -> Bool
   -- ^ Satisfying @null empty == True@.
 
+  -- | The default implementation of 'null' compares with 'empty',
+  --   first trying pointer equality, then falling back to 'Eq' equality.
   default null :: Eq a => a -> Bool
-  null = (== empty)
+  null a = unsafeComparePointers a empty || a == empty
 
 instance Null () where
   empty  = ()

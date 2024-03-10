@@ -634,13 +634,41 @@ mapNameSpaceM fd fm fs ns = update ns <$> fd (nsNames ns) <*> fm (nsModules ns) 
 
 instance Null Scope where
   empty = emptyScope
-  null  = __IMPOSSIBLE__
-    -- TODO: define when needed, careful about scopeNameSpaces!
+  -- -- Use default implementation of null
+  -- null Scope{ scopeName, scopeParents, scopeNameSpaces, scopeImports, scopeDatatypeModule } = and
+  --   [ null scopeName
+  --   , null scopeParents
+  --   , null scopeNameSpaces || all (null . snd) scopeNameSpaces
+  --   , null scopeImports
+  --   , null scopeDatatypeModule
+  --   ]
 
 instance Null ScopeInfo where
   empty = emptyScopeInfo
-  null  = __IMPOSSIBLE__
-    -- TODO: define when needed, careful about _scopeModules!
+  -- -- Use default implementation of null
+  -- null ScopeInfo
+  --   { _scopeCurrent
+  --   , _scopeModules
+  --   , _scopeVarsToBind
+  --   , _scopeLocals
+  --   , _scopePrecendence
+  --   , _scopeInverseName
+  --   , _scopeInverseModule
+  --   , _scopeInScope
+  --   , _scopeFixities
+  --   , _scopePolarities
+  --   } = and
+  --   [ null _scopeCurrent
+  --   , null _scopeModules || all null (Map.values _scopeModules)
+  --   , null _scopeVarsToBind
+  --   , null _scopeLocals
+  --   , null _scopePrecendence
+  --   , null _scopeInverseName
+  --   , null _scopeInverseModule
+  --   , null _scopeInScope
+  --   , null _scopeFixities
+  --   , null _scopePolarities
+  --   ]
 
 -- | The empty scope.
 emptyScope :: Scope

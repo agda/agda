@@ -1411,7 +1411,7 @@ checkOrInferMeta
 checkOrInferMeta i newMeta mt = do
   case A.metaNumber i of
     Nothing -> do
-      setScope (A.metaScope i)
+      unlessNull (A.metaScope i) setScope
       (cmp , t) <- maybe ((CmpEq,) <$> workOnTypes newTypeMeta_) return mt
       (x, v) <- newMeta cmp t
       setMetaNameSuggestion x (A.metaNameSuggestion i)
