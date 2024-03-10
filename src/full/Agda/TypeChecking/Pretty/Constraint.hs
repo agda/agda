@@ -130,8 +130,8 @@ instance PrettyTCM Constraint where
                   hang "Candidates" 2 $ vcat
                     [ hang (overlap c <+> prettyTCM c <+> ":") 2 $
                             prettyTCM (candidateType c) | c <- cnds ]
-              where overlap c | candidateOverlappable c = "overlap"
-                              | otherwise               = empty
+              where overlap c | candidateOverlap c /= DefaultOverlap = "overlap"
+                              | otherwise     = empty
         ResolveInstanceHead q ->
             "Resolve target type of instance: " <?> prettyTCM q
         IsEmpty r t ->

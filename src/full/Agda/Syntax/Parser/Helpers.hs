@@ -16,7 +16,6 @@ import qualified Data.List as List
 import Data.Maybe
 import Data.Semigroup ((<>), sconcat)
 import qualified Data.Traversable as T
-import Text.Read (readMaybe)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Parser.Monad
@@ -196,11 +195,6 @@ polarity (i, s) =
     _    -> parseError $ "Not a valid polarity: " ++ s
   where
   ret x = return (getRange i, x)
-
-pragmaInteger :: (Interval, String) -> Parser (Ranged Integer)
-pragmaInteger (i, s) = case readMaybe s of
-  Just x  -> pure (Ranged (getRange i) x)
-  Nothing -> parseError $ "Expected an integer literal, but got ``" ++ s ++ "''"
 
 recoverLayout :: [(Interval, String)] -> String
 recoverLayout [] = ""

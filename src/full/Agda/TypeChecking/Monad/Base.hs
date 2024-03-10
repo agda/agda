@@ -2039,8 +2039,8 @@ data RewriteRule = RewriteRule
 
 -- | Information about an @instance@ definition.
 data InstanceInfo = InstanceInfo
-  { instanceClass    :: QName             -- ^ Name of the "class" this is an instance for
-  , instancePriority :: Maybe OverlapMode -- ^ Does this instance have a specified overlap mode?
+  { instanceClass   :: QName       -- ^ Name of the "class" this is an instance for
+  , instanceOverlap :: OverlapMode -- ^ Does this instance have a specified overlap mode?
   }
     deriving (Show, Generic)
 
@@ -4131,16 +4131,18 @@ data CandidateKind
 --   It may be the case that the candidate is not fully applied yet or
 --   of the wrong type, hence the need for the type.
 data Candidate  = Candidate
-  { candidateKind         :: CandidateKind
-  , candidateTerm         :: Term
-  , candidateType         :: Type
-  , candidateOverlappable :: Bool
+  { candidateKind    :: CandidateKind
+  , candidateTerm    :: Term
+  , candidateType    :: Type
+  , candidateOverlap :: OverlapMode
   }
   deriving (Show, Generic)
 
 instance Free Candidate where
   freeVars' (Candidate _ t u _) = freeVars' (t, u)
 
+instance HasOverlapMode Candidate where
+  lensOverlapMode f x = f (candidateOverlap x) <&> \m -> x{ candidateOverlap = m }
 
 ---------------------------------------------------------------------------
 -- ** Checking arguments
@@ -4667,6 +4669,7 @@ data TypeError
           -- ^ Record type, fields not supplied by user, non-fields but supplied.
         | DuplicateFields [C.Name]
         | DuplicateConstructors [C.Name]
+        | DuplicateOverlapPragma QName OverlapMode OverlapMode
         | WithOnFreeVariable A.Expr Term
         | UnexpectedWithPatterns [A.Pattern]
         | WithClausePatternMismatch A.Pattern (NamedArg DeBruijnPattern)

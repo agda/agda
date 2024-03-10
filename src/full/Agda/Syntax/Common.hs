@@ -246,20 +246,76 @@ instance NFData Overlappable where
   rnf NoOverlap  = ()
   rnf YesOverlap = ()
 
+-- | The possible overlap modes for an instance, also used for instance candidates.
 data OverlapMode
   = Overlappable
+  -- ^ User-written OVERLAPPABLE pragma: this candidate can *be removed*
+  -- by a more specific candidate.
+
   | Overlapping
+  -- ^ User-written OVERLAPPING pragma: this candidate can *remove* a
+  -- less specific candidate.
+
   | Overlaps
+  -- ^ User-written OVERLAPS pragma: both overlappable and overlapping.
+
+  | DefaultOverlap
+  -- ^ No user-written overlap pragma. This instance can be overlapped
+  -- by an OVERLAPPING instance, and it can overlap OVERLAPPABLE
+  -- instances.
+
+  | Incoherent
+  -- ^ User-written INCOHERENT pragma: both overlappable and
+  -- overlapping; and, if there are multiple candidates after all
+  -- overlap has been handled, make an arbitrary choice.
+
+  | FieldOverlap
+  -- ^ Overlapping instances in record fields.
   deriving (Show, Eq, Ord, Enum, Bounded)
+
+instance Pretty OverlapMode where
+  pretty = \case
+    Overlappable   -> "OVERLAPPABLE"
+    Overlapping    -> "OVERLAPPING"
+    Incoherent     -> "INCOHERENT"
+    Overlaps       -> "OVERLAPS"
+    FieldOverlap   -> "overlap"
+    DefaultOverlap -> empty
 
 instance KillRange OverlapMode where
   killRange = id
 
 instance NFData OverlapMode where
   rnf = \case
-    Overlappable -> ()
-    Overlapping -> ()
-    Overlaps -> ()
+    Overlappable   -> ()
+    Overlapping    -> ()
+    Overlaps       -> ()
+    DefaultOverlap -> ()
+    FieldOverlap   -> ()
+    Incoherent     -> ()
+
+class HasOverlapMode a where
+  lensOverlapMode :: Lens' a OverlapMode
+
+instance HasOverlapMode OverlapMode where
+  lensOverlapMode = id
+
+isIncoherent, isOverlappable, isOverlapping :: HasOverlapMode a => a -> Bool
+isIncoherent x = case x ^. lensOverlapMode of
+  Incoherent -> True
+  _          -> False
+
+isOverlappable x = case x ^. lensOverlapMode of
+  Overlappable -> True
+  Incoherent   -> True
+  Overlaps     -> True
+  _            -> False
+
+isOverlapping x = case x ^. lensOverlapMode of
+  Overlapping -> True
+  Incoherent  -> True
+  Overlaps    -> True
+  _           -> False
 
 ---------------------------------------------------------------------------
 -- * Hiding
@@ -394,8 +450,8 @@ makeInstance = makeInstance' NoOverlap
 makeInstance' :: LensHiding a => Overlappable -> a -> a
 makeInstance' o = setHiding (Instance o)
 
-isOverlappable :: LensHiding a => a -> Bool
-isOverlappable x =
+isYesOverlap :: LensHiding a => a -> Bool
+isYesOverlap x =
   case getHiding x of
     Instance YesOverlap -> True
     _ -> False

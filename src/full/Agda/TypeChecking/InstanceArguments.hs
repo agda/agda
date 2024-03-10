@@ -18,7 +18,7 @@ module Agda.TypeChecking.InstanceArguments
   , resolveInstanceHead
   ) where
 
-import Control.Monad        ( forM )
+import Control.Monad        ( forM, filterM )
 import Control.Monad.Except ( ExceptT(..), runExceptT, MonadError(..) )
 import Control.Monad.Trans  ( lift )
 
@@ -60,8 +60,8 @@ import Agda.TypeChecking.Monad.Benchmark (billTo)
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Tuple
 import Agda.Syntax.Common.Pretty (prettyShow)
-import Agda.Utils.Null (empty)
 
 import Agda.Utils.Impossible
 import qualified Agda.Utils.ProfileOptions as Profile
@@ -117,7 +117,7 @@ initialInstanceCandidates instTy = do
       reportSDoc "tc.instance.cands" 40 $ hang "Getting candidates from context" 2 (inTopContext $ prettyTCM $ PrettyContext ctx)
           -- Context variables with their types lifted to live in the full context
       let varsAndRaisedTypes = [ (var i, raise (i + 1) t) | (i, t) <- zip [0..] ctx ]
-          vars = [ Candidate LocalCandidate x t (isOverlappable info)
+          vars = [ Candidate LocalCandidate x t (infoOverlapMode info)
                  | (x, Dom{domInfo = info, unDom = (_, t)}) <- varsAndRaisedTypes
                  , isInstance info
                  ]
@@ -133,12 +133,15 @@ initialInstanceCandidates instTy = do
       -- get let bindings
       env <- asksTC envLetBindings
       env <- mapM (traverse getOpen) $ Map.toList env
-      let lets = [ Candidate LocalCandidate v t False
+      let lets = [ Candidate LocalCandidate v t DefaultOverlap
                  | (_, LetBinding _ v Dom{domInfo = info, unDom = t}) <- env
                  , isInstance info
                  , usableModality info
                  ]
       return $ vars ++ fields ++ lets
+
+    infoOverlapMode :: LensArgInfo a => a -> OverlapMode
+    infoOverlapMode info = if isYesOverlap (getArgInfo info) then FieldOverlap else DefaultOverlap
 
     etaExpand :: (MonadTCM m, PureTCM m)
               => Bool -> Type -> m (Maybe (QName, Args))
@@ -166,8 +169,9 @@ initialInstanceCandidates instTy = do
         (tel, args) <- lift $ forceEtaExpandRecord r pars v
         let types = map unDom $ applySubst (parallelS $ reverse $ map unArg args) (flattenTel tel)
         fmap concat $ forM (zip args types) $ \ (arg, t) ->
-          ([ Candidate LocalCandidate (unArg arg) t (isOverlappable arg)
-           | isInstance arg ] ++) <$>
+          ([ Candidate LocalCandidate (unArg arg) t (infoOverlapMode arg)
+           | isInstance arg
+           ] ++) <$>
           instanceFields' False (LocalCandidate, unArg arg, t)
 
     getScopeDefs :: QName -> TCM [Candidate]
@@ -230,7 +234,11 @@ initialInstanceCandidates instTy = do
               Constructor{ conSrcCon = c }       -> Con c ConOSystem []
               _                                  -> Def q $ map Apply args
 
-          return $ Just $ Candidate (GlobalCandidate q) v t False
+            mode = case defInstance def of
+              Just i  -> instanceOverlap i
+              Nothing -> DefaultOverlap
+
+          return $ Just $ Candidate (GlobalCandidate q) v t mode
       where
         -- unbound constant throws an internal error
         handle (TypeError _ _ (Closure {clValue = InternalError _})) = return Nothing
@@ -308,6 +316,7 @@ getInstanceCandidates m = wrapper where
 -- | @'doesCandidateSpecialise' c1 c2@ checks whether the instance candidate @c1@
 -- /specialises/ the instance candidate @c2@, i.e., whether the type of
 -- @c2@ is a substitution instance of @c1@'s type.
+--
 -- Only the final return type of the instances is considered: the
 -- presence of unsolvable instance arguments in the types of @c1@ or
 -- @c2@ does not affect the results of 'doesCandidateSpecialise'.
@@ -324,8 +333,9 @@ doesCandidateSpecialise c1@Candidate{candidateType = t1} c2@Candidate{candidateT
   -- "flexible"; then calling the conversion checker.
 
   let
-    handle _ = do
+    handle e = do
       reportSDoc "tc.instance.sort" 30 $ nest 2 "=> NOT specialisation"
+      reportSDoc "tc.instance.sort" 40 $ prettyTCM e
       pure False
 
     wrap = flip catchError handle
@@ -353,6 +363,15 @@ doesCandidateSpecialise c1@Candidate{candidateType = t1} c2@Candidate{candidateT
     leqType t2 t1
     reportSDoc "tc.instance.sort" 30 $ nest 2 "=> IS specialisation"
     pure True
+
+-- | Like 'doesCandidateSpecialise', but additionally takes into
+-- consideration whether the overlap is allowed. Fails early if the new
+-- candidate is not overlapping and the old candidate is not
+-- overlappable.
+doesCandidateOverride :: Candidate -> Candidate -> TCM Bool
+doesCandidateOverride new old = if isOverlapping new || isOverlappable old
+  then doesCandidateSpecialise new old
+  else pure False
 
 insertCandidate :: Candidate -> [Candidate] -> TCM [Candidate]
 insertCandidate x []     = pure [x]
@@ -404,11 +423,11 @@ findInstance' m cands = do
 
       debugConstraints
       case mcands of
-
         Just ([(_, err)], []) -> do
           reportSDoc "tc.instance" 15 $
             "findInstance 5: the only viable candidate failed..."
           throwError err
+
         Just (errs, []) -> do
           if null errs then reportSDoc "tc.instance" 15 $ "findInstance 5: no viable candidate found..."
                        else reportSDoc "tc.instance" 15 $ "findInstance 5: all viable candidates failed..."
@@ -421,14 +440,18 @@ findInstance' m cands = do
           setCurrentRange (take 1 $ map snd sortedErrs) $
             typeError $ InstanceNoCandidate t [ (candidateTerm c, err) | (c, err) <- sortedErrs ]
 
-        Just (_, [(c@(Candidate q term t' _), v)]) -> do
-
+        Just (errs, [(c@(Candidate q term t' _), v)]) -> do
           reportSDoc "tc.instance" 15 $ vcat
             [ "instance search: attempting"
             , nest 2 $ prettyTCM m <+> ":=" <+> prettyTCM v
             ]
+
           reportSDoc "tc.instance" 70 $ nest 2 $
             "candidate v = " <+> pretty v
+
+          let overlapWarning = (isOverlappable c || isOverlapping c) && not (isIncoherent c)
+          when overlapWarning $ warnEarlyOverlap c t cands
+
           ctxElims <- map Apply <$> getContextArgs
           equalTerm t (MetaV m ctxElims) v
 
@@ -452,6 +475,23 @@ findInstance' m cands = do
           whenProfile Profile.Instances $ tick "findInstance: multiple candidates"
           return (Just (cs, neverUnblock))
 
+-- | Raise a warning if the selected candidate was chosen through
+-- overlap
+warnEarlyOverlap :: Candidate -> Type -> [Candidate] -> TCM ()
+warnEarlyOverlap c t cands = do
+  InstanceTable tree counts <- getInstanceDefs
+
+  let
+    cname Candidate{ candidateKind = GlobalCandidate q } = Set.singleton q
+    cname _ = mempty
+
+  unify <- flip (foldr Set.delete) (foldMap cname cands) <$> lookupUnifyDT (unEl t) tree
+
+  reportSDoc "tc.instance.overlap" 30 $ vcat
+    [ "candidate", prettyTCM c, "survived, but these instances unify:"
+    , nest 2 (prettyTCM unify)
+    ]
+
 insidePi :: Type -> (Type -> TCM a) -> TCM a
 insidePi t ret = reduce (unEl t) >>= \case
     Pi a b     -> addContext (absName b, a) $ insidePi (absBody b) ret
@@ -466,7 +506,7 @@ insidePi t ret = reduce (unEl t) >>= \case
     DontCare{} -> __IMPOSSIBLE__
     Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
--- | Apply the computation to every argument in turn by reseting the state every
+-- | Apply the computation to every argument in turn by resetting the state every
 --   time. Return the list of the arguments giving the result True.
 --
 --   If the resulting list contains exactly one element, then the state is the
@@ -476,8 +516,8 @@ insidePi t ret = reduce (unEl t) >>= \case
 --   Also returns the candidates that pass type checking but fails constraints,
 --   so that the error messages can be reported if there are no successful
 --   candidates.
-filterResetingState :: MetaId -> [Candidate] -> (Candidate -> TCM YesNo) -> TCM ([(Candidate, TCErr)], [(Candidate, Term)])
-filterResetingState m cands f = do
+filterResettingState :: MetaId -> [Candidate] -> (Candidate -> TCM YesNo) -> TCM ([(Candidate, TCErr)], [(Candidate, Term)])
+filterResettingState m cands f = do
   ctxArgs  <- getContextArgs
   let ctxElims = map Apply ctxArgs
   result <- mapM (\c -> do bs <- localTCStateSaving (f c); return (c, bs)) cands
@@ -500,31 +540,145 @@ filterResetingState m cands f = do
           good = [ (c, v) | (c, v, _) <- result'' ]
       return (bad, good)
 
+-- | The state used to reduce a list of candidates according to the
+-- overlap rules.
+data OverlapState a b = OverlapState
+  { survivingCands :: [(Candidate, a, b)]
+    -- ^ The reduced list.
+
+  , guardingCands  :: [Candidate]
+    -- ^ Overlapping candidates that have been discarded, which are kept
+    -- around because they might still discard some overlappable
+    -- candidates.
+  }
+
+-- | Apply the instance overlap rules to reduce the list of candidates.
+resolveInstanceOverlap :: forall a b. Relevance -> [(Candidate, a, b)] -> TCM [(Candidate, a, b)]
+resolveInstanceOverlap rel cands = wrapper where
+  wrapper
+    -- If the instance meta is irrelevant: anything will do, no reason
+    -- to do any work.
+    | isIrrelevant rel = pure cands
+
+    -- If all the candidates are incoherent: choose the leftmost candidate.
+    | all (isIncoherent . candidateOverlap . fst3) cands
+    , (c:_) <- cands = pure [c]
+
+    -- If all the candidates are record field overlap: choose the leftmost candidate.
+    | all ((== FieldOverlap) . candidateOverlap . fst3) cands
+    , (c:_) <- cands = pure [c]
+
+    -- If none of the candidates have a special overlap mode: there's no
+    -- reason to do any work.
+    | all ((DefaultOverlap ==) . candidateOverlap . fst3) cands = pure cands
+
+    -- If some of the candidates are overlappable/overlapping, then we
+    -- should do the work.
+    | otherwise = do
+      reportSDoc "tc.instance.overlap" 30 $ "overlapping instances:" $$ vcat (map (debugCandidate . fst3) cands)
+
+      survivingCands <$> foldrM insert (OverlapState [] []) cands
+
+  -- Insert a new item into the overlap state.
+  insertNew
+    :: OverlapState a b       -- The state to insert into
+    -> (Candidate, a, b)      -- The item to insert
+    -> [(Candidate, a, b)]    -- Old items which we might overlap/be overlapped by
+    -> TCM (OverlapState a b)
+  insertNew oldState new [] = pure oldState{ survivingCands = [new] }
+  insertNew oldState newItem@(new, _, _) (oldItem@(old, _, _):olds) = do
+    reportSDoc "tc.instance.overlap" 50 $ vcat
+      [ "comparing new candidate"
+      , nest 2 (debugCandidate new)
+      , "versus old candidate"
+      , nest 2 (debugCandidate old)
+      ]
+
+    let
+      -- If the new candidate overrides the old, drop it. But if the old
+      -- candidate was overlapping (and the new one isn't), we keep it
+      -- as a guard, since it might knock out future candidates.
+      newold = insertNew oldState newItem olds <&> \case
+        OverlapState items guards ->
+          if not (isOverlapping new) && isOverlapping old
+            then OverlapState items guards
+            else OverlapState items (old:guards)
+
+      -- If the old candidate overrides the new, then stop inserting.
+      -- But if the new candidate is overlapping, it can be added as a
+      -- guard.
+      oldnew = do
+        if isOverlapping old || not (isOverlapping new) then pure oldState else do
+          let OverlapState{ survivingCands = oldItems, guardingCands = guards } = oldState
+          reportSDoc "tc.instance.overlap" 40 $ vcat
+            [ "will become guard:"
+            , nest 2 (debugCandidate new)
+            , "old items:"
+            , nest 2 (vcat (map (debugCandidate . fst3) oldItems))
+            ]
+
+          -- But we can't /just/ add it to the list of guards: the new
+          -- item might conflict with some of the other old candidates.
+          -- We must remove those.
+
+          knocked <- filterM (fmap not . doesCandidateOverride new . fst3) oldItems
+          pure $ OverlapState knocked (new:guards)
+
+      -- If neither overrides the other, keep both!
+      neither = insertNew oldState newItem olds <&> \case
+        OverlapState items guards -> OverlapState (oldItem:items) guards
+
+    ifM (new `doesCandidateOverride` old)
+      {- then -} newold
+      {- else -} (ifM (old `doesCandidateOverride` new)
+        {- then -} oldnew
+        {- else -} neither)
+
+  -- Insert a new instance into the given overlap set.
+  insert :: (Candidate, a, b) -> OverlapState a b -> TCM (OverlapState a b)
+  insert newItem@(new, _, _) oldState@(OverlapState oldItems guards) = do
+    -- If the new candidate is overridden by any of the guards, we can
+    -- ditch it immediately.
+    guarded <- anyM guards (`doesCandidateOverride` new)
+
+    reportSDoc "tc.instance.overlap" 40 $ vcat
+      [ "inserting new candidate:"
+      , nest 2 (debugCandidate new)
+      , "against old candidates"
+      , nest 2 (vcat (map (debugCandidate . fst3) oldItems))
+      , "and guarding candidates"
+      , nest 2 (vcat (map debugCandidate guards))
+      , "is guarded?" <+> prettyTCM guarded
+      ]
+
+    if guarded then pure oldState else insertNew oldState newItem oldItems
+
 -- Drop all candidates which are judgmentally equal to the first one.
 -- This is sufficient to reduce the list to a singleton should all be equal.
 dropSameCandidates :: MetaId -> [(Candidate, Term, a)] -> TCM [(Candidate, Term, a)]
 dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidates" $ do
   !nextMeta    <- nextLocalMeta
   isRemoteMeta <- isRemoteMeta
+
   -- Does "it" contain any fresh meta-variables?
   let freshMetas =
         getAny .
         allMetas (\m -> Any (not (isRemoteMeta m || m < nextMeta)))
 
+  rel <- getRelevance <$> lookupMetaModality m
+
   -- Take overlappable candidates into account
-  let cands =
-        case List.partition (\ (c, _, _) -> candidateOverlappable c) cands0 of
-          (cand : _, []) -> [cand]  -- only overlappable candidates: pick the first one
-          _              -> cands0  -- otherwise require equality
+  cands <- resolveInstanceOverlap rel cands0
+  reportSDoc "tc.instance.overlap" 30 $ "instances after resolving overlap:" $$ vcat (map (debugCandidate . fst3) cands)
 
   reportSDoc "tc.instance" 50 $ vcat
     [ "valid candidates:"
     , nest 2 $ vcat [ if freshMetas v then "(redacted)" else
                       sep [ prettyTCM v ]
                     | (_, v, _) <- cands ] ]
-  rel <- getRelevance <$> lookupMetaModality m
+
   case cands of
-    []            -> return cands
+    [] -> return cands
     cvd : _ | isIrrelevant rel -> do
       reportSLn "tc.instance" 30 "dropSameCandidates: Meta is irrelevant so any candidate will do."
       return [cvd]
@@ -555,10 +709,6 @@ fromYes _       = Nothing
 debugCandidate' :: MonadPretty m => Bool -> Bool -> Candidate -> m Doc
 debugCandidate' raw term c@(Candidate q v t overlap) =
   let
-    overlapm
-      | overlap   = "overlap"
-      | otherwise = empty
-
     cand
       | term      = prettyTCM v
       | otherwise = prettyTCM c
@@ -567,7 +717,9 @@ debugCandidate' raw term c@(Candidate q v t overlap) =
       | raw       = nest 2 (pretty t)
       | otherwise = prettyTCM t
 
-  in sep [ "-", overlapm, cand, ":", ty ]
+    head = fsep [ "-", pretty overlap, cand, ":" ]
+  in if | raw       -> sep [ head, ty ]
+        | otherwise -> head <+> ty
 
 debugCandidate :: MonadPretty m => Candidate -> m Doc
 debugCandidate = debugCandidate' False False
@@ -589,12 +741,12 @@ checkCandidates m t cands =
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
       [ "candidates", vcat (map debugCandidate cands) ]
 
-    cands' <- filterResetingState m cands (checkCandidateForMeta m t)
+    cands'@(_, okay) <- filterResettingState m cands (checkCandidateForMeta m t)
 
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
-      [ "valid candidates", vcat (map (debugCandidate . fst) (snd cands')) ]
+      [ "valid candidates", vcat (map (debugCandidate . fst) okay) ]
     reportSDoc "tc.instance.candidates" 60 $ nest 2 $ vcat
-      [ "valid candidates", vcat (map (debugCandidateTerm . fst) (snd cands')) ]
+      [ "valid candidates", vcat (map (debugCandidateTerm . fst) okay) ]
 
     return cands'
   where
@@ -811,8 +963,8 @@ addTypedInstance' w x t = do
 
       let
         info = InstanceInfo
-          { instanceClass    = n
-          , instancePriority = Nothing
+          { instanceClass   = n
+          , instanceOverlap = DefaultOverlap
           }
 
       -- This is no longer used to build the instance table for imported

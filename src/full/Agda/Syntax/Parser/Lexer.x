@@ -89,6 +89,7 @@ tokens :-
 <pragma_>   "IMPOSSIBLE"               { keyword KwIMPOSSIBLE }
 <pragma_>   "INJECTIVE"                { keyword KwINJECTIVE }
 <pragma_>   "INLINE"                   { keyword KwINLINE }
+<pragma_>   "INCOHERENT"               { keyword KwINCOHERENT }
 <pragma_>   "NOINLINE"                 { keyword KwNOINLINE }
 <pragma_>   "NOT_PROJECTION_LIKE"      { keyword KwNOT_PROJECTION_LIKE }
 <pragma_>   "LINE"                     { keyword KwLINE }

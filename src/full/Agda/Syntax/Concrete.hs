@@ -620,8 +620,9 @@ data Pragma
     -- ^ Applies to the following data/record type.
   | NotProjectionLikePragma   Range QName
     -- ^ Applies to the stated function
-  | OverlapPragma             Range QName OverlapMode
-    -- ^ Applies to the given name, must be an instance
+  | OverlapPragma             Range [QName] OverlapMode
+    -- ^ Applies to the given name(s), which must be instance names
+    -- (checked by the type checker).
   deriving Eq
 
 ---------------------------------------------------------------------------

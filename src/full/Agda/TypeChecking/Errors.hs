@@ -161,6 +161,7 @@ errorString err = case err of
   DuplicateConstructors{}                  -> "DuplicateConstructors"
   DuplicateFields{}                        -> "DuplicateFields"
   DuplicateImports{}                       -> "DuplicateImports"
+  DuplicateOverlapPragma{}                 -> "DuplicateOverlapPragma"
   FieldOutsideRecord                       -> "FieldOutsideRecord"
   FileNotFound{}                           -> "FileNotFound"
   GenericError{}                           -> "GenericError"
@@ -727,6 +728,12 @@ instance PrettyTCM TypeError where
       constructors ys = P.singPlural ys [text "constructor"] [text "constructors"]
 
     DuplicateFields xs -> prettyDuplicateFields xs
+
+    DuplicateOverlapPragma q old new -> fsep $
+      pwords "The instance" ++ [prettyTCM q] ++
+      pwords "was already marked" ++ [pretty old <> "."] ++
+      pwords "This" ++ [pretty new] ++
+      pwords "pragma can not be applied to it."
 
     WithOnFreeVariable e v -> do
       de <- prettyA e

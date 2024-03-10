@@ -162,6 +162,7 @@ import Agda.Utils.Impossible
     'FOREIGN'                 { TokKeyword KwFOREIGN $$ }
     'COMPILE'                 { TokKeyword KwCOMPILE $$ }
     'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $$ }
+    'INCOHERENT'              { TokKeyword KwINCOHERENT $$ }
     'INJECTIVE'               { TokKeyword KwINJECTIVE $$ }
     'INLINE'                  { TokKeyword KwINLINE $$ }
     'NOINLINE'                { TokKeyword KwNOINLINE $$ }
@@ -296,6 +297,7 @@ Token
     | 'ETA'                     { TokKeyword KwETA $1 }
     | 'FOREIGN'                 { TokKeyword KwFOREIGN $1 }
     | 'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $1 }
+    | 'INCOHERENT'              { TokKeyword KwINCOHERENT $1 }
     | 'INJECTIVE'               { TokKeyword KwINJECTIVE $1 }
     | 'INLINE'                  { TokKeyword KwINLINE $1 }
     | 'MEASURE'                 { TokKeyword KwMEASURE $1 }
@@ -405,10 +407,6 @@ Float : literal {% forM $1 $ \case
                    ; _          -> parseError $ "Expected floating point number"
                    }
                 }
-
--- An integer. Used in instance priority pragmas.
-PragmaInteger :: { Ranged Integer }
-PragmaInteger : string {% pragmaInteger $1 }
 
 {--------------------------------------------------------------------------
     Names
@@ -605,6 +603,9 @@ PragmaQName : string {% pragmaQName $1 }  -- Issue 2125. WAS: string {% fmap QNa
 
 PragmaQNames :: { [QName] }
 PragmaQNames : Strings {% mapM pragmaQName $1 }
+
+PragmaQNames1 :: { [QName] }
+PragmaQNames1 : PragmaQName PragmaQNames { $1:$2 }
 
 {--------------------------------------------------------------------------
     Expressions (terms and types)
@@ -1643,9 +1644,10 @@ NotProjectionLikePragma
 
 OverlapPragma :: { Pragma }
 OverlapPragma
-  : '{-#' 'OVERLAPPABLE' PragmaQName '#-}' { OverlapPragma (getRange ($1,$2,$3,$4)) $3 Overlappable }
-  | '{-#' 'OVERLAPPING'  PragmaQName '#-}' { OverlapPragma (getRange ($1,$2,$3,$4)) $3 Overlapping }
-  | '{-#' 'OVERLAPS'     PragmaQName '#-}' { OverlapPragma (getRange ($1,$2,$3,$4)) $3 Overlaps }
+  : '{-#' 'OVERLAPPABLE' PragmaQNames1 '#-}' { OverlapPragma (getRange ($1,$2,$3,$4)) $3 Overlappable }
+  | '{-#' 'OVERLAPPING'  PragmaQNames1 '#-}' { OverlapPragma (getRange ($1,$2,$3,$4)) $3 Overlapping }
+  | '{-#' 'OVERLAPS'     PragmaQNames1 '#-}' { OverlapPragma (getRange ($1,$2,$3,$4)) $3 Overlaps }
+  | '{-#' 'INCOHERENT'   PragmaQNames1 '#-}' { OverlapPragma (getRange ($1,$2,$3,$4)) $3 Incoherent }
 
 InjectivePragma :: { Pragma }
 InjectivePragma

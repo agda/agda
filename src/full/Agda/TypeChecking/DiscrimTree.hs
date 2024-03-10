@@ -2,7 +2,7 @@
 -- syntax.
 module Agda.TypeChecking.DiscrimTree
   ( insertDT
-  , lookupDT
+  , lookupDT, lookupUnifyDT
   , deleteFromDT
   )
   where
@@ -208,10 +208,30 @@ keyArity = \case
   SortK      -> 0
   FlexK      -> 0
 
--- | Look up a 'Term' in the given discrimination tree. The returned set
--- is guaranteed to contain everything that could overlap the given key.
+-- | Look up a 'Term' in the given discrimination tree, treating local
+-- variables as rigid symbols. The returned set is guaranteed to contain
+-- everything that could overlap the given key.
 lookupDT :: forall a. (Ord a, PrettyTCM a) => Term -> DiscrimTree a -> TCM (Set.Set a)
-lookupDT term tree = ignoreAbstractMode (match [term] tree) where
+lookupDT = lookupDT' True
+
+-- | Look up a 'Term' in the given discrimination tree, treating local
+-- variables as wildcards.
+lookupUnifyDT :: forall a. (Ord a, PrettyTCM a) => Term -> DiscrimTree a -> TCM (Set.Set a)
+lookupUnifyDT = lookupDT' False
+
+lookupDT'
+  :: forall a. (Ord a, PrettyTCM a)
+  => Bool -- ^ Should local variables be treated as rigid?
+  -> Term -- ^ The term to use as key
+  -> DiscrimTree a
+  -> TCM (Set.Set a)
+lookupDT' localsRigid term tree = ignoreAbstractMode (match [term] tree) where
+
+  split :: Term -> TCM (Key, [Term])
+  split tm | localsRigid = splitTermKey False 0 tm
+  split tm = do
+    ctx <- getContextSize
+    splitTermKey False ctx tm
 
   -- Match a spine against *all* clauses.
   explore :: [Term] -> [Term] -> [Term] -> [(Key, DiscrimTree a)] -> TCM (Set.Set a)
@@ -271,7 +291,7 @@ lookupDT term tree = ignoreAbstractMode (match [term] tree) where
     -- TODO (Amy, 2024-02-12): Could use reduceB in splitTermKey, and
     -- the blocker here, to suspend instances more precisely when there
     -- is an ambiguity.
-    splitTermKey False 0 t >>= \case
+    split t >>= \case
       (FlexK, args) -> do
 
         reportSDoc "tc.instance.discrim.lookup" 99 $ vcat

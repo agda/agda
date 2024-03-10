@@ -32,7 +32,7 @@ data Keyword
         | KwWARNING_ON_USAGE | KwWARNING_ON_IMPORT
         | KwMEASURE | KwDISPLAY
         | KwREWRITE
-        | KwOVERLAPPABLE | KwOVERLAPPING | KwOVERLAPS
+        | KwOVERLAPPABLE | KwOVERLAPPING | KwOVERLAPS | KwINCOHERENT
         | KwQuote | KwQuoteTerm
         | KwUnquote | KwUnquoteDecl | KwUnquoteDef
         | KwSyntax
