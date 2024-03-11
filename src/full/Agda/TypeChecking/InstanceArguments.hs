@@ -86,13 +86,13 @@ initialInstanceCandidates blockOverlap instTy = do
       return (Left b)
     OutputTypeVisiblePi -> typeError $ GenericError $
       "Instance search cannot be used to find elements in an explicit function type"
-    OutputTypeVar    -> do
+    OutputTypeVar -> do
       reportSDoc "tc.instance.cands" 30 $ "Instance type is a variable. "
-      runBlocked getContextVars
+      runBlocked (getContextVars Nothing)
     OutputTypeName n -> Bench.billTo [Bench.Typing, Bench.InstanceSearch, Bench.InitialCandidates] do
       reportSDoc "tc.instance.cands" 30 $ "Found instance type head: " <+> prettyTCM n
       runBlocked do
-        local  <- getContextVars
+        local  <- getContextVars (Just n)
         global <- getScopeDefs n
         lift $ tickCandidates n $ length local + length global
         pure $ local <> global
@@ -114,8 +114,8 @@ initialInstanceCandidates blockOverlap instTy = do
         (fromIntegral size)
 
     -- get a list of variables with their type, relative to current context
-    getContextVars :: BlockT TCM [Candidate]
-    getContextVars = do
+    getContextVars :: Maybe QName -> BlockT TCM [Candidate]
+    getContextVars cls = do
       ctx <- getContext
       reportSDoc "tc.instance.cands" 40 $ hang "Getting candidates from context" 2 (inTopContext $ prettyTCM $ PrettyContext ctx)
           -- Context variables with their types lifted to live in the full context
@@ -141,7 +141,14 @@ initialInstanceCandidates blockOverlap instTy = do
                  , isInstance info
                  , usableModality info
                  ]
-      return $ vars ++ fields ++ lets
+      filterM (sameHead cls . candidateType) $ vars ++ fields ++ lets
+
+    sameHead :: Maybe QName -> Type -> BlockT TCM Bool
+    sameHead Nothing _ = pure True
+    sameHead (Just cls) t = lift (thd3 <$> getOutputTypeName t) >>= \case
+      OutputTypeName            inst -> pure (inst == cls)
+      OutputTypeNameNotYetKnown b    -> patternViolation b
+      _                              -> pure False
 
     infoOverlapMode :: LensArgInfo a => a -> OverlapMode
     infoOverlapMode info = if isYesOverlap (getArgInfo info) then FieldOverlap else DefaultOverlap
@@ -256,10 +263,10 @@ initialInstanceCandidates blockOverlap instTy = do
             -- to block on overlap, so that the user can do their thing.
           ]
 
-      -- when block do
-      --   reportSDoc "tc.instance.candidates.search" 20 $
-      --     "postponing because of overlap:" <+> prettyTCM blocker
-      --   patternViolation blocker
+      when block do
+        reportSDoc "tc.instance.candidates.search" 20 $
+          "postponing because of overlap:" <+> prettyTCM blocker
+        patternViolation blocker
 
       -- Some more class-specific profiling.
       lift $ whenProfile Profile.Instances case Map.lookup n counts of

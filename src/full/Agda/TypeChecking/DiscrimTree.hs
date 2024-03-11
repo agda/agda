@@ -115,7 +115,7 @@ splitTermKey precise local tm = catchPatternErr (\b -> pure (FlexK, [], b)) do
   (b, tm') <- ifBlocked tm (\b _ -> patternViolation b) (\b -> fmap (b,) . constructorForm)
 
   case tm' of
-    Def q as | (as, _) <- splitApplyElims as -> do
+    Def q as | precise, ReallyNotBlocked <- b, (as, _) <- splitApplyElims as -> do
       let ty = defType <$> getConstInfo q
       (arity, as) <- termKeyElims precise ty as
       pure (RigidK q arity, as, neverUnblock)
