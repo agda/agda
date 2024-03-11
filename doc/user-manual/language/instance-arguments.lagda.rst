@@ -695,7 +695,7 @@ Check the type of the candidates
   #. The candidate's type, say ``c : {Δ} → A``, is instantiated with
      fresh metavariables, say ``α``.
 
-  #. The target type ``A`` is unified with ``Α[α/Δ]``. If this results
+  #. The target type ``C vs`` is unified with ``A[α/Δ]``. If this results
      in a definite mismatch, the candidate is discarded.
 
   #. Finally, if :option:`--overlapping-instances` is enabled, we
