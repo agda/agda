@@ -819,6 +819,7 @@ library
       Agda.Utils.Tuple
       Agda.Utils.TypeLevel
       Agda.Utils.TypeLits
+      Agda.Utils.Unsafe
       Agda.Utils.Update
       Agda.Utils.VarSet
       Agda.Utils.Warshall
@@ -832,6 +833,7 @@ library
 
   other-modules:
       Paths_Agda
+      -- Need not export submodules if parent module reexports them.
       Agda.Interaction.Highlighting.Dot.Backend
       Agda.Interaction.Highlighting.Dot.Base
       Agda.Interaction.Highlighting.HTML.Backend
@@ -842,7 +844,6 @@ library
       Agda.Interaction.Options.HasOptions
       Agda.Utils.CallStack.Base
       Agda.Utils.CallStack.Pretty
-      Agda.Utils.Unsafe
 
 -- Agda binary
 ---------------------------------------------------------------------------
