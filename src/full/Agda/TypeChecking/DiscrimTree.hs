@@ -115,7 +115,7 @@ splitTermKey precise local tm = catchPatternErr (\b -> pure (FlexK, [], b)) do
   (b, tm') <- ifBlocked tm (\b _ -> patternViolation b) (\b -> fmap (b,) . constructorForm)
 
   case tm' of
-    Def q as | precise, ReallyNotBlocked <- b, (as, _) <- splitApplyElims as -> do
+    Def q as | ReallyNotBlocked <- b, (as, _) <- splitApplyElims as -> do
       let ty = defType <$> getConstInfo q
       (arity, as) <- termKeyElims precise ty as
       pure (RigidK q arity, as, neverUnblock)
@@ -133,7 +133,7 @@ splitTermKey precise local tm = catchPatternErr (\b -> pure (FlexK, [], b)) do
     -- neutral definitions as rigid things regardless of their spines
     -- (especially if they have projections), than it is to try to
     -- represent them accurately.
-    -- Def q as | not precise             -> pure (RigidK q 0, [])
+    Def q as | not precise             -> pure (RigidK q 0, [], neverUnblock)
     Var i as | not precise, i >= local -> pure (LocalK (i - local) 0, [], neverUnblock)
 
     Con ch _ as | Just as <- allApplyElims as -> do

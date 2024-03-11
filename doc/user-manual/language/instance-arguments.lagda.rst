@@ -4,7 +4,7 @@
   module language.instance-arguments where
 
   open import language.built-ins
-    using (Bool; true; false; List; _∷_; []; Nat; _-_; zero; suc; _+_)
+    using (Bool; true; false; List; _∷_; []; Nat; _-_; zero; suc; _+_; String)
     renaming (_==_ to _≡ᵇ_)
 
   open import Agda.Primitive
@@ -18,7 +18,7 @@ Instance Arguments
 ******************
 
 .. contents::
-   :depth: 2
+   :depth: 1
    :local:
 
 Instance arguments are a special kind of :ref:`implicit arguments
@@ -196,7 +196,6 @@ classes, you can use instance arguments with data types to good
 effect. See the :ref:`instance-arguments-examples` below.
 
 .. _declaring-instances:
-
 
 Declaring instances
 ~~~~~~~~~~~~~~~~~~~
@@ -392,36 +391,6 @@ another example of constructor instances.
 Record fields can also be declared instances, with the effect that the
 corresponding projection function is considered a top-level instance.
 
-.. _overlapping-instances:
-
-Overlapping instances
-+++++++++++++++++++++
-
-By default, Agda does not allow overlapping instances. Two instances
-are defined to overlap if they could both solve the instance goal
-when given appropriate solutions for their recursive (instance)
-arguments.
-
-For example, in code below, the instances `zero` and `suc` overlap for
-the goal `ex₁`, because either one of them can be used to solve the
-goal when given appropriate arguments, hence instance search fails.
-
-.. code-block:: agda
-
-  infix 4 _∈_
-  data _∈_ {A : Set} (x : A) : List A → Set where
-    instance
-      zero : ∀ {xs} → x ∈ x ∷ xs
-      suc  : ∀ {y xs} → {{x ∈ xs}} → x ∈ y ∷ xs
-
-  ex₁ : 1 ∈ 1 ∷ 2 ∷ 3 ∷ 4 ∷ []
-  ex₁ = it  -- overlapping instances
-
-Overlapping instances can be enabled via the :option:`--overlapping-instances`
-flag.  Be aware that enabling this flag might lead to an exponential
-slowdown in instance resolution and possibly (apparent) looping
-behaviour.
-
 .. _qualified-instances:
 
 Qualified instances
@@ -527,60 +496,257 @@ unification whenever the ``B`` instance is used. See
 :ref:`instance-resolution` below for more details.
 
 
+.. _overlap-backtracking:
 
+Overlap and backtracking
+------------------------
+
+By default, instance resolution does not make unforced choices between
+instances. In practice, this means that instances may not *overlap*: if
+there are multiple candidates that could be used to solve an instance
+goal, a type error is raised.
+
+For example, imagine that we have two separate printing classes: one for
+printing a debug representation, which we will call ``Show``, and one
+for pretty printing, called ``Pretty``. Since quite a few types (e.g.
+integers) have identical debug and pretty representations, we could try
+having a "default" instance for ``Pretty``, in terms of ``Show``::
+
+  record Show (A : Set) : Set where
+    field show : A → String
+  open Show ⦃ ... ⦄
+
+  record Pretty (A : Set) : Set where
+    field pretty : A → String
+  open Pretty ⦃ ... ⦄
+
+  instance
+    pretty-show : ∀ {a} ⦃ _ : Show a ⦄ → Pretty a
+    pretty-show = record { pretty = show }
+
+Of course, some values have distinct representations. For example, we
+might want to pretty-print lists in square brackets, instead of as
+cons-cells. We write an instance::
+
+  postulate instance
+    show-nat : Show Nat
+    pretty-list : ∀ {a} ⦃ _ : Pretty a ⦄ → Pretty (List a)
+
+However, if we try printing a list of numbers, Agda complains about
+overlap! While the ``pretty-list`` instance is strictly more specific
+than ``pretty-show``, neither candidate is inapplicable in this
+situation, so Agda refuses to choose.
+
+.. code-block:: text
+
+  Failed to solve the following constraints:
+    Resolve instance argument _r_273 : Pretty (List Nat)
+    Candidates
+      pretty-show : {a : Set} ⦃ _ : Show a ⦄ → Pretty a
+      pretty-list : {a : Set} ⦃ _ : Pretty a ⦄ → Pretty (List a)
+
+.. _overlapping-instances:
+
+Overlapping instances
+~~~~~~~~~~~~~~~~~~~~~
+
+To support situations like ``Pretty`` above, Agda allows the user to
+specify, on a per-instance basis, what should happen when multiple
+candidates are available. This is done using one of the following four
+pragmas:
+
+* An ``OVERLAPPABLE`` instance can be discarded in favour of a strictly
+  *more* specific instance.
+
+* An ``OVERLAPPING`` instance can cause strictly *less* specific
+  instances to be discarded.
+
+* The convenience pragma ``OVERLAPS`` is equivalent to ``OVERLAPPABLE``
+  and ``OVERLAPPING``. This means that it can both cause less specific
+  instances to be discarded, *and* it can be discarded if a more
+  specific candidate is available.
+
+* An ``INCOHERENT`` instance can be arbitrarily discarded in favour of
+  another possible candidate.
+
+An instance ``c1 : ∀ {Γ} → C xs`` is **more specific** than an instance
+``T2 : ∀ {Δ} → C ys`` if there is an instantiation of the variables
+``Δ`` which makes ``ys`` definitionally equal to ``xs``. We say that
+``c1`` is **strictly** more specific than ``c2`` if ``c1`` is more
+specific than ``c2`` and ``c2`` is *not* more specific than ``c1``.
+
+Returning to the ``Pretty`` example, we can make the more specific
+instance(s) be selected by marking the ``pretty-show`` instance
+``OVERLAPPABLE``::
+
+  {-# OVERLAPPABLE pretty-show #-}
+  _ : String
+  _ = pretty (1 ∷ 2 ∷ 3 ∷ [])
+
+It would also have been possible to mark the ``pretty-list`` instance
+``OVERLAPPING``.
+
+Overlap resolution considers *strict* specificity to keep Agda from
+making unforced choices. If multiple candidates have "the same
+specificity", then no matter whether they are both overlappable, the
+instance constraint still goes unsolved. An example is the following
+situation::
+
+  postulate
+    C   : Set → Set → Set
+    instance
+      CIa : ∀ {a} → C Int a
+      CaI : ∀ {a} → C a Int
+    {-# OVERLAPS CIa CaI #-}
+
+When solving the goal ``C Int Int``, neither candidate can be discarded
+in favour of the other. You can make the choice yourself by marking the
+candidate that should **not** be used as ``INCOHERENT`` instead of
+``OVERLAPS``.
+
+.. _backtracking-instances:
+
+Backtracking
+~~~~~~~~~~~~
+
+By default, Agda only considers an instance's final return type when
+considering whether an instance is applicable. In particular, the
+instance search algorithm does not backtrack, and whether or not an
+instance's constraints are satisfied does not factor into overlap
+resolution.
+
+For example, in code below, the instances ``zero`` and ``suc`` overlap
+for the goal ``ex₁``, because either one of them can be used to solve
+the goal when given appropriate arguments, so instance search will fail.
+
+.. code-block:: agda
+
+  infix 4 _∈_
+  data _∈_ {A : Set} (x : A) : List A → Set where
+    instance
+      zero : ∀ {xs} → x ∈ x ∷ xs
+      suc  : ∀ {y xs} → {{x ∈ xs}} → x ∈ y ∷ xs
+
+  ex₁ : 1 ∈ 1 ∷ 2 ∷ 3 ∷ 4 ∷ []
+  ex₁ = it  -- overlapping instances
+
+However, *if* we looked for the appropriate arguments *before* checking
+for overlap, the goal above would have a unique solution. The
+:option:`--overlapping-instances` option controls whether instance
+arguments *to instances* should be filled in before checking whether the
+instance is applicable.
+
+.. warning::
+
+  Agda uses naïve backtracking to check instances' constraints, which
+  has exponential performance in the worst case. Enabling
+  :option:`--overlapping-instances` might cause significant slowdown in
+  instance search, and even apparent infinite loops.
 
 .. _instance-resolution:
-
 
 Instance resolution
 -------------------
 
-Given a goal that should be solved using instance resolution we proceed in the
-following four stages:
+This section provides a precise specification of the instance resolution
+algorithm.
 
 Verify the goal
-  First we check that the goal type has the right shape to be solved
-  by instance resolution. It should be of the form ``{Γ} → C vs``, where
-  the target type ``C`` is a variable from the context or the name of
-  a data or record type, and ``{Γ}`` denotes a telescope of implicit or
-  instance arguments. If this is not the case instance resolution
-  fails with an error message.
+  The first step is checking that the goal type has the right shape to
+  be solved by instance resolution.
+
+  Instance search can only solve goals of the form ``{Γ} → C vs``, where
+  the target type ``C`` is either a variable, a data type, a record
+  type, or a postulate; and ``{Γ}`` represents a sequence of implicit or
+  instance arguments.
+
+  If this is not the case, instance resolution fails with an error
+  message.
 
 Find candidates
-  In the second stage we compute a set of
-  *candidates*. :ref:`Let-bound <let-and-where>` variables and
-  top-level definitions in scope are candidates if they are defined in
-  an ``instance`` block. Lambda-bound variables, i.e. variables bound
-  in lambdas, function types, left-hand sides, or module parameters,
-  are candidates if they are bound as instance arguments using ``{{
-  }}``.  Only candidates of type ``{Δ} → C us``, where ``C`` is the
-  target type computed in the previous stage and ``{Δ}`` only contains
-  implicit or instance arguments, are considered.
+  The second step is to compute a list of *initial candidates*.
 
-Check the type of the candidates We check for each candidate in turn
-  whether it can be used to build an instance of the goal type ``{Γ} →
-  C vs``. First we extend the current context by ``{Γ}``. Then, given
-  a candidate ``c : {Δ} → A`` we generate fresh metavariables ``αs :
-  {Δ}`` for the arguments of ``c``, with ordinary metavariables for
-  implicit arguments, and instance metavariables, solved by a
-  recursive call to instance resolution, for instance arguments.
+  :ref:`Let-bound <let-and-where>` variables and top-level definitions
+  in scope are candidates if they are defined in an ``instance`` block.
 
-  Next we :ref:`unify <unification>` ``A[Δ := αs]`` with ``C vs``
-  (and, if ``-overlapping-instances`` is enabled, also apply instance
-  resolution to the instance metavariables in ``αs``). In case this
-  results in a definite mismatch between the type of the instance and
-  the type of the goal, the current candidate is discarded, otherwise
-  we return the potential solution ``λ {Γ} → c αs``.
+  Local variables, i.e. variables bound in lambdas, function types,
+  left-hand sides, or module parameters, are candidates if they are
+  bound as instance arguments, using ``{{ }}``.
 
-Compute the result From the previous stage we get a list of potential
-  solutions. If the list is empty we fail with an error saying that no
-  instance for ``C vs`` could be found. If there is a single solution
-  or if all of the solutions are equal, we use it to solve the
-  goal. Otherwise we postpone instance resolution until the type of
-  the candidates or the goal type are resolved further.
+  If a local variable has an :ref:`eta record <eta-expansion>` type,
+  then any of its :ref:`instance fields <instance-fields>` are also
+  considered as locals. Beware that if Agda can not tell whether or not
+  a local variable is eta-expandable (e.g., its type is a metavariable),
+  instance search will not run.
 
-  If there are left-over instance problems at the end of type checking, the
-  corresponding metavariables are printed in the Emacs status buffer together
-  with their types and source location. The candidates that gave rise to
-  potential solutions can be printed with the :ref:`show constraints command
-  <emacs-global-commands>` (``C-c C-=``).
+  Only candidates of type ``{Δ} → C us``, where ``C`` is the target type
+  computed in the previous stage, and ``{Δ}`` only contains implicit or
+  instance arguments, are considered.
+
+Check the type of the candidates
+  The list of initial candidates is an overapproximation to the set of
+  possible solutions. The next step is to check, in turn, whether the
+  candidate could actually be used to solve the instance goal. If our
+  goal is of the form ``{Γ} → C vs``, we take the following steps:
+
+  #. The local context is extended by ``{Γ}``. This may bring additional
+     candidates into scope.
+
+  #. The candidate's type, say ``c : {Δ} → A``, is instantiated with
+     fresh metavariables, say ``α``.
+
+  #. The target type ``A`` is unified with ``Α[α/Δ]``. If this results
+     in a definite mismatch, the candidate is discarded.
+
+  #. Finally, if :option:`--overlapping-instances` is enabled, we
+     recursively apply instance search to any instance variables present
+     in ``Δ``.
+
+  If all of these steps succeed, we make note of the term ``λ {Γ} → c
+  {α}`` as a potential solution.
+
+Resolve overlaps
+  The previous step might have left us with multiple potential
+  solutions, even if recursive instance search was enabled. We now
+  remove any potential solutions which are overlapped by a *strictly
+  more specific* candidate.
+
+  To wit, given a pair of candidates ``c1 : {Δ} → C xs`` and ``c2 : {Γ}
+  → C ys``, we remove ``c1`` from the list exactly when:
+
+  * There exists a substitution for the variables in ``Δ``, in terms of
+    those in ``Γ``, which makes ``C xs`` and ``C ys`` definitionally
+    equal. We say ``c2`` is *more specific* than ``c1``.
+
+  * Such a substitution does *not* exist for ``Γ`` in terms of ``Δ``.
+    This makes ``c2`` *strictly* more specific than ``c1``.
+
+  * Either ``c1`` is overlappable or ``c2`` is overlapping. Keep in mind
+    that instances marked ``OVERLAPS`` (or ``INCOHERENT``) are both
+    overlappable and overlapping.
+
+Compute the result
+  After resolving overlaps, we may be in five situations:
+
+  * There is exactly one non-incoherent candidate, along with some
+    number of incoherent candidates. The non-incoherent candidate is
+    chosen.
+
+  * All the potential solutions are incoherent. Agda makes an arbitrary
+    choice.
+
+  * There are multiple candidates, and they all come from :ref:`instance
+    fields <instance-fields>` which are marked with the ``overlap``
+    keyword. Agda again makes an arbitrary choice.
+
+  * There are multiple, non-incoherent candidates. The instance
+    constraint is postponed until we have more information available
+    about either the goal or the candidates.
+
+  * There are no candidates at all. This is an immediate error.
+
+  If there are left-over instance problems at the end of type checking,
+  the corresponding metavariables are printed in the Emacs status
+  buffer, together with their types and source location. The candidates
+  that gave rise to potential solutions can be printed with the
+  :ref:`show constraints command <emacs-global-commands>` (``C-c C-=``).

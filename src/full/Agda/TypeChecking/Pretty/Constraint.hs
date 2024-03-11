@@ -113,25 +113,33 @@ instance PrettyTCM Constraint where
               --     , show m ++ show args ++ " := " ++ show t
               --     ]
               --   __IMPOSSIBLE__
+
         FindInstance m mcands -> do
-            t <- getMetaTypeInContext m
-            TelV tel _ <- telViewUpTo' (-1) notVisible t
-            sep [ "Resolve instance argument" <?> prettyCmp ":" m t
-                  -- #4071: Non-visible arguments to the meta are in scope of the candidates add
-                  --        those here to not get out of scope deBruijn indices when printing
-                  --        unsolved constraints.
-                , addContext tel cands
-                ]
+          t <- getMetaTypeInContext m
+          TelV tel _ <- telViewUpTo' (-1) notVisible t
+          sep [ "Resolve instance argument" <?> prettyCmp ":" m t
+                -- #4071: Non-visible arguments to the meta are in scope of the candidates add
+                --        those here to not get out of scope deBruijn indices when printing
+                --        unsolved constraints.
+              , addContext tel cands
+              ]
           where
-            cands =
-              case mcands of
-                Nothing -> "No candidates yet"
-                Just cnds ->
-                  hang "Candidates" 2 $ vcat
-                    [ hang (overlap c <+> prettyTCM c <+> ":") 2 $
-                            prettyTCM (candidateType c) | c <- cnds ]
-              where overlap c | candidateOverlap c /= DefaultOverlap = "overlap"
-                              | otherwise     = empty
+            overlap c = case candidateOverlap c of
+              FieldOverlap   -> "overlap"
+              Incoherent     -> "[incoherent]"
+              Overlappable   -> "[overlappable]"
+              Overlapping    -> "[overlapping]"
+              Overlaps       -> "[overlaps]"
+              DefaultOverlap -> empty
+
+            cands = case mcands of
+              Nothing -> "No candidates yet"
+              Just cnds -> hang "Candidates" 2 $ vcat
+                [ hang (overlap c <+> prettyTCM c <+> ":") 2 $
+                    prettyTCM (candidateType c)
+                | c <- cnds
+                ]
+
         ResolveInstanceHead q ->
             "Resolve target type of instance: " <?> prettyTCM q
         IsEmpty r t ->
