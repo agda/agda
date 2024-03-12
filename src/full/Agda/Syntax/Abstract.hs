@@ -994,23 +994,6 @@ mkLet :: ExprInfo -> [LetBinding] -> Expr -> Expr
 mkLet _ []     e = e
 mkLet i (d:ds) e = Let i (d :| ds) e
 
-patternToExpr :: Pattern -> Expr
-patternToExpr = \case
-  VarP x             -> Var (unBind x)
-  ConP _ c ps        -> Con c `app` map (fmap (fmap patternToExpr)) ps
-  ProjP _ o ds       -> Proj o ds
-  DefP _ fs ps       -> Def (headAmbQ fs) `app` map (fmap (fmap patternToExpr)) ps
-  WildP _            -> Underscore emptyMetaInfo
-  AsP _ _ p          -> patternToExpr p
-  DotP _ e           -> e
-  AbsurdP _          -> Underscore emptyMetaInfo  -- TODO: could this happen?
-  LitP (PatRange r) l-> Lit (ExprRange r) l
-  PatternSynP _ c ps -> PatternSyn c `app` (map . fmap . fmap) patternToExpr ps
-  RecP _ as          -> Rec exprNoRange $ map (Left . fmap patternToExpr) as
-  EqualP{}           -> __IMPOSSIBLE__  -- Andrea TODO: where is this used?
-  WithP r p          -> __IMPOSSIBLE__
-  AnnP _ _ p         -> patternToExpr p
-
 type PatternSynDefn = ([WithHiding Name], Pattern' Void)
 type PatternSynDefns = Map QName PatternSynDefn
 

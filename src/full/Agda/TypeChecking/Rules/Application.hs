@@ -28,6 +28,7 @@ import Agda.Interaction.Highlighting.Generate
   ( storeDisambiguatedConstructor, storeDisambiguatedProjection )
 
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Pattern (patternToExpr)
 import Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Concrete.Pretty () -- only Pretty instances
@@ -151,7 +152,7 @@ checkApplication cmp hd args e t =
       case A.insertImplicitPatSynArgs meta (getRange n) ns args of
         Nothing      -> typeError $ BadArgumentsToPatternSynonym n
         Just (s, ns) -> do
-          let p' = A.patternToExpr p
+          let p' = patternToExpr p
               e' = A.lambdaLiftExpr ns (A.substExpr s p')
           checkExpr' cmp e' t
 
