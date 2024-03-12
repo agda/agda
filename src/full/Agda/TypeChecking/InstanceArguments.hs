@@ -430,7 +430,7 @@ doesCandidateSpecialise c1@Candidate{candidateType = t1} c2@Candidate{candidateT
         . localTCState
         -- Discard any changes to the TC state (metas from
         -- instantiating t2, recursive instance constraints, etc)
-        . postponeInstanceConstraints
+        . locallyTCState stPostponeInstanceSearch (const True)
         -- Don't spend any time looking for instances in the contexts
         . nowConsideringInstance
         -- Don't execute tactics either
@@ -604,8 +604,12 @@ filterResettingState m cands f = do
   -- r : YesNo
   -- a : Type         (fully instantiated)
   -- s : TCState
-  let result' = [ (c, v, s) | (c, (r, s)) <- result, v <- maybeToList (fromYes r) ]
-  result'' <- dropSameCandidates m result'
+  let
+    result' = [ (c, v, s) | (c, (r, s)) <- result, v <- maybeToList (fromYes r) ]
+    overlap = flip all result \(c, (r, s)) -> case r of
+      Yes _ False -> False
+      _ -> True
+  result'' <- dropSameCandidates m overlap result'
   case result'' of
     [(c, v, s)] -> ([], [(c, v)]) <$ putTC s
     _           -> do
@@ -626,8 +630,14 @@ data OverlapState item = OverlapState
   }
 
 -- | Apply the instance overlap rules to reduce the list of candidates.
-resolveInstanceOverlap :: forall item. (item -> Candidate) -> Relevance -> [item] -> TCM [item]
-resolveInstanceOverlap itemC rel cands = wrapper where
+resolveInstanceOverlap
+  :: forall item.
+     Bool
+  -> Relevance
+  -> (item -> Candidate)
+  -> [item]
+  -> TCM [item]
+resolveInstanceOverlap overlapOk rel itemC cands = wrapper where
   wrapper
     -- If the instance meta is irrelevant: anything will do, no reason
     -- to do any work.
@@ -644,6 +654,8 @@ resolveInstanceOverlap itemC rel cands = wrapper where
     -- If none of the candidates have a special overlap mode: there's no
     -- reason to do any work.
     | all ((DefaultOverlap ==) . candidateOverlap . itemC) cands = pure cands
+
+    | not overlapOk = pure cands
 
     -- If some of the candidates are overlappable/overlapping, then we
     -- should do the work.
@@ -746,20 +758,18 @@ resolveInstanceOverlap itemC rel cands = wrapper where
 
 -- Drop all candidates which are judgmentally equal to the first one.
 -- This is sufficient to reduce the list to a singleton should all be equal.
-dropSameCandidates :: MetaId -> [(Candidate, Term, a)] -> TCM [(Candidate, Term, a)]
-dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidates" $ do
+dropSameCandidates :: MetaId -> Bool -> [(Candidate, Term, TCState)] -> TCM [(Candidate, Term, TCState)]
+dropSameCandidates m overlapOk cands0 = verboseBracket "tc.instance" 30 "dropSameCandidates" $ do
   !nextMeta    <- nextLocalMeta
   isRemoteMeta <- isRemoteMeta
 
   -- Does "it" contain any fresh meta-variables?
-  let freshMetas =
-        getAny .
-        allMetas (\m -> Any (not (isRemoteMeta m || m < nextMeta)))
+  let freshMetas = getAny . allMetas (\m -> Any (not (isRemoteMeta m || m < nextMeta)))
 
   rel <- getRelevance <$> lookupMetaModality m
 
   -- Take overlappable candidates into account
-  cands <- resolveInstanceOverlap fst3 rel cands0
+  cands <- resolveInstanceOverlap overlapOk rel fst3 cands0
   reportSDoc "tc.instance.overlap" 30 $ "instances after resolving overlap:" $$ vcat (map (debugCandidate . fst3) cands)
 
   reportSDoc "tc.instance" 50 $ vcat
@@ -790,12 +800,12 @@ dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidate
             Left{}  -> False
             Right b -> b
 
-data YesNo = Yes Term | No | NoBecause TCErr | HellNo TCErr
+data YesNo = Yes Term Bool | No | NoBecause TCErr | HellNo TCErr
   deriving (Show)
 
 fromYes :: YesNo -> Maybe Term
-fromYes (Yes t) = Just t
-fromYes _       = Nothing
+fromYes (Yes t _) = Just t
+fromYes _         = Nothing
 
 debugCandidate' :: MonadPretty m => Bool -> Bool -> Candidate -> m Doc
 debugCandidate' raw term c@(Candidate q v t overlap) =
@@ -892,7 +902,24 @@ checkCandidates m t cands =
             , nest 2 $ "<="
             , nest 4 $ pretty t
             ]
-          leqType t'' t
+
+          -- Check whether this candidate is OK, and whether it is okay
+          -- for the overlap check. For the candidate to be acceptable,
+          -- its type must be a subtype of the goal type.
+          (cons, overlapOk) <- ifNoConstraints_ (leqType t'' t) (pure ([], True)) \pid -> do
+            -- To know if this candidate is safe for overlap, we have to
+            -- check that it does not constrain the type of the instance
+            -- goal. We can do this by running it in a new problem and
+            -- checking whether the computation produced any constraints
+            -- that are blocked by the instance goal.
+            cons <- getConstraintsForProblem pid
+            -- Make sure to put these constraints back if we end up
+            -- solving the instance goal with this candidate.
+            stealConstraints pid
+            let
+              blocking = foldMap (allBlockingMetas . constraintUnblocker) cons
+              !ok = getAll $! flip allMetas t (All . not . flip Set.member blocking)
+            pure (cons, ok)
           debugConstraints
 
           flip catchError (return . NoBecause) $ do
@@ -906,8 +933,12 @@ checkCandidates m t cands =
               sep [ ("instance search: found solution for" <+> prettyTCM m) <> ":"
                   , nest 2 $ prettyTCM v ]
 
+            reportSDoc "tc.instance.overlap" 30 $
+              "candidate" <+> prettyTCM v <+> "okay for overlap?" <+> prettyTCM overlapOk
+              $$ vcat (map prettyTCM cons)
+
             whenProfile Profile.Instances $ tick "checkCandidateForMeta: yes"
-            return $ Yes v
+            return $ Yes v overlapOk
       where
         runCandidateCheck = flip catchError handle . nowConsideringInstance
 
