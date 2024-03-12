@@ -4,7 +4,7 @@
   module language.instance-arguments where
 
   open import language.built-ins
-    using (Bool; true; false; List; _∷_; []; Nat; _-_; zero; suc; _+_; String)
+    using (Bool; true; false; List; _∷_; []; Nat; _-_; zero; suc; _+_; String; Int)
     renaming (_==_ to _≡ᵇ_)
 
   open import Agda.Primitive
