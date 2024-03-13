@@ -15,6 +15,12 @@
 | ✅      |    0 |    25 | LIBSUCCEED.tests      | `cabal run test-libsucceed`     |
 | ✅      |    0 |     1 | CUBICALSUCCEED.tests  | `cabal run test-cubicalsucceed` |
 
+Several tests (e.g. `RepeatedCase`) are failing because...
+
+* Tests set Agda's `-v` option
+* `-v` is silently ignored by Agda, unless it was built **with** the `debug` cabal flag
+* `cabal run test-succeed` insists on re-building Agda **without** the `debug` cabal flag
+
 ## Tests from the [`test : ` target of the `Makefile`]
 
 | Status |  Old name in `Makefile` |  How to run now |
