@@ -195,13 +195,14 @@ instance NFData BaseComponents
 
 type CompId = Int
 data Component = Component
-  { compId :: CompId -- ^ Unique id for the component. Used for the cache.
-  , compName :: Maybe Name -- ^ Used for keeping track of how many times a component has been used
-  , compPars :: Nat -- ^ How many arguments should be dropped (e.g. constructor parameters)
-  , compTerm :: Term
-  , compType :: Type
+  { compId    :: CompId -- ^ Unique id for the component. Used for the cache.
+  , compName  :: Maybe Name -- ^ Used for keeping track of how many times a component has been used
+  , compPars  :: Nat -- ^ How many arguments should be dropped (e.g. constructor parameters)
+  , compTerm  :: Term
+  , compType  :: Type
+  , compRec   :: Bool -- ^ Is this a recursive call
   , compMetas :: [MetaId]
-  , compCost :: Cost
+  , compCost  :: Cost
   }
   deriving (Eq, Generic)
 
@@ -312,24 +313,26 @@ getOpenComponent openComp = do
   typ <- getOpen $ compType <$> openComp
   when (not $ null $ compMetas comp) __IMPOSSIBLE__
   return Component
-    { compId = compId comp
-    , compName = compName comp
-    , compPars = compPars comp
-    , compTerm = term
-    , compType = typ
+    { compId    = compId comp
+    , compName  = compName comp
+    , compPars  = compPars comp
+    , compTerm  = term
+    , compType  = typ
+    , compRec   = compRec comp
     , compMetas = compMetas comp
-    , compCost = compCost comp
+    , compCost  = compCost comp
     }
 
 mkComponent :: CompId -> [MetaId] -> Cost -> Maybe Name -> Nat -> Term -> Type -> Component
 mkComponent cId metaIds cost mName pars term typ = Component
-  { compId = cId
-  , compName = mName
-  , compPars = pars
-  , compTerm = term
-  , compType = typ
+  { compId    = cId
+  , compName  = mName
+  , compPars  = pars
+  , compTerm  = term
+  , compType  = typ
+  , compRec   = False
   , compMetas = metaIds
-  , compCost = cost }
+  , compCost  = cost }
 
 mkComponentQ :: CompId -> Cost -> QName -> Nat -> Term -> Type -> Component
 mkComponentQ cId cost qname = mkComponent cId [] cost (Just $ qnameName qname)
@@ -468,7 +471,7 @@ collectComponents opts costs ii mDefName whereNames metaId = do
       scope <- getScope
       let addLevel  = qnameToComponent (costLevel   costs) qname <&> \ comp -> comps{hintLevel     = comp : hintLevel  comps}
           addAxiom  = qnameToComponent (costAxiom   costs) qname <&> \ comp -> comps{hintAxioms    = comp : hintAxioms comps}
-          addThisFn = qnameToComponent (costRecCall costs) qname <&> \ comp -> comps{hintThisFn    = Just comp}
+          addThisFn = qnameToComponent (costRecCall costs) qname <&> \ comp -> comps{hintThisFn    = Just comp{ compRec = True }}
           addFn     = qnameToComponent (costFn      costs) qname <&> \ comp -> comps{hintFns       = comp : hintFns comps}
           addData   = qnameToComponent (costSet     costs) qname <&> \ comp -> comps{hintDataTypes = comp : hintDataTypes comps}
       case theDef info of
@@ -907,7 +910,7 @@ genComponents = do
   n <- localVarCount
   localVars <- lift (getLocalVars n (costLocal $ searchCosts opts))
     >>= genAddSource (searchGenProjectionsLocal opts)
-  recCalls <- genRecCalls >>= genAddSource (searchGenProjectionsRec opts)
+  recCalls <- genAddSource (searchGenProjectionsRec opts) (maybeToList $ hintThisFn comps)
   letVars <- mapM getOpenComponent (hintLetVars comps)
     >>= genAddSource (searchGenProjectionsLet opts)
   fns <- genAddSource (searchGenProjectionsExternal opts) (hintFns comps)
@@ -921,17 +924,15 @@ genComponents = do
 genComponentsFrom :: Bool -- ^ Apply record elimination
                   -> Component
                   -> SM [Component]
-genComponentsFrom False comp = do
-  comp' <- applyToMetasG Nothing comp
-  return [comp']
 genComponentsFrom appRecElims origComp = do
-  comp <- applyToMetasG Nothing origComp
+  comps <- if | compRec origComp -> mapM (applyToMetasG Nothing) =<< genRecCalls origComp
+              | otherwise        -> (:[]) <$> applyToMetasG Nothing origComp
   if appRecElims
-  then go' Set.empty comp
-  else return [comp]
+  then concat <$> mapM (applyProjections Set.empty) comps
+  else return comps
   where
-  go' :: Set QName -> Component -> SM [Component]
-  go' seenRecords comp = do
+  applyProjections :: Set QName -> Component -> SM [Component]
+  applyProjections seenRecords comp = do
     projComps <- getRecordInfo (compType comp) >>= \case
       Nothing -> return []
       Just (recordName, args, fields, isRecursive)
@@ -942,7 +943,7 @@ genComponentsFrom appRecElims origComp = do
           | otherwise -> do
               let seenRecords' = if isRecursive then Set.insert recordName seenRecords else seenRecords
               comps <- mapM (applyProj args comp >=> applyToMetasG Nothing) fields
-              concatMapM (go' seenRecords') comps
+              concatMapM (applyProjections seenRecords') comps
     return $ comp : projComps
 
 getRecordInfo :: Type
@@ -1150,12 +1151,10 @@ tryLamAbs goal goalType branch =
       return $ Right (goal, goalType, branch')
 
 
-genRecCalls :: SM [Component]
-genRecCalls = asks (hintThisFn . searchBaseComponents) >>= \case
-  -- If the hole is, e.g., in a type signature, recursive calls are not possible
-  Nothing -> return []
+genRecCalls :: Component -> SM [Component]
+genRecCalls thisFn = do
   -- TODO: Make sure there are no pruning problems
-  Just thisFn -> asks (hintRecVars . searchBaseComponents) >>= getOpen >>= \case
+  asks (hintRecVars . searchBaseComponents) >>= getOpen >>= \case
     -- No candidate arguments for a recursive call
     [] -> return []
     recCandTerms -> do
