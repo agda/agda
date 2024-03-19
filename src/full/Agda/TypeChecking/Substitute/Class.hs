@@ -3,6 +3,8 @@
 module Agda.TypeChecking.Substitute.Class where
 
 import Control.Arrow ((***), second)
+import Control.DeepSeq
+import GHC.Generics
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -108,6 +110,13 @@ isNoAbs (Abs _ b)
 instance Subst QName where
   type SubstArg QName = Term
   applySubst _ q = q
+
+newtype NoSubst t a = NoSubst { unNoSubst :: a }
+  deriving (Generic, NFData, Functor)
+
+instance DeBruijn t => Subst (NoSubst t a) where
+  type SubstArg (NoSubst t a) = t
+  applySubst _ x = x
 
 ---------------------------------------------------------------------------
 -- * Explicit substitutions
