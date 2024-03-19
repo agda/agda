@@ -5,7 +5,7 @@ module Agda.Mimer.Mimer
   where
 
 import Control.DeepSeq (force, NFData(..))
-import Control.Monad ((>=>), (=<<), unless, foldM, when, zipWithM, filterM)
+import Control.Monad
 import Control.Monad.Except (catchError)
 import Control.Monad.Error.Class (MonadError)
 import Control.Monad.Fail (MonadFail)
@@ -56,7 +56,7 @@ import Agda.TypeChecking.Records (isRecord, isRecursiveRecord)
 import Agda.TypeChecking.Reduce (reduce, instantiateFull, instantiate)
 import Agda.TypeChecking.Rules.LHS.Problem (AsBinding(..))
 import Agda.TypeChecking.Rules.Term  (lambdaAddContext)
-import Agda.TypeChecking.Substitute.Class (apply, applyE)
+import Agda.TypeChecking.Substitute.Class (apply, applyE, NoSubst(..))
 import Agda.TypeChecking.Telescope (piApplyM, flattenTel, teleArgs)
 import Agda.Utils.Benchmark (billTo)
 import Agda.Utils.FileName (filePath)
@@ -186,7 +186,7 @@ data BaseComponents = BaseComponents
   -- ^ Variables that are candidates for arguments to recursive calls
   , hintThisFn :: Maybe Component
   , hintLetVars :: [Open Component]
-  , hintRecVars :: Open [Term]
+  , hintRecVars :: Open [(Term, NoSubst Term Int)] -- ^ Variable terms and which argument they come from
   , hintSplitVars :: Open [Term]
   }
   deriving (Generic)
@@ -406,7 +406,7 @@ isTypeDatatype typ = do
 collectComponents :: Options -> Costs -> InteractionId -> Maybe QName -> [QName] -> MetaId -> TCM BaseComponents
 collectComponents opts costs ii mDefName whereNames metaId = do
   lhsVars' <- collectLHSVars ii
-  let recVars = map fst . filter snd <$> lhsVars'
+  let recVars = lhsVars' <&> \ vars -> [ (tm, NoSubst i) | (tm, Just i) <- vars ]
   lhsVars <- getOpen $ map fst <$> lhsVars'
   typedLocals <- getLocalVarTerms 0
   reportSDoc "mimer.components" 40 $ "All LHS variables:" <+> prettyTCM lhsVars <+> parens ("or" <+> pretty lhsVars)
@@ -599,9 +599,11 @@ builtinLevelName = "Agda.Primitive.Level"
 -- [ ] 8. Return the new clauses and follow Auto for insertion.
 
 -- | Returns the variables as terms together with whether they where found under
--- some constructor.
+-- some constructor, and if so which argument of the function they appeared in. This
+-- information is used when building recursive calls, where it's important that we don't try to
+-- construct non-terminating solutions.
 collectLHSVars :: (MonadFail tcm, ReadTCState tcm, MonadError TCErr tcm, MonadTCM tcm, HasConstInfo tcm)
-  => InteractionId -> tcm (Open [(Term, Bool)])
+  => InteractionId -> tcm (Open [(Term, Maybe Int)])
 collectLHSVars ii = do
   ipc <- ipClause <$> lookupInteractionPoint ii
   case ipc of
@@ -609,6 +611,7 @@ collectLHSVars ii = do
     IPClause{ipcQName = fnName, ipcClauseNo = clauseNr} -> do
       info <- getConstInfo fnName
       typ <- typeOfConst fnName
+      parCount <- liftTCM getCurrentModuleFreeVars
       case theDef info of
         fnDef@Function{} -> do
           let clause = funClauses fnDef !! clauseNr
@@ -630,10 +633,10 @@ collectLHSVars ii = do
             ]
           reportSDoc "mimer" 60 $ "Shift:" <+> pretty shift
 
-          -- TODO: Names (we don't use flex)
-          let flex = concatMap (go False . namedThing . unArg) naps
-              terms = map (\(n,i) -> (Var (n + shift) [], i)) flex
-          makeOpen terms
+          makeOpen [ (Var (n + shift) [], (i - parCount) <$ guard underCon)    -- We count arguments excluding module parameters
+                   | (i, nap) <- zip [0..] naps
+                   , (n, underCon) <- go False $ namedThing $ unArg nap
+                   ]
         _ -> do
           makeOpen []
   where
@@ -1161,23 +1164,23 @@ genRecCalls thisFn = do
       Costs{..} <- asks searchCosts
       n <- localVarCount
       localVars <- lift $ getLocalVars n costLocal
-      let recCands = filter (\t -> case compTerm t of v@Var{} -> v `elem` recCandTerms; _ -> False) localVars
+      let recCands = [ (t, i) | t@(compTerm -> v@Var{}) <- localVars, NoSubst i <- maybeToList $ lookup v recCandTerms ]
 
       let newRecCall = do
             -- Apply the recursive call to new metas
             (thisFnTerm, thisFnType, newMetas) <- applyToMetas 0 (compTerm thisFn) (compType thisFn)
             let argGoals = map Goal newMetas
             comp <- newComponent newMetas (compCost thisFn) (compName thisFn) 0 thisFnTerm thisFnType
-            return (comp, argGoals)
+            return (comp, zip argGoals [0..])
 
           -- go :: Component -- ^ Recursive call function applied to meta-variables
-          --   -> [Goal] -- ^ Remaining parameters to try to fill
-          --   -> [Component] -- ^ Remaining argument candidates for the current parameter
+          --   -> [(Goal, Int)] -- ^ Remaining parameters to try to fill
+          --   -> [(Component, Int)] -- ^ Remaining argument candidates for the current parameter
           --   -> SM [Component]
           go _thisFn [] _args = return []
-          go thisFn (goal:goals) [] = go thisFn goals recCands
-          go thisFn (goal:goals) (arg:args) = do
-            reportSMDoc "mimer.components" 80 $ hsep
+          go thisFn (_ : goals) [] = go thisFn goals recCands
+          go thisFn ((goal, i) : goals) ((arg, j) : args) | i == j = do
+            reportSMDoc "mimer.components.rec" 80 $ hsep
               [ "Trying to generate recursive call"
               , prettyTCM (compTerm thisFn)
               , "with" <+> prettyTCM (compTerm arg)
@@ -1187,11 +1190,12 @@ genRecCalls thisFn = do
             tryRefineWith' goal goalType arg >>= \case
               Nothing -> do
                 putTC state
-                go thisFn (goal:goals) args
+                go thisFn ((goal, i) : goals) args
               Just (newMetas1, newMetas2) -> do
                 let newComp = thisFn{compMetas = newMetas1 ++ newMetas2 ++ (compMetas thisFn \\ [goalMeta goal])}
                 (thisFn', goals') <- newRecCall
                 (newComp:) <$> go thisFn' (drop (length goals' - length goals - 1) goals') args
+          go thisFn goals (_ : args) = go thisFn goals args
       (thisFn', argGoals) <- newRecCall
       comps <- go thisFn' argGoals recCands
       -- Compute costs for the calls:
@@ -1526,7 +1530,7 @@ instance PrettyTCM BaseComponents where
            , f "hintProjections" (hintProjections comps)
            , "hintThisFn:" <+> thisFn
            , g prettyOpenComp "hintLetVars" (hintLetVars comps)
-           , "hintRecVars: Open" <+> pretty (openThing $ hintRecVars comps)
+           , "hintRecVars: Open" <+> pretty (mapSnd unNoSubst <$> openThing (hintRecVars comps))
            , "hintSplitVars: Open" <+> pretty (openThing $ hintSplitVars comps)
            ]
          ]
