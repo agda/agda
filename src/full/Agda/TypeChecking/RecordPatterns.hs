@@ -127,8 +127,8 @@ cutColumns i n rows = unzip (map (cutSublist i n) rows)
 getEtaAndArity :: SplitTag -> TCM (Bool, Nat)
 getEtaAndArity (SplitCon c) =
   getConstructorInfo c <&> \case
-    DataCon n           -> (False, n)
-    RecordCon _ eta n _ -> (eta == YesEta, n)
+    DataCon n         -> (False, n)
+    RecordCon eta n _ -> (eta == YesEta, n)
 getEtaAndArity (SplitLit l) = return (False, 0)
 getEtaAndArity SplitCatchall = return (False, 1)
 
@@ -183,8 +183,8 @@ translateCompiledClauses cc = ignoreAbstractMode $ do
           _ | Just (ch, b) <- eta -> yesEtaCase b ch
           [(c, b)] | not comatch -> -- possible eta-match
             getConstructorInfo' c >>= \ case
-              Just (RecordCon pm YesEta _ar fs) -> yesEtaCase b $
-                ConHead c (IsRecord pm) Inductive (map argFromDom fs)
+              Just (RecordCon YesEta _ar fs) -> yesEtaCase b $
+                ConHead c (IsRecord CopatternMatching) Inductive (map argFromDom fs)
               _ -> noEtaCase
           _ -> noEtaCase
       return $ Case i cs{ conBranches    = conMap
@@ -315,7 +315,7 @@ recordExpressionsToCopatterns = \case
       let vs = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       irrProj <- optIrrelevantProjections <$> pragmaOptions
       getConstructorInfo (conName c) >>= \ case
-        RecordCon CopatternMatching YesEta ar fs
+        RecordCon YesEta ar fs
           | ar > 0                                     -- only for eta-records with at least one field
           , length vs == ar                            -- where the constructor application is saturated
           , irrProj || not (any isIrrelevant fs) -> do -- and irrelevant projections (if any) are allowed

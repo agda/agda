@@ -209,7 +209,7 @@ getConType ch t = do
 data ConstructorInfo
   = DataCon Arity
       -- ^ Arity of the data constructor.
-  | RecordCon PatternOrCopattern HasEta
+  | RecordCon HasEta
       Arity
       -- ^ Arity of the record constructor.
       [Dom QName]
@@ -227,7 +227,7 @@ getConstructorInfo' c = do
     Constructor{ conData = d, conArity = n } -> Just <$> do
       (theDef <$> getConstInfo d) >>= \case
         r@Record{ recFields = fs } ->
-           return $ RecordCon (recPatternMatching r) (recEtaEquality r) n fs
+           return $ RecordCon (recEtaEquality r) n fs
         Datatype{} ->
            return $ DataCon n
         _ -> __IMPOSSIBLE__
