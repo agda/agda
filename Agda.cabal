@@ -104,6 +104,7 @@ data-dir:
 
 data-files:
     emacs-mode/*.el
+    emacs-mode/*.json
     html/Agda.css
     html/highlight-hover.js
     JS/agda-rts.js
