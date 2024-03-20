@@ -111,6 +111,9 @@ instance Subst QName where
   type SubstArg QName = Term
   applySubst _ q = q
 
+-- | Wrapper for types that do not contain variables (so applying a substitution is the identity).
+--   Useful if you have a structure of types that support substitution mixed with types that don't
+--   and need to apply a substitution to the full structure.
 newtype NoSubst t a = NoSubst { unNoSubst :: a }
   deriving (Generic, NFData, Functor)
 
