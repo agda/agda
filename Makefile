@@ -170,7 +170,7 @@ else
 endif
 
 .PHONY: install-bin ## Install Agda and test suites
-install-bin: install-deps ensure-hash-is-correct
+install-bin: ensure-hash-is-correct
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with test suites ============"
 	time $(STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
@@ -185,7 +185,7 @@ else
 endif
 
 .PHONY: install-bin-debug ## Install Agda and test suites with debug printing enabled
-install-bin-debug: install-deps ensure-hash-is-correct
+install-bin-debug: ensure-hash-is-correct
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with test suites ============"
 	time $(STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS_DEBUG)
@@ -214,10 +214,7 @@ else
 endif
 
 .PHONY: fast-install-bin ## Install Agda compiled with -O0 with tests
-fast-install-bin: install-deps fast-install-bin-no-deps
-
-.PHONY: fast-install-bin-no-deps ##
- fast-install-bin-no-deps:
+fast-install-bin:
 ifdef HAS_STACK
 	@echo "============= Installing using Stack with -O0 and test suites ============"
 	time $(FAST_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
@@ -234,10 +231,7 @@ endif
 .PHONY: quicker-install-bin ## Install Agda compiled with -O0 without tests
 # Disabling optimizations leads to *much* quicker build times.
 # The performance loss is acceptable for running small tests.
-quicker-install-bin: install-deps quicker-install-bin-no-deps
-
-.PHONY: quicker-install-bin-no-deps ##
-quicker-install-bin-no-deps:
+quicker-install-bin:
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with -O0 ===================="
 	time $(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
@@ -265,7 +259,7 @@ v2-type-check:
                    -e '/.*Warning: the following files would be used as linker inputs, but linking is not being done:.*/d'
 
 # Andreas, 2022-01-30:
-# According to my experiments, `make type-check-no-deps` on an
+# According to my experiments, `make type-check` on an
 # unchanged project runs slightly faster than `make v2-type-check`.
 # Thus keeping the `v1` style as the default.
 
@@ -279,10 +273,7 @@ v2-type-check:
 #
 # Thus, ignore exit code.
 # Also prefixing it with `time` has no effect since it formally fails.
-type-check: install-deps type-check-no-deps
-
-.PHONY: type-check-no-deps ##
-type-check-no-deps :
+type-check:
 	@echo "=============== Type checking using v1 Cabal with -fno-code =============="
 	-$(CABAL) $(CABAL_BUILD_CMD) --builddir=$(BUILD_DIR)-no-code \
           --ghc-options=-fno-code \
@@ -317,7 +308,7 @@ PROFILING_DETAIL=\
 .PHONY : install-prof-bin ## Install Agda with profiling enabled
 # --program-suffix is not for the executable name in
 # $(BUILD_DIR)/build/, only for installing it into .cabal/bin
-install-prof-bin : install-deps ensure-hash-is-correct
+install-prof-bin : ensure-hash-is-correct
 	$(CABAL_INSTALL) -j1 \
           --enable-profiling $(PROFILING_DETAIL) \
           --program-suffix=-prof $(CABAL_INSTALL_OPTS)
@@ -325,13 +316,13 @@ install-prof-bin : install-deps ensure-hash-is-correct
 .PHONY : install-debug ## Install Agda with debug enabled
 # A separate build directory is used. The suffix "-debug" is used for the binaries.
 
-install-debug : install-deps ensure-hash-is-correct
+install-debug : ensure-hash-is-correct
 	$(CABAL_INSTALL) --disable-library-profiling \
         -fdebug --program-suffix=-debug --builddir=$(DEBUG_BUILD_DIR) \
         $(CABAL_INSTALL_BIN_OPTS)
 
 .PHONY : debug-install-quick ## Install Agda -O0 with debug enabled
-debug-install-quick : install-deps
+debug-install-quick :
 	$(QUICK_CABAL_INSTALL) --disable-library-profiling \
         -fdebug --program-suffix=-debug-quick --builddir=$(QUICK_DEBUG_BUILD_DIR) \
         $(CABAL_INSTALL_BIN_OPTS) --ghc-options=-O0
