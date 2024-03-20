@@ -831,7 +831,8 @@ getInstanceDefs = do
     typeError $ GenericError $ "There are instances whose type is still unsolved"
   return $ fst insts
 
--- | Remove introduced in modules with visible arguments.
+-- | Prune an 'Interface' to remove any instances that would be
+-- inapplicable in child modules.
 --
 -- While in a section with visible arguments, we add any instances
 -- defined locally to the instance table: you have to be able to find
@@ -840,11 +841,15 @@ getInstanceDefs = do
 --
 -- But when we leave such a section, these instances have no more value:
 -- even though they might technically be in scope, their types are
--- malformed, since they have visible pis. This function deletes these
--- instances from the instance tree to save on serialisation time *and*
--- time spent checking for candidate validity.
-pruneTemporaryInstances :: TCM ()
-pruneTemporaryInstances = do
+-- malformed, since they have visible pis.
+--
+-- This function deletes these instances from the instance tree in the
+-- given signature to save on serialisation time *and* time spent
+-- checking for candidate validity in client modules. It can't do this
+-- directly in the TC state to prevent these instances from going out of
+-- scope before interaction (see #7196).
+pruneTemporaryInstances :: Interface -> TCM Interface
+pruneTemporaryInstances int = do
   todo <- useTC stTemporaryInstances
 
   reportSDoc "tc.instance.prune" 30 $ vcat
@@ -853,8 +858,5 @@ pruneTemporaryInstances = do
     , "todo:" <+> prettyTCM todo
     ]
 
-  modifyTCLens' (stSignature . sigInstances . itableTree) $
-    flip deleteFromDT todo
-  reportSDoc "tc.instance.prune" 60 $ prettyTCM =<< useTC (stSignature . sigInstances . itableTree)
-
-  setTCLens' stTemporaryInstances mempty
+  let sig' = over (sigInstances . itableTree) (flip deleteFromDT todo) (iSignature int)
+  pure int{ iSignature = sig' }
