@@ -81,7 +81,7 @@ module Agda.Interaction.Options.Base
     , lensOptKeepPatternVariables
     , lensOptInferAbsurdClauses
     , lensOptInstanceSearchDepth
-    , lensOptOverlappingInstances
+    , lensOptBacktrackingInstances
     , lensOptQualifiedInstances
     , lensOptInversionMaxDepth
     , lensOptSafe
@@ -141,7 +141,7 @@ module Agda.Interaction.Options.Base
     , optPostfixProjections
     , optKeepPatternVariables
     , optInferAbsurdClauses
-    , optOverlappingInstances
+    , optBacktrackingInstances
     , optQualifiedInstances
     , optSafe
     , optDoubleCheck
@@ -375,7 +375,7 @@ data PragmaOptions = PragmaOptions
       -- ^ Should case splitting and coverage checking try to discharge absurd clauses?
       --   Default: 'True', but 'False' might make coverage checking considerably faster in some cases.
   , _optInstanceSearchDepth       :: Int
-  , _optOverlappingInstances      :: WithDefault 'False
+  , _optBacktrackingInstances     :: WithDefault 'False
   , _optQualifiedInstances        :: WithDefault 'True
       -- ^ Should instance search consider instances with qualified names?
   , _optInversionMaxDepth         :: Int
@@ -492,7 +492,7 @@ optFirstOrder                :: PragmaOptions -> Bool
 optPostfixProjections        :: PragmaOptions -> Bool
 optKeepPatternVariables      :: PragmaOptions -> Bool
 optInferAbsurdClauses        :: PragmaOptions -> Bool
-optOverlappingInstances      :: PragmaOptions -> Bool
+optBacktrackingInstances     :: PragmaOptions -> Bool
 optQualifiedInstances        :: PragmaOptions -> Bool
 optSafe                      :: PragmaOptions -> Bool
 optDoubleCheck               :: PragmaOptions -> Bool
@@ -553,7 +553,7 @@ optFirstOrder                = collapseDefault . _optFirstOrder
 optPostfixProjections        = collapseDefault . _optPostfixProjections
 optKeepPatternVariables      = collapseDefault . _optKeepPatternVariables
 optInferAbsurdClauses        = collapseDefault . _optInferAbsurdClauses
-optOverlappingInstances      = collapseDefault . _optOverlappingInstances
+optBacktrackingInstances     = collapseDefault . _optBacktrackingInstances
 optQualifiedInstances        = collapseDefault . _optQualifiedInstances
 optSafe                      = collapseDefault . _optSafe
 optDoubleCheck               = collapseDefault . _optDoubleCheck
@@ -736,8 +736,8 @@ lensOptInferAbsurdClauses f o = f (_optInferAbsurdClauses o) <&> \ i -> o{ _optI
 lensOptInstanceSearchDepth :: Lens' PragmaOptions _
 lensOptInstanceSearchDepth f o = f (_optInstanceSearchDepth o) <&> \ i -> o{ _optInstanceSearchDepth = i }
 
-lensOptOverlappingInstances :: Lens' PragmaOptions _
-lensOptOverlappingInstances f o = f (_optOverlappingInstances o) <&> \ i -> o{ _optOverlappingInstances = i }
+lensOptBacktrackingInstances :: Lens' PragmaOptions _
+lensOptBacktrackingInstances f o = f (_optBacktrackingInstances o) <&> \ i -> o{ _optBacktrackingInstances = i }
 
 lensOptQualifiedInstances :: Lens' PragmaOptions _
 lensOptQualifiedInstances f o = f (_optQualifiedInstances o) <&> \ i -> o{ _optQualifiedInstances = i }
@@ -896,7 +896,7 @@ defaultPragmaOptions = PragmaOptions
   , _optKeepPatternVariables      = Default
   , _optInferAbsurdClauses        = Default
   , _optInstanceSearchDepth       = 500
-  , _optOverlappingInstances      = Default
+  , _optBacktrackingInstances      = Default
   , _optQualifiedInstances        = Default
   , _optInversionMaxDepth         = 50
   , _optSafe                      = Default
@@ -1746,9 +1746,7 @@ pragmaOptions = concat
   , [ Option []     ["instance-search-depth"] (ReqArg instanceDepthFlag "N")
                     "set instance search depth to N (default: 500)"
     ]
-  , pragmaFlag      "overlapping-instances" lensOptOverlappingInstances
-                    "consider recursive instance arguments during pruning of instance candidates" ""
-                    Nothing
+  , backtrackingInstancesOption
   , pragmaFlag      "qualified-instances" lensOptQualifiedInstances
                     "use instances with qualified names" ""
                     Nothing
@@ -1830,6 +1828,13 @@ lossyUnificationOption =
     "even when it could lose solutions"
     Nothing
 
+backtrackingInstancesOption :: [OptDescr (Flag PragmaOptions)]
+backtrackingInstancesOption =
+  pragmaFlag "backtracking-instance-search" lensOptBacktrackingInstances
+    "allow backtracking during instance search"
+    ""
+    Nothing
+
 -- | Pragma options of previous versions of Agda.
 --   Should not be listed in the usage info, put parsed by GetOpt for good error messaging.
 deadPragmaOptions :: [OptDescr (Flag PragmaOptions)]
@@ -1850,6 +1855,9 @@ deadPragmaOptions = concat
   , map (uncurry renamedNoArgOption)
     [ ( "experimental-lossy-unification"
       , headWithDefault __IMPOSSIBLE__ lossyUnificationOption
+      )
+    , ( "overlapping-instances"
+      , headWithDefault __IMPOSSIBLE__ backtrackingInstancesOption
       )
     ]
   ]

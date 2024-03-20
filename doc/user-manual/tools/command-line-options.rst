@@ -980,14 +980,16 @@ Search depth and instances
      Set maximum depth for pattern match inversion to ``N`` (default:
      50). Should only be needed in pathological cases.
 
-.. option:: --overlapping-instances, --no-overlapping-instances
+.. option:: --backtracking-instance-search, --no-backtracking-instance-search
 
-     .. versionadded:: 2.6.0
+     .. versionadded:: 2.6.5
 
      Consider [do not consider] recursive instance arguments during
-     pruning of instance candidates.
+     pruning of instance candidates, see :ref:`backtracking-instances`
 
-     Default: ``--no-overlapping-instances``.
+     Default: ``--no-backtracking-instance-search``.
+
+     This option used to be called ``--overlapping-instances``.
 
 .. option:: --qualified-instances, --no-qualified-instances
 
@@ -1791,7 +1793,7 @@ again, the source file is re-typechecked instead:
 * :option:`--no-unicode`
 * :option:`--no-universe-polymorphism`
 * :option:`--omega-in-omega`
-* :option:`--overlapping-instances`
+* :option:`--backtracking-instance-search`
 * :option:`--prop`
 * :option:`--qualified-instances`
 * :option:`--rewriting`

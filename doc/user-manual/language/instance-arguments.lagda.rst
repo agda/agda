@@ -632,16 +632,16 @@ the goal when given appropriate arguments, so instance search will fail.
 
 However, *if* we looked for the appropriate arguments *before* checking
 for overlap, the goal above would have a unique solution. The
-:option:`--overlapping-instances` option controls whether instance
-arguments *to instances* should be filled in before checking whether the
-instance is applicable.
+:option:`--backtracking-instance-search` option controls whether
+instance arguments *to instances* should be filled in before checking
+whether the instance is applicable.
 
 .. warning::
 
   Agda uses naïve backtracking to check instances' constraints, which
   has exponential performance in the worst case. Enabling
-  :option:`--overlapping-instances` might cause significant slowdown in
-  instance search, and even apparent infinite loops.
+  :option:`--backtracking-instance-search` might cause significant
+  slowdown in instance search, and even apparent infinite loops.
 
 .. _instance-resolution:
 
@@ -698,7 +698,7 @@ Check the type of the candidates
   #. The target type ``C vs`` is unified with ``A[α/Δ]``. If this results
      in a definite mismatch, the candidate is discarded.
 
-  #. Finally, if :option:`--overlapping-instances` is enabled, we
+  #. Finally, if :option:`--backtracking-instance-search` is enabled, we
      recursively apply instance search to any instance variables present
      in ``Δ``.
 

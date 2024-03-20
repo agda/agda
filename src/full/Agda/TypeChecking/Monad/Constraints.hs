@@ -226,7 +226,7 @@ isInstanceConstraint _              = False
 canDropRecursiveInstance :: (ReadTCState m, HasOptions m) => m Bool
 canDropRecursiveInstance =
   and2M ((^. stConsideringInstance) <$> getTCState)
-        (not . optOverlappingInstances <$> pragmaOptions)
+        (not . optBacktrackingInstances <$> pragmaOptions)
 
 shouldPostponeInstanceSearch :: (ReadTCState m, HasOptions m) => m Bool
 shouldPostponeInstanceSearch = canDropRecursiveInstance `or2M` ((^. stPostponeInstanceSearch) <$> getTCState)
