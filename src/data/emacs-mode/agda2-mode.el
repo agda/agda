@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t; -*-
 ;;; agda2-mode.el --- Major mode for Agda
 ;; SPDX-License-Identifier: MIT License
 
