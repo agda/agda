@@ -431,7 +431,7 @@ prop_removeEdge g =
     .&&.
   (not (null (nodes g)) ==>
    forAll (vectorOf 2 (nodeIn g)) $ \[s, t] ->
-   notElem t (map target (edgesFrom g [s])) ==>
+   t `notElem` (map target (edgesFrom g [s])) ==>
    forAll arbitrary $ \l ->
      removeEdge s t (insertEdge (Edge s t l) g) == g)
 
