@@ -135,7 +135,7 @@ validInsertPair m = do
   k <- arbitrary
   v <- V <$> arbitrary <*> arbitrary
   oneof $
-    (if insertPrecondition k v m then [return (k, v)] else []) ++
+    [return (k, v) | insertPrecondition k v m] ++
     [(k,) <$> valueWithUndefinedTag]
 
 prop_validInsertPair :: BM -> Property

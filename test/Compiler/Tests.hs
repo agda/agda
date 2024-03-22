@@ -129,7 +129,7 @@ tests = do
       enabledCompilers =
         [ MAlonzo s
         | s <- [Lazy, StrictData] ++
-               if ghcVersionAtLeast9 then [Strict] else []
+               [Strict | ghcVersionAtLeast9]
         ] ++
         [ JS opt
         | isJust nodeBin

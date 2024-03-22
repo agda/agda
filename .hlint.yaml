@@ -75,7 +75,6 @@
 - ignore: {name: "Use isNothing"} # 2 hints
 - ignore: {name: "Use join"} # 2 hints
 - ignore: {name: "Use lambda-case"} # 11 hints
-- ignore: {name: "Use list comprehension"} # 3 hints
 - ignore: {name: "Use list literal"} # 12 hints
 - ignore: {name: "Use list literal pattern"} # 1 hint
 - ignore: {name: "Use map once"} # 1 hint
