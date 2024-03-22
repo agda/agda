@@ -223,7 +223,7 @@ compareAs cmp a u v = do
           cubicalProjs <- traverse getName' [builtin_unglue, builtin_unglueU]
           let
             notFirstOrder = isJust (isRelevantProjection_ def)
-                         || any (Just f ==) cubicalProjs
+                         || (Just f) `elem` cubicalProjs
           if notFirstOrder then fallback else do
           pol <- getPolarity' cmp f
           whenProfile Profile.Conversion $ tick "compare first-order shortcut"

@@ -63,7 +63,6 @@
 - ignore: {name: "Use camelCase"} # 72 hints
 - ignore: {name: "Use concatMap"} # 2 hints
 - ignore: {name: "Use const"} # 79 hints
-- ignore: {name: "Use elem"} # 2 hints
 - ignore: {name: "Use empty"} # 1 hint
 - ignore: {name: "Use fewer imports"} # 6 hints
 - ignore: {name: "Use fmap"} # 5 hints
@@ -86,7 +85,6 @@
 - ignore: {name: "Use maximum"} # 1 hint
 - ignore: {name: "Use negate"} # 1 hint
 - ignore: {name: "Use newtype instead of data"} # 30 hints
-- ignore: {name: "Use notElem"} # 2 hints
 - ignore: {name: "Use null"} # 5 hints
 - ignore: {name: "Use otherwise"} # 1 hint
 - ignore: {name: "Use record patterns"} # 90 hints

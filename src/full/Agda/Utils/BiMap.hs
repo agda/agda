@@ -346,7 +346,7 @@ unionPrecondition m1@(BiMap t1 _) m2@(BiMap t2 _) =
      ] ++
      [ v2
      | (k2, v2) <- toList m2
-     , not (k2 `elem` ks1)
+     , k2 `notElem` ks1
      ])
   where
   ks1 = map fst (toList m1)
