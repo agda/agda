@@ -131,7 +131,7 @@ matchLHS tele patterns = do
         freshenedSignature <- freshenCopatternProjection newCodepthVar bounds tele
         -- Additional argument is needed because we want to get rid of the principal argument in the signature
         -- This is application that is intended to get rid of the basic record arguments
-        let appliedProjection = case codom of 
+        let appliedProjection = case codom of
               UndefinedSizeType -> UndefinedSizeType
               _ -> applyDataType ((map snd recordArgs) ++ [UndefinedSizeType]) freshenedSignature
         -- TODO: handle copying here,
