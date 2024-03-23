@@ -4,7 +4,7 @@ module Agda.Termination.TypeBased.Syntax
  ( Size ( SUndefined, SDefined )
  , SizeType ( SizeTree, SizeGenericVar, SizeArrow, SizeGeneric )
  , SizeBound ( SizeUnbounded, SizeBounded )
- , SizeSignature ( SizeSignature, sigTele, sigBounds, sigContra)
+ , SizeSignature ( SizeSignature, sigTele, sigBounds)
  , FreeGeneric (..)
  , pattern UndefinedSizeType
  , sizeCodomain
@@ -29,10 +29,11 @@ data Size
 -- | A representation of a sized type, which is assigned to elements of underlying theory.
 -- In our case, the theory is (something like) System Fω, so we reflect the arrow types and type abstractions.
 data SizeType
-  = SizeTree Size [(Polarity, SizeType)]
+  = SizeTree Size Size [(Polarity, SizeType)]
   -- ^ Endpoint size type that corresponds to a datatype.
-  --   Every datatype has an assigned size variable, which intuitively represents its depth, and a sequence of polarized parameters.
-  --   For example, the datatype @List A@ has one parameter apart its size, so it can be encoded as 't₀<+ε₀>'.
+  --   Every datatype has an assigned an inductive and coinductive size variables, which intuitively represent its depth, and a sequence of polarized parameters.
+  --   For example, the datatype @List A@ has one parameter apart its size, so it can be encoded as '(⁺t₀,⁻∞)<+ε₀>', where ⁺ and ⁻ indicate that
+  --  the variables are inductive and coinductive correspondingly. Since List is a purely inductive datatype, its coinductive size is undefined.
   | SizeArrow SizeType SizeType
   -- ^ Reflects the first-order abstraction in System Fω.
   | SizeGeneric Int SizeType
@@ -64,11 +65,11 @@ data FreeGeneric = FreeGeneric { fgArity :: Int, fgIndex :: Int }
 -- Often used as a shortcut to processing.
 -- The motivation is that since there is a loss of information, then it makes no sense to proceed with the size checking.
 pattern UndefinedSizeType :: SizeType
-pattern UndefinedSizeType = SizeTree SUndefined []
+pattern UndefinedSizeType = SizeTree SUndefined SUndefined []
 
 -- | Decomposes size type to number of domains and a codomain.
 sizeCodomain :: SizeType -> (Int, SizeType)
-sizeCodomain s@(SizeTree _ _) = (0, s)
+sizeCodomain s@(SizeTree _ _ _) = (0, s)
 sizeCodomain s@(SizeGenericVar _ _) = (0, s)
 sizeCodomain (SizeArrow l r) = (\(a, b) -> (a + 1, b)) (sizeCodomain r)
 sizeCodomain (SizeGeneric _ r) = (\(a, b) -> (a + 1, b)) (sizeCodomain r)
@@ -82,16 +83,13 @@ data SizeSignature = SizeSignature
   { sigBounds :: [SizeBound]
   -- ^ The list of bounds for the size variables of the definition.
   --   All references point within the same list: if @SizeBounded i@ is an element of `sigBounds`, then `i < length sigBounds`.
-  , sigContra :: [Int]
-  -- ^ The list of contravariant variables in the definition.
-  --   A variable is contravariant if it was obtained from encoding a coinductive type.
   , sigTele :: SizeType
   -- ^ The size type of the definition.
   }
   deriving Show
 
 sizeSigArity :: SizeSignature -> Int
-sizeSigArity (SizeSignature bounds _ _) = length bounds
+sizeSigArity (SizeSignature bounds _) = length bounds
 
 instance NFData Size where
   rnf :: Size -> ()
@@ -107,19 +105,24 @@ instance Pretty FreeGeneric where
   pretty (FreeGeneric a i) = "〈" <> small a <> "ε" <> small i <> "〉"
 
 instance NFData SizeType where
-  rnf (SizeTree size rest) = rnf size `seq` rnf rest
+  rnf (SizeTree sizeInd sizeCoind rest) = rnf sizeInd `seq` rnf sizeCoind `seq` rnf rest
   rnf (SizeGenericVar params i) = rnf params `seq` rnf i
   rnf (SizeArrow l r) = rnf l `seq` rnf r
   rnf (SizeGeneric args rest) = rnf args `seq` rnf rest
 
 instance Pretty SizeType where
-  pretty (SizeTree size tree) = pretty size <> (if null tree then "" else "<" <> prettyList_ (map (\(p, t) -> pretty p <> pretty t) tree) <> ">")
+  pretty (SizeTree sizeInd sizeCoind tree) =
+    let sizes
+          | sizeCoind == SUndefined = "⁺" <> pretty sizeInd
+          | sizeInd == SUndefined = "⁻" <> pretty sizeCoind
+          | otherwise = "(⁺" <> pretty sizeInd <> ",⁻" <> pretty sizeCoind <> ")"
+    in sizes <> (if null tree then "" else "<" <> prettyList_ (map (\(p, t) -> pretty p <> pretty t) tree) <> ">")
   pretty (SizeGeneric args rest) =
     let argrep = if args == 0 then "" else small args
     in ("∀" <> argrep <> "E" <> ".") <+> pretty rest
   pretty (SizeGenericVar args i) = (if args == 0 then "" else small args) <> "ε" <> (small i)
   pretty (SizeArrow s t) = (case s of
-    SizeTree _ _ -> pretty s
+    SizeTree _ _ _ -> pretty s
     SizeGenericVar _ _ -> pretty s
     _ -> parens (pretty s))
     <+> "→" <+> pretty t
@@ -136,13 +139,11 @@ instance Pretty SizeBound where
 
 instance NFData SizeSignature where
   rnf :: SizeSignature -> ()
-  rnf (SizeSignature args contra tele) = rnf args `seq` rnf contra `seq` rnf tele
+  rnf (SizeSignature args tele) = rnf args `seq` rnf tele
 
 instance Pretty SizeSignature where
   pretty :: SizeSignature -> Doc
-  pretty (SizeSignature abstracts contra tele) =
-    let contraList = if null contra then "" else "(" <> prettyList_ contra <> ")"
-    in  contraList <> "∀[" <> prettyList_ abstracts <> "]. " <> pretty tele
+  pretty (SizeSignature abstracts tele) = "∀[" <> prettyList_ abstracts <> "]. " <> pretty tele
 
 instance KillRange SizeSignature where
   killRange = id

@@ -65,8 +65,8 @@ import qualified Agda.Benchmarking as Benchmark
 import qualified Agda.Syntax.Common.Pretty as P
 import qualified Agda.Utils.Benchmark as B
 
-import Agda.Termination.TypeBased.Common ( updateSizeVariables )
-import Agda.Termination.TypeBased.Syntax ( SizeSignature(SizeSignature), SizeBound(..), FreeGeneric(fgIndex), SizeType, Size(..), sizeSigArity )
+import Agda.Termination.TypeBased.Common ( updateSizeVariables, computeDecomposition, SizeDecomposition (..) )
+import Agda.Termination.TypeBased.Syntax ( SizeSignature(SizeSignature), SizeBound(..), FreeGeneric(fgIndex), SizeType(..), Size(..), sizeSigArity )
 import Agda.TypeChecking.Monad.Base ( TCM, Definition(defSizedType), HasOptions, MonadTCM, MonadTCState, MonadTCEnv, Closure, ReadTCState )
 import Agda.TypeChecking.Monad.Context ( MonadAddContext )
 import Agda.TypeChecking.Monad.Debug ( MonadDebug, reportSDoc )
@@ -74,6 +74,7 @@ import Agda.TypeChecking.Monad.Signature ( HasConstInfo(getConstInfo) )
 import Agda.TypeChecking.Monad.Statistics ( MonadStatistics )
 import Agda.TypeChecking.Polarity ( composePol )
 import Agda.TypeChecking.Polarity.Base ( Polarity (Invariant, Contravariant, Covariant) )
+import Agda.TypeChecking.Pretty ( PrettyTCM(prettyTCM), pretty, nest, (<+>), vcat, text )
 import Agda.Syntax.Abstract.Name ( QName )
 import Agda.Syntax.Internal ( QName, Term )
 
@@ -299,6 +300,7 @@ requestNewVariable :: Polarity -> TBTM Int
 requestNewVariable pol = TBTM $ do
   x <- gets scsFreshVarCounter
   polarities <- gets scsFreshVarPolarities
+  reportSDoc "term.tbt" 70 $ "Requesting a new variable " <+> pretty x <+> "with polarity" <+> pretty pol
   modify (\s -> s
     { scsFreshVarCounter = x + 1
     , scsFreshVarPolarities = IntMap.insert x pol polarities
@@ -332,17 +334,35 @@ instance Show SConstraint where
 
 -- | Given the signature, returns it with with fresh variables
 freshenSignature :: Polarity -> SizeSignature -> TBTM ([SConstraint], SizeType)
-freshenSignature mainPol s@(SizeSignature domain contra tele) = do
-  newVars <- forM ([0 .. length domain - 1]) (\i ->
-    let polarity = if List.elem i contra then Contravariant else Covariant
-    in requestNewVariable (composePol mainPol polarity))
+freshenSignature mainPol s@(SizeSignature domain tele) = do
+  let (ind, coind) = sortVariables tele
+  let array = case mainPol of
+        Invariant -> map (, Invariant) [0.. length domain - 1]
+        _ -> List.sortOn fst $ map (, Covariant) ind ++ map (, Contravariant) coind
+  newVars <- forM array (\(i, p) -> requestNewVariable (composePol mainPol p))
+  reportSDoc "term.tbt" 70 $ "Freshening signature" <+> pretty s <+> "with variables" <+> pretty newVars
   let actualConstraints = mapMaybe (\(v, d) -> case d of
                             SizeUnbounded -> Nothing
                             SizeBounded i -> Just (SConstraint SLte v (newVars List.!! i))) (zip newVars domain)
       sigWithfreshenedSizes = updateSizeVariables (newVars List.!!) tele
-  -- freshSig <- freshenGenericArguments sigWithfreshenedSizes
-  let newContravariantVariables = map (newVars List.!!) contra
   return $ (actualConstraints, sigWithfreshenedSizes)
+  where
+    sortVariables :: SizeType -> ([Int], [Int])
+    sortVariables (SizeTree t1 t2 rest) =
+      let ts = map sortVariables (map snd rest)
+          v1 = case t1 of
+            SUndefined -> id
+            SDefined i -> (i:)
+          v2 = case t2 of
+            SUndefined -> id
+            SDefined i -> (i:)
+      in (v1 $ concatMap fst ts, v2 $ concatMap snd ts)
+    sortVariables (SizeArrow l r) =
+      let (a, b) = sortVariables l
+          (c, d) = sortVariables r
+      in (a ++ c, b ++ d)
+    sortVariables SizeGenericVar{} = ([], [])
+    sortVariables (SizeGeneric _ r) = sortVariables r
 
 requestNewRigidVariable :: Polarity -> SizeBound -> TBTM Int
 requestNewRigidVariable pol bound = do

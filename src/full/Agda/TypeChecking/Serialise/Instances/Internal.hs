@@ -227,9 +227,9 @@ instance EmbPrj InstanceInfo where
   value = valueN InstanceInfo
 
 instance EmbPrj SizeSignature where
-  icod_ (SizeSignature a b c) = icodeN' SizeSignature a b c
+  icod_ (SizeSignature a b) = icodeN' SizeSignature a b
   value = vcase valu where
-    valu [a, b, c] = valuN SizeSignature a b c
+    valu [a, b] = valuN SizeSignature a b
     valu _      = malformed
 
 instance EmbPrj SizeBound where
@@ -242,17 +242,17 @@ instance EmbPrj SizeBound where
     valu _      = malformed
 
 instance EmbPrj SizeType where
-  icod_ (SizeTree a b)       = icodeN 0 SizeTree a b
+  icod_ (SizeTree a b c)     = icodeN 0 SizeTree a b c
   icod_ (SizeArrow a b)      = icodeN 1 SizeArrow a b
   icod_ (SizeGeneric a b)    = icodeN 2 SizeGeneric a b
   icod_ (SizeGenericVar a b) = icodeN 3 SizeGenericVar a b
 
   value = vcase valu where
-    valu [0, a, b] = valuN SizeTree a b
-    valu [1, a, b] = valuN SizeArrow a b
-    valu [2, a, b] = valuN SizeGeneric a b
-    valu [3, a, b] = valuN SizeGenericVar a b
-    valu _         = malformed
+    valu [0, a, b, c] = valuN SizeTree a b c
+    valu [1, a, b]    = valuN SizeArrow a b
+    valu [2, a, b]    = valuN SizeGeneric a b
+    valu [3, a, b]    = valuN SizeGenericVar a b
+    valu _            = malformed
 
 instance EmbPrj Size where
   icod_ (SUndefined) = icodeN' SUndefined

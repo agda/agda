@@ -39,8 +39,8 @@ applyDataType :: [SizeType] -> SizeType  -> SizeType
 applyDataType [] stele = stele
 applyDataType (ct : cts) (SizeGeneric mainArgs r) = applyDataType cts (sizeInstantiate ct r)
 applyDataType l@(ct : cts) (SizeGenericVar args i) = SizeGenericVar (args + length l) i
-applyDataType (ct : cts) (SizeArrow (SizeTree SUndefined []) r) = applyDataType cts r
-applyDataType _ (SizeTree _ _) = UndefinedSizeType -- fallback, sorry
+applyDataType (ct : cts) (SizeArrow UndefinedSizeType r) = applyDataType cts r
+applyDataType _ (SizeTree _ _ _) = UndefinedSizeType -- fallback, sorry
 applyDataType (UndefinedSizeType : cts) (SizeArrow _ r) = applyDataType cts r
 applyDataType ts ar = __IMPOSSIBLE__
 
@@ -51,7 +51,7 @@ sizeInstantiate = sizeInstantiate' 0
 -- | 'sizeInstantiate' that is adapted to De Bruijn indices
 sizeInstantiate' :: Int -> SizeType -> SizeType -> SizeType
 sizeInstantiate' targetIndex target (SizeArrow l r) = SizeArrow (sizeInstantiate' targetIndex target l) (sizeInstantiate' targetIndex target r)
-sizeInstantiate' targetIndex target (SizeTree sd tree) = SizeTree sd (map (second $ sizeInstantiate' targetIndex target) tree)
+sizeInstantiate' targetIndex target (SizeTree si sc tree) = SizeTree si sc (map (second $ sizeInstantiate' targetIndex target) tree)
 sizeInstantiate' targetIndex target (SizeGenericVar args i)
   | i < targetIndex  = SizeGenericVar args i
   | i > targetIndex  = SizeGenericVar args (i - 1)
@@ -61,7 +61,7 @@ sizeInstantiate' targetIndex target (SizeGeneric args r) = SizeGeneric args (siz
 -- | Increments all De Bruijn indices for second-order variables. This is needed to correctly handle "free" generic variables.
 incrementFreeGenerics :: Int -> SizeType -> SizeType
 incrementFreeGenerics threshold (SizeArrow l r) = SizeArrow (incrementFreeGenerics threshold l) (incrementFreeGenerics threshold r)
-incrementFreeGenerics threshold (SizeTree sd tree) = SizeTree sd (map (second $ incrementFreeGenerics threshold) tree)
+incrementFreeGenerics threshold (SizeTree si sc tree) = SizeTree si sc (map (second $ incrementFreeGenerics threshold) tree)
 incrementFreeGenerics threshold (SizeGenericVar args i) = SizeGenericVar args (if i >= threshold then i + 1 else i)
 incrementFreeGenerics threshold (SizeGeneric args r) = SizeGeneric args (incrementFreeGenerics (threshold + 1) r)
 
@@ -107,26 +107,32 @@ data SizeDecomposition = SizeDecomposition
 
 
 -- The decomposition should proceed alongside polarity, i.e. doubly negative occurences of inductive types are also subject of size preservation.
-computeDecomposition :: IntSet -> SizeType -> SizeDecomposition
-computeDecomposition coinductiveVars sizeType =
+computeDecomposition :: SizeType -> SizeDecomposition
+computeDecomposition sizeType =
   let (positiveVariables, negativeVariables, rest) = collectPolarizedSizes Covariant sizeType
-      (coinductivePositive, inductivePositive) = List.partition (`IntSet.member` coinductiveVars) positiveVariables
-      (coinductiveNegative, inductiveNegative) = List.partition (`IntSet.member` coinductiveVars) negativeVariables
+      (mixedVariables, defNegative) = List.partition (`List.elem` positiveVariables) negativeVariables
+      defPositive = (filter (not . (`List.elem` mixedVariables)) positiveVariables)
   in SizeDecomposition
-    { sdPositive = coinductiveNegative ++ inductivePositive
-    , sdNegative = inductiveNegative ++ coinductivePositive
-    , sdOther = rest }
+    { sdPositive = defPositive
+    , sdNegative = defNegative
+    , sdOther = rest ++ mixedVariables }
  where
     collectPolarizedSizes :: Polarity -> SizeType -> ([Int], [Int], [Int])
-    collectPolarizedSizes pol (SizeTree size ts) =
-      let selector = case size of
+    collectPolarizedSizes pol (SizeTree sizeInd sizeCoind ts) =
+      let modifier1 = case sizeInd of
             SUndefined -> id
             SDefined i -> case pol of
               Covariant -> (\(a, b, c) -> (i : a, b, c))
               Contravariant -> (\(a, b, c) -> (a, (i : b), c))
               _ -> (\(a, b, c) -> (a, b, i : c))
+          modifier2 = case sizeCoind of
+            SUndefined -> id
+            SDefined i -> case pol of
+              Covariant -> (\(a, b, c) -> (a, i : b, c))
+              Contravariant -> (\(a, b, c) -> (i : a, b, c))
+              _ -> (\(a, b, c) -> (a, b, i : c))
           ind = map (\(p, t) -> collectPolarizedSizes (composePol p pol) t) ts
-      in selector (concatMap (\(a, _, _) -> a) ind, concatMap (\(_, b, _) -> b) ind, concatMap (\(_, _, c) -> c) ind)
+      in modifier1 $ modifier2 $ (concatMap (\(a, _, _) -> a) ind, concatMap (\(_, b, _) -> b) ind, concatMap (\(_, _, c) -> c) ind)
     collectPolarizedSizes pol (SizeArrow l r) =
       let (f1, f2, f3) = collectPolarizedSizes (neg pol) l
           (s1, s2, s3) = collectPolarizedSizes pol r
@@ -138,10 +144,10 @@ computeDecomposition coinductiveVars sizeType =
 -- This function is needed because encoding may procedures do not guarantee that the sizes in the encoded signature are continuous.
 -- The reason for this is System Fω, which does not allow to express a dependently-typed signature completely.
 fixGaps :: SizeSignature -> SizeSignature
-fixGaps (SizeSignature bounds contra tele) =
-  let decomp = computeDecomposition (IntSet.fromList contra) tele
+fixGaps (SizeSignature bounds tele) =
+  let decomp = computeDecomposition tele
       subst = IntMap.fromList $ (zip (sdNegative decomp ++ sdOther decomp ++ sdPositive decomp) [0..])
-  in SizeSignature (rearrangeBounds bounds subst) (mapMaybe (subst IntMap.!?) contra) (updateSizeVariables (subst IntMap.!) tele)
+  in SizeSignature (rearrangeBounds bounds subst) (updateSizeVariables (subst IntMap.!) tele)
   where
     mapBound :: SizeBound -> IntMap Int -> SizeBound
     mapBound SizeUnbounded _ = SizeUnbounded
@@ -152,7 +158,7 @@ fixGaps (SizeSignature bounds contra tele) =
 
 -- | Applies a function to all size variables in a signature.
 updateSizeVariables :: (Int -> Int) -> SizeType -> SizeType
-updateSizeVariables subst (SizeTree size tree) = SizeTree (weakenSize size) (map (second $ updateSizeVariables subst) tree)
+updateSizeVariables subst (SizeTree sizeInd sizeCoind tree) = SizeTree (weakenSize sizeInd) (weakenSize sizeCoind) (map (second $ updateSizeVariables subst) tree)
   where
     weakenSize :: Size -> Size
     weakenSize SUndefined = SUndefined
@@ -179,7 +185,7 @@ unfoldInstantiations (ToVariable i : rest) = i : unfoldInstantiations rest
 --
 -- The input list must be ascending in keys.
 reifySignature :: [(Int, VariableInstantiation)] -> SizeSignature -> SizeSignature
-reifySignature mapping (SizeSignature bounds contra tele) =
+reifySignature mapping (SizeSignature bounds tele) =
   let newBounds = take (length bounds - length mapping) bounds
       offset x = length (filter (< x) (map fst mapping))
       actualOffsets = IntMap.fromAscList (zip [0..] (List.unfoldr (\(ind, list) ->
@@ -190,11 +196,16 @@ reifySignature mapping (SizeSignature bounds contra tele) =
                     then Just (updateInstantiation (\i -> i - offset i) i2 , (ind + 1, ps))
                     else Just (ToVariable (ind - offset ind), (ind + 1, list)))
         (0, mapping)))
-      newSig = (SizeSignature newBounds (List.nub (unfoldInstantiations $ map (actualOffsets IntMap.!) contra)) (fixSizes (actualOffsets IntMap.!) tele))
+      mappedBounds = map (\case
+        SizeUnbounded -> SizeUnbounded
+        SizeBounded i -> case (actualOffsets IntMap.! i) of
+          ToVariable j -> SizeBounded j
+          ToInfinity -> SizeUnbounded) newBounds
+      newSig = (SizeSignature mappedBounds (fixSizes (actualOffsets IntMap.!) tele))
   in newSig
   where
     fixSizes :: (Int -> VariableInstantiation) -> SizeType -> SizeType
-    fixSizes subst (SizeTree size tree) = SizeTree (weakenSize size) (map (second $ fixSizes subst) tree)
+    fixSizes subst (SizeTree sizeInd sizeCoind tree) = SizeTree (weakenSize sizeInd) (weakenSize sizeCoind) (map (second $ fixSizes subst) tree)
       where
         weakenSize :: Size -> Size
         weakenSize SUndefined = SUndefined
