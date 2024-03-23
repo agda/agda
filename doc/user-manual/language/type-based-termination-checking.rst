@@ -308,7 +308,7 @@ References
 ----------
 
 [1] Kanstantsin Nisht -- `Type-Based Termination Checking in Agda.
-<https://knisht.github.io/agda/msc.pdf`_
+<https://knisht.github.io/agda/msc.pdf>`_
 
 [2] Philip Wadler -- `Theorems for free!
 <https://www.cse.chalmers.se/~abela/lehre/SS07/Typen/wadler89theorems.pdf>`_
