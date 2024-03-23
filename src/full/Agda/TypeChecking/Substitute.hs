@@ -233,8 +233,8 @@ instance TermSubst a => Apply (Tele a) where
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Apply Definition where
-  apply (Defn info x t pol occ gens gpars df m c inst copy ma nc inj copat blk lang d) args =
-    Defn info x (piApply t args) (apply pol args) (apply occ args) (apply gens args) (drop (length args) gpars) df m c inst copy ma nc inj copat blk lang (apply d args)
+  apply (Defn info x t st pol occ gens gpars df m c inst copy ma nc inj copat blk lang d) args =
+    Defn info x (piApply t args) st (apply pol args) (apply occ args) (apply gens args) (drop (length args) gpars) df m c inst copy ma nc inj copat blk lang (apply d args)
 
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
@@ -624,8 +624,8 @@ instance Abstract Telescope where
   ExtendTel arg xtel `abstract` tel = ExtendTel arg $ xtel <&> (`abstract` tel)
 
 instance Abstract Definition where
-  abstract tel (Defn info x t pol occ gens gpars df m c inst copy ma nc inj copat blk lang d) =
-    Defn info x (abstract tel t) (abstract tel pol) (abstract tel occ) (abstract tel gens)
+  abstract tel (Defn info x t st pol occ gens gpars df m c inst copy ma nc inj copat blk lang d) =
+    Defn info x (abstract tel t) st (abstract tel pol) (abstract tel occ) (abstract tel gens)
       (replicate (size tel) Nothing ++ gpars)
       df m c inst copy ma nc inj copat blk lang (abstract tel d)
 

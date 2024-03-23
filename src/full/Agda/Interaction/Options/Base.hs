@@ -58,6 +58,8 @@ module Agda.Interaction.Options.Base
     , lensOptOmegaInOmega
     , lensOptCumulativity
     , lensOptSizedTypes
+    , lensOptTypeBasedTermination
+    , lensOptSyntaxBasedTermination
     , lensOptGuardedness
     , lensOptInjectiveTypeConstructors
     , lensOptUniversePolymorphism
@@ -122,6 +124,8 @@ module Agda.Interaction.Options.Base
     , optOmegaInOmega
     , optCumulativity
     , optSizedTypes
+    , optTypeBasedTermination
+    , optSyntaxBasedTermination
     , optGuardedness
     , optInjectiveTypeConstructors
     , optUniversePolymorphism
@@ -335,6 +339,8 @@ data PragmaOptions = PragmaOptions
   , _optOmegaInOmega              :: WithDefault 'False
   , _optCumulativity              :: WithDefault 'False
   , _optSizedTypes                :: WithDefault 'False
+  , _optTypeBasedTermination      :: WithDefault 'False
+  , _optSyntaxBasedTermination    :: WithDefault 'True
   , _optGuardedness               :: WithDefault 'False
   , _optInjectiveTypeConstructors :: WithDefault 'False
   , _optUniversePolymorphism      :: WithDefault 'True
@@ -501,6 +507,8 @@ optUniverseCheck             :: PragmaOptions -> Bool
 optOmegaInOmega              :: PragmaOptions -> Bool
 optCumulativity              :: PragmaOptions -> Bool
 optSizedTypes                :: PragmaOptions -> Bool
+optTypeBasedTermination      :: PragmaOptions -> Bool
+optSyntaxBasedTermination    :: PragmaOptions -> Bool
 optGuardedness               :: PragmaOptions -> Bool
 optInjectiveTypeConstructors :: PragmaOptions -> Bool
 optUniversePolymorphism      :: PragmaOptions -> Bool
@@ -564,6 +572,8 @@ optUniverseCheck             = collapseDefault . _optUniverseCheck
 optOmegaInOmega              = collapseDefault . _optOmegaInOmega
 optCumulativity              = collapseDefault . _optCumulativity
 optSizedTypes                = collapseDefault . _optSizedTypes
+optTypeBasedTermination      = collapseDefault . _optTypeBasedTermination
+optSyntaxBasedTermination    = collapseDefault . _optSyntaxBasedTermination
 optGuardedness               = collapseDefault . _optGuardedness
 optInjectiveTypeConstructors = collapseDefault . _optInjectiveTypeConstructors
 optUniversePolymorphism      = collapseDefault . _optUniversePolymorphism
@@ -696,6 +706,12 @@ lensOptCumulativity f o = f (_optCumulativity o) <&> \ i -> o{ _optCumulativity 
 
 lensOptSizedTypes :: Lens' PragmaOptions _
 lensOptSizedTypes f o = f (_optSizedTypes o) <&> \ i -> o{ _optSizedTypes = i }
+
+lensOptTypeBasedTermination :: Lens' PragmaOptions _
+lensOptTypeBasedTermination f o = f (_optTypeBasedTermination o) <&> \ i -> o{ _optTypeBasedTermination = i }
+
+lensOptSyntaxBasedTermination :: Lens' PragmaOptions _
+lensOptSyntaxBasedTermination f o = f (_optSyntaxBasedTermination o) <&> \ i -> o{ _optSyntaxBasedTermination = i }
 
 lensOptGuardedness :: Lens' PragmaOptions _
 lensOptGuardedness f o = f (_optGuardedness o) <&> \ i -> o{ _optGuardedness = i }
@@ -910,6 +926,8 @@ defaultPragmaOptions = PragmaOptions
   , _optOmegaInOmega              = Default
   , _optCumulativity              = Default
   , _optSizedTypes                = Default
+  , _optTypeBasedTermination      = Default
+  , _optSyntaxBasedTermination    = Default
   , _optGuardedness               = Default
   , _optInjectiveTypeConstructors = Default
   , _optUniversePolymorphism      = Default
@@ -1701,6 +1719,12 @@ pragmaOptions = concat
   , pragmaFlag      "sized-types" lensOptSizedTypes
                     "enable sized types" "(inconsistent with --guardedness)"
                     $ Just "disable sized types"
+  , pragmaFlag      "type-based-termination" lensOptTypeBasedTermination
+                    "enable type-based termination checker" "(ignored if used together with --guardedness, --sized-types)"
+                    $ Just "disable type-based termination checker"
+  , pragmaFlag      "syntax-based-termination" lensOptSyntaxBasedTermination
+                    "enable syntax-based termination checker" "(required for --guardedness, --sized-types)"
+                    $ Just "disable syntax-based termination checker"
   , pragmaFlag      "cohesion" lensOptCohesion
                     "enable the cohesion modalities" "(in particular @flat)"
                     Nothing

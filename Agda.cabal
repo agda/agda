@@ -607,6 +607,7 @@ library
       Agda.Syntax.Treeless
       Agda.Termination.CallGraph
       Agda.Termination.CallMatrix
+      Agda.Termination.Common
       Agda.Termination.CutOff
       Agda.Termination.Monad
       Agda.Termination.Order
@@ -615,6 +616,15 @@ library
       Agda.Termination.Semiring
       Agda.Termination.TermCheck
       Agda.Termination.Termination
+      Agda.Termination.TypeBased.Checking
+      Agda.Termination.TypeBased.Common
+      Agda.Termination.TypeBased.Definitions
+      Agda.Termination.TypeBased.Encoding
+      Agda.Termination.TypeBased.Graph
+      Agda.Termination.TypeBased.Monad
+      Agda.Termination.TypeBased.Patterns
+      Agda.Termination.TypeBased.Preservation
+      Agda.Termination.TypeBased.Syntax
       Agda.TheTypeChecker
       Agda.TypeChecking.Abstract
       Agda.TypeChecking.CheckInternal
