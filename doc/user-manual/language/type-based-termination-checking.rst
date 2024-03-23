@@ -199,24 +199,24 @@ In general, if there is a set of mutually-inductive-coinductive datatypes, then 
 
 ::
 
-    data D1 (i j : Size) ... : ... → Set
-    data D2 (i j : Size) ... : ... → Set
+    data   D1 (i j : Size) ... : ... → Set
+    data   D2 (i j : Size) ... : ... → Set
     ...
-    data Dn (i j : Size) ... : ... → Set
-    data R1 (i : Size)   ... : ... → Set
-    data R2 (i : Size)   ... : ... → Set
-    data Rm (i : Size)   ... : ... → Set
+    data   Dn (i j : Size) ... : ... → Set
+    record R1 (i : Size)   ... : ... → Set
+    record R2 (i : Size)   ... : ... → Set
+    record Rm (i : Size)   ... : ... → Set
 
-    data D i j ... where
-      c1 : {j' : Size< j} → ... → Dk i j' → ... → D i j ...
-      c2 : ... → Rk i → ... → D i j ...
+    data Dk i j ... where
+      c1 : {j' : Size< j} → ... → Dl i j' → ... → Dk i j ...
+      c2 : ... → Rl i → ... → Dk i j ...
       ...
 
-    record Rn i ... where
+    record Rk i ... where
       coinductive
       field
-      f1 : {i' : Size< i} → ... → Rk i'
-      f2 : {i' : Size< i} → ... → Dk i' ∞
+      f1 : {i' : Size< i} → ... → Rl i'
+      f2 : {i' : Size< i} → ... → Dl i' ∞
       ...
 
 
