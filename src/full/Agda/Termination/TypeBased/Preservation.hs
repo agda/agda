@@ -104,7 +104,7 @@ checkCandidateSatisfiability possiblyPreservingVar candidateVar graph bounds = d
 
 -- | Applies the size preservation analysis result to a function signature.
 applySizePreservation :: SizeSignature -> TBTM SizeSignature
-applySizePreservation s@(SizeSignature _ _ tele) = do
+applySizePreservation s@(SizeSignature _ tele) = do
   candidates <- getPreservationCandidates
   isPreservationEnabled <- sizePreservationOption
   flatCandidates <- forM (IntMap.toAscList candidates) (\(replaceable, candidates) -> (replaceable,) <$> case candidates of

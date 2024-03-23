@@ -144,8 +144,8 @@ sizeCheckTerm' expected t@(Con ch ci elims) = do
     let (_, inferredCodomain) = sizeCodomain tele
     case inferredCodomain of
       -- The occurence of non-recursive constructor means that we have encountered a term that is not bigger than all parameters.
-      SizeTree (SDefined i) _ -> storeBottomVariable i
-      SizeTree (SUndefined) _ -> pure ()
+      SizeTree (SDefined i) _ _ -> storeBottomVariable i
+      SizeTree (SUndefined) _ _ -> pure ()
       -- Since we are processing a constructor of an encoded data/record, we can expect a size tree as a codomain
       _ -> __IMPOSSIBLE__
 
@@ -252,7 +252,7 @@ sizeCheckEliminations eliminated (elim : elims) = do
     , "currently applied elimination:" <+> prettyTCM elim
     ]
   case (elim, eliminated) of
-    (Proj _ qname, eliminatedRecord@(SizeTree root args)) -> do
+    (Proj _ qname, eliminatedRecord@(SizeTree _ _ args)) -> do
       (inferredRecordType, projectionCodomain) <- eliminateProjection qname eliminatedRecord (map snd args)
       sizeCheckEliminations projectionCodomain elims
     (Apply (Arg _ t), SizeGenericVar args i) -> do
@@ -363,17 +363,24 @@ eliminateProjection projName eliminatedRecord recordArgs = do
 
 -- | Compares two size types and stores the obtained constraints.
 smallerOrEq :: Polarity -> SizeType -> SizeType -> TBTM ()
-smallerOrEq pol (SizeTree s1 tree1) (SizeTree s2 tree2) = do
-  p1 <- getSizePolarity s1
-  p2 <- getSizePolarity s2
+smallerOrEq pol (SizeTree i1 c1 tree1) (SizeTree i2 c2 tree2) = do
+  p1 <- getSizePolarity i1
+  p2 <- getSizePolarity i2
+  p3 <- getSizePolarity c1
+  p4 <- getSizePolarity c2
   reportSDoc "term.tbt" 40 $ vcat
-    [ "Comparing size trees:" <+> pretty (SizeTree s1 tree1) <+> "<=" <+> pretty (SizeTree s2 tree2)
-    , "with polarities: " <+> pretty p1 <+> " and " <+> pretty p2
-    , "and main polarity: " <+> pretty pol
+    [ "Comparing size trees:" <+> pretty (SizeTree i1 c1 tree1) <+> "<=" <+> pretty (SizeTree i2 c2 tree2)
+    , "main polarity: " <+> pretty pol
     ]
-  let argPol = p1 \/ p2
-  let prodPol = composePol pol argPol
-  smallerSize prodPol s1 s2
+  let argPol1 = p1 \/ p2
+  let argPol2 = p3 \/ p4
+  let prodPol1 = composePol pol argPol1
+  let prodPol2 = composePol pol argPol2
+  reportSDoc "term.tbt" 40 $ vcat
+    [ "product polarities: " <+> pretty prodPol1 <+> " and " <+> pretty prodPol2
+    ]
+  smallerSize prodPol1 i1 i2
+  smallerSize prodPol2 c1 c2
 
   zipWithM_ (\(p1, t1) (p2, t2) -> smallerOrEq (composePol (p1 \/ p2) pol) t1 t2) tree1 tree2
   where
@@ -404,8 +411,8 @@ smallerOrEq pol (SizeArrow d1 c1) (SizeArrow d2 c2) = smallerOrEq (neg pol) d1 d
 smallerOrEq pol (SizeGeneric _ rest1) (SizeGeneric _ rest2) = smallerOrEq pol rest1 rest2
 smallerOrEq pol (SizeGeneric _ rest1) (SizeArrow UndefinedSizeType rest2) = smallerOrEq pol (sizeInstantiate UndefinedSizeType rest1) rest2
 smallerOrEq pol (SizeArrow UndefinedSizeType rest1) (SizeGeneric _ rest2) = smallerOrEq pol rest1 (sizeInstantiate UndefinedSizeType rest2)
-smallerOrEq pol (SizeTree _ _) (SizeArrow _ _) = pure () -- can occur, becase encoding of terms is intentionaly not complete
-smallerOrEq pol (SizeArrow _ _) (SizeTree _ _) = pure ()
+smallerOrEq pol (SizeTree _ _ _) (SizeArrow _ _) = pure () -- can occur, becase encoding of terms is intentionaly not complete
+smallerOrEq pol (SizeArrow _ _) (SizeTree _ _ _) = pure ()
 smallerOrEq pol (SizeArrow _ r) (SizeGenericVar args i) = smallerOrEq pol r (SizeGenericVar (args + 1) i) -- eta-conversion
 smallerOrEq pol (SizeGenericVar args i) (SizeArrow _ r) = smallerOrEq pol (SizeGenericVar (args + 1) i) r -- eta-conversion
 smallerOrEq pol t1 t2 = do
@@ -424,6 +431,7 @@ smallerOrEq pol t1 t2 = do
 -- May return Nothing for primitive definition
 resolveConstant :: QName -> TBTM ([SConstraint], SizeType)
 resolveConstant nm = do
+  reportSDoc "term.tbt" 20 $ "Resolving constant" <+> prettyTCM nm
   currentName <- currentCheckedName
   constInfo <- getConstInfo nm
   sizedSig <- if currentName == nm
@@ -452,7 +460,7 @@ storeCall q2 sizesq1 sizesq2 elims = do
     reportCall q2 sizesq1 sizesq2 doc
 
 unwrapSizeTree :: SizeType -> [SizeType]
-unwrapSizeTree (SizeTree _ ts) = map snd ts
+unwrapSizeTree (SizeTree _ _ ts) = map snd ts
 unwrapSizeTree t = __IMPOSSIBLE__
 
 isTerminatingDefinition :: Definition -> Bool

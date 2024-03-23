@@ -114,13 +114,13 @@ matchLHS tele patterns = do
     (p : ps) -> case p of
       (Arg _ (Named _ (ProjP _ qn))) -> do
         -- Since it is a projection, the matched type must be a record, i.e. a size tree.
-        let (_, (SizeTree principal recordArgs)) = sizeCodomain tele
+        let (_, (SizeTree _ coPrincipal recordArgs)) = sizeCodomain tele
         constInfo <- getConstInfo qn
-        let sig@(SizeSignature bounds contra tele) = defSizedType constInfo
+        let sig@(SizeSignature bounds tele) = defSizedType constInfo
 
         isForCoinduction <- do
           coinductiveProjection <- isCoinductiveProjection True qn
-          when coinductiveProjection $ initializeCopatternProjection principal
+          when coinductiveProjection $ initializeCopatternProjection coPrincipal
           pure coinductiveProjection
 
         currentCoDepth <- gets peCoDepth
@@ -158,7 +158,7 @@ matchLHS tele patterns = do
 -- | Input: a size type, that is located in domain
 -- Sets up root sizes for all first-order size variables in the domain
 initializeLeafVars :: SizeType -> PatternEncoder ()
-initializeLeafVars (SizeTree size ts) = do
+initializeLeafVars (SizeTree size _ ts) = do
   case size of
     SUndefined -> pure ()
     SDefined i -> modify ( \s -> s
@@ -195,7 +195,7 @@ matchSizePattern p@(ConP hd pi args) expected = do
   let defaultAction = traverse_ (\pat -> withDepth (-1) $ matchSizePattern (namedThing $ unArg pat) UndefinedSizeType) args
   case (expected) of
     UndefinedSizeType -> defaultAction
-    SizeTree size ts -> do
+    SizeTree size _ ts -> do
       rigids <- lift getCurrentRigids
       let cluster = case size of
             SDefined idx -> getCluster rigids idx
@@ -218,7 +218,7 @@ matchSizePattern p@(ConP hd pi args) expected = do
 
       let (_, codomain) = sizeCodomain refreshedConstructor
       case codomain of
-        SizeTree _ realArgs -> lift $ ensurePatternIntegrity (map snd realArgs) (map snd ts)
+        SizeTree _ _ realArgs -> lift $ ensurePatternIntegrity (map snd realArgs) (map snd ts)
         _ -> pure ()
       _ <- foldDomainSizeType
         (\args i pat -> withDepth (-1) $ matchSizePattern pat UndefinedSizeType)
@@ -296,8 +296,8 @@ getOrRequestCoDepthVar depth = do
 -- The decomposed constructor has 'codomainDataVar' as the size variable of its domain
 -- and 'domainDataVar' as the size variables of its recursive domains.
 freshenPatternConstructor :: QName -> Int -> PatternEncoder Int -> SizeType -> SizeSignature -> PatternEncoder SizeType
-freshenPatternConstructor conName codomainDataVar domainDataVar expectedCodomain (SizeSignature bounds contra constructorType) = do
-  let (SizeTree topSize datatypeParameters) = expectedCodomain
+freshenPatternConstructor conName codomainDataVar domainDataVar expectedCodomain (SizeSignature bounds constructorType) = do
+  let (SizeTree topSize coTopSize datatypeParameters) = expectedCodomain
   let croppedBounds = if codomainDataVar == -1 then bounds else initWithDefault [] bounds
   let shouldBeUnbounded b = b == SizeUnbounded || codomainDataVar == (-1)
   -- We need to strip the codomain size from the constructor here to not introduce weird rigid in the context
@@ -311,7 +311,7 @@ freshenPatternConstructor conName codomainDataVar domainDataVar expectedCodomain
     , "modified type: " <+> pretty constructorType
     , "Datatype arguments:" <+> pretty datatypeParameters
     ]
-  let augmentedBounds = newVars ++ (if null bounds then [] else [-1])
+  let augmentedBounds = newVars ++ (if null bounds then [] else [codomainDataVar])
   let instantiatedSig = updateSizeVariables (\i -> augmentedBounds List.!! i) constructorType
   reportSDoc "term.tbt" 70 $ "Instantiated signature: " <+> pretty instantiatedSig
   numberOfArguments <- liftTCM $ getDatatypeParametersByConstructor conName
@@ -341,7 +341,7 @@ ensurePatternIntegrity realTypes expectedTypes = do
 
 -- Extracts cluster of the top-level size expr
 getClusterByTele :: SizeType -> TBTM Int
-getClusterByTele (SizeTree (SDefined i) _) = do
+getClusterByTele (SizeTree (SDefined i) _ _) = do
   ctx <- getCurrentRigids
   pure $ getCluster ctx i
 getClusterByTele (SizeArrow _ r) = getClusterByTele r

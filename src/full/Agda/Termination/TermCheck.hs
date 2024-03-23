@@ -226,14 +226,39 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
              " with cutoff=" ++ show cutoff ++ "..."
            terLocal setNames cont
 
-     -- New check currently only makes a difference for copatterns and record types.
-     -- Since it is slow, only invoke it if
-     -- any of the definitions uses copatterns or is a record type.
-     ifM (anyM allNames $ \ q -> usesCopatterns q `or2M` (isJust <$> isRecord q))
-         -- Then: New check, one after another.
-         (runTerm $ forM' allNames $ termFunction)
-         -- Else: Old check, all at once.
-         (runTerm $ termMutual')
+     errors <- ifM typeBasedTerminationOption
+       {- then -}
+       (Just <$> runTerm (do
+        allNames <- terGetMutual
+        r <- runTypeBasedTerminationChecking allNames
+        case r of
+            Left calls -> do
+              mapM_ (`setTerminates` False) allNames
+              return $ singleton $ terminationError names calls
+
+            Right{} -> do
+              liftTCM $ reportSLn "term.warn.yes" 2 $
+                prettyShow (names) ++ " does termination check"
+              mapM_ (`setTerminates` True) allNames
+              return mempty))
+       {- else -}
+       (pure Nothing)
+
+     case errors of
+      Just [] -> pure mempty
+      e ->
+        ifM syntaxBasedTerminationOption
+          {- then -}
+          -- New check currently only makes a difference for copatterns and record types.
+          -- Since it is slow, only invoke it if
+          -- any of the definitions uses copatterns or is a record type.
+          (ifM (anyM allNames $ \ q -> usesCopatterns q `or2M` (isJust <$> isRecord q))
+            -- Then: New check, one after another.
+            (runTerm $ forM' allNames $ termFunction)
+            -- Else: Old check, all at once.
+            (runTerm $ termMutual'))
+         {- else -}
+         (pure $ fromMaybe mempty e)
 
 -- | @termMutual'@ checks all names of the current mutual block,
 --   henceforth called @allNames@, for termination.
@@ -250,25 +275,19 @@ termMutual' = do
 
   cutoff <- terGetCutOff
 
-  tbt <- typeBasedTerminationOption
-  reportSDoc "term.tbt" 20 $ "tbt is " <+> text (show tbt)
-  r <- runTypeBasedTerminationChecking allNames
-
   -- collect all recursive calls in the block
   let collect = forM' allNames termDef
 
   -- first try to termination check ignoring the dot patterns
 
-  r <- case r of
-      Right _ -> return r
-      Left errs -> runConditionalTerminationChecker syntaxBasedTerminationOption errs $ do
+  r <-  do
         calls1 <- collect
         reportCalls "no " calls1
         let ?cutoff = cutoff
         billToTerGraph $ Term.terminates calls1
   r <- case r of
       Right _ -> return r
-      Left errs -> runConditionalTerminationChecker syntaxBasedTerminationOption errs $ do
+      Left errs -> do
        -- Andrea: 22/04/2020.
        -- With cubical we will always have a clause where the dot
        -- patterns are instead replaced with a variable, so they
@@ -437,11 +456,8 @@ termFunction name = inConcreteOrAbstractMode name $ \ def -> do
     calls1 <- terSetUseDotPatterns False $ collect
     reportCalls "no " calls1
 
-    r <- runTypeBasedTerminationChecking (Set.singleton name)
 
-    r <- case r of
-     Right _ -> pure r
-     Left _ -> do
+    r <- do
      cutoff <- terGetCutOff
      let ?cutoff = cutoff
      r <- billToTerGraph $ Term.terminatesFilter (== index) calls1

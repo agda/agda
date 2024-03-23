@@ -27,7 +27,7 @@ import Data.Set ( Set )
 import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Abstract.Name ( QName )
-import Agda.Syntax.Common ( Induction(CoInductive), Arg(unArg) )
+import Agda.Syntax.Common ( Induction(..), Arg(unArg) )
 import Agda.Syntax.Internal ( isApplyElim, Type, Type''(unEl), Abs(NoAbs, Abs, unAbs), Term(Var, Sort, MetaV, Lam, Pi, Def), Dom'(unDom) )
 import Agda.Termination.TypeBased.Common ( applyDataType, tryReduceCopy, fixGaps, computeDecomposition, VariableInstantiation(..), reifySignature )
 import Agda.Termination.TypeBased.Syntax ( SizeSignature(SizeSignature), SizeBound(SizeUnbounded, SizeBounded), FreeGeneric(..), SizeType(..), Size(SUndefined, SDefined), pattern UndefinedSizeType, sizeCodomain )
@@ -42,10 +42,10 @@ import Agda.Utils.Impossible ( __IMPOSSIBLE__ )
 -- | Converts internal type of function to a sized type
 encodeFunctionType :: Type -> TCM SizeSignature
 encodeFunctionType t = do
-  EncodingResult { erNewFirstOrderVariables, erNewContravariantVariables, erEncodedType } <- typeToSizeType 0 0 [] Nothing t
+  EncodingResult { erNewFirstOrderVariables, erEncodedType } <- typeToSizeType 0 0 [] Nothing t
   -- Functions do not feature non-trivial size dependencies, hence we set all bounds to SizeUnbounded
   let newBounds = replicate erNewFirstOrderVariables SizeUnbounded
-  let originalSignature = SizeSignature newBounds erNewContravariantVariables erEncodedType
+  let originalSignature = SizeSignature newBounds erEncodedType
   return $ fixGaps originalSignature
 
 -- | 'encodeFieldType mutualNames t' converts internal type 't' of record projections to a sized type,
@@ -54,17 +54,23 @@ encodeFunctionType t = do
 --   which is positioned as the principal parameter of the projection.
 encodeFieldType :: Set QName -> Type -> TCM SizeSignature
 encodeFieldType mutualNames t = do
-  EncodingResult { erEncodedType, erNewFirstOrderVariables, erNewContravariantVariables, erNewChosenVariables } <- ctorTypeToSizeType t mutualNames
+  EncodingResult { erEncodedType, erNewFirstOrderVariables, erNewChosenInductiveVariables, erNewChosenCoInductiveVariables } <- ctorTypeToSizeType t mutualNames
   -- Since it is a projection, we know that the principal argument is the first withing the domain telescope.
   -- It means that the encoder contains it in the end of 'erNewChosenVariables', so we should reverse the list to get it.
   -- There is a similar discussion in 'encodeConstructorType'.
-  bounds <- case reverse erNewChosenVariables of
+  bounds <- case reverse erNewChosenCoInductiveVariables of
     (principal : remaining) -> do
-      reportSDoc "term.tbt" 80 $ "Chosen: " <+> text (show erNewChosenVariables)
+      reportSDoc "term.tbt" 80 $ "Chosen: " <+> text (show erNewChosenCoInductiveVariables)
       let bounds = map (\i -> if i `List.elem` remaining then SizeBounded principal else SizeUnbounded) [0..erNewFirstOrderVariables - 1]
       pure bounds
     [] -> pure $ (replicate erNewFirstOrderVariables SizeUnbounded)
-  pure $ SizeSignature bounds erNewContravariantVariables erEncodedType
+  let sig = SizeSignature bounds erEncodedType
+  reportSDoc "term.tbt" 20 $ "Sig: " <> pretty sig
+  -- Record projections are always size-preserving in their inductive size.
+  let amendedSig = case erNewChosenInductiveVariables of
+        (x : rest) -> reifySignature (map (, ToVariable x) rest) sig
+        [] -> sig
+  pure amendedSig
 
 -- | Converts an arbitrary type to a useless size signature
 --   It is convenient to have sized types for all definitions in the project.
@@ -73,7 +79,7 @@ encodeFieldType mutualNames t = do
 encodeBlackHole :: Type -> SizeSignature
 encodeBlackHole t =
   let TelV domains codom = telView' t
-  in SizeSignature [] [] $ foldr (\tp codom -> SizeArrow (SizeTree SUndefined []) codom) UndefinedSizeType domains
+  in SizeSignature [] $ foldr (\tp codom -> SizeArrow UndefinedSizeType codom) UndefinedSizeType domains
 
 ctorTypeToSizeType :: Type -> Set QName -> TCM EncodingResult
 ctorTypeToSizeType t qns = typeToSizeType 0 0 [] (Just (`Set.member` qns)) t
@@ -83,10 +89,10 @@ data EncodingResult = EncodingResult
   -- ^ The result of conversion of an internal type to a sized type.
   , erNewFirstOrderVariables :: Int
   -- ^ The number of new first-order variables introduced during the conversion.
-  , erNewChosenVariables :: [Int]
+  , erNewChosenInductiveVariables :: [Int]
   -- ^ The list of new variables satisfying the passed 'esPredicate'.
-  , erNewContravariantVariables :: [Int]
-  -- ^ The list of new contravariant variables introduced during the conversion
+  , erNewChosenCoInductiveVariables :: [Int]
+  -- ^ The list of new variables satisfying the passed 'esPredicate'.
   }
 
 data EncoderState = EncoderState
@@ -104,10 +110,10 @@ data EncoderState = EncoderState
   --   where encoding of '(A -> Set) -> Set' should yield 'Λ₁ε₀. ∞'.
   , esPredicate              :: Maybe (QName -> Bool)
   -- ^ A passed predicate, which is used to store some user's interesting variables.
-  , esChosenVariables        :: [Int]
-  -- ^ List of variables that satisfy 'esPredicate'.
-  , esContravariantVariables :: [Int]
-  -- ^ Contravariant size variables collected during the encoding.
+  , esChosenInductiveVariables :: [Int]
+  -- ^ List of variables that satisfy 'esPredicate' and correspond to least fixpoints.
+  , esChosenCoInductiveVariables :: [Int]
+  -- ^ List of variables that satisfy 'esPredicate' and correspond to greatest fixpoints.
   }
 
 typeToSizeType :: Int -> Int -> [Maybe FreeGeneric] -> Maybe (QName -> Bool) -> Type -> TCM EncodingResult
@@ -117,37 +123,54 @@ typeToSizeType regVars genVars ctx pred t = case typeToSizeType' (unEl t) of
       { esVariableCounter = regVars
       , esTypeRelatedContext = ctx
       , esTopLevel = True
-      , esChosenVariables = []
+      , esChosenInductiveVariables = []
+      , esChosenCoInductiveVariables = []
       , esPredicate = pred
-      , esContravariantVariables = []
       })
     pure EncodingResult
       { erEncodedType = either __IMPOSSIBLE__ id encodedType
       , erNewFirstOrderVariables = esVariableCounter finalEncoderState
-      , erNewChosenVariables = esChosenVariables finalEncoderState
-      , erNewContravariantVariables = esContravariantVariables finalEncoderState
+      , erNewChosenInductiveVariables = esChosenInductiveVariables finalEncoderState
+      , erNewChosenCoInductiveVariables = esChosenCoInductiveVariables finalEncoderState
       }
 
 newtype MonadEncoder a = ME (StateT EncoderState TCM a)
   deriving (Functor, Applicative, Monad, MonadDebug, MonadState EncoderState)
 
--- | 'encodeConstructorType mutuals t' encodes a type 't' of constructor belonging to an inductive data definition,
---   where 'mutuals' is a set of names in a mutual block of the data definition.
-encodeConstructorType :: Set QName -> Type -> TCM SizeSignature
-encodeConstructorType mutuals t = do
-  EncodingResult { erEncodedType, erNewFirstOrderVariables, erNewChosenVariables, erNewContravariantVariables } <- ctorTypeToSizeType t mutuals
+-- | 'encodeConstructorType ind mutuals t' encodes a type 't' of constructor belonging to an inductive data definition,
+--   where 'mutuals' is a set of names in a mutual block of the data definition and 'ind' is indication whether the defined mutual-recursive datatype is coinductive.
+encodeConstructorType :: Induction -> Set QName -> Type -> TCM SizeSignature
+encodeConstructorType ind mutuals t = do
+  EncodingResult { erEncodedType, erNewFirstOrderVariables, erNewChosenInductiveVariables, erNewChosenCoInductiveVariables } <- ctorTypeToSizeType t mutuals
 
   -- We are trying to select variables that are located in the domain of the encoded constructor.
   -- Since each constructor has its datatype in the codomain, we know that the size variable for the codomain is added _last_,
   -- i.e. it is located in the beginning of the list of chosen variables (yeah, sounds like an abstraction leak, maybe TODO).
-  let chosen = case erNewChosenVariables of
+  let chosen = case erNewChosenInductiveVariables of
         (_ : x) -> x
         -- Black holes do not contain chosen variables, so there may be none of them.
         [] -> []
-  let (_, (SizeTree (SDefined principal) _)) = sizeCodomain erEncodedType
-  reportSDoc "term.tbt" 60 $ "Chosen variables: " <+> text (show erNewChosenVariables)
-  let bounds = map (\i -> if i `elem` chosen then (SizeBounded principal) else SizeUnbounded) [0..erNewFirstOrderVariables - 1]
-  return $ SizeSignature bounds erNewContravariantVariables erEncodedType
+  let chosenCoind = case erNewChosenCoInductiveVariables of
+        (_ : x) -> x
+        [] -> []
+  let (SizeTree indSize coindSize _) = snd $ sizeCodomain erEncodedType
+  let sizeToBound s = case s of
+        SUndefined -> SizeUnbounded
+        SDefined i -> SizeBounded i
+  reportSDoc "term.tbt" 60 $ vcat
+    [ "Chosen variables: " <+> text (show erNewChosenInductiveVariables)
+    , "Chosen coinductive: " <+> text (show erNewChosenCoInductiveVariables)
+    ]
+  let bounds = map (\i -> if i `elem` chosen then sizeToBound indSize else SizeUnbounded) [0..erNewFirstOrderVariables - 1]
+  let signature = SizeSignature bounds erEncodedType
+  reportSDoc "term.tbt" 60 $ "Original signature: " <+> pretty signature
+  let adjustedSignature = case ind of
+        Inductive -> signature
+        CoInductive ->
+          let (SDefined principalCoind) = coindSize
+          in reifySignature (List.sortOn fst $ map (, ToVariable principalCoind) chosenCoind) signature
+  reportSDoc "term.tbt" 60 $ "Adjusted signature: " <+> pretty adjustedSignature
+  pure $ adjustedSignature
 
 typeToSizeType' :: Term -> MonadEncoder (Either FreeGeneric SizeType)
 typeToSizeType' (Sort _) = do
@@ -235,7 +258,7 @@ increaseIndexing fg = fg { fgIndex = fgIndex fg + 1 }
 termToSizeType :: Term -> MonadEncoder SizeType
 termToSizeType t@(Def q elims) = do
   constInfo <- ME $ getConstInfo q
-  let (SizeSignature _ _ tele) = defSizedType constInfo
+  let (SizeSignature _ tele) = defSizedType constInfo
   if defIsDataOrRecord (theDef constInfo) then do
     reportSDoc "term.tbt" 80 $ "Converting to size tree: " <+> prettyTCM t <+> ", elims: " <+> (prettyTCM elims)
     -- Datatypes have parameters, which also should be converted to size types.
@@ -258,29 +281,30 @@ termToSizeType t@(Def q elims) = do
     return UndefinedSizeType -- arbitraty function applications in signatures are not supported on the current stage
   where
     collectChosenVariables :: Maybe (QName -> Bool) -> SizeType -> MonadEncoder SizeType
-    collectChosenVariables predicate t@(SizeTree (SDefined i) rest) = do
+    collectChosenVariables predicate t@(SizeTree d1 d2 rest) = do
       case predicate of
         Just p | not (p q) -> do
-          pure (SizeTree SUndefined rest)
+          pure (SizeTree SUndefined SUndefined rest)
         _ -> do
-          constInfo <- ME $ getConstInfo q
-          case theDef constInfo of
-            Record { recInduction } -> do
-              when (recInduction == Just CoInductive) $ modify (\s -> s { esContravariantVariables = i : esContravariantVariables s })
-            _ -> pure ()
-          modify (\s -> s { esChosenVariables = i : esChosenVariables s} )
+          let (l1, l2) = case (d1, d2) of
+                (SUndefined, SUndefined) -> ([], [])
+                (SDefined i, SUndefined) -> ([i], [])
+                (SUndefined, SDefined i) -> ([], [i])
+                (SDefined i, SDefined j) -> ([i], [j])
+          modify (\s -> s { esChosenInductiveVariables = l1 ++ esChosenInductiveVariables s, esChosenCoInductiveVariables = l2 ++ esChosenCoInductiveVariables s } )
           pure t
-    collectChosenVariables p t@(SizeTree _ rest) | otherwise = pure $ SizeTree SUndefined rest
     collectChosenVariables p (SizeArrow l r) = SizeArrow l <$> collectChosenVariables p r
     collectChosenVariables p (SizeGeneric e r) = SizeGeneric e <$> collectChosenVariables p r
     collectChosenVariables _ t = pure t
 
     -- Freshens all first-order variables in an encoded type
-    refreshFirstOrder :: SizeType -> MonadEncoder SizeType
+    refreshFirstOrder ::  SizeType -> MonadEncoder SizeType
     refreshFirstOrder s@(SizeGeneric args r) = SizeGeneric args <$> refreshFirstOrder r
     refreshFirstOrder s@(SizeArrow l r) = SizeArrow <$> (refreshFirstOrder l) <*> (refreshFirstOrder r)
     refreshFirstOrder s@(SizeGenericVar args i) = pure s
-    refreshFirstOrder s@(SizeTree d ts) = SizeTree <$> (case d of
+    refreshFirstOrder s@(SizeTree d1 d2 ts) = SizeTree <$> (case d1 of
+      SDefined i -> SDefined <$> initNewFirstOrderInEncoder
+      SUndefined -> pure SUndefined) <*> (case d2 of
       SDefined i -> SDefined <$> initNewFirstOrderInEncoder
       SUndefined -> pure SUndefined) <*> traverse (\(p, t) -> (p,) <$> refreshFirstOrder t) ts
 termToSizeType (Var varId elims) = do
@@ -290,7 +314,7 @@ termToSizeType (Var varId elims) = do
       , "var: " <+> text (show varId)
       ]
     case ctx List.!! varId of
-      Nothing -> pure $ SizeTree SUndefined []
+      Nothing -> pure $ UndefinedSizeType
       Just fg -> pure $ SizeGenericVar (length elims) (fgIndex fg)
 termToSizeType _ = pure UndefinedSizeType
 
@@ -301,6 +325,7 @@ initNewFirstOrderInEncoder = do
   ME $ modify (\s -> s
     { esVariableCounter = esVariableCounter s + 1
     })
+  -- when contra $ modify (\s -> s { esContravariantVariables = variableIndex : esContravariantVariables s })
   pure variableIndex
 
 -- | Performs an action and rollbacks the context afterwards.
