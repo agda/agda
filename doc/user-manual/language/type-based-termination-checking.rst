@@ -199,6 +199,7 @@ Now we see that the unfolding of the first clause strictly decreases the depth o
 In general, if there is a set of mutually-inductive-coinductive datatypes, then the type-based checker provides the following encoding for them: there is a common size variable for all definitions that corresponds to coinductive part of the definition, and this variable can be decreased only by a coinductive projection. For inductive datatypes, there is additionally another size variable, that corresponds to the inductive part of the definition, and it can be decreased only by pattern-matching on an inductive constructor. This encoding can be represented in terms of Agda's sized types:
 
 ::
+
     data D1 (i j : Size) ... : ... → Set
     data D2 (i j : Size) ... : ... → Set
     ...
