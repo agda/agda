@@ -12,13 +12,13 @@ import qualified Data.IntMap as IntMap
 import Data.IntMap ( IntMap )
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
-import Data.Maybe ( fromJust, isJust )
+import Data.Maybe ( fromJust, isJust, fromMaybe, mapMaybe )
 import qualified Data.Set as Set
 import Data.Set ( Set )
 
 import qualified Agda.Benchmarking as Benchmark
 import Agda.Utils.Benchmark ( billTo )
-import Agda.Syntax.Common ( Induction(CoInductive), Arg(unArg) )
+import Agda.Syntax.Common ( Induction(..), Arg(unArg) )
 import Agda.Syntax.Internal ( QName, Elim'(Apply), Clause(namedClausePats, clauseBody, clauseTel), Tele(..), Type, Type''(unEl), Abs(unAbs), Elims, Term(..), ConHead(conName), Dom, Dom'(unDom), arity )
 import Agda.Syntax.Internal.Pattern ( hasDefP )
 import Agda.Termination.CallGraph ( fromList, CallGraph )
@@ -56,6 +56,7 @@ import Agda.Utils.Singleton ( Singleton(singleton) )
 initSizeTypeEncoding :: Set QName -> TCM ()
 initSizeTypeEncoding mutuals =
   billTo [Benchmark.TypeBasedTermination, Benchmark.SizeTypeEncoding] $ do
+    coinduction <- checkCoinductiveRecordPresence mutuals
     forM_ mutuals $ \nm -> inConcreteOrAbstractMode nm $ \def -> do
       -- Unless there is an explicit command, we will not do non-trivial encoding
       encodeComplex <- typeBasedTerminationOption
@@ -67,7 +68,10 @@ initSizeTypeEncoding mutuals =
             , "  with mutual block: " <+> prettyTCM (Set.toList mutuals)
             , "  of internal type:" <+> prettyTCM dType
             ]
-          sizedSignature <- encodeDataType dataCons mutuals encodeComplex False (defPolarity def) dType
+          let flavor = case coinduction of
+                CoInductive -> MixedInductiveCoinductive
+                Inductive -> PurelyInductive
+          sizedSignature <- encodeDataType flavor dataCons mutuals encodeComplex (defPolarity def) dType
           reportSDoc "term.tbt" 5 $ vcat
             [ "Encoded data " <> prettyTCM nm <> ", sized type: "
             , nest 2 $ pretty sizedSignature
@@ -79,7 +83,7 @@ initSizeTypeEncoding mutuals =
             , "  with mutual block: " <+> prettyTCM (Set.toList mutuals)
             , "  of internal type:" <+> prettyTCM dType
             ]
-          sizedSignature <- encodeDataType [conName recConHead] mutuals encodeComplex (recInduction == Just CoInductive) (defPolarity def) dType
+          sizedSignature <- encodeDataType (maybe PurelyInductive (\t -> if t == Inductive then PurelyInductive else PurelyCoinductive) recInduction) [conName recConHead] mutuals encodeComplex (defPolarity def) dType
           reportSDoc "term.tbt" 5 $ vcat
             [ "Encoded record " <> prettyTCM nm <> ", sized type: "
             , nest 2 $ pretty sizedSignature
@@ -91,7 +95,7 @@ initSizeTypeEncoding mutuals =
             , "  with mutual block: " <+> prettyTCM (Set.toList mutuals)
             , "  of core type:" <+> prettyTCM dType
             ]
-          sizedSignature <- fixGaps <$> if encodeComplex then encodeConstructorType mutuals dType else pure $ encodeBlackHole dType
+          sizedSignature <- fixGaps <$> if encodeComplex then encodeConstructorType coinduction mutuals dType else pure $ encodeBlackHole dType
           reportSDoc "term.tbt" 5 $ vcat
             [ "Encoded constructor " <> prettyTCM nm <> ", sized type: "
             , nest 2 $ pretty sizedSignature
@@ -107,10 +111,10 @@ initSizeTypeEncoding mutuals =
           sizedSignature <- fixGaps <$> if encodeComplex
             then case funProjection of
               Left  _ -> do
-                sig@(SizeSignature _ contra tp) <- encodeFunctionType dType
+                sig@(SizeSignature _ tp) <- encodeFunctionType dType
                 -- All positive occurrences of size variables should be infinity by default,
                 -- as we do not know how the function behaves.
-                let preservationCandidates = computeDecomposition (IntSet.fromList contra) tp
+                let preservationCandidates = computeDecomposition tp
                 reportSDoc "term.tbt" 50 $ vcat
                   [ "Preservation candidates: " <+> text (show preservationCandidates)
                   , "original sig:" <+> pretty sig
@@ -140,6 +144,13 @@ initSizeTypeEncoding mutuals =
         Just x -> addConstant nm $ def { defSizedType = x }
         Nothing -> return ()
 
+
+checkCoinductiveRecordPresence :: Set QName -> TCM Induction
+checkCoinductiveRecordPresence mutuals = do
+  hasCoinductiveRecord <- anyM mutuals $ \nm -> inConcreteOrAbstractMode nm $ \def -> case theDef def of
+    Record { recInduction } -> pure $ recInduction == Just CoInductive
+    _ -> pure False
+  pure $ if hasCoinductiveRecord then CoInductive else Inductive
 
 -- | An entry point for checking a mutual block for type-based termination.
 --   This function returns a set of size-change termination matrices or an error.
@@ -189,8 +200,8 @@ processSizedDefinitionTBTM :: [Clause] -> TBTM (SizeSubstitution, SizeSignature)
 processSizedDefinitionTBTM clauses = do
   qn <- currentCheckedName
   funType <- defType <$> getConstInfo qn
-  sig@(SizeSignature bounds contra sizeType) <- liftTCM $ encodeFunctionType funType
-  let decomposition = computeDecomposition (IntSet.fromList contra) sizeType
+  sig@(SizeSignature bounds sizeType) <- liftTCM $ encodeFunctionType funType
+  let decomposition = computeDecomposition sizeType
   initSizePreservation (sdNegative decomposition) (sdPositive decomposition)
   (_, newTele) <- freshenSignature Covariant sig
 
@@ -326,18 +337,29 @@ encodeFunctionClause sizeType c = do
   return tele
 
 
-encodeDataType :: [QName] -> Set QName -> Bool -> Bool -> [Polarity] -> Type -> TCM SizeSignature
-encodeDataType ctors fullSet generify isCoinductiveRecord polarities tp = do
+data EncodingFlavor
+  = NonRecursive
+  -- ^ Indicates that a datatype is not recursive, and thus we do not need to introduce any size variables.
+  | PurelyInductive
+  -- ^ Indicates that a datatype is located in a block of mutually-defined inductive datatypes.
+  | PurelyCoinductive
+  -- ^ Indicates that a record is located in a block of mutually-defined coinductive records.
+  | MixedInductiveCoinductive
+  -- ^ Indicates that a datatype is located in a block of mutually-defined inductive and coinductive datatypes. Coinduction takes precedence here,
+  -- i.e., ν is the outer quantifier in the resulting fixpoint.
+
+encodeDataType :: EncodingFlavor -> [QName] -> Set QName -> Bool -> [Polarity] -> Type -> TCM SizeSignature
+encodeDataType ind ctors fullSet generify polarities tp = do
   let TelV domains codomain = telView' tp
   -- We need to check if a datatype is actually recursive
   -- This helps a lot for performance, since it allows us to not introduce a lot of superfluous size variables,
   -- which in turn makes the graph solving faster.
   isRecursiveData <- anyM ctors (checkRecursiveConstructor fullSet)
+  let ind' = if isRecursiveData then ind else NonRecursive
 
   pure $ SizeSignature
          (if isRecursiveData then [SizeUnbounded] else [])
-         (if isCoinductiveRecord && isRecursiveData then [0] else [])
-         (encodeDatatypeDomain isRecursiveData generify polarities [] domains)
+         (encodeDatatypeDomain ind' generify polarities [] domains)
 
 -- | 'checkRecursiveConstructor allNames qn' checks that a construtor with the name 'qn' refers to any of the 'allNames',
 -- thus giving us the information if this constructor is recursive.
@@ -371,17 +393,20 @@ checkRecursiveConstructor allNames qn = do
       _ -> pure False))
 
 -- | Converts the telescope of a datatype to a size type.
-encodeDatatypeDomain :: Bool -> Bool -> [Polarity] -> [Bool] -> Tele (Dom Type) -> SizeType
-encodeDatatypeDomain isRecursive _ polarities params EmptyTel =
-  let size = if isRecursive then SDefined 0 else SUndefined
-      -- tail because scanl inserts the given starting element in the beginning
+encodeDatatypeDomain :: EncodingFlavor -> Bool -> [Polarity] -> [Bool] -> Tele (Dom Type) -> SizeType
+encodeDatatypeDomain ind _ polarities params EmptyTel =
+  let -- tail because scanl inserts the given starting element in the beginning
       treeArgs = List1.tail $ List1.scanl
               (\(ind, t) isGeneric -> if isGeneric then (ind + 1, SizeGenericVar 0 ind) else (ind, UndefinedSizeType))
               (0, UndefinedSizeType)
               params
       actualArgs = zip polarities (reverse (map snd treeArgs))
-  in SizeTree size actualArgs
-encodeDatatypeDomain isRecursive generify polarities params (ExtendTel dt rest) =
+  in case ind of
+    NonRecursive -> SizeTree SUndefined SUndefined actualArgs
+    PurelyInductive -> SizeTree (SDefined 0) SUndefined actualArgs
+    PurelyCoinductive -> SizeTree SUndefined (SDefined 0) actualArgs
+    MixedInductiveCoinductive -> SizeTree (SDefined 0) (SDefined 1) actualArgs
+encodeDatatypeDomain ind generify polarities params (ExtendTel dt rest) =
   let d = unEl $ unDom dt
       genericArity = inferGenericArity d
       (wrapper, newParam) = if generify
@@ -389,7 +414,7 @@ encodeDatatypeDomain isRecursive generify polarities params (ExtendTel dt rest) 
           Just arity -> (SizeGeneric arity, True)
           Nothing -> (SizeArrow UndefinedSizeType, False)
         else (SizeArrow UndefinedSizeType, False)
-      tails = encodeDatatypeDomain isRecursive generify polarities (newParam : params) (unAbs rest)
+      tails = encodeDatatypeDomain ind generify polarities (newParam : params) (unAbs rest)
   in wrapper tails
   where
     inferGenericArity :: Term -> Maybe Int
