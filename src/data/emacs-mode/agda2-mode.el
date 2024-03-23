@@ -562,6 +562,8 @@ successful."
   (setq agda2-highlight-in-progress nil
         agda2-last-responses        nil))
 
+(defvar-local agda2-output-filter-done-marker (make-marker))
+
 (defun agda2-output-filter (_proc chunk)
   "Evaluate the Agda partial output CHUNK.
 This filter function assumes that every line contains either some
@@ -597,73 +599,71 @@ reloaded from `agda2-highlighting-file', unless
           (and agda2-file-buffer
                (eq (current-buffer) agda2-file-buffer)))
     (with-current-buffer agda2-process-buffer
-      (goto-char (point-max))           ;append to the end
-      (save-excursion (insert chunk))
+      (save-excursion         ;append to the end
+        (goto-char (point-max))
+        (insert chunk))
+      (when (marker-position agda2-output-filter-done-marker)
+        (goto-char agda2-output-filter-done-marker))
       (goto-char (line-beginning-position))
-      (while (not (eobp))               ;continue until last line
-        (unless (looking-at (concat "^" agda2-output-prompt))
-          (let ((start (point)))
-            (condition-case nil
-                ;; We attempt to read an s-expression in the current
-                ;; buffer at point, which might raise an error if the
-                ;; contents are malformed.  We catch that case using
-                ;; `condition-case' and skip any further parsing of the
-                ;; output.
-                (let ((cmd (read (current-buffer))))
-                  (unless (consp cmd)
-                    (signal 'agda2-malformed-command nil))
-                  ;; We have to distinguish between commands that are
-                  ;; to be evaluated immediately, and those tagged to
-                  ;; be executed later.  These have the form ((last
-                  ;; . DIGIT) . COMMAND), where DIGIT indicates the
-                  ;; priority in which COMMAND will be executed by
-                  ;; `agda2-run-last-commands'.
-                  (with-current-buffer agda2-file-buffer
-                    (if (eq 'last (car-safe (car cmd)))
-                        (push (cons (cdar cmd) (cdr cmd)) agda2-last-responses)
-                      (agda2-exec-response cmd)))
-                  ;; Remove highlighting commands from the process
-                  ;; buffer, the rest is kept for later inspection.
-                  (when (and cmd (symbolp (car cmd))
-                             (string-match-p
-                              "\\`agda2-highlight-"
-                              (symbol-name (car cmd))))
-                    (skip-chars-forward "\t\n\r\s")
-                    (delete-region start (point))))
-              (invalid-read-syntax (goto-char start))
-              (end-of-file (goto-char start))
-              (agda2-malformed-command (goto-char start)))))
-        (forward-line))
-
-      (setq agda2-in-progress nil)      ;unset any "busy" flag
-
-      ;; Check if the prompt has been reached. This function assumes
-      ;; that the prompt does not include any newline characters.
-      (when (looking-back (concat "^" agda2-output-prompt)
+      (catch 'break
+        (while t
+          (cond
+           ((looking-at-p (rx (* (or blank space ?\n)) (literal agda2-output-prompt)))
+            (agda2-run-last-commands)
+            (forward-line))
+           ((looking-at-p (rx (* (or blank space ?\n)) "IOTCM"))
+            (forward-line))
+           ((eobp) (throw 'break t))
+           ((let ((start (point)))
+              (condition-case nil
+                  ;; We attempt to read an s-expression in the current
+                  ;; buffer at point, which might raise an error if the
+                  ;; contents are malformed.  We catch that case using
+                  ;; `condition-case' and skip any further parsing of the
+                  ;; output.
+                  (let ((cmd (read (current-buffer))))
+                    (unless (consp cmd)
+                      (error "Invalid Agda command %S" cmd))
+                    ;; We have to distinguish between commands that are
+                    ;; to be evaluated immediately, and those tagged to
+                    ;; be executed later.  These have the form ((last
+                    ;; . DIGIT) . COMMAND), where DIGIT indicates the
+                    ;; priority in which COMMAND will be executed by
+                    ;; `agda2-run-last-commands'.
+                    (with-current-buffer agda2-file-buffer
+                      (if (eq 'last (car-safe (car cmd)))
+                          (push (cons (cdar cmd) (cdr cmd)) agda2-last-responses)
+                        (agda2-exec-response cmd))))
+                (invalid-read-syntax (throw 'break (goto-char start)))
+                (end-of-file (throw 'break (goto-char start))))
+              (skip-chars-forward "\t\n\r\s")
+              (set-marker agda2-output-filter-done-marker (point)))))))
+      (setq agda2-in-progress nil)      ;unset busy flag
+      (when (looking-back (rx (literal agda2-output-prompt)
+                              (* (or blank space ?\n)))
                           (line-beginning-position))
         (agda2-run-last-commands)))))
 
-(defun agda2-run-last-commands nil
+(defun agda2-run-last-commands ()
   "Execute the last commands in the right order.
 \(After the prompt has reappeared.) See `agda2-output-filter'."
-
-  ;; with-current-buffer is used repeatedly below, because some last
-  ;; commands may switch the focus to another buffer.
-
-  (while (with-current-buffer agda2-file-buffer
-           (and (not agda2-in-progress) (consp agda2-last-responses)))
-    (with-current-buffer agda2-file-buffer
+  (with-current-buffer agda2-file-buffer
+    (while (and (not agda2-in-progress) (consp agda2-last-responses))
       ;; The list is sorted repeatedly because this function may be
       ;; called recursively (via `agda2-exec-response').
       (setq agda2-last-responses (sort agda2-last-responses
-                                       (lambda (x y) (<= (car x) (car y)))))
+                                       #'car-less-than-car))
       (let ((r (pop agda2-last-responses)))
-        (agda2-exec-response (cdr r)))))
+        (save-excursion
+          ;; some last commands may switch the focus to another
+          ;; buffer.
+          (agda2-exec-response (cdr r)))))
 
-  ;; Unset agda2-highlight-in-progress when all the asynchronous
-  ;; commands have terminated.
-  (unless agda2-in-progress
-    (setq agda2-highlight-in-progress nil)))
+    ;; Unset agda2-highlight-in-progress when all the asynchronous
+    ;; commands have terminated.
+    (unless agda2-in-progress
+      (setq agda2-highlight-in-progress nil))))
+
 
 (defun agda2-abort-highlighting nil
   "Abort any interactive highlighting.
