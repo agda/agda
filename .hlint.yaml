@@ -70,7 +70,6 @@
 - ignore: {name: "Use foldMap"} # 2 hints
 - ignore: {name: "Use fromMaybe"} # 1 hint
 - ignore: {name: "Use id"} # 2 hints
-- ignore: {name: "Use infix"} # 12 hints
 - ignore: {name: "Use intercalate"} # 1 hint
 - ignore: {name: "Use isNothing"} # 2 hints
 - ignore: {name: "Use join"} # 2 hints
