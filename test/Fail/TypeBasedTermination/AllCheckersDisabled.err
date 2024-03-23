@@ -1,0 +1,4 @@
+TypeBasedTermination/AllCheckersDisabled.agda:5.1-6.6: error: [TerminationIssue]
+Termination checking failed for the following functions:
+  f
+Problematic calls:

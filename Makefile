@@ -507,6 +507,12 @@ fast-succeed :
 		AGDA_BIN=$(AGDA_FAST_BIN) $(AGDA_FAST_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed ; \
 		rm test/Succeed/exec-tc/executables )
 
+.PHONY : type-based-termination-test ##
+type-based-termination-test :
+	@$(call decorate, "Suite of tests for type-based termination", \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed/TypeBasedTermination ; \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Fail/TypeBasedTermination)
+
 .PHONY : fail ##
 fail :
 	@$(call decorate, "Suite of failing tests", \

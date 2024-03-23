@@ -1,0 +1,5 @@
+TypeBasedTermination/InfiniteLowerBound.agda:23.1-24.15: error: [TerminationIssue]
+Termination checking failed for the following functions:
+  u
+Problematic calls:
+  u (at TypeBasedTermination/InfiniteLowerBound.agda:24.14-15)

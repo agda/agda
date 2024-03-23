@@ -40,5 +40,4 @@ type TCM = TCMT IO
 type ModuleToSource = Map TopLevelModuleName AbsolutePath
 
 data Comparison
-data Polarity
 data IPFace' a

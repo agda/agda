@@ -15,9 +15,12 @@ import Agda.TypeChecking.Serialise.Instances.Compilers () --instance only
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.Polarity.Base
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.DiscrimTree.Types
+
+import Agda.Termination.TypeBased.Syntax ( SizeSignature (..), SizeType (..), Size (..), SizeBound (..) )
 
 import Agda.Utils.Functor
 import Agda.Utils.Permutation
@@ -223,9 +226,46 @@ instance EmbPrj InstanceInfo where
   icod_ (InstanceInfo a b) = icodeN' InstanceInfo a b
   value = valueN InstanceInfo
 
+instance EmbPrj SizeSignature where
+  icod_ (SizeSignature a b) = icodeN' SizeSignature a b
+  value = vcase valu where
+    valu [a, b] = valuN SizeSignature a b
+    valu _      = malformed
+
+instance EmbPrj SizeBound where
+  icod_ SizeUnbounded = icodeN' SizeUnbounded
+  icod_ (SizeBounded i) = icodeN 0 SizeBounded i
+
+  value = vcase valu where
+    valu []     = valuN SizeUnbounded
+    valu [0, a] = valuN SizeBounded a
+    valu _      = malformed
+
+instance EmbPrj SizeType where
+  icod_ (SizeTree a b c)     = icodeN 0 SizeTree a b c
+  icod_ (SizeArrow a b)      = icodeN 1 SizeArrow a b
+  icod_ (SizeGeneric a b)    = icodeN 2 SizeGeneric a b
+  icod_ (SizeGenericVar a b) = icodeN 3 SizeGenericVar a b
+
+  value = vcase valu where
+    valu [0, a, b, c] = valuN SizeTree a b c
+    valu [1, a, b]    = valuN SizeArrow a b
+    valu [2, a, b]    = valuN SizeGeneric a b
+    valu [3, a, b]    = valuN SizeGenericVar a b
+    valu _            = malformed
+
+instance EmbPrj Size where
+  icod_ (SUndefined) = icodeN' SUndefined
+  icod_ (SDefined i) = icodeN 0 SDefined i
+
+  value = vcase valu where
+    valu [] = valuN SUndefined
+    valu [0, i] = valuN SDefined i
+    valu _      = malformed
+
 instance EmbPrj Definition where
-  icod_ (Defn a b c d e f g h i j k l m n o blocked r s) =
-    icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o (ossify blocked) r s
+  icod_ (Defn a b c d e f g h i j k l m n o p blocked r s) =
+    icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o p (ossify blocked) r s
     where
       -- Andreas, 2024-01-02, issue #7044:
       -- After serialization, a definition can never be unblocked,

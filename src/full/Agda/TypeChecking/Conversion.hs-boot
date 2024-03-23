@@ -6,6 +6,7 @@ import Control.Monad.Except ( MonadError )
 
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Polarity.Base
 import Agda.TypeChecking.Warnings
 
 type MonadConversion m =

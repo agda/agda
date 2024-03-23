@@ -17,7 +17,8 @@ import           Data.Maybe                   (listToMaybe)
 import qualified Data.Text                    as T
 
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
-  (HighlightingLevel, HighlightingMethod, Comparison, Polarity)
+  (HighlightingLevel, HighlightingMethod, Comparison)
+import Agda.TypeChecking.Polarity.Base (Polarity)
 
 import           Agda.Syntax.Abstract         (QName)
 import           Agda.Syntax.Common           (BackendName, InteractionId (..), Modality)
