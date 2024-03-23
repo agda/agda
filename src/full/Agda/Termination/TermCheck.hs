@@ -58,6 +58,8 @@ import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
+import Agda.Termination.TypeBased.Definitions
+import Agda.Termination.Common
 import qualified Agda.Benchmarking as Benchmark
 import Agda.TypeChecking.Monad.Benchmark (billTo, billPureTo)
 
@@ -188,16 +190,27 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
     sccs <- do
       -- Andreas, 2016-10-01 issue #2231
       -- Recursivity checker has to see through abstract definitions!
-      ignoreAbstractMode $ do
+      sccs <- ignoreAbstractMode $ do
         billTo [Benchmark.Termination, Benchmark.RecCheck] $ recursive allNames
+
+      -- Encode available definition types for type-based termination later
+      initSizeTypeEncoding allNames
+
+      reportSDoc "term.tbt" 20 $ "Mutual names" <+> text (show sccs)
+      pure sccs
       -- -- Andreas, 2017-03-24, use positivity info to skip non-recursive functions
       -- skip = ignoreAbstractMode $ allM allNames $ \ x -> do
       --   null <$> getMutual x
       -- PROBLEMS with test/Succeed/AbstractCoinduction.agda
 
     -- Trivially terminating (non-recursive)?
-    when (null sccs) $
+    when (null sccs) $ do
       reportSLn "term.warn.yes" 10 $ "Trivially terminating: " ++ prettyShow names
+
+      -- We still need to run type-based termination checker for non-recursive functions,
+      -- because we need to compute possible size-preservation.
+      relevantNames <- (filterM (\a -> (getConstInfo a <&> \d -> not (defCopy d || isJust (isProjection_ (theDef d))))) (Set.toList allNames))
+      liftTCM $ whenM typeBasedTerminationOption $ collectTerminationData (Set.fromList relevantNames) >> pure ()
 
     -- Actual termination checking needed: go through SCCs.
     concat <$> do
@@ -233,18 +246,31 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
 termMutual' :: TerM Result
 termMutual' = do
 
-  -- collect all recursive calls in the block
   allNames <- terGetMutual
+
+  -- let's run type-based termination checking first
+
+  reportSDoc "term.tbt" 20 $ text (show allNames)
+
+  cutoff <- terGetCutOff
+
+  r <- runTypeBasedTerminationChecking allNames
+
+  -- collect all recursive calls in the block
   let collect = forM' allNames termDef
 
   -- first try to termination check ignoring the dot patterns
-  calls1 <- collect
-  reportCalls "no " calls1
 
-  cutoff <- terGetCutOff
-  let ?cutoff = cutoff
-  r <- billToTerGraph $ Term.terminates calls1
-  r <-
+  r <- case r of
+      Right _ -> return r
+      Left errs -> runConditionalTerminationChecker syntaxBasedTerminationOption errs $ do
+        calls1 <- collect
+        reportCalls "no " calls1
+        let ?cutoff = cutoff
+        billToTerGraph $ Term.terminates calls1
+  r <- case r of
+      Right _ -> return r
+      Left errs -> runConditionalTerminationChecker syntaxBasedTerminationOption errs $ do
        -- Andrea: 22/04/2020.
        -- With cubical we will always have a clause where the dot
        -- patterns are instead replaced with a variable, so they
@@ -255,20 +281,17 @@ termMutual' = do
        -- could be turned into actual splits, because no-confusion
        -- would make the other cases impossible, so I do not disable
        -- this for --without-K entirely.
-       ifM (isJust . optCubical <$> pragmaOptions) (return r) {- else -} $
-       case r of
-         r@Right{} -> return r
-         Left{}    -> do
-           -- Try again, but include the dot patterns this time.
-           calls2 <- terSetUseDotPatterns True $ collect
-           reportCalls "" calls2
-           billToTerGraph $ Term.terminates calls2
+       ifM (isJust . optCubical <$> pragmaOptions) (return r) {- else -} $ do
+          -- Try again, but include the dot patterns this time.
+          let ?cutoff = cutoff
+          calls2 <- terSetUseDotPatterns True $ collect
+          reportCalls "" calls2
+          billToTerGraph $ Term.terminates calls2
 
   -- @names@ is taken from the 'Abstract' syntax, so it contains only
   -- the names the user has declared.  This is for error reporting.
   names <- terGetUserNames
   case r of
-
     Left calls -> do
       mapM_ (`setTerminates` False) allNames
       return $ singleton $ terminationError names calls
@@ -278,6 +301,44 @@ termMutual' = do
         prettyShow (names) ++ " does termination check"
       mapM_ (`setTerminates` True) allNames
       return mempty
+
+runConditionalTerminationChecker :: HasOptions m => m Bool -> CallPath -> m (Either CallPath ()) -> m (Either CallPath ())
+runConditionalTerminationChecker opt fallback action = ifM opt action (pure $ Left fallback)
+
+runTypeBasedTerminationChecking :: MutualNames -> TerM (Either CallPath ())
+runTypeBasedTerminationChecking allNames = runConditionalTerminationChecker typeBasedTerminationOption mempty $ do
+  calls0 <- liftTCM $ collectTerminationData allNames
+  cutoff <- terGetCutOff
+  case calls0 of
+    Left msg -> pure $ Left mempty
+    Right calls0 -> do
+    let ?cutoff = cutoff
+    reportCalls "tbt" calls0
+    let badFunctions =
+          [ "concat-++" -- congruence
+          , "fromView" -- congruence
+          , "defaultAnn" -- large elimination
+          , "traverse′" -- large elimination
+          , "map′" -- large elimination
+          , "annotate′" -- large elimination
+          , "freeVars" -- large elimination
+          ]
+    isException <- orM
+      [ liftTCM $ optSizedTypes <$> pragmaOptions
+      , anyM allNames (\x -> anyM badFunctions (\y -> List.isSubsequenceOf y . show <$> (liftTCM $ prettyTCM x)) )
+      , pure $ any (\x -> any ("Musical" `List.isSubsequenceOf`) (map nameToArgName (mnameToList (qnameModule x)))) allNames
+      , pure $ any (\x -> any ("IO" `List.isSubsequenceOf`) (map nameToArgName (mnameToList (qnameModule x)))) allNames
+      , pure $ any (\x -> any ("Partiality" `List.isSubsequenceOf`) (map nameToArgName (mnameToList (qnameModule x)))) allNames
+      ]
+    result <- if isException
+      then do
+        reportSDoc "term.tbt" 20 $ "!!!!!!!!!!!!!!!!!!!EXCEPTION:!!!!!!!!!!!!!!!!!!! " <+> prettyTCM (toList allNames)
+        pure $ Right ()
+      else billToTerGraph $ Term.terminates calls0
+    reportSDoc "term.tbt" 20 $ case result of
+      Left errs -> "Type-based termination failed"
+      Right _ -> "Type-based termination succeded"
+    pure result
 
 -- | Smart constructor for 'TerminationError'.
 --   Removes 'termErrFunctions' that are not mentioned in 'termErrCalls'.
@@ -397,7 +458,11 @@ termFunction name = inConcreteOrAbstractMode name $ \ def -> do
     calls1 <- terSetUseDotPatterns False $ collect
     reportCalls "no " calls1
 
-    r <- do
+    r <- runTypeBasedTerminationChecking (Set.singleton name)
+
+    r <- case r of
+     Right _ -> pure r
+     Left _ -> do
      cutoff <- terGetCutOff
      let ?cutoff = cutoff
      r <- billToTerGraph $ Term.terminatesFilter (== index) calls1
@@ -911,22 +976,7 @@ function g es0 = do
          -- gPretty <-liftTCM $ billTo [Benchmark.Termination, Benchmark.Level] $
          --   render <$> prettyTCM g
 
-         -- Andreas, 2013-05-19 as pointed out by Andrea Vezzosi,
-         -- printing the call eagerly is forbiddingly expensive.
-         -- So we build a closure such that we can print the call
-         -- whenever we really need to.
-         -- This saves 30s (12%) on the std-lib!
-         -- Andreas, 2015-01-21 Issue 1410: Go to the module where g is defined
-         -- otherwise its free variables with be prepended to the call
-         -- in the error message.
-         doc <- liftTCM $ withCurrentModule (qnameModule g) $ buildClosure $
-           Def g $ List.dropWhileEnd ((Inserted ==) . getOrigin) es0
-           -- Andreas, 2018-07-22, issue #3136
-           -- Dropping only inserted arguments at the end, since
-           -- dropping arguments in the middle might make the printer crash.
-           -- Def g $ filter ((/= Inserted) . getOrigin) es0
-           -- Andreas, 2017-01-05, issue #2376
-           -- Remove arguments inserted by etaExpandClause.
+         doc <- buildRecCallLocation g es
 
          let src  = fromMaybe __IMPOSSIBLE__ $ Set.lookupIndex f names
              tgt  = gInd
@@ -956,52 +1006,6 @@ function g es0 = do
       Con c ci vs -> (`applyE` vs) <$> reduce (Con c ci [])  -- make sure we don't reduce the arguments
       t -> return t
 
-
--- | Try to get rid of a function call targeting the current SCC
---   using a non-recursive clause.
---
---   This can help copattern definitions of dependent records.
-tryReduceNonRecursiveClause
-  :: QName                 -- ^ Function
-  -> Elims                 -- ^ Arguments
-  -> (Term -> TerM Calls)  -- ^ Continue here if we managed to reduce.
-  -> TerM Calls            -- ^ Otherwise, continue here.
-  -> TerM Calls
-tryReduceNonRecursiveClause g es continue fallback = do
-  -- Andreas, 2020-02-06, re: issue #906
-  let v0 = Def g es
-  reportSDoc "term.reduce" 40 $ "Trying to reduce away call: " <+> prettyTCM v0
-
-  -- First, make sure the function is in the current SCC.
-  ifM (notElem g <$> terGetMutual) fallback {-else-} $ do
-  reportSLn "term.reduce" 40 $ "This call is in the current SCC!"
-
-  -- Then, collect its non-recursive clauses.
-  cls <- liftTCM $ getNonRecursiveClauses g
-  reportSLn "term.reduce" 40 $ unwords [ "Function has", show (length cls), "non-recursive exact clauses"]
-  reportSDoc "term.reduce" 80 $ vcat $ map (prettyTCM . NamedClause g True) cls
-  reportSLn  "term.reduce" 80 . ("allowed reductions = " ++) . show . SmallSet.elems
-    =<< asksTC envAllowedReductions
-
-  -- Finally, try to reduce with the non-recursive clauses (and no rewrite rules).
-  r <- liftTCM $ modifyAllowedReductions (SmallSet.delete UnconfirmedReductions) $
-    runReduceM $ appDefE' g v0 cls [] (map notReduced es)
-  case r of
-    NoReduction{}    -> fallback
-    YesReduction _ v -> do
-      reportSDoc "term.reduce" 30 $ vcat
-        [ "Termination checker: Successfully reduced away call:"
-        , nest 2 $ prettyTCM v0
-        ]
-      verboseS "term.reduce" 5 $ tick "termination-checker-reduced-nonrecursive-call"
-      continue v
-
-getNonRecursiveClauses :: QName -> TCM [Clause]
-getNonRecursiveClauses q =
-  filter (liftA2 (&&) nonrec exact) . defClauses <$> getConstInfo q
-  where
-  nonrec = maybe False not . clauseRecursive
-  exact  = fromMaybe False . clauseExact
 
 -- | Extract recursive calls from a term.
 
@@ -1043,7 +1047,9 @@ instance ExtractCalls Term where
         constructor c ind argsg
 
       -- Function, data, or record type.
-      Def g es -> tryReduceNonRecursiveClause g es extract $ function g es
+      Def g es -> do
+        mutuals <- terGetMutual
+        tryReduceNonRecursiveClause g es mutuals extract $ function g es
 
       -- Abstraction. Preserves guardedness.
       Lam h b -> extract b
@@ -1227,11 +1233,6 @@ compareProj d d'
                 _ -> __IMPOSSIBLE__
             _ -> __IMPOSSIBLE__
         _ -> return Order.unknown
-
--- | 'makeCM' turns the result of 'compareArgs' into a proper call matrix
-makeCM :: Int -> Int -> [[Order]] -> CallMatrix
-makeCM ncols nrows matrix = CallMatrix $
-  Matrix.fromLists (Matrix.Size nrows ncols) matrix
 
 -- | 'addGuardedness' adds guardedness flag in the upper left corner
 -- (0,0).

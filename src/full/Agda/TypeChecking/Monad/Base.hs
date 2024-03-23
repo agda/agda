@@ -86,6 +86,8 @@ import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Info ( MetaKind(InstanceMeta, UnificationMeta), MetaNameSuggestion, MutualInfo )
 
+import Agda.Termination.TypeBased.Syntax ( SizeSignature )
+
 import qualified Agda.TypeChecking.Monad.Base.Warning as W
 import           Agda.TypeChecking.Monad.Base.Warning (RecordFieldWarning)
 
@@ -2041,6 +2043,7 @@ data Definition = Defn
   { defArgInfo        :: ArgInfo -- ^ Hiding should not be used.
   , defName           :: QName   -- ^ The canonical name, used e.g. in compilation.
   , defType           :: Type    -- ^ Type of the lifted definition.
+  , defSizedType      :: Maybe SizeSignature -- ^ Size annotation for the type. Used in type-based termination checking.
   , defPolarity       :: [Polarity]
     -- ^ Variance information on arguments of the definition.
     --   Does not include info for dropped parameters to
@@ -2145,6 +2148,7 @@ defaultDefn info x t lang def = Defn
   { defArgInfo        = info
   , defName           = x
   , defType           = t
+  , defSizedType      = Nothing
   , defPolarity       = []
   , defArgOccurrences = []
   , defArgGeneralizable = NoGeneralizableArgs
@@ -4901,6 +4905,14 @@ sizedTypesOption :: HasOptions m => m Bool
 sizedTypesOption = optSizedTypes <$> pragmaOptions
 {-# INLINE sizedTypesOption #-}
 
+typeBasedTerminationOption :: HasOptions m => m Bool
+typeBasedTerminationOption = optTypeBasedTermination <$> pragmaOptions
+{-# INLINE typeBasedTerminationOption #-}
+
+syntaxBasedTerminationOption :: HasOptions m => m Bool
+syntaxBasedTerminationOption = optSyntaxBasedTermination <$> pragmaOptions
+{-# INLINE syntaxBasedTerminationOption #-}
+
 guardednessOption :: HasOptions m => m Bool
 guardednessOption = optGuardedness <$> pragmaOptions
 {-# INLINE guardednessOption #-}
@@ -5702,8 +5714,8 @@ instance KillRange Section where
   killRange (Section tel) = killRangeN Section tel
 
 instance KillRange Definition where
-  killRange (Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk lang def) =
-    killRangeN Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk lang def
+  killRange (Defn ai name t st pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk lang def) =
+    killRangeN Defn ai name t st pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk lang def
     -- TODO clarify: Keep the range in the defName field?
 
 instance KillRange NumGeneralizableArgs where
