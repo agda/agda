@@ -159,7 +159,7 @@ We will illustrate this using stream processors.
 
     open SPν
 
-This datatype can be understood differently depending on the order of fixpoint operators in its formal definition. The two meanings that can be given here are:``ν Y. μ X. (A → X) + (B ⨯ Y)`` and ``μ X. ν Y. (A → X) + (B ⨯ Y)``.There is a substantial difference here. The first interpretation means that the stream processor infinitely produces ``B``, consuming a finite number of ``A``\s between two productions. The second interpretation means that the stream processor may consume only a finite number of ``A``\s, and between each two consumptions, it is allowed to produce an infinite number of ``B``\s. It is natural to select the first interpretation for stream processors, and that's what the type-based termination checker does.
+This datatype can be understood differently depending on the order of fixpoint operators in its formal definition. The two meanings that can be given here are:``ν Y. μ X. (A → X) + (B * Y)`` and ``μ X. ν Y. (A → X) + (B * Y)``.There is a substantial difference here. The first interpretation means that the stream processor infinitely produces ``B``, consuming a finite number of ``A``\s between two productions. The second interpretation means that the stream processor may consume only a finite number of ``A``\s, and between each two consumptions, it is allowed to produce an infinite number of ``B``\s. It is natural to select the first interpretation for stream processors, and that's what the type-based termination checker does.
 
 This behavior can be reflected in the use of Agda's sized types:
 
