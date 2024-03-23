@@ -6,12 +6,7 @@ module Agda.Termination.TypeBased.Monad
   , runSizeChecker
   , SConstraint (..)
   , ConstrType (..)
-  , MutualRecursiveCall
-  , mrcNameFrom
-  , mrcNameTo
-  , mrcSizesFrom
-  , mrcSizesTo
-  , mrcPlace
+  , MutualRecursiveCall (mrcNameFrom, mrcNameTo, mrcSizesFrom, mrcSizesTo, mrcPlace)
   -- * Graph manipulation
   , getCurrentConstraints
   , getTotalConstraints
@@ -68,7 +63,7 @@ import qualified Agda.Benchmarking as Benchmark
 import qualified Agda.Syntax.Common.Pretty as P
 import qualified Agda.Utils.Benchmark as B
 
-import Agda.Termination.TypeBased.Common ( update )
+import Agda.Termination.TypeBased.Common ( updateSizeVariables )
 import Agda.Termination.TypeBased.Syntax ( SizeSignature(SizeSignature), SizeBound(..), FreeGeneric(fgIndex), SizeType, Size(..), sizeSigArity )
 import Agda.TypeChecking.Monad.Base ( TCM, Definition(defSizedType), HasOptions, MonadTCM, MonadTCState, MonadTCEnv, Closure, ReadTCState )
 import Agda.TypeChecking.Monad.Context ( MonadAddContext )
@@ -239,7 +234,7 @@ currentCheckedName = TBTM $ gets scsCurrentFunc
 getRootArity :: TBTM Int
 getRootArity = do
   rootName <- currentCheckedName
-  sizeSigArity . fromJust . defSizedType <$> getConstInfo rootName
+  sizeSigArity . defSizedType <$> getConstInfo rootName
 
 currentMutualNames :: TBTM (Set QName)
 currentMutualNames = TBTM $ gets scsMutualNames
@@ -339,7 +334,7 @@ freshenSignature mainPol s@(SizeSignature domain contra tele) = do
   let actualConstraints = mapMaybe (\(v, d) -> case d of
                             SizeUnbounded -> Nothing
                             SizeBounded i -> Just (SConstraint SLte v (newVars List.!! i))) (zip newVars domain)
-      sigWithfreshenedSizes = update (newVars List.!!) tele
+      sigWithfreshenedSizes = updateSizeVariables (newVars List.!!) tele
   -- freshSig <- freshenGenericArguments sigWithfreshenedSizes
   let newContravariantVariables = map (newVars List.!!) contra
   return $ (actualConstraints, sigWithfreshenedSizes)

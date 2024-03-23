@@ -3,24 +3,34 @@ module Agda.Termination.TypeBased.Common
   ( applyDataType
   , getDatatypeParametersByConstructor
   , tryReduceCopy
-  , lowerIndices
-  , update
+  , updateSizeVariables
   , sizeInstantiate
+  , SizeDecomposition(..)
+  , computeDecomposition
+  , fixGaps
   ) where
 
-import Agda.Termination.TypeBased.Syntax
-import Agda.Utils.Impossible ( __IMPOSSIBLE__ )
-import Agda.Syntax.Abstract.Name
-import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Signature
-import Agda.Syntax.Internal
-import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Pretty
-import Agda.Utils.Impossible
-import Agda.Syntax.Common.Pretty (prettyShow)
-import Agda.TypeChecking.Polarity.Base (Polarity)
+
 import Control.Arrow (second)
+import Data.IntSet (IntSet)
+import qualified Data.IntMap as IntMap
+import Data.IntMap (IntMap)
+import qualified Data.IntSet as IntSet
+import qualified Data.List as List
+import Data.Maybe (mapMaybe)
+
+import Agda.Syntax.Abstract.Name ( QName )
+import Agda.Syntax.Common.Pretty (prettyShow)
+import Agda.Syntax.Internal ( QName, Term(Con, Def), ConHead(conName) )
+import Agda.Termination.TypeBased.Syntax ( SizeSignature(SizeSignature), SizeBound(SizeUnbounded, SizeBounded), SizeType(..),  Size(..), pattern UndefinedSizeType )
+import Agda.TypeChecking.Monad.Base ( TCM, Definition(theDef), Reduced(YesReduction, NoReduction), pattern Constructor, conData, pattern Record, recPars, pattern Datatype, dataPars )
+import Agda.TypeChecking.Monad.Debug ( reportSDoc )
+import Agda.TypeChecking.Monad.Signature ( HasConstInfo(getConstInfo) )
+import Agda.TypeChecking.Polarity.Base (Polarity(..))
+import Agda.TypeChecking.Polarity ( composePol, neg )
+import Agda.TypeChecking.Pretty ( PrettyTCM(prettyTCM), (<+>) )
+import Agda.TypeChecking.Reduce ( reduceDefCopyTCM )
+import Agda.Utils.Impossible ( __IMPOSSIBLE__, __UNREACHABLE__ )
 
 -- | 'applyDataType params tele' reduces arrow/parameterized 'tele' by applying 'params'
 applyDataType :: [SizeType] -> SizeType  -> SizeType
@@ -36,29 +46,24 @@ applyDataType ts ar = __IMPOSSIBLE__
 sizeInstantiate :: SizeType -> SizeType -> SizeType
 sizeInstantiate = sizeInstantiate' 0
 
+-- | 'sizeInstantiate' that is adapted to De Bruijn indices
 sizeInstantiate' :: Int -> SizeType -> SizeType -> SizeType
 sizeInstantiate' targetIndex target (SizeArrow l r) = SizeArrow (sizeInstantiate' targetIndex target l) (sizeInstantiate' targetIndex target r)
 sizeInstantiate' targetIndex target (SizeTree sd tree) = SizeTree sd (map (second $ sizeInstantiate' targetIndex target) tree)
 sizeInstantiate' targetIndex target (SizeGenericVar args i)
-  | i == targetIndex = applyDataType (replicate args UndefinedSizeType) target
   | i < targetIndex  = SizeGenericVar args i
   | i > targetIndex  = SizeGenericVar args (i - 1)
-sizeInstantiate' _ _ (SizeGenericVar _ _) = __UNREACHABLE__ -- stupid haskell coverage checker cannot solve the halting problem
+  | otherwise        = applyDataType (replicate args UndefinedSizeType) target
 sizeInstantiate' targetIndex target (SizeGeneric args r) = SizeGeneric args (sizeInstantiate' (targetIndex + 1) (incrementFreeGenerics 0 target) r)
 
+-- | Increments all De Bruijn indices for second-order variables. This is needed to correctly handle "free" generic variables.
 incrementFreeGenerics :: Int -> SizeType -> SizeType
 incrementFreeGenerics threshold (SizeArrow l r) = SizeArrow (incrementFreeGenerics threshold l) (incrementFreeGenerics threshold r)
 incrementFreeGenerics threshold (SizeTree sd tree) = SizeTree sd (map (second $ incrementFreeGenerics threshold) tree)
 incrementFreeGenerics threshold (SizeGenericVar args i) = SizeGenericVar args (if i >= threshold then i + 1 else i)
 incrementFreeGenerics threshold (SizeGeneric args r) = SizeGeneric args (incrementFreeGenerics (threshold + 1) r)
 
--- | 'instantiateGeneric f ct' replaces generic index @i@ in @tele@ with @f i@
-instantiateGeneric :: Int -> (Int -> Int -> SizeType) -> SizeType -> SizeType
-instantiateGeneric thr f (SizeArrow l r)  = SizeArrow (instantiateGeneric thr f l) (instantiateGeneric thr f r)
-instantiateGeneric thr f (SizeGeneric args r) = SizeGeneric args (instantiateGeneric (thr + 1) (\a i -> incrementFreeGenerics 0 (f a i)) r)
-instantiateGeneric thr f (SizeTree size tree) = SizeTree size (map (second $ instantiateGeneric thr f) tree)
-instantiateGeneric thr f (SizeGenericVar args i) = if i < thr then SizeGenericVar args i else f args (i - thr)
-
+-- | Extracts the number of parameters for a constructor.
 getDatatypeParametersByConstructor :: QName -> TCM Int
 getDatatypeParametersByConstructor conName = do
   def <- theDef <$> getConstInfo conName
@@ -91,33 +96,65 @@ tryReduceCopy (Con ch ci elims) = do
       tryReduceCopy t
 tryReduceCopy t = pure t
 
-lowerIndices :: SizeSignature -> SizeSignature
-lowerIndices (SizeSignature bounds contra tele) =
-  let minIndex = minimalIndex tele
-  in SizeSignature
-      (map (\case
-         SizeBounded i -> SizeBounded (i - minIndex)
-         SizeUnbounded -> SizeUnbounded) bounds)
-      (map (\x -> x - minIndex) contra)
-      (update (\x -> x - minIndex) tele)
+-- | Represents decomposition of a set of size variables for some size signature based on polarities
+data SizeDecomposition = SizeDecomposition
+  { sdPositive :: [Int] -- ^ Size variables occurring positively
+  , sdNegative :: [Int] -- ^ Size variables occurring negatively
+  , sdOther    :: [Int] -- ^ Remaining size variables, that have mixed and unused variance.
+  } deriving Show
 
 
-update :: (Int -> Int) -> SizeType -> SizeType
-update subst (SizeTree size tree) = SizeTree (weakenSize size) (map (second $ update subst) tree)
+-- The decomposition should proceed alongside polarity, i.e. doubly negative occurences of inductive types are also subject of size preservation.
+computeDecomposition :: IntSet -> SizeType -> SizeDecomposition
+computeDecomposition coinductiveVars sizeType =
+  let (positiveVariables, negativeVariables, rest) = collectPolarizedSizes Covariant sizeType
+      (coinductivePositive, inductivePositive) = List.partition (`IntSet.member` coinductiveVars) positiveVariables
+      (coinductiveNegative, inductiveNegative) = List.partition (`IntSet.member` coinductiveVars) negativeVariables
+  in SizeDecomposition
+    { sdPositive = coinductiveNegative ++ inductivePositive
+    , sdNegative = inductiveNegative ++ coinductivePositive
+    , sdOther = rest }
+ where
+    collectPolarizedSizes :: Polarity -> SizeType -> ([Int], [Int], [Int])
+    collectPolarizedSizes pol (SizeTree size ts) =
+      let selector = case size of
+            SUndefined -> id
+            SDefined i -> case pol of
+              Covariant -> (\(a, b, c) -> (i : a, b, c))
+              Contravariant -> (\(a, b, c) -> (a, (i : b), c))
+              _ -> (\(a, b, c) -> (a, b, i : c))
+          ind = map (\(p, t) -> collectPolarizedSizes (composePol p pol) t) ts
+      in selector (concatMap (\(a, _, _) -> a) ind, concatMap (\(_, b, _) -> b) ind, concatMap (\(_, _, c) -> c) ind)
+    collectPolarizedSizes pol (SizeArrow l r) =
+      let (f1, f2, f3) = collectPolarizedSizes (neg pol) l
+          (s1, s2, s3) = collectPolarizedSizes pol r
+      in (f1 ++ s1, f2 ++ s2, f3 ++ s3)
+    collectPolarizedSizes pol (SizeGeneric _ r) = collectPolarizedSizes pol r
+    collectPolarizedSizes _ (SizeGenericVar _ i) = ([], [], [])
+
+-- | Reassignes all size variable in a signature, such that the resulting signature uses a continuous region of indices starting from 0.
+-- This function is needed because encoding may procedures do not guarantee that the sizes in the encoded signature are continuous.
+-- The reason for this is System Fω, which does not allow to express a dependently-typed signature completely.
+fixGaps :: SizeSignature -> SizeSignature
+fixGaps (SizeSignature bounds contra tele) =
+  let decomp = computeDecomposition (IntSet.fromList contra) tele
+      subst = IntMap.fromList $ (zip (sdNegative decomp ++ sdOther decomp ++ sdPositive decomp) [0..])
+  in SizeSignature (rearrangeBounds bounds subst) (mapMaybe (subst IntMap.!?) contra) (updateSizeVariables (subst IntMap.!) tele)
+  where
+    mapBound :: SizeBound -> IntMap Int -> SizeBound
+    mapBound SizeUnbounded _ = SizeUnbounded
+    mapBound (SizeBounded i) subst = SizeBounded (subst IntMap.! i)
+
+    rearrangeBounds :: [SizeBound] -> IntMap Int -> [SizeBound]
+    rearrangeBounds bounds subst = map snd $ List.sortOn fst (mapMaybe (\(i, b) -> (, mapBound b subst) <$> (subst IntMap.!? i) ) (zip [0..] bounds))
+
+-- | Applies a function to all size variables in a signature.
+updateSizeVariables :: (Int -> Int) -> SizeType -> SizeType
+updateSizeVariables subst (SizeTree size tree) = SizeTree (weakenSize size) (map (second $ updateSizeVariables subst) tree)
   where
     weakenSize :: Size -> Size
     weakenSize SUndefined = SUndefined
     weakenSize (SDefined i) = SDefined (subst i)
-update subst (SizeArrow l r) = SizeArrow (update subst l) (update subst r)
-update subst (SizeGeneric args r) = SizeGeneric args (update subst r)
-update subst (SizeGenericVar args i) = SizeGenericVar args i
-
-minimalIndex :: SizeType -> Int
-minimalIndex (SizeArrow l r) = min (minimalIndex l) (minimalIndex r)
-minimalIndex (SizeGeneric _ r) = minimalIndex r
-minimalIndex (SizeGenericVar _ _) = maxBound
-minimalIndex (SizeTree s rest) = minimum ((extractFromSize s) : map (minimalIndex . snd) rest)
-  where
-    extractFromSize :: Size -> Int
-    extractFromSize (SDefined i) = i
-    extractFromSize (SUndefined) = maxBound
+updateSizeVariables subst (SizeArrow l r) = SizeArrow (updateSizeVariables subst l) (updateSizeVariables subst r)
+updateSizeVariables subst (SizeGeneric args r) = SizeGeneric args (updateSizeVariables subst r)
+updateSizeVariables subst (SizeGenericVar args i) = SizeGenericVar args i

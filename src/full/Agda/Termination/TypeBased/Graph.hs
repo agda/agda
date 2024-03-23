@@ -16,34 +16,36 @@
 
      The algorithm here relies on the notion of clusters, which is explained in 'Agda.Termination.TypeBased.Patterns'
 -}
-module Agda.Termination.TypeBased.Graph where
+module Agda.Termination.TypeBased.Graph
+ ( SizeExpression(..)
+ , SizeSubstitution
+ , simplifySizeGraph
+ , collectIncoherentRigids
+ , collectClusteringIssues
+ ) where
 
-import Agda.Termination.TypeBased.Monad
-import Agda.Termination.TypeBased.Syntax
-import Data.IntSet (IntSet)
-import qualified Data.IntSet as IntSet
-import qualified Data.List as List
-import Data.IntMap (IntMap)
-import qualified Data.IntMap as IntMap
-import Control.Monad.Trans.State
-import Agda.TypeChecking.Monad.Base
-import qualified Agda.Termination.Order as Order
-import Agda.Termination.Order (Order)
-import Data.Maybe
-import Agda.Utils.Impossible
-import Debug.Trace
-import Agda.TypeChecking.Monad.Signature
-import Control.Monad
-import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Pretty
+import Control.Monad ( unless )
+import Data.Either ( partitionEithers )
 import qualified Data.Graph as Graph
-import qualified Agda.Syntax.Common.Pretty as P
-import qualified Agda.Benchmarking as Benchmark
-import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as DGraph
-import Agda.TypeChecking.Monad.Benchmark (billTo)
-import Data.Either
-import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.IntMap as IntMap
+import Data.IntMap (IntMap)
+import qualified Data.IntSet as IntSet
+import Data.IntSet (IntSet)
+import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty(..), (<|))
+import qualified Data.List.NonEmpty as NonEmpty
+import Data.Maybe ( fromMaybe, mapMaybe )
+
+import qualified Agda.Benchmarking as Benchmark
+import qualified Agda.Syntax.Common.Pretty as P
+import Agda.Termination.TypeBased.Monad ( SConstraint(SConstraint), ConstrType(..), getRootArity, TBTM, getBottomVariables, getInfiniteSizes, getPreservationCandidates, getLeafSizeVariables, getFallbackInstantiations )
+import Agda.Termination.TypeBased.Syntax ( SizeBound(..), Size(SDefined) )
+import Agda.TypeChecking.Monad.Base ( TCM )
+import Agda.TypeChecking.Monad.Debug ( reportSDoc )
+import Agda.TypeChecking.Pretty ( pretty, (<+>), text )
+import Agda.Utils.Benchmark ( billTo )
+import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as DGraph
+import Agda.Utils.Impossible ( __IMPOSSIBLE__ )
 
 -- | A size expression is represented as a minimum of a set of rigid size variables,
 --   where the length of the set is equal to the number of clusters.
@@ -201,3 +203,15 @@ collectIncoherentRigids' subst ((SConstraint sctype from to) : rest) = do
 getIncoherences :: Maybe SizeExpression -> Maybe SizeExpression -> [Int]
 getIncoherences  (Just (SEMeet l)) (Just (SEMeet r)) | (all (== (-1)) l) = mapMaybe (\(ls, rs) -> if ls == (-1) && rs /= (-1) then Just rs else Nothing) (zip l r)
 getIncoherences _ _ = []
+
+-- | Since any two clusters are unrelated, having a dependency between them indicates that something is wrong in the graph
+collectClusteringIssues :: Int -> IntMap SizeExpression -> [SConstraint] -> [(Int, SizeBound)] -> IntSet
+collectClusteringIssues candidateVar subst [] bounds = IntSet.empty
+collectClusteringIssues candidateVar subst ((SConstraint _ f t) : rest) bounds =
+  let (SEMeet s1) = subst IntMap.! f
+      (SEMeet s2) = subst IntMap.! t
+      c1 = s1 List.!! candidateVar
+      c2 = s2 List.!! candidateVar
+  in if (c1 /= -1 || c2 /= -1) && any (\(a, b) -> a == -1 && b /= -1) (zip s1 s2)
+     then IntSet.insert candidateVar IntSet.empty
+     else collectClusteringIssues candidateVar subst rest bounds

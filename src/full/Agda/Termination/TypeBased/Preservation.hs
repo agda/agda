@@ -23,100 +23,37 @@
      Assume a function 'zipWith : (A -> B -> C) -> Stream A -> Stream B -> Stream C'.
      This function is size-preserving in both its coinductive arguments, since it applies the same amount of projections to arguments as it was asked for the result.
  -}
-module Agda.Termination.TypeBased.Preservation where
+module Agda.Termination.TypeBased.Preservation
+  ( refinePreservedVariables
+  , applySizePreservation
+  , reifySignature
+  , VariableInstantiation(..)
+  ) where
 
-import Agda.Syntax.Internal.Pattern
-import Agda.Termination.TypeBased.Syntax
-import Control.Monad.Trans.State
-import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Statistics
-import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Signature
-import Agda.Syntax.Common
-import qualified Data.Map as Map
-import Data.Map ( Map )
-import qualified Data.IntMap as IntMap
+import Control.Arrow (second)
+import Control.Monad ( forM )
+import Data.Foldable (traverse_)
+import Data.Functor ((<&>))
 import Data.IntMap ( IntMap )
+import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 import Data.IntSet ( IntSet )
-import qualified Data.Set as Set
-import Data.Set ( Set )
 import qualified Data.List as List
-import Agda.Syntax.Abstract.Name
-import Control.Monad.IO.Class
-import Control.Monad.Trans
-import Agda.TypeChecking.Monad.Env
-import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Monad.Context
-import Agda.TypeChecking.Telescope
-import Agda.Termination.TypeBased.Common
-import Agda.TypeChecking.Substitute
-import Agda.Termination.TypeBased.Monad
-import Agda.TypeChecking.ProjectionLike
-import Agda.Utils.Impossible
-import Control.Monad
-import Agda.TypeChecking.Pretty
-import Debug.Trace
-import Agda.Utils.Monad
-import Agda.Termination.Common
-import Data.Maybe
-import Agda.Termination.CallGraph
-import Agda.Termination.TypeBased.Graph
-import Data.Foldable (traverse_)
-import Agda.Utils.List ((!!!))
-import Data.Functor ((<&>))
-import Agda.Termination.CallMatrix
-import qualified Agda.Termination.CallMatrix
-import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Edge(..))
-import Data.Either
-import Agda.Utils.Singleton
-import Agda.Termination.Order (Order)
-import qualified Agda.Termination.Order as Order
-import qualified Control.Arrow as Arrow
-import Agda.TypeChecking.Polarity.Base
-import Agda.TypeChecking.Polarity
+import Data.Maybe ( mapMaybe )
 
--- | Represents decomposition of a set of size variables for some size signature based on polarities
-data SizeDecomposition = SizeDecomposition
-  { sdPositive :: [Int] -- ^ Size variables occurring positively
-  , sdNegative :: [Int] -- ^ Size variables occurring negatively
-  , sdOther    :: [Int] -- ^ Remaining size variables, that have mixed and unused variance.
-  } deriving Show
+import Agda.Termination.TypeBased.Graph ( SizeExpression, simplifySizeGraph, collectIncoherentRigids, collectClusteringIssues )
+import Agda.Termination.TypeBased.Monad ( SConstraint(SConstraint), getCurrentConstraints, getCurrentRigids, currentCheckedName, withAnotherPreservationCandidate, TBTM, getPreservationCandidates, getRecursionMatrix, replacePreservationCandidates )
+import Agda.Termination.TypeBased.Syntax ( SizeSignature(SizeSignature), SizeBound, SizeType(..), Size(..) )
+import Agda.TypeChecking.Monad.Base ( MonadTCM(liftTCM), sizePreservationOption )
+import Agda.TypeChecking.Monad.Debug ( reportSDoc )
+import Agda.TypeChecking.Pretty ( PrettyTCM(prettyTCM), pretty, nest, ($$), (<+>), vcat, text )
 
--- TODO: the decomposition here is not bound by domain/codomain only.
--- The decomposition should proceed alongside polarity, i.e. doubly negative occurences of inductive types are also subject of size preservation.
-computeDecomposition :: IntSet -> SizeType -> SizeDecomposition
-computeDecomposition coinductiveVars sizeType =
-  let (positiveVariables, negativeVariables, rest) = collectPolarizedSizes Covariant sizeType
-      (coinductivePositive, inductivePositive) = List.partition (`IntSet.member` coinductiveVars) positiveVariables
-      (coinductiveNegative, inductiveNegative) = List.partition (`IntSet.member` coinductiveVars) negativeVariables
-  in SizeDecomposition
-    { sdPositive = inductivePositive ++ coinductiveNegative
-    , sdNegative = inductiveNegative ++ coinductivePositive
-    , sdOther = rest }
- where
-    collectPolarizedSizes :: Polarity -> SizeType -> ([Int], [Int], [Int])
-    collectPolarizedSizes pol (SizeTree size ts) =
-      let selector = case size of
-            SUndefined -> id
-            SDefined i -> case pol of
-              Covariant -> (\(a, b, c) -> (i : a, b, c))
-              Contravariant -> (\(a, b, c) -> (a, (i : b), c))
-              _ -> (\(a, b, c) -> (a, b, i : c))
-          ind = map (\(p, t) -> collectPolarizedSizes (composePol p pol) t) ts
-      in selector (concatMap (\(a, _, _) -> a) ind, concatMap (\(_, b, _) -> b) ind, concatMap (\(_, _, c) -> c) ind)
-    collectPolarizedSizes pol (SizeArrow l r) =
-      let (f1, f2, f3) = collectPolarizedSizes (neg pol) l
-          (s1, s2, s3) = collectPolarizedSizes pol r
-      in (f1 ++ s1, f2 ++ s2, f3 ++ s3)
-    collectPolarizedSizes pol (SizeGeneric _ r) = collectPolarizedSizes pol r
-    collectPolarizedSizes _ (SizeGenericVar _ i) = ([], [], [])
 
 -- | This function is expected to be called after finishing the processing of clause,
 -- or, more generally, after every step of collecting complete graph of dependencies between flexible sizes.
 -- It looks at each possibly size-preserving variable and filters its candidates
 -- such that after the filtering all remaining candidates satisfy the current graph.
--- By induction, when the processing of a function ends, all remaining candidates satisfy all clause's graphs.
+-- By induction, when the processing of a function ends, all remaining candidates satisfy all clauses' graphs.
 refinePreservedVariables :: TBTM ()
 refinePreservedVariables = do
   rigids <- getCurrentRigids
@@ -164,19 +101,9 @@ checkCandidateSatisfiability possiblyPreservingVar candidateVar graph bounds = d
   reportSDoc "term.tbt" 70 $ "Incoherences during an attempt:" <+> text (show allIncoherences)
   pure $ not $ IntSet.member candidateVar allIncoherences
 
--- | Since any two clusters are unrelated, having a dependency between them indicates that something is wrong in the graph
-collectClusteringIssues :: Int -> IntMap SizeExpression -> [SConstraint] -> [(Int, SizeBound)] -> IntSet
-collectClusteringIssues candidateVar subst [] bounds = IntSet.empty
-collectClusteringIssues candidateVar subst ((SConstraint _ f t) : rest) bounds =
-  let (SEMeet s1) = subst IntMap.! f
-      (SEMeet s2) = subst IntMap.! t
-      c1 = s1 List.!! candidateVar
-      c2 = s2 List.!! candidateVar
-  in if (c1 /= -1 || c2 /= -1) && any (\(a, b) -> a == -1 && b /= -1) (zip s1 s2)
-     then IntSet.insert candidateVar IntSet.empty
-     else collectClusteringIssues candidateVar subst rest bounds
 
--- | Applies the size preservation analysis result to the function signature
+
+-- | Applies the size preservation analysis result to a function signature.
 applySizePreservation :: SizeSignature -> TBTM SizeSignature
 applySizePreservation s@(SizeSignature _ _ tele) = do
   candidates <- getPreservationCandidates
@@ -213,13 +140,7 @@ unfoldInstantiations [] = []
 unfoldInstantiations (ToInfinity : rest) = unfoldInstantiations rest
 unfoldInstantiations (ToVariable i : rest) = i : unfoldInstantiations rest
 
-fixGaps :: SizeSignature -> SizeSignature
-fixGaps (SizeSignature _ contra tele) =
-  let decomp = computeDecomposition (IntSet.fromList contra) tele
-      subst = IntMap.fromList $ (zip (sdNegative decomp ++ sdPositive decomp ++ sdOther decomp) [0..])
-  in SizeSignature (replicate (length subst) SizeUnbounded) (mapMaybe (subst IntMap.!?) contra) (update (subst IntMap.!) tele)
-
--- | Actually applies size preservation assignment to a signature.
+-- | Given a substitution, instantiates some size variables to infinity in a signature.
 --
 -- The input list must be ascending in keys.
 reifySignature :: [(Int, VariableInstantiation)] -> SizeSignature -> SizeSignature
@@ -238,7 +159,7 @@ reifySignature mapping (SizeSignature bounds contra tele) =
   in newSig
   where
     fixSizes :: (Int -> VariableInstantiation) -> SizeType -> SizeType
-    fixSizes subst (SizeTree size tree) = SizeTree (weakenSize size) (map (Arrow.second $ fixSizes subst) tree)
+    fixSizes subst (SizeTree size tree) = SizeTree (weakenSize size) (map (second $ fixSizes subst) tree)
       where
         weakenSize :: Size -> Size
         weakenSize SUndefined = SUndefined
