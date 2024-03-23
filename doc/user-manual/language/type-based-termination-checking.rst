@@ -135,9 +135,9 @@ The difference here is that now inner ``badRepeat`` is projected. The logic from
 Induction-Coinduction
 -----------------------
 
-One of the features of the type-based termination checker is the support of mutually defined inductive and coinductive types.
+One feature of the type-based termination checker is its support for mutually defined inductive and coinductive types.
 
-We shall illustrate it on the stream processors.
+We will illustrate this using stream processors.
 
 ::
 
@@ -159,10 +159,9 @@ We shall illustrate it on the stream processors.
 
     open SPν
 
-This datatype can be understood differently depending on the order of fixpoint operators in its formal definition. The two meanings that can be given here are
-``ν SPν. μ SPμ. (A → SPμ) + (B ⨯ SPν)`` and ``μ SPμ. ν SPν. (A → SPμ) + (B ⨯ SPν)``. There is a substantial difference here. The first interpretation means that the stream processor infinitely produces ``B``, consuming a finite number of ``A``s between two productions. The second interpretation means that the stream processor may consume only finite number of ``A``s, and between each two consumptions it is allowed to produce infinite number of ``B``s. It is natural to select the first interpretation for stream processors, and that's what the type-based termination checker does.
+This datatype can be understood differently depending on the order of fixpoint operators in its formal definition. The two meanings that can be given here are:``ν Y. μ X. (A → X) + (B ⨯ Y)`` and ``μ X. ν Y. (A → X) + (B ⨯ Y)``.There is a substantial difference here. The first interpretation means that the stream processor infinitely produces ``B``, consuming a finite number of ``A``s between two productions. The second interpretation means that the stream processor may consume only a finite number of ``A``s, and between each two consumptions, it is allowed to produce an infinite number of ``B``s. It is natural to select the first interpretation for stream processors, and that's what the type-based termination checker does.
 
-This behavior can be reflects with the use of Agda's sized types:
+This behavior can be reflected in the use of Agda's sized types:
 
 ::
 
@@ -190,13 +189,13 @@ The following functions pass termination checking. We shall explain why ``runSP�
     runSPν spν s = runSPμ (SPν.force spν) s
 
 
-In the second clause, the list of copatterns contains a coinductive projection ``tl``. This means that if ``runSPμ`` defines a stream of depth ``n``, then the body ``runSPμ (SPν.force spν) s`` must define a stream of depth ``m < n``. Since ``runSPμ`` is not wrapped into any projection, Agda assumes that this corecursive call defines a stream of depth ``m``, which means that this clause cannot be unfolded infinitely.
+In the second clause, the list of copatterns contains a coinductive projection ``tl``. This implies that if ``runSPμ`` defines a stream of depth ``n``, then the body ``runSPμ (SPν.force spν) s`` must define a stream of depth ``m < n``. Since ``runSPμ`` is not wrapped into any projection, Agda assumes that this corecursive call defines a stream of depth ``m``, which means that this clause cannot be unfolded infinitely.
 
-In the third clause, there are no coinductive projections among copatterns. If ``runSPμ`` defines a stream of depth ``n``, here Agda assumes that ``runSPμ (f (s .hd)) (s .tl)`` also defines a stream of depth ``n``. This fact alone is not enough to prove termination: after all, the definition of ``runSPμ`` can be unfolded to the third clause infinitely, since ``n`` does not decrease during unfolding. However, ``runSPμ`` has also an inductive argument, which decreases with each call. It means that the third clause preserves the depth of the defined stream, but it decreases the inductive size of the accepted ``SPμ``.
+In the third clause, there are no coinductive projections among copatterns. If ``runSPμ`` defines a stream of depth ``n``, here Agda assumes that ``runSPμ (f (s .hd)) (s .tl)`` also defines a stream of depth ``n``. This fact alone is not enough to prove termination: after all, the definition of ``runSPμ`` can be unfolded to the third clause infinitely, since ``n`` does not decrease during unfolding. However, ``runSPμ`` also has an inductive argument, which decreases with each call. It means that the third clause preserves the depth of the defined stream but decreases the inductive size of the accepted ``SPμ``.
 
-Now we see that the unfolding of the first clause strictly decreases the depth of the stream, and the unfolding of the second clause preserves the depth of the stream, but strictly decreases the inductive size of ``SPμ``. This kind of lexicographical induction allows Agda to deduce that ``runSPμ`` terminates.
+Now we see that the unfolding of the first clause strictly decreases the depth of the stream, and the unfolding of the second clause preserves the depth of the stream but strictly decreases the inductive size of ``SPμ``. This kind of lexicographical induction allows Agda to deduce that ``runSPμ`` terminates.
 
-In general, if there is a set of mutually-inductive-coinductive datatypes, then the type-based checker provides the following encoding for them: there is a common size variable for all definitions that corresponds to coinductive part of the definition, and this variable can be decreased only by a coinductive projection. For inductive datatypes, there is additionally another size variable, that corresponds to the inductive part of the definition, and it can be decreased only by pattern-matching on an inductive constructor. This encoding can be represented in terms of Agda's sized types:
+In general, if there is a set of mutually-inductive-coinductive datatypes, then the type-based checker provides the following encoding for them: there is a common size variable for all definitions that corresponds to the coinductive part of the definition, and this variable can be decreased only by a coinductive projection. For inductive datatypes, there is additionally another size variable that corresponds to the inductive part of the definition, and it can be decreased only by pattern-matching on an inductive constructor. This encoding can be represented in terms of Agda's sized types:
 
 ::
 
