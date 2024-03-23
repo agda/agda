@@ -26,7 +26,7 @@ import Data.List.NonEmpty (NonEmpty (..))
 
 import Agda.Syntax.Abstract.Name ( QName )
 import Agda.Syntax.Common ( Named(Named, namedThing), Arg(Arg, unArg) )
-import Agda.Syntax.Internal ( QName, DeBruijnPattern, DBPatVar(dbPatVarIndex, dbPatVarName),  Pattern'(DefP, ProjP, VarP, ConP, DotP, LitP), NAPs, ConHead(conName) )
+import Agda.Syntax.Internal ( QName, DeBruijnPattern, DBPatVar(dbPatVarIndex, dbPatVarName),  Pattern'(DefP, ProjP, VarP, ConP, DotP, LitP, IApplyP), NAPs, ConHead(conName) )
 import Agda.Termination.Monad ( isCoinductiveProjection )
 import Agda.Termination.TypeBased.Common ( applyDataType, getDatatypeParametersByConstructor, updateSizeVariables )
 import Agda.Termination.TypeBased.Syntax ( SizeSignature(SizeSignature), SizeBound(..), FreeGeneric(FreeGeneric), SizeType(..), Size(..), pattern UndefinedSizeType, sizeCodomain )
@@ -114,7 +114,8 @@ matchLHS tele patterns = do
     (p : ps) -> case p of
       (Arg _ (Named _ (ProjP _ qn))) -> do
         -- Since it is a projection, the matched type must be a record, i.e. a size tree.
-        let (_, (SizeTree _ coPrincipal recordArgs)) = sizeCodomain tele
+        let (_, codom) = sizeCodomain tele
+        let SizeTree _ coPrincipal recordArgs = codom
         constInfo <- getConstInfo qn
         let sig@(SizeSignature bounds tele) = defSizedType constInfo
 
@@ -130,7 +131,9 @@ matchLHS tele patterns = do
         freshenedSignature <- freshenCopatternProjection newCodepthVar bounds tele
         -- Additional argument is needed because we want to get rid of the principal argument in the signature
         -- This is application that is intended to get rid of the basic record arguments
-        let appliedProjection = applyDataType ((map snd recordArgs) ++ [UndefinedSizeType]) freshenedSignature
+        let appliedProjection = case codom of 
+              UndefinedSizeType -> UndefinedSizeType
+              _ -> applyDataType ((map snd recordArgs) ++ [UndefinedSizeType]) freshenedSignature
         -- TODO: handle copying here,
         -- since apparently there can be copies in copatterns (!)
         when (defCopy constInfo) $ lift $ recordError "Copy in a copattern projection"
@@ -234,8 +237,9 @@ matchSizePattern p@(ConP hd pi args) expected = do
     _ -> lift $ recordError "Unsupported pattern matching"
 matchSizePattern (DotP pi _) _ = return ()
 matchSizePattern (LitP _ _) _ = pure ()
-matchSizePattern (DefP _ _ _) _ = __IMPOSSIBLE__ -- cubical agda is not supported
-matchSizePattern _ _ = __IMPOSSIBLE__
+matchSizePattern (ProjP _ _) _ = pure ()
+matchSizePattern (IApplyP _ _ _ _) _ = pure ()
+matchSizePattern (DefP _ _ _) _ = __IMPOSSIBLE__ -- cubical agda is not supported, this place should not be reachable as it is filtered out earlier
 
 -- | Runs action with the specified inductive depth
 withDepth :: Int -> PatternEncoder a -> PatternEncoder a
