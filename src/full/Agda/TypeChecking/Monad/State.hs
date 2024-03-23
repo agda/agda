@@ -36,6 +36,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Warnings
 
 import Agda.TypeChecking.Monad.Debug (reportSDoc, reportSLn, verboseS)
+import Agda.TypeChecking.Polarity.Base
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.CompiledClause
 

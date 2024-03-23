@@ -1,5 +1,5 @@
 {-# OPTIONS --cubical-compatible --safe --no-universe-polymorphism
-            --no-sized-types --no-guardedness --level-universe #-}
+            --no-sized-types --no-guardedness --level-universe --type-based-termination #-}
 
 module Agda.Builtin.Nat where
 

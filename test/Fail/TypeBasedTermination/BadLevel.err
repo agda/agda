@@ -1,0 +1,5 @@
+TypeBasedTermination/BadLevel.agda:15,1-16,24
+Termination checking failed for the following functions:
+  ℓ
+Problematic calls:
+  ℓ (at TypeBasedTermination/BadLevel.agda:16,22-23)
