@@ -40,7 +40,7 @@ parseOptions ii range argStr = do
     -- TODO: Do arg properly
     , optHintMode = firstOr NoHints ([Module | M <- tokens] ++ [Unqualified | U <- tokens])
     , optExplicitHints = hints
-    , optList = elem L tokens
+    , optList = L `elem` tokens
     , optSkip = firstOr 0 [ n | S s <- tokens, n <- maybeToList $ readMaybe s ]
     }
 

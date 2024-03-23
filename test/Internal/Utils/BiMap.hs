@@ -377,9 +377,9 @@ prop_mapWithKeyFixedTags m =
 prop_union :: BM -> Property
 prop_union m1 =
   forAll (validUnionMap m1) $ \m2 ->
-  biMapInvariant (union m1 m2)
+  biMapInvariant (m1 `union` m2)
     &&
-  toList (union m1 m2) == normalise (toList m1 ++ toList m2)
+  toList (m1 `union` m2) == normalise (toList m1 ++ toList m2)
 
 prop_fromList :: Property
 prop_fromList =
