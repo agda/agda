@@ -1,68 +1,57 @@
 {- | This module is a control center of type-based termination,
      which orchestrates different parst of type-based termination
 -}
-module Agda.Termination.TypeBased.Definitions where
+module Agda.Termination.TypeBased.Definitions
+  ( initSizeTypeEncoding
+  , collectTerminationData
+  ) where
 
-import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern
-import Agda.Termination.TypeBased.Syntax
-import Control.Monad.Trans.State
-import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Statistics
-import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Signature
-import Agda.Syntax.Common
-import qualified Data.Map as Map
-import Data.Map ( Map )
+import Control.Monad ( forM_, forM )
+import Data.Either ( partitionEithers )
 import qualified Data.IntMap as IntMap
 import Data.IntMap ( IntMap )
 import qualified Data.IntSet as IntSet
-import Data.IntSet ( IntSet )
+import qualified Data.List as List
+import Data.Maybe ( fromJust, isJust )
 import qualified Data.Set as Set
 import Data.Set ( Set )
-import qualified Data.List as List
-import Agda.Syntax.Abstract.Name
-import Control.Monad.IO.Class
-import Control.Monad.Trans
-import Agda.TypeChecking.Monad.Env
-import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Monad.Context
-import Agda.TypeChecking.Telescope
-import Agda.Termination.TypeBased.Common
-import Agda.Termination.TypeBased.Preservation
-import Agda.Termination.TypeBased.Patterns
-import Agda.TypeChecking.Substitute
-import Agda.Termination.TypeBased.Monad
-import Agda.TypeChecking.ProjectionLike
-import Agda.Utils.Impossible
-import Agda.Termination.TypeBased.Checking
-import Control.Monad
-import Agda.TypeChecking.Pretty
-import Debug.Trace
-import Agda.Utils.Monad
-import Agda.Termination.Common
-import Data.Maybe
-import Agda.Termination.TypeBased.Encoding
-import Agda.Termination.CallGraph
-import Agda.Termination.Monad
-import Agda.Termination.TypeBased.Graph
-import Data.Foldable (traverse_)
-import Agda.Utils.List ((!!!))
-import Data.Functor ((<&>))
-import Agda.Termination.CallMatrix
-import qualified Agda.Termination.CallMatrix
-import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Edge(..))
-import Data.Either
-import Agda.Utils.Singleton
-import Agda.Termination.Order (Order)
-import qualified Agda.Termination.Order as Order
-import Data.List (unfoldr)
-import qualified Agda.Benchmarking as Benchmark
-import Agda.TypeChecking.Monad.Benchmark (billTo)
-import qualified Agda.Utils.List1 as List1
-import Agda.TypeChecking.Polarity.Base
 
--- | 'initSizeTypeEncoding names' computes size types for every definition in 'names'
+import qualified Agda.Benchmarking as Benchmark
+import Agda.Utils.Benchmark ( billTo )
+import Agda.Syntax.Common ( Induction(CoInductive), Arg(unArg) )
+import Agda.Syntax.Internal ( QName, Elim'(Apply), Clause(namedClausePats, clauseBody, clauseTel), Tele(..), Type, Type''(unEl), Abs(unAbs), Elims, Term(..), ConHead(conName), Dom, Dom'(unDom), arity )
+import Agda.Syntax.Internal.Pattern ( hasDefP )
+import Agda.Termination.CallGraph ( fromList, CallGraph )
+import Agda.Termination.CallMatrix ( CallMatrixAug(CallMatrixAug) )
+import Agda.Termination.Common ( makeCM )
+import Agda.Termination.Monad ( CallPath(..) )
+import Agda.Termination.TypeBased.Checking ( sizeCheckTerm )
+import Agda.Termination.TypeBased.Common ( fixGaps, computeDecomposition, SizeDecomposition(..) )
+import Agda.Termination.TypeBased.Encoding ( encodeFunctionType, encodeFieldType, encodeBlackHole, encodeConstructorType )
+import Agda.Termination.TypeBased.Graph ( SizeExpression(..), simplifySizeGraph, collectIncoherentRigids, SizeSubstitution )
+import Agda.Termination.TypeBased.Monad ( getCurrentConstraints, getTotalConstraints, getCurrentRigids, getCurrentCoreContext, initNewClause, setLeafSizeVariables, currentCheckedName,
+      getRootArity, freshenSignature, runSizeChecker, TBTM, initSizePreservation, hasEncodingErrors, getBottomVariables, getInfiniteSizes, MutualRecursiveCall(..) )
+import Agda.Termination.TypeBased.Preservation ( VariableInstantiation(ToInfinity), refinePreservedVariables, applySizePreservation, reifySignature )
+import Agda.Termination.TypeBased.Patterns ( matchPatterns )
+import Agda.Termination.TypeBased.Syntax ( SizeSignature(SizeSignature), SizeBound(SizeUnbounded), SizeType(..), Size(SUndefined, SDefined), pattern UndefinedSizeType )
+import qualified Agda.Termination.Order as Order
+import Agda.Termination.Order (Order)
+import Agda.TypeChecking.Monad.Base ( TCM, Definition(defType, defPolarity, defCopy, theDef, defSizedType), MonadTCM(liftTCM), CallInfo(CallInfo), FunctionData(_funClauses),
+      Defn(FunctionDefn), pattern Constructor, conData, pattern Record, recConHead, recInduction, pattern Datatype, dataCons, dataMutual, pattern Function, funProjection,
+      pattern Axiom, typeBasedTerminationOption, sizePreservationOption )
+import Agda.TypeChecking.Monad.Context ( AddContext(addContext) )
+import Agda.TypeChecking.Monad.Debug ( reportSDoc )
+import Agda.TypeChecking.Monad.Signature ( HasConstInfo(getConstInfo), addConstant, inConcreteOrAbstractMode, isProjection_ )
+import Agda.TypeChecking.Pretty ( PrettyTCM(prettyTCM), pretty, nest, (<+>), vcat, text )
+import Agda.TypeChecking.Polarity.Base ( Polarity(Covariant) )
+import Agda.TypeChecking.Substitute ( TelV(TelV), telView' )
+import Agda.TypeChecking.Telescope ( telView )
+import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Edge(..))
+import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Monad ( whenM, ifM, or2M, anyM, mapMaybeM )
+import Agda.Utils.Singleton ( Singleton(singleton) )
+
+-- | 'initSizeTypeEncoding names' encodes size types for every definition type in 'names'
 -- It is expected that 'names' form a mutual block.
 initSizeTypeEncoding :: Set QName -> TCM ()
 initSizeTypeEncoding mutuals =
@@ -102,7 +91,7 @@ initSizeTypeEncoding mutuals =
             , "  with mutual block: " <+> prettyTCM (Set.toList mutuals)
             , "  of core type:" <+> prettyTCM dType
             ]
-          sizedSignature <- lowerIndices <$> if encodeComplex then encodeConstructorType mutuals dType else pure $ encodeBlackHole dType
+          sizedSignature <- fixGaps <$> if encodeComplex then encodeConstructorType mutuals dType else pure $ encodeBlackHole dType
           reportSDoc "term.tbt" 5 $ vcat
             [ "Encoded constructor " <> prettyTCM nm <> ", sized type: "
             , nest 2 $ pretty sizedSignature
@@ -115,7 +104,7 @@ initSizeTypeEncoding mutuals =
             , "  of core type:"
             , nest 2 $ prettyTCM dType
             ]
-          sizedSignature <- lowerIndices <$> if encodeComplex
+          sizedSignature <- fixGaps <$> if encodeComplex
             then case funProjection of
               Left  _ -> do
                 sig@(SizeSignature _ contra tp) <- encodeFunctionType dType
@@ -148,7 +137,7 @@ initSizeTypeEncoding mutuals =
           pure $ Just sizedSignature
         _ -> return Nothing
       case sizedSignature of
-        Just x -> addConstant nm $ def { defSizedType = Just x }
+        Just x -> addConstant nm $ def { defSizedType = x }
         Nothing -> return ()
 
 
@@ -169,7 +158,7 @@ collectTerminationData names = do
       -- Signatures may be changed after termination checking because of size preservation
       -- So we will store them here.
       forM_ terminationResult $ \(qn, _, sig) -> inConcreteOrAbstractMode qn $ \def -> do
-        addConstant qn (def { defSizedType = Just sig })
+        addConstant qn (def { defSizedType = sig })
       let totalCalls = mconcat (map (\(_,a,_) -> a) terminationResult)
       pure $ Right totalCalls
     _ ->
@@ -180,11 +169,10 @@ collectTerminationData names = do
 -- | Launches type-based termination processing on a given definition.
 processSizedDefinition :: Set QName -> FunctionData -> QName -> TCM (Either [String] (QName, CallGraph CallPath, SizeSignature))
 processSizedDefinition names funData nm = inConcreteOrAbstractMode nm $ \d -> do
-  def <- getConstInfo nm
+  def <- defSizedType <$> getConstInfo nm
   let clauses = _funClauses funData
   reportSDoc "term.tbt" 10 $ "Starting type-based termination checking of the function:" <+> prettyTCM nm
   -- Since we are processing this function, it was certainly encoded.
-  let s = fromJust (defSizedType def)
   res <- invokeSizeChecker nm names (processSizedDefinitionTBTM clauses)
   case res of
     Left err -> pure $ Left err
@@ -281,7 +269,7 @@ processSizeClause bounds newTele c = do
       map (\(i, e) -> nest 2 $ pretty (SDefined i) <+> "↦" <+> pretty e) (IntMap.toList subst)
     pure subst
 
-
+-- | Given a set of names, launches size-checking on a mutual block. Returns a set of call matrices with a possibly size-preserving signature, or an error.
 invokeSizeChecker :: QName -> Set QName -> TBTM (IntMap SizeExpression, SizeSignature) -> TCM (Either [String] (CallGraph CallPath, SizeSignature))
 invokeSizeChecker rootName nms action = do
   ((subst, sizePreservationInferenceResult), totalGraph, errorMessages, calls) <- runSizeChecker rootName nms action
@@ -355,28 +343,29 @@ checkRecursiveConstructor :: Set QName -> QName -> TCM Bool
 checkRecursiveConstructor allNames qn = do
   conType <- defType <$> getConstInfo qn
   (TelV dom _) <- telView conType
-  findMention allNames dom
+  findMention dom
   where
-    findMention :: Set QName -> Tele (Dom Type) -> TCM Bool
-    findMention allNames EmptyTel = pure False
-    findMention allNames (ExtendTel dt rest) = findMentionInTerm allNames (unEl (unDom dt)) `or2M` findMention allNames (unAbs rest)
+    findMention :: Tele (Dom Type) -> TCM Bool
+    findMention EmptyTel = pure False
+    findMention (ExtendTel dt rest) = findMentionInTerm (unEl (unDom dt)) `or2M` findMention (unAbs rest)
 
-    findMentionInTerm :: Set QName -> Term -> TCM Bool
-    findMentionInTerm allNames (Def qn elims) = pure (qn `Set.member` allNames) `or2M` findMentionInElims allNames elims
-    findMentionInTerm allNames (Pi dom cod) = (findMentionInTerm allNames (unEl (unDom dom))) `or2M` (findMentionInTerm allNames (unEl (unAbs cod)))
-    findMentionInTerm allNames (Lam _ cod) = findMentionInTerm allNames (unAbs cod)
-    findMentionInTerm allNames (Sort _) = pure False
-    findMentionInTerm allNames (Var _ elims) = findMentionInElims allNames elims
-    findMentionInTerm allNames (MetaV _ _) = pure False
-    findMentionInTerm allNames (Level _) = pure False
-    findMentionInTerm allNames (Lit _) = pure False
-    findMentionInTerm allNames (DontCare _) = pure False
-    findMentionInTerm allNames (Con _ _ elims) = findMentionInElims allNames elims
-    findMentionInTerm allNames (Dummy _ _) = pure False
+    findMentionInTerm :: Term -> TCM Bool
+    findMentionInTerm t = case t of
+      (Def qn elims) -> pure (qn `Set.member` allNames) `or2M` findMentionInElims elims
+      (Pi dom cod) -> (findMentionInTerm (unEl (unDom dom))) `or2M` (findMentionInTerm (unEl (unAbs cod)))
+      (Lam _ cod) -> findMentionInTerm (unAbs cod)
+      (Sort _) -> pure False
+      (Var _ elims) -> findMentionInElims elims
+      (MetaV _ _) -> pure False
+      (Level _) -> pure False
+      (Lit _) -> pure False
+      (DontCare _) -> pure False
+      (Con _ _ elims) -> findMentionInElims elims
+      (Dummy _ _) -> pure False
 
-    findMentionInElims :: Set QName -> Elims -> TCM Bool
-    findMentionInElims allNames elims = (anyM elims (\case
-      Apply arg -> findMentionInTerm allNames $ unArg arg
+    findMentionInElims :: Elims -> TCM Bool
+    findMentionInElims elims = (anyM elims (\case
+      Apply arg -> findMentionInTerm $ unArg arg
       _ -> pure False))
 
 -- | Converts the telescope of a datatype to a size type.
@@ -406,10 +395,11 @@ encodeDatatypeDomain isRecursive generify polarities params (ExtendTel dt rest) 
     inferGenericArity (Pi _ rest) = fmap (+ 1) (inferGenericArity $ unEl $ unAbs rest)
     inferGenericArity _ = Nothing
 
-
+-- | Builds a size-change matrix based on relation between substituted flexible variables ('rs') and initial rigid variables ('ls')
 composeMatrix :: IntMap SizeExpression -> [Int] -> [Int] -> [[Order]]
 composeMatrix subst ls rs = [ [ obtainOrder l (subst IntMap.!? r) | r <- rs ] | l <- ls ]
 
+-- | Given a cluster 'i', returns the relation of a size expression with the cluster.
 obtainOrder :: Int -> Maybe SizeExpression -> Order
 obtainOrder  i Nothing = Order.unknown
 obtainOrder  i (Just (SEMeet list))

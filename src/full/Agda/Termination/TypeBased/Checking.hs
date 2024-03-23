@@ -2,50 +2,39 @@
  -   The goal of this process is to gather constraints between recursive calls,
  -   that later will be solved by some graph processing engine.
  -}
-module Agda.Termination.TypeBased.Checking where
+module Agda.Termination.TypeBased.Checking
+  ( sizeCheckTerm
+  ) where
 
-import Agda.Syntax.Internal
-import Agda.Termination.TypeBased.Syntax
-import Control.Monad.Trans.State
-import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Statistics
-import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Signature
-import Agda.Syntax.Common
-import qualified Data.Map as Map
-import Data.Map ( Map )
-import qualified Data.IntMap as IntMap
-import Data.IntMap ( IntMap )
-import qualified Data.IntSet as IntSet
-import Data.IntSet ( IntSet )
-import qualified Data.Set as Set
-import Data.Set ( Set )
-import qualified Data.List as List
-import Agda.Syntax.Abstract.Name
-import Control.Monad.IO.Class
-import Data.Foldable
-import Agda.TypeChecking.Monad.Env
-import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Monad.Context
-import Agda.TypeChecking.Telescope
-import Agda.Termination.TypeBased.Common
-import Agda.TypeChecking.Substitute
-import Agda.Termination.TypeBased.Monad
-import Agda.TypeChecking.ProjectionLike
-import Agda.Utils.Impossible
-import Control.Monad
-import Agda.TypeChecking.Pretty
-import Agda.Termination.TypeBased.Common
-import Agda.Utils.Monad
-import Agda.Termination.Common
-import Data.Maybe
-import Agda.Termination.TypeBased.Encoding
-import Data.Functor
+import Control.Monad ( when, unless, zipWithM_ )
+import Data.Foldable ( forM_, traverse_ )
 import qualified Data.List.NonEmpty as NonEmpty
-import Data.List.NonEmpty (NonEmpty(..), (<|))
-import Agda.Termination.Monad (isCoinductiveProjection)
-import Agda.TypeChecking.Polarity ((\/), composePol, neg)
-import Agda.TypeChecking.Polarity.Base (Polarity(..))
+import Data.Maybe ( fromJust, isJust )
+import qualified Data.Set as Set
+
+import Agda.Syntax.Common ( Induction(CoInductive), Arg(Arg) )
+import Agda.Syntax.Internal ( QName, Elim'(IApply, Proj, Apply), PlusLevel'(Plus), Level'(Max), Sort'(UnivSort, Univ, PiSort, FunSort), Type''(unEl),
+      Abs(Abs, NoAbs, unAbs), Elims, Term(..), ConHead(conName), Dom'(unDom), isSort )
+import Agda.Termination.Common ( tryReduceNonRecursiveClause, buildRecCallLocation )
+import Agda.Termination.Monad ( isCoinductiveProjection )
+import Agda.Termination.TypeBased.Common ( applyDataType, sizeInstantiate, getDatatypeParametersByConstructor, tryReduceCopy )
+import Agda.Termination.TypeBased.Encoding ( encodeFunctionType )
+import Agda.Termination.TypeBased.Monad ( SConstraint(SConstraint), ConstrType(SLeq), getCurrentCoreContext, storeConstraint, reportCall, currentCheckedName, getRootArity, currentMutualNames,
+      addFallbackInstantiation, reportDirectRecursion, storeBottomVariable, abstractCoreContext, freshenSignature, TBTM, markInfiniteSize, withVariableCounter, getSizePolarity )
+import Agda.Termination.TypeBased.Syntax ( FreeGeneric(FreeGeneric, fgIndex), SizeType(..), Size(..), pattern UndefinedSizeType, sizeCodomain )
+import Agda.TypeChecking.Monad.Base ( TCM, Definition(theDef, defCopy, defType, defSizedType), MonadTCM(liftTCM), pattern Constructor, conData, pattern Record,
+      recInduction, pattern Function, funTerminates, isAbsurdLambdaName )
+import Agda.TypeChecking.Monad.Debug ( reportSDoc )
+import Agda.TypeChecking.Monad.Context ( AddContext(addContext) )
+import Agda.TypeChecking.Monad.Signature ( HasConstInfo(getConstInfo), typeOfConst )
+import Agda.TypeChecking.Pretty ( PrettyTCM(prettyTCM), pretty, nest, (<+>), vcat, text )
+import Agda.TypeChecking.ProjectionLike ( ProjEliminator(EvenLone), elimView )
+import Agda.TypeChecking.Polarity ( (\/), composePol, neg )
+import Agda.TypeChecking.Polarity.Base ( Polarity(..) )
+import Agda.TypeChecking.Reduce ( instantiate, reduce )
+import Agda.TypeChecking.Telescope ( telView )
+import Agda.TypeChecking.Substitute ( TelV(TelV) )
+import Agda.Utils.Impossible ( __IMPOSSIBLE__ )
 
 -- | Bidirectional-style checking of internal terms.
 --   Though this function is checking, it also infers size types of terms,
@@ -98,46 +87,40 @@ sizeCheckTerm' expected t@(Var i elims) = do
         Right actualType -> pure $ remainingCodomain
 sizeCheckTerm' expected t@(Def qn elims) = if isAbsurdLambdaName qn then pure UndefinedSizeType else do
   constInfo <- getConstInfo qn
-  (sizeSigOfDef, newSizeVariables) <- withVariableCounter $ resolveConstant qn
-  case sizeSigOfDef of
-    Nothing -> do
-      reportSDoc "term.tbt" 80 $ "No size type for definition" <+> prettyTCM qn
-      pure $ UndefinedSizeType
-    -- This definition is a function, which has no interesting size bounds, so we can safely ignore them
-    Just (_, sizeTypeOfDef) -> do
-      reportSDoc "term.tbt" 20 $ vcat $
-        [ "Retrieving definition " <> prettyTCM qn <> ":" ] ++ map (nest 2)
-        [ "Term: " <+> prettyTCM t
-        , "coreType: " <+> (prettyTCM =<< (typeOfConst qn))
-        , "expected type: " <+> pretty expected
-        , "Inferred size type of def:" <+> pretty sizeTypeOfDef
-        ]
-      reportSDoc "term.tbt" 60 $ vcat
-        [ "elims: " <+> prettyTCM elims
-        , "is copy: " <+> text (show (defCopy constInfo))
-        ]
-      remainingCodomain <- sizeCheckEliminations sizeTypeOfDef elims
+  ((_, sizeSigOfDef), newSizeVariables) <- withVariableCounter $ resolveConstant qn
+  reportSDoc "term.tbt" 20 $ vcat $
+    [ "Retrieving definition " <> prettyTCM qn <> ":" ] ++ map (nest 2)
+    [ "Term: " <+> prettyTCM t
+    , "coreType: " <+> (prettyTCM =<< (typeOfConst qn))
+    , "expected type: " <+> pretty expected
+    , "Inferred size type of def:" <+> pretty sizeSigOfDef
+    ]
+  reportSDoc "term.tbt" 60 $ vcat
+    [ "elims: " <+> prettyTCM elims
+    , "is copy: " <+> text (show (defCopy constInfo))
+    ]
+  remainingCodomain <- sizeCheckEliminations sizeSigOfDef elims
 
-      currentName <- currentCheckedName
-      actualArgs <- if (currentName == qn)
-        then do reportDirectRecursion newSizeVariables
-                arity <- getRootArity
-                let newCallArgs =take arity newSizeVariables
-                forM_ (zip newCallArgs [0..arity - 1]) (uncurry addFallbackInstantiation)
-                pure newCallArgs
-        else pure newSizeVariables
+  currentName <- currentCheckedName
+  actualArgs <- if (currentName == qn)
+    then do reportDirectRecursion newSizeVariables
+            arity <- getRootArity
+            let newCallArgs =take arity newSizeVariables
+            forM_ (zip newCallArgs [0..arity - 1]) (uncurry addFallbackInstantiation)
+            pure newCallArgs
+    else pure newSizeVariables
 
-      -- We need to record the occurrence of a possible size matrix at this place.
-      maybeStoreRecursiveCall qn elims actualArgs
+  -- We need to record the occurrence of a possible size matrix at this place.
+  maybeStoreRecursiveCall qn elims actualArgs
 
-      reportSDoc "term.tbt" 40 $ "Eliminated type of " <> prettyTCM qn <> ": " <> pretty remainingCodomain
-      inferenceToChecking expected remainingCodomain
+  reportSDoc "term.tbt" 40 $ "Eliminated type of " <> prettyTCM qn <> ": " <> pretty remainingCodomain
+  inferenceToChecking expected remainingCodomain
 
-      pure $ remainingCodomain
+  pure $ remainingCodomain
 sizeCheckTerm' expected t@(Con ch ci elims) = do
   let (_, stCodomain) = sizeCodomain expected
   let constructorName = conName ch
-  (constraints, tele) <- fromJust <$> resolveConstant constructorName
+  (constraints, tele) <- resolveConstant constructorName
   coinductive <- liftTCM $ isCoinductiveConstructor constructorName
   let actualConstraints =
         if coinductive
@@ -252,16 +235,6 @@ maybeStoreRecursiveCall qn elims callSizes = do
 inferenceToChecking :: SizeType -> SizeType -> TBTM ()
 inferenceToChecking expected inferred = unless (expected == UndefinedSizeType) $ smallerOrEq Covariant inferred expected
 
-datatypeArguments :: Int -> SizeType -> Int
-datatypeArguments fallback (SizeTree _ args) = length args
-datatypeArguments fallback _ = fallback
-
--- | This size signature carries zero information. Effectively erases all information about the types.
-isDumbType :: SizeType -> Bool
-isDumbType (SizeTree SUndefined []) = True
-isDumbType _ = False
-
-
 -- | We cannot do argument checking in a straightforward zip-loop, because an instantiation of a generic may unlock new possibility for elimination.
 -- Example : `apply foo a b`, where `apply : (A -> B) -> A -> B` and `foo : C -> D -> E`. Here instantiation of `B` is `D -> E`, which unlocks the application of `b`.
 -- Returns the residual codomain in the end of the list.
@@ -323,7 +296,7 @@ sizeCheckEliminations eliminated (elim : elims) = do
 -- | Eliminates projection, returns inferred type of eliminated record and the residual inferred codomain of projection.
 eliminateProjection :: QName -> SizeType -> [SizeType] -> TBTM (SizeType, SizeType)
 eliminateProjection projName eliminatedRecord recordArgs = do
-  (constraints, projectionType) <- fromJust <$> resolveConstant projName
+  (constraints, projectionType) <- resolveConstant projName
   isCoinductive <- isCoinductiveProjection True projName
   let actualConstraints =
         if isCoinductive
@@ -332,13 +305,14 @@ eliminateProjection projName eliminatedRecord recordArgs = do
         -- The reason is that it is valid to have a mutually defined inductive record and inductive datatype,
         -- where the functions defined on the inductive record may use projections.
         -- For example, the following code is valid:
-        --  mutual
-        --    record R : Set where
-        --    inductive
-        --    field force : D
         --
-        --    data D : Set where
-        --      d : R → D
+        -- mutual
+        --   record R : Set where
+        --   inductive
+        --   field force : D
+        --
+        --   data D : Set where
+        --     d : R → D
         --
         -- open R
         --
@@ -388,8 +362,6 @@ eliminateProjection projName eliminatedRecord recordArgs = do
 
 
 -- | Compares two size types and stores the obtained constraints.
---   The idea is that during the later computation of assignment for flexible types,
---   all these constraints should be respected.
 smallerOrEq :: Polarity -> SizeType -> SizeType -> TBTM ()
 smallerOrEq pol (SizeTree s1 tree1) (SizeTree s2 tree2) = do
   p1 <- getSizePolarity s1
@@ -450,21 +422,19 @@ smallerOrEq pol t1 t2 = do
 
 -- | Retrieves sized type for a constant
 -- May return Nothing for primitive definition
-resolveConstant :: QName -> TBTM (Maybe ([SConstraint], SizeType))
+resolveConstant :: QName -> TBTM ([SConstraint], SizeType)
 resolveConstant nm = do
   currentName <- currentCheckedName
   constInfo <- getConstInfo nm
   sizedSig <- if currentName == nm
     then do
       let currentType = defType constInfo
-      liftTCM $ Just <$> encodeFunctionType currentType
+      liftTCM $ encodeFunctionType currentType
     else pure $ defSizedType constInfo
   let startingPolarity = case theDef constInfo of
         Function {} -> Covariant
         _ -> Invariant
-  case sizedSig of
-    Nothing -> pure Nothing
-    Just sig -> Just <$> freshenSignature startingPolarity sig
+  freshenSignature startingPolarity sizedSig
 
 -- | Record information about a recursive call from current function to q2
 --   Only the calls withing the same mutual block matter.

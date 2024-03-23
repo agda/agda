@@ -86,7 +86,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Info ( MetaKind(InstanceMeta, UnificationMeta), MetaNameSuggestion, MutualInfo )
 
-import Agda.Termination.TypeBased.Syntax ( SizeSignature )
+import Agda.Termination.TypeBased.Syntax ( SizeSignature(..), pattern UndefinedSizeType )
 
 import qualified Agda.TypeChecking.Monad.Base.Warning as W
 import           Agda.TypeChecking.Monad.Base.Warning (RecordFieldWarning)
@@ -2057,7 +2057,7 @@ data Definition = Defn
   { defArgInfo        :: ArgInfo -- ^ Hiding should not be used.
   , defName           :: QName   -- ^ The canonical name, used e.g. in compilation.
   , defType           :: Type    -- ^ Type of the lifted definition.
-  , defSizedType      :: Maybe SizeSignature -- ^ Size annotation for the type. Used in type-based termination checking.
+  , defSizedType      :: SizeSignature -- ^ Size annotation for the type. Used in type-based termination checking.
   , defPolarity       :: [Polarity]
     -- ^ Variance information on arguments of the definition.
     --   Does not include info for dropped parameters to
@@ -2162,7 +2162,7 @@ defaultDefn info x t lang def = Defn
   { defArgInfo        = info
   , defName           = x
   , defType           = t
-  , defSizedType      = Nothing
+  , defSizedType      = SizeSignature [] [] UndefinedSizeType
   , defPolarity       = []
   , defArgOccurrences = []
   , defArgGeneralizable = NoGeneralizableArgs

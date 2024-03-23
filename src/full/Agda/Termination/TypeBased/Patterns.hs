@@ -10,63 +10,35 @@
      Clusters are needed to represent the handling of non-recursive constructors, constructing size-change-termination matrices,
      and applying certain heuristic during the graph processing phase.
 -}
-module Agda.Termination.TypeBased.Patterns where
+module Agda.Termination.TypeBased.Patterns
+  ( matchPatterns
+  ) where
 
-import Agda.Syntax.Internal.Pattern
-import Agda.Termination.TypeBased.Syntax
-import Control.Monad.Trans.State
-import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Statistics
-import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Signature
-import Agda.Syntax.Common
-import qualified Data.Map as Map
-import Data.Map ( Map )
+import Control.Monad ( when, forM )
+import Control.Monad.Trans ( MonadTrans(lift) )
+import Control.Monad.Trans.State ( StateT(runStateT), gets, modify )
+import Data.Foldable (traverse_)
 import qualified Data.IntMap as IntMap
 import Data.IntMap ( IntMap )
-import qualified Data.IntSet as IntSet
-import Data.IntSet ( IntSet )
-import qualified Data.Set as Set
-import Data.Set ( Set )
 import qualified Data.List as List
-import Agda.Syntax.Abstract.Name
-import Control.Monad.IO.Class
-import Control.Monad.Trans
-import Agda.TypeChecking.Monad.Env
-import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Monad.Context
-import Agda.TypeChecking.Telescope
-import Agda.Termination.TypeBased.Common
-import Agda.TypeChecking.Substitute
-import Agda.Termination.TypeBased.Monad
-import Agda.TypeChecking.ProjectionLike
-import Agda.Utils.Impossible
-import Agda.Termination.TypeBased.Checking
-import Control.Monad
-import Agda.TypeChecking.Pretty
-import Debug.Trace
-import Agda.Utils.Monad
-import Agda.Termination.Common
-import Data.Maybe
-import Agda.Termination.TypeBased.Encoding
-import Agda.Termination.CallGraph
-import Agda.Termination.Monad
-import Agda.Termination.TypeBased.Graph
-import Data.Foldable (traverse_)
-import Agda.Utils.List ((!!!), initWithDefault)
-import Data.Functor ((<&>))
-import Agda.Termination.CallMatrix
-import qualified Agda.Termination.CallMatrix
-import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Edge(..))
-import Data.Either
-import Agda.Utils.Singleton
-import Agda.Termination.Order (Order)
-import qualified Agda.Termination.Order as Order
-import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern
-import Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.List.NonEmpty as NonEmpty
-import Agda.TypeChecking.Polarity.Base
+import Data.List.NonEmpty (NonEmpty (..))
+
+import Agda.Syntax.Abstract.Name ( QName )
+import Agda.Syntax.Common ( Named(Named, namedThing), Arg(Arg, unArg) )
+import Agda.Syntax.Internal ( QName, DeBruijnPattern, DBPatVar(dbPatVarIndex, dbPatVarName),  Pattern'(DefP, ProjP, VarP, ConP, DotP, LitP), NAPs, ConHead(conName) )
+import Agda.Termination.Monad ( isCoinductiveProjection )
+import Agda.Termination.TypeBased.Common ( applyDataType, getDatatypeParametersByConstructor, updateSizeVariables )
+import Agda.Termination.TypeBased.Syntax ( SizeSignature(SizeSignature), SizeBound(..), FreeGeneric(FreeGeneric), SizeType(..), Size(..), pattern UndefinedSizeType, sizeCodomain )
+import Agda.Termination.TypeBased.Monad ( getCurrentRigids, getRootArity, requestNewRigidVariable, appendCoreVariable, TBTM, recordError )
+import Agda.TypeChecking.Monad.Base ( Definition(defSizedType, defType, defCopy), MonadTCM(liftTCM) )
+import Agda.TypeChecking.Monad.Debug ( reportSDoc )
+import Agda.TypeChecking.Monad.Signature ( HasConstInfo(getConstInfo) )
+import Agda.TypeChecking.Pretty ( PrettyTCM(prettyTCM), pretty, nest, (<+>), vcat, text )
+import Agda.TypeChecking.Polarity.Base ( Polarity(Contravariant, Covariant) )
+import Agda.Utils.Impossible ( __IMPOSSIBLE__ )
+import Agda.Utils.List ((!!!), initWithDefault)
+import Agda.Utils.Singleton ( Singleton(singleton) )
 
 type PatternEncoder a = StateT PatternEnvironment TBTM a
 
@@ -143,44 +115,41 @@ matchLHS tele patterns = do
         -- Since it is a projection, the matched type must be a record, i.e. a size tree.
         let (_, (SizeTree principal recordArgs)) = sizeCodomain tele
         constInfo <- getConstInfo qn
-        let sizeType = defSizedType constInfo
+        let sig@(SizeSignature bounds contra tele) = defSizedType constInfo
 
-        case sizeType of
-          Nothing -> pure fallback
-          Just sig@(SizeSignature bounds contra tele) -> do
-            isForCoinduction <- do
-              coinductiveProjection <- isCoinductiveProjection True qn
-              when coinductiveProjection $ initializeCopatternProjection principal
-              pure coinductiveProjection
+        isForCoinduction <- do
+          coinductiveProjection <- isCoinductiveProjection True qn
+          when coinductiveProjection $ initializeCopatternProjection principal
+          pure coinductiveProjection
 
-            currentCoDepth <- gets peCoDepth
-            let newCoDepth = if isForCoinduction then (currentCoDepth + 1)                else currentCoDepth
-            newCodepthVar <- if isForCoinduction then (getOrRequestCoDepthVar newCoDepth) else pure (-1)
+        currentCoDepth <- gets peCoDepth
+        let newCoDepth = if isForCoinduction then (currentCoDepth + 1)                else currentCoDepth
+        newCodepthVar <- if isForCoinduction then (getOrRequestCoDepthVar newCoDepth) else pure (-1)
 
-            freshenedSignature <- freshenCopatternProjection newCodepthVar bounds tele
-            -- Additional argument is needed because we want to get rid of the principal argument in the signature
-            -- This is application that is intended to get rid of the basic record arguments
-            let appliedProjection = applyDataType ((map snd recordArgs) ++ [UndefinedSizeType]) freshenedSignature
-            -- TODO: handle copying here,
-            -- since apparently there can be copies in copatterns (!)
-            when (defCopy constInfo) $ lift $ recordError "Copy in a copattern projection"
-            reportSDoc "term.tbt" 20 $ vcat $
-              [ "Matching copattern projection:" <+> prettyTCM qn] ++ map (nest 2)
-              [ "coinductive: " <+> text (show isForCoinduction)
-              , "of core type: " <+> prettyTCM (defType constInfo)
-              , "of type: " <+> pretty appliedProjection
-              ]
-            reportSDoc "term.tbt" 60 $ vcat $ map (nest 2)
-              [ "of full sized type: " <+> pretty sizeType
-              , "of bounds: " <+> pretty bounds
-              , "with record arguments: " <+> pretty recordArgs
-              , "of freshened signature: " <+> pretty freshenedSignature
-              , "copy: " <+> pretty (defCopy constInfo)
-              , "new codepth: " <+> text (show newCoDepth)
-              ]
-            modify (\s -> s { peCoDepth = newCoDepth })
-            -- Attempt regular pattern matching again, because decomposed projection may have own parameters
-            matchLHS appliedProjection ps
+        freshenedSignature <- freshenCopatternProjection newCodepthVar bounds tele
+        -- Additional argument is needed because we want to get rid of the principal argument in the signature
+        -- This is application that is intended to get rid of the basic record arguments
+        let appliedProjection = applyDataType ((map snd recordArgs) ++ [UndefinedSizeType]) freshenedSignature
+        -- TODO: handle copying here,
+        -- since apparently there can be copies in copatterns (!)
+        when (defCopy constInfo) $ lift $ recordError "Copy in a copattern projection"
+        reportSDoc "term.tbt" 20 $ vcat $
+          [ "Matching copattern projection:" <+> prettyTCM qn] ++ map (nest 2)
+          [ "coinductive: " <+> text (show isForCoinduction)
+          , "of core type: " <+> prettyTCM (defType constInfo)
+          , "of type: " <+> pretty appliedProjection
+          ]
+        reportSDoc "term.tbt" 60 $ vcat $ map (nest 2)
+          [ "of full sized type: " <+> pretty sig
+          , "of bounds: " <+> pretty bounds
+          , "with record arguments: " <+> pretty recordArgs
+          , "of freshened signature: " <+> pretty freshenedSignature
+          , "copy: " <+> pretty (defCopy constInfo)
+          , "new codepth: " <+> text (show newCoDepth)
+          ]
+        modify (\s -> s { peCoDepth = newCoDepth })
+        -- Attempt regular pattern matching again, because decomposed projection may have own parameters
+        matchLHS appliedProjection ps
       _ ->
         -- Might be the case of large elimination
         pure fallback
@@ -223,10 +192,9 @@ matchSizePattern p@(ConP hd pi args) expected = do
   let sizeSig = defSizedType ci
   -- We still need to populate core variables for the completeness of the checking
   let defaultAction = traverse_ (\pat -> withDepth (-1) $ matchSizePattern (namedThing $ unArg pat) UndefinedSizeType) args
-  case (sizeSig, expected) of
-    (Nothing, _) -> defaultAction
-    (_, UndefinedSizeType) -> defaultAction
-    (Just sizeSig, SizeTree size ts) -> do
+  case (expected) of
+    UndefinedSizeType -> defaultAction
+    SizeTree size ts -> do
       rigids <- lift getCurrentRigids
       let cluster = case size of
             SDefined idx -> getCluster rigids idx
@@ -262,7 +230,7 @@ matchSizePattern p@(ConP hd pi args) expected = do
         (map (namedThing . unArg) args)
         refreshedConstructor
       pure ()
-    (_, _) -> lift $ recordError "Unsupported pattern matching"
+    _ -> lift $ recordError "Unsupported pattern matching"
 matchSizePattern (DotP pi _) _ = return ()
 matchSizePattern (LitP _ _) _ = pure ()
 matchSizePattern (DefP _ _ _) _ = __IMPOSSIBLE__ -- cubical agda is not supported
@@ -343,7 +311,7 @@ freshenPatternConstructor conName codomainDataVar domainDataVar expectedCodomain
     , "Datatype arguments:" <+> pretty datatypeParameters
     ]
   let augmentedBounds = newVars ++ (if null bounds then [] else [-1])
-  let instantiatedSig = update (\i -> augmentedBounds List.!! i) constructorType
+  let instantiatedSig = updateSizeVariables (\i -> augmentedBounds List.!! i) constructorType
   reportSDoc "term.tbt" 70 $ "Instantiated signature: " <+> pretty instantiatedSig
   numberOfArguments <- liftTCM $ getDatatypeParametersByConstructor conName
   reportSDoc "term.tbt" 70 $ "Number of arguments: " <+> text (show numberOfArguments)
@@ -355,7 +323,7 @@ freshenCopatternProjection newCoDepthVar bounds tele = do
   let isNewPatternSizeVar b = b == SizeUnbounded || newCoDepthVar == (-1)
   newVars <- forM bounds $ \bound -> if isNewPatternSizeVar bound then lift $ requestNewRigidVariable Contravariant SizeUnbounded else pure newCoDepthVar
   reportSDoc "term.tbt" 70 $ "Raw size type of copattern projection: " <+> pretty tele <+> "With new variabless:" <+> text (show newVars)
-  let instantiatedSig = update (newVars List.!!) tele
+  let instantiatedSig = updateSizeVariables (newVars List.!!) tele
   pure instantiatedSig
 
 -- This is a protection against postulated univalence.

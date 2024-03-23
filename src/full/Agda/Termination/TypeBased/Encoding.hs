@@ -9,32 +9,35 @@
     it is unlikely that type alias carries non-trivial computational content.
  -}
 {-# LANGUAGE NamedFieldPuns #-}
-module Agda.Termination.TypeBased.Encoding where
+module Agda.Termination.TypeBased.Encoding
+  ( encodeFieldType
+  , encodeFunctionType
+  , encodeBlackHole
+  , encodeConstructorType
+  ) where
 
-import Control.Monad.Trans.State (StateT, runStateT)
-import Agda.Syntax.Abstract.Name
-import Agda.Syntax.Internal
-import Agda.Syntax.Common
-import Agda.Termination.TypeBased.Syntax
-import Agda.Termination.TypeBased.Common
-import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Signature
-import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Reduce
-import qualified Data.Set as Set
-import Data.Set ( Set )
+import Control.Monad.State.Class ( gets, modify, MonadState )
 import Control.Monad ( when, foldM )
+import Control.Monad.Trans.State (StateT, runStateT)
+import Data.Either ( fromRight )
 import qualified Data.List as List
 import Data.Maybe ( fromJust )
-import Agda.Termination.TypeBased.Common ( applyDataType )
+import qualified Data.Set as Set
+import Data.Set ( Set )
+import qualified Data.IntSet as IntSet
 
-import Agda.Utils.Impossible
-import Control.Monad.State.Class
-import Data.Either
-import Control.Arrow ( left )
-import Agda.Termination.TypeBased.Preservation
+import Agda.Syntax.Abstract.Name ( QName )
+import Agda.Syntax.Common ( Induction(CoInductive), Arg(unArg) )
+import Agda.Syntax.Internal ( isApplyElim, Type, Type''(unEl), Abs(NoAbs, Abs, unAbs), Term(Var, Sort, MetaV, Lam, Pi, Def), Dom'(unDom) )
+import Agda.Termination.TypeBased.Common ( applyDataType, tryReduceCopy, fixGaps, computeDecomposition )
+import Agda.Termination.TypeBased.Syntax ( SizeSignature(SizeSignature), SizeBound(SizeUnbounded, SizeBounded), FreeGeneric(..), SizeType(..), Size(SUndefined, SDefined), pattern UndefinedSizeType, sizeCodomain )
+import Agda.TypeChecking.Monad.Base ( TCM, Definition(defCopy, defSizedType, theDef, defType), MonadTCM(liftTCM), pattern Record, recInduction, pattern Datatype, pattern Function, funTerminates, defIsDataOrRecord )
+import Agda.TypeChecking.Monad.Debug ( MonadDebug, reportSDoc )
+import Agda.TypeChecking.Monad.Signature ( HasConstInfo(getConstInfo) )
+import Agda.TypeChecking.Pretty ( PrettyTCM(prettyTCM), pretty, (<+>), vcat, text )
+import Agda.TypeChecking.Reduce ( instantiate, reduce )
+import Agda.TypeChecking.Substitute ( TelV(TelV), telView' )
+import Agda.Utils.Impossible ( __IMPOSSIBLE__ )
 
 -- | Converts internal type of function to a sized type
 encodeFunctionType :: Type -> TCM SizeSignature
@@ -124,7 +127,6 @@ typeToSizeType regVars genVars ctx pred t = case typeToSizeType' (unEl t) of
       , erNewChosenVariables = esChosenVariables finalEncoderState
       , erNewContravariantVariables = esContravariantVariables finalEncoderState
       }
-
 
 newtype MonadEncoder a = ME (StateT EncoderState TCM a)
   deriving (Functor, Applicative, Monad, MonadDebug, MonadState EncoderState)
@@ -233,29 +235,28 @@ increaseIndexing fg = fg { fgIndex = fgIndex fg + 1 }
 termToSizeType :: Term -> MonadEncoder SizeType
 termToSizeType t@(Def q elims) = do
   constInfo <- ME $ getConstInfo q
-  let sig = defSizedType constInfo
-  case sig of
-    Just (SizeSignature _ _ tele) | defIsDataOrRecord (theDef constInfo) -> do
-      reportSDoc "term.tbt" 80 $ "Converting to size tree: " <+> prettyTCM t <+> ", elims: " <+> (prettyTCM elims)
-      -- Datatypes have parameters, which also should be converted to size types.
-      dataArguments <- map (fromRight UndefinedSizeType) <$> traverse (freezeContext . typeToSizeType' . unArg . fromJust . isApplyElim) elims
+  let (SizeSignature _ _ tele) = defSizedType constInfo
+  if defIsDataOrRecord (theDef constInfo) then do
+    reportSDoc "term.tbt" 80 $ "Converting to size tree: " <+> prettyTCM t <+> ", elims: " <+> (prettyTCM elims)
+    -- Datatypes have parameters, which also should be converted to size types.
+    dataArguments <- map (fromRight UndefinedSizeType) <$> traverse (freezeContext . typeToSizeType' . unArg . fromJust . isApplyElim) elims
 
-      freshData <- refreshFirstOrder tele
-      reportSDoc "term.tbt" 80 $ vcat
-        [ "Applying elims to: " <+> pretty freshData
-        , "elims: " <+> pretty dataArguments
-        , "actual term: " <+> prettyTCM t
-        , "actual type: " <+> prettyTCM (defType constInfo)
-        , "copy: " <+> (text (show (defCopy constInfo)))
-        ]
-      let newTree = applyDataType dataArguments freshData
-      reportSDoc "term.tbt" 60 $ "Resulting tree: " <+> pretty newTree <+> "for" <+> prettyTCM t
-      predicate <- gets esPredicate
-      collectChosenVariables newTree
-      pure newTree
-    _ -> do
-      reportSDoc "term.tbt" 80 $ "Aborting conversion of " <+> prettyTCM q
-      return UndefinedSizeType -- arbitraty function applications in signatures are not supported on the current stage
+    freshData <- refreshFirstOrder tele
+    reportSDoc "term.tbt" 80 $ vcat
+      [ "Applying elims to: " <+> pretty freshData
+      , "elims: " <+> pretty dataArguments
+      , "actual term: " <+> prettyTCM t
+      , "actual type: " <+> prettyTCM (defType constInfo)
+      , "copy: " <+> (text (show (defCopy constInfo)))
+      ]
+    let newTree = applyDataType dataArguments freshData
+    reportSDoc "term.tbt" 60 $ "Resulting tree: " <+> pretty newTree <+> "for" <+> prettyTCM t
+    predicate <- gets esPredicate
+    collectChosenVariables newTree
+    pure newTree
+  else do
+    reportSDoc "term.tbt" 80 $ "Aborting conversion of " <+> prettyTCM q
+    return UndefinedSizeType -- arbitraty function applications in signatures are not supported on the current stage
   where
     collectChosenVariables :: SizeType -> MonadEncoder ()
     collectChosenVariables (SizeTree (SDefined i) _) = do
