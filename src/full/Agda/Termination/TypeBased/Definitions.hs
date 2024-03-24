@@ -38,7 +38,7 @@ import qualified Agda.Termination.Order as Order
 import Agda.Termination.Order (Order)
 import Agda.TypeChecking.Monad.Base ( TCM, Definition(defType, defPolarity, defCopy, theDef, defSizedType), MonadTCM(liftTCM), CallInfo(CallInfo), FunctionData(_funClauses),
       Defn(FunctionDefn), pattern Constructor, conData, pattern Record, recConHead, recInduction, pattern Datatype, dataCons, dataMutual, pattern Function, funProjection,
-      pattern Axiom, typeBasedTerminationOption, sizePreservationOption )
+      pattern Axiom, typeBasedTerminationEnabled, sizePreservationOption )
 import Agda.TypeChecking.Monad.Context ( AddContext(addContext) )
 import Agda.TypeChecking.Monad.Debug ( reportSDoc )
 import Agda.TypeChecking.Monad.Signature ( HasConstInfo(getConstInfo), addConstant, inConcreteOrAbstractMode, isProjection_ )
@@ -59,7 +59,7 @@ initSizeTypeEncoding mutuals =
     coinduction <- checkCoinductiveRecordPresence mutuals
     forM_ mutuals $ \nm -> inConcreteOrAbstractMode nm $ \def -> do
       -- Unless there is an explicit command, we will not do non-trivial encoding
-      encodeComplex <- typeBasedTerminationOption
+      encodeComplex <- typeBasedTerminationEnabled
       let dType = defType def
       sizedSignature <- case theDef def of
         Datatype { dataCons, dataMutual } -> do
