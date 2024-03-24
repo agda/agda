@@ -101,7 +101,7 @@ We shall illustrate this on a classic example of a coinductive type, the ``Strea
       coinductive
       field
         head : A
-        tail : Stream
+        tail : Stream A
 
     open Stream
 
