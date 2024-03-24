@@ -4935,6 +4935,15 @@ sizedTypesOption :: HasOptions m => m Bool
 sizedTypesOption = optSizedTypes <$> pragmaOptions
 {-# INLINE sizedTypesOption #-}
 
+-- | Type-based termination is enabled if:
+-- 1. `--type-based-termination` is supplied, or
+-- 2. `--size-preservation` or `--no-size-preservation` are explicitly set.
+typeBasedTerminationEnabled :: HasOptions m => m Bool
+typeBasedTerminationEnabled = orM
+  [ typeBasedTerminationOption
+  , sizePreservationExplicitlySet <$> pragmaOptions
+  ]
+
 typeBasedTerminationOption :: HasOptions m => m Bool
 typeBasedTerminationOption = optTypeBasedTermination <$> pragmaOptions
 {-# INLINE typeBasedTerminationOption #-}

@@ -40,6 +40,7 @@ module Agda.Interaction.Options.Base
     , inputFlag
     , standardOptions, deadStandardOptions
     , getOptSimple
+    , sizePreservationExplicitlySet
     -- * Lenses for 'PragmaOptions'
     , lensOptShowImplicit
     , lensOptShowIrrelevant
@@ -717,6 +718,11 @@ lensOptTypeBasedTermination f o = f (_optTypeBasedTermination o) <&> \ i -> o{ _
 
 lensOptSizePreservation :: Lens' PragmaOptions _
 lensOptSizePreservation f o = f (_optSizePreservation o) <&> \ i -> o{ _optSizePreservation = i }
+
+sizePreservationExplicitlySet :: PragmaOptions -> Bool
+sizePreservationExplicitlySet opts = case _optSizePreservation opts of
+  Default -> False
+  _ -> True
 
 lensOptSyntaxBasedTermination :: Lens' PragmaOptions _
 lensOptSyntaxBasedTermination f o = f (_optSyntaxBasedTermination o) <&> \ i -> o{ _optSyntaxBasedTermination = i }
@@ -1494,6 +1500,10 @@ terminationDepthFlag s o =
        return $ o { _optTerminationDepth = CutOff $ k-1 }
     where usage = throwError "argument to termination-depth should be >= 1"
 
+sizePreservationFlag :: Flag PragmaOptions
+sizePreservationFlag o = undefined
+  -- k <-
+
 confluenceCheckFlag :: ConfluenceCheck -> Flag PragmaOptions
 confluenceCheckFlag f o = return $ o { _optConfluenceCheck = Just f }
 
@@ -1731,11 +1741,11 @@ pragmaOptions = concat
                     "enable sized types" "(inconsistent with --guardedness)"
                     $ Just "disable sized types"
   , pragmaFlag      "type-based-termination" lensOptTypeBasedTermination
-                    "enable type-based termination checker" "(ignored if used together with --guardedness, --sized-types)"
+                    "enable type-based termination checker" "(implies --size-preservation)"
                     $ Just "disable type-based termination checker"
   , pragmaFlag      "size-preservation" lensOptSizePreservation
-                    "enable size preservation inference during type-based termination checking" "(has effect only if --type-based-termination is enabled)"
-                    $ Just "disable size preservation inference during type-based termination checking"
+                    "enable size preservation inference during type-based termination checking" "(implies --type-based-termination)"
+                    $ Just "disable size preservation inference during type-based termination checking. Also implies --type-based-termination"
   , pragmaFlag      "syntax-based-termination" lensOptSyntaxBasedTermination
                     "enable syntax-based termination checker" "(required for --guardedness, --sized-types)"
                     $ Just "disable syntax-based termination checker"

@@ -208,7 +208,7 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
 
       -- We still need to run type-based termination checker for non-recursive functions,
       -- because we need to compute possible size-preservation.
-      liftTCM $ whenM typeBasedTerminationOption $ collectTerminationData allNames >> pure ()
+      liftTCM $ whenM typeBasedTerminationEnabled $ collectTerminationData allNames >> pure ()
 
     -- Actual termination checking needed: go through SCCs.
     concat <$> do
@@ -226,7 +226,7 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
              " with cutoff=" ++ show cutoff ++ "..."
            terLocal setNames cont
 
-     errors <- ifM typeBasedTerminationOption
+     errors <- ifM typeBasedTerminationEnabled
        {- then -}
        (Just <$> runTerm (do
         allNames <- terGetMutual
@@ -323,7 +323,7 @@ runConditionalTerminationChecker :: HasOptions m => m Bool -> CallPath -> m (Eit
 runConditionalTerminationChecker opt fallback action = ifM opt action (pure $ Left fallback)
 
 runTypeBasedTerminationChecking :: MutualNames -> TerM (Either CallPath ())
-runTypeBasedTerminationChecking allNames = runConditionalTerminationChecker typeBasedTerminationOption mempty $
+runTypeBasedTerminationChecking allNames = runConditionalTerminationChecker typeBasedTerminationEnabled mempty $
   billTo [Benchmark.TypeBasedTermination] $ do
   calls0 <- liftTCM $ collectTerminationData allNames
   cutoff <- terGetCutOff
