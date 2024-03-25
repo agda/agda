@@ -921,7 +921,9 @@ writeInterface file i = let fp = filePath file in do
     -- [Old: Andreas, 2016-02-02 this causes issue #1804, so don't do it:]
     -- Andreas, 2020-05-13, #1804, #4647: removed private declarations
     -- only when we actually write the interface.
-    let filteredIface = i { iInsideScope  = withoutPrivates $ iInsideScope i }
+    let
+      filteredIface = i { iInsideScope = withoutPrivates $ iInsideScope i }
+    filteredIface <- pruneTemporaryInstances filteredIface
     reportSLn "import.iface.write" 50 $
       "Writing interface file with hash " ++ show (iFullHash filteredIface) ++ "."
     encodedIface <- encodeFile fp filteredIface
@@ -1057,10 +1059,6 @@ createInterface mname file isMain msrc = do
     --   throwError e
 
     unfreezeMetas
-
-    -- Remove any instances that now have visible arguments from the
-    -- instance tree before serialising.
-    pruneTemporaryInstances
 
     -- Profiling: Count number of metas.
     whenProfile Profile.Metas $ do
