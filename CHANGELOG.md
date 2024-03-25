@@ -113,7 +113,7 @@ Additions to the Agda syntax.
   Type-based termination checking also works for coinduction, which improves the guardedness predicate.
 
   ```agda
-  -- This function is size-preserving in its output
+  -- This function is size-preserving
   map : {A B : Set} → (A → B) → Stream A → Stream B
   map f s .hd = f (s .hd)
   map f s .tl = map f (s .tl)
