@@ -7,6 +7,7 @@ import qualified Control.Monad.Fail as Fail
 
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Polarity.Base
 import Agda.TypeChecking.Warnings
 
 type MonadConversion m =

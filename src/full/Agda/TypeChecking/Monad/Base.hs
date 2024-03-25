@@ -86,12 +86,15 @@ import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Info ( MetaKind(InstanceMeta, UnificationMeta), MetaNameSuggestion, MutualInfo )
 
+import Agda.Termination.TypeBased.Syntax ( SizeSignature(..), pattern UndefinedSizeType )
+
 import qualified Agda.TypeChecking.Monad.Base.Warning as W
 import           Agda.TypeChecking.Monad.Base.Warning (RecordFieldWarning)
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Positivity.Occurrence
+import Agda.TypeChecking.Polarity.Base
 import Agda.TypeChecking.Free.Lazy (Free(freeVars'), underBinder', underBinder)
 
 import Agda.TypeChecking.DiscrimTree.Types
@@ -2041,6 +2044,7 @@ data Definition = Defn
   { defArgInfo        :: ArgInfo -- ^ Hiding should not be used.
   , defName           :: QName   -- ^ The canonical name, used e.g. in compilation.
   , defType           :: Type    -- ^ Type of the lifted definition.
+  , defSizedType      :: SizeSignature -- ^ Size annotation for the type. Used in type-based termination checking.
   , defPolarity       :: [Polarity]
     -- ^ Variance information on arguments of the definition.
     --   Does not include info for dropped parameters to
@@ -2145,6 +2149,7 @@ defaultDefn info x t lang def = Defn
   { defArgInfo        = info
   , defName           = x
   , defType           = t
+  , defSizedType      = SizeSignature [] UndefinedSizeType
   , defPolarity       = []
   , defArgOccurrences = []
   , defArgGeneralizable = NoGeneralizableArgs
@@ -2162,21 +2167,6 @@ defaultDefn info x t lang def = Defn
   , defLanguage       = lang
   , theDef            = def
   }
-
--- | Polarity for equality and subtype checking.
-data Polarity
-  = Covariant      -- ^ monotone
-  | Contravariant  -- ^ antitone
-  | Invariant      -- ^ no information (mixed variance)
-  | Nonvariant     -- ^ constant
-  deriving (Show, Eq, Generic)
-
-instance Pretty Polarity where
-  pretty = text . \case
-    Covariant     -> "+"
-    Contravariant -> "-"
-    Invariant     -> "*"
-    Nonvariant    -> "_"
 
 -- | Information about whether an argument is forced by the type of a function.
 data IsForced
@@ -4901,6 +4891,27 @@ sizedTypesOption :: HasOptions m => m Bool
 sizedTypesOption = optSizedTypes <$> pragmaOptions
 {-# INLINE sizedTypesOption #-}
 
+-- | Type-based termination is enabled if:
+-- 1. `--type-based-termination` is supplied, or
+-- 2. `--size-preservation` or `--no-size-preservation` are explicitly set.
+typeBasedTerminationEnabled :: HasOptions m => m Bool
+typeBasedTerminationEnabled = orM
+  [ typeBasedTerminationOption
+  , sizePreservationExplicitlySet <$> pragmaOptions
+  ]
+
+typeBasedTerminationOption :: HasOptions m => m Bool
+typeBasedTerminationOption = optTypeBasedTermination <$> pragmaOptions
+{-# INLINE typeBasedTerminationOption #-}
+
+sizePreservationOption :: HasOptions m => m Bool
+sizePreservationOption = optSizePreservation <$> pragmaOptions
+{-# INLINE sizePreservationOption #-}
+
+syntaxBasedTerminationOption :: HasOptions m => m Bool
+syntaxBasedTerminationOption = optSyntaxBasedTermination <$> pragmaOptions
+{-# INLINE syntaxBasedTerminationOption #-}
+
 guardednessOption :: HasOptions m => m Bool
 guardednessOption = optGuardedness <$> pragmaOptions
 {-# INLINE guardednessOption #-}
@@ -5702,8 +5713,8 @@ instance KillRange Section where
   killRange (Section tel) = killRangeN Section tel
 
 instance KillRange Definition where
-  killRange (Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk lang def) =
-    killRangeN Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk lang def
+  killRange (Defn ai name t st pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk lang def) =
+    killRangeN Defn ai name t st pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk lang def
     -- TODO clarify: Keep the range in the defName field?
 
 instance KillRange NumGeneralizableArgs where
@@ -5799,9 +5810,6 @@ instance KillRange a => KillRange (Open a) where
 instance KillRange DisplayForm where
   killRange (Display n es dt) = killRangeN Display n es dt
 
-instance KillRange Polarity where
-  killRange = id
-
 instance KillRange IsForced where
   killRange = id
 
@@ -5892,7 +5900,6 @@ instance NFData NLPType
 instance NFData NLPSort
 instance NFData RewriteRule
 instance NFData Definition
-instance NFData Polarity
 instance NFData IsForced
 instance NFData Projection
 instance NFData ProjLams
