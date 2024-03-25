@@ -722,7 +722,10 @@ command is sent to Agda (if it is sent)."
 (defun agda2-exec-response (response)
   "Execute RESPONSE with `inhibit-read-only' enabled."
   (let ((inhibit-read-only t))
-    (eval response)))
+    (condition-case err
+        (with-local-quit
+          (eval response))
+      (error (warn "Error while evaluating %S: %S" response err)))))
 
 ;;;; User commands and response processing
 
