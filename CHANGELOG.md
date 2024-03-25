@@ -123,6 +123,7 @@ Additions to the Agda syntax.
   -- the corecursive call is not guarded by constructors here,
   -- so the syntactic guardedness check fails
   increaseByIndex s .tl = map (_+_ 1) (increaseByIndex (s .tl))
+  ```
 
   See [user manual](https://agda.readthedocs.io/en/v2.7.0/tools/type-based-termination-checking.html)
   for more.
