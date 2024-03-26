@@ -459,7 +459,7 @@ agda2-include-dirs is not bound." :warning))
 The error message directs the user to the *agda2* buffer."
   (error "Problem encountered, the *agda2* buffer can perhaps explain why"))
 
-(defun agda2-running-p nil
+(defun agda2-running-p ()
   "Does the *agda2* buffer exist, and is the Agda2 process running?"
   (and (buffer-live-p agda2-process-buffer)
        (eq (agda2-process-status) 'run)))
@@ -665,7 +665,7 @@ reloaded from `agda2-highlighting-file', unless
       (setq agda2-highlight-in-progress nil))))
 
 
-(defun agda2-abort-highlighting nil
+(defun agda2-abort-highlighting ()
   "Abort any interactive highlighting.
 This function should be used in `first-change-hook'."
   (when agda2-highlight-in-progress
@@ -875,7 +875,7 @@ major mode)."
   "Define a function BUFFER that will create a KIND of buffer.
 TITLE will be used for the title of the buffer if it doesn't
 already exists."
-  `(defun ,buffer nil
+  `(defun ,buffer ()
      ,(concat "Creates the Agda " kind
               " buffer, if it does not already exist.
 The buffer is returned.")
@@ -1739,7 +1739,7 @@ a file is loaded."
 
 ;;;; Comments and paragraphs
 
-(defun agda2-comments-and-paragraphs-setup nil
+(defun agda2-comments-and-paragraphs-setup ()
   "Set up comment and paragraph handling for the Agda mode."
 
   ;; Empty lines (all white space according to Emacs) delimit
@@ -1781,7 +1781,7 @@ From the beginning of the current line to the end of the buffer."
           (comment-dwim nil))
       (pop-mark))))
 
-(defun agda2-highlight-tokens nil
+(defun agda2-highlight-tokens ()
   "Compute token-based highlighting information.
 
 Unless the user option `agda2-highlight-level' is `none' or the
@@ -1814,7 +1814,7 @@ EV is the event object describing the click."
     ;; (call-interactively (key-binding ev))?  --Stef
     (mouse-yank-primary ev)))
 
-(defun agda2-go-back nil
+(defun agda2-go-back ()
   "Return to the previous position before a jump.
 This `agda2-goto-definition-keyboard' or `agda2-goto-definition-mouse' was
 invoked."
