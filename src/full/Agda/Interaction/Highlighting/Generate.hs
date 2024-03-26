@@ -421,7 +421,7 @@ warningHighlighting' b w = case tcWarning w of
   UnsolvedConstraints cs     -> if b then constraintsHighlighting [] cs else mempty
   UnsolvedMetaVariables rs   -> if b then metasHighlighting rs          else mempty
   AbsurdPatternRequiresNoRHS{} -> deadcodeHighlighting w
-  ModuleDoesntExport{}         -> deadcodeHighlighting w
+  ModuleDoesntExport _ _ _ xs  -> foldMap deadcodeHighlighting xs
   DuplicateUsing xs            -> foldMap deadcodeHighlighting xs
   FixityInRenamingModule rs    -> foldMap deadcodeHighlighting rs
   -- expanded catch-all case to get a warning for new constructors
