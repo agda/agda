@@ -105,11 +105,14 @@ data Phase
     -- ^ Subphase for 'InstanceSearch': checking candidates for validity
   | OrderCandidates
     -- ^ Subphase for 'InstanceSearch': ordering candidates for specificity
+  | CheckOverlap
+    -- ^ Subphase for 'InstanceSearch': reducing overlapping instances
   | UnifyIndices
     -- ^ Subphase for 'CheckLHS': unification of the indices
   | InverseScopeLookup
     -- ^ Pretty printing names.
   | TopModule TopLevelModuleName
+  | Typeclass QName
   | Definition QName
   deriving (Eq, Ord, Show, Generic)
 

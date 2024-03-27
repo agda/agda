@@ -620,6 +620,9 @@ data Pragma
     -- ^ Applies to the following data/record type.
   | NotProjectionLikePragma   Range QName
     -- ^ Applies to the stated function
+  | OverlapPragma             Range [QName] OverlapMode
+    -- ^ Applies to the given name(s), which must be instance names
+    -- (checked by the type checker).
   deriving Eq
 
 ---------------------------------------------------------------------------
@@ -1025,6 +1028,7 @@ instance HasRange Pragma where
   getRange (PolarityPragma r _ _)            = r
   getRange (NoUniverseCheckPragma r)         = r
   getRange (NotProjectionLikePragma r _)     = r
+  getRange (OverlapPragma r _ _)             = r
 
 instance HasRange AsName where
   getRange a = getRange (asRange a, asName a)
@@ -1238,6 +1242,7 @@ instance KillRange Pragma where
   killRange (PolarityPragma _ q occs)         = killRangeN (\q -> PolarityPragma noRange q occs) q
   killRange (NoUniverseCheckPragma _)         = NoUniverseCheckPragma noRange
   killRange (NotProjectionLikePragma _ q)     = NotProjectionLikePragma noRange q
+  killRange (OverlapPragma _ q i)             = OverlapPragma noRange q i
 
 instance KillRange RHS where
   killRange AbsurdRHS = AbsurdRHS
@@ -1387,6 +1392,7 @@ instance NFData Pragma where
   rnf (PolarityPragma _ a b)            = rnf a `seq` rnf b
   rnf (NoUniverseCheckPragma _)         = ()
   rnf (NotProjectionLikePragma _ q)     = rnf q
+  rnf (OverlapPragma _ q i)             = rnf q `seq` rnf i
 
 -- | Ranges are not forced.
 

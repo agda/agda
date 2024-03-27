@@ -109,6 +109,7 @@ import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 import Agda.ImpossibleTest (impossibleTest, impossibleTestReduceM)
+import qualified Agda.Syntax.Common as A
 
 {--------------------------------------------------------------------------
     Exceptions
@@ -2476,6 +2477,32 @@ instance ToAbstract C.Pragma where
             "NOT_PROJECTION_LIKE used on ambiguous name " ++ prettyShow x
           _        -> genericError $ "Target of NOT_PROJECTION_LIKE pragma should be a function"
       return [ A.NotProjectionLikePragma y ]
+  toAbstract (C.OverlapPragma _ xs i) = do
+    let
+      name = case i of
+        Overlappable -> "OVERLAPPABLE"
+        Overlapping  -> "OVERLAPPING"
+        Overlaps     -> "OVERLAPS"
+        Incoherent   -> "INCOHERENT"
+
+        -- Never written by the user:
+        DefaultOverlap -> __IMPOSSIBLE__
+        FieldOverlap   -> __IMPOSSIBLE__
+
+      single x = do
+        e <- toAbstract $ OldQName x Nothing
+        flip A.OverlapPragma i <$> case e of
+          A.Def  x -> return x
+          A.Con c | Just x <- getUnambiguous c -> return x
+          A.Con x -> genericError $
+            name <> " used on ambiguous name " ++ prettyShow x
+          A.Proj _ p | Just x <- getUnambiguous p -> return x
+          A.Proj _ x -> genericError $
+            name <> " used on ambiguous name " ++ prettyShow x
+          _        -> genericError $ "Target of " <> name <> " pragma should be a function, constructor, or projection"
+
+    traverse single xs
+
   toAbstract (C.BuiltinPragma _ rb qx)
     | Just b' <- b, isUntypedBuiltin b' = do
         q <- toAbstract $ ResolveQName qx
@@ -2721,6 +2748,7 @@ checkNoTerminationPragma b ds =
       C.PolarityPragma _ _ _        -> []
       C.NoUniverseCheckPragma _     -> []
       C.NotProjectionLikePragma _ _ -> []
+      C.OverlapPragma _ _ _         -> []
 
 data RightHandSide = RightHandSide
   { _rhsRewriteEqn :: [RewriteEqn' () A.BindName A.Pattern A.Expr]

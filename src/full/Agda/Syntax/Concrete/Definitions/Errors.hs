@@ -280,6 +280,7 @@ unsafePragma p =
         NoTerminationCheck     -> empty
     WarningOnImport{}          -> empty
     WarningOnUsage{}           -> empty
+    OverlapPragma{}            -> empty
   where
     r = getRange p
 

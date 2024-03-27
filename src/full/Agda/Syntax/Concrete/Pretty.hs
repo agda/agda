@@ -449,8 +449,8 @@ instance Pretty Declaration where
         mkInst (InstanceDef _) d = sep [ "instance", nest 2 d ]
         mkInst NotInstanceDef  d = d
 
-        mkOverlap i d | isOverlappable i = "overlap" <+> d
-                      | otherwise        = d
+        mkOverlap i d | isYesOverlap i = "overlap" <+> d
+                      | otherwise      = d
     Field _ fs ->
       sep [ "field"
           , nest 2 $ vcat (map pretty fs)
@@ -659,6 +659,7 @@ instance Pretty Pragma where
     pretty (PolarityPragma _ q occs) =
       hsep ("POLARITY" : pretty q : map pretty occs)
     pretty (NoUniverseCheckPragma _) = "NO_UNIVERSE_CHECK"
+    pretty (OverlapPragma _ x m) = hsep [pretty m, pretty x]
 
 instance Pretty Associativity where
   pretty = \case

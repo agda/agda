@@ -719,8 +719,8 @@ niceDeclarations fixs ds = do
         instanceBlock r =<< niceAxioms InstanceBlock decls
       Private r o decls | PostulateBlock <- b -> do
         privateBlock r o =<< niceAxioms b decls
-      Pragma p@(RewritePragma r _ _) -> do
-        return [ NicePragma r p ]
+      Pragma p@(RewritePragma r _ _) -> return [ NicePragma r p ]
+      Pragma p@(OverlapPragma r _ _) -> return [ NicePragma r p ]
       d -> declarationException $ WrongContentBlock b $ getRange d
 
     toPrim :: NiceDeclaration -> NiceDeclaration
@@ -1122,6 +1122,8 @@ niceDeclarations fixs ds = do
               StaticPragma{}            -> bottom
               InlinePragma{}            -> bottom
               NotProjectionLikePragma{} -> bottom
+
+              OverlapPragma{}           -> top
 
               ImpossiblePragma{}        -> top     -- error thrown in scope checker
               EtaPragma{}               -> bottom  -- needs record definition

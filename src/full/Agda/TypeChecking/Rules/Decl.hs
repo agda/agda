@@ -791,6 +791,21 @@ checkPragma r p =
             _ -> typeError $ GenericError $ applyUnless b ("NO" ++) "INLINE directive only works on functions or constructors of records that allow copattern matching"
         A.OptionsPragma{} -> typeError $ GenericError $ "OPTIONS pragma only allowed at beginning of file, before top module declaration"
         A.DisplayPragma f ps e -> checkDisplayPragma f ps e
+        A.OverlapPragma q new -> do
+          def <- getConstInfo q
+
+          unlessM ((q `isInModule`) <$> currentModule) $
+            typeError . GenericDocError =<< fsep (
+              pwords "This" ++ [pretty new] ++
+              pwords "pragma must appear in the same module as the definition of" ++
+              [prettyTCM q])
+
+          case defInstance def of
+            Just i@InstanceInfo{ instanceOverlap = DefaultOverlap } ->
+              modifyGlobalDefinition q \x -> x { defInstance = Just i{ instanceOverlap = new } }
+            Just InstanceInfo{ instanceOverlap = old } -> typeError $ DuplicateOverlapPragma q old new
+            Nothing -> typeError . GenericDocError =<< pretty new <+> "pragma can only be applied to instances"
+
         A.EtaPragma r -> do
           let noRecord = typeError $ GenericError $
                 "ETA pragma is only applicable to coinductive records"

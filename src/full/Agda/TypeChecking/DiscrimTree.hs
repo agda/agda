@@ -2,7 +2,7 @@
 -- syntax.
 module Agda.TypeChecking.DiscrimTree
   ( insertDT
-  , lookupDT
+  , lookupDT, lookupUnifyDT, QueryResult(..)
   , deleteFromDT
   )
   where
@@ -43,23 +43,19 @@ etaExpansionDummy = Dummy "eta-record argument in instance head" []
 -- called while *adding* an instance, additionally replace any arguments
 -- that might belong to an eta-record by dummy terms.
 termKeyElims
-  :: Bool     -- ^ Are we adding or looking up an instance?
-  -> TCM Type -- ^ Continuation to compute the type of the arguments in the spine.
-  -> Elims    -- ^ The spine.
-  -> MaybeT TCM (Int, [Term])
+  :: Bool      -- ^ Are we adding or looking up an instance?
+  -> TCM Type  -- ^ Continuation to compute the type of the arguments in the spine.
+  -> [Arg Term] -- ^ The spine.
+  -> TCM (Int, [Term])
 
 -- Since the case tree was generated with wildcards everywhere an eta
 -- record appeared, if we're *looking up* an instance, we don't have to
 -- do the censorship again.
-termKeyElims False _ elims = do
-  es <- MaybeT $ pure (allApplyElims elims)
-  pure (length es, map unArg es)
+termKeyElims False _ es = pure (length es, map unArg es)
 
-termKeyElims precise ty elims = do
-  args <- MaybeT $ pure (allApplyElims elims)
-
+termKeyElims precise ty args = do
   let
-    go ty (Arg _ a:as) = flip (ifPiTypeB ty) (const mzero) \dom ty' -> do
+    go ty (Arg _ a:as) = flip (ifPiTypeB ty) (patternViolation . getBlocker) \dom ty' -> do
 
       -- Is this argument an eta record type --- or a blocked value? In
       -- either case, we replace this position by a dummy, to make sure
@@ -77,8 +73,7 @@ termKeyElims precise ty elims = do
 
     go _ [] = pure (0, [])
 
-  ty <- lift ty
-  go ty args
+  ty >>= flip go args
 
 -- | Ticky profiling for the reason behind "inexactness" in instance
 -- search. If at some point while narrowing the set of candidates we had
@@ -115,31 +110,38 @@ tickExplore tm = whenProfile Profile.Instances do
 -- considered a 'LocalK'.
 --
 -- Presently, non-head-normal terms end up with an empty argument list.
-splitTermKey :: Bool -> Int -> Term -> TCM (Key, [Term])
-splitTermKey precise local tm = fmap (fromMaybe (FlexK, [])) . runMaybeT $ do
-  (b, tm') <- ifBlocked tm (\_ _ -> mzero) (\b -> fmap (b,) . constructorForm)
+splitTermKey :: Bool -> Int -> Term -> TCM (Key, [Term], Blocker)
+splitTermKey precise local tm = catchPatternErr (\b -> pure (FlexK, [], b)) do
+  (b, tm') <- ifBlocked tm (\b _ -> patternViolation b) (\b -> fmap (b,) . constructorForm)
 
   case tm' of
-    Def q as | ReallyNotBlocked <- b -> do
+    Def q as | ReallyNotBlocked <- b, (as, _) <- splitApplyElims as -> do
       let ty = defType <$> getConstInfo q
       (arity, as) <- termKeyElims precise ty as
-      pure (RigidK q arity, as)
+      pure (RigidK q arity, as, neverUnblock)
 
     -- When adding a quantified instance, we record how many 'Pi's we went
     -- under, and only variables beyond those are considered LocalK. The
     -- others are considered FlexK since they're "pattern variables" of
     -- the instance.
-    Var i as | i >= local -> do
+    Var i as | i >= local, Just as <- allApplyElims as -> do
       let ty = unDom <$> domOfBV i
       (arity, as) <- termKeyElims precise ty as
-      pure (LocalK (i - local) arity, as)
+      pure (LocalK (i - local) arity, as, neverUnblock)
 
-    Con ch _ as -> do
+    -- When looking up an instance, it's better to treat variables and
+    -- neutral definitions as rigid things regardless of their spines
+    -- (especially if they have projections), than it is to try to
+    -- represent them accurately.
+    Def q as | not precise             -> pure (RigidK q 0, [], neverUnblock)
+    Var i as | not precise, i >= local -> pure (LocalK (i - local) 0, [], neverUnblock)
+
+    Con ch _ as | Just as <- allApplyElims as -> do
       let
         q  = conName ch
         ty = defType <$> getConstInfo q
       (arity, as) <- termKeyElims precise ty as
-      pure (RigidK q arity, as)
+      pure (RigidK q arity, as, neverUnblock)
 
     Pi dom ret ->
       let
@@ -149,31 +151,34 @@ splitTermKey precise local tm = fmap (fromMaybe (FlexK, [])) . runMaybeT $ do
         ret' = case isNoAbs (unEl <$> ret) of
           Just b  -> b
           Nothing -> __DUMMY_TERM__
-      in pure (PiK, [unEl (unDom dom), ret'])
+      in pure (PiK, [unEl (unDom dom), ret'], neverUnblock)
 
     Lam _ body
       -- Constant lambdas come up quite a bit, particularly (in cubical
       -- mode) as the domain of a PathP. Having this trick improves the
       -- indexing of 'Dec' instances in the 1Lab significantly.
-      | Just b <- isNoAbs body -> pure (ConstK, [b])
+      | Just b <- isNoAbs body -> pure (ConstK, [b], neverUnblock)
 
     -- Probably not a good idea for accurate indexing if universes
     -- overlap literally everything else.
-    Sort _ -> pure (SortK, [])
+    Sort _ -> pure (SortK, [], neverUnblock)
 
     _ -> do
       reportSDoc "tc.instance.split" 30 $ pretty tm
-      pure (FlexK, [])
+      pure (FlexK, [], neverUnblock)
 
-termPath :: Int -> [Key] -> [Term] -> TCM [Key]
-termPath local acc []        = pure $! reverse acc
-termPath local acc (tm:todo) = do
-  (k, as) <- splitTermKey True local tm
+termPath :: Bool -> Int -> [Key] -> [Term] -> TCM [Key]
+termPath toplevel local acc []        = pure $! reverse acc
+termPath toplevel local acc (tm:todo) = do
+  (k, as, _) <- if toplevel
+    then ignoreAbstractMode (splitTermKey True local tm)
+    else splitTermKey True local tm
+
   reportSDoc "tc.instance.discrim.add" 666 $ vcat
     [ "k:  " <+> prettyTCM k
     , "as: " <+> prettyTCM as
     ]
-  termPath local (k:acc) (as <> todo)
+  termPath False local (k:acc) (as <> todo)
 
 -- | Insert a value into the discrimination tree, turning variables into
 -- rigid locals or wildcards depending on the given scope.
@@ -184,8 +189,8 @@ insertDT
   -> a
   -> DiscrimTree a
   -> TCM (DiscrimTree a)
-insertDT local key val tree = ignoreAbstractMode do
-  path <- termPath local [] [key]
+insertDT local key val tree = do
+  path <- termPath True local [] [key]
   let it = singletonDT path val
   reportSDoc "tc.instance.discrim.add" 20 $ vcat
     [ "added value" <+> prettyTCM val <+> "to discrimination tree with case"
@@ -208,13 +213,54 @@ keyArity = \case
   SortK      -> 0
   FlexK      -> 0
 
--- | Look up a 'Term' in the given discrimination tree. The returned set
--- is guaranteed to contain everything that could overlap the given key.
-lookupDT :: forall a. (Ord a, PrettyTCM a) => Term -> DiscrimTree a -> TCM (Set.Set a)
-lookupDT term tree = ignoreAbstractMode (match [term] tree) where
+data QueryResult a = QueryResult
+  { resultValues  :: Set.Set a
+  , resultBlocker :: Blocker
+  }
+
+instance Ord a => Semigroup (QueryResult a) where
+  QueryResult s b <> QueryResult s' b' = QueryResult (s <> s') (b `unblockOnEither` b')
+
+instance Ord a => Monoid (QueryResult a) where
+  mempty = QueryResult mempty neverUnblock
+
+setResult :: Set.Set a -> QueryResult a
+setResult = flip QueryResult neverUnblock
+
+blockerResult :: Blocker -> QueryResult a
+blockerResult = QueryResult Set.empty
+
+-- | Look up a 'Term' in the given discrimination tree, treating local
+-- variables as rigid symbols. The returned set is guaranteed to contain
+-- everything that could overlap the given key.
+lookupDT :: forall a. (Ord a, PrettyTCM a) => Term -> DiscrimTree a -> TCM (QueryResult a)
+lookupDT = lookupDT' True
+
+-- | Look up a 'Term' in the given discrimination tree, treating local
+-- variables as wildcards.
+lookupUnifyDT :: forall a. (Ord a, PrettyTCM a) => Term -> DiscrimTree a -> TCM (QueryResult a)
+lookupUnifyDT = lookupDT' False
+
+lookupDT'
+  :: forall a. (Ord a, PrettyTCM a)
+  => Bool -- ^ Should local variables be treated as rigid?
+  -> Term -- ^ The term to use as key
+  -> DiscrimTree a
+  -> TCM (QueryResult a)
+lookupDT' localsRigid term tree = match True [term] tree where
+
+  split :: Term -> TCM (Key, [Term], Blocker)
+  split tm | localsRigid = splitTermKey False 0 tm
+  split tm = do
+    ctx <- getContextSize
+    splitTermKey False ctx tm
+
+  ignoreAbstractMaybe :: forall a. Bool -> TCM a -> TCM a
+  ignoreAbstractMaybe True  = ignoreAbstractMode
+  ignoreAbstractMaybe False = id
 
   -- Match a spine against *all* clauses.
-  explore :: [Term] -> [Term] -> [Term] -> [(Key, DiscrimTree a)] -> TCM (Set.Set a)
+  explore :: [Term] -> [Term] -> [Term] -> [(Key, DiscrimTree a)] -> TCM (QueryResult a)
   explore sp0 sp1 args bs = do
     let
       cont (key, trie) res = do
@@ -244,26 +290,26 @@ lookupDT term tree = ignoreAbstractMode (match [term] tree) where
           , "args: " <+> prettyTCM args
           , "args':" <+> prettyTCM args'
           ]
-        (<> res) <$> match (sp0 ++ args' ++ sp1) trie
+        (<> res) <$> match False (sp0 ++ args' ++ sp1) trie
 
     foldrM cont mempty bs
 
-  match :: [Term] -> DiscrimTree a -> TCM (Set.Set a)
-  match ts EmptyDT    = pure Set.empty
-  match ts (DoneDT t) = t <$ do
+  match :: Bool -> [Term] -> DiscrimTree a -> TCM (QueryResult a)
+  match toplevel ts EmptyDT    = pure mempty
+  match toplevel ts (DoneDT t) = setResult t <$ do
     reportSDoc "tc.instance.discrim.lookup" 99 $ vcat
       [ "done" <+> prettyTCM ts
       , "  →" <+> prettyTCM t
       ]
 
-  match ts tree@(CaseDT i branches rest) | (sp0, t:sp1) <- splitAt i ts = do
+  match toplevel ts tree@(CaseDT i branches rest) | (sp0, t:sp1) <- splitAt i ts = do
     let
       (sp0, t:sp1) = splitAt i ts
       visit k sp' = case Map.lookup k branches of
-        Just m  -> match sp' m
+        Just m  -> match False sp' m
         Nothing -> pure mempty
 
-    reportSDoc "tc.instance.discrim.lookup" 99 $ vcat
+    unless toplevel $ reportSDoc "tc.instance.discrim.lookup" 99 $ vcat
       [ "match" <+> prettyTCM sp0 <+> ("«" <> prettyTCM t <> "»") <+> prettyTCM sp1
       , prettyTCM tree
       ]
@@ -271,8 +317,8 @@ lookupDT term tree = ignoreAbstractMode (match [term] tree) where
     -- TODO (Amy, 2024-02-12): Could use reduceB in splitTermKey, and
     -- the blocker here, to suspend instances more precisely when there
     -- is an ambiguity.
-    splitTermKey False 0 t >>= \case
-      (FlexK, args) -> do
+    ignoreAbstractMaybe toplevel (split t) >>= \case
+      (FlexK, args, blocker) -> do
 
         reportSDoc "tc.instance.discrim.lookup" 99 $ vcat
           [ "flexible term was forced"
@@ -299,11 +345,11 @@ lookupDT term tree = ignoreAbstractMode (match [term] tree) where
         -- this query will only return {xa}.
 
         branches <- explore sp0 sp1 args $ Map.toList branches
-        rest <- match ts rest
+        rest <- match False ts rest
 
-        pure $! rest <> branches
+        pure $! rest <> branches <> blockerResult blocker
 
-      (k, args) -> do
+      (k, args, blocker) -> do
         let sp' = sp0 ++ args ++ sp1
 
         -- Actually take the branch corresponding to our rigid head.
@@ -313,11 +359,11 @@ lookupDT term tree = ignoreAbstractMode (match [term] tree) where
         -- has to be put back in the tree. mergeDT does not perform
         -- commuting conversions to ensure that variables aren't
         -- repeatedly cased on.
-        rest <- match ts rest
+        rest <- match False ts rest
 
         pure $! rest <> branch
 
-  match ts tree@(CaseDT i _ rest) = do
+  match _ ts tree@(CaseDT i _ rest) = do
     reportSDoc "tc.instance.discrim.lookup" 99 $ vcat
       [ "IMPOSSIBLE match" <+> prettyTCM ts
       , prettyTCM tree

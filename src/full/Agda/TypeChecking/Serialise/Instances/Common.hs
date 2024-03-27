@@ -494,6 +494,7 @@ instance EmbPrj a => EmbPrj (HasEta' a) where
     valu _   = malformed
 
 instance EmbPrj PatternOrCopattern
+instance EmbPrj OverlapMode
 
 instance EmbPrj Induction where
   icod_ Inductive   = icodeN' Inductive

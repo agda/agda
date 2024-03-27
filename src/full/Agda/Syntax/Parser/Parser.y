@@ -162,6 +162,7 @@ import Agda.Utils.Impossible
     'FOREIGN'                 { TokKeyword KwFOREIGN $$ }
     'COMPILE'                 { TokKeyword KwCOMPILE $$ }
     'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $$ }
+    'INCOHERENT'              { TokKeyword KwINCOHERENT $$ }
     'INJECTIVE'               { TokKeyword KwINJECTIVE $$ }
     'INLINE'                  { TokKeyword KwINLINE $$ }
     'NOINLINE'                { TokKeyword KwNOINLINE $$ }
@@ -174,6 +175,9 @@ import Agda.Utils.Impossible
     'NOT_PROJECTION_LIKE'     { TokKeyword KwNOT_PROJECTION_LIKE $$ }
     'OPTIONS'                 { TokKeyword KwOPTIONS $$ }
     'POLARITY'                { TokKeyword KwPOLARITY $$ }
+    'OVERLAPPABLE'            { TokKeyword KwOVERLAPPABLE $$ }
+    'OVERLAPPING'             { TokKeyword KwOVERLAPPING $$ }
+    'OVERLAPS'                { TokKeyword KwOVERLAPS $$ }
     'WARNING_ON_USAGE'        { TokKeyword KwWARNING_ON_USAGE $$ }
     'WARNING_ON_IMPORT'       { TokKeyword KwWARNING_ON_IMPORT $$ }
     'REWRITE'                 { TokKeyword KwREWRITE $$ }
@@ -293,6 +297,7 @@ Token
     | 'ETA'                     { TokKeyword KwETA $1 }
     | 'FOREIGN'                 { TokKeyword KwFOREIGN $1 }
     | 'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $1 }
+    | 'INCOHERENT'              { TokKeyword KwINCOHERENT $1 }
     | 'INJECTIVE'               { TokKeyword KwINJECTIVE $1 }
     | 'INLINE'                  { TokKeyword KwINLINE $1 }
     | 'MEASURE'                 { TokKeyword KwMEASURE $1 }
@@ -304,6 +309,9 @@ Token
     | 'NON_COVERING'            { TokKeyword KwNON_COVERING $1 }
     | 'NOT_PROJECTION_LIKE'     { TokKeyword KwNOT_PROJECTION_LIKE $1 }
     | 'OPTIONS'                 { TokKeyword KwOPTIONS $1 }
+    | 'OVERLAPPABLE'            { TokKeyword KwOVERLAPPABLE $1 }
+    | 'OVERLAPPING'             { TokKeyword KwOVERLAPPING $1 }
+    | 'OVERLAPS'                { TokKeyword KwOVERLAPS $1 }
     | 'POLARITY'                { TokKeyword KwPOLARITY $1 }
     | 'REWRITE'                 { TokKeyword KwREWRITE $1 }
     | 'STATIC'                  { TokKeyword KwSTATIC $1 }
@@ -399,7 +407,6 @@ Float : literal {% forM $1 $ \case
                    ; _          -> parseError $ "Expected floating point number"
                    }
                 }
-
 
 {--------------------------------------------------------------------------
     Names
@@ -596,6 +603,9 @@ PragmaQName : string {% pragmaQName $1 }  -- Issue 2125. WAS: string {% fmap QNa
 
 PragmaQNames :: { [QName] }
 PragmaQNames : Strings {% mapM pragmaQName $1 }
+
+PragmaQNames1 :: { [QName] }
+PragmaQNames1 : PragmaQName PragmaQNames { $1:$2 }
 
 {--------------------------------------------------------------------------
     Expressions (terms and types)
@@ -1576,6 +1586,7 @@ DeclarationPragma
   | NoPositivityCheckPragma  { $1 }
   | NoUniverseCheckPragma    { $1 }
   | PolarityPragma           { $1 }
+  | OverlapPragma            { $1 }
   | OptionsPragma            { $1 }
     -- Andreas, 2014-03-06
     -- OPTIONS pragma not allowed everywhere, but don't give parse error.
@@ -1630,6 +1641,13 @@ NotProjectionLikePragma :: { Pragma }
 NotProjectionLikePragma
   : '{-#' 'NOT_PROJECTION_LIKE' PragmaQName '#-}'
     { NotProjectionLikePragma (getRange ($1,$2,$3,$4)) $3 }
+
+OverlapPragma :: { Pragma }
+OverlapPragma
+  : '{-#' 'OVERLAPPABLE' PragmaQNames1 '#-}' { OverlapPragma (getRange ($1,$2,$3,$4)) $3 Overlappable }
+  | '{-#' 'OVERLAPPING'  PragmaQNames1 '#-}' { OverlapPragma (getRange ($1,$2,$3,$4)) $3 Overlapping }
+  | '{-#' 'OVERLAPS'     PragmaQNames1 '#-}' { OverlapPragma (getRange ($1,$2,$3,$4)) $3 Overlaps }
+  | '{-#' 'INCOHERENT'   PragmaQNames1 '#-}' { OverlapPragma (getRange ($1,$2,$3,$4)) $3 Incoherent }
 
 InjectivePragma :: { Pragma }
 InjectivePragma
