@@ -1,11 +1,14 @@
-;;; agda2-highlight.el --- Syntax highlighting for Agda (version ≥ 2)
+;;; agda2-highlight.el --- Syntax highlighting for Agda -*- lexical-binding: t; -*-
+
+;; URL: https://github.com/agda/agda/tree/master/src/data/emacs-mode
 ;; SPDX-License-Identifier: MIT License
 
 ;;; Commentary:
 
-;; Code to apply syntactic highlighting to Agda source code. This uses
-;; Agda's own annotations to figure out what is what, so the parsing
-;; is always done correctly, but highlighting is not done on the fly.
+;; Code to apply syntactic highlighting to Agda source code.  This
+;; uses Agda's own annotations to figure out what is what, so the
+;; parsing is always done correctly, but highlighting is not done on
+;; the fly.
 
 ;;; Code:
 
@@ -28,13 +31,12 @@ that is currently being type-checked."
 
 (defun agda2-highlight-level nil
   "Formats the highlighting level in a Haskelly way."
-  (cond ((equal agda2-highlight-level 'none)            "None")
-        ((equal agda2-highlight-level 'non-interactive) "NonInteractive")
-        ((equal agda2-highlight-level 'interactive)     "Interactive")
-        (t                                              "None")))
+  (cond ((eq agda2-highlight-level 'none)            "None")
+        ((eq agda2-highlight-level 'non-interactive) "NonInteractive")
+        ((eq agda2-highlight-level 'interactive)     "Interactive")
+        (t                                           "None")))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Functions for setting faces
+;;;; Functions for setting faces
 
 (defun agda2-highlight-set-face-attribute (face attrs)
   "Reset (globally) all attributes of the face FACE according to ATTRS.
@@ -56,7 +58,7 @@ If the face does not exist, then it is created first."
                       :inherit        'unspecified
                       :box            'unspecified
                       :font           'unspecified)
-  (eval `(set-face-attribute face nil ,@attrs)))
+  (apply #'set-face-attribute face nil attrs))
 
 (defun agda2-highlight-set-faces (variable group)
   "Set all Agda faces according to the value of GROUP.
@@ -172,8 +174,7 @@ Also sets the default value of VARIABLE to GROUP."
                 (cons 'agda2-highlight-typechecking-face
                       (list :inherit font-lock-preprocessor-face)))))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Faces
+;;;; Faces
 
 (defcustom agda2-highlight-face-groups nil
   "Colour scheme used in Agda buffers.
@@ -526,15 +527,13 @@ The aspects currently recognised are the following:
                            variables.
 `unsolvedmeta'           Unsolved meta variables.")
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Variables
+;;;; Variables
 
 (defvar agda2-highlight-in-progress nil
   "If nil, then highlighting annotations are not applied.")
 (make-variable-buffer-local 'agda2-highlight-in-progress)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Functions
+;;;; Functions
 
 (defun agda2-highlight-setup nil
   "Set up the `annotation' library for use with `agda2-mode'."
@@ -589,8 +588,6 @@ removed."
        ; Ignore read-only status, otherwise this function may fail.
     (annotation-remove-annotations token-based)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Administrative details
 
 (provide 'agda2-highlight)
 ;;; agda2-highlight.el ends here
