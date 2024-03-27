@@ -258,6 +258,7 @@ unsafePragma p =
     ForeignPragma{}            -> empty
     ImpossiblePragma{}         -> empty
     InjectivePragma{}          -> singleton $ SafeFlagInjective r
+    InjectiveForInferencePragma{} -> empty
     InlinePragma{}             -> empty
     NoCoverageCheckPragma{}    -> singleton $ SafeFlagNoCoverageCheck r
     NoPositivityCheckPragma{}  -> singleton $ SafeFlagNoPositivityCheck r
