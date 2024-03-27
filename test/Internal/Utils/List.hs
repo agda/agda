@@ -155,17 +155,17 @@ prop_uniqOn1 f xs = uniqOn f xs == sortBy (compare `on` f) (nubBy ((==) `on` f) 
 
 prop_commonPrefix :: [Integer] -> [Integer] -> [Integer] -> Bool
 prop_commonPrefix xs ys zs =
-  and [ isPrefixOf zs zs'
-      , isPrefixOf zs' (zs ++ xs)
-      , isPrefixOf zs' (zs ++ ys) ]
+  and [ zs `isPrefixOf` zs'
+      , zs' `isPrefixOf` (zs ++ xs)
+      , zs' `isPrefixOf` (zs ++ ys) ]
   where
     zs' = commonPrefix (zs ++ xs) (zs ++ ys)
 
 prop_commonSuffix :: [Integer] -> [Integer] -> [Integer] -> Bool
 prop_commonSuffix xs ys zs =
-  and [ isSuffixOf zs zs'
-      , isSuffixOf zs' (xs ++ zs)
-      , isSuffixOf zs' (ys ++ zs) ]
+  and [ zs `isSuffixOf` zs'
+      , zs' `isSuffixOf` (xs ++ zs)
+      , zs' `isSuffixOf` (ys ++ zs) ]
   where
     zs' = commonSuffix (xs ++ zs) (ys ++ zs)
 

@@ -243,7 +243,7 @@ prop_invariant_insertEdgeWith ::
 prop_invariant_insertEdgeWith f e = invariant . insertEdgeWith f e
 
 prop_invariant_union :: G -> G -> Bool
-prop_invariant_union g1 g2 = invariant (union g1 g2)
+prop_invariant_union g1 g2 = invariant (g1 `union` g2)
 
 prop_invariant_unionWith :: (E -> E -> E) -> G -> G -> Bool
 prop_invariant_unionWith f g1 g2 = invariant (unionWith f g1 g2)
