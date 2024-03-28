@@ -23,7 +23,7 @@ module Agda.Utils.Either
   , swapEither
   ) where
 
-import Data.Bifunctor
+import Data.Bifunctor ( Bifunctor(first, second) )
 import Data.Either (isLeft, isRight)
 import Data.List   (unfoldr)
 

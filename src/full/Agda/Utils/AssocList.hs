@@ -14,9 +14,9 @@ import Data.List (lookup)
 import qualified Data.List as List
 import qualified Data.Map  as Map
 
-import Agda.Utils.Tuple
+import Agda.Utils.Tuple ( mapFst )
 
-import Agda.Utils.Impossible
+import Agda.Utils.Impossible ( __IMPOSSIBLE__ )
 
 -- | A finite map, represented as a set of pairs.
 --

@@ -74,16 +74,24 @@ class (Boolean a, Eq a) => IsBool a where
   {-# MINIMAL toBool #-}
 
 instance Boolean Bool where
+  fromBool :: Bool -> Bool
   fromBool = id
 
 instance IsBool Bool where
+  toBool :: Bool -> Bool
   toBool = id
   -- optional
+  fromBool1 :: (Bool -> Bool) -> Bool -> Bool
   fromBool1 = id
+  fromBool2 :: (Bool -> Bool -> Bool) -> Bool -> Bool -> Bool
   fromBool2 = id
 
 instance Boolean b => Boolean (a -> b) where
+  fromBool :: Boolean b => Bool -> a -> b
   fromBool   = const . fromBool
+  not :: Boolean b => (a -> b) -> a -> b
   not f      = not . f
+  (&&) :: Boolean b => (a -> b) -> (a -> b) -> a -> b
   (f && g) a = f a && g a
+  (||) :: Boolean b => (a -> b) -> (a -> b) -> a -> b
   (f || g) a = f a || g a

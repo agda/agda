@@ -11,21 +11,26 @@ module Agda.Utils.BiMap where
 
 import Prelude hiding (null, lookup)
 
-import Control.Monad.Identity
+import Control.Monad.Identity ( Identity(Identity, runIdentity) )
 import Control.Monad.State
+    ( MonadTrans(lift),
+      StateT(runStateT),
+      runState,
+      MonadState(put),
+      State )
 
 import Data.Function (on)
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Maybe
-import Data.Ord
-import Data.Tuple
+import Data.Maybe ( isJust )
+import Data.Ord ( comparing )
+import Data.Tuple ( swap )
 
 import GHC.Generics (Generic)
 
-import Agda.Utils.List
-import Agda.Utils.Null
+import Agda.Utils.List ( fastDistinct, sorted )
+import Agda.Utils.Null ( Null(..) )
 
 -- | Partial injections from a type to some tag type.
 --
@@ -81,6 +86,7 @@ biMapInvariant m@(BiMap t u) =
   tagInjectiveFor (map snd $ toList m)
 
 instance Null (BiMap k v) where
+  empty :: BiMap k v
   empty = BiMap Map.empty Map.empty
   null  = null . biMapThere
 
@@ -442,10 +448,13 @@ toDistinctAscendingLists (BiMap t b) =
 ------------------------------------------------------------------------
 
 instance (Eq k, Eq v) => Eq (BiMap k v) where
+  (==) :: (Eq k, Eq v) => BiMap k v -> BiMap k v -> Bool
   (==) = (==) `on` biMapThere
 
 instance (Ord k, Ord v) => Ord (BiMap k v) where
+  compare :: (Ord k, Ord v) => BiMap k v -> BiMap k v -> Ordering
   compare = compare `on` biMapThere
 
 instance (Show k, Show v) => Show (BiMap k v) where
+  show :: (Show k, Show v) => BiMap k v -> String
   show bimap = "Agda.Utils.BiMap.fromList " ++ show (toList bimap)
