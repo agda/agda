@@ -780,7 +780,6 @@ evalTCM v = do
     tcCheckFromString :: Text -> R.Type -> TCM Term
     tcCheckFromString str a = do
       (C.ExprWhere c wh , _) <- runPM $ parsePosString exprWhereParser (startPos Nothing) (T.unpack str)
-      -- scp <- use stScope
       r <- isReconstructed
       e <- concreteToAbstract_ c
       a <- workOnTypes $ locallyReduceAllDefs $ isType_ =<< toAbstract_ a
