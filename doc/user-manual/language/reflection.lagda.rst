@@ -525,7 +525,7 @@ following primitive operations::
     -- Parse and type check the given string against the given type, returning
     -- the resulting term (when successful).
     checkFromStringTC : String → Type → TC Term
-    
+
     -- Prints the third argument to the debug buffer in Emacs
     -- if the verbosity level (set by the -v flag to Agda)
     -- is higher than the second argument. Note that Level 0 and 1 are printed
