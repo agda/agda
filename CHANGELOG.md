@@ -32,6 +32,17 @@ Pragmas and options
   backtracking during instance search, has been renamed to
   `--backtracking-instance-search`.
 
+* New pragma `INJECTIVE_FOR_INFERENCE`, which treats functions as injective for inferring implicit arguments. For example:
+  ```agda
+  reverse-≡ : {l l' : List A} → reverse l ≡ reverse l' → reverse l ≡ reverse l'
+  reverse-≡ h = h
+
+  []≡[] : {l l' : List A} → [] ≡ []
+  []≡[] = reverse-≡ (refl {x = reverse []})
+  ```
+  does not work since Agda won't solve `l` and `l'` for `[]`, even though it knows `reverse l = reverse []`. If `reverse` is
+  marked as injective with `{-# INJECTIVE_FOR_INFERENCE reverse #-}` this example will work.
+
 Syntax
 ------
 

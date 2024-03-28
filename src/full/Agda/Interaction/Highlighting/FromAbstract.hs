@@ -226,18 +226,19 @@ instance Hilite A.Declaration where
 
 instance Hilite A.Pragma where
   hilite = \case
-    A.OptionsPragma _strings     -> mempty
-    A.BuiltinPragma b x          -> singleAspect Keyword b <> hilite x
-    A.BuiltinNoDefPragma b k x   -> singleAspect Keyword b <> hiliteQName (Just $ kindOfNameToNameKind k) x
-    A.CompilePragma b x _foreign -> singleAspect Keyword b <> hilite x
-    A.RewritePragma r xs         -> singleAspect Keyword r <> hilite xs
-    A.StaticPragma x             -> hilite x
-    A.EtaPragma x                -> hilite x
-    A.InjectivePragma x          -> hilite x
-    A.NotProjectionLikePragma x  -> hilite x
-    A.OverlapPragma x _          -> hilite x
-    A.InlinePragma _inline x     -> hilite x
-    A.DisplayPragma x ps e       -> hilite x <> hilite ps <> hilite e
+    A.OptionsPragma _strings        -> mempty
+    A.BuiltinPragma b x             -> singleAspect Keyword b <> hilite x
+    A.BuiltinNoDefPragma b k x      -> singleAspect Keyword b <> hiliteQName (Just $ kindOfNameToNameKind k) x
+    A.CompilePragma b x _foreign    -> singleAspect Keyword b <> hilite x
+    A.RewritePragma r xs            -> singleAspect Keyword r <> hilite xs
+    A.StaticPragma x                -> hilite x
+    A.EtaPragma x                   -> hilite x
+    A.InjectivePragma x             -> hilite x
+    A.InjectiveForInferencePragma x -> hilite x
+    A.NotProjectionLikePragma x     -> hilite x
+    A.OverlapPragma x _             -> hilite x
+    A.InlinePragma _inline x        -> hilite x
+    A.DisplayPragma x ps e          -> hilite x <> hilite ps <> hilite e
 
 instance Hilite A.Expr where
   hilite = \case

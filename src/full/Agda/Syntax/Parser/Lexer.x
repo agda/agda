@@ -88,6 +88,7 @@ tokens :-
 <pragma_>   "ETA"                      { keyword KwETA }
 <pragma_>   "IMPOSSIBLE"               { keyword KwIMPOSSIBLE }
 <pragma_>   "INJECTIVE"                { keyword KwINJECTIVE }
+<pragma_>   "INJECTIVE_FOR_INFERENCE"  { keyword KwINJECTIVE_FOR_INFERENCE }
 <pragma_>   "INLINE"                   { keyword KwINLINE }
 <pragma_>   "INCOHERENT"               { keyword KwINCOHERENT }
 <pragma_>   "NOINLINE"                 { keyword KwNOINLINE }
