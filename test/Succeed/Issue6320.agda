@@ -19,3 +19,18 @@ test x y = fromSurface "x + y"
 
 test≡ : test ≡ _+_
 test≡ = refl
+
+macro
+    fromSurfaceInExtendContext : Term → TC ⊤
+    fromSurfaceInExtendContext hole = do
+      body <- extendContext "m"
+                 (arg (arg-info visible (modality relevant quantity-0))
+                      ((def (quote Nat) [])))
+              (checkFromStringTC "1 + n" (def (quote Nat) []))
+      unify hole (lam visible (abs "m" body))
+
+test2 : Nat → Nat → Nat
+test2 n = fromSurfaceInExtendContext
+
+_ : test2 ≡ λ n m → suc n
+_ = refl
