@@ -764,6 +764,7 @@ library
       Agda.Utils.CallStack
       Agda.Utils.Char
       Agda.Utils.Cluster
+      Agda.Utils.Concurrent
       Agda.Utils.Empty
       Agda.Utils.Environment
       Agda.Utils.Either
