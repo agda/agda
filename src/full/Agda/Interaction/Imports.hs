@@ -537,9 +537,16 @@ getInterface x isMain msrc =
       let recheck = \reason -> do
             reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is not up-to-date because ", reason, "."]
             setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
-            case isMain of
+            modl <- case isMain of
               MainInterface _ -> createInterface x file isMain msrc
               NotMainInterface -> createInterfaceIsolated x file msrc
+
+            -- Ensure that the given module name matches the one in the file.
+            let topLevelName = iTopLevelModuleName (miInterface modl)
+            unless (topLevelName == x) $
+              typeError $ OverlappingProjects (srcFilePath file) topLevelName x
+
+            return modl
 
       either recheck pure stored
 
@@ -680,8 +687,6 @@ getStoredInterface x file msrc = do
         -- Ensure that the given module name matches the one in the file.
         let topLevelName = iTopLevelModuleName i
         unless (topLevelName == x) $
-          -- Andreas, 2014-03-27 This check is now done in the scope checker.
-          -- checkModuleName topLevelName file
           lift $ typeError $ OverlappingProjects (srcFilePath file) topLevelName x
 
         isPrimitiveModule <- lift $ Lens.isPrimitiveModule (filePath $ srcFilePath file)
