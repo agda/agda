@@ -924,8 +924,15 @@ appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v
             (m, es0) <- matchCopatterns pats es0
             let es = es0 ++ es1
             case m of
-              No         -> goCls cls es
-              DontKnow b -> rewrite b (applyE v) rewr es
+              No               -> goCls cls es
+              -- Szumi, 2024-03-29, issue #7181:
+              -- If a lazy match is stuck and all non-lazy matches are conclusive,
+              -- then reduction should not be stuck on the current clause and it
+              -- should be fine to continue matching on the next clause.
+              -- This assumes it's impossible for a lazy match to be stuck if
+              -- all non-lazy matches succeed.
+              DontKnow True  _ -> goCls cls es
+              DontKnow False b -> rewrite b (applyE v) rewr es
               Yes simpl vs -- vs is the subst. for the variables bound in body
                 | Just w <- body -> do -- clause has body?
                     -- TODO: let matchPatterns also return the reduced forms
