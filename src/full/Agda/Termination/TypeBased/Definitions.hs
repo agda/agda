@@ -18,7 +18,7 @@ import Data.Set ( Set )
 
 import qualified Agda.Benchmarking as Benchmark
 import Agda.Utils.Benchmark ( billTo )
-import Agda.Syntax.Common ( Induction(..), Arg(unArg) )
+import Agda.Syntax.Common ( Induction(..), Arg(unArg), HasEta' (..), PatternOrCopattern (PatternMatching) )
 import Agda.Syntax.Internal ( QName, Elim'(Apply), Clause(namedClausePats, clauseBody, clauseTel), Tele(..), Type, Type''(unEl), Abs(unAbs), Elims, Term(..), ConHead(conName), Dom, Dom'(unDom), arity )
 import Agda.Syntax.Internal.Pattern ( hasDefP )
 import Agda.Termination.CallGraph ( fromList, CallGraph )
@@ -38,7 +38,7 @@ import qualified Agda.Termination.Order as Order
 import Agda.Termination.Order (Order)
 import Agda.TypeChecking.Monad.Base ( TCM, Definition(defType, defPolarity, defCopy, theDef, defSizedType), MonadTCM(liftTCM), CallInfo(CallInfo), FunctionData(_funClauses),
       Defn(FunctionDefn), pattern Constructor, conData, pattern Record, recConHead, recInduction, pattern Datatype, dataCons, dataMutual, pattern Function, funProjection,
-      pattern Axiom, typeBasedTerminationEnabled, sizePreservationOption )
+      pattern Axiom, typeBasedTerminationEnabled, sizePreservationOption, recEtaEquality )
 import Agda.TypeChecking.Monad.Context ( AddContext(addContext) )
 import Agda.TypeChecking.Monad.Debug ( reportSDoc )
 import Agda.TypeChecking.Monad.Signature ( HasConstInfo(getConstInfo), addConstant, inConcreteOrAbstractMode, isProjection_ )
@@ -95,7 +95,11 @@ initSizeTypeEncoding mutuals =
             , "  with mutual block: " <+> prettyTCM (Set.toList mutuals)
             , "  of core type:" <+> prettyTCM dType
             ]
-          sizedSignature <- fixGaps <$> if encodeComplex then encodeConstructorType coinduction mutuals dType else pure $ encodeBlackHole dType
+          defn <- theDef <$> getConstInfo conData
+          let eta = case defn of
+                Record {} -> recEtaEquality defn
+                _ -> NoEta PatternMatching
+          sizedSignature <- fixGaps <$> if encodeComplex then encodeConstructorType eta coinduction mutuals dType else pure $ encodeBlackHole dType
           reportSDoc "term.tbt" 5 $ vcat
             [ "Encoded constructor " <> prettyTCM nm <> ", sized type: "
             , nest 2 $ pretty sizedSignature

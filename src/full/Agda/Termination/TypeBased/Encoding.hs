@@ -27,11 +27,11 @@ import Data.Set ( Set )
 import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Abstract.Name ( QName )
-import Agda.Syntax.Common ( Induction(..), Arg(unArg) )
+import Agda.Syntax.Common ( Induction(..), Arg(unArg), HasEta' (..), HasEta )
 import Agda.Syntax.Internal ( isApplyElim, Type, Type''(unEl), Abs(NoAbs, Abs, unAbs), Term(Var, Sort, MetaV, Lam, Pi, Def), Dom'(unDom) )
 import Agda.Termination.TypeBased.Common ( applyDataType, tryReduceCopy, fixGaps, computeDecomposition, VariableInstantiation(..), reifySignature )
 import Agda.Termination.TypeBased.Syntax ( SizeSignature(SizeSignature), SizeBound(SizeUnbounded, SizeBounded), FreeGeneric(..), SizeType(..), Size(SUndefined, SDefined), pattern UndefinedSizeType, sizeCodomain )
-import Agda.TypeChecking.Monad.Base ( TCM, Definition(defCopy, defSizedType, theDef, defType), MonadTCM(liftTCM), pattern Record, recInduction, pattern Datatype, pattern Function, funTerminates, defIsDataOrRecord )
+import Agda.TypeChecking.Monad.Base ( TCM, Definition(defCopy, defSizedType, theDef, defType), MonadTCM(liftTCM), pattern Record, recInduction, pattern Datatype, pattern Function, funTerminates, defIsDataOrRecord, EtaEquality(..) )
 import Agda.TypeChecking.Monad.Debug ( MonadDebug, reportSDoc )
 import Agda.TypeChecking.Monad.Signature ( HasConstInfo(getConstInfo) )
 import Agda.TypeChecking.Pretty ( PrettyTCM(prettyTCM), pretty, (<+>), vcat, text )
@@ -139,8 +139,8 @@ newtype MonadEncoder a = ME (StateT EncoderState TCM a)
 
 -- | 'encodeConstructorType ind mutuals t' encodes a type 't' of constructor belonging to an inductive data definition,
 --   where 'mutuals' is a set of names in a mutual block of the data definition and 'ind' is indication whether the defined mutual-recursive datatype is coinductive.
-encodeConstructorType :: Induction -> Set QName -> Type -> TCM SizeSignature
-encodeConstructorType ind mutuals t = do
+encodeConstructorType :: HasEta -> Induction -> Set QName -> Type -> TCM SizeSignature
+encodeConstructorType eta ind mutuals t = do
   EncodingResult { erEncodedType, erNewFirstOrderVariables, erNewChosenInductiveVariables, erNewChosenCoInductiveVariables } <- ctorTypeToSizeType t mutuals
 
   -- We are trying to select variables that are located in the domain of the encoded constructor.
@@ -165,7 +165,12 @@ encodeConstructorType ind mutuals t = do
   let signature = SizeSignature bounds erEncodedType
   reportSDoc "term.tbt" 60 $ "Original signature: " <+> pretty signature
   let adjustedSignature = case ind of
-        Inductive -> signature
+        Inductive -> case eta of
+          YesEta ->
+            -- Issue #7206, constructors of records with eta equality should not be size-decreasing
+            let (SDefined principalInd) = indSize
+            in reifySignature (List.sortOn fst $ map (, ToVariable principalInd) chosen) signature
+          NoEta _ -> signature
         CoInductive ->
           let (SDefined principalCoind) = coindSize
           in reifySignature (List.sortOn fst $ map (, ToVariable principalCoind) chosenCoind) signature
