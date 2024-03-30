@@ -860,7 +860,7 @@ order for the change to take effect."
 
   ;; Other punctuation and symbols.
 
-  ("\\"         . ("＼"))
+  ("\\"         . ("\\"))
   ("en"         . ("–"))
   ("em"         . ("—"))
   ("!"          . ("！"))
