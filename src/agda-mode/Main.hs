@@ -7,7 +7,10 @@
 module Main (main) where
 
 import Control.Exception as E
+import Control.Applicative
 import Control.Monad
+import Data.Bifunctor (first, second)
+import Data.Bool (bool)
 import Data.Char
 import Data.List (intercalate, isInfixOf)
 import Data.Maybe
@@ -248,14 +251,18 @@ compileElispFiles :: IO ()
 compileElispFiles = do
   dataDir <- (</> "emacs-mode") <$> getDataDir
   let elFiles = map (dataDir </>) emacsLispFiles
-  elFiles <- filterM doesFileExist elFiles
-  results <- mapM (compile dataDir) elFiles
-  case catMaybes results of
-    [] -> return ()
-    fs -> do
-      informLn "Unable to compile the following Emacs Lisp files:"
-      mapM_ (informLn . ("  " ++)) fs
-      exitFailure
+  (existing, missing) <- partitionM doesFileExist elFiles
+  failed <- catMaybes <$> mapM (compile dataDir) existing
+
+  -- If any of the .el files was missing or failed to compile, fail execution.
+  unless (null missing) $ do
+    informLn "Missing Emacs Lisp files:"
+    mapM_ (informLn . ("  " ++)) missing
+  unless (null failed) $ do
+    informLn "Unable to compile the following Emacs Lisp files:"
+    mapM_ (informLn . ("  " ++)) failed
+  unless (null missing && null failed) exitFailure
+
   where
   compile dataDir f = do
     exit <- rawSystemWithDiagnostics "emacs" $
@@ -286,3 +293,11 @@ parens s = concat [ "(", s, ")" ]
 -- LISP application
 apply :: [String] -> String
 apply = parens . unwords
+
+-- Utilities
+
+-- | A ``monadic'' version of @'partition' :: (a -> Bool) -> [a] -> ([a],[a])
+partitionM :: Applicative m => (a -> m Bool) -> [a] -> m ([a], [a])
+partitionM f =
+  foldr (\ x -> liftA2 (bool (second (x:)) (first (x:))) $ f x)
+        (pure ([], []))

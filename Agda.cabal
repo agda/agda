@@ -956,6 +956,7 @@ test-suite agda-tests
       Internal.Utils.List2
       Internal.Utils.ListT
       Internal.Utils.Maybe.Strict
+      Internal.Utils.Monad
       Internal.Utils.Monoid
       Internal.Utils.PartialOrd
       Internal.Utils.Permutation

@@ -46,6 +46,7 @@ import qualified Internal.Utils.List1                              as UtilList1 
 import qualified Internal.Utils.List2                              as UtilList2    ( tests )
 import qualified Internal.Utils.ListT                              as UtilListT    ( tests )
 import qualified Internal.Utils.Maybe.Strict                       as UtilMaybeS   ( tests )
+import qualified Internal.Utils.Monad                              as UtilMonad    ( tests )
 import qualified Internal.Utils.Monoid                             as UtilMonoid   ( tests )
 import qualified Internal.Utils.PartialOrd                         as UtilPOrd     ( tests )
 import qualified Internal.Utils.Permutation                        as UtilPerm     ( tests )
@@ -59,6 +60,7 @@ import qualified Internal.Utils.Warshall                           as UtilWarsh 
 tests :: TestTree
 tests = testGroup "Internal"
   [ CompEnco.tests
+  , UtilMonad.tests
   , IntePrec.tests
   , InteRang.tests
   , Library.tests
