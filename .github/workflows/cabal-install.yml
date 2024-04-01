@@ -22,36 +22,52 @@ jobs:
         access_token: ${{ github.token }}
   cabal-install:
     env:
-      FLAGS: -O0 -f enable-cluster-counting
+      FLAGS: -O0
+    name: ${{ matrix.os }} dyn ${{ matrix.dynamic }}
     needs: auto-cancel
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4
-    - name: Set up cabal
-      run: |
-        mkdir -p ~/.cabal
-        cabal update
+    - id: setup-haskell
+      uses: haskell-actions/setup@v2
+      with:
+        cabal-update: true
+        cabal-version: ${{ matrix.cabal-ver }}
+        ghc-version: ${{ matrix.ghc-ver }}
     - name: Environment settings based on the Haskell setup
       run: |
         GHC_VER=$(ghc --numeric-version)
         CABAL_VER=$(cabal --numeric-version)
         echo "GHC_VER   = ${GHC_VER}"
         echo "CABAL_VER = ${CABAL_VER}"
-        echo "GHC_VER=${GHC_VER}"       >> ${GITHUB_ENV}
-        echo "CABAL_VER=${CABAL_VER}"   >> ${GITHUB_ENV}
+        echo "PATH      = ${PATH}"
+        echo "GHC_VER=${GHC_VER}"       >> "${GITHUB_ENV}"
+        echo "CABAL_VER=${CABAL_VER}"   >> "${GITHUB_ENV}"
+    - if: matrix.dynamic == 'cabal-config'
+      name: Augment cabal config with executable-dynamic
+      run: |
+        cabal user-config update --augment="executable-dynamic: True"
+    - if: matrix.dynamic == 'command-line'
+      name: Cabal config with --enable-executable-dynamic
+      run: |
+        echo "LFLAGS=--enable-executable-dynamic" >> "${GITHUB_ENV}"
+    - if: runner.os != 'Windows'
+      name: Cabal flag enable-cluster-counting
+      run: |
+        echo "CFLAGS=-f enable-cluster-counting"  >> "${GITHUB_ENV}"
     - name: Configure the build plan
       run: |
-        cabal configure ${FLAGS}
+        cabal configure ${FLAGS} ${CFLAGS} ${LFLAGS}
         cabal build --dry-run
     - env:
         key: cabal-install.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
-          }}
+          }}-dynamic-${{ matrix.dynamic }}
       id: cache
       name: Restore cached dependencies
       uses: actions/cache/restore@v4
       with:
         key: ${{ env.key }}-${{ hashFiles('**/plan.json') }}
-        path: ~/.cabal/store
+        path: ${{ steps.setup-haskell.outputs.cabal-store }}
         restore-keys: ${{ env.key }}-
     - if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       name: Install dependencies
@@ -59,13 +75,39 @@ jobs:
         cabal build --only-dependencies
     - name: Install Agda
       run: |
-        cabal install ${FLAGS}
+        cabal install ${FLAGS} ${CFLAGS} ${LFLAGS}
+    - name: Agda version
+      run: |
+        agda --version
+    - if: runner.os == 'macOS'
+      name: Check agda for dynamic libraries (macOS)
+      run: |
+        otool -L "$(which agda)"
+    - if: runner.os == 'Linux'
+      name: Check agda for dynamic libraries (Linux)
+      run: |
+        ldd "$(which agda)"
     - if: ${{ always() && (steps.cache.outputs.cache-hit != 'true') }}
       name: Save cache
       uses: actions/cache/save@v4
       with:
         key: ${{ steps.cache.outputs.cache-primary-key }}
-        path: ~/.cabal/store
+        path: ${{ steps.setup-haskell.outputs.cabal-store }}
+    strategy:
+      fail-fast: false
+      matrix:
+        cabal-ver:
+        - 3.10.2.1
+        dynamic:
+        - false
+        - cabal-config
+        - command-line
+        ghc-ver:
+        - 9.8.2
+        os:
+        - ubuntu-latest
+        - macos-latest
+        - windows-latest
     timeout-minutes: 60
 name: Install (v2-cabal)
 'on':
