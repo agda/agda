@@ -64,6 +64,7 @@ import Agda.Syntax.Scope.Base
 import Agda.Syntax.TopLevelModuleName
 import Agda.Syntax.Translation.ConcreteToAbstract as CToA
 
+import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Warnings hiding (warnings)
 import Agda.TypeChecking.Reduce
@@ -277,7 +278,6 @@ addImportedThings isig metas ibuiltin patsyns display userwarn
   stTCWarnings           `modifyTCLens` \ imp -> imp `List.union` warnings
   stOpaqueBlocks         `modifyTCLens` \ imp -> imp `Map.union` oblock
   stOpaqueIds            `modifyTCLens` \ imp -> imp `Map.union` oid
-  addImportedInstances isig
 
 -- | Scope checks the given module. A proper version of the module
 -- name (with correct definition sites) is returned.
@@ -537,9 +537,16 @@ getInterface x isMain msrc =
       let recheck = \reason -> do
             reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is not up-to-date because ", reason, "."]
             setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
-            case isMain of
+            modl <- case isMain of
               MainInterface _ -> createInterface x file isMain msrc
               NotMainInterface -> createInterfaceIsolated x file msrc
+
+            -- Ensure that the given module name matches the one in the file.
+            let topLevelName = iTopLevelModuleName (miInterface modl)
+            unless (topLevelName == x) $
+              typeError $ OverlappingProjects (srcFilePath file) topLevelName x
+
+            return modl
 
       either recheck pure stored
 
@@ -680,8 +687,6 @@ getStoredInterface x file msrc = do
         -- Ensure that the given module name matches the one in the file.
         let topLevelName = iTopLevelModuleName i
         unless (topLevelName == x) $
-          -- Andreas, 2014-03-27 This check is now done in the scope checker.
-          -- checkModuleName topLevelName file
           lift $ typeError $ OverlappingProjects (srcFilePath file) topLevelName x
 
         isPrimitiveModule <- lift $ Lens.isPrimitiveModule (filePath $ srcFilePath file)
@@ -921,7 +926,9 @@ writeInterface file i = let fp = filePath file in do
     -- [Old: Andreas, 2016-02-02 this causes issue #1804, so don't do it:]
     -- Andreas, 2020-05-13, #1804, #4647: removed private declarations
     -- only when we actually write the interface.
-    let filteredIface = i { iInsideScope  = withoutPrivates $ iInsideScope i }
+    let
+      filteredIface = i { iInsideScope = withoutPrivates $ iInsideScope i }
+    filteredIface <- pruneTemporaryInstances filteredIface
     reportSLn "import.iface.write" 50 $
       "Writing interface file with hash " ++ show (iFullHash filteredIface) ++ "."
     encodedIface <- encodeFile fp filteredIface

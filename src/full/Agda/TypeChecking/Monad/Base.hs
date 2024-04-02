@@ -84,7 +84,7 @@ import Agda.Syntax.Treeless (Compiled)
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
-import qualified Agda.Syntax.Info as Info
+import Agda.Syntax.Info ( MetaKind(InstanceMeta, UnificationMeta), MetaNameSuggestion, MutualInfo )
 
 import qualified Agda.TypeChecking.Monad.Base.Warning as W
 import           Agda.TypeChecking.Monad.Base.Warning (RecordFieldWarning)
@@ -93,6 +93,8 @@ import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Free.Lazy (Free(freeVars'), underBinder', underBinder)
+
+import Agda.TypeChecking.DiscrimTree.Types
 
 import Agda.Compiler.Backend.Base
 
@@ -202,7 +204,6 @@ data PreScopeState = PreScopeState
   , stPreImportedBuiltins   :: !(BuiltinThings PrimFun)
   , stPreImportedDisplayForms :: !DisplayForms
     -- ^ Display forms added by someone else to imported identifiers
-  , stPreImportedInstanceDefs :: !InstanceTable
   , stPreForeignCode        :: !(Map BackendName ForeignCodeStack)
     -- ^ @{-\# FOREIGN \#-}@ code that should be included in the compiled output.
     -- Does not include code for imported modules.
@@ -274,7 +275,11 @@ data PostScopeState = PostScopeState
       !(Maybe (ModuleName, TopLevelModuleName))
     -- ^ The current module is available after it has been type
     -- checked.
-  , stPostInstanceDefs        :: !TempInstanceTable
+
+  , stPostPendingInstances :: !(Set QName)
+
+  , stPostTemporaryInstances :: !(Set QName)
+
   , stPostConcreteNames       :: !ConcreteNames
     -- ^ Map keeping track of concrete names assigned to each abstract name
     --   (can be more than one name in case the first one is shadowed)
@@ -302,6 +307,7 @@ data PostScopeState = PostScopeState
   , stPostAreWeCaching        :: !Bool
   , stPostPostponeInstanceSearch :: !Bool
   , stPostConsideringInstance :: !Bool
+  , stPostMutualChecks        :: Bool
   , stPostInstantiateBlocking :: !Bool
     -- ^ Should we instantiate away blocking metas?
     --   This can produce ill-typed terms but they are often more readable. See issue #3606.
@@ -317,7 +323,7 @@ data PostScopeState = PostScopeState
 
 -- | A mutual block of names in the signature.
 data MutualBlock = MutualBlock
-  { mutualInfo  :: Info.MutualInfo
+  { mutualInfo  :: MutualInfo
     -- ^ The original info of the mutual block.
   , mutualNames :: Set QName
   } deriving (Show, Eq, Generic)
@@ -422,7 +428,6 @@ initPreScopeState = PreScopeState
   , stPrePragmaOptions        = defaultInteractionOptions
   , stPreImportedBuiltins     = Map.empty
   , stPreImportedDisplayForms = HMap.empty
-  , stPreImportedInstanceDefs = Map.empty
   , stPreForeignCode          = Map.empty
   , stPreFreshInteractionId   = 0
   , stPreImportedUserWarnings = Map.empty
@@ -451,7 +456,8 @@ initPostScopeState = PostScopeState
   , stPostModuleCheckpoints    = Map.empty
   , stPostImportsDisplayForms  = HMap.empty
   , stPostCurrentModule        = empty
-  , stPostInstanceDefs         = (Map.empty , Set.empty)
+  , stPostPendingInstances     = Set.empty
+  , stPostTemporaryInstances     = Set.empty
   , stPostConcreteNames        = Map.empty
   , stPostUsedNames            = Map.empty
   , stPostShadowingNames       = Map.empty
@@ -469,6 +475,7 @@ initPostScopeState = PostScopeState
   , stPostAreWeCaching         = False
   , stPostPostponeInstanceSearch = False
   , stPostConsideringInstance  = False
+  , stPostMutualChecks         = False
   , stPostInstantiateBlocking  = False
   , stPostLocalPartialDefs     = Set.empty
   , stPostOpaqueBlocks         = Map.empty
@@ -727,15 +734,21 @@ stCurrentModule f s =
                   Nothing         -> Nothing
                   Just (!m, !top) -> Just (m, top)}}
 
-stImportedInstanceDefs :: Lens' TCState InstanceTable
-stImportedInstanceDefs f s =
-  f (stPreImportedInstanceDefs (stPreScopeState s)) <&>
-  \x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedInstanceDefs = x}}
-
 stInstanceDefs :: Lens' TCState TempInstanceTable
 stInstanceDefs f s =
-  f (stPostInstanceDefs (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostInstanceDefs = x}}
+  f ( s ^. stSignature . sigInstances
+    , stPostPendingInstances (stPostScopeState s)
+    )
+  <&> \(t, x) ->
+    set (stSignature . sigInstances) t
+      (s { stPostScopeState = (stPostScopeState s) { stPostPendingInstances = x }})
+
+stTemporaryInstances :: Lens' TCState (Set QName)
+stTemporaryInstances f s = f (stPostTemporaryInstances (stPostScopeState s)) <&> \x -> s {
+  stPostScopeState = (stPostScopeState s) { stPostTemporaryInstances = x } }
+
+stInstanceTree :: Lens' TCState (DiscrimTree QName)
+stInstanceTree = stSignature . sigInstances . itableTree
 
 stConcreteNames :: Lens' TCState ConcreteNames
 stConcreteNames f s =
@@ -812,6 +825,10 @@ stConsideringInstance :: Lens' TCState Bool
 stConsideringInstance f s =
   f (stPostConsideringInstance (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostConsideringInstance = x}}
+
+stMutualChecks :: Lens' TCState Bool
+stMutualChecks f s = f (stPostMutualChecks (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostMutualChecks = x}}
 
 stInstantiateBlocking :: Lens' TCState Bool
 stInstantiateBlocking f s =
@@ -1457,12 +1474,13 @@ data Frozen
   | Instantiable
     deriving (Eq, Show, Generic)
 
+-- | Solution status of meta.
 data MetaInstantiation
-        = InstV Instantiation -- ^ solved
-        | Open                -- ^ unsolved
-        | OpenInstance        -- ^ open, to be instantiated by instance search
-        | BlockedConst Term   -- ^ solution blocked by unsolved constraints
-        | PostponedTypeCheckingProblem (Closure TypeCheckingProblem)
+  = InstV Instantiation -- ^ Solved by 'Instantiation'.
+  | OpenMeta MetaKind   -- ^ Unsolved (open to solutions).
+  | BlockedConst Term   -- ^ Solved, but solution blocked by unsolved constraints.
+  | PostponedTypeCheckingProblem (Closure TypeCheckingProblem)
+      -- ^ Meta stands for value of the expression that is still to be type checked.
   deriving Generic
 
 -- | Meta-variable instantiations.
@@ -1538,8 +1556,8 @@ data TypeCheckingProblem
 
 instance Pretty MetaInstantiation where
   pretty = \case
-    Open                                     -> "Open"
-    OpenInstance                             -> "OpenInstance"
+    OpenMeta UnificationMeta                 -> "Open"
+    OpenMeta InstanceMeta                    -> "OpenInstance"
     PostponedTypeCheckingProblem{}           -> "PostponedTypeCheckingProblem (...)"
     BlockedConst t                           -> hsep [ "BlockedConst", parens (pretty t) ]
     InstV Instantiation{ instTel, instBody } -> hsep [ "InstV", pretty instTel, parens (pretty instBody) ]
@@ -1581,9 +1599,6 @@ instance LensQuantity MetaInfo where
 
 instance LensRelevance MetaInfo where
   mapRelevance f = mapModality (mapRelevance f)
-
--- | Name suggestion for meta variable.  Empty string means no suggestion.
-type MetaNameSuggestion = String
 
 -- | For printing, we couple a meta with its name suggestion.
 data NamedMeta = NamedMeta
@@ -1782,9 +1797,10 @@ instance Eq IPClause where
 ---------------------------------------------------------------------------
 
 data Signature = Sig
-      { _sigSections    :: Sections
-      , _sigDefinitions :: Definitions
-      , _sigRewriteRules:: RewriteRuleMap  -- ^ The rewrite rules defined in this file.
+      { _sigSections     :: Sections
+      , _sigDefinitions  :: Definitions
+      , _sigRewriteRules :: RewriteRuleMap  -- ^ The rewrite rules defined in this file.
+      , _sigInstances    :: InstanceTable
       }
   deriving (Show, Generic)
 
@@ -1797,6 +1813,9 @@ sigDefinitions :: Lens' Signature Definitions
 sigDefinitions f s =
   f (_sigDefinitions s) <&>
   \x -> s {_sigDefinitions = x}
+
+sigInstances :: Lens' Signature InstanceTable
+sigInstances f s = f (_sigInstances s) <&> \x -> s {_sigInstances = x}
 
 sigRewriteRules :: Lens' Signature RewriteRuleMap
 sigRewriteRules f s =
@@ -1826,7 +1845,7 @@ secTelescope f s =
   \x -> s {_secTelescope = x}
 
 emptySignature :: Signature
-emptySignature = Sig Map.empty HMap.empty HMap.empty
+emptySignature = Sig Map.empty HMap.empty HMap.empty mempty
 
 -- | A @DisplayForm@ is in essence a rewrite rule @q ts --> dt@ for a defined symbol (could be a
 --   constructor as well) @q@. The right hand side is a 'DisplayTerm' which is used to 'reify' to a
@@ -2024,6 +2043,13 @@ data RewriteRule = RewriteRule
   }
     deriving (Show, Generic)
 
+-- | Information about an @instance@ definition.
+data InstanceInfo = InstanceInfo
+  { instanceClass   :: QName       -- ^ Name of the "class" this is an instance for
+  , instanceOverlap :: OverlapMode -- ^ Does this instance have a specified overlap mode?
+  }
+    deriving (Show, Generic)
+
 data Definition = Defn
   { defArgInfo        :: ArgInfo -- ^ Hiding should not be used.
   , defName           :: QName   -- ^ The canonical name, used e.g. in compilation.
@@ -2084,8 +2110,8 @@ data Definition = Defn
   , defDisplay        :: [LocalDisplayForm]
   , defMutual         :: MutualId
   , defCompiledRep    :: CompiledRepresentation
-  , defInstance       :: Maybe QName
-    -- ^ @Just q@ when this definition is an instance of class q
+  , defInstance       :: Maybe InstanceInfo
+    -- ^ @Just q@ when this definition is an instance.
   , defCopy           :: Bool
     -- ^ Has this function been created by a module
                          -- instantiation?
@@ -3434,9 +3460,34 @@ instance HasRange Call where
 -- ** Instance table
 ---------------------------------------------------------------------------
 
--- | The instance table is a @Map@ associating to every name of
---   record/data type/postulate its list of instances
-type InstanceTable = Map QName (Set QName)
+-- | Records information about the instances in the signature. Does not
+-- deal with local instances.
+data InstanceTable = InstanceTable
+  { _itableTree   :: DiscrimTree QName
+    -- ^ The actual discrimination tree for looking up instances with
+
+  , _itableCounts :: Map QName Int
+    -- ^ For profiling, we store the number of instances on a per-class
+    -- basis. This lets us compare the result from the discrimination
+    -- tree with all the instances in scope, thus informing us how many
+    -- validity checks were skipped.
+  }
+  deriving (Show, Generic)
+
+instance Semigroup InstanceTable where
+  InstanceTable t i <> InstanceTable t' i' = InstanceTable
+    { _itableTree   = t <> t'
+    , _itableCounts = Map.unionWith (+) i i'
+    }
+
+instance Monoid InstanceTable where
+  mempty = InstanceTable mempty mempty
+
+itableTree :: Lens' InstanceTable (DiscrimTree QName)
+itableTree f s = f (_itableTree s) <&> \x -> s { _itableTree = x }
+
+itableCounts :: Lens' InstanceTable (Map QName Int)
+itableCounts f s = f (_itableCounts s) <&> \x -> s { _itableCounts = x }
 
 -- | When typechecking something of the following form:
 --
@@ -3659,8 +3710,8 @@ data TCEnv =
                 --   lambdas and let-expressions.
           , envUnquoteFlags :: UnquoteFlags
           , envInstanceDepth :: !Int
-                -- ^ Until we get a termination checker for instance search (#1743) we
-                --   limit the search depth to ensure termination.
+              -- ^ Until we get a termination checker for instance search (#1743) we
+              --   limit the search depth to ensure termination.
           , envIsDebugPrinting :: Bool
           , envPrintingPatternLambdas :: [QName]
                 -- ^ #3004: pattern lambdas with copatterns may refer to themselves. We
@@ -4085,16 +4136,19 @@ data CandidateKind
 -- | A candidate solution for an instance meta is a term with its type.
 --   It may be the case that the candidate is not fully applied yet or
 --   of the wrong type, hence the need for the type.
-data Candidate  = Candidate { candidateKind :: CandidateKind
-                            , candidateTerm :: Term
-                            , candidateType :: Type
-                            , candidateOverlappable :: Bool
-                            }
+data Candidate  = Candidate
+  { candidateKind    :: CandidateKind
+  , candidateTerm    :: Term
+  , candidateType    :: Type
+  , candidateOverlap :: OverlapMode
+  }
   deriving (Show, Generic)
 
 instance Free Candidate where
   freeVars' (Candidate _ t u _) = freeVars' (t, u)
 
+instance HasOverlapMode Candidate where
+  lensOverlapMode f x = f (candidateOverlap x) <&> \m -> x{ candidateOverlap = m }
 
 ---------------------------------------------------------------------------
 -- ** Checking arguments
@@ -4251,9 +4305,9 @@ data Warning
     -- ^ Out of scope error we can recover from.
   | UnsupportedIndexedMatch Doc
     -- ^ Was not able to compute a full equivalence when splitting.
-  | AsPatternShadowsConstructorOrPatternSynonym Bool
-    -- ^ The as-name in an as-pattern may not shadow a constructor (@False@)
-    --   or pattern synonym name (@True@),
+  | AsPatternShadowsConstructorOrPatternSynonym LHSOrPatSyn
+    -- ^ The as-name in an as-pattern may not shadow a constructor ('IsLHS')
+    --   or pattern synonym name ('IsPatSyn'),
     --   because this can be confusing to read.
   | PatternShadowsConstructor C.Name A.QName
     -- ^ A pattern variable has the name of a constructor
@@ -4621,6 +4675,7 @@ data TypeError
           -- ^ Record type, fields not supplied by user, non-fields but supplied.
         | DuplicateFields [C.Name]
         | DuplicateConstructors [C.Name]
+        | DuplicateOverlapPragma QName OverlapMode OverlapMode
         | WithOnFreeVariable A.Expr Term
         | UnexpectedWithPatterns [A.Pattern]
         | WithClausePatternMismatch A.Pattern (NamedArg DeBruijnPattern)
@@ -4715,8 +4770,19 @@ data TypeError
         | BadArgumentsToPatternSynonym A.AmbiguousQName
         | TooFewArgumentsToPatternSynonym A.AmbiguousQName
         | CannotResolveAmbiguousPatternSynonym (List1 (A.QName, A.PatternSynDefn))
-        | UnusedVariableInPatternSynonym
+        | IllegalInstanceVariableInPatternSynonym C.Name
+            -- ^ This variable is bound in the lhs of the pattern synonym in instance position,
+            --   but not on the rhs.
+            --   This is forbidden because expansion of pattern synonyms would not be faithful
+            --   to availability of instances in instance search.
+        | PatternSynonymArgumentShadowsConstructorOrPatternSynonym LHSOrPatSyn C.Name (List1 AbstractName)
+            -- ^ A variable to be bound in the pattern synonym resolved on the rhs as name of
+            --   a constructor or a pattern synonym.
+            --   The resolvents are given in the list.
+        | UnusedVariableInPatternSynonym C.Name
+            -- ^ This variable is only bound on the lhs of the pattern synonym, not on the rhs.
         | UnboundVariablesInPatternSynonym [A.Name]
+            -- ^ These variables are only bound on the rhs of the pattern synonym, not on the lhs.
     -- Operator errors
         | NoParseForApplication (List2 C.Expr)
         | AmbiguousParseForApplication (List2 C.Expr) (List1 C.Expr)
@@ -4785,7 +4851,7 @@ data IncorrectTypeForRewriteRelationReason
 
 -- | Distinguish error message when parsing lhs or pattern synonym, resp.
 data LHSOrPatSyn = IsLHS | IsPatSyn
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Show, Generic, Bounded, Enum)
 
 -- | Type-checking errors.
 
@@ -5634,7 +5700,10 @@ getGeneralizedFieldName q
 ---------------------------------------------------------------------------
 
 instance KillRange Signature where
-  killRange (Sig secs defs rews) = killRangeN Sig secs defs rews
+  killRange (Sig secs defs rews inst) = killRangeN Sig secs defs rews inst
+
+instance KillRange InstanceTable where
+  killRange (InstanceTable tree count) = killRangeN InstanceTable tree count
 
 instance KillRange Sections where
   killRange = fmap killRange
@@ -5647,6 +5716,10 @@ instance KillRange RewriteRuleMap where
 
 instance KillRange Section where
   killRange (Section tel) = killRangeN Section tel
+
+instance KillRange InstanceInfo where
+  killRange :: KillRangeT InstanceInfo
+  killRange (InstanceInfo a b) = killRangeN InstanceInfo a b
 
 instance KillRange Definition where
   killRange (Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk lang def) =
@@ -5810,6 +5883,7 @@ instance NFData ProblemConstraint
 instance NFData WhyCheckModality
 instance NFData Constraint
 instance NFData Signature
+instance NFData InstanceTable
 instance NFData Comparison
 instance NFData CompareAs
 instance NFData a => NFData (Open a)
@@ -5837,6 +5911,7 @@ instance NFData NLPat
 instance NFData NLPType
 instance NFData NLPSort
 instance NFData RewriteRule
+instance NFData InstanceInfo
 instance NFData Definition
 instance NFData Polarity
 instance NFData IsForced

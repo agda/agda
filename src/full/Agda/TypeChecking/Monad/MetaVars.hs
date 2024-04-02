@@ -24,6 +24,7 @@ import qualified Data.Foldable as Fold
 import GHC.Stack (HasCallStack)
 
 import Agda.Syntax.Common
+import Agda.Syntax.Info ( MetaKind (InstanceMeta, UnificationMeta), MetaNameSuggestion )
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Position
@@ -56,9 +57,9 @@ import qualified Agda.Utils.Maybe.Strict as Strict
 
 import Agda.Utils.Impossible
 
--- | Various kinds of metavariables.
+-- | Various classes of metavariables.
 
-data MetaKind =
+data MetaClass =
     Records
     -- ^ Meta variables of record type.
   | SingletonRecords
@@ -67,10 +68,10 @@ data MetaKind =
     -- ^ Meta variables of level type, if type-in-type is activated.
   deriving (Eq, Enum, Bounded, Show)
 
--- | All possible metavariable kinds.
+-- | All possible metavariable classes.
 
-allMetaKinds :: [MetaKind]
-allMetaKinds = [minBound .. maxBound]
+allMetaClasses :: [MetaClass]
+allMetaClasses = [minBound .. maxBound]
 
 data KeepMetas = KeepMetas | RollBackMetas
 
@@ -108,8 +109,8 @@ class ( MonadConstraint m
   assignTerm' :: MonadMetaSolver m => MetaId -> [Arg ArgName] -> Term -> m ()
 
   -- | Eta-expand a local meta-variable, if it is of the specified
-  -- kind. Don't do anything if the meta-variable is a blocked term.
-  etaExpandMeta :: [MetaKind] -> MetaId -> m ()
+  -- class. Don't do anything if the meta-variable is a blocked term.
+  etaExpandMeta :: [MetaClass] -> MetaId -> m ()
 
   -- | Update the status of the metavariable
   updateMetaVar :: MetaId -> (MetaVariable -> MetaVariable) -> m ()
@@ -303,6 +304,15 @@ isSortMeta_ mv = isSortJudgement (mvJudgement mv)
 isSortJudgement :: Judgement a -> Bool
 isSortJudgement HasType{} = False
 isSortJudgement IsSort{}  = True
+
+-- | If a meta variable is still open, what is its kind?
+--
+metaInstantiationToMetaKind :: MetaInstantiation -> MetaKind
+metaInstantiationToMetaKind = \case
+  OpenMeta k                     -> k
+  InstV{}                        -> empty
+  BlockedConst{}                 -> empty
+  PostponedTypeCheckingProblem{} -> empty
 
 {-# SPECIALIZE getMetaType :: MetaId -> TCM Type #-}
 getMetaType :: ReadTCState m => MetaId -> m Type
@@ -648,7 +658,7 @@ lookupInteractionMeta_ ii m = ipMeta =<< BiMap.lookup ii m
 
 -- | Generate new meta variable.
 newMeta :: MonadMetaSolver m => Frozen -> MetaInfo -> MetaPriority -> Permutation -> Judgement a -> m MetaId
-newMeta = newMeta' Open
+newMeta = newMeta' (OpenMeta UnificationMeta)
 
 -- | Generate a new meta variable with some instantiation given.
 --   For instance, the instantiation could be a 'PostponedTypeCheckingProblem'.
@@ -717,8 +727,7 @@ getOpenMetas :: ReadTCState m => m [MetaId]
 getOpenMetas = MapS.keys <$> useR stOpenMetaStore
 
 isOpenMeta :: MetaInstantiation -> Bool
-isOpenMeta Open                           = True
-isOpenMeta OpenInstance                   = True
+isOpenMeta OpenMeta{}                     = True
 isOpenMeta BlockedConst{}                 = True
 isOpenMeta PostponedTypeCheckingProblem{} = True
 isOpenMeta InstV{}                        = False

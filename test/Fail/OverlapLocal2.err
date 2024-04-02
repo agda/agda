@@ -1,0 +1,8 @@
+Failed to solve the following constraints:
+  Resolve instance argument _8 : C true
+  Candidates
+    local : C true
+    Ct : {x : Bool} → C x
+    (stuck)
+Unsolved metas at the following locations:
+  OverlapLocal2.agda:14,5-13

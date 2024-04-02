@@ -1,0 +1,13 @@
+Failed to solve the following constraints:
+  Resolve instance argument
+    _r_55 : Extensional (Σ A (λ _ → A) → B) lzero
+  Candidates
+    [overlapping] Extensional-uncurry :
+      {ℓ ℓ' ℓ'' ℓr : Level} {A = A₁ : Type ℓ} {B = B₁ : A₁ → Type ℓ'}
+      {C : Type ℓ''} ⦃ sb : Extensional ((x : A₁) → B₁ x → C) ℓr ⦄ →
+      Extensional (Σ A₁ B₁ → C) ℓr
+    Extensional-default :
+      {ℓ : Level} {A = A₁ : Type ℓ} → Extensional A₁ ℓ
+    (stuck)
+Unsolved metas at the following locations:
+  Overlap2.agda:40,38-39

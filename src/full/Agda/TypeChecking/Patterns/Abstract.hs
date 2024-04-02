@@ -95,7 +95,7 @@ expandPatternSynonyms' = postTraverseAPatternM $ \case
       , "- patsyn parameters: " <+> (text . show) (killRange ns)
       , "- patsyn arguments:  " <+> (text . show) (fmap (fmap void) as)
       ]
-    case A.insertImplicitPatSynArgs (A.WildP . PatRange) (getRange x) ns as of
+    case A.insertImplicitPatSynArgs (\ _h r -> A.WildP (PatRange r)) (getRange x) ns as of
       Nothing       -> typeError $ BadArgumentsToPatternSynonym x
       Just (_, _:_) -> typeError $ TooFewArgumentsToPatternSynonym x
       Just (s, [])  -> do

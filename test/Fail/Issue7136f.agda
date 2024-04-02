@@ -5,6 +5,7 @@ open import Agda.Builtin.Nat
 
 pattern p {{ x }} = suc x
 -- Should be rejected: instance argument in pattern synonym not supported.
+-- 2024-03-07 issue #2829: ...unless it is also an instance argument on the rhs.
 
 pred : Nat → Nat
 pred p = x

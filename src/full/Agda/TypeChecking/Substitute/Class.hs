@@ -3,6 +3,8 @@
 module Agda.TypeChecking.Substitute.Class where
 
 import Control.Arrow ((***), second)
+import Control.DeepSeq
+import GHC.Generics
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -93,11 +95,31 @@ strengthen err = applySubst (strengthenS err 1)
 substUnder :: Subst a => Nat -> SubstArg a -> a -> a
 substUnder n u = applySubst (liftS n (singletonS 0 u))
 
+-- | Checks whether the variable bound by the abstraction is actually
+-- used, and, if /not/, returns the term within, 'strengthen'ed to live in
+-- the context /outside/ the abstraction.
+-- See also 'Agda.TypeChecking.Free.isBinderUsed'.
+isNoAbs :: (Free a, Subst a) => Abs a -> Maybe a
+isNoAbs (NoAbs _ b) = Just b
+isNoAbs (Abs _ b)
+  | not (0 `freeIn` b) = Just (strengthen __IMPOSSIBLE__ b)
+  | otherwise          = Nothing
+
 -- ** Identity instances
 
 instance Subst QName where
   type SubstArg QName = Term
   applySubst _ q = q
+
+-- | Wrapper for types that do not contain variables (so applying a substitution is the identity).
+--   Useful if you have a structure of types that support substitution mixed with types that don't
+--   and need to apply a substitution to the full structure.
+newtype NoSubst t a = NoSubst { unNoSubst :: a }
+  deriving (Generic, NFData, Functor)
+
+instance DeBruijn t => Subst (NoSubst t a) where
+  type SubstArg (NoSubst t a) = t
+  applySubst _ x = x
 
 ---------------------------------------------------------------------------
 -- * Explicit substitutions

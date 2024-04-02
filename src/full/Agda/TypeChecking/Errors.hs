@@ -140,6 +140,7 @@ errorString err = case err of
   BadArgumentsToPatternSynonym{}           -> "BadArgumentsToPatternSynonym"
   TooFewArgumentsToPatternSynonym{}        -> "TooFewArgumentsToPatternSynonym"
   CannotResolveAmbiguousPatternSynonym{}   -> "CannotResolveAmbiguousPatternSynonym"
+  PatternSynonymArgumentShadowsConstructorOrPatternSynonym{} -> "PatternSynonymArgumentShadowsConstructorOrPatternSynonym"
   UnboundVariablesInPatternSynonym{}       -> "UnboundVariablesInPatternSynonym"
   BothWithAndRHS                           -> "BothWithAndRHS"
   BuiltinInParameterisedModule{}           -> "BuiltinInParameterisedModule"
@@ -160,6 +161,7 @@ errorString err = case err of
   DuplicateConstructors{}                  -> "DuplicateConstructors"
   DuplicateFields{}                        -> "DuplicateFields"
   DuplicateImports{}                       -> "DuplicateImports"
+  DuplicateOverlapPragma{}                 -> "DuplicateOverlapPragma"
   FieldOutsideRecord                       -> "FieldOutsideRecord"
   FileNotFound{}                           -> "FileNotFound"
   GenericError{}                           -> "GenericError"
@@ -269,7 +271,8 @@ errorString err = case err of
   UninstantiatedDotPattern{}               -> "UninstantiatedDotPattern"
   ForcedConstructorNotInstantiated{}       -> "ForcedConstructorNotInstantiated"
   SolvedButOpenHoles{}                     -> "SolvedButOpenHoles"
-  UnusedVariableInPatternSynonym           -> "UnusedVariableInPatternSynonym"
+  IllegalInstanceVariableInPatternSynonym _ -> "IllegalInstanceVariableInPatternSynonym"
+  UnusedVariableInPatternSynonym _         -> "UnusedVariableInPatternSynonym"
   UnquoteFailed{}                          -> "UnquoteFailed"
   DeBruijnIndexOutOfScope{}                -> "DeBruijnIndexOutOfScope"
   WithClausePatternMismatch{}              -> "WithClausePatternMismatch"
@@ -726,6 +729,12 @@ instance PrettyTCM TypeError where
 
     DuplicateFields xs -> prettyDuplicateFields xs
 
+    DuplicateOverlapPragma q old new -> fsep $
+      pwords "The instance" ++ [prettyTCM q] ++
+      pwords "was already marked" ++ [pretty old <> "."] ++
+      pwords "This" ++ [pretty new] ++
+      pwords "pragma can not be applied to it."
+
     WithOnFreeVariable e v -> do
       de <- prettyA e
       dv <- prettyTCM v
@@ -1085,8 +1094,27 @@ instance PrettyTCM TypeError where
         prDef (x, (xs, p)) = prettyA (A.PatternSynDef x (map (fmap BindName) xs) p) <?> ("at" <+> pretty r)
           where r = nameBindingSite $ qnameName x
 
-    UnusedVariableInPatternSynonym -> fsep $
-      pwords "Unused variable in pattern synonym."
+    IllegalInstanceVariableInPatternSynonym x -> fsep $ concat
+      [ pwords "Variable is bound as instance in pattern synonym,"
+      , pwords "but does not resolve as instance in pattern: "
+      , [pretty x]
+      ]
+
+    PatternSynonymArgumentShadowsConstructorOrPatternSynonym kind x (y :| _ys) -> vcat
+      [ fsep $ concat
+        [ pwords "Pattern synonym variable"
+        , [ pretty x ]
+        , [ "shadows" ]
+        , case kind of
+            IsLHS -> [ "constructor" ]
+            IsPatSyn -> pwords "pattern synonym"
+        , pwords "defined at:"
+        ]
+      , pretty $ nameBindingSite $ qnameName $ anameName y
+      ]
+
+    UnusedVariableInPatternSynonym x -> fsep $
+      pwords "Unused variable in pattern synonym: " ++ [pretty x]
 
     UnboundVariablesInPatternSynonym xs -> fsep $
       pwords "Unbound variables in pattern synonym: " ++
@@ -1099,15 +1127,10 @@ instance PrettyTCM TypeError where
       where
       prettyLhsOrPatSyn = pwords $ case lhsOrPatSyn of
         IsLHS    -> "left-hand side"
-        IsPatSyn -> "pattern synonym"
+        IsPatSyn -> "pattern synonym right-hand side"
       prettyErrs = case errs of
         []     -> empty
         p0 : _ -> fsep $ pwords "Problematic expression:" ++ [pretty p0]
-
-{- UNUSED
-    NoParseForPatternSynonym p -> fsep $
-      pwords "Could not parse the pattern synonym" ++ [pretty p]
--}
 
     AmbiguousParseForLHS lhsOrPatSyn p ps -> do
       d <- pretty p

@@ -5,7 +5,7 @@ cabal-version: >= 1.10
 author: Nils Anders Danielsson
 build-type: Simple
 tested-with:
-  GHC == 9.8.1
+  GHC == 9.8.2
   GHC == 9.6.3
   GHC == 9.4.7
   GHC == 9.2.8

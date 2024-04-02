@@ -474,8 +474,8 @@ data Declaration
   = TypeSig ArgInfo TacticAttribute Name Expr
       -- ^ Axioms and functions can be irrelevant. (Hiding should be NotHidden)
   | FieldSig IsInstance TacticAttribute Name (Arg Expr)
-  | Generalize Range [TypeSignature] -- ^ Variables to be generalized, can be hidden and/or irrelevant.
-  | Field Range [FieldSignature]
+  | Generalize KwRange [TypeSignature] -- ^ Variables to be generalized, can be hidden and/or irrelevant.
+  | Field KwRange [FieldSignature]
   | FunClause LHS RHS WhereClause Bool
   | DataSig     Range Erased Name [LamBinding] Expr -- ^ lone data signature in mutual block
   | Data        Range Erased Name [LamBinding] Expr
@@ -489,21 +489,21 @@ data Declaration
   | Infix Fixity (List1 Name)
   | Syntax      Name Notation -- ^ notation declaration for a name
   | PatternSyn  Range Name [WithHiding Name] Pattern
-  | Mutual      Range [Declaration]  -- @Range@ of the whole @mutual@ block.
-  | InterleavedMutual Range [Declaration]
-  | Abstract    Range [Declaration]
-  | Private     Range Origin [Declaration]
+  | Mutual      KwRange [Declaration]
+  | InterleavedMutual KwRange [Declaration]
+  | Abstract    KwRange [Declaration]
+  | Private     KwRange Origin [Declaration]
     -- ^ In "Agda.Syntax.Concrete.Definitions" we generate private blocks
     --   temporarily, which should be treated different that user-declared
     --   private blocks.  Thus the 'Origin'.
-  | InstanceB   Range [Declaration]
-    -- ^ The 'Range' here (exceptionally) only refers to the range of the
+  | InstanceB   KwRange [Declaration]
+    -- ^ The 'KwRange' here only refers to the range of the
     --   @instance@ keyword.  The range of the whole block @InstanceB r ds@
     --   is @fuseRange r ds@.
-  | LoneConstructor Range [Declaration]
-  | Macro       Range [Declaration]
-  | Postulate   Range [TypeSignatureOrInstanceBlock]
-  | Primitive   Range [TypeSignature]
+  | LoneConstructor KwRange [Declaration]
+  | Macro       KwRange [Declaration]
+  | Postulate   KwRange [TypeSignatureOrInstanceBlock]
+  | Primitive   KwRange [TypeSignature]
   | Open        Range QName ImportDirective
   | Import      Range QName (Maybe AsName) !OpenShortHand ImportDirective
   | ModuleMacro Range Erased  Name ModuleApplication !OpenShortHand
@@ -516,9 +516,9 @@ data Declaration
   | UnquoteData Range Name [Name] Expr
       -- ^ @unquoteDecl data d constructor xs = e@
   | Pragma      Pragma
-  | Opaque      Range [Declaration]
+  | Opaque      KwRange [Declaration]
     -- ^ @opaque ...@
-  | Unfolding   Range [QName]
+  | Unfolding   KwRange [QName]
     -- ^ @unfolding ...@
   deriving Eq
 
@@ -620,6 +620,9 @@ data Pragma
     -- ^ Applies to the following data/record type.
   | NotProjectionLikePragma   Range QName
     -- ^ Applies to the stated function
+  | OverlapPragma             Range [QName] OverlapMode
+    -- ^ Applies to the given name(s), which must be instance names
+    -- (checked by the type checker).
   deriving Eq
 
 ---------------------------------------------------------------------------
@@ -949,7 +952,7 @@ instance HasRange RecordDirective where
 instance HasRange Declaration where
   getRange (TypeSig _ _ x t)       = fuseRange x t
   getRange (FieldSig _ _ x t)      = fuseRange x t
-  getRange (Field r _)             = r
+  getRange (Field kwr ds)          = fuseRange kwr ds
   getRange (FunClause lhs rhs wh _) = fuseRange lhs rhs `fuseRange` wh
   getRange (DataSig r _ _ _ _)     = r
   getRange (Data r _ _ _ _ _)      = r
@@ -958,20 +961,20 @@ instance HasRange Declaration where
   getRange (RecordDef r _ _ _ _)   = r
   getRange (Record r _ _ _ _ _ _)  = r
   getRange (RecordDirective r)     = getRange r
-  getRange (Mutual r _)            = r
-  getRange (InterleavedMutual r _) = r
-  getRange (LoneConstructor r _)   = r
-  getRange (Abstract r _)          = r
-  getRange (Generalize r _)        = r
+  getRange (Mutual kwr ds)         = fuseRange kwr ds
+  getRange (InterleavedMutual kwr ds) = fuseRange kwr ds
+  getRange (LoneConstructor kwr ds)= fuseRange kwr ds
+  getRange (Abstract kwr ds)       = fuseRange kwr ds
+  getRange (Generalize kwr ds)     = fuseRange kwr ds
   getRange (Open r _ _)            = r
   getRange (ModuleMacro r _ _ _ _ _)
                                    = r
   getRange (Import r _ _ _ _)      = r
-  getRange (InstanceB r _)         = r
-  getRange (Macro r _)             = r
-  getRange (Private r _ _)         = r
-  getRange (Postulate r _)         = r
-  getRange (Primitive r _)         = r
+  getRange (InstanceB kwr _)       = getRange kwr
+  getRange (Macro kwr ds)          = fuseRange kwr ds
+  getRange (Private kwr _ ds)      = fuseRange kwr ds
+  getRange (Postulate kwr ds)      = fuseRange kwr ds
+  getRange (Primitive kwr ds)      = fuseRange kwr ds
   getRange (Module r _ _ _ _)      = r
   getRange (Infix f _)             = getRange f
   getRange (Syntax n _)            = getRange n
@@ -980,8 +983,8 @@ instance HasRange Declaration where
   getRange (UnquoteDef r _ _)      = r
   getRange (UnquoteData r _ _ _)   = r
   getRange (Pragma p)              = getRange p
-  getRange (Opaque r _)            = r
-  getRange (Unfolding r _)         = r
+  getRange (Opaque kwr ds)         = fuseRange kwr ds
+  getRange (Unfolding kwr ds)      = fuseRange kwr ds
 
 instance HasRange LHS where
   getRange (LHS p eqns ws) = p `fuseRange` eqns `fuseRange` ws
@@ -1025,6 +1028,7 @@ instance HasRange Pragma where
   getRange (PolarityPragma r _ _)            = r
   getRange (NoUniverseCheckPragma r)         = r
   getRange (NotProjectionLikePragma r _)     = r
+  getRange (OverlapPragma r _ _)             = r
 
 instance HasRange AsName where
   getRange a = getRange (asRange a, asName a)
@@ -1101,8 +1105,8 @@ instance KillRange RecordDirective where
 instance KillRange Declaration where
   killRange (TypeSig i t n e)       = killRangeN (TypeSig i) t n e
   killRange (FieldSig i t n e)      = killRangeN FieldSig i t n e
-  killRange (Generalize r ds )      = killRangeN (Generalize noRange) ds
-  killRange (Field r fs)            = killRangeN (Field noRange) fs
+  killRange (Generalize r ds )      = killRangeN (Generalize empty) ds
+  killRange (Field r fs)            = killRangeN (Field empty) fs
   killRange (FunClause l r w ca)    = killRangeN FunClause l r w ca
   killRange (DataSig _ er n l e)    = killRangeN (DataSig noRange) er n l e
   killRange (Data _ er n l e c)     = killRangeN (Data noRange) er n l e c
@@ -1115,15 +1119,15 @@ instance KillRange Declaration where
   killRange (Infix f n)             = killRangeN Infix f n
   killRange (Syntax n no)           = killRangeN (\n -> Syntax n no) n
   killRange (PatternSyn _ n ns p)   = killRangeN (PatternSyn noRange) n ns p
-  killRange (Mutual _ d)            = killRangeN (Mutual noRange) d
-  killRange (InterleavedMutual _ d) = killRangeN (InterleavedMutual noRange) d
-  killRange (LoneConstructor _ d)   = killRangeN (LoneConstructor noRange) d
-  killRange (Abstract _ d)          = killRangeN (Abstract noRange) d
-  killRange (Private _ o d)         = killRangeN (Private noRange) o d
-  killRange (InstanceB _ d)         = killRangeN (InstanceB noRange) d
-  killRange (Macro _ d)             = killRangeN (Macro noRange) d
-  killRange (Postulate _ t)         = killRangeN (Postulate noRange) t
-  killRange (Primitive _ t)         = killRangeN (Primitive noRange) t
+  killRange (Mutual _ d)            = killRangeN (Mutual empty) d
+  killRange (InterleavedMutual _ d) = killRangeN (InterleavedMutual empty) d
+  killRange (LoneConstructor _ d)   = killRangeN (LoneConstructor empty) d
+  killRange (Abstract _ d)          = killRangeN (Abstract empty) d
+  killRange (Private _ o d)         = killRangeN (Private empty) o d
+  killRange (InstanceB _ d)         = killRangeN (InstanceB empty) d
+  killRange (Macro _ d)             = killRangeN (Macro empty) d
+  killRange (Postulate _ t)         = killRangeN (Postulate empty) t
+  killRange (Primitive _ t)         = killRangeN (Primitive empty) t
   killRange (Open _ q i)            = killRangeN (Open noRange) q i
   killRange (Import _ q a o i)      = killRangeN (\q a -> Import noRange q a o) q a i
   killRange (ModuleMacro _ e n m o i)
@@ -1135,8 +1139,8 @@ instance KillRange Declaration where
   killRange (UnquoteDef _ x t)      = killRangeN (UnquoteDef noRange) x t
   killRange (UnquoteData _ xs cs t) = killRangeN (UnquoteData noRange) xs cs t
   killRange (Pragma p)              = killRangeN Pragma p
-  killRange (Opaque r xs)           = killRangeN Opaque r xs
-  killRange (Unfolding r xs)        = killRangeN Unfolding r xs
+  killRange (Opaque r xs)           = killRangeN (Opaque empty) xs
+  killRange (Unfolding r xs)        = killRangeN (Unfolding empty) xs
 
 instance KillRange Expr where
   killRange (Ident q)              = killRangeN Ident q
@@ -1238,6 +1242,7 @@ instance KillRange Pragma where
   killRange (PolarityPragma _ q occs)         = killRangeN (\q -> PolarityPragma noRange q occs) q
   killRange (NoUniverseCheckPragma _)         = NoUniverseCheckPragma noRange
   killRange (NotProjectionLikePragma _ q)     = NotProjectionLikePragma noRange q
+  killRange (OverlapPragma _ q i)             = OverlapPragma noRange q i
 
 instance KillRange RHS where
   killRange AbsurdRHS = AbsurdRHS
@@ -1387,6 +1392,7 @@ instance NFData Pragma where
   rnf (PolarityPragma _ a b)            = rnf a `seq` rnf b
   rnf (NoUniverseCheckPragma _)         = ()
   rnf (NotProjectionLikePragma _ q)     = rnf q
+  rnf (OverlapPragma _ q i)             = rnf q `seq` rnf i
 
 -- | Ranges are not forced.
 

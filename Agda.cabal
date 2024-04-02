@@ -35,7 +35,7 @@ description:
     packages.
 
 tested-with:
-    GHC == 9.8.1
+    GHC == 9.8.2
     GHC == 9.6.4
     GHC == 9.4.8
     GHC == 9.2.8
@@ -90,7 +90,7 @@ extra-doc-files:
     doc/release-notes/2.2.0.md
 
 extra-source-files:
-    stack-9.8.1.yaml
+    stack-9.8.2.yaml
     stack-9.6.4.yaml
     stack-9.4.8.yaml
     stack-9.2.8.yaml
@@ -342,6 +342,7 @@ common language
       TypeFamilies
       TypeOperators
       TypeSynonymInstances
+      ViewPatterns
 
   other-extensions:
       CPP
@@ -543,8 +544,9 @@ library
       Agda.Syntax.Abstract
       Agda.Syntax.Builtin
       Agda.Syntax.Common
-      Agda.Syntax.Common.Pretty
       Agda.Syntax.Common.Aspect
+      Agda.Syntax.Common.KeywordRange
+      Agda.Syntax.Common.Pretty
       Agda.Syntax.Common.Pretty.ANSI
       Agda.Syntax.Concrete.Attribute
       Agda.Syntax.Concrete.Definitions
@@ -630,6 +632,8 @@ library
       Agda.TypeChecking.DeadCode
       Agda.TypeChecking.DisplayForm
       Agda.TypeChecking.DropArgs
+      Agda.TypeChecking.DiscrimTree
+      Agda.TypeChecking.DiscrimTree.Types
       Agda.TypeChecking.Empty
       Agda.TypeChecking.EtaContract
       Agda.TypeChecking.Errors
@@ -816,6 +820,7 @@ library
       Agda.Utils.Tuple
       Agda.Utils.TypeLevel
       Agda.Utils.TypeLits
+      Agda.Utils.Unsafe
       Agda.Utils.Update
       Agda.Utils.VarSet
       Agda.Utils.Warshall
@@ -829,6 +834,7 @@ library
 
   other-modules:
       Paths_Agda
+      -- Need not export submodules if parent module reexports them.
       Agda.Interaction.Highlighting.Dot.Backend
       Agda.Interaction.Highlighting.Dot.Base
       Agda.Interaction.Highlighting.HTML.Backend
@@ -839,7 +845,6 @@ library
       Agda.Interaction.Options.HasOptions
       Agda.Utils.CallStack.Base
       Agda.Utils.CallStack.Pretty
-      Agda.Utils.Unsafe
 
 -- Agda binary
 ---------------------------------------------------------------------------
@@ -951,6 +956,7 @@ test-suite agda-tests
       Internal.Utils.List2
       Internal.Utils.ListT
       Internal.Utils.Maybe.Strict
+      Internal.Utils.Monad
       Internal.Utils.Monoid
       Internal.Utils.PartialOrd
       Internal.Utils.Permutation

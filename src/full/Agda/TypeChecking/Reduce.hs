@@ -213,9 +213,7 @@ instance Instantiate Term where
          _ | Just m' <- mvTwin mv, blocking ->
            instantiate' (MetaV m' es)
 
-         Open -> return t
-
-         OpenInstance -> return t
+         OpenMeta _ -> return t
 
          BlockedConst u
            | blocking  -> instantiate' . unBrave $
@@ -1570,7 +1568,11 @@ instance InstantiateFull CompareAs where
   instantiateFull' AsTypes       = return AsTypes
 
 instance InstantiateFull Signature where
-  instantiateFull' (Sig a b c) = uncurry3 Sig <$> instantiateFull' (a, b, c)
+  instantiateFull' (Sig a b c d) = Sig
+    <$> instantiateFull' a
+    <*> instantiateFull' b
+    <*> instantiateFull' c
+    <*> pure d             -- The instance table only stores names
 
 instance InstantiateFull Section where
   instantiateFull' (Section tel) = Section <$> instantiateFull' tel
@@ -1723,6 +1725,7 @@ instantiateFullExceptForDefinitions'
     <$> ((\s r -> Sig { _sigSections     = s
                       , _sigDefinitions  = sig ^. sigDefinitions
                       , _sigRewriteRules = r
+                      , _sigInstances    = sig ^. sigInstances
                       })
          <$> instantiateFull' (sig ^. sigSections)
          <*> instantiateFull' (sig ^. sigRewriteRules))

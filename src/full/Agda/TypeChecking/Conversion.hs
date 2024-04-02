@@ -223,7 +223,7 @@ compareAs cmp a u v = do
           cubicalProjs <- traverse getName' [builtin_unglue, builtin_unglueU]
           let
             notFirstOrder = isJust (isRelevantProjection_ def)
-                         || any (Just f ==) cubicalProjs
+                         || (Just f) `elem` cubicalProjs
           if notFirstOrder then fallback else do
           pol <- getPolarity' cmp f
           whenProfile Profile.Conversion $ tick "compare first-order shortcut"
@@ -569,12 +569,13 @@ compareAtom cmp t m n =
         dir = fromCmp cmp
         rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
 
-        assign dir x es v = assignE dir x es v t $ compareAtomDir dir t
+        assign dir x es v = assignE dir x es v t $ compareAsDir dir t
 
     reportSDoc "tc.conv.atom" 30 $
       "compareAtom" <+> fsep [ prettyTCM mb <+> prettyTCM cmp
                              , prettyTCM nb
                              , prettyTCM t
+                             , prettyTCM blocker
                              ]
     reportSDoc "tc.conv.atom" 80 $
       "compareAtom" <+> fsep [ pretty mb <+> prettyTCM cmp

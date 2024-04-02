@@ -18,6 +18,7 @@ import Agda.TypeChecking.Serialise.Instances.Common () --instance only
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.Null
 import Agda.Utils.Impossible
 
 -- Don't serialize the tactic.
@@ -51,13 +52,13 @@ instance EmbPrj NameSpaceId where
     _ -> malformed
 
 instance EmbPrj Access where
-  icod_ (PrivateAccess UserWritten) = pure 0
-  icod_ PrivateAccess{}             = pure 1
-  icod_ PublicAccess                = pure 2
+  icod_ (PrivateAccess _ UserWritten) = pure 0
+  icod_ PrivateAccess{}               = pure 1
+  icod_ PublicAccess                  = pure 2
 
   value = \case
-    0 -> pure $ PrivateAccess UserWritten
-    1 -> pure $ PrivateAccess Inserted
+    0 -> pure $ PrivateAccess empty UserWritten
+    1 -> pure $ privateAccessInserted
     2 -> pure PublicAccess
     _ -> malformed
 
@@ -144,14 +145,15 @@ instance EmbPrj KindOfName where
   --   valu _   = malformed
 
 instance EmbPrj BindingSource where
-  icod_ LambdaBound   = pure 0
-  icod_ PatternBound  = pure 1
-  icod_ LetBound      = pure 2
-  icod_ WithBound     = pure 3
+  icod_ = \case
+    LambdaBound    -> pure 0
+    PatternBound _ -> pure 1
+    LetBound       -> pure 2
+    WithBound      -> pure 3
 
   value = \case
     0 -> pure LambdaBound
-    1 -> pure PatternBound
+    1 -> pure $ PatternBound empty
     2 -> pure LetBound
     3 -> pure WithBound
     _ -> malformed

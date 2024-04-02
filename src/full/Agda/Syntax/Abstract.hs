@@ -221,7 +221,9 @@ data Pragma
   | InjectivePragma QName
   | InlinePragma Bool QName -- INLINE or NOINLINE
   | NotProjectionLikePragma QName
-    -- Mark the definition as not being projection-like
+    -- ^ Mark the definition as not being projection-like
+  | OverlapPragma QName OverlapMode
+    -- ^ If the definition is an instance, set its overlap mode.
   | DisplayPragma QName [NamedArg Pattern] Expr
   deriving (Show, Eq, Generic)
 
@@ -994,32 +996,14 @@ mkLet :: ExprInfo -> [LetBinding] -> Expr -> Expr
 mkLet _ []     e = e
 mkLet i (d:ds) e = Let i (d :| ds) e
 
-patternToExpr :: Pattern -> Expr
-patternToExpr = \case
-  VarP x             -> Var (unBind x)
-  ConP _ c ps        -> Con c `app` map (fmap (fmap patternToExpr)) ps
-  ProjP _ o ds       -> Proj o ds
-  DefP _ fs ps       -> Def (headAmbQ fs) `app` map (fmap (fmap patternToExpr)) ps
-  WildP _            -> Underscore emptyMetaInfo
-  AsP _ _ p          -> patternToExpr p
-  DotP _ e           -> e
-  AbsurdP _          -> Underscore emptyMetaInfo  -- TODO: could this happen?
-  LitP (PatRange r) l-> Lit (ExprRange r) l
-  PatternSynP _ c ps -> PatternSyn c `app` (map . fmap . fmap) patternToExpr ps
-  RecP _ as          -> Rec exprNoRange $ map (Left . fmap patternToExpr) as
-  EqualP{}           -> __IMPOSSIBLE__  -- Andrea TODO: where is this used?
-  WithP r p          -> __IMPOSSIBLE__
-  AnnP _ _ p         -> patternToExpr p
-
 type PatternSynDefn = ([WithHiding Name], Pattern' Void)
 type PatternSynDefns = Map QName PatternSynDefn
 
-lambdaLiftExpr :: [Name] -> Expr -> Expr
-lambdaLiftExpr ns e
-  = foldr
-      (\ n -> Lam exprNoRange (mkDomainFree $ defaultNamedArg $ mkBinder_ n))
-      e
-      ns
+lambdaLiftExpr :: [WithHiding Name] -> Expr -> Expr
+lambdaLiftExpr ns e = foldr f e ns
+  where
+  f (WithHiding h n) = Lam exprNoRange $ setHiding h $ mkDomainFree $ defaultNamedArg $ mkBinder_ n
+
 
 -- NOTE: This is only used on expressions that come from right-hand sides of pattern synonyms, and
 -- thus does not have to handle all forms of expressions.
@@ -1082,9 +1066,8 @@ instance SubstExpr Expr where
     Macro{}         -> __IMPOSSIBLE__
 
 -- TODO: more informative failure
-insertImplicitPatSynArgs
-  :: forall a. HasRange a
-  => (Range -> a)
+insertImplicitPatSynArgs :: forall a. HasRange a
+  => (Hiding -> Range -> a)
        -- ^ Thing to insert (wildcard).
   -> Range
        -- ^ Range of the whole pattern synonym expression/pattern.
@@ -1101,7 +1084,7 @@ insertImplicitPatSynArgs wild r ns as = matchArgs r ns as
       | not (null as)
       , matchNext n a  = return (namedArg a, as')
       | visible n      = Nothing
-      | otherwise      = return (wild r, as)
+      | otherwise      = return (wild (getHiding n) r, as)
 
     matchNext ::
          WithHiding Name  -- Pattern synonym parameter

@@ -1,18 +1,18 @@
 Failed to solve the following constraints:
   Resolve instance argument _18 : A
   Candidates
-    a : A
     overlap B.a b : A
+    a : A
     (stuck)
   Resolve instance argument _24 : A
   Candidates
-    overlap C.a c : A
     D.a d : A
+    overlap C.a c : A
     (stuck)
   Resolve instance argument _30 : A
   Candidates
-    overlap B.a b : A
     a : A
+    overlap B.a b : A
     (stuck)
 Unsolved metas at the following locations:
   DisallowedOverlaps.agda:27,9-11

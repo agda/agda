@@ -44,7 +44,7 @@ mainTCM = do
 
 compilerMain :: Interface -> TCM ()
 compilerMain i = withScope_ (iInsideScope i) $ do -- withShowAllArguments $ disableDisplayForms $ do
-  let (Sig _secs defs _rews) = iSignature i
+  let Sig{_sigDefinitions = defs} = iSignature i
   forM_ (HashMap.toList defs) $ \ (q, def) -> do
     let t = defType def
     doc <- prettyTCM q <+> text ":" <+> prettyTCM t

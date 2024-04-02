@@ -138,6 +138,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty (prettyShow, singPlural)
 import Agda.Syntax.Concrete.Name (LensInScope(..))
 import Agda.Syntax.Position
+import Agda.Syntax.Info          (MetaNameSuggestion)
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
 import Agda.Syntax.Internal.MetaVars

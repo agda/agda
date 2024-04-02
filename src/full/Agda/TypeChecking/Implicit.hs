@@ -11,6 +11,7 @@ import Control.Monad.IO.Class
 import Agda.Syntax.Position (beginningOf, getRange)
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract (Binder, mkBinder_)
+import Agda.Syntax.Info ( MetaKind (InstanceMeta, UnificationMeta) )
 import Agda.Syntax.Internal as I
 
 import Agda.TypeChecking.Irrelevance
@@ -111,7 +112,7 @@ implicitNamedArgs n expand t0 = do
     case unEl t0' of
       Pi dom@Dom{domInfo = info, domTactic = tac, unDom = a} b
         | let x = bareNameWithDefault "_" dom, expand (getHiding info) x -> do
-          info' <- if hidden info then return info else do
+          kind <- if hidden info then return UnificationMeta else do
             reportSDoc "tc.term.args.ifs" 15 $
               "inserting instance meta for type" <+> prettyTCM a
             reportSDoc "tc.term.args.ifs" 40 $ nest 2 $ vcat
@@ -119,51 +120,47 @@ implicitNamedArgs n expand t0 = do
               , "hiding = " <+> text (show $ getHiding info)
               ]
 
-            return $ makeInstance info
-          (_, v) <- newMetaArg info' x CmpLeq a
+            return InstanceMeta
+          (_, v) <- newMetaArg kind info x CmpLeq a
           whenJust tac $ \ tac -> liftTCM $
             applyModalityToContext info $ unquoteTactic tac v a
           let narg = Arg info (Named (Just $ WithOrigin Inserted $ unranged x) v)
           mapFst (narg :) <$> implicitNamedArgs (n-1) expand (absApp b v)
       _ -> return ([], t0')
 
--- | Create a metavariable according to the 'Hiding' info.
+-- | Create a metavariable of 'MetaKind'.
 
 newMetaArg
   :: (PureTCM m, MonadMetaSolver m)
-  => ArgInfo    -- ^ Kind/relevance of meta.
+  => MetaKind   -- ^ Kind of meta.
+  -> ArgInfo    -- ^ Rrelevance of meta.
   -> ArgName    -- ^ Name suggestion for meta.
   -> Comparison -- ^ Check (@CmpLeq@) or infer (@CmpEq@) the type.
   -> Type       -- ^ Type of meta.
   -> m (MetaId, Term)  -- ^ The created meta as id and as term.
-newMetaArg info x cmp a = do
+newMetaArg kind info x cmp a = do
   prp <- runBlocked $ isPropM a
   let irrelevantIfProp =
         applyWhen (prp == Right True) $ applyRelevanceToContext Irrelevant
   applyModalityToContext info $ irrelevantIfProp $
-    newMeta (getHiding info) (argNameToString x) a
+    newMeta (argNameToString x) kind a
   where
-    newMeta :: MonadMetaSolver m => Hiding -> String -> Type -> m (MetaId, Term)
-    newMeta Instance{} n = newInstanceMeta n
-    newMeta Hidden     n = newNamedValueMeta RunMetaOccursCheck n cmp
-    newMeta NotHidden  n = newNamedValueMeta RunMetaOccursCheck n cmp
+    newMeta :: MonadMetaSolver m => String -> MetaKind -> Type -> m (MetaId, Term)
+    newMeta n = \case
+      InstanceMeta    -> newInstanceMeta n
+      UnificationMeta -> newNamedValueMeta RunMetaOccursCheck n cmp
 
--- | Create a questionmark according to the 'Hiding' info.
+-- | Create a questionmark (always 'UnificationMeta').
 
 newInteractionMetaArg
-  :: ArgInfo    -- ^ Kind/relevance of meta.
+  :: ArgInfo    -- ^ Relevance of meta.
   -> ArgName    -- ^ Name suggestion for meta.
   -> Comparison -- ^ Check (@CmpLeq@) or infer (@CmpEq@) the type.
   -> Type       -- ^ Type of meta.
   -> TCM (MetaId, Term)  -- ^ The created meta as id and as term.
 newInteractionMetaArg info x cmp a = do
   applyModalityToContext info $
-    newMeta (getHiding info) (argNameToString x) a
-  where
-    newMeta :: Hiding -> String -> Type -> TCM (MetaId, Term)
-    newMeta Instance{} n = newInstanceMeta n
-    newMeta Hidden     n = newNamedValueMeta' RunMetaOccursCheck n cmp
-    newMeta NotHidden  n = newNamedValueMeta' RunMetaOccursCheck n cmp
+    newNamedValueMeta' RunMetaOccursCheck (argNameToString x) cmp a
 
 ---------------------------------------------------------------------------
 

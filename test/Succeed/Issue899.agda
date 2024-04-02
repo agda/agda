@@ -1,6 +1,6 @@
 -- Andreas, 2013-11-07
 -- Instance candidates are now considered modulo judgemental equality.
-{-# OPTIONS --overlapping-instances #-}
+{-# OPTIONS --backtracking-instance-search #-}
 
 module Issue899 where
 

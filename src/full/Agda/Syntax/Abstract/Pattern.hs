@@ -10,6 +10,7 @@ import Prelude hiding (null)
 import Control.Arrow           ( (***), second )
 import Control.Monad           ( (>=>) )
 import Control.Monad.Identity  ( Identity(..), runIdentity )
+import Control.Monad.Reader    ( Reader, runReader, asks, local )
 import Control.Applicative     ( liftA2 )
 
 
@@ -290,6 +291,54 @@ substPattern' subE s = mapAPattern $ \ p -> case p of
   AsP _ _ _         -> p -- Note: cannot substitute into as-variable
   PatternSynP _ _ _ -> p
   WithP _ _         -> p
+
+-- | Convert a pattern to an expression.
+--
+-- Does not support all cases of patterns.
+-- Result has no 'Range' info, except in identifiers.
+--
+-- This function is only used in expanding pattern synonyms
+-- and in "Agda.Syntax.Translation.InternalToAbstract",
+-- so we can cut some corners.
+patternToExpr :: Pattern -> Expr
+patternToExpr p = patToExpr p `runReader` empty
+
+-- | Converting a pattern to an expression.
+--
+--   The 'Hiding' context is remembered to create instance metas
+--   when translating absurd patterns in instance position.
+--
+class PatternToExpr p e where
+  patToExpr :: p -> Reader Hiding e
+
+  default patToExpr :: (Traversable t, PatternToExpr p' e', p ~ t p', e ~ t e')
+    => p -> Reader Hiding e
+  patToExpr = traverse patToExpr
+
+instance PatternToExpr p e => PatternToExpr [p] [e]
+instance PatternToExpr p e => PatternToExpr (Named n p) (Named n e)
+instance PatternToExpr p e => PatternToExpr (FieldAssignment' p) (FieldAssignment' e)
+
+instance PatternToExpr p e => PatternToExpr (Arg p) (Arg e) where
+  patToExpr (Arg ai p) = local (const $ getHiding ai) $ Arg ai <$> patToExpr p
+
+instance PatternToExpr Pattern Expr where
+  patToExpr = \case
+    VarP x             -> return $ Var (unBind x)
+    ConP _ c ps        -> app (Con c) <$> patToExpr ps
+    ProjP _ o ds       -> return $ Proj o ds
+    DefP _ fs ps       -> app (Def $ headAmbQ fs) <$> patToExpr ps
+    WildP _            -> return $ Underscore emptyMetaInfo
+    AsP _ _ p          -> patToExpr p
+    DotP _ e           -> return e
+    -- Issue #7176: An absurd pattern in an instance position should turn into an instance meta:
+    AbsurdP _          -> asks hidingToMetaKind <&> \ k -> Underscore emptyMetaInfo{ metaKind = k }
+    LitP _ l           -> return $ Lit empty l
+    PatternSynP _ c ps -> app (PatternSyn c) <$> patToExpr ps
+    RecP _ as          -> Rec exprNoRange . map Left <$> patToExpr as
+    EqualP{}           -> __IMPOSSIBLE__  -- Andrea TODO: where is this used?
+    WithP r p          -> __IMPOSSIBLE__
+    AnnP _ _ p         -> patToExpr p
 
 
 -- * Other pattern utilities

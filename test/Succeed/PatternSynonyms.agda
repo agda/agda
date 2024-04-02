@@ -279,6 +279,32 @@ data ⊥ : Set where
 ⊥-elim absurd
 
 ------------------------------------------------------------------------
+-- Andreas, 2024-03-12, issue #7176:
+-- preserve instanceness in absurd pattern on rhs
+
+module Issue7176 where
+
+  data D : Set where
+    c : {{ i : 0 ≡ 1 }} → D
+
+  pattern ff = c {{ () }}
+
+  works : D → D
+  works ff
+
+  works' : D → D
+  works' c = c
+
+  issue7176 : D → D
+  issue7176 c = ff
+
+  -- Problem was:
+  -- Unsolved meta in last rhs:
+  -- _i : 0 ≡ 1
+
+  -- Should succeed.
+
+------------------------------------------------------------------------
 -- ambiguous constructors
 
 data ℕ2 : Set where

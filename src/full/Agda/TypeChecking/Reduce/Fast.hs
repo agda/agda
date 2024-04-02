@@ -986,8 +986,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
               spine' <- elimsToSpine env es
               let (zs, env, !spine'') = buildEnv (instTel i) (spine' <> spine)
               runAM (evalClosure (lams zs (instBody i)) env spine'' ctrl)
-            Just Open{}                         -> __IMPOSSIBLE__
-            Just OpenInstance{}                 -> __IMPOSSIBLE__
+            Just OpenMeta{}                     -> __IMPOSSIBLE__
             Just BlockedConst{}                 -> __IMPOSSIBLE__
             Just PostponedTypeCheckingProblem{} -> __IMPOSSIBLE__
 

@@ -12,7 +12,7 @@ on:
     - 'Agda.cabal'
     - 'Setup.hs'
     - 'stack-*.yaml'
-    - '!stack-9.8.1.yaml'
+    - '!stack-9.8.2.yaml'
     - 'src/size-solver/size-solver.cabal'
 
   pull_request:

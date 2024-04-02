@@ -235,6 +235,7 @@ instance Hilite A.Pragma where
     A.EtaPragma x                -> hilite x
     A.InjectivePragma x          -> hilite x
     A.NotProjectionLikePragma x  -> hilite x
+    A.OverlapPragma x _          -> hilite x
     A.InlinePragma _inline x     -> hilite x
     A.DisplayPragma x ps e       -> hilite x <> hilite ps <> hilite e
 

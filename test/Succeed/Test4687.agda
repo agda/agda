@@ -1,4 +1,4 @@
-{-# OPTIONS --overlapping-instances #-}
+{-# OPTIONS --backtracking-instance-search #-}
 
 open import Agda.Primitive
 open import Agda.Builtin.List

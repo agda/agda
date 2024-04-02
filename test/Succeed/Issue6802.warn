@@ -6,7 +6,7 @@ when scope checking the declaration
   module _ where
     foo : Nat
     foo = zero
-Issue6802.agda:8,1-11,15
+Issue6802.agda:8,1-7
 warning: -W[no]UselessOpaque
 This 'opaque' block has no effect.
 when scope checking the declaration
@@ -27,7 +27,7 @@ when scope checking the declaration
     foo : Nat
     foo = zero
 
-Issue6802.agda:8,1-11,15
+Issue6802.agda:8,1-7
 warning: -W[no]UselessOpaque
 This 'opaque' block has no effect.
 when scope checking the declaration

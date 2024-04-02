@@ -38,6 +38,7 @@ import Agda.Syntax.Scope.Base (KindOfName(ConName, DataName))
 import Agda.Interaction.Library ( ExeName )
 import Agda.Interaction.Options ( optTrustedExecutables, optAllowExec )
 
+import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Free
@@ -568,7 +569,7 @@ unquoteTCM m hole = do
   evalTCM (m `apply` [defaultArg qhole])
 
 evalTCM :: I.Term -> UnquoteM I.Term
-evalTCM v = do
+evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
   v <- reduceQuotedTerm v
   liftTCM $ reportSDoc "tc.unquote.eval" 90 $ "evalTCM" <+> prettyTCM v
   let failEval = throwError $ NonCanonical "type checking computation" v

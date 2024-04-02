@@ -9,6 +9,7 @@ old_version="$1"
 new_version="$2"
 
 files+='Agda.cabal '
+files+='CITATION.cff '
 files+='doc/user-manual/conf.py '
 files+='mk/versions.mk '
 files+='src/data/emacs-mode/agda2-mode.el '

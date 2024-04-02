@@ -2,6 +2,7 @@
 -}
 module Agda.Syntax.Common
   ( module Agda.Syntax.Common
+  , module Agda.Syntax.Common.KeywordRange
   , module Agda.Syntax.TopLevelModuleName.Boot
   , Induction(..)
   )
@@ -30,6 +31,9 @@ import qualified Data.HashSet as HashSet
 
 import GHC.Generics (Generic)
 
+import Agda.Syntax.Common.Aspect (Induction(..))
+import Agda.Syntax.Common.KeywordRange
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Position
 
 import Agda.Utils.BiMap (HasTag(..))
@@ -41,8 +45,6 @@ import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
 import Agda.Utils.POMonoid
-import Agda.Syntax.Common.Aspect (Induction(..))
-import Agda.Syntax.Common.Pretty
 
 import Agda.Utils.Impossible
 
@@ -223,11 +225,101 @@ instance PatternMatchingAllowed Induction where
   patternMatchingAllowed = (== Inductive)
 
 ---------------------------------------------------------------------------
--- * Hiding
+-- * Overlapping instances
 ---------------------------------------------------------------------------
 
 data Overlappable = YesOverlap | NoOverlap
   deriving (Show, Eq, Ord)
+
+-- | Just for the 'Hiding' instance. Should never combine different
+--   overlapping.
+instance Semigroup Overlappable where
+  NoOverlap  <> NoOverlap  = NoOverlap
+  YesOverlap <> YesOverlap = YesOverlap
+  _          <> _          = __IMPOSSIBLE__
+
+instance Monoid Overlappable where
+  mempty  = NoOverlap
+  mappend = (<>)
+
+instance NFData Overlappable where
+  rnf NoOverlap  = ()
+  rnf YesOverlap = ()
+
+-- | The possible overlap modes for an instance, also used for instance candidates.
+data OverlapMode
+  = Overlappable
+  -- ^ User-written OVERLAPPABLE pragma: this candidate can *be removed*
+  -- by a more specific candidate.
+
+  | Overlapping
+  -- ^ User-written OVERLAPPING pragma: this candidate can *remove* a
+  -- less specific candidate.
+
+  | Overlaps
+  -- ^ User-written OVERLAPS pragma: both overlappable and overlapping.
+
+  | DefaultOverlap
+  -- ^ No user-written overlap pragma. This instance can be overlapped
+  -- by an OVERLAPPING instance, and it can overlap OVERLAPPABLE
+  -- instances.
+
+  | Incoherent
+  -- ^ User-written INCOHERENT pragma: both overlappable and
+  -- overlapping; and, if there are multiple candidates after all
+  -- overlap has been handled, make an arbitrary choice.
+
+  | FieldOverlap
+  -- ^ Overlapping instances in record fields.
+  deriving (Show, Eq, Ord, Enum, Bounded)
+
+instance Pretty OverlapMode where
+  pretty = \case
+    Overlappable   -> "OVERLAPPABLE"
+    Overlapping    -> "OVERLAPPING"
+    Incoherent     -> "INCOHERENT"
+    Overlaps       -> "OVERLAPS"
+    FieldOverlap   -> "overlap"
+    DefaultOverlap -> empty
+
+instance KillRange OverlapMode where
+  killRange = id
+
+instance NFData OverlapMode where
+  rnf = \case
+    Overlappable   -> ()
+    Overlapping    -> ()
+    Overlaps       -> ()
+    DefaultOverlap -> ()
+    FieldOverlap   -> ()
+    Incoherent     -> ()
+
+class HasOverlapMode a where
+  lensOverlapMode :: Lens' a OverlapMode
+
+instance HasOverlapMode OverlapMode where
+  lensOverlapMode = id
+
+isIncoherent, isOverlappable, isOverlapping :: HasOverlapMode a => a -> Bool
+isIncoherent x = case x ^. lensOverlapMode of
+  Incoherent -> True
+  _          -> False
+
+isOverlappable x = case x ^. lensOverlapMode of
+  Overlappable -> True
+  Incoherent   -> True
+  Overlaps     -> True
+  _            -> False
+
+isOverlapping x = case x ^. lensOverlapMode of
+  Overlapping -> True
+  Incoherent  -> True
+  Overlaps    -> True
+  _           -> False
+
+---------------------------------------------------------------------------
+-- * Hiding
+---------------------------------------------------------------------------
 
 data Hiding  = Hidden | Instance Overlappable | NotHidden
   deriving (Show, Eq, Ord)
@@ -241,12 +333,8 @@ hidingToString = \case
   NotHidden  -> "visible"
   Instance{} -> "instance"
 
--- | Just for the 'Hiding' instance. Should never combine different
---   overlapping.
-instance Semigroup Overlappable where
-  NoOverlap  <> NoOverlap  = NoOverlap
-  YesOverlap <> YesOverlap = YesOverlap
-  _          <> _          = __IMPOSSIBLE__
+instance Null Hiding where
+  empty = NotHidden
 
 -- | 'Hiding' is an idempotent partial monoid, with unit 'NotHidden'.
 --   'Instance' and 'NotHidden' are incompatible.
@@ -257,12 +345,8 @@ instance Semigroup Hiding where
   Instance o <> Instance o' = Instance (o <> o')
   _          <> _           = __IMPOSSIBLE__
 
-instance Monoid Overlappable where
-  mempty  = NoOverlap
-  mappend = (<>)
-
 instance Monoid Hiding where
-  mempty = NotHidden
+  mempty = empty
   mappend = (<>)
 
 instance HasRange Hiding where
@@ -270,10 +354,6 @@ instance HasRange Hiding where
 
 instance KillRange Hiding where
   killRange = id
-
-instance NFData Overlappable where
-  rnf NoOverlap  = ()
-  rnf YesOverlap = ()
 
 instance NFData Hiding where
   rnf Hidden       = ()
@@ -370,8 +450,8 @@ makeInstance = makeInstance' NoOverlap
 makeInstance' :: LensHiding a => Overlappable -> a -> a
 makeInstance' o = setHiding (Instance o)
 
-isOverlappable :: LensHiding a => a -> Bool
-isOverlappable x =
+isYesOverlap :: LensHiding a => a -> Bool
+isYesOverlap x =
   case getHiding x of
     Instance YesOverlap -> True
     _ -> False
@@ -2263,16 +2343,17 @@ data IsInfix = InfixDef | PrefixDef
 
 -- | Access modifier.
 data Access
-  = PrivateAccess Origin
+  = PrivateAccess KwRange Origin
       -- ^ Store the 'Origin' of the private block that lead to this qualifier.
       --   This is needed for more faithful printing of declarations.
+      --   'KwRange' is the range of the @private@ keyword.
   | PublicAccess
     deriving (Show, Eq, Ord)
 
 instance Pretty Access where
   pretty = text . \case
-    PrivateAccess _ -> "private"
-    PublicAccess    -> "public"
+    PrivateAccess _ _ -> "private"
+    PublicAccess      -> "public"
 
 instance NFData Access where
   rnf _ = ()
@@ -2282,6 +2363,9 @@ instance HasRange Access where
 
 instance KillRange Access where
   killRange = id
+
+privateAccessInserted :: Access
+privateAccessInserted = PrivateAccess empty Inserted
 
 -- ** abstract blocks
 
@@ -2327,18 +2411,18 @@ instance AnyIsAbstract a => AnyIsAbstract (Maybe a) where
 
 -- | Is this definition eligible for instance search?
 data IsInstance
-  = InstanceDef Range  -- ^ Range of the @instance@ keyword.
+  = InstanceDef KwRange  -- ^ Range of the @instance@ keyword.
   | NotInstanceDef
     deriving (Show, Eq, Ord)
 
 instance KillRange IsInstance where
   killRange = \case
-    InstanceDef _    -> InstanceDef noRange
+    InstanceDef _    -> InstanceDef empty
     i@NotInstanceDef -> i
 
 instance HasRange IsInstance where
   getRange = \case
-    InstanceDef r  -> r
+    InstanceDef r  -> getRange r
     NotInstanceDef -> noRange
 
 instance NFData IsInstance where
@@ -2720,7 +2804,9 @@ data ImportDirective' n m = ImportDirective
   , using          :: Using' n m
   , hiding         :: HidingDirective' n m
   , impRenaming    :: RenamingDirective' n m
-  , publicOpen     :: Maybe Range -- ^ Only for @open@. Exports the opened names from the current module.
+  , publicOpen     :: Maybe KwRange
+      -- ^ Only for @open@. Exports the opened names from the current module.
+      --   Range of the @public@ keyword.
   }
   deriving Eq
 
@@ -2843,7 +2929,7 @@ instance (HasRange a, HasRange b) => HasRange (ImportedName' a b) where
 
 instance (KillRange a, KillRange b) => KillRange (ImportDirective' a b) where
   killRange (ImportDirective _ u h r p) =
-    killRangeN (\u h r -> ImportDirective noRange u h r p) u h r
+    killRangeN (\u h r -> ImportDirective noRange u h r (p $> empty)) u h r
 
 instance (KillRange a, KillRange b) => KillRange (Using' a b) where
   killRange (Using  i) = killRangeN Using  i

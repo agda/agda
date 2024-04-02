@@ -225,3 +225,17 @@ module Issue4743 where
       A = Set
 
   module @0 M₂ = M₁
+
+-- Andreas, 2024-03-26, issue #7202
+-- Precise range for warning ModuleDoesntExport:
+-- only highlight identifiers that cannot be imported.
+
+module Issue7202 where
+
+  open Issue4743 using
+    ( D₃
+    ; D₀  -- this should have deadcode highlighting
+    ; D₁
+    ; D₄  -- this should have deadcode highlighting
+    ; D₂
+    )

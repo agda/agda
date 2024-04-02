@@ -173,7 +173,7 @@ dropWhileEndM p (x : xs) = ifNotNullM (dropWhileEndM p xs) (return . (x:)) $ {-e
 -- | A ``monadic'' version of @'partition' :: (a -> Bool) -> [a] -> ([a],[a])
 partitionM :: (Functor m, Applicative m) => (a -> m Bool) -> [a] -> m ([a], [a])
 partitionM f =
-  foldr (\ x mlr -> bool (first (x:)) (second (x:)) <$> f x <*> mlr)
+  foldr (\ x -> liftA2 (bool (second (x:)) (first (x:))) $ f x)
         (pure empty)
 
 -- MonadPlus -----------------------------------------------------------------

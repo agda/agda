@@ -564,13 +564,13 @@ withAbstractPrivate i m =
       . addInstanceB (case A.defInstance i of InstanceDef r -> Just r; NotInstanceDef -> Nothing)
       <$> m
     where
-        priv (PrivateAccess UserWritten)
-                         ds = [ C.Private  (getRange ds) UserWritten ds ]
+        priv (PrivateAccess kwr UserWritten)
+                         ds = [ C.Private kwr UserWritten ds ]
         priv _           ds = ds
-        abst AbstractDef ds = [ C.Abstract (getRange ds) ds ]
+        abst AbstractDef ds = [ C.Abstract empty ds ]
         abst ConcreteDef ds = ds
 
-addInstanceB :: Maybe Range -> [C.Declaration] -> [C.Declaration]
+addInstanceB :: Maybe KwRange -> [C.Declaration] -> [C.Declaration]
 addInstanceB (Just r) ds = [ C.InstanceB r ds ]
 addInstanceB Nothing  ds = ds
 
@@ -1055,7 +1055,7 @@ instance ToConcrete A.LetBinding where
     bindToConcrete (A.LetBind i info x t e) ret =
         bindToConcrete x $ \ x ->
         do (t, (e, [], [], [])) <- toConcrete (t, A.RHS e Nothing)
-           ret $ addInstanceB (if isInstance info then Just noRange else Nothing) $
+           ret $ addInstanceB (if isInstance info then Just empty else Nothing) $
                [ C.TypeSig info empty (C.boundName x) t
                , C.FunClause
                    (C.LHS (C.IdentP True $ C.QName $ C.boundName x) [] [])
@@ -1211,7 +1211,7 @@ instance ToConcrete A.Declaration where
         (case mp of
            Nothing   -> []
            Just occs -> [C.Pragma (PolarityPragma noRange x' occs)]) ++
-        [C.Postulate (getRange i) [C.TypeSig info empty x' t']]
+        [C.Postulate empty [C.TypeSig info empty x' t']]
 
   toConcrete (A.Generalize s i j x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
@@ -1219,7 +1219,7 @@ instance ToConcrete A.Declaration where
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
       t' <- toConcreteTop t
-      return [C.Generalize (getRange i) [C.TypeSig j tac x' $ C.Generalized t']]
+      return [C.Generalize empty [C.TypeSig j tac x' $ C.Generalized t']]
 
   toConcrete (A.Field i x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
@@ -1234,7 +1234,7 @@ instance ToConcrete A.Declaration where
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
       t' <- traverse toConcreteTop t
-      return [C.Primitive (getRange i) [C.TypeSig (argInfo t') empty x' (unArg t')]]
+      return [C.Primitive empty [C.TypeSig (argInfo t') empty x' (unArg t')]]
         -- Primitives are always relevant.
 
   toConcrete (A.FunDef i _ cs) =
@@ -1268,7 +1268,7 @@ instance ToConcrete A.Declaration where
       (x',cs') <- first unsafeQNameToName <$> toConcrete (x, map Constr cs)
       return [ C.RecordDef (getRange i) x' (dir { recConstructor = Nothing }) (catMaybes tel') cs' ]
 
-  toConcrete (A.Mutual i ds) = pure . C.Mutual noRange <$> declsToConcrete ds
+  toConcrete (A.Mutual i ds) = pure . C.Mutual empty <$> declsToConcrete ds
 
   toConcrete (A.Section i erased x (A.GeneralizeTel _ tel) ds) = do
     x <- toConcrete x
@@ -1336,6 +1336,7 @@ instance ToConcrete RangeAndPragma where
     A.InjectivePragma x -> C.InjectivePragma r <$> toConcrete x
     A.InlinePragma b x -> C.InlinePragma r b <$> toConcrete x
     A.NotProjectionLikePragma q -> C.NotProjectionLikePragma r <$> toConcrete q
+    A.OverlapPragma q i -> C.OverlapPragma r <$> (fmap pure (toConcrete q)) <*> pure i
     A.EtaPragma x    -> C.EtaPragma    r <$> toConcrete x
     A.DisplayPragma f ps rhs ->
       C.DisplayPragma r <$> toConcrete (A.DefP (PatRange noRange) (unambiguous f) ps) <*> toConcrete rhs

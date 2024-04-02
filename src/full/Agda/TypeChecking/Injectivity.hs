@@ -145,7 +145,7 @@ isUnstableDef qn = do
     , builtin_glue
     , builtin_glueU ]
   case theDef defn of
-    _ | any (Just qn ==) prims -> pure True
+    _ | (Just qn) `elem` prims -> pure True
     Function{funIsKanOp = Just _} -> pure True
     _ -> pure False
 

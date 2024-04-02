@@ -1,0 +1,5 @@
+PatternSynVarShadowsPatternSyn.agda:9,11-12
+Pattern synonym variable x shadows pattern synonym defined at:
+PatternSynVarShadowsPatternSyn.agda:8,9-10
+when scope checking the declaration
+  pattern p x = c x

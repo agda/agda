@@ -33,6 +33,7 @@ Agda programs into Haskell programs.
 So the most common way to install Agda and keep it up to date is through Haskell's
 package manager, Cabal.
 
+
 Install GHC and Cabal through GHCup
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -140,9 +141,16 @@ This is because Agda code typically uses a lot of unicode symbols, and because y
 *interact* with Agda through the text editor while writing your program.
 
 The most common choice is `Emacs <https://www.gnu.org/software/emacs/>`_.
-Other editors with interactive support for Agda include Visual Studio Code (`agda-mode
-on VS Code <https://github.com/banacorn/agda-mode-vscode>`_) and Vim (`agda-vim
-<https://github.com/derekelkins/agda-vim>`_).
+Other editors with interactive support for Agda include:
+
+* Visual Studio Code (`agda-mode on VS Code
+  <https://github.com/banacorn/agda-mode-vscode>`_)
+
+* Neovim (`Cornelis
+  <https://github.com/isovector/cornelis>`_), and
+
+* Vim (`agda-vim
+  <https://github.com/derekelkins/agda-vim>`_).
 
 .. _install-agda-mode:
 
@@ -436,9 +444,7 @@ as root to get the correct files installed.
 Tested GHC Versions
 ^^^^^^^^^^^^^^^^^^^
 
-Agda has been tested with GHC 8.6.5, 8.8.4, 8.10.7, 9.0.2, 9.2.8, 9.4.8, 9.6.4,
-and 9.8.1.
-
+Agda has been tested with GHC 8.6.5, 8.8.4, 8.10.7, 9.0.2, 9.2.8, 9.4.8, 9.6.4, and 9.8.2.
 
 .. _installation-flags:
 

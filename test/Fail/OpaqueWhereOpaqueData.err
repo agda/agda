@@ -1,4 +1,4 @@
-OpaqueWhereOpaqueData.agda:11,5-12,27
+OpaqueWhereOpaqueData.agda:11,5-11
 warning: -W[no]UselessOpaque
 This 'opaque' block has no effect.
 when scope checking the declaration

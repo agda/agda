@@ -791,8 +791,11 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
               }
           computePolarity [projname]
 
-        case Info.defInstance info of
-          -- fields do not have an @instance@ keyword!?
+        addContext ftel1 case Info.defInstance info of
+          -- Instance projections have to be added with their types "qua
+          -- local variable" (i.e. the type you'd get were you to open
+          -- the record module), but this type has to be treated in the
+          -- context ftel1 otherwise it's nonsense
           InstanceDef _r -> addTypedInstance projname t
           NotInstanceDef -> pure ()
 

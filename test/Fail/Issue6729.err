@@ -1,4 +1,4 @@
-Issue6729.agda:1,1-2,13
+Issue6729.agda:1,1-7
 warning: -W[no]UselessOpaque
 This 'opaque' block has no effect.
 when scope checking the declaration

@@ -162,6 +162,7 @@ import Agda.Utils.Impossible
     'FOREIGN'                 { TokKeyword KwFOREIGN $$ }
     'COMPILE'                 { TokKeyword KwCOMPILE $$ }
     'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $$ }
+    'INCOHERENT'              { TokKeyword KwINCOHERENT $$ }
     'INJECTIVE'               { TokKeyword KwINJECTIVE $$ }
     'INLINE'                  { TokKeyword KwINLINE $$ }
     'NOINLINE'                { TokKeyword KwNOINLINE $$ }
@@ -174,6 +175,9 @@ import Agda.Utils.Impossible
     'NOT_PROJECTION_LIKE'     { TokKeyword KwNOT_PROJECTION_LIKE $$ }
     'OPTIONS'                 { TokKeyword KwOPTIONS $$ }
     'POLARITY'                { TokKeyword KwPOLARITY $$ }
+    'OVERLAPPABLE'            { TokKeyword KwOVERLAPPABLE $$ }
+    'OVERLAPPING'             { TokKeyword KwOVERLAPPING $$ }
+    'OVERLAPS'                { TokKeyword KwOVERLAPS $$ }
     'WARNING_ON_USAGE'        { TokKeyword KwWARNING_ON_USAGE $$ }
     'WARNING_ON_IMPORT'       { TokKeyword KwWARNING_ON_IMPORT $$ }
     'REWRITE'                 { TokKeyword KwREWRITE $$ }
@@ -293,6 +297,7 @@ Token
     | 'ETA'                     { TokKeyword KwETA $1 }
     | 'FOREIGN'                 { TokKeyword KwFOREIGN $1 }
     | 'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $1 }
+    | 'INCOHERENT'              { TokKeyword KwINCOHERENT $1 }
     | 'INJECTIVE'               { TokKeyword KwINJECTIVE $1 }
     | 'INLINE'                  { TokKeyword KwINLINE $1 }
     | 'MEASURE'                 { TokKeyword KwMEASURE $1 }
@@ -304,6 +309,9 @@ Token
     | 'NON_COVERING'            { TokKeyword KwNON_COVERING $1 }
     | 'NOT_PROJECTION_LIKE'     { TokKeyword KwNOT_PROJECTION_LIKE $1 }
     | 'OPTIONS'                 { TokKeyword KwOPTIONS $1 }
+    | 'OVERLAPPABLE'            { TokKeyword KwOVERLAPPABLE $1 }
+    | 'OVERLAPPING'             { TokKeyword KwOVERLAPPING $1 }
+    | 'OVERLAPS'                { TokKeyword KwOVERLAPS $1 }
     | 'POLARITY'                { TokKeyword KwPOLARITY $1 }
     | 'REWRITE'                 { TokKeyword KwREWRITE $1 }
     | 'STATIC'                  { TokKeyword KwSTATIC $1 }
@@ -399,7 +407,6 @@ Float : literal {% forM $1 $ \case
                    ; _          -> parseError $ "Expected floating point number"
                    }
                 }
-
 
 {--------------------------------------------------------------------------
     Names
@@ -596,6 +603,9 @@ PragmaQName : string {% pragmaQName $1 }  -- Issue 2125. WAS: string {% fmap QNa
 
 PragmaQNames :: { [QName] }
 PragmaQNames : Strings {% mapM pragmaQName $1 }
+
+PragmaQNames1 :: { [QName] }
+PragmaQNames1 : PragmaQName PragmaQNames { $1:$2 }
 
 {--------------------------------------------------------------------------
     Expressions (terms and types)
@@ -1025,7 +1035,7 @@ ImportDirective
   | {- empty -}                      { mempty }
 
 ImportDirective1 :: { ImportDirective }
-  : 'public'      { defaultImportDir { importDirRange = getRange $1, publicOpen = Just (getRange $1) } }
+  : 'public'      { defaultImportDir { importDirRange = getRange $1, publicOpen = Just (kwRange $1) } }
   | Using         { defaultImportDir { importDirRange = snd $1, using    = fst $1 } }
   | Hiding        { defaultImportDir { importDirRange = snd $1, hiding   = fst $1 } }
   | RenamingDir   { defaultImportDir { importDirRange = snd $1, impRenaming = fst $1 } }
@@ -1266,12 +1276,12 @@ RecordSig
 
 Constructor :: { Declaration }
 Constructor : 'data' '_' 'where' Declarations0
-  { LoneConstructor (getRange ($1,$4)) $4 }
+  { LoneConstructor (kwRange ($1,$2,$3)) $4 }
 
 -- Declaration of record constructor name.
 RecordConstructorName :: { (Name, IsInstance) }
 RecordConstructorName :                  'constructor' Id       { ($2, NotInstanceDef) }
-                      | 'instance' vopen 'constructor' Id close { ($4, InstanceDef (getRange $1)) }
+                      | 'instance' vopen 'constructor' Id close { ($4, InstanceDef (kwRange $1)) }
 
 
 -- Fixity declarations.
@@ -1285,60 +1295,53 @@ Fields :: { Declaration }
 Fields : 'field' ArgTypeSignaturesOrEmpty
             { let
                 inst i = case getHiding i of
-                           Instance _ -> InstanceDef noRange  -- no @instance@ keyword here
+                           Instance _ -> InstanceDef empty  -- no @instance@ keyword here
                            _          -> NotInstanceDef
                 toField (Arg info (TypeSig info' tac x t)) = FieldSig (inst info') tac x (Arg info t)
-              in Field (fuseRange $1 $2) $ map toField $2 }
-  -- | 'field' ModalArgTypeSignatures
-  --           { let
-  --               inst i = case getHiding i of
-  --                          Instance _ -> InstanceDef
-  --                          _          -> NotInstanceDef
-  --               toField (Arg info (TypeSig info' x t)) = FieldSig (inst info') x (Arg info t)
-  --             in Field (fuseRange $1 $2) $ map toField $2 }
+              in Field (kwRange $1) $ map toField $2 }
 
 -- Variable declarations for automatic generalization
 Generalize :: { Declaration }
 Generalize : 'variable' ArgTypeSignaturesOrEmpty
             { let
                 toGeneralize (Arg info (TypeSig _ tac x t)) = TypeSig info tac x t
-              in Generalize (fuseRange $1 $2) (map toGeneralize $2) }
+              in Generalize (kwRange $1) (map toGeneralize $2) }
 
 -- Mutually recursive declarations.
 Mutual :: { Declaration }
-Mutual : 'mutual' Declarations0  { Mutual (fuseRange $1 $2) $2 }
-       | 'interleaved' 'mutual' Declarations0 { InterleavedMutual (getRange ($1,$2,$3)) $3 }
+Mutual : 'mutual' Declarations0  { Mutual (kwRange $1) $2 }
+       | 'interleaved' 'mutual' Declarations0 { InterleavedMutual (kwRange ($1,$2)) $3 }
 
 -- Abstract declarations.
 Abstract :: { Declaration }
-Abstract : 'abstract' Declarations0  { Abstract (fuseRange $1 $2) $2 }
+Abstract : 'abstract' Declarations0  { Abstract (kwRange $1) $2 }
 
 
 -- Private can only appear on the top-level (or rather the module level).
 Private :: { Declaration }
-Private : 'private' Declarations0        { Private (fuseRange $1 $2) UserWritten $2 }
+Private : 'private' Declarations0        { Private (kwRange $1) UserWritten $2 }
 
 
 -- Instance declarations.
 Instance :: { Declaration }
-Instance : 'instance' Declarations0  { InstanceB (getRange $1) $2 }
+Instance : 'instance' Declarations0  { InstanceB (kwRange $1) $2 }
 
 
 -- Macro declarations.
 Macro :: { Declaration }
-Macro : 'macro' Declarations0 { Macro (fuseRange $1 $2) $2 }
+Macro : 'macro' Declarations0 { Macro (kwRange $1) $2 }
 
 
 -- Postulates.
 Postulate :: { Declaration }
-Postulate : 'postulate' Declarations0 { Postulate (fuseRange $1 $2) $2 }
+Postulate : 'postulate' Declarations0 { Postulate (kwRange $1) $2 }
 
 -- Primitives. Can only contain type signatures.
 Primitive :: { Declaration }
 Primitive : 'primitive' ArgTypeSignaturesOrEmpty  {
   let { setArg (Arg info (TypeSig _ tac x t)) = TypeSig info tac x t
       ; setArg _ = __IMPOSSIBLE__ } in
-  Primitive (fuseRange $1 $2) (map setArg $2) }
+  Primitive (kwRange $1) (map setArg $2) }
 
 -- Unquoting declarations.
 UnquoteDecl :: { Declaration }
@@ -1436,9 +1439,9 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
          -- TODO: Don't use (insecure) hashes in this way.
     ; fresh  = Name mr NotInScope $ singleton $ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show unique
     ; fresh' = Name mr NotInScope $ singleton $ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show (unique + 1)
-    ; impStm asR = Import noRange m (Just (AsName (Right fresh) asR)) DontOpen defaultImportDir
+    ; impStm asR = Import (getRange ($2, $3)) m (Just (AsName (Right fresh) asR)) DontOpen defaultImportDir
     ; appStm m' es =
-        Private r Inserted
+        Private empty Inserted
           [ ModuleMacro r defaultErased m'
              (SectionApp (getRange es) []
                (rawApp (Ident (QName fresh) :| es)))
@@ -1485,7 +1488,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
     } in singleton $
       case es of
       { []  -> Open r m dir
-      ; _   -> Private r Inserted
+      ; _   -> Private empty Inserted
                  [ ModuleMacro r defaultErased
                      (noName $ beginningOf $ getRange m)
                      (SectionApp (getRange (m , es)) []
@@ -1496,7 +1499,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
   }
   | 'open' ModuleName '{{' '...' DoubleCloseBrace ImportDirective {
     let r = getRange $2 in singleton $
-      Private r Inserted
+      Private empty Inserted
       [ ModuleMacro r defaultErased (noName $ beginningOf $ getRange $2)
           (RecordModuleInstance r $2) DoOpen $6
       ]
@@ -1583,6 +1586,7 @@ DeclarationPragma
   | NoPositivityCheckPragma  { $1 }
   | NoUniverseCheckPragma    { $1 }
   | PolarityPragma           { $1 }
+  | OverlapPragma            { $1 }
   | OptionsPragma            { $1 }
     -- Andreas, 2014-03-06
     -- OPTIONS pragma not allowed everywhere, but don't give parse error.
@@ -1637,6 +1641,13 @@ NotProjectionLikePragma :: { Pragma }
 NotProjectionLikePragma
   : '{-#' 'NOT_PROJECTION_LIKE' PragmaQName '#-}'
     { NotProjectionLikePragma (getRange ($1,$2,$3,$4)) $3 }
+
+OverlapPragma :: { Pragma }
+OverlapPragma
+  : '{-#' 'OVERLAPPABLE' PragmaQNames1 '#-}' { OverlapPragma (getRange ($1,$2,$3,$4)) $3 Overlappable }
+  | '{-#' 'OVERLAPPING'  PragmaQNames1 '#-}' { OverlapPragma (getRange ($1,$2,$3,$4)) $3 Overlapping }
+  | '{-#' 'OVERLAPS'     PragmaQNames1 '#-}' { OverlapPragma (getRange ($1,$2,$3,$4)) $3 Overlaps }
+  | '{-#' 'INCOHERENT'   PragmaQNames1 '#-}' { OverlapPragma (getRange ($1,$2,$3,$4)) $3 Incoherent }
 
 InjectivePragma :: { Pragma }
 InjectivePragma
@@ -1807,10 +1818,10 @@ RecordInduction
     | 'coinductive' { Ranged (getRange $1) CoInductive }
 
 Opaque :: { Declaration }
-  : 'opaque' Declarations0     { Opaque (getRange ($1, $2)) $2 }
+  : 'opaque' Declarations0     { Opaque (kwRange $1) $2 }
 
 Unfolding :: { Declaration }
-  : 'unfolding' UnfoldingNames { Unfolding (getRange ($1, $2)) $2 }
+  : 'unfolding' UnfoldingNames { Unfolding (kwRange $1) $2 }
 
 UnfoldingNames :: { [QName] }
 UnfoldingNames

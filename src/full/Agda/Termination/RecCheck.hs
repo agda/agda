@@ -163,7 +163,6 @@ anyDefs include a = do
   where
   -- TODO: Is it bad to ignore the lambdas?
   inst (InstV i)                      = instBody i
-  inst Open                           = __IMPOSSIBLE__
-  inst OpenInstance                   = __IMPOSSIBLE__
+  inst OpenMeta{}                     = __IMPOSSIBLE__
   inst BlockedConst{}                 = __IMPOSSIBLE__
   inst PostponedTypeCheckingProblem{} = __IMPOSSIBLE__

@@ -387,10 +387,14 @@ instance Pretty WhereClause where
                        = vcat [ "where", nest 2 (vcat $ map pretty ds) ]
   pretty (AnyWhere _ ds) = vcat [ "where", nest 2 (vcat $ map pretty ds) ]
   pretty (SomeWhere _ erased m a ds) =
-    vcat [ hsep $ applyWhen (a == PrivateAccess UserWritten) ("private" :)
+    vcat [ hsep $ privateWhenUserWritten a
              [ "module", prettyErased erased (pretty m), "where" ]
          , nest 2 (vcat $ map pretty ds)
          ]
+    where
+      privateWhenUserWritten = \case
+        PrivateAccess _ UserWritten -> ("private" :)
+        _ -> id
 
 instance Pretty LHS where
   pretty (LHS p eqs es) = sep
@@ -445,8 +449,8 @@ instance Pretty Declaration where
         mkInst (InstanceDef _) d = sep [ "instance", nest 2 d ]
         mkInst NotInstanceDef  d = d
 
-        mkOverlap i d | isOverlappable i = "overlap" <+> d
-                      | otherwise        = d
+        mkOverlap i d | isYesOverlap i = "overlap" <+> d
+                      | otherwise      = d
     Field _ fs ->
       sep [ "field"
           , nest 2 $ vcat (map pretty fs)
@@ -505,7 +509,7 @@ instance Pretty Declaration where
                              <+> "=" <+> pretty p
     Mutual _ ds     -> namedBlock "mutual" ds
     InterleavedMutual _ ds  -> namedBlock "interleaved mutual" ds
-    LoneConstructor _ ds -> namedBlock "constructor" ds
+    LoneConstructor _ ds -> namedBlock "data _ where" ds
     Abstract _ ds   -> namedBlock "abstract" ds
     Private _ _ ds  -> namedBlock "private" ds
     InstanceB _ ds  -> namedBlock "instance" ds
@@ -655,6 +659,7 @@ instance Pretty Pragma where
     pretty (PolarityPragma _ q occs) =
       hsep ("POLARITY" : pretty q : map pretty occs)
     pretty (NoUniverseCheckPragma _) = "NO_UNIVERSE_CHECK"
+    pretty (OverlapPragma _ x m) = hsep [pretty m, pretty x]
 
 instance Pretty Associativity where
   pretty = \case
