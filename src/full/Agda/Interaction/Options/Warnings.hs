@@ -28,11 +28,14 @@ where
 import Control.Arrow ( (&&&) )
 import Control.DeepSeq
 import Control.Monad ( guard, when )
+import Control.Monad.Except ( throwError )
 
-import Data.Set (Set)
-import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
 import Data.List ( stripPrefix, intercalate, partition, sort )
+import Data.Set  ( Set )
+import qualified Data.Set as Set
+import Data.Text ( Text )
+import qualified Data.Text as Text
 
 import GHC.Generics (Generic)
 
@@ -77,14 +80,23 @@ defaultWarningMode = WarningMode ws False where
   ws = fst $ fromMaybe __IMPOSSIBLE__ $ lookup defaultWarningSet warningSets
 
 -- | Some warnings are errors and cannot be turned off.
-data WarningModeError = Unknown String | NoNoError String
+data WarningModeError
+  = Unknown Text
+      -- ^ Unknown warning.
+  | NoNoError Text
+      -- ^ Warning that cannot be disabled.
+  deriving (Show, Generic)
 
-prettyWarningModeError :: WarningModeError -> String
+instance NFData WarningModeError
+
+prettyWarningModeError :: WarningModeError -> Text
 prettyWarningModeError = \case
-  Unknown str -> concat [ "Unknown warning flag: ", str, "." ]
-  NoNoError str -> concat [ "You may only turn off benign warnings. The warning "
-                          , str
-                          ," is a non-fatal error and thus cannot be ignored." ]
+  Unknown   w -> Text.concat [ "Unknown warning flag: ", w, "." ]
+  NoNoError w -> Text.concat
+    [ "You may only turn off benign warnings. The warning "
+    , w
+    , " is a non-fatal error and thus cannot be ignored."
+    ]
 
 -- | From user-given directives we compute WarningMode updates
 type WarningModeUpdate = WarningMode -> WarningMode
@@ -101,12 +113,17 @@ warningModeUpdate str = case str of
             -> pure $ set warningSet ws
   _ -> case stripPrefix "no" str of
     Nothing   -> do
-      wname :: WarningName <- maybeToEither (Unknown str) $ string2WarningName str
+      wname <- stringToWarningName str
       pure (over warningSet $ Set.insert wname)
     Just str' -> do
-      wname :: WarningName <- maybeToEither (Unknown str') $ string2WarningName str'
-      when (wname `elem` errorWarnings) (Left (NoNoError str'))
+      wname <- stringToWarningName str'
+      when (wname `elem` errorWarnings) $
+        throwError $ NoNoError $ Text.pack str'
       pure (over warningSet $ Set.delete wname)
+  where
+    stringToWarningName :: String -> Either WarningModeError WarningName
+    stringToWarningName str = maybeToEither (Unknown $ Text.pack str) $ string2WarningName str
+
 
 -- | Common sets of warnings
 
@@ -189,6 +206,8 @@ exactSplitWarnings = Set.fromList
 data WarningName
   -- Option Warnings
   = OptionRenamed_
+  | WarningProblem_
+      -- ^ Some warning could not be set or unset.
   -- Parser Warnings
   | OverlappingTokensWarning_
   | UnsupportedAttribute_
@@ -380,6 +399,7 @@ warningNameDescription :: WarningName -> String
 warningNameDescription = \case
   -- Option Warnings
   OptionRenamed_                   -> "Renamed options."
+  WarningProblem_                  -> "Problems with switching warnings."
   -- Parser Warnings
   OverlappingTokensWarning_        -> "Multi-line comments spanning one or more literate text blocks."
   UnsupportedAttribute_            -> "Unsupported attributes."

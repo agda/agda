@@ -32,6 +32,9 @@ Pragmas and options
   backtracking during instance search, has been renamed to
   `--backtracking-instance-search`.
 
+* New warning `WarningProblem` when trying to switch an unknown or non-benign warning with the `-W` option.
+  Used to be a hard error.
+
 Syntax
 ------
 

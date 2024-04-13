@@ -4421,11 +4421,15 @@ warningName = \case
   -- Not source code related
   DuplicateInterfaceFiles{}      -> DuplicateInterfaceFiles_
 
--- Indicates wether changes in the source code can silence or influence the
--- warning.
+-- | Should warnings of that type be serialized?
+--
+-- Only when changes in the source code can silence or influence the warning.
+--
 isSourceCodeWarning :: WarningName -> Bool
-isSourceCodeWarning DuplicateInterfaceFiles_{} = False
-isSourceCodeWarning _ = True
+isSourceCodeWarning = \case
+  DuplicateInterfaceFiles_ -> False
+  WarningProblem_ -> False
+  _ -> True
 
 data TCWarning
   = TCWarning

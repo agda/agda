@@ -944,6 +944,9 @@ type Flag opts = opts -> OptM opts
 
 data OptionWarning
   = OptionRenamed { oldOptionName :: String, newOptionName :: String }
+      -- ^ Name of option changed in a newer version of Agda.
+  | WarningProblem WarningModeError
+      -- ^ A problem with setting or unsetting a warning.
   deriving (Show, Generic)
 
 instance NFData OptionWarning
@@ -951,13 +954,15 @@ instance NFData OptionWarning
 instance Pretty OptionWarning where
   pretty = \case
     OptionRenamed old new -> hsep
-      [ "Option", name old, "is deprecated, please use", name new, "instead" ]
+      [ "Option", option old, "is deprecated, please use", option new, "instead" ]
+    WarningProblem err -> pretty (prettyWarningModeError err) <+> "See --help=warning."
     where
-    name = text . ("--" ++)
+    option = text . ("--" ++)
 
 optionWarningName :: OptionWarning -> WarningName
 optionWarningName = \case
   OptionRenamed{} -> OptionRenamed_
+  WarningProblem{} -> WarningProblem_
 
 -- | Checks that the given options are consistent.
 --   Also makes adjustments (e.g. when one option implies another).
@@ -1411,7 +1416,7 @@ profileFlag s o =
 warningModeFlag :: String -> Flag PragmaOptions
 warningModeFlag s o = case warningModeUpdate s of
   Right upd -> return $ o { _optWarningMode = upd (_optWarningMode o) }
-  Left err  -> throwError $ prettyWarningModeError err ++ " See --help=warning."
+  Left err  -> o <$ tell1 (WarningProblem err)
 
 terminationDepthFlag :: String -> Flag PragmaOptions
 terminationDepthFlag s o =

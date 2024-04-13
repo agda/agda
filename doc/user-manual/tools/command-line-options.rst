@@ -1546,6 +1546,11 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      User-defined warnings added using one of the ``WARNING_ON_*`` pragmas.
 
+.. option:: WarningProblem
+
+     Problem encountered with option :option:`-W`,
+     like an unknown warning or the attempt to switch off a non-benign warning.
+
 .. option:: WithoutKFlagPrimEraseEquality
 
      ``primEraseEquality`` used with the without-K flags.
