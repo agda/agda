@@ -159,10 +159,22 @@ instance EmbPrj Warning where
 
 instance EmbPrj OptionWarning where
   icod_ = \case
-    OptionRenamed a b -> icodeN' OptionRenamed a b
+    OptionRenamed a b -> icodeN 0 OptionRenamed a b
+    WarningProblem a  -> icodeN 1 WarningProblem a
 
   value = vcase $ \case
-    [a, b] -> valuN OptionRenamed a b
+    [0, a, b] -> valuN OptionRenamed a b
+    [1, a]    -> valuN WarningProblem a
+    _ -> malformed
+
+instance EmbPrj WarningModeError where
+  icod_ = \case
+    Unknown a   -> icodeN 0 Unknown a
+    NoNoError a -> icodeN 1 NoNoError a
+
+  value = vcase $ \case
+    [0, a] -> valuN Unknown a
+    [1, a] -> valuN NoNoError a
     _ -> malformed
 
 instance EmbPrj ParseWarning where
@@ -469,6 +481,7 @@ instance EmbPrj WarningName where
     DuplicateRewriteRule_                        -> 112
     MissingTypeSignatureForOpaque_               -> 113
     UselessMacro_                                -> 114
+    WarningProblem_                              -> 115
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -585,6 +598,7 @@ instance EmbPrj WarningName where
     112 -> return DuplicateRewriteRule_
     113 -> return MissingTypeSignatureForOpaque_
     114 -> return UselessMacro_
+    115 -> return WarningProblem_
     _   -> malformed
 
 
