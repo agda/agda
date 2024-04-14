@@ -641,22 +641,14 @@ instance ToAbstract PatName where
           -- Andreas, 2020-04-11 CoConName:
           -- coinductive constructors will be rejected later, in the type checker
     reportSLn "scope.pat" 20 $ "resolved as " ++ prettyShow rx
-    case (rx, x) of
-      (VarName y _,       C.QName x)                           -> bindPatVar x
-      (FieldName d,       C.QName x)                           -> bindPatVar x
-      (DefinedName _ d _, C.QName x) | isDefName (anameKind d) -> bindPatVar x
-      (UnknownName,       C.QName x)                           -> bindPatVar x
-      (ConstructorName _ ds, _)                                -> patCon ds
-      (PatternSynResName d, _)                                 -> patSyn d
-      _ -> typeError $ InvalidPattern $ C.IdentP True x
-    where
-      bindPatVar = VarPatName <.> bindPatternVariable h
-      patCon ds = do
+    case rx of
+      ConstructorName _ ds -> ConPatName ds <$ do
         reportSLn "scope.pat" 10 $ "it was a con: " ++ prettyShow (fmap anameName ds)
-        return $ ConPatName ds
-      patSyn ds = do
+      PatternSynResName ds -> PatternSynPatName ds <$ do
         reportSLn "scope.pat" 10 $ "it was a pat syn: " ++ prettyShow (fmap anameName ds)
-        return $ PatternSynPatName ds
+      _ -> case x of
+        C.QName y -> VarPatName <$> bindPatternVariable h y
+        C.Qual{}  -> typeError $ InvalidPattern $ C.IdentP True x
 
 -- | Translate and possibly bind a pattern variable
 --   (which could have been bound before due to non-linearity).
