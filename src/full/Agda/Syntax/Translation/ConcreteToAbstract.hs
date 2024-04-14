@@ -2369,14 +2369,17 @@ bindUnquoteConstructorName m p c = do
   let aname qn = AbsName qn QuotableName Defined NoMetadata
       addName = modifyCurrentScope $ addNameToScope (localNameSpace p) c $ aname c'
       success = addName >> (withCurrentModule m $ addName)
+      failure y = typeError $ ClashingDefinition (C.QName c) y Nothing
   case r of
     _ | isNoName c       -> success
     UnknownName          -> success
     ConstructorName i ds -> if all (isJust . isConName . anameKind) ds
       then success
-      else typeError $ ClashingDefinition (C.QName c) (anameName $ List1.head ds) Nothing
-    _ -> typeError $ GenericError $
-       "The name " ++ prettyShow c ++ " already has non-constructor definitions"
+      else failure $ anameName $ List1.head ds
+    DefinedName _ d _    -> failure $ anameName d
+    FieldName ds         -> failure $ anameName $ List1.head ds
+    PatternSynResName ds -> failure $ anameName $ List1.head ds
+    VarName y _          -> failure $ qualify_ y
   return c'
 
 instance ToAbstract DataConstrDecl where
