@@ -4776,6 +4776,7 @@ data TypeError
         | NothingAppliedToInstanceArg C.Expr
     -- Pattern synonym errors
         | AsPatternInPatternSynonym
+        | DotPatternInPatternSynonym
         | BadArgumentsToPatternSynonym A.AmbiguousQName
         | TooFewArgumentsToPatternSynonym A.AmbiguousQName
         | CannotResolveAmbiguousPatternSynonym (List1 (A.QName, A.PatternSynDefn))

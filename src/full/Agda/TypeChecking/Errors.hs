@@ -138,6 +138,7 @@ errorString = \case
 --  AmbiguousParseForPatternSynonym{}        -> "AmbiguousParseForPatternSynonym"
   AmbiguousTopLevelModuleName {}           -> "AmbiguousTopLevelModuleName"
   AsPatternInPatternSynonym{}              -> "AsPatternInPatternSynonym"
+  DotPatternInPatternSynonym{}             -> "DotPatternInPatternSynonym"
   BadArgumentsToPatternSynonym{}           -> "BadArgumentsToPatternSynonym"
   TooFewArgumentsToPatternSynonym{}        -> "TooFewArgumentsToPatternSynonym"
   CannotResolveAmbiguousPatternSynonym{}   -> "CannotResolveAmbiguousPatternSynonym"
@@ -1092,6 +1093,9 @@ instance PrettyTCM TypeError where
         isPlaceholder NoPlaceholder{} = False
 
     AsPatternInPatternSynonym -> fsep $ pwords "@-patterns are not allowed in pattern synonyms"
+
+    DotPatternInPatternSynonym -> fsep $ pwords
+      "Dot or equality patterns are not allowed in pattern synonyms. Maybe use '_' instead."
 
     BadArgumentsToPatternSynonym x -> fsep $
       pwords "Bad arguments to pattern synonym " ++ [prettyTCM $ headAmbQ x]

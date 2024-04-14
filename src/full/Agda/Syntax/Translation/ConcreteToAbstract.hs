@@ -130,13 +130,10 @@ notAValidLetBinding = locatedTypeError NotAValidLetBinding
 {--------------------------------------------------------------------------
     Helpers
  --------------------------------------------------------------------------}
---UNUSED Liang-Ting Chen 2019-07-16
---annotateDecl :: ScopeM A.Declaration -> ScopeM A.Declaration
---annotateDecl m = annotateDecls $ (:[]) <$> m
 
 -- | Make sure that there are no dot patterns (called on pattern synonyms).
-noDotorEqPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)
-noDotorEqPattern err = dot
+noDotorEqPattern :: A.Pattern' e -> ScopeM (A.Pattern' Void)
+noDotorEqPattern = dot
   where
     dot :: A.Pattern' e -> ScopeM (A.Pattern' Void)
     dot = \case
@@ -145,15 +142,17 @@ noDotorEqPattern err = dot
       A.ProjP i o d          -> pure $ A.ProjP i o d
       A.WildP i              -> pure $ A.WildP i
       A.AsP i x p            -> A.AsP i x <$> dot p
-      A.DotP{}               -> genericError err
-      A.EqualP{}             -> genericError err   -- Andrea: so we also disallow = patterns, reasonable?
+      A.DotP{}               -> err
+      A.EqualP{}             -> err   -- Andrea: so we also disallow = patterns, reasonable?
       A.AbsurdP i            -> pure $ A.AbsurdP i
       A.LitP i l             -> pure $ A.LitP i l
       A.DefP i f args        -> A.DefP i f <$> (traverse $ traverse $ traverse dot) args
       A.PatternSynP i c args -> A.PatternSynP i c <$> (traverse $ traverse $ traverse dot) args
       A.RecP i fs            -> A.RecP i <$> (traverse $ traverse dot) fs
       A.WithP i p            -> A.WithP i <$> dot p
-      A.AnnP i a p           -> genericError err   -- TODO: should this be allowed?
+      A.AnnP i a p           -> err   -- TODO: should this be allowed?
+    err = typeError DotPatternInPatternSynonym
+
 --UNUSED Liang-Ting Chen 2019-07-16
 ---- | Make sure that there are no dot patterns (WAS: called on pattern synonyms).
 --noDotPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)
@@ -2082,8 +2081,7 @@ instance ToAbstract NiceDeclaration where
            typeError $ RepeatedVariablesInPattern ys
          -- Bind the pattern variables accumulated by @ToAbstract Pattern@ applied to the rhs.
          bindVarsToBind
-         let err = "Dot or equality patterns are not allowed in pattern synonyms. Maybe use '_' instead."
-         p <- noDotorEqPattern err p
+         p <- noDotorEqPattern p
          as <- mapM checkPatSynParam as
          unlessNull (patternVars p List.\\ map whThing as) $ \ xs -> do
            typeError $ UnboundVariablesInPatternSynonym xs
