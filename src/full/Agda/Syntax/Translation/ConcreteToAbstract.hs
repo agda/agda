@@ -648,7 +648,7 @@ instance ToAbstract PatName where
       (UnknownName,       C.QName x)                           -> bindPatVar x
       (ConstructorName _ ds, _)                                -> patCon ds
       (PatternSynResName d, _)                                 -> patSyn d
-      _ -> genericError $ "Cannot pattern match on non-constructor " ++ prettyShow x
+      _ -> typeError $ InvalidPattern $ C.IdentP True x
     where
       bindPatVar = VarPatName <.> bindPatternVariable h
       patCon ds = do
