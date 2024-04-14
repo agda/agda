@@ -2085,8 +2085,7 @@ instance ToAbstract NiceDeclaration where
          p <- parsePatternSyn $ applyWhen puns expandPuns p
          p <- toAbstract p
          when (containsAsPattern p) $
-           typeError $ GenericError $
-             "@-patterns are not allowed in pattern synonyms"
+           typeError AsPatternInPatternSynonym
          checkPatternLinearity p $ \ys ->
            typeError $ RepeatedVariablesInPattern ys
          -- Bind the pattern variables accumulated by @ToAbstract Pattern@ applied to the rhs.

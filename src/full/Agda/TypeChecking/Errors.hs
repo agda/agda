@@ -137,6 +137,7 @@ errorString = \case
   AmbiguousConstructor{}                   -> "AmbiguousConstructor"
 --  AmbiguousParseForPatternSynonym{}        -> "AmbiguousParseForPatternSynonym"
   AmbiguousTopLevelModuleName {}           -> "AmbiguousTopLevelModuleName"
+  AsPatternInPatternSynonym{}              -> "AsPatternInPatternSynonym"
   BadArgumentsToPatternSynonym{}           -> "BadArgumentsToPatternSynonym"
   TooFewArgumentsToPatternSynonym{}        -> "TooFewArgumentsToPatternSynonym"
   CannotResolveAmbiguousPatternSynonym{}   -> "CannotResolveAmbiguousPatternSynonym"
@@ -1085,6 +1086,8 @@ instance PrettyTCM TypeError where
         isPlaceholder :: MaybePlaceholder a -> Bool
         isPlaceholder Placeholder{}   = True
         isPlaceholder NoPlaceholder{} = False
+
+    AsPatternInPatternSynonym -> fsep $ pwords "@-patterns are not allowed in pattern synonyms"
 
     BadArgumentsToPatternSynonym x -> fsep $
       pwords "Bad arguments to pattern synonym " ++ [prettyTCM $ headAmbQ x]
