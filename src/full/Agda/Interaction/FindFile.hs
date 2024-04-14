@@ -273,14 +273,11 @@ moduleName file parsedModule = billTo [Bench.ModuleName] $ do
     then do
       m <- runPM (fst <$> parse moduleNameParser defaultName)
              `catchError` \_ ->
-           typeError $ GenericError $
-             "The file name " ++ prettyShow file ++
-             " is invalid because it does not correspond to a valid module name."
+           typeError $ InvalidFileName file DoesNotCorrespondToValidModuleName
       case m of
         Qual {} ->
-          typeError $ GenericError $
-            "The file name " ++ prettyShow file ++ " is invalid because " ++
-            defaultName ++ " is not an unqualified module name."
+          typeError $ InvalidFileName file $
+            RootNameModuleNotAQualifiedModuleName $ T.pack defaultName
         QName {} ->
           return $ RawTopLevelModuleName
             { rawModuleNameRange = getRange m

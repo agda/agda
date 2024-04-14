@@ -4741,6 +4741,8 @@ data TypeError
         | ModuleDefinedInOtherFile TopLevelModuleName AbsolutePath AbsolutePath
           -- ^ Module name, file from which it was loaded, file which
           -- the include path says contains the module.
+        | InvalidFileName AbsolutePath InvalidFileNameReason
+          -- ^ The file name does not correspond to a module name.
     -- Scope errors
         | BothWithAndRHS
         | AbstractConstructorNotInScope A.QName
@@ -4819,6 +4821,12 @@ data TypeError
         | InstanceSearchDepthExhausted Term Type Int
         | TriedToCopyConstrainedPrim QName
           deriving (Show, Generic)
+
+-- | Extra information for 'InvalidFileName' error.
+data InvalidFileNameReason
+  = DoesNotCorrespondToValidModuleName
+  | RootNameModuleNotAQualifiedModuleName Text
+  deriving (Show, Generic)
 
 type DataOrRecordE = DataOrRecord' InductionAndEta
 
@@ -5966,6 +5974,7 @@ instance NFData NegativeUnification
 instance NFData UnificationFailure
 instance NFData UnquoteError
 instance NFData TypeError
+instance NFData InvalidFileNameReason
 instance NFData LHSOrPatSyn
 instance NFData DataOrRecordE
 instance NFData InductionAndEta

@@ -126,7 +126,7 @@ stringTCErr :: String -> TCErr
 stringTCErr = Exception noRange . P.text
 
 errorString :: TypeError -> String
-errorString err = case err of
+errorString = \case
   AmbiguousModule{}                        -> "AmbiguousModule"
   AmbiguousName{}                          -> "AmbiguousName"
   AmbiguousField{}                         -> "AmbiguousField"
@@ -177,6 +177,7 @@ errorString err = case err of
 -- UNUSED:  IncompletePatternMatching{}              -> "IncompletePatternMatching"
   InternalError{}                          -> "InternalError"
   InvalidPattern{}                         -> "InvalidPattern"
+  InvalidFileName{}                        -> "InvalidFileName"
   LocalVsImportedModuleClash{}             -> "LocalVsImportedModuleClash"
   MetaCannotDependOn{}                     -> "MetaCannotDependOn"
   MetaOccursInItself{}                     -> "MetaOccursInItself"
@@ -913,6 +914,14 @@ instance PrettyTCM TypeError where
       fsep ( pwords "Multiple possible sources for module"
              ++ [prettyTCM x] ++ pwords "found:"
            ) $$ nest 2 (vcat $ map (text . filePath) files)
+
+    InvalidFileName file reason -> fsep $
+      pwords "The file name" ++ [pretty file] ++ pwords "is invalid because" ++
+      case reason of
+        DoesNotCorrespondToValidModuleName ->
+          pwords "it does not correspond to a valid module name."
+        RootNameModuleNotAQualifiedModuleName defaultName ->
+          pretty defaultName : pwords "is not an unqualified module name."
 
     ModuleDefinedInOtherFile mod file file' -> fsep $
       pwords "You tried to load" ++ [text (filePath file)] ++
