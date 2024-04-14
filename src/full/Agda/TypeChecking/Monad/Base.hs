@@ -4756,6 +4756,8 @@ data TypeError
         | ClashingModule A.ModuleName A.ModuleName
         | ClashingImport C.Name A.QName
         | ClashingModuleImport C.Name A.ModuleName
+        | DefinitionInDifferentModule A.QName
+            -- ^ The given data/record definition rests in a different module than its signature.
         | DuplicateImports C.QName [C.ImportedName]
         | InvalidPattern C.Pattern
         | RepeatedVariablesInPattern [C.Name]

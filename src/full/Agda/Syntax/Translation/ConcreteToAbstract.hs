@@ -2297,7 +2297,7 @@ instance LivesInCurrentModule A.QName where
       , "  current module: " ++ prettyShow m
       ]
     unless (A.qnameModule x == m) $
-      genericError $ "Definition in different module than its type signature"
+      typeError $ DefinitionInDifferentModule x
 
 -- | Unless the resolved 'AbstractName' has the given 'KindOfName',
 --   report a 'ClashingDefinition' for the 'C.Name'.

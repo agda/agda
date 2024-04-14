@@ -157,6 +157,7 @@ errorString = \case
   DataMustEndInSort{}                      -> "DataMustEndInSort"
 -- UNUSED:    DataTooManyParameters{}                  -> "DataTooManyParameters"
   CantResolveOverloadedConstructorsTargetingSameDatatype{} -> "CantResolveOverloadedConstructorsTargetingSameDatatype"
+  DefinitionInDifferentModule{}            -> "DefinitionInDifferentModule"
   DoesNotConstructAnElementOf{}            -> "DoesNotConstructAnElementOf"
   DuplicateBuiltinBinding{}                -> "DuplicateBuiltinBinding"
   DuplicateConstructors{}                  -> "DuplicateConstructors"
@@ -1021,6 +1022,9 @@ instance PrettyTCM TypeError where
       pwords "The right-hand side of a module definition must have the form 'M e1 .. en'" ++
       pwords "where M is a module name. The expression"
       ++ [pretty e, "doesn't."]
+
+    DefinitionInDifferentModule _x -> fsep $
+      pwords "Definition in different module than its type signature"
 
     FieldOutsideRecord -> fsep $
       pwords "Field appearing outside record declaration."
