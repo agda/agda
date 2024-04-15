@@ -59,7 +59,7 @@ jobs:
         ls -R html
     - if: github.ref == 'refs/heads/master'
       name: Deploy haddock
-      uses: peaceiris/actions-gh-pages@v3
+      uses: peaceiris/actions-gh-pages@v4
       with:
         destination_dir: docs
         force_orphan: true
