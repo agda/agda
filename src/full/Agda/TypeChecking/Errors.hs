@@ -215,6 +215,7 @@ errorString = \case
   NotAProperTerm                           -> "NotAProperTerm"
   InvalidType{}                            -> "InvalidType"
   InvalidTypeSort{}                        -> "InvalidTypeSort"
+  EmptyTypeOfSizes{}                       -> "EmptyTypeOfSizes"
   FunctionTypeInSizeUniv{}                 -> "FunctionTypeInSizeUniv"
   NotAValidLetBinding{}                    -> "NotAValidLetBinding"
   NotValidBeforeField{}                    -> "NotValidBeforeField"
@@ -596,6 +597,8 @@ instance PrettyTCM TypeError where
 
     InvalidTypeSort s -> fsep $ prettyTCM s : pwords "is not a valid sort"
     InvalidType v -> fsep $ prettyTCM v : pwords "is not a valid type"
+
+    EmptyTypeOfSizes t -> fsep $ pwords "Possibly empty type of sizes:" ++ [prettyTCM t]
 
     FunctionTypeInSizeUniv v -> fsep $
       pwords "Functions may not return sizes, thus, function type " ++

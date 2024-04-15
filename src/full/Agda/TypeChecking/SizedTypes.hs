@@ -77,8 +77,7 @@ checkSizeLtSat t = whenM haveSizeLt $ do
             reportSLn "tc.size.lt" 20 $ " - size bound is not blocked"
             catchConstraint (CheckSizeLtSat t) $ do
               unlessM (checkSizeNeverZero b) $ do
-                typeError . GenericDocError =<< do
-                  "Possibly empty type of sizes " <+> prettyTCM t
+                typeError $ EmptyTypeOfSizes t
 
 -- | Precondition: Term is reduced and not blocked.
 --   Throws a 'patternViolation' if undecided

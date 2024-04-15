@@ -4629,6 +4629,8 @@ data TypeError
             -- ^ This sort is not a type expression.
         | InvalidType Term
             -- ^ This term is not a type expression.
+        | EmptyTypeOfSizes Term
+            -- ^ This type, representing a type of sizes, might be empty.
         | FunctionTypeInSizeUniv Term
             -- ^ This term, a function type constructor, lives in
             --   @SizeUniv@, which is not allowed.
