@@ -33,11 +33,11 @@ import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 
--- | If matching is inconclusive (@DontKnow@) we want to know whether
---   it is due to a particular meta variable.
+-- | If matching is inconclusive (@DontKnow@) we want to know whether it is on a
+--   lazy pattern and whether it is due to a particular meta variable.
 data Match a = Yes Simplification (IntMap (Arg a))
              | No
-             | DontKnow (Blocked ())
+             | DontKnow OnlyLazy (Blocked ())
   deriving Functor
 
 instance Null (Match a) where
@@ -64,10 +64,10 @@ buildSubstitution err n vs = foldr cons idS $ matchedArgs' n vs
 instance Semigroup (Match a) where
     -- @NotBlocked (StuckOn e)@ means blocked by a variable.
     -- In this case, no instantiation of meta-variables will make progress.
-    DontKnow b <> DontKnow b'      = DontKnow $ b <> b'
-    DontKnow m <> _                = DontKnow m
-    _          <> DontKnow m       = DontKnow m
-    -- One could imagine DontKnow _ <> No = No, but would break the
+    DontKnow l b <> DontKnow l' b' = DontKnow (l <> l') (b <> b')
+    DontKnow l m <> _              = DontKnow l m
+    _            <> DontKnow l m   = DontKnow l m
+    -- One could imagine DontKnow _ _ <> No = No, but would break the
     -- equivalence to case-trees (Issue 2964).
     No         <> _                = No
     _          <> No               = No
@@ -76,6 +76,18 @@ instance Semigroup (Match a) where
 instance Monoid (Match a) where
     mempty = empty
     mappend = (<>)
+
+-- | Whether the inconclusive matches are only on lazy patterns.
+data OnlyLazy = OnlyLazy | NonLazy
+
+instance Semigroup OnlyLazy where
+  NonLazy  <> _        = NonLazy
+  _        <> NonLazy  = NonLazy
+  OnlyLazy <> OnlyLazy = OnlyLazy
+
+instance Monoid OnlyLazy where
+  mempty = OnlyLazy
+  mappend = (<>)
 
 -- | Instead of 'zipWithM', we need to use this lazy version
 --   of combining pattern matching computations.
@@ -118,7 +130,10 @@ foldMatch match = loop where
             -- contain ill-typed terms due to eta-expansion at wrong
             -- type.
             return (r <> r', v' : vs)
-          DontKnow m -> return (DontKnow m, v' : vs)
+          DontKnow OnlyLazy _ -> do
+            (r', _vs') <- loop ps vs
+            return (r <> r', v' : vs)
+          DontKnow NonLazy m -> return (DontKnow NonLazy m, v' : vs)
           Yes{} -> do
             (r', vs') <- loop ps vs
             return (r <> r', v' : vs')
@@ -222,15 +237,16 @@ matchPattern p u = case (p, u) of
       NotBlocked _ (Lit l')
           | l == l'            -> return (Yes YesSimplification empty , arg')
           | otherwise          -> return (No                          , arg')
-      Blocked b _              -> return (DontKnow $ Blocked b ()     , arg')
-      NotBlocked r t           -> return (DontKnow $ NotBlocked r' () , arg')
+      Blocked b _              -> return (DontKnow NonLazy $ Blocked b ()     , arg')
+      NotBlocked r t           -> return (DontKnow NonLazy $ NotBlocked r' () , arg')
         where r' = stuckOn (Apply arg') r
 
   -- Case constructor pattern.
   (ConP c cpi ps, Arg info v) -> do
-    if not (conPRecord cpi) then fallback c ps (Arg info v) else do
+    let lazy = if conPLazy cpi then OnlyLazy else NonLazy
+    if not (conPRecord cpi) then fallback c lazy ps (Arg info v) else do
     isEtaRecordCon (conName c) >>= \case
-      Nothing -> fallback c ps (Arg info v)
+      Nothing -> fallback c lazy ps (Arg info v)
       Just fs -> do
         -- Case: Eta record constructor.
         -- This case is necessary if we want to use the clauses before
@@ -250,15 +266,15 @@ matchPattern p u = case (p, u) of
   (DefP o q ps, v) -> do
     let f (Def q' vs) | q == q' = Just (Def q, vs)
         f _                     = Nothing
-    fallback' f ps v
+    fallback' f NonLazy ps v
  where
     -- Default: not an eta record constructor.
   fallback :: MonadMatch m
-           => ConHead -> [NamedArg DeBruijnPattern] -> Arg Term -> m (Match Term, Arg Term)
-  fallback c ps v = do
+           => ConHead -> OnlyLazy -> [NamedArg DeBruijnPattern] -> Arg Term -> m (Match Term, Arg Term)
+  fallback c lazy ps v = do
     let f (Con c' ci' vs) | c == c' = Just (Con c' ci',vs)
         f _                         = Nothing
-    fallback' f ps v
+    fallback' f lazy ps v
 
   -- Regardless of blocking, constructors and a properly applied @hcomp@
   -- can be matched on.
@@ -279,10 +295,11 @@ matchPattern p u = case (p, u) of
   -- DefP hcomp and ConP matching.
   fallback' :: MonadMatch m
             => (Term -> Maybe (Elims -> Term , Elims))
+            -> OnlyLazy
             -> [NamedArg DeBruijnPattern]
             -> Arg Term
             -> m (Match Term, Arg Term)
-  fallback' mtc ps (Arg info v) = do
+  fallback' mtc lazy ps (Arg info v) = do
         isMatchable <- isMatchable'
 
         w <- reduceB v
@@ -314,8 +331,8 @@ matchPattern p u = case (p, u) of
                 return (yesSimplification m, Arg info $ bld (mergeElims vs vs1))
               Nothing
                                     -> return (No                          , arg)
-          Blocked b _               -> return (DontKnow $ Blocked b ()     , arg)
-          NotBlocked r _            -> return (DontKnow $ NotBlocked r' () , arg)
+          Blocked b _               -> return (DontKnow lazy $ Blocked b ()     , arg)
+          NotBlocked r _            -> return (DontKnow lazy $ NotBlocked r' () , arg)
             where r' = stuckOn (Apply arg) r
 
 yesSimplification :: Match a -> Match a
