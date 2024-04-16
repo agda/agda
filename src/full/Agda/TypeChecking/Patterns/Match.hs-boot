@@ -11,7 +11,9 @@ import Agda.TypeChecking.Substitute (DeBruijn)
 
 import Agda.Utils.Impossible
 
-data Match a = Yes Simplification (IntMap (Arg a)) | No | DontKnow Bool (Blocked ())
+data Match a = Yes Simplification (IntMap (Arg a)) | No | DontKnow OnlyLazy (Blocked ())
+
+data OnlyLazy = OnlyLazy | NonLazy
 
 buildSubstitution :: (DeBruijn a) => Impossible -> Int -> IntMap (Arg a) -> Substitution' a
 

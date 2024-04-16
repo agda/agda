@@ -931,8 +931,8 @@ appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v
               -- should be fine to continue matching on the next clause.
               -- This assumes it's impossible for a lazy match to be stuck if
               -- all non-lazy matches succeed.
-              DontKnow True  _ -> goCls cls es
-              DontKnow False b -> rewrite b (applyE v) rewr es
+              DontKnow OnlyLazy _ -> goCls cls es
+              DontKnow NonLazy  b -> rewrite b (applyE v) rewr es
               Yes simpl vs -- vs is the subst. for the variables bound in body
                 | Just w <- body -> do -- clause has body?
                     -- TODO: let matchPatterns also return the reduced forms
