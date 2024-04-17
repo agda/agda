@@ -28,6 +28,10 @@ Pragmas and options
 
 * New warning `UselessMacro` when a `macro` block does not contain any function definitions.
 
+* New warning `ConflictingPragmaOptions` if giving both `--this` and `--that`
+  when `--this` implies `--no-that` (and analogous for `--no-this` implies
+  `--that`, etc).
+
 * [**Breaking**] The option `--overlapping-instances`, which allows
   backtracking during instance search, has been renamed to
   `--backtracking-instance-search`.

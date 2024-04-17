@@ -1575,6 +1575,11 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
      Importing a file not using e.g. :option:`--safe` from one which does.
 
+.. option:: ConflictingPragmaOptions
+
+     Conflicting pragma options. For instance, both ``--this`` and ``--no-that`` when
+     ``--this`` implies ``--that``.
+
 .. option:: CoverageIssue
 
      Failed coverage checks.
