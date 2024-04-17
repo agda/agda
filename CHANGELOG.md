@@ -39,7 +39,14 @@ Pragmas and options
 * New warning `WarningProblem` when trying to switch an unknown or non-benign warning with the `-W` option.
   Used to be a hard error.
 
-* New pragma `INJECTIVE_FOR_INFERENCE`, which treats functions as injective for inferring implicit arguments. For example:
+* New option `--require-unique-meta-solutions` (turned on by default). Disabling it with
+  `--no-require-unique-meta-solutions` allows the type checker to take advantage of `INJECTIVE_FOR_INFERENCE` pragmas
+  (see below). The `--lossy-unification` flag implies `--no-require-unique-meta-solutions`.
+
+* New pragma `INJECTIVE_FOR_INFERENCE`, which treats functions as injective for inferring implicit arguments if
+  `--no-require-unique-meta-solutions` is given. The `--no-require-unique-meta-solutions` flag needs to be given in the
+  file where the function is used, and not necessarily in the file where it is defined.
+  For example:
   ```agda
   reverse-≡ : {l l' : List A} → reverse l ≡ reverse l' → reverse l ≡ reverse l'
   reverse-≡ h = h

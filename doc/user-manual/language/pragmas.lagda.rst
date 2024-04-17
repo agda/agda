@@ -1,6 +1,6 @@
 ..
   ::
-  {-# OPTIONS --guardedness #-}
+  {-# OPTIONS --guardedness --no-require-unique-meta-solutions #-}
   module language.pragmas where
 
 .. _pragmas:
@@ -151,6 +151,11 @@ local version of :option:`--lossy-unification` and has the same
 potential issues. Since Agda can not always infer whether a function
 is injective it can be used to get stronger unification for those
 functions.
+
+The option :option:`--no-require-unique-meta-solutions` needs to be active
+in the file where the function is used, but not necessarily in the file it is
+defined. When solving a constraint involving the function in a file where
+:option:`--require-unique-meta-solutions` is in effect, the pragma is ignored.
 
 ..
   ::

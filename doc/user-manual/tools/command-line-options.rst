@@ -620,12 +620,26 @@ Experimental features
      .. versionadded:: 2.6.2
 
      Enable a constraint-solving heuristic akin to first-order unification, see :ref:`lossy-unification`.
+     Implies :option:`--no-require-unique-meta-solutions`.
 
 .. option:: --no-lossy-unification
 
      .. versionadded:: 2.6.4
 
      Default, opposite of :option:`--lossy-unification`.
+
+.. option:: --require-unique-meta-solutions, --no-require-unique-meta-solutions
+
+      .. versionadded:: 2.7.0
+
+    When turned off, type checking is allowed to use heuristics to solve meta
+    variables that do not necessarily guarantee unique solutions. In
+    particular, it can make use of :ref:`INJECTIVE_FOR_INFERENCE <injective-for-inference-pragma>`
+    pragmas.
+
+    ``--no-require-unique-meta-solutions`` is implied by the :option:`--lossy-unification` flag.
+
+    Default: ``--require-unique-meta-solutions``
 
 .. option:: --prop, --no-prop
 
