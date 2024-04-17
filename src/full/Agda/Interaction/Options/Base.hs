@@ -79,6 +79,7 @@ module Agda.Interaction.Options.Base
     , lensOptCubical
     , lensOptGuarded
     , lensOptFirstOrder
+    , lensOptRequireUniqueMetaSolutions
     , lensOptPostfixProjections
     , lensOptKeepPatternVariables
     , lensOptInferAbsurdClauses
@@ -140,6 +141,7 @@ module Agda.Interaction.Options.Base
     , optRewriting
     , optGuarded
     , optFirstOrder
+    , optRequireUniqueMetaSolutions
     , optPostfixProjections
     , optKeepPatternVariables
     , optInferAbsurdClauses

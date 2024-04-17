@@ -1,3 +1,4 @@
+{-# OPTIONS --no-require-unique-meta-solutions #-}
 module InjectiveForInferencePragma where
 
 open import Agda.Builtin.Equality
