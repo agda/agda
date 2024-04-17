@@ -457,6 +457,7 @@ warningHighlighting' b w = case tcWarning w of
   InfectiveImport{}                     -> errorWarningHighlighting w
   CoInfectiveImport{}                   -> errorWarningHighlighting w
   WithoutKFlagPrimEraseEquality -> mempty
+  ConflictingPragmaOptions{} -> mempty
   DeprecationWarning{}       -> mempty
   UserWarning{}              -> mempty
   LibraryWarning{}           -> mempty

@@ -313,6 +313,7 @@ data WarningName
   | UselessPublic_
   | UserWarning_
   | WithoutKFlagPrimEraseEquality_
+  | ConflictingPragmaOptions_
   | WrongInstanceDeclaration_
   -- Checking consistency of options
   | CoInfectiveImport_
@@ -497,6 +498,7 @@ warningNameDescription = \case
   SafeFlagPragma_                  -> "Unsafe `OPTIONS' pragmas with the safe flag."
   SafeFlagTerminating_             -> "`TERMINATING' pragmas with the safe flag."
   SafeFlagWithoutKFlagPrimEraseEquality_ -> "`primEraseEquality' used with the safe and without-K flags."
+  ConflictingPragmaOptions_        -> "Conflicting pragma options."
   TerminationIssue_                -> "Failed termination checks."
   UnreachableClauses_              -> "Unreachable function clauses."
   UnsolvedConstraints_             -> "Unsolved constraints."

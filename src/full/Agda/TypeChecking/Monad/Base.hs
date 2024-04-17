@@ -4261,6 +4261,9 @@ data Warning
   | SafeFlagPragma [String]                -- ^ Unsafe OPTIONS.
   | SafeFlagWithoutKFlagPrimEraseEquality
   | WithoutKFlagPrimEraseEquality
+  | ConflictingPragmaOptions String String
+    -- ^ `ConflictingPragmaOptions a b`:
+    --   Inconsistent options `--a` and `--no-b`, since `--a` implies `--b`. Ignoring `--no-b`.
   | OptionWarning            OptionWarning
   | ParseWarning             ParseWarning
   | LibraryWarning           LibWarning
@@ -4385,6 +4388,7 @@ warningName = \case
   SafeFlagPostulate{}          -> SafeFlagPostulate_
   SafeFlagPragma{}             -> SafeFlagPragma_
   SafeFlagWithoutKFlagPrimEraseEquality -> SafeFlagWithoutKFlagPrimEraseEquality_
+  ConflictingPragmaOptions{}   -> ConflictingPragmaOptions_
   WithoutKFlagPrimEraseEquality -> WithoutKFlagPrimEraseEquality_
   TerminationIssue{}           -> TerminationIssue_
   UnreachableClauses{}         -> UnreachableClauses_

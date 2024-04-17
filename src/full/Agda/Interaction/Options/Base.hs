@@ -31,6 +31,8 @@ module Agda.Interaction.Options.Base
     , InfectiveCoinfective(..)
     , InfectiveCoinfectiveOption(..)
     , infectiveCoinfectiveOptions
+    , ImpliedPragmaOption(..)
+    , impliedPragmaOptions
     , safeFlag
     , mapFlag
     , usage
@@ -452,6 +454,31 @@ data PrintAgdaVersion
   deriving (Show, Generic)
 
 instance NFData PrintAgdaVersion
+
+data ImpliedPragmaOption where
+  ImpliesPragmaOption
+    :: String -> Bool -> (PragmaOptions -> WithDefault a)
+    -> String -> Bool -> (PragmaOptions -> WithDefault b)
+    -> ImpliedPragmaOption
+    -- ^ The first option having the given value implies the second option having its given value.
+    --   For instance, `ImpliesPragmaOption "lossy-unification" True _optFirstOrder
+    --                                      "require-unique-meta-solutions" False _optRequireUniqueMetaSolutions`
+    --   encodes the fact that --lossy-unification implies --no-require-unique-meta-solutions.
+
+impliedPragmaOptions :: [ImpliedPragmaOption]
+impliedPragmaOptions =
+  [ ("erase-record-parameters", _optEraseRecordParameters) ==> ("erasure",                          _optErasure)
+  , ("erased-matches",          _optErasedMatches)         ==> ("erasure",                          _optErasure)
+  , ("flat-split",              _optFlatSplit)             ==> ("cohesion",                         _optCohesion)
+  , ("no-load-primitives",      _optLoadPrimitives)        ==> ("no-import-sorts",                  _optImportSorts)
+  ]
+  where
+    yesOrNo ('n':'o':'-':s) = (False, s)
+    yesOrNo s               = (True, s)
+    (nameA, optA) ==> (nameB, optB) = ImpliesPragmaOption stemA valA optA stemB valB optB
+      where
+        (valA, stemA) = yesOrNo nameA
+        (valB, stemB) = yesOrNo nameB
 
 -- collapse defaults
 optShowImplicit              :: PragmaOptions -> Bool

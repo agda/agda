@@ -55,8 +55,26 @@ setPragmaOptions opts = do
     unlessNull (unsafePragmaOptions opts) $ \ unsafe ->
       warning $ SafeFlagPragma unsafe
 
+  -- Check consistency of implied options
+  checkPragmaOptionConsistency opts
+
   stPragmaOptions `setTCLens` opts
   updateBenchmarkingStatus
+
+-- | Check that that you don't turn on inconsistent options. For instance, if --a implies --b and
+--   you have both --a and --no-b.
+checkPragmaOptionConsistency :: PragmaOptions -> TCM ()
+checkPragmaOptionConsistency opts = do
+  mapM_ check impliedPragmaOptions
+  where
+    -- Only warn if both flags are set explicitly (Value rather than Default)
+    check (ImpliesPragmaOption nameA valA flagA nameB valB flagB)
+      | Value vA <- flagA opts, vA == valA
+      , Value vB <- flagB opts, vB /= valB = warning $ ConflictingPragmaOptions (nameA .= valA) (nameB .= valB)
+      | otherwise                 = pure ()
+      where
+        name .= True  = name
+        name .= False = "no-" ++ name
 
 -- | Sets the command line options (both persistent and pragma options
 -- are updated).
