@@ -1243,6 +1243,11 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Clashes introduced by ``renaming``.
 
+.. option:: ConflictingPragmaOptions
+
+     Conflicting pragma options. For instance, both ``--this`` and ``--no-that`` when
+     ``--this`` implies ``--that``.
+
 .. option:: ConfluenceCheckingIncompleteBecauseOfMeta
 
      Incomplete confluence checks because of unsolved metas.
@@ -1588,11 +1593,6 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 .. option:: CoInfectiveImport
 
      Importing a file not using e.g. :option:`--safe` from one which does.
-
-.. option:: ConflictingPragmaOptions
-
-     Conflicting pragma options. For instance, both ``--this`` and ``--no-that`` when
-     ``--this`` implies ``--that``.
 
 .. option:: CoverageIssue
 
