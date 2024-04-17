@@ -55,22 +55,22 @@ setPragmaOptions opts = do
     unlessNull (unsafePragmaOptions opts) $ \ unsafe ->
       warning $ SafeFlagPragma unsafe
 
-  -- Check consistency of implied options
-  checkPragmaOptionConsistency opts
-
   stPragmaOptions `setTCLens` opts
   updateBenchmarkingStatus
 
 -- | Check that that you don't turn on inconsistent options. For instance, if --a implies --b and
---   you have both --a and --no-b.
-checkPragmaOptionConsistency :: PragmaOptions -> TCM ()
-checkPragmaOptionConsistency opts = do
+--   you have both --a and --no-b. Only warn for things that have changed compared to the old
+--   options.
+checkPragmaOptionConsistency :: PragmaOptions -> PragmaOptions -> TCM ()
+checkPragmaOptionConsistency oldOpts newOpts = do
   mapM_ check impliedPragmaOptions
   where
     -- Only warn if both flags are set explicitly (Value rather than Default)
     check (ImpliesPragmaOption nameA valA flagA nameB valB flagB)
-      | Value vA <- flagA opts, vA == valA
-      , Value vB <- flagB opts, vB /= valB = warning $ ConflictingPragmaOptions (nameA .= valA) (nameB .= valB)
+      | flagA newOpts == flagA oldOpts
+      , flagB newOpts == flagB oldOpts  = pure () -- Nothing changed, don't check again.
+      | Value vA <- flagA newOpts, vA == valA
+      , Value vB <- flagB newOpts, vB /= valB = warning $ ConflictingPragmaOptions (nameA .= valA) (nameB .= valB)
       | otherwise                 = pure ()
       where
         name .= True  = name
@@ -223,14 +223,29 @@ addTrustedExecutables o = do
   -- or is a security risk.
   return o{ optTrustedExecutables = trustedExes }
 
+-- | Set pragma options without checking for consistency.
 setOptionsFromPragma :: OptionsPragma -> TCM ()
-setOptionsFromPragma ps = setCurrentRange (pragmaRange ps) $ do
+setOptionsFromPragma = setOptionsFromPragma' False
+
+-- | Set pragma options and check them for consistency.
+checkAndSetOptionsFromPragma :: OptionsPragma -> TCM ()
+checkAndSetOptionsFromPragma = setOptionsFromPragma' True
+
+setOptionsFromPragma' :: Bool -> OptionsPragma -> TCM ()
+setOptionsFromPragma' checkConsistency ps = setCurrentRange (pragmaRange ps) $ do
     opts <- commandLineOptions
     let (z, warns) = runOptM (parsePragmaOptions ps opts)
     mapM_ (warning . OptionWarning) warns
     case z of
       Left err    -> typeError $ GenericError err
-      Right opts' -> setPragmaOptions opts'
+      Right opts' -> do
+
+        -- Check consistency of implied options
+        when checkConsistency $ do
+          oldOpts <- pragmaOptions
+          checkPragmaOptionConsistency oldOpts opts'
+
+        setPragmaOptions opts'
 
 -- | Disable display forms.
 enableDisplayForms :: MonadTCEnv m => m a -> m a
