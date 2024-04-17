@@ -115,6 +115,7 @@
     - -XFlexibleContexts
     - -XFlexibleInstances
     - -XFunctionalDependencies
+    - -XGADTs
     - -XGeneralizedNewtypeDeriving
     - -XInstanceSigs
     - -XLambdaCase
