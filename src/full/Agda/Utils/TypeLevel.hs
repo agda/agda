@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-{-# LANGUAGE GADTs                #-}
 {-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE PolyKinds            #-}
 {-# LANGUAGE TypeOperators        #-}

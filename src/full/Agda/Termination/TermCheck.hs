@@ -1,4 +1,3 @@
-{-# LANGUAGE GADTs                      #-}
 
 {-# LANGUAGE ImplicitParams             #-}
 {-# LANGUAGE NondecreasingIndentation   #-}

@@ -1,5 +1,3 @@
-{-# LANGUAGE GADTs              #-}
-
 -- | Preprocess 'Agda.Syntax.Concrete.Declaration's, producing 'NiceDeclaration's.
 --
 --   * Attach fixity and syntax declarations to the definition they refer to.
