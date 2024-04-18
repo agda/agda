@@ -359,8 +359,8 @@ clean_helper = if [ -d $(1) ]; then $(CABAL) $(CABAL_CLEAN_CMD) --builddir=$(1);
 clean : ## Clean all local builds
 	$(call clean_helper,$(BUILD_DIR))
 	$(call clean_helper,$(QUICK_BUILD_DIR))
-	$(STACK) clean --full
-	$(STACK) clean --full --work-dir=$(QUICK_STACK_BUILD_DIR)
+	which $(STACK) > /dev/null 2>&1 && $(STACK) clean --full || true
+	which $(STACK) > /dev/null 2>&1 && $(STACK) clean --full --work-dir=$(QUICK_STACK_BUILD_DIR) || true
 
 ##############################################################################
 ## Haddock
