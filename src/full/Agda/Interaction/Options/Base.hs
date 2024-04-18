@@ -31,6 +31,8 @@ module Agda.Interaction.Options.Base
     , InfectiveCoinfective(..)
     , InfectiveCoinfectiveOption(..)
     , infectiveCoinfectiveOptions
+    , ImpliedPragmaOption(..)
+    , impliedPragmaOptions
     , safeFlag
     , mapFlag
     , usage
@@ -77,6 +79,7 @@ module Agda.Interaction.Options.Base
     , lensOptCubical
     , lensOptGuarded
     , lensOptFirstOrder
+    , lensOptRequireUniqueMetaSolutions
     , lensOptPostfixProjections
     , lensOptKeepPatternVariables
     , lensOptInferAbsurdClauses
@@ -138,6 +141,7 @@ module Agda.Interaction.Options.Base
     , optRewriting
     , optGuarded
     , optFirstOrder
+    , optRequireUniqueMetaSolutions
     , optPostfixProjections
     , optKeepPatternVariables
     , optInferAbsurdClauses
@@ -364,7 +368,10 @@ data PragmaOptions = PragmaOptions
   , _optCubical                   :: Maybe Cubical
   , _optGuarded                   :: WithDefault 'False
   , _optFirstOrder                :: WithDefault 'False
-      -- ^ Should we speculatively unify function applications as if they were injective?
+      -- ^ Should we speculatively unify function applications as if they were injective? Implies
+      --   optRequireUniqueMetaSolutions.
+  , _optRequireUniqueMetaSolutions :: WithDefault 'True
+      -- ^ Forbid non-unique meta solutions allowed. For instance from INJECTIVE_FOR_INFERENCE pragmas.
   , _optPostfixProjections        :: WithDefault 'False
       -- ^ Should system generated projections 'ProjSystem' be printed
       --   postfix (True) or prefix (False).
@@ -453,6 +460,32 @@ data PrintAgdaVersion
 
 instance NFData PrintAgdaVersion
 
+data ImpliedPragmaOption where
+  ImpliesPragmaOption
+    :: String -> Bool -> (PragmaOptions -> WithDefault a)
+    -> String -> Bool -> (PragmaOptions -> WithDefault b)
+    -> ImpliedPragmaOption
+    -- ^ The first option having the given value implies the second option having its given value.
+    --   For instance, `ImpliesPragmaOption "lossy-unification" True _optFirstOrder
+    --                                      "require-unique-meta-solutions" False _optRequireUniqueMetaSolutions`
+    --   encodes the fact that --lossy-unification implies --no-require-unique-meta-solutions.
+
+impliedPragmaOptions :: [ImpliedPragmaOption]
+impliedPragmaOptions =
+  [ ("erase-record-parameters", _optEraseRecordParameters) ==> ("erasure",                          _optErasure)
+  , ("erased-matches",          _optErasedMatches)         ==> ("erasure",                          _optErasure)
+  , ("flat-split",              _optFlatSplit)             ==> ("cohesion",                         _optCohesion)
+  , ("no-load-primitives",      _optLoadPrimitives)        ==> ("no-import-sorts",                  _optImportSorts)
+  , ("lossy-unification",       _optFirstOrder)            ==> ("no-require-unique-meta-solutions", _optRequireUniqueMetaSolutions)
+  ]
+  where
+    yesOrNo ('n':'o':'-':s) = (False, s)
+    yesOrNo s               = (True, s)
+    (nameA, optA) ==> (nameB, optB) = ImpliesPragmaOption stemA valA optA stemB valB optB
+      where
+        (valA, stemA) = yesOrNo nameA
+        (valB, stemB) = yesOrNo nameB
+
 -- collapse defaults
 optShowImplicit              :: PragmaOptions -> Bool
 optShowGeneralized           :: PragmaOptions -> Bool
@@ -489,6 +522,7 @@ optEraseRecordParameters     :: PragmaOptions -> Bool
 optRewriting                 :: PragmaOptions -> Bool
 optGuarded                   :: PragmaOptions -> Bool
 optFirstOrder                :: PragmaOptions -> Bool
+optRequireUniqueMetaSolutions :: PragmaOptions -> Bool
 optPostfixProjections        :: PragmaOptions -> Bool
 optKeepPatternVariables      :: PragmaOptions -> Bool
 optInferAbsurdClauses        :: PragmaOptions -> Bool
@@ -550,6 +584,8 @@ optEraseRecordParameters     = collapseDefault . _optEraseRecordParameters
 optRewriting                 = collapseDefault . _optRewriting
 optGuarded                   = collapseDefault . _optGuarded
 optFirstOrder                = collapseDefault . _optFirstOrder
+optRequireUniqueMetaSolutions = collapseDefault . _optRequireUniqueMetaSolutions && not . optFirstOrder
+-- --lossy-unification implies --no-require-unique-meta-solutions
 optPostfixProjections        = collapseDefault . _optPostfixProjections
 optKeepPatternVariables      = collapseDefault . _optKeepPatternVariables
 optInferAbsurdClauses        = collapseDefault . _optInferAbsurdClauses
@@ -724,6 +760,9 @@ lensOptGuarded f o = f (_optGuarded o) <&> \ i -> o{ _optGuarded = i }
 lensOptFirstOrder :: Lens' PragmaOptions _
 lensOptFirstOrder f o = f (_optFirstOrder o) <&> \ i -> o{ _optFirstOrder = i }
 
+lensOptRequireUniqueMetaSolutions :: Lens' PragmaOptions _
+lensOptRequireUniqueMetaSolutions f o = f (_optRequireUniqueMetaSolutions o) <&> \ i -> o{ _optRequireUniqueMetaSolutions = i }
+
 lensOptPostfixProjections :: Lens' PragmaOptions _
 lensOptPostfixProjections f o = f (_optPostfixProjections o) <&> \ i -> o{ _optPostfixProjections = i }
 
@@ -892,6 +931,7 @@ defaultPragmaOptions = PragmaOptions
   , _optCubical                   = Nothing
   , _optGuarded                   = Default
   , _optFirstOrder                = Default
+  , _optRequireUniqueMetaSolutions = Default
   , _optPostfixProjections        = Default
   , _optKeepPatternVariables      = Default
   , _optInferAbsurdClauses        = Default
@@ -1739,6 +1779,7 @@ pragmaOptions = concat
                     "enable @lock/@tick attributes" ""
                     $ Just "disable @lock/@tick attributes"
   , lossyUnificationOption
+  , requireUniqueMetaSolutionsOptions
   , pragmaFlag      "postfix-projections" lensOptPostfixProjections
                     "prefer postfix projection notation" ""
                     $ Just "prefer prefix projection notation"
@@ -1830,6 +1871,13 @@ lossyUnificationOption :: [OptDescr (Flag PragmaOptions)]
 lossyUnificationOption =
   pragmaFlag "lossy-unification" lensOptFirstOrder
     "enable heuristically unifying `f es = f es'` by unifying `es = es'`"
+    "even when it could lose solutions"
+    Nothing
+
+requireUniqueMetaSolutionsOptions :: [OptDescr (Flag PragmaOptions)]
+requireUniqueMetaSolutionsOptions =
+  pragmaFlag "require-unique-meta-solutions" lensOptRequireUniqueMetaSolutions
+    "require unique solutions to meta variables"
     "even when it could lose solutions"
     Nothing
 

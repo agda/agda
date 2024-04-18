@@ -1,4 +1,3 @@
-{-# LANGUAGE GADTs #-}
 -- | Generate an import dependency graph for a given module.
 
 module Agda.Interaction.Highlighting.Dot.Base

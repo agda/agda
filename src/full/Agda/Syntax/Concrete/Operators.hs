@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-{-# LANGUAGE GADTs #-}
 {-# LANGUAGE PatternSynonyms #-}
 
 {-| The parser doesn't know about operators and parses everything as normal

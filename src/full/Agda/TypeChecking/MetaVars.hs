@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE GADTs #-}
 
 module Agda.TypeChecking.MetaVars where
 

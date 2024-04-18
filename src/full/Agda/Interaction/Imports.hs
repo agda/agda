@@ -169,11 +169,14 @@ srcFilePragmas src = pragmas
             ]
 
 -- | Set options from a 'Source' pragma, using the source
---   ranges of the pragmas for error reporting.
-setOptionsFromSourcePragmas :: Source -> TCM ()
-setOptionsFromSourcePragmas src = do
-  mapM_ setOptionsFromPragma (srcDefaultPragmas src)
-  mapM_ setOptionsFromPragma (srcFilePragmas    src)
+--   ranges of the pragmas for error reporting. Flag to check consistency.
+setOptionsFromSourcePragmas :: Bool -> Source -> TCM ()
+setOptionsFromSourcePragmas checkOpts src = do
+  mapM_ setOpts (srcDefaultPragmas src)
+  mapM_ setOpts (srcFilePragmas    src)
+  where
+    setOpts | checkOpts = checkAndSetOptionsFromPragma
+            | otherwise = setOptionsFromPragma
 
 -- | Is the aim to type-check the top-level module, or only to
 -- scope-check it?
@@ -419,7 +422,7 @@ typeCheckMain mode src = do
   -- liftIO . putStrLn . show =<< getVerbosity
 
   -- For the main interface, we also remember the pragmas from the file
-  setOptionsFromSourcePragmas src
+  setOptionsFromSourcePragmas True src
   loadPrims <- optLoadPrimitives <$> pragmaOptions
 
   when loadPrims $ do
@@ -994,7 +997,11 @@ createInterface mname file isMain msrc = do
         (TL.unpack $ srcText src)
     stTokens `modifyTCLens` (fileTokenInfo <>)
 
-    setOptionsFromSourcePragmas src
+    -- Only check consistency if not main (we check consistency for the main module in
+    -- `typeCheckMain`.
+    let checkConsistency | MainInterface{} <- isMain = False
+                         | otherwise                 = True
+    setOptionsFromSourcePragmas checkConsistency src
     checkAttributes (srcAttributes src)
     syntactic <- optSyntacticEquality <$> pragmaOptions
     localTC (\env -> env { envSyntacticEqualityFuel = syntactic }) $ do

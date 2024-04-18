@@ -2416,7 +2416,7 @@ data FunctionData = FunctionData
       --   it is already applied to the record. (Can happen in module
       --   instantiation.) This information is used in the termination
       --   checker.
-  , _funErasure :: !Bool
+  , _funErasure        :: !Bool
     -- ^ Was @--erasure@ in effect when the function was defined?
     -- (This can affect the type of a projection.)
   , _funFlags          :: Set FunctionFlag
@@ -2435,6 +2435,8 @@ data FunctionData = FunctionData
       -- ^ Is this function opaque? If so, and we're not in an opaque
       -- block that includes this function('s name), it will be treated
       -- abstractly.
+  , _funFirstOrder     :: !Bool
+    -- ^ Indicates whether the first-order shortcut should be applied to the definition.
   } deriving (Show, Generic)
 
 pattern Function
@@ -2454,6 +2456,7 @@ pattern Function
   -> Maybe QName
   -> Maybe QName
   -> IsOpaque
+  -> Bool
   -> Defn
 pattern Function
   { funClauses
@@ -2472,6 +2475,7 @@ pattern Function
   , funWith
   , funIsKanOp
   , funOpaque
+  , funFirstOrder
   } = FunctionDefn (FunctionData
     funClauses
     funCompiled
@@ -2489,6 +2493,7 @@ pattern Function
     funWith
     funIsKanOp
     funOpaque
+    funFirstOrder
   )
 
 data DatatypeData = DatatypeData
@@ -2846,6 +2851,7 @@ instance Pretty FunctionData where
       funWith
       funIsKanOp
       funOpaque
+      funFirstOrder
     ) =
     "Function {" <?> vcat
       [ "funClauses      =" <?> vcat (map pretty funClauses)
@@ -2862,6 +2868,7 @@ instance Pretty FunctionData where
       , "funWith         =" <?> pretty funWith
       , "funIsKanOp      =" <?> pretty funIsKanOp
       , "funOpaque       =" <?> pshow funOpaque
+      , "funFirstOrder   =" <?> pshow funFirstOrder
       ] <?> "}"
 
 instance Pretty DatatypeData where
@@ -3014,6 +3021,7 @@ emptyFunctionData = do
     , _funCovering    = []
     , _funIsKanOp     = Nothing
     , _funOpaque      = TransparentDef
+    , _funFirstOrder  = False
     }
 
 emptyFunction :: HasOptions m => m Defn
@@ -4253,6 +4261,9 @@ data Warning
   | SafeFlagPragma [String]                -- ^ Unsafe OPTIONS.
   | SafeFlagWithoutKFlagPrimEraseEquality
   | WithoutKFlagPrimEraseEquality
+  | ConflictingPragmaOptions String String
+    -- ^ `ConflictingPragmaOptions a b`:
+    --   Inconsistent options `--a` and `--no-b`, since `--a` implies `--b`. Ignoring `--no-b`.
   | OptionWarning            OptionWarning
   | ParseWarning             ParseWarning
   | LibraryWarning           LibWarning
@@ -4377,6 +4388,7 @@ warningName = \case
   SafeFlagPostulate{}          -> SafeFlagPostulate_
   SafeFlagPragma{}             -> SafeFlagPragma_
   SafeFlagWithoutKFlagPrimEraseEquality -> SafeFlagWithoutKFlagPrimEraseEquality_
+  ConflictingPragmaOptions{}   -> ConflictingPragmaOptions_
   WithoutKFlagPrimEraseEquality -> WithoutKFlagPrimEraseEquality_
   TerminationIssue{}           -> TerminationIssue_
   UnreachableClauses{}         -> UnreachableClauses_
@@ -5801,8 +5813,8 @@ instance KillRange Defn where
       DataOrRecSig n -> DataOrRecSig n
       GeneralizableVar -> GeneralizableVar
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
-      Function a b c d e f g h i j k l m n o p ->
-        killRangeN Function a b c d e f g h i j k l m n o p
+      Function a b c d e f g h i j k l m n o p q ->
+        killRangeN Function a b c d e f g h i j k l m n o p q
       Datatype a b c d e f g h i j   -> killRangeN Datatype a b c d e f g h i j
       Record a b c d e f g h i j k l m -> killRangeN Record a b c d e f g h i j k l m
       Constructor a b c d e f g h i j k -> killRangeN Constructor a b c d e f g h i j k

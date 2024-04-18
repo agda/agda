@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE GADTs #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 

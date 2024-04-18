@@ -18,6 +18,8 @@ needing extra type annotations).
 
 The option can be used either globally or in an ``OPTIONS`` pragma, in the latter
 case it applies only to the current module.
+There is also a pragma ``{-# INJECTIVE_FOR_INFERENCE f #-}`` which
+enables lossy unification only for ``f``.
 
 
 Heuristic
@@ -63,6 +65,7 @@ ignore some possible solutions to unification variables.
 For example if ``f`` is a constant function, then the constraint ``f
 ?0 = f 1`` does not uniquely determine ``?0``, but the heuristic will
 end up assigning ``1`` to ``?0``.
+However, if ``f`` is injective this heuristic is complete.
 
 Such assignments can lead to Agda to report a type error which would
 not have been reported without the heuristic. This is because committing to

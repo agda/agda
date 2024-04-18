@@ -238,6 +238,14 @@ prettyWarning = \case
 
     WithoutKFlagPrimEraseEquality -> fsep (pwords "Using primEraseEquality with the without-K flag is inconsistent.")
 
+    ConflictingPragmaOptions a b -> fsep $ pwords $ unwords
+      [ "Conflicting options", yes a, "and", no b, "(" ++ yes a, "implies", yes b ++ ")."
+      , "Ignoring", no b ++ "." ]
+      where
+        yes s = "--" ++ s
+        no ('n' : 'o' : '-' : s) = "--" ++ s
+        no s                     = "--no-" ++ s
+
     OptionWarning ow -> pretty ow
 
     ParseWarning pw -> pretty pw

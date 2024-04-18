@@ -99,6 +99,7 @@ instance EmbPrj Warning where
     NoMain _                                    -> __IMPOSSIBLE__
     DuplicateRewriteRule a                      -> icodeN 53 DuplicateRewriteRule a
     MissingTypeSignatureForOpaque a b           -> icodeN 54 MissingTypeSignatureForOpaque a b
+    ConflictingPragmaOptions a b                -> icodeN 55 ConflictingPragmaOptions a b
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -155,6 +156,7 @@ instance EmbPrj Warning where
     [52]                 -> valuN ConfluenceForCubicalNotSupported
     [53, a]              -> valuN DuplicateRewriteRule a
     [54, a, b]           -> valuN MissingTypeSignatureForOpaque a b
+    [55, a, b]           -> valuN ConflictingPragmaOptions a b
     _ -> malformed
 
 instance EmbPrj OptionWarning where
@@ -336,8 +338,8 @@ instance EmbPrj InfectiveCoinfective where
     valu _   = malformed
 
 instance EmbPrj PragmaOptions where
-  icod_    (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp) =
-    icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp
+  icod_    (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq) =
+    icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq
 
   value = valueN PragmaOptions
 
@@ -482,6 +484,7 @@ instance EmbPrj WarningName where
     MissingTypeSignatureForOpaque_               -> 113
     UselessMacro_                                -> 114
     WarningProblem_                              -> 115
+    ConflictingPragmaOptions_                    -> 116
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -599,6 +602,7 @@ instance EmbPrj WarningName where
     113 -> return MissingTypeSignatureForOpaque_
     114 -> return UselessMacro_
     115 -> return WarningProblem_
+    116 -> return ConflictingPragmaOptions_
     _   -> malformed
 
 

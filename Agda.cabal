@@ -326,6 +326,7 @@ common language
       FlexibleContexts
       FlexibleInstances
       FunctionalDependencies
+      GADTs
       GeneralizedNewtypeDeriving
       InstanceSigs
       LambdaCase
