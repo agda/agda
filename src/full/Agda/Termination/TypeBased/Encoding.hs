@@ -68,14 +68,12 @@ encodeFieldType mutualNames t = do
   reportSDoc "term.tbt" 20 $ "Sig: " <> pretty sig
   -- Record projections are always size-preserving in their inductive size.
   let amendedSig = case erNewChosenInductiveVariables of
-        (x : rest) -> reifySignature (map (, ToVariable x) rest) sig
+        (x : rest) -> reifySignature (map (, ToVariable x) (List.sort rest)) sig
         [] -> sig
   pure amendedSig
 
 -- | Converts an arbitrary type to a useless size signature
 --   It is convenient to have sized types for all definitions in the project.
---   However, if there is no `--type-based-termination` enabled in a file,
---   we should not do non-trivial computations with the processed definitions.
 encodeBlackHole :: Type -> SizeSignature
 encodeBlackHole t =
   let TelV domains codom = telView' t

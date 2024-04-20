@@ -934,13 +934,21 @@ Recursion
 
      Default: ``--no-type-based-termination``.
 
+.. option:: --type-based-termination-encoding, --no-type-based-termination-encoding
+
+     .. versionadded:: 2.7.0
+
+     Enable [disable] preprocessing of data types for type-based termination checking (see :ref:`type-based-termination-checking`).
+
+     Default: ``--type-based-termination-encoding``.
+
 .. option:: --size-preservation, --no-size-preservation
 
      .. versionadded:: 2.7.0
 
      Enable [disable] size preservation during type-based termination checking (see :ref:`type-based-termination-checking-size-preservation`).
 
-     This option only has effect if ``--type-based-termination`` is enabled.
+     This option implies ``--type-based-termination``.
 
      Default: ``--size-preservation``.
 
@@ -1859,6 +1867,7 @@ again, the source file is re-typechecked instead:
 * :option:`--syntactic-equality`
 * :option:`--termination-depth`
 * :option:`--type-based-termination`
+* :option:`--type-based-termination-encoding`
 * :option:`--two-level`
 * :option:`--type-in-type`
 * :option:`--warning`

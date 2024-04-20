@@ -1,0 +1,6 @@
+TypeBasedTermination/EncodingExplicitlyDisabled.agda:7,1-8,56
+Termination checking failed for the following functions:
+  mapRose
+Problematic calls:
+  mapRose f
+    (at TypeBasedTermination/EncodingExplicitlyDisabled.agda:8,42-49)

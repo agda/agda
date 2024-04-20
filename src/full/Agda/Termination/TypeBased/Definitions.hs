@@ -38,7 +38,7 @@ import qualified Agda.Termination.Order as Order
 import Agda.Termination.Order (Order)
 import Agda.TypeChecking.Monad.Base ( TCM, Definition(defType, defPolarity, defCopy, theDef, defSizedType), MonadTCM(liftTCM), CallInfo(CallInfo), FunctionData(_funClauses),
       Defn(FunctionDefn), pattern Constructor, conData, pattern Record, recConHead, recInduction, pattern Datatype, dataCons, dataMutual, pattern Function, funProjection,
-      pattern Axiom, typeBasedTerminationEnabled, sizePreservationOption, recEtaEquality )
+      pattern Axiom, typeBasedTerminationEnabled, sizePreservationOption, recEtaEquality, typeBasedTerminationEncodingOption )
 import Agda.TypeChecking.Monad.Context ( AddContext(addContext) )
 import Agda.TypeChecking.Monad.Debug ( reportSDoc )
 import Agda.TypeChecking.Monad.Signature ( HasConstInfo(getConstInfo), addConstant, inConcreteOrAbstractMode, isProjection_ )
@@ -58,8 +58,9 @@ initSizeTypeEncoding mutuals =
   billTo [Benchmark.TypeBasedTermination, Benchmark.SizeTypeEncoding] $ do
     coinduction <- checkCoinductiveRecordPresence mutuals
     forM_ mutuals $ \nm -> inConcreteOrAbstractMode nm $ \def -> do
-      -- Unless there is an explicit command, we will not do non-trivial encoding
-      encodeComplex <- typeBasedTerminationEnabled
+      -- We convert the types of all definitions in the mutual block to size types by default
+      encodeComplex <- typeBasedTerminationEncodingOption
+      reportSDoc "term.tbt" 50 $ "Encoding complex: " <+> pretty encodeComplex
       let dType = defType def
       sizedSignature <- case theDef def of
         Datatype { dataCons, dataMutual } -> do

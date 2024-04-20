@@ -4948,6 +4948,13 @@ typeBasedTerminationOption :: HasOptions m => m Bool
 typeBasedTerminationOption = optTypeBasedTermination <$> pragmaOptions
 {-# INLINE typeBasedTerminationOption #-}
 
+typeBasedTerminationEncodingOption :: HasOptions m => m Bool
+typeBasedTerminationEncodingOption = orM
+  [ optTypeBasedTerminationEncoding <$> pragmaOptions
+  , typeBasedTerminationEnabled
+  ]
+{-# INLINE typeBasedTerminationEncodingOption #-}
+
 sizePreservationOption :: HasOptions m => m Bool
 sizePreservationOption = optSizePreservation <$> pragmaOptions
 {-# INLINE sizePreservationOption #-}

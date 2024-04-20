@@ -237,11 +237,11 @@ inferenceToChecking :: SizeType -> SizeType -> TBTM ()
 inferenceToChecking expected inferred = unless (expected == UndefinedSizeType) $ smallerOrEq Covariant inferred expected
 
 -- | In projection functions, the arguments that precede the principal one are not present among eliminations.
--- This requires us to forcibly drop them from the sized type, similarly to what was done in constructors. 
+-- This requires us to forcibly drop them from the sized type, similarly to what was done in constructors.
 -- TODO: Apply unification here
 applyIrrelevantProjectionParameters :: QName -> SizeType -> TBTM SizeType
-applyIrrelevantProjectionParameters qn st = do 
-  constInfo <- getConstInfo qn 
+applyIrrelevantProjectionParameters qn st = do
+  constInfo <- getConstInfo qn
   newSizeType <- case theDef constInfo of
     Function { funProjection = Right Projection { projIndex = np } } -> pure $ applyDataType (replicate (np - 1) UndefinedSizeType) st
     _ -> pure st
