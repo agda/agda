@@ -31,7 +31,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4
-    - if: ${{ runner.os == 'Linux' }}
+    - if: runner.os == 'Linux'
       name: Switch off XDG directories for cabal (Linux)
       run: |
         mkdir -p ~/.cabal
@@ -39,24 +39,16 @@ jobs:
       uses: haskell-actions/setup@v2
       with:
         cabal-update: true
-        cabal-version: ${{ env.CABAL-VER }}
+        cabal-version: ${{ env.CABAL_VER }}
         ghc-version: ${{ env.GHC_VER }}
-    - name: Environment settings based on the Haskell setup
-      run: |
-        GHC_VER=$(ghc --numeric-version)
-        CABAL_VER=$(cabal --numeric-version)
-        echo "GHC_VER   = ${GHC_VER}"
-        echo "CABAL_VER = ${CABAL_VER}"
-        echo "GHC_VER=${GHC_VER}"       >> "${GITHUB_ENV}"
-        echo "CABAL_VER=${CABAL_VER}"   >> "${GITHUB_ENV}"
-    - if: ${{ runner.os == 'Windows' }}
+    - if: runner.os == 'Windows'
       name: Install the ICU library (Windows)
       run: |
         $env:PATH = "C:\msys64\usr\bin;$env:PATH"
         pacman --noconfirm -S msys2-keyring mingw-w64-x86_64-pkgconf mingw-w64-x86_64-icu
         echo "C:\msys64\mingw64\bin" | Out-File -FilePath "$env:GITHUB_PATH" -Append
       shell: pwsh
-    - if: ${{ runner.os == 'macOS' }}
+    - if: runner.os == 'macOS'
       name: Set up pkg-config for the ICU library (macOS)
       run: |
         PKG_CONFIG_PATH=$(brew --prefix)/opt/icu4c/lib/pkgconfig
@@ -77,27 +69,35 @@ jobs:
       run: |
         cabal configure -O0 ${FLAGS}
         cabal build --dry-run
-    - id: cache
+    - env:
+        key: cabal.yml-${{ runner.os }}-ghc-${{ steps.setup-haskell.outputs.ghc-version
+          }}-cabal-${{ steps.setup-haskell.outputs.cabal-version }}
+      id: cache
       name: Restore cache from approximate key
-      uses: actions/cache@v4
+      uses: actions/cache/restore@v4
       with:
-        key: cabal.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
-          }}-${{ hashFiles('**/plan.json') }}
+        key: ${{ env.key }}-${{ hashFiles('**/plan.json') }}
         path: |
           ${{ steps.setup-haskell.outputs.cabal-store }}
-        restore-keys: cabal.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{
-          env.CABAL_VER }}-
-    - if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+        restore-keys: ${{ env.key }}
+    - if: steps.cache.outputs.cache-hit != 'true'
       name: Install dependencies
       run: |
         cabal build --only-dependencies
     - name: Build Agda
       run: |
         cabal build
-    - if: ${{ matrix.doctest }}
+    - if: matrix.doctest
       name: Run doctest
       run: |
         make doc-test
+    - if: always() && steps.cache.outputs.cache-hit != 'true'
+      name: Save cache
+      uses: actions/cache/save@v4
+      with:
+        key: ${{ steps.cache.outputs.cache-primary-key }}
+        path: |
+          ${{ steps.setup-haskell.outputs.cabal-store }}
     strategy:
       fail-fast: false
       matrix:

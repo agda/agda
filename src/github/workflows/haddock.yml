@@ -53,16 +53,6 @@ jobs:
         cabal-version: ${{ matrix.cabal-ver }}
         cabal-update:  true
 
-    - name: Environment settings based on the Haskell setup
-      run: |
-        GHC_VER=$(ghc --numeric-version)
-        CABAL_VER=$(cabal --numeric-version)
-        echo "GHC_VER    = ${GHC_VER}"
-        echo "CABLAL_VER = ${CABAL_VER}"
-        echo "GHC_VER=${GHC_VER}"         >> "${GITHUB_ENV}"
-        echo "CABAL_VER=${CABAL_VER}"     >> "${GITHUB_ENV}"
-      # From now on, use env.{GHC|CABAL}_VER rather than matrix.{ghc|cabal}-ver!
-
     - name: Configure the build plan
       run: |
         cabal configure ${FLAGS}
@@ -78,16 +68,15 @@ jobs:
         path: |
           ${{ steps.setup-haskell.outputs.cabal-store }}
         # The file `plan.json` contains the build information.
-        key: haddock.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-${{ hashFiles('**/plan.json') }}
-        restore-keys: |
-             haddock.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-
+        key: ${{ env.key }}-plan-${{ hashFiles('**/plan.json') }}
+        restore-keys: ${{ env.key }}-
+      env:
+        key: haddock.yml-${{ runner.os }}-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-cabal-${{ steps.setup-haskell.outputs.cabal-version }}
 
     - name: Install dependencies
-      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+      if: steps.cache.outputs.cache-hit != 'true'
       run: |
         cabal build --dependencies-only
-      # cabal build --dependencies-only --force-reinstalls
-      # Andreas, 2023-01-31: do we need --force-reinstalls ?  What is its significance?
 
     # Testing Haddock [Issue 1773]
     - name: Build Haddock
@@ -99,10 +88,10 @@ jobs:
         find dist-newstyle -path '*/doc/html/Agda' -type d -exec cp -R {} html \;
         find html -name '*.md' -delete
         ls -R html
-      # The last step is to fix #6502; the .md files can make Jekyll choke.
+      # The but-last step is to fix #6502; the .md files can make Jekyll choke.
 
     - name: Deploy haddock
-      uses: peaceiris/actions-gh-pages@v3
+      uses: peaceiris/actions-gh-pages@v4
       if: github.ref == 'refs/heads/master'
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}

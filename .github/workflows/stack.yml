@@ -28,7 +28,7 @@ jobs:
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
-    - if: ${{ runner.os == 'macOS' }}
+    - if: runner.os == 'macOS'
       name: Set up for the ICU library (macOS)
       run: |
         ICU4C=$(brew --prefix)/opt/icu4c
@@ -78,18 +78,20 @@ jobs:
         echo "STACK_VER         = ${STACK_VER}"
         echo "GHC_VER           = ${GHC_VER}"
         echo "ICU_VER           = ${ICU_VER}"
-    - id: cache
+    - env:
+        key: stack.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER
+          }}-icu-${{ env.ICU_VER }}
+      id: cache
       name: Restore cache from approximate key
       uses: actions/cache/restore@v4
       with:
-        key: stack.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER
-          }}-icu-${{ env.ICU_VER }}-plan-${{ hashFiles('Agda.cabal', format('stack-{0}.yaml',
+        key: ${{ env.key }}-plan-${{ hashFiles('Agda.cabal', format('stack-{0}.yaml',
           env.GHC_VER)) }}
         path: |
           ${{ env.STACK_ROOT }}
-        restore-keys: stack.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-stack-${{
-          env.STACK_VER }}-icu-${{ env.ICU_VER }}-
-    - name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
+        restore-keys: ${{ env.key}}-
+    - if: steps.cache.outputs.cache-hit != 'true'
+      name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
     - name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests`
         (i.e. the test suite).
