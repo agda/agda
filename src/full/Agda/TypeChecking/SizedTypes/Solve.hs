@@ -82,7 +82,7 @@ import Agda.TypeChecking.Constraints as C
 import qualified Agda.TypeChecking.SizedTypes as S
 import Agda.TypeChecking.SizedTypes.Syntax as Size
 import Agda.TypeChecking.SizedTypes.Utils
-import Agda.TypeChecking.SizedTypes.WarshallSolver as Size
+import Agda.TypeChecking.SizedTypes.WarshallSolver as Size hiding (simplify1)
 
 import Agda.Utils.Cluster
 import Agda.Utils.Function
@@ -365,9 +365,9 @@ solveSizeConstraints_ flag cs0 = do
   ccs' <- concat <$> do
     forM ccs $ \ (c0, HypSizeConstraint cxt hids hs sc) -> do
       case simplify1 (\ sc -> return [sc]) sc of
-        Left _ -> typeError . GenericDocError =<< do
+        Nothing -> typeError . GenericDocError =<< do
           "Contradictory size constraint" <+> prettyTCM c0
-        Right cs -> return $ (c0,) . HypSizeConstraint cxt hids hs <$> cs
+        Just cs -> return $ (c0,) . HypSizeConstraint cxt hids hs <$> cs
 
   -- Cluster constraints according to the meta variables they mention.
   -- @csNoM@ are the constraints that do not mention any meta.

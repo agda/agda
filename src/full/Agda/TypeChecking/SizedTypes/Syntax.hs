@@ -6,14 +6,11 @@ module Agda.TypeChecking.SizedTypes.Syntax where
 
 import Prelude hiding ( null )
 
-
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 
-import Agda.TypeChecking.Monad.Base (TCM)
-import qualified Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.SizedTypes.Utils
 
 import Agda.Utils.Functor
@@ -60,9 +57,6 @@ instance Show Flex where
 
 instance Pretty Flex where
   pretty = text . flexId
-
-instance P.PrettyTCM Flex where
-  prettyTCM = return . pretty
 
 -- | Size expressions appearing in constraints.
 data SizeExpr' rigid flex
@@ -176,19 +170,14 @@ instance Plus (SizeExpr' r f) Offset (SizeExpr' r f) where
       Flex x  n -> Flex x  $ n + m
       Infty     -> Infty
 
--- | Error messages produced by the constraint simplification monad.
-
-type Error = TCM Doc
-
 -- * Constraint simplification
 
-type CTrans r f = Constraint' r f -> Either Error [Constraint' r f]
+type CTrans r f = Constraint' r f -> Maybe [Constraint' r f]
 
--- | Returns an error message if we have a contradictory constraint.
+-- | Returns 'Nothing' if the constraint is contradictory.
 simplify1 :: (Pretty f, Pretty r, Eq r) => CTrans r f -> CTrans r f
 simplify1 test c = do
-  let err = Left $ "size constraint" P.<+> P.pretty c P.<+>
-                   "is inconsistent"
+  let err = Nothing
   case c of
     -- rhs is Infty
     Constraint a           Le  Infty -> return []

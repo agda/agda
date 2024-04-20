@@ -88,7 +88,7 @@ rigidOrFlexN x n = (rigidOrFlex x) { offset = fromInteger $ n }
 
 -- * Testing
 
-simplify :: [Constraint] -> [Either Error [Constraint]]
+simplify :: [Constraint] -> [Maybe [Constraint]]
 simplify = map (simplify1 (\ c -> return [c]))
 
 cs = simplify $ map parse

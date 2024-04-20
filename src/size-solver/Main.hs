@@ -24,11 +24,12 @@ import System.Exit
 import System.Environment (getArgs)
 
 import qualified Agda.TypeChecking.Monad as TCM
+import Agda.TypeChecking.Pretty           (PrettyTCM(..))
 import Agda.TypeChecking.SizedTypes.Utils (setDebugging, traceM)
 import Agda.TypeChecking.SizedTypes.Syntax
 import Agda.TypeChecking.SizedTypes.WarshallSolver
 
-import Agda.Syntax.Common.Pretty (Pretty, prettyShow, render, (<+>))
+import Agda.Syntax.Common.Pretty (Pretty(..), prettyShow, render, (<+>))
 
 import Parser
 
@@ -110,3 +111,6 @@ isSeparator :: String -> Bool
 isSeparator s = length dashes >= 2 && all isSpace rest
   where (dashes, rest) = span (== '-') s
 -- -}
+
+instance PrettyTCM Flex where
+  prettyTCM = return . pretty
