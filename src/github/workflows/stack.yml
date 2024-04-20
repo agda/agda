@@ -164,6 +164,7 @@ jobs:
         # stack exec ${ARGS} -- pacman --noconfirm -S msys2-keyring
         stack exec ${ARGS} -- bash -c "curl -LO ${ICU_URL} && pacman --noconfirm -U *.pkg.tar.zst"
         stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-pkgconf
+        stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-zlib
 
     - name: Determine the ICU version
       run: |
