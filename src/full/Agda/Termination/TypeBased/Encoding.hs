@@ -31,13 +31,14 @@ import Agda.Syntax.Common ( Induction(..), Arg(unArg), HasEta' (..), HasEta )
 import Agda.Syntax.Internal ( isApplyElim, Type, Type''(unEl), Abs(NoAbs, Abs, unAbs), Term(Var, Sort, MetaV, Lam, Pi, Def), Dom'(unDom) )
 import Agda.Termination.TypeBased.Common ( applyDataType, tryReduceCopy, fixGaps, computeDecomposition, VariableInstantiation(..), reifySignature )
 import Agda.Termination.TypeBased.Syntax ( SizeSignature(SizeSignature), SizeBound(SizeUnbounded, SizeBounded), FreeGeneric(..), SizeType(..), Size(SUndefined, SDefined), pattern UndefinedSizeType, sizeCodomain )
-import Agda.TypeChecking.Monad.Base ( TCM, Definition(defCopy, defSizedType, theDef, defType), MonadTCM(liftTCM), pattern Record, recInduction, pattern Datatype, pattern Function, funTerminates, defIsDataOrRecord, EtaEquality(..) )
+import Agda.TypeChecking.Monad.Base ( TCM, Definition(defCopy, defSizedType, theDef, defType), MonadTCM(liftTCM), pattern Record, recInduction, pattern Datatype, pattern Function, funTerminates, defIsDataOrRecord, EtaEquality(..), MonadTCEnv )
 import Agda.TypeChecking.Monad.Debug ( MonadDebug, reportSDoc )
 import Agda.TypeChecking.Monad.Signature ( HasConstInfo(getConstInfo) )
 import Agda.TypeChecking.Pretty ( PrettyTCM(prettyTCM), pretty, (<+>), vcat, text )
 import Agda.TypeChecking.Reduce ( instantiate, reduce )
 import Agda.TypeChecking.Substitute ( TelV(TelV), telView' )
 import Agda.Utils.Impossible ( __IMPOSSIBLE__ )
+import Agda.TypeChecking.Monad.Context (AddContext(..), MonadAddContext)
 
 -- | Converts internal type of function to a sized type
 encodeFunctionType :: Type -> TCM SizeSignature
@@ -133,7 +134,7 @@ typeToSizeType regVars genVars ctx pred t = case typeToSizeType' (unEl t) of
       }
 
 newtype MonadEncoder a = ME (StateT EncoderState TCM a)
-  deriving (Functor, Applicative, Monad, MonadDebug, MonadState EncoderState)
+  deriving (Functor, Applicative, Monad, MonadDebug, MonadState EncoderState, MonadTCEnv, MonadAddContext)
 
 -- | 'encodeConstructorType ind mutuals t' encodes a type 't' of constructor belonging to an inductive data definition,
 --   where 'mutuals' is a set of names in a mutual block of the data definition and 'ind' is indication whether the defined mutual-recursive datatype is coinductive.
@@ -186,7 +187,7 @@ typeToSizeType' t@(Pi dom cod) = do
   domEncoding <- freezeContext $ typeToSizeType' $ unEl $ unDom dom
   enrichContext domEncoding cod
 
-  codomEncoding <- typeToSizeType' $ unEl $ unAbs cod
+  codomEncoding <- addContext ("_" :: String, dom) $ typeToSizeType' $ unEl $ unAbs cod
   combinedType <- case (domEncoding, codomEncoding) of
         (_, Left fg) -> do
           -- Since we are trying to build a generic with arity, its arity increases with the introduction of domain.
@@ -226,6 +227,7 @@ typeToSizeType' t@(Lam _ abs) = do
     Left fg -> Left (fg { fgArity = fgArity fg + 1 })
     Right tele -> Right $ SizeArrow UndefinedSizeType tele
 typeToSizeType' t@(Def qn _) = do
+  reportSDoc "term.tbt" 60 $ "Converting def" <+> prettyTCM t
   constInfo <- ME $ getConstInfo qn
   let dataHandler = Right <$> (termToSizeType =<< ME (liftTCM (tryReduceCopy t)))
   case theDef constInfo of
