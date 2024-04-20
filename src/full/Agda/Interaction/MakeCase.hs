@@ -9,7 +9,6 @@ import Prelude hiding ((!!), null)
 import Control.Monad
 
 import Data.Either
-import Data.Function (on)
 import qualified Data.List as List
 import Data.Maybe
 import Data.Monoid

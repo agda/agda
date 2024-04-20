@@ -11,7 +11,6 @@ import Control.Monad.Except ( MonadError(..), ExceptT, runExceptT )
 import Control.Monad.Trans  ( lift )
 import Control.Monad.Trans.Maybe
 
-import Data.Function (on)
 import qualified Data.IntSet as IntSet
 import qualified Data.IntMap as IntMap
 import qualified Data.List as List
