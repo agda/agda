@@ -60,6 +60,7 @@ module Agda.Interaction.Options.Base
     , lensOptCumulativity
     , lensOptSizedTypes
     , lensOptTypeBasedTermination
+    , lensOptTypeBasedTerminationEncoding
     , lensOptSizePreservation
     , lensOptSyntaxBasedTermination
     , lensOptGuardedness
@@ -127,6 +128,7 @@ module Agda.Interaction.Options.Base
     , optCumulativity
     , optSizedTypes
     , optTypeBasedTermination
+    , optTypeBasedTerminationEncoding
     , optSizePreservation
     , optSyntaxBasedTermination
     , optGuardedness
@@ -343,6 +345,7 @@ data PragmaOptions = PragmaOptions
   , _optCumulativity              :: WithDefault 'False
   , _optSizedTypes                :: WithDefault 'False
   , _optTypeBasedTermination      :: WithDefault 'False
+  , _optTypeBasedTerminationEncoding :: WithDefault 'True
   , _optSizePreservation          :: WithDefault 'True
   , _optSyntaxBasedTermination    :: WithDefault 'True
   , _optGuardedness               :: WithDefault 'False
@@ -512,6 +515,7 @@ optOmegaInOmega              :: PragmaOptions -> Bool
 optCumulativity              :: PragmaOptions -> Bool
 optSizedTypes                :: PragmaOptions -> Bool
 optTypeBasedTermination      :: PragmaOptions -> Bool
+optTypeBasedTerminationEncoding :: PragmaOptions -> Bool
 optSizePreservation          :: PragmaOptions -> Bool
 optSyntaxBasedTermination    :: PragmaOptions -> Bool
 optGuardedness               :: PragmaOptions -> Bool
@@ -578,6 +582,7 @@ optOmegaInOmega              = collapseDefault . _optOmegaInOmega
 optCumulativity              = collapseDefault . _optCumulativity
 optSizedTypes                = collapseDefault . _optSizedTypes
 optTypeBasedTermination      = collapseDefault . _optTypeBasedTermination
+optTypeBasedTerminationEncoding = collapseDefault . _optTypeBasedTerminationEncoding
 optSizePreservation          = collapseDefault . _optSizePreservation
 optSyntaxBasedTermination    = collapseDefault . _optSyntaxBasedTermination
 optGuardedness               = collapseDefault . _optGuardedness
@@ -715,6 +720,9 @@ lensOptSizedTypes f o = f (_optSizedTypes o) <&> \ i -> o{ _optSizedTypes = i }
 
 lensOptTypeBasedTermination :: Lens' PragmaOptions _
 lensOptTypeBasedTermination f o = f (_optTypeBasedTermination o) <&> \ i -> o{ _optTypeBasedTermination = i }
+
+lensOptTypeBasedTerminationEncoding :: Lens' PragmaOptions _
+lensOptTypeBasedTerminationEncoding f o = f (_optTypeBasedTerminationEncoding o) <&> \ i -> o{ _optTypeBasedTerminationEncoding = i }
 
 lensOptSizePreservation :: Lens' PragmaOptions _
 lensOptSizePreservation f o = f (_optSizePreservation o) <&> \ i -> o{ _optSizePreservation = i }
@@ -941,6 +949,7 @@ defaultPragmaOptions = PragmaOptions
   , _optCumulativity              = Default
   , _optSizedTypes                = Default
   , _optTypeBasedTermination      = Default
+  , _optTypeBasedTerminationEncoding = Default
   , _optSizePreservation          = Default
   , _optSyntaxBasedTermination    = Default
   , _optGuardedness               = Default
@@ -1741,8 +1750,11 @@ pragmaOptions = concat
                     "enable sized types" "(inconsistent with --guardedness)"
                     $ Just "disable sized types"
   , pragmaFlag      "type-based-termination" lensOptTypeBasedTermination
-                    "enable type-based termination checker" "(implies --size-preservation)"
+                    "enable type-based termination checker" "(implies --size-preservation, --type-based-termination-encoding)"
                     $ Just "disable type-based termination checker"
+  , pragmaFlag      "type-based-termination-encoding" lensOptTypeBasedTerminationEncoding
+                    "enable preprocessing of definitions for the type-based termination checker" ""
+                    $ Just "disable preprocessing for the type-based termination checker"
   , pragmaFlag      "size-preservation" lensOptSizePreservation
                     "enable size preservation inference during type-based termination checking" "(implies --type-based-termination)"
                     $ Just "disable size preservation inference during type-based termination checking. Also implies --type-based-termination"

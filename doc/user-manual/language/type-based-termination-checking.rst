@@ -58,7 +58,7 @@ To activate the type-based termination checker in Agda, you can use the option `
 
 Enabling this option is the only requirement to use the type-based termination checker.
 
-It is important to note that the type-based termination checker requires preprocessing of all datatypes involved in the checking process. For the provided definitions, the files containing ``Nat``, ``List``, and ``RoseTree`` should all be type-checked with the ``--type-based-termination`` option enabled.
+The type-based termination checker requires preprocessing of all datatypes involved in the checking process. For the provided definitions, the files containing ``Nat``, ``List``, and ``RoseTree`` should all be type-checked with the ``--type-based-termination-encoding`` option enabled. This option is enabled by default, and can be disabled by ``--no-type-based-termination-encoding``.
 
 By default, type-based termination is disabled. You can also explicitly disable it by specifying ``--no-type-based-termination``.
 
