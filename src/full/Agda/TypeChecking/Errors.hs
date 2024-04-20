@@ -63,6 +63,7 @@ import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Call
 import Agda.TypeChecking.Pretty.Warning
+import Agda.TypeChecking.SizedTypes.Pretty ()
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce (instantiate)
 
@@ -215,6 +216,7 @@ errorString = \case
   NotAProperTerm                           -> "NotAProperTerm"
   InvalidType{}                            -> "InvalidType"
   InvalidTypeSort{}                        -> "InvalidTypeSort"
+  CannotSolveSizeConstraints{}             -> "CannotSolveSizeConstraints"
   EmptyTypeOfSizes{}                       -> "EmptyTypeOfSizes"
   FunctionTypeInSizeUniv{}                 -> "FunctionTypeInSizeUniv"
   NotAValidLetBinding{}                    -> "NotAValidLetBinding"
@@ -597,6 +599,14 @@ instance PrettyTCM TypeError where
 
     InvalidTypeSort s -> fsep $ prettyTCM s : pwords "is not a valid sort"
     InvalidType v -> fsep $ prettyTCM v : pwords "is not a valid type"
+
+    CannotSolveSizeConstraints ccs reason -> do
+      -- Print the HypSizeConstraints (snd)
+      vcat $ concat
+        [ [ text $ "Cannot solve size constraints" ]
+        , List1.toList $ fmap (prettyTCM . snd) ccs
+        , [ "Reason:" <+> pure reason | not (null reason) ]
+        ]
 
     EmptyTypeOfSizes t -> fsep $ pwords "Possibly empty type of sizes:" ++ [prettyTCM t]
 

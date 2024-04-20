@@ -6,16 +6,23 @@ module Agda.TypeChecking.SizedTypes.Syntax where
 
 import Prelude hiding ( null )
 
+import GHC.Generics (Generic)
+import Control.DeepSeq
+
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 
+import Agda.Syntax.Common
+
+import Agda.TypeChecking.Monad.Base.Types
 import Agda.TypeChecking.SizedTypes.Utils
 
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Null
-import Agda.Syntax.Common.Pretty
+import Agda.Syntax.Common.Pretty as P
 
 import Agda.Utils.Impossible
 
@@ -23,7 +30,9 @@ import Agda.Utils.Impossible
 
 -- | Constant finite sizes @n >= 0@.
 newtype Offset = O Int
-  deriving (Eq, Ord, Num, Enum)
+  deriving (Eq, Ord, Generic, Num, Enum)
+
+instance NFData Offset
 
 -- This Show instance is ok because of the Num constraint.
 instance Show Offset where
@@ -64,15 +73,19 @@ data SizeExpr' rigid flex
   | Rigid { rigid  :: rigid, offset :: Offset }  -- ^ Variable plus offset @i + n@.
   | Infty                                        -- ^ Infinity @∞@.
   | Flex  { flex   :: flex, offset :: Offset }   -- ^ Meta variable @X + n@.
-    deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
+    deriving (Show, Eq, Ord, Generic, Functor, Foldable, Traversable)
 
 type SizeExpr = SizeExpr' Rigid Flex
+
+instance (NFData r, NFData f) => NFData (SizeExpr' r f)
 
 -- | Comparison operator, e.g. for size expression.
 data Cmp
   = Lt  -- ^ @<@.
   | Le  -- ^ @≤@.
-  deriving (Show, Eq, Bounded, Enum)
+  deriving (Show, Eq, Generic, Bounded, Enum)
+
+instance NFData Cmp
 
 instance Dioid Cmp where
   compose     = min
@@ -97,9 +110,11 @@ data Constraint' rigid flex = Constraint
   , cmp       :: Cmp
   , rightExpr :: SizeExpr' rigid flex
   }
-  deriving (Show, Functor, Foldable, Traversable)
+  deriving (Show, Generic, Functor, Foldable, Traversable)
 
 type Constraint = Constraint' Rigid Flex
+
+instance (NFData r, NFData f) => NFData (Constraint' r f)
 
 -- * Polarities to specify solutions.
 ------------------------------------------------------------------------
@@ -329,3 +344,65 @@ instance Ord flex => Flexs (SizeExpr' rigid flex) where
 instance Ord flex => Flexs (Constraint' rigid flex) where
   type FlexOf (Constraint' rigid flex) = flex
   flexs (Constraint l _ r) = Set.union (flexs l) (flexs r)
+
+-- | Identifiers for rigid variables.
+data NamedRigid = NamedRigid
+  { rigidName  :: String   -- ^ Name for printing in debug messages.
+  , rigidIndex :: Int      -- ^ De Bruijn index.
+  } deriving (Show, Generic)
+
+instance NFData NamedRigid
+
+instance Eq NamedRigid where
+  (==) = (==) `on` rigidIndex
+
+instance Ord NamedRigid where
+  compare = compare `on` rigidIndex
+
+instance Pretty NamedRigid where
+  pretty = P.text . rigidName
+
+instance Plus NamedRigid Int NamedRigid where
+  plus (NamedRigid x i) j = NamedRigid x (i + j)
+
+-- | Size metas in size expressions.
+data SizeMeta = SizeMeta
+  { sizeMetaId   :: MetaId
+  -- TODO to fix issue 300?
+  -- , sizeMetaPerm :: Permutation -- ^ Permutation from the current context
+  --                               --   to the context of the meta.
+  , sizeMetaArgs :: [Int]       -- ^ De Bruijn indices.
+  } deriving (Show, Generic)
+
+instance NFData SizeMeta
+
+-- | An equality which ignores the meta arguments.
+instance Eq  SizeMeta where
+  (==) = (==) `on` sizeMetaId
+
+-- | An order which ignores the meta arguments.
+instance Ord SizeMeta where
+  compare = compare `on` sizeMetaId
+
+instance Pretty SizeMeta where
+  pretty = P.pretty . sizeMetaId
+
+-- | Size expression with de Bruijn indices.
+type DBSizeExpr = SizeExpr' NamedRigid SizeMeta
+
+type SizeConstraint = Constraint' NamedRigid SizeMeta
+
+-- | Size constraint with de Bruijn indices.
+data HypSizeConstraint = HypSizeConstraint
+  { sizeContext    :: Context
+  , sizeHypIds     :: [Nat] -- ^ DeBruijn indices
+  , sizeHypotheses :: [SizeConstraint]  -- ^ Living in @Context@.
+  , sizeConstraint :: SizeConstraint    -- ^ Living in @Context@.
+  }
+  deriving (Show, Generic)
+
+instance Flexs HypSizeConstraint where
+  type FlexOf HypSizeConstraint = SizeMeta
+  flexs (HypSizeConstraint _ _ hs c) = flexs hs `mappend` flexs c
+
+instance NFData HypSizeConstraint

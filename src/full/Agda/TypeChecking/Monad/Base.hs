@@ -4,6 +4,7 @@
 
 module Agda.TypeChecking.Monad.Base
   ( module Agda.TypeChecking.Monad.Base
+  , module Agda.TypeChecking.Monad.Base.Types
   , HasOptions (..)
   , RecordFieldWarning
   ) where
@@ -86,8 +87,10 @@ import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Info ( MetaKind(InstanceMeta, UnificationMeta), MetaNameSuggestion, MutualInfo )
 
+import           Agda.TypeChecking.Monad.Base.Types
 import qualified Agda.TypeChecking.Monad.Base.Warning as W
 import           Agda.TypeChecking.Monad.Base.Warning (RecordFieldWarning)
+import           Agda.TypeChecking.SizedTypes.Syntax  (HypSizeConstraint)
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
@@ -4035,14 +4038,6 @@ currentModality = do
     }
 
 ---------------------------------------------------------------------------
--- ** Context
----------------------------------------------------------------------------
-
--- | The @Context@ is a stack of 'ContextEntry's.
-type Context      = [ContextEntry]
-type ContextEntry = Dom (Name, Type)
-
----------------------------------------------------------------------------
 -- ** Let bindings
 ---------------------------------------------------------------------------
 
@@ -4629,11 +4624,6 @@ data TypeError
             -- ^ This sort is not a type expression.
         | InvalidType Term
             -- ^ This term is not a type expression.
-        | EmptyTypeOfSizes Term
-            -- ^ This type, representing a type of sizes, might be empty.
-        | FunctionTypeInSizeUniv Term
-            -- ^ This term, a function type constructor, lives in
-            --   @SizeUniv@, which is not allowed.
         | SplitOnIrrelevant (Dom Type)
         | SplitOnUnusableCohesion (Dom Type)
         -- UNUSED: -- | SplitOnErased (Dom Type)
@@ -4737,6 +4727,13 @@ data TypeError
         | ImpossibleConstructor QName NegativeUnification
     -- Positivity errors
         | TooManyPolarities QName Int
+    -- Sized type errors
+        | CannotSolveSizeConstraints (List1 (ProblemConstraint, HypSizeConstraint)) Doc
+        | EmptyTypeOfSizes Term
+            -- ^ This type, representing a type of sizes, might be empty.
+        | FunctionTypeInSizeUniv Term
+            -- ^ This term, a function type constructor, lives in
+            --   @SizeUniv@, which is not allowed.
     -- Import errors
         | LocalVsImportedModuleClash ModuleName
         | SolvedButOpenHoles

@@ -660,6 +660,7 @@ library
       Agda.TypeChecking.MetaVars.Occurs
       Agda.TypeChecking.Modalities
       Agda.TypeChecking.Monad.Base
+      Agda.TypeChecking.Monad.Base.Types
       Agda.TypeChecking.Monad.Base.Warning
       Agda.TypeChecking.Monad.Benchmark
       Agda.TypeChecking.Monad.Builtin
@@ -740,6 +741,7 @@ library
       Agda.TypeChecking.Serialise.Instances.Internal
       Agda.TypeChecking.Serialise.Instances.Errors
       Agda.TypeChecking.SizedTypes
+      Agda.TypeChecking.SizedTypes.Pretty
       Agda.TypeChecking.SizedTypes.Solve
       Agda.TypeChecking.SizedTypes.Syntax
       Agda.TypeChecking.SizedTypes.Utils
