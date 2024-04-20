@@ -22,11 +22,11 @@ import Agda.Termination.TypeBased.Encoding ( encodeFunctionType )
 import Agda.Termination.TypeBased.Monad ( SConstraint(SConstraint), ConstrType(SLeq), getCurrentCoreContext, storeConstraint, reportCall, currentCheckedName, getRootArity, currentMutualNames,
       addFallbackInstantiation, reportDirectRecursion, storeBottomVariable, abstractCoreContext, freshenSignature, TBTM, markInfiniteSize, withVariableCounter, getSizePolarity )
 import Agda.Termination.TypeBased.Syntax ( FreeGeneric(FreeGeneric, fgIndex), SizeType(..), Size(..), pattern UndefinedSizeType, sizeCodomain )
-import Agda.TypeChecking.Monad.Base ( TCM, Definition(theDef, defCopy, defType, defSizedType), MonadTCM(liftTCM), pattern Constructor, conData, pattern Record,
-      recInduction, pattern Function, funTerminates, isAbsurdLambdaName )
+import Agda.TypeChecking.Monad.Base ( TCM, Definition(theDef, defCopy, defType, defSizedType, defGeneralizedParams, defArgGeneralizable), MonadTCM(liftTCM), pattern Constructor, conData, pattern Record,
+      recInduction, pattern Function, funProjection, funTerminates, isAbsurdLambdaName, Projection (..) )
 import Agda.TypeChecking.Monad.Debug ( reportSDoc )
 import Agda.TypeChecking.Monad.Context ( AddContext(addContext) )
-import Agda.TypeChecking.Monad.Signature ( HasConstInfo(getConstInfo), typeOfConst )
+import Agda.TypeChecking.Monad.Signature ( HasConstInfo(getConstInfo), typeOfConst, getDefFreeVars )
 import Agda.TypeChecking.Pretty ( PrettyTCM(prettyTCM), pretty, nest, (<+>), vcat, text )
 import Agda.TypeChecking.ProjectionLike ( ProjEliminator(EvenLone), elimView )
 import Agda.TypeChecking.Polarity ( (\/), composePol, neg )
@@ -99,7 +99,8 @@ sizeCheckTerm' expected t@(Def qn elims) = if isAbsurdLambdaName qn then pure Un
     [ "elims: " <+> prettyTCM elims
     , "is copy: " <+> text (show (defCopy constInfo))
     ]
-  remainingCodomain <- sizeCheckEliminations sizeSigOfDef elims
+  semiAppliedSizeSig <- applyIrrelevantProjectionParameters qn sizeSigOfDef
+  remainingCodomain <- sizeCheckEliminations semiAppliedSizeSig elims
 
   currentName <- currentCheckedName
   actualArgs <- if (currentName == qn)
@@ -234,6 +235,20 @@ maybeStoreRecursiveCall qn elims callSizes = do
 -- This is more or less standard transition from checking to inference in bidirectional type checking.
 inferenceToChecking :: SizeType -> SizeType -> TBTM ()
 inferenceToChecking expected inferred = unless (expected == UndefinedSizeType) $ smallerOrEq Covariant inferred expected
+
+-- | In projection functions, the arguments that precede the principal one are not present among eliminations.
+-- This requires us to forcibly drop them from the sized type, similarly to what was done in constructors. 
+-- TODO: Apply unification here
+applyIrrelevantProjectionParameters :: QName -> SizeType -> TBTM SizeType
+applyIrrelevantProjectionParameters qn st = do 
+  constInfo <- getConstInfo qn 
+  newSizeType <- case theDef constInfo of
+    Function { funProjection = Right Projection { projIndex = np } } -> pure $ applyDataType (replicate (np - 1) UndefinedSizeType) st
+    _ -> pure st
+  reportSDoc "term.tbt" 60 $ vcat
+    [ "Size signature after elimination of record arguments: " <+> pretty newSizeType
+    ]
+  pure newSizeType
 
 -- | We cannot do argument checking in a straightforward zip-loop, because an instantiation of a generic may unlock new possibility for elimination.
 -- Example : `apply foo a b`, where `apply : (A -> B) -> A -> B` and `foo : C -> D -> E`. Here instantiation of `B` is `D -> E`, which unlocks the application of `b`.
