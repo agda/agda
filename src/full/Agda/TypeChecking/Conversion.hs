@@ -44,6 +44,7 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Polarity
+import Agda.TypeChecking.Polarity.Base
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Implicit (implicitArgs)

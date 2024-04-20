@@ -51,6 +51,7 @@ Language Reference
    syntax-declarations
    telescopes
    termination-checking
+   type-based-termination-checking
    two-level
    universe-levels
    with-abstraction

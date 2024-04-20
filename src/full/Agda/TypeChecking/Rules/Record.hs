@@ -213,7 +213,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
       -- Jesper, 2021-05-26: Warn when declaring coinductive record
       -- but neither --guardedness nor --sized-types is enabled.
       when (conInduction == CoInductive) $ do
-        unlessM ((optGuardedness || optSizedTypes) <$> pragmaOptions) $
+        unlessM ((optGuardedness || optSizedTypes || optTypeBasedTermination) <$> pragmaOptions) $
           warning $ NoGuardednessFlag name
 
       -- Add the record definition.
