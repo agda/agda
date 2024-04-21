@@ -4729,6 +4729,11 @@ data TypeError
         | TooManyPolarities QName Int
     -- Sized type errors
         | CannotSolveSizeConstraints (List1 (ProblemConstraint, HypSizeConstraint)) Doc
+            -- ^ The list of constraints is given redundantly as pairs of
+            --   'ProblemConstraint' (original constraint) and
+            --   'HypSizeConstraint' (form with size assumptions in context spelled out).
+            --   The 'Doc' is some extra reason for why solving failed.
+        | ContradictorySizeConstraint (ProblemConstraint, HypSizeConstraint)
         | EmptyTypeOfSizes Term
             -- ^ This type, representing a type of sizes, might be empty.
         | FunctionTypeInSizeUniv Term

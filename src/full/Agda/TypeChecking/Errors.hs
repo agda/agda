@@ -217,6 +217,7 @@ errorString = \case
   InvalidType{}                            -> "InvalidType"
   InvalidTypeSort{}                        -> "InvalidTypeSort"
   CannotSolveSizeConstraints{}             -> "CannotSolveSizeConstraints"
+  ContradictorySizeConstraint{}            -> "ContradictorySizeConstraint"
   EmptyTypeOfSizes{}                       -> "EmptyTypeOfSizes"
   FunctionTypeInSizeUniv{}                 -> "FunctionTypeInSizeUniv"
   NotAValidLetBinding{}                    -> "NotAValidLetBinding"
@@ -607,6 +608,9 @@ instance PrettyTCM TypeError where
         , List1.toList $ fmap (prettyTCM . snd) ccs
         , [ "Reason:" <+> pure reason | not (null reason) ]
         ]
+
+    ContradictorySizeConstraint cc@(_,c0) -> fsep $
+      pwords "Contradictory size constraint" ++ [prettyTCM c0]
 
     EmptyTypeOfSizes t -> fsep $ pwords "Possibly empty type of sizes:" ++ [prettyTCM t]
 

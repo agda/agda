@@ -364,10 +364,9 @@ solveSizeConstraints_ flag cs0 = do
 
   -- Simplify constraints and check for obvious inconsistencies.
   ccs' :: [(ProblemConstraint, HypSizeConstraint)] <- concat <$> do
-    forM ccs $ \ (c0 :: ProblemConstraint, HypSizeConstraint cxt hids hs sc) -> do
+    forM ccs $ \ cc@(c0 :: ProblemConstraint, HypSizeConstraint cxt hids hs sc) -> do
       case simplify1 (\ sc -> return [sc]) sc of
-        Nothing -> typeError . GenericDocError =<< do
-          "Contradictory size constraint" <+> prettyTCM c0
+        Nothing -> typeError $ ContradictorySizeConstraint cc
         Just cs -> return $ (c0,) . HypSizeConstraint cxt hids hs <$> cs
 
   -- Cluster constraints according to the meta variables they mention.
