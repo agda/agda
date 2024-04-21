@@ -4721,6 +4721,8 @@ data TypeError
         | UnexpectedTypeSignatureForParameter (List1 (NamedArg A.Binder))
         | SortDoesNotAdmitDataDefinitions QName Sort
         | SortCannotDependOnItsIndex QName Type
+    -- Modality errors
+        | UnusableAtModality WhyCheckModality Modality Term
     -- Coverage errors
 -- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | SplitError SplitError

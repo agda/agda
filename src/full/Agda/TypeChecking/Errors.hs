@@ -40,9 +40,11 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Text.PrettyPrint.Boxes as Boxes
 
+import Agda.Interaction.Options
+
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Definitions (notSoNiceDeclarations)
-import Agda.Syntax.Concrete.Pretty (prettyHiding, prettyRelevance)
+import Agda.Syntax.Concrete.Pretty (attributesForModality, prettyHiding, prettyRelevance)
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Concrete as C
@@ -325,6 +327,7 @@ errorString = \case
   SortCannotDependOnItsIndex{}             -> "SortCannotDependOnItsIndex"
   ExpectedBindingForParameter{}            -> "ExpectedBindingForParameter"
   UnexpectedTypeSignatureForParameter{}    -> "UnexpectedTypeSignatureForParameter"
+  UnusableAtModality{}                     -> "UnusableAtModality"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1623,6 +1626,56 @@ instance PrettyTCM TypeError where
       let s | length xs > 1 = "s"
             | otherwise     = ""
       text ("Unexpected type signature for parameter" ++ s) <+> sep (fmap prettyA xs)
+
+    UnusableAtModality why mod t -> do
+      compatible <- optCubicalCompatible <$> pragmaOptions
+      cubical <- isJust . optCubical <$> pragmaOptions
+      let
+        context
+          | cubical    = "in Cubical Agda,"
+          | compatible = "to maintain compatibility with Cubical Agda,"
+          | otherwise  = "when --without-K is enabled,"
+
+        explanation what
+          | cubical || compatible =
+            [ ""
+            , fsep ( "Note:":pwords context
+                  ++ pwords what ++ pwords "must be usable at the modality"
+                  ++ pwords "in which the function was defined, since it will be"
+                  ++ pwords "used for computing transports"
+                  )
+            , ""
+            ]
+          | otherwise = []
+      case why of
+        IndexedClause ->
+          vcat $
+            ( fsep ( pwords "This clause has target type"
+                  ++ [prettyTCM t]
+                  ++ pwords "which is not usable at the required modality"
+                  ++ [pure (attributesForModality mod) <> "."]
+                   )
+            : explanation "the target type")
+
+        -- Arguments sometimes need to be transported too:
+        IndexedClauseArg forced the_arg ->
+          vcat $
+            ( fsep (pwords "The argument" ++ [prettyTCM the_arg] ++ pwords "has type")
+            : nest 2 (prettyTCM t)
+            : fsep ( pwords "which is not usable at the required modality"
+                  ++ [pure (attributesForModality mod) <> "."] )
+            : explanation "this argument's type")
+
+        -- Note: if a generated clause is modality-incorrect, that's a
+        -- bug in the LHS modality check
+        GeneratedClause ->
+          __IMPOSSIBLE_VERBOSE__ . show =<<
+                   prettyTCM t
+              <+> "is not usable at the required modality"
+              <+> pure (attributesForModality mod)
+        _ -> prettyTCM t <+> "is not usable at the required modality"
+         <+> pure (attributesForModality mod)
+
 
     where
     mpar n args
