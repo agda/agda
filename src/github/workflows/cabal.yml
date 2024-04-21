@@ -171,12 +171,9 @@ jobs:
         key: cabal.yml-${{ runner.os }}-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-cabal-${{ steps.setup-haskell.outputs.cabal-version }}
 
     - name: Install dependencies
-      # Formally skip this when we successfully restored the cache, to shave a few seconds.
-      # Note that the dependencies will anyway be built in the `cabal build` step.
-      # So, strictly speaking, this step is superfluous anyways.
-      # However, we keep it here so that we do not clutter the output of the
-      # `cabal build` step too much in the ordinary case.
-      if: steps.cache.outputs.cache-hit != 'true'
+      # Since we save the cache even when building failed, it may be incomplete.
+      # Thus, do not skip this step:
+      # if: steps.cache.outputs.cache-hit != 'true'
       run: |
         cabal build --only-dependencies
 

@@ -90,8 +90,7 @@ jobs:
         path: |
           ${{ env.STACK_ROOT }}
         restore-keys: ${{ env.key}}-
-    - if: steps.cache.outputs.cache-hit != 'true'
-      name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
+    - name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
     - name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests`
         (i.e. the test suite).

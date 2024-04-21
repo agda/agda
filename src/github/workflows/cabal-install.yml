@@ -110,7 +110,9 @@ jobs:
         restore-keys: ${{ env.key }}-
 
     - name: Install dependencies
-      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+      # Since we save the cache even when building failed, it may be incomplete.
+      # Thus, do not skip this step:
+      # if: steps.cache.outputs.cache-hit != 'true'
       run: |
         cabal build --only-dependencies
 
