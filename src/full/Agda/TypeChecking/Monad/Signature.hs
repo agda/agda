@@ -180,10 +180,14 @@ addConstant q d = do
   i <- currentOrFreshMutualBlock
   setMutualBlock i q
   where
-    new +++ old = new { defDisplay = defDisplay new ++ defDisplay old
-                      , defInstance = defInstance new `mplus` defInstance old
-                      , defArgOccurrences = defArgOccurrences old -- Lucas 2022-12-01: for now this works, but not very sound
-                      , defPolarity       = defPolarity old       -- same here
+    new +++ old = new { defDisplay        = defDisplay new ++ defDisplay old
+                      , defInstance       = defInstance new `mplus` defInstance old
+                      , defArgOccurrences = if null (defArgOccurrences new)
+                                              then defArgOccurrences old
+                                              else defArgOccurrences new
+                      , defPolarity       = if null (defPolarity new)
+                                              then defPolarity old
+                                              else defPolarity new
                       }
 
 -- | A combination of 'addConstant' and 'defaultDefn'. The 'Language'

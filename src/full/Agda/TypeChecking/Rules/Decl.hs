@@ -653,6 +653,7 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
       let n = size tel
       when (n < m) $
         typeError $ TooManyPolarities x n
+
       return occs
 
   -- Set blocking tag to MissingClauses if we still expect clauses
