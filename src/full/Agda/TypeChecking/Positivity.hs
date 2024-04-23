@@ -232,6 +232,7 @@ checkStrictlyPositive mi qset = do
         let findOcc i = fromMaybe Unused $ Graph.lookup (ArgNode q i) (DefNode q) g
             args = -- caseMaybe (Map.lookup q maxs) (replicate n Unused) $ \ m ->
               map findOcc [0 .. n-1]  -- [0 .. max m (n - 1)] -- triggers issue #3049
+
         reportSDoc "tc.pos.args" 10 $ sep
           [ "args of" <+> prettyTCM q <+> "="
           , nest 2 $ prettyList $ map prettyTCM args
@@ -252,7 +253,7 @@ checkStrictlyPositive mi qset = do
         -- found out by the positivity checker.
         -- Note: Alas, this is hard to enforce given that non-annotated variables are
         -- always annotated with Mixed polarity. If the annotated polarity is Mixed,
-        -- for now we always rely on the positivity-checker.
+        -- for now we always rely on the result from the positivity analysis.
         align poccs toccs <&> mergeThese (\a b -> if b == Mixed then a else b)
 
       -- Andreas, 2018-11-23, issue #3404
@@ -295,7 +296,7 @@ instance HasRange Item where
   getRange (ADef qn)   = getRange qn
 
 instance Pretty Item where
-  prettyPrec p (AnArg i t) = P.mparens (p > 9) $ "AnArg" P.<+> P.pretty t
+  prettyPrec p (AnArg i t) = P.mparens (p > 9) $ "AnArg" P.<+> P.pretty i P.<+> P.pretty t
   prettyPrec p (ADef qn) = P.mparens (p > 9) $ "ADef"  P.<+> P.pretty qn
 
 type Occurrences = Map Item [OccursWhere]
@@ -450,8 +451,8 @@ instance ComputeOccurrences Term where
       asks (occI . vars) <> do
         occs <- mapM occurrences args
 
-        -- Lucas, 2022-12-01: Now, the variable may have the polarities of its arguments
-        -- stored in the context (iff the variable refers to a datatype parameter)
+        -- Lucas, 2022-12-01: Now, variables may have the polarities of their arguments
+        -- stored in the context (say, if the variable refers to a datatype parameter)
         item <- reader ((!! i) . vars)
 
         let getPol i = fromMaybe Mixed $ do
