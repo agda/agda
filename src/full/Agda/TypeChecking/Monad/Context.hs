@@ -485,11 +485,12 @@ getContextNames = map (fst . unDom) <$> getContext
 
 -- | get type of bound variable (i.e. deBruijn index)
 --
+lookupBV_ :: Nat -> Context -> Maybe ContextEntry
+lookupBV_ n ctx = raise (n + 1) <$> ctx !!! n
+
 {-# SPECIALIZE lookupBV' :: Nat -> TCM (Maybe ContextEntry) #-}
 lookupBV' :: MonadTCEnv m => Nat -> m (Maybe ContextEntry)
-lookupBV' n = do
-  ctx <- getContext
-  return $ raise (n + 1) <$> ctx !!! n
+lookupBV' n = lookupBV_ n <$> getContext
 
 {-# SPECIALIZE lookupBV :: Nat -> TCM (Dom (Name, Type)) #-}
 lookupBV :: (MonadFail m, MonadTCEnv m) => Nat -> m (Dom (Name, Type))
