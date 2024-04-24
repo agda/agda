@@ -32,7 +32,7 @@ import qualified Agda.Syntax.Translation.ReflectedToAbstract as R
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract.Pretty as AP
-import Agda.Syntax.Concrete.Pretty (bracesAndSemicolons)
+import Agda.Syntax.Concrete.Pretty (bracesAndSemicolons, prettyHiding)
 import qualified Agda.Syntax.Concrete.Pretty as CP
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Scope.Base  (AbstractName(..))
@@ -496,12 +496,17 @@ instance PrettyTCM NLPat where
   prettyTCM (PVar x bvs) = prettyTCM (Var x (map (Apply . fmap var) bvs))
   prettyTCM (PDef f es) = parens $
     prettyTCM f <+> fsep (map prettyTCM es)
-  prettyTCM (PLam i u)  = parens $
-    text ("λ " ++ absName u ++ " →") <+>
-    addContext (absName u) (prettyTCM $ absBody u)
-  prettyTCM (PPi a b)   = parens $
-    text ("(" ++ absName b ++ " :") <+> (prettyTCM (unDom a) <> ") →") <+>
-    addContext (absName b) (prettyTCM $ unAbs b)
+  prettyTCM (PLam i u)  = parens $ fsep
+    [ "λ"
+    , prettyHiding i id <$> text (absName u)
+    , "→"
+    , addContext (absName u) $ prettyTCM $ absBody u
+    ]
+  prettyTCM (PPi a b)   = parens $ fsep
+    [ prettyHiding a P.parens <$> fsep [ text $ absName b, ":", prettyTCM $ unDom a ]
+    , "→"
+    , addContext (absName b) $ prettyTCM $ unAbs b
+    ]
   prettyTCM (PSort s)        = prettyTCM s
   prettyTCM (PBoundVar i []) = prettyTCM (var i)
   prettyTCM (PBoundVar i es) = parens $ prettyTCM (var i) <+> fsep (map prettyTCM es)
@@ -525,7 +530,7 @@ instance PrettyTCM NLPSort where
 
 instance PrettyTCM (Elim' NLPat) where
   prettyTCM (IApply x y v) = prettyTCM v
-  prettyTCM (Apply v) = prettyTCM (unArg v)
+  prettyTCM (Apply v) = prettyHiding v id <$> prettyTCM (unArg v)
   prettyTCM (Proj _ f)= "." <> prettyTCM f
 {-# SPECIALIZE prettyTCM :: Elim' NLPat -> TCM Doc #-}
 
