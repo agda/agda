@@ -1135,10 +1135,13 @@ Other features
 
      .. versionadded:: 2.6.3
 
-     Save [or do not save] meta-variables in ``.agdai`` files. The
-     alternative is to expand the meta-variables to their definitions.
-     This option can affect performance. The default is to not save
-     the meta-variables.
+     Save [or do not save] meta-variables in ``.agdai`` files. Not saving means
+     that all meta-variable solutions are inlined into the interface. Currently,
+     even if :option:`--save-metas` is used, very few meta-variables are
+     actually saved, and this option is more like an anticipation of possible
+     future optimizations.
+
+     Default: :option:`--save-metas`.
 
 Erasure
 ~~~~~~~

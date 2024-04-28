@@ -2,13 +2,13 @@
 module Agda.Utils.Monad
     ( module Agda.Utils.Monad
     , when, unless, MonadPlus(..)
-    , (<$>), (<*>)
+    , (<$>), (<*>), (<$!>)
     , (<$)
     )
     where
 
 import Control.Applicative    ( liftA2 )
-import Control.Monad          ( MonadPlus(..), guard, unless, when )
+import Control.Monad          ( MonadPlus(..), guard, unless, when, (<$!>) )
 import Control.Monad.Except   ( MonadError(catchError, throwError) )
 import Control.Monad.Identity ( runIdentity )
 import Control.Monad.State    ( MonadState(get, put) )
@@ -33,6 +33,15 @@ import Agda.Utils.Impossible
 -- | Binary bind.
 (==<<) :: Monad m => (a -> b -> m c) -> (m a, m b) -> m c
 k ==<< (ma, mb) = ma >>= \ a -> k a =<< mb
+
+-- | Strict `ap`
+(<*!>) :: Monad m => m (a -> b) -> m a -> m b
+(<*!>) mf ma = do
+  f <- mf
+  a <- ma
+  pure $! f a
+{-# INLINE (<*!>) #-}
+infixl 4 <*!>
 
 -- Conditionals and monads ------------------------------------------------
 
@@ -144,11 +153,17 @@ concatMapM f xs = concat <$> Trav.mapM f xs
 
 -- | A monadic version of @'mapMaybe' :: (a -> Maybe b) -> [a] -> [b]@.
 mapMaybeM :: Monad m => (a -> m (Maybe b)) -> [a] -> m [b]
-mapMaybeM f xs = catMaybes <$> Trav.mapM f xs
+mapMaybeM f = go where
+  go []     = return []
+  go (a:as) = f a >>= \case
+    Nothing -> go as
+    Just b  -> do {!bs <- go as; pure (b : bs)}
+{-# INLINE mapMaybeM #-}
 
 -- | A version of @'mapMaybeM'@ with a computation for the input list.
 mapMaybeMM :: Monad m => (a -> m (Maybe b)) -> m [a] -> m [b]
 mapMaybeMM f m = mapMaybeM f =<< m
+{-# INLINE mapMaybeMM #-}
 
 -- | The @for@ version of 'mapMaybeM'.
 forMaybeM :: Monad m => [a] -> (a -> m (Maybe b)) -> m [b]
