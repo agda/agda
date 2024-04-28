@@ -200,10 +200,10 @@ flag optimise-heavily
 
 custom-setup
   setup-depends:
-    , base      >= 4.12.0.0 && < 4.20
-    , Cabal     >= 2.4.0.1  && < 3.11
+    , base      >= 4.12.0.0 && < 4.21
+    , Cabal     >= 2.4.0.1  && < 3.13
     , directory >= 1.3.3.0  && < 1.4
-    , filepath  >= 1.4.2.1  && < 1.5
+    , filepath  >= 1.4.2.1  && < 1.6
     , process   >= 1.6.3.0  && < 1.7
 
 -- Common stanzas
@@ -242,7 +242,6 @@ common language
       -Werror=overflowed-literals
       -Werror=overlapping-patterns
 --      -Werror=redundant-constraints
-      -Werror=semigroup
       -Werror=simplifiable-class-constraints
       -Werror=star-binder
       -Werror=star-is-type
@@ -266,6 +265,11 @@ common language
       -- See: https://gitlab.haskell.org/ghc/ghc/-/issues/13464
       -Wno-incomplete-patterns
       -Wno-overlapping-patterns
+
+  if impl(ghc < 9.10)
+    ghc-options:
+      -Werror=semigroup
+        -- The semigroup warning is deprecated in GHC 9.10
 
   if impl(ghc >= 8.8)
     ghc-options:
@@ -300,8 +304,12 @@ common language
 
   if impl(ghc >= 9.4)
     ghc-options:
-      -Werror=forall-identifier
       -Werror=type-equality-out-of-scope
+
+  if impl(ghc >= 9.4 && < 9.10)
+    ghc-options:
+      -Werror=forall-identifier
+        -- The forall-identifier warning is deprecated in GHC 9.10
 
   default-language: Haskell2010
 
@@ -403,7 +411,7 @@ library
     , ansi-terminal        >= 0.9       && < 1.2
     , array                >= 0.5.2.0   && < 0.6
     , async                >= 2.2       && < 2.3
-    , base                 >= 4.12.0.0  && < 4.20
+    , base                 >= 4.12.0.0  && < 4.21
     , binary               >= 0.8.6.0   && < 0.9
     , blaze-html           >= 0.8       && < 0.10
     , boxes                >= 0.1.3     && < 0.2
@@ -418,7 +426,7 @@ library
     , equivalence          >= 0.3.2     && < 0.5
     -- exceptions-0.8 instead of 0.10 because of stack
     , exceptions           >= 0.8       && < 0.11
-    , filepath             >= 1.4.2.1   && < 1.5
+    , filepath             >= 1.4.2.1   && < 1.6
     , ghc-compact          == 0.1.*
     , gitrev               >= 1.3.1     && < 2
     -- hashable 1.2.0.10 makes library-test 10x
@@ -441,7 +449,7 @@ library
     , STMonadTrans         >= 0.4.3     && < 0.5
     , strict               >= 0.4.0.1   && < 0.6
     , text                 >= 1.2.3.1   && < 2.2
-    , time                 >= 1.9.2     && < 1.13
+    , time                 >= 1.9.2     && < 1.15
     , transformers         >= 0.5.5.0   && < 0.7
     , unordered-containers >= 0.2.9.0   && < 0.3
         -- unordered-containers < 0.2.9 need base < 4.11
@@ -881,9 +889,9 @@ executable agda-mode
   autogen-modules:  Paths_Agda
   other-modules:    Paths_Agda
   build-depends:
-    , base      >= 4.12.0.0 && < 4.20
+    , base      >= 4.12.0.0 && < 4.21
     , directory >= 1.3.3.0  && < 1.4
-    , filepath  >= 1.4.2.1  && < 1.5
+    , filepath  >= 1.4.2.1  && < 1.6
     , process   >= 1.6.3.0  && < 1.7
   default-language: Haskell2010
 
@@ -988,7 +996,7 @@ test-suite agda-tests
     , mtl
     , process
     , process-extras   >= 0.3.0   && < 0.3.4 || >= 0.4.1.3 && < 0.5 || >= 0.7.1 && < 0.8
-    , QuickCheck       >= 2.14.1  && < 2.15
+    , QuickCheck       >= 2.14.1  && < 2.16
     , regex-tdfa
     , split
     , strict
