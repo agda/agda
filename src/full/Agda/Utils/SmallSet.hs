@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 {-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Small sets represented as a bitmask for fast membership checking.
@@ -39,7 +41,9 @@ import Prelude hiding (null)
 import Control.DeepSeq
 
 import Data.Word (Word64)
+#if !MIN_VERSION_base(4,20,0)
 import Data.List (foldl')
+#endif
 import Data.Bits hiding (complement)
 import qualified Data.Bits as Bits
 import Data.Ix
