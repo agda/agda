@@ -5,7 +5,6 @@ module Agda.TypeChecking.Reduce
  ( Instantiate, instantiate', instantiate, instantiateWhen
  -- Recursive meta instantiation
  , InstantiateFull, instantiateFull', instantiateFull
- , instantiateFullExceptForDefinitions
  -- Check for meta (no reduction)
  , IsMeta, isMeta
  -- Reduction and blocking
@@ -1716,48 +1715,27 @@ instance InstantiateFull RemoteMetaVariable where
     <*> instantiateFull' c
 
 instance InstantiateFull Interface where
-  instantiateFull' i = do
-    defs <- instantiateFull' (i ^. intSignature . sigDefinitions)
-    instantiateFullExceptForDefinitions'
-      (set (intSignature . sigDefinitions) defs i)
-
--- | Instantiates everything except for definitions in the signature.
-
-instantiateFullExceptForDefinitions' :: Interface -> ReduceM Interface
-instantiateFullExceptForDefinitions'
-  (Interface h s ft ms mod tlmod scope inside sig metas display userwarn
-     importwarn b foreignCode highlighting libPragmas filePragmas
-     usedOpts patsyns warnings partialdefs oblocks onames) =
-  Interface h s ft ms mod tlmod scope inside
-    <$> ((\s r -> Sig { _sigSections     = s
-                      , _sigDefinitions  = sig ^. sigDefinitions
-                      , _sigRewriteRules = r
-                      , _sigInstances    = sig ^. sigInstances
-                      })
-         <$> instantiateFull' (sig ^. sigSections)
-         <*> instantiateFull' (sig ^. sigRewriteRules))
-    <*> instantiateFull' metas
-    <*> instantiateFull' display
-    <*> return userwarn
-    <*> return importwarn
-    <*> instantiateFull' b
-    <*> return foreignCode
-    <*> return highlighting
-    <*> return libPragmas
-    <*> return filePragmas
-    <*> return usedOpts
-    <*> return patsyns
-    <*> return warnings
-    <*> return partialdefs
-    <*> return oblocks
-    <*> return onames
-
--- | Instantiates everything except for definitions in the signature.
-
-instantiateFullExceptForDefinitions ::
-  MonadReduce m => Interface -> m Interface
-instantiateFullExceptForDefinitions =
-  liftReduce . instantiateFullExceptForDefinitions'
+  instantiateFull'
+    (Interface h s ft ms mod tlmod scope inside sig _ display userwarn
+         importwarn b foreignCode highlighting libPragmas filePragmas
+         usedOpts patsyns warnings partialdefs oblocks onames) = do
+    Interface h s ft ms mod tlmod scope inside
+      <$!> instantiateFull' sig
+      <*!> pure mempty               -- remote metas are dropped
+      <*!> instantiateFull' display
+      <*!> return userwarn
+      <*!> return importwarn
+      <*!> instantiateFull' b
+      <*!> return foreignCode
+      <*!> return highlighting
+      <*!> return libPragmas
+      <*!> return filePragmas
+      <*!> return usedOpts
+      <*!> return patsyns
+      <*!> return warnings
+      <*!> return partialdefs
+      <*!> return oblocks
+      <*!> return onames
 
 instance InstantiateFull a => InstantiateFull (Builtin a) where
     instantiateFull' (Builtin t) = Builtin <$> instantiateFull' t

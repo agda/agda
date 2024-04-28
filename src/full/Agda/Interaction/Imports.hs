@@ -1215,8 +1215,7 @@ constructIScope i = billToPure [ Deserialization ] $
   i{ iScope = publicModules $ iInsideScope i }
 
 -- | Builds an interface for the current module, which should already
--- have been successfully type checked.
-
+--   have been successfully type checked.
 buildInterface
   :: Source
      -- ^ 'Source' for the current module.
@@ -1230,6 +1229,7 @@ buildInterface src topLevel = do
         fileType = srcFileType src
         defPragmas = srcDefaultPragmas src
         filePragmas  = srcFilePragmas src
+
     -- Andreas, 2014-05-03: killRange did not result in significant reduction
     -- of .agdai file size, and lost a few seconds performance on library-test.
     -- Andreas, Makoto, 2014-10-18 AIM XX: repeating the experiment
@@ -1240,82 +1240,77 @@ buildInterface src topLevel = do
     -- that introduced this change seems to have made Agda a bit
     -- faster and interface file sizes a bit smaller, at least for the
     -- standard library).
-    builtin     <- useTC stLocalBuiltins
-    mhs         <- mapM (\top -> (top,) <$> moduleHash top) .
-                   Set.toAscList =<<
-                   useR stImportedModules
-    foreignCode <- useTC stForeignCode
-    -- Ulf, 2016-04-12:
-    -- Non-closed display forms are not applicable outside the module anyway,
-    -- and should be dead-code eliminated (#1928).
-    origDisplayForms <- HMap.filter (not . null) . HMap.map (filter isClosed) <$> useTC stImportsDisplayForms
-    -- TODO: Kill some ranges?
-    let scope = topLevelScope topLevel
-    -- Andreas, Oskar, 2023-10-19, issue #6931:
-    -- To not delete module telescopes of empty public modules,
-    -- we need to pass the public modules to the dead-code elimination
-    -- (to be mined for additional roots for the reachability analysis).
-    (display, sig, solvedMetas) <-
-      eliminateDeadCode (publicModules scope) builtin origDisplayForms ==<<
-        (getSignature, useR stSolvedMetaStore)
-    userwarns   <- useTC stLocalUserWarnings
-    importwarn  <- useTC stWarningOnImport
-    syntaxInfo  <- useTC stSyntaxInfo
-    optionsUsed <- useTC stPragmaOptions
-    partialDefs <- useTC stLocalPartialDefs
+    !mhs <- mapM (\top -> (top,) <$> moduleHash top) . Set.toAscList =<< useR stImportedModules
+    !foreignCode <- useTC stForeignCode
 
-    -- Only serialise the opaque blocks actually defined in this
-    -- top-level module.
-    opaqueBlocks' <- useTC stOpaqueBlocks
-    opaqueIds' <- useTC stOpaqueIds
-    let
-      mh = moduleNameId (srcModuleName src)
-      opaqueBlocks = Map.filterWithKey (\(OpaqueId _ mod) _ -> mod == mh) opaqueBlocks'
-      isLocal qnm = case nameId (qnameName qnm) of
-        NameId _ mh' -> mh' == mh
-      opaqueIds = Map.filterWithKey (\qnm (OpaqueId _ mod) -> isLocal qnm || mod == mh) opaqueIds'
+    let !scope = topLevelScope topLevel
+
+    (!solvedMetas, !definitions) <- eliminateDeadCode scope
+    !sig <- set sigDefinitions definitions <$> getSignature
 
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files
     -- when expanding a pattern synonym.
-    patsyns <- killRange <$> getPatternSyns
-    let builtin' = Map.mapWithKey (\ x b -> primName x <$> b) builtin
-    warnings <- filter (isSourceCodeWarning . warningName . tcWarning) <$> getAllWarnings AllWarnings
-    let i = Interface
-          { iSourceHash      = hashText source
-          , iSource          = source
-          , iFileType        = fileType
-          , iImportedModules = mhs
-          , iModuleName      = mname
-          , iTopLevelModuleName = srcModuleName src
-          , iScope           = empty -- publicModules scope
-          , iInsideScope     = scope
-          , iSignature       = sig
-          , iMetaBindings    = solvedMetas
-          , iDisplayForms    = display
-          , iUserWarnings    = userwarns
-          , iImportWarning   = importwarn
-          , iBuiltin         = builtin'
-          , iForeignCode     = foreignCode
-          , iHighlighting    = syntaxInfo
+    !patsyns <- killRange <$> getPatternSyns
+
+    -- Ulf, 2016-04-12:
+    -- Non-closed display forms are not applicable outside the module anyway,
+    -- and should be dead-code eliminated (#1928).
+    !importedDisplayForms <-
+        HMap.filter (not . null) . HMap.map (filter isClosed) <$> useTC stImportsDisplayForms
+
+    !userwarns   <- useTC stLocalUserWarnings
+    !importwarn  <- useTC stWarningOnImport
+    !syntaxInfo  <- useTC stSyntaxInfo
+    !optionsUsed <- useTC stPragmaOptions
+    !partialDefs <- useTC stLocalPartialDefs
+
+    -- Only serialise the opaque blocks actually defined in this
+    -- top-level module.
+    !opaqueBlocks' <- useTC stOpaqueBlocks
+    !opaqueIds' <- useTC stOpaqueIds
+    let
+      !mh = moduleNameId (srcModuleName src)
+      !opaqueBlocks = Map.filterWithKey (\(OpaqueId _ mod) _ -> mod == mh) opaqueBlocks'
+      isLocal qnm = case nameId (qnameName qnm) of
+        NameId _ mh' -> mh' == mh
+      !opaqueIds = Map.filterWithKey (\qnm (OpaqueId _ mod) -> isLocal qnm || mod == mh) opaqueIds'
+
+    !builtin  <- Map.mapWithKey (\ x b -> primName x <$> b) <$> useTC stLocalBuiltins
+    !warnings <- filter (isSourceCodeWarning . warningName . tcWarning) <$> getAllWarnings AllWarnings
+
+    let !i = Interface
+          { iSourceHash           = hashText source
+          , iSource               = source
+          , iFileType             = fileType
+          , iImportedModules      = mhs
+          , iModuleName           = mname
+          , iTopLevelModuleName   = srcModuleName src
+          , iScope                = empty -- publicModules scope
+          , iInsideScope          = scope
+          , iSignature            = sig
+          , iMetaBindings         = solvedMetas
+          , iDisplayForms         = importedDisplayForms
+          , iUserWarnings         = userwarns
+          , iImportWarning        = importwarn
+          , iBuiltin              = builtin
+          , iForeignCode          = foreignCode
+          , iHighlighting         = syntaxInfo
           , iDefaultPragmaOptions = defPragmas
           , iFilePragmaOptions    = filePragmas
-          , iOptionsUsed     = optionsUsed
-          , iPatternSyns     = patsyns
-          , iWarnings        = warnings
-          , iPartialDefs     = partialDefs
-          , iOpaqueBlocks    = opaqueBlocks
-          , iOpaqueNames     = opaqueIds
+          , iOptionsUsed          = optionsUsed
+          , iPatternSyns          = patsyns
+          , iWarnings             = warnings
+          , iPartialDefs          = partialDefs
+          , iOpaqueBlocks         = opaqueBlocks
+          , iOpaqueNames          = opaqueIds
           }
-    i <-
+    !i <-
       ifM (optSaveMetas <$> pragmaOptions)
         (return i)
         (do reportSLn "import.iface" 7
-              "  instantiating all meta variables"
-            -- Note that the meta-variables in the definitions in
-            -- "sig" have already been instantiated (by
-            -- eliminateDeadCode).
-            instantiateFullExceptForDefinitions i)
+              "  instantiating all metavariables in interface"
+            Bench.billTo [Bench.InterfaceInstantiateFull] $ liftReduce $ instantiateFull' i)
     reportSLn "import.iface" 7 "  interface complete"
     return i
 

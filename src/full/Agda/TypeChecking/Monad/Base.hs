@@ -1030,7 +1030,7 @@ newtype ForeignCodeStack = ForeignCodeStack
   } deriving (Show, Generic, NFData)
 
 data Interface = Interface
-  { iSourceHash      :: Hash
+  { iSourceHash      :: !Hash
     -- ^ Hash of the source code.
   , iSource          :: TL.Text
     -- ^ The source code. The source code is stored so that the HTML
