@@ -747,7 +747,7 @@ g2 = Graph $ Map.fromList
 
 g3 = Graph $ Map.fromList
   [ (n 1, Map.fromList [(n 2,StrictPos)])
-  , (n 2, Map.fromList [])
+  , (n 2, Map.empty)
   , (n 4, Map.fromList [(n 1,StrictPos)])
   ]
 
