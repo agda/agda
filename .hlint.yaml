@@ -1,6 +1,8 @@
 # HLint configuration file
 # https://github.com/ndmitchell/hlint#readme
 
+# We use hlint-3.8 and don't run HLint in CI.
+
 # Silence specific warnings
 - ignore:
     name: "Use curry"
