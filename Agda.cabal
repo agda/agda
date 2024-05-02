@@ -97,7 +97,6 @@ extra-source-files:
     stack-9.0.2.yaml
     stack-8.10.7.yaml
     stack-8.8.4.yaml
-    stack-8.6.5.yaml
 
 data-dir:
     src/data
@@ -442,9 +441,7 @@ library
     , STMonadTrans         >= 0.4.3     && < 0.5
     , strict               >= 0.4.0.1   && < 0.6
     , text                 >= 1.2.3.1   && < 2.2
-    , time                 >= 1.8.0.2   && < 1.13
-    , time-compat          >= 1.9.2     && < 1.10
-        -- time-compat adds needed functionality missing in time < 1.9
+    , time                 >= 1.9.2     && < 1.13
     , transformers         >= 0.5.5.0   && < 0.7
     , unordered-containers >= 0.2.9.0   && < 0.3
         -- unordered-containers < 0.2.9 need base < 4.11
