@@ -15,7 +15,7 @@
 -- @
 
 module Agda.Utils.SmallSet
-  ( SmallSet()
+  ( SmallSet(..)
   , SmallSetElement
   , Ix
   , (\\)

@@ -54,6 +54,7 @@ import Agda.Utils.List2 (List2(List2))
 import qualified Agda.Utils.List2 as List2
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
+import Agda.Utils.SmallSet (SmallSet(..))
 import Agda.Utils.Trie (Trie(..))
 import Agda.Utils.WithDefault
 
@@ -269,6 +270,10 @@ instance (Ord a, EmbPrj a) => EmbPrj (Set a) where
 instance EmbPrj IntSet where
   icod_ s = icode (IntSet.toAscList s)
   value s = IntSet.fromDistinctAscList <$!> value s
+
+instance Typeable a => EmbPrj (SmallSet a) where
+  icod_ (SmallSet a) = icodeN' SmallSet a
+  value = valueN SmallSet
 
 instance (Ord a, EmbPrj a, EmbPrj b) => EmbPrj (Trie a b) where
   icod_ (Trie a b)= icodeN' Trie a b

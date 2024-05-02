@@ -127,7 +127,7 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Singleton
-import Agda.Utils.SmallSet (SmallSet)
+import Agda.Utils.SmallSet (SmallSet, SmallSetElement)
 import qualified Agda.Utils.SmallSet as SmallSet
 import Agda.Utils.Update
 
@@ -2267,7 +2267,7 @@ data Projection = Projection
     --   Start counting with 1, because 0 means that
     --   it is already applied to the record value.
     --   This can happen in module instantiation, but
-    --   then either the record value is @var 0@, or @funProjection == Nothing@.
+    --   then either the record value is @var 0@, or @funProjection == Left _@.
   , projLams :: ProjLams
     -- ^ Term @t@ to be be applied to record parameters and record value.
     --   The parameters will be dropped.
@@ -2322,7 +2322,10 @@ data FunctionFlag
   = FunStatic  -- ^ Should calls to this function be normalised at compile-time?
   | FunInline  -- ^ Should calls to this function be inlined by the compiler?
   | FunMacro   -- ^ Is this function a macro?
-  deriving (Eq, Ord, Enum, Show, Generic)
+  deriving (Eq, Ord, Enum, Show, Generic, Ix, Bounded)
+
+instance SmallSetElement FunctionFlag
+instance KillRange (SmallSet FunctionFlag) where killRange = id
 
 data CompKit = CompKit
   { nameOfHComp :: Maybe QName
@@ -2422,7 +2425,7 @@ data FunctionData = FunctionData
   , _funErasure        :: !Bool
     -- ^ Was @--erasure@ in effect when the function was defined?
     -- (This can affect the type of a projection.)
-  , _funFlags          :: Set FunctionFlag
+  , _funFlags          :: SmallSet FunctionFlag
   , _funTerminates     :: Maybe Bool
       -- ^ Has this function been termination checked?  Did it pass?
   , _funExtLam         :: Maybe ExtLamInfo
@@ -2453,7 +2456,7 @@ pattern Function
   -> IsAbstract
   -> Either ProjectionLikenessMissing Projection
   -> Bool
-  -> Set FunctionFlag
+  -> SmallSet FunctionFlag
   -> Maybe Bool
   -> Maybe ExtLamInfo
   -> Maybe QName
@@ -3005,9 +3008,10 @@ recEtaEquality = theEtaEquality . recEtaEquality'
 -- | A template for creating 'Function' definitions, with sensible
 -- defaults.
 emptyFunctionData :: HasOptions m => m FunctionData
-emptyFunctionData = do
-  erasure <- optErasure <$> pragmaOptions
-  return $ FunctionData
+emptyFunctionData = emptyFunctionData_ . optErasure <$> pragmaOptions
+
+emptyFunctionData_ :: Bool -> FunctionData
+emptyFunctionData_ erasure = FunctionData
     { _funClauses     = []
     , _funCompiled    = Nothing
     , _funSplitTree   = Nothing
@@ -3017,7 +3021,7 @@ emptyFunctionData = do
     , _funAbstr       = ConcreteDef
     , _funProjection  = Left MaybeProjection
     , _funErasure     = erasure
-    , _funFlags       = Set.empty
+    , _funFlags       = empty
     , _funTerminates  = Nothing
     , _funExtLam      = Nothing
     , _funWith        = Nothing
@@ -3030,10 +3034,13 @@ emptyFunctionData = do
 emptyFunction :: HasOptions m => m Defn
 emptyFunction = FunctionDefn <$> emptyFunctionData
 
+emptyFunction_ :: Bool -> Defn
+emptyFunction_ = FunctionDefn . emptyFunctionData_
+
 funFlag :: FunctionFlag -> Lens' Defn Bool
 funFlag flag f def@Function{ funFlags = flags } =
-  f (Set.member flag flags) <&>
-  \ b -> def{ funFlags = (if b then Set.insert else Set.delete) flag flags }
+  f (SmallSet.member flag flags) <&>
+  \ b -> def{ funFlags = (if b then SmallSet.insert else SmallSet.delete) flag flags }
 funFlag _ f def = f False $> def
 
 funStatic, funInline, funMacro :: Lens' Defn Bool
