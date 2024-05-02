@@ -1377,7 +1377,7 @@ instance ToAbstract (TopLevel [C.Declaration]) where
           -- encountered several (possibly nested) opaque blocks. We
           -- must now ensure that these have transitively-closed
           -- unfolding sets.
-          saturateOpaqueBlocks (outsideDecls ++ [ insideDecl ])
+          saturateOpaqueBlocks
 
           return $ TopLevelInfo (primitiveImport ++ outsideDecls ++ [ insideDecl ]) scope
 
