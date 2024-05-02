@@ -92,6 +92,7 @@ import Agda.Utils.Tuple
 import Agda.Utils.WithDefault (lensCollapseDefault, lensKeepDefault)
 
 import Agda.Utils.Impossible
+import Agda.TypeChecking.Opacity (saturateOpaqueBlocks)
 
 ------------------------------------------------------------------------
 -- The CommandM monad
@@ -1015,6 +1016,13 @@ give_gen force ii rng s0 giveRefine = do
       [ "ce = " ++ show ce
       , "scopePrecedence = " ++ show (scope ^. scopePrecedence)
       ]
+
+    -- Issue 7218: if the give/refine command creates an extended
+    -- lambda, it also needs to be added to the relevant unfolding sets.
+    -- The easiest way to make sure this is consistent is to just re-run
+    -- the saturation procedures.
+    saturateOpaqueBlocks
+
     -- if the command was @Give@, use the literal user input;
     -- Andreas, 2014-01-15, see issue 1020:
     -- Refine could solve a goal by introducing the sole constructor
