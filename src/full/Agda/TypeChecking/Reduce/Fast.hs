@@ -394,7 +394,7 @@ fastCase env (Branches proj con _ lit wild fT _) =
     , fconBranches    = Map.mapKeysMonotonic (nameId . qnameName) $ fmap (fastCompiledClauses env . content) (stripSuc con)
     , fsucBranch      = fmap (fastCompiledClauses env . content) $ flip Map.lookup con . conName =<< bSuc env
     , flitBranches    = fmap (fastCompiledClauses env) lit
-    , ffallThrough    = (Just True ==) fT
+    , ffallThrough    = Just True == fT
     , fcatchAllBranch = fmap (fastCompiledClauses env) wild }
   where
     stripSuc | Just c <- bSuc env = Map.delete (conName c)
