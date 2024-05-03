@@ -54,6 +54,7 @@ import Agda.TypeChecking.Warnings (MonadWarning)
 import Agda.Interaction.Options
 
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad
@@ -216,8 +217,8 @@ compareAs cmp a u v = do
           opts <- pragmaOptions
           let shortcut = case theDef def of
                 _ | optFirstOrder opts                       -> True
-                Function{funFirstOrder = True}
-                  | not $ optRequireUniqueMetaSolutions opts -> True
+                d@Function{}
+                  | not $ optRequireUniqueMetaSolutions opts -> d ^. funFirstOrder
                 _                                            -> False
           if not shortcut then fallback else unlessSubtyping $ do
           -- We do not shortcut projection-likes,

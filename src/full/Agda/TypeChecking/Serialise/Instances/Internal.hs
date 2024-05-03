@@ -421,7 +421,7 @@ instance EmbPrj BuiltinSort where
 
 instance EmbPrj Defn where
   icod_ (Axiom       a)                                 = icodeN 0 Axiom a
-  icod_ (Function    a b s t u c d e f g h i j k l m o) = icodeN 1 (\ a b s -> Function a b s t) a b s u c d e f g h i j k l m o
+  icod_ (Function    a b s t u c d e f g h i j k l m)   = icodeN 1 (\ a b s -> Function a b s t) a b s u c d e f g h i j k l m
   icod_ (Datatype    a b c d e f g h i j)               = icodeN 2 Datatype a b c d e f g h i j
   icod_ (Record      a b c d e f g h i j k l m)         = icodeN 3 Record a b c d e f g h i j k l m
   icod_ (Constructor a b c d e f g h i j k)             = icodeN 4 Constructor a b c d e f g h i j k
@@ -433,8 +433,8 @@ instance EmbPrj Defn where
 
   value = vcase valu where
     valu [0, a]                                        = valuN Axiom a
-    valu [1, a, b, s, u, c, d, e, f, g, h, i, j, k, l, m, o]
-                                                       = valuN (\ a b s -> Function a b s Nothing) a b s u c d e f g h i j k l m o
+    valu [1, a, b, s, u, c, d, e, f, g, h, i, j, k, l, m]
+                                                       = valuN (\ a b s -> Function a b s Nothing) a b s u c d e f g h i j k l m
     valu [2, a, b, c, d, e, f, g, h, i, j]             = valuN Datatype a b c d e f g h i j
     valu [3, a, b, c, d, e, f, g, h, i, j, k, l, m]    = valuN Record   a b c d e f g h i j k l m
     valu [4, a, b, c, d, e, f, g, h, i, j, k]          = valuN Constructor a b c d e f g h i j k
@@ -472,16 +472,7 @@ instance EmbPrj a => EmbPrj (SplitTree' a) where
     valu [0, a, b, c] = valuN SplitAt a b c
     valu _            = malformed
 
-instance EmbPrj FunctionFlag where
-  icod_ FunStatic       = pure 0
-  icod_ FunInline       = pure 1
-  icod_ FunMacro        = pure 2
-
-  value = \case
-    0 -> pure FunStatic
-    1 -> pure FunInline
-    2 -> pure FunMacro
-    _ -> malformed
+instance EmbPrj FunctionFlag
 
 instance EmbPrj a => EmbPrj (WithArity a) where
   icod_ (WithArity a b) = icodeN' WithArity a b

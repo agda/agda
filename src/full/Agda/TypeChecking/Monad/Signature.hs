@@ -283,9 +283,7 @@ markInjective :: QName -> TCM ()
 markInjective q = modifyGlobalDefinition q $ \def -> def { defInjective = True }
 
 markFirstOrder :: QName -> TCM ()
-markFirstOrder q = modifyGlobalDefinition q $ updateTheDef $ \case
-  def@Function{} -> def { funFirstOrder = True }
-  def            -> def
+markFirstOrder = setFunctionFlag FunFirstOrder True
 
 unionSignatures :: [Signature] -> Signature
 unionSignatures ss = foldr unionSignature emptySignature ss

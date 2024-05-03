@@ -2322,6 +2322,9 @@ data FunctionFlag
   = FunStatic  -- ^ Should calls to this function be normalised at compile-time?
   | FunInline  -- ^ Should calls to this function be inlined by the compiler?
   | FunMacro   -- ^ Is this function a macro?
+  | FunFirstOrder
+      -- ^ Is this function @INJECTIVE_FOR_INFERENCE@?
+      -- Indicates whether the first-order shortcut should be applied to the definition.
   deriving (Eq, Ord, Enum, Show, Generic, Ix, Bounded)
 
 instance SmallSetElement FunctionFlag
@@ -2441,8 +2444,6 @@ data FunctionData = FunctionData
       -- ^ Is this function opaque? If so, and we're not in an opaque
       -- block that includes this function('s name), it will be treated
       -- abstractly.
-  , _funFirstOrder     :: !Bool
-    -- ^ Indicates whether the first-order shortcut should be applied to the definition.
   } deriving (Show, Generic)
 
 pattern Function
@@ -2462,7 +2463,6 @@ pattern Function
   -> Maybe QName
   -> Maybe QName
   -> IsOpaque
-  -> Bool
   -> Defn
 pattern Function
   { funClauses
@@ -2481,7 +2481,6 @@ pattern Function
   , funWith
   , funIsKanOp
   , funOpaque
-  , funFirstOrder
   } = FunctionDefn (FunctionData
     funClauses
     funCompiled
@@ -2499,7 +2498,6 @@ pattern Function
     funWith
     funIsKanOp
     funOpaque
-    funFirstOrder
   )
 
 data DatatypeData = DatatypeData
@@ -2857,7 +2855,6 @@ instance Pretty FunctionData where
       funWith
       funIsKanOp
       funOpaque
-      funFirstOrder
     ) =
     "Function {" <?> vcat
       [ "funClauses      =" <?> vcat (map pretty funClauses)
@@ -2874,7 +2871,6 @@ instance Pretty FunctionData where
       , "funWith         =" <?> pretty funWith
       , "funIsKanOp      =" <?> pretty funIsKanOp
       , "funOpaque       =" <?> pshow funOpaque
-      , "funFirstOrder   =" <?> pshow funFirstOrder
       ] <?> "}"
 
 instance Pretty DatatypeData where
@@ -3028,7 +3024,6 @@ emptyFunctionData_ erasure = FunctionData
     , _funCovering    = []
     , _funIsKanOp     = Nothing
     , _funOpaque      = TransparentDef
-    , _funFirstOrder  = False
     }
 
 emptyFunction :: HasOptions m => m Defn
@@ -3047,6 +3042,10 @@ funStatic, funInline, funMacro :: Lens' Defn Bool
 funStatic       = funFlag FunStatic
 funInline       = funFlag FunInline
 funMacro        = funFlag FunMacro
+
+-- | Toggle the 'FunFirstOrder' flag.
+funFirstOrder :: Lens' Defn Bool
+funFirstOrder = funFlag FunFirstOrder
 
 isMacro :: Defn -> Bool
 isMacro = (^. funMacro)
@@ -5826,8 +5825,8 @@ instance KillRange Defn where
       DataOrRecSig n -> DataOrRecSig n
       GeneralizableVar -> GeneralizableVar
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
-      Function a b c d e f g h i j k l m n o p q ->
-        killRangeN Function a b c d e f g h i j k l m n o p q
+      Function a b c d e f g h i j k l m n o p ->
+        killRangeN Function a b c d e f g h i j k l m n o p
       Datatype a b c d e f g h i j   -> killRangeN Datatype a b c d e f g h i j
       Record a b c d e f g h i j k l m -> killRangeN Record a b c d e f g h i j k l m
       Constructor a b c d e f g h i j k -> killRangeN Constructor a b c d e f g h i j k
