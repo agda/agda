@@ -2325,6 +2325,9 @@ data FunctionFlag
   | FunFirstOrder
       -- ^ Is this function @INJECTIVE_FOR_INFERENCE@?
       -- Indicates whether the first-order shortcut should be applied to the definition.
+  | FunErasure
+      -- ^ Was @--erasure@ in effect when the function was defined?
+      -- (This can affect the type of a projection.)
   deriving (Eq, Ord, Enum, Show, Generic, Ix, Bounded)
 
 instance SmallSetElement FunctionFlag
@@ -2425,9 +2428,6 @@ data FunctionData = FunctionData
       --   it is already applied to the record. (Can happen in module
       --   instantiation.) This information is used in the termination
       --   checker.
-  , _funErasure        :: !Bool
-    -- ^ Was @--erasure@ in effect when the function was defined?
-    -- (This can affect the type of a projection.)
   , _funFlags          :: SmallSet FunctionFlag
   , _funTerminates     :: Maybe Bool
       -- ^ Has this function been termination checked?  Did it pass?
@@ -2456,7 +2456,6 @@ pattern Function
   -> Maybe [QName]
   -> IsAbstract
   -> Either ProjectionLikenessMissing Projection
-  -> Bool
   -> SmallSet FunctionFlag
   -> Maybe Bool
   -> Maybe ExtLamInfo
@@ -2474,7 +2473,6 @@ pattern Function
   , funMutual
   , funAbstr
   , funProjection
-  , funErasure
   , funFlags
   , funTerminates
   , funExtLam
@@ -2491,7 +2489,6 @@ pattern Function
     funMutual
     funAbstr
     funProjection
-    funErasure
     funFlags
     funTerminates
     funExtLam
@@ -2848,7 +2845,6 @@ instance Pretty FunctionData where
       funMutual
       funAbstr
       funProjection
-      funErasure
       funFlags
       funTerminates
       _funExtLam
@@ -2865,7 +2861,6 @@ instance Pretty FunctionData where
       , "funMutual       =" <?> pshow funMutual
       , "funAbstr        =" <?> pshow funAbstr
       , "funProjection   =" <?> pretty funProjection
-      , "funErasure      =" <?> pretty funErasure
       , "funFlags        =" <?> pshow funFlags
       , "funTerminates   =" <?> pshow funTerminates
       , "funWith         =" <?> pretty funWith
@@ -3016,8 +3011,7 @@ emptyFunctionData_ erasure = FunctionData
     , _funMutual      = Nothing
     , _funAbstr       = ConcreteDef
     , _funProjection  = Left MaybeProjection
-    , _funErasure     = erasure
-    , _funFlags       = empty
+    , _funFlags       = SmallSet.fromList [ FunErasure | erasure ]
     , _funTerminates  = Nothing
     , _funExtLam      = Nothing
     , _funWith        = Nothing
@@ -3046,6 +3040,10 @@ funMacro        = funFlag FunMacro
 -- | Toggle the 'FunFirstOrder' flag.
 funFirstOrder :: Lens' Defn Bool
 funFirstOrder = funFlag FunFirstOrder
+
+-- | Toggle the 'FunErasure' flag.
+funErasure :: Lens' Defn Bool
+funErasure = funFlag FunErasure
 
 isMacro :: Defn -> Bool
 isMacro = (^. funMacro)
@@ -5825,8 +5823,8 @@ instance KillRange Defn where
       DataOrRecSig n -> DataOrRecSig n
       GeneralizableVar -> GeneralizableVar
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
-      Function a b c d e f g h i j k l m n o p ->
-        killRangeN Function a b c d e f g h i j k l m n o p
+      Function a b c d e f g h i j k l m n o ->
+        killRangeN Function a b c d e f g h i j k l m n o
       Datatype a b c d e f g h i j   -> killRangeN Datatype a b c d e f g h i j
       Record a b c d e f g h i j k l m -> killRangeN Record a b c d e f g h i j k l m
       Constructor a b c d e f g h i j k -> killRangeN Constructor a b c d e f g h i j k
