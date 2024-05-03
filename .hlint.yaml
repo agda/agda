@@ -45,7 +45,6 @@
 - ignore: {name: "Redundant map"} # 2 hints
 - ignore: {name: "Redundant multi-way if"} # 20 hints
 - ignore: {name: "Redundant return"} # 1 hint
-- ignore: {name: "Redundant section"} # 2 hints
 - ignore: {name: "Replace case with fromMaybe"} # 4 hints
 - ignore: {name: "Replace case with maybe"} # 4 hints
 - ignore: {name: "Unused LANGUAGE pragma"} # 210 hints

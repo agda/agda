@@ -156,7 +156,7 @@ match' ((c, es, patch) : stack) = do
             --    mo <- getBuiltinName' builtinIOne
             --    return $ Set.fromList $ catMaybes [mi,mo]
 
-            fallThrough <- return $ (Just True ==) (fallThrough bs) && isJust (catchAllBranch bs)
+            fallThrough <- return $ Just True == fallThrough bs && isJust (catchAllBranch bs)
 
             let
               isCon b =
