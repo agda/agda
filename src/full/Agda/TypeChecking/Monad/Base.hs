@@ -111,6 +111,7 @@ import Agda.Interaction.Library
 import Agda.Utils.Benchmark (MonadBench(..))
 import Agda.Utils.BiMap (BiMap, HasTag(..))
 import qualified Agda.Utils.BiMap as BiMap
+import Agda.Utils.Boolean   ( fromBool, toBool )
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.FileName
 import Agda.Utils.Functor
@@ -2328,6 +2329,8 @@ data FunctionFlag
   | FunErasure
       -- ^ Was @--erasure@ in effect when the function was defined?
       -- (This can affect the type of a projection.)
+  | FunAbstract
+      -- ^ Is the function abstract?
   deriving (Eq, Ord, Enum, Show, Generic, Ix, Bounded)
 
 instance SmallSetElement FunctionFlag
@@ -2420,7 +2423,6 @@ data FunctionData = FunctionData
       --   Does include this function.
       --   Empty list if not recursive.
       --   @Nothing@ if not yet computed (by positivity checker).
-  , _funAbstr          :: IsAbstract
   , _funProjection     :: Either ProjectionLikenessMissing Projection
       -- ^ Is it a record projection?
       --   If yes, then return the name of the record type and index of
@@ -2429,6 +2431,7 @@ data FunctionData = FunctionData
       --   instantiation.) This information is used in the termination
       --   checker.
   , _funFlags          :: SmallSet FunctionFlag
+      -- ^ Various boolean flags pertaining to the function definition, see 'FunctionFlag'.
   , _funTerminates     :: Maybe Bool
       -- ^ Has this function been termination checked?  Did it pass?
   , _funExtLam         :: Maybe ExtLamInfo
@@ -2454,7 +2457,6 @@ pattern Function
   -> [Clause]
   -> FunctionInverse
   -> Maybe [QName]
-  -> IsAbstract
   -> Either ProjectionLikenessMissing Projection
   -> SmallSet FunctionFlag
   -> Maybe Bool
@@ -2471,7 +2473,6 @@ pattern Function
   , funCovering
   , funInv
   , funMutual
-  , funAbstr
   , funProjection
   , funFlags
   , funTerminates
@@ -2487,7 +2488,6 @@ pattern Function
     funCovering
     funInv
     funMutual
-    funAbstr
     funProjection
     funFlags
     funTerminates
@@ -2843,7 +2843,6 @@ instance Pretty FunctionData where
       _funCovering
       funInv
       funMutual
-      funAbstr
       funProjection
       funFlags
       funTerminates
@@ -2859,7 +2858,6 @@ instance Pretty FunctionData where
       , "funTreeless     =" <?> pretty funTreeless
       , "funInv          =" <?> pretty funInv
       , "funMutual       =" <?> pshow funMutual
-      , "funAbstr        =" <?> pshow funAbstr
       , "funProjection   =" <?> pretty funProjection
       , "funFlags        =" <?> pshow funFlags
       , "funTerminates   =" <?> pshow funTerminates
@@ -3009,7 +3007,6 @@ emptyFunctionData_ erasure = FunctionData
     , _funTreeless    = Nothing
     , _funInv         = NotInjective
     , _funMutual      = Nothing
-    , _funAbstr       = ConcreteDef
     , _funProjection  = Left MaybeProjection
     , _funFlags       = SmallSet.fromList [ FunErasure | erasure ]
     , _funTerminates  = Nothing
@@ -3026,16 +3023,23 @@ emptyFunction = FunctionDefn <$> emptyFunctionData
 emptyFunction_ :: Bool -> Defn
 emptyFunction_ = FunctionDefn . emptyFunctionData_
 
-funFlag :: FunctionFlag -> Lens' Defn Bool
-funFlag flag f def@Function{ funFlags = flags } =
+funFlag_ :: FunctionFlag -> Lens' FunctionData Bool
+funFlag_ flag f def@FunctionData{ _funFlags = flags } =
   f (SmallSet.member flag flags) <&>
-  \ b -> def{ funFlags = (if b then SmallSet.insert else SmallSet.delete) flag flags }
-funFlag _ f def = f False $> def
+  \ b -> def{ _funFlags = (if b then SmallSet.insert else SmallSet.delete) flag flags }
+
+funFlag :: FunctionFlag -> Lens' Defn Bool
+funFlag flag f = \case
+  FunctionDefn d -> FunctionDefn <$> funFlag_ flag f d
+  def            -> f False $> def
 
 funStatic, funInline, funMacro :: Lens' Defn Bool
 funStatic       = funFlag FunStatic
 funInline       = funFlag FunInline
 funMacro        = funFlag FunMacro
+
+funMacro_ :: Lens' FunctionData Bool
+funMacro_ = funFlag_ FunMacro
 
 -- | Toggle the 'FunFirstOrder' flag.
 funFirstOrder :: Lens' Defn Bool
@@ -3044,6 +3048,22 @@ funFirstOrder = funFlag FunFirstOrder
 -- | Toggle the 'FunErasure' flag.
 funErasure :: Lens' Defn Bool
 funErasure = funFlag FunErasure
+
+-- | Toggle the 'FunAbstract' flag.
+funAbstract :: Lens' Defn Bool
+funAbstract = funFlag FunAbstract
+
+-- | Toggle the 'FunAbstract' flag.
+funAbstr :: Lens' Defn IsAbstract
+funAbstr = funAbstract . iso fromBool toBool
+
+-- | Toggle the 'FunAbstract' flag.
+funAbstract_ :: Lens' FunctionData Bool
+funAbstract_ = funFlag_ FunAbstract
+
+-- | Toggle the 'FunAbstract' flag.
+funAbstr_ :: Lens' FunctionData IsAbstract
+funAbstr_ = funAbstract_ . iso fromBool toBool
 
 isMacro :: Defn -> Bool
 isMacro = (^. funMacro)
@@ -3255,17 +3275,17 @@ defTerminationUnconfirmed Defn{theDef = Function{funTerminates = _        }} = T
 defTerminationUnconfirmed _ = False
 
 defAbstract :: Definition -> IsAbstract
-defAbstract d = case theDef d of
-    Axiom{}                   -> ConcreteDef
-    DataOrRecSig{}            -> ConcreteDef
-    GeneralizableVar{}        -> ConcreteDef
-    AbstractDefn{}            -> AbstractDef
-    Function{funAbstr = a}    -> a
-    Datatype{dataAbstr = a}   -> a
-    Record{recAbstr = a}      -> a
-    Constructor{conAbstr = a} -> a
-    Primitive{primAbstr = a}  -> a
-    PrimitiveSort{}           -> ConcreteDef
+defAbstract def = case theDef def of
+    AxiomDefn _         -> ConcreteDef
+    DataOrRecSigDefn _  -> ConcreteDef
+    GeneralizableVar    -> ConcreteDef
+    AbstractDefn _      -> AbstractDef
+    FunctionDefn d      -> d ^. funAbstr_
+    DatatypeDefn d      -> _dataAbstr d
+    RecordDefn d        -> _recAbstr d
+    ConstructorDefn d   -> _conAbstr d
+    PrimitiveDefn d     -> _primAbstr d
+    PrimitiveSortDefn _ -> ConcreteDef
 
 defOpaque :: Definition -> IsOpaque
 defOpaque d = case theDef d of
@@ -5823,8 +5843,8 @@ instance KillRange Defn where
       DataOrRecSig n -> DataOrRecSig n
       GeneralizableVar -> GeneralizableVar
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
-      Function a b c d e f g h i j k l m n o ->
-        killRangeN Function a b c d e f g h i j k l m n o
+      Function a b c d e f g h i j k l m n ->
+        killRangeN Function a b c d e f g h i j k l m n
       Datatype a b c d e f g h i j   -> killRangeN Datatype a b c d e f g h i j
       Record a b c d e f g h i j k l m -> killRangeN Record a b c d e f g h i j k l m
       Constructor a b c d e f g h i j k -> killRangeN Constructor a b c d e f g h i j k

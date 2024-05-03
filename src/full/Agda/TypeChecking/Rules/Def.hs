@@ -192,9 +192,10 @@ checkAlias t ai i name e mc =
 
   -- Add the definition
   fun <- emptyFunctionData
-  addConstant' name ai name t $ set funMacro (Info.defMacro i == MacroDef) $
-      FunctionDefn fun
-          { _funClauses   = [ Clause  -- trivial clause @name = v@
+  addConstant' name ai name t $ FunctionDefn $
+    set funMacro_ (Info.defMacro i == MacroDef) $
+    set funAbstr_ (Info.defAbstract i) $
+      fun { _funClauses   = [ Clause  -- trivial clause @name = v@
               { clauseLHSRange    = getRange i
               , clauseFullRange   = getRange i
               , clauseTel         = EmptyTel
@@ -210,7 +211,6 @@ checkAlias t ai i name e mc =
               } ]
           , _funCompiled  = Just $ Done [] $ bodyMod v
           , _funSplitTree = Just $ SplittingDone 0
-          , _funAbstr     = Info.defAbstract i
           , _funOpaque    = Info.defOpaque i
           }
 
@@ -435,14 +435,14 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
           -- If there was a pragma for this definition, we can set the
           -- funTerminates field directly.
           fun  <- emptyFunctionData
-          defn <- autoInline $
-             set funMacro (ismacro || Info.defMacro i == MacroDef) $
-             FunctionDefn fun
+          defn <- autoInline $ FunctionDefn $
+           set funMacro_ (ismacro || Info.defMacro i == MacroDef) $
+           set funAbstr_ (Info.defAbstract i) $
+           fun
              { _funClauses        = cs
              , _funCompiled       = Just cc
              , _funSplitTree      = mst
              , _funInv            = inv
-             , _funAbstr          = Info.defAbstract i
              , _funOpaque         = Info.defOpaque i
              , _funExtLam         = (\ e -> e { extLamSys = sys }) <$> extlam
              , _funWith           = with

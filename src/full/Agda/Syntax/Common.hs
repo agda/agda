@@ -37,6 +37,7 @@ import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Position
 
 import Agda.Utils.BiMap (HasTag(..))
+import Agda.Utils.Boolean (Boolean(fromBool), IsBool(toBool))
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List1  ( List1, pattern (:|), (<|) )
@@ -2382,6 +2383,14 @@ instance Semigroup IsAbstract where
 instance Monoid IsAbstract where
   mempty  = ConcreteDef
   mappend = (<>)
+
+instance Boolean IsAbstract where
+  fromBool True  = AbstractDef
+  fromBool False = ConcreteDef
+
+instance IsBool IsAbstract where
+  toBool AbstractDef = True
+  toBool ConcreteDef = False
 
 instance KillRange IsAbstract where
   killRange = id

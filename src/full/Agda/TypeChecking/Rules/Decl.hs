@@ -676,7 +676,8 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
           RecName   -> DataOrRecSig npars
           AxiomName -> defaultAxiom     -- Old comment: NB: used also for data and record type sigs
           _         -> __IMPOSSIBLE__
-        where fun = FunctionDefn funD{ _funAbstr = Info.defAbstract i, _funOpaque = Info.defOpaque i }
+        where
+          fun = FunctionDefn $ set funAbstr_ (Info.defAbstract i) funD{ _funOpaque = Info.defOpaque i }
 
   addConstant x =<< do
     useTerPragma $ defn

@@ -55,6 +55,9 @@ set l = over l . const
 over :: Lens' o i -> LensMap o i
 over l f o = runIdentity $ l (Identity . f) o
 
+-- | Build a lens out of an isomorphism.
+iso :: (o -> i) -> (i -> o) -> Lens' o i
+iso get set f = fmap set . f . get
 
 -- * State accessors and modifiers using 'StateT'.
 
