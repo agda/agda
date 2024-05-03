@@ -48,14 +48,14 @@ Pragmas and options
   file where the function is used, and not necessarily in the file where it is defined.
   For example:
   ```agda
-  reverse-≡ : {l l' : List A} → reverse l ≡ reverse l' → reverse l ≡ reverse l'
-  reverse-≡ h = h
+  postulate
+    reverse-≡ : {l l' : List A} → reverse l ≡ reverse l' → reverse l ≡ reverse l'
 
-  []≡[] : {l l' : List A} → [] ≡ []
+  []≡[] : [] ≡ []
   []≡[] = reverse-≡ (refl {x = reverse []})
   ```
-  does not work since Agda won't solve `l` and `l'` for `[]`, even though it knows `reverse l = reverse []`. If `reverse` is
-  marked as injective with `{-# INJECTIVE_FOR_INFERENCE reverse #-}` this example will work.
+  does not work since Agda won't solve `l` and `l'` for `[]`, even though it knows `reverse l = reverse []`.
+  If `reverse` is marked as injective with `{-# INJECTIVE_FOR_INFERENCE reverse #-}` this example will work.
 
 Syntax
 ------
