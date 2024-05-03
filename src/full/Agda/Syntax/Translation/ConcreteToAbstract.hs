@@ -613,7 +613,7 @@ instance ToAbstract MaybeOldQName where
         return $ Just $ f $ AmbQ xs
 
       -- Note: user warnings on ambiguous names will be raised by the type checker,
-      -- see storeDiamsbiguatedName.
+      -- see 'storeDisambiguatedName'.
       raiseWarningsOnUsageIfUnambiguous :: List1 A.QName -> ScopeM ()
       raiseWarningsOnUsageIfUnambiguous = \case
         x :| [] -> raiseWarningsOnUsage x
