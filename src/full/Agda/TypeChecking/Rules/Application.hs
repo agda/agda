@@ -927,7 +927,9 @@ checkConstructorApplication cmp org t c args = do
 
   cdef  <- getConInfo c
 
-  checkModality (conName c) cdef
+  ir <- asksTC envInsideReflection
+  let go = if ir then workOnTypes else id
+  go $ checkModality (conName c) cdef
 
   let paramsGiven = checkForParams args
   if paramsGiven then fallback else do

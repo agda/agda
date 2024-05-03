@@ -794,7 +794,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     tcNormalise :: R.Term -> TCM Term
     tcNormalise v = do
       r <- isReconstructed
-      (v, t) <- locallyReduceAllDefs $ inferExpr  =<< toAbstract_ v
+      (v, t) <- workOnTypes $ locallyReduceAllDefs $ inferExpr  =<< toAbstract_ v
       if r then do
         v <- normalise v
         t <- normalise t
@@ -807,7 +807,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     tcReduce :: R.Term -> TCM Term
     tcReduce v = do
       r <- isReconstructed
-      (v, t) <- locallyReduceAllDefs $ inferExpr =<< toAbstract_ v
+      (v, t) <- workOnTypes $ locallyReduceAllDefs $ inferExpr =<< toAbstract_ v
       if r then do
         v <- reduce =<< instantiateFull v
         t <- reduce =<< instantiateFull t
@@ -1068,7 +1068,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
       let
         i' = mkDefInfo (nameConcrete $ qnameName x) noFixity' accessDontCare ac noRange
         i = i' { Info.defOpaque = oc }
-      locallyReduceAllDefs $ checkFunDef i x cs
+      insideReflection $ locallyReduceAllDefs $ checkFunDef i x cs
       primUnitUnit
 
     tcPragmaForeign :: Text -> Text -> TCM Term

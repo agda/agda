@@ -3787,6 +3787,8 @@ data TCEnv =
           , envCurrentlyElaborating :: Bool
                 -- ^ Are we currently in the process of executing an
                 --   elaborate-and-give interactive command?
+          , envInsideReflection :: Bool
+                -- ^ Are we currently inside a macro or some other reflection code?
           , envSyntacticEqualityFuel :: !(Strict.Maybe Int)
                 -- ^ If this counter is 'Strict.Nothing', then
                 -- syntactic equality checking is unrestricted. If it
@@ -3865,6 +3867,7 @@ initEnv = TCEnv { envContext             = []
                 , envActiveBackendName      = Nothing
                 , envConflComputingOverlap  = False
                 , envCurrentlyElaborating   = False
+                , envInsideReflection       = False
                 , envSyntacticEqualityFuel  = Strict.Nothing
                 , envCurrentOpaqueId        = Nothing
                 }
@@ -4059,6 +4062,9 @@ eConflComputingOverlap f e = f (envConflComputingOverlap e) <&> \ x -> e { envCo
 
 eCurrentlyElaborating :: Lens' TCEnv Bool
 eCurrentlyElaborating f e = f (envCurrentlyElaborating e) <&> \ x -> e { envCurrentlyElaborating = x }
+
+eInsideReflection :: Lens' TCEnv Bool
+eInsideReflection f e = f (envInsideReflection e) <&> \ x -> e { envInsideReflection = x }
 
 {-# SPECIALISE currentModality :: TCM Modality #-}
 -- | The current modality.

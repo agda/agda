@@ -44,6 +44,11 @@ hideAndRelParams = hideOrKeepInstance . mapRelevance nonStrictToIrr
 
 -- * Operations on 'Context'.
 
+insideReflection :: (MonadTCEnv m, HasOptions m, MonadDebug m)
+                 => m a -> m a
+insideReflection cont = do
+  verboseBracket "tc.irr" 60 "insideReflection" $ localTC (\ e -> e { envInsideReflection = True }) cont
+
 -- | Modify the context whenever going from the l.h.s. (term side)
 --   of the typing judgement to the r.h.s. (type side).
 workOnTypes :: (MonadTCEnv m, HasOptions m, MonadDebug m)
