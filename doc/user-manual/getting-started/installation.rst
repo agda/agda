@@ -391,11 +391,11 @@ Agda globally using ``nix-env``. One can also declare which packages
 to install globally in a configuration file or pull in Agda and some
 relevant libraries for a particular project using ``nix-shell``.
 
-The Agda git repository is a `Nix flake <https://nixos.wiki/wiki/Flakes>`_
+The Agda git repository is a `Nix flake <https://wiki.nixos.org/wiki/Flakes>`_
 to allow using a development version with Nix. The flake has the following
 outputs:
 
-- ``overlay``: A ``nixpkgs`` `overlay <https://nixos.wiki/wiki/Overlays>`_
+- ``overlay``: A ``nixpkgs`` `overlay <https://wiki.nixos.org/wiki/Overlays>`_
   which makes ``haskellPackages.Agda`` (which the top-level ``agda``
   package depends on) be the build of the relevant checkout.
 - ``haskellOverlay``: An overlay for ``haskellPackages`` which overrides
