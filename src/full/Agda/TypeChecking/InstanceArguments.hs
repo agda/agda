@@ -1054,15 +1054,16 @@ addTypedInstance ::
      QName  -- ^ Name of instance.
   -> Type   -- ^ Type of instance.
   -> TCM ()
-addTypedInstance = addTypedInstance' True
+addTypedInstance = addTypedInstance' True Nothing
 
 -- | Register the definition with the given type as an instance.
-addTypedInstance' ::
-     Bool   -- ^ Should we print warnings for unusable instance declarations?
-  -> QName  -- ^ Name of instance.
-  -> Type   -- ^ Type of instance.
+addTypedInstance'
+  :: Bool               -- ^ Should we print warnings for unusable instance declarations?
+  -> Maybe InstanceInfo -- ^ Is this instance a copy?
+  -> QName              -- ^ Name of instance.
+  -> Type               -- ^ Type of instance.
   -> TCM ()
-addTypedInstance' w x t = do
+addTypedInstance' w orig x t = do
   reportSDoc "tc.instance.add" 30 $ vcat
     [ "adding typed instance" <+> prettyTCM x <+> "with type"
     , prettyTCM =<< flip abstract t <$> getContextTelescope
@@ -1084,7 +1085,7 @@ addTypedInstance' w x t = do
         Map.insertWith (+) n 1
 
       let
-        info = InstanceInfo
+        info = flip fromMaybe orig InstanceInfo
           { instanceClass   = n
           , instanceOverlap = DefaultOverlap
           }
@@ -1116,7 +1117,7 @@ resolveInstanceHead q = do
   clearUnknownInstance q
   -- Andreas, 2022-12-04, issue #6380:
   -- Do not warn about unusable instances here.
-  addTypedInstance' False q =<< typeOfConst q
+  addTypedInstance' False Nothing q =<< typeOfConst q
 
 -- | Try to solve the instance definitions whose type is not yet known, report
 --   an error if it doesn't work and return the instance table otherwise.
