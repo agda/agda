@@ -1,7 +1,7 @@
 module Agda.TypeChecking.InstanceArguments where
 
-import Agda.TypeChecking.Monad.Base (TCM)
+import Agda.TypeChecking.Monad.Base (TCM, InstanceInfo)
 
 import Agda.Syntax.Internal (QName, Type)
 
-addTypedInstance' :: Bool -> QName -> Type -> TCM ()
+addTypedInstance' :: Bool -> Maybe InstanceInfo -> QName -> Type -> TCM ()
