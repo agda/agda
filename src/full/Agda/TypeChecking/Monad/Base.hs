@@ -4669,6 +4669,7 @@ data TypeError
         | SplitInProp DataOrRecordE
         | DefinitionIsIrrelevant QName
         | DefinitionIsErased QName
+        | ProjectionIsIrrelevant QName
         | VariableIsIrrelevant Name
         | VariableIsErased Name
         | VariableIsOfUnusableCohesion Name Cohesion

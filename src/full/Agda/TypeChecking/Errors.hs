@@ -262,6 +262,7 @@ errorString = \case
   SplitInProp{}                            -> "SplitInProp"
   DefinitionIsIrrelevant{}                 -> "DefinitionIsIrrelevant"
   DefinitionIsErased{}                     -> "DefinitionIsErased"
+  ProjectionIsIrrelevant{}                 -> "ProjectionIsIrrelevant"
   VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
   VariableIsErased{}                       -> "VariableIsErased"
   VariableIsOfUnusableCohesion{}           -> "VariableIsOfUnusableCohesion"
@@ -673,6 +674,11 @@ instance PrettyTCM TypeError where
 
     DefinitionIsErased x -> fsep $
       "Identifier" : prettyTCM x : pwords "is declared erased, so it cannot be used here"
+
+    ProjectionIsIrrelevant x -> vcat
+      [ fsep [ "Projection " , prettyTCM x, " is irrelevant." ]
+      , "Turn on option --irrelevant-projections to use it (unsafe)"
+      ]
 
     VariableIsIrrelevant x -> fsep $
       "Variable" : prettyTCM (nameConcrete x) : pwords "is declared irrelevant, so it cannot be used here"

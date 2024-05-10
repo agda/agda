@@ -47,10 +47,7 @@ checkRelevance' x def = do
           ]
         return $ boolToMaybe (not $ drel `moreRelevant` rel) $ DefinitionIsIrrelevant x
   where
-  needIrrProj = Just . GenericDocError <$> do
-    sep [ "Projection " , prettyTCM x, " is irrelevant."
-        , " Turn on option --irrelevant-projections to use it (unsafe)."
-        ]
+  needIrrProj = return $ Just $ ProjectionIsIrrelevant x
 
 -- | The second argument is the definition of the first.
 --   Returns 'Nothing' if ok, otherwise the error message.
