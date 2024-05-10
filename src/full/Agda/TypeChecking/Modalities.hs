@@ -22,6 +22,8 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 
+import Agda.Utils.Function
+import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 
@@ -34,12 +36,14 @@ checkRelevance' x def = do
     drel -> do
       -- Andreas,, 2018-06-09, issue #2170
       -- irrelevant projections are only allowed if --irrelevant-projections
-      ifM (return (isJust $ isProjection_ $ theDef def) `and2M`
+      let isProj = theDef def ^. funProj
+      ifM (pure isProj `and2M`
            (not . optIrrelevantProjections <$> pragmaOptions)) {-then-} needIrrProj {-else-} $ do
         rel <- viewTC eRelevance
         reportSDoc "tc.irr" 50 $ vcat
           [ "declaration relevance =" <+> text (show drel)
           , "context     relevance =" <+> text (show rel)
+          , prettyTCM x <+> "is" <+> applyUnless isProj ("not" <+>) "a projection"
           ]
         return $ boolToMaybe (not $ drel `moreRelevant` rel) $ DefinitionIsIrrelevant x
   where

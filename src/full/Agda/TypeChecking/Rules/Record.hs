@@ -42,6 +42,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
 import Agda.Utils.Boolean
 import Agda.Utils.Function ( applyWhen )
+import Agda.Utils.Lens
 import Agda.Utils.List (headWithDefault)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -777,7 +778,8 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                       Quantityω _ -> Quantityω QωInferred
                       q           -> q
           addConstant projname $
-            (defaultDefn ai' projname (killRange finalt) lang $ FunctionDefn
+            (defaultDefn ai' projname (killRange finalt) lang $ FunctionDefn $
+             set funProj_ True $
               fun
                 { _funClauses        = [clause]
                 , _funCompiled       = Just cc

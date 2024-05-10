@@ -2331,6 +2331,8 @@ data FunctionFlag
       -- (This can affect the type of a projection.)
   | FunAbstract
       -- ^ Is the function abstract?
+  | FunProj
+      -- ^ Is this function a descendant of a field (typically, a projection)?
   deriving (Eq, Ord, Enum, Show, Generic, Ix, Bounded)
 
 instance SmallSetElement FunctionFlag
@@ -3064,6 +3066,14 @@ funAbstract_ = funFlag_ FunAbstract
 -- | Toggle the 'FunAbstract' flag.
 funAbstr_ :: Lens' FunctionData IsAbstract
 funAbstr_ = funAbstract_ . iso fromBool toBool
+
+-- | Toggle the 'FunProj' flag.
+funProj :: Lens' Defn Bool
+funProj = funFlag FunProj
+
+-- | Toggle the 'FunProj' flag.
+funProj_ :: Lens' FunctionData Bool
+funProj_ = funFlag_ FunProj
 
 isMacro :: Defn -> Bool
 isMacro = (^. funMacro)
