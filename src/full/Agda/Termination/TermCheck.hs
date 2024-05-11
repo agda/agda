@@ -319,12 +319,8 @@ termMutual' = do
       mapM_ (`setTerminates` True) allNames
       return mempty
 
-runConditionalTerminationChecker :: HasOptions m => m Bool -> CallPath -> m (Either CallPath ()) -> m (Either CallPath ())
-runConditionalTerminationChecker opt fallback action = ifM opt action (pure $ Left fallback)
-
 runTypeBasedTerminationChecking :: MutualNames -> TerM (Either CallPath ())
-runTypeBasedTerminationChecking allNames = runConditionalTerminationChecker typeBasedTerminationEnabled mempty $
-  billTo [Benchmark.TypeBasedTermination] $ do
+runTypeBasedTerminationChecking allNames = billTo [Benchmark.TypeBasedTermination] $ do
   calls0 <- liftTCM $ collectTerminationData allNames
   cutoff <- terGetCutOff
   case calls0 of
