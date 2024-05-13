@@ -161,6 +161,7 @@ instance ForceNotFree Term where
     Pi a b     -> Pi       <$> forceNotFree' a <*> forceNotFree' b  -- Dom and Abs do reduceIf so not needed here
     Sort s     -> Sort     <$> forceNotFree' s
     Level l    -> Level    <$> forceNotFree' l
+    Let a u v  -> Let      <$> forceNotFree' a <*> forceNotFree' u <*> forceNotFree' v
     DontCare t -> DontCare <$> forceNotFreeR t  -- Reduction stops at DontCare so reduceIf
     t@Lit{}    -> return t
     t@Dummy{}  -> return t

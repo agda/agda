@@ -115,7 +115,8 @@ instance EmbPrj I.Term where
   icod_ (Sort     a  ) = icodeN 7 Sort a
   icod_ (DontCare a  ) = icodeN 8 DontCare a
   icod_ (Level    a  ) = icodeN 9 Level a
-  icod_ (Dummy    a b) = icodeN 10 Dummy a b
+  icod_ (Let      a b c) = icodeN 10 Let a b c
+  icod_ (Dummy    a b) = icodeN 11 Dummy a b
 
   value = vcase valu where
     valu [a]       = valuN var   a
@@ -129,7 +130,8 @@ instance EmbPrj I.Term where
     valu [7, a]    = valuN Sort  a
     valu [8, a]    = valuN DontCare a
     valu [9, a]    = valuN Level a
-    valu [10, a, b] = valuN Dummy a b
+    valu [10, a, b, c] = valuN Let a b c
+    valu [11, a, b] = valuN Dummy a b
     valu _         = malformed
 
 instance EmbPrj Level where

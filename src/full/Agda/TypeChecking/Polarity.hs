@@ -401,6 +401,9 @@ instance HasPolarity a => HasPolarity (Type'' t a)
 instance (HasPolarity a, HasPolarity b) => HasPolarity (a, b) where
   polarity' i p (x, y) = polarity' i p x <> polarity' i p y
 
+instance (HasPolarity a, HasPolarity b, HasPolarity c) => HasPolarity (a, b, c) where
+  polarity' i p (x, y, z) = polarity' i p x <> polarity' i p y <> polarity' i p z
+
 instance HasPolarity a => HasPolarity (Abs a) where
   polarity' i p (Abs   _ b) = polarity' (i + 1) p b
   polarity' i p (NoAbs _ v) = polarity' i p v
@@ -421,6 +424,7 @@ instance HasPolarity Term where
     Con _ _ ts    -> polarity' i p ts   -- Constructors can be seen as monotone in all args.
     Pi a b        -> polarity' i (neg p) a <> polarity' i p b
     Sort s        -> mempty -- polarity' i p s -- mempty
+    Let a u v     -> polarity' i p (a,u,v)
     MetaV _ ts    -> polarity' i Invariant ts
     DontCare t    -> polarity' i p t -- mempty
     Dummy{}       -> mempty

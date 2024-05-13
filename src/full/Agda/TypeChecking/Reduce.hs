@@ -575,6 +575,7 @@ slowReduceTerm v = do
           v <- flip reduceIApply es
                  $ unfoldDefinitionE reduceB' (Con c ci []) (conName c) es
           traverse reduceNat v
+      Let a u v  -> reduceB' $ lazyAbsApp v u
       Sort s   -> done
       Level l  -> ifM (SmallSet.member LevelReductions <$> asksTC envAllowedReductions)
                     {- then -} (fmap levelTm <$> reduceB' l)
@@ -1068,6 +1069,7 @@ instance Simplify Term where
       Lit l      -> return v
       Var i vs   -> iapp vs $ Var i    <$> simplify' vs
       Lam h v    -> Lam h    <$> simplify' v
+      Let a u v  -> Let      <$> simplify' a <*> simplify' u <*> simplify' v
       DontCare v -> dontCare <$> simplify' v
       Dummy{}    -> return v
 
@@ -1262,6 +1264,7 @@ slowNormaliseArgs = \case
   Lam h b     -> Lam h      <$> normalise' b
   Sort s      -> Sort       <$> normalise' s
   Pi a b      -> uncurry Pi <$> normalise' (a, b)
+  Let{}       -> __IMPOSSIBLE__
   v@DontCare{}-> return v
   v@Dummy{}   -> return v
 
@@ -1476,6 +1479,7 @@ instance InstantiateFull Term where
           Lam h b     -> Lam h <$> instantiateFull' b
           Sort s      -> Sort <$> instantiateFull' s
           Pi a b      -> uncurry Pi <$> instantiateFull' (a,b)
+          Let a u v   -> uncurry3 Let <$> instantiateFull' (a,u,v)
           DontCare v  -> dontCare <$> instantiateFull' v
           v@Dummy{}   -> return v
 

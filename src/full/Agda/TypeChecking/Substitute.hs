@@ -87,6 +87,10 @@ applyTermE err' m es = coerce $
       Level{}     -> err __IMPOSSIBLE__
       Pi _ _      -> err __IMPOSSIBLE__
       Sort s      -> Sort $ s `applyE` es
+      Let a u v   -> Let a u $
+        case v of
+          Abs x v   -> Abs x $ applyTermE err' v $ raise 1 es
+          NoAbs x v -> NoAbs x $ applyTermE err' v es
       Dummy s es' -> Dummy s (es' ++ es)
       DontCare mv -> dontCare $ mv `app` es  -- Andreas, 2011-10-02
         -- need to go under DontCare, since "with" might resurrect irrelevant term
@@ -841,6 +845,7 @@ applySubstTerm rho t    = coerce $ case coerce t of
     Level l     -> levelTm $ sub @(Level' t) l
     Pi a b      -> uncurry Pi $ subPi (a,b)
     Sort s      -> Sort $ sub @(Sort' t) s
+    Let a u v   -> uncurry3 Let $ subLet (a,u,v)
     DontCare mv -> dontCare $ sub @t mv
     Dummy s es  -> Dummy s $ subE es
  where
@@ -850,6 +855,8 @@ applySubstTerm rho t    = coerce $ case coerce t of
    subE  = sub @[Elim' t]
    subPi :: (Dom Type, Abs Type) -> (Dom Type, Abs Type)
    subPi = sub @(Dom' t (Type'' t t), Abs (Type'' t t))
+   subLet :: (Dom Type, Term, Abs Term) -> (Dom Type, Term, Abs Term)
+   subLet = sub @(Dom' t (Type'' t t), t, Abs t)
 
 instance Subst Term where
   type SubstArg Term = Term
@@ -1492,6 +1499,9 @@ instance Ord Term where
   Level a    `compare` Level x    = compare a x
   Level{}    `compare` _          = LT
   _          `compare` Level{}    = GT
+  Let a b c  `compare` Let x y z  = compare (a, b, c) (x, y, z)
+  Let{}      `compare` _          = LT
+  _          `compare` Let{}      = GT
   MetaV a b  `compare` MetaV x y  = compare (a, b) (x, y)
   MetaV{}    `compare` _          = LT
   _          `compare` MetaV{}    = GT

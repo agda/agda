@@ -198,6 +198,7 @@ haskellType' t = runToHs (unEl t) (fromType t)
         Sort{}     -> return hsUnit
         MetaV{}    -> throwError (BadMeta v)
         DontCare{} -> throwError (BadDontCare v)
+        Let{}      -> __IMPOSSIBLE__
         Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
 haskellType :: QName -> HsCompileM HS.Type

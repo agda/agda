@@ -763,16 +763,17 @@ elimsToSpine env es = do
     -- decoding), since we freely add things to the spines.
     unknownFVs = setFreeVariables unknownFreeVariables
 
-    thunk (Apply (Arg i t)) = Apply . Arg (unknownFVs i) <$> createThunk (closure (getFreeVariables i) t)
+    thunk (Apply (Arg i t)) = Apply . Arg (unknownFVs i) <$> createThunk (closure env (getFreeVariables i) t)
     thunk (Proj o f)        = return (Proj o f)
     thunk (IApply a x y)    = IApply <$> mkThunk a <*> mkThunk x <*> mkThunk y
-      where mkThunk = createThunk . closure UnknownFVs
+      where mkThunk = createThunk . closure env UnknownFVs
 
-    -- Going straight for a value for literals is mostly to make debug traces
-    -- less verbose and doesn't really buy anything performance-wise.
-    closure _ t@Lit{} = Closure (Value $ notBlocked ()) t emptyEnv []
-    closure fv t      = env' `seq` Closure Unevaled t env' []
-      where env' = trimEnvironment fv env
+-- Going straight for a value for literals is mostly to make debug traces
+-- less verbose and doesn't really buy anything performance-wise.
+closure :: Env s -> FreeVariables -> Term -> Closure s
+closure env _ t@Lit{} = Closure (Value $ notBlocked ()) t emptyEnv []
+closure env fv t      = env' `seq` Closure Unevaled t env' []
+  where env' = trimEnvironment fv env
 
 -- | Trim unused entries from an environment. Currently only trims closed terms for performance
 --   reasons.
@@ -961,6 +962,14 @@ reduceTm rEnv bEnv !constInfo normalisation =
             getArg (IApply _ _ v) = v
             getArg Proj{}         = __IMPOSSIBLE__
 
+        -- Case: let.
+        Let a u v -> do
+          let i = getArgInfo a
+          ptr <- createThunk (closure env (getFreeVariables i) t)
+          case v of
+            Abs   _ v -> runAM (evalClosure v (ptr `extendEnv` env) spine ctrl)
+            NoAbs _ v -> runAM (evalClosure v env spine ctrl)
+
         -- Case: values. Literals and function types are already in weak-head normal form.
         -- We throw away the environment for literals mostly to make debug printing less verbose.
         -- And we know the spine is empty since literals cannot be applied or projected.
@@ -1101,6 +1110,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
           Dummy{}    -> False
           MetaV{}    -> False
           Var{}      -> False
+          Let{}      -> False
           Def q _  -- Type constructors (data/record) are considered canonical for 'primForce'.
             | CTyCon <- cdefDef (constInfo q) -> True
             | otherwise                       -> False

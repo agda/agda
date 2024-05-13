@@ -127,6 +127,7 @@ instance UsableRelevance Term where
     Pi a b   -> usableRel rel (a,b)
     Sort s   -> usableRel rel s
     Level l  -> return True
+    Let a u v -> usableRel rel (a,u,v)
     MetaV m vs -> do
       mrel <- getRelevance <$> lookupMetaModality m
       return (mrel `moreRelevant` rel) `and2M` usableRel rel vs
@@ -243,6 +244,15 @@ instance UsableModality Term where
     -- do we have special typing rules for Sort and Level?
     Sort s   -> usableMod mod s
     Level l  -> return True
+    Let a u v -> andM
+      [ usableMod domMod (unEl $ unDom a)
+      , usableMod mod u
+      , usableModAbs (getArgInfo a) mod v
+      ]
+      where
+        -- TODO: remove code duplication with Pi
+        domMod = mapQuantity (composeQuantity $ getQuantity a) $
+                 mapCohesion (composeCohesion $ getCohesion a) mod
     MetaV m vs -> do
       mmod <- lookupMetaModality m
       let ok = mmod `moreUsableModality` mod

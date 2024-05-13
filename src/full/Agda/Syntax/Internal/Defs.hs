@@ -64,6 +64,7 @@ instance GetDefs Term where
     Pi a b     -> getDefs a >> getDefs b
     Sort s     -> getDefs s
     Level l    -> getDefs l
+    Let a u v  -> getDefs a >> getDefs u >> getDefs v
     MetaV x vs -> getDefs x >> getDefs vs
     DontCare v -> getDefs v
     Dummy{}    -> return ()

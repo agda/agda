@@ -225,6 +225,7 @@ instance NamesIn Term where
     Pi a b       -> namesAndMetasIn' sg (a, b)
     Sort s       -> namesAndMetasIn' sg s
     Level l      -> namesAndMetasIn' sg l
+    Let a u v    -> namesAndMetasIn' sg (a, u, v)
     MetaV x args -> namesAndMetasIn' sg (x, args)
     DontCare v   -> namesAndMetasIn' sg v
     Dummy _ args -> namesAndMetasIn' sg args

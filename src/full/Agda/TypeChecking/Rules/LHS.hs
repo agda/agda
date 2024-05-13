@@ -1666,6 +1666,7 @@ isDataOrRecordType a0 = ifBlocked a0 blocked $ \case
     Lit{}      -> __IMPOSSIBLE__
     Con{}      -> __IMPOSSIBLE__
     Level{}    -> __IMPOSSIBLE__
+    Let{}      -> __IMPOSSIBLE__
     DontCare{} -> __IMPOSSIBLE__
     Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 

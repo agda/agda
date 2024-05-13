@@ -1067,6 +1067,10 @@ instance ExtractCalls Term where
       -- Sort.
       Sort s -> extract s
 
+      Let a u v ->
+        mconcat <$> sequence
+          [ extract a, extract u, extract v ]
+
       -- Unsolved metas are not considered termination problems, there
       -- will be a warning for them anyway.
       MetaV x args -> return empty

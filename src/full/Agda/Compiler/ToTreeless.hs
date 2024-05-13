@@ -508,10 +508,7 @@ substTerm term = normaliseStatic term >>= \ term ->
       ind' <- asks (lookupIndex ind . ccCxt)
       let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
       C.mkTApp (C.TVar ind') <$> substArgs args
-    I.Lam _ ab ->
-      C.TLam <$>
-        local (\e -> e { ccCxt = 0 : shift 1 (ccCxt e) })
-          (substTerm $ I.unAbs ab)
+    I.Lam _ ab -> C.TLam <$> substAbs ab
     I.Lit l -> return $ C.TLit l
     I.Level _ -> return C.TUnit
     I.Def q es -> do
@@ -523,9 +520,13 @@ substTerm term = normaliseStatic term >>= \ term ->
         C.mkTApp (C.TCon c') <$> substArgs args
     I.Pi _ _ -> return C.TUnit
     I.Sort _  -> return C.TSort
+    I.Let _ u v -> C.TLet <$> substTerm u <*> substAbs v
     I.MetaV x _ -> return $ C.TError $ C.TMeta $ prettyShow x
     I.DontCare _ -> return C.TErased
     I.Dummy{} -> __IMPOSSIBLE__
+  where
+    substAbs v = local (\e -> e { ccCxt = 0 : shift 1 (ccCxt e) })
+      (substTerm $ I.unAbs v)
 
 -- Andreas, 2019-07-10, issue #3792
 -- | Eta-contract erased lambdas.

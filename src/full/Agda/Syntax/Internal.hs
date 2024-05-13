@@ -225,6 +225,7 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
           | Pi (Dom Type) (Abs Type)      -- ^ dependent or non-dependent function space
           | Sort Sort
           | Level Level
+          | Let (Dom Type) Term (Abs Term) -- ^ @let x : a = u in v@
           | MetaV {-# UNPACK #-} !MetaId Elims
           | DontCare Term
             -- ^ Irrelevant stuff in relevant position, but created
@@ -1082,6 +1083,7 @@ hasElims v =
     Pi{}       -> Nothing
     Sort{}     -> Nothing
     Level{}    -> Nothing
+    Let{}      -> Nothing -- ???
     DontCare{} -> Nothing
     Dummy{}    -> Nothing
 
@@ -1186,6 +1188,7 @@ instance TermSize Term where
     Lit _       -> 1
     Pi a b      -> 1 + tsize a + tsize b
     Sort s      -> tsize s
+    Let a u v   -> 1 + tsize a + tsize u + tsize v
     DontCare mv -> tsize mv
     Dummy{}     -> 1
 
@@ -1239,6 +1242,7 @@ instance KillRange Term where
     Level l     -> killRangeN Level l
     Pi a b      -> killRangeN Pi a b
     Sort s      -> killRangeN Sort s
+    Let a u v   -> killRangeN Let a u v
     DontCare mv -> killRangeN DontCare mv
     v@Dummy{}   -> v
 
@@ -1348,6 +1352,11 @@ instance Pretty Term where
             , nest 2 $ pretty (unAbs b) ]
       Sort s      -> prettyPrec p s
       Level l     -> prettyPrec p l
+      Let a u v   -> mparens (p > 0) $
+        sep [ "let" <+> pDom (domInfo a) (text (absName v) <+> ":" <+> pretty (unDom a)) <+> "="
+            , text (absName v) <+> "in"
+            , nest 2 $ pretty (unAbs v)
+            ]
       MetaV x els -> pretty x `pApp` els
       DontCare v  -> prettyPrec p v
       Dummy s es  -> parens (text s) `pApp` es
@@ -1479,6 +1488,7 @@ instance NFData Term where
     Pi a b     -> rnf (unDom a, unAbs b)
     Sort s     -> rnf s
     Level l    -> rnf l
+    Let a u v  -> rnf (a, u, v)
     MetaV _ es -> rnf es
     DontCare v -> rnf v
     Dummy _ es -> rnf es

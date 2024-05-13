@@ -538,6 +538,7 @@ instance Free Term where
     Pi a b       -> freeVars' (a,b)
     Sort s       -> freeVars' s
     Level l      -> freeVars' l
+    Let a u v    -> freeVars' (a,u,v)
     MetaV m ts   -> underFlexRig (Flexible $ singleton m) $ freeVars' ts
     DontCare mt  -> underModality (Modality Irrelevant unitQuantity unitCohesion) $ freeVars' mt
     Dummy{}      -> mempty

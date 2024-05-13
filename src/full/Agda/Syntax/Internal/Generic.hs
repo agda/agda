@@ -6,6 +6,7 @@ module Agda.Syntax.Internal.Generic where
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Utils.Functor
+import Agda.Utils.Tuple
 
 -- | Generic term traversal.
 --
@@ -91,6 +92,7 @@ instance TermLike Term where
     Level l     -> f =<< Level <$> traverseTermM f l
     t@Lit{}     -> f t
     Sort s      -> f =<< Sort <$> traverseTermM f s
+    Let a u v   -> f =<< uncurry3 Let <$> traverseTermM f (a, u, v)
     DontCare mv -> f =<< DontCare <$> traverseTermM f mv
     Dummy s xs  -> f =<< Dummy s <$> traverseTermM f xs
 
@@ -104,6 +106,7 @@ instance TermLike Term where
     Level l     -> foldTerm f l
     Lit _       -> mempty
     Sort s      -> foldTerm f s
+    Let a u v   -> foldTerm f (a, u, v)
     DontCare mv -> foldTerm f mv
     Dummy _ xs  -> foldTerm f xs
 

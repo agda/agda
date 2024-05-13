@@ -834,6 +834,7 @@ isRigid _ (El _ t) = case t of
                 if visible dom then IsRigid else IsNotRigid Permanent
   Sort{}     -> return $ IsNotRigid Permanent
   Level{}    -> return $ IsNotRigid Permanent
+  Let{}      -> return $ IsNotRigid Permanent
   MetaV{}    -> return $ IsNotRigid Unspecified
   DontCare{} -> return $ IsNotRigid Permanent
   Dummy{}    -> return $ IsNotRigid Permanent

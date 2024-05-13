@@ -446,6 +446,7 @@ etaExpandEquationStrategy k s = do
       Con c _ _  -> isJust <$> isRecordConstructor (conName c)
 
       Var _ _    -> return False
+      Let a u v  -> shouldProject $ lazyAbsApp v u
       Lam _ _    -> __IMPOSSIBLE__
       Lit _      -> __IMPOSSIBLE__
       Pi _ _     -> __IMPOSSIBLE__
@@ -995,3 +996,6 @@ patternBindingForcedVars forced v = do
           -- It would be if we had reduced to `constructorForm`,
           -- however, turning a `LitNat` into constructors would only result in churn,
           -- since literals have no variables that could be bound.
+
+        -- Reduced away
+        Let{}       -> __IMPOSSIBLE__

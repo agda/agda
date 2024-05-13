@@ -612,6 +612,13 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
         skipGeneralizedParameter info = (not <$> showGeneralizedArguments) <&> (&& (argInfoOrigin info == Generalization))
 
     I.Sort s     -> reify s
+    I.Let a u v  -> do
+      Arg info ea <- reify a
+      eu     <- reify u
+      (x,ev) <- reify v
+      let bindx = LetBind (LetRange noRange) info (mkBindName x) ea eu
+      return $ A.Let exprNoRange (singleton bindx) ev
+
     I.MetaV x es -> do
           x' <- reify x
 

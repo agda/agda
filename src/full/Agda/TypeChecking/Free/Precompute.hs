@@ -11,6 +11,7 @@ import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Utils.Tuple
 
 
 
@@ -67,6 +68,7 @@ instance PrecomputeFreeVars Term where
       Pi a b     -> uncurry Pi <$> precomputeFreeVars (a, b)
       Sort s     -> Sort       <$> precomputeFreeVars s
       Level l    -> Level      <$> precomputeFreeVars l
+      Let a u v  -> uncurry3 Let <$> precomputeFreeVars (a, u, v)
       MetaV x es -> MetaV x    <$> precomputeFreeVars es
       DontCare t -> DontCare   <$> precomputeFreeVars t
       Dummy{}    -> pure t
@@ -113,3 +115,6 @@ instance PrecomputeFreeVars a => PrecomputeFreeVars (Maybe a) where
 
 instance (PrecomputeFreeVars a, PrecomputeFreeVars b) => PrecomputeFreeVars (a, b) where
   precomputeFreeVars (x, y) = (,) <$> precomputeFreeVars x <*> precomputeFreeVars y
+
+instance (PrecomputeFreeVars a, PrecomputeFreeVars b, PrecomputeFreeVars c) => PrecomputeFreeVars (a, b, c) where
+  precomputeFreeVars (x, y, z) = (,,) <$> precomputeFreeVars x <*> precomputeFreeVars y <*> precomputeFreeVars z
