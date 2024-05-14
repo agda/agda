@@ -100,7 +100,10 @@ runUnquoteM :: UnquoteM a -> TCM (Either UnquoteError (a, [QName]))
 runUnquoteM m = do
   cxt <- asksTC envContext
   s   <- getTC
-  z   <- unpackUnquoteM m cxt (Clean, s)
+  pid <- fresh  -- Create a fresh problem for the unquote call. Used in tcSolveInstances.
+  z   <- localTC (\ e -> e { envUnquoteProblem = Just pid })
+       $ solvingProblem pid
+       $ unpackUnquoteM m cxt (Clean, s)
   case z of
     Left err              -> return $ Left err
     Right ((x, _), decls) -> Right (x, decls) <$ mapM_ isDefined decls
@@ -1103,9 +1106,11 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
       locallyTCState stPostponeInstanceSearch (const False) $ do
         -- Steal instance constraints (TODO: not all!)
         current <- asksTC envActiveProblems
+        topPid  <- fromMaybe __IMPOSSIBLE__ <$> asksTC envUnquoteProblem
         let steal pc@(PConstr pids u c)
-              | isInstance pc = PConstr (Set.union current pids) u c
-              | otherwise     = pc
+              | isInstance pc
+              , Set.member topPid pids = PConstr (Set.union current pids) u c
+              | otherwise              = pc
             isInstance c | FindInstance{} <- clValue (theConstraint c) = True
                          | otherwise                                   = False
         modifyAwakeConstraints    $ map steal

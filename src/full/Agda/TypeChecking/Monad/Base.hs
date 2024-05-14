@@ -3668,6 +3668,12 @@ data TCEnv =
           , envAssignMetas         :: Bool
             -- ^ Are we allowed to assign metas?
           , envActiveProblems      :: Set ProblemId
+          , envUnquoteProblem      :: Maybe ProblemId
+            -- ^ If inside a `runUnquoteM` call, stores the top-level problem id assigned to the
+            --   invokation. We use this to decide which instance constraints originate from the
+            --   current call and which come from the outside, for the purpose of a
+            --   `solveInstanceConstraints` inside `noConstraints` only failing for local instance
+            --   constraints.
           , envAbstractMode        :: AbstractMode
                 -- ^ When checking the typesignature of a public definition
                 --   or the body of a non-abstract definition this is true.
@@ -3807,6 +3813,7 @@ initEnv = TCEnv { envContext             = []
                 , envSolvingConstraints  = False
                 , envCheckingWhere       = False
                 , envActiveProblems      = Set.empty
+                , envUnquoteProblem      = Nothing
                 , envWorkingOnTypes      = False
                 , envAssignMetas         = True
                 , envAbstractMode        = ConcreteMode
