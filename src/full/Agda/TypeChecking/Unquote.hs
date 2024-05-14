@@ -582,6 +582,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
              , (f `isDef` primAgdaTCMAskReconstructed, tcAskReconstructed)
              , (f `isDef` primAgdaTCMAskExpandLast,    tcAskExpandLast)
              , (f `isDef` primAgdaTCMAskReduceDefs,    tcAskReduceDefs)
+             , (f `isDef` primAgdaTCMSolveInstances,   tcSolveInstances)
              ]
              failEval
     I.Def f [u] ->
@@ -1096,6 +1097,22 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
         throwError (BlockedOnMeta s unblock)
       Right cands -> liftTCM $
         buildList <*> mapM (quoteTerm . candidateTerm) cands
+
+    tcSolveInstances :: UnquoteM Term
+    tcSolveInstances = liftTCM $ do
+      locallyTCState stPostponeInstanceSearch (const False) $ do
+        -- Steal instance constraints (TODO: not all!)
+        current <- asksTC envActiveProblems
+        let steal pc@(PConstr pids u c)
+              | isInstance pc = PConstr (Set.union current pids) u c
+              | otherwise     = pc
+            isInstance c | FindInstance{} <- clValue (theConstraint c) = True
+                         | otherwise                                   = False
+        modifyAwakeConstraints    $ map steal
+        modifySleepingConstraints $ map steal
+        wakeConstraints (wakeUpWhen_ isInstance)
+        solveSomeAwakeConstraints isInstance True  -- Force solving them now!
+      primUnitUnit
 
     splitPars :: Int -> A.Expr -> ([A.TypedBinding], A.Expr)
     splitPars 0 e = ([] , e)

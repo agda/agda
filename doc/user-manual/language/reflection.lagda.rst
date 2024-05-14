@@ -545,6 +545,10 @@ following primitive operations::
     -- variable (it does not have to be an instance meta).
     getInstances : Meta → TC (List Term)
 
+    -- Try to solve open instance constraints. When wrapped in `noConstraints`,
+    -- if there are unsolved instance constraints left over.
+    solveInstanceConstraints : TC ⊤
+
   {-# BUILTIN AGDATCMUNIFY                      unify                      #-}
   {-# BUILTIN AGDATCMTYPEERROR                  typeError                  #-}
   {-# BUILTIN AGDATCMBLOCK                      blockTC                    #-}
@@ -569,6 +573,8 @@ following primitive operations::
   {-# BUILTIN AGDATCMGETDEFINITION              getDefinition              #-}
   {-# BUILTIN AGDATCMCOMMIT                     commitTC                   #-}
   {-# BUILTIN AGDATCMISMACRO                    isMacro                    #-}
+  {-# BUILTIN AGDATCMPRAGMAFOREIGN              pragmaForeign              #-}
+  {-# BUILTIN AGDATCMPRAGMACOMPILE              pragmaCompile              #-}
   {-# BUILTIN AGDATCMWITHNORMALISATION          withNormalisation          #-}
   {-# BUILTIN AGDATCMWITHRECONSTRUCTED          withReconstructed          #-}
   {-# BUILTIN AGDATCMWITHEXPANDLAST             withExpandLast             #-}
@@ -581,6 +587,7 @@ following primitive operations::
   {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
   {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
   {-# BUILTIN AGDATCMGETINSTANCES               getInstances               #-}
+  {-# BUILTIN AGDATCMSOLVEINSTANCES             solveInstanceConstraints   #-}
 
 Metaprogramming
 ---------------

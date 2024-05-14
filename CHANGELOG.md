@@ -131,6 +131,14 @@ Reflection
 
 Changes to the meta-programming facilities.
 
+* Add new primitive to run instance search from reflection code:
+
+  ```agda
+    -- Try to solve open instance constraints. When wrapped in `noConstraints`,
+    -- if there are unsolved instance constraints left over.
+    solveInstanceConstraints : TC ⊤
+  ```
+
 Library management
 ------------------
 

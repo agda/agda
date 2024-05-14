@@ -240,6 +240,7 @@ data BuiltinId
   | BuiltinAgdaTCMRunSpeculative
   | BuiltinAgdaTCMExec
   | BuiltinAgdaTCMGetInstances
+  | BuiltinAgdaTCMSolveInstances
   | BuiltinAgdaTCMPragmaForeign
   | BuiltinAgdaTCMPragmaCompile
   | BuiltinAgdaBlocker
@@ -459,6 +460,7 @@ instance IsBuiltin BuiltinId where
     BuiltinAgdaTCMRunSpeculative             -> "AGDATCMRUNSPECULATIVE"
     BuiltinAgdaTCMExec                       -> "AGDATCMEXEC"
     BuiltinAgdaTCMGetInstances               -> "AGDATCMGETINSTANCES"
+    BuiltinAgdaTCMSolveInstances             -> "AGDATCMSOLVEINSTANCES"
     BuiltinAgdaTCMPragmaForeign              -> "AGDATCMPRAGMAFOREIGN"
     BuiltinAgdaTCMPragmaCompile              -> "AGDATCMPRAGMACOMPILE"
     BuiltinAgdaBlocker                       -> "AGDABLOCKER"
@@ -583,6 +585,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMRunSpeculative,
   builtinAgdaTCMExec,
   builtinAgdaTCMGetInstances,
+  builtinAgdaTCMSolveInstances,
   builtinAgdaTCMPragmaForeign,
   builtinAgdaTCMPragmaCompile
   :: BuiltinId
@@ -782,6 +785,7 @@ builtinAgdaTCMNoConstraints              = BuiltinAgdaTCMNoConstraints
 builtinAgdaTCMRunSpeculative             = BuiltinAgdaTCMRunSpeculative
 builtinAgdaTCMExec                       = BuiltinAgdaTCMExec
 builtinAgdaTCMGetInstances               = BuiltinAgdaTCMGetInstances
+builtinAgdaTCMSolveInstances             = BuiltinAgdaTCMSolveInstances
 builtinAgdaTCMPragmaForeign              = BuiltinAgdaTCMPragmaForeign
 builtinAgdaTCMPragmaCompile              = BuiltinAgdaTCMPragmaCompile
 builtinAgdaBlocker                       = BuiltinAgdaBlocker
