@@ -145,6 +145,10 @@ Interaction and emacs mode
   The reimplementation does not support case splitting (`-c`), disproving
   (`-d`) or refining (`-r`).
 
+* Added key binding that switches to the associated mode for a
+  literate Agda file, with the option to automatically add a key
+  binding to switch back.
+
 Backends
 --------
 
