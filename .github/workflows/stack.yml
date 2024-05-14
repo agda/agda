@@ -113,8 +113,8 @@ jobs:
         - ghc-ver: 9.8.2
           os: windows-2022
         os:
-        - ubuntu-22.04
-        - macos-12
+        - ubuntu-24.04
+        - macos-14
     timeout-minutes: 60
 name: Build (stack)
 'on':
