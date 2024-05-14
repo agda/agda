@@ -143,9 +143,22 @@ stealConstraintsTCM pid = do
 noConstraints
   :: (MonadConstraint m, MonadWarning m, MonadError TCErr m, MonadFresh ProblemId m)
   => m a -> m a
-noConstraints problem = do
+noConstraints = noConstraints' False
+
+-- | As noConstraints but also fail for non-blocking constraints.
+reallyNoConstraints
+  :: (MonadConstraint m, MonadWarning m, MonadError TCErr m, MonadFresh ProblemId m)
+  => m a -> m a
+reallyNoConstraints = noConstraints' True
+
+noConstraints'
+  :: (MonadConstraint m, MonadWarning m, MonadError TCErr m, MonadFresh ProblemId m)
+  => Bool -> m a -> m a
+noConstraints' includingNonBlocking problem = do
   (pid, x) <- newProblem problem
-  cs <- getConstraintsForProblem pid
+  let counts | includingNonBlocking = const True
+             | otherwise            = isBlockingConstraint . clValue . theConstraint
+  cs <- filter counts <$> getConstraintsForProblem pid
   unless (null cs) $ do
     withCurrentCallStack $ \loc -> do
       w <- warning'_ loc (UnsolvedConstraints cs)

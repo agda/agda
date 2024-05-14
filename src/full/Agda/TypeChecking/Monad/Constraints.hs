@@ -35,9 +35,20 @@ solvingProblems pids m = verboseBracket "tc.constr.solve" 50 ("working on proble
   return x
 
 isProblemSolved :: (MonadTCEnv m, ReadTCState m) => ProblemId -> m Bool
-isProblemSolved pid =
+isProblemSolved = isProblemSolved' False
+
+isProblemCompletelySolved :: (MonadTCEnv m, ReadTCState m) => ProblemId -> m Bool
+isProblemCompletelySolved = isProblemSolved' True
+
+isProblemSolved' :: (MonadTCEnv m, ReadTCState m) => Bool -> ProblemId -> m Bool
+isProblemSolved' completely pid =
   and2M (not . Set.member pid <$> asksTC envActiveProblems)
-        (not . any (Set.member pid . constraintProblems) <$> getAllConstraints)
+        (not . any belongsToUs <$> getAllConstraints)
+  where
+    belongsToUs c
+      | Set.notMember pid (constraintProblems c)         = False
+      | isBlockingConstraint (clValue $ theConstraint c) = True
+      | otherwise                                        = completely -- Ignore non-blocking unless `completely`
 
 {-# SPECIALIZE getConstraintsForProblem :: ProblemId -> TCM Constraints #-}
 getConstraintsForProblem :: ReadTCState m => ProblemId -> m Constraints
@@ -181,32 +192,31 @@ addAwakeConstraint' = addConstraintTo stAwakeConstraints
 
 addConstraintTo :: Lens' TCState Constraints -> Blocker -> Constraint -> TCM ()
 addConstraintTo bucket unblock c = do
-    pc <- build
+    pc <- buildConstraint unblock c
     stDirty `setTCLens` True
     bucket `modifyTCLens` (pc :)
-  where
-    build | isBlocking c = buildConstraint unblock c
-          | otherwise    = buildProblemConstraint_ unblock c
-    isBlocking = \case
-      SortCmp{}        -> False
-      LevelCmp{}       -> False
-      FindInstance{}   -> False
-      ResolveInstanceHead{} -> False
-      HasBiggerSort{}  -> False
-      HasPTSRule{}     -> False
-      CheckDataSort{}  -> False
-      ValueCmp{}       -> True
-      ValueCmpOnFace{} -> True
-      ElimCmp{}        -> True
-      UnBlock{}        -> True
-      IsEmpty{}        -> True
-      CheckSizeLtSat{} -> True
-      CheckFunDef{}    -> True
-      UnquoteTactic{}  -> True
-      CheckMetaInst{}  -> True
-      CheckType{}      -> True
-      CheckLockedVars{} -> True
-      UsableAtModality{} -> True
+
+isBlockingConstraint :: Constraint -> Bool
+isBlockingConstraint = \case
+  SortCmp{}             -> False
+  LevelCmp{}            -> False
+  FindInstance{}        -> False
+  ResolveInstanceHead{} -> False
+  HasBiggerSort{}       -> False
+  HasPTSRule{}          -> False
+  CheckDataSort{}       -> False
+  ValueCmp{}            -> True
+  ValueCmpOnFace{}      -> True
+  ElimCmp{}             -> True
+  UnBlock{}             -> True
+  IsEmpty{}             -> True
+  CheckSizeLtSat{}      -> True
+  CheckFunDef{}         -> True
+  UnquoteTactic{}       -> True
+  CheckMetaInst{}       -> True
+  CheckType{}           -> True
+  CheckLockedVars{}     -> True
+  UsableAtModality{}    -> True
 
 -- | Start solving constraints
 nowSolvingConstraints :: MonadTCEnv m => m a -> m a

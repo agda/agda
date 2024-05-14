@@ -744,7 +744,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
       primUnitUnit
 
     tcNoConstraints :: Term -> UnquoteM Term
-    tcNoConstraints m = liftU1 noConstraints (evalTCM m)
+    tcNoConstraints m = liftU1 reallyNoConstraints (evalTCM m)
 
     tcInferType :: R.Term -> TCM Term
     tcInferType v = do
