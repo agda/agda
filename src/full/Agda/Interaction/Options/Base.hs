@@ -1444,8 +1444,12 @@ verboseFlag s o =
         let (ss, s) = initLast1 s0 ss0
         -- The last entry must be a number.
         n <- maybe usage return $ readMaybe $ toList s
+#ifndef DEBUG
+        unless (n == 0) noDebug
+#endif
         return (ss, n)
     usage = throwError "argument to verbose should be on the form x.y.z:N or N"
+    noDebug = throwError "verbose flag passed, but Agda compiled without DEBUG"
 
 profileFlag :: String -> Flag PragmaOptions
 profileFlag s o =
