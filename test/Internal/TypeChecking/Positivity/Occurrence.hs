@@ -139,32 +139,36 @@ prop_boundToEverySome1 (NonEmpty w) =
 prop_boundToEverySome2 :: Property
 prop_boundToEverySome2 =
   forAll (elements $ Map.toList boundToEverySome) $ \(bound, ess) ->
-    (forAll (oneof [ do os1 <- listOf (arbitrary `suchThat` every)
-                        o   <- arbitrary
-                                 `suchThat` (\o -> every o && some o)
+    let left =
+          forAll
+            (oneof [ do os1 <- listOf (arbitrary `suchThat` every)
+                        o   <- arbitrary `suchThat` (\o -> every o && some o)
                         os2 <- listOf (arbitrary `suchThat` every)
                         return (os1 ++ [o] ++ os2)
                    | (every, some) <- ess
-                   ]) $ \w ->
-       foldr1 otimes w <= bound)
-      .&&.
-    (forAll (do
-         ess <- mapM (\(e, s) ->
-                         elements
-                           (Left e :
-                            [ Right s | satisfiable (not . s) ])) ess
-         let (es, ss) = partitionEithers ess
-             every    = \o -> and [ not (s o) | s <- ss ]
-             some e   = \o -> every o && not (e o)
-             everyG   = arbitrary `suchThat` every
-             segment  = listOf everyG
-         os <- uniqOn id <$> mapM (\e -> arbitrary `suchThat` some e) es
-         if Prelude.null os
-           then listOf1 everyG
-           else (++) <$> listOf everyG
-                     <*> (concat <$>
-                            mapM (\o -> (o :) <$> listOf everyG) os))
-       (\w -> not (foldr1 otimes w <= bound)))
+                   ])
+            (\w -> foldr1 otimes w <= bound)
+
+        right =
+           forAll
+            (do
+              ess <- mapM
+                (\(e, s) -> elements (Left e : [ Right s | satisfiable (not . s) ]))
+                ess
+
+              let (es, ss) = partitionEithers ess
+                  every    = \o -> and [ not (s o) | s <- ss ]
+                  some e   = \o -> every o && not (e o)
+                  everyG   = arbitrary `suchThat` every
+                  segment  = listOf everyG
+              os <- uniqOn id <$> mapM (\e -> arbitrary `suchThat` some e) es
+              if Prelude.null os
+                then listOf1 everyG
+                else (++) <$> listOf everyG
+                          <*> (concat <$> mapM (\o -> (o :) <$> listOf everyG) os))
+            (\w -> not (foldr1 otimes w <= bound))
+
+    in left .&&. right
 
 ------------------------------------------------------------------------
 -- * All tests

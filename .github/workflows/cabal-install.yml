@@ -37,8 +37,8 @@ jobs:
         CABAL_VER=$(cabal --numeric-version)
         echo "GHC_VER   = ${GHC_VER}"
         echo "CABAL_VER = ${CABAL_VER}"
-        echo "GHC_VER=${GHC_VER}"       >> ${GITHUB_ENV}
-        echo "CABAL_VER=${CABAL_VER}"   >> ${GITHUB_ENV}
+        echo "GHC_VER=${GHC_VER}"       >> "${GITHUB_ENV}"
+        echo "CABAL_VER=${CABAL_VER}"   >> "${GITHUB_ENV}"
     - name: Configure the build plan
       run: |
         cabal configure ${FLAGS}
@@ -53,8 +53,7 @@ jobs:
         key: ${{ env.key }}-${{ hashFiles('**/plan.json') }}
         path: ~/.cabal/store
         restore-keys: ${{ env.key }}-
-    - if: ${{ steps.cache.outputs.cache-hit != 'true' }}
-      name: Install dependencies
+    - name: Install dependencies
       run: |
         cabal build --only-dependencies
     - name: Install Agda

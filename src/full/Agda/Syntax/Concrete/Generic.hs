@@ -87,6 +87,7 @@ instance ExprLike a => ExprLike (WithHiding a)
 
 instance ExprLike a => ExprLike (MaybePlaceholder a)
 instance ExprLike a => ExprLike (RHS' a)
+instance ExprLike a => ExprLike (TacticAttribute' a)
 instance ExprLike a => ExprLike (TypedBinding' a)
 instance ExprLike a => ExprLike (WhereClause' a)
 

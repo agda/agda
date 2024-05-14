@@ -857,6 +857,7 @@ instance Subst Term where
 
 -- András 2023-09-25: we can only put this here, because at the original definition site there's no Subst Term instance.
 {-# SPECIALIZE lookupS :: Substitution' Term -> Nat -> Term #-}
+{-# SPECIALIZE isNoAbs :: Abs Term -> Maybe Term #-}
 
 instance Subst BraveTerm where
   type SubstArg BraveTerm = BraveTerm
@@ -1405,6 +1406,8 @@ deriving instance Eq NotBlocked
 deriving instance Eq t => Eq (Blocked t)
 deriving instance Eq CandidateKind
 deriving instance Eq Candidate
+deriving instance Ord CandidateKind
+deriving instance Ord Candidate
 
 deriving instance (Subst a, Eq a)  => Eq  (Tele a)
 deriving instance (Subst a, Ord a) => Ord (Tele a)

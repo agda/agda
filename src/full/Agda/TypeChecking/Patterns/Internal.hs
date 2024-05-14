@@ -1,7 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-{-# LANGUAGE GADTs #-}
-
 -- | Tools to manipulate patterns in internal syntax
 --   in the TCM (type checking monad).
 

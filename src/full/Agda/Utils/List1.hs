@@ -21,9 +21,10 @@ module Agda.Utils.List1
   ( module Agda.Utils.List1
   , module List1
   , module IsList
+  , module Unzip
   ) where
 
-import Prelude hiding (filter)
+import Prelude hiding (filter, unzip)
 
 import Control.Arrow ((&&&))
 import Control.Monad (filterM)
@@ -34,8 +35,15 @@ import Data.Function ( on )
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 
-import Data.List.NonEmpty as List1 hiding (fromList, toList)
+import Data.List.NonEmpty as List1 hiding (fromList, toList, unzip)
 import qualified Data.List.NonEmpty as List1 (toList)
+
+-- Prevent warning -Wx-data-list-nonempty-unzip
+#if MIN_VERSION_base(4,19,0)
+import Data.Functor as Unzip (unzip)
+#else
+import Data.List.NonEmpty as Unzip (unzip)
+#endif
 
 import GHC.Exts as IsList ( IsList(..) )
 

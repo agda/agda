@@ -1,7 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-{-# LANGUAGE GADTs #-}
-
 -- | Interface for compiler backend writers.
 module Agda.Compiler.Backend
   ( module Agda.Compiler.Backend.Base

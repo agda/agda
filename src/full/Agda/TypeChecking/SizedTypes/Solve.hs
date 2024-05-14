@@ -80,9 +80,10 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints as C
 
 import qualified Agda.TypeChecking.SizedTypes as S
+import Agda.TypeChecking.SizedTypes.Pretty
 import Agda.TypeChecking.SizedTypes.Syntax as Size
 import Agda.TypeChecking.SizedTypes.Utils
-import Agda.TypeChecking.SizedTypes.WarshallSolver as Size
+import Agda.TypeChecking.SizedTypes.WarshallSolver as Size hiding (simplify1)
 
 import Agda.Utils.Cluster
 import Agda.Utils.Function
@@ -102,8 +103,6 @@ import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
 
-type CC = ProblemConstraint
-
 -- | Flag to control the behavior of size solver.
 data DefaultToInfty
   = DefaultToInfty      -- ^ Instantiate all unconstrained size variables to ∞.
@@ -117,16 +116,14 @@ solveSizeConstraints flag =  do
 
   -- 1. Take out the size constraints normalised.
 
-  let norm c = mapClosure normalise (theConstraint c) <&> \ cl -> c { theConstraint = cl }
-  cs0 <- mapM norm =<< S.takeSizeConstraints (== CmpLeq)
-    -- NOTE: this deletes the size constraints from the constraint set!
+  -- NOTE: this deletes the size constraints from the constraint set!
+  cs0 :: [ProblemConstraint]
+    <- forMM (S.takeSizeConstraints (== CmpLeq)) $ \ (c :: ProblemConstraint) -> do
+      mapClosure normalise (theConstraint c) <&> \ cl -> c { theConstraint = cl }
+
   unless (null cs0) $
     reportSDoc "tc.size.solve" 40 $ vcat $
       text ( "Solving constraints (" ++ show flag ++ ")" ) : map prettyTCM cs0
-  let -- Error for giving up
-      cannotSolve :: TCM a -- Defined, but not currently used
-      cannotSolve = typeError . GenericDocError =<<
-        vcat ("Cannot solve size constraints" : map prettyTCM cs0)
 
   -- 2. Cluster the constraints by common size metas.
 
@@ -159,7 +156,7 @@ solveSizeConstraints flag =  do
   -- Solve the clusters.
 
   constrainedMetas <- Set.unions <$> do
-    forM  (ccs) $ \ (cs :: List1 CC) -> do
+    forM  (ccs) $ \ (cs :: List1 ProblemConstraint) -> do
 
       reportSDoc "tc.size.solve" 60 $ vcat $
         "size constraint cluster:" <| fmap (text . show) cs
@@ -203,6 +200,10 @@ solveSizeConstraints flag =  do
         assignMeta 0 m t (List.downFrom $ size tel) inf
 
   -- -- Double check.
+  -- let -- Error for giving up
+  --     cannotSolve :: TCM a
+  --     cannotSolve = typeError . GenericDocError =<<
+  --       vcat ("Cannot solve size constraints" : map prettyTCM cs0)
   -- unless (null cs0 && null ms) $ do
   --   flip catchError (const cannotSolve) $
   --     noConstraints $
@@ -354,27 +355,26 @@ castConstraintToCurrentContext c = do
 -- | Return the size metas occurring in the simplified constraints.
 --   A constraint like @↑ _j =< ∞ : Size@ simplifies to nothing,
 --   so @_j@ would not be in this set.
-solveSizeConstraints_ :: DefaultToInfty -> [CC] -> TCM (Set MetaId)
+solveSizeConstraints_ :: DefaultToInfty -> [ProblemConstraint] -> TCM (Set MetaId)
 solveSizeConstraints_ flag cs0 = do
   -- Pair constraints with their representation as size constraints.
   -- Discard constraints that do not have such a representation.
-  ccs :: [(CC,HypSizeConstraint)] <- catMaybes <$> do
+  ccs :: [(ProblemConstraint, HypSizeConstraint)] <- catMaybes <$> do
     forM cs0 $ \ c0 -> fmap (c0,) <$> computeSizeConstraint c0
 
   -- Simplify constraints and check for obvious inconsistencies.
-  ccs' <- concat <$> do
-    forM ccs $ \ (c0, HypSizeConstraint cxt hids hs sc) -> do
+  ccs' :: [(ProblemConstraint, HypSizeConstraint)] <- concat <$> do
+    forM ccs $ \ cc@(c0 :: ProblemConstraint, HypSizeConstraint cxt hids hs sc) -> do
       case simplify1 (\ sc -> return [sc]) sc of
-        Left _ -> typeError . GenericDocError =<< do
-          "Contradictory size constraint" <+> prettyTCM c0
-        Right cs -> return $ (c0,) . HypSizeConstraint cxt hids hs <$> cs
+        Nothing -> typeError $ ContradictorySizeConstraint cc
+        Just cs -> return $ (c0,) . HypSizeConstraint cxt hids hs <$> cs
 
   -- Cluster constraints according to the meta variables they mention.
   -- @csNoM@ are the constraints that do not mention any meta.
   let (csNoM, csMs) = (`List.partitionMaybe` ccs') $ \ p@(c0, c) ->
         fmap (p,) $ nonEmpty $ map sizeMetaId $ Set.toList $ flexs c
   -- @css@ are the clusters of constraints.
-      css :: [List1 (CC,HypSizeConstraint)]
+      css :: [List1 (ProblemConstraint, HypSizeConstraint)]
       css = cluster' csMs
 
   -- Check that the closed constraints are valid.
@@ -387,16 +387,16 @@ solveSizeConstraints_ flag cs0 = do
 
 -- | Solve a cluster of constraints sharing some metas.
 --
-solveCluster :: DefaultToInfty -> List1 (CC, HypSizeConstraint) -> TCM ()
+solveCluster :: DefaultToInfty -> List1 (ProblemConstraint, HypSizeConstraint) -> TCM ()
 solveCluster flag ccs = do
-  let cs = fmap snd ccs
-  let prettyCs   = map prettyTCM $ List1.toList cs
-  let err reason = typeError . GenericDocError =<< do
-        vcat $
-          [ text $ "Cannot solve size constraints" ] ++ prettyCs ++
-          [ "Reason:" <+> reason ]
+  let
+    err :: TCM Doc -> TCM a
+    err mdoc = typeError . CannotSolveSizeConstraints ccs =<< mdoc
+    cs :: List1 HypSizeConstraint
+    cs = fmap snd ccs
   reportSDoc "tc.size.solve" 20 $ vcat $
-    "Solving constraint cluster" : prettyCs
+    "Solving constraint cluster" <| fmap prettyTCM cs
+
   -- Find the super context of all contexts.
 {-
   -- We use the @'ctxId'@s.
@@ -563,13 +563,9 @@ solveCluster flag ccs = do
 
   -- Double check.
   when solvedAll $ do
-    let cs0 = fmap fst ccs
-        -- Error for giving up
-        cannotSolve = typeError . GenericDocError =<<
-          vcat ("Cannot solve size constraints" <| fmap prettyTCM cs0)
-    flip catchError (const cannotSolve) $
-      noConstraints $
-        forM_ cs0 $ withConstraint solveConstraint
+      noConstraints $ mapM_ (withConstraint solveConstraint . fst) ccs
+    `catchError` \ _ ->
+      typeError $ CannotSolveSizeConstraints ccs empty
 
 -- | Collect constraints from a typing context, looking for SIZELT hypotheses.
 getSizeHypotheses :: Context -> TCM [(Nat, SizeConstraint)]
@@ -651,37 +647,6 @@ canonicalizeSizeConstraint c@(Constraint a cmp b) = Just c
     _ -> return c
 -}
 
--- | Identifiers for rigid variables.
-data NamedRigid = NamedRigid
-  { rigidName  :: String   -- ^ Name for printing in debug messages.
-  , rigidIndex :: Int      -- ^ De Bruijn index.
-  } deriving (Show)
-
-instance Eq NamedRigid where (==) = (==) `on` rigidIndex
-instance Ord NamedRigid where compare = compare `on` rigidIndex
-instance Pretty NamedRigid where pretty = P.text . rigidName
-instance Plus NamedRigid Int NamedRigid where
-  plus (NamedRigid x i) j = NamedRigid x (i + j)
-
--- | Size metas in size expressions.
-data SizeMeta = SizeMeta
-  { sizeMetaId   :: MetaId
-  -- TODO to fix issue 300?
-  -- , sizeMetaPerm :: Permutation -- ^ Permutation from the current context
-  --                               --   to the context of the meta.
-  , sizeMetaArgs :: [Int]       -- ^ De Bruijn indices.
-  } deriving (Show)
-
--- | An equality which ignores the meta arguments.
-instance Eq  SizeMeta where (==)    = (==)    `on` sizeMetaId
--- | An order which ignores the meta arguments.
-instance Ord SizeMeta where compare = compare `on` sizeMetaId
-
-instance Pretty SizeMeta where pretty = P.pretty . sizeMetaId
-
-instance PrettyTCM SizeMeta where
-  prettyTCM (SizeMeta x es) = prettyTCM (MetaV x $ map (Apply . defaultArg . var) es)
-
 instance Subst SizeMeta where
   type SubstArg SizeMeta = Term
   applySubst sigma (SizeMeta x es) = SizeMeta x (map raise es)
@@ -690,13 +655,6 @@ instance Subst SizeMeta where
         case lookupS sigma i of
           Var j [] -> j
           _        -> __IMPOSSIBLE__
-
--- | Size expression with de Bruijn indices.
-type DBSizeExpr = SizeExpr' NamedRigid SizeMeta
-
--- deriving instance Functor     (SizeExpr' Int)
--- deriving instance Foldable    (SizeExpr' Int)
--- deriving instance Traversable (SizeExpr' Int)
 
 -- | Only for 'raise'.
 instance Subst (SizeExpr' NamedRigid SizeMeta) where
@@ -711,41 +669,10 @@ instance Subst (SizeExpr' NamedRigid SizeMeta) where
           Var j [] -> Rigid r{ rigidIndex = j } n
           _        -> __IMPOSSIBLE__
 
-type SizeConstraint = Constraint' NamedRigid SizeMeta
-
 instance Subst SizeConstraint where
   type SubstArg SizeConstraint = Term
   applySubst sigma (Constraint a cmp b) =
     Constraint (applySubst sigma a) cmp (applySubst sigma b)
-
--- | Assumes we are in the right context.
-instance PrettyTCM (SizeConstraint) where
-  prettyTCM (Constraint a cmp b) = do
-    u <- unSizeExpr a
-    v <- unSizeExpr b
-    prettyTCM u <+> pretty cmp <+> prettyTCM v
-
--- | Size constraint with de Bruijn indices.
-data HypSizeConstraint = HypSizeConstraint
-  { sizeContext    :: Context
-  , sizeHypIds     :: [Nat] -- ^ DeBruijn indices
-  , sizeHypotheses :: [SizeConstraint]  -- ^ Living in @Context@.
-  , sizeConstraint :: SizeConstraint    -- ^ Living in @Context@.
-  }
-
-instance Flexs HypSizeConstraint where
-  type FlexOf HypSizeConstraint = SizeMeta
-  flexs (HypSizeConstraint _ _ hs c) = flexs hs `mappend` flexs c
-
-instance PrettyTCM HypSizeConstraint where
-  prettyTCM (HypSizeConstraint cxt _ hs c) =
-    unsafeModifyContext (const cxt) $ do
-      let cxtNames = reverse $ map (fst . unDom) cxt
-      -- text ("[#cxt=" ++ show (size cxt) ++ "]") <+> do
-      prettyList (map prettyTCM cxtNames) <+> do
-      applyUnless (null hs)
-       ((hcat (punctuate ", " $ map prettyTCM hs) <+> "|-") <+>)
-       (prettyTCM c)
 
 -- | Turn a constraint over de Bruijn indices into a size constraint.
 computeSizeConstraint :: ProblemConstraint -> TCM (Maybe HypSizeConstraint)
@@ -792,16 +719,3 @@ sizeExpr u = do
     isVar (Apply v) = case unArg v of
       Var i [] -> Just i
       _        -> Nothing
-
--- | Turn a de size expression into a term.
-unSizeExpr :: HasBuiltins m => DBSizeExpr -> m Term
-unSizeExpr a =
-  case a of
-    Infty         -> fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeInf
-    Rigid r (O n) -> do
-      unless (n >= 0) __IMPOSSIBLE__
-      sizeSuc n $ var $ rigidIndex r
-    Flex (SizeMeta x es) (O n) -> do
-      unless (n >= 0) __IMPOSSIBLE__
-      sizeSuc n $ MetaV x $ map (Apply . defaultArg . var) es
-    Const{} -> __IMPOSSIBLE__

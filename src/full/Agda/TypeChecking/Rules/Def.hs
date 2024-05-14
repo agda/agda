@@ -34,7 +34,7 @@ import Agda.Syntax.Info hiding (defAbstract)
 
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
-import Agda.TypeChecking.Warnings ( warning, genericWarning )
+import Agda.TypeChecking.Warnings ( warning )
 
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
@@ -117,15 +117,8 @@ checkFunDef i name cs = do
               -- blocks you might actually have solved the type of an alias by the time you get to
               -- the definition. See test/Succeed/SizeInfinity.agda for an example where this
               -- happens.
-              let
-                what
-                  | Info.defOpaque i == TransparentDef = "abstract"
-                  | otherwise                          = "opaque"
               whenM (isOpenMeta <$> lookupMetaInstantiation x) $
-                setCurrentRange i $ genericWarning =<<
-                  "Missing type signature for" <+> text what <+> "definition" <+> (prettyTCM name <> ".") $$
-                  fsep (pwords ("Types of " ++ what ++ " definitions are never inferred since this would leak") ++
-                        pwords ("information that should be " ++ what ++ "."))
+                setCurrentRange i $ warning $ MissingTypeSignatureForOpaque name (Info.defOpaque i)
               checkFunDef' t info Nothing Nothing i name cs
           _ -> checkFunDef' t info Nothing Nothing i name cs
 
@@ -199,9 +192,10 @@ checkAlias t ai i name e mc =
 
   -- Add the definition
   fun <- emptyFunctionData
-  addConstant' name ai name t $ set funMacro (Info.defMacro i == MacroDef) $
-      FunctionDefn fun
-          { _funClauses   = [ Clause  -- trivial clause @name = v@
+  addConstant' name ai name t $ FunctionDefn $
+    set funMacro_ (Info.defMacro i == MacroDef) $
+    set funAbstr_ (Info.defAbstract i) $
+      fun { _funClauses   = [ Clause  -- trivial clause @name = v@
               { clauseLHSRange    = getRange i
               , clauseFullRange   = getRange i
               , clauseTel         = EmptyTel
@@ -217,7 +211,6 @@ checkAlias t ai i name e mc =
               } ]
           , _funCompiled  = Just $ Done [] $ bodyMod v
           , _funSplitTree = Just $ SplittingDone 0
-          , _funAbstr     = Info.defAbstract i
           , _funOpaque    = Info.defOpaque i
           }
 
@@ -442,14 +435,14 @@ checkFunDefS t ai extlam with i name withSubAndLets cs = do
           -- If there was a pragma for this definition, we can set the
           -- funTerminates field directly.
           fun  <- emptyFunctionData
-          defn <- autoInline $
-             set funMacro (ismacro || Info.defMacro i == MacroDef) $
-             FunctionDefn fun
+          defn <- autoInline $ FunctionDefn $
+           set funMacro_ (ismacro || Info.defMacro i == MacroDef) $
+           set funAbstr_ (Info.defAbstract i) $
+           fun
              { _funClauses        = cs
              , _funCompiled       = Just cc
              , _funSplitTree      = mst
              , _funInv            = inv
-             , _funAbstr          = Info.defAbstract i
              , _funOpaque         = Info.defOpaque i
              , _funExtLam         = (\ e -> e { extLamSys = sys }) <$> extlam
              , _funWith           = with
@@ -1001,6 +994,10 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
       -- Get value and type of rewrite-expression.
 
       (proof, eqt) <- inferExpr eq
+
+      -- Andreas, 2024-02-27, issue #7150
+      -- trigger instance search to resolve instances in rewrite-expression
+      solveAwakeConstraints
 
       -- Andreas, 2016-04-14, see also Issue #1796
       -- Run the size constraint solver to improve with-abstraction

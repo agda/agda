@@ -1,6 +1,8 @@
 # HLint configuration file
 # https://github.com/ndmitchell/hlint#readme
 
+# We use hlint-3.8 and don't run HLint in CI.
+
 # Silence specific warnings
 - ignore:
     name: "Use curry"
@@ -15,83 +17,83 @@
       - Agda.Syntax.Concrete.Operators.parsePat
 
 # Warnings currently triggered by your code
-- ignore: {name: "Avoid lambda"} # 116 hints
-- ignore: {name: "Avoid lambda using `infix`"} # 12 hints
-- ignore: {name: "Eta reduce"} # 374 hints
-- ignore: {name: "Evaluate"} # 14 hints
-- ignore: {name: "Fuse concatMap/map"} # 1 hint
-- ignore: {name: "Fuse foldMap/fmap"} # 2 hints
+- ignore: {name: "Avoid lambda"} # 49 hints
+- ignore: {name: "Avoid lambda using `infix`"} # 13 hints
+- ignore: {name: "Eta reduce"} # 182 hints
+- ignore: {name: "Evaluate"} # 15 hints
+- ignore: {name: "Functor law"} # 21 hints
+- ignore: {name: "Fuse foldMap/<$>"} # 2 hints
 - ignore: {name: "Fuse foldr/map"} # 8 hints
 - ignore: {name: "Fuse mapM/map"} # 2 hints
+- ignore: {name: "Fuse traverse/<$>"} # 2 hints
 - ignore: {name: "Hoist not"} # 18 hints
-- ignore: {name: "Move brackets to avoid $"} # 47 hints
 - ignore: {name: "Move guards forward"} # 2 hints
-- ignore: {name: "Redundant $"} # 644 hints
-- ignore: {name: "Redundant <$>"} # 46 hints
-- ignore: {name: "Redundant =="} # 1 hint
-- ignore: {name: "Redundant bracket"} # 2586 hints
+- ignore: {name: "Redundant $"} # 634 hints
+- ignore: {name: "Redundant <$>"} # 52 hints
+- ignore: {name: "Redundant <&>"} # 4 hints
+- ignore: {name: "Redundant True guards"} # 1 hint
+- ignore: {name: "Redundant bang pattern"} # 1 hint
+- ignore: {name: "Redundant bracket"} # 492 hints
 - ignore: {name: "Redundant case"} # 1 hint
-- ignore: {name: "Redundant flip"} # 2 hints
-- ignore: {name: "Redundant guard"} # 6 hints
+- ignore: {name: "Redundant flip"} # 3 hints
+- ignore: {name: "Redundant fmap"} # 1 hint
+- ignore: {name: "Redundant guard"} # 5 hints
 - ignore: {name: "Redundant id"} # 1 hint
-- ignore: {name: "Redundant if"} # 4 hints
+- ignore: {name: "Redundant if"} # 2 hints
 - ignore: {name: "Redundant irrefutable pattern"} # 36 hints
-- ignore: {name: "Redundant lambda"} # 43 hints
+- ignore: {name: "Redundant lambda"} # 46 hints
 - ignore: {name: "Redundant map"} # 2 hints
-- ignore: {name: "Redundant multi-way if"} # 17 hints
-- ignore: {name: "Redundant return"} # 2 hints
-- ignore: {name: "Redundant section"} # 3 hints
-- ignore: {name: "Replace case with fromMaybe"} # 3 hints
-- ignore: {name: "Replace case with maybe"} # 2 hints
+- ignore: {name: "Redundant multi-way if"} # 20 hints
+- ignore: {name: "Redundant return"} # 1 hint
+- ignore: {name: "Replace case with fromMaybe"} # 4 hints
+- ignore: {name: "Replace case with maybe"} # 4 hints
 - ignore: {name: "Unused LANGUAGE pragma"} # 210 hints
 - ignore: {name: "Use &&"} # 4 hints
 - ignore: {name: "Use ++"} # 11 hints
 - ignore: {name: "Use /="} # 1 hint
 - ignore: {name: "Use :"} # 17 hints
 - ignore: {name: "Use <$"} # 4 hints
-- ignore: {name: "Use <$>"} # 18 hints
+- ignore: {name: "Use <$>"} # 19 hints
 - ignore: {name: "Use <&>"} # 1 hint
-- ignore: {name: "Use <=<"} # 3 hints
+- ignore: {name: "Use <=<"} # 1 hint
+- ignore: {name: "Use =<<"} # 1 hint
 - ignore: {name: "Use >"} # 1 hint
-- ignore: {name: "Use >=>"} # 1 hint
-- ignore: {name: "Use Just"} # 1 hint
-- ignore: {name: "Use LANGUAGE pragmas"} # 8 hints
-- ignore: {name: "Use camelCase"} # 95 hints
+- ignore: {name: "Use Just"} # 2 hints
+- ignore: {name: "Use LANGUAGE pragmas"} # 7 hints
+- ignore: {name: "Use all"} # 1 hint
+- ignore: {name: "Use camelCase"} # 72 hints
 - ignore: {name: "Use concatMap"} # 2 hints
-- ignore: {name: "Use const"} # 75 hints
-- ignore: {name: "Use elem"} # 2 hints
-- ignore: {name: "Use empty"} # 1 hint
-- ignore: {name: "Use fewer imports"} # 2 hints
-- ignore: {name: "Use fmap"} # 5 hints
+- ignore: {name: "Use const"} # 79 hints
+- ignore: {name: "Use fewer imports"} # 6 hints
+- ignore: {name: "Use fmap"} # 6 hints
 - ignore: {name: "Use fold"} # 1 hint
+- ignore: {name: "Use foldMap"} # 2 hints
 - ignore: {name: "Use fromMaybe"} # 1 hint
 - ignore: {name: "Use id"} # 2 hints
-- ignore: {name: "Use infix"} # 11 hints
 - ignore: {name: "Use intercalate"} # 1 hint
 - ignore: {name: "Use isNothing"} # 2 hints
-- ignore: {name: "Use iterate"} # 1 hint
 - ignore: {name: "Use join"} # 2 hints
-- ignore: {name: "Use lambda-case"} # 55 hints
-- ignore: {name: "Use list comprehension"} # 3 hints
+- ignore: {name: "Use lambda-case"} # 11 hints
 - ignore: {name: "Use list literal"} # 12 hints
-- ignore: {name: "Use list literal pattern"} # 2 hints
-- ignore: {name: "Use map"} # 4 hints
+- ignore: {name: "Use list literal pattern"} # 1 hint
 - ignore: {name: "Use map once"} # 1 hint
+- ignore: {name: "Use map with tuple-section"} # 4 hints
 - ignore: {name: "Use mapAndUnzipM"} # 1 hint
 - ignore: {name: "Use mapMaybe"} # 3 hints
 - ignore: {name: "Use maximum"} # 1 hint
 - ignore: {name: "Use negate"} # 1 hint
-- ignore: {name: "Use newtype instead of data"} # 29 hints
-- ignore: {name: "Use notElem"} # 2 hints
-- ignore: {name: "Use null"} # 4 hints
-- ignore: {name: "Use record patterns"} # 38 hints
+- ignore: {name: "Use newtype instead of data"} # 31 hints
+- ignore: {name: "Use null"} # 5 hints
+- ignore: {name: "Use otherwise"} # 1 hint
+- ignore: {name: "Use record patterns"} # 91 hints
 - ignore: {name: "Use second"} # 5 hints
-- ignore: {name: "Use section"} # 19 hints
+- ignore: {name: "Use section"} # 21 hints
 - ignore: {name: "Use sequenceA"} # 3 hints
-- ignore: {name: "Use unless"} # 1 hint
+- ignore: {name: "Use uncurry"} # 1 hint
+- ignore: {name: "Use unless"} # 4 hints
 - ignore: {name: "Use void"} # 13 hints
 - ignore: {name: "Use zipWith"} # 2 hints
-- ignore: {name: "Use ||"} # 4 hints
+- ignore: {name: "Use ||"} # 7 hints
 
 # Specify additional command line arguments
 - arguments:
@@ -111,6 +113,7 @@
     - -XFlexibleContexts
     - -XFlexibleInstances
     - -XFunctionalDependencies
+    - -XGADTs
     - -XGeneralizedNewtypeDeriving
     - -XInstanceSigs
     - -XLambdaCase
@@ -127,6 +130,7 @@
     - -XTypeFamilies
     - -XTypeOperators
     - -XTypeSynonymInstances
+    - -XViewPatterns
 
 # Add custom hints for this project
 - hint:

@@ -1,4 +1,3 @@
-{-# LANGUAGE GADTs                      #-}
 
 {-# LANGUAGE ImplicitParams             #-}
 {-# LANGUAGE NondecreasingIndentation   #-}
@@ -436,7 +435,7 @@ termFunction name = inConcreteOrAbstractMode name $ \ def -> do
           Record{} -> do
             reportSDoc "term.warn.no" 10 $ vcat $
               hsep [ "Record type", prettyTCM name, "does not termination check.", "Problematic calls:" ] :
-              (map (nest 2 . prettyTCM) $ List.sortOn getRange calls)
+              map (nest 2 . prettyTCM) (List.sortOn getRange calls)
             mempty
 
           -- Functions must terminate, so we report the error.

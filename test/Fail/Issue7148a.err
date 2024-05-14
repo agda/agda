@@ -1,0 +1,5 @@
+Issue7148a.agda:7,12-27
+Cannot 'with' on expression λ (x : A) → a x which reduces to
+variable a bound in a module telescope (or patterns of a parent
+clause)
+when inferring the type of λ (x : A) → a x

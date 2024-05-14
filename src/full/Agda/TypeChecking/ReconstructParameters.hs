@@ -23,9 +23,10 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Datatypes
 
-import Agda.Utils.Size
 import Agda.Utils.Either
 import Agda.Utils.Function (applyWhen)
+import Agda.Utils.Lens
+import Agda.Utils.Size
 
 import Agda.Utils.Impossible
 
@@ -156,8 +157,8 @@ extractParameters q ty = reduce (unEl ty) >>= \case
        -- Case: regular projection
        | isProperProjection (theDef info) ->
          case theDef info of
-           Function{ funErasure = e } ->
-             return $ map (mkParam e) postPs
+           d@Function{} ->
+             return $ map (mkParam (d ^. funErasure)) postPs
            _ -> __IMPOSSIBLE__
        -- Case: projection-like function
        | otherwise -> do

@@ -35,7 +35,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Pretty.Constraint (prettyInterestingCons
 import Agda.TypeChecking.Warnings (MonadWarning, isUnsolvedWarning, onlyShowIfUnsolved, classifyWarning, WhichWarnings(..), warning_)
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 
-import Agda.Syntax.Common ( getHiding, ImportedName'(..), fromImportedName, partitionImportedNames )
+import Agda.Syntax.Common ( IsOpaque(OpaqueDef, TransparentDef), getHiding, ImportedName'(..), fromImportedName, partitionImportedNames )
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Scope.Base ( concreteNamesInScope, NameOrModule(..) )
@@ -45,6 +45,7 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 
+import Agda.Utils.FileName (filePath)
 import Agda.Utils.Lens
 import Agda.Utils.List ( editDistance )
 import qualified Agda.Utils.List1 as List1
@@ -155,6 +156,10 @@ prettyWarning = \case
       "Builtin " ++ getBuiltinId old ++ " no longer exists. " ++
       "It is now bound by BUILTIN " ++ getBuiltinId new
 
+    BuiltinDeclaresIdentifier b -> fwords $
+      "BUILTIN " ++ getBuiltinId b ++ " declares an identifier " ++
+      "(no longer expects an already defined identifier)"
+
     EmptyRewritePragma -> fsep . pwords $ "Empty REWRITE pragma"
 
     EmptyWhere         -> fsep . pwords $ "Empty `where' block (ignored)"
@@ -214,8 +219,6 @@ prettyWarning = \case
              pwords "this type will likely be rejected by the termination" ++
              pwords "checker unless this flag is enabled."
 
-    GenericWarning d -> return d
-
     InvalidCharacterLiteral c -> fsep $
       pwords "Invalid character literal" ++ [text $ show c] ++
       pwords "(surrogate code points are not supported)"
@@ -235,9 +238,24 @@ prettyWarning = \case
 
     WithoutKFlagPrimEraseEquality -> fsep (pwords "Using primEraseEquality with the without-K flag is inconsistent.")
 
+    ConflictingPragmaOptions a b -> fsep $ pwords $ unwords
+      [ "Conflicting options", yes a, "and", no b, "(" ++ yes a, "implies", yes b ++ ")."
+      , "Ignoring", no b ++ "." ]
+      where
+        yes s = "--" ++ s
+        no ('n' : 'o' : '-' : s) = "--" ++ s
+        no s                     = "--no-" ++ s
+
     OptionWarning ow -> pretty ow
 
     ParseWarning pw -> pretty pw
+
+    DuplicateInterfaceFiles selected ignored -> vcat
+      [ fwords "There are two interface files:"
+      , nest 4 $ text $ filePath selected
+      , nest 4 $ text $ filePath ignored
+      , nest 2 $ fsep $ pwords "Using" ++ [text $ filePath selected] ++ pwords "for now but please remove at least one of them."
+      ]
 
     DeprecationWarning old new version -> fsep $
       [text old] ++ pwords "has been deprecated. Use" ++ [text new] ++ pwords
@@ -268,6 +286,15 @@ prettyWarning = \case
     InfectiveImport msg -> return msg
 
     CoInfectiveImport msg -> return msg
+
+    ConfluenceCheckingIncompleteBecauseOfMeta f -> fsep
+      [ "Confluence checking incomplete because the definition of"
+      , prettyTCM f
+      , text "contains unsolved metavariables."
+      ]
+
+    ConfluenceForCubicalNotSupported -> fsep $ pwords $
+      "Confluence checking for --cubical is not yet supported, confluence checking might be incomplete"
 
     RewriteNonConfluent lhs rhs1 rhs2 err -> fsep
       [ "Local confluence check failed:"
@@ -311,6 +338,9 @@ prettyWarning = \case
         ]
       ]
 
+    DuplicateRewriteRule q ->
+      "Rewrite rule " <+> prettyTCM q <+> " has already been added"
+
     PragmaCompileErased bn qn -> fsep $ concat
       [ pwords "The backend"
       , [ text bn
@@ -318,6 +348,17 @@ prettyWarning = \case
         , prettyTCM qn
         ]
       , pwords "so the COMPILE pragma will be ignored."
+      ]
+
+    PragmaCompileList -> fsep $ pwords
+      "Ignoring GHC pragma for builtin lists; they always compile to Haskell lists."
+
+    PragmaCompileMaybe -> fsep $ pwords
+      "Ignoring GHC pragma for builtin MAYBE; it always compiles to Haskell Maybe."
+
+    NoMain topLevelModule -> vcat
+      [ fsep $ pwords "No main function defined in" ++ [prettyTCM topLevelModule <> "."]
+      , fsep $ pwords "Use option --no-main to suppress this warning."
       ]
 
     NotInScopeW xs -> vcat
@@ -340,7 +381,9 @@ prettyWarning = \case
 
     AsPatternShadowsConstructorOrPatternSynonym patsyn -> fsep $ concat
       [ pwords "Name bound in @-pattern ignored because it shadows"
-      , if patsyn then pwords "pattern synonym" else [ "constructor" ]
+      , case patsyn of
+          IsPatSyn -> pwords "pattern synonym"
+          IsLHS    -> [ "constructor" ]
       ]
 
     PatternShadowsConstructor x c -> fsep $
@@ -352,6 +395,18 @@ prettyWarning = \case
       pwords "in hard compile-time mode"
 
     RecordFieldWarning w -> prettyRecordFieldWarning w
+
+    MissingTypeSignatureForOpaque name isOpaque -> vcat
+        [ "Missing type signature for" <+> text what <+> "definition" <+> (prettyTCM name <> ".")
+        , fsep $ pwords $
+            "Types of " ++ what ++ " definitions are never inferred since this would leak " ++
+            "information that should be " ++ what ++ "."
+        ]
+      where
+        what = case isOpaque of
+          TransparentDef -> "abstract"
+          OpaqueDef _    -> "opaque"
+
 
     NotAffectedByOpaque -> fwords "Only function definitions can be marked opaque. This definition will be treated as transparent."
 

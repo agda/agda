@@ -421,7 +421,7 @@ warningHighlighting' b w = case tcWarning w of
   UnsolvedConstraints cs     -> if b then constraintsHighlighting [] cs else mempty
   UnsolvedMetaVariables rs   -> if b then metasHighlighting rs          else mempty
   AbsurdPatternRequiresNoRHS{} -> deadcodeHighlighting w
-  ModuleDoesntExport{}         -> deadcodeHighlighting w
+  ModuleDoesntExport _ _ _ xs  -> foldMap deadcodeHighlighting xs
   DuplicateUsing xs            -> foldMap deadcodeHighlighting xs
   FixityInRenamingModule rs    -> foldMap deadcodeHighlighting rs
   -- expanded catch-all case to get a warning for new constructors
@@ -429,6 +429,7 @@ warningHighlighting' b w = case tcWarning w of
   UnsolvedInteractionMetas{} -> mempty
   InteractionMetaBoundaries{} -> mempty
   OldBuiltin{}               -> mempty
+  BuiltinDeclaresIdentifier{} -> mempty
   EmptyRewritePragma{}       -> deadcodeHighlighting w
   EmptyWhere{}               -> deadcodeHighlighting w
   IllformedAsClause{}        -> deadcodeHighlighting w
@@ -446,7 +447,6 @@ warningHighlighting' b w = case tcWarning w of
   InstanceArgWithExplicitArg{} -> mempty
   InversionDepthReached{}    -> mempty
   NoGuardednessFlag{}        -> mempty
-  GenericWarning{}           -> mempty
   -- Andreas, 2020-03-21, issue #4456:
   -- Error warnings that do not have dedicated highlighting
   -- are highlighted as errors.
@@ -457,14 +457,21 @@ warningHighlighting' b w = case tcWarning w of
   InfectiveImport{}                     -> errorWarningHighlighting w
   CoInfectiveImport{}                   -> errorWarningHighlighting w
   WithoutKFlagPrimEraseEquality -> mempty
+  ConflictingPragmaOptions{} -> mempty
   DeprecationWarning{}       -> mempty
   UserWarning{}              -> mempty
   LibraryWarning{}           -> mempty
+  ConfluenceCheckingIncompleteBecauseOfMeta{} -> confluenceErrorHighlighting w
+  ConfluenceForCubicalNotSupported{} -> mempty
   RewriteNonConfluent{}      -> confluenceErrorHighlighting w
   RewriteMaybeNonConfluent{} -> confluenceErrorHighlighting w
   RewriteAmbiguousRules{}    -> confluenceErrorHighlighting w
   RewriteMissingRule{}       -> confluenceErrorHighlighting w
+  DuplicateRewriteRule{}     -> deadcodeHighlighting w
   PragmaCompileErased{}      -> deadcodeHighlighting w
+  PragmaCompileList{}        -> deadcodeHighlighting w
+  PragmaCompileMaybe{}       -> deadcodeHighlighting w
+  NoMain{}                   -> mempty
   NotInScopeW{}              -> deadcodeHighlighting w
   UnsupportedIndexedMatch{}  -> mempty
   AsPatternShadowsConstructorOrPatternSynonym{}
@@ -478,6 +485,7 @@ warningHighlighting' b w = case tcWarning w of
     Pa.UnsupportedAttribute{}     -> deadcodeHighlighting w
     Pa.MultipleAttributes{}       -> deadcodeHighlighting w
     Pa.OverlappingTokensWarning{} -> mempty
+  MissingTypeSignatureForOpaque{} -> errorWarningHighlighting w
   NotAffectedByOpaque{}           -> deadcodeHighlighting w
   UselessOpaque{}                 -> deadcodeHighlighting w
   UnfoldTransparentName r         -> deadcodeHighlighting r
@@ -507,6 +515,7 @@ warningHighlighting' b w = case tcWarning w of
       -- suggesting that it is not generalized over.
     UselessAbstract{}                -> deadcodeHighlighting w
     UselessInstance{}                -> deadcodeHighlighting w
+    UselessMacro{}                   -> deadcodeHighlighting w
     UselessPrivate{}                 -> deadcodeHighlighting w
     InvalidNoPositivityCheckPragma{} -> deadcodeHighlighting w
     InvalidNoUniverseCheckPragma{}   -> deadcodeHighlighting w
@@ -538,6 +547,9 @@ warningHighlighting' b w = case tcWarning w of
     UnknownFixityInMixfixDecl{}       -> mempty
     UnknownNamesInFixityDecl{}        -> mempty
     UnknownNamesInPolarityPragmas{}   -> mempty
+
+  -- Not source code related
+  DuplicateInterfaceFiles{} -> mempty
 
 recordFieldWarningHighlighting ::
   RecordFieldWarning -> HighlightingInfoBuilder

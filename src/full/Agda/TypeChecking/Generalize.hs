@@ -138,6 +138,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty (prettyShow, singPlural)
 import Agda.Syntax.Concrete.Name (LensInScope(..))
 import Agda.Syntax.Position
+import Agda.Syntax.Info          (MetaNameSuggestion)
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
 import Agda.Syntax.Internal.MetaVars
@@ -529,7 +530,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
       r <- getMetaRange x
       genericDocError =<<
         (fwords (msg ++ " The problematic unsolved meta is") $$
-                 (nest 2 $ prettyTCM (MetaV x []) <+> "at" <+> pretty r)
+                 nest 2 (prettyTCM (MetaV x []) <+> "at" <+> pretty r)
         )
 
     -- If one of the fields depend on this meta, we have to make sure that this meta doesn't depend
@@ -930,29 +931,18 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
   inTopContext $ forM_ (zip sortedMetas genRecFields) $ \ (meta, fld) -> do
     fieldTy <- getMetaType meta
     let field = unDom fld
-    addConstant' field (getArgInfo fld) field fieldTy $
-      let proj = Projection { projProper   = Just genRecName
-                            , projOrig     = field
-                            , projFromType = defaultArg genRecName
-                            , projIndex    = projIx
-                            , projLams     = ProjLams [defaultArg "gtel"] } in
-      Function { funClauses      = []
-               , funCompiled     = Nothing
-               , funSplitTree    = Nothing
-               , funTreeless     = Nothing
-               , funInv          = NotInjective
-               , funMutual       = Just []
-               , funAbstr        = ConcreteDef
-               , funProjection   = Right proj
-               , funErasure      = erasure
-               , funFlags        = Set.empty
-               , funTerminates   = Just True
-               , funExtLam       = Nothing
-               , funWith         = Nothing
-               , funCovering     = []
-               , funIsKanOp      = Nothing
-               , funOpaque       = TransparentDef
-               }
+    addConstant' field (getArgInfo fld) field fieldTy $ FunctionDefn $
+      (emptyFunctionData_ erasure)
+        { _funMutual     = Just []
+        , _funTerminates = Just True
+        , _funProjection = Right Projection
+          { projProper   = Just genRecName
+          , projOrig     = field
+          , projFromType = defaultArg genRecName
+          , projIndex    = projIx
+          , projLams     = ProjLams [defaultArg "gtel"]
+          }
+        }
   addConstant' (conName genRecCon) defaultArgInfo (conName genRecCon) __DUMMY_TYPE__ $ -- Filled in later
     Constructor { conPars   = 0
                 , conArity  = length genRecFields

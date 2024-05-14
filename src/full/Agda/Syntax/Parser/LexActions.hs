@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 {-# OPTIONS_GHC -Wunused-imports #-}
 
 {-| This module contains the building blocks used to construct the lexer.
@@ -24,7 +26,9 @@ import Control.Monad.State (modify)
 
 import Data.Bifunctor
 import Data.Char
+#if !MIN_VERSION_base(4,20,0)
 import Data.Foldable (foldl')
+#endif
 import Data.Maybe
 
 import Agda.Syntax.Common (pattern Ranged)

@@ -41,6 +41,7 @@ on:
     - '!hie*.yaml'
     - '!stack-*.yaml'
     - '!touchup.sh'
+    - '!CITATION.cff'
 
   pull_request:
     paths: *path_list
@@ -57,7 +58,7 @@ env:
   # Andreas, 2022-03-26, 2022-11-28:
   # GHC_VER should be given as x.y.z (as opposed to x.y only)
   # because it is used verbatim when referring to stack-x.y.z.yaml.
-  GHC_VER: "9.8.1"
+  GHC_VER: "9.8.2"
 
   # Part 2: Variables that should not have to be changed
   ###########################################################################
@@ -110,6 +111,7 @@ jobs:
 
     - &haskell_setup
       uses: haskell-actions/setup@v2
+      id: setup-haskell
       with:
         ghc-version: ${{ env.GHC_VER }}
         stack-version: ${{ env.STACK_VER }}
@@ -128,17 +130,13 @@ jobs:
       # uconv --version
 
     - name: Restore cache from approximate key
-      # uses: actions/cache/restore@v4
-      # Andreas, 2023-02-02 revert to default cache saving logic.
-      # "Save always" is bad because it may duplicate caches from the base branch on the feature branch.
-      uses: actions/cache@v4
+      uses: actions/cache/restore@v4
       id: cache
       with:
         # Andreas, 2023-01-24:
         # Stack seems to insist to rebuild Agda from scratch even when ~/.stack-work is restored.
         # Since it balloons the cache entry from 330 MB to 790 MB, don't include it in the cache.
-        path: &cache_path |
-          ~/.stack
+        path: &cache_path ${{ steps.setup-haskell.outputs.stack-root }}
 
         # We include stack-${GHC_VER}.yaml in the primary cache key so that the cache gets rewritten
         # everytime the resolver updates or extra-deps are added.
@@ -147,8 +145,10 @@ jobs:
         # Thus, we include Agda.cabal in the hash.
         # Note that a 'stack.yaml.lock' file would not be sufficient (I think),
         # because it does not list all the dependencies.
-        key: &cache_key test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
-        restore-keys:   test.yml-ghc-${{ env.GHC_VER }}-stack-${{ env.STACK_VER }}-icu-${{ env.ICU_VER }}-
+        key: &cache_key ${{ env.key }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
+        restore-keys: ${{ env.key }}-
+      env:
+        key: test.yml-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{ steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}
 
     - name: "Install dependencies for Agda and its test suites"
       ## Always do this step, even if we got a cache hit.  Should be fast in case we got a hit.
@@ -171,14 +171,14 @@ jobs:
     - name: "Pack artifacts"
       # This step should go into the Makefile.
       run: |
-        strip ${BUILD_DIR}/build/agda-tests/agda-tests \
-          ${BUILD_DIR}/build/agda/agda \
-          ${BUILD_DIR}/build/agda-mode/agda-mode
+        strip "${BUILD_DIR}"/build/agda-tests/agda-tests \
+          "${BUILD_DIR}"/build/agda/agda \
+          "${BUILD_DIR}"/build/agda-mode/agda-mode
 
         tar --use-compress-program zstd -cvf dist.tzst \
-          ${BUILD_DIR}/build/agda-tests/agda-tests \
-          ${BUILD_DIR}/build/agda/agda \
-          ${BUILD_DIR}/build/agda-mode/agda-mode
+          "${BUILD_DIR}"/build/agda-tests/agda-tests \
+          "${BUILD_DIR}"/build/agda/agda \
+          "${BUILD_DIR}"/build/agda-mode/agda-mode
 
         tar --use-compress-program zstd -cvf stack-work.tzst .stack-work stack.yaml stack.yaml.lock
 
@@ -192,23 +192,12 @@ jobs:
           dist.tzst
           stack-work.tzst
 
-    # - name: Clear old cache
-    #   if:   ${{ steps.cache.outputs.cache-hit == 'true' }}
-    #   env:
-    #     KEY: ${{ steps.cache.outputs.cache-matched-key }}
-    #     GH_TOKEN: ${{ github.token }}
-    #   run: |
-    #     gh extension install actions/gh-actions-cache
-    #     gh actions-cache delete -B ${{ github.ref }} ${{ env.KEY }} --confirm
-    #   # Don't fail if cache cannot be deleted
-    #   continue-on-error: true
-
-    # - name: Save cache
-    #   uses: actions/cache/save@v4
-    #   if:   always()  # save cache even when build fails
-    #   with:
-    #     key:  *cache_key
-    #     path: *cache_path
+    - name: Save cache
+      uses: actions/cache/save@v4
+      if:   always() && steps.cache.outputs.cache-hit != 'true'  # save cache even when build fails
+      with:
+        key:  *cache_key
+        path: *cache_path
 
   # Step 2a: Basic testsuites: succeed, fail, etc.
   ###########################################################################

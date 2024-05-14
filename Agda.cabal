@@ -35,8 +35,8 @@ description:
     packages.
 
 tested-with:
-    GHC == 9.8.1
-    GHC == 9.6.4
+    GHC == 9.8.2
+    GHC == 9.6.5
     GHC == 9.4.8
     GHC == 9.2.8
     GHC == 9.0.2
@@ -48,6 +48,7 @@ extra-doc-files:
     CHANGELOG.md
     README.md
     doc/user-manual/agda.svg
+    doc/release-notes/2.6.4.2.md
     doc/release-notes/2.6.4.1.md
     doc/release-notes/2.6.4.md
     doc/release-notes/2.6.3.md
@@ -89,14 +90,13 @@ extra-doc-files:
     doc/release-notes/2.2.0.md
 
 extra-source-files:
-    stack-9.8.1.yaml
-    stack-9.6.4.yaml
+    stack-9.8.2.yaml
+    stack-9.6.5.yaml
     stack-9.4.8.yaml
     stack-9.2.8.yaml
     stack-9.0.2.yaml
     stack-8.10.7.yaml
     stack-8.8.4.yaml
-    stack-8.6.5.yaml
 
 data-dir:
     src/data
@@ -200,10 +200,10 @@ flag optimise-heavily
 
 custom-setup
   setup-depends:
-    , base      >= 4.12.0.0 && < 4.20
-    , Cabal     >= 2.4.0.1  && < 3.11
+    , base      >= 4.12.0.0 && < 4.21
+    , Cabal     >= 2.4.0.1  && < 3.13
     , directory >= 1.3.3.0  && < 1.4
-    , filepath  >= 1.4.2.1  && < 1.5
+    , filepath  >= 1.4.2.1  && < 1.6
     , process   >= 1.6.3.0  && < 1.7
 
 -- Common stanzas
@@ -242,7 +242,6 @@ common language
       -Werror=overflowed-literals
       -Werror=overlapping-patterns
 --      -Werror=redundant-constraints
-      -Werror=semigroup
       -Werror=simplifiable-class-constraints
       -Werror=star-binder
       -Werror=star-is-type
@@ -266,6 +265,11 @@ common language
       -- See: https://gitlab.haskell.org/ghc/ghc/-/issues/13464
       -Wno-incomplete-patterns
       -Wno-overlapping-patterns
+
+  if impl(ghc < 9.10)
+    ghc-options:
+      -Werror=semigroup
+        -- The semigroup warning is deprecated in GHC 9.10
 
   if impl(ghc >= 8.8)
     ghc-options:
@@ -300,8 +304,12 @@ common language
 
   if impl(ghc >= 9.4)
     ghc-options:
-      -Werror=forall-identifier
       -Werror=type-equality-out-of-scope
+
+  if impl(ghc >= 9.4 && < 9.10)
+    ghc-options:
+      -Werror=forall-identifier
+        -- The forall-identifier warning is deprecated in GHC 9.10
 
   default-language: Haskell2010
 
@@ -325,6 +333,7 @@ common language
       FlexibleContexts
       FlexibleInstances
       FunctionalDependencies
+      GADTs
       GeneralizedNewtypeDeriving
       InstanceSigs
       LambdaCase
@@ -341,6 +350,7 @@ common language
       TypeFamilies
       TypeOperators
       TypeSynonymInstances
+      ViewPatterns
 
   other-extensions:
       CPP
@@ -382,7 +392,7 @@ library
     build-depends:  text-icu >= 0.7.1.0
 
   if os(windows)
-    build-depends:  Win32 >= 2.6.1.0 && < 2.14
+    build-depends:  Win32 >= 2.6.1.0 && < 2.15
 
   -- Agda cannot be built with GHC 8.6.1 due to a compiler bug, see
   -- Agda Issue #3344.
@@ -401,7 +411,7 @@ library
     , ansi-terminal        >= 0.9       && < 1.2
     , array                >= 0.5.2.0   && < 0.6
     , async                >= 2.2       && < 2.3
-    , base                 >= 4.12.0.0  && < 4.20
+    , base                 >= 4.12.0.0  && < 4.21
     , binary               >= 0.8.6.0   && < 0.9
     , blaze-html           >= 0.8       && < 0.10
     , boxes                >= 0.1.3     && < 0.2
@@ -416,7 +426,7 @@ library
     , equivalence          >= 0.3.2     && < 0.5
     -- exceptions-0.8 instead of 0.10 because of stack
     , exceptions           >= 0.8       && < 0.11
-    , filepath             >= 1.4.2.1   && < 1.5
+    , filepath             >= 1.4.2.1   && < 1.6
     , ghc-compact          == 0.1.*
     , gitrev               >= 1.3.1     && < 2
     -- hashable 1.2.0.10 makes library-test 10x
@@ -439,9 +449,7 @@ library
     , STMonadTrans         >= 0.4.3     && < 0.5
     , strict               >= 0.4.0.1   && < 0.6
     , text                 >= 1.2.3.1   && < 2.2
-    , time                 >= 1.8.0.2   && < 1.13
-    , time-compat          >= 1.9.2     && < 1.10
-        -- time-compat adds needed functionality missing in time < 1.9
+    , time                 >= 1.9.2     && < 1.15
     , transformers         >= 0.5.5.0   && < 0.7
     , unordered-containers >= 0.2.9.0   && < 0.3
         -- unordered-containers < 0.2.9 need base < 4.11
@@ -542,8 +550,9 @@ library
       Agda.Syntax.Abstract
       Agda.Syntax.Builtin
       Agda.Syntax.Common
-      Agda.Syntax.Common.Pretty
       Agda.Syntax.Common.Aspect
+      Agda.Syntax.Common.KeywordRange
+      Agda.Syntax.Common.Pretty
       Agda.Syntax.Common.Pretty.ANSI
       Agda.Syntax.Concrete.Attribute
       Agda.Syntax.Concrete.Definitions
@@ -578,6 +587,7 @@ library
       Agda.Syntax.Notation
       Agda.Syntax.Parser.Alex
       Agda.Syntax.Parser.Comments
+      Agda.Syntax.Parser.Helpers
       Agda.Syntax.Parser.Layout
       Agda.Syntax.Parser.LexActions
       Agda.Syntax.Parser.Lexer
@@ -628,6 +638,8 @@ library
       Agda.TypeChecking.DeadCode
       Agda.TypeChecking.DisplayForm
       Agda.TypeChecking.DropArgs
+      Agda.TypeChecking.DiscrimTree
+      Agda.TypeChecking.DiscrimTree.Types
       Agda.TypeChecking.Empty
       Agda.TypeChecking.EtaContract
       Agda.TypeChecking.Errors
@@ -653,6 +665,7 @@ library
       Agda.TypeChecking.MetaVars.Occurs
       Agda.TypeChecking.Modalities
       Agda.TypeChecking.Monad.Base
+      Agda.TypeChecking.Monad.Base.Types
       Agda.TypeChecking.Monad.Base.Warning
       Agda.TypeChecking.Monad.Benchmark
       Agda.TypeChecking.Monad.Builtin
@@ -733,6 +746,7 @@ library
       Agda.TypeChecking.Serialise.Instances.Internal
       Agda.TypeChecking.Serialise.Instances.Errors
       Agda.TypeChecking.SizedTypes
+      Agda.TypeChecking.SizedTypes.Pretty
       Agda.TypeChecking.SizedTypes.Solve
       Agda.TypeChecking.SizedTypes.Syntax
       Agda.TypeChecking.SizedTypes.Utils
@@ -814,6 +828,7 @@ library
       Agda.Utils.Tuple
       Agda.Utils.TypeLevel
       Agda.Utils.TypeLits
+      Agda.Utils.Unsafe
       Agda.Utils.Update
       Agda.Utils.VarSet
       Agda.Utils.Warshall
@@ -827,6 +842,7 @@ library
 
   other-modules:
       Paths_Agda
+      -- Need not export submodules if parent module reexports them.
       Agda.Interaction.Highlighting.Dot.Backend
       Agda.Interaction.Highlighting.Dot.Base
       Agda.Interaction.Highlighting.HTML.Backend
@@ -837,7 +853,6 @@ library
       Agda.Interaction.Options.HasOptions
       Agda.Utils.CallStack.Base
       Agda.Utils.CallStack.Pretty
-      Agda.Utils.Unsafe
 
 -- Agda binary
 ---------------------------------------------------------------------------
@@ -874,9 +889,9 @@ executable agda-mode
   autogen-modules:  Paths_Agda
   other-modules:    Paths_Agda
   build-depends:
-    , base      >= 4.12.0.0 && < 4.20
+    , base      >= 4.12.0.0 && < 4.21
     , directory >= 1.3.3.0  && < 1.4
-    , filepath  >= 1.4.2.1  && < 1.5
+    , filepath  >= 1.4.2.1  && < 1.6
     , process   >= 1.6.3.0  && < 1.7
   default-language: Haskell2010
 
@@ -914,7 +929,6 @@ test-suite agda-tests
       Internal.Syntax.Concrete.Name
       Internal.Syntax.Internal
       Internal.Syntax.Internal.Univ
-      Internal.Syntax.Parser.Parser
       Internal.Syntax.Position
       Internal.Termination.CallGraph
       Internal.Termination.CallMatrix
@@ -950,6 +964,7 @@ test-suite agda-tests
       Internal.Utils.List2
       Internal.Utils.ListT
       Internal.Utils.Maybe.Strict
+      Internal.Utils.Monad
       Internal.Utils.Monoid
       Internal.Utils.PartialOrd
       Internal.Utils.Permutation
@@ -981,7 +996,7 @@ test-suite agda-tests
     , mtl
     , process
     , process-extras   >= 0.3.0   && < 0.3.4 || >= 0.4.1.3 && < 0.5 || >= 0.7.1 && < 0.8
-    , QuickCheck       >= 2.14.1  && < 2.15
+    , QuickCheck       >= 2.14.1  && < 2.16
     , regex-tdfa
     , split
     , strict

@@ -620,12 +620,26 @@ Experimental features
      .. versionadded:: 2.6.2
 
      Enable a constraint-solving heuristic akin to first-order unification, see :ref:`lossy-unification`.
+     Implies :option:`--no-require-unique-meta-solutions`.
 
 .. option:: --no-lossy-unification
 
      .. versionadded:: 2.6.4
 
      Default, opposite of :option:`--lossy-unification`.
+
+.. option:: --require-unique-meta-solutions, --no-require-unique-meta-solutions
+
+      .. versionadded:: 2.7.0
+
+    When turned off, type checking is allowed to use heuristics to solve meta
+    variables that do not necessarily guarantee unique solutions. In
+    particular, it can make use of :ref:`INJECTIVE_FOR_INFERENCE <injective-for-inference-pragma>`
+    pragmas.
+
+    ``--no-require-unique-meta-solutions`` is implied by the :option:`--lossy-unification` flag.
+
+    Default: ``--require-unique-meta-solutions``
 
 .. option:: --prop, --no-prop
 
@@ -980,14 +994,16 @@ Search depth and instances
      Set maximum depth for pattern match inversion to ``N`` (default:
      50). Should only be needed in pathological cases.
 
-.. option:: --overlapping-instances, --no-overlapping-instances
+.. option:: --backtracking-instance-search, --no-backtracking-instance-search
 
-     .. versionadded:: 2.6.0
+     .. versionadded:: 2.6.5
 
      Consider [do not consider] recursive instance arguments during
-     pruning of instance candidates.
+     pruning of instance candidates, see :ref:`backtracking-instances`
 
-     Default: ``--no-overlapping-instances``.
+     Default: ``--no-backtracking-instance-search``.
+
+     This option used to be called ``--overlapping-instances``.
 
 .. option:: --qualified-instances, --no-qualified-instances
 
@@ -1167,6 +1183,12 @@ Erasure
 
      Default, opposite of :option:`--erase-record-parameters`.
 
+.. option:: --lossy-unification
+
+     .. versionadded:: 2.6.4
+
+     Enable lossy unification, see :ref:`lossy-unification`.
+
 .. _warnings:
 
 Warnings
@@ -1205,6 +1227,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      RHS given despite an absurd pattern in the LHS.
 
+.. option:: BuiltinDeclaresIdentifier
+
+     A ``BUILTIN`` pragma that declares an identifier, but has been given an existing one.
+
 .. option:: AsPatternShadowsConstructorOrPatternSynonym
 
      ``@``-patterns that shadow constructors or pattern synonyms.
@@ -1217,6 +1243,19 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Clashes introduced by ``renaming``.
 
+.. option:: ConflictingPragmaOptions
+
+     Conflicting pragma options. For instance, both ``--this`` and ``--no-that`` when
+     ``--this`` implies ``--that``.
+
+.. option:: ConfluenceCheckingIncompleteBecauseOfMeta
+
+     Incomplete confluence checks because of unsolved metas.
+
+.. option:: ConfluenceForCubicalNotSupported
+
+     Attempts to check confluence with :option:`--cubical`.
+
 .. option:: CoverageNoExactSplit
 
      Failed exact split checks.
@@ -1228,6 +1267,14 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 .. option:: DuplicateFields
 
      ``record`` expression with duplicate field names.
+
+.. option:: DuplicateInterfaceFiles
+
+     There exists both a local interface file and an interface file in ``_build``.
+
+.. option:: DuplicateRewriteRule
+
+     Duplicate declaration of a name as :ref:`REWRITE<rewriting>` rule.
 
 .. option:: DuplicateUsing
 
@@ -1369,6 +1416,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Unknown fields in library files.
 
+.. option:: MissingTypeSignatureForOpaque
+
+     ``abstract`` or ``opaque`` definitions that lack a type signature.
+
 .. option:: ModuleDoesntExport
 
      Names mentioned in an import statement which are not exported by
@@ -1381,6 +1432,11 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 .. option:: NoGuardednessFlag
 
      Coinductive record but no :option:`--guardedness` flag.
+
+.. option:: NoMain
+
+     Invoking the compiler on a module without a ``main`` function.
+     See also :option:`--no-main`.
 
 .. option:: NotAffectedByOpaque
 
@@ -1421,6 +1477,14 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 .. option:: PragmaCompileErased
 
      :ref:`COMPILE<foreign-function-interface>` pragma targeting an erased symbol.
+
+.. option:: PragmaCompileList
+
+     :ref:`COMPILE<foreign-function-interface>` pragma for GHC backend targeting lists.
+
+.. option:: PragmaCompileMaybe
+
+     :ref:`COMPILE<foreign-function-interface>` pragma for GHC backend targeting ``MAYBE``.
 
 .. option:: PragmaNoTerminationCheck
 
@@ -1479,6 +1543,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      ``instance`` blocks where they have no effect.
 
+.. option:: UselessMacro
+
+     ``macro`` blocks where they have no effect.
+
 .. option:: UselessOpaque
 
      ``opaque`` blocks that have no effect.
@@ -1497,11 +1565,16 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
 .. option:: UselessPublic
 
-     ``public`` blocks where they have no effect.
+     ``public`` directives where they have no effect.
 
 .. option:: UserWarning
 
      User-defined warnings added using one of the ``WARNING_ON_*`` pragmas.
+
+.. option:: WarningProblem
+
+     Problem encountered with option :option:`-W`,
+     like an unknown warning or the attempt to switch off a non-benign warning.
 
 .. option:: WithoutKFlagPrimEraseEquality
 
@@ -1662,15 +1735,20 @@ An *infective* option is an option that if used in one module, must be
 used in all modules that depend on this module. The following options
 are infective:
 
+* :option:`--allow-exec`
+* :option:`--cohesion`
+* :option:`--cumulativity`
+* :option:`--erased-matches`
+* :option:`--erasure`
+* :option:`--experimental-irrelevance`
+* :option:`--flat-split`
+* :option:`--guarded`
+* :option:`--injective-type-constructors`
+* :option:`--omega-in-omega`
 * :option:`--prop`
 * :option:`--rewriting`
-* :option:`--guarded`
 * :option:`--two-level`
-* :option:`--cumulativity`
-* :option:`--cohesion`
-* :option:`--flat-split`
-* :option:`--erasure`
-* :option:`--erased-matches`
+* :option:`--type-in-type`
 
 Furthermore :option:`--cubical` and :option:`--erased-cubical` are
 *jointly infective*: if one of them is used in one module, then one or
@@ -1745,7 +1823,7 @@ again, the source file is re-typechecked instead:
 * :option:`--no-unicode`
 * :option:`--no-universe-polymorphism`
 * :option:`--omega-in-omega`
-* :option:`--overlapping-instances`
+* :option:`--backtracking-instance-search`
 * :option:`--prop`
 * :option:`--qualified-instances`
 * :option:`--rewriting`

@@ -21,7 +21,6 @@ import Control.Monad
 import Control.Monad.Trans ( MonadIO(..), lift )
 import Control.Monad.Trans.Reader ( ReaderT(runReaderT), ask )
 
-import Data.Function ( on )
 import Data.Foldable (toList, concatMap)
 import Data.Maybe
 import qualified Data.IntMap as IntMap

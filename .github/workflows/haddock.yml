@@ -23,29 +23,22 @@ jobs:
         cabal-update: true
         cabal-version: ${{ matrix.cabal-ver }}
         ghc-version: ${{ matrix.ghc-ver }}
-    - name: Environment settings based on the Haskell setup
-      run: |
-        GHC_VER=$(ghc --numeric-version)
-        CABAL_VER=$(cabal --numeric-version)
-        echo "GHC_VER    = ${GHC_VER}"
-        echo "CABLAL_VER = ${CABAL_VER}"
-        echo "GHC_VER=${GHC_VER}"         >> "${GITHUB_ENV}"
-        echo "CABAL_VER=${CABAL_VER}"     >> "${GITHUB_ENV}"
     - name: Configure the build plan
       run: |
         cabal configure ${FLAGS}
         cabal build --dry-run
-    - id: cache
+    - env:
+        key: haddock.yml-${{ runner.os }}-ghc-${{ steps.setup-haskell.outputs.ghc-version
+          }}-cabal-${{ steps.setup-haskell.outputs.cabal-version }}
+      id: cache
       name: Cache dependencies
       uses: actions/cache@v4
       with:
-        key: haddock.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER
-          }}-${{ hashFiles('**/plan.json') }}
+        key: ${{ env.key }}-plan-${{ hashFiles('**/plan.json') }}
         path: |
           ${{ steps.setup-haskell.outputs.cabal-store }}
-        restore-keys: |
-          haddock.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}-
-    - if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+        restore-keys: ${{ env.key }}-
+    - if: steps.cache.outputs.cache-hit != 'true'
       name: Install dependencies
       run: |
         cabal build --dependencies-only
@@ -59,7 +52,7 @@ jobs:
         ls -R html
     - if: github.ref == 'refs/heads/master'
       name: Deploy haddock
-      uses: peaceiris/actions-gh-pages@v3
+      uses: peaceiris/actions-gh-pages@v4
       with:
         destination_dir: docs
         force_orphan: true
@@ -70,7 +63,7 @@ jobs:
         cabal-ver:
         - '3.10'
         ghc-ver:
-        - 9.8.1
+        - 9.8.2
         os:
         - ubuntu-22.04
 name: Haddock

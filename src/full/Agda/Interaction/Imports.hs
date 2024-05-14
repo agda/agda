@@ -64,6 +64,7 @@ import Agda.Syntax.Scope.Base
 import Agda.Syntax.TopLevelModuleName
 import Agda.Syntax.Translation.ConcreteToAbstract as CToA
 
+import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Warnings hiding (warnings)
 import Agda.TypeChecking.Reduce
@@ -168,11 +169,14 @@ srcFilePragmas src = pragmas
             ]
 
 -- | Set options from a 'Source' pragma, using the source
---   ranges of the pragmas for error reporting.
-setOptionsFromSourcePragmas :: Source -> TCM ()
-setOptionsFromSourcePragmas src = do
-  mapM_ setOptionsFromPragma (srcDefaultPragmas src)
-  mapM_ setOptionsFromPragma (srcFilePragmas    src)
+--   ranges of the pragmas for error reporting. Flag to check consistency.
+setOptionsFromSourcePragmas :: Bool -> Source -> TCM ()
+setOptionsFromSourcePragmas checkOpts src = do
+  mapM_ setOpts (srcDefaultPragmas src)
+  mapM_ setOpts (srcFilePragmas    src)
+  where
+    setOpts | checkOpts = checkAndSetOptionsFromPragma
+            | otherwise = setOptionsFromPragma
 
 -- | Is the aim to type-check the top-level module, or only to
 -- scope-check it?
@@ -277,7 +281,6 @@ addImportedThings isig metas ibuiltin patsyns display userwarn
   stTCWarnings           `modifyTCLens` \ imp -> imp `List.union` warnings
   stOpaqueBlocks         `modifyTCLens` \ imp -> imp `Map.union` oblock
   stOpaqueIds            `modifyTCLens` \ imp -> imp `Map.union` oid
-  addImportedInstances isig
 
 -- | Scope checks the given module. A proper version of the module
 -- name (with correct definition sites) is returned.
@@ -419,7 +422,7 @@ typeCheckMain mode src = do
   -- liftIO . putStrLn . show =<< getVerbosity
 
   -- For the main interface, we also remember the pragmas from the file
-  setOptionsFromSourcePragmas src
+  setOptionsFromSourcePragmas True src
   loadPrims <- optLoadPrimitives <$> pragmaOptions
 
   when loadPrims $ do
@@ -537,9 +540,16 @@ getInterface x isMain msrc =
       let recheck = \reason -> do
             reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is not up-to-date because ", reason, "."]
             setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
-            case isMain of
+            modl <- case isMain of
               MainInterface _ -> createInterface x file isMain msrc
               NotMainInterface -> createInterfaceIsolated x file msrc
+
+            -- Ensure that the given module name matches the one in the file.
+            let topLevelName = iTopLevelModuleName (miInterface modl)
+            unless (topLevelName == x) $
+              typeError $ OverlappingProjects (srcFilePath file) topLevelName x
+
+            return modl
 
       either recheck pure stored
 
@@ -654,7 +664,7 @@ getStoredInterface x file msrc = do
       Bench.billTo [Bench.Deserialization] $ do
         checkSourceHashET (iSourceHash i)
 
-        reportSLn "import.iface" 5 $ "  using stored version of " ++ (filePath $ intFilePath ifile)
+        reportSLn "import.iface" 5 $ "  using stored version of " ++ filePath (intFilePath ifile)
         loadDecodedModule file mi
 
     Left whyNotCached -> withExceptT (\e -> concat [whyNotCached, " and ", e]) $ do
@@ -680,8 +690,6 @@ getStoredInterface x file msrc = do
         -- Ensure that the given module name matches the one in the file.
         let topLevelName = iTopLevelModuleName i
         unless (topLevelName == x) $
-          -- Andreas, 2014-03-27 This check is now done in the scope checker.
-          -- checkModuleName topLevelName file
           lift $ typeError $ OverlappingProjects (srcFilePath file) topLevelName x
 
         isPrimitiveModule <- lift $ Lens.isPrimitiveModule (filePath $ srcFilePath file)
@@ -921,7 +929,9 @@ writeInterface file i = let fp = filePath file in do
     -- [Old: Andreas, 2016-02-02 this causes issue #1804, so don't do it:]
     -- Andreas, 2020-05-13, #1804, #4647: removed private declarations
     -- only when we actually write the interface.
-    let filteredIface = i { iInsideScope  = withoutPrivates $ iInsideScope i }
+    let
+      filteredIface = i { iInsideScope = withoutPrivates $ iInsideScope i }
+    filteredIface <- pruneTemporaryInstances filteredIface
     reportSLn "import.iface.write" 50 $
       "Writing interface file with hash " ++ show (iFullHash filteredIface) ++ "."
     encodedIface <- encodeFile fp filteredIface
@@ -987,7 +997,11 @@ createInterface mname file isMain msrc = do
         (TL.unpack $ srcText src)
     stTokens `modifyTCLens` (fileTokenInfo <>)
 
-    setOptionsFromSourcePragmas src
+    -- Only check consistency if not main (we check consistency for the main module in
+    -- `typeCheckMain`.
+    let checkConsistency | MainInterface{} <- isMain = False
+                         | otherwise                 = True
+    setOptionsFromSourcePragmas checkConsistency src
     checkAttributes (srcAttributes src)
     syntactic <- optSyntacticEquality <$> pragmaOptions
     localTC (\env -> env { envSyntacticEqualityFuel = syntactic }) $ do
@@ -1266,7 +1280,7 @@ buildInterface src topLevel = do
     -- when expanding a pattern synonym.
     patsyns <- killRange <$> getPatternSyns
     let builtin' = Map.mapWithKey (\ x b -> primName x <$> b) builtin
-    warnings <- getAllWarnings AllWarnings
+    warnings <- filter (isSourceCodeWarning . warningName . tcWarning) <$> getAllWarnings AllWarnings
     let i = Interface
           { iSourceHash      = hashText source
           , iSource          = source

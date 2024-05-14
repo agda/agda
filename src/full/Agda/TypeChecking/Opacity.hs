@@ -39,9 +39,8 @@ import Agda.Utils.Lens
 -- saturated unfolding sets.
 saturateOpaqueBlocks
   :: forall m. (MonadTCState m, ReadTCState m, MonadFresh OpaqueId m, MonadDebug m, MonadTrace m, MonadWarning m, MonadIO m)
-  => [A.Declaration]
-  -> m ()
-saturateOpaqueBlocks moddecs = entry where
+  => m ()
+saturateOpaqueBlocks = entry where
   entry = do
     known   <- useTC stOpaqueBlocks
     inverse <- useTC stOpaqueIds

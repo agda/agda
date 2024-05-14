@@ -40,7 +40,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete.Name as C
-import Agda.Syntax.Concrete (FieldAssignment'(..))
+import Agda.Syntax.Concrete (FieldAssignment'(..), TacticAttribute'(..))
 import Agda.Syntax.Info as Info
 import Agda.Syntax.Abstract as A hiding (Binder)
 import qualified Agda.Syntax.Abstract as A
@@ -190,12 +190,14 @@ instance Reify MetaId where
     reifyWhen = reifyWhenE
     reify x = do
       b <- asksTC envPrintMetasBare
-      mi  <- mvInfo <$> lookupLocalMeta x
+      mvar <- lookupLocalMeta x
+      let mi  = mvInfo mvar
       let mi' = Info.MetaInfo
                  { metaRange          = getRange $ miClosRange mi
                  , metaScope          = clScope $ miClosRange mi
                  , metaNumber         = if b then Nothing else Just x
                  , metaNameSuggestion = if b then "" else miNameSuggestion mi
+                 , metaKind           =  metaInstantiationToMetaKind (mvInstantiation mvar)
                  }
           underscore = return $ A.Underscore mi'
       -- If we are printing a term that will be pasted into the user
@@ -413,7 +415,7 @@ reifyDisplayFormP f ps wps = do
               -- even the pattern variables @n < len@ can be
               -- applied to some args @vs@.
               e <- if n < len
-                   then return $ A.patternToExpr $ namedArg $ indexWithDefault __IMPOSSIBLE__ ps n
+                   then return $ patternToExpr $ namedArg $ indexWithDefault __IMPOSSIBLE__ ps n
                    else reify (I.var (n - len))
               apps e =<< argsToExpr vs
             _ -> return underscore
@@ -594,7 +596,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
             {- else -} (reify a)
       where
         mkPi b (Arg info a') = ifM (skipGeneralizedParameter info) (snd <$> reify b) $ do
-          tac <- traverse (Ranged noRange <.> reify) $ domTactic a
+          tac <- TacticAttribute <$> do traverse (Ranged noRange <.> reify) $ domTactic a
           (x, b) <- reify b
           let xs = singleton $ Arg info $ Named (domName a) $ mkBinder_ x
           return $ A.Pi noExprInfo
@@ -1536,7 +1538,7 @@ instance Reify I.Telescope where
     (x, bs)  <- reify tel
     let r    = getRange e
         name = domName arg
-    tac <- traverse (Ranged noRange <.> reify) $ domTactic arg
+    tac <- TacticAttribute <$> do traverse (Ranged noRange <.> reify) $ domTactic arg
     let xs = singleton $ Arg info $ Named name $ A.mkBinder_ x
     return $ TBind r (TypedBindingInfo tac (domIsFinite arg)) xs e : bs
 {-# SPECIALIZE reify :: I.Telescope -> TCM (ReifiesTo I.Telescope) #-}

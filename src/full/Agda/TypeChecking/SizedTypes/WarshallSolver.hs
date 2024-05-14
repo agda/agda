@@ -15,9 +15,11 @@ import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
 
+import Agda.TypeChecking.Monad.Base (TCM)
 import Agda.TypeChecking.Pretty (PrettyTCM)
 import qualified Agda.TypeChecking.Pretty as P
-import Agda.TypeChecking.SizedTypes.Syntax
+import Agda.TypeChecking.SizedTypes.Syntax hiding (CTrans, simplify1)
+import qualified Agda.TypeChecking.SizedTypes.Syntax as S
 import Agda.TypeChecking.SizedTypes.Utils
 
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional
@@ -423,6 +425,20 @@ graphsFromConstraints cs =
       -- build a graph from the edges
       gs    = foldl (flip addEdge) emptyGraphs (fedges ++ edges)
   in  gs
+
+
+-- | Error messages produced by the solver.
+
+type Error = TCM Doc
+
+type CTrans r f = Constraint' r f -> Either Error [Constraint' r f]
+
+simplify1 :: (Pretty f, Pretty r, Eq r)
+  => CTrans r f
+  -> CTrans r f
+simplify1 f c = case S.simplify1 (either (const Nothing) Just . f) c of
+  Nothing -> Left $ "size constraint" P.<+> P.pretty c P.<+> "is inconsistent"
+  Just cs -> Right cs
 
 -- Build hypotheses graph, complete it, check for negative loops.
 
@@ -868,7 +884,7 @@ findRigidBelow hg e = __IMPOSSIBLE__
 
 
 solveGraph
-  :: (Ord r, Ord f, Pretty r, Pretty f, PrettyTCM f, Show r, Show f)
+  :: forall r f. (Ord r, Ord f, Pretty r, Pretty f, PrettyTCM f, Show r, Show f)
   => Polarities f
   -> HypGraph r f
   -> ConGraph r f
@@ -876,6 +892,7 @@ solveGraph
 solveGraph pols hg g = do
   let (Bounds lbs ubs fs) = bounds g
       -- flexibles to solve for
+      xs :: [f]
       xs = Set.toAscList $ Set.unions [ Map.keysSet lbs, Map.keysSet ubs, fs ]
   -- iterate over all flexible variables
   xas <- catMaybes <$> do

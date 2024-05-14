@@ -54,6 +54,7 @@ import Agda.TypeChecking.Warnings (MonadWarning)
 import Agda.Interaction.Options
 
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad
@@ -211,9 +212,15 @@ compareAs cmp a u v = do
                              | otherwise = (assign rid y vs u, assign dir x us v)
         (MetaV x us, _) -> unlessSubtyping $ assign dir x us v `orelse` fallback
         (_, MetaV y vs) -> unlessSubtyping $ assign rid y vs u `orelse` fallback
-        (Def f es, Def f' es') | f == f' ->
-          ifNotM (optFirstOrder <$> pragmaOptions) fallback $ {- else -} unlessSubtyping $ do
+        (Def f es, Def f' es') | f == f' -> do
           def <- getConstInfo f
+          opts <- pragmaOptions
+          let shortcut = case theDef def of
+                _ | optFirstOrder opts                       -> True
+                d@Function{}
+                  | not $ optRequireUniqueMetaSolutions opts -> d ^. funFirstOrder
+                _                                            -> False
+          if not shortcut then fallback else unlessSubtyping $ do
           -- We do not shortcut projection-likes,
           -- Andreas, 2022-03-07, issue #5809:
           -- but irrelevant projections since they are applied to their parameters.
@@ -223,7 +230,7 @@ compareAs cmp a u v = do
           cubicalProjs <- traverse getName' [builtin_unglue, builtin_unglueU]
           let
             notFirstOrder = isJust (isRelevantProjection_ def)
-                         || any (Just f ==) cubicalProjs
+                         || (Just f) `elem` cubicalProjs
           if notFirstOrder then fallback else do
           pol <- getPolarity' cmp f
           whenProfile Profile.Conversion $ tick "compare first-order shortcut"
@@ -569,12 +576,13 @@ compareAtom cmp t m n =
         dir = fromCmp cmp
         rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
 
-        assign dir x es v = assignE dir x es v t $ compareAtomDir dir t
+        assign dir x es v = assignE dir x es v t $ compareAsDir dir t
 
     reportSDoc "tc.conv.atom" 30 $
       "compareAtom" <+> fsep [ prettyTCM mb <+> prettyTCM cmp
                              , prettyTCM nb
                              , prettyTCM t
+                             , prettyTCM blocker
                              ]
     reportSDoc "tc.conv.atom" 80 $
       "compareAtom" <+> fsep [ pretty mb <+> prettyTCM cmp

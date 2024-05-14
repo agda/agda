@@ -40,7 +40,6 @@ instance EmbPrj Warning where
     EmptyRewritePragma                    -> icodeN 2 EmptyRewritePragma
     UselessPublic                         -> icodeN 3 UselessPublic
     UselessInline a                       -> icodeN 4 UselessInline a
-    GenericWarning a                      -> icodeN 5 GenericWarning a
     InvalidCharacterLiteral a             -> __IMPOSSIBLE__
     SafeFlagPostulate a                   -> __IMPOSSIBLE__
     SafeFlagPragma a                      -> __IMPOSSIBLE__
@@ -89,6 +88,18 @@ instance EmbPrj Warning where
     FaceConstraintCannotBeHidden a        -> icodeN 47 FaceConstraintCannotBeHidden a
     FaceConstraintCannotBeNamed a         -> icodeN 48 FaceConstraintCannotBeNamed a
     PatternShadowsConstructor a b         -> icodeN 49 PatternShadowsConstructor a b
+    -- Not source code related, therefore they should never be serialized
+    DuplicateInterfaceFiles a b           -> __IMPOSSIBLE__
+    ConfluenceCheckingIncompleteBecauseOfMeta a -> icodeN 50 ConfluenceCheckingIncompleteBecauseOfMeta a
+    BuiltinDeclaresIdentifier a                 -> icodeN 51 BuiltinDeclaresIdentifier a
+    ConfluenceForCubicalNotSupported            -> icodeN 52 ConfluenceForCubicalNotSupported
+    -- We do not need to serialize compiler warnings:
+    PragmaCompileList                           -> __IMPOSSIBLE__
+    PragmaCompileMaybe                          -> __IMPOSSIBLE__
+    NoMain _                                    -> __IMPOSSIBLE__
+    DuplicateRewriteRule a                      -> icodeN 53 DuplicateRewriteRule a
+    MissingTypeSignatureForOpaque a b           -> icodeN 54 MissingTypeSignatureForOpaque a b
+    ConflictingPragmaOptions a b                -> icodeN 55 ConflictingPragmaOptions a b
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -96,7 +107,6 @@ instance EmbPrj Warning where
     [2]                  -> valuN EmptyRewritePragma
     [3]                  -> valuN UselessPublic
     [4, a]               -> valuN UselessInline a
-    [5, a]               -> valuN GenericWarning a
     [6, a, b, c]         -> valuN DeprecationWarning a b c
     [7, a]               -> valuN NicifierIssue a
     [8, a]               -> valuN InversionDepthReached a
@@ -141,14 +151,32 @@ instance EmbPrj Warning where
     [47, a]              -> valuN FaceConstraintCannotBeHidden a
     [48, a]              -> valuN FaceConstraintCannotBeNamed a
     [49, a, b]           -> valuN PatternShadowsConstructor a b
+    [50, a]              -> valuN ConfluenceCheckingIncompleteBecauseOfMeta a
+    [51, a]              -> valuN BuiltinDeclaresIdentifier a
+    [52]                 -> valuN ConfluenceForCubicalNotSupported
+    [53, a]              -> valuN DuplicateRewriteRule a
+    [54, a, b]           -> valuN MissingTypeSignatureForOpaque a b
+    [55, a, b]           -> valuN ConflictingPragmaOptions a b
     _ -> malformed
 
 instance EmbPrj OptionWarning where
   icod_ = \case
-    OptionRenamed a b -> icodeN' OptionRenamed a b
+    OptionRenamed a b -> icodeN 0 OptionRenamed a b
+    WarningProblem a  -> icodeN 1 WarningProblem a
 
   value = vcase $ \case
-    [a, b] -> valuN OptionRenamed a b
+    [0, a, b] -> valuN OptionRenamed a b
+    [1, a]    -> valuN WarningProblem a
+    _ -> malformed
+
+instance EmbPrj WarningModeError where
+  icod_ = \case
+    Unknown a   -> icodeN 0 Unknown a
+    NoNoError a -> icodeN 1 NoNoError a
+
+  value = vcase $ \case
+    [0, a] -> valuN Unknown a
+    [1, a] -> valuN NoNoError a
     _ -> malformed
 
 instance EmbPrj ParseWarning where
@@ -215,6 +243,7 @@ instance EmbPrj DeclarationWarning' where
     InvalidConstructorBlock a         -> icodeN 31 InvalidConstructorBlock a
     MissingDeclarations a             -> icodeN 32 MissingDeclarations a
     HiddenGeneralize r                -> icodeN 33 HiddenGeneralize r
+    UselessMacro r                    -> icodeN 34 UselessMacro r
     SafeFlagEta                    {} -> __IMPOSSIBLE__
     SafeFlagInjective              {} -> __IMPOSSIBLE__
     SafeFlagNoCoverageCheck        {} -> __IMPOSSIBLE__
@@ -259,6 +288,7 @@ instance EmbPrj DeclarationWarning' where
     [31,r]   -> valuN InvalidConstructorBlock r
     [32,r]   -> valuN MissingDeclarations r
     [33,r]   -> valuN HiddenGeneralize r
+    [34,r]   -> valuN UselessMacro r
     _ -> malformed
 
 instance EmbPrj LibWarning where
@@ -308,8 +338,8 @@ instance EmbPrj InfectiveCoinfective where
     valu _   = malformed
 
 instance EmbPrj PragmaOptions where
-  icod_    (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp) =
-    icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp
+  icod_    (PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq) =
+    icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq
 
   value = valueN PragmaOptions
 
@@ -317,7 +347,9 @@ instance EmbPrj ProfileOptions where
   icod_ opts = icode (profileOptionsToList opts)
   value = fmap profileOptionsFromList . value
 
-instance EmbPrj ProfileOption where
+instance EmbPrj ProfileOption
+
+instance EmbPrj LHSOrPatSyn
 
 instance EmbPrj UnicodeOrAscii
 
@@ -388,7 +420,6 @@ instance EmbPrj WarningName where
     FixityInRenamingModule_                      -> 48
     InvalidCharacterLiteral_                     -> 49
     UselessPragma_                               -> 50
-    GenericWarning_                              -> 51
     IllformedAsClause_                           -> 52
     InstanceArgWithExplicitArg_                  -> 53
     InstanceWithExplicitArg_                     -> 54
@@ -442,6 +473,18 @@ instance EmbPrj WarningName where
     FaceConstraintCannotBeHidden_                -> 102
     FaceConstraintCannotBeNamed_                 -> 103
     PatternShadowsConstructor_                   -> 104
+    DuplicateInterfaceFiles_                     -> 105
+    ConfluenceCheckingIncompleteBecauseOfMeta_   -> 106
+    BuiltinDeclaresIdentifier_                   -> 107
+    ConfluenceForCubicalNotSupported_            -> 108
+    PragmaCompileList_                           -> 109
+    PragmaCompileMaybe_                          -> 110
+    NoMain_                                      -> 111
+    DuplicateRewriteRule_                        -> 112
+    MissingTypeSignatureForOpaque_               -> 113
+    UselessMacro_                                -> 114
+    WarningProblem_                              -> 115
+    ConflictingPragmaOptions_                    -> 116
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -495,7 +538,6 @@ instance EmbPrj WarningName where
     48  -> return FixityInRenamingModule_
     49  -> return InvalidCharacterLiteral_
     50  -> return UselessPragma_
-    51  -> return GenericWarning_
     52  -> return IllformedAsClause_
     53  -> return InstanceArgWithExplicitArg_
     54  -> return InstanceWithExplicitArg_
@@ -549,6 +591,18 @@ instance EmbPrj WarningName where
     102 -> return FaceConstraintCannotBeHidden_
     103 -> return FaceConstraintCannotBeNamed_
     104 -> return PatternShadowsConstructor_
+    105 -> return DuplicateInterfaceFiles_
+    106 -> return ConfluenceCheckingIncompleteBecauseOfMeta_
+    107 -> return BuiltinDeclaresIdentifier_
+    108 -> return ConfluenceForCubicalNotSupported_
+    109 -> return PragmaCompileList_
+    110 -> return PragmaCompileMaybe_
+    111 -> return NoMain_
+    112 -> return DuplicateRewriteRule_
+    113 -> return MissingTypeSignatureForOpaque_
+    114 -> return UselessMacro_
+    115 -> return WarningProblem_
+    116 -> return ConflictingPragmaOptions_
     _   -> malformed
 
 

@@ -28,11 +28,14 @@ where
 import Control.Arrow ( (&&&) )
 import Control.DeepSeq
 import Control.Monad ( guard, when )
+import Control.Monad.Except ( throwError )
 
-import Data.Set (Set)
-import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
 import Data.List ( stripPrefix, intercalate, partition, sort )
+import Data.Set  ( Set )
+import qualified Data.Set as Set
+import Data.Text ( Text )
+import qualified Data.Text as Text
 
 import GHC.Generics (Generic)
 
@@ -77,14 +80,23 @@ defaultWarningMode = WarningMode ws False where
   ws = fst $ fromMaybe __IMPOSSIBLE__ $ lookup defaultWarningSet warningSets
 
 -- | Some warnings are errors and cannot be turned off.
-data WarningModeError = Unknown String | NoNoError String
+data WarningModeError
+  = Unknown Text
+      -- ^ Unknown warning.
+  | NoNoError Text
+      -- ^ Warning that cannot be disabled.
+  deriving (Show, Generic)
 
-prettyWarningModeError :: WarningModeError -> String
+instance NFData WarningModeError
+
+prettyWarningModeError :: WarningModeError -> Text
 prettyWarningModeError = \case
-  Unknown str -> concat [ "Unknown warning flag: ", str, "." ]
-  NoNoError str -> concat [ "You may only turn off benign warnings. The warning "
-                          , str
-                          ," is a non-fatal error and thus cannot be ignored." ]
+  Unknown   w -> Text.concat [ "Unknown warning flag: ", w, "." ]
+  NoNoError w -> Text.concat
+    [ "You may only turn off benign warnings. The warning "
+    , w
+    , " is a non-fatal error and thus cannot be ignored."
+    ]
 
 -- | From user-given directives we compute WarningMode updates
 type WarningModeUpdate = WarningMode -> WarningMode
@@ -101,12 +113,17 @@ warningModeUpdate str = case str of
             -> pure $ set warningSet ws
   _ -> case stripPrefix "no" str of
     Nothing   -> do
-      wname :: WarningName <- maybeToEither (Unknown str) $ string2WarningName str
+      wname <- stringToWarningName str
       pure (over warningSet $ Set.insert wname)
     Just str' -> do
-      wname :: WarningName <- maybeToEither (Unknown str') $ string2WarningName str'
-      when (wname `elem` errorWarnings) (Left (NoNoError str'))
+      wname <- stringToWarningName str'
+      when (wname `elem` errorWarnings) $
+        throwError $ NoNoError $ Text.pack str'
       pure (over warningSet $ Set.delete wname)
+  where
+    stringToWarningName :: String -> Either WarningModeError WarningName
+    stringToWarningName str = maybeToEither (Unknown $ Text.pack str) $ string2WarningName str
+
 
 -- | Common sets of warnings
 
@@ -156,6 +173,9 @@ errorWarnings = Set.fromList
   , UnsolvedConstraints_
   , InfectiveImport_
   , CoInfectiveImport_
+  -- Andreas, 2024-02-15: the following warning used to be a GenericWarning (not an error warning).
+  -- Maybe revisit.
+  -- , ConfluenceCheckingIncompleteBecauseOfMeta_
   , RewriteNonConfluent_
   , RewriteMaybeNonConfluent_
   , RewriteAmbiguousRules_
@@ -186,6 +206,8 @@ exactSplitWarnings = Set.fromList
 data WarningName
   -- Option Warnings
   = OptionRenamed_
+  | WarningProblem_
+      -- ^ Some warning could not be set or unset.
   -- Parser Warnings
   | OverlappingTokensWarning_
   | UnsupportedAttribute_
@@ -228,6 +250,7 @@ data WarningName
   | UnknownNamesInPolarityPragmas_
   | UselessAbstract_
   | UselessInstance_
+  | UselessMacro_
   | UselessPrivate_
   -- Scope and Type Checking Warnings
   | AbsurdPatternRequiresNoRHS_
@@ -243,7 +266,6 @@ data WarningName
   | FixityInRenamingModule_
   | InvalidCharacterLiteral_
   | UselessPragma_
-  | GenericWarning_
   | IllformedAsClause_
   | InstanceArgWithExplicitArg_
   | InstanceWithExplicitArg_
@@ -256,12 +278,19 @@ data WarningName
   | NotStrictlyPositive_
   | UnsupportedIndexedMatch_
   | OldBuiltin_
+  | BuiltinDeclaresIdentifier_
   | PlentyInHardCompileTimeMode_
   | PragmaCompileErased_
+  | PragmaCompileList_
+  | PragmaCompileMaybe_
+  | NoMain_
+  | ConfluenceCheckingIncompleteBecauseOfMeta_
+  | ConfluenceForCubicalNotSupported_
   | RewriteMaybeNonConfluent_
   | RewriteNonConfluent_
   | RewriteAmbiguousRules_
   | RewriteMissingRule_
+  | DuplicateRewriteRule_
   | SafeFlagEta_
   | SafeFlagInjective_
   | SafeFlagNoCoverageCheck_
@@ -284,6 +313,7 @@ data WarningName
   | UselessPublic_
   | UserWarning_
   | WithoutKFlagPrimEraseEquality_
+  | ConflictingPragmaOptions_
   | WrongInstanceDeclaration_
   -- Checking consistency of options
   | CoInfectiveImport_
@@ -292,12 +322,15 @@ data WarningName
   | DuplicateFields_
   | TooManyFields_
   -- Opaque/unfolding
+  | MissingTypeSignatureForOpaque_
   | NotAffectedByOpaque_
   | UnfoldTransparentName_
   | UselessOpaque_
   -- Cubical
   | FaceConstraintCannotBeHidden_
   | FaceConstraintCannotBeNamed_
+  -- Not source code related
+  | DuplicateInterfaceFiles_
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Generic)
 
 instance NFData WarningName
@@ -367,6 +400,7 @@ warningNameDescription :: WarningName -> String
 warningNameDescription = \case
   -- Option Warnings
   OptionRenamed_                   -> "Renamed options."
+  WarningProblem_                  -> "Problems with switching warnings."
   -- Parser Warnings
   OverlappingTokensWarning_        -> "Multi-line comments spanning one or more literate text blocks."
   UnsupportedAttribute_            -> "Unsupported attributes."
@@ -411,8 +445,9 @@ warningNameDescription = \case
   UselessHiding_                   -> "Names in `hiding' directive that are anyway not imported."
   UselessInline_                   -> "`INLINE' pragmas where they have no effect."
   UselessInstance_                 -> "`instance' blocks where they have no effect."
+  UselessMacro_                    -> "`macro' blocks where they have no effect."
   UselessPrivate_                  -> "`private' blocks where they have no effect."
-  UselessPublic_                   -> "`public' blocks where they have no effect."
+  UselessPublic_                   -> "`public' directives that have no effect."
   UselessPatternDeclarationForRecord_ -> "`pattern' attributes where they have no effect."
   -- Scope and Type Checking Warnings
   AbsurdPatternRequiresNoRHS_      -> "Clauses with an absurd pattern that have a right hand side."
@@ -426,7 +461,6 @@ warningNameDescription = \case
   DeprecationWarning_              -> "Deprecated features."
   InvalidCharacterLiteral_         -> "Illegal character literals."
   UselessPragma_                   -> "Pragmas that get ignored."
-  GenericWarning_                  -> ""
   IllformedAsClause_               -> "Illformed `as'-clauses in `import' statements."
   InstanceNoOutputTypeName_        -> "Instance arguments whose type does not end in a named or variable type; those are never considered by instance search."
   InstanceArgWithExplicitArg_      -> "Instance arguments with explicit arguments; those are never considered by instance search."
@@ -440,12 +474,19 @@ warningNameDescription = \case
   NotStrictlyPositive_             -> "Failed strict positivity checks."
   UnsupportedIndexedMatch_         -> "Failures to compute full equivalence when splitting on indexed family."
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
+  BuiltinDeclaresIdentifier_       -> "`BUILTIN' pragmas that declare a new identifier but have been given an existing one."
   PlentyInHardCompileTimeMode_     -> "Uses of @ω or @plenty in hard compile-time mode."
   PragmaCompileErased_             -> "`COMPILE' pragmas targeting an erased symbol."
+  PragmaCompileList_               -> "`COMPILE GHC' pragmas for lists."
+  PragmaCompileMaybe_              -> "`COMPILE GHC' pragmas for `MAYBE'."
+  NoMain_                          -> "Compilation of modules that do not define `main'."
+  ConfluenceCheckingIncompleteBecauseOfMeta_ -> "Incomplete confluence checks because of unsolved metas."
+  ConfluenceForCubicalNotSupported_ -> "Incomplete confluence checks because of `--cubical'."
   RewriteMaybeNonConfluent_        -> "Failed local confluence checks while computing overlap."
   RewriteNonConfluent_             -> "Failed local confluence checks while joining critical pairs."
   RewriteAmbiguousRules_           -> "Failed global confluence checks because of overlapping rules."
   RewriteMissingRule_              -> "Failed global confluence checks because of missing rule."
+  DuplicateRewriteRule_            -> "Duplicate rewrite rules."
   SafeFlagEta_                     -> "`ETA' pragmas with the safe flag."
   SafeFlagInjective_               -> "`INJECTIVE' pragmas with the safe flag."
   SafeFlagNoCoverageCheck_         -> "`NON_COVERING` pragmas with the safe flag."
@@ -457,6 +498,7 @@ warningNameDescription = \case
   SafeFlagPragma_                  -> "Unsafe `OPTIONS' pragmas with the safe flag."
   SafeFlagTerminating_             -> "`TERMINATING' pragmas with the safe flag."
   SafeFlagWithoutKFlagPrimEraseEquality_ -> "`primEraseEquality' used with the safe and without-K flags."
+  ConflictingPragmaOptions_        -> "Conflicting pragma options."
   TerminationIssue_                -> "Failed termination checks."
   UnreachableClauses_              -> "Unreachable function clauses."
   UnsolvedConstraints_             -> "Unsolved constraints."
@@ -473,9 +515,12 @@ warningNameDescription = \case
   DuplicateFields_                 -> "Record expressions with duplicate field names."
   TooManyFields_                   -> "Record expressions with invalid field names."
   -- Opaque/unfolding warnings
+  MissingTypeSignatureForOpaque_   -> "Definitions that are `abstract` or `opaque` yet lack type signatures."
   NotAffectedByOpaque_             -> "Declarations unaffected by enclosing `opaque` blocks."
   UnfoldTransparentName_           -> "Non-`opaque` names mentioned in an `unfolding` clause."
   UselessOpaque_                   -> "`opaque` blocks that have no effect."
   -- Cubical
   FaceConstraintCannotBeHidden_    -> "Face constraint patterns that are given as implicit arguments."
   FaceConstraintCannotBeNamed_     -> "Face constraint patterns that are given as named arguments."
+  -- Not source code related
+  DuplicateInterfaceFiles_         -> "Duplicate interface files."

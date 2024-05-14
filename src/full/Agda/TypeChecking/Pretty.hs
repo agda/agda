@@ -32,7 +32,7 @@ import qualified Agda.Syntax.Translation.ReflectedToAbstract as R
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract.Pretty as AP
-import Agda.Syntax.Concrete.Pretty (bracesAndSemicolons)
+import Agda.Syntax.Concrete.Pretty (bracesAndSemicolons, prettyHiding)
 import qualified Agda.Syntax.Concrete.Pretty as CP
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Scope.Base  (AbstractName(..))
@@ -42,6 +42,7 @@ import Agda.Syntax.TopLevelModuleName
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Positivity.Occurrence
+import Agda.TypeChecking.DiscrimTree.Types
 import Agda.TypeChecking.Substitute
 
 import qualified Agda.Utils.BiMap as BiMap
@@ -51,9 +52,11 @@ import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
+import Agda.Utils.Trie
 import Agda.Utils.Permutation ( Permutation )
 import Agda.Syntax.Common.Pretty      ( Pretty, prettyShow )
 import qualified Agda.Syntax.Common.Pretty as P
+import qualified Agda.Utils.Maybe.Strict as S
 import Agda.Utils.Size        ( natSize )
 
 import Agda.Utils.Impossible
@@ -145,6 +148,13 @@ punctuate d ts
   where
     ds = Fold.toList ts
     n  = length ds - 1
+
+superscript :: Applicative m => Int -> m Doc
+superscript = pretty . reverse . go where
+  digit = ("⁰¹²³⁴⁵⁶⁷⁸⁹" !!)
+  go k
+    | k <= 9    = [digit k]
+    | otherwise = digit (k `mod` 10):go (k `div` 10)
 
 ---------------------------------------------------------------------------
 -- * The PrettyTCM class
@@ -488,12 +498,17 @@ instance PrettyTCM NLPat where
   prettyTCM (PVar x bvs) = prettyTCM (Var x (map (Apply . fmap var) bvs))
   prettyTCM (PDef f es) = parens $
     prettyTCM f <+> fsep (map prettyTCM es)
-  prettyTCM (PLam i u)  = parens $
-    text ("λ " ++ absName u ++ " →") <+>
-    addContext (absName u) (prettyTCM $ absBody u)
-  prettyTCM (PPi a b)   = parens $
-    text ("(" ++ absName b ++ " :") <+> (prettyTCM (unDom a) <> ") →") <+>
-    addContext (absName b) (prettyTCM $ unAbs b)
+  prettyTCM (PLam i u)  = parens $ fsep
+    [ "λ"
+    , prettyHiding i id <$> text (absName u)
+    , "→"
+    , addContext (absName u) $ prettyTCM $ absBody u
+    ]
+  prettyTCM (PPi a b)   = parens $ fsep
+    [ prettyHiding a P.parens <$> fsep [ text $ absName b, ":", prettyTCM $ unDom a ]
+    , "→"
+    , addContext (absName b) $ prettyTCM $ unAbs b
+    ]
   prettyTCM (PSort s)        = prettyTCM s
   prettyTCM (PBoundVar i []) = prettyTCM (var i)
   prettyTCM (PBoundVar i es) = parens $ prettyTCM (var i) <+> fsep (map prettyTCM es)
@@ -517,7 +532,7 @@ instance PrettyTCM NLPSort where
 
 instance PrettyTCM (Elim' NLPat) where
   prettyTCM (IApply x y v) = prettyTCM v
-  prettyTCM (Apply v) = prettyTCM (unArg v)
+  prettyTCM (Apply v) = prettyHiding v id <$> prettyTCM (unArg v)
   prettyTCM (Proj _ f)= "." <> prettyTCM f
 {-# SPECIALIZE prettyTCM :: Elim' NLPat -> TCM Doc #-}
 
@@ -574,3 +589,29 @@ instance PrettyTCM Candidate where
     (GlobalCandidate q) -> prettyTCM q
     LocalCandidate      -> prettyTCM $ candidateTerm c
 {-# SPECIALIZE prettyTCM :: Candidate -> TCM Doc #-}
+
+instance PrettyTCM Key where
+  prettyTCM = \case
+    RigidK q a -> prettyTCM q <> superscript a
+    LocalK i a -> "@" <> pretty i <> superscript a
+    PiK        -> "Pi"
+    ConstK     -> "Const"
+    SortK      -> "Sort"
+    FlexK      -> "_"
+
+{-# SPECIALIZE prettyTCM :: Key -> TCM Doc #-}
+
+instance PrettyTCM a => PrettyTCM (Set.Set a) where
+  prettyTCM = braces . prettyList_ . map prettyTCM . Set.toList
+
+instance PrettyTCM a => PrettyTCM (DiscrimTree a) where
+  prettyTCM = vcat . go "  " where
+    go ind EmptyDT     = ["fail"]
+    go ind (DoneDT it) = ["done" <+> prettyTCM it]
+    go ind (CaseDT var branches fallthrough) =
+      ["case" <+> prettyTCM var <+> "of"]
+      ++ concatMap (\(k, v) -> abduct ind (prettyTCM k <> " →") v) (Map.toList branches)
+      ++ (guard (not (null fallthrough)) >> abduct ind ("* →") fallthrough)
+
+    abduct ind f v | (l:ls) <- go ind v = ((ind <> f) <+> l):map (ind <>) ls
+    abduct ind _ _ = __IMPOSSIBLE__

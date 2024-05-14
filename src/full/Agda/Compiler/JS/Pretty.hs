@@ -82,7 +82,7 @@ render minify = intercalate "\n" . joinLines . map (uncurry mkIndent) . go 0
 
     punctuation = (`elem` ("(){}[];:, " :: String))
 
-    go i Space = if minify then [] else [(i, " ")]
+    go i Space = [(i, " ") | not minify]
     go i Empty = []
     go i (Doc s) = [(i, s)]
     go i (Beside d d') = joinBy (\(i, s) (_, s') -> [(i, s ++ s')]) (go i d) (go i d')

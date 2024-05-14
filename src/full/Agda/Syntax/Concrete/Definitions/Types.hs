@@ -52,7 +52,7 @@ data NiceDeclaration
       --   ('Hiding' should be 'NotHidden'.)
   | NiceField Range Access IsAbstract IsInstance TacticAttribute Name (Arg Expr)
   | PrimitiveFunction Range Access IsAbstract Name (Arg Expr)
-  | NiceMutual Range TerminationCheck CoverageCheck PositivityCheck [NiceDeclaration]
+  | NiceMutual KwRange TerminationCheck CoverageCheck PositivityCheck [NiceDeclaration]
   | NiceModule Range Access IsAbstract Erased QName Telescope
       [Declaration]
   | NiceModuleMacro Range Access Erased Name ModuleApplication
@@ -76,15 +76,15 @@ data NiceDeclaration
       --   Andreas, 2017-01-01: Because of issue #2372, we add 'IsInstance' here.
       --   An alias should know that it is an instance.
   | NiceDataDef Range Origin IsAbstract PositivityCheck UniverseCheck Name [LamBinding] [NiceConstructor]
-  | NiceLoneConstructor Range [NiceConstructor]
+  | NiceLoneConstructor KwRange [NiceConstructor]
   | NiceRecDef Range Origin IsAbstract PositivityCheck UniverseCheck Name RecordDirectives [LamBinding] [Declaration]
       -- ^ @(Maybe Range)@ gives range of the 'pattern' declaration.
-  | NicePatternSyn Range Access Name [Arg Name] Pattern
+  | NicePatternSyn Range Access Name [WithHiding Name] Pattern
   | NiceGeneralize Range Access ArgInfo TacticAttribute Name Expr
   | NiceUnquoteDecl Range Access IsAbstract IsInstance TerminationCheck CoverageCheck [Name] Expr
   | NiceUnquoteDef Range Access IsAbstract TerminationCheck CoverageCheck [Name] Expr
   | NiceUnquoteData Range Access IsAbstract PositivityCheck UniverseCheck Name [Name] Expr
-  | NiceOpaque Range [QName] [NiceDeclaration]
+  | NiceOpaque KwRange [QName] [NiceDeclaration]
   deriving (Show, Generic)
 
 instance NFData NiceDeclaration
@@ -204,7 +204,7 @@ data KindOfBlock
 instance HasRange NiceDeclaration where
   getRange (Axiom r _ _ _ _ _ _)           = r
   getRange (NiceField r _ _ _ _ _ _)       = r
-  getRange (NiceMutual r _ _ _ _)          = r
+  getRange (NiceMutual kwr _ _ _ ds)       = fuseRange kwr ds
   getRange (NiceModule r _ _ _ _ _ _ )     = r
   getRange (NiceModuleMacro r _ _ _ _ _ _) = r
   getRange (NiceOpen r _ _)                = r
@@ -214,7 +214,7 @@ instance HasRange NiceDeclaration where
   getRange (FunSig r _ _ _ _ _ _ _ _ _)    = r
   getRange (FunDef r _ _ _ _ _ _ _)        = r
   getRange (NiceDataDef r _ _ _ _ _ _ _)   = r
-  getRange (NiceLoneConstructor r _)       = r
+  getRange (NiceLoneConstructor kwr ds)    = fuseRange kwr ds
   getRange (NiceRecDef r _ _ _ _ _ _ _ _)  = r
   getRange (NiceRecSig r _ _ _ _ _ _ _ _)  = r
   getRange (NiceDataSig r _ _ _ _ _ _ _ _) = r
@@ -224,7 +224,7 @@ instance HasRange NiceDeclaration where
   getRange (NiceUnquoteDecl r _ _ _ _ _ _ _) = r
   getRange (NiceUnquoteDef r _ _ _ _ _ _)  = r
   getRange (NiceUnquoteData r _ _ _ _ _ _ _) = r
-  getRange (NiceOpaque r _ _)                = r
+  getRange (NiceOpaque kwr xs ds)          = getRange (kwr, xs, ds)
 
 instance Pretty NiceDeclaration where
   pretty = \case
@@ -244,7 +244,7 @@ instance Pretty NiceDeclaration where
     FunSig _ _ _ _ _ _ _ _ x _     -> pretty x <+> colon <+> text "_"
     FunDef _ _ _ _ _ _ x _         -> pretty x <+> text "= _"
     NiceDataDef _ _ _ _ _ x _ _    -> text "data" <+> pretty x <+> text "where"
-    NiceLoneConstructor _ ds       -> text "constructor"
+    NiceLoneConstructor _ _        -> text "data _ where"
     NiceRecDef _ _ _ _ _ x  _ _ _  -> text "record" <+> pretty x <+> text "where"
     NicePatternSyn _ _ x _ _       -> text "pattern" <+> pretty x
     NiceGeneralize _ _ _ _ x _     -> text "variable" <+> pretty x

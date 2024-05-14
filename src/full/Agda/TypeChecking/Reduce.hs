@@ -213,9 +213,7 @@ instance Instantiate Term where
          _ | Just m' <- mvTwin mv, blocking ->
            instantiate' (MetaV m' es)
 
-         Open -> return t
-
-         OpenInstance -> return t
+         OpenMeta _ -> return t
 
          BlockedConst u
            | blocking  -> instantiate' . unBrave $
@@ -926,8 +924,15 @@ appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v
             (m, es0) <- matchCopatterns pats es0
             let es = es0 ++ es1
             case m of
-              No         -> goCls cls es
-              DontKnow b -> rewrite b (applyE v) rewr es
+              No               -> goCls cls es
+              -- Szumi, 2024-03-29, issue #7181:
+              -- If a lazy match is stuck and all non-lazy matches are conclusive,
+              -- then reduction should not be stuck on the current clause and it
+              -- should be fine to continue matching on the next clause.
+              -- This assumes it's impossible for a lazy match to be stuck if
+              -- all non-lazy matches succeed.
+              DontKnow OnlyLazy _ -> goCls cls es
+              DontKnow NonLazy  b -> rewrite b (applyE v) rewr es
               Yes simpl vs -- vs is the subst. for the variables bound in body
                 | Just w <- body -> do -- clause has body?
                     -- TODO: let matchPatterns also return the reduced forms
@@ -1570,7 +1575,11 @@ instance InstantiateFull CompareAs where
   instantiateFull' AsTypes       = return AsTypes
 
 instance InstantiateFull Signature where
-  instantiateFull' (Sig a b c) = uncurry3 Sig <$> instantiateFull' (a, b, c)
+  instantiateFull' (Sig a b c d) = Sig
+    <$> instantiateFull' a
+    <*> instantiateFull' b
+    <*> instantiateFull' c
+    <*> pure d             -- The instance table only stores names
 
 instance InstantiateFull Section where
   instantiateFull' (Section tel) = Section <$> instantiateFull' tel
@@ -1723,6 +1732,7 @@ instantiateFullExceptForDefinitions'
     <$> ((\s r -> Sig { _sigSections     = s
                       , _sigDefinitions  = sig ^. sigDefinitions
                       , _sigRewriteRules = r
+                      , _sigInstances    = sig ^. sigInstances
                       })
          <$> instantiateFull' (sig ^. sigSections)
          <*> instantiateFull' (sig ^. sigRewriteRules))

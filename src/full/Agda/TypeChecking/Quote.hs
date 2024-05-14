@@ -180,8 +180,8 @@ quotingKit = do
       quoteSort PiSort{} = pure unsupportedSort
       quoteSort FunSort{} = pure unsupportedSort
       quoteSort UnivSort{}   = pure unsupportedSort
-      quoteSort (MetaS x es) = quoteTerm $ MetaV x es
-      quoteSort (DefS d es)  = quoteTerm $ Def d es
+      quoteSort (MetaS x es) = pure unsupportedSort
+      quoteSort (DefS d es)  = pure unsupportedSort
       quoteSort (DummyS s)   =__IMPOSSIBLE_VERBOSE__ s
 
       quoteType :: Type -> ReduceM Term

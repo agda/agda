@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE GADTs #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -152,8 +151,7 @@ addRewriteRules qs = do
   -- (should be done after adding all rules, see #3795)
   whenJustM (optConfluenceCheck <$> pragmaOptions) $ \confChk -> do
     -- Warn if --cubical is enabled
-    whenJustM (optCubical <$> pragmaOptions) $ \_ -> genericWarning
-      "Confluence checking for --cubical is not yet supported, confluence checking might be incomplete"
+    whenJustM (optCubical <$> pragmaOptions) $ \_ -> warning ConfluenceForCubicalNotSupported
     -- Global confluence checker requires rules to be sorted
     -- according to the generality of their lhs
     when (confChk == GlobalConfluenceCheck) $
@@ -358,10 +356,7 @@ checkRewriteRule q = do
       rews <- getRewriteRulesFor f
       -- check if q is already an added rewrite rule
       case List.find ((q ==) . rewName) rews of
-        Just rew -> do
-          genericWarning =<< do
-            "Rewrite rule " <+> prettyTCM q <+> " has already been added"
-          return rew
+        Just rew -> rew <$ do warning $ DuplicateRewriteRule q
         Nothing -> cont
 
     usedArgs :: Definition -> IntSet

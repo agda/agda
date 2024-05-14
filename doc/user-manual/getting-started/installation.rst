@@ -38,7 +38,7 @@ You need recent versions of the following programs to compile Agda:
 * GHC:           https://www.haskell.org/ghc/
 
   + Agda has been tested with GHC 8.6.5, 8.8.4,
-    8.10.7, 9.0.2, 9.2.8, 9.4.8, 9.6.4, and 9.8.1.
+    8.10.7, 9.0.2, 9.2.8, 9.4.8, 9.6.5, and 9.8.2.
 
 * cabal-install: https://www.haskell.org/cabal/
 * Alex:          https://www.haskell.org/alex/
@@ -301,6 +301,28 @@ Agda-stdlib is `available <https://src.fedoraproject.org/rpms/Agda-stdlib/>`_ fo
 
 will install Agda with the emacs mode and also agda-stdlib.
 
+GNU Guix
+---------
+GNU Guix provides packages for both `agda <https://packages.guix.gnu.org/packages/agda/2.6.4/>`__ and `agda-stdlib <https://packages.guix.gnu.org/packages/agda-stdlib/1.7.3/>`__. You can install the latest versions by running:
+
+.. code-block:: bash
+
+  guix install agda agda-stdlib
+
+You can also install a specific version by running:
+
+.. code-block:: bash
+
+  guix install agda@x.x.x agda-stdlib@x.x.x
+
+where x is a specific version number.
+
+Packages Sources:
+
+* `Agda <https://git.savannah.gnu.org/cgit/guix.git/tree/gnu/packages/agda.scm#n45>`__
+
+* `Agda-Stdlib <https://git.savannah.gnu.org/cgit/guix.git/tree/gnu/packages/agda.scm#n200>`__
+
 FreeBSD
 -------
 
@@ -369,11 +391,11 @@ Agda globally using ``nix-env``. One can also declare which packages
 to install globally in a configuration file or pull in Agda and some
 relevant libraries for a particular project using ``nix-shell``.
 
-The Agda git repository is a `Nix flake <https://nixos.wiki/wiki/Flakes>`_
+The Agda git repository is a `Nix flake <https://wiki.nixos.org/wiki/Flakes>`_
 to allow using a development version with Nix. The flake has the following
 outputs:
 
-- ``overlay``: A ``nixpkgs`` `overlay <https://nixos.wiki/wiki/Overlays>`_
+- ``overlay``: A ``nixpkgs`` `overlay <https://wiki.nixos.org/wiki/Overlays>`_
   which makes ``haskellPackages.Agda`` (which the top-level ``agda``
   package depends on) be the build of the relevant checkout.
 - ``haskellOverlay``: An overlay for ``haskellPackages`` which overrides

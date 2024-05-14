@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wunused-imports #-}
 
-{-# LANGUAGE GADTs        #-}
 {-# LANGUAGE DataKinds    #-}
 
 module Agda.Syntax.Concrete.Operators.Parser where

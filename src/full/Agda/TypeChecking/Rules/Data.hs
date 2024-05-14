@@ -729,8 +729,8 @@ defineTranspIx d = do
       -- params.ixs ⊢ dT
       reportSDoc "tc.data.ixs" 20 $ vcat
         [ "params :" <+> prettyTCM params
-        , "ixs    :" <+> (addContext params $ prettyTCM ixs)
-        , "dT     :" <+> (addContext params $ addContext ixs $ prettyTCM dT)
+        , "ixs    :" <+> addContext params (prettyTCM ixs)
+        , "dT     :" <+> addContext params (addContext ixs $ prettyTCM dT)
         ]
       -- theType <- abstract params <$> undefined
       interval <- primIntervalType
@@ -1079,8 +1079,8 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
                 x_tr <- mapM (open . unArg) =<< transpPathTel' telXdeltai symx' reflx1 phi' x
                 let baseTrX = trD `applyN` delta `applyN` x_tr `applyN` [phi `min` phi',t]
                 let sideTrX = lam "j" $ \ j -> ilam "o" $ \ _ -> do
-                      let trD_f = trD `applyN` (for delta $ \ p -> lam "i" $ \ i -> p <@> (i `min` neg j))
-                                      `applyN` (for x_tr  $ \ p -> lam "i" $ \ i -> p <@> (i `min` neg j))
+                      let trD_f = trD `applyN` for delta (\ p -> lam "i" $ \ i -> p <@> (i `min` neg j))
+                                      `applyN` for x_tr (\ p -> lam "i" $ \ i -> p <@> (i `min` neg j))
                                       `applyN` [(phi `min` phi') `max` j,t]
                       let x_tr_f = fmap (fmap (\ (Abs n (Arg i t)) -> Arg i $ Lam defaultArgInfo (Abs n t)) . sequence) $
                            bind "i" $ \ i -> do
@@ -1168,7 +1168,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
           let aTel0 = aTel `applyN` map (<@> pure iz) delta
 
           -- telePatterns is not context invariant, so we need an open here where the context ends in aTel0.
-          ps0 <- (open =<<) $ (telePatterns <$> aTel0 <*> (applyN bndry $ map (<@> pure iz) delta ++ map (fmap unArg) as0))
+          ps0 <- (open =<<) $ (telePatterns <$> aTel0 <*> applyN bndry (map (<@> pure iz) delta ++ map (fmap unArg) as0))
 
           let deltaArg i = do
                 i <- i

@@ -9,7 +9,6 @@ import Prelude hiding ((!!), null)
 import Control.Monad
 
 import Data.Either
-import Data.Function (on)
 import qualified Data.List as List
 import Data.Maybe
 import Data.Monoid
@@ -142,11 +141,11 @@ parseVariables f cxt asb ii rng ss = do
       -- has been refined to a module parameter we do allow splitting
       -- on it, since the instantiation could as well have been the
       -- other way around (see #2183).
-      (Just (Var i []), PatternBound) -> return (i, C.InScope)
+      (Just (Var i []), PatternBound _) -> return (i, C.InScope)
       -- Case 1b: the variable has been refined.
-      (Just v         , PatternBound) -> failInstantiatedVar s v
+      (Just v         , PatternBound _) -> failInstantiatedVar s v
       -- Case 1c: the variable is bound locally (e.g. a record let)
-      (Nothing        , PatternBound) -> failCaseLet s
+      (Nothing        , PatternBound _) -> failCaseLet s
       -- Case 1d: module parameter
       (Just (Var i []), LambdaBound ) -> failModuleBound s
       -- Case 1e: locally lambda-bound variable

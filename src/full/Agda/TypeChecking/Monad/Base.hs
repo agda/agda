@@ -4,6 +4,7 @@
 
 module Agda.TypeChecking.Monad.Base
   ( module Agda.TypeChecking.Monad.Base
+  , module Agda.TypeChecking.Monad.Base.Types
   , HasOptions (..)
   , RecordFieldWarning
   ) where
@@ -84,15 +85,19 @@ import Agda.Syntax.Treeless (Compiled)
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
-import qualified Agda.Syntax.Info as Info
+import Agda.Syntax.Info ( MetaKind(InstanceMeta, UnificationMeta), MetaNameSuggestion, MutualInfo )
 
+import           Agda.TypeChecking.Monad.Base.Types
 import qualified Agda.TypeChecking.Monad.Base.Warning as W
 import           Agda.TypeChecking.Monad.Base.Warning (RecordFieldWarning)
+import           Agda.TypeChecking.SizedTypes.Syntax  (HypSizeConstraint)
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Free.Lazy (Free(freeVars'), underBinder', underBinder)
+
+import Agda.TypeChecking.DiscrimTree.Types
 
 import Agda.Compiler.Backend.Base
 
@@ -106,6 +111,7 @@ import Agda.Interaction.Library
 import Agda.Utils.Benchmark (MonadBench(..))
 import Agda.Utils.BiMap (BiMap, HasTag(..))
 import qualified Agda.Utils.BiMap as BiMap
+import Agda.Utils.Boolean   ( fromBool, toBool )
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.FileName
 import Agda.Utils.Functor
@@ -122,7 +128,7 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Syntax.Common.Pretty
 import Agda.Utils.Singleton
-import Agda.Utils.SmallSet (SmallSet)
+import Agda.Utils.SmallSet (SmallSet, SmallSetElement)
 import qualified Agda.Utils.SmallSet as SmallSet
 import Agda.Utils.Update
 
@@ -202,7 +208,6 @@ data PreScopeState = PreScopeState
   , stPreImportedBuiltins   :: !(BuiltinThings PrimFun)
   , stPreImportedDisplayForms :: !DisplayForms
     -- ^ Display forms added by someone else to imported identifiers
-  , stPreImportedInstanceDefs :: !InstanceTable
   , stPreForeignCode        :: !(Map BackendName ForeignCodeStack)
     -- ^ @{-\# FOREIGN \#-}@ code that should be included in the compiled output.
     -- Does not include code for imported modules.
@@ -274,7 +279,11 @@ data PostScopeState = PostScopeState
       !(Maybe (ModuleName, TopLevelModuleName))
     -- ^ The current module is available after it has been type
     -- checked.
-  , stPostInstanceDefs        :: !TempInstanceTable
+
+  , stPostPendingInstances :: !(Set QName)
+
+  , stPostTemporaryInstances :: !(Set QName)
+
   , stPostConcreteNames       :: !ConcreteNames
     -- ^ Map keeping track of concrete names assigned to each abstract name
     --   (can be more than one name in case the first one is shadowed)
@@ -302,6 +311,7 @@ data PostScopeState = PostScopeState
   , stPostAreWeCaching        :: !Bool
   , stPostPostponeInstanceSearch :: !Bool
   , stPostConsideringInstance :: !Bool
+  , stPostMutualChecks        :: Bool
   , stPostInstantiateBlocking :: !Bool
     -- ^ Should we instantiate away blocking metas?
     --   This can produce ill-typed terms but they are often more readable. See issue #3606.
@@ -317,7 +327,7 @@ data PostScopeState = PostScopeState
 
 -- | A mutual block of names in the signature.
 data MutualBlock = MutualBlock
-  { mutualInfo  :: Info.MutualInfo
+  { mutualInfo  :: MutualInfo
     -- ^ The original info of the mutual block.
   , mutualNames :: Set QName
   } deriving (Show, Eq, Generic)
@@ -422,7 +432,6 @@ initPreScopeState = PreScopeState
   , stPrePragmaOptions        = defaultInteractionOptions
   , stPreImportedBuiltins     = Map.empty
   , stPreImportedDisplayForms = HMap.empty
-  , stPreImportedInstanceDefs = Map.empty
   , stPreForeignCode          = Map.empty
   , stPreFreshInteractionId   = 0
   , stPreImportedUserWarnings = Map.empty
@@ -451,7 +460,8 @@ initPostScopeState = PostScopeState
   , stPostModuleCheckpoints    = Map.empty
   , stPostImportsDisplayForms  = HMap.empty
   , stPostCurrentModule        = empty
-  , stPostInstanceDefs         = (Map.empty , Set.empty)
+  , stPostPendingInstances     = Set.empty
+  , stPostTemporaryInstances     = Set.empty
   , stPostConcreteNames        = Map.empty
   , stPostUsedNames            = Map.empty
   , stPostShadowingNames       = Map.empty
@@ -469,6 +479,7 @@ initPostScopeState = PostScopeState
   , stPostAreWeCaching         = False
   , stPostPostponeInstanceSearch = False
   , stPostConsideringInstance  = False
+  , stPostMutualChecks         = False
   , stPostInstantiateBlocking  = False
   , stPostLocalPartialDefs     = Set.empty
   , stPostOpaqueBlocks         = Map.empty
@@ -727,15 +738,21 @@ stCurrentModule f s =
                   Nothing         -> Nothing
                   Just (!m, !top) -> Just (m, top)}}
 
-stImportedInstanceDefs :: Lens' TCState InstanceTable
-stImportedInstanceDefs f s =
-  f (stPreImportedInstanceDefs (stPreScopeState s)) <&>
-  \x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedInstanceDefs = x}}
-
 stInstanceDefs :: Lens' TCState TempInstanceTable
 stInstanceDefs f s =
-  f (stPostInstanceDefs (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostInstanceDefs = x}}
+  f ( s ^. stSignature . sigInstances
+    , stPostPendingInstances (stPostScopeState s)
+    )
+  <&> \(t, x) ->
+    set (stSignature . sigInstances) t
+      (s { stPostScopeState = (stPostScopeState s) { stPostPendingInstances = x }})
+
+stTemporaryInstances :: Lens' TCState (Set QName)
+stTemporaryInstances f s = f (stPostTemporaryInstances (stPostScopeState s)) <&> \x -> s {
+  stPostScopeState = (stPostScopeState s) { stPostTemporaryInstances = x } }
+
+stInstanceTree :: Lens' TCState (DiscrimTree QName)
+stInstanceTree = stSignature . sigInstances . itableTree
 
 stConcreteNames :: Lens' TCState ConcreteNames
 stConcreteNames f s =
@@ -812,6 +829,10 @@ stConsideringInstance :: Lens' TCState Bool
 stConsideringInstance f s =
   f (stPostConsideringInstance (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostConsideringInstance = x}}
+
+stMutualChecks :: Lens' TCState Bool
+stMutualChecks f s = f (stPostMutualChecks (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostMutualChecks = x}}
 
 stInstantiateBlocking :: Lens' TCState Bool
 stInstantiateBlocking f s =
@@ -1457,12 +1478,13 @@ data Frozen
   | Instantiable
     deriving (Eq, Show, Generic)
 
+-- | Solution status of meta.
 data MetaInstantiation
-        = InstV Instantiation -- ^ solved
-        | Open                -- ^ unsolved
-        | OpenInstance        -- ^ open, to be instantiated by instance search
-        | BlockedConst Term   -- ^ solution blocked by unsolved constraints
-        | PostponedTypeCheckingProblem (Closure TypeCheckingProblem)
+  = InstV Instantiation -- ^ Solved by 'Instantiation'.
+  | OpenMeta MetaKind   -- ^ Unsolved (open to solutions).
+  | BlockedConst Term   -- ^ Solved, but solution blocked by unsolved constraints.
+  | PostponedTypeCheckingProblem (Closure TypeCheckingProblem)
+      -- ^ Meta stands for value of the expression that is still to be type checked.
   deriving Generic
 
 -- | Meta-variable instantiations.
@@ -1538,8 +1560,8 @@ data TypeCheckingProblem
 
 instance Pretty MetaInstantiation where
   pretty = \case
-    Open                                     -> "Open"
-    OpenInstance                             -> "OpenInstance"
+    OpenMeta UnificationMeta                 -> "Open"
+    OpenMeta InstanceMeta                    -> "OpenInstance"
     PostponedTypeCheckingProblem{}           -> "PostponedTypeCheckingProblem (...)"
     BlockedConst t                           -> hsep [ "BlockedConst", parens (pretty t) ]
     InstV Instantiation{ instTel, instBody } -> hsep [ "InstV", pretty instTel, parens (pretty instBody) ]
@@ -1581,9 +1603,6 @@ instance LensQuantity MetaInfo where
 
 instance LensRelevance MetaInfo where
   mapRelevance f = mapModality (mapRelevance f)
-
--- | Name suggestion for meta variable.  Empty string means no suggestion.
-type MetaNameSuggestion = String
 
 -- | For printing, we couple a meta with its name suggestion.
 data NamedMeta = NamedMeta
@@ -1782,9 +1801,10 @@ instance Eq IPClause where
 ---------------------------------------------------------------------------
 
 data Signature = Sig
-      { _sigSections    :: Sections
-      , _sigDefinitions :: Definitions
-      , _sigRewriteRules:: RewriteRuleMap  -- ^ The rewrite rules defined in this file.
+      { _sigSections     :: Sections
+      , _sigDefinitions  :: Definitions
+      , _sigRewriteRules :: RewriteRuleMap  -- ^ The rewrite rules defined in this file.
+      , _sigInstances    :: InstanceTable
       }
   deriving (Show, Generic)
 
@@ -1797,6 +1817,9 @@ sigDefinitions :: Lens' Signature Definitions
 sigDefinitions f s =
   f (_sigDefinitions s) <&>
   \x -> s {_sigDefinitions = x}
+
+sigInstances :: Lens' Signature InstanceTable
+sigInstances f s = f (_sigInstances s) <&> \x -> s {_sigInstances = x}
 
 sigRewriteRules :: Lens' Signature RewriteRuleMap
 sigRewriteRules f s =
@@ -1826,7 +1849,7 @@ secTelescope f s =
   \x -> s {_secTelescope = x}
 
 emptySignature :: Signature
-emptySignature = Sig Map.empty HMap.empty HMap.empty
+emptySignature = Sig Map.empty HMap.empty HMap.empty mempty
 
 -- | A @DisplayForm@ is in essence a rewrite rule @q ts --> dt@ for a defined symbol (could be a
 --   constructor as well) @q@. The right hand side is a 'DisplayTerm' which is used to 'reify' to a
@@ -2024,6 +2047,13 @@ data RewriteRule = RewriteRule
   }
     deriving (Show, Generic)
 
+-- | Information about an @instance@ definition.
+data InstanceInfo = InstanceInfo
+  { instanceClass   :: QName       -- ^ Name of the "class" this is an instance for
+  , instanceOverlap :: OverlapMode -- ^ Does this instance have a specified overlap mode?
+  }
+    deriving (Show, Generic)
+
 data Definition = Defn
   { defArgInfo        :: ArgInfo -- ^ Hiding should not be used.
   , defName           :: QName   -- ^ The canonical name, used e.g. in compilation.
@@ -2084,8 +2114,8 @@ data Definition = Defn
   , defDisplay        :: [LocalDisplayForm]
   , defMutual         :: MutualId
   , defCompiledRep    :: CompiledRepresentation
-  , defInstance       :: Maybe QName
-    -- ^ @Just q@ when this definition is an instance of class q
+  , defInstance       :: Maybe InstanceInfo
+    -- ^ @Just q@ when this definition is an instance.
   , defCopy           :: Bool
     -- ^ Has this function been created by a module
                          -- instantiation?
@@ -2238,7 +2268,7 @@ data Projection = Projection
     --   Start counting with 1, because 0 means that
     --   it is already applied to the record value.
     --   This can happen in module instantiation, but
-    --   then either the record value is @var 0@, or @funProjection == Nothing@.
+    --   then either the record value is @var 0@, or @funProjection == Left _@.
   , projLams :: ProjLams
     -- ^ Term @t@ to be be applied to record parameters and record value.
     --   The parameters will be dropped.
@@ -2293,7 +2323,20 @@ data FunctionFlag
   = FunStatic  -- ^ Should calls to this function be normalised at compile-time?
   | FunInline  -- ^ Should calls to this function be inlined by the compiler?
   | FunMacro   -- ^ Is this function a macro?
-  deriving (Eq, Ord, Enum, Show, Generic)
+  | FunFirstOrder
+      -- ^ Is this function @INJECTIVE_FOR_INFERENCE@?
+      -- Indicates whether the first-order shortcut should be applied to the definition.
+  | FunErasure
+      -- ^ Was @--erasure@ in effect when the function was defined?
+      -- (This can affect the type of a projection.)
+  | FunAbstract
+      -- ^ Is the function abstract?
+  | FunProj
+      -- ^ Is this function a descendant of a field (typically, a projection)?
+  deriving (Eq, Ord, Enum, Show, Generic, Ix, Bounded)
+
+instance SmallSetElement FunctionFlag
+instance KillRange (SmallSet FunctionFlag) where killRange = id
 
 data CompKit = CompKit
   { nameOfHComp :: Maybe QName
@@ -2382,7 +2425,6 @@ data FunctionData = FunctionData
       --   Does include this function.
       --   Empty list if not recursive.
       --   @Nothing@ if not yet computed (by positivity checker).
-  , _funAbstr          :: IsAbstract
   , _funProjection     :: Either ProjectionLikenessMissing Projection
       -- ^ Is it a record projection?
       --   If yes, then return the name of the record type and index of
@@ -2390,10 +2432,8 @@ data FunctionData = FunctionData
       --   it is already applied to the record. (Can happen in module
       --   instantiation.) This information is used in the termination
       --   checker.
-  , _funErasure :: !Bool
-    -- ^ Was @--erasure@ in effect when the function was defined?
-    -- (This can affect the type of a projection.)
-  , _funFlags          :: Set FunctionFlag
+  , _funFlags          :: SmallSet FunctionFlag
+      -- ^ Various boolean flags pertaining to the function definition, see 'FunctionFlag'.
   , _funTerminates     :: Maybe Bool
       -- ^ Has this function been termination checked?  Did it pass?
   , _funExtLam         :: Maybe ExtLamInfo
@@ -2419,10 +2459,8 @@ pattern Function
   -> [Clause]
   -> FunctionInverse
   -> Maybe [QName]
-  -> IsAbstract
   -> Either ProjectionLikenessMissing Projection
-  -> Bool
-  -> Set FunctionFlag
+  -> SmallSet FunctionFlag
   -> Maybe Bool
   -> Maybe ExtLamInfo
   -> Maybe QName
@@ -2437,9 +2475,7 @@ pattern Function
   , funCovering
   , funInv
   , funMutual
-  , funAbstr
   , funProjection
-  , funErasure
   , funFlags
   , funTerminates
   , funExtLam
@@ -2454,9 +2490,7 @@ pattern Function
     funCovering
     funInv
     funMutual
-    funAbstr
     funProjection
-    funErasure
     funFlags
     funTerminates
     funExtLam
@@ -2811,9 +2845,7 @@ instance Pretty FunctionData where
       _funCovering
       funInv
       funMutual
-      funAbstr
       funProjection
-      funErasure
       funFlags
       funTerminates
       _funExtLam
@@ -2828,9 +2860,7 @@ instance Pretty FunctionData where
       , "funTreeless     =" <?> pretty funTreeless
       , "funInv          =" <?> pretty funInv
       , "funMutual       =" <?> pshow funMutual
-      , "funAbstr        =" <?> pshow funAbstr
       , "funProjection   =" <?> pretty funProjection
-      , "funErasure      =" <?> pretty funErasure
       , "funFlags        =" <?> pshow funFlags
       , "funTerminates   =" <?> pshow funTerminates
       , "funWith         =" <?> pretty funWith
@@ -2969,19 +2999,18 @@ recEtaEquality = theEtaEquality . recEtaEquality'
 -- | A template for creating 'Function' definitions, with sensible
 -- defaults.
 emptyFunctionData :: HasOptions m => m FunctionData
-emptyFunctionData = do
-  erasure <- optErasure <$> pragmaOptions
-  return $ FunctionData
+emptyFunctionData = emptyFunctionData_ . optErasure <$> pragmaOptions
+
+emptyFunctionData_ :: Bool -> FunctionData
+emptyFunctionData_ erasure = FunctionData
     { _funClauses     = []
     , _funCompiled    = Nothing
     , _funSplitTree   = Nothing
     , _funTreeless    = Nothing
     , _funInv         = NotInjective
     , _funMutual      = Nothing
-    , _funAbstr       = ConcreteDef
     , _funProjection  = Left MaybeProjection
-    , _funErasure     = erasure
-    , _funFlags       = Set.empty
+    , _funFlags       = SmallSet.fromList [ FunErasure | erasure ]
     , _funTerminates  = Nothing
     , _funExtLam      = Nothing
     , _funWith        = Nothing
@@ -2993,16 +3022,58 @@ emptyFunctionData = do
 emptyFunction :: HasOptions m => m Defn
 emptyFunction = FunctionDefn <$> emptyFunctionData
 
+emptyFunction_ :: Bool -> Defn
+emptyFunction_ = FunctionDefn . emptyFunctionData_
+
+funFlag_ :: FunctionFlag -> Lens' FunctionData Bool
+funFlag_ flag f def@FunctionData{ _funFlags = flags } =
+  f (SmallSet.member flag flags) <&>
+  \ b -> def{ _funFlags = (if b then SmallSet.insert else SmallSet.delete) flag flags }
+
 funFlag :: FunctionFlag -> Lens' Defn Bool
-funFlag flag f def@Function{ funFlags = flags } =
-  f (Set.member flag flags) <&>
-  \ b -> def{ funFlags = (if b then Set.insert else Set.delete) flag flags }
-funFlag _ f def = f False $> def
+funFlag flag f = \case
+  FunctionDefn d -> FunctionDefn <$> funFlag_ flag f d
+  def            -> f False $> def
 
 funStatic, funInline, funMacro :: Lens' Defn Bool
 funStatic       = funFlag FunStatic
 funInline       = funFlag FunInline
 funMacro        = funFlag FunMacro
+
+funMacro_ :: Lens' FunctionData Bool
+funMacro_ = funFlag_ FunMacro
+
+-- | Toggle the 'FunFirstOrder' flag.
+funFirstOrder :: Lens' Defn Bool
+funFirstOrder = funFlag FunFirstOrder
+
+-- | Toggle the 'FunErasure' flag.
+funErasure :: Lens' Defn Bool
+funErasure = funFlag FunErasure
+
+-- | Toggle the 'FunAbstract' flag.
+funAbstract :: Lens' Defn Bool
+funAbstract = funFlag FunAbstract
+
+-- | Toggle the 'FunAbstract' flag.
+funAbstr :: Lens' Defn IsAbstract
+funAbstr = funAbstract . iso fromBool toBool
+
+-- | Toggle the 'FunAbstract' flag.
+funAbstract_ :: Lens' FunctionData Bool
+funAbstract_ = funFlag_ FunAbstract
+
+-- | Toggle the 'FunAbstract' flag.
+funAbstr_ :: Lens' FunctionData IsAbstract
+funAbstr_ = funAbstract_ . iso fromBool toBool
+
+-- | Toggle the 'FunProj' flag.
+funProj :: Lens' Defn Bool
+funProj = funFlag FunProj
+
+-- | Toggle the 'FunProj' flag.
+funProj_ :: Lens' FunctionData Bool
+funProj_ = funFlag_ FunProj
 
 isMacro :: Defn -> Bool
 isMacro = (^. funMacro)
@@ -3214,17 +3285,17 @@ defTerminationUnconfirmed Defn{theDef = Function{funTerminates = _        }} = T
 defTerminationUnconfirmed _ = False
 
 defAbstract :: Definition -> IsAbstract
-defAbstract d = case theDef d of
-    Axiom{}                   -> ConcreteDef
-    DataOrRecSig{}            -> ConcreteDef
-    GeneralizableVar{}        -> ConcreteDef
-    AbstractDefn{}            -> AbstractDef
-    Function{funAbstr = a}    -> a
-    Datatype{dataAbstr = a}   -> a
-    Record{recAbstr = a}      -> a
-    Constructor{conAbstr = a} -> a
-    Primitive{primAbstr = a}  -> a
-    PrimitiveSort{}           -> ConcreteDef
+defAbstract def = case theDef def of
+    AxiomDefn _         -> ConcreteDef
+    DataOrRecSigDefn _  -> ConcreteDef
+    GeneralizableVar    -> ConcreteDef
+    AbstractDefn _      -> AbstractDef
+    FunctionDefn d      -> d ^. funAbstr_
+    DatatypeDefn d      -> _dataAbstr d
+    RecordDefn d        -> _recAbstr d
+    ConstructorDefn d   -> _conAbstr d
+    PrimitiveDefn d     -> _primAbstr d
+    PrimitiveSortDefn _ -> ConcreteDef
 
 defOpaque :: Definition -> IsOpaque
 defOpaque d = case theDef d of
@@ -3434,9 +3505,34 @@ instance HasRange Call where
 -- ** Instance table
 ---------------------------------------------------------------------------
 
--- | The instance table is a @Map@ associating to every name of
---   record/data type/postulate its list of instances
-type InstanceTable = Map QName (Set QName)
+-- | Records information about the instances in the signature. Does not
+-- deal with local instances.
+data InstanceTable = InstanceTable
+  { _itableTree   :: DiscrimTree QName
+    -- ^ The actual discrimination tree for looking up instances with
+
+  , _itableCounts :: Map QName Int
+    -- ^ For profiling, we store the number of instances on a per-class
+    -- basis. This lets us compare the result from the discrimination
+    -- tree with all the instances in scope, thus informing us how many
+    -- validity checks were skipped.
+  }
+  deriving (Show, Generic)
+
+instance Semigroup InstanceTable where
+  InstanceTable t i <> InstanceTable t' i' = InstanceTable
+    { _itableTree   = t <> t'
+    , _itableCounts = Map.unionWith (+) i i'
+    }
+
+instance Monoid InstanceTable where
+  mempty = InstanceTable mempty mempty
+
+itableTree :: Lens' InstanceTable (DiscrimTree QName)
+itableTree f s = f (_itableTree s) <&> \x -> s { _itableTree = x }
+
+itableCounts :: Lens' InstanceTable (Map QName Int)
+itableCounts f s = f (_itableCounts s) <&> \x -> s { _itableCounts = x }
 
 -- | When typechecking something of the following form:
 --
@@ -3659,8 +3755,8 @@ data TCEnv =
                 --   lambdas and let-expressions.
           , envUnquoteFlags :: UnquoteFlags
           , envInstanceDepth :: !Int
-                -- ^ Until we get a termination checker for instance search (#1743) we
-                --   limit the search depth to ensure termination.
+              -- ^ Until we get a termination checker for instance search (#1743) we
+              --   limit the search depth to ensure termination.
           , envIsDebugPrinting :: Bool
           , envPrintingPatternLambdas :: [QName]
                 -- ^ #3004: pattern lambdas with copatterns may refer to themselves. We
@@ -3976,14 +4072,6 @@ currentModality = do
     }
 
 ---------------------------------------------------------------------------
--- ** Context
----------------------------------------------------------------------------
-
--- | The @Context@ is a stack of 'ContextEntry's.
-type Context      = [ContextEntry]
-type ContextEntry = Dom (Name, Type)
-
----------------------------------------------------------------------------
 -- ** Let bindings
 ---------------------------------------------------------------------------
 
@@ -4085,16 +4173,19 @@ data CandidateKind
 -- | A candidate solution for an instance meta is a term with its type.
 --   It may be the case that the candidate is not fully applied yet or
 --   of the wrong type, hence the need for the type.
-data Candidate  = Candidate { candidateKind :: CandidateKind
-                            , candidateTerm :: Term
-                            , candidateType :: Type
-                            , candidateOverlappable :: Bool
-                            }
+data Candidate  = Candidate
+  { candidateKind    :: CandidateKind
+  , candidateTerm    :: Term
+  , candidateType    :: Type
+  , candidateOverlap :: OverlapMode
+  }
   deriving (Show, Generic)
 
 instance Free Candidate where
   freeVars' (Candidate _ t u _) = freeVars' (t, u)
 
+instance HasOverlapMode Candidate where
+  lensOverlapMode f x = f (candidateOverlap x) <&> \m -> x{ candidateOverlap = m }
 
 ---------------------------------------------------------------------------
 -- ** Checking arguments
@@ -4147,7 +4238,9 @@ data Warning
   | CantGeneralizeOverSorts [MetaId]
   | AbsurdPatternRequiresNoRHS [NamedArg DeBruijnPattern]
   | OldBuiltin               BuiltinId BuiltinId
-    -- ^ In `OldBuiltin old new`, the BUILTIN old has been replaced by new
+    -- ^ In `OldBuiltin old new`, the BUILTIN old has been replaced by new.
+  | BuiltinDeclaresIdentifier BuiltinId
+    -- ^ The builtin declares a new identifier, so it should not be in scope.
   | EmptyRewritePragma
     -- ^ If the user wrote just @{-\# REWRITE \#-}@.
   | EmptyWhere
@@ -4192,15 +4285,14 @@ data Warning
   -- ^ A coinductive record was declared but neither --guardedness nor
   --   --sized-types is enabled.
 
-  -- Generic warnings for one-off things
-  | GenericWarning           Doc
-    -- ^ Harmless generic warning (not an error)
-
   -- Safe flag errors
   | SafeFlagPostulate C.Name
   | SafeFlagPragma [String]                -- ^ Unsafe OPTIONS.
   | SafeFlagWithoutKFlagPrimEraseEquality
   | WithoutKFlagPrimEraseEquality
+  | ConflictingPragmaOptions String String
+    -- ^ `ConflictingPragmaOptions a b`:
+    --   Inconsistent options `--a` and `--no-b`, since `--a` implies `--b`. Ignoring `--no-b`.
   | OptionWarning            OptionWarning
   | ParseWarning             ParseWarning
   | LibraryWarning           LibWarning
@@ -4221,6 +4313,11 @@ data Warning
     -- ^ Importing a file using an infective option into one which doesn't
   | CoInfectiveImport Doc
     -- ^ Importing a file not using a coinfective option from one which does
+  | ConfluenceCheckingIncompleteBecauseOfMeta QName
+    -- ^ Confluence checking incomplete because the definition of the 'QName'
+    --   contains unsolved metavariables.
+  | ConfluenceForCubicalNotSupported
+    -- ^ Confluence checking with @--cubical@ might be incomplete.
   | RewriteNonConfluent Term Term Term Doc
     -- ^ Confluence checker found critical pair and equality checking
     --   resulted in a type error
@@ -4234,15 +4331,23 @@ data Warning
   | RewriteMissingRule Term Term Term
     -- ^ The global confluence checker found a term @u@ that reduces
     --   to @v@, but @v@ does not reduce to @rho(u)@.
+  | DuplicateRewriteRule QName
+    -- ^ This rewrite rule has already been added.
   | PragmaCompileErased BackendName QName
-    -- ^ COMPILE directive for an erased symbol
+    -- ^ COMPILE directive for an erased symbol.
+  | PragmaCompileList
+    -- ^ @COMPILE GHC@ pragma for lists; ignored.
+  | PragmaCompileMaybe
+    -- ^ @COMPILE GHC@ pragma for @MAYBE@; ignored.
+  | NoMain TopLevelModuleName
+    -- ^ Compiler run on module that does not have a @main@ function.
   | NotInScopeW [C.QName]
-    -- ^ Out of scope error we can recover from
+    -- ^ Out of scope error we can recover from.
   | UnsupportedIndexedMatch Doc
     -- ^ Was not able to compute a full equivalence when splitting.
-  | AsPatternShadowsConstructorOrPatternSynonym Bool
-    -- ^ The as-name in an as-pattern may not shadow a constructor (@False@)
-    --   or pattern synonym name (@True@),
+  | AsPatternShadowsConstructorOrPatternSynonym LHSOrPatSyn
+    -- ^ The as-name in an as-pattern may not shadow a constructor ('IsLHS')
+    --   or pattern synonym name ('IsPatSyn'),
     --   because this can be confusing to read.
   | PatternShadowsConstructor C.Name A.QName
     -- ^ A pattern variable has the name of a constructor
@@ -4250,6 +4355,9 @@ data Warning
   | PlentyInHardCompileTimeMode QωOrigin
     -- ^ Explicit use of @@ω@ or @@plenty@ in hard compile-time mode.
   | RecordFieldWarning RecordFieldWarning
+
+  | MissingTypeSignatureForOpaque QName IsOpaque
+    -- ^ An @abstract@ or @opaque@ definition lacks a type signature.
   | NotAffectedByOpaque
   | UnfoldTransparentName QName
   | UselessOpaque
@@ -4259,6 +4367,10 @@ data Warning
     -- ^ Face constraint patterns @(i = 0)@ must be visible arguments.
   | FaceConstraintCannotBeNamed NamedName
     -- ^ Face constraint patterns @(i = 0)@ must be unnamed arguments.
+
+  -- Not source code related
+  | DuplicateInterfaceFiles AbsolutePath AbsolutePath
+    -- ^ `DuplicateInterfaceFiles selectedInterfaceFile ignoredInterfaceFile`
   deriving (Show, Generic)
 
 recordFieldWarningToError :: RecordFieldWarning -> TypeError
@@ -4293,7 +4405,6 @@ warningName = \case
   FixityInRenamingModule{}     -> FixityInRenamingModule_
   InvalidCharacterLiteral{}    -> InvalidCharacterLiteral_
   UselessPragma{}              -> UselessPragma_
-  GenericWarning{}             -> GenericWarning_
   InversionDepthReached{}      -> InversionDepthReached_
   InteractionMetaBoundaries{}  -> InteractionMetaBoundaries_{}
   ModuleDoesntExport{}         -> ModuleDoesntExport_
@@ -4302,9 +4413,11 @@ warningName = \case
   NotStrictlyPositive{}        -> NotStrictlyPositive_
   UnsupportedIndexedMatch{}    -> UnsupportedIndexedMatch_
   OldBuiltin{}                 -> OldBuiltin_
+  BuiltinDeclaresIdentifier{}  -> BuiltinDeclaresIdentifier_
   SafeFlagPostulate{}          -> SafeFlagPostulate_
   SafeFlagPragma{}             -> SafeFlagPragma_
   SafeFlagWithoutKFlagPrimEraseEquality -> SafeFlagWithoutKFlagPrimEraseEquality_
+  ConflictingPragmaOptions{}   -> ConflictingPragmaOptions_
   WithoutKFlagPrimEraseEquality -> WithoutKFlagPrimEraseEquality_
   TerminationIssue{}           -> TerminationIssue_
   UnreachableClauses{}         -> UnreachableClauses_
@@ -4319,11 +4432,17 @@ warningName = \case
   UserWarning{}                -> UserWarning_
   InfectiveImport{}            -> InfectiveImport_
   CoInfectiveImport{}          -> CoInfectiveImport_
+  ConfluenceCheckingIncompleteBecauseOfMeta{} -> ConfluenceCheckingIncompleteBecauseOfMeta_
+  ConfluenceForCubicalNotSupported{}          -> ConfluenceForCubicalNotSupported_
   RewriteNonConfluent{}        -> RewriteNonConfluent_
   RewriteMaybeNonConfluent{}   -> RewriteMaybeNonConfluent_
   RewriteAmbiguousRules{}      -> RewriteAmbiguousRules_
   RewriteMissingRule{}         -> RewriteMissingRule_
+  DuplicateRewriteRule{}       -> DuplicateRewriteRule_
   PragmaCompileErased{}        -> PragmaCompileErased_
+  PragmaCompileList{}          -> PragmaCompileList_
+  PragmaCompileMaybe{}         -> PragmaCompileMaybe_
+  NoMain{}                     -> NoMain_
   PlentyInHardCompileTimeMode{}
                                -> PlentyInHardCompileTimeMode_
   -- record field warnings
@@ -4331,6 +4450,7 @@ warningName = \case
     W.DuplicateFields{}   -> DuplicateFields_
     W.TooManyFields{}     -> TooManyFields_
 
+  MissingTypeSignatureForOpaque{} -> MissingTypeSignatureForOpaque_
   NotAffectedByOpaque{}   -> NotAffectedByOpaque_
   UselessOpaque{}         -> UselessOpaque_
   UnfoldTransparentName{} -> UnfoldTransparentName_
@@ -4338,6 +4458,19 @@ warningName = \case
   -- Cubical
   FaceConstraintCannotBeHidden{} -> FaceConstraintCannotBeHidden_
   FaceConstraintCannotBeNamed{}  -> FaceConstraintCannotBeNamed_
+
+  -- Not source code related
+  DuplicateInterfaceFiles{}      -> DuplicateInterfaceFiles_
+
+-- | Should warnings of that type be serialized?
+--
+-- Only when changes in the source code can silence or influence the warning.
+--
+isSourceCodeWarning :: WarningName -> Bool
+isSourceCodeWarning = \case
+  DuplicateInterfaceFiles_ -> False
+  WarningProblem_ -> False
+  _ -> True
 
 data TCWarning
   = TCWarning
@@ -4525,9 +4658,6 @@ data TypeError
             -- ^ This sort is not a type expression.
         | InvalidType Term
             -- ^ This term is not a type expression.
-        | FunctionTypeInSizeUniv Term
-            -- ^ This term, a function type constructor, lives in
-            --   @SizeUniv@, which is not allowed.
         | SplitOnIrrelevant (Dom Type)
         | SplitOnUnusableCohesion (Dom Type)
         -- UNUSED: -- | SplitOnErased (Dom Type)
@@ -4539,6 +4669,7 @@ data TypeError
         | SplitInProp DataOrRecordE
         | DefinitionIsIrrelevant QName
         | DefinitionIsErased QName
+        | ProjectionIsIrrelevant QName
         | VariableIsIrrelevant Name
         | VariableIsErased Name
         | VariableIsOfUnusableCohesion Name Cohesion
@@ -4587,6 +4718,7 @@ data TypeError
           -- ^ Record type, fields not supplied by user, non-fields but supplied.
         | DuplicateFields [C.Name]
         | DuplicateConstructors [C.Name]
+        | DuplicateOverlapPragma QName OverlapMode OverlapMode
         | WithOnFreeVariable A.Expr Term
         | UnexpectedWithPatterns [A.Pattern]
         | WithClausePatternMismatch A.Pattern (NamedArg DeBruijnPattern)
@@ -4624,12 +4756,26 @@ data TypeError
         | UnexpectedTypeSignatureForParameter (List1 (NamedArg A.Binder))
         | SortDoesNotAdmitDataDefinitions QName Sort
         | SortCannotDependOnItsIndex QName Type
+    -- Modality errors
+        | UnusableAtModality WhyCheckModality Modality Term
     -- Coverage errors
 -- UNUSED:        | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | SplitError SplitError
         | ImpossibleConstructor QName NegativeUnification
     -- Positivity errors
         | TooManyPolarities QName Int
+    -- Sized type errors
+        | CannotSolveSizeConstraints (List1 (ProblemConstraint, HypSizeConstraint)) Doc
+            -- ^ The list of constraints is given redundantly as pairs of
+            --   'ProblemConstraint' (original constraint) and
+            --   'HypSizeConstraint' (form with size assumptions in context spelled out).
+            --   The 'Doc' is some extra reason for why solving failed.
+        | ContradictorySizeConstraint (ProblemConstraint, HypSizeConstraint)
+        | EmptyTypeOfSizes Term
+            -- ^ This type, representing a type of sizes, might be empty.
+        | FunctionTypeInSizeUniv Term
+            -- ^ This term, a function type constructor, lives in
+            --   @SizeUniv@, which is not allowed.
     -- Import errors
         | LocalVsImportedModuleClash ModuleName
         | SolvedButOpenHoles
@@ -4648,6 +4794,8 @@ data TypeError
         | ModuleDefinedInOtherFile TopLevelModuleName AbsolutePath AbsolutePath
           -- ^ Module name, file from which it was loaded, file which
           -- the include path says contains the module.
+        | InvalidFileName AbsolutePath InvalidFileNameReason
+          -- ^ The file name does not correspond to a module name.
     -- Scope errors
         | BothWithAndRHS
         | AbstractConstructorNotInScope A.QName
@@ -4661,6 +4809,8 @@ data TypeError
         | ClashingModule A.ModuleName A.ModuleName
         | ClashingImport C.Name A.QName
         | ClashingModuleImport C.Name A.ModuleName
+        | DefinitionInDifferentModule A.QName
+            -- ^ The given data/record definition rests in a different module than its signature.
         | DuplicateImports C.QName [C.ImportedName]
         | InvalidPattern C.Pattern
         | RepeatedVariablesInPattern [C.Name]
@@ -4678,11 +4828,24 @@ data TypeError
         | NothingAppliedToHiddenArg C.Expr
         | NothingAppliedToInstanceArg C.Expr
     -- Pattern synonym errors
+        | AsPatternInPatternSynonym
+        | DotPatternInPatternSynonym
         | BadArgumentsToPatternSynonym A.AmbiguousQName
         | TooFewArgumentsToPatternSynonym A.AmbiguousQName
         | CannotResolveAmbiguousPatternSynonym (List1 (A.QName, A.PatternSynDefn))
-        | UnusedVariableInPatternSynonym
+        | IllegalInstanceVariableInPatternSynonym C.Name
+            -- ^ This variable is bound in the lhs of the pattern synonym in instance position,
+            --   but not on the rhs.
+            --   This is forbidden because expansion of pattern synonyms would not be faithful
+            --   to availability of instances in instance search.
+        | PatternSynonymArgumentShadowsConstructorOrPatternSynonym LHSOrPatSyn C.Name (List1 AbstractName)
+            -- ^ A variable to be bound in the pattern synonym resolved on the rhs as name of
+            --   a constructor or a pattern synonym.
+            --   The resolvents are given in the list.
+        | UnusedVariableInPatternSynonym C.Name
+            -- ^ This variable is only bound on the lhs of the pattern synonym, not on the rhs.
         | UnboundVariablesInPatternSynonym [A.Name]
+            -- ^ These variables are only bound on the rhs of the pattern synonym, not on the lhs.
     -- Operator errors
         | NoParseForApplication (List2 C.Expr)
         | AmbiguousParseForApplication (List2 C.Expr) (List1 C.Expr)
@@ -4715,6 +4878,12 @@ data TypeError
         | InstanceSearchDepthExhausted Term Type Int
         | TriedToCopyConstrainedPrim QName
           deriving (Show, Generic)
+
+-- | Extra information for 'InvalidFileName' error.
+data InvalidFileNameReason
+  = DoesNotCorrespondToValidModuleName
+  | RootNameModuleNotAQualifiedModuleName Text
+  deriving (Show, Generic)
 
 type DataOrRecordE = DataOrRecord' InductionAndEta
 
@@ -4751,7 +4920,7 @@ data IncorrectTypeForRewriteRelationReason
 
 -- | Distinguish error message when parsing lhs or pattern synonym, resp.
 data LHSOrPatSyn = IsLHS | IsPatSyn
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Show, Generic, Bounded, Enum)
 
 -- | Type-checking errors.
 
@@ -5600,7 +5769,10 @@ getGeneralizedFieldName q
 ---------------------------------------------------------------------------
 
 instance KillRange Signature where
-  killRange (Sig secs defs rews) = killRangeN Sig secs defs rews
+  killRange (Sig secs defs rews inst) = killRangeN Sig secs defs rews inst
+
+instance KillRange InstanceTable where
+  killRange (InstanceTable tree count) = killRangeN InstanceTable tree count
 
 instance KillRange Sections where
   killRange = fmap killRange
@@ -5613,6 +5785,10 @@ instance KillRange RewriteRuleMap where
 
 instance KillRange Section where
   killRange (Section tel) = killRangeN Section tel
+
+instance KillRange InstanceInfo where
+  killRange :: KillRangeT InstanceInfo
+  killRange (InstanceInfo a b) = killRangeN InstanceInfo a b
 
 instance KillRange Definition where
   killRange (Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk lang def) =
@@ -5678,8 +5854,8 @@ instance KillRange Defn where
       DataOrRecSig n -> DataOrRecSig n
       GeneralizableVar -> GeneralizableVar
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
-      Function a b c d e f g h i j k l m n o p ->
-        killRangeN Function a b c d e f g h i j k l m n o p
+      Function a b c d e f g h i j k l m n ->
+        killRangeN Function a b c d e f g h i j k l m n
       Datatype a b c d e f g h i j   -> killRangeN Datatype a b c d e f g h i j
       Record a b c d e f g h i j k l m -> killRangeN Record a b c d e f g h i j k l m
       Constructor a b c d e f g h i j k -> killRangeN Constructor a b c d e f g h i j k
@@ -5776,6 +5952,7 @@ instance NFData ProblemConstraint
 instance NFData WhyCheckModality
 instance NFData Constraint
 instance NFData Signature
+instance NFData InstanceTable
 instance NFData Comparison
 instance NFData CompareAs
 instance NFData a => NFData (Open a)
@@ -5803,6 +5980,7 @@ instance NFData NLPat
 instance NFData NLPType
 instance NFData NLPSort
 instance NFData RewriteRule
+instance NFData InstanceInfo
 instance NFData Definition
 instance NFData Polarity
 instance NFData IsForced
@@ -5853,6 +6031,7 @@ instance NFData NegativeUnification
 instance NFData UnificationFailure
 instance NFData UnquoteError
 instance NFData TypeError
+instance NFData InvalidFileNameReason
 instance NFData LHSOrPatSyn
 instance NFData DataOrRecordE
 instance NFData InductionAndEta

@@ -3,6 +3,8 @@
 module Agda.TypeChecking.Substitute.Class where
 
 import Control.Arrow ((***), second)
+import Control.DeepSeq
+import GHC.Generics
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -93,11 +95,31 @@ strengthen err = applySubst (strengthenS err 1)
 substUnder :: Subst a => Nat -> SubstArg a -> a -> a
 substUnder n u = applySubst (liftS n (singletonS 0 u))
 
+-- | Checks whether the variable bound by the abstraction is actually
+-- used, and, if /not/, returns the term within, 'strengthen'ed to live in
+-- the context /outside/ the abstraction.
+-- See also 'Agda.TypeChecking.Free.isBinderUsed'.
+isNoAbs :: (Free a, Subst a) => Abs a -> Maybe a
+isNoAbs (NoAbs _ b) = Just b
+isNoAbs (Abs _ b)
+  | not (0 `freeIn` b) = Just (strengthen __IMPOSSIBLE__ b)
+  | otherwise          = Nothing
+
 -- ** Identity instances
 
 instance Subst QName where
   type SubstArg QName = Term
   applySubst _ q = q
+
+-- | Wrapper for types that do not contain variables (so applying a substitution is the identity).
+--   Useful if you have a structure of types that support substitution mixed with types that don't
+--   and need to apply a substitution to the full structure.
+newtype NoSubst t a = NoSubst { unNoSubst :: a }
+  deriving (Generic, NFData, Functor)
+
+instance DeBruijn t => Subst (NoSubst t a) where
+  type SubstArg (NoSubst t a) = t
+  applySubst _ x = x
 
 ---------------------------------------------------------------------------
 -- * Explicit substitutions
@@ -326,25 +348,3 @@ mkAbs x v | 0 `freeIn` v = Abs x v
 reAbs :: (Subst a, Free a) => Abs a -> Abs a
 reAbs (NoAbs x v) = NoAbs x v
 reAbs (Abs x v)   = mkAbs x v
-
--- | @underAbs k a b@ applies @k@ to @a@ and the content of
---   abstraction @b@ and puts the abstraction back.
---   @a@ is raised if abstraction was proper such that
---   at point of application of @k@ and the content of @b@
---   are at the same context.
---   Precondition: @a@ and @b@ are at the same context at call time.
-underAbs :: Subst a => (a -> b -> b) -> a -> Abs b -> Abs b
-underAbs cont a = \case
-  Abs   x t -> Abs   x $ cont (raise 1 a) t
-  NoAbs x t -> NoAbs x $ cont a t
-
--- | @underLambdas n k a b@ drops @n@ initial 'Lam's from @b@,
---   performs operation @k@ on @a@ and the body of @b@,
---   and puts the 'Lam's back.  @a@ is raised correctly
---   according to the number of abstractions.
-underLambdas :: TermSubst a => Int -> (a -> Term -> Term) -> a -> Term -> Term
-underLambdas n cont = loop n where
-  loop 0 a = cont a
-  loop n a = \case
-    Lam h b -> Lam h $ underAbs (loop $ n-1) a b
-    _       -> __IMPOSSIBLE__

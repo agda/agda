@@ -40,9 +40,11 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Text.PrettyPrint.Boxes as Boxes
 
+import Agda.Interaction.Options
+
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Definitions (notSoNiceDeclarations)
-import Agda.Syntax.Concrete.Pretty (prettyHiding, prettyRelevance)
+import Agda.Syntax.Concrete.Pretty (attributesForModality, prettyHiding, prettyRelevance)
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Concrete as C
@@ -63,6 +65,7 @@ import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Call
 import Agda.TypeChecking.Pretty.Warning
+import Agda.TypeChecking.SizedTypes.Pretty ()
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce (instantiate)
 
@@ -126,7 +129,7 @@ stringTCErr :: String -> TCErr
 stringTCErr = Exception noRange . P.text
 
 errorString :: TypeError -> String
-errorString err = case err of
+errorString = \case
   AmbiguousModule{}                        -> "AmbiguousModule"
   AmbiguousName{}                          -> "AmbiguousName"
   AmbiguousField{}                         -> "AmbiguousField"
@@ -137,9 +140,12 @@ errorString err = case err of
   AmbiguousConstructor{}                   -> "AmbiguousConstructor"
 --  AmbiguousParseForPatternSynonym{}        -> "AmbiguousParseForPatternSynonym"
   AmbiguousTopLevelModuleName {}           -> "AmbiguousTopLevelModuleName"
+  AsPatternInPatternSynonym{}              -> "AsPatternInPatternSynonym"
+  DotPatternInPatternSynonym{}             -> "DotPatternInPatternSynonym"
   BadArgumentsToPatternSynonym{}           -> "BadArgumentsToPatternSynonym"
   TooFewArgumentsToPatternSynonym{}        -> "TooFewArgumentsToPatternSynonym"
   CannotResolveAmbiguousPatternSynonym{}   -> "CannotResolveAmbiguousPatternSynonym"
+  PatternSynonymArgumentShadowsConstructorOrPatternSynonym{} -> "PatternSynonymArgumentShadowsConstructorOrPatternSynonym"
   UnboundVariablesInPatternSynonym{}       -> "UnboundVariablesInPatternSynonym"
   BothWithAndRHS                           -> "BothWithAndRHS"
   BuiltinInParameterisedModule{}           -> "BuiltinInParameterisedModule"
@@ -155,11 +161,13 @@ errorString err = case err of
   DataMustEndInSort{}                      -> "DataMustEndInSort"
 -- UNUSED:    DataTooManyParameters{}                  -> "DataTooManyParameters"
   CantResolveOverloadedConstructorsTargetingSameDatatype{} -> "CantResolveOverloadedConstructorsTargetingSameDatatype"
+  DefinitionInDifferentModule{}            -> "DefinitionInDifferentModule"
   DoesNotConstructAnElementOf{}            -> "DoesNotConstructAnElementOf"
   DuplicateBuiltinBinding{}                -> "DuplicateBuiltinBinding"
   DuplicateConstructors{}                  -> "DuplicateConstructors"
   DuplicateFields{}                        -> "DuplicateFields"
   DuplicateImports{}                       -> "DuplicateImports"
+  DuplicateOverlapPragma{}                 -> "DuplicateOverlapPragma"
   FieldOutsideRecord                       -> "FieldOutsideRecord"
   FileNotFound{}                           -> "FileNotFound"
   GenericError{}                           -> "GenericError"
@@ -175,6 +183,7 @@ errorString err = case err of
 -- UNUSED:  IncompletePatternMatching{}              -> "IncompletePatternMatching"
   InternalError{}                          -> "InternalError"
   InvalidPattern{}                         -> "InvalidPattern"
+  InvalidFileName{}                        -> "InvalidFileName"
   LocalVsImportedModuleClash{}             -> "LocalVsImportedModuleClash"
   MetaCannotDependOn{}                     -> "MetaCannotDependOn"
   MetaOccursInItself{}                     -> "MetaOccursInItself"
@@ -209,6 +218,9 @@ errorString err = case err of
   NotAProperTerm                           -> "NotAProperTerm"
   InvalidType{}                            -> "InvalidType"
   InvalidTypeSort{}                        -> "InvalidTypeSort"
+  CannotSolveSizeConstraints{}             -> "CannotSolveSizeConstraints"
+  ContradictorySizeConstraint{}            -> "ContradictorySizeConstraint"
+  EmptyTypeOfSizes{}                       -> "EmptyTypeOfSizes"
   FunctionTypeInSizeUniv{}                 -> "FunctionTypeInSizeUniv"
   NotAValidLetBinding{}                    -> "NotAValidLetBinding"
   NotValidBeforeField{}                    -> "NotValidBeforeField"
@@ -250,6 +262,7 @@ errorString err = case err of
   SplitInProp{}                            -> "SplitInProp"
   DefinitionIsIrrelevant{}                 -> "DefinitionIsIrrelevant"
   DefinitionIsErased{}                     -> "DefinitionIsErased"
+  ProjectionIsIrrelevant{}                 -> "ProjectionIsIrrelevant"
   VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
   VariableIsErased{}                       -> "VariableIsErased"
   VariableIsOfUnusableCohesion{}           -> "VariableIsOfUnusableCohesion"
@@ -269,7 +282,8 @@ errorString err = case err of
   UninstantiatedDotPattern{}               -> "UninstantiatedDotPattern"
   ForcedConstructorNotInstantiated{}       -> "ForcedConstructorNotInstantiated"
   SolvedButOpenHoles{}                     -> "SolvedButOpenHoles"
-  UnusedVariableInPatternSynonym           -> "UnusedVariableInPatternSynonym"
+  IllegalInstanceVariableInPatternSynonym _ -> "IllegalInstanceVariableInPatternSynonym"
+  UnusedVariableInPatternSynonym _         -> "UnusedVariableInPatternSynonym"
   UnquoteFailed{}                          -> "UnquoteFailed"
   DeBruijnIndexOutOfScope{}                -> "DeBruijnIndexOutOfScope"
   WithClausePatternMismatch{}              -> "WithClausePatternMismatch"
@@ -314,6 +328,7 @@ errorString err = case err of
   SortCannotDependOnItsIndex{}             -> "SortCannotDependOnItsIndex"
   ExpectedBindingForParameter{}            -> "ExpectedBindingForParameter"
   UnexpectedTypeSignatureForParameter{}    -> "UnexpectedTypeSignatureForParameter"
+  UnusableAtModality{}                     -> "UnusableAtModality"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -590,6 +605,19 @@ instance PrettyTCM TypeError where
     InvalidTypeSort s -> fsep $ prettyTCM s : pwords "is not a valid sort"
     InvalidType v -> fsep $ prettyTCM v : pwords "is not a valid type"
 
+    CannotSolveSizeConstraints ccs reason -> do
+      -- Print the HypSizeConstraints (snd)
+      vcat $ concat
+        [ [ text $ "Cannot solve size constraints" ]
+        , List1.toList $ fmap (prettyTCM . snd) ccs
+        , [ "Reason:" <+> pure reason | not (null reason) ]
+        ]
+
+    ContradictorySizeConstraint cc@(_,c0) -> fsep $
+      pwords "Contradictory size constraint" ++ [prettyTCM c0]
+
+    EmptyTypeOfSizes t -> fsep $ pwords "Possibly empty type of sizes:" ++ [prettyTCM t]
+
     FunctionTypeInSizeUniv v -> fsep $
       pwords "Functions may not return sizes, thus, function type " ++
       [ prettyTCM v ] ++ pwords " is illegal"
@@ -646,6 +674,11 @@ instance PrettyTCM TypeError where
 
     DefinitionIsErased x -> fsep $
       "Identifier" : prettyTCM x : pwords "is declared erased, so it cannot be used here"
+
+    ProjectionIsIrrelevant x -> vcat
+      [ fsep [ "Projection " , prettyTCM x, " is irrelevant." ]
+      , "Turn on option --irrelevant-projections to use it (unsafe)"
+      ]
 
     VariableIsIrrelevant x -> fsep $
       "Variable" : prettyTCM (nameConcrete x) : pwords "is declared irrelevant, so it cannot be used here"
@@ -725,6 +758,12 @@ instance PrettyTCM TypeError where
       constructors ys = P.singPlural ys [text "constructor"] [text "constructors"]
 
     DuplicateFields xs -> prettyDuplicateFields xs
+
+    DuplicateOverlapPragma q old new -> fsep $
+      pwords "The instance" ++ [prettyTCM q] ++
+      pwords "was already marked" ++ [pretty old <> "."] ++
+      pwords "This" ++ [pretty new] ++
+      pwords "pragma can not be applied to it."
 
     WithOnFreeVariable e v -> do
       de <- prettyA e
@@ -905,6 +944,14 @@ instance PrettyTCM TypeError where
              ++ [prettyTCM x] ++ pwords "found:"
            ) $$ nest 2 (vcat $ map (text . filePath) files)
 
+    InvalidFileName file reason -> fsep $
+      pwords "The file name" ++ [pretty file] ++ pwords "is invalid because" ++
+      case reason of
+        DoesNotCorrespondToValidModuleName ->
+          pwords "it does not correspond to a valid module name."
+        RootNameModuleNotAQualifiedModuleName defaultName ->
+          pretty defaultName : pwords "is not an unqualified module name."
+
     ModuleDefinedInOtherFile mod file file' -> fsep $
       pwords "You tried to load" ++ [text (filePath file)] ++
       pwords "which defines the module" ++ [pretty mod <> "."] ++
@@ -1003,6 +1050,9 @@ instance PrettyTCM TypeError where
       pwords "where M is a module name. The expression"
       ++ [pretty e, "doesn't."]
 
+    DefinitionInDifferentModule _x -> fsep $
+      pwords "Definition in different module than its type signature"
+
     FieldOutsideRecord -> fsep $
       pwords "Field appearing outside record declaration."
 
@@ -1068,6 +1118,11 @@ instance PrettyTCM TypeError where
         isPlaceholder Placeholder{}   = True
         isPlaceholder NoPlaceholder{} = False
 
+    AsPatternInPatternSynonym -> fsep $ pwords "@-patterns are not allowed in pattern synonyms"
+
+    DotPatternInPatternSynonym -> fsep $ pwords
+      "Dot or equality patterns are not allowed in pattern synonyms. Maybe use '_' instead."
+
     BadArgumentsToPatternSynonym x -> fsep $
       pwords "Bad arguments to pattern synonym " ++ [prettyTCM $ headAmbQ x]
 
@@ -1085,8 +1140,27 @@ instance PrettyTCM TypeError where
         prDef (x, (xs, p)) = prettyA (A.PatternSynDef x (map (fmap BindName) xs) p) <?> ("at" <+> pretty r)
           where r = nameBindingSite $ qnameName x
 
-    UnusedVariableInPatternSynonym -> fsep $
-      pwords "Unused variable in pattern synonym."
+    IllegalInstanceVariableInPatternSynonym x -> fsep $ concat
+      [ pwords "Variable is bound as instance in pattern synonym,"
+      , pwords "but does not resolve as instance in pattern: "
+      , [pretty x]
+      ]
+
+    PatternSynonymArgumentShadowsConstructorOrPatternSynonym kind x (y :| _ys) -> vcat
+      [ fsep $ concat
+        [ pwords "Pattern synonym variable"
+        , [ pretty x ]
+        , [ "shadows" ]
+        , case kind of
+            IsLHS -> [ "constructor" ]
+            IsPatSyn -> pwords "pattern synonym"
+        , pwords "defined at:"
+        ]
+      , pretty $ nameBindingSite $ qnameName $ anameName y
+      ]
+
+    UnusedVariableInPatternSynonym x -> fsep $
+      pwords "Unused variable in pattern synonym: " ++ [pretty x]
 
     UnboundVariablesInPatternSynonym xs -> fsep $
       pwords "Unbound variables in pattern synonym: " ++
@@ -1099,15 +1173,10 @@ instance PrettyTCM TypeError where
       where
       prettyLhsOrPatSyn = pwords $ case lhsOrPatSyn of
         IsLHS    -> "left-hand side"
-        IsPatSyn -> "pattern synonym"
+        IsPatSyn -> "pattern synonym right-hand side"
       prettyErrs = case errs of
         []     -> empty
         p0 : _ -> fsep $ pwords "Problematic expression:" ++ [pretty p0]
-
-{- UNUSED
-    NoParseForPatternSynonym p -> fsep $
-      pwords "Could not parse the pattern synonym" ++ [pretty p]
--}
 
     AmbiguousParseForLHS lhsOrPatSyn p ps -> do
       d <- pretty p
@@ -1563,6 +1632,56 @@ instance PrettyTCM TypeError where
       let s | length xs > 1 = "s"
             | otherwise     = ""
       text ("Unexpected type signature for parameter" ++ s) <+> sep (fmap prettyA xs)
+
+    UnusableAtModality why mod t -> do
+      compatible <- optCubicalCompatible <$> pragmaOptions
+      cubical <- isJust . optCubical <$> pragmaOptions
+      let
+        context
+          | cubical    = "in Cubical Agda,"
+          | compatible = "to maintain compatibility with Cubical Agda,"
+          | otherwise  = "when --without-K is enabled,"
+
+        explanation what
+          | cubical || compatible =
+            [ ""
+            , fsep ( "Note:":pwords context
+                  ++ pwords what ++ pwords "must be usable at the modality"
+                  ++ pwords "in which the function was defined, since it will be"
+                  ++ pwords "used for computing transports"
+                  )
+            , ""
+            ]
+          | otherwise = []
+      case why of
+        IndexedClause ->
+          vcat $
+            ( fsep ( pwords "This clause has target type"
+                  ++ [prettyTCM t]
+                  ++ pwords "which is not usable at the required modality"
+                  ++ [pure (attributesForModality mod) <> "."]
+                   )
+            : explanation "the target type")
+
+        -- Arguments sometimes need to be transported too:
+        IndexedClauseArg forced the_arg ->
+          vcat $
+            ( fsep (pwords "The argument" ++ [prettyTCM the_arg] ++ pwords "has type")
+            : nest 2 (prettyTCM t)
+            : fsep ( pwords "which is not usable at the required modality"
+                  ++ [pure (attributesForModality mod) <> "."] )
+            : explanation "this argument's type")
+
+        -- Note: if a generated clause is modality-incorrect, that's a
+        -- bug in the LHS modality check
+        GeneratedClause ->
+          __IMPOSSIBLE_VERBOSE__ . show =<<
+                   prettyTCM t
+              <+> "is not usable at the required modality"
+              <+> pure (attributesForModality mod)
+        _ -> prettyTCM t <+> "is not usable at the required modality"
+         <+> pure (attributesForModality mod)
+
 
     where
     mpar n args

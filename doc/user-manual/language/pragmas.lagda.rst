@@ -1,6 +1,6 @@
 ..
   ::
-  {-# OPTIONS --guardedness #-}
+  {-# OPTIONS --guardedness --no-require-unique-meta-solutions #-}
   module language.pragmas where
 
 .. _pragmas:
@@ -33,6 +33,8 @@ Index of pragmas
 * :ref:`FOREIGN <foreign-function-interface>`
 
 * :ref:`INJECTIVE <injective-pragma>`
+
+* :ref:`INJECTIVE_FOR_INFERENCE <injective-for-inference-pragma>`
 
 * :ref:`INLINE <inline-pragma>`
 
@@ -138,6 +140,48 @@ so you can pattern match on a proof of `Fin x ≡ Fin y` in example above,
 but does not give you definitional injectivity,
 so the constraint solver does not know how to solve the constraint `Fin x = Fin _`.
 Relevant issue: https://github.com/agda/agda/issues/4106#issuecomment-534904561
+
+.. _injective-for-inference-pragma:
+
+The ``INJECTIVE_FOR_INFERENCE`` pragma
+______________________________________
+
+Treats functions as injective for type inference. This behaves like a
+local version of :option:`--lossy-unification` and has the same
+potential issues. Since Agda can not always infer whether a function
+is injective it can be used to get stronger unification for those
+functions.
+
+The option :option:`--no-require-unique-meta-solutions` needs to be active
+in the file where the function is used, but not necessarily in the file it is
+defined. When solving a constraint involving the function in a file where
+:option:`--require-unique-meta-solutions` is in effect, the pragma is ignored.
+
+..
+  ::
+  module InjectiveForInference where
+
+Example::
+
+   open import Agda.Builtin.Equality
+   open import Agda.Builtin.List
+
+   module _ {A : Set} where
+     _++_ : List A → List A → List A
+     []       ++ ys = ys
+     (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
+
+     reverse : List A → List A
+     reverse []      = []
+     reverse (x ∷ l) = reverse l ++ (x ∷ [])
+
+     {-# INJECTIVE_FOR_INFERENCE reverse #-}
+
+     reverse-≡ : {l l' : List A} → reverse l ≡ reverse l' → reverse l ≡ reverse l'
+     reverse-≡ h = h
+
+     []≡[] : {l l' : List A} → [] ≡ []
+     []≡[] = reverse-≡ (refl {x = reverse []})
 
 .. _inline-pragma:
 

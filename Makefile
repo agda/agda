@@ -159,7 +159,9 @@ endif
 
 .PHONY: install-deps ## Install Agda dependencies.
 install-deps:
-ifdef HAS_STACK
+ifdef IN_NIX_SHELL
+	@echo "===================== Dependencies provided by Nix, skipping install ====="
+else ifdef HAS_STACK
 	@echo "===================== Installing dependencies using Stack ================"
 	time $(STACK_INSTALL) $(STACK_INSTALL_DEP_OPTS)
 else
@@ -357,8 +359,8 @@ clean_helper = if [ -d $(1) ]; then $(CABAL) $(CABAL_CLEAN_CMD) --builddir=$(1);
 clean : ## Clean all local builds
 	$(call clean_helper,$(BUILD_DIR))
 	$(call clean_helper,$(QUICK_BUILD_DIR))
-	$(STACK) clean --full
-	$(STACK) clean --full --work-dir=$(QUICK_STACK_BUILD_DIR)
+	which $(STACK) > /dev/null 2>&1 && $(STACK) clean --full || true
+	which $(STACK) > /dev/null 2>&1 && $(STACK) clean --full --work-dir=$(QUICK_STACK_BUILD_DIR) || true
 
 ##############################################################################
 ## Haddock
@@ -790,9 +792,10 @@ help: ## Display this information.
 debug : ## Print debug information.
 	@echo "AGDA_BIN                     = $(AGDA_BIN)"
 	@echo "AGDA_BIN_SUFFIX              = $(AGDA_BIN_SUFFIX)"
+	@echo "AGDA_MODE                    = $(AGDA_MODE)"
+	@echo "AGDA_OPTS                    = $(AGDA_OPTS)"
 	@echo "AGDA_TESTS_BIN               = $(AGDA_TESTS_BIN)"
 	@echo "AGDA_TESTS_OPTIONS           = $(AGDA_TESTS_OPTIONS)"
-	@echo "AGDA_OPTS                    = $(AGDA_OPTS)"
 	@echo "BUILD_DIR                    = $(BUILD_DIR)"
 	@echo "CABAL                        = $(CABAL)"
 	@echo "CABAL_BUILD_CMD              = $(CABAL_BUILD_CMD)"

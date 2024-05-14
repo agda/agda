@@ -28,6 +28,7 @@ import Agda.Interaction.Highlighting.Generate
   ( storeDisambiguatedConstructor, storeDisambiguatedProjection )
 
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Pattern (patternToExpr)
 import Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Concrete.Pretty () -- only Pretty instances
@@ -147,12 +148,12 @@ checkApplication cmp hd args e t =
       -- Expand the pattern synonym by substituting for
       -- the arguments we have got and lambda-lifting
       -- over the ones we haven't.
-      let meta r = A.Underscore $ A.emptyMetaInfo{ A.metaRange = r }   -- TODO: name suggestion
+      let meta h r = A.Underscore $ A.emptyMetaInfo{ A.metaRange = r, A.metaKind = A.hidingToMetaKind h }   -- TODO: name suggestion
       case A.insertImplicitPatSynArgs meta (getRange n) ns args of
         Nothing      -> typeError $ BadArgumentsToPatternSynonym n
         Just (s, ns) -> do
-          let p' = A.patternToExpr p
-              e' = A.lambdaLiftExpr (map unArg ns) (A.substExpr s p')
+          let p' = patternToExpr p
+              e' = A.lambdaLiftExpr ns (A.substExpr s p')
           checkExpr' cmp e' t
 
     -- Subcase: macro
@@ -203,18 +204,17 @@ checkApplication cmp hd args e t =
           -- Example: unquote v a b : A
           --  Create meta H : (x : X) (y : Y x) → Z x y for the hole
           --  Check a : X, b : Y a
-          --  Unify Z a b == A
           --  Run the tactic on H
+          --  Check H a b : A
           tel    <- metaTel args                    -- (x : X) (y : Y x)
-          target <- addContext tel newTypeMeta_      -- Z x y
+          target <- addContext tel newTypeMeta_     -- Z x y
           let holeType = telePi_ tel target         -- (x : X) (y : Y x) → Z x y
           (Just vs, EmptyTel) <- mapFst allApplyElims <$> checkArguments_ CmpLeq ExpandLast (getRange args) args tel
                                                     -- a b : (x : X) (y : Y x)
-          let rho = reverse (map unArg vs) ++# IdS  -- [x := a, y := b]
-          equalType (applySubst rho target) t       -- Z a b == A
           (_, hole) <- newValueMeta RunMetaOccursCheck CmpLeq holeType
           unquoteM (namedArg arg) hole holeType
-          return $ apply hole vs
+          let rho = reverse (map unArg vs) ++# IdS  -- [x := a, y := b]
+          coerce CmpEq (apply hole vs) (applySubst rho target) t -- H a b : A
       where
         metaTel :: [Arg a] -> TCM Telescope
         metaTel []           = pure EmptyTel
@@ -326,8 +326,8 @@ inferHead e = do
       -- So when applying the constructor throw away the parameters.
       return (applyE u . drop n, a)
     A.Con{} -> __IMPOSSIBLE__  -- inferHead will only be called on unambiguous constructors
-    A.QuestionMark i ii -> inferMeta (newQuestionMark ii) i
-    A.Underscore i   -> inferMeta (newValueMeta RunMetaOccursCheck) i
+    A.QuestionMark i ii -> inferMeta i (newQuestionMark ii)
+    A.Underscore i      -> inferMeta i (newValueMetaOfKind i RunMetaOccursCheck)
     e -> do
       (term, t) <- inferExpr e
       return (applyE term, t)
@@ -679,6 +679,11 @@ checkArgumentsE'
                       then skip x
                       else skip 0
                 IsRigid -> do
+                  -- Andreas, 2024-03-01, issue #7158 reported by Amy.
+                  -- We need to check that the arity of the function type
+                  -- is sufficient before checking the target,
+                  -- otherwise the target is non-sensical.
+                  if visiblePis < sArgsLen then return s else do
 
                       -- Is any free variable in tgt less than
                       -- visiblePis?

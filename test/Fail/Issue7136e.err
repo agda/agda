@@ -1,0 +1,6 @@
+Issue7136e.agda:6,21-21
+Issue7136e.agda:6,21: Illegal pattern synonym argument  x
+(Lock annotations not allowed in pattern synonym arguments.)
+=<ERROR>
+ suc x
+-- Should be rejected: ...

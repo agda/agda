@@ -24,7 +24,6 @@ module Agda.Syntax.Parser.Parser (
     , exprWhereParser
     , tokensParser
     , holeContentParser
-    , splitOnDots  -- only used by the internal test-suite
     ) where
 
 import Prelude hiding ( null )
@@ -43,6 +42,7 @@ import Data.Semigroup ((<>), sconcat)
 import qualified Data.Traversable as T
 
 import Agda.Syntax.Position hiding (tests)
+import Agda.Syntax.Parser.Helpers
 import Agda.Syntax.Parser.Monad
 import Agda.Syntax.Parser.Lexer
 import Agda.Syntax.Parser.Tokens
@@ -162,7 +162,9 @@ import Agda.Utils.Impossible
     'FOREIGN'                 { TokKeyword KwFOREIGN $$ }
     'COMPILE'                 { TokKeyword KwCOMPILE $$ }
     'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $$ }
+    'INCOHERENT'              { TokKeyword KwINCOHERENT $$ }
     'INJECTIVE'               { TokKeyword KwINJECTIVE $$ }
+    'INJECTIVE_FOR_INFERENCE' { TokKeyword KwINJECTIVE_FOR_INFERENCE $$ }
     'INLINE'                  { TokKeyword KwINLINE $$ }
     'NOINLINE'                { TokKeyword KwNOINLINE $$ }
     'MEASURE'                 { TokKeyword KwMEASURE $$ }
@@ -174,6 +176,9 @@ import Agda.Utils.Impossible
     'NOT_PROJECTION_LIKE'     { TokKeyword KwNOT_PROJECTION_LIKE $$ }
     'OPTIONS'                 { TokKeyword KwOPTIONS $$ }
     'POLARITY'                { TokKeyword KwPOLARITY $$ }
+    'OVERLAPPABLE'            { TokKeyword KwOVERLAPPABLE $$ }
+    'OVERLAPPING'             { TokKeyword KwOVERLAPPING $$ }
+    'OVERLAPS'                { TokKeyword KwOVERLAPS $$ }
     'WARNING_ON_USAGE'        { TokKeyword KwWARNING_ON_USAGE $$ }
     'WARNING_ON_IMPORT'       { TokKeyword KwWARNING_ON_IMPORT $$ }
     'REWRITE'                 { TokKeyword KwREWRITE $$ }
@@ -293,7 +298,9 @@ Token
     | 'ETA'                     { TokKeyword KwETA $1 }
     | 'FOREIGN'                 { TokKeyword KwFOREIGN $1 }
     | 'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $1 }
+    | 'INCOHERENT'              { TokKeyword KwINCOHERENT $1 }
     | 'INJECTIVE'               { TokKeyword KwINJECTIVE $1 }
+    | 'INJECTIVE_FOR_INFERENCE' { TokKeyword KwINJECTIVE_FOR_INFERENCE $1 }
     | 'INLINE'                  { TokKeyword KwINLINE $1 }
     | 'MEASURE'                 { TokKeyword KwMEASURE $1 }
     | 'NOINLINE'                { TokKeyword KwNOINLINE $1 }
@@ -304,6 +311,9 @@ Token
     | 'NON_COVERING'            { TokKeyword KwNON_COVERING $1 }
     | 'NOT_PROJECTION_LIKE'     { TokKeyword KwNOT_PROJECTION_LIKE $1 }
     | 'OPTIONS'                 { TokKeyword KwOPTIONS $1 }
+    | 'OVERLAPPABLE'            { TokKeyword KwOVERLAPPABLE $1 }
+    | 'OVERLAPPING'             { TokKeyword KwOVERLAPPING $1 }
+    | 'OVERLAPS'                { TokKeyword KwOVERLAPS $1 }
     | 'POLARITY'                { TokKeyword KwPOLARITY $1 }
     | 'REWRITE'                 { TokKeyword KwREWRITE $1 }
     | 'STATIC'                  { TokKeyword KwSTATIC $1 }
@@ -399,7 +409,6 @@ Float : literal {% forM $1 $ \case
                    ; _          -> parseError $ "Expected floating point number"
                    }
                 }
-
 
 {--------------------------------------------------------------------------
     Names
@@ -596,6 +605,9 @@ PragmaQName : string {% pragmaQName $1 }  -- Issue 2125. WAS: string {% fmap QNa
 
 PragmaQNames :: { [QName] }
 PragmaQNames : Strings {% mapM pragmaQName $1 }
+
+PragmaQNames1 :: { [QName] }
+PragmaQNames1 : PragmaQName PragmaQNames { $1:$2 }
 
 {--------------------------------------------------------------------------
     Expressions (terms and types)
@@ -1025,7 +1037,7 @@ ImportDirective
   | {- empty -}                      { mempty }
 
 ImportDirective1 :: { ImportDirective }
-  : 'public'      { defaultImportDir { importDirRange = getRange $1, publicOpen = Just (getRange $1) } }
+  : 'public'      { defaultImportDir { importDirRange = getRange $1, publicOpen = Just (kwRange $1) } }
   | Using         { defaultImportDir { importDirRange = snd $1, using    = fst $1 } }
   | Hiding        { defaultImportDir { importDirRange = snd $1, hiding   = fst $1 } }
   | RenamingDir   { defaultImportDir { importDirRange = snd $1, impRenaming = fst $1 } }
@@ -1266,12 +1278,12 @@ RecordSig
 
 Constructor :: { Declaration }
 Constructor : 'data' '_' 'where' Declarations0
-  { LoneConstructor (getRange ($1,$4)) $4 }
+  { LoneConstructor (kwRange ($1,$2,$3)) $4 }
 
 -- Declaration of record constructor name.
 RecordConstructorName :: { (Name, IsInstance) }
 RecordConstructorName :                  'constructor' Id       { ($2, NotInstanceDef) }
-                      | 'instance' vopen 'constructor' Id close { ($4, InstanceDef (getRange $1)) }
+                      | 'instance' vopen 'constructor' Id close { ($4, InstanceDef (kwRange $1)) }
 
 
 -- Fixity declarations.
@@ -1285,60 +1297,53 @@ Fields :: { Declaration }
 Fields : 'field' ArgTypeSignaturesOrEmpty
             { let
                 inst i = case getHiding i of
-                           Instance _ -> InstanceDef noRange  -- no @instance@ keyword here
+                           Instance _ -> InstanceDef empty  -- no @instance@ keyword here
                            _          -> NotInstanceDef
                 toField (Arg info (TypeSig info' tac x t)) = FieldSig (inst info') tac x (Arg info t)
-              in Field (fuseRange $1 $2) $ map toField $2 }
-  -- | 'field' ModalArgTypeSignatures
-  --           { let
-  --               inst i = case getHiding i of
-  --                          Instance _ -> InstanceDef
-  --                          _          -> NotInstanceDef
-  --               toField (Arg info (TypeSig info' x t)) = FieldSig (inst info') x (Arg info t)
-  --             in Field (fuseRange $1 $2) $ map toField $2 }
+              in Field (kwRange $1) $ map toField $2 }
 
 -- Variable declarations for automatic generalization
 Generalize :: { Declaration }
 Generalize : 'variable' ArgTypeSignaturesOrEmpty
             { let
                 toGeneralize (Arg info (TypeSig _ tac x t)) = TypeSig info tac x t
-              in Generalize (fuseRange $1 $2) (map toGeneralize $2) }
+              in Generalize (kwRange $1) (map toGeneralize $2) }
 
 -- Mutually recursive declarations.
 Mutual :: { Declaration }
-Mutual : 'mutual' Declarations0  { Mutual (fuseRange $1 $2) $2 }
-       | 'interleaved' 'mutual' Declarations0 { InterleavedMutual (getRange ($1,$2,$3)) $3 }
+Mutual : 'mutual' Declarations0  { Mutual (kwRange $1) $2 }
+       | 'interleaved' 'mutual' Declarations0 { InterleavedMutual (kwRange ($1,$2)) $3 }
 
 -- Abstract declarations.
 Abstract :: { Declaration }
-Abstract : 'abstract' Declarations0  { Abstract (fuseRange $1 $2) $2 }
+Abstract : 'abstract' Declarations0  { Abstract (kwRange $1) $2 }
 
 
 -- Private can only appear on the top-level (or rather the module level).
 Private :: { Declaration }
-Private : 'private' Declarations0        { Private (fuseRange $1 $2) UserWritten $2 }
+Private : 'private' Declarations0        { Private (kwRange $1) UserWritten $2 }
 
 
 -- Instance declarations.
 Instance :: { Declaration }
-Instance : 'instance' Declarations0  { InstanceB (getRange $1) $2 }
+Instance : 'instance' Declarations0  { InstanceB (kwRange $1) $2 }
 
 
 -- Macro declarations.
 Macro :: { Declaration }
-Macro : 'macro' Declarations0 { Macro (fuseRange $1 $2) $2 }
+Macro : 'macro' Declarations0 { Macro (kwRange $1) $2 }
 
 
 -- Postulates.
 Postulate :: { Declaration }
-Postulate : 'postulate' Declarations0 { Postulate (fuseRange $1 $2) $2 }
+Postulate : 'postulate' Declarations0 { Postulate (kwRange $1) $2 }
 
 -- Primitives. Can only contain type signatures.
 Primitive :: { Declaration }
 Primitive : 'primitive' ArgTypeSignaturesOrEmpty  {
   let { setArg (Arg info (TypeSig _ tac x t)) = TypeSig info tac x t
       ; setArg _ = __IMPOSSIBLE__ } in
-  Primitive (fuseRange $1 $2) (map setArg $2) }
+  Primitive (kwRange $1) (map setArg $2) }
 
 -- Unquoting declarations.
 UnquoteDecl :: { Declaration }
@@ -1366,7 +1371,7 @@ PatternSyn : 'pattern' Id PatternSynArgs '=' Expr {% do
   return (PatternSyn (getRange ($1,$2,$3,$4,$5)) $2 $3 p)
   }
 
-PatternSynArgs :: { [Arg Name] }
+PatternSynArgs :: { [WithHiding Name] }
 PatternSynArgs : DomainFreeBindings    {% patternSynArgs $1 }
 
 -- The list should be reversed.
@@ -1436,9 +1441,9 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
          -- TODO: Don't use (insecure) hashes in this way.
     ; fresh  = Name mr NotInScope $ singleton $ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show unique
     ; fresh' = Name mr NotInScope $ singleton $ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show (unique + 1)
-    ; impStm asR = Import noRange m (Just (AsName (Right fresh) asR)) DontOpen defaultImportDir
+    ; impStm asR = Import (getRange ($2, $3)) m (Just (AsName (Right fresh) asR)) DontOpen defaultImportDir
     ; appStm m' es =
-        Private r Inserted
+        Private empty Inserted
           [ ModuleMacro r defaultErased m'
              (SectionApp (getRange es) []
                (rawApp (Ident (QName fresh) :| es)))
@@ -1485,7 +1490,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
     } in singleton $
       case es of
       { []  -> Open r m dir
-      ; _   -> Private r Inserted
+      ; _   -> Private empty Inserted
                  [ ModuleMacro r defaultErased
                      (noName $ beginningOf $ getRange m)
                      (SectionApp (getRange (m , es)) []
@@ -1496,7 +1501,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
   }
   | 'open' ModuleName '{{' '...' DoubleCloseBrace ImportDirective {
     let r = getRange $2 in singleton $
-      Private r Inserted
+      Private empty Inserted
       [ ModuleMacro r defaultErased (noName $ beginningOf $ getRange $2)
           (RecordModuleInstance r $2) DoOpen $6
       ]
@@ -1566,6 +1571,7 @@ DeclarationPragma
   | ForeignPragma            { $1 }
   | StaticPragma             { $1 }
   | InjectivePragma          { $1 }
+  | InjectiveForInferencePragma { $1 }
   | InlinePragma             { $1 }
   | NoInlinePragma           { $1 }
   | ImpossiblePragma         { $1 }
@@ -1583,6 +1589,7 @@ DeclarationPragma
   | NoPositivityCheckPragma  { $1 }
   | NoUniverseCheckPragma    { $1 }
   | PolarityPragma           { $1 }
+  | OverlapPragma            { $1 }
   | OptionsPragma            { $1 }
     -- Andreas, 2014-03-06
     -- OPTIONS pragma not allowed everywhere, but don't give parse error.
@@ -1638,10 +1645,22 @@ NotProjectionLikePragma
   : '{-#' 'NOT_PROJECTION_LIKE' PragmaQName '#-}'
     { NotProjectionLikePragma (getRange ($1,$2,$3,$4)) $3 }
 
+OverlapPragma :: { Pragma }
+OverlapPragma
+  : '{-#' 'OVERLAPPABLE' PragmaQNames1 '#-}' { OverlapPragma (getRange ($1,$2,$3,$4)) $3 Overlappable }
+  | '{-#' 'OVERLAPPING'  PragmaQNames1 '#-}' { OverlapPragma (getRange ($1,$2,$3,$4)) $3 Overlapping }
+  | '{-#' 'OVERLAPS'     PragmaQNames1 '#-}' { OverlapPragma (getRange ($1,$2,$3,$4)) $3 Overlaps }
+  | '{-#' 'INCOHERENT'   PragmaQNames1 '#-}' { OverlapPragma (getRange ($1,$2,$3,$4)) $3 Incoherent }
+
 InjectivePragma :: { Pragma }
 InjectivePragma
   : '{-#' 'INJECTIVE' PragmaQName '#-}'
     { InjectivePragma (getRange ($1,$2,$3,$4)) $3 }
+
+InjectiveForInferencePragma :: { Pragma }
+InjectiveForInferencePragma
+  : '{-#' 'INJECTIVE_FOR_INFERENCE' PragmaQName '#-}'
+    { InjectiveForInferencePragma (getRange ($1,$2,$3,$4)) $3 }
 
 DisplayPragma :: { Pragma }
 DisplayPragma
@@ -1807,10 +1826,10 @@ RecordInduction
     | 'coinductive' { Ranged (getRange $1) CoInductive }
 
 Opaque :: { Declaration }
-  : 'opaque' Declarations0     { Opaque (getRange ($1, $2)) $2 }
+  : 'opaque' Declarations0     { Opaque (kwRange $1) $2 }
 
 Unfolding :: { Declaration }
-  : 'unfolding' UnfoldingNames { Unfolding (getRange ($1, $2)) $2 }
+  : 'unfolding' UnfoldingNames { Unfolding (kwRange $1) $2 }
 
 UnfoldingNames :: { [QName] }
 UnfoldingNames
@@ -1857,6 +1876,13 @@ exprWhereParser :: Parser ExprWhere
 -- | Parse a module.
 moduleParser :: Parser Module
 
+-- | Parse a display pragma.
+parseDisplayPragma :: Range -> Position -> String -> Parser Pragma
+parseDisplayPragma r pos s =
+  case parsePosString pos defaultParseFlags [normal] funclauseParser s of
+    ParseOk s (FunClause (LHS lhs [] []) (RHS rhs) NoWhere ca :| []) | null (parseInp s) ->
+      return $ DisplayPragma r lhs rhs
+    _ -> parseError "Invalid DISPLAY pragma. Should have form {-# DISPLAY LHS = RHS #-}."
 
 {--------------------------------------------------------------------------
     Happy stuff
@@ -1871,658 +1897,8 @@ happyError = parseError "Parse error"
     Utility functions
  --------------------------------------------------------------------------}
 
--- | Grab leading OPTIONS pragmas.
-takeOptionsPragmas :: [Declaration] -> Module
-takeOptionsPragmas = uncurry Mod . spanJust (\ d -> case d of
-  Pragma p@OptionsPragma{} -> Just p
-  _                        -> Nothing)
-
--- | Insert a top-level module if there is none.
---   Also fix-up for the case the declarations in the top-level module
---   are not indented (this is allowed as a special case).
-figureOutTopLevelModule :: [Declaration] -> [Declaration]
-figureOutTopLevelModule ds =
-  case spanAllowedBeforeModule ds of
-    -- Andreas 2016-02-01, issue #1388.
-    -- We need to distinguish two additional cases.
-
-    -- Case 1: Regular file layout: imports followed by one module. Nothing to do.
-    (ds0, [ Module{} ]) -> ds
-
-    -- Case 2: The declarations in the module are not indented.
-    -- This is allowed for the top level module, and thus rectified here.
-    (ds0, Module r erased m tel [] : ds2) ->
-      ds0 ++ [Module r erased m tel ds2]
-
-    -- Case 3: There is a module with indented declarations,
-    -- followed by non-indented declarations.  This should be a
-    -- parse error and be reported later (see @toAbstract TopLevel{}@),
-    -- thus, we do not do anything here.
-    (ds0, Module r _ m tel ds1 : ds2) -> ds  -- Gives parse error in scope checker.
-    -- OLD code causing issue 1388:
-    -- (ds0, Module r m tel ds1 : ds2) -> ds0 ++ [Module r m tel $ ds1 ++ ds2]
-
-    -- Case 4: a top-level module declaration is missing.
-    -- Andreas, 2017-01-01, issue #2229:
-    -- Put everything (except OPTIONS pragmas) into an anonymous module.
-    _ -> ds0 ++ [Module r defaultErased (QName $ noName r) [] ds1]
-      where
-      (ds0, ds1) = (`span` ds) $ \case
-        Pragma OptionsPragma{} -> True
-        _ -> False
-      -- Andreas, 2017-05-17, issue #2574.
-      -- Since the module noName will act as jump target, it needs a range.
-      -- We use the beginning of the file as beginning of the top level module.
-      r = beginningOfFile $ getRange ds1
-
--- | Create a name from a string.
-
-mkName :: (Interval, String) -> Parser Name
-mkName (i, s) = do
-    let xs = C.stringNameParts s
-    mapM_ isValidId xs
-    unless (alternating xs) $ parseError $ "a name cannot contain two consecutive underscores"
-    return $ Name (getRange i) InScope xs
-    where
-        isValidId Hole   = return ()
-        isValidId (Id y) = do
-          let x = rawNameToString y
-              err = "in the name " ++ s ++ ", the part " ++ x ++ " is not valid"
-          case parse defaultParseFlags [0] (lexer return) x of
-            ParseOk _ TokId{}  -> return ()
-            ParseFailed{}      -> parseError err
-            ParseOk _ TokEOF{} -> parseError err
-            ParseOk _ t   -> parseError . ((err ++ " because it is ") ++) $ case t of
-              TokId{}       -> __IMPOSSIBLE__
-              TokQId{}      -> __IMPOSSIBLE__ -- "qualified"
-              TokKeyword{}  -> "a keyword"
-              TokLiteral{}  -> "a literal"
-              TokSymbol s _ -> case s of
-                SymDot               -> __IMPOSSIBLE__ -- "reserved"
-                SymSemi              -> "used to separate declarations"
-                SymVirtualSemi       -> __IMPOSSIBLE__
-                SymBar               -> "used for with-arguments"
-                SymColon             -> "part of declaration syntax"
-                SymArrow             -> "the function arrow"
-                SymEqual             -> "part of declaration syntax"
-                SymLambda            -> "used for lambda-abstraction"
-                SymUnderscore        -> "used for anonymous identifiers"
-                SymQuestionMark      -> "a meta variable"
-                SymAs                -> "used for as-patterns"
-                SymOpenParen         -> "used to parenthesize expressions"
-                SymCloseParen        -> "used to parenthesize expressions"
-                SymOpenIdiomBracket  -> "an idiom bracket"
-                SymCloseIdiomBracket -> "an idiom bracket"
-                SymDoubleOpenBrace   -> "used for instance arguments"
-                SymDoubleCloseBrace  -> "used for instance arguments"
-                SymOpenBrace         -> "used for hidden arguments"
-                SymCloseBrace        -> "used for hidden arguments"
-                SymOpenVirtualBrace  -> __IMPOSSIBLE__
-                SymCloseVirtualBrace -> __IMPOSSIBLE__
-                SymOpenPragma        -> __IMPOSSIBLE__ -- "used for pragmas"
-                SymClosePragma       -> __IMPOSSIBLE__ -- "used for pragmas"
-                SymEllipsis          -> "used for function clauses"
-                SymDotDot            -> __IMPOSSIBLE__ -- "a modality"
-                SymEndComment        -> "the end-of-comment brace"
-              TokString{}   -> __IMPOSSIBLE__
-              TokTeX{}      -> __IMPOSSIBLE__  -- used by the LaTeX backend only
-              TokMarkup{}   -> __IMPOSSIBLE__  -- ditto
-              TokComment{}  -> __IMPOSSIBLE__
-              TokDummy{}    -> __IMPOSSIBLE__
-              TokEOF{}      -> __IMPOSSIBLE__
-
-        -- we know that there are no two Ids in a row
-        alternating (Hole :| Hole : _) = False
-        alternating (_    :| x   : xs) = alternating $ x :| xs
-        alternating (_    :|       []) = True
-
--- | Create a qualified name from a list of strings
-mkQName :: [(Interval, String)] -> Parser QName
-mkQName ss = do
-    xs <- mapM mkName ss
-    return $ foldr Qual (QName $ last xs) (init xs)
-
-mkDomainFree_ :: (NamedArg Binder -> NamedArg Binder) -> Maybe Pattern -> Name -> NamedArg Binder
-mkDomainFree_ f p n = f $ defaultNamedArg $ Binder p $ mkBoundName_ n
-
-mkRString :: (Interval, String) -> RString
-mkRString (i, s) = Ranged (getRange i) s
-
--- | Create a qualified name from a string (used in pragmas).
---   Range of each name component is range of whole string.
---   TODO: precise ranges!
-
-pragmaQName :: (Interval, String) -> Parser QName
-pragmaQName (r, s) = do
-  let ss = chopWhen (== '.') s
-  mkQName $ map (r,) ss
-
-mkNamedArg :: Maybe QName -> Either QName Range -> Parser (NamedArg BoundName)
-mkNamedArg x y = do
-  lbl <- case x of
-           Nothing        -> return $ Just $ WithOrigin UserWritten $ unranged "_"
-           Just (QName x) -> return $ Just $ WithOrigin UserWritten $ Ranged (getRange x) $ prettyShow x
-           _              -> parseError "expected unqualified variable name"
-  var <- case y of
-           Left (QName y) -> return $ mkBoundName y noFixity'
-           Right r        -> return $ mkBoundName (noName r) noFixity'
-           _              -> parseError "expected unqualified variable name"
-  return $ defaultArg $ Named lbl var
-
--- | Polarity parser.
-
-polarity :: (Interval, String) -> Parser (Range, Occurrence)
-polarity (i, s) =
-  case s of
-    "_"  -> ret Unused
-    "++" -> ret StrictPos
-    "+"  -> ret JustPos
-    "-"  -> ret JustNeg
-    "*"  -> ret Mixed
-    _    -> parseError $ "Not a valid polarity: " ++ s
-  where
-  ret x = return (getRange i, x)
-
-recoverLayout :: [(Interval, String)] -> String
-recoverLayout [] = ""
-recoverLayout xs@((i, _) : _) = go (iStart i) xs
-  where
-    c0 = posCol (iStart i)
-
-    go cur [] = ""
-    go cur ((i, s) : xs) = padding cur (iStart i) ++ s ++ go (iEnd i) xs
-
-    padding Pn{ posLine = l1, posCol = c1 } Pn{ posLine = l2, posCol = c2 }
-      | l1 < l2  = List.genericReplicate (l2 - l1) '\n' ++ List.genericReplicate (max 0 (c2 - c0)) ' '
-      | l1 == l2 = List.genericReplicate (c2 - c1) ' '
-
-ensureUnqual :: QName -> Parser Name
-ensureUnqual (QName x) = return x
-ensureUnqual q@Qual{}  = parseError' (rStart' $ getRange q) "Qualified name not allowed here"
-
--- | Match a particular name.
-isName :: String -> (Interval, String) -> Parser ()
-isName s (_,s')
-    | s == s'   = return ()
-    | otherwise = parseError $ "expected " ++ s ++ ", found " ++ s'
-
--- Lambinds
-
--- | Result of parsing @LamBinds@.
-data LamBinds' a = LamBinds
-  { lamBindings   :: a             -- ^ A number of domain-free or typed bindings or record patterns.
-  , absurdBinding :: Maybe Hiding  -- ^ Followed by possibly a final absurd pattern.
-  } deriving (Functor)
-type LamBinds = LamBinds' [LamBinding]
-
-mkAbsurdBinding :: Hiding -> LamBinds
-mkAbsurdBinding = LamBinds [] . Just
-
-mkLamBinds :: a -> LamBinds' a
-mkLamBinds bs = LamBinds bs Nothing
-
--- | Build a forall pi (forall x y z -> ...)
-forallPi :: List1 LamBinding -> Expr -> Expr
-forallPi bs e = Pi (fmap addType bs) e
-
--- | Converts lambda bindings to typed bindings.
-addType :: LamBinding -> TypedBinding
-addType (DomainFull b) = b
-addType (DomainFree x) = TBind r (singleton x) $ Underscore r Nothing
-  where r = getRange x
-
--- | Returns the value of the first erasure attribute, if any, or else
--- the default value of type 'Erased'.
+-- Utilites have been moved to Agda.Syntax.Parser.Helpers.
 --
--- Raises warnings for all attributes except for erasure attributes,
--- and for multiple erasure attributes.
+-- Add Haskell functions used in the parser there, not here.
 
-onlyErased
-  :: [Attr]  -- ^ The attributes, in reverse order.
-  -> Parser Erased
-onlyErased as = do
-  es <- catMaybes <$> mapM onlyErased' (reverse as)
-  case es of
-    []     -> return defaultErased
-    [e]    -> return e
-    e : es -> do
-      parseWarning $ MultipleAttributes (getRange es) (Just "erasure")
-      return e
-  where
-  onlyErased' a = case theAttr a of
-    RelevanceAttribute{} -> unsup "Relevance"
-    CohesionAttribute{}  -> unsup "Cohesion"
-    LockAttribute{}      -> unsup "Lock"
-    TacticAttribute{}    -> unsup "Tactic"
-    QuantityAttribute q  -> maybe (unsup "Linearity") (return . Just) $ erasedFromQuantity q
-    where
-    unsup s = do
-      parseWarning $ UnsupportedAttribute (attrRange a) (Just s)
-      return Nothing
-
--- | Constructs extended lambdas.
-
-extLam
-  :: Range            -- ^ The range of the lambda symbol and @where@ or
-                      --   the braces.
-  -> [Attr]           -- ^ The attributes in reverse order.
-  -> List1 LamClause  -- ^ The clauses in reverse order.
-  -> Parser Expr
-extLam symbolRange attrs cs = do
-  e <- onlyErased attrs
-  let cs' = List1.reverse cs
-  return $ ExtendedLam (getRange (symbolRange, e, cs')) e cs'
-
--- | Constructs extended or absurd lambdas.
-
-extOrAbsLam
-  :: Range   -- ^ The range of the lambda symbol.
-  -> [Attr]  -- ^ The attributes, in reverse order.
-  -> Either ([LamBinding], Hiding) (List1 Expr)
-  -> Parser Expr
-extOrAbsLam lambdaRange attrs cs = case cs of
-  Right es -> do
-    -- It is of the form @\ { p1 ... () }@.
-    e  <- onlyErased attrs
-    cl <- mkAbsurdLamClause False es
-    return $ ExtendedLam (getRange (lambdaRange, e, es)) e $ singleton cl
-  Left (bs, h) -> do
-    mapM_ (\a -> parseWarning $
-                   UnsupportedAttribute (attrRange a) Nothing)
-          (reverse attrs)
-    List1.ifNull bs
-      {-then-} (return $ AbsurdLam r h)
-      {-else-} $ \ bs -> return $ Lam r bs (AbsurdLam r h)
-    where
-    r = fuseRange lambdaRange bs
-
--- | Interpret an expression as a list of names and (not parsed yet) as-patterns
-
-exprAsTele :: Expr -> List1 Expr
-exprAsTele (RawApp _ es) = List2.toList1 es
-exprAsTele e             = singleton e
-
-exprAsNamesAndPatterns :: Expr -> Maybe (List1 (Name, Maybe Expr))
-exprAsNamesAndPatterns = mapM exprAsNameAndPattern . exprAsTele
-
-exprAsNameAndPattern :: Expr -> Maybe (Name, Maybe Expr)
-exprAsNameAndPattern (Ident (QName x)) = Just (x, Nothing)
-exprAsNameAndPattern (Underscore r _)  = Just (setRange r simpleHole, Nothing)
-exprAsNameAndPattern (As _ n e)        = Just (n, Just e)
-exprAsNameAndPattern (Paren r e)       = Just (setRange r simpleHole, Just e)
-exprAsNameAndPattern _                 = Nothing
-
--- interpret an expression as name or list of hidden / instance names
-exprAsNameOrHiddenNames :: Expr -> Maybe (List1 (NamedArg (Name, Maybe Expr)))
-exprAsNameOrHiddenNames = \case
-  HiddenArg _ (Named Nothing e) ->
-    fmap (hide . defaultNamedArg) <$> exprAsNamesAndPatterns e
-  InstanceArg _ (Named Nothing e) ->
-    fmap (makeInstance . defaultNamedArg) <$> exprAsNamesAndPatterns e
-  e ->
-    singleton . defaultNamedArg <$> exprAsNameAndPattern e
-
-boundNamesOrAbsurd :: List1 Expr -> Parser (Either (List1 (NamedArg Binder)) (List1 Expr))
-boundNamesOrAbsurd es
-  | any isAbsurd es = return $ Right es
-  | otherwise       =
-    case mapM exprAsNameAndPattern es of
-        Nothing   -> parseError $ "expected sequence of bound identifiers"
-        Just good -> fmap Left $ forM good $ \ (n, me) -> do
-                       p <- traverse exprToPattern me
-                       return (defaultNamedArg (Binder p (mkBoundName_ n)))
-
-  where
-
-    isAbsurd :: Expr -> Bool
-    isAbsurd (Absurd _)                  = True
-    isAbsurd (HiddenArg _ (Named _ e))   = isAbsurd e
-    isAbsurd (InstanceArg _ (Named _ e)) = isAbsurd e
-    isAbsurd (Paren _ e)                 = isAbsurd e
-    isAbsurd (As _ _ e)                  = isAbsurd e
-    isAbsurd (RawApp _ es)               = any isAbsurd es
-    isAbsurd _                           = False
-
--- | Match a pattern-matching "assignment" statement @p <- e@
-exprToAssignment :: Expr -> Parser (Maybe (Pattern, Range, Expr))
-exprToAssignment e@(RawApp r es)
-  | (es1, arr : es2) <- List2.break isLeftArrow es =
-    case filter isLeftArrow es2 of
-      arr : _ -> parseError' (rStart' $ getRange arr) $ "Unexpected " ++ prettyShow arr
-      [] ->
-        -- Andreas, 2021-05-06, issue #5365
-        -- Handle pathological cases like @do <-@ and @do x <-@.
-        case (es1, es2) of
-          (e1:rest1, e2:rest2) -> do
-            p <- exprToPattern $ rawApp $ e1 :| rest1
-            pure $ Just (p, getRange arr, rawApp (e2 :| rest2))
-          _ -> parseError' (rStart' $ getRange e) $ "Incomplete binding " ++ prettyShow e
-  where
-    isLeftArrow (Ident (QName (Name _ _ (Id arr :| [])))) =
-      arr `elem` ["<-", "\x2190"]  -- \leftarrow [issue #5465, unicode might crash happy]
-    isLeftArrow _ = False
-exprToAssignment _ = pure Nothing
-
--- | Build a with-block
-buildWithBlock ::
-  [Either RewriteEqn (List1 (Named Name Expr))] ->
-  Parser ([RewriteEqn], [Named Name Expr])
-buildWithBlock rees = case groupByEither rees of
-  (Left rs : rest) -> (List1.toList rs,) <$> finalWith rest
-  rest             -> ([],) <$> finalWith rest
-
-  where
-
-    finalWith :: (HasRange a, HasRange b) =>
-                 [Either (List1 a) (List1 (List1 b))] -> Parser [b]
-    finalWith []             = pure $ []
-    finalWith [Right ees]    = pure $ List1.toList $ sconcat ees
-    finalWith (Right{} : tl) = parseError' (rStart' $ getRange tl)
-      "Cannot use rewrite / pattern-matching with after a with-abstraction."
-
--- | Build a with-statement
-buildWithStmt :: List1 (Named Name Expr) ->
-                 Parser [Either RewriteEqn (List1 (Named Name Expr))]
-buildWithStmt nes = do
-  ws <- mapM buildSingleWithStmt (List1.toList nes)
-  let rws = groupByEither ws
-  pure $ map (first (Invert ())) rws
-
-buildUsingStmt :: List1 Expr -> Parser RewriteEqn
-buildUsingStmt es = do
-  mpatexprs <- mapM exprToAssignment es
-  case mapM (fmap $ \(pat, _, expr) -> (pat, expr)) mpatexprs of
-    Nothing -> parseError' (rStart' $ getRange es) "Expected assignments"
-    Just assignments -> pure $ LeftLet assignments
-
-buildSingleWithStmt ::
-  Named Name Expr ->
-  Parser (Either (Named Name (Pattern, Expr)) (Named Name Expr))
-buildSingleWithStmt e = do
-  mpatexpr <- exprToAssignment (namedThing e)
-  pure $ case mpatexpr of
-    Just (pat, _, expr) -> Left ((pat, expr) <$ e)
-    Nothing             -> Right e
-
-fromWithApp :: Expr -> List1 Expr
-fromWithApp = \case
-  WithApp _ e es -> e :| es
-  e              -> singleton e
-
--- | Build a do-statement
-defaultBuildDoStmt :: Expr -> [LamClause] -> Parser DoStmt
-defaultBuildDoStmt e (_ : _) = parseError' (rStart' $ getRange e) "Only pattern matching do-statements can have where clauses."
-defaultBuildDoStmt e []      = pure $ DoThen e
-
-buildDoStmt :: Expr -> [LamClause] -> Parser DoStmt
-buildDoStmt (Let r ds Nothing) [] = return $ DoLet r ds
-buildDoStmt e@(RawApp r _)    cs = do
-  mpatexpr <- exprToAssignment e
-  case mpatexpr of
-    Just (pat, r, expr) -> pure $ DoBind r pat expr cs
-    Nothing -> defaultBuildDoStmt e cs
-buildDoStmt e cs = defaultBuildDoStmt e cs
-
-
--- | Extract record directives
-extractRecordDirectives :: [Declaration] -> Parser (RecordDirectives, [Declaration])
-extractRecordDirectives ds = do
-  let (dirs, rest) = spanJust isRecordDirective ds
-  dir <- verifyRecordDirectives dirs
-  pure (dir, rest)
-
--- | Check for duplicate record directives.
-verifyRecordDirectives :: [RecordDirective] -> Parser RecordDirectives
-verifyRecordDirectives ds
-  | null rs   = return (RecordDirectives (listToMaybe is) (listToMaybe es) (listToMaybe ps) (listToMaybe cs))
-      -- Here, all the lists is, es, cs, ps are at most singletons.
-  | otherwise = parseErrorRange (head rs) $ unlines $ "Repeated record directives at:" : map prettyShow rs
-  where
-  errorFromList []  = []
-  errorFromList [x] = []
-  errorFromList xs  = map getRange xs
-  rs  = List.sort $ concat [ errorFromList is, errorFromList es', errorFromList cs, errorFromList ps ]
-  es  = map rangedThing es'
-  is  = [ i      | Induction i          <- ds ]
-  es' = [ e      | Eta e                <- ds ]
-  cs  = [ (c, i) | Constructor c i      <- ds ]
-  ps  = [ r      | PatternOrCopattern r <- ds ]
-
-
--- | Breaks up a string into substrings. Returns every maximal
--- subsequence of zero or more characters distinct from @'.'@.
---
--- > splitOnDots ""         == [""]
--- > splitOnDots "foo.bar"  == ["foo", "bar"]
--- > splitOnDots ".foo.bar" == ["", "foo", "bar"]
--- > splitOnDots "foo.bar." == ["foo", "bar", ""]
--- > splitOnDots "foo..bar" == ["foo", "", "bar"]
-splitOnDots :: String -> [String]
-splitOnDots ""        = [""]
-splitOnDots ('.' : s) = [] : splitOnDots s
-splitOnDots (c   : s) = case splitOnDots s of
-  p : ps -> (c : p) : ps
-
-
--- | Returns 'True' iff the name is a valid Haskell (hierarchical)
--- module name.
-validHaskellModuleName :: String -> Bool
-validHaskellModuleName = all ok . splitOnDots
-  where
-  -- Checks if a dot-less module name is well-formed.
-  ok :: String -> Bool
-  ok []      = False
-  ok (c : s) =
-    isUpper c &&
-    all (\c -> isLower c || c == '_' ||
-               isUpper c ||
-               generalCategory c == DecimalNumber ||
-               c == '\'')
-        s
-
-{--------------------------------------------------------------------------
-    Patterns
- --------------------------------------------------------------------------}
-
--- | Turn an expression into a left hand side.
-exprToLHS :: Expr -> Parser ([RewriteEqn] -> [WithExpr] -> LHS)
-exprToLHS e = LHS <$> exprToPattern e
-
--- | Turn an expression into a pattern. Fails if the expression is not a
---   valid pattern.
-exprToPattern :: Expr -> Parser Pattern
-exprToPattern e = case C.isPattern e of
-  Nothing -> parseErrorRange e $ "Not a valid pattern: " ++ prettyShow e
-  Just p  -> pure p
-
-opAppExprToPattern :: OpApp Expr -> Parser Pattern
-opAppExprToPattern (SyntaxBindingLambda _ _ _) = parseError "Syntax binding lambda cannot appear in a pattern"
-opAppExprToPattern (Ordinary e) = exprToPattern e
-
--- | Turn an expression into a name. Fails if the expression is not a
---   valid identifier.
-exprToName :: Expr -> Parser Name
-exprToName (Ident (QName x)) = return x
-exprToName e = parseErrorRange e $ "Not a valid identifier: " ++ prettyShow e
-
-isEqual :: Expr -> Maybe (Expr, Expr)
-isEqual = \case
-    Equal _ a b -> Just (a, b)
-    _           -> Nothing
-
--- | When given expression is @e1 = e2@, turn it into a named expression.
---   Call this inside an implicit argument @{e}@ or @{{e}}@, where
---   an equality must be a named argument (rather than a cubical partial match).
-maybeNamed :: Expr -> Parser (Named_ Expr)
-maybeNamed e =
-  case isEqual e of
-    Nothing       -> return $ unnamed e
-    Just (e1, e2) -> do
-      let succeed x = return $ named (WithOrigin UserWritten $ Ranged (getRange e1) x) e2
-      case e1 of
-        Ident (QName x) -> succeed $ nameToRawName x
-        -- We could have the following, but names of arguments cannot be _.
-        -- Underscore{}    -> succeed $ "_"
-        _ -> parseErrorRange e $ "Not a valid named argument: " ++ prettyShow e
-
-patternSynArgs :: [NamedArg Binder] -> Parser [Arg Name]
-patternSynArgs = mapM pSynArg
-  where
-    pSynArg x
-      | let h = getHiding x, h `notElem` [Hidden, NotHidden] =
-          abort $ prettyShow h ++ " arguments not allowed to pattern synonyms"
-      | not (isRelevant x) =
-          abort "Arguments to pattern synonyms must be relevant"
-      | Just p <- binderPattern (namedArg x) =
-          abort "Arguments to pattern synonyms cannot be patterns themselves"
-      | otherwise = return $ fmap (boundName . binderName . namedThing) x
-      where
-      abort s = parseError $
-        "Illegal pattern synonym argument  " ++ prettyShow x ++ "\n" ++
-        "(" ++ s ++ ".)"
-
-mkLamClause
-  :: Bool   -- ^ Catch-all?
-  -> [Expr] -- ^ Possibly empty list of patterns.
-  -> RHS
-  -> Parser LamClause
-mkLamClause catchAll es rhs = mapM exprToPattern es <&> \ ps ->
-  LamClause{ lamLHS = ps, lamRHS = rhs, lamCatchAll = catchAll }
-
-mkAbsurdLamClause :: Bool -> List1 Expr -> Parser LamClause
-mkAbsurdLamClause catchAll es = mkLamClause catchAll (List1.toList es) AbsurdRHS
-
-parsePanic s = parseError $ "Internal parser error: " ++ s ++ ". Please report this as a bug."
-
-{- RHS or type signature -}
-
-data RHSOrTypeSigs
- = JustRHS RHS
- | TypeSigsRHS Expr
- deriving Show
-
-patternToNames :: Pattern -> Parser (List1 (ArgInfo, Name))
-patternToNames = \case
-    IdentP _ (QName i)       -> return $ singleton $ (defaultArgInfo, i)
-    WildP r                  -> return $ singleton $ (defaultArgInfo, C.noName r)
-    DotP _ (Ident (QName i)) -> return $ singleton $ (setRelevance Irrelevant defaultArgInfo, i)
-    RawAppP _ ps             -> sconcat . List2.toList1 <$> mapM patternToNames ps
-    p                        -> parseError $
-      "Illegal name in type signature: " ++ prettyShow p
-
-funClauseOrTypeSigs :: [Attr] -> ([RewriteEqn] -> [WithExpr] -> LHS)
-                    -> [Either RewriteEqn (List1 (Named Name Expr))]
-                    -> RHSOrTypeSigs
-                    -> WhereClause -> Parser (List1 Declaration)
-funClauseOrTypeSigs attrs lhs' with mrhs wh = do
-  (rs , es) <- buildWithBlock with
-  let lhs = lhs' rs (map (fmap observeModifiers) es)
-  -- traceShowM lhs
-  case mrhs of
-    JustRHS rhs   -> do
-      unless (null attrs) $ parseErrorRange attrs $ "A function clause cannot have attributes"
-      return $ singleton $ FunClause lhs rhs wh False
-    TypeSigsRHS e -> case wh of
-      NoWhere -> case lhs of
-        LHS p _ _ | hasEllipsis p -> parseError "The ellipsis ... cannot have a type signature"
-        LHS _ _ (_:_) -> parseError "Illegal: with in type signature"
-        LHS _ (_:_) _ -> parseError "Illegal: rewrite in type signature"
-        LHS p _ _ | hasWithPatterns p -> parseError "Illegal: with patterns in type signature"
-        LHS p [] [] -> forMM (patternToNames p) $ \ (info, x) -> do
-          info <- applyAttrs attrs info
-          return $ typeSig info (getTacticAttr attrs) x e
-      _ -> parseError "A type signature cannot have a where clause"
-
-parseDisplayPragma :: Range -> Position -> String -> Parser Pragma
-parseDisplayPragma r pos s =
-  case parsePosString pos defaultParseFlags [normal] funclauseParser s of
-    ParseOk s (FunClause (LHS lhs [] []) (RHS rhs) NoWhere ca :| []) | null (parseInp s) ->
-      return $ DisplayPragma r lhs rhs
-    _ -> parseError "Invalid DISPLAY pragma. Should have form {-# DISPLAY LHS = RHS #-}."
-
-typeSig :: ArgInfo -> TacticAttribute -> Name -> Expr -> Declaration
-typeSig i tac n e = TypeSig i tac n (Generalized e)
-
--- * Attributes
-
--- | Parsed attribute.
-
-data Attr = Attr
-  { attrRange :: Range       -- ^ Range includes the @.
-  , attrName  :: String      -- ^ Concrete, user written attribute for error reporting.
-  , theAttr   :: Attribute   -- ^ Parsed attribute.
-  }
-
-instance HasRange Attr where
-  getRange = attrRange
-
-instance SetRange Attr where
-  setRange r (Attr _ x a) = Attr r x a
-
--- | Parse an attribute.
-toAttribute :: Range -> Expr -> Parser Attr
-toAttribute r e = do
-  attr <- maybe failure (return . Attr r s) $ exprToAttribute e
-  modify' (\ st -> st{ parseAttributes = (theAttr attr, r, s) : parseAttributes st })
-  return attr
-  where
-  s = prettyShow e
-  failure = parseErrorRange e $ "Unknown attribute: " ++ s
-
--- | Apply an attribute to thing (usually `Arg`).
---   This will fail if one of the attributes is already set
---   in the thing to something else than the default value.
-applyAttr :: (LensAttribute a) => Attr -> a -> Parser a
-applyAttr attr@(Attr _ _ a) = maybe failure return . setPristineAttribute a
-  where
-  failure = errorConflictingAttribute attr
-
--- | Apply attributes to thing (usually `Arg`).
---   Expects a reversed list of attributes.
---   This will fail if one of the attributes is already set
---   in the thing to something else than the default value.
-applyAttrs :: LensAttribute a => [Attr] -> a -> Parser a
-applyAttrs rattrs arg = do
-  let attrs = reverse rattrs
-  checkForUniqueAttribute (isJust . isQuantityAttribute ) attrs
-  checkForUniqueAttribute (isJust . isRelevanceAttribute) attrs
-  checkForUniqueAttribute (isJust . isTacticAttribute)    attrs
-  foldM (flip applyAttr) arg attrs
-
-applyAttrs1 :: LensAttribute a => List1 Attr -> a -> Parser a
-applyAttrs1 = applyAttrs . List1.toList
-
--- | Set the tactic attribute of a binder
-setTacticAttr :: List1 Attr -> NamedArg Binder -> NamedArg Binder
-setTacticAttr as = updateNamedArg $ fmap $ \ b ->
-  case getTacticAttr $ List1.toList as of
-    Just t  -> b { bnameTactic = Just t }
-    Nothing -> b
-
--- | Get the tactic attribute if present.
-getTacticAttr :: [Attr] -> TacticAttribute
-getTacticAttr as =
-  case tacticAttributes [ a | Attr _ _ a <- as ] of
-    [TacticAttribute e] -> Just e
-    []                  -> Nothing
-    _                   -> __IMPOSSIBLE__
-
--- | Report a parse error if two attributes in the list are of the same kind,
---   thus, present conflicting information.
-checkForUniqueAttribute :: (Attribute -> Bool) -> [Attr] -> Parser ()
-checkForUniqueAttribute p attrs = do
-  let pAttrs = filter (p . theAttr) attrs
-  when (length pAttrs >= 2) $
-    errorConflictingAttributes pAttrs
-
--- | Report an attribute as conflicting (e.g., with an already set value).
-errorConflictingAttribute :: Attr -> Parser a
-errorConflictingAttribute a = parseErrorRange a $ "Conflicting attribute: " ++ attrName a
-
--- | Report attributes as conflicting (e.g., with each other).
---   Precondition: List not emtpy.
-errorConflictingAttributes :: [Attr] -> Parser a
-errorConflictingAttributes [a] = errorConflictingAttribute a
-errorConflictingAttributes as  = parseErrorRange as $
-  "Conflicting attributes: " ++ unwords (map attrName as)
 }
