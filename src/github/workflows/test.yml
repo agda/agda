@@ -52,9 +52,6 @@ env:
   # Part 1: Versions (need update)
   ###########################################################################
 
-  # Andreas, 2022-11-24, set the stack version here so that it is easily
-  # shared between the jobs.
-  STACK_VER: "2.13.1"
   # Andreas, 2022-03-26, 2022-11-28:
   # GHC_VER should be given as x.y.z (as opposed to x.y only)
   # because it is used verbatim when referring to stack-x.y.z.yaml.
@@ -87,7 +84,7 @@ jobs:
       && !contains(github.event.head_commit.message, '[github skip]')
       && !contains(github.event.head_commit.message, '[skip github]')
 
-    runs-on: &runs_on ubuntu-22.04
+    runs-on: &runs_on ubuntu-24.04
     steps:
     - name: Info about the context
       run: |
@@ -114,7 +111,7 @@ jobs:
       id: setup-haskell
       with:
         ghc-version: ${{ env.GHC_VER }}
-        stack-version: ${{ env.STACK_VER }}
+        stack-version: latest
         enable-stack: true
 
     # The Makefile tests whether stack.yaml is present to decide on stack vs. cabal build.

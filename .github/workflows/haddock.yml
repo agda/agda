@@ -21,7 +21,7 @@ jobs:
       uses: haskell-actions/setup@v2
       with:
         cabal-update: true
-        cabal-version: ${{ matrix.cabal-ver }}
+        cabal-version: latest
         ghc-version: ${{ matrix.ghc-ver }}
     - name: Configure the build plan
       run: |
@@ -60,12 +60,10 @@ jobs:
         publish_dir: html
     strategy:
       matrix:
-        cabal-ver:
-        - '3.10'
         ghc-ver:
         - 9.8.2
         os:
-        - ubuntu-22.04
+        - ubuntu-24.04
 name: Haddock
 'on':
   pull_request:

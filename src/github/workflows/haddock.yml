@@ -24,9 +24,8 @@ jobs:
         # since this often does not point at the latest version;
         # not for the virtual environments, and also haskell/action/setup
         # is usually not up-to-date.
-        os: [ubuntu-22.04]
+        os: [ubuntu-24.04]
         ghc-ver: ['9.8.2']
-        cabal-ver: ['3.10']
           # Use the versions the come with the virtual environment, if possible.
 
     if: |
@@ -50,7 +49,7 @@ jobs:
       id: setup-haskell
       with:
         ghc-version:   ${{ matrix.ghc-ver }}
-        cabal-version: ${{ matrix.cabal-ver }}
+        cabal-version: latest
         cabal-update:  true
 
     - name: Configure the build plan

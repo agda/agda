@@ -56,7 +56,7 @@ jobs:
         - 8.10.7
         - 8.8.4
         os:
-        - ubuntu-latest
+        - ubuntu-24.04
         stack-ver:
         - latest
     timeout-minutes: 10

@@ -52,7 +52,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04,macos-12]
+        os: [ubuntu-24.04,macos-14]
         ghc-ver: [9.8.2]
           # !!! MAKE SURE THIS GHC VERSION IS IN SYNC WITH trigger_path_list !!!
           #

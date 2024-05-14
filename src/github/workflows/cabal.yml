@@ -48,7 +48,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04]
+        os: [ubuntu-24.04]
         description: [Linux]      ## This just for pretty-printing the job name.
         ghc-ver: [9.8.2, 9.6.5, 9.4.8, 9.2.8, 9.0.2, 8.10.7, 8.8.4, 8.6.5]
         # Need to mention "cabal-ver" at least once in the matrix, otherwise matrix.cabal-ver is an actionlint error.
@@ -59,7 +59,7 @@ jobs:
           ## Latest GHC, special builds
 
           # Linux, without tests but with doctest
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             description: Linux doctest
             ghc-ver: '9.8.2'
             # Can't leave cabal-flags empty here lest it becomes the default value.
@@ -67,13 +67,13 @@ jobs:
             doctest: true
 
           # Linux, without -f enable-cluster-counting but with -f debug
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             description: Linux debug
             ghc-ver: '9.8.2'
             cabal-flags: '--enable-tests -f debug'
 
           # Linux, with containers-0.7 and everything
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             description: Linux containers 0.7
             ghc-ver: '9.8.2'
             ## Andreas, 2023-09-28: Test containers-0.7 here which has breaking changes.
