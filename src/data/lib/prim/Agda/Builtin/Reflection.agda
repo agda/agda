@@ -344,7 +344,9 @@ postulate
   getInstances : Meta → TC (List Term)
 
   -- Try to solve open instance constraints. When wrapped in `noConstraints`,
-  -- if there are unsolved instance constraints left over.
+  -- fails if there are unsolved instance constraints left over that originate
+  -- from the current macro invokation. Outside constraints are still attempted,
+  -- but failure to solve them are ignored by `noConstraints`.
   solveInstanceConstraints : TC ⊤
 
 {-# BUILTIN AGDATCM                           TC                         #-}
