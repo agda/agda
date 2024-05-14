@@ -53,6 +53,7 @@ data Pattern = ConP QName [Arg Pattern]
              | LitP Literal
              | AbsurdP Int
              | ProjP QName
+             | EqualP Term
   deriving (Show)
 
 data Clause

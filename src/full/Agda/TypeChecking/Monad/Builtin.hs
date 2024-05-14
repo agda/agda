@@ -269,7 +269,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaClause, primAgdaClauseClause, primAgdaClauseAbsurd,
     primAgdaPattern, primAgdaPatCon, primAgdaPatVar, primAgdaPatDot,
     primAgdaPatLit, primAgdaPatProj,
-    primAgdaPatAbsurd,
+    primAgdaPatAbsurd, primAgdaPatEqual,
     primAgdaMeta,
     primAgdaBlocker, primAgdaBlockerAny, primAgdaBlockerAll, primAgdaBlockerMeta,
     primAgdaTCM, primAgdaTCMReturn, primAgdaTCMBind, primAgdaTCMUnify,
@@ -454,6 +454,7 @@ primAgdaPatDot                        = getBuiltin builtinAgdaPatDot
 primAgdaPatLit                        = getBuiltin builtinAgdaPatLit
 primAgdaPatProj                       = getBuiltin builtinAgdaPatProj
 primAgdaPatAbsurd                     = getBuiltin builtinAgdaPatAbsurd
+primAgdaPatEqual                      = getBuiltin builtinAgdaPatEqual
 primAgdaClause                        = getBuiltin builtinAgdaClause
 primAgdaClauseClause                  = getBuiltin builtinAgdaClauseClause
 primAgdaClauseAbsurd                  = getBuiltin builtinAgdaClauseAbsurd

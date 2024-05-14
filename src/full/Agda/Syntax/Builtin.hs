@@ -191,6 +191,7 @@ data BuiltinId
   | BuiltinAgdaPatLit
   | BuiltinAgdaPatProj
   | BuiltinAgdaPatAbsurd
+  | BuiltinAgdaPatEqual
   | BuiltinAgdaDefinitionFunDef
   | BuiltinAgdaDefinitionDataDef
   | BuiltinAgdaDefinitionRecordDef
@@ -411,6 +412,7 @@ instance IsBuiltin BuiltinId where
     BuiltinAgdaPatLit                        -> "AGDAPATLIT"
     BuiltinAgdaPatProj                       -> "AGDAPATPROJ"
     BuiltinAgdaPatAbsurd                     -> "AGDAPATABSURD"
+    BuiltinAgdaPatEqual                      -> "AGDAPATEQUAL"
     BuiltinAgdaDefinitionFunDef              -> "AGDADEFINITIONFUNDEF"
     BuiltinAgdaDefinitionDataDef             -> "AGDADEFINITIONDATADEF"
     BuiltinAgdaDefinitionRecordDef           -> "AGDADEFINITIONRECORDDEF"
@@ -560,7 +562,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaLitChar, builtinAgdaLitString, builtinAgdaLitQName, builtinAgdaLitMeta,
   builtinAgdaClause, builtinAgdaClauseClause, builtinAgdaClauseAbsurd, builtinAgdaPattern,
   builtinAgdaPatVar, builtinAgdaPatCon, builtinAgdaPatDot, builtinAgdaPatLit,
-  builtinAgdaPatProj, builtinAgdaPatAbsurd,
+  builtinAgdaPatProj, builtinAgdaPatAbsurd, builtinAgdaPatEqual,
   builtinAgdaDefinitionFunDef,
   builtinAgdaDefinitionDataDef, builtinAgdaDefinitionRecordDef,
   builtinAgdaDefinitionDataConstructor, builtinAgdaDefinitionPostulate,
@@ -736,6 +738,7 @@ builtinAgdaPatDot                        = BuiltinAgdaPatDot
 builtinAgdaPatLit                        = BuiltinAgdaPatLit
 builtinAgdaPatProj                       = BuiltinAgdaPatProj
 builtinAgdaPatAbsurd                     = BuiltinAgdaPatAbsurd
+builtinAgdaPatEqual                      = BuiltinAgdaPatEqual
 builtinAgdaDefinitionFunDef              = BuiltinAgdaDefinitionFunDef
 builtinAgdaDefinitionDataDef             = BuiltinAgdaDefinitionDataDef
 builtinAgdaDefinitionRecordDef           = BuiltinAgdaDefinitionRecordDef

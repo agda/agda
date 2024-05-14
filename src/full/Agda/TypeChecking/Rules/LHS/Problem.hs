@@ -325,7 +325,10 @@ getLeftoverPatterns eqs = do
       (A.WildP _)       -> return mempty
       (A.AsP info A.BindName{unBind = x} p)  -> (asPattern x v a `mappend`) <$> do
         getLeftoverPattern isParamName $ ProblemEq p v a
-      (A.DotP info e)   -> return $ dotPattern e v a
+      (A.DotP info e)   -> do
+          -- reportSDoc "tc.quoteClause" 5 $ info
+          -- reportSDoc "tc.quoteClause" 5 $ e
+          return $ dotPattern e v a
       (A.AbsurdP info)  -> return $ absurdPattern (getRange info) (unDom a)
       (A.AnnP info t p) -> (annPattern t (unDom a) `mappend`) <$> do
         getLeftoverPattern isParamName $ ProblemEq p v a

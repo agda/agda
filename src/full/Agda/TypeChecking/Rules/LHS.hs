@@ -272,6 +272,9 @@ updateProblemEqs eqs = do
       Lit l | A.LitP _ l' <- p , l == l' -> return []
 
       _ | A.EqualP{} <- p -> do
+        reportSDoc "tc.quoteClause" 5 $ nest 2 $ "p =" <+> prettyA p
+        reportSDoc "tc.quoteClause" 5 $ nest 2 $ "v =" <+> pretty v
+        reportSDoc "tc.quoteClause" 5 $ nest 2 $ "a =" <+> pretty a
         itisone <- liftTCM primItIsOne
         ifM (tryConversion $ equalTerm (unDom a) v itisone) (return []) (return [eq])
 
@@ -454,7 +457,8 @@ transferOrigins ps qs = do
       | otherwise = (setOrigin Inserted q :) <$> transfers (p : ps) qs
 
     transfer :: A.Pattern -> DeBruijnPattern -> TCM DeBruijnPattern
-    transfer p q = case (asView p , q) of
+    transfer p q =
+     case (asView p , q) of
 
       ((asB , anns , A.ConP pi _ ps) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
         let cpi = ConPatternInfo (PatternInfo PatOCon asB) r ft mb l
@@ -467,11 +471,17 @@ transferOrigins ps qs = do
         ps <- insertMissingFieldsFail d (const $ A.WildP patNoRange) fs axs
         ConP c cpi <$> transfers ps qs
 
+
       ((asB , anns , p) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
         let cpi = ConPatternInfo (PatternInfo (patOrig p) asB) r ft mb l
         return $ ConP c cpi qs
 
+
       ((asB , anns , p) , VarP _ x) -> return $ VarP (PatternInfo (patOrig p) asB) x
+
+      ((asB , anns , p) , DotP (PatternInfo (PatOEqualP tmE) _) u) ->
+          return $ DotP (PatternInfo (PatOEqualP tmE) asB) u
+
 
       ((asB , anns , p) , DotP _ u) -> return $ DotP (PatternInfo (patOrig p) asB) u
 
@@ -487,7 +497,7 @@ transferOrigins ps qs = do
     patOrig A.WildP{}       = PatOWild
     patOrig A.AbsurdP{}     = PatOAbsurd
     patOrig A.LitP{}        = PatOLit
-    patOrig A.EqualP{}      = PatOCon --TODO: origin for EqualP
+    patOrig A.EqualP{}      = PatOEqualP (Dummy "not-to-transfer" [])
     patOrig A.AsP{}         = __IMPOSSIBLE__
     patOrig A.ProjP{}       = __IMPOSSIBLE__
     patOrig A.DefP{}        = __IMPOSSIBLE__
@@ -1183,7 +1193,7 @@ checkLHS mf = updateModality checkLHS_ where
 
       let cpSub = raiseS $ size newContext - lhsCxtSize
 
-      (gamma,sigma) <- liftTCM $ updateContext cpSub (const newContext) $ do
+      ((gamma,sigma),phi) <- liftTCM $ updateContext cpSub (const newContext) $ do
          ts <- forM ts $ \ (t,u) -> do
                  reportSDoc "tc.lhs.split.partial" 10 $ "currentCxt =" <+> (prettyTCM =<< getContext)
                  reportSDoc "tc.lhs.split.partial" 10 $ text "t, u (Expr) =" <+> prettyTCM (t,u)
@@ -1214,12 +1224,13 @@ checkLHS mf = updateModality checkLHS_ where
          refined <- forallFaceMaps phi (\ bs m t -> typeError $ GenericError $ "face blocked on meta")
                             (\_ sigma -> (,sigma) <$> getContextTelescope)
          case refined of
-           [(gamma,sigma)] -> return (gamma,sigma)
+           [(gamma,sigma)] -> return ((gamma,sigma) , phi)
            []              -> typeError $ GenericError $ "The face constraint is unsatisfiable."
            _               -> typeError $ GenericError $ "Cannot have disjunctions in a face constraint."
       itisone <- liftTCM primItIsOne
       -- substitute the literal in p1 and dpi
-      reportSDoc "tc.lhs.faces" 60 $ text $ show sigma
+      reportSDoc "tc.lhs.faces" 60 $ pretty sigma
+      reportSDoc "tc.lhs.faces" 60 $ pretty gamma
 
       let oix = size adelta2 -- de brujin index of IsOne
           o_n = fromMaybe __IMPOSSIBLE__ $
@@ -1228,15 +1239,14 @@ checkLHS mf = updateModality checkLHS_ where
                                    _        -> False) ip
           delta2' = absApp adelta2 itisone
           delta2 = applySubst sigma delta2'
-          mkConP (Con c _ [])
-             = ConP c (noConPatternInfo { conPType = Just (Arg defaultArgInfo tInterval)
-                                              , conPFallThrough = True })
+          mkConP (Con c _ []) = ConP c (noConPatternInfo { conPType = Just (Arg defaultArgInfo tInterval)
+                  , conPFallThrough = True })
                           []
           mkConP (Var i []) = VarP defaultPatternInfo (DBPatVar "x" i)
           mkConP _          = __IMPOSSIBLE__
           rho0 = fmap mkConP sigma
 
-          rho    = liftS (size delta2) $ consS (DotP defaultPatternInfo itisone) rho0
+          rho    = liftS (size delta2) $ consS (DotP (isOneConPatternInfo phi) itisone) rho0
 
           delta'   = abstract gamma delta2
           eqs'     = applyPatSubst rho $ problem ^. problemEqs
@@ -1245,7 +1255,19 @@ checkLHS mf = updateModality checkLHS_ where
 
       -- Compute the new state
       let problem' = set problemEqs eqs' problem
-      reportSDoc "tc.lhs.split.partial" 60 $ text (show problem')
+
+
+      -- reportSDoc "tc.lhs.top" 20 $ vcat
+      --   [ "pre pasp - qs0 =" <+> addContext delta' (prettyTCMPatternList ip)
+      --   ]
+      reportSDoc "tc.lhs.top" 20 $ vcat
+        [ "pos pasp - qs0 =" <+> addContext delta' (prettyTCMPatternList ip')
+        ]
+      -- reportSDoc "tc.lhs.split.partialX" 10 $ "rho:"
+      -- reportSDoc "tc.lhs.split.partialX" 10 $ text (show rho)
+      -- reportSDoc "tc.lhs.split.partialX" 10 $ "ip':"
+      -- reportSDoc "tc.lhs.split.partialX" 10 $ text (show ip')
+      -- reportSDoc "tc.lhs.split.partial" 60 $ text (show problem')
       liftTCM $ updateLHSState (LHSState delta' ip' problem' target' (psplit ++ [Just o_n]) ixsplit)
 
 

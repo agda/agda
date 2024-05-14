@@ -196,7 +196,9 @@ nextSplit (Cl ps _ : cs) = findSplit nonLazy ps <|> findSplit allAgree ps
 -- | Is is not a variable pattern?
 --   And if yes, is it a record pattern and/or a fallThrough one?
 properSplit :: Pattern' a -> Maybe Bool
-properSplit (ConP _ cpi _) = Just ((conPRecord cpi && patOrigin (conPInfo cpi) == PatORec) || conPFallThrough cpi)
+properSplit (ConP _ cpi _) = Just ((conPRecord cpi && (\case
+                                 PatORec -> True
+                                 _ -> False ) (patOrigin (conPInfo cpi))) || conPFallThrough cpi)
 properSplit DefP{}    = Just False
 properSplit LitP{}    = Just False
 properSplit ProjP{}   = Just False

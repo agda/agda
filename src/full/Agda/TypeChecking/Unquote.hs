@@ -536,7 +536,9 @@ instance Unquote R.Pattern where
           , (c `isCon` primAgdaPatAbsurd, R.AbsurdP . fromInteger <$> unquoteN x)
           , (c `isCon` primAgdaPatDot,    R.DotP  <$> unquoteN x)
           , (c `isCon` primAgdaPatProj,   R.ProjP <$> unquoteN x)
-          , (c `isCon` primAgdaPatLit,    R.LitP  <$> unquoteN x) ]
+          , (c `isCon` primAgdaPatLit,    R.LitP  <$> unquoteN x)
+          , (c `isCon` primAgdaPatEqual,    R.EqualP  <$> unquoteN x)
+          ]
           __IMPOSSIBLE__
       Con c _ es | Just [x, y] <- allApplyElims es ->
         choice

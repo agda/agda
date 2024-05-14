@@ -268,6 +268,7 @@ de Bruijn indices to represent variables.
     lit    : (l : Literal) → Pattern
     proj   : (f : Name)    → Pattern
     absurd : (x : Nat)     → Pattern  -- Absurd patterns have de Bruijn indices
+    equal  : (t : Term)    → Pattern
 
   data Clause where
     clause        : (tel : Telescope) (ps : List (Arg Pattern)) (t : Term) → Clause
@@ -302,7 +303,7 @@ de Bruijn indices to represent variables.
   {-# BUILTIN AGDAPATLIT    lit     #-}
   {-# BUILTIN AGDAPATPROJ   proj    #-}
   {-# BUILTIN AGDAPATABSURD absurd  #-}
-
+  {-# BUILTIN AGDAPATEQUAL   equal  #-}
   {-# BUILTIN AGDACLAUSECLAUSE clause        #-}
   {-# BUILTIN AGDACLAUSEABSURD absurd-clause #-}
 

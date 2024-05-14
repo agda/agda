@@ -94,6 +94,7 @@ quotingKit = do
   litP            <- primAgdaPatLit
   projP           <- primAgdaPatProj
   absurdP         <- primAgdaPatAbsurd
+  equalP          <- primAgdaPatEqual
   set             <- primAgdaSortSet
   setLit          <- primAgdaSortLit
   prop            <- primAgdaSortProp
@@ -194,10 +195,17 @@ quotingKit = do
 
       quotePat :: DeBruijnPattern -> ReduceM Term
       quotePat p@(VarP _ x)
-       | patternOrigin p == Just PatOAbsurd = absurdP !@! quoteNat (toInteger $ dbPatVarIndex x)
+       | isPatOAbsurd p = absurdP !@! quoteNat (toInteger $ dbPatVarIndex x)
       quotePat (VarP o x)        = varP !@! quoteNat (toInteger $ dbPatVarIndex x)
+      quotePat (DotP (PatternInfo (PatOEqualP t) _) _) = equalP !@ quoteTerm t
       quotePat (DotP _ t)        = dotP !@ quoteTerm t
-      quotePat (ConP c _ ps)     = conP !@ quoteQName (conName c) @@ quotePats ps
+      quotePat p@(ConP c cpi ps)     = do
+        reportSDoc "tc.quoteFaceClause" 20 $ pretty p
+        case (patOrigin (conPInfo cpi)) of
+          PatOEqualP i -> do
+               reportSDoc "tc.quoteFaceClause" 20 $ pretty i
+               conP !@ quoteQName (conName c) @@ quotePats ps
+          _ -> conP !@ quoteQName (conName c) @@ quotePats ps
       quotePat (LitP _ l)        = litP !@ quoteLit l
       quotePat (ProjP _ x)       = projP !@ quoteQName x
       -- #4763: quote IApply co/patterns as though they were variables
@@ -205,7 +213,8 @@ quotingKit = do
       quotePat DefP{}            = pure unsupported
 
       quoteClause :: Either a Projection -> Clause -> ReduceM Term
-      quoteClause proj cl@Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = body} =
+      quoteClause proj cl@Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = body} = do
+
         case body of
           Nothing -> absurdClause !@ quoteTelescope tel @@ quotePats ps'
           Just b  -> normalClause !@ quoteTelescope tel @@ quotePats ps' @@ quoteTerm b
@@ -252,6 +261,13 @@ quotingKit = do
       generatedClause :: Clause -> Bool
       generatedClause cl = hasDefP (namedClausePats cl)
 
+      isAbsurdClause :: Clause -> Bool
+      isAbsurdClause cl =
+         case (clauseBody cl) of
+           Nothing -> True
+           _ -> False
+
+
       quoteTerm :: Term -> ReduceM Term
       quoteTerm v = do
         v <- instantiate' v
@@ -270,9 +286,10 @@ quotingKit = do
               qx Function{ funExtLam = Just (ExtLamInfo m False _), funClauses = cs } = do
                     -- An extended lambda should not have any extra parameters!
                     unless (null conOrProjPars) __IMPOSSIBLE__
-                    cs <- return $ filter (not . generatedClause) cs
+                    cs <- return $ filter (not . isAbsurdClause) $ filter (not . generatedClause) cs
                     n <- size <$> lookupSection m
                     let (pars, args) = splitAt n ts
+                    reportSDoc "tc.quoteTermExtLamPars" 20 $ pretty cs
                     extlam !@ list (map (quoteClause (Left ()) . (`apply` pars)) cs)
                            @@ list (map (quoteArg quoteTerm) args)
               qx df@Function{ funExtLam = Just (ExtLamInfo _ True _), funCompiled = Just Fail{}, funClauses = [cl] } = do

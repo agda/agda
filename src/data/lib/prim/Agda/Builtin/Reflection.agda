@@ -203,6 +203,7 @@ data Pattern where
   lit    : (l : Literal) → Pattern
   proj   : (f : Name)    → Pattern
   absurd : (x : Nat)     → Pattern  -- absurd patterns counts as variables
+  equal    : (t : Term)    → Pattern
 
 data Clause where
   clause        : (tel : Telescope) (ps : List (Arg Pattern)) (t : Term) → Clause
@@ -237,6 +238,7 @@ data Clause where
 {-# BUILTIN AGDAPATLIT    lit     #-}
 {-# BUILTIN AGDAPATPROJ   proj    #-}
 {-# BUILTIN AGDAPATABSURD absurd  #-}
+{-# BUILTIN AGDAPATEQUAL   equal  #-}
 
 {-# BUILTIN AGDACLAUSECLAUSE clause        #-}
 {-# BUILTIN AGDACLAUSEABSURD absurd-clause #-}

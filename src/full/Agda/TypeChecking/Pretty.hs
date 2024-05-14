@@ -451,7 +451,9 @@ instance PrettyTCM a => PrettyTCM (Pattern' a) where
         prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
       where
         -- NONE OF THESE BINDINGS IS USED AT THE MOMENT:
-        b = conPRecord i && patOrigin (conPInfo i) /= PatOCon
+        b = conPRecord i && (\case
+                               PatOCon -> False
+                               _ -> True ) (patOrigin (conPInfo i))
         showRec :: m Doc -- Defined, but currently not used
         showRec = sep
           [ "record"
