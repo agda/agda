@@ -196,6 +196,12 @@ addConstraintTo bucket unblock c = do
     stDirty `setTCLens` True
     bucket `modifyTCLens` (pc :)
 
+-- | A problem is considered solved if there are no unsolved blocking constraints belonging to it.
+--   There's no really good principle for what constraints are blocking and which are not, but the
+--   general idea is that nothing bad should happen if you assume a non-blocking constraint is
+--   solvable, but it turns out it isn't. For instance, assuming an equality constraint between two
+--   types that turns out to be false can lead to ill typed terms in places where we don't expect
+--   them.
 isBlockingConstraint :: Constraint -> Bool
 isBlockingConstraint = \case
   SortCmp{}             -> False
