@@ -288,6 +288,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMNoConstraints,
     primAgdaTCMRunSpeculative,
     primAgdaTCMExec,
+    primAgdaTCMCheckFromString,
     primAgdaTCMGetInstances,
     primAgdaTCMPragmaForeign,
     primAgdaTCMPragmaCompile
@@ -504,6 +505,7 @@ primAgdaTCMDebugPrint                 = getBuiltin builtinAgdaTCMDebugPrint
 primAgdaTCMNoConstraints              = getBuiltin builtinAgdaTCMNoConstraints
 primAgdaTCMRunSpeculative             = getBuiltin builtinAgdaTCMRunSpeculative
 primAgdaTCMExec                       = getBuiltin builtinAgdaTCMExec
+primAgdaTCMCheckFromString            = getBuiltin builtinAgdaTCMCheckFromString
 primAgdaTCMGetInstances               = getBuiltin builtinAgdaTCMGetInstances
 primAgdaTCMPragmaForeign              = getBuiltin builtinAgdaTCMPragmaForeign
 primAgdaTCMPragmaCompile              = getBuiltin builtinAgdaTCMPragmaCompile
