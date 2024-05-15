@@ -1378,15 +1378,17 @@ Either only one if point is a goal, or all of them."
                           'agda2-mimerAll))
 )
 
-(defun agda2-mimer ()
+(agda2-maybe-normalised-asis
+  agda2-mimer
   "Run proof search on a goal."
-  (interactive)
-  (agda2-goal-cmd "Cmd_autoOne" 'save 'goal))
+  "Cmd_autoOne"
+  nil
+)
 
-(defun agda2-mimerAll ()
+(agda2-maybe-normalised-toplevel-asis-noprompt
+  agda2-mimerAll
   "Solves all goals by simple proof search."
-  (interactive)
-  (agda2-go nil nil 'busy t "Cmd_autoAll")
+  "Cmd_autoAll"
 )
 
 (agda2-maybe-normalised-toplevel-asis-noprompt

@@ -77,6 +77,8 @@ import Data.IORef (IORef, writeIORef, readIORef, newIORef, modifyIORef')
 -- Temporary (used for custom cost verbosity hack)
 import qualified Agda.Utils.Maybe.Strict as Strict
 import qualified Agda.Utils.Trie as Trie
+import Agda.Interaction.Base (Rewrite(..))
+import Agda.Interaction.BasicOps (normalForm)
 import Agda.Interaction.Options.Base (parseVerboseKey)
 import Agda.Utils.List (lastWithDefault)
 
@@ -90,11 +92,12 @@ data MimerResult
 instance NFData MimerResult
 
 mimer :: MonadTCM tcm
-  => InteractionId
+  => Rewrite
+  -> InteractionId
   -> Range
   -> String
   -> tcm MimerResult
-mimer ii rng argStr = liftTCM $ do
+mimer norm ii rng argStr = liftTCM $ do
     reportSDoc "mimer.top" 10 ("Running Mimer on interaction point" <+> pretty ii <+> "with argument string" <+> text (show argStr))
 
     start <- liftIO $ getCPUTime
@@ -104,7 +107,7 @@ mimer ii rng argStr = liftTCM $ do
 
     oldState <- getTC
 
-    sols <- runSearch opts ii rng
+    sols <- runSearch norm opts ii rng
     putTC oldState
 
     sol <- case drop (optSkip opts) $ zip [0..] sols of
@@ -237,6 +240,7 @@ data SearchOptions = SearchOptions
   , searchFnName :: Maybe QName
   , searchCosts :: Costs
   , searchStats :: IORef MimerStats
+  , searchRewrite :: Rewrite
   }
 
 type Cost = Int
@@ -691,8 +695,8 @@ updateStat f = verboseS "mimer.stats" 10 $ do
 -- * Core algorithm
 ------------------------------------------------------------------------------
 
-runSearch :: Options -> InteractionId -> Range -> TCM [MimerResult]
-runSearch options ii rng = withInteractionId ii $ do
+runSearch :: Rewrite -> Options -> InteractionId -> Range -> TCM [MimerResult]
+runSearch norm options ii rng = withInteractionId ii $ do
   (mTheFunctionQName, whereNames) <- fmap ipClause (lookupInteractionPoint ii) <&> \case
     clause@IPClause{} -> ( Just $ ipcQName clause
                          , case A.whereDecls $ A.clauseWhereDecls $ ipcClause clause of
@@ -752,7 +756,7 @@ runSearch options ii rng = withInteractionId ii $ do
         InstV inst -> do
           expr <- withInteractionId ii $ do
             metaArgs <- getMetaContextArgs metaVar
-            instantiateFull (apply (MetaV metaId []) metaArgs) >>= reify
+            instantiateFull (apply (MetaV metaId []) metaArgs) >>= normalForm norm >>= reify
           str <- P.render <$> prettyTCM expr
           let sol = MimerExpr str
           reportSDoc "mimer.init" 10 $ "Goal already solved. Solution:" <+> text str
@@ -795,6 +799,7 @@ runSearch options ii rng = withInteractionId ii $ do
             , searchFnName = mTheFunctionQName
             , searchCosts = costs
             , searchStats = statsRef
+            , searchRewrite = norm
             }
 
       reportSDoc "mimer.init" 20 $ "Using search options:" $$ nest 2 (prettyTCM searchOptions)
@@ -1374,6 +1379,10 @@ applyToMetas skip term typ = do
       return (term', typ', metaId' : metas)
     _ -> return (term, typ, [])
 
+normaliseSolution :: Term -> SM Term
+normaliseSolution t = do
+  norm <- asks searchRewrite
+  lift . normalForm norm =<< instantiateFull t
 
 checkSolved :: SearchBranch -> SM SearchStepResult
 checkSolved branch = do
@@ -1382,7 +1391,7 @@ checkSolved branch = do
   ii <- asks searchInteractionId
   withInteractionId ii $ withBranchState branch $ do
     metaArgs <- getMetaContextArgs topMeta
-    inst <- instantiateFull $ apply (MetaV topMetaId []) metaArgs
+    inst <- normaliseSolution $ apply (MetaV topMetaId []) metaArgs
     case allMetas (:[]) inst of
       [] -> ResultExpr <$> reify inst
       metaIds -> do
