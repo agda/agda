@@ -1634,7 +1634,7 @@ instance PrettyTCM TypeError where
       text ("Unexpected type signature for parameter" ++ s) <+> sep (fmap prettyA xs)
 
     UnusableAtModality why mod t -> do
-      compatible <- optCubicalCompatible <$> pragmaOptions
+      compatible <- cubicalCompatibleOption
       cubical <- isJust . optCubical <$> pragmaOptions
       let
         context

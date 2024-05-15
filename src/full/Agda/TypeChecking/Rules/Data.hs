@@ -118,8 +118,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   else throwError err
               reduce s
 
-            withK   <- not . optWithoutK <$>
-                       pragmaOptions
+            withK   <- not <$> withoutKOption
             erasure <- optErasure <$> pragmaOptions
             -- Parameters are always hidden in constructors. If
             -- --erasure is used, then the parameters are erased for
@@ -189,7 +188,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
         let cons   = map A.axiomName cs  -- get constructor names
 
         (mtranspix, transpFun) <-
-          ifM (optCubicalCompatible <$> pragmaOptions)
+          ifM cubicalCompatibleOption
             (do mtranspix <- inTopContext $ defineTranspIx name
                 transpFun <- inTopContext $
                                defineTranspFun name mtranspix cons
@@ -331,7 +330,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
             defineProjections d con params names fields dataT
             -- Andreas, 2024-01-05 issue #7048:
             -- Only define hcomp when --cubical-compatible.
-            cubicalCompatible <- optCubicalCompatible <$> pragmaOptions
+            cubicalCompatible <- cubicalCompatibleOption
             -- Cannot compose indexed inductive types yet.
             comp <- if cubicalCompatible && nofIxs == 0 && Info.defAbstract i == ConcreteDef
                     then inTopContext $ defineCompData d con params names fields dataT boundary

@@ -862,7 +862,7 @@ computeHCompSplit  :: Telescope   -- ^ Telescope before split point.
   -- -> QName                        -- ^ Constructor to fit into hole.
   -> CoverM (Maybe (SplitTag,SplitClause))   -- ^ New split clause if successful.
 computeHCompSplit delta1 n delta2 d pars ixs hix tel ps cps = do
-  withK   <- not . optCubicalCompatible <$> pragmaOptions
+  withK   <- not <$> cubicalCompatibleOption
   if withK then return Nothing else do
     -- Get the type of the datatype
   -- Δ1 ⊢ dtype
@@ -1036,7 +1036,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
         Right{} -> return ()
         Left SplitOnStrict -> return ()
         Left x -> do
-          whenM (optCubicalCompatible <$> pragmaOptions) $ do
+          whenM cubicalCompatibleOption $ do
             -- re #3733: TODO better error msg.
             lift $ warning . UnsupportedIndexedMatch =<< prettyTCM x
 
