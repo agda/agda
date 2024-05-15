@@ -2077,6 +2077,7 @@ class LensArgInfo a where
   setArgInfo ai = mapArgInfo (const ai)
   mapArgInfo :: (ArgInfo -> ArgInfo) -> a -> a
   mapArgInfo f a = setArgInfo (f $ getArgInfo a) a
+  {-# MINIMAL getArgInfo , (setArgInfo | mapArgInfo) #-}
 
 instance LensArgInfo ArgInfo where
   getArgInfo = id
