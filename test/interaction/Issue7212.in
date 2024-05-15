@@ -1,0 +1,2 @@
+goal_command 0 (cmd_autoOne AsIs) ""
+goal_command 1 (cmd_autoOne Normalised) ""

@@ -695,9 +695,9 @@ interpret (Cmd_refine_or_intro pmLambda ii r s) = interpret $
   let s' = trim s
   in (if null s' then Cmd_intro pmLambda else Cmd_refine) ii r s'
 
-interpret (Cmd_autoOne ii rng str) = do
+interpret (Cmd_autoOne norm ii rng str) = do
   iscope <- getInteractionScope ii
-  (time, result) <- maybeTimed $ Mimer.mimer ii rng str
+  (time, result) <- maybeTimed $ Mimer.mimer norm ii rng str
   case result of
     MimerNoResult -> display_info $ Info_Auto "No solution found"
     MimerExpr str -> do
@@ -711,7 +711,7 @@ interpret (Cmd_autoOne ii rng str) = do
         [ "  " ++ show i ++ ". " ++ s | (i, s) <- sols ]
     MimerClauses{} -> __IMPOSSIBLE__    -- Mimer can't do case splitting yet
 
-interpret Cmd_autoAll = do
+interpret (Cmd_autoAll norm) = do
   iis <- getInteractionPoints
   getOldScope <- do
     st <- getTC
@@ -721,7 +721,7 @@ interpret Cmd_autoAll = do
     st <- getTC
     solved <- fmap concat $ forM iis $ \ ii -> do
       rng <- getInteractionRange ii
-      res <- Mimer.mimer ii rng ("-t " ++ show time ++ "ms")
+      res <- Mimer.mimer norm ii rng ("-t " ++ show time ++ "ms")
       case res of
         MimerNoResult -> pure []
         MimerExpr str -> do
