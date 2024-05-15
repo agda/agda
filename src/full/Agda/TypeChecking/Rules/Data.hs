@@ -1732,8 +1732,7 @@ fitsIn con uc forceds conT s = do
   -- s' <- instantiateFull (getSort t)
   -- noConstraints $ s' `leqSort` s
 
-  withoutK <- withoutKOption
-  when withoutK $ do
+  whenM withoutKOption $ do
     q <- viewTC eQuantity
     usableAtModality' (Just s) ConstructorType (setQuantity q unitModality) (unEl conT)
 

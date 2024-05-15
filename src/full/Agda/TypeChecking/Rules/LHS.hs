@@ -853,7 +853,8 @@ conSplitModalityCheck mod rho blocking gamma target = when (any ((/= defaultModa
     [ "LHS modality check for modality: " <+> prettyTCM mod
     , "rho:    " <+> inTopContext (prettyTCM rho)
     , "gamma:  " <+> inTopContext (prettyTCM gamma)
-    , "target: " <+> prettyTCM target <+> parens (pretty target)
+    , "target: " <+> prettyTCM target
+    , "target (raw): " <+> pretty target
     , "Δ'target: " <+> prettyTCM (applyPatSubst rho target)
     , "blocking:" <+> prettyTCM blocking
     ]
@@ -1546,12 +1547,11 @@ checkLHS mf = updateModality checkLHS_ where
                      Quantity1{} -> __IMPOSSIBLE__
                      Quantityω{} -> q
 
-          liftTCM $ addContext delta' $ do
-            withoutK <- optWithoutK <$> pragmaOptions
-            cubical <- optCubicalCompatible <$> pragmaOptions
-            mod <- currentModality
-            when ((withoutK || cubical) && not (null ixs)) $
-              conSplitModalityCheck mod rho (length delta2) tel (unArg target)
+          unless (null ixs) $
+            whenM (withoutKOption `or2M` cubicalCompatibleOption) $ do
+              mod <- currentModality
+              liftTCM $ addContext delta' $
+                conSplitModalityCheck mod rho (length delta2) tel (unArg target)
 
           -- if rest type reduces,
           -- extend the split problem by previously not considered patterns
