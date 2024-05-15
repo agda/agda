@@ -46,8 +46,6 @@ import Agda.TypeChecking.Substitute.Class (absBody, raise, apply)
 import Agda.TypeChecking.Reduce (Reduce(..), reduceB', reduce', reduce)
 import Agda.TypeChecking.Names (NamesT, runNamesT, ilam, lam)
 
-import Agda.Interaction.Options.Base (optCubical)
-
 import Agda.Syntax.Common
   (Cubical(..), Arg(..), Relevance(..), setRelevance, defaultArgInfo, hasQuantity0)
 
@@ -65,7 +63,7 @@ requireCubical
   -> String  -- ^ Why, exactly, do we need Cubical to be enabled?
   -> TCM ()
 requireCubical wanted s = do
-  cubical         <- optCubical <$> pragmaOptions
+  cubical         <- cubicalOption
   inErasedContext <- hasQuantity0 <$> viewTC eQuantity
   case cubical of
     Just CFull -> return ()

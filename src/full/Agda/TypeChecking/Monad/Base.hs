@@ -4994,6 +4994,10 @@ withoutKOption :: HasOptions m => m Bool
 withoutKOption = optWithoutK <$> pragmaOptions
 {-# INLINE withoutKOption #-}
 
+cubicalOption :: HasOptions m => m (Maybe Cubical)
+cubicalOption = optCubical <$> pragmaOptions
+{-# INLINE cubicalOption #-}
+
 cubicalCompatibleOption :: HasOptions m => m Bool
 cubicalCompatibleOption = optCubicalCompatible <$> pragmaOptions
 {-# INLINE cubicalCompatibleOption #-}

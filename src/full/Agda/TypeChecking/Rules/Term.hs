@@ -472,7 +472,7 @@ checkLambda' cmp r tac xps typ body target = do
     info = getArgInfo $ List1.head xs
 
     trySeeingIfPath = do
-      cubical <- isJust . optCubical <$> pragmaOptions
+      cubical <- isJust <$> cubicalOption
       reportSLn "tc.term.lambda" 60 $ "trySeeingIfPath for " ++ show xps
       let postpone' = if cubical then postpone else \ _ _ -> dontUseTargetType
       ifBlocked target postpone' $ \ _ t -> do

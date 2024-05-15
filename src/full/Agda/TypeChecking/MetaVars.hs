@@ -820,7 +820,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
 
   let
     boundary v = do
-      cubical <- optCubical <$> pragmaOptions
+      cubical <- cubicalOption
       isip <- isInteractionMetaB x args
       case (,) <$> cubical <*> isip of
         Just (_, (x, ip, args)) -> tryAddBoundary dir x ip args v target

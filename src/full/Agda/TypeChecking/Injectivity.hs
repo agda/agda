@@ -318,7 +318,7 @@ functionInverse
 functionInverse = \case
   Def f es -> do
     inv <- defInverse <$> getConstInfo f
-    cubical <- optCubical <$> pragmaOptions
+    cubical <- cubicalOption
     case inv of
       NotInjective -> return NoInv
       Inverse m -> maybe NoInv (Inv f es) <$> (traverse (checkOverapplication es) =<< instantiateVarHeads f es m)

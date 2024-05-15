@@ -1635,7 +1635,7 @@ instance PrettyTCM TypeError where
 
     UnusableAtModality why mod t -> do
       compatible <- cubicalCompatibleOption
-      cubical <- isJust . optCubical <$> pragmaOptions
+      cubical <- isJust <$> cubicalOption
       let
         context
           | cubical    = "in Cubical Agda,"

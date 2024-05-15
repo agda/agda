@@ -10,8 +10,6 @@ import Control.Monad
 import Control.Monad.State
 import Control.Monad.Except
 
-
-import Agda.Interaction.Options (optCubical)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
@@ -57,7 +55,7 @@ data NoLeftInv
 buildLeftInverse :: (PureTCM tcm, MonadError TCErr tcm) => UnifyState -> UnifyLog -> tcm (Either NoLeftInv (Substitution, Substitution))
 buildLeftInverse s0 log = do
   reportSDoc "tc.lhs.unify.inv.badstep" 20 $ do
-    cubical <- optCubical <$> pragmaOptions
+    cubical <- cubicalOption
     "cubical:" <+> text (show cubical)
   reportSDoc "tc.lhs.unify.inv.badstep" 20 $ do
     pathp <- getTerm' builtinPathP

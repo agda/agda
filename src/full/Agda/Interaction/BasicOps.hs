@@ -167,7 +167,7 @@ giveExpr force mii mi e = do
       unless (force == WithForce) $ redoChecks mii
       wakeupConstraints mi
       solveSizeConstraints DontDefaultToInfty
-      cubical <- isJust . optCubical <$> pragmaOptions
+      cubical <- isJust <$> cubicalOption
       -- don't double check with cubical, because it gets in the way too often.
       unless (cubical || force == WithForce) $ do
         -- Double check.
@@ -1184,7 +1184,7 @@ introTactic pmLambda ii = do
         TelV tel' t <- telViewUpTo' (-1) notVisible t
         -- if we cannot introduce a constructor, we try a lambda
         let fallback = do
-              cubical <- isJust . optCubical <$> pragmaOptions
+              cubical <- isJust <$> cubicalOption
               TelV tel _ <- (if cubical then telViewPath else telView) t
               reportSDoc "interaction.intro" 20 $ TP.sep
                 [ "introTactic/fallback"
@@ -1250,7 +1250,7 @@ introTactic pmLambda ii = do
       -- Gallais, 2023-08-24: #6787 we need to locally ignore the
       -- --without-K or --cubical-compatible options to figure out
       -- that refl is a valid constructor for refl ≡ refl.
-      cubical <- isJust . optCubical <$> pragmaOptions
+      cubical <- isJust <$> cubicalOption
       r <- (if cubical then id else
             locallyTCState (stPragmaOptions . lensOptWithoutK) (const (Value False)))
            $ splitLast CoInductive tel pat

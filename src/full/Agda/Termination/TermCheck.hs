@@ -254,7 +254,7 @@ termMutual' = do
        -- could be turned into actual splits, because no-confusion
        -- would make the other cases impossible, so I do not disable
        -- this for --without-K entirely.
-       ifM (isJust . optCubical <$> pragmaOptions) (return r) {- else -} $
+       ifM (isJust <$> cubicalOption) (return r) {- else -} $
        case r of
          r@Right{} -> return r
          Left{}    -> do
@@ -413,7 +413,7 @@ termFunction name = inConcreteOrAbstractMode name $ \ def -> do
      -- this for --without-K entirely.
      --
      -- Andreas, 2022-03-21: The check for --cubical was missing here.
-     ifM (isJust . optCubical <$> pragmaOptions) (return r) {- else -} $ case r of
+     ifM (isJust <$> cubicalOption) (return r) {- else -} $ case r of
        Right () -> return $ Right ()
        Left{}   -> do
          -- Try again, but include the dot patterns this time.

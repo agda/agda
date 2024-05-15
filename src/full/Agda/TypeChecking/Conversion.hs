@@ -1950,7 +1950,7 @@ equalSort s1 s2 = do
           , "  s2 =" <+> prettyTCM s2
           ]
         sizedTypesEnabled <- sizedTypesOption
-        cubicalEnabled <- isJust . optCubical <$> pragmaOptions
+        cubicalEnabled <- isJust <$> cubicalOption
         levelUnivEnabled <- optLevelUniverse <$> pragmaOptions
         let postpone = patternViolation blocker
             err :: m ()

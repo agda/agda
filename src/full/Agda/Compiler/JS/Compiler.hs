@@ -159,7 +159,7 @@ jsCommandLineFlags =
 
 jsPreCompile :: JSOptions -> TCM JSOptions
 jsPreCompile opts = do
-  cubical <- optCubical <$> pragmaOptions
+  cubical <- cubicalOption
   let notSupported s =
         typeError $ GenericError $
           "Compilation of code that uses " ++ s ++ " is not supported."
@@ -221,7 +221,7 @@ jsPreModule ::
   JSOptions -> IsMain -> TopLevelModuleName -> Maybe FilePath ->
   TCM (Recompile JSModuleEnv Module)
 jsPreModule _opts _ m mifile = do
-  cubical <- optCubical <$> pragmaOptions
+  cubical <- cubicalOption
   let compile = case cubical of
         -- Code that uses --cubical is not compiled.
         Just CFull   -> False

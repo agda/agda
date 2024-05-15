@@ -218,7 +218,7 @@ data GHCDefinition = GHCDefinition
 
 ghcPreCompile :: GHCFlags -> TCM GHCEnv
 ghcPreCompile flags = do
-  cubical <- optCubical <$> pragmaOptions
+  cubical <- cubicalOption
   let notSupported s =
         typeError $ GenericError $
           "Compilation of code that uses " ++ s ++ " is not supported."
@@ -382,7 +382,7 @@ ghcPreModule
                  -- ^ Could we confirm the existence of a main function?
 ghcPreModule cenv isMain m mifile =
   (do let check = ifM uptodate noComp yesComp
-      cubical <- optCubical <$> pragmaOptions
+      cubical <- cubicalOption
       case cubical of
         -- Code that uses --cubical is not compiled.
         Just CFull   -> noComp
