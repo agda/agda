@@ -319,6 +319,8 @@ termMutual' = do
       mapM_ (`setTerminates` True) allNames
       return mempty
 
+-- | Entry point for the @--type-based-termination@ checker.
+--
 runTypeBasedTerminationChecking :: MutualNames -> TerM (Either CallPath ())
 runTypeBasedTerminationChecking allNames = billTo [Benchmark.TypeBasedTermination] $ do
   calls0 <- liftTCM $ collectTerminationData allNames
@@ -328,11 +330,16 @@ runTypeBasedTerminationChecking allNames = billTo [Benchmark.TypeBasedTerminatio
     Right calls0 -> do
       let ?cutoff = cutoff
       reportCalls "tbt" calls0
-      result <- billPureTo [Benchmark.TypeBasedTermination, Benchmark.Matrix] $ Term.terminates calls0
+      result <- billPureTo [Benchmark.TypeBasedTermination, Benchmark.Matrix] $
+        Term.terminates calls0
       case result of
-        Left errs -> reportSDoc "term.tbt.failure" 5 $ ("Type-based termination failed for definitions " $$ nest 2 (prettyTCM (Set.toList allNames)))
-        Right _ -> reportSDoc "term.tbt" 5 $ ("Type-based termination succeded for definitions " $$ nest 2 (prettyTCM (Set.toList allNames)))
+        Left errs -> reportSDoc "term.tbt.failure" 5 $ theReport "failed"
+        Right _ -> reportSDoc "term.tbt" 5 $ theReport "succeeded"
       pure result
+  where
+    theReport s = vcat $
+      hsep [ "Type-based termination", s, "for definition(s):" ] :
+      map (nest 2 . prettyTCM) (Set.toList allNames)
 
 -- | Smart constructor for 'TerminationError'.
 --   Removes 'termErrFunctions' that are not mentioned in 'termErrCalls'.
