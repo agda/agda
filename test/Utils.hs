@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 module Utils (module Utils,
               AgdaError(..)) where
@@ -27,7 +28,7 @@ import System.Exit
 import System.FilePath
 import qualified System.FilePath.Find as Find
 import System.FilePath.GlobPattern
--- import System.IO                     ( hPutStrLn, stderr )
+import System.IO                     ( hPutStrLn, stderr )
 import System.IO.Temp
 import System.PosixCompat.Time       ( epochTime )
 import System.PosixCompat.Files      ( modificationTime, touchFile )
@@ -77,8 +78,9 @@ readAgdaProcessWithExitCode extraEnv args inp = do
   home <- getHomeDirectory
   let env = expandEnvVarTelescope home $ maybe origEnv (origEnv ++) extraEnv
   let envArgs = maybe [] words $ lookup "AGDA_ARGS" env
+  let agdaBin = getAgdaBin env
   -- hPutStrLn stderr $ unwords $ agdaBin : envArgs ++ args
-  let agdaProc = (proc (getAgdaBin env) (envArgs ++ args))
+  let agdaProc = (proc agdaBin (envArgs ++ args))
         { create_group = True
         , env          = Just env
         , cwd          = Just "."
