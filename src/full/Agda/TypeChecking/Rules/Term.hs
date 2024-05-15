@@ -1710,7 +1710,7 @@ checkLetBinding' b@(A.LetPatBind i p e) ret = do
         -- and relevances.
         let infos = map domInfo tsl
         -- We get list of names of the let-bound vars from the context.
-        let xs   = map (fst . unDom) (reverse binds)
+        let xs   = map ctxEntryName $ reverse binds
         -- We add all the bindings to the context.
         foldr (uncurry4 $ flip addLetBinding UserWritten) ret $ List.zip4 infos xs sigma ts
 

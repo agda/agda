@@ -1523,6 +1523,9 @@ instance (Subst a, InstantiateFull a) => InstantiateFull (Abs a) where
 instance (InstantiateFull t, InstantiateFull e) => InstantiateFull (Dom' t e) where
     instantiateFull' (Dom i n b tac x) = Dom i n b <$> instantiateFull' tac <*> instantiateFull' x
 
+instance InstantiateFull ContextEntry where
+  instantiateFull' (CtxVar x a) = CtxVar x <$> instantiateFull' a
+
 instance InstantiateFull LetBinding where
   instantiateFull' (LetBinding o v t) = LetBinding o <$> instantiateFull' v <*> instantiateFull' t
 

@@ -14,7 +14,7 @@ import Control.Monad.Trans    ( lift )
 import Data.Char
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text (Text)
@@ -108,7 +108,7 @@ packUnquoteM f = ReaderT $ \ cxt -> StateT $ \ s -> WriterT $ ExceptT $ f cxt s
 
 runUnquoteM :: UnquoteM a -> TCM (Either UnquoteError (a, [QName]))
 runUnquoteM m = do
-  cxt <- asksTC envContext
+  cxt <- getContext
   s   <- getTC
   pid <- fresh  -- Create a fresh problem for the unquote call. Used in tcSolveInstances.
   z   <- localTC (\ e -> e { envUnquoteProblem = Just pid })
@@ -865,12 +865,12 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
     tcGetContext :: UnquoteM Term
     tcGetContext = liftTCM $ do
       r <- isReconstructed
-      as <- map (nameToArgName . fst . unDom &&& fmap snd) <$> getContext
+      let getVar (CtxVar x a) = (nameToArgName x, a)
+      as <- map getVar <$> getContext
       as <- etaContract =<< process as
       if r then do
         as <- recons (reverse as)
-        let as' = reverse as
-        locallyReconstructed $ buildList <*> mapM quoteDomWithName as'
+        locallyReconstructed $ buildList <*> mapM quoteDomWithName as
       else
         buildList <*> mapM quoteDomWithName as
       where
@@ -883,7 +883,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
           return $ (s, d'):ds'
 
         quoteDomWithName :: (ArgName, Dom Type) -> TCM Term
-        quoteDomWithName (x, t) = toTerm <*> pure (T.pack x, t)
+        quoteDomWithName (x, a) = toTerm <*> pure (T.pack x, a)
 
     extendCxt :: Text -> Arg R.Type -> UnquoteM a -> UnquoteM a
     extendCxt s' a m = withFreshName noRange (T.unpack s') $ \s -> do
