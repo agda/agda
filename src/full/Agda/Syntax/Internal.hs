@@ -462,7 +462,7 @@ nameToPatVarName = nameToArgName
 data PatternInfo = PatternInfo
   { patOrigin :: PatOrigin
   , patAsNames :: [Name]
-  } deriving (Show, Eq, Generic)
+  } deriving (Show, Generic)
 
 defaultPatternInfo :: PatternInfo
 defaultPatternInfo = PatternInfo PatOSystem []
@@ -478,7 +478,8 @@ data PatOrigin
   | PatORec            -- ^ User wrote a record pattern
   | PatOLit            -- ^ User wrote a literal pattern
   | PatOAbsurd         -- ^ User wrote an absurd pattern
-  deriving (Show, Eq, Generic)
+  | PatOEqualP Term    -- ^ User wrote an face constraint origin
+  deriving (Show, Generic)
 
 -- | Patterns are variables, constructors, or wildcards.
 --   @QName@ is used in @ConP@ rather than @Name@ since
@@ -572,6 +573,10 @@ data ConPatternInfo = ConPatternInfo
 noConPatternInfo :: ConPatternInfo
 noConPatternInfo = ConPatternInfo defaultPatternInfo False False Nothing False
 
+isOneConPatternInfo :: Term -> PatternInfo
+isOneConPatternInfo t = (PatternInfo (PatOEqualP t) [])
+
+
 -- | Build partial 'ConPatternInfo' from 'ConInfo'
 toConPatternInfo :: ConInfo -> ConPatternInfo
 toConPatternInfo ConORec = noConPatternInfo{ conPInfo = PatternInfo PatORec [] , conPRecord = True }
@@ -592,6 +597,7 @@ fromConPatternInfo i = patToConO $ patOrigin $ conPInfo i
       PatORec    -> ConORec
       PatOLit    -> ConOCon
       PatOAbsurd -> ConOSystem
+      PatOEqualP _ -> ConOSystem
 
 -- | Extract pattern variables in left-to-right order.
 --   A 'DotP' is also treated as variable (see docu for 'Clause').
@@ -640,13 +646,19 @@ patternOrigin = fmap patOrigin . patternInfo
 properlyMatching :: Pattern' a -> Bool
 properlyMatching = properlyMatching' True True
 
+isPatOAbsurd :: Pattern' a -> Bool
+isPatOAbsurd x =
+  case (fmap patOrigin (patternInfo x)) of
+    Just PatOAbsurd -> True
+    _ -> False
+
 properlyMatching'
   :: Bool       -- ^ Should absurd patterns count as proper match?
   -> Bool       -- ^ Should projection patterns count as proper match?
   -> Pattern' a -- ^ The pattern.
   -> Bool
 properlyMatching' absP projP = \case
-  p | absP && patternOrigin p == Just PatOAbsurd -> True
+  p | absP && isPatOAbsurd p -> True
   ConP _ ci ps    -- record constructors do not count as proper matches themselves
     | conPRecord ci -> List.any (properlyMatching . namedArg) ps
     | otherwise     -> True

@@ -752,6 +752,7 @@ patsToElims = map $ toElim . fmap namedThing
       PatORec    -> toDisplayPattern p
       PatOLit    -> toDisplayPattern p
       PatOAbsurd -> toDisplayPattern p -- see test/Succeed/Issue2849.agda
+      PatOEqualP _ -> toDisplayPattern p
 
     toDisplayPattern :: DeBruijnPattern -> DisplayTerm
     toDisplayPattern = \case

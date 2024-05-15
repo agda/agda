@@ -203,6 +203,7 @@ data Pattern where
   lit    : (l : Literal) → Pattern
   proj   : (f : Name)    → Pattern
   absurd : (x : Nat)     → Pattern  -- absurd patterns counts as variables
+  equal    : (t : Term)    → Pattern
 
 data Clause where
   clause        : (tel : Telescope) (ps : List (Arg Pattern)) (t : Term) → Clause
@@ -237,6 +238,7 @@ data Clause where
 {-# BUILTIN AGDAPATLIT    lit     #-}
 {-# BUILTIN AGDAPATPROJ   proj    #-}
 {-# BUILTIN AGDAPATABSURD absurd  #-}
+{-# BUILTIN AGDAPATEQUAL   equal  #-}
 
 {-# BUILTIN AGDACLAUSECLAUSE clause        #-}
 {-# BUILTIN AGDACLAUSEABSURD absurd-clause #-}
@@ -343,6 +345,10 @@ postulate
   -- variable (it does not have to be an instance meta).
   getInstances : Meta → TC (List Term)
 
+  -- Parse and type check the given string against the given type, returning
+  -- the resulting term (when successful).
+  checkFromStringTC : String → Type → TC Term
+
 {-# BUILTIN AGDATCM                           TC                         #-}
 {-# BUILTIN AGDATCMRETURN                     returnTC                   #-}
 {-# BUILTIN AGDATCMBIND                       bindTC                     #-}
@@ -385,6 +391,7 @@ postulate
 {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
 {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
 {-# BUILTIN AGDATCMGETINSTANCES               getInstances               #-}
+{-# BUILTIN AGDATCMCHECKFROMSTRING            checkFromStringTC          #-}
 
 -- All the TC primitives are compiled to functions that return
 -- undefined, rather than just undefined, in an attempt to make sure

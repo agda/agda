@@ -269,7 +269,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaClause, primAgdaClauseClause, primAgdaClauseAbsurd,
     primAgdaPattern, primAgdaPatCon, primAgdaPatVar, primAgdaPatDot,
     primAgdaPatLit, primAgdaPatProj,
-    primAgdaPatAbsurd,
+    primAgdaPatAbsurd, primAgdaPatEqual,
     primAgdaMeta,
     primAgdaBlocker, primAgdaBlockerAny, primAgdaBlockerAll, primAgdaBlockerMeta,
     primAgdaTCM, primAgdaTCMReturn, primAgdaTCMBind, primAgdaTCMUnify,
@@ -288,6 +288,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMNoConstraints,
     primAgdaTCMRunSpeculative,
     primAgdaTCMExec,
+    primAgdaTCMCheckFromString,
     primAgdaTCMGetInstances,
     primAgdaTCMPragmaForeign,
     primAgdaTCMPragmaCompile
@@ -453,6 +454,7 @@ primAgdaPatDot                        = getBuiltin builtinAgdaPatDot
 primAgdaPatLit                        = getBuiltin builtinAgdaPatLit
 primAgdaPatProj                       = getBuiltin builtinAgdaPatProj
 primAgdaPatAbsurd                     = getBuiltin builtinAgdaPatAbsurd
+primAgdaPatEqual                      = getBuiltin builtinAgdaPatEqual
 primAgdaClause                        = getBuiltin builtinAgdaClause
 primAgdaClauseClause                  = getBuiltin builtinAgdaClauseClause
 primAgdaClauseAbsurd                  = getBuiltin builtinAgdaClauseAbsurd
@@ -504,6 +506,7 @@ primAgdaTCMDebugPrint                 = getBuiltin builtinAgdaTCMDebugPrint
 primAgdaTCMNoConstraints              = getBuiltin builtinAgdaTCMNoConstraints
 primAgdaTCMRunSpeculative             = getBuiltin builtinAgdaTCMRunSpeculative
 primAgdaTCMExec                       = getBuiltin builtinAgdaTCMExec
+primAgdaTCMCheckFromString            = getBuiltin builtinAgdaTCMCheckFromString
 primAgdaTCMGetInstances               = getBuiltin builtinAgdaTCMGetInstances
 primAgdaTCMPragmaForeign              = getBuiltin builtinAgdaTCMPragmaForeign
 primAgdaTCMPragmaCompile              = getBuiltin builtinAgdaTCMPragmaCompile

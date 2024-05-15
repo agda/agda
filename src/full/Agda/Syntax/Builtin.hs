@@ -191,6 +191,7 @@ data BuiltinId
   | BuiltinAgdaPatLit
   | BuiltinAgdaPatProj
   | BuiltinAgdaPatAbsurd
+  | BuiltinAgdaPatEqual
   | BuiltinAgdaDefinitionFunDef
   | BuiltinAgdaDefinitionDataDef
   | BuiltinAgdaDefinitionRecordDef
@@ -239,6 +240,7 @@ data BuiltinId
   | BuiltinAgdaTCMNoConstraints
   | BuiltinAgdaTCMRunSpeculative
   | BuiltinAgdaTCMExec
+  | BuiltinAgdaTCMCheckFromString
   | BuiltinAgdaTCMGetInstances
   | BuiltinAgdaTCMPragmaForeign
   | BuiltinAgdaTCMPragmaCompile
@@ -410,6 +412,7 @@ instance IsBuiltin BuiltinId where
     BuiltinAgdaPatLit                        -> "AGDAPATLIT"
     BuiltinAgdaPatProj                       -> "AGDAPATPROJ"
     BuiltinAgdaPatAbsurd                     -> "AGDAPATABSURD"
+    BuiltinAgdaPatEqual                      -> "AGDAPATEQUAL"
     BuiltinAgdaDefinitionFunDef              -> "AGDADEFINITIONFUNDEF"
     BuiltinAgdaDefinitionDataDef             -> "AGDADEFINITIONDATADEF"
     BuiltinAgdaDefinitionRecordDef           -> "AGDADEFINITIONRECORDDEF"
@@ -458,6 +461,7 @@ instance IsBuiltin BuiltinId where
     BuiltinAgdaTCMNoConstraints              -> "AGDATCMNOCONSTRAINTS"
     BuiltinAgdaTCMRunSpeculative             -> "AGDATCMRUNSPECULATIVE"
     BuiltinAgdaTCMExec                       -> "AGDATCMEXEC"
+    BuiltinAgdaTCMCheckFromString            -> "AGDATCMCHECKFROMSTRING"
     BuiltinAgdaTCMGetInstances               -> "AGDATCMGETINSTANCES"
     BuiltinAgdaTCMPragmaForeign              -> "AGDATCMPRAGMAFOREIGN"
     BuiltinAgdaTCMPragmaCompile              -> "AGDATCMPRAGMACOMPILE"
@@ -558,7 +562,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaLitChar, builtinAgdaLitString, builtinAgdaLitQName, builtinAgdaLitMeta,
   builtinAgdaClause, builtinAgdaClauseClause, builtinAgdaClauseAbsurd, builtinAgdaPattern,
   builtinAgdaPatVar, builtinAgdaPatCon, builtinAgdaPatDot, builtinAgdaPatLit,
-  builtinAgdaPatProj, builtinAgdaPatAbsurd,
+  builtinAgdaPatProj, builtinAgdaPatAbsurd, builtinAgdaPatEqual,
   builtinAgdaDefinitionFunDef,
   builtinAgdaDefinitionDataDef, builtinAgdaDefinitionRecordDef,
   builtinAgdaDefinitionDataConstructor, builtinAgdaDefinitionPostulate,
@@ -582,6 +586,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMNoConstraints,
   builtinAgdaTCMRunSpeculative,
   builtinAgdaTCMExec,
+  builtinAgdaTCMCheckFromString,
   builtinAgdaTCMGetInstances,
   builtinAgdaTCMPragmaForeign,
   builtinAgdaTCMPragmaCompile
@@ -733,6 +738,7 @@ builtinAgdaPatDot                        = BuiltinAgdaPatDot
 builtinAgdaPatLit                        = BuiltinAgdaPatLit
 builtinAgdaPatProj                       = BuiltinAgdaPatProj
 builtinAgdaPatAbsurd                     = BuiltinAgdaPatAbsurd
+builtinAgdaPatEqual                      = BuiltinAgdaPatEqual
 builtinAgdaDefinitionFunDef              = BuiltinAgdaDefinitionFunDef
 builtinAgdaDefinitionDataDef             = BuiltinAgdaDefinitionDataDef
 builtinAgdaDefinitionRecordDef           = BuiltinAgdaDefinitionRecordDef
@@ -781,6 +787,7 @@ builtinAgdaTCMDebugPrint                 = BuiltinAgdaTCMDebugPrint
 builtinAgdaTCMNoConstraints              = BuiltinAgdaTCMNoConstraints
 builtinAgdaTCMRunSpeculative             = BuiltinAgdaTCMRunSpeculative
 builtinAgdaTCMExec                       = BuiltinAgdaTCMExec
+builtinAgdaTCMCheckFromString            = BuiltinAgdaTCMCheckFromString
 builtinAgdaTCMGetInstances               = BuiltinAgdaTCMGetInstances
 builtinAgdaTCMPragmaForeign              = BuiltinAgdaTCMPragmaForeign
 builtinAgdaTCMPragmaCompile              = BuiltinAgdaTCMPragmaCompile

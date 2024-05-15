@@ -97,13 +97,15 @@ initLHSState
   -> (LHSState a -> TCM a) -- ^ Continuation for when checking the patterns is complete.
   -> TCM (LHSState a)      -- ^ The initial LHS state constructed from the user patterns.
 initLHSState delta eqs ps a ret = do
+  let problem = Problem eqs ps ret
+      qs0     = teleNamedArgs delta
+
   reportSDoc "tc.lhs.init" 40 $ vcat
     [ "initLHSState"
     , nest 2 $ "delta = " <+> prettyTCM delta
     , nest 2 $ "a     = " <+> addContext delta (prettyTCM a)
+    , nest 2 $ "qs0 =" <+> addContext delta (prettyTCMPatternList qs0)
     ]
-  let problem = Problem eqs ps ret
-      qs0     = teleNamedArgs delta
 
   updateProblemRest $ LHSState delta qs0 problem (Arg (defaultArgInfo { argInfoModality = unitModality }) a) [] False
 

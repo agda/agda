@@ -273,6 +273,10 @@ instance ToAbstract R.Pattern where
       (_, t) <- mkVar i
       annotatePattern i t $ A.AbsurdP patNoRange
     R.ProjP d -> return $ A.ProjP patNoRange ProjSystem $ unambiguous $ killRange d
+    R.EqualP t -> do
+        t' <- toAbstract t
+        i1Name <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinIOne
+        return $ A.EqualP  patNoRange  [(t', A.Con (unambiguous i1Name))]
 
 instance ToAbstract (QNamed R.Clause) where
   type AbsOfRef (QNamed R.Clause) = A.Clause
@@ -319,3 +323,4 @@ checkClauseTelescopeBindings tel pats =
     bound R.LitP{}      = Set.empty
     bound (R.AbsurdP i) = Set.singleton i
     bound R.ProjP{}     = Set.empty
+    bound R.EqualP{}     = Set.empty

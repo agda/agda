@@ -1177,9 +1177,12 @@ instance Subst DeBruijnPattern where
   applySubst IdS = id
   applySubst rho = \case
     VarP i x     ->
-      usePatternInfo i $
-      useName (dbPatVarName x) $
-      lookupS rho $ dbPatVarIndex x
+     case (lookupS rho $ dbPatVarIndex x) of
+       p@(DotP (PatternInfo (PatOEqualP _) _) _) -> p
+       p ->
+         usePatternInfo i $
+         useName (dbPatVarName x) $ p
+
     DotP i u     -> DotP i $ applyPatSubst rho u
     ConP c ci ps -> ConP c ci {conPType = applyPatSubst rho (conPType ci)} $ applySubst rho ps
     DefP i q ps  -> DefP i q $ applySubst rho ps

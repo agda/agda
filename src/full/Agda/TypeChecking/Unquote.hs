@@ -29,11 +29,14 @@ import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views
 import Agda.Syntax.Translation.InternalToAbstract
+import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Literal
+import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Position
 import Agda.Syntax.Info as Info
 import Agda.Syntax.Translation.ReflectedToAbstract
 import Agda.Syntax.Scope.Base (KindOfName(ConName, DataName))
+import Agda.Syntax.Parser
 
 import Agda.Interaction.Library ( ExeName )
 import Agda.Interaction.Options ( optTrustedExecutables, optAllowExec )
@@ -53,6 +56,7 @@ import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.ReconstructParameters
 import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.InstanceArguments
+import Agda.TypeChecking.Warnings
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def
@@ -533,7 +537,9 @@ instance Unquote R.Pattern where
           , (c `isCon` primAgdaPatAbsurd, R.AbsurdP . fromInteger <$> unquoteN x)
           , (c `isCon` primAgdaPatDot,    R.DotP  <$> unquoteN x)
           , (c `isCon` primAgdaPatProj,   R.ProjP <$> unquoteN x)
-          , (c `isCon` primAgdaPatLit,    R.LitP  <$> unquoteN x) ]
+          , (c `isCon` primAgdaPatLit,    R.LitP  <$> unquoteN x)
+          , (c `isCon` primAgdaPatEqual,    R.EqualP  <$> unquoteN x)
+          ]
           __IMPOSSIBLE__
       Con c _ es | Just [x, y] <- allApplyElims es ->
         choice
@@ -605,6 +611,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
              , (f `isDef` primAgdaTCMDefineFun,  uqFun2 tcDefineFun  u v)
              , (f `isDef` primAgdaTCMQuoteOmegaTerm, tcQuoteTerm (sort $ Inf UType 0) (unElim v))
              , (f `isDef` primAgdaTCMPragmaForeign, tcFun2 tcPragmaForeign u v)
+             , (f `isDef` primAgdaTCMCheckFromString, tcFun2 tcCheckFromString u v)
              ]
              failEval
     I.Def f [l, a, u] ->
@@ -771,6 +778,23 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
         locallyReconstructed (quoteTerm v)
       else
         quoteTerm =<< process v
+
+
+    tcCheckFromString :: Text -> R.Type -> TCM Term
+    tcCheckFromString str a = do
+      (C.ExprWhere c wh , _) <- runPM $ parsePosString exprWhereParser (startPos Nothing) (T.unpack str)
+      r <- isReconstructed
+      e <- concreteToAbstract_ c
+      a <- workOnTypes $ locallyReduceAllDefs $ isType_ =<< toAbstract_ a
+
+      v <- checkExpr e a
+      if r then do
+        v <- process v
+        v <- locallyReduceAllDefs $ reconstructParameters a v
+        locallyReconstructed (quoteTerm v)
+      else
+        quoteTerm =<< process v
+
 
     tcQuoteTerm :: Type -> Term -> UnquoteM Term
     tcQuoteTerm a v = liftTCM $ do

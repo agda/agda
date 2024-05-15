@@ -1264,6 +1264,10 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
             return $ A.VarP $ mkBindName x'
           else
             reifyDotP o v
+        PatOEqualP t -> do
+           t' <- reify t
+           i1Name <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinIOne
+           return $ A.EqualP  patNoRange  [(t', A.Con (unambiguous i1Name))]
         o -> reifyDotP o v
       I.LitP i l  -> addAsBindings (patAsNames i) $ return $ A.LitP empty l
       I.ProjP o d -> return $ A.ProjP patNoRange o $ unambiguous d

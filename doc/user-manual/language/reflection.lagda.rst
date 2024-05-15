@@ -268,6 +268,7 @@ de Bruijn indices to represent variables.
     lit    : (l : Literal) → Pattern
     proj   : (f : Name)    → Pattern
     absurd : (x : Nat)     → Pattern  -- Absurd patterns have de Bruijn indices
+    equal  : (t : Term)    → Pattern
 
   data Clause where
     clause        : (tel : Telescope) (ps : List (Arg Pattern)) (t : Term) → Clause
@@ -302,7 +303,7 @@ de Bruijn indices to represent variables.
   {-# BUILTIN AGDAPATLIT    lit     #-}
   {-# BUILTIN AGDAPATPROJ   proj    #-}
   {-# BUILTIN AGDAPATABSURD absurd  #-}
-
+  {-# BUILTIN AGDAPATEQUAL   equal  #-}
   {-# BUILTIN AGDACLAUSECLAUSE clause        #-}
   {-# BUILTIN AGDACLAUSEABSURD absurd-clause #-}
 
@@ -521,6 +522,10 @@ following primitive operations::
     -- 'true' for whitelist, 'false' for blacklist
     withReduceDefs : ∀ {a} {A : Set a} → (Σ Bool λ _ → List Name) → TC A → TC A
     askReduceDefs  : TC (Σ Bool λ _ → List Name)
+
+    -- Parse and type check the given string against the given type, returning
+    -- the resulting term (when successful).
+    checkFromStringTC : String → Type → TC Term
 
     -- Prints the third argument to the debug buffer in Emacs
     -- if the verbosity level (set by the -v flag to Agda)
