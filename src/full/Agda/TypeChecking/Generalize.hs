@@ -177,9 +177,9 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
   let s = Map.keysSet vars
   ((cxtNames, tel, letbinds), namedMetas, allmetas) <-
     createMetasAndTypeCheck s $ typecheckAction $ \ tel -> do
-      cxt <- take (size tel) <$> getContext
+      xs <- take (size tel) <$> getContextNames
       lbs <- getLetBindings -- This gives let-bindings valid in the current context
-      return (map (fst . unDom) cxt, tel, lbs)
+      return (xs, tel, lbs)
 
   reportSDoc "tc.generalize.metas" 60 $ vcat
     [ "open metas =" <+> (text . show . fmap ((miNameSuggestion &&& miGeneralizable) . mvInfo)) (openMetas $ allmetas)
@@ -196,16 +196,17 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
   -- level of contexts (as a Context -> Context function), so we repeat the name logic here. Take
   -- care to preserve the name of named generalized variables.
   let setName name d = first (const name) <$> d
-      cxtEntry (mname, d) = do
+      cxtEntry (mname, dom) = do
+          let s = fst $ unDom dom
           name <- maybe (setNotInScope <$> freshName_ s) return mname
-          return $ setName name d
-        where s  = fst $ unDom d
+          return $ CtxVar name (snd <$> dom)
       dropCxt err = updateContext (strengthenS err 1) (drop 1)
   genTelCxt <- dropCxt __IMPOSSIBLE__ $ mapM cxtEntry $ reverse $ zip genTelVars $ telToList genTel
 
   -- For the explicit module telescope we get the names from the typecheck
   -- action.
-  let newTelCxt = zipWith setName cxtNames $ reverse $ telToList tel'
+  let newTelCxt :: [ContextEntry]
+      newTelCxt = zipWith CtxVar cxtNames $ reverse $ map (fmap snd) $ telToList tel'
 
   -- We are in context Γ (r : R) and should call the continuation in context Γ Δ Θρ passing it Δ Θρ
   -- We have
@@ -663,10 +664,10 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
         -- current context and generate fresh ones for the generalized variables in Θ.
         (newCxt, rΘ) <- do
           (rΔ, _ : rΓ) <- splitAt i <$> getContext
-          let setName = traverse $ \ (s, ty) -> (,ty) <$> freshName_ s
+          let setName dom@(Dom {unDom = (s,ty)}) = CtxVar <$> freshName_ s <*> (pure $ dom $> ty)
           rΘ <- mapM setName $ reverse $ telToList _Θγ
-          let rΔσ = zipWith (\ name dom -> first (const name) <$> dom)
-                            (map (fst . unDom) rΔ)
+          let rΔσ = zipWith (\ name dom -> CtxVar name (snd <$> dom))
+                            (map ctxEntryName rΔ)
                             (reverse $ telToList _Δσ)
           return (rΔσ ++ rΘ ++ rΓ, rΘ)
 
@@ -718,7 +719,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
                       permute (takeP n $ mvPermutation mv) $
                       downFrom n
       case [ i
-           | (i, Dom{unDom = (_, El _ (Def q _))}) <- zip [0..] cxt
+           | (i, CtxVar _ (Dom{unDom = (El _ (Def q _))})) <- zip [0..] cxt
            , q == genRecName
            , i `IntSet.member` notPruned
            ] of
@@ -804,7 +805,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
         ]
 
     addNamedVariablesToScope cxt =
-      forM_ cxt $ \ Dom{ unDom = (x, _) } -> do
+      forM_ cxt $ \ (CtxVar x _) -> do
         -- Recognize named variables by lack of '.' (TODO: hacky!)
         reportSLn "tc.generalize.eta.scope" 40 $ "Adding (or not) " ++ prettyShow (nameConcrete x) ++ " to the scope"
         when ('.' `notElem` prettyShow (nameConcrete x)) $ do

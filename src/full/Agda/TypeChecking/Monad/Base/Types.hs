@@ -25,13 +25,30 @@ import Agda.Utils.FileName            as X ( AbsolutePath )
 import Agda.Utils.Lens                ( Lens', (&&&), iso )
 import Agda.Utils.Null                ( Null(..) )
 
+import Agda.Syntax.Internal
+import Agda.Syntax.Common (LensArgInfo(..), LensModality, LensRelevance, LensCohesion, LensOrigin, LensQuantity, LensHiding)
+
 ---------------------------------------------------------------------------
 -- * Context
 ---------------------------------------------------------------------------
 
 -- | The @Context@ is a stack of 'ContextEntry's.
 type Context      = [ContextEntry]
-type ContextEntry = Dom (Name, Type)
+data ContextEntry = CtxVar Name (Dom Type)
+  deriving (Show, Generic)
+
+instance LensArgInfo ContextEntry where
+  getArgInfo (CtxVar _ a) = getArgInfo a
+  mapArgInfo f (CtxVar x a) = CtxVar x $ mapArgInfo f a
+
+instance LensModality ContextEntry where
+instance LensRelevance ContextEntry where
+instance LensCohesion ContextEntry where
+instance LensOrigin ContextEntry where
+instance LensQuantity ContextEntry where
+instance LensHiding ContextEntry where
+
+instance NFData ContextEntry
 
 ---------------------------------------------------------------------------
 -- * Conversion

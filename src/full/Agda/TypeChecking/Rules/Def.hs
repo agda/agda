@@ -694,7 +694,7 @@ checkClause
 
 checkClause t withSubAndLets c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) = do
   let withSub       = fst <$> withSubAndLets
-  cxtNames <- reverse . map (fst . unDom) <$> getContext
+  cxtNames <- getContextNames
   checkClauseLHS t withSub c $ \ lhsResult@(LHSResult npars delta ps absurdPat trhs patSubst asb psplit ixsplit) -> do
 
     let installInheritedLets k

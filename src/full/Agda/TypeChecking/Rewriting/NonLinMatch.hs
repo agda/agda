@@ -373,7 +373,7 @@ instance Match NLPat Term where
         v -> maybeBlock v
       PBoundVar i ps -> case v of
         Var i' es | i == i' -> do
-          let ti = maybe __IMPOSSIBLE__ (snd . unDom) $ lookupBV_ i k
+          let ti = maybe __IMPOSSIBLE__ (unDom . ctxEntryDom) $ lookupBV_ i k
           match r gamma k (ti , Var i) ps es
         _ | Pi a b <- unEl t -> do
           let ai    = domInfo a
@@ -395,7 +395,7 @@ instance Match NLPat Term where
         tellEq gamma k t u v
 
 extendContext :: MonadAddContext m => Context -> ArgName -> Dom Type -> m Context
-extendContext cxt x a = withFreshName empty x \ y -> return $ fmap (y,) a : cxt
+extendContext cxt x a = withFreshName empty x \ y -> return $ CtxVar y a : cxt
 
 
 makeSubstitution :: Telescope -> Sub -> Maybe Substitution
