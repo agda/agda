@@ -289,6 +289,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMRunSpeculative,
     primAgdaTCMExec,
     primAgdaTCMGetInstances,
+    primAgdaTCMSolveInstances,
     primAgdaTCMPragmaForeign,
     primAgdaTCMPragmaCompile
     :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m) => m Term
@@ -505,6 +506,7 @@ primAgdaTCMNoConstraints              = getBuiltin builtinAgdaTCMNoConstraints
 primAgdaTCMRunSpeculative             = getBuiltin builtinAgdaTCMRunSpeculative
 primAgdaTCMExec                       = getBuiltin builtinAgdaTCMExec
 primAgdaTCMGetInstances               = getBuiltin builtinAgdaTCMGetInstances
+primAgdaTCMSolveInstances             = getBuiltin builtinAgdaTCMSolveInstances
 primAgdaTCMPragmaForeign              = getBuiltin builtinAgdaTCMPragmaForeign
 primAgdaTCMPragmaCompile              = getBuiltin builtinAgdaTCMPragmaCompile
 

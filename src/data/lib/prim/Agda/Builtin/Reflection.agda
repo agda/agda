@@ -343,6 +343,12 @@ postulate
   -- variable (it does not have to be an instance meta).
   getInstances : Meta → TC (List Term)
 
+  -- Try to solve open instance constraints. When wrapped in `noConstraints`,
+  -- fails if there are unsolved instance constraints left over that originate
+  -- from the current macro invokation. Outside constraints are still attempted,
+  -- but failure to solve them are ignored by `noConstraints`.
+  solveInstanceConstraints : TC ⊤
+
 {-# BUILTIN AGDATCM                           TC                         #-}
 {-# BUILTIN AGDATCMRETURN                     returnTC                   #-}
 {-# BUILTIN AGDATCMBIND                       bindTC                     #-}
@@ -385,6 +391,7 @@ postulate
 {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
 {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
 {-# BUILTIN AGDATCMGETINSTANCES               getInstances               #-}
+{-# BUILTIN AGDATCMSOLVEINSTANCES             solveInstanceConstraints   #-}
 
 -- All the TC primitives are compiled to functions that return
 -- undefined, rather than just undefined, in an attempt to make sure

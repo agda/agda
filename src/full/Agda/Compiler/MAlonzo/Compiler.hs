@@ -308,6 +308,7 @@ ghcPreCompile flags = do
       , builtinAgdaTCMRunSpeculative
       , builtinAgdaTCMExec
       , builtinAgdaTCMGetInstances
+      , builtinAgdaTCMSolveInstances
       , builtinAgdaTCMPragmaForeign
       , builtinAgdaTCMPragmaCompile
       , builtinAgdaBlocker
