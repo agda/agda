@@ -397,7 +397,7 @@ instance Match NLPat Term where
         tellEq gamma k t u v
 
 extendContext :: MonadAddContext m => Context -> ArgName -> Dom Type -> m Context
-extendContext cxt x a = withFreshName empty x \ y -> return $ fmap (y,) a : cxt
+extendContext cxt x a = withFreshName empty x \ y -> return $ CtxVar y a : cxt
 
 
 makeSubstitution :: Telescope -> Sub -> Maybe Substitution

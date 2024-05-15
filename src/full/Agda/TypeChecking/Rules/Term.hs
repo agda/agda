@@ -1641,7 +1641,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         , "cxtQnt=" <+> do pretty =<< viewTC eQuantity
         ]
       ]
-    fvs <- getContextSize
+    fvs <- getContextVarsSize
     checkLeftHandSide (CheckPattern p EmptyTel t) Nothing [p0] t0 Nothing [] $ \ (LHSResult _ delta0 ps _ _t _ asb _ _) -> bindAsPatterns asb $ do
           -- After dropping the free variable patterns there should be a single pattern left.
       let p = case drop fvs ps of [p] -> namedArg p; _ -> __IMPOSSIBLE__
@@ -1688,7 +1688,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         -- and relevances.
         let infos = map domInfo tsl
         -- We get list of names of the let-bound vars from the context.
-        let xs   = map (fst . unDom) (reverse binds)
+        let xs   = map ctxEntryName $ reverse binds
         -- We add all the bindings to the context.
         foldr (uncurry4 $ flip addLetBinding UserWritten) ret $ List.zip4 infos xs sigma ts
 

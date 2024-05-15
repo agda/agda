@@ -535,8 +535,8 @@ termRecTel npars tel = do
       extract $ telFromList fields
   where
   -- create n variable patterns
-  mkPats n  = zipWith mkPat (downFrom n) <$> getContextNames
-  mkPat i x = notMasked $ VarP defaultPatternInfo $ DBPatVar (prettyShow x) i
+  mkPats n  = map mkPat <$> getContextVars
+  mkPat (i, x) = notMasked $ VarP defaultPatternInfo $ DBPatVar (prettyShow x) i
 
 -- | Collect calls in type signature @f : (x1:A1)...(xn:An) -> B@.
 --   It is treated as if there were the additional function clauses.
@@ -564,8 +564,8 @@ termType = return mempty
         extract dom `mappend` underAbstractionAbs dom absB (loop $! n + 1)
 
   -- create n variable patterns
-  mkPats n  = zipWith mkPat (downFrom n) <$> getContextNames
-  mkPat i x = notMasked $ VarP defaultPatternInfo $ DBPatVar (prettyShow x) i
+  mkPats n  = map mkPat <$> getContextVars
+  mkPat (i, x) = notMasked $ VarP defaultPatternInfo $ DBPatVar (prettyShow x) i
 
 -- | Mask arguments and result for termination checking
 --   according to type of function.

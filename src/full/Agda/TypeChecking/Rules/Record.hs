@@ -369,7 +369,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
           -- See test/Succeed/ProjectionsTakeModuleTelAsParameters.agda.
           tel' <- do
             r <- headWithDefault __IMPOSSIBLE__ <$> getContext
-            return $ telFromList' nameToArgName $ reverse $ r : params
+            return $ contextToTel $ r : params
           setModuleCheckpoint m
           checkRecordProjections m name hasNamedCon con tel' ftel fields
 

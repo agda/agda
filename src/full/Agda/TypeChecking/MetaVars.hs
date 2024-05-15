@@ -439,10 +439,10 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
     -- we base our decisions on the names of the context entries.
     -- Ideally, Agda would organize contexts in ancestry trees
     -- with substitutions to move between parent and child.
-    let glen = length gamma
-    let dlen = length delta
-    let gxs  = map (fst . unDom) gamma
-    let dxs  = map (fst . unDom) delta
+    let gxs  = contextNames' gamma
+    let dxs  = contextNames' delta
+    let glen = length gxs
+    let dlen = length dxs
     reportSDoc "tc.interaction" 20 $ vcat
       [ "reusing meta"
       , nest 2 $ "creation context:" <+> pretty gxs
@@ -515,7 +515,7 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
         let numFields = glen - g1len - g0len
         if numFields <= 0 then return $ vs1 ++ vs0 else do
           -- Get the record type.
-          let t = snd . unDom . fromMaybe __IMPOSSIBLE__ $ delta !!! k
+          let t = (unDom . ctxEntryDom) $ fromMaybe __IMPOSSIBLE__ $ delta !!! k
           -- Get the record field names.
           fs <- getRecordTypeFields t
           -- Field arguments to the original meta are projections from the record var.
@@ -524,7 +524,7 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
           return $ vs1 ++ reverse (take numFields vfs) ++ vs0
 
     -- Use ArgInfo from Γ.
-    let args = reverse $ zipWith (<$) rev_args $ map argFromDom gamma
+    let args = zipWith (<$) (reverse rev_args) $ contextArgs gamma
     -- Take the permutation into account (see TC.Monad.MetaVars.getMetaContextArgs).
     let vs = permute (takeP (length args) p) args
     reportSDoc "tc.interaction" 20 $ vcat

@@ -575,7 +575,7 @@ computeLHSContext = go [] []
     go cxt _ []        EmptyTel = return cxt
     go cxt taken (x : xs) tel0@(ExtendTel a tel) = do
         name <- maybe (dummyName taken $ absName tel) return x
-        let e = (name,) <$> a
+        let e = CtxVar name a
         go (e : cxt) (name : taken) xs (absBody tel)
 
     dummyName taken s =
@@ -669,10 +669,10 @@ checkLeftHandSide call f ps a withSub' strippedPats =
   -- To allow module parameters to be refined by matching, we're adding the
   -- context arguments as wildcard patterns and extending the type with the
   -- context telescope.
-  cxt <- map (setOrigin Inserted) . reverse <$> getContext
-  let tel = telFromList' prettyShow cxt
-      cps = [ unnamed . A.VarP . A.mkBindName . fst <$> argFromDom d
-            | d <- cxt ]
+  cxt <- map (setOrigin Inserted) <$> getContext
+  let tel = contextToTel cxt
+      cps = [ argFromDom dom $> unnamed (A.VarP $ A.mkBindName $ unDom dom)
+            | (_,dom) <- contextVars cxt ]
       eqs0 = zipWith3 ProblemEq (map namedArg cps) (map var $ downFrom $ size tel) (flattenTel tel)
 
   let finalChecks :: LHSState a -> TCM a

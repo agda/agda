@@ -328,11 +328,11 @@ castConstraintToCurrentContext c = do
           (do
             -- We are not in a descendant of the constraint checkpoint.
             -- Here be dragons!!
-            gamma <- asksTC envContext -- The target context
-            let findInGamma (Dom {unDom = (x, t)}) =
+            gamma <- getContext -- The target context
+            let findInGamma ce =
                   -- match by name (hazardous)
                   -- This is one of the seven deadly sins (not respecting alpha).
-                  List.findIndex ((x ==) . fst . unDom) gamma
+                  List.findIndex (((==) `on` ctxEntryName) ce) gamma
             let delta = envContext $ clEnv cl
                 cand  = map findInGamma delta
             -- The domain of our substitution
@@ -574,16 +574,17 @@ getSizeHypotheses gamma = unsafeModifyContext (const gamma) $ do
   caseMaybe msizelt (return []) $ \ sizelt -> do
     -- Traverse the context from newest to oldest de Bruijn Index
     catMaybes <$> do
-      forM (zip [0..] gamma) $ \ (i, ce) -> do
-        -- Get name and type of variable i.
-        let (x, t) = unDom ce
-            s      = prettyShow x
-        t <- reduce . raise (1 + i) . unEl $ t
-        case t of
-          Def d [Apply u] | d == sizelt -> do
-            caseMaybeM (sizeExpr $ unArg u) (return Nothing) $ \ a ->
-              return $ Just $ (i, Constraint (Rigid (NamedRigid s i) 0) Lt a)
-          _ -> return Nothing
+      forM (zip [0..] gamma) $ \case
+        (i, CtxVar x a) -> do
+          -- Get name and type of variable i.
+          let s = prettyShow x
+          t <- reduce . raise (1 + i) . unEl . unDom $ a
+          case t of
+            Def d [Apply u] | d == sizelt -> do
+              caseMaybeM (sizeExpr $ unArg u) (return Nothing) $ \ a ->
+                return $ Just $ (i, Constraint (Rigid (NamedRigid s i) 0) Lt a)
+            _ -> return Nothing
+        (i, CtxLet{}) -> return Nothing
 
 -- | Convert size constraint into form where each meta is applied
 --   to indices @n-1,...,1,0@ where @n@ is the arity of that meta.

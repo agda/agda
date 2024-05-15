@@ -1483,10 +1483,10 @@ getLocalVarTerms localCxt = do
   contextTerms <- getContextTerms
   contextTypes <- flattenTel <$> getContextTelescope
   let inScope i _ | i < localCxt = pure True   -- Ignore scope for variables we inserted ourselves
-      inScope _ Dom{ unDom = (name, _) } = do
+      inScope _ Dom{ unDom = name } = do
         x <- abstractToConcrete_ name
         pure $ C.isInScope x == C.InScope
-  scope <- mapM (uncurry inScope) . reverse . zip [0..] =<< getContext
+  scope <- mapM (uncurry inScope) =<< getContextVars
   return [ e | (True, e) <- zip scope $ zip contextTerms contextTypes ]
 
 

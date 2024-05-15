@@ -121,7 +121,7 @@ parseVariables f cxt asb ii rng ss = do
   -- Step 2: Resolve each abstract name to a de Bruijn index.
 
   -- First, get context names of the clause.
-  let clauseCxtNames = map (fst . unDom) cxt
+  let clauseCxtNames = contextNames' cxt
 
   -- Valid names to split on are pattern variables of the clause,
   -- plus as-bindings that refer to a variable.
@@ -382,7 +382,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
 
     -- If any of the split variables is hidden by the ellipsis, we
     -- should force the expansion of the ellipsis.
-    let splitNames = map (\i -> fst $ unDom $ clauseCxt !! i) toSplit
+    let splitNames = map (\i -> ctxEntryName $ clauseCxt !! i) toSplit
     shouldExpandEllipsis <- return (not $ null toShow) `or2M` anyEllipsisVar f absCl splitNames
     let ell' | shouldExpandEllipsis = NoEllipsis
              | otherwise            = ell

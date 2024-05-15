@@ -88,11 +88,11 @@ initialInstanceCandidates blockOverlap instTy = do
       "Instance search cannot be used to find elements in an explicit function type"
     OutputTypeVar -> do
       reportSDoc "tc.instance.cands" 30 $ "Instance type is a variable. "
-      runBlocked (getContextVars Nothing)
+      runBlocked (getContextCands Nothing)
     OutputTypeName n -> Bench.billTo [Bench.Typing, Bench.InstanceSearch, Bench.InitialCandidates] do
       reportSDoc "tc.instance.cands" 30 $ "Found instance type head: " <+> prettyTCM n
       runBlocked do
-        local  <- getContextVars (Just n)
+        local  <- getContextCands (Just n)
         global <- getScopeDefs n
         lift $ tickCandidates n $ length local + length global
         pure $ local <> global
@@ -114,19 +114,19 @@ initialInstanceCandidates blockOverlap instTy = do
         (fromIntegral size)
 
     -- get a list of variables with their type, relative to current context
-    getContextVars :: Maybe QName -> BlockT TCM [Candidate]
-    getContextVars cls = do
+    getContextCands :: Maybe QName -> BlockT TCM [Candidate]
+    getContextCands cls = do
       ctx <- getContext
       reportSDoc "tc.instance.cands" 40 $ hang "Getting candidates from context" 2 (inTopContext $ prettyTCM $ PrettyContext ctx)
           -- Context variables with their types lifted to live in the full context
-      let varsAndRaisedTypes = [ (var i, raise (i + 1) t) | (i, t) <- zip [0..] ctx ]
+      let varsAndRaisedTypes = reverse $ zip (contextTerms ctx) (flattenTel $ contextToTel ctx)
           vars = [ Candidate LocalCandidate x t (infoOverlapMode info)
-                 | (x, Dom{domInfo = info, unDom = (_, t)}) <- varsAndRaisedTypes
+                 | (x, Dom{domInfo = info, unDom = t}) <- varsAndRaisedTypes
                  , isInstance info
                  ]
 
       -- {{}}-fields of variables are also candidates
-      let cxtAndTypes = [ (LocalCandidate, x, t) | (x, Dom{unDom = (_, t)}) <- varsAndRaisedTypes ]
+      let cxtAndTypes = [ (LocalCandidate, x, t) | (x, Dom{unDom = t}) <- varsAndRaisedTypes ]
       fields <- concat <$> mapM instanceFields (reverse cxtAndTypes)
       reportSDoc "tc.instance.fields" 30 $
         if null fields then "no instance field candidates" else

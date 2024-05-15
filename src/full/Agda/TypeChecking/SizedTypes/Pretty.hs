@@ -8,7 +8,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base.Types
 import Agda.TypeChecking.Monad.Builtin (HasBuiltins, builtinSizeInf, getBuiltin')
-import Agda.TypeChecking.Monad.Context (unsafeModifyContext)
+import Agda.TypeChecking.Monad.Context (unsafeModifyContext, contextNames)
 import Agda.TypeChecking.Monad.SizedTypes
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.SizedTypes.Syntax
@@ -42,7 +42,7 @@ instance PrettyTCM (SizeConstraint) where
 instance PrettyTCM HypSizeConstraint where
   prettyTCM (HypSizeConstraint cxt _ hs c) =
     unsafeModifyContext (const cxt) $ do
-      let cxtNames = reverse $ map (fst . unDom) cxt
+      let cxtNames = contextNames cxt
       -- text ("[#cxt=" ++ show (size cxt) ++ "]") <+> do
       prettyList (map prettyTCM cxtNames) <+> do
         applyUnless (null hs)

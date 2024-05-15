@@ -22,6 +22,7 @@ import qualified Data.Map as Map
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
+import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Concrete.Name (NameInScope(..), LensInScope(..), nameRoot, nameToRawName)
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
@@ -41,8 +42,8 @@ import Agda.Utils.ListT
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
-import Agda.Syntax.Common.Pretty
 import Agda.Utils.Size
+import Agda.Utils.Tuple
 import Agda.Utils.Update
 
 import Agda.Utils.Impossible
@@ -58,7 +59,9 @@ unsafeModifyContext f = localTC $ \e -> e { envContext = f $ envContext e }
 {-# INLINE modifyContextInfo #-}
 -- | Modify the 'Dom' part of context entries.
 modifyContextInfo :: MonadTCEnv tcm => (forall e. Dom e -> Dom e) -> tcm a -> tcm a
-modifyContextInfo f = unsafeModifyContext $ map f
+modifyContextInfo f = unsafeModifyContext $ map $ \case
+    (CtxVar x a)   -> CtxVar x (f a)
+    (CtxLet x a v) -> CtxLet x (f a) v
 
 -- | Change to top (=empty) context. Resets the checkpoints.
 {-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
@@ -199,7 +202,7 @@ class MonadTCEnv m => MonadAddContext m where
 -- | Default implementation of addCtx in terms of updateContext
 defaultAddCtx :: MonadAddContext m => Name -> Dom Type -> m a -> m a
 defaultAddCtx x a ret =
-  updateContext (raiseS 1) (((x,) <$> a) :) ret
+  updateContext (raiseS 1) (CtxVar x a :) ret
 
 withFreshName_ :: (MonadAddContext m) => ArgName -> (Name -> m a) -> m a
 withFreshName_ = withFreshName noRange
@@ -286,6 +289,12 @@ newtype KeepNames a = KeepNames a
 instance {-# OVERLAPPABLE #-} AddContext a => AddContext [a] where
   addContext = flip (foldr addContext); {-# INLINABLE addContext #-}
   contextSize = sum . map contextSize
+
+instance AddContext ContextEntry where
+  addContext (CtxVar x a) = addCtx x a
+  addContext (CtxLet{})   = __IMPOSSIBLE__ -- TODO
+  {-# INLINE addContext #-}
+  contextSize _ = 1
 
 instance AddContext (Name, Dom Type) where
   addContext = uncurry addCtx; {-# INLINE addContext #-}
@@ -460,37 +469,86 @@ getContext = asksTC envContext
 -- | Get the size of the current context.
 {-# SPECIALIZE getContextSize :: TCM Nat #-}
 getContextSize :: (Applicative m, MonadTCEnv m) => m Nat
-getContextSize = length <$> asksTC envContext
+getContextSize = length <$> getContext
 
--- | Generate @[var (n - 1), ..., var 0]@ for all declarations in the context.
+{-# SPECIALIZE getContextSize :: TCM Nat #-}
+getContextVarsSize :: (Applicative m, MonadTCEnv m) => m Nat
+getContextVarsSize = length . mapMaybe isCtxVar <$> getContext
+
+{-# SPECIALIZE getContextVars :: TCM [(Int, Dom Name)] #-}
+getContextVars :: (Applicative m, MonadTCEnv m) => m [(Int, Dom Name)]
+getContextVars = contextVars <$> getContext
+
+{-# SPECIALIZE getContextVars' :: TCM [(Int, Dom Name)] #-}
+getContextVars' :: (Applicative m, MonadTCEnv m) => m [(Int, Dom Name)]
+getContextVars' = contextVars' <$> getContext
+
+contextVars :: Context -> [(Int, Dom Name)]
+contextVars = reverse . contextVars'
+
+contextVars' :: Context -> [(Int, Dom Name)]
+contextVars' = catMaybes . zipWith mkVar [0..]
+  where
+    mkVar i (CtxVar x a) = Just (i, a $> x)
+    mkVar i CtxLet{}     = Nothing
+
+-- | Generate @[var (n - 1), ..., var 0]@ for all bound variables in the context.
 {-# SPECIALIZE getContextArgs :: TCM Args #-}
 getContextArgs :: (Applicative m, MonadTCEnv m) => m Args
-getContextArgs = reverse . zipWith mkArg [0..] <$> getContext
-  where mkArg i dom = var i <$ argFromDom dom
+getContextArgs = contextArgs <$> getContext
+
+contextArgs :: Context -> Args
+contextArgs = map (\(i,x) -> var i <$ argFromDom x) . contextVars
 
 -- | Generate @[var (n - 1), ..., var 0]@ for all declarations in the context.
 {-# SPECIALIZE getContextTerms :: TCM [Term] #-}
 getContextTerms :: (Applicative m, MonadTCEnv m) => m [Term]
-getContextTerms = map var . downFrom <$> getContextSize
+getContextTerms = map unArg <$> getContextArgs
+
+contextTerms :: Context -> [Term]
+contextTerms = map unArg . contextArgs
 
 -- | Get the current context as a 'Telescope'.
 {-# SPECIALIZE getContextTelescope :: TCM Telescope #-}
 getContextTelescope :: (Applicative m, MonadTCEnv m) => m Telescope
-getContextTelescope = telFromList' nameToArgName . reverse <$> getContext
+getContextTelescope = contextToTel <$> getContext
+
+contextToTel :: Context -> Telescope
+contextToTel = go . reverse
+  where
+    go [] = EmptyTel
+    go (CtxVar x a   : ctx) = ExtendTel a $ Abs (nameToArgName x) (go ctx)
+    go (CtxLet x a v : ctx) = __IMPOSSIBLE__ -- TODO
 
 -- | Get the names of all declarations in the context.
 {-# SPECIALIZE getContextNames :: TCM [Name] #-}
 getContextNames :: (Applicative m, MonadTCEnv m) => m [Name]
-getContextNames = map (fst . unDom) <$> getContext
+getContextNames = contextNames <$> getContext
+
+{-# SPECIALIZE getContextNames' :: TCM [Name] #-}
+getContextNames' :: (Applicative m, MonadTCEnv m) => m [Name]
+getContextNames' = contextNames' <$> getContext
+
+contextNames :: Context -> [Name]
+contextNames = map (unDom . snd) . contextVars
+
+contextNames' :: Context -> [Name]
+contextNames' = map (unDom . snd) . contextVars'
 
 -- | get type of bound variable (i.e. deBruijn index)
 --
-lookupBV_ :: Nat -> Context -> Maybe ContextEntry
-lookupBV_ n ctx = raise (n + 1) <$> ctx !!! n
+lookupCtx_ :: Nat -> Context -> Maybe ContextEntry
+lookupCtx_ n ctx = raise (n + 1) <$> ctx !!! n
 
-{-# SPECIALIZE lookupBV' :: Nat -> TCM (Maybe ContextEntry) #-}
-lookupBV' :: MonadTCEnv m => Nat -> m (Maybe ContextEntry)
-lookupBV' n = lookupBV_ n <$> getContext
+{-# SPECIALIZE lookupCtx :: Nat -> TCM (Maybe ContextEntry) #-}
+lookupCtx :: MonadTCEnv m => Nat -> m (Maybe ContextEntry)
+lookupCtx n = lookupCtx_ n <$> getContext
+
+lookupBV_ :: Nat -> Context -> Maybe (Dom (Name, Type))
+lookupBV_ n ctx = case lookupCtx_ n ctx of
+    Just (CtxVar x a) -> return ((x,) <$> a)
+    Just CtxLet{}     -> __IMPOSSIBLE__
+    Nothing           -> Nothing
 
 {-# SPECIALIZE lookupBV :: Nat -> TCM (Dom (Name, Type)) #-}
 lookupBV :: (MonadFail m, MonadTCEnv m) => Nat -> m (Dom (Name, Type))
@@ -498,8 +556,19 @@ lookupBV n = do
   let failure = do
         ctx <- getContext
         fail $ "de Bruijn index out of scope: " ++ show n ++
-               " in context " ++ prettyShow (map (fst . unDom) ctx)
-  maybeM failure return $ lookupBV' n
+               " in context " ++ prettyShow (map ctxEntryName ctx)
+  caseMaybeM (lookupBV_ n <$> getContext) failure return
+
+ctxEntryName :: ContextEntry -> Name
+ctxEntryName (CtxVar x _) = x
+ctxEntryName (CtxLet x _ _) = x
+
+ctxEntryDom :: ContextEntry -> Dom Type
+ctxEntryDom (CtxVar _ a) = a
+ctxEntryDom (CtxLet _ a _) = a
+
+ctxEntryType :: ContextEntry -> Type
+ctxEntryType = unDom . ctxEntryDom
 
 {-# SPECIALIZE domOfBV :: Nat -> TCM (Dom Type) #-}
 domOfBV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m (Dom Type)
@@ -511,7 +580,7 @@ typeOfBV i = unDom <$> domOfBV i
 
 {-# SPECIALIZE nameOfBV' :: Nat -> TCM (Maybe Name) #-}
 nameOfBV' :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m (Maybe Name)
-nameOfBV' n = fmap (fst . unDom) <$> lookupBV' n
+nameOfBV' n = fmap ctxEntryName <$> lookupCtx n
 
 {-# SPECIALIZE nameOfBV :: Nat -> TCM Name #-}
 nameOfBV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m Name
@@ -523,9 +592,9 @@ nameOfBV n = fst . unDom <$> lookupBV n
 {-# SPECIALIZE getVarInfo :: Name -> TCM (Term, Dom Type) #-}
 getVarInfo :: (MonadFail m, MonadTCEnv m) => Name -> m (Term, Dom Type)
 getVarInfo x =
-    do  ctx <- getContext
+    do  ctx <- getContextVars'
         def <- asksTC envLetBindings
-        case List.findIndex ((== x) . fst . unDom) ctx of
+        case List.findIndex ((== x) . unDom . snd) ctx of
             Just n -> do
                 t <- domOfBV n
                 return (var n, t)

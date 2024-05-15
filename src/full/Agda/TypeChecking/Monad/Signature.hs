@@ -1242,11 +1242,11 @@ instantiateDef
 instantiateDef d = do
   vs  <- freeVarsToApply $ defName d
   verboseS "tc.sig.inst" 30 $ do
-    ctx <- getContext
+    ctx <- getContextNames
     m   <- currentModule
     reportSDoc "tc.sig.inst" 30 $
       "instDef in" <+> pretty m <> ":" <+> pretty (defName d) <+>
-      fsep (map pretty $ zipWith (<$) (reverse $ map (fst . unDom) ctx) vs)
+      fsep (map pretty $ zipWith (<$) ctx vs)
   return $ d `apply` vs
 
 instantiateRewriteRule :: (Functor m, HasConstInfo m, HasOptions m,
