@@ -507,6 +507,8 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
     -- equivalent valid names and either can be used.
     copyName x = maybe x List1.head (Map.lookup x rd)
 
+    copyConHead c = c { conName = copyName (conName c) }
+
     argsToUse x = do
       let m = commonParentModule old x
       reportSDoc "tc.mod.apply" 80 $ "Common prefix: " <+> pretty m
@@ -637,10 +639,12 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                          , dataClause = Just cl
                          , dataCons   = map copyName cs
                          }
-                Record{ recPars = np, recTel = tel } -> return $
+                Record{ recPars = np, recTel = tel, recConHead = c, recFields = fs } -> return $
                   oldDef { recPars    = np - size ts'
                          , recClause  = Just cl
                          , recTel     = apply tel ts'
+                         , recConHead = copyConHead c
+                         , recFields  = (map . fmap) copyName fs
                          }
                 GeneralizableVar -> return GeneralizableVar
                 _ -> do
