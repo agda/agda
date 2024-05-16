@@ -228,7 +228,7 @@ sortOf t = do
         a <- metaType x
         sortOfE a (MetaV x) es
       Let a u v  -> sortOf $ lazyAbsApp v u
-      LetV x es  -> __IMPOSSIBLE__ -- TODO LetV
+      LetVar x es -> __IMPOSSIBLE__ -- TODO LetVar
       Lam{}      -> __IMPOSSIBLE__
       Con{}      -> __IMPOSSIBLE__
       Lit{}      -> __IMPOSSIBLE__

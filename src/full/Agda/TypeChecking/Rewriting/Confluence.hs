@@ -585,7 +585,7 @@ instance ParallelReduce Term where
     (Def f es) -> (topLevelReductions (Def f) es) <|> (Def f <$> parReduce es)
     (Con c ci es) -> (topLevelReductions (Con c ci) es) <|> (Con c ci <$> parReduce es)
     (Let a u v) -> return $ lazyAbsApp v u
-    (LetV{}) -> __IMPOSSIBLE__ -- TODO LetV
+    (LetVar{}) -> __IMPOSSIBLE__ -- TODO LetVar
 
     -- Congruence cases
     Lam i u  -> Lam i <$> parReduce u
@@ -825,7 +825,7 @@ instance AllHoles Term where
       Sort s         -> fmap Sort <$> allHoles_ s
       Level l        -> fmap Level <$> allHoles_ l
       Let{}          -> __IMPOSSIBLE__
-      LetV{}         -> __IMPOSSIBLE__
+      LetVar{}       -> __IMPOSSIBLE__
       MetaV{}        -> __IMPOSSIBLE__
       DontCare{}     -> empty
       Dummy{}        -> empty
@@ -895,7 +895,7 @@ instance MetasToVars Term where
     Sort s     -> Sort     <$> metasToVars s
     Level l    -> Level    <$> metasToVars l
     Let a u v  -> Let      <$> metasToVars a <*> metasToVars u <*> metasToVars v
-    LetV x es  -> LetV x   <$> metasToVars es
+    LetVar x es -> LetVar x   <$> metasToVars es
     MetaV x es -> asks ($ x) >>= \case
       Just i   -> Var i    <$> metasToVars es
       Nothing  -> MetaV x  <$> metasToVars es

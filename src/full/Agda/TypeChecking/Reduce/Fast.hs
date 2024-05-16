@@ -970,7 +970,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
             Abs   _ v -> runAM (evalClosure v (ptr `extendEnv` env) spine ctrl)
             NoAbs _ v -> runAM (evalClosure v env spine ctrl)
 
-        LetV x es -> __IMPOSSIBLE__ -- TODO LetV
+        LetVar x es -> __IMPOSSIBLE__ -- TODO LetVar
 
         -- Case: values. Literals and function types are already in weak-head normal form.
         -- We throw away the environment for literals mostly to make debug printing less verbose.
@@ -1113,7 +1113,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
           MetaV{}    -> False
           Var{}      -> False
           Let{}      -> False
-          LetV{}     -> False
+          LetVar{}   -> False
           Def q _  -- Type constructors (data/record) are considered canonical for 'primForce'.
             | CTyCon <- cdefDef (constInfo q) -> True
             | otherwise                       -> False

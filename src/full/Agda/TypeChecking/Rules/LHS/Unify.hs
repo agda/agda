@@ -447,7 +447,7 @@ etaExpandEquationStrategy k s = do
 
       Var _ _    -> return False
       Let a u v  -> shouldProject $ lazyAbsApp v u
-      LetV x es  -> __IMPOSSIBLE__ -- TODO
+      LetVar x es -> __IMPOSSIBLE__ -- TODO
       Lam _ _    -> __IMPOSSIBLE__
       Lit _      -> __IMPOSSIBLE__
       Pi _ _     -> __IMPOSSIBLE__
@@ -1002,4 +1002,4 @@ patternBindingForcedVars forced v = do
 
         -- Reduced away
         Let{}       -> __IMPOSSIBLE__
-        LetV{}      -> __IMPOSSIBLE__
+        LetVar{}    -> __IMPOSSIBLE__

@@ -619,7 +619,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
       let bindx = LetBind (LetRange noRange) info (mkBindName x) ea eu
       return $ A.Let exprNoRange (singleton bindx) ev
 
-    I.LetV x es -> __IMPOSSIBLE__ -- TODO LetV
+    I.LetVar x es -> __IMPOSSIBLE__ -- TODO LetVar
 
     I.MetaV x es -> do
           x' <- reify x

@@ -1723,7 +1723,7 @@ inverseSubst' skip args = map (mapFst unArg) <$> loop (zip args terms)
       Sort{}     -> neutralArg
       Level{}    -> neutralArg
       Let{}      -> __IMPOSSIBLE__
-      LetV{}     -> __IMPOSSIBLE__
+      LetVar{}   -> __IMPOSSIBLE__
       DontCare{} -> __IMPOSSIBLE__ -- Ruled out by stripDontCare
       Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 

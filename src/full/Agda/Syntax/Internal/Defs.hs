@@ -67,7 +67,7 @@ instance GetDefs Term where
     Sort s     -> getDefs s
     Level l    -> getDefs l
     Let a u v  -> getDefs a >> getDefs u >> getDefs v
-    LetV x es  -> __IMPOSSIBLE__ -- TODO
+    LetVar x es -> __IMPOSSIBLE__ -- TODO
     MetaV x vs -> getDefs x >> getDefs vs
     DontCare v -> getDefs v
     Dummy{}    -> return ()

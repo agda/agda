@@ -162,7 +162,7 @@ instance ForceNotFree Term where
     Sort s     -> Sort     <$> forceNotFree' s
     Level l    -> Level    <$> forceNotFree' l
     Let a u v  -> Let      <$> forceNotFree' a <*> forceNotFree' u <*> forceNotFree' v
-    LetV x es  -> LetV x   <$> forceNotFree' es -- TODO: check body of x!!
+    LetVar x es -> LetVar x   <$> forceNotFree' es -- TODO: check body of x!!
     DontCare t -> DontCare <$> forceNotFreeR t  -- Reduction stops at DontCare so reduceIf
     t@Lit{}    -> return t
     t@Dummy{}  -> return t

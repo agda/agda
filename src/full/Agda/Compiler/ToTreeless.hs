@@ -521,7 +521,7 @@ substTerm term = normaliseStatic term >>= \ term ->
     I.Pi _ _ -> return C.TUnit
     I.Sort _  -> return C.TSort
     I.Let _ u v -> C.TLet <$> substTerm u <*> substAbs v
-    I.LetV x es -> do
+    I.LetVar x es -> do
       ind <- asks (lookupIndex x . ccCxt)
       let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
       C.mkTApp (C.TVar ind) <$> substArgs args

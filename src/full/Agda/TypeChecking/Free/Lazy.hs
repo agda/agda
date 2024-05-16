@@ -540,7 +540,7 @@ instance Free Term where
     Sort s       -> freeVars' s
     Level l      -> freeVars' l
     Let a u v    -> freeVars' (a,u,v)
-    LetV x es    -> __IMPOSSIBLE__ -- TODO
+    LetVar x es  -> __IMPOSSIBLE__ -- TODO
     MetaV m ts   -> underFlexRig (Flexible $ singleton m) $ freeVars' ts
     DontCare mt  -> underModality (Modality Irrelevant unitQuantity unitCohesion) $ freeVars' mt
     Dummy{}      -> mempty

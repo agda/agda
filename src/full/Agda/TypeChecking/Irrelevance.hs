@@ -129,7 +129,7 @@ instance UsableRelevance Term where
     Sort s   -> usableRel rel s
     Level l  -> return True
     Let a u v -> usableRel rel (a,u,v)
-    LetV x es -> __IMPOSSIBLE__ -- TODO LetV
+    LetVar x es -> __IMPOSSIBLE__ -- TODO LetVar
     MetaV m vs -> do
       mrel <- getRelevance <$> lookupMetaModality m
       return (mrel `moreRelevant` rel) `and2M` usableRel rel vs
@@ -255,7 +255,7 @@ instance UsableModality Term where
         -- TODO: remove code duplication with Pi
         domMod = mapQuantity (composeQuantity $ getQuantity a) $
                  mapCohesion (composeCohesion $ getCohesion a) mod
-    LetV x es -> __IMPOSSIBLE__ -- TODO LetV
+    LetVar x es -> __IMPOSSIBLE__ -- TODO LetVar
     MetaV m vs -> do
       mmod <- lookupMetaModality m
       let ok = mmod `moreUsableModality` mod

@@ -91,7 +91,7 @@ applyTermE err' m es = coerce $
         case v of
           Abs x v   -> Abs x $ applyTermE err' v $ raise 1 es
           NoAbs x v -> NoAbs x $ applyTermE err' v es
-      LetV x es   -> __IMPOSSIBLE__ -- TODO LetV
+      LetVar x es -> __IMPOSSIBLE__ -- TODO LetVar
       Dummy s es' -> Dummy s (es' ++ es)
       DontCare mv -> dontCare $ mv `app` es  -- Andreas, 2011-10-02
         -- need to go under DontCare, since "with" might resurrect irrelevant term
@@ -847,7 +847,7 @@ applySubstTerm rho t    = coerce $ case coerce t of
     Pi a b      -> uncurry Pi $ subPi (a,b)
     Sort s      -> Sort $ sub @(Sort' t) s
     Let a u v   -> uncurry3 Let $ subLet (a,u,v)
-    LetV x es   -> __IMPOSSIBLE__ -- TODO LetV
+    LetVar x es -> __IMPOSSIBLE__ -- TODO LetVar
     DontCare mv -> dontCare $ sub @t mv
     Dummy s es  -> Dummy s $ subE es
  where
@@ -1504,9 +1504,9 @@ instance Ord Term where
   Let a b c  `compare` Let x y z  = compare (a, b, c) (x, y, z)
   Let{}      `compare` _          = LT
   _          `compare` Let{}      = GT
-  LetV a b   `compare` LetV x y   = compare (a, b) (x, y)
-  LetV{}     `compare` _          = LT
-  _          `compare` LetV{}     = GT
+  LetVar a b `compare` LetVar x y = compare (a, b) (x, y)
+  LetVar{}   `compare` _          = LT
+  _          `compare` LetVar{}   = GT
   MetaV a b  `compare` MetaV x y  = compare (a, b) (x, y)
   MetaV{}    `compare` _          = LT
   _          `compare` MetaV{}    = GT
