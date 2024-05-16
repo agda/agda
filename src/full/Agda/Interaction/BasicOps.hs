@@ -369,9 +369,11 @@ computeIgnoreAbstract :: ComputeMode -> Bool
 computeIgnoreAbstract DefaultCompute  = False
 computeIgnoreAbstract HeadCompute     = False
 computeIgnoreAbstract IgnoreAbstract  = True
-computeIgnoreAbstract UseShowInstance = True
-  -- UseShowInstance requires the result to be a string literal so respecting
-  -- abstract can only ever break things.
+computeIgnoreAbstract UseShowInstance = False
+  -- WRONG: UseShowInstance requires the result to be a string literal so respecting abstract can
+  -- only ever break things.
+  -- See #7191. Abstract definitions can come with rewrite rules to give nice show behaviour that
+  -- breaks if we don't respect abstract.
 
 computeWrapInput :: ComputeMode -> String -> String
 computeWrapInput UseShowInstance s = "show (" ++ s ++ ")"
