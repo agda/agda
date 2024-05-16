@@ -101,7 +101,7 @@ getLockVar lk = do
     fv = freeVarsIgnore IgnoreInAnnotations lk
     flex = flexibleVars fv
 
-    isLock i = fmap (getLock . domInfo) (lookupBV i) <&> \case
+    isLock i = fmap (getLock . domInfo . snd) (lookupBV i) <&> \case
       IsLock{} -> True
       IsNotLock{} -> False
 
