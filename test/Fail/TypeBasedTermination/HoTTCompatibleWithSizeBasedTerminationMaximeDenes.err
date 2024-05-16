@@ -1,0 +1,4 @@
+ret > ExitFailure 154
+out > An internal error has occurred. Please report this as a bug.
+out > Location of the error: __IMPOSSIBLE__, called at src/full/Agda/Termination/TypeBased/Checking.hs:«line»:«col» in «Agda-package»:Agda.Termination.TypeBased.Checking
+out >
