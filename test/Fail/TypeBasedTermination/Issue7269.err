@@ -1,0 +1,11 @@
+TypeBasedTermination/Issue7269.agda:12,8-9
+warning: -W[no]NoGuardednessFlag
+U is declared coinductive, but option --guardedness, --sized-types,
+or --type-based-termination is not enabled. Coinductive functions
+on this type will likely be rejected by the termination checker
+unless one of these flags is enabled.
+when checking the definition of U
+TypeBasedTermination/Issue7269.agda:6,1-46
+Cannot set OPTIONS pragmas
+--no-type-based-termination and --no-syntax-based-termination
+with safe flag.
