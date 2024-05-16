@@ -11,27 +11,30 @@ import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.TypeChecking.Monad.Base
 import Agda.Utils.Tuple
 
 
 
-type FV = Writer IntSet
+type FV m = WriterT IntSet m
 
-precomputeFreeVars_ :: PrecomputeFreeVars a => a -> a
-precomputeFreeVars_ = fst . runWriter . precomputeFreeVars
+precomputeFreeVars_ :: MonadTCEnv m => PrecomputeFreeVars a => a -> m a
+precomputeFreeVars_ x = fst <$> runWriterT (precomputeFreeVars x)
 
-precomputedFreeVars :: PrecomputeFreeVars a => a -> IntSet
-precomputedFreeVars = snd . runWriter . precomputeFreeVars
+precomputedFreeVars :: MonadTCEnv m => PrecomputeFreeVars a => a -> m IntSet
+precomputedFreeVars x = snd <$> runWriterT (precomputeFreeVars x)
 
 class PrecomputeFreeVars a where
-  precomputeFreeVars :: a -> FV a
+  precomputeFreeVars :: MonadTCEnv m => a -> FV m a
 
-  default precomputeFreeVars :: (Traversable c, PrecomputeFreeVars x, a ~ c x) => a -> FV a
+  default precomputeFreeVars
+    :: (MonadTCEnv m, Traversable c, PrecomputeFreeVars x, a ~ c x)
+    => a -> FV m a
   precomputeFreeVars = traverse precomputeFreeVars
 
 -- The instances where things actually happen: Arg, Abs and Term.
 
-maybePrecomputed :: PrecomputeFreeVars a => ArgInfo -> a -> FV (ArgInfo, a)
+maybePrecomputed :: MonadTCEnv m => PrecomputeFreeVars a => ArgInfo -> a -> FV m (ArgInfo, a)
 maybePrecomputed i x =
   case getFreeVariables i of
     KnownFVs fv -> (i, x) <$ tell fv

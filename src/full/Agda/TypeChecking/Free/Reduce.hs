@@ -48,7 +48,7 @@ forceNotFree xs a = do
   -- Initially, all variables are marked as `NotFree`. This is changed
   -- to `MaybeFree` when we find an occurrence.
   let mxs = IntMap.fromSet (const NotFree) xs
-  (a, mxs) <- runStateT (runReaderT (forceNotFreeR $ precomputeFreeVars_ a) mempty) mxs
+  (a, mxs) <- runStateT (runReaderT (forceNotFreeR =<< precomputeFreeVars_ a) mempty) mxs
   return (mxs, a)
 
 -- | Checks if the given term contains any free variables that are in
@@ -105,11 +105,11 @@ reduceIfFreeVars :: (Reduce a, ForceNotFree a, MonadFreeRed m)
                  => (a -> m a) -> a -> m a
 reduceIfFreeVars k a = do
   xs <- varsToForceNotFree
-  let fvs     = precomputedFreeVars a
-      notfree = IntSet.disjoint xs fvs
+  fvs <- precomputedFreeVars a
+  let notfree = IntSet.disjoint xs fvs
   if notfree
     then return a
-    else k . precomputeFreeVars_ =<< reduce a
+    else k =<< precomputeFreeVars_ =<< reduce a
 
 -- Careful not to define forceNotFree' = forceNotFreeR since that would loop.
 forceNotFreeR :: (Reduce a, ForceNotFree a, MonadFreeRed m)

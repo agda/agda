@@ -97,7 +97,8 @@ compileClauses mt cs = do
         [ "compiled clauses of " <+> prettyTCM q
         , nest 2 $ return $ P.pretty cc
         ]
-      return (Just splitTree, becameCopatternLHS, fmap precomputeFreeVars_ cc)
+      cc <- traverse precomputeFreeVars_ cc
+      return (Just splitTree, becameCopatternLHS, cc)
 
 -- | Stripped-down version of 'Agda.Syntax.Internal.Clause'
 --   used in clause compiler.

@@ -948,10 +948,12 @@ unify s strategy = if isUnifyStateSolved s
 --   non-forced positions).
 patternBindingForcedVars :: PureTCM m => IntMap Modality -> Term -> m (DeBruijnPattern, IntMap Modality)
 patternBindingForcedVars forced v = do
-  let v' = precomputeFreeVars_ v
+  v' <- precomputeFreeVars_ v
   runWriterT (evalStateT (go unitModality v') forced)
   where
-    noForced v = gets $ IntSet.disjoint (precomputedFreeVars v) . IntMap.keysSet
+    noForced v = do
+      v' <- precomputedFreeVars v
+      gets $ IntSet.disjoint v' . IntMap.keysSet
 
     bind md i = do
       gets (IntMap.lookup i) >>= \case
