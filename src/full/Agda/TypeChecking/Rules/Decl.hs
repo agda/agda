@@ -74,6 +74,7 @@ import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Size
 import Agda.Utils.Update
+import qualified Agda.Syntax.Common.Pretty as P
 import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
@@ -771,25 +772,29 @@ checkPragma r p =
               "COMPILE pragmas must appear in the same module as their corresponding definitions,"
           addPragma (rangedThing b) x s
         A.StaticPragma x -> do
-          def <- getConstInfo x
+          def <- ignoreAbstractMode $ getConstInfo x
           case theDef def of
             Function{} -> markStatic x
-            _          -> typeError $ GenericError "STATIC directive only works on functions"
+            _          -> warning $ UselessPragma r "STATIC directive only applies to functions"
         A.InjectivePragma x -> markInjective x
-        A.InjectiveForInferencePragma x -> markFirstOrder x
+        A.InjectiveForInferencePragma x -> do
+          def <- ignoreAbstractMode $ getConstInfo x
+          case theDef def of
+            Function{} -> markFirstOrder x
+            _ -> warning $ UselessPragma r "INJECTIVE_FOR_INFERENCE directive only applies to functions"
         A.NotProjectionLikePragma qn -> do
-          def <- getConstInfo qn
+          def <- ignoreAbstractMode $ getConstInfo qn
           case theDef def of
             it@Function{} ->
               modifyGlobalDefinition qn $ \def -> def { theDef = it { funProjection = Left NeverProjection } }
-            _ -> typeError $ GenericError "NOT_PROJECTION_LIKE directive only applies to functions"
+            _ -> warning $ UselessPragma r "NOT_PROJECTION_LIKE directive only applies to functions"
         A.InlinePragma b x -> do
-          def <- getConstInfo x
+          def <- ignoreAbstractMode $ getConstInfo x
           case theDef def of
             Function{} -> markInline b x
             d@Constructor{ conSrcCon } | copatternMatchingAllowed conSrcCon
               -> modifyGlobalDefinition x $ set lensTheDef d{ conInline = b }
-            _ -> typeError $ GenericError $ applyUnless b ("NO" ++) "INLINE directive only works on functions or constructors of records that allow copattern matching"
+            _ -> warning $ UselessPragma r $ P.text $ applyUnless b ("NO" ++) "INLINE directive only works on functions or constructors of records that allow copattern matching"
         A.OptionsPragma{} -> typeError $ GenericError $ "OPTIONS pragma only allowed at beginning of file, before top module declaration"
         A.DisplayPragma f ps e -> checkDisplayPragma f ps e
         A.OverlapPragma q new -> do
