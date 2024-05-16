@@ -1071,6 +1071,8 @@ instance ExtractCalls Term where
         mconcat <$> sequence
           [ extract a, extract u, extract v ]
 
+      LetV x es -> __IMPOSSIBLE__ -- TODO LetV
+
       -- Unsolved metas are not considered termination problems, there
       -- will be a warning for them anyway.
       MetaV x args -> return empty

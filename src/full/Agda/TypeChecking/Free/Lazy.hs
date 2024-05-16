@@ -76,6 +76,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.Utils.Functor
+import Agda.Utils.Impossible
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -539,6 +540,7 @@ instance Free Term where
     Sort s       -> freeVars' s
     Level l      -> freeVars' l
     Let a u v    -> freeVars' (a,u,v)
+    LetV x es    -> __IMPOSSIBLE__ -- TODO
     MetaV m ts   -> underFlexRig (Flexible $ singleton m) $ freeVars' ts
     DontCare mt  -> underModality (Modality Irrelevant unitQuantity unitCohesion) $ freeVars' mt
     Dummy{}      -> mempty

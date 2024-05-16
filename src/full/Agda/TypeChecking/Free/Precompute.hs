@@ -69,6 +69,7 @@ instance PrecomputeFreeVars Term where
       Sort s     -> Sort       <$> precomputeFreeVars s
       Level l    -> Level      <$> precomputeFreeVars l
       Let a u v  -> uncurry3 Let <$> precomputeFreeVars (a, u, v)
+      LetV x es  -> undefined -- TODO
       MetaV x es -> MetaV x    <$> precomputeFreeVars es
       DontCare t -> DontCare   <$> precomputeFreeVars t
       Dummy{}    -> pure t

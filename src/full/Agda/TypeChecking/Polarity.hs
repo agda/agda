@@ -425,6 +425,7 @@ instance HasPolarity Term where
     Pi a b        -> polarity' i (neg p) a <> polarity' i p b
     Sort s        -> mempty -- polarity' i p s -- mempty
     Let a u v     -> polarity' i p (a,u,v)
+    LetV x es     -> __IMPOSSIBLE__ -- TODO LetV
     MetaV _ ts    -> polarity' i Invariant ts
     DontCare t    -> polarity' i p t -- mempty
     Dummy{}       -> mempty

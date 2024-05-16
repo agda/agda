@@ -1873,6 +1873,7 @@ isCoinductive t = do
     Pi    {} -> return (Just False)
     Sort  {} -> return (Just False)
     Let   {} -> __IMPOSSIBLE__
+    LetV  {} -> __IMPOSSIBLE__
     MetaV {} -> return Nothing
     DontCare{} -> __IMPOSSIBLE__
     Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s

@@ -43,6 +43,7 @@ binAppView t = case t of
   Pi _ _     -> noApp
   Sort _     -> noApp
   Let _ _ _  -> noApp   -- ???
+  LetV x es  -> __IMPOSSIBLE__
   MetaV _ _  -> noApp
   DontCare _ -> noApp
   Dummy{}    -> __IMPOSSIBLE__

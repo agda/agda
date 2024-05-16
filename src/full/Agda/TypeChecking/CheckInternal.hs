@@ -219,6 +219,7 @@ instance CheckInternal Term where
         -- TODO: have a way to add a let-bound variable to the context
         -- that gives it a de Bruijn index (rather than an abstract name)
         checkInternal' action (absApp v u) cmp t
+      LetV x es -> __IMPOSSIBLE__ -- TODO LetV
       DontCare v -> DontCare <$> checkInternal' action v cmp t
       -- Jesper, 2023-02-23: these can appear because of eta-expansion of
       -- records with irrelevant fields

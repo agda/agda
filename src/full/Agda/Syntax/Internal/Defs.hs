@@ -12,6 +12,8 @@ import qualified Data.Foldable as Fold
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
+import Agda.Utils.Impossible
+
 -- | @getDefs' lookup emb a@ extracts all used definitions
 --   (functions, data/record types) from @a@, embedded into a monoid via @emb@.
 --   Instantiations of meta variables are obtained via @lookup@.
@@ -65,6 +67,7 @@ instance GetDefs Term where
     Sort s     -> getDefs s
     Level l    -> getDefs l
     Let a u v  -> getDefs a >> getDefs u >> getDefs v
+    LetV x es  -> __IMPOSSIBLE__ -- TODO
     MetaV x vs -> getDefs x >> getDefs vs
     DontCare v -> getDefs v
     Dummy{}    -> return ()

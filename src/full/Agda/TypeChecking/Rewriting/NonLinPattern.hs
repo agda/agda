@@ -192,6 +192,7 @@ instance PatternFrom Term NLPat where
       (_ , Sort s)     -> PSort <$> patternFrom r k () s
       (_ , Level l)    -> __IMPOSSIBLE__
       (_ , Let{})      -> __IMPOSSIBLE__
+      (_ , LetV{})     -> __IMPOSSIBLE__
       (_ , DontCare{}) -> __IMPOSSIBLE__
       (_ , MetaV m _)  -> __IMPOSSIBLE__
       (_ , Dummy s _)  -> __IMPOSSIBLE_VERBOSE__ s

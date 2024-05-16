@@ -835,6 +835,7 @@ isRigid _ (El _ t) = case t of
   Sort{}     -> return $ IsNotRigid Permanent
   Level{}    -> return $ IsNotRigid Permanent
   Let{}      -> return $ IsNotRigid Permanent
+  LetV{}     -> return $ IsNotRigid Permanent
   MetaV{}    -> return $ IsNotRigid Unspecified
   DontCare{} -> return $ IsNotRigid Permanent
   Dummy{}    -> return $ IsNotRigid Permanent

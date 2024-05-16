@@ -572,6 +572,7 @@ insidePi t ret = reduce (unEl t) >>= \case
     Lit{}      -> __IMPOSSIBLE__
     Level{}    -> __IMPOSSIBLE__
     Let{}      -> __IMPOSSIBLE__
+    LetV{}     -> __IMPOSSIBLE__
     MetaV{}    -> __IMPOSSIBLE__
     DontCare{} -> __IMPOSSIBLE__
     Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
@@ -1045,6 +1046,7 @@ getOutputTypeName t = ignoreAbstractMode $ do
       Lit{}    -> __IMPOSSIBLE__
       Level{}  -> __IMPOSSIBLE__
       Let{}    -> __IMPOSSIBLE__
+      LetV{}   -> __IMPOSSIBLE__
       MetaV{}  -> __IMPOSSIBLE__
       DontCare{} -> __IMPOSSIBLE__
       Dummy s _ -> __IMPOSSIBLE_VERBOSE__ s
