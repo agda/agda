@@ -41,17 +41,6 @@ jobs:
     timeout-minutes: 60
 
     runs-on: ubuntu-24.04
-    ## Use preinstalled GHC and Cabal
-    #
-    # runs-on: ${{ matrix.os }}
-    # strategy:
-    #   fail-fast: false
-    #   matrix:
-    #     os:
-    #       - ubuntu-latest
-    #     ghc-ver: ['9.8.2']
-    #     cabal-ver: ['3.10.1.0']
-    #     # Use the versions preinstalled in the virtual environment, if possible.
 
     env:
       FLAGS: "-O0 -f enable-cluster-counting"
@@ -59,37 +48,12 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    ## Disable the setup action: Use preinstalled GHC and Cabal.
-    ##
-    ## In case the ubuntu-22.04 environment moves GHC beyond
-    ## what Agda supports, bring back the setup action.
-    # - uses: haskell-actions/setup@v2
-    #   id: setup-haskell
-    #   with:
-    #     ghc-version:   ${{ matrix.ghc-ver }}
-    #     cabal-version: ${{ matrix.cabal-ver }}
-    #     cabal-update:  true
-
-    # 2023-08-21: skipping setup does no work out of the box
-    # since then cabal uses the XDG directory structure.
-    # In particular, the ~/.cabal/store is somewhere else.
-    # A workaround is to create the .cabal directory.
-    # In case we switch to XDG we need to reset the cache then so cabal does not get
-    # confused if there is both the restored .cabal/store and the XDG store.
-
-    - name: Set up cabal
-      run: |
-        mkdir -p ~/.cabal
-        cabal update
-
-    - name: Environment settings based on the Haskell setup
-      run: |
-        GHC_VER=$(ghc --numeric-version)
-        CABAL_VER=$(cabal --numeric-version)
-        echo "GHC_VER   = ${GHC_VER}"
-        echo "CABAL_VER = ${CABAL_VER}"
-        echo "GHC_VER=${GHC_VER}"       >> "${GITHUB_ENV}"
-        echo "CABAL_VER=${CABAL_VER}"   >> "${GITHUB_ENV}"
+    - uses: haskell-actions/setup@v2
+      id: setup-haskell
+      with:
+        ghc-version:   '9.8'
+        cabal-version: latest
+        cabal-update:  true
 
     - name: Configure the build plan
       run: |
@@ -101,10 +65,9 @@ jobs:
       uses: actions/cache/restore@v4
       id: cache
       env:
-        key: cabal-install.yml-${{ runner.os }}-ghc-${{ env.GHC_VER }}-cabal-${{ env.CABAL_VER }}
+        key: cabal-install.yml-${{ runner.os }}-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-cabal-${{ steps.setup-haskell.outputs.cabal-version }}
       with:
-        path: &cache_path ~/.cabal/store
-        # ${{ steps.setup-haskell.outputs.cabal-store }}
+        path: &cache_path ${{ steps.setup-haskell.outputs.cabal-store }}
         # The file `plan.json` contains the build information.
         key:          ${{ env.key }}-${{ hashFiles('**/plan.json') }}
         restore-keys: ${{ env.key }}-
