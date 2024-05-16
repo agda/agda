@@ -1,0 +1,47 @@
+Issue7245.agda:5,1-36
+warning: -W[no]UselessPragma
+INJECTIVE_FOR_INFERENCE directive only applies to functions
+when checking the pragma INJECTIVE_FOR_INFERENCE foo
+Issue7245.agda:6,1-19
+warning: -W[no]UselessPragma
+STATIC directive only applies to functions
+when checking the pragma STATIC foo
+Issue7245.agda:7,1-32
+warning: -W[no]UselessPragma
+NOT_PROJECTION_LIKE directive only applies to functions
+when checking the pragma NOT_PROJECTION_LIKE foo
+Issue7245.agda:8,1-19
+warning: -W[no]UselessPragma
+INLINE directive only works on functions or constructors of records that allow copattern matching
+when checking the pragma INLINE foo
+Issue7245.agda:9,1-21
+warning: -W[no]UselessPragma
+NOINLINE directive only works on functions or constructors of records that allow copattern matching
+when checking the pragma NOINLINE foo
+
+———— All done; warnings encountered ————————————————————————
+
+Issue7245.agda:5,1-36
+warning: -W[no]UselessPragma
+INJECTIVE_FOR_INFERENCE directive only applies to functions
+when checking the pragma INJECTIVE_FOR_INFERENCE foo
+
+Issue7245.agda:6,1-19
+warning: -W[no]UselessPragma
+STATIC directive only applies to functions
+when checking the pragma STATIC foo
+
+Issue7245.agda:7,1-32
+warning: -W[no]UselessPragma
+NOT_PROJECTION_LIKE directive only applies to functions
+when checking the pragma NOT_PROJECTION_LIKE foo
+
+Issue7245.agda:8,1-19
+warning: -W[no]UselessPragma
+INLINE directive only works on functions or constructors of records that allow copattern matching
+when checking the pragma INLINE foo
+
+Issue7245.agda:9,1-21
+warning: -W[no]UselessPragma
+NOINLINE directive only works on functions or constructors of records that allow copattern matching
+when checking the pragma NOINLINE foo
