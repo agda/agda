@@ -600,7 +600,6 @@ instance ParallelReduce Term where
 
     -- Impossible cases
     (Let a u)  -> __IMPOSSIBLE__
-    (LetVar{}) -> __IMPOSSIBLE__
     MetaV{}    -> __IMPOSSIBLE__
 
 instance ParallelReduce Sort where
@@ -825,7 +824,6 @@ instance AllHoles Term where
       Sort s         -> fmap Sort <$> allHoles_ s
       Level l        -> fmap Level <$> allHoles_ l
       Let{}          -> __IMPOSSIBLE__
-      LetVar{}       -> __IMPOSSIBLE__
       MetaV{}        -> __IMPOSSIBLE__
       DontCare{}     -> empty
       Dummy{}        -> empty
@@ -898,7 +896,6 @@ instance MetasToVars Term where
     Sort s     -> Sort     <$> metasToVars s
     Level l    -> Level    <$> metasToVars l
     Let a u    -> Let      <$> metasToVars a <*> metasToVars u
-    LetVar x es -> LetVar x   <$> metasToVars es
     MetaV x es -> asks ($ x) >>= \case
       Just i   -> Var i    <$> metasToVars es
       Nothing  -> MetaV x  <$> metasToVars es

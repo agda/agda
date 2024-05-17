@@ -217,16 +217,6 @@ instance CheckInternal Term where
         u <- checkInternal' action u CmpLeq (unDom a)
         v <- underLetBinding NoInlineLet a abs $ \v -> checkInternal' action v cmp t
         return $ Let a (LetAbs name u v)
-      LetVar x es -> do
-        d <- domOfLV x
-        n <- nameOfLV x
-        -- see Var case
-        unless (usableCohesion d) $
-          typeError $ VariableIsOfUnusableCohesion n (getCohesion d)
-        reportSDoc "tc.check.internal" 30 $ fsep
-          [ "let variable" , prettyTCM (var x) , "has type" , prettyTCM (unDom d)
-          , "and modality", pretty (getModality d) ]
-        checkSpine action (unDom d) (LetVar x) es cmp t
       DontCare v -> DontCare <$> checkInternal' action v cmp t
       -- Jesper, 2023-02-23: these can appear because of eta-expansion of
       -- records with irrelevant fields

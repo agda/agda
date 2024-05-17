@@ -43,7 +43,6 @@ binAppView t = case t of
   Pi _ _     -> noApp
   Sort _     -> noApp
   Let _ _    -> noApp   -- TODO: is this ok???
-  LetVar _ _ -> noApp  -- TODO: is this ok?
   MetaV _ _  -> noApp
   DontCare _ -> noApp
   Dummy{}    -> __IMPOSSIBLE__

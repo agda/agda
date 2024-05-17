@@ -195,7 +195,6 @@ instance AbsTerm Term where
       Level l     -> Level $ absT l
       Sort s      -> Sort $ absT s
       Let a u     -> uncurry Let $ absT (a, u)
-      LetVar x es -> LetVar (x + 1) $ absT es
       MetaV m vs  -> MetaV m $ absT vs
       DontCare mv -> DontCare $ absT mv
       Dummy s es   -> Dummy s $ absT es

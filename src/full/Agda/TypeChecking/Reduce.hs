@@ -23,6 +23,7 @@ module Agda.TypeChecking.Reduce
  -- Normalization
  , Normalise, normalise', normalise
  , slowNormaliseArgs
+ , reduceLetVar
  ) where
 
 import Control.Monad ( (>=>), void )
@@ -578,16 +579,15 @@ slowReduceTerm v = do
       Let a u  -> ifM (SmallSet.member LetReductions <$> asksTC envAllowedReductions)
                     {- then -} (reduceB' $ inlineLetAbs u)
                     {- else -} done
-      LetVar x es -> ifM (SmallSet.member LetReductions <$> asksTC envAllowedReductions)
-                    {- then -} (reduceB' . (`applyE` es) =<< valueOfLV x)
-                    {- else -} done
       Sort s   -> done
       Level l  -> ifM (SmallSet.member LevelReductions <$> asksTC envAllowedReductions)
                     {- then -} (fmap levelTm <$> reduceB' l)
                     {- else -} done
       Pi _ _   -> done
       Lit _    -> done
-      Var _ es  -> iapp es
+      Var x es  -> ifM (SmallSet.member LetReductions <$> asksTC envAllowedReductions)
+                    {- then -} (maybe (iapp es) (reduceB' . (`applyE` es)) =<< valueOfBV' x)
+                    {- else -} (iapp es)
       Lam _ _  -> done
       DontCare _ -> done
       Dummy{}    -> done
@@ -1076,7 +1076,6 @@ instance Simplify Term where
       Lam h v    -> Lam h    <$> simplify' v
       -- TODO: should simplify unfold let-bindings?
       Let a u    -> Let      <$> simplify' a <*> simplify' u
-      LetVar x es -> LetVar x   <$> simplify' es
       DontCare v -> dontCare <$> simplify' v
       Dummy{}    -> return v
 
@@ -1277,7 +1276,6 @@ slowNormaliseArgs = \case
   Sort s      -> Sort       <$> normalise' s
   Pi a b      -> uncurry Pi <$> normalise' (a, b)
   Let a u     -> uncurry Let <$> normalise' (a, u)
-  LetVar x es -> LetVar x   <$> normalise' es
   v@DontCare{}-> return v
   v@Dummy{}   -> return v
 
@@ -1497,7 +1495,6 @@ instance InstantiateFull Term where
           Sort s      -> Sort <$> instantiateFull' s
           Pi a b      -> uncurry Pi <$> instantiateFull' (a,b)
           Let a u     -> uncurry Let <$> instantiateFull' (a,u)
-          LetVar x es -> LetVar x <$> instantiateFull' es
           DontCare v  -> dontCare <$> instantiateFull' v
           v@Dummy{}   -> return v
 
@@ -1817,8 +1814,8 @@ instance InstantiateFull EqualityView where
 ---------------------------------------------------------------------------
 
 reduceLetVar :: MonadReduce m => Term -> m Term
-reduceLetVar = \case
-  LetVar x es -> do
-    v <- fromMaybe __IMPOSSIBLE__ <$> valueOfLV' x
-    return $ v `applyE` es
-  u -> return u
+reduceLetVar = instantiate >=> \u -> case u of
+  Var x es -> valueOfBV' x >>= \case
+    Just v -> reduceLetVar $ v `applyE` es
+    Nothing -> return u
+  _ -> return u

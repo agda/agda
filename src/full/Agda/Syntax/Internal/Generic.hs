@@ -94,7 +94,6 @@ instance TermLike Term where
     t@Lit{}     -> f t
     Sort s      -> f =<< Sort <$> traverseTermM f s
     Let a u     -> f =<< uncurry Let <$> traverseTermM f (a, u)
-    LetVar i xs -> f =<< LetVar i <$> traverseTermM f xs
     DontCare mv -> f =<< DontCare <$> traverseTermM f mv
     Dummy s xs  -> f =<< Dummy s <$> traverseTermM f xs
 
@@ -109,7 +108,6 @@ instance TermLike Term where
     Lit _       -> mempty
     Sort s      -> foldTerm f s
     Let a u     -> foldTerm f (a, u)
-    LetVar i xs -> foldTerm f xs
     DontCare mv -> foldTerm f mv
     Dummy _ xs  -> foldTerm f xs
 

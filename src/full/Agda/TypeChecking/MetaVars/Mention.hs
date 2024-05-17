@@ -28,7 +28,6 @@ instance MentionsMeta Term where
     Sort s       -> mm s
     Level l      -> mm l
     Let a u      -> mm (a, u)
-    LetVar x es  -> mm es
     Dummy{}      -> False
     DontCare v   -> False   -- we don't have to look inside don't cares when deciding to wake constraints
     MetaV y args -> HashSet.member y xs || mm args   -- TODO: we really only have to look one level deep at meta args

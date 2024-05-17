@@ -447,7 +447,6 @@ etaExpandEquationStrategy k s = do
 
       Var _ _    -> return False
       Let a u    -> shouldProject $ inlineLetAbs u
-      LetVar x es -> shouldProject . (`applyE` es) =<< valueOfLV x
       Lam _ _    -> __IMPOSSIBLE__
       Lit _      -> __IMPOSSIBLE__
       Pi _ _     -> __IMPOSSIBLE__
@@ -1002,4 +1001,3 @@ patternBindingForcedVars forced v = do
 
         -- Reduced away
         Let{}       -> __IMPOSSIBLE__
-        LetVar{}    -> __IMPOSSIBLE__

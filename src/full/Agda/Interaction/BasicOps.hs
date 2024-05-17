@@ -1079,7 +1079,6 @@ metaHelperType norm ii rng s = case words s of
       I.Pi a b     -> I.Pi <$> traverse (onNames f) a <*> onNamesAbs f onNames b
       I.DontCare v -> I.DontCare <$> onNamesTm f v
       I.Let a u    -> I.Let <$> traverse (onNames f) a <*> onNamesLetAbs f onNamesTm u
-      I.LetVar x es -> I.LetVar x <$> onNamesElims f es
       v@I.Lit{}    -> pure v
       v@I.Sort{}   -> pure v
       v@I.Level{}  -> pure v

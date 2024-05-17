@@ -229,9 +229,6 @@ sortOf t = do
         sortOfE a (MetaV x) es
       Let a u    ->
         sortOfT $ inlineLetAbs u
-      LetVar x es -> do
-        a <- typeOfLV x
-        sortOfE a (LetVar x) es
       Lam{}      -> __IMPOSSIBLE__
       Con{}      -> __IMPOSSIBLE__
       Lit{}      -> __IMPOSSIBLE__

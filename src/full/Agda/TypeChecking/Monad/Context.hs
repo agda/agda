@@ -561,43 +561,21 @@ contextNames' = map (unDom . snd) . contextVars'
 
 -- | get type of bound variable (i.e. deBruijn index)
 --
-lookupCtx_ :: Nat -> Context -> Maybe ContextEntry
-lookupCtx_ n ctx = raise (n + 1) <$> ctx !!! n
+lookupBV_ :: Nat -> Context -> Maybe ContextEntry
+lookupBV_ n ctx = raise (n + 1) <$> ctx !!! n
 
-{-# SPECIALIZE lookupCtx' :: Nat -> TCM (Maybe ContextEntry) #-}
-lookupCtx' :: MonadTCEnv m => Nat -> m (Maybe ContextEntry)
-lookupCtx' n = lookupCtx_ n <$> getContext
+{-# SPECIALIZE lookupBV' :: Nat -> TCM (Maybe ContextEntry) #-}
+lookupBV' :: MonadTCEnv m => Nat -> m (Maybe ContextEntry)
+lookupBV' n = lookupBV_ n <$> getContext
 
-{-# SPECIALIZE lookupCtx :: Nat -> TCM ContextEntry #-}
-lookupCtx :: (MonadFail m, MonadTCEnv m) => Nat -> m ContextEntry
-lookupCtx n = do
+{-# SPECIALIZE lookupBV :: Nat -> TCM ContextEntry #-}
+lookupBV :: (MonadFail m, MonadTCEnv m) => Nat -> m ContextEntry
+lookupBV n = do
   let failure = do
         ctx <- getContext
         fail $ "de Bruijn index out of scope: " ++ show n ++
                " in context " ++ prettyShow (map ctxEntryName ctx)
-  caseMaybeM (lookupCtx' n) failure return
-
-lookupBV_ :: Nat -> Context -> Maybe (Name, Dom Type)
-lookupBV_ n ctx = fromMaybe __IMPOSSIBLE__ . isCtxVar <$> lookupCtx_ n ctx
-
-{-# SPECIALIZE lookupBV' :: Nat -> TCM (Maybe (Name, Dom Type)) #-}
-lookupBV' :: (MonadTCEnv m) => Nat -> m (Maybe (Name, Dom Type))
-lookupBV' n = (isCtxVar =<<) <$> lookupCtx' n
-
-{-# SPECIALIZE lookupBV :: Nat -> TCM (Name, Dom Type) #-}
-lookupBV :: (MonadFail m, MonadTCEnv m) => Nat -> m (Name, Dom Type)
-lookupBV n = fromMaybe __IMPOSSIBLE__ . isCtxVar <$> lookupCtx n
-
-lookupLV_ :: Nat -> Context -> Maybe (Name, Dom Type, Term)
-lookupLV_ n ctx = fromMaybe __IMPOSSIBLE__ . isCtxLet <$> lookupCtx_ n ctx
-
-{-# SPECIALIZE lookupLV' :: Nat -> TCM (Maybe (Name, Dom Type, Term)) #-}
-lookupLV' :: (MonadTCEnv m) => Nat -> m (Maybe (Name, Dom Type, Term))
-lookupLV' n = (isCtxLet =<<) <$> lookupCtx' n
-
-{-# SPECIALIZE lookupLV :: Nat -> TCM (Name, Dom Type, Term) #-}
-lookupLV :: (MonadFail m, MonadTCEnv m) => Nat -> m (Name, Dom Type, Term)
-lookupLV n = fromMaybe __IMPOSSIBLE__ . isCtxLet <$> lookupCtx n
+  caseMaybeM (lookupBV' n) failure return
 
 ctxEntryName :: ContextEntry -> Name
 ctxEntryName (CtxVar x _) = x
@@ -610,6 +588,11 @@ ctxEntryDom (CtxLet _ a _) = a
 ctxEntryType :: ContextEntry -> Type
 ctxEntryType = unDom . ctxEntryDom
 
+ctxEntryValue :: ContextEntry -> Maybe Term
+ctxEntryValue = \case
+  CtxVar{} -> Nothing
+  (CtxLet _ _ v) -> Just v
+
 ctxEntryToLet :: ContextEntry -> Term -> Term
 ctxEntryToLet CtxVar{} = __IMPOSSIBLE__
 ctxEntryToLet (CtxLet x a v) = Let a . LetAbs (nameToArgName x) v
@@ -619,7 +602,10 @@ ctxEntriesToLets = foldr ((.) . ctxEntryToLet) id
 
 {-# SPECIALIZE domOfBV :: Nat -> TCM (Dom Type) #-}
 domOfBV :: (MonadFail m, MonadTCEnv m) => Nat -> m (Dom Type)
-domOfBV n = snd <$> lookupBV n
+domOfBV n = ctxEntryDom <$> lookupBV n
+
+typeOfBV_ :: Nat -> Context -> Maybe Type
+typeOfBV_ i ctx = ctxEntryType <$> lookupBV_ i ctx
 
 {-# SPECIALIZE typeOfBV :: Nat -> TCM Type #-}
 typeOfBV :: (MonadFail m, MonadTCEnv m) => Nat -> m Type
@@ -627,35 +613,22 @@ typeOfBV i = unDom <$> domOfBV i
 
 {-# SPECIALIZE nameOfBV' :: Nat -> TCM (Maybe Name) #-}
 nameOfBV' :: (MonadTCEnv m) => Nat -> m (Maybe Name)
-nameOfBV' n = fmap fst <$> lookupBV' n
+nameOfBV' n = fmap ctxEntryName <$> lookupBV' n
 
 {-# SPECIALIZE nameOfBV :: Nat -> TCM Name #-}
 nameOfBV :: (MonadFail m, MonadTCEnv m) => Nat -> m Name
-nameOfBV n = fst <$> lookupBV n
+nameOfBV n = ctxEntryName <$> lookupBV n
 
-{-# SPECIALIZE domOfLV :: Nat -> TCM (Dom Type) #-}
-domOfLV :: (MonadFail m, MonadTCEnv m) => Nat -> m (Dom Type)
-domOfLV n = snd3 <$> lookupLV n
+valueOfBV_ :: Nat -> Context -> Maybe Term
+valueOfBV_ i ctx = ctxEntryValue =<< lookupBV_ i ctx
 
-{-# SPECIALIZE typeOfLV :: Nat -> TCM Type #-}
-typeOfLV :: (MonadFail m, MonadTCEnv m) => Nat -> m Type
-typeOfLV i = unDom <$> domOfLV i
+{-# SPECIALIZE valueOfBV :: Nat -> TCM (Maybe Term) #-}
+valueOfBV :: (MonadFail m, MonadTCEnv m) => Nat -> m (Maybe Term)
+valueOfBV n = ctxEntryValue <$> lookupBV n
 
-{-# SPECIALIZE nameOfLV' :: Nat -> TCM (Maybe Name) #-}
-nameOfLV' :: (MonadTCEnv m) => Nat -> m (Maybe Name)
-nameOfLV' n = fmap fst3 <$> lookupLV' n
-
-{-# SPECIALIZE nameOfLV :: Nat -> TCM Name #-}
-nameOfLV :: (MonadFail m, MonadTCEnv m) => Nat -> m Name
-nameOfLV n = fst3 <$> lookupLV n
-
-{-# SPECIALIZE valueOfLV :: Nat -> TCM Term #-}
-valueOfLV :: (MonadFail m, MonadTCEnv m) => Nat -> m Term
-valueOfLV n = thd3 <$> lookupLV n
-
-{-# SPECIALIZE valueOfLV :: Nat -> TCM Term #-}
-valueOfLV' :: (MonadTCEnv m) => Nat -> m (Maybe Term)
-valueOfLV' n = fmap thd3 <$> lookupLV' n
+{-# SPECIALIZE valueOfBV :: Nat -> TCM (Maybe Term) #-}
+valueOfBV' :: (MonadTCEnv m) => Nat -> m (Maybe Term)
+valueOfBV' n = (ctxEntryValue =<<) <$> lookupBV' n
 
 
 -- | Get the term corresponding to a named variable. If it is a lambda bound
@@ -667,9 +640,9 @@ getVarInfo x =
     do  ctx <- getContext
         def <- asksTC envLetBindings
         case List.findIndex ((== x) . ctxEntryName) ctx of
-            Just i -> lookupCtx i >>= \case
+            Just i -> lookupBV i >>= \case
               CtxVar _ t -> return (var i, t)
-              CtxLet _ t _ -> return (LetVar i [], t)
+              CtxLet _ t _ -> return (var i, t)
             _       -> do
                 case Map.lookup x def of
                     Just vt -> do

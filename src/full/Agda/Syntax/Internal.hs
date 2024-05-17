@@ -226,7 +226,6 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
           | Sort Sort
           | Level Level
           | Let (Dom Type) (LetAbs Term) -- ^ @let x : a = u in v@
-          | LetVar {-# UNPACK #-} !Int Elims
           | MetaV {-# UNPACK #-} !MetaId Elims
           | DontCare Term
             -- ^ Irrelevant stuff in relevant position, but created
@@ -1086,7 +1085,6 @@ hasElims v =
     Var   i es -> Just (Var   i, es)
     Def   f es -> Just (Def   f, es)
     MetaV x es -> Just (MetaV x, es)
-    LetVar x es -> Just (LetVar x , es)
     Con{}      -> Nothing
     Lit{}      -> Nothing
     Lam{}      -> Nothing
@@ -1199,7 +1197,6 @@ instance TermSize Term where
     Pi a b      -> 1 + tsize a + tsize b
     Sort s      -> tsize s
     Let a u     -> 1 + tsize a + tsize u
-    LetVar x vs -> 1 + tsize vs
     DontCare mv -> tsize mv
     Dummy{}     -> 1
 
@@ -1254,7 +1251,6 @@ instance KillRange Term where
     Pi a b      -> killRangeN Pi a b
     Sort s      -> killRangeN Sort s
     Let a u     -> killRangeN Let a u
-    LetVar x es -> killRangeN LetVar x es
     DontCare mv -> killRangeN DontCare mv
     v@Dummy{}   -> v
 
@@ -1372,7 +1368,6 @@ instance Pretty Term where
             , pretty u <+> "in"
             , nest 2 $ pretty v
             ]
-      LetVar x es -> text ("'" ++ show x) `pApp` es
       MetaV x els -> pretty x `pApp` els
       DontCare v  -> prettyPrec p v
       Dummy s es  -> parens (text s) `pApp` es
@@ -1505,7 +1500,6 @@ instance NFData Term where
     Sort s     -> rnf s
     Level l    -> rnf l
     Let a u    -> rnf (a, u)
-    LetVar _ es -> rnf es
     MetaV _ es -> rnf es
     DontCare v -> rnf v
     Dummy _ es -> rnf es

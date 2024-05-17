@@ -454,7 +454,6 @@ instance ComputeOccurrences Term where
     Lit{}        -> mempty
     Sort{}       -> mempty
     Let a u      -> occurrences (a, u)
-    LetVar x es  -> occurrences es
     -- Jesper, 2020-01-12: this information is also used for the
     -- occurs check, so we need to look under DontCare (see #4371)
     DontCare v   -> occurrences v
@@ -572,7 +571,6 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
                   | otherwise -> __IMPOSSIBLE__  -- this ought to be impossible now (but hasn't been before, see #4447)
                 Pi{}       -> __IMPOSSIBLE__  -- eliminated by telView
                 Let{}      -> __IMPOSSIBLE__  -- eliminated by telView
-                LetVar{}   -> __IMPOSSIBLE__  -- eliminated by telView
                 MetaV{}    -> __IMPOSSIBLE__  -- not a constructor target; should have been solved by now
                 Var{}      -> __IMPOSSIBLE__  -- not a constructor target
                 Sort{}     -> __IMPOSSIBLE__  -- not a constructor target

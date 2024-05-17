@@ -946,7 +946,9 @@ reduceTm rEnv bEnv !constInfo normalisation =
         Var x []   ->
           evalIApplyAM spine ctrl $
           case lookupEnv x env of
-            Nothing -> runAM (evalValue (notBlocked ()) (Var (x - envSize env) []) emptyEnv spine ctrl)
+            Nothing -> case valueOfBV_ x (envContext . redEnv $ rEnv) of
+              Just v -> runAM (evalClosure v env spine ctrl)
+              Nothing -> runAM (evalValue (notBlocked ()) (Var (x - envSize env) []) emptyEnv spine ctrl)
             Just p  -> evalPointerAM p spine ctrl
 
         -- Case: lambda. Perform the beta reduction if applied. Otherwise it's a value.
@@ -968,15 +970,6 @@ reduceTm rEnv bEnv !constInfo normalisation =
           ptr <- createThunk (closure env (getFreeVariables i) u)
           runAM (evalClosure v (ptr `extendEnv` env) spine ctrl)
 
-        LetVar x [] ->
-          evalIApplyAM spine ctrl $
-          case lookupEnv x env of
-            Nothing -> do
-              let ctx = envContext . redEnv $ rEnv
-                  (_,_,v) = fromMaybe __IMPOSSIBLE__ $ lookupLV_ x ctx
-              runAM (evalClosure v env spine ctrl)
-            Just p  -> evalPointerAM p spine ctrl
-
         -- Case: values. Literals and function types are already in weak-head normal form.
         -- We throw away the environment for literals mostly to make debug printing less verbose.
         -- And we know the spine is empty since literals cannot be applied or projected.
@@ -989,7 +982,6 @@ reduceTm rEnv bEnv !constInfo normalisation =
         Def f   es -> shiftElims (Def f   []) emptyEnv env es
         Con c i es -> shiftElims (Con c i []) emptyEnv env es
         Var x   es -> shiftElims (Var x   []) env      env es
-        LetVar x es -> shiftElims (LetVar x []) env    env es
 
         -- Case: metavariable. If it's instantiated evaluate the value. Meta instantiations are open
         -- terms with a specified list of free variables. buildEnv constructs the appropriate
@@ -1119,7 +1111,6 @@ reduceTm rEnv bEnv !constInfo normalisation =
           MetaV{}    -> False
           Var{}      -> False
           Let{}      -> False
-          LetVar{}   -> False
           Def q _  -- Type constructors (data/record) are considered canonical for 'primForce'.
             | CTyCon <- cdefDef (constInfo q) -> True
             | otherwise                       -> False

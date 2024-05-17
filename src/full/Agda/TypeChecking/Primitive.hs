@@ -630,7 +630,6 @@ genPrimForce b ret = do
                     _          -> False
                 Var{}      -> return False
                 Let{}      -> __IMPOSSIBLE__
-                LetVar{}   -> __IMPOSSIBLE__
                 MetaV{}    -> __IMPOSSIBLE__
                 Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
         ifM (isWHNF u)

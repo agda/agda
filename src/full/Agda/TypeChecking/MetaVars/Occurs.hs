@@ -520,7 +520,6 @@ instance Occurs Term where
           Pi a b      -> Pi <$> occurs_ a <*> occurs b
           Sort s      -> Sort <$> do underRelevance NonStrict $ occurs_ s
           Let a u     -> strengthen __IMPOSSIBLE__ . unLetAbs <$> occurs u
-          LetVar x es -> occurs . (`applyE` es) =<< valueOfLV x
           MetaV m' es -> do
             m' <- metaCheck m'
             -- The arguments of a meta are in a flexible position
@@ -558,7 +557,7 @@ instance Occurs Term where
                 {-else-} (defArgs $ occurs vs)
 
   metaOccurs m v = do
-    v <- instantiate v
+    v <- reduceLetVar v
     case v of
       Var i vs   -> metaOccurs m vs
       Lam h f    -> metaOccurs m f
@@ -571,7 +570,6 @@ instance Occurs Term where
       Pi a b     -> metaOccurs2 m a b
       Sort s     -> metaOccurs m s
       Let a u    -> metaOccurs2 m a u
-      LetVar x es -> metaOccurs m . (`applyE` es) =<< valueOfLV x
               -- vv m is already an unblocker
       MetaV m' vs | m == m'   -> patternViolation' neverUnblock 50 $ "Found occurrence of " ++ prettyShow m
                   | otherwise -> addOrUnblocker (unblockOnMeta m') $ metaOccurs m vs
@@ -805,7 +803,6 @@ hasBadRigid xs t = do
     MetaV{}      -> failure -- potentially matchable
     Dummy{}      -> return False
     Let{}        -> __IMPOSSIBLE__
-    LetVar{}     -> __IMPOSSIBLE__
 
 -- | Check whether a term @Def f es@ is finally stuck.
 --   Currently, we give only a crude approximation.
@@ -888,7 +885,6 @@ instance AnyRigid Term where
       DontCare{} -> return False
       Dummy{}    -> return False
       Let{}      -> __IMPOSSIBLE__
-      LetVar{}   -> __IMPOSSIBLE__
 
 instance AnyRigid Type where
   anyRigid f (El s t) = anyRigid f (s,t)

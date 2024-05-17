@@ -504,7 +504,6 @@ instance ShrinkC Term where
   shrinkC conf DontCare{}  = []
   shrinkC conf Dummy{}     = []
   shrinkC conf Let{}       = []
-  shrinkC conf LetVar{}    = []
   shrinkC conf t           = filter validType $ case t of
     Var i es     -> map unArg (argsFromElims es) ++
                     (uncurry Var <$> shrinkC conf (VarName i, NoType es))
@@ -523,7 +522,6 @@ instance ShrinkC Term where
                     (MetaV m <$> shrinkC conf (NoType es))
 #if __GLASGOW_HASKELL__ < 900
     Let{}        -> __IMPOSSIBLE__
-    LetVar{}     -> __IMPOSSIBLE__
     DontCare _   -> __IMPOSSIBLE__
     Dummy{}      -> __IMPOSSIBLE__
 #endif
@@ -558,9 +556,6 @@ instance KillVar Term where
     Pi a b                 -> uncurry Pi  $ killVar i (a, b)
     MetaV m args           -> MetaV m     $ killVar i args
     Let a u                -> uncurry Let $ killVar i (a, u)
-    LetVar j args | j == i    -> DontCare (LetVar j [])
-                  | j >  i    -> LetVar (j - 1) $ killVar i args
-                  | otherwise -> LetVar j       $ killVar i args
     DontCare mv            -> DontCare    $ killVar i mv
     Dummy{}                -> t
 

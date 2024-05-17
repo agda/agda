@@ -1074,7 +1074,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
             TelV tel' _ <- telViewUpToPath (length args) t
             forM_ ids $ \(i,u) -> do
               d <- lookupBV i
-              case getLock (getArgInfo $ snd d) of
+              case getLock (getArgInfo d) of
                 IsNotLock -> pure ()
                 IsLock{} -> do
                 let us = IntSet.unions $ map snd $ filter (earlierThan i . fst) idvars
@@ -1723,7 +1723,6 @@ inverseSubst' skip args = map (mapFst unArg) <$> loop (zip args terms)
       Sort{}     -> neutralArg
       Level{}    -> neutralArg
       Let{}      -> __IMPOSSIBLE__
-      LetVar{}   -> __IMPOSSIBLE__
       DontCare{} -> __IMPOSSIBLE__ -- Ruled out by stripDontCare
       Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 

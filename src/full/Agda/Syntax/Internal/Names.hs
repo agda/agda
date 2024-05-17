@@ -227,7 +227,6 @@ instance NamesIn Term where
     Sort s       -> namesAndMetasIn' sg s
     Level l      -> namesAndMetasIn' sg l
     Let a u      -> namesAndMetasIn' sg (a, u)
-    LetVar _ es  -> namesAndMetasIn' sg es
     MetaV x args -> namesAndMetasIn' sg (x, args)
     DontCare v   -> namesAndMetasIn' sg v
     Dummy _ args -> namesAndMetasIn' sg args

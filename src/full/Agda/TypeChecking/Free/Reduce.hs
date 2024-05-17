@@ -18,7 +18,6 @@ import qualified Data.IntMap as IntMap
 import Data.IntMap (IntMap)
 import qualified Data.IntSet as IntSet
 import Data.IntSet (IntSet)
-import Data.Maybe (fromMaybe)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -27,8 +26,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Precompute
-
-import Agda.Utils.Impossible
 import Agda.Utils.Monad
 import Agda.Utils.Null
 
@@ -156,7 +153,7 @@ instance ForceNotFree Type where
   forceNotFree' (El s t) = El <$> forceNotFree' s <*> forceNotFree' t
 
 instance ForceNotFree Term where
-  forceNotFree' = \case
+  forceNotFree' = reduceLetVar >=> \case
     Var x es   -> do
       metas <- ask
       modify $ IntMap.adjust (const $ MaybeFree metas) x
@@ -170,7 +167,6 @@ instance ForceNotFree Term where
     Sort s     -> Sort     <$> forceNotFree' s
     Level l    -> Level    <$> forceNotFree' l
     Let a u    -> Let      <$> forceNotFree' a <*> forceNotFree' u
-    LetVar x es -> forceNotFree' . (`applyE` es) . fromMaybe __IMPOSSIBLE__ =<< valueOfLV' x
     DontCare t -> DontCare <$> forceNotFreeR t  -- Reduction stops at DontCare so reduceIf
     t@Lit{}    -> return t
     t@Dummy{}  -> return t

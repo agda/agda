@@ -428,9 +428,6 @@ instance HasPolarity Term where
     Pi a b        -> polarity' i (neg p) a <> polarity' i p b
     Sort s        -> mempty -- polarity' i p s -- mempty
     Let a u       -> polarity' i p (a,u)
-    LetVar x ts
-      | x == i    -> singleton p <> polarity' i Invariant ts
-      | otherwise -> polarity' i Invariant ts
     MetaV _ ts    -> polarity' i Invariant ts
     DontCare t    -> polarity' i p t -- mempty
     Dummy{}       -> mempty

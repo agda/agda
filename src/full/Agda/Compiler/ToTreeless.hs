@@ -521,10 +521,6 @@ substTerm term = normaliseStatic term >>= \ term ->
     I.Pi _ _ -> return C.TUnit
     I.Sort _  -> return C.TSort
     I.Let _ (I.LetAbs x u v) -> C.TLet <$> substTerm u <*> substAbs (Abs x v)
-    I.LetVar x es -> do
-      ind <- asks (lookupIndex x . ccCxt)
-      let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
-      C.mkTApp (C.TVar ind) <$> substArgs args
     I.MetaV x _ -> return $ C.TError $ C.TMeta $ prettyShow x
     I.DontCare _ -> return C.TErased
     I.Dummy{} -> __IMPOSSIBLE__
