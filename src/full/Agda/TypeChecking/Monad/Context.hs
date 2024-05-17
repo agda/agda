@@ -37,7 +37,7 @@ import Agda.TypeChecking.Monad.State
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List ((!!!), downFrom)
+import Agda.Utils.List ((!!!), downFrom, findWithIndex)
 import Agda.Utils.ListT
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
@@ -651,16 +651,16 @@ valueOfLV' n = fmap thd3 <$> lookupLV' n
 {-# SPECIALIZE getVarInfo :: Name -> TCM (Term, Dom Type) #-}
 getVarInfo :: (MonadFail m, MonadTCEnv m) => Name -> m (Term, Dom Type)
 getVarInfo x =
-    do  ctx <- getContextVars'
+    do  ctx <- getContext
         def <- asksTC envLetBindings
-        case List.findIndex ((== x) . unDom . snd) ctx of
-            Just n -> do
-                t <- domOfBV n
-                return (var n, t)
-            _       ->
+        case findWithIndex ((== x) . ctxEntryName) ctx of
+            Just (CtxVar x t, i) -> return (var i, t)
+            Just (CtxLet x t v, i) -> return (LetVar i [], t)
+            _       -> do {-
                 case Map.lookup x def of
                     Just vt -> do
                       LetBinding _ v t <- getOpen vt
                       return (v, t)
-                    _       -> fail $ "unbound variable " ++ prettyShow (nameConcrete x) ++
+                    _       ->-}
+                    fail $ "unbound variable " ++ prettyShow (nameConcrete x) ++
                                 " (id: " ++ prettyShow (nameId x) ++ ")"
