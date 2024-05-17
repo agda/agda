@@ -826,3 +826,6 @@ code.
 .. _hyperref: https://www.ctan.org/pkg/hyperref
 .. _catchfilebetweentags: https://www.ctan.org/pkg/catchfilebetweentags
 .. _ICU: http://site.icu-project.org/
+
+Generating lagda files directly from Agda using agdaLatex
+---------------------------------------------------------
