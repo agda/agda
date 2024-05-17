@@ -142,10 +142,9 @@ jobs:
         # Thus, we include Agda.cabal in the hash.
         # Note that a 'stack.yaml.lock' file would not be sufficient (I think),
         # because it does not list all the dependencies.
-        key: &cache_key ${{ env.key }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
-        restore-keys: ${{ env.key }}-
-      env:
-        key: test.yml-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{ steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}
+        key: &cache_key test.yml-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{ steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-plan-${{ hashFiles('Agda.cabal','stack.yaml') }}
+        restore-keys: test.yml-ghc-${{ steps.setup-haskell.outputs.ghc-version }}-stack-${{ steps.setup-haskell.outputs.stack-version }}-icu-${{ env.ICU_VER }}-
+          # Andreas, 2024-05-17, note to myself: not using the env.key trick here because of *cache_key references below...
 
     - name: "Install dependencies for Agda and its test suites"
       ## Always do this step, even if we got a cache hit.  Should be fast in case we got a hit.
