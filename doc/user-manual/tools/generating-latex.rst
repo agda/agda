@@ -829,3 +829,5 @@ code.
 
 Generating lagda files directly from Agda using agdaLatex
 ---------------------------------------------------------
+A tool for for creating lagda files and corresponding LaTeX files directly from Agda code has been created.
+See  <https://github.com/csetzer/agdaLatex>
