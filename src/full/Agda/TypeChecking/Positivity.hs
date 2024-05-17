@@ -453,8 +453,8 @@ instance ComputeOccurrences Term where
     Level l      -> occurrences l
     Lit{}        -> mempty
     Sort{}       -> mempty
-    Let a u v    -> occurrences (a, u, v)
     LetVar x es  -> __IMPOSSIBLE__ -- TODO LetVar
+    Let a u      -> occurrences (a, u)
     -- Jesper, 2020-01-12: this information is also used for the
     -- occurs check, so we need to look under DontCare (see #4371)
     DontCare v   -> occurrences v
@@ -476,6 +476,10 @@ instance ComputeOccurrences a => ComputeOccurrences (Tele a) where
 instance ComputeOccurrences a => ComputeOccurrences (Abs a) where
   occurrences (Abs   _ b) = withExtendedOccEnv Nothing $ occurrences b
   occurrences (NoAbs _ b) = occurrences b
+
+instance ComputeOccurrences a => ComputeOccurrences (LetAbs a) where
+  occurrences (LetAbs _ a b) =
+    occurrences a <> withExtendedOccEnv Nothing (occurrences b)
 
 instance ComputeOccurrences a => ComputeOccurrences (Elim' a) where
   occurrences Proj{}         = __IMPOSSIBLE__  -- unSpine

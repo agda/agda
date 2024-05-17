@@ -298,8 +298,8 @@ quotingKit = do
           Level l    -> quoteTerm (unlevelWithKit lkit l)
           Lit l      -> lit !@ quoteLit l
           Sort s     -> sort !@ quoteSort s
-          Let a u v  -> quoteTerm $ lazyAbsApp v u -- TODO: add let to reflected syntax
           LetVar x es -> __IMPOSSIBLE__ -- TODO LetVar
+          Let a u    -> quoteTerm $ inlineLet u -- TODO: add let to reflected syntax
           MetaV x es -> meta !@! quoteMeta currentModule x
                               @@ quoteArgs vs
             where vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es

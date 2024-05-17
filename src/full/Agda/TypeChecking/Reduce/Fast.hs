@@ -963,12 +963,10 @@ reduceTm rEnv bEnv !constInfo normalisation =
             getArg Proj{}         = __IMPOSSIBLE__
 
         -- Case: let.
-        Let a u v -> do
+        Let a (LetAbs x u v) -> do
           let i = getArgInfo a
-          ptr <- createThunk (closure env (getFreeVariables i) t)
-          case v of
-            Abs   _ v -> runAM (evalClosure v (ptr `extendEnv` env) spine ctrl)
-            NoAbs _ v -> runAM (evalClosure v env spine ctrl)
+          ptr <- createThunk (closure env (getFreeVariables i) u)
+          runAM (evalClosure v (ptr `extendEnv` env) spine ctrl)
 
         LetVar x es -> __IMPOSSIBLE__ -- TODO LetVar
 

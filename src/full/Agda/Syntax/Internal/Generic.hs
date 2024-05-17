@@ -61,6 +61,7 @@ instance TermLike a => TermLike [a]            where
 instance TermLike a => TermLike (Maybe a)      where
 instance TermLike a => TermLike (Blocked a)    where
 instance TermLike a => TermLike (Abs a)        where
+instance TermLike a => TermLike (LetAbs a)     where
 instance TermLike a => TermLike (Tele a)       where
 instance TermLike a => TermLike (WithHiding a) where
 
@@ -92,7 +93,7 @@ instance TermLike Term where
     Level l     -> f =<< Level <$> traverseTermM f l
     t@Lit{}     -> f t
     Sort s      -> f =<< Sort <$> traverseTermM f s
-    Let a u v   -> f =<< uncurry3 Let <$> traverseTermM f (a, u, v)
+    Let a u     -> f =<< uncurry Let <$> traverseTermM f (a, u)
     LetVar i xs -> f =<< LetVar i <$> traverseTermM f xs
     DontCare mv -> f =<< DontCare <$> traverseTermM f mv
     Dummy s xs  -> f =<< Dummy s <$> traverseTermM f xs
@@ -107,7 +108,7 @@ instance TermLike Term where
     Level l     -> foldTerm f l
     Lit _       -> mempty
     Sort s      -> foldTerm f s
-    Let a u v   -> foldTerm f (a, u, v)
+    Let a u     -> foldTerm f (a, u)
     LetVar i xs -> foldTerm f xs
     DontCare mv -> foldTerm f mv
     Dummy _ xs  -> foldTerm f xs

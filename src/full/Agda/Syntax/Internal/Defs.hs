@@ -66,8 +66,8 @@ instance GetDefs Term where
     Pi a b     -> getDefs a >> getDefs b
     Sort s     -> getDefs s
     Level l    -> getDefs l
-    Let a u v  -> getDefs a >> getDefs u >> getDefs v
     LetVar x es -> __IMPOSSIBLE__ -- TODO
+    Let a u    -> getDefs a >> getDefs u
     MetaV x vs -> getDefs x >> getDefs vs
     DontCare v -> getDefs v
     Dummy{}    -> return ()
@@ -107,6 +107,7 @@ instance GetDefs a => GetDefs (Elim' a) where
 instance GetDefs a => GetDefs (Arg a)   where
 instance GetDefs a => GetDefs (Dom a)   where
 instance GetDefs a => GetDefs (Abs a)   where
+instance GetDefs a => GetDefs (LetAbs a) where
 
 instance (GetDefs a, GetDefs b) => GetDefs (a,b) where
   getDefs (a,b) = getDefs a >> getDefs b

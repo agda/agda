@@ -225,7 +225,7 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
           | Pi (Dom Type) (Abs Type)      -- ^ dependent or non-dependent function space
           | Sort Sort
           | Level Level
-          | Let (Dom Type) Term (Abs Term) -- ^ @let x : a = u in v@
+          | Let (Dom Type) (LetAbs Term) -- ^ @let x : a = u in v@
           | LetVar {-# UNPACK #-} !Int Elims
           | MetaV {-# UNPACK #-} !MetaId Elims
           | DontCare Term
@@ -264,6 +264,14 @@ data Abs a = Abs   { absName :: ArgName, unAbs :: a }
 instance Decoration Abs where
   traverseF f (Abs   x a) = Abs   x <$> f a
   traverseF f (NoAbs x a) = NoAbs x <$> f a
+
+
+data LetAbs a = LetAbs
+  { letAbsName  :: ArgName
+  , letAbsValue :: Term
+  , unLetAbs    :: a
+  }
+  deriving (Show, Functor, Foldable, Traversable, Generic)
 
 -- | Types are terms with a sort annotation.
 --
@@ -1190,7 +1198,7 @@ instance TermSize Term where
     Lit _       -> 1
     Pi a b      -> 1 + tsize a + tsize b
     Sort s      -> tsize s
-    Let a u v   -> 1 + tsize a + tsize u + tsize v
+    Let a u     -> 1 + tsize a + tsize u
     LetVar x vs -> 1 + tsize vs
     DontCare mv -> tsize mv
     Dummy{}     -> 1
@@ -1245,7 +1253,7 @@ instance KillRange Term where
     Level l     -> killRangeN Level l
     Pi a b      -> killRangeN Pi a b
     Sort s      -> killRangeN Sort s
-    Let a u v   -> killRangeN Let a u v
+    Let a u     -> killRangeN Let a u
     LetVar x es -> killRangeN LetVar x es
     DontCare mv -> killRangeN DontCare mv
     v@Dummy{}   -> v
@@ -1318,6 +1326,9 @@ instance KillRange a => KillRange (Blocked a) where
 instance KillRange a => KillRange (Abs a) where
   killRange = fmap killRange
 
+instance KillRange a => KillRange (LetAbs a) where
+  killRange = fmap killRange
+
 -----------------------------------------------------------------------------
 -- * Simple pretty printing
 -----------------------------------------------------------------------------
@@ -1356,10 +1367,10 @@ instance Pretty Term where
             , nest 2 $ pretty (unAbs b) ]
       Sort s      -> prettyPrec p s
       Level l     -> prettyPrec p l
-      Let a u v   -> mparens (p > 0) $
-        sep [ "let" <+> pDom (domInfo a) (text (absName v) <+> ":" <+> pretty (unDom a)) <+> "="
-            , text (absName v) <+> "in"
-            , nest 2 $ pretty (unAbs v)
+      Let a (LetAbs x u v) -> mparens (p > 0) $
+        sep [ "let" <+> pDom (domInfo a) (text x <+> ":" <+> pretty (unDom a)) <+> "="
+            , pretty u <+> "in"
+            , nest 2 $ pretty v
             ]
       LetVar x es -> text ("@" ++ show x) `pApp` es
       MetaV x els -> pretty x `pApp` els
@@ -1493,7 +1504,7 @@ instance NFData Term where
     Pi a b     -> rnf (unDom a, unAbs b)
     Sort s     -> rnf s
     Level l    -> rnf l
-    Let a u v  -> rnf (a, u, v)
+    Let a u    -> rnf (a, u)
     LetVar _ es -> rnf es
     MetaV _ es -> rnf es
     DontCare v -> rnf v
@@ -1529,6 +1540,7 @@ instance NFData e => NFData (Dom e) where
 instance NFData DataOrRecord
 instance NFData ConHead
 instance NFData a => NFData (Abs a)
+instance NFData a => NFData (LetAbs a)
 instance NFData a => NFData (Tele a)
 instance NFData IsFibrant
 instance NFData Clause

@@ -575,8 +575,8 @@ slowReduceTerm v = do
           v <- flip reduceIApply es
                  $ unfoldDefinitionE reduceB' (Con c ci []) (conName c) es
           traverse reduceNat v
-      Let a u v  -> reduceB' $ lazyAbsApp v u
       LetVar x es -> __IMPOSSIBLE__ -- TODO LetVar
+      Let a u  -> reduceB' $ inlineLet u -- TODO: avoid inlining lets
       Sort s   -> done
       Level l  -> ifM (SmallSet.member LevelReductions <$> asksTC envAllowedReductions)
                     {- then -} (fmap levelTm <$> reduceB' l)
@@ -1070,7 +1070,8 @@ instance Simplify Term where
       Lit l      -> return v
       Var i vs   -> iapp vs $ Var i    <$> simplify' vs
       Lam h v    -> Lam h    <$> simplify' v
-      Let a u v  -> Let      <$> simplify' a <*> simplify' u <*> simplify' v
+      -- TODO: should simplify unfold let-bindings?
+      Let a u    -> Let      <$> simplify' a <*> simplify' u
       LetVar x es -> LetVar x   <$> simplify' es
       DontCare v -> dontCare <$> simplify' v
       Dummy{}    -> return v
@@ -1107,6 +1108,11 @@ instance Simplify PlusLevel where
 instance (Subst a, Simplify a) => Simplify (Abs a) where
     simplify' a@(Abs x _) = Abs x <$> underAbstraction_ a simplify'
     simplify' (NoAbs x v) = NoAbs x <$> simplify' v
+
+instance (Subst a, Simplify a) => Simplify (LetAbs a) where
+    simplify' a@(LetAbs x u v) = LetAbs x
+      <$> simplify' u
+      <*> underLetBinding_ a simplify'
 
 instance Simplify t => Simplify (Dom t) where
     simplify' = traverse simplify'
@@ -1482,7 +1488,7 @@ instance InstantiateFull Term where
           Lam h b     -> Lam h <$> instantiateFull' b
           Sort s      -> Sort <$> instantiateFull' s
           Pi a b      -> uncurry Pi <$> instantiateFull' (a,b)
-          Let a u v   -> uncurry3 Let <$> instantiateFull' (a,u,v)
+          Let a u     -> uncurry Let <$> instantiateFull' (a,u)
           LetVar x es -> LetVar x <$> instantiateFull' es
           DontCare v  -> dontCare <$> instantiateFull' v
           v@Dummy{}   -> return v
@@ -1519,6 +1525,11 @@ instance InstantiateFull a => InstantiateFull (Pattern' a) where
 instance (Subst a, InstantiateFull a) => InstantiateFull (Abs a) where
     instantiateFull' a@(Abs x _) = Abs x <$> underAbstraction_ a instantiateFull'
     instantiateFull' (NoAbs x a) = NoAbs x <$> instantiateFull' a
+
+instance (Subst a, InstantiateFull a) => InstantiateFull (LetAbs a) where
+    instantiateFull' a@(LetAbs x u _) = LetAbs x
+      <$> instantiateFull' u
+      <*> underLetBinding_ a instantiateFull'
 
 instance (InstantiateFull t, InstantiateFull e) => InstantiateFull (Dom' t e) where
     instantiateFull' (Dom i n b tac x) = Dom i n b <$> instantiateFull' tac <*> instantiateFull' x

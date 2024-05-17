@@ -519,8 +519,8 @@ instance Occurs Term where
             Con c ci <$> conArgs vs (occurs vs)  -- if strongly rigid, remain so, except with unreduced IApply arguments.
           Pi a b      -> Pi <$> occurs_ a <*> occurs b
           Sort s      -> Sort <$> do underRelevance NonStrict $ occurs_ s
-          Let a u v   -> Let <$> occurs_ a <*> occurs u <*> occurs v
           LetVar x es -> __IMPOSSIBLE__ -- TODO
+          Let a u     -> strengthen __IMPOSSIBLE__ . unLetAbs <$> occurs u
           MetaV m' es -> do
             m' <- metaCheck m'
             -- The arguments of a meta are in a flexible position
@@ -569,9 +569,10 @@ instance Occurs Term where
       Def d vs   -> metaOccurs2 m d vs
       Con c _ vs -> metaOccurs m vs
       Pi a b     -> metaOccurs2 m a b
-      Sort s     -> metaOccurs m s              -- vv m is already an unblocker
-      Let a u v  -> metaOccurs3 m a u v
       LetVar x es -> __IMPOSSIBLE__ -- TODO LetVar
+      Sort s     -> metaOccurs m s
+      Let a u    -> metaOccurs2 m a u
+              -- vv m is already an unblocker
       MetaV m' vs | m == m'   -> patternViolation' neverUnblock 50 $ "Found occurrence of " ++ prettyShow m
                   | otherwise -> addOrUnblocker (unblockOnMeta m') $ metaOccurs m vs
 
@@ -699,19 +700,19 @@ instance Occurs Elims where
     Apply a -> metaOccurs m a
     IApply x y a -> metaOccurs3 m x y a
 
-instance Occurs (Abs Term) where
+instance (Occurs a, Subst a) => Occurs (Abs a) where
   occurs (NoAbs s x) = NoAbs s <$> occurs x
   occurs x = mapAbstraction_ (\body -> underBinder $ occurs body) x
 
-  metaOccurs m (Abs   _ x) = metaOccurs m x
+  metaOccurs m abs@Abs{}   = underAbstraction_ abs $ metaOccurs m
   metaOccurs m (NoAbs _ x) = metaOccurs m x
 
-instance Occurs (Abs Type) where
-  occurs (NoAbs s x) = NoAbs s <$> occurs_ x
-  occurs x = mapAbstraction_ (\body -> underBinder $ occurs_ body) x
+instance Occurs a => Occurs (LetAbs a) where
+  occurs x = mapLetAbs (\body -> underBinder $ occurs body) x
 
-  metaOccurs m (Abs   _ x) = metaOccurs m x
-  metaOccurs m (NoAbs _ x) = metaOccurs m x
+  metaOccurs m abs@(LetAbs _ x _) = do
+    metaOccurs m x
+    underLetBinding_ abs $ metaOccurs m
 
 instance Occurs a => Occurs (Arg a) where
   occurs (Arg info v) = Arg info <$> do

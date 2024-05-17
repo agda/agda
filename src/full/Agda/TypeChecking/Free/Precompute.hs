@@ -12,7 +12,6 @@ import qualified Data.IntSet as IntSet
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
-import Agda.Utils.Tuple
 
 
 
@@ -58,6 +57,11 @@ instance PrecomputeFreeVars a => PrecomputeFreeVars (Abs a) where
     censor (IntSet.map (subtract 1) . IntSet.delete 0) $
       Abs x <$> precomputeFreeVars b
 
+instance PrecomputeFreeVars a => PrecomputeFreeVars (LetAbs a) where
+  precomputeFreeVars (LetAbs x a b) =
+    LetAbs x <$> precomputeFreeVars a <*>
+      censor (IntSet.map (subtract 1) . IntSet.delete 0) (precomputeFreeVars b)
+
 instance PrecomputeFreeVars Term where
   precomputeFreeVars t =
     case t of
@@ -71,7 +75,7 @@ instance PrecomputeFreeVars Term where
       Pi a b     -> uncurry Pi <$> precomputeFreeVars (a, b)
       Sort s     -> Sort       <$> precomputeFreeVars s
       Level l    -> Level      <$> precomputeFreeVars l
-      Let a u v  -> uncurry3 Let <$> precomputeFreeVars (a, u, v)
+      Let a u    -> uncurry Let <$> precomputeFreeVars (a, u)
       LetVar x es -> undefined -- TODO
       MetaV x es -> MetaV x    <$> precomputeFreeVars es
       DontCare t -> DontCare   <$> precomputeFreeVars t

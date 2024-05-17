@@ -1078,7 +1078,7 @@ metaHelperType norm ii rng s = case words s of
       I.Lam i b    -> I.Lam i <$> onNamesAbs f onNamesTm b
       I.Pi a b     -> I.Pi <$> traverse (onNames f) a <*> onNamesAbs f onNames b
       I.DontCare v -> I.DontCare <$> onNamesTm f v
-      I.Let a u v  -> I.Let <$> traverse (onNames f) a <*> onNamesTm f u <*> onNamesAbs f onNamesTm v
+      I.Let a u    -> I.Let <$> traverse (onNames f) a <*> onNamesLetAbs f onNamesTm u
       I.LetVar x es -> I.LetVar x <$> onNamesElims f es
       v@I.Lit{}    -> pure v
       v@I.Sort{}   -> pure v
@@ -1090,6 +1090,10 @@ metaHelperType norm ii rng s = case words s of
     onNamesAbs f   = onNamesAbs' f (stringToArgName <.> f . argNameToString)
     onNamesAbs' f f' nd (Abs   s x) = Abs   <$> f' s <*> nd f x
     onNamesAbs' f f' nd (NoAbs s x) = NoAbs <$> f' s <*> nd f x
+    onNamesLetAbs f nd (LetAbs s u v) =
+      (\u ~(Abs s v) -> LetAbs s u v)
+        <$> onNamesTm f u
+        <*> onNamesAbs f nd (Abs s v)
 
     unW "w" = return ".w"
     unW s   = return s

@@ -408,6 +408,9 @@ instance HasPolarity a => HasPolarity (Abs a) where
   polarity' i p (Abs   _ b) = polarity' (i + 1) p b
   polarity' i p (NoAbs _ v) = polarity' i p v
 
+instance HasPolarity a => HasPolarity (LetAbs a) where
+  polarity' i p (LetAbs _ a b) = polarity' i p a <> polarity' (i + 1) p b
+
 instance HasPolarity Term where
   polarity' i p v = instantiate v >>== \case
     -- Andreas, 2012-09-06: taking the polarity' of the arguments
@@ -424,8 +427,8 @@ instance HasPolarity Term where
     Con _ _ ts    -> polarity' i p ts   -- Constructors can be seen as monotone in all args.
     Pi a b        -> polarity' i (neg p) a <> polarity' i p b
     Sort s        -> mempty -- polarity' i p s -- mempty
-    Let a u v     -> polarity' i p (a,u,v)
     LetVar x es   -> __IMPOSSIBLE__ -- TODO LetVar
+    Let a u       -> polarity' i p (a,u)
     MetaV _ ts    -> polarity' i Invariant ts
     DontCare t    -> polarity' i p t -- mempty
     Dummy{}       -> mempty

@@ -446,8 +446,8 @@ etaExpandEquationStrategy k s = do
       Con c _ _  -> isJust <$> isRecordConstructor (conName c)
 
       Var _ _    -> return False
-      Let a u v  -> shouldProject $ lazyAbsApp v u
       LetVar x es -> __IMPOSSIBLE__ -- TODO
+      Let a u    -> shouldProject $ inlineLet u
       Lam _ _    -> __IMPOSSIBLE__
       Lit _      -> __IMPOSSIBLE__
       Pi _ _     -> __IMPOSSIBLE__

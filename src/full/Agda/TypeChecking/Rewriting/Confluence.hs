@@ -584,7 +584,6 @@ instance ParallelReduce Term where
     -- Interesting cases
     (Def f es) -> (topLevelReductions (Def f) es) <|> (Def f <$> parReduce es)
     (Con c ci es) -> (topLevelReductions (Con c ci) es) <|> (Con c ci <$> parReduce es)
-    (Let a u v) -> return $ lazyAbsApp v u
     (LetVar{}) -> __IMPOSSIBLE__ -- TODO LetVar
 
     -- Congruence cases
@@ -601,6 +600,7 @@ instance ParallelReduce Term where
                              -- parameters for rewrite rules on constructors.
 
     -- Impossible cases
+    (Let a u)  -> __IMPOSSIBLE__
     MetaV{}    -> __IMPOSSIBLE__
 
 instance ParallelReduce Sort where
@@ -884,6 +884,9 @@ instance MetasToVars a => MetasToVars (Abs a) where
   metasToVars (Abs   i x) = Abs i   <$> local (fmap succ .) (metasToVars x)
   metasToVars (NoAbs i x) = NoAbs i <$> metasToVars x
 
+instance MetasToVars a => MetasToVars (LetAbs a) where
+  metasToVars (LetAbs i u v) = LetAbs i <$> metasToVars u <*> local (fmap succ .) (metasToVars v)
+
 instance MetasToVars Term where
   metasToVars = \case
     Var i es   -> Var i    <$> metasToVars es
@@ -894,7 +897,7 @@ instance MetasToVars Term where
     Pi a b     -> Pi       <$> metasToVars a <*> metasToVars b
     Sort s     -> Sort     <$> metasToVars s
     Level l    -> Level    <$> metasToVars l
-    Let a u v  -> Let      <$> metasToVars a <*> metasToVars u <*> metasToVars v
+    Let a u    -> Let      <$> metasToVars a <*> metasToVars u
     LetVar x es -> LetVar x   <$> metasToVars es
     MetaV x es -> asks ($ x) >>= \case
       Just i   -> Var i    <$> metasToVars es

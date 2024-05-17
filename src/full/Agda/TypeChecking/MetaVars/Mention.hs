@@ -28,8 +28,8 @@ instance MentionsMeta Term where
     Pi a b       -> mm (a, b)
     Sort s       -> mm s
     Level l      -> mm l
-    Let a u v    -> mm (a, u, v)
     LetVar x es  -> __IMPOSSIBLE__ -- TODO LetVar
+    Let a u      -> mm (a, u)
     Dummy{}      -> False
     DontCare v   -> False   -- we don't have to look inside don't cares when deciding to wake constraints
     MetaV y args -> HashSet.member y xs || mm args   -- TODO: we really only have to look one level deep at meta args
@@ -70,6 +70,9 @@ instance MentionsMeta Sort where
 
 instance MentionsMeta t => MentionsMeta (Abs t) where
   mentionsMetas xs = mentionsMetas xs . unAbs
+
+instance MentionsMeta t => MentionsMeta (LetAbs t) where
+  mentionsMetas xs (LetAbs _ a b) = mentionsMetas xs (a, b)
 
 instance MentionsMeta t => MentionsMeta (Arg t) where
   mentionsMetas xs a | isIrrelevant a = False

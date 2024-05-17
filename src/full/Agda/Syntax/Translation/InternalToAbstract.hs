@@ -612,10 +612,9 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
         skipGeneralizedParameter info = (not <$> showGeneralizedArguments) <&> (&& (argInfoOrigin info == Generalization))
 
     I.Sort s     -> reify s
-    I.Let a u v  -> do
+    I.Let a uv   -> do
       Arg info ea <- reify a
-      eu     <- reify u
-      (x,ev) <- reify v
+      (x,eu,ev) <- reify uv
       let bindx = LetBind (LetRange noRange) info (mkBindName x) ea eu
       return $ A.Let exprNoRange (singleton bindx) ev
 
@@ -1533,6 +1532,15 @@ instance (Free i, Reify i) => Reify (Abs i) where
          $ reify v
     return (x,e)
 {-# SPECIALIZE reify :: (Free i, Reify i) -> Abs i -> TCM (ReifiesTo (Abs i)) #-}
+
+instance (Free i, Reify i) => Reify (LetAbs i) where
+  type ReifiesTo (LetAbs i) = (Name, A.Expr, ReifiesTo i)
+
+  reify (LetAbs s u v) = do
+    eu <- reify u
+    (x,ev) <- reify (Abs s v)
+    return (x,eu,ev)
+{-# SPECIALIZE reify :: (Free i, Reify i) -> LetAbs i -> TCM (ReifiesTo (LetAbs i)) #-}
 
 instance Reify I.Telescope where
   type ReifiesTo I.Telescope = A.Telescope

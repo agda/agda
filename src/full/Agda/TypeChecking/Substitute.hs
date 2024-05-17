@@ -40,6 +40,7 @@ import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Monad.Base
+
 import Agda.TypeChecking.Free as Free
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Positivity.Occurrence as Occ
@@ -87,11 +88,10 @@ applyTermE err' m es = coerce $
       Level{}     -> err __IMPOSSIBLE__
       Pi _ _      -> err __IMPOSSIBLE__
       Sort s      -> Sort $ s `applyE` es
-      Let a u v   -> Let a u $
-        case v of
-          Abs x v   -> Abs x $ applyTermE err' v $ raise 1 es
-          NoAbs x v -> NoAbs x $ applyTermE err' v es
       LetVar x es -> __IMPOSSIBLE__ -- TODO LetVar
+      Let a b     -> Let a $
+        case b of
+          LetAbs x u v -> LetAbs x u $ applyTermE err' v $ raise 1 es
       Dummy s es' -> Dummy s (es' ++ es)
       DontCare mv -> dontCare $ mv `app` es  -- Andreas, 2011-10-02
         -- need to go under DontCare, since "with" might resurrect irrelevant term
@@ -846,8 +846,8 @@ applySubstTerm rho t    = coerce $ case coerce t of
     Level l     -> levelTm $ sub @(Level' t) l
     Pi a b      -> uncurry Pi $ subPi (a,b)
     Sort s      -> Sort $ sub @(Sort' t) s
-    Let a u v   -> uncurry3 Let $ subLet (a,u,v)
     LetVar x es -> __IMPOSSIBLE__ -- TODO LetVar
+    Let a u     -> uncurry Let $ subLet (a, u)
     DontCare mv -> dontCare $ sub @t mv
     Dummy s es  -> Dummy s $ subE es
  where
@@ -857,8 +857,11 @@ applySubstTerm rho t    = coerce $ case coerce t of
    subE  = sub @[Elim' t]
    subPi :: (Dom Type, Abs Type) -> (Dom Type, Abs Type)
    subPi = sub @(Dom' t (Type'' t t), Abs (Type'' t t))
-   subLet :: (Dom Type, Term, Abs Term) -> (Dom Type, Term, Abs Term)
-   subLet = sub @(Dom' t (Type'' t t), t, Abs t)
+   subLet :: (Dom Type, LetAbs Term) -> (Dom Type, LetAbs Term)
+   subLet (a, LetAbs x u v) =
+    ( sub @(Dom' t (Type'' t t)) a
+    , LetAbs x (sub @t u) (coerce @t $ applySubst (liftS 1 rho) $ coerce v)
+    )
 
 instance Subst Term where
   type SubstArg Term = Term
@@ -1072,6 +1075,10 @@ instance Subst a => Subst (Abs a) where
   type SubstArg (Abs a) = SubstArg a
   applySubst rho (Abs x a)   = Abs x $ applySubst (liftS 1 rho) a
   applySubst rho (NoAbs x a) = NoAbs x $ applySubst rho a
+
+instance (Subst a, SubstArg a ~ Term) => Subst (LetAbs a) where
+  type SubstArg (LetAbs a) = SubstArg a
+  applySubst rho (LetAbs x u v) = LetAbs x (applySubst rho u) (applySubst (liftS 1 rho) v)
 
 instance Subst a => Subst (Arg a) where
   type SubstArg (Arg a) = SubstArg a
@@ -1501,7 +1508,7 @@ instance Ord Term where
   Level a    `compare` Level x    = compare a x
   Level{}    `compare` _          = LT
   _          `compare` Level{}    = GT
-  Let a b c  `compare` Let x y z  = compare (a, b, c) (x, y, z)
+  Let a b    `compare` Let x y    = compare (a, b) (x, y)
   Let{}      `compare` _          = LT
   _          `compare` Let{}      = GT
   LetVar a b `compare` LetVar x y = compare (a, b) (x, y)
@@ -1546,6 +1553,12 @@ instance (Subst a, Ord a) => Ord (Abs a) where
   NoAbs _ a `compare` NoAbs _ b = a `compare` b  -- no need to raise if both are NoAbs
   a         `compare` b         = absBody a `compare` absBody b
 
+instance (Subst a, Eq a) => Eq (LetAbs a) where
+  LetAbs _ a b == LetAbs _ x y = a == x && b == y
+
+instance (Subst a, Ord a) => Ord (LetAbs a) where
+  (LetAbs _ a b) `compare` (LetAbs _ x y) = compare a x `mappend` compare b y
+
 deriving instance Ord a => Ord (Dom a)
 
 instance (Subst a, Eq a)  => Eq  (Elim' a) where
@@ -1562,6 +1575,92 @@ instance (Subst a, Ord a) => Ord (Elim' a) where
   _        `compare` Apply{}  = GT
   Proj{}   `compare` _        = LT
   _        `compare` Proj{}   = GT
+
+---------------------------------------------------------------------------
+-- * Let bindings
+---------------------------------------------------------------------------
+
+inlineLet :: InlineLet a => LetAbs a -> a
+inlineLet (LetAbs _ u v) = inlineLet' 0 u v
+
+class InlineLet a where
+  inlineLet' :: Int -> Term -> a -> a
+
+  default inlineLet' :: (InlineLet b, Functor f, f b ~ a)
+    => Int -> Term -> a -> a
+  inlineLet' i u = fmap $ inlineLet' i u
+
+instance InlineLet Term where
+  inlineLet' i u = \case
+    Var x xs    -> let xs' = inlineLet' i u xs in if
+      | x == i    -> __IMPOSSIBLE__
+      | x > i     -> Var (x-1) xs'
+      | otherwise -> Var x xs'
+    Def c xs    -> Def c $ inlineLet' i u xs
+    Con c ci xs -> Con c ci $ inlineLet' i u xs
+    Lam h b     -> Lam h $ inlineLet' i u b
+    Pi a b      -> uncurry Pi $ inlineLet' i u (a, b)
+    MetaV m xs  -> MetaV m $ inlineLet' i u xs
+    Level l     -> Level $ inlineLet' i u l
+    t@Lit{}     -> t
+    Sort s      -> Sort $ inlineLet' i u s
+    Let a v     -> uncurry Let $ inlineLet' i u (a, v)
+    LetVar x xs -> let xs' = inlineLet' i u xs in if
+      | x == i    -> u `applyE` xs'
+      | x > i     -> LetVar (x - 1) xs'
+      | otherwise -> LetVar x xs'
+    DontCare mv -> DontCare $ inlineLet' i u mv
+    Dummy s xs  -> Dummy s $ inlineLet' i u xs
+
+instance InlineLet a => InlineLet (Elim' a) where
+  inlineLet' i u = \case
+    Apply v -> Apply $ inlineLet' i u v
+    IApply x y v -> uncurry3 IApply $ inlineLet' i u (x,y,v)
+    Proj o f -> Proj o f
+
+instance InlineLet a => InlineLet (Type' a) where
+  inlineLet' i u (El s v) = uncurry El $ inlineLet' i u (s,v)
+
+instance InlineLet a => InlineLet (Sort' a) where
+  inlineLet' i u = \case
+    Univ s l   -> Univ s $ inlineLet' i u l
+    s@(Inf _ _)-> s
+    s@SizeUniv -> s
+    s@LockUniv -> s
+    s@LevelUniv -> s
+    s@IntervalUniv -> s
+    PiSort a b c -> uncurry3 PiSort $ inlineLet' i u (a,b,c)
+    FunSort a b -> uncurry FunSort $ inlineLet' i u (a,b)
+    UnivSort a -> UnivSort $ inlineLet' i u a
+    MetaS x es -> MetaS x $ inlineLet' i u es
+    DefS q es  -> DefS q $ inlineLet' i u es
+    s@(DummyS _) -> s
+
+instance InlineLet a => InlineLet (Level' a) where
+  inlineLet' i u (Max n as) = Max n $ inlineLet' i u as
+
+instance InlineLet a => InlineLet (PlusLevel' a) where
+  inlineLet' i u (Plus n l) = Plus n $ inlineLet' i u l
+
+instance InlineLet a => InlineLet [a]
+instance InlineLet a => InlineLet (Arg a)
+instance (InlineLet a, InlineLet b) => InlineLet (Dom' a b)
+
+instance InlineLet a => InlineLet (Abs a) where
+  inlineLet' i u (Abs x v) = Abs x $ inlineLet' (i + 1) u v
+  inlineLet' i u (NoAbs x v) = NoAbs x $ inlineLet' i u v
+
+instance InlineLet a => InlineLet (LetAbs a) where
+  inlineLet' i u (LetAbs x v w) = LetAbs x (inlineLet' i u v) (inlineLet' (i + 1) u w)
+
+instance InlineLet a => InlineLet (Tele a) where
+  inlineLet' i u EmptyTel = EmptyTel
+  inlineLet' i u (ExtendTel a tel) = uncurry ExtendTel $ inlineLet' i u (a,tel)
+
+instance (InlineLet a, InlineLet b) => InlineLet (a, b) where
+  inlineLet' i u (x,y) = (inlineLet' i u x, inlineLet' i u y)
+instance (InlineLet a, InlineLet b, InlineLet c) => InlineLet (a, b, c) where
+  inlineLet' i u (x,y,z) = (inlineLet' i u x, inlineLet' i u y, inlineLet' i u z)
 
 
 ---------------------------------------------------------------------------

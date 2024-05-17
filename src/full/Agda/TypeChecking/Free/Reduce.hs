@@ -134,6 +134,12 @@ instance (Reduce a, ForceNotFree a) => ForceNotFree (Abs a) where
     reduceIfFreeVars (bracket_ (modify $ IntMap.mapKeys succ) (\ _ -> modify $ IntMap.mapKeys pred) .
                       traverse forceNotFree') a
 
+instance (Reduce a, ForceNotFree a, SubstArg a ~ Term) => ForceNotFree (LetAbs a) where
+  forceNotFree' (LetAbs x u v) = do
+    u <- forceNotFree' u
+    ~(Abs x v) <- forceNotFree' $ Abs x v -- abusing Abs instance
+    return $ LetAbs x u v
+
 instance ForceNotFree a => ForceNotFree [a] where
   forceNotFree' = traverse forceNotFree'
 
@@ -161,8 +167,8 @@ instance ForceNotFree Term where
     Pi a b     -> Pi       <$> forceNotFree' a <*> forceNotFree' b  -- Dom and Abs do reduceIf so not needed here
     Sort s     -> Sort     <$> forceNotFree' s
     Level l    -> Level    <$> forceNotFree' l
-    Let a u v  -> Let      <$> forceNotFree' a <*> forceNotFree' u <*> forceNotFree' v
     LetVar x es -> LetVar x   <$> forceNotFree' es -- TODO: check body of x!!
+    Let a u    -> Let      <$> forceNotFree' a <*> forceNotFree' u
     DontCare t -> DontCare <$> forceNotFreeR t  -- Reduction stops at DontCare so reduceIf
     t@Lit{}    -> return t
     t@Dummy{}  -> return t

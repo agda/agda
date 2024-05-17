@@ -459,6 +459,19 @@ removeLetBinding x = localTC $ \ e -> e { envLetBindings = Map.delete x (envLetB
 removeLetBindingsFrom :: MonadTCEnv m => Name -> m a -> m a
 removeLetBindingsFrom x = localTC $ \ e -> e { envLetBindings = fst $ Map.split x (envLetBindings e) }
 
+{-# SPECIALIZE underLetBinding :: Dom Type -> LetAbs a -> (a -> TCM b) -> TCM b #-}
+underLetBinding :: MonadAddContext m => Dom Type -> LetAbs a -> (a -> m b) -> m b
+underLetBinding a (LetAbs x u v) f =
+  withFreshName noRange x $ \n -> addContext (CtxLet n a u) $ f v
+
+{-# SPECIALIZE underLetBinding :: Dom Type -> LetAbs a -> (a -> TCM b) -> TCM b #-}
+underLetBinding_ :: MonadAddContext m => LetAbs a -> (a -> m b) -> m b
+underLetBinding_ (LetAbs x u v) f =
+  withFreshName noRange x $ \n -> addContext (CtxLet n __DUMMY_DOM__ u) $ f v
+
+mapLetAbs :: MonadAddContext m => (a -> m b) -> LetAbs a -> m (LetAbs b)
+mapLetAbs f abs@(LetAbs x u _) = LetAbs x u <$> underLetBinding_ abs f
+
 -- * Querying the context
 
 -- | Get the current context.

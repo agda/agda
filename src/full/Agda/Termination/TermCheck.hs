@@ -725,6 +725,11 @@ instance ExtractCalls a => ExtractCalls (Abs a) where
   extract (NoAbs _ a) = extract a
   extract (Abs x a)   = addContext x $ terRaise $ extract a
 
+instance ExtractCalls a => ExtractCalls (LetAbs a) where
+  extract abs = CallGraph.union
+    <$> extract (letAbsValue abs)
+    <*> underLetBinding_ abs (terRaise . extract)
+
 instance ExtractCalls a => ExtractCalls (Arg a) where
   extract = extract . unArg
 
@@ -1067,9 +1072,7 @@ instance ExtractCalls Term where
       -- Sort.
       Sort s -> extract s
 
-      Let a u v ->
-        mconcat <$> sequence
-          [ extract a, extract u, extract v ]
+      Let a u -> CallGraph.union <$> extract a <*> extract u
 
       LetVar x es -> __IMPOSSIBLE__ -- TODO LetVar
 
