@@ -446,6 +446,7 @@ etaExpandEquationStrategy k s = do
       Con c _ _  -> isJust <$> isRecordConstructor (conName c)
 
       Var _ _    -> return False
+      Let a u    -> shouldProject $ inlineLetAbs u
       Lam _ _    -> __IMPOSSIBLE__
       Lit _      -> __IMPOSSIBLE__
       Pi _ _     -> __IMPOSSIBLE__
@@ -946,10 +947,12 @@ unify s strategy = if isUnifyStateSolved s
 --   non-forced positions).
 patternBindingForcedVars :: PureTCM m => IntMap Modality -> Term -> m (DeBruijnPattern, IntMap Modality)
 patternBindingForcedVars forced v = do
-  let v' = precomputeFreeVars_ v
+  v' <- precomputeFreeVars_ v
   runWriterT (evalStateT (go unitModality v') forced)
   where
-    noForced v = gets $ IntSet.disjoint (precomputedFreeVars v) . IntMap.keysSet
+    noForced v = do
+      v' <- precomputedFreeVars v
+      gets $ IntSet.disjoint v' . IntMap.keysSet
 
     bind md i = do
       gets (IntMap.lookup i) >>= \case
@@ -995,3 +998,6 @@ patternBindingForcedVars forced v = do
           -- It would be if we had reduced to `constructorForm`,
           -- however, turning a `LitNat` into constructors would only result in churn,
           -- since literals have no variables that could be bound.
+
+        -- Reduced away
+        Let{}       -> __IMPOSSIBLE__

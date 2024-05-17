@@ -40,6 +40,7 @@ import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Monad.Base
+
 import Agda.TypeChecking.Free as Free
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Positivity.Occurrence as Occ
@@ -87,6 +88,9 @@ applyTermE err' m es = coerce $
       Level{}     -> err __IMPOSSIBLE__
       Pi _ _      -> err __IMPOSSIBLE__
       Sort s      -> Sort $ s `applyE` es
+      Let a b     -> Let a $
+        case b of
+          LetAbs x u v -> LetAbs x u $ applyTermE err' v $ raise 1 es
       Dummy s es' -> Dummy s (es' ++ es)
       DontCare mv -> dontCare $ mv `app` es  -- Andreas, 2011-10-02
         -- need to go under DontCare, since "with" might resurrect irrelevant term
@@ -841,6 +845,7 @@ applySubstTerm rho t    = coerce $ case coerce t of
     Level l     -> levelTm $ sub @(Level' t) l
     Pi a b      -> uncurry Pi $ subPi (a,b)
     Sort s      -> Sort $ sub @(Sort' t) s
+    Let a u     -> uncurry Let $ subLet (a, u)
     DontCare mv -> dontCare $ sub @t mv
     Dummy s es  -> Dummy s $ subE es
  where
@@ -850,6 +855,11 @@ applySubstTerm rho t    = coerce $ case coerce t of
    subE  = sub @[Elim' t]
    subPi :: (Dom Type, Abs Type) -> (Dom Type, Abs Type)
    subPi = sub @(Dom' t (Type'' t t), Abs (Type'' t t))
+   subLet :: (Dom Type, LetAbs Term) -> (Dom Type, LetAbs Term)
+   subLet (a, LetAbs x u v) =
+    ( sub @(Dom' t (Type'' t t)) a
+    , LetAbs x (sub @t u) (coerce @t $ applySubst (liftS 1 rho) $ coerce v)
+    )
 
 instance Subst Term where
   type SubstArg Term = Term
@@ -1064,6 +1074,10 @@ instance Subst a => Subst (Abs a) where
   applySubst rho (Abs x a)   = Abs x $ applySubst (liftS 1 rho) a
   applySubst rho (NoAbs x a) = NoAbs x $ applySubst rho a
 
+instance (Subst a, SubstArg a ~ Term) => Subst (LetAbs a) where
+  type SubstArg (LetAbs a) = SubstArg a
+  applySubst rho (LetAbs x u v) = LetAbs x (applySubst rho u) (applySubst (liftS 1 rho) v)
+
 instance Subst a => Subst (Arg a) where
   type SubstArg (Arg a) = SubstArg a
   applySubst IdS arg = arg
@@ -1084,6 +1098,11 @@ instance (Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst (Dom' a b) where
 instance Subst LetBinding where
   type SubstArg LetBinding = Term
   applySubst rho (LetBinding o v t) = LetBinding o (applySubst rho v) (applySubst rho t)
+
+instance Subst ContextEntry where
+  type SubstArg ContextEntry = Term
+  applySubst rho (CtxVar x a)   = CtxVar x $ applySubst rho a
+  applySubst rho (CtxLet x a v) = CtxLet x (applySubst rho a) (applySubst rho v)
 
 instance Subst a => Subst (Maybe a) where
   type SubstArg (Maybe a) = SubstArg a
@@ -1487,6 +1506,9 @@ instance Ord Term where
   Level a    `compare` Level x    = compare a x
   Level{}    `compare` _          = LT
   _          `compare` Level{}    = GT
+  Let a b    `compare` Let x y    = compare (a, b) (x, y)
+  Let{}      `compare` _          = LT
+  _          `compare` Let{}      = GT
   MetaV a b  `compare` MetaV x y  = compare (a, b) (x, y)
   MetaV{}    `compare` _          = LT
   _          `compare` MetaV{}    = GT
@@ -1526,6 +1548,12 @@ instance (Subst a, Ord a) => Ord (Abs a) where
   NoAbs _ a `compare` NoAbs _ b = a `compare` b  -- no need to raise if both are NoAbs
   a         `compare` b         = absBody a `compare` absBody b
 
+instance (Subst a, Eq a) => Eq (LetAbs a) where
+  LetAbs _ a b == LetAbs _ x y = a == x && b == y
+
+instance (Subst a, Ord a) => Ord (LetAbs a) where
+  (LetAbs _ a b) `compare` (LetAbs _ x y) = compare a x `mappend` compare b y
+
 deriving instance Ord a => Ord (Dom a)
 
 instance (Subst a, Eq a)  => Eq  (Elim' a) where
@@ -1542,6 +1570,20 @@ instance (Subst a, Ord a) => Ord (Elim' a) where
   _        `compare` Apply{}  = GT
   Proj{}   `compare` _        = LT
   _        `compare` Proj{}   = GT
+
+---------------------------------------------------------------------------
+-- * Let bindings
+---------------------------------------------------------------------------
+
+inlineLetAbs :: (Subst a, SubstArg a ~ Term) => LetAbs a -> a
+inlineLetAbs (LetAbs _ u v) = subst 0 u v
+
+inlineCtxLet :: (Subst a, SubstArg a ~ Term) => ContextEntry -> a -> a
+inlineCtxLet CtxVar{} = __IMPOSSIBLE__
+inlineCtxLet (CtxLet x a v) = subst 0 v
+
+inlineCtxLets :: (Subst a, SubstArg a ~ Term) => [ContextEntry] -> a -> a
+inlineCtxLets = foldr ((.) . inlineCtxLet) id
 
 
 ---------------------------------------------------------------------------

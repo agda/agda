@@ -119,7 +119,7 @@ makeEnv scope = do
         Just v | Just q <- name v,
                  noScopeCheck b || isNameInScope q scope -> return [(b, q)]
         _                                                -> return []
-  ctxVars <- map (fst . I.unDom) <$> asksTC envContext
+  ctxVars <- getContextNames'
   letVars <- Map.keys <$> asksTC envLetBindings
   let vars = ctxVars ++ letVars
 
@@ -283,8 +283,8 @@ instance HasConstInfo AbsToCon where
 instance MonadAddContext AbsToCon where
   addCtx a b c = AbsToCon (addCtx a b (unAbsToCon c))
 
-  addLetBinding' o a b c d =
-    AbsToCon (addLetBinding' o a b c (unAbsToCon d))
+  addLetBinding' il o a b c d =
+    AbsToCon (addLetBinding' il o a b c (unAbsToCon d))
 
   updateContext a b c = AbsToCon (updateContext a b (unAbsToCon c))
 

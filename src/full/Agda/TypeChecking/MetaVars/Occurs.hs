@@ -519,6 +519,7 @@ instance Occurs Term where
             Con c ci <$> conArgs vs (occurs vs)  -- if strongly rigid, remain so, except with unreduced IApply arguments.
           Pi a b      -> Pi <$> occurs_ a <*> occurs b
           Sort s      -> Sort <$> do underRelevance NonStrict $ occurs_ s
+          Let a u     -> strengthen __IMPOSSIBLE__ . unLetAbs <$> occurs u
           MetaV m' es -> do
             m' <- metaCheck m'
             -- The arguments of a meta are in a flexible position
@@ -556,7 +557,7 @@ instance Occurs Term where
                 {-else-} (defArgs $ occurs vs)
 
   metaOccurs m v = do
-    v <- instantiate v
+    v <- reduceLetVar v
     case v of
       Var i vs   -> metaOccurs m vs
       Lam h f    -> metaOccurs m f
@@ -567,7 +568,9 @@ instance Occurs Term where
       Def d vs   -> metaOccurs2 m d vs
       Con c _ vs -> metaOccurs m vs
       Pi a b     -> metaOccurs2 m a b
-      Sort s     -> metaOccurs m s              -- vv m is already an unblocker
+      Sort s     -> metaOccurs m s
+      Let a u    -> metaOccurs2 m a u
+              -- vv m is already an unblocker
       MetaV m' vs | m == m'   -> patternViolation' neverUnblock 50 $ "Found occurrence of " ++ prettyShow m
                   | otherwise -> addOrUnblocker (unblockOnMeta m') $ metaOccurs m vs
 
@@ -695,19 +698,19 @@ instance Occurs Elims where
     Apply a -> metaOccurs m a
     IApply x y a -> metaOccurs3 m x y a
 
-instance Occurs (Abs Term) where
+instance (Occurs a, Subst a) => Occurs (Abs a) where
   occurs (NoAbs s x) = NoAbs s <$> occurs x
   occurs x = mapAbstraction_ (\body -> underBinder $ occurs body) x
 
-  metaOccurs m (Abs   _ x) = metaOccurs m x
+  metaOccurs m abs@Abs{}   = underAbstraction_ abs $ metaOccurs m
   metaOccurs m (NoAbs _ x) = metaOccurs m x
 
-instance Occurs (Abs Type) where
-  occurs (NoAbs s x) = NoAbs s <$> occurs_ x
-  occurs x = mapAbstraction_ (\body -> underBinder $ occurs_ body) x
+instance Occurs a => Occurs (LetAbs a) where
+  occurs x = mapLetAbs (\body -> underBinder $ occurs body) x
 
-  metaOccurs m (Abs   _ x) = metaOccurs m x
-  metaOccurs m (NoAbs _ x) = metaOccurs m x
+  metaOccurs m abs@(LetAbs _ x _) = do
+    metaOccurs m x
+    underLetBinding_ abs $ metaOccurs m
 
 instance Occurs a => Occurs (Arg a) where
   occurs (Arg info v) = Arg info <$> do
@@ -799,6 +802,7 @@ hasBadRigid xs t = do
     Lit{}        -> failure -- matchable
     MetaV{}      -> failure -- potentially matchable
     Dummy{}      -> return False
+    Let{}        -> __IMPOSSIBLE__
 
 -- | Check whether a term @Def f es@ is finally stuck.
 --   Currently, we give only a crude approximation.
@@ -880,6 +884,7 @@ instance AnyRigid Term where
       MetaV{}    -> return False
       DontCare{} -> return False
       Dummy{}    -> return False
+      Let{}      -> __IMPOSSIBLE__
 
 instance AnyRigid Type where
   anyRigid f (El s t) = anyRigid f (s,t)

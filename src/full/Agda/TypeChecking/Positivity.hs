@@ -453,6 +453,7 @@ instance ComputeOccurrences Term where
     Level l      -> occurrences l
     Lit{}        -> mempty
     Sort{}       -> mempty
+    Let a u      -> occurrences (a, u)
     -- Jesper, 2020-01-12: this information is also used for the
     -- occurs check, so we need to look under DontCare (see #4371)
     DontCare v   -> occurrences v
@@ -475,6 +476,10 @@ instance ComputeOccurrences a => ComputeOccurrences (Abs a) where
   occurrences (Abs   _ b) = withExtendedOccEnv Nothing $ occurrences b
   occurrences (NoAbs _ b) = occurrences b
 
+instance ComputeOccurrences a => ComputeOccurrences (LetAbs a) where
+  occurrences (LetAbs _ a b) =
+    occurrences a <> withExtendedOccEnv Nothing (occurrences b)
+
 instance ComputeOccurrences a => ComputeOccurrences (Elim' a) where
   occurrences Proj{}         = __IMPOSSIBLE__  -- unSpine
   occurrences (Apply a)      = occurrences a
@@ -487,6 +492,9 @@ instance ComputeOccurrences a => ComputeOccurrences (Maybe a) where
 
 instance (ComputeOccurrences a, ComputeOccurrences b) => ComputeOccurrences (a, b) where
   occurrences (x, y) = occurrences x <> occurrences y
+
+instance (ComputeOccurrences a, ComputeOccurrences b, ComputeOccurrences c) => ComputeOccurrences (a, b, c) where
+  occurrences (x, y, z) = occurrences x <> occurrences y <> occurrences z
 
 -- | Computes the number of occurrences of different 'Item's in the
 -- given definition.
@@ -561,7 +569,8 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
                       let indices = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ drop np vs
                       OccursAs (IndArgType c) . OnlyVarsUpTo np <$> getOccurrences varsTel indices
                   | otherwise -> __IMPOSSIBLE__  -- this ought to be impossible now (but hasn't been before, see #4447)
-                Pi{}       -> __IMPOSSIBLE__  -- eliminated  by telView
+                Pi{}       -> __IMPOSSIBLE__  -- eliminated by telView
+                Let{}      -> __IMPOSSIBLE__  -- eliminated by telView
                 MetaV{}    -> __IMPOSSIBLE__  -- not a constructor target; should have been solved by now
                 Var{}      -> __IMPOSSIBLE__  -- not a constructor target
                 Sort{}     -> __IMPOSSIBLE__  -- not a constructor target

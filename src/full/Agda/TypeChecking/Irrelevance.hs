@@ -127,6 +127,7 @@ instance UsableRelevance Term where
     Pi a b   -> usableRel rel (a,b)
     Sort s   -> usableRel rel s
     Level l  -> return True
+    Let a u  -> usableRel rel (a,u)
     MetaV m vs -> do
       mrel <- getRelevance <$> lookupMetaModality m
       return (mrel `moreRelevant` rel) `and2M` usableRel rel vs
@@ -183,6 +184,10 @@ instance UsableRelevance a => UsableRelevance (Dom a) where
 
 instance (Subst a, UsableRelevance a) => UsableRelevance (Abs a) where
   usableRel rel abs = underAbstraction_ abs $ \u -> usableRel rel u
+
+instance (Subst a, UsableRelevance a) => UsableRelevance (LetAbs a) where
+  -- No need to check let-bound value, since it will be checked at use site
+  usableRel rel abs = underLetBinding_ abs $ \u -> usableRel rel u
 
 -- | Check whether something can be used in a position of the given modality.
 --
@@ -243,6 +248,15 @@ instance UsableModality Term where
     -- do we have special typing rules for Sort and Level?
     Sort s   -> usableMod mod s
     Level l  -> return True
+    Let a u -> andM
+      [ usableMod domMod (unEl $ unDom a)
+        -- No need to check let-bound value, since it will be checked at use site
+      , underLetBinding NoInlineLet a u $ usableMod mod
+      ]
+      where
+        -- TODO: remove code duplication with Pi
+        domMod = mapQuantity (composeQuantity $ getQuantity a) $
+                 mapCohesion (composeCohesion $ getCohesion a) mod
     MetaV m vs -> do
       mmod <- lookupMetaModality m
       let ok = mmod `moreUsableModality` mod

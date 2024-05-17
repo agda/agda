@@ -194,6 +194,7 @@ instance AbsTerm Term where
       Lit l       -> Lit l
       Level l     -> Level $ absT l
       Sort s      -> Sort $ absT s
+      Let a u     -> uncurry Let $ absT (a, u)
       MetaV m vs  -> MetaV m $ absT vs
       DontCare mv -> DontCare $ absT mv
       Dummy s es   -> Dummy s $ absT es
@@ -247,8 +248,15 @@ instance (TermSubst a, AbsTerm a) => AbsTerm (Abs a) where
   absTerm u (NoAbs x v) = NoAbs x $ absTerm u v
   absTerm u (Abs   x v) = Abs x $ swap01 $ absTerm (raise 1 u) v
 
+instance (TermSubst a, AbsTerm a) => AbsTerm (LetAbs a) where
+  absTerm u (LetAbs x v w) =
+    LetAbs x (absTerm u v) $ swap01 $ absTerm (raise 1 u) w
+
 instance (AbsTerm a, AbsTerm b) => AbsTerm (a, b) where
   absTerm u (x, y) = (absTerm u x, absTerm u y)
+
+instance (AbsTerm a, AbsTerm b, AbsTerm c) => AbsTerm (a, b, c) where
+  absTerm u (x, y, z) = (absTerm u x, absTerm u y, absTerm u z)
 
 -- | This swaps @var 0@ and @var 1@.
 swap01 :: TermSubst a => a -> a

@@ -26,7 +26,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Precompute
-
 import Agda.Utils.Monad
 import Agda.Utils.Null
 
@@ -48,7 +47,7 @@ forceNotFree xs a = do
   -- Initially, all variables are marked as `NotFree`. This is changed
   -- to `MaybeFree` when we find an occurrence.
   let mxs = IntMap.fromSet (const NotFree) xs
-  (a, mxs) <- runStateT (runReaderT (forceNotFreeR $ precomputeFreeVars_ a) mempty) mxs
+  (a, mxs) <- runStateT (runReaderT (forceNotFreeR =<< precomputeFreeVars_ a) mempty) mxs
   return (mxs, a)
 
 -- | Checks if the given term contains any free variables that are in
@@ -105,11 +104,11 @@ reduceIfFreeVars :: (Reduce a, ForceNotFree a, MonadFreeRed m)
                  => (a -> m a) -> a -> m a
 reduceIfFreeVars k a = do
   xs <- varsToForceNotFree
-  let fvs     = precomputedFreeVars a
-      notfree = IntSet.disjoint xs fvs
+  fvs <- precomputedFreeVars a
+  let notfree = IntSet.disjoint xs fvs
   if notfree
     then return a
-    else k . precomputeFreeVars_ =<< reduce a
+    else k =<< precomputeFreeVars_ =<< reduce a
 
 -- Careful not to define forceNotFree' = forceNotFreeR since that would loop.
 forceNotFreeR :: (Reduce a, ForceNotFree a, MonadFreeRed m)
@@ -134,6 +133,12 @@ instance (Reduce a, ForceNotFree a) => ForceNotFree (Abs a) where
     reduceIfFreeVars (bracket_ (modify $ IntMap.mapKeys succ) (\ _ -> modify $ IntMap.mapKeys pred) .
                       traverse forceNotFree') a
 
+instance (Reduce a, ForceNotFree a, SubstArg a ~ Term) => ForceNotFree (LetAbs a) where
+  forceNotFree' (LetAbs x u v) = do
+    u <- forceNotFree' u
+    ~(Abs x v) <- forceNotFree' $ Abs x v -- abusing Abs instance
+    return $ LetAbs x u v
+
 instance ForceNotFree a => ForceNotFree [a] where
   forceNotFree' = traverse forceNotFree'
 
@@ -148,7 +153,7 @@ instance ForceNotFree Type where
   forceNotFree' (El s t) = El <$> forceNotFree' s <*> forceNotFree' t
 
 instance ForceNotFree Term where
-  forceNotFree' = \case
+  forceNotFree' = reduceLetVar >=> \case
     Var x es   -> do
       metas <- ask
       modify $ IntMap.adjust (const $ MaybeFree metas) x
@@ -161,6 +166,7 @@ instance ForceNotFree Term where
     Pi a b     -> Pi       <$> forceNotFree' a <*> forceNotFree' b  -- Dom and Abs do reduceIf so not needed here
     Sort s     -> Sort     <$> forceNotFree' s
     Level l    -> Level    <$> forceNotFree' l
+    Let a u    -> Let      <$> forceNotFree' a <*> forceNotFree' u
     DontCare t -> DontCare <$> forceNotFreeR t  -- Reduction stops at DontCare so reduceIf
     t@Lit{}    -> return t
     t@Dummy{}  -> return t

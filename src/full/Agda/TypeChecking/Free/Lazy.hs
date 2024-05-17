@@ -76,6 +76,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.Utils.Functor
+import Agda.Utils.Impossible
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -538,6 +539,7 @@ instance Free Term where
     Pi a b       -> freeVars' (a,b)
     Sort s       -> freeVars' s
     Level l      -> freeVars' l
+    Let a u      -> freeVars' (a,u)
     MetaV m ts   -> underFlexRig (Flexible $ singleton m) $ freeVars' ts
     DontCare mt  -> underModality (Modality Irrelevant unitQuantity unitCohesion) $ freeVars' mt
     Dummy{}      -> mempty
@@ -597,6 +599,9 @@ instance Free t => Free (Dom t) where
 instance Free t => Free (Abs t) where
   freeVars' (Abs   _ b) = underBinder $ freeVars' b
   freeVars' (NoAbs _ b) = freeVars' b
+
+instance Free t => Free (LetAbs t) where
+  freeVars' (LetAbs _ u b) = freeVars' u <> underBinder (freeVars' b)
 
 instance Free t => Free (Tele t) where
   freeVars' EmptyTel          = mempty

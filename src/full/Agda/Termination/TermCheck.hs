@@ -535,8 +535,8 @@ termRecTel npars tel = do
       extract $ telFromList fields
   where
   -- create n variable patterns
-  mkPats n  = zipWith mkPat (downFrom n) <$> getContextNames
-  mkPat i x = notMasked $ VarP defaultPatternInfo $ DBPatVar (prettyShow x) i
+  mkPats n  = map mkPat <$> getContextVars
+  mkPat (i, x) = notMasked $ VarP defaultPatternInfo $ DBPatVar (prettyShow x) i
 
 -- | Collect calls in type signature @f : (x1:A1)...(xn:An) -> B@.
 --   It is treated as if there were the additional function clauses.
@@ -564,8 +564,8 @@ termType = return mempty
         extract dom `mappend` underAbstractionAbs dom absB (loop $! n + 1)
 
   -- create n variable patterns
-  mkPats n  = zipWith mkPat (downFrom n) <$> getContextNames
-  mkPat i x = notMasked $ VarP defaultPatternInfo $ DBPatVar (prettyShow x) i
+  mkPats n  = map mkPat <$> getContextVars
+  mkPat (i, x) = notMasked $ VarP defaultPatternInfo $ DBPatVar (prettyShow x) i
 
 -- | Mask arguments and result for termination checking
 --   according to type of function.
@@ -724,6 +724,11 @@ class ExtractCalls a where
 instance ExtractCalls a => ExtractCalls (Abs a) where
   extract (NoAbs _ a) = extract a
   extract (Abs x a)   = addContext x $ terRaise $ extract a
+
+instance ExtractCalls a => ExtractCalls (LetAbs a) where
+  extract abs = CallGraph.union
+    <$> extract (letAbsValue abs)
+    <*> underLetBinding_ abs (terRaise . extract)
 
 instance ExtractCalls a => ExtractCalls (Arg a) where
   extract = extract . unArg
@@ -1066,6 +1071,8 @@ instance ExtractCalls Term where
 
       -- Sort.
       Sort s -> extract s
+
+      Let a u -> CallGraph.union <$> extract a <*> extract u
 
       -- Unsolved metas are not considered termination problems, there
       -- will be a warning for them anyway.

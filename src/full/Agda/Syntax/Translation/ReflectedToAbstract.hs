@@ -22,6 +22,7 @@ import Agda.Syntax.Abstract
   , isNoName, nameConcrete, nextName, qualify, unambiguous
   )
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Views (deepUnscope)
 import Agda.Syntax.Abstract.Pattern
 import Agda.Syntax.Reflected as R
 import Agda.Syntax.Internal (Dom,Dom'(..))
@@ -123,7 +124,7 @@ toAbstractWithoutImplicit ::
   , HasConstInfo m
   ) => r -> m (AbsOfRef r)
 toAbstractWithoutImplicit x = do
-  xs <- killRange <$> getContextNames
+  xs <- killRange <$> getContextNames'
   let ctx = zip xs $ repeat R.Unknown
   runReaderT (toAbstract x) ctx
 

@@ -699,7 +699,7 @@ checkClause
 
 checkClause t withSubAndLets c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) = do
   let withSub       = fst <$> withSubAndLets
-  cxtNames <- reverse . map (fst . unDom) <$> getContext
+  cxtNames <- getContextNames
   checkClauseLHS t withSub c $ \ lhsResult@(LHSResult npars delta ps absurdPat trhs patSubst asb psplit ixsplit) -> do
 
     let installInheritedLets k
@@ -926,7 +926,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _ _) rh
     usingEqnRHS :: [(A.Pattern, A.Expr)] -> [A.RewriteEqn] -> TCM (Maybe Term, WithFunctionProblem)
     usingEqnRHS pes rs = do
       let letBindings = for (List1.toList pes) $ \(p, e) -> A.LetPatBind (LetRange $ getRange e) p e
-      checkLetBindings letBindings $ rewriteEqnsRHS rs strippedPats rhs wh
+      checkLetBindings YesInlineLet letBindings $ \_ces -> rewriteEqnsRHS rs strippedPats rhs wh
 
     -- @invert@ clauses
     invertEqnRHS :: QName -> [Named A.BindName (A.Pattern,A.Expr)] -> [A.RewriteEqn] -> TCM (Maybe Term, WithFunctionProblem)

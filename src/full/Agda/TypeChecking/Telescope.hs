@@ -17,7 +17,6 @@ import Data.Maybe
 import Data.Monoid
 
 import Agda.Syntax.Common
-import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
@@ -176,11 +175,7 @@ permuteTel perm tel =
 -- | Like 'permuteTel', but start with a context.
 --
 permuteContext :: Permutation -> Context -> Telescope
-permuteContext perm ctx = unflattenTel names types
-  where
-    flatTel = flattenContext ctx
-    names   = permute perm $ map (prettyShow . fst . unDom) flatTel
-    types   = permute perm $ renameP impossible (flipP perm) $ map (fmap snd) flatTel
+permuteContext perm ctx = permuteTel perm $ contextToTel ctx
 
 -- | Recursively computes dependencies of a set of variables in a given
 --   telescope. Any dependencies outside of the telescope are ignored.

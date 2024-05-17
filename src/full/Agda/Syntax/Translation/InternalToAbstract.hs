@@ -612,6 +612,12 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
         skipGeneralizedParameter info = (not <$> showGeneralizedArguments) <&> (&& (argInfoOrigin info == Generalization))
 
     I.Sort s     -> reify s
+    I.Let a uv   -> do
+      Arg info ea <- reify a
+      (x,eu,ev) <- reify uv
+      let bindx = LetBind (LetRange noRange) info (mkBindName x) ea eu
+      return $ A.Let exprNoRange (singleton bindx) ev
+
     I.MetaV x es -> do
           x' <- reify x
 
@@ -1525,6 +1531,17 @@ instance (Free i, Reify i) => Reify (Abs i) where
     return (x,e)
 {-# SPECIALIZE reify :: (Free i, Reify i) -> Abs i -> TCM (ReifiesTo (Abs i)) #-}
 
+instance (Free i, Reify i) => Reify (LetAbs i) where
+  type ReifiesTo (LetAbs i) = (Name, A.Expr, ReifiesTo i)
+
+  reify abs@(LetAbs s u v) = do
+    eu <- reify u
+    s <- return $ if isUnderscore s && 0 `freeIn` v then "z" else s
+    x <- C.setNotInScope <$> freshName_ s
+    ev <- addContext (CtxLet x __DUMMY_DOM__ u) $ reify v
+    return (x,eu,ev)
+{-# SPECIALIZE reify :: (Free i, Reify i) -> LetAbs i -> TCM (ReifiesTo (LetAbs i)) #-}
+
 instance Reify I.Telescope where
   type ReifiesTo I.Telescope = A.Telescope
 
@@ -1544,6 +1561,24 @@ instance Reify i => Reify (Dom i) where
 
     reify (Dom{domInfo = info, unDom = i}) = Arg info <$> reify i
     {-# INLINE reify #-}
+
+
+instance Reify ContextEntry where
+  type ReifiesTo ContextEntry = A.TypedBinding
+
+  reify (CtxVar x a) = do
+    Arg info (y,t) <- reify $ (x,) <$> a
+    let r = getRange x
+        name = domName a
+        xs = singleton $ Arg info $ Named name $ A.mkBinder_ y
+    tac <- TacticAttribute <$> do traverse (Ranged noRange <.> reify) $ domTactic a
+    return $ TBind r (TypedBindingInfo tac (domIsFinite a)) xs t
+  reify (CtxLet x a v) = do
+    Arg info (y,t) <- reify $ (x,) <$> a
+    v <- reify v
+    let r = getRange x
+    return $ TLet r $ singleton $
+      LetBind (LetRange noRange) info (mkBindName y) t v
 
 instance Reify i => Reify (I.Elim' i)  where
   type ReifiesTo (I.Elim' i) = I.Elim' (ReifiesTo i)

@@ -82,6 +82,7 @@ instance NamesIn a => NamesIn (Map k a)
 instance NamesIn a => NamesIn (Arg a)
 instance NamesIn a => NamesIn (Named n a)
 instance NamesIn a => NamesIn (Abs a)
+instance NamesIn a => NamesIn (LetAbs a)
 instance NamesIn a => NamesIn (WithArity a)
 instance NamesIn a => NamesIn (Open a)
 instance NamesIn a => NamesIn (C.FieldAssignment' a)
@@ -225,6 +226,7 @@ instance NamesIn Term where
     Pi a b       -> namesAndMetasIn' sg (a, b)
     Sort s       -> namesAndMetasIn' sg s
     Level l      -> namesAndMetasIn' sg l
+    Let a u      -> namesAndMetasIn' sg (a, u)
     MetaV x args -> namesAndMetasIn' sg (x, args)
     DontCare v   -> namesAndMetasIn' sg v
     Dummy _ args -> namesAndMetasIn' sg args

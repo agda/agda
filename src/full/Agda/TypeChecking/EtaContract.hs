@@ -42,6 +42,7 @@ binAppView t = case t of
   Lam _ _    -> noApp
   Pi _ _     -> noApp
   Sort _     -> noApp
+  Let _ _    -> noApp   -- TODO: is this ok???
   MetaV _ _  -> noApp
   DontCare _ -> noApp
   Dummy{}    -> __IMPOSSIBLE__

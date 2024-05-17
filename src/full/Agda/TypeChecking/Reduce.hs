@@ -23,6 +23,7 @@ module Agda.TypeChecking.Reduce
  -- Normalization
  , Normalise, normalise', normalise
  , slowNormaliseArgs
+ , reduceLetVar
  ) where
 
 import Control.Monad ( (>=>), void )
@@ -575,13 +576,18 @@ slowReduceTerm v = do
           v <- flip reduceIApply es
                  $ unfoldDefinitionE reduceB' (Con c ci []) (conName c) es
           traverse reduceNat v
+      Let a u  -> ifM (SmallSet.member LetReductions <$> asksTC envAllowedReductions)
+                    {- then -} (reduceB' $ inlineLetAbs u)
+                    {- else -} done
       Sort s   -> done
       Level l  -> ifM (SmallSet.member LevelReductions <$> asksTC envAllowedReductions)
                     {- then -} (fmap levelTm <$> reduceB' l)
                     {- else -} done
       Pi _ _   -> done
       Lit _    -> done
-      Var _ es  -> iapp es
+      Var x es  -> ifM (SmallSet.member LetReductions <$> asksTC envAllowedReductions)
+                    {- then -} (maybe (iapp es) (reduceB' . (`applyE` es)) =<< valueOfBV' x)
+                    {- else -} (iapp es)
       Lam _ _  -> done
       DontCare _ -> done
       Dummy{}    -> done
@@ -1068,6 +1074,8 @@ instance Simplify Term where
       Lit l      -> return v
       Var i vs   -> iapp vs $ Var i    <$> simplify' vs
       Lam h v    -> Lam h    <$> simplify' v
+      -- TODO: should simplify unfold let-bindings?
+      Let a u    -> Let      <$> simplify' a <*> simplify' u
       DontCare v -> dontCare <$> simplify' v
       Dummy{}    -> return v
 
@@ -1103,6 +1111,11 @@ instance Simplify PlusLevel where
 instance (Subst a, Simplify a) => Simplify (Abs a) where
     simplify' a@(Abs x _) = Abs x <$> underAbstraction_ a simplify'
     simplify' (NoAbs x v) = NoAbs x <$> simplify' v
+
+instance (Subst a, Simplify a) => Simplify (LetAbs a) where
+    simplify' a@(LetAbs x u v) = LetAbs x
+      <$> simplify' u
+      <*> underLetBinding_ a simplify'
 
 instance Simplify t => Simplify (Dom t) where
     simplify' = traverse simplify'
@@ -1262,6 +1275,7 @@ slowNormaliseArgs = \case
   Lam h b     -> Lam h      <$> normalise' b
   Sort s      -> Sort       <$> normalise' s
   Pi a b      -> uncurry Pi <$> normalise' (a, b)
+  Let a u     -> uncurry Let <$> normalise' (a, u)
   v@DontCare{}-> return v
   v@Dummy{}   -> return v
 
@@ -1280,6 +1294,10 @@ instance Normalise PlusLevel where
 instance (Subst a, Normalise a) => Normalise (Abs a) where
     normalise' a@(Abs x _) = Abs x <$> underAbstraction_ a normalise'
     normalise' (NoAbs x v) = NoAbs x <$> normalise' v
+
+instance (Subst a, Normalise a) => Normalise (LetAbs a) where
+    normalise' a@(LetAbs x u _) =
+      LetAbs x <$> normalise' u <*> underLetBinding_ a normalise'
 
 instance Normalise t => Normalise (Arg t) where
     normalise' a
@@ -1476,6 +1494,7 @@ instance InstantiateFull Term where
           Lam h b     -> Lam h <$> instantiateFull' b
           Sort s      -> Sort <$> instantiateFull' s
           Pi a b      -> uncurry Pi <$> instantiateFull' (a,b)
+          Let a u     -> uncurry Let <$> instantiateFull' (a,u)
           DontCare v  -> dontCare <$> instantiateFull' v
           v@Dummy{}   -> return v
 
@@ -1512,8 +1531,17 @@ instance (Subst a, InstantiateFull a) => InstantiateFull (Abs a) where
     instantiateFull' a@(Abs x _) = Abs x <$> underAbstraction_ a instantiateFull'
     instantiateFull' (NoAbs x a) = NoAbs x <$> instantiateFull' a
 
+instance (Subst a, InstantiateFull a) => InstantiateFull (LetAbs a) where
+    instantiateFull' a@(LetAbs x u _) = LetAbs x
+      <$> instantiateFull' u
+      <*> underLetBinding_ a instantiateFull'
+
 instance (InstantiateFull t, InstantiateFull e) => InstantiateFull (Dom' t e) where
     instantiateFull' (Dom i n b tac x) = Dom i n b <$> instantiateFull' tac <*> instantiateFull' x
+
+instance InstantiateFull ContextEntry where
+  instantiateFull' (CtxVar x a) = CtxVar x <$> instantiateFull' a
+  instantiateFull' (CtxLet x a v) = CtxLet x <$> instantiateFull' a <*> instantiateFull' v
 
 instance InstantiateFull LetBinding where
   instantiateFull' (LetBinding o v t) = LetBinding o <$> instantiateFull' v <*> instantiateFull' t
@@ -1780,3 +1808,14 @@ instance InstantiateFull EqualityView where
     <*> instantiateFull' t
     <*> instantiateFull' a
     <*> instantiateFull' b
+
+---------------------------------------------------------------------------
+-- * Let bindings
+---------------------------------------------------------------------------
+
+reduceLetVar :: MonadReduce m => Term -> m Term
+reduceLetVar = instantiate >=> \u -> case u of
+  Var x es -> valueOfBV' x >>= \case
+    Just v -> reduceLetVar $ v `applyE` es
+    Nothing -> return u
+  _ -> return u

@@ -976,7 +976,8 @@ metaHelperType norm ii rng s = case words s of
 
     -- Konstantin, 2022-10-23: We don't want to print section parameters in helper type.
     freeVars <- getCurrentModuleFreeVars
-    contextForAbstracting <- drop freeVars . reverse <$> getContext
+    ctx <- getContext
+    let contextForAbstracting = take (size ctx - freeVars) ctx
 
     -- Andreas, 2019-10-11: I actually prefer pi-types over ->.
     let runInPrintingEnvironment = localTC (\e -> e { envPrintDomainFreePi = True, envPrintMetasBare = True })
@@ -991,8 +992,8 @@ metaHelperType norm ii rng s = case words s of
      -- We simply make exactly the given arguments visible and all other hidden.
      Just xs -> do
       let inXs = hasElem xs
-      let hideButXs dom = setHiding (if inXs $ fst $ unDom dom then NotHidden else Hidden) dom
-      let tel = telFromList . map (fmap (first nameToArgName) . hideButXs) $ contextForAbstracting
+      let hideButXs ce = setHiding (if inXs (ctxEntryName ce) then NotHidden else Hidden) ce
+      let tel = contextToTel . map hideButXs $ contextForAbstracting
       OfType' h <$> do
         runInPrintingEnvironment $ reify $ telePiVisible tel a0
 
@@ -1000,7 +1001,7 @@ metaHelperType norm ii rng s = case words s of
      Nothing -> do
       -- cleanupType relies on with arguments being named 'w',
       -- so we'd better rename any actual 'w's to avoid confusion.
-      let tel = runIdentity . onNamesTel unW . telFromList' nameToArgName $ contextForAbstracting
+      let tel = runIdentity . onNamesTel unW . contextToTel $ contextForAbstracting
       let a = runIdentity . onNames unW $ a0
       vtys <- mapM (\ a -> fmap (Arg (getArgInfo a) . fmap OtherType) $ inferExpr $ namedArg a) args
       -- Remember the arity of a
@@ -1079,6 +1080,7 @@ metaHelperType norm ii rng s = case words s of
       I.Lam i b    -> I.Lam i <$> onNamesAbs f onNamesTm b
       I.Pi a b     -> I.Pi <$> traverse (onNames f) a <*> onNamesAbs f onNames b
       I.DontCare v -> I.DontCare <$> onNamesTm f v
+      I.Let a u    -> I.Let <$> traverse (onNames f) a <*> onNamesLetAbs f onNamesTm u
       v@I.Lit{}    -> pure v
       v@I.Sort{}   -> pure v
       v@I.Level{}  -> pure v
@@ -1089,6 +1091,10 @@ metaHelperType norm ii rng s = case words s of
     onNamesAbs f   = onNamesAbs' f (stringToArgName <.> f . argNameToString)
     onNamesAbs' f f' nd (Abs   s x) = Abs   <$> f' s <*> nd f x
     onNamesAbs' f f' nd (NoAbs s x) = NoAbs <$> f' s <*> nd f x
+    onNamesLetAbs f nd (LetAbs s u v) =
+      (\u ~(Abs s v) -> LetAbs s u v)
+        <$> onNamesTm f u
+        <*> onNamesAbs f nd (Abs s v)
 
     unW "w" = return ".w"
     unW s   = return s
@@ -1126,13 +1132,14 @@ contextOfMeta ii norm = withInteractionId ii $ do
 
   where
     mkVar :: ContextEntry -> TCM (Maybe ResponseContextEntry)
-    mkVar Dom{ domInfo = ai, unDom = (name, t) } = do
+    mkVar (CtxVar name Dom{ domInfo = ai, unDom = t }) = do
       if shouldHide ai name then return Nothing else Just <$> do
         let n = nameConcrete name
         x  <- abstractToConcrete_ name
         let s = C.isInScope x
         ty <- reifyUnblocked =<< normalForm norm t
         return $ ResponseContextEntry n x (Arg ai ty) Nothing s
+    mkVar CtxLet{} = __IMPOSSIBLE__
 
     mkLet :: (Name, Open M.LetBinding) -> TCM (Maybe ResponseContextEntry)
     mkLet (name, lb) = do

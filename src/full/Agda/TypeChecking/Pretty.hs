@@ -442,7 +442,7 @@ instance PrettyTCM Telescope where
 newtype PrettyContext = PrettyContext Context
 
 instance PrettyTCM PrettyContext where
-  prettyTCM (PrettyContext ctx) = prettyTCM $ telFromList' nameToArgName $ reverse ctx
+  prettyTCM (PrettyContext ctx) = prettyTCM $ contextToTel ctx -- TODO: include let bindings?
 {-# SPECIALIZE prettyTCM :: PrettyContext -> TCM Doc #-}
 
 instance PrettyTCM DBPatVar where

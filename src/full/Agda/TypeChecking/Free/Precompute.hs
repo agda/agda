@@ -11,26 +11,29 @@ import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.TypeChecking.Monad.Base
 
 
 
-type FV = Writer IntSet
+type FV m = WriterT IntSet m
 
-precomputeFreeVars_ :: PrecomputeFreeVars a => a -> a
-precomputeFreeVars_ = fst . runWriter . precomputeFreeVars
+precomputeFreeVars_ :: MonadTCEnv m => PrecomputeFreeVars a => a -> m a
+precomputeFreeVars_ x = fst <$> runWriterT (precomputeFreeVars x)
 
-precomputedFreeVars :: PrecomputeFreeVars a => a -> IntSet
-precomputedFreeVars = snd . runWriter . precomputeFreeVars
+precomputedFreeVars :: MonadTCEnv m => PrecomputeFreeVars a => a -> m IntSet
+precomputedFreeVars x = snd <$> runWriterT (precomputeFreeVars x)
 
 class PrecomputeFreeVars a where
-  precomputeFreeVars :: a -> FV a
+  precomputeFreeVars :: MonadTCEnv m => a -> FV m a
 
-  default precomputeFreeVars :: (Traversable c, PrecomputeFreeVars x, a ~ c x) => a -> FV a
+  default precomputeFreeVars
+    :: (MonadTCEnv m, Traversable c, PrecomputeFreeVars x, a ~ c x)
+    => a -> FV m a
   precomputeFreeVars = traverse precomputeFreeVars
 
 -- The instances where things actually happen: Arg, Abs and Term.
 
-maybePrecomputed :: PrecomputeFreeVars a => ArgInfo -> a -> FV (ArgInfo, a)
+maybePrecomputed :: MonadTCEnv m => PrecomputeFreeVars a => ArgInfo -> a -> FV m (ArgInfo, a)
 maybePrecomputed i x =
   case getFreeVariables i of
     KnownFVs fv -> (i, x) <$ tell fv
@@ -54,6 +57,11 @@ instance PrecomputeFreeVars a => PrecomputeFreeVars (Abs a) where
     censor (IntSet.map (subtract 1) . IntSet.delete 0) $
       Abs x <$> precomputeFreeVars b
 
+instance PrecomputeFreeVars a => PrecomputeFreeVars (LetAbs a) where
+  precomputeFreeVars (LetAbs x a b) =
+    LetAbs x <$> precomputeFreeVars a <*>
+      censor (IntSet.map (subtract 1) . IntSet.delete 0) (precomputeFreeVars b)
+
 instance PrecomputeFreeVars Term where
   precomputeFreeVars t =
     case t of
@@ -67,6 +75,7 @@ instance PrecomputeFreeVars Term where
       Pi a b     -> uncurry Pi <$> precomputeFreeVars (a, b)
       Sort s     -> Sort       <$> precomputeFreeVars s
       Level l    -> Level      <$> precomputeFreeVars l
+      Let a u    -> uncurry Let <$> precomputeFreeVars (a, u)
       MetaV x es -> MetaV x    <$> precomputeFreeVars es
       DontCare t -> DontCare   <$> precomputeFreeVars t
       Dummy{}    -> pure t
@@ -113,3 +122,6 @@ instance PrecomputeFreeVars a => PrecomputeFreeVars (Maybe a) where
 
 instance (PrecomputeFreeVars a, PrecomputeFreeVars b) => PrecomputeFreeVars (a, b) where
   precomputeFreeVars (x, y) = (,) <$> precomputeFreeVars x <*> precomputeFreeVars y
+
+instance (PrecomputeFreeVars a, PrecomputeFreeVars b, PrecomputeFreeVars c) => PrecomputeFreeVars (a, b, c) where
+  precomputeFreeVars (x, y, z) = (,,) <$> precomputeFreeVars x <*> precomputeFreeVars y <*> precomputeFreeVars z

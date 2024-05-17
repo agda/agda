@@ -21,6 +21,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute
 
 import qualified Agda.Utils.VarSet as Set
+import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 
@@ -502,6 +503,7 @@ instance ShrinkC Term where
   type ShrinksTo Term = Term
   shrinkC conf DontCare{}  = []
   shrinkC conf Dummy{}     = []
+  shrinkC conf Let{}       = []
   shrinkC conf t           = filter validType $ case t of
     Var i es     -> map unArg (argsFromElims es) ++
                     (uncurry Var <$> shrinkC conf (VarName i, NoType es))
@@ -519,6 +521,7 @@ instance ShrinkC Term where
     MetaV m es   -> map unArg (argsFromElims es) ++
                     (MetaV m <$> shrinkC conf (NoType es))
 #if __GLASGOW_HASKELL__ < 900
+    Let{}        -> __IMPOSSIBLE__
     DontCare _   -> __IMPOSSIBLE__
     Dummy{}      -> __IMPOSSIBLE__
 #endif
@@ -552,6 +555,7 @@ instance KillVar Term where
     Lam h b                -> Lam h       $ killVar i b
     Pi a b                 -> uncurry Pi  $ killVar i (a, b)
     MetaV m args           -> MetaV m     $ killVar i args
+    Let a u                -> uncurry Let $ killVar i (a, u)
     DontCare mv            -> DontCare    $ killVar i mv
     Dummy{}                -> t
 
@@ -574,6 +578,9 @@ instance KillVar a => KillVar (Dom a) where
 instance KillVar a => KillVar (Abs a) where
   killVar i = fmap (killVar (i + 1))
 
+instance KillVar a => KillVar (LetAbs a) where
+  killVar i (LetAbs x u v) = LetAbs x (killVar i u) (killVar (i + 1) v)
+
 instance KillVar a => KillVar [a] where
   killVar i = map (killVar i)
 
@@ -582,6 +589,9 @@ instance KillVar a => KillVar (Maybe a) where
 
 instance (KillVar a, KillVar b) => KillVar (a, b) where
   killVar i (x, y) = (killVar i x, killVar i y)
+
+instance (KillVar a, KillVar b, KillVar c) => KillVar (a, b, c) where
+  killVar i (x, y, z) = (killVar i x, killVar i y, killVar i z)
 
 -- Tests ------------------------------------------------------------------
 

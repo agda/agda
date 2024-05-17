@@ -130,6 +130,7 @@ headSymbol v = do -- ignoreAbstractMode $ do
     Level{} -> return Nothing
     MetaV{} -> return Nothing
     DontCare{} -> return Nothing
+    Let{}   -> __IMPOSSIBLE__
     Dummy s _ -> __IMPOSSIBLE_VERBOSE__ s
 
 -- | Is this a matchable definition, or constructor, which reduces based
@@ -178,6 +179,7 @@ headSymbol' v = do
       Lam{}      -> return Nothing
       Level{}    -> return Nothing
       DontCare{} -> return Nothing
+      Let{}      -> __IMPOSSIBLE__
       MetaV{}    -> __IMPOSSIBLE__
       Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 

@@ -210,6 +210,13 @@ instance CheckInternal Term where
         lt <- levelType'
         compareType cmp lt t
         return $ Level l
+      Let a abs@(LetAbs name u v) -> do
+        let sa = getSort a
+            mkDom = (<$ a)
+        a <- mkDom . El sa <$> checkInternal' action (unEl $ unDom a) CmpLeq (sort sa)
+        u <- checkInternal' action u CmpLeq (unDom a)
+        v <- underLetBinding NoInlineLet a abs $ \v -> checkInternal' action v cmp t
+        return $ Let a (LetAbs name u v)
       DontCare v -> DontCare <$> checkInternal' action v cmp t
       -- Jesper, 2023-02-23: these can appear because of eta-expansion of
       -- records with irrelevant fields

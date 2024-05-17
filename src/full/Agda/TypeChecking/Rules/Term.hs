@@ -238,8 +238,8 @@ leqType_ t t' = workOnTypes $ leqType t t'
 -- * Telescopes
 ---------------------------------------------------------------------------
 
-checkGeneralizeTelescope ::
-     Maybe ModuleName
+checkGeneralizeTelescope
+  :: Maybe ModuleName
        -- ^ The module the telescope belongs to (if any).
   -> A.GeneralizeTelescope
        -- ^ Telescope to check and add to the context for the continuation.
@@ -364,14 +364,14 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
         modMod _        _  = id
 
 checkTypedBindings lamOrPi (A.TLet _ lbs) ret = do
-    checkLetBindings lbs (ret EmptyTel)
+    checkLetBindings YesInlineLet lbs (\_ces -> ret EmptyTel)
 
 -- | After a typed binding has been checked, add the patterns it binds
 addTypedPatterns :: List1 (NamedArg A.Binder) -> TCM a -> TCM a
 addTypedPatterns xps ret = do
   let ps  = List1.mapMaybe (A.extractPattern . namedArg) xps
   let lbs = map letBinding ps
-  checkLetBindings lbs ret
+  checkLetBindings YesInlineLet lbs $ \_ces -> ret
   where
     letBinding :: (A.Pattern, A.BindName) -> A.LetBinding
     letBinding (p, n) = A.LetPatBind (A.LetRange r) p (A.Var $ A.unBind n)
@@ -416,7 +416,7 @@ checkPath xp typ body ty = do
 --   "checkLambda bs e ty"  means  (\ bs -> e) : ty
 checkLambda :: Comparison -> A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkLambda cmp (A.TLet _ lbs) body target =
-  checkLetBindings lbs (checkExpr body target)
+  checkLetBindings NoInlineLet lbs $ \ces -> ctxEntriesToLets ces <$> checkExpr body target
 checkLambda cmp b@(A.TBind r tac xps0 typ) body target = do
   reportSDoc "tc.term.lambda" 30 $ vcat
     [ "checkLambda before insertion xs =" <+> prettyA xps0
@@ -1075,7 +1075,8 @@ checkRecordUpdate cmp ei recexpr fs eupd t = do
       -- Bind the record value (before update) to a fresh @name@.
       v <- checkExpr' cmp recexpr t'
       name <- freshNoName $ getRange recexpr
-      addLetBinding defaultArgInfo Inserted name v t' $ do
+      let ce = CtxLet name (defaultDom t') v
+      addLetBinding NoInlineLet defaultArgInfo Inserted name v t' $ ctxEntryToLet ce <$> do
 
         let projs = map argFromDom $ recFields defn
 
@@ -1206,7 +1207,8 @@ checkExpr' cmp e t =
           | otherwise -> typeError $ NotImplemented "named arguments in lambdas"
 
         A.Lit _ lit  -> checkLiteral lit t
-        A.Let i ds e -> checkLetBindings ds $ checkExpr' cmp e t
+        A.Let i ds e -> checkLetBindings NoInlineLet ds $ \ces ->
+          ctxEntriesToLets ces <$> checkExpr' cmp e t
         e@A.Pi{} -> do
             t' <- isType_ e
             let s = getSort t'
@@ -1611,21 +1613,27 @@ inferExprForWith (Arg info e) = verboseBracket "tc.with.infer" 20 "inferExprForW
 -- * Let bindings
 ---------------------------------------------------------------------------
 
-checkLetBindings :: Foldable t => t A.LetBinding -> TCM a -> TCM a
-checkLetBindings = foldr ((.) . checkLetBinding) id
+checkLetBindings :: Foldable t => InlineLet -> t A.LetBinding -> ([ContextEntry] -> TCM a) -> TCM a
+checkLetBindings il = foldr (\b f ret -> checkLetBinding il b $ \ces -> f (ret . (ces ++))) ($ [])
 
-checkLetBinding :: A.LetBinding -> TCM a -> TCM a
+-- checkLetBindingsList :: [A.LetBinding] -> ([ContextEntry] -> TCM a) -> TCM a
+-- checkLetBindingsList [] ret = ret []
+-- checkLetBindingsList (b:bs) ret = checkLetBinding b $ \ces -> checkLetBindingsList bs (ret . (ces ++))
 
-checkLetBinding b@(A.LetBind i info x t e) ret =
+checkLetBinding :: InlineLet -> A.LetBinding -> ([ContextEntry] -> TCM a) -> TCM a
+
+checkLetBinding il b@(A.LetBind i info x t e) ret =
   traceCall (CheckLetBinding b) $ do
     -- #4131: Only DontExpandLast if no user written type signature
     let check | getOrigin info == Inserted = checkDontExpandLast
               | otherwise                  = checkExpr'
     t <- workOnTypes $ isType_ t
     v <- applyModalityToContext info $ check CmpLeq e t
-    addLetBinding info UserWritten (A.unBind x) v t ret
+    let name = A.unBind x
+        ce = CtxLet name (setOrigin UserWritten $ defaultArgDom info t) v
+    addLetBinding il info UserWritten name v t $ ret [ce | il == NoInlineLet]
 
-checkLetBinding b@(A.LetPatBind i p e) ret =
+checkLetBinding il b@(A.LetPatBind i p e) ret =
   traceCall (CheckLetBinding b) $ do
     p <- expandPatternSynonyms p
     (v, t) <- inferExpr' ExpandLast e
@@ -1641,7 +1649,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         , "cxtQnt=" <+> do pretty =<< viewTC eQuantity
         ]
       ]
-    fvs <- getContextSize
+    fvs <- getContextVarsSize
     checkLeftHandSide (CheckPattern p EmptyTel t) Nothing [p0] t0 Nothing [] $ \ (LHSResult _ delta0 ps _ _t _ asb _ _) -> bindAsPatterns asb $ do
           -- After dropping the free variable patterns there should be a single pattern left.
       let p = case drop fvs ps of [p] -> namedArg p; _ -> __IMPOSSIBLE__
@@ -1688,11 +1696,13 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         -- and relevances.
         let infos = map domInfo tsl
         -- We get list of names of the let-bound vars from the context.
-        let xs   = map (fst . unDom) (reverse binds)
+        let xs   = map ctxEntryName $ reverse binds
         -- We add all the bindings to the context.
-        foldr (uncurry4 $ flip addLetBinding UserWritten) ret $ List.zip4 infos xs sigma ts
+        let makeEntry info x u t = CtxLet x (setOrigin UserWritten $ defaultArgDom info t) u
+            ces = List.zipWith4 makeEntry infos xs sigma ts
+        addContext ces $ ret ces
 
-checkLetBinding (A.LetApply i erased x modapp copyInfo dir) ret = do
+checkLetBinding il (A.LetApply i erased x modapp copyInfo dir) ret = do
   -- Any variables in the context that doesn't belong to the current
   -- module should go with the new module.
   -- Example: @f x y = let open M t in u@.
@@ -1713,7 +1723,7 @@ checkLetBinding (A.LetApply i erased x modapp copyInfo dir) ret = do
     -- checkSectionApplication to throw an error if the import
     -- directive does contain "open public".
     dir{ publicOpen = Nothing }
-  withAnonymousModule x new ret
+  withAnonymousModule x new $ ret []
 -- LetOpen and LetDeclaredVariable are only used for highlighting.
-checkLetBinding A.LetOpen{} ret = ret
-checkLetBinding (A.LetDeclaredVariable _) ret = ret
+checkLetBinding il A.LetOpen{} ret = ret []
+checkLetBinding il (A.LetDeclaredVariable _) ret = ret []

@@ -254,7 +254,7 @@ quotingKit = do
 
       quoteTerm :: Term -> ReduceM Term
       quoteTerm v = do
-        v <- instantiate' v
+        v <- reduceLetVar v
         case unSpine v of
           Var n es   ->
              let ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -298,6 +298,7 @@ quotingKit = do
           Level l    -> quoteTerm (unlevelWithKit lkit l)
           Lit l      -> lit !@ quoteLit l
           Sort s     -> sort !@ quoteSort s
+          Let a u    -> quoteTerm $ inlineLetAbs u -- TODO: add let to reflected syntax
           MetaV x es -> meta !@! quoteMeta currentModule x
                               @@ quoteArgs vs
             where vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
