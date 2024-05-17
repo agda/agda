@@ -666,9 +666,10 @@ getVarInfo :: (MonadFail m, MonadTCEnv m) => Name -> m (Term, Dom Type)
 getVarInfo x =
     do  ctx <- getContext
         def <- asksTC envLetBindings
-        case findWithIndex ((== x) . ctxEntryName) ctx of
-            Just (CtxVar x t, i) -> return (var i, t)
-            Just (CtxLet x t v, i) -> return (LetVar i [], t)
+        case List.findIndex ((== x) . ctxEntryName) ctx of
+            Just i -> lookupCtx i >>= \case
+              CtxVar _ t -> return (var i, t)
+              CtxLet _ t _ -> return (LetVar i [], t)
             _       -> do
                 case Map.lookup x def of
                     Just vt -> do
