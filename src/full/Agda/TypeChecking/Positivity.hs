@@ -453,8 +453,8 @@ instance ComputeOccurrences Term where
     Level l      -> occurrences l
     Lit{}        -> mempty
     Sort{}       -> mempty
-    LetVar x es  -> __IMPOSSIBLE__ -- TODO LetVar
     Let a u      -> occurrences (a, u)
+    LetVar x es  -> occurrences es
     -- Jesper, 2020-01-12: this information is also used for the
     -- occurs check, so we need to look under DontCare (see #4371)
     DontCare v   -> occurrences v

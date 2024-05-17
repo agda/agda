@@ -86,7 +86,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute.Class
 
 import Agda.Utils.Lens
-import Agda.Utils.Impossible
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 
@@ -128,8 +127,15 @@ instance UsableRelevance Term where
     Pi a b   -> usableRel rel (a,b)
     Sort s   -> usableRel rel s
     Level l  -> return True
-    LetVar x es -> __IMPOSSIBLE__ -- TODO LetVar
     Let a u  -> usableRel rel (a,u)
+    LetVar x es -> do
+      xrel <- getRelevance <$> domOfLV x
+      let ok = xrel `moreRelevant` rel
+      reportSDoc "tc.irr" 50 $
+        "Let variable" <+> prettyTCM (var x) <+>
+        text ("has relevance " ++ show xrel ++ ", which is " ++
+              (if ok then "" else "NOT ") ++ "more relevant than " ++ show rel)
+      return ok `and2M` usableRel rel es
     MetaV m vs -> do
       mrel <- getRelevance <$> lookupMetaModality m
       return (mrel `moreRelevant` rel) `and2M` usableRel rel vs
@@ -257,7 +263,14 @@ instance UsableModality Term where
         -- TODO: remove code duplication with Pi
         domMod = mapQuantity (composeQuantity $ getQuantity a) $
                  mapCohesion (composeCohesion $ getCohesion a) mod
-    LetVar x es -> __IMPOSSIBLE__ -- TODO LetVar
+    LetVar x es -> do
+      xmod <- getModality <$> domOfBV x
+      let ok = xmod `moreUsableModality` mod
+      reportSDoc "tc.irr" 50 $
+        "Let variable" <+> prettyTCM (var x) <+>
+        text ("has modality " ++ show xmod ++ ", which is a " ++
+              (if ok then "" else "NOT ") ++ "more usable modality than " ++ show mod)
+      return ok `and2M` usableMod mod es
     MetaV m vs -> do
       mmod <- lookupMetaModality m
       let ok = mmod `moreUsableModality` mod

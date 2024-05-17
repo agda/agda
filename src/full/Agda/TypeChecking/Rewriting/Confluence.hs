@@ -584,7 +584,6 @@ instance ParallelReduce Term where
     -- Interesting cases
     (Def f es) -> (topLevelReductions (Def f) es) <|> (Def f <$> parReduce es)
     (Con c ci es) -> (topLevelReductions (Con c ci) es) <|> (Con c ci <$> parReduce es)
-    (LetVar{}) -> __IMPOSSIBLE__ -- TODO LetVar
 
     -- Congruence cases
     Lam i u  -> Lam i <$> parReduce u
@@ -601,6 +600,7 @@ instance ParallelReduce Term where
 
     -- Impossible cases
     (Let a u)  -> __IMPOSSIBLE__
+    (LetVar{}) -> __IMPOSSIBLE__
     MetaV{}    -> __IMPOSSIBLE__
 
 instance ParallelReduce Sort where

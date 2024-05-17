@@ -539,8 +539,8 @@ instance Free Term where
     Pi a b       -> freeVars' (a,b)
     Sort s       -> freeVars' s
     Level l      -> freeVars' l
-    LetVar x es  -> __IMPOSSIBLE__ -- TODO
     Let a u      -> freeVars' (a,u)
+    LetVar x es  -> variable x `mappend` do underFlexRig WeaklyRigid $ freeVars' es
     MetaV m ts   -> underFlexRig (Flexible $ singleton m) $ freeVars' ts
     DontCare mt  -> underModality (Modality Irrelevant unitQuantity unitCohesion) $ freeVars' mt
     Dummy{}      -> mempty

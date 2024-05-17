@@ -1074,7 +1074,7 @@ instance ExtractCalls Term where
 
       Let a u -> CallGraph.union <$> extract a <*> extract u
 
-      LetVar x es -> __IMPOSSIBLE__ -- TODO LetVar
+      LetVar x es -> extract es
 
       -- Unsolved metas are not considered termination problems, there
       -- will be a warning for them anyway.

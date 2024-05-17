@@ -298,8 +298,8 @@ quotingKit = do
           Level l    -> quoteTerm (unlevelWithKit lkit l)
           Lit l      -> lit !@ quoteLit l
           Sort s     -> sort !@ quoteSort s
-          LetVar x es -> __IMPOSSIBLE__ -- TODO LetVar
           Let a u    -> quoteTerm $ inlineLet u -- TODO: add let to reflected syntax
+          LetVar x es -> quoteTerm . (`applyE` es) =<< valueOfLV x
           MetaV x es -> meta !@! quoteMeta currentModule x
                               @@ quoteArgs vs
             where vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es

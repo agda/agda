@@ -227,9 +227,11 @@ sortOf t = do
       MetaV x es -> do
         a <- metaType x
         sortOfE a (MetaV x) es
-      LetVar x es -> __IMPOSSIBLE__ -- TODO LetVar
       Let a u    ->
         inlineLet' 0 (letAbsValue u) <$> underLetBinding a u sortOfT
+      LetVar x es -> do
+        a <- typeOfLV x
+        sortOfE a (LetVar x) es
       Lam{}      -> __IMPOSSIBLE__
       Con{}      -> __IMPOSSIBLE__
       Lit{}      -> __IMPOSSIBLE__

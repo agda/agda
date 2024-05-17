@@ -88,10 +88,10 @@ applyTermE err' m es = coerce $
       Level{}     -> err __IMPOSSIBLE__
       Pi _ _      -> err __IMPOSSIBLE__
       Sort s      -> Sort $ s `applyE` es
-      LetVar x es -> __IMPOSSIBLE__ -- TODO LetVar
       Let a b     -> Let a $
         case b of
           LetAbs x u v -> LetAbs x u $ applyTermE err' v $ raise 1 es
+      LetVar x es' -> LetVar x (es' ++ es)
       Dummy s es' -> Dummy s (es' ++ es)
       DontCare mv -> dontCare $ mv `app` es  -- Andreas, 2011-10-02
         -- need to go under DontCare, since "with" might resurrect irrelevant term
@@ -846,8 +846,10 @@ applySubstTerm rho t    = coerce $ case coerce t of
     Level l     -> levelTm $ sub @(Level' t) l
     Pi a b      -> uncurry Pi $ subPi (a,b)
     Sort s      -> Sort $ sub @(Sort' t) s
-    LetVar x es -> __IMPOSSIBLE__ -- TODO LetVar
     Let a u     -> uncurry Let $ subLet (a, u)
+    LetVar x es -> case coerce (lookupS rho x) of
+      LetVar y [] -> LetVar y $ subE es
+      _           -> __IMPOSSIBLE__
     DontCare mv -> dontCare $ sub @t mv
     Dummy s es  -> Dummy s $ subE es
  where

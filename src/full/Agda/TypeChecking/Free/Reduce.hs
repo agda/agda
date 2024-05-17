@@ -18,6 +18,7 @@ import qualified Data.IntMap as IntMap
 import Data.IntMap (IntMap)
 import qualified Data.IntSet as IntSet
 import Data.IntSet (IntSet)
+import Data.Maybe (fromMaybe)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -27,6 +28,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Precompute
 
+import Agda.Utils.Impossible
 import Agda.Utils.Monad
 import Agda.Utils.Null
 
@@ -167,8 +169,8 @@ instance ForceNotFree Term where
     Pi a b     -> Pi       <$> forceNotFree' a <*> forceNotFree' b  -- Dom and Abs do reduceIf so not needed here
     Sort s     -> Sort     <$> forceNotFree' s
     Level l    -> Level    <$> forceNotFree' l
-    LetVar x es -> LetVar x   <$> forceNotFree' es -- TODO: check body of x!!
     Let a u    -> Let      <$> forceNotFree' a <*> forceNotFree' u
+    LetVar x es -> forceNotFree' . (`applyE` es) . fromMaybe __IMPOSSIBLE__ =<< valueOfLV' x
     DontCare t -> DontCare <$> forceNotFreeR t  -- Reduction stops at DontCare so reduceIf
     t@Lit{}    -> return t
     t@Dummy{}  -> return t

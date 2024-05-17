@@ -292,7 +292,8 @@ instance {-# OVERLAPPABLE #-} AddContext a => AddContext [a] where
 
 instance AddContext ContextEntry where
   addContext (CtxVar x a) = addCtx x a
-  addContext (CtxLet{})   = __IMPOSSIBLE__ -- TODO
+  -- TODO Jesper: do the argInfo and origin below make sense?
+  addContext (CtxLet x a v) = addLetBinding (getArgInfo a) (getOrigin a) x v (unDom a)
   {-# INLINE addContext #-}
   contextSize _ = 1
 
@@ -439,7 +440,10 @@ getLetBindings = do
 defaultAddLetBinding' :: (ReadTCState m, MonadTCEnv m) => Origin -> Name -> Term -> Dom Type -> m a -> m a
 defaultAddLetBinding' o x v t ret = do
     vt <- makeOpen $ LetBinding o v t
-    flip localTC ret $ \e -> e { envLetBindings = Map.insert x vt $ envLetBindings e }
+    flip localTC ret $ \e -> e
+      { envContext = CtxLet x t v : envContext e
+      , envLetBindings = Map.insert x vt $ envLetBindings e
+      }
 
 -- | Add a let bound variable
 {-# SPECIALIZE addLetBinding :: ArgInfo -> Origin -> Name -> Term -> Type -> TCM a -> TCM a #-}
@@ -531,7 +535,8 @@ contextToTel = go . reverse
   where
     go [] = EmptyTel
     go (CtxVar x a   : ctx) = ExtendTel a $ Abs (nameToArgName x) (go ctx)
-    go (CtxLet x a v : ctx) = __IMPOSSIBLE__ -- TODO
+    go (CtxLet x a v : ctx) = inlineLet (LetAbs (nameToArgName x) v $ go ctx)
+      -- TODO: add let bindings to telescope to avoid inlining
 
 -- | Get the names of all declarations in the context.
 {-# SPECIALIZE getContextNames :: TCM [Name] #-}

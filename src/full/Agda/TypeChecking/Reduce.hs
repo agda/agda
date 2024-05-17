@@ -575,8 +575,8 @@ slowReduceTerm v = do
           v <- flip reduceIApply es
                  $ unfoldDefinitionE reduceB' (Con c ci []) (conName c) es
           traverse reduceNat v
-      LetVar x es -> __IMPOSSIBLE__ -- TODO LetVar
       Let a u  -> reduceB' $ inlineLet u -- TODO: avoid inlining lets
+      LetVar x es -> reduceB' . (`applyE` es) =<< valueOfLV x
       Sort s   -> done
       Level l  -> ifM (SmallSet.member LevelReductions <$> asksTC envAllowedReductions)
                     {- then -} (fmap levelTm <$> reduceB' l)
@@ -1803,3 +1803,14 @@ instance InstantiateFull EqualityView where
     <*> instantiateFull' t
     <*> instantiateFull' a
     <*> instantiateFull' b
+
+---------------------------------------------------------------------------
+-- * Let bindings
+---------------------------------------------------------------------------
+
+reduceLetVar :: MonadReduce m => Term -> m Term
+reduceLetVar = \case
+  LetVar x es -> do
+    v <- fromMaybe __IMPOSSIBLE__ <$> valueOfLV' x
+    return $ v `applyE` es
+  u -> return u
