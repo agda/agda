@@ -1372,7 +1372,7 @@ instance Pretty Term where
             , pretty u <+> "in"
             , nest 2 $ pretty v
             ]
-      LetVar x es -> text ("@" ++ show x) `pApp` es
+      LetVar x es -> text ("'" ++ show x) `pApp` es
       MetaV x els -> pretty x `pApp` els
       DontCare v  -> prettyPrec p v
       Dummy s es  -> parens (text s) `pApp` es
