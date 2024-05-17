@@ -1538,9 +1538,11 @@ instance (Free i, Reify i) => Reify (Abs i) where
 instance (Free i, Reify i) => Reify (LetAbs i) where
   type ReifiesTo (LetAbs i) = (Name, A.Expr, ReifiesTo i)
 
-  reify (LetAbs s u v) = do
+  reify abs@(LetAbs s u v) = do
     eu <- reify u
-    (x,ev) <- reify (Abs s v)
+    s <- return $ if isUnderscore s && 0 `freeIn` v then "z" else s
+    x <- C.setNotInScope <$> freshName_ s
+    ev <- addContext (CtxLet x __DUMMY_DOM__ u) $ reify v
     return (x,eu,ev)
 {-# SPECIALIZE reify :: (Free i, Reify i) -> LetAbs i -> TCM (ReifiesTo (LetAbs i)) #-}
 

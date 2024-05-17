@@ -3166,6 +3166,7 @@ reduced b = MaybeRed (Reduced $ () <$ b) $ ignoreBlocking b
 data AllowedReduction
   = ProjectionReductions     -- ^ (Projection and) projection-like functions may be reduced.
   | InlineReductions         -- ^ Functions marked INLINE may be reduced.
+  | LetReductions            -- ^ Inlining of @let@ expressions.
   | CopatternReductions      -- ^ Copattern definitions may be reduced.
   | FunctionReductions       -- ^ Non-recursive functions and primitives may be reduced.
   | RecursiveReductions      -- ^ Even recursive functions may be reduced.

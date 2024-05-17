@@ -2117,7 +2117,7 @@ forallFaceMaps t kb k = do
       let t = foldr (\ x r -> and `apply` [argN x,argN r]) io ts
       ifBlocked t blocked unblocked
     addBindings [] m = m
-    addBindings (((nm,Dom{domInfo = info,unDom = ty}),t):bs) m = addLetBinding info Inserted nm t ty (addBindings bs m)
+    addBindings (((nm,Dom{domInfo = info,unDom = ty}),t):bs) m = addLetBinding YesInlineLet info Inserted nm t ty (addBindings bs m)
 
     substContextN :: MonadConversion m => Context -> [(Int,Term)] -> m (Context , Substitution)
     substContextN c [] = return (c, idS)

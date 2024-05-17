@@ -847,9 +847,7 @@ applySubstTerm rho t    = coerce $ case coerce t of
     Pi a b      -> uncurry Pi $ subPi (a,b)
     Sort s      -> Sort $ sub @(Sort' t) s
     Let a u     -> uncurry Let $ subLet (a, u)
-    LetVar x es -> case coerce (lookupS rho x) of
-      LetVar y [] -> LetVar y $ subE es
-      _           -> __IMPOSSIBLE__
+    LetVar x es -> coerce $ lookupS rho x  `applyE` subE es
     DontCare mv -> dontCare $ sub @t mv
     Dummy s es  -> Dummy s $ subE es
  where
@@ -1582,87 +1580,15 @@ instance (Subst a, Ord a) => Ord (Elim' a) where
 -- * Let bindings
 ---------------------------------------------------------------------------
 
-inlineLet :: InlineLet a => LetAbs a -> a
-inlineLet (LetAbs _ u v) = inlineLet' 0 u v
+inlineLetAbs :: (Subst a, SubstArg a ~ Term) => LetAbs a -> a
+inlineLetAbs (LetAbs _ u v) = subst 0 u v
 
-class InlineLet a where
-  inlineLet' :: Int -> Term -> a -> a
+inlineCtxLet :: (Subst a, SubstArg a ~ Term) => ContextEntry -> a -> a
+inlineCtxLet CtxVar{} = __IMPOSSIBLE__
+inlineCtxLet (CtxLet x a v) = subst 0 v
 
-  default inlineLet' :: (InlineLet b, Functor f, f b ~ a)
-    => Int -> Term -> a -> a
-  inlineLet' i u = fmap $ inlineLet' i u
-
-instance InlineLet Term where
-  inlineLet' i u = \case
-    Var x xs    -> let xs' = inlineLet' i u xs in if
-      | x == i    -> __IMPOSSIBLE__
-      | x > i     -> Var (x-1) xs'
-      | otherwise -> Var x xs'
-    Def c xs    -> Def c $ inlineLet' i u xs
-    Con c ci xs -> Con c ci $ inlineLet' i u xs
-    Lam h b     -> Lam h $ inlineLet' i u b
-    Pi a b      -> uncurry Pi $ inlineLet' i u (a, b)
-    MetaV m xs  -> MetaV m $ inlineLet' i u xs
-    Level l     -> Level $ inlineLet' i u l
-    t@Lit{}     -> t
-    Sort s      -> Sort $ inlineLet' i u s
-    Let a v     -> uncurry Let $ inlineLet' i u (a, v)
-    LetVar x xs -> let xs' = inlineLet' i u xs in if
-      | x == i    -> u `applyE` xs'
-      | x > i     -> LetVar (x - 1) xs'
-      | otherwise -> LetVar x xs'
-    DontCare mv -> DontCare $ inlineLet' i u mv
-    Dummy s xs  -> Dummy s $ inlineLet' i u xs
-
-instance InlineLet a => InlineLet (Elim' a) where
-  inlineLet' i u = \case
-    Apply v -> Apply $ inlineLet' i u v
-    IApply x y v -> uncurry3 IApply $ inlineLet' i u (x,y,v)
-    Proj o f -> Proj o f
-
-instance InlineLet a => InlineLet (Type' a) where
-  inlineLet' i u (El s v) = uncurry El $ inlineLet' i u (s,v)
-
-instance InlineLet a => InlineLet (Sort' a) where
-  inlineLet' i u = \case
-    Univ s l   -> Univ s $ inlineLet' i u l
-    s@(Inf _ _)-> s
-    s@SizeUniv -> s
-    s@LockUniv -> s
-    s@LevelUniv -> s
-    s@IntervalUniv -> s
-    PiSort a b c -> uncurry3 PiSort $ inlineLet' i u (a,b,c)
-    FunSort a b -> uncurry FunSort $ inlineLet' i u (a,b)
-    UnivSort a -> UnivSort $ inlineLet' i u a
-    MetaS x es -> MetaS x $ inlineLet' i u es
-    DefS q es  -> DefS q $ inlineLet' i u es
-    s@(DummyS _) -> s
-
-instance InlineLet a => InlineLet (Level' a) where
-  inlineLet' i u (Max n as) = Max n $ inlineLet' i u as
-
-instance InlineLet a => InlineLet (PlusLevel' a) where
-  inlineLet' i u (Plus n l) = Plus n $ inlineLet' i u l
-
-instance InlineLet a => InlineLet [a]
-instance InlineLet a => InlineLet (Arg a)
-instance (InlineLet a, InlineLet b) => InlineLet (Dom' a b)
-
-instance InlineLet a => InlineLet (Abs a) where
-  inlineLet' i u (Abs x v) = Abs x $ inlineLet' (i + 1) u v
-  inlineLet' i u (NoAbs x v) = NoAbs x $ inlineLet' i u v
-
-instance InlineLet a => InlineLet (LetAbs a) where
-  inlineLet' i u (LetAbs x v w) = LetAbs x (inlineLet' i u v) (inlineLet' (i + 1) u w)
-
-instance InlineLet a => InlineLet (Tele a) where
-  inlineLet' i u EmptyTel = EmptyTel
-  inlineLet' i u (ExtendTel a tel) = uncurry ExtendTel $ inlineLet' i u (a,tel)
-
-instance (InlineLet a, InlineLet b) => InlineLet (a, b) where
-  inlineLet' i u (x,y) = (inlineLet' i u x, inlineLet' i u y)
-instance (InlineLet a, InlineLet b, InlineLet c) => InlineLet (a, b, c) where
-  inlineLet' i u (x,y,z) = (inlineLet' i u x, inlineLet' i u y, inlineLet' i u z)
+inlineCtxLets :: (Subst a, SubstArg a ~ Term) => [ContextEntry] -> a -> a
+inlineCtxLets = foldr ((.) . inlineCtxLet) id
 
 
 ---------------------------------------------------------------------------

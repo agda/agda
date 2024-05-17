@@ -166,7 +166,7 @@ class MonadTCEnv m => MonadAddContext m where
   addCtx :: Name -> Dom Type -> m a -> m a
 
   -- | Add a let bound variable to the context
-  addLetBinding' :: Origin -> Name -> Term -> Dom Type -> m a -> m a
+  addLetBinding' :: InlineLet -> Origin -> Name -> Term -> Dom Type -> m a -> m a
 
   -- | Update the context.
   --   Requires a substitution that transports things living in the old context
@@ -182,8 +182,8 @@ class MonadTCEnv m => MonadAddContext m where
 
   default addLetBinding'
     :: (MonadAddContext n, MonadTransControl t, t n ~ m)
-    => Origin -> Name -> Term -> Dom Type -> m a -> m a
-  addLetBinding' o x u a = liftThrough $ addLetBinding' o x u a
+    => InlineLet -> Origin -> Name -> Term -> Dom Type -> m a -> m a
+  addLetBinding' il o x u a = liftThrough $ addLetBinding' il o x u a
 
   default updateContext
     :: (MonadAddContext n, MonadTransControl t, t n ~ m)
@@ -218,7 +218,7 @@ deriving instance MonadAddContext m => MonadAddContext (BlockT m)
 
 instance MonadAddContext m => MonadAddContext (ListT m) where
   addCtx x a             = liftListT $ addCtx x a
-  addLetBinding' o x u a = liftListT $ addLetBinding' o x u a
+  addLetBinding' il o x u a = liftListT $ addLetBinding' il o x u a
   updateContext sub f    = liftListT $ updateContext sub f
   withFreshName r x cont = ListT $ withFreshName r x $ runListT . cont
 
@@ -262,8 +262,8 @@ instance MonadAddContext TCM where
   addCtx x a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
     defaultAddCtx x a ret
 
-  addLetBinding' o x u a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
-    defaultAddLetBinding' o x u a ret
+  addLetBinding' il o x u a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
+    defaultAddLetBinding' il o x u a ret
 
   updateContext sub f = unsafeModifyContext f . checkpoint sub
 
@@ -293,7 +293,7 @@ instance {-# OVERLAPPABLE #-} AddContext a => AddContext [a] where
 instance AddContext ContextEntry where
   addContext (CtxVar x a) = addCtx x a
   -- TODO Jesper: do the argInfo and origin below make sense?
-  addContext (CtxLet x a v) = addLetBinding (getArgInfo a) (getOrigin a) x v (unDom a)
+  addContext (CtxLet x a v) = addLetBinding NoInlineLet (getArgInfo a) (getOrigin a) x v (unDom a)
   {-# INLINE addContext #-}
   contextSize _ = 1
 
@@ -435,21 +435,27 @@ getLetBindings = do
   bs <- asksTC envLetBindings
   forM (Map.toList bs) $ \ (n, o) -> (,) n <$> getOpen o
 
+data InlineLet = YesInlineLet | NoInlineLet
+  deriving (Eq)
+
 -- | Add a let bound variable
-{-# SPECIALIZE defaultAddLetBinding' :: Origin -> Name -> Term -> Dom Type -> TCM a -> TCM a #-}
-defaultAddLetBinding' :: (ReadTCState m, MonadTCEnv m) => Origin -> Name -> Term -> Dom Type -> m a -> m a
-defaultAddLetBinding' o x v t ret = do
+{-# SPECIALIZE defaultAddLetBinding' :: InlineLet -> Origin -> Name -> Term -> Dom Type -> TCM a -> TCM a #-}
+defaultAddLetBinding' :: (ReadTCState m, MonadTCEnv m) => InlineLet -> Origin -> Name -> Term -> Dom Type -> m a -> m a
+defaultAddLetBinding' il o x v t ret = case il of
+  YesInlineLet -> do
     vt <- makeOpen $ LetBinding o v t
     flip localTC ret $ \e -> e
+      { envLetBindings = Map.insert x vt $ envLetBindings e
+      }
+  NoInlineLet ->
+    flip localTC ret $ \e -> e
       { envContext = CtxLet x t v : envContext e
-      , envLetBindings = Map.insert x vt $ envLetBindings e
       }
 
 -- | Add a let bound variable
-{-# SPECIALIZE addLetBinding :: ArgInfo -> Origin -> Name -> Term -> Type -> TCM a -> TCM a #-}
-addLetBinding :: MonadAddContext m => ArgInfo -> Origin -> Name -> Term -> Type -> m a -> m a
-addLetBinding info o x v t0 ret = addLetBinding' o x v (defaultArgDom info t0) ret
-
+{-# SPECIALIZE addLetBinding :: InlineLet -> ArgInfo -> Origin -> Name -> Term -> Type -> TCM a -> TCM a #-}
+addLetBinding :: MonadAddContext m => InlineLet -> ArgInfo -> Origin -> Name -> Term -> Type -> m a -> m a
+addLetBinding il info o x v t0 ret = addLetBinding' il o x v (defaultArgDom info t0) ret
 
 {-# SPECIALIZE removeLetBinding :: Name -> TCM a -> TCM a #-}
 -- | Remove a let bound variable.
@@ -463,12 +469,12 @@ removeLetBinding x = localTC $ \ e -> e { envLetBindings = Map.delete x (envLetB
 removeLetBindingsFrom :: MonadTCEnv m => Name -> m a -> m a
 removeLetBindingsFrom x = localTC $ \ e -> e { envLetBindings = fst $ Map.split x (envLetBindings e) }
 
-{-# SPECIALIZE underLetBinding :: Dom Type -> LetAbs a -> (a -> TCM b) -> TCM b #-}
-underLetBinding :: MonadAddContext m => Dom Type -> LetAbs a -> (a -> m b) -> m b
-underLetBinding a (LetAbs x u v) f =
-  withFreshName noRange x $ \n -> addContext (CtxLet n a u) $ f v
+{-# SPECIALIZE underLetBinding :: InlineLet -> Dom Type -> LetAbs a -> (a -> TCM b) -> TCM b #-}
+underLetBinding :: MonadAddContext m => InlineLet -> Dom Type -> LetAbs a -> (a -> m b) -> m b
+underLetBinding il a (LetAbs x u v) f = withFreshName noRange x $ \n ->
+  addLetBinding il (getArgInfo a) (getOrigin a) n u (unDom a) $ f v
 
-{-# SPECIALIZE underLetBinding :: Dom Type -> LetAbs a -> (a -> TCM b) -> TCM b #-}
+{-# SPECIALIZE underLetBinding :: InlineLet -> Dom Type -> LetAbs a -> (a -> TCM b) -> TCM b #-}
 underLetBinding_ :: MonadAddContext m => LetAbs a -> (a -> m b) -> m b
 underLetBinding_ (LetAbs x u v) f =
   withFreshName noRange x $ \n -> addContext (CtxLet n __DUMMY_DOM__ u) $ f v
@@ -535,7 +541,7 @@ contextToTel = go . reverse
   where
     go [] = EmptyTel
     go (CtxVar x a   : ctx) = ExtendTel a $ Abs (nameToArgName x) (go ctx)
-    go (CtxLet x a v : ctx) = inlineLet (LetAbs (nameToArgName x) v $ go ctx)
+    go (CtxLet x a v : ctx) = inlineLetAbs (LetAbs (nameToArgName x) v $ go ctx)
       -- TODO: add let bindings to telescope to avoid inlining
 
 -- | Get the names of all declarations in the context.
@@ -604,6 +610,13 @@ ctxEntryDom (CtxLet _ a _) = a
 ctxEntryType :: ContextEntry -> Type
 ctxEntryType = unDom . ctxEntryDom
 
+ctxEntryToLet :: ContextEntry -> Term -> Term
+ctxEntryToLet CtxVar{} = __IMPOSSIBLE__
+ctxEntryToLet (CtxLet x a v) = Let a . LetAbs (nameToArgName x) v
+
+ctxEntriesToLets :: [ContextEntry] -> Term -> Term
+ctxEntriesToLets = foldr ((.) . ctxEntryToLet) id
+
 {-# SPECIALIZE domOfBV :: Nat -> TCM (Dom Type) #-}
 domOfBV :: (MonadFail m, MonadTCEnv m) => Nat -> m (Dom Type)
 domOfBV n = snd <$> lookupBV n
@@ -656,11 +669,10 @@ getVarInfo x =
         case findWithIndex ((== x) . ctxEntryName) ctx of
             Just (CtxVar x t, i) -> return (var i, t)
             Just (CtxLet x t v, i) -> return (LetVar i [], t)
-            _       -> do {-
+            _       -> do
                 case Map.lookup x def of
                     Just vt -> do
                       LetBinding _ v t <- getOpen vt
                       return (v, t)
-                    _       ->-}
-                    fail $ "unbound variable " ++ prettyShow (nameConcrete x) ++
+                    _       -> fail $ "unbound variable " ++ prettyShow (nameConcrete x) ++
                                 " (id: " ++ prettyShow (nameId x) ++ ")"

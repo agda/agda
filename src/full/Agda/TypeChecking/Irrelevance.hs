@@ -194,6 +194,7 @@ instance (Subst a, UsableRelevance a) => UsableRelevance (Abs a) where
   usableRel rel abs = underAbstraction_ abs $ \u -> usableRel rel u
 
 instance (Subst a, UsableRelevance a) => UsableRelevance (LetAbs a) where
+  -- No need to check let-bound value, since it will be checked at use site
   usableRel rel abs = underLetBinding_ abs $ \u -> usableRel rel u
 
 -- | Check whether something can be used in a position of the given modality.
@@ -257,7 +258,8 @@ instance UsableModality Term where
     Level l  -> return True
     Let a u -> andM
       [ usableMod domMod (unEl $ unDom a)
-      , underLetBinding a u $ usableMod mod
+        -- No need to check let-bound value, since it will be checked at use site
+      , underLetBinding NoInlineLet a u $ usableMod mod
       ]
       where
         -- TODO: remove code duplication with Pi

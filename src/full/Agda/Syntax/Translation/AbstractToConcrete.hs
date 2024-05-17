@@ -283,8 +283,8 @@ instance HasConstInfo AbsToCon where
 instance MonadAddContext AbsToCon where
   addCtx a b c = AbsToCon (addCtx a b (unAbsToCon c))
 
-  addLetBinding' o a b c d =
-    AbsToCon (addLetBinding' o a b c (unAbsToCon d))
+  addLetBinding' il o a b c d =
+    AbsToCon (addLetBinding' il o a b c (unAbsToCon d))
 
   updateContext a b c = AbsToCon (updateContext a b (unAbsToCon c))
 

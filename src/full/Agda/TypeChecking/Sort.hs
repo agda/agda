@@ -228,7 +228,7 @@ sortOf t = do
         a <- metaType x
         sortOfE a (MetaV x) es
       Let a u    ->
-        inlineLet' 0 (letAbsValue u) <$> underLetBinding a u sortOfT
+        sortOfT $ inlineLetAbs u
       LetVar x es -> do
         a <- typeOfLV x
         sortOfE a (LetVar x) es

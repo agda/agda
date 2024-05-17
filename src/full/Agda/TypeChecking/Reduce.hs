@@ -575,8 +575,12 @@ slowReduceTerm v = do
           v <- flip reduceIApply es
                  $ unfoldDefinitionE reduceB' (Con c ci []) (conName c) es
           traverse reduceNat v
-      Let a u  -> reduceB' $ inlineLet u -- TODO: avoid inlining lets
-      LetVar x es -> reduceB' . (`applyE` es) =<< valueOfLV x
+      Let a u  -> ifM (SmallSet.member LetReductions <$> asksTC envAllowedReductions)
+                    {- then -} (reduceB' $ inlineLetAbs u)
+                    {- else -} done
+      LetVar x es -> ifM (SmallSet.member LetReductions <$> asksTC envAllowedReductions)
+                    {- then -} (reduceB' . (`applyE` es) =<< valueOfLV x)
+                    {- else -} done
       Sort s   -> done
       Level l  -> ifM (SmallSet.member LevelReductions <$> asksTC envAllowedReductions)
                     {- then -} (fmap levelTm <$> reduceB' l)
@@ -1272,8 +1276,8 @@ slowNormaliseArgs = \case
   Lam h b     -> Lam h      <$> normalise' b
   Sort s      -> Sort       <$> normalise' s
   Pi a b      -> uncurry Pi <$> normalise' (a, b)
-  Let{}       -> __IMPOSSIBLE__
-  LetVar{}    -> __IMPOSSIBLE__
+  Let a u     -> uncurry Let <$> normalise' (a, u)
+  LetVar x es -> LetVar x   <$> normalise' es
   v@DontCare{}-> return v
   v@Dummy{}   -> return v
 
@@ -1292,6 +1296,10 @@ instance Normalise PlusLevel where
 instance (Subst a, Normalise a) => Normalise (Abs a) where
     normalise' a@(Abs x _) = Abs x <$> underAbstraction_ a normalise'
     normalise' (NoAbs x v) = NoAbs x <$> normalise' v
+
+instance (Subst a, Normalise a) => Normalise (LetAbs a) where
+    normalise' a@(LetAbs x u _) =
+      LetAbs x <$> normalise' u <*> underLetBinding_ a normalise'
 
 instance Normalise t => Normalise (Arg t) where
     normalise' a

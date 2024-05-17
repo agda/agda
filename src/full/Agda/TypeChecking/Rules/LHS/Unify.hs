@@ -446,7 +446,7 @@ etaExpandEquationStrategy k s = do
       Con c _ _  -> isJust <$> isRecordConstructor (conName c)
 
       Var _ _    -> return False
-      Let a u    -> shouldProject $ inlineLet u
+      Let a u    -> shouldProject $ inlineLetAbs u
       LetVar x es -> shouldProject . (`applyE` es) =<< valueOfLV x
       Lam _ _    -> __IMPOSSIBLE__
       Lit _      -> __IMPOSSIBLE__

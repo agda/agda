@@ -298,7 +298,7 @@ quotingKit = do
           Level l    -> quoteTerm (unlevelWithKit lkit l)
           Lit l      -> lit !@ quoteLit l
           Sort s     -> sort !@ quoteSort s
-          Let a u    -> quoteTerm $ inlineLet u -- TODO: add let to reflected syntax
+          Let a u    -> quoteTerm $ inlineLetAbs u -- TODO: add let to reflected syntax
           LetVar x es -> quoteTerm . (`applyE` es) =<< valueOfLV x
           MetaV x es -> meta !@! quoteMeta currentModule x
                               @@ quoteArgs vs

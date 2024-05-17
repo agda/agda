@@ -215,7 +215,7 @@ instance CheckInternal Term where
             mkDom = (<$ a)
         a <- mkDom . El sa <$> checkInternal' action (unEl $ unDom a) CmpLeq (sort sa)
         u <- checkInternal' action u CmpLeq (unDom a)
-        v <- underLetBinding a abs $ \v -> checkInternal' action v cmp t
+        v <- underLetBinding NoInlineLet a abs $ \v -> checkInternal' action v cmp t
         return $ Let a (LetAbs name u v)
       LetVar x es -> do
         d <- domOfLV x
