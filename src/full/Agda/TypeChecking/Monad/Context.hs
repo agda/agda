@@ -575,7 +575,7 @@ lookupBV_ :: Nat -> Context -> Maybe (Name, Dom Type)
 lookupBV_ n ctx = fromMaybe __IMPOSSIBLE__ . isCtxVar <$> lookupCtx_ n ctx
 
 {-# SPECIALIZE lookupBV' :: Nat -> TCM (Maybe (Name, Dom Type)) #-}
-lookupBV' :: (MonadFail m, MonadTCEnv m) => Nat -> m (Maybe (Name, Dom Type))
+lookupBV' :: (MonadTCEnv m) => Nat -> m (Maybe (Name, Dom Type))
 lookupBV' n = (isCtxVar =<<) <$> lookupCtx' n
 
 {-# SPECIALIZE lookupBV :: Nat -> TCM (Name, Dom Type) #-}
@@ -586,7 +586,7 @@ lookupLV_ :: Nat -> Context -> Maybe (Name, Dom Type, Term)
 lookupLV_ n ctx = fromMaybe __IMPOSSIBLE__ . isCtxLet <$> lookupCtx_ n ctx
 
 {-# SPECIALIZE lookupLV' :: Nat -> TCM (Maybe (Name, Dom Type, Term)) #-}
-lookupLV' :: (MonadFail m, MonadTCEnv m) => Nat -> m (Maybe (Name, Dom Type, Term))
+lookupLV' :: (MonadTCEnv m) => Nat -> m (Maybe (Name, Dom Type, Term))
 lookupLV' n = (isCtxLet =<<) <$> lookupCtx' n
 
 {-# SPECIALIZE lookupLV :: Nat -> TCM (Name, Dom Type, Term) #-}
@@ -605,40 +605,44 @@ ctxEntryType :: ContextEntry -> Type
 ctxEntryType = unDom . ctxEntryDom
 
 {-# SPECIALIZE domOfBV :: Nat -> TCM (Dom Type) #-}
-domOfBV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m (Dom Type)
+domOfBV :: (MonadFail m, MonadTCEnv m) => Nat -> m (Dom Type)
 domOfBV n = snd <$> lookupBV n
 
 {-# SPECIALIZE typeOfBV :: Nat -> TCM Type #-}
-typeOfBV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m Type
+typeOfBV :: (MonadFail m, MonadTCEnv m) => Nat -> m Type
 typeOfBV i = unDom <$> domOfBV i
 
 {-# SPECIALIZE nameOfBV' :: Nat -> TCM (Maybe Name) #-}
-nameOfBV' :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m (Maybe Name)
+nameOfBV' :: (MonadTCEnv m) => Nat -> m (Maybe Name)
 nameOfBV' n = fmap fst <$> lookupBV' n
 
 {-# SPECIALIZE nameOfBV :: Nat -> TCM Name #-}
-nameOfBV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m Name
+nameOfBV :: (MonadFail m, MonadTCEnv m) => Nat -> m Name
 nameOfBV n = fst <$> lookupBV n
 
 {-# SPECIALIZE domOfLV :: Nat -> TCM (Dom Type) #-}
-domOfLV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m (Dom Type)
+domOfLV :: (MonadFail m, MonadTCEnv m) => Nat -> m (Dom Type)
 domOfLV n = snd3 <$> lookupLV n
 
 {-# SPECIALIZE typeOfLV :: Nat -> TCM Type #-}
-typeOfLV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m Type
+typeOfLV :: (MonadFail m, MonadTCEnv m) => Nat -> m Type
 typeOfLV i = unDom <$> domOfLV i
 
 {-# SPECIALIZE nameOfLV' :: Nat -> TCM (Maybe Name) #-}
-nameOfLV' :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m (Maybe Name)
+nameOfLV' :: (MonadTCEnv m) => Nat -> m (Maybe Name)
 nameOfLV' n = fmap fst3 <$> lookupLV' n
 
 {-# SPECIALIZE nameOfLV :: Nat -> TCM Name #-}
-nameOfLV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m Name
+nameOfLV :: (MonadFail m, MonadTCEnv m) => Nat -> m Name
 nameOfLV n = fst3 <$> lookupLV n
 
 {-# SPECIALIZE valueOfLV :: Nat -> TCM Term #-}
-valueOfLV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m Term
+valueOfLV :: (MonadFail m, MonadTCEnv m) => Nat -> m Term
 valueOfLV n = thd3 <$> lookupLV n
+
+{-# SPECIALIZE valueOfLV :: Nat -> TCM Term #-}
+valueOfLV' :: (MonadTCEnv m) => Nat -> m (Maybe Term)
+valueOfLV' n = fmap thd3 <$> lookupLV' n
 
 
 -- | Get the term corresponding to a named variable. If it is a lambda bound
