@@ -27,6 +27,7 @@ import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Utils.Size
+import qualified Agda.Utils.Maybe.Strict as Strict
 
 -- | Parse @quote@.
 quotedName :: (MonadTCError m, MonadAbsToCon m) => A.Expr -> m QName
@@ -267,7 +268,7 @@ quotingKit = do
             let
               conOrProjPars = defParameters defn r
               ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-              qx Function{ funExtLam = Just (ExtLamInfo m False _), funClauses = cs } = do
+              qx Function{ funExtLam = Just (ExtLamInfo m False Strict.Nothing), funClauses = cs } = do
                     -- An extended lambda should not have any extra parameters!
                     unless (null conOrProjPars) __IMPOSSIBLE__
                     cs <- return $ filter (not . generatedClause) cs
@@ -275,7 +276,7 @@ quotingKit = do
                     let (pars, args) = splitAt n ts
                     extlam !@ list (map (quoteClause (Left ()) . (`apply` pars)) cs)
                            @@ list (map (quoteArg quoteTerm) args)
-              qx df@Function{ funExtLam = Just (ExtLamInfo _ True _), funCompiled = Just Fail{}, funClauses = [cl] } = do
+              qx df@Function{ funExtLam = Just (ExtLamInfo _ True Strict.Nothing), funCompiled = Just Fail{}, funClauses = [cl] } = do
                     -- See also corresponding code in InternalToAbstract
                     let n = length (namedClausePats cl) - 1
                         pars = take n ts
