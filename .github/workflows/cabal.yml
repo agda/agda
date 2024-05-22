@@ -22,7 +22,6 @@ jobs:
         access_token: ${{ github.token }}
   cabal:
     env:
-      CABAL_VER: ${{ matrix.cabal-ver || '3.10' }}
       FLAGS: ${{ matrix.cabal-flags || '--enable-tests -f enable-cluster-counting'
         }}
       GHC_VER: ${{ matrix.ghc-ver || '9.8.2' }}
@@ -39,7 +38,7 @@ jobs:
       uses: haskell-actions/setup@v2
       with:
         cabal-update: true
-        cabal-version: ${{ env.CABAL_VER }}
+        cabal-version: latest
         ghc-version: ${{ env.GHC_VER }}
     - if: runner.os == 'Windows'
       name: Install the ICU library (Windows)
@@ -102,13 +101,12 @@ jobs:
       matrix:
         cabal-flags:
         - --enable-tests -f enable-cluster-counting
-        cabal-ver:
-        - '3.10'
         description:
         - Linux
         doctest:
         - false
         ghc-ver:
+        - 9.10.1
         - 9.8.2
         - 9.6.5
         - 9.4.8
