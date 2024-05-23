@@ -100,14 +100,14 @@ lookupBackend name = useTC stBackends <&> \ backends ->
 activeBackend :: TCM (Maybe Backend)
 activeBackend = runMaybeT $ do
   bname <- MaybeT $ asksTC envActiveBackendName
-  lift $ fromMaybe __IMPOSSIBLE__ <$> lookupBackend bname
+  lift $ __FROM_JUST__ <$> lookupBackend bname
 
 -- | Ask the active backend whether a type may be erased.
 --   See issue #3732.
 
 activeBackendMayEraseType :: QName -> TCM Bool
 activeBackendMayEraseType q = do
-  Backend b <- fromMaybe __IMPOSSIBLE__ <$> activeBackend
+  Backend b <- __FROM_JUST__ <$> activeBackend
   mayEraseType b q
 
 -- Internals --------------------------------------------------------------

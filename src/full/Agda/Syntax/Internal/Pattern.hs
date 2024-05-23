@@ -26,7 +26,7 @@ import Agda.Utils.Impossible
 --
 --   Precondition: no projection patterns.
 clauseArgs :: Clause -> Args
-clauseArgs cl = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ clauseElims cl
+clauseArgs cl = __FROM_JUST__ $ allApplyElims $ clauseElims cl
 
 -- | Translate the clause patterns to an elimination spine
 --   with free variables bound by the clause telescope.
@@ -130,7 +130,7 @@ dbPatPerm = dbPatPerm' True
 -- | Computes the permutation from the clause telescope
 --   to the pattern variables.
 --
---   Use as @fromMaybe __IMPOSSIBLE__ . dbPatPerm@ to crash
+--   Use as @__FROM_JUST__ . dbPatPerm@ to crash
 --   in a controlled way if a de Bruijn index is out of scope here.
 --
 --   The first argument controls whether dot patterns counts as variables or
@@ -154,7 +154,7 @@ dbPatPerm' countDots ps = Perm (size ixs) <$> picks
 -- | Computes the permutation from the clause telescope
 --   to the pattern variables.
 --
---   Use as @fromMaybe __IMPOSSIBLE__ . clausePerm@ to crash
+--   Use as @__FROM_JUST__ . clausePerm@ to crash
 --   in a controlled way if a de Bruijn index is out of scope here.
 clausePerm :: Clause -> Maybe Permutation
 clausePerm = dbPatPerm . namedClausePats

@@ -71,7 +71,7 @@ reorderTel tel = topoSort comesBefore tel'
     (i, _) `comesBefore` (_, a) = i `freeIn` unEl (unDom a) -- a tiny bit unsafe
 
 reorderTel_ :: [Dom Type] -> Permutation
-reorderTel_ tel = fromMaybe __IMPOSSIBLE__ (reorderTel tel)
+reorderTel_ tel = __FROM_JUST__ $ reorderTel tel
 
 -- | Unflatten: turns a flattened telescope into a proper telescope. Must be
 --   properly ordered.
@@ -367,8 +367,7 @@ expandTelescopeVar
      , PatternSubstitution) -- Γ' ⊢ ρ : Γ
 expandTelescopeVar gamma k delta c = (tel', rho)
   where
-    (ts1,xa:ts2) = fromMaybe __IMPOSSIBLE__ $
-                    splitExactlyAt k $ telToList gamma
+    (ts1,xa:ts2) = __FROM_JUST__ $ splitExactlyAt k $ telToList gamma
     a = raise (size delta) (snd <$> xa) -- Γ₁Δ ⊢ D pars
 
     cpi         = ConPatternInfo

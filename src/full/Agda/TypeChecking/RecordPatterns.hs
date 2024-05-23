@@ -70,7 +70,7 @@ recordPatternToProjections p =
     ConP c ci ps -> do
       unless (conPRecord ci) $
         typeError $ ShouldBeRecordPattern p
-      let t = unArg $ fromMaybe __IMPOSSIBLE__ $ conPType ci
+      let t = unArg $ __FROM_JUST__ $ conPType ci
       reportSDoc "tc.rec" 45 $ vcat
         [ "recordPatternToProjections: "
         , nest 2 $ "constructor pattern " <+> prettyTCM p <+> " has type " <+> prettyTCM t
@@ -312,7 +312,7 @@ recordExpressionsToCopatterns = \case
     Case i bs -> Case i <$> traverse recordExpressionsToCopatterns bs
     cc@Fail{} -> return cc
     cc@(Done xs (Con c ConORec es)) -> do  -- don't translate if using the record /constructor/
-      let vs = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+      let vs = map unArg $ __FROM_JUST__ $ allApplyElims es
       irrProj <- optIrrelevantProjections <$> pragmaOptions
       getConstructorInfo (conName c) >>= \ case
         RecordCon CopatternMatching YesEta ar fs
@@ -569,7 +569,7 @@ translateRecordPatterns clause = do
 
       -- Substitution used to convert terms in the old telescope's
       -- context to terms in the new RHS's context.
-      perm = fromMaybe __IMPOSSIBLE__ $ clausePerm clause
+      perm = __FROM_JUST__ $ clausePerm clause
       rhsSubst' = mkSub $ permute (reverseP perm) s'
       -- TODO: Is it OK to replace the definition above with the
       -- following one?
@@ -617,12 +617,11 @@ translateRecordPatterns clause = do
       lhsSubst = applySubst lhsSubst' rhsSubst'
 
       -- The new telescope.
-      newTel =
-        uncurry unflattenTel . unzip $
-        map (fromMaybe __IMPOSSIBLE__) $
-        permute newPerm $
-        substTel lhsSubst' $
-        newTel'
+      newTel = uncurry unflattenTel . unzip
+             $ map __FROM_JUST__
+             $ permute newPerm
+             $ substTel lhsSubst'
+             $ newTel'
 
       -- New clause.
       c = clause
@@ -845,7 +844,7 @@ recordTree ::
   RecPatM (Either (RecPatM (Pattern, [Term], Changes)) RecordTree)
 -- Andreas, 2015-05-28 only translate implicit record patterns
 recordTree p@(ConP c ci ps) | conPRecord ci , PatOSystem <- patOrigin (conPInfo ci) = do
-  let t = fromMaybe __IMPOSSIBLE__ $ conPType ci
+  let t = __FROM_JUST__ $ conPType ci
   rs <- mapM (recordTree . namedArg) ps
   case allRight rs of
     Nothing ->

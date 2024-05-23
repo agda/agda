@@ -907,7 +907,7 @@ initCCEnv = CCEnv
 
 -- | Term variables are de Bruijn indices.
 lookupIndex :: Int -> CCContext -> HS.Name
-lookupIndex i xs = fromMaybe __IMPOSSIBLE__ $ xs !!! i
+lookupIndex i xs = __FROM_JUST__ $ xs !!! i
 
 -- | Constructor coverage monad transformer
 type CCT m = ReaderT CCEnv (WriterT UsesFloat (HsCompileT m))
@@ -1215,7 +1215,7 @@ compiledcondecl mar q = do
   ar <- case mar of
     Nothing -> liftTCM $ erasedArity q
     Just ar -> return ar
-  hsCon <- fromMaybe __IMPOSSIBLE__ <$> getHaskellConstructor q
+  hsCon <- __FROM_JUST__ <$> getHaskellConstructor q
   let patVars = map (HS.PVar . ihname A) [0 .. ar - 1]
   return $ HS.PatSyn (HS.PApp (HS.UnQual $ unqhname ConK q) patVars)
              (HS.PApp (hsName hsCon) patVars)

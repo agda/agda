@@ -118,7 +118,7 @@ unBruijn :: Clause -> Cl
 unBruijn c = Cl (applySubst sub $ (map . fmap) (fmap dbPatVarName . namedThing) $ namedClausePats c)
                 (applySubst sub $ clauseBody c)
   where
-    sub = renamingR $ fromMaybe __IMPOSSIBLE__ (clausePerm c)
+    sub = renamingR $ __FROM_JUST__ (clausePerm c)
 
 compileWithSplitTree :: SplitTree -> Cls -> CompiledClauses
 compileWithSplitTree t cs = case t of

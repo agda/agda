@@ -168,7 +168,7 @@ instance ToTerm Text    where toTerm = return $ Lit . LitString
 instance ToTerm QName   where toTerm = return $ Lit . LitQName
 instance ToTerm MetaId  where
   toTerm = do
-    top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
+    top <- __FROM_JUST__ <$> currentTopLevelModule
     return $ Lit . LitMeta top
 
 instance ToTerm Integer where
@@ -266,7 +266,7 @@ instance ToTerm FixityLevel where
 
 instance (ToTerm a, ToTerm b) => ToTerm (a, b) where
   toTerm = do
-    sigKit <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
+    sigKit <- __FROM_JUST__ <$> getSigmaKit
     let con = Con (sigmaCon sigKit) ConOSystem []
     fromA <- toTerm
     fromB <- toTerm
@@ -466,7 +466,7 @@ mkPrimInjective a b qn = do
   -- matter whether the equality is refl), they can combine it with @eraseEquality@.
   return $ PrimImpl ty $ primFun __IMPOSSIBLE__ 3 $ \ ts -> do
     let t  = headWithDefault __IMPOSSIBLE__ ts
-    let eq = unArg $ fromMaybe __IMPOSSIBLE__ $ lastMaybe ts
+    let eq = unArg $ __FROM_JUST__ $ lastMaybe ts
     reduce' eq >>= \case
       Con{} -> redReturn $ refl t
       _     -> return $ NoReduction $ map notReduced ts
@@ -565,7 +565,7 @@ primEraseEquality = do
 
   -- The implementation of primEraseEquality:
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ (1 + size eqTel) $ \ ts -> do
-    let (u, v) = fromMaybe __IMPOSSIBLE__ $ last2 =<< initMaybe ts
+    let (u, v) = __FROM_JUST__ $ last2 =<< initMaybe ts
     -- Andreas, 2013-07-22.
     -- Note that we cannot call the conversion checker here,
     -- because 'reduce' might be called in a context where

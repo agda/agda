@@ -1310,7 +1310,7 @@ atTopLevel m = inConcreteMode $ do
       let types :: [Dom I.Type]
           types = map (snd <$>) $ telToList tel
           gamma :: ListTel' A.Name
-          gamma = fromMaybe __IMPOSSIBLE__ $
+          gamma = __FROM_JUST__ $
                     zipWith' (\ x dom -> (x,) <$> dom) names types
       reportSDoc "interaction.top" 20 $ TP.vcat
         [ "BasicOps.atTopLevel"

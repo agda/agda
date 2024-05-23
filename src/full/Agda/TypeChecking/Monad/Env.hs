@@ -4,8 +4,6 @@ module Agda.TypeChecking.Monad.Env where
 
 import qualified Data.List as List
 
-import Data.Maybe (fromMaybe)
-
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
 
@@ -29,7 +27,7 @@ withCurrentModule m =
 
 -- | Get the path of the currently checked file
 getCurrentPath :: MonadTCEnv m => m AbsolutePath
-getCurrentPath = fromMaybe __IMPOSSIBLE__ <$> asksTC envCurrentPath
+getCurrentPath = __FROM_JUST__ <$> asksTC envCurrentPath
 
 -- | Get the number of variables bound by anonymous modules.
 {-# SPECIALIZE getAnonymousVariables :: ModuleName -> TCM Nat #-}

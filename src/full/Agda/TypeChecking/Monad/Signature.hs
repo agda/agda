@@ -107,7 +107,7 @@ setHardCompileTimeModeIfErased'
   -> TCM a
 setHardCompileTimeModeIfErased' =
   setHardCompileTimeModeIfErased .
-    fromMaybe __IMPOSSIBLE__ . erasedFromQuantity . getQuantity
+    __FROM_JUST__ . erasedFromQuantity . getQuantity
 
 -- | Use run-time mode in the continuation unless the current mode is
 -- the hard compile-time mode.
@@ -780,7 +780,7 @@ canonicalName x = do
     Datatype{dataClause = Just (Clause{ clauseBody = body })} -> can body
     _                                                         -> return x
   where
-    can body = canonicalName $ extract $ fromMaybe __IMPOSSIBLE__ body
+    can body = canonicalName $ extract $ __FROM_JUST__ body
     extract (Def x _)  = x
     extract _          = __IMPOSSIBLE__
 
@@ -908,7 +908,7 @@ defaultGetRewriteRulesFor q = ifNotM (shouldReduceDef q) (return []) $ do
 -- | Get the original name of the projection
 --   (the current one could be from a module application).
 getOriginalProjection :: HasConstInfo m => QName -> m QName
-getOriginalProjection q = projOrig . fromMaybe __IMPOSSIBLE__ <$> isProjection q
+getOriginalProjection q = projOrig . __FROM_JUST__ <$> isProjection q
 
 instance HasConstInfo (TCMT IO) where
   getRewriteRulesFor = defaultGetRewriteRulesFor
@@ -1107,7 +1107,7 @@ setMutual d m = modifySignature $ updateDefinition d $ updateTheDef $ \ def ->
 
 -- | Check whether two definitions are mutually recursive.
 mutuallyRecursive :: QName -> QName -> TCM Bool
-mutuallyRecursive d d1 = (d `elem`) . fromMaybe __IMPOSSIBLE__ <$> getMutual d1
+mutuallyRecursive d d1 = (d `elem`) . __FROM_JUST__ <$> getMutual d1
 
 -- | A function/data/record definition is nonRecursive if it is not even mutually
 --   recursive with itself.

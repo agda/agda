@@ -77,7 +77,7 @@ defaultWarningSet = "warn"
 
 defaultWarningMode :: WarningMode
 defaultWarningMode = WarningMode ws False where
-  ws = fst $ fromMaybe __IMPOSSIBLE__ $ lookup defaultWarningSet warningSets
+  ws = fst $ __FROM_JUST__ $ lookup defaultWarningSet warningSets
 
 -- | Some warnings are errors and cannot be turned off.
 data WarningModeError

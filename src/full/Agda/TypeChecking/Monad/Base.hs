@@ -1712,7 +1712,7 @@ instance LensIsAbstract TCEnv where
      -- Andreas, 2019-08-19
      -- Using $! to prevent space leaks like #1829.
      -- This can crash when trying to get IsAbstract from IgnoreAbstractMode.
-    (f $! fromMaybe __IMPOSSIBLE__ (aModeToDef $ envAbstractMode env))
+    (f $! __FROM_JUST__ (aModeToDef $ envAbstractMode env))
     <&> \ a -> env { envAbstractMode = aDefToMode a }
 
 instance LensIsAbstract (Closure a) where

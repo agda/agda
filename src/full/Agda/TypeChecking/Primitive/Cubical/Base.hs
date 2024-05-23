@@ -27,10 +27,10 @@ import Data.IntMap (IntMap)
 import Data.String (IsString (fromString))
 import Data.Bifunctor (second)
 import Data.Either (partitionEithers)
-import Data.Maybe (fromMaybe, maybeToList)
+import Data.Maybe (maybeToList)
 
 import qualified Agda.Utils.BoolSet as BoolSet
-import Agda.Utils.Impossible (__IMPOSSIBLE__)
+import Agda.Utils.Impossible (__IMPOSSIBLE__, __FROM_JUST__)
 import Agda.Utils.BoolSet (BoolSet)
 import Agda.Utils.Functor
 
@@ -314,10 +314,10 @@ combineSys'
   -> [(NamesT m Term, NamesT m Term)]
   -> NamesT m (Term,Term)
 combineSys' l ty xs = do
-  tPOr <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinPOr
-  tMax <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIMax
-  iz <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIZero
-  tEmpty <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIsOneEmpty
+  tPOr <- __FROM_JUST__ <$> getTerm' builtinPOr
+  tMax <- __FROM_JUST__ <$> getTerm' builtinIMax
+  iz <- __FROM_JUST__ <$> getTerm' builtinIZero
+  tEmpty <- __FROM_JUST__ <$> getTerm' builtinIsOneEmpty
 
   let
     pOr l ty phi psi u0 u1 = pure tPOr
@@ -347,7 +347,7 @@ fiber
   -> NamesT m Term -- @Σ[ x ∈ A ] (f a ≡ x)@
 fiber la lb bA bB f b = do
   tPath <- getTerm "fiber" builtinPath
-  kit <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
+  kit <- __FROM_JUST__ <$> getSigmaKit
   pure (Def (sigmaName kit) [])
     <#> la <#> lb
     <@> bA

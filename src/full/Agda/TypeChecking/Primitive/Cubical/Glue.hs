@@ -38,11 +38,10 @@ import Agda.TypeChecking.Primitive.Base
   )
 
 import Agda.Utils.Functor
-import Agda.Utils.Maybe
 import Agda.Utils.Monad
 
 import Agda.Utils.Impossible
-  ( __IMPOSSIBLE__ )
+  ( __IMPOSSIBLE__, __FROM_JUST__ )
 
 -- | Define a "ghcomp" version of gcomp. Normal comp looks like:
 --
@@ -152,7 +151,7 @@ doGlueKanOp (TranspOp psi u0) (IsFam (la, lb, bA, phi, bT, e)) tpos = do
   tLMax   <- getTermLocal builtinLevelMax
   tTransp <- getTermLocal builtinTranspProof
   tItIsOne <- getTermLocal builtinItIsOne
-  kit <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
+  kit <- __FROM_JUST__ <$> getSigmaKit
   runNamesT [] $ do
 
     gcomp <- mkGComp localUse
@@ -378,7 +377,7 @@ prim_unglue' = do
                     -- In this case, we use the Glue data extracted from
                     -- the family we're transporting over.
                     Def g es | Just [la', lb', bA', phi', bT', e'] <- allApplyElims es, Just g == mGlue -> do
-                        redReturn . fromMaybe __IMPOSSIBLE__ =<<
+                        redReturn . __FROM_JUST__ =<<
                           doGlueKanOp (TranspOp (notBlocked r) u0) (IsFam (la',lb',bA',phi',bT',e')) Eliminated
                     _ -> fallback (st *> sbA)
                 _ -> fallback sbA
@@ -391,7 +390,7 @@ prim_unglue' = do
                 -- Idem: use the Glue data from the type we're doing
                 -- hcomp in.
                 Def g es | Just [la', lb', bA', phi', bT', e'] <- allApplyElims es, Just g == mGlue -> do
-                  redReturn . fromMaybe __IMPOSSIBLE__ =<<
+                  redReturn . __FROM_JUST__ =<<
                     doGlueKanOp (HCompOp (notBlocked r) u u0) (IsNot (la',lb',bA',phi',bT',e')) Eliminated
                 _ -> fallback sbA
 

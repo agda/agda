@@ -867,7 +867,7 @@ computeHCompSplit delta1 n delta2 d pars ixs hix tel ps cps = do
     -- Get the type of the datatype
   -- Δ1 ⊢ dtype
   dsort <- liftTCM $ (parallelS (reverse $ map unArg pars) `applySubst`) . dataSort . theDef <$> getConstInfo d
-  hCompName <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' builtinHComp
+  hCompName <- __FROM_JUST__ <$> getPrimitiveName' builtinHComp
   theHCompT <- defType <$> getConstInfo hCompName
 
   -- TODO can dsort be blocked or not in whnf?
@@ -1204,8 +1204,8 @@ lookupPatternVar SClause{ scTel = tel, scPats = pats } x = arg $>
     if n < 0 then __IMPOSSIBLE__ else n
   where n = if k < 0
             then __IMPOSSIBLE__
-            else fromMaybe __IMPOSSIBLE__ $ permPicks perm !!! k
-        perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm $ fromSplitPatterns pats
+            else __FROM_JUST__ $ permPicks perm !!! k
+        perm = __FROM_JUST__ $ dbPatPerm $ fromSplitPatterns pats
         k = size tel - x - 1
         arg = indexWithDefault __IMPOSSIBLE__ (telVars (size tel) tel) k
 
@@ -1480,7 +1480,7 @@ splitResultRecord f sc@(SClause tel ps _ _ target) = do
           [ text   "we are              self =" <+> prettyTCM (unArg self)
           , text   "            field values =" <+> prettyTCM fieldValues
           ]
-        let n = defaultArg $ permRange $ fromMaybe __IMPOSSIBLE__ $ dbPatPerm $ fromSplitPatterns ps
+        let n = defaultArg $ permRange $ __FROM_JUST__ $ dbPatPerm $ fromSplitPatterns ps
             -- Andreas & James, 2013-11-19 includes the dot patterns!
             -- See test/succeed/CopatternsAndDotPatterns.agda for a case with dot patterns
             -- and copatterns which fails for @n = size tel@ with a broken case tree.

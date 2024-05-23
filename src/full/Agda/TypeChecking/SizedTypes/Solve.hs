@@ -499,8 +499,7 @@ solveCluster flag ccs = do
     unless (validOffset a) __IMPOSSIBLE__
     -- Solution does not contain metas
     u <- unSizeExpr $ fmap __IMPOSSIBLE__ a
-    let SizeMeta _ xs = fromMaybe __IMPOSSIBLE__ $
-          List.find ((m ==) . sizeMetaId) metas
+    let SizeMeta _ xs = __FROM_JUST__ $ List.find ((m ==) . sizeMetaId) metas
     -- Check that solution is well-scoped
     let ys = rigidIndex <$> Set.toList (rigids a)
         ok = all (`elem` xs) ys -- TODO: more efficient

@@ -186,7 +186,7 @@ isAccessibleDef env state defn =
     clarify def = case envCurrentOpaqueId env of
       Just oid ->
         let
-          block = fromMaybe __IMPOSSIBLE__ $ Map.lookup oid (view stOpaqueBlocks state)
+          block = __FROM_JUST__ $ Map.lookup oid (view stOpaqueBlocks state)
 
           -- Then any name which is a member of the unfolding-set
           -- associated to that block will be unfolded.

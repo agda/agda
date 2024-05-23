@@ -1480,7 +1480,7 @@ checkKnownArgument arg [] _ = typeError $ InvalidProjectionParameter arg
 checkKnownArgument arg (Arg _ v : vs) t = do
   -- Skip the arguments from vs that do not correspond to e
   (dom@Dom{ unDom = a }, b) <- mustBePi t
-  if not $ fromMaybe __IMPOSSIBLE__ $ fittingNamedArg arg dom
+  if not $ __FROM_JUST__ $ fittingNamedArg arg dom
     -- Continue with the next one
     then checkKnownArgument arg vs (b `absApp` v)
     -- Found the right argument

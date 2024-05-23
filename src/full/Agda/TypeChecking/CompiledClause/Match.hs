@@ -26,7 +26,7 @@ matchCompiled c args = do
   r <- matchCompiledE c $ map (fmap Apply) args
   case r of
     YesReduction simpl v -> return $ YesReduction simpl v
-    NoReduction bes      -> return $ NoReduction $ fmap (map (fromMaybe __IMPOSSIBLE__ . isApplyElim)) bes
+    NoReduction bes      -> return $ NoReduction $ fmap (map (__FROM_JUST__ . isApplyElim)) bes
 
 -- | @matchCompiledE c es@ takes a function given by case tree @c@ and
 --   and a spine @es@ and tries to apply the function to @es@.
@@ -84,7 +84,7 @@ match' ((c, es, patch) : stack) = do
           m              = length es
           -- at least the first @n@ elims must be @Apply@s, so we can
           -- turn them into a subsitution
-          toSubst        = parallelS . reverse . map (unArg . fromMaybe __IMPOSSIBLE__ . isApplyElim . ignoreReduced)
+          toSubst        = parallelS . reverse . map (unArg . __FROM_JUST__ . isApplyElim . ignoreReduced)
           (es0, es1)     = splitAt n es
           lam x t        = Lam (argInfo x) (Abs (unArg x) t)
 

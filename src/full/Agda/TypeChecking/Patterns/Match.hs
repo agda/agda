@@ -327,7 +327,7 @@ matchPattern p u = case (p, u) of
           b | Just t <- isMatchable b ->
             case mtc t of
               Just (bld, vs) -> do
-                (m, vs1) <- matchPatterns ps (fromMaybe __IMPOSSIBLE__ $ allApplyElims vs)
+                (m, vs1) <- matchPatterns ps (__FROM_JUST__ $ allApplyElims vs)
                 return (yesSimplification m, Arg info $ bld (mergeElims vs vs1))
               Nothing
                                     -> return (No                          , arg)

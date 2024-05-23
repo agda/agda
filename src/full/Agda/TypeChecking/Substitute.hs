@@ -230,13 +230,13 @@ instance TermSubst a => Apply (Tele a) where
   apply EmptyTel          _        = __IMPOSSIBLE__
   apply (ExtendTel _ tel) (t : ts) = lazyAbsApp tel (unArg t) `apply` ts
 
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ __FROM_JUST__ $ allApplyElims es
 
 instance Apply Definition where
   apply (Defn info x t pol occ gens gpars df m c inst copy ma nc inj copat blk lang d) args =
     Defn info x (piApply t args) (apply pol args) (apply occ args) (apply gens args) (drop (length args) gpars) df m c inst copy ma nc inj copat blk lang (apply d args)
 
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ __FROM_JUST__ $ allApplyElims es
 
 instance Apply RewriteRule where
   apply r args =
@@ -253,20 +253,20 @@ instance Apply RewriteRule where
        , rewFromClause = rewFromClause r
        }
 
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ __FROM_JUST__ $ allApplyElims es
 
 instance {-# OVERLAPPING #-} Apply [Occ.Occurrence] where
   apply occ args = List.drop (length args) occ
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ __FROM_JUST__ $ allApplyElims es
 
 instance {-# OVERLAPPING #-} Apply [Polarity] where
   apply pol args = List.drop (length args) pol
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ __FROM_JUST__ $ allApplyElims es
 
 instance Apply NumGeneralizableArgs where
   apply NoGeneralizableArgs       args = NoGeneralizableArgs
   apply (SomeGeneralizableArgs n) args = SomeGeneralizableArgs (n - length args)
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ __FROM_JUST__ $ allApplyElims es
 
 -- | Make sure we only drop variable patterns.
 instance {-# OVERLAPPING #-} Apply [NamedArg (Pattern' a)] where
@@ -285,18 +285,18 @@ instance {-# OVERLAPPING #-} Apply [NamedArg (Pattern' a)] where
             ProjP{} -> __IMPOSSIBLE__
             IApplyP{} -> recurse
 
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ __FROM_JUST__ $ allApplyElims es
 
 instance Apply Projection where
   apply p args = p
     { projIndex = projIndex p - size args
     , projLams  = projLams p `apply` args
     }
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ __FROM_JUST__ $ allApplyElims es
 
 instance Apply ProjLams where
   apply (ProjLams lams) args = ProjLams $ List.drop (length args) lams
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ __FROM_JUST__ $ allApplyElims es
 
 instance Apply Defn where
   apply d [] = d
@@ -353,14 +353,14 @@ instance Apply Defn where
       d { primClauses = apply cs args }
     PrimitiveSort{} -> d
 
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ __FROM_JUST__ $ allApplyElims es
 
 instance Apply PrimFun where
   apply (PrimFun x ar occs def) args =
     PrimFun x (ar - n) (drop n occs) $ \ vs -> def (args ++ vs)
     where
     n = size args
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ __FROM_JUST__ $ allApplyElims es
 
 instance Apply Clause where
     -- This one is a little bit tricksy after the parameter refinement change.
@@ -472,7 +472,7 @@ instance Apply Clause where
         subTel 0 v (ExtendTel _ tel) = absApp tel v
         subTel i v (ExtendTel a tel) = ExtendTel a $ subTel (i - 1) (raise 1 v) <$> tel
 
-    applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+    applyE t es = apply t $ __FROM_JUST__ $ allApplyElims es
 
 instance Apply CompiledClauses where
   apply cc args = case cc of
@@ -487,11 +487,11 @@ instance Apply CompiledClauses where
       | otherwise -> __IMPOSSIBLE__
     where
       len = length args
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ __FROM_JUST__ $ allApplyElims es
 
 instance Apply ExtLamInfo where
   apply (ExtLamInfo m b sys) args = ExtLamInfo m b (apply sys args)
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ __FROM_JUST__ $ allApplyElims es
 
 instance Apply System where
   -- We assume we apply a system only to arguments introduced by
@@ -508,7 +508,7 @@ instance Apply System where
       -- newTel ⊢ σ : tel
       sigma = liftS (ntel - nargs) (parallelS (reverse $ map unArg args))
 
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ __FROM_JUST__ $ allApplyElims es
 
 instance Apply a => Apply (WithArity a) where
   apply  (WithArity n a) args = WithArity n $ apply  a args
@@ -524,7 +524,7 @@ instance Apply FunctionInverse where
   apply NotInjective  args = NotInjective
   apply (Inverse inv) args = Inverse $ apply inv args
 
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ __FROM_JUST__ $ allApplyElims es
 
 instance Apply DisplayTerm where
   apply (DTerm' v es)      args = DTerm' v       $ es ++ map Apply args
@@ -536,7 +536,7 @@ instance Apply DisplayTerm where
   applyE (DTerm' v es')      es = DTerm' v $ es' ++ es
   applyE (DDot' v es')       es = DDot' v $ es' ++ es
   applyE (DCon c ci vs)      es = DCon c ci $ vs ++ map (fmap DTerm) ws
-    where ws = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+    where ws = __FROM_JUST__ $ allApplyElims es
   applyE (DDef c es')        es = DDef c $ es' ++ map (fmap DTerm) es
   applyE (DWithApp v ws es') es = DWithApp v ws $ es' ++ es
 
@@ -574,7 +574,7 @@ instance (Apply a, Apply b, Apply c) => Apply (a,b,c) where
 
 instance DoDrop a => Apply (Drop a) where
   apply x args = dropMore (size args) x
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ __FROM_JUST__ $ allApplyElims es
 
 instance DoDrop a => Abstract (Drop a) where
   abstract tel x = unDrop (size tel) x
@@ -586,7 +586,7 @@ instance Apply Permutation where
     where
       m = size args
 
-  applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE t es = apply t $ __FROM_JUST__ $ allApplyElims es
 
 instance Abstract Permutation where
   abstract tel (Perm n xs) = Perm (n + m) $ [0..m - 1] ++ map (+ m) xs
@@ -1383,7 +1383,7 @@ typeArgsWithTel EmptyTel{} (_:_)             = Nothing
 --   pattern variables (including dot patterns) instead of the clause telescope.
 compiledClauseBody :: Clause -> Maybe Term
 compiledClauseBody cl = applySubst (renamingR perm) $ clauseBody cl
-  where perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
+  where perm = __FROM_JUST__ $ clausePerm cl
 
 ---------------------------------------------------------------------------
 -- * Syntactic equality and order

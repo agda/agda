@@ -558,7 +558,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
               case unEl t of
                 Def q' vs
                   | q == q' -> do
-                      let indices = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ drop np vs
+                      let indices = __FROM_JUST__ $ allApplyElims $ drop np vs
                       OccursAs (IndArgType c) . OnlyVarsUpTo np <$> getOccurrences varsTel indices
                   | otherwise -> __IMPOSSIBLE__  -- this ought to be impossible now (but hasn't been before, see #4447)
                 Pi{}       -> __IMPOSSIBLE__  -- eliminated  by telView
@@ -837,7 +837,7 @@ instance PrettyTCM (Seq OccursWhere) where
                           [prettyTCM q]
         UnderInf     -> pwords "under" ++
                         [do -- this cannot fail if an 'UnderInf' has been generated
-                            Def inf _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInf
+                            Def inf _ <- __FROM_JUST__ <$> getBuiltin' builtinInf
                             prettyTCM inf]
         VarArg       -> pwords "in an argument of a bound variable"
         MetaArg      -> pwords "in an argument of a metavariable"

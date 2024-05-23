@@ -727,9 +727,8 @@ reachable g scc = case scc of
   Graph.CyclicSCC (n : _) -> reachable' n
   Graph.CyclicSCC []      -> __IMPOSSIBLE__
   where
-  lookup' g k = fromMaybe __IMPOSSIBLE__ (IntMap.lookup k g)
-
-  lookup'' g k = fromMaybe __IMPOSSIBLE__ (Map.lookup k g)
+  lookup'  g k = __FROM_JUST__ $ IntMap.lookup k g
+  lookup'' g k = __FROM_JUST__ $ Map.lookup    k g
 
   reachable' n =
     concatMap (Graph.flattenSCC . lookup' (dagComponentMap g)) $
@@ -761,7 +760,7 @@ sccDAG' g sccs = DAG theDAG componentMap secondNodeMap
     IntSet.toList $ IntSet.fromList
       [ j
       | e <- edgesFrom g ns
-      , let j = fromMaybe __IMPOSSIBLE__ (Map.lookup (target e) firstNodeMap)
+      , let j = __FROM_JUST__ $ Map.lookup (target e) firstNodeMap
       , j /= i
       ]
 
@@ -772,7 +771,7 @@ sccDAG' g sccs = DAG theDAG componentMap secondNodeMap
       ]
 
   convertInt :: Int -> Graph.Vertex
-  convertInt i = fromMaybe __IMPOSSIBLE__ (toVertex i)
+  convertInt i = __FROM_JUST__ $ toVertex i
 
   componentMap :: IntMap (Graph.SCC n)
   componentMap = IntMap.fromList (map (mapFst convertInt) components)

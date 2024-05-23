@@ -9,6 +9,7 @@ module Agda.Utils.Impossible where
 
 import Control.Exception (Exception(..), throw, catchJust)
 import Control.DeepSeq
+import Data.Maybe (fromMaybe)
 import Agda.Utils.CallStack.Base
     ( CallStack
     , HasCallStack
@@ -96,6 +97,10 @@ instance CatchImpossible IO where
 
 __IMPOSSIBLE__ :: HasCallStack => a
 __IMPOSSIBLE__ = withCallerCallStack $ throwImpossible . Impossible
+
+-- | Callstack-aware version of Data.Maybe.fromJust.
+__FROM_JUST__ :: HasCallStack => Maybe a -> a
+__FROM_JUST__ = withCallerCallStack $ fromMaybe . throwImpossible . Impossible
 
 impossible :: HasCallStack => Impossible
 impossible = withCallerCallStack Impossible

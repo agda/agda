@@ -128,7 +128,7 @@ generateAndPrintSyntaxInfo
   -> TCM ()
 generateAndPrintSyntaxInfo decl _ _ | null $ getRange decl = return ()
 generateAndPrintSyntaxInfo decl hlLevel updateState = do
-  top <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
+  top <- __FROM_JUST__ <$> currentTopLevelModule
 
   reportSDoc "import.iface.create" 15 $
     TCM.fwords

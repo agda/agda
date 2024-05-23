@@ -55,6 +55,7 @@ import System.IO.Unsafe (unsafePerformIO)
 import Data.IORef
 import Data.STRef
 import Data.Char
+import Data.Maybe (Maybe(Nothing))
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -1045,7 +1046,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
       where
         plus 0 cl = cl
         plus n cl =
-          trueValue (Con (fromMaybe __IMPOSSIBLE__ suc) ConOSystem []) emptyEnv $
+          trueValue (Con (__FROM_JUST__ suc) ConOSystem []) emptyEnv $
                      Apply (defaultArg arg) : []
           where arg = pureThunk (plus (n - 1) cl)
 
@@ -1221,7 +1222,7 @@ reduceTm rEnv bEnv !constInfo normalisation =
                 arg = pureThunk $ trueValue (Lit $ LitNat n') emptyEnv []
 
         -- Matching a literal 0. Simply calls matchCon with the zero constructor.
-        matchLitZero = matchCon (fromMaybe __IMPOSSIBLE__ zero) ConOSystem 0
+        matchLitZero = matchCon (__FROM_JUST__ zero) ConOSystem 0
                             -- If we have a nat literal we have builtin zero.
 
     -- Case: Match state. Here we look at the case tree and take the appropriate action:

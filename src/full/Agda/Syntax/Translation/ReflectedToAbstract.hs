@@ -247,9 +247,9 @@ annotatePattern i t p = local (drop $ i + 1) $ do
 instance ToAbstract Sort where
   type AbsOfRef Sort = A.Expr
   toAbstract s = do
-    setName <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinSet
-    propName <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinProp
-    infName <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinSetOmega
+    setName <- __FROM_JUST__ <$> getBuiltinName' builtinSet
+    propName <- __FROM_JUST__ <$> getBuiltinName' builtinProp
+    infName <- __FROM_JUST__ <$> getBuiltinName' builtinSetOmega
     case s of
       SetS x -> mkApp (A.Def setName) <$> toAbstract x
       LitS x -> return $ A.Def' setName $ A.Suffix x

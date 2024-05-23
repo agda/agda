@@ -157,7 +157,7 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
   -- Get set of mutually defined names from the TCM.
   -- This includes local and auxiliary functions introduced
   -- during type-checking.
-  mid <- fromMaybe __IMPOSSIBLE__ <$> asksTC envMutualBlock
+  mid <- __FROM_JUST__ <$> asksTC envMutualBlock
   mutualBlock <- lookupMutualBlock mid
   let allNames = Set.filter (not . isAbsurdLambdaName) $
                  mutualNames mutualBlock
@@ -357,7 +357,7 @@ termFunction name = inConcreteOrAbstractMode name $ \ def -> do
   -- in the list of @allNames@ of the mutual block.
 
   allNames <- terGetMutual
-  let index = fromMaybe __IMPOSSIBLE__ $ Set.lookupIndex name allNames
+  let index = __FROM_JUST__ $ Set.lookupIndex name allNames
 
   -- Retrieve the target type of the function to check.
   -- #4256: Don't use typeOfConst (which instantiates type with module params), since termination
@@ -636,7 +636,7 @@ instance TermToPattern Term DeBruijnPattern where
   termToPattern t = liftTCM (constructorForm t) >>= \case
     -- Constructors.
     Con c _ args -> ifDotPatsOrRecord c $
-      ConP c noConPatternInfo . map (fmap unnamed) <$> termToPattern (fromMaybe __IMPOSSIBLE__ $ allApplyElims args)
+      ConP c noConPatternInfo . map (fmap unnamed) <$> termToPattern (__FROM_JUST__ $ allApplyElims args)
     Def s [Apply arg] -> ifDotPats $ do
       suc <- terGetSizeSuc
       if Just s == suc then ConP (ConHead s IsData Inductive []) noConPatternInfo . map (fmap unnamed) <$> termToPattern [arg]
@@ -927,7 +927,7 @@ function g es0 = do
            -- Andreas, 2017-01-05, issue #2376
            -- Remove arguments inserted by etaExpandClause.
 
-         let src  = fromMaybe __IMPOSSIBLE__ $ Set.lookupIndex f names
+         let src  = __FROM_JUST__ $ Set.lookupIndex f names
              tgt  = gInd
              cm   = makeCM ncols nrows matrix'
              info = CallPath $ singleton $
@@ -1014,7 +1014,7 @@ instance ExtractCalls Term where
 
       -- Constructed value.
       Con ConHead{conName = c, conDataRecord = dataOrRec} _ es -> do
-        let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+        let args = __FROM_JUST__ $ allApplyElims es
         -- A constructor preserves the guardedness of all its arguments.
         -- Andreas, 2022-09-19, issue #6108:
         -- A higher constructor does not.  So check if there is an @IApply@ amoung @es@.
@@ -1036,7 +1036,7 @@ instance ExtractCalls Term where
             if recInduction def /= Just CoInductive then inductive else do
             -- coinductive constructors unrelated to the mutually
             -- constructed inhabitants of coinductive types are not guarding
-            ifM (targetElem . fromMaybe __IMPOSSIBLE__ $ recMutual def)
+            ifM (targetElem . __FROM_JUST__ $ recMutual def)
                {-then-} coinductive
                {-else-} inductive
         constructor c ind argsg
@@ -1388,7 +1388,7 @@ compareTerm' v mp@(Masked m p) = do
       decr True <$> offsetFromConstructor (conName c)
 
     (Con c _ es, ConP c' _ ps) | conName c == conName c'->
-      let ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es in
+      let ts = __FROM_JUST__ $ allApplyElims es in
       compareConArgs ts ps
 
     (Con _ _ [], _) -> return Order.le
@@ -1396,7 +1396,7 @@ compareTerm' v mp@(Masked m p) = do
     -- new case for counting constructors / projections
     -- register also increase
     (Con c _ es, _) -> do
-      let ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+      let ts = __FROM_JUST__ $ allApplyElims es
       increase <$> offsetFromConstructor (conName c)
                <*> (infimum <$> mapM (\ t -> compareTerm' (unArg t) mp) ts)
 
@@ -1407,7 +1407,7 @@ subTerm :: (?cutoff :: CutOff) => Term -> DeBruijnPattern -> Order
 subTerm t p = if equal t p then Order.le else properSubTerm t p
   where
     equal (Con c _ es) (ConP c' _ ps) =
-      let ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es in
+      let ts = __FROM_JUST__ $ allApplyElims es in
       and $ (conName c == conName c')
           : (length ts == length ps)
           : zipWith (\ t p -> equal (unArg t) (namedArg p)) ts ps

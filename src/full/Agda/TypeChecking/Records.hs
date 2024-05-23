@@ -270,7 +270,7 @@ tryRecordType t = ifBlocked t (\ m a -> return $ Left $ Blocked m a) $ \ nb t ->
   let no = return $ Left $ NotBlocked nb t
   case unEl t of
     Def r es -> do
-      let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+      let vs = __FROM_JUST__ $ allApplyElims es
       caseMaybeM (isRecord r) no $ \ def -> return $ Right (r,vs,def)
     _ -> no
 
@@ -329,7 +329,7 @@ getDefType f t = do
           -- we will produce garbage parameters.
           ifNotM (eligibleForProjectionLike d) failNotElig $ {- else -} do
             -- now we know it is reduced, we can safely take the parameters
-            let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ take npars es
+            let pars = __FROM_JUST__ $ allApplyElims $ take npars es
             reportSDoc "tc.deftype" 20 $ vcat
               [ text $ "head d     = " ++ prettyShow d
               , "parameters =" <+> sep (map prettyTCM pars)
@@ -417,7 +417,7 @@ typeElims a self (e : es) = do
       (ArgT a :) <$> typeElims (absApp b $ unArg v) (self `applyE` [e]) es
     Proj o f -> do
       a <- reduce a
-      (dom, self, a) <- fromMaybe __IMPOSSIBLE__ <$> projectTyped self a o f
+      (dom, self, a) <- __FROM_JUST__ <$> projectTyped self a o f
       (ProjT dom a :) <$> typeElims a self es
     IApply{} -> __IMPOSSIBLE__
 
@@ -485,7 +485,7 @@ isEtaRecordType :: (HasConstInfo m)
                 => Type -> m (Maybe (QName, Args))
 isEtaRecordType a = case unEl a of
   Def d es -> do
-    let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+    let vs = __FROM_JUST__ $ allApplyElims es
     ifM (isEtaRecord d) (return $ Just (d, vs)) (return Nothing)
   _        -> return Nothing
 
@@ -549,7 +549,7 @@ nonRecursiveRecord = updateEtaForRecord
 --
 --   Precondition: record type identifier exists in signature.
 isRecursiveRecord :: QName -> TCM Bool
-isRecursiveRecord q = recRecursive . theDef . fromMaybe __IMPOSSIBLE__ . lookupDefinition q <$> getSignature
+isRecursiveRecord q = recRecursive . theDef . __FROM_JUST__ . lookupDefinition q <$> getSignature
 
 {- | @etaExpandBoundVar i = (Δ, σ, τ)@
 
@@ -656,7 +656,7 @@ curryAt t n = do
       -- For now, we only eta-expand once.
       -- This might trigger another call to @etaExpandProjectedVar@ later.
       -- A more efficient version does all the eta-expansions at once here.
-      (r, pars, def) <- fromMaybe __IMPOSSIBLE__ <$> isRecordType a
+      (r, pars, def) <- __FROM_JUST__ <$> isRecordType a
       if | NoEta _ <- recEtaEquality def -> __IMPOSSIBLE__
          | otherwise -> return ()
       -- TODO: compose argInfo ai with tel.
@@ -704,7 +704,7 @@ forceEtaExpandRecord = etaExpandRecord' True
 etaExpandRecord' :: (HasConstInfo m, MonadDebug m, ReadTCState m)
                  => Bool -> QName -> Args -> Term -> m (Telescope, Args)
 etaExpandRecord' forceEta r pars u = do
-  def <- fromMaybe __IMPOSSIBLE__ <$> isRecord r
+  def <- __FROM_JUST__ <$> isRecord r
   (tel, _, _, args) <- etaExpandRecord'_ forceEta r pars def u
   return (tel, args)
 
@@ -726,7 +726,7 @@ etaExpandRecord'_ forceEta r pars def u = do
 
     -- Already expanded.
     Con con_ ci es -> do
-      let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+      let args = __FROM_JUST__ $ allApplyElims es
       -- Andreas, 2019-10-21, issue #4148
       -- @con == con_@ might fail, but their normal forms should be equal.
       whenNothingM (conName con `sameDef` conName con_) $ do
@@ -754,7 +754,7 @@ etaExpandRecord'_ forceEta r pars def u = do
 
 etaExpandAtRecordType :: Type -> Term -> TCM (Telescope, Term)
 etaExpandAtRecordType t u = do
-  (r, pars, def) <- fromMaybe __IMPOSSIBLE__ <$> isRecordType t
+  (r, pars, def) <- __FROM_JUST__ <$> isRecordType t
   (tel, con, ci, args) <- etaExpandRecord_ r pars def u
   return (tel, mkCon con ci args)
 

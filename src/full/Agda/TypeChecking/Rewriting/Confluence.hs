@@ -355,7 +355,7 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
         [ "Abstracting over metas: "
         , prettyList_ (map (text . show) ms)
         ]
-      (gamma , (a,es,rhs1,rhs2)) <- fromMaybe __IMPOSSIBLE__ <$>
+      (gamma , (a,es,rhs1,rhs2)) <- __FROM_JUST__ <$>
         abstractOverMetas ms (a,es,rhs1,rhs2)
 
       addContext gamma $ reportSDoc "rewriting.confluence" 10 $ sep
@@ -385,7 +385,7 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
         -- of a rewrite rule (actual global confluence then follows
         -- from the triangle property which was checked before).
         GlobalConfluenceCheck -> do
-          (f, t) <- fromMaybe __IMPOSSIBLE__ <$> getTypedHead (hd [])
+          (f, t) <- __FROM_JUST__ <$> getTypedHead (hd [])
 
           let checkEqualLHS :: RewriteRule -> TCM Bool
               checkEqualLHS (RewriteRule q delta _ ps _ _ _) = do
@@ -417,7 +417,7 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
     checkTrianglePropertyForRule (RewriteRule q gamma f ps rhs b c) = addContext gamma $ do
       u  <- nlPatToTerm $ PDef f ps
       -- First element in the list is the "best reduct" @ρ(u)@
-      (rhou,vs) <- fromMaybe __IMPOSSIBLE__ . uncons <$> allParallelReductions u
+      (rhou,vs) <- __FROM_JUST__ . uncons <$> allParallelReductions u
       reportSDoc "rewriting.confluence" 40 $ ("rho(" <> prettyTCM u <> ") =") <+> prettyTCM rhou
       reportSDoc "rewriting.confluence" 40 $ ("S(" <> prettyTCM u <> ") =") <+> prettyList_ (map prettyTCM vs)
       -- If present, last element is always equal to u
@@ -451,7 +451,7 @@ sortRulesOfSymbol f = do
     sortRules rs = do
       ordPairs <- deleteLoops . Set.fromList . map (rewName *** rewName) <$>
         filterM (uncurry $ flip moreGeneralLHS) [(r1,r2) | r1 <- rs, r2 <- rs]
-      let perm = fromMaybe __IMPOSSIBLE__ $
+      let perm = __FROM_JUST__ $
                    topoSort (\r1 r2 -> (rewName r1,rewName r2) `Set.member` ordPairs) rs
       reportSDoc "rewriting.confluence.sort" 50 $ "sorted rules: " <+>
         prettyList_ (map (prettyTCM . rewName) $ permute perm rs)
@@ -477,7 +477,7 @@ sortRulesOfSymbol f = do
 makeHead :: PureTCM m => Definition -> Type -> m (Type , Elims -> Term)
 makeHead def a = case theDef def of
   Constructor{ conSrcCon = ch } -> do
-    ca <- snd . fromMaybe __IMPOSSIBLE__ <$> getFullyAppliedConType ch a
+    ca <- snd . __FROM_JUST__ <$> getFullyAppliedConType ch a
     return (ca , Con ch ConOSystem)
   -- For record projections @f : R Δ → A@, we rely on the invariant
   -- that any clause is fully general in the parameters, i.e. it
@@ -560,7 +560,7 @@ topLevelReductions :: (MonadParallelReduce m, MonadPlus m) => (Elims -> Term) ->
 topLevelReductions hd es = do
   reportSDoc "rewriting.parreduce" 30 $ "topLevelReductions" <+> prettyTCM (hd es)
   -- Get type of head symbol
-  (f , t) <- fromMaybe __IMPOSSIBLE__ <$> getTypedHead (hd [])
+  (f , t) <- __FROM_JUST__ <$> getTypedHead (hd [])
   reportSDoc "rewriting.parreduce" 60 $ "topLevelReductions: head symbol" <+> prettyTCM (hd []) <+> ":" <+> prettyTCM t
   RewriteRule q gamma _ ps rhs b c <- scatterMP (getAllRulesFor f)
   reportSDoc "rewriting.parreduce" 60 $ "topLevelReductions: trying rule" <+> prettyTCM q
@@ -730,7 +730,7 @@ forceEtaExpansion a v (e:es) = case e of
     -- Force a to be the right record type for projection by f
     reportSDoc "rewriting.confluence.eta" 40 $ fsep
       [ "Forcing" , prettyTCM v , ":" , prettyTCM a , "to be projectible by" , prettyTCM f ]
-    r <- fromMaybe __IMPOSSIBLE__ <$> getRecordOfField f
+    r <- __FROM_JUST__ <$> getRecordOfField f
     rdef <- getConstInfo r
     let ra = defType rdef
     pars <- newArgsMeta ra
@@ -740,8 +740,8 @@ forceEtaExpansion a v (e:es) = case e of
     -- Eta-expand v at record type r, and get field corresponding to f
     (_ , c , ci , fields) <- etaExpandRecord_ r pars (theDef rdef) v
     let fs        = map argFromDom $ recFields $ theDef rdef
-        i         = fromMaybe __IMPOSSIBLE__ $ elemIndex f $ map unArg fs
-        fContent  = unArg $ fromMaybe __IMPOSSIBLE__ $ fields !!! i
+        i         = __FROM_JUST__ $ elemIndex f $ map unArg fs
+        fContent  = unArg $ __FROM_JUST__ $ fields !!! i
         fUpdate w = Con c ci $ map Apply $ updateAt i (w <$) fields
 
     -- Get type of field corresponding to f
@@ -813,7 +813,7 @@ instance AllHoles Term where
         pure (idHole a v)
          <|> (fmap (Def f) <$> allHoles (fa , Def f) es)
       v@(Con c ci es) -> do
-        ca <- snd . fromMaybe __IMPOSSIBLE__ <$> do
+        ca <- snd . __FROM_JUST__ <$> do
           getFullyAppliedConType c =<< reduce a
         pure (idHole a v)
          <|> (fmap (Con c ci) <$> allHoles (ca , Con c ci) es)

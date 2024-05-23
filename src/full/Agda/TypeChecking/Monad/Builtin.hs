@@ -204,8 +204,8 @@ getTerm use name = flip fromMaybeM (getTerm' name) $
 -- | Rewrite a literal to constructor form if possible.
 constructorForm :: HasBuiltins m => Term -> m Term
 constructorForm v = do
-  let pZero = fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero
-      pSuc  = fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc
+  let pZero = __FROM_JUST__ <$> getBuiltin' builtinZero
+      pSuc  = __FROM_JUST__ <$> getBuiltin' builtinSuc
   constructorForm' pZero pSuc v
 
 {-# INLINABLE constructorForm' #-}
@@ -581,12 +581,12 @@ sortKit = do
 -- checking.
 infallibleSortKit :: HasBuiltins m => m SortKit
 infallibleSortKit = do
-  Def prop     _  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinProp
-  Def set      _  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSet
-  Def sset     _  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinStrictSet
-  Def propomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinPropOmega
-  Def setomega _  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSetOmega
-  Def ssetomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSSetOmega
+  Def prop     _  <- __FROM_JUST__ <$> getBuiltin' builtinProp
+  Def set      _  <- __FROM_JUST__ <$> getBuiltin' builtinSet
+  Def sset     _  <- __FROM_JUST__ <$> getBuiltin' builtinStrictSet
+  Def propomega _ <- __FROM_JUST__ <$> getBuiltin' builtinPropOmega
+  Def setomega _  <- __FROM_JUST__ <$> getBuiltin' builtinSetOmega
+  Def ssetomega _ <- __FROM_JUST__ <$> getBuiltin' builtinSSetOmega
   return $ mkSortKit prop set sset propomega setomega ssetomega
 
 ------------------------------------------------------------------------
@@ -651,11 +651,11 @@ intervalUnview t = do
 {-# SPECIALIZE intervalUnview' :: TCM (IntervalView -> Term) #-}
 intervalUnview' :: HasBuiltins m => m (IntervalView -> Term)
 intervalUnview' = do
-  iz <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIZero -- should it be a type error instead?
-  io <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIOne
-  imin <- (`Def` []) . fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' builtinIMin
-  imax <- (`Def` []) . fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' builtinIMax
-  ineg <- (`Def` []) . fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' builtinINeg
+  iz <- __FROM_JUST__ <$> getBuiltin' builtinIZero -- should it be a type error instead?
+  io <- __FROM_JUST__ <$> getBuiltin' builtinIOne
+  imin <- (`Def` []) . __FROM_JUST__ <$> getPrimitiveName' builtinIMin
+  imax <- (`Def` []) . __FROM_JUST__ <$> getPrimitiveName' builtinIMax
+  ineg <- (`Def` []) . __FROM_JUST__ <$> getPrimitiveName' builtinINeg
   return $ \ v -> case v of
              IZero -> iz
              IOne  -> io
@@ -773,7 +773,7 @@ equalityView t0@(El s t) = do
   equality <- primEqualityName
   case t of
     Def equality' es | equality' == equality -> do
-      let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+      let vs = __FROM_JUST__ $ allApplyElims es
       let n = length vs
       unless (n >= 3) __IMPOSSIBLE__
       let (pars, [ typ , lhs, rhs ]) = splitAt (n-3) vs

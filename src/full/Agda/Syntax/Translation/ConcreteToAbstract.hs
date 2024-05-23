@@ -2519,7 +2519,7 @@ instance ToAbstract C.Pragma where
                 modifyCurrentScope $ removeNameFromScope PublicNS x
               -- We then happily bind the name
               y <- freshAbstractQName' x
-              let kind = fromMaybe __IMPOSSIBLE__ $ builtinKindOfName b'
+              let kind = __FROM_JUST__ $ builtinKindOfName b'
               bindName PublicAccess kind x y
               return [ A.BuiltinNoDefPragma rb kind y ]
             _ -> genericError $

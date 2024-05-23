@@ -351,7 +351,7 @@ inferDef mkTerm x =
         -- at the point where they should be generalized. Module parameters
         -- have already been applied to the meta, so we don't have to do that
         -- here.
-        val <- fromMaybe __IMPOSSIBLE__ <$> viewTC (eGeneralizedVars . key x)
+        val <- __FROM_JUST__ <$> viewTC (eGeneralizedVars . key x)
         sub <- checkpointSubstitution (genvalCheckpoint val)
         let (v, t) = applySubst sub (genvalTerm val, genvalType val)
         debug [] t v

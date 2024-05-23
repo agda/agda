@@ -4,7 +4,6 @@ module Agda.TypeChecking.Quote where
 
 import Control.Monad
 
-import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 
 import qualified Agda.Syntax.Abstract as A
@@ -56,7 +55,7 @@ data QuotingKit = QuotingKit
 
 quotingKit :: TCM QuotingKit
 quotingKit = do
-  currentModule   <- fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule
+  currentModule   <- __FROM_JUST__ <$> currentTopLevelModule
   hidden          <- primHidden
   instanceH       <- primInstance
   visible         <- primVisible
@@ -225,7 +224,7 @@ quotingKit = do
 
       quoteTelEntry :: Dom (ArgName, Type) -> ReduceM Term
       quoteTelEntry dom@Dom{ unDom = (x , t) } = do
-        SigmaKit{..} <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
+        SigmaKit{..} <- __FROM_JUST__ <$> getSigmaKit
         Con sigmaCon ConOSystem [] !@! quoteString x @@ quoteDom quoteType (fmap snd dom)
 
       list :: [ReduceM Term] -> ReduceM Term
@@ -257,7 +256,7 @@ quotingKit = do
         v <- instantiate' v
         case unSpine v of
           Var n es   ->
-             let ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+             let ts = __FROM_JUST__ $ allApplyElims es
              in  var !@! Lit (LitNat $ fromIntegral n) @@ quoteArgs ts
           Lam info t -> lam !@ quoteHiding (getHiding info) @@ quoteAbs quoteTerm t
           Def x es   -> do
@@ -266,7 +265,7 @@ quotingKit = do
             -- #2220: remember to restore dropped parameters
             let
               conOrProjPars = defParameters defn r
-              ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+              ts = __FROM_JUST__ $ allApplyElims es
               qx Function{ funExtLam = Just (ExtLamInfo m False _), funClauses = cs } = do
                     -- An extended lambda should not have any extra parameters!
                     unless (null conOrProjPars) __IMPOSSIBLE__
@@ -300,7 +299,7 @@ quotingKit = do
           Sort s     -> sort !@ quoteSort s
           MetaV x es -> meta !@! quoteMeta currentModule x
                               @@ quoteArgs vs
-            where vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+            where vs = __FROM_JUST__ $ allApplyElims es
           DontCare u -> quoteTerm u
           Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 

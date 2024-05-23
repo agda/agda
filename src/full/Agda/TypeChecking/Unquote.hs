@@ -351,7 +351,7 @@ instance Unquote a => Unquote [a] where
 instance (Unquote a, Unquote b) => Unquote (a, b) where
   unquote t = do
     t <- reduceQuotedTerm t
-    SigmaKit{..} <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
+    SigmaKit{..} <- __FROM_JUST__ <$> getSigmaKit
     case t of
       Con c _ es | Just [x,y] <- allApplyElims es ->
         choice
@@ -479,7 +479,7 @@ instance Unquote Literal where
           , (c `isCon` primAgdaLitQName,  LitQName  <$> unquoteN x)
           , (c `isCon` primAgdaLitMeta,
              LitMeta
-               <$> (fromMaybe __IMPOSSIBLE__ <$> currentTopLevelModule)
+               <$> (__FROM_JUST__ <$> currentTopLevelModule)
                <*> unquoteN x)
           ]
           __IMPOSSIBLE__
@@ -643,7 +643,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
              failEval
     _ -> failEval
   where
-    unElim = unArg . fromMaybe __IMPOSSIBLE__ . isApplyElim
+    unElim = unArg . __FROM_JUST__ . isApplyElim
     tcBind m k = do v <- evalTCM m
                     evalTCM (k `apply` [defaultArg v])
 
@@ -1106,7 +1106,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
       locallyTCState stPostponeInstanceSearch (const False) $ do
         -- Steal instance constraints (TODO: not all!)
         current <- asksTC envActiveProblems
-        topPid  <- fromMaybe __IMPOSSIBLE__ <$> asksTC envUnquoteProblem
+        topPid  <- __FROM_JUST__ <$> asksTC envUnquoteProblem
         let steal pc@(PConstr pids u c)
               | isInstance pc
               , Set.member topPid pids = PConstr (Set.union current pids) u c

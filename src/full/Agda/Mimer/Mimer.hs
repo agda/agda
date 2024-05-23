@@ -60,7 +60,7 @@ import Agda.TypeChecking.Substitute.Class (apply, applyE, NoSubst(..))
 import Agda.TypeChecking.Telescope (piApplyM, flattenTel, teleArgs)
 import Agda.Utils.Benchmark (billTo)
 import Agda.Utils.FileName (filePath)
-import Agda.Utils.Impossible (__IMPOSSIBLE__)
+import Agda.Utils.Impossible (__IMPOSSIBLE__, __FROM_JUST__)
 import Agda.Utils.Maybe (catMaybes)
 import Agda.Utils.Monad (ifM)
 import qualified Agda.Utils.Maybe.Strict as SMaybe
@@ -368,7 +368,7 @@ inGoalEnv :: Goal -> SM a -> SM a
 inGoalEnv goal = withMetaId (goalMeta goal)
 
 nextBranchMeta' :: SearchBranch -> SM (Goal, SearchBranch)
-nextBranchMeta' = fmap (fromMaybe __IMPOSSIBLE__) . nextBranchMeta
+nextBranchMeta' = fmap __FROM_JUST__ . nextBranchMeta
 
 nextBranchMeta :: SearchBranch -> SM (Maybe (Goal, SearchBranch))
 nextBranchMeta branch = case sbGoals branch of
@@ -1029,7 +1029,7 @@ partitionStepResult (x:xs) = do
       str <- P.render <$> prettyTCM exp
       return $ (brs', MimerExpr str : sols)
     ResultClauses cls -> do
-      f <- fromMaybe __IMPOSSIBLE__ <$> asks searchFnName
+      f <- __FROM_JUST__ <$> asks searchFnName
       return $ (brs', MimerClauses f cls : sols)
 
 
@@ -1131,7 +1131,7 @@ tryLamAbs goal goalType branch =
         newMetaIds <- assignMeta (goalMeta goal) term goalType
         unless (null newMetaIds) (__IMPOSSIBLE__)
         -- TODO: Represent absurd lambda as a Term instead of Expr.
-        -- Left . fromMaybe __IMPOSSIBLE__ <$> getMetaInstantiation (goalMeta metaId)
+        -- Left . __FROM_JUST__ <$> getMetaInstantiation (goalMeta metaId)
         return $ Left $ AbsurdLam exprNoRange NotHidden
       False -> do
         let bindName | isNoName (absName abs) = "z"

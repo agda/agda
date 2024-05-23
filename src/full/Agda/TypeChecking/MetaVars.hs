@@ -432,7 +432,7 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
     MetaVar
       { mvInfo = MetaInfo{ miClosRange = Closure{ clEnv = TCEnv{ envContext = gamma }}}
       , mvPermutation = p
-      } <- fromMaybe __IMPOSSIBLE__ <$> lookupLocalMeta' x
+      } <- __FROM_JUST__ <$> lookupLocalMeta' x
     -- Get the current context Δ.
     delta <- getContext
     -- A bit hazardous:
@@ -515,7 +515,7 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
         let numFields = glen - g1len - g0len
         if numFields <= 0 then return $ vs1 ++ vs0 else do
           -- Get the record type.
-          let t = snd . unDom . fromMaybe __IMPOSSIBLE__ $ delta !!! k
+          let t = snd . unDom . __FROM_JUST__ $ delta !!! k
           -- Get the record field names.
           fs <- getRecordTypeFields t
           -- Field arguments to the original meta are projections from the record var.
@@ -711,7 +711,7 @@ etaExpandMetaTCM kinds m = whenM ((not <$> isFrozen m) `and2M` asksTC envAssignM
         ifBlocked (unEl b) (\ x _ -> waitFor x) $ \ _ t -> case t of
           lvl@(Def r es) ->
             ifM (isEtaRecord r) {- then -} (do
-              let ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+              let ps = __FROM_JUST__ $ allApplyElims es
               let expand = do
                     u <- withMetaInfo' meta $
                       newRecordMetaCtx (miNameSuggestion (mvInfo meta))
@@ -1297,7 +1297,7 @@ assignMeta' m x t n ids v = do
   -- filling in __IMPOSSIBLE__ for the missing terms, e.g.
   -- [(0,0),(1,2),(3,1)] --> [0, 2, __IMP__, 1, __IMP__]
   -- ALT 1: O(m * size ids), serves as specification
-  -- let ivs = [fromMaybe __IMPOSSIBLE__ $ lookup i ids | i <- [0..m-1]]
+  -- let ivs = [__FROM_JUST__ $ lookup i ids | i <- [0..m-1]]
   -- ALT 2: O(m)
   let assocToList i = \case
         _           | i >= m -> []
@@ -1584,7 +1584,7 @@ etaExpandProjectedVar mvar x t n qs = inTopContext $ do
       -- For now, we only eta-expand once.
       -- This might trigger another call to @etaExpandProjectedVar@ later.
       -- A more efficient version does all the eta-expansions at once here.
-      (r, pars, def) <- fromMaybe __IMPOSSIBLE__ <$> isRecordType a
+      (r, pars, def) <- __FROM_JUST__ <$> isRecordType a
       unless (recEtaEquality def) __IMPOSSIBLE__
       let tel = recTel def `apply` pars
           m   = size tel
@@ -1697,7 +1697,7 @@ inverseSubst' skip args = map (mapFst unArg) <$> loop (zip args terms)
                       , argInfoFreeVariables = unknownFreeVariables
                       , argInfoAnnotation    = argInfoAnnotation info'
                       }
-                  vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+                  vs = __FROM_JUST__ $ allApplyElims es
               res <- loop $ zipWith aux vs fs
               return $ res `append` vars
             | otherwise -> fallback

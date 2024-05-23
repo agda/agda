@@ -22,7 +22,6 @@ import Agda.Utils.Functor
 import Agda.Utils.Null
 import Agda.Utils.Size
 import Agda.Utils.Tuple
-
 import Agda.Utils.Impossible
 
 -- | Partial permutations. Examples:
@@ -88,9 +87,7 @@ permute (Perm _ is) xs = go mempty 0 xs is
      -> [a]
   go seen !n xs []       = []
   go seen  n xs (i : is)
-    | i < n     = fromMaybe __IMPOSSIBLE__
-                    (IntMap.lookup i seen) :
-                  go seen n xs is
+    | i < n     = __FROM_JUST__ (IntMap.lookup i seen) : go seen n xs is
     | otherwise = scan seen n xs (i - n) is
 
   -- Finds the element at the given position and continues.

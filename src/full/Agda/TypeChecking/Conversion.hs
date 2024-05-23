@@ -336,7 +336,7 @@ compareTerm' cmp a m n =
               hcomp <- getPrimitiveName' builtinHComp
 
               let
-                ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+                ps = __FROM_JUST__ $ allApplyElims es
                 -- Andreas, 2010-10-11: allowing neutrals to be blocked things does not seem
                 -- to change Agda's behavior
                 --    isNeutral Blocked{}          = False
@@ -1481,8 +1481,8 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
         -- reduce constants
         (as, bs)
           | let minN = min (fst $ levelPlusView a) (fst $ levelPlusView b)
-                a'   = fromMaybe __IMPOSSIBLE__ $ subLevel minN a
-                b'   = fromMaybe __IMPOSSIBLE__ $ subLevel minN b
+                a'   = __FROM_JUST__ $ subLevel minN a
+                b'   = __FROM_JUST__ $ subLevel minN b
           , minN > 0 -> leqLevel a' b'
 
         -- remove subsumed
@@ -2200,7 +2200,7 @@ leqConj (rs, rst) (qs, qst) = do
   if IntMap.isSubmapOfBy BoolSet.isSubsetOf qs rs
     then do
       interval <-
-        El IntervalUniv . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInterval
+        El IntervalUniv . __FROM_JUST__ <$> getBuiltin' builtinInterval
       -- we don't want to generate new constraints here because
       -- 1. in some situations the same constraint would get generated twice.
       -- 2. unless things are completely accepted we are going to

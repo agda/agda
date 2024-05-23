@@ -69,7 +69,7 @@ flattenScope ms scope =
           ]
 
     moduleScope :: A.ModuleName -> Scope
-    moduleScope m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scope ^. scopeModules
+    moduleScope m = __FROM_JUST__ $ Map.lookup m $ scope ^. scopeModules
 
 -- | Compute all defined names in scope and their fixities/notations.
 -- Note that overloaded names (constructors) can have several

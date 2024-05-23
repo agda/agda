@@ -1058,7 +1058,7 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _ _) vtys0
   verboseBracket "tc.with.top" 25 "checkWithRHS" $ do
     Bench.billTo [Bench.Typing, Bench.With] $ do
         withArgs <- withArguments vtys0
-        let perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
+        let perm = __FROM_JUST__ $ dbPatPerm ps
 
         reportSDoc "tc.with.top" 30 $ vcat $
           -- declared locally because we do not want to use the unzip'd thing!

@@ -7,8 +7,6 @@ module Agda.TypeChecking.Patterns.Internal where
 
 import Control.Monad
 
-import Data.Maybe
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
@@ -34,7 +32,7 @@ instance TermToPattern a b => TermToPattern (Named c a) (Named c b) where
 instance (DeBruijn (Pattern' a)) => TermToPattern Term (Pattern' a) where
   termToPattern t = (reduce >=> constructorForm) t >>= \case
     -- Constructors.
-    Con c _ args -> ConP c noConPatternInfo . map (fmap unnamed) <$> termToPattern (fromMaybe __IMPOSSIBLE__ $ allApplyElims args)
+    Con c _ args -> ConP c noConPatternInfo . map (fmap unnamed) <$> termToPattern (__FROM_JUST__ $ allApplyElims args)
     Var i []    -> return $ deBruijnVar i
     Lit l       -> return $ litP l
     t           -> return $ dotP t

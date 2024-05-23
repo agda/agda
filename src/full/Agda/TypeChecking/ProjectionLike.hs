@@ -382,7 +382,7 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
                           -- which case we can't reconstruct the dropped parameters
         checkBody m n b
       where
-        Perm _ p = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
+        Perm _ p = __FROM_JUST__ $ clausePerm cl
         ps       = namedClausePats cl
         b        = compiledClauseBody cl  -- Renumbers variables to match order in patterns
                                           -- and includes dot patterns as variables.

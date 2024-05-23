@@ -460,7 +460,7 @@ defineCompData d con params names fsT t boundary = do
             tIMax <- primIMax
             tIMin <- primIMin
             tINeg <- primINeg
-            tPOr  <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinPOr
+            tPOr  <- __FROM_JUST__ <$> getTerm' builtinPOr
             tHComp <- primHComp
             -- Δ = params
             -- Δ ⊢ Φ = fsT
@@ -988,7 +988,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
   c_HComp <- if hcompComputes then return [] else do
       reportSDoc "tc.data.transp.con" 20 $ "======================="
       reportSDoc "tc.data.transp.con" 20 $ "hcomp"
-      qHComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' builtinHComp
+      qHComp <- __FROM_JUST__ <$> getPrimitiveName' builtinHComp
       hcomp_ty <- defType <$> getConstInfo qHComp
       gamma <- runNamesT [] $ do
                ixsI <- open $ AbsN (teleNames parI) ixsI
@@ -1121,7 +1121,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
 
         Def _ es <- unEl <$> reduce ty
         -- Δ.aTel ⊢ con_ixs : X
-        let con_ixs = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ drop npars es
+        let con_ixs = __FROM_JUST__ $ allApplyElims $ drop npars es
 
         reportSDoc "tc.data.transp.con" 20 $
           addContext prm $ "aTel:" <+> prettyTCM aTel
@@ -1805,7 +1805,7 @@ constructs nofPars nofExtraVars t q = constrT nofExtraVars t
                              b         -> underAbstraction a b $ constrT (n + 1)
                       return PathCons
                 Def d es | d == q -> do
-                  let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+                  let vs = __FROM_JUST__ $ allApplyElims es
                   let (pars, ixs) = splitAt nofPars vs
                   -- check that the constructor parameters are the data parameters
                   checkParams n pars

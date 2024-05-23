@@ -236,7 +236,7 @@ metaParseExpr ii s =
         scope <- getMetaScope <$> lookupLocalMeta m
         r <- getRange <$> lookupLocalMeta m
         -- liftIO $ putStrLn $ prettyShow scope
-        let pos = fromMaybe __IMPOSSIBLE__ (rStart r)
+        let pos = __FROM_JUST__ (rStart r)
         (e, attrs) <- runPM $ parsePosString exprParser pos s
         checkAttributes attrs
         concreteToAbstract scope e

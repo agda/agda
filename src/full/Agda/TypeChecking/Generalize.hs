@@ -186,7 +186,7 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
   -- Translate the QName to the corresponding bound variable
   (genTel, genTelNames, sub) <- computeGeneralization genRecMeta namedMetas allmetas
 
-  let boundVar q = fromMaybe __IMPOSSIBLE__ $ Map.lookup q vars
+  let boundVar q = __FROM_JUST__ $ Map.lookup q vars
       genTelVars = (map . fmap) boundVar genTelNames
 
   tel' <- applySubst sub <$> instantiateFull tel
@@ -750,8 +750,8 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
       where
         isOpen = isOpenMeta $ mvInstantiation mv
         getArgs = \case
-            Sort (MetaS _ es) -> fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-            MetaV _ es        -> fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+            Sort (MetaS _ es) -> __FROM_JUST__ $ allApplyElims es
+            MetaV _ es        -> __FROM_JUST__ $ allApplyElims es
             _                 -> __IMPOSSIBLE__
         unwrapSort (Sort s) = s
         unwrapSort _        = __IMPOSSIBLE__

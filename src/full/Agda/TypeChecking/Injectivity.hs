@@ -417,7 +417,7 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
       _:_:_ -> fallback
       [cl@Clause{ clauseTel  = tel }] -> speculateMetas fallback $ do
           let ps   = clausePats cl
-              perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
+              perm = __FROM_JUST__ $ clausePerm cl
           -- These are what dot patterns should be instantiated at
           ms <- map unArg <$> newTelMeta tel
           reportSDoc "tc.inj.invert" 20 $ vcat

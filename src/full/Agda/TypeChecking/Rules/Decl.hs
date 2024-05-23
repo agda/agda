@@ -366,7 +366,7 @@ unquoteTop xs e = do
 instantiateDefinitionType :: QName -> TCM ()
 instantiateDefinitionType q = do
   reportSLn "tc.decl.inst" 20 $ "instantiating type of " ++ prettyShow q
-  t  <- defType . fromMaybe __IMPOSSIBLE__ . lookupDefinition q <$> getSignature
+  t  <- defType . __FROM_JUST__ . lookupDefinition q <$> getSignature
   t' <- instantiateFull t
   modifySignature $ updateDefinition q $ updateDefType $ const t'
   reportSDoc "tc.decl.inst" 30 $ vcat
@@ -386,7 +386,7 @@ instantiateDefinitionType q = do
 -- instantiateDefinition q = do
 --   reportSLn "tc.decl.inst" 20 $ "instantiating " ++ prettyShow q
 --   sig <- getSignature
---   let def = fromMaybe __IMPOSSIBLE__ $ lookupDefinition q sig
+--   let def = __FROM_JUST__ $ lookupDefinition q sig
 --   def <- instantiateFull def
 --   modifySignature $ updateDefinition q $ const def
 

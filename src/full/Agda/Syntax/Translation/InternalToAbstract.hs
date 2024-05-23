@@ -371,7 +371,7 @@ reifyDisplayFormP f ps wps = do
 
         -- Main action HERE:
         termToPat (DTerm (I.Var n [])) =
-          return $ unArg $ fromMaybe __IMPOSSIBLE__ $ ps !!! n
+          return $ unArg $ __FROM_JUST__ $ ps !!! n
 
         termToPat (DCon c ci vs)          = fmap unnamed <$> tryRecPFromConP =<< do
            A.ConP (ConPatInfo ci patNoRange ConPatEager) (unambiguous (conName c)) <$> mapM argToPat vs
@@ -403,13 +403,13 @@ reifyDisplayFormP f ps wps = do
           -- After unSpine, a Proj elimination is __IMPOSSIBLE__!
           case unSpine v of
             I.Con c ci es -> do
-              let vs = fromMaybe __IMPOSSIBLE__ $ mapM isApplyElim es
+              let vs = __FROM_JUST__ $ mapM isApplyElim es
               apps (A.Con (unambiguous (conName c))) =<< argsToExpr vs
             I.Def f es -> do
-              let vs = fromMaybe __IMPOSSIBLE__ $ mapM isApplyElim es
+              let vs = __FROM_JUST__ $ mapM isApplyElim es
               apps (A.Def f) =<< argsToExpr vs
             I.Var n es -> do
-              let vs = fromMaybe __IMPOSSIBLE__ $ mapM isApplyElim es
+              let vs = __FROM_JUST__ $ mapM isApplyElim es
               -- Andreas, 2014-06-11  Issue 1177
               -- due to β-normalization in substitution,
               -- even the pattern variables @n < len@ can be
@@ -519,8 +519,8 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
           showImp <- showImplicitArguments
           let keep (a, v) = showImp || visible a
           r <- getConstructorData x
-          xs <- fromMaybe __IMPOSSIBLE__ <$> getRecordFieldNames_ r
-          vs <- map unArg <$> reify (fromMaybe __IMPOSSIBLE__ $ allApplyElims vs)
+          xs <- __FROM_JUST__ <$> getRecordFieldNames_ r
+          vs <- map unArg <$> reify (__FROM_JUST__ $ allApplyElims vs)
           return $ A.Rec noExprInfo $ map (Left . uncurry FieldAssignment . mapFst unDom) $ filter keep $ zip xs vs
         else reifyDisplayForm x vs $ do
           def <- getConstInfo x
@@ -535,7 +535,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
           if null vs
             then return h
             else do
-              es <- reify (map (fromMaybe __IMPOSSIBLE__ . isApplyElim) vs)
+              es <- reify (map (__FROM_JUST__ . isApplyElim) vs)
               -- Andreas, 2012-04-20: do not reify parameter arguments of constructor
               -- if the first regular constructor argument is hidden
               -- we turn it into a named argument, in order to avoid confusion
@@ -721,7 +721,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
        Function{ funCompiled = Just Fail{}, funClauses = [cl] }
           | isAbsurdLambdaName x -> do
                   -- get hiding info from last pattern, which should be ()
-                  let (ps, p) = fromMaybe __IMPOSSIBLE__ $ initLast $ namedClausePats cl
+                  let (ps, p) = __FROM_JUST__ $ initLast $ namedClausePats cl
                   let h = getHiding p
                       n = length ps  -- drop all args before the absurd one
                       absLam = A.AbsurdLam exprNoRange h
@@ -875,7 +875,7 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
       -- As extended lambda clauses live in the top level, we add the whole
       -- section telescope to the number of parameters.
       let (pares, rest) = splitAt npars es
-      let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims pares
+      let pars = __FROM_JUST__ $ allApplyElims pares
 
       -- Since we applying the clauses to the parameters,
       -- we do not need to drop their initial "parameter" patterns
@@ -1334,7 +1334,7 @@ tryRecPFromConP p = do
           -- print record pattern.
           -- Otherwise, print constructor pattern.
           if recNamedCon def && conPatOrigin ci /= ConORec then fallback else do
-            fs <- fromMaybe __IMPOSSIBLE__ <$> getRecordFieldNames_ r
+            fs <- __FROM_JUST__ <$> getRecordFieldNames_ r
             unless (length fs == length ps) __IMPOSSIBLE__
             return $ A.RecP patNoRange $ zipWith mkFA fs ps
         where
@@ -1353,7 +1353,7 @@ recOrCon c co es = do
     -- print record expression.
     -- Otherwise, print constructor expression.
     if recNamedCon def && co /= ConORec then fallback else do
-      fs <- fromMaybe __IMPOSSIBLE__ <$> getRecordFieldNames_ r
+      fs <- __FROM_JUST__ <$> getRecordFieldNames_ r
       unless (length fs == length es) __IMPOSSIBLE__
       return $ A.Rec empty $ zipWith mkFA fs es
   where
@@ -1467,16 +1467,16 @@ instance Reify Sort where
         I.Inf u 0 -> return $ A.Def' (nameOfUniv ULarge u) A.NoSuffix
         I.Inf u n -> return $ A.Def' (nameOfUniv ULarge u) (A.Suffix n)
         I.SizeUniv  -> do
-          I.Def sizeU [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeUniv
+          I.Def sizeU [] <- __FROM_JUST__ <$> getBuiltin' builtinSizeUniv
           return $ A.Def sizeU
         I.LockUniv  -> do
-          lockU <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinLockUniv
+          lockU <- __FROM_JUST__ <$> getName' builtinLockUniv
           return $ A.Def lockU
         I.LevelUniv -> do
-          levelU <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinLevelUniv
+          levelU <- __FROM_JUST__ <$> getName' builtinLevelUniv
           return $ A.Def levelU
         I.IntervalUniv -> do
-          intervalU <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinIntervalUniv
+          intervalU <- __FROM_JUST__ <$> getName' builtinIntervalUniv
           return $ A.Def intervalU
         I.PiSort a s1 s2 -> do
           pis <- freshName_ ("piSort" :: String) -- TODO: hack

@@ -3,7 +3,6 @@
 module Agda.TypeChecking.Rules.Display (checkDisplayPragma) where
 
 import Control.Monad.State
-import Data.Maybe
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views
@@ -39,7 +38,7 @@ patternsToTerms EmptyTel (p : ps) ret =
   patternToTerm (namedArg p) $ \n v ->
   patternsToTerms EmptyTel ps     $ \m vs -> ret (n + m) (inheritHiding p v : vs)
 patternsToTerms (ExtendTel a tel) (p : ps) ret
-  | fromMaybe __IMPOSSIBLE__ $ fittingNamedArg p a =
+  | __FROM_JUST__ $ fittingNamedArg p a =
       patternToTerm (namedArg p) $ \n v ->
       patternsToTerms (unAbs tel) ps  $ \m vs -> ret (n + m) (inheritHiding p v : vs)
   | otherwise =

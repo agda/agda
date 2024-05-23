@@ -6,7 +6,6 @@ module Agda.TypeChecking.Telescope.Path where
 import Prelude hiding (null)
 
 import qualified Data.List as List
-import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -55,7 +54,7 @@ telePiPath reAbs lams tel t bs = do
     telePiPath (x:xs) (ExtendTel a tel)
       = case List.find (\ (t,_) -> t == var x) bs of
           Just (_,u) -> do
-            let pp = fromMaybe __IMPOSSIBLE__ mpp
+            let pp = __FROM_JUST__ mpp
             let names = teleArgNames $ unAbs tel
             -- assume a = 𝕀
             b <- b
@@ -104,7 +103,7 @@ class IApplyVars p where
 
 instance DeBruijn a => IApplyVars (Pattern' a) where
   iApplyVars = \case
-    IApplyP _ t u x -> [ fromMaybe __IMPOSSIBLE__ $ deBruijnView x ]
+    IApplyP _ t u x -> [ __FROM_JUST__ $ deBruijnView x ]
     VarP{}          -> []
     ProjP{}         -> []
     LitP{}          -> []

@@ -335,7 +335,7 @@ checkSizeIndex d i a = do
   case unEl a of
     Def d0 es -> do
       whenNothingM (sameDef d d0) __IMPOSSIBLE__
-      np <- fromMaybe __IMPOSSIBLE__ <$> getNumberOfParameters d0
+      np <- __FROM_JUST__ <$> getNumberOfParameters d0
       let (pars, Apply ix : ixs) = splitAt np es
       s <- deepSizeView $ unArg ix
       case s of

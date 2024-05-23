@@ -232,7 +232,7 @@ doPiKanOp cmd t ab = do
         Type l -> return (Just l)
         _      -> return Nothing
     -- But this case is actually impossible:
-    toLevel t = fromMaybe __IMPOSSIBLE__ <$> toLevel' t
+    toLevel t = __FROM_JUST__ <$> toLevel' t
 
   caseMaybeM (toLevel' . absBody . snd . famThing $ ab) (return Nothing) $ \ _ -> do
   runNamesT [] $ do
@@ -409,7 +409,7 @@ primTransHComp cmd ts nelims = do
         -- If we're composing, then we definitely had a partial element
         -- to extend. But now it's just a total element, so we can
         -- just.. return it:
-        u <- open $ unArg $ fromMaybe __IMPOSSIBLE__ u
+        u <- open $ unArg $ __FROM_JUST__ u
         u <@> clP builtinIOne <..> clP builtinItIsOne
       DoTransp ->
         -- Otherwise we're in the constant part of the line to transport
@@ -434,7 +434,7 @@ primTransHComp cmd ts nelims = do
             -- Otherwise we have some interesting formula (though
             -- definitely not IOne!) and we have to keep the partial
             -- element as-is.
-            _ -> pure $ notReduced $ fromMaybe __IMPOSSIBLE__ u
+            _ -> pure $ notReduced $ __FROM_JUST__ u
           DoTransp -> return []
 
         pure . NoReduction $ [notReduced (famThing l), reduced sc, reduced sphi] ++ u' ++ [notReduced u0]
@@ -459,7 +459,7 @@ primTransHComp cmd ts nelims = do
           operation = case cmd of
             DoTransp -> TranspOp { kanOpCofib = sphi, kanOpBase = u0 }
             DoHComp -> HCompOp
-              { kanOpCofib = sphi, kanOpSides = fromMaybe __IMPOSSIBLE__ u, kanOpBase = u0 }
+              { kanOpCofib = sphi, kanOpSides = __FROM_JUST__ u, kanOpBase = u0 }
 
         mHComp <- getPrimitiveName' builtinHComp
         mGlue <- getPrimitiveName' builtinGlue
@@ -545,7 +545,7 @@ primTransHComp cmd ts nelims = do
 
                 -- Records know how to hcomp themselves:
                 | doR r, Just as <- allApplyElims es, DoHComp <- cmd, Just hCompR <- nameOfHComp kit ->
-                  redReturn $ Def hCompR [] `apply` (as ++ [ignoreBlocking sphi, fromMaybe __IMPOSSIBLE__ u,u0])
+                  redReturn $ Def hCompR [] `apply` (as ++ [ignoreBlocking sphi, __FROM_JUST__ u,u0])
 
                 -- If this is a record with no fields, then compData
                 -- will know what to do with it:
@@ -646,7 +646,7 @@ primTransHComp cmd ts nelims = do
                 lam "i" $ \ i -> do
                   combine l c (u <@> i) $ zip phis (map (\ t -> t <@> i) us)
 
-            if isJust h && and hd then k (fromMaybe __IMPOSSIBLE__ h) su
+            if isJust h && and hd then k (__FROM_JUST__ h) su
                       else noRed' su
 
       sameConHeadBack (isLit a0) (isCon a0) su $ \ h su -> do
@@ -1033,7 +1033,7 @@ pathTelescope'
   -> [Arg Term] -- rhs : Δ
   -> m Telescope
 pathTelescope' tel lhs rhs = do
-  pathp <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinPathP
+  pathp <- __FROM_JUST__ <$> getTerm' builtinPathP
   go pathp (raise 1 tel) lhs rhs
  where
   -- Γ,i ⊢ Δ, Γ ⊢ lhs : Δ[0], Γ ⊢ rhs : Δ[1]
@@ -1275,7 +1275,7 @@ transpSys ty sys phi u = do
   let max i j = cl primIMax <@> i <@> j
   iz <- primIZero
   tTransp <- primTrans
-  tComp <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinComp
+  tComp <- __FROM_JUST__ <$> getTerm' builtinComp
   l_ty <- bind "i" $ \ i -> do
       ty <- absApp <$> ty <*> i
       toLType ty >>= \case

@@ -232,7 +232,7 @@ instance Instantiate Term where
       -- applying the substitution, or overapplied in which case we need to
       -- fall back to applyE.
       (es1, es2) = splitAt (length (instTel i)) es
-      vs1 = reverse $ map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es1
+      vs1 = reverse $ map unArg $ __FROM_JUST__ $ allApplyElims es1
       rho = vs1 ++# wkS (length vs1) idS
             -- really should be .. ++# emptyS but using wkS makes it reduce to idS
             -- when applicable
@@ -674,7 +674,7 @@ unfoldDefinitionStep v0 f es =
       let hd = Con (c `withRangeOf` f) ConOSystem
       rewrite (NotBlocked ReallyNotBlocked ()) hd rewr es
     Primitive{primAbstr = ConcreteDef, primName = x, primClauses = cls} -> do
-      pf <- fromMaybe __IMPOSSIBLE__ <$> getPrimitive' x
+      pf <- __FROM_JUST__ <$> getPrimitive' x
       if FunctionReductions `SmallSet.member` allowed
         then reducePrimitive x v0 f es pf dontUnfold
                              cls (defCompiled info) rewr
@@ -707,7 +707,7 @@ unfoldDefinitionStep v0 f es =
                   = noReduction $ NotBlocked Underapplied $ v0 `applyE` es -- not fully applied
       | otherwise = {-# SCC "reducePrimitive" #-} do
           let (es1,es2) = splitAt ar es
-              args1     = fromMaybe __IMPOSSIBLE__ $ mapM isApplyElim es1
+              args1     = __FROM_JUST__ $ mapM isApplyElim es1
           r <- primFunImplementation pf args1 (length es2)
           case r of
             NoReduction args1' -> do
@@ -911,7 +911,7 @@ appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v
         -- Andrea(s), 2014-12-05:  We return 'MissingClauses' here, since this
         -- is the most conservative reason.
         [] -> do
-          f <- fromMaybe __IMPOSSIBLE__ <$> asksTC envAppDef
+          f <- __FROM_JUST__ <$> asksTC envAppDef
           rewrite (NotBlocked (MissingClauses f) ()) (applyE v) rewr es
         cl : cls -> do
           let pats = namedClausePats cl

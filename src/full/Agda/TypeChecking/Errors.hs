@@ -1287,7 +1287,7 @@ instance PrettyTCM TypeError where
           NonfixNotation  -> id
           NoNotation      -> __IMPOSSIBLE__
 
-        (names, name) = fromMaybe __IMPOSSIBLE__ $ initLast $ Set.toList $ notaNames nota
+        (names, name) = __FROM_JUST__ $ initLast $ Set.toList $ notaNames nota
 
         strut = Boxes.emptyBox (length names) 0
 

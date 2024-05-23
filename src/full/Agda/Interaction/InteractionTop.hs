@@ -299,7 +299,7 @@ runInteraction iotcm =
       when (Just currentAbs /= (currentFilePath <$> cf)) $ do
         let mode = TypeCheck
         cmd_load' current [] True mode $ \_ -> return ()
-      cf <- fromMaybe __IMPOSSIBLE__ <$> gets theCurrentFile
+      cf <- __FROM_JUST__ <$> gets theCurrentFile
       return $ case iotcm (Just (currentFileModule cf)) of
         IOTCM _ _ _ cmd -> cmd
 

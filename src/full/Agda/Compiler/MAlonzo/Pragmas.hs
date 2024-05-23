@@ -3,7 +3,6 @@
 module Agda.Compiler.MAlonzo.Pragmas where
 
 import Control.Monad
-import Data.Maybe
 import Data.Char
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -175,7 +174,7 @@ getHaskellConstructor c = do
       case mp of
         Just (HsData _ _ hsCons) -> do
           cons <- defConstructors . theDef <$> getConstInfo d
-          return $ Just $ fromMaybe __IMPOSSIBLE__ $ lookup c $ zip cons hsCons
+          return $ Just $ __FROM_JUST__ $ lookup c $ zip cons hsCons
         _ -> return Nothing
     _ -> return Nothing
 

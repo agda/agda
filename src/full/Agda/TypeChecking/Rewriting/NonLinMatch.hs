@@ -31,7 +31,6 @@ import Control.Monad.State  ( MonadState, StateT, runStateT )
 
 import qualified Control.Monad.Fail as Fail
 
-import Data.Maybe
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
@@ -243,7 +242,7 @@ instance Match NLPSort Sort where
 
 instance Match NLPat Level where
   match r gamma k _ p l = do
-    t <- El (mkType 0) . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
+    t <- El (mkType 0) . __FROM_JUST__ <$> getBuiltin' builtinLevel
     v <- reallyUnLevelView l
     match r gamma k t p v
 

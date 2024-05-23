@@ -2,8 +2,6 @@
 
 module Agda.TypeChecking.Rewriting.Clause where
 
-import Data.Maybe
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
@@ -50,7 +48,7 @@ clauseToRewriteRule f q cl = clauseBody cl <&> \rhs -> RewriteRule
   , rewHead    = f
   , rewPats    = toNLPat $ namedClausePats cl
   , rewRHS     = rhs
-  , rewType    = unArg $ fromMaybe __IMPOSSIBLE__  $ clauseType cl
+  , rewType    = unArg $ __FROM_JUST__  $ clauseType cl
   , rewFromClause = True
   }
 

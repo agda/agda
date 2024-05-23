@@ -35,10 +35,9 @@ import Agda.TypeChecking.Substitute
   ( absBody, apply, sort, applyE )
 
 import Agda.Utils.Functor
-import Agda.Utils.Maybe
 import Agda.Utils.Monad
 
-import Agda.Utils.Impossible (__IMPOSSIBLE__)
+import Agda.Utils.Impossible (__IMPOSSIBLE__, __FROM_JUST__)
 
 -- | Perform the Kan operations for an @hcomp {A = Type} {φ} u u0@ type.
 doHCompUKanOp
@@ -109,7 +108,7 @@ doHCompUKanOp (TranspOp psi u0) (IsFam (la, phi, bT, bA)) tpos = do
   tLSuc   <- getTermLocal builtinLevelSuc
   tPath   <- getTermLocal builtinPath
   tItIsOne   <- getTermLocal builtinItIsOne
-  kit <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
+  kit <- __FROM_JUST__ <$> getSigmaKit
   runNamesT [] $ do
     -- Helper definitions we'll use:
     gcomp <- mkGComp localUse
@@ -274,7 +273,7 @@ prim_unglueU' = do
                   st <- reduceB' (absBody t)
                   case ignoreBlocking st of
                     Def h es | Just [la,_,phi,bT,bA] <- allApplyElims es, Just h == mHCompU -> do
-                      redReturn . fromMaybe __IMPOSSIBLE__ =<<
+                      redReturn . __FROM_JUST__ =<<
                         doHCompUKanOp (TranspOp (notBlocked r) u0) (IsFam (la,phi,bT,bA)) Eliminated
                     _ -> fallback (st *> sbA)
                 _  -> fallback sbA
@@ -284,7 +283,7 @@ prim_unglueU' = do
               sbA <- reduceB bA
               case unArg $ ignoreBlocking sbA of
                 Def h es | Just [la,_,phi,bT,bA] <- allApplyElims es, Just h == mHCompU -> do
-                  redReturn . fromMaybe __IMPOSSIBLE__ =<<
+                  redReturn . __FROM_JUST__ =<<
                     doHCompUKanOp (HCompOp (notBlocked r) u u0) (IsNot (la,phi,bT,bA)) Eliminated
                 _ -> fallback sbA
             _ -> return (NoReduction $ map notReduced [la] ++ [reduced sphi] ++ map notReduced [bT,bA] ++ [reduced sb])

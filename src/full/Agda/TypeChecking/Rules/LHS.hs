@@ -204,7 +204,7 @@ updateProblemEqs eqs = do
 
     update eq@(ProblemEq p v a) = reduce v >>= constructorForm >>= \case
       Con c ci es -> do
-        let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+        let vs = __FROM_JUST__ $ allApplyElims es
         -- we should only simplify equations between fully applied constructors
         contype <- getFullyAppliedConType c =<< reduce (unDom a)
         caseMaybe contype (return [eq]) $ \((d,_,pars),b) -> do
@@ -461,7 +461,7 @@ transferOrigins ps qs = do
         ConP c cpi <$> transfers ps qs
 
       ((asB , anns , A.RecP pi fs) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
-        let Def d _  = unEl $ unArg $ fromMaybe __IMPOSSIBLE__ mb
+        let Def d _  = unEl $ unArg $ __FROM_JUST__ mb
             axs = map (nameConcrete . qnameName . unArg) (conFields c) `withArgsFrom` qs
             cpi = ConPatternInfo (PatternInfo PatORec asB) r ft mb l
         ps <- insertMissingFieldsFail d (const $ A.WildP patNoRange) fs axs
@@ -819,7 +819,7 @@ checkLeftHandSide call f ps a withSub' strippedPats =
 
   -- after we have introduced variables, we can add the patterns stripped by
   -- with-desugaring to the state.
-  let withSub = fromMaybe __IMPOSSIBLE__ withSub'
+  let withSub = __FROM_JUST__ withSub'
   withEqs <- updateProblemEqs $ applySubst withSub strippedPats
   -- Jesper, 2017-05-13: re-check the stripped patterns here!
   inTopContext $ addContext (st0 ^. lhsTel) $
@@ -1201,7 +1201,7 @@ checkLHS mf = updateModality checkLHS_ where
                    [] -> do
                      a <- reduce (unEl $ unDom dom)
                      -- builtinIsOne is defined, since this is a precondition for having Partial
-                     isone <- fromMaybe __IMPOSSIBLE__ <$>  -- newline because of CPP
+                     isone <- __FROM_JUST__ <$>  -- newline because of CPP
                        getBuiltinName' builtinIsOne
                      case a of
                        Def q [Apply phi] | q == isone -> return (unArg phi)
@@ -1223,8 +1223,8 @@ checkLHS mf = updateModality checkLHS_ where
       reportSDoc "tc.lhs.faces" 60 $ text $ show sigma
 
       let oix = size adelta2 -- de brujin index of IsOne
-          o_n = fromMaybe __IMPOSSIBLE__ $
-            findIndex (\ x -> case namedThing (unArg x) of
+          o_n = __FROM_JUST__
+              $ findIndex (\ x -> case namedThing (unArg x) of
                                    VarP _ x -> dbPatVarIndex x == oix
                                    _        -> False) ip
           delta2' = absApp adelta2 itisone
@@ -1366,7 +1366,7 @@ checkLHS mf = updateModality checkLHS_ where
       -- The type of the constructor will end in an application of the datatype
       (TelV gamma (El _ ctarget), boundary) <- liftTCM $ telViewPathBoundaryP b
       let Def d' es' = ctarget
-          cixs = drop (size pars) $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es'
+          cixs = drop (size pars) $ __FROM_JUST__ $ allApplyElims es'
 
       -- Δ₁Γ ⊢ boundary
       reportSDoc "tc.lhs.split.con" 50 $ text "  boundary = " <+> prettyTCM boundary
@@ -1624,11 +1624,11 @@ isDataOrRecordType a0 = ifBlocked a0 blocked $ \case
 
         whenM (isInterval a) $ hardTypeError =<< notData
 
-        let (pars, ixs) = splitAt np $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+        let (pars, ixs) = splitAt np $ __FROM_JUST__ $ allApplyElims es
         return (IsData, d, pars, ixs)
 
       Record{ recInduction, recEtaEquality' } -> do
-        let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+        let pars = __FROM_JUST__ $ allApplyElims es
         return (IsRecord InductionAndEta {recordInduction=recInduction, recordEtaEquality=recEtaEquality' }, d, pars, [])
 
       -- Issue #2253: the data type could be abstract.
@@ -2008,7 +2008,7 @@ checkParameters dc d pars = liftTCM $ do
   a  <- reduce (Def dc [])
   case a of
     Def d0 es -> do -- compare parameters
-      let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+      let vs = __FROM_JUST__ $ allApplyElims es
       reportSDoc "tc.lhs.split" 40 $ vcat $
         [ "checkParameters"
         , nest 2 $ "d                   =" <+> (text . prettyShow) d

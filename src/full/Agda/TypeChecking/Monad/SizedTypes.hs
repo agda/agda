@@ -144,7 +144,7 @@ sizeType_ size = El sizeSort $ Def size []
 {-# SPECIALIZE sizeType :: TCM Type #-}
 -- | The built-in type @SIZE@.
 sizeType :: (HasBuiltins m, MonadTCEnv m, ReadTCState m) => m Type
-sizeType = El sizeSort . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSize
+sizeType = El sizeSort . __FROM_JUST__ <$> getBuiltin' builtinSize
 
 -- | The name of @SIZESUC@.
 sizeSucName :: (HasBuiltins m, HasOptions m) => m (Maybe QName)
@@ -159,8 +159,8 @@ sizeSuc :: HasBuiltins m => Nat -> Term -> m Term
 sizeSuc n v | n < 0     = __IMPOSSIBLE__
             | n == 0    = return v
             | otherwise = do
-  Def suc [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeSuc
-  return $ fromMaybe __IMPOSSIBLE__ (iterate (sizeSuc_ suc) v !!! n)
+  Def suc [] <- __FROM_JUST__ <$> getBuiltin' builtinSizeSuc
+  return $ __FROM_JUST__ (iterate (sizeSuc_ suc) v !!! n)
 
 sizeSuc_ :: QName -> Term -> Term
 sizeSuc_ suc v = Def suc [Apply $ defaultArg v]
@@ -186,8 +186,8 @@ data SizeView = SizeInf | SizeSuc Term | OtherSize Term
 sizeView :: (HasBuiltins m, MonadTCEnv m, ReadTCState m)
          => Term -> m SizeView
 sizeView v = do
-  Def inf [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeInf
-  Def suc [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeSuc
+  Def inf [] <- __FROM_JUST__ <$> getBuiltin' builtinSizeInf
+  Def suc [] <- __FROM_JUST__ <$> getBuiltin' builtinSizeSuc
   case v of
     Def x []        | x == inf -> return SizeInf
     Def x [Apply u] | x == suc -> return $ SizeSuc (unArg u)

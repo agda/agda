@@ -47,13 +47,13 @@ levelType =
 -- | Get the 'primLevel' as a 'Type'.  Unsafe, crashes if the BUILTIN LEVEL is undefined.
 levelType' :: (HasBuiltins m) => m Type
 levelType' =
-  El LevelUniv . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
+  El LevelUniv . __FROM_JUST__ <$> getBuiltin' builtinLevel
 
 {-# SPECIALIZE isLevelType :: Type -> TCM Bool #-}
 isLevelType :: PureTCM m => Type -> m Bool
 isLevelType a = reduce (unEl a) >>= \case
   Def f [] -> do
-    Def lvl [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
+    Def lvl [] <- __FROM_JUST__ <$> getBuiltin' builtinLevel
     return $ f == lvl
   _ -> return False
 
@@ -61,10 +61,10 @@ isLevelType a = reduce (unEl a) >>= \case
 {-# SPECIALIZE builtinLevelKit :: ReduceM LevelKit #-}
 builtinLevelKit :: (HasBuiltins m) => m LevelKit
 builtinLevelKit = do
-    level@(Def l [])     <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
-    zero@(Def z [])      <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelZero
-    suc@(Def s [])       <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelSuc
-    max@(Def m [])       <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelMax
+    level@(Def l [])     <- __FROM_JUST__ <$> getBuiltin' builtinLevel
+    zero@(Def z [])      <- __FROM_JUST__ <$> getBuiltin' builtinLevelZero
+    suc@(Def s [])       <- __FROM_JUST__ <$> getBuiltin' builtinLevelSuc
+    max@(Def m [])       <- __FROM_JUST__ <$> getBuiltin' builtinLevelMax
     return $ LevelKit
       { lvlType  = level
       , lvlSuc   = \ a -> suc `apply1` a
@@ -153,9 +153,9 @@ levelView a = do
 {-# SPECIALIZE levelView' :: Term -> TCM Level #-}
 levelView' :: PureTCM m => Term -> m Level
 levelView' a = do
-  Def lzero [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelZero
-  Def lsuc  [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelSuc
-  Def lmax  [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelMax
+  Def lzero [] <- __FROM_JUST__ <$> getBuiltin' builtinLevelZero
+  Def lsuc  [] <- __FROM_JUST__ <$> getBuiltin' builtinLevelSuc
+  Def lmax  [] <- __FROM_JUST__ <$> getBuiltin' builtinLevelMax
   let view a = do
         ba <- reduceB a
         case ignoreBlocking ba of

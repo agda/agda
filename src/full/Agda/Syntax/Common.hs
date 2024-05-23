@@ -2156,7 +2156,7 @@ namedSame a b = case (getNameOf a, getNameOf b) of
 --
 --   'Nothing' should be '__IMPOSSIBLE__', so use as
 --   @@
---     fromMaybe __IMPOSSIBLE__ $ fittingNamedArg arg dom
+--     __FROM_JUST__ $ fittingNamedArg arg dom
 --   @@
 --
 fittingNamedArg

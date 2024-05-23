@@ -656,7 +656,7 @@ addHaskellPragma = addPragma ghcBackendName
 
 bindAndSetHaskellCode :: BuiltinId -> String -> Term -> TCM ()
 bindAndSetHaskellCode b hs t = do
-  d <- fromMaybe __IMPOSSIBLE__ <$> getDef t
+  d <- __FROM_JUST__ <$> getDef t
   bindBuiltinName b t
   addHaskellPragma d hs
 
@@ -678,7 +678,7 @@ bindBuiltinInt = bindAndSetHaskellCode builtinInteger "= type Integer"
 bindBuiltinNat :: Term -> TCM ()
 bindBuiltinNat t = do
   bindBuiltinData builtinNat t
-  name <- fromMaybe __IMPOSSIBLE__ <$> getDef t
+  name <- __FROM_JUST__ <$> getDef t
   addHaskellPragma name "= type Integer"
 
 -- | Only use for datatypes with distinct arities of constructors.
@@ -686,7 +686,7 @@ bindBuiltinNat t = do
 bindBuiltinData :: BuiltinId -> Term -> TCM ()
 bindBuiltinData s t = do
   bindBuiltinName s t
-  name <- fromMaybe __IMPOSSIBLE__ <$> getDef t
+  name <- __FROM_JUST__ <$> getDef t
   Datatype{ dataCons = cs } <- theDef <$> getConstInfo name
   let getArity c = do
         Constructor{ conArity = a } <- theDef <$> getConstInfo c
@@ -697,7 +697,7 @@ bindBuiltinData s t = do
   -- Order constructurs by arity
   cs <- sortByM getArity cs
   -- Do the same for the builtins
-  let bcis = fromMaybe __IMPOSSIBLE__ $ do
+  let bcis = __FROM_JUST__ $ do
         BuiltinData _ bcs <- builtinDesc <$> findBuiltinInfo s
         mapM findBuiltinInfo bcs
   bcis <- sortByM (getBuiltinArity . builtinDesc) bcis
@@ -706,7 +706,7 @@ bindBuiltinData s t = do
 
 bindBuiltinUnit :: Term -> TCM ()
 bindBuiltinUnit t = do
-  unit <- fromMaybe __IMPOSSIBLE__ <$> getDef t
+  unit <- __FROM_JUST__ <$> getDef t
   def <- theDef <$> getConstInfo unit
   case def of
     Record { recFields = [], recConHead = con } -> do
@@ -716,7 +716,7 @@ bindBuiltinUnit t = do
 
 bindBuiltinSigma :: Term -> TCM ()
 bindBuiltinSigma t = do
-  sigma <- fromMaybe __IMPOSSIBLE__ <$> getDef t
+  sigma <- __FROM_JUST__ <$> getDef t
   def <- theDef <$> getConstInfo sigma
   case def of
     Record { recFields = [fst,snd], recConHead = con } -> do
@@ -741,7 +741,7 @@ bindBuiltinEquality x = do
 
   -- The types of the last two arguments must be the third-last argument
   unless (natSize eqTel >= 3) no
-  let (a, b) = fromMaybe __IMPOSSIBLE__ $ last2 $ telToList eqTel
+  let (a, b) = __FROM_JUST__ $ last2 $ telToList eqTel
   [a,b] <- reduce $ map (unEl . snd . unDom) [a,b]
   unless (deBruijnView a == Just 0) no
   unless (deBruijnView b == Just 1) no
@@ -765,8 +765,8 @@ bindBuiltinEquality x = do
       -- Check the target
       case unEl conCore of
         Def _ es -> do
-          let vs = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-          (a,b) <- reduce $ fromMaybe __IMPOSSIBLE__ $ last2 vs
+          let vs = map unArg $ __FROM_JUST__ $ allApplyElims es
+          (a,b) <- reduce $ __FROM_JUST__ $ last2 vs
           unless (deBruijnView a == Just 0) wrongRefl
           unless (deBruijnView b == Just 0) wrongRefl
           bindBuiltinName builtinRefl (Con (ConHead c IsData Inductive []) ConOSystem [])

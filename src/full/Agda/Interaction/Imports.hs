@@ -936,7 +936,7 @@ writeInterface file i = let fp = filePath file in do
       "Writing interface file with hash " ++ show (iFullHash filteredIface) ++ "."
     encodedIface <- encodeFile fp filteredIface
     reportSLn "import.iface.write" 5 "Wrote interface file."
-    fromMaybe __IMPOSSIBLE__ <$> (Bench.billTo [Bench.Deserialization] (decode encodedIface))
+    __FROM_JUST__ <$> (Bench.billTo [Bench.Deserialization] (decode encodedIface))
   `catchError` \e -> do
     alwaysReportSLn "" 1 $
       "Failed to write interface " ++ fp ++ "."

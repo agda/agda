@@ -713,7 +713,7 @@ lub' hg (node1, n) (node2, m) = do
       -- then there are exactly two edges node1 --l1--> n0 and node2 --l2--> n0
       -- Andreas, 2017-04-28, issue #2558: The following invariant does not hold always
       -- -- with non-positive weights l1, l2
-      let es = fromMaybe __IMPOSSIBLE__ $ Map.lookup n0 sucs
+      let es = __FROM_JUST__ $ Map.lookup n0 sucs
       case es of
         [ Edge node1x n1 l1 ,
           Edge node2x n2 l2 ] -> do
@@ -752,7 +752,7 @@ glb' hg (node1, n) (node2, m) = do
       -- then there are exactly two edges n0 --l1--> node1 and n0 --l2--> node2
       -- Andreas, 2017-04-28, issue #2558: The following invariant may not hold always
       -- -- with non-positive weigths l1, l2
-      let es = fromMaybe __IMPOSSIBLE__ $ Map.lookup n0 preds
+      let es = __FROM_JUST__ $ Map.lookup n0 preds
       case es of
         [ Edge n1 node1x l1 ,
           Edge n2 node2x l2] -> do

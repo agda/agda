@@ -50,5 +50,5 @@ string2HelpTopic str = lookup str allHelpTopics
 
 -- UNUSED Liang-Ting Chen 2019-07-15
 --helpTopic2String :: HelpTopic -> String
---helpTopic2String w = fromMaybe __IMPOSSIBLE__ $ lookup w (map swap allHelpTopics)
+--helpTopic2String w = __FROM_JUST__ $ lookup w (map swap allHelpTopics)
 --

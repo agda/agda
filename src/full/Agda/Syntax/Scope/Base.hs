@@ -90,7 +90,7 @@ nameSpaceAccess _         = PublicAccess
 
 -- | Get a 'NameSpace' from 'Scope'.
 scopeNameSpace :: NameSpaceId -> Scope -> NameSpace
-scopeNameSpace ns = fromMaybe __IMPOSSIBLE__ . lookup ns . scopeNameSpaces
+scopeNameSpace ns = __FROM_JUST__ . lookup ns . scopeNameSpaces
 
 -- | A lens for 'scopeNameSpaces'
 updateScopeNameSpaces :: (ScopeNameSpaces -> ScopeNameSpaces) -> Scope -> Scope
@@ -749,7 +749,7 @@ zipScope fd fm fs s1 s2 =
   s1 { scopeNameSpaces =
          [ (nsid, zipNS nsid ns1 ns2)
          | ((nsid, ns1), (nsid', ns2)) <-
-             fromMaybe __IMPOSSIBLE__ $
+             __FROM_JUST__ $
                zipWith' (,) (scopeNameSpaces s1) (scopeNameSpaces s2)
          , assert (nsid == nsid')
          ]
@@ -1083,7 +1083,7 @@ everythingInScope :: ScopeInfo -> NameSpace
 everythingInScope scope = allThingsInScope $ mergeScopes $
     (s0 :) $ map look $ scopeParents s0
   where
-    look m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scope ^. scopeModules
+    look m = __FROM_JUST__ $ Map.lookup m $ scope ^. scopeModules
     s0     = look $ scope ^. scopeCurrent
 
 everythingInScopeQualified :: ScopeInfo -> NameSpace
@@ -1093,7 +1093,7 @@ everythingInScopeQualified scope =
   where
     s0      = look $ scope ^. scopeCurrent
     scopes  = s0 : map look (scopeParents s0)
-    look m  = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scope ^. scopeModules
+    look m  = __FROM_JUST__ $ Map.lookup m $ scope ^. scopeModules
     lookP   = restrictPrivate . look
 
     -- We start with the current module and all its parents and look through
@@ -1140,7 +1140,7 @@ concreteNamesInScope scope =
           ]
 
     moduleScope :: A.ModuleName -> Scope
-    moduleScope m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scope ^. scopeModules
+    moduleScope m = __FROM_JUST__ $ Map.lookup m $ scope ^. scopeModules
 
 -- | Look up a name in the scope
 scopeLookup :: InScope a => C.QName -> ScopeInfo -> [a]
@@ -1155,7 +1155,7 @@ scopeLookup' q scope =
     -- 1. Finding a name in the current scope and its parents.
 
     moduleScope :: A.ModuleName -> Scope
-    moduleScope m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scope ^. scopeModules
+    moduleScope m = __FROM_JUST__ $ Map.lookup m $ scope ^. scopeModules
 
     current :: Scope
     current = moduleScope $ scope ^. scopeCurrent
@@ -1310,7 +1310,7 @@ recomputeInverseScopeMaps scope = billToPure [ Scoping , InverseScopeLookup ] $
     scopes  = [ (m, restrict m s) | (m, s) <- Map.toList (scope ^. scopeModules) ]
 
     moduleScope :: A.ModuleName -> Scope
-    moduleScope m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scope ^. scopeModules
+    moduleScope m = __FROM_JUST__ $ Map.lookup m $ scope ^. scopeModules
 
     restrict m s | m `elem` current = s
                  | otherwise = restrictPrivate s

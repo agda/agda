@@ -375,7 +375,7 @@ code onlyCode fileType = mconcat . if onlyCode
 
     -- Named anchor (not reliable, but useful in the general case for outside refs).
     nameAttributes :: [Attribute]
-    nameAttributes = [ Attr.id $ stringValue $ fromMaybe __IMPOSSIBLE__ $ mDefSiteAnchor ]
+    nameAttributes = [ Attr.id $ stringValue $ __FROM_JUST__ $ mDefSiteAnchor ]
 
     classes = concat
       [ concatMap noteClasses (note mi)

@@ -5,8 +5,6 @@ module Agda.TypeChecking.Datatypes where
 import Control.Monad        ( filterM )
 import Control.Monad.Except ( MonadError(..), ExceptT(..), runExceptT )
 
-import Data.Maybe (fromMaybe)
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
@@ -114,7 +112,7 @@ getFullyAppliedConType c t = do
       reportSLn "tc.getConType" 35 $ unwords $
         [ "getFullyAppliedConType: case Def", prettyShow d, prettyShow es ]
       dt <- defType <$> getConstInfo d
-      let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ take npars es
+      let pars = __FROM_JUST__ $ allApplyElims $ take npars es
       ctPars <- ctype `piApplyM` pars
       return $ Just ((d, dt, pars), ctPars)
     _ -> return Nothing
@@ -219,7 +217,7 @@ data ConstructorInfo
 --   In case of record constructors, also return the field names (plus other info).
 --
 getConstructorInfo :: HasConstInfo m => QName -> m ConstructorInfo
-getConstructorInfo c = fromMaybe __IMPOSSIBLE__ <$> getConstructorInfo' c
+getConstructorInfo c = __FROM_JUST__ <$> getConstructorInfo' c
 
 getConstructorInfo' :: HasConstInfo m => QName -> m (Maybe ConstructorInfo)
 getConstructorInfo' c = do
@@ -298,7 +296,7 @@ getNotErasedConstructors d = do
 
 -- | Precondition: Name is a data or record type.
 getConstructors :: QName -> TCM [QName]
-getConstructors d = fromMaybe __IMPOSSIBLE__ <$>
+getConstructors d = __FROM_JUST__ <$>
   getConstructors' d
 
 -- | 'Nothing' if not data or record type name.

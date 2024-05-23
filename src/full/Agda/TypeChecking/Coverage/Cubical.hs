@@ -72,8 +72,8 @@ createMissingIndexedClauses f n x old_sc scs cs = do
             -- Andrea: what to do when we only managed to build a unification proof for some of the constructors?
          Constructor{conData} <- theDef <$> getConstInfo (fst info)
          Datatype{dataPars = pars, dataIxs = nixs, dataTranspIx} <- theDef <$> getConstInfo conData
-         hcomp <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinHComp
-         trX <- fromMaybe __IMPOSSIBLE__ <$> pure dataTranspIx
+         hcomp <- __FROM_JUST__ <$> getName' builtinHComp
+         trX <- __FROM_JUST__ <$> pure dataTranspIx
          trX_cl <- createMissingTrXTrXClause trX f n x old_sc
          hcomp_cl <- createMissingTrXHCompClause trX f n x old_sc
          (trees,cls) <- fmap unzip . forM infos $ \ (c,i) -> do
@@ -124,7 +124,7 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
   let
    old_tel = scTel old_sc
    old_ps = fromSplitPatterns $ scPats old_sc
-   old_t = fromMaybe __IMPOSSIBLE__ $ scTarget old_sc
+   old_t = __FROM_JUST__ $ scTarget old_sc
 
   reportSDoc "tc.cover.trx.trx" 20 $ "trX-trX clause for" <+> prettyTCM f
   reportSDoc "tc.cover.trx.trx" 20 $ nest 2 $ vcat $
@@ -170,7 +170,7 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
     old_tel = scTel old_sc
     old_ps' = AbsN (teleNames old_tel) $ fromSplitPatterns $ scPats old_sc
     old_ps = pure $ old_ps'
-    old_ty = pure $ AbsN (teleNames old_tel) $ fromMaybe __IMPOSSIBLE__ $ scTarget old_sc
+    old_ty = pure $ AbsN (teleNames old_tel) $ __FROM_JUST__ $ scTarget old_sc
   -- old_tel = Γ(x: D η v)Δ
   -- Γ1, (x : D η v)  ⊢ delta = (δ : Δ)
     (gamma1x,delta') = splitTelescopeAt (size old_tel - blockingVarNo x) old_tel
@@ -375,7 +375,7 @@ createMissingTrXHCompClause q_trX f n x old_sc = do
   let
    old_tel = scTel old_sc
    old_ps = fromSplitPatterns $ scPats old_sc
-   old_t = fromMaybe __IMPOSSIBLE__ $ scTarget old_sc
+   old_t = __FROM_JUST__ $ scTarget old_sc
 
   reportSDoc "tc.cover.trx.hcomp" 20 $ "trX-hcomp clause for" <+> prettyTCM f
   reportSDoc "tc.cover.trx.hcomp" 20 $ nest 2 $ vcat $
@@ -409,11 +409,11 @@ createMissingTrXHCompClause q_trX f n x old_sc = do
   -- Ξ ⊢ w0 := f old_ps[γ1,x = pat_rec[1] ,δ_f[1]] : old_t[γ1,x = pat_rec[1],δ_f[1]]
   -- Ξ ⊢ rhs := tr (i. old_t[γ1,x = pat_rec[~i], δ_f[~i]]) (φ ∧ ψ) w0 -- TODO plus sides.
 
-  q_hcomp <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinHComp
+  q_hcomp <- __FROM_JUST__ <$> getName' builtinHComp
   let
    old_tel = scTel old_sc
    old_ps = fromSplitPatterns $ scPats old_sc
-   old_t = fromMaybe __IMPOSSIBLE__ $ scTarget old_sc
+   old_t = __FROM_JUST__ $ scTarget old_sc
 
   reportSDoc "tc.cover.trx.trx" 20 $ "trX-trX clause for" <+> prettyTCM f
   reportSDoc "tc.cover.trx.trx" 20 $ nest 2 $ vcat $
@@ -459,7 +459,7 @@ createMissingTrXHCompClause q_trX f n x old_sc = do
     old_tel = scTel old_sc
     old_ps' = AbsN (teleNames old_tel) $ fromSplitPatterns $ scPats old_sc
     old_ps = pure $ old_ps'
-    old_ty = pure $ AbsN (teleNames old_tel) $ fromMaybe __IMPOSSIBLE__ $ scTarget old_sc
+    old_ty = pure $ AbsN (teleNames old_tel) $ __FROM_JUST__ $ scTarget old_sc
   -- old_tel = Γ(x: D η v)Δ
   -- Γ1, (x : D η v)  ⊢ delta = (δ : Δ)
     (gamma1x,delta') = splitTelescopeAt (size old_tel - blockingVarNo x) old_tel
@@ -730,7 +730,7 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
   let
       old_tel = scTel old_sc
       old_ps = pure $ AbsN (teleNames old_tel) $ fromSplitPatterns $ scPats old_sc
-      old_ty = pure $ AbsN (teleNames old_tel) $ fromMaybe __IMPOSSIBLE__ $ scTarget old_sc
+      old_ty = pure $ AbsN (teleNames old_tel) $ __FROM_JUST__ $ scTarget old_sc
   -- old_tel = Γ(x: D η v)Δ
   -- Γ1, (x : D η v)  ⊢ delta = (δ : Δ)
       (gamma1x,delta') = splitTelescopeAt (size old_tel - blockingVarNo x) old_tel
@@ -850,7 +850,7 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
     (,,) <$> ps <*> rhsTy <*> rhs
 
   let (ps,ty,rhs) = unAbsN $ unAbsN $ unAbs $ unAbsN $ ps_ty_rhs
-  qs <- mapM (fmap (fromMaybe __IMPOSSIBLE__) . getName') [builtinINeg, builtinIMax, builtinIMin]
+  qs <- mapM (fmap __FROM_JUST__ . getName') [builtinINeg, builtinIMax, builtinIMin]
   rhs <- addContext cTel $
            locallyReduceDefs (OnlyReduceDefs (Set.fromList $ q_trX : qs)) $ normalise rhs
   let cl = Clause { clauseLHSRange  = noRange
@@ -877,7 +877,7 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
 
   let mod =
         setRelevance Irrelevant $  -- See #5611.
-        getModality $ fromMaybe __IMPOSSIBLE__ $ scTarget old_sc
+        getModality $ __FROM_JUST__ $ scTarget old_sc
   -- we follow what `cover` does when updating the modality from the target.
   applyModalityToContext mod $ do
     unlessM (hasQuantity0 <$> viewTC eQuantity) $ do
@@ -909,8 +909,8 @@ createMissingConIdClause f _n x old_sc (TheInfo info) = setCurrentRange f $ do
     ileftInv = infoLeftInv info
   interval <- elInf primInterval
   tTrans  <- primTrans
-  tComp  <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinComp
-  conId <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinConId
+  tComp  <- __FROM_JUST__ <$> getTerm' builtinComp
+  conId <- __FROM_JUST__ <$> getName' builtinConId
   let bindSplit (tel1,tel2) = (tel1,AbsN (teleNames tel1) tel2)
   let
       old_tel = scTel old_sc
@@ -929,7 +929,7 @@ createMissingConIdClause f _n x old_sc (TheInfo info) = setCurrentRange f $ do
     bindN (teleNames gamma) $ \ args -> do
        hdelta@(ExtendTel hdom _) <- applyN hdelta args
        Def _Id es@[_,_,_,_] <- reduce $ unEl $ unDom hdom
-       return $ map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+       return $ map unArg $ __FROM_JUST__ $ allApplyElims es
 
   working_tel <- runNamesT [] $ do
     hdelta <- open hdelta
@@ -1055,14 +1055,14 @@ createMissingConIdClause f _n x old_sc (TheInfo info) = setCurrentRange f $ do
         xs <- forM vs $ \ v ->
           -- have to reduce these under the appropriate substitutions, otherwise non-normalizing
           fmap (var v,) . reduce $ (inplaceS v iz `applySubst` tm, inplaceS v io `applySubst` tm)
-        phiv <- fromMaybe __IMPOSSIBLE__ . deBruijnView <$> phi
+        phiv <- __FROM_JUST__ . deBruijnView <$> phi
         -- extra assumption: phi |- w i = w 0, otherwise we need [ phi -> w 0 ] specifically
         tm_phi <- reduce $ inplaceS phiv io `applySubst` tm
         phi <- phi
         return $ (phi,tm_phi) : concatMap (\(v,(l,r)) -> [(neg `apply` [argN v],l),(v,r)]) xs
 
     let imax i j = apply max $ map argN [i,j]
-    tPOr <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinPOr
+    tPOr <- __FROM_JUST__ <$> getTerm' builtinPOr
     let
       pOr l ty phi psi u0 u1 = do
           [phi,psi] <- mapM open [phi,psi]
@@ -1151,8 +1151,8 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) cs 
   reportSDoc "tc.cover.hcomp" 30 $ addContext tel $ text "ps = " <+> prettyTCMPatternList (fromSplitPatterns ps)
   reportSDoc "tc.cover.hcomp" 30 $ text "tel = " <+> prettyTCM tel
 
-  io      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIOne
-  iz      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIZero
+  io      <- __FROM_JUST__ <$> getTerm' builtinIOne
+  iz      <- __FROM_JUST__ <$> getTerm' builtinIZero
   let
     cannotCreate :: MonadTCError m => Doc -> Closure (Abs Type) -> m a
     cannotCreate doc t = do
@@ -1219,12 +1219,12 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) cs 
       --                 (g[x = u0,δ_fill[0]]) : old_t[x = hcomp φ u u0,δ]
 
       runNamesT [] $ do
-          tPOr <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinPOr
-          tIMax <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIMax
-          tIMin <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIMin
-          tINeg <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinINeg
-          tHComp <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinHComp
-          tTrans <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinTrans
+          tPOr <- __FROM_JUST__ <$> getTerm' builtinPOr
+          tIMax <- __FROM_JUST__ <$> getTerm' builtinIMax
+          tIMin <- __FROM_JUST__ <$> getTerm' builtinIMin
+          tINeg <- __FROM_JUST__ <$> getTerm' builtinINeg
+          tHComp <- __FROM_JUST__ <$> getTerm' builtinHComp
+          tTrans <- __FROM_JUST__ <$> getTerm' builtinTrans
           extra_ps <- open $ patternsToElims $ fromSplitPatterns $ drop (length old_ps) ps
           let
             ineg j = pure tINeg <@> j
@@ -1366,6 +1366,6 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) cs 
           , coverPatterns       = [cl]
           , coverNoExactClauses = IntSet.empty
           }
-  hcompName <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinHComp
+  hcompName <- __FROM_JUST__ <$> getName' builtinHComp
   return ([(SplitCon hcompName, result)], cs ++ [cl])
 createMissingHCompClause _ _ _ _ (SClause _ _ _ _ Nothing) _ = __IMPOSSIBLE__

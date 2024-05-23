@@ -216,13 +216,13 @@ shift n = map (+ n)
 lookupIndex :: Int -- ^ Case tree de bruijn index.
     -> CCContext
     -> Int -- ^ TTerm de bruijn index.
-lookupIndex i xs = fromMaybe __IMPOSSIBLE__ $ xs !!! i
+lookupIndex i xs = __FROM_JUST__ $ xs !!! i
 
 -- | Case variables are de Bruijn levels.
 lookupLevel :: Int -- ^ case tree de bruijn level
     -> CCContext
     -> Int -- ^ TTerm de bruijn index
-lookupLevel l xs = fromMaybe __IMPOSSIBLE__ $ xs !!! (length xs - 1 - l)
+lookupLevel l xs = __FROM_JUST__ $ xs !!! (length xs - 1 - l)
 
 -- | Compile a case tree into nested case and record expressions.
 casetreeTop :: EvaluationStrategy -> CC.CompiledClauses -> TCM C.TTerm
@@ -286,7 +286,7 @@ casetree cc = do
           let caseInfo = C.CaseInfo
                 { caseType   = caseTy
                 , caseLazy   = lazy
-                , caseErased = fromMaybe __IMPOSSIBLE__ $
+                , caseErased = __FROM_JUST__ $
                                erasedFromQuantity (getQuantity i)
                 }
           C.TCase x caseInfo def <$> do
@@ -506,7 +506,7 @@ substTerm term = normaliseStatic term >>= \ term ->
   case I.unSpine $ etaContractErased term of
     I.Var ind es -> do
       ind' <- asks (lookupIndex ind . ccCxt)
-      let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
+      let args = __FROM_JUST__ $ I.allApplyElims es
       C.mkTApp (C.TVar ind') <$> substArgs args
     I.Lam _ ab ->
       C.TLam <$>
@@ -515,10 +515,10 @@ substTerm term = normaliseStatic term >>= \ term ->
     I.Lit l -> return $ C.TLit l
     I.Level _ -> return C.TUnit
     I.Def q es -> do
-      let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
+      let args = __FROM_JUST__ $ I.allApplyElims es
       maybeInlineDef q args
     I.Con c ci es -> do
-        let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
+        let args = __FROM_JUST__ $ I.allApplyElims es
         c' <- lift $ canonicalName $ I.conName c
         C.mkTApp (C.TCon c') <$> substArgs args
     I.Pi _ _ -> return C.TUnit

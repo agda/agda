@@ -209,8 +209,8 @@ getClauseZipperForIP :: QName -> Int -> TCM (CaseContext, ClauseZipper)
 getClauseZipperForIP f clauseNo = do
   (theDef <$> getConstInfo f) >>= \case
     Function{funClauses = cs, funExtLam = extlam} -> do
-      let (cs1,ccs2) = fromMaybe __IMPOSSIBLE__ $ splitExactlyAt clauseNo cs
-          (c,cs2)    = fromMaybe __IMPOSSIBLE__ $ uncons ccs2
+      let (cs1,ccs2) = __FROM_JUST__ $ splitExactlyAt clauseNo cs
+          (c,cs2)    = __FROM_JUST__ $ uncons ccs2
       return (extlam, (cs1, c, cs2))
     d -> do
       reportSDoc "impossible" 10 $ vcat
@@ -268,7 +268,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
     -- Kill the ranges of the existing clauses to prevent wrong error
     -- location to be set by the coverage checker (via isCovered)
     -- for test/interaction/Issue191
-  let perm = fromMaybe __IMPOSSIBLE__ $ clausePerm clause
+  let perm = __FROM_JUST__ $ clausePerm clause
       tel  = clauseTel  clause
       ps   = namedClausePats clause
       ell  = clauseEllipsis clause

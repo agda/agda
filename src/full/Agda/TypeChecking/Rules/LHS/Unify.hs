@@ -354,7 +354,7 @@ dataStrategy k s = do
   case unEl a of
     Def d es | sortOk -> do
       npars <- catMaybesMP $ getNumberOfParameters d
-      let (pars,ixs) = splitAt npars $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+      let (pars,ixs) = splitAt npars $ __FROM_JUST__ $ allApplyElims es
       reportSDoc "tc.lhs.unify" 40 $ addContext (varTel s `abstract` eqTel s) $
         "Found equation at datatype " <+> prettyTCM d
          <+> " with parameters " <+> prettyTCM (raise (size (eqTel s) - k) pars)
@@ -493,8 +493,8 @@ injectiveTypeConStrategy k s = do
                 PrimitiveSort{} -> __IMPOSSIBLE__
                 GeneralizableVar{} -> __IMPOSSIBLE__
                 Constructor{} -> __IMPOSSIBLE__  -- Never a type!
-      let us = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-          vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es'
+      let us = __FROM_JUST__ $ allApplyElims es
+          vs = __FROM_JUST__ $ allApplyElims es'
       return $ TypeConInjectivity k d us vs
     _ -> mzero
 
@@ -506,8 +506,8 @@ injectivePragmaStrategy k s = do
       -- d must have an injective pragma
       def <- getConstInfo d
       guard $ defInjective def
-      let us = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-          vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es'
+      let us = __FROM_JUST__ $ allApplyElims es
+          vs = __FROM_JUST__ $ allApplyElims es'
       return $ TypeConInjectivity k d us vs
     _ -> mzero
 
@@ -560,7 +560,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
   TelV ctel ctarget <- addContext (varTel s `abstract` eqTel1) $ telView ctype
   let cixs = case unEl ctarget of
                Def d' es | d == d' ->
-                 let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+                 let args = __FROM_JUST__ $ allApplyElims es
                  in  drop (length pars) args
                _ -> __IMPOSSIBLE__
 
@@ -682,7 +682,7 @@ unifyStep s Cycle
     _ -> __IMPOSSIBLE__
 
 unifyStep s EtaExpandVar{ expandVar = fi, expandVarRecordType = d , expandVarParameters = pars } = do
-  recd <- fromMaybe __IMPOSSIBLE__ <$> isRecord d
+  recd <- __FROM_JUST__ <$> isRecord d
   let delta = recTel recd `apply` pars
       c     = recConHead recd
   let nfields         = size delta
@@ -714,7 +714,7 @@ unifyStep s EtaExpandVar{ expandVar = fi, expandVarRecordType = d , expandVarPar
     liftFlexibles n fs = mapMaybe (traverse $ liftFlexible n) fs
 
 unifyStep s EtaExpandEquation{ expandAt = k, expandRecordType = d, expandParameters = pars } = do
-  recd  <- fromMaybe __IMPOSSIBLE__ <$> isRecord d
+  recd  <- __FROM_JUST__ <$> isRecord d
   let delta = recTel recd `apply` pars
       c     = recConHead recd
   lhs   <- expandKth $ eqLHS s
@@ -729,7 +729,7 @@ unifyStep s EtaExpandEquation{ expandAt = k, expandRecordType = d, expandParamet
     }
   where
     expandKth us = do
-      let (us1,v:us2) = fromMaybe __IMPOSSIBLE__ $ splitExactlyAt k us
+      let (us1,v:us2) = __FROM_JUST__ $ splitExactlyAt k us
       vs <- snd <$> etaExpandRecord d pars (unArg v)
       vs <- reduce vs
       return $ us1 ++ vs ++ us2

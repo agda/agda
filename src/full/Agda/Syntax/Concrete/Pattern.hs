@@ -357,7 +357,7 @@ hasEllipsis' = traverseCPatternA $ \ p mp ->
 reintroduceEllipsis :: ExpandedEllipsis -> Pattern -> Pattern
 reintroduceEllipsis (ExpandedEllipsis r k) p | hasWithPatterns p =
   let (args, wargs) = splitEllipsis k $ List1.toList $ patternAppView p
-      (hd,args') = fromMaybe __IMPOSSIBLE__ $ uncons args
+      (hd,args') = __FROM_JUST__ $ uncons args
       core = foldl AppP (namedArg hd) args
   in foldl AppP (EllipsisP r $ Just $ core) wargs
 reintroduceEllipsis _ p = p

@@ -415,7 +415,7 @@ matchPat
 matchPat p q = case p of
 
   VarP _ x ->
-    yes $ singleton (fromMaybe __IMPOSSIBLE__ (deBruijnView x), q)
+    yes $ singleton (__FROM_JUST__ (deBruijnView x), q)
 
   DotP{} -> yes mempty
   -- Jesper, 2014-11-04: putting 'Yes [q]' here triggers issue 1333.
@@ -438,7 +438,7 @@ matchPat p q = case p of
     _          -> __IMPOSSIBLE__
 
   IApplyP _ _ _ x ->
-    yes $ singleton (fromMaybe __IMPOSSIBLE__ (deBruijnView x), q)
+    yes $ singleton (__FROM_JUST__ (deBruijnView x), q)
 
                            --    Issue #4179: If the inferred pattern is a literal
                            -- v  we need to turn it into a constructor pattern.
@@ -470,7 +470,7 @@ unDotP :: (MonadReduce m, DeBruijn a) => Pattern' a -> m (Pattern' a)
 unDotP (DotP o v) = reduce v >>= \case
   Var i [] -> return $ deBruijnVar i
   Con c _ vs -> do
-    let ps = map (fmap $ unnamed . DotP o) $ fromMaybe __IMPOSSIBLE__ $ allApplyElims vs
+    let ps = map (fmap $ unnamed . DotP o) $ __FROM_JUST__ $ allApplyElims vs
     return $ ConP c noConPatternInfo ps
   Lit l -> return $ LitP (PatternInfo PatODot []) l
   v     -> return $ dotP v
@@ -483,12 +483,12 @@ isLitP (DotP _ u) = reduce u >>= \case
   Lit l -> return $ Just l
   _ -> return $ Nothing
 isLitP (ConP c ci []) = do
-  Con zero _ [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero
+  Con zero _ [] <- __FROM_JUST__ <$> getBuiltin' builtinZero
   if c == zero
     then return $ Just $ LitNat 0
     else return Nothing
 isLitP (ConP c ci [a]) | visible a && isRelevant a = do
-  Con suc _ [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc
+  Con suc _ [] <- __FROM_JUST__ <$> getBuiltin' builtinSuc
   if c == suc
     then fmap inc <$> isLitP (namedArg a)
     else return Nothing
@@ -501,8 +501,8 @@ isLitP _ = return Nothing
 {-# SPECIALIZE unLitP :: Pattern' a -> TCM (Pattern' a) #-}
 unLitP :: HasBuiltins m => Pattern' a -> m (Pattern' a)
 unLitP (LitP info l@(LitNat n)) | n >= 0 = do
-  Con c ci es <- constructorForm' (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero)
-                                  (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc)
+  Con c ci es <- constructorForm' (__FROM_JUST__ <$> getBuiltin' builtinZero)
+                                  (__FROM_JUST__ <$> getBuiltin' builtinSuc)
                                   (Lit l)
   let toP (Apply (Arg i (Lit l))) = Arg i (LitP info l)
       toP _ = __IMPOSSIBLE__

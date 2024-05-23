@@ -27,7 +27,6 @@ import Control.Monad
 import Control.Monad.Except
 
 import Data.Functor
-import Data.Maybe
 
 import Agda.Interaction.Options (optCumulativity, optRewriting)
 
@@ -263,13 +262,13 @@ sortOf t = do
 
         Proj o f -> case unEl a' of
           Def{} -> do
-            ~(El _ (Pi b c)) <- fromMaybe __IMPOSSIBLE__ <$> getDefType f a'
+            ~(El _ (Pi b c)) <- __FROM_JUST__ <$> getDefType f a'
             hd' <- applyE <$> applyDef o f (argFromDom b $> hd [])
             sortOfE (c `absApp` (hd [])) hd' es
           _ -> fallback
 
         IApply x y r -> do
-          (b , c) <- fromMaybe __IMPOSSIBLE__ <$> isPath a'
+          (b , c) <- __FROM_JUST__ <$> isPath a'
           sortOfE (c `absApp` r) (hd . (e:)) es
 
 {-# INLINE sortOfType #-}

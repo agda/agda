@@ -28,7 +28,7 @@ class Apply t where
   -- Andreas, 2018-06-18, issue #3136
   -- This default instance should be removed to get more precise
   -- crash locations (raise the IMPOSSIBLE in a more specific place).
-  -- applyE t es  = apply  t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  -- applyE t es  = apply  t $ __FROM_JUST__ $ allApplyElims es
     -- precondition: all @es@ are @Apply@s
 
 -- | Apply to some default arguments.

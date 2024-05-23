@@ -166,7 +166,7 @@ rewriteRelationDom :: QName -> TCM (ListTel, Dom Type)
 rewriteRelationDom rel = do
   -- We know that the type of rel is that of a relation.
   relV <- relView =<< do defType <$> getConstInfo rel
-  let RelView _tel delta a _a' _core = fromMaybe __IMPOSSIBLE__ relV
+  let RelView _tel delta a _a' _core = __FROM_JUST__ relV
   reportSDoc "rewriting" 30 $ do
     "rewrite relation at type " <+> do
       inTopContext $ prettyTCM (telFromList delta) <+> " |- " <+> do
@@ -225,7 +225,7 @@ checkRewriteRule q = do
     Def rel es@(_:_:_) | rel `elem` rels -> do
       (delta, a) <- rewriteRelationDom rel
       -- Because of the type of rel (Γ → sort), all es are applications.
-      let vs = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+      let vs = map unArg $ __FROM_JUST__ $ allApplyElims es
       -- The last two arguments are lhs and rhs.
           n  = size vs
           (us, [lhs, rhs]) = splitAt (n - 2) vs
@@ -420,7 +420,7 @@ rewrite :: Blocked_ -> (Elims -> Term) -> RewriteRules -> Elims -> ReduceM (Redu
 rewrite block hd rules es = do
   rewritingAllowed <- optRewriting <$> pragmaOptions
   if (rewritingAllowed && not (null rules)) then do
-    (_ , t) <- fromMaybe __IMPOSSIBLE__ <$> getTypedHead (hd [])
+    (_ , t) <- __FROM_JUST__ <$> getTypedHead (hd [])
     loop block t rules =<< instantiateFull' es -- TODO: remove instantiateFull?
   else
     return $ NoReduction (block $> hd es)

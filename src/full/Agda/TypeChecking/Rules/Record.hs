@@ -87,7 +87,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
   -- The target type of the constructor is a meaningless dummy expression which does not type-check.
   -- We replace it by Set/Type (builtinSet) which is still incorrect but type-checks.
   -- It will be fixed after type-checking.
-  aType <- A.Def . fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinSet
+  aType <- A.Def . __FROM_JUST__ <$> getBuiltinName' builtinSet
   let contel = A.unPiView . (\ (A.PiView tels _) -> A.PiView tels aType) . A.piView $ contel0
 
   traceCall (CheckRecDef (getRange name) name ps fields) $ do

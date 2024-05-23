@@ -10,7 +10,6 @@ import Control.Monad
 import Control.Monad.Writer (WriterT, runWriterT, tell)
 
 import qualified Data.List as List
-import Data.Maybe
 import Data.Foldable ( foldrM )
 
 import Agda.Syntax.Common
@@ -437,7 +436,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
             if not found then mismatch else do
               (self1, t1, ps) <- liftTCM $ do
                 t <- reduce t
-                (_, self1, t1) <- fromMaybe __IMPOSSIBLE__ <$> projectTyped self t o d
+                (_, self1, t1) <- __FROM_JUST__ <$> projectTyped self t o d
                 -- Andreas, 2016-01-21, issue #1791
                 -- The type of a field might start with hidden quantifiers.
                 -- So we may have to insert more implicit patterns here.
@@ -474,7 +473,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
          (a, b) <- mustBePi t
          -- The type of the current pattern is a datatype.
          Def d es <- liftTCM $ reduce (unEl $ unDom a)
-         let us = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+         let us = __FROM_JUST__ $ allApplyElims es
          -- Get the original constructor and field names.
          c <- either __IMPOSSIBLE__ (`withRangeOf` c) <$> do liftTCM $ getConForm $ conName c
 
@@ -742,7 +741,7 @@ patsToElims = map $ toElim . fmap namedThing
     toTerms = map $ fmap $ toTerm . namedThing
 
     toTerm :: DeBruijnPattern -> DisplayTerm
-    toTerm p = case patOrigin $ fromMaybe __IMPOSSIBLE__ $ patternInfo p of
+    toTerm p = case patOrigin $ __FROM_JUST__ $ patternInfo p of
       PatOSystem -> toDisplayPattern p
       PatOSplit  -> toDisplayPattern p
       PatOVar{}  -> toVarOrDot p

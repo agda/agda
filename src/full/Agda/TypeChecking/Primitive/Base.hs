@@ -72,7 +72,7 @@ pPi' :: (MonadAddContext m, HasBuiltins m, MonadDebug m)
      => String -> NamesT m Term -> (NamesT m Term -> NamesT m Type) -> NamesT m Type
 pPi' n phi b = toFinitePi <$> nPi' n (elSSet $ cl isOne <@> phi) b
  where
-   isOne = fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIsOne
+   isOne = __FROM_JUST__ <$> getBuiltin' builtinIsOne
 
 -- | Turn a 'Pi' type into one whose domain is annotated finite, i.e.,
 -- one that represents a @Partial@ element rather than an actual
