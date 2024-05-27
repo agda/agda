@@ -32,6 +32,10 @@ Pragmas and options
   when `--this` implies `--no-that` (and analogous for `--no-this` implies
   `--that`, etc).
 
+* New error warning `ConstructorDoesNotFitInData` when a constructor parameter
+  is too big (in the sense of universe level) for the target data type of the constructor.
+  Used to be a hard error.
+
 * [**Breaking**] The option `--overlapping-instances`, which allows
   backtracking during instance search, has been renamed to
   `--backtracking-instance-search`.

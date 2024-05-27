@@ -6,6 +6,9 @@ import Agda.Syntax.Abstract.Name
 
 import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Debug (MonadDebug)
+import {-# SOURCE #-} Agda.TypeChecking.Pretty (PrettyTCM)
+
+instance PrettyTCM TCErr
 
 -- Misplaced SPECIALISE pragma:
 -- {-# SPECIALIZE renderError :: TCErr -> TCM String #-}

@@ -1594,6 +1594,10 @@ Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
      Importing a file not using e.g. :option:`--safe` from one which does.
 
+.. option:: ConstructorDoesNotFitInData
+
+     Constructor with arguments in a universe higher than the one of its data type.
+
 .. option:: CoverageIssue
 
      Failed coverage checks.

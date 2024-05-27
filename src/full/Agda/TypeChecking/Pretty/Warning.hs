@@ -133,6 +133,8 @@ prettyWarning = \case
       [prettyTCM d] ++ pwords "is not strictly positive, because it occurs"
       ++ [prettyTCM ocs]
 
+    ConstructorDoesNotFitInData c s1 s2 err -> prettyTCM err
+
     UnsupportedIndexedMatch doc -> vcat
       [ fsep (pwords "This clause uses pattern-matching features that are not yet supported by Cubical Agda,"
            ++ pwords "the function to which it belongs will not compute when applied to transports."

@@ -4234,6 +4234,9 @@ data Warning
     -- ^ 'Clause' was turned into copattern matching clause(s) by an @{-# INLINE constructor #-}@
     --   and thus is not a definitional equality any more.
   | NotStrictlyPositive      QName (Seq OccursWhere)
+  | ConstructorDoesNotFitInData QName Sort Sort TCErr
+      -- ^ Checking whether constructor 'QName' 'Sort' fits into @data@ 'Sort'
+      --   produced 'TCErr'
 
   | UnsolvedMetaVariables    [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedInteractionMetas [Range]  -- ^ Do not use directly with 'warning'
@@ -4418,6 +4421,7 @@ warningName = \case
   NoGuardednessFlag{}          -> NoGuardednessFlag_
   NotInScopeW{}                -> NotInScope_
   NotStrictlyPositive{}        -> NotStrictlyPositive_
+  ConstructorDoesNotFitInData{}-> ConstructorDoesNotFitInData_
   UnsupportedIndexedMatch{}    -> UnsupportedIndexedMatch_
   OldBuiltin{}                 -> OldBuiltin_
   BuiltinDeclaresIdentifier{}  -> BuiltinDeclaresIdentifier_

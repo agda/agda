@@ -2,3 +2,11 @@ Issue5706.agda:32,3-6
 Set₁₈₄₄₆₇₄₄₀₇₃₇₀₉₅₅₁₆₁₆ is not less or equal than Set
 when checking that the type Set₁₈₄₄₆₇₄₄₀₇₃₇₀₉₅₅₁₆₁₅ of an argument
 to the constructor set fits in the sort Set of the datatype.
+Issue5706.agda:32,3-6
+Set₁₈₄₄₆₇₄₄₀₇₃₇₀₉₅₅₁₆₁₅ is not less or equal than Set
+when checking that the type X → SET of an argument to the
+constructor set fits in the sort Set of the datatype.
+Issue5706.agda:37,15-16
+Set₁₈₄₄₆₇₄₄₀₇₃₇₀₉₅₅₁₆₁₅ != Set
+when checking that the solution X of metavariable _A_21 has the
+expected type Set

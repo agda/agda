@@ -45,6 +45,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Forcing
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Warnings (warning)
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( isType_ )
 
@@ -1756,13 +1757,16 @@ fitsIn con uc forceds conT s = do
           sa <- reduce $ getSort dom
           unless (isPath || uc == NoUniverseCheck || sa == SizeUniv) $
             traceCall (CheckConArgFitsIn con isf (unDom dom) s) $
-            sa `leqSort` s
+            fitSort sa s
 
         addContext (absName b, dom) $ do
           succ <$> fitsIn' li forceds' (absBody b) (raise 1 s)
       _ -> do
-        getSort t `leqSort` s
+        fitSort (getSort t) s
         return 0
+  -- catch hard error from sort comparison to turn it into a soft error
+  fitSort sa s = leqSort sa s `catchError` \ err ->
+    warning $ ConstructorDoesNotFitInData con sa s err
 
 -- | When --without-K is enabled, we should check that the sorts of
 --   the index types fit into the sort of the datatype.

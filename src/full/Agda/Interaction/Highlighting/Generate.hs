@@ -412,6 +412,7 @@ warningHighlighting' :: Bool -- ^ should we generate highlighting for unsolved m
 warningHighlighting' b w = case tcWarning w of
   TerminationIssue terrs     -> terminationErrorHighlighting terrs
   NotStrictlyPositive d ocs  -> positivityErrorHighlighting d ocs
+  ConstructorDoesNotFitInData c s1 s2 err -> errorWarningHighlighting c
   -- #3965 highlight each unreachable clause independently: they
   -- may be interleaved with actually reachable clauses!
   UnreachableClauses _ rs    -> foldMap deadcodeHighlighting rs

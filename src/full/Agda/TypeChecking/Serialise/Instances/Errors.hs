@@ -32,6 +32,7 @@ instance EmbPrj Warning where
     UnreachableClauses a b                -> icodeN 0 UnreachableClauses a b
     CoverageIssue a b                     -> __IMPOSSIBLE__
     NotStrictlyPositive a b               -> __IMPOSSIBLE__
+    ConstructorDoesNotFitInData{}         -> __IMPOSSIBLE__
     UnsolvedMetaVariables a               -> __IMPOSSIBLE__
     UnsolvedInteractionMetas a            -> __IMPOSSIBLE__
     UnsolvedConstraints a                 -> __IMPOSSIBLE__
@@ -485,6 +486,7 @@ instance EmbPrj WarningName where
     UselessMacro_                                -> 114
     WarningProblem_                              -> 115
     ConflictingPragmaOptions_                    -> 116
+    ConstructorDoesNotFitInData_                 -> 117
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -603,6 +605,7 @@ instance EmbPrj WarningName where
     114 -> return UselessMacro_
     115 -> return WarningProblem_
     116 -> return ConflictingPragmaOptions_
+    117 -> return ConstructorDoesNotFitInData_
     _   -> malformed
 
 

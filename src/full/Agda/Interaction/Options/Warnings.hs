@@ -154,6 +154,7 @@ errorWarnings = Set.fromList
   , MissingDeclarations_
   , NotAllowedInMutual_
   , NotStrictlyPositive_
+  , ConstructorDoesNotFitInData_
   , OverlappingTokensWarning_
   , PragmaCompiled_
   , SafeFlagPostulate_
@@ -276,6 +277,7 @@ data WarningName
   | NoGuardednessFlag_
   | NotInScope_
   | NotStrictlyPositive_
+  | ConstructorDoesNotFitInData_
   | UnsupportedIndexedMatch_
   | OldBuiltin_
   | BuiltinDeclaresIdentifier_
@@ -472,6 +474,7 @@ warningNameDescription = \case
   FixityInRenamingModule_          -> "Fixity annotations in `renaming' directive for `module'."
   NotInScope_                      -> "Out of scope names."
   NotStrictlyPositive_             -> "Failed strict positivity checks."
+  ConstructorDoesNotFitInData_     -> "Failed constructor size checks."
   UnsupportedIndexedMatch_         -> "Failures to compute full equivalence when splitting on indexed family."
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
   BuiltinDeclaresIdentifier_       -> "`BUILTIN' pragmas that declare a new identifier but have been given an existing one."

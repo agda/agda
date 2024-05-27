@@ -84,10 +84,18 @@ warning'_ loc w = do
   r <- viewTC eRange
   c <- viewTC eCall
   b <- areWeCaching
-  -- NicifierIssues come with their own error locations.
-  let r' = case w of { NicifierIssue w0 -> getRange w0 ; _ -> r }
+  let r' = case w of
+        -- NicifierIssues come with their own error locations.
+        NicifierIssue w0 -> getRange w0
+        -- ConstructorDoesNotFitInData packages a full TCErr, so skip the sayWhen/Where here.
+        ConstructorDoesNotFitInData{} -> noRange
+        _ -> r
+  let c' = case w of
+        -- ConstructorDoesNotFitInData packages a full TCErr, so skip the sayWhen/Where here.
+        ConstructorDoesNotFitInData{} -> Nothing
+        _ -> c
   let wn = warningName w
-  p <- sayWhen r' c $
+  p <- sayWhen r' c' $
     -- Only benign warnings can be deactivated with -WnoXXX, so don't
     -- display hint for error warnings.
     applyUnless (wn `elem` errorWarnings) (prettyWarningName wn $$) $

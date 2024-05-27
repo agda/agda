@@ -2,3 +2,11 @@ Issue776.agda:7,3-8
 Set (lsuc l) is not less or equal than Set₁
 when checking that the type Set l → Set l of an argument to the
 constructor proof fits in the sort Set₁ of the datatype.
+Issue776.agda:7,3-8
+Set l is not less or equal than Set₁
+when checking that the type F A of an argument to the constructor
+proof fits in the sort Set₁ of the datatype.
+Issue776.agda:7,3-8
+Set l is not less or equal than Set₁
+when checking that the type F B of an argument to the constructor
+proof fits in the sort Set₁ of the datatype.
