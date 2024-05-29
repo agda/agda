@@ -251,6 +251,7 @@ errorString = \case
   ImpossibleConstructor{}                  -> "ImpossibleConstructor"
   TooManyFields{}                          -> "TooManyFields"
   TooManyPolarities{}                      -> "TooManyPolarities"
+  RecursiveRecordNeedsInductivity{}        -> "RecursiveRecordNeedsInductivity"
   SplitOnIrrelevant{}                      -> "SplitOnIrrelevant"
   SplitOnUnusableCohesion{}                -> "SplitOnUnusableCohesion"
   -- UNUSED: -- SplitOnErased{}                          -> "SplitOnErased"
@@ -1326,6 +1327,12 @@ instance PrettyTCM TypeError where
       pwords "Too many polarities given in the POLARITY pragma for" ++
       [prettyTCM x] ++
       pwords "(at most" ++ [text (show n)] ++ pwords "allowed)."
+
+    RecursiveRecordNeedsInductivity q -> fsep $ concat
+      [ pwords "Recursive record"
+      , [ prettyTCM q ]
+      , pwords "needs to be declared as either inductive or coinductive"
+      ]
 
     InstanceNoCandidate t errs -> vcat $
       [ fsep $ pwords "No instance of type" ++ [prettyTCM t] ++ pwords "was found in scope."

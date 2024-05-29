@@ -4775,6 +4775,9 @@ data TypeError
         | ImpossibleConstructor QName NegativeUnification
     -- Positivity errors
         | TooManyPolarities QName Int
+        | RecursiveRecordNeedsInductivity QName
+            -- ^ A record type inferred as recursive needs a manual declaration
+            --   whether it should be inductively or coinductively.
     -- Sized type errors
         | CannotSolveSizeConstraints (List1 (ProblemConstraint, HypSizeConstraint)) Doc
             -- ^ The list of constraints is given redundantly as pairs of

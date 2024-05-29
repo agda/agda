@@ -201,9 +201,7 @@ checkStrictlyPositive mi qset = do
         -- 'Inductive' or 'Coinductive'.  Otherwise, error.
         unlessM (isJust . recInduction . theDef <$> getConstInfo q) $
           setCurrentRange (nameBindingSite $ qnameName q) $
-            typeError . GenericDocError =<<
-              "Recursive record" <+> prettyTCM q <+>
-              "needs to be declared as either inductive or coinductive"
+            typeError $ RecursiveRecordNeedsInductivity q
 
     occ (Edge o _) = o
 
