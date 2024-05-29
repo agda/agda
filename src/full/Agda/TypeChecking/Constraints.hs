@@ -227,7 +227,7 @@ wakeupConstraints x = do
 
 -- | Wake up all constraints not blocked on a problem.
 wakeupConstraints_ :: TCM ()
-wakeupConstraints_ = locallyTCState stMutualChecks (const True) do
+wakeupConstraints_ = do
   wakeConstraints' (wakeup . constraintUnblocker)
   solveAwakeConstraints
   where
