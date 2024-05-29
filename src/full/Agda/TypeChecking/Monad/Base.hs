@@ -107,6 +107,7 @@ import Agda.Interaction.Response.Base (Response_boot(..))
 import Agda.Interaction.Highlighting.Precise
   (HighlightingInfo, NameKind)
 import Agda.Interaction.Library
+import Agda.Interaction.Library.Base (LibErrors)
 
 import Agda.Utils.Benchmark (MonadBench(..))
 import Agda.Utils.BiMap (BiMap, HasTag(..))
@@ -4791,6 +4792,8 @@ data TypeError
             -- ^ This term, a function type constructor, lives in
             --   @SizeUniv@, which is not allowed.
     -- Import errors
+        | LibraryError LibErrors
+            -- ^ Collected errors when processing the @.agda-lib@ file.
         | LocalVsImportedModuleClash ModuleName
         | SolvedButOpenHoles
           -- ^ Some interaction points (holes) have not been filled by user.

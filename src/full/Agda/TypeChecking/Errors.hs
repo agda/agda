@@ -69,6 +69,8 @@ import Agda.TypeChecking.SizedTypes.Pretty ()
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce (instantiate)
 
+import Agda.Interaction.Library.Base (formatLibErrors)
+
 import Agda.Utils.FileName
 import Agda.Utils.Float  ( toStringWithoutDotZero )
 import Agda.Utils.Function
@@ -184,6 +186,7 @@ errorString = \case
   InternalError{}                          -> "InternalError"
   InvalidPattern{}                         -> "InvalidPattern"
   InvalidFileName{}                        -> "InvalidFileName"
+  LibraryError{}                           -> "LibraryError"
   LocalVsImportedModuleClash{}             -> "LocalVsImportedModuleClash"
   MetaCannotDependOn{}                     -> "MetaCannotDependOn"
   MetaOccursInItself{}                     -> "MetaOccursInItself"
@@ -871,6 +874,8 @@ instance PrettyTCM TypeError where
     NoRHSRequiresAbsurdPattern ps -> fwords $
       "The right-hand side can only be omitted if there " ++
       "is an absurd pattern, () or {}, in the left-hand side."
+
+    LibraryError err -> return $ formatLibErrors err
 
     LocalVsImportedModuleClash m -> fsep $
       pwords "The module" ++ [prettyTCM m] ++

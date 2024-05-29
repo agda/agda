@@ -29,6 +29,7 @@ import Agda.Syntax.Position
 import Agda.Utils.Lens
 import Agda.Utils.List1            ( List1, toList )
 import Agda.Utils.List2            ( List2, toList )
+import qualified Agda.Utils.List1  as List1
 import Agda.Utils.Null
 import Agda.Syntax.Common.Pretty
 
@@ -42,7 +43,7 @@ data LibrariesFile = LibrariesFile
   , lfExists :: Bool
        -- ^ The libraries file might not exist,
        --   but we may print its assumed location in error messages.
-  } deriving (Show)
+  } deriving (Show, Generic)
 
 -- | A symbolic executable name.
 --
@@ -187,6 +188,7 @@ libraryWarningName (LibWarning c (UnknownField{})) = LibUnknownField_
 -- * Errors
 
 data LibError = LibError (Maybe LibPositionInfo) LibError'
+  deriving (Show, Generic)
 
 -- | Collected errors while processing library files.
 --
@@ -215,7 +217,7 @@ data LibError'
         -- ^ Name of the executable that is defined twice.
       (List2 (LineNumber, FilePath))
         -- ^ The resolutions of the executable.
-  -- deriving (Show)
+  deriving (Show, Generic)
 
 -- | Exceptions thrown by the @.agda-lib@ parser.
 --
@@ -237,6 +239,7 @@ data LibParseError
       -- ^ At the given line number, the given field is not followed by @:@.
   | ContentWithoutField LineNumber
       -- ^ At the given line number, indented text (content) is not preceded by a field.
+  deriving (Show, Generic)
 
 -- ** Raising warnings and errors
 
@@ -265,14 +268,21 @@ raiseErrors = tell . map Left . toList
 --
 type LibErrorIO = WriterT LibErrWarns (StateT LibState IO)
 
--- | Throws 'Doc' exceptions, still collects 'LibWarning's.
-type LibM = ExceptT Doc (WriterT [LibWarning] (StateT LibState IO))
+-- | Throws 'LibErrors' exceptions, still collects 'LibWarning's.
+type LibM = ExceptT LibErrors (WriterT [LibWarning] (StateT LibState IO))
 
 -- | Cache locations of project configurations and parsed @.agda-lib@ files.
 type LibState =
   ( Map FilePath ProjectConfig
   , Map FilePath AgdaLibFile
   )
+
+-- | Collected errors when processing an @.agda-lib@ file.
+--
+data LibErrors = LibErrors
+  { libErrorsInstalledLibraries :: [AgdaLibFile]
+  , libErrors                   :: List1 LibError
+  } deriving (Show, Generic)
 
 getCachedProjectConfig
   :: (MonadState LibState m, MonadIO m)
@@ -314,6 +324,12 @@ formatLibError installed (LibError mc e) =
     (Just c, LibParseError err) -> sep  [ formatLibPositionInfo c err, pretty e ]
     (_     , LibNotFound{}    ) -> vcat [ pretty e, prettyInstalledLibraries installed ]
     _ -> pretty e
+
+
+-- | Pretty-print 'LibErrors'.
+formatLibErrors :: LibErrors -> Doc
+formatLibErrors (LibErrors libs errs) =
+  vcat $  map (formatLibError libs) $ List1.toList errs
 
 -- | Does a parse error contain a line number?
 hasLineNumber :: LibParseError -> Maybe LineNumber
@@ -451,8 +467,14 @@ instance Pretty LibWarning' where
 ------------------------------------------------------------------------
 
 instance NFData ExecutablesFile
+instance NFData LibrariesFile
 instance NFData ProjectConfig
 instance NFData AgdaLibFile
 instance NFData LibPositionInfo
 instance NFData LibWarning
 instance NFData LibWarning'
+instance NFData LibError
+instance NFData LibError'
+instance NFData LibErrors
+instance NFData LibParseError
+instance NFData E.IOException where rnf _ = ()

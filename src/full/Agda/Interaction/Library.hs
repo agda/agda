@@ -109,9 +109,7 @@ mkLibM libs m = do
   (x, ews) <- lift $ lift $ runWriterT m
   let (errs, warns) = partitionEithers ews
   tell warns
-  unless (null errs) $ do
-    let doc = vcat $ map (formatLibError libs) errs
-    throwError doc
+  () <- List1.unlessNull errs \ errs -> throwError $ LibErrors libs errs
   return x
 
 ------------------------------------------------------------------------

@@ -121,7 +121,7 @@ libToTCM m = do
 
   unless (null warns) $ warnings $ map LibraryWarning warns
   case z of
-    Left s  -> typeError $ GenericDocError s
+    Left s  -> typeError $ LibraryError s
     Right x -> return x
 
 -- | Returns the library files for a given file.
