@@ -184,9 +184,7 @@ rewriteRelationDom rel = do
 checkRewriteRule :: QName -> TCM RewriteRule
 checkRewriteRule q = do
   requireOptionRewriting
-  let failNoBuiltin = typeError $ GenericError $
-        "Cannot add rewrite rule without prior BUILTIN REWRITE"
-  rels <- fromMaybeM failNoBuiltin getBuiltinRewriteRelations
+  rels <- getBuiltinRewriteRelations
   reportSDoc "rewriting.relations" 40 $ vcat
     [ "Rewrite relations:"
     , prettyList $ map prettyTCM $ toList rels

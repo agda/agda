@@ -139,8 +139,13 @@ bindBuiltinRewriteRelation x =
     Map.insertWith unionBuiltin (BuiltinName builtinRewrite) (BuiltinRewriteRelations $ singleton x)
 
 -- | Get the currently registered rewrite relation symbols.
-getBuiltinRewriteRelations :: HasBuiltins m => m (Maybe (Set QName))
-getBuiltinRewriteRelations = fmap rels <$> getBuiltinThing (BuiltinName builtinRewrite)
+getBuiltinRewriteRelations :: (HasBuiltins m, MonadTCError m) => m (Set QName)
+getBuiltinRewriteRelations =
+  fromMaybeM (typeError $ NoBindingForBuiltin builtinRewrite) getBuiltinRewriteRelations'
+
+-- | Get the currently registered rewrite relation symbols, if any.
+getBuiltinRewriteRelations' :: HasBuiltins m => m (Maybe (Set QName))
+getBuiltinRewriteRelations' = fmap rels <$> getBuiltinThing (BuiltinName builtinRewrite)
   where
   rels = \case
     BuiltinRewriteRelations xs -> xs

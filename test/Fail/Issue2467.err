@@ -1,3 +1,4 @@
 Issue2467.agda:8,1-18
-Cannot add rewrite rule without prior BUILTIN REWRITE
+No binding for builtin thing REWRITE, use {-# BUILTIN REWRITE name
+#-} to bind it to 'name'
 when checking the pragma REWRITE A
