@@ -52,8 +52,7 @@ instance
   postulate Dec≤ : ∀ {n m : Nat} → (n ≤ m) ⁇
 
 top : Set
-top = Nat
-  where  -- only fails in a `where` block
+top = Nat where  -- only fails in a `where` block
     IsGood : (new : Nat) → Set
     IsGood new = 1 ≤ new
 
