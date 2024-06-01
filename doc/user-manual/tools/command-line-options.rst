@@ -1272,6 +1272,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      There exists both a local interface file and an interface file in ``_build``.
 
+.. option:: DuplicateRecordDirective
+
+     Conflicting directives in a record declaration.
+
 .. option:: DuplicateRewriteRule
 
      Duplicate declaration of a name as :ref:`REWRITE<rewriting>` rule.

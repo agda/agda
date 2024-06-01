@@ -343,6 +343,9 @@ prettyWarning = \case
     DuplicateRewriteRule q ->
       "Rewrite rule " <+> prettyTCM q <+> " has already been added"
 
+    DuplicateRecordDirective dir ->
+      "Ignoring duplicate record directive: " <+> pretty dir
+
     PragmaCompileErased bn qn -> fsep $ concat
       [ pwords "The backend"
       , [ text bn

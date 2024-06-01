@@ -28,6 +28,9 @@ Pragmas and options
 
 * New warning `UselessMacro` when a `macro` block does not contain any function definitions.
 
+* New warning `DuplicateRecordDirectives` if e.g. a `record` is declared both `inductive` and `coinductive`,
+  or declared `inductive` twice.
+
 * New warning `ConflictingPragmaOptions` if giving both `--this` and `--that`
   when `--this` implies `--no-that` (and analogous for `--no-this` implies
   `--that`, etc).

@@ -1,11 +1,284 @@
-Issue6660-Pair-pattern.agda:12,1-19
+Issue6660-Pair-pattern.agda:11,3-14
+warning: -W[no]DuplicateRecordDirective
+Ignoring duplicate record directive:  coinductive
+when scope checking the declaration
+  record Pair A B where
+    inductive
+    no-eta-equality
+    pattern
+    constructor _,_
+    coinductive
+    eta-equality
+    no-eta-equality
+    pattern
+    inductive
+    constructor foo
+    constructor _,_
+    field
+      fst : A
+      snd : B
+Issue6660-Pair-pattern.agda:11,16-28
+warning: -W[no]DuplicateRecordDirective
+Ignoring duplicate record directive:  eta-equality
+when scope checking the declaration
+  record Pair A B where
+    inductive
+    no-eta-equality
+    pattern
+    constructor _,_
+    coinductive
+    eta-equality
+    no-eta-equality
+    pattern
+    inductive
+    constructor foo
+    constructor _,_
+    field
+      fst : A
+      snd : B
+Issue6660-Pair-pattern.agda:11,30-45
+warning: -W[no]DuplicateRecordDirective
+Ignoring duplicate record directive:  no-eta-equality
+when scope checking the declaration
+  record Pair A B where
+    inductive
+    no-eta-equality
+    pattern
+    constructor _,_
+    coinductive
+    eta-equality
+    no-eta-equality
+    pattern
+    inductive
+    constructor foo
+    constructor _,_
+    field
+      fst : A
+      snd : B
+Issue6660-Pair-pattern.agda:11,47-54
+warning: -W[no]DuplicateRecordDirective
+Ignoring duplicate record directive:  pattern
+when scope checking the declaration
+  record Pair A B where
+    inductive
+    no-eta-equality
+    pattern
+    constructor _,_
+    coinductive
+    eta-equality
+    no-eta-equality
+    pattern
+    inductive
+    constructor foo
+    constructor _,_
+    field
+      fst : A
+      snd : B
+Issue6660-Pair-pattern.agda:11,56-65
+warning: -W[no]DuplicateRecordDirective
+Ignoring duplicate record directive:  inductive
+when scope checking the declaration
+  record Pair A B where
+    inductive
+    no-eta-equality
+    pattern
+    constructor _,_
+    coinductive
+    eta-equality
+    no-eta-equality
+    pattern
+    inductive
+    constructor foo
+    constructor _,_
+    field
+      fst : A
+      snd : B
+Issue6660-Pair-pattern.agda:11,79-82
+warning: -W[no]DuplicateRecordDirective
+Ignoring duplicate record directive:  constructor foo
+when scope checking the declaration
+  record Pair A B where
+    inductive
+    no-eta-equality
+    pattern
+    constructor _,_
+    coinductive
+    eta-equality
+    no-eta-equality
+    pattern
+    inductive
+    constructor foo
+    constructor _,_
+    field
+      fst : A
+      snd : B
+Issue6660-Pair-pattern.agda:11,96-99
+warning: -W[no]DuplicateRecordDirective
+Ignoring duplicate record directive:  constructor _,_
+when scope checking the declaration
+  record Pair A B where
+    inductive
+    no-eta-equality
+    pattern
+    constructor _,_
+    coinductive
+    eta-equality
+    no-eta-equality
+    pattern
+    inductive
+    constructor foo
+    constructor _,_
+    field
+      fst : A
+      snd : B
+Issue6660-Pair-pattern.agda:17,1-19
 warning: -W[no]UselessPragma
 INLINE directive only works on functions or constructors of records that allow copattern matching
 when checking the pragma INLINE _,_
 
 ———— All done; warnings encountered ————————————————————————
 
-Issue6660-Pair-pattern.agda:12,1-19
+Issue6660-Pair-pattern.agda:11,3-14
+warning: -W[no]DuplicateRecordDirective
+Ignoring duplicate record directive:  coinductive
+when scope checking the declaration
+  record Pair A B where
+    inductive
+    no-eta-equality
+    pattern
+    constructor _,_
+    coinductive
+    eta-equality
+    no-eta-equality
+    pattern
+    inductive
+    constructor foo
+    constructor _,_
+    field
+      fst : A
+      snd : B
+
+Issue6660-Pair-pattern.agda:11,16-28
+warning: -W[no]DuplicateRecordDirective
+Ignoring duplicate record directive:  eta-equality
+when scope checking the declaration
+  record Pair A B where
+    inductive
+    no-eta-equality
+    pattern
+    constructor _,_
+    coinductive
+    eta-equality
+    no-eta-equality
+    pattern
+    inductive
+    constructor foo
+    constructor _,_
+    field
+      fst : A
+      snd : B
+
+Issue6660-Pair-pattern.agda:11,30-45
+warning: -W[no]DuplicateRecordDirective
+Ignoring duplicate record directive:  no-eta-equality
+when scope checking the declaration
+  record Pair A B where
+    inductive
+    no-eta-equality
+    pattern
+    constructor _,_
+    coinductive
+    eta-equality
+    no-eta-equality
+    pattern
+    inductive
+    constructor foo
+    constructor _,_
+    field
+      fst : A
+      snd : B
+
+Issue6660-Pair-pattern.agda:11,47-54
+warning: -W[no]DuplicateRecordDirective
+Ignoring duplicate record directive:  pattern
+when scope checking the declaration
+  record Pair A B where
+    inductive
+    no-eta-equality
+    pattern
+    constructor _,_
+    coinductive
+    eta-equality
+    no-eta-equality
+    pattern
+    inductive
+    constructor foo
+    constructor _,_
+    field
+      fst : A
+      snd : B
+
+Issue6660-Pair-pattern.agda:11,56-65
+warning: -W[no]DuplicateRecordDirective
+Ignoring duplicate record directive:  inductive
+when scope checking the declaration
+  record Pair A B where
+    inductive
+    no-eta-equality
+    pattern
+    constructor _,_
+    coinductive
+    eta-equality
+    no-eta-equality
+    pattern
+    inductive
+    constructor foo
+    constructor _,_
+    field
+      fst : A
+      snd : B
+
+Issue6660-Pair-pattern.agda:11,79-82
+warning: -W[no]DuplicateRecordDirective
+Ignoring duplicate record directive:  constructor foo
+when scope checking the declaration
+  record Pair A B where
+    inductive
+    no-eta-equality
+    pattern
+    constructor _,_
+    coinductive
+    eta-equality
+    no-eta-equality
+    pattern
+    inductive
+    constructor foo
+    constructor _,_
+    field
+      fst : A
+      snd : B
+
+Issue6660-Pair-pattern.agda:11,96-99
+warning: -W[no]DuplicateRecordDirective
+Ignoring duplicate record directive:  constructor _,_
+when scope checking the declaration
+  record Pair A B where
+    inductive
+    no-eta-equality
+    pattern
+    constructor _,_
+    coinductive
+    eta-equality
+    no-eta-equality
+    pattern
+    inductive
+    constructor foo
+    constructor _,_
+    field
+      fst : A
+      snd : B
+
+Issue6660-Pair-pattern.agda:17,1-19
 warning: -W[no]UselessPragma
 INLINE directive only works on functions or constructors of records that allow copattern matching
 when checking the pragma INLINE _,_

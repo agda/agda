@@ -1783,12 +1783,11 @@ ArgTypeSignatures0
     | {- empty -}                         { [] }
 
 -- Record declarations, including an optional record constructor name.
-RecordDeclarations :: { (RecordDirectives, [Declaration]) }
+RecordDeclarations :: { ([RecordDirective], [Declaration]) }
 RecordDeclarations
-    : vopen RecordDirectives close                    {% verifyRecordDirectives $2 <&> (,[]) }
-    | vopen RecordDirectives semi Declarations1 close {% verifyRecordDirectives $2 <&> (, List1.toList $4) }
-    | vopen Declarations1 close                       { (emptyRecordDirectives, List1.toList $2) }
-
+    : vopen RecordDirectives close                    { (reverse $2, []) }
+    | vopen RecordDirectives semi Declarations1 close { (reverse $2, List1.toList $4) }
+    | vopen Declarations1 close                       { ([], List1.toList $2) }
 
 RecordDirectives :: { [RecordDirective] }
 RecordDirectives

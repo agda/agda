@@ -4246,6 +4246,8 @@ data Warning
     -- ^ In `OldBuiltin old new`, the BUILTIN old has been replaced by new.
   | BuiltinDeclaresIdentifier BuiltinId
     -- ^ The builtin declares a new identifier, so it should not be in scope.
+  | DuplicateRecordDirective C.RecordDirective
+    -- ^ The given record directive is conflicting with a prior one in the same record declaration.
   | EmptyRewritePragma
     -- ^ If the user wrote just @{-\# REWRITE \#-}@.
   | EmptyWhere
@@ -4399,6 +4401,7 @@ warningName = \case
   CoverageNoExactSplit{}       -> CoverageNoExactSplit_
   InlineNoExactSplit{}         -> InlineNoExactSplit_
   DeprecationWarning{}         -> DeprecationWarning_
+  DuplicateRecordDirective{}   -> DuplicateRecordDirective_
   EmptyRewritePragma           -> EmptyRewritePragma_
   EmptyWhere                   -> EmptyWhere_
   IllformedAsClause{}          -> IllformedAsClause_

@@ -391,7 +391,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
   -- then switch on pattern matching for no-eta-equality.
   -- Default is no pattern matching, but definition by copatterns instead.
   patCopat = maybe CopatternMatching (const PatternMatching) pat
-  eta      = (patCopat <$) <$> eta0
+  eta      = ((patCopat <$) . rangedThing) <$> eta0
 
 
 addCompositionForRecord

@@ -430,58 +430,6 @@ buildDoStmt e@(RawApp r _)    cs = do
 buildDoStmt e cs = defaultBuildDoStmt e cs
 
 
--- | Check for duplicate record directives.
-verifyRecordDirectives :: [RecordDirective] -> Parser RecordDirectives
-verifyRecordDirectives ds =
-  case rs of
-    []  -> return (RecordDirectives (listToMaybe is) (listToMaybe es) (listToMaybe ps) (listToMaybe cs))
-      -- Here, all the lists is, es, cs, ps are at most singletons.
-    r:_ -> parseErrorRange r $ unlines $ "Repeated record directives at:" : map prettyShow rs
-  where
-  errorFromList []  = []
-  errorFromList [x] = []
-  errorFromList xs  = map (removeSrcFile . getRange) xs
-  rs  = List.sort $ concat [ errorFromList is, errorFromList es', errorFromList cs, errorFromList ps ]
-  es  = map rangedThing es'
-  is  = [ i      | Induction i          <- ds ]
-  es' = [ e      | Eta e                <- ds ]
-  cs  = [ (c, i) | Constructor c i      <- ds ]
-  ps  = [ r      | PatternOrCopattern r <- ds ]
-
-  -- Andreas, 2024-06-01, issue #7301.
-  -- We need to remove SrcFile entries from ranges because they are black holes during parsing,
-  -- thanks to an @mdo@ introduced in the parser in f4e76394eb2ea10abf63aae57f2fe895e3f5806d.
-  -- The problems shows as soon as there are two @RecordDirective@s of the same kind,
-  -- necessitating looking at their content for sorting.
-  removeSrcFile :: Range -> Range
-  removeSrcFile = fmap $ const Strict.Nothing
-
-  -- tr = trace (unwords [ "verifyRecordDirectives", show $ length ds, showRecordDirective $ listToMaybe ds ])
-  -- -- The problem with ranges also shows when trying to debug print ds/
-  -- -- This piecemeal reimplemenation of @show@ was leading me towards the problem:
-  -- showRecordDirective = \case
-  --   Nothing -> "(nothing)"
-  --   Just d -> case d of
-  --     Constructor x i -> unwords
-  --       [ "Constructor"
-  --       , showName x
-  --       , show i
-  --       ]
-  --     Eta{}                -> "Eta"
-  --     Induction{}          -> "Induction"
-  --     PatternOrCopattern{} -> "PatternOrCopattern"
-
-  -- showName = \case
-  --   Name r sc xs -> paren $ unwords [ "Name", showRange r, show sc, "$", show xs ]
-  --   NoName{} -> "NoName"
-  -- showRange = \case
-  --   NoRange -> "NoRange"
-  --   Range f is -> paren $ unwords [ "Range", showFile f, "$", show is ]
-  -- showFile = \case
-  --   Strict.Nothing -> "Strict.Nothing"
-  --   Strict.Just f -> paren $ unwords [ "Strict.Just", "_" ]
-  -- paren x = concat ["(", x, ")"]
-
 {--------------------------------------------------------------------------
     Patterns
  --------------------------------------------------------------------------}

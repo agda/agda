@@ -119,10 +119,14 @@ instance NFData Language
 
 data RecordDirectives' a = RecordDirectives
   { recInductive   :: Maybe (Ranged Induction)
-  , recHasEta      :: Maybe HasEta0
+  , recHasEta      :: Maybe (Ranged HasEta0)
   , recPattern     :: Maybe Range
   , recConstructor :: Maybe a
-  } deriving (Functor, Show, Eq)
+  } deriving (Functor, Show, Eq, Foldable, Traversable)
+
+instance Null (RecordDirectives' a) where
+  empty = emptyRecordDirectives
+  null (RecordDirectives a b c d) = and [null a, null b, null c, null d]
 
 emptyRecordDirectives :: RecordDirectives' a
 emptyRecordDirectives = RecordDirectives empty empty empty empty

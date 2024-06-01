@@ -45,6 +45,7 @@ instance EmbPrj Warning where
     SafeFlagPostulate a                   -> __IMPOSSIBLE__
     SafeFlagPragma a                      -> __IMPOSSIBLE__
     SafeFlagWithoutKFlagPrimEraseEquality -> __IMPOSSIBLE__
+    DuplicateRecordDirective a            -> icodeN 5 DuplicateRecordDirective a
     DeprecationWarning a b c              -> icodeN 6 DeprecationWarning a b c
     NicifierIssue a                       -> icodeN 7 NicifierIssue a
     InversionDepthReached a               -> icodeN 8 InversionDepthReached a
@@ -108,6 +109,7 @@ instance EmbPrj Warning where
     [2]                  -> valuN EmptyRewritePragma
     [3]                  -> valuN UselessPublic
     [4, a]               -> valuN UselessInline a
+    [5, a]               -> valuN DuplicateRecordDirective a
     [6, a, b, c]         -> valuN DeprecationWarning a b c
     [7, a]               -> valuN NicifierIssue a
     [8, a]               -> valuN InversionDepthReached a
@@ -393,7 +395,7 @@ instance EmbPrj WarningName where
     InvalidCoverageCheckPragma_                  -> 20
     InvalidNoPositivityCheckPragma_              -> 21
     InvalidNoUniverseCheckPragma_                -> 22
-    -- 23 removed
+    DuplicateRecordDirective_                    -> 23
     InvalidTerminationCheckPragma_               -> 24
     MissingDeclarations_                         -> 25
     MissingDefinitions_                          -> 26
@@ -512,7 +514,7 @@ instance EmbPrj WarningName where
     20  -> return InvalidCoverageCheckPragma_
     21  -> return InvalidNoPositivityCheckPragma_
     22  -> return InvalidNoUniverseCheckPragma_
-    -- 23 removed
+    23  -> return DuplicateRecordDirective_
     24  -> return InvalidTerminationCheckPragma_
     25  -> return MissingDeclarations_
     26  -> return MissingDefinitions_

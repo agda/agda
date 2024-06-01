@@ -1196,6 +1196,15 @@ instance ToConcrete A.ModuleApplication where
     recm <- toConcrete recm
     return $ C.RecordModuleInstance (getRange recm) recm
 
+instance ToConcrete A.RecordDirectives where
+  type ConOfAbs A.RecordDirectives = [C.RecordDirective]
+
+  toConcrete dir = C.ungatherRecordDirectives <$> traverse f dir
+    where
+      f :: A.QName -> AbsToCon (C.Name, IsInstance)
+      f = (,NotInstanceDef) <.> C.unqualify <.> toConcrete
+
+
 instance ToConcrete A.Declaration where
   type ConOfAbs A.Declaration = [C.Declaration]
 
@@ -1265,8 +1274,9 @@ instance ToConcrete A.Declaration where
   toConcrete (A.RecDef  i x uc dir bs t cs) =
     withAbstractPrivate i $
     bindToConcrete (map makeDomainFree $ dataDefParams bs) $ \ tel' -> do
+      dirs <- toConcrete dir
       (x',cs') <- first unsafeQNameToName <$> toConcrete (x, map Constr cs)
-      return [ C.RecordDef (getRange i) x' (dir { recConstructor = Nothing }) (catMaybes tel') cs' ]
+      return [ C.RecordDef (getRange i) x' dirs (catMaybes tel') cs' ]
 
   toConcrete (A.Mutual i ds) = pure . C.Mutual empty <$> declsToConcrete ds
 

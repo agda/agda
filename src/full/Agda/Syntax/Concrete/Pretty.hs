@@ -563,6 +563,9 @@ pHasEta0 = \case
   YesEta   -> "eta-equality"
   NoEta () -> "no-eta-equality"
 
+instance Pretty RecordDirective where
+  pretty = pRecordDirective
+
 pRecordDirective :: RecordDirective -> Doc
 pRecordDirective = \case
   Induction ind -> pretty (rangedThing ind)
@@ -576,12 +579,12 @@ pRecordDirective = \case
 pRecord
   :: Erased
   -> Name
-  -> RecordDirectives
+  -> [RecordDirective]
   -> [LamBinding]
   -> Maybe Expr
   -> [Declaration]
   -> Doc
-pRecord erased x (RecordDirectives ind eta pat con) tel me ds = vcat
+pRecord erased x directives tel me ds = vcat
     [ sep
       [ hsep  [ "record"
               , prettyErased erased (pretty x)
@@ -590,10 +593,7 @@ pRecord erased x (RecordDirectives ind eta pat con) tel me ds = vcat
       , nest 2 $ pType me
       ]
     , nest 2 $ vcat $ concat
-      [ pInd
-      , pEta
-      , pPat
-      , pCon
+      [ map pretty directives
       , map pretty ds
       ]
     ]
@@ -604,16 +604,6 @@ pRecord erased x (RecordDirectives ind eta pat con) tel me ds = vcat
                 ]
         pType Nothing  =
                   "where"
-        pInd = maybeToList $ pretty . rangedThing <$> ind
-        pEta = maybeToList $ eta <&> pHasEta0
-        pPat = maybeToList $ "pattern" <$ pat
-        -- pEta = caseMaybe eta [] $ \case
-        --   YesEta -> [ "eta-equality" ]
-        --   NoEta  -> "no-eta-equality" : pPat
-        -- pPat = \case
-        --   PatternMatching   -> [ "pattern" ]
-        --   CopatternMatching -> []
-        pCon = maybeToList $ (("constructor" <+>) . pretty) . fst <$> con
 
 instance Pretty OpenShortHand where
     pretty DoOpen = "open"

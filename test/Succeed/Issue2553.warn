@@ -3,9 +3,9 @@ warning: -W[no]UselessPatternDeclarationForRecord
 'pattern' attribute ignored for eta record
 when scope checking the declaration
   record R₁ _ where
-    eta-equality
     pattern
     constructor mkR₁
+    eta-equality
     field p : R₀ A
     X : Set
     X = R₀.proj₁ p
@@ -14,8 +14,8 @@ warning: -W[no]UselessPatternDeclarationForRecord
 'pattern' attribute ignored for eta record
 when scope checking the declaration
   record R₂ r where
-    eta-equality
     pattern
+    eta-equality
     field g : R₀ (R₁.X r)
 
 ———— All done; warnings encountered ————————————————————————
@@ -25,9 +25,9 @@ warning: -W[no]UselessPatternDeclarationForRecord
 'pattern' attribute ignored for eta record
 when scope checking the declaration
   record R₁ _ where
-    eta-equality
     pattern
     constructor mkR₁
+    eta-equality
     field p : R₀ A
     X : Set
     X = R₀.proj₁ p
@@ -37,6 +37,6 @@ warning: -W[no]UselessPatternDeclarationForRecord
 'pattern' attribute ignored for eta record
 when scope checking the declaration
   record R₂ r where
-    eta-equality
     pattern
+    eta-equality
     field g : R₀ (R₁.X r)

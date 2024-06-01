@@ -36,6 +36,7 @@ import Data.Void
 import Agda.Syntax.Common
 import Agda.Syntax.Builtin
 import Agda.Syntax.Concrete.Name as C
+import Agda.Syntax.Concrete (RecordDirective(..))
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Position as P
@@ -758,3 +759,34 @@ instance EmbPrj SomeBuiltin where
     valu [0, x] = valuN BuiltinName x
     valu [1, x] = valuN PrimitiveName x
     valu _      = malformed
+
+instance EmbPrj IsInstance where
+  icod_ = \case
+    InstanceDef a  -> icodeN' InstanceDef a
+    NotInstanceDef -> icodeN' NotInstanceDef
+
+  value = vcase \case
+    [a] -> valuN InstanceDef a
+    []  -> valuN NotInstanceDef
+    _ -> malformed
+
+instance EmbPrj a => EmbPrj (RecordDirectives' a) where
+  icod_ (RecordDirectives a b c d) = icodeN' RecordDirectives a b c d
+
+  value = vcase \case
+    [a, b, c, d] -> valuN RecordDirectives a b c d
+    _ -> malformed
+
+instance EmbPrj RecordDirective where
+  icod_ = \case
+    Constructor a b      -> icodeN 0 Constructor a b
+    Eta a                -> icodeN 1 Eta a
+    Induction a          -> icodeN 2 Induction a
+    PatternOrCopattern a -> icodeN 3 PatternOrCopattern a
+
+  value = vcase \case
+    [0, a, b] -> valuN Constructor a b
+    [1, a]    -> valuN Eta a
+    [2, a]    -> valuN Induction a
+    [3, a]    -> valuN PatternOrCopattern a
+    _ -> malformed

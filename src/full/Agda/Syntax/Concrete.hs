@@ -63,6 +63,7 @@ module Agda.Syntax.Concrete
   , ThingWithFixity(..)
   , HoleContent, HoleContent'(..)
   , spanAllowedBeforeModule
+  , ungatherRecordDirectives
   )
   where
 
@@ -465,6 +466,15 @@ data RecordDirective
 
 type RecordDirectives = RecordDirectives' (Name, IsInstance)
 
+ungatherRecordDirectives :: RecordDirectives -> [RecordDirective]
+ungatherRecordDirectives (RecordDirectives ind eta pat con) = catMaybes
+  [ Induction <$> ind
+  , Eta <$> eta
+  , PatternOrCopattern <$> pat
+  , uncurry Constructor <$> con
+  ]
+
+
 {-| The representation type of a declaration. The comments indicate
     which type in the intended family the constructor targets.
 -}
@@ -481,8 +491,8 @@ data Declaration
                 [TypeSignatureOrInstanceBlock]
   | DataDef     Range Name [LamBinding] [TypeSignatureOrInstanceBlock]
   | RecordSig   Range Erased Name [LamBinding] Expr -- ^ lone record signature in mutual block
-  | RecordDef   Range Name RecordDirectives [LamBinding] [Declaration]
-  | Record      Range Erased Name RecordDirectives [LamBinding] Expr
+  | RecordDef   Range Name [RecordDirective] [LamBinding] [Declaration]
+  | Record      Range Erased Name [RecordDirective] [LamBinding] Expr
                 [Declaration]
   | Infix Fixity (List1 Name)
   | Syntax      Name Notation -- ^ notation declaration for a name
