@@ -100,8 +100,6 @@ data DeclarationWarning'
   | InvalidNoUniverseCheckPragma Range
       -- ^ A {-\# NO_UNIVERSE_CHECK \#-} pragma
       --   that does not apply to a data or record type.
-  | InvalidRecordDirective Range
-      -- ^ A record directive outside of a record / below existing fields.
   | InvalidTerminationCheckPragma Range
       -- ^ A {-\# TERMINATING \#-} and {-\# NON_TERMINATING \#-} pragma
       --   that does not apply to any function.
@@ -166,7 +164,6 @@ declarationWarningName' = \case
   InvalidConstructorBlock{}         -> InvalidConstructorBlock_
   InvalidNoPositivityCheckPragma{}  -> InvalidNoPositivityCheckPragma_
   InvalidNoUniverseCheckPragma{}    -> InvalidNoUniverseCheckPragma_
-  InvalidRecordDirective{}          -> InvalidRecordDirective_
   InvalidTerminationCheckPragma{}   -> InvalidTerminationCheckPragma_
   InvalidCoverageCheckPragma{}      -> InvalidCoverageCheckPragma_
   MissingDeclarations{}             -> MissingDeclarations_
@@ -217,7 +214,6 @@ unsafeDeclarationWarning' = \case
   InvalidConstructorBlock{}         -> False
   InvalidNoPositivityCheckPragma{}  -> False
   InvalidNoUniverseCheckPragma{}    -> False
-  InvalidRecordDirective{}          -> False
   InvalidTerminationCheckPragma{}   -> False
   InvalidCoverageCheckPragma{}      -> False
   MissingDeclarations{}             -> True  -- not safe
@@ -331,7 +327,6 @@ instance HasRange DeclarationWarning' where
     InvalidCoverageCheckPragma r       -> r
     InvalidNoPositivityCheckPragma r   -> r
     InvalidNoUniverseCheckPragma r     -> r
-    InvalidRecordDirective r           -> r
     InvalidTerminationCheckPragma r    -> r
     MissingDeclarations xs             -> getRange xs
     MissingDefinitions xs              -> getRange xs
@@ -478,9 +473,6 @@ instance Pretty DeclarationWarning' where
     EmptyField _ -> fsep $ pwords "Empty field block."
 
     HiddenGeneralize _ -> fsep $ pwords "Declaring a variable as hidden has no effect in a variable block. Generalization never introduces visible arguments."
-
-    InvalidRecordDirective{} -> fsep $
-      pwords "Record directives can only be used inside record definitions and before field declarations."
 
     InvalidTerminationCheckPragma _ -> fsep $
       pwords "Termination checking pragmas can only precede a function definition or a mutual block (that contains a function definition)."

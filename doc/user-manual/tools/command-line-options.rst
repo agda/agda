@@ -1400,10 +1400,6 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      :ref:`NO_UNIVERSE_CHECK <no_universe_check-pragma>` pragmas before declarations other than ``data`` or ``record`` declarations.
 
-.. option:: InvalidRecordDirective
-
-     Record directives outside of record definition or below field declarations.
-
 .. option:: InvalidTerminationCheckPragma
 
      :ref:`Termination checking pragmas <terminating-pragma>` before non-function or ``mutual`` blocks.

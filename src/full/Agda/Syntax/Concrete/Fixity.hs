@@ -171,7 +171,6 @@ fixitiesAndPolarities' = foldMap $ \case
   RecordSig       {}  -> mempty
   RecordDef       {}  -> mempty
   Record          {}  -> mempty
-  RecordDirective {}  -> mempty
   LoneConstructor {}  -> mempty
   PatternSyn      {}  -> mempty
   Postulate       {}  -> mempty
@@ -225,7 +224,6 @@ declaredNames = \case
   RecordSig _ _ x _ _   -> declaresName x
   RecordDef _ x d _ _   -> declaresNames $     foldMap (:[]) (fst <$> recConstructor d)
   Record _ _ x d _ _ _  -> declaresNames $ x : foldMap (:[]) (fst <$> recConstructor d)
-  RecordDirective _     -> mempty
   Infix _ _             -> mempty
   Syntax _ _            -> mempty
   PatternSyn _ x _ _    -> declaresName x

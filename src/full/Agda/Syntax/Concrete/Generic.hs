@@ -240,7 +240,6 @@ instance ExprLike Declaration where
      Record r er n dir tel e ds
                                -> Record r er n dir (mapE tel) (mapE e)
                                                                        $ mapE ds
-     e@RecordDirective{}       -> e
      e@Infix{}                 -> e
      e@Syntax{}                -> e
      e@PatternSyn{}            -> e
@@ -322,7 +321,6 @@ instance FoldDecl Declaration where
     Data _ _ _ _ _ _        -> mempty
     DataDef _ _ _ _         -> mempty
     RecordSig _ _ _ _ _     -> mempty
-    RecordDirective _       -> mempty
     Infix _ _               -> mempty
     Syntax _ _              -> mempty
     PatternSyn _ _ _ _      -> mempty
@@ -378,7 +376,6 @@ instance TraverseDecl Declaration where
       Data _ _ _ _ _ _           -> return d
       DataDef _ _ _ _            -> return d
       RecordSig _ _ _ _ _        -> return d
-      RecordDirective _          -> return d
       Infix _ _                  -> return d
       Syntax _ _                 -> return d
       PatternSyn _ _ _ _         -> return d

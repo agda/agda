@@ -235,7 +235,6 @@ data WarningName
   | InvalidCoverageCheckPragma_
   | InvalidNoPositivityCheckPragma_
   | InvalidNoUniverseCheckPragma_
-  | InvalidRecordDirective_
   | InvalidTerminationCheckPragma_
   | MissingDeclarations_
   | MissingDefinitions_
@@ -429,7 +428,6 @@ warningNameDescription = \case
   InvalidCoverageCheckPragma_      -> "Coverage checking pragmas before non-function or `mutual' blocks."
   InvalidNoPositivityCheckPragma_  -> "Positivity checking pragmas before non-`data', `record' or `mutual' blocks."
   InvalidNoUniverseCheckPragma_    -> "Universe checking pragmas before non-`data' or `record' declaration."
-  InvalidRecordDirective_          -> "Record directives outside of record definitions or below field declarations."
   InvalidTerminationCheckPragma_   -> "Termination checking pragmas before non-function or `mutual' blocks."
   MissingDeclarations_             -> "Definitions not associated to a declaration."
   MissingDefinitions_              -> "Declarations not associated to a definition."

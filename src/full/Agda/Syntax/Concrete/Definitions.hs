@@ -435,8 +435,6 @@ niceDeclarations fixs ds = do
                       (flip NiceRecSig defaultErased) return r x
                       ((tel,) <$> mt) (Just (tel, cs))
 
-        RecordDirective r -> justWarning $ InvalidRecordDirective (getRange r)
-
         Mutual r ds' -> do
           -- The lone signatures encountered so far are not in scope
           -- for the mutual definition

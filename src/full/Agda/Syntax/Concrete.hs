@@ -45,7 +45,6 @@ module Agda.Syntax.Concrete
     -- * Declarations
   , Declaration(..)
   , isPragma
-  , isRecordDirective
   , RecordDirective(..)
   , RecordDirectives
   , ModuleApplication(..)
@@ -485,7 +484,6 @@ data Declaration
   | RecordDef   Range Name RecordDirectives [LamBinding] [Declaration]
   | Record      Range Erased Name RecordDirectives [LamBinding] Expr
                 [Declaration]
-  | RecordDirective RecordDirective -- ^ Should not survive beyond the parser
   | Infix Fixity (List1 Name)
   | Syntax      Name Notation -- ^ notation declaration for a name
   | PatternSyn  Range Name [WithHiding Name] Pattern
@@ -522,12 +520,6 @@ data Declaration
     -- ^ @unfolding ...@
   deriving Eq
 
--- | Extract a record directive
-isRecordDirective :: Declaration -> Maybe RecordDirective
-isRecordDirective (RecordDirective r) = Just r
-isRecordDirective (InstanceB r [RecordDirective (Constructor n p)]) = Just (Constructor n (InstanceDef r))
-isRecordDirective _ = Nothing
-
 -- | Return 'Pragma' if 'Declaration' is 'Pragma'.
 {-# SPECIALIZE isPragma :: Declaration -> Maybe Pragma #-}
 {-# SPECIALIZE isPragma :: Declaration -> [Pragma] #-}
@@ -551,7 +543,6 @@ isPragma = \case
     Data _ _ _ _ _ _        -> empty
     DataDef _ _ _ _         -> empty
     RecordSig _ _ _ _ _     -> empty
-    RecordDirective _       -> empty
     Infix _ _               -> empty
     Syntax _ _              -> empty
     PatternSyn _ _ _ _      -> empty
@@ -962,7 +953,6 @@ instance HasRange Declaration where
   getRange (RecordSig r _ _ _ _)   = r
   getRange (RecordDef r _ _ _ _)   = r
   getRange (Record r _ _ _ _ _ _)  = r
-  getRange (RecordDirective r)     = getRange r
   getRange (Mutual kwr ds)         = fuseRange kwr ds
   getRange (InterleavedMutual kwr ds) = fuseRange kwr ds
   getRange (LoneConstructor kwr ds)= fuseRange kwr ds
@@ -1116,7 +1106,6 @@ instance KillRange Declaration where
   killRange (DataDef _ n l c)       = killRangeN (DataDef noRange) n l c
   killRange (RecordSig _ er n l e)  = killRangeN (RecordSig noRange) er n l e
   killRange (RecordDef _ n dir k d) = killRangeN (RecordDef noRange) n dir k d
-  killRange (RecordDirective a)     = killRangeN RecordDirective a
   killRange (Record _ er n dir k e d)
                                     = killRangeN (Record noRange) er n dir k e d
   killRange (Infix f n)             = killRangeN Infix f n
@@ -1346,7 +1335,6 @@ instance NFData Declaration where
   rnf (RecordSig _ a b c d)   = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
   rnf (RecordDef _ a b c d)   = rnf (a, b, c, d)
   rnf (Record _ a b c d e f)  = rnf (a, b, c, d, e, f)
-  rnf (RecordDirective a)     = rnf a
   rnf (Infix a b)             = rnf a `seq` rnf b
   rnf (Syntax a b)            = rnf a `seq` rnf b
   rnf (PatternSyn _ a b c)    = rnf a `seq` rnf b `seq` rnf c

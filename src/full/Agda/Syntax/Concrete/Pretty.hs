@@ -501,7 +501,6 @@ instance Pretty Declaration where
       pRecord erased x dir tel (Just e) cs
     RecordDef _ x dir tel cs ->
       pRecord defaultErased x dir tel Nothing cs
-    RecordDirective r -> pRecordDirective r
     Infix f xs  ->
       pretty f <+> fsep (punctuate comma $ fmap pretty xs)
     Syntax n xs -> "syntax" <+> pretty n <+> "..."

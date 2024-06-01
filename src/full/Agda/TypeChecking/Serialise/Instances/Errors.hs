@@ -239,7 +239,7 @@ instance EmbPrj DeclarationWarning' where
     OpenPublicAbstract r              -> icodeN 26 OpenPublicAbstract r
     OpenPublicPrivate r               -> icodeN 27 OpenPublicPrivate r
     EmptyConstructor a                -> icodeN 28 EmptyConstructor a
-    InvalidRecordDirective a          -> icodeN 29 InvalidRecordDirective a
+    -- 29 removed
     InvalidConstructor a              -> icodeN 30 InvalidConstructor a
     InvalidConstructorBlock a         -> icodeN 31 InvalidConstructorBlock a
     MissingDeclarations a             -> icodeN 32 MissingDeclarations a
@@ -284,7 +284,7 @@ instance EmbPrj DeclarationWarning' where
     [26,r]   -> valuN OpenPublicAbstract r
     [27,r]   -> valuN OpenPublicPrivate r
     [28,r]   -> valuN EmptyConstructor r
-    [29,r]   -> valuN InvalidRecordDirective r
+    -- 29 removed
     [30,r]   -> valuN InvalidConstructor r
     [31,r]   -> valuN InvalidConstructorBlock r
     [32,r]   -> valuN MissingDeclarations r
@@ -393,7 +393,7 @@ instance EmbPrj WarningName where
     InvalidCoverageCheckPragma_                  -> 20
     InvalidNoPositivityCheckPragma_              -> 21
     InvalidNoUniverseCheckPragma_                -> 22
-    InvalidRecordDirective_                      -> 23
+    -- 23 removed
     InvalidTerminationCheckPragma_               -> 24
     MissingDeclarations_                         -> 25
     MissingDefinitions_                          -> 26
@@ -512,7 +512,7 @@ instance EmbPrj WarningName where
     20  -> return InvalidCoverageCheckPragma_
     21  -> return InvalidNoPositivityCheckPragma_
     22  -> return InvalidNoUniverseCheckPragma_
-    23  -> return InvalidRecordDirective_
+    -- 23 removed
     24  -> return InvalidTerminationCheckPragma_
     25  -> return MissingDeclarations_
     26  -> return MissingDefinitions_
