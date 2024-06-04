@@ -167,18 +167,15 @@ splitTermKey precise local tm = catchPatternErr (\b -> pure (FlexK, [], b)) do
       reportSDoc "tc.instance.split" 30 $ pretty tm
       pure (FlexK, [], neverUnblock)
 
-termPath :: Bool -> Int -> [Key] -> [Term] -> TCM [Key]
-termPath toplevel local acc []        = pure $! reverse acc
-termPath toplevel local acc (tm:todo) = do
-  (k, as, _) <- if toplevel
-    then ignoreAbstractMode (splitTermKey True local tm)
-    else splitTermKey True local tm
-
+termPath :: Int -> [Key] -> [Term] -> TCM [Key]
+termPath local acc []        = pure $! reverse acc
+termPath local acc (tm:todo) = do
+  (k, as, _) <- ignoreAbstractMode (splitTermKey True local tm)
   reportSDoc "tc.instance.discrim.add" 666 $ vcat
     [ "k:  " <+> prettyTCM k
     , "as: " <+> prettyTCM as
     ]
-  termPath False local (k:acc) (as <> todo)
+  termPath local (k:acc) (as <> todo)
 
 -- | Insert a value into the discrimination tree, turning variables into
 -- rigid locals or wildcards depending on the given scope.
@@ -190,7 +187,7 @@ insertDT
   -> DiscrimTree a
   -> TCM (DiscrimTree a)
 insertDT local key val tree = do
-  path <- termPath True local [] [key]
+  path <- termPath local [] [key]
   let it = singletonDT path val
   reportSDoc "tc.instance.discrim.add" 20 $ vcat
     [ "added value" <+> prettyTCM val <+> "to discrimination tree with case"
