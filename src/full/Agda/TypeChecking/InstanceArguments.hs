@@ -284,8 +284,10 @@ initialInstanceCandidates blockOverlap instTy = do
 --   wasn't known when the constraint was generated. In that case, try to find
 --   its type again.
 findInstance :: MetaId -> Maybe [Candidate] -> TCM ()
-findInstance m Nothing = do
-  ifM canDropRecursiveInstance (addConstraint neverUnblock (FindInstance m Nothing)) do
+findInstance m Nothing =
+  ifM canDropRecursiveInstance (addConstraint neverUnblock (FindInstance m Nothing)) $
+  -- Getting initial candidates can fail, in which case we should postpone (#7286)
+  catchConstraint (FindInstance m Nothing) $ do
   -- Andreas, 2015-02-07: New metas should be created with range of the
   -- current instance meta, thus, we set the range.
   mv <- lookupLocalMeta m
@@ -1061,10 +1063,10 @@ resolveInstanceHead q = do
 --   an error if it doesn't work and return the instance table otherwise.
 getInstanceDefs :: TCM InstanceTable
 getInstanceDefs = do
-  insts <- getAllInstanceDefs
-  unless (null $ snd insts) $
-    typeError $ GenericError $ "There are instances whose type is still unsolved"
-  return $ fst insts
+  (table, pending) <- getAllInstanceDefs
+  unless (null pending) $ do
+    patternViolation alwaysUnblock  -- TODO: more refined unblocking
+  return table
 
 -- | Prune an 'Interface' to remove any instances that would be
 -- inapplicable in child modules.
