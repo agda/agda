@@ -1,4 +1,17 @@
-Issue3464.agda:22,11-15
-No instance of type Le X.1 le.2 was found in scope.
-when checking that X G are valid arguments to a function of type
-{m n : Nat} ⦃ _ : Le m n ⦄ → Fin m → Fin n → Set
+Failed to solve the following constraints:
+  Resolve instance argument _81 : Le _le.1_82 _le.2_83
+  Candidates
+    Le-refl : {n : Nat} → Le n n
+    Le-succ : {m n : Nat} ⦃ _ : Le m n ⦄ → Le m (succ n)
+    (stuck)
+  Resolve instance argument _62 : Le _le.1_64 _G.1_63
+  Candidates
+    Le-refl : {n : Nat} → Le n n
+    Le-succ : {m n : Nat} ⦃ _ : Le m n ⦄ → Le m (succ n)
+    (stuck)
+Unsolved metas at the following locations:
+  Issue3464.agda:20,16-17
+  Issue3464.agda:21,21-23
+  Issue3464.agda:22,11-15
+  Issue3464.agda:27,21-23
+  Issue3464.agda:28,11-15
