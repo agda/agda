@@ -115,10 +115,31 @@ splitTermKey precise local tm = catchPatternErr (\b -> pure (FlexK, [], b)) do
   (b, tm') <- ifBlocked tm (\b _ -> patternViolation b) (\b -> fmap (b,) . constructorForm)
 
   case tm' of
+    -- Adding a 'Def' to the key poses a few problems when opacity (or
+    -- abstractness) are involved (see issue #7304). Suppose we have an
+    -- opaque binding `X = Y`, and an opaque instance `C X`. The problem
+    -- is as follows:
+    --
+    --   if we unfold X → Y when adding the instance, then it will not
+    --   get recorded as an instance for C X, only C Y; this is 7304b.
+    --
+    --   if we *don't* unfold X → Y, then it only gets added as an
+    --   instance of C X; in opaque blocks where X is allowed to unfold,
+    --   we *won't* find it, because we're looking for C Y.
+    --
+    -- The solution is to throw our hands up and say "not our problem".
+    -- The discrimination tree is allowed to return more results than
+    -- strictly necessary, after all, so the solution is to add an
+    -- instance for *neither* of C X or C Y, but instead, to treat all
+    -- 'Def's headed by 'AbstractDefn' as though they were flexible
+    -- (think "as though they were metas").
     Def q as | ReallyNotBlocked <- b, (as, _) <- splitApplyElims as -> do
-      let ty = defType <$> getConstInfo q
-      (arity, as) <- termKeyElims precise ty as
-      pure (RigidK q arity, as, neverUnblock)
+      info <- getConstInfo q
+      case theDef info of
+        AbstractDefn{} -> pure (FlexK, [], neverUnblock)
+        _ -> do
+          (arity, as) <- termKeyElims precise (pure (defType info)) as
+          pure (RigidK q arity, as, neverUnblock)
 
     -- When adding a quantified instance, we record how many 'Pi's we went
     -- under, and only variables beyond those are considered LocalK. The
@@ -148,6 +169,10 @@ splitTermKey precise local tm = catchPatternErr (\b -> pure (FlexK, [], b)) do
         -- If we're looking at a non-dependent function type, then we
         -- might as well represent the codomain accurately; Otherwise,
         -- turn the codomain into a wildcard.
+        --
+        -- The use of a dummy term *shouldn't* leak to the user, because
+        -- when we call splitTermKey again, it'll be handled by the last
+        -- case, and become a FlexK.
         ret' = case isNoAbs (unEl <$> ret) of
           Just b  -> b
           Nothing -> __DUMMY_TERM__
@@ -170,9 +195,15 @@ splitTermKey precise local tm = catchPatternErr (\b -> pure (FlexK, [], b)) do
 termPath :: Bool -> Int -> [Key] -> [Term] -> TCM [Key]
 termPath toplevel local acc []        = pure $! reverse acc
 termPath toplevel local acc (tm:todo) = do
-  (k, as, _) <- if toplevel
-    then ignoreAbstractMode (splitTermKey True local tm)
-    else splitTermKey True local tm
+
+  -- We still want to ignore abstractness at the very top-level of
+  -- instance heads, for issue #6941, to ensure that each instance ends
+  -- up in the right 'class'. See the comment in `splitTermKey` about
+  -- abstract definitions.
+  (k, as, _) <-
+    if toplevel
+      then ignoreAbstractMode (splitTermKey True local tm)
+      else splitTermKey True local tm
 
   reportSDoc "tc.instance.discrim.add" 666 $ vcat
     [ "k:  " <+> prettyTCM k
