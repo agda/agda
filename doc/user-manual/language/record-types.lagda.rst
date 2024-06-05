@@ -552,3 +552,29 @@ types. For instance we can define ``Nat`` instances for ``Eq``, ``Ord`` and
 
     NumNat : Num Nat
     fromNat {{NumNat}} n = n
+
+..
+  ::
+  module Note where
+
+.. note::
+
+   You can also mark a field with the ``instance`` keyword. This turns the
+   projection function into a top-level instance, instead of making the field
+   an instance argument to the constructor.
+
+   ::
+
+    postulate
+      P : Set
+
+    record Q : Set where
+      field instance p : P
+
+    open Q {{...}}
+
+    -- Equivalent to
+    -- instance p : {{Q}} → P
+
+  This is almost never what you want to do.
+
