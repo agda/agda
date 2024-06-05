@@ -62,7 +62,7 @@ jobs:
     - name: Install dependencies for Agda and its test suites
       run: make install-deps
     - name: Build Agda
-      run: make BUILD_DIR="${BUILD_DIR}" install-bin-debug
+      run: make BUILD_DIR="${BUILD_DIR}" install-bin
     - name: Pack artifacts
       run: |
         strip "${BUILD_DIR}"/build/agda-tests/agda-tests \
