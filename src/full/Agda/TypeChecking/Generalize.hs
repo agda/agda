@@ -316,7 +316,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
 
   reportSDoc "tc.generalize" 50 $ "current constraints:" <?> vcat (map prettyTCM cs)
 
-  constrainedMetas <- Set.unions <$> mapM (constraintMetas . clValue . theConstraint) cs
+  constrainedMetas <- Set.unions <$> mapM (constraintMetas . theConstraint) cs
 
   reportSDoc "tc.generalize" 30 $ nest 2 $
     "constrainedMetas     = " <+> prettyList_ (map prettyTCM $ Set.toList constrainedMetas)
@@ -1015,8 +1015,8 @@ fillInGenRecordDetails name con fields recTy fieldTel = do
 --   UnBlock constraint.
 --   This is used for the purpose of deciding if a metavariable is constrained or if it can be
 --   generalized over.
-constraintMetas :: Constraint -> TCM (Set MetaId)
-constraintMetas = \case
+constraintMetas :: Closure Constraint -> TCM (Set MetaId)
+constraintMetas cl = enterClosure cl $ \case
     -- We don't use allMetas here since some constraints should not stop us from generalizing. For
     -- instance CheckSizeLtSat (see #3694). We also have to check meta listeners to get metas of
     -- UnBlock constraints.
@@ -1030,11 +1030,11 @@ constraintMetas = \case
       UnquoteTactic t h g      -> return $ allMetas Set.singleton (t, h, g)
       SortCmp _ s1 s2          -> return $ allMetas Set.singleton (Sort s1, Sort s2)
       UnBlock x                -> Set.insert x . Set.unions <$> (mapM listenerMetas =<< getMetaListeners x)
-      FindInstance x _         ->
+      FindInstance x _         -> do
         -- #5093: We should not generalize over metas bound by instance constraints.
         -- We keep instance constraints even if the meta is solved, to check that it could indeed
         -- be filled by instance search. If it's solved, look in the solution.
-        caseMaybeM (isInstantiatedMeta' x) (Set.insert x . allMetas Set.singleton <$> (instantiateFull =<< metaType x))
+        caseMaybeM (isInstantiatedMeta' x) (Set.insert x . allMetas Set.singleton <$> (instantiateFull =<< getMetaTypeInContext x))
                                             -- #6141: We shouldn't generalize over metas appearing in the types
                                             -- of unsolved instance constraints.
           $ return . allMetas Set.singleton
@@ -1052,5 +1052,5 @@ constraintMetas = \case
   where
     -- For blocked constant twin variables
     listenerMetas EtaExpand{}           = return Set.empty
-    listenerMetas (CheckConstraint _ c) = constraintMetas (clValue $ theConstraint c)
+    listenerMetas (CheckConstraint _ c) = constraintMetas (theConstraint c)
 
