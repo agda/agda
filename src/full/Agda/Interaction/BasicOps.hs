@@ -383,7 +383,7 @@ showComputed :: ComputeMode -> Expr -> TCM Doc
 showComputed UseShowInstance e =
   case e of
     A.Lit _ (LitString s) -> pure (text $ T.unpack s)
-    _                     -> ("Not a string:" $$) <$> prettyATop e
+    _                     -> ("Expected applying `show` to the given value to produce a string literal, but got:" $$) <$> prettyATop e
 showComputed _ e = prettyATop e
 
 -- | Modifier for interactive commands,
