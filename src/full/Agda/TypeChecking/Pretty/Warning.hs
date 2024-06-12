@@ -426,6 +426,8 @@ prettyWarning = \case
     FaceConstraintCannotBeNamed x -> fsep $
       pwords "Ignoring name" ++ ["`" <> pretty x <> "`"] ++ pwords "given to face constraint pattern"
 
+    CustomBackendWarning backend warn -> (text backend <> ":") <?> pure warn
+
 {-# SPECIALIZE prettyRecordFieldWarning :: RecordFieldWarning -> TCM Doc #-}
 prettyRecordFieldWarning :: MonadPretty m => RecordFieldWarning -> m Doc
 prettyRecordFieldWarning = \case

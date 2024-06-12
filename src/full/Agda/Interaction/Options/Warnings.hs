@@ -333,6 +333,8 @@ data WarningName
   | FaceConstraintCannotBeNamed_
   -- Not source code related
   | DuplicateInterfaceFiles_
+  -- Backends
+  | CustomBackendWarning_
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Generic)
 
 instance NFData WarningName
@@ -527,3 +529,5 @@ warningNameDescription = \case
   FaceConstraintCannotBeNamed_     -> "Face constraint patterns that are given as named arguments."
   -- Not source code related
   DuplicateInterfaceFiles_         -> "Duplicate interface files."
+  -- Backends
+  CustomBackendWarning_            -> "Custom warnings from backends."

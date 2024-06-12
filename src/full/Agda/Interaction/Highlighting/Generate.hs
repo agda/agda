@@ -552,6 +552,9 @@ warningHighlighting' b w = case tcWarning w of
   -- Not source code related
   DuplicateInterfaceFiles{} -> mempty
 
+  -- Backends
+  CustomBackendWarning{} -> mempty
+
 recordFieldWarningHighlighting ::
   RecordFieldWarning -> HighlightingInfoBuilder
 recordFieldWarningHighlighting = \case
