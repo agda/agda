@@ -517,7 +517,7 @@ data Pattern' e
   | AbsurdP PatInfo
   | LitP PatInfo Literal
   | PatternSynP PatInfo AmbiguousQName (NAPs e)
-  | RecP PatInfo [FieldAssignment' (Pattern' e)]
+  | RecP ConPatInfo [FieldAssignment' (Pattern' e)]
   | EqualP PatInfo [(e, e)]
   | WithP PatInfo (Pattern' e)  -- ^ @| p@, for with-patterns.
   | AnnP PatInfo e (Pattern' e) -- ^ Pattern with type annotation
@@ -750,7 +750,7 @@ instance SetRange (Pattern' a) where
     setRange r (AbsurdP _)          = AbsurdP (PatRange r)
     setRange r (LitP _ l)           = LitP (PatRange r) l
     setRange r (PatternSynP _ n as) = PatternSynP (PatRange r) n as
-    setRange r (RecP i as)          = RecP (PatRange r) as
+    setRange r (RecP i as)          = RecP (setRange r i) as
     setRange r (EqualP _ es)        = EqualP (PatRange r) es
     setRange r (WithP i p)          = WithP (setRange r i) p
     setRange r (AnnP i a p)         = AnnP (setRange r i) a p

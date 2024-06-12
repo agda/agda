@@ -1336,7 +1336,7 @@ tryRecPFromConP p = do
           if recNamedCon def && conPatOrigin ci /= ConORec then fallback else do
             fs <- fromMaybe __IMPOSSIBLE__ <$> getRecordFieldNames_ r
             unless (length fs == length ps) __IMPOSSIBLE__
-            return $ A.RecP patNoRange $ zipWith mkFA fs ps
+            return $ A.RecP ci $ zipWith mkFA fs ps
         where
           mkFA ax nap = FieldAssignment (unDom ax) (namedArg nap)
     _ -> __IMPOSSIBLE__

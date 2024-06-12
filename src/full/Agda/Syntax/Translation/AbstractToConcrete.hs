@@ -1413,7 +1413,9 @@ instance ToConcrete (UserPattern A.Pattern) where
         | otherwise          -> bindToConcrete (map UserPattern args) $ ret . A.ConP i c
       A.DefP i f args        -> bindToConcrete (map UserPattern args) $ ret . A.DefP i f
       A.PatternSynP i f args -> bindToConcrete (map UserPattern args) $ ret . A.PatternSynP i f
-      A.RecP i args          -> bindToConcrete ((map . fmap) UserPattern args) $ ret . A.RecP i
+      A.RecP i args
+        | conPatOrigin i == ConOSplit -> ret p
+        | otherwise          -> bindToConcrete ((map . fmap) UserPattern args) $ ret . A.RecP i
       A.AsP i x p            -> bindName' (unBind x) $
                                 bindToConcrete (UserPattern p) $ \ p ->
                                 ret (A.AsP i x p)
@@ -1450,7 +1452,10 @@ instance ToConcrete (SplitPattern A.Pattern) where
         | otherwise          -> bindToConcrete (map SplitPattern args) $ ret . A.ConP i c
       A.DefP i f args        -> bindToConcrete (map SplitPattern args) $ ret . A.DefP i f
       A.PatternSynP i f args -> bindToConcrete (map SplitPattern args) $ ret . A.PatternSynP i f
-      A.RecP i args          -> bindToConcrete ((map . fmap) SplitPattern args) $ ret . A.RecP i
+      A.RecP i args
+        | conPatOrigin i == ConOSplit
+                             -> bindToConcrete ((map . fmap) BindingPat args) $ ret . A.RecP i
+        | otherwise          -> bindToConcrete ((map . fmap) SplitPattern args) $ ret . A.RecP i
       A.AsP i x p            -> bindToConcrete (SplitPattern p)  $ \ p ->
                                 ret (A.AsP i x p)
       A.WithP i p            -> bindToConcrete (SplitPattern p) $ ret . A.WithP i

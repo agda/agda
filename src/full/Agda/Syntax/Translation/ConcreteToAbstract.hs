@@ -3284,7 +3284,7 @@ instance ToAbstract C.Pattern where
         _ -> fallback
 
     toAbstract p0@(C.AbsurdP r)    = return $ A.AbsurdP (PatRange r)
-    toAbstract (C.RecP r fs)       = A.RecP (PatRange r) <$> mapM (traverse toAbstract) fs
+    toAbstract (C.RecP r fs)       = A.RecP (ConPatInfo ConORec (PatRange r) ConPatEager) <$> mapM (traverse toAbstract) fs
     toAbstract (C.WithP r p)       = A.WithP (PatRange r) <$> toAbstract p
 
 -- | An argument @OpApp C.Expr@ to an operator can have binders,
