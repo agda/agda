@@ -4378,6 +4378,8 @@ data Warning
   -- Not source code related
   | DuplicateInterfaceFiles AbsolutePath AbsolutePath
     -- ^ `DuplicateInterfaceFiles selectedInterfaceFile ignoredInterfaceFile`
+  | CustomBackendWarning String Doc
+    -- ^ Used for backend-specific warnings. The string is the backend name.
   deriving (Show, Generic)
 
 recordFieldWarningToError :: RecordFieldWarning -> TypeError
@@ -4470,6 +4472,9 @@ warningName = \case
 
   -- Not source code related
   DuplicateInterfaceFiles{}      -> DuplicateInterfaceFiles_
+
+  -- Backend warnings
+  CustomBackendWarning{} -> CustomBackendWarning_
 
 -- | Should warnings of that type be serialized?
 --
@@ -4891,6 +4896,9 @@ data TypeError
     -- Instance search errors
         | InstanceSearchDepthExhausted Term Type Int
         | TriedToCopyConstrainedPrim QName
+    -- Backend errors
+        | CustomBackendError String Doc
+          -- ^ Used for backend-specific errors. The string is the backend name.
           deriving (Show, Generic)
 
 -- | Extra information for 'InvalidFileName' error.

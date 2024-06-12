@@ -333,6 +333,7 @@ errorString = \case
   ExpectedBindingForParameter{}            -> "ExpectedBindingForParameter"
   UnexpectedTypeSignatureForParameter{}    -> "UnexpectedTypeSignatureForParameter"
   UnusableAtModality{}                     -> "UnusableAtModality"
+  CustomBackendError{}                     -> "CustomBackendError"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1694,6 +1695,7 @@ instance PrettyTCM TypeError where
         _ -> prettyTCM t <+> "is not usable at the required modality"
          <+> pure (attributesForModality mod)
 
+    CustomBackendError backend err -> (text backend <> ":") <?> pure err
 
     where
     mpar n args
