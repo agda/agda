@@ -1584,6 +1584,10 @@ The list containing any warning ``NAME`` can be produced by ``agda --help=warnin
 
      Terms marked as eligible for instance search whose type does not end with a name.
 
+.. option:: CustomBackendWarning
+
+     Warnings from custom backends.
+
 Error warnings
 ~~~~~~~~~~~~~~
 
