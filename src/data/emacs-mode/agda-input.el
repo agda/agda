@@ -886,12 +886,13 @@ order for the change to take effect."
   ("@"          . ("＠"))
   ("__"         . ("＿"))
   ("\""         . ("＂"))
+  ("crossmark"  . ("✗"))
 
   ;; Some combining characters.
   ;;
   ;; The following combining characters also have (other)
   ;; translations:
-  ;; ̀ ́ ̂ ̃ ̄ ̆ ̇ ̈ ̋ ̌ ̣ ̧ ̱
+  ;;
 
   ("^--" . ,(agda-input-to-string-list"̅̿"))
   ("_--" . ,(agda-input-to-string-list"̲̳"))
