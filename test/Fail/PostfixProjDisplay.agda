@@ -1,5 +1,5 @@
 {-# OPTIONS --postfix-projections #-}
-module PostfixProjDisplay where
+module PostfixProjDisplay where  -- issue #7055
 
 open import Agda.Builtin.Equality
 
