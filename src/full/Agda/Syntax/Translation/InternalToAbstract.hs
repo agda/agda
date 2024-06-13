@@ -492,9 +492,14 @@ reifyTerm expandAnonDefs0 v0 = tryReifyAsLetBinding v0 $ do
   -- turned into head symbols *if* they have display forms attached.
   hasDisplay <- liftReduce $ unKleisli hasDisplayForms
   let
-    prefixize orig name
-      | havePfp   = (orig == ProjPrefix)  || hasDisplay name
-      | otherwise = (orig /= ProjPostfix) || hasDisplay name
+    prefixize :: ProjOrigin -> QName -> Bool
+    prefixize orig name = or
+      [ if havePfp then orig == ProjPrefix else orig /= ProjPostfix
+      , isOperator name
+          -- Andreas, 2024-06-13, issue #7318:
+          -- print e.g. G .|_| as | G |
+      , hasDisplay name
+      ]
   reportSDoc "reify.term" 80 $ pure $ "reifyTerm (unSpine v) = " <+> pretty (unSpine' prefixize v)
 
   case unSpine' prefixize v of
