@@ -199,6 +199,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
           recordRelevance
             | Just NoEta{} <- eta         = Relevant
             | CoInductive <- conInduction = Relevant
+            | null (telToList ftel)       = Relevant    -- #6270: eta unit types don't need to be irrelevant
             | otherwise                   = minimum $ Irrelevant : map getRelevance (telToList ftel)
 
       -- Andreas, 2017-01-26, issue #2436
