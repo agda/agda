@@ -2,5 +2,5 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "?0 : Category.Hom (λ { .Category.Hom → Σ H R ; .Category.id → x , y ; .Category.comp (f , p) → f , p ; .Category.neut-l → help x (Σ.snd (Category.id .extendedlambda0)) ; .Category.neut-r → ?0 }) " nil)
+(agda2-info-action "*All Goals*" "?0 : (λ { .Category.Hom → Σ H R ; .Category.id → x , y ; .Category.comp (f , p) → f , p ; .Category.neut-l → help x (.extendedlambda0 .Category.id .Σ.snd) ; .Category.neut-r → ?0 }) .Category.Hom " nil)
 ((last . 1) . (agda2-goals-action '(0)))

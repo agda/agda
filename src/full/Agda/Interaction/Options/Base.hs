@@ -372,7 +372,7 @@ data PragmaOptions = PragmaOptions
       --   optRequireUniqueMetaSolutions.
   , _optRequireUniqueMetaSolutions :: WithDefault 'True
       -- ^ Forbid non-unique meta solutions allowed. For instance from INJECTIVE_FOR_INFERENCE pragmas.
-  , _optPostfixProjections        :: WithDefault 'False
+  , _optPostfixProjections        :: WithDefault 'True
       -- ^ Should system generated projections 'ProjSystem' be printed
       --   postfix (True) or prefix (False).
   , _optKeepPatternVariables      :: WithDefault 'False
