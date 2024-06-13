@@ -239,3 +239,11 @@ module Issue7202 where
     ; D₄  -- this should have deadcode highlighting
     ; D₂
     )
+
+open import Agda.Builtin.Bool
+
+module ExactSplit where
+
+  isZero : Nat → Bool
+  isZero 0 = true
+  isZero _ = false  -- This should have smoke highlighting (no exact split)
