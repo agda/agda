@@ -12,6 +12,8 @@ Installation
 Pragmas and options
 -------------------
 
+* Option `--exact-split` is now on by default.
+
 * The following options are now considered infective:
   ([Issue #5264](https://github.com/agda/agda/issues/5264))
 
