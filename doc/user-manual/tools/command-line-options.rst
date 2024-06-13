@@ -521,12 +521,13 @@ Copatterns and projections
      .. versionadded:: 2.5.2
 
      Make postfix projection notation the default.
+     On by default since 2.7.0.
 
 .. option:: --no-postfix-projections
 
      .. versionadded:: 2.6.4
 
-     Default, opposite of :option:`--postfix-projections`.
+     Opposite of :option:`--postfix-projections`.
 
 Experimental features
 ~~~~~~~~~~~~~~~~~~~~~

@@ -26,6 +26,10 @@ Pragmas and options
   This means that if a module has one of these flags enabled,
   then all modules importing it must also have that flag enabled.
 
+* Option `--postfix-projections` is now on by default.
+  This option only affects how Agda prints projections and projection patterns by default.
+  To revert to the old behavior, use option `--no-postfix-projections`.
+
 * New warning `UselessMacro` when a `macro` block does not contain any function definitions.
 
 * New warning `DuplicateRecordDirectives` if e.g. a `record` is declared both `inductive` and `coinductive`,

@@ -4,5 +4,5 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : R " nil)
 ((last . 1) . (agda2-goals-action '(0)))
-((last . 2) . (agda2-make-case-action '("M.R.f test = ?")))
+((last . 2) . (agda2-make-case-action '("test .M.R.f = ?")))
 ((last . 1) . (agda2-goals-action '(0)))
