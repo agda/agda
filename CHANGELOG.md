@@ -34,6 +34,9 @@ Pragmas and options
 
 * New warning `UselessMacro` when a `macro` block does not contain any function definitions.
 
+* New warning `CoinductiveEtaRecord` if a record is declared both `coinductive` and having `eta-equality`.
+  Used to be a hard error; now Agda continues, ignoring `eta-equality`.
+
 * New warning `DuplicateRecordDirectives` if e.g. a `record` is declared both `inductive` and `coinductive`,
   or declared `inductive` twice.
 

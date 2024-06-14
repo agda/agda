@@ -135,6 +135,11 @@ prettyWarning = \case
 
     ConstructorDoesNotFitInData c s1 s2 err -> prettyTCM err
 
+    CoinductiveEtaRecord name -> vcat
+      [ fsep $ pwords "Not switching on eta-equality for coinductive records."
+      , fsep $ pwords "If you must, use pragma" ++ [ "{-# ETA", prettyTCM name, "#-}" ]
+      ]
+
     UnsupportedIndexedMatch doc -> vcat
       [ fsep (pwords "This clause uses pattern-matching features that are not yet supported by Cubical Agda,"
            ++ pwords "the function to which it belongs will not compute when applied to transports."

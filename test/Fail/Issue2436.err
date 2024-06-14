@@ -1,5 +1,7 @@
-Issue2436.agda:4,8-9
-Agda doesn't like coinductive records with eta-equality.
-If you must, use pragma
-{-# ETA U #-}
+Issue2436.agda:8,3-15
+warning: -W[no]CoinductiveEtaRecord
+Not switching on eta-equality for coinductive records.
+If you must, use pragma {-# ETA U #-}
 when checking the definition of U
+Unsolved metas at the following locations:
+  Issue2436.agda:14,8-9

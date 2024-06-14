@@ -103,6 +103,7 @@ instance EmbPrj Warning where
     MissingTypeSignatureForOpaque a b           -> icodeN 54 MissingTypeSignatureForOpaque a b
     ConflictingPragmaOptions a b                -> icodeN 55 ConflictingPragmaOptions a b
     CustomBackendWarning a b                    -> icodeN 56 CustomBackendWarning a b
+    CoinductiveEtaRecord a                      -> icodeN 57 CoinductiveEtaRecord a
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -162,6 +163,7 @@ instance EmbPrj Warning where
     [54, a, b]           -> valuN MissingTypeSignatureForOpaque a b
     [55, a, b]           -> valuN ConflictingPragmaOptions a b
     [56, a, b]           -> valuN CustomBackendWarning a b
+    [57, a]              -> valuN CoinductiveEtaRecord a
     _ -> malformed
 
 instance EmbPrj OptionWarning where
@@ -492,6 +494,7 @@ instance EmbPrj WarningName where
     ConflictingPragmaOptions_                    -> 116
     ConstructorDoesNotFitInData_                 -> 117
     CustomBackendWarning_                        -> 118
+    CoinductiveEtaRecord_                        -> 119
 
   value = \case
     0   -> return OverlappingTokensWarning_
@@ -612,6 +615,7 @@ instance EmbPrj WarningName where
     116 -> return ConflictingPragmaOptions_
     117 -> return ConstructorDoesNotFitInData_
     118 -> return CustomBackendWarning_
+    119 -> return CoinductiveEtaRecord_
     _   -> malformed
 
 

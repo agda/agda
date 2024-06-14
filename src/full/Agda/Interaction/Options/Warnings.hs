@@ -278,6 +278,7 @@ data WarningName
   | NotInScope_
   | NotStrictlyPositive_
   | ConstructorDoesNotFitInData_
+  | CoinductiveEtaRecord_
   | UnsupportedIndexedMatch_
   | OldBuiltin_
   | BuiltinDeclaresIdentifier_
@@ -477,6 +478,7 @@ warningNameDescription = \case
   NotInScope_                      -> "Out of scope names."
   NotStrictlyPositive_             -> "Failed strict positivity checks."
   ConstructorDoesNotFitInData_     -> "Failed constructor size checks."
+  CoinductiveEtaRecord_            -> "Record type declared as both coinductive and having eta-equality."
   UnsupportedIndexedMatch_         -> "Failures to compute full equivalence when splitting on indexed family."
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
   BuiltinDeclaresIdentifier_       -> "`BUILTIN' pragmas that declare a new identifier but have been given an existing one."

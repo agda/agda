@@ -188,8 +188,8 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
           -- Andreas, 2016-09-20, issue #2197.
           -- Eta is inferred by the positivity checker.
           -- We should turn it off until it is proven to be safe.
-          haveEta      = maybe (Inferred $ NoEta patCopat) Specified eta
-          -- haveEta      = maybe (Inferred $ conInduction == Inductive && etaenabled) Specified eta
+          noEta    = Inferred $ NoEta patCopat
+          haveEta0 = maybe noEta Specified eta
           con = ConHead conName (IsRecord patCopat) conInduction $ map argFromDom fs
 
           -- A record is irrelevant if all of its fields are.
@@ -204,12 +204,13 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
 
       -- Andreas, 2017-01-26, issue #2436
       -- Disallow coinductive records with eta-equality
-      when (conInduction == CoInductive && theEtaEquality haveEta == YesEta) $ do
-        typeError . GenericDocError =<< do
-          sep [ "Agda doesn't like coinductive records with eta-equality."
-              , "If you must, use pragma"
-              , "{-# ETA" <+> prettyTCM name <+> "#-}"
-              ]
+      -- Andreas, 2024-06-14, PR #7300
+      -- Just make this a deadcode warning.
+      haveEta <-
+        if (conInduction == CoInductive && theEtaEquality haveEta0 == YesEta) then do
+          noEta <$ do
+            setCurrentRange eta0 $ warning $ CoinductiveEtaRecord name
+        else pure haveEta0
       reportSDoc "tc.rec" 30 $ "record constructor is " <+> prettyTCM con
 
       -- Jesper, 2021-05-26: Warn when declaring coinductive record

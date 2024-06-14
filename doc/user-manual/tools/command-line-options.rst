@@ -1595,6 +1595,10 @@ Error warnings
 Some warnings are fatal; those are errors Agda first ignores but eventually raises.
 Such *error warnings* are always on, they cannot be toggled by :option:`-W`.
 
+.. option:: CoinductiveEtaRecord
+
+     Declaring a ``record`` type as both ``coinductive`` and having ``eta-equality``.
+
 .. option:: CoInfectiveImport
 
      Importing a file not using e.g. :option:`--safe` from one which does.

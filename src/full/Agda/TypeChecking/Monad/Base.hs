@@ -4232,6 +4232,8 @@ data Warning
   | ConstructorDoesNotFitInData QName Sort Sort TCErr
       -- ^ Checking whether constructor 'QName' 'Sort' fits into @data@ 'Sort'
       --   produced 'TCErr'
+  | CoinductiveEtaRecord QName
+      -- ^ A record type declared as both @coinductive@ and having @eta-equality@.
 
   | UnsolvedMetaVariables    [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedInteractionMetas [Range]  -- ^ Do not use directly with 'warning'
@@ -4422,6 +4424,7 @@ warningName = \case
   NotInScopeW{}                -> NotInScope_
   NotStrictlyPositive{}        -> NotStrictlyPositive_
   ConstructorDoesNotFitInData{}-> ConstructorDoesNotFitInData_
+  CoinductiveEtaRecord{}       -> CoinductiveEtaRecord_
   UnsupportedIndexedMatch{}    -> UnsupportedIndexedMatch_
   OldBuiltin{}                 -> OldBuiltin_
   BuiltinDeclaresIdentifier{}  -> BuiltinDeclaresIdentifier_
