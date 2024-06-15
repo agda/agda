@@ -194,6 +194,10 @@ Changes to the meta-programming facilities.
   typeOfComma = testM
   ```
 
+* Quantity argument was added to `AGDADEFINITIONDATACONSTRUCTOR`. For erased
+  constructors this argument has a value of `quantity-0`, otherwise it's
+  `quantity-ω`.
+
 Library management
 ------------------
 

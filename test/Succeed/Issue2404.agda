@@ -10,8 +10,8 @@ pure = returnTC
 
 
 defToTerm : Name → Definition → List (Arg Term) → Term
-defToTerm _ (function cs) as = pat-lam cs as
-defToTerm _ (data-cons d) as = con d as
+defToTerm _ (function cs)   as = pat-lam cs as
+defToTerm _ (data-cons d _) as = con d as
 defToTerm _ _ _ = unknown
 
 derefImmediate : Term → TC Term
