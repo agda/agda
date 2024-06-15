@@ -355,7 +355,7 @@ coreBuiltins =
                                                                   ,builtinAgdaDefinitionPrimitive])
   , (builtinAgdaDefinitionFunDef             |-> BuiltinDataCons (tlist tclause --> tdefn))
   , (builtinAgdaDefinitionDataDef            |-> BuiltinDataCons (tnat --> tlist tqname --> tdefn))
-  , (builtinAgdaDefinitionDataConstructor    |-> BuiltinDataCons (tqname --> tdefn))
+  , (builtinAgdaDefinitionDataConstructor    |-> BuiltinDataCons (tqname --> tquantity --> tdefn))
   , (builtinAgdaDefinitionRecordDef          |-> BuiltinDataCons (tqname --> tlist (targ tqname) --> tdefn))
   , (builtinAgdaDefinitionPostulate          |-> BuiltinDataCons tdefn)
   , (builtinAgdaDefinitionPrimitive          |-> BuiltinDataCons tdefn)

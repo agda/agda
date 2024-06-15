@@ -325,7 +325,8 @@ below <reflection-tc-monad>`.
     data-type   : (pars : Nat) (cs : List Name) → Definition  -- parameters and constructors
     record-type : (c : Name) (fs : List (Arg Name)) →         -- c: name of record constructor
                   Definition                                  -- fs: fields
-    data-cons   : (d : Name) → Definition                     -- d: name of data type
+    data-cons   : (d : Name) (q : Quantity) → Definition      -- d: name of data type
+                                                              -- q: constructor quantity
     axiom       : Definition
     prim-fun    : Definition
 
