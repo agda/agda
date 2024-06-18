@@ -1433,11 +1433,11 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
       let (errs, ws) = List.partition unsafeDeclarationWarning warns
       -- If some of them are, we fail
       unless (null errs) $ do
-        warnings $ NicifierIssue <$> ws
-        tcerrs <- mapM warning_ $ NicifierIssue <$> errs
+        warnings $ ScopeCheckerIssue <$> ws
+        tcerrs <- mapM warning_ $ ScopeCheckerIssue <$> errs
         setCurrentRange errs $ typeError $ NonFatalErrors tcerrs
     -- Otherwise we simply record the warnings
-    mapM_ (\ w -> warning' (dwLocation w) $ NicifierIssue w) warns
+    mapM_ (\ w -> warning' (dwLocation w) $ ScopeCheckerIssue w) warns
   case result of
     Left (DeclarationException loc e) -> do
       reportSLn "error" 2 $ "Error raised at " ++ prettyShow loc
@@ -2111,7 +2111,7 @@ instance ToAbstract NiceDeclaration where
             _ -> __IMPOSSIBLE__
 
     d@NiceLoneConstructor{} -> withCurrentCallStack $ \ stk -> do
-      warning $ NicifierIssue (DeclarationWarning stk (InvalidConstructorBlock (getRange d)))
+      warning $ ScopeCheckerIssue (DeclarationWarning stk (InvalidConstructorBlock (getRange d)))
       pure []
 
     NiceOpaque kwr names decls -> do

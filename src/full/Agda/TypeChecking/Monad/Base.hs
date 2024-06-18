@@ -4217,7 +4217,7 @@ data ArgsCheckState a = ACState
 -- checking the document further and interacting with the user.
 
 data Warning
-  = NicifierIssue            DeclarationWarning
+  = ScopeCheckerIssue        DeclarationWarning
   | TerminationIssue         [TerminationError]
   | UnreachableClauses       QName [Range]
   -- ^ `UnreachableClauses f rs` means that the clauses in `f` whose ranges are rs
@@ -4392,7 +4392,7 @@ recordFieldWarningToError = \case
 warningName :: Warning -> WarningName
 warningName = \case
   -- special cases
-  NicifierIssue dw             -> declarationWarningName dw
+  ScopeCheckerIssue dw         -> declarationWarningName dw
   OptionWarning ow             -> optionWarningName ow
   ParseWarning pw              -> parseWarningName pw
   LibraryWarning lw            -> libraryWarningName lw

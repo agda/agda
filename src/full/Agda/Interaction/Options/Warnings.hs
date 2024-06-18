@@ -215,7 +215,7 @@ data WarningName
   | MultipleAttributes_
   -- Library Warnings
   | LibUnknownField_
-  -- Nicifer Warnings
+  -- Scope Checker Warnings
   | EmptyAbstract_
   | EmptyConstructor_
   | EmptyField_

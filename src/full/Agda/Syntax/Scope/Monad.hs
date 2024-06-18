@@ -84,7 +84,7 @@ printLocals v s = verboseS "scope.top" v $ do
   reportSLn "scope.top" v $ s ++ " " ++ prettyShow locals
 
 scopeWarning' :: CallStack -> DeclarationWarning' -> ScopeM ()
-scopeWarning' loc = warning' loc . NicifierIssue . DeclarationWarning loc
+scopeWarning' loc = warning' loc . ScopeCheckerIssue . DeclarationWarning loc
 
 scopeWarning :: HasCallStack => DeclarationWarning' -> ScopeM ()
 scopeWarning = withCallerCallStack scopeWarning'

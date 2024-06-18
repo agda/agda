@@ -47,7 +47,7 @@ instance EmbPrj Warning where
     SafeFlagWithoutKFlagPrimEraseEquality -> __IMPOSSIBLE__
     DuplicateRecordDirective a            -> icodeN 5 DuplicateRecordDirective a
     DeprecationWarning a b c              -> icodeN 6 DeprecationWarning a b c
-    NicifierIssue a                       -> icodeN 7 NicifierIssue a
+    ScopeCheckerIssue a                   -> icodeN 7 ScopeCheckerIssue a
     InversionDepthReached a               -> icodeN 8 InversionDepthReached a
     UserWarning a                         -> icodeN 9 UserWarning a
     AbsurdPatternRequiresNoRHS a          -> icodeN 10 AbsurdPatternRequiresNoRHS a
@@ -113,7 +113,7 @@ instance EmbPrj Warning where
     [4, a]               -> valuN UselessInline a
     [5, a]               -> valuN DuplicateRecordDirective a
     [6, a, b, c]         -> valuN DeprecationWarning a b c
-    [7, a]               -> valuN NicifierIssue a
+    [7, a]               -> valuN ScopeCheckerIssue a
     [8, a]               -> valuN InversionDepthReached a
     [9, a]               -> valuN UserWarning a
     [10, a]              -> valuN AbsurdPatternRequiresNoRHS a

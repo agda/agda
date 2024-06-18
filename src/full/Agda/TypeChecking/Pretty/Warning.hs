@@ -268,7 +268,7 @@ prettyWarning = \case
       [text old] ++ pwords "has been deprecated. Use" ++ [text new] ++ pwords
       "instead. This will be an error in Agda" ++ [text version <> "."]
 
-    NicifierIssue w -> pretty w
+    ScopeCheckerIssue w -> pretty w
 
     UserWarning str -> text (T.unpack str)
 
