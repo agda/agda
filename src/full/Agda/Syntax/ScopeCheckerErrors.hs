@@ -1,4 +1,4 @@
-module Agda.Syntax.Concrete.Definitions.Errors where
+module Agda.Syntax.ScopeCheckerErrors where
 
 import Control.DeepSeq
 
@@ -8,7 +8,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty
 import Agda.Syntax.Concrete
-import Agda.Syntax.Concrete.Definitions.Types
+import Agda.Syntax.Nice
 
 import Agda.Interaction.Options.Warnings
 

@@ -55,7 +55,7 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Warnings ( raiseWarningsOnUsage, runPM )
 
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Concrete.Definitions as W ( DeclarationWarning(..), DeclarationWarning'(..) )
+import Agda.Syntax.Translation.ConcreteToNice as W ( DeclarationWarning(..), DeclarationWarning'(..) )
 import Agda.Syntax.Common (Induction(..), pattern Ranged)
 import qualified Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Internal as I

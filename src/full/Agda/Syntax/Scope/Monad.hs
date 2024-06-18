@@ -36,7 +36,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract (ScopeCopyInfo(..))
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Fixity
-import Agda.Syntax.Concrete.Definitions ( DeclarationWarning(..) ,DeclarationWarning'(..) )
+import Agda.Syntax.Translation.ConcreteToNice ( DeclarationWarning(..) ,DeclarationWarning'(..) )
   -- TODO: move the relevant warnings out of there
 import Agda.Syntax.Scope.Base as A
 

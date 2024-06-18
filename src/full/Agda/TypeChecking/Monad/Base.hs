@@ -71,7 +71,7 @@ import {-# SOURCE #-} Agda.Compiler.Treeless.Pretty () -- Instances only
 import Agda.Syntax.Common
 import Agda.Syntax.Builtin (SomeBuiltin, BuiltinId, PrimitiveId)
 import qualified Agda.Syntax.Concrete as C
-import Agda.Syntax.Concrete.Definitions
+import Agda.Syntax.Translation.ConcreteToNice
   (NiceDeclaration, DeclarationWarning, declarationWarningName)
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I

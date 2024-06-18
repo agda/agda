@@ -35,7 +35,7 @@
 --     informative error messages.
 
 
-module Agda.Syntax.Concrete.Definitions
+module Agda.Syntax.Translation.ConcreteToNice
     ( NiceDeclaration(..)
     , NiceConstructor, NiceTypeSignature
     , Clause(..)
@@ -79,9 +79,9 @@ import Agda.Syntax.Concrete.Pretty () --instance only
 import Agda.Syntax.Concrete.Fixity
 import Agda.Syntax.Common.Pretty
 
-import Agda.Syntax.Concrete.Definitions.Errors
-import Agda.Syntax.Concrete.Definitions.Monad
-import Agda.Syntax.Concrete.Definitions.Types
+import Agda.Syntax.ScopeCheckerErrors
+import Agda.Syntax.Translation.ConcreteToNice.Monad
+import Agda.Syntax.Nice
 
 import Agda.Utils.AffineHole
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )

@@ -43,7 +43,7 @@ import qualified Text.PrettyPrint.Boxes as Boxes
 import Agda.Interaction.Options
 
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete.Definitions (notSoNiceDeclarations)
+import Agda.Syntax.Translation.ConcreteToNice (notSoNiceDeclarations)
 import Agda.Syntax.Concrete.Pretty (attributesForModality, prettyHiding, prettyRelevance)
 import Agda.Syntax.Notation
 import Agda.Syntax.Position

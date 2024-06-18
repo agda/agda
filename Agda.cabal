@@ -555,10 +555,6 @@ library
       Agda.Syntax.Common.Pretty
       Agda.Syntax.Common.Pretty.ANSI
       Agda.Syntax.Concrete.Attribute
-      Agda.Syntax.Concrete.Definitions
-      Agda.Syntax.Concrete.Definitions.Errors
-      Agda.Syntax.Concrete.Definitions.Monad
-      Agda.Syntax.Concrete.Definitions.Types
       Agda.Syntax.Concrete.Fixity
       Agda.Syntax.Concrete.Generic
       Agda.Syntax.Concrete.Glyph
@@ -584,6 +580,7 @@ library
       Agda.Syntax.Internal.SanityCheck
       Agda.Syntax.Internal.Univ
       Agda.Syntax.Literal
+      Agda.Syntax.Nice
       Agda.Syntax.Notation
       Agda.Syntax.Parser.Alex
       Agda.Syntax.Parser.Comments
@@ -603,10 +600,13 @@ library
       Agda.Syntax.Scope.Base
       Agda.Syntax.Scope.Flat
       Agda.Syntax.Scope.Monad
+      Agda.Syntax.ScopeCheckerErrors
       Agda.Syntax.TopLevelModuleName
       Agda.Syntax.TopLevelModuleName.Boot
       Agda.Syntax.Translation.AbstractToConcrete
       Agda.Syntax.Translation.ConcreteToAbstract
+      Agda.Syntax.Translation.ConcreteToNice
+      Agda.Syntax.Translation.ConcreteToNice.Monad
       Agda.Syntax.Translation.InternalToAbstract
       Agda.Syntax.Translation.ReflectedToAbstract
       Agda.Syntax.Treeless

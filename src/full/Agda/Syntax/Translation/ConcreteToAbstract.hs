@@ -53,7 +53,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Common
 import Agda.Syntax.Info as Info
-import Agda.Syntax.Concrete.Definitions as C
+import Agda.Syntax.Translation.ConcreteToNice as C
 import Agda.Syntax.Fixity
 import Agda.Syntax.Concrete.Fixity (DoWarn(..))
 import Agda.Syntax.Notation

@@ -8,7 +8,7 @@ import Agda.TypeChecking.Serialise.Base
 import Agda.TypeChecking.Serialise.Instances.Internal () --instance only
 import Agda.TypeChecking.Serialise.Instances.Abstract () --instance only
 
-import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..), DeclarationWarning'(..))
+import Agda.Syntax.Translation.ConcreteToNice (DeclarationWarning(..), DeclarationWarning'(..))
 import Agda.Syntax.Parser.Monad
 import Agda.TypeChecking.Monad.Base
 import qualified Agda.TypeChecking.Monad.Base.Warning as W
