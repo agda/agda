@@ -9,7 +9,7 @@ module Agda.Utils.Applicative
        )
        where
 
-import Control.Applicative
+import Control.Applicative ( Alternative(empty) )
 import Data.Monoid ( Alt(..) )
 import Data.Traversable ( for )
 

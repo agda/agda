@@ -14,7 +14,7 @@
 
 module Agda.Utils.Char where
 
-import Data.Char
+import Data.Char ( generalCategory, GeneralCategory(Surrogate) )
 
 -- | The unicode replacement character � .
 replacementChar :: Char

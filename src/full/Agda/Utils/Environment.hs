@@ -7,9 +7,9 @@ module Agda.Utils.Environment
   , expandEnvVarTelescope
   ) where
 
-import Data.Char
-import Data.Maybe
-import System.Environment
+import Data.Char ( isAlpha, isAlphaNum )
+import Data.Maybe ( fromMaybe )
+import System.Environment ( getEnvironment )
 import System.Directory ( getHomeDirectory )
 
 expandEnvironmentVariables :: String -> IO String
