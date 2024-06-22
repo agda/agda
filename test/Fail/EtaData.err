@@ -1,8 +1,12 @@
-EtaData.agda:8,1-17
+EtaData.agda:8,1-14
+warning: -W[no]UselessPragma
+ETA pragma conflicts with no-eta-equality declaration
+when checking the pragma ETA R
+EtaData.agda:17,1-17
 warning: -W[no]UselessPragma
 ETA pragma is only applicable to coinductive records
 when checking the pragma ETA Prod
-EtaData.agda:25,10-14
+EtaData.agda:34,10-14
 x != pair (fst x) (snd x) of type Prod A B
 when checking that the expression refl has type
 x ≡ pair (fst x) (snd x)
