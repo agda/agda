@@ -1,0 +1,13 @@
+Overlap2.agda:23,3-25
+warning: -W[no]UselessPragma
+This OVERLAPS pragma must appear in the same module as the
+definition of C123b
+when checking the pragma OVERLAPS [C123b]
+
+———— All done; warnings encountered ————————————————————————
+
+Overlap2.agda:23,3-25
+warning: -W[no]UselessPragma
+This OVERLAPS pragma must appear in the same module as the
+definition of C123b
+when checking the pragma OVERLAPS [C123b]

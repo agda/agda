@@ -799,14 +799,15 @@ checkPragma r p = do
         A.OptionsPragma{} -> uselessPragma $ "OPTIONS pragma only allowed at beginning of file, before top module declaration"
         A.DisplayPragma f ps e -> checkDisplayPragma f ps e
         A.OverlapPragma q new -> do
-          def <- getConstInfo q
-
-          unlessM ((q `isInModule`) <$> currentModule) $
-            typeError . GenericDocError =<< fsep (
+          ifNotM ((q `isInModule`) <$> currentModule)
+            (uselessPragma =<< fsep (
               pwords "This" ++ [pretty new] ++
               pwords "pragma must appear in the same module as the definition of" ++
-              [prettyTCM q])
+              [prettyTCM q]))
 
+            {- else -} do
+
+          def <- getConstInfo q
           case defInstance def of
             Just i@InstanceInfo{ instanceOverlap = DefaultOverlap } ->
               modifyGlobalDefinition q \x -> x { defInstance = Just i{ instanceOverlap = new } }
