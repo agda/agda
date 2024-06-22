@@ -750,7 +750,8 @@ checkPrimitive i x (Arg info e) =
 
 -- | Check a pragma.
 checkPragma :: Range -> A.Pragma -> TCM ()
-checkPragma r p =
+checkPragma r p = do
+    let uselessPragma = warning . UselessPragma r
     traceCall (CheckPragma r p) $ case p of
         A.BuiltinPragma rb x
           | any isUntypedBuiltin b -> return ()
@@ -775,26 +776,26 @@ checkPragma r p =
           def <- ignoreAbstractMode $ getConstInfo x
           case theDef def of
             Function{} -> markStatic x
-            _          -> warning $ UselessPragma r "STATIC directive only applies to functions"
+            _          -> uselessPragma "STATIC directive only applies to functions"
         A.InjectivePragma x -> markInjective x
         A.InjectiveForInferencePragma x -> do
           def <- ignoreAbstractMode $ getConstInfo x
           case theDef def of
             Function{} -> markFirstOrder x
-            _ -> warning $ UselessPragma r "INJECTIVE_FOR_INFERENCE directive only applies to functions"
+            _ -> uselessPragma "INJECTIVE_FOR_INFERENCE directive only applies to functions"
         A.NotProjectionLikePragma qn -> do
           def <- ignoreAbstractMode $ getConstInfo qn
           case theDef def of
             it@Function{} ->
               modifyGlobalDefinition qn $ \def -> def { theDef = it { funProjection = Left NeverProjection } }
-            _ -> warning $ UselessPragma r "NOT_PROJECTION_LIKE directive only applies to functions"
+            _ -> uselessPragma "NOT_PROJECTION_LIKE directive only applies to functions"
         A.InlinePragma b x -> do
           def <- ignoreAbstractMode $ getConstInfo x
           case theDef def of
             Function{} -> markInline b x
             d@Constructor{ conSrcCon } | copatternMatchingAllowed conSrcCon
               -> modifyGlobalDefinition x $ set lensTheDef d{ conInline = b }
-            _ -> warning $ UselessPragma r $ P.text $ applyUnless b ("NO" ++) "INLINE directive only works on functions or constructors of records that allow copattern matching"
+            _ -> uselessPragma $ P.text $ applyUnless b ("NO" ++) "INLINE directive only works on functions or constructors of records that allow copattern matching"
         A.OptionsPragma{} -> typeError $ GenericError $ "OPTIONS pragma only allowed at beginning of file, before top module declaration"
         A.DisplayPragma f ps e -> checkDisplayPragma f ps e
         A.OverlapPragma q new -> do
@@ -812,19 +813,15 @@ checkPragma r p =
             Just InstanceInfo{ instanceOverlap = old } -> typeError $ DuplicateOverlapPragma q old new
             Nothing -> typeError . GenericDocError =<< pretty new <+> "pragma can only be applied to instances"
 
-        A.EtaPragma r -> do
-          let noRecord = typeError $ GenericError $
-                "ETA pragma is only applicable to coinductive records"
-          caseMaybeM (isRecord r) noRecord $ \case
-            Record{ recInduction = ind, recEtaEquality' = eta } -> do
-              unless (ind == Just CoInductive) $ noRecord
-              if | Specified NoEta{} <- eta -> typeError $ GenericError $
-                     "ETA pragma conflicts with no-eta-equality declaration"
-                 | otherwise -> return ()
+        A.EtaPragma q -> isRecord q >>= \case
+            Nothing -> noRecord
+            Just Record{ recInduction = ind, recEtaEquality' = eta }
+              | ind /= Just CoInductive  -> noRecord
+              | Specified NoEta{} <- eta -> uselessPragma "ETA pragma conflicts with no-eta-equality declaration"
+              | otherwise -> modifyRecEta q $ const $ Specified YesEta
             _ -> __IMPOSSIBLE__
-          modifySignature $ updateDefinition r $ updateTheDef $ \case
-            def@Record{} -> def { recEtaEquality' = Specified YesEta }
-            _ -> __IMPOSSIBLE__
+          where
+            noRecord = uselessPragma "ETA pragma is only applicable to coinductive records"
 
 -- | Type check a bunch of mutual inductive recursive definitions.
 --

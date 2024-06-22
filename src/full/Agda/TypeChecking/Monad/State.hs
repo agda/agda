@@ -292,6 +292,12 @@ setMatchableSymbols f matchables =
     where
       setMatchable def = def { defMatchable = Set.insert f $ defMatchable def }
 
+-- ** 'modify' methods for the signature
+
+modifyRecEta :: MonadTCState m => QName -> (EtaEquality -> EtaEquality) -> m ()
+modifyRecEta q f =
+  modifySignature $ updateDefinition q $ over (lensTheDef . lensRecord . lensRecEta) f
+
 -- ** Modifiers for parts of the signature
 
 lookupDefinition :: QName -> Signature -> Maybe Definition

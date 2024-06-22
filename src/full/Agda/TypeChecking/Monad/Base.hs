@@ -2790,6 +2790,10 @@ lensRecTel :: Lens' RecordData Telescope
 lensRecTel f r =
   f (_recTel r) <&> \ tel -> r { _recTel = tel }
 
+lensRecEta :: Lens' RecordData EtaEquality
+lensRecEta f r =
+  f (_recEtaEquality' r) <&> \ eta -> r { _recEtaEquality' = eta }
+
 -- Pretty printing definitions
 
 instance Pretty Definition where

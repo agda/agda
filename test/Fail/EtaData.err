@@ -1,3 +1,8 @@
 EtaData.agda:8,1-17
+warning: -W[no]UselessPragma
 ETA pragma is only applicable to coinductive records
 when checking the pragma ETA Prod
+EtaData.agda:25,10-14
+x != pair (fst x) (snd x) of type Prod A B
+when checking that the expression refl has type
+x ≡ pair (fst x) (snd x)

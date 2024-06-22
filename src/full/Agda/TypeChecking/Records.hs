@@ -515,9 +515,7 @@ isGeneratedRecordConstructor c = ignoreAbstractMode $ do
 -- | Turn off eta for unguarded recursive records.
 --   Projections do not preserve guardedness.
 unguardedRecord :: QName -> PatternOrCopattern -> TCM ()
-unguardedRecord q pat = modifySignature $ updateDefinition q $ updateTheDef $ \case
-  r@Record{} -> r { recEtaEquality' = setEtaEquality (recEtaEquality' r) $ NoEta pat }
-  _ -> __IMPOSSIBLE__
+unguardedRecord q pat = modifyRecEta q \ eta -> setEtaEquality eta $ NoEta pat
 
 -- | Turn on eta for non-recursive and inductive guarded recursive records,
 --   unless user declared otherwise.
@@ -532,9 +530,7 @@ updateEtaForRecord q = whenM etaEnabled $ do
       | otherwise -> False
     _ -> __IMPOSSIBLE__
 
-  when switchEta $ do
-    modifySignature $ updateDefinition q $ over (lensTheDef . lensRecord) $ \ d ->
-      d{ _recEtaEquality' = Inferred YesEta }
+  when switchEta $ modifyRecEta q $ const $ Inferred YesEta
 
 -- | Turn on eta for inductive guarded recursive records.
 --   Projections do not preserve guardedness.
