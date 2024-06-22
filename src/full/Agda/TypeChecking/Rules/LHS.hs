@@ -1576,8 +1576,7 @@ checkMatchingAllowed :: (MonadTCError m)
   -> m ()
 checkMatchingAllowed d = \case
   IsRecord InductionAndEta { recordInduction=ind, recordEtaEquality=eta }
-    | Just CoInductive <- ind -> typeError $
-        GenericError "Pattern matching on coinductive types is not allowed"
+    | Just CoInductive <- ind -> typeError SplitOnCoinductive
     | not $ patternMatchingAllowed eta -> typeError $ SplitOnNonEtaRecord d
     | otherwise -> return ()
   IsData -> return ()

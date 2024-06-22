@@ -255,6 +255,7 @@ errorString = \case
   TooManyFields{}                          -> "TooManyFields"
   TooManyPolarities{}                      -> "TooManyPolarities"
   RecursiveRecordNeedsInductivity{}        -> "RecursiveRecordNeedsInductivity"
+  SplitOnCoinductive{}                     -> "SplitOnCoinductive"
   SplitOnIrrelevant{}                      -> "SplitOnIrrelevant"
   SplitOnUnusableCohesion{}                -> "SplitOnUnusableCohesion"
   -- UNUSED: -- SplitOnErased{}                          -> "SplitOnErased"
@@ -626,6 +627,8 @@ instance PrettyTCM TypeError where
     FunctionTypeInSizeUniv v -> fsep $
       pwords "Functions may not return sizes, thus, function type " ++
       [ prettyTCM v ] ++ pwords " is illegal"
+
+    SplitOnCoinductive -> fsep $ pwords "Pattern matching on coinductive types is not allowed"
 
     SplitOnIrrelevant t -> fsep $
       pwords "Cannot pattern match against" ++ [text $ verbalize $ getRelevance t] ++
