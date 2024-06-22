@@ -811,7 +811,7 @@ checkPragma r p = do
             Just i@InstanceInfo{ instanceOverlap = DefaultOverlap } ->
               modifyGlobalDefinition q \x -> x { defInstance = Just i{ instanceOverlap = new } }
             Just InstanceInfo{ instanceOverlap = old } -> typeError $ DuplicateOverlapPragma q old new
-            Nothing -> typeError . GenericDocError =<< pretty new <+> "pragma can only be applied to instances"
+            Nothing -> uselessPragma =<< pretty new <+> "pragma can only be applied to instances"
 
         A.EtaPragma q -> isRecord q >>= \case
             Nothing -> noRecord

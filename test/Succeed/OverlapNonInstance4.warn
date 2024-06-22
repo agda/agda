@@ -1,0 +1,11 @@
+OverlapNonInstance4.agda:4,1-21
+warning: -W[no]UselessPragma
+INCOHERENT pragma can only be applied to instances
+when checking the pragma INCOHERENT [X]
+
+———— All done; warnings encountered ————————————————————————
+
+OverlapNonInstance4.agda:4,1-21
+warning: -W[no]UselessPragma
+INCOHERENT pragma can only be applied to instances
+when checking the pragma INCOHERENT [X]
