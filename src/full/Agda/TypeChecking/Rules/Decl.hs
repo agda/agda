@@ -768,10 +768,11 @@ checkPragma r p = do
         A.CompilePragma b x s -> do
           -- Check that x resides in the same module (or a child) as the pragma.
           x' <- defName <$> getConstInfo x  -- Get the canonical name of x.
-          unlessM ((x' `isInModule`) <$> currentModule) $
-            typeError $ GenericError $
+          ifM ((x' `isInModule`) <$> currentModule)
+            {- then -} (addPragma (rangedThing b) x s)
+            {- else -} $ uselessPragma
               "COMPILE pragmas must appear in the same module as their corresponding definitions,"
-          addPragma (rangedThing b) x s
+
         A.StaticPragma x -> do
           def <- ignoreAbstractMode $ getConstInfo x
           case theDef def of
