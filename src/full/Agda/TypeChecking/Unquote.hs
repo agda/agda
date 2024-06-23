@@ -855,6 +855,8 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
       a <- unquote a
       fmap (strengthen impossible) $ extendCxt s a $ do
         v <- evalTCM $ raise 1 m
+        -- 2024-04-20: free variable analysis only really makes sense on normal forms; see #7227
+        v <- normalise v
         when (freeIn 0 v) $ liftTCM $ genericDocError =<<
           hcat ["Local variable '", prettyTCM (var 0), "' escaping in result of extendContext:"]
             <?> prettyTCM v
