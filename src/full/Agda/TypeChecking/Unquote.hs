@@ -1009,7 +1009,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
           (A.GeneralizeTel Map.empty tel) e'
         primUnitUnit
 
-    tcDefineData :: QName -> [(QName, R.Type)] -> UnquoteM Term
+    tcDefineData :: QName -> [(QName, (Quantity, R.Type))] -> UnquoteM Term
     tcDefineData x cs = inOriginalContext $ (setDirty >>) $ liftTCM $ do
       caseEitherM (getConstInfo' x)
         (const $ genericError $ "Missing declaration for " ++ prettyShow x) $ \def -> do
@@ -1021,7 +1021,7 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
         -- For some reasons, reifying parameters and adding them to the context via
         -- `addContext` before `toAbstract_` is different from substituting the type after
         -- `toAbstract_, so some dummy parameters are added and removed later.
-        es <- mapM (toAbstract_ . addDummy npars . snd) cs
+        es <- mapM (toAbstract_ . addDummy npars . snd . snd) cs
         alwaysReportSDoc "tc.unquote.def" 10 $ vcat $
           [ "declaring constructors of" <+> prettyTCM x <+> ":" ] ++ map prettyA es
 
@@ -1036,8 +1036,9 @@ evalTCM v = Bench.billTo [Bench.Typing, Bench.Reflection] do
         ac <- asksTC (^. lensIsAbstract)
         let i = mkDefInfo (nameConcrete $ qnameName x) noFixity' PublicAccess ac noRange
             conNames = map fst cs
-            toAxiom c e = A.Axiom ConName i defaultArgInfo Nothing c e
-            as = zipWith toAxiom conNames es'
+            conQuantities = map (fst . snd) cs
+            toAxiom c q e = A.Axiom ConName i (setQuantity q defaultArgInfo) Nothing c e
+            as = zipWith3 toAxiom conNames conQuantities es'
             lams = map (\case {A.TBind _ tac (b :| []) _ -> A.DomainFree (tbTacticAttr tac) b
                               ;_ -> __IMPOSSIBLE__ }) tel
         alwaysReportSDoc "tc.unquote.def" 10 $ vcat $
