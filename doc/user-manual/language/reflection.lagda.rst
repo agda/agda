@@ -478,9 +478,9 @@ following primitive operations::
     declareData      : Name → Nat → Type → TC ⊤
 
     -- Define a declared datatype. The datatype must have been declared using
-    -- 'declareData`. The second argument is a list of pairs in which each pair
-    -- is the name of a constructor and its type.
-    defineData       : Name → List (Σ Name (λ _ → Type)) → TC ⊤
+    -- 'declareData`. The second argument is a list of triples in which each triple
+    -- is the name of a constructor, its erasure status and its type.
+    defineData       : Name → List (Σ Name (λ _ → Σ Quantity (λ _ → Type))) → TC ⊤
 
     -- Define a declared function. The function may have been declared using
     -- 'declareDef' or with an explicit type signature in the program.

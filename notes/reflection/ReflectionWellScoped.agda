@@ -902,7 +902,7 @@ declareData : Name → (pars : Nat) → Type n → TC n ⊤
 declareData x pars t .unTC = R.declareData x pars (unscopeTerm t)
 
 defineData : Name → (pars : Nat) → List (Σ Name (λ _ → Type (n + pars))) → TC n ⊤
-defineData x pars args .unTC = R.defineData x (map (λ (n , t) → n , unscopeTerm t) args)
+defineData x pars args .unTC = R.defineData x (map (λ (n , t) → n , quantity-ω , unscopeTerm t) args)
 
 defineFun : Name → List (Clause n) → TC n ⊤
 defineFun n lc .unTC = R.defineFun n (map unscopeClause lc)
