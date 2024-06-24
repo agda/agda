@@ -1371,6 +1371,9 @@ instance PrettyTCM TypeError where
       BlockedOnMeta _ m -> fsep $
         pwords $ "Unquote failed because of unsolved meta variables."
 
+      PatLamWithoutClauses _ -> fsep $
+        pwords "Cannot unquote pattern lambda without clauses. Use a single `absurd-clause` for absurd lambdas."
+
       UnquotePanic err -> __IMPOSSIBLE__
 
     DeBruijnIndexOutOfScope i EmptyTel [] -> fsep $
