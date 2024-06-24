@@ -510,7 +510,13 @@ instance Unquote R.Term where
           , (c `isCon` getBuiltin' builtinAgdaTermMeta,    R.Meta    <$> unquoteN x <*> unquoteN y)
           , (c `isCon` getBuiltin' builtinAgdaTermLam,     R.Lam     <$> unquoteN x <*> unquoteN y)
           , (c `isCon` getBuiltin' builtinAgdaTermPi,      mkPi      <$> unquoteN x <*> unquoteN y)
-          , (c `isCon` getBuiltin' builtinAgdaTermExtLam,  R.ExtLam  <$> (List1.fromListSafe __IMPOSSIBLE__ <$> unquoteN x) <*> unquoteN y)
+          , (c `isCon` getBuiltin' builtinAgdaTermExtLam,  do
+              ps <- unquoteN x
+              es <- unquoteN y
+              case ps of
+                []     -> throwError $ PatLamWithoutClauses t
+                p : ps -> pure $ R.ExtLam (p :| ps) es
+            )
           ]
           __IMPOSSIBLE__
         where

@@ -4606,6 +4606,7 @@ data UnquoteError
   | DefInsteadOfCon QName String String
   | NonCanonical String I.Term
   | BlockedOnMeta TCState Blocker
+  | PatLamWithoutClauses I.Term
   | UnquotePanic String
   deriving (Show, Generic)
 
