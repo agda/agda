@@ -61,6 +61,7 @@ import qualified Data.Text as T
 import System.Directory
 import System.FilePath
 import System.Environment
+import System.IO.Error ( isPermissionError )
 
 import Agda.Interaction.Library.Base
 import Agda.Interaction.Library.Parse
@@ -191,7 +192,7 @@ findProjectConfig'
 findProjectConfig' root = do
   getCachedProjectConfig root >>= \case
     Just conf -> return conf
-    Nothing   -> do
+    Nothing   -> handlePermissionException do
       libFiles <- liftIO $ getDirectoryContents root >>=
         filterM (\file -> and2M
           (pure $ takeExtension file == ".agda-lib")
@@ -215,6 +216,13 @@ findProjectConfig' root = do
           return conf
 
   where
+    -- Andreas, 2024-06-26, issue #7331:
+    -- In case of missing permission we terminate our search for the project file
+    -- with the default value.
+    handlePermissionException :: LibErrorIO ProjectConfig -> LibErrorIO ProjectConfig
+    handlePermissionException = flip catchIO \ e ->
+      if isPermissionError e then return DefaultProjectConfig else liftIO $ E.throwIO e
+
     -- Note that "going up" one directory is OS dependent
     -- if the directory is a symlink.
     --
