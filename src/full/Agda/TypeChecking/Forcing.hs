@@ -80,9 +80,11 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
+import Agda.Utils.LeafTree
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Syntax.Common.Pretty (prettyShow)
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -112,9 +114,13 @@ computeForcingAnnotations c t =
         n = size tel
         xs :: [(Modality, Nat)]
         xs = DL.toList $ forcedVariables vs
-        xs' :: IntMap [Modality]
-        xs' = IntMap.map DL.toList $ IntMap.fromListWith (<>) $
-              map (\(m, i) -> (i, DL.singleton m)) xs
+        -- xs': Map from variable to modalities it is used with in target.
+        xs' :: IntMap (LeafTree Modality)
+          -- Andreas, 2024-06-26: We only consume the map values with 'any',
+          -- so we best store these in a unbalanced binary tree ('LeafTree')
+          -- with constant time append.
+        xs' = IntMap.fromListWith (<>) $
+              map (\(m, i) -> (i, singleton m)) xs
         -- #2819: We can only mark an argument as forced if it appears in the
         -- type with a relevance below (i.e. more relevant) than the one of the
         -- constructor argument. Otherwise we can't actually get the value from

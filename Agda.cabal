@@ -795,6 +795,7 @@ library
       Agda.Utils.IO.TempFile
       Agda.Utils.IO.UTF8
       Agda.Utils.IORef
+      Agda.Utils.LeafTree
       Agda.Utils.Lens
       Agda.Utils.Lens.Examples
       Agda.Utils.List
