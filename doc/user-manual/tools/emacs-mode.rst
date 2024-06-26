@@ -181,6 +181,9 @@ Global commands
 :kbd:`C-c C-x C-s`
      Switch to a different Agda version
 
+:kbd:`C-c C-x C-x`
+     When in a literate Agda file, switch to the associated mode, e.g. LaTeX.
+
 .. _emacs-context-sensitive-commands:
 
 Commands in context of a goal
