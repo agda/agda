@@ -209,9 +209,6 @@ data PreScopeState = PreScopeState
   , stPreImportedBuiltins   :: !(BuiltinThings PrimFun)
   , stPreImportedDisplayForms :: !DisplayForms
     -- ^ Display forms added by someone else to imported identifiers
-  , stPreForeignCode        :: !(Map BackendName ForeignCodeStack)
-    -- ^ @{-\# FOREIGN \#-}@ code that should be included in the compiled output.
-    -- Does not include code for imported modules.
   , stPreFreshInteractionId :: !InteractionId
   , stPreImportedUserWarnings :: !(Map A.QName Text)
     -- ^ Imported @UserWarning@s, not to be stored in the @Interface@
@@ -276,6 +273,9 @@ data PostScopeState = PostScopeState
     --   context of the module parameters.
   , stPostImportsDisplayForms :: !DisplayForms
     -- ^ Display forms we add for imported identifiers
+  , stPostForeignCode         :: !(Map BackendName ForeignCodeStack)
+    -- ^ @{-\# FOREIGN \#-}@ code that should be included in the compiled output.
+    -- Does not include code for imported modules.
   , stPostCurrentModule       ::
       !(Maybe (ModuleName, TopLevelModuleName))
     -- ^ The current module is available after it has been type
@@ -432,7 +432,6 @@ initPreScopeState = PreScopeState
   , stPrePragmaOptions        = defaultInteractionOptions
   , stPreImportedBuiltins     = Map.empty
   , stPreImportedDisplayForms = HMap.empty
-  , stPreForeignCode          = Map.empty
   , stPreFreshInteractionId   = 0
   , stPreImportedUserWarnings = Map.empty
   , stPreLocalUserWarnings    = Map.empty
@@ -483,6 +482,7 @@ initPostScopeState = PostScopeState
   , stPostLocalPartialDefs     = Set.empty
   , stPostOpaqueBlocks         = Map.empty
   , stPostOpaqueIds            = Map.empty
+  , stPostForeignCode          = Map.empty
   }
 
 initState :: TCState
@@ -553,8 +553,8 @@ stImportedBuiltins f s =
 
 stForeignCode :: Lens' TCState (Map BackendName ForeignCodeStack)
 stForeignCode f s =
-  f (stPreForeignCode (stPreScopeState s)) <&>
-  \x -> s {stPreScopeState = (stPreScopeState s) {stPreForeignCode = x}}
+  f (stPostForeignCode (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostForeignCode = x}}
 
 stFreshInteractionId :: Lens' TCState InteractionId
 stFreshInteractionId f s =
